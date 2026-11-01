@@ -604,6 +604,10 @@
 
 /* While Mosi teaches, only what he means is live: the rest waits, dimmed, and takes no taps */
 .veiddu.teaching :is(.veiddu-hand .veiddu-card, .veiddu-pond, .veiddu-fish-button, .veiddu-uggedla, .veiddu-mosi):not(.live) { opacity: .38; pointer-events: none; }
+/* Steps 1 and 3 are about his catch: its pairs glow and breathe (table.js sets .live on .veiddu-me-catch for them) */
+.veiddu.teaching .veiddu-me-catch.live .veiddu-catch { animation: eitt-pulse 1.1s ease-in-out infinite; filter: drop-shadow(0 0 10px var(--gold)) drop-shadow(0 0 22px var(--gold)); }
+/* Mosi's longer sentences (the tutorial's steps): a wider bubble in smaller letters, starting further left over the cards */
+.veiddu-advice p.long { max-width: 13em; font-size: clamp(21px, 2.3cqmin, 28px); }
 
 /* ---- The live table: whose turn it is, a mind thinking, a seat that is out (table.js sets .turn, .thinking and .out) --------------- */
 

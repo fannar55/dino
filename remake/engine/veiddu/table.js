@@ -1,4 +1,4 @@
-import { KINDS, kindOf } from './cards.js';
+import { KINDS, kindOf, makeDeck } from './cards.js';
 import { newGame, ask, fish, legalTargets, holds } from './rules.js';
 import { SEAT, createMind, bestAsk, inRoundSkill, VEIDDU_SKILL_START } from './minds.js';
 import { afterRound } from '../eitt/skill.js';
@@ -27,6 +27,12 @@ import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCa
 //     "Þú átt leik, Egill!", at most once in 20 s. Mosi's button gives the same advice at once, with his reason.
 //   - The end: the winner's words (all the winners on a tie), confetti and Uggeðla's sticker for a child who won or tied, "Spilum
 //     aftur?", and the minds' skill updated for the next round (skill.js afterRound) when the save keeps one.
+//   - The tutorial ("Kennsla", spec section 8): the first time the game opens (a save that has not got tutorialDone), and whenever the
+//     child taps "Kennsla". Mosi teaches one short game from a stacked deck (TUTORIAL_STACK), a step at a time, said and shown in his
+//     bubble (TUTORIAL): the pair Egill is dealt goes to his catch, he asks Uggeðla and gets a card, which becomes a pair, he asks Mosi
+//     and fishes, Mosi asks him and he gives, and he remembers that Uggeðla asked for a frog. The two minds ask what TUTORIAL_MINDS says;
+//     only what a step means is live (lit; the rest is dimmed and takes no taps). "Sleppa" ends it at any step. It is no round: no
+//     sticker, nothing for the minds' skill, and what it ends in is a real round, after Mosi's "Nú spilum við alvöruleik!".
 // Input waits while a card flies or a mind moves: every handler answers only the phase it serves. Every line shows as text in its bubble
 // for lineMs(text), or for as long as its recording takes if that is longer: lineDone() is the one place the pace of a line lives, and
 // nothing goes on (a mind's next step, the next bubble) until the line has had its time and its voice has ended. The voices are the
@@ -66,6 +72,7 @@ const AUTO_MS = 1200; // at &auto=1 the child's moves wait this long
 const VOICE_TAIL_MS = 400; // a bubble stays this long after its recording ends, if the text's own time (lineMs) has run out
 const NUDGE_WITHIN_MS = 2500; // "Þú átt leik, Egill!" that has waited this long for the voice is dropped
 const NAME_WITHIN_MS = 2500; // and so is a name that has waited this long for the voice
+const MIN_STEP_MS = 3200; // a tutorial step that needs nothing from the child stays at least this long (its line, if longer)
 
 /**
  * How long a line shows when it is not spoken: about 1.6 s and 60 ms for each letter. A spoken line shows for this long too, or for
@@ -92,6 +99,53 @@ export const WHY = {
   fish: 'Tjörnin kallar! Veiddu spil.',
 };
 
+// The tutorial's game. The deck is stacked (the first card is dealt first, round the table from Egill: his, Uggeðla's, Mosi's), so that
+// the six steps come in their order and nobody has a pair but Egill:
+//   Egill  snigill x2 (the pair he is dealt: step 1), skjaldbaka, drekafluga, salamandra
+//   Uggeðla  skjaldbaka (step 2: Egill asks her and gets it, and the pair goes down: step 3), froskur (step 6), three fish
+//   Mosi   salamandra (step 5: he asks Egill for it), vatnalaesingi, three fish; he has no drekafluga (step 4: Egill asks him, and fishes)
+// then the pond gives, in order: froskur (Egill's fish, which does not pair, so the turn goes on to Uggeðla), brunnklukka (hers), snigill
+// (Mosi's). The acts, in order: Egill asks Uggeðla for the skjaldbaka (yes, pair); Egill asks Mosi for the drekafluga (no) and fishes the
+// froskur; Uggeðla asks Mosi for the froskur (no) and fishes; Mosi asks Egill for the salamandra (yes, pair), then Uggeðla for the
+// vatnalaesingi (no) and fishes; Egill is on turn and Uggeðla asked for a froskur, which he holds: he asks her (step 6, yes, pair).
+const DEALT = [
+  'snigill-1', 'skjaldbaka-2', 'salamandra-1',
+  'snigill-2', 'froskur-1', 'fiskur-blar-1',
+  'skjaldbaka-1', 'fiskur-raudur-1', 'fiskur-appelsinugulur-1',
+  'drekafluga-1', 'fiskur-gulur-1', 'fiskur-fjolublar-1',
+  'salamandra-2', 'fiskur-graenn-1', 'vatnalaesingi-1',
+];
+const FISHED = ['froskur-2', 'brunnklukka-1', 'snigill-3'];
+/** The tutorial's deck in draw order, as newGame({ stack }) takes it: the cards dealt, the three the pond gives first, and the rest. */
+export function tutorialStack() {
+  const deck = makeDeck();
+  const first = [...DEALT, ...FISHED].map(id => deck.find(card => card.id === id));
+  return [...first, ...deck.filter(card => !first.includes(card))];
+}
+
+/**
+ * Mosi's steps, each a line of the veiddu set (veiddu_tut_<step> in assets/audio/veiddu/lines-source.json) and its words. `live` is what
+ * the child may do while the step stands, and only that: { kind, target } to lift the card of that kind and ask that seat, { give } to
+ * give that kind when it is asked for. A step with no `live` is only said (and shown): it goes on by itself once said. Step 4 goes on from
+ * the question to the pond (the "no" calls it), and step 3 is said as the pair flies.
+ */
+export const TUTORIAL = [
+  { id: 'veiddu_tut_pairs', text: 'Tvö eins spil eru par. Safnaðu flestum pörum!' },
+  { id: 'veiddu_tut_ask', text: 'Pikkaðu á skjaldbökuna. Pikkaðu svo á Uggeðlu og spurðu hana!', live: { kind: 'skjaldbaka', target: UGGEDLA } },
+  { id: 'veiddu_tut_laid', text: 'Þú fékkst skjaldböku! Nú áttu par. Parið fer í aflann.' },
+  { id: 'veiddu_tut_fish', text: 'Spurðu Mosa um drekaflugu. Hann á hana ekki. Þá ferðu að veiða í tjörninni!', live: { kind: 'drekafluga', target: MOSI } },
+  { id: 'veiddu_tut_give', text: 'Nú spyr ég þig! Pikkaðu á spilið sem ég bið um.', live: { give: 'salamandra' } },
+  { id: 'veiddu_tut_remember', text: 'Uggeðla bað um frosk. Spurðu hana!', live: { kind: 'froskur', target: UGGEDLA } },
+];
+/** Mosi's word as the two minds begin to play ("remember what we ask for"), and as the tutorial ends. */
+export const LISTEN = { id: 'veiddu_tut_listen', text: 'Nú spila Uggeðla og ég. Mundu hvað við biðjum um!' };
+export const REAL = { id: 'veiddu_tut_real', text: 'Nú spilum við alvöruleik!' };
+/** What each mind asks in the tutorial, in order; the rest of its turn (the fish) is the rules'. */
+export const TUTORIAL_MINDS = {
+  [UGGEDLA]: [{ target: MOSI, kind: 'froskur' }],
+  [MOSI]: [{ target: CHILD, kind: 'salamandra' }, { target: UGGEDLA, kind: 'vatnalaesingi' }],
+};
+
 /** The winners' words: "Þú vannst!", "Mosi vann!", and on a tie all of them ("Þú og Uggeðla unnuð jafnt!"). */
 function winWords(winners) {
   if (winners.length === 1) return winners[0] === CHILD ? 'Þú vannst!' : `${NAMES[winners[0]]} vann!`;
@@ -112,14 +166,15 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
  * what is spoken, and without it the game speaks in bubbles alone), and `fjolspil` is for the tasks that follow. `onPause(paused)` holds the chapter while the game is open, and `onClose()` is told when it shuts.
  * `auto` makes the child's moves by itself (the lab's &auto=1, for a video of a whole round). `uggedlaLive` (true) lets Uggeðla's picture
  * give way to her live 3D view (uggedla-view.js) once it is ready; false keeps the picture (a slow machine, a capture with no WebGL). Returns
- *   open({ tutorial })  opens the game and deals a round
+ *   open({ tutorial })  opens the game: Mosi's tutorial first if `tutorial` is true or the save has not got tutorialDone, else a round
  *   close()    shuts it, dropping a round under way with no penalty
  *   isOpen     whether it is open
  *   muted      silences it (the effects, the music, the splash and the voices)
  *   said       every line sounded so far, { id, at (Date.now()), seconds }; speech: the voices' state (talking, current, waiting), for a probe
  *   game       the round as it is now (the rules' data), for a probe, and phase, what it waits for: 'shut', 'child-pick', 'child-target',
- *              'child-fish', 'child-give', 'child-no', 'busy' or 'over'
- *   dealt      how many rounds have been dealt since the page began; auto: whether the child plays itself
+ *              'child-fish', 'child-give', 'child-no', 'busy' or 'over'; while Mosi teaches 'tutorial <step> <pick|target|fish|give|busy>'
+ *              ('tutorial ask pick': the step is veiddu_tut_ask and Egill is to lift a card), and teaching is that step's name, else null
+ *   dealt      how many deals there have been since the page began (the tutorial's too); auto: whether the child plays itself
  *   uggedla    her live view, once it is ready (null before, and for good where it cannot start); viewReady: a promise that settles
  *              when it has started or has failed
  */
@@ -156,7 +211,11 @@ export function createVeidduGame(doc, {
   const quitEl = table.querySelector('.veiddu-quit');
   const teachEl = table.querySelector('.veiddu-teach');
   const winCard = winEl.querySelector('.veiddu-win-card');
-  teachEl.hidden = true; // "Kennsla" comes with the tutorial (Task 7); a button that does nothing has no place on the table
+  const skipEl = el('button', 'veiddu-skip', '<span>Sleppa</span>'); // the tutorial's way out, in the corner where "Kennsla" stands
+  skipEl.setAttribute('aria-label', 'Sleppa kennslu');
+  skipEl.hidden = true;
+  teachEl.hidden = true; // shown (by marks) while the game is open and Mosi is not teaching
+  table.append(skipEl);
 
   // ---- State ----------------------------------------------------------------------------------------------------------------
 
@@ -165,6 +224,11 @@ export function createVeidduGame(doc, {
   let game = null; // the rules' game as the table has shown it
   let round = 0; // counts rounds; a flow that finds it changed (a new deal, the game shut) stops
   let dealt = 0;
+  let taught = 0; // how many of the deals were the tutorial's: they are no rounds
+  // While Mosi teaches: { step (an index into TUTORIAL; -1 before the first), live (what the child may do now: { kind, target },
+  // { give }, { pond: true } or null), said (the last of his lines, { id, text }: his button says it again), until (clock ms: the
+  // step has had its time then), listened (LISTEN said), minds (the moves still to make: TUTORIAL_MINDS) }. Null when he is not.
+  let tutorial = null;
   let busy = true; // a card flies or a mind moves: the child's taps wait
   let ended = false; // the win card shows
   let flying = 0; // flyers in the air
@@ -275,6 +339,12 @@ export function createVeidduGame(doc, {
     return game.phase === 'ask' ? (picked ? 'child-target' : 'child-pick') : 'busy';
   }
   const childTurn = () => ['child-pick', 'child-target', 'child-fish'].includes(phase());
+  /** While Mosi teaches the phase is 'tutorial <step>' and what the child does ('pick', 'target', 'fish', 'give') or 'busy'. */
+  function tutorialPhase() {
+    const name = tutorial.step < 0 ? 'deal' : TUTORIAL[tutorial.step].id.slice('veiddu_tut_'.length);
+    const doing = { 'child-pick': 'pick', 'child-target': 'target', 'child-fish': 'fish', 'child-give': 'give' }[phase()];
+    return `tutorial ${name} ${doing ?? 'busy'}`;
+  }
 
   // ---- Where things are -----------------------------------------------------------------------------------------------------
 
@@ -434,18 +504,31 @@ export function createVeidduGame(doc, {
   // ---- What may be tapped shows ---------------------------------------------------------------------------------------------
 
   function marks() {
+    root.classList.toggle('teaching', Boolean(tutorial));
+    teachEl.hidden = Boolean(tutorial) || !isOpen; // "Kennsla" and "Sleppa" share their corner
+    skipEl.hidden = !tutorial;
     if (!game) return;
     const p = phase();
     const giving = waiting?.holds ? waiting.kind : null;
+    // While Mosi teaches, the child chooses among dimmed things and only what the step means is .live (veiddu.css .teaching); between
+    // its steps (a card flies, a mind moves) nothing is dimmed but the pond when it is not the pond's turn.
+    const live = tutorial?.live ?? null;
+    const choosing = ['child-pick', 'child-target', 'child-give', 'child-fish'].includes(p);
+    meEl.classList.toggle('live', Boolean(tutorial) && [0, 2].includes(tutorial.step)); // steps 1 and 3 are about his catch
     for (const card of handEls.values()) {
       const kind = card.dataset.kind;
       card.classList.toggle('picked', picked === kind);
       card.classList.toggle('hint', ((p === 'child-pick' || p === 'child-target') && hintKind === kind) || (giving === kind && waiting.hinted));
+      card.classList.toggle('live', Boolean(tutorial) && (!choosing || (live !== null && (live.kind === kind || live.give === kind))));
     }
-    const lit = p === 'child-target' ? new Set(legalTargets(game, CHILD)) : p === 'child-pick' && hintTarget !== null ? new Set([hintTarget]) : new Set();
+    let lit = new Set();
+    if (p === 'child-target') lit = new Set(legalTargets(game, CHILD).filter(seat => !tutorial || seat === live?.target));
+    else if (p === 'child-pick' && hintTarget !== null) lit = new Set([hintTarget]);
+    pondEl.classList.toggle('live', Boolean(tutorial) && (p === 'child-fish' || !['child-pick', 'child-target', 'child-give'].includes(p)));
     for (const seat of [UGGEDLA, MOSI]) {
       const on = lit.has(seat);
       const frame = windowEls[seat];
+      frame.classList.toggle('live', Boolean(tutorial) && (on || !['child-pick', 'child-target'].includes(p)));
       frame.classList.toggle('veiddu-target', on);
       if (on) {
         frame.setAttribute('role', 'button');
@@ -513,26 +596,32 @@ export function createVeidduGame(doc, {
     return true;
   }
 
-  /** Mosi's bubble goes, and his voice with it if it is still going: the advice has been taken (or is being replaced). */
-  function hideAdvice() {
+  /**
+   * Mosi's voice goes if it is still going, and his bubble with it: the advice has been taken (or is being replaced). While he teaches
+   * his step stays in the bubble until the next (`force` takes it away: the next step, or the tutorial's end).
+   */
+  function hideAdvice(force = false) {
     cancel(adviceTimer);
     speech.cut(priorityOf(HINT_LINE));
+    if (tutorial && force !== true) return;
     adviceEl?.remove();
     adviceEl = null;
   }
-  /** Mosi pops up beside his button with `text` in his bubble, and says the line `id`. */
-  function showAdvice(id, text) {
-    hideAdvice();
+  /** Mosi pops up beside his button with `text` in his bubble, and says the line `id`; a tutorial step `stay`s. Returns say's seconds. */
+  function showAdvice(id, text, { stay = false } = {}) {
+    hideAdvice(true);
     adviceEl = el('div', 'veiddu-advice');
     const picture = el('img');
     picture.src = asset('assets/book/images/mosi-render.webp');
     picture.alt = '';
     const words = el('p');
     words.textContent = text;
+    words.classList.toggle('long', [...text].length > 34); // a longer sentence: a wider bubble in smaller letters (veiddu.css)
     adviceEl.append(picture, words);
     table.append(adviceEl);
     const said = say(id);
-    adviceTimer = later(Math.max(ADVICE_MS, lineMs(text) + 2000, said * 1000 + 1500), hideAdvice);
+    if (!stay) adviceTimer = later(Math.max(ADVICE_MS, lineMs(text) + 2000, said * 1000 + 1500), () => hideAdvice());
+    return said;
   }
 
   // ---- Motion -------------------------------------------------------------------------------------------------------------
@@ -697,6 +786,7 @@ export function createVeidduGame(doc, {
           break;
         case 'pair':
           picked = null;
+          if (tutorial?.step === 1 && event.seat === CHILD) showStep(2); // the pair he was given is the third step: said as it flies
           await pairUp(event.seat, event.kind, event.cardIds);
           break;
         case 'fish':
@@ -760,21 +850,34 @@ export function createVeidduGame(doc, {
     busy = true;
     clearBubble();
     markTurn(seat);
+    if (tutorial?.step === 3 && !tutorial.listened) { // Egill has fished: now they play, and he is to remember what they ask for
+      tutorial.listened = true;
+      tutor(LISTEN);
+      marks();
+    }
     thinking(seat, true);
     await wait(game.phase === 'fish' && game.asked ? FISH_BEAT_MS : THINK_MS);
     thinking(seat, false);
     if (game.phase === 'fish') return doFish(seat);
-    const { target, kind } = minds[seat].chooseAsk(game, { skill: skillNow() });
+    const { target, kind } = (tutorial && scriptedAsk(seat)) || minds[seat].chooseAsk(game, { skill: skillNow() });
     return doAsk(seat, target, kind);
   }
 
   // ---- The child's turn -----------------------------------------------------------------------------------------------------
 
   function startChildTurn() {
+    if (tutorial) return run(tutorialTurn());
+    return openChild();
+  }
+
+  /** The child may act: his turn begins (or, in the tutorial, the step he is to do). */
+  function openChild() {
     busy = false;
     picked = null;
-    hintKind = null;
-    hintTarget = null;
+    if (!tutorial) { // the tutorial's step has lit what it means already
+      hintKind = null;
+      hintTarget = null;
+    }
     nudged = false;
     turns++;
     if (game.phase !== 'fish') clearBubble(); // after a no the bubble stays, so the child sees why the pond calls
@@ -788,7 +891,7 @@ export function createVeidduGame(doc, {
   function armIdle() {
     cancel(idleTimer);
     cancel(nudgeTimer);
-    if (!childTurn()) return;
+    if (tutorial || !childTurn()) return; // Mosi's step has lit what it means: no hints, no nudge
     idleTimer = later(IDLE_MS, () => {
       if (childTurn()) showHint();
     });
@@ -810,6 +913,7 @@ export function createVeidduGame(doc, {
     cancel(nudgeTimer);
     hintKind = null;
     hintTarget = null;
+    if (tutorial) tutorial.live = null; // what the step asked for is done: its words stay, but nothing is lit
     hideAdvice();
     cutChatter();
   }
@@ -832,6 +936,7 @@ export function createVeidduGame(doc, {
     hintTarget = null;
     cutChatter();
     clearBubble();
+    if (tutorial) speech.cut(priorityOf(HINT_LINE)); // he has done what Mosi said: his words give way to Egill reading the name
     say(nameLine(kind), { still: () => picked === kind && childTurn(), within: NAME_WITHIN_MS });
     marks();
     poke();
@@ -841,7 +946,10 @@ export function createVeidduGame(doc, {
     const p = phase();
     const card = handEls.get(id);
     if (!card) return;
-    if (p === 'child-pick' || p === 'child-target') return pick(card.dataset.kind);
+    if (p === 'child-pick' || p === 'child-target') {
+      if (tutorial && card.dataset.kind !== tutorial.live?.kind) return; // only the card Mosi means
+      return pick(card.dataset.kind);
+    }
     if (p !== 'child-give') return;
     if (card.dataset.kind !== waiting.kind) return nope(card);
     answered();
@@ -851,11 +959,12 @@ export function createVeidduGame(doc, {
     const p = phase();
     if (p === 'child-pick') {
       nope(windowEls[seat]); // a card first
-      showHint();
+      if (!tutorial) showHint();
       return poke();
     }
     if (p !== 'child-target') return;
     if (!legalTargets(game, CHILD).includes(seat)) return nope(windowEls[seat]);
+    if (tutorial && seat !== tutorial.live?.target) return; // only the one Mosi means
     const kind = picked;
     busy = true;
     settleChild();
@@ -879,8 +988,12 @@ export function createVeidduGame(doc, {
     return new Promise((resolve, reject) => {
       waiting = { kind, holds: holds(game, CHILD, kind), hinted: false, resolve, reject };
       busy = false;
+      if (tutorial && waiting.holds && tutorial.step === 3) { // Mosi asks him, and Mosi's fifth step: the card he asks for waits, lit
+        showStep(4);
+        waiting.hinted = true;
+      }
       marks();
-      if (waiting.holds) {
+      if (waiting.holds && !tutorial) {
         giveTimers = [
           later(GIVE_HINT_MS, () => {
             if (!waiting) return;
@@ -902,6 +1015,7 @@ export function createVeidduGame(doc, {
     busy = true;
     giveTimers.forEach(cancel);
     giveTimers = [];
+    if (tutorial) tutorial.live = null;
     hideAdvice();
     marks();
     answer.resolve();
@@ -910,9 +1024,13 @@ export function createVeidduGame(doc, {
     if (phase() === 'child-no') answered();
   }
 
-  /** Mosi's button: his advice, with his reason; the card he means lifts and its window glows. */
+  /** Mosi's button: his advice, with his reason; the card he means lifts and its window glows. While he teaches he says his step again. */
   function askMosi() {
     const p = phase();
+    if (tutorial) {
+      if (tutorial.said && !ended) showAdvice(tutorial.said.id, tutorial.said.text, { stay: true });
+      return undefined;
+    }
     if (p === 'child-give') {
       waiting.hinted = true;
       marks();
@@ -937,16 +1055,97 @@ export function createVeidduGame(doc, {
     cancel(autoTimer);
     const p = phase();
     const idOfKind = kind => [...handEls.values()].find(card => card.dataset.kind === kind)?.dataset.id;
+    // In the tutorial the child does what the step means, but only once Mosi has said it (a child listens first)
+    const after = tutorial ? Math.max(AUTO_MS, tutorial.until - clock() + 500) : AUTO_MS;
     if (p === 'child-pick') {
-      autoTimer = later(AUTO_MS, () => {
-        const best = bestAsk(game, CHILD);
-        if (phase() !== 'child-pick' || !best || best.kind === null) return;
+      autoTimer = later(after, () => {
+        const best = tutorial ? { ...tutorial.live } : bestAsk(game, CHILD);
+        if (phase() !== 'child-pick' || !best || !best.kind) return;
         tapCard(idOfKind(best.kind));
         autoTimer = later(700, () => tapWindow(best.target));
       });
-    } else if (p === 'child-fish') autoTimer = later(AUTO_MS, tapPond);
-    else if (p === 'child-give') autoTimer = later(AUTO_MS, () => tapCard(idOfKind(waiting?.kind)));
+    } else if (p === 'child-fish') autoTimer = later(after, tapPond);
+    else if (p === 'child-give') autoTimer = later(after, () => tapCard(idOfKind(waiting?.kind)));
     else if (p === 'child-no') autoTimer = later(AUTO_MS, tapFishButton);
+  }
+
+  // ---- The tutorial ---------------------------------------------------------------------------------------------------------
+
+  /** Mosi says `line` ({ id, text }) in his bubble, where it stays until the next. Returns the seconds until it will have been said. */
+  function tutor(line) {
+    tutorial.said = line;
+    const said = showAdvice(line.id, line.text, { stay: true });
+    tutorial.until = clock() + Math.max(MIN_STEP_MS, said > 0 ? said * 1000 + 900 : lineMs(line.text)); // its time, said or silent
+    return said;
+  }
+
+  /** Step `index` of TUTORIAL: Mosi says it and what it means is lit (a card and the window to ask, or the card to give). */
+  function showStep(index) {
+    const step = TUTORIAL[index];
+    tutorial.step = index;
+    tutorial.live = step.live ? { ...step.live } : null;
+    hintKind = step.live?.kind ?? null; // the card lifts and the window glows from the start
+    hintTarget = step.live?.target ?? null;
+    tutor(step);
+    marks();
+  }
+
+  /** The next of the two minds' moves in the tutorial for `seat`, if the game is where the script has it. */
+  function scriptedAsk(seat) {
+    const move = tutorial.minds[seat]?.[0];
+    if (!move || !holds(game, seat, move.kind) || !legalTargets(game, seat).includes(move.target)) return null;
+    tutorial.minds[seat].shift();
+    return move;
+  }
+
+  /**
+   * It is Egill's turn in the tutorial: the step that comes now is said and lit. At the start the first step is only said (the pair he
+   * was dealt lies in his catch) and the second follows it; after the pair of the third step the fourth follows; after a "no" the same
+   * fourth step goes on at the pond; and when he has asked for the frog (the last step) the tutorial is over.
+   */
+  async function tutorialTurn() {
+    busy = true;
+    markTurn(CHILD);
+    if (game.phase === 'fish') {
+      tutorial.live = { pond: true }; // the "no" has been said: the pond calls
+    } else {
+      if (tutorial.step === TUTORIAL.length - 1) return endTutorial();
+      if (tutorial.step === -1) showStep(0);
+      if (tutorial.step === 0 || tutorial.step === 2) await wait(Math.max(0, tutorial.until - clock()));
+      showStep(tutorial.step + 1);
+    }
+    return openChild();
+  }
+
+  /**
+   * The tutorial is over (its last step done, or "Sleppa" tapped, `skipped`): the save remembers it, but it was no round, so there is no
+   * sticker and nothing for the minds' skill. Mosi says the first real game comes now, and then that round is dealt. "Sleppa" clears the
+   * table at once (a card may be in the air); the end of the last step leaves it as it stands, Egill's pairs in his catch.
+   */
+  async function endTutorial({ skipped = false } = {}) {
+    if (!tutorial) return;
+    const token = ++round; // whatever the tutorial had under way stops here
+    save?.setVeiddu?.({ tutorialDone: true });
+    tutorial = null;
+    if (skipped) reset();
+    else {
+      speech.hush();
+      cancel(autoTimer);
+    }
+    busy = true;
+    marks();
+    const said = showAdvice(REAL.id, REAL.text, { stay: true });
+    await wait(Math.max(MIN_STEP_MS, said > 0 ? said * 1000 + 900 : lineMs(REAL.text)));
+    if (token !== round || !isOpen) return;
+    hideAdvice(true);
+    run(deal());
+  }
+
+  /** The tutorial from the start: its stacked deck is dealt, and Mosi says the first step. */
+  function startTutorial() {
+    tutorial = { step: -1, live: null, said: null, until: 0, listened: false, minds: { [UGGEDLA]: [...TUTORIAL_MINDS[UGGEDLA]], [MOSI]: [...TUTORIAL_MINDS[MOSI]] } };
+    taught++;
+    run(deal(tutorialStack()));
   }
 
   // ---- Dealing and the end --------------------------------------------------------------------------------------------------
@@ -967,7 +1166,7 @@ export function createVeidduGame(doc, {
     nudged = false;
     giveTimers = [];
     clearBubble();
-    hideAdvice();
+    hideAdvice(true);
     speech.stop(); // nothing more is said of the round that was, and the line sounding is cut
     fishButton?.remove();
     fishButton = null;
@@ -979,7 +1178,7 @@ export function createVeidduGame(doc, {
       countEls[seat].hidden = true;
       seatEls[seat].classList.remove('turn', 'thinking', 'out');
     }
-    meEl.classList.remove('turn', 'out');
+    meEl.classList.remove('turn', 'out', 'live');
     for (const seat of [CHILD, UGGEDLA, MOSI]) {
       const empty = makeCatch(seat, [], 0);
       catchEls[seat].replaceWith(empty);
@@ -996,11 +1195,14 @@ export function createVeidduGame(doc, {
     marks();
   }
 
-  /** A new round: the pond fills, five cards fly to each hand, and the pairs the hands hold go down. Then the child begins. */
-  async function deal() {
+  /**
+   * A new round: the pond fills, five cards fly to each hand, and the pairs the hands hold go down. Then the child begins. With a `stack`
+   * (the tutorial's) the deck is dealt in that order, not shuffled.
+   */
+  async function deal(stack = null) {
     round++;
     reset();
-    const start = newGame({ random });
+    const start = newGame(stack ? { stack } : { random }); // the tutorial's deck is stacked
     game = start.game;
     minds = { [UGGEDLA]: createMind(UGGEDLA, { random }), [MOSI]: createMind(MOSI, { random }) };
     feed(start.events);
@@ -1060,7 +1262,7 @@ export function createVeidduGame(doc, {
     ended = true;
     view?.cheer(); // she cheers for the winner
     if (childWon) sfx('fanfare'); // a round lost has no jingle: the winners cheer
-    say(endLine(winners, dealt)); // and one of them says it
+    say(endLine(winners, dealt - taught)); // and one of them says it
   }
 
   // ---- Touch ----------------------------------------------------------------------------------------------------------------
@@ -1103,7 +1305,7 @@ export function createVeidduGame(doc, {
     }
   }
 
-  function open() {
+  function open({ tutorial: teachFirst = false } = {}) {
     if (isOpen) return;
     isOpen = true;
     root.hidden = false;
@@ -1113,13 +1315,16 @@ export function createVeidduGame(doc, {
     splashes.load();
     speech.preload(); // the voices come from memory, so a line starts the moment it is asked for
     startView();
-    run(deal());
+    // Mosi teaches first when asked to, and the first time: with a save that has not got tutorialDone (with no save there is nothing to remember it in)
+    if (teachFirst || (save?.getVeiddu && !save.getVeiddu()?.tutorialDone)) startTutorial();
+    else run(deal());
   }
 
   function close() {
     if (!isOpen) return;
     isOpen = false;
     round++; // the round under way is dropped, with no penalty
+    tutorial = null; // and a tutorial under way is not done: it comes again
     reset();
     music.stop();
     view?.stop();
@@ -1136,6 +1341,8 @@ export function createVeidduGame(doc, {
   for (const seat of [UGGEDLA, MOSI]) pressable(windowEls[seat], { win, sound: null, onTap: () => tapWindow(seat) });
   pressable(helpEl, { win, sound: null, onTap: () => askMosi() });
   pressable(quitEl, { win, sound: null, onTap: () => close() });
+  pressable(teachEl, { win, sound: null, onTap: () => { wake(); if (isOpen && !tutorial) startTutorial(); } }); // from any moment of a round: it is dropped, with no penalty
+  pressable(skipEl, { win, sound: null, onTap: () => { wake(); if (isOpen && tutorial) run(endTutorial({ skipped: true })); } });
   pressable(winCard.querySelector('.veiddu-close'), { win, sound: null, onTap: () => close() });
   pressable(winCard.querySelector('.veiddu-again'), { win, sound: null, onTap: () => { if (phase() === 'over') run(deal()); } });
   root.addEventListener('pointerdown', () => wake(), true);
@@ -1151,7 +1358,8 @@ export function createVeidduGame(doc, {
     close,
     get isOpen() { return isOpen; },
     get game() { return game; },
-    get phase() { return phase(); },
+    get phase() { return tutorial ? tutorialPhase() : phase(); },
+    get teaching() { return tutorial ? (tutorial.step < 0 ? 'deal' : TUTORIAL[tutorial.step].id.slice('veiddu_tut_'.length)) : null; },
     get dealt() { return dealt; },
     get uggedla() { return view; },
     get viewReady() { return viewLoading ?? Promise.resolve(); },

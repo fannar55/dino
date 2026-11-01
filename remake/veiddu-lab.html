@@ -13,7 +13,11 @@
 <!-- "Veiddu" on a page of its own, never linked from the game. With no ?state= (or state=live) a real round is played with Uggeðla and Mosi
      (engine/veiddu/table.js), on a save held in the page (the game's own comes with the book, Task 8), and a round that is shut deals the
      next. &seed=<text> deals the same round every time, &skill=0 to 1 sets the minds' skill, and &auto=1 plays the child's moves by
-     itself (bestAsk, after 1.2 s each), so a whole round plays on its own for a video (tools/veiddu-video.mjs). window.__veiddu is the
+     itself (bestAsk, after 1.2 s each), so a whole round plays on its own for a video (tools/veiddu-video.mjs). &tutorial=1 runs Mosi's
+     tutorial first (his six steps from a stacked deck; "Sleppa" ends it at any step, "Kennsla" starts it again, and a real round is
+     dealt after it; with &auto=1 the child does each step by itself, once Mosi has said it), &tutorial=first plays as a child who has
+     not been taught (it runs by itself on a save that has no tutorialDone), and with no &tutorial (or =0) the lab goes straight to a
+     round, as it always did, so the tools that record rounds are not held up. window.__veiddu is the
      game (its phase, game and dealt, for a probe). A live round plays with the page's sound (the effects and Eitt!'s music in its key, the
      splash on every fish: engine/veiddu/veiddu-sounds.js) and the voices (the veiddu lines of assets/audio/lines.json, one at a time:
      engine/veiddu/speech.js), which wake at the first touch; &sound=0 starts it all muted. window.__veiddu.said lists the lines sounded.
@@ -49,7 +53,8 @@
     const [theme, lines] = await Promise.all([read('./assets/audio/theme.json'), read('./assets/audio/lines.json')]);
     const context = createAudioContext();
     const output = context && createOutput(context);
-    const kept = { losses: 0, wins: 0, tutorialDone: false };
+    const teach = params.get('tutorial'); // '1' (run it), 'first' (a save that has not been taught) or anything else (taught already)
+    const kept = { losses: 0, wins: 0, tutorialDone: teach !== '1' && teach !== 'first' };
     if (params.has('skill')) kept.skill = Number(params.get('skill'));
     const save = { getVeiddu: () => ({ ...kept }), setVeiddu: changes => Object.assign(kept, changes) };
     const game = createVeidduGame(document, {
@@ -62,7 +67,7 @@
     });
     addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
     Object.assign(window, { __veiddu: game, __veidduSave: kept });
-    game.open();
+    game.open({ tutorial: teach === '1' });
     while (game.dealt < 1) await new Promise(resolve => setTimeout(resolve, 100));
     await game.viewReady; // her live view has started (or has failed, and her picture stays)
     // Keys move Uggeðla's live view: t talks, k thinks (again to stop), s splashes, h is glad, c cheers (window.__veiddu.uggedla is the view).
