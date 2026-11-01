@@ -58,10 +58,16 @@ export function veidduSounds(tools) {
 
 // ---- The splash -------------------------------------------------------------------------------------------------------------
 
-/** The splashes, by name: the file (in assets/veiddu/, described by splash.json) and the gain it plays at into the page's output. */
+/**
+ * The splashes, by name: the file (in assets/veiddu/, described by splash.json) and the gain it plays at into the page's output. Both
+ * files are levelled to the same peak, but the plop is one short, round burst and the splash a spread of noise, so at the same peak the
+ * plop is the louder to the ear: measured in a recorded round (veiddu-video.mjs --sound, 400 ms RMS), 0.55 and 0.3 made the plop 2 dB
+ * louder than the splash, which is not what "quieter" means; 0.55 and 0.12 put it about 6 dB under it. The splash is then about as loud
+ * as a pair's chime, 8 dB over the music and 7 dB under a recorded line. The owner judges both by ear.
+ */
 export const SPLASHES = {
   full: { file: 'splash.mp3', level: 0.55 },
-  soft: { file: 'splash-soft.mp3', level: 0.3 },
+  soft: { file: 'splash-soft.mp3', level: 0.12 },
 };
 
 /** Which splash a fish of `seat` makes: Egill's (the child's seat) the full one, Uggeðla's and Mosi's the soft one. */

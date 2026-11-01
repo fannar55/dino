@@ -1,5 +1,5 @@
 {
-  "note": "The splash of Veiddu's pond (engine/veiddu/veiddu-sounds.js). Two real recordings from Freesound, both CC0 1.0 (public domain): no credit is required, so there is no KREDIT.md. The owner chose both by ear from the candidates on 2026-10-31 (\"1 og 2\"). The files are the HQ previews Freesound serves without a login. Playback levels are set in code (veiddu-sounds.js SPLASH_LEVEL), not baked in.",
+  "note": "The splash of Veiddu's pond (engine/veiddu/veiddu-sounds.js). Two real recordings from Freesound, both CC0 1.0 (public domain): no credit is required, so there is no KREDIT.md. The owner chose both by ear from the candidates on 2026-10-31 (\"1 og 2\"). The files are the HQ previews Freesound serves without a login. Playback levels are set in code (veiddu-sounds.js SPLASHES), not baked in.",
   "files": {
     "splash.mp3": {
       "use": "Egill's fishes and refills",
