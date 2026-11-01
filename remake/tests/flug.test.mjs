@@ -30,8 +30,9 @@ function watcher({ at = [] } = {}) {
     const mosi = world.actors.get('mosi');
     if (mosi.root.visible) {
       world.camera.updateMatrixWorld();
-      const p = mosi.headPosition(head).project(world.camera);
-      if (p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1) (seen.mosiSeen[c.flight.beat] ??= []).push(t);
+      const seenFrom = clear(world, world.camera.position, mosi.headPosition(head));
+      const p = head.project(world.camera);
+      if (seenFrom && p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1) (seen.mosiSeen[c.flight.beat] ??= []).push(t);
     }
     while (wanted.length && t >= wanted[0] - 1e-9) seen.places[wanted.shift()] = world.actors.get('flugedla').root.position.clone();
     seen.banks.push(c.flier.bank);
@@ -47,12 +48,29 @@ function watcher({ at = [] } = {}) {
   return { seen, onFrame };
 }
 
+/** No land between `from` and `to` (the valley's ground, every half metre, with 0.3 m to spare). */
+function clear(world, from, to) {
+  const d = from.distanceTo(to);
+  const p = new THREE.Vector3();
+  for (let s = 0.5; s < d - 0.5; s += 0.5) {
+    p.lerpVectors(from, to, s / d);
+    if (p.y < world.heightAt(p.x, p.z) + 0.3) return false;
+  }
+  return true;
+}
+
 // What is wrong with the frame now, at 16:10 and at an upright 0.625 (spec 5's rules for a child, STYLE.md 8: Flug).
 function framing(world, director) {
   const problems = [];
   const flugedla = world.actors.get('flugedla');
   const egill = world.actors.get('egill');
   const head = flugedla.model.getObjectByName('Head');
+  director.apply();
+  world.scene.updateMatrixWorld(true);
+  for (const [who, point] of [['Egill', egill.headPosition(new THREE.Vector3())], ['her head', head.getWorldPosition(new THREE.Vector3())],
+    ['her body', flugedla.root.localToWorld(new THREE.Vector3(0.06, 2.6, 0))]]) {
+    if (!clear(world, world.camera.position, point)) problems.push(`land between the camera and ${who}`);
+  }
   for (const aspect of [1.6, 0.625]) {
     world.camera.aspect = aspect;
     world.camera.updateProjectionMatrix();

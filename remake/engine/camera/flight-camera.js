@@ -56,13 +56,14 @@ const FIXED = {
     const across = r.half + 16;
     return c.ground(r.x - r.dir[1] * across, r.z + r.dir[0] * across, 1.8, 50); // the north bank
   },
-  // D: up on the gorge's north rim behind Mosi (route.cameos.rim), looking down past him at her in the gorge below: he stands in the top
-  // of the frame, back from the edge, as she flies by under him
+  // D: high over the gorge's north rim just behind where Mosi starts (route.cameos.rim), looking down the gorge: he runs away along the
+  // rim and she flies up the gorge below him. Only from high up does the camera see over the rim's edge down to her (lower, the rock
+  // hides her); the chapter aims it between the two of them (its `look`).
   mosiRim: (c) => {
-    const [x, z] = c.route.cameos.rim.path[1];
-    const r = c.route.river.at(c.route.river.nearest(x, z).d);
-    const out = r.half + 26; // 10 m behind him, still on the rim (the walls fall away from 30 m back)
-    return c.ground(r.x - r.dir[1] * out, r.z + r.dir[0] * out, 14, 50);
+    const [x, z] = c.route.cameos.rim.path[0];
+    const r = c.route.river.at(c.route.river.nearest(x, z).d + 2);
+    const out = r.half + 18; // 2 m further back from the edge than his path
+    return c.ground(r.x - r.dir[1] * out, r.z + r.dir[0] * out, 30, 56);
   },
   // D: high in the gorge ahead of her, looking down at them small below
   gorgeHigh: (c, { lead = 6 } = {}) => {

@@ -190,9 +190,11 @@ function* beats(s, c) {
   yield* at(90.5);
   camera.shot('gorgeHigh');
   yield* at(95.5);
-  run(route.cameos.rim.path, headingAlong(route.cameos.rim.path));
-  camera.shot('mosiRim');
-  yield* at(96.3);
+  run(route.cameos.rim.path, headingAlong(route.cameos.rim.path)); // up on the rim, out of sight from down in the gorge
+  yield* at(96);
+  const mosiHead = new THREE.Vector3();
+  camera.shot('mosiRim', { look: out => out.copy(c.flier.pose.position).setY(c.flier.pose.position.y + 1).lerp(mosi.raw.headPosition(mosiHead), 0.5) });
+  yield* at(96.5);
   say('mosi', 'k4_mosi_shortcut');
   yield* at(99.5);
   hideMosi();

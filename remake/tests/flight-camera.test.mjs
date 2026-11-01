@@ -132,7 +132,7 @@ test('the orbit circles slowly, and under reduced motion it is the vista instead
 const WHEN = {
   chase: [20, 40], face: [83, 86], side: [47, 50], orbit: [134, 141],
   belowTakeOff: [3, 5.5], waterLevel: [25, 27.5], bankShadow: [63, 66], mosiBank: [57.5, 60],
-  gorgeHigh: [90.5, 93], mosiRim: [95.5, 97], fallsSide: [110, 113], vista: [125, 128],
+  gorgeHigh: [90.5, 93], mosiRim: [96, 97.5], fallsSide: [110, 113], vista: [125, 128],
 };
 
 test('every named shot frames her and Egill at 16:10 and at an upright 0.625, and is never inside her', () => {
