@@ -3376,8 +3376,8 @@
  },
  "k2_mosi_einn": {
   "src": "assets/audio/kafli2/k2_mosi_einn.mp3",
-  "duration": 1.13,
-  "mouth": "0effffca600000000000000"
+  "duration": 0.97,
+  "mouth": "aff70004a30000000000"
  },
  "k2_mosi_tveir": {
   "src": "assets/audio/kafli2/k2_mosi_tveir.mp3",
@@ -3396,8 +3396,8 @@
  },
  "k2_mosi_hint_fish": {
   "src": "assets/audio/kafli2/k2_mosi_hint_fish.mp3",
-  "duration": 3.69,
-  "mouth": "5cfa00ced00c77600ceccbcdd00db00085000000000005cfe003fe00ffca70000000000000"
+  "duration": 3.371,
+  "mouth": "0ee000cfd909eaa609edcbafff2bd04066000000000000f909f80afb950000000000"
  },
  "k2_mosi_flooded": {
   "src": "assets/audio/kafli2/k2_mosi_flooded.mp3",
