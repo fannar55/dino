@@ -6,6 +6,7 @@ import { createEittMusic } from '../eitt/eitt-sounds.js';
 import { createGameSfx } from '../audio/game-music.js';
 import { pressable, sparkle, reducedMotion, TAP_SLOP_PX } from '../book/fx.js';
 import { veidduSounds, VEIDDU_GAPS, createSplash } from './veiddu-sounds.js';
+import { createSpeech, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from './speech.js';
 import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCard, tableElement, winElement, make, POND_SHOWN } from './look.js';
 
 // The table of "Veiddu" (spec sections 2 to 5): the round the child plays with Uggeðla and Mosi, rendered into veiddu.css's classes (the
@@ -27,9 +28,13 @@ import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCa
 //   - The end: the winner's words (all the winners on a tie), confetti and Uggeðla's sticker for a child who won or tied, "Spilum
 //     aftur?", and the minds' skill updated for the next round (skill.js afterRound) when the save keeps one.
 // Input waits while a card flies or a mind moves: every handler answers only the phase it serves. Every line shows as text in its bubble
-// for lineMs(text), which is the one place the pace of a line lives (there are no voices yet). The sound is veiddu-sounds.js: Eitt!'s
-// effects and music, tuned to Eitt!'s key, and the recorded splash on every fish. Under prefers-reduced-motion a flight is a fade where
-// the card lands and nothing idles; the sounds still play, for sound is not motion.
+// for lineMs(text), or for as long as its recording takes if that is longer: lineDone() is the one place the pace of a line lives, and
+// nothing goes on (a mind's next step, the next bubble) until the line has had its time and its voice has ended. The voices are the
+// veiddu set of lines.json (speech.js: one at a time, Egill's first, then Mosi's advice, then the game's asks and answers, then
+// chatter); Egill reads the name of the card he lifts, and Uggeðla's mouth follows her recordings. A line not recorded yet shows its
+// bubble for lineMs(text) in silence. The sound is veiddu-sounds.js: Eitt!'s effects and music, tuned to Eitt!'s key, and the recorded
+// splash on every fish. Under prefers-reduced-motion a flight is a fade where the card lands and nothing idles; the sounds still play,
+// for sound is not motion.
 
 const REMAKE = new URL('../../', import.meta.url); // remake/: where the pictures start
 const asset = path => new URL(path, REMAKE).href;
@@ -58,10 +63,13 @@ const GIVE_HINT_MS = 4000; // asked for an animal the child holds: the right car
 const GIVE_ADVICE_MS = 8000; // and Mosi says what to do after this long
 const ADVICE_MS = 4800; // Mosi's bubble stays at least this long
 const AUTO_MS = 1200; // at &auto=1 the child's moves wait this long
+const VOICE_TAIL_MS = 400; // a bubble stays this long after its recording ends, if the text's own time (lineMs) has run out
+const NUDGE_WITHIN_MS = 2500; // "Þú átt leik, Egill!" that has waited this long for the voice is dropped
+const NAME_WITHIN_MS = 2500; // and so is a name that has waited this long for the voice
 
 /**
- * How long a line shows (and, with a voice in Task 6, how long it takes to say): about 1.6 s and 60 ms for each letter. Every line of
- * the table waits for this, and nothing else decides it, so recorded durations can take its place later.
+ * How long a line shows when it is not spoken: about 1.6 s and 60 ms for each letter. A spoken line shows for this long too, or for
+ * as long as its recording lasts (and a little more) if that is longer; the table waits for the longer before it goes on.
  */
 export const lineMs = text => 1600 + 60 * [...text].length;
 
@@ -100,13 +108,15 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
 /**
  * "Veiddu" in `doc`'s #veiddu (an element with the class veiddu), over the `save` (engine/save.js: getVeiddu and setVeiddu keep the
  * minds' skill and the wins; null: the minds start at VEIDDU_SKILL_START each round and nothing is kept). `audio` is the page's sound,
- * { context, output, theme, muted } (engine/audio/output.js; no context: the game is silent), and `fjolspil` is for the tasks that follow. `onPause(paused)` holds the chapter while the game is open, and `onClose()` is told when it shuts.
+ * { context, output, theme, lines, muted } (engine/audio/output.js; no context: the game is silent; `lines` is lines.json, whose veiddu set is
+ * what is spoken, and without it the game speaks in bubbles alone), and `fjolspil` is for the tasks that follow. `onPause(paused)` holds the chapter while the game is open, and `onClose()` is told when it shuts.
  * `auto` makes the child's moves by itself (the lab's &auto=1, for a video of a whole round). `uggedlaLive` (true) lets Uggeðla's picture
  * give way to her live 3D view (uggedla-view.js) once it is ready; false keeps the picture (a slow machine, a capture with no WebGL). Returns
  *   open({ tutorial })  opens the game and deals a round
  *   close()    shuts it, dropping a round under way with no penalty
  *   isOpen     whether it is open
- *   muted      silences it (the effects, the music and the splash)
+ *   muted      silences it (the effects, the music, the splash and the voices)
+ *   said       every line sounded so far, { id, at (Date.now()), seconds }; speech: the voices' state (talking, current, waiting), for a probe
  *   game       the round as it is now (the rules' data), for a probe, and phase, what it waits for: 'shut', 'child-pick', 'child-target',
  *              'child-fish', 'child-give', 'child-no', 'busy' or 'over'
  *   dealt      how many rounds have been dealt since the page began; auto: whether the child plays itself
@@ -163,9 +173,10 @@ export function createVeidduGame(doc, {
   let hintTarget = null; // and the seat whose window it lights
   let waiting = null; // the child is asked: { kind, holds, hinted, resolve, reject }
   let nudged = false; // "Þú átt leik, Egill!" said this turn
+  let turns = 0; // counts the child's turns, so a nudge that waited for the voice knows whether it is still the same turn
   let lastNudge = -Infinity; // when she last said it (performance.now() ms)
   let minds = {};
-  let speakingUntil = 0; // the line showing ends then
+  let bubbleUntil = 0; // the line showing has had its time then (lineMs, or its recording and a little more)
   let pondShown = []; // the pond's cards lying on it
   let pondCount = 0; // and how many it holds
   let pairsShown = [[], [], []]; // the kinds in each catch as the table shows them
@@ -214,7 +225,24 @@ export function createVeidduGame(doc, {
   const effects = createGameSfx({ music: MUSIC, context, theme: audio.theme ?? null, output, sounds: veidduSounds, gaps: VEIDDU_GAPS });
   const music = createEittMusic({ context, output, url: MUSIC });
   const splashes = createSplash({ context, output, urls: { full: asset('assets/veiddu/splash.mp3'), soft: asset('assets/veiddu/splash-soft.mp3') } });
-  // The voices come after this (Task 6b): a speech queue beside these, which ducks the music (music.duck(on)) while a line speaks.
+  // The voices: the veiddu lines of lines.json, one at a time (speech.js), which duck the music while a line speaks. Uggeðla's mouth
+  // follows her recorded lines, and moves gently through one that is not recorded yet (or muted), as long as its bubble shows.
+  const spoken = []; // every line sounded, { id, at (Date.now()), seconds }: for a probe, and the video tool's report
+  const speech = createSpeech({
+    lines: audio.lines ?? {},
+    base: REMAKE,
+    onDuck: on => music.duck(on),
+    onLine: ({ id, line, sound }) => {
+      if (sound) spoken.push({ id, at: Date.now(), seconds: line.duration ?? 0 });
+      if (isHers(id)) view?.talk(line?.mouth ? line : { duration: line?.duration ?? 1.2 });
+    },
+  });
+  /** Says a line of the veiddu set, now or once the one sounding has ended (speech.js); returns the seconds until it will have been said. */
+  const say = (id, options) => speech.say(id, options);
+  /** The child has done something: chatter ("Þú átt leik, Egill!") that is still sounding or waiting is no longer true. */
+  function cutChatter() {
+    if (speech.cut(priorityOf(NUDGE_LINE)) && bubbleEl?.dataset.from === String(UGGEDLA)) clearBubble();
+  }
   let muted = false;
   const sfx = (name, detail) => effects.play(name, detail);
   function setMuted(value) {
@@ -222,6 +250,7 @@ export function createVeidduGame(doc, {
     effects.muted = muted;
     music.muted = muted;
     splashes.muted = muted;
+    speech.muted = muted;
   }
   setMuted(audio.muted); // wherever the game's sound is muted (captures), so is this
 
@@ -460,30 +489,39 @@ export function createVeidduGame(doc, {
   function clearBubble() {
     bubbleEl?.remove();
     bubbleEl = null;
-    speakingUntil = 0;
+    bubbleUntil = 0;
   }
-  /** Waits until the line showing has had its time. */
-  function lineDone() {
-    const left = speakingUntil - clock();
-    return left > 0 ? wait(left) : Promise.resolve();
+  /** Waits until the line showing has had its time and its voice has ended (speech.js stops a voice whose end never comes). */
+  async function lineDone() {
+    for (let left = bubbleUntil - clock(); left > 0 || speech.talking; left = bubbleUntil - clock()) await wait(left > 0 ? left : 40);
   }
-  /** `from` says `text` to `to` (seats; to is null when nobody is asked): a bubble by the speaker with an arrow at the one asked. */
-  async function say(from, to, text) {
+  /**
+   * `from` says `text` to `to` (seats; to is null when nobody is asked), with the recorded line `id`: a bubble by the speaker with an
+   * arrow at the one asked, and the voice. The bubble stays for lineMs(text), or while the line sounds if that is longer, and
+   * lineDone() waits for that. With `still` and `within` (as speech.js has them) the line is dropped, bubble and all, when it has
+   * waited too long for the voice or is no longer true. Resolves to whether it was said.
+   */
+  async function speak(from, to, text, id, { still = null, within = null } = {}) {
+    const by = within === null ? Infinity : clock() + within;
     await lineDone();
+    if (clock() > by || (still && !still())) return false;
     bubbleEl?.remove();
     bubbleEl = bubbleElement(doc, from, to, text, { long: [...text].length > 24 });
     table.append(bubbleEl);
-    if (from === UGGEDLA) view?.talk({ duration: 1.2 }); // her mouth moves (no recorded lines yet: a neutral mouth)
-    speakingUntil = clock() + lineMs(text);
+    const seconds = say(id); // 0: not recorded yet, or muted: the bubble keeps its text time alone
+    bubbleUntil = clock() + Math.max(lineMs(text), seconds > 0 ? seconds * 1000 + VOICE_TAIL_MS : 0);
+    return true;
   }
 
+  /** Mosi's bubble goes, and his voice with it if it is still going: the advice has been taken (or is being replaced). */
   function hideAdvice() {
     cancel(adviceTimer);
+    speech.cut(priorityOf(HINT_LINE));
     adviceEl?.remove();
     adviceEl = null;
   }
-  /** Mosi pops up beside his button with `text` in his bubble. */
-  function showAdvice(text) {
+  /** Mosi pops up beside his button with `text` in his bubble, and says the line `id`. */
+  function showAdvice(id, text) {
     hideAdvice();
     adviceEl = el('div', 'veiddu-advice');
     const picture = el('img');
@@ -493,7 +531,8 @@ export function createVeidduGame(doc, {
     words.textContent = text;
     adviceEl.append(picture, words);
     table.append(adviceEl);
-    adviceTimer = later(Math.max(ADVICE_MS, lineMs(text) + 2000), hideAdvice);
+    const said = say(id);
+    adviceTimer = later(Math.max(ADVICE_MS, lineMs(text) + 2000, said * 1000 + 1500), hideAdvice);
   }
 
   // ---- Motion -------------------------------------------------------------------------------------------------------------
@@ -648,13 +687,13 @@ export function createVeidduGame(doc, {
     for (const event of events) {
       switch (event.type) {
         case 'give':
-          await say(event.from, event.to, event.from === CHILD ? SAY.give : SAY.yes);
+          await speak(event.from, event.to, event.from === CHILD ? SAY.give : SAY.yes, answerLine(event.from, 'yes'));
           await wait(ANSWER_BEAT_MS);
           break;
         case 'no':
           picked = null;
           marks();
-          await say(event.seat, asker, event.seat === CHILD ? SAY.childNo : SAY.no);
+          await speak(event.seat, asker, event.seat === CHILD ? SAY.childNo : SAY.no, answerLine(event.seat, 'no'));
           break;
         case 'pair':
           picked = null;
@@ -663,7 +702,7 @@ export function createVeidduGame(doc, {
         case 'fish':
           await drawCard(event.seat, event.cardId);
           if (event.lucky) {
-            await say(event.seat, null, SAY.lucky);
+            await speak(event.seat, null, SAY.lucky, answerLine(event.seat, 'lucky'));
             await wait(ANSWER_BEAT_MS);
           }
           break;
@@ -671,7 +710,7 @@ export function createVeidduGame(doc, {
           await drawCard(event.seat, event.cardId);
           break;
         case 'pond-empty':
-          await say(UGGEDLA, null, SAY.empty);
+          await speak(UGGEDLA, null, SAY.empty, EMPTY_LINE);
           break;
         case 'turn':
           markTurn(event.seat);
@@ -699,7 +738,7 @@ export function createVeidduGame(doc, {
   /** `seat` asks `target` for `kind`: the question, then (if the child is asked, when it has answered) the answer. */
   async function doAsk(seat, target, kind) {
     const result = ask(game, seat, target, kind);
-    await say(seat, target, asking(kind));
+    await speak(seat, target, asking(kind), askLine(seat, kind));
     await lineDone();
     if (target === CHILD) await awaitChild(kind);
     game = result.game;
@@ -737,6 +776,7 @@ export function createVeidduGame(doc, {
     hintKind = null;
     hintTarget = null;
     nudged = false;
+    turns++;
     if (game.phase !== 'fish') clearBubble(); // after a no the bubble stays, so the child sees why the pond calls
     markTurn(CHILD);
     marks();
@@ -756,7 +796,8 @@ export function createVeidduGame(doc, {
       if (!childTurn() || nudged || clock() - lastNudge < NUDGE_GAP_MS) return;
       nudged = true;
       lastNudge = clock();
-      run(say(UGGEDLA, CHILD, SAY.nudge));
+      const turn = turns;
+      run(speak(UGGEDLA, CHILD, SAY.nudge, NUDGE_LINE, { still: () => childTurn() && turns === turn, within: NUDGE_WITHIN_MS }));
     });
   }
   /** Something the child did: the hints wait again. */
@@ -770,6 +811,7 @@ export function createVeidduGame(doc, {
     hintKind = null;
     hintTarget = null;
     hideAdvice();
+    cutChatter();
   }
 
   /** The best ask lifts its card and lights its window (nothing but the pond to light when the pond must be fished). */
@@ -782,13 +824,15 @@ export function createVeidduGame(doc, {
     return best;
   }
 
-  /** The child picks a kind: it lifts (another tap changes it) and the windows that may be asked glow. */
+  /** The child picks a kind: it lifts (another tap changes it), Egill reads its name and the windows that may be asked glow. */
   function pick(kind) {
     sfx('flick', { soft: true }); // the card is picked up
     picked = kind;
     hintKind = null;
     hintTarget = null;
+    cutChatter();
     clearBubble();
+    say(nameLine(kind), { still: () => picked === kind && childTurn(), within: NAME_WITHIN_MS });
     marks();
     poke();
   }
@@ -844,7 +888,7 @@ export function createVeidduGame(doc, {
             marks();
           }),
           later(GIVE_ADVICE_MS, () => {
-            if (waiting) showAdvice(SAY.giveHelp);
+            if (waiting) showAdvice(HINT_LINE, SAY.giveHelp);
           }),
         ];
       }
@@ -872,12 +916,13 @@ export function createVeidduGame(doc, {
     if (p === 'child-give') {
       waiting.hinted = true;
       marks();
-      return showAdvice(SAY.giveHelp);
+      return showAdvice(HINT_LINE, SAY.giveHelp);
     }
     if (!childTurn()) return nope(helpEl); // somebody else is moving (or the child is asked for an animal it has not got)
     const best = bestAsk(game, CHILD);
     if (!best) return nope(helpEl);
-    showAdvice(WHY[best.reason]);
+    cutChatter();
+    showAdvice(whyLine(best.reason), WHY[best.reason]);
     if (best.kind !== null) {
       hintKind = best.kind;
       hintTarget = best.target;
@@ -923,6 +968,7 @@ export function createVeidduGame(doc, {
     giveTimers = [];
     clearBubble();
     hideAdvice();
+    speech.stop(); // nothing more is said of the round that was, and the line sounding is cut
     fishButton?.remove();
     fishButton = null;
     handEls.clear();
@@ -1014,6 +1060,7 @@ export function createVeidduGame(doc, {
     ended = true;
     view?.cheer(); // she cheers for the winner
     if (childWon) sfx('fanfare'); // a round lost has no jingle: the winners cheer
+    say(endLine(winners, dealt)); // and one of them says it
   }
 
   // ---- Touch ----------------------------------------------------------------------------------------------------------------
@@ -1064,6 +1111,7 @@ export function createVeidduGame(doc, {
     pause(true);
     music.start();
     splashes.load();
+    speech.preload(); // the voices come from memory, so a line starts the moment it is asked for
     startView();
     run(deal());
   }
@@ -1114,5 +1162,7 @@ export function createVeidduGame(doc, {
     },
     get muted() { return muted; },
     set muted(value) { setMuted(value); },
+    get speech() { return speech; },
+    get said() { return spoken; },
   };
 }
