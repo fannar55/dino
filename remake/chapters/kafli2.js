@@ -321,9 +321,9 @@ function* theFerry(s, c) {
  * What is said on the way, with the cameras that go with it: a short pause between the lines, so that the chat fills the swim. The cameras
  * are chosen by the triangles of a tablet's frame and by what is in the lens (the ferry's shots are not planted around, so each was measured
  * at each stretch of the swim, 250k at the most): the two-shot from the crossing for the first seconds (a camera in Mosi's frame swings round
- * with him as he turns into the water, and the far bank's reed is in the lens), then the front shot for the long middle, the side one as the
- * tail splashes (from the dry bank, 22 m off, it is 210 to 245k then, and 260 to 300k in the middle of the swim) and the back one for
- * Þórseðla's head.
+ * with him as he turns into the water, and the far bank's reed is in the lens), then the front shot for the long middle, the side one (from
+ * behind and above, over the open channel: the bank's trees have their crowns over any camera on it) as the tail splashes and the back one
+ * for Þórseðla's head.
  */
 const CHAT_PAUSE = 0.9;
 function* ferryChat(s, c) {
