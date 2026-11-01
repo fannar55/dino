@@ -1,9 +1,10 @@
 // The owner's listening pages that voice-lines.mjs writes (into qa/, which git ignores): the pronunciation book
-// (qa/remake/voices/framburdarbok/index.html) and the A/B pages (qa/remake/voices/ab/<set>.html). Pure: rows in, HTML out.
+// (qa/remake/voices/framburdarbok/index.html), the A/B pages (qa/remake/voices/ab/<set>.html) and the yes/no pages
+// (qa/remake/voices/janei/<set>.html). Pure: rows in, HTML out.
 // Paper and Nunito like qa/remake/kafli2/listen.html; each page saves the owner's choices as a JSON file he sends back.
 
 /** The speakers by the names the owner knows them by, in the order the pages show them. */
-export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', narrator: 'Sögumaður' };
+export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', uggedla: 'Uggeðla', narrator: 'Sögumaður' };
 
 export const escapeHtml = text => String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
@@ -27,6 +28,9 @@ const PAGE_STYLE = `:root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; 
   .line p { margin: 0 0 6px; }
   .pair { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; align-items: center; }
   .pair audio { width: 100%; height: 36px; }
+  .choice { display: flex; gap: 18px; flex-wrap: wrap; font-weight: 800; }
+  .choice label { cursor: pointer; }
+  input.why { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff8ea; color: var(--ink); }
   .bar { position: sticky; bottom: 0; background: var(--paper); border-top: 2px solid var(--line); padding: 10px 0; display: flex; gap: 12px; align-items: center; }
   button { font: inherit; font-weight: 800; padding: 8px 18px; border-radius: 999px; border: 2px solid var(--ink); background: #fff8ea; color: var(--ink); cursor: pointer; }
   @media (max-width: 600px) { .row, .pair { grid-template-columns: 1fr; } }`;
@@ -134,6 +138,44 @@ export function abHtml({ set, round = null, earlier = [], made = [], kept = [] }
   document.getElementById('save').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ set: ${JSON.stringify(set)}, choices: choices() }, null, 2) + '\\n'], { type: 'application/json' });
     const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(`ab-${set}.json`)} });
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });`,
+  });
+}
+
+/**
+ * The yes/no page of a set's lines: for each line its speaker, the caption, the recording in the game (`src`) and two buttons, "Já" and
+ * "Nei", with a space to say what was wrong. "Vista val" saves { set, choices: { id: "ja" | "nei" }, notes: { id: "..." } } as
+ * jano-<set>.json, which says what to record again. Each row is { id, speaker, text, src, group?, how? }; a `group` that changes starts
+ * a heading (chapter 2's lines, chapter 3's).
+ */
+export function yesNoHtml({ set, rows }) {
+  let group = null;
+  const body = rows.map(row => {
+    const heading = row.group && row.group !== group ? `<h2>${escapeHtml(row.group)}</h2>` : '';
+    group = row.group ?? group;
+    return `${heading}<div class="line" data-id="${escapeHtml(row.id)}">
+  <p><b>${escapeHtml(SPEAKER_NAMES[row.speaker] ?? row.speaker)}</b>: ${escapeHtml(row.text)} <code>${escapeHtml(row.id)}</code>${row.how ? `<br><span class="sent">${escapeHtml(row.how)}</span>` : ''}</p>
+  <div class="pair"><audio controls preload="none" src="${escapeHtml(row.src)}"></audio>
+  <span class="choice"><label><input type="radio" name="${escapeHtml(row.id)}" value="ja"> Já, rétt</label> <label><input type="radio" name="${escapeHtml(row.id)}" value="nei"> Nei, rangt</label></span></div>
+  <input type="text" class="why" name="why-${escapeHtml(row.id)}" placeholder="Hvað var rangt? (má sleppa)" aria-label="Hvað var rangt í ${escapeHtml(row.id)}?">
+</div>`;
+  }).join('\n');
+  return page({
+    title: `Já eða nei: ${set}`,
+    intro: `${rows.length} línur, hver með upptökunni sem er í leiknum. Hlustaðu og merktu „Já, rétt“ ef hún hljómar rétt, annars „Nei, rangt“ (og skrifaðu hvað var rangt ef þú vilt). Ýttu svo á „Vista val“ og sendu mér skrána.`,
+    body,
+    script: `  const ids = [...document.querySelectorAll('.line')].map(line => line.dataset.id);
+  const choices = () => Object.fromEntries(ids.flatMap(id => { const input = document.querySelector('input[name="' + id + '"]:checked'); return input ? [[id, input.value]] : []; }));
+  const notes = () => Object.fromEntries(ids.flatMap(id => { const text = document.querySelector('input[name="why-' + id + '"]').value.trim(); return text ? [[id, text]] : []; }));
+  const count = () => { const all = Object.values(choices()); document.getElementById('count').textContent = all.filter(v => v === 'ja').length + ' já, ' + all.filter(v => v === 'nei').length + ' nei, ' + (ids.length - all.length) + ' ómerktar'; };
+  document.addEventListener('change', count);
+  count();
+  document.getElementById('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ set: ${JSON.stringify(set)}, choices: choices(), notes: notes() }, null, 2) + '\\n'],{ type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(`jano-${set}.json`)} });
     document.body.append(link);
     link.click();
     link.remove();

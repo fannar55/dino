@@ -11,8 +11,9 @@
 //   node remake/tools/voice-lines.mjs --ab <set|yatzy-junior> [--only id,id]   snapshot the old takes, then an old-beside-new page
 //   node remake/tools/voice-lines.mjs --remake-kept <set> [--only id,id]   new takes of kept lines whose words have rules now, beside the page
 //   node remake/tools/voice-lines.mjs --ab-apply <set> ab-<set>.json      install those new takes, but for the lines the owner marked old
+//   node remake/tools/voice-lines.mjs --yesno <set> [--only id,id]   the yes/no page: the game's recording of each line, "Já" or "Nei" (what to record again)
 // (making lines, --audition, --book and --remake-kept need ffmpeg and ffprobe on the PATH and ELEVENLABS_API_KEY in the environment;
-// --dry, --pick, --plan, --ab and --ab-apply ask ElevenLabs nothing and need no key; --plan and --ab-apply need ffprobe/ffmpeg)
+// --dry, --pick, --plan, --ab, --ab-apply and --yesno ask ElevenLabs nothing and need no key; --plan and --ab-apply need ffprobe/ffmpeg)
 //
 // THE PRONUNCIATION STANDARD (tools/pronunciation.mjs). remake/assets/audio/pronunciation.json lists the hard words (Kambeðla, Snigill,
 // Eitt, Egill, ...), each with every form the lines say, candidate recipes and the one the owner chose by ear ("chosen", null until
@@ -92,7 +93,7 @@ import { fileURLToPath } from 'node:url';
 import { LINES_FILE, SETS, durationOf, setFolder, updateLines } from './audio-lines.mjs';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { LEXICON, checkLexicon, formsPattern, isText, readLexicon, requestFor, resolveWord, withChoice, writeLexicon } from './pronunciation.mjs';
-import { SPEAKER_NAMES, abHtml, bookHtml } from './voice-pages.mjs';
+import { SPEAKER_NAMES, abHtml, bookHtml, yesNoHtml } from './voice-pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 /** Where the lines to speak of a set (the chapter's unless told another) are written, relative to the repo root. */
@@ -181,17 +182,17 @@ export function cacheKey({ text, voiceId, model = MODEL, settings = SETTINGS, se
 // here, the tool's one door, for the other tools and the tests.
 
 export { LEXICON, applyLexicon, checkLexicon, formsPattern, lexiconText, readLexicon, requestFor, resolveWord, writeLexicon } from './pronunciation.mjs';
-export { SPEAKER_NAMES, abHtml, bookHtml } from './voice-pages.mjs';
+export { SPEAKER_NAMES, abHtml, bookHtml, yesNoHtml } from './voice-pages.mjs';
 
 const USAGE = `Usage: voice-lines.mjs [--set ${Object.keys(SETS).join('|')}] [--only id,id] [--dry]
        voice-lines.mjs --dry --set all|${JUNIOR}
        voice-lines.mjs --audition ${Object.keys(CANDIDATES).join('|')}
        voice-lines.mjs --book <word|all> [--dry]  |  --pick picks.json  |  --plan  |  --ab <set|${JUNIOR}> [--only id,id]
-       voice-lines.mjs --remake-kept <set> [--only id,id]  |  --ab-apply <set> ab-<set>.json`;
+       voice-lines.mjs --remake-kept <set> [--only id,id]  |  --ab-apply <set> ab-<set>.json  |  --yesno <set> [--only id,id]`;
 
 /**
  * The command line: { only, audition, set }, and, when given, `dry` (true), `book` (a word or "all"), `pick` (a file), `plan`
- * (true) or `ab` (a set). `set` is the line set that is made (the chapter's unless told another); with --dry it may also be "all"
+ * (true), `ab` (a set), `remakeKept` (a set), `abApply` ({ set, file }) or `yesno` (a set). `set` is the line set that is made (the chapter's unless told another); with --dry it may also be "all"
  * or yatzy-junior.
  */
 export function parseArgs(argv) {
@@ -229,6 +230,9 @@ export function parseArgs(argv) {
       const set = value(++i, '--ab-apply', 'a line set and the file the A/B page saved');
       if (!Object.hasOwn(SETS, set)) throw new Error(`--ab-apply needs ${Object.keys(SETS).join(' or ')}, then the file the A/B page saved.`);
       args.abApply = { set, file: value(++i, '--ab-apply', `the file the A/B page saved (ab-${set}.json)`) };
+    } else if (arg === '--yesno') {
+      args.yesno = value(++i, '--yesno', `a line set (${Object.keys(SETS).join(', ')})`);
+      if (!Object.hasOwn(SETS, args.yesno)) throw new Error(`--yesno needs ${Object.keys(SETS).join(' or ')}.`);
     } else if (arg === '--ab') {
       args.ab = value(++i, '--ab', `a line set (${Object.keys(SETS).join(', ')} or ${JUNIOR})`);
       if (!Object.hasOwn(SETS, args.ab) && args.ab !== JUNIOR) throw new Error(`--ab needs ${Object.keys(SETS).join(' or ')} or ${JUNIOR}.`);
@@ -236,14 +240,14 @@ export function parseArgs(argv) {
       throw new Error(`Unknown argument: ${arg}\n${USAGE}`);
     }
   }
-  const commands = ['audition', 'book', 'pick', 'plan', 'ab', 'remakeKept', 'abApply'].filter(name => args[name]);
+  const commands = ['audition', 'book', 'pick', 'plan', 'ab', 'remakeKept', 'abApply', 'yesno'].filter(name => args[name]);
   const flag = name => `--${name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
   if (commands.length > 1) throw new Error(`${commands.map(flag).join(' and ')} do not go together.`);
   if (args.audition && args.only) throw new Error('--audition and --only do not go together.');
   if (args.audition && named && args.set !== setOf(args.audition)) throw new Error(`--audition ${args.audition} speaks a line of the ${setOf(args.audition)} set, so --set can only repeat that.`);
-  if (args.dry && (args.audition || args.pick || args.plan || args.ab || args.remakeKept || args.abApply)) throw new Error('--dry goes with making lines or the book; --audition, --pick, --plan, --ab, --remake-kept and --ab-apply say what they do without it.');
-  if ((args.book || args.pick || args.plan || args.ab || args.remakeKept || args.abApply) && named) throw new Error('--book, --pick, --plan, --ab, --remake-kept and --ab-apply name their set themselves: --set does not go with them.');
-  if ((args.book || args.pick || args.plan || args.abApply) && args.only) throw new Error('--only goes with making lines, --dry, --ab and --remake-kept.');
+  if (args.dry && (args.audition || args.pick || args.plan || args.ab || args.remakeKept || args.abApply || args.yesno)) throw new Error('--dry goes with making lines or the book; --audition, --pick, --plan, --ab, --remake-kept, --ab-apply and --yesno say what they do without it.');
+  if ((args.book || args.pick || args.plan || args.ab || args.remakeKept || args.abApply || args.yesno) && named) throw new Error('--book, --pick, --plan, --ab, --remake-kept, --ab-apply and --yesno name their set themselves: --set does not go with them.');
+  if ((args.book || args.pick || args.plan || args.abApply) && args.only) throw new Error('--only goes with making lines, --dry, --ab, --remake-kept and --yesno.');
   if (['all', JUNIOR].includes(args.set) && !args.dry) throw new Error(`--set ${args.set} only goes with --dry: Litla Yatzy's lines are made by remake/tools/yatzy-junior-voices.mjs.`);
   return args;
 }
@@ -861,6 +865,7 @@ export function printPlan({ root, log }) {
 // The A/B pages, and kept lines under a new rule
 
 const AB = 'qa/remake/voices/ab';
+const YES_NO = 'qa/remake/voices/janei';
 
 /** A set's A/B rounds, oldest first: old-<n>/ (old/, the first round's folder before rounds were numbered, is round 1). */
 function roundsOf(root, set) {
@@ -934,6 +939,36 @@ export function abPage({ root, set, only = null, log }) {
   const shown = writeAbPage(root, set);
   log(`${copied ? `${copied} takes copied into ${AB}/${set}/old-${round}/ (round ${round})` : `nothing new to copy${round ? ` (round ${round} stands)` : ''}`}; ${AB}/${set}.html shows ${shown.made.length} lines of the round and ${shown.kept.length} kept lines with a new take.`);
   return { planned, copied, round, shown: shown.made };
+}
+
+/** How the yes/no page names the chapters whose lines it shows, by the start of the line's id. */
+const YES_NO_GROUPS = { k2: 'Kafli 2: Boð til Uggeðlu', k3: 'Kafli 3: Boð til Þórseðlu' };
+
+/**
+ * --yesno <set> [--only id,id]: writes qa/remake/voices/janei/<set>.html, the owner's yes/no page for the set's lines (--only: just
+ * these, chapter by chapter, each in the set's order): each line's recording as the game plays it, with "Já" and "Nei" and room for what was wrong. "Vista val"
+ * saves jano-<set>.json. Asks nothing, writes nothing but the page. Returns the ids shown.
+ */
+export function yesNoPage({ root, set, only = null, log }) {
+  const lines = linesOf(root, set);
+  if (only) {
+    const unknown = only.filter(id => !lines.some(line => line.id === id));
+    if (unknown.length) throw new Error(`Not in ${set}: ${unknown.join(', ')}`);
+  }
+  const lexicon = readLexicon(root);
+  const chapterOf = line => { const at = Object.keys(YES_NO_GROUPS).indexOf(line.id.split('_')[0]); return at < 0 ? Object.keys(YES_NO_GROUPS).length : at; };
+  const chosen = lines.filter(line => !only || only.includes(line.id)).sort((a, b) => chapterOf(a) - chapterOf(b)); // chapter by chapter, each in the set's order
+  const missing = chosen.filter(line => !fs.existsSync(path.join(root, folderOf(set), `${line.id}.mp3`)));
+  if (missing.length) throw new Error(`No recording yet for ${missing.map(line => line.id).join(', ')}: make them first (--set ${set} --only ...).`);
+  const rows = chosen.map(line => ({
+    id: line.id, speaker: line.speaker, text: line.text, how: howSent(line, requestFor(line, lexicon)),
+    src: `../../../../${folderOf(set)}/${line.id}.mp3`, group: YES_NO_GROUPS[line.id.split('_')[0]] ?? null,
+  }));
+  const folder = path.join(root, YES_NO);
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, `${set}.html`), yesNoHtml({ set, rows }));
+  log(`${YES_NO}/${set}.html shows ${rows.length} lines; it saves jano-${set}.json.`);
+  return rows.map(row => row.id);
 }
 
 /**
@@ -1040,6 +1075,10 @@ export async function main(argv, { env = process.env, root = ROOT, fetch = globa
   }
   if (args.ab) {
     abPage({ root, set: args.ab, only: args.only, log });
+    return;
+  }
+  if (args.yesno) {
+    yesNoPage({ root, set: args.yesno, only: args.only, log });
     return;
   }
   if (args.abApply) {

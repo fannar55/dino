@@ -7,7 +7,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MOUTH_RATE, REMAKE_AUDIO, SETS, buildLines, remakeLines, updateLines } from '../tools/audio-lines.mjs';
 import { createHash } from 'node:crypto';
-import { CANDIDATES, JUNIOR_LINES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches } from '../tools/voice-lines.mjs';
+import { CANDIDATES, JUNIOR_LINES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches, yesNoHtml } from '../tools/voice-lines.mjs';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { VISIT, fixtureLexicon, fixtureWords } from './lexicon-fixture.mjs';
 import { WAITING_FOR_VOICE } from './waiting-for-voice.mjs';
@@ -794,10 +794,12 @@ test('parseArgs takes the lexicon commands, and refuses them together or with wh
   assert.deepEqual(parseArgs(['--ab', 'eitt']), { only: null, audition: null, set: 'kafli1', ab: 'eitt' });
   assert.deepEqual(parseArgs(['--ab', 'yatzy-junior', '--only', 'yatzyRoll']), { only: ['yatzyRoll'], audition: null, set: 'kafli1', ab: 'yatzy-junior' });
   assert.deepEqual(parseArgs(['--remake-kept', 'eitt']), { only: null, audition: null, set: 'kafli1', remakeKept: 'eitt' });
+  assert.deepEqual(parseArgs(['--yesno', 'kafli2', '--only', 'k2_mosi_einn']), { only: ['k2_mosi_einn'], audition: null, set: 'kafli1', yesno: 'kafli2' });
   assert.deepEqual(parseArgs(['--remake-kept', 'book', '--only', 'book_mosi_4']), { only: ['book_mosi_4'], audition: null, set: 'kafli1', remakeKept: 'book' });
   assert.deepEqual(parseArgs(['--ab-apply', 'eitt', 'ab-eitt.json']), { only: null, audition: null, set: 'kafli1', abApply: { set: 'eitt', file: 'ab-eitt.json' } });
   for (const argv of [['--remake-kept'], ['--remake-kept', 'yatzy-junior'], ['--ab-apply', 'eitt'], ['--ab-apply', 'kafli3', 'x.json'], ['--remake-kept', 'eitt', '--dry'],
-    ['--ab-apply', 'eitt', 'x.json', '--only', 'a'], ['--remake-kept', 'eitt', '--ab', 'eitt'], ['--ab-apply', 'eitt', 'x.json', '--set', 'eitt']]) {
+    ['--ab-apply', 'eitt', 'x.json', '--only', 'a'], ['--remake-kept', 'eitt', '--ab', 'eitt'], ['--ab-apply', 'eitt', 'x.json', '--set', 'eitt'],
+    ['--yesno'], ['--yesno', 'yatzy-junior'], ['--yesno', 'kafli2', '--dry'], ['--yesno', 'kafli2', '--set', 'kafli2'], ['--yesno', 'kafli2', '--plan']]) {
     assert.throws(() => parseArgs(argv), Error, argv.join(' '));
   }
   assert.throws(() => parseArgs(['--remake-kept', 'eitt', '--plan']), /--plan and --remake-kept do not go together/);
@@ -1103,6 +1105,42 @@ test('--ab snapshots the old takes before they are made again into a round of th
     ['k1_mosi_old', ['its MP3 was changed after the tool made it']],
     ['k1_mosi_greet', ['the lexicon changed its request (kambedla: samhengi-42)']],
   ]);
+});
+
+test("--yesno writes the owner's yes/no page: the game's recording of each line, \"Já\" and \"Nei\" with room for what was wrong; it asks nothing and needs the recordings", needsFfmpeg, async t => {
+  const root = planRoot(t);
+  const { fetch, calls } = fakeApi();
+  const out = [];
+  const before = filesUnder(root);
+  await main(['--yesno', 'kafli1', '--only', 'k1_mosi_greet,k1_egill_go'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.equal(calls.length, 0, 'asks nothing, and needs no key');
+  assert.deepEqual(filesUnder(root).filter(name => !before.includes(name)), ['qa/remake/voices/janei/kafli1.html'], 'writes the page and nothing else');
+  assert.match(out[0], /janei\/kafli1\.html shows 2 lines/);
+  const page = fs.readFileSync(path.join(root, 'qa/remake/voices/janei/kafli1.html'), 'utf8');
+  for (const id of ['k1_mosi_greet', 'k1_egill_go']) {
+    assert.ok(page.includes(`src="../../../../remake/assets/audio/kafli1/${id}.mp3"`), `${id}: the recording the game plays`);
+    assert.ok(page.includes(`name="${id}" value="ja"`) && page.includes(`name="${id}" value="nei"`) && page.includes(`name="why-${id}"`), `${id}: yes, no and a note`);
+  }
+  assert.ok(!page.includes('k1_mosi_new'), '--only: just these lines');
+  assert.ok(page.includes('samhengi (ekki talað): Fyrst heimsækjum'), "what the line was sent with, for the one that has a recipe");
+  assert.match(page, /download: "jano-kafli1\.json"/);
+  assert.match(page, /id="save">Vista val</);
+  // a line without its recording, or not in the set, stops it
+  await assert.rejects(main(['--yesno', 'kafli1', '--only', 'k1_mosi_missing'], { env: {}, root, fetch, log() {} }), /No recording yet for k1_mosi_missing/);
+  await assert.rejects(main(['--yesno', 'kafli1', '--only', 'k1_nope'], { env: {}, root, fetch, log() {} }), /k1_nope/);
+});
+
+test('the yes/no page puts a heading where the chapter changes, names Uggeðla, and keeps what the owner types out of the markup', () => {
+  const rows = [
+    { id: 'k2_uggedla_help', speaker: 'uggedla', text: 'Viltu hjálpa mér <Egill>?', src: 'a.mp3', group: 'Kafli 2' },
+    { id: 'k2_mosi_einn', speaker: 'mosi', text: 'Einn!', src: 'b.mp3', group: 'Kafli 2' },
+    { id: 'k3_egill_hi', speaker: 'egill', text: 'Hæ!', src: 'c.mp3', group: 'Kafli 3' },
+  ];
+  const page = yesNoHtml({ set: 'kafli2', rows });
+  assert.deepEqual([...page.matchAll(/<h2>([^<]*)<\/h2>/g)].map(match => match[1]), ['Kafli 2', 'Kafli 3']);
+  assert.ok(page.includes('<b>Uggeðla</b>: Viltu hjálpa mér &lt;Egill&gt;?'));
+  assert.deepEqual([...page.matchAll(/data-id="([a-z0-9_]+)"/g)].map(match => match[1]), rows.map(row => row.id));
+  assert.match(page, /3 línur/);
 });
 
 test('--remake-kept makes the takes of kept lines under a new rule beside the game, never in it; --ab-apply installs those the owner did not mark old', needsFfmpeg, async t => {
