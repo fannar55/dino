@@ -19,6 +19,7 @@ import {
   SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR, arriveInSiki,
 } from '../chapters/kafli2-siki.js';
 import { riseSail, headUpWithFish, catchFish, swimAlong, tailSplash, createBackSeat } from '../chapters/kafli2-uggedla.js';
+import { fishing, getUp, jumpOrder, jumpPath, FISH_SIZES, JUMP_SECONDS, HINT_AFTER, HELP_AFTER, FISH_COUNT, TAP_RADIUS } from '../chapters/kafli2-fishing.js';
 import { createSaddle, ride, floatTo } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { waterShape } from '../world/props/water.js';
@@ -354,7 +355,7 @@ test('the chapter plays its two scenes unattended, comes to Síkið and ends in 
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   assert.ok(stage.s.time < IDLE_LIMIT, `it took ${stage.s.time.toFixed(1)} s`);
-  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2], 'the glade and the footprints, as before');
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 4], 'the glade, the footprints and (the sail and the star being built) the fishing');
   assert.equal(world.location, 'siki', 'the trail ends in Síkið, where the scenes to be built go on');
   assert.ok(last.fade >= 0.999, `the picture has faded to black (${last.fade.toFixed(2)})`);
   assert.deepEqual(journal.stars, [], 'no star yet: Uggeðla\'s comes with the scenes to be built');
@@ -942,6 +943,8 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
       const world = mosi.raw.world;
       world.chapterTimeline = [];
       const c = { s, world, mosi, egill, kambedla, uggedla, thorsedla, talking: false, saying: 0, printLog: [] };
+      // a line, counted as the chapter's own say counts it (kafli2.js)
+      c.say = function* (speaker, id, options) { c.saying++; try { yield s.say(speaker, id, options); } finally { c.saying--; } };
       c.ring = ringsFor(world, { most: 3 });
       world.chapterState = c;
       c.saddle = createSaddle(mosi.raw);
@@ -1244,4 +1247,221 @@ test('the warm-up draws the fish she holds in her jaws, so that it is not first 
   const names = warm.objects.flatMap(root => { const n = []; root.traverse(o => n.push(o.name)); return n; });
   assert.ok(names.includes('Uggeðla fish'), 'the fish is drawn in Síkið\'s warm-up');
   warm.dispose();
+});
+
+// ---------------------------------------------------------------------------------------------
+// The fishing (kafli2-fishing.js; scene 4): fish jump out of the channel one at a time, the child taps the big ones, Uggeðla catches each
+// and Mosi counts them to five; a small one is let go; with no tap there is a hint and then her own catch.
+
+const COUNT_TEXTS = ['Einn!', 'Tveir!', 'Þrír!', 'Fjórir!', 'Fimm!'];
+const HINT_TEXT = chapter.lines.k2_mosi_hint_fish.text;
+const SMALL_TEXT = chapter.lines.k2_uggedla_small.text;
+const tapFish = pointer => pointer.tap('fish', { x: 640, y: 400 });
+
+/**
+ * The fishing played in Síkið (she gets up, then fishing(s, c)) by a child: `child({ fish, now, pointer, seen })` is called after every
+ * frame, with the fish in the air (what the child sees: its kind, its phase, when it left the water) or null, and taps through the
+ * pointer. `seen` collects the jumps (kind, spot, when it left the water and when it was gone), the taps and the result.
+ */
+function fished(child, { limit = 400 } = {}) {
+  const seen = { began: null, ended: null, result: null, jumps: [], taps: [] };
+  let last = null;
+  const play = inSiki(function* (s, c) {
+    yield* getUp(s, c);
+    seen.began = s.time;
+    seen.result = yield* fishing(s, c);
+    seen.ended = s.time;
+    yield s.wait(0.5);
+  }, {
+    limit,
+    onFrame({ world, stage, pointer }) {
+      const c = world.chapterState;
+      const now = stage.s.time;
+      const fish = c?.fish ?? null;
+      if (fish !== last) {
+        if (last) seen.jumps.at(-1).gone = now;
+        if (fish) seen.jumps.push({ kind: fish.kind, spot: fish.spot, at: now, gone: null });
+        last = fish;
+      }
+      if (seen.began !== null && seen.ended === null) child({ fish, now, pointer, seen });
+    },
+  });
+  return play.then(run => ({ ...run, seen }));
+}
+const said = (run, texts) => run.captions.filter(caption => texts.includes(caption.text));
+
+/** The waits of a child who does not tap the big fish: from the start and from each catch, the hint comes at 8 s and her own catch from 16 s. */
+function holdsWaits(run, { hintTolerance, helpLate }) {
+  const { seen } = run;
+  let since = seen.began;
+  const hints = said(run, [HINT_TEXT]).map(caption => caption.at);
+  seen.result.caught.forEach((item, i) => {
+    const hint = hints.find(at => at >= since);
+    assert.ok(hint !== undefined && Math.abs(hint - since - HINT_AFTER) < hintTolerance, `catch ${i + 1}: the hint comes ${hint === undefined ? 'never' : (hint - since).toFixed(1)} s after the last catch (${HINT_AFTER} s)`);
+    assert.ok(item.at - since >= HELP_AFTER && item.at - since < HELP_AFTER + helpLate, `catch ${i + 1}: she catches it ${(item.at - since).toFixed(1)} s after the last (${HELP_AFTER} s and a jump)`);
+    since = item.at;
+  });
+  assert.equal(hints.length, FISH_COUNT, 'one hint for each wait');
+}
+
+test('an idle child: the hint 8 s after the start and after each catch, her own catch from 16 s, the five big fish counted one to five, and then it is over', async () => {
+  const run = await fished(() => {});
+  const { seen } = run;
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  assert.equal(seen.result.caught.length, FISH_COUNT, 'five big fish');
+  assert.ok(seen.result.caught.every(item => item.how === 'helped'), 'every one of them hers: nobody tapped');
+  assert.equal(seen.result.smallTaps, 0);
+  holdsWaits(run, { hintTolerance: 0.6, helpLate: 6 });
+  // counted one to five, in the masculine, in that order, once each, as each is caught
+  const counts = said(run, COUNT_TEXTS);
+  assert.deepEqual(counts.map(caption => caption.text), COUNT_TEXTS);
+  counts.forEach((caption, i) => assert.ok(Math.abs(caption.at - seen.result.caught[i].at) < 0.3, `${caption.text} is said as the fish is caught`));
+  assert.ok(seen.ended - seen.began < 125, `the fishing takes an idle child ${(seen.ended - seen.began).toFixed(0)} s`);
+  assert.ok(run.task.done, 'and the scene goes on');
+});
+
+test('a child who taps the big fish in the air: each is caught within about 3 s and counted once, whatever else is tapped', async () => {
+  const done = new WeakSet();
+  const run = await fished(({ fish, now, pointer, seen }) => {
+    if (fish?.phase === 'held' || fish?.phase === 'caught') tapFish(pointer); // more taps while she catches it
+    if (fish?.kind === 'big' && fish.phase === 'air' && now - fish.launched >= 0.6 && !done.has(fish)) {
+      done.add(fish);
+      tapFish(pointer);
+      tapFish(pointer); // two taps in one frame
+      seen.taps.push({ at: now });
+    }
+    if (!fish && Math.floor(now * 4) % 3 === 0) tapFish(pointer); // and taps where there is no fish
+  });
+  const { seen } = run;
+  assert.equal(seen.result.caught.length, FISH_COUNT, 'five, never more');
+  assert.ok(seen.result.caught.every(item => item.how === 'tapped'));
+  assert.deepEqual(said(run, COUNT_TEXTS).map(caption => caption.text), COUNT_TEXTS, 'each counted once, one to five');
+  assert.equal(said(run, [HINT_TEXT]).length, 0, 'no hint for a child who taps at once');
+  assert.equal(seen.taps.length, FISH_COUNT, 'five big fish tapped, one after the other');
+  seen.result.caught.forEach((item, i) => {
+    assert.ok(item.doneAt - seen.taps[i].at <= 3.4, `catch ${i + 1} takes ${(item.doneAt - seen.taps[i].at).toFixed(1)} s from the tap to her being back`);
+    assert.ok(item.at - seen.taps[i].at < 2.2, `the jaws are on the fish ${(item.at - seen.taps[i].at).toFixed(1)} s after the tap`);
+  });
+  // one fish in the air at a time, and a breath between them
+  seen.jumps.forEach((jump, i) => {
+    assert.ok(jump.gone !== null, `fish ${i} goes`);
+    if (i) assert.ok(jump.at - seen.jumps[i - 1].gone > 0.3, `fish ${i} leaves the water ${(jump.at - seen.jumps[i - 1].gone).toFixed(1)} s after the last is gone`);
+  });
+  // the count's tone climbs the key one step for each, as the prints' does
+  assert.deepEqual(run.soundLog.filter(e => e.name === 'countTone').map(e => e.detail?.index), [1, 2, 3, 4, 5]);
+});
+
+test('a tap on a small fish: Uggeðla says it is too small, it swims off with a splash and nothing is counted', async () => {
+  const done = new WeakSet();
+  let small = null;
+  const run = await fished(({ fish, now, pointer }) => {
+    if (!fish || done.has(fish) || fish.phase !== 'air' || now - fish.launched < 0.5) return;
+    if (fish.kind === 'small' && !small) {
+      done.add(fish);
+      tapFish(pointer);
+      small = { at: now, fish };
+    } else if (fish.kind === 'big') {
+      done.add(fish);
+      tapFish(pointer);
+    }
+  });
+  const { seen } = run;
+  assert.ok(small, 'a small fish came and was tapped');
+  const lines = said(run, [SMALL_TEXT]);
+  assert.equal(lines.length, 1, 'she says so once');
+  assert.ok(lines[0].at >= small.at && lines[0].at - small.at < 0.5, `at once (${(lines[0].at - small.at).toFixed(2)} s)`);
+  assert.equal(seen.result.smallTaps, 1);
+  assert.equal(seen.result.caught.length, FISH_COUNT);
+  assert.deepEqual(said(run, COUNT_TEXTS).map(caption => caption.text), COUNT_TEXTS, 'it was not counted: still one to five');
+  assert.equal(run.soundLog.filter(e => e.name === 'countTone').length, FISH_COUNT, 'and no tone for it');
+  const jump = seen.jumps.find(item => item.kind === 'small' && item.at <= small.at && item.gone > small.at);
+  assert.ok(jump.gone - small.at < 2.6, `the fish is gone ${(jump.gone - small.at).toFixed(1)} s after the tap`);
+  assert.ok(run.soundLog.some(e => e.name === 'fish' && e.detail?.part === 'in' && e.at > small.at && e.at < small.at + 2.5), 'it goes into the water with a splash');
+});
+
+test('a child who taps only the small fish still gets the hint and then her help, and ends with five big fish counted', async () => {
+  const done = new WeakSet();
+  const run = await fished(({ fish, now, pointer }) => {
+    if (fish?.kind === 'small' && fish.phase === 'air' && now - fish.launched >= 0.5 && !done.has(fish)) { done.add(fish); tapFish(pointer); }
+  });
+  const { seen } = run;
+  assert.equal(seen.result.caught.length, FISH_COUNT);
+  assert.ok(seen.result.caught.every(item => item.how === 'helped'), 'every one of them hers');
+  assert.ok(seen.result.smallTaps >= 3, `${seen.result.smallTaps} small fish tapped`);
+  assert.deepEqual(said(run, COUNT_TEXTS).map(caption => caption.text), COUNT_TEXTS);
+  // a tap on a small fish does not put the waiting off: the hint and her catch come as they do for an idle child (a hint waits for her line)
+  holdsWaits(run, { hintTolerance: 2.5, helpLate: 8 });
+  assert.ok(said(run, [SMALL_TEXT]).length >= 3, 'and she says each is too small');
+});
+
+test('the jumps: about one in three is small and never two in a row, no spot twice in a row, the first is big, the same every time', () => {
+  const order = jumpOrder(40);
+  assert.equal(order.length, 40);
+  assert.equal(order[0].kind, 'big', 'the first fish is a big one');
+  order.forEach((jump, i) => {
+    assert.ok(['big', 'small'].includes(jump.kind));
+    assert.ok(Number.isInteger(jump.spot) && jump.spot >= 0 && jump.spot < FISHING_SPOTS.length);
+    if (i) {
+      assert.ok(!(jump.kind === 'small' && order[i - 1].kind === 'small'), `fish ${i} and ${i - 1} are both small`);
+      assert.notEqual(jump.spot, order[i - 1].spot, `fish ${i} jumps where ${i - 1} did`);
+    }
+  });
+  const smalls = order.filter(jump => jump.kind === 'small').length;
+  assert.ok(smalls >= 10 && smalls <= 16, `${smalls} of 40 are small`);
+  assert.deepEqual(jumpOrder(40), order, 'deterministic');
+  assert.deepEqual(FISH_SIZES, { big: 1.0, small: 0.3 }, 'a metre and thirty centimetres');
+  assert.equal(JUMP_SECONDS, 1.5);
+  assert.deepEqual([HINT_AFTER, HELP_AFTER, FISH_COUNT], [8, 16, 5]);
+});
+
+test('a fish in the air is a tap target that moves with it, and a jump takes 1.5 s from the water to the water', async () => {
+  const rows = [];
+  const run = await fished(({ fish, now, pointer }) => {
+    if (fish?.phase === 'air') {
+      const target = pointer.targets.get('fish');
+      rows.push({ now, kind: fish.kind, target: target?.point?.clone(), radius: target?.radius, fish: fish.point.clone() });
+    }
+  }, { limit: 40 });
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  assert.ok(rows.length > 60, `${rows.length} frames of fish in the air`);
+  const level = WATER_LEVEL();
+  for (const row of rows) {
+    assert.ok(row.target && row.target.distanceTo(row.fish) < 0.01, 'the tap target is where the fish is');
+    assert.equal(row.radius, TAP_RADIUS[row.kind]);
+    assert.ok(row.fish.y >= level - 0.15, 'over the water');
+  }
+  const first = run.seen.jumps[0];
+  assert.ok(Math.abs(first.gone - first.at - JUMP_SECONDS) < 0.1, `the first jump takes ${(first.gone - first.at).toFixed(2)} s`);
+  const apex = Math.max(...rows.filter(row => row.kind === 'big').map(row => row.fish.y - level));
+  assert.ok(apex > 1.2 && apex < 2.4, `a big fish rises ${apex.toFixed(1)} m over the water`);
+  assert.ok(run.soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'out').length >= 2, 'the plip as it leaves the water');
+  assert.ok(run.soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'in').length >= 2, 'and the splash as it falls back');
+});
+
+test('a tall screen sees every jump of a big fish and its tap target is at least 44 px', () => {
+  // The director keeps the authored 16:10 frame's width on a screen taller than it is wide and shows more above and below
+  // (engine/camera/director.js: effectiveFov), so the lens is wider than the shot's: the camera of a tablet held upright, 800x1280.
+  const shot = SIKI_SHOTS.siki_fishing;
+  const [width, height] = [800, 1280];
+  const halfWidth = Math.atan(Math.tan(THREE.MathUtils.degToRad(shot.fov) / 2) * 1.6);
+  const fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfWidth) / (width / height)));
+  const camera = new THREE.PerspectiveCamera(fov, width / height, 0.1, 1200);
+  camera.position.set(...shot.position);
+  camera.lookAt(new V3(...shot.target));
+  camera.updateMatrixWorld(true);
+  const focal = height / 2 / Math.tan(THREE.MathUtils.degToRad(fov) / 2);
+  const point = new V3(), ndc = new V3();
+  let narrowest = Infinity;
+  for (let spot = 0; spot < FISHING_SPOTS.length; spot++) {
+    for (const way of [1, -1]) {
+      const path = jumpPath(spot, 'big', way);
+      for (let u = 0; u <= 1.0001; u += 0.05) {
+        path.at(u, point);
+        ndc.copy(point).project(camera);
+        assert.ok(ndc.z < 1 && Math.abs(ndc.x) < 0.95 && Math.abs(ndc.y) < 0.95, `spot ${spot}, way ${way}, ${Math.round(u * 100)} % of the jump is at ${ndc.x.toFixed(2)}, ${ndc.y.toFixed(2)}: not in the picture`);
+        narrowest = Math.min(narrowest, (TAP_RADIUS.big / camera.position.distanceTo(point)) * focal);
+      }
+    }
+  }
+  assert.ok(narrowest >= 44, `the tap target of a big fish is ${narrowest.toFixed(0)} px in radius at the furthest, on an 800x1280 screen`);
 });
