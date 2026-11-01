@@ -45,6 +45,7 @@
  *   mosiPlace()       where Mosi stands ({ x, z, heading }) or null while he walks; mosiObstacle(): the friends' walks keep clear of him
  *   bindPair(species, members), ownsPair(species), pairCentre(species), hasTravelReservation(actor), visited(), nestSelectable(species)
  *                     the pairs at work: who is on a job or on the way to it, where, and whether the child may greet a pair at its home
+ *   groundAt(x, z)?   the height of the ground under Mosi where the friends stand somewhere other than the glade (level 2's upper gorge), or null; his contact shade lies on it
  *   wet(x, z)?, wood(x, z)?, riverDistance(x, z)?   the water and wood under the effects, the river the walks keep out of
  *   avoidIdle(x, z)   why a waiting friend may not play there ('wet', 'boardwalk'...); null when it may
  *   getDebug({ collision })   { bridge (the mover's debug), mosiWalk, mosiAcross, river, collisionObjects } for the page's debug

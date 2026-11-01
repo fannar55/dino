@@ -35,13 +35,13 @@ export function flyScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: .25, shot: { kind: 'follow', subjects: () => [...bodies(pair()), rope()], front: view([-.3, -1]), elevation: 20, cut: true, floor: 'auto' } },
     { at: .28, wait: { until: () => stage.task.done() >= 2 || ['wrap', 'tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 9 } },
     // (a second framing of the flight, from the side, for the last leg to the tree: no stretch of watching passes about 6 seconds)
-    { at: .29, shot: { kind: 'follow', scale: 'wide', subjects: () => [...bodies(pair()), rope(), tree().top], front: view([-.55, -1]), elevation: 16, cut: true, floor: 'auto' } },
+    { at: .29, shot: { kind: 'follow', scale: 'wide', subjects: () => [...bodies(pair()), rope(), tree().top], front: view([.1, -1]), elevation: 20, cut: true, floor: 'auto' } },
     { at: .3, wait: { until: () => ['wrap', 'tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 10 } },
     // At the tree: they fly round the trunk and the rope goes round it.
-    { at: .35, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), tree().middle, up(tree().base, 3.4)], front: view([-.35, -1]), elevation: 26, cut: true, floor: 'auto' }, act: () => stage.mosi.look(tree().middle) },
+    { at: .35, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), tree().middle, up(tree().base, 3.4)], front: view([.15, -1]), elevation: 22, cut: true, floor: 'auto' }, act: () => stage.mosi.look(tree().middle) },
     { at: .4, wait: { until: () => ['tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 8 } },
     // The rope draws taut from the foot of the path to the tree.
-    { at: .45, shot: { kind: 'wide', scale: 'wide', subjects: () => [foot(), tree().middle, up(tree().base, 3.4), stage.task.up(16.4, 6.4, 3.6)], front: view([-.25, -1]), elevation: 24, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
+    { at: .45, shot: { kind: 'wide', scale: 'wide', subjects: () => [foot(), tree().middle, up(tree().base, 3.4), stage.task.up(16.4, 6.4, 3.6)], front: view([.45, -1]), elevation: 20, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
     { at: .5, wait: { until: () => !stage.task.busy(), timeout: 8 } },
     { at: .55, shot: { release: true, duration: .9 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];

@@ -91,21 +91,28 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .015;
     tint.copy(SAND).lerp(ROCK, steep).lerp(DEEP, smoothstep(.35, .7, 1 - 2 * e / l) * .7).multiplyScalar(shade); colour.set([tint.r, tint.g, tint.b], k * 3);
   }
-  const index = [];
+  // (the ground is drawn in chunks along the gorge, as the cliff pieces are, so that the frustum drops the stretches a view does not see)
+  const CHUNKS = [-1e9, -8, 11, 27, 1e9], chunks = CHUNKS.slice(1).map(() => []);
   // (nothing is drawn where the ground is the plain: a cell whose corners and their neighbours are all level with it; the rest of the plain's edge is drawn, so that it is smooth)
   const level = (i, j) => i < 0 || j < 0 || i >= cols || j >= rows || position[(j * cols + i) * 3 + 1] < .02;
   for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
     let flat = true; for (let dj = -1; dj <= 2 && flat; dj++) for (let di = -1; di <= 2 && flat; di++) flat = level(i + di, j + dj);
     if (flat) continue;
     const a = j * cols + i, b = a + 1, c = a + cols, d = c + 1;
-    index.push(a, c, b, b, c, d);
+    chunks[CHUNKS.findIndex((edge, n) => xs[i] >= edge && xs[i] < CHUNKS[n + 1])].push(a, c, b, b, c, d);
   }
-  const terrainGeometry = new THREE.BufferGeometry();
-  terrainGeometry.setAttribute('position', new THREE.BufferAttribute(position, 3)); terrainGeometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3)); terrainGeometry.setAttribute('color', new THREE.BufferAttribute(colour, 3));
-  terrainGeometry.setIndex(index); terrainGeometry.computeBoundingSphere();
-  const terrainMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, metalness: 0 }); disposables.push(terrainGeometry, terrainMaterial);
-  const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial); terrain.name = 'Efra gljúfrið (jörð)'; terrain.receiveShadow = true; terrain.frustumCulled = false; frame.add(terrain);
-  triangles += index.length / 3; draws++;
+  const attributes = { position: new THREE.BufferAttribute(position, 3), normal: new THREE.BufferAttribute(normal, 3), color: new THREE.BufferAttribute(colour, 3) };
+  const terrainMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, metalness: 0 }); disposables.push(terrainMaterial);
+  const terrain = new THREE.Group(); terrain.name = 'Efra gljúfrið (jörð)'; frame.add(terrain);
+  for (const index of chunks) {
+    if (!index.length) continue;
+    const geometry = new THREE.BufferGeometry(); for (const [name, attribute] of Object.entries(attributes)) geometry.setAttribute(name, attribute);
+    geometry.setIndex(index);
+    // (a chunk's bounding sphere is of the vertices it uses, not of the whole grid)
+    geometry.boundingSphere = new THREE.Sphere().setFromPoints([...new Set(index)].map(k => new THREE.Vector3(position[k * 3], position[k * 3 + 1], position[k * 3 + 2])));
+    const chunk = new THREE.Mesh(geometry, terrainMaterial); chunk.name = 'Efra gljúfrið (jörð)'; chunk.receiveShadow = true; chunk.frustumCulled = true; terrain.add(chunk);
+    disposables.push(geometry); triangles += index.length / 3; draws++;
+  }
 
   // ---- the cliff pieces and boulders ----
   // Placed on the faces of the ground: a piece's middle goes where the ground has risen (or fallen) so many metres from the floor of the place, found by walking outward from it; it is
@@ -142,7 +149,6 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
 
   const warm = new THREE.Color('#e8d3be');
   // (each kind in chunks along the gorge, a mesh each, so that the frustum drops the stretches a view does not see: the budget's 250,000 triangles are for what is drawn)
-  const CHUNKS = [-1e9, -8, 11, 27, 1e9];
   for (const [name, all] of placements) {
     const model = models.get(name), material = model.material.clone(); material.side = THREE.FrontSide; disposables.push(material);
     if (name.startsWith('gorge-boulder')) material.color.set('#ffdcb4'); else material.color.copy(warm);
@@ -150,7 +156,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
       const list = all.filter(entry => entry.x >= CHUNKS[c] && entry.x < CHUNKS[c + 1]); if (!list.length) continue;
       const mesh = new THREE.InstancedMesh(model.geometry, material, list.length); mesh.name = `${name} (efra ${c})`;
       list.forEach((entry, i) => { dummy.position.set(entry.x, entry.y, entry.z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix); mesh.setColorAt(i, new THREE.Color(entry.tint, entry.tint, entry.tint)); });
-      mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); mesh.frustumCulled = true; mesh.receiveShadow = true; mesh.castShadow = name.startsWith('gorge-boulder');
+      mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); mesh.frustumCulled = true; mesh.receiveShadow = true; mesh.castShadow = false; // (the boulders cast no shadow: a shadow pass draws them twice, and the budget is for both passes)
       frame.add(mesh); triangles += model.triangles * list.length; draws++;
     }
   }
@@ -222,7 +228,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     show() { frame.visible = true; },
     hide() { frame.visible = false; },
     get visible() { return frame.visible; },
-    stats: () => ({ triangles, draws, mesaTriangles: index.length / 3, cliffKinds: [...placements].map(([name, list]) => `${name} x${list.length}`), visible: frame.visible, slabAngle }),
+    stats: () => ({ triangles, draws, mesaTriangles: chunks.reduce((sum, index) => sum + index.length / 3, 0), cliffKinds: [...placements].map(([name, list]) => `${name} x${list.length}`), visible: frame.visible, slabAngle }),
     reset() { slab.set(SLAB.start); frame.visible = false; },
     dispose() { scene.remove(frame); for (const item of disposables) item.dispose?.(); for (const part of [...upperModels.slab, ...upperModels.tree]) part.geometry.dispose(); },
   };
