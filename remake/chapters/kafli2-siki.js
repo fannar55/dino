@@ -298,8 +298,11 @@ export const SIKI_SHOTS = {
   // From the front, over the water, 9 m ahead of Mosi, 8 m out and 2 m up (clear of the swamp conifers on the bank all through the swim): her head, Egill on her back with his hands on the sail's front edge and the
   // sail over him, Mosi beside her.
   ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [9, 2.0, 8.0], local: true }, target: { actor: 'uggedla', offset: [1.5, 2.2, 0] }, fov: 46 },
-  // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
-  ferry_back: { position: { actor: 'mosi', part: 'feet', offset: [-12, 4.6, 4.2], local: true }, target: 'thorsedla.head', fov: 40 },
+  // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees. In HER frame (10.7 m behind her root, 1.2 m to
+  // her left, 5.6 m over it: her root is 1.5 m under the water, so 4.1 m over the water as it was): in Mosi's frame it swung round the two of them in a
+  // 12 m arc, the sail sweeping across the picture, as he turned in the last metres of the wade onto the hummock (his heading goes 83, 31, 116, 92, 39
+  // degrees in six seconds, hers 68 to 80 in ten); she swims steady to her pool.
+  ferry_back: { position: { actor: 'uggedla', part: 'feet', offset: [-10.7, 5.6, -1.2], local: true }, target: 'thorsedla.head', fov: 40 },
   // The end of the channel, from the dry bank north of the pool, looking south over it the way the ferry goes: Uggeðla in the pool on
   // the right, Mosi coming up out of the water onto the hummock, the berry bushes beside him, and at the left Þórseðla's neck and head
   // over her trees.
