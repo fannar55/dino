@@ -141,7 +141,8 @@ export function createLevelWorld(stage) {
       const waiting = stage.scenes.waiting?.(), state = snapshot ?? {};
       const target = (id, point) => ({ id, point, enabled: true, next: state.next === id, tapAlong: waiting?.target === id, radius: 1.8 });
       if (!state.tunnelLit) return [target('tunnel', mouthPoint().add(new THREE.Vector3(0, 1.3, 0)))];
-      if (!state.rocksFallen) return [target('rocks', interior.pile.centre())];
+      // (the pile is a little way in at the mouth, which a portrait view can leave at its edge: the button is at the mouth, over the pile's front, so that it is on the screen wherever the tunnel is)
+      if (!state.rocksFallen) return [target('rocks', mouthPoint().add(new THREE.Vector3(0, 1.1, 0)))];
       return [];
     },
     /** Where the big tap-along button of an obstacle sits: over the mouth for the tunnel, over the pile for the rocks. */

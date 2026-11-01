@@ -121,7 +121,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   const meshes = rocks.map((rock, kind) => {
     const list = PIECES.filter(piece => piece.kind === kind); if (!list.length) return null;
     const mesh = new THREE.InstancedMesh(rock.geometry, pileMaterial, list.length);
-    mesh.name = `Grjót ${kind + 1}`; mesh.frustumCulled = false; mesh.castShadow = true; mesh.receiveShadow = true; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.name = `Grjót ${kind + 1}`; mesh.frustumCulled = true; mesh.castShadow = true; mesh.receiveShadow = true; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     group.add(mesh); disposables.push(rock.geometry); return { mesh, list };
   }).filter(Boolean);
   const pieces = PIECES.map(piece => {
@@ -136,14 +136,14 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
     dummy.position.set(x + extra[0], y + STEP_REST + extra[1], z + extra[2]); dummy.rotation.set(rx, yaw, rz, 'YXZ'); dummy.scale.setScalar(s); dummy.updateMatrix();
     piece.mesh.mesh.setMatrixAt(piece.slot, dummy.matrix);
   }
-  function setPile(stage) { pileStage = stage; for (const piece of pieces) { piece.cur = [...piece.keys[stage]]; piece.tween = null; piece.landed = true; placePiece(piece); } for (const { mesh } of meshes) mesh.instanceMatrix.needsUpdate = true; falling = false; pileDirty = false; }
+  function setPile(stage) { pileStage = stage; for (const piece of pieces) { piece.cur = [...piece.keys[stage]]; piece.tween = null; piece.landed = true; placePiece(piece); } for (const { mesh } of meshes) { mesh.instanceMatrix.needsUpdate = true; mesh.boundingSphere = null; } falling = false; pileDirty = false; }
   setPile(0);
 
   // ---- the pebbles ----
   // Two loose stones (the pile's smallest rock) that are off until a wrong friend's go at the rocks throws one: from a point of the pile through the air to the point it lands on,
   // a bounce off it and gone. They are the pile's own rock, not another model.
   const pebbleMesh = new THREE.InstancedMesh(rocks[Math.min(6, rocks.length - 1)].geometry, pileMaterial, 2);
-  pebbleMesh.name = 'Steinvala'; pebbleMesh.frustumCulled = false; pebbleMesh.castShadow = true; pebbleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); group.add(pebbleMesh);
+  pebbleMesh.name = 'Steinvala'; pebbleMesh.frustumCulled = false; pebbleMesh.visible = false; pebbleMesh.castShadow = true; pebbleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); group.add(pebbleMesh);
   const pebbles = [null, null], hidden = new THREE.Matrix4().makeScale(1e-4, 1e-4, 1e-4);
   for (let i = 0; i < 2; i++) pebbleMesh.setMatrixAt(i, hidden);
   pebbleMesh.instanceMatrix.needsUpdate = true; let pebblesLive = false;
@@ -158,7 +158,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
       if (p.phase === 'rest') { x = p.to[0]; y = p.to[1]; z = p.to[2]; scale = .9 * (1 - smooth(u)); if (u >= 1) { pebbles[i] = null; pebbleMesh.setMatrixAt(i, hidden); return; } }
       dummy.position.set(x, y + STEP_REST, z); dummy.rotation.set(p.age * 6 + i, p.age * 9, p.age * 4, 'YXZ'); dummy.scale.setScalar(scale); dummy.updateMatrix(); pebbleMesh.setMatrixAt(i, dummy.matrix); live = true;
     });
-    pebbleMesh.instanceMatrix.needsUpdate = true; pebblesLive = live;
+    pebbleMesh.instanceMatrix.needsUpdate = true; pebblesLive = live; pebbleMesh.visible = live;
   }
 
   // ---- the crystals ----
@@ -171,7 +171,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   const crystals = Object.entries(CRYSTALS).map(([name, list]) => {
     const model = models.get(`gorge-crystal-${name}`), material = model.material.clone(); disposables.push(material);
     material.side = THREE.FrontSide; material.emissive = new THREE.Color(crystalLook[name].emissive); material.emissiveIntensity = crystalLook[name].base; material.roughness = .32; material.metalness = .1;
-    const mesh = new THREE.InstancedMesh(model.geometry, material, list.length); mesh.name = `Kristallar (${name})`; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true;
+    const mesh = new THREE.InstancedMesh(model.geometry, material, list.length); mesh.name = `Kristallar (${name})`; mesh.frustumCulled = true; mesh.castShadow = false; mesh.receiveShadow = true;
     list.forEach(([x, z, y, yaw, s, rx, rz], i) => { dummy.position.set(x, y + STEP_REST - .02, z); dummy.rotation.set(rx, yaw, rz, 'YXZ'); dummy.scale.setScalar(s); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix); });
     mesh.instanceMatrix.needsUpdate = true; group.add(mesh); disposables.push(model.geometry);
     return { name, list, material, mesh };
@@ -226,7 +226,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
     }
     // The pile's shiver after a hit: a little jitter on every piece for a moment.
     if (pileShake > 0) { pileShake = Math.max(0, pileShake - dt); const k = pileShake / FALL.shiver; for (const piece of pieces) if (!piece.tween) placePiece(piece, [Math.sin(pileTime * 61 + piece.kind) * .025 * k, 0, Math.cos(pileTime * 47 + piece.slot) * .02 * k]); busy = true; }
-    for (const { mesh } of meshes) mesh.instanceMatrix.needsUpdate = true;
+    for (const { mesh } of meshes) { mesh.instanceMatrix.needsUpdate = true; mesh.boundingSphere = null; }
     pileDirty = busy; falling = pieces.some(piece => piece.tween?.kind === 'fall');
   }
   let pileShake = 0;
@@ -245,14 +245,14 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
       pileDirty = true;
     },
     /** Nothing moves: the pile as it first stood (or as it stands at `stage`, 0 to 3, for a still picture). */
-    reset() { setPile(0); pileShake = 0; pileEvents.length = 0; for (let i = 0; i < 2; i++) { pebbles[i] = null; pebbleMesh.setMatrixAt(i, hidden); } pebbleMesh.instanceMatrix.needsUpdate = true; pebblesLive = false; },
+    reset() { setPile(0); pileShake = 0; pileEvents.length = 0; for (let i = 0; i < 2; i++) { pebbles[i] = null; pebbleMesh.setMatrixAt(i, hidden); } pebbleMesh.instanceMatrix.needsUpdate = true; pebblesLive = false; pebbleMesh.visible = false; },
     set(stage) { setPile(Math.max(0, Math.min(3, stage))); },
     /** A shiver without a shove (something bumped into the dark). */
     shiver() { pileShake = FALL.shiver; pileDirty = true; },
     /** How far toward the mouth the pile reaches now (its front face, x in the tunnel's frame). */
     frontX: () => Math.max(...pieces.map(piece => piece.cur[0] + Math.max(rocks[piece.kind].size.x, rocks[piece.kind].size.z) / 2 * piece.cur[6] * .85)),
     /** A pebble from `from` to `to` (points of the tunnel's frame: [x, y, z]) in `seconds`; it bounces off sideways ([x, z] metres) and is gone. */
-    pebble(slot, from, to, { seconds = .55, side = [.3, .6], apex = 1.1 } = {}) { pebbles[slot] = { phase: 'fly', from, to, age: 0, seconds, apex, side }; pebblesLive = true; },
+    pebble(slot, from, to, { seconds = .55, side = [.3, .6], apex = 1.1 } = {}) { pebbles[slot] = { phase: 'fly', from, to, age: 0, seconds, apex, side }; pebblesLive = true; pebbleMesh.visible = true; },
     /** Rocks that have landed since the last call. */
     poll() { return pileEvents.splice(0); },
     /** The pile's front face, its top and its whole body in world space (the shots frame these). */
