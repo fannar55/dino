@@ -422,7 +422,7 @@ export function carryRider(rider, controller) {
 // the target blended in from the clip's own wrist. The clip's arm pose goes back before his clips run
 // again, because the mixer leaves a bone alone when its value does not change (the sit clip holds the
 // arms still).
-function handsOn(rider, grips) {
+export function handsOn(rider, grips) {
   const arms = [['Left', grips.left], ['Right', grips.right]].map(([side, grip]) => {
     const upper = findBone(rider.model, `${side}UpperArm`);
     const lower = findBone(rider.model, `${side}LowerArm`);

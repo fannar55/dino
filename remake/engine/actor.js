@@ -114,12 +114,17 @@ function measureGait(model, root, clip, feet, rest, tuning) {
   return naturalSpeed > 0.01 ? { naturalSpeed, cycle: clip.duration, stopPhase, duty, feet: tracks } : null;
 }
 
-/** Load (or reuse) a character. `gltf` may be passed in instead of `url` (tests, preloaded assets). */
-export async function createActor(world, { name, url, gltf: given, position = [0, 0, 0], heading = 0 }) {
+/**
+ * Load (or reuse) a character. `gltf` may be passed in instead of `url` (tests, preloaded assets). `scale` sizes the model uniformly
+ * inside its root (chapter 4's size test: Flugeðla at 7.5 or 10 m), so the root's frame stays in metres and everything measured
+ * from the model (its size, its gait, its feet) is at the new size.
+ */
+export async function createActor(world, { name, url, gltf: given, position = [0, 0, 0], heading = 0, scale = 1 }) {
   const gltf = given ?? await loadTemplate(url);
   const model = cloneSkinned(gltf.scene);
   const root = new THREE.Group();
   root.name = `Actor ${name}`;
+  model.scale.multiplyScalar(scale);
   root.add(model);
   model.traverse(o => {
     if (!o.isMesh) return;
@@ -485,7 +490,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   world.scene.add(root);
 
   return {
-    name, root, model, mixer, clips, size, world,
+    name, root, model, mixer, clips, size, world, scale,
     get heading() { return getHeading(); },
     get walking() { return Boolean(walk); },
     get turning() { return Boolean(turn); },

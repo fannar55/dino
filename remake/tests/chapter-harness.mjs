@@ -81,7 +81,7 @@ export async function chapterWorld(chapter) {
   // A model a chapter's props load for themselves (chapter 2's far friends), read as the actors' are: the page has no fetch of files.
   world.loadModel = url => modelOf(url);
   for (const [name, spec] of Object.entries(chapter.actors)) {
-    world.actors.set(name, await createActor(world, { name, gltf: await modelOf(spec.url), position: spec.position, heading: spec.heading }));
+    world.actors.set(name, await createActor(world, { name, gltf: await modelOf(spec.url), position: spec.position, heading: spec.heading, scale: spec.scale }));
   }
   return world;
 }
