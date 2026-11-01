@@ -719,6 +719,8 @@
   .veiddu-advice p { right: 16%; bottom: 72%; font-size: 21px; max-width: 8.5em; }
   .veiddu-teach span { display: none; } /* just the cap: the corner is narrow */
   .veiddu-teach { padding: 0 .7em; }
+  .veiddu-skip { left: max(8px, env(safe-area-inset-left)); font-size: 20px; padding: 0 .55em; } /* "Sleppa" in the same narrow corner, clear of her window */
+  .veiddu-advice p.long { max-width: 15em; font-size: 19px; } /* Mosi's step: wider, so it takes fewer lines over this short screen */
   .veiddu-win-card { gap: 16px; padding: 20px 28px 22px; }
   .veiddu-win h2 { font-size: 48px; }
   .veiddu-sticker { width: 96px; }
