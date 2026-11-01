@@ -44,7 +44,7 @@ lúðurtónn: Slóeðla man ekki lagið sitt. Þannig byrjar kafli 5.
 | --- | --- | --- | --- |
 | Mosi | 8,5 m | Leiðsögumaður. Býður Flugeðlu, sýnir hvernig á að blása og hleypur með ánni á fluginu. | Mosi (v4) |
 | Egill | 1,1 m | Býr til vindinn, situr á baki Flugeðlu, hrópar af gleði og spyr. | Egill (v4) |
-| Flugeðla | 7,5 m milli vængbrodda, 4,2 m upp á kamb | Pteranodon. Kát og frjálsleg, elskar hraða og hlær í vindinum (tillaga, 11. kafli). | Ný rödd (8. kafli) |
+| Flugeðla | 7,5 m milli vængbrodda, 4,2 m upp á kamb | Pteranodon. Kát og frjálsleg, elskar hraða og hlær í vindinum (staðfest af eigandanum 1. nóv. 2026). | Ný rödd (8. kafli) |
 | Þórseðla | 22 m | Kveður við tjörnina sína í senu 1 og sést síðan í fjarska úr fluginu. | Engin |
 | Slóeðla | 7,5 m | Heyrist aðeins: falskur lúðurtónn úr sefinu í lokin. | Engin (lúðurinn er hljóð) |
 | Grameðla | 12 m | Skuggi í þokunni og lágt, fjarlægt öskur. | Engin |
@@ -52,6 +52,7 @@ lúðurtónn: Slóeðla man ekki lagið sitt. Þannig byrjar kafli 5.
 Flugeðla er alvöru líkanið (`remake/assets/characters/pteranodon.glb`), með klippurnar idle, walk, takeOff, fly, glide, land, kink,
 happy og carry. **Stærðin er prófuð í búti 1:** sitji Egill (1,1 m) of stór á 7,5 m Flugeðlu, leggur smiðurinn fram myndir af henni
 í 10 m (á stærð við Quetzalcoatlus). Eigandinn velur, og þá breytast STYLE.md 3. kafli og `chapters/lineup.js` með.
+**Ákveðið 1. nóv. 2026:** eigandinn valdi 7,5 m eftir myndunum úr búti 1, svo ekkert breytist.
 
 ## 3. Staðirnir
 
@@ -297,8 +298,12 @@ Smiðsagentar smíða í bútum og vista oft. Eigandinn sér myndir eða myndban
 
 ## 11. Opið
 
-- **Persóna og rödd Flugeðlu:** „kát og frjálsleg, elskar hraða“ er tillaga sem eigandinn staðfestir eða breytir áður en raddir eru
-  hannaðar.
-- **Stærð Flugeðlu:** 7,5 m eða 10 m, ákveðin eftir myndum í búti 1.
+- **Rödd Flugeðlu:** opin. Persónan er ákveðin (sjá hér að neðan) og röddin er hönnuð eftir henni í 8. kafla.
+
+Ákveðið 1. nóv. 2026, eftir bút 1:
+
+- **Persóna Flugeðlu:** „kát og frjálsleg, elskar hraða“. Eigandinn staðfesti tillöguna.
+- **Stærð Flugeðlu:** 7,5 m milli vængbrodda.
+- **Flugið:** eigandinn samþykkti hraðann og tilfinninguna í gráa fluginu.
 - **Smáleikur Flugeðlu:** óákveðinn. Hann fær eigin forskrift og vinnutré, eins og Veiddu.
 - **Flugstefið:** Suno-lag eigandans. Þangað til er notað bráðabirgðastef.
