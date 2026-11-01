@@ -92,7 +92,11 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     tint.copy(SAND).lerp(ROCK, steep).lerp(DEEP, smoothstep(.35, .7, 1 - 2 * e / l) * .7).multiplyScalar(shade); colour.set([tint.r, tint.g, tint.b], k * 3);
   }
   const index = [];
+  // (nothing is drawn where the ground is the plain: a cell whose corners and their neighbours are all level with it; the rest of the plain's edge is drawn, so that it is smooth)
+  const level = (i, j) => i < 0 || j < 0 || i >= cols || j >= rows || position[(j * cols + i) * 3 + 1] < .02;
   for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
+    let flat = true; for (let dj = -1; dj <= 2 && flat; dj++) for (let di = -1; di <= 2 && flat; di++) flat = level(i + di, j + dj);
+    if (flat) continue;
     const a = j * cols + i, b = a + 1, c = a + cols, d = c + 1;
     index.push(a, c, b, b, c, d);
   }
@@ -118,7 +122,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   const bores = (x, z) => x < BORE_BOX.maxX && x > BORE_BOX.minX && Math.abs(z) < BORE_BOX.halfZ;
   const ALL = [0, 3, 4, 5, 6, 1, 2];
   // the hillside (+z): two rows, the lower at the foot and the upper high on the face
-  for (let x = -30; x <= 50; x += range(4.6, 6.4)) {
+  for (let x = -30; x <= 50; x += range(5.6, 7.6)) {
     const [z0, y0] = middleAt(Math.min(x, RIM.to[0])), reach = x > 9.5 && x < RIM.from[0] ? 1.5 : 0;
     for (const [rise, scale, sink] of [[2.2, range(2.4, 3.1), .5], [6.2, range(3.1, 4), .55]]) {
       let z = null; for (let k = 0; k < 90 && z === null; k++) if (groundAt(x, z0 + reach + k * .5) >= y0 + rise) z = z0 + reach + k * .5;
