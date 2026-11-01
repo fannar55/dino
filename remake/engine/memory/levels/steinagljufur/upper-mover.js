@@ -33,7 +33,7 @@ export const FORMATIONS = Object.freeze({
   // on the terrace of the ledge, at the foot of the cliff (the Flugeðlur by the rope)
   terrace: { mosi: [8.2, -3.6], triceratops: [[5.6, -4.7], [7.4, -5.2]], stegosaurus: [[5.9, 2.4], [7.7, 2.9]], brontosaurus: [[4.9, -2.7], [4.8, 0]], pteranodon: [[6.5, -1.3], [6.8, .9]] },
   // on the rim, at the end of the climb
-  rim: { mosi: [28.6, 7.4], triceratops: [[30.4, 4.6], [30.9, 7.8]], stegosaurus: [[32.6, 4.2], [33.2, 7.4]], brontosaurus: [[34.8, 5.6], [35.3, 8.8]], pteranodon: [[22.4, 9.5], [25.2, 10.7]] },
+  rim: { mosi: [27.6, 7], triceratops: [[28.8, 4.6], [29.4, 7.6]], stegosaurus: [[30.6, 4], [31.2, 7]], brontosaurus: [[32.4, 5.2], [33, 8.2]], pteranodon: [[22.4, 9.5], [25.2, 10.7]] },
 });
 // the Þórseðlur's places at the ledge: each side of the slab, close under the riser, their long necks over its edges
 const REACH_SPOTS = [[.9, -2.7], [.9, 2.7]];
@@ -253,7 +253,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
 
   // ---- climb ----
   // Everyone but the Flugeðlur (they are at the tree) walks the steep path, Mosi first, the rope on their right (the hillside's side) as a handrail; two abreast, the body pitched with the slope.
-  const CLIMB_SPEED = 3.9, STRIDE = 3.1;
+  const CLIMB_SPEED = 4.8, STRIDE = 2.6;
   function startClimb() {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'climb', phase: 'walk', age: 0, steps: 0 };
@@ -264,7 +264,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       list.forEach((actor, i) => {
         const lane = who === 'mosi' ? .35 : (i ? -.65 : .8), spot = spotOf('rim', who, i), route = pathRoute(lane);
         actor.clearLook?.();
-        walkers.start(actor, [{ to: [route[0], ...route, spot.point], speed: CLIMB_SPEED }], { delay: k * .2, yaw: spot.yaw, pitch: true });
+        walkers.start(actor, [{ to: [route[0], ...route, spot.point], speed: CLIMB_SPEED }], { delay: k * .15, yaw: spot.yaw, pitch: true });
         k += 1;
       });
     }

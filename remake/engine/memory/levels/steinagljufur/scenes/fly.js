@@ -33,9 +33,12 @@ export function flyScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: .2, wait: { until: () => ['leg', 'wrap', 'tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 5 } },
     // Up the cliff after them (the shot follows the pair, and the rope behind).
     { at: .25, shot: { kind: 'follow', subjects: () => [...bodies(pair()), rope()], front: view([-.3, -1]), elevation: 20, cut: true, floor: 'auto' } },
-    { at: .3, wait: { until: () => ['wrap', 'tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 16 } },
+    { at: .28, wait: { until: () => stage.task.done() >= 2 || ['wrap', 'tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 9 } },
+    // (a second framing of the flight, from the side, for the last leg to the tree: no stretch of watching passes about 6 seconds)
+    { at: .29, shot: { kind: 'follow', scale: 'wide', subjects: () => [...bodies(pair()), rope(), tree().top], front: view([-.55, -1]), elevation: 16, cut: true, floor: 'auto' } },
+    { at: .3, wait: { until: () => ['wrap', 'tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 10 } },
     // At the tree: they fly round the trunk and the rope goes round it.
-    { at: .35, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), tree().middle, tree().top, tree().base], front: view([-.5, -1]), elevation: 16, cut: true, floor: 'auto' }, act: () => stage.mosi.look(tree().middle) },
+    { at: .35, shot: { kind: 'wide', scale: 'wide', subjects: () => [...bodies(pair()), tree().middle, tree().top, tree().base], front: view([-.45, -1]), elevation: 18, cut: true, floor: 'auto' }, act: () => stage.mosi.look(tree().middle) },
     { at: .4, wait: { until: () => ['tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 8 } },
     // The rope draws taut from the foot of the path to the tree.
     { at: .45, shot: { kind: 'wide', subjects: () => [foot(), tree().middle, tree().top, stage.task.up(16, 5.2, 3.4), ...bodies(pair())], front: view([-.2, -1]), elevation: 20, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },

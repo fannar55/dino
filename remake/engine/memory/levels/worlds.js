@@ -9,7 +9,7 @@
  *
  * `stage` is what the shared world gives it:
  *   THREE, scene, params (the page's query), level (the description), nests, scenes (the scene runner), fx, cue(points, options)
- *   heightAt(x, z), time() (game seconds), reducedMotion(), giftsWait() (a gift pair is still to land in the basket)
+ *   heightAt(x, z), time() (game seconds), reducedMotion(), aspect() (the screen's width over its height), giftsWait() (a gift pair is still to land in the basket)
  *   mosi (the scripts' Mosi: look, gesture, head, body, yaw; `mosi.actor` is the actor), babies (the friends' actors), forest, leaves (the
  *   leaves' places), onLeafGround(x, z, margin), hopOver(point) (how high a friend hops over the closed leaves on the way)
  *   director (the camera director), idle (the waiting friends' play), refresh() (the camera's cue or the targets changed: look again)

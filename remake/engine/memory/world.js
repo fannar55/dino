@@ -213,6 +213,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     heightAt: (x, z) => world.heightAt(x, z),
     time: () => time,
     reducedMotion: () => reducedMotion,
+    // the screen's width over its height now (a level's own camera cues differ for a portrait screen, as the glade's does)
+    aspect: () => width / height,
     leaves: CELLS, onLeafGround, giftsWait: () => giftsWait(),
     // How high a friend must hop to pass over the closed leaves, for a walk that crosses the board.
     hopOver: point => leap(point),

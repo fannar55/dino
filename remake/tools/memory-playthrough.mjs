@@ -333,7 +333,7 @@ const TIMELINE_JS = `(() => {
     const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
     const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
-    const adventure = d.bridge && d.bridge.action, act = adventure ? adventure.id + ':' + adventure.phase : null;
+    const adventure = d.bridge && d.bridge.action, upperAction = d.levelStats && d.levelStats.upper && d.levelStats.upper.action, act = adventure ? adventure.id + ':' + adventure.phase : upperAction ? upperAction.id + ':' + upperAction.phase : null;
     const placed = d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0;
     // The most triangles and draw calls of each camera framing (a shot, a glide, the way back), with what was going on.
     const take = window.__takes[cam.takes || 0] ||= { take: cam.takes || 0, t: +(performance.now() / 1000).toFixed(2), shot: cam.shot || (cam.returning ? 'return' : ''), act, tris: 0, calls: 0 };
@@ -347,7 +347,7 @@ const TIMELINE_JS = `(() => {
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending, gt: d.levelStats && d.levelStats.upper ? d.levelStats.upper.clock : undefined });
     }
   }, 100);
 })()`;

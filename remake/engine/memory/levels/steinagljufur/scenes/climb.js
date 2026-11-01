@@ -21,9 +21,9 @@ export function climbScene(stage) {
       act: all(() => { if (!stage.task.start('climb')) stage.task.abort(); }, () => stage.mosi.look(stage.task.up(16, 5, 3))) },
     // Up the first bends with them (a follow cut: the shot goes with the group).
     { at: 1.6, shot: { kind: 'follow', subjects: () => [mosiAt(), ...bodies().filter(p => p.y > 1.6).slice(0, 6)], front: view([-.2, -1]), elevation: 22, cut: true, floor: 'auto' } },
-    { at: 1.65, wait: { until: () => stage.mosi.actor.root.position.y > 5.3 || ended(), timeout: 6 } },
+    { at: 1.65, wait: { until: () => stage.task.mosiHeight() > 4.6 || ended(), timeout: 6 } },
     // High on the cliff: the last bends and the rim (the rope beside them all the way).
-    { at: 1.7, shot: { kind: 'wide', scale: 'action', subjects: () => [mosiAt(), stage.task.up(22, 8.4, 7.6), stage.task.up(27, 9, 8), stage.task.up(23.4, 11, 12)], front: view([-.25, -1]), elevation: 20, cut: true, floor: 'auto' } },
+    { at: 1.7, shot: { kind: 'wide', scale: 'wide', subjects: () => [mosiAt(), stage.task.up(21, 8, 7.6), stage.task.up(27, 9, 8), stage.task.up(23.4, 11, 12)], front: view([-.3, -1]), elevation: 18, cut: true, floor: 'auto' } },
     { at: 1.75, wait: { until: () => phase() === 'cheer' || ended(), timeout: 8 } },
     // They are on the rim, and cheer.
     { at: 1.8, shot: { kind: 'wide', subjects: () => [...everyone(), stage.task.up(23.4, 11, 12)], front: view([-.35, -1]), elevation: 20, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },

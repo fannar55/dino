@@ -105,6 +105,8 @@ export function createLevelWorld(stage) {
     slab: () => ({ hinge: upper.world(...upper.slab.hinge.toArray()), edge: upper.world(...upper.slab.under(upper.slab.length, 0).toArray()), middle: upper.world(...upper.slab.under(upper.slab.length * .55, 0).toArray()) }),
     tree: () => { const b = upper.tree.base; return { base: upper.world(b.x, b.y, b.z), middle: upper.world(b.x, b.y + 2.4, b.z), top: upper.world(b.x, b.y + 4.6, b.z) }; },
     rope: () => upper.world(...rope.tip().toArray()),
+    done: () => mover.upper.debug().action?.done ?? 0,
+    mosiHeight: () => stage.mosi.actor.root.position.y,
     // The way from the mouth toward the camera: the tunnel's own way out (0) turned toward where the search camera stood when the task began (1), so that the shots look into it from the glade's side.
     front(toward = .3) {
       const out = gorge.mouth.facing.clone().setY(0).normalize(), cam = (searchCamera ?? stage.camera()).clone().sub(mouthPoint()).setY(0).normalize();
@@ -124,11 +126,12 @@ export function createLevelWorld(stage) {
   // The resting view in the upper gorge, from the open side: the floor in front of the ledge (the ledge is next), the terrace and the cliff (the cliff is next), the rim.
   // A cue is a set of points the camera keeps in the frame and the direction it looks from (from the right-hand side of the way, a little ahead of it, from above).
   function upperCue() {
-    const state = snapshot ?? {}, portrait = stage.camera().aspect < 1, phase = !state.ledgeLowered ? 'floor' : !state.ropeUp ? 'terrace' : 'rim', w = upper.world.bind(upper);
+    const state = snapshot ?? {}, portrait = stage.aspect() < 1, phase = !state.ledgeLowered ? 'floor' : !state.ropeUp ? 'terrace' : 'rim', w = upper.world.bind(upper);
+    // (from the open side; on a portrait screen the gorge is long across a narrow view, so the camera stands behind it and high, looking along it)
     const SHOTS = {
-      floor: { points: [[-17, 0, -4], [-3, 1.5, 3], [-1, 5.6, -3.4], [8, 2.6, -4]], focus: [-4, 1.4, 0], front: [-.34, -1], elevation: portrait ? 36 : 21 },
-      terrace: { points: [[3.4, 1.9, -5], [10, 4, 5], [16, 5.2, 5], [23.4, 9, 11], [22, 11.6, 10]], focus: [13, 5.2, 3], front: [-.12, -1], elevation: portrait ? 36 : 21 },
-      rim: { points: [[21, 9, 5], [36, 9, 11], [28, 12, 8]], focus: [28, 9.5, 7], front: [-.15, -1], elevation: portrait ? 36 : 21 },
+      floor: { points: [[-12, 0, -4], [-2, 1.5, 3], [-1, 5.6, -3.4], [8, 2.6, -4]], focus: [-3, 1.4, 0], front: portrait ? [-.9, -.5] : [-.34, -1], elevation: portrait ? 42 : 21 },
+      terrace: { points: [[3.4, 1.9, -5], [10, 4, 5], [16, 5.2, 5], [23.4, 9, 11], [22, 11.6, 10]], focus: [13, 5.2, 3], front: portrait ? [-.6, -.8] : [-.12, -1], elevation: portrait ? 44 : 21 },
+      rim: { points: [[21, 9, 5], [34, 9, 10], [28, 12, 8]], focus: [27, 9.5, 7], front: portrait ? [-.55, -.8] : [-.15, -1], elevation: portrait ? 44 : 21 },
     }[phase];
     const d = upper.direction(...SHOTS.front), e = Math.PI / 180 * SHOTS.elevation;
     return stage.cue(SHOTS.points.map(p => w(...p)), { key: `upper-${phase}`, focus: w(...SHOTS.focus).toArray(), direction: [d.x * Math.cos(e), Math.sin(e), d.z * Math.cos(e)] });
@@ -248,7 +251,7 @@ export function createLevelWorld(stage) {
     // ---- the page's debug and the round's end ----
     getDebug() {
       return { bridge: mover?.debug() ?? {}, mosiWalk: null, mosiAcross: false, river: null, collisionObjects: [],
-        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, ...upper.stats(), rope: rope?.debug() } : null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
+        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug() } : null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
     reset() { snapshot = null; taskScript = null; rope?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },

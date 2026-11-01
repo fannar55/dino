@@ -146,13 +146,13 @@ export const STEINAGLJUFUR = freezeLevel({
   },
   // A cancelled step keeps what was finished and grants nothing, as in level 1.
   onCancel() {},
-  // The badges are renders of the level's own models (assets/memory/bord2/badge-*.webp), not drawn: the first two are made (Task 4), the others come with their scenes.
+  // The badges are renders of the level's own models (assets/memory/bord2/badge-*.webp), not drawn: the tunnel's and the rocks' (Task 4), the ledge's slab and the cliff's tree (Task 5), the rest come with their scenes.
   targets: {
     tunnel: { label: 'Göngin: hver getur lýst þau upp?', icon: '<img src="./assets/memory/bord2/badge-tunnel.webp" alt="" width="72" height="72" draggable="false">' },
     rocks: { label: 'Grjóthrunið: hver getur stangað það burt?', icon: '<img src="./assets/memory/bord2/badge-rocks.webp" alt="" width="72" height="72" draggable="false">' },
     tunnelExit: { label: 'Senda alla vinina í gegnum göngin', icon: '' },
-    ledge: { label: 'Stallurinn: hver nær hátt?', icon: '' },
-    cliff: { label: 'Klettaveggurinn: hver getur flogið með reipið upp?', icon: '' },
+    ledge: { label: 'Stallurinn: hver nær hátt?', icon: '<img src="./assets/memory/bord2/badge-ledge.webp" alt="" width="72" height="72" draggable="false">' },
+    cliff: { label: 'Klettaveggurinn: hver getur flogið með reipið upp?', icon: '<img src="./assets/memory/bord2/badge-cliff.webp" alt="" width="72" height="72" draggable="false">' },
     clifftop: { label: 'Senda alla vinina upp á brúnina', icon: '' },
     trunk: { label: 'Trjábolurinn: togum öll saman', icon: '' },
     sunLedge: { label: 'Senda alla vinina yfir á Sólarsylluna', icon: '' },

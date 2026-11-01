@@ -74,7 +74,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   const onGround = (x, z, rise = 0) => new THREE.Vector3(x, groundAt(x, z) + rise, z);
 
   // ---- the plain and the ground ----
-  const plainMaterial = new THREE.MeshStandardMaterial({ color: '#cdac7e', roughness: 1, metalness: 0 }); disposables.push(plainMaterial);
+  const plainMaterial = new THREE.MeshStandardMaterial({ color: '#c6a06a', roughness: 1, metalness: 0 }); disposables.push(plainMaterial);
   const plain = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), plainMaterial); plain.geometry.rotateX(-Math.PI / 2); plain.position.set(20, -.06, 0); plain.receiveShadow = true; plain.name = 'Slétta'; frame.add(plain);
   disposables.push(plain.geometry); triangles += 2; draws++;
 
@@ -83,19 +83,17 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   for (let x = -40; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
   for (let z = -16; z <= 31; z += .9) zs.push(+z.toFixed(2));
   const cols = xs.length, rows = zs.length, position = new Float32Array(cols * rows * 3), normal = new Float32Array(cols * rows * 3), colour = new Float32Array(cols * rows * 3);
-  const SAND = new THREE.Color('#c4965a'), ROCK = new THREE.Color('#9b4318'), DEEP = new THREE.Color('#7a3010'), tint = new THREE.Color(), e = .25;
+  const SAND = new THREE.Color('#c4965a'), ROCK = new THREE.Color('#9b4318'), DEEP = new THREE.Color('#7a3010'), tint = new THREE.Color(), e = .55;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = xs[i], z = zs[j], y = groundAt(x, z), k = j * cols + i;
     const nx = groundAt(x - e, z) - groundAt(x + e, z), nz = groundAt(x, z - e) - groundAt(x, z + e), l = Math.hypot(nx, 2 * e, nz);
     position.set([x, y, z], k * 3); normal.set([nx / l, 2 * e / l, nz / l], k * 3);
-    const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .03;
+    const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .015;
     tint.copy(SAND).lerp(ROCK, steep).lerp(DEEP, smoothstep(.35, .7, 1 - 2 * e / l) * .7).multiplyScalar(shade); colour.set([tint.r, tint.g, tint.b], k * 3);
   }
   const index = [];
   for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
-    // (nothing is drawn where the plain is level with the ground: the plain is there)
     const a = j * cols + i, b = a + 1, c = a + cols, d = c + 1;
-    if (position[a * 3 + 1] + position[b * 3 + 1] + position[c * 3 + 1] + position[d * 3 + 1] < .02) continue;
     index.push(a, c, b, b, c, d);
   }
   const terrainGeometry = new THREE.BufferGeometry();
@@ -131,20 +129,12 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   for (const [x, scale] of [[-22, 3.6], [-18.8, 3.0]]) for (let z = -13; z <= 9; z += range(4.4, 5.6)) { if (bores(x, z) && x > -24) continue; piece(ALL, x + range(-.8, .8), z, 0, scale * range(.9, 1.15), .5); }
   // the end beyond the rim (Task 6's gap is in front of it)
   for (let z = -4; z <= 16; z += range(4.2, 5.6)) piece([4, 6, 0, 5], RIM.to[0] + 9.2, z, groundAt(RIM.to[0] + 9.2, z), range(3, 3.9), .55);
-  // the open side (-z): under the terrace, the path and the rim, walking out from the edge of the flat until the ground has fallen: a row at each of the drops
-  function dressOpen(x0, x1, gap, edgeOf, drops, scales) {
-    for (let x = x0; x <= x1; x += gap * range(.85, 1.2)) {
-      const [ez, y0] = edgeOf(x);
-      drops.forEach((drop, row) => { for (let k = 0; k < 80; k++) { const z = ez - k * .4; if (groundAt(x, z) <= y0 - drop) { piece(ALL, x + range(-.7, .7), z + .5, groundAt(x, z), range(...scales[row]), .62); break; } } });
-    }
-  }
-  dressOpen(3.6, 9, 4.4, () => [-8.5, LEDGE.height], [.8], [[1.1, 1.5]]);
-  dressOpen(10.5, 25, 4.2, x => { const [z, y] = nearest(x); return [z - 2.3, y]; }, [2.6, 5], [[1.1, 1.6], [1.5, 2.1]]);
-  dressOpen(26, 40, 5, x => [rimZ(x) - RIM.hw + 1, RIM.y], [2.4, 5.6], [[1.3, 1.9], [1.8, 2.5]]);
-  // the ledge's riser: pieces along it at each side of the middle, which is left clear for the slab
-  for (const z of [-10.4, -8, -5.8, -3.9, 4, 6, 8, 10]) piece([4, 6, 5, 3], LEDGE.x - .2 + range(-.2, .3), z, groundAt(LEDGE.x - .2, z), range(1.3, 1.9), .4);
+  // (the open side, -z, is where the cameras stand: nothing solid is placed on it, only the ground, so that no shot is inside or behind a rock; the embankments under the path and the rim are
+  // the ground's own, in the colour of the rock)
+  // the ledge's riser: pieces along it on the hillside's side of the middle, which is left clear for the slab
+  for (const z of [3.6, 5.4, 7.2, 9]) piece([4, 6, 5, 3], LEDGE.x - .2 + range(-.2, .3), z, groundAt(LEDGE.x - .2, z), range(1.3, 1.9), .4);
   // boulders at the foot of the riser, along the hillside and at the edge of the path (the rope's stake is one)
-  for (const [x, z, kind, scale] of [[1.4, 5.9, 1, .5], [1.9, 8.4, 2, .42], [1.5, -6.2, 1, .46], [2, -8.6, 2, .36], [5.2, -9.6, 1, .5], [-12, 3.2, 1, .5], [-5, 3.8, 2, .4], [-18, 3.4, 2, .4], [5.6, 4.6, 1, .46], [11.4, 3.2, 2, .36], [15.6, 6.8, 1, .38], [-10.2, -6.8, 2, .3], [-3.8, -8, 1, .34], [-17, -7, 1, .4], [17.8, 4.4, 2, .3]]) add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
+  for (const [x, z, kind, scale] of [[1.4, 5.9, 1, .5], [1.9, 8.4, 2, .42], [-12, 3.2, 1, .5], [-5, 3.8, 2, .4], [-18, 3.4, 2, .4], [5.6, 4.6, 1, .46], [11.4, 3.2, 2, .36], [15.6, 6.8, 1, .38], [17.8, 4.4, 2, .3]]) add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
 
   const warm = new THREE.Color('#e8d3be');
   // (each kind in chunks along the gorge, a mesh each, so that the frustum drops the stretches a view does not see: the budget's 250,000 triangles are for what is drawn)
