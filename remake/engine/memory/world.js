@@ -66,7 +66,8 @@ const matchedStatus = value => ['matched', 'found'].includes(value);
 const actorSize = actor => actor.lengthFactor ?? 1;
 const restOffset = species => species === 'triceratops' ? 1.05 : species === 'stegosaurus' ? .85 : 1.15;
 const restHeading = () => -Math.PI * 70 / 180;
-const restVector = (species, member) => new THREE.Vector3(Math.sin(restHeading()) * restOffset(species) * (member ? -1 : 1), .1, Math.cos(restHeading()) * restOffset(species) * (member ? -1 : 1));
+// (level with the rest's root, which stands 4 cm over the ground as a walker's does: 10 cm higher, the pairs floated at their rests, veggir)
+const restVector = (species, member) => new THREE.Vector3(Math.sin(restHeading()) * restOffset(species) * (member ? -1 : 1), 0, Math.cos(restHeading()) * restOffset(species) * (member ? -1 : 1));
 
 /**
  * The memory clearing owns its render context; game.js owns the RAF and game clock. `level` is a level's description (levels/*.js).

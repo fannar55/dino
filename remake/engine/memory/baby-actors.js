@@ -40,9 +40,11 @@ function toeOf(model, foot) {
   return toe && foot.worldToLocal(toe.setZ(foot.getWorldPosition(p).z).setY(0));
 }
 
-// Points of a model's skin that a gesture must not take under the ground: every so many vertices of each skinned mesh, and each bone's farthest vertex (the
-// horns' tips, the toes, the tail's end, the wings' fingers), each with its bones and weights at the bind pose. Shared by the copies of one model.
+// Points of a model's skin that a pose must not take under the ground: every so many vertices of each skinned mesh, and the outermost vertices of what each bone
+// carries, 14 ways (along the three axes and the eight corners: the horns' tips, the chin, the toes, the tail's end, the wings' fingers, whichever way the bone is
+// turned), each with its bones and weights at the bind pose. Shared by the copies of one model.
 const skinProbes = new WeakMap();
+const PROBE_WAYS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], ...[-1, 1].flatMap(x => [-1, 1].flatMap(y => [-1, 1].map(z => [x, y, z])))];
 function skinProbeOf(mesh, budget) {
   const geometry = mesh.geometry;
   if (skinProbes.has(geometry)) return skinProbes.get(geometry);
@@ -53,17 +55,16 @@ function skinProbeOf(mesh, budget) {
   for (let i = 0; i < n; i++) {
     let bone = 0, most = -1; for (let k = 0; k < 4; k++) { const w = skinWeight.getComponent(i, k); if (w > most) { most = w; bone = skinIndex.getComponent(i, k); } }
     v.fromBufferAttribute(position, i);
-    const g = groups.get(bone) ?? { x: 0, y: 0, z: 0, n: 0, list: [] }; g.x += v.x; g.y += v.y; g.z += v.z; g.n++; g.list.push(i); groups.set(bone, g);
+    if (!groups.has(bone)) groups.set(bone, PROBE_WAYS.map(() => [-Infinity, -1]));
+    const best = groups.get(bone);
+    PROBE_WAYS.forEach(([a, b, c], k) => { const d = a * v.x + b * v.y + c * v.z; if (d > best[k][0]) best[k] = [d, i]; });
   }
-  for (const g of groups.values()) {
-    let far = -1, at = -1;
-    for (const i of g.list) { v.fromBufferAttribute(position, i); const d = (v.x - g.x / g.n) ** 2 + (v.y - g.y / g.n) ** 2 + (v.z - g.z / g.n) ** 2; if (d > far) { far = d; at = i; } }
-    if (at >= 0) chosen.add(at);
-  }
-  const list = [...chosen], probe = { count: list.length, base: new Float32Array(list.length * 3), bones: new Uint16Array(list.length * 4), weights: new Float32Array(list.length * 4) };
+  for (const best of groups.values()) for (const [, at] of best) if (at >= 0) chosen.add(at);
+  const list = [...chosen], probe = { count: list.length, base: new Float32Array(list.length * 3), bones: new Uint16Array(list.length * 4), weights: new Float32Array(list.length * 4), top: new Uint16Array(list.length) };
   list.forEach((i, j) => {
     v.fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix); v.toArray(probe.base, j * 3);
     for (let k = 0; k < 4; k++) { probe.bones[j * 4 + k] = skinIndex.getComponent(i, k); probe.weights[j * 4 + k] = skinWeight.getComponent(i, k); }
+    let most = -1; for (let k = 0; k < 4; k++) if (probe.weights[j * 4 + k] > most) { most = probe.weights[j * 4 + k]; probe.top[j] = probe.bones[j * 4 + k]; }
   });
   skinProbes.set(geometry, probe);
   return probe;
@@ -77,15 +78,20 @@ function skinOf(model, budget = 160) {
 const toFrame = new THREE.Matrix4(), skinPre = new THREE.Matrix4(), skinBone = new THREE.Matrix4();
 // The ground in a friend's root frame (the root stands 4 cm over it) less the 2 cm a point of the skin may touch into it (a sniff, a nibble).
 const GROUND_FLOOR = -.06;
-/** The lowest of a model's skin points as drawn now, in `frame`'s space (its y), skinned as the GPU does. */
-function lowestSkin(skin, frame) {
+/** The lowest of a model's skin points as drawn now, in `frame`'s space (its y), skinned as the GPU does; with `side`, only the points of that wing
+ *  (an entry's `wing` marks). The point itself is left in `lowestAt` for skinPoint(). */
+const lowestAt = { entry: null, j: -1 };
+function lowestSkin(skin, frame, side = 0) {
   toFrame.copy(frame.matrixWorld).invert();
   const pre = skinPre, m = skinBone;
   let low = Infinity;
-  for (const { mesh, probe, rows, done } of skin) {
+  for (const entry of skin) {
+    const { mesh, probe, rows, done, wing } = entry;
+    if (side && !wing) continue;
     const bones = mesh.skeleton.bones; done.fill(0);
     pre.multiplyMatrices(toFrame, mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
     for (let j = 0; j < probe.count; j++) {
+      if (side && wing[j] !== side) continue;
       const x = probe.base[j * 3], y = probe.base[j * 3 + 1], z = probe.base[j * 3 + 2]; let h = 0;
       for (let k = 0; k < 4; k++) {
         const w = probe.weights[j * 4 + k]; if (!w) continue;
@@ -94,10 +100,22 @@ function lowestSkin(skin, frame) {
         if (!done[b]) { m.multiplyMatrices(pre, bones[b].matrixWorld).multiply(mesh.skeleton.boneInverses[b]); const e = m.elements; rows[b * 4] = e[1]; rows[b * 4 + 1] = e[5]; rows[b * 4 + 2] = e[9]; rows[b * 4 + 3] = e[13]; done[b] = 1; }
         h += w * (rows[b * 4] * x + rows[b * 4 + 1] * y + rows[b * 4 + 2] * z + rows[b * 4 + 3]);
       }
-      if (h < low) low = h;
+      if (h < low) { low = h; lowestAt.entry = entry; lowestAt.j = j; }
     }
   }
   return low;
+}
+const skinWhole = new THREE.Matrix4(), skinAt = new THREE.Vector3();
+/** Where the skin point lowestSkin() found is drawn now, in world space. */
+function skinPoint({ entry: { mesh, probe }, j }, out) {
+  const bones = mesh.skeleton.bones; out.set(0, 0, 0);
+  for (let k = 0; k < 4; k++) {
+    const w = probe.weights[j * 4 + k]; if (!w) continue;
+    const b = probe.bones[j * 4 + k];
+    skinWhole.multiplyMatrices(mesh.matrixWorld, mesh.bindMatrixInverse).multiply(bones[b].matrixWorld).multiply(mesh.skeleton.boneInverses[b]);
+    out.addScaledVector(skinAt.fromArray(probe.base, j * 3).applyMatrix4(skinWhole), w);
+  }
+  return out;
 }
 
 /**
@@ -224,6 +242,24 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         const delta=root.localToWorld(new THREE.Vector3(x,y,z)).sub(root.getWorldPosition(new THREE.Vector3()));
         const p=b.getWorldPosition(new THREE.Vector3()).add(delta);
         b.position.copy(b.parent.worldToLocal(p));b.updateMatrixWorld(true);
+      }
+      // A Flugeðla walks on her folded wings as well as on her feet. Where her pose takes a wing's skin under the ground, that wing turns up at the
+      // shoulder until it rests on it, so her feet stay planted where lifting the whole of her would raise them (veggir). Each wing is the skin points
+      // whose strongest bone hangs from its upper arm.
+      const wings=winged?['LeftUpperArm','RightUpperArm'].map(bone).filter(Boolean).map((arm,k)=>{
+        const carried=new Set();arm.traverse(o=>{if(o.isBone)carried.add(o);});
+        for(const entry of skin){entry.wing??=new Uint8Array(entry.probe.count);entry.probe.top.forEach((b,j)=>{if(carried.has(entry.mesh.skeleton.bones[b]))entry.wing[j]=k+1;});}
+        return {arm,side:k+1};
+      }):[];
+      const wingPoint=new THREE.Vector3(),wingShoulder=new THREE.Vector3(),wingAxis=new THREE.Vector3();
+      function raiseWings(){
+        for(const {arm,side} of wings)for(let pass=0;pass<2;pass++){
+          const low=lowestSkin(skin,root,side);if(!(low<GROUND_FLOOR))break;
+          const d=root.worldToLocal(skinPoint(lowestAt,wingPoint)).sub(root.worldToLocal(arm.getWorldPosition(wingShoulder))),length=d.length(),across=Math.hypot(d.x,d.z)/Math.max(length,1e-6);
+          if(length<1e-4||across<.05)break;
+          // turning the shoulder by a small angle raises the point by its reach times the angle times the cosine of its slope
+          rotateInRoot(arm,wingAxis.set(-d.z,0,d.x).normalize(),Math.min(.6,(GROUND_FLOOR-low)/(length*Math.max(.2,across))));
+        }
       }
       function applyStance(amount){
         if(amount<1e-5)return;
@@ -496,15 +532,17 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
           // uses the same planted-foot solver as Mosi, including bends and stops.
           if(walking){footing.update(dt);}
           // Gestures go last, over the look and the planted feet: a hop lifts the whole friend, feet too.
+          const posed=Boolean(gesture||support||clipLeft>0||stance>.001||motion!=='idle');
           if(gesture){
             gestureFrom=gesture.t;gesture.t=Math.min(1,gesture.t+dt/gesture.duration);
             const current=gesture;GESTURES[current.name].apply(rig,current.t,reducedMotion?.3:1);
             if(gesture===current&&current.t>=1)gesture=null;
             root.updateMatrixWorld(true);
-            // Nothing of the friend goes into the ground: the root stands 4 cm over it, and where the gesture would take a point of the skin more than 2 cm
-            // under it (a sit back, a lowered head, a roll), the whole friend is lifted by that much (veggir).
-            if(!flight){const low=lowestSkin(skin,root);if(low<GROUND_FLOOR){pose.position.y+=GROUND_FLOOR-low;root.updateMatrixWorld(true);}}
           }
+          // Nothing of the friend goes into the ground: the root stands 4 cm over it, and where its pose would take a point of the skin more than 2 cm under it (a gesture's
+          // sit back, lowered head or roll), the whole friend is lifted by that much, after a Flugeðla's wings have turned up out of it (veggir). Read whenever it does
+          // more than stand idle (a gesture, a walk, a brace, a support pose or a clip), not in flight nor while it is not drawn: 20 to 50 microseconds a friend.
+          if(posed&&!flight&&root.visible){root.updateMatrixWorld(true);if(wings.length)raiseWings();const low=lowestSkin(skin,root);if(low<GROUND_FLOOR){pose.position.y+=GROUND_FLOOR-low;root.updateMatrixWorld(true);}}
         },
         getDebugState() { return {species:id,isBaby:art.isBaby,flight:flight?{phase:flight.phase,progress:flight.length>0?flight.s/flight.length:1}:null,carrying,motion,elapsed,gesture:gesture?.name || null,clip:clipLeft>0?clipName:null,stance,support:support?{mode:support.mode,progress:support.age/support.duration}:null,gait:gait?{naturalSpeed:gait.naturalSpeed*root.scale.x,cycle:gait.cycle,rate:walkRate,speed:travelSpeed,distance:walkDistance}:null,reducedMotion,looking:lookEnabled,clips:[...clips.keys()],eyelids:Boolean(lids),visible:root.visible}; },
         dispose() {
