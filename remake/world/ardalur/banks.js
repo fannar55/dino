@@ -171,10 +171,11 @@ function inHerWay(index, x, y, z, r, h, near) {
 
 /**
  * The steps that grow one section's real plants (a generator for the build queue). `library` is the forest's species library (one
- * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials). Returns
+ * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
+ * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter). Returns
  * { group, placements, meshes }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time.
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [] }) {
   const { own, grid: { gx0, gz0, W } } = ground;
   const rng = seeded(seed);
   const range = ([lo, hi]) => lo + rng() * (hi - lo);
@@ -234,6 +235,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
           const coarse = yield* library.getSteps(name, variant, 2, {});
           const body = bodyOf(coarse, scale);
           if (inHerWay(index, px, y, pz, body.r, body.h, near)) continue;
+          if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) continue; // an animal or what it sits on
           const one = ONE_LEVEL.has(name);
           const fine = !one && index.nearest(px, pz, FINE, near) >= 0;
           const middle = one || fine ? yield* library.getSteps(name, variant, 1, {}) : null;
@@ -247,6 +249,19 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       }
     }
     yield 'plants';
+  }
+  // what the animals sit on, those that stand in this section's own cells
+  for (const prop of props) {
+    const i = Math.floor(prop.x / GRID) - gx0;
+    const j = Math.floor(prop.z / GRID) - gz0;
+    if (i < 0 || j < 0 || i >= cellsAcross || j >= rows || !own[j * cellsAcross + i]) continue;
+    const middle = yield* library.getSteps(prop.name, prop.variant, 1, {});
+    const models = ONE_LEVEL.has(prop.name) ? [{ level: 1, model: middle }]
+      : [{ level: 1, model: middle }, { level: 2, model: yield* library.getSteps(prop.name, prop.variant, 2, {}) }];
+    placements.push({
+      name: prop.name, model: middle, models, variant: prop.variant, lod: 1, x: prop.x, y: prop.y - (middle.sink ?? 0) * prop.scale, z: prop.z,
+      rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: 0, sky: 0.9, d: terrain.where(prop.x, prop.z).d,
+    });
   }
   const batcher = createBatcher();
   for (const p of placements) batcher.add(p);

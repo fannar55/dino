@@ -39,11 +39,13 @@ export const FLIGHT_WORDS = {
   k4_flugedla_holdon: 'Haltu þér!',
 };
 
-// Her calls on the animal groups of C, in turn (spec 5C: three versions), and each group's answer among the game's sounds (sfx.js);
-// the small lizards have none yet (Task 16: recordings, with the owner's yes).
+// Her calls on the animal groups of C, in turn (spec 5C: three versions), and each group's answer (world/ardalur/animals.js: once,
+// in the real valley) with its sound among the game's (sfx.js); the small lizards have none yet (Task 16: recordings, with the
+// owner's yes).
 const CALLS = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
 const ANSWER = { frogs: 'frog', snails: 'snail', dragonflies: 'dragonfly', turtle: 'turtle', lizards: null };
 const CALL_AHEAD = 2.2; // seconds before she passes a group that she calls to it
+const ANSWER_AHEAD = 1.2; // and that it answers: still ahead of her, in the chase camera's view
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
 // The music (spec 8: the same theme louder through the flight, silent for the slow second, quieter as she glides down).
 const MUSIC = { flight: 1.5, glide: 0.8 };
@@ -103,6 +105,13 @@ function* beats(s, c) {
     if (left > 1e-9) yield s.wait(left);
   };
   const sfx = name => { if (name) s.sfx(name); };
+  // a group answers her once: its animals move (the real valley's) and its sound plays
+  const answer = (id, kind) => {
+    const group = world.forest?.animals?.groups.find(g => g.id === id) ?? null;
+    if (group?.answered) return;
+    group?.answer();
+    sfx(ANSWER[kind]);
+  };
   const whoosh = side => { if (!s.seeking) sounds.whoosh(side); };
   const hideMosi = () => { mosi.raw.root.visible = false; };
   const run = (path, heading) => {
@@ -148,7 +157,7 @@ function* beats(s, c) {
   const cues = [
     ...groups.flatMap(g => [
       { t: g.passes - CALL_AHEAD, act: () => say('flugedla', g.call) },
-      { t: g.passes, act: () => sfx(ANSWER[g.kind]) },
+      { t: g.passes - ANSWER_AHEAD, act: () => answer(g.id, g.kind) },
     ]),
     { t: 44.5, act: () => camera.shot('side') },
     { t: 51, act: () => camera.shot('waterLevel') },

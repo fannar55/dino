@@ -97,7 +97,7 @@ const WINGS = {
   dragonfly: { shoulder: DRAGONFLY.shoulder, fold: { rotation: [0, 0, 0], offset: [0, 0, 0] } }, // a dragonfly never folds its wings
   earlyBird: EARLY_BIRD,
 };
-function birdMaterial(kind = 'bird', { flight = null } = {}) {
+export function birdMaterial(kind = 'bird', { flight = null } = {}) {
   const { shoulder, fold: folding } = WINGS[kind];
   const e = new THREE.Matrix4().makeRotationZ(folding.rotation[2]).multiply(new THREE.Matrix4().makeRotationX(folding.rotation[0])).elements;
   const fold = `mat3( ${[e[0], e[1], e[2], e[4], e[5], e[6], e[8], e[9], e[10]].map(v => v.toFixed(6)).join(', ')} )`;

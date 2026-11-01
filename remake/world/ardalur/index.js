@@ -16,6 +16,7 @@ import { createRiverSurface, createFallsSlot, createPoolSurface } from './river.
 import { bankSteps, plantSteps } from './banks.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
 import { createGorgeSight, ABOVE_SECTOR } from './sight.js';
+import { createAnimals } from './animals.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
@@ -53,8 +54,11 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const group = new THREE.Group();
   group.name = 'Árdalur';
   world.scene?.add?.(group);
+  // the animal groups of C (animals.js), in the real look; the grey one has their marks
+  const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library }) : null;
+  if (animals) group.add(animals.group);
 
-  // What is always there: the water, the falls' slot, the snag, the animal groups' marks, the far land's slot.
+  // What is always there: the water, the falls' slot, the snag, the animal groups' marks (grey only), the far land's slot.
   const always = new THREE.Group();
   always.name = 'Árdalur (always)';
   always.add(createRiverSurface(route, materials.water), createFallsSlot(route.falls, materials.falls), createPoolSurface(route.pool, materials.water));
@@ -77,7 +81,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   far.name = 'Far land (slot)';
   far.computeBoundingSphere();
   marks.computeBoundingSphere();
-  always.add(snag, marks, far);
+  always.add(snag, far);
+  if (!animals) always.add(marks);
+  else marks.geometry.dispose();
   group.add(always);
 
   // Each section's bounds seen from above (its route piece and the corridor round it), and when the flight first needs it.
@@ -111,7 +117,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
     const banks = grey
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
-      : yield* plantSteps({ terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants });
+      : yield* plantSteps({
+        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props: animals.props, clear: animals.clear,
+      });
     return { ground, banks };
   }
   const done = i => ({ ground, banks }) => {
@@ -155,6 +163,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
       else downwash.set(0, 0, 0, 0);
+      animals.update(dt, time);
       real.water.uniforms.uTime.value = time;
       if (world.lighting?.direction) real.water.uniforms.uSunDir.value.copy(world.lighting.direction);
     }
@@ -165,6 +174,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     group, route, terrain, sections, stats, materials, grey,
     /** Her downwash as the plants see it: her body (x, y, z) and how far round it they bend (w; 0 when she is not flying). */
     downwash,
+    /** The animal groups (animals.js), in the real look; null in the grey one. */
+    animals,
     heightAt: (x, z) => terrain.heightAt(x, z),
     get visible() { return lastVisible; },
     get building() { return queue.current; },
@@ -177,6 +188,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
       for (const material of Object.values(materials)) material.dispose();
       if (real) {
+        animals.dispose();
         real.plants.dispose();
         real.water.dispose();
         real.leaf.dispose();

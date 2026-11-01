@@ -9,7 +9,8 @@ import { createRoute, BEATS, LEAP, FALLS, GORGE } from '../chapters/kafli4-route
 import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
-import { createRouteIndex } from '../world/ardalur/terrain.js';
+import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
+import { createAnimals } from '../world/ardalur/animals.js';
 import { cullBatches } from '../world/forest/batch.js';
 import { createLocations } from '../engine/locations.js';
 import { RAPIDS, flowAt, whiteAt } from '../world/ardalur/river.js';
@@ -377,6 +378,168 @@ test('from down in the gorge the ground hides most plants above the falls: the c
   }
   assert.ok(hidden > ranges.length * 10, `the rule left out ${hidden} plant pieces in all (${ranges.length} pieces, ${cameras.length} cameras)`);
   assert.ok(checked > 3000, `${checked} sight lines checked`);
+});
+
+// ---- the animal groups (Task 8) -----------------------------------------------------------------------------------------------
+
+/** When she passes route progress u (seconds into the flight). */
+function passes(u) {
+  let lo = 0;
+  let hi = BEATS.END;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (route.progressAt(mid) < u) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+const animalTerrain = createTerrain(route, { seed: 4 });
+/** A world for the animals: a scene, the game clock, and her body where the flight has it at game time t. */
+function animalWorld() {
+  const world = { scene: new THREE.Scene(), clock: { time: 0 }, flightPoint: null, camera: null };
+  world.at = t => {
+    world.clock.time = t;
+    world.flightPoint = route.pointAt(route.progressAt(t));
+  };
+  return world;
+}
+const morphOf = (mesh, name) => mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]];
+
+test('five animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
+  assert.deepEqual(animals.groups.map(g => [g.id, g.kind]), route.groups.map(g => [g.id, g.kind]));
+  const count = Object.fromEntries(animals.groups.map(g => [g.kind, g.members.length]));
+  assert.ok(count.frogs >= 3 && count.snails >= 3 && count.dragonflies >= 4 && count.lizards >= 3, JSON.stringify(count));
+  assert.equal(count.turtle, 1);
+  for (const [i, g] of animals.groups.entries()) {
+    assert.ok(g.point.distanceTo(new THREE.Vector3(...route.groups[i].at)) < 6, `${g.id} is by its place on the bank`);
+    assert.ok(g.radius >= 3, `${g.id}: a wide tap target (${g.radius} m)`);
+    assert.equal(g.answered, false);
+  }
+  // each critter is one of the game's own (world/critters/models.js), one mesh of at most 400 triangles, larger than life
+  let meshes = 0;
+  animals.group.traverse(o => {
+    if (!o.isMesh) return;
+    meshes++;
+    assert.ok(o.geometry.attributes.position.count / 3 <= 400, `${o.name}: ${o.geometry.attributes.position.count / 3} triangles`);
+  });
+  assert.equal(meshes, animals.groups.reduce((n, g) => n + g.members.length, 0));
+  // none under the ground; the dragonflies over the water
+  animals.update(DT, 0);
+  for (const g of animals.groups) {
+    for (const m of g.members) {
+      const p = m.root.getWorldPosition(new THREE.Vector3());
+      assert.ok(p.y >= animalTerrain.heightAt(p.x, p.z) - 0.05, `${g.id}: a critter under the ground at ${p.toArray().map(v => v.toFixed(1))}`);
+      if (g.kind === 'dragonflies') assert.ok(p.y > route.river.at(route.river.nearest(p.x, p.z).d).level + 0.5, 'a dragonfly over the water');
+    }
+  }
+  assert.ok(world.scene.children.includes(animals.group));
+  animals.dispose();
+  assert.ok(!world.scene.children.includes(animals.group));
+});
+
+test('each group answers her once: frog jumps, snails lift their eyes, dragonflies follow her, turtle stretches, lizards run', () => {
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
+  for (const g of animals.groups) {
+    const t0 = passes(route.groups.find(r => r.id === g.id).u);
+    world.at(t0);
+    animals.update(DT, t0);
+    const home = g.members.map(m => m.root.getWorldPosition(new THREE.Vector3()));
+    const handle = g.answer();
+    assert.equal(handle.done, false, `${g.id}: the answer takes time`);
+    assert.equal(g.answered, true);
+    let rose = 0;
+    let eyes = 0;
+    let neck = 0;
+    let near = Infinity;
+    for (let t = t0; t <= t0 + 12; t += DT) {
+      world.at(t);
+      animals.update(DT, t);
+      g.members.forEach((m, k) => {
+        const p = m.root.getWorldPosition(new THREE.Vector3());
+        rose = Math.max(rose, p.y - home[k].y);
+        if (g.kind === 'snails') eyes = Math.min(eyes, morphOf(m.mesh, 'hide'));
+        if (g.kind === 'turtle') neck = Math.min(neck, morphOf(m.mesh, 'hide'));
+        if (g.kind === 'dragonflies' && Math.abs(t - (t0 + 2)) < DT / 2) near = Math.min(near, -p.distanceTo(world.flightPoint));
+      });
+    }
+    assert.equal(handle.done, true, `${g.id}: the answer is over`);
+    const end = g.members.map(m => m.root.getWorldPosition(new THREE.Vector3()));
+    if (g.kind === 'frogs') assert.ok(rose > 0.8, `a frog jumps (${rose.toFixed(2)} m up)`);
+    if (g.kind === 'snails') assert.ok(eyes < -0.3, `the snails lift their eyes (hide ${eyes.toFixed(2)})`);
+    if (g.kind === 'turtle') assert.ok(neck < -0.4, `the turtle stretches its neck (hide ${neck.toFixed(2)})`);
+    if (g.kind === 'dragonflies') {
+      assert.ok(-near < 8, `2 s on, every dragonfly is within 8 m of her (${(-near).toFixed(1)} m)`);
+      end.forEach((p, k) => assert.ok(p.distanceTo(home[k]) < 0.6, 'and they come home'));
+    }
+    if (g.kind === 'lizards') {
+      end.forEach((p, k) => {
+        const ran = route.river.nearest(p.x, p.z).d - route.river.nearest(home[k].x, home[k].z).d;
+        assert.ok(ran > 12, `a lizard runs along the bank with her, upstream (${ran.toFixed(1)} m)`);
+        assert.ok(p.y >= animalTerrain.heightAt(p.x, p.z) - 0.05, 'on the ground');
+      });
+    }
+    if (['frogs', 'snails', 'turtle'].includes(g.kind)) end.forEach((p, k) => assert.ok(p.distanceTo(home[k]) < 0.05, `${g.id} rest where they were`));
+    // once: a second answer is a finished Handle and moves nothing
+    const again = g.answer();
+    assert.equal(again.done, true, `${g.id} answers once`);
+    world.at(t0 + 13);
+    animals.update(DT, t0 + 13);
+    g.members.forEach((m, k) => assert.ok(m.root.getWorldPosition(new THREE.Vector3()).distanceTo(end[k]) < 0.6, `${g.id} stays at rest`));
+  }
+  animals.dispose();
+});
+
+test('an answer is a function of the game clock: jumping to a time lands on the same pose as playing up to it', () => {
+  const playedWorld = animalWorld();
+  const replay = createAnimals(playedWorld, route, { heightAt: animalTerrain.heightAt });
+  const jumpedWorld = animalWorld();
+  const jumped = createAnimals(jumpedWorld, route, { heightAt: animalTerrain.heightAt });
+  const t0 = passes(route.groups[2].u);
+  for (const [w, a] of [[playedWorld, replay], [jumpedWorld, jumped]]) {
+    w.at(t0);
+    a.update(DT, t0);
+    for (const g of a.groups) g.answer();
+  }
+  for (let t = t0; t < t0 + 1.7; t += DT) {
+    playedWorld.at(t);
+    replay.update(DT, t);
+  }
+  playedWorld.at(t0 + 1.7);
+  replay.update(DT, t0 + 1.7);
+  jumpedWorld.at(t0 + 1.7);
+  jumped.update(0, t0 + 1.7);
+  replay.groups.forEach((g, i) => g.members.forEach((m, k) => {
+    const a = m.root.getWorldPosition(new THREE.Vector3());
+    const b = jumped.groups[i].members[k].root.getWorldPosition(new THREE.Vector3());
+    assert.ok(a.distanceTo(b) < 1e-6, `${g.id} ${k}: ${a.toArray()} and ${b.toArray()}`);
+  }));
+  replay.dispose();
+  jumped.dispose();
+});
+
+test('the real valley: the animals have their lily pads, log and stone, and no plant grows on them', () => {
+  const place = litValley();
+  const animals = place.animals;
+  assert.ok(animals, 'the real valley has the animals');
+  assert.ok(animals.props.length >= 5, `${animals.props.length} props`);
+  const placements = place.stats.sections.flatMap(part => part.userData.placements);
+  for (const prop of animals.props) {
+    assert.ok(placements.some(p => p.name === prop.name && Math.hypot(p.x - prop.x, p.z - prop.z) < 0.01), `the ${prop.name} at ${prop.x.toFixed(1)}, ${prop.z.toFixed(1)} is grown`);
+  }
+  for (const g of animals.groups) {
+    for (const m of g.members) {
+      const p = m.root.getWorldPosition(new THREE.Vector3());
+      const crowd = placements.filter(q => !animals.props.some(prop => prop.x === q.x && prop.z === q.z) && q.name !== 'waterLily' && Math.hypot(q.x - p.x, q.z - p.z) < 1.2);
+      assert.equal(crowd.length, 0, `${g.id}: ${crowd.map(q => q.name)} grow on a critter at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
+    }
+  }
+  // the grey marks are gone from the real valley
+  let marks = 0;
+  place.group.traverse(o => { if (o.name === 'Animal groups (marks)') marks++; });
+  assert.equal(marks, 0);
 });
 
 test('a location with build() is used instead of a forest layout', async () => {
