@@ -304,6 +304,19 @@ og engin breyting á færni. Svo gefur Mosi fyrstu alvöruumferðina.
   Fish verða hendur að vera faldar. Í Fjölspili er engin hönd á stóra
   skjánum: hver mennskur leikmaður, Egill líka, á sæti með síma eða spjaldtölvu
   og stóri skjárinn er aðeins tjörnin.
+- **Tæki Egils** (smíðin, bútur 4): anddyri Veiddu opnast með `hostOnPhone`
+  (`fjolspil.openLobby({ game: 'veiddu', ai, hostOnPhone: true })`). Sími sem
+  kemur inn fær fyrst mynd Egils, „Ég er Egill“, án þess að skrifa nafn, og
+  það bindur gestakenni símans við sæti 0 (`seats.bindHost`). Sætið er áfram
+  Egils (`kind: 'host'`, nafn hans og mynd); aðgerðir símans heyrast sem sæti 0,
+  `send(0, …)` nær til hans, endurhleðsla finnur sætið á geymda kenninu og
+  brottfall bíður eins og hjá gesti (spjaldið með QR-kóðanum, „Halda áfram án
+  Egils“, og tölvan tekur sætið). „Byrjum!“ bíður þar til sími Egils er bundinn
+  og annað sæti er komið. Önnur anddyri losa Egil af símanum, svo Eitt!, Háls og
+  hali og Litla Yatzy eru eins og áður.
+- Hver sími fær aðeins sína eigin hönd og fjölda spila hinna (`engine/veiddu/
+  remote.js`), og stóri skjárinn lætur athöfn ekki gilda nema reglurnar og
+  augnablikið leyfi hana; ógild athöfn breytir engu og síminn fær sýn sína aftur.
 
 ## Lokið þegar
 

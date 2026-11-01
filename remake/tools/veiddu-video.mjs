@@ -47,7 +47,7 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BROWSERS = {
   edge: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   chrome: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -60,7 +60,7 @@ const MIME = {
   '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2',
 };
-const FPS = 15;
+export const FPS = 15;
 const END_WAIT_MS = 3500; // after the win card shows: the sticker and the confetti are in
 const POLL_MS = 250;
 const SOUND_CHUNK = 1 << 20; // characters of a recording read back from the page in one call
@@ -98,9 +98,9 @@ function parseArgs(argv) {
   return o;
 }
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+export const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Waits for a promise, but at most ms, and leaves no timer behind to hold the process open.
-const within = (promise, ms) => {
+export const within = (promise, ms) => {
   let timer;
   return Promise.race([promise, new Promise(r => { timer = setTimeout(r, ms); })]).finally(() => clearTimeout(timer));
 };
@@ -126,7 +126,7 @@ function startServer() {
   return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 
-class CDP {
+export class CDP {
   constructor(ws) {
     this.ws = ws; this.id = 0; this.pending = new Map(); this.handlers = new Set();
     ws.addEventListener('message', ev => {
@@ -156,7 +156,7 @@ class CDP {
   }
 }
 
-async function launchBrowser(o) {
+export async function launchBrowser(o) {
   const exe = BROWSERS[o.browser] || o.browser;
   const userDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'veiddu-video-'));
   const args = [
@@ -196,7 +196,7 @@ async function launchBrowser(o) {
 
 // Browser.close is not enough on Windows: the browser can take a minute or more to exit after it, its helper
 // processes (GPU, crashpad) can outlive it, and while any of them runs the profile folder cannot be removed.
-async function stopBrowser(browser) {
+export async function stopBrowser(browser) {
   if (browser.cdp) await within(browser.cdp.send('Browser.close').catch(() => {}), 2000);
   try { browser.ws?.close(); } catch {}
   await within(browser.exited, 5000);
@@ -226,7 +226,7 @@ function killProfileProcesses(exe, userDir) {
  * later and not always the same: a video laid out by arrival would show every event late by that much, and could not be lined up with a
  * sound. A tick is written once a frame drawn after it is in hand (nothing can then change what it shows), and at the end up to `endAt`.
  */
-function startVideo(file, width, height) {
+export function startVideo(file, width, height) {
   const even = n => n - (n % 2);
   const args = ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
     '-vf', `scale=${even(width)}:${even(height)}`, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', file];
@@ -277,7 +277,7 @@ function startVideo(file, width, height) {
  *   plays, buffers, log   what was played from an element, started from a buffer, and happened in the game, all with the wall clock
  * "Wall clock" is performance.timeOrigin + performance.now() in ms, the same clock as Date.now() in the tool.
  */
-function soundTap() {
+export function soundTap() {
   if (window.__snd) return;
   const clock = () => performance.timeOrigin + performance.now();
   const snd = (window.__snd = { taps: [], plays: [], media: [], buffers: [], log: [], recording: false });
@@ -511,7 +511,7 @@ const EXTENSIONS = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav'
  * Ends the page's recordings and brings back what the tap saw (see soundTap): the recordings are written beside the video as
  * sound-context-<n>.webm, the files the page played from elements are fetched into `workDir`, and the logs come back as they are.
  */
-async function collectSound(ev, workDir, outDir) {
+export async function collectSound(ev, workDir, outDir) {
   const summary = await ev('window.__snd.stop()');
   const logs = await ev('({ plays: window.__snd.plays, media: window.__snd.media, buffers: window.__snd.buffers, log: window.__snd.log, said: window.__veiddu?.said ?? [] })');
   const recordings = [];
@@ -554,7 +554,7 @@ async function collectSound(ev, workDir, outDir) {
 }
 
 /** Puts the sound `collectSound` brought under the video in `silent`, as `out`. Returns what report.sound gets. */
-function mixSound(sound, video, lagSamples, silent, out, workDir) {
+export function mixSound(sound, video, lagSamples, silent, out, workDir) {
   // lagSamples are only for the report: how long after it was drawn each frame reached the tool (the video is laid out by when it was drawn)
   if (!sound) throw new Error('the page gave no sound');
   if (!sound.recordings.length) throw new Error(`nothing was recorded from the page (contexts: ${JSON.stringify(sound.summary)})`);
@@ -753,4 +753,5 @@ async function main() {
   if (fatal || (!r.finished && !r.cut) || r.errors.length || r.stalled) process.exitCode = fatal ? 2 : 1;
 }
 
-main().catch(e => { console.error(e); process.exit(2); });
+// run as a tool; veiddu-fjolspil-check.mjs imports the browser, video and sound parts of this file
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(e => { console.error(e); process.exit(2); });

@@ -8,6 +8,7 @@ import { pressable, sparkle, reducedMotion, TAP_SLOP_PX } from '../book/fx.js';
 import { veidduSounds, VEIDDU_GAPS, createSplash } from './veiddu-sounds.js';
 import { createSpeech, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from './speech.js';
 import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCard, tableElement, winElement, make, POND_SHOWN } from './look.js';
+import { createVeidduMulti } from './multi.js';
 
 // The table of "Veiddu" (spec sections 2 to 5): the round the child plays with Uggeðla and Mosi, rendered into veiddu.css's classes (the
 // class list is at the top of veiddu.css, which is the game's whole look; look.js draws the markup). The rules, the minds and Mosi's
@@ -27,6 +28,11 @@ import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCa
 //     "Þú átt leik, Egill!", at most once in 20 s. Mosi's button gives the same advice at once, with his reason.
 //   - The end: the winner's words (all the winners on a tie), confetti and Uggeðla's sticker for a child who won or tied, "Spilum
 //     aftur?", and the minds' skill updated for the next round (skill.js afterRound) when the save keeps one.
+//   - Fjölspil (spec section 11, Task 9): with the page's host session an open game first shows a setup card ("Spila við Uggeðlu og Mosa", "Fjölspil",
+//     and "Halda áfram" when a round of Fjölspil is kept in the save), as Eitt!'s does. "Fjölspil" is the lobby (Egill's own phone first: in Go Fish a
+//     hand must be hidden, so every human seat plays from a device of its own and the big screen is only the pond, the seats' tags and the bubbles,
+//     with Uggeðla's live window when she plays) and then a round of multi.js, which has all of that; this file lends it the music, the effects,
+//     the splash, the voices and Uggeðla's window. A page with no host session (the lab) deals a round at once, as it always did.
 //   - The tutorial ("Kennsla", spec section 8): the first time the game opens (a save that has not got tutorialDone), and whenever the
 //     child taps "Kennsla". Mosi teaches one short game from a stacked deck (TUTORIAL_STACK), a step at a time, said and shown in his
 //     bubble (TUTORIAL): the pair Egill is dealt goes to his catch, he asks Uggeðla and gets a card, which becomes a pair, he asks Mosi
@@ -146,6 +152,11 @@ export const TUTORIAL_MINDS = {
   [MOSI]: [{ target: CHILD, kind: 'salamandra' }, { target: UGGEDLA, kind: 'vatnalaesingi' }],
 };
 
+/** The same, for the pictures on the setup card. */
+const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2.6" stroke-linejoin="round"/></svg>';
+const PHONE = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="12" y="4" width="24" height="40" rx="6" fill="#2f8f86" stroke="#3b2f25" stroke-width="3.4"/><rect x="16" y="10" width="16" height="25" rx="2.5" fill="#fffaf0"/><circle cx="20.5" cy="15.5" r="2.4" fill="#3b2f25"/><circle cx="24" cy="22.5" r="2.4" fill="#3b2f25"/><circle cx="27.5" cy="29.5" r="2.4" fill="#3b2f25"/><circle cx="24" cy="39.5" r="1.8" fill="#fffaf0"/></svg>';
+const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>';
+
 /** The winners' words: "Þú vannst!", "Mosi vann!", and on a tie all of them ("Þú og Uggeðla unnuð jafnt!"). */
 function winWords(winners) {
   if (winners.length === 1) return winners[0] === CHILD ? 'Þú vannst!' : `${NAMES[winners[0]]} vann!`;
@@ -180,7 +191,7 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
  */
 export function createVeidduGame(doc, {
   save = null, audio = {}, onClose = null, onPause = null, win = globalThis.window, random = Math.random, fjolspil = null, auto: autoStart = false,
-  uggedlaLive = true,
+  uggedlaLive = true, kinds = undefined,
 } = {}) {
   const root = doc.getElementById('veiddu');
   if (!root) throw new Error('"Veiddu" needs #veiddu on the page (see veiddu-lab.html)');
@@ -196,7 +207,19 @@ export function createVeidduGame(doc, {
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', 'Veiddu, spil við Uggeðlu og Mosa');
-  root.replaceChildren(table, winEl);
+  // The setup card, with the page's host session (spec section 11): a round on this tablet, "Fjölspil", or the round of Fjölspil kept.
+  const setupEl = el('div', 'veiddu-setup');
+  const setupCard = el('div', 'veiddu-setup-card');
+  const setupClose = el('button', 'veiddu-close', CROSS);
+  setupClose.setAttribute('aria-label', 'Aftur í bókina');
+  const setupTitle = el('h2', 'veiddu-setup-title', `<img src="${asset('assets/book/images/uggedla-render.webp')}" alt=""><span>Veiddu</span>`);
+  const continueEl = el('button', 'veiddu-big veiddu-continue', `${PLAY}<span>Halda áfram</span>`);
+  const soloEl = el('button', 'veiddu-big veiddu-solo', `${PLAY}<span>Spila við Uggeðlu og Mosa</span>`);
+  const multiButton = el('button', 'veiddu-plain veiddu-multi-button', `${PHONE}<span>Fjölspil</span>`); // the lobby: phones join in
+  setupCard.append(setupClose, setupTitle, continueEl, soloEl, multiButton);
+  setupEl.append(setupCard);
+  setupEl.hidden = true;
+  root.replaceChildren(table, winEl, setupEl);
   root.hidden = true;
 
   const seatEls = { [UGGEDLA]: table.querySelector('.veiddu-seat[data-seat="1"]'), [MOSI]: table.querySelector('.veiddu-seat[data-seat="2"]') };
@@ -220,6 +243,7 @@ export function createVeidduGame(doc, {
   // ---- State ----------------------------------------------------------------------------------------------------------------
 
   let isOpen = false;
+  let setupOpen = false; // the setup card shows (with the page's host session)
   let auto = Boolean(autoStart);
   let game = null; // the rules' game as the table has shown it
   let round = 0; // counts rounds; a flow that finds it changed (a new deal, the game shut) stops
@@ -331,6 +355,7 @@ export function createVeidduGame(doc, {
   /** What the table waits for (the child's moves are the 'child-' ones; see the header). */
   function phase() {
     if (!isOpen) return 'shut';
+    if (setupOpen) return 'setup';
     if (ended) return 'over';
     if (busy || !game) return 'busy';
     if (waiting) return waiting.holds ? 'child-give' : 'child-no';
@@ -1148,7 +1173,8 @@ export function createVeidduGame(doc, {
     await wait(Math.max(MIN_STEP_MS, said > 0 ? said * 1000 + 900 : lineMs(REAL.text)));
     if (token !== round || !isOpen) return;
     hideAdvice(true);
-    run(deal());
+    if (fjolspil) showSetup(); // with the page's host session the child picks: a round on this tablet, or "Fjölspil"
+    else run(deal());
   }
 
   /** The tutorial from the start: its stacked deck is dealt, and Mosi says the first step. */
@@ -1156,6 +1182,45 @@ export function createVeidduGame(doc, {
     tutorial = { step: -1, live: null, said: null, until: 0, listened: false, minds: { [UGGEDLA]: [...TUTORIAL_MINDS[UGGEDLA]], [MOSI]: [...TUTORIAL_MINDS[MOSI]] } };
     taught++;
     run(deal(tutorialStack()));
+  }
+
+  // ---- Fjölspil: a round of multi.js, with the page's host session --------------------------------------------------------------------
+
+  const multi = fjolspil
+    ? createVeidduMulti(doc, {
+      root, fjolspil, save, win, random, calm, kinds,
+      uggedla: {
+        windowEl: windowEls[UGGEDLA], frameEl: seatEls[UGGEDLA].querySelector('.veiddu-uggedla-frame'), home: seatEls[UGGEDLA],
+        view: () => view, start: () => startView(), stop: () => view?.stop(),
+      },
+      sound: { sfx, splashes, say, speech, clock, lineMs },
+      words: { SAY, asking },
+      onShow: () => { // a round of Fjölspil takes the table: the card and this tablet's table give way
+        setupOpen = false;
+        setupEl.hidden = true;
+        table.hidden = true;
+        winEl.hidden = true;
+      },
+      onHide: () => { table.hidden = false; },
+      onQuit: () => close(),
+    })
+    : null;
+
+  /** The setup card over an empty table: "Spila við Uggeðlu og Mosa", "Fjölspil", and "Halda áfram" when a round of Fjölspil is kept. */
+  function showSetup() {
+    round++; // whatever was under way stops here
+    multi?.leave();
+    tutorial = null;
+    reset();
+    table.hidden = false;
+    continueEl.hidden = !multi?.saved();
+    setupOpen = true;
+    setupEl.hidden = false;
+    marks();
+    if (typeof setupCard.animate === 'function') {
+      setupCard.animate(calm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(30px) scale(.92)' }, { opacity: 1, transform: 'none' }],
+        { duration: calm() ? 220 : 480, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
+    }
   }
 
   // ---- Dealing and the end --------------------------------------------------------------------------------------------------
@@ -1326,6 +1391,7 @@ export function createVeidduGame(doc, {
     startView();
     // Mosi teaches first when asked to, and the first time: with a save that has not got tutorialDone (with no save there is nothing to remember it in)
     if (teachFirst || (save?.getVeiddu && !save.getVeiddu()?.tutorialDone)) startTutorial();
+    else if (fjolspil) showSetup(); // after the tutorial, with the page's host session: this tablet, "Fjölspil" or the round kept
     else run(deal());
   }
 
@@ -1334,6 +1400,10 @@ export function createVeidduGame(doc, {
     isOpen = false;
     round++; // the round under way is dropped, with no penalty
     tutorial = null; // and a tutorial under way is not done: it comes again
+    multi?.leave({ close: true }); // the phones wait for the next lobby (a round of Fjölspil stays kept)
+    setupOpen = false;
+    setupEl.hidden = true;
+    table.hidden = false;
     reset();
     music.stop();
     view?.stop();
@@ -1346,6 +1416,19 @@ export function createVeidduGame(doc, {
     }
   }
 
+  pressable(setupClose, { win, sound: null, onTap: () => close() });
+  pressable(soloEl, {
+    win, sound: null, onTap: () => {
+      wake();
+      if (!isOpen || !setupOpen) return;
+      setupOpen = false;
+      setupEl.hidden = true;
+      startView(); // her window is on this tablet's table again
+      run(deal());
+    },
+  });
+  pressable(multiButton, { win, sound: null, onTap: () => { wake(); if (isOpen && setupOpen) run(multi.openLobby()); } });
+  pressable(continueEl, { win, sound: null, onTap: () => { wake(); if (isOpen && setupOpen) run(multi.resume()); } });
   pressable(pondEl, { win, sound: null, onTap: () => tapPond() });
   for (const seat of [UGGEDLA, MOSI]) pressable(windowEls[seat], { win, sound: null, onTap: () => tapWindow(seat) });
   pressable(helpEl, { win, sound: null, onTap: () => askMosi() });
@@ -1367,7 +1450,8 @@ export function createVeidduGame(doc, {
     close,
     get isOpen() { return isOpen; },
     get game() { return game; },
-    get phase() { return tutorial ? tutorialPhase() : phase(); },
+    get phase() { return multi?.isOn ? `fjolspil ${multi.phase}` : tutorial ? tutorialPhase() : phase(); },
+    get fjolspil() { return multi; },
     get teaching() { return tutorial ? (tutorial.step < 0 ? 'deal' : TUTORIAL[tutorial.step].id.slice('veiddu_tut_'.length)) : null; },
     get dealt() { return dealt; },
     get uggedla() { return view; },

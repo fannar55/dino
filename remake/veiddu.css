@@ -34,6 +34,13 @@
                                  ("Spilum aftur?") and .veiddu-close; .veiddu-confetti holds the confetti, each an i with --x, --a, --t, --d and --c
      .veiddu-quit                the close while a round is under way (with .veiddu-close's look), on the table's top right corner
      .veiddu-teach               "Kennsla", the tutorial again, on the table's top left corner; .veiddu-skip ("Sleppa") ends it there
+     .veiddu-setup               the card before a round, with the page's host session: .veiddu-setup-card with its .veiddu-setup-title, "Halda áfram"
+                                 (.veiddu-continue) and "Spila við Uggeðlu og Mosa" (.veiddu-solo), both .veiddu-big, "Fjölspil" (.veiddu-multi-button,
+                                 .veiddu-plain) and .veiddu-close
+     .veiddu-multi               a round of Fjölspil (multi.js): the .veiddu-pond in the middle and a .veiddu-place for each seat round it (data-slot l, r,
+                                 tl, tr, bl or br by how many sit): its .veiddu-tag with .veiddu-face and name, .veiddu-count, its cards face down
+                                 (.veiddu-their-hand) and its .veiddu-catch; .her holds Uggeðla's window, .turn .thinking .out .away say what it is doing;
+                                 the bubbles are .veiddu-bubble.mp with a .veiddu-bubble-face, and no hand is on this screen
      .teaching                   on .veiddu while Mosi teaches: everything is dimmed but what he means (.live)
      .veiddu-gallery             the lab's gallery of every card (veiddu-lab.html?state=cards)
      .turn .thinking .out        on a .veiddu-seat (or Egill's .veiddu-me-catch): whose turn it is (a teal ring), a mind about to ask (her head
@@ -764,4 +771,125 @@
 @media (prefers-reduced-motion: reduce) {
   :is(.veiddu, .spil-veiddu) *, :is(.veiddu, .spil-veiddu) *::before, :is(.veiddu, .spil-veiddu) *::after { animation: none !important; transition-duration: .01s !important; }
   .veiddu-pond.calls::after { opacity: .9; } /* the pond still calls: its glow just holds still */
+}
+
+/* ---- The setup card, with the page's host session: a round on this tablet, "Fjölspil", or the round of Fjölspil kept ------------------ */
+
+.veiddu-setup {
+  position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgb(24 17 11 / .18), rgb(24 17 11 / .45));
+}
+.veiddu:has(.veiddu-setup:not([hidden])) :is(.veiddu-quit, .veiddu-teach, .veiddu-skip) { visibility: hidden; } /* the card has its own close */
+.veiddu-setup-card {
+  position: relative; display: grid; justify-items: center; gap: clamp(14px, 2.6cqh, 24px);
+  width: min(660px, 90cqw); padding: clamp(28px, 4.4cqh, 44px) 36px clamp(30px, 4.6cqh, 46px);
+  border-radius: 30px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M7 3C110 1.6 290 4.4 393 2.6C396.4 2.8 397.6 4.6 397.4 8C396 110 398.4 200 397.2 292C396.9 295.8 395 297.3 391 297.2C280 298.6 120 296.2 9 297.6C5.2 297.6 3 295.8 3 292C3.8 190 1.8 100 2.8 8C3 4.6 4.4 3.1 7 3Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / calc(100% - 24px) calc(100% - 24px) no-repeat,
+    var(--card);
+  box-shadow: 0 30px 60px rgb(14 8 3 / .45), 0 8px 18px rgb(14 8 3 / .3);
+  animation: win-in .6s cubic-bezier(.3, 1.5, .5, 1) both;
+}
+.veiddu-setup-card::before { /* tape on its top corner, as on the book's photos */
+  content: ""; position: absolute; top: -14px; left: 7%; width: min(22%, 120px); height: 34px; rotate: -8deg;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--teal) 62%, transparent);
+  -webkit-mask: var(--tape) center / 100% 100% no-repeat; mask: var(--tape) center / 100% 100% no-repeat;
+}
+.veiddu-setup-title {
+  margin: 0 0 4px; display: flex; align-items: center; gap: .3em;
+  font-size: clamp(56px, 8cqmin, 84px); font-weight: 900; line-height: 1;
+  color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink);
+  rotate: -3deg;
+}
+.veiddu-setup-title img { width: 1.6em; height: auto; margin: -.35em 0 -.25em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
+.veiddu-big { /* "Spila við Uggeðlu og Mosa", "Halda áfram": a big green raised pill, as "Spilum aftur?" */
+  position: relative; min-height: var(--veiddu-target); max-width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: .45em; padding: 0 1.1em 0 .8em;
+  font-size: clamp(28px, 3.4cqmin, 38px); font-weight: 900; color: #fff; text-align: center; line-height: 1.1;
+  border: 3px solid var(--ink); border-radius: 999px;
+  background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .38), transparent 46%), var(--green);
+  box-shadow: 0 7px 0 var(--green-deep), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
+}
+.veiddu-big span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.veiddu-big svg { flex: none; width: 1.2em; height: 1.2em; overflow: visible; }
+.veiddu-plain { /* "Fjölspil": the plain cream raised pill, with a phone */
+  position: relative; min-height: var(--veiddu-target);
+  display: inline-flex; align-items: center; gap: .4em; padding: 0 1em 0 .7em;
+  font-size: clamp(26px, 3cqmin, 32px); font-weight: 900; color: var(--ink);
+  border: 3px solid var(--ink); border-radius: 999px; background: var(--paper);
+  box-shadow: 0 6px 0 #e3d4b5, 0 6px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25);
+}
+.veiddu-plain svg { width: 1.5em; height: 1.5em; margin: -.2em 0; overflow: visible; }
+
+/* ---- A round of "Fjölspil": the pond in the middle and every seat's place round it (multi.js) -------------------------------------- */
+
+.veiddu-multi {
+  --window-w: clamp(190px, min(22cqw, 24cqh * 1.6), 360px);
+  --them-w: clamp(42px, min(3.8cqw, 7cqh), 62px);
+  --catch-w: clamp(38px, min(3.6cqw, 6.4cqh), 56px);
+  --pond-card-w: clamp(44px, min(4.6cqw, 8cqh), 74px);
+  --place-w: clamp(220px, 25cqw, 380px);
+  --top: 92px; /* the corner buttons' row: the places at the top start under it */
+  position: absolute; inset: 0;
+}
+.veiddu-multi .veiddu-pond { /* the pond in the middle (low when three sit, the places at the top left and right leaving it room) */
+  position: absolute; left: 50%; top: 54%; translate: -50% -50%; z-index: 2; margin: 0; max-height: none; cursor: default;
+  width: min(42cqw, 60cqh * 1.55); aspect-ratio: 1.55;
+}
+.veiddu-multi[data-seats="3"] .veiddu-pond { left: 58%; top: 62%; width: min(40cqw, 52cqh * 1.55); }
+.veiddu-multi[data-seats="2"] { /* two at the table: bigger places, with more room round the pond */
+  --them-w: clamp(54px, min(5.2cqw, 9.4cqh), 84px); --catch-w: clamp(46px, min(4.6cqw, 8.2cqh), 70px); --place-w: clamp(250px, 28cqw, 420px);
+  --window-w: clamp(220px, min(27cqw, 30cqh * 1.6), 440px);
+}
+.veiddu-place {
+  position: absolute; z-index: 3; width: var(--place-w);
+  display: grid; justify-items: center; align-content: start; gap: 8px; transition: opacity .3s;
+}
+.veiddu-place > * { grid-column: 1; }
+.veiddu-place.her { width: var(--window-w); }
+.veiddu-place[data-slot="l"] { left: 3cqw; top: 50%; translate: 0 -50%; }
+.veiddu-place[data-slot="r"] { right: 3cqw; top: 50%; translate: 0 -50%; }
+.veiddu-place[data-slot="tl"] { left: 3cqw; top: var(--top); }
+.veiddu-place[data-slot="tr"] { right: 3cqw; top: var(--top); }
+.veiddu-place[data-slot="bl"] { left: 3cqw; bottom: max(3cqh, 14px); }
+.veiddu-place[data-slot="br"] { right: 3cqw; bottom: max(3cqh, 14px); }
+.veiddu-place-top { display: flex; align-items: center; justify-content: center; gap: 12px; max-width: 100%; }
+.veiddu-place-low { display: flex; align-items: flex-start; justify-content: center; gap: 16px; max-width: 100%; }
+.veiddu-place .veiddu-their-hand { margin-top: 0; padding: 0 calc(var(--them-w) * .3); min-width: calc(var(--them-w) * 2); min-height: calc(var(--them-w) * 1.4); }
+.veiddu-place .veiddu-count { min-width: 44px; height: 44px; font-size: 28px; }
+.veiddu-place .veiddu-tag { font-size: clamp(26px, 2.8cqmin, 34px); }
+.veiddu-place .veiddu-face { width: clamp(52px, 6cqmin, 72px); }
+.veiddu-place.turn .veiddu-tag { box-shadow: 0 0 0 5px var(--teal), 0 0 0 8px var(--ink), 0 0 24px 8px rgb(63 176 184 / .55); animation: eitt-pulse 1.4s ease-in-out infinite; }
+.veiddu-place.turn .veiddu-uggedla { /* her window on turn: ringed in teal */
+  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 16px var(--teal), 0 0 34px 12px rgb(63 176 184 / .55), 0 14px 26px 6px rgb(40 24 10 / .3);
+}
+.veiddu-place.thinking .veiddu-uggedla img { transform-origin: 50% 92%; animation: think-tilt 1.1s ease-in-out infinite; } /* her head tilts, until her live view is ready */
+.veiddu-place.thinking .veiddu-tag { animation: think-tilt 1.1s ease-in-out infinite; }
+.veiddu-place.out { opacity: .5; } /* no cards and no pond: the turn goes by */
+.veiddu-place.away { opacity: .55; } /* a guest whose phone has gone (the lobby's card waits for her at her turn) */
+.veiddu-place.away .veiddu-tag span::after { content: "…"; }
+.veiddu:has(.veiddu-win:not([hidden])) .veiddu-place { z-index: 11; } /* the seats stay in sight, cheering */
+
+/* What is said, in a bubble by whoever says it, in their colour, with their face and an arrow at the one asked */
+.veiddu-bubble.mp { z-index: 9; }
+.veiddu-bubble.mp p { display: flex; align-items: center; gap: .4em; max-width: 12em; box-shadow: 0 0 0 6px var(--c, var(--ink)), 0 0 0 9px var(--ink), 0 14px 18px rgb(40 24 10 / .3); }
+.veiddu-bubble.mp.long p { max-width: 13em; }
+.veiddu-bubble.mp p::after { display: none; }
+.veiddu-bubble-face {
+  flex: none; width: 1.5em; aspect-ratio: 1; border-radius: 50%; object-fit: cover; object-position: 55% 45%;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c, #79c7a1) 45%, #fffaf0) 72%); box-shadow: 0 0 0 2.5px var(--ink);
+}
+.veiddu-bubble.mp .veiddu-bubble-arrow svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* A tablet held upright: the places in the corners (two sit at the top and the bottom), the pond between them */
+@media (max-aspect-ratio: 1/1) {
+  .veiddu-multi {
+    --place-w: 44cqw; --window-w: min(44cqw, 22cqh * 1.6); --them-w: clamp(40px, min(6cqw, 5.6cqh), 62px); --catch-w: clamp(36px, min(5.4cqw, 5cqh), 56px);
+    --pond-card-w: clamp(46px, min(7cqw, 6.6cqh), 72px);
+  }
+  .veiddu-multi .veiddu-pond, .veiddu-multi[data-seats="3"] .veiddu-pond { left: 50%; top: 52%; width: min(86cqw, 36cqh * 1.55); }
+  .veiddu-place[data-slot="l"] { left: 50%; right: auto; top: var(--top); translate: -50% 0; }
+  .veiddu-place[data-slot="r"] { left: 50%; right: auto; top: auto; bottom: max(3cqh, 14px); translate: -50% 0; }
+  .veiddu-place[data-slot="tl"], .veiddu-place[data-slot="bl"] { left: 3cqw; }
+  .veiddu-place[data-slot="tr"], .veiddu-place[data-slot="br"] { right: 3cqw; }
 }

@@ -871,7 +871,8 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 }
 .spil-veiddu-no span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
 .spil-veiddu-no.pressable.pressed { translate: 0 4px; }
-.spil-veiddu[data-mode="no"] .spil-veiddu-pond { opacity: .55; }
+.spil-veiddu[data-mode="no"] .spil-veiddu-pond { opacity: .55; width: clamp(96px, 26vw, 120px); }
+.spil-veiddu[data-mode="no"] .spil-veiddu-no { font-size: clamp(22px, 6vw, 28px); white-space: nowrap; }
 
 /* Her turn: a frame in her own colour glowing round the screen, and a card with her picture that slides in over the middle. */
 .spil-veiddu-frame {
