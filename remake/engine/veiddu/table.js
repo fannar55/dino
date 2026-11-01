@@ -1061,17 +1061,21 @@ export function createVeidduGame(doc, {
     cancel(autoTimer);
     const p = phase();
     const idOfKind = kind => [...handEls.values()].find(card => card.dataset.kind === kind)?.dataset.id;
-    // In the tutorial the child does what the step means, but only once Mosi has said it (a child listens first)
+    // In the tutorial the child does what the step means, but only once Mosi has said it (a child listens first: a tap cuts his line)
     const after = tutorial ? Math.max(AUTO_MS, tutorial.until - clock() + 500) : AUTO_MS;
+    const listening = act => {
+      const go = () => (tutorial && speech.talking ? (autoTimer = later(250, go)) : act());
+      return go;
+    };
     if (p === 'child-pick') {
-      autoTimer = later(after, () => {
+      autoTimer = later(after, listening(() => {
         const best = tutorial ? { ...tutorial.live } : bestAsk(game, CHILD);
         if (phase() !== 'child-pick' || !best || !best.kind) return;
         tapCard(idOfKind(best.kind));
         autoTimer = later(700, () => tapWindow(best.target));
-      });
-    } else if (p === 'child-fish') autoTimer = later(after, tapPond);
-    else if (p === 'child-give') autoTimer = later(after, () => tapCard(idOfKind(waiting?.kind)));
+      }));
+    } else if (p === 'child-fish') autoTimer = later(after, listening(tapPond));
+    else if (p === 'child-give') autoTimer = later(after, listening(() => tapCard(idOfKind(waiting?.kind))));
     else if (p === 'child-no') autoTimer = later(AUTO_MS, tapFishButton);
   }
 
