@@ -172,14 +172,21 @@ export function master(raw,target){
 
 /** How a word's chosen recipe changes what is sent, in Icelandic for the owner. */
 export function recipeSentence(lexicon,word){
-  const recipe=lexicon.words[word.id].recipes[word.recipe],forms=word.forms.map(form=>`„${form}“`).join(' og ');
+  const recipe=lexicon.words[word.id].recipes[word.recipe],forms=word.forms.map(form=>`„${form}“`).join(' og '),many=word.forms.length>1;
   if(recipe.say!==undefined){
     const says=[...new Set(word.forms.map(form=>typeof recipe.say==='string'?recipe.say:recipe.say[form]))].map(say=>say.replaceAll('"',''));
-    return `${forms} er sent sem ${says.some(say=>say.startsWith('/'))?'IPA':'stafsetningin'} ${says.join(', ')}`;
+    return `${forms} ${many?'eru send':'er sent'} sem ${says.some(say=>say.startsWith('/'))?'IPA':'stafsetningin'} ${says.join(', ')}`;
   }
   const context=chosenContext(lexicon,word);
-  if(context)return `${forms} fær samhengið „${context}“ á undan (sent, ekki talað)`;
-  return `${forms} er sent eins og það er skrifað`;
+  if(context)return `${forms} ${many?'fá':'fær'} samhengið „${context}“ á undan (sent, ekki talað)`;
+  return `${forms} ${many?'eru send':'er sent'} eins og ${many?'þau eru skrifuð':'það er skrifað'}`;
+}
+
+/** The sentences for a line's chosen words, words that share a context in one ("„Vel“ og „gert“ fá samhengið ..."). */
+export function changeSentences(lexicon,words){
+  const groups=new Map();
+  for(const word of words){const context=chosenContext(lexicon,word),key=context?`context:${context}`:`word:${word.id}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(word);}
+  return [...groups.values()].map(group=>recipeSentence(lexicon,{...group[0],forms:group.flatMap(word=>word.forms)})).join('; ');
 }
 
 /** The text with these words marked. */
@@ -318,7 +325,7 @@ export async function abTakes({ids,out=path.join(ROOT,AB_OUT),log=console.log}){
     if(fs.existsSync(shipped)){fs.mkdirSync(path.join(out,'ab','old'),{recursive:true});fs.copyFileSync(shipped,path.join(out,'ab','old',`${id}.mp3`));}
     const chosenWords=sent.words.filter(word=>word.recipe);
     record[id]={key,text:line.text,sent:{text:sent.text,context:sent.context,seed:sent.seed},words:chosenWords.map(word=>({id:word.id,recipe:word.recipe,forms:word.forms})),...(line.kept===undefined?{}:{kept:line.kept})};
-    const why=chosenWords.length?`Nú: ${chosenWords.map(word=>recipeSentence(lexicon,word)).join('; ')}.`:'';
+    const why=chosenWords.length?`Nú: ${changeSentences(lexicon,chosenWords)}.`:'';
     rows.push({id,text:markWords(line.text,chosenWords.flatMap(word=>word.forms)),why,takes:[
       {value:'gamla',label:`Gamla (í leiknum${line.kept===undefined?'':', þitt val'})`,src:`ab/old/${id}.mp3`},
       {value:'nyja',label:'Nýja (eftir framburðarreglunum, ekki komin inn)',src:`ab/new/${id}.mp3`,how:[sent.text!==line.text?`sent: ${sent.text}`:'',sent.context?`samhengi: ${sent.context}`:'',sent.seed===undefined?'':`fræ ${sent.seed}`].filter(Boolean).join(' · ')},
