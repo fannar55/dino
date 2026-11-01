@@ -113,8 +113,9 @@ function withDownwash(material, key, downwash) {
     base(shader, renderer);
     shader.uniforms.uDownwash = downwash;
     if (!shader.vertexShader.includes(PIVOT_LINE)) console.warn('[ardalur] the vegetation shader changed: no downwash');
+    // just before main, after the forest's head (it declares the wind's clock this reads)
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\n${DOWNWASH_GLSL}`)
+      .replace('void main() {', `${DOWNWASH_GLSL}\nvoid main() {`)
       .replace(PIVOT_LINE, `${PIVOT_LINE}\n  transformed += ardalurDownwash( forestRest, aWind );`);
   };
   material.customProgramCacheKey = () => key;
