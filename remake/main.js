@@ -28,6 +28,7 @@ import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
 import { parseManifest, parseModels } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
+import { createVeidduGame } from './engine/veiddu/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createFjolspil } from './engine/fjolspil/fjolspil.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
@@ -219,7 +220,7 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : game === 'veiddu' ? veiddu.open(options) : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
@@ -243,6 +244,17 @@ const eitt = createEittGame(document, {
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('eitt', paused);
+  },
+  onClose: () => book.refresh(), // a sticker won is in the book now
+});
+// Uggeðla's Go Fish, "Veiddu" (engine/veiddu/table.js), which the Leikir page opens over the book as it does "Eitt!" (it appears with her
+// star, k2_uggedla): the same hold on the chapter (its own, so the two never play at once), its effects, music and voices its own through
+// the page's output, and a sticker for a round won in the book when it shuts. `fjolspil` is for its round of Fjölspil (a later task).
+const veiddu = createVeidduGame(document, {
+  save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('veiddu', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
 });
@@ -290,7 +302,7 @@ const villa = createVilla(document, {
     clock: () => ({ time: clock.time, paused: clock.paused }),
     stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
     location: () => world.location ?? null,
-    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
     caption: () => {
       const el = document.getElementById('caption');
       return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
@@ -733,7 +745,7 @@ function render() {
     drew = false;
     return;
   }
-  drew = !(clock.paused && (book.isOpen || eitt.isOpen) && !canvasCleared);
+  drew = !(clock.paused && (book.isOpen || eitt.isOpen || veiddu.isOpen) && !canvasCleared);
   if (!drew) return;
   canvasCleared = false;
   drawNow();
@@ -803,4 +815,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
