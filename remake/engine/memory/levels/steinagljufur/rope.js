@@ -22,7 +22,7 @@ import * as THREE from 'three';
  *
  * The tube is ROPE_TRIANGLES triangles (under the plan's 1,000).
  */
-const SEGMENTS = 68, SIDES = 7, RADIUS = .085;
+const SEGMENTS = 68, SIDES = 7, RADIUS = .1;
 export const ROPE_TRIANGLES = SEGMENTS * SIDES * 2;
 const url = new URL('../../../../assets/memory/bord2/rope-color.webp', import.meta.url).href;
 const smooth = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
@@ -32,7 +32,7 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
   const T = stage?.THREE ?? THREE, scene = parent ?? stage.scene;
   const A = from.clone(), B0 = to.clone();
   const texture = new T.TextureLoader().load(url); texture.colorSpace = T.SRGBColorSpace; texture.wrapS = texture.wrapT = T.RepeatWrapping; texture.anisotropy = 4;
-  const material = new T.MeshStandardMaterial({ map: texture, color: '#f2dcb4', roughness: .92, metalness: 0 });
+  const material = new T.MeshStandardMaterial({ map: texture, color: new T.Color('#ffe9c4').multiplyScalar(1.45), roughness: .92, metalness: 0 });
   const position = new Float32Array((SEGMENTS + 1) * (SIDES + 1) * 3), normal = new Float32Array(position.length), uv = new Float32Array((SEGMENTS + 1) * (SIDES + 1) * 2), index = [];
   for (let i = 0; i < SEGMENTS; i++) for (let j = 0; j < SIDES; j++) { const a = i * (SIDES + 1) + j, b = a + 1, c = a + SIDES + 1, d = c + 1; index.push(a, c, b, b, c, d); }
   const geometry = new T.BufferGeometry();
@@ -47,10 +47,13 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
     const s = Math.min(1, Math.max(0, u)) * routeLengths.at(-1); let i = 1; while (i < routeLengths.length - 1 && routeLengths[i] < s) i++;
     return route3[i - 1].clone().lerp(route3[i], (s - routeLengths[i - 1]) / Math.max(1e-6, routeLengths[i] - routeLengths[i - 1]));
   };
-  // The coil on the ground at the foot: the rope laid in loose loops from the stake to its free end (a heap).
+  // The coil on the ground at the foot: a short lead from the stake to the rim of a round coil, the rope laid in loops (three and a bit) one on another toward the middle, its free end on top.
+  const COIL = { lead: .1, turns: 3.2, outer: .85, inner: .3, rise: 1.75, centre: A.clone().lerp(B0, .55) };
   const lying = u => {
-    const p = A.clone().lerp(B0, Math.min(1, u * 1.5)), wave = Math.sin(u * Math.PI * 7.5) * .42 * Math.sin(Math.min(1, u * 1.1) * Math.PI), loop = Math.sin(u * Math.PI * 3) * .3;
-    p.x += loop; p.z += wave * (1 - u * .3); p.y = groundAt(p.x, p.z) + RADIUS + .015 + Math.abs(Math.sin(u * Math.PI * 9)) * .05; return p;
+    const c = COIL.centre, start = Math.atan2(A.z - c.z, A.x - c.x), rim = new T.Vector3(c.x + Math.cos(start) * COIL.outer, 0, c.z + Math.sin(start) * COIL.outer);
+    if (u < COIL.lead) { const p = A.clone().lerp(rim, u / COIL.lead); p.y = groundAt(p.x, p.z) + RADIUS + .015; return p; }
+    const v = (u - COIL.lead) / (1 - COIL.lead), r = lerp(COIL.outer, COIL.inner, v), angle = start + v * COIL.turns * Math.PI * 2, x = c.x + Math.cos(angle) * r, z = c.z + Math.sin(angle) * r;
+    return new T.Vector3(x, groundAt(x, z) + RADIUS + .015 + v * COIL.turns * RADIUS * COIL.rise, z);
   };
   // The rope as it is carried: from the stake to `b` in a loose arc (the farther the carriers, the less it sags), swaying a little sideways.
   const arc = u => {
@@ -62,7 +65,7 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
   const taut = u => { const q = onRoute(u); q.y += rise + .03 * Math.sin(u * Math.PI); return q; };
 
   function build() {
-    const points = [], count = 30, w = smooth(state.tight), lift = smooth(state.lift);
+    const points = [], count = 72, w = smooth(state.tight), lift = smooth(state.lift);
     for (let i = 0; i <= count; i++) {
       const u = i / count, free = state.mode === 'lying' ? lying(u) : lift >= 1 ? arc(u) : lying(u).lerp(arc(u), lift);
       points.push(w > 0 ? free.lerp(taut(u), w) : free);
@@ -88,8 +91,8 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
         const nx = n.x * c + binormal.x * s, ny = n.y * c + binormal.y * s, nz = n.z * c + binormal.z * s;
         position[k * 3] = samples[i].x + nx * RADIUS; position[k * 3 + 1] = samples[i].y + ny * RADIUS; position[k * 3 + 2] = samples[i].z + nz * RADIUS;
         normal[k * 3] = nx; normal[k * 3 + 1] = ny; normal[k * 3 + 2] = nz;
-        // the strands run along the rope: the texture repeats once for every 1.2 metres, twice round
-        uv[k * 2] = along / 1.2; uv[k * 2 + 1] = j / SIDES * 2;
+        // the strands wind round the rope at about 45 degrees: the texture repeats once for every 0.62 metres, twice round
+        uv[k * 2] = along / .62; uv[k * 2 + 1] = j / SIDES * 2;
       }
     }
     geometry.attributes.position.needsUpdate = true; geometry.attributes.normal.needsUpdate = true; geometry.attributes.uv.needsUpdate = true;

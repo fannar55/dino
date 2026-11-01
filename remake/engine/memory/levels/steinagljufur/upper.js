@@ -50,9 +50,9 @@ export async function loadUpperModels() {
 
 /**
  * Stands the upper gorge. `models` are the glade's (props.js loadGorgeModels: cliff pieces, boulders, the tunnel), `upperModels` the slab and the tree, `glow` the tunnel's light (the exit is
- * the same dark-lined bore). Returns { group, heightAt, world, yawOf, show, hide, slab, tree, anchors, stats, dispose }.
+ * the same dark-lined bore), `groundMaterial` the glade's ground material when there is one (the upper ground is drawn with it: ground.js installUpperGroundLook). Returns { group, heightAt, world, yawOf, show, hide, slab, tree, anchors, stats, dispose }.
  */
-export function createUpperGorge({ scene, models, upperModels, glow }) {
+export function createUpperGorge({ scene, models, upperModels, glow, groundMaterial = null }) {
   const frame = new THREE.Group(); frame.name = 'Efra gljúfrið'; frame.position.set(UPPER.origin[0], 0, UPPER.origin[1]); frame.rotation.y = UPPER.yaw; frame.visible = false; scene.add(frame);
   frame.updateMatrixWorld(true);
   const random = seeded(20261101), range = (a, b) => a + (b - a) * random();
@@ -74,20 +74,20 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   const onGround = (x, z, rise = 0) => new THREE.Vector3(x, groundAt(x, z) + rise, z);
 
   // ---- the plain and the ground ----
-  const plainMaterial = new THREE.MeshStandardMaterial({ color: '#c6a06a', roughness: 1, metalness: 0 }); disposables.push(plainMaterial);
-  const plain = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), plainMaterial); plain.geometry.rotateX(-Math.PI / 2); plain.position.set(20, -.06, 0); plain.receiveShadow = true; plain.name = 'Slétta'; frame.add(plain);
+  const plainMaterial = groundMaterial ?? new THREE.MeshStandardMaterial({ color: '#c6a06a', roughness: 1, metalness: 0 }); if (!groundMaterial) disposables.push(plainMaterial);
+  const plain = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), plainMaterial); plain.geometry.rotateX(-Math.PI / 2); plain.geometry.setAttribute('aRock', new THREE.BufferAttribute(new Float32Array(4).fill(1), 1)); plain.position.set(20, -.06, 0); plain.receiveShadow = true; plain.name = 'Slétta'; frame.add(plain);
   disposables.push(plain.geometry); triangles += 2; draws++;
 
   // The ground's mesh: a grid laid over groundAt, finer across the ledge's riser (its face is steep), coloured by how steep each place is (sand on the flat, rock on a face).
   const xs = [], zs = [];
   for (let x = -40; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
   for (let z = -16; z <= 31; z += .9) zs.push(+z.toFixed(2));
-  const cols = xs.length, rows = zs.length, position = new Float32Array(cols * rows * 3), normal = new Float32Array(cols * rows * 3), colour = new Float32Array(cols * rows * 3);
+  const cols = xs.length, rows = zs.length, position = new Float32Array(cols * rows * 3), normal = new Float32Array(cols * rows * 3), colour = new Float32Array(cols * rows * 3), rock = new Float32Array(cols * rows);
   const SAND = new THREE.Color('#c4965a'), ROCK = new THREE.Color('#9b4318'), DEEP = new THREE.Color('#7a3010'), tint = new THREE.Color(), e = .55;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = xs[i], z = zs[j], y = groundAt(x, z), k = j * cols + i;
     const nx = groundAt(x - e, z) - groundAt(x + e, z), nz = groundAt(x, z - e) - groundAt(x, z + e), l = Math.hypot(nx, 2 * e, nz);
-    position.set([x, y, z], k * 3); normal.set([nx / l, 2 * e / l, nz / l], k * 3);
+    position.set([x, y, z], k * 3); normal.set([nx / l, 2 * e / l, nz / l], k * 3); rock[k] = 2 - 2 * e / l; // (1 + how steep: 1 is flat)
     const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .015;
     tint.copy(SAND).lerp(ROCK, steep).lerp(DEEP, smoothstep(.35, .7, 1 - 2 * e / l) * .7).multiplyScalar(shade); colour.set([tint.r, tint.g, tint.b], k * 3);
   }
@@ -101,8 +101,9 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     const a = j * cols + i, b = a + 1, c = a + cols, d = c + 1;
     chunks[CHUNKS.findIndex((edge, n) => xs[i] >= edge && xs[i] < CHUNKS[n + 1])].push(a, c, b, b, c, d);
   }
-  const attributes = { position: new THREE.BufferAttribute(position, 3), normal: new THREE.BufferAttribute(normal, 3), color: new THREE.BufferAttribute(colour, 3) };
-  const terrainMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, metalness: 0 }); disposables.push(terrainMaterial);
+  const attributes = { position: new THREE.BufferAttribute(position, 3), normal: new THREE.BufferAttribute(normal, 3), color: new THREE.BufferAttribute(colour, 3), aRock: new THREE.BufferAttribute(rock, 1) };
+  // (the glade's own ground material when the level gave it, else plain vertex colours: the sand on the flat, the rock on a face)
+  const terrainMaterial = groundMaterial ?? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, metalness: 0 }); if (!groundMaterial) disposables.push(terrainMaterial);
   const terrain = new THREE.Group(); terrain.name = 'Efra gljúfrið (jörð)'; frame.add(terrain);
   for (const index of chunks) {
     if (!index.length) continue;
@@ -120,7 +121,22 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   // along the faces under the path and the rim, so that they are rock, not a smooth slope; the back and the end are walls of pieces.
   const placements = new Map();
   const add = (name, entry) => { if (!placements.has(name)) placements.set(name, []); placements.get(name).push(entry); };
-  const piece = (kinds, x, z, y, scale, sink) => add(`gorge-cliff-${kinds[Math.floor(random() * kinds.length) % kinds.length]}`, { x, z, y: y - sink * scale, yaw: range(0, Math.PI * 2), scale, tilt: range(-.05, .05), tint: .88 + .16 * random() });
+  // A piece stands on the lowest ground under its foot (the middle of the box of its bounds, drawn in), sunk a little into it: there is never a gap under it, and where the ground rises
+  // behind it the piece is in the ground. (`y` is the ground at its middle; the old rule stood a piece at that height, and a piece on a slope hung over the lower ground.)
+  const lowest = (name, x, z, yaw, scale) => {
+    const geometry = models.get(name).geometry; if (!geometry.boundingBox) geometry.computeBoundingBox();
+    const box = geometry.boundingBox, cos = Math.cos(yaw), sin = Math.sin(yaw);
+    let low = Infinity;
+    for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) {
+      const lx = (box.min.x + (box.max.x - box.min.x) * (.15 + .7 * i / 4)) * scale, lz = (box.min.z + (box.max.z - box.min.z) * (.15 + .7 * j / 4)) * scale;
+      low = Math.min(low, groundAt(x + lx * cos + lz * sin, z - lx * sin + lz * cos));
+    }
+    return low;
+  };
+  const piece = (kinds, x, z, y, scale, sink) => {
+    const name = `gorge-cliff-${kinds[Math.floor(random() * kinds.length) % kinds.length]}`, yaw = range(0, Math.PI * 2);
+    add(name, { x, z, y: Math.min(y, lowest(name, x, z, yaw, scale)) - sink * scale * .6, old: y - sink * scale, yaw, scale, tilt: range(-.05, .05), tint: .88 + .16 * random() });
+  };
   const way = wayPoints(1), nearest = x => way.reduce((best, p) => Math.abs(p[0] - x) < Math.abs(best[0] - x) ? p : best);
   const rimZ = x => RIM.from[1] + (RIM.to[1] - RIM.from[1]) * (x - RIM.from[0]) / (RIM.to[0] - RIM.from[0]);
   // where the middle of the place is at x: [z, y] (the exit floor and the terrace, the path, the rim)
@@ -173,7 +189,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   const exit = { mouth: new THREE.Vector3(EXIT.mouth, 0, 0), inside: new THREE.Vector3(EXIT.mouth - 5.2, 0, 0) };
 
   // ---- the slab: it leans on the ledge, hinged at the riser's top edge; its angle (degrees above the horizontal, toward the floor) is how far it has been pulled down ----
-  const [slabPart] = upperModels.slab, slabMaterial = slabPart.material.clone(); slabMaterial.color.set('#dba06c'); slabMaterial.roughness = .95; slabMaterial.metalness = 0; slabMaterial.side = THREE.FrontSide; disposables.push(slabMaterial);
+  const [slabPart] = upperModels.slab, slabMaterial = slabPart.material.clone(); slabMaterial.color.set('#c0683e'); slabMaterial.roughness = .95; slabMaterial.metalness = 0; slabMaterial.side = THREE.FrontSide; disposables.push(slabMaterial);
   const SLAB = { length: 4.8, thick: 3.1, width: 1.16, hinge: new THREE.Vector3(LEDGE.x + .05, LEDGE.height - .3, 0), start: 52, steps: [52, 31, 10, -24] };
   const slabGeometry = slabPart.geometry.clone(); slabGeometry.translate(1.8, 0, 0); disposables.push(slabGeometry);
   const slabMesh = new THREE.Mesh(slabGeometry, slabMaterial); slabMesh.name = 'Hellan'; slabMesh.scale.set(SLAB.length / 3.6, SLAB.thick, SLAB.width); slabMesh.castShadow = true; slabMesh.receiveShadow = true;
@@ -228,7 +244,9 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     show() { frame.visible = true; },
     hide() { frame.visible = false; },
     get visible() { return frame.visible; },
-    stats: () => ({ triangles, draws, mesaTriangles: chunks.reduce((sum, index) => sum + index.length / 3, 0), cliffKinds: [...placements].map(([name, list]) => `${name} x${list.length}`), visible: frame.visible, slabAngle }),
+    stats: () => ({ triangles, draws, mesaTriangles: chunks.reduce((sum, index) => sum + index.length / 3, 0), cliffKinds: [...placements].map(([name, list]) => `${name} x${list.length}`), visible: frame.visible, slabAngle,
+      // (QA: every cliff piece of the dressing, its place in the frame, the height of its foot by the old rule (`old`) and by the rule now (`y`), and its scale)
+      pieces: [...placements].flatMap(([name, list]) => list.filter(e => e.old !== undefined).map(e => ({ name, x: +e.x.toFixed(2), z: +e.z.toFixed(2), old: +e.old.toFixed(2), y: +e.y.toFixed(2), scale: +e.scale.toFixed(2) }))) }),
     reset() { slab.set(SLAB.start); frame.visible = false; },
     dispose() { scene.remove(frame); for (const item of disposables) item.dispose?.(); for (const part of [...upperModels.slab, ...upperModels.tree]) part.geometry.dispose(); },
   };

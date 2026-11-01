@@ -79,3 +79,38 @@ export function installGorgeGround(material, frame, { beds = [] } = {}) {
   return { dispose() { look.dispose(); mask.dispose(); } };
 }
 
+
+// The upper gorge's ground (upper.js) is drawn with the glade's own ground material, so that the two read as one gorge: the same noise, the same sand with its grain and darker rim, the same
+// shadows and the same warmth round a friend. Its vertices carry `aRock` (1 + how steep the ground is there: 0 is missing, which is every vertex of the glade's own ground); where the ground
+// is steep it is layered sandstone instead of sand, in the colours of the cliff pieces (their texture is a per-model atlas and cannot be laid over a slope).
+const ROCK = Object.freeze({ uRockA: '#a64d2a', uRockB: '#c0663a', uRockC: '#7e3419' });
+
+/** Lays the upper gorge's look over the glade's ground material (after installGorgeGround). Returns { dispose }. */
+export function installUpperGroundLook(material) {
+  const compile = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = function (shader, renderer) {
+    compile.call(this, shader, renderer);
+    for (const [name, hex] of Object.entries(ROCK)) shader.uniforms[name] = { value: new THREE.Color(hex) };
+    const swap = (stage, from, to) => { if (!shader[stage].includes(from)) console.warn(`[upper ground] the forest ground shader changed: ${from.slice(0, 48)}`); shader[stage] = shader[stage].replace(from, () => to); };
+    swap('vertexShader', '#include <common>', '#include <common>\nattribute float aRock;\nvarying float vRock;');
+    swap('vertexShader', 'vGroundPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;', 'vGroundPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n  vRock = aRock;');
+    swap('fragmentShader', '#include <common>', '#include <common>\nvarying float vRock;\nuniform vec3 uRockA, uRockB, uRockC;');
+    swap('fragmentShader', 'diffuseColor.rgb = col * ao;', `if ( vRock > 0.5 ) {
+    // steep ground: layered sandstone (bands of height, broken by the noise); flat ground: the glade's sand
+    float steep = vRock - 1.0 + ( fine - 0.5 ) * 0.1 + ( med - 0.5 ) * 0.1;
+    float rockCover = smoothstep( 0.2, 0.34, steep );
+    vec3 sandC = mix( uSand, uSandDark, smoothstep( 0.35, 0.75, nA.r ) * 0.45 ) * ( 0.9 + 0.2 * fine );
+    sandC = mix( sandC, uSandRim, smoothstep( 0.1, 0.24, steep ) * 0.6 );
+    sandC *= 1.0 - 0.16 * smoothstep( 0.8, 0.9, nC.b );
+    float strata = sin( vGroundPos.y * 4.6 + nB.g * 7.0 + nA.r * 2.5 );
+    vec3 rockC = mix( uRockA, uRockB, smoothstep( 0.25, 0.75, nA.r ) ) * ( 0.88 + 0.22 * fine );
+    rockC = mix( rockC, uRockC, smoothstep( 0.5, 0.95, strata ) * 0.45 );
+    col = mix( sandC, rockC, rockCover );
+    col = mix( col, col * vec3( 1.2, 1.14, 0.84 ) + vec3( 0.02, 0.016, 0.0 ), nearActor * 0.75 * uActorWarm * ( 1.0 - rockCover ) );
+  }
+  diffuseColor.rgb = col * ao;`);
+  };
+  material.customProgramCacheKey = () => `${key()}-upper-ground-v1`;
+  material.needsUpdate = true;
+  return { dispose() {} };
+}

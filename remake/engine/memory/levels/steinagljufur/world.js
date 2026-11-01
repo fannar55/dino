@@ -1,4 +1,4 @@
-import { frameOf, liftOf, outside, closure, installGorgeGround } from './ground.js';
+import { frameOf, liftOf, outside, closure, installGorgeGround, installUpperGroundLook } from './ground.js';
 import { loadGorgeModels, buildGorge } from './props.js';
 import { createTunnelInterior } from './tunnel.js';
 import { createGorgeMover } from './mover.js';
@@ -155,7 +155,7 @@ export function createLevelWorld(stage) {
     /** Loads the gorge's models and stands them, once the forest, the leaves and the rests exist: the ground's look, the walls, the boulders, the tunnel. */
     async build() {
       const groundMaterial = scene.getObjectByName('Forest ground')?.material;
-      if (groundMaterial) groundLook = installGorgeGround(groundMaterial, frame, { beds: stage.leaves });
+      if (groundMaterial) { groundLook = installGorgeGround(groundMaterial, frame, { beds: stage.leaves }); installUpperGroundLook(groundMaterial); }
       models = await loadGorgeModels();
       const keepClear = [...level.nests.map(([x, z]) => [...frame.toGrid(x, z), 3.4]), [...frame.toGrid(spot.x, spot.z), 3], [...TUNNEL.at, 5]];
       gorge = buildGorge({
@@ -163,7 +163,7 @@ export function createLevelWorld(stage) {
         avoid: (u, v, radius) => keepClear.some(([cu, cv, r]) => Math.hypot(u - cu, v - cv) < r + radius * .3) || stage.onLeafGround(...frame.toWorld(u, v), radius),
       });
       upperModels = await loadUpperModels();
-      upper = createUpperGorge({ scene, models, upperModels, glow });
+      upper = createUpperGorge({ scene, models, upperModels, glow, groundMaterial });
       interior = createTunnelInterior({ tunnel: gorge.tunnel, models, fx: stage.fx, glow, reducedMotion: stage.reducedMotion });
       // The rope: tied at the foot of the cliff, it runs up the path's right edge to the tree; its texture is the owner's approved ambientCG rope.
       const rail = upper.rail.map(p => new THREE.Vector3(p.x, p.y, p.z + 0)), sideway = rail.map((p, k) => { const a = rail[Math.max(0, k - 1)], b = rail[Math.min(rail.length - 1, k + 1)], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1; return new THREE.Vector3(p.x - dz / len * 1.55, p.y, p.z + dx / len * 1.55); });
@@ -224,6 +224,21 @@ export function createLevelWorld(stage) {
       const state = { selected: null, unlocked: [...level.friends], free: [...level.friends], asking: null, failing: null, active: null, done: ['light', 'headbutt'], tunnelLit: true, rocksFallen: true, next: null, phase: 'available' };
       api.setStepState(state); plates.setAll(1, { duration: 0 }); interior.light(1, { seconds: 0 }); interior.pile.set(3); mover.hold('stegosaurus');
       return api.playStep('through');
+    },
+    /** QA only (the playthrough's sight sampler): for every friend and Mosi the camera now sees, where they are on the screen and what of the upper gorge stands between the camera and them. */
+    qaSight() {
+      const d = globalThis.__demoStats?.camera; if (!upper || !upper.visible || !d?.position || !d.target) return null;
+      const width = globalThis.innerWidth, height = globalThis.innerHeight, cam = new THREE.PerspectiveCamera(35, width / height, .1, 600);
+      cam.position.fromArray(d.position); cam.lookAt(new THREE.Vector3().fromArray(d.target)); cam.updateMatrixWorld(true);
+      const eye = cam.position.clone(), raycaster = new THREE.Raycaster(), items = [];
+      const targets = [...stage.friends().filter(actor => actor.root.visible).map(actor => ({ name: actor.species, point: actor.root.position.clone().add(new THREE.Vector3(0, .55, 0)) })), { name: 'mosi', point: stage.mosi.body().clone().add(new THREE.Vector3(0, .1, 0)) }];
+      for (const { name, point } of targets) {
+        const p = point.clone().project(cam), inView = Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && p.z < 1; if (!inView) continue;
+        const toward = point.clone().sub(eye), distance = toward.length(); raycaster.set(eye, toward.normalize()); raycaster.near = .05; raycaster.far = Math.max(.1, distance - .35);
+        const hit = raycaster.intersectObject(upper.group, true).find(h => !/^(Slétta|Reipið|Tré|Hellan)/.test(h.object.name));
+        items.push({ name, x: Math.round((p.x + 1) / 2 * width), y: Math.round((1 - p.y) / 2 * height), by: hit ? hit.object.name.replace(/ (efra d)/, '') : null, distance: +distance.toFixed(1) });
+      }
+      return { camera: d.position.map(v => +v.toFixed(1)), items };
     },
     qaPlace(formation) { for (const species of level.friends) mover.bindPair(species, stage.babies.filter(actor => actor.species === species)); return mover.upper.qaPlace(formation); },
     isBusy: () => Boolean(mover?.isBusy()),

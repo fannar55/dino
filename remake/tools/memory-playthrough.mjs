@@ -350,6 +350,23 @@ const TIMELINE_JS = `(() => {
         bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending, gt: d.levelStats && d.levelStats.upper ? d.levelStats.upper.clock : undefined });
     }
   }, 100);
+  // The upper gorge's sight (level 2, ?qa=1): every 300 ms, which friends the camera sees, whether a block or the ground stands between, and whether the HUD or Mosi's bubble covers one.
+  window.__sight = { takes: {}, events: [] };
+  const HUD = ['progress', 'camera', 'sound', 'help', 'pause', 'caption', 'who', 'beat-word', 'holding', 'coach'];
+  setInterval(() => {
+    const g = window.__gorge, d = window.__demoStats; if (!g || !g.api || !g.api.qaSight || !d) return;
+    const sight = g.api.qaSight(); if (!sight) return;
+    const cam = d.camera || {}, take = (window.__sight.takes[cam.takes || 0] ||= { take: cam.takes || 0, shot: cam.shot || '', samples: 0, inView: 0, hidden: 0, hiddenBy: {}, hud: 0, hudBy: {}, hiddenNames: {} });
+    const rects = HUD.map(id => { const el = document.getElementById(id); if (!el || el.hidden) return null; const r = el.getBoundingClientRect(), style = getComputedStyle(el); return r.width > 0 && r.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0.3 ? { id, r } : null; }).filter(Boolean);
+    let hidden = 0, hud = 0;
+    for (const item of sight.items) {
+      if (item.by) { hidden++; take.hiddenBy[item.by] = (take.hiddenBy[item.by] || 0) + 1; take.hiddenNames[item.name] = (take.hiddenNames[item.name] || 0) + 1; continue; }
+      const covered = rects.find(({ r }) => item.x >= r.left && item.x <= r.right && item.y >= r.top && item.y <= r.bottom);
+      if (covered) { hud++; take.hudBy[covered.id] = (take.hudBy[covered.id] || 0) + 1; }
+    }
+    take.samples++; take.inView = Math.max(take.inView, sight.items.length); take.hidden = Math.max(take.hidden, hidden); take.hud = Math.max(take.hud, hud); take.act = d.levelStats && d.levelStats.upper && d.levelStats.upper.action ? d.levelStats.upper.action.id + ':' + d.levelStats.upper.action.phase : take.act;
+    if (hidden && window.__sight.events.length < 80) window.__sight.events.push({ t: +(performance.now() / 1000).toFixed(1), take: take.take, shot: take.shot, camera: sight.camera, hidden: sight.items.filter(i => i.by).map(i => i.name + ' by ' + i.by + ' @' + i.distance) });
+  }, 300);
 })()`;
 
 // --clearance: while the marsh is laid or the walk to the grove runs, the game's own clearance audit (the anatomical
@@ -1267,7 +1284,7 @@ async function main() {
     try {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
-      report.renderMax = await ev('window.__max');
+      report.renderMax = await ev('window.__max'); report.sight = await ev('window.__sight || null');
       // What one world.getDebug() costs here (it used to run on every frame for window.__demoStats; now only when it is read).
       report.debugCostMs = await ev("(() => { const t = performance.now(); for (let i = 0; i < 20; i++) window.__memory.stats({ collision: false }); return +((performance.now() - t) / 20).toFixed(2); })()").catch(() => null);
       // The ending render scale: a full 1280x800 round that ends below 1 is flagged (the scale must recover once the frames are fast again).
