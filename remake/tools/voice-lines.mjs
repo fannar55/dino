@@ -38,6 +38,13 @@
 // "yatzy-junior/<id>") the cache key of the request it was made from, the MP3's sha256 and its length. Hashes and lengths only, no
 // secret. Both tools write it as they master a line; --plan reads it, so any checkout knows what each MP3 is without its caches.
 //
+// THE OWNER'S EAR (tools/heard.mjs). His yes/no verdicts are imported from the jano-<set>.json his page saves into
+// remake/assets/audio/heard/, each bound to the request key and MP3 of the take he heard. A request whose latest verdict is "nei" is
+// never sent or installed again: making lines, --remake-kept and --ab-apply stop before anything is asked (no flag passes it;
+// change the recipe or seed), --plan lists the shipped lines he rejected, and --dry says it under the line, with, for each book
+// word in it, where that word was fixed on a line of its own (a line's own say or context names its word in "fixes"), so the
+// recipe that already won is tried first. --audition and --book try recipes on purpose and are not guarded.
+//
 // THE PLAN AND THE A/B PAGES. --plan lists the lines whose MP3 is not what the tool would send now: a take of another request (a
 // recipe chosen or changed since), a changed MP3, none, or, for a line the record does not know, an eleven_v3 take found in the
 // caches of the checkouts beside this one (the line's text hashed for eleven_v3 and eleven_v4, the take kept only if its length plus
@@ -271,7 +278,7 @@ export function readLines(root, set = 'kafli1') {
 
 /**
  * Litla Yatzy's lines live in its script, not in a lines-source.json, so this file beside its MP3s carries what such a line may
- * carry of its own: { "<id>": { say?, context?, seed?, note? } }, which win over the lexicon just as in a lines-source.json line.
+ * carry of its own: { "<id>": { say?, context?, seed?, fixes?, note? } }, which win over the lexicon just as in a lines-source.json line.
  * The script stays the caption. Both tools read it, so --plan, --ab and the fingerprints agree.
  */
 export const JUNIOR_OVERRIDES = 'remake/assets/audio/yatzy-junior/lines-overrides.json';
@@ -282,8 +289,9 @@ export function juniorOverrides(root, junior = JUNIOR_LINES) {
   if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) throw new Error(`${JUNIOR_OVERRIDES} is an object: line id -> { say, context, seed, note }.`);
   for (const [id, fields] of Object.entries(overrides)) {
     if (!Object.hasOwn(junior, id)) throw new Error(`${JUNIOR_OVERRIDES}: ${id} is not a line of Litla Yatzy.`);
-    const unknown = Object.keys(fields ?? {}).filter(key => !['say', 'context', 'seed', 'note'].includes(key));
-    if (unknown.length) throw new Error(`${JUNIOR_OVERRIDES}: ${id} has ${unknown.join(', ')}; a line carries say, context, seed and note only.`);
+    const unknown = Object.keys(fields ?? {}).filter(key => !['say', 'context', 'seed', 'fixes', 'note'].includes(key));
+    if (unknown.length) throw new Error(`${JUNIOR_OVERRIDES}: ${id} has ${unknown.join(', ')}; a line carries say, context, seed, fixes and note only.`);
+    if (fields.fixes !== undefined && !(isText(fields.fixes) || (Array.isArray(fields.fixes) && fields.fixes.length && fields.fixes.every(isText)))) throw new Error(`${JUNIOR_OVERRIDES}: ${id}.fixes names the book words it fixes (or "punctuation" or "line").`);
     for (const field of ['say', 'context', 'note']) {
       if (fields[field] !== undefined && !isText(fields[field])) throw new Error(`${JUNIOR_OVERRIDES}: ${id}.${field} is text.`);
     }
@@ -534,6 +542,8 @@ export function dry({ root, set = 'kafli1', only = null, log }) {
   const lexicon = readLexicon(root);
   const voices = readVoices(root);
   const sets = set === 'all' ? [...Object.keys(SETS).filter(name => fs.existsSync(path.join(root, sourceOf(name)))), JUNIOR] : [set];
+  const heard = readHeard(root); // THE OWNER'S EAR and the line-level fixes of every set (tools/heard.mjs): what to know before recording
+  const fixes = fixesByWord(allLines(root));
   const rows = [];
   for (const name of sets) {
     const lines = linesOf(root, name);
@@ -551,15 +561,19 @@ export function dry({ root, set = 'kafli1', only = null, log }) {
       }
       const sent = requestFor(line, lexicon);
       const voiceId = voices[line.speaker];
-      const cached = typeof voiceId === 'string' && isCached(root, cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context }));
+      const key = typeof voiceId === 'string' ? cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context }) : null;
+      const cached = key !== null && isCached(root, key);
       const unchosen = sent.words.some(word => !word.recipe);
-      rows.push({ set: name, id: line.id, speaker: line.speaker, text: line.text, sent, cached, unchosen });
+      const evidence = evidenceFor({ where: `${name}/${line.id}`, words: sent.words, key, lexicon, fixes, heard });
+      rows.push({ set: name, id: line.id, speaker: line.speaker, text: line.text, sent, cached, unchosen, evidence, rejected: Boolean(key && rejection(heard, key)) });
       out.push(`  ${line.id}: ${JSON.stringify(sent.text)}${sent.seed === undefined ? '' : `  seed ${sent.seed}`}${sent.words.length ? `  [${describeWords(sent)}]` : ''}${sent.own.length ? `  (the line's own ${sent.own.join(', ')})` : ''}  ${cached ? 'cached' : 'to ask'}`);
       if (sent.context !== undefined) out.push(`      context (not spoken): ${JSON.stringify(sent.context)}`);
+      for (const note of evidence) out.push(`      ${note}`);
     }
     const mine = rows.filter(row => row.set === name && !row.kept);
     const changed = mine.filter(row => row.sent.text !== row.text || row.sent.context !== undefined).length;
-    log(`${name}: ${chosen.length} lines, ${changed} sent with a recipe, ${mine.filter(row => row.unchosen).length} with a word not chosen yet, ${chosen.length - mine.length} kept, ${mine.filter(row => !row.cached).length} to ask`);
+    const rejected = mine.filter(row => row.rejected).length;
+    log(`${name}: ${chosen.length} lines, ${changed} sent with a recipe, ${mine.filter(row => row.unchosen).length} with a word not chosen yet, ${chosen.length - mine.length} kept, ${mine.filter(row => !row.cached).length} to ask${rejected ? `, ${rejected} REJECTED by the owner (another recipe or seed first)` : ''}`);
     for (const text of out) log(text);
   }
   return rows;
@@ -669,7 +683,7 @@ export function writeBook(root, lexicon, voices, renderedNow = new Map()) {
   });
   const folder = path.join(root, BOOK);
   fs.mkdirSync(folder, { recursive: true });
-  fs.writeFileSync(path.join(folder, 'index.html'), bookHtml(lexicon, rows, { exists: row => row.made }));
+  fs.writeFileSync(path.join(folder, 'index.html'), bookHtml(lexicon, rows, { exists: row => row.made, elsewhere: fixesByWord(allLines(root)) }));
   const about = 'The pronunciation book\'s rows: what each sends now (sent, key) and the request its MP3 was made from (rendered); written by tools/voice-lines.mjs --book.';
   fs.writeFileSync(path.join(folder, 'book.json'), `${JSON.stringify({ about, rows }, null, 1)}\n`);
   return rows;

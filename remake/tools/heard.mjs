@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
+import { formsPattern } from './pronunciation.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 /** Where the imports are kept, relative to the repo root: one file per import. */
@@ -39,7 +40,11 @@ const SET = /^[a-z][a-z0-9-]*$/;
 const ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 const FILE_NAME = /^(\d{4}-\d{2}-\d{2})-([a-z][a-z0-9-]*?)(?:-(\d+))?\.json$/;
 const isText = value => typeof value === 'string' && value.trim().length > 0;
-const isDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
+const isDate = value => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const day = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(value);
+};
 const VERDICT_FIELDS = ['verdict', 'key', 'mp3', 'speaker', 'text', 'note'];
 
 /** Checks one heard file (its name and what it holds); throws with what is wrong. Returns its date, set and number (1, 2, ...). */
@@ -173,6 +178,39 @@ export function importJano(root, file, { made = null, date = today() } = {}) {
 
 // ---------------------------------------------------------------------------------------------
 // The evidence: where each book word was fixed on a line of its own
+
+/** A text with its punctuation and spaces taken away: two texts alike but for those are the same words. */
+const bare = text => text.replace(/[^\p{L}\p{N}]/gu, '');
+
+/**
+ * What is wrong with a line's `fixes` ([] when nothing): a line that carries its own say or context names what it fixes, either a
+ * book word id or a list of them (each in the book and said in the line), "punctuation" (its say differs from its text in
+ * punctuation and spaces alone, and it has no context) or "line" (a fix of the whole line's tone, and its note says "whole line").
+ * A line with only a seed or kept needs none. `line` carries `set` and `id` (voice-lines.mjs allLines).
+ */
+export function fixesProblems(line, lexicon) {
+  const where = `${line.set}/${line.id}`;
+  const own = line.say !== undefined || line.context !== undefined;
+  if (!own) return line.fixes === undefined ? [] : [`${where}: "fixes" without a say or context of its own; take it away.`];
+  const { fixes } = line;
+  if (fixes === undefined) return [`${where}: carries its own ${['say', 'context'].filter(field => line[field] !== undefined).join(' and ')} but no "fixes": name the book word it fixes (add the word to pronunciation.json with "chosen": null and a "hratt" recipe if it has no entry), or "punctuation", or "line" with a note that says it fixes the whole line.`];
+  if (fixes === 'punctuation') {
+    if (line.context !== undefined) return [`${where}: "punctuation" fixes have no context; name the word it fixes, or "line".`];
+    if (line.say === line.text || bare(line.say) !== bare(line.text)) return [`${where}: "punctuation", but its say differs from its text in more than punctuation and spaces (or not at all).`];
+    return [];
+  }
+  if (fixes === 'line') return /whole line/i.test(line.note ?? '') ? [] : [`${where}: "line" fixes say so in the note ("... fixes the whole line ...").`];
+  const ids = [fixes].flat();
+  if (!ids.length || !ids.every(id => typeof id === 'string' && id.trim())) return [`${where}: "fixes" is a book word id, a list of them, "punctuation" or "line".`];
+  const problems = [];
+  if (new Set(ids).size !== ids.length) problems.push(`${where}: a word twice in "fixes".`);
+  for (const id of ids) {
+    const entry = lexicon.words[id];
+    if (!entry) problems.push(`${where}: ${JSON.stringify(id)} is not a word of pronunciation.json (add it with "chosen": null and a "hratt" recipe, its stem and forms passing pronunciation.test).`);
+    else if (!formsPattern(entry.forms).test(line.text)) problems.push(`${where}: fixes ${id}, but the line does not say ${entry.forms.join(' or ')}.`);
+  }
+  return problems;
+}
 
 /** A line's `fixes` as a list: the book word ids it names ("punctuation" and "line" name none). */
 export const fixedWords = line => (line.fixes === undefined || line.fixes === 'punctuation' || line.fixes === 'line' ? [] : [line.fixes].flat());
