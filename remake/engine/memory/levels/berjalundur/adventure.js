@@ -57,7 +57,7 @@ export const logPushOffset=vertical=>-Math.sqrt(Math.max(.1,BRIDGE.radius**2-ver
 /** Soft ground under a foot: the river and its bank, the marsh and the mud sloping into it (a step there splashes). */
 export const wetGround=(x,z)=>riverDistance(x,z).distance<RIVER.halfWidth+.25||marshValley(x,z)<-.04;
 
-export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,planSpent,cancelWalk,onwardTravel=false,hopOver=()=>0}){
+export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,planSpent,cancelWalk,onwardTravel=false,hopOver=()=>0,lie=null}){
   const props=createBridgeProps({scene,heightAt}),build=createBuildProps({scene,heightAt});
   const pairs=Object.fromEntries(HELPERS.map(species=>[species,{members:[],ready:false}]));
   let snapshot={unlocked:[],selected:null},action=null,held=false,built=false,atStaging=false,boardwalkBuilt=false,visited=false;
@@ -80,6 +80,9 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,planSpen
     const root=actor.root,dx=root.position.x-BRIDGE.near[0],dz=root.position.z-BRIDGE.near[1],s=dx*BRIDGE.axis[0]+dz*BRIDGE.axis[1],side=-dx*BRIDGE.axis[1]+dz*BRIDGE.axis[0];
     if(action?.id!=='cross'||Math.abs(side)>1.1||s< -2.5||s>BRIDGE.length+2.5){root.rotation.z=0;return;}
     const forward=new THREE.Vector3(Math.cos(root.rotation.y),0,-Math.sin(root.rotation.y)),a=root.position.clone().addScaledVector(forward,-.75),b=root.position.clone().addScaledVector(forward,.75);
+    // (with `lie`: on the log, its ramps and the bank under its heels and toes, its root as high as its underside needs; pitched from 0.75 m either side, back feet and tails
+    // went into the bank at the near ramp's foot and front feet and heads at the far one's, veggir)
+    if(lie){lie(actor,d=>{const p=root.position.clone().addScaledVector(forward,d);p.y=(logSurface(p.x,p.z)??heightAt(p.x,p.z))+.04;return p});return;}
     const low=logSurface(a.x,a.z)??heightAt(a.x,a.z),high=logSurface(b.x,b.z)??heightAt(b.x,b.z);
     root.rotation.z=Math.atan2(high-low,1.5);
   }

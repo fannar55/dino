@@ -6,6 +6,7 @@ import { createGladeScenery } from './scenery.js';
 import { bridgeCollisionObjects } from '../../memory-clearance.js';
 import { sampleTravel } from '../../travel-traffic.js';
 import { measureWalkGait } from '../../walk-gait.js';
+import { createWalkers } from '../steinagljufur/walkers.js';
 import { branchScene, failScene } from './scenes/branch.js';
 import { rollScene } from './scenes/roll.js';
 import { crossScene } from './scenes/cross.js';
@@ -27,6 +28,9 @@ const OVERVIEW_POINTS = Object.freeze([[-2, 1.8, -30], [10.5, 2.4, -30], [-2, 1,
 export function createLevelWorld(stage) {
   const { THREE, scene, fx, nests, scenes } = stage;
   const spot = stage.level.mosiSpot, mosiActor = () => stage.mosi.actor;
+  // (on the crossing Mosi and the friends lie on the log, its ramps and the bank as level 2's walkers lie on its ground: pitched along the ramps they went into the bank at
+  // their foot, back feet and tails at the near end, front feet and heads at the far end, veggir)
+  const bodies = createWalkers({ stage });
   const freshState = () => ({ selected: null, atStaging: false, boardwalkBuilt: false, visited: false });
   let adventure, groundLook, gladeScenery, taskScript = null, snapshot = freshState();
   // Mosi's walk over the bridge (the crossing moves him; nothing else does), where he stands now, and his walk clip's own speed.
@@ -108,7 +112,7 @@ export function createLevelWorld(stage) {
       const here = at(distance);
       mosi.root.position.set(here.point.x, here.point.y - .04, here.point.z);
       mosi.root.rotation.y = turnToward(mosi.root.rotation.y, here.yaw, reducedMotion ? 1 : 1 - Math.exp(-dt / .14));
-      mosi.root.rotation.z = Math.atan2(at(distance + 1.1).point.y - at(distance - 1.1).point.y, 2.2);
+      bodies.lie(mosi, d => { const p = at(distance + d).point; p.y -= .04; return p; });
       walk.onDeck ||= distance >= walk.deckAt;
       return;
     }
@@ -216,7 +220,7 @@ export function createLevelWorld(stage) {
       if (groundMaterial) groundLook = installGroundLook(groundMaterial, { beds: stage.leaves });
       refineBridgeGround(stage.forest, stage.heightAt);
       gladeScenery = createGladeScenery({ scene, heightAt: stage.heightAt }, { avoid: stage.onLeafGround });
-      adventure = createBridgeAdventure({ scene, heightAt: stage.heightAt, nests, fx, onwardTravel: true, hopOver: stage.hopOver, cancelWalk: stage.cancelWalk, planSpent: stage.planSpent, planWalk });
+      adventure = createBridgeAdventure({ scene, heightAt: stage.heightAt, nests, fx, onwardTravel: true, hopOver: stage.hopOver, cancelWalk: stage.cancelWalk, planSpent: stage.planSpent, planWalk, lie: bodies.lie });
     },
 
     // ---- the obstacles ----

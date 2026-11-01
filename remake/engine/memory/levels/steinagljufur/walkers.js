@@ -108,6 +108,9 @@ export function createWalkers({ stage, ground = null }) {
     },
     cancel(actor) { const w = walks.get(actor); if (!w) return; walkOff(actor, false); actor.root.rotation.z = 0; walks.delete(actor); },
     cancelAll(reduced = false) { for (const w of [...walks.values()]) { walkOff(w.actor, reduced); w.actor.root.rotation.z = 0; } walks.clear(); },
+    /** Lays a body on a way that is not a walk of these walkers (level 1's crossing: the friends on its log and Mosi): pitched from the ground under its heels to the
+     * ground under its toes and its root raised as far as its underside needs (bodyOn and settle above); `along(d)` as for bodyOn. */
+    lie(actor, along) { const body = bodyOn(actor, along); actor.root.rotation.z = body.pitch; settle(body, body.pitch); },
     busy: () => walks.size > 0,
     isWalking: actor => walks.has(actor),
     count: () => walks.size,
