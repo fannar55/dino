@@ -43,7 +43,8 @@ const STEP_SECONDS = 1.05;
 const LEGS = [.30, .64, 1];
 
 export function createUpperMover({ stage, level, upper: U, rope, plates, events, members, holding, tunnelPoint, lower, setLower, fx, reduced: reducedNow }) {
-  const walkers = createWalkers({ stage });
+  // (the walkers keep to the ground under them: the glade's, and the upper gorge's once the group is through)
+  const walkers = createWalkers({ stage, ground: (x, z) => where === 'glade' ? stage.heightAt(x, z) : U.heightAt(x, z) });
   const mosi = () => stage.mosi.actor;
   const friends = () => level.friends.flatMap(species => members(species));
   const everyone = () => [...friends(), mosi()];
@@ -167,7 +168,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
           list.forEach((actor, i) => {
             const lane = who === 'mosi' ? 0 : (i ? .85 : -.85), spot = spotOf(formation, who, i), foot = U.slab.ramp(lane).map(p => U.world(p.x, p.y, p.z));
             // (from where it stands: to the foot of the slab, up it, and on to its place on the terrace)
-            walkers.start(actor, [{ until: t0 + k * .2 }, { to: [...foot, spot.point], speed: 4 }], { yaw: spot.yaw, pitch: true });
+            walkers.start(actor, [{ until: t0 + k * .2 }, { to: [...foot, spot.point], speed: 4, ground: false }], { yaw: spot.yaw, pitch: true });
           });
           k += who === 'mosi' ? 1 : 2;
         }

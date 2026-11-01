@@ -51,15 +51,21 @@ export const MESA_COUNT = MESAS.length;
 /** (for tests and tools) the mesas: [ax, az, bx, bz, ya, yb, hw, slope]. */
 export const MESA_LIST = Object.freeze(MESAS.map(m => Object.freeze([...m])));
 
-/** The path's ground at (x, z): { d: how far the point is from the path's middle line, top: the height of the nearest leg of CLIMB at its nearest point (the ramp is exact along the way) }. */
+/** The path's ground at (x, z): { d: how far the point is from the path's middle line, top: the height of the nearest leg of CLIMB at its nearest point (the ramp is exact along the way) }.
+ * Where two legs meet at a bend their heights are blended over the last BEND_BLEND metres of distance: on a bend's inside the two nearest points lie apart along the way,
+ * and taking the nearest leg's alone made a step of up to 15 cm across the path there, which the friends' toes walked into (veggir). For the blend a leg's height runs on
+ * past its ends (along its own slope), except at the path's two ends. */
+const BEND_BLEND = .6;
 function pathInfo(x, z) {
-  let best = Infinity, top = 0;
+  let best = Infinity, sum = 0, weight = 0;
+  const legs = [];
   for (let i = 1; i < CLIMB.length; i++) {
-    const [ax, az, ya] = CLIMB[i - 1], [bx, bz, yb] = CLIMB[i], dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz, t = clamp(((x - ax) * dx + (z - az) * dz) / len2, 0, 1);
+    const [ax, az, ya] = CLIMB[i - 1], [bx, bz, yb] = CLIMB[i], dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz, along = ((x - ax) * dx + (z - az) * dz) / len2, t = clamp(along, 0, 1);
     const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t));
-    if (d < best) { best = d; top = lerp(ya, yb, t); }
+    legs.push([d, lerp(ya, yb, clamp(along, i === 1 ? 0 : -Infinity, i === CLIMB.length - 1 ? 1 : Infinity))]); if (d < best) best = d;
   }
-  return { d: best, top };
+  for (const [d, y] of legs) { const w = Math.max(0, 1 - (d - best) / BEND_BLEND); sum += w * y; weight += w; }
+  return { d: best, top: sum / weight };
 }
 
 /** The height of the ground at (x, z) of the upper gorge. */
