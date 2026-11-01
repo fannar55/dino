@@ -720,7 +720,7 @@
   .veiddu-teach span { display: none; } /* just the cap: the corner is narrow */
   .veiddu-teach { padding: 0 .7em; }
   .veiddu-skip { left: max(8px, env(safe-area-inset-left)); font-size: 20px; padding: 0 .55em; } /* "Sleppa" in the same narrow corner, clear of her window */
-  .veiddu-advice p.long { max-width: 15em; font-size: 19px; } /* Mosi's step: wider, so it takes fewer lines over this short screen */
+  .veiddu-advice p.long { max-width: 17em; font-size: 17px; bottom: 60%; } /* Mosi's step: wider and lower, so it takes fewer lines and leaves the windows clear */
   .veiddu-win-card { gap: 16px; padding: 20px 28px 22px; }
   .veiddu-win h2 { font-size: 48px; }
   .veiddu-sticker { width: 96px; }
