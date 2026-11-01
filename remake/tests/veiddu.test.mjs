@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { createSave, forgetSave } from '../engine/save.js';
 import { createBook, VEIDDU_STAR } from '../engine/book/book.js';
-import { afterRound } from '../engine/eitt/skill.js';
+import { childWon, afterRoundSave } from '../engine/veiddu/remote.js';
 import { DONE } from '../engine/handle.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 
@@ -981,15 +981,12 @@ test('a tie that includes the child counts as a win for wins', () => {
   assert.ok(game.winners.every(seat => game.pairs[seat].length === Math.max(...game.pairs.map(p => p.length))), 'all of them have the most pairs');
   assert.ok(game.pairs.some(p => p.length < game.pairs[SEAT.child].length) || game.winners.length === 3, 'and the child did not simply win alone');
 
-  // the table's end of a round (table.js endRound): a child among the winners has won, whether alone or in a tie, and the save
-  // gets the next skill with one more win; a round lost leaves the wins, and the child's losses grow
-  const source = fs.readFileSync(new URL('../engine/veiddu/table.js', import.meta.url), 'utf8');
-  assert.match(source, /const childWon = winners\.includes\(CHILD\);/, 'the table asks whether the child is among the winners, not whether it is the only one');
-  assert.match(source, /wins: \(was\.wins \?\? 0\) \+ \(childWon \? 1 : 0\)/, 'and counts that as one win');
-  const afterIt = (was, winnerSeats) => {
-    const childWon = winnerSeats.includes(SEAT.child);
-    return { ...afterRound({ skill: was.skill ?? VEIDDU_SKILL_START, losses: was.losses }, childWon), wins: was.wins + (childWon ? 1 : 0) };
-  };
+  // the end of a round (remote.js, which the solo table and the Fjölspil table both use): a child among the winners has won, whether alone
+  // or in a tie, and the save gets the next skill with one more win; a round lost leaves the wins, and the child's losses grow
+  assert.equal(childWon(game.winners), true, 'the child is among the winners, not necessarily the only one');
+  assert.equal(childWon([SEAT.mosi]), false);
+  assert.equal(childWon([SEAT.uggedla, SEAT.mosi]), false);
+  const afterIt = afterRoundSave;
   const save = createSave(null);
   save.setVeiddu(afterIt(save.getVeiddu(), game.winners));
   assert.equal(save.getVeiddu().wins, 1, 'a tie is a win');

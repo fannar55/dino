@@ -1,7 +1,7 @@
 import { KINDS, kindOf, makeDeck } from './cards.js';
 import { newGame, ask, fish, legalTargets, holds } from './rules.js';
 import { SEAT, createMind, bestAsk, inRoundSkill, VEIDDU_SKILL_START } from './minds.js';
-import { afterRound } from '../eitt/skill.js';
+import { childWon as childIn, afterRoundSave } from './remote.js';
 import { createEittMusic } from '../eitt/eitt-sounds.js';
 import { createGameSfx } from '../audio/game-music.js';
 import { pressable, sparkle, reducedMotion, TAP_SLOP_PX } from '../book/fx.js';
@@ -1254,9 +1254,8 @@ export function createVeidduGame(doc, {
     settleChild();
     marks();
     const winners = game.winners;
-    const childWon = winners.includes(CHILD);
-    const was = save?.getVeiddu?.() ?? {};
-    if (!auto && save?.setVeiddu) save.setVeiddu({ ...afterRound({ skill: skillBase(), losses: was.losses ?? 0 }, childWon), wins: (was.wins ?? 0) + (childWon ? 1 : 0) });
+    const childWon = childIn(winners); // a tie the child is in counts as a win
+    if (!auto && save?.setVeiddu) save.setVeiddu(afterRoundSave({ ...save.getVeiddu?.(), skill: skillBase() }, winners));
     markTurn(null);
     for (const box of [meEl, seatEls[UGGEDLA], seatEls[MOSI]]) box.classList.remove('out', 'thinking'); // the winners are all in sight
     clearBubble();
