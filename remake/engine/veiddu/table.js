@@ -609,7 +609,13 @@ export function createVeidduGame(doc, {
   }
   /** Mosi pops up beside his button with `text` in his bubble, and says the line `id`; a tutorial step `stay`s. Returns say's seconds. */
   function showAdvice(id, text, { stay = false } = {}) {
-    hideAdvice(true);
+    // A newer piece of advice takes the place of one sounding; while he teaches, a step waits for the one before it to finish (its
+    // last word is not cut: the child's own tap is what cuts a step), and only its bubble is replaced.
+    if (tutorial) {
+      cancel(adviceTimer);
+      adviceEl?.remove();
+      adviceEl = null;
+    } else hideAdvice(true);
     adviceEl = el('div', 'veiddu-advice');
     const picture = el('img');
     picture.src = asset('assets/book/images/mosi-render.webp');
