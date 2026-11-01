@@ -606,7 +606,7 @@ export function* swimAlong(s, c, points, { speed = SWIM_SPEED, sink = SINK.swim,
       step(dt) {
         mover.t += dt;
         const left = length - mover.at;
-        const factor = Math.min(1, 0.05 + 0.95 * smooth(mover.t / 1.8)) * Math.min(1, 0.12 + 0.88 * smooth(left / 3));
+        const factor = Math.min(1, 0.05 + 0.95 * smooth(mover.t / 1.6)) * Math.min(1, 0.25 + 0.75 * smooth(left / 2));
         mover.at = Math.min(length, mover.at + speed * factor * dt);
         action?.setEffectiveTimeScale(base * Math.max(0.25, factor));
         curve.getPointAt(mover.at / length, point);
@@ -617,7 +617,7 @@ export function* swimAlong(s, c, points, { speed = SWIM_SPEED, sink = SINK.swim,
         const delta = wrap180(want - rig.station.heading);
         rig.station.heading += clamp(delta * (1 - Math.exp(-dt * 2.2)), -40 * dt, 40 * dt);
         rig.beat += dt * 2 * Math.PI * 0.42 * (speed / SWIM_SPEED) * Math.max(0.3, factor);
-        if (mover.at >= length - 1e-4) mover.done = true;
+        if (mover.at >= length - 0.12) mover.done = true;
       },
     };
     rig.mover = mover;
