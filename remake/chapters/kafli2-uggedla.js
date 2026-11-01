@@ -1,33 +1,48 @@
 // Chapter 2's Uggeðla alive (remake/chapters/kafli2.js, scenes 3, 4 and 6; docs/superpowers/specs/2026-10-31-kafli-2-bod-til-uggedlu-design.md,
 // sections 2 and 4): the movements the scenes ask of her. She is the Spinosaurus of the owner's model (14 m, a coral sail 7.3 m up), glad and
 // teasing, and she lives in the water of Síkið. Each movement is a generator for the scheduler (`yield*`), or a plain call:
-//   lieLow(c)                         she lies in the water at her reed with only her sail above it (arriveInSiki calls it)
-//   uggedlaLife(s, c)                 she breathes, blinks, her sail sways, rings and bubbles come by her (arriveInSiki starts it)
-//   riseSail(s, c, { seconds = 4 })   the sail rises out of the reed to its full height, rustling
-//   headUpWithFish(s, c)              she turns, lifts her head out of the water with a fish in her jaws, and swallows it
-//   catchFish(s, c, fish)             her head darts to `fish.point`, the jaw opens a little and snaps shut on it, she tosses her head back
-//                                     and the fish is gone; resolves when her head is back. `fish` is what the fishing game hands in:
-//                                     { point: THREE.Vector3, size: number, caught(): void }; point is the fish's middle in the air (read
-//                                     every frame, so a fish that is still moving is followed), size its length in metres (1 a big fish,
-//                                     0.3 a small one; the fish she holds is the Fen's fish, 0.3 m, drawn at size / 0.3), and caught() is
-//                                     called once, in the frame the jaws shut on it: it is hers from then, whoever drew it hides it
-//   swimAlong(s, c, points, { speed })  she swims low along the points ([x, z], from where she is), the sail up, the tail sweeping, rings in
-//                                     the water; speed in m/s (SWIM_SPEED). Resolves when she has stopped at the last point
-//   tailSplash(s, c, target)          one tail stroke that throws a splash at `target` (an actor of the scene, or a point spec)
-//   createBackSeat(uggedla)           the seat on her back, in front of her sail, with Egill's hands on its front edge: what
-//                                     riding.js's ride, floatTo and floatDown take
-// `c` is the chapter's shared state (kafli2.js): c.uggedla (the scene's actor), c.world, c.mosi, c.ring (the script's rings on the water).
+//   lieLow(c)                         she lies in the water at her reed, only her sail and her back over the reed, her neck laid down and
+//                                     her head tucked in on the bank's side (arriveInSiki calls it, and shows her)
+//   uggedlaLife(s, c)                 she breathes, blinks, her sail sways, her head looks about, rings and bubbles come by her
+//                                     (arriveInSiki starts it; it leaves the water alone while she swims, strikes or splashes)
+//   riseSail(s, c, { seconds = 4 })   the sail rises out of the reed, rustling (her root comes up from SINK.low to SINK.sail)
+//   headUpWithFish(s, c)              she turns toward Mosi (as far as 65 degrees), lifts her head with a fish in her jaws, tosses it back
+//                                     and swallows it; her head stays up (about 7 s)
+//   catchFish(s, c, fish)             her head darts to `fish.point`, the jaw opens a little (JAW_MAX = 9 degrees, the limit is 12) and
+//                                     snaps shut on it, she tosses her head back, the fish goes down her throat, her head comes back;
+//                                     resolves when she is as she was (a second or two; a fish far off makes her lunge, up to 6.5 m, and
+//                                     swim back). `fish` is what the fishing game hands in: { point: THREE.Vector3, size: number,
+//                                     caught(): void }. point is the fish's middle in the air (read every frame, so a fish that still
+//                                     moves is followed), size its length in metres (1 a big fish, 0.3 a small one: the fish she holds is
+//                                     the Fen's fish, 0.3 m, drawn at size / 0.3), and caught() is called once, in the frame the jaws shut
+//                                     on it: it is hers from then, whoever drew it hides it (hers appears where it was and goes to her snout)
+//   swimAlong(s, c, points, { speed, sink, sinkAtEnd, then })
+//                                     she swims low along the points ([x, z], from where she is), the sail up, the tail sweeping, rings
+//                                     in the water; speed in m/s (SWIM_SPEED = 1.1; her wade clip's own matched speed is 0.52 and the
+//                                     clip is played faster); resolves when she has stopped at the last point
+//   tailSplash(s, c, target)          one tail stroke that throws a splash at `target` (an actor of the scene, or a point spec): the tail
+//                                     curls to the side the target is on and comes down in the water, drops fly to it. It reaches best
+//                                     when the target is level with her hips, 3 to 5 m off her side
+//   createBackSeat(uggedla)           the seat on her back, in front of her sail, with Egill's hands on its front edge: what riding.js's
+//                                     ride, floatTo and floatDown take. Making it has her lower her neck for him (1.6 s; floatTo takes
+//                                     2.2), and his legs go out in front of him as he lands (neck-ride.js legsOut, as on Þórseðla's head)
+// `c` is the chapter's shared state (kafli2.js): c.uggedla (the scene's actor), c.world, c.mosi, c.egill, c.ring (the script's rings on the
+// water). The movements keep to themselves: each leaves her as the next expects her (lying, sail risen, head up, ...), and a catch lifts a
+// head that is still laid down. SINK, SEAT and LYING are exported for tuning.
 //
-// How she is moved. She is an actor that something else moves (actor.control, as a rider is by riding.js): the rig below puts her root each
-// frame (where she is, her way, how far under the water), and after her clips have posed her it lays the moves over them, bone by bone:
-// her neck down for lying low, her tail for swimming and splashing, the sail's shiver, and the strike, which turns her neck and head
-// until the tip of her snout is on the fish. Her baked clips stay under it all: idle (breathing), wade (swimming low: the neck bent down,
-// the snout low over the water, the tail sweeping), kink and happy. The clip that plays is cross-faded by the actor as ever.
-// Sizes are metres, angles degrees. Headings are as everywhere: 0 faces +X, 90 faces +Z; the model faces +X, Y up, Z to its right, and a
-// bone turned about Z by a negative angle puts its nose down.
+// How she is moved. She is an actor that something else moves (actor.control, as a rider is by riding.js), so s.actor('uggedla').walkTo and
+// the like do nothing while she is under this rig; place() is taken as where she is. The rig puts her root each frame (where she is, her
+// way, how far under the water's surface: a swim is measured from the surface, not from the bed), and after her clips have posed her it
+// lays the moves over them, bone by bone: her neck down and round for lying low, the roll of the sail's shiver (the whole body: the sail
+// follows the back, so it never folds), her tail for swimming and splashing (not its first three bones: the sail rides them), and the
+// strike, which turns her neck and head, never her chest, until the tip of her snout is on the fish. Her baked clips stay under it all:
+// idle (breathing), wade (swimming low: the neck bent down, the snout low over the water, the tail sweeping) and the rest; no clip was
+// added (the runtime moves read right in captures), so spinosaurus.glb is as it was. Sizes are metres, angles degrees. Headings are as
+// everywhere: 0 faces +X, 90 faces +Z; the model faces +X, Y up, Z to its right, and a bone turned about Z by a negative angle puts its
+// nose down (a tail points the other way: its end goes down for a positive one).
 //
-// She must be updated before whoever rides her (a controlled actor is updated in the order the chapter makes the actors: kafli2.js lists
-// her before Egill), or he sits where she was a frame ago.
+// A controlled actor is updated after the free ones, in the order the chapter makes the actors: kafli2.js lists her before Egill, or he
+// would sit where she was a frame ago.
 import * as THREE from 'three';
 import { createSeat } from '../engine/riding.js';
 import { ringsFor, legsOut } from '../engine/neck-ride.js';
@@ -670,8 +685,8 @@ export function* tailSplash(s, c, target) {
 
 // The spray: drops of water thrown from `from` to land on `to`, small, pale and glinting like the drops off a wet neck (neck-ride.js).
 const SPRAY_LOOK = { glow: 1, falloff: 3.2, star: 0, twinkle: 0, rim: 1, vary: 1, core: '#ffffff', blending: THREE.AdditiveBlending };
-function spray(world, from, to, { count = 72, seed = 'spray', seconds = 1.2 } = {}) {
-  const set = glints(world, { count, life: 1.6, spread: 0, fall: 0, size: 0.34, colour: '#eefbfd', seed, look: SPRAY_LOOK });
+function spray(world, from, to, { count = 110, seed = 'spray', seconds = 1.2 } = {}) {
+  const set = glints(world, { count, life: 1.6, spread: 0, fall: 0, size: 0.6, colour: '#eefbfd', seed, look: SPRAY_LOOK });
   set.birth.fill(1e6);
   const random = seededRandom(`${seed} ways`);
   // the first quarter go straight up where the tail struck the water; the rest fly to the target and land on it

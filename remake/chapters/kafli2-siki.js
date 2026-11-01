@@ -296,7 +296,7 @@ export function berriesAtTheHummocks(world) {
 
 /**
  * Síkið, under the black the trail's end leaves: the trail's prints and their animals let go of and Kambeðla hidden, Mosi (with Egill
- * in the saddle) at the path's start, Uggeðla at her reed (hidden until her lying-low pose is built) and Þórseðla in her trees, alive;
+ * in the saddle) at the path's start, Uggeðla at her reed, shown and lying low in it, alive (kafli2-uggedla.js) and Þórseðla in her trees, alive;
  * the Fen's water sounds go on, and the camera cuts to the arrival.
  */
 export function arriveInSiki(s, c) {
