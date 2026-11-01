@@ -1628,7 +1628,7 @@ test('scene 3: the path is flooded, a big colourful sail rises out of the reed, 
   // her head comes up with the fish after Egill's hello and before Mosi says it is Uggeðla
   assert.ok(tuckAt(at.k2_egill_helloboat) < 0.5, 'her head is still down as Egill says hello');
   assert.ok(tuckAt(at.k2_mosi_notboat) > 0.95, 'her head is up as Mosi says "this is no boat"');
-  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_sail' && cut.at >= start), 'the sail is seen from over Mosi\'s shoulder');
+  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_portrait' && cut.at >= start), 'the sail is seen close across the channel');
   // her place goes on the map once, as she says hello, from where her head is on the screen
   assert.equal(run.probes.place.length, 1, 'one place goes on the map');
   const [place] = run.probes.place;

@@ -204,8 +204,9 @@ function* theChannel(s, c) {
   yield s.camera.cut('siki_flooded');
   yield* say(s, c, 'mosi', 'k2_mosi_flooded');
   yield* say(s, c, 'egill', 'k2_egill_across');
-  // over Mosi's shoulder, across the channel to the reed: the sail rises, and Mosi sees a boat
-  yield s.camera.cut('siki_sail');
+  // across the channel to the reed, close on the sail (the tall screen's shot: siki_sail, over Mosi's shoulder with her whole length in it, is
+  // 273k triangles on a tablet while she lies broadside; this is 226k): the sail rises, and Mosi sees a boat
+  yield s.camera.cut('siki_portrait');
   yield mosi.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
   yield egill.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
   const stopTaps = sailTaps(s, c);
@@ -321,7 +322,7 @@ function* theFerry(s, c) {
  * are chosen by the triangles of a tablet's frame and by what is in the lens (the ferry's shots are not planted around, so each was measured
  * at each stretch of the swim, 250k at the most): the two-shot from the crossing for the first seconds (a camera in Mosi's frame swings round
  * with him as he turns into the water, and the far bank's reed is in the lens), then the front shot for the long middle, the side one as the
- * tail splashes (from the dry bank, 21 m off, it is about 215 to 245k then, and 260 to 300k in the middle of the swim) and the back one for
+ * tail splashes (from the dry bank, 22 m off, it is 210 to 245k then, and 260 to 300k in the middle of the swim) and the back one for
  * Þórseðla's head.
  */
 const CHAT_PAUSE = 0.9;
