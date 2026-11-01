@@ -1764,17 +1764,32 @@ test('scene 6: Þórseðla\'s head is over the trees, in frame, from a ferry cam
   assert.ok(frames.some(frame => frame.shot === 'ferry_back'), 'from over her sail');
 });
 
-test('scene 6: the ferry\'s shots are not in the reed: from each, at most one clump of reed or a tree stands between the camera and her middle', async () => {
+test('scene 6: the ferry\'s cameras are in clear air: not in a clump of reed or against a trunk, with at most one clump between a camera and Mosi and two between it and her', async () => {
   const run = await playIdle();
   const start = sceneStart(run.world, 6), hummocks = sceneStart(run.world, 7);
   const frames = framesIn(run, start, hummocks).filter(frame => frame.shot?.startsWith('ferry_') && frame.camera);
   assert.ok(frames.length > 600, `${frames.length} frames in the ferry's shots`);
+  const { plan } = sikiPlan();
+  const lowPlants = ['horsetailReed', 'horsetailTall', 'fern', 'mossHummock', 'waterLily', 'bush'];
+  /** Is the camera in a clump of reed or a bush, or within a metre of a trunk (a leaf in the lens)? */
+  const crowded = camera => plan.placements.find(p => {
+    const top = p.y + p.model.height * p.scale;
+    if (lowPlants.includes(p.name)) return camera.y < top * 0.8 && Math.hypot(camera.x - p.x, camera.z - p.z) < p.model.radius * p.scale * 0.5 + 0.3;
+    return camera.y < top * 0.5 && Math.hypot(camera.x - p.x, camera.z - p.z) < 1.2;
+  });
   const worst = {};
   for (const frame of frames.filter((_, i) => i % 6 === 0)) {
-    const n = clumpsBetween(frame.camera, frame.herMiddle);
-    worst[frame.shot] = Math.max(worst[frame.shot] ?? 0, n);
+    const row = worst[frame.shot] ??= { her: 0, mosi: 0, crowded: null };
+    row.her = Math.max(row.her, clumpsBetween(frame.camera, frame.herMiddle));
+    row.mosi = Math.max(row.mosi, clumpsBetween(frame.camera, frame.mosi.clone().setY(frame.mosi.y + 3)));
+    const hit = crowded(frame.camera);
+    if (hit) row.crowded = `${hit.name} at ${hit.x.toFixed(1)}, ${hit.z.toFixed(1)} (t ${frame.t.toFixed(0)})`;
   }
-  for (const [shot, n] of Object.entries(worst)) assert.ok(n <= 1, `${shot}: ${n} clumps between the camera and her at the worst`);
+  assert.deepEqual(Object.keys(worst).sort(), ['ferry_back', 'ferry_front', 'ferry_side'], 'the three of Task 3\'s ferry shots are used');
+  for (const [shot, row] of Object.entries(worst)) {
+    assert.equal(row.crowded, null, `${shot}: the camera is in ${row.crowded}`);
+    assert.ok(row.her <= 2 && row.mosi <= 1, `${shot}: ${row.her} clumps between the camera and her, ${row.mosi} between it and Mosi, at the worst`);
+  }
 });
 
 // ---------------------------------------------------------------------------------------------

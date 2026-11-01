@@ -285,10 +285,13 @@ export const SIKI_SHOTS = {
   siki_star: { position: eye(3.5, -10.5, 0.9), target: eye(13.5, 1.5, 6.2), fov: 48 },
   // The ferry, moving shots in Mosi's frame (x ahead of him, y up from the water he wades, z to his right: toward her): he is on
   // the ground whatever she does, and the shots look at her wherever she is. Mosi wades the near bank, 3 to 4.5 m from her.
-  // Side by side: from the inner bank a little ahead of them, across her and Mosi, who stand clear of each other from there.
-  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [9, 3.0, 16], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0, 1.8, 2.6], local: true }, fov: 50 },
-  // From the front, over the water: her head, Egill on her back and the sail over him.
-  ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [13, 1.5, 4.2], local: true }, target: { actor: 'uggedla', offset: [2, 1.6, 0] }, fov: 46 },
+  // Side by side: from the dry bank, 10 m to Mosi's left and a little behind him, 3 m up, looking across him at her: the two of them wade and
+  // swim along together, his flank in front and her sail, her back and Egill beyond, and her tail swinging at him when it splashes him. (It
+  // was across the channel, on her far side, in the reed: from there the picture was reed and a leaf in the lens. The bank is clear grass.)
+  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [-4, 3.0, -10], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0.5, 2.2, 2.2], local: true }, fov: 50 },
+  // From the front, over the water, 11 m ahead of Mosi and 2 m up: her head, Egill on her back with his hands on the sail's front edge and the
+  // sail over him, Mosi beside her.
+  ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [11, 2.0, 6.5], local: true }, target: { actor: 'uggedla', offset: [1.5, 2.2, 0] }, fov: 46 },
   // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
   ferry_back: { position: { actor: 'mosi', part: 'feet', offset: [-12, 4.6, 4.2], local: true }, target: 'thorsedla.head', fov: 40 },
   // The end of the channel, from the dry bank north of the pool, looking south over it the way the ferry goes: Uggeðla in the pool on

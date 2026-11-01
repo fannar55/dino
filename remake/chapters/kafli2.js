@@ -3,9 +3,16 @@
 // (kafli3.js). Scenes 1 and 2 of the old chapter are kept as they were (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-
 // design.md): from Kambeðla's fern glade Mosi and Egill ride out of the forest and down the Fenjaslóð, and count Þórseðla's ten
 // water-filled footprints in the mud, one to ten. The trail leads on to Síkið, a channel flooded over its end, where Uggeðla lies
-// hidden in the reed. Of the scenes there the fishing (scene 4, kafli2-fishing.js) is built; the others (the sail, her star and the ferry)
-// are built in the next task of the plan, so until then the chapter ends in Síkið: Mosi walks down the path to the water, Egill helps
-// Uggeðla to five fish, and the picture fades to black and the script ends.
+// hidden in the reed, and the rest is there:
+//   3. the channel: the path is flooded, a big colourful sail rises out of the reed ("a boat!"), and her head comes up with a fish: it is
+//      Uggeðla, fishing. Her place goes onto the book's map from her head.
+//   4. the fishing (kafli2-fishing.js): the child taps five big fish, and leaves the small ones.
+//   5. the invitation to the Star Festival, and her star, rising from the top of her sail.
+//   6. the ferry: Egill floats from Mosi's saddle onto her back, she swims him along the channel and Mosi wades beside them, with the
+//      owner's chat on the way (the tail splash, Þórseðla's head over the trees).
+//   7. the hummocks: Egill floats back into Mosi's saddle, she tells of the berries and swims off, and the picture goes into the book,
+//      which opens on her new card and turns to the map. The script ends there, and the page shows "Áfram" into chapter 3.
+// An idle child (who taps nothing) is through in about seven minutes (the limit is 450 s).
 //
 // Three places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m, Uggeðla
 // 14 m, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late morning sun (engine/looks.js: lateMorning)
@@ -324,14 +331,16 @@ function* ferryChat(s, c) {
   yield* say(s, c, 'uggedla', 'k2_uggedla_sail');
   yield s.wait(CHAT_PAUSE);
   yield* say(s, c, 'mosi', 'k2_mosi_onlyabit');
-  // from behind and above her, over her sail: the tail comes down in the water as she says "like a fish", and Mosi gets the splash
-  yield s.camera.cut('ferry_back');
+  // side by side again: the tail comes down in the water as she says "like a fish", and Mosi gets the splash
+  yield s.camera.cut('ferry_side');
   yield s.wait(CHAT_PAUSE);
   const saying = s.after(0, () => say(s, c, 'uggedla', 'k2_uggedla_tail'));
   yield s.wait(Math.max(0.3, s.lineDuration('k2_uggedla_tail') - TAIL_LANDS));
   const splash = s.after(0, () => tailSplash(s, c, mosi));
   yield saying;
   yield* say(s, c, 'mosi', 'k2_mosi_wetter');
+  // and from behind and above her, over her sail, where she is going: Þórseðla's head over the trees
+  yield s.camera.cut('ferry_back');
   yield s.wait(CHAT_PAUSE);
   yield* say(s, c, 'egill', 'k2_egill_head');
   yield splash;

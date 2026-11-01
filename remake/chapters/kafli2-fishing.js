@@ -7,7 +7,8 @@
 // and Mosi counts it. With the fifth fish counted the task ends (the scene says her thanks).
 //   fishing(s, c)         the whole task, a generator for the scheduler; it returns { caught: [{ at, how: 'tapped' | 'helped', doneAt }],
 //                         smallTaps }: when each fish was caught (the moment her jaws shut), how, and when she was back as she was
-//   getUp(s, c)           she is ready to fish: the sail risen and her head up and turned to the bank (nothing, if she is already)
+//   getUp(s, c)           she is ready to fish: the sail risen and her head up and turned to the bank (nothing, if she is already: scene 3
+//                         has done it by the time the fishing begins; a test that plays the fishing alone brings her up with it)
 //   jumpOrder(count)      the jumps, one after the other: [{ kind: 'big' | 'small', spot }], the same every time
 //   jumpPath(spot, kind, way)   the arc of one jump: { at(u, out) } the fish's middle at u (0 to 1) of the way, over the spot FISHING_SPOTS[spot]
 // `c` is the chapter's shared state (kafli2.js): c.say(speaker, id) says a line (one voice at a time), c.uggedla the actor. While it runs
