@@ -3688,5 +3688,45 @@
   "src": "assets/audio/veiddu/veiddu_mosi_tie.mp3",
   "duration": 2.97,
   "mouth": "5abfc0000df97a8400000007dfa00decaadcb6009fdedb85000000000000"
+ },
+ "veiddu_tut_pairs": {
+  "src": "assets/audio/veiddu/veiddu_tut_pairs.mp3",
+  "duration": 4.81,
+  "mouth": "00aeffd90cfec0000cedc8007ece7066adfd86400000000000000fd00dedbd60009de3650bffc4dffda75000000000000"
+ },
+ "veiddu_tut_ask": {
+  "src": "assets/audio/veiddu/veiddu_tut_ask.mp3",
+  "duration": 5.21,
+  "mouth": "3ff600aedbdb9fba75efb400df9ab86600000000000bfb00aeada53defcafb0be000dfedcdda400c9900edddfcddb740000000000"
+ },
+ "veiddu_tut_laid": {
+  "src": "assets/audio/veiddu/veiddu_tut_laid.mp3",
+  "duration": 5.21,
+  "mouth": "00aeb3fb93000005feb6000ff5ac7000000004defdddde83ca04bfec640000000000006fffdcd7000fecc7ce00ccb700000000000"
+ },
+ "veiddu_tut_fish": {
+  "src": "assets/audio/veiddu/veiddu_tut_fish.mp3",
+  "duration": 6.25,
+  "mouth": "00303fecaeefeddb75aebdec0caec07f94a96400000000007fddffedfdcbca00065000000000000dfec80afc9dff998dddeb9ebdc07fe6afdb80000000000"
+ },
+ "veiddu_tut_listen": {
+  "src": "assets/audio/veiddu/veiddu_tut_listen.mp3",
+  "duration": 4.33,
+  "mouth": "bfecc8500dbce70cc000bec9cdd6aedaded96000000000004fffe80cb00de8dd40fd9dfecc8630000000000"
+ },
+ "veiddu_tut_give": {
+  "src": "assets/audio/veiddu/veiddu_tut_give.mp3",
+  "duration": 3.93,
+  "mouth": "5fffda70afeefd386000000000003be4009fbedc5600bcedcbb5004defe73ffda95400000000000"
+ },
+ "veiddu_tut_remember": {
+  "src": "assets/audio/veiddu/veiddu_tut_remember.mp3",
+  "duration": 3.29,
+  "mouth": "bf9000cdcbceb0afdcdfe0009ec475604000000004506fcbcfedb8600000000000"
+ },
+ "veiddu_tut_real": {
+  "src": "assets/audio/veiddu/veiddu_tut_real.mp3",
+  "duration": 2.41,
+  "mouth": "affdca630beecdddbec300efcebdfddcb9630400000000000"
  }
 }

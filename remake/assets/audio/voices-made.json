@@ -2485,6 +2485,54 @@
    "duration": 2.65,
    "model": "eleven_v4"
   },
+  "veiddu/veiddu_tut_ask": {
+   "key": "a704c45b138f6a1fa1e545317501586419bec759170909a93e6fd68238e09ca9",
+   "mp3": "f1e26a1674ea1b9aada32b81b68f27caa254fe7ab9a5446809c40f465ff9ed53",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_fish": {
+   "key": "ff41e77b57b4ef598a75c77cb4b2583e904b54aacbbcb6affc67ceab8273b1fc",
+   "mp3": "6aaf4228e52e80056c26d5385e0c7c22ae35663fcd57ec94f618a1adf03f3f44",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_give": {
+   "key": "bf2282c505902aebe540e3e0c71ebd22056b1bd652653417b7f2920455e0c523",
+   "mp3": "f9b5d0befc8c64deb06cf33826b6e9f6de8f47966435cd8a205d9a0a2c3cb753",
+   "duration": 3.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_laid": {
+   "key": "99c6e607f4edbf6a0457d8b68fcaae164e03397eb2f8eae4e90272f2475a2365",
+   "mp3": "d87a88323855ce4cfad8d84f98e6f662569089d55a3554b6e66032df293a696d",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_listen": {
+   "key": "67435c5b189ac88e8d37f844f9f5498c240e60b7049f71782cee94f81c766899",
+   "mp3": "b1dbd1de79b6d639cf64fdeac908a918de08644c69155695cd5366a7e1b6bb9d",
+   "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_pairs": {
+   "key": "a3517bf811197231e1bc18aff6f3f48fe67d016ed83d24360bfb01d284bb37f5",
+   "mp3": "5a68e6c259f55c234fa5ec1f37338aba9424dce4cff1bb4adc39675a3fff568f",
+   "duration": 4.81,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_real": {
+   "key": "9217033817975d0689524c4a46719960b448350cd923ad7ea445427138db1581",
+   "mp3": "c5299d1ab9ad59e5dae054a05fb579635bf43c91b13cf6c359d263ec9de8eab8",
+   "duration": 2.41,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_remember": {
+   "key": "7dbbed7bb950310acf05f67e3161bfe0db994143591ff677f9eb98124b8a6bb4",
+   "mp3": "342e75ea7175f3a4d56fbd85f08761278d583ad785d37b2f9d4798fb31207006",
+   "duration": 3.29,
+   "model": "eleven_v4"
+  },
   "veiddu/veiddu_uggedla_ask_brunnklukka": {
    "key": "c83264b9e0d996122853202a4dd6b9fbb7ed6670b615a24fc4f6d114cb1a69d4",
    "mp3": "fb8b24edd2b6e941afb2e84f7e93780e5fb6058f4fa2f2e53eddf77d195f0b12",
