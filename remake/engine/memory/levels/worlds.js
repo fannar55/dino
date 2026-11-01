@@ -28,7 +28,8 @@
  *                     plates that glow) does it here
  *   overviewPoints    the points (besides the board, the rests and Mosi) the overview keeps in the frame: [[x, y, z]...]
  *   cameraCue(glade)  the camera's cue now (what the mover shows), or glade() (the search view's cue)
- *   getTargets()      the obstacles: [{ id, point, enabled, next, tapAlong, radius?, unbuilt? }] (tapAlong: a script waits for taps on it;
+ *   getTargets()      the obstacles: [{ id, point, enabled, next, tapAlong, radius?, unbuilt?, edge? }] (edge: a view that leaves it just outside
+ *                     keeps its button at the screen's edge, level 2's tunnel on a phone; tapAlong: a script waits for taps on it;
  *                     radius in metres, if given, makes the button at least as wide as the obstacle looks; unbuilt: its scene is not
  *                     built yet, so the gold arrow never points at it)
  *   tapPoint(id)      where the big tap-along button of obstacle `id` sits

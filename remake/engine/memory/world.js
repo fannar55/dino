@@ -817,7 +817,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       let size = tapAlong ? Math.round(Math.max(width < 600 ? 150 : 200, Math.min(width, height) * .42)) : width < 600 ? 44 : 64;
       if (!tapAlong && target.radius > 0) size = Math.max(size, Math.round(Math.abs(project(point.clone().add(new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(target.radius))).x - p.x) * 2));
       // An obstacle at the very edge of the view (the log on a phone) keeps its button just inside the screen.
-      if (tapAlong || p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
+      // (a level may mark an obstacle `edge`: one that a narrow view leaves just outside its side, level 2's tunnel on a phone, keeps its button at the screen's edge too)
+      if (tapAlong || target.edge || p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
       renderTargets.push({ type: 'task', id: target.id, x: p.x, y: p.y, width: size, height: size, enabled: tapAlong || target.enabled, next: Boolean(target.next), tapAlong, unbuilt: Boolean(target.unbuilt) });
     }
     for (const target of renderTargets) target.enabled &&= target.tapAlong || cameraDirector.isInteractive() && target.x - target.width / 2 >= 8 && target.x + target.width / 2 <= width - 8 && target.y - target.height / 2 >= 8 && target.y + target.height / 2 <= height - 8;

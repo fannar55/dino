@@ -139,7 +139,8 @@ export function createLevelWorld(stage) {
     getTargets() {
       if (!gorge || !interior) return [];
       const waiting = stage.scenes.waiting?.(), state = snapshot ?? {};
-      const target = (id, point) => ({ id, point, enabled: true, next: state.next === id, tapAlong: waiting?.target === id, radius: 1.8 });
+      // (`edge`: on a phone the tunnel is at the very edge of the search view, or just outside it: its button then stays at the edge of the screen, where a finger finds it)
+      const target = (id, point) => ({ id, point, enabled: true, next: state.next === id, tapAlong: waiting?.target === id, radius: 1.8, edge: true });
       if (!state.tunnelLit) return [target('tunnel', mouthPoint().add(new THREE.Vector3(0, 1.3, 0)))];
       // (the pile is a little way in at the mouth, which a portrait view can leave at its edge: the button is at the mouth, over the pile's front, so that it is on the screen wherever the tunnel is)
       if (!state.rocksFallen) return [target('rocks', mouthPoint().add(new THREE.Vector3(0, 1.1, 0)))];
@@ -182,7 +183,7 @@ export function createLevelWorld(stage) {
     hasTravelReservation: actor => Boolean(mover?.hasReservation(actor)),
     visited: () => false,
     /** The child may greet a pair at its home whenever no pair has been picked for a job. */
-    nestSelectable: () => !snapshot?.selected,
+    nestSelectable: species => !snapshot?.selected && !mover?.holds(species), // (a pair that holds the light stands at the tunnel and is not greeted: its button would only lie over the obstacle's)
     mosiPlace: () => ({ ...spot }),
     mosiObstacle: () => true,
 
