@@ -16,8 +16,11 @@ import { createSfx } from '../engine/audio/sfx.js';
 import { CRITTER_SOUNDS } from '../chapters/kafli3-fen.js';
 import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import {
-  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR,
+  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR, arriveInSiki,
 } from '../chapters/kafli2-siki.js';
+import { riseSail, headUpWithFish, catchFish, swimAlong, tailSplash, createBackSeat } from '../chapters/kafli2-uggedla.js';
+import { createSaddle, ride, floatTo } from '../engine/riding.js';
+import { ringsFor } from '../engine/neck-ride.js';
 import { waterShape } from '../world/props/water.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
@@ -33,7 +36,7 @@ const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'))
 const SOURCE = readJson('../assets/audio/kafli2/lines-source.json');
 const RECORDED = readJson('../assets/audio/lines.json');
 // The script, with its pieces: the trail's (kafli2-trail.js), which speaks lines of its own, and Síkið's (kafli2-siki.js).
-const CHAPTER_TEXT = ['kafli2', 'kafli2-trail', 'kafli2-siki'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
+const CHAPTER_TEXT = ['kafli2', 'kafli2-trail', 'kafli2-siki', 'kafli2-uggedla'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
 const MAIN_TEXT = fs.readFileSync(file('../main.js'), 'utf8');
 
 // Every line has its recording (the kafli2 set, recorded 2026-10-21). A line added before the controller records it fails here,
@@ -737,4 +740,410 @@ test('a full save as the page keeps it loads whole but Risaeðlu-Yatzy\'s old bl
   assert.equal(save.addPlace('fen'), true);
   const { yatzy, ...kept } = full;
   assert.deepEqual(written, { ...kept, places: ['fen'] });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Uggeðla alive (kafli2-uggedla.js): lying low, the sail rising, her head up with a fish, catching fish in the air, swimming with Egill
+// on her back, a tail splash at Mosi and her life in the water. One scripted run of all of it (the "reel"), watched frame by frame.
+
+const V3 = THREE.Vector3;
+const DEG = THREE.MathUtils.radToDeg;
+
+const skinOf = actor => {
+  let mesh = null;
+  actor.model.traverse(o => { if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o; });
+  return mesh;
+};
+function posedSkin(mesh) {
+  const n = mesh.geometry.attributes.position.count;
+  const out = new Float32Array(n * 3);
+  const v = new V3();
+  for (let i = 0; i < n; i++) {
+    mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld);
+    out.set([v.x, v.y, v.z], i * 3);
+  }
+  return out;
+}
+// How Egill's skin and hers meet, as both are posed now (kafli3.test.mjs's, for Þórseðla): how many of his vertices are inside her (and
+// how deep the deepest is), and how much air there is under the rest of him at the least. Her skin's triangles near him go on a grid of
+// cells across the ground; a vertical line through one of his vertices that crosses her skin an odd number of times above it starts
+// inside her.
+function skinsMeet(her, egill) {
+  her.root.updateMatrixWorld(true);
+  egill.root.updateMatrixWorld(true);
+  const mesh = skinOf(her);
+  const skin = posedSkin(mesh), his = posedSkin(skinOf(egill)), index = mesh.geometry.index.array;
+  const near = egill.root.position, cell = 0.08, cells = new Map(), tris = [];
+  for (let t = 0; t < index.length; t += 3) {
+    const [a, b, d] = [index[t] * 3, index[t + 1] * 3, index[t + 2] * 3];
+    const x0 = Math.min(skin[a], skin[b], skin[d]), x1 = Math.max(skin[a], skin[b], skin[d]);
+    const z0 = Math.min(skin[a + 2], skin[b + 2], skin[d + 2]), z1 = Math.max(skin[a + 2], skin[b + 2], skin[d + 2]);
+    if (x1 < near.x - 1.6 || x0 > near.x + 1.6 || z1 < near.z - 1.6 || z0 > near.z + 1.6) continue;
+    const k = tris.push([a, b, d]) - 1;
+    for (let i = Math.floor(x0 / cell); i <= Math.floor(x1 / cell); i++) {
+      for (let j = Math.floor(z0 / cell); j <= Math.floor(z1 / cell); j++) {
+        const key = i * 100003 + j;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(k);
+      }
+    }
+  }
+  let inside = 0, deepest = 0, air = Infinity;
+  for (let p = 0; p < his.length; p += 3) {
+    const [x, y, z] = [his[p], his[p + 1], his[p + 2]];
+    const crossings = [];
+    for (const k of cells.get(Math.floor(x / cell) * 100003 + Math.floor(z / cell)) ?? []) {
+      const [a, b, d] = tris[k];
+      const det = (skin[b + 2] - skin[d + 2]) * (skin[a] - skin[d]) + (skin[d] - skin[b]) * (skin[a + 2] - skin[d + 2]);
+      if (Math.abs(det) < 1e-12) continue;
+      const l1 = ((skin[b + 2] - skin[d + 2]) * (x - skin[d]) + (skin[d] - skin[b]) * (z - skin[d + 2])) / det;
+      const l2 = ((skin[d + 2] - skin[a + 2]) * (x - skin[d]) + (skin[a] - skin[d]) * (z - skin[d + 2])) / det;
+      if (l1 < 0 || l2 < 0 || l1 + l2 > 1) continue;
+      crossings.push(l1 * skin[a + 1] + l2 * skin[b + 1] + (1 - l1 - l2) * skin[d + 1]);
+    }
+    const above = crossings.filter(h => h > y);
+    if (above.length % 2) {
+      inside++;
+      deepest = Math.max(deepest, Math.min(...above) - y);
+    } else {
+      const below = crossings.filter(h => h <= y);
+      if (below.length) air = Math.min(air, y - Math.max(...below));
+    }
+  }
+  return { inside, deepest, air };
+}
+
+// Her parts, found in the bind pose as spinosaurus.test.mjs finds them: the sail (above her back, along its length), the rest of her
+// skin, the tip of her snout (the furthest vertex forward that her head and jaw carry alone), and what tells a torn sail: the length of
+// its top edge and which of its triangles have turned over.
+function herParts(her) {
+  const mesh = skinOf(her);
+  const pos = mesh.geometry.attributes.position, idx = mesh.geometry.index.array;
+  const { skinIndex, skinWeight } = mesh.geometry.attributes;
+  const ids = ['Head', 'Jaw'].map(n => mesh.skeleton.bones.findIndex(b => b.name === n));
+  const carried = i => { let w = 0; for (let k = 0; k < 4; k++) if (ids.includes(skinIndex.getComponent(i, k))) w += skinWeight.getComponent(i, k); return w; };
+  let backTop = 0;
+  for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getZ(i)) > 0.45 && pos.getX(i) > -0.5 && pos.getX(i) < 2) backTop = Math.max(backTop, pos.getY(i));
+  const upper = new Set(), rest = [];
+  for (let i = 0; i < pos.count; i++) {
+    if (pos.getY(i) > backTop + 0.4 && pos.getX(i) > -4.3 && pos.getX(i) < 2.3) upper.add(i);
+    else rest.push(i);
+  }
+  let tip = -1;
+  for (let i = 0; i < pos.count; i++) if (carried(i) > 0.999 && (tip < 0 || pos.getX(i) > pos.getX(tip))) tip = i;
+  const tris = [];
+  for (let t = 0; t < idx.length; t += 3) if (upper.has(idx[t]) && upper.has(idx[t + 1]) && upper.has(idx[t + 2])) tris.push(t);
+  const bins = new Map();
+  for (const i of upper) { const b = Math.round(pos.getX(i) * 10); if (!bins.has(b) || pos.getY(i) > pos.getY(bins.get(b))) bins.set(b, i); }
+  const edge = [...bins.keys()].sort((a, b) => a - b).map(b => bins.get(b));
+  const at = i => mesh.getVertexPosition(i, new V3()).applyMatrix4(mesh.matrixWorld);
+  const edgeLength = () => edge.slice(1).reduce((sum, i, k) => sum + at(i).distanceTo(at(edge[k])), 0);
+  const normals = () => {
+    const P = new Map();
+    for (const i of upper) P.set(i, at(i));
+    return tris.map(t => P.get(idx[t + 1]).clone().sub(P.get(idx[t])).cross(P.get(idx[t + 2]).clone().sub(P.get(idx[t]))));
+  };
+  return {
+    mesh, sail: [...upper], rest, tip, edge, tris,
+    tipAt: out => out.copy(at(tip)),
+    top: indices => Math.max(...indices.map(i => at(i).y)),
+    edgeLength, normals,
+  };
+}
+
+const WATER_LEVEL = () => waterShape(SIKI_LAYOUT.water).level;
+/** The least top of any clump of the reed wall she lies behind (a clump's tallest stalk is 1.5 to 2.2 times its scale), over its ground. */
+function reedTop() {
+  const ground = groundOf('siki');
+  return Math.min(...SIKI_LAYOUT.plants.filter(p => p.name === 'horsetailReed' && p.scale >= 2).map(p => ground.heightAt(...p.position) + 1.5 * p.scale));
+}
+
+/** The chapter's own cast and state as Síkið leaves them (kafli2.js's script makes the same), then `play(s, c)`. */
+function inSiki(play, { limit = 120, onFrame = null } = {}) {
+  const there = {
+    ...chapter,
+    start: 'siki', startShot: 'siki_arrive', prepare: [],
+    *script(s) {
+      const [mosi, egill, kambedla, uggedla, thorsedla] = ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla'].map(name => s.actor(name));
+      const world = mosi.raw.world;
+      const c = { s, world, mosi, egill, kambedla, uggedla, thorsedla, talking: false, saying: 0, printLog: [] };
+      c.ring = ringsFor(world, { most: 3 });
+      world.chapterState = c;
+      c.saddle = createSaddle(mosi.raw);
+      c.saddle.object.visible = true;
+      c.riding = ride(egill.raw, c.saddle, { settle: 0 });
+      arriveInSiki(s, c);
+      mosi.raw.place(MOSI_BANK.position[0], MOSI_BANK.position[2], MOSI_BANK.heading);
+      yield* play(s, c);
+    },
+  };
+  return playUnattended({ chapter: there }, { shaped: true, seeking: false, limit, onFrame });
+}
+
+// The reel: she lies low, the sail rises, her head comes up with a fish, three fish are caught in the air at three heights, Egill floats
+// onto her back and she swims with him along the ferry line, Mosi wading beside her, and flicks a splash at him with her tail.
+const CATCHES = [
+  { spot: 0, up: 0.5, size: 1.0 }, // low, a big fish
+  { spot: 3, up: 1.4, size: 1.0 },
+  { spot: 4, up: 2.3, size: 1.0 }, // high and far, the fish that makes her stretch
+];
+const SWIM = FERRY_LINE.slice(0, 7); // about 20 m from the crossing
+let reeled = null;
+function reel() {
+  reeled ??= (async () => {
+    const seen = { phases: [], frames: [], catches: [], meets: [], gauge: [], jaw: { lying: 0, headUp: 0, catches: 0 }, ripples: [], splashAt: null };
+    let parts = null, gauge = null, phase = null, frame = 0;
+    const play = function* (s, c) {
+      const { world, mosi, egill, uggedla } = c;
+      const mark = name => { phase = name; seen.phases.push({ phase: name, at: s.time }); };
+      const level = WATER_LEVEL();
+      mark('lying');
+      yield s.wait(3);
+      mark('rising');
+      yield* riseSail(s, c);
+      mark('head up');
+      yield* headUpWithFish(s, c);
+      yield s.wait(0.6);
+      for (const [i, spec] of CATCHES.entries()) {
+        const [x, z] = FISHING_SPOTS[spec.spot];
+        const fish = {
+          point: new V3(x, level + spec.up, z), size: spec.size, calls: 0, at: null,
+          caught() { this.calls++; this.at = s.time; },
+        };
+        const record = { i, ...spec, fish, start: s.time };
+        seen.catches.push(record);
+        mark(`catch ${i}`);
+        yield* catchFish(s, c, fish);
+        record.end = s.time;
+        record.headBack = uggedla.raw.headPosition(new V3());
+        yield s.wait(0.7);
+      }
+      mark('float');
+      // Mosi comes to wade beside her; Egill floats from his saddle onto her back
+      const wade = MOSI_WADE_LINE.slice(0, 9);
+      mosi.raw.place(wade[0][0], wade[0][1], 0);
+      const seat = createBackSeat(uggedla);
+      c.seat = seat;
+      yield floatTo(egill.raw, seat);
+      ride(egill.raw, seat, { settle: 0 });
+      mark('swim');
+      const swimming = s.after(0, () => swimAlong(s, c, SWIM));
+      s.after(0, () => mosi.walkTo(wade.slice(1), { speed: 1.0 }));
+      yield swimming;
+      mark('splash');
+      yield* tailSplash(s, c, mosi);
+      mark('after');
+      yield s.wait(2);
+    };
+    const run = await inSiki(play, {
+      limit: 150,
+      onFrame({ world, stage }) {
+        const c = world.chapterState;
+        if (!c?.uggedla) return;
+        const her = c.uggedla.raw;
+        parts ??= herParts(her);
+        gauge ??= { edge: null, normals: null };
+        const t = stage.s.time;
+        const water = world.forest?.water;
+        her.root.updateMatrixWorld(true);
+        const jaw = her.model.getObjectByName('Jaw');
+        const jawAngle = DEG(jaw.quaternion.angleTo(new THREE.Quaternion()));
+        const phaseName = seen.phases.at(-1)?.phase ?? null;
+        const row = { t, phase: phaseName, jaw: jawAngle, root: her.root.position.clone(), heading: her.heading, head: her.headPosition(new V3()) };
+        if (frame % 3 === 0) {
+          row.sailTop = parts.top(parts.sail);
+          row.tail = her.model.getObjectByName('Tail6').getWorldPosition(new V3());
+        }
+        seen.frames.push(row);
+        if (phaseName === 'lying') seen.jaw.lying = Math.max(seen.jaw.lying, jawAngle);
+        if (phaseName === 'head up') seen.jaw.headUp = Math.max(seen.jaw.headUp, jawAngle);
+        if (phaseName?.startsWith('catch')) seen.jaw.catches = Math.max(seen.jaw.catches, jawAngle);
+        // the end of the lying phase: her highest bit that is not sail, and the sail's
+        if (phaseName === 'lying' && t > 2.8 && !seen.lying) {
+          seen.lying = { rest: parts.top(parts.rest), sail: parts.top(parts.sail), reed: reedTop() };
+        }
+        // the moment a fish is caught: how far her snout's tip is from it
+        for (const record of seen.catches) {
+          if (record.fish.at !== null && record.snap === undefined && record.fish.at <= t + 1e-9) {
+            const tip = parts.tipAt(new V3());
+            record.snap = { distance: tip.distanceTo(record.fish.point), jaw: jawAngle, at: t };
+          }
+        }
+        // the sail never tears: its top edge's length and the triangles that turn over
+        if (frame % 5 === 0) {
+          if (gauge.edge === null) { gauge.edge = parts.edgeLength(); gauge.normals = parts.normals(); }
+          const normals = parts.normals();
+          seen.gauge.push({ t, phase: phaseName, ratio: parts.edgeLength() / gauge.edge, turned: normals.filter((n, k) => gauge.normals[k].length() > 1e-4 && n.dot(gauge.normals[k]) < 0).length });
+        }
+        // Egill and her skin while she swims
+        if (phaseName === 'swim' && frame % 6 === 0 && c.egill.raw.controlled) {
+          const meet = skinsMeet(her, c.egill.raw);
+          const local = her.root.worldToLocal(c.egill.raw.root.position.clone());
+          seen.meets.push({ t, ...meet, local, mosi: c.mosi.raw.root.position.distanceTo(her.root.position) });
+        }
+        frame++;
+      },
+    });
+    seen.world = run.world;
+    seen.sounds = run.soundLog;
+    seen.ripples = run.world.forest.water?.ripples ?? [];
+    return { run, seen, parts };
+  })();
+  return reeled;
+}
+const phaseOf = (seen, name) => {
+  const i = seen.phases.findIndex(p => p.phase === name);
+  return { from: seen.phases[i].at, to: seen.phases[i + 1]?.at ?? Infinity };
+};
+const during = (seen, name) => { const { from, to } = phaseOf(seen, name); return seen.frames.filter(f => f.t >= from && f.t < to); };
+
+test('Uggeðla lies low in her reed: nothing of her shows over it but the top of her sail', async () => {
+  const { run, seen } = await reel();
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  assert.equal(run.task.done, true, `the reel was still going at ${run.stage.s.time.toFixed(1)} s`);
+  const her = run.world.actors.get('uggedla');
+  assert.equal(her.root.visible, true, 'she is there to be seen');
+  assert.ok(seen.lying.rest < seen.lying.reed - 0.1, `her back, head and tail reach ${seen.lying.rest.toFixed(2)} m, under the lowest reed top, ${seen.lying.reed.toFixed(2)} m`);
+  assert.ok(seen.lying.sail > seen.lying.reed + 1.5, `but her sail reaches ${seen.lying.sail.toFixed(2)} m, well over it`);
+  assert.equal(seen.jaw.lying < 1, true, 'her mouth is shut');
+});
+
+test('the sail rises out of the reed in four seconds, rustling, and stays up', async () => {
+  const { seen } = await reel();
+  const { from, to } = phaseOf(seen, 'rising');
+  assert.ok(Math.abs(to - from - 4) < 0.25, `the sail takes ${(to - from).toFixed(2)} s to rise`);
+  const rows = during(seen, 'rising').filter(f => f.sailTop !== undefined);
+  const before = seen.lying.sail, after = rows.at(-1).sailTop;
+  assert.ok(after - before > 0.8, `it rises ${(after - before).toFixed(2)} m`);
+  // it rises smoothly (never down, no jump) and it trembles: its top sways from side to side while it comes up
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i].sailTop >= rows[i - 1].sailTop - 0.02, `the sail dips at ${rows[i].t.toFixed(2)} s`);
+  assert.ok(rows.every((row, i) => i === 0 || row.sailTop - rows[i - 1].sailTop < 0.3), 'with no jump');
+  const later = seen.frames.filter(f => f.t > to + 0.1 && f.phase === 'head up' && f.sailTop !== undefined);
+  assert.ok(later.every(f => f.sailTop > after - 0.3), 'and it stays up');
+});
+
+test('her head comes up out of the water with a fish in her jaws, and she swallows it', async () => {
+  const { seen, run } = await reel();
+  const rows = during(seen, 'head up');
+  const low = seen.frames.find(f => f.phase === 'lying' && f.t > 2.8);
+  assert.ok(Math.max(...rows.map(r => r.head.y)) - low.head.y > 1.2, 'her head comes up out of the reed');
+  assert.ok(seen.jaw.headUp <= 12.01, `her jaw opens ${seen.jaw.headUp.toFixed(1)} degrees at most`);
+  const turn = Math.abs(((rows.at(-1).heading - rows[0].heading + 540) % 360) - 180);
+  assert.ok(turn > 20, `she turns ${turn.toFixed(0)} degrees, her sail with her`);
+  const fish = run.world.scene.getObjectByName('Uggeðla fish');
+  assert.ok(fish, 'there is a fish');
+  assert.equal(fish.visible, false, 'and it is gone, swallowed');
+  assert.ok(run.soundLog.some(e => e.name === 'splash' && e.at >= phaseOf(seen, 'head up').from && e.at < phaseOf(seen, 'head up').to + 1), 'a splash as the head breaks the water');
+});
+
+test('catching fish in the air: the jaw opens a little and never past 12 degrees, shuts on the fish, and her head is back after', async () => {
+  const { seen } = await reel();
+  assert.equal(seen.catches.length, CATCHES.length);
+  assert.ok(seen.jaw.catches <= 12.01, `her jaw opened ${seen.jaw.catches.toFixed(1)} degrees at the widest`);
+  assert.ok(seen.jaw.catches >= 6, 'wide enough to see');
+  const restHead = seen.frames.find(f => f.phase === 'head up' && f.t > phaseOf(seen, 'head up').to - 0.2).head;
+  for (const record of seen.catches) {
+    assert.equal(record.fish.calls, 1, `catch ${record.i}: the fish is told it is caught once`);
+    assert.ok(record.snap, `catch ${record.i}: the jaws shut`);
+    assert.ok(record.snap.distance <= 0.3, `catch ${record.i}: the fish is ${record.snap.distance.toFixed(2)} m from her snout's tip as the jaws close`);
+    assert.ok(record.snap.jaw <= 12.01, `catch ${record.i}: the jaw is open ${record.snap.jaw.toFixed(1)} degrees`);
+    assert.ok(record.end - record.start >= 1 && record.end - record.start <= 4.5, `catch ${record.i} takes ${(record.end - record.start).toFixed(1)} s`);
+    assert.ok(record.headBack.distanceTo(restHead) < 1.2, `catch ${record.i}: her head is back (${record.headBack.distanceTo(restHead).toFixed(2)} m from where it was)`);
+  }
+  // the fish is not in her mouth at the end
+  assert.equal(seen.world.scene.getObjectByName('Uggeðla fish').visible, false);
+  // a fish that is high in the air is not caught lower
+  const heights = seen.catches.map(r => r.fish.point.y);
+  assert.ok(heights[2] - heights[0] > 1.5, 'three different heights');
+});
+
+test('Egill sits on her back in front of her sail, never in her skin, while she swims ten metres with him', async () => {
+  const { seen } = await reel();
+  const { from, to } = phaseOf(seen, 'swim');
+  assert.ok(seen.meets.length >= 20, `${seen.meets.length} frames measured`);
+  for (const meet of seen.meets) {
+    assert.equal(meet.inside, 0, `at ${meet.t.toFixed(1)} s ${meet.inside} of his vertices are inside her, ${(meet.deepest * 100).toFixed(1)} cm at most`);
+    assert.ok(meet.air < 0.08, `at ${meet.t.toFixed(1)} s he sits ${(meet.air * 100).toFixed(1)} cm over her skin`);
+    assert.ok(meet.local.x > 2.3, `his middle is ${meet.local.x.toFixed(2)} m along her, her sail's front edge is at 2.3 m`);
+    assert.ok(Math.abs(meet.local.z) < 0.15, `and on her middle, ${meet.local.z.toFixed(2)} m aside`);
+  }
+  const travelled = during(seen, 'swim');
+  const metres = travelled.slice(1).reduce((sum, f, i) => sum + f.root.distanceTo(travelled[i].root), 0);
+  assert.ok(metres >= 10, `she swam ${metres.toFixed(1)} m with him (${(to - from).toFixed(1)} s)`);
+});
+
+test('she swims low along the line at the speed asked, her sail up and the water ringing round her', async () => {
+  const { seen, run } = await reel();
+  const rows = during(seen, 'swim');
+  const line = SWIM;
+  const apart = point => Math.min(...withMiddles(line).map(p => Math.hypot(p[0] - point.x, p[1] - point.z)));
+  const end = rows.at(-1).root;
+  assert.ok(Math.hypot(end.x - line.at(-1)[0], end.z - line.at(-1)[1]) < 0.6, 'she gets to the end of the line');
+  const body = rows.filter(f => f.t > rows[0].t + 3);
+  assert.ok(Math.max(...body.map(f => apart(f.root))) < 1.2, `she keeps to the line (${Math.max(...body.map(f => apart(f.root))).toFixed(2)} m at the furthest)`);
+  const steady = rows.filter(f => f.t > rows[0].t + 3 && f.t < rows.at(-1).t - 2);
+  const speed = steady.slice(1).reduce((sum, f, i) => sum + f.root.distanceTo(steady[i].root), 0) / (steady.at(-1).t - steady[0].t);
+  assert.ok(speed > 0.9 && speed < 1.4, `she swims at ${speed.toFixed(2)} m/s`);
+  // low: her root under the water, her sail well up
+  const level = WATER_LEVEL();
+  assert.ok(steady.every(f => f.root.y < level - 1), 'her root is a metre or more under the water');
+  assert.ok(steady.every(f => f.sailTop === undefined || f.sailTop > level + 4), 'with her sail up over it');
+  // rings on the water round her while she goes
+  const rings = seen.ripples.filter(r => r.at >= rows[0].t && r.at <= rows.at(-1).t);
+  assert.ok(rings.length >= 6, `${rings.length} rings on the water`);
+  const herAt = time => rows.reduce((best, f) => (Math.abs(f.t - time) < Math.abs(best.t - time) ? f : best), rows[0]).root;
+  for (const ring of rings) assert.ok(Math.hypot(ring.x - herAt(ring.at).x, ring.z - herAt(ring.at).z) < 10, `a ring ${ring.at.toFixed(1)} s in is ${Math.hypot(ring.x - herAt(ring.at).x, ring.z - herAt(ring.at).z).toFixed(1)} m from her`);
+  assert.equal(run.task.failed, false);
+});
+
+test('a tail stroke throws a splash at Mosi', async () => {
+  const { seen, run } = await reel();
+  const { from, to } = phaseOf(seen, 'splash');
+  const mosi = run.world.actors.get('mosi');
+  const rings = seen.ripples.filter(r => r.at >= from && r.at <= to + 1 && Math.hypot(r.x - mosi.root.position.x, r.z - mosi.root.position.z) < 4);
+  assert.ok(rings.length >= 1, 'a ring spreads on the water by him');
+  assert.ok(seen.sounds.some(e => e.name === 'splash' && e.at >= from && e.at <= to + 1), 'and the splash sounds');
+  const rows = seen.frames.filter(f => f.t >= from && f.t <= to && f.tail);
+  const sideways = Math.max(...rows.map(r => r.tail.distanceTo(rows[0].tail)));
+  assert.ok(sideways > 3, `her tail swings ${sideways.toFixed(1)} m`);
+  assert.ok(to - from < 5, `the stroke takes ${(to - from).toFixed(1)} s`);
+});
+
+test('her sail never tears, whatever she does: its top edge keeps its length and no triangle of it turns over', async () => {
+  const { seen } = await reel();
+  assert.ok(seen.gauge.length > 100);
+  for (const g of seen.gauge) {
+    assert.ok(g.ratio > 0.98 && g.ratio < 1.02, `at ${g.t.toFixed(1)} s (${g.phase}) the sail's top edge is ${(100 * (g.ratio - 1)).toFixed(1)} % long`);
+    assert.equal(g.turned, 0, `at ${g.t.toFixed(1)} s (${g.phase}) ${g.turned} sail triangles turn over`);
+  }
+});
+
+test('she is updated before the rider on her back, so that he sits where she is in the same frame', () => {
+  const order = Object.keys(chapter.actors);
+  assert.ok(order.indexOf('uggedla') < order.indexOf('egill'), `the actors are made in this order: ${order}`);
+});
+
+test('she lives in the water: rings by her, her sail swaying a little, nothing fast', async () => {
+  let seen = null;
+  const run = await inSiki(function* (s, c) { yield s.wait(24); }, {
+    limit: 40,
+    onFrame({ world, stage }) {
+      const c = world.chapterState;
+      if (!c?.uggedla) return;
+      seen ??= { top: [], rings: world.forest.water.ripples, parts: herParts(c.uggedla.raw), heads: [] };
+      c.uggedla.raw.root.updateMatrixWorld(true);
+      if (stage.s.time > 2) {
+        seen.top.push(seen.parts.mesh.getVertexPosition(seen.parts.sail[0], new V3()).applyMatrix4(seen.parts.mesh.matrixWorld).clone());
+        seen.heads.push(c.uggedla.raw.headPosition(new V3()));
+      }
+    },
+  });
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  const here = new V3(...xz(UGGEDLA_REED).flatMap((v, i) => (i ? [0, v] : [v])));
+  const near = seen.rings.filter(r => Math.hypot(r.x - here.x, r.z - here.z) < 9 && r.at > 2);
+  assert.ok(near.length >= 4, `${near.length} rings by her in 22 s`);
+  const span = Math.max(...seen.top.map(p => p.distanceTo(seen.top[0])));
+  assert.ok(span > 0.03 && span < 0.5, `her sail sways ${(span * 100).toFixed(0)} cm`);
+  const head = Math.max(...seen.heads.map(p => p.distanceTo(seen.heads[0])));
+  assert.ok(head < 1.2, `and she stays where she lies (her head moves ${head.toFixed(2)} m)`);
 });
