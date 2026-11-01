@@ -290,9 +290,10 @@ const _crowns = [];
  * moves need no rebuild), at the level of detail its distance calls for. Crowns are ranked by
  * projected size first: the few largest in view get the fine level (a capped number, so the cost
  * stays bounded), the rest the middle or far level. An empty mesh is hidden, so it costs no draw
- * call. Returns the number of triangles now submitted.
+ * call. `hide(range, mesh)`, if given, true leaves out more (a place that knows what its ground hides:
+ * world/ardalur/sight.js). Returns the number of triangles now submitted.
  */
-export function cullBatches(meshes, camera, margin = 1.5) {
+export function cullBatches(meshes, camera, margin = 1.5, hide = null) {
   _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_m4);
   _cam.setFromMatrixPosition(camera.matrixWorld);
@@ -331,6 +332,7 @@ export function cullBatches(meshes, camera, margin = 1.5) {
       _sphere.copy(r.sphere);
       _sphere.radius += margin;
       if (!_frustum.intersectsSphere(_sphere)) return;
+      if (hide && hide(r, mesh)) return;
       keep.push(r);
       signature = (Math.imul(signature, 31) + i + 1) | 0;
     });

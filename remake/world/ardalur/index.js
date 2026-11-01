@@ -15,6 +15,7 @@ import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './
 import { createRiverSurface, createFallsSlot, createPoolSurface } from './river.js';
 import { bankSteps, plantSteps } from './banks.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
+import { createGorgeSight, ABOVE_SECTOR } from './sight.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
@@ -101,6 +102,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
 
   const parts = sections.list.map(() => null); // each section's group once built
   const plantMeshes = sections.list.map(() => []); // each section's merged plant meshes (the real look), culled as the camera moves
+  // from down in the gorge the ground hides most plants above the falls: the cull leaves those out (sight.js)
+  const sight = real ? createGorgeSight(route, terrain, index) : null;
+  const hideAbove = (range, mesh) => mesh.userData.sector === ABOVE_SECTOR && sight.hidden(world.camera.position, range.sphere);
   const stats = { late: [], built: [], sections: parts };
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
@@ -143,9 +147,11 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     lastVisible = sections.update(u, near);
     parts.forEach((part, i) => { if (part) part.visible = sections.list[i].visible; });
     if (real) {
-      // the plants in view, at the detail their distance calls for (world/forest/batch.js); her downwash; the water's clock
+      // the plants in view, at the detail their distance calls for (world/forest/batch.js), but for those the gorge hides; her
+      // downwash; the water's clock
       world.camera.updateMatrixWorld();
-      for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera);
+      const hide = sight.active(camera) ? hideAbove : null;
+      for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide);
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
       else downwash.set(0, 0, 0, 0);

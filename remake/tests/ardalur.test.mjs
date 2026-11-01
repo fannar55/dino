@@ -5,9 +5,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, LEAP, FALLS } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, LEAP, FALLS, GORGE } from '../chapters/kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
+import { createGorgeSight, ABOVE_SECTOR } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
+import { createRouteIndex } from '../world/ardalur/terrain.js';
+import { cullBatches } from '../world/forest/batch.js';
 import { createLocations } from '../engine/locations.js';
 import { RAPIDS, flowAt, whiteAt } from '../world/ardalur/river.js';
 import { createWind } from '../engine/wind.js';
@@ -27,10 +30,12 @@ function litWorld() {
   };
 }
 let lit = null;
-/** The real valley, built once for the tests that only look at it. */
+let litWorldOf = null;
+/** The real valley, built once for the tests that only look at it (litWorldOf: its world, for the tests that move its camera). */
 function litValley() {
   if (!lit) {
-    lit = createArdalur(litWorld(), { grey: false, route });
+    litWorldOf = litWorld();
+    lit = createArdalur(litWorldOf, { grey: false, route });
     lit.buildAll();
   }
   return lit;
@@ -294,6 +299,84 @@ test('the reeds bend under her: the plants\' downwash follows her, 8 m round', (
   place.update(DT, 31);
   assert.equal(place.downwash.w, 0);
   place.dispose();
+});
+
+test('from down in the gorge the ground hides most plants above the falls: the cull leaves those out, and only those', () => {
+  const place = litValley();
+  const world = litWorldOf;
+  const { terrain } = place;
+  const sight = createGorgeSight(route, terrain, createRouteIndex(route));
+  const parts = place.stats.sections;
+  // the plants above the falls are batched on their own
+  const aboveMeshes = part => part.children.find(o => o.name === 'Árdalur plants').children.filter(mesh => mesh.userData.sector === ABOVE_SECTOR);
+  for (const part of parts) {
+    for (const p of part.userData.placements) assert.equal(p.sector === ABOVE_SECTOR, p.d > route.river.falls + 2, `a plant ${p.d.toFixed(1)} m up the river`);
+  }
+  const withAbove = parts.filter(part => aboveMeshes(part).length > 0);
+  assert.ok(withAbove.length >= 2, `${withAbove.length} sections have plants above the falls`);
+
+  // the view up the gorge at t 90 (the capture's camera): most of them are left out; a plain cull of the same view would draw them
+  const look = (x, y, z, tx, ty, tz, t) => {
+    world.flightU = route.progressAt(t);
+    world.flightPoint = null;
+    world.camera.position.set(x, y, z);
+    world.camera.lookAt(tx, ty, tz);
+    world.camera.updateMatrixWorld();
+    place.update(DT, t);
+  };
+  const drawn = () => withAbove.filter(part => part.visible)
+    .reduce((n, part) => n + aboveMeshes(part).reduce((m, mesh) => m + (mesh.visible ? mesh.geometry.drawRange.count / 3 : 0), 0), 0);
+  look(-1102.2, 15, 164.5, -1347, 50, 126, 90);
+  assert.ok(sight.active(world.camera.position), 'the rule is on down in the gorge');
+  const ruled = drawn();
+  for (const part of withAbove) if (part.visible) cullBatches(aboveMeshes(part), world.camera);
+  const plain = drawn();
+  assert.ok(plain > 30000, `a plain cull draws ${plain} triangles above the falls at t 90`);
+  assert.ok(ruled < plain * 0.25, `the rule draws ${ruled} of them`);
+  // over the lip, looking up the valley: the rule is off
+  look(-1350, 61, 125.6, -1470, 70, 92, 112);
+  assert.equal(sight.active(world.camera.position), false);
+  world.flightU = null;
+
+  // wherever the rule leaves a plant out, the ground truly hides it: cameras all down the gorge (three heights, three places across)
+  // and up the falls' face (her path and a chase camera's), and for each the line from the camera to the top of each plant left out
+  // (its crown and four points round it) must pass under the ground somewhere, the ground read every metre along it
+  const blocked = (c, x, y, z) => {
+    const D = Math.hypot(x - c.x, z - c.z);
+    for (let s = 1; s < D; s += 1) {
+      const k = s / D;
+      if (terrain.heightAt(c.x + (x - c.x) * k, c.z + (z - c.z) * k) > c.y + (y - c.y) * k + 0.3) return true;
+    }
+    return false;
+  };
+  const cameras = [];
+  for (let d = GORGE.from; d < route.river.falls; d += 60) {
+    const at = route.river.at(d);
+    for (const across of [-0.6, 0, 0.6]) {
+      for (const up of [1.5, 8, 20]) cameras.push(new THREE.Vector3(at.x - at.dir[1] * at.half * across, at.level + up, at.z + at.dir[0] * at.half * across));
+    }
+  }
+  for (const [x, y, z] of [[-1296, 14.6, 128.5], [-1318, 16, 127], [-1332, 22, 126.5], [-1338.5, 32, 126.2], [-1340.5, 43, 126]]) {
+    cameras.push(new THREE.Vector3(x, y, z), new THREE.Vector3(x + 8, y + 3, z));
+  }
+  const ranges = withAbove.flatMap(part => aboveMeshes(part).flatMap(mesh => mesh.userData.cull.ranges));
+  let hidden = 0;
+  let checked = 0;
+  for (const camera of cameras) {
+    if (!sight.active(camera)) continue;
+    const left = ranges.filter(r => sight.hidden(camera, r.sphere));
+    hidden += left.length;
+    const step = Math.max(1, Math.floor(left.length / 30));
+    for (let k = 0; k < left.length; k += step) {
+      const { center: { x, y, z }, radius: r } = left[k].sphere;
+      for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
+        checked++;
+        assert.ok(blocked(camera, x + ox, y + r, z + oz), `a plant at ${(x + ox).toFixed(1)}, ${(y + r).toFixed(1)}, ${(z + oz).toFixed(1)} is in sight of ${camera.toArray().map(v => v.toFixed(1))}`);
+      }
+    }
+  }
+  assert.ok(hidden > ranges.length * 10, `the rule left out ${hidden} plant pieces in all (${ranges.length} pieces, ${cameras.length} cameras)`);
+  assert.ok(checked > 3000, `${checked} sight lines checked`);
 });
 
 test('a location with build() is used instead of a forest layout', async () => {

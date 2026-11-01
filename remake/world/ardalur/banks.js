@@ -11,6 +11,7 @@ import { GRID } from './terrain.js';
 import { FOREST, FEN } from '../forest/config.js';
 import { createBatcher } from '../forest/batch.js';
 import { RAPIDS } from './river.js';
+import { aboveTheFalls, ABOVE_SECTOR } from './sight.js';
 
 // The stand-ins: [species, height range in metres, radius as a share of the height].
 const PLANTS = {
@@ -240,7 +241,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
           const model = models[0].model;
           placements.push({
             name, model, models, variant, lod: models[0].level, x: px, y: y - (model.sink ?? 0) * scale, z: pz, rot, scale, phase,
-            band: fine ? 'near' : 'far', sector: 0, sky: zone === 'fen' ? FEN.sky : 0.9, d: w.d,
+            band: fine ? 'near' : 'far', sector: aboveTheFalls(route, w.d) ? ABOVE_SECTOR : 0, sky: zone === 'fen' ? FEN.sky : 0.9, d: w.d,
           });
         }
       }
