@@ -180,8 +180,11 @@ function lodGeometries(geometry, eyes, levels = LEVELS) {
 // The shadow casters only take part in the sun's shadow pass. three builds the main render list
 // before it draws the shadow map, so a caster stays hidden while the list is built, is shown when
 // the sun's shadow pass starts (the light's updateMatrices runs then) and hides itself right after
-// it was drawn (the forest's casters work the same way, world/forest/forest.js).
+// it was drawn (the forest's casters work the same way, world/forest/forest.js). A caster none of whose
+// bones' spheres touch the shadow camera's box stays hidden: it would draw nothing into the map (a
+// character far below the one the shadow follows cost a few thousand triangles for nothing).
 const castersOf = new WeakMap(); // light -> Set of casters
+const entryOf = new WeakMap(); // caster -> its entry, for its bones
 const casterMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 casterMaterial.shadowSide = THREE.FrontSide; // as the characters' own skins (actor.js)
 
@@ -195,7 +198,13 @@ function shadowOnly(light, object) {
     const before = shadow.updateMatrices;
     shadow.updateMatrices = function characterShadowPass(l, viewport) {
       before.call(this, l, viewport);
-      if (l === light) for (const o of set) o.visible = shown(o);
+      if (l !== light) return;
+      // three brought every world matrix up to date before the shadow pass, so the bones are read as they are
+      const box = this.getFrustum();
+      for (const o of set) {
+        const e = entryOf.get(o);
+        o.visible = shown(o) && (!e || touches(e, box));
+      }
     };
   }
   object.visible = false;
@@ -241,6 +250,7 @@ export function prepareCharacter(model, light, { levels = LEVELS, casterLevel = 
       caster.scale.copy(mesh.scale);
       mesh.parent.add(caster);
       entry.caster = caster;
+      entryOf.set(caster, entry);
       entry.casters = shadowOnly(light, caster);
       mesh.castShadow = false;
     }
@@ -258,6 +268,11 @@ const frustum = new THREE.Frustum(), viewProjection = new THREE.Matrix4(), spher
 /** Is any of the skin in the view: does one of its bones' spheres, where the bones are now, touch it? */
 function inTheView(e) {
   for (const root of e.roots) root.updateWorldMatrix(true, true);
+  return touches(e, frustum);
+}
+
+/** Does one of the skin's bones' spheres, where the bones' world matrices put them, touch `box` (a frustum)? */
+function touches(e, box) {
   const bones = e.mesh.skeleton.bones;
   for (let b = 0; b < bones.length; b++) {
     const reach = e.reaches[b];
@@ -265,7 +280,7 @@ function inTheView(e) {
     const m = bones[b].matrixWorld;
     sphere.center.setFromMatrixPosition(m);
     sphere.radius = reach * m.getMaxScaleOnAxis() * BONE_REACH + BONE_MARGIN;
-    if (frustum.intersectsSphere(sphere)) return true;
+    if (box.intersectsSphere(sphere)) return true;
   }
   return false;
 }

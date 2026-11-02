@@ -229,20 +229,25 @@ export function createFarLand(world, route, { terrain, seed = 4 } = {}) {
     colours[v * 3 + 2] = colour[2];
   }
 
-  // The triangles: the middle's fan, then two a cell, facing up.
+  // The triangles, facing up, a column of cells at a time round the middle (column j: the bearings from segment j to j + 1, measured
+  // from +x toward +z): its triangle of the middle's fan, then two a cell outward. The index holds them twice over, so that the
+  // columns a view looks over are one run of it however they wrap round (slice(), below).
   const triangles = [];
-  for (let j = 0; j < S; j++) triangles.push(0, vertex(1, j + 1), vertex(1, j));
-  for (let i = 1; i < rings.length - 1; i++) {
-    for (let j = 0; j < S; j++) {
+  for (let j = 0; j < S; j++) {
+    triangles.push(0, vertex(1, j + 1), vertex(1, j));
+    for (let i = 1; i < rings.length - 1; i++) {
       const a = vertex(i, j), b = vertex(i, j + 1), c = vertex(i + 1, j), d = vertex(i + 1, j + 1);
       triangles.push(a, b, c, b, d, c);
     }
   }
+  const column = triangles.length / S; // indices a column
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
   geometry.setIndex(triangles);
   geometry.computeVertexNormals();
+  geometry.setIndex(triangles.concat(triangles));
+  geometry.setDrawRange(0, triangles.length);
   // bare rock where the land stands steep (the escarpment the falls drop over, the mountains' sides)
   const normal = geometry.attributes.normal;
   for (let v = 0; v < count; v++) {
@@ -272,6 +277,32 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
   ground.name = 'Far land';
   ground.castShadow = false;
   ground.receiveShadow = false;
+
+  // Only the slice of the land the view looks over is drawn (from G's start the land behind her was a quarter of the frame's
+  // triangles for nothing). The view's frustum seen from above is the hull of its eight corners, out to its far plane. Unless that
+  // hull holds the grid's middle, it lies within a wedge less than half round it: the columns from its corners' first bearing to
+  // their last, and one more each side. A wedge of half round or more, and the middle inside: all of it.
+  const corners = Array.from({ length: 8 }, () => new THREE.Vector3());
+  const bearings = new Float64Array(8);
+  function slice(camera) {
+    camera.updateMatrixWorld();
+    for (let k = 0; k < 8; k++) {
+      const c = corners[k].set(k & 1 ? 1 : -1, k & 2 ? 1 : -1, k & 4 ? 1 : -1).unproject(camera);
+      bearings[k] = Math.atan2(c.z - CENTRE[1], c.x - CENTRE[0]);
+    }
+    bearings.sort();
+    // the widest gap between neighbouring bearings is the side of the middle the view does not look over
+    let gap = bearings[0] + Math.PI * 2 - bearings[7];
+    let from = bearings[0];
+    for (let k = 0; k < 7; k++) if (bearings[k + 1] - bearings[k] > gap) { gap = bearings[k + 1] - bearings[k]; from = bearings[k + 1]; }
+    if (gap <= Math.PI) { geometry.setDrawRange(0, triangles.length); return; }
+    const u0 = (from / (Math.PI * 2)) * S; // in segments
+    const u1 = u0 + ((Math.PI * 2 - gap) / (Math.PI * 2)) * S;
+    const j0 = Math.floor(u0) - 1;
+    const n = Math.ceil(u1) + 1 - j0;
+    if (n >= S) geometry.setDrawRange(0, triangles.length);
+    else geometry.setDrawRange((((j0 % S) + S) % S) * column, n * column);
+  }
 
   /** The far land's surface at (x, z): the height its triangles draw there. */
   function heightAt(x, z) {
@@ -373,6 +404,8 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
     const dt = last === null ? 0 : Math.min(0.1, Math.max(0, t - last));
     last = t;
     if (!on) return;
+    if (camera) slice(camera);
+    else geometry.setDrawRange(0, triangles.length);
     glow.uniforms.uLevel.value = level(t);
     if (world.scene?.fog) {
       world.scene.fog.color.getRGB(fogColour, THREE.SRGBColorSpace);

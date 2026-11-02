@@ -761,10 +761,79 @@ test('the far land: the whole map, under the valley\'s own ground in its corrido
   far.group.traverse(o => {
     if (!o.isMesh && !o.isPoints) return;
     calls++;
-    if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+    if (o.isMesh) triangles += Math.min(o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count, o.geometry.drawRange.count) / 3;
   });
   assert.ok(triangles <= 25000, `${triangles} triangles`);
   assert.ok(calls <= 4, `${calls} draw calls`);
+  far.dispose();
+});
+
+test('the far land draws only the slice of itself the view looks over, never short of a triangle the view could see', () => {
+  const world = litWorld();
+  const terrain = createTerrain(route, { seed: 4 });
+  const far = createFarLand(world, route, { terrain });
+  far.show();
+  const geometry = far.ground.geometry;
+  const pos = geometry.attributes.position;
+  const all = Math.min(geometry.index.count, geometry.drawRange.count); // before any view: the whole land
+  const index = geometry.index.array;
+  const key = (a, b, c) => `${a},${b},${c}`;
+  const whole = [];
+  for (let i = 0; i < all; i += 3) whole.push([index[i], index[i + 1], index[i + 2]]);
+  const points = whole.map(t => t.map(v => new THREE.Vector3().fromBufferAttribute(pos, v)));
+  const frustum = new THREE.Frustum();
+  // is any of the triangle in the view: clipped by each of the frustum's planes in turn, does some of it stay?
+  const seen = corners => {
+    let poly = corners;
+    for (const plane of frustum.planes) {
+      const kept = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length];
+        const da = plane.distanceToPoint(a), db = plane.distanceToPoint(b);
+        if (da >= 0) kept.push(a);
+        if ((da >= 0) !== (db >= 0)) kept.push(a.clone().lerp(b, da / (da - db)));
+      }
+      poly = kept;
+      if (!poly.length) return false;
+    }
+    return true;
+  };
+  const look = (t, from, at, aspect, fov) => {
+    const camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 1000);
+    camera.position.copy(from);
+    camera.lookAt(at);
+    far.update(t, camera); // sets the camera's far plane for the land, then picks the slice for this view
+    camera.updateMatrixWorld();
+    frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const start = geometry.drawRange.start;
+    const end = Math.min(start + geometry.drawRange.count, index.length);
+    const drawn = new Set();
+    for (let i = start; i < end; i += 3) drawn.add(key(index[i], index[i + 1], index[i + 2]));
+    const missed = whole.filter((tri, n) => !drawn.has(key(...tri)) && seen(points[n])).length;
+    assert.equal(missed, 0, `${missed} triangles in the view at ${t} s are not drawn`);
+    return (end - start) / 3;
+  };
+  // G's start, the chase camera behind her along her way (both frame shapes): a slice, not the whole land
+  const chase = (t, aspect) => {
+    const p = route.pointAt(route.progressAt(t));
+    const d = route.tangentAt(route.progressAt(t)).setY(0).normalize();
+    return look(t, p.clone().addScaledVector(d, -6.5).add(new THREE.Vector3(0, 5, 0)), p.clone().addScaledVector(d, 12), aspect, 50);
+  };
+  for (const [t, aspect] of [[154.5, 1.6], [155.5, 0.625], [156.5, 1.6]]) {
+    const drawn = chase(t, aspect);
+    assert.ok(drawn <= 6000, `${drawn} of ${all / 3} triangles drawn at ${t} s (${aspect})`);
+  }
+  // the camera turning on the spot, anywhere over F and G: never a triangle short
+  for (const t of [120, 128.5, 139, 146, 160, 165]) {
+    const p = route.pointAt(route.progressAt(t));
+    for (let yaw = 0; yaw < 360; yaw += 15) {
+      const a = THREE.MathUtils.degToRad(yaw);
+      look(t, p, new THREE.Vector3(p.x + Math.cos(a) * 50, p.y - 12, p.z + Math.sin(a) * 50), 1.6, 55);
+    }
+  }
+  // looking down over the grid's middle: all of it
+  const middle = new THREE.Vector3(-1250, far.heightAt(-1250, 90) + 200, 90);
+  assert.equal(look(140, middle, new THREE.Vector3(-1250, 0, 140), 1.6, 55), all / 3);
   far.dispose();
 });
 
