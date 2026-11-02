@@ -182,12 +182,15 @@ export function holdHer(c) {
  * easing off and easing in at the end, facing along the way, banked into its turns and tipped with its climbs, and turned to `face`
  * (degrees) over the last `turn` of the way when it is given (she lands and turns on the spot). She sets off facing the way she
  * faced, and turns to the way over its first `turnIn`. `clips`: [share of the time, clip, fade] as she goes (glide, fly, takeOff,
- * land). A generator: yield* it. Each frame's place is in c.flying while she flies.
+ * land). With `speed` (m/s) she comes onto the way already flying at it, from a flight, and only slows, to rest at its end: the way
+ * then takes landingTime(points, speed) seconds, not `seconds`. A generator: yield* it. Each frame's place is in c.flying while she
+ * flies.
  */
-export function* flyPath(s, c, held, { points, seconds, clips = [], face = null, turn = 0.2, turnIn = 0.2 }) {
+export function* flyPath(s, c, held, { points, seconds, clips = [], face = null, turn = 0.2, turnIn = 0.2, speed: from = 0 }) {
   const her = c.flugedla.raw;
-  const curve = new THREE.CatmullRomCurve3(points.map(p => new V3(...p)), false, 'centripetal');
+  const curve = pathCurve(points);
   const length = curve.getLength();
+  if (from > 0) seconds = (2 * length) / from;
   const step = 1.5 / length; // of the way: 1.5 m
   const at = new V3(), a = new V3(), b = new V3(), body = new V3();
   const q = new THREE.Quaternion(), r = new THREE.Quaternion();
@@ -213,8 +216,9 @@ export function* flyPath(s, c, held, { points, seconds, clips = [], face = null,
           her.play(name, { fade });
         }
       });
-      const k = u * u * (3 - 2 * u);
-      const speed = (length * 6 * u * (1 - u)) / seconds; // m/s along the way
+      // eased off and in; or, coming from a flight, slowing evenly from `from` to rest
+      const k = from > 0 ? 1 - (1 - u) * (1 - u) : u * u * (3 - 2 * u);
+      const speed = from > 0 ? from * (1 - u) : (length * 6 * u * (1 - u)) / seconds; // m/s along the way
       // a turn's bank (as the flier's: the turn's rate at this speed against gravity) and a climb's pitch, both easing in and out
       const rate = wrap(along(k + step) - along(k - step)) / (2 * step * length); // radians a metre
       let heading = along(k);
@@ -243,6 +247,24 @@ export function* flyPath(s, c, held, { points, seconds, clips = [], face = null,
   } finally {
     if (c.flying === flying) c.flying = null;
   }
+}
+
+/** The way flyPath flies through `points` ([x, y, z] each): a centripetal Catmull–Rom curve. */
+export function pathCurve(points) {
+  return new THREE.CatmullRomCurve3(points.map(p => new V3(...p)), false, 'centripetal');
+}
+
+/**
+ * Coming onto `points` at `speed` (flyPath's speed): the seconds the way takes, and when (seconds from its start) her feet first come
+ * down to `level` on it, or null if they never do.
+ */
+export function landingTime(points, speed, level) {
+  const curve = pathCurve(points);
+  const seconds = (2 * curve.getLength()) / speed;
+  const at = new V3();
+  let k = null;
+  for (let i = 0; i <= 400 && k === null; i++) if (curve.getPointAt(i / 400, at).y <= level) k = i / 400;
+  return { seconds, touch: k === null ? null : seconds * (1 - Math.sqrt(1 - k)) };
 }
 
 /**

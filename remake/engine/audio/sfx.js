@@ -33,6 +33,9 @@ const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic
 const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
 const BEDS = ['forest', 'fen'];
 const CROSS_FADE = 0.8; // the time constant (s) of a bed fading out as the other comes in: about three seconds
+// Slóeðla's horn (the horn sound): its note (D3, Hz), how long it lasts, where it slips to (of the note: flatter than a semitone, short
+// of a whole tone) and sinks to, its peak gain, and its echo off the far bank ([seconds, gain]).
+const HORN = { note: 146.83, seconds: 2.8, wrong: 0.93, sinks: 0.84, level: 0.14, echo: [0.32, 0.25] };
 const FEN_IN = 2.5; // seconds the Fen's water takes to come in
 
 /**
@@ -390,6 +393,74 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       [0, 1, 2, 3, 4].forEach((n, i) => bell(key[n], { delay: i * 0.32, level: 0.045, duration: 1.1, pan: (i - 2) * 0.12 }));
       tone({ frequency: key[0] * 2, end: key[0] * 4, duration: 1.8, level: 0.025, attack: 0.5, body: 0.6, sustain: 0.8 });
       bell(key[0] * 2, { delay: 1.7, level: 0.05, duration: 1.2 });
+    },
+    // Slóeðla's horn from the reed across the far pool (chapter 4's end; chapter 5 begins with it): she cannot remember her song, and
+    // the one long note through her hollow crest will not hold. It comes in from a little under, holds, slips flat (less than a whole
+    // tone: false, not another note) with a wobble that widens, and sinks away. Low and dull, far off, from the side `pan` says.
+    sloedlaHorn({ pan = 0, level = HORN.level } = {}) {
+      const at = context.currentTime + 0.02;
+      const f = HORN.note;
+      const end = at + HORN.seconds;
+      const volume = context.createGain();
+      const g = volume.gain;
+      g.setValueAtTime(0, at);
+      g.linearRampToValueAtTime(level, at + 0.18);
+      g.linearRampToValueAtTime(level * 0.9, at + 1.0);
+      g.linearRampToValueAtTime(level * 0.75, at + 2.0);
+      g.exponentialRampToValueAtTime(0.0001, end);
+      const crest = context.createBiquadFilter(); // her crest: a closed, ringing lowpass that opens with her breath and closes as it sinks
+      crest.type = 'lowpass';
+      crest.Q.value = 3;
+      crest.frequency.setValueAtTime(380, at);
+      crest.frequency.linearRampToValueAtTime(900, at + 0.25);
+      crest.frequency.linearRampToValueAtTime(700, at + 1.6);
+      crest.frequency.linearRampToValueAtTime(300, end);
+      crest.connect(volume);
+      const wobble = context.createOscillator();
+      wobble.frequency.setValueAtTime(5.2, at);
+      const depth = context.createGain();
+      depth.gain.setValueAtTime(0, at);
+      depth.gain.linearRampToValueAtTime(0, at + 0.5);
+      depth.gain.linearRampToValueAtTime(f * 0.012, at + 1.0);
+      depth.gain.linearRampToValueAtTime(f * 0.03, at + 1.8);
+      wobble.connect(depth);
+      // the note, and the hollow an octave under it
+      const voices = [['sawtooth', 1, 1], ['sine', 0.5, 0.7]].map(([type, share, gain]) => {
+        const voice = context.createOscillator();
+        voice.type = type;
+        const hz = voice.frequency;
+        hz.setValueAtTime(f * share * 0.94, at);
+        hz.linearRampToValueAtTime(f * share, at + 0.12);
+        hz.setValueAtTime(f * share, at + 0.9);
+        hz.linearRampToValueAtTime(f * share * HORN.wrong, at + 1.6);
+        hz.setValueAtTime(f * share * HORN.wrong, at + 2.1);
+        hz.linearRampToValueAtTime(f * share * HORN.sinks, end);
+        depth.connect(hz);
+        const mix = context.createGain();
+        mix.gain.value = gain;
+        voice.connect(mix);
+        mix.connect(crest);
+        return [voice, mix];
+      });
+      const out = [crest, volume, ...outlet(volume, pan, master)];
+      // and an echo off the far bank, when the page can make one
+      if (context.createDelay) {
+        const delay = context.createDelay(1);
+        delay.delayTime.value = HORN.echo[0];
+        const back = context.createGain();
+        back.gain.value = HORN.echo[1];
+        volume.connect(delay);
+        delay.connect(back);
+        out.push(delay, back, ...outlet(back, pan * 0.5, master));
+      }
+      track(wobble, [depth]);
+      voices.forEach(([voice, mix], i) => track(voice, i === 0 ? [mix, ...out] : [mix]));
+      for (const source of [wobble, ...voices.map(([voice]) => voice)]) {
+        source.start(at);
+        source.stop(end + HORN.echo[0] + 0.2); // with the echo's tail
+      }
+      // her breath into the crest as the note begins
+      noise({ kind: 'white', type: 'bandpass', frequency: 1100, end: 700, q: 1, duration: 0.45, level: level * 0.25, attack: 0.05, pan });
     },
     // The map is laid out over the game (the map in the journey, engine/book/map-moment.js, which asks the journal's audio for it as
     // the map slides up in 0.6 s): a soft paper unroll, a band of noise that swells and climbs for half a second, and the last rustle

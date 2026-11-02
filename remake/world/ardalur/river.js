@@ -1,6 +1,6 @@
 // The water of Árdalurinn (chapter 4's flight): the river as one ribbon at its level from the Fen to above the falls, broken at the
-// lip; the falling water as a plane in front of the cliff; the far pool as a disc. The whole river is one draw call, cheaper than a
-// piece per section.
+// lip; the falling water as a plane in front of the cliff; the far pool as a disc, and its own beds of reed (poolPlants). The whole
+// river is one draw call, cheaper than a piece per section.
 //
 // The ribbon is five vertices across, each carrying what the game's water (world/props/water.js) draws from: aWater (its distance to
 // the shore, negative inside, its depth, and its white water, 0 to 1) and aFlow (the way and the speed it runs, m/s). The river is
@@ -9,6 +9,7 @@
 // and is full in it and in the plunge pool; there is none in the lazy reach nor above the falls (the lip's foam is the falls').
 import * as THREE from 'three';
 import { RIVER, GORGE } from '../../chapters/kafli4-route.js';
+import { FOREST } from '../forest/config.js';
 
 const STEP = 3; // metres between the ribbon's rows
 const ACROSS = [-1, -0.5, 0, 0.5, 1]; // the ribbon's vertices across the river, as shares of its half width
@@ -101,6 +102,55 @@ export function createFallsSlot(falls, material) {
   mesh.name = 'Árdalur falls (slot)';
   mesh.position.set(falls.face - 0.5, (falls.top + falls.base) / 2, falls.z);
   return mesh;
+}
+
+/**
+ * The far pool's own plants (route.pool, chapters/kafli4-route.js: FAR_POOL): its beds of reed, set out the same way each time, as
+ * props for the banks to grow (banks.js: plantSteps), and where no other plant may grow (`keep`: a way to walk, a spot to stand on, a
+ * camera's place; and each bed), as the banks' `clear`. A bed's `lane` ({ from, to, wide }) is a way through it with no reed in it.
+ * Returns { props, clear }.
+ */
+export function poolPlants(pool, heightAt) {
+  const props = [];
+  const clear = [];
+  const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+  (pool.reeds ?? []).forEach((bed, b) => {
+    for (let i = 0; i < bed.count; i++) {
+      const k = (i + 0.5) / bed.count;
+      const angle = i * GOLDEN + b;
+      const r = bed.radius * Math.sqrt(k) + 0.35 * Math.sin(i * 12.9898 + b * 78.233); // a sunflower's spiral, a little uneven
+      const x = bed.at[0] + r * Math.cos(angle);
+      const z = bed.at[1] + r * Math.sin(angle);
+      if (bed.lane && fromSegment(x, z, bed.lane.from, bed.lane.to) < bed.lane.wide) continue;
+      const every = bed.tallEvery ?? 3;
+      const tall = i % every === every - 1; // a tall horsetail in every `every`, the rest reed
+      const name = tall ? 'horsetailTall' : 'horsetailReed';
+      const variant = i % FOREST.trees.variants[name];
+      props.push({ name, variant, x, y: heightAt(x, z), z, rot: (angle * 3.1) % (2 * Math.PI), scale: 0.95 + 0.3 * ((i * 7) % 5) / 4 });
+    }
+    clear.push({ x: bed.at[0], z: bed.at[1], r: bed.radius + 0.5 });
+  });
+  for (const spot of pool.keep ?? []) {
+    if (spot.at) {
+      clear.push({ x: spot.at[0], z: spot.at[1], r: spot.r });
+      continue;
+    }
+    const length = Math.hypot(spot.to[0] - spot.from[0], spot.to[1] - spot.from[1]);
+    const steps = Math.max(1, Math.ceil(length / spot.r));
+    for (let i = 0; i <= steps; i++) {
+      const k = i / steps;
+      clear.push({ x: spot.from[0] + (spot.to[0] - spot.from[0]) * k, z: spot.from[1] + (spot.to[1] - spot.from[1]) * k, r: spot.r });
+    }
+  }
+  return { props, clear };
+}
+
+/** How far (x, z) is from the segment from `a` to `b` ([x, z] each), seen from above. */
+function fromSegment(x, z, a, b) {
+  const dx = b[0] - a[0];
+  const dz = b[1] - a[1];
+  const k = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(x - a[0] - dx * k, z - a[1] - dz * k);
 }
 
 /** The far pool's surface (with the water's aWater and aFlow when drawn as water: a still pool, its shore fading in). */

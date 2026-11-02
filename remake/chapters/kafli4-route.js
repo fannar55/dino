@@ -58,6 +58,55 @@ export const GORGE = { from: 890, to: 1225, wall: [30, 45] };
 export const POOL = { center: [-952, 70], radius: 26, level: 5.4 };
 
 // ---------------------------------------------------------------------------------------------
+// The far pool as a place: scene 7 (kafli4.js) lands her there, and chapter 5 begins there. Its spots are [x, z], each a way round the
+// pool's middle (degrees from +X toward +Z) and a distance from it. The early afternoon sun (heading 215) shines from the north-west,
+// so they gather on the south-east bank and look across the pool, the sun on their faces, to the reed the horn comes from; each shot
+// has the sun behind it. Its shallows are 0.2 to 1.2 m deep (world/ardalur/terrain.js: the basin), a ring of reed grows round it, and
+// two beds of reed of its own (world/ardalur/river.js: poolPlants): the one Mosi comes out of, and the far one Slóeðla blows from.
+const around = (angle, distance) => [
+  POOL.center[0] + distance * Math.cos((angle * Math.PI) / 180),
+  POOL.center[1] + distance * Math.sin((angle * Math.PI) / 180),
+];
+const up = ([x, z], y) => [x, y, z];
+const POOL_SPOTS = {
+  landing: around(62, 23.5), // her feet in the shallows, in 0.65 m of water
+  bank: around(50, 27.2), // where Egill floats down to, on the bank 6.5 m from her
+  mosi: around(45, 30), // where Mosi stops, by Egill, to look across the pool
+  reed: around(46.4, 35.4), // the reed behind them he comes out of, out of breath, walking straight on to his spot
+  farReed: around(240, 31), // the reed across the pool, where the horn sounds (Slóeðla, unseen)
+};
+export const FAR_POOL = {
+  center: [...POOL.center], radius: POOL.radius, level: POOL.level,
+  ...POOL_SPOTS,
+  facing: 5, // the way she faces in the shallows (degrees): along the bank, toward Egill's spot
+  // the beds of reed: `count` plants within `radius` of `at`, a tall horsetail in every `tallEvery` (3 if not given); Mosi's has his way
+  // out of it (`lane`: from, to, half its width) clear. The far one is thick and tall: something could hide in it.
+  reeds: [
+    { at: around(47, 36.2), radius: 4.2, count: 16, lane: { from: around(46.6, 39.6), to: POOL_SPOTS.mosi, wide: 1.8 } },
+    { at: POOL_SPOTS.farReed, radius: 7, count: 64, tallEvery: 2 },
+  ],
+  // where no other plant grows: Mosi's way out (from behind the reed to his spot), Egill's spot, and where the cameras stand
+  keep: [
+    { from: around(46.6, 39.6), to: POOL_SPOTS.mosi, r: 2.4 },
+    { at: POOL_SPOTS.bank, r: 2.2 },
+    { at: around(130, 30), r: 3.5 },
+    { at: around(44.6, 16.5), r: 2 },
+  ],
+  // The glide in (scene 7): a camera on the north-west bank turns to follow her as she comes in over the water, left to right
+  glide: { position: up(around(130, 30), 7.4), fov: 40 },
+  shots: {
+    // She stands in the shallows at the right, Egill floats down onto the bank in the middle, and Mosi comes out of the reed behind
+    // him: from low over the water, 11 m out from the pool's middle.
+    pool_bank: { position: up(around(52, 11.4), 7.0), target: up(around(49, 27.2), 6.5), fov: 46 },
+    // The reed across the pool, where the horn comes from: from over the water on the pool's west side, the sun off to the right.
+    pool_reed: { position: up(around(186.3, 18.1), 6.9), target: up(POOL_SPOTS.farReed, 6.8), fov: 36 },
+    // Egill and Mosi, from in front of them over the shallows, as they look across the pool past us: the horn, and their lines. Far
+    // enough out that Mosi's head, reaching toward us, stays in the picture.
+    pool_horn: { position: up(around(44.6, 16.5), 6.8), target: up(around(46.8, 26.6), 7.4), fov: 44 },
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
 // Her path: [name, x, y, z]. A name marks a point the schedule (KEYS) pins to a time, or that a shot or a test refers to.
 const body = (x, level, alt, z) => [x, level + alt, z];
 export const POINTS = [
@@ -335,6 +384,7 @@ export function createRoute({ wingspan = 7.5 } = {}) {
     distanceAt, speedAt, progressAt, pointAt, tangentAt, nearestU, riverLevelAt, waterAt, beatAt, uOf,
     lanes, groups, cameos: { bank, rim },
     tree: [...TREE],
-    pool: { center: [...POOL.center], radius: POOL.radius, level: POOL.level },
+    // the far pool, with what grows in it and round it (world/ardalur/river.js: poolPlants)
+    pool: { center: [...POOL.center], radius: POOL.radius, level: POOL.level, reeds: FAR_POOL.reeds, keep: FAR_POOL.keep },
   };
 }

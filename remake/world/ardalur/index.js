@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { createRoute, BEATS } from '../../chapters/kafli4-route.js';
 import { createSections, createBuildQueue, finish } from './sections.js';
 import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './terrain.js';
-import { createRiverSurface, createFallsSlot, createPoolSurface } from './river.js';
+import { createRiverSurface, createFallsSlot, createPoolSurface, poolPlants } from './river.js';
 import { bankSteps, plantSteps } from './banks.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
 import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
@@ -59,6 +59,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   // the animal groups of C (animals.js), in the real look; the grey one has their marks
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library }) : null;
   if (animals) group.add(animals.group);
+  // the far pool's beds of reed, and where nothing else grows by it (river.js): grown with the banks, as the animals' props are
+  const pond = real ? poolPlants(route.pool, (x, z) => terrain.heightAt(x, z)) : null;
+  const props = real ? [...animals.props, ...pond.props] : [];
+  const clear = real ? [...animals.clear, ...pond.clear] : [];
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
@@ -137,7 +141,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const banks = grey
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
-        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props: animals.props, clear: animals.clear,
+        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear,
       });
     return { ground, banks };
   }

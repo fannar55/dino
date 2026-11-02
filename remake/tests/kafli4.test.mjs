@@ -12,11 +12,14 @@ import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { FLIGHT_WORDS } from '../chapters/kafli4-flight.js';
+import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js';
+import { createTerrain } from '../world/ardalur/terrain.js';
+import { poolPlants } from '../world/ardalur/river.js';
 import fs from 'node:fs';
 
 // Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
-// as it was, and the white tree's own patch of fen), the camera rules of its shots, and its first two scenes played through by nobody
-// (tests/chapter-harness.mjs). The flight has its own tests (flug.test.mjs and the rest).
+// as it was, the white tree's own patch of fen, and the far pool), the camera rules of its shots, and the whole chapter played through
+// by nobody (tests/chapter-harness.mjs). The flight has its own tests (flug.test.mjs and the rest).
 
 const { chapter } = kafli4;
 const V3 = THREE.Vector3;
@@ -202,6 +205,7 @@ test('every fixed shot keeps the camera rules over its ground', () => {
 const NEW_SHOTS = new Set([
   ...Object.keys(chapter.locations.fen.shots).filter(name => !kafli3.chapter.locations.fen.shots[name]),
   ...Object.keys(chapter.locations.hvitatre.shots),
+  ...Object.keys(chapter.locations.ardalur.shots), // the far pool's (scene 7): the flight's own are the flight camera's
 ]);
 // Who each new shot must show whole enough to read: a point of each, in the frame.
 const SUBJECTS = {
@@ -216,10 +220,10 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = {}) {
-  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null };
+  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null };
   let where = null;
   return playUnattended(kafli4, {
-    limit: 560, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
+    limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
     onFrame({ world, director, pointer, ui, shot: label }) {
       const c = world.chapterState;
       if (label && NEW_SHOTS.has(label) && director.mode === 'hold') { // held on the shot (a move or a follow from it frames others)
@@ -283,6 +287,15 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
         seen.switched = { t: world.clock.time, controlled: egill.controlled, fromSeat: egill.root.position.distanceTo(spine), shot: director.mode, before: seen.lastRound, after: round() };
       }
       if (world.location === 'hvitatre' && scene >= 5) seen.lastRound = round();
+      // the flight's last frame, and scene 7 at the far pool: where she, Egill and Mosi are, frame by frame
+      if (scene === 6 && world.location === 'ardalur') seen.flown = her.root.position.clone();
+      if (scene === 7) {
+        const mosi = world.actors.get('mosi');
+        seen.pool.push({
+          t: world.clock.time, her: her.root.position.clone(), egill: egill.root.position.clone(), riding: egill.controlled,
+          mosi: mosi.root.position.clone(), mosiShown: mosi.root.visible, fade: ui.fadeLevel,
+        });
+      }
       where = world.location;
     },
   }).then(run => ({ ...run, watched: seen }));
@@ -292,15 +305,17 @@ const playWide = () => (wide ??= playIt());
 const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
 const playTapped = () => (tapped ??= playIt({ tap: true }));
 
-test('scenes 1 to 6 play in order, from the Fen to the white tree and up into the flight over Árdalurinn', async () => {
+test('scenes 1 to 7 play in order, from the Fen to the white tree, up into the flight over Árdalurinn and down at the far pool', async () => {
   const { task, stage, world } = await playWide();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   const scenes = world.chapterTimeline.filter(mark => typeof mark.scene === 'number');
-  assert.deepEqual(scenes.map(mark => mark.scene), [1, 2, 3, 4, 5, 6]);
-  assert.deepEqual(world.chapterTimeline.filter(mark => typeof mark.scene === 'string').map(mark => mark.scene), ['A', 'B', 'C', 'D', 'E', 'F', 'G'], 'the flight\'s beats after scene 6');
+  assert.deepEqual(scenes.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(world.chapterTimeline.filter(mark => typeof mark.scene === 'string').map(mark => mark.scene), ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'end'], 'the flight\'s beats after scene 6, and the end');
   assert.equal(world.location, 'ardalur');
-  const [one, two, three, four, five, six] = scenes.map(mark => mark.at);
+  const [one, two, three, four, five, six, seven] = scenes.map(mark => mark.at);
+  const end = world.chapterTimeline.at(-1).at;
+  assert.ok(end - seven >= 25 && end - seven <= 60, `scene 7 takes ${(end - seven).toFixed(1)} s (spec: about 45)`);
   assert.ok(two - one >= 30 && two - one <= 70, `scene 1 takes ${(two - one).toFixed(1)} s (spec: about 45)`);
   assert.ok(three - two >= 20 && three - two <= 70, `scene 2 takes ${(three - two).toFixed(1)} s (spec: about 45)`);
   assert.ok(five - four >= 18 && five - four <= 50, `scene 4 takes ${(five - four).toFixed(1)} s (spec: about 30)`);
@@ -315,7 +330,7 @@ test('every caption is words, never a line id: the flight\'s lines are the chapt
   assert.deepEqual(captions.filter(c => /^k\d_[a-z]+_/.test(c.text)).map(c => c.text), [], 'no caption shows an id');
 });
 
-test('every new Fen shot keeps the director quiet at 16:10 and upright, and shows whom it is for', async () => {
+test('every new shot, the Fen\'s, the white tree\'s and the far pool\'s, keeps the director quiet at 16:10 and upright, and shows whom it is for', async () => {
   for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
     const { director, watched, task } = await play();
     assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
@@ -529,4 +544,161 @@ test('Egill is on her back before the place changes, and nothing goes black betw
     assert.deepEqual(dark.map(f => `${f.t.toFixed(2)} s ${f.level.toFixed(2)} in ${f.where}`), [], `no black from scene 5 to the flight (${shape})`);
     assert.ok(fades.some(f => f.where === 'ardalur'), 'watched into the flight');
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 7 (spec 4.7): she lands in the far pool with a splash and Egill floats down onto its bank; Mosi comes out of the reed, out of
+// breath; Slóeðla's horn sounds from the reed across the pool, false; and the chapter ends as chapter 3 does, in the book.
+
+const toPool = p => Math.hypot((p.x ?? p[0]) - FAR_POOL.center[0], (p.z ?? p[1]) - FAR_POOL.center[1]);
+
+test('the far pool is a place of its own (chapter 5 begins there): the route\'s pool, its spots, and the shots scene 7 uses', () => {
+  assert.deepEqual(FAR_POOL.center, POOL.center);
+  assert.equal(FAR_POOL.radius, POOL.radius);
+  assert.equal(FAR_POOL.level, POOL.level);
+  assert.ok(Object.keys(FAR_POOL.shots).length >= 3, 'its shots');
+  assert.deepEqual(chapter.locations.ardalur.shots, FAR_POOL.shots, 'the valley\'s fixed shots are the pool\'s');
+  for (const name of Object.keys(FAR_POOL.shots)) assert.ok(Array.isArray(kafli4.SHOWS[name]), `${name} says whom it shows (the far reed: nobody)`);
+  const terrain = createTerrain(createRoute({ wingspan: 7.5 }));
+  const depth = ([x, z]) => FAR_POOL.level - terrain.heightAt(x, z);
+  assert.ok(toPool(FAR_POOL.landing) < FAR_POOL.radius && depth(FAR_POOL.landing) > 0.2 && depth(FAR_POOL.landing) < 0.9, `she lands in the shallows: ${depth(FAR_POOL.landing).toFixed(2)} m of water`);
+  for (const spot of ['bank', 'mosi', 'reed', 'farReed']) assert.ok(toPool(FAR_POOL[spot]) > FAR_POOL.radius + 0.5 && depth(FAR_POOL[spot]) < 0, `${spot} is on dry land by the water`);
+  const way = ([x, z]) => Math.atan2(z - FAR_POOL.center[1], x - FAR_POOL.center[0]);
+  const apart = Math.abs((((way(FAR_POOL.farReed) - way(FAR_POOL.bank)) * 180) / Math.PI + 540) % 360 - 180);
+  assert.ok(apart > 120, `the far reed is across the pool from them: ${apart.toFixed(0)} degrees round it`);
+  for (const spot of ['reed', 'farReed']) assert.ok(FAR_POOL.reeds.some(bed => Math.hypot(bed.at[0] - FAR_POOL[spot][0], bed.at[1] - FAR_POOL[spot][1]) < bed.radius), `a bed of reed at ${spot}`);
+});
+
+test('the far pool\'s reed: thick and tall across the pool, none in Mosi\'s way out nor on Egill\'s spot, and nothing else grows in it', () => {
+  const ground = (x, z) => 5 + x * 0.001 + z * 0.002;
+  const { props, clear } = poolPlants(FAR_POOL, ground);
+  const near = (p, [x, z], r) => Math.hypot(p.x - x, p.z - z) < r;
+  const far = props.filter(p => near(p, FAR_POOL.farReed, 8));
+  assert.ok(far.length >= 50, `the far bed: ${far.length} plants`);
+  assert.ok(far.filter(p => p.name === 'horsetailTall').length >= far.length * 0.45, 'half of it tall horsetail');
+  for (const p of props) {
+    assert.ok(['horsetailReed', 'horsetailTall'].includes(p.name) && Number.isInteger(p.variant) && p.variant >= 0, `a known plant: ${p.name} ${p.variant}`);
+    assert.equal(p.y, ground(p.x, p.z), 'on the ground');
+    assert.ok(!near(p, FAR_POOL.mosi, 1.8) && !near(p, FAR_POOL.bank, 2.2), 'not where Mosi and Egill stand');
+  }
+  const [bed] = FAR_POOL.reeds;
+  const [ax, az] = bed.lane.from, [bx, bz] = bed.lane.to;
+  for (let k = 0; k <= 1; k += 0.05) {
+    const at = [ax + (bx - ax) * k, az + (bz - az) * k];
+    assert.ok(!props.some(p => near(p, at, bed.lane.wide - 0.05)), `Mosi's way out is clear ${k.toFixed(2)} along it`);
+    assert.ok(clear.some(c => Math.hypot(c.x - at[0], c.z - at[1]) <= c.r), 'and kept clear of the banks\' own plants');
+  }
+  for (const b of FAR_POOL.reeds) assert.ok(clear.some(c => c.x === b.at[0] && c.z === b.at[1] && c.r > b.radius), 'no other plant inside a bed');
+});
+
+test('the whole chapter plays unattended in order with no warnings, at 16:10 and upright', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { task, world, director } = await play();
+    assert.equal(task.done, true, `it ends (${shape})`);
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    assert.deepEqual(world.chapterTimeline.map(mark => mark.scene).filter(n => typeof n === 'number'), [1, 2, 3, 4, 5, 6, 7]);
+    assert.deepEqual(director.warnings, [], `the director at ${shape}`);
+  }
+});
+
+// The chapter as it plays for a child who touches nothing, in time (not seeking, as a capture does): the sounds play only so.
+let untouched = null;
+const playUntouched = () => (untouched ??= playUnattended(kafli4, { seeking: false, limit: 720, shaped: true }));
+// The spec (section 1) asks about 7.5 minutes, never over 10, for a child who touches nothing. As built and approved, scenes 1 and 2 run
+// 31 and 38 s (the spec says about 45 each), the wind fills by itself in 38 s (its help, Task 13), the flight is 170 s and the pool
+// 43 s: some 6.3 minutes. Whether scenes 1 and 2 grow toward the spec's 45 s is the owner's (the ledger's ruling of Task 17).
+test('an untouched child finishes in about 6.5 to 7.5 minutes and never over 10', async () => {
+  const { world, task, stage } = await playUntouched();
+  assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  const end = world.chapterTimeline.at(-1);
+  assert.equal(end.scene, 'end');
+  assert.ok(end.at >= 370 && end.at <= 540, `end=${end.at.toFixed(1)}`);
+});
+
+test('the star k4_flugedla is saved once and map piece d is drawn; the book opens on Flugeðla, nodding, then on the map', async () => {
+  const { save, moments, book, world, seen } = await playWide();
+  assert.equal(save.get().stars.filter(id => id === 'k4_flugedla').length, 1);
+  assert.deepEqual(moments.flatMap(moment => moment.ids), ['d'], 'piece d, once: by her star, it ends at her place (engine/book/map-page.js)');
+  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
+  assert.deepEqual(book.nods.slice(-2), ['flugedla', null], 'Flugeðla, new on the Risaeðlur page, nods as it opens');
+  const end = world.chapterTimeline.at(-1).at;
+  assert.ok(seen.spokenAt.get('k4_mosi_horn') < end, 'after the last line');
+  // No Leikir tile for her: none appears without a game (spec 7), and the book opens no game on her star
+  assert.equal(fs.readFileSync(new URL('../engine/book/book.js', import.meta.url), 'utf8').includes('k4_flugedla'), false);
+});
+
+test('the flight inside the chapter meets every beat within 0.5 s, and scene 7 takes over as it ends', async () => {
+  const { world } = await playWide();
+  const flight = world.chapterState.flight.flight;
+  for (const [name, at] of Object.entries(BEATS)) {
+    if (name === 'END') continue;
+    const mark = world.chapterTimeline.find(m => m.scene === name);
+    assert.ok(mark && Math.abs(mark.at - flight.started - at) <= 0.5, `${name} at ${mark ? (mark.at - flight.started).toFixed(2) : 'never'} s (beat ${at})`);
+  }
+  assert.ok(Math.abs(flight.ended - flight.started - BEATS.END) <= 0.5, `the flight ends at ${(flight.ended - flight.started).toFixed(2)} s`);
+  const seven = world.chapterTimeline.find(m => m.scene === 7).at;
+  assert.ok(seven >= flight.ended - 1e-6 && seven - flight.ended < 0.1, 'scene 7 at once');
+});
+
+test('she lands in the far pool with a splash, gliding down from the flight with no jump, and Egill floats down onto its bank', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { world, watched } = await play();
+    const c = world.chapterState;
+    const pool = watched.pool;
+    assert.ok(pool.length > 600, `scene 7 watched for ${pool.length} frames`);
+    // from the flight's last frame into the glide: no jump, and no stop short (she is still going some 9 m/s)
+    const [first, second] = pool;
+    assert.ok(first.her.distanceTo(watched.flown) < 0.6, `from the flight's last frame: ${first.her.distanceTo(watched.flown).toFixed(2)} m`);
+    assert.ok(second.her.distanceTo(first.her) * 30 > 6, `still gliding: ${(second.her.distanceTo(first.her) * 30).toFixed(1)} m/s`);
+    let worst = 0;
+    for (let i = 2; i < pool.length; i++) worst = Math.max(worst, Math.abs(pool[i].her.distanceTo(pool[i - 1].her) - pool[i - 1].her.distanceTo(pool[i - 2].her)) * 30);
+    assert.ok(worst < 0.8, `her speed never jumps: at most ${worst.toFixed(2)} m/s from one frame to the next (${shape})`);
+    // she stands in the shallows, her feet on the bed under the water
+    const last = pool.at(-1);
+    const bed = world.heightAt(last.her.x, last.her.z);
+    assert.ok(toPool(last.her) < FAR_POOL.radius - 1 && bed < FAR_POOL.level - 0.2, `in the pool: ${toPool(last.her).toFixed(1)} m from its middle, ${(FAR_POOL.level - bed).toFixed(2)} m deep`);
+    assert.ok(Math.abs(last.her.y - bed) < 0.12, `her feet on the bed: ${(last.her.y - bed).toFixed(2)} m over it`);
+    // Egill rides her down, then floats onto the bank and stands there
+    assert.equal(first.riding, true, 'on her back as she glides in');
+    assert.ok(c.landing.touchAt > 0 && c.landing.floatAt > c.landing.touchAt, 'he floats down once she is down');
+    assert.equal(last.riding, false, 'on his own feet at the end');
+    assert.ok(toPool(last.egill) > FAR_POOL.radius && Math.abs(last.egill.y - world.heightAt(last.egill.x, last.egill.z)) < 0.1, 'on the bank');
+    assert.ok(Math.hypot(last.egill.x - FAR_POOL.bank[0], last.egill.z - FAR_POOL.bank[1]) < 0.5, 'where the pool has him stand');
+  }
+  // the splash as her feet touch the water, and the float's chime (heard only in time: a capture's seeking play is silent)
+  const { world, soundLog } = await playUntouched();
+  const c = world.chapterState;
+  const splash = soundLog.filter(e => e.scene === 7 && e.name === 'skim');
+  assert.equal(splash.length, 1, 'one splash');
+  assert.ok(Math.abs(splash[0].at - c.landing.touchAt) < 0.05, 'as she touches the water');
+  assert.ok(soundLog.some(e => e.scene === 7 && e.name === 'float' && Math.abs(e.at - c.landing.floatAt) < 0.05), 'with the float\'s chime');
+});
+
+test('Mosi comes out of the reed, out of breath, to stand by Egill: "Ég… er… kominn!"', async () => {
+  const { world, seen, watched } = await playWide();
+  const c = world.chapterState;
+  const shown = watched.pool.filter(f => f.mosiShown);
+  assert.ok(shown.length > 0, 'Mosi is there');
+  const from = shown[0].mosi, to = shown.at(-1).mosi;
+  assert.ok(Math.hypot(from.x - FAR_POOL.reed[0], from.z - FAR_POOL.reed[1]) < 1, `out of the reed: from ${from.x.toFixed(1)}, ${from.z.toFixed(1)}`);
+  assert.ok(Math.hypot(to.x - FAR_POOL.mosi[0], to.z - FAR_POOL.mosi[1]) < 1, `to Egill's side: ${to.x.toFixed(1)}, ${to.z.toFixed(1)}`);
+  const seven = world.chapterTimeline.find(m => m.scene === 7).at;
+  const arrived = seen.spokenAt.get('k4_mosi_arrived');
+  assert.ok(arrived > seven && arrived >= c.landing.downAt, 'once Egill is down');
+});
+
+test('the horn sounds from the reed across the pool, once, between Mosi\'s coming and their two lines', async () => {
+  const { world, seen, soundLog } = await playUntouched(); // heard only in time: a capture's seeking play is silent
+  const c = world.chapterState;
+  const horns = soundLog.filter(e => e.name === 'sloedlaHorn');
+  assert.equal(horns.length, 1, 'once');
+  assert.equal(horns[0].scene, 7);
+  const at = horns[0].at;
+  const said = id => seen.spokenAt.get(id);
+  assert.ok(said('k4_mosi_arrived') < at, 'after Mosi has come');
+  assert.ok(said('k4_egill_what') >= at + 2.4, `Egill asks once it has sounded: ${(said('k4_egill_what') - at).toFixed(1)} s after`);
+  assert.ok(said('k4_mosi_horn') > said('k4_egill_what'), 'and Mosi knows it');
+  assert.deepEqual(c.horn.from, FAR_POOL.farReed, 'from the far reed');
+  assert.ok(Number.isFinite(horns[0].detail?.pan) && Math.abs(horns[0].detail.pan) <= 1, 'from its side');
 });
