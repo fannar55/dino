@@ -283,6 +283,9 @@ function* atTheWhiteTree(s, c) {
   yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.9, maxPitch: 55 });
   yield* say(s, c, 'mosi', 'k4_mosi_invite');
   yield s.camera.cut('tre_her');
+  // her place on the book's map, which her tile shows by: chapter 3's lookout marks it, but an old chapter 2 save comes here without
+  // chapter 3 (save.js defaultChapter); when it is there already nothing flies
+  s.place('flugedla');
   yield flugedla.lookAt(MOSI_HEAD, { weight: 0.8, maxAngle: 60, maxPitch: 50 });
   yield* say(s, c, 'flugedla', 'k4_flugedla_calm');
   yield s.camera.cut('tre_talk');

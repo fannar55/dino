@@ -622,6 +622,11 @@ test('the star k4_flugedla is saved once and map piece d is drawn; the book open
   assert.deepEqual(moments.flatMap(moment => moment.ids), ['d'], 'piece d, once: by her star, it ends at her place (engine/book/map-page.js)');
   assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
   assert.deepEqual(book.nods.slice(-2), ['flugedla', null], 'Flugeðla, new on the Risaeðlur page, nods as it opens');
+  // her tile shows by her place (cards.json: flugedla unlocks with the place), which chapter 3's lookout marks; an old chapter 2 save
+  // comes here without chapter 3 (save.js defaultChapter), so meeting her marks it too, and the tile that nods is hers, not a shadow
+  assert.ok(save.get().places.includes('flugedla'), `her place is on the map: ${save.get().places}`);
+  const fromChapter3 = await playIt({ savedWith: s => { ['k1_kambedla', 'k2_thorsedla'].forEach(id => s.addStar(id)); s.addPlace('flugedla'); } });
+  assert.equal(fromChapter3.save.get().places.filter(id => id === 'flugedla').length, 1, 'once, if chapter 3 marked it');
   const end = world.chapterTimeline.at(-1).at;
   assert.ok(seen.spokenAt.get('k4_mosi_horn') < end, 'after the last line');
   // No Leikir tile for her: none appears without a game (spec 7), and the book opens no game on her star
