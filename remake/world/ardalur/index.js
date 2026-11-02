@@ -21,6 +21,7 @@ import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
 import { createWaterMaterial } from '../props/water.js';
+import { createWaterfall } from '../props/waterfall.js';
 import { FEN } from '../forest/config.js';
 
 export const SIGHT = 100; // metres from the camera (seen from above) to a section's land (its route piece and the 160 m round it) within which it is shown
@@ -58,10 +59,17 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library }) : null;
   if (animals) group.add(animals.group);
 
-  // What is always there: the water, the falls' slot, the snag, the animal groups' marks (grey only), the far land's slot.
+  // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
+  // world/props/waterfall.js), the snag, the animal groups' marks (grey only), the far land's slot.
   const always = new THREE.Group();
   always.name = 'Árdalur (always)';
-  always.add(createRiverSurface(route, materials.water), createFallsSlot(route.falls, materials.falls), createPoolSurface(route.pool, materials.water));
+  always.add(createRiverSurface(route, materials.water), createPoolSurface(route.pool, materials.water));
+  const { falls } = route;
+  const waterfall = real
+    ? createWaterfall(world, { top: [falls.face, falls.top, falls.z], bottom: [falls.face, falls.base, falls.z], width: falls.width, seed })
+    : null;
+  if (waterfall) group.add(waterfall.group);
+  else always.add(createFallsSlot(falls, materials.falls));
   const foot = terrain.heightAt(route.tree[0], route.tree[2]) - 0.5;
   const snag = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.45, route.tree[1] - foot, 8), materials.snag);
   snag.position.set(route.tree[0], (route.tree[1] + foot) / 2, route.tree[2]);
@@ -168,6 +176,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
       else downwash.set(0, 0, 0, 0);
       animals.update(dt, time);
+      waterfall.update(time, world.lighting?.direction); // drawn whenever in view: its top stands high, where the haze is thin
       real.water.uniforms.uTime.value = time;
       if (world.lighting?.direction) real.water.uniforms.uSunDir.value.copy(world.lighting.direction);
     }
@@ -180,6 +189,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     downwash,
     /** The animal groups (animals.js), in the real look; null in the grey one. */
     animals,
+    /** The falls (world/props/waterfall.js), in the real look; null in the grey one (a slot). */
+    waterfall,
     heightAt: (x, z) => terrain.heightAt(x, z),
     get visible() { return lastVisible; },
     get building() { return queue.current; },
@@ -192,6 +203,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
       for (const material of Object.values(materials)) material.dispose();
       if (real) {
+        waterfall.dispose();
         animals.dispose();
         real.plants.dispose();
         real.water.dispose();

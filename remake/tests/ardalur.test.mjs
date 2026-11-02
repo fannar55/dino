@@ -651,3 +651,38 @@ test('a location with build() is used instead of a forest layout', async () => {
   assert.equal(world.location, 'ardalur');
   assert.equal(place.group.visible, true);
 });
+
+test('the real valley has the falls (world/props/waterfall.js) where the grey one has its slot, on the valley clock and sun', () => {
+  const world = litWorld();
+  world.scene.fog = new THREE.FogExp2('#dfe7df', world.look.fog.density);
+  const place = createArdalur(world, { grey: false, route });
+  const falls = place.waterfall;
+  assert.ok(falls, 'the real look has the falls');
+  assert.equal(falls.group.parent, place.group);
+  assert.ok(falls.base.x > FALLS.face && Math.abs(falls.base.z - FALLS.z) < 1e-9 && falls.base.y === FALLS.base, 'its foot is at the plunge pool, in front of the cliff');
+  const named = (group, name) => { let found = null; group.traverse(o => { if (o.name === name) found = o; }); return found; };
+  assert.equal(named(place.group, 'Árdalur falls (slot)'), null, 'and no slot');
+  const greyWorld = litWorld();
+  const grey = createArdalur(greyWorld, { grey: true, route });
+  assert.equal(grey.waterfall, null);
+  assert.ok(named(grey.group, 'Árdalur falls (slot)'), 'the grey look keeps its slot');
+  // on the valley's clock and its sun, seen from the climb and from high over the land above it
+  const view = t => {
+    world.flightU = route.progressAt(t);
+    world.flightPoint = route.pointAt(world.flightU);
+    world.camera.position.copy(world.flightPoint).add(new THREE.Vector3(8, 2, 0));
+    world.camera.lookAt(new THREE.Vector3(FALLS.face, 30, FALLS.z));
+    world.camera.updateMatrixWorld();
+    place.update(DT, t);
+  };
+  view(112);
+  const spray = [];
+  falls.group.traverse(o => { if (o.isPoints) spray.push(o); });
+  assert.ok(spray.length > 0 && spray.every(o => Math.abs(o.material.uniforms.uTime.value - (112 % 4)) < 1e-9), 'the spray runs on its clock');
+  assert.ok(spray.every(o => o.material.uniforms.uShade.value.w < 1e5), 'and the cliff shades it from the valley sun');
+  assert.equal(falls.group.visible, true);
+  view(135);
+  assert.ok(spray.every(o => Math.abs(o.material.uniforms.uTime.value - (135 % 4)) < 1e-9));
+  place.dispose();
+  grey.dispose();
+});
