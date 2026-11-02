@@ -153,13 +153,27 @@ function snagsOf(world, layout, ground) {
   return snagLists.get(layout);
 }
 
-/** A pointer that remembers the targets the scene puts on it and the drags it listens to, and taps one when told. */
+/**
+ * A pointer that remembers the targets the scene puts on it and the drags it listens to, and taps one when told. `drag(x, y, dx, dy)`
+ * draws a finger from (x, y) by (dx, dy) in four moves, as the pointer reports one; its canvas is 1280 by 800 px.
+ */
 export function fakePointer() {
   const targets = new Map();
   const listeners = { tap: [], drag: [] };
   return {
     targets,
     listeners,
+    size: () => ({ width: 1280, height: 800 }),
+    drag(x, y, dx, dy, steps = 4) {
+      let px = x, py = y;
+      for (let i = 1; i <= steps; i++) {
+        const nx = x + (dx * i) / steps, ny = y + (dy * i) / steps;
+        for (const fn of [...listeners.drag]) fn({ dx: nx - px, dy: ny - py, phase: i === 1 ? 'start' : 'move', x: nx, y: ny });
+        px = nx;
+        py = ny;
+      }
+      for (const fn of [...listeners.drag]) fn({ dx: 0, dy: 0, phase: 'end', x: px, y: py });
+    },
     addTarget: (name, spec) => targets.set(name, spec),
     removeTarget: name => targets.delete(name),
     on(event, fn) {

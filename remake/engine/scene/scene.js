@@ -1,5 +1,6 @@
 import { createScheduler, wait, all, race, until } from './scheduler.js';
 import { searchFlow } from './search.js';
+import { createSwipe } from '../input/swipe.js';
 import { createStarSprite, STAR_RADIUS } from './star-sprite.js';
 import { EASE } from '../camera/director.js';
 import { DONE } from '../handle.js';
@@ -19,7 +20,7 @@ import { DONE } from '../handle.js';
 //   }
 
 // `locations` (engine/locations.js) is optional: only s.goTo and s.prepare need it, and say so when it is missing.
-// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap, s.search and s.lookAround need, and
+// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap, s.onDrag, s.onSwipe, s.search and s.lookAround need, and
 // `journal` (scene/journal.js), which s.star, s.found, s.place and s.journal need, and `sun` (engine/sun-face.js),
 // which s.sun needs, and `sfx` (engine/audio/sfx.js), which s.sfx needs. s.drag and s.tray need `ui.tray`.
 // The music is not the script's to direct: it plays the theme, lowers itself under the voice (main.js) and holds with the clock.
@@ -199,6 +200,19 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   function stopDrags() {
     dragOff?.();
     dragOff = null;
+  }
+
+  // Up strokes and taps anywhere on the screen (engine/input/swipe.js), against the canvas's height as it is when the finger moves
+  const swipes = new Set();
+  function onSwipe(fn) {
+    needPointer('s.onSwipe');
+    const swipe = createSwipe(pointer, { height: () => pointer.size?.().height ?? 800, now: () => scheduler.time });
+    swipe.on(fn);
+    swipes.add(swipe);
+    return () => {
+      swipe.dispose();
+      swipes.delete(swipe);
+    };
   }
 
   function target(name, spec) {
@@ -469,6 +483,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     /** Call fn(event) for every drag event ({ dx, dy, phase, x, y }: engine/input/pointer.js). Returns the function that stops it. */
     onDrag,
     /**
+     * Call fn(event) for every up stroke ({ kind: 'up', x, y, x0, y0 }: at least a fifth of the screen's height) and every tap
+     * ({ kind: 'tap', x, y }) anywhere on the screen (engine/input/swipe.js). Returns the function that stops it.
+     */
+    onSwipe,
+    /**
      * The child looks around and finds hidden things; resolves when all are found. `explore` gives the
      * free-look limits for director.explore ({ yaw, pitch, speed }), `targets` what to find, and the rest
      * is searchFlow's (search.js): hintAfter, helpAfter, quick, speaker and onFound(name, index, how). Seeking: one find every 3 s.
@@ -593,6 +612,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       tapHandlers.length = 0;
       dragHandlers.length = 0;
       stopDrags();
+      for (const swipe of swipes) swipe.dispose();
+      swipes.clear();
       for (const name of ownTargets) pointer.removeTarget(name);
       ownTargets.clear();
       director.stop();

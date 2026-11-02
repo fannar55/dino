@@ -5,7 +5,7 @@
 //   - fake canopy shade outside the shadow map: baked sky visibility per vertex plus a cheap
 //     dappled-light pattern, so the deep forest is darker without more shadow maps.
 import * as THREE from 'three';
-import { FOREST, BEAT_SHARE, PIVOT } from './config.js';
+import { FOREST, BEAT_SHARE, PIVOT, WIND_PEAK } from './config.js';
 import { createRng } from './random.js';
 import { runSync } from './slices.js';
 
@@ -136,9 +136,10 @@ vec3 forestWind(vec3 wp, vec4 w, float tree) {
   float osc = sin(t * 0.9 + phase) * 0.6 + sin(t * 1.63 + phase * 1.7) * 0.25;
   vec2 side = vec2(-uWindDirection.y, uWindDirection.x);
   float beat = mix(forestWave(0.0, ${PERIODS.plants.toFixed(1)}), forestWave(0.0, ${PERIODS.trees.toFixed(1)}), tree) * (0.8 + 0.2 * fract(w.x * 7.31)); // the plant's own 0.8 to 1 of its wave
-  float lean = strength * (0.55 + 0.45 * osc) + ${BEAT_SHARE.toFixed(3)} * beat; // the beat comes on top, whatever the gust is doing
+  // a gust (strength over 1: chapter 4's wind task) leans every part as far as full wind's strongest swing does, and no further
+  float lean = min(strength * (0.55 + 0.45 * osc), ${WIND_PEAK.along.toFixed(4)}) + ${BEAT_SHARE.toFixed(3)} * beat; // the beat comes on top, whatever the gust is doing
   vec2 bend = uWindDirection * (sway * lean);
-  bend += side * sway * strength * 0.22 * sin(t * 1.27 + phase * 2.3);
+  bend += side * sway * min(strength, 1.0) * 0.22 * sin(t * 1.27 + phase * 2.3);
   vec3 off = vec3(bend.x, -0.08 * dot(bend, bend), bend.y);
   float f = flutter * strength;
   off += f * vec3(sin(t * 5.1 + phase * 7.0 + wp.y * 1.9), 0.5 * sin(t * 6.3 + phase * 3.0 + wp.x * 1.3), sin(t * 5.7 + phase * 5.0 + wp.z * 2.1));

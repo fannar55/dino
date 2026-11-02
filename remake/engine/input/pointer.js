@@ -85,6 +85,7 @@ export function pickTarget(ray, targets, { minAngle = 0 } = {}) {
  *                                       again replaces the target (and switches it on)
  *   removeTarget(name)
  *   setEnabled(name, on)                a target that is off is not hit, and does not hide others
+ *   size()                              the canvas's { width, height } on the page, in px (a stroke is measured against it)
  *   on(event, fn)                       'tap' or 'drag' (above); returns the function that stops listening
  */
 export function createPointer({ canvas, camera, world }) {
@@ -253,6 +254,10 @@ export function createPointer({ canvas, camera, world }) {
       const target = targets.get(name);
       if (!target) throw new Error(`No tap target named "${name}"`);
       target.enabled = Boolean(on);
+    },
+    size() {
+      const { width, height } = canvas.getBoundingClientRect();
+      return { width, height };
     },
     on(event, fn) {
       const list = listeners.get(event);

@@ -62,6 +62,28 @@ function leanSlope(builder, from = [0, 0, 0], carried = 0) {
 /** The lean in degrees of a slope at the top of the wind, with `beat` (a share of the part's sway) on top along the wind. */
 const leanDegrees = (slope, beat) => (Math.atan(Math.hypot(slope * (WIND_PEAK.along + beat), slope * WIND_PEAK.side)) * 180) / Math.PI;
 
+// A gust (chapter 4's wind task) raises the wind's strength to 2.2 for a moment, and a child may make another before it has eased.
+// The plants then all lean as far as full wind takes them at its strongest, together, and no further: the shader caps a part's lean
+// at WIND_PEAK, the peak every kind is measured at below, so the 3 degrees hold in a gust too.
+test('the forest sway stays within 3 degrees at gust strength', () => {
+  const cap = WIND_GLSL.match(/float lean = min\(strength \* \(([\d.]+) \+ ([\d.]+) \* osc\), ([\d.]+)\) \+ [\d.]+ \* beat;/);
+  assert.ok(cap, 'forestWind caps the lean the strength gives at the peak of full wind');
+  assert.equal(Number(cap[3]), Number(WIND_PEAK.along.toFixed(4)), 'the cap is WIND_PEAK.along');
+  assert.match(WIND_GLSL, /bend \+= side \* sway \* min\(strength, 1\.0\) \* /, 'and the sideways swing, at that of full wind');
+  // the shader's lean along the wind and sideways, without the beat, at the strongest swing and gust, at gust strength
+  const [, base, swing] = cap.map(Number);
+  for (const strength of [1, 1.6, 2.2, 3]) {
+    for (const gust of [0, 0.5, 1]) {
+      const s = strength * (0.45 + 0.55 * gust);
+      const along = Math.min(s * (base + swing * 0.85), Number(cap[3]));
+      const side = Math.min(s, 1) * WIND_PEAK.side;
+      assert.ok(along <= WIND_PEAK.along + 1e-4 && side <= WIND_PEAK.side, `at strength ${strength}: ${along.toFixed(3)} along, ${side.toFixed(3)} across`);
+    }
+  }
+  // and full wind is as it was: its strongest swing reaches the cap and no further
+  assert.ok(Math.abs(1 * (base + swing * 0.85) - WIND_PEAK.along) < 1e-9);
+});
+
 /** Every kind's peak slope, in the groups the rule is stated for: each variant, level of detail and shape the forest builds. */
 function peakSlopes() {
   const library = createSpeciesLibrary(SEED);
@@ -89,8 +111,8 @@ function peakSlopes() {
 test('the test knows the wind shader: WIND_PEAK and BEAT_SHARE are its numbers, and the beat\'s wave crests at BEAT_SHARE', () => {
   const text = WIND_GLSL.replace(/\s+/g, ' ');
   const osc = WIND_GLSL.match(/float osc = sin\(t \* 0\.9 \+ phase\) \* ([\d.]+) \+ sin\(t \* 1\.63 \+ phase \* 1\.7\) \* ([\d.]+);/);
-  const lean = WIND_GLSL.match(/float lean = strength \* \(([\d.]+) \+ ([\d.]+) \* osc\) \+ ([\d.]+) \* beat;/);
-  const side = WIND_GLSL.match(/bend \+= side \* sway \* strength \* ([\d.]+) \* sin\(/);
+  const lean = WIND_GLSL.match(/float lean = min\(strength \* \(([\d.]+) \+ ([\d.]+) \* osc\), [\d.]+\) \+ ([\d.]+) \* beat;/);
+  const side = WIND_GLSL.match(/bend \+= side \* sway \* min\(strength, 1\.0\) \* ([\d.]+) \* sin\(/);
   const beat = WIND_GLSL.match(/float beat = mix\(forestWave\(0\.0, ([\d.]+)\), forestWave\(0\.0, ([\d.]+)\), tree\) \* \(([\d.]+) \+ ([\d.]+) \* fract\(w\.x \* 7\.31\)\);/);
   const wave = text.match(/float forestWave\( float shift, float period \) \{ return uBeats < 0\.0 \? ([\d.]+) : ([\d.]+) \+ ([\d.]+) \* cos\( 6\.2831853 \* fract\( \( uBeats - shift \) \/ period \) \); \}/);
   assert.ok(osc && lean && side && beat && wave, 'forestWind no longer has the lines this reads (the swing, the lean with the beat, the beat\'s waves, the sideways flutter)');
