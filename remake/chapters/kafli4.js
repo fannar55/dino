@@ -150,8 +150,8 @@ export const SHOWS = {
 
 const WORDS = {
   // 1. Goodbye at Þórseðla's pool
-  k4_mosi_next: 'Næst er það Flugeðla! Hún á heima uppi á hvíta trénu.',
-  k4_egill_fly: 'Getur hún flogið?',
+  k4_mosi_next: 'Næst er það Flugeðla! Hann á heima uppi á hvíta trénu.',
+  k4_egill_fly: 'Getur hann flogið?',
   k4_mosi_higher: 'Hærra en skýin!',
   k4_mosi_map_tree: 'Yfir Fenið, að hvíta trénu.',
   // 2. At the white tree
@@ -170,6 +170,10 @@ const WORDS = {
   k4_flugedla_comealong: 'Viltu koma með, Egill? Sestu á bakið á mér.',
   k4_egill_yes: 'Já!',
   k4_mosi_run: 'Fljúgið þið, ég hleyp!',
+  // 7. At the far pool (chunk 8, Task 17), recorded with the rest now
+  k4_mosi_arrived: 'Ég… er… kominn!',
+  k4_egill_what: 'Hvað var þetta?',
+  k4_mosi_horn: 'Lúðurinn hennar Slóeðlu… en lagið var eitthvað skrítið.',
 };
 
 // ---------------------------------------------------------------------------------------------

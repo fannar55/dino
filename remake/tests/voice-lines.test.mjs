@@ -117,7 +117,7 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   const lines = readJson(REAL.source);
   const voices = readJson(REAL.voices);
   const recorded = readJson(REAL.lines);
-  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla) and chapter 2's Uggeðla (picked by the owner 2026-10-31) are not chapter 1's
+  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla', 'flugedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla), chapter 2's Uggeðla (picked by the owner 2026-10-31) and chapter 4's Flugeðla (the song game's DJ voice, the owner's choice 2026-11-02) are not chapter 1's
   const ids = new Set();
   const takes = new Map();
   for (const line of lines) {
@@ -482,10 +482,10 @@ const BOOK_LINES = [
   { id: 'book_wait', speaker: 'narrator', text: 'Bíddu aðeins!' },
 ];
 
-test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's and Veiddu's, each in a folder of its own", () => {
+test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's, Veiddu's and chapter 4's, each in a folder of its own", () => {
   assert.deepEqual(SETS, {
     kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
-    kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu',
+    kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
   });
   assert.equal(REMAKE_AUDIO, SETS.kafli1, 'the chapter stays the default');
 });

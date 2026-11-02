@@ -2353,6 +2353,246 @@
    "duration": 4.09,
    "model": "eleven_v4"
   },
+  "kafli4/k4_egill_all": {
+   "key": "9cb978d4b031ae0c2b5d6ecd7aef84809ced91f19301062d17968b860b49fd04",
+   "mp3": "cc8954215d0f5651a51e466bd434a89e204e095e93b2335bbca75dfcb12885cd",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_big": {
+   "key": "f2d05afffebd30ebe4e54d3c96944596eedb685439f0e5faced201b5accd8139",
+   "mp3": "637e54106287cb8bf1651cb44d66bd54465f62aa6515b35d980457497caac127",
+   "duration": 1.45,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_falls": {
+   "key": "3fdb15304eb386e16590e8e10e73eab1999d6f6168ae5c664c25590232c09354",
+   "mp3": "2360b2570ecee5c2d06db50143ce7194b00ee45f4c1ae36107f50521d095540d",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_faster1": {
+   "key": "4227cc57eda59237fd5342bbfe1bc45f4b344949596a9d5525bcd9e3506505ed",
+   "mp3": "7a8333ec5983faf80457fd8b65934b19325b95dc15e6fb724d4628f022033052",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_faster2": {
+   "key": "cf3775d994f3c45176e3f815063669eb295db6f2ebf7cd887b1cdebe3044184f",
+   "mp3": "842205b141a4066d141bbdf3ec63cedadb4de0383e222147f6d81b6eecd85240",
+   "duration": 1.29,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_fly": {
+   "key": "01e9727a9176234109fb22916478c6855082ba9669d9106f2c88898cf23313d6",
+   "mp3": "d6b464cb67c4ff1e199a1e7d20db82b34922a5ef8303a4f63d0114a0fce2c8c2",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_laugh": {
+   "key": "937ff94036837b6d368e71a71a511723a8d7310c471269b18d87528cbe5d3723",
+   "mp3": "ac99f15d056d15aa58c4e200508f4677b71205f828db63df0eea486bbeda14c1",
+   "duration": 1.45,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_mosi": {
+   "key": "e5bc9133d13885de6cf4ee4e87fa185425979d00a8330e757e0810872f0ec9bc",
+   "mp3": "9d1180fde9dac4e2734f8d5034641cfe42ab00deb6246095dad20dd5a009fe79",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_vaa": {
+   "key": "47526a09dd19ea7dddd32e2e4b7d3249aa1dfdbc47a716280c7d3558724f74ab",
+   "mp3": "320921437dc6faf0ea6d66755eef708134aeebc749205d7653da40c51dc5502c",
+   "duration": 1.29,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_what": {
+   "key": "f6f032b2d4f5a3b840bed7933e0e4e4518e44e3e053184710e355993cf28e685",
+   "mp3": "34717db6eb8af58df6427a65e3951a8a0a8de12bff7783d5e9cede2a9c7e7902",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_wind": {
+   "key": "2b81c49e8f6d0f3e7485640aadca41471f7d00ab5090fda4644bb9bbae64934d",
+   "mp3": "ca9f6f86262cf3adaf696b26c9349ced60cf26297833d8cbf1aeda1dd9cfec9c",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_wow": {
+   "key": "08d470bac77b035bcb76e70d85eac29d1080795e1a54c05c6ec92bc5b1d8df23",
+   "mp3": "f7318f988ca06ee87f932661f40b3abf2658bc08dad235294ecefcae803a8e86",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_egill_yes": {
+   "key": "ccc2375115d6b0ea56012b02e56d7bc6c7869fb4e394be70866225214d766e77",
+   "mp3": "14250dfdb903c631fd1cd69278d2240c9b0823180ce51d31890ebc403258745e",
+   "duration": 0.97,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_biggest": {
+   "key": "6584cbfc84e932bf0559138c459a7788728ba30f2c4993bd58d8f62a10871be0",
+   "mp3": "b86a56241a7c262f7a8ce19984d5aeacc95da3511b6c0e9dddc891a0d79f641b",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_call1": {
+   "key": "8771225b80e20d8255138358fc65d8b148b03edbcf8574fb471d552094a72e08",
+   "mp3": "b2a97de7662f903508e175141968ef8ea50db35920f8c0182f88bb4a495bcb88",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_call2": {
+   "key": "b9387e773ede8098fd2c33cb5bd6a9181f501c50a92be21a5135dcda1beba4d5",
+   "mp3": "7c3caff52d922d8e28d2fd68f017688a3b5ce99f3378ff7d8cf8585c155e67cb",
+   "duration": 2.73,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_call3": {
+   "key": "a8971c0c870a30ccdbb807b0c458ce00061d15b86ca7534fbb8470ee1b8da7cd",
+   "mp3": "acedf22026c37f653a14e91ba5893f6be61438a23b685607e71b4afa6b19875f",
+   "duration": 2.57,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_calm": {
+   "key": "6c1caf9f5385382b7b884834243fa2bf35d803d71e3c4609afdb1db5b36b8cab",
+   "mp3": "8b152ae5a8b96fa025407026a0a777499e56fe11b8227f7978f00369203e4f86",
+   "duration": 8.09,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_comealong": {
+   "key": "72948cfebbe3c8c9b33b53e4c41d5e832c3bab2f2b4ff7e7c1dd2e419fcccf94",
+   "mp3": "258fc3cb16808726258d48516f144af746057d8b92f9a7c0eca1cf1391492e3b",
+   "duration": 3.61,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_gramedla": {
+   "key": "8c3adea35c6b9dcdd8e0ce98d14f0a14745f57fcc2491eae5d1235510a5fbf46",
+   "mp3": "ae628f2734892d46590694fdc2b229bb4636aa9f42cb13565577785025e9e853",
+   "duration": 3.93,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_hold": {
+   "key": "4c3f73b454424a3920734aef8c9a37886a571b6aba05c8ebf41471a3a91dd593",
+   "mp3": "ea30f4eff0176f61c5b63c42690a701d63f66acde0a278e0ed20334249e0f550",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_holdon": {
+   "key": "6690a8877cc6a58b7ec1952a478c21e9ebaa63d5970d2a095ebac1958eef0d16",
+   "mp3": "c6d97b8cca114bbabd0a2e5e49d99969f2b39eaa5b21de52bcc037e418f4064e",
+   "duration": 1.13,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_more": {
+   "key": "335150953a4545eb3056995970e34a53a025220aba8feb0f490682c9f865f3a9",
+   "mp3": "902c6490047870fda40107bed81eec98c08532f8b16b753e8fb0b25f795a2926",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_now": {
+   "key": "72a23c70312a87e4395ca842c4198706986fe3e0c1913cddc7f7c02726d83710",
+   "mp3": "73b30bcfa16854989ba306a93080c9d008e14dc1f312754d81affe330f4bd43e",
+   "duration": 1.13,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_pool": {
+   "key": "7077c858ade0692060f6d86b1ab605a472e7b2cbc0909a847a89fe70f474b6d5",
+   "mp3": "efc78e9e8f1800f6849a17246eee18bc86a690de647cab328dd876384796d2df",
+   "duration": 4.41,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_thanks": {
+   "key": "f22c6d0ba24fffcc6df23efe87e8a033e4e166cd9f88fa47703886e31471e1d2",
+   "mp3": "ca0f083652b2bd26e08ad53b05f5f75b1ff5b1f26a7fd5679d62bd4998e58c8b",
+   "duration": 4.25,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_up": {
+   "key": "4f66ce86f07f8ac6176dfaf3de170f3ed19945775d431ed235051e665320ff10",
+   "mp3": "8985211ece33847e639f53fed906299d3c924a6763c648ccaf991bd5aa5231d1",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_flugedla_wind": {
+   "key": "38b05940075eebdf17a34854c3008995611d7a4d490ba0335dfb34481695ebe0",
+   "mp3": "3dc87d9a9176565e1a8d701df67d67897169f17deb9448f2233488742e543afc",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_arrived": {
+   "key": "ac65dbb2d2195eaf75723842392749c03e24834b11350a23927cd473ba063296",
+   "mp3": "819d6216b162b46c7d148573118b1e0f54168eff8569fec96f1424dfccb49567",
+   "duration": 2.65,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_blow": {
+   "key": "84306d0d95cbb31ce14ed38b4e325053a3bcd8710dca8fefd1c0194371f412d6",
+   "mp3": "5f853a2ebea24538c65760257db2faa1a34bda50eb14d06aff401131cfe03174",
+   "duration": 2.49,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_higher": {
+   "key": "2f078c4c67d59693ba7fed60709312bd572d8aafa968507f227bf7f30f4b96c1",
+   "mp3": "458b4ff47c3a498e4b91464b03d1bdc74b922dcb5b7102860bcf10011f74edd9",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_horn": {
+   "key": "4e282a4b63f1540247e49b144cf33b1576d1e59c617141f74d9bc71cf390fb3e",
+   "mp3": "753d699a9b1cb069983928ad3850225c0f4bd3431ae5894626dbe5f1ab1c5301",
+   "duration": 4.97,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_invite": {
+   "key": "566791297bbe496146c8b7d16337abf59fa966d46ef1bb5841ddbb98fffe3375",
+   "mp3": "fcd2b557c6eafb0dd25435f9ada980801ee9a67f4402513fbf4541d417025f22",
+   "duration": 4.01,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_map_tree": {
+   "key": "81d48e12a132f6f836219b741babe888e36063032002eb9efee7b814889290c6",
+   "mp3": "76cb3f4a6c96a9d71d162edd4f57fc6509b0af9ef05d27c8a9b7c1d0e7d680df",
+   "duration": 2.97,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_next": {
+   "key": "9ca3ae9968006d527027f30dd3befd30ba745360ca76725d31cb72a26183eba3",
+   "mp3": "bf7cb9fd1194bf129c0af179f41b8c41909cfe3eb1260d8d5f7bbd02082857a7",
+   "duration": 4.73,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_run": {
+   "key": "cb98efe914a1f469d41cbc01874762aa5123e35125398f4b07b6c891f9d09711",
+   "mp3": "88190b911e44a9c996dd8b90b50b940998e53d78f2df00f9f65ea9aaec548627",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_shortcut": {
+   "key": "8bbad73380c443ec4ce1a06761d1d8500408b299a6e9011638cc739e5d5ad6e4",
+   "mp3": "58acf4c2c245fae08c2e59eb6356a246f96288ab3657368ddd203a2e75d0c27d",
+   "duration": 2.091,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_star": {
+   "key": "dd0e062b35c99aa79f3a5d1e96ba6543919f67014740cd6b32ad2e9ba3d150bf",
+   "mp3": "42d6ac52c33a8041ce35174772717a7b1b8c9e429281ed171eab14cab7b4697f",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_swipe": {
+   "key": "840b89ca2d86a1472979c2761ba668249605995c588032ca903ead43451ff905",
+   "mp3": "24c675cbc45daf1c1f798ee6b5ed41cfb90adf32029a9fd6bc7f5b52ee05b91f",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "kafli4/k4_mosi_wait": {
+   "key": "af94910ebfa9d79e44119feb3e7a42775fba8cfd2e07ce283bf4efa5a72ef0bb",
+   "mp3": "6f0d4367f3e901e59c4baaf67eadeb1c34268571162a037e8f54b797ba9d5bb5",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
   "veiddu/veiddu_egill_ask_brunnklukka": {
    "key": "967f5f55813e6618f0f63ac5bc871593a64e922b97a12c2bbff4a507e105b9bf",
    "mp3": "2d0da172d33e1434ea20cb294a2ca3bb344d26108b1ca2819b01b764e565c197",

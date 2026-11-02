@@ -12,6 +12,7 @@ import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { FLIGHT_WORDS } from '../chapters/kafli4-flight.js';
+import fs from 'node:fs';
 
 // Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
 // as it was, and the white tree's own patch of fen), the camera rules of its shots, and its first two scenes played through by nobody
@@ -23,8 +24,8 @@ const deg = THREE.MathUtils.radToDeg;
 
 // The words of the first five scenes, as spec section 4 has them (the plan's WORDS; Mosi's "Svona! Fúúú!" is the plan's own).
 const SCENE_WORDS = {
-  k4_mosi_next: 'Næst er það Flugeðla! Hún á heima uppi á hvíta trénu.',
-  k4_egill_fly: 'Getur hún flogið?',
+  k4_mosi_next: 'Næst er það Flugeðla! Hann á heima uppi á hvíta trénu.',
+  k4_egill_fly: 'Getur hann flogið?',
   k4_mosi_higher: 'Hærra en skýin!',
   k4_mosi_map_tree: 'Yfir Fenið, að hvíta trénu.',
   k4_mosi_invite: 'Halló, Flugeðla! Viltu koma á Stjörnuhátíðina í kvöld?',
@@ -92,6 +93,27 @@ test('the chapter as data: the Fen first, then the white tree, in the early afte
   for (const [name, location] of Object.entries(chapter.locations)) {
     for (const shot of location.warmUp ?? []) assert.ok(location.shots[shot], `the warm-up view ${shot} is one of ${name}'s shots`);
   }
+});
+
+// The lines: the kafli4 set (assets/audio/kafli4/lines-source.json, made by tools/voice-lines.mjs --set kafli4), one recording each.
+const readJson = relative => JSON.parse(fs.readFileSync(new URL(relative, import.meta.url), 'utf8'));
+const CHAPTER_TEXT = ['kafli4', 'kafli4-wind', 'kafli4-flight', 'kafli4-flight-play'].map(name => fs.readFileSync(new URL(`../chapters/${name}.js`, import.meta.url), 'utf8')).join('');
+
+test('every chapter line is a line of the kafli4 set, said by its speaker from its own recording', () => {
+  const source = new Map(readJson('../assets/audio/kafli4/lines-source.json').map(line => [line.id, line]));
+  const recorded = readJson('../assets/audio/lines.json');
+  assert.deepEqual(Object.keys(chapter.lines).sort(), [...source.keys()].sort(), 'the set is the chapter\'s lines, no more and no fewer');
+  const unrecorded = [];
+  for (const [id, line] of Object.entries(chapter.lines)) {
+    const entry = source.get(id);
+    assert.match(id, new RegExp(`^k4_${entry.speaker}_[a-z0-9_]+$`), `${id} names its speaker, ${entry.speaker}`);
+    assert.ok(chapter.cast[entry.speaker], `${entry.speaker} speaks ${id} but has no caption name`);
+    assert.deepEqual(line, { text: entry.text, audio: id }, `${id} says what the source says, from its own recording`);
+    if (recorded[id]?.src !== `assets/audio/kafli4/${id}.mp3`) unrecorded.push(id);
+  }
+  // Whatever the script names as a line is one of them.
+  for (const [, id] of CHAPTER_TEXT.matchAll(/'(k4_(?:mosi|egill|flugedla)_[a-z0-9_]+)'/g)) assert.ok(chapter.lines[id], `the script names '${id}', which is not one of its lines`);
+  assert.deepEqual(unrecorded, [], 'every line has its recording in lines.json (node remake/tools/voice-lines.mjs --set kafli4)');
 });
 
 const placed = plan => plan.placements.map(p => [p.name, p.variant, p.x.toFixed(3), p.z.toFixed(3), p.scale.toFixed(3), p.rot.toFixed(4)].join());
