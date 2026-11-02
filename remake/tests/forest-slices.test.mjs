@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { chapter } from '../chapters/kafli2.js';
+import { chapter as kafli2 } from '../chapters/kafli2.js';
+import { chapter } from '../chapters/kafli3.js';
 import { PRESETS } from '../engine/quality.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
@@ -24,7 +25,8 @@ function nodeWorld() {
     lighting: { direction: sunDirection(look), sun, focusRadius: 10 }, wind: createWind(), chapter, heightAt: () => 0, actors: new Map(),
   };
 }
-const layoutOf = name => ({ ...chapter.locations[name].layout, shots: chapter.locations[name].shots });
+const placeOf = name => kafli2.locations[name] ?? chapter.locations[name]; // the trail is chapter 2's, the Fen chapter 3's
+const layoutOf = name => ({ ...placeOf(name).layout, shots: placeOf(name).shots });
 
 /** A clock that moves `ms` each time it is read. */
 const steppingClock = (ms = 1) => { let t = 0; return () => (t += ms); };

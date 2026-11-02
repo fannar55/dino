@@ -1,50 +1,49 @@
-// Chapter 2: Boð til Þórseðlu (an invitation for Þórseðla). Scenes 1 to 8 of the approved script
-// (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-design.md): from Kambeðla's fern glade Mosi and Egill ride out of
-// the forest and down into the Fen, count Þórseðla's ten water-filled footprints, lure her nine-metre head down with five red
-// berries, invite her to the Star Festival, ride her neck up to look out over the Fen and find three far friends for the book's
-// map (and see Grameðla far off, who comes later), slide down her neck into the saddle, and win the second star. Seven to nine
-// minutes for a six-year-old, who can never fail it: every wait for the child has hints where the script gives them and ends by
-// itself.
+// Chapter 2: Boð til Uggeðlu (an invitation for Uggeðla). Since the split of 31 October 2026 the old chapter 2 is two chapters
+// (docs/superpowers/specs/2026-10-31-kafli-2-bod-til-uggedlu-design.md): this one is the way to Uggeðla, the Fen part is chapter 3
+// (kafli3.js). Scenes 1 and 2 of the old chapter are kept as they were (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-
+// design.md): from Kambeðla's fern glade Mosi and Egill ride out of the forest and down the Fenjaslóð, and count Þórseðla's ten
+// water-filled footprints in the mud, one to ten. The trail leads on to Síkið, a channel flooded over its end, where Uggeðla lies
+// hidden in the reed, and the rest is there:
+//   3. the channel: the path is flooded, a big colourful sail rises out of the reed ("a boat!"), and her head comes up with a fish: it is
+//      Uggeðla, fishing. Her place goes onto the book's map from her head.
+//   4. the fishing (kafli2-fishing.js): the child taps five big fish, and leaves the small ones.
+//   5. the invitation to the Star Festival, and her star, rising from the top of her sail.
+//   6. the ferry: Egill floats from Mosi's saddle onto her back, she swims him along the channel and Mosi wades beside them, with the
+//      owner's chat on the way (the tail splash, Þórseðla's head over the trees).
+//   7. the hummocks: Egill floats back into Mosi's saddle, she tells of the berries and swims off, and the picture goes into the book,
+//      which opens on her new card and turns to the map. The script ends there, and the page shows "Áfram" into chapter 3.
+// An idle child (who taps nothing) is through in about seven minutes (the limit is 450 s).
 //
-// The chapter's skeleton (the plan's first task) gives its places, actors, cast, lines and look, and the eight scenes in their
-// order; the trail and the Fen have their own ground, plants, water, mist and shots (the second task: world/forest/ grows them as
-// the Fen biome). Þórseðla is alive in the Fen, and the pieces of her part (the third task) are in kafli2-thorsedla.js:
-// thorsedlaLife, headDown, liftUp and slideDown, wired into scenes 3 to 7 here so that the chapter plays through by itself; the
-// footprints, the Fen's animals, the berries and the basket (the fourth task: world/props/mud-prints.js, berries.js, basket.js and
-// world/critters/) are scenes 1 to 5 here, and the far friends, the map and the star (the fifth) come into scenes 6 to 8. This file
-// keeps the places, the lines and the scenes.
-//
-// Three places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m,
-// Þórseðla 22 m with her head 8.3 to 9 m up, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late
-// morning sun (engine/looks.js: lateMorning) comes from heading 150 at 26 degrees, a little lower than chapter 1's.
+// Three places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m, Uggeðla
+// 14 m, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late morning sun (engine/looks.js: lateMorning)
+// comes from heading 150 at 26 degrees, a little lower than chapter 1's.
 //   burknalaut  Kambeðla's fern glade, chapter 1's own (its layout and its shots, so it grows as the child left it), where chapter 1
 //               ended: Mosi on its north-east side facing her across it, Egill in the saddle on his back, her plates alight.
 //   fenjaslod   the trail out of the forest and down into the Fen, with Þórseðla's ten footprints in the mud.
-//   fen         the Fen: pools, a slow channel, hummocks and swamp trees, Þórseðla standing in the shallow water.
-// Actors are global: Þórseðla is hidden until the Fen, and each place puts the actors where they stand.
-import { chapter as kafli1 } from './kafli1.js';
+//   siki        the flooded channel in the Fen's look: the path goes under the water, Uggeðla's reed bed across it, the channel 50 m to
+//               the hummocks, and Þórseðla far off beyond them, her head over the trees. Uggeðla and Þórseðla are chapter actors, made
+//               with the others before the start button and hidden until the scene comes there.
+// The trail's pieces are in kafli2-trail.js (the prints and the counting), Síkið's in kafli2-siki.js. The Fen the channel leads to is
+// chapter 3's.
 import * as THREE from 'three';
-import { createSaddle, ride, floatDown } from '../engine/riding.js';
-import { createBasket } from '../world/props/basket.js';
+import { chapter as kafli1 } from './kafli1.js';
+import { createSaddle, ride, floatTo } from '../engine/riding.js';
 import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up's throwaways)
 import { createCritters } from '../world/critters/critters.js';
-import { createBerryBushes } from '../world/props/berries.js';
 import {
   TRAIL_PATH, TRAIL_PRINTS, TRAIL_BARE, PRINT_SIZE, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot,
   printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
-import { BERRY_BUSHES, FEN_CRITTERS, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
-import { farFriends, haze, hazeUp, lookDown, findFriends } from './kafli2-lookout.js';
-import { ringsFor } from '../engine/neck-ride.js';
+import {
+  SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, arriveInSiki,
+} from './kafli2-siki.js';
+import { fishing } from './kafli2-fishing.js';
+import { riseSail, headUpWithFish, swimAlong, tailSplash, createBackSeat, SINK } from './kafli2-uggedla.js';
+import { sparkleBurst } from '../world/props/sparkles.js'; // (the warm-up's throwaways)
+import { createBerryBushes } from '../world/props/berries.js'; // (the warm-up's throwaways)
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
-import {
-  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, faceInView, tailSwish, tapOnHer, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, MOSI_HEAD,
-} from './kafli2-thorsedla.js';
-
-export { LOOKOUT_HEAD }; // where Egill's head is at the top of the lift (kafli2-thorsedla.js)
-export { EGILL_PICKS }; // where Egill stands for the berry search (the tests look from behind him, as fen_pick does)
-export { GRAMEDLA_FAR }; // where Grameðla stands far off (the tests hold it to the way the book's map has her)
+import { ringsFor } from '../engine/neck-ride.js';
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade: chapter 1's
@@ -52,13 +51,8 @@ export { GRAMEDLA_FAR }; // where Grameðla stands far off (the tests hold it to
 const GLADE = kafli1.locations.burknalaut;
 const MOSI_GLADE = GLADE.layout.actors.mosi; // facing Kambeðla across the glade, as chapter 1 ends
 const KAMBEDLA_GLADE = GLADE.layout.actors.kambedla;
-// Where an actor waits who is in none of the places yet: far outside every forest, and hidden.
-const OFF_STAGE = [0, 0, -400];
 // Egill's footprint in the grass and the ferns is a boy's, as in chapter 1 (world/forest/forest.js: footprintScale).
 const EGILL_FOOTPRINT = 0.3;
-// Seconds the black at the start waits at most for the far friends' files (9.5 MB with Grameðla's: on a slow connection they come
-// later, and the Fen makes the friends under its own black: arriveInTheFen).
-const FAR_WAIT = 4;
 
 // Scene 1: out of the glade the way they came, up the path to the north-east (chapter 1's), and a tap on Kambeðla's middle.
 const GLADE_EXIT = [[6.6, -6.2], [10.5, -8.7], [15, -10.5]];
@@ -104,135 +98,6 @@ const TRAIL_SHOTS = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Fenið, the Fen: open water and golden reed with groves of swamp conifers, at real size. Þórseðla stands in the shallow pool p1
-// facing east, toward the two swamp conifers she bites the tops of; when her head comes down (lowerHead) it reaches the bank
-// where Egill holds up the berries. Mosi stands on a dry hummock south of her head, with the pool p4 behind him, and the berry
-// hummocks are east of him. The channel winds from the north-west out to the far treeline in the south-east, north of her
-// pool. The three far friends (Task 5) are only places here, out in the open fen where the lookout on her head sees them.
-
-// Þórseðla: where she stands (her root, between her four feet) and points along her 22 m from her tail to where her head comes down.
-const THORSEDLA = { position: [-2, 0, -9], heading: 0 };
-const MOSI_FEN = { position: [8, 0, -3.5], heading: -125 }; // on his dry hummock, facing her head
-// Egill meets her face on the hummock under her two conifers, a step in front of where it comes down (her lowered head reaches x
-// 6.0 to 7.3 m, along her middle): the planner and the mist keep this spot clear, and the scenes bring him here before headDown.
-const EGILL_FEN = { position: [7.8, 0, -9.0], heading: 180 };
-const alongHer = metres => {
-  const h = (THORSEDLA.heading * Math.PI) / 180;
-  return { position: [THORSEDLA.position[0] + Math.cos(h) * metres, 0, THORSEDLA.position[2] + Math.sin(h) * metres] };
-};
-
-// The far friends' places, out in the open Fen where the lookout on her head sees them (and the planner keeps the sight lines to
-// them clear of tall plants, from `lookout`): Slóeðla in the far pool p5, Flugeðla on the white snag, Uggeðla in the reed by the
-// channel. Uggeðla's line from Egill's head passes through the south-east conifer's crown: the search sees her from its camera
-// instead (kafli2-lookout.js), as moving her would re-deal 75 to 127 of the Fen's plants.
-const FEN_FAR = { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] };
-// Grameðla, seen once after the third find and not found (she comes in a later chapter): at the edge of the forest beyond the Fen,
-// 144 m west of the lookout and 5 m in front of the far treeline (150 m round the Fen's middle), toward where the book's map has her
-// beyond the mountains (engine/book/map-page.js: the map's Fen is the Fen's own ground, north up, about 3.9 px a metre, and her slot
-// lies west by north of Þórseðla's, 192 degrees). Here, 207.5 degrees from the search camera, is the nearest gap that way between
-// the Fen's conifers wide enough for all 12 m of her side-on. She is not in the layout's farFriends: the planner keeps tall plants out
-// of their sight lines, and one more would re-deal the Fen's plants.
-const GRAMEDLA_FAR = [-125.7, -72.2];
-
-const FEN_WATER = {
-  pools: [
-    { center: [-3.5, -9], radius: 7, depth: 0.6 }, // p1: Þórseðla's pool, deep enough to cover her feet past the ankles
-    { center: [-15, 7], radius: 6, depth: 0.35 }, // p2: south-west, toward the sun
-    { center: [-27, -9], radius: 5.5, depth: 0.35 }, // p3: west
-    { center: [10, 9], radius: 4.5, depth: 0.35 }, // p4: behind Mosi, seen past him from the north-west
-    { center: [-70, -38], radius: 7, depth: 0.35 }, // p5: far out, where Slóeðla wades (Task 5)
-  ],
-  channel: {
-    line: [[-150, -105], [-95, -70], [-58, -48], [-34, -30], [-16, -20], [-8, -15.5], [4, -17], [22, -14], [32, 2], [44, 22], [66, 42], [100, 62], [150, 96]],
-    width: 4, depth: 0.5,
-  },
-};
-
-// Scenes 3 to 5. Mosi comes into the Fen from the trail's end (FEN_ENTRY) along its path to his hummock while the camera rises over
-// the Fen (REVEAL_SECONDS: the move needs 12 s at the director's limits). Egill floats down to the bank on Mosi's right to call
-// up to her (EGILL_CALLS, facing her head), goes to the berry hummocks (EGILL_PICKS, facing the bushes), and then to where her face
-// comes down (EGILL_FEN), always on dry ground.
-const FEN_ENTRY = { position: [21, 0, 10], heading: -136.6 };
-const FEN_ARRIVAL = [[16, 5.4], [12, 1.5], [9.4, -1.8], [MOSI_FEN.position[0], MOSI_FEN.position[2]]];
-const REVEAL_SECONDS = 12.5;
-const EGILL_CALLS = { position: [11.2, 0, -4.6], heading: -130 };
-const EGILL_PICKS = { position: [12.4, 0, -8.4], heading: 0 };
-const EGILL_PICKS_WAY = [[11.6, -6.6], [EGILL_PICKS.position[0], EGILL_PICKS.position[2]]];
-const EGILL_FEN_WAY = [[10.4, -8.7], [EGILL_FEN.position[0], EGILL_FEN.position[2]]];
-const HER_HEAD = { actor: 'thorsedla', part: 'head' };
-const HER_MIDDLE = 'thorsedla';
-const EGILL_HEAD = 'egill.head';
-const FEN_SHOTS = {
-  // Scene 3: the trail ends on Mosi's hummock; the camera rises over him and pans right across the Fen, the pools glittering
-  // toward the sun, and ends with Þórseðla far right, in the water at her real size (a move from the first to the second).
-  fen_reveal: { position: [13, 1.6, 9.5], target: [-14, 1.5, 15.5], fov: 46 },
-  fen_reveal_end: { position: [6, 3.8, 13], target: [-3.6, 2.6, -9], fov: 44 },
-  // From below: her feet in the water like trunks, her head up in the swamp conifers.
-  fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
-  // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
-  fen_two_shot: { position: [0, 1.4, 1.5], target: [5, 1.3, -8], fov: 46 },
-  // Kept for the planting (Task 2 planned the Fen round it: changing it re-deals plants), unused; use fen_shoulder.
-  fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
-  // Scene 4, as her head comes down: over Egill's right shoulder, from behind him on the hummock between her two conifers, looking up
-  // to where her face comes down: where the camera that follows him then (HEAD_DOWN_CAMERA) stands, wherever he stands, so that it
-  // takes over without a move.
-  fen_shoulder: {
-    position: { actor: 'egill', part: 'feet', offset: HEAD_DOWN_CAMERA.offset, local: true },
-    target: { actor: 'egill', part: 'feet', offset: [2.2, 2.2, 0], local: true }, fov: HEAD_DOWN_CAMERA.fov,
-  },
-  // Scene 6: as the lift begins, where the camera that rides up with Egill on her head (LIFT_CAMERA) stands then, at his right.
-  fen_lift: { position: { actor: 'egill', part: 'feet', offset: LIFT_CAMERA.offset, local: true }, target: 'egill.head', fov: LIFT_CAMERA.fov },
-  // Scene 4: the berry hummocks east of Mosi (kept for the planting; the search looks from behind Egill: fen_pick).
-  fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
-  // Scene 3: Egill on the bank calling up to her: low in front of him, his face turned up past us to where her head is, the sky
-  // behind him (a shot on him, which the planter skips).
-  fen_call: {
-    position: { actor: 'egill', part: 'feet', offset: [1.75, 0.55, 0.3], local: true },
-    target: { actor: 'egill', part: 'feet', offset: [0, 1.12, 0.02], local: true }, fov: 38,
-  },
-  // Scene 4: the berry search, from behind Egill on the bank, over the berry hummocks (the free look turns from here).
-  fen_pick: {
-    position: { actor: 'egill', part: 'feet', offset: [-2.2, 1.7, -1.8], local: true },
-    target: { actor: 'egill', part: 'feet', offset: [5.5, 0.2, 0.2], local: true }, fov: 50,
-  },
-  // Scene 6: Egill by her lowered head, about to climb on.
-  fen_lift_start: { position: [1.5, 1.35, -1.5], target: [4.6, 1.4, -8.6], fov: 40 },
-  // Scene 7: the slide ends in the saddle on Mosi, by his hummock.
-  fen_slide_end: { position: [5, 3.2, 6], target: [7.6, 2.6, -3.5], fov: 46 },
-  // Scene 7: from the south-east, (13, 2.2, 5) to (3.4, 4.1, -6.2), her neck bent down like a slide from her head to her withers and
-  // Mosi on the bank beside them (MOSI_CATCHES), where the slide ends in his saddle: one shot from the top of the slide to Egill in
-  // the saddle. Put as points on her (she does not move), as the shots on Egill are: a still shot of its own would re-deal some 70
-  // of the Fen's plants (plan.js protects still shots' sight lines), and the static shots above are kept as Task 2 planned them for
-  // the same reason (the head coming down and the slide use the cameras here instead).
-  fen_slide: {
-    position: { actor: 'thorsedla', part: 'feet', offset: [15, 2.86, 14], local: true },
-    target: { actor: 'thorsedla', part: 'feet', offset: [5.4, 4.76, 2.8], local: true }, fov: 32,
-  },
-  // Kept for the planting (Task 2 planned the Fen round it: changing it re-deals plants), unused: from here Mosi shows his back and
-  // her head is in the south-east conifer's crown. The star is seen from fen_star_rise.
-  fen_star: { position: [14, 1.3, 4], target: [2, 4.2, -6], fov: 52 },
-  // Scene 8: from the south, low across the bank with the sun behind us: Mosi in profile with Egill in the saddle, Þórseðla behind
-  // them in her pool, her neck rising into her conifers, where the star rises. Points on her (she does not move), as fen_slide is,
-  // so the planter leaves the Fen as Task 2 planned it.
-  fen_star_rise: {
-    position: { actor: 'thorsedla', part: 'feet', offset: [2.5, 2.0, 18.5], local: true },
-    target: { actor: 'thorsedla', part: 'feet', offset: [6, 5.2, 2.5], local: true }, fov: 50,
-  },
-  // Scene 8, once the star has landed: the sun's hug. From the north side of her pool, 4 m up over the channel, looking south-west
-  // straight at the late morning sun's heading (150) and up 13 degrees (it is 26 up), on a 40-degree lens: her back and her tail's
-  // curve a band along the bottom of the frame, the west groves' crowns beyond, and the sun's face in the upper third. Points on her,
-  // as fen_star_rise is.
-  fen_sun_hug: {
-    position: { actor: 'thorsedla', part: 'feet', offset: [8, 4.66, -9], local: true },
-    target: { actor: 'thorsedla', part: 'feet', offset: [-8.88, 9.16, 0.74], local: true }, fov: 40,
-  },
-  // Low across the west shore of her pool: reed, lilies and the water's edge near, her legs in the water behind.
-  fen_shore: { position: [-16, 1.2, -16], target: [-4, 1.6, -8.5], fov: 50 },
-  // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
-  fen_portrait: { position: [0.5, 1.0, 2.5], target: [5, 3.6, -8.5], fov: 32 },
-};
-
-// ---------------------------------------------------------------------------------------------
 // The lines: every line the script says, each read from its own recording in the kafli2 set
 // (remake/assets/audio/kafli2/lines-source.json and lines.json), with the words it is recorded with.
 
@@ -243,7 +108,7 @@ const WORDS = {
   k2_mosi_muchbigger: 'Miklu stærri. Þú sérð!',
   k2_mosi_map_trail: 'Nú förum við út úr skóginum, niður Fenjaslóðina og alla leið að Feninu, til Þórseðlu.',
   k2_kambedla_bye: 'Góða ferð!',
-  // 2. The footprints in the mud, counted one to ten (the berries in scene 4 count with the first five)
+  // 2. The footprints in the mud, counted one to ten
   k2_mosi_prints: 'Sjáðu! Fótspor Þórseðlu. Þau eru risastór!',
   k2_mosi_count: 'Teljum þau!',
   k2_mosi_1: 'Eitt!',
@@ -259,47 +124,39 @@ const WORDS = {
   k2_mosi_tenprints: 'Tíu fótspor! Hún hlýtur að vera rétt hjá.',
   k2_mosi_hint_print: 'Hvað með næsta spor? Pikkaðu á það!',
   k2_mosi_nextprint: 'Næsta er þarna!',
-  // 3. The Fen
-  k2_mosi_there: 'Þarna er hún! Þórseðla! Halló!',
-  k2_egill_hello: 'Halló! Hérna niðri!',
-  k2_mosi_canthear: 'Hún heyrir ekki svona langt niður. En ég veit hvað hún elskar…',
-  // 4. The lure
-  k2_mosi_berries: 'Rauðu berin! Tíndu fimm handa henni.',
-  k2_mosi_blue: 'Nei, bláu berin eru fyrir fuglana. Þau rauðu!',
-  k2_mosi_hint_berry1: 'Ég sé rauð ber við stóra runnann!',
-  k2_mosi_hint_berry2: 'Kíktu nær vatninu!',
-  k2_mosi_hint_berry3: 'Þarna, undir laufinu!',
-  k2_mosi_raise: 'Réttu þau upp, Egill! Hátt!',
-  k2_thorsedla_mmm: 'Mmm… rauðber!',
-  k2_thorsedla_who: 'Ó! Mosi! Og hver ert þú, litli vinur?',
-  k2_egill_name: 'Ég heiti Egill!',
-  k2_thorsedla_thanks: 'Egill. Takk fyrir berin.',
-  // 5. The invitation, and the choice
-  k2_mosi_invite: 'Þórseðla, viltu koma á Stjörnuhátíðina í kvöld?',
-  k2_thorsedla_accept: 'Stjörnuhátíð! Já, ég kem. Ég er hæst af öllum, svo ég sé fyrstu stjörnuna á undan ykkur og segi ykkur frá henni.',
-  k2_thorsedla_see: 'Egill… viltu sjá hvað ég sé héðan að ofan?',
-  k2_egill_yes: 'Já!',
-  k2_egill_high: 'Er það hátt?',
-  k2_thorsedla_high: 'Mjög hátt. En ég held á þér.',
-  // 6. The lookout: the friends far away, a hint for each (in the order Slóeðla, Flugeðla, Uggeðla) and a line as each is found
-  k2_egill_tiny: 'Vá… Mosi er pínulítill!',
-  k2_mosi_notsmall: 'Ég er ekki lítill, ég er langt í burtu!',
-  k2_thorsedla_look: 'Horfðu vel, Egill. Sérðu vinina okkar?',
-  k2_mosi_hint_far1: 'Ég sé eitthvað glitra úti í tjörninni!',
-  k2_mosi_hint_far2: 'Kíktu á gamla hvíta tréð!',
-  k2_mosi_hint_far3: 'Hvað glitrar þarna í sefinu?',
-  k2_mosi_found_sloedla: 'Slóeðla! Hún er að vaða í tjörninni!',
-  k2_mosi_found_flugedla: 'Flugeðla! Uppi á gamla trénu!',
-  k2_mosi_found_uggedla: 'Uggeðla! Hún liggur í sefinu, sjáðu seglið!',
-  // and after the third, Grameðla far off at the edge of the forest, seen and not found: she comes in a later chapter
-  k2_mosi_gramedla: 'Sjáðu, lengst þarna! Þetta er Grameðla. Hana heimsækjum við seinna!',
-  k2_thorsedla_now: 'Nú veistu hvar þau eru. Við skrifum það í bókina.',
-  // 7. The slide, into the saddle with an "úff" from Mosi
-  k2_egill_wuuu: 'Vúúú!',
-  k2_mosi_oof: 'Úff!',
-  k2_thorsedla_comeback: 'Komdu aftur hvenær sem þú vilt, Egill.',
-  // 8. The star
+  // 3. The channel: the path flooded, a sail rises out of the reed, "a boat", and it is Uggeðla
+  k2_mosi_flooded: 'Ó nei! Síkið hefur flætt yfir stíginn.',
+  k2_egill_across: 'Hvernig komumst við yfir?',
+  k2_mosi_boat: 'Sjáðu, Egill! Bátur! Með stóru, litríku segli!',
+  k2_egill_helloboat: 'Halló, bátur!',
+  k2_mosi_notboat: 'Þetta er enginn bátur… þetta er Uggeðla!',
+  k2_uggedla_hello: 'Bátur? Ha ha ha! Halló, Mosi. Ég er að veiða.',
+  // 4. The fishing: Uggeðla asks, Mosi counts the big fish in the masculine (fiskur is masculine), five (k2_mosi_5) as the prints' five
+  k2_uggedla_help: 'En fiskarnir eru svo snöggir í dag. Viltu hjálpa mér, Egill? Pikkaðu á stóru fiskana þegar þeir stökkva!',
+  k2_mosi_einn: 'Einn!',
+  k2_mosi_tveir: 'Tveir!',
+  k2_mosi_thrir: 'Þrír!',
+  k2_mosi_fjorir: 'Fjórir!',
+  k2_uggedla_small: 'Nei, hann er of lítill. Hann má stækka!',
+  k2_mosi_hint_fish: 'Bíddu eftir stórum fiski… og pikkaðu!',
+  k2_uggedla_thanks: 'Fimm fiskar! Takk, Egill. Þú ert frábær veiðimaður!',
+  // 5. The invitation and her star
+  k2_mosi_invite_ugg: 'Uggeðla, viltu koma á Stjörnuhátíðina í kvöld?',
+  k2_uggedla_accept: 'Stjörnuhátíð! Já, ég kem! Og ég veit hvað ég geri: ég ferja alla gestina yfir ána.',
   k2_mosi_second: 'Sjáðu, Egill! Önnur stjarnan!',
+  // 6. The ferry: Egill on her back, the chat on the way
+  k2_uggedla_aboard: 'Og ég byrja strax. Upp á bakið, Egill! Ég ferja ykkur til Þórseðlu.',
+  k2_mosi_brrr: 'Brrr! Vatnið er svo blautt!',
+  k2_uggedla_wet: 'Vatn er alltaf blautt, Mosi!',
+  k2_egill_sail: 'Af hverju ertu með svona stórt segl?',
+  k2_uggedla_sail: 'Svo allir sjái mig langt að. Meira að segja þeir sem halda að ég sé bátur!',
+  k2_mosi_onlyabit: 'Ég hélt það bara pínulitla stund…',
+  k2_uggedla_tail: 'Og sjáðu, ég syndi með halanum, eins og fiskur!',
+  k2_mosi_wetter: 'Hei! Nú er ég ennþá blautari!',
+  k2_egill_head: 'Sjáðu! Höfuðið á Þórseðlu, uppi yfir trjánum!',
+  // 7. The hummocks, and the book
+  k2_uggedla_berries: 'Hér eru þúfurnar. Þórseðla heyrir ekki í litlum röddum. En hún elskar rauðu berin!',
+  k2_mosi_thanks_ugg: 'Takk, Uggeðla! Sjáumst í kvöld!',
   k2_mosi_two: 'Tvær komnar. Og nú vitum við hvert við förum næst!',
   // The book's map: a tap on the marker of a place found or done, and Mosi says its name and one sentence (an empty slot is silent)
   k2_mosi_map_fen: 'Fenið! Þar eru tjarnir, sef og froskar.',
@@ -316,12 +173,233 @@ const WORDS = {
 function* story(s, c) {
   yield* leaving(s, c);
   yield* footprints(s, c);
-  yield* theFen(s, c);
-  yield* theLure(s, c);
+  yield* intoSiki(s, c);
+  yield* theChannel(s, c);
+  yield* fishingScene(s, c);
   yield* theInvitation(s, c);
-  yield* theLookout(s, c);
-  yield* theSlide(s, c);
-  yield* theStar(s, c);
+  yield* theFerry(s, c);
+  yield* theHummocks(s, c);
+}
+
+// The way into Síkið: on down the trail the picture fades to black and comes up on the path at the channel. Scenes 3 to 7 are there.
+function* intoSiki(s, c) {
+  yield* goTo(s, c, 'siki', () => arriveInSiki(s, c));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Where things are on her: points that follow her wherever she is (her root is under the water, as deep as she lies or swims)
+const SAIL_TAP = { actor: 'uggedla', part: 'feet', offset: [-0.6, 6.4, 0], local: true }; // the middle of the part of her sail that shows over the reed
+const SAIL_TOP = { actor: 'uggedla', part: 'feet', offset: [0.2, 7.35, 0], local: true }; // just over the top of her sail (7.27 m over her feet)
+const SAIL_SECONDS = 4.5; // the sail takes its time: it is the "boat" joke
+
+// 3. The channel: Mosi walks down the path to the water, which has flooded it ("Ó nei!"), and Egill asks how they are to get across. A big,
+// colourful sail rises out of the reed on the other side, slowly, like a boat's: "Bátur!" Egill says hello to it. It turns, and her
+// head comes up out of the water with a fish in her jaws, which she swallows: no boat, but Uggeðla, who is fishing. Her place goes onto the
+// book's map from where her head is on the screen. While the sail stands in the reed it can be tapped: it glitters, and nothing else.
+function* theChannel(s, c) {
+  mark(c, 3);
+  const { mosi, egill, world } = c;
+  yield mosi.walkTo(SIKI_WALK.slice(1), { speed: 1.2 });
+  yield mosi.turnTo(MOSI_BANK.heading, { rate: 40 });
+  yield s.camera.cut('siki_flooded');
+  yield* say(s, c, 'mosi', 'k2_mosi_flooded');
+  yield* say(s, c, 'egill', 'k2_egill_across');
+  // across the channel to the reed, close on the sail, and on her head as it comes up (the tall screen's shot, kept for the whole of the
+  // reveal: siki_sail, over Mosi's shoulder with her whole length in it, is 273k triangles on a tablet while she lies broadside, and the
+  // two-shot 6 to 7 ms; this is 226k and 4.5 to 5.6 ms): the sail rises, and Mosi sees a boat
+  yield s.camera.cut('siki_portrait');
+  yield mosi.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
+  yield egill.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
+  const stopTaps = sailTaps(s, c);
+  const rising = s.after(0, () => riseSail(s, c, { seconds: SAIL_SECONDS }));
+  yield s.wait(0.8);
+  yield* say(s, c, 'mosi', 'k2_mosi_boat');
+  yield* say(s, c, 'egill', 'k2_egill_helloboat');
+  yield rising;
+  // it turns, and her head comes up out of the water with a fish; "this is no boat"
+  stopTaps();
+  const head = s.after(0, () => headUpWithFish(s, c));
+  yield s.wait(HEAD_UP_SEES);
+  yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
+  yield egill.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
+  yield* say(s, c, 'mosi', 'k2_mosi_notboat');
+  yield head;
+  yield* say(s, c, 'uggedla', 'k2_uggedla_hello');
+  s.place('uggedla', screenOf(world, c.uggedla.raw.headPosition(new THREE.Vector3()))); // her marker flies from her head into the book
+  s.sfx('mapMark');
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+}
+const HEAD_UP_SEES = 2.2; // s into her head coming up (it breaks the water at about 1.4 s) that Mosi sees who it is
+
+/** The sail can be tapped while it stands in the reed: it glitters, nothing more. Returns what stops it. */
+function sailTaps(s, c) {
+  const { world } = c;
+  let n = 0;
+  s.target('sail', { point: SAIL_TAP, radius: 2.4 });
+  const unhear = s.onTap('sail', () => {
+    s.sfx('flower');
+    sparkleBurst(world, world.resolvePoint(SAIL_TAP, new THREE.Vector3()), { count: 40, size: 0.32, spread: 2.4, duration: 1.4, seed: `sail ${n++}` });
+  });
+  return () => { unhear(); s.target('sail', null); };
+}
+
+/** Where a point is on the screen, in CSS pixels ({ x, y }), for a marker to fly from; the middle of the screen when it is behind us. */
+function screenOf(world, point) {
+  const box = world.renderer?.domElement?.getBoundingClientRect?.();
+  if (!box) return null;
+  world.camera.updateMatrixWorld();
+  const p = point.clone().project(world.camera);
+  if (p.z >= 1) return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  return { x: box.left + ((p.x + 1) / 2) * box.width, y: box.top + ((1 - p.y) / 2) * box.height };
+}
+
+// 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. She
+// asks Egill to tap the big fish when they jump; he taps five, and she thanks him (kafli2-fishing.js). She got up in scene 3.
+function* fishingScene(s, c) {
+  mark(c, 4);
+  const { mosi, egill } = c;
+  yield s.camera.cut('siki_fishing');
+  yield mosi.lookAt('uggedla.head', { weight: 0.7 });
+  yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
+  yield* say(s, c, 'uggedla', 'k2_uggedla_help');
+  yield* fishing(s, c);
+  yield* say(s, c, 'uggedla', 'k2_uggedla_thanks');
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+}
+
+// 5. The invitation and her star: Mosi asks her to the Star Festival in the evening, she says yes and will ferry all the guests over the
+// river, and a star rises from the top of her sail and waits for a tap (8 s at most, as in chapters 1 and 3), "the second star".
+function* theInvitation(s, c) {
+  mark(c, 5);
+  const { mosi, egill } = c;
+  yield s.camera.cut('siki_two_shot');
+  yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 40 });
+  yield egill.lookAt('uggedla.head', { weight: 0.8, maxPitch: 40 });
+  yield* say(s, c, 'mosi', 'k2_mosi_invite_ugg');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_accept');
+  // her sail against the sky, and the star rises from its top
+  yield s.camera.cut('siki_star');
+  yield mosi.lookAt(SAIL_TOP, { weight: 0.7, maxAngle: 60, maxPitch: 45 });
+  yield egill.lookAt(SAIL_TOP, { weight: 0.8, maxAngle: 60, maxPitch: 50 });
+  s.sfx('star');
+  const star = s.star('k2_uggedla', SAIL_TOP);
+  yield s.wait(1.4);
+  yield* say(s, c, 'mosi', 'k2_mosi_second');
+  yield star;
+  s.sfx('journal');
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+}
+
+// 6. The ferry: "Up on my back, Egill!" He floats from Mosi's saddle onto her back, in front of her sail with his hands on its front edge
+// (her back seat: making it has her lower her neck for him), and she swims him along the channel to the hummocks while Mosi wades the shallow
+// edge beside them. The chat on the way is the owner's: the water is wet, why such a big sail, "boat", the tail splash, Þórseðla's head over
+// the trees. Three of the ferry's shots (kafli2-siki.js) cut in as it suits what is said; a ferry shot is never within 2.5 s of another.
+const FERRY_SPEED = 1.25; // m/s she swims
+const MOSI_WADE_SPEED = 1.55; // m/s Mosi wades: his line along the shallow edge is a third longer than hers
+function* theFerry(s, c) {
+  mark(c, 6);
+  const { mosi, egill, uggedla } = c;
+  yield s.camera.cut('siki_two_shot');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_aboard');
+  // Egill floats across onto her back: her neck comes down for him as it begins
+  const seat = c.backSeat = createBackSeat(uggedla);
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+  yield floatTo(egill.raw, seat, { duration: 3 });
+  c.riding = ride(egill.raw, seat, { settle: 0 });
+  // off they go: she swims the channel to the pool at the hummocks, Mosi wades along the near edge
+  const swim = s.after(0, () => swimAlong(s, c, FERRY_LINE, { speed: FERRY_SPEED }));
+  c.wade = mosi.walkTo([...MOSI_WADE_LINE, [HUMMOCK.position[0], HUMMOCK.position[2]]], { speed: MOSI_WADE_SPEED });
+  yield* ferryChat(s, c);
+  yield swim;
+}
+
+/**
+ * What is said on the way, with the cameras that go with it: a short pause between the lines, so that the chat fills the swim. The cameras
+ * are chosen by the triangles of a tablet's frame and by what is in the lens (the ferry's shots are not planted around, so each was measured
+ * at each stretch of the swim, 250k at the most): the two-shot from the crossing for the first seconds (a camera in Mosi's frame swings round
+ * with him as he turns into the water, and the far bank's reed is in the lens), then the front shot for the long middle, the side one (from
+ * behind and above, over the open channel: the bank's trees have their crowns over any camera on it) as the tail splashes and the back one
+ * for Þórseðla's head.
+ */
+const CHAT_PAUSE = 0.9;
+// The side shot was measured for the swim's stretch from 27.5 s on (before it the bank's swamp conifers put their crowns over the camera),
+// and the chat's lines took that long when they were timed by their words. With the recordings the lines before it are 2 s shorter, so
+// the cut waits for the swim to have gone that far: the chat may run shorter or longer with a new take, the shot stays where it is clear.
+const SIDE_SHOT_FROM = 27.5; // s after the swim begins
+function* ferryChat(s, c) {
+  const { mosi } = c;
+  const sideShotMayCut = s.after(0, () => s.wait(SIDE_SHOT_FROM));
+  yield s.wait(3); // the two-shot from the crossing holds while Mosi turns and wades in: a camera in his frame swings round with him then
+  yield mosi.lookAt('uggedla.head', { weight: 0.6, maxPitch: 30 });
+  yield* say(s, c, 'mosi', 'k2_mosi_brrr');
+  yield s.camera.cut('ferry_front');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_wet');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'egill', 'k2_egill_sail');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'uggedla', 'k2_uggedla_sail');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'mosi', 'k2_mosi_onlyabit');
+  // side by side again: the tail comes down in the water as she says "like a fish", and Mosi gets the splash
+  yield sideShotMayCut;
+  yield s.camera.cut('ferry_side');
+  yield s.wait(CHAT_PAUSE);
+  const saying = s.after(0, () => say(s, c, 'uggedla', 'k2_uggedla_tail'));
+  yield s.wait(Math.max(0.3, s.lineDuration('k2_uggedla_tail') - TAIL_LANDS));
+  const splash = s.after(0, () => tailSplash(s, c, mosi));
+  yield saying;
+  yield* say(s, c, 'mosi', 'k2_mosi_wetter');
+  // and from behind and above her, over her sail, where she is going: Þórseðla's head over the trees
+  yield s.camera.cut('ferry_back');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'egill', 'k2_egill_head');
+  yield splash;
+  yield mosi.lookAt(null);
+}
+const TAIL_LANDS = 0.85; // s from the start of tailSplash to the tail's hit on the water (kafli2-uggedla.js: winds back 0.6 s, sweeps 0.22 s)
+
+// 7. The hummocks: the channel ends in a pool by dry moss mounds with berry bushes behind them, where Mosi comes up out of the water. Egill
+// floats from her back into his saddle, she tells them Þórseðla cannot hear small voices but loves red berries, and Mosi thanks her;
+// she swims off along the channel, the sail low like a boat's, and is hidden as soon as she is out of view. The picture goes into the
+// book, which opens on the dinosaurs, where her card is new and nods, and turns to the map: the red line to her ring is drawn with her
+// star. "Two are in."
+const OFF_SPEED = 1.7; // m/s she swims off
+const TO_THE_MAP = 1.2; // seconds the book shows its dinosaurs (her card nodding) before it turns to the map
+const OFF = [[40.1, 21.8], [39.3, 17.9], [38.2, 14.2], [36.9, 11.2], [35.4, 8.3], [33.6, 5.5]]; // the way back along the channel (the ferry line's end, reversed)
+function* theHummocks(s, c) {
+  mark(c, 7);
+  const { mosi, egill, uggedla, world } = c;
+  yield s.camera.cut('siki_hummocks');
+  yield c.wade; // Mosi comes up out of the water onto the hummock
+  mosi.turnTo(HUMMOCK.heading, { rate: 60 }); // to face her across the pool, as Egill floats to him and she speaks
+  yield floatTo(egill.raw, c.saddle, { duration: 2.6 });
+  c.riding = ride(egill.raw, c.saddle, { settle: 0 });
+  c.backSeat = null;
+  yield* say(s, c, 'uggedla', 'k2_uggedla_berries');
+  // she goes as Mosi thanks her: back along the channel with her sail low like a boat's, until she is out of the picture
+  const off = s.after(0, () => swimAlong(s, c, OFF, { speed: OFF_SPEED, sink: SINK.low, then: 'idle' }));
+  yield* say(s, c, 'mosi', 'k2_mosi_thanks_ugg');
+  yield s.until(() => outOfView(world, uggedla.raw));
+  off.cancel();
+  uggedla.raw.root.visible = false;
+  // into the book
+  s.fade(0.45, 1.6);
+  s.journal.open('dinosaurs', { nod: 'uggedla' });
+  s.after(TO_THE_MAP, () => s.journal.open('map'));
+  yield* say(s, c, 'mosi', 'k2_mosi_two');
+}
+
+/** Is all of her out of the picture: her head, her hips, the end of her tail and the top of her sail (past the edge of the frame, or behind us)? */
+function outOfView(world, her) {
+  world.camera.updateMatrixWorld();
+  const point = new THREE.Vector3();
+  const parts = [her.headPosition(point.clone()), her.model.getObjectByName('Hips').getWorldPosition(point.clone()), her.model.getObjectByName('Tail6').getWorldPosition(point.clone()),
+    world.resolvePoint(SAIL_TOP, point.clone()), her.root.position.clone()];
+  return parts.every(p => { p.project(world.camera); return p.z >= 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1; });
 }
 
 // 1. Leaving the glade: Mosi says who is next, the map slides up over the game and draws the way ahead (the trail, and across the Fen to
@@ -400,143 +478,15 @@ function* footprints(s, c) {
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
   yield* say(s, c, 'mosi', 'k2_mosi_tenprints');
-  // and on down the trail, toward the Fen (a walk the Fen stops under its black: arriveInTheFen)
+  // and on down the trail, toward the Fen (the walk goes on while the chapter's picture fades out)
   c.trailWalk = mosi.walkTo(TRAIL_ON, { speed: 1.2 });
   s.camera.follow('mosi', RIDE_CAMERA);
   yield s.wait(3);
 }
 
-// 3. The Fen: the new world opens, and Þórseðla stands in it at her real size, too high up to hear them.
-function* theFen(s, c) {
-  mark(c, 3);
-  const { mosi, egill } = c;
-  yield* goTo(s, c, 'fen', () => arriveInTheFen(s, c));
-  thorsedlaLife(s, c);
-  // The trail ends on Mosi's hummock: the camera rises over the Fen and pans across it, the pools glittering, the early bird
-  // flying up out of the reed, to Þórseðla in the water at her real size; a tap on her swishes her tail.
-  const herTap = s.onTap('thorsedla', () => { tapOnHer(s, c); });
-  s.target('thorsedla', { point: HER_MIDDLE, radius: 2.6 });
-  const arriving = mosi.walkTo(FEN_ARRIVAL, { speed: 1.45 });
-  const reveal = s.camera.move('fen_reveal_end', { duration: REVEAL_SECONDS });
-  s.after(3.2, () => { s.sfx('earlyBird'); return c.fenCritters.critters.react('fen-bird'); }); // it calls as it flies up
-  yield s.all(reveal, arriving);
-  yield mosi.turnTo(MOSI_FEN.heading, { rate: 30 });
-  yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
-  yield* say(s, c, 'mosi', 'k2_mosi_there');
-  // the Fen goes onto the book's map, its marker flying in from the middle of the view over it: found now, and done with her star
-  s.place('fen');
-  s.sfx('mapMark');
-  // Egill floats down to the bank and calls up to her. Nothing happens: her tail swishes, and she bites the treetop again.
-  yield floatDown(egill.raw, c.saddle, [EGILL_CALLS.position[0], EGILL_CALLS.position[2]], { duration: 2.2, heading: EGILL_CALLS.heading });
-  c.riding = null;
-  yield s.camera.cut('fen_call');
-  yield egill.lookAt(HER_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 55 });
-  yield egill.play('wave', { fade: 0.3 });
-  yield* say(s, c, 'egill', 'k2_egill_hello');
-  yield egill.play('idle', { fade: 0.5 });
-  yield s.until(() => !c.swishing); // a tap's swish still going: it ends first, so hers is the whole beat and the shot its length
-  yield s.camera.cut('fen_thorsedla_low');
-  yield* tailSwish(s, c);
-  yield s.wait(0.6);
-  yield s.camera.cut('fen_call');
-  yield mosi.lookAt(EGILL_HEAD, { weight: 0.7, maxPitch: 35 });
-  yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 45 });
-  yield* say(s, c, 'mosi', 'k2_mosi_canthear');
-  herTap();
-  s.target('thorsedla', null);
-}
-
-// 4. The lure: five red berries for her, held up high, and her head comes down to Egill's eyes.
-function* theLure(s, c) {
-  mark(c, 4);
-  const { mosi, egill } = c;
-  // The basket comes into Egill's hands, and he goes to the berry bushes on the hummocks.
-  c.basket.hold(egill.raw);
-  yield egill.lookAt(null);
-  const goingOver = egill.walkTo(EGILL_PICKS_WAY, { speed: 0.85 });
-  yield* say(s, c, 'mosi', 'k2_mosi_berries');
-  yield goingOver;
-  yield egill.turnTo(EGILL_PICKS.heading, { rate: 60 });
-  yield s.camera.cut('fen_pick');
-  yield mosi.lookAt(null);
-  yield* pickBerries(s, c);
-  yield egill.lookAt(null);
-  // Five: "Hold them up, Egill! High!" He goes to her two conifers, where her face comes down, and the child drags the basket up
-  // (or taps him); after 6 s he holds it up himself.
-  yield s.camera.cut('fen_two_shot');
-  const toHer = egill.walkTo(EGILL_FEN_WAY, { speed: 0.9 });
-  yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxPitch: 35 });
-  yield* say(s, c, 'mosi', 'k2_mosi_raise');
-  yield toHer;
-  yield egill.turnTo(EGILL_FEN.heading, { rate: 60 });
-  yield mosi.lookAt(HER_HEAD, { weight: 0.7, maxPitch: 45 });
-  yield s.camera.cut('fen_shoulder');
-  c.raisedBy = yield* holdUpBasket(s, c);
-  yield egill.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
-  yield c.basket.raise(egill.raw, { duration: 0.9 });
-  // Task 3's: her head comes down out of the trees to his eyes, over his shoulder.
-  yield* headDown(s, c);
-  c.headDownAt = s.time;
-  yield* eatFromBasket(s, c);
-  c.basket.lower();
-  yield* say(s, c, 'thorsedla', 'k2_thorsedla_who');
-  yield* say(s, c, 'egill', 'k2_egill_name');
-  yield* say(s, c, 'thorsedla', 'k2_thorsedla_thanks');
-}
-
-// 5. The invitation: she will come, and asks Egill up.
-const CHOICE_WAIT = 25; // seconds before a child who does not answer says yes
-function* theInvitation(s, c) {
-  mark(c, 5);
-  const { mosi } = c;
-  // Her head down by Egill, Mosi beside them: the invitation, and her yes.
-  yield s.camera.cut('fen_two_shot');
-  yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 40 });
-  yield* say(s, c, 'mosi', 'k2_mosi_invite');
-  yield* say(s, c, 'thorsedla', 'k2_thorsedla_accept');
-  // "Egill… do you want to see what I see from up here?", over his shoulder again. The child answers; "Is it high?" brings her
-  // "Very high. But I'll hold you." and the question again. A child who does not answer says yes after 25 s.
-  yield s.camera.cut('fen_shoulder');
-  s.camera.follow('egill', { ...HEAD_DOWN_CAMERA, look: faceInView(c) }); // as her head came down, so the lift goes on from here
-  yield* say(s, c, 'thorsedla', 'k2_thorsedla_see');
-  for (;;) {
-    const answer = yield s.race(s.choose([{ label: 'Já!', value: 'yes' }, { label: 'Er það hátt?', value: 'high' }]), s.wait(CHOICE_WAIT));
-    if (answer !== 'high') break;
-    yield* say(s, c, 'egill', 'k2_egill_high');
-    yield* say(s, c, 'thorsedla', 'k2_thorsedla_high');
-  }
-  yield* say(s, c, 'egill', 'k2_egill_yes');
-  c.basket.putDown(); // on the bank: his hands are free for her head
-  c.fenCritters.quiet();
-}
-
-// 6. The lookout: up her neck to nine metres (Task 3's lift), where he sees how small Mosi is down there and the child finds the
-// three friends far away, each going onto the book's map, and then sees Grameðla far off at the forest's edge (kafli2-lookout.js).
-function* theLookout(s, c) {
-  mark(c, 6);
-  yield c.farFriends.ready(); // made behind the start button or under the Fen's black: long since there
-  hazeUp(c); // the air thickens as he rises: the Fen far below reads far below
-  yield* liftUp(s, c);
-  yield* lookDown(s, c);
-  yield* findFriends(s, c);
-}
-
-// 7. The slide down her neck into the saddle.
-function* theSlide(s, c) {
-  mark(c, 7);
-  haze(c, 1, 3); // the lookout's haze eases off again for the ground
-  yield* slideDown(s, c);
-  // he is down: the far friends are not seen again, and let go of what they hold (their light levels and material)
-  c.farFriends.dispose();
-  // and Mosi turns toward her head as she speaks, so that he looks up at her star as it rises (scene 8: STAR_TURN)
-  c.mosi.turnTo(STAR_TURN, { rate: 30 });
-  yield* say(s, c, 'mosi', 'k2_mosi_oof');
-  yield* say(s, c, 'thorsedla', 'k2_thorsedla_comeback');
-}
-
 /**
  * Fade to another place, set it up while the screen is black, and fade in (as chapter 1 does). What the setting up returns, a
- * promise or nothing, holds the black until it settles (s.goTo's hold): the far friends' models, if they are made there. (The
+ * promise or nothing, holds the black until it settles (s.goTo's hold). (The
  * script resumes before s.goTo's own task in the frame the place is there, as a task that starts another always does, so the
  * hold is asked after the setting up.)
  */
@@ -548,40 +498,6 @@ function* goTo(s, c, name, setUp) {
   yield going;
 }
 
-/**
- * In the Fen, under the black: the trail's prints stay on the trail; Þórseðla stands in her pool; Mosi, with Egill on his back, at
- * the end of the trail where it comes into the Fen; the Fen's animals (a tap on one: it reacts and goes in the book), the berry
- * bushes and Egill's basket, ready for him. The far friends' models are made here, under the black, if they were not behind the
- * start button (the child started before main.js came to them): the promise returned holds the black until they are, and drawn once.
- */
-function arriveInTheFen(s, c) {
-  const { world, kambedla, thorsedla, mosi } = c;
-  c.prints?.dispose();
-  c.printCritters?.dispose();
-  c.prints = c.printCritters = null;
-  kambedla.raw.root.visible = false;
-  thorsedla.raw.root.visible = true;
-  thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
-  // his walk on down the trail ends here (it went on in the Fen and took him from the trail's end to wherever it led, out in the reed)
-  c.trailWalk?.cancel();
-  mosi.place(FEN_ENTRY.position[0], FEN_ENTRY.position[2], FEN_ENTRY.heading);
-  c.fenCritters = fenAnimals(s, c);
-  c.berries = berryBushes(world);
-  c.basket = createBasket(world);
-  c.farFriends.show(true); // out in the Fen, seen only from her head
-  s.sfx('fen'); // the Fen's own bed of water, frogs and drips (laid on the trail already: asked again, it stays as it is)
-  s.camera.cut('fen_reveal');
-  // (a capture, seeking, holds nothing here, as it never did: its frames stay where they were, and the lookout waits for them)
-  const far = c.farFriends;
-  return far.isReady || s.seeking ? null : far.load().then(() => world.warmObjects?.([far.group])); // main.js: one draw with them, under the black
-}
-
-/** The far friends made under the start's black if their files come within FAR_WAIT s; else the Fen makes them (arriveInTheFen). */
-function* farFriendsInTime(s, far) {
-  const fetched = yield s.race(far.prefetch().then(() => true), s.wait(FAR_WAIT));
-  if (fetched === true) yield far.load();
-}
-
 /** A line, one voice at a time: `c.saying` counts the lines under way, so a goodbye or a remark can wait for quiet. */
 function* say(s, c, speaker, id, options) {
   c.saying = (c.saying ?? 0) + 1;
@@ -590,49 +506,6 @@ function* say(s, c, speaker, id, options) {
   } finally {
     c.saying--;
   }
-}
-
-// 8. The second star, and the book: the star rises from her head into the sky, the child taps it into the book, the sun hugs itself
-// and winks in a shot of its own, and the book opens on its dinosaurs, where Þórseðla is new and nods, and turns to the map, where
-// the friends found today are.
-// The star rises from just over her head (the brief's 1 m under it, on her neck, put a gold star on her gold skin) and goes up 2.4 m
-// into the sky (engine/scene/star-sprite.js), where it waits for the tap.
-const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, 0.3, 0] };
-const TO_THE_MAP = 1.2; // seconds the book shows its dinosaurs (Þórseðla nodding) before it turns to the map
-// Mosi's heading as the star rises (he came round to catch Egill facing west, 180): turned north toward her head, so the star is
-// 33 degrees aside of his head (the saddle lets his look go 40 aside and 30 up, engine/riding.js); from the south he reads three
-// quarters from behind, looking up with Egill.
-const STAR_TURN = -98;
-const SUN_WINKS = 1.4; // seconds into the sun's hug, in its own shot, that it winks
-const HUG_HOLD = 2.8; // seconds the sun's shot holds before the fade into the book (its hug is 2.4 s)
-function* theStar(s, c) {
-  mark(c, 8);
-  const { mosi, egill } = c;
-  yield s.camera.cut('fen_star_rise');
-  const above = { actor: 'thorsedla', part: 'head', offset: [0, 1.2, 0] };
-  // Mosi has turned toward her head (from the slide's end on), three quarters from behind us, so his look (which the saddle keeps
-  // within 40 degrees aside and 30 up, engine/riding.js) reaches the star as it rises
-  mosi.turnTo(STAR_TURN, { rate: 35 });
-  yield mosi.lookAt(above, { weight: 0.8, maxAngle: 60, maxPitch: 45 });
-  yield egill.lookAt(above, { weight: 0.85, maxAngle: 60, maxPitch: 50 });
-  s.sfx('star');
-  const star = s.star('k2_thorsedla', STAR_FROM); // it waits in this shot for the child's tap (8 s at most), and flies into the book
-  yield s.wait(1.4);
-  yield* say(s, c, 'mosi', 'k2_mosi_second');
-  yield star;
-  s.sfx('journal');
-  // The sun, seen over her back from the far side of her pool (her conifers hide it from every shot with her head in it), hugs itself
-  // with a big grin and winks.
-  yield s.camera.cut('fen_sun_hug');
-  s.sun.hug();
-  s.after(SUN_WINKS, () => s.sun.wink());
-  yield s.wait(HUG_HOLD);
-  // Into the book, which opens over the Fen on its dinosaurs, where Þórseðla's tile is new and nods, and turns to the map, while Mosi
-  // says where they stand.
-  s.fade(0.45, 1.6);
-  s.journal.open('dinosaurs', { nod: 'thorsedla' });
-  s.after(TO_THE_MAP, () => s.journal.open('map'));
-  yield* say(s, c, 'mosi', 'k2_mosi_two');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -647,12 +520,12 @@ function mark(c, scene) {
 
 export const chapter = {
   id: 'kafli2',
-  title: 'Boð til Þórseðlu',
-  next: null, // the last chapter so far: its script ends in the book (main.js shows no hand-over)
+  title: 'Boð til Uggeðlu',
+  next: 'kafli3', // Boð til Þórseðlu: the Fen, from the hummocks (kafli3.js)
   look: 'lateMorning',
   // Its own song, "Dino Trail" (assets/audio/kafli2/theme.json, read by main.js as the page loads: engine/audio/theme.js); its effects
   // are tuned to its key (B-flat pentatonic for now: the owner picks B-flat or E-flat as do), and the forest dances on every second of its 133.3
-  // beats a minute (theme.json danceBeats)
+  // beats a minute (theme.json danceBeats). Chapter 3 plays the same song.
   theme: 'kafli2/theme.json',
   start: 'burknalaut',
   locations: {
@@ -679,80 +552,36 @@ export const chapter = {
       shots: TRAIL_SHOTS,
       warmUp: ['trail_wide', 'trail_fog'],
     },
-    fen: {
-      layout: {
-        seed: 12,
-        clearing: { center: [0, 0], radius: 24 },
-        forestEdge: 30,
-        path: [[56, 40], [34, 22], [20, 9], [12, 1.5], [8.5, -1.5]], // the trail comes in from the south-east to Mosi's hummock
-        biome: 'fen',
-        water: FEN_WATER,
-        hummocks: [
-          { center: [8.5, -3], radius: 5, height: 0.4 }, // Mosi's
-          { center: [8.4, -8.8], radius: 3.5, height: 0.25 }, // under her two conifers, where Egill stands
-          { center: [15, -3.5], radius: 4, height: 0.3 }, // berries
-          { center: [16, -11], radius: 3.5, height: 0.3 }, // berries
-        ],
-        // the two conifers whose tops she bites (their crowns from 3 or 4 m up): the north one 8.5 m tall, its top level with her head
-        // as she stands and below Egill on it at the top of her lift, and her head's way down to him and up again with him on it just
-        // clear of its crown (her snout brushes it); the south-east one 11.5 m; a white snag 10.5 m tall for Flugeðla to perch on;
-        // reed round where Uggeðla lies, on her side away from the channel
-        plants: [
-          { name: 'swampConifer', position: [7.6, -11.1], scale: 0.72, variant: 7 },
-          { name: 'swampConifer', position: [9.0, -7.0], scale: 0.9, variant: 3 },
-          { name: 'deadSnag', position: [-52, -88], scale: 1.5, variant: 2 },
-          ...[[72, 33], [78, 31], [84, 34], [88, 41], [69, 39], [82, 45]].map((position, k) => ({ name: 'horsetailReed', position, variant: k % 4, scale: 1.15 })),
-          // reed on p1's west shore and round p2 and p4, and lilies in p1, all clear of her and of the shots across her pool
-          ...[[-11.2, -5.6], [-11.3, -12.8], [-8.3, 6], [-14, 0.2], [-9.5, 3], [14.5, 10], [9, 13.8]].map((position, k) => ({ name: 'horsetailReed', position, variant: (k + 1) % 4, scale: 1.1 })),
-          ...[[-7.5, -6.3], [-7, -12], [-5.5, -14.2], [-6.5, -3.8]].map((position, k) => ({ name: 'waterLily', position, variant: k % 6, scale: 1.1 })),
-        ],
-        mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
-        // no moss hangs between Egill and where her face comes down to him (x 6.0 to 7.3): the north conifer's lowest strands hung
-        // there, a bright beard across her shoulder and beside her eye over his shoulder
-        mossClear: [{ center: [EGILL_FEN.position[0] - 0.8, EGILL_FEN.position[2]], radius: 1.8 }],
-        farFriends: FEN_FAR,
-        berries: BERRY_BUSHES, // the berry bushes (world/props/berries.js): not the forest's, it reads no `berries`
-        lookout: [5, 9.4, -9], // where the sight lines to the far friends start, that tall plants keep out of (Egill's head: LOOKOUT_HEAD)
-        actors: {
-          mosi: MOSI_FEN,
-          egill: EGILL_FEN, // on the hummock where her face comes down to him
-          thorsedla: THORSEDLA,
-          thorsedla_tail: alongHer(-9.5),
-          thorsedla_neck: alongHer(3),
-          thorsedla_head: alongHer(6),
-        },
-      },
-      shots: FEN_SHOTS,
-      warmUp: ['fen_reveal_end', 'fen_thorsedla_low', 'fen_two_shot'],
+    siki: {
+      layout: SIKI_LAYOUT,
+      shots: SIKI_SHOTS,
+      warmUp: ['siki_arrive', 'siki_sail', 'siki_hummocks'],
     },
   },
+  // The order they are made in is the order they are updated in (main.js's updateActors puts those that something else moves after the
+  // rest, in this order): Uggeðla, who is moved by her rig (kafli2-uggedla.js), comes before Egill, who rides her in the ferry, so that
+  // he sits where she is in the same frame.
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', ...MOSI_GLADE },
+    // Síkið's two, hidden until the scene comes there (the script hides them as it starts): where Síkið has them
+    uggedla: { url: '../assets/characters/spinosaurus.glb', ...UGGEDLA_REED },
+    thorsedla: { url: '../assets/characters/brontosaurus.glb', ...THORSEDLA_FAR },
     egill: { url: '../assets/characters/egill.glb', ...MOSI_GLADE }, // on Mosi's back: the script seats him in the saddle
     kambedla: { url: '../assets/characters/stegosaurus.glb', ...KAMBEDLA_GLADE },
-    thorsedla: { url: '../assets/characters/brontosaurus.glb', position: OFF_STAGE, heading: 0 },
   },
   // Caption names; the colour is the dark tone of each character's main hue (STYLE.md section 3).
   cast: {
     mosi: { name: 'Mosi', colour: '#4f5433' },
     egill: { name: 'Egill', colour: '#355774' },
     kambedla: { name: 'Kambeðla', colour: '#5d4370' },
-    thorsedla: { name: 'Þórseðla', colour: '#89682e' },
+    uggedla: { name: 'Uggeðla', colour: '#2f6a65' }, // the dark tone of her teal (FRIENDS' #47908a)
   },
   lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: the glade as chapter 1 left it.
   startShot: 'glade_leaving',
-  // The trail and the Fen are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js:
-  // prepare; main.js): the trail first, which the script's first fade from black waits for, then the Fen; a change of place to
-  // either waits for its build.
-  prepare: ['fenjaslod', 'fen'],
-  // Made after the start button shows (main.js), not before it: the far friends' model files are fetched as it shows, and the
-  // models made (four parses and their light levels: long frames) once the places are, if the button still waits; else the
-  // script makes them under its first black (and, should that ever not have, the Fen under its own: arriveInTheFen).
-  later: {
-    fetch: world => world.chapterState?.farFriends?.prefetch(),
-    make: world => world.chapterState?.farFriends?.load(),
-  },
+  // The trail and then Síkið are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js: prepare;
+  // main.js): the script's first fade from black waits for the trail, and the change of place to either waits for its build.
+  prepare: ['fenjaslod', 'siki'],
   // The first animal the chapter puts in the book (the dragonfly over the trail's third print): main.js shows its card's drawing once
   // where nobody sees a frame stall, so its flight into the book is not the first drawing with the hand-drawn filter.
   firstFind: 'dragonfly',
@@ -760,44 +589,37 @@ export const chapter = {
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
    * black as it comes to a place. `place` is the place it is drawn for (main.js), and each place brings what shows there first, so
-   * each black waits for its own: the glade, where the chapter starts, only the actors (Þórseðla among them while she waits out of
-   * sight), so the start button waits for no more than the glade shows; the trail a print with its water, its digit up and a splash,
-   * and its animals; the Fen its animals, one of the leaves Þórseðla bites off, its berry bushes (a bunch each, one in the air), the basket
-   * with a berry in it, and the far friends once their models are there (their first frame from her head is no stall). No place
-   * (null): all of it.
+   * each black waits for its own: the glade, where the chapter starts, only the actors, so the start button waits for no more than
+   * the glade shows; the trail a print with its water, its digit up and a splash, and its animals; Síkið a berry bush with a bunch
+   * picked (the hummocks' bushes). No place (null): all of it.
    */
   warmUp(world, { place = null } = {}) {
     const actors = [...world.actors.values()].map(actor => actor.root);
     const shots = ['glade_leaving'];
     if (place === 'burknalaut') return { objects: actors, shots, dispose() {} };
-    const trail = place === null || place === 'fenjaslod', fen = place === null || place === 'fen';
     const ground = (x, z) => [x, world.heightAt(x, z), z];
     const objects = [...actors], throwaways = [];
     const keep = (made, object) => { objects.push(object); throwaways.push(made); };
-    const kinds = [...(trail ? PRINT_ANIMALS : []), ...(fen ? FEN_CRITTERS : [])].map(animal => animal.kind);
-    if (trail) {
+    if (place !== 'siki') {
       const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }], size: PRINT_SIZE });
       prints.count(0);
       prints.splash(0);
       keep(prints, prints.group);
+      const critters = createCritters(world, {
+        spots: PRINT_ANIMALS.map(({ kind }, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i * 0.6 - 2, 1.5), heading: 0 })),
+      });
+      keep(critters, critters.group);
     }
-    const critters = createCritters(world, {
-      spots: kinds.map((kind, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i * 0.6 - 2, 1.5), heading: 0 })),
-    });
-    keep(critters, critters.group);
-    if (fen) {
-      const leaf = leafWarm(world);
-      keep(leaf, leaf.object);
-      // as many bushes as the Fen has: their shader is one a number of bushes (its shake per bush), so this draws the Fen's own
-      const berries = createBerryBushes(world, { bushes: BERRY_BUSHES.map(({ kind }, i) => ({ position: ground(2 + i, 2), kind, count: 1 })) });
-      berries.pick('berry_0_0', ground(2, 3));
+    if (place === null || place === 'siki') {
+      // the fish she holds in her jaws (hidden until she has one): its material is drawn here, not for the first time as she lifts her head
+      const held = world.chapterState?.uggedlaRig?.fish.group;
+      if (held) objects.push(held);
+      // a burst of glints, as the fishing's big fish and the tail's spray draw them (their shader is one)
+      const glints = sparkleBurst(world, new THREE.Vector3(...ground(1, 2)), { count: 4, seed: 'warm-up' });
+      throwaways.push({ dispose: () => glints.cancel() });
+      // a red and a blue bush, as many as Síkið has (their shader is one a number of bushes: the Fen's warm-up does the same)
+      const berries = createBerryBushes(world, { bushes: [{ kind: 'red', count: 1 }, { kind: 'red', count: 1 }, { kind: 'blue', count: 1 }].map((b, i) => ({ ...b, position: ground(2 + i, 2) })) });
       keep(berries, berries.group);
-      const basket = createBasket(world);
-      basket.group.visible = true;
-      basket.add('red');
-      keep(basket, basket.group);
-      const far = world.chapterState?.farFriends;
-      if (far?.isReady) objects.push(far.group);
     }
     return {
       objects, shots,
@@ -813,19 +635,17 @@ export const chapter = {
     const mosi = s.actor('mosi');
     const egill = s.actor('egill');
     const kambedla = s.actor('kambedla');
+    const uggedla = s.actor('uggedla');
     const thorsedla = s.actor('thorsedla');
     const world = mosi.raw.world;
     world.chapterTimeline = [];
+    uggedla.raw.root.visible = thorsedla.raw.root.visible = false; // they wait for Síkið (arriveInSiki)
     egill.raw.footprintScale = EGILL_FOOTPRINT;
-    const c = { s, world, mosi, egill, kambedla, thorsedla, talking: false, saying: 0, phase: 'glade', printLog: [], picks: [] };
-    // The script's rings on the Fen's water (leaves, drops, her feet) keep to three at once: the water keeps six for the script.
-    c.ring = ringsFor(world, { most: 3 });
-    c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's and the Fen's pieces
+    const c = { s, world, mosi, egill, kambedla, uggedla, thorsedla, talking: false, saying: 0, printLog: [] };
+    c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's pieces
+    c.ring = ringsFor(world, { most: 3 }); // the script's rings on the water (Þórseðla's falling leaves, in Síkið)
     world.chapterState = c; // what the scenes share, for captures and probes
-    // The three friends far out in the Fen and Grameðla beyond it (kafli2-lookout.js): set up now, their models made later (chapter.later).
-    c.farFriends = farFriends(s, c, { ...FEN_FAR, gramedla: GRAMEDLA_FAR });
-    // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight. Þórseðla is in the Fen, not here.
-    thorsedla.raw.root.visible = false;
+    // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight.
     c.saddle = createSaddle(mosi.raw);
     c.saddle.object.visible = true;
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
@@ -834,15 +654,11 @@ export const chapter = {
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
     // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (it is drawn
-    // as the scene comes there, under that black), and the far friends, made (four models parsed: long frames, here where none
-    // shows). The black holds for them, its star breathing (main.js). A capture (seeking) waits for
-    // neither, so its frames stay where they were: it builds the trail as it goes there, and the friends' models are made meanwhile.
-    const far = c.farFriends;
-    if (s.seeking) far.load();
-    else {
+    // as the scene comes there, under that black). The black holds for it, its star breathing (main.js). A capture (seeking) waits
+    // for nothing, so its frames stay where they were: it builds the trail as it goes there.
+    if (!s.seeking) {
       // a trail whose build failed: main.js has said so, and the change of place to it builds it again (locations.js drops it)
-      const trail = s.prepare('fenjaslod').catch(() => {});
-      yield s.all(trail, ...(far.isReady ? [] : [farFriendsInTime(s, far)]));
+      yield s.prepare('fenjaslod').catch(() => {});
     }
     s.sfx('forest');
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it

@@ -1,4 +1,4 @@
-// Chapter 2's Þórseðla (remake/chapters/kafli2.js, scenes 3 to 7): her life in the Fen and the pieces of her part that the
+// Chapter 3's Þórseðla (remake/chapters/kafli3.js, scenes 3 to 7): her life in the Fen and the pieces of her part that the
 // chapter's scenes call (the third task of the plan), with their constants and helpers:
 //   thorsedlaLife(s, c)  she lives: idle, a nod or a bite every 7 to 12 s, eyes on the nearer of Egill and Mosi while her head is down
 //   headDown(s, c)       her head comes down out of the conifers to Egill's eyes and holds there
@@ -15,7 +15,7 @@ import { sparkleBurst } from '../world/props/sparkles.js';
 import { FEN } from '../world/forest/config.js';
 
 /**
- * Where Egill's head is at the top of the lift, on the back of her head (measured: kafli2.test holds it to 0.25 m), and where the
+ * Where Egill's head is at the top of the lift, on the back of her head (measured: kafli3.test holds it to 0.25 m), and where the
  * lookout's far friends are seen from. The layout's `lookout` is the origin of the sight lines tall plants keep out of, 1.5 m from
  * it: its 14 m wide corridors hold the true lines (moving it would re-deal a third of the Fen's plants).
  */
@@ -50,12 +50,12 @@ const EYES_UP = 1.0;
 const HOLD_SETTLE = 1.2; // seconds her look at him settles in before the scene goes on (holdAtEyes keeps her eyes at his after)
 // Seconds into her head coming down that the sun winks, over Mosi's head behind Egill's shoulder: from 3.3 to 3.85 s in, the sun and
 // its hands are clear of Mosi and in the frame. Before that his horn and head, turning up to follow hers, are in front of the sun or
-// of its resting hand; after it the camera, tilting down with her face, has taken the sun out of the top of the frame (kafli2.test
+// of its resting hand; after it the camera, tilting down with her face, has taken the sun out of the top of the frame (kafli3.test
 // holds the whole wink on the screen with nobody in front).
 const WINK_AT = 3.35;
 // The seat on the back of her head (riding.js: createSeat), level however her head and neck turn: 0.15 m behind her Head bone,
 // his root 0.65 m above it, which keeps the lowest of him 1 to 3 cm over her skin with his legs out (neck-ride.js: legsOut) from
-// the bank to the top (kafli2.test asserts none of him inside her). His hands rest on his thighs.
+// the bank to the top (kafli3.test asserts none of him inside her). His hands rest on his thighs.
 const SEAT = { bone: 'Head', offset: [0, 0.65, -0.15], grips: { left: [-0.12, 0.45, 0.08], right: [0.12, 0.45, 0.08] } };
 const FLOAT = 2.2; // seconds he floats up onto it
 const LEGS_OUT = 0.9; // how far his legs go out on her head (1: straight): bent a little at the knee, so the near one is no kick (0.85 sinks a heel)

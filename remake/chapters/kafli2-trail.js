@@ -9,7 +9,7 @@ import { holdWithHands } from '../engine/hand-hold.js';
 import { createCritters } from '../world/critters/critters.js';
 import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
 import { sparkleTrail } from '../world/props/sparkles.js';
-import { CRITTER_SOUNDS } from './kafli2-fen.js';
+import { CRITTER_SOUNDS } from './kafli3-fen.js'; // the animals' sounds, one table for both chapters
 
 // The path from the glade's side in the north-west down to the Fen in the south-east (the trail's layout path, kafli2.js).
 export const TRAIL_PATH = [[-46, -30], [-26, -17], [-12, -8], [0, 0], [12, 7], [26, 14], [46, 24]];
@@ -86,7 +86,7 @@ const NOD_DIP = { x: 0, y: -0.6, z: 0 };
 // darts up and away as its print splashes and comes back; a diving beetle swimming round in the sixth; a water strider on the
 // ninth's water, which shoots off toward the toes; and a salamander in the tenth, near enough the toes that its crawl of two
 // lengths takes it out over them, and back. None of them is an animal chapter 1 finds (the owner's play of 2026-10-25: its frog
-// was in the third, and is in the Fen now, where the child has to look for it: kafli2-fen.js).
+// was in the third, and is in the Fen now, where the child has to look for it: kafli3-fen.js).
 export const PRINT_ANIMALS = [
   { print: 2, kind: 'dragonfly', name: 'print-dragonfly', along: 0.1, across: 0.12, on: 'water', up: 0.28, turn: 40, scale: 1.6 },
   { print: 5, kind: 'waterBeetle', name: 'print-beetle', along: -0.05, across: 0, on: 'water', turn: 0 },

@@ -80,9 +80,9 @@
    "model": "eleven_v4"
   },
   "book/book_birds_2": {
-   "key": "c1adb4cedd49269cbfef9a87725198bd69f1716e757f10dd8e44fdb80ed1b4ee",
-   "mp3": "40f0d6daf12b083282a56271ea66b736321c093f5027f11fe702b8a318a8db53",
-   "duration": 6.65,
+   "key": "938f145768a4ce2aa9b63d1765c75b87983a7c8f4a547c01dec4371bee026c82",
+   "mp3": "18145717b6525ddc1032dccfe2e8199badf110661128dfb525fd13dd88cab0b0",
+   "duration": 6.81,
    "model": "eleven_v4"
   },
   "book/book_birds_3": {
@@ -278,9 +278,9 @@
    "model": "eleven_v4"
   },
   "book/book_flugedla_5": {
-   "key": "04221e4692d5455c61fde03f42d5c32c54094d17a1d1a2d63f149dfba7ad94df",
-   "mp3": "0c8e54abf2508592b7dc1165a95e9af69c025964f9622b849e993c204a0abd2b",
-   "duration": 5.53,
+   "key": "d4b3f7c22c5007482811aa57e9e783c689500b445d4963431212112afa18c37e",
+   "mp3": "d7aeb50262458c5be4182e0e6d1a26605a5c811fa49ead4d74579e97b069f1db",
+   "duration": 5.85,
    "model": "eleven_v4"
   },
   "book/book_flugedla_6": {
@@ -1004,9 +1004,9 @@
    "model": "eleven_v4"
   },
   "book/book_waterstrider_3": {
-   "key": "055c766a6694975ae9a4435fd0104c494ec034556002e874059faf4190343223",
-   "mp3": "b321752acc32dc75750114c548e1e5124af9aa03b0db55e7904b55c752c396c7",
-   "duration": 6.97,
+   "key": "96e2caf4cb376f9dac99e0d92774816e4c515beb95d94a7b0474fbe9fa25b32a",
+   "mp3": "5a6e53fe422478261fb06337398c2f7d0ece2f915fd67022d46249e00416810d",
+   "duration": 7.37,
    "model": "eleven_v4"
   },
   "book/book_waterstrider_4": {
@@ -1364,9 +1364,9 @@
    "model": "eleven_v4"
   },
   "hals/hals_mosi_1": {
-   "key": "493e80dadd1c17b453585d02d7964c0c3e70db8b78e35a68beaa65f3800fa7f7",
-   "mp3": "599feb6fb11b0de03fecf05a5b8cdf2343db1537242059784c0940baf365d69e",
-   "duration": 1.13,
+   "key": "f1b32f8ed9103f12628183cbf3e2fd541e0fa756561a122e002fc90e21500c17",
+   "mp3": "bcc38068aa46daf3bbcb406efe809f357db2c5cf79c89611dbcbef55e3090f95",
+   "duration": 0.97,
    "model": "eleven_v4"
   },
   "hals/hals_mosi_2": {
@@ -1807,16 +1807,34 @@
    "duration": 4.81,
    "model": "eleven_v4"
   },
+  "kafli2/k2_egill_across": {
+   "key": "41bab0254ccad1fa36b198233dc99d44dfc70c23bcd7858b39e61dd29d16c047",
+   "mp3": "8031f898f5a21f4351c9d84054a8a9aa682a565b7524d6094fe04d7ffbbc4c85",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_egill_bigger": {
    "key": "67fccea1c0c6d7e1abe74e2201e03cd879d8daf76c268cfb67d94453ec305efc",
    "mp3": "8399ea5a75f67e7deddf4d281dc5088306c3e83ab92bdacdb6d2107fcebe071d",
    "duration": 1.93,
    "model": "eleven_v4"
   },
+  "kafli2/k2_egill_head": {
+   "key": "31c39a278b1fb97540998c3d5c7a88116b4701a9afbaa8bc7046c263a08024dc",
+   "mp3": "8b2414be66f32b9323e7f0badf1b05042201a0dfb761513032ce0e3551fe6cf9",
+   "duration": 5.05,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_egill_hello": {
    "key": "2bd5aae86b9a88e273168b899151d9c8803dfb0445569deeb02e7f801340b6fe",
    "mp3": "52f5b997146e2d293c9badb48e546781d32dc6d2c6abd6a00ec93d3f1ec2d323",
    "duration": 2.33,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_egill_helloboat": {
+   "key": "ec3589376191ee70812b3ddcd5f8dbf58470b6302a1ae1266730bdf7cdd4002d",
+   "mp3": "8fc27823ee9a1aca45eca00fcf7498bd57e6e0b184de3a0856666f6cb8f6a83b",
+   "duration": 1.85,
    "model": "eleven_v4"
   },
   "kafli2/k2_egill_high": {
@@ -1829,6 +1847,12 @@
    "key": "c281cfcf962a392095b748a9ee8c8fa90a5df51abfb856853337ba8cd812d78b",
    "mp3": "2428108c0d2de665c7e7850062cf5087b0e7ee9cb259a46c0c26eaadfd956681",
    "duration": 1.93,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_egill_sail": {
+   "key": "7f587eb1a2d70c6aa8d949ef04ecab423f7f8790505ac1d9e007efd1f9137304",
+   "mp3": "ce2cbc117b5e3c7ffb4a031b0debdb864a7a0768c7c76245604694ffca31ba2e",
+   "duration": 2.89,
    "model": "eleven_v4"
   },
   "kafli2/k2_egill_tiny": {
@@ -1921,6 +1945,18 @@
    "duration": 4.49,
    "model": "eleven_v4"
   },
+  "kafli2/k2_mosi_boat": {
+   "key": "32601accf3ec6e1f53d0a4844ea287161c2d355a6fcdbac07ef81275c301bf7b",
+   "mp3": "12742f9cfba985c1c9ba705521c178e7537abf9827b2a33ad6f72bfca7f53101",
+   "duration": 5.29,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_brrr": {
+   "key": "c7820c5ded3707c6baa12e853f0a1ee23ccd978e81072ab70f1f94f135db367a",
+   "mp3": "e0181bac0aebf800f87e111ae854d733a2e61fb06950b57d9f40873e84994d86",
+   "duration": 3.29,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_mosi_canthear": {
    "key": "a0720e156edcb8b3671d64741f948fdbb894cf64f4fb1dc14022884fa0437e45",
    "mp3": "28817b1fe1d7628b13b379d14cae481c042fb4fffd8ad62d7dc301be1d3fadb4",
@@ -1931,6 +1967,24 @@
    "key": "dbea931048ad351b257e063926d6124722cedb29c53dde4f118a73ee8a1c7484",
    "mp3": "3c7a4a5f3aa481ad6304086d311f438d91dd01e009aeca5293fbd0a350c18af0",
    "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_einn": {
+   "key": "f1b32f8ed9103f12628183cbf3e2fd541e0fa756561a122e002fc90e21500c17",
+   "mp3": "bcc38068aa46daf3bbcb406efe809f357db2c5cf79c89611dbcbef55e3090f95",
+   "duration": 0.97,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_fjorir": {
+   "key": "ffab406cf8c3acc5954614be09a3f1a218983e25f8dbd570e2e223ce65f76311",
+   "mp3": "6f7b769cd34205c9468149c0a744711de8b4ea79514f6be351dfe7d2113187be",
+   "duration": 1.21,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_flooded": {
+   "key": "7e14a2b609fa0cc30e34ad115f1a7c23a2e8d467019f7f415a6679652c17a82d",
+   "mp3": "5123b639b6fc3583003d40b86c799f3cdef1930a58e993a3fea296726e715748",
+   "duration": 3.85,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_found_flugedla": {
@@ -1993,6 +2047,12 @@
    "duration": 2.41,
    "model": "eleven_v4"
   },
+  "kafli2/k2_mosi_hint_fish": {
+   "key": "c08fcc5178ad379aefdc177eb62ef415791c8846a6f6767f75ba82c26ee71fa1",
+   "mp3": "bf5e6ea1d23578f0dc07f055335c77f7cc693263fa2e1f3f93e0dd98993ccc2e",
+   "duration": 3.371,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_mosi_hint_print": {
    "key": "ea5eb5b4f627f8ac543590da98c5eb7a8314eb383fde5b238e0a249357b35f32",
    "mp3": "1c1f25846486b8ea558a1add01ddae4a51f73b2c724fb2e6ba0b610b2519fb73",
@@ -2003,6 +2063,12 @@
    "key": "370b861206a85e23eab706c5958c3564b6ecfac7a0b0031945d7e30148e71bbd",
    "mp3": "ee13be1ef4a169fe522d62281dfadad5797e9ac6b05480a4b7656ae0466e5a08",
    "duration": 3.85,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_invite_ugg": {
+   "key": "1b447aa7914fb1539503f4e7b2f5ec71c2cbe038d646287e8e41bc8429c9612d",
+   "mp3": "61263e1f972272a462881556e9ecff580c795489213a05cd54fee39feb2da5d2",
+   "duration": 3.69,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_map_fen": {
@@ -2065,10 +2131,22 @@
    "duration": 2.25,
    "model": "eleven_v4"
   },
+  "kafli2/k2_mosi_notboat": {
+   "key": "ebef7984d79688e6976707c005fa34c88aa79247f1899e271e7056f022364596",
+   "mp3": "4a04cb02f4ab56702f5de843ed566acaf1df407aca01dd9925d21833ba586a3a",
+   "duration": 3.77,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_mosi_notsmall": {
    "key": "e22800bc31f083ed554afe0245226b2f82cfff6cb2ccbb3b40c0f2da5284f311",
    "mp3": "e846aec9c30fdd0d57bb05e6772d5505f55032e8125ada0a5160a13a41c85443",
    "duration": 3.61,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_onlyabit": {
+   "key": "9cb8a882db6d6ce1d0559ae23cffcfb658817ebc87cfb98465080a89f5511b54",
+   "mp3": "83670b44965ab79f031fe04650aaae6454ae2f8e1d3ff31913b920b81e759abb",
+   "duration": 2.65,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_oof": {
@@ -2101,16 +2179,40 @@
    "duration": 3.77,
    "model": "eleven_v4"
   },
+  "kafli2/k2_mosi_thanks_ugg": {
+   "key": "d125cb8bde6d22666031dd87c6f4ef8fe2437e5fece7d54dbd642e0507d81a08",
+   "mp3": "b699c4826640ced7f514efe19f01a1d657a68f4817b4351a98c62f57adfe4fce",
+   "duration": 2.81,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_mosi_there": {
    "key": "bf38f240516ef70c2b20fa5366609f3696e6de48eceb8eceb05881db0d1c4d53",
    "mp3": "a8fcd6daf9a69588f26ff70b4cffbdc2d5724dfb52257ca7f2217cc6961b1042",
    "duration": 3.29,
    "model": "eleven_v4"
   },
+  "kafli2/k2_mosi_thrir": {
+   "key": "13a25ecf0a049bf282e07cbae19ed47a6339814e5bce1301465d221d66da5654",
+   "mp3": "97100e9687203fd43328ce5360a6f531f8e8d4930aa1f3f3d20293e6b4b09fd8",
+   "duration": 1.13,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_tveir": {
+   "key": "84fca240dca10cf202358c6c05e073716f27b445a7cb647e2f8e4e7536d179e0",
+   "mp3": "841859b6460b82301d221ca505f0d76c5e7dfebca8eda0fefa9cf59a6baa3ff0",
+   "duration": 1.29,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_mosi_two": {
    "key": "894a8fd2909c95cf938cedb594310c66bd1b01ae2896306cf418e690b14613b9",
    "mp3": "b990ebc4a2b1ede2b50da0ff7492abc21ba232e2ea327905b678a74aecedf2b2",
    "duration": 4.651,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_wetter": {
+   "key": "b1a32fc22dba1d5260c49f108c0680a73326579b1af139a6e3e6df28e82ced13",
+   "mp3": "71edbdf5311da3325b7d46226c1b7e9a76468a7c94ebb4be7a4320fe22f216bf",
+   "duration": 2.81,
    "model": "eleven_v4"
   },
   "kafli2/k2_thorsedla_accept": {
@@ -2165,6 +2267,90 @@
    "key": "ef2f2f1d7c8cf65340e472c84e309e82c76d886437dcd04d25756a9bfe5d33a2",
    "mp3": "9643d4c9404e3513035b20e789e8575674b4c0c910bb030cea2de37bb5dfb5f7",
    "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_aboard": {
+   "key": "acdefa6de6afd72e2050b861b62e0ed87428438b41bc471facb684939b67e227",
+   "mp3": "3bd49f49ba627cde5338880ddbd89c41d7a2ddaef80019e43fffc8ad1fe15cfd",
+   "duration": 5.77,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_accept": {
+   "key": "7ea30c65e526f5bf6ce59f20d6d5a741c3dcfe5fc884c98a0033f788ed2c69f7",
+   "mp3": "9baf400e87af41403340b5d65dd77295e7d377e9b3b77d006e979deee5a1fe2d",
+   "duration": 8.17,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_berries": {
+   "key": "deb753156fe127c772d04c2b7ffcb4b1475167a41fc7dfe633ab17e7b5e56b6f",
+   "mp3": "26e8a95ad1dcb6422e5c2c20bfb097a67f1d7bde7d8357de61dcda3991c65f1e",
+   "duration": 7.53,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_hello": {
+   "key": "112164271e3161cc4aa471c3e2d4470439a25e9dd0689b73912a85d8dac886a2",
+   "mp3": "431dd79360161e3bce7fd5c9ed05cc257cd13d4a8b770cc644e48184097854ce",
+   "duration": 4.89,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_help": {
+   "key": "65e19279c414fdb014dc17e9d9916d51f5aeb7b3057cfe7bf9e4f576bb3b5911",
+   "mp3": "59a697321c34cd391828c064665887a6b6e9012584d2d43ba112357c2c2cc2dd",
+   "duration": 8.491,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_sail": {
+   "key": "e5ad26dbecdeb3bd77a623fe0f39ff970535ffcb9216996971144d65bc1aa9be",
+   "mp3": "9fc4636e30dbf56155efa53be53b91306d2af456258af03cc701423cbf5d9ed8",
+   "duration": 5.931,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_small": {
+   "key": "69e9495789e5d1adc9a0d5ff475418add5fcd8387a318e194f9bd2b0cfd9a542",
+   "mp3": "acefbcd5f99a913aad9be427243ff41b5ddab583bd0af089b13fa45e1715b207",
+   "duration": 4.09,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_tail": {
+   "key": "1141806cff05fb621037023c4fe5f5083442264f417bbb712ead5548d62473a7",
+   "mp3": "2eec5eb8d5c4dbc5da5fb42e93e36669b08ad019691e06811ae2af3dbd9ac0cc",
+   "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_thanks": {
+   "key": "db05ba3bc6b197db761cd43efeffc6373771fde19c9d03442dba468b23ec5cb2",
+   "mp3": "8b8350b3e2c8410e23d502bd451f0f546881ccb5128c41d5f1347d9da8767691",
+   "duration": 5.45,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_uggedla_wet": {
+   "key": "f95f283da0cfbb7f6f36a2d7f3394f74214dd0fbb285e9df1e6700e508f8c110",
+   "mp3": "97d362102dae98d8325b6b6276fdf5f91e91a60ef467085ae15a37215c99f69b",
+   "duration": 2.73,
+   "model": "eleven_v4"
+  },
+  "kafli2/k3_egill_hi": {
+   "key": "517f6f31d48f6f2d74751101a458ac3c6a4bddb1784b661b23a18e8a59367518",
+   "mp3": "a0c547d8ede76397830761719f37ebe6bd9357acc2a05e4d87c2e0ca33798c47",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "kafli2/k3_mosi_third": {
+   "key": "da2d9c59db2fdd9c58bf61e9ec4c6c7353a8536ead35c9db090128ac7b9a4b09",
+   "mp3": "ab0b1e2b1a7ae557010e57200d1e3f3fe5de838de5cda257ebc3375e7599b593",
+   "duration": 3.05,
+   "model": "eleven_v4"
+  },
+  "kafli2/k3_mosi_three": {
+   "key": "8454f9a3fc6fc60ae89f607966a32b88b1f7284e55485a1b3d5739ee683b0fd3",
+   "mp3": "a5a9856a4d437c0c5650dcbff847f2c15b6d0160d0210a67577df676ba4c0e39",
+   "duration": 4.41,
+   "model": "eleven_v4"
+  },
+  "kafli2/k3_mosi_wave": {
+   "key": "14cae1853777e7fde2607134908693e5dbc43efe5f8d1fe5945cbc4532ecf8c7",
+   "mp3": "89b1589adabf666249881717f36375e4ae7f65882a9d92ff884961b7fd343186",
+   "duration": 4.09,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_ask_brunnklukka": {

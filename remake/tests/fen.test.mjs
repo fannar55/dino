@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { chapter, EGILL_PICKS } from '../chapters/kafli2.js';
-import { PICK_LOOK } from '../chapters/kafli2-fen.js';
+import { chapter as kafli2 } from '../chapters/kafli2.js';
+import { chapter, EGILL_PICKS } from '../chapters/kafli3.js';
+import { PICK_LOOK } from '../chapters/kafli3-fen.js';
 import { createWater, createWaterMaterial, waterShape } from '../world/props/water.js';
 import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
 import { createBerryBushes } from '../world/props/berries.js';
@@ -11,7 +12,7 @@ import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
 import { createMist, CARDS, MIST_FADE, mistStrength } from '../world/props/mist.js';
 import { mosiAt, RIDE_CAMERA, PRINT_SIZE } from '../chapters/kafli2-trail.js';
-import { LOOKOUT_HEAD } from '../chapters/kafli2-thorsedla.js';
+import { LOOKOUT_HEAD } from '../chapters/kafli3-thorsedla.js';
 import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -25,12 +26,12 @@ import { shotStats } from '../tools/world/shot-stats.mjs';
 import { createActor } from '../engine/actor.js';
 import { emptyWorld, loadCharacter } from './characters.mjs';
 
-// Chapter 2's two new places, the trail (fenjaslod) and the Fen (fen): the Fen's own biome in the forest generator, its water,
-// its mist and its plants, and the cost of every shot set in them (world/forest/, world/props/water.js and mist.js).
+// The two places in the Fen's biome, the trail (chapter 2's fenjaslod) and the Fen (chapter 3's fen): the Fen's own biome in the forest
+// generator, its water, its mist and its plants, and the cost of every shot set in them (world/forest/, world/props/water.js and mist.js).
 
 const FEN_PLACE = chapter.locations.fen;
 const FOREST_GRASS = FOREST.grass;
-const TRAIL = chapter.locations.fenjaslod;
+const TRAIL = kafli2.locations.fenjaslod;
 const layoutOf = place => ({ ...place.layout, shots: place.shots });
 
 /** A world in Node, as tools/world/forest-stats.mjs makes one: no renderer, a stand-in sun whose shadow focus is the clearing. */

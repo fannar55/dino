@@ -301,9 +301,14 @@
           },
           "seed": 77,
           "note": "IPA /ˈeitn̥/, fræ 77 (önnur taka af sömu beiðni)."
+        },
+        "talning": {
+          "context": "Við teljum á íslensku: einn, tveir, þrír, fjórir, fimm.",
+          "seed": 7,
+          "note": "Talning á íslensku sem samhengi (ekki talað), fræ 7. Eigandinn valdi hana eftir eyranu 2026-11-01 (taka A af fjórum í kafla 2, „Einn!“), og áður í Litla Yatzy (smallStraight, 2026-10-23) og Hvar er vinur minn? (2026-10-30); „hratt-frae7“ var merkt rangt í kafla 2."
         }
       },
-      "chosen": "hratt-frae7"
+      "chosen": "talning"
     },
     "mundu": {
       "word": "Mundu",
