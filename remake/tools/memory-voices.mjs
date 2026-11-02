@@ -2,11 +2,13 @@
 // Voices the memory game's Mosi lines (remake/engine/memory/voice-lines.js) with ElevenLabs Eleven v4, in his approved voice at
 // speed .95, into remake/assets/audio/memory/; never changes other games.
 //   node remake/tools/memory-voices.mjs [--only id,id]           make the lines (all, or just these) and install them
-//   node remake/tools/memory-voices.mjs --dry-run [--only id,id]  what each line sends, and whether that is what made its MP3; asks nothing
+//   node remake/tools/memory-voices.mjs --dry [--only id,id]      what each line sends, the notes on it (REJECTED, fixes elsewhere),
+//                                                                 and whether that is what made its MP3; asks nothing (--dry-run too)
 //   node remake/tools/memory-voices.mjs --plan                    the lines whose MP3 is not of the request the tool sends now; asks nothing
 //   node remake/tools/memory-voices.mjs --ab [--only id,id] [--out dir]   new takes of those lines beside the shipped ones, NOT installed
+//   node remake/tools/memory-voices.mjs --try <file.json> [--out dir]     candidates for one line (a rejected one), NOT installed
 //   node remake/tools/memory-voices.mjs --verify                  the shipped MP3s, their manifest and the requests that made them
-// (making lines and --ab need ffmpeg/ffprobe, and ELEVENLABS_API_KEY in the environment for a take no cache has yet)
+// (making lines, --ab and --try need ffmpeg/ffprobe, and ELEVENLABS_API_KEY in the environment for a take no cache has yet)
 //
 // THE PRONUNCIATION STANDARD. Every line goes through remake/assets/audio/pronunciation.json with the functions voice-lines.mjs
 // and yatzy-junior-voices.mjs use (pronunciation.mjs requestFor -> applyLexicon): each form of a word the owner chose a recipe for
@@ -23,6 +25,24 @@
 // keeps gets a `kept`; for a line whose new take he picks, run --only <id>: the take he heard is in the cache under its key, so it
 // is the one installed.
 //
+// FIXES. A line that carries its own `say` or `context` names what it fixes in `fixes` (a book word id or a list of them,
+// "punctuation", or "line" with a `note` that says it fixes the whole line), as main's lines do (heard.mjs fixesProblems); the tool
+// makes nothing while a line's fixes are wrong, and --dry shows, line by line, where each of its words was fixed on a line of its own.
+//
+// THE OWNER'S EAR (heard.mjs). His yes/no verdicts are in remake/assets/audio/heard/, the memory game's as set "minnisspil"
+// (`node remake/tools/heard.mjs jano-minnisspil.json --made <page>/voices-made.json`). Before anything is asked for or installed,
+// every line (and every candidate) about to be sent goes through assertNotRejected: a request he said no to is never made again,
+// by cache or by chance; change its recipe or seed. --dry marks such a line REJECTED; --plan and --verify list the shipped lines
+// whose take he rejected.
+//
+// CANDIDATES (--try). When he rejects a line, --try <file.json> makes 3-4 candidates for him to pick by ear:
+//   { "line": "<id>", "variants": { "<name>": { "how": "<Icelandic, for the page>", "say"?, "context"?, "seed"?, "choose"?: { "<book word id>": "<recipe>" | null } } } }
+// A variant's say, context and seed take the place of the line's own; `choose` picks a recipe of a book word for this take
+// (pronunciation.mjs withChoice), so a candidate recipe is a recipe of its word in the book. Each goes through the book and the
+// guard like any line, into <out>/try/<id>-<name>.mp3, with try.json (what each sent) and, for the yes/no page, a record heard.mjs
+// imports: <out>/voices-made.json and <out>/minnisspil/lines-source.json. Nothing is installed: the take he picks goes in as the
+// line's own fields, `kept`, with its `fixes`.
+//
 // THE RECORD of which request made each MP3 is .tools/elevenlabs-remake/memory-index.json (id -> cache key), in this checkout only.
 // --verify passes a line whose MP3 is of its own request but which the lexicon would now send otherwise, and lists it under
 // "waitingForOwner" (see --plan and --ab); any other mismatch fails.
@@ -35,8 +55,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {VOICE_LINES} from '../engine/memory/voice-lines.js';
-import {cacheKey,MODEL,SETTINGS,siblingCaches} from './voice-lines.mjs';
-import {readLexicon,requestFor} from './pronunciation.mjs';
+import {allLines,cacheKey,MODEL,SETTINGS,sha256,siblingCaches} from './voice-lines.mjs';
+import {readLexicon,requestFor,withChoice} from './pronunciation.mjs';
+import {assertNotRejected,evidenceFor,fixesByWord,fixesProblems,readHeard,rejection} from './heard.mjs';
 import {escapeHtml} from './voice-pages.mjs';
 import {lineEntry} from './audio-lines.mjs';
 
@@ -45,8 +66,11 @@ const FOLDER=path.join(ROOT,'remake/assets/audio/memory');
 const CACHE=path.join(ROOT,'.tools/elevenlabs-remake');
 const INDEX=path.join(CACHE,'memory-index.json');
 const AB_OUT='qa/memory/tal';
+const TRY_OUT='qa/memory/tal2';
 const MASTER='loudnorm=I=-18:TP=-2:LRA=7,apad=pad_dur=0.25';
 export const SPEAKER='mosi';
+/** The memory game's name in the owner's verdicts (remake/assets/audio/heard/<date>-minnisspil.json, "minnisspil/<id>"). */
+export const SET='minnisspil';
 const readJson=(file,fallback)=>fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fallback;
 export const VOICE_ID=readJson(path.join(ROOT,'remake/assets/audio/voices.json'),{}).mosi;
 if(VOICE_ID!=='osSKuDKznhXBktjJ9Z9F')throw new Error('The established Mosi voice changed; review before generating memory audio.');
@@ -54,9 +78,17 @@ if(MODEL!=='eleven_v4'||SETTINGS.speed!==.95)throw new Error('Memory audio requi
 export const LINES=Object.entries(VOICE_LINES);
 const isText=value=>typeof value==='string'&&value.trim().length>0;
 for(const[id,line]of LINES){
-  if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(id)||!isText(line.text)||['say','context','kept'].some(field=>line[field]!==undefined&&!isText(line[field]))
+  if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(id)||!isText(line.text)||['say','context','kept','note'].some(field=>line[field]!==undefined&&!isText(line[field]))
+    ||(line.fixes!==undefined&&!isText(line.fixes)&&!(Array.isArray(line.fixes)&&line.fixes.length&&line.fixes.every(isText)))
     ||(line.seed!==undefined&&!(Number.isInteger(line.seed)&&line.seed>=0&&line.seed<=4294967295)))throw new Error(`Invalid voice script entry: ${id}.`);
 }
+/** The lines as heard.mjs reads a set's: { set, id, speaker, ... }. */
+export const heardLines=(lines=LINES)=>lines.map(([id,line])=>({set:SET,id,speaker:SPEAKER,...line}));
+/** What is wrong with the lines' `fixes` ([] when nothing): heard.mjs fixesProblems, as main's lines are held to it. */
+export const fixesFindings=(lexicon,lines=LINES)=>heardLines(lines).flatMap(line=>fixesProblems(line,lexicon));
+const stopIfFixes=lexicon=>{const found=fixesFindings(lexicon);if(found.length)throw new Error(`${found.join('\n')}\nNo request was made.`);};
+/** Stops before anything is asked for or installed when the owner rejected exactly one of these requests ([{ label, key }]). */
+export function guard(items,heard=readHeard(ROOT)){for(const{label,key}of items)assertNotRejected(heard,key,label);}
 const OWN=['say','context','seed'];
 const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']});
 const writeJson=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(`${file}.part`,`${JSON.stringify(value,null,2)}\n`);fs.renameSync(`${file}.part`,file);};
@@ -264,23 +296,33 @@ ${sections.filter(section=>section.rows.length).map(section=>`<h2>${escapeHtml(s
 // The modes
 
 /** --plan's findings: `make` (lines whose MP3 is not of the request sent now), `kept` (kept lines the lexicon would send otherwise), `hidden`, `uncovered`. */
-export function planOf(lexicon,index=readIndex()){
+export function planOf(lexicon,index=readIndex(),heard=readHeard(ROOT)){
   const states=statesOf(lexicon,index);
   return{
     states,
     make:states.filter(item=>item.state!=='same'),
+    // the shipped take (by the record, or by the MP3 he heard) is one he said no to; and lines whose request sent now he rejected
+    rejected:states.filter(item=>(item.shipped&&rejection(heard,item.shipped))||rejectedMp3(heard,item.id)),
+    refused:states.filter(item=>rejection(heard,item.key)),
     kept:states.filter(item=>item.line.kept!==undefined&&fingerprintOf(memoryRequest(item.line,lexicon,{ignoreKept:true}))!==item.ownKey),
     hidden:states.filter(item=>item.sent.hidden.length),
     uncovered:states.filter(item=>item.uncovered.length),
   };
 }
 
+/** --dry's notes for each line (heard.mjs evidenceFor): REJECTED when the owner said no to exactly the request sent now, and where each of its words was fixed on a line of its own (main's lines and this game's). */
+export function notesOf(lexicon,states,heard=readHeard(ROOT)){
+  const fixes=fixesByWord([...allLines(ROOT),...heardLines()]);
+  return new Map(states.map(item=>[item.id,evidenceFor({where:`${SET}/${item.id}`,words:item.sent.words,key:item.key,lexicon,fixes,heard})]));
+}
+
 function dryRun(only){
-  const lexicon=readLexicon(ROOT),index=readIndex();
+  const lexicon=readLexicon(ROOT),index=readIndex(),heard=readHeard(ROOT);
   const states=statesOf(lexicon,index).filter(item=>!only||only.includes(item.id));
   const cached=item=>fs.existsSync(path.join(CACHE,`${item.key}.mp3`))||siblingCaches(ROOT).some(dir=>fs.existsSync(path.join(dir,`${item.key}.mp3`)));
-  const changed=states.filter(item=>item.key!==item.ownKey);
-  console.log(`memory: ${states.length} lines; ${changed.length} sent otherwise than their own fields (the lexicon), ${states.length-changed.length} as before (${states.filter(item=>item.line.kept!==undefined).length} kept); ${states.filter(item=>item.state==='same').length} MP3s of the request sent now; ${states.filter(cached).length} cached`);
+  const changed=states.filter(item=>item.key!==item.ownKey),notes=notesOf(lexicon,states,heard),rejected=states.filter(item=>rejection(heard,item.key));
+  console.log(`memory: ${states.length} lines; ${changed.length} sent otherwise than their own fields (the lexicon), ${states.length-changed.length} as before (${states.filter(item=>item.line.kept!==undefined).length} kept); ${states.filter(item=>item.state==='same').length} MP3s of the request sent now; ${states.filter(cached).length} cached${rejected.length?`; ${rejected.length} REJECTED by the owner`:''}`);
+  for(const problem of fixesFindings(lexicon))console.log(`  FIXES: ${problem}`);
   for(const item of states){
     const mark=item.line.kept!==undefined?'kept':item.key!==item.ownKey?'CHANGED':'same';
     console.log(`  ${item.id}: ${mark}  ${JSON.stringify(item.sent.text)}${item.sent.seed===undefined?'':`  seed ${item.sent.seed}`}${item.sent.words.length?`  [${describeWords(item.sent)}]`:''}${item.sent.own.length?`  (own ${item.sent.own.join(', ')})`:''}  ${cached(item)?'cached':'to ask'}`);
@@ -289,9 +331,10 @@ function dryRun(only){
     if(item.line.kept!==undefined)console.log(`      kept: ${item.line.kept}`);
     if(item.sent.hidden.length)console.log(`      its own context hides the chosen context of ${item.sent.hidden.join(', ')}`);
     if(item.uncovered.length)console.log(`      NOT IN THE LEXICON'S FORMS (sent as written): ${item.uncovered.join(', ')}`);
+    for(const note of notes.get(item.id))console.log(`      ${note}`);
   }
   console.log(JSON.stringify({clips:states.length,characters:states.reduce((n,item)=>n+item.sent.text.length,0),cached:states.filter(cached).length,model:MODEL,voiceId:VOICE_ID,language:'is',settings:SETTINGS,
-    changed:changed.map(item=>item.id),same:states.length-changed.length,kept:states.filter(item=>item.line.kept!==undefined).map(item=>item.id),
+    changed:changed.map(item=>item.id),same:states.length-changed.length,kept:states.filter(item=>item.line.kept!==undefined).map(item=>item.id),rejected:rejected.map(item=>item.id),
     stateOfShipped:Object.fromEntries(['same','lexicon','stale'].map(state=>[state,states.filter(item=>item.state===state).length])),uncovered:states.flatMap(item=>item.uncovered.map(word=>`${item.id}: ${word}`))},null,2));
 }
 
@@ -303,6 +346,8 @@ function printPlan(){
   for(const item of plan.kept)console.log(`  kept, never made again: ${item.id} says ${describeWords(memoryRequest(item.line,lexicon,{ignoreKept:true}))} (${item.line.kept}); --ab --only ${item.id} makes the lexicon's take to compare`);
   for(const item of plan.hidden)console.log(`  ${item.id}: its own context hides the chosen context of ${item.sent.hidden.join(', ')}`);
   for(const item of plan.uncovered)console.log(`  ${item.id}: not in the lexicon's forms, sent as written: ${item.uncovered.join(', ')}`);
+  for(const item of plan.rejected)console.log(`  rejected by the owner, to make again with another recipe or seed: ${item.id} (--try <candidates.json> makes 3-4 for him to pick)`);
+  for(const item of plan.refused)console.log(`  ${item.id}: the owner rejected exactly the request it sends now; the guard refuses it until its recipe or seed changes`);
   if(plan.make.length){
     const ids=plan.make.map(item=>item.id).join(',');
     console.log(`Then: node remake/tools/memory-voices.mjs --ab --only ${ids}`);
@@ -316,6 +361,8 @@ export async function abTakes({ids,out=path.join(ROOT,AB_OUT),log=console.log}){
   const lexicon=readLexicon(ROOT);
   const chosen=LINES.filter(([id])=>ids.includes(id));
   stopIfUncovered(statesOf(lexicon,readIndex(),chosen));
+  stopIfFixes(lexicon);
+  guard(chosen.map(([id,line])=>({label:`${SET}/${id}`,key:fingerprintOf(memoryRequest(line,lexicon,{ignoreKept:true}))})));
   run('ffmpeg',['-version']);
   const record=readJson(path.join(out,'ab.json'),{}),rows=[];
   for(const[id,line]of chosen){
@@ -333,7 +380,65 @@ export async function abTakes({ids,out=path.join(ROOT,AB_OUT),log=console.log}){
     log(`${id}: ${asked?'asked':'cached'} (${key.slice(0,12)})`);
   }
   writeJson(path.join(out,'ab.json'),record);
+  addToPageRecord(out,chosen.map(([id,line])=>({id,key:record[id].key,mp3:path.join(out,'ab','new',`${id}.mp3`),text:line.text})));
   return rows;
+}
+
+/**
+ * The record a yes/no page's save is imported with (heard.mjs --made <out>/voices-made.json): "minnisspil/<id>" -> { key, mp3 }, the
+ * request and the sha256 of the MP3 the page plays, and <out>/minnisspil/lines-source.json, who says what. Entries are added or renewed.
+ */
+export function addToPageRecord(out,rows){
+  const file=path.join(out,'voices-made.json'),record=readJson(file,{about:'',lines:{}});
+  const sourceFile=path.join(out,SET,'lines-source.json'),source=new Map(readJson(sourceFile,[]).map(line=>[line.id,line]));
+  for(const{id,key,mp3,text}of rows){record.lines[`${SET}/${id}`]={key,mp3:sha256(mp3),model:MODEL};source.set(id,{id,speaker:SPEAKER,text});}
+  record.about=`The takes this page plays, for heard.mjs: node remake/tools/heard.mjs <jano-${SET}.json> --made ${path.relative(ROOT,file).replaceAll('\\','/')}. "${SET}/<id>" -> the cache key of the request (voice-lines.mjs cacheKey) and the sha256 of the MP3. Written by tools/memory-voices.mjs.`;
+  record.lines=Object.fromEntries(Object.entries(record.lines).sort(([a],[b])=>(a<b?-1:a>b?1:0)));
+  writeJson(file,record);writeJson(sourceFile,[...source.values()].sort((a,b)=>(a.id<b.id?-1:a.id>b.id?1:0)));
+}
+
+/** A --try file's variants as requests: [{ name, id ("<line>_<name>"), how, sent, key }], each through the book (with its `choose`) like a line. */
+export function variantsOf(spec,lexicon){
+  const fail=why=>{throw new Error(`--try: ${why} No request was made.`);};
+  if(!spec||typeof spec!=='object'||!Object.hasOwn(VOICE_LINES,spec.line??'')||!spec.variants||typeof spec.variants!=='object'||!Object.keys(spec.variants).length)fail('the file is { "line": "<a memory line id>", "variants": { "<name>": { "how", "say"?, "context"?, "seed"?, "choose"? } } }.');
+  const{kept,fixes,note,...line}=VOICE_LINES[spec.line];
+  const items=Object.entries(spec.variants).map(([name,variant])=>{
+    if(!/^[a-z][a-z0-9]*$/.test(name))fail(`${JSON.stringify(name)} is not a variant name (a-z, 0-9).`);
+    const odd=Object.keys(variant??{}).filter(key=>!['how','say','context','seed','choose'].includes(key));
+    if(odd.length||!isText(variant.how))fail(`${name}: a variant has "how" (Icelandic, for the page) and only say, context, seed and choose.`);
+    if(['say','context'].some(field=>variant[field]!==undefined&&!isText(variant[field]))||(variant.seed!==undefined&&!(Number.isInteger(variant.seed)&&variant.seed>=0&&variant.seed<=4294967295)))fail(`${name}: say and context are texts, seed a whole number.`);
+    let book=lexicon;
+    for(const[word,recipe]of Object.entries(variant.choose??{})){
+      if(!lexicon.words[word]||(recipe!==null&&!Object.hasOwn(lexicon.words[word].recipes,recipe)))fail(`${name} chooses ${word}.${recipe}, which pronunciation.json does not have: add the recipe to its word first (with writeLexicon).`);
+      book=withChoice(book,word,recipe);
+    }
+    const sent=memoryRequest({...line,...Object.fromEntries(OWN.filter(field=>variant[field]!==undefined).map(field=>[field,variant[field]]))},book);
+    return{name,id:`${spec.line}_${name}`,how:variant.how,choose:variant.choose,sent,key:fingerprintOf(sent)};
+  });
+  const twice=items.filter((item,i)=>items.findIndex(other=>other.key===item.key)!==i);
+  if(twice.length)fail(`${twice.map(item=>item.name).join(', ')} send${twice.length>1?'':'s'} the same request as another variant.`);
+  return items;
+}
+
+/** --try: the candidates of one line, made and mastered into <out>/try/, with try.json and the page record. Installs nothing. */
+export async function tryTakes({file,out=path.join(ROOT,TRY_OUT),log=console.log}){
+  const spec=readJson(path.resolve(file),null),lexicon=readLexicon(ROOT);
+  const items=variantsOf(spec,lexicon);
+  stopIfUncovered(statesOf(lexicon,readIndex(),[[spec.line,VOICE_LINES[spec.line]]]));
+  guard(items.map(item=>({label:`${SET}/${spec.line} (${item.name})`,key:item.key})));
+  run('ffmpeg',['-version']);
+  const variants={};
+  for(const item of items){
+    const{raw,asked}=await takeOf(item.sent,{label:`${spec.line} ${item.name}`}),mp3=`try/${spec.line}-${item.name}.mp3`;
+    master(raw,path.join(out,mp3));
+    variants[item.name]={id:item.id,key:item.key,how:item.how,...(item.choose?{choose:item.choose}:{}),sent:{text:item.sent.text,context:item.sent.context,seed:item.sent.seed},words:item.sent.words.filter(word=>word.recipe).map(word=>({id:word.id,recipe:word.recipe,forms:word.forms})),mp3};
+    log(`${spec.line} ${item.name}: ${asked?'asked':'cached'} (${item.key.slice(0,12)})  ${JSON.stringify(item.sent.text)}${item.sent.context?`  context ${JSON.stringify(item.sent.context)}`:''}  seed ${item.sent.seed}`);
+  }
+  const record=readJson(path.join(out,'try.json'),{});
+  record[spec.line]={text:VOICE_LINES[spec.line].text,variants};
+  writeJson(path.join(out,'try.json'),record);
+  addToPageRecord(out,items.map(item=>({id:item.id,key:item.key,mp3:path.join(out,variants[item.name].mp3),text:VOICE_LINES[spec.line].text})));
+  return record[spec.line];
 }
 
 async function abMode(only,out){
@@ -345,9 +450,18 @@ async function abMode(only,out){
   console.log(`${rows.length} lines: ${path.relative(ROOT,path.join(out,'ab.html'))}`);
 }
 
+/** The verdict "nei" on the very MP3 a line ships (by its sha256), or null: a rejected take is found without the local record. */
+export function rejectedMp3(heard,id){
+  const file=path.join(FOLDER,`${id}.mp3`);
+  if(!fs.existsSync(file))return null;
+  const mp3=sha256(file);
+  const latest=heard.verdicts.filter(verdict=>verdict.mp3===mp3).at(-1);
+  return latest?.verdict==='nei'?latest:null;
+}
+
 function verify(){
-  const lexicon=readLexicon(ROOT),index=readIndex(),manifest=readJson(path.join(FOLDER,'manifest.json'),{});
-  const issues=[],waitingForOwner=[];let duration=0,bytes=0;
+  const lexicon=readLexicon(ROOT),index=readIndex(),manifest=readJson(path.join(FOLDER,'manifest.json'),{}),heard=readHeard(ROOT);
+  const issues=[],waitingForOwner=[],rejectedByOwner=[];let duration=0,bytes=0;
   for(const item of statesOf(lexicon,index)){
     const{id}=item,entry=manifest[id],file=path.join(FOLDER,`${id}.mp3`);
     if(!entry||!fs.existsSync(file)){issues.push(`${id}: missing audio/manifest`);continue;}
@@ -356,18 +470,22 @@ function verify(){
     if(Math.abs(entry.mouth.length-entry.duration*20)>3)issues.push(`${id}: mouth duration mismatch`);
     if(item.state==='lexicon')waitingForOwner.push(id);
     else if(item.state==='stale')issues.push(`${id}: stale script/model/settings fingerprint`);
+    if((item.shipped&&rejection(heard,item.shipped))||rejectedMp3(heard,id))rejectedByOwner.push(id);
     const probe=JSON.parse(run('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_name,sample_rate,channels','-of','json',file]));
     if(probe.streams[0]?.codec_name!=='mp3'||probe.streams[0]?.channels!==1||probe.streams[0]?.sample_rate!=='44100'||Math.abs(Number(probe.format.duration)-entry.duration)>.002)issues.push(`${id}: audio format/duration mismatch`);
     duration+=entry.duration;bytes+=fs.statSync(file).size;
   }
   if(issues.length)throw new Error(issues.join('\n'));
-  return{clips:LINES.length,spokenLines:LINES.length,kept:LINES.filter(([,line])=>line.kept!==undefined).length,waitingForOwner,durationSeconds:Math.round(duration*1000)/1000,bytes,model:MODEL,voiceId:VOICE_ID,language:'is',mouthRate:20};
+  return{clips:LINES.length,spokenLines:LINES.length,kept:LINES.filter(([,line])=>line.kept!==undefined).length,waitingForOwner,rejectedByOwner,durationSeconds:Math.round(duration*1000)/1000,bytes,model:MODEL,voiceId:VOICE_ID,language:'is',mouthRate:20};
 }
 
 async function generate(only){
   const lexicon=readLexicon(ROOT),index=readIndex(),manifestFile=path.join(FOLDER,'manifest.json'),manifest=readJson(manifestFile,{});
   const selected=statesOf(lexicon,index).filter(item=>!only||only.includes(item.id));
   stopIfUncovered(selected);
+  stopIfFixes(lexicon);
+  // a kept line is never asked for or mastered over, but its request is still checked: a take he later said no to is not kept
+  guard(selected.map(item=>({label:`${SET}/${item.id}`,key:item.key})));
   const missingKept=selected.filter(item=>item.line.kept!==undefined&&!fs.existsSync(path.join(FOLDER,`${item.id}.mp3`))).map(item=>item.id);
   if(missingKept.length)throw new Error(`Kept lines without their MP3: ${missingKept.join(', ')}. No request was made.`);
   fs.mkdirSync(FOLDER,{recursive:true});
@@ -396,12 +514,13 @@ async function generate(only){
 
 async function main(argv){
   const value=flag=>{const at=argv.indexOf(flag);return at>=0?argv[at+1]||'':null;};
-  const only=value('--only')?.split(',').filter(Boolean)??null,out=value('--out');
+  const only=value('--only')?.split(',').filter(Boolean)??null,out=value('--out'),tried=value('--try');
   for(const id of only??[])if(!Object.hasOwn(VOICE_LINES,id))throw new Error(`Unknown memory line: ${id}`);
   if(argv.includes('--plan')){printPlan();return;}
-  if(argv.includes('--dry-run')){dryRun(only);return;}
+  if(argv.includes('--dry-run')||argv.includes('--dry')){dryRun(only);return;}
   run('ffmpeg',['-version']);run('ffprobe',['-version']);
   if(argv.includes('--verify')){console.log(JSON.stringify({verified:true,...verify()},null,2));return;}
+  if(tried!==null){if(!tried)throw new Error('--try needs a candidates file.');const made=await tryTakes({file:tried,...(out?{out:path.resolve(ROOT,out)}:{})});console.log(`${Object.keys(made.variants).length} candidates in ${path.relative(ROOT,out?path.resolve(ROOT,out):path.join(ROOT,TRY_OUT))}/try/ (try.json, voices-made.json)`);return;}
   if(argv.includes('--ab')){await abMode(only,out?path.resolve(ROOT,out):path.join(ROOT,AB_OUT));return;}
   await generate(only);
 }
