@@ -219,3 +219,35 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   .flight-hint { animation: hint-breathe 2.4s ease-in-out infinite; }
   @keyframes hint-breathe { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 }
+
+/* The wind's hint (chapters/kafli4-wind.js): the steering hint's glowing gold dot, drawing a stroke up the screen the way a finger
+   would, a fading tail below it, again and again until the child strokes. Right of the middle, over the open fen and the sky, clear of
+   Mosi and Egill; upright, in the middle. It takes no taps. Under reduced motion it stays put and only breathes. */
+.wind-hint {
+  position: fixed; left: 64%; top: 74%; z-index: 1; width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fffdf6 0 20%, rgb(255 226 140 / .95) 30%, rgb(242 182 48 / .7) 46%, rgb(242 182 48 / 0) 70%);
+  box-shadow: 0 0 26px 10px rgb(255 214 110 / .45);
+  animation: wind-stroke 1.9s cubic-bezier(.45, 0, .3, 1) infinite;
+}
+.wind-hint::after { /* the tail: where the finger has just been */
+  content: ''; position: absolute; left: 50%; top: 50%; width: 22px; height: 150px; margin-left: -11px; border-radius: 11px;
+  background: linear-gradient(to bottom, rgb(255 226 140 / .7), rgb(242 182 48 / 0));
+  transform-origin: top; animation: wind-tail 1.9s cubic-bezier(.45, 0, .3, 1) infinite;
+}
+@keyframes wind-stroke {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 1; }
+  70% { transform: translateY(-34vh); opacity: 1; }
+  85%, 100% { transform: translateY(-38vh); opacity: 0; }
+}
+@keyframes wind-tail {
+  0%, 10% { transform: scaleY(0); opacity: 0; }
+  60% { transform: scaleY(1); opacity: .8; }
+  85%, 100% { transform: scaleY(.4); opacity: 0; }
+}
+@media (max-aspect-ratio: 1/1) {
+  .wind-hint { left: 50%; top: 70%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wind-hint, .wind-hint::after { animation: hint-breathe 2.4s ease-in-out infinite; }
+}

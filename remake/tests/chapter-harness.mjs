@@ -439,10 +439,14 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   });
   stage.seeking = seeking;
   const spoken = new Set(); // every line the script has said, by id
+  const said = []; // and each time it says one: { id, at } (the scene's seconds)
+  const spokenAt = new Map(); // id -> when it was first said
   const lastLine = new Map(); // speaker -> the line they began last
   const say = stage.s.say;
   stage.s.say = (speaker, line, options) => {
     spoken.add(line);
+    said.push({ id: line, at: stage.s.time });
+    if (!spokenAt.has(line)) spokenAt.set(line, stage.s.time);
     lastLine.set(speaker, line);
     return say(speaker, line, options);
   };
@@ -457,7 +461,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   // What the run sees on the way, for the tests to look at afterwards.
   const seen = {
     kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
-    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows, cuts,
+    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, said, spokenAt, rows, cuts,
     // The early tap, once made: { name, appeared, at } in scene time, the journal's findings right after it, and when the target first
     // moved (the critter's reaction: its live point follows it).
     earlyTap: null,

@@ -19,7 +19,7 @@ import { playUnattended } from './chapter-harness.mjs';
 const { chapter } = kafli4;
 const V3 = THREE.Vector3;
 
-// The words of the first two scenes, as spec section 4 has them (the plan's WORDS).
+// The words of the first three scenes, as spec section 4 has them (the plan's WORDS; Mosi's "Svona! Fúúú!" is the plan's own).
 const SCENE_WORDS = {
   k4_mosi_next: 'Næst er það Flugeðla! Hún á heima uppi á hvíta trénu.',
   k4_egill_fly: 'Getur hún flogið?',
@@ -28,6 +28,10 @@ const SCENE_WORDS = {
   k4_mosi_invite: 'Halló, Flugeðla! Viltu koma á Stjörnuhátíðina í kvöld?',
   k4_flugedla_calm: 'Hátíð! Ég skal kalla á allan skóginn! En það er logn… og án vinds kemst ég ekki á loft.',
   k4_egill_wind: 'Við getum búið til vind!',
+  k4_mosi_swipe: 'Strjúktu upp, Egill!',
+  k4_mosi_blow: 'Svona! Fúúú!',
+  k4_flugedla_more: 'Meira! Ég finn hann!',
+  k4_flugedla_now: 'Nú!',
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -173,11 +177,15 @@ const SUBJECTS = {
   thorsedla: world => world.actors.get('thorsedla').headPosition(new V3()),
 };
 
-function playIt({ aspect = 1.6, tap = false } = {}) {
-  const seen = { shots: new Map(), out: [], perch: [], wind: [] };
+/**
+ * The chapter played by nobody, or with a tap on Þórseðla (`tap`), or with a child's hands in the wind task (`hands`: 'up' strokes
+ * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
+ */
+function playIt({ aspect = 1.6, tap = false, hands = null } = {}) {
+  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [] };
   return playUnattended(kafli4, {
-    limit: 240, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null,
-    onFrame({ world, director, shot: label }) {
+    limit: 300, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null,
+    onFrame({ world, director, pointer, shot: label }) {
       const c = world.chapterState;
       if (label && NEW_SHOTS.has(label) && director.mode === 'hold') { // held on the shot (a move or a follow from it frames others)
         seen.shots.set(label, (seen.shots.get(label) ?? 0) + 1);
@@ -192,6 +200,18 @@ function playIt({ aspect = 1.6, tap = false } = {}) {
         seen.perch.push({ root: her.root.position.clone(), top: c.perch.top.clone(), tips: c.perch.wingTips() });
         seen.wind.push(world.wind?.uniforms.uWindStrength.value ?? null);
       }
+      const three = world.chapterTimeline?.find(mark => mark.scene === 3);
+      if (three && c?.wind && !c.wind.fullAt) {
+        const t = world.clock.time - three.at;
+        seen.gusty.push({ t, strength: world.wind.uniforms.uWindStrength.value });
+        seen.stirred.push({ t, tips: c.perch.wingTips(), root: world.actors.get('flugedla').root.position.clone(), top: c.perch.top.clone() });
+        // the child's hands: from a second in, one every `every` seconds, in the middle of the screen
+        if (hands && seen.hands.length < hands.count && t >= 1 + seen.hands.length * hands.every) {
+          if (hands.kind === 'up') pointer.drag(640, 620, 10, -240);
+          else pointer.tap(null, { x: 640, y: 500 });
+          seen.hands.push(world.clock.time);
+        }
+      }
     },
   }).then(run => ({ ...run, watched: seen }));
 }
@@ -200,15 +220,15 @@ const playWide = () => (wide ??= playIt());
 const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
 const playTapped = () => (tapped ??= playIt({ tap: true }));
 
-test('scenes 1 and 2 play in order, from the Fen to the white tree, and end there', async () => {
+test('scenes 1 to 3 play in order, from the Fen to the white tree, and end there', async () => {
   const { task, stage, world } = await playWide();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2]);
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3]);
   assert.equal(world.location, 'hvitatre');
-  const [one, two] = world.chapterTimeline.map(mark => mark.at);
+  const [one, two, three] = world.chapterTimeline.map(mark => mark.at);
   assert.ok(two - one >= 30 && two - one <= 70, `scene 1 takes ${(two - one).toFixed(1)} s (spec: about 45)`);
-  assert.ok(stage.s.time - two >= 20 && stage.s.time - two <= 70, `scene 2 takes ${(stage.s.time - two).toFixed(1)} s (spec: about 45)`);
+  assert.ok(three - two >= 20 && three - two <= 70, `scene 2 takes ${(three - two).toFixed(1)} s (spec: about 45)`);
 });
 
 test('every new Fen shot keeps the director quiet at 16:10 and upright, and shows whom it is for', async () => {
@@ -240,9 +260,11 @@ test('scene 1 draws map piece d and Þórseðla says goodbye on a tap', async ()
 test('scene 2 ends with her calm line and Egill\'s answer', async () => {
   const { seen, world } = await playWide();
   const said = [...seen.spoken];
-  assert.deepEqual(said.slice(-3), ['k4_mosi_invite', 'k4_flugedla_calm', 'k4_egill_wind']);
+  const end = said.indexOf('k4_egill_wind');
+  assert.deepEqual(said.slice(end - 2, end + 1), ['k4_mosi_invite', 'k4_flugedla_calm', 'k4_egill_wind']);
   assert.deepEqual(said.slice(0, 4), ['k4_mosi_next', 'k4_egill_fly', 'k4_mosi_higher', 'k4_mosi_map_tree'], 'scene 1\'s in order');
-  assert.equal(world.chapterState.lastSaid, 'k4_egill_wind');
+  const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
+  assert.ok(seen.spokenAt.get('k4_egill_wind') < three, 'Egill\'s answer ends scene 2');
 });
 
 test('she sits on the very top of the white snag with her wings spread, and nothing stirs: not she, nor the wind', async () => {
@@ -256,4 +278,92 @@ test('she sits on the very top of the white snag with her wings spread, and noth
   const first = watched.perch[0].tips, moved = Math.max(...watched.perch.map(({ tips }) => Math.max(tips[0].distanceTo(first[0]), tips[1].distanceTo(first[1]))));
   assert.ok(moved < 0.02, `her wing tips still: they move ${moved.toFixed(3)} m`);
   assert.ok(watched.wind.every(w => w !== null && w <= 0.15), `calm: the wind's strength at most ${Math.max(...watched.wind)}`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 3: the wind (spec 4.3). A stroke up the screen is a gust, a tap half of one; six fill the wind. A child who does nothing gets
+// a hint at 6 s, Mosi's showing at 12 s and a gust every 4 s from 20 s on, so the wind always fills.
+
+let stroked = null, tapping = null;
+const strokes = () => (stroked ??= playIt({ hands: { kind: 'up', every: 1.5, count: 6 } }));
+const taps = () => (tapping ??= playIt({ hands: { kind: 'tap', every: 0.8, count: 12 } }));
+
+test('six up strokes fill the wind; twelve taps do too', async () => {
+  for (const [kind, play, count] of [['up', strokes, 6], ['tap', taps, 12]]) {
+    const { world, task, watched } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    const wind = world.chapterState.wind;
+    assert.equal(watched.hands.length, count, `${count} ${kind}s given`);
+    assert.deepEqual(wind.gusts.map(g => g.by), Array(count).fill(kind), `every gust is the child's (${kind}): no help was needed`);
+    assert.equal(wind.filled, 6);
+    const last = watched.hands.at(-1);
+    assert.ok(wind.fullAt >= last && wind.fullAt <= last + 0.1, `full on the last ${kind}: at ${wind.fullAt.toFixed(2)}, the last at ${last.toFixed(2)}`);
+    assert.deepEqual(wind.hints, [], 'no hint for a child who strokes');
+    assert.equal(wind.showedAt, null, 'nor Mosi\'s showing');
+  }
+});
+
+test('each gust blows: the wind rises to 2.2 and eases back, her wings stir, and Egill and Mosi blow along', async () => {
+  const { world, watched } = await strokes();
+  const wind = world.chapterState.wind;
+  const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
+  wind.gusts.slice(0, -1).forEach((gust, i) => { // the last fills the wind, and the big gust takes over from it
+    const t = gust.at - three;
+    const near = watched.gusty.filter(w => w.t >= t && w.t <= t + 0.3);
+    assert.ok(near.some(w => Math.abs(w.strength - 2.2) < 0.05), `strength 2.2 at the gust at ${t.toFixed(1)} s: ${near.map(w => w.strength.toFixed(2))}`);
+    const next = wind.gusts[i + 1] ? wind.gusts[i + 1].at - three : Infinity;
+    const later = watched.gusty.find(w => w.t >= t + 1.25 && w.t < next);
+    if (later) assert.ok(later.strength < 1.2, `eased back within 1.2 s: ${later.strength.toFixed(2)} at ${later.t.toFixed(1)} s`);
+  });
+  const before = watched.gusty.filter(w => w.t < wind.gusts[0].at - three);
+  assert.ok(before.length > 10 && before.every(w => w.strength <= 0.15), 'calm before the first gust');
+  // her wings stir with a gust, and she stays on the top till the wind is full
+  const first = wind.gusts[0].at - three;
+  const still = watched.stirred.filter(f => f.t < first).at(-1).tips;
+  const moved = Math.max(...watched.stirred.filter(f => f.t >= first && f.t <= first + 1.2).map(f => Math.max(f.tips[0].distanceTo(still[0]), f.tips[1].distanceTo(still[1]))));
+  assert.ok(moved > 0.15, `her wing tips move ${moved.toFixed(2)} m in the gust`);
+  for (const f of watched.stirred) assert.ok(f.root.distanceTo(f.top) < 0.05, `on the top at ${f.t.toFixed(1)} s`);
+  // Egill on every second gust, Mosi on every third
+  assert.deepEqual(wind.blows.filter(b => b.who === 'egill').map(b => b.gust), [2, 4, 6]);
+  assert.deepEqual(wind.blows.filter(b => b.who === 'mosi').map(b => b.gust), [3, 6]);
+});
+
+test('she cheers after the third gust, and with the wind full a big gust lifts her: "Nú!"', async () => {
+  const { world, seen } = await strokes();
+  const wind = world.chapterState.wind;
+  assert.equal(seen.said.filter(line => line.id === 'k4_flugedla_more').length, 1, 'her cheer, once');
+  assert.ok(seen.spokenAt.get('k4_flugedla_more') >= wind.gusts[2].at, 'after the third gust');
+  assert.ok(seen.spokenAt.get('k4_flugedla_now') >= wind.fullAt, '"Nú!" once it is full');
+  assert.ok(wind.bigAt >= wind.fullAt, 'the big gust');
+  assert.ok(wind.cloudSpeed > 1, `the clouds go faster: ${wind.cloudSpeed}`);
+  assert.ok(wind.lifted > 0.2, `she lifts off the top: ${wind.lifted.toFixed(2)} m`);
+});
+
+test('untouched, the wind fills by itself and the scene ends within 60 s of its start', async () => {
+  const { world, seen, stage, task } = await playWide();
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  const wind = world.chapterState.wind;
+  const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
+  assert.ok(wind.hints.length >= 1 && Math.abs(wind.hints[0] - three - 6) < 0.5, `the hint at 6 s: ${wind.hints.map(h => (h - three).toFixed(1))}`);
+  assert.ok(seen.spokenAt.get('k4_mosi_swipe') >= wind.hints[0], 'Mosi: "Strjúktu upp, Egill!"');
+  assert.ok(Math.abs(wind.showedAt - three - 12) < 0.5, `Mosi shows how at 12 s: ${(wind.showedAt - three).toFixed(1)}`);
+  assert.ok(seen.spokenAt.get('k4_mosi_blow') >= wind.showedAt, 'Mosi: "Svona! Fúúú!"');
+  const autos = wind.gusts.filter(g => g.by === 'auto').map(g => g.at - three);
+  assert.ok(autos.length >= 1 && Math.abs(autos[0] - 20) < 0.5, `the first gust by itself at 20 s: ${autos.map(a => a.toFixed(1))}`);
+  for (let i = 1; i < autos.length; i++) assert.ok(Math.abs(autos[i] - autos[i - 1] - 4) < 0.3, `then every 4 s: ${autos.map(a => a.toFixed(1))}`);
+  assert.equal(wind.filled, 6);
+  assert.ok(wind.fullAt - three <= 60, `full at ${(wind.fullAt - three).toFixed(1)} s`);
+  assert.ok(wind.endedAt - three <= 60, `the scene ends at ${(wind.endedAt - three).toFixed(1)} s`);
+  assert.ok(stage.s.time >= wind.endedAt);
+  assert.equal(world.page.body.querySelectorAll('.wind-hint').length, 0, 'the hint is taken off the page');
+});
+
+test('the wind\'s shot keeps the director quiet, shows them all and holds still for the child\'s hands', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { director, watched, task } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    assert.ok(watched.shots.get('tre_wind') > 0, `tre_wind is used (${shape})`);
+    assert.deepEqual(director.warnings, [], `the director at ${shape}`);
+    assert.deepEqual(watched.out, [], `at ${shape}`);
+  }
 });

@@ -206,8 +206,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   const swipes = new Set();
   function onSwipe(fn) {
     needPointer('s.onSwipe');
-    const swipe = createSwipe(pointer, { height: () => pointer.size?.().height ?? 800, now: () => scheduler.time });
-    swipe.on(fn);
+    const size = () => pointer.size?.() ?? { width: 1280, height: 800 };
+    const swipe = createSwipe(pointer, { height: () => size().height, now: () => scheduler.time });
+    swipe.on(event => fn({ ...event, ...size() }));
     swipes.add(swipe);
     return () => {
       swipe.dispose();
@@ -484,7 +485,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     onDrag,
     /**
      * Call fn(event) for every up stroke ({ kind: 'up', x, y, x0, y0 }: at least a fifth of the screen's height) and every tap
-     * ({ kind: 'tap', x, y }) anywhere on the screen (engine/input/swipe.js). Returns the function that stops it.
+     * ({ kind: 'tap', x, y }) anywhere on the screen (engine/input/swipe.js), with the canvas's `width` and `height` (px), so a
+     * script can tell where on it they were. Returns the function that stops it.
      */
     onSwipe,
     /**

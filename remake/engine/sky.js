@@ -125,13 +125,22 @@ export function createSky({ renderer, scene, look, sunDir }) {
   scene.environment = env.texture;
   scene.environmentIntensity = look.envIntensity;
 
+  // The clouds drift on their own clock, which runs `cloudSpeed` times the game's (chapter 4's wind sets them going)
+  let cloudTime = null;
+  let lastTime = 0;
+  let cloudSpeed = 1;
   return {
     dome,
     environment: env.texture,
     update(time, camera) {
-      uniforms.uTime.value = time;
+      cloudTime = cloudTime === null || time < lastTime ? time : cloudTime + (time - lastTime) * cloudSpeed;
+      lastTime = time;
+      uniforms.uTime.value = cloudTime;
       dome.position.copy(camera.position);
     },
+    /** The clouds drift `speed` times as fast as they do (1: their own pace). */
+    setCloudSpeed(speed) { cloudSpeed = Math.max(0, speed); },
+    get cloudSpeed() { return cloudSpeed; },
     dispose() {
       scene.remove(dome);
       dome.geometry.dispose();

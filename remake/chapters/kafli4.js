@@ -2,8 +2,8 @@
 // Þórseðla says goodbye at her pool and the map draws the way on across the Fen; Mosi, with Egill in the saddle, walks to the white
 // snag, where Flugeðla sits on the very top with her wings spread and cannot take off, for there is no wind. Egill makes the wind
 // (scene 3), she takes the invitation and the fourth star (4), takes Egill on her back (5) and flies him up the river and the falls
-// (6, chapters/kafli4-flight.js), and lands at the far pool (7). So far: scenes 1 and 2 (the plan's Task 12); the script ends after
-// Egill's "Við getum búið til vind!" until the wind is built.
+// (6, chapters/kafli4-flight.js), and lands at the far pool (7). So far: scenes 1 to 3 (the plan's Tasks 12 and 13); the script ends
+// once the wind has lifted her off the top.
 //
 // Two places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Þórseðla 22 m, Flugeðla
 // 7.5 m from wingtip to wingtip, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The early afternoon sun
@@ -20,6 +20,9 @@
 import { chapter as kafli3 } from './kafli3.js';
 import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
 import { perch } from './kafli4-flugedla.js';
+import { theWind } from './kafli4-wind.js';
+import { lineQueue } from './kafli4-flight-play.js';
+import { createFlightSounds } from '../engine/audio/flight-sounds.js';
 import { createSaddle, ride } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
@@ -113,6 +116,9 @@ const TREE_SHOTS = {
   tre_her: { position: [-1.5, 7.0, -7.5], target: [9, 11.8, 6.3], fov: 40 },
   // Mosi and Egill looking up at her, from low in front of them.
   tre_talk: { position: [7.5, 1.4, -6], target: [0.8, 3.0, 0.4], fov: 48 },
+  // Scene 3, the wind: held still while the child strokes. From low on Mosi's right, ahead of him: his face and Egill at the right,
+  // looking and blowing up at her, she on the top of the white trunk at the upper left, the sky behind her for the leaves to fly in.
+  tre_wind: { position: [5.5, 2.4, -7.5], target: [5, 6.2, 3], fov: 58 },
 };
 // Who each of the chapter's new shots is for: they must be in the frame while the camera holds it (kafli4.test.mjs)
 export const SHOWS = {
@@ -123,6 +129,7 @@ export const SHOWS = {
   tre_above: ['mosi', 'flugedla'],
   tre_her: ['flugedla'],
   tre_talk: ['mosi', 'egill'],
+  tre_wind: ['mosi', 'egill', 'flugedla'],
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -138,6 +145,11 @@ const WORDS = {
   k4_mosi_invite: 'Halló, Flugeðla! Viltu koma á Stjörnuhátíðina í kvöld?',
   k4_flugedla_calm: 'Hátíð! Ég skal kalla á allan skóginn! En það er logn… og án vinds kemst ég ekki á loft.',
   k4_egill_wind: 'Við getum búið til vind!',
+  // 3. The wind (Mosi's "Svona! Fúúú!" is the plan's own)
+  k4_mosi_swipe: 'Strjúktu upp, Egill!',
+  k4_mosi_blow: 'Svona! Fúúú!',
+  k4_flugedla_more: 'Meira! Ég finn hann!',
+  k4_flugedla_now: 'Nú!',
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -152,6 +164,7 @@ const HER_LOOK = { weight: 1, maxAngle: 20, maxPitch: 20 }; // Þórseðla's loo
 function* story(s, c) {
   yield* goodbyeAtThePool(s, c);
   yield* atTheWhiteTree(s, c);
+  yield* makeTheWind(s, c);
 }
 
 // 1. Goodbye at Þórseðla's pool: who is next, the map draws the way on across the Fen, her head comes down to them in goodbye (a tap
@@ -248,6 +261,23 @@ function* atTheWhiteTree(s, c) {
   yield s.wait(1.5);
 }
 
+// 3. The wind: the child strokes up the screen for each gust, Mosi and Egill blow along, and six gusts lift her (kafli4-wind.js). The
+// camera holds still from behind them, so the child's hands have a still picture to aim at.
+function* makeTheWind(s, c) {
+  mark(c, 3);
+  const { mosi, egill, flugedla } = c;
+  yield s.camera.cut('tre_wind');
+  yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.85, maxPitch: 50 });
+  yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.9, maxPitch: 55 });
+  yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 60, maxPitch: 55 });
+  const release = s.seeking ? null : c.world.sound?.hold?.(c.sounds);
+  try {
+    yield* theWind(s, c);
+  } finally {
+    release?.();
+  }
+}
+
 /**
  * At the white tree, under the black: Þórseðla stays behind (her life holds, hidden), Mosi stands where the picture comes up on him
  * with Egill in the saddle, Flugeðla sits on the top of the snag, and there is no wind.
@@ -307,7 +337,7 @@ export const chapter = {
     // chapter 3's layout, planted for chapter 3's late morning sun: the planner keeps the sun's way into a clearing clear of big crowns,
     // and this chapter's sun stands elsewhere (world/forest/plan.js: plantedFor)
     fen: { layout: { ...FEN.layout, plantedFor: kafli3.look }, shots: { ...FEN.shots, ...FEN_SHOTS }, warmUp: FEN_WARM },
-    hvitatre: { layout: HVITATRE_LAYOUT, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground'] },
+    hvitatre: { layout: HVITATRE_LAYOUT, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind'] },
   },
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', ...MOSI_FEN }, // on his hummock, Egill on his back: the script seats him in the saddle
@@ -352,6 +382,9 @@ export const chapter = {
     world.chapterTimeline = [];
     const c = { s, world, mosi, egill, thorsedla, flugedla, saying: 0, goodbyes: [], bye: null, lastSaid: null, point: new world.THREE.Vector3() };
     c.say = (speaker, id, options) => say(s, c, speaker, id, options);
+    c.lines = lineQueue(s); // the voices that come as the child plays, one at a time (the wind's help and cheers)
+    c.sounds = createFlightSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null }); // the gusts
+    c.doc = world.page ?? globalThis.document ?? null; // the page the wind's hint goes on
     c.ring = ringsFor(world, { most: 3 }); // the rings of her falling leaves on the water
     world.chapterState = c; // what the scenes share, for captures and probes
     // As chapter 3 ended: Egill in the saddle on Mosi, on his hummock by Þórseðla's head; Flugeðla is at the white tree.
