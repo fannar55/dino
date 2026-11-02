@@ -14,12 +14,17 @@ import { CLIMB, wayPoints } from './upper-ground.js';
  *   fly       the Flugeðlur carry the rope's free end (the rope is tied at the foot of the cliff): each tap is a wingbeat up the cliff (three legs), at the top they fly round the
  *             tree, winding the rope round its trunk, the rope draws taut, and they land
  *   climb     everyone walks up the steep path with the rope beside them as a handrail (nobody climbs the rope) to the rim
+ *   pull      (a together step: no pair is picked) the Flugeðlur fly the second rope out over the gap, round the stone on Sólarsyllan and back up to the stub near the dead trunk's
+ *             top, and knot it there, while everyone else lines up on it; each tap they all lean back and strain and the trunk tilts a step (three), the third throws it over the
+ *             gap, where it lies as a bridge (ledge.js)
+ *   walk      everyone goes over the trunk to Sólarsyllan, one behind the other on its top (the Flugeðlur fly over)
  *   a wrong friend's go at the ledge and at the cliff (`startFail`)
  *
  * Positions are in the upper gorge's frame (upper.js: x forward, z to the right, y up) turned into the scene's by `U.world`. Everything runs on the game clock (update(dt)).
  *
  * Events (the page hears them: levels/steinagljufur.js eventSounds and eventCaptions): 'through-start', 'reach-start', 'slab-step' { index }, 'slab-down', 'fly-start', 'wing-beat' { index },
- * 'rope-lift', 'rope-knots', 'rope-taut', 'rope-tied', 'climb-start', 'climb-step', 'footstep', 'bridge-complete' { id }; the goes: 'fail-bump', 'fail-rope', 'fail-slip', 'fail-done'.
+ * 'rope-lift', 'rope-knots', 'rope-taut', 'rope-tied', 'climb-start', 'climb-step', 'footstep', 'bridge-complete' { id }; the pull's 'pull-start', 'trunk-tilt' { index }, 'trunk-fall',
+ * 'trunk-dust' and the walk's 'walk-start' and 'footstep' { surface: 'wood' }; the goes: 'fail-bump', 'fail-rope', 'fail-slip', 'fail-done'.
  */
 const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -42,7 +47,13 @@ export const FORMATIONS = Object.freeze({
   // (the first Flugeðla lands on the tree's flat, north of the tree, just outside where her wrap round it ends: where she stood, on the path's edge, her tail was in the
   // flat's bank, and from the wrap's end her way down to the far side of the tree went through its trunk, veggir)
   rim: { mosi: [27.6, 7], triceratops: [[28.8, 4.6], [29.4, 7.6]], stegosaurus: [[30.6, 4], [31.2, 7]], brontosaurus: [[32.4, 5.2], [33, 8.2]], pteranodon: [[23.9, 14.0], [25.2, 10.7]] },
+  // on the clifftop at the second rope (Task 6): two lines either side of it (it runs along z = 5.4), facing the gap, the Þórseðlur at the front and Mosi at its end
+  rope: { mosi: [27.6, 4.6], brontosaurus: [[38.6, 4.75], [37.4, 6.05]], triceratops: [[35.1, 4.75], [34.0, 6.05]], stegosaurus: [[32.9, 4.75], [31.8, 6.05]], pteranodon: [[30.4, 4.75], [29.3, 6.05]] },
+  // on Sólarsyllan, over the trunk (the stone the rope goes round is at [48.4, 6.0])
+  sun: { mosi: [53.0, 6.6], triceratops: [[50.4, 2.8], [51.0, 9.8]], stegosaurus: [[53.6, 3.0], [54.2, 10.0]], brontosaurus: [[57.4, 3.6], [58.0, 8.4]], pteranodon: [[50.0, 11.4], [56.0, 11.6]] },
 });
+// The second rope (Task 6): its fixed end on the clifftop behind where the line stands, and the free end of its coil (the frame's [x, z])
+export const ROPE2 = Object.freeze({ from: Object.freeze([25.4, 5.4]), to: Object.freeze([26.6, 3.9]) });
 // the Þórseðlur's places at the ledge: each side of the slab, close under the riser, their long necks over its edges
 const REACH_SPOTS = [[.9, -2.7], [.9, 2.7]];
 // Where they stand there is no room for a long tail to turn in: the slab on one side, the riser in front, and the second has the hillside at its back. In the cheer the first
@@ -57,7 +68,7 @@ const STEP_SECONDS = 1.05;
 // the Flugeðlur's three legs up the cliff (fractions of the way along the path) and the height they fly above it
 const LEGS = [.30, .64, 1];
 
-export function createUpperMover({ stage, level, upper: U, rope, plates, events, members, holding, tunnelPoint, lower, setLower, fx, reduced: reducedNow }) {
+export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, trunk = null, plates, events, members, holding, tunnelPoint, lower, setLower, fx, reduced: reducedNow }) {
   // (the walkers keep to the ground under them: the glade's, and the upper gorge's once the group is through)
   const walkers = createWalkers({ stage, ground: (x, z) => where === 'glade' ? stage.heightAt(x, z) : U.heightAt(x, z) });
   const mosi = () => stage.mosi.actor;
@@ -330,6 +341,197 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     } else if (a.phase === 'cheer' && a.age >= (reduced() ? .4 : 1.3)) { const id = a.id; where = 'rim'; action = null; events.push({ type: 'bridge-complete', id }); }
   }
 
+  // ---- pull (Task 6) ----
+  // The second rope lies coiled on the clifftop behind the rim's places, its fixed end on the ground behind where the line will be (ROPE2, world.js). The Flugeðlur take its free
+  // end and fly it in three legs, a wingbeat each: out over the gap to the stone on Sólarsyllan, round the stone's far side, and back over the gap up to the stub near the trunk's
+  // top, where they hover while it is knotted (ledge.js tie); then they come down in the line. Meanwhile everyone else walks to the line. The rope draws taut from the line round the
+  // stone to the stub, so that a pull from the near side draws the trunk's top toward the stone, away from the pullers. Each tap: everyone leans back and strains, and the trunk
+  // tilts a step; the third throws it over (faster and faster, about its root plate, as a tree falls): a thud, dust along it, the camera shakes, and the rope goes slack into the gap.
+  const LINE = { z: ROPE2.from[1], y: .5, tail: ROPE2.from[0] + 1 }, LEAN = { step: .25, pitch: .08, seconds: 1.0 }, FALL_SECONDS = 1.15;
+  const STONE = { radius: .64, rise: .9, around: 1.6, fly: 1.7 }, WRAP_DEGREES = [-90, -45, 0, 45, 90];
+  const PULLERS = ['brontosaurus', 'triceratops', 'stegosaurus', 'pteranodon', 'mosi'];
+  const pullers = () => PULLERS.flatMap(who => (who === 'mosi' ? [mosi()] : members(who)).map((actor, i) => ({ who, i, actor })));
+  // a point round the stone at `deg` degrees (0 its far side, +x; -90 its open side, -z), `r` metres from its middle and `rise` over its foot (frame)
+  const aroundStone = (deg, r = STONE.radius, rise = STONE.rise) => { const c = U.anchors.stone, a = deg * Math.PI / 180; return V(c.x + Math.cos(a) * r, c.y + rise, c.z + Math.sin(a) * r); };
+  // the knot at the stub: a small turn round it, ending on it
+  const knotAt = degrees => { const s = trunk.tie(degrees); return [s.clone().add(V(.12, .1, -.04)), s.clone().add(V(0, -.09, -.08)), s.clone().add(V(-.11, .05, -.02)), s]; };
+  const droop = d => 1.3 * (d / 10) * Math.min(1, .35 + d / 14);
+  const ropeStart = V(ROPE2.from[0], U.groundAt(ROPE2.from[0], ROPE2.from[1]), ROPE2.from[1]);
+  const droops = points => points.map((p, k) => droop((k ? points[k - 1] : ropeStart).distanceTo(p)));
+  // the rope taut: from where the line starts (behind Mosi) at the height of their mouths, round the stone, to the knot (`back`: how far the line has been pulled back)
+  const linePath = (back = 0, degrees = trunk.angle) => [V(LINE.tail - back, U.groundAt(LINE.tail, LINE.z) + LINE.y, LINE.z), ...WRAP_DEGREES.map(d => aroundStone(d)), ...knotAt(degrees)];
+  // slack, once the trunk lies: along the rim on the ground, hanging into the gap, over Sólarsyllan to the stone and round it to the knot at the trunk's top
+  function slackPath() {
+    const y = (x, z) => U.groundAt(x, z) + .12, near = U.gap.near - .08, far = U.gap.far + .08;
+    const points = [V(LINE.tail, y(LINE.tail, LINE.z), LINE.z), V(near, y(near - .1, LINE.z), LINE.z), V(far, y(far + .1, LINE.z), LINE.z - .02), ...WRAP_DEGREES.map(d => aroundStone(d)), ...knotAt(trunk.fallen)];
+    return { points, hang: points.map((_, k) => k === 2 ? 2.4 : k === 3 ? .6 : k === 8 ? .5 : 0) };
+  }
+  const flightGoal = (leg, i) => {
+    // (B flies a little behind and beside A: the rope runs through her beak to A's)
+    const s = trunk.tie(0), by = (p, dx, dy, dz) => p.clone().add(V(i ? dx : 0, i ? dy : 0, i ? dz : 0));
+    if (leg === 0) return [by(V(36, 12.2, 3.6), -1.2, -.2, -.4), by(aroundStone(-112, STONE.around, STONE.fly), -1.1, -.15, -.3)];
+    if (leg === 1) { const out = []; for (let d = -112 + 28; d <= 100; d += 28) out.push(by(aroundStone(d, STONE.around, STONE.fly), 0, -.1, 0)); return i ? out.map(p => p.clone().add(V(-.2, 0, -.5))).slice(0, -1) : out; }
+    return [by(V(44.2, 13.4, 7.4), -1.1, -.2, -.5), by(V(s.x + .25, s.y + .35, s.z - 1.15), -.9, -.3, -.6)];
+  };
+  function startPull(beats) {
+    if (!trunk || !rope2) return false;
+    walkers.cancelAll(); walkers.resetClock();
+    action = { id: 'pull', phase: 'gather', age: 0, beats: Math.max(0, Math.floor(beats) || 0), given: 0, queue: 0, done: 0, leg: -1, arrived: 0, landed: 0, fixed: [], tight: 0, back: 0, stepAge: 0, lift: 0, legAge: 0 };
+    events.push({ type: 'pull-start' });
+    rope2.hang(); rope2.show(); trunk.set(0);
+    for (const { who, i, actor } of pullers()) {
+      if (who === 'pteranodon') continue;
+      actor.clearLook?.(); actor.stopGesture?.(); const spot = spotOf('rope', who, i);
+      walkers.start(actor, [{ to: [spot.point], speed: 3.6 }], { delay: who === 'mosi' ? .2 : .1 * i, yaw: spot.yaw });
+    }
+    // the Flugeðlur go to the coil's free end and take it
+    members('pteranodon').forEach((actor, i) => {
+      actor.clearLook?.(); actor.stopGesture?.(); actor.carry?.(true);
+      const end = V(ROPE2.to[0] + (i ? -.9 : .2), U.groundAt(...ROPE2.to) + 1.3 - (i ? .2 : 0), ROPE2.to[1] + (i ? .5 : 0));
+      const ok = actor.fly?.([U.world(end.x, end.y + .8, end.z), U.world(end.x, end.y, end.z)], { speed: 3.4, onDone: () => { action.arrived++; } });
+      if (!ok) { actor.root.position.copy(U.world(end.x, end.y, end.z)); action.arrived++; }
+    });
+    return true;
+  }
+  function pullLeg(leg) {
+    const a = action; a.phase = 'leg'; a.leg = leg; a.arrived = 0; a.legAge = 0;
+    events.push({ type: 'wing-beat', id: 'pull', index: leg }); if (leg === 0) events.push({ type: 'rope-lift' });
+    members('pteranodon').forEach((actor, i) => {
+      const points = flightGoal(leg, i).map(p => U.world(p.x, p.y, p.z)), ok = actor.fly?.(points, { speed: leg === 1 ? 4.2 : LEG_SPEED, onDone: () => { a.arrived++; } });
+      if (!ok) { actor.root.position.copy(points.at(-1)); a.arrived++; }
+    });
+  }
+  function pullRope() {
+    const a = action, [A, B] = members('pteranodon');
+    if (a.phase === 'gather' || a.phase === 'leg') {
+      // the free end in A's beak and through B's: the part of the line already laid (round the stone), then the two of them
+      if (a.leg === 1) { const c = U.anchors.stone, nose = noseFrame(A), deg = Math.atan2(nose.z - c.z, nose.x - c.x) * 180 / Math.PI; for (const d of WRAP_DEGREES) if (deg >= d - 4 && !a.fixed.some(p => p.deg === d)) { const p = aroundStone(d); p.deg = d; a.fixed.push(p); } }
+      if (a.leg >= 2 && a.fixed.length < WRAP_DEGREES.length) for (const d of WRAP_DEGREES) if (!a.fixed.some(p => p.deg === d)) { const p = aroundStone(d); p.deg = d; a.fixed.push(p); }
+      const points = [...a.fixed, noseFrame(B), noseFrame(A)];
+      rope2.through(points, droops(points), a.lift);
+    } else if (a.phase === 'knot') {
+      const points = [...a.fixed, ...knotAt(0).slice(0, 1 + Math.min(3, Math.floor(a.age / .45)))];
+      rope2.through(points, droops(points));
+    } else if (a.phase === 'down' || a.phase === 'ready' || a.phase === 'tug' || a.phase === 'fall') {
+      const points = linePath(a.back, trunk.angle), taut = smooth(a.tight), d = droops(points);
+      rope2.through(points, d.map(h => h * (1 - taut)));
+    } else if (a.phase === 'landed' || a.phase === 'cheer') {
+      const { points, hang } = slackPath(), k = smooth(Math.min(1, a.age / .6)), line = linePath(a.back, trunk.fallen);
+      // (the line goes slack: from the taut line to the slack one, point by point while there is one of each)
+      rope2.through(k >= 1 ? points : points.map((p, j) => (line[j] ?? p).clone().lerp(p, k)), hang.map(h => h * k));
+    }
+  }
+  function updatePull(dt) {
+    const a = action; a.age += dt; a.legAge += dt;
+    if (a.phase === 'gather') {
+      if (a.arrived >= 2) pullLeg(0);
+    } else if (a.phase === 'leg') {
+      if (a.leg === 0) a.lift = Math.min(1, a.lift + dt / (reduced() ? .2 : 1.2)); else a.lift = 1;
+      if (a.arrived >= 2) {
+        if (a.leg < 2) pullLeg(a.leg + 1);
+        else { a.phase = 'knot'; a.age = 0; events.push({ type: 'rope-knots' }); }
+      }
+    } else if (a.phase === 'knot') {
+      // they hover at the stub while it is knotted
+      members('pteranodon').forEach((actor, i) => { actor.root.position.y += Math.sin(a.age * 6 + i) * .004; });
+      if (a.age >= (reduced() ? .4 : 1.7)) {
+        a.phase = 'down'; a.age = 0; a.tight = 0; a.landed = 0; events.push({ type: 'rope-taut' });
+        members('pteranodon').forEach((actor, i) => { const spot = spotOf('rope', 'pteranodon', i); actor.land?.(spot.point, { yaw: spot.yaw, onDone: () => { a.landed++; } }) || (a.landed++, walkers.place(actor, spot.point, spot.yaw)); });
+      }
+    } else if (a.phase === 'down') {
+      a.tight = Math.min(1, a.age / (reduced() ? .3 : 1.6));
+      if (a.tight >= 1 && a.landed >= 2 && !walkers.busy()) {
+        a.phase = 'ready'; a.age = 0; a.base = pullers().map(({ actor }) => actor.root.position.clone());
+        for (const { actor, who } of pullers()) { if (who === 'pteranodon') actor.carry?.(false); actor.setMotion?.('idle'); actor.lookAt?.(U.world(trunk.tie(0).x, trunk.tie(0).y, trunk.tie(0).z), { weight: .5, maxAngle: 20 }); }
+      } else if (a.age > 7) a.landed = 2;
+    } else if (a.phase === 'ready') {
+      if (a.queue > 0) {
+        a.queue--; a.phase = 'tug'; a.stepAge = 0; a.index = a.done; a.from = trunk.steps[a.done]; a.to = trunk.steps[a.done + 1]; a.backFrom = a.back;
+        for (const { actor, who } of pullers()) { if (who === 'mosi') stage.mosi?.gesture?.('cheer'); else actor.gesture?.('strain'); }
+        fx?.emit?.('dust', U.world(...trunk.roots().toArray()), { count: 6 + 3 * a.done, strength: 1 + .2 * a.done });
+        events.push({ type: 'trunk-tilt', id: 'pull', index: a.done });
+      }
+    } else if (a.phase === 'tug') {
+      a.stepAge += dt; const u = clamp(a.stepAge / (reduced() ? .3 : LEAN.seconds), 0, 1), k = smooth(u);
+      trunk.set(lerp(a.from, a.to, k)); a.back = lerp(a.backFrom, a.backFrom + LEAN.step, k);
+      // everyone leans back as they pull: a step back and the body pitched up a little, which eases off as the step ends
+      pullers().forEach(({ actor, who }, j) => { if (who === 'pteranodon' && !a.base) return; const p = a.base[j]; actor.root.position.x = p.x; actor.root.position.z = p.z; const back = U.direction(-1, 0).multiplyScalar(a.back); actor.root.position.add(back.setY(0)); actor.root.rotation.z = LEAN.pitch * Math.sin(Math.PI * u) * (who === 'mosi' ? .6 : 1); });
+      if (u >= 1) {
+        a.done++; for (const { actor } of pullers()) actor.root.rotation.z = 0;
+        if (a.done >= (a.beats || 3)) { a.phase = 'fall'; a.age = 0; a.fallFrom = trunk.angle; }
+        else a.phase = 'ready';
+      }
+    } else if (a.phase === 'fall') {
+      // faster and faster, as a tree falls about its foot
+      const T = reduced() ? .35 : FALL_SECONDS, u = clamp(a.age / T, 0, 1);
+      trunk.set(lerp(a.fallFrom, trunk.fallen, u * u));
+      if (u >= 1) {
+        a.phase = 'landed'; a.age = 0; trunk.set(trunk.fallen);
+        const along = [.25, .5, .8].map(h => U.world(...trunk.point(h * trunk.height).toArray())), top = U.world(...trunk.top().toArray());
+        for (const p of along) fx?.emit?.('dust', p, { count: 10, strength: 1.5 }); fx?.emit?.('dust', top, { count: 14, strength: 1.6 }); fx?.emit?.('poof', top, { count: 8, ring: .9 });
+        fx?.emit?.('dust', U.world(U.gap.near, U.rim.y, LINE.z + 2), { count: 8, strength: 1.2 });
+        stage.director?.shake?.(.2, .5);
+        events.push({ type: 'trunk-fall' }); events.push({ type: 'trunk-dust' });
+      }
+    } else if (a.phase === 'landed') {
+      if (a.age >= (reduced() ? .2 : .5)) {
+        a.phase = 'cheer'; a.age = 0;
+        for (const { actor, who } of pullers()) { actor.clearLook?.(); if (who === 'mosi') stage.mosi?.gesture?.('cheer'); else actor.gesture?.('cheer'); }
+      }
+    } else if (a.phase === 'cheer') {
+      if (a.age >= (reduced() ? .4 : 1.5)) { const id = a.id; where = 'trunk'; action = null; events.push({ type: 'bridge-complete', id }); return; }
+    }
+    pullRope();
+  }
+
+  // ---- walk (Task 6) ----
+  // Over the trunk to Sólarsyllan, one behind the other: each walks to the trunk's side by its root plate, steps up onto its top, walks along it over the gap, steps down on
+  // Sólarsyllan on the side away from the rope and goes to its place there. The Þórseðlur go first, Mosi last; each starts when the one before is far enough ahead on the trunk
+  // (their lengths: BODY). The Flugeðlur fly over. Footsteps on the wood while anyone is on it.
+  const WALK = { ground: 4.4, deck: 3.6, on: [39.9, 8.0], deckFrom: 41.2, deckTo: 44.9, off: [45.9, 10.6], via: [51.0, 7.2], margin: .4 };
+  const BODY = { mosi: [.8, .8], triceratops: [1.0, .9], stegosaurus: [1.3, 1.0], brontosaurus: [2.3, 1.4] }; // metres behind and ahead of its root
+  const WALK_ORDER = [['brontosaurus', 0], ['brontosaurus', 1], ['triceratops', 0], ['triceratops', 1], ['stegosaurus', 0], ['stegosaurus', 1], ['mosi', 0]];
+  /** The lying trunk as the friends walk on it (walkers.js `surface`, the scene's coordinates): its top, and the ground round it. */
+  function trunkSurface() { const v = V(0, 0, 0); return (x, z) => { const p = U.local(v.set(x, 0, z)), h = trunk.surface(p.x, p.z); return h ?? U.heightAt(x, z); }; }
+  function startWalk() {
+    if (!trunk || trunk.angle < trunk.fallen - .5) return false;
+    walkers.cancelAll(); walkers.resetClock();
+    action = { id: 'walk', phase: 'walk', age: 0, landed: 0, stepAge: 0, arrived: 0 };
+    events.push({ type: 'walk-start' });
+    const surface = trunkSurface(), deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z)), on = world(...WALK.on), off = world(...WALK.off);
+    let hop = -Infinity, before = null;
+    for (const [who, i] of WALK_ORDER) {
+      const actor = who === 'mosi' ? mosi() : members(who)[i], spot = spotOf('sun', who, i), [back, front] = BODY[who];
+      actor.clearLook?.(); actor.stopGesture?.();
+      const reach = Math.hypot(on.x - actor.root.position.x, on.z - actor.root.position.z) / WALK.ground;
+      const at = before ? Math.max(hop + (BODY[before][0] + front + WALK.margin) / WALK.deck, reach) : reach, delay = Math.max(0, at - reach);
+      hop = at; before = who; void back;
+      const end = spot.frame[1] < 6.5 ? [world(...WALK.via), spot.point] : [spot.point];
+      walkers.start(actor, [{ to: [on], speed: WALK.ground }, { to: deck, speed: WALK.deck, ground: false, surface }, { to: [off], speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
+        { delay, yaw: spot.yaw, pitch: true, onDone: () => { action && action.arrived++; } });
+    }
+    // the Flugeðlur fly over, high over the trunk, and come down at their places
+    members('pteranodon').forEach((actor, i) => {
+      const spot = spotOf('sun', 'pteranodon', i), points = [U.world(33 + i, 12.4, 5.6 + i), U.world(43.5, 13.2, 8 + i * 1.4), U.world(spot.frame[0] - 2, 11.2, spot.frame[1])];
+      actor.carry?.(false);
+      const ok = actor.fly?.(points, { speed: 4.6 - i * .3, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: () => { action && action.landed++; } }) || (action && action.landed++); } });
+      if (!ok) { walkers.place(actor, spot.point, spot.yaw); action.landed++; }
+    });
+    return true;
+  }
+  function updateWalk(dt) {
+    const a = action; a.age += dt; a.stepAge += dt;
+    if (a.phase === 'walk') {
+      // the wood under their feet: a step every third of a second while anyone is on the trunk (the nearest to the middle of the gap says where it is heard)
+      if (a.stepAge >= .32) {
+        const on = [...members('brontosaurus'), ...members('triceratops'), ...members('stegosaurus'), mosi()].map(actor => ({ actor, p: U.local(actor.root.position) })).filter(({ p }) => p.x > WALK.deckFrom - .3 && p.x < WALK.deckTo + .3 && p.y > U.rim.y + .5);
+        if (on.length) { a.stepAge = 0; events.push({ type: 'footstep', surface: 'wood', pan: 0 }); }
+      }
+      if (a.arrived >= WALK_ORDER.length && a.landed >= 2) { a.phase = 'cheer'; a.age = 0; for (const actor of friends()) { actor.setMotion?.('idle'); actor.gesture?.('cheer'); } stage.mosi?.gesture?.('cheer'); }
+      else if (a.age > 16) a.landed = 2;
+    } else if (a.phase === 'cheer' && a.age >= (reduced() ? .4 : 1.3)) { const id = a.id; where = 'sun'; action = null; events.push({ type: 'bridge-complete', id }); }
+  }
+
   // ---- the wrong friends' goes at the ledge and at the cliff ----
   // A wrong pair walks from where it stands to the obstacle, has its funny go (gestures.js FAIL_TRIES; the roots' moves and the stars, the dust and the sounds are here), and walks back.
   // `startFail` gives the scene the times it paces its cuts by, like the mover's goes at the tunnel and the rocks.
@@ -469,6 +671,8 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     else if (action.id === 'reach') updateReach(dt);
     else if (action.id === 'fly') updateFly(dt);
     else if (action.id === 'climb') updateClimb(dt);
+    else if (action.id === 'pull') updatePull(dt);
+    else if (action.id === 'walk') updateWalk(dt);
     else if (action.id === 'fail') updateFail(dt);
   }
   return {
@@ -479,10 +683,12 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       if (id === 'reach') return startReach(beats);
       if (id === 'fly') return startFly(beats);
       if (id === 'climb') return startClimb();
+      if (id === 'pull') return startPull(beats);
+      if (id === 'walk') return startWalk();
       return false;
     },
     beat() {
-      if (!action || !action.beats || action.given >= action.beats || !['reach', 'fly'].includes(action.id)) return false;
+      if (!action || !action.beats || action.given >= action.beats || !['reach', 'fly', 'pull'].includes(action.id)) return false;
       const index = action.given; action.given++; action.queue++; events.push({ type: 'beat', id: action.id, index }); return true;
     },
     waitingBeat: () => action && action.beats && action.phase === 'ready' && action.given < action.beats ? action.given : null,
@@ -498,7 +704,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     }, setWhere(value) { where = value; },
     walkers, update, goes: () => goes,
     spots: formation => ({ mosi: spotOf(formation, 'mosi').point, ...Object.fromEntries(level.friends.map(species => [species, members(species).map((_, i) => spotOf(formation, species, i).point)])) }),
-    reset() { walkers.cancelAll(); action = null; where = 'glade'; goes = null; time = 0; for (const actor of friends()) { actor.root.rotation.x = actor.root.rotation.z = 0; actor.root.scale.setScalar(1); actor.cancelFlight?.(); actor.carry?.(false); } if (mosi()) mosi().root.rotation.z = 0; },
+    reset() { walkers.cancelAll(); action = null; where = 'glade'; goes = null; time = 0; for (const actor of friends()) { actor.root.rotation.x = actor.root.rotation.z = 0; actor.root.scale.setScalar(1); actor.cancelFlight?.(); actor.carry?.(false); } if (mosi()) mosi().root.rotation.z = 0; trunk?.reset(); },
     debug: () => ({ action: action ? { id: action.id, phase: action.phase, age: +action.age.toFixed(2), given: action.given ?? 0, done: action.done ?? 0, hidden: action.hidden ?? 0, arrived: action.arrived ?? 0 } : null, where, walking: walkers.count() }),
   };
   function reduced() { return reducedNow(); }

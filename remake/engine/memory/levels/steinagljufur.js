@@ -34,9 +34,9 @@ export const STEINAGLJUFUR = freezeLevel({
   title: 'Steinagljúfrið',
   ribbon: 'Leiðin upp á Sólarsylluna',
   look: 'gorgeAfternoon',
-  // (`through` and `climb` are travel steps: Mosi says their line when they start, game.js launchAction)
-  lines: { welcome: 'g2_welcome', help: null, giftsLeft: 'g2_left', gifts: 'gifts4', through: 'g2_through', climb: 'g2_climb' },
-  voice: { 'g2-light-ready': 'g2_light_ready', 'g2-headbutt-ready': 'g2_rocks_ready', 'g2-reach-ready': 'g2_ledge_ready', 'g2-fly-ready': 'g2_cliff_ready' },
+  // (`through`, `climb` and `walk` are travel steps: Mosi says their line when they start, game.js launchAction)
+  lines: { welcome: 'g2_welcome', help: null, giftsLeft: 'g2_left', gifts: 'gifts4', through: 'g2_through', climb: 'g2_climb', walk: 'g2_bridge' },
+  voice: { 'g2-light-ready': 'g2_light_ready', 'g2-headbutt-ready': 'g2_rocks_ready', 'g2-reach-ready': 'g2_ledge_ready', 'g2-fly-ready': 'g2_cliff_ready', 'g2-pull-ready': 'g2_pull_ready' },
   soundscape: 'gorge',
   credits: [
     { title: 'Klettarnir (Sandstone | Cliff, sjö hlutar)', author: 'YadroGames', license: 'CC BY 4.0', source: 'sketchfab.com/erroratten' },
@@ -146,7 +146,7 @@ export const STEINAGLJUFUR = freezeLevel({
   },
   // A cancelled step keeps what was finished and grants nothing, as in level 1.
   onCancel() {},
-  // The badges are renders of the level's own models (assets/memory/bord2/badge-*.webp), not drawn: the tunnel's and the rocks' (Task 4), the ledge's slab and the cliff's tree (Task 5), the rest come with their scenes.
+  // The badges are renders of the level's own models (assets/memory/bord2/badge-*.webp), not drawn: the tunnel's and the rocks' (Task 4), the ledge's slab and the cliff's tree (Task 5), the trunk (Task 6), the rest come with their scenes.
   targets: {
     tunnel: { label: 'Göngin: hver getur lýst þau upp?', icon: '<img src="./assets/memory/bord2/badge-tunnel.webp" alt="" width="72" height="72" draggable="false">' },
     rocks: { label: 'Grjóthrunið: hver getur stangað það burt?', icon: '<img src="./assets/memory/bord2/badge-rocks.webp" alt="" width="72" height="72" draggable="false">' },
@@ -154,7 +154,7 @@ export const STEINAGLJUFUR = freezeLevel({
     ledge: { label: 'Stallurinn: hver nær hátt?', icon: '<img src="./assets/memory/bord2/badge-ledge.webp" alt="" width="72" height="72" draggable="false">' },
     cliff: { label: 'Klettaveggurinn: hver getur flogið með reipið upp?', icon: '<img src="./assets/memory/bord2/badge-cliff.webp" alt="" width="72" height="72" draggable="false">' },
     clifftop: { label: 'Senda alla vinina upp á brúnina', icon: '' },
-    trunk: { label: 'Trjábolurinn: togum öll saman', icon: '' },
+    trunk: { label: 'Trjábolurinn: togum öll saman', icon: '<img src="./assets/memory/bord2/badge-trunk.webp" alt="" width="72" height="72" draggable="false">' },
     sunLedge: { label: 'Senda alla vinina yfir á Sólarsylluna', icon: '' },
   },
   copy: {
@@ -214,6 +214,13 @@ export const STEINAGLJUFUR = freezeLevel({
     // The wrong friends at the cliff: the rope thrown up falls on the Þórseðla's head (a whoosh, a bonk), the Kambeðla slides back down the path.
     'fail-rope': ['ropeWhoosh'],
     'fail-slip': ['gravelSlip'],
+    // The pull (Task 6): the Flugeðlur lift the second rope (the whoosh), a wingbeat for each leg of its flight over the gap and back up the trunk, the knots at the stub at
+    // its top, the rope drawn taut along the line. Each tap everyone strains and the rope stretches as the trunk tilts a step; the third throws it over the gap: level 1's thud,
+    // and stones tumble off the rim into the gap under the dust. The walk over it is footsteps on the wood (game.js 'footstep').
+    'beat:pull': ['strain'],
+    'trunk-tilt': ['ropeTighten'],
+    'trunk-fall': ['bridgeLand'],
+    'trunk-dust': ['rocksTumble'],
   },
   eventCaptions: {
     'tunnel-lit': { text: 'Plöturnar lýsa eins og ljósker!', hold: 3.2 },

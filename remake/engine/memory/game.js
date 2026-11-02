@@ -22,7 +22,7 @@ const LINES = { welcome: 'welcome', help: 'help', giftsLeft: 'giftsLeft', gifts:
 const stepById = id => level.steps.find(step => step.id === id);
 const travelAt = target => level.steps.find(step => step.kind === 'travel' && step.target === target);
 // Mosi's lines that also go up in his bubble when a script says them.
-const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft', 'gifts4', 'g2_left']);
+const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft', 'gifts4', 'g2_left', 'g2_pull']);
 // How long a line's words stay up in his bubble when a script says it (seconds; the others 2.6).
 const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, gifts4: 3.4, giftsLeft: 3.2, g2_left: 3.2 };
 const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
@@ -280,6 +280,13 @@ function askObstacle(id) {
   audio.unlock(); music.unlock(); speech.stop(); captionUntil = 0;
   if (answer.kind === 'not-yet') { caption(VOICE_LINES.notYet.text, 2.6); speech.play('notYet'); world.mosiGesture?.('shake-head'); }
   else if (answer.kind === 'find-first') { caption(VOICE_LINES.findFirst.text, 2.6); speech.play('findFirst'); world.mosiGesture?.('shake-head'); }
+  else if (answer.kind === 'start') {
+    // A together step (step-rules.js: everyone at once): no bubbles and no pair to pick; its scene plays at the tap, and the step is
+    // given back when the scene cannot begin.
+    noteInput(); syncBridge();
+    if (world.playStep(answer.action, {}) === null) bridge.cancel(answer.action);
+    syncBridge(); caption(currentStory().prompt); reflectEnding(); return;
+  }
   else { caption(VOICE_LINES.who.text, 2.6); speech.play('who'); }
   syncBridge(); reflectEnding();
 }

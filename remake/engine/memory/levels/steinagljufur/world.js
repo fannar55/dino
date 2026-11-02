@@ -12,7 +12,10 @@ import { throughScene } from './scenes/through.js';
 import { reachScene } from './scenes/reach.js';
 import { flyScene } from './scenes/fly.js';
 import { climbScene } from './scenes/climb.js';
+import { pullScene, walkScene } from './scenes/pull.js';
 import { createRope } from './rope.js';
+import { createTrunk } from './ledge.js';
+import { ROPE2 } from './upper-mover.js';
 
 // The farthest hills are only seen in the overview: pale rock buttes in the haze, in the forest's far rings (a ring's `color` is the colour
 // of its crowns, `haze` what they fade into).
@@ -37,7 +40,7 @@ const TUNNEL = Object.freeze({ at: [-2.5, 11.4], facing: [.5, -.87], scale: 1 })
 export function createLevelWorld(stage) {
   const { THREE, scene } = stage, level = stage.level, spot = level.mosiSpot;
   const frame = frameOf(level.grid);
-  let models = null, upperModels = null, upper = null, rope = null, gorge = null, interior = null, mover = null, groundLook = null, snapshot = null, taskScript = null, searchCamera = null, api = null;
+  let models = null, upperModels = null, upper = null, rope = null, rope2 = null, trunk = null, gorge = null, interior = null, mover = null, groundLook = null, snapshot = null, taskScript = null, searchCamera = null, api = null;
   // The one number the tunnel's shaders read: how far the Kambeðlur's plates have lit it (0 dark, 1 lit; tunnel.js eases it).
   const glow = { uLight: { value: 0 } };
   // The Kambeðlur's plates (engine/plate-glow.js): their glow is the light of the tunnel's task, raised a step with each tap; with none lit they look as they always did.
@@ -121,6 +124,11 @@ export function createLevelWorld(stage) {
     slab: () => ({ hinge: upper.world(...upper.slab.hinge.toArray()), edge: upper.world(...upper.slab.under(upper.slab.length, 0).toArray()), middle: upper.world(...upper.slab.under(upper.slab.length * .55, 0).toArray()) }),
     tree: () => { const b = upper.tree.base; return { base: upper.world(b.x, b.y, b.z), middle: upper.world(b.x, b.y + 2.4, b.z), top: upper.world(b.x, b.y + 4.6, b.z) }; },
     rope: () => upper.world(...rope.tip().toArray()),
+    // The dead trunk at the gap (ledge.js) and the second rope (Task 6): points of them in the scene.
+    trunk: () => { const w = p => upper.world(p.x, p.y, p.z); return { base: w(trunk.point(.3)), middle: w(trunk.point(3.4)), top: w(trunk.top()), tie: w(trunk.tie()), roots: w(trunk.roots()), fallen: trunk.angle >= trunk.fallen - .5, far: upper.world(upper.gap.far + 1, upper.rim.y, 9.2), near: upper.world(upper.gap.near - 1, upper.rim.y, 9.2) }; },
+    rope2: () => upper.world(...rope2.tip().toArray()),
+    stone: () => upper.world(upper.anchors.stone.x, upper.anchors.stone.y + 1, upper.anchors.stone.z),
+    local: point => upper.local(point),
     done: () => mover.upper.debug().action?.done ?? 0,
     mosiHeight: () => stage.mosi.actor.root.position.y,
     // The way from the mouth toward the camera: the tunnel's own way out (0) turned toward where the search camera stood when the task began (1), so that the shots look into it from the glade's side.
@@ -142,15 +150,41 @@ export function createLevelWorld(stage) {
   // The resting view in the upper gorge, from the open side: the floor in front of the ledge (the ledge is next), the terrace and the cliff (the cliff is next), the rim.
   // A cue is a set of points the camera keeps in the frame and the direction it looks from (from the right-hand side of the way, a little ahead of it, from above).
   function upperCue() {
-    const state = snapshot ?? {}, portrait = stage.aspect() < 1, phase = !state.ledgeLowered ? 'floor' : !state.ropeUp ? 'terrace' : 'rim', w = upper.world.bind(upper);
+    const state = snapshot ?? {}, portrait = stage.aspect() < 1, w = upper.world.bind(upper);
+    const phase = !state.ledgeLowered ? 'floor' : !state.ropeUp ? 'terrace' : !state.atClifftop ? 'rim' : !state.trunkDown ? 'clifftop' : !state.onSunLedge ? 'bridge' : 'sun';
     // (from the open side; on a portrait screen the gorge is long across a narrow view, so the camera stands behind it and high, looking along it)
     const SHOTS = {
       floor: { points: [[-12, 0, -4], [-2, 1.5, 3], [-1, 5.6, -3.4], [8, 2.6, -4]], focus: [-3, 1.4, 0], front: portrait ? [-.9, -.5] : [-.34, -1], elevation: portrait ? 42 : 21 },
       terrace: { points: [[3.4, 1.9, -5], [10, 4, 5], [16, 5.2, 5], [23.4, 9, 11], [22, 11.6, 10]], focus: [13, 5.2, 3], front: portrait ? [-.6, -.8] : [-.12, -1], elevation: portrait ? 44 : 21 },
       rim: { points: [[21, 9, 5], [34, 9, 10], [28, 12, 8]], focus: [27, 9.5, 7], front: portrait ? [-.55, -.8] : [-.15, -1], elevation: portrait ? 44 : 21 },
+      // (Task 6) the group on the clifftop, the trunk standing at the gap up to its top, and Sólarsyllan's lip beyond; on a portrait screen from behind the group, along the way
+      clifftop: { points: [[25.5, 9, 4], [33, 9, 8], [39.3, 9, 9.2], [39.3, 15.9, 9.2], [46.5, 9, 7], [41.3, 8.9, 4]], focus: [36, 11, 7], front: portrait ? [-.9, -.45] : [-.22, -1], elevation: portrait ? 30 : 16 },
+      bridge: { points: [[30, 9, 5], [38.8, 9.6, 9.2], [45.8, 9.4, 9.2], [50, 9, 6], [41.3, 8.9, 4]], focus: [40, 9.6, 7], front: portrait ? [-.9, -.45] : [-.2, -1], elevation: portrait ? 30 : 18 },
+      sun: { points: [[44.5, 9, 3], [48, 9, 11.8], [59, 9, 3], [59, 9, 11], [53, 11, 6.6]], focus: [52, 9.8, 7], front: portrait ? [-.75, -.65] : [-.25, -1], elevation: portrait ? 34 : 20 },
     }[phase];
     const d = upper.direction(...SHOTS.front), e = Math.PI / 180 * SHOTS.elevation;
     return stage.cue(SHOTS.points.map(p => w(...p)), { key: `upper-${phase}`, focus: w(...SHOTS.focus).toArray(), direction: [d.x * Math.cos(e), Math.sin(e), d.z * Math.cos(e)] });
+  }
+
+  // (Task 6) the trunk's button: over its middle as it stands; the trunk and the stone as things the walks keep clear of (capsules in the scene), and as boxes for the
+  // clearance audit (memory-clearance.js: the trunk standing or lying, the gap's face under the near rim, Sólarsyllan's block and the stone)
+  const trunkPoint = () => upper.world(...trunk.point(3.2).toArray());
+  function upperSolids() {
+    if (!upper?.visible || !trunk) return [];
+    const w = p => upper.world(p.x, p.y, p.z), s = upper.anchors.stone;
+    return [...trunk.solids().map(c => ({ id: c.id, a: w(c.a), b: w(c.b), radius: c.radius })), { id: 'stone', a: upper.world(s.x, s.y, s.z), b: upper.world(s.x, s.y + 1.6, s.z), radius: .66 }];
+  }
+  function upperCollision() {
+    if (!upper?.visible || !trunk) return [];
+    const q = upper.group.quaternion, turn = axes => axes.map(a => new THREE.Vector3(...a).applyQuaternion(q).toArray());
+    const box = (name, kind, center, half, axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) => ({ name, kind, center: upper.world(...center).toArray(), axes: turn(axes), half });
+    const { near, far } = upper.gap, y = upper.rim.y;
+    return [
+      { id: 'trunk', parts: trunk.boxes().map(part => ({ ...part, center: upper.world(...part.center).toArray(), axes: turn(part.axes) })) },
+      { id: 'gap-near', parts: [box('gap-near-face', 'rock', [near - 1.5, y / 2, 6.4], [1.5, y / 2, 6.2])] },
+      { id: 'sun-ledge', parts: [box('sun-ledge-block', 'rock', [(far + 60) / 2, y / 2, 6.6], [(60 - far) / 2, y / 2, 6.1])] },
+      { id: 'stone', parts: [box('stone', 'stone', [upper.anchors.stone.x, upper.anchors.stone.y + .9, upper.anchors.stone.z], [.55, .9, .55])] },
+    ];
   }
 
   api = {
@@ -158,14 +192,14 @@ export function createLevelWorld(stage) {
     // The points the overview adds to the board, the rests and Mosi: the tunnel and the walls behind it.
     overviewPoints: Object.freeze([[-8, 6, -14], [4, 6, -16], [-14, 3, -2], [14, 3, -8]]),
     /** The things the friends' walks and play keep clear of: the tunnel and the boulders. */
-    navObjects: () => gorge?.solids ?? [],
+    navObjects: () => [...(gorge?.solids ?? []), ...upperSolids()],
     // The search view in the glade; once everyone is through the tunnel, the view of the place the next step is at (upperCue).
     cameraCue: glade => mover?.upper.where() === 'glade' || !upper ? glade() : upperCue(),
     /** The overview button, once everyone is in the upper gorge: the whole of it, high (the glade is far away and hidden). Null in the glade: the shared overview. */
     overviewCue(cue) {
       if (!upper || !mover || mover.upper.where() === 'glade') return null;
       const portrait = stage.aspect() < 1, w = upper.world.bind(upper), front = portrait ? [-.55, -.8] : [-.25, -1], d = upper.direction(...front), e = Math.PI / 180 * (portrait ? 52 : 40);
-      return cue([[-14, 0, -6], [-3, 4, 4], [10, 3, -6], [24, 9, 12], [36, 9, 10], [20, 6, 0]].map(p => w(...p)), { key: 'overview', phase: 'overview', focus: w(12, 4, 2).toArray(), direction: [d.x * Math.cos(e), Math.sin(e), d.z * Math.cos(e)] });
+      return cue([[-14, 0, -6], [-3, 4, 4], [10, 3, -6], [24, 9, 12], [36, 9, 10], [20, 6, 0], [39.3, 15, 9.2], [56, 9, 8]].map(p => w(...p)), { key: 'overview', phase: 'overview', focus: w(12, 4, 2).toArray(), direction: [d.x * Math.cos(e), Math.sin(e), d.z * Math.cos(e)] });
     },
 
     /** Loads the gorge's models and stands them, once the forest, the leaves and the rests exist: the ground's look, the walls, the boulders, the tunnel. */
@@ -186,9 +220,12 @@ export function createLevelWorld(stage) {
       // The rope: tied at the foot of the cliff, it runs up the path's right edge to the tree; its texture is the owner's approved ambientCG rope.
       const rail = upper.rail.map(p => new THREE.Vector3(p.x, p.y, p.z + 0)), sideway = rail.map((p, k) => { const a = rail[Math.max(0, k - 1)], b = rail[Math.min(rail.length - 1, k + 1)], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1; return new THREE.Vector3(p.x - dz / len * 1.55, p.y, p.z + dx / len * 1.55); });
       rope = createRope(stage, { from: upper.anchors.stake, to: new THREE.Vector3(7.5, 0, .6), parent: upper.group, groundAt: upper.groundAt, route: [upper.anchors.stake, ...sideway.slice(1)], trunk: upper.tree });
-      mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level, upper, rope, setLower: visible => { gorge.group.visible = visible; } });
+      // The dead trunk at the gap (Task 6: the owner's model, ledge.js; ?bolur=grar greys it) and the second rope, coiled on the clifftop behind where the line will stand (the same tube and texture).
+      trunk = createTrunk({ THREE, parent: upper.group, model: models.get('gorge-trunk'), groundAt: upper.groundAt, grey: stage.params?.get?.('bolur') === 'grar' });
+      rope2 = createRope(stage, { from: upper.onGround(...ROPE2.from), to: upper.onGround(...ROPE2.to), parent: upper.group, groundAt: upper.groundAt }); rope2.mesh.name = 'Reipið (annað)';
+      mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level, upper, rope, rope2, trunk, setLower: visible => { gorge.group.visible = visible; } });
       mover.setReducedMotion(stage.reducedMotion());
-      if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, upper, rope, glow, stage, mover, plates, get api() { return api; } };
+      if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, upper, rope, rope2, trunk, glow, stage, mover, plates, get api() { return api; } };
     },
     /** The friends exist and have their LODs: the Kambeðlur's plates can glow (before the scene is compiled, so that their shader is made once). */
     afterBabies(actors) {
@@ -209,10 +246,12 @@ export function createLevelWorld(stage) {
       if (mover.upper.where() === 'glade') return [];
       if (!state.ledgeLowered) return [target('ledge', upper.world(.2, 1.6, 0))];
       if (!state.ropeUp) return [target('cliff', upper.world(15, 5, 3))];
+      // (Task 6) the trunk, once everyone is on the clifftop: a tap starts the pull at once (it is everyone's: no bubbles)
+      if (state.atClifftop && !state.trunkDown) return [target('trunk', trunkPoint())];
       return [];
     },
     /** Where the big tap-along button of an obstacle sits: over the mouth for the tunnel, over the pile for the rocks. */
-    tapPoint: id => id === 'rocks' ? interior.pile.centre() : id === 'ledge' ? upper.world(.2, 1.6, 0) : id === 'cliff' ? upper.world(15, 5, 3) : mouthPoint().add(new THREE.Vector3(0, 1.3, 0)),
+    tapPoint: id => id === 'rocks' ? interior.pile.centre() : id === 'ledge' ? upper.world(.2, 1.6, 0) : id === 'cliff' ? upper.world(15, 5, 3) : id === 'trunk' ? trunkPoint() : mouthPoint().add(new THREE.Vector3(0, 1.3, 0)),
 
     // ---- the steps ----
     /** Plays a step (its script): the id of the script, or null when it cannot start now. */
@@ -224,6 +263,8 @@ export function createLevelWorld(stage) {
         case 'reach': return playTask(() => reachScene(script));
         case 'fly': return playTask(() => flyScene(script));
         case 'climb': return playTask(() => climbScene(script));
+        case 'pull': return playTask(() => pullScene(script));
+        case 'walk': return playTask(() => walkScene(script));
         default: return null;
       }
     },
@@ -269,7 +310,7 @@ export function createLevelWorld(stage) {
     pollEvents: () => mover?.pollEvents() ?? [],
 
     // ---- every frame ----
-    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); },
+    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); rope2?.update(); },
     afterActors() {},
 
     // ---- who is where ----
@@ -291,12 +332,12 @@ export function createLevelWorld(stage) {
     avoidIdle(x, z) { const [u, v] = frame.toGrid(x, z); return outside(u, v) > -2.4 ? 'wall' : null; },
 
     // ---- the page's debug and the round's end ----
-    getDebug() {
-      return { bridge: mover?.debug() ?? {}, mosiWalk: null, mosiAcross: false, river: null, collisionObjects: [],
-        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug() } : null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
+    getDebug({ collision = false } = {}) {
+      return { bridge: mover?.debug() ?? {}, mosiWalk: null, mosiAcross: false, river: null, collisionObjects: collision ? upperCollision() : [],
+        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug(), rope2: rope2?.debug(), trunk: trunk?.debug() } : null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
-    reset() { snapshot = null; taskScript = null; rope?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
+    reset() { snapshot = null; taskScript = null; rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
     dispose() { interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
   };
   return api;

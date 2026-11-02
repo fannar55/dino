@@ -5,13 +5,14 @@ import { closure, outside } from './ground.js';
 /**
  * The gorge's static scenery, all of it the owner's approved models (assets/memory/bord2/, each with a -source.json): seven pieces of sandstone
  * cliff (YadroGames, CC BY) stacked into the walls, two boulders (Quaternius, CC0) at their foot and on the floor, and the tunnel mouth the
- * owner made in Tripo3D. Nothing here is drawn or modelled by hand: the world only places, turns and scales them.
+ * owner made in Tripo3D. Nothing here is drawn or modelled by hand: the world only places, turns and scales them. (The owner's dead trunk, gorge-trunk, is read
+ * with them and stood at the gap in the upper gorge: ledge.js.)
  *
  * Each model is read once and baked (the node's scale and the quantized positions) into plain float geometry; every kind of piece is one
  * InstancedMesh, so the whole static gorge is one draw call for each of its kinds (the budget is the ≤ 40,000 triangles the plan sets
  * for the gorge in the search view: `stats().triangles` says what stands).
  */
-const FILES = ['gorge-cliff-0', 'gorge-cliff-1', 'gorge-cliff-2', 'gorge-cliff-3', 'gorge-cliff-4', 'gorge-cliff-5', 'gorge-cliff-6', 'gorge-boulder-1', 'gorge-boulder-2', 'gorge-tunnel', 'gorge-rocks', 'gorge-crystal-purple', 'gorge-crystal-blue'];
+const FILES = ['gorge-cliff-0', 'gorge-cliff-1', 'gorge-cliff-2', 'gorge-cliff-3', 'gorge-cliff-4', 'gorge-cliff-5', 'gorge-cliff-6', 'gorge-boulder-1', 'gorge-boulder-2', 'gorge-tunnel', 'gorge-rocks', 'gorge-crystal-purple', 'gorge-crystal-blue', 'gorge-trunk'];
 const url = name => new URL(`../../../../assets/memory/bord2/${name}.glb`, import.meta.url).href;
 
 // A small seeded generator (mulberry32): the gorge is the same every time.

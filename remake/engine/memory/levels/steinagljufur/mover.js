@@ -28,7 +28,7 @@ const GAP = .5; // metres between the horns and the pile when the Þríhyrnur st
 const REAR = .34;
 const STRIKE = { seconds: .95, hit: .52 };
 
-export function createGorgeMover({ THREE: three = THREE, stage, interior, plates, tunnel, level, upper, rope, setLower = () => {} }) {
+export function createGorgeMover({ THREE: three = THREE, stage, interior, plates, tunnel, level, upper, rope, rope2 = null, trunk = null, setLower = () => {} }) {
   void three;
   const { fx, nests, heightAt } = stage;
   const across = BORE.across;
@@ -103,8 +103,8 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   const landHops = (hops, back) => { for (const h of hops) { h.hop = -1; h.actor.root.position.copy(back ? h.from : h.to); h.actor.root.rotation.y = back ? h.fromYaw : h.yaw; hopLanding(h.actor); } };
   const headsOf = species => members(species).map(actor => actor.getNosePosition?.() ?? actor.root.position.clone().add(new THREE.Vector3(0, 1, 0)));
   const stand = species => { for (const actor of members(species)) { actor.clearLook?.(); actor.clearSupport?.(); actor.walk?.(false); } };
-  // The steps after the rockfall (through the tunnel, the ledge, the cliff, the climb: upper-mover.js) and their wrong friends' goes at the ledge and at the cliff.
-  const up = createUpperMover({ stage, level, upper, rope, plates, events, members, holding, tunnelPoint: (x, z) => ground(x, z, 0), setLower, fx, reduced: () => reduced });
+  // The steps after the rockfall (through the tunnel, the ledge, the cliff, the climb, the pull and the walk over the trunk: upper-mover.js) and their wrong friends' goes at the ledge and at the cliff.
+  const up = createUpperMover({ stage, level, upper, rope, rope2, trunk, plates, events, members, holding, tunnelPoint: (x, z) => ground(x, z, 0), setLower, fx, reduced: () => reduced });
   const busy = () => action !== null || up.busy();
   // A cheer is for the child: the pair turns to face the camera (the way they stood, in to the tunnel, shows only their backs).
   const faceCamera = (species, dt) => {
@@ -330,6 +330,9 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     if (id === 'fly' && state.ledgeLowered && !state.ropeUp && ready('pteranodon') && state.selected === 'pteranodon') return up.start('fly', { beats });
     if (id === 'climb' && state.ropeUp && !state.atClifftop && level.friends.every(ready)) return up.start('climb');
     if (id === 'reach' && state.throughTunnel && !state.ledgeLowered && ready('brontosaurus') && state.selected === 'brontosaurus') return up.start('reach', { beats });
+    // (the pull is everyone's: no pair is picked for it)
+    if (id === 'pull' && state.atClifftop && !state.trunkDown && level.friends.every(ready)) return up.start('pull', { beats });
+    if (id === 'walk' && state.trunkDown && !state.onSunLedge && level.friends.every(ready)) return up.start('walk');
     return false;
   }
 
@@ -348,7 +351,7 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     /** Starts a task (false when it cannot start now). `beats`: the taps the child gives it. */
     start(id, { beats = 3 } = {}) {
       if (action || up.busy()) return false;
-      if (['through', 'reach', 'fly', 'climb'].includes(id)) return startUpper(id, beats);
+      if (['through', 'reach', 'fly', 'climb', 'pull', 'walk'].includes(id)) return startUpper(id, beats);
       if (id === 'light' && pairs.stegosaurus.ready && snapshot.selected === 'stegosaurus' && !holding.has('stegosaurus') && !snapshot.tunnelLit) return startLight(beats);
       if (id === 'headbutt' && pairs.triceratops.ready && snapshot.selected === 'triceratops' && snapshot.tunnelLit && !snapshot.rocksFallen) return startHeadbutt(beats);
       return false;

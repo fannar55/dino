@@ -17,6 +17,8 @@ import * as THREE from 'three';
  *   carry(a, b, lift)   it is carried: from the foot to the carrier `b` and on to `a` (the end), `lift` 0..1 how far it has come off the ground (the first moments of a lift)
  *   setTrail(points)    the end has gone round the trunk: the places it has been (points of the frame), wound on after the part that is carried
  *   tighten(t)          draws it taut (0 as it hung from the carriers, 1 the handrail along the route, the wind close round the trunk)
+ *   through(points, hang, lift)  it runs through these points (the second rope of Task 6: over the gap, round the stone, up to the trunk): from its fixed end at the first,
+ *                       each span drooping hang[k] metres at its middle (0: straight; never under the ground), `lift` 0..1 how far it has come off its coil
  *   swing(t, amount)    sets how far it sways: t is the time (the phase)
  *   update()            rebuilds the tube when something changed
  *
@@ -40,7 +42,7 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
   geometry.setIndex(index);
   const mesh = new T.Mesh(geometry, material); mesh.name = 'Reipið'; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; mesh.visible = false; scene.add(mesh);
 
-  const state = { mode: 'lying', a: B0.clone(), b: B0.clone(), lift: 0, tight: 0, phase: 0, swing: 0, trail: [], dirty: true, tip: null };
+  const state = { mode: 'lying', a: B0.clone(), b: B0.clone(), lift: 0, tight: 0, phase: 0, swing: 0, trail: [], dirty: true, tip: null, path: [], hang: [] };
   const route3 = route.map(p => p.clone()), routeLengths = [0]; for (let i = 1; i < route3.length; i++) routeLengths.push(routeLengths[i - 1] + route3[i].distanceTo(route3[i - 1]));
   const onRoute = u => { // the handrail at `u` of its length
     if (route3.length < 2) return A.clone();
@@ -64,8 +66,27 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
   // The taut rope: along the handrail, a little above the path's edge.
   const taut = u => { const q = onRoute(u); q.y += rise + .03 * Math.sin(u * Math.PI); return q; };
 
+  // Through points: each span drawn straight, or drooping (a sagging span is cut in pieces, each kept over the ground); the whole a line of points,  0..1 along its length.
+  function throughPoints() {
+    const out = [A.clone()], path = state.path;
+    for (let k = 0; k < path.length; k++) {
+      const from = k ? path[k - 1] : A, to = path[k], hang = state.hang[k] ?? 0, d = from.distanceTo(to), n = hang > .01 ? Math.min(14, Math.max(2, Math.round(d / .7))) : 1;
+      for (let i = 1; i <= n; i++) { const u = i / n, q = from.clone().lerp(to, u); q.y -= hang * 4 * u * (1 - u); q.y = Math.max(q.y, groundAt(q.x, q.z) + RADIUS + .02); out.push(q); }
+    }
+    return out;
+  }
+  const along = (line, u) => { // the point at `u` of the length of a line of points
+    const lengths = [0]; for (let i = 1; i < line.length; i++) lengths.push(lengths[i - 1] + line[i].distanceTo(line[i - 1]));
+    const s = Math.min(1, Math.max(0, u)) * lengths.at(-1); let i = 1; while (i < lengths.length - 1 && lengths[i] < s) i++;
+    return line[i - 1].clone().lerp(line[i], (s - lengths[i - 1]) / Math.max(1e-6, lengths[i] - lengths[i - 1]));
+  };
   function build() {
     const points = [], count = 72, w = smooth(state.tight), lift = smooth(state.lift);
+    if (state.mode === 'through') {
+      // (off its coil it is the line itself, which keeps the round of a wrap; while it lifts, each point of the coil goes toward its place along the line)
+      const line = throughPoints();
+      if (lift >= 1) points.push(...line); else for (let i = 0; i <= count; i++) points.push(lying(i / count).lerp(along(line, i / count), lift));
+    } else
     for (let i = 0; i <= count; i++) {
       const u = i / count, free = state.mode === 'lying' ? lying(u) : lift >= 1 ? arc(u) : lying(u).lerp(arc(u), lift);
       points.push(w > 0 ? free.lerp(taut(u), w) : free);
@@ -101,9 +122,11 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
   const api = {
     mesh, triangles: ROPE_TRIANGLES,
     /** Slack: the coil lies on the ground at the foot, the way it starts. */
-    hang() { Object.assign(state, { mode: 'lying', lift: 0, tight: 0, swing: 0, phase: 0, trail: [], dirty: true }); state.a.copy(B0); state.b.copy(B0); mesh.visible = true; },
+    hang() { Object.assign(state, { mode: 'lying', lift: 0, tight: 0, swing: 0, phase: 0, trail: [], path: [], hang: [], dirty: true }); state.a.copy(B0); state.b.copy(B0); mesh.visible = true; },
     /** Carried by two friends: `a` is the end, `b` the one behind it (the rope runs from the foot through `b` to `a`); `lift` how far it has come off the ground. */
     carry(a, b, lift = 1) { state.mode = 'carried'; state.a.copy(a); state.b.copy(b ?? a); state.lift = lift; state.dirty = true; mesh.visible = true; },
+    /** Through these points (of the frame) from its fixed end, each span drooping hang[k] metres at its middle; `lift` how far it has come off its coil. */
+    through(points, hang = [], lift = 1) { state.mode = 'through'; state.path = points.map(p => p.clone()); state.hang = [...hang]; state.lift = lift; state.trail = []; state.tight = 0; state.dirty = true; mesh.visible = true; },
     /** The end has been round the trunk: the places it went (points of the frame). */
     setTrail(points) { state.trail = points.map(p => p.clone()); state.dirty = true; },
     /** Draws the rope taut: 0 hanging from the carriers, 1 the handrail. */

@@ -46,6 +46,8 @@
 //   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
 //                   reports what is left running (report.restartCheck: nothing should be).
 //   --restart-at rope   level 2 (use --query qa=1): restarts while the Flugeðlur fly the rope up the cliff (report.beforeRopeRestart, report.restartCheck: the rope, the flight and the upper gorge must be reset)
+//   --restart-at pull   level 2 (use --query qa=1): restarts while everyone is on the second rope, the trunk tilted (report.beforePullRestart, report.restartCheck: the trunk upright, the second
+//                   rope gone, the Flugeðlur back in the glade, the basket 0 / 4)
 //   --restart-at glow   level 2: pauses while the first tap's light is on the plates (report.pauseGlow: the light and the plates must not move, nor anything else), goes on, and restarts there.
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
@@ -134,7 +136,7 @@ function parseArgs(argv) {
     else if (a === '--hold') o.hold = Number(next());
     else if (a === '--think') o.think = Number(next());
     else if (a === '--first') o.first = next();
-    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow', 'rope'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift, glow or rope'); }
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow', 'rope', 'pull'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift, glow, rope or pull'); }
     else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--hide-hud') o.hideHud = true;
     else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
@@ -407,7 +409,7 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
     basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
     tunnel: (d.levelStats && d.levelStats.tunnel) || null, upper: (d.levelStats && d.levelStats.upper) || null, holding: (b.holding || null), action: b.action || null,
-    flights: window.__gorge ? window.__gorge.stage.babies.map(a => a.getDebugState().flight).filter(Boolean).length : null, ropeVisible: window.__gorge ? window.__gorge.rope.visible : null, babiesVisible: window.__gorge ? window.__gorge.stage.babies.filter(a => a.root.visible).length : null, babiesTilted: window.__gorge ? window.__gorge.stage.babies.filter(a => Math.abs(a.root.rotation.z) > 1e-6 || Math.abs(a.root.rotation.x) > 1e-6).length : null, lowerVisible: window.__gorge ? window.__gorge.gorge.group.visible : null,
+    flights: window.__gorge ? window.__gorge.stage.babies.map(a => a.getDebugState().flight).filter(Boolean).length : null, ropeVisible: window.__gorge ? window.__gorge.rope.visible : null, rope2Visible: window.__gorge && window.__gorge.rope2 ? window.__gorge.rope2.visible : null, trunk: window.__gorge && window.__gorge.trunk ? window.__gorge.trunk.debug() : null, flyersHome: window.__gorge ? window.__gorge.stage.babies.filter(a => a.species === 'pteranodon').map(a => ({ visible: a.root.visible, flight: Boolean(a.getDebugState().flight), y: +a.root.position.y.toFixed(2) })) : null, babiesVisible: window.__gorge ? window.__gorge.stage.babies.filter(a => a.root.visible).length : null, babiesTilted: window.__gorge ? window.__gorge.stage.babies.filter(a => Math.abs(a.root.rotation.z) > 1e-6 || Math.abs(a.root.rotation.x) > 1e-6).length : null, lowerVisible: window.__gorge ? window.__gorge.gorge.group.visible : null,
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
@@ -928,9 +930,9 @@ async function main() {
         report.allFound = await ev(`(() => { const d = window.__demoStats; return { drawCalls: d.drawCalls, triangles: d.triangles, camera: d.camera.intent, babiesRendered: d.characterLod.filter(c => c.rendered).length, babiesVisible: d.cells.filter(c => c.actorVisible).length, tunnel: window.__memory.targets().find(t => t.id === 'tunnel') ?? null, gorge: window.__memory.stats().levelStats?.gorge ?? null }; })()`).catch(e => ({ error: e.message }));
         break;
       }
-      // Level 2 (full) stops here for now: everyone has climbed to the rim, the rope is tied round the tree and nobody moves (Task 6 carries the round on: the trunk, the gap).
-      if (LEVEL.number === 2 && o.mode === 'full' && s.bridge.atClifftop && !s.bridge.active && !s.bridge.failing && !s.scene && !s.cam.moving && !s.cam.held && !s.walking && !s.giftPhases.some(phase => phase !== 'done')) {
-        report.finished = true; step('everyone is on the rim and the rope is the handrail: the round waits for the next task', { light: s.tunnel?.light, pile: s.tunnel?.pile, upper: s.upper, caption: s.caption }); await sleep(2500);
+      // Level 2 (full) stops here for now: everyone has walked over the trunk to Sólarsyllan and nobody moves (Task 7 carries the round on: the light, the celebration, the card).
+      if (LEVEL.number === 2 && o.mode === 'full' && s.bridge.onSunLedge && !s.bridge.active && !s.bridge.failing && !s.scene && !s.cam.moving && !s.cam.held && !s.walking && !s.giftPhases.some(phase => phase !== 'done')) {
+        report.finished = true; step('everyone is on Sólarsyllan, over the trunk: the round waits for the next task', { light: s.tunnel?.light, pile: s.tunnel?.pile, upper: s.upper, caption: s.caption }); await sleep(2500);
         report.level2 = await ev(`(() => { const d = window.__demoStats; return { tunnel: d.levelStats.tunnel, gorge: d.levelStats.gorge, targets: window.__memory.targets().filter(t => t.type === 'task'), story: window.__memory.story(), bridge: window.__memory.bridge(), drawCalls: d.drawCalls, triangles: d.triangles }; })()`).catch(e => ({ error: e.message }));
         await shot('rocks-gone'); break;
       }
@@ -1108,6 +1110,35 @@ async function main() {
           if (s.cam.shot === 'follow') waited ||= await milestone('climb-follow', 'climb-handrail-follow', 700);
           if (s.cam.shot === 'wide' && seen.has('climb-follow')) waited ||= await milestone('climb-high', 'climb-high-on-the-cliff', 900);
           if (a.phase === 'cheer') waited ||= await milestone('climb-top', 'climb-everyone-on-the-rim', 500);
+        }
+        // Task 6: the trunk standing at the gap, the rope flown out and tied at its top, the nine on the rope, each tilt, the fall and its dust, the bridge, the walk, Sólarsyllan.
+        if (s.story.kind === 'work' && s.story.target === 'trunk' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('trunk-before', 'trunk-standing-at-the-gap', 900);
+        if (act === 'pull') {
+          if (a.phase === 'leg' && s.cam.shot === 'follow') waited ||= await milestone('pull-flight', 'pull-rope-flown-over-the-gap', 1400);
+          if (a.phase === 'knot') waited ||= await milestone('pull-knot', 'pull-rope-tied-at-the-top', 700);
+          if (a.phase === 'ready' && (a.given ?? 0) === 0) waited ||= await milestone('pull-line', 'pull-nine-on-the-rope', 500);
+          for (const [n, deg] of [[1, 6.9], [2, 14.9], [3, 23.9]]) if (u.trunk && u.trunk.angle >= deg && u.trunk.angle < deg + 1) waited ||= await milestone(`pull-tilt-${n}`, `pull-tilt-${n}`, 0);
+          if (a.phase === 'landed') waited ||= await milestone('pull-fall', 'pull-trunk-falls-dust', 120);
+          if (a.phase === 'cheer') waited ||= await milestone('pull-bridge', 'pull-trunk-lies-as-a-bridge', 600);
+        }
+        if (act === 'walk') {
+          if (s.cam.shot === 'follow') waited ||= await milestone('walk-across', 'walk-across-the-trunk', 900);
+          if (s.cam.shot === 'follow' && seen.has('walk-across')) waited ||= await milestone('walk-across-2', 'walk-across-the-trunk-later', 1200);
+          if (a.phase === 'cheer') waited ||= await milestone('walk-sun', 'walk-everyone-on-solarsyllan', 400);
+        }
+        if (o.restartAt === 'pull' && act === 'pull' && a.phase === 'tug' && u.trunk && u.trunk.angle > 3) {
+          report.beforePullRestart = await ev(RESTART_JS); step('restart while everyone pulls', { phase: a.phase, trunk: report.beforePullRestart.trunk, rope2: report.beforePullRestart.rope2Visible, basket: report.beforePullRestart.basketText });
+          await shot('pull-before-the-restart');
+          await ev('window.__memory.restart()'); await sleep(1600);
+          report.restartCheck = await ev(RESTART_JS); step('after the restart', { trunk: report.restartCheck.trunk, rope2: report.restartCheck.rope2Visible, flyers: report.restartCheck.flyersHome, basket: report.restartCheck.basketText, upper: report.restartCheck.upper && report.restartCheck.upper.where, flights: report.restartCheck.flights });
+          const c = report.restartCheck, bad = [];
+          if (!c.trunk || Math.abs(c.trunk.angle) > .01) bad.push(`the trunk is not upright: ${JSON.stringify(c.trunk)}`);
+          if (c.rope2Visible) bad.push('the second rope is still drawn');
+          if (c.flights) bad.push(`${c.flights} friends still fly`);
+          if (!/^0\s*\/\s*4$/.test((c.basketText || '').trim())) bad.push(`the basket says ${JSON.stringify(c.basketText)}`);
+          if (c.upper && c.upper.where !== 'glade') bad.push(`the group is still in the upper gorge (${c.upper.where})`);
+          report.restartPull = { passed: !bad.length, bad }; if (bad.length) errors.push(`--restart-at pull: ${bad.join('; ')}`);
+          await shot('restarted-after-the-pull'); report.finished = true; break;
         }
         if (o.restartAt === 'rope' && act === 'fly' && ['leg', 'wrap'].includes(a.phase) && u.rope) {
           await sleep(500);

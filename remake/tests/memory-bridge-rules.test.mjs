@@ -359,6 +359,45 @@ test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff 
   assert.ok(level.credits.some(row => row.title.startsWith('Tréð') && row.author === 'Quaternius'));
 });
 
+// ---- level 2: everyone pulls, the trunk falls, the walk to Sólarsyllan (Task 6) ----
+test('a together step starts without bubbles and every friend joins', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level)), fs = await import('node:fs');
+  for (const [species, id] of [['stegosaurus', 'light'], ['triceratops', 'headbutt'], [null, 'through'], ['brontosaurus', 'reach'], ['pteranodon', 'fly'], [null, 'climb']]) {
+    if (species) rules.select(species); assert.equal(rules.choose(id), true, id); assert.equal(rules.complete(id), true, id);
+  }
+  assert.equal(rules.getState().atClifftop, true); assert.equal(rules.next(), 'trunk', 'on the clifftop the trunk is next');
+  const pull = level.steps.find(step => step.id === 'pull');
+  assert.deepEqual([pull.kind, pull.target, pull.beatWords], ['together', 'trunk', ['Einn!', 'Tveir!', 'TOGA!']]);
+  // A tap on the trunk starts the pull at once: no bubbles ask who can, no pair is picked.
+  assert.deepEqual(rules.ask('trunk'), { kind: 'start', action: 'pull' });
+  assert.equal(rules.getState().asking, null); assert.equal(rules.getState().selected, null); assert.equal(rules.getState().active, 'pull');
+  // The game plays the step at that tap (game.js askObstacle: a 'start' answer plays the world's step, and cancels it when it cannot begin).
+  const game = fs.readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8'), ask = game.slice(game.indexOf('function askObstacle'), game.indexOf('function pickFriend'));
+  assert.match(ask, /answer\.kind === 'start'/, 'askObstacle starts a together step');
+  assert.match(ask, /world\.playStep\(answer\.action/, 'and plays its scene');
+  // Every friend joins: all eight and Mosi have a place on the rope, and a place on Sólarsyllan at the end of the walk over the trunk.
+  const { FORMATIONS } = await import('../engine/memory/levels/steinagljufur/upper-mover.js');
+  for (const formation of ['rope', 'sun']) {
+    assert.ok(FORMATIONS[formation]?.mosi, `Mosi has a place in ${formation}`);
+    for (const species of level.friends) assert.equal(FORMATIONS[formation][species]?.length, 2, `both ${species} have a place in ${formation}`);
+  }
+  assert.equal(rules.complete('pull'), true); assert.equal(rules.getState().trunkDown, true);
+  // The walk over the trunk starts by itself, and Mosi says the bridge's line as it does; before the tap he calls everyone to the rope.
+  const walk = level.steps.find(step => step.id === 'walk');
+  assert.deepEqual([walk.kind, walk.automatic], ['travel', true]); assert.equal(rules.can('walk'), true);
+  assert.equal(rules.choose('walk'), true); assert.equal(rules.complete('walk'), true); assert.equal(rules.getState().onSunLedge, true);
+  const { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
+  assert.equal(level.lines.walk, 'g2_bridge'); assert.equal(level.voice['g2-pull-ready'], 'g2_pull_ready');
+  assert.equal(VOICE_LINES.g2_pull_ready?.text, 'Togum öll saman í reipið!'); assert.equal(VOICE_LINES.g2_bridge?.text, 'Brúin er komin. Á Sólarsylluna!');
+  for (const id of ['g2_pull_ready', 'g2_bridge']) assert.ok(fs.existsSync(new URL(`../assets/audio/memory/${id}.mp3`, import.meta.url)), `${id} is recorded`);
+  // What the pull and the fall sound like: each a method of the audio that exists.
+  const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null });
+  for (const type of ['beat:pull', 'trunk-tilt', 'trunk-fall', 'trunk-dust', 'rope-lift', 'wing-beat', 'rope-knots', 'rope-taut']) assert.ok(level.eventSounds[type], `${type} has a sound`);
+  for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) { const method = typeof entry === 'string' ? entry : entry.method; if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`); }
+  assert.ok(level.eventSounds['trunk-fall'].includes('bridgeLand'), "the trunk lands with level 1's thud");
+  audio.dispose();
+});
+
 test("level 2's upper gorge is as the story says: a ledge too high to walk up, a steep path up to a flat rim with room for Task 6, and a rope, slab and tree within their caps", async () => {
   const { groundAt, LEDGE, CLIMB, RIM, CLIMB_LENGTH, wayPoints } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
   const { ROPE_TRIANGLES } = await import('../engine/memory/levels/steinagljufur/rope.js');

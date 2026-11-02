@@ -549,6 +549,13 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       if (recordings.has('rope-tighten')) return recording('rope-tighten', now, 0, 'rope-tighten');
       return sample('straw', now, .08, 0, 'rope-tighten');
     },
+    // Stones knocked off the rim tumble down into the gap under the dust of the fallen trunk (the rockfall's tumble, softer and lower).
+    rocksTumble() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rocks-tumble')) return recording('rocks-tumble', now, .1, 'rocks-tumble', .55, .85);
+      return sample('gravel', now, .14, .1, 'rocks-tumble');
+    },
     // The Kambeðla slides back down the path.
     gravelSlip() {
       if (!allowed()) return false;
