@@ -131,6 +131,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   // one wait. Handlers added with s.onTap hear every tap on their target, whatever else is waiting.
   const tapWaits = []; // { names, hit }: a wait in progress, and the name it was given once it has one
   const tapHandlers = []; // { name, fn }
+  const dragHandlers = []; // fn
+  let dragOff = null; // the scene listens to the pointer's drags only while an s.onDrag handler wants them
   const ownTargets = new Set(); // what s.target put on the pointer, for stop() to take off again
 
   function needPointer(call) {
@@ -182,6 +184,21 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       const i = tapHandlers.indexOf(handler);
       if (i >= 0) tapHandlers.splice(i, 1);
     };
+  }
+
+  function onDrag(fn) {
+    needPointer('s.onDrag');
+    dragHandlers.push(fn);
+    dragOff ??= pointer.on('drag', event => { for (const handler of [...dragHandlers]) handler(event); });
+    return () => {
+      const i = dragHandlers.indexOf(fn);
+      if (i >= 0) dragHandlers.splice(i, 1);
+      if (!dragHandlers.length) stopDrags();
+    };
+  }
+  function stopDrags() {
+    dragOff?.();
+    dragOff = null;
   }
 
   function target(name, spec) {
@@ -449,6 +466,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     tap,
     /** Call fn(event) for every tap on the target, wait or no wait. Returns the function that stops it. */
     onTap,
+    /** Call fn(event) for every drag event ({ dx, dy, phase, x, y }: engine/input/pointer.js). Returns the function that stops it. */
+    onDrag,
     /**
      * The child looks around and finds hidden things; resolves when all are found. `explore` gives the
      * free-look limits for director.explore ({ yaw, pitch, speed }), `targets` what to find, and the rest
@@ -572,6 +591,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     stop() {
       scheduler.cancelAll();
       tapHandlers.length = 0;
+      dragHandlers.length = 0;
+      stopDrags();
       for (const name of ownTargets) pointer.removeTarget(name);
       ownTargets.clear();
       director.stop();

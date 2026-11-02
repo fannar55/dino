@@ -291,6 +291,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     part.className = name;
     doc.getElementById('caption').append(part);
   }
+  world.page = doc; // the page a chapter may put its own controls on (chapter 4's „Hraðar!“), as main.js's world has `document`
   const computed = globalThis.getComputedStyle;
   globalThis.getComputedStyle = () => ({ opacity: '1' });
   const ui = createStageUI(doc);

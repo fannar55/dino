@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
-import { BEATS } from '../chapters/kafli4-route.js';
+import { BEATS, FASTER_LAST } from '../chapters/kafli4-route.js';
 import { SLOW, MUSIC, GOLDEN, ROAR } from '../chapters/kafli4-flight.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import * as flugModule from '../chapters/flug.js';
@@ -284,6 +284,262 @@ test('the warm-up behind the start button draws what first shows mid-flight: the
   // the grey valley has none of the three
   const grey = flugModule.chapter.warmUp({ actors, forest: { waterfall: null, farLand: null, animals: null } });
   assert.deepEqual(grey.objects.map(o => o.name).sort(), ['egill', 'flugedla', 'mosi']);
+});
+
+// What Egill may do on the flight (spec 6, Task 11), as three children play it, not as a capture: one who touches nothing, one who
+// tries each thing once, and one who mashes everything all the time. A drag is what pointer.js says of the one finger that drags; a
+// thumb resting on the glass taps nothing it did not land on (pointer.js), so a second finger is a tap on nothing.
+const dragAll = (pointer, phase, dx = 0, dy = 0) => [...pointer.listeners.drag].forEach(fn => fn({ phase, dx, dy, x: 640, y: 400 }));
+const fasterOf = world => world.page?.body.querySelector('.flight-faster') ?? null;
+const hintOf = world => world.page?.body.querySelector('.flight-hint') ?? null;
+const showing = element => Boolean(element) && !element.hidden;
+const press = element => {
+  for (const type of ['pointerdown', 'pointerup']) element.dispatchEvent(new Event(type));
+  element.dispatchEvent(new Event('click'));
+};
+
+/** One run as a child plays it: `child(t, run)` each frame at the flight's time t, after what the frame showed is written down. */
+async function playAs(child = () => {}) {
+  const log = { lines: [], steers: [], frames: [], taps: {}, drags: new Set(), presses: [] };
+  let started = false;
+  let now = 0;
+  const onFrame = ({ world, director, pointer, stage }) => {
+    const c = world.chapterState;
+    if (!c?.flight) return;
+    now = c.s.time - c.flight.started;
+    if (!started) {
+      started = true;
+      // what is asked of her and of the voices, at the flight's time it is asked (between frames too: a tap, a press)
+      const flightTime = () => c.s.time - c.flight.started;
+      const say = stage.s.say;
+      stage.s.say = (speaker, id, options) => {
+        const task = say(speaker, id, options);
+        log.lines.push({ id, speaker, from: flightTime(), to: null, task });
+        return task;
+      };
+      const steer = c.flier.steer;
+      c.flier.steer = x => { log.steers.push({ x, t: flightTime() }); return steer(x); };
+    }
+    for (const line of log.lines) if (line.to === null && line.task.done) line.to = now;
+    log.frames.push({
+      t: now, shot: c.camera.current, fov: director.rig.fov, offset: c.flier.offset, lift: c.flier.lift, bursting: c.flier.bursting,
+      u: c.flier.u, button: showing(fasterOf(world)), hint: showing(hintOf(world)), lines: c.play?.speedLines?.level ?? 0,
+    });
+    child(now, { world, pointer, c, log });
+  };
+  const run = await playUnattended(flugModule, { limit: 240, seeking: false, onFrame });
+  return { ...run, log, c: run.world.chapterState };
+}
+
+// The child who tries each thing once (and a group twice), at times the flight's shots allow.
+function triesEverything() {
+  const done = new Set();
+  const once = (key, when, fn) => { if (when && !done.has(key)) { done.add(key); fn(); } };
+  const appeared = new Map(); // a group's target -> when it first showed
+  let dragging = null;
+  return (t, { world, pointer, log }) => {
+    const drag = (phase, dx, dy) => { log.drags.add(t); dragAll(pointer, phase, dx, dy); };
+    // B, the first chase shot: a steer to the right, and a thumb tapping the glass meanwhile
+    once('steer', t >= 17, () => { drag('start', 6, 0); dragging = 'steer'; });
+    if (dragging === 'steer' && t < 18.5 && !done.has('steer move ' + t)) drag('move', 6, 0);
+    once('thumb', t >= 17.8, () => { log.thumb = t; pointer.tap(null); });
+    once('steer end', t >= 18.5, () => { drag('end', 0, 0); dragging = null; });
+    // B: a finger drawn down, to skim the water
+    once('skim', t >= 21, () => { drag('start', 0, 14); dragging = 'skim'; });
+    if (dragging === 'skim' && t < 21.6) drag('move', 0, 8);
+    once('skim end', t >= 22.5, () => { drag('end', 0, 0); dragging = null; });
+    // the still shot from the water (25 to 28.3 s) and the chase after 92 s: a steer there does nothing
+    once('still', t >= 26, () => { drag('start', 6, 0); dragging = 'still'; });
+    if (dragging === 'still' && t < 27) drag('move', 6, 0);
+    once('still end', t >= 27, () => { drag('end', 0, 0); dragging = null; });
+    once('late', t >= 100, () => { drag('start', 6, 0); dragging = 'late'; });
+    if (dragging === 'late' && t < 101) drag('move', 6, 0);
+    once('late end', t >= 101, () => { drag('end', 0, 0); dragging = null; });
+    // C: a steer under way, and „Hraðar!“ pressed in a frame the finger holds still; then whenever it shows
+    once('hold', t >= 37.5, () => { drag('start', 6, 0); dragging = 'hold'; });
+    if (dragging === 'hold' && t < 38.5 && !(t >= 38 && !done.has('faster'))) drag('move', 4, 0);
+    const button = fasterOf(world);
+    if (showing(button) && t >= 38) {
+      done.add('faster');
+      log.presses.push(t);
+      press(button);
+    }
+    once('hold end', t >= 38.5, () => { drag('end', 0, 0); dragging = null; });
+    // C: each group tapped as soon as its target shows, and once more a little later
+    for (const name of pointer.targets.keys()) if (name.startsWith('group:') && !appeared.has(name)) appeared.set(name, t);
+    for (const [name, since] of appeared) {
+      once(`${name} tap`, t >= since + 0.4, () => { log.taps[name.slice(6)] = t; pointer.tap(name); });
+      once(`${name} again`, t >= since + 0.8, () => pointer.tap(name));
+    }
+    // F: a tap on the land while she speaks of Grameðla
+    once('land', t >= 127, () => { log.land = t; pointer.tap(null); });
+  };
+}
+
+// The child who touches everything all the time: every target and the land each frame, „Hraðar!“ whenever it shows, and a finger
+// that never stops dragging, side to side and down and up, lifted and put down again every half second.
+function mashes() {
+  let frame = 0;
+  let down = false;
+  return (t, { world, pointer }) => {
+    frame++;
+    pointer.tap(null);
+    for (const name of [...pointer.targets.keys()]) pointer.tap(name);
+    const button = fasterOf(world);
+    if (showing(button)) press(button);
+    if (Math.floor(t * 2) % 2 === 0) {
+      if (!down) { dragAll(pointer, 'start', 20, 0); down = true; }
+      dragAll(pointer, 'move', frame % 2 ? 40 : -40, frame % 4 < 2 ? 30 : -30);
+    } else if (down) {
+      dragAll(pointer, 'end');
+      down = false;
+    }
+  };
+}
+
+const untouched = await playAs();
+const eager = await playAs(triesEverything());
+const mashed = await playAs(mashes());
+const groupIds = untouched.c.route.groups.map(g => g.id);
+const framesIn = (run, from, to) => run.log.frames.filter(f => f.t >= from && f.t < to);
+
+test('nothing touched: every group is still called once and the flight ends at 170 s', () => {
+  const { task, director, c, log } = untouched;
+  assert.equal(task.failed, false, String(task.error?.stack));
+  assert.deepEqual(director.warnings, []);
+  assert.ok(Math.abs(c.flight.ended - c.flight.started - BEATS.END) < 0.05, 'the flight ends at 170 s');
+  const groups = c.play.calls.filter(call => call.id !== 'land');
+  assert.deepEqual(groups.map(call => call.id), groupIds, 'each group once, in the order she meets them');
+  assert.ok(groups.every(call => call.how === 'auto' && call.voiced), 'she calls each herself, aloud');
+  assert.deepEqual(c.play.answers.map(a => a.id), groupIds, 'and each answers');
+  const big = c.play.calls.filter(call => call.id === 'land');
+  assert.equal(big.length, 1, 'the big call over the land, once');
+  assert.ok(Math.abs(big[0].t - 135) < 0.1, `by itself at 135 s (${big[0].t.toFixed(2)})`);
+  // the finger hint shows in the first chase shot of B and only then; the button only in B to D
+  const hinted = log.frames.filter(f => f.hint);
+  assert.ok(hinted.length > 30 && hinted.every(f => f.t >= BEATS.B && f.t < 25 && f.shot === 'chase'), 'the hint, in the first chase shot');
+  assert.ok(log.frames.some(f => f.button), '„Hraðar!“ shows');
+});
+
+test('a tap on a group calls it at once; the same group is not called again', () => {
+  const { c, log } = eager;
+  const groups = c.play.calls.filter(call => call.id !== 'land');
+  assert.deepEqual(groups.map(call => call.id), groupIds, 'each group once');
+  for (const call of groups) {
+    assert.equal(call.how, 'tap', `${call.id}: called by the tap`);
+    assert.ok(Math.abs(call.t - log.taps[call.id]) < 0.05, `${call.id}: at once (${call.t.toFixed(2)}, tapped ${log.taps[call.id].toFixed(2)})`);
+  }
+  assert.deepEqual(c.play.answers.map(a => a.id), groupIds, 'each answers once');
+  for (const a of c.play.answers) assert.ok(a.t >= groups.find(call => call.id === a.id).t, `${a.id} answers after her call`);
+});
+
+test('steering is ignored outside chase shots and after 92 s', () => {
+  const { log } = eager;
+  // in the chase of B she moves aside, and is back on her way within 2 s of the finger lifting
+  const steered = framesIn(eager, 17, 18.6);
+  assert.ok(Math.max(...steered.map(f => f.offset)) > 1.5, `she moves aside (${Math.max(...steered.map(f => f.offset)).toFixed(2)} m)`);
+  assert.ok(Math.abs(framesIn(eager, 20.5, 20.6)[0].offset) < 0.2, 'back on her way 2 s after');
+  for (const [from, to, where] of [[26, 27.5, 'the still shot from the water'], [100, 101.5, 'the chase after 92 s']]) {
+    assert.ok(framesIn(eager, from, to).every(f => Math.abs(f.offset) < 0.05), `no steer in ${where}`);
+    assert.ok(log.steers.filter(s => s.t >= from && s.t < to).every(s => s.x === 0), `nothing asked of her in ${where}`);
+  }
+});
+
+test('a skim: she drops to the water, it splashes and Egill laughs, at most once in 10 s', () => {
+  const { log, soundLog, c } = eager;
+  const low = framesIn(eager, 21.4, 22.6);
+  assert.ok(Math.min(...low.map(f => f.lift)) < -1, `she drops (${Math.min(...low.map(f => f.lift)).toFixed(2)} m)`);
+  const start = c.flight.started;
+  assert.ok(soundLog.some(s => s.name === 'splash' && s.at - start >= 21 && s.at - start < 22.6), 'a splash');
+  const laughs = log.lines.filter(l => l.id === 'k4_egill_laugh');
+  assert.equal(laughs.length, 1, 'Egill laughs once');
+  assert.ok(laughs[0].from >= 21 && laughs[0].from < 22.6);
+});
+
+test('a press on Hraðar! does not steer, and Hraðar! is hidden after FASTER_LAST', () => {
+  const { log, c } = eager;
+  const first = log.presses[0];
+  assert.ok(first >= 38 && first < 38.1, `pressed at ${first}`);
+  assert.equal(log.steers.filter(s => Math.abs(s.t - first) < 1e-9).length, 0, 'the press asks no steer of her');
+  assert.ok(framesIn(eager, first, first + 0.1).some(f => f.bursting), 'she bursts');
+  for (const run of [untouched, eager, mashed]) {
+    const wrong = run.log.frames.filter(f => f.button && !(f.t <= FASTER_LAST && f.shot === 'chase'));
+    assert.deepEqual(wrong.map(f => `${f.t.toFixed(2)} ${f.shot}`), [], 'shown only in chase shots, up to FASTER_LAST');
+  }
+  // Egill on the first burst and every third after it, and she answers each time; a burst while a line plays passes his shout on to
+  // the next one (he never talks over her)
+  const bursts = c.play.bursts;
+  assert.ok(bursts.length >= 4, `${bursts.length} bursts`);
+  const shouts = log.lines.filter(l => l.id === 'k4_egill_faster1' || l.id === 'k4_egill_faster2');
+  assert.ok(shouts.length >= 1 && shouts.length <= Math.ceil(bursts.length / 3), `${shouts.length} shouts for ${bursts.length} bursts`);
+  assert.equal(shouts[0].id, 'k4_egill_faster1');
+  const quiet = b => !log.lines.some(l => l.from < b.t - 1e-6 && (l.to === null || l.to > b.t)); // a line playing as it came
+  const firstQuiet = bursts.find(quiet);
+  const said = log.lines.map(l => `${l.id} ${l.from.toFixed(2)}-${l.to?.toFixed(2)}`).join(', ');
+  assert.ok(Math.abs(shouts[0].from - firstQuiet.t) < 0.05, `on the first burst with no line playing (${firstQuiet.t.toFixed(2)}; bursts ${bursts.map(b => b.t.toFixed(2))}; ${said})`);
+  assert.equal(log.lines.filter(l => l.id === 'k4_flugedla_holdon').length, shouts.length, 'and she answers each shout');
+});
+
+test('a burst widens the lens by 8 degrees and it comes back', () => {
+  const { log } = eager;
+  const first = log.presses[0];
+  const before = framesIn(eager, first - 0.5, first).at(-1).fov;
+  const during = Math.max(...framesIn(eager, first, first + 2.5).map(f => f.fov));
+  assert.ok(Math.abs(during - before - 8) < 0.3, `${before.toFixed(2)} to ${during.toFixed(2)}`);
+  const after = framesIn(eager, first + 4, first + 5.4).filter(f => !f.bursting && f.shot === 'chase');
+  assert.ok(after.length && after.every(f => Math.abs(f.fov - before) < 0.2), 'back once the burst is over');
+  // the speed lines fade in over 0.3 s and out over 0.6 s, and never flash
+  const lines = framesIn(eager, first - 0.2, first + 4.5).map(f => f.lines);
+  assert.ok(Math.max(...lines) > 0.95, 'the speed lines show');
+  for (let i = 1; i < lines.length; i++) assert.ok(lines[i] - lines[i - 1] < 0.12, 'no jump up in a frame');
+  assert.ok(framesIn(eager, first + 3.2, first + 3.4).every(f => f.lines === 0), 'gone 0.6 s after the burst');
+});
+
+test('a second finger during a steer changes nothing', () => {
+  const { log, c } = eager;
+  assert.ok(log.thumb > 17 && log.thumb < 18.5);
+  // in the thumb's frame the dragging finger moved once, and that is the one steer asked of her
+  assert.equal(log.steers.filter(s => Math.abs(s.t - log.thumb) < 1e-9).length, 1, 'the thumb asks nothing more of her');
+  const around = framesIn(eager, log.thumb - 0.2, log.thumb + 0.2).map(f => f.offset);
+  for (let i = 1; i < around.length; i++) assert.ok(around[i] >= around[i - 1] - 1e-9, 'she keeps moving the way the finger drags');
+  assert.ok(c.play.calls.every(call => call.t >= BEATS.C), 'and a tap on nothing before C calls nothing');
+});
+
+test('a tap on the land in F brings the big call early, and it comes only once', () => {
+  const { c, log } = eager;
+  const big = c.play.calls.filter(call => call.id === 'land');
+  assert.equal(big.length, 1);
+  assert.equal(big[0].how, 'tap');
+  assert.ok(big[0].t > log.land && big[0].t < 135, `early: ${big[0].t.toFixed(2)} (tapped ${log.land.toFixed(2)})`);
+  // her line about Grameðla is not cut: the call waits for it, and the lines after wait for the call
+  for (const run of [untouched, eager, mashed]) {
+    // (a line's `to` is the frame that saw it end, up to a frame after it did)
+    const lines = run.log.lines.filter(l => l.to !== null).sort((a, b) => a.from - b.from);
+    for (let i = 1; i < lines.length; i++) {
+      assert.ok(lines[i].from >= lines[i - 1].to - 1 / 30, `${lines[i].id} at ${lines[i].from.toFixed(2)} over ${lines[i - 1].id} (to ${lines[i - 1].to.toFixed(2)})`);
+    }
+  }
+  const call = log.lines.find(l => l.id === 'k4_flugedla_call1' && l.from >= BEATS.F);
+  assert.ok(call && Math.abs(call.from - big[0].t) < 0.05, 'the call is said as it comes');
+  assert.equal(log.lines.filter(l => l.id === 'k4_egill_all').length, 1, 'and Egill still sees it all');
+});
+
+test('mashing everything still meets every beat within 0.5 s', () => {
+  const { task, director, c, world, log } = mashed;
+  assert.equal(task.failed, false, String(task.error?.stack));
+  assert.deepEqual(director.warnings, []);
+  assert.ok(Math.abs(c.flight.ended - c.flight.started - BEATS.END) < 0.05, 'the flight ends at 170 s');
+  for (const { scene, at } of world.chapterTimeline) {
+    const t = at - c.flight.started;
+    assert.ok(Math.abs(t - BEATS[scene]) <= 0.5, `${scene} at ${t.toFixed(2)} s`);
+    // from the falls on (the big moments, spec 6), where she is then: within half a second of flying of where the schedule has her
+    if (BEATS[scene] < BEATS.E) continue;
+    const f = log.frames.find(x => x.t >= BEATS[scene]);
+    const off = Math.abs(f.u - c.route.progressAt(f.t)) * c.route.length;
+    assert.ok(off <= 0.5 * c.route.speedAt(f.t), `${scene}: ${off.toFixed(1)} m from her place`);
+  }
+  assert.deepEqual(c.play.calls.filter(call => call.id !== 'land').map(call => call.id), groupIds, 'each group once');
+  assert.equal(c.play.calls.filter(call => call.id === 'land').length, 1, 'the big call once');
 });
 
 test('seeking twice to t=90 puts her in the same place', async () => {

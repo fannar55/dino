@@ -234,8 +234,10 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     const handle = director.drive(`flight ${name}`, step);
     step(director.rig, 0);
     director.apply();
+    for (const fn of [...cutListeners]) fn(name);
     return handle;
   }
+  const cutListeners = [];
 
   return {
     shots, rules: FLIGHT_RULES,
@@ -243,6 +245,11 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     get roll() { return state.roll; },
     get fov() { return director.rig.fov; },
     shot,
+    /** Hear every cut, with the shot's name, as it is made (what Egill may do follows the shot: kafli4-flight-play.js). Returns the off. */
+    onCut(fn) {
+      cutListeners.push(fn);
+      return () => { const i = cutListeners.indexOf(fn); if (i >= 0) cutListeners.splice(i, 1); };
+    },
     /** „Hraðar!“: the lens widens 8 degrees over 0.4 s, and back over 1 s. */
     boost(on) { state.boostTo = on ? 1 : 0; },
     /** One frame without the director (a test); the director calls the same step each frame while a flight shot is its mode. */

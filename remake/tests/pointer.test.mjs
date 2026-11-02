@@ -643,6 +643,55 @@ test('onTap hears every tap on its target, with or without a wait, until it is s
   stopA(); // twice is fine
 });
 
+test('onDrag hears every drag, start to end, until it is stopped, and the scene stopping stops it', () => {
+  const { stage, s, send } = rig();
+  const heard = [];
+  const stop = s.onDrag(event => heard.push([event.phase, Math.round(event.dx), Math.round(event.dy)]));
+  send('pointerdown', 100, 100, 0);
+  send('pointermove', 130, 100, 50); // past the 12 px slop: the drag starts
+  send('pointermove', 150, 120, 100);
+  send('pointerup', 150, 120, 150);
+  assert.deepEqual(heard.map(h => h[0]), ['start', 'move', 'end']);
+  assert.deepEqual(heard.slice(0, 2).map(h => [h[1], h[2]]), [[30, 0], [20, 20]], 'the finger travel, piece by piece');
+  stop();
+  heard.length = 0;
+  send('pointerdown', 100, 100, 1000);
+  send('pointermove', 140, 100, 1050);
+  send('pointerup', 140, 100, 1100);
+  assert.deepEqual(heard, [], 'stopped');
+  stop(); // twice is fine
+  s.onDrag(event => heard.push(event.phase));
+  stage.stop();
+  send('pointerdown', 100, 100, 2000);
+  send('pointermove', 140, 100, 2050);
+  send('pointerup', 140, 100, 2100);
+  assert.deepEqual(heard, [], 'the scene stopping stops it too');
+});
+
+test('the scene listens to the pointer\'s drags only while an onDrag handler wants them (a search counts its own)', () => {
+  const base = pointerRig();
+  const listening = [];
+  const on = base.pointer.on;
+  base.pointer.on = (event, fn) => {
+    const off = on(event, fn);
+    if (event !== 'drag') return off;
+    listening.push(fn);
+    return () => { listening.splice(listening.indexOf(fn), 1); off(); };
+  };
+  const stage = createScene({ world: base.world, director: { stop() {}, handheld() {} }, ui: { reset() {} }, voice: { stop() {} }, pointer: base.pointer });
+  assert.equal(listening.length, 0, 'none at first');
+  const a = stage.s.onDrag(() => {});
+  const b = stage.s.onDrag(() => {});
+  assert.equal(listening.length, 1, 'one for all the handlers');
+  a();
+  assert.equal(listening.length, 1);
+  b();
+  assert.equal(listening.length, 0, 'none once the last handler stops');
+  stage.s.onDrag(() => {});
+  stage.stop();
+  assert.equal(listening.length, 0, 'none once the scene stops');
+});
+
 test('s.target adds, replaces and removes a target', () => {
   const { pointer, s, tapOn } = rig();
   const { taps } = watch(pointer);

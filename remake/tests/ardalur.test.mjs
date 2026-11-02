@@ -866,5 +866,31 @@ test('the far land: Grameðla a dark shape walking slowly in the mist beyond the
   assert.ok(Math.max(...[138, 138.3, 138.6, 139, 139.3, 139.6, 140, 140.4].map(blink)) > 0.9, 'bright as the land answers');
   assert.ok(Math.min(...[138, 138.3, 138.6, 139, 139.3, 139.6, 140, 140.4].map(blink)) < 0.5, 'and blinking, not steady');
   for (const t of [143, 150]) assert.equal(blink(t), 0, `dark again at ${t} s`);
+  // a tap on the land brings the big call early (chapters/kafli4-flight-play.js): the plates blink as long after it as they would after
+  // 135 s, and the blinks come once
+  far.kambedla.answerAt(129.7);
+  const early = t => blink(t - 5.3);
+  for (const t of [BEATS.F, 130, 137, 143, 150]) assert.equal(blink(t - 5.3), 0, `dark at ${t - 5.3} s`);
+  assert.ok(Math.max(...[138, 138.3, 138.6, 139, 139.3, 139.6, 140, 140.4].map(early)) > 0.9, 'bright as the land answers the early call');
+  far.kambedla.answerAt(135);
+  assert.ok(blink(138.2) > 0.9);
   far.dispose();
+});
+
+test('rings in the river where she skims it, on the water\'s clock; the grey valley has none', () => {
+  const place = litValley();
+  const { uniforms } = place.materials.water; // the river's water (world/props/water.js createWaterMaterial, river)
+  assert.ok(uniforms?.uRipples, 'the river water\'s rings');
+  const time = uniforms.uTime.value;
+  uniforms.uTime.value = 42;
+  place.rippleAt(10, -20, 1);
+  const ring = uniforms.uRipples.value.find(r => r.x === 10 && r.y === -20);
+  assert.ok(ring && ring.z === 42 && ring.w === 1, JSON.stringify(ring));
+  // one after another, the oldest ring makes way for the newest
+  for (let i = 0; i < uniforms.uRipples.value.length; i++) place.rippleAt(i, i, 0.5);
+  assert.ok(!uniforms.uRipples.value.some(r => r.x === 10 && r.y === -20), 'the first ring has made way');
+  for (const r of uniforms.uRipples.value) r.set(0, 0, -99, 0);
+  uniforms.uTime.value = time;
+  const grey = createArdalur({ scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() }, { grey: true, route });
+  assert.doesNotThrow(() => grey.rippleAt(0, 0, 1));
 });

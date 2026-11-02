@@ -1,6 +1,7 @@
 // Chapter 4's flight on Flugeðla's back (spec 5): beats A to G in 170 s, as a film for a child who touches nothing.
 //
-//   yield* theFlight(s, c);   // c: { world, flugedla, egill, mosi, route, flier, camera, sounds, say, mark }
+//   yield* theFlight(s, c);   // c: { world, flugedla, egill, mosi, route, flier, camera, sounds, say, speaking, doc, mark }
+//                             // c.say and c.speaking: kafli4-flight-play.js lineQueue; c.doc: the page for the „Hraðar!“ button, or null
 //
 // Two things run side by side. The frames put her where the flight is at its own time (the flier: engine/flier.js) with Egill on her
 // back, and let the wind bed follow her speed, bank and the water under her. The beats cut the shots (engine/camera/flight-camera.js),
@@ -12,11 +13,12 @@
 // the mountains, Grameðla's shadow in the mist and Kambeðla's plates blinking as the land answers), and from the burst out of the
 // spray the light goes golden (spec 2: "Gullna ljósið yfir fossinum er hámark hennar") and back as she glides down in G.
 //
-// The animals' answers to her calls are the game's sounds for now; what Egill may do (Task 11) and the recorded voices and wind
-// (Tasks 15 and 16) come later on these same beats.
+// What Egill may do (spec 6: steer, call the animals, „Hraðar!“) is kafli4-flight-play.js, switched on and off here beat by beat; the
+// animals' answers are the game's sounds for now, and the recorded voices and wind (Tasks 15 and 16) come later on these same beats.
 import * as THREE from 'three';
 import { BEATS, LEAP, FALLS } from './kafli4-route.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
+import { flightPlay, PLAY } from './kafli4-flight-play.js';
 
 // The flight's lines (plan Task 15's WORDS, verbatim from spec 5 and 6; the full chapter adds the rest). The three marked * are the plan's
 // own additions, which the owner hears first and may cut.
@@ -44,13 +46,6 @@ export const FLIGHT_WORDS = {
   k4_flugedla_holdon: 'Haltu þér!',
 };
 
-// Her calls on the animal groups of C, in turn (spec 5C: three versions), and each group's answer (world/ardalur/animals.js: once,
-// in the real valley) with its sound among the game's (sfx.js); the small lizards have none yet (Task 16: recordings, with the
-// owner's yes).
-const CALLS = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
-const ANSWER = { frogs: 'frog', snails: 'snail', dragonflies: 'dragonfly', turtle: 'turtle', lizards: null };
-const CALL_AHEAD = 2.2; // seconds before she passes a group that she calls to it
-const ANSWER_AHEAD = 1.2; // and that it answers: still ahead of her, in the chase camera's view
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
 // The music (spec 8: the same theme louder through the flight, silent for the slow second, quieter as she glides down).
 export const MUSIC = { flight: 1.5, glide: 0.8 };
@@ -102,6 +97,7 @@ export function* theFlight(s, c) {
   const { world, flier, camera, sounds } = c;
   c.flight = { beat: null, started: s.time, ended: null };
   flier.update(0);
+  const play = (c.play = flightPlay(s, c));
   const release = s.seeking ? null : world.sound?.hold?.(sounds);
   if (!s.seeking) sounds.start();
   const far = world.forest?.farLand ?? null;
@@ -110,6 +106,7 @@ export function* theFlight(s, c) {
     yield s.all(frames(s, c), beats(s, c));
   } finally {
     c.flight.ended ??= s.time;
+    play.stop();
     world.clock?.setScale?.(1);
     camera.stop();
     sounds.stop();
@@ -135,6 +132,7 @@ function* frames(s, c) {
   while (c.flight.ended === null) {
     const t = Math.min(BEATS.END, s.time - c.flight.started);
     flier.update(t);
+    c.play.update(t);
     lightAt(world, look, goldenAt(t), scratch);
     world.flightTime = s.time - c.flight.started; // the far land follows it on the place's own frames (world/ardalur/index.js)
     if (flier.clip !== clip) {
@@ -155,20 +153,13 @@ function* frames(s, c) {
 
 // The beats of spec 5, cue by cue, each at its time on the flight's clock.
 function* beats(s, c) {
-  const { world, camera, sounds, route, say, mark } = c;
+  const { world, camera, sounds, route, say, mark, play } = c;
   const mosi = c.mosi;
   const at = function* (time) {
     const left = time - (s.time - c.flight.started);
     if (left > 1e-9) yield s.wait(left);
   };
   const sfx = name => { if (name) s.sfx(name); };
-  // a group answers her once: its animals move (the real valley's) and its sound plays
-  const answer = (id, kind) => {
-    const group = world.forest?.animals?.groups.find(g => g.id === id) ?? null;
-    if (group?.answered) return;
-    group?.answer();
-    sfx(ANSWER[kind]);
-  };
   const whoosh = side => { if (!s.seeking) sounds.whoosh(side); };
   const hideMosi = () => { mosi.raw.root.visible = false; };
   const run = (path, heading) => {
@@ -197,25 +188,25 @@ function* beats(s, c) {
   yield* at(8);
   camera.shot('side');
 
-  // B. Down to the river (0:15–0:35): the Fen rushes by, then low over the water ahead of her as she levels out over it.
+  // B. Down to the river (0:15–0:35): the Fen rushes by, then low over the water ahead of her as she levels out over it. From here
+  // Egill may steer her and press „Hraðar!“ in the chase shots (spec 6).
   yield* at(BEATS.B);
   mark('B');
   camera.shot('chase');
+  play.enable('steer', true);
+  play.enable('faster', true);
   yield* at(25);
   camera.shot('waterLevel'); // ended a second before she shoots past it: a still shot pans 40 deg/s at most
   yield* at(28.3);
   camera.shot('chase');
 
-  // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it and it answers; between the
-  // chases, beside her, low over the water, Mosi in the shallows (his first cameo) and the bank where her shadow passes the turtle.
+  // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it, or as Egill taps it, and it
+  // answers (kafli4-flight-play.js); between the chases, beside her, low over the water, Mosi in the shallows (his first cameo) and the
+  // bank where her shadow passes the turtle.
   yield* at(BEATS.C);
   mark('C');
-  const groups = route.groups.map((g, i) => ({ ...g, call: CALLS[i % CALLS.length], passes: timeAt(route, g.u) }));
+  play.enable('call', true);
   const cues = [
-    ...groups.flatMap(g => [
-      { t: g.passes - CALL_AHEAD, act: () => say('flugedla', g.call) },
-      { t: g.passes - ANSWER_AHEAD, act: () => answer(g.id, g.kind) },
-    ]),
     { t: 44.5, act: () => camera.shot('side') },
     { t: 51, act: () => camera.shot('waterLevel') },
     { t: 54.5, act: () => camera.shot('chase') },
@@ -239,6 +230,7 @@ function* beats(s, c) {
   // the gorge, and Mosi up on the rim (his second cameo) taking the shorter way.
   yield* at(BEATS.D);
   mark('D');
+  play.enable('call', false);
   camera.shot('chase');
   yield* at(83);
   camera.shot('face');
@@ -255,6 +247,8 @@ function* beats(s, c) {
   whoosh(1);
   yield* at(90.5);
   camera.shot('gorgeHigh');
+  yield* at(PLAY.steerLast);
+  play.enable('steer', false);
   yield* at(95.5);
   run(route.cameos.rim.path, headingAlong(route.cameos.rim.path)); // up on the rim, out of sight from down in the gorge
   yield* at(96);
@@ -270,6 +264,7 @@ function* beats(s, c) {
   // at the crest one slow second with only the wind, and then they burst out of the spray.
   yield* at(BEATS.E);
   mark('E');
+  play.enable('faster', false);
   yield* at(106);
   say('egill', 'k4_egill_falls');
   yield* at(108.3);
@@ -294,10 +289,12 @@ function* beats(s, c) {
   }
 
   // F. Up into the golden light (2:05–2:30): the whole land wide; Grameðla beyond the mountains; her biggest call over the land and
-  // the answers from everywhere; a slow circle round them as the music peaks (the still vista under reduced motion).
+  // the answers from everywhere; a slow circle round them as the music peaks (the still vista under reduced motion). A tap on the land
+  // brings the call early; her lines wait for each other, so none is cut.
   yield* at(BEATS.F);
   mark('F');
   camera.shot('vista');
+  play.enable('call', true);
   yield* at(126.5);
   say('flugedla', 'k4_flugedla_gramedla');
   yield* at(ROAR.at);
@@ -312,13 +309,10 @@ function* beats(s, c) {
   say('flugedla', 'k4_flugedla_biggest');
   yield* at(134);
   camera.shot('orbit');
-  yield* at(135);
-  say('flugedla', 'k4_flugedla_call1'); // the biggest call (Task 15: louder, with an echo)
-  for (const [time, name] of [[138, 'frog'], [138.6, 'birds'], [139.3, 'frog'], [140, 'birds']]) {
-    yield* at(time);
-    sfx(name);
-  }
-  yield* at(141);
+  yield* at(PLAY.bigCall);
+  play.bigCall(); // the biggest call (Task 15: louder, with an echo), unless a tap on the land asked for it already
+  yield s.until(() => play.big.at !== null); // it waits for a line playing
+  yield* at(Math.max(141, play.big.at + 6)); // after the answers from everywhere
   say('egill', 'k4_egill_all');
 
   // G. Gliding down (2:30–2:50): calmer, the music quieter; her thanks, the far pool ahead, and Mosi tiny below on his way there.
@@ -355,16 +349,4 @@ function placeMosiBelow(c) {
   c.mosi.place(x, z, THREE.MathUtils.radToDeg(Math.atan2(toPool.y, toPool.x)));
   c.mosi.raw.root.visible = true;
   if (run > 1) c.mosi.walkTo([[x + toPool.x * run, z + toPool.y * run]], { speed: MOSI_RUN });
-}
-
-/** The flight's time at which she reaches progress u on the route. */
-function timeAt(route, u) {
-  let lo = 0;
-  let hi = BEATS.END;
-  for (let i = 0; i < 50; i++) {
-    const mid = (lo + hi) / 2;
-    if (route.progressAt(mid) < u) lo = mid;
-    else hi = mid;
-  }
-  return (lo + hi) / 2;
 }

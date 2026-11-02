@@ -9,7 +9,7 @@
 //                                 Kambeðla's blink, the mist's colour; while shown the camera sees FAR_PLANE m (it sees 1,200 m)
 //   far.prefetch() / load() / ready()   Grameðla's model (world/props/far-friends.js), made where nobody sees the long frame
 //   far.gramedla                  { shadow (her model's root, once made), at(t) -> { x, y, z, heading, height }, roar(), scale }
-//   far.kambedla                  { glow, level(t) }
+//   far.kambedla                  { glow, level(t), answerAt(t) }: answerAt, the flight's time of the big call (the blinks follow it)
 //   far.heightAt(x, z)            the far land's own surface (its triangles), mistAt(point) how deep in the mist a point is
 //   far.peaks, far.ground, far.group, far.dispose()
 //
@@ -61,7 +61,8 @@ const MAP = {
 };
 const PONDS = [[312, 525, 70], [323, 950, 90], [-560, 760, 55]]; // [x, z, radius]: the map's lily ponds, east and south
 /** Where Kambeðla's plates glow: a glade 600 m north-east of the orbit round them at 138 to 141 s, right of her in its view. */
-const KAMBEDLA = { x: -832, z: -192, glade: 140, above: 8, colour: '#ab85c1', blinks: [138.2, 138.9, 139.6, 140.3], width: 0.2, window: [137.5, 141.5], size: 22 };
+// blinks and window: seconds into the flight when the big call is at `call` (chapters/kafli4-flight-play.js); kambedla.answerAt moves them
+const KAMBEDLA = { x: -832, z: -192, glade: 140, above: 8, colour: '#ab85c1', blinks: [138.2, 138.9, 139.6, 140.3], width: 0.2, window: [137.5, 141.5], size: 22, call: 135 };
 // The river above the valley's (route.river ends 330 m above the falls): [x, z, level, half width], on into the mountains' foot.
 const UPPER = [[-1680, 80, 51.5, 11], [-1850, 58, 52.5, 11], [-2050, 66, 54, 10], [-2250, 50, 56, 9]];
 // The haze the far land fades into with distance (aerial perspective): none to 250 m, half by about 1.4 km, at most 80 %.
@@ -382,9 +383,11 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
   };
   let roarAt = null;
 
+  let answer = 0; // seconds the big call came before (-) or after (+) its time, KAMBEDLA.call: the blinks follow it
   const level = t => {
-    if (t < KAMBEDLA.window[0] || t > KAMBEDLA.window[1]) return 0;
-    return Math.max(...KAMBEDLA.blinks.map(b => Math.exp(-(((t - b) / KAMBEDLA.width) ** 2))));
+    const k = t - answer;
+    if (k < KAMBEDLA.window[0] || k > KAMBEDLA.window[1]) return 0;
+    return Math.max(...KAMBEDLA.blinks.map(b => Math.exp(-(((k - b) / KAMBEDLA.width) ** 2))));
   };
 
   let shown = false;
@@ -455,7 +458,7 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
         actor?.play('roar', { fade: 0.3, timeScale: GRAMEDLA.walk, once: true });
       },
     },
-    kambedla: { glow: glow.points, level },
+    kambedla: { glow: glow.points, level, answerAt(t) { answer = t - KAMBEDLA.call; } },
     dispose() {
       group.removeFromParent();
       geometry.dispose();

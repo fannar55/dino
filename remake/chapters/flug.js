@@ -6,8 +6,11 @@
 //   ?chapter=flug&flugedla=10   Flugeðla 10 m from wingtip to wingtip instead of 7.5 (the owner picks one: spec 11)
 //   ?chapter=flug&lit=1         the real valley instead of grey (from chunk 2)
 //   ?chapter=flug&reduced=1     as a tablet that asks for less motion sees it: no orbit, no slow second, half the bank
+//   ?chapter=flug&play=track1   a child's hands on it: steering, the calls and „Hraðar!“ at fixed times (flug-track.js), for a recording
 import { createRoute, TREE } from './kafli4-route.js';
 import { theFlight, FLIGHT_WORDS } from './kafli4-flight.js';
+import { lineQueue } from './kafli4-flight-play.js';
+import { track1 } from './flug-track.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createFlier, rideFlier } from '../engine/flier.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
@@ -81,7 +84,11 @@ export const chapter = {
     const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced });
     const sounds = createFlightSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
     const c = { s, world, flugedla, egill, mosi, route, flier, riding, camera, sounds, reduced, flight: null };
-    c.say = (speaker, id) => s.say(speaker, id);
+    // the voices one at a time (a line waits for the one playing), and the page the „Hraðar!“ button goes on
+    const lines = lineQueue(s);
+    c.say = lines.say;
+    Object.defineProperty(c, 'speaking', { get: () => lines.speaking });
+    c.doc = world.page ?? globalThis.document ?? null;
     c.mark = scene => {
       c.flight.beat = scene;
       world.chapterTimeline.push({ scene, at: s.time });
@@ -101,6 +108,7 @@ export const chapter = {
         if (far.gramedla.shadow) world.warmObjects?.([far.gramedla.shadow]); // main.js: one draw with her, under the black
       }
     }
+    if (params.get('play') === 'track1') s.after(0, () => track1(s, c)); // a child's hands for the review video (flug-track.js)
     yield* theFlight(s, c);
     // over the far pool: the review ends in black (the full chapter lands her there: scene 7)
     yield s.fade(1, 1);

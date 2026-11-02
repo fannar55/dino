@@ -192,8 +192,17 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     queue.tick();
   }
 
+  // Rings in the river where she skims it (chapters/kafli4-flight-play.js), on the water's clock: the oldest ring makes way for the newest
+  let ring = 0;
+  function rippleAt(x, z, strength = 1) {
+    if (!real) return;
+    const rings = real.water.uniforms.uRipples.value;
+    rings[ring].set(x, z, real.water.uniforms.uTime.value, strength);
+    ring = (ring + 1) % rings.length;
+  }
+
   return {
-    group, route, terrain, sections, stats, materials, grey,
+    group, route, terrain, sections, stats, materials, grey, rippleAt,
     /** Her downwash as the plants see it: her body (x, y, z) and how far round it they bend (w; 0 when she is not flying). */
     downwash,
     /** The animal groups (animals.js), in the real look; null in the grey one. */
