@@ -273,6 +273,19 @@ test('reduced motion: no orbit, no slow crest, half the bank, and the flight sti
   assert.ok(Math.max(...calm.seen.banks.map(Math.abs)) <= 15 + 1e-6, 'she banks half as far');
 });
 
+test('the warm-up behind the start button draws what first shows mid-flight: the actors, the falls, the far land and the animals', () => {
+  const part = name => Object.assign(new THREE.Group(), { name });
+  const actors = new Map(['flugedla', 'egill', 'mosi'].map(name => [name, { root: part(name) }]));
+  const forest = { waterfall: { group: part('falls') }, farLand: { group: part('far land') }, animals: { group: part('animals') } };
+  const warm = flugModule.chapter.warmUp({ actors, forest });
+  const names = warm.objects.map(o => o.name).sort();
+  assert.deepEqual(names, ['animals', 'egill', 'falls', 'far land', 'flugedla', 'mosi']);
+  assert.equal(typeof warm.dispose, 'function');
+  // the grey valley has none of the three
+  const grey = flugModule.chapter.warmUp({ actors, forest: { waterfall: null, farLand: null, animals: null } });
+  assert.deepEqual(grey.objects.map(o => o.name).sort(), ['egill', 'flugedla', 'mosi']);
+});
+
 test('seeking twice to t=90 puts her in the same place', async () => {
   const again = watcher({ at: [90] });
   await playUnattended(flugModule, { limit: 95, seeking: true, onFrame: again.onFrame });

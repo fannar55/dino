@@ -56,6 +56,18 @@ export const chapter = {
   startShot: 'flug_snag',
   shots: {},
 
+  /**
+   * What the warm-up draws once behind the start button (engine/warm-up.js), so that nothing is drawn for the first time mid-flight
+   * (a material's first draw is a stall of 0.2 to 0.6 s on the laptop): the actors (Mosi waits out of sight), the falls, the far land
+   * and the animal groups. Grameðla's model is made after the button, and drawn once in the black then (script, below).
+   */
+  warmUp(world) {
+    const objects = [...world.actors.values()].map(actor => actor.root);
+    const place = world.forest;
+    for (const part of [place?.waterfall, place?.farLand, place?.animals]) if (part?.group) objects.push(part.group);
+    return { objects, dispose() {} };
+  },
+
   *script(s) {
     const flugedla = s.actor('flugedla');
     const egill = s.actor('egill');
@@ -84,7 +96,10 @@ export const chapter = {
     yield s.ready(); // the start button; immediate in captures
     if (far) {
       if (s.seeking) far.load();
-      else yield far.load();
+      else {
+        yield far.load();
+        if (far.gramedla.shadow) world.warmObjects?.([far.gramedla.shadow]); // main.js: one draw with her, under the black
+      }
     }
     yield* theFlight(s, c);
     // over the far pool: the review ends in black (the full chapter lands her there: scene 7)
