@@ -75,7 +75,7 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
     }
     return out;
   }
-  const along = (line, u) => { // the point at `u` of the length of a line of points
+  const alongLine = (line, u) => { // the point at `u` of the length of a line of points
     const lengths = [0]; for (let i = 1; i < line.length; i++) lengths.push(lengths[i - 1] + line[i].distanceTo(line[i - 1]));
     const s = Math.min(1, Math.max(0, u)) * lengths.at(-1); let i = 1; while (i < lengths.length - 1 && lengths[i] < s) i++;
     return line[i - 1].clone().lerp(line[i], (s - lengths[i - 1]) / Math.max(1e-6, lengths[i] - lengths[i - 1]));
@@ -85,7 +85,7 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
     if (state.mode === 'through') {
       // (off its coil it is the line itself, which keeps the round of a wrap; while it lifts, each point of the coil goes toward its place along the line)
       const line = throughPoints();
-      if (lift >= 1) points.push(...line); else for (let i = 0; i <= count; i++) points.push(lying(i / count).lerp(along(line, i / count), lift));
+      if (lift >= 1) points.push(...line); else for (let i = 0; i <= count; i++) points.push(lying(i / count).lerp(alongLine(line, i / count), lift));
     } else
     for (let i = 0; i <= count; i++) {
       const u = i / count, free = state.mode === 'lying' ? lying(u) : lift >= 1 ? arc(u) : lying(u).lerp(arc(u), lift);
