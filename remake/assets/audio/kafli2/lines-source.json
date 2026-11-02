@@ -70,7 +70,7 @@
  { "id": "k2_mosi_thrir", "speaker": "mosi", "text": "Þrír!" },
  { "id": "k2_mosi_fjorir", "speaker": "mosi", "text": "Fjórir!" },
  { "id": "k2_uggedla_small", "speaker": "uggedla", "text": "Nei, hann er of lítill. Hann má stækka!" },
- { "id": "k2_mosi_hint_fish", "speaker": "mosi", "text": "Bíddu eftir stórum fiski… og pikkaðu!", "say": "Bíddu eftir stórum fiski. Og pikkaðu.", "seed": 42, "note": "The owner's pick of four re-recordings (candidate C: sent with full stops, seed 42), 2026-11-01; the plain take was marked wrong with no note. It fixes the sentence's melody, not a word: scribe_v2 heard every word of the plain take right, and the takes that kept the … and ! (A, B, D) lost; as with k2_mosi_count, the punctuation set an odd stress. The caption keeps its … and !" },
+ { "id": "k2_mosi_hint_fish", "speaker": "mosi", "text": "Bíddu eftir stórum fiski… og pikkaðu!", "say": "Bíddu eftir stórum fiski. Og pikkaðu.", "seed": 42, "fixes": "line", "note": "The owner's pick of four re-recordings (candidate C: sent with full stops, seed 42), 2026-11-01; the plain take was marked wrong with no note. It fixes the whole line (its melody), not a word: scribe_v2 heard every word of the plain take right, and the takes that kept the … and ! (A, B, D) lost; as with k2_mosi_count, the punctuation set an odd stress. The caption keeps its … and !" },
  { "id": "k2_uggedla_thanks", "speaker": "uggedla", "text": "Fimm fiskar! Takk, Egill. Þú ert frábær veiðimaður!" },
  { "id": "k2_mosi_flooded", "speaker": "mosi", "text": "Ó nei! Síkið hefur flætt yfir stíginn." },
  { "id": "k2_egill_across", "speaker": "egill", "text": "Hvernig komumst við yfir?" },
