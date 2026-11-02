@@ -29,7 +29,7 @@ import { createRoute } from './kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
-import { createFlightSounds } from '../engine/audio/flight-sounds.js';
+import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 import { createSaddle, ride, floatTo, SIT_DEPTH } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
@@ -655,7 +655,9 @@ export const chapter = {
     c.reduced = reducedMotion(world); // the flight as a tablet that asks for less motion sees it (chapters/flug.js)
     c.say = (speaker, id, options) => say(s, c, speaker, id, options);
     c.lines = lineQueue(s); // the voices that come as the child plays, one at a time (the wind's help and cheers)
-    c.sounds = createFlightSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null }); // the gusts
+    // the gusts, and the flight's wind and water: the recordings are fetched now, in the background, for the page
+    const context = world.sound?.context ?? null;
+    c.sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: loadFlightRecordings(context) });
     c.doc = world.page ?? globalThis.document ?? null; // the page the wind's hint goes on
     c.ring = ringsFor(world, { most: 3 }); // the rings of her falling leaves on the water
     world.chapterState = c; // what the scenes share, for captures and probes

@@ -40,13 +40,14 @@ export const PLAY = {
   answerAfter: 0.6, // seconds from her call to the group's answer
   targetSize: 2, // a group's target radius: this many times the group's own
   bigCall: 135, // F: seconds into the flight at which the big call comes by itself
-  bigAnswers: [[3, 'frog'], [3.6, 'birds'], [4.3, 'frog'], [5, 'birds']], // seconds after the big call: answers from everywhere
+  // seconds after the big call: answers from everywhere, [after, sound, pan] (plan Task 16: frogs, birds and lizards, 0.4 to 0.9 aside)
+  bigAnswers: [[3, 'frog', -0.7], [3.3, 'lizards', 0.6], [3.6, 'birds', 0.85], [4.3, 'frog', 0.5], [4.6, 'lizards', -0.45], [5, 'birds', -0.9]],
   shoutEvery: 3, // Egill shouts on the first burst and every third after it
 };
 const CALLS = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
 const SHOUTS = ['k4_egill_faster1', 'k4_egill_faster2'];
-// Each group's answer among the game's sounds (sfx.js); the small lizards have none yet (Task 16: recordings, with the owner's yes).
-export const ANSWER = { frogs: 'frog', snails: 'snail', dragonflies: 'dragonfly', turtle: 'turtle', lizards: null };
+// Each group's answer among the game's sounds (sfx.js): the turtle's and the small lizards' are the owner's recordings (Task 16).
+export const ANSWER = { frogs: 'frog', snails: 'snail', dragonflies: 'dragonfly', turtle: 'turtleCall', lizards: 'lizards' };
 const GROUP_RADIUS = 4; // metres: a group's own size where the grey valley has no animals to say it
 
 /**
@@ -149,7 +150,7 @@ export function flightPlay(s, c) {
     const water = skimming ? route.waterAt(p.x, p.z, 2) : null;
     const now = water !== null && p.y - water <= PLAY.touch;
     if (now && !touching) {
-      s.sfx('splash');
+      s.sfx('skim');
       if (t - lastLaugh >= PLAY.laughEvery && c.say('egill', 'k4_egill_laugh', { ifQuiet: true })) lastLaugh = t;
       nextRing = t;
     }
@@ -212,7 +213,7 @@ export function flightPlay(s, c) {
         big.at = flightTime();
         calls.push({ id: 'land', how, t: big.at, voiced: true });
         world.forest?.farLand?.kambedla?.answerAt?.(big.at);
-        for (const [after, name] of PLAY.bigAnswers) s.after(after, () => { s.sfx(name); });
+        for (const [after, name, pan] of PLAY.bigAnswers) s.after(after, () => { s.sfx(name, { pan }); });
       },
     });
   }
@@ -234,6 +235,7 @@ export function flightPlay(s, c) {
     if (!s.seeking) {
       c.sounds?.gust();
       c.sounds?.wingbeat();
+      c.sounds?.burst?.(FLIGHT.burst.seconds);
     }
     // Egill on the first burst and every third after it; a burst while a line plays passes his shout on to the next
     sinceShout++;

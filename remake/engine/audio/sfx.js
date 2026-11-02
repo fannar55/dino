@@ -17,10 +17,16 @@ const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot 
 // Recorded sounds, by name, beside the made ones: Grameðla's roar and breath, far off from chapter 2's lookout. Both from
 // tunetank.com, free for non-commercial use with credit (the owner, 2026-10-27): "Sound Effect: Dinosaur creature moan" and
 // "Sound Effect: T-rex exhale", download from https://tunetank.com (assets/audio/kafli2/CREDITS.md). `level` is the gain into the
-// effects' master; a play's detail may scale it: s.sfx('gramedlaRoar', { level: 0.25 }), further off (chapter 4's flight).
-const SAMPLES = {
+// effects' master; a play's detail may scale it: s.sfx('gramedlaRoar', { level: 0.25 }), further off (chapter 4's flight), and put
+// it to a side: { pan: -0.6 }. Chapter 4's (assets/audio/kafli4/CREDITS.md, the owner's picks of 2026-11-02) have takes (`urls`):
+// one of them each time, not the one played last; until they have decoded, the made sound `instead` plays in their place.
+const kafli4 = file => new URL(`../../assets/audio/kafli4/hljod/${file}`, import.meta.url).href;
+export const SAMPLES = {
   gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
   gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 1.0 },
+  skim: { urls: [kafli4('skim-1.mp3'), kafli4('skim-2.mp3')], level: 0.55, instead: 'splash' }, // her feet on the river
+  turtleCall: { urls: [kafli4('turtle-1.mp3'), kafli4('turtle-2.mp3')], level: 0.5, instead: 'turtle' }, // the turtle answering her
+  lizards: { urls: ['smalldino-1.mp3', 'smalldino-2.mp3', 'smalldino-3.mp3', 'smalldino-4.mp3'].map(kafli4), level: 0.45 }, // the small ones
 };
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
@@ -315,10 +321,10 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15 * level, pan });
       noise({ duration: 0.18, level: 0.34 * level, frequency: 850, end: 350, pan, attack: 0.008 });
     },
-    // A ribbit: two throaty croaks, the second one rising.
-    frog() {
+    // A ribbit: two throaty croaks, the second one rising; near the middle, or at `pan` (chapter 4's answers from all sides).
+    frog({ pan: side } = {}) {
       const pitch = between(0.95, 1.05);
-      const pan = between(-0.3, 0.3);
+      const pan = Number.isFinite(side) ? side : between(-0.3, 0.3);
       for (const [at, from, to, length] of [[0, 190, 140, 0.1], [0.14, 150, 235, 0.13]]) {
         tone({ frequency: from * pitch, end: to * pitch, duration: length, level: 0.11, delay: at, pan, type: 'triangle', attack: 0.015 });
         tone({ frequency: from * pitch * 2, end: to * pitch * 2, duration: length, level: 0.045, delay: at, pan, type: 'triangle', attack: 0.015 });
@@ -338,10 +344,11 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       for (let i = 0; i < 6; i++) tone({ frequency: between(135, 150), end: 120, duration: 0.04, level: 0.1, delay: i * 0.045, pan, type: 'sawtooth', attack: 0.005 });
       noise({ type: 'bandpass', frequency: 2600, end: 1900, q: 1.5, duration: 0.3, level: 0.12, pan, attack: 0.03 });
     },
-    // Two birds, one answering the other.
-    birds() {
-      chirps({ pitch: between(1350, 1700), count: 3, level: 0.1, pan: -0.35 });
-      chirps({ pitch: between(1750, 2100), count: 2, level: 0.08, pan: 0.4, delay: 0.5 });
+    // Two birds, one answering the other: one on each side, or both at `pan`.
+    birds({ pan } = {}) {
+      const side = Number.isFinite(pan);
+      chirps({ pitch: between(1350, 1700), count: 3, level: 0.1, pan: side ? pan : -0.35 });
+      chirps({ pitch: between(1750, 2100), count: 2, level: 0.08, pan: side ? pan * 0.8 : 0.4, delay: 0.5 });
     },
     // A flutter of tiny high pings and a breath of air.
     butterfly() {
@@ -416,26 +423,36 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   // The recorded ones, for the chapter's page only (`recorded`: main.js; the games make effects of their own and have no use for
   // them): each file fetched and decoded once, in the background, as the effects are made, and played through the master like the
   // rest, so it mutes and holds with them. One asked for before its file has decoded is not played.
-  const buffers = new Map();
+  const buffers = new Map(); // url → its decoded buffer
+  const lastTake = new Map(); // name → the url it played last
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
+    const urls = sample.urls ?? [sample.url];
     SOUNDS[name] = (detail = {}) => {
-      const buffer = buffers.get(name);
-      if (!buffer) return;
+      const ready = urls.filter(url => buffers.has(url));
+      const fresh = ready.length > 1 ? ready.filter(url => url !== lastTake.get(name)) : ready;
+      if (!fresh.length) {
+        if (sample.instead) SOUNDS[sample.instead](detail);
+        return;
+      }
+      const url = fresh[Math.floor(random() * fresh.length) % fresh.length];
+      lastTake.set(name, url);
       const source = context.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = buffers.get(url);
       const volume = context.createGain();
       volume.gain.value = sample.level * (Number.isFinite(detail.level) ? detail.level : 1);
       source.connect(volume);
-      track(source, [volume, ...outlet(volume, 0, master)]);
+      track(source, [volume, ...outlet(volume, Number.isFinite(detail.pan) ? detail.pan : 0, master)]);
       source.start(context.currentTime);
     };
-    Promise.resolve()
-      .then(() => globalThis.fetch(sample.url))
-      .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
-      .then(bytes => context.decodeAudioData(bytes))
-      .then(buffer => buffers.set(name, buffer))
-      .catch(() => {}); // a sound that cannot be had is simply not heard
+    for (const url of urls) {
+      Promise.resolve()
+        .then(() => globalThis.fetch(url))
+        .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
+        .then(bytes => context.decodeAudioData(bytes))
+        .then(buffer => buffers.set(url, buffer))
+        .catch(() => {}); // a sound that cannot be had is simply not heard (or its made one is, in its place)
+    }
   }
   const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 

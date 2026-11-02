@@ -14,9 +14,10 @@
 // spray the light goes golden (spec 2: "Gullna ljósið yfir fossinum er hámark hennar") and back as she glides down in G.
 //
 // What Egill may do (spec 6: steer, call the animals, „Hraðar!“) is kafli4-flight-play.js, switched on and off here beat by beat; the
-// animals' answers are the game's sounds for now, and the recorded voices and wind (Tasks 15 and 16) come later on these same beats.
+// animals' answers are the game's sounds and the owner's recordings (Task 16), as are the wind and the water.
 import * as THREE from 'three';
-import { BEATS, LEAP, FALLS } from './kafli4-route.js';
+import { BEATS, LEAP, FALLS, GORGE } from './kafli4-route.js';
+import { whiteAt } from '../world/ardalur/river.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import { flightPlay, PLAY } from './kafli4-flight-play.js';
 
@@ -60,6 +61,23 @@ export const GOLDEN = { at: SLOW.at + SLOW.seconds * SLOW.scale, rise: 2, back: 
 // Grameðla's roar (spec 5F: "lágt, fjarlægt öskur"): the recorded one of chapter 2, at a quarter of its level, once her name is said.
 export const ROAR = { at: 129.4, level: 0.25 };
 const clamp = THREE.MathUtils.clamp;
+
+/**
+ * What she hears of the river at p (her body): { water, rapids, gorge }, each 0..1. The water is near when she is low over it (full
+ * 2 m over it, none 22 m up), and it is the river's own sound where the river runs lazy, the rapids' as it whitens (world/ardalur/
+ * river.js whiteAt); over the far pool it is still water. Between the gorge's walls, under their top, everything echoes (gorge 1).
+ */
+export function riverSound(route, p) {
+  const near = route.river.nearest(p.x, p.z);
+  const here = route.river.at(near.d);
+  const walls = near.d >= GORGE.from && near.d <= GORGE.to && near.dist <= here.half + 25 && p.y - here.level < GORGE.wall[1];
+  const level = route.waterAt(p.x, p.z, 2);
+  if (level === null) return { water: 0, rapids: 0, gorge: walls ? 1 : 0 };
+  const close = clamp(1 - (p.y - level - 2) / 20, 0, 1);
+  const pool = Math.hypot(p.x - route.pool.center[0], p.z - route.pool.center[1]) < route.pool.radius + 2;
+  const white = pool ? 0 : whiteAt(route, near.d);
+  return { water: close * (1 - white), rapids: close * white, gorge: walls ? 1 : 0 };
+}
 const smooth = x => { const k = clamp(x, 0, 1); return k * k * (3 - 2 * k); };
 
 /** How golden the light is at the flight's time t: 0 the chapter's look, 1 LOOKS.golden. */
@@ -146,8 +164,10 @@ function* frames(s, c) {
       const p = flier.pose.position;
       sounds.setSpeed(flier.speed);
       sounds.setPan(flier.bank / 50);
-      const water = route.waterAt(p.x, p.z, 2);
-      sounds.water(water === null ? 0 : clamp(1 - (p.y - water - 2) / 20, 0, 1));
+      const river = riverSound(route, p);
+      sounds.water(river.water);
+      sounds.rapids(river.rapids);
+      sounds.gorge(river.gorge);
       sounds.falls(Math.min(1, (35 / Math.max(1, p.distanceTo(fallsAt))) ** 2));
     }
     yield;

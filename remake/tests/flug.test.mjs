@@ -450,7 +450,7 @@ test('a skim: she drops to the water, it splashes and Egill laughs, at most once
   const low = framesIn(eager, 21.4, 22.6);
   assert.ok(Math.min(...low.map(f => f.lift)) < -1, `she drops (${Math.min(...low.map(f => f.lift)).toFixed(2)} m)`);
   const start = c.flight.started;
-  assert.ok(soundLog.some(s => s.name === 'splash' && s.at - start >= 21 && s.at - start < 22.6), 'a splash');
+  assert.ok(soundLog.some(s => s.name === 'skim' && s.at - start >= 21 && s.at - start < 22.6), 'a splash (her feet on the river: sfx.js SAMPLES skim)');
   const laughs = log.lines.filter(l => l.id === 'k4_egill_laugh');
   assert.equal(laughs.length, 1, 'Egill laughs once');
   assert.ok(laughs[0].from >= 21 && laughs[0].from < 22.6);

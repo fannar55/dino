@@ -1,0 +1,313 @@
+{
+  "airflow.mp3": {
+    "what": "the wind past her ears, its gain following her speed",
+    "loop": true,
+    "seconds": 10,
+    "from": "eleven/airflow-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "airflow-2",
+      "prompt": "eleven/airflow-2.json"
+    }
+  },
+  "flutter.mp3": {
+    "what": "a paraglider wing in the wind under the airflow: the air on her wings",
+    "loop": true,
+    "seconds": 20,
+    "from": "freesound/836086/836086.mp3",
+    "cut": [
+      8,
+      20
+    ],
+    "xfade": 1.5,
+    "source": {
+      "id": 836086,
+      "name": "paragliding wing",
+      "author": "bruno.auzet",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/836086/"
+    }
+  },
+  "river-a.mp3": {
+    "what": "the river under her",
+    "loop": true,
+    "seconds": 12,
+    "from": "eleven/river-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "river-1",
+      "prompt": "eleven/river-1.json"
+    }
+  },
+  "river-b.mp3": {
+    "what": "the river under her, a second layer (a real river)",
+    "loop": true,
+    "seconds": 20,
+    "from": "freesound/196699/196699.mp3",
+    "cut": [
+      10,
+      20
+    ],
+    "xfade": 1.5,
+    "source": {
+      "id": 196699,
+      "name": "River - Running water 2",
+      "author": "vonfleisch",
+      "licence": "CC BY 3.0",
+      "page": "https://freesound.org/s/196699/"
+    }
+  },
+  "rapids.mp3": {
+    "what": "the white water in the gorge",
+    "loop": true,
+    "seconds": 10,
+    "from": "eleven/rapids-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "rapids-1",
+      "prompt": "eleven/rapids-1.json"
+    }
+  },
+  "falls.mp3": {
+    "what": "the waterfall, louder as she nears it",
+    "loop": true,
+    "seconds": 12,
+    "from": "eleven/falls-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "falls-1",
+      "prompt": "eleven/falls-1.json"
+    }
+  },
+  "wing-1.mp3": {
+    "what": "a beat of her wings",
+    "loop": false,
+    "seconds": 0.62,
+    "from": "freesound/596541/596541.mp3",
+    "cut": [
+      0.14,
+      0.62
+    ],
+    "source": {
+      "id": 596541,
+      "name": "Large Wings Flapping - Foley.wav",
+      "author": "tothrec2",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/596541/"
+    }
+  },
+  "wing-2.mp3": {
+    "what": "a beat of her wings",
+    "loop": false,
+    "seconds": 0.62,
+    "from": "freesound/596541/596541.mp3",
+    "cut": [
+      1.62,
+      0.62
+    ],
+    "source": {
+      "id": 596541,
+      "name": "Large Wings Flapping - Foley.wav",
+      "author": "tothrec2",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/596541/"
+    }
+  },
+  "wing-3.mp3": {
+    "what": "a beat of her wings",
+    "loop": false,
+    "seconds": 0.62,
+    "from": "freesound/596541/596541.mp3",
+    "cut": [
+      3.17,
+      0.62
+    ],
+    "source": {
+      "id": 596541,
+      "name": "Large Wings Flapping - Foley.wav",
+      "author": "tothrec2",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/596541/"
+    }
+  },
+  "whoosh-1.mp3": {
+    "what": "a whoosh past trees, rocks or a bank",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/whoosh-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "whoosh-1",
+      "prompt": "eleven/whoosh-1.json"
+    }
+  },
+  "whoosh-2.mp3": {
+    "what": "a whoosh past trees, rocks or a bank",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/whoosh-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "whoosh-2",
+      "prompt": "eleven/whoosh-2.json"
+    }
+  },
+  "whoosh-3.mp3": {
+    "what": "a whoosh past trees, rocks or a bank",
+    "loop": false,
+    "seconds": 1,
+    "from": "freesound/264438/264438.mp3",
+    "cut": [
+      0.85,
+      1
+    ],
+    "source": {
+      "id": 264438,
+      "name": "Woosh",
+      "author": "lebaston100",
+      "licence": "CC BY 4.0",
+      "page": "https://freesound.org/s/264438/"
+    }
+  },
+  "gust-1.mp3": {
+    "what": "a gust (the wind task)",
+    "loop": false,
+    "seconds": 3,
+    "from": "eleven/gust-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "gust-2",
+      "prompt": "eleven/gust-2.json"
+    }
+  },
+  "gust-2.mp3": {
+    "what": "a gust (the wind task)",
+    "loop": false,
+    "seconds": 6.5,
+    "from": "freesound/80937/80937.mp3",
+    "cut": [
+      2,
+      6.5
+    ],
+    "source": {
+      "id": 80937,
+      "name": "gust of wind.wav",
+      "author": "Tony B kksm",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/80937/"
+    }
+  },
+  "gust-3.mp3": {
+    "what": "a gust (the wind task)",
+    "loop": false,
+    "seconds": 5,
+    "from": "freesound/352421/352421.mp3",
+    "cut": [
+      11,
+      5
+    ],
+    "source": {
+      "id": 352421,
+      "name": "wind_gust.aif",
+      "author": "joseph.larralde",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/352421/"
+    }
+  },
+  "skim-1.mp3": {
+    "what": "her feet skimming the river",
+    "loop": false,
+    "seconds": 1,
+    "from": "eleven/splash-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "splash-1",
+      "prompt": "eleven/splash-1.json"
+    }
+  },
+  "skim-2.mp3": {
+    "what": "her feet skimming the river",
+    "loop": false,
+    "seconds": 1,
+    "from": "eleven/splash-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "splash-2",
+      "prompt": "eleven/splash-2.json"
+    }
+  },
+  "turtle-1.mp3": {
+    "what": "the turtle answering her call",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/turtle-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "turtle-1",
+      "prompt": "eleven/turtle-1.json"
+    }
+  },
+  "turtle-2.mp3": {
+    "what": "the turtle answering her call",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/turtle-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "turtle-2",
+      "prompt": "eleven/turtle-2.json"
+    }
+  },
+  "smalldino-1.mp3": {
+    "what": "the small lizards answering her call",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/smalldino-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "smalldino-1",
+      "prompt": "eleven/smalldino-1.json"
+    }
+  },
+  "smalldino-2.mp3": {
+    "what": "the small lizards answering her call",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/smalldino-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "smalldino-2",
+      "prompt": "eleven/smalldino-2.json"
+    }
+  },
+  "smalldino-3.mp3": {
+    "what": "the small lizards answering her call",
+    "loop": false,
+    "seconds": 1.3,
+    "from": "freesound/511430/511430.mp3",
+    "cut": [
+      0,
+      1.3
+    ],
+    "source": {
+      "id": 511430,
+      "name": "Tiny Croc Chirp",
+      "author": "iwanPlays",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/511430/"
+    }
+  },
+  "smalldino-4.mp3": {
+    "what": "the small lizards answering her call",
+    "loop": false,
+    "seconds": 2.415,
+    "from": "freesound/400573/400573.mp3",
+    "source": {
+      "id": 400573,
+      "name": "ThằngLằng.wav",
+      "author": "SieuAmThanh",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/s/400573/"
+    }
+  }
+}

@@ -14,7 +14,7 @@ import { track1 } from './flug-track.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createFlier, rideFlier } from '../engine/flier.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
-import { createFlightSounds } from '../engine/audio/flight-sounds.js';
+import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 
 const params = new URLSearchParams(globalThis.location?.search ?? '');
 const WINGSPAN = Number(params.get('flugedla')) || 7.5;
@@ -82,7 +82,8 @@ export const chapter = {
     flier.update(0); // on top of the snag, wings folded
     const riding = rideFlier(egill.raw, flier);
     const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced });
-    const sounds = createFlightSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
+    const context = world.sound?.context ?? null;
+    const sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: loadFlightRecordings(context) });
     const c = { s, world, flugedla, egill, mosi, route, flier, riding, camera, sounds, reduced, flight: null };
     // the voices one at a time (a line waits for the one playing), and the page the „Hraðar!“ button goes on
     const lines = lineQueue(s);
