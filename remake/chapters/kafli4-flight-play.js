@@ -220,6 +220,8 @@ export function flightPlay(s, c) {
 
   // ---- „Hraðar!“ -------------------------------------------------------------------------------------------------------------------
   const speedLines = createSpeedLines(world, world.camera);
+  // drawn once now, as the flight starts in the black, so the first burst is not their first draw (a stall of some 0.1 s: main.js)
+  if (!s.seeking) world.warmObjects?.([speedLines.mesh]);
   let shoutDue = true;
   let sinceShout = 0;
   let boostUntil = -Infinity;
