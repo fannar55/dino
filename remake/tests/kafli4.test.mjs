@@ -11,6 +11,7 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
+import { FLIGHT_WORDS } from '../chapters/kafli4-flight.js';
 
 // Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
 // as it was, and the white tree's own patch of fen), the camera rules of its shots, and its first two scenes played through by nobody
@@ -282,6 +283,14 @@ test('scenes 1 to 6 play in order, from the Fen to the white tree and up into th
   assert.ok(three - two >= 20 && three - two <= 70, `scene 2 takes ${(three - two).toFixed(1)} s (spec: about 45)`);
   assert.ok(five - four >= 18 && five - four <= 50, `scene 4 takes ${(five - four).toFixed(1)} s (spec: about 30)`);
   assert.ok(six - five >= 18 && six - five <= 50, `scene 5 takes ${(six - five).toFixed(1)} s (spec: about 30)`);
+});
+
+test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {
+  for (const [id, text] of Object.entries(FLIGHT_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
+  const { captions } = await playWide();
+  const flight = Object.values(FLIGHT_WORDS);
+  assert.ok(captions.some(c => flight.includes(c.text)), 'the flight says its lines in the chapter');
+  assert.deepEqual(captions.filter(c => /^k\d_[a-z]+_/.test(c.text)).map(c => c.text), [], 'no caption shows an id');
 });
 
 test('every new Fen shot keeps the director quiet at 16:10 and upright, and shows whom it is for', async () => {

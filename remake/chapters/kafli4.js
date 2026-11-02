@@ -24,7 +24,7 @@ import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
 import { perch, holdHer, flyPath, watchHer } from './kafli4-flugedla.js';
 import { theWind } from './kafli4-wind.js';
 import { lineQueue } from './kafli4-flight-play.js';
-import { theFlight, TAKE_OFF_FACE } from './kafli4-flight.js';
+import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS } from './kafli4-flight.js';
 import { createRoute } from './kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
@@ -614,7 +614,8 @@ export const chapter = {
     thorsedla: { name: 'Þórseðla', colour: '#89682e' },
     flugedla: { name: 'Flugeðla', colour: '#955055' },
   },
-  lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
+  // the scenes' lines and the flight's (kafli4-flight.js; the review chapter flug.js has only those)
+  lines: Object.fromEntries(Object.entries({ ...WORDS, ...FLIGHT_WORDS }).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: chapter 3's last view of them, from the south across her pool.
   startShot: 'fen_star_rise',
   // The white tree is built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js: prepare; main.js).
