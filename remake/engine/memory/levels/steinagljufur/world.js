@@ -34,8 +34,9 @@ const TUNNEL = Object.freeze({ at: [-2.5, 11.4], facing: [.5, -.87], scale: 1 })
  * as `stage` (levels/worlds.js says what is in it and what a level's world gives back).
  *
  * Task 3 built the glade and the search; Task 4 the first two steps: the Kambeðlur light the tunnel (scenes/light.js) and the Þríhyrnur butt away the rockfall in it
- * (scenes/headbutt.js), with the wrong friends' goes (scenes/fail.js), played by the mover (mover.js) over the tunnel's inside (tunnel.js). The steps after them (Tasks 5 and 6)
- * are not built yet, so after the rockfall is gone the round waits.
+ * (scenes/headbutt.js), with the wrong friends' goes (scenes/fail.js), played by the mover (mover.js) over the tunnel's inside (tunnel.js). Task 5 the walk through it, the
+ * Grameðlur's ledge, the Flugeðlur's rope and the climb (scenes/through.js, reach.js, fly.js, climb.js) in the upper gorge (upper.js, rope.js); Task 6 the last two: everyone
+ * pulls the owner's dead trunk over the gap on a second rope (scenes/pull.js, the trunk in ledge.js) and walks over it to Sólarsyllan, where the round waits for Task 7.
  */
 export function createLevelWorld(stage) {
   const { THREE, scene } = stage, level = stage.level, spot = level.mosiSpot;
@@ -111,6 +112,7 @@ export function createLevelWorld(stage) {
     waitingBeat: () => mover.waitingBeat(),
     busy: () => mover.isBusy(),
     phase: () => mover.phase(),
+    leg: () => mover.upper.leg?.() ?? -1,
     lit: () => mover.lit(),
     abort() { if (taskScript != null) stage.scenes.cancel(taskScript); taskScript = null; stage.director.release({ duration: .6 }); },
     mouth: mouthPoint,
@@ -310,7 +312,8 @@ export function createLevelWorld(stage) {
     pollEvents: () => mover?.pollEvents() ?? [],
 
     // ---- every frame ----
-    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); rope2?.update(); },
+    // (the trunk is drawn from the time the rope is up the cliff: it is the clifftop's, and the cuts below the cliff are the tightest of the level's budget)
+    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); rope2?.update(); if (trunk) trunk.group.visible = Boolean(snapshot?.ropeUp); },
     afterActors() {},
 
     // ---- who is where ----

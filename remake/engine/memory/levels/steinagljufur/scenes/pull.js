@@ -8,6 +8,7 @@
  * and scenes/climb.js, on the same `stage.task`; these also use
  *   task.trunk()   { base, middle, top, tie, roots, fallen, near, far } of the trunk now (world space: `near` and `far` are the rims under it)
  *   task.rope2()   the second rope's end now      task.stone()   the stone on Sólarsyllan      task.local(point)   a point of the scene in the upper gorge's frame
+ *   task.leg()     the leg of the Flugeðlur's flight now (0 out over the gap, 1 round the stone, 2 back up to the top; -1 before)
  *   task.phase()   what the mover is doing ('gather', 'leg', 'knot', 'down', 'ready', 'tug', 'fall', 'landed', 'cheer'; the walk's 'walk', 'cheer')
  */
 const all = (...fns) => fns;
@@ -32,7 +33,10 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
     // Out over the gap with the rope's end, and round the stone (the shot goes with the pair, the rope behind them)
     { at: .1, wait: { until: () => phase() === 'leg' || ended(), timeout: 6 } },
     { at: .15, shot: { kind: 'follow', scale: 'wide', subjects: () => [...bodies(flyers()), stage.task.rope2(), stage.task.stone(), trunk().near], front: view([-.1, -1]), elevation: 18, cut: true, floor: 'auto' }, act: () => stage.mosi.look(stage.task.stone()) },
-    { at: .2, wait: { until: () => phase() !== 'leg' || ended(), timeout: 14 } },
+    // Round the stone on Sólarsyllan: a cut to the stone, the gap and the trunk across it as they wind the rope round it
+    { at: .17, wait: { until: () => stage.task.leg() >= 1 || phase() !== 'leg' || ended(), timeout: 9 } },
+    { at: .18, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(flyers()), stage.task.stone(), trunk().far, trunk().top, trunk().near], front: view([-.35, -1]), elevation: 20, cut: true, floor: 'auto' }, act: () => stage.mosi.look(stage.task.stone()) },
+    { at: .2, wait: { until: () => phase() !== 'leg' || ended(), timeout: 12 } },
     // At the trunk's top: they hover at the stub while it is knotted
     { at: .25, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(flyers()), trunk().tie, up(trunk().top, .4), trunk().middle], front: view([-.3, -1]), elevation: 10, cut: true, floor: 'auto' }, act: () => stage.mosi.look(trunk().tie) },
     { at: .3, wait: { until: () => !['gather', 'leg', 'knot'].includes(phase()) || ended(), timeout: 5 } },
@@ -45,9 +49,10 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTap: () => stage.task.beat(),
       // No taps: "Við gerum þetta saman!" and they pull it over on their own.
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
-    { at: .55, wait: { until: () => ['landed', 'cheer'].includes(phase()) || ended(), timeout: 9 } },
+    // (it falls in the still shot, and its dust settles there before the cut)
+    { at: .55, wait: { until: () => phase() === 'cheer' || ended(), timeout: 10 } },
     // The bridge: the trunk lies over the gap, its top on Sólarsyllan; everyone cheers.
-    { at: .6, shot: { kind: 'wide', subjects: () => [...everyone(), trunk().base, trunk().top, trunk().near, trunk().far, at(41.3, 6, 9.2)], front: view([-.15, -1]), elevation: 14, cut: true, floor: 'auto' },
+    { at: .6, shot: { kind: 'wide', subjects: () => [...everyone(), trunk().base, trunk().top, trunk().near, trunk().far, at(47, 9, 4)], front: view([-.2, -1]), elevation: 24, cut: true, floor: 'auto' },
       act: all(() => stage.mosi.gesture('clap'), () => stage.mosi.look(trunk().top)) },
     { at: .65, wait: { until: ended, timeout: 5 } },
     { at: .7, shot: { release: true, duration: .9 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },

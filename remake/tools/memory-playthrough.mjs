@@ -1117,8 +1117,7 @@ async function main() {
           if (a.phase === 'leg' && s.cam.shot === 'follow') waited ||= await milestone('pull-flight', 'pull-rope-flown-over-the-gap', 1400);
           if (a.phase === 'knot') waited ||= await milestone('pull-knot', 'pull-rope-tied-at-the-top', 700);
           if (a.phase === 'ready' && (a.given ?? 0) === 0) waited ||= await milestone('pull-line', 'pull-nine-on-the-rope', 500);
-          for (const [n, deg] of [[1, 6.9], [2, 14.9], [3, 23.9]]) if (u.trunk && u.trunk.angle >= deg && u.trunk.angle < deg + 1) waited ||= await milestone(`pull-tilt-${n}`, `pull-tilt-${n}`, 0);
-          if (a.phase === 'landed') waited ||= await milestone('pull-fall', 'pull-trunk-falls-dust', 120);
+          if (a.phase === 'landed') waited ||= await milestone('pull-fall', 'pull-trunk-falls-dust', 220);
           if (a.phase === 'cheer') waited ||= await milestone('pull-bridge', 'pull-trunk-lies-as-a-bridge', 600);
         }
         if (act === 'walk') {
@@ -1176,6 +1175,8 @@ async function main() {
             // of a panel is up at once).
             // (level 2's steps have their own pictures, by the light and the pile; a picture here would hold the next tap back past the wait's 4 s)
             if (shots && LEVEL.number !== 2) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
+            // (the trunk: a child pulls about once a second, and each pull is a lean of a second; a picture as each tilt lands, all three inside the wait's 4 s)
+            if (target === 'trunk') { await sleep(rapid ? 200 : 820); if (shots) await milestone(`pull-tilt-${i}`, `pull-tilt-${i}`, 0); continue; }
             await sleep(rapid ? 120 : 250);
           }
         }

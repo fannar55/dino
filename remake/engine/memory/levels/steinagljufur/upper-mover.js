@@ -349,6 +349,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   // tilts a step; the third throws it over (faster and faster, about its root plate, as a tree falls): a thud, dust along it, the camera shakes, and the rope goes slack into the gap.
   const LINE = { z: ROPE2.from[1], y: .5, tail: ROPE2.from[0] + 1 }, LEAN = { step: .25, pitch: .08, seconds: 1.0 }, FALL_SECONDS = 1.15;
   const STONE = { radius: .64, rise: .9, around: 1.6, fly: 1.7 }, WRAP_DEGREES = [-90, -45, 0, 45, 90];
+  const PULL_FLIGHT = 5.8; // (out over the gap and back up to the top: faster than the climb's legs, the way is three times as long)
   const PULLERS = ['brontosaurus', 'triceratops', 'stegosaurus', 'pteranodon', 'mosi'];
   const pullers = () => PULLERS.flatMap(who => (who === 'mosi' ? [mosi()] : members(who)).map((actor, i) => ({ who, i, actor })));
   // a point round the stone at `deg` degrees (0 its far side, +x; -90 its open side, -z), `r` metres from its middle and `rise` over its foot (frame)
@@ -397,7 +398,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     const a = action; a.phase = 'leg'; a.leg = leg; a.arrived = 0; a.legAge = 0;
     events.push({ type: 'wing-beat', id: 'pull', index: leg }); if (leg === 0) events.push({ type: 'rope-lift' });
     members('pteranodon').forEach((actor, i) => {
-      const points = flightGoal(leg, i).map(p => U.world(p.x, p.y, p.z)), ok = actor.fly?.(points, { speed: leg === 1 ? 4.2 : LEG_SPEED, onDone: () => { a.arrived++; } });
+      const points = flightGoal(leg, i).map(p => U.world(p.x, p.y, p.z)), ok = actor.fly?.(points, { speed: leg === 1 ? 4.2 : PULL_FLIGHT, onDone: () => { a.arrived++; } });
       if (!ok) { actor.root.position.copy(points.at(-1)); a.arrived++; }
     });
   }
@@ -491,8 +492,19 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   const WALK = { ground: 4.4, deck: 3.6, on: [39.9, 8.0], deckFrom: 41.2, deckTo: 44.9, off: [45.9, 10.6], via: [51.0, 7.2], margin: .4 };
   const BODY = { mosi: [.8, .8], triceratops: [1.0, .9], stegosaurus: [1.3, 1.0], brontosaurus: [2.3, 1.4] }; // metres behind and ahead of its root
   const WALK_ORDER = [['brontosaurus', 0], ['brontosaurus', 1], ['triceratops', 0], ['triceratops', 1], ['stegosaurus', 0], ['stegosaurus', 1], ['mosi', 0]];
-  /** The lying trunk as the friends walk on it (walkers.js `surface`, the scene's coordinates): its top, and the ground round it. */
-  function trunkSurface() { const v = V(0, 0, 0); return (x, z) => { const p = U.local(v.set(x, 0, z)), h = trunk.surface(p.x, p.z); return h ?? U.heightAt(x, z); }; }
+  /** The lying trunk as the friends walk on it (walkers.js `surface`, the scene's coordinates): its top, and the ground round it, the gap beside it as level as the rims (a body
+   * on its way to the trunk reaches its toes out ahead of it: over the gap they would pitch it nose down and lift it off the rim). */
+  // Beside it, where it lies on the rims, a short slope up to its top (SIDE metres wide): a body steps up onto it, toes first, rather than jumping.
+  function trunkSurface() {
+    const v = V(0, 0, 0), deck = trunk.deck, SIDE = .7;
+    return (x, z) => {
+      const p = U.local(v.set(x, 0, z)), h = trunk.surface(p.x, p.z); if (h !== null) return h;
+      const ground = p.x > U.gap.near - .2 && p.x < U.gap.far + .2 ? U.rim.y : U.heightAt(x, z);
+      if (p.x < deck.from + 1.2 || p.x > deck.to - .15) return ground;
+      const ridge = deck.at(p.x), off = Math.abs(p.z - ridge.z) - deck.radius(p.x); if (off >= SIDE) return ground;
+      const u = clamp(off / SIDE, 0, 1); return Math.max(ground, ridge.y - (ridge.y - ground) * u * u * (3 - 2 * u));
+    };
+  }
   function startWalk() {
     if (!trunk || trunk.angle < trunk.fallen - .5) return false;
     walkers.cancelAll(); walkers.resetClock();
@@ -507,7 +519,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       const at = before ? Math.max(hop + (BODY[before][0] + front + WALK.margin) / WALK.deck, reach) : reach, delay = Math.max(0, at - reach);
       hop = at; before = who; void back;
       const end = spot.frame[1] < 6.5 ? [world(...WALK.via), spot.point] : [spot.point];
-      walkers.start(actor, [{ to: [on], speed: WALK.ground }, { to: deck, speed: WALK.deck, ground: false, surface }, { to: [off], speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
+      walkers.start(actor, [{ to: [on], speed: WALK.ground, ground: false, surface }, { to: deck, speed: WALK.deck, ground: false, surface }, { to: [off], speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
         { delay, yaw: spot.yaw, pitch: true, onDone: () => { action && action.arrived++; } });
     }
     // the Flugeðlur fly over, high over the trunk, and come down at their places
@@ -693,6 +705,8 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     },
     waitingBeat: () => action && action.beats && action.phase === 'ready' && action.given < action.beats ? action.given : null,
     phase: () => action?.phase ?? null,
+    /** The leg of the pull's flight (0 out over the gap, 1 round the stone, 2 back up to the trunk's top), -1 before it or when no pull runs. */
+    leg: () => action?.id === 'pull' ? action.leg : -1,
     busy: () => action !== null,
     id: () => action?.id ?? null,
     cutUpper, where: () => where,
