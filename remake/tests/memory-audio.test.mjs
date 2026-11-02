@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { createMemoryAudio, MEMORY_KEY } from '../engine/memory/audio.js';
 import { FakeContext } from './fake-audio.mjs';
 
@@ -299,5 +301,31 @@ test("every line Mosi says goes through the pronunciation standard: each hard wo
       for (const form of recipe.say === undefined ? [] : word.forms) assert.ok(item.sent.text.includes(typeof recipe.say === 'string' ? recipe.say : recipe.say[form]), `${item.id}: ${form} is sent as its recipe says`);
     }
   }
-  for (const id of ['who', 'won', 'push', 'roll', 'gift_shrew']) assert.ok(states.find(item => item.id === id).line.kept, `${id}: the owner's pick by ear stays kept`);
+  for (const id of ['who', 'won', 'push', 'roll', 'gift_shrew', 'help', 'cross', 'held', 'find_stego']) assert.ok(states.find(item => item.id === id).line.kept, `${id}: the owner's pick by ear stays kept`);
+  // A line that keeps its own say or context names what it fixes, as main's lines do (heard.mjs fixesProblems).
+  assert.deepEqual(tool.fixesFindings(lexicon), []);
+});
+
+// The lines whose shipped take the owner rejected and whose new take he has not picked yet: id -> why, and where the candidates are.
+const WAITING = { g2_ledge_ready: 'he rejected every take on 2026-11-02 ("engin réttur"); new candidates (memory-voices.mjs --try) are on qa/memory/tal2 for him to pick' };
+
+test("the owner's verdicts (remake/assets/audio/heard/, set minnisspil): no line sends a request he rejected and no shipped MP3 is a take he rejected, but those waiting for his pick; the takes he picked are the ones that ship", async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { readHeard, rejection } = await import('../tools/heard.mjs');
+  const heard = readHeard(tool.ROOT), states = tool.statesOf(readLexicon(tool.ROOT), {});
+  assert.ok(heard.verdicts.some(verdict => verdict.id.startsWith(`${tool.SET}/`)), 'the tal page of 2026-11-02 is imported');
+  const refused = states.filter(item => rejection(heard, item.key)).map(item => item.id);
+  const shippedNo = states.filter(item => tool.rejectedMp3(heard, item.id)).map(item => item.id);
+  assert.deepEqual(refused.filter(id => !Object.hasOwn(WAITING, id)), [], 'these send a request the owner rejected: change the recipe or seed (memory-voices.mjs --dry and --try)');
+  assert.deepEqual(shippedNo.filter(id => !Object.hasOwn(WAITING, id)), [], 'these ship a take the owner rejected: make them again (memory-voices.mjs --plan)');
+  for (const [id, why] of Object.entries(WAITING)) {
+    assert.ok(why.length > 20, `${id}: WAITING says why`);
+    assert.ok(shippedNo.includes(id), `${id} no longer ships a rejected take: take it out of WAITING`);
+  }
+  // Each take he said yes to that is a line's request now is the very MP3 that line ships (installed from the take he heard).
+  const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const yes = heard.verdicts.filter(verdict => verdict.id.startsWith(`${tool.SET}/`) && verdict.verdict === 'ja');
+  for (const item of states) {
+    const picked = yes.filter(verdict => verdict.key === item.key && !rejection(heard, item.key));
+    if (picked.length) assert.ok(picked.some(verdict => verdict.mp3 === sha(path.join(tool.ROOT, 'remake/assets/audio/memory', `${item.id}.mp3`))), `${item.id}: ships the take he picked (${picked.map(verdict => verdict.id).join(', ')})`);
+  }
 });

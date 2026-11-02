@@ -228,25 +228,8 @@ export const markWords=(text,words)=>{
   return html;
 };
 
-/**
- * The page: `sections` of { title, note, rows }, each row { id, text (HTML, words marked), why, takes: [{ value, label, src, how }] }.
- * The owner picks one take per row; "Vista val" saves <file> with { id: value }.
- */
-export function talPage({title,intro,sections,file='val.json'}){
-  const row=item=>`<div class="line" data-id="${escapeHtml(item.id)}">
-  <p class="text">${item.text} <code>${escapeHtml(item.id)}</code></p>${item.why?`\n  <p class="why">${escapeHtml(item.why)}</p>`:''}
-  <div class="takes">${item.takes.map(take=>`
-    <label class="take"><span><input type="radio" name="${escapeHtml(item.id)}" value="${escapeHtml(take.value)}"> ${escapeHtml(take.label)}</span>
-      <audio controls preload="none" src="${escapeHtml(take.src)}"></audio>${take.how?`<small>${escapeHtml(take.how)}</small>`:''}</label>`).join('')}
-  </div>
-</div>`;
-  return `<!doctype html>
-<html lang="is">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>
-<style>
+/** The pages' look (the tal pages): paper, ink and a card per line, light and dark. */
+const PAGE_STYLE=`<style>
 :root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; --line: #e3d3b4; --mark: #f6d27a; --card: #fffaf0; }
 @media (prefers-color-scheme: dark) { :root { --paper: #231a12; --ink: #f3e6d0; --muted: #c2ad90; --line: #4a3a2a; --mark: #7a5a12; --card: #2d2218; } }
 * { box-sizing: border-box; }
@@ -266,7 +249,27 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 2
 .take small { color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
 .bar { position: sticky; bottom: 0; background: var(--paper); border-top: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 12px; align-items: center; justify-content: center; }
 button { font: inherit; padding: .4rem 1rem; border-radius: 8px; border: 1px solid var(--ink); background: var(--card); color: var(--ink); cursor: pointer; }
-</style>
+</style>`;
+
+/**
+ * The page: `sections` of { title, note, rows }, each row { id, text (HTML, words marked), why, takes: [{ value, label, src, how }] }.
+ * The owner picks one take per row; "Vista val" saves <file> with { id: value }.
+ */
+export function talPage({title,intro,sections,file='val.json'}){
+  const row=item=>`<div class="line" data-id="${escapeHtml(item.id)}">
+  <p class="text">${item.text} <code>${escapeHtml(item.id)}</code></p>${item.why?`\n  <p class="why">${escapeHtml(item.why)}</p>`:''}
+  <div class="takes">${item.takes.map(take=>`
+    <label class="take"><span><input type="radio" name="${escapeHtml(item.id)}" value="${escapeHtml(take.value)}"> ${escapeHtml(take.label)}</span>
+      <audio controls preload="none" src="${escapeHtml(take.src)}"></audio>${take.how?`<small>${escapeHtml(take.how)}</small>`:''}</label>`).join('')}
+  </div>
+</div>`;
+  return `<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+${PAGE_STYLE}
 </head>
 <body>
 <main>
@@ -292,6 +295,74 @@ ${sections.filter(section=>section.rows.length).map(section=>`<h2>${escapeHtml(s
 `;
 }
 
+/**
+ * The yes/no page whose save heard.mjs imports: `sections` of { title, note, rows }; a row { id, text (HTML), why, takes: [{ id,
+ * label, src, how }] }, each take's id one of the page record's (addToPageRecord). A row of several takes is a pick: the one he
+ * picks is "ja" and the others "nei", or "Engin" makes them all "nei". A row of one take asks "Já" or "Nei". Each row has a note.
+ * "Vista val" saves jano-minnisspil.json: { "set": "minnisspil", "choices": { "<take id>": "ja" | "nei" }, "notes": { "<take id>": "..." } }.
+ */
+export function janoPage({title,intro,sections}){
+  const takeHow=take=>take.how?`<small>${escapeHtml(take.how)}</small>`:'';
+  const row=item=>`<div class="line" data-id="${escapeHtml(item.id)}" data-takes="${escapeHtml(item.takes.map(take=>take.id).join(' '))}">
+  <p class="text">${item.text} <code>${escapeHtml(item.id)}</code></p>${item.why?`\n  <p class="why">${escapeHtml(item.why)}</p>`:''}
+  <div class="takes">${item.takes.length>1?`${item.takes.map(take=>`
+    <label class="take"><span><input type="radio" name="${escapeHtml(item.id)}" value="${escapeHtml(take.id)}"> ${escapeHtml(take.label)}</span>
+      <audio controls preload="none" src="${escapeHtml(take.src)}"></audio>${takeHow(take)}</label>`).join('')}
+    <label class="take none"><span><input type="radio" name="${escapeHtml(item.id)}" value=""> Engin</span><small>Engin takan segir línuna rétt.</small></label>`:`
+    <div class="take"><span>${escapeHtml(item.takes[0].label)}</span><audio controls preload="none" src="${escapeHtml(item.takes[0].src)}"></audio>${takeHow(item.takes[0])}
+      <span class="janei"><label><input type="radio" name="${escapeHtml(item.id)}" value="ja"> Já, rétt</label> <label><input type="radio" name="${escapeHtml(item.id)}" value="nei"> Nei</label></span></div>`}
+  </div>
+  <input class="athugasemd" type="text" aria-label="Athugasemd" placeholder="Athugasemd (má sleppa)">
+</div>`;
+  return `<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+${PAGE_STYLE}
+<style>
+.take.none { justify-content: center; }
+.janei { display: flex; gap: 18px; margin-top: 4px; }
+.janei label { cursor: pointer; }
+.athugasemd { font: inherit; width: 100%; margin-top: 8px; padding: .3rem .5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+<h1>${escapeHtml(title)}</h1>
+<p class="intro">${escapeHtml(intro)}</p>
+${sections.map(section=>`<h2>${escapeHtml(section.title)}</h2>${section.note?`\n<p class="note">${escapeHtml(section.note)}</p>`:''}\n${section.rows.map(row).join('\n')}`).join('\n')}
+</main>
+<div class="bar"><span id="count"></span><button id="save" type="button">Vista val</button></div>
+<script>
+  const lines = [...document.querySelectorAll('.line')];
+  const answer = line => { const input = line.querySelector('input[type=radio]:checked'); return input ? input.value : null; };
+  const jano = () => {
+    const choices = {}, notes = {};
+    for (const line of lines) {
+      const value = answer(line), takes = line.dataset.takes.split(' '), note = line.querySelector('.athugasemd').value.trim();
+      if (value === null) continue;
+      if (takes.length > 1) for (const id of takes) choices[id] = id === value ? 'ja' : 'nei';
+      else choices[takes[0]] = value;
+      if (note) for (const id of takes) notes[id] = note;
+    }
+    return { set: ${JSON.stringify(SET)}, choices, notes };
+  };
+  const count = () => { document.getElementById('count').textContent = lines.filter(line => answer(line) !== null).length + ' af ' + lines.length + ' svarað'; };
+  document.addEventListener('change', count);
+  count();
+  document.getElementById('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(jano(), null, 2) + '\\n'], { type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(`jano-${SET}.json`)} });
+    document.body.append(link); link.click(); link.remove();
+  });
+</script>
+</body>
+</html>
+`;
+}
+
 // ---------------------------------------------------------------------------------------------
 // The modes
 
@@ -304,6 +375,8 @@ export function planOf(lexicon,index=readIndex(),heard=readHeard(ROOT)){
     // the shipped take (by the record, or by the MP3 he heard) is one he said no to; and lines whose request sent now he rejected
     rejected:states.filter(item=>(item.shipped&&rejection(heard,item.shipped))||rejectedMp3(heard,item.id)),
     refused:states.filter(item=>rejection(heard,item.key)),
+    // the request sent now is a take he said yes to (his latest verdict on it), and its MP3 is not in yet
+    picked:states.filter(item=>item.state!=='same'&&heard.byKey.get(item.key)?.at(-1)?.verdict==='ja'),
     kept:states.filter(item=>item.line.kept!==undefined&&fingerprintOf(memoryRequest(item.line,lexicon,{ignoreKept:true}))!==item.ownKey),
     hidden:states.filter(item=>item.sent.hidden.length),
     uncovered:states.filter(item=>item.uncovered.length),
@@ -346,11 +419,13 @@ function printPlan(){
   for(const item of plan.kept)console.log(`  kept, never made again: ${item.id} says ${describeWords(memoryRequest(item.line,lexicon,{ignoreKept:true}))} (${item.line.kept}); --ab --only ${item.id} makes the lexicon's take to compare`);
   for(const item of plan.hidden)console.log(`  ${item.id}: its own context hides the chosen context of ${item.sent.hidden.join(', ')}`);
   for(const item of plan.uncovered)console.log(`  ${item.id}: not in the lexicon's forms, sent as written: ${item.uncovered.join(', ')}`);
-  for(const item of plan.rejected)console.log(`  rejected by the owner, to make again with another recipe or seed: ${item.id} (--try <candidates.json> makes 3-4 for him to pick)`);
-  for(const item of plan.refused)console.log(`  ${item.id}: the owner rejected exactly the request it sends now; the guard refuses it until its recipe or seed changes`);
-  if(plan.make.length){
-    const ids=plan.make.map(item=>item.id).join(',');
-    console.log(`Then: node remake/tools/memory-voices.mjs --ab --only ${ids}`);
+  const refused=new Set(plan.refused.map(item=>item.id)),picked=new Set(plan.picked.map(item=>item.id));
+  for(const item of plan.rejected)console.log(`  ${item.id}: ships a take the owner rejected; ${refused.has(item.id)?'he rejected the request it sends now too: make 3-4 candidates with --try <candidates.json>':picked.has(item.id)?'the request it sends now is a take he picked':'the request it sends now is another'}`);
+  for(const item of plan.refused.filter(item=>!plan.rejected.includes(item)))console.log(`  ${item.id}: the owner rejected exactly the request it sends now; the guard refuses it until its recipe or seed changes (--try)`);
+  const ready=plan.make.filter(item=>picked.has(item.id)),compare=plan.make.filter(item=>!picked.has(item.id)&&!refused.has(item.id));
+  if(ready.length)console.log(`His picks, ready: node remake/tools/memory-voices.mjs --only ${ready.map(item=>item.id).join(',')}   (the take he heard is in the cache under its key, so it is the one installed)`);
+  if(compare.length){
+    console.log(`Then: node remake/tools/memory-voices.mjs --ab --only ${compare.map(item=>item.id).join(',')}`);
     console.log('      (the owner listens on the page) and node remake/tools/memory-voices.mjs --only <the lines whose new take he picks>');
   }
   return plan;
