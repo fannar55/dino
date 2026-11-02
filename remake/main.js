@@ -812,11 +812,13 @@ renderer.setAnimationLoop(now => {
   if (warmedPlace !== null) starInTheBlack(now);
   if (warmedPlace !== null && stage.started && ui.fadeLevel >= 0.999) warmDrawing();
   if (warmedPlace !== null && world.location !== warmedPlace) {
-    // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows.
+    // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows. A place
+    // cut to with no black (s.goTo with fade 0) is not drawn here, in view, where the draw would be a long frame: the chapter has
+    // drawn it under an earlier black (world.warmObjects; chapter 4's Árdalurinn under the white tree's).
     warmedPlace = world.location;
     music.lenient(PLACE_CHANGE);
     try {
-      warmPlace(chapter.locations?.[world.location]?.warmUp ?? []);
+      if (ui.fadeLevel >= 0.999) warmPlace(chapter.locations?.[world.location]?.warmUp ?? []);
     } catch (error) {
       console.error('[warm-up]', error);
     }

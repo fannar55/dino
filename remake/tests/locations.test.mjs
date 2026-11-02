@@ -183,6 +183,39 @@ test('goTo fades out, switches, fades in', async () => {
   assert.ok(back.every((v, i) => i === 0 || v <= back[i - 1]) && back.at(-1) === 0, 'fades back in to clear');
 });
 
+test('a place already built is switched to in the same call, with nothing in between', async () => {
+  const { a, b, world, locations } = twoPlaces();
+  await locations.setLocation('a');
+  await locations.prepare('b');
+  const switching = locations.setLocation('b'); // not awaited: the change is made as it is asked for
+  assert.equal(world.location, 'b');
+  assert.equal(world.forest, b);
+  assert.equal(b.group.visible, true);
+  assert.equal(a.group.visible, false);
+  assert.equal(world.heightAt(0, 0), 2);
+  await switching;
+});
+
+test('goTo with no fade changes place without a black frame, within the frame it is asked in', async () => {
+  const ui = fakeUi();
+  const { world, locations } = twoPlaces();
+  await locations.setLocation('a');
+  await locations.prepare('b');
+  const { s, scheduler } = createScene({ world, director: {}, ui, voice: {}, locations });
+  const seen = [];
+  scheduler.run((function* script() {
+    s.goTo('b', { fade: 0 });
+    yield s.until(() => world.location === 'b');
+    seen.push(scheduler.frame);
+  })());
+  const first = scheduler.frame;
+  await frames(scheduler, 3);
+  assert.deepEqual(seen, [first + 1], 'the place changed in the first frame, and the script heard it in that frame');
+  assert.deepEqual(ui.levels, [], 'the fade was never touched');
+  assert.equal(ui.fadeLevel, 0);
+  assert.equal(world.location, 'b');
+});
+
 test('goTo says so when the scene was given no locations', () => {
   const { s } = createScene({ world: {}, director: {}, ui: fakeUi(), voice: {} });
   assert.throws(() => s.goTo('b'), /locations/);

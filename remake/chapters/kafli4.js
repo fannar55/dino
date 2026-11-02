@@ -2,8 +2,8 @@
 // Þórseðla says goodbye at her pool and the map draws the way on across the Fen; Mosi, with Egill in the saddle, walks to the white
 // snag, where Flugeðla sits on the very top with her wings spread and cannot take off, for there is no wind. Egill makes the wind
 // (scene 3), she takes the invitation and the fourth star (4), takes Egill on her back (5) and flies him up the river and the falls
-// (6, chapters/kafli4-flight.js), and lands at the far pool (7). So far: scenes 1 to 3 (the plan's Tasks 12 and 13); the script ends
-// once the wind has lifted her off the top.
+// (6, chapters/kafli4-flight.js), and lands at the far pool (7). So far: scenes 1 to 6 (the plan's Tasks 12 to 14); the script ends
+// over the far pool, in black, as the flight's review does (chapters/flug.js), until scene 7 lands her there.
 //
 // Two places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Þórseðla 22 m, Flugeðla
 // 7.5 m from wingtip to wingtip, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The early afternoon sun
@@ -16,16 +16,25 @@
 //             own. Chapter 3's Fen grows its plants 100 m out from its middle and its grass 33 m out, and the snag stands 102 m out
 //             (where the lookout on Þórseðla's head sees it): on a bare plain at Mosi's height. This patch has the Fen's seed, so
 //             its plants are the Fen's own kinds and shapes, and the snag is the very same (deadSnag, variant 2, 1.5 times).
+//   ardalur   Árdalurinn, the flight's valley (world/ardalur), its snag at the origin. The picture cuts to it with no black, under
+//             the close-up of Egill on her back on the white tree (the flight's first shot), drawn once under the white tree's black.
 // Actors are global: each is where the chapter's script puts it.
 import { chapter as kafli3 } from './kafli3.js';
 import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
-import { perch } from './kafli4-flugedla.js';
+import { perch, holdHer, flyPath, watchHer } from './kafli4-flugedla.js';
 import { theWind } from './kafli4-wind.js';
 import { lineQueue } from './kafli4-flight-play.js';
+import { theFlight, TAKE_OFF_FACE } from './kafli4-flight.js';
+import { createRoute } from './kafli4-route.js';
+import { createArdalur } from '../world/ardalur/index.js';
+import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
+import { createFlightCamera } from '../engine/camera/flight-camera.js';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
-import { createSaddle, ride } from '../engine/riding.js';
+import { createSaddle, ride, floatTo, SIT_DEPTH } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
+
+const rad = degrees => (degrees * Math.PI) / 180;
 
 // ---------------------------------------------------------------------------------------------
 // The Fen, chapter 3's (kafli3.js): Þórseðla in her pool p1 facing east, Mosi on his dry hummock south-east of her head.
@@ -60,6 +69,8 @@ const SNAG_HEADING = 215; // she faces back the way Mosi comes, into the sun
 const MOSI_TREE = { position: [0, 0, 0], heading: 35 }; // where he stops, looking up at her
 const TREE_IN = [[-12, -8.4], [-6, -4.2], [MOSI_TREE.position[0], MOSI_TREE.position[2]]]; // his way in, from the south-west
 const TREE_START = { position: [-17.5, 0, -12.3], heading: 35 }; // where the picture comes up on him
+const BOARD = { position: [3.4, -4.4], heading: 35, fov: 38 }; // scene 5: where she sits low for Egill, at Mosi's left, facing as he
+// does; fov: the lens from tre_above's place that holds the two of them as Egill floats across
 
 const HVITATRE_LAYOUT = {
   seed: FEN.layout.seed, // the Fen's: its kinds of plants and their shapes, and its snag
@@ -120,6 +131,8 @@ const TREE_SHOTS = {
   // looking and blowing up at her, she on the top of the white trunk at the upper left, the sky behind her for the leaves to fly in.
   tre_wind: { position: [5.5, 2.4, -7.5], target: [5, 6.2, 3], fov: 58 },
 };
+// Scene 5 is set in tre_above: she comes down beside Mosi, below in its frame, Egill floats across onto her back, and she flies up
+// to the top, above in it (a shot of its own would make the planner deal the patch's plants again, and scenes 2 and 3 with them).
 // Who each of the chapter's new shots is for: they must be in the frame while the camera holds it (kafli4.test.mjs)
 export const SHOWS = {
   fen_farewell: ['mosi', 'egill', 'thorsedla'],
@@ -150,6 +163,13 @@ const WORDS = {
   k4_mosi_blow: 'Svona! Fúúú!',
   k4_flugedla_more: 'Meira! Ég finn hann!',
   k4_flugedla_now: 'Nú!',
+  // 4. The invitation taken, and the star
+  k4_flugedla_thanks: 'Takk! Ég kem á hátíðina og kalla á alla!',
+  k4_mosi_star: 'Fjórða stjarnan!',
+  // 5. On her back
+  k4_flugedla_comealong: 'Viltu koma með, Egill? Sestu á bakið á mér.',
+  k4_egill_yes: 'Já!',
+  k4_mosi_run: 'Fljúgið þið, ég hleyp!',
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -165,6 +185,9 @@ function* story(s, c) {
   yield* goodbyeAtThePool(s, c);
   yield* atTheWhiteTree(s, c);
   yield* makeTheWind(s, c);
+  yield* roundTheTree(s, c);
+  yield* onHerBack(s, c);
+  yield* upAndAway(s, c);
 }
 
 // 1. Goodbye at Þórseðla's pool: who is next, the map draws the way on across the Fen, her head comes down to them in goodbye (a tap
@@ -278,6 +301,207 @@ function* makeTheWind(s, c) {
   }
 }
 
+// 4. The invitation taken: off the top on the wind, she glides once round the white tree and sits on it again, and thanks them. The
+// fourth star rises from her and waits for the child's tap.
+function* roundTheTree(s, c) {
+  mark(c, 4);
+  const { mosi, egill, flugedla } = c;
+  s.after(0, () => windUp(s, c));
+  yield flugedla.lookAt(null);
+  c.perch.release();
+  c.held = holdHer(c);
+  // low behind Mosi's right the camera follows her round: Mosi and Egill in front of it, looking up after her, the sky round the tree
+  const [x, over, z] = CIRCLE.camera;
+  watchHer(c, 'tre_circle', { position: [x, c.world.heightAt(x, z) + over, z], fov: CIRCLE.fov, lag: 0.5, from: c.perch.top.toArray() });
+  yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
+  yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.9, maxAngle: 80, maxPitch: 55 });
+  yield* flyPath(s, c, c.held, { points: circlePoints(c), ...CIRCLE, face: SNAG_HEADING });
+  flugedla.raw.play('idle', { fade: 0.8 });
+  yield s.wait(0.4);
+  yield s.camera.cut('tre_her');
+  yield flugedla.lookAt(MOSI_HEAD, { weight: 0.8, maxAngle: 60, maxPitch: 50 });
+  yield* say(s, c, 'flugedla', 'k4_flugedla_thanks');
+  // the star rises from her, as in the chapters before (it waits in this shot for the child's tap, and flies into the book)
+  yield s.camera.cut('tre_above');
+  s.sfx('star');
+  const star = s.star('k4_flugedla', STAR_FROM);
+  yield s.wait(1.4);
+  yield* say(s, c, 'mosi', 'k4_mosi_star');
+  yield star;
+  s.sfx('journal');
+  yield s.wait(0.8);
+}
+
+// 5. On her back: she asks Egill along, comes down and sits low beside Mosi, and Egill floats from the saddle onto her back between
+// her wings, as onto the saddle in chapter 1 (engine/riding.js: floatTo). Mosi will run. She flies up to the top again with him.
+function* onHerBack(s, c) {
+  mark(c, 5);
+  const { mosi, egill, flugedla, world } = c;
+  yield s.camera.cut('tre_her');
+  yield flugedla.lookAt(EGILL_HEAD, { weight: 0.8, maxAngle: 60, maxPitch: 55 });
+  yield* say(s, c, 'flugedla', 'k4_flugedla_comealong');
+  yield s.camera.cut('tre_talk');
+  yield* say(s, c, 'egill', 'k4_egill_yes');
+  // down from the top, round over them, and onto the ground at Mosi's left
+  yield flugedla.lookAt(null);
+  const board = new world.THREE.Vector3(BOARD.position[0], 0, BOARD.position[1]);
+  board.y = world.heightAt(board.x, board.z);
+  // from above behind Mosi the camera follows her down, and comes back to the shot as she lands
+  watchHer(c, 'tre_down', { position: TREE_SHOTS.tre_above.position, fov: TREE_SHOTS.tre_above.fov });
+  yield* flyPath(s, c, c.held, { points: downPoints(c, board), ...DOWN, face: BOARD.heading });
+  flugedla.raw.play('idle', { fade: 0.8 });
+  // and closes in on her and Mosi side by side as she settles, her back seen from above (the pan and the lens within the rules)
+  const middle = [BOARD.position[0] / 2, world.heightAt(BOARD.position[0] / 2, BOARD.position[1] / 2) + 2.2, BOARD.position[1] / 2];
+  yield s.camera.move({ position: TREE_SHOTS.tre_above.position, target: middle, fov: BOARD.fov, label: 'tre_board' }, { duration: 3 });
+  // Egill floats across onto her back, and sits there as on a flier (engine/flier.js: rideFlier), her root the scenes' own
+  yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.7, maxAngle: 70, maxPitch: 40 });
+  yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 45 });
+  yield egill.lookAt(null);
+  s.sfx('float');
+  c.boarding = s.time; // from here he is on her, or on his way
+  yield floatTo(egill.raw, backSeat(c), { duration: FLOAT });
+  c.ridden = { actor: flugedla.raw, get root() { return c.flier?.root ?? c.held.root; } }; // the flight's root once it flies
+  c.riding = rideFlier(egill.raw, c.ridden, { settle: SETTLE }); // from upright under the seat onto her tipped back
+  yield flugedla.lookAt(null);
+  yield mosi.lookAt(EGILL_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 45 });
+  yield* say(s, c, 'mosi', 'k4_mosi_run');
+  // up to the top again with him, and round on it to face the way she will leap
+  watchHer(c, 'tre_up', { position: TREE_SHOTS.tre_above.position, fov: TREE_SHOTS.tre_above.fov, zoom: 2.5 });
+  yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.85, maxAngle: 70, maxPitch: 50 });
+  yield* flyPath(s, c, c.held, { points: upPoints(c, board), ...UP, face: c.leapHeading });
+  flugedla.raw.play('idle', { fade: 0.6 });
+  yield s.wait(0.5);
+}
+
+// 6. The flight: close in front of Egill on her back, the flight's own first shot (kafli4-flight.js, beat A) as she turns her head to
+// him, and under it the place changes to Árdalurinn with no black (s.goTo with fade 0: a place already built is changed to within
+// the frame, engine/locations.js). She sits on its snag as she sits here, facing the same way, so the shot goes on round them
+// unbroken and only what is behind them changes. Then the flight (kafli4-flight.js), to the far pool.
+function* upAndAway(s, c) {
+  const { world, mosi, egill, flugedla } = c;
+  const closeUp = createFlightCamera(world.director, perchedFlier(c), { world, egill: egill.raw, reduced: c.reduced });
+  closeUp.shot('face', TAKE_OFF_FACE);
+  yield flugedla.lookAt(EGILL_HEAD, { weight: 0.7, maxAngle: 70, maxPitch: 40 });
+  yield s.wait(1.6);
+  mark(c, 6);
+  void closeUp; // not stopped: the flight's camera takes the shot on as its own, one shot of 1.6 s here and 3 s there
+  s.goTo('ardalur', { fade: 0 });
+  yield s.until(() => world.location === 'ardalur');
+  // in the same frame: the flier takes her over on the valley's snag, and Egill rides on it as he did on her here
+  mosi.raw.stop();
+  const flier = (c.flier = createFlier(flugedla.raw, ROUTE, { world, reduced: c.reduced }));
+  flier.update(0);
+  const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced: c.reduced });
+  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, reduced: c.reduced, flight: null, doc: c.doc };
+  f.say = c.lines.say;
+  Object.defineProperty(f, 'speaking', { get: () => c.lines.speaking });
+  f.mark = scene => {
+    f.flight.beat = scene;
+    world.chapterTimeline.push({ scene, at: s.time });
+  };
+  c.flight = f;
+  s.after(LOOK_BACK, () => { flugedla.lookAt(null); return null; }); // her head forward again before she leaps (kafli4-route.js: LEAP)
+  yield* theFlight(s, f);
+  // over the far pool: in black until scene 7 lands her there
+  yield s.fade(1, 1);
+  c.riding.stop();
+  flier.stop();
+}
+const FLOAT = 2.6; // seconds Egill floats onto her back
+const SETTLE = 0.4; // seconds he then takes to settle into her seat, as his hands take to reach her neck
+const LOOK_BACK = 2.6; // seconds into the flight her head turns forward again from Egill (she leaps at 3.5)
+const STAR_FROM = { actor: 'flugedla', part: 'head', offset: [0, 0.8, 0] }; // the star rises from over her head
+
+// Her flights round the white tree, in metres over its top: the circle once round it (spec 4.4), down to Mosi's side and up again.
+// Each takes her from where she is to her feet's place at the end; the clips as she goes ([share of the time, clip, fade]).
+const CIRCLE = {
+  radius: 9.5, // wide of the tree: nothing tall within 9 m of it (kafli4.test.mjs)
+  above: 2.4, // the circle's height over the top
+  seconds: 13,
+  clips: [[0, 'glide', 0.8], [0.06, 'fly', 0.6], [0.3, 'glide', 0.8], [0.76, 'land', 0.5]],
+  turn: 0.22, // she turns to face Mosi again over the last of it, as she lands
+  camera: [-2, 1.6, -9], // where the camera stands to follow her (x, metres over the ground, z): clear sky round the tree from there
+  fov: 56,
+};
+const DOWN = { seconds: 7.5, clips: [[0, 'takeOff', 0.3], [0.32, 'glide', 0.8], [0.6, 'land', 0.5]], turn: 0.3 };
+const UP = { seconds: 8, clips: [[0, 'takeOff', 0.3], [0.3, 'fly', 0.6], [0.52, 'glide', 0.8], [0.62, 'land', 0.5]], turn: 0.3 };
+
+/**
+ * Once round the tree: out over Mosi the way she faces, round the tree counterclockwise (seen from above: from +X toward +Z) at
+ * CIRCLE.radius, a little over its top, and in again from the far side of where she left, on to the top (her feet on it).
+ */
+function circlePoints(c) {
+  const top = c.perch.top;
+  const from = c.held.root.position;
+  const round = (angle, radius, over) => [top.x + radius * Math.cos(rad(angle)), top.y + over, top.z + radius * Math.sin(rad(angle))];
+  const points = [from.toArray(), round(SNAG_HEADING, 3.5, 1.4)];
+  for (let angle = SNAG_HEADING + 40; angle <= SNAG_HEADING + 360; angle += 45) points.push(round(angle, CIRCLE.radius, CIRCLE.above + 0.5 * Math.sin(rad(angle - SNAG_HEADING))));
+  points.push(round(SNAG_HEADING + 385, 4.5, 1.2), top.toArray());
+  return points;
+}
+
+/** From the top out east, away from the camera behind Mosi, round south of them, and in onto the ground at Mosi's left, facing as he does. */
+function downPoints(c, board) {
+  const top = c.perch.top;
+  const ground = c.world.heightAt.bind(c.world);
+  const at = (x, z, over) => [x, ground(x, z) + over, z];
+  return [top.toArray(), at(14, 1, 8), at(12, -7, 5.5), at(5, -10.5, 3.2), at(0.2, -8.2, 1.6), board.toArray()];
+}
+
+/** From her place by Mosi up beside the tree and round onto its top from the south-east, along the way she will leap. */
+function upPoints(c, board) {
+  const top = c.perch.top;
+  const ground = c.world.heightAt.bind(c.world);
+  const at = (x, z, over) => [x, ground(x, z) + over, z];
+  const away = rad(c.leapHeading); // she comes onto the top along this heading
+  const before = (metres, over) => [top.x - metres * Math.cos(away), top.y + over, top.z - metres * Math.sin(away)];
+  return [board.toArray(), at(6.6, -3.0, 2.2), at(11.8, -2.6, 6.4), before(5.5, 1.6), top.toArray()];
+}
+
+/** Where Egill floats to on her back: the seat on her Spine bone (engine/flier.js: SEAT), his root as far under it as he sits. */
+function backSeat(c) {
+  const her = c.flugedla.raw;
+  const bone = her.model.getObjectByName(SEAT.bone);
+  const seat = new c.world.THREE.Vector3();
+  return {
+    host: her,
+    update() {
+      her.root.updateMatrixWorld(true);
+      bone.localToWorld(seat.set(...SEAT.local));
+      seat.y -= SIT_DEPTH;
+      return seat;
+    },
+  };
+}
+
+/** What the flight camera needs of a flier for the close-up on the white tree: her heading on it (Egill's head is the shot's origin). */
+function perchedFlier(c) {
+  return {
+    route: { waterAt: () => null },
+    heading: c.leapHeading,
+    bank: 0,
+    t: 0,
+    pose: { position: c.held.root.position },
+  };
+}
+
+/** The wind up, now that she flies on it: from the big gust back to the forest's own over 3 s, and the clouds slower. */
+function* windUp(s, c) {
+  const strength = c.world.wind?.uniforms?.uWindStrength;
+  const sky = c.world.sky;
+  const from = { wind: strength?.value ?? 1, clouds: sky?.cloudSpeed ?? 1 };
+  const start = s.time;
+  for (;;) {
+    const k = Math.min(1, (s.time - start) / WIND_UP.seconds);
+    const e = k * k * (3 - 2 * k);
+    if (strength) strength.value = from.wind + (1 - from.wind) * e;
+    sky?.setCloudSpeed?.(from.clouds + (WIND_UP.clouds - from.clouds) * e);
+    if (k >= 1) return;
+    yield;
+  }
+}
+const WIND_UP = { seconds: 3, clouds: 4 };
+
 /**
  * At the white tree, under the black: Þórseðla stays behind (her life holds, hidden), Mosi stands where the picture comes up on him
  * with Egill in the saddle, Flugeðla sits on the top of the snag, and there is no wind.
@@ -291,9 +515,37 @@ function arriveAtTheTree(s, c) {
   c.perch = perch(c, { near: SNAG, heading: SNAG_HEADING });
   if (world.wind) world.wind.uniforms.uWindStrength.value = CALM; // logn: the reed and the grass stand still
   s.camera.cut('tre_arrive'); // the picture comes up on them, not on the Fen's last view of this place
-  return null;
+  c.leapHeading = perchedHeading(ROUTE); // she sits on the top this way before the cut into the flight
+  return readyTheValley(s, c);
+}
+
+/**
+ * Árdalurinn, under the white tree's black: built (main.js began it as the start button showed), Grameðla's model made for its far
+ * land, and the whole of it drawn once, so the cut into it later, in view, is no long frame (main.js draws a place as it comes
+ * there only under a black).
+ */
+async function readyTheValley(s, c) {
+  const { world } = c;
+  const valley = await s.prepare('ardalur');
+  const far = valley.farLand ?? null;
+  if (far) {
+    far.prefetch();
+    if (s.seeking) far.load(); // a capture goes on at once and has her long before she is seen (chapters/flug.js)
+    else await far.load();
+  }
+  const parts = [valley.group, valley.waterfall?.group, far?.group, valley.animals?.group, far?.gramedla?.shadow];
+  world.warmObjects?.(parts.filter(Boolean));
+  return valley;
 }
 const CALM = 0.08; // the wind's strength at the white tree before Egill makes some (engine/wind.js: 1 is the forest's)
+const ROUTE = createRoute({ wingspan: 7.5 }); // the flight's way through Árdalurinn (kafli4-route.js), at her size
+
+/** Less motion: the page's ask (prefers-reduced-motion), ?reduced=1, or what a test's world says. */
+function reducedMotion(world) {
+  if (typeof world.reduced === 'boolean') return world.reduced;
+  const params = new URLSearchParams(globalThis.location?.search ?? '');
+  return params.get('reduced') === '1' || Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
 
 /**
  * Fade to another place, set it up while the screen is black, and fade in (as chapter 2 does). What the setting up returns, a
@@ -337,7 +589,9 @@ export const chapter = {
     // chapter 3's layout, planted for chapter 3's late morning sun: the planner keeps the sun's way into a clearing clear of big crowns,
     // and this chapter's sun stands elsewhere (world/forest/plan.js: plantedFor)
     fen: { layout: { ...FEN.layout, plantedFor: kafli3.look }, shots: { ...FEN.shots, ...FEN_SHOTS }, warmUp: FEN_WARM },
-    hvitatre: { layout: HVITATRE_LAYOUT, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind'] },
+    hvitatre: { layout: HVITATRE_LAYOUT, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind', 'tre_above'] },
+    // the flight's valley in its real look; its shots are the flight camera's (engine/camera/flight-camera.js)
+    ardalur: { build: world => createArdalur(world, { grey: false, route: ROUTE }), shots: {}, warmUp: [] },
   },
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', ...MOSI_FEN }, // on his hummock, Egill on his back: the script seats him in the saddle
@@ -355,8 +609,9 @@ export const chapter = {
   lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: chapter 3's last view of them, from the south across her pool.
   startShot: 'fen_star_rise',
-  // The white tree is built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js: prepare; main.js).
-  prepare: ['hvitatre'],
+  // The white tree and Árdalurinn are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js:
+  // prepare; main.js).
+  prepare: ['hvitatre', 'ardalur'],
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): the actors, Flugeðla among them, and one of the
@@ -364,6 +619,7 @@ export const chapter = {
    * own (the place's warmUp, main.js).
    */
   warmUp(world, { place = null } = {}) {
+    if (place === 'ardalur') return { objects: [], shots: [], dispose() {} }; // its own meshes (main.js), drawn under the tree's black too
     const objects = [...world.actors.values()].map(actor => actor.root);
     const leaf = leafWarm(world);
     objects.push(leaf.object);
@@ -381,6 +637,7 @@ export const chapter = {
     const world = mosi.raw.world;
     world.chapterTimeline = [];
     const c = { s, world, mosi, egill, thorsedla, flugedla, saying: 0, goodbyes: [], bye: null, lastSaid: null, point: new world.THREE.Vector3() };
+    c.reduced = reducedMotion(world); // the flight as a tablet that asks for less motion sees it (chapters/flug.js)
     c.say = (speaker, id, options) => say(s, c, speaker, id, options);
     c.lines = lineQueue(s); // the voices that come as the child plays, one at a time (the wind's help and cheers)
     c.sounds = createFlightSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null }); // the gusts

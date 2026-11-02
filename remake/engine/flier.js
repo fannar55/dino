@@ -85,17 +85,7 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
   const side = new V3();
   const q = new THREE.Quaternion();
 
-  // The heading (radians, from +X toward +Z) of the route seen from above `s` metres along it, from points a few metres either side.
-  function headingAt(s) {
-    for (let span = 3; span < 60; span *= 2) {
-      route.pointAt(clamp((s - span) / route.length, 0, 1), a);
-      route.pointAt(clamp((s + span) / route.length, 0, 1), b);
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
-      if (Math.hypot(dx, dz) > 0.5) return Math.atan2(dz, dx);
-    }
-    return state.heading;
-  }
+  const headingAt = s => headingAlong(route, s, state.heading, a, b);
   // The route's slope (radians, up positive) `s` metres along it.
   function slopeAt(s) {
     route.pointAt(clamp((s - 3) / route.length, 0, 1), a);
@@ -260,20 +250,43 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
   return api;
 }
 
+// The heading (radians, from +X toward +Z) of the route seen from above `s` metres along it, from points a few metres either side;
+// `fallback` where it goes straight up or down.
+function headingAlong(route, s, fallback = 0, a = new V3(), b = new V3()) {
+  for (let span = 3; span < 60; span *= 2) {
+    route.pointAt(clamp((s - span) / route.length, 0, 1), a);
+    route.pointAt(clamp((s + span) / route.length, 0, 1), b);
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    if (Math.hypot(dx, dz) > 0.5) return Math.atan2(dz, dx);
+  }
+  return fallback;
+}
+
+/**
+ * The way she faces on the snag before she leaps (degrees, 0 facing +X and 90 facing +Z), as the flier turns her there: so a scene
+ * before the flight can sit her that way (chapter 4 cuts into the flight under a close-up of Egill on her back, kafli4.js).
+ */
+export function perchedHeading(route) {
+  return deg(headingAlong(route, 6));
+}
+
 // The seat on her back -------------------------------------------------------------------------------
 // The top of her back between the wings, as the bake finds it in carry (pteranodon-source.json `seat`): on the Spine bone at `local`,
 // in metres in that bone's frame. Egill's root goes SIT_DEPTH under it (neck-ride.js sits him on her skin the same way), turned as
 // her back is: the bone's turn now against its turn in carry's first pose, where her back is level, on top of her root's turn. So he
 // banks and pitches with her, and sways with her back in the clips.
-const SEAT = { bone: 'Spine', local: [-0.056, 0.198, 0.009] };
+export const SEAT = { bone: 'Spine', local: [-0.056, 0.198, 0.009] };
 // His hands on her neck ahead of him: [ahead, up, across (his right)] in metres from his root, in the seat's frame.
 const HANDS = { left: [0.3, 0.5, -0.1], right: [0.3, 0.5, 0.1] };
 
 /**
  * Seat `rider` on the flier's back for the flight: he plays `sit`, and his root follows the seat each frame, turned with her back;
- * his hands go to her neck. Returns { stop(), seatLocal, frame(out) } (frame: her back's turn now); stop() gives him back where he is.
+ * his hands go to her neck. `settle`: seconds he takes to settle into the seat from where he is (riding.js floatTo leaves him
+ * upright under it, and her back is tipped); 0 puts him there at once. Returns { stop(), seatLocal, frame(out) } (frame: her back's
+ * turn now); stop() gives him back where he is.
  */
-export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = SEAT.local } = {}) {
+export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = SEAT.local, settle = 0 } = {}) {
   const host = flier.actor;
   const bone = host.model.getObjectByName(boneName);
   if (!bone) throw new Error(`${host.name} has no bone named "${boneName}"`);
@@ -290,6 +303,9 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
   const grips = { left: new V3(), right: new V3() };
   const hands = handsOn(rider, grips);
   let t = 0;
+  const fromTurn = rider.root.quaternion.clone();
+  const from = rider.root.position.clone();
+  let off = null;
 
   // Her back's turn and the seat in the world, with her root where the flier has put it this frame (whether or not she has updated
   // yet: the bone's place in her body is read from her last pose).
@@ -303,14 +319,17 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
     host.root.getWorldQuaternion(rootTurn);
     return out.copy(flier.root.quaternion).multiply(rootTurn.invert().multiply(boneTurn)).multiply(level);
   }
-  const place = (local, out) => out.set(local[0], local[1], local[2]).applyQuaternion(turn).add(rider.root.position);
+  const place = (local, out) => out.set(local[0], local[1], local[2]).applyQuaternion(rider.root.quaternion).add(rider.root.position);
   const controller = {
     drive(dt) {
       t += dt;
       hands.restore();
       frame(turn);
-      rider.root.quaternion.copy(turn);
+      const k = settle > 0 ? smooth(t / settle) : 1;
       rider.root.position.copy(seat).addScaledVector(Y.clone().applyQuaternion(turn), -SIT_DEPTH);
+      off ??= from.clone().sub(rider.root.position);
+      rider.root.position.addScaledVector(off, 1 - k);
+      rider.root.quaternion.slerpQuaternions(fromTurn, turn, k);
       place(HANDS.left, grips.left);
       place(HANDS.right, grips.right);
     },

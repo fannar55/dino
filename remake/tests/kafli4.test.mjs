@@ -18,8 +18,9 @@ import { playUnattended } from './chapter-harness.mjs';
 
 const { chapter } = kafli4;
 const V3 = THREE.Vector3;
+const deg = THREE.MathUtils.radToDeg;
 
-// The words of the first three scenes, as spec section 4 has them (the plan's WORDS; Mosi's "Svona! Fúúú!" is the plan's own).
+// The words of the first five scenes, as spec section 4 has them (the plan's WORDS; Mosi's "Svona! Fúúú!" is the plan's own).
 const SCENE_WORDS = {
   k4_mosi_next: 'Næst er það Flugeðla! Hún á heima uppi á hvíta trénu.',
   k4_egill_fly: 'Getur hún flogið?',
@@ -32,6 +33,11 @@ const SCENE_WORDS = {
   k4_mosi_blow: 'Svona! Fúúú!',
   k4_flugedla_more: 'Meira! Ég finn hann!',
   k4_flugedla_now: 'Nú!',
+  k4_flugedla_thanks: 'Takk! Ég kem á hátíðina og kalla á alla!',
+  k4_mosi_star: 'Fjórða stjarnan!',
+  k4_flugedla_comealong: 'Viltu koma með, Egill? Sestu á bakið á mér.',
+  k4_egill_yes: 'Já!',
+  k4_mosi_run: 'Fljúgið þið, ég hleyp!',
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -66,8 +72,9 @@ test('the chapter as data: the Fen first, then the white tree, in the early afte
   assert.ok(LOOKS[chapter.look], 'a look engine/looks.js has');
   assert.equal(chapter.theme, 'kafli2/theme.json', 'chapter 2\'s song until the owner\'s flight theme');
   assert.equal(chapter.start, 'fen');
-  assert.deepEqual(Object.keys(chapter.locations), ['fen', 'hvitatre']);
-  assert.deepEqual(chapter.prepare, ['hvitatre'], 'the white tree is built while the start button waits');
+  assert.deepEqual(Object.keys(chapter.locations), ['fen', 'hvitatre', 'ardalur']);
+  assert.deepEqual(chapter.prepare, ['hvitatre', 'ardalur'], 'the white tree and the valley are built while the start button waits');
+  assert.equal(typeof chapter.locations.ardalur.build, 'function', 'Árdalurinn is a place of its own make (world/ardalur)');
   assert.ok(chapter.locations.fen.shots[chapter.startShot], 'the start shot is in the Fen');
   assert.match(chapter.actors.flugedla.url, /\/pteranodon\.glb$/);
   assert.match(chapter.actors.thorsedla.url, /\/brontosaurus\.glb$/);
@@ -146,6 +153,7 @@ test('the white tree stands in a patch of fen of its own: the Fen\'s snag, its k
 
 test('every fixed shot keeps the camera rules over its ground', () => {
   for (const [name, place] of Object.entries(chapter.locations)) {
+    if (!place.layout) continue; // Árdalurinn: the flight camera's shots, linted as it flies (engine/camera/flight-camera.js)
     const ground = shapeGround({ chapter }, { ...place.layout, shots: place.shots }, place.layout.seed).terrain;
     for (const [label, shot] of Object.entries(place.shots)) {
       assert.ok(shot.fov >= LIMITS.lens[0] && shot.fov <= LIMITS.lens[1], `${label}: a ${shot.fov} degree lens`);
@@ -181,11 +189,12 @@ const SUBJECTS = {
  * The chapter played by nobody, or with a tap on Þórseðla (`tap`), or with a child's hands in the wind task (`hands`: 'up' strokes
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
-function playIt({ aspect = 1.6, tap = false, hands = null } = {}) {
-  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [] };
+function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = {}) {
+  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null };
+  let where = null;
   return playUnattended(kafli4, {
-    limit: 300, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null,
-    onFrame({ world, director, pointer, shot: label }) {
+    limit: 560, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
+    onFrame({ world, director, pointer, ui, shot: label }) {
       const c = world.chapterState;
       if (label && NEW_SHOTS.has(label) && director.mode === 'hold') { // held on the shot (a move or a follow from it frames others)
         seen.shots.set(label, (seen.shots.get(label) ?? 0) + 1);
@@ -212,6 +221,43 @@ function playIt({ aspect = 1.6, tap = false, hands = null } = {}) {
           seen.hands.push(world.clock.time);
         }
       }
+      const scene = world.chapterTimeline?.filter(mark => typeof mark.scene === 'number').at(-1)?.scene;
+      const her = world.actors.get('flugedla'), egill = world.actors.get('egill');
+      // scene 4: where she is round the snag
+      if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
+      // scene 5: how low she comes, and the black from it till two seconds into the flight
+      if (scene === 5 && world.location === 'hvitatre') {
+        const low = her.root.position.y - world.heightAt(her.root.position.x, her.root.position.z);
+        if (!seen.low || low < seen.low.over) seen.low = { over: low, t: world.clock.time, egill: egill.root.position.clone(), her: her.root.position.clone() };
+      }
+      const flying = c?.flight?.flight?.started ?? null;
+      if (scene >= 5 && (flying === null || world.clock.time - flying <= 2)) seen.fades.push({ t: world.clock.time, level: ui.fadeLevel, where: world.location });
+      // her body, and her head on it, frame to frame from scene 4 till four seconds into the flight: how far each turns in a frame
+      if (scene >= 4 && (flying === null || world.clock.time - flying <= 4)) {
+        const body = her.root.quaternion.clone();
+        const head = body.clone().invert().multiply(her.model.getObjectByName('Head').getWorldQuaternion(new THREE.Quaternion()));
+        // Egill while he floats onto her and rides her: where he is on her (in her root's frame), and his turn
+        const on = c?.boarding != null && egill.controlled ? { at: egill.root.position.clone().sub(her.root.position).applyQuaternion(body.clone().invert()), turn: egill.root.quaternion.clone() } : null;
+        const was = seen.posed;
+        if (was) {
+          seen.turns.push({
+            t: world.clock.time, scene, where: world.location, body: deg(was.body.angleTo(body)), head: deg(was.head.angleTo(head)),
+            move: on && was.on ? on.at.clone().sub(was.on.at) : null, egill: on && was.on ? deg(on.turn.angleTo(was.on.turn)) : 0,
+          });
+          // how much Egill's step on her changed from the frame before: a jump is a step unlike the ones round it, as fast as he floats
+          const [a, b] = seen.turns.slice(-2);
+          seen.turns.at(-1).seat = a !== b && a?.move && b.move ? b.move.distanceTo(a.move) : 0;
+        }
+        seen.posed = { body, head, on };
+      }
+      // the switch to Árdalurinn: Egill on her back as the place changes, and the camera where it was round his head
+      const round = () => ({ camera: world.camera.position.clone().sub(egill.headPosition(new V3())), fov: world.camera.fov, heading: her.heading });
+      if (where === 'hvitatre' && world.location === 'ardalur' && !seen.switched) {
+        const spine = her.model.getObjectByName('Spine').getWorldPosition(new V3());
+        seen.switched = { t: world.clock.time, controlled: egill.controlled, fromSeat: egill.root.position.distanceTo(spine), shot: director.mode, before: seen.lastRound, after: round() };
+      }
+      if (world.location === 'hvitatre' && scene >= 5) seen.lastRound = round();
+      where = world.location;
     },
   }).then(run => ({ ...run, watched: seen }));
 }
@@ -220,15 +266,19 @@ const playWide = () => (wide ??= playIt());
 const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
 const playTapped = () => (tapped ??= playIt({ tap: true }));
 
-test('scenes 1 to 3 play in order, from the Fen to the white tree, and end there', async () => {
+test('scenes 1 to 6 play in order, from the Fen to the white tree and up into the flight over Árdalurinn', async () => {
   const { task, stage, world } = await playWide();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3]);
-  assert.equal(world.location, 'hvitatre');
-  const [one, two, three] = world.chapterTimeline.map(mark => mark.at);
+  const scenes = world.chapterTimeline.filter(mark => typeof mark.scene === 'number');
+  assert.deepEqual(scenes.map(mark => mark.scene), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(world.chapterTimeline.filter(mark => typeof mark.scene === 'string').map(mark => mark.scene), ['A', 'B', 'C', 'D', 'E', 'F', 'G'], 'the flight\'s beats after scene 6');
+  assert.equal(world.location, 'ardalur');
+  const [one, two, three, four, five, six] = scenes.map(mark => mark.at);
   assert.ok(two - one >= 30 && two - one <= 70, `scene 1 takes ${(two - one).toFixed(1)} s (spec: about 45)`);
   assert.ok(three - two >= 20 && three - two <= 70, `scene 2 takes ${(three - two).toFixed(1)} s (spec: about 45)`);
+  assert.ok(five - four >= 18 && five - four <= 50, `scene 4 takes ${(five - four).toFixed(1)} s (spec: about 30)`);
+  assert.ok(six - five >= 18 && six - five <= 50, `scene 5 takes ${(six - five).toFixed(1)} s (spec: about 30)`);
 });
 
 test('every new Fen shot keeps the director quiet at 16:10 and upright, and shows whom it is for', async () => {
@@ -365,5 +415,84 @@ test('the wind\'s shot keeps the director quiet, shows them all and holds still 
     assert.ok(watched.shots.get('tre_wind') > 0, `tre_wind is used (${shape})`);
     assert.deepEqual(director.warnings, [], `the director at ${shape}`);
     assert.deepEqual(watched.out, [], `at ${shape}`);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scenes 4 and 5 (spec 4.4-4.5): she circles the tree and sits again, the fourth star, and she takes Egill on her back; then the flight,
+// into which the picture goes with no black: the place changes under the close-up of Egill as she turns to him.
+
+test('she circles the white tree once and sits on its top again, and thanks them', async () => {
+  const { world, seen, watched } = await playWide();
+  const centre = new V3(kafli4.SNAG[0], 0, kafli4.SNAG[1]);
+  let swept = 0, last = null;
+  for (const { at } of watched.circle) {
+    const angle = Math.atan2(at.z - centre.z, at.x - centre.x);
+    if (last !== null && Math.hypot(at.x - centre.x, at.z - centre.z) > 2) {
+      let d = angle - last;
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      swept += d;
+    }
+    last = angle;
+  }
+  assert.ok(Math.abs(swept) >= 1.8 * Math.PI, `once round the tree: ${(Math.abs(swept) * 180 / Math.PI).toFixed(0)} degrees`);
+  const far = Math.max(...watched.circle.map(({ at }) => Math.hypot(at.x - centre.x, at.z - centre.z)));
+  assert.ok(far >= 6 && far <= 16, `wide of the tree, not far off: ${far.toFixed(1)} m`);
+  const end = watched.circle.at(-1);
+  assert.ok(end.top && end.at.distanceTo(end.top) < 0.15, `back on the top: ${end.at.toArray().map(v => v.toFixed(2))}`);
+  const four = world.chapterTimeline.find(mark => mark.scene === 4).at;
+  assert.ok(seen.spokenAt.get('k4_flugedla_thanks') > four, 'then her thanks');
+});
+
+test('the fourth star rises from her and goes in the book once: playing again adds no second', async () => {
+  const { save, seen, world } = await playWide();
+  const stars = save.get().stars;
+  assert.equal(stars.filter(id => id === 'k4_flugedla').length, 1, `her star: ${stars}`);
+  const four = world.chapterTimeline.find(mark => mark.scene === 4).at, five = world.chapterTimeline.find(mark => mark.scene === 5).at;
+  assert.ok(seen.spokenAt.get('k4_mosi_star') > four && seen.spokenAt.get('k4_mosi_star') < five, 'Mosi: "Fjórða stjarnan!" in scene 4');
+  const again = await (playIt.again ??= playIt({ savedWith: s => ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla'].forEach(id => s.addStar(id)) }));
+  assert.equal(again.task.failed, false, String(again.task.error?.stack ?? again.task.error));
+  const after = again.save.get().stars;
+  assert.deepEqual([...after].sort(), ['k1_kambedla', 'k2_thorsedla', 'k2_uggedla', 'k4_flugedla'], `no second star: ${after}`);
+});
+
+test('she sits low by Mosi and Egill floats onto her back; Mosi will run', async () => {
+  const { world, seen, watched } = await playWide();
+  assert.ok(watched.low && watched.low.over < 0.6, `she comes down to the ground: ${watched.low?.over.toFixed(2)} m over it`);
+  const mosi = world.actors.get('mosi');
+  const five = world.chapterTimeline.find(mark => mark.scene === 5).at;
+  const said = seen.said.filter(line => line.at >= five).map(line => line.id);
+  for (const id of ['k4_flugedla_comealong', 'k4_egill_yes', 'k4_mosi_run']) assert.ok(said.includes(id), `${id} in scene 5: ${said}`);
+  assert.ok(said.indexOf('k4_flugedla_comealong') < said.indexOf('k4_egill_yes'), 'her asking, then his yes');
+  assert.ok(mosi, 'Mosi is there');
+});
+
+test('from the circle to the flight nothing turns or moves in a jump: not her body, her head on it, nor Egill on her, in any frame', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    assert.ok(watched.turns.length > 1500, `watched from scene 4 into the flight: ${watched.turns.length} frames`);
+    assert.ok(watched.turns.filter(f => f.seat > 0).length > 300, 'and Egill on her, from his float on');
+    const jumps = watched.turns.filter(f => f.body > 8 || f.head > 8 || f.seat > 0.08 || f.egill > 8);
+    const say = f => `${f.t.toFixed(2)} s, scene ${f.scene} in ${f.where}: her body ${f.body.toFixed(1)}, her head ${f.head.toFixed(1)} degrees; Egill's step changed ${f.seat.toFixed(3)} m, he turned ${f.egill.toFixed(1)} degrees`;
+    assert.deepEqual(jumps.map(say), [], `no jumps (${shape})`);
+  }
+});
+
+test('Egill is on her back before the place changes, and nothing goes black between the boarding and the flight', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched, task } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    const { switched, fades } = watched;
+    assert.ok(switched, `the place changed to Árdalurinn (${shape})`);
+    assert.equal(switched.controlled, true, 'Egill rides her as it changes');
+    assert.ok(switched.fromSeat < 1.6, `on her back, by her spine: ${switched.fromSeat.toFixed(2)} m`);
+    const { before, after } = switched;
+    assert.ok(before.camera.distanceTo(after.camera) < 0.1, `the camera stays round Egill's head across the cut: ${before.camera.toArray().map(v => v.toFixed(2))} then ${after.camera.toArray().map(v => v.toFixed(2))}`);
+    assert.ok(Math.abs(before.fov - after.fov) < 0.5, `and its lens: ${before.fov} then ${after.fov}`);
+    assert.ok(Math.abs(((before.heading - after.heading + 540) % 360) - 180) < 1, `she faces the same way: ${before.heading.toFixed(1)} then ${after.heading.toFixed(1)}`);
+    const dark = fades.filter(f => f.level > 0.01);
+    assert.deepEqual(dark.map(f => `${f.t.toFixed(2)} s ${f.level.toFixed(2)} in ${f.where}`), [], `no black from scene 5 to the flight (${shape})`);
+    assert.ok(fades.some(f => f.where === 'ardalur'), 'watched into the flight');
   }
 });

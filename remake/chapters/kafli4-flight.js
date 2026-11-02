@@ -47,6 +47,9 @@ export const FLIGHT_WORDS = {
 };
 
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
+// The first shot, close in front of Egill: perched, she holds her head high, so a little higher and wider than the flight's own close-up.
+// The full chapter holds it on the white tree before the cut into the flight (kafli4.js), so the two must be the one framing.
+export const TAKE_OFF_FACE = { raise: 0.45, fov: 52 };
 // The music (spec 8: the same theme louder through the flight, silent for the slow second, quieter as she glides down).
 export const MUSIC = { flight: 1.5, glide: 0.8 };
 export const SLOW = { at: 116.2, scale: 0.25, seconds: 1 }; // the crest of the falls: one second of the room's time at a quarter speed
@@ -173,7 +176,7 @@ function* beats(s, c) {
   // A. The take-off (0:00–0:15): close in front of Egill as she turns to him, then from below as she leaps and drops and her wings
   // snap open, and beside her as she climbs away.
   mark('A');
-  camera.shot('face', { raise: 0.45, fov: 52 }); // perched, she holds her head high: a little higher and wider
+  camera.shot('face', TAKE_OFF_FACE); // perched, she holds her head high: a little higher and wider
   s.fade(0, 0.8); // up out of the black the review chapter starts in (a capture too: it starts black)
   yield* at(0.8);
   say('flugedla', 'k4_flugedla_hold');

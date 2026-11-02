@@ -63,6 +63,15 @@ async function stage() {
 const headOf = mosi => mosi.model.getObjectByName('Head');
 const headQuat = mosi => headOf(mosi).getWorldQuaternion(new THREE.Quaternion());
 const angleDeg = (a, b) => THREE.MathUtils.radToDeg(a.angleTo(b));
+// How far the head turns in each of the two frames after `change`.
+function stepsAfter(actor, change) {
+  const a = headQuat(actor);
+  change();
+  actor.update(1 / 30);
+  const b = headQuat(actor);
+  actor.update(1 / 30);
+  return [angleDeg(a, b), angleDeg(b, headQuat(actor))];
+}
 
 // Follows the feet frame by frame from start(): the most a foot moved along the ground between two
 // frames in which it was down (within 1 mm of its bind-pose height), how often a foot lifted, and
@@ -112,6 +121,26 @@ test('frozen frames do not pile the head look up on itself', async () => {
   assert.ok(angleDeg(before, headQuat(mosi)) < 0.01, `head drifted ${angleDeg(before, headQuat(mosi)).toFixed(2)} degrees`);
 });
 
+test('a look whose target jumps with him to another place (a cut, chapter 4) holds, not swung back after where it was', async () => {
+  const { mosi } = await stage();
+  const target = [1.5, 1.6, 4]; // well to his right
+  mosi.lookAt(target, { weight: 0.7 });
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const before = headQuat(mosi);
+  // he and what he looks at are somewhere else at once, as when a scene changes place under the shot
+  mosi.place(mosi.root.position.x + 200, mosi.root.position.z - 150, mosi.heading);
+  target[0] += 200;
+  target[2] -= 150;
+  mosi.update(1 / 30);
+  assert.ok(angleDeg(before, headQuat(mosi)) < 1.5, `the head turned ${angleDeg(before, headQuat(mosi)).toFixed(1)} degrees at the cut`);
+  // and a target that moves in the ordinary way is still followed smoothly
+  target[2] -= 3;
+  mosi.update(1 / 30);
+  const step = angleDeg(before, headQuat(mosi));
+  for (let i = 0; i < 60; i++) mosi.update(1 / 30);
+  assert.ok(step < angleDeg(before, headQuat(mosi)) / 2, `a step of 3 m is turned to over time: ${step.toFixed(1)} degrees in the first frame`);
+});
+
 test('a target behind him turns the head sideways without tipping it', async () => {
   const { mosi } = await stage();
   const rest = new THREE.Vector3();
@@ -124,6 +153,44 @@ test('a target behind him turns the head sideways without tipping it', async () 
   const now = forwardAt();
   const pitchChange = Math.abs(THREE.MathUtils.radToDeg(Math.asin(now.y) - Math.asin(rest.y)));
   assert.ok(pitchChange < 32, `head tipped ${pitchChange.toFixed(1)} degrees`);
+});
+
+test('a target right behind him keeps the head on the side it turned to; it swaps only when the target is well round the other way', async () => {
+  const { mosi } = await stage();
+  const target = [-6, 1.9, 0.6]; // behind him, a little to his right
+  mosi.lookAt(target, { weight: 1, maxAngle: 70 });
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const turned = headQuat(mosi);
+  // the target slips across the line behind him (chapter 4: Egill on her back, the cut into the flight): the head stays put
+  target[2] = -0.6;
+  for (let i = 0; i < 60; i++) mosi.update(1 / 30);
+  assert.ok(angleDeg(turned, headQuat(mosi)) < 10, `the head swung ${angleDeg(turned, headQuat(mosi)).toFixed(1)} degrees to the other side`);
+  // well round to his left, the head goes over to that side
+  target[2] = -6;
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  assert.ok(angleDeg(turned, headQuat(mosi)) > 40, `the head stayed on his right: ${angleDeg(turned, headQuat(mosi)).toFixed(1)} degrees`);
+});
+
+test('letting go of a wide look eases the head back from where it is, with no step as the limits go back', async () => {
+  const { mosi } = await stage();
+  mosi.lookAt([-6, 1.9, 0.6], { weight: 0.8, maxAngle: 70, maxPitch: 45 }); // behind him: the head at its 70 degree limit
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const before = headQuat(mosi);
+  const [first, next] = stepsAfter(mosi, () => mosi.lookAt(null));
+  assert.ok(first < 8 && first < next * 1.5, `the head stepped ${first.toFixed(1)} degrees in the first frame, then ${next.toFixed(1)}`);
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  assert.ok(angleDeg(before, headQuat(mosi)) > 30, 'and it does go back');
+});
+
+test('a cap on his looks put on or taken off (a rider floating up, chapter 4) eases the head to it, with no step', async () => {
+  const { mosi } = await stage();
+  mosi.lookAt([-6, 1.9, 0.6], { weight: 0.8, maxAngle: 70, maxPitch: 45 }); // behind him: the head at its 70 degree limit
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  let [first, next] = stepsAfter(mosi, () => { mosi.lookYawLimit = 40; });
+  assert.ok(first < 8 && first < next * 1.5, `capped: the head stepped ${first.toFixed(1)} degrees in the first frame, then ${next.toFixed(1)}`);
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  [first, next] = stepsAfter(mosi, () => { mosi.lookYawLimit = Infinity; });
+  assert.ok(first < 8 && first < next * 1.5, `uncapped: the head stepped ${first.toFixed(1)} degrees in the first frame, then ${next.toFixed(1)}`);
 });
 
 test('turning during a walk ends the walk, and the turn finishes', async () => {

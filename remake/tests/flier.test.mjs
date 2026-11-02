@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { chapterWorld } from './chapter-harness.mjs';
 import { updateActors } from '../engine/actor.js';
-import { createFlier, rideFlier } from '../engine/flier.js';
+import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
 import { createRoute, BEATS, FASTER_LAST, LEAP } from '../chapters/kafli4-route.js';
 import { SIT_DEPTH } from '../engine/riding.js';
 
@@ -161,6 +161,31 @@ test('the rider banks with her and stays on the seat', () => {
   flier.stop();
 });
 
+test('taken on where a float left him (straight under the seat, upright), he settles into the seat with no jump', () => {
+  const flier = createFlier(flugedla, route, { world });
+  fly(flier, 0, 0.5); // perched, before the leap: her back is not level
+  const spine = flugedla.model.getObjectByName('Spine');
+  world.scene.updateMatrixWorld(true);
+  const seat = new THREE.Vector3(...SEAT.local).applyMatrix4(spine.matrixWorld);
+  egill.root.position.copy(seat).add(new THREE.Vector3(0, -SIT_DEPTH, 0));
+  const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(flugedla.root.quaternion);
+  egill.root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.atan2(ahead.z, ahead.x)); // facing her way, as riding.js floatTo leaves him
+  const was = { at: egill.root.position.clone(), turn: egill.root.quaternion.clone() };
+  const riding = rideFlier(egill, flier, { settle: 0.4 });
+  let first = null;
+  fly(flier, 0.5 + DT, 1.2, t => {
+    if (first === null && t > 0.5 + 1.5 * DT) first = { moved: egill.root.position.distanceTo(was.at), turned: deg(egill.root.quaternion.angleTo(was.turn)) };
+  });
+  assert.ok(first.moved < 0.04 && first.turned < 3, `in the first frame he moved ${first.moved.toFixed(3)} m and turned ${first.turned.toFixed(1)} degrees`);
+  world.scene.updateMatrixWorld(true);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(egill.root.quaternion);
+  const bottom = egill.root.position.clone().addScaledVector(up, SIT_DEPTH);
+  const now = new THREE.Vector3(...SEAT.local).applyMatrix4(spine.matrixWorld);
+  assert.ok(bottom.distanceTo(now) < 0.05, `and then he sits ${bottom.distanceTo(now).toFixed(3)} m from the seat`);
+  riding.stop();
+  flier.stop();
+});
+
 test('an actor spec scale scales the model inside the root, which stays in metres', async () => {
   const bigWorld = await chapterWorld({ look: 'lateMorning', actors: { flugedla: { url: '../assets/characters/pteranodon.glb', scale: 4 / 3 } } });
   const big = bigWorld.actors.get('flugedla');
@@ -179,4 +204,14 @@ test('an actor spec scale scales the model inside the root, which stays in metre
   assert.ok(Math.abs(big.root.position.y - route.tree[1]) < 0.01, 'her feet on the snag top at the larger size too');
   flier.stop();
   big.dispose();
+});
+
+test('perchedHeading says which way she faces on the snag before the leap, as the flier turns her there', () => {
+  const flier = createFlier(flugedla, route, { world });
+  flier.update(0);
+  assert.ok(Math.abs(perchedHeading(route) - flier.heading) < 1e-9, `${perchedHeading(route)} against ${flier.heading}`);
+  flier.update(1);
+  assert.ok(Math.abs(perchedHeading(route) - flier.heading) < 1e-9, 'and still before the leap');
+  flier.stop();
+  assert.equal(SEAT.bone, 'Spine', 'the seat on her back is told, for a float onto it (chapter 4, scene 5)');
 });

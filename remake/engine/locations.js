@@ -19,7 +19,9 @@
 // is real async work (a build), so setLocation returns a promise; call it one switch at a time, as
 // a script does with s.goTo. prepare(name, options) builds a place ahead of time and keeps it hidden (main.js does it for
 // chapter.prepare once the start button shows, a slice at a time: `options` go to the build), so the change to it later is only
-// the fades; a change to a place still being built waits for that build.
+// the fades; a change to a place still being built waits for that build. A change to a place already built is made in the call
+// itself, before it returns, so a script can cut to it with no black in between (s.goTo with fade 0: chapter 4's cut into Árdalurinn
+// under the close-up of Egill).
 //
 // A place that is not a forest gives its own builder instead of a layout: `{ build: (world, options) => place, shots }` (chapter 4's
 // Árdalurinn, world/ardalur/index.js). The place stands where a forest would: it has a `group`, `heightAt(x, z)` and, if it moves or
@@ -55,6 +57,7 @@ export function startOf(chapter) {
 export function createLocations({ world, locations, build }) {
   const names = Object.keys(locations);
   const forests = new Map(); // location name -> promise of its forest, so a build is never started twice
+  const built = new Map(); // location name -> its forest, once built
   let current = null; // the name in view
   let shown = null; // the forest in view
 
@@ -63,9 +66,19 @@ export function createLocations({ world, locations, build }) {
       const { layout, shots = {}, build: own } = locations[name];
       const building = Promise.resolve(own ? own(world, options) : build({ ...layout, shots }, options));
       forests.set(name, building);
-      building.catch(() => forests.delete(name)); // a failed build may be tried again
+      building.then(forest => built.set(name, forest), () => forests.delete(name)); // a failed build may be tried again
     }
     return forests.get(name);
+  }
+
+  function show(name, forest) {
+    if (shown && shown !== forest) shown.group.visible = false;
+    forest.group.visible = true;
+    shown = forest;
+    current = name;
+    world.forest = forest;
+    world.heightAt = (x, z) => forest.heightAt(x, z);
+    world.location = name;
   }
 
   return {
@@ -81,6 +94,7 @@ export function createLocations({ world, locations, build }) {
     async setLocation(name) {
       if (!names.includes(name)) throw new Error(`No location named "${name}" (the chapter has ${names.join(', ')})`);
       const old = shown;
+      if (built.has(name)) return show(name, built.get(name)); // built: changed now, with no wait
       if (old) old.group.visible = false; // out of the picture while the next one builds
       let forest;
       try {
@@ -89,12 +103,7 @@ export function createLocations({ world, locations, build }) {
         if (old) old.group.visible = true; // a failed build leaves the old location in view
         throw error;
       }
-      forest.group.visible = true;
-      shown = forest;
-      current = name;
-      world.forest = forest;
-      world.heightAt = (x, z) => forest.heightAt(x, z);
-      world.location = name;
+      show(name, forest);
     },
   };
 }

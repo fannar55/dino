@@ -1,6 +1,6 @@
 // Flugeðla's life at the white snag (chapter 4, spec 4 and 9): on its very top with her wings spread and still, for there is no wind
-// (scene 2); her wings stir in each gust Egill makes and she lifts off the top on the big one (scene 3). The circle round the tree
-// and her sitting low for Egill come with the scenes that use them (scenes 4 and 5).
+// (scene 2); her wings stir in each gust Egill makes and she lifts off the top on the big one (scene 3); then she flies, round the
+// tree, down beside Mosi and up again with Egill on her back (scenes 4 and 5), held by a root of the scenes' own.
 //
 //   const perched = perch(c, { near: SNAG, heading });   // c: the chapter's state (c.world, c.flugedla); near: the snag's [x, z]
 //   perched.top           where her feet are: the top of the snag
@@ -8,15 +8,25 @@
 //   perched.stir(amount)  a gust in her wings: they lift and settle, swinging, over a second and a half (1 a gust's, 2 the big one's)
 //   perched.lift(m, s)    she rises `m` metres off the top over `s` seconds, the wind under her wings (and 0 brings her down again)
 //   perched.lifted        how far off the top she is now
-//   perched.release()     gives her back to her clips (the flight, or a scene that moves her)
+//   perched.release()     gives her back to her clips, in the pose she has (her wings spread, as the clip 'spread' holds them)
+//
+//   const held = holdHer(c);                 // her root from now on: where she is, held there till a path moves it
+//   yield* flyPath(s, c, held, { points, seconds, clips, face });   // she flies `points` (where her feet would be), banking
+//   watchHer(c, label, { position });        // a camera that stands and turns to follow her (the director's drive)
 //
 // Her pose is the model's own (pteranodon-source.json: Tripo's, baked as the bind pose): standing upright on her two feet with both
 // wings spread to the sides. No clip holds it (idle folds the wings), so the perch puts the skeleton back in it after the clips every
 // frame; her look and her mouth go on over it, so she turns her head to whoever speaks and speaks her lines.
 import * as THREE from 'three';
+import { BODY_HEIGHT } from './kafli4-route.js';
 
-const UP = new THREE.Vector3(0, 1, 0);
+const V3 = THREE.Vector3;
+const UP = new V3(0, 1, 0);
+const X = new V3(1, 0, 0);
+const Z = new V3(0, 0, 1);
 const rad = THREE.MathUtils.degToRad;
+const deg = THREE.MathUtils.radToDeg;
+const clamp = THREE.MathUtils.clamp;
 
 // A gust in her wings: each wing turns up about its shoulder by a swing that dies away (degrees at amount 1, swings a second, seconds)
 export const STIR = { degrees: 7, rate: 2.2, fade: 0.55, last: 1.6 };
@@ -55,6 +65,7 @@ export function perch(c, { near, heading }) {
   her.root.updateMatrixWorld(true);
   for (const skeleton of skeletons) skeleton.pose();
   her.root.updateMatrixWorld(true);
+  if (!her.clips.has('spread')) her.clips.set('spread', spreadClip(skeletons));
   const axes = shoulders.map((shoulder, i) => {
     const from = shoulder.getWorldPosition(new THREE.Vector3());
     const out = tipBones[i].getWorldPosition(new THREE.Vector3()).sub(from);
@@ -105,7 +116,165 @@ export function perch(c, { near, heading }) {
     },
     get lifted() { return rise.now; },
     release() {
+      her.play('spread', { fade: 0 }); // the clips take her on from the pose she has, wings spread
       her.control(null);
     },
   };
 }
+
+/** Her own pose, the bind pose, as a clip that holds it: so a clip after the perch fades in from her spread wings, not from idle's. */
+function spreadClip(skeletons) {
+  const tracks = [];
+  for (const skeleton of skeletons) {
+    for (const bone of skeleton.bones) {
+      if (tracks.some(track => track.name === `${bone.name}.quaternion`)) continue;
+      tracks.push(new THREE.QuaternionKeyframeTrack(`${bone.name}.quaternion`, [0], bone.quaternion.toArray()));
+      tracks.push(new THREE.VectorKeyframeTrack(`${bone.name}.position`, [0], bone.position.toArray()));
+    }
+  }
+  return new THREE.AnimationClip('spread', 1, tracks);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Off the top: the root the scenes hold her by, a flight along a path, and a camera that follows her.
+
+// Her hips over her root in the fly and glide clips (engine/flier.js): a path is flown by her body, and her root hangs under it.
+const HIPS = new V3(0.06, BODY_HEIGHT, 0);
+
+/** How she flies a path: banked into its turns as the flier banks her (engine/flier.js: FLIGHT), and tipped with its climbs. */
+export const FLY = {
+  bank: 30, // degrees at most
+  pitch: 22, // degrees up or down at most
+  pitchShare: 0.6, // of the path's own slope
+  edge: 0.18, // of the way at each end over which the bank and the pitch come and go (she starts and ends level)
+  g: 9.81,
+};
+
+/**
+ * Her root from now on, held where the scenes put it: the circle, the glide down, her sitting by Mosi and the flight back up all
+ * move this one root, which her controller copies each frame (her clips play on). It is a flier's root as engine/flier.js has
+ * one, so Egill rides on it: rideFlier(egill, { actor: her, root: held.root }).
+ */
+export function holdHer(c) {
+  const her = c.flugedla.raw;
+  const root = { position: her.root.position.clone(), quaternion: her.root.quaternion.clone() };
+  her.control(() => {
+    her.root.position.copy(root.position);
+    her.root.quaternion.copy(root.quaternion);
+  });
+  return {
+    root,
+    /** Her feet at `position`, level, facing `heading` (degrees). */
+    place(position, heading) {
+      root.position.copy(position);
+      root.quaternion.setFromAxisAngle(UP, -rad(heading));
+    },
+    /** Which way she faces (degrees). */
+    get heading() {
+      const ahead = X.clone().applyQuaternion(root.quaternion);
+      return deg(Math.atan2(ahead.z, ahead.x));
+    },
+  };
+}
+
+/**
+ * She flies along `points` ([x, y, z]: where her feet would be, were she level; the first is where they are now) in `seconds`,
+ * easing off and easing in at the end, facing along the way, banked into its turns and tipped with its climbs, and turned to `face`
+ * (degrees) over the last `turn` of the way when it is given (she lands and turns on the spot). She sets off facing the way she
+ * faced, and turns to the way over its first `turnIn`. `clips`: [share of the time, clip, fade] as she goes (glide, fly, takeOff,
+ * land). A generator: yield* it. Each frame's place is in c.flying while she flies.
+ */
+export function* flyPath(s, c, held, { points, seconds, clips = [], face = null, turn = 0.2, turnIn = 0.2 }) {
+  const her = c.flugedla.raw;
+  const curve = new THREE.CatmullRomCurve3(points.map(p => new V3(...p)), false, 'centripetal');
+  const length = curve.getLength();
+  const step = 1.5 / length; // of the way: 1.5 m
+  const at = new V3(), a = new V3(), b = new V3(), body = new V3();
+  const q = new THREE.Quaternion(), r = new THREE.Quaternion();
+  const along = k => {
+    curve.getPointAt(clamp(k - step, 0, 1), a);
+    curve.getPointAt(clamp(k + step, 0, 1), b);
+    return Math.atan2(b.z - a.z, b.x - a.x);
+  };
+  const begun = new Set();
+  const start = s.time;
+  const facing = rad(held.heading); // the way she faces as she sets off
+  // The turns at the start and the end, each kept on its side as the way's own heading goes round (the circle's does), or the
+  // shorter way round would change sides partway and turn her in a jump.
+  const near = (x, to) => x + 2 * Math.PI * Math.round((to - x) / (2 * Math.PI));
+  let turnFrom = null, turnTo = null;
+  const flying = (c.flying = { k: 0, heading: 0, bank: 0, pitch: 0, speed: 0 });
+  try {
+    for (;;) {
+      const u = Math.min(1, (s.time - start) / seconds);
+      clips.forEach(([share, name, fade = 0.6], i) => {
+        if (u >= share && !begun.has(i)) {
+          begun.add(i);
+          her.play(name, { fade });
+        }
+      });
+      const k = u * u * (3 - 2 * u);
+      const speed = (length * 6 * u * (1 - u)) / seconds; // m/s along the way
+      // a turn's bank (as the flier's: the turn's rate at this speed against gravity) and a climb's pitch, both easing in and out
+      const rate = wrap(along(k + step) - along(k - step)) / (2 * step * length); // radians a metre
+      let heading = along(k);
+      const climb = Math.atan2(b.y - a.y, Math.hypot(b.x - a.x, b.z - a.z));
+      const edge = smooth(Math.min(u, 1 - u) / FLY.edge);
+      const bank = clamp(deg(Math.atan((speed * speed * rate) / FLY.g)), -FLY.bank, FLY.bank) * edge;
+      const pitch = clamp(deg(climb) * FLY.pitchShare, -FLY.pitch, FLY.pitch) * edge;
+      if (turnIn > 0 && u < turnIn) {
+        turnFrom = near(wrap(heading - facing), turnFrom ?? wrap(heading - facing));
+        heading = facing + turnFrom * smooth(u / turnIn);
+      }
+      if (face !== null && u > 1 - turn) {
+        turnTo = near(wrap(rad(face) - heading), turnTo ?? wrap(rad(face) - heading));
+        heading += turnTo * smooth((u - (1 - turn)) / turn);
+      }
+      heading = wrap(heading);
+      curve.getPointAt(k, at);
+      q.setFromAxisAngle(UP, -heading).multiply(r.setFromAxisAngle(Z, rad(pitch))).multiply(r.setFromAxisAngle(X, rad(bank)));
+      body.copy(HIPS).applyQuaternion(r.setFromAxisAngle(UP, -heading)).add(at); // her body over the point, as it is when she is level
+      held.root.quaternion.copy(q);
+      held.root.position.copy(HIPS).applyQuaternion(q).negate().add(body); // her root under it, turned with her
+      Object.assign(flying, { k, heading: deg(heading), bank, pitch, speed });
+      if (u >= 1) break;
+      yield;
+    }
+  } finally {
+    if (c.flying === flying) c.flying = null;
+  }
+}
+
+/**
+ * A camera that stands at `position` and turns to follow her body (a little behind it, `lag` seconds, as a hand on a tripod would),
+ * from where the camera looked (or `from`): for her flights, whose way no still shot holds. Its lens goes to `fov` over `zoom`
+ * seconds from the one it has. The director's drive; returns its handle.
+ */
+export function watchHer(c, label, { position, fov = 50, lag = 0.45, from = null, zoom = 0 }) {
+  const her = c.flugedla.raw;
+  const at = new V3(...position);
+  const goal = new V3();
+  const aim = new V3();
+  let started = false;
+  let lens = null; // { from, age }
+  return c.world.director.drive(label, (rig, dt) => {
+    goal.copy(HIPS).applyQuaternion(her.root.quaternion).add(her.root.position);
+    if (!started) {
+      started = true;
+      aim.copy(from ? new V3(...from) : rig.target);
+      lens = { from: rig.fov, age: 0 };
+    }
+    aim.lerp(goal, 1 - Math.exp(-dt / lag));
+    lens.age += dt;
+    rig.position.copy(at);
+    rig.target.copy(aim);
+    rig.fov = zoom > 0 ? lens.from + (fov - lens.from) * smooth(lens.age / zoom) : fov;
+    if ('roll' in rig) rig.roll = 0;
+  });
+}
+
+const wrap = x => Math.atan2(Math.sin(x), Math.cos(x));
+const smooth = x => {
+  const k = clamp(x, 0, 1);
+  return k * k * (3 - 2 * k);
+};

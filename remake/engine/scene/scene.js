@@ -114,13 +114,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   // Fade to black, change location, fade back in. The change is real work (a location's forest is
   // built the first time, or its build, begun earlier, finished), so it is a promise: a seek waits for it through the scheduler's
   // pending count. `hold()`, when given, is asked once the place is there: what it returns (a promise) is waited for under the
-  // black too, before the fade back in (a chapter's models that must be made before the place shows).
+  // black too, before the fade back in (a chapter's models that must be made before the place shows). A `fade` of 0 is a cut: no
+  // black at all, and a place already built is in view within the frame it is asked for (engine/locations.js).
   function* goToTask(name, fade, hold) {
-    yield fadeTask(1, fade);
+    if (fade > 0) yield fadeTask(1, fade);
     yield locations.setLocation(name);
     const wait = hold?.();
     if (wait) yield wait;
-    yield fadeTask(0, fade);
+    if (fade > 0) yield fadeTask(0, fade);
   }
 
   function goTo(name, { fade = 1.2, hold = null } = {}) {
@@ -465,7 +466,10 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     say: (speaker, line, options) => start(sayTask(speaker, line, options)),
     choose: (options, settings) => start(chooseTask(options, settings)),
     fade: (to, duration) => start(fadeTask(to, duration)),
-    /** Go to another of the chapter's locations: fade to black, switch, fade back in (`fade` s each way, 1.2 by default). */
+    /**
+     * Go to another of the chapter's locations: fade to black, switch, fade back in (`fade` s each way, 1.2 by default; 0 cuts to it
+     * with no black).
+     */
     goTo,
     /**
      * A place the scene goes to later, built now and kept hidden (or its build, begun already, finished: main.js builds the
