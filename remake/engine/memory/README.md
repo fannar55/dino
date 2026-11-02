@@ -162,6 +162,12 @@ recipe for each hard word) the way the other games' lines do: `memory-voices.mjs
 must be added to its word's forms first (the tool stops on it), and a take the owner picked by ear carries `kept` in
 `voice-lines.js`. A scribe check that hears the words is weak proof: the owner listens.
 
+The repo's voice rules (`CLAUDE.md`) hold here too: a line with its own `say` or `context` names what it fixes in `fixes`;
+the owner's yes/no verdicts are imported with `node remake/tools/heard.mjs jano-minnisspil.json --made <page>/voices-made.json`
+(set `minnisspil`), and the tool refuses a request he rejected before it asks or installs anything. For a line he rejected,
+`--try <candidates.json>` makes 3-4 candidates (a context, IPA, a respelling, another seed) into `qa/memory/tal2/`, with the
+record the page's save is imported with; `janoPage` in the tool is that yes/no page.
+
 The unit checks use the bundled Three.js through the test setup; no install is
 needed. `memory-playthrough.mjs` plays a whole round the way a child does (its header lists the
 modes and flags). The earlier Playwright checks of the old flow (`memory-check.mjs`, `memory-render-check.mjs`,
