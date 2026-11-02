@@ -208,5 +208,20 @@
     "src": "assets/audio/memory/g2_climb.mp3",
     "duration": 3.13,
     "mouth": "05efa600dc52cfecfee800b90000000000000eee9b9dfefd25b900000000000"
+  },
+  "g2_bridge": {
+    "src": "assets/audio/memory/g2_bridge.mp3",
+    "duration": 3.21,
+    "mouth": "7efddceeffc587efedb8000000000006fea777eebceea0ad69cba500000000000"
+  },
+  "g2_pull_ready": {
+    "src": "assets/audio/memory/g2_pull_ready.mp3",
+    "duration": 2.57,
+    "mouth": "06efeded200fe0053008feeeeed93efdeef908d7000000000000"
+  },
+  "g2_pull": {
+    "src": "assets/audio/memory/g2_pull.mp3",
+    "duration": 2.73,
+    "mouth": "7ff9000000000000000efdc730000000000069fff8aa70000000000"
   }
 }

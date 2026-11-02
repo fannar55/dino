@@ -68,4 +68,9 @@ export const VOICE_LINES = Object.freeze({
   // (plain, scribe heard "Fluggeðlurnar", and with other seeds "Flugvellurnar" and "Fluggæslurnar", and IPA made it "Flugvellirnar": the sentence about her that the pronunciation book's Flugeðla recipe sends first, not spoken, brought it to "Flugeðlurnar")
   g2_flown: { text: 'Flugeðlurnar fljúga upp!', seed: 42 },
   g2_climb: { text: 'Haldið í reipið. Upp með ykkur!', seed: 251436 },
+  // Level 2's last step (Task 6): everyone to the second rope (said when the group is on the clifftop and the trunk waits for the tap), the count of the pull (said at the
+  // child's moment, with the push's recipe: Einn by the counting context, seed 7), and the bridge (said as the walk over it starts).
+  g2_pull_ready: { text: 'Togum öll saman í reipið!', seed: 251440 },
+  g2_pull: { text: 'Einn, tveir, TOGA!', context: COUNTING, seed: 7, fixes: 'einn' },
+  g2_bridge: { text: 'Brúin er komin. Á Sólarsylluna!', seed: 251441 },
 });

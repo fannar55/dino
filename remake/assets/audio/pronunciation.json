@@ -2382,6 +2382,19 @@
         }
       },
       "chosen": "hratt"
+    },
+    "toga": {
+      "word": "TOGA",
+      "stem": "TOGA$",
+      "forms": [
+        "TOGA"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað („Einn, tveir, TOGA!“ í Hvar er vinur minn?, g2_pull, verk 6). Óheyrt."
+        }
+      },
+      "chosen": null
     }
   }
 }
