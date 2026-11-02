@@ -520,9 +520,9 @@ function arriveAtTheTree(s, c) {
 }
 
 /**
- * Árdalurinn, under the white tree's black: built (main.js began it as the start button showed), Grameðla's model made for its far
- * land, and the whole of it drawn once, so the cut into it later, in view, is no long frame (main.js draws a place as it comes
- * there only under a black).
+ * Árdalurinn, under the white tree's black: built, Grameðla's model made for its far land, and the whole of it drawn once, so the cut
+ * into it later, in view, is no long frame (main.js draws a place as it comes there only under a black). In play all of that is done
+ * before the start button shows (readyFirst) and this is quick; a capture or ?play=1 has no button, and it is done here.
  */
 async function readyTheValley(s, c) {
   const { world } = c;
@@ -590,8 +590,16 @@ export const chapter = {
     // and this chapter's sun stands elsewhere (world/forest/plan.js: plantedFor)
     fen: { layout: { ...FEN.layout, plantedFor: kafli3.look }, shots: { ...FEN.shots, ...FEN_SHOTS }, warmUp: FEN_WARM },
     hvitatre: { layout: HVITATRE_LAYOUT, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind', 'tre_above'] },
-    // the flight's valley in its real look; its shots are the flight camera's (engine/camera/flight-camera.js)
-    ardalur: { build: world => createArdalur(world, { grey: false, route: ROUTE }), shots: {}, warmUp: [] },
+    // the flight's valley in its real look; its shots are the flight camera's (engine/camera/flight-camera.js). Readied before the
+    // start button shows (readyFirst, below): its far land's models loaded, so that they are drawn then too. Its other sections
+    // are still built a slice a frame as she flies (all of them here would double the wait for the start button).
+    ardalur: {
+      build: world => createArdalur(world, { grey: false, route: ROUTE }), shots: {}, warmUp: [],
+      async ready(world, valley) {
+        valley.farLand?.prefetch();
+        await valley.farLand?.load();
+      },
+    },
   },
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', ...MOSI_FEN }, // on his hummock, Egill on his back: the script seats him in the saddle
@@ -609,9 +617,11 @@ export const chapter = {
   lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: chapter 3's last view of them, from the south across her pool.
   startShot: 'fen_star_rise',
-  // The white tree and Árdalurinn are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js:
-  // prepare; main.js).
-  prepare: ['hvitatre', 'ardalur'],
+  // The white tree is built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js: prepare; main.js).
+  prepare: ['hvitatre'],
+  // Árdalurinn is built and drawn before the button shows (main.js getReady): the scene cuts to it in view, with no black to hide its
+  // first draw, and a quick tap would leave its build and its shaders (some 2-4 s on the laptop) to the white tree's black.
+  readyFirst: ['ardalur'],
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): the actors, Flugeðla among them, and one of the

@@ -143,7 +143,12 @@ test('main.js draws the chapter once before the start button shows, builds its l
   const ready = main.slice(main.indexOf('async function getReady()'), main.indexOf('const describeWarm'));
   assert.match(ready, /await characterLodsReady\(\);/);
   assert.match(ready, /chapter\.warmUp\?\.\(world, \{ place: world\.location \}\)/, 'drawn for the start place: what it shows');
-  assert.doesNotMatch(ready, /locations\.prepare|chapter\.prepare/, 'the start button does not wait for the later places');
+  // the start button waits only for the places the chapter names in readyFirst (cut to later with no black: chapter 4's Árdalurinn),
+  // each built a slice at a time, made ready and drawn in parts; a place that fails is said once and left to the scene
+  assert.doesNotMatch(ready, /chapter\.prepare/, 'the start button does not wait for the later places');
+  assert.match(ready, /for \(const name of locations \? chapter\.readyFirst \?\? \[\] : \[\]\) \{/);
+  assert.match(ready, /forest = await locations\.prepare\(name, \{ sliced: true \}\);\s*await chapter\.locations\[name\]\.ready\?\.\(world, forest\);\s*\} catch \(error\) \{[\s\S]*?console\.warn\([\s\S]*?continue;/);
+  assert.match(ready, /warmed\.push\(Object\.assign\(entry, await warmPrepared\(name, forest\)\)\);[\s\S]*world\.warmUps = warmed;/);
   assert.match(ready, /ui\.tray\.prepare\(warm\.tray\);/);
   // once the button shows: the later places built a slice at a time, each drawn while the button still waits, then the chapter's later
   // things (kafli2's far friends), made only while it still waits

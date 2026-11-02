@@ -73,7 +73,10 @@ test('the chapter as data: the Fen first, then the white tree, in the early afte
   assert.equal(chapter.theme, 'kafli2/theme.json', 'chapter 2\'s song until the owner\'s flight theme');
   assert.equal(chapter.start, 'fen');
   assert.deepEqual(Object.keys(chapter.locations), ['fen', 'hvitatre', 'ardalur']);
-  assert.deepEqual(chapter.prepare, ['hvitatre', 'ardalur'], 'the white tree and the valley are built while the start button waits');
+  assert.deepEqual(chapter.prepare, ['hvitatre'], 'the white tree is built while the start button waits');
+  // the valley is cut to in view, with no black to hide its first draw: it is built, its far land loaded and drawn before the button shows
+  assert.deepEqual(chapter.readyFirst, ['ardalur'], 'Árdalurinn is ready before the start button shows (main.js getReady)');
+  assert.equal(typeof chapter.locations.ardalur.ready, 'function', 'and loads what it shows later (the far land) as it is readied');
   assert.equal(typeof chapter.locations.ardalur.build, 'function', 'Árdalurinn is a place of its own make (world/ardalur)');
   assert.ok(chapter.locations.fen.shots[chapter.startShot], 'the start shot is in the Fen');
   assert.match(chapter.actors.flugedla.url, /\/pteranodon\.glb$/);

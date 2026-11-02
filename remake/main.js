@@ -567,6 +567,24 @@ async function getReady() {
     await nextFrames(2);
     ui.tray.hide();
   }
+  // The places the chapter cuts to later with no black to hide their first draw (chapter.readyFirst: chapter 4's Árdalurinn), built,
+  // made ready (the place's own ready(): what it loads) and drawn here, in parts, before the button shows. A quick tap would leave
+  // them to the scene, in view or under a long black.
+  for (const name of locations ? chapter.readyFirst ?? [] : []) {
+    const began = performance.now();
+    slicing.stats = { slices: 0, longest: 0 };
+    let forest;
+    try {
+      forest = await locations.prepare(name, { sliced: true });
+      await chapter.locations[name].ready?.(world, forest);
+    } catch (error) {
+      // said once, here; the scene builds it at once as it goes there (locations.js drops a failed build)
+      console.warn(`[warm-up] ${name} could not be readied before the start; the scene builds it as it goes there:`, error?.message ?? error);
+      continue;
+    }
+    const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
+    warmed.push(Object.assign(entry, await warmPrepared(name, forest)));
+  }
   world.warmUps = warmed; // for a probe: { label, draws, ms, programs } of each warm-up (prepareLater adds the places')
   console.info('[warm-up]', warmed.map(describeWarm).join('; '));
 }
