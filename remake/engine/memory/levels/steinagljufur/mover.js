@@ -81,9 +81,9 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     'rocks:pteranodon': [[.25, 'peck'], [.55, 'peck'], [.85, 'peck']],
   };
 
-  // How much of the way home a pair hops backward before it turns: the Langhálsar stand in the tunnel's mouth with their long necks in it, and turning round there the
-  // first one's head swept through the mouth's side (veggir).
-  const BACK_OUT = { 'tunnel:brontosaurus': .2 };
+  // How much of the way home a pair hops backward before it turns: at the rocks the Langhálsar stand outside the tunnel with their long necks in its mouth, nudging
+  // the pile, and turning round there the first one's head swept through the mouth's side (veggir).
+  const BACK_OUT = { 'rocks:brontosaurus': .2 };
   // How long a go takes when it is longer than its gesture: the Flugeðla's flight in, bump, tumble out, landing and shake (the scene paces its cuts by it).
   const TRY_SECONDS = { 'tunnel:pteranodon': 5.8 };
   const hopsTo = (species, spots) => members(species).map((actor, i) => {
