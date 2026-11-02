@@ -17,6 +17,7 @@ import { GAP } from './upper-ground.js';
  *     top(degrees)           the middle of its top end
  *     roots()                the edge of its root plate on the near side (it lifts as the trunk tips: the dust comes from there)
  *     deck                   lying: the line along its top the friends walk ({ from, to, at(x) -> { z, y } }), and surface(x, z): the height of its top there, or null off it
+ *     cover(reach, slope)    lying: a height field over it and round it that a body `reach` wide either side keeps over the bark (its side falling away at `slope`)
  *     solids()               capsules of it as it stands or lies now (frame points, radius): the walks keep clear of it
  *     boxes()                oriented boxes of it now (frame) for the clearance audit
  *     reset()
@@ -71,10 +72,9 @@ export function createTrunk({ THREE: T = THREE, parent, model, groundAt, grey = 
   // ---- lying: the deck the friends walk on ----
   // The top of the bark along the trunk as it lies, in 0.1 m bins of the frame's x: the line of its ridge (z) and the highest bark within 0.32 m either side of it (y), taken
   // as the most over 0.3 m each way, so that no toe comes down into a knot ahead of it.
+  const lying = (() => { const e = poseAt(fallen).elements, out = []; for (let i = 0; i < count; i++) { const x = verts[i * 3], y = verts[i * 3 + 1], z = verts[i * 3 + 2]; out.push([e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]]); } return out; })();
   const deck = (() => {
-    const m = poseAt(fallen), e = m.elements, x0 = Math.floor((pivot.position.x - TRUNK.hinge - .2) * 10) / 10, bins = new Map();
-    const pts = [];
-    for (let i = 0; i < count; i++) { const x = verts[i * 3], y = verts[i * 3 + 1], z = verts[i * 3 + 2]; pts.push([e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]]); }
+    const x0 = Math.floor((pivot.position.x - TRUNK.hinge - .2) * 10) / 10, bins = new Map(), pts = lying;
     // the ridge's z: where the highest vertex of each bin is, smoothed
     const ridge = new Map();
     for (const [x, y, z] of pts) { const k = Math.round((x - x0) * 10); const r = ridge.get(k); if (!r || y > r[0]) ridge.set(k, [y, z]); }
@@ -94,6 +94,33 @@ export function createTrunk({ THREE: T = THREE, parent, model, groundAt, grey = 
     const { z: rz, y } = deck.at(x), r = deck.radius(x), dz = Math.abs(z - rz); if (dz > r) return null;
     return y - (r - Math.sqrt(Math.max(0, r * r - dz * dz))) * .85;
   };
+  // What a body walking over it and beside it clears: the bark's highest vertex in each 0.1 m cell of the frame as it lies, and from those a height field, as high as the
+  // highest bark within `reach` of a point (a body that wide either side of its line clears all of it) and beyond that falling away `slope` metres a metre (it steps up the
+  // trunk's side toes first, not all at once), down to the rim it stands on. Made once for each reach.
+  const CELL = .1, covers = new Map();
+  const coverOf = (reach, slope) => {
+    const key = `${reach.toFixed(2)}|${slope.toFixed(2)}`; if (covers.has(key)) return covers.get(key);
+    const tops = new Map(); let top = -Infinity, i0 = Infinity, i1 = -Infinity, k0 = Infinity, k1 = -Infinity;
+    for (const [x, y, z] of lying) { const i = Math.floor(x / CELL), k = Math.floor(z / CELL), c = (i + 50000) * 100000 + k + 50000; if (!(tops.get(c) >= y)) tops.set(c, y); top = Math.max(top, y); i0 = Math.min(i0, i); i1 = Math.max(i1, i); k0 = Math.min(k0, k); k1 = Math.max(k1, k); }
+    const margin = Math.ceil((reach + Math.max(0, top - baseY) / slope) / CELL) + 1, gi = i0 - margin, gk = k0 - margin, ni = i1 - i0 + 1 + 2 * margin, nk = k1 - k0 + 1 + 2 * margin;
+    const grid = new Float32Array(ni * nk).fill(baseY - 1);
+    for (const [c, y] of tops) {
+      const i = Math.floor(c / 100000) - 50000, k = c % 100000 - 50000, r = Math.ceil((reach + Math.max(0, y - baseY) / slope) / CELL) + 1;
+      for (let di = -r; di <= r; di++) for (let dk = -r; dk <= r; dk++) {
+        // (from the cell's nearest edge, as the vertex may be anywhere in it)
+        const d = Math.hypot(Math.max(0, Math.abs(di) - .5), Math.max(0, Math.abs(dk) - .5)) * CELL, h = y - Math.max(0, d - reach) * slope, at = (i + di - gi) * nk + (k + dk - gk);
+        if (h > grid[at]) grid[at] = h;
+      }
+    }
+    // (bilinear between the cells' middles; off the field, null)
+    const field = (x, z) => {
+      if (angle < fallen - .5) return null;
+      const u = x / CELL - .5 - gi, w = z / CELL - .5 - gk, a = Math.floor(u), b = Math.floor(w); if (a < 0 || b < 0 || a + 1 >= ni || b + 1 >= nk) return null;
+      const s = u - a, t = w - b, g = grid;
+      return (g[a * nk + b] * (1 - t) + g[a * nk + b + 1] * t) * (1 - s) + (g[(a + 1) * nk + b] * (1 - t) + g[(a + 1) * nk + b + 1] * t) * s;
+    };
+    covers.set(key, field); return field;
+  };
 
   const api = {
     group: pivot, mesh, triangles: model.triangles, height, steps: TRUNK.steps, get fallen() { return fallen; }, get angle() { return angle; },
@@ -103,6 +130,8 @@ export function createTrunk({ THREE: T = THREE, parent, model, groundAt, grey = 
     point: (h, degrees = angle) => { const c = ring(Math.min(height - .2, Math.max(.2, h))); return toFrame(new T.Vector3(c.x, h, c.z), degrees); },
     roots: (degrees = angle) => toFrame(new T.Vector3(rootRing.x + 1.2, .05, rootRing.z), degrees), // (yaw π: the model's +x is the frame's -x, the side away from the gap)
     deck, surface,
+    /** Lying: `cover(reach, slope)(x, z)` the height a body `reach` wide either side of its line keeps over the bark at a point of the frame (above), or null off it. */
+    cover: coverOf,
     /** The lying trunk's walk: the frame points along its ridge from `from` to `to` (x), each on its top. */
     line(from, to, step = .5) { const out = []; for (let x = from; x <= to + 1e-6; x += step) { const { z, y } = deck.at(x); out.push(new T.Vector3(x, y, z)); } return out; },
     /** Capsules of it now (frame): its stem in three pieces and its root plate. */
