@@ -38,9 +38,9 @@ const onHer = ([x, y, z]) => ({ actor: 'thorsedla', part: 'feet', offset: [x - T
 // (chapter 3's FEN_FAR.flugedla, 102 m north-west). The picture fades to the white tree on the way.
 const FEN_WAY = [[11.6, -5.6], [13, -12], [12.2, -19], [8.5, -26]];
 const FEN_SHOTS = {
-  // Scene 1: the pond as they leave. From the bank north-east of her two conifers, low: Mosi with Egill in the saddle at the left,
-  // Þórseðla's head coming down to them at the right, her pool and the reed beyond.
-  fen_farewell: { position: onHer([17.5, 2.2, -12.5]), target: onHer([6.5, 3.6, -6.2]), fov: 48 },
+  // Scene 1: the pond as they leave. From the bank north of her pool, low, with the sun from the side: Þórseðla at the left, her
+  // neck reaching across to Mosi with Egill in the saddle at the right, her two conifers behind them, nothing in front.
+  fen_farewell: { position: onHer([-3, 2.4, 8]), target: onHer([4, 4, -6]), fov: 46 },
   // Scene 1: the walk across the Fen. From the hummock behind them, looking north along their way: they go off into the open Fen,
   // past her neck, toward the white snag on the far side.
   fen_crossing: { position: onHer([12.5, 1.9, 3.5]), target: onHer([9, 3.2, -24]), fov: 46 },
@@ -103,8 +103,9 @@ const TREE_SHOTS = {
   // Scene 2: they come in from the south-west, the white tree ahead with her on its top; from on the path behind them and to the left,
   // so the picture comes up on them (it is cut to under the black) and they walk on into it towards the tree.
   tre_arrive: { position: [-24, 2.1, -12.5], target: [8, 4.6, 4], fov: 50 },
-  // The tree from the ground: from near its foot, looking up its white trunk at her on the top, the wings spread against the sky.
-  tre_ground: { position: [5.2, 1.3, 11.2], target: [9, 11.4, 6.1], fov: 52 },
+  // The tree from the ground: from in front of her (she faces the way they came), near its foot, looking up its white trunk at her
+  // on the top, the wings spread wide against the sky.
+  tre_ground: { position: [2.1, 1.1, 5.1], target: [9, 11.4, 6.3], fov: 56 },
   // The tree from above: from 7 m up behind Mosi (as high as the director lets a camera go), the sun at our back, looking a little
   // down over him and Egill, below in the frame, to her on the top, above.
   tre_above: { position: [-10.5, 7.0, -9.5], target: [4.5, 6.0, 2.9], fov: 52 },
