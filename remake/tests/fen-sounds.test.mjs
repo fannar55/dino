@@ -2,18 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createSfx } from '../engine/audio/sfx.js';
-import { FEN_SFX } from '../engine/audio/fen-sounds.js';
+import { FEN_SFX, SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 import { createScene } from '../engine/scene/scene.js';
 import { centsFromKey, createFakeContext, peakThrough, pitchesOf } from './fake-audio.mjs';
 
 // Chapter 2's sounds (engine/audio/fen-sounds.js and the Fen's bed in engine/audio/sfx.js): the footprints' splash, ripple and
 // counting tone, the berries, Þórseðla's sniff, breath and chew, the lift, the wind up high, the slide and the landing, the map's
-// mark, the Fen's own animals, and the bed of water and frogs that takes over from the forest's wind.
+// mark, the Fen's own animals, Uggeðla's five (her sail rising out of the reed, her jaws, her gulp, her tail's splash and her swimming),
+// and the bed of water and frogs that takes over from the forest's wind.
 
 const THEME = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
 const NAMES = [
   'splash', 'ripple', 'countTone', 'berryPop', 'sniff', 'breathHuge', 'chew', 'liftTone', 'windHigh', 'slide', 'landSaddle', 'mapMark',
-  'dragonfly', 'turtle', 'fish', 'earlyBird',
+  'dragonfly', 'turtle', 'fish', 'earlyBird', 'sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim',
 ];
 const seeded = seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
 
@@ -240,4 +241,75 @@ test('s.sfx passes a sound its detail (the count, the lift\'s length)', () => {
   s.sfx('countTone', { index: 4 });
   s.sfx('splash');
   assert.deepEqual(played, [['countTone', { index: 4 }], ['splash', undefined]]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Uggeðla's five (chapters/kafli2-uggedla.js)
+
+/** When each source of the last play begins and ends, in audio seconds from the call (the fake context's clock starts at 0 for a new one). */
+function spanOf(context) {
+  const spans = [...context.started].map(source => ({ from: source.starts[0].when - context.currentTime, to: source.stopTime - context.currentTime, source }));
+  return { from: Math.min(...spans.map(s => s.from)), to: Math.max(...spans.map(s => s.to)), spans };
+}
+
+test("Uggeðla's sounds last as long as what they go with: the sail's rustle 3 to 4 s, her swim 2 s, the tail's splash under 2 s, the jaws and the gulp half a second", () => {
+  const lengths = {};
+  for (const name of ['sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim']) {
+    const { context, sfx } = setup();
+    assert.equal(sfx.play(name), true, `${name} plays`);
+    const { from, to } = spanOf(context);
+    lengths[name] = to - from;
+    assert.ok(from >= 0 && from < 0.3, `${name} begins at once (${from.toFixed(2)} s)`);
+  }
+  assert.ok(lengths.sailRise >= 3 && lengths.sailRise <= 4, `the reed's rustle takes ${lengths.sailRise.toFixed(2)} s`);
+  assert.ok(lengths.swim >= 1.8 && lengths.swim <= 2.1, `the swim's two strokes take ${lengths.swim.toFixed(2)} s`);
+  assert.ok(lengths.tailSplash > 1 && lengths.tailSplash < 2, `the tail's splash takes ${lengths.tailSplash.toFixed(2)} s`);
+  assert.ok(lengths.jawSnap < 0.3 && lengths.gulp < 0.6, `a snap of ${lengths.jawSnap.toFixed(2)} s and a gulp of ${lengths.gulp.toFixed(2)} s`);
+});
+
+test("the swim runs on without a seam: asked for every SWIM_STROKE seconds, each play begins and ends on silence and the strokes overlap by a tenth of a second at most", () => {
+  const { context, sfx } = setup();
+  sfx.play('swim');
+  const { to } = spanOf(context);
+  assert.ok(to > SWIM_STROKE && to - SWIM_STROKE <= 0.2, `one play ends ${(to - SWIM_STROKE).toFixed(2)} s after the next begins`);
+  // every source of it opens from nothing and falls to nothing: no click where a stroke is joined to the next
+  const notes = context.of('gain').filter(gain => gain.gain.events.at(-1)?.type === 'exponential'); // each note's envelope (not the buses)
+  assert.ok(notes.length >= 8, `${notes.length} notes`);
+  for (const gain of notes) {
+    assert.equal(gain.gain.events[0].value, 0, 'it begins from silence');
+    assert.ok(gain.gain.events.at(-1).value <= 0.0001, 'and ends in it');
+  }
+  // played over and over at that pace the sound never stacks past what one play and a tenth of the next reach
+  const loud = setup();
+  let most = 0;
+  for (let i = 0; i < 6; i++) {
+    loud.sfx.play('swim');
+    most = Math.max(most, [...loud.context.started].filter(s => s.stopTime > loud.context.currentTime).length);
+    loud.context.advance(SWIM_STROKE);
+  }
+  const once = (() => { const one = setup(); one.sfx.play('swim'); return one.context.started.length; })();
+  assert.ok(most <= once + 6, `${most} sources at most sounding (one play has ${once})`);
+});
+
+test("Uggeðla's sounds are soft and round: sines and triangles only, a splash that is the loudest of them and a swim that lets the chat go on over it", () => {
+  const peak = name => {
+    const { context, sfx } = setup();
+    sfx.play(name);
+    for (const note of context.oscillators) assert.ok(note.type === 'sine' || note.type === 'triangle', `${name}: a ${note.type} wave`);
+    return Math.max(...context.started.map(s => peakThrough(s, context.destination)));
+  };
+  const peaks = Object.fromEntries(['sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim'].map(name => [name, peak(name)]));
+  for (const [name, hz] of Object.entries(peaks)) assert.ok(hz > 0.01 && hz <= 0.2, `${name} peaks at ${hz.toFixed(3)}`);
+  // (a note's level, before its filter: the swim's noise is wide and soft, and measured through the browser's own mixer a stroke peaks at 0.05
+  // of full scale, no louder than the Fen's splash, so Mosi and Egill are heard over it)
+  assert.ok(peaks.tailSplash >= peaks.swim && peaks.tailSplash >= peaks.gulp, "her tail's slap is louder than the swim and the gulp");
+});
+
+test("a pitched note of Uggeðla's is the key's, and a play takes no detail it was not given: the rustle is the same with or without one", () => {
+  for (const name of ['sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim']) {
+    const { context, sfx } = setup();
+    sfx.play(name, { seconds: 99, index: 99 });
+    assert.ok(context.oscillators.length > 0, `${name} has notes`);
+    for (const note of context.oscillators) for (const hz of pitchesOf(note)) assert.ok(centsFromKey(hz, THEME.key) < 1, `${name}: ${hz.toFixed(2)} Hz is in the key`);
+  }
 });

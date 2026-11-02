@@ -46,7 +46,7 @@
  { "id": "book_uggedla_6", "speaker": "narrator", "text": "Seglið á bakinu var um einn og hálfur metri, hærra en þú!" },
  { "id": "book_uggedla_7", "speaker": "narrator", "text": "Halinn var flatur eins og ár. Með honum gat hún synt í vatninu." },
  { "id": "book_uggedla_8", "speaker": "narrator", "text": "Spinosaurus var uppi fyrir um 95 milljónum ára, í Afríku, þar sem nú er eyðimörk." },
- { "id": "book_uggedla_9", "speaker": "narrator", "text": "Synti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.", "say": "Sinnti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.", "note": "Own say: Synti respelled Sinnti, the owner's pick by ear (prufa 2) on 2026-10-26; the plain take said Synti wrong. Only this line has the word." },
+ { "id": "book_uggedla_9", "speaker": "narrator", "text": "Synti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.", "say": "Sinnti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.", "fixes": "synti", "note": "Own say: Synti respelled Sinnti, the owner's pick by ear (prufa 2) on 2026-10-26; the plain take said Synti wrong. Only this line has the word." },
  { "id": "book_sloedla_1", "speaker": "narrator", "text": "Þetta er Slóeðla. Hún er Parasaurolophus, með langan kamb á höfðinu." },
  { "id": "book_sloedla_2", "speaker": "narrator", "text": "Svona leit Parasaurolophus kannski út. Hún gat gengið á tveimur eða fjórum fótum." },
  { "id": "book_sloedla_3", "speaker": "narrator", "text": "Þetta er beinagrind Parasaurolophus. Kamburinn er hluti af höfuðkúpunni." },
@@ -168,6 +168,6 @@
  { "id": "book_skeleton_2", "speaker": "narrator", "text": "Þegar dýr dó og grófst í sandi eða leðju urðu beinin smám saman að steini." },
  { "id": "book_skeleton_3", "speaker": "narrator", "text": "Steingervingafræðingar grafa beinin varlega upp, með burstum og litlum hömrum." },
  { "id": "book_find_me_fen", "speaker": "narrator", "text": "Finndu mig í Feninu!" },
- { "id": "book_mosi_later", "speaker": "mosi", "text": "Hana hittum við seinna!", "context": "Við hittum Kambeðlu í gær, og á morgun hittum við Þórseðlu.", "seed": 42, "note": "Own context and seed 42: the plain take said hitum for hittum; the owner chose this take (prufa 4) by ear on 2026-10-26. No word rule, since hittum is right in k1_mosi_book." },
+ { "id": "book_mosi_later", "speaker": "mosi", "text": "Hana hittum við seinna!", "context": "Við hittum Kambeðlu í gær, og á morgun hittum við Þórseðlu.", "seed": 42, "fixes": "hittum", "note": "Own context and seed 42: the plain take said hitum for hittum; the owner chose this take (prufa 4) by ear on 2026-10-26. No word rule, since hittum is right in k1_mosi_book." },
  { "id": "book_mosi_fossils_all", "speaker": "mosi", "text": "Vá! Þú fannst alla átta steingervingana. Safnið er fullt!" }
 ]

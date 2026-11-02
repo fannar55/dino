@@ -1,0 +1,224 @@
+{
+  "set": "kafli2",
+  "date": "2026-11-01",
+  "source": "jano-kafli2.json",
+  "verdicts": {
+    "kafli2/k2_uggedla_help": {
+      "verdict": "ja",
+      "key": "65e19279c414fdb014dc17e9d9916d51f5aeb7b3057cfe7bf9e4f576bb3b5911",
+      "mp3": "59a697321c34cd391828c064665887a6b6e9012584d2d43ba112357c2c2cc2dd",
+      "speaker": "uggedla",
+      "text": "En fiskarnir eru svo snöggir í dag. Viltu hjálpa mér, Egill? Pikkaðu á stóru fiskana þegar þeir stökkva!"
+    },
+    "kafli2/k2_mosi_einn": {
+      "verdict": "nei",
+      "key": "493e80dadd1c17b453585d02d7964c0c3e70db8b78e35a68beaa65f3800fa7f7",
+      "mp3": "2542b8edfc42106bd8e569f129f709e174c56f174f2e8eda6a5b79ffcacd7378",
+      "speaker": "mosi",
+      "text": "Einn!"
+    },
+    "kafli2/k2_mosi_tveir": {
+      "verdict": "ja",
+      "key": "84fca240dca10cf202358c6c05e073716f27b445a7cb647e2f8e4e7536d179e0",
+      "mp3": "841859b6460b82301d221ca505f0d76c5e7dfebca8eda0fefa9cf59a6baa3ff0",
+      "speaker": "mosi",
+      "text": "Tveir!"
+    },
+    "kafli2/k2_mosi_thrir": {
+      "verdict": "ja",
+      "key": "13a25ecf0a049bf282e07cbae19ed47a6339814e5bce1301465d221d66da5654",
+      "mp3": "97100e9687203fd43328ce5360a6f531f8e8d4930aa1f3f3d20293e6b4b09fd8",
+      "speaker": "mosi",
+      "text": "Þrír!"
+    },
+    "kafli2/k2_mosi_fjorir": {
+      "verdict": "ja",
+      "key": "ffab406cf8c3acc5954614be09a3f1a218983e25f8dbd570e2e223ce65f76311",
+      "mp3": "6f7b769cd34205c9468149c0a744711de8b4ea79514f6be351dfe7d2113187be",
+      "speaker": "mosi",
+      "text": "Fjórir!"
+    },
+    "kafli2/k2_uggedla_small": {
+      "verdict": "ja",
+      "key": "69e9495789e5d1adc9a0d5ff475418add5fcd8387a318e194f9bd2b0cfd9a542",
+      "mp3": "acefbcd5f99a913aad9be427243ff41b5ddab583bd0af089b13fa45e1715b207",
+      "speaker": "uggedla",
+      "text": "Nei, hann er of lítill. Hann má stækka!"
+    },
+    "kafli2/k2_mosi_hint_fish": {
+      "verdict": "nei",
+      "key": "711670a05cc2248ae4e0b65e34ae22e7a62e8b5b0580861625169ef1f1b2f686",
+      "mp3": "37a09cc90953cfdd418023a66a1a83a071e9eab8e7de84b9e15588aee9d083e8",
+      "speaker": "mosi",
+      "text": "Bíddu eftir stórum fiski… og pikkaðu!"
+    },
+    "kafli2/k2_uggedla_thanks": {
+      "verdict": "ja",
+      "key": "db05ba3bc6b197db761cd43efeffc6373771fde19c9d03442dba468b23ec5cb2",
+      "mp3": "8b8350b3e2c8410e23d502bd451f0f546881ccb5128c41d5f1347d9da8767691",
+      "speaker": "uggedla",
+      "text": "Fimm fiskar! Takk, Egill. Þú ert frábær veiðimaður!"
+    },
+    "kafli2/k2_mosi_flooded": {
+      "verdict": "ja",
+      "key": "7e14a2b609fa0cc30e34ad115f1a7c23a2e8d467019f7f415a6679652c17a82d",
+      "mp3": "5123b639b6fc3583003d40b86c799f3cdef1930a58e993a3fea296726e715748",
+      "speaker": "mosi",
+      "text": "Ó nei! Síkið hefur flætt yfir stíginn."
+    },
+    "kafli2/k2_egill_across": {
+      "verdict": "ja",
+      "key": "41bab0254ccad1fa36b198233dc99d44dfc70c23bcd7858b39e61dd29d16c047",
+      "mp3": "8031f898f5a21f4351c9d84054a8a9aa682a565b7524d6094fe04d7ffbbc4c85",
+      "speaker": "egill",
+      "text": "Hvernig komumst við yfir?"
+    },
+    "kafli2/k2_mosi_boat": {
+      "verdict": "ja",
+      "key": "32601accf3ec6e1f53d0a4844ea287161c2d355a6fcdbac07ef81275c301bf7b",
+      "mp3": "12742f9cfba985c1c9ba705521c178e7537abf9827b2a33ad6f72bfca7f53101",
+      "speaker": "mosi",
+      "text": "Sjáðu, Egill! Bátur! Með stóru, litríku segli!"
+    },
+    "kafli2/k2_egill_helloboat": {
+      "verdict": "ja",
+      "key": "ec3589376191ee70812b3ddcd5f8dbf58470b6302a1ae1266730bdf7cdd4002d",
+      "mp3": "8fc27823ee9a1aca45eca00fcf7498bd57e6e0b184de3a0856666f6cb8f6a83b",
+      "speaker": "egill",
+      "text": "Halló, bátur!"
+    },
+    "kafli2/k2_mosi_notboat": {
+      "verdict": "ja",
+      "key": "ebef7984d79688e6976707c005fa34c88aa79247f1899e271e7056f022364596",
+      "mp3": "4a04cb02f4ab56702f5de843ed566acaf1df407aca01dd9925d21833ba586a3a",
+      "speaker": "mosi",
+      "text": "Þetta er enginn bátur… þetta er Uggeðla!"
+    },
+    "kafli2/k2_uggedla_hello": {
+      "verdict": "ja",
+      "key": "112164271e3161cc4aa471c3e2d4470439a25e9dd0689b73912a85d8dac886a2",
+      "mp3": "431dd79360161e3bce7fd5c9ed05cc257cd13d4a8b770cc644e48184097854ce",
+      "speaker": "uggedla",
+      "text": "Bátur? Ha ha ha! Halló, Mosi. Ég er að veiða."
+    },
+    "kafli2/k2_mosi_invite_ugg": {
+      "verdict": "ja",
+      "key": "1b447aa7914fb1539503f4e7b2f5ec71c2cbe038d646287e8e41bc8429c9612d",
+      "mp3": "61263e1f972272a462881556e9ecff580c795489213a05cd54fee39feb2da5d2",
+      "speaker": "mosi",
+      "text": "Uggeðla, viltu koma á Stjörnuhátíðina í kvöld?"
+    },
+    "kafli2/k2_uggedla_accept": {
+      "verdict": "ja",
+      "key": "7ea30c65e526f5bf6ce59f20d6d5a741c3dcfe5fc884c98a0033f788ed2c69f7",
+      "mp3": "9baf400e87af41403340b5d65dd77295e7d377e9b3b77d006e979deee5a1fe2d",
+      "speaker": "uggedla",
+      "text": "Stjörnuhátíð! Já, ég kem! Og ég veit hvað ég geri: ég ferja alla gestina yfir ána."
+    },
+    "kafli2/k2_uggedla_aboard": {
+      "verdict": "ja",
+      "key": "acdefa6de6afd72e2050b861b62e0ed87428438b41bc471facb684939b67e227",
+      "mp3": "3bd49f49ba627cde5338880ddbd89c41d7a2ddaef80019e43fffc8ad1fe15cfd",
+      "speaker": "uggedla",
+      "text": "Og ég byrja strax. Upp á bakið, Egill! Ég ferja ykkur til Þórseðlu."
+    },
+    "kafli2/k2_mosi_brrr": {
+      "verdict": "ja",
+      "key": "c7820c5ded3707c6baa12e853f0a1ee23ccd978e81072ab70f1f94f135db367a",
+      "mp3": "e0181bac0aebf800f87e111ae854d733a2e61fb06950b57d9f40873e84994d86",
+      "speaker": "mosi",
+      "text": "Brrr! Vatnið er svo blautt!"
+    },
+    "kafli2/k2_uggedla_wet": {
+      "verdict": "ja",
+      "key": "f95f283da0cfbb7f6f36a2d7f3394f74214dd0fbb285e9df1e6700e508f8c110",
+      "mp3": "97d362102dae98d8325b6b6276fdf5f91e91a60ef467085ae15a37215c99f69b",
+      "speaker": "uggedla",
+      "text": "Vatn er alltaf blautt, Mosi!"
+    },
+    "kafli2/k2_egill_sail": {
+      "verdict": "ja",
+      "key": "7f587eb1a2d70c6aa8d949ef04ecab423f7f8790505ac1d9e007efd1f9137304",
+      "mp3": "ce2cbc117b5e3c7ffb4a031b0debdb864a7a0768c7c76245604694ffca31ba2e",
+      "speaker": "egill",
+      "text": "Af hverju ertu með svona stórt segl?"
+    },
+    "kafli2/k2_uggedla_sail": {
+      "verdict": "ja",
+      "key": "e5ad26dbecdeb3bd77a623fe0f39ff970535ffcb9216996971144d65bc1aa9be",
+      "mp3": "9fc4636e30dbf56155efa53be53b91306d2af456258af03cc701423cbf5d9ed8",
+      "speaker": "uggedla",
+      "text": "Svo allir sjái mig langt að. Meira að segja þeir sem halda að ég sé bátur!"
+    },
+    "kafli2/k2_mosi_onlyabit": {
+      "verdict": "ja",
+      "key": "9cb8a882db6d6ce1d0559ae23cffcfb658817ebc87cfb98465080a89f5511b54",
+      "mp3": "83670b44965ab79f031fe04650aaae6454ae2f8e1d3ff31913b920b81e759abb",
+      "speaker": "mosi",
+      "text": "Ég hélt það bara pínulitla stund…"
+    },
+    "kafli2/k2_uggedla_tail": {
+      "verdict": "ja",
+      "key": "1141806cff05fb621037023c4fe5f5083442264f417bbb712ead5548d62473a7",
+      "mp3": "2eec5eb8d5c4dbc5da5fb42e93e36669b08ad019691e06811ae2af3dbd9ac0cc",
+      "speaker": "uggedla",
+      "text": "Og sjáðu, ég syndi með halanum, eins og fiskur!"
+    },
+    "kafli2/k2_mosi_wetter": {
+      "verdict": "ja",
+      "key": "b1a32fc22dba1d5260c49f108c0680a73326579b1af139a6e3e6df28e82ced13",
+      "mp3": "71edbdf5311da3325b7d46226c1b7e9a76468a7c94ebb4be7a4320fe22f216bf",
+      "speaker": "mosi",
+      "text": "Hei! Nú er ég ennþá blautari!"
+    },
+    "kafli2/k2_egill_head": {
+      "verdict": "ja",
+      "key": "31c39a278b1fb97540998c3d5c7a88116b4701a9afbaa8bc7046c263a08024dc",
+      "mp3": "8b2414be66f32b9323e7f0badf1b05042201a0dfb761513032ce0e3551fe6cf9",
+      "speaker": "egill",
+      "text": "Sjáðu! Höfuðið á Þórseðlu, uppi yfir trjánum!"
+    },
+    "kafli2/k2_uggedla_berries": {
+      "verdict": "ja",
+      "key": "deb753156fe127c772d04c2b7ffcb4b1475167a41fc7dfe633ab17e7b5e56b6f",
+      "mp3": "26e8a95ad1dcb6422e5c2c20bfb097a67f1d7bde7d8357de61dcda3991c65f1e",
+      "speaker": "uggedla",
+      "text": "Hér eru þúfurnar. Þórseðla heyrir ekki í litlum röddum. En hún elskar rauðu berin!"
+    },
+    "kafli2/k2_mosi_thanks_ugg": {
+      "verdict": "ja",
+      "key": "d125cb8bde6d22666031dd87c6f4ef8fe2437e5fece7d54dbd642e0507d81a08",
+      "mp3": "b699c4826640ced7f514efe19f01a1d657a68f4817b4351a98c62f57adfe4fce",
+      "speaker": "mosi",
+      "text": "Takk, Uggeðla! Sjáumst í kvöld!"
+    },
+    "kafli2/k3_mosi_wave": {
+      "verdict": "ja",
+      "key": "14cae1853777e7fde2607134908693e5dbc43efe5f8d1fe5945cbc4532ecf8c7",
+      "mp3": "89b1589adabf666249881717f36375e4ae7f65882a9d92ff884961b7fd343186",
+      "speaker": "mosi",
+      "text": "Og sjáðu! Uggeðla veifar okkur úr sefinu sínu!"
+    },
+    "kafli2/k3_egill_hi": {
+      "verdict": "ja",
+      "key": "517f6f31d48f6f2d74751101a458ac3c6a4bddb1784b661b23a18e8a59367518",
+      "mp3": "a0c547d8ede76397830761719f37ebe6bd9357acc2a05e4d87c2e0ca33798c47",
+      "speaker": "egill",
+      "text": "Hæ, Uggeðla!"
+    },
+    "kafli2/k3_mosi_third": {
+      "verdict": "ja",
+      "key": "da2d9c59db2fdd9c58bf61e9ec4c6c7353a8536ead35c9db090128ac7b9a4b09",
+      "mp3": "ab0b1e2b1a7ae557010e57200d1e3f3fe5de838de5cda257ebc3375e7599b593",
+      "speaker": "mosi",
+      "text": "Sjáðu, Egill! Þriðja stjarnan!"
+    },
+    "kafli2/k3_mosi_three": {
+      "verdict": "ja",
+      "key": "8454f9a3fc6fc60ae89f607966a32b88b1f7284e55485a1b3d5739ee683b0fd3",
+      "mp3": "a5a9856a4d437c0c5650dcbff847f2c15b6d0160d0210a67577df676ba4c0e39",
+      "speaker": "mosi",
+      "text": "Þrjár komnar. Og nú vitum við hvert við förum næst!"
+    }
+  }
+}

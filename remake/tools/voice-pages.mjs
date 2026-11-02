@@ -1,5 +1,6 @@
 // The owner's listening pages that voice-lines.mjs writes (into qa/, which git ignores): the pronunciation book
-// (qa/remake/voices/framburdarbok/index.html) and the A/B pages (qa/remake/voices/ab/<set>.html). Pure: rows in, HTML out.
+// (qa/remake/voices/framburdarbok/index.html), the A/B pages (qa/remake/voices/ab/<set>.html) and the yes/no pages
+// (qa/remake/voices/janei/<set>.html). Pure: rows in, HTML out.
 // Paper and Nunito like qa/remake/kafli2/listen.html; each page saves the owner's choices as a JSON file he sends back.
 
 /** The speakers by the names the owner knows them by, in the order the pages show them. */
@@ -27,6 +28,9 @@ const PAGE_STYLE = `:root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; 
   .line p { margin: 0 0 6px; }
   .pair { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; align-items: center; }
   .pair audio { width: 100%; height: 36px; }
+  .choice { display: flex; gap: 18px; flex-wrap: wrap; font-weight: 800; }
+  .choice label { cursor: pointer; }
+  input.why { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff8ea; color: var(--ink); }
   .bar { position: sticky; bottom: 0; background: var(--paper); border-top: 2px solid var(--line); padding: 10px 0; display: flex; gap: 12px; align-items: center; }
   button { font: inherit; font-weight: 800; padding: 8px 18px; border-radius: 999px; border: 2px solid var(--ink); background: #fff8ea; color: var(--ink); cursor: pointer; }
   @media (max-width: 600px) { .row, .pair { grid-template-columns: 1fr; } }`;
@@ -58,11 +62,15 @@ ${script}
 /** What a request sends, in a line for the page. */
 const sentLine = sent => [`sent: ${sent.text}`, sent.context ? `samhengi (ekki talað): ${sent.context}` : '', sent.seed === undefined ? '' : `fræ ${sent.seed}`].filter(Boolean).join(' · ');
 
+/** A line-level fix of a word, as the book shows it: where, and what that line sends of its own. */
+const fixLine = fix => `<code>${escapeHtml(fix.where)}</code>${[fix.say === undefined ? '' : `sent: ${fix.say}`, fix.context === undefined ? '' : `samhengi (ekki talað): ${fix.context}`, fix.seed === undefined ? '' : `fræ ${fix.seed}`].filter(Boolean).map(part => ` · ${escapeHtml(part)}`).join('')}`;
+
 /**
  * The book's page: a section per word, a radio per recipe, a row per speaker. A row whose MP3 was made from another request than it
- * would send now (`stale`: another word's choice changed since) says so, with the command that makes it again.
+ * would send now (`stale`: another word's choice changed since) says so, with the command that makes it again. `elsewhere` (word id
+ * -> the lines that fixed it on their own, tools/heard.mjs fixesByWord) puts "Sérlausnir annars staðar" under the word.
  */
-export function bookHtml(lexicon, rows, { exists = () => true } = {}) {
+export function bookHtml(lexicon, rows, { exists = () => true, elsewhere = new Map() } = {}) {
   const sections = [];
   for (const [id, entry] of Object.entries(lexicon.words)) {
     const mine = rows.filter(row => row.word === id);
@@ -78,7 +86,9 @@ export function bookHtml(lexicon, rows, { exists = () => true } = {}) {
       return `<div class="recipe"><label><input type="radio" name="${escapeHtml(id)}" value="${escapeHtml(recipe)}"${checked}> ${escapeHtml(recipe)}${entry.chosen === recipe ? ' <span class="muted">(valið núna)</span>' : ''}</label><p class="note">${escapeHtml(note)}</p>\n${rowsHtml}</div>`;
     }).join('\n');
     const undecided = `<div class="recipe"><label><input type="radio" name="${escapeHtml(id)}" value=""${entry.chosen === null ? ' checked' : ''}> ekki ákveðið</label><p class="note">Orðið er sent eins og það er skrifað þar til þú velur.</p></div>`;
-    sections.push(`<section data-word="${escapeHtml(id)}"><h2>${escapeHtml(entry.word)}</h2><p class="note">Myndir: ${entry.forms.map(escapeHtml).join(', ')}. ${entry.chosen ? `Valið núna: <b>${escapeHtml(entry.chosen)}</b>.` : 'Ekkert valið enn.'}</p>\n${recipes}\n${undecided}</section>`);
+    const fixes = elsewhere.get(id) ?? [];
+    const fixed = fixes.length ? `<p class="note elsewhere">Sérlausnir annars staðar (línur sem löguðu orðið sjálfar): ${fixes.map(fixLine).join('; ')}</p>\n` : '';
+    sections.push(`<section data-word="${escapeHtml(id)}"><h2>${escapeHtml(entry.word)}</h2><p class="note">Myndir: ${entry.forms.map(escapeHtml).join(', ')}. ${entry.chosen ? `Valið núna: <b>${escapeHtml(entry.chosen)}</b>.` : 'Ekkert valið enn.'}</p>\n${fixed}${recipes}\n${undecided}</section>`);
   }
   return page({
     title: 'Framburðarbók',
@@ -134,6 +144,44 @@ export function abHtml({ set, round = null, earlier = [], made = [], kept = [] }
   document.getElementById('save').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ set: ${JSON.stringify(set)}, choices: choices() }, null, 2) + '\\n'], { type: 'application/json' });
     const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(`ab-${set}.json`)} });
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });`,
+  });
+}
+
+/**
+ * The yes/no page of a set's lines: for each line its speaker, the caption, the recording in the game (`src`) and two buttons, "Já" and
+ * "Nei", with a space to say what was wrong. "Vista val" saves { set, choices: { id: "ja" | "nei" }, notes: { id: "..." } } as
+ * jano-<set>.json, which says what to record again. Each row is { id, speaker, text, src, group?, how? }; a `group` that changes starts
+ * a heading (chapter 2's lines, chapter 3's).
+ */
+export function yesNoHtml({ set, rows }) {
+  let group = null;
+  const body = rows.map(row => {
+    const heading = row.group && row.group !== group ? `<h2>${escapeHtml(row.group)}</h2>` : '';
+    group = row.group ?? group;
+    return `${heading}<div class="line" data-id="${escapeHtml(row.id)}">
+  <p><b>${escapeHtml(SPEAKER_NAMES[row.speaker] ?? row.speaker)}</b>: ${escapeHtml(row.text)} <code>${escapeHtml(row.id)}</code>${row.how ? `<br><span class="sent">${escapeHtml(row.how)}</span>` : ''}</p>
+  <div class="pair"><audio controls preload="none" src="${escapeHtml(row.src)}"></audio>
+  <span class="choice"><label><input type="radio" name="${escapeHtml(row.id)}" value="ja"> Já, rétt</label> <label><input type="radio" name="${escapeHtml(row.id)}" value="nei"> Nei, rangt</label></span></div>
+  <input type="text" class="why" name="why-${escapeHtml(row.id)}" placeholder="Hvað var rangt? (má sleppa)" aria-label="Hvað var rangt í ${escapeHtml(row.id)}?">
+</div>`;
+  }).join('\n');
+  return page({
+    title: `Já eða nei: ${set}`,
+    intro: `${rows.length} línur, hver með upptökunni sem er í leiknum. Hlustaðu og merktu „Já, rétt“ ef hún hljómar rétt, annars „Nei, rangt“ (og skrifaðu hvað var rangt ef þú vilt). Ýttu svo á „Vista val“ og sendu mér skrána.`,
+    body,
+    script: `  const ids = [...document.querySelectorAll('.line')].map(line => line.dataset.id);
+  const choices = () => Object.fromEntries(ids.flatMap(id => { const input = document.querySelector('input[name="' + id + '"]:checked'); return input ? [[id, input.value]] : []; }));
+  const notes = () => Object.fromEntries(ids.flatMap(id => { const text = document.querySelector('input[name="why-' + id + '"]').value.trim(); return text ? [[id, text]] : []; }));
+  const count = () => { const all = Object.values(choices()); document.getElementById('count').textContent = all.filter(v => v === 'ja').length + ' já, ' + all.filter(v => v === 'nei').length + ' nei, ' + (ids.length - all.length) + ' ómerktar'; };
+  document.addEventListener('change', count);
+  count();
+  document.getElementById('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ set: ${JSON.stringify(set)}, choices: choices(), notes: notes() }, null, 2) + '\\n'],{ type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(`jano-${set}.json`)} });
     document.body.append(link);
     link.click();
     link.remove();

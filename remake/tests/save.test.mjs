@@ -20,6 +20,22 @@ test('forgetSave takes the save away, and the next save starts from the first ch
   assert.equal(defaultChapter(fresh), 'kafli1');
 });
 
+test('an old chapter 2 save (Þórseðla\'s star, no Uggeðla\'s) opens chapter 2 and loses nothing', () => {
+  const stored = {
+    stars: ['k1_kambedla', 'k2_thorsedla'], findings: ['beetle', 'dragonfly'], seen: ['mosi'],
+    places: ['fen', 'sloedla', 'flugedla', 'uggedla'], hals: { found: [], played: true },
+  };
+  const storage = memoryStorage({ 'mosi-remake-v1': JSON.stringify(stored) });
+  const save = createSave(storage);
+  assert.equal(defaultChapter(save), 'kafli2', 'she meets Uggeðla, whose place she has on her map already');
+  assert.deepEqual(save.get(), { stars: stored.stars, findings: stored.findings, seen: stored.seen, places: stored.places });
+  assert.equal(save.getHalsPlay().played, true, 'Háls og hali stays open');
+  // and Uggeðla's star takes her on to chapter 3, whichever star she had
+  assert.equal(save.addStar('k2_uggedla'), true);
+  assert.equal(defaultChapter(save), 'kafli3');
+  assert.deepEqual(save.get().places, stored.places, 'the places are as they were');
+});
+
 test('forgetSave never throws: no storage, or one that fails', () => {
   assert.doesNotThrow(() => forgetSave(null));
   assert.doesNotThrow(() => forgetSave({ removeItem() { throw new Error('blocked'); } }));

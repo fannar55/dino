@@ -1,6 +1,6 @@
 # Recorded sound effects in chapter 2
 
-Grameðla's roar and breath, heard far off from the lookout (chapters/kafli2-lookout.js, engine/audio/sfx.js SAMPLES). Free for
+Grameðla's roar and breath, heard far off from the lookout (chapters/kafli3-lookout.js, engine/audio/sfx.js SAMPLES). Free for
 non-commercial use with credit, which this game is (the owner, 2026-10-27). Trimmed, made mono, levelled and converted to MP3; the
 sounds are otherwise as downloaded.
 

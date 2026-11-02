@@ -4,7 +4,8 @@
     "One entry per hard word: \"word\" (its name in the pronunciation book), \"stem\" (a regular expression for the start of every inflection, which remake/tests/pronunciation.test.mjs checks over all the sets and Litla Yatzy), \"forms\" (the surface forms, matched case-sensitively as whole words), optional \"except\" (words the stem matches that are not this word), \"recipes\" and \"chosen\".",
     "A recipe: \"say\" (what is sent in place of the form: one string for every form, or form -> string; IPA goes in double quotes and slashes, \"/.../\", the way Eleven v4 reads it), \"context\" (sent as previous_text, never spoken: a string, or speaker -> string with \"*\" for the rest), \"seed\", and \"note\" (for the owner, shown in the book). \"hratt\" sends the word as written.",
     "\"chosen\" is the recipe the owner picked by ear in the pronunciation book (node remake/tools/voice-lines.mjs --pick picks.json), or null: then the word is sent as written. \"audition\" (speaker -> sentence) gives the book a sentence for a speaker who has no line with the word.",
-    "The text the child sees (lines-source.json, the captions, lines.json) is never changed: only the request is."
+    "The text the child sees (lines-source.json, the captions, lines.json) is never changed: only the request is.",
+    "A line that carries its own \"say\" or \"context\" (lines-source.json of a set, yatzy-junior/lines-overrides.json) names what it fixes in \"fixes\": a word id of this book or a list of them (a word without an entry gets one, \"chosen\": null and a \"hratt\" recipe, so no request changes), \"punctuation\" (its say differs from the text in punctuation and spaces alone, and it has no context) or \"line\" (the whole line's tone; its note says so). remake/tests/heard.test.mjs checks it; voice-lines.mjs --dry and the book page show each word's fixes elsewhere, so the recipe that already won is tried first, and a fix that wins for a word becomes a recipe of it here."
   ],
   "words": {
     "kambedla": {
@@ -300,9 +301,14 @@
           },
           "seed": 77,
           "note": "IPA /ˈeitn̥/, fræ 77 (önnur taka af sömu beiðni)."
+        },
+        "talning": {
+          "context": "Við teljum á íslensku: einn, tveir, þrír, fjórir, fimm.",
+          "seed": 7,
+          "note": "Talning á íslensku sem samhengi (ekki talað), fræ 7. Eigandinn valdi hana eftir eyranu 2026-11-01 (taka A af fjórum í kafla 2, „Einn!“), og áður í Litla Yatzy (smallStraight, 2026-10-23) og Hvar er vinur minn? (2026-10-30); „hratt-frae7“ var merkt rangt í kafla 2."
         }
       },
-      "chosen": "hratt-frae7"
+      "chosen": "talning"
     },
     "mundu": {
       "word": "Mundu",
@@ -1913,6 +1919,166 @@
           },
           "seed": 7,
           "note": "„Snigglar“ með öðru fræi (7)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "synti": {
+      "word": "Synti",
+      "stem": "[Ss]ynt",
+      "forms": [
+        "Synti",
+        "synt",
+        "syntu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "hittum": {
+      "word": "hittum",
+      "stem": "[Hh]itt",
+      "forms": [
+        "hittum",
+        "hittast"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "skjaldbaka": {
+      "word": "Skjaldbaka",
+      "stem": "[Ss]kjaldb",
+      "forms": [
+        "Skjaldbaka",
+        "skjaldbaka",
+        "skjaldbakan",
+        "skjaldböku",
+        "skjaldbökuna",
+        "Skjaldbökur",
+        "skjaldbökur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "salamandra": {
+      "word": "Salamandra",
+      "stem": "[Ss]alam",
+      "forms": [
+        "Salamandra",
+        "salamandra",
+        "salamöndru",
+        "Salamöndrur",
+        "salamöndrur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "eins": {
+      "word": "eins",
+      "stem": "[Ee]ins$",
+      "forms": [
+        "eins"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "va": {
+      "word": "Vá",
+      "stem": "[Vv]á$",
+      "forms": [
+        "Vá"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "tvo": {
+      "word": "Tvö",
+      "stem": "[Tt]vö$",
+      "forms": [
+        "Tvö",
+        "tvö"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "thrju": {
+      "word": "Þrjú",
+      "stem": "[Þþ]rjú$",
+      "forms": [
+        "Þrjú",
+        "þrjú"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "fimm": {
+      "word": "Fimm",
+      "stem": "[Ff]imm$",
+      "forms": [
+        "Fimm",
+        "fimm"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "jafntefli": {
+      "word": "Jafntefli",
+      "stem": "[Jj]afntefl",
+      "forms": [
+        "Jafntefli"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "alvoruleikur": {
+      "word": "alvöruleikur",
+      "stem": "[Aa]lvöruleik",
+      "forms": [
+        "alvöruleik",
+        "alvöruleikinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
       "chosen": "hratt"

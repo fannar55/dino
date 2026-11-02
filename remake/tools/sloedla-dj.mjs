@@ -9,7 +9,9 @@
 // A line is spoken with eleven_v4 in Icelandic, the pronunciation lexicon applied (remake/assets/audio/pronunciation.json: the
 // friends' names), heard back by speech-to-text (scribe_v2); a take that is not heard as written is tried again with the next seed
 // (three at most) and the best kept. Each is trimmed of silence, levelled to -16 LUFS (peaks under -1.5 dB) and given a breath of
-// quiet at the end. A line that exists is never made again unless --force is given (that costs credits).
+// quiet at the end. A line that exists is never made again unless --force is given (that costs credits). A request the owner
+// rejected (remake/assets/audio/heard/, tools/heard.mjs; keyed as voice-lines.mjs cacheKey with the DJ's voice, model and settings)
+// is refused before anything is asked.
 //
 // The key is read from ELEVENLABS_API_KEY and from nowhere else. It goes into one request header; it is never printed, logged,
 // written to a file or put in a URL, and without it the tool stops before it asks for anything.
@@ -20,6 +22,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DJ_TAKES } from '../engine/sloedla/dj.js';
 import { readLexicon, requestFor } from './pronunciation.mjs';
+import { assertNotRejected, readHeard } from './heard.mjs';
+import { cacheKey } from './voice-lines.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FOLDER = 'remake/assets/audio/sloedla/dj';
@@ -139,6 +143,11 @@ async function make({ only, force }) {
   if (!todo.length) { console.log('every line is there (--force to make them again)'); return; }
   const key = keyOf();
   const lexicon = readLexicon(ROOT);
+  const heard = readHeard(ROOT); // the owner's ear: no seed of a request he rejected is asked for again
+  for (const id of todo) {
+    const { text, context, seeds } = requestOf(id, lexicon);
+    for (const seed of seeds) assertNotRejected(heard, cacheKey({ text, voiceId: manifest.voice.id, model: MODEL, settings: SETTINGS, seed, context }), `sloedla/dj/${id}`);
+  }
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sloedla-dj-'));
   fs.mkdirSync(path.join(ROOT, FOLDER), { recursive: true });
   try {

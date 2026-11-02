@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hljóð Uggeðlu</title>
+<link rel="icon" href="data:,">
+<!-- The listening page for Uggeðla's five sounds (engine/audio/fen-sounds.js: sailRise, jawSnap, gulp, tailSplash, swim): the game's own
+     sound effects (engine/audio/sfx.js) made on the spot, in the key of chapter 2's song, the same ones the scenes ask for
+     (chapters/kafli2-uggedla.js). Never linked from the game. The owner plays each, says yes or no with a word about it, and saves
+     hljod-kafli2.json for Claude. "Lagið undir" plays Dino Trail under them; the swim's "Lykkja" asks for it every SWIM_STROKE seconds,
+     as the ferry does. -->
+<style>
+  @font-face { font-family: "Nunito"; src: url("./assets/fonts/nunito-latin.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
+  :root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; --line: #e3d3b4; --mark: #f3e2bd; --on: #cfe8b8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.45 Nunito, system-ui, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 110px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  p { margin: 0 0 8px; }
+  p.note, .muted { color: var(--muted); }
+  code { font: 13px ui-monospace, monospace; color: var(--muted); }
+  .top { position: sticky; top: 0; z-index: 2; background: var(--paper); border-bottom: 2px solid var(--line); padding: 10px 0; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-weight: 700; }
+  .top label { display: flex; align-items: center; gap: 8px; }
+  .top input[type="range"] { width: 160px; }
+  section { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff8ea; }
+  section h2 { margin: 0 0 2px; font-size: 22px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 10px 0 6px; }
+  button { font: inherit; font-weight: 800; min-height: 48px; padding: 8px 22px; border-radius: 999px; border: 2px solid var(--ink); background: #fff; color: var(--ink); cursor: pointer; }
+  button.play { background: #f2c443; }
+  button[aria-pressed="true"] { background: var(--on); }
+  button:active { transform: translateY(2px); }
+  .choice { display: flex; gap: 18px; flex-wrap: wrap; font-weight: 800; margin: 8px 0 6px; }
+  .choice label { cursor: pointer; }
+  input.why { width: 100%; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--paper); border-top: 2px solid var(--line); padding: 10px 16px; display: flex; gap: 12px; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hljóð Uggeðlu</h1>
+  <p class="note">Fimm ný hljóð, búin til í leiknum sjálfum eins og öll hin og í tóntegund lagsins Dino Trail. Ýttu á „Spila“. Merktu „Já, rétt“ ef hljóðið er eins og það á að vera, annars „Nei“ og skrifaðu hvað er að (of hátt, of dimmt, of langt …). Ef eitthvað er ekki hægt að laga legg ég til ókeypis (CC0) upptöku og spyr þig áður en nokkru er hlaðið niður.</p>
+  <div class="top">
+    <label>Hljóðstyrkur <input type="range" id="volume" min="0" max="1" step="0.05" value="0.8" aria-label="Hljóðstyrkur"></label>
+    <label><input type="checkbox" id="song"> Lagið undir</label>
+  </div>
+
+  <section data-sound="sailRise">
+    <h2>Seglið rís úr sefinu <code>sailRise</code></h2>
+    <p class="note">Kafli 2, síkið: seglið hennar ýtist hægt upp úr sefinu eins og bátur. Um 3,6 sekúndur af skrjáfi í sefi.</p>
+    <div class="row"><button class="play" type="button" data-play="sailRise">Spila</button></div>
+  </section>
+  <section data-sound="jawSnap">
+    <h2>Kjafturinn smellur <code>jawSnap</code></h2>
+    <p class="note">Veiðin: kjafturinn lokast á fiskinum. Stuttur, þurr smellur.</p>
+    <div class="row"><button class="play" type="button" data-play="jawSnap">Spila</button></div>
+  </section>
+  <section data-sound="gulp">
+    <h2>Gleypir <code>gulp</code></h2>
+    <p class="note">Hún gleypir fiskinn, eftir hvern fisk sem hún veiðir (og fiskinn í síkinu þegar hún sýnir sig).</p>
+    <div class="row"><button class="play" type="button" data-play="gulp">Spila</button><button type="button" id="both">Smellur og gleypa saman</button></div>
+  </section>
+  <section data-sound="tailSplash">
+    <h2>Halinn skellur á vatnið <code>tailSplash</code></h2>
+    <p class="note">Ferjan: „Og sjáðu, ég syndi með halanum!“ Halinn skellur og skvettir á Mosa. Um 1,7 sekúndur.</p>
+    <div class="row"><button class="play" type="button" data-play="tailSplash">Spila</button></div>
+  </section>
+  <section data-sound="swim">
+    <h2>Sundið <code>swim</code></h2>
+    <p class="note">Ferjan: mjúkir sundtakar undir allri ferðinni, hljóðlátir svo röddin heyrist yfir. Tveir takar á tveimur sekúndum, og leikurinn biður um það aftur á 1,9 sekúndna fresti á meðan hún syndir.</p>
+    <div class="row"><button class="play" type="button" data-play="swim">Spila einu sinni</button><button type="button" id="loop" aria-pressed="false">Lykkja (eins og á ferjunni)</button></div>
+  </section>
+</main>
+<div class="bar"><button type="button" id="save">Vista val</button><span class="muted" id="count"></span></div>
+<script type="module">
+import { createSfx } from './engine/audio/sfx.js';
+import { SWIM_STROKE } from './engine/audio/fen-sounds.js';
+
+const SOUNDS = ['sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim'];
+const theme = await (await fetch('./assets/audio/kafli2/theme.json')).json();
+let context = null, sfx = null, volume = null, loopTimer = null;
+const song = Object.assign(new Audio('./assets/audio/kafli2/theme.mp3'), { loop: true, volume: 0.3 });
+
+/** The sound engine, made on the first touch (a page may not make sound before one); resolves when the context is running. */
+async function ready() {
+  if (!context) {
+    context = new AudioContext();
+    volume = context.createGain();
+    volume.gain.value = Number(document.getElementById('volume').value);
+    volume.connect(context.destination);
+    sfx = createSfx({ context, theme, output: volume });
+  }
+  if (context.state !== 'running') await context.resume();
+  return sfx;
+}
+const play = async name => { (await ready()).play(name, {}); };
+
+for (const button of document.querySelectorAll('[data-play]')) button.addEventListener('click', () => play(button.dataset.play));
+document.getElementById('both').addEventListener('click', async () => { await play('jawSnap'); setTimeout(() => play('gulp'), 700); });
+document.getElementById('volume').addEventListener('input', event => { if (volume) volume.gain.value = Number(event.target.value); });
+document.getElementById('song').addEventListener('change', event => { if (event.target.checked) song.play().catch(() => {}); else song.pause(); });
+const loop = document.getElementById('loop');
+loop.addEventListener('click', async () => {
+  if (loopTimer) { clearInterval(loopTimer); loopTimer = null; loop.setAttribute('aria-pressed', 'false'); return; }
+  loop.setAttribute('aria-pressed', 'true');
+  await play('swim');
+  loopTimer = setInterval(() => play('swim'), SWIM_STROKE * 1000);
+});
+
+// the owner's choices, per sound: yes or no and a word, saved as hljod-kafli2.json
+for (const section of document.querySelectorAll('section[data-sound]')) {
+  const name = section.dataset.sound;
+  section.insertAdjacentHTML('beforeend', `<div class="choice"><label><input type="radio" name="${name}" value="ja"> Já, rétt</label> <label><input type="radio" name="${name}" value="nei"> Nei</label></div><input type="text" class="why" name="why-${name}" placeholder="Hvað er að? (má sleppa)" aria-label="Hvað er að í ${name}?">`);
+}
+const choices = () => Object.fromEntries(SOUNDS.flatMap(name => { const input = document.querySelector(`input[name="${name}"]:checked`); return input ? [[name, input.value]] : []; }));
+const notes = () => Object.fromEntries(SOUNDS.flatMap(name => { const text = document.querySelector(`input[name="why-${name}"]`).value.trim(); return text ? [[name, text]] : []; }));
+const count = () => {
+  const all = Object.values(choices());
+  document.getElementById('count').textContent = `${all.filter(v => v === 'ja').length} já, ${all.filter(v => v === 'nei').length} nei, ${SOUNDS.length - all.length} ómerkt`;
+};
+document.addEventListener('change', count);
+count();
+document.getElementById('save').addEventListener('click', () => {
+  const blob = new Blob([`${JSON.stringify({ set: 'kafli2-hljod', choices: choices(), notes: notes() }, null, 2)}\n`], { type: 'application/json' });
+  const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'hljod-kafli2.json' });
+  document.body.append(link);
+  link.click();
+  link.remove();
+});
+</script>
+</body>
+</html>
