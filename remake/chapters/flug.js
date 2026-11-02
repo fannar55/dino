@@ -54,8 +54,8 @@ export const chapter = {
     egill: { name: 'Egill', colour: '#355774' },
     flugedla: { name: 'Flugeðla', colour: '#955055' },
   },
-  // Captions only until her voice and the lines are recorded (Task 15)
-  lines: Object.fromEntries(Object.entries(FLIGHT_WORDS).map(([id, text]) => [id, { text }])),
+  // the flight's lines, each with its recording (Task 15: the kafli4 set)
+  lines: Object.fromEntries(Object.entries(FLIGHT_WORDS).map(([id, text]) => [id, { text, audio: id }])),
   startShot: 'flug_snag',
   shots: {},
 

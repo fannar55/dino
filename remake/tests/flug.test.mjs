@@ -3,6 +3,7 @@
 // warnings, on schedule, holds still and silent through a pause, plays calmer under reduced motion, and a seek lands where the play does.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as THREE from 'three';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
@@ -243,6 +244,16 @@ test('pausing at 60 s holds the beat and silences the wind bed', async () => {
   assert.ok(at(67).level > 0.5, 'and back after it');
 });
 
+test('the review flight speaks with the recorded lines: each line plays its own kafli4 recording', () => {
+  const recorded = JSON.parse(fs.readFileSync(new URL('../assets/audio/lines.json', import.meta.url), 'utf8'));
+  const lines = Object.entries(flugModule.chapter.lines);
+  assert.ok(lines.length > 10);
+  for (const [id, line] of lines) {
+    assert.equal(line.audio, id, `${id} plays its recording`);
+    assert.equal(recorded[id]?.src, `assets/audio/kafli4/${id}.mp3`, `${id} is recorded`);
+  }
+});
+
 test('the wind bed follows her speed, and makes no sound where there is no audio (captures)', () => {
   const audio = createFakeContext({ state: 'running' });
   const sounds = createFlightSounds({ context: audio, output: audio.destination });
@@ -414,7 +425,10 @@ test('nothing touched: every group is still called once and the flight ends at 1
   assert.deepEqual(c.play.answers.map(a => a.id), groupIds, 'and each answers');
   const big = c.play.calls.filter(call => call.id === 'land');
   assert.equal(big.length, 1, 'the big call over the land, once');
-  assert.ok(Math.abs(big[0].t - 135) < 0.1, `by itself at 135 s (${big[0].t.toFixed(2)})`);
+  // at 135 s, or, when a line still plays then (their recorded lengths), as soon as it ends
+  const waited = log.lines.filter(l => l.from < big[0].t - 1e-6 && l.to !== null && l.to > 135 - 1e-6);
+  const due = Math.max(135, ...waited.map(l => l.to));
+  assert.ok(Math.abs(big[0].t - due) < 0.1, `by itself at 135 s, after the line playing (${big[0].t.toFixed(2)}, due ${due.toFixed(2)}: ${waited.map(l => l.id)})`);
   // the finger hint shows in the first chase shot of B and only then; the button only in B to D
   const hinted = log.frames.filter(f => f.hint);
   assert.ok(hinted.length > 30 && hinted.every(f => f.t >= BEATS.B && f.t < 25 && f.shot === 'chase'), 'the hint, in the first chase shot');
