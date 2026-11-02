@@ -10,7 +10,8 @@
 // in remake/assets/audio/heard/<date>-minnisspil.json, and the tool refuses a request he rejected.
 // Picked by ear 2026-10-30: Hver in IPA; Einn with Litla Yatzy's counting context and seed 7 (its smallStraight take).
 // Picked by ear 2026-11-02 (qa/memory/tal): the old takes of help, cross, won, held and find_stego (kept); the book's takes of build
-// and find_bronto; and a recipe for each new word (pronunciation.json). He rejected every take of g2_ledge_ready.
+// and find_bronto; and a recipe for each new word (pronunciation.json). He rejected every take of g2_ledge_ready, then picked take B
+// of the new candidates (qa/memory/tal2): Stallurinn respelled Statlurinn, of as written.
 const HVER = '"/kʰvɛːr/"';
 const COUNTING = 'Við teljum á íslensku: einn, tveir, þrír, fjórir, fimm.';
 export const VOICE_LINES = Object.freeze({
@@ -61,7 +62,7 @@ export const VOICE_LINES = Object.freeze({
   // Level 2's next steps (Task 5): everyone goes through the tunnel, the ledge is too high (said when the Þórseðlur are home), the Þórseðlur pull the slab down, the cliff is steep
   // (said when the Flugeðlur are home), the Flugeðlur have flown the rope up, and everyone climbs with the rope as a handrail.
   g2_through: { text: 'Göngin eru opin. Allir með!', seed: 251431 },
-  g2_ledge_ready: { text: 'Stallurinn er of hár. Hver nær hátt?', say: `Stallurinn er of hár. ${HVER} nær hátt?`, seed: 251432, fixes: 'hver' }, // every take rejected 2026-11-02: candidates on qa/memory/tal2
+  g2_ledge_ready: { text: 'Stallurinn er of hár. Hver nær hátt?', say: `Statlurinn er of hár. ${HVER} nær hátt?`, seed: 251432, kept: "the owner's pick by ear, 2026-11-02 (qa/memory/tal2): take B, Stallurinn respelled Statlurinn and of as written, after he rejected every earlier take", fixes: ['stallur', 'of', 'hver'] }, // of as written: the book's IPA of swallowed the h of hár
   g2_reached: { text: 'Langir hálsar ná hátt!', seed: 251433 },
   g2_cliff_ready: { text: 'Klettaveggurinn er brattur. Hver getur flogið með reipið upp?', say: `Klettaveggurinn er brattur. ${HVER} getur flogið með reipið upp?`, context: 'Klettaveggurinn er hár og brattur. Við bindum reipið fast við tréð.', seed: 251434, fixes: ['klettaveggur', 'hver', 'reipi'] }, // the take the owner picked 2026-11-02: Klettaveggur's context, which says reipið too
   // (plain, scribe heard "Fluggeðlurnar", and with other seeds "Flugvellurnar" and "Fluggæslurnar", and IPA made it "Flugvellirnar": the sentence about her that the pronunciation book's Flugeðla recipe sends first, not spoken, brought it to "Flugeðlurnar")

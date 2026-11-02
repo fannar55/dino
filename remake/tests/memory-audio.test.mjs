@@ -301,13 +301,13 @@ test("every line Mosi says goes through the pronunciation standard: each hard wo
       for (const form of recipe.say === undefined ? [] : word.forms) assert.ok(item.sent.text.includes(typeof recipe.say === 'string' ? recipe.say : recipe.say[form]), `${item.id}: ${form} is sent as its recipe says`);
     }
   }
-  for (const id of ['who', 'won', 'push', 'roll', 'gift_shrew', 'help', 'cross', 'held', 'find_stego']) assert.ok(states.find(item => item.id === id).line.kept, `${id}: the owner's pick by ear stays kept`);
+  for (const id of ['who', 'won', 'push', 'roll', 'gift_shrew', 'help', 'cross', 'held', 'find_stego', 'g2_ledge_ready']) assert.ok(states.find(item => item.id === id).line.kept, `${id}: the owner's pick by ear stays kept`);
   // A line that keeps its own say or context names what it fixes, as main's lines do (heard.mjs fixesProblems).
   assert.deepEqual(tool.fixesFindings(lexicon), []);
 });
 
 // The lines whose shipped take the owner rejected and whose new take he has not picked yet: id -> why, and where the candidates are.
-const WAITING = { g2_ledge_ready: 'he rejected every take on 2026-11-02 ("engin réttur"); new candidates (memory-voices.mjs --try) are on qa/memory/tal2 for him to pick' };
+const WAITING = {};
 
 test("the owner's verdicts (remake/assets/audio/heard/, set minnisspil): no line sends a request he rejected and no shipped MP3 is a take he rejected, but those waiting for his pick; the takes he picked are the ones that ship", async () => {
   const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { readHeard, rejection } = await import('../tools/heard.mjs');

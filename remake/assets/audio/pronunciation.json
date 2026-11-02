@@ -2299,22 +2299,22 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Þú hafnaðir öllum tökum línunnar „Stallurinn er of hár. Hver nær hátt?“ 2026-11-02 („engin réttur“): nýjar tillögur á tal2-síðunni."
+          "note": "Sent eins og það er skrifað. Þú hafnaðir öllum tökum línunnar „Stallurinn er of hár. Hver nær hátt?“ þannig 2026-11-02 („engin réttur“)."
         },
         "ipa": {
           "say": "\"/ˈstatlʏrɪn/\"",
-          "note": "IPA /ˈstatlʏrɪn/: ll sem „tl“, eins og í Snigli. Þú hafnaðir henni 2026-11-02 með „of“ líka í IPA (talgreinirinn heyrði „Statlurinn“, en „of“ dróst á langinn); ný tillaga með „of“ eins og það er skrifað."
+          "note": "IPA /ˈstatlʏrɪn/: ll sem „tl“, eins og í Snigli. Þú hafnaðir henni 2026-11-02, bæði með „of“ í IPA og með „of“ eins og það er skrifað (tal2, tökur A og D)."
         },
         "stafsetning": {
           "say": "Statlurinn",
-          "note": "Stafsett með „tl“, eins og ll er borið fram (tillaga 2026-11-02)."
+          "note": "Stafsett með „tl“, eins og ll er borið fram. Þú valdir hana eftir eyranu 2026-11-02 (tal2, taka B, með „of“ eins og það er skrifað)."
         },
         "samhengi": {
           "context": "Sjáðu stallinn í klettinum. Hann er allt of hár fyrir okkur.",
-          "note": "Setning með „stallinn“ og „of hár“ send á undan sem samhengi, ekki töluð (tillaga 2026-11-02)."
+          "note": "Setning með „stallinn“ og „of hár“ send á undan sem samhengi, ekki töluð. Þú hafnaðir henni 2026-11-02 (tal2, taka C)."
         }
       },
-      "chosen": null
+      "chosen": "stafsetning"
     },
     "klettaveggur": {
       "word": "Klettaveggur",
