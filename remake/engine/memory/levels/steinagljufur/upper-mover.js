@@ -495,7 +495,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   // last; each starts when the one before is far enough ahead on the trunk (their lengths: BODY). The Flugeðlur fly over. Footsteps on the wood while anyone is on it.
   // (Stepping up the side by the roots, from 1.2 m off them, the hind part of a body came through the root plate; stepping off sideways, the hind legs came through the
   // bark as the body turned: the field each walks on is now the bark's own top widened by the body's width, see trunkSurface, and kept under the body as it turns.)
-  const WALK = { ground: 4.4, deck: 3.6, up: [[40.0, 5.9], [41.1, 8.55], [41.55, 9.05]], deckFrom: 42.0, deckTo: 45.9, off: [[47.3, 9.3]], via: [51.0, 7.2], margin: .4, slope: 1.3 };
+  const WALK = { ground: 5.0, deck: 4.0, up: [[40.0, 5.9], [41.1, 8.55], [41.55, 9.05]], deckFrom: 42.0, deckTo: 45.9, off: [[47.3, 9.3]], via: [51.0, 7.2], margin: .3, slope: 1.3 };
   const BODY = { mosi: [.8, .8], triceratops: [1.0, .9], stegosaurus: [1.3, 1.0], brontosaurus: [2.3, 1.4] }; // metres behind and ahead of its root
   // (how far each one's skin reaches either side of its line, in its lowest half metre: measured from the skins as they stand, and a little more)
   const HALF = { mosi: .69, triceratops: .74, stegosaurus: .5, brontosaurus: .6 };
@@ -522,7 +522,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     if (!trunk || trunk.angle < trunk.fallen - .5) return false;
     walkers.cancelAll(); walkers.resetClock();
     const surfaces = Object.fromEntries(Object.entries(HALF).map(([who, reach]) => [who, trunkSurface(reach)]));
-    action = { id: 'walk', phase: 'walk', age: 0, landed: 0, stepAge: 0, arrived: 0, surfaces };
+    action = { id: 'walk', phase: 'walk', age: 0, landed: 0, stepAge: 0, arrived: 0, surfaces, times: [], walked: null };
     events.push({ type: 'walk-start' });
     const deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z)), [on, ...up] = WALK.up.map(p => world(...p)), off = WALK.off.map(p => world(...p));
     let hop = -Infinity, before = null;
@@ -534,13 +534,13 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       hop = at; before = who; void back;
       const end = spot.frame[1] < 6.5 ? [world(...WALK.via), spot.point] : [spot.point];
       walkers.start(actor, [{ to: [on], speed: WALK.ground, ground: false, surface }, { to: [...up, ...deck], speed: WALK.deck, ground: false, surface }, { to: off, speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
-        { delay, yaw: spot.yaw, pitch: true, onDone: () => { action && action.arrived++; } });
+        { delay, yaw: spot.yaw, pitch: true, onDone: () => { if (action) { action.arrived++; action.times.push(+action.age.toFixed(2)); } } });
     }
     // the Flugeðlur fly over, high over the trunk, and come down at their places
     members('pteranodon').forEach((actor, i) => {
       const spot = spotOf('sun', 'pteranodon', i), points = [U.world(33 + i, 12.4, 5.6 + i), U.world(43.5, 13.2, 8 + i * 1.4), U.world(spot.frame[0] - 2, 11.2, spot.frame[1])];
       actor.carry?.(false);
-      const ok = actor.fly?.(points, { speed: 4.6 - i * .3, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: () => { action && action.landed++; } }) || (action && action.landed++); } });
+      const ok = actor.fly?.(points, { speed: 5.2 - i * .3, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: () => { action && action.landed++; } }) || (action && action.landed++); } });
       if (!ok) { walkers.place(actor, spot.point, spot.yaw); action.landed++; }
     });
     return true;
@@ -554,7 +554,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
         const on = [...members('brontosaurus'), ...members('triceratops'), ...members('stegosaurus'), mosi()].map(actor => ({ actor, p: U.local(actor.root.position) })).filter(({ p }) => p.x > WALK.deckFrom - .3 && p.x < WALK.deckTo + .3 && p.y > U.rim.y + .5);
         if (on.length) { a.stepAge = 0; events.push({ type: 'footstep', surface: 'wood', pan: 0 }); }
       }
-      if (a.arrived >= WALK_ORDER.length && a.landed >= 2) { a.phase = 'cheer'; a.age = 0; for (const actor of friends()) { actor.setMotion?.('idle'); actor.gesture?.('cheer'); } stage.mosi?.gesture?.('cheer'); }
+      if (a.arrived >= WALK_ORDER.length && a.landed >= 2) { a.phase = 'cheer'; a.walked = +a.age.toFixed(2); a.age = 0; for (const actor of friends()) { actor.setMotion?.('idle'); actor.gesture?.('cheer'); } stage.mosi?.gesture?.('cheer'); }
       else if (a.age > 16) a.landed = 2;
     } else if (a.phase === 'cheer' && a.age >= (reduced() ? .4 : 1.3)) { const id = a.id; where = 'sun'; action = null; events.push({ type: 'bridge-complete', id }); }
   }
@@ -734,7 +734,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     walkers, update, goes: () => goes,
     spots: formation => ({ mosi: spotOf(formation, 'mosi').point, ...Object.fromEntries(level.friends.map(species => [species, members(species).map((_, i) => spotOf(formation, species, i).point)])) }),
     reset() { walkers.cancelAll(); action = null; where = 'glade'; goes = null; time = 0; for (const actor of friends()) { actor.root.rotation.x = actor.root.rotation.z = 0; actor.root.scale.setScalar(1); actor.cancelFlight?.(); actor.carry?.(false); } if (mosi()) mosi().root.rotation.z = 0; trunk?.reset(); },
-    debug: () => ({ action: action ? { id: action.id, phase: action.phase, age: +action.age.toFixed(2), given: action.given ?? 0, done: action.done ?? 0, hidden: action.hidden ?? 0, arrived: action.arrived ?? 0 } : null, where, walking: walkers.count() }),
+    debug: () => ({ action: action ? { id: action.id, phase: action.phase, age: +action.age.toFixed(2), given: action.given ?? 0, done: action.done ?? 0, hidden: action.hidden ?? 0, arrived: action.arrived ?? 0, ...(action.id === 'walk' ? { walked: action.walked, times: action.times } : {}) } : null, where, walking: walkers.count() }),
   };
   function reduced() { return reducedNow(); }
 }

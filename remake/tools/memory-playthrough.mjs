@@ -1123,6 +1123,7 @@ async function main() {
         if (act === 'walk') {
           if (s.cam.shot === 'follow') waited ||= await milestone('walk-across', 'walk-across-the-trunk', 900);
           if (s.cam.shot === 'follow' && seen.has('walk-across')) waited ||= await milestone('walk-across-2', 'walk-across-the-trunk-later', 1200);
+          if (a.phase === 'cheer' && !report.walk) { report.walk = { seconds: a.walked ?? null, arrived: a.times ?? null }; step('the walk', report.walk); }
           if (a.phase === 'cheer') waited ||= await milestone('walk-sun', 'walk-everyone-on-solarsyllan', 400);
         }
         if (o.restartAt === 'pull' && act === 'pull' && a.phase === 'tug' && u.trunk && u.trunk.angle > 3) {
