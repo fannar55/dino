@@ -395,7 +395,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // a track of its own (a chapter's theme, a game's music), measured as it is, its json beside it: repo-relative, with / between
   const own = themeAt > 0 ? `remake/assets/audio/${process.argv[themeAt + 1]}/theme.mp3`
     : fileAt > 0 ? path.relative(ROOT, path.resolve(ROOT, process.argv[fileAt + 1] ?? '')).replace(/\\/g, '/') : null;
-  if (own && !/^remake\/assets\/audio\/[a-z0-9_-]+\/[a-z0-9_-]+\.mp3$/i.test(own)) throw new Error(`--file takes an mp3 in a folder under remake/assets/audio/, not ${own}`);
+  if (own && !/^remake\/assets\/audio\/(?:[a-z0-9_-]+\/)+[a-z0-9_-]+\.mp3$/i.test(own)) throw new Error(`--file takes an mp3 in a folder under remake/assets/audio/, not ${own}`);
   const folder = own ? own.split('/').at(-2) : null;
   if (own && process.argv.includes('--encode')) throw new Error('--encode makes chapter 1\'s copy; a track of its own is measured as it is');
   if (process.argv.includes('--encode')) encodeTheme();

@@ -39,6 +39,13 @@
 // "yatzy-junior/<id>") the cache key of the request it was made from, the MP3's sha256 and its length. Hashes and lengths only, no
 // secret. Both tools write it as they master a line; --plan reads it, so any checkout knows what each MP3 is without its caches.
 //
+// THE OWNER'S EAR (tools/heard.mjs). His yes/no verdicts are imported from the jano-<set>.json his page saves into
+// remake/assets/audio/heard/, each bound to the request key and MP3 of the take he heard. A request whose latest verdict is "nei" is
+// never sent or installed again: making lines, --remake-kept and --ab-apply stop before anything is asked (no flag passes it;
+// change the recipe or seed), --plan lists the shipped lines he rejected, and --dry says it under the line, with, for each book
+// word in it, where that word was fixed on a line of its own (a line's own say or context names its word in "fixes"), so the
+// recipe that already won is tried first. --audition and --book try recipes on purpose and are not guarded.
+//
 // THE PLAN AND THE A/B PAGES. --plan lists the lines whose MP3 is not what the tool would send now: a take of another request (a
 // recipe chosen or changed since), a changed MP3, none, or, for a line the record does not know, an eleven_v3 take found in the
 // caches of the checkouts beside this one (the line's text hashed for eleven_v3 and eleven_v4, the take kept only if its length plus
@@ -91,6 +98,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LINES_FILE, SETS, durationOf, setFolder, updateLines } from './audio-lines.mjs';
+import { assertNotRejected, evidenceFor, fixesByWord, readHeard, rejection } from './heard.mjs';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { LEXICON, checkLexicon, formsPattern, isText, readLexicon, requestFor, resolveWord, withChoice, writeLexicon } from './pronunciation.mjs';
 import { SPEAKER_NAMES, abHtml, bookHtml, yesNoHtml } from './voice-pages.mjs';
@@ -274,7 +282,7 @@ export function readLines(root, set = 'kafli1') {
 
 /**
  * Litla Yatzy's lines live in its script, not in a lines-source.json, so this file beside its MP3s carries what such a line may
- * carry of its own: { "<id>": { say?, context?, seed?, note? } }, which win over the lexicon just as in a lines-source.json line.
+ * carry of its own: { "<id>": { say?, context?, seed?, fixes?, note? } }, which win over the lexicon just as in a lines-source.json line.
  * The script stays the caption. Both tools read it, so --plan, --ab and the fingerprints agree.
  */
 export const JUNIOR_OVERRIDES = 'remake/assets/audio/yatzy-junior/lines-overrides.json';
@@ -285,8 +293,9 @@ export function juniorOverrides(root, junior = JUNIOR_LINES) {
   if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) throw new Error(`${JUNIOR_OVERRIDES} is an object: line id -> { say, context, seed, note }.`);
   for (const [id, fields] of Object.entries(overrides)) {
     if (!Object.hasOwn(junior, id)) throw new Error(`${JUNIOR_OVERRIDES}: ${id} is not a line of Litla Yatzy.`);
-    const unknown = Object.keys(fields ?? {}).filter(key => !['say', 'context', 'seed', 'note'].includes(key));
-    if (unknown.length) throw new Error(`${JUNIOR_OVERRIDES}: ${id} has ${unknown.join(', ')}; a line carries say, context, seed and note only.`);
+    const unknown = Object.keys(fields ?? {}).filter(key => !['say', 'context', 'seed', 'fixes', 'note'].includes(key));
+    if (unknown.length) throw new Error(`${JUNIOR_OVERRIDES}: ${id} has ${unknown.join(', ')}; a line carries say, context, seed, fixes and note only.`);
+    if (fields.fixes !== undefined && !(isText(fields.fixes) || (Array.isArray(fields.fixes) && fields.fixes.length && fields.fixes.every(isText)))) throw new Error(`${JUNIOR_OVERRIDES}: ${id}.fixes names the book words it fixes (or "punctuation" or "line").`);
     for (const field of ['say', 'context', 'note']) {
       if (fields[field] !== undefined && !isText(fields[field])) throw new Error(`${JUNIOR_OVERRIDES}: ${id}.${field} is text.`);
     }
@@ -430,6 +439,8 @@ export async function generate({ root, key, fetch, only = null, set = 'kafli1', 
   if (lost.length) {
     throw new Error(`${lost.map(line => line.id).join(', ')}: kept in ${source}, but ${lost.length > 1 ? 'their MP3s are' : 'its MP3 is'} not in ${folder}. Put the chosen take back, or take "kept" away to have the tool make the line again. No request was made.`);
   }
+  const heard = readHeard(root); // THE OWNER'S EAR (tools/heard.mjs): a request he rejected is never sent or installed again
+  for (const line of made) { const sent = requestFor(line, lexicon); assertNotRejected(heard, cacheKey({ text: sent.text, voiceId: voices[line.speaker], seed: sent.seed, context: sent.context }), `${set}/${line.id}`); }
   needAudioTools();
   const done = [];
   try {
@@ -535,6 +546,8 @@ export function dry({ root, set = 'kafli1', only = null, log }) {
   const lexicon = readLexicon(root);
   const voices = readVoices(root);
   const sets = set === 'all' ? [...Object.keys(SETS).filter(name => fs.existsSync(path.join(root, sourceOf(name)))), JUNIOR] : [set];
+  const heard = readHeard(root); // THE OWNER'S EAR and the line-level fixes of every set (tools/heard.mjs): what to know before recording
+  const fixes = fixesByWord(allLines(root));
   const rows = [];
   for (const name of sets) {
     const lines = linesOf(root, name);
@@ -552,15 +565,19 @@ export function dry({ root, set = 'kafli1', only = null, log }) {
       }
       const sent = requestFor(line, lexicon);
       const voiceId = voices[line.speaker];
-      const cached = typeof voiceId === 'string' && isCached(root, cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context }));
+      const key = typeof voiceId === 'string' ? cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context }) : null;
+      const cached = key !== null && isCached(root, key);
       const unchosen = sent.words.some(word => !word.recipe);
-      rows.push({ set: name, id: line.id, speaker: line.speaker, text: line.text, sent, cached, unchosen });
+      const evidence = evidenceFor({ where: `${name}/${line.id}`, words: sent.words, key, lexicon, fixes, heard });
+      rows.push({ set: name, id: line.id, speaker: line.speaker, text: line.text, sent, cached, unchosen, evidence, rejected: Boolean(key && rejection(heard, key)) });
       out.push(`  ${line.id}: ${JSON.stringify(sent.text)}${sent.seed === undefined ? '' : `  seed ${sent.seed}`}${sent.words.length ? `  [${describeWords(sent)}]` : ''}${sent.own.length ? `  (the line's own ${sent.own.join(', ')})` : ''}  ${cached ? 'cached' : 'to ask'}`);
       if (sent.context !== undefined) out.push(`      context (not spoken): ${JSON.stringify(sent.context)}`);
+      for (const note of evidence) out.push(`      ${note}`);
     }
     const mine = rows.filter(row => row.set === name && !row.kept);
     const changed = mine.filter(row => row.sent.text !== row.text || row.sent.context !== undefined).length;
-    log(`${name}: ${chosen.length} lines, ${changed} sent with a recipe, ${mine.filter(row => row.unchosen).length} with a word not chosen yet, ${chosen.length - mine.length} kept, ${mine.filter(row => !row.cached).length} to ask`);
+    const rejected = mine.filter(row => row.rejected).length;
+    log(`${name}: ${chosen.length} lines, ${changed} sent with a recipe, ${mine.filter(row => row.unchosen).length} with a word not chosen yet, ${chosen.length - mine.length} kept, ${mine.filter(row => !row.cached).length} to ask${rejected ? `, ${rejected} REJECTED by the owner (another recipe or seed first)` : ''}`);
     for (const text of out) log(text);
   }
   return rows;
@@ -670,7 +687,7 @@ export function writeBook(root, lexicon, voices, renderedNow = new Map()) {
   });
   const folder = path.join(root, BOOK);
   fs.mkdirSync(folder, { recursive: true });
-  fs.writeFileSync(path.join(folder, 'index.html'), bookHtml(lexicon, rows, { exists: row => row.made }));
+  fs.writeFileSync(path.join(folder, 'index.html'), bookHtml(lexicon, rows, { exists: row => row.made, elsewhere: fixesByWord(allLines(root)) }));
   const about = 'The pronunciation book\'s rows: what each sends now (sent, key) and the request its MP3 was made from (rendered); written by tools/voice-lines.mjs --book.';
   fs.writeFileSync(path.join(folder, 'book.json'), `${JSON.stringify({ about, rows }, null, 1)}\n`);
   return rows;
@@ -774,10 +791,11 @@ export function regenerationPlan(root, { caches = cachesOf(root), junior = JUNIO
   const lexicon = readLexicon(root);
   const voices = readVoices(root);
   const made = readMade(root);
+  const heard = readHeard(root);
   const sets = [...Object.keys(SETS).filter(set => fs.existsSync(path.join(root, sourceOf(set)))), JUNIOR];
   const plan = {};
   for (const set of sets) {
-    const found = { make: [], unknown: [], waiting: [], kept: [], stale: [], current: 0 };
+    const found = { make: [], unknown: [], waiting: [], kept: [], stale: [], rejected: [], current: 0 };
     const entries = entriesOf(root, set);
     for (const line of linesOf(root, set, junior)) {
       const sent = requestFor(line, lexicon);
@@ -792,6 +810,9 @@ export function regenerationPlan(root, { caches = cachesOf(root), junior = JUNIO
         const entry = entries[line.id];
         if (!entry || Math.abs(entry.duration - length) > 0.002) found.stale.push({ id: line.id, why: entry ? `its entry says ${entry.duration} s, the MP3 is ${length} s` : 'no entry' });
       }
+      const no = record ? rejection(heard, record.key) : null; // the owner's "nei" on the very request its take was made from
+      const rejected = () => found.rejected.push({ id: line.id, by: no.id, date: no.date, ...(no.note ? { note: no.note } : {}) });
+      if (line.kept !== undefined && no) { rejected(); continue; }
       if (line.kept !== undefined) {
         const why = keptWhy(line, sent);
         if (why.length) found.kept.push({ id: line.id, why: why.join('; '), kept: line.kept });
@@ -800,7 +821,8 @@ export function regenerationPlan(root, { caches = cachesOf(root), junior = JUNIO
       const voiceId = voices[line.speaker];
       const key = cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context });
       const changed = sent.text !== line.text || sent.context !== undefined || sent.seed !== line.seed;
-      const reasons = [];
+      if (no && record.key === key) { rejected(); continue; } // it would send the rejected request again: another recipe or seed first
+      const reasons = no ? [`the owner rejected its take (${no.id}, ${no.date})`] : [];
       if (!sha) {
         reasons.push('no MP3 yet');
       } else if (record) {
@@ -841,7 +863,8 @@ export function printPlan({ root, log }) {
   log('Lines to make again: the MP3 is not of the request the lexicon makes now (or an eleven_v3 take). Kept lines are never made again.');
   for (const [set, found] of Object.entries(plan)) {
     log('');
-    log(`${set}: ${found.make.length} to make, ${found.unknown.length} unknown, ${found.waiting.length} waiting for a pick, ${found.kept.length} kept to know about, ${found.stale.length} stale entries, ${found.current} as they should be`);
+    log(`${set}: ${found.make.length} to make, ${found.unknown.length} unknown, ${found.waiting.length} waiting for a pick, ${found.kept.length} kept to know about, ${found.stale.length} stale entries, ${found.current} as they should be${found.rejected.length ? `, ${found.rejected.length} rejected by the owner` : ''}`);
+    for (const item of found.rejected) log(`  rejected by the owner, to make again with another recipe or seed: ${item.id} (his "nei" on ${item.by}, ${item.date}${item.note ? `: ${JSON.stringify(item.note)}` : ''}; node remake/tools/voice-lines.mjs --dry --set ${set} --only ${item.id})`);
     for (const item of found.make) {
       log(`  ${item.id}: ${item.reasons.join('; ')}${item.optional ? ' (optional: its caption alone until made)' : ''}${item.cached ? ' (cached)' : ''}`);
       if (!item.cached) { lines++; characters += item.sent.text.length; }
@@ -854,6 +877,8 @@ export function printPlan({ root, log }) {
   }
   log('');
   log(`In all: ${Object.values(plan).reduce((n, found) => n + found.make.length, 0)} lines to make, ${lines} of them to ask ElevenLabs for (${characters} characters).`);
+  const rejected = Object.values(plan).reduce((n, found) => n + found.rejected.length, 0);
+  if (rejected) log(`${rejected} line${rejected === 1 ? '' : 's'} rejected by the owner: change the recipe or seed (the book, or the line's own fields with "fixes"), then make ${rejected === 1 ? 'it' : 'them'} again.`);
   if (fs.existsSync(path.join(root, BOOK))) {
     const stale = staleBookWords(bookStatus(root, readLexicon(root), readVoices(root)));
     if (stale.length) log(bookHint(stale));
@@ -988,6 +1013,8 @@ export async function remakeKept({ root, key, fetch, set, only = null, log }) {
   const chosen = lines.filter(line => line.kept !== undefined && (only ? only.includes(line.id) : keptWhy(line, requestFor(line, lexicon)).length));
   const missing = [...new Set(chosen.map(line => line.speaker))].filter(speaker => typeof voices[speaker] !== 'string' || !voices[speaker]);
   if (missing.length) throw new Error(`No voice is chosen for ${missing.join(' and ')} in ${VOICES}. No request was made.`);
+  const heard = readHeard(root); // THE OWNER'S EAR: a request he rejected is not made again, not even beside the page
+  for (const line of chosen) { const { kept, ...plain } = line; const sent = requestFor(plain, lexicon); assertNotRejected(heard, cacheKey({ text: sent.text, voiceId: voices[line.speaker], seed: sent.seed, context: sent.context }), `${set}/${line.id}`); }
   needAudioTools();
   const record = readKeptNew(root, set);
   for (const line of chosen) {
@@ -1026,6 +1053,7 @@ export function abApply({ root, set, file, log }) {
   readLines(root, set); // checked as the tool checks it
   const install = [];
   const keptOld = [];
+  const heard = readHeard(root); // THE OWNER'S EAR: a take he rejected since it was made is not installed
   for (const [id, item] of pending) {
     const line = lines.find(entry => entry.id === id);
     if (!line) throw new Error(`${id} is no longer in ${sourceOf(set)}. Nothing was changed.`);
@@ -1033,6 +1061,7 @@ export function abApply({ root, set, file, log }) {
     if (line.kept === undefined) throw new Error(`${id} is not kept any more in ${sourceOf(set)}: its new take was made for a kept line. Nothing was changed.`);
     const take_ = path.join(keptNewFolder(root, set), `${id}.mp3`);
     if (!fs.existsSync(take_) || sha256(take_) !== item.mp3) throw new Error(`${AB}/${set}/kept-new/${id}.mp3 is not the take --remake-kept made (missing or changed). Nothing was changed.`);
+    assertNotRejected(heard, item.key, `${set}/${id}`);
     install.push([id, line, item, take_]);
   }
   const others = Object.entries(saved.choices).filter(([id, choice]) => choice === 'gamla' && !record[id]).map(([id]) => id);

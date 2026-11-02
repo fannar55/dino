@@ -12,9 +12,10 @@
      .spread-turn                a dog-eared corner of the Dýrin pages, .next on the right page and .prev on the left, that turns
                                  to the next or the last spread of animals (the forest's, the Fen's); a .page-turning spread hides it
      .tile                       a taped photo of an animal, or of a dinosaur on the Risaeðlur page: .found, .new (with its .badge-new)
-                                 or .unfound; on the Leikir page the .game-tile of "Eitt!", of "Háls og hali" and of "Litla Yatzy",
-                                 each in its .game-slot (only the games that are open show; .book-tiles[data-open] says how many),
-                                 with the stickers won from Kambeðla beside them (.sticker-sheet of .book-sticker); on the Safnið
+                                 or .unfound; on the Leikir page the .game-tile of "Eitt!", of "Veiddu", of "Háls og hali" and of
+                                 "Litla Yatzy", each in its .game-slot (only the games that are open show; .book-tiles[data-open] says
+                                 how many, and each slot's data-place its order among them), with the stickers won from Kambeðla and
+                                 from Uggeðla beside them (.sticker-sheet of .book-sticker, and .uggedla for hers); on the Safnið
                                  page a .fossil-tile for each of the eight fossils (.found, .new with its .badge-new, or .unfound), under .fossil-title, with
                                  .fossil-count and the .fossil-name that shows over a sticker tapped
      .card                       an animal's card over the spread, with its parts: .card-photo (the picture, a button that zooms it),
@@ -346,8 +347,9 @@
 }
 .tile.unfound .tile-name { color: var(--book-ink-soft); }
 
-/* The Leikir page (part 3): the "Eitt!" tile alone and big on the left page (a tile's three states, as an animal's), and on the right
-   the stickers won from Kambeðla, one for each round won, as the game hands them out (eitt.css .eitt-sticker). */
+/* The Leikir page (part 3): the games that are open as tiles on the left page (a tile's three states, as an animal's), and on the right
+   the stickers won, one for each round won, as the games hand them out: Kambeðla's (eitt.css .eitt-sticker) and Uggeðla's (veiddu.css
+   .veiddu-sticker, whose wash and picture .book-sticker.uggedla takes). */
 .ribbon[data-tab="games"] { --ribbon: var(--book-green); color: var(--book-card); }
 .game-tile { --tile-w: min((100cqw - 2 * var(--pad-x)) * .74, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--book-target) - 30px) * .96); }
 .game-teach { /* "Kennsla": the tutorial again, a raised teal pill under the tile */
@@ -362,7 +364,8 @@
 .game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
 .game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
 .game-tile { margin-bottom: 4px; }
-/* Three games on the left page: "Eitt!" with its "Kennsla" in the first column, "Háls og hali" and "Litla Yatzy" in the second. */
+/* Games on the left page, by their place among the ones that are open (data-place, set by book.js): three, as a full book had them
+   until "Veiddu", have the first in the first column, big, and the other two in the second; four make two rows of two. */
 .book-leaf[data-tab="games"] .book-tiles {
   --pad-top: 6cqh; --pad-bottom: 5.5cqh; --gap: max(16px, 3.4cqmin);
   display: grid;
@@ -373,22 +376,30 @@
   gap: var(--gap) calc(var(--gap) * 1.25);
 }
 .game-slot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .55); }
-.game-slot:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; }
-.game-slot:nth-child(2) { grid-column: 2; grid-row: 1; }
-.game-slot:nth-child(3) { grid-column: 2; grid-row: 2; }
-.game-slot:nth-child(2) .tile { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
-.game-slot:nth-child(3) .tile { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); } /* Litla Yatzy: Mosi's green tape (the owner's choice, 2026-10-25) */
+.game-slot[data-place="1"] { grid-column: 1; grid-row: 1 / span 2; }
+.game-slot[data-place="2"] { grid-column: 2; grid-row: 1; }
+.game-slot[data-place="3"] { grid-column: 2; grid-row: 2; }
+/* each game's tape and tilt are its own, wherever its place is */
+.game-slot .game-tile[data-game="veiddu"] { --tilt: 2.4deg; --lag: -0.8s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
+.game-slot .game-tile[data-game="hals"] { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
+.game-slot .game-tile[data-game="yatzy-junior"] { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); } /* Litla Yatzy: Mosi's green tape (the owner's choice, 2026-10-25) */
 .book-leaf[data-tab="games"] .game-tile {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.25) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.18);
 }
 .game-tile[data-game="hals"] .tile-picture img,
 .game-tile[data-game="yatzy-junior"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
+.game-tile[data-game="veiddu"] .tile-picture img { inset: 2% 4% 0; width: 92%; height: 98%; object-position: 50% 80%; } /* Uggeðla's render: her head and sail fill the photo */
 /* Only the games that are open show (a slot is hidden until its game is: book.js renderGameSlots, which counts the slots left in
-   data-open). Two share a row, side by side; one stands alone, and bigger. The three of a full book are as above. */
+   data-open). Two share a row, side by side; one stands alone, and bigger; three are as above; the four of a full book lie in two
+   rows of two, as big as the two in the second column of three are. */
+.book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="1"] { grid-column: 1; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="2"] { grid-column: 2; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="3"] { grid-column: 1; grid-row: 2; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="4"] { grid-column: 2; grid-row: 2; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="2"] { grid-template-rows: auto; }
-.book-leaf[data-tab="games"] .book-tiles[data-open="2"] .game-slot:nth-child(n) { grid-column: auto; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="2"] .game-slot[data-place] { grid-column: auto; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="1"] { grid-template-columns: auto; grid-template-rows: auto; }
-.book-leaf[data-tab="games"] .book-tiles[data-open="1"] .game-slot:nth-child(n) { grid-column: 1; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="1"] .game-slot[data-place] { grid-column: 1; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="1"] .game-tile {
   --tile-w: min((100cqw - 2 * var(--pad-x)) * .74, (100cqh - var(--pad-top) - var(--pad-bottom) - 30px) / 1.12);
 }
@@ -434,6 +445,11 @@
     radial-gradient(circle at 50% 36%, #fff6d8, #f2d58a 70%, #e9b955);
   box-shadow: 0 0 0 calc(var(--sticker) * .055) #fff, 0 0 0 calc(var(--sticker) * .055 + 2.5px) var(--book-ink), 0 6px 10px 2px rgb(59 47 37 / .25);
   rotate: -7deg;
+}
+.book-sticker.uggedla { /* Uggeðla's: her render on the same die-cut, on her mint wash (veiddu.css .veiddu-sticker, the one the round hands out) */
+  background:
+    url("./assets/book/images/uggedla-render.webp") 46% 70% / 118% auto no-repeat,
+    radial-gradient(circle at 50% 36%, #f3fbf6, #bfe6dd 70%, #8ccdc4);
 }
 .book-sticker:nth-child(3n + 2) { rotate: 6deg; }
 .book-sticker:nth-child(3n) { rotate: -1deg; }
@@ -1014,6 +1030,20 @@
   .card-text { font-size: min(5.4cqw, 54px); }
   .card-arrow { width: clamp(112px, 17cqw, 156px); }
 }
+
+/* "Litla Yatzy við Mosa" in the book (engine/yatzy-junior/frame.js): the junior page in a frame over the book, under the book's
+   round close, "X". */
+.junior-frame { position: fixed; inset: 0; z-index: 60; background: #2c5544; }
+.junior-frame-page { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.junior-close {
+  position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 2;
+  width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  border: 3px solid #3b2f25; color: #3b2f25;
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / .55), transparent 46%), #fffaf0;
+  box-shadow: 0 7px 0 #e3d4b5, 0 7px 0 3px #3b2f25, 0 13px 14px 2px rgb(40 24 10 / .34);
+}
+.junior-close svg { width: 44%; height: 44%; }
+.junior-close:active { transform: translateY(4px); box-shadow: 0 3px 0 #e3d4b5, 0 3px 0 3px #3b2f25, 0 6px 8px 1px rgb(40 24 10 / .3); }
 
 /* ---- Less motion, when the tablet asks for it: the book holds still, its look and words unchanged --------------- */
 

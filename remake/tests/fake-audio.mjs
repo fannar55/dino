@@ -313,6 +313,12 @@ export class FakeContext extends EventTarget {
 
   createGain() { return new FakeNode(this, 'gain', { gain: 1 }); }
   createStereoPanner() { return new FakeNode(this, 'panner', { pan: 0 }); }
+  createWaveShaper() {
+    const shaper = new FakeNode(this, 'shaper');
+    shaper.curve = null;
+    shaper.oversample = 'none';
+    return shaper;
+  }
   createBiquadFilter() {
     const filter = new FakeNode(this, 'filter', { frequency: 350, Q: 1, gain: 0 });
     filter.type = 'lowpass';

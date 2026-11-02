@@ -12,6 +12,10 @@
 // onClose, and "Halda áfram án …" calls onContinue(seat) once; hiding the waiting card is the caller's (hideWaiting).
 // Taps are the book's (book/fx.js: the squash, the sparkle and the sound `tap` through audio.sfx, as the games pass it), and
 // the look is fjolspil.css, of one family with Háls og hali's setup card.
+//
+// A game whose hands must be hidden (Veiddu) shows the lobby with `hostOnPhone`: Egill's seat is waiting for his own phone
+// (data-state "waiting", his picture dim, "Egill…") until one is bound to it (host.guestId), "Byrjum!" waits for that phone too,
+// and the waiting card for his seat says "Bíðum eftir Agli…" and "Halda áfram án Egils", the names in their cases.
 
 import { COVER_AFTER_MS, MAX_SEATS } from './protocol.js';
 import { avatarOf } from './seats.js';
@@ -28,9 +32,13 @@ const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5
 // Wrapped, so a page's timers are called as functions and never as methods of another object.
 const PAGE_TIMERS = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: id => clearTimeout(id) };
 
-/** How a seat shows in its slot: 'host', 'taken' (a guest who is there), 'absent', 'ai' (the game's character) or 'empty'. */
-function stateOf(seat) {
+/**
+ * How a seat shows in its slot: 'host' (Egill), 'taken' (a guest who is there), 'absent', 'ai' (the game's character) or 'empty'.
+ * With `hostOnPhone` Egill's seat is 'waiting' until his phone is bound to it, then a guest's ('taken', or 'absent' while it is away).
+ */
+function stateOf(seat, hostOnPhone = false) {
   if (!seat) return 'empty';
+  if (seat.kind === 'host' && hostOnPhone) return seat.guestId == null ? 'waiting' : seat.present ? 'taken' : 'absent';
   if (seat.kind === 'host') return 'host';
   if (seat.kind === 'ai' && !seat.covered) return 'ai';
   return seat.present ? 'taken' : 'absent'; // a guest's seat, played by the guest or covered by the computer
@@ -40,7 +48,8 @@ const hasOwnAi = list => list.some(seat => seat.kind === 'ai' && !seat.covered);
 
 /**
  * The lobby and the waiting card in `root` (#fjolspil). `seats` is seats.js's; `audio` is { sfx(name) }; `timers` holds the
- * waiting card's delay. Returns { show, refresh, hide, isOpen, waitFor, hideWaiting }.
+ * waiting card's delay. Returns { show, refresh, hide, isOpen, waitFor, hideWaiting, needsNet }: needsNet(true) puts
+ * "Fjölspil þarf net" in the QR code's place while the room was never reached (the installed app with no net).
  */
 export function createLobby(doc, {
   root = doc.getElementById('fjolspil'), seats, win = globalThis.window, audio = null, timers = PAGE_TIMERS,
@@ -56,15 +65,27 @@ export function createLobby(doc, {
   };
   let isOpen = false;
   let ai = null; // the game's character: { name, avatar, add, remove }, or null when it offers none
-  let waiting = null; // the waiting card while it is up: { el, who, seat, name, timer, done }
+  let hostOnPhone = false; // Egill plays from a phone of his own in this game (Veiddu's)
+  let waiting = null; // the waiting card while it is up: { el, who, seat, name, timer, done, block }
+  let netNeeded = false; // the room was never reached: "Fjölspil þarf net" stands in the QR code's place
 
-  /** The QR code and the four letters under it, for a card to hold. */
+  /** The QR code and the four letters under it, for a card to hold, and the words that stand in their place with no net. */
   function joinBlock() {
     const el = make('div', 'fjolspil-join');
     const qr = make('div', 'fjolspil-qr');
+    const need = make('p', 'fjolspil-needs-net');
+    need.textContent = 'Fjölspil þarf net';
     const letters = make('div', 'fjolspil-code');
-    el.append(qr, letters);
-    return { el, qr, letters };
+    el.append(qr, need, letters);
+    const block = { el, qr, need, letters };
+    showNet(block);
+    return block;
+  }
+
+  function showNet({ qr, need, letters }) {
+    qr.hidden = netNeeded;
+    letters.hidden = netNeeded;
+    need.hidden = !netNeeded;
   }
 
   function fillJoin({ qr, letters }, joinUrl, code) {
@@ -130,23 +151,24 @@ export function createLobby(doc, {
     let arrived = false;
     slots.forEach((slot, index) => {
       const seat = list[index] ?? null;
-      const state = stateOf(seat);
+      const state = stateOf(seat, hostOnPhone);
       const avatar = seat ? avatarOf(seat.avatar) : undefined;
       const src = avatar ? asset(avatar.picture) : null;
       slot.el.setAttribute('data-state', state);
       slot.name.textContent = seat ? seat.name : 'Laust';
+      if (state === 'waiting') slot.name.textContent = `${seat.name}…`;
       if (src && src !== slot.src) slot.picture.src = src; // the same picture is not set again, so it never blinks
       slot.src = src ?? slot.src;
       slot.picture.hidden = !src;
       slot.el.style.setProperty('--c', avatar?.colour ?? 'transparent');
-      if (arrive && slot.state === 'empty' && state === 'taken') {
+      if (arrive && (slot.state === 'empty' || slot.state === 'waiting') && state === 'taken') {
         sparkle(slot.face, undefined, win);
         arrived = true;
       }
       slot.state = state;
     });
     if (arrived) audio?.sfx?.('tap');
-    startEl.disabled = list.filter(seat => seat.present).length < 2;
+    startEl.disabled = list.filter(seat => seat.present).length < 2 || (hostOnPhone && !(list[0]?.guestId != null && list[0].present));
     aiEl.hidden = !ai;
     if (ai) {
       const sits = hasOwnAi(list);
@@ -175,10 +197,14 @@ export function createLobby(doc, {
 
   // ---- The waiting card -------------------------------------------------------------------------------------------------
 
+  /** Egill's name in the cases the waiting card needs: "eftir Agli", "án Egils" (a guest's, as typed, is never declined). */
+  const waitedFor = (seat, name) => (seat === 0 ? 'Agli' : name);
+  const without = (seat, name) => (seat === 0 ? 'Egils' : name);
+
   /** Shows "Halda áfram án …" on the waiting card that is up. */
   function offerContinue(card) {
     const button = make('button', 'fjolspil-continue');
-    button.textContent = `Halda áfram án ${card.name}`;
+    button.textContent = `Halda áfram án ${without(card.seat, card.name)}`;
     pressable(button, {
       audio, win, onTap: () => {
         if (waiting !== card || card.done) return;
@@ -200,8 +226,9 @@ export function createLobby(doc, {
 
   return {
     /** Opens the lobby with the room's join address and code, and the game's character (null: no computer player). */
-    show({ joinUrl, code, ai: character = null, lanMissing = false }) {
+    show({ joinUrl, code, ai: character = null, lanMissing = false, hostOnPhone: onPhone = false }) {
       ai = character;
+      hostOnPhone = onPhone === true;
       fillJoin(join, joinUrl, code);
       noteEl.hidden = !lanMissing;
       const picture = ai && avatarOf(ai.avatar);
@@ -233,13 +260,13 @@ export function createLobby(doc, {
       faceEl.style.setProperty('--c', avatar?.colour ?? 'transparent');
       const words = make('p', 'fjolspil-wait-words');
       const name = sitting?.name ?? '';
-      words.textContent = `Bíðum eftir ${name}…`;
+      words.textContent = `Bíðum eftir ${waitedFor(seat, name)}…`;
       who.append(faceEl, words);
       const block = joinBlock();
       fillJoin(block, joinUrl, code);
       waitCard.append(who, block.el);
       el.append(waitCard);
-      const card = { el, who, seat, name, timer: null, done: false };
+      const card = { el, who, seat, name, timer: null, done: false, block };
       waiting = card;
       card.timer = timers.setTimeout(() => {
         card.timer = null;
@@ -251,5 +278,12 @@ export function createLobby(doc, {
     },
 
     hideWaiting,
+
+    /** With `on`, the lobby and the waiting card say "Fjölspil þarf net" in place of the QR code and the letters. */
+    needsNet(on) {
+      netNeeded = Boolean(on);
+      showNet(join);
+      if (waiting) showNet(waiting.block);
+    },
   };
 }

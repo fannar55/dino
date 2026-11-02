@@ -5,6 +5,8 @@ import { pointerEvent } from './fake-dom.mjs';
 import { FakeStorage, rig, $, $$, view, tap } from './fjolspil-guest-rig.mjs';
 import { renderHals } from '../engine/fjolspil/guest-hals.js';
 import { renderEitt } from '../engine/fjolspil/guest-eitt.js';
+import { renderSloedla } from '../engine/fjolspil/guest-sloedla.js';
+import { FakeDocument } from './fake-dom.mjs';
 import { makeDeck } from '../engine/eitt/rules.js';
 import { bookSounds, BOOK_GAPS } from '../engine/book/book-sounds.js';
 import { FakeContext } from './fake-audio.mjs';
@@ -351,4 +353,152 @@ test('a guest dropped at Byrjum! who taps again with another avatar keeps her ow
   assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'sloedla' });
   net.statusFn('connected'); // before the answer came
   assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'sloedla' }, 'her tap, not the avatar she had');
+});
+
+// ---- Söngur Slóeðlu's lobby (docs/superpowers/specs/2026-10-31-sloedla-fjolspil-design.md) ------------------------------
+
+const EGILL_ALONE = [{ seat: 0, name: 'Egill', avatar: 'egill' }];
+const songJoin = (seq, body = {}) => view('lobby', { seats: EGILL_ALONE, available: ['kambedla', 'thorsedla'], you: null, offer: ['kambedla', 'thorsedla'], ask: 'level', ...body }, seq);
+const levelButton = (root, screen, level) => [...$$(root, `${screen} .spil-level`)].find(el => el.getAttribute('data-level') === level);
+
+test('a song lobby shows only its dinosaurs and asks krakki or fullorðinn; the hello carries the level', () => {
+  const { root, net } = rig({ search: '?r=GULL' });
+  net.message(songJoin(1));
+  assert.deepEqual([...$$(root, '.spil-avatar')].filter(el => !el.hidden).map(el => el.getAttribute('data-id')), ['kambedla', 'thorsedla']);
+  assert.equal($(root, '.spil-join .spil-level-ask').textContent, 'Krakki eða fullorðinn?');
+  assert.deepEqual([...$$(root, '.spil-join .spil-level-word')].map(el => el.textContent), ['Krakki', 'Fullorðinn']);
+  assert.deepEqual([...$$(root, '.spil-join .spil-level-face')].map(el => el.textContent), ['🧒', '🧑']);
+  $(root, '.spil-name').value = 'Anna';
+  tap($$(root, '.spil-avatar')[3]);
+  tap($(root, '.spil-ready'));
+  assert.equal(hellos(net).length, 0, 'no hello before a level is picked');
+  tap(levelButton(root, '.spil-join', 'fullordinn'));
+  assert.equal(levelButton(root, '.spil-join', 'fullordinn').getAttribute('aria-pressed'), 'true');
+  tap($(root, '.spil-ready'));
+  assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' });
+});
+
+test('the level is remembered for next time', () => {
+  const storage = new FakeStorage();
+  const first = rig({ search: '?r=GULL', storage });
+  first.net.message(songJoin(1));
+  $(first.root, '.spil-name').value = 'Anna';
+  tap($$(first.root, '.spil-avatar')[0]);
+  tap(levelButton(first.root, '.spil-join', 'barn'));
+  tap($(first.root, '.spil-ready'));
+  first.net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
+  assert.equal(JSON.parse(storage.getItem('mosi-fjolspil-guest')).level, 'barn');
+  const again = rig({ search: '?r=GULL', storage });
+  again.net.message(songJoin(1));
+  assert.equal(levelButton(again.root, '.spil-join', 'barn').getAttribute('aria-pressed'), 'true');
+  tap($(again.root, '.spil-ready'));
+  assert.deepEqual(hellos(again.net).at(-1).body, { name: 'Anna', avatar: 'kambedla', level: 'barn' });
+});
+
+test('the lobby screen shows the big screen\'s note and lets her change her level', () => {
+  const { page, root, net } = rig({ search: '?r=GULL' });
+  const anna = { seat: 1, name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' };
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
+  net.message(songJoin(1, { seats: [...EGILL_ALONE, anna], available: ['kambedla'], you: 1, note: { text: 'Egill velur lag…' } }));
+  assert.equal(page.screen, 'lobby');
+  assert.equal($(root, '.spil-lobby-note').textContent, 'Egill velur lag…');
+  assert.equal(levelButton(root, '.spil-lobby', 'fullordinn').getAttribute('aria-pressed'), 'true');
+  tap(levelButton(root, '.spil-lobby', 'barn'));
+  assert.deepEqual(net.sent.at(-1), { v: 1, type: 'act', body: { type: 'level', level: 'barn' } });
+});
+
+test('a song lobby with none of its dinosaurs free says so and waits', () => {
+  const { root, net } = rig({ search: '?r=GULL' });
+  net.message(songJoin(1, { available: [] }));
+  assert.equal($(root, '.spil-none').hidden, false);
+  assert.equal($(root, '.spil-none').textContent, 'Allar eðlurnar eru í notkun');
+  assert.equal($(root, '.spil-ready').hidden, true);
+  net.message(songJoin(2, { available: ['thorsedla'] }));
+  assert.equal($(root, '.spil-none').hidden, true);
+  assert.equal($(root, '.spil-ready').hidden, false);
+});
+
+test('a game screen can post a message and hear the big screen\'s other messages', () => {
+  let context = null;
+  const { net } = rig({ search: '?r=GULL', views: { sloedla: (el, v, ctx) => { context = ctx; } } });
+  net.message(view('sloedla', { phase: 'ready' }, 1));
+  const heard = [];
+  const off = context.listen('song', body => heard.push(body));
+  net.message({ v: 1, type: 'song', body: { kind: 'end' } });
+  net.message({ v: 1, type: 'time', body: { sent: 1, host: 9 } });
+  off();
+  net.message({ v: 1, type: 'song', body: { kind: 'later' } });
+  assert.deepEqual(heard, [{ kind: 'end' }]);
+  assert.equal(context.post('time', { sent: 1 }), true);
+  assert.deepEqual(net.sent.at(-1), { v: 1, type: 'time', body: { sent: 1 } });
+});
+
+// ---- Söngur Slóeðlu's screen (guest-sloedla.js) ---------------------------------------------------------------------------
+
+function sloedlaScreen() {
+  const doc = new FakeDocument();
+  const root = doc.createElement('section');
+  const sent = [], posted = [];
+  const context = { doc, send: act => sent.push(act), post: (type, body) => posted.push([type, body]), listen: () => () => {} };
+  const show = body => renderSloedla(root, { screen: 'sloedla', ...body }, context);
+  return { root, show, sent, posted };
+}
+const allText = el => [el.textContent, ...el.children.map(allText)].join(' ');
+
+test('the end shows the band\'s stars and her own line', () => {
+  const { root, show } = sloedlaScreen();
+  show({ phase: 'end', stars: 4, line: { name: 'Anna', roles: ['c'], points: 3400, great: 12 } });
+  const stars = $$(root, '.sl-guest-star');
+  assert.equal(stars.length, 5);
+  assert.equal(stars.filter(star => star.classList.contains('lit')).length, 4);
+  assert.equal($(root, '.sl-guest-name').textContent, 'Anna');
+  assert.equal($(root, '.sl-guest-points').textContent, '3.400');
+  assert.match(allText(root), /12/);
+  assert.equal($$(root, '.sl-guest-line img').length, 1); // her dinosaur
+  assert.equal($(root, '.sl-guest-wait').textContent, 'Bíðum eftir næsta lagi…');
+});
+
+test('thanks for playing', () => {
+  const { root, show } = sloedlaScreen();
+  show({ phase: 'end', stars: 2, line: null });
+  show({ phase: 'bless' });
+  assert.equal($(root, '.sl-guest-words').textContent, 'Takk fyrir að spila!');
+  assert.equal($$(root, '.sl-guest-star').length, 0);
+});
+
+test('late: she is in next time', () => {
+  const { root, show } = sloedlaScreen();
+  show({ phase: 'late', song: { name: 'Boogie', picture: 'assets/sloedla/valmynd/boogie.webp' } });
+  assert.equal($(root, '.sl-guest-words').textContent, 'Þú kemst inn í næsta lagi!');
+  assert.match($(root, '.sl-guest-picture').src, /assets\/sloedla\/valmynd\/boogie\.webp$/);
+  show({ phase: 'late', song: { name: 'Boogie', picture: 'https://example.com/x.png' } }); // a view is data: no picture from elsewhere
+  assert.equal($(root, '.sl-guest-picture'), null);
+});
+
+test('ready: „Tilbúin!“ with the song, „Tengist…“ until the clock answers, and the big screen is told', () => {
+  const { root, show, sent } = sloedlaScreen();
+  show({ phase: 'ready', song: { name: 'Rokkhopp', picture: 'assets/sloedla/valmynd/boogie.webp' } });
+  assert.equal($(root, '.sl-guest-words').textContent, 'Tilbúin!');
+  assert.equal($(root, '.sl-guest-song').textContent, 'Rokkhopp');
+  assert.equal($(root, '.sl-guest-note').textContent, 'Tengist…');
+  assert.equal($(root, '.sl-guest-note').hidden, false);
+  assert.deepEqual(sent, [{ type: 'ready' }]);
+});
+
+test('the walk can hold her words to the big screen\'s: its word on each of her notes, and the lanes her screen shows', () => {
+  const doc = new FakeDocument();
+  const timer = () => 0;
+  doc.defaultView = { innerWidth: 390, innerHeight: 844, location: { search: '' }, setTimeout: timer, clearTimeout() {}, setInterval: timer, clearInterval() {}, addEventListener() {}, removeEventListener() {} };
+  const root = doc.createElement('section');
+  const ears = {};
+  const context = { doc, send() {}, post() {}, listen: (type, fn) => { ears[type] = fn; return () => {}; } };
+  renderSloedla(root, { screen: 'sloedla', phase: 'ready' }, context);
+  ears.song({ kind: 'start', song: { id: 'boogie', name: 'Rokkhopp', bpm: 120, length: 60 }, lanes: ['b', 'a', 'c'], levels: {}, names: {}, mine: 'c' });
+  ears.song({ kind: 'notes', section: { index: 0, start: 0, variant: 'a' }, list: [{ id: 0, t: 1, role: 'a' }, { id: 1, t: 1.5, role: 'c' }, { id: 2, t: 2, role: 'c' }] });
+  ears.song({ kind: 'played', id: 1, role: 'c', result: 'hit', grade: 'perfect' });
+  ears.song({ kind: 'played', id: 0, role: 'a', result: 'miss', grade: null });
+  ears.song({ kind: 'played', id: 2, role: 'c', result: 'miss', grade: null });
+  const state = doc.defaultView.__sloedlaGuest.state();
+  assert.deepEqual(state.heard, [{ id: 1, kind: 'hit', grade: 'perfect' }, { id: 2, kind: 'miss', grade: null }]);
+  assert.deepEqual(state.lanes, ['c']); // a phone: her lane only
 });

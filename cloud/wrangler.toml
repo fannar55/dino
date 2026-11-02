@@ -11,6 +11,11 @@ run_worker_first = ["/remake/assets/audio/*", "/dist/assets/audio/*"]
 name = "ROOMS"
 class_name = "Room"
 
+# Workers Logs (in the free plan: 200,000 a day, kept 3 days): every request, its answer and any error, under the Worker's
+# Logs in the Cloudflare dashboard.
+[observability]
+enabled = true
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]

@@ -8,13 +8,15 @@
                                  corner), .fjolspil-title (two friends' picture and "Fjölspil"), .fjolspil-join and .fjolspil-table
        .fjolspil-join            the QR code the phones scan (.fjolspil-qr, dark on light paper, never under 40% of the screen's
                                  shorter side), the code under it as four .fjolspil-letter tiles (.fjolspil-code) and, when the
-                                 server was started without --lan, .fjolspil-note for the grown-up
+                                 server was started without --lan, .fjolspil-note for the grown-up; with no net, before the
+                                 room was ever reached, .fjolspil-needs-net "Fjölspil þarf net" in the QR code's place
        .fjolspil-table           the four .fjolspil-seat slots (.fjolspil-seats; each a taped photo with its .fjolspil-face, an
                                  img.fjolspil-picture in the avatar's colour --c, and its .fjolspil-name) and .fjolspil-actions:
                                  the game's character to add or take out (.fjolspil-ai, data-state add|remove, its picture in
                                  --fjolspil-ai-picture) and "Byrjum!" (.fjolspil-start, disabled until two seats are there)
        a slot's data-state       host (Egill), taken (a guest who is there), absent (dim, "…" after the name), ai (the game's
-                                 character) or empty (a soft silhouette and "Laust")
+                                 character), empty (a soft silhouette and "Laust") or waiting (Egill's seat when the game wants
+                                 his own phone, Veiddu's: his picture dim and breathing until a phone is his)
      .fjolspil-wait              the waiting card over the game: .fjolspil-wait-card with .fjolspil-wait-who (the guest's
                                  .fjolspil-wait-face, .fjolspil-wait-words "Bíðum eftir …" and, after a while, .fjolspil-continue
                                  "Halda áfram án …") and the same .fjolspil-join
@@ -116,6 +118,13 @@
 }
 .fjolspil-qr::before { left: -6%; rotate: -24deg; }
 .fjolspil-qr::after { right: -6%; rotate: 22deg; }
+/* With no net the room is never reached: "Fjölspil þarf net" (.fjolspil-needs-net) fills the QR code's square, the letters go. */
+.fjolspil-join > [hidden] { display: none; }
+.fjolspil-needs-net {
+  display: grid; place-items: center; box-sizing: border-box; width: var(--fjolspil-qr); aspect-ratio: 1; margin: 0; padding: 10%;
+  border-radius: 14px; background: #fffdf8; box-shadow: 0 0 0 3px var(--ink), 0 12px 18px 2px rgb(40 24 10 / .26);
+  font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--ink); text-align: center;
+}
 .fjolspil-code { display: flex; justify-content: center; gap: clamp(8px, 1.2cqw, 14px); }
 .fjolspil-letter { /* a letter tile each, big enough to read across the room */
   display: grid; place-items: center; min-width: 1.2em; padding: .04em .12em .02em;
@@ -160,6 +169,9 @@
 /* A guest who has gone: dim, with a little "…" (spec §8). */
 .fjolspil-seat[data-state="absent"] { opacity: .5; }
 .fjolspil-seat[data-state="absent"] .fjolspil-name::after { content: "…"; }
+/* Egill's seat when the game wants his own phone (Veiddu): his picture, dim and breathing, until his phone is bound to it. */
+.fjolspil-seat[data-state="waiting"] .fjolspil-face { opacity: .55; filter: saturate(.5); animation: fjolspil-breathe 2.2s ease-in-out infinite; }
+.fjolspil-seat[data-state="waiting"] .fjolspil-name { color: var(--ink-soft); }
 /* A free seat: a soft dashed place with a friend's silhouette and "Laust". */
 .fjolspil-seat[data-state="empty"] {
   background: color-mix(in srgb, var(--paper) 60%, transparent); border: 3px dashed color-mix(in srgb, var(--ink) 40%, transparent);
@@ -221,6 +233,7 @@
 @keyframes fjolspil-in { from { opacity: 0; transform: translateY(28px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes fjolspil-pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
 @keyframes fjolspil-look { 0%, 100% { transform: translateX(0) rotate(0deg); } 30% { transform: translateX(-4%) rotate(-3deg); } 70% { transform: translateX(4%) rotate(3deg); } }
+@keyframes fjolspil-breathe { 0%, 100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.05); opacity: .8; } }
 @keyframes fjolspil-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---- A screen held upright: the QR code over the seats, the four seats in one row ---------------------------------- */

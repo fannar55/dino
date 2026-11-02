@@ -3478,5 +3478,410 @@
   "src": "assets/audio/kafli2/k2_mosi_thanks_ugg.mp3",
   "duration": 2.81,
   "mouth": "0afeb500500de5dfecca500000000005fddc30d43ffb6000000000000"
+ },
+ "veiddu_egill_name_froskur": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_froskur.mp3",
+  "duration": 1.37,
+  "mouth": "0000ffe500000940000000000000"
+ },
+ "veiddu_egill_name_skjaldbaka": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_skjaldbaka.mp3",
+  "duration": 1.53,
+  "mouth": "0000ffd800000f90036000000000000"
+ },
+ "veiddu_egill_name_drekafluga": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_drekafluga.mp3",
+  "duration": 1.69,
+  "mouth": "000d9eff705d5009983340000000000000"
+ },
+ "veiddu_egill_name_brunnklukka": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_brunnklukka.mp3",
+  "duration": 1.45,
+  "mouth": "04efffb80035a3003a40000000000"
+ },
+ "veiddu_egill_name_vatnalaesingi": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_vatnalaesingi.mp3",
+  "duration": 1.69,
+  "mouth": "00ff000068666000000000000000000000"
+ },
+ "veiddu_egill_name_salamandra": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_salamandra.mp3",
+  "duration": 1.45,
+  "mouth": "007ffd9d748500000000000000000"
+ },
+ "veiddu_egill_name_snigill": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_snigill.mp3",
+  "duration": 1.37,
+  "mouth": "0000ceffd97a4000000000000000"
+ },
+ "veiddu_egill_name_fiskur_raudur": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_raudur.mp3",
+  "duration": 1.85,
+  "mouth": "357ffffd0bc60009c00000050000000000000"
+ },
+ "veiddu_egill_name_fiskur_gulur": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_gulur.mp3",
+  "duration": 1.77,
+  "mouth": "09fffffeded6000bc0000005000000000000"
+ },
+ "veiddu_egill_name_fiskur_graenn": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_graenn.mp3",
+  "duration": 1.69,
+  "mouth": "07cbffedc70004d0000044000000000000"
+ },
+ "veiddu_egill_name_fiskur_blar": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_blar.mp3",
+  "duration": 1.69,
+  "mouth": "05acffcb84000080000000000000000000"
+ },
+ "veiddu_egill_name_fiskur_appelsinugulur": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_appelsinugulur.mp3",
+  "duration": 2.49,
+  "mouth": "df7000cd5000efedfd09dccc6200d900000040000000000000"
+ },
+ "veiddu_egill_name_fiskur_fjolublar": {
+  "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_fjolublar.mp3",
+  "duration": 2.25,
+  "mouth": "00009edddfea05affd500000d70000030000000000000"
+ },
+ "veiddu_egill_ask_froskur": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_froskur.mp3",
+  "duration": 1.53,
+  "mouth": "cf4000b70009ef40000000000000000"
+ },
+ "veiddu_egill_ask_skjaldbaka": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_skjaldbaka.mp3",
+  "duration": 1.69,
+  "mouth": "ef5000a970003f80005900550000000000"
+ },
+ "veiddu_egill_ask_drekafluga": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_drekafluga.mp3",
+  "duration": 2.01,
+  "mouth": "0f80000aed000ccdff405d5008957a80000000000"
+ },
+ "veiddu_egill_ask_brunnklukka": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_brunnklukka.mp3",
+  "duration": 1.69,
+  "mouth": "6f60009d004df63000a600370000000000"
+ },
+ "veiddu_egill_ask_vatnalaesingi": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_vatnalaesingi.mp3",
+  "duration": 2.091,
+  "mouth": "9f90000afd826ff4003cb773003207c80000000000"
+ },
+ "veiddu_egill_ask_salamandra": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_salamandra.mp3",
+  "duration": 1.93,
+  "mouth": "af90007cba5000affedc7650009930000000000"
+ },
+ "veiddu_egill_ask_snigill": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_snigill.mp3",
+  "duration": 1.61,
+  "mouth": "8f6000c4000dff4776660000000000000"
+ },
+ "veiddu_egill_ask_fiskur_raudur": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_raudur.mp3",
+  "duration": 2.01,
+  "mouth": "efb3300cfecb79dce6fd800fe3003003000000000"
+ },
+ "veiddu_egill_ask_fiskur_gulur": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_gulur.mp3",
+  "duration": 2.25,
+  "mouth": "df70005cca0005cceffe900ff80000000000000000000"
+ },
+ "veiddu_egill_ask_fiskur_graenn": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_graenn.mp3",
+  "duration": 2.17,
+  "mouth": "3f83000f8000b9addffbff8006ec0000000000000000"
+ },
+ "veiddu_egill_ask_fiskur_blar": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_blar.mp3",
+  "duration": 2.17,
+  "mouth": "0fa00006980005abaedafea006f80000000000000000"
+ },
+ "veiddu_egill_ask_fiskur_appelsinugulur": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_appelsinugulur.mp3",
+  "duration": 2.57,
+  "mouth": "efa0000dfe3ff500ab0affd0bedcc8000dd80000000000000000"
+ },
+ "veiddu_egill_ask_fiskur_fjolublar": {
+  "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_fjolublar.mp3",
+  "duration": 2.41,
+  "mouth": "bf5004900006bbcd9f06ffed80005f9000000000000000000"
+ },
+ "veiddu_mosi_ask_froskur": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_froskur.mp3",
+  "duration": 1.37,
+  "mouth": "09f709c00dff7770040000000000"
+ },
+ "veiddu_mosi_ask_skjaldbaka": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_skjaldbaka.mp3",
+  "duration": 1.69,
+  "mouth": "0fa0009eba49fc300cfa9dc00000000000"
+ },
+ "veiddu_mosi_ask_drekafluga": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_drekafluga.mp3",
+  "duration": 1.85,
+  "mouth": "afc000bfa0efffd07dd0ded97400000000000"
+ },
+ "veiddu_mosi_ask_brunnklukka": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_brunnklukka.mp3",
+  "duration": 1.53,
+  "mouth": "9f8007d60cfd648f73acc0000000000"
+ },
+ "veiddu_mosi_ask_vatnalaesingi": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_vatnalaesingi.mp3",
+  "duration": 1.93,
+  "mouth": "afa000aeda89fb500becdc0cfba860000000000"
+ },
+ "veiddu_mosi_ask_salamandra": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_salamandra.mp3",
+  "duration": 1.85,
+  "mouth": "cf9000bedb958fdbffffe99b8000000000000"
+ },
+ "veiddu_mosi_ask_snigill": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_snigill.mp3",
+  "duration": 1.53,
+  "mouth": "7f9000cca70effcda94000000000000"
+ },
+ "veiddu_mosi_ask_fiskur_raudur": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_fiskur_raudur.mp3",
+  "duration": 1.85,
+  "mouth": "4fd3000efceffd9ee009d8005000000000000"
+ },
+ "veiddu_mosi_ask_fiskur_gulur": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_fiskur_gulur.mp3",
+  "duration": 1.85,
+  "mouth": "4fa000eb005ffecfec00bd800300000000000"
+ },
+ "veiddu_mosi_ask_fiskur_graenn": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_fiskur_graenn.mp3",
+  "duration": 2.01,
+  "mouth": "08fb00cf80dfffeeddd509ca00040000000000000"
+ },
+ "veiddu_mosi_ask_fiskur_blar": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_fiskur_blar.mp3",
+  "duration": 1.93,
+  "mouth": "3f800ed000befffdee800cc3000000000000000"
+ },
+ "veiddu_mosi_ask_fiskur_appelsinugulur": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_fiskur_appelsinugulur.mp3",
+  "duration": 2.41,
+  "mouth": "0ff4304ffd74e8308d54dee8afdff30ad6002030000000000"
+ },
+ "veiddu_mosi_ask_fiskur_fjolublar": {
+  "src": "assets/audio/veiddu/veiddu_mosi_ask_fiskur_fjolublar.mp3",
+  "duration": 2.25,
+  "mouth": "bf9400aea0005ffebed67edefd00ad800305000000000"
+ },
+ "veiddu_uggedla_ask_froskur": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_froskur.mp3",
+  "duration": 1.61,
+  "mouth": "3f340b900cfb036430000000000000000"
+ },
+ "veiddu_uggedla_ask_skjaldbaka": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_skjaldbaka.mp3",
+  "duration": 1.69,
+  "mouth": "0bf4006d9009fb0003c504200000000000"
+ },
+ "veiddu_uggedla_ask_drekafluga": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_drekafluga.mp3",
+  "duration": 1.77,
+  "mouth": "0fb409fe70affe703f009b85600000000000"
+ },
+ "veiddu_uggedla_ask_brunnklukka": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_brunnklukka.mp3",
+  "duration": 1.85,
+  "mouth": "00f9040d707dff4036c300650000000000000"
+ },
+ "veiddu_uggedla_ask_vatnalaesingi": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_vatnalaesingi.mp3",
+  "duration": 1.93,
+  "mouth": "9f5009e7f5004ffeb6078065000000000000000"
+ },
+ "veiddu_uggedla_ask_salamandra": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_salamandra.mp3",
+  "duration": 1.77,
+  "mouth": "af9200bffd706ffefeda9046400000000000"
+ },
+ "veiddu_uggedla_ask_snigill": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_snigill.mp3",
+  "duration": 1.53,
+  "mouth": "0d53078007ffecb3740000000000000"
+ },
+ "veiddu_uggedla_ask_fiskur_raudur": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_fiskur_raudur.mp3",
+  "duration": 1.85,
+  "mouth": "8f5308e8cfefcced009b30000000000000000"
+ },
+ "veiddu_uggedla_ask_fiskur_gulur": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_fiskur_gulur.mp3",
+  "duration": 2.17,
+  "mouth": "00f9509c009dddeff000dc3000000000000000000000"
+ },
+ "veiddu_uggedla_ask_fiskur_graenn": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_fiskur_graenn.mp3",
+  "duration": 2.01,
+  "mouth": "00fa205f605dceeffef903e900000000000000000"
+ },
+ "veiddu_uggedla_ask_fiskur_blar": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_fiskur_blar.mp3",
+  "duration": 2.091,
+  "mouth": "0ee0003dec008edffcffe409d80000000000000000"
+ },
+ "veiddu_uggedla_ask_fiskur_appelsinugulur": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_fiskur_appelsinugulur.mp3",
+  "duration": 2.41,
+  "mouth": "0e8200cff0e8500e50bff96cedd800b700000000000000000"
+ },
+ "veiddu_uggedla_ask_fiskur_fjolublar": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_ask_fiskur_fjolublar.mp3",
+  "duration": 2.25,
+  "mouth": "0eb020c300ffcdff0bfefd300c9000000000000000000"
+ },
+ "veiddu_egill_yes": {
+  "src": "assets/audio/veiddu/veiddu_egill_yes.mp3",
+  "duration": 1.53,
+  "mouth": "0affa6ba00ab43a7000000000000000"
+ },
+ "veiddu_egill_no": {
+  "src": "assets/audio/veiddu/veiddu_egill_no.mp3",
+  "duration": 1.85,
+  "mouth": "000ff900788fd4000cdea8000000000000000"
+ },
+ "veiddu_egill_lucky": {
+  "src": "assets/audio/veiddu/veiddu_egill_lucky.mp3",
+  "duration": 1.61,
+  "mouth": "00fed530bf40000bfb486000000000000"
+ },
+ "veiddu_mosi_yes": {
+  "src": "assets/audio/veiddu/veiddu_mosi_yes.mp3",
+  "duration": 2.01,
+  "mouth": "afffec800000000afea9daadaefd9000000000000"
+ },
+ "veiddu_mosi_no": {
+  "src": "assets/audio/veiddu/veiddu_mosi_no.mp3",
+  "duration": 2.41,
+  "mouth": "0befdccb50000000000ffb8bffc7cebd98950000000000000"
+ },
+ "veiddu_mosi_lucky": {
+  "src": "assets/audio/veiddu/veiddu_mosi_lucky.mp3",
+  "duration": 1.77,
+  "mouth": "5cff9bba9fd00000fc099600000000000000"
+ },
+ "veiddu_uggedla_yes": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_yes.mp3",
+  "duration": 2.17,
+  "mouth": "4bfff9000000000008fd9b70bb7a4000000000000000"
+ },
+ "veiddu_uggedla_no": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_no.mp3",
+  "duration": 2.57,
+  "mouth": "069cddfcb50000000000000eda4dff65fdfe5005000000000000"
+ },
+ "veiddu_uggedla_lucky": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_lucky.mp3",
+  "duration": 1.77,
+  "mouth": "046fffdab9df00000ef04600000000000000"
+ },
+ "veiddu_uggedla_empty": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_empty.mp3",
+  "duration": 1.93,
+  "mouth": "002dfb300aaa947c600407fefc3000000000000"
+ },
+ "veiddu_uggedla_your_turn": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_your_turn.mp3",
+  "duration": 2.17,
+  "mouth": "0099df2008bbfdf9200000008ba64000000000000000"
+ },
+ "veiddu_mosi_why_they_asked": {
+  "src": "assets/audio/veiddu/veiddu_mosi_why_they_asked.mp3",
+  "duration": 3.53,
+  "mouth": "8f8004eddbee00dfcccbff6afb0e60cdb653000000000530decaffcdc86000000000000"
+ },
+ "veiddu_mosi_why_mosi_asked": {
+  "src": "assets/audio/veiddu/veiddu_mosi_why_mosi_asked.mp3",
+  "duration": 2.97,
+  "mouth": "5ffe900afcce06de60da00da0975000000000300dfeafda7000000000000"
+ },
+ "veiddu_mosi_why_guess": {
+  "src": "assets/audio/veiddu/veiddu_mosi_why_guess.mp3",
+  "duration": 4.01,
+  "mouth": "0efed05deeccc50cddcaabefffdd700000efddb85000000000000045efdbffddc9067000000000000"
+ },
+ "veiddu_mosi_why_fish": {
+  "src": "assets/audio/veiddu/veiddu_mosi_why_fish.mp3",
+  "duration": 2.89,
+  "mouth": "07fffc00fed08df009ba630000000005cf900d7306cec8000000000000"
+ },
+ "veiddu_mosi_give_hint": {
+  "src": "assets/audio/veiddu/veiddu_mosi_give_hint.mp3",
+  "duration": 3.13,
+  "mouth": "007db60af80300c5ad004ccac90320000000003ca003edbeffa973000000000"
+ },
+ "veiddu_mosi_won": {
+  "src": "assets/audio/veiddu/veiddu_mosi_won.mp3",
+  "duration": 1.53,
+  "mouth": "08becdb79987fffaba8000000000000"
+ },
+ "veiddu_uggedla_won": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_won.mp3",
+  "duration": 1.53,
+  "mouth": "02dcd9864ffce630000000000000000"
+ },
+ "veiddu_mosi_you_won": {
+  "src": "assets/audio/veiddu/veiddu_mosi_you_won.mp3",
+  "duration": 2.65,
+  "mouth": "00eec89ffddda00000000000069afeddc50bee840000000000000"
+ },
+ "veiddu_uggedla_you_won": {
+  "src": "assets/audio/veiddu/veiddu_uggedla_you_won.mp3",
+  "duration": 2.97,
+  "mouth": "05cc67bfefc6000000000000000000027bff9300cc500000000000000000"
+ },
+ "veiddu_mosi_tie": {
+  "src": "assets/audio/veiddu/veiddu_mosi_tie.mp3",
+  "duration": 2.97,
+  "mouth": "9bfd0004ff6bcb3000000009dfd400eeedffeb00dedfedb6500000000000"
+ },
+ "veiddu_tut_pairs": {
+  "src": "assets/audio/veiddu/veiddu_tut_pairs.mp3",
+  "duration": 4.81,
+  "mouth": "00aeffd90cfec0000cedc8007ece7066adfd86400000000000000fd00dedbd60009de3650bffc4dffda75000000000000"
+ },
+ "veiddu_tut_ask": {
+  "src": "assets/audio/veiddu/veiddu_tut_ask.mp3",
+  "duration": 5.21,
+  "mouth": "3ff600aedbdb9fba75efb400df9ab86600000000000bfb00aeada53defcafb0be000dfedcdda400c9900edddfcddb740000000000"
+ },
+ "veiddu_tut_laid": {
+  "src": "assets/audio/veiddu/veiddu_tut_laid.mp3",
+  "duration": 5.21,
+  "mouth": "00aeb3fb93000005feb6000ff5ac7000000004defdddde83ca04bfec640000000000006fffdcd7000fecc7ce00ccb700000000000"
+ },
+ "veiddu_tut_fish": {
+  "src": "assets/audio/veiddu/veiddu_tut_fish.mp3",
+  "duration": 6.25,
+  "mouth": "00303fecaeefeddb75aebdec0caec07f94a96400000000007fddffedfdcbca00065000000000000dfec80afc9dff998dddeb9ebdc07fe6afdb80000000000"
+ },
+ "veiddu_tut_listen": {
+  "src": "assets/audio/veiddu/veiddu_tut_listen.mp3",
+  "duration": 4.33,
+  "mouth": "bfecc8500dbce70cc000bec9cdd6aedaded96000000000004fffe80cb00de8dd40fd9dfecc8630000000000"
+ },
+ "veiddu_tut_give": {
+  "src": "assets/audio/veiddu/veiddu_tut_give.mp3",
+  "duration": 3.93,
+  "mouth": "5fffda70afeefd386000000000003be4009fbedc5600bcedcbb5004defe73ffda95400000000000"
+ },
+ "veiddu_tut_remember": {
+  "src": "assets/audio/veiddu/veiddu_tut_remember.mp3",
+  "duration": 3.29,
+  "mouth": "bf9000cdcbceb0afdcdfe0009ec475604000000004506fcbcfedb8600000000000"
+ },
+ "veiddu_tut_real": {
+  "src": "assets/audio/veiddu/veiddu_tut_real.mp3",
+  "duration": 2.41,
+  "mouth": "affdca630beecdddbec300efcebdfddcb9630400000000000"
  }
 }

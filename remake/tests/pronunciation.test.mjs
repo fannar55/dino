@@ -267,7 +267,7 @@ test("a Litla Yatzy line's own say, context or seed win, read from lines-overrid
     assert.deepEqual(lines.find(line => line.id === 'welcome'), { set: 'yatzy-junior', id: 'welcome', speaker: 'mosi', text: 'Hæ!' }, 'a line without overrides is as it was');
     for (const [why, overrides, message] of [
       ['a line Litla Yatzy does not have', { nobody: { seed: 5 } }, /not a line of Litla Yatzy/],
-      ['a field a line cannot carry', { yatzy: { voice: 'x' } }, /say, context, seed and note only/],
+      ['a field a line cannot carry', { yatzy: { voice: 'x' } }, /say, context, seed, fixes and note only/],
       ['an empty context', { yatzy: { context: '' } }, /is text/],
       ['a seed that is not a whole number', { yatzy: { seed: 1.5 } }, /whole number/],
       ['a list instead of an object', [], /is an object/],
