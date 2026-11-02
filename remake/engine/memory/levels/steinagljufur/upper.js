@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../../../../../dist/vendor/GLTFLoader.js';
-import { groundAt, LEDGE, CLIMB, RIM, WALL, wayPoints } from './upper-ground.js';
+import { groundAt, LEDGE, CLIMB, RIM, WALL, GAP, SUN, END_X, gridLines, wayPoints } from './upper-ground.js';
 import { BORE, darkInside } from './props.js';
 
 /**
@@ -55,7 +55,12 @@ export async function loadUpperModels() {
 export function createUpperGorge({ scene, models, upperModels, glow, groundMaterial = null }) {
   const frame = new THREE.Group(); frame.name = 'Efra gljúfrið'; frame.position.set(UPPER.origin[0], 0, UPPER.origin[1]); frame.rotation.y = UPPER.yaw; frame.visible = false; scene.add(frame);
   frame.updateMatrixWorld(true);
-  const random = seeded(20261101), range = (a, b) => a + (b - a) * random();
+  // (the dressing's numbers: the ground's shade (one a vertex) and the pieces drew from one sequence until Task 6 widened the ground's grid to the gap and Sólarsyllan; the shade now draws
+  // its own, and the pieces' sequence starts where it started after the old grid's 124 x 53 vertices, so that every piece placed before Task 6 stands where it stood. Task 6's own pieces
+  // draw from a third.)
+  const shadeDraw = seeded(20261101);
+  let draw = seeded(20261101); for (let k = 0; k < 124 * 53; k++) draw();
+  const random = () => draw(), range = (a, b) => a + (b - a) * draw();
   const disposables = [], dummy = new THREE.Object3D();
   let triangles = 0, draws = 0;
   const ex = new THREE.Vector3(1, 0, 0).applyQuaternion(frame.quaternion), ez = new THREE.Vector3(0, 0, 1).applyQuaternion(frame.quaternion), inverse = frame.matrixWorld.clone().invert();
@@ -79,16 +84,14 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   disposables.push(plain.geometry); triangles += 2; draws++;
 
   // The ground's mesh: a grid laid over groundAt, finer across the ledge's riser (its face is steep), coloured by how steep each place is (sand on the flat, rock on a face).
-  const xs = [], zs = [];
-  for (let x = -40; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
-  for (let z = -16; z <= 31; z += .9) zs.push(+z.toFixed(2));
+  const { xs, zs } = gridLines();
   const cols = xs.length, rows = zs.length, position = new Float32Array(cols * rows * 3), normal = new Float32Array(cols * rows * 3), colour = new Float32Array(cols * rows * 3), rock = new Float32Array(cols * rows);
   const SAND = new THREE.Color('#c4965a'), ROCK = new THREE.Color('#9b4318'), DEEP = new THREE.Color('#7a3010'), tint = new THREE.Color(), e = .55;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = xs[i], z = zs[j], y = groundAt(x, z), k = j * cols + i;
     const nx = groundAt(x - e, z) - groundAt(x + e, z), nz = groundAt(x, z - e) - groundAt(x, z + e), l = Math.hypot(nx, 2 * e, nz);
     position.set([x, y, z], k * 3); normal.set([nx / l, 2 * e / l, nz / l], k * 3); rock[k] = 2 - 2 * e / l; // (1 + how steep: 1 is flat)
-    const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .015;
+    const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (shadeDraw() - .5) * .015;
     tint.copy(SAND).lerp(ROCK, steep).lerp(DEEP, smoothstep(.35, .7, 1 - 2 * e / l) * .7).multiplyScalar(shade); colour.set([tint.r, tint.g, tint.b], k * 3);
   }
   // (the ground is drawn in chunks along the gorge, as the cliff pieces are, so that the frustum drops the stretches a view does not see)
@@ -126,7 +129,7 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   // The places in the frame that somebody walks or stands (the exit floor and the terrace in front of and on the ledge, the rim, and the path with a body's width either side): no piece
   // stands on them, so that nobody is inside a rock. A piece that would is moved back from the open side (+z) until its foot is clear.
   // (the second is the inside of the exit's bore, from the dark at its back to its mouth: the group comes out of it, and a hillside piece behind the tunnel filled it, veggir)
-  const KEEP = [[-14, 12.5, -7.5, 3.6], [-19, -11.5, -1.9, 1.9], [21, 39, -.5, 14.2]];
+  const KEEP = [[-14, 12.5, -7.5, 3.6], [-19, -11.5, -1.9, 1.9], [21, 39, -.5, 14.2], [39, GAP.near, -.5, 13.2], [GAP.far, END_X - 5.5, -.5, 13.2]];
   const walkable = (x, z) => KEEP.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1) || way.some(p => Math.hypot(p[0] - x, p[1] - z) < 3.2);
   /** The points of the foot of a piece (its box of bounds, drawn in to `part` of its size, turned and scaled) in the frame. */
   const footing = (name, x, z, yaw, scale, part, n = 4) => {
@@ -166,8 +169,8 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   }
   // the back of the exit floor: a wall of pieces behind the tunnel, two rows
   for (const [x, scale] of [[-22, 3.6], [-18.8, 3.0]]) for (let z = -13; z <= 9; z += range(4.4, 5.6)) { if (bores(x, z) && x > -24) continue; piece(ALL, x + range(-.8, .8), z, 0, scale * range(.9, 1.15), .5, z < 0 ? -1 : 1); }
-  // the end beyond the rim (Task 6's gap is in front of it)
-  for (let z = -4; z <= 16; z += range(4.2, 5.6)) piece([4, 6, 0, 5], RIM.to[0] + 9.2, z, groundAt(RIM.to[0] + 9.2, z), range(3, 3.9), .55);
+  // the end wall, beyond Sólarsyllan (Task 6 cut the gap where it stood)
+  for (let z = -4; z <= 16; z += range(4.2, 5.6)) piece([4, 6, 0, 5], END_X + .2, z, groundAt(END_X + .2, z), range(3, 3.9), .55);
   // (the open side, -z, is where the cameras stand: nothing solid is placed on it, only the ground, so that no shot is inside or behind a rock; the embankments under the path and the rim are
   // the ground's own, in the colour of the rock)
   // the ledge's riser: pieces along it on the hillside's side of the middle, which is left clear for the slab
@@ -180,6 +183,27 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
     const yaw = range(0, Math.PI * 2), name = `gorge-boulder-${kind}`; // (it stands on the lowest ground under its foot, like a piece)
     add(name, { x, z, y: Math.min(...footing(name, x, z, yaw, scale, .7, 2).map(([px, pz]) => groundAt(px, pz))) - .16 * scale, yaw, scale, tilt: 0, tint: .9 + .15 * random() });
   }
+  // ---- Task 6: the gap and Sólarsyllan, dressed from their own numbers (so that nothing placed above moved) ----
+  draw = seeded(20261102);
+  // Sólarsyllan's hillside, as the rim's (the hillside's rows above end at the gap)
+  for (let x = SUN.from[0] + 5; x <= END_X - 4; x += range(5.6, 7.6)) {
+    for (const [rise, scale, sink] of [[2.2, range(2.4, 3.1), .5], [3.1, range(3.1, 4), .55]]) {
+      let z = null; for (let k = 0; k < 90 && z === null; k++) if (groundAt(x, SUN.from[1] + k * .5) >= SUN.y + rise) z = SUN.from[1] + k * .5;
+      const px = x + range(-1.2, 1.2); if (z !== null) piece(ALL, px, z + .5, groundAt(px, z), scale, sink);
+    }
+  }
+  // the gap's back, where its walls meet the hillside: a piece in it closes the cleft behind the trunk
+  for (const z of [14.2, 17.4]) piece(ALL, (GAP.near + GAP.far) / 2 + range(-.3, .3), z, groundAt((GAP.near + GAP.far) / 2, z), range(2.6, 3.2), .5);
+  // stones fallen to the gap's floor, far below the rims
+  for (const [z, kind, scale] of [[-2.6, 1, .14], [3.3, 2, .11], [9.4, 1, .16]]) {
+    const x = (GAP.near + GAP.far) / 2 + range(-.25, .25), name = `gorge-boulder-${kind}`;
+    add(name, { x, z, y: GAP.floor - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .85 + .1 * random() });
+  }
+  // the stone the second rope goes round: on Sólarsyllan across from the trunk, a boulder of the glade's standing on end (1.3 m across, 1.85 m tall)
+  const STONE = { x: 48.4, z: 6.0, scale: .25 };
+  add('gorge-boulder-2', { x: STONE.x, z: STONE.z, y: groundAt(STONE.x, STONE.z) - .04, yaw: range(0, Math.PI * 2), scale: STONE.scale, tilt: 0, tint: .96 });
+  const stone = { base: new THREE.Vector3(STONE.x, groundAt(STONE.x, STONE.z), STONE.z), radius: .62, height: 1.85 };
+
 
   const warm = new THREE.Color('#e8d3be');
   // (each kind in chunks along the gorge, a mesh each, so that the frustum drops the stretches a view does not see: the budget's 250,000 triangles are for what is drawn)
@@ -254,10 +278,12 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
     // the foot of the rope: a boulder at the start of the path, beside it on the hillside's side
     stake: new THREE.Vector3(10.3, groundAt(10.3, 1.6), 1.6),
     tree: tree.base,
+    // the stone on Sólarsyllan that the second rope goes round (Task 6)
+    stone: stone.base,
   };
 
   const api = {
-    group: frame, terrain, heightAt, groundAt, world, local, direction, yawOf, onGround, slab, tree, anchors, rail, ledge: LEDGE, climb: CLIMB, rim: RIM, wall: WALL,
+    group: frame, terrain, heightAt, groundAt, world, local, direction, yawOf, onGround, slab, tree, stone, anchors, rail, gap: GAP, sun: SUN, ledge: LEDGE, climb: CLIMB, rim: RIM, wall: WALL,
     /** The upper gorge is drawn from now on (the first cut into it). */
     show() { frame.visible = true; },
     hide() { frame.visible = false; },

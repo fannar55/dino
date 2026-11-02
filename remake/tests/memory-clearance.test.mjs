@@ -141,12 +141,10 @@ test('a gorge wall piece is measured against the rests by its rock: what reaches
 
 test('every place of the upper gorge stands on flat ground: the ground under no friend\'s feet or tail rises there (veggir)', async () => {
   const { FORMATIONS } = await import('../engine/memory/levels/steinagljufur/upper-mover.js');
-  const { groundAt } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
-  // the ground as it is drawn: upper.js lays a grid over groundAt (0.9 m cells, finer across the ledge's riser), two triangles a cell, so a slope starts up to a cell
-  // before groundAt's does
-  const xs = [], zs = [];
-  for (let x = -40; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
-  for (let z = -16; z <= 31; z += .9) zs.push(+z.toFixed(2));
+  const { groundAt, gridLines } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
+  // the ground as it is drawn: upper.js lays a grid over groundAt (0.9 m cells, finer across the ledge's riser and the gap's lips), two triangles a cell, so a slope starts
+  // up to a cell before groundAt's does
+  const { xs, zs } = gridLines();
   const cell = (list, v) => { let k = 0; while (k < list.length - 2 && list[k + 1] <= v) k++; return k; };
   const drawn = (x, z) => {
     const i = cell(xs, x), j = cell(zs, z), u = (x - xs[i]) / (xs[i + 1] - xs[i]), v = (z - zs[j]) / (zs[j + 1] - zs[j]);
