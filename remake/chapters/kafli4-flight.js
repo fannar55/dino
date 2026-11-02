@@ -8,10 +8,15 @@
 // so the big moments come at their times whatever the frame rate, a pause holds them (the game clock stands still) and a seek
 // lands on them. Under reduced motion the orbit is the still vista and there is no slow second.
 //
-// The animals' answers to her calls are the game's sounds for now; the animals themselves (Task 8), Grameðla's shadow and the golden
-// light (Task 10), what Egill may do (Task 11) and the recorded voices and wind (Tasks 15 and 16) come later on these same beats.
+// From the crest of E to the end the far land shows round the valley (world/ardalur/far-land.js, in the real look: the whole map,
+// the mountains, Grameðla's shadow in the mist and Kambeðla's plates blinking as the land answers), and from the burst out of the
+// spray the light goes golden (spec 2: "Gullna ljósið yfir fossinum er hámark hennar") and back as she glides down in G.
+//
+// The animals' answers to her calls are the game's sounds for now; what Egill may do (Task 11) and the recorded voices and wind
+// (Tasks 15 and 16) come later on these same beats.
 import * as THREE from 'three';
 import { BEATS, LEAP, FALLS } from './kafli4-route.js';
+import { LOOKS, pickLook } from '../engine/looks.js';
 
 // The flight's lines (plan Task 15's WORDS, verbatim from spec 5 and 6; the full chapter adds the rest). The three marked * are the plan's
 // own additions, which the owner hears first and may cut.
@@ -48,9 +53,49 @@ const CALL_AHEAD = 2.2; // seconds before she passes a group that she calls to i
 const ANSWER_AHEAD = 1.2; // and that it answers: still ahead of her, in the chase camera's view
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
 // The music (spec 8: the same theme louder through the flight, silent for the slow second, quieter as she glides down).
-const MUSIC = { flight: 1.5, glide: 0.8 };
-const SLOW = { at: 116.2, scale: 0.25, seconds: 1 }; // the crest of the falls: one second of the room's time at a quarter speed
+export const MUSIC = { flight: 1.5, glide: 0.8 };
+export const SLOW = { at: 116.2, scale: 0.25, seconds: 1 }; // the crest of the falls: one second of the room's time at a quarter speed
+// The golden light: from the chapter's look toward LOOKS.golden over `rise` seconds from the burst out of the spray (the end of the
+// slow second, as the music comes back), and back over `back` seconds from the start of G. Its sun, fill, haze and sky; not where
+// the sun is (the shadows keep still), nor the haze's glow round the sun, which engine/fog.js compiles into every material.
+export const GOLDEN = { at: SLOW.at + SLOW.seconds * SLOW.scale, rise: 2, back: 4 };
+// Grameðla's roar (spec 5F: "lágt, fjarlægt öskur"): the recorded one of chapter 2, at a quarter of its level, once her name is said.
+export const ROAR = { at: 129.4, level: 0.25 };
 const clamp = THREE.MathUtils.clamp;
+const smooth = x => { const k = clamp(x, 0, 1); return k * k * (3 - 2 * k); };
+
+/** How golden the light is at the flight's time t: 0 the chapter's look, 1 LOOKS.golden. */
+export function goldenAt(t) {
+  if (t < GOLDEN.at) return 0;
+  if (t < BEATS.G) return smooth((t - GOLDEN.at) / GOLDEN.rise);
+  return 1 - smooth((t - BEATS.G) / GOLDEN.back);
+}
+
+/** The world's light `k` of the way from the chapter's look to golden: the sun's colour and strength, the fill, the haze, the sky. */
+function lightAt(world, look, k, scratch) {
+  const gold = LOOKS.golden;
+  const colour = (out, from, to) => out.set(from).lerp(scratch.set(to), k);
+  const { sun, hemi } = world.lighting ?? {};
+  if (sun) {
+    colour(sun.color, look.sun.color, gold.sun.color);
+    sun.intensity = THREE.MathUtils.lerp(look.sun.intensity, gold.sun.intensity, k);
+  }
+  if (hemi) {
+    colour(hemi.color, look.hemi.sky, gold.hemi.sky);
+    colour(hemi.groundColor, look.hemi.ground, gold.hemi.ground);
+    hemi.intensity = THREE.MathUtils.lerp(look.hemi.intensity, gold.hemi.intensity, k);
+  }
+  if (world.scene?.fog) colour(world.scene.fog.color, look.fog.color, gold.fog.color);
+  const sky = world.sky?.dome?.material?.uniforms;
+  if (sky) {
+    for (const [name, key] of [['uZenith', 'zenith'], ['uHorizon', 'horizon'], ['uGlow', 'glow'], ['uCloud', 'cloud'], ['uCloudShade', 'cloudShade']]) {
+      colour(sky[name].value, look.sky[key], gold.sky[key]);
+    }
+    colour(sky.uFogColor.value, look.fog.color, gold.fog.color);
+    colour(sky.uFogSun.value, look.fog.sunColor, gold.fog.sunColor);
+    sky.uFogSunStrength.value = THREE.MathUtils.lerp(look.fog.sunStrength, gold.fog.sunStrength, k);
+  }
+}
 
 /** The flight: returns at BEATS.END with her over the far pool. */
 export function* theFlight(s, c) {
@@ -59,6 +104,8 @@ export function* theFlight(s, c) {
   flier.update(0);
   const release = s.seeking ? null : world.sound?.hold?.(sounds);
   if (!s.seeking) sounds.start();
+  const far = world.forest?.farLand ?? null;
+  far?.show(true);
   try {
     yield s.all(frames(s, c), beats(s, c));
   } finally {
@@ -68,18 +115,28 @@ export function* theFlight(s, c) {
     sounds.stop();
     release?.();
     world.music?.setLevel?.(1, 2);
+    world.flightTime = null;
+    far?.show(false);
+    far?.update(BEATS.END + 1, world.camera); // hidden, and the camera's own far plane back
+    lightAt(world, world.look ?? pickLook(world.chapter?.look), 0, new THREE.Color());
   }
   return c.flight;
 }
 
-// Every frame: her place at the flight's time, and the wind bed after her (a few times a second: its levels glide anyway).
+// Every frame: her place at the flight's time, the far land and the golden light at it, and the wind bed after her (a few times a
+// second: its levels glide anyway).
 function* frames(s, c) {
-  const { flier, sounds, route } = c;
+  const { world, flier, sounds, route } = c;
   const fallsAt = new THREE.Vector3(FALLS.face, (FALLS.top + FALLS.base) / 2, FALLS.z);
+  const look = world.look ?? pickLook(world.chapter?.look);
+  const scratch = new THREE.Color();
   let clip = null;
   let n = 0;
   while (c.flight.ended === null) {
-    flier.update(Math.min(BEATS.END, s.time - c.flight.started));
+    const t = Math.min(BEATS.END, s.time - c.flight.started);
+    flier.update(t);
+    lightAt(world, look, goldenAt(t), scratch);
+    world.flightTime = s.time - c.flight.started; // the far land follows it on the place's own frames (world/ardalur/index.js)
     if (flier.clip !== clip) {
       if (!s.seeking && (flier.clip === 'takeOff' || flier.clip === 'fly')) sounds.wingbeat();
       clip = flier.clip;
@@ -219,6 +276,8 @@ function* beats(s, c) {
   say('flugedla', 'k4_flugedla_up');
   yield* at(110);
   camera.shot('fallsSide');
+  yield* at(113.4);
+  camera.shot('fallsTop'); // the last of the climb from over the lip: the rainbow in the spray (flight-camera.js)
   yield* at(116);
   camera.shot('chase');
   yield* at(SLOW.at);
@@ -241,6 +300,10 @@ function* beats(s, c) {
   camera.shot('vista');
   yield* at(126.5);
   say('flugedla', 'k4_flugedla_gramedla');
+  yield* at(ROAR.at);
+  // her shadow in the mist roars, low and far (world/ardalur/far-land.js)
+  s.sfx('gramedlaRoar', { level: ROAR.level });
+  world.forest?.farLand?.gramedla.roar();
   yield* at(130);
   say('egill', 'k4_egill_big');
   yield* at(131);

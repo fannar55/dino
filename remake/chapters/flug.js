@@ -27,7 +27,7 @@ export const chapter = {
   id: 'flug',
   title: 'Flugið',
   next: null,
-  look: 'lateMorning', // until Task 10 brings earlyAfternoon
+  look: 'earlyAfternoon', // spec 2: early afternoon; the flight turns it golden over the falls
   // Chapter 2's song until the owner's flight theme (spec 8): the flight plays it louder (music.setLevel)
   theme: 'kafli2/theme.json',
   start: 'ardalur',
@@ -77,7 +77,15 @@ export const chapter = {
     world.chapterState = c; // for captures and probes
     mosi.raw.root.visible = false;
     yield s.camera.cut('flug_snag');
+    // Grameðla's model for the far land (world/ardalur/far-land.js), fetched while the start button waits and made behind it (a long
+    // frame nobody sees: the flight starts in black); a capture goes on at once and has her long before she is seen at 116 s
+    const far = world.forest?.farLand ?? null;
+    far?.prefetch();
     yield s.ready(); // the start button; immediate in captures
+    if (far) {
+      if (s.seeking) far.load();
+      else yield far.load();
+    }
     yield* theFlight(s, c);
     // over the far pool: the review ends in black (the full chapter lands her there: scene 7)
     yield s.fade(1, 1);

@@ -12,6 +12,7 @@ import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
 import { createAnimals } from '../world/ardalur/animals.js';
 import { HIGH } from '../world/ardalur/banks.js';
+import { createFarLand, FAR } from '../world/ardalur/far-land.js';
 import { cullBatches } from '../world/forest/batch.js';
 import { createLocations } from '../engine/locations.js';
 import { RAPIDS, flowAt, whiteAt } from '../world/ardalur/river.js';
@@ -685,4 +686,116 @@ test('the real valley has the falls (world/props/waterfall.js) where the grey on
   assert.ok(spray.every(o => Math.abs(o.material.uniforms.uTime.value - (135 % 4)) < 1e-9));
   place.dispose();
   grey.dispose();
+});
+
+test('the real valley has the far land (far-land.js) round it, where the grey one has the slot\'s cones; shown from the crest of E to the end', () => {
+  const world = litWorld();
+  world.scene.fog = new THREE.FogExp2('#dfe7df', world.look.fog.density);
+  const place = createArdalur(world, { grey: false, route });
+  const far = place.farLand;
+  assert.ok(far, 'the real look has the far land');
+  assert.equal(far.group.parent, place.group);
+  const named = (group, name) => { let found = null; group.traverse(o => { if (o.name === name) found = o; }); return found; };
+  assert.equal(named(place.group, 'Far land (slot)'), null, 'and no slot');
+  const greyWorld = litWorld();
+  const grey = createArdalur(greyWorld, { grey: true, route });
+  assert.equal(grey.farLand, null);
+  assert.ok(named(grey.group, 'Far land (slot)'), 'the grey look keeps its slot');
+  // hidden until the flight shows it, and then only from the crest of E to the end of the flight
+  assert.equal(far.group.visible, false);
+  far.update(FAR.from + 1, world.camera);
+  assert.equal(far.group.visible, false, 'not before show()');
+  far.show(true);
+  for (const [t, on] of [[0, false], [BEATS.E, false], [FAR.from - 0.05, false], [FAR.from, true], [BEATS.F, true], [BEATS.G + 4, true], [BEATS.END - 0.05, true], [BEATS.END + 0.05, false]]) {
+    far.update(t, world.camera);
+    assert.equal(far.group.visible, on, `${on ? 'shown' : 'hidden'} at ${t} s`);
+  }
+  // while shown the camera sees to its far edge, and afterwards as far as before
+  far.update(BEATS.F, world.camera);
+  assert.ok(world.camera.far >= 6000, `the camera sees ${world.camera.far} m`);
+  far.update(BEATS.END + 1, world.camera);
+  assert.equal(world.camera.far, 1200);
+  far.show(false);
+  far.update(BEATS.F, world.camera);
+  assert.equal(far.group.visible, false, 'show(false) hides it whatever the time');
+  place.dispose();
+  grey.dispose();
+});
+
+test('the far land: the whole map, under the valley\'s own ground in its corridor, mountains to the west, clear of her, within budget', () => {
+  const world = litWorld();
+  const terrain = createTerrain(route, { seed: 4 });
+  const far = createFarLand(world, route, { terrain });
+  const box = new THREE.Box3().setFromObject(far.ground);
+  assert.ok(box.min.x <= -3000 && box.max.x >= 1500 && box.min.z <= -2500 && box.max.z >= 2500, `it reaches ${box.min.toArray()} to ${box.max.toArray()}`);
+  // in the valley's corridor it lies under the valley's own ground, so where a section is shown its ground covers it
+  const index = createRouteIndex(route);
+  const out = {};
+  let tried = 0;
+  for (let x = -1500; x <= 200; x += 13) {
+    for (let z = -300; z <= 500; z += 11) {
+      index.nearest(x, z, 200, out);
+      if (out.dist > 120) continue;
+      tried++;
+      const under = terrain.heightAt(x, z) - far.heightAt(x, z);
+      assert.ok(under >= 0.5, `${under.toFixed(2)} m under the valley's ground at (${x}, ${z}), ${out.dist.toFixed(0)} m from her path`);
+    }
+  }
+  assert.ok(tried > 2000, `${tried} points tried`);
+  // the mountains: to the west and north-west of the falls, peaks well over the lip, and none near her
+  const peaks = far.peaks;
+  assert.ok(peaks.length >= 5);
+  for (const p of peaks) {
+    const away = Math.hypot(p.x - FALLS.x, p.z - FALLS.z);
+    assert.ok(away > 700, `a peak ${away.toFixed(0)} m from the falls`);
+    assert.ok(p.x < FALLS.x + 700, 'west of the snag\'s side of the map');
+  }
+  assert.ok(Math.max(...peaks.map(p => far.heightAt(p.x, p.z))) > FALLS.top + 250, 'the highest stands 250 m over the lip');
+  for (let t = FAR.from; t <= BEATS.END; t += 0.5) {
+    const her = route.pointAt(route.progressAt(t));
+    assert.ok(far.heightAt(her.x, her.z) < her.y - 6, `the far land 6 m under her at ${t} s`);
+  }
+  // cheap: one ground, one mist, one glow (Grameðla and Þórseðla are the far friends' light levels: about 1,400 triangles each)
+  let triangles = 0;
+  let calls = 0;
+  far.group.traverse(o => {
+    if (!o.isMesh && !o.isPoints) return;
+    calls++;
+    if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  });
+  assert.ok(triangles <= 25000, `${triangles} triangles`);
+  assert.ok(calls <= 4, `${calls} draw calls`);
+  far.dispose();
+});
+
+test('the far land: Grameðla a dark shape walking slowly in the mist beyond the mountains, seen from her; Kambeðla\'s plates blink as the land answers', () => {
+  const world = litWorld();
+  const terrain = createTerrain(route, { seed: 4 });
+  const far = createFarLand(world, route, { terrain });
+  const g = t => far.gramedla.at(t);
+  for (const t of [BEATS.F, 128, 131]) {
+    const p = g(t);
+    const away = Math.hypot(p.x - FALLS.x, p.z - FALLS.z);
+    assert.ok(away > 900 && away < 2200, `${away.toFixed(0)} m from the falls at ${t} s`);
+    assert.ok(p.x < FALLS.x - 400, 'to the west, beyond the mountains\' first ridge');
+    // seen from just behind her as she says it: nothing of the land between
+    const her = route.pointAt(route.progressAt(t));
+    const eye = new THREE.Vector3(her.x, her.y + 8, her.z);
+    const chest = new THREE.Vector3(p.x, p.y + p.height * 0.6, p.z);
+    for (let s = 0.02; s < 0.98; s += 0.01) {
+      const q = eye.clone().lerp(chest, s);
+      assert.ok(q.y > far.heightAt(q.x, q.z) + 1, `the land hides her at ${t} s (${(s * 100).toFixed(0)} % of the way)`);
+    }
+    assert.ok(far.mistAt(chest) > 0.25, `she stands in the mist at ${t} s (${far.mistAt(chest).toFixed(2)})`);
+  }
+  const step = Math.hypot(g(131).x - g(125).x, g(131).z - g(125).z);
+  assert.ok(step > 1 && step / 6 < far.gramedla.scale * 1.2, `she walks slowly: ${(step / 6).toFixed(1)} m/s at ${far.gramedla.scale} times her size`);
+  assert.equal(typeof far.gramedla.roar, 'function');
+  // Kambeðla's plates: dark before the answers, blinking during them (138 to 141 s), dark again after
+  const blink = t => far.kambedla.level(t);
+  for (const t of [BEATS.F, 130, 137]) assert.equal(blink(t), 0, `dark at ${t} s`);
+  assert.ok(Math.max(...[138, 138.3, 138.6, 139, 139.3, 139.6, 140, 140.4].map(blink)) > 0.9, 'bright as the land answers');
+  assert.ok(Math.min(...[138, 138.3, 138.6, 139, 139.3, 139.6, 140, 140.4].map(blink)) < 0.5, 'and blinking, not steady');
+  for (const t of [143, 150]) assert.equal(blink(t), 0, `dark again at ${t} s`);
+  far.dispose();
 });

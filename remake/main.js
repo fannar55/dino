@@ -92,7 +92,7 @@ const mosiCloud = addMosiCloud({ scene, lighting, look }); // and one cloud shap
 const wind = createWind();
 
 const world = {
-  THREE, renderer, scene, camera, clock, q, params, look, lighting, wind, chapter,
+  THREE, renderer, scene, camera, clock, q, params, look, lighting, sky, wind, chapter,
   heightAt: () => 0,
   actors: new Map(),
   effects: createEffects(), // sparkles and the like, on the game clock (engine/effects.js)

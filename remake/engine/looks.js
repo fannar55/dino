@@ -42,6 +42,33 @@ export const LOOKS = {
   },
 };
 
+// Chapter 4's (spec 2, "snemma síðdegis"): early afternoon, the sun lower and further round than chapter 2's late morning, and
+// everything else 40 % of the way from lateMorning toward golden, the sun's colour too (warmer). The flight's golden light (chapters/
+// kafli4-flight.js) goes the rest of the way over the falls and back.
+LOOKS.earlyAfternoon = {
+  ...blendLooks(LOOKS.lateMorning, LOOKS.golden, 0.4),
+  sun: { ...blendLooks(LOOKS.lateMorning, LOOKS.golden, 0.4).sun, azimuth: 215, elevation: 22 },
+};
+
+/**
+ * A look `k` of the way from `a` to `b` (0 is a, 1 is b): its colours mixed as written (sRGB hex, channel by channel) and its numbers
+ * in between; the sun's place is a's.
+ */
+export function blendLooks(a, b, k) {
+  const mix = (x, y) => {
+    if (typeof x === 'number') return x + (y - x) * k;
+    if (typeof x === 'string' && x.startsWith('#')) {
+      const [p, q] = [x, y].map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)));
+      return `#${p.map((v, i) => Math.round(v + (q[i] - v) * k).toString(16).padStart(2, '0')).join('')}`;
+    }
+    if (x && typeof x === 'object') return Object.fromEntries(Object.keys(x).map(key => [key, key in y ? mix(x[key], y[key]) : x[key]]));
+    return x;
+  };
+  const out = mix(a, b);
+  out.sun = { ...out.sun, azimuth: a.sun.azimuth, elevation: a.sun.elevation };
+  return out;
+}
+
 export function pickLook(name) {
   return LOOKS[name] || LOOKS.morning;
 }

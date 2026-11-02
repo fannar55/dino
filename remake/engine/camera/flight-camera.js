@@ -72,14 +72,24 @@ const FIXED = {
     const r = c.route.river.at(c.route.river.nearest(p.x, p.z).d);
     return { position: new V3(r.x, r.level + 26, r.z), fov: 50 };
   },
-  // E: out over the plunge pool beside the cliff (inside the bowl's walls), the climb seen from the side, 21 m from it
+  // E: out over the plunge pool beside the cliff (inside the bowl's walls), the climb seen from the side, 21 m from it; under the
+  // chapter's sun (earlyAfternoon, 215/22, over the cliff) it looks toward the sun through the spray
   fallsSide: (c) => ({ position: new V3(FALLS.face + 22, 26, FALLS.z + 13), fov: 52 }),
-  // F: behind and above her as she comes out over the land above the falls
+  // E: the last of the climb from above the lip, 7 m back from the edge and 22 m to its north, 18 m over it (high enough to see past
+  // the bowl's north rim down the face): she comes up the falling water toward the camera, which looks down it and away from the sun,
+  // so the rainbow in the sunlit spray over the lip is in view (world/props/waterfall.js: within 40 degrees of straight away from the
+  // sun, the bow at 41). Close in, so the falls, the spray and the bow fill the frame.
+  fallsTop: () => ({ position: new V3(FALLS.face - 7, FALLS.top + 18, FALLS.z - 22), fov: 38 }),
+  // F: behind and a little above her as she comes out over the land above the falls, looking over her (4 m above her body), so the
+  // land runs to the mountains in the upper third and Grameðla's shadow on their ridge is in the frame (world/ardalur/far-land.js)
   vista: (c) => {
     const h = rad(c.flier.heading);
     const f = new V3(Math.cos(h), 0, Math.sin(h));
     const right = new V3(-Math.sin(h), 0, Math.cos(h));
-    return { position: c.flier.pose.position.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 12, 0)), fov: 55 };
+    return {
+      position: c.flier.pose.position.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 7, 0)), fov: 55,
+      look: out => out.copy(c.flier.pose.position).add(new V3(0, 4, 0)),
+    };
   },
 };
 
@@ -218,7 +228,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     if (!bound) {
       frame();
       const made = FIXED[chosen](context(), options);
-      const lookAt = look ?? (out => out.copy(flier.pose.position).add(new V3(0, 0.6, 0)));
+      const lookAt = look ?? made.look ?? (out => out.copy(flier.pose.position).add(new V3(0, 0.6, 0)));
       fixed = { position: made.position, fov: made.fov, look: lookAt };
     }
     const handle = director.drive(`flight ${name}`, step);

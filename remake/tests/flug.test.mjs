@@ -8,12 +8,14 @@ import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
 import { BEATS } from '../chapters/kafli4-route.js';
+import { SLOW, MUSIC, GOLDEN, ROAR } from '../chapters/kafli4-flight.js';
+import { LOOKS, pickLook } from '../engine/looks.js';
 import * as flugModule from '../chapters/flug.js';
 
 
 // What a run sees: Mosi on the screen in each beat, her place and the camera at flight times, the clock's scale.
 function watcher({ at = [] } = {}) {
-  const seen = { mosiSeen: {}, places: {}, scales: [], banks: [], camera: [], u: [], framing: [], looked: 0 };
+  const seen = { mosiSeen: {}, places: {}, scales: [], banks: [], camera: [], u: [], framing: [], looked: 0, music: [], sfx: [], light: [] };
   let lastLook = -1;
   const wanted = [...at];
   const head = new THREE.Vector3();
@@ -24,9 +26,21 @@ function watcher({ at = [] } = {}) {
     if (!wrapped) {
       const setScale = world.clock.setScale.bind(world.clock);
       world.clock.setScale = value => { seen.scales.push({ value, at: c.flier.t }); return setScale(value); };
+      // the page's music, sun and fill light, which the harness's world has none of; and the sounds the flight asks for, with when
+      const flightTime = () => c.s.time - c.flight.started;
+      world.music = { setLevel: (level, seconds) => seen.music.push({ level, seconds, t: flightTime() }) };
+      world.lighting.sun ??= new THREE.DirectionalLight('#ffffff', 1);
+      world.lighting.hemi ??= new THREE.HemisphereLight('#ffffff', '#000000', 1);
+      const sfx = c.s.sfx;
+      c.s.sfx = (name, detail) => { seen.sfx.push({ name, detail, t: flightTime() }); return sfx(name, detail); };
       wrapped = true;
     }
     const t = c.flier.t;
+    const { sun, hemi } = world.lighting;
+    seen.light.push({
+      t, sun: sun.color.getHexString(), sunI: sun.intensity, sky: hemi.color.getHexString(), ground: hemi.groundColor.getHexString(),
+      hemiI: hemi.intensity, fog: world.scene.fog.color.getHexString(),
+    });
     const mosi = world.actors.get('mosi');
     if (mosi.root.visible) {
       world.camera.updateMatrixWorld();
@@ -125,7 +139,7 @@ test('every shot of spec 5 is used, in its beat', () => {
   for (const { t, shot } of full.seen.camera) if (shot) (shots.get(shot) ?? shots.set(shot, new Set()).get(shot)).add(run.world.chapterState.route.beatAt(t));
   const want = {
     face: ['A', 'D'], belowTakeOff: ['A'], chase: ['B', 'C', 'D', 'E', 'G'], waterLevel: ['B', 'C'], bankShadow: ['C'], mosiBank: ['C'],
-    gorgeHigh: ['D'], mosiRim: ['D'], fallsSide: ['E'], vista: ['F'], orbit: ['F'],
+    gorgeHigh: ['D'], mosiRim: ['D'], fallsSide: ['E'], fallsTop: ['E'], vista: ['F'], orbit: ['F'],
   };
   for (const [shot, beats] of Object.entries(want)) {
     for (const beat of beats) assert.ok(shots.get(shot)?.has(beat), `${shot} in ${beat} (used in ${[...(shots.get(shot) ?? [])]})`);
@@ -155,6 +169,54 @@ test('the slow second at the crest of E is on the game clock, and back to normal
   assert.equal(slow[0].value, 0.25);
   assert.equal(run.world.chapterState.route.beatAt(slow[0].at), 'E');
   assert.equal(full.seen.scales.at(-1).value, 1);
+});
+
+test('the music drops to silence for the slow second at the crest and comes back with the burst out of the spray', () => {
+  const { music } = full.seen;
+  const silent = music.filter(m => m.level === 0);
+  assert.equal(silent.length, 1, JSON.stringify(music));
+  assert.ok(Math.abs(silent[0].t - SLOW.at) < 0.05 && silent[0].seconds <= 0.2, `silent at ${silent[0].t.toFixed(2)} s over ${silent[0].seconds} s`);
+  const before = music.filter(m => m.t < silent[0].t).at(-1);
+  assert.equal(before.level, MUSIC.flight, 'the flight\'s level up to the crest');
+  const back = music[music.indexOf(silent[0]) + 1];
+  assert.equal(back.level, MUSIC.flight);
+  assert.ok(back.t - silent[0].t <= SLOW.seconds * SLOW.scale + 0.05, `back at ${back.t.toFixed(2)} s: a second of the room's time later`);
+  assert.ok(Math.abs(back.t - GOLDEN.at) < 0.05, 'as the light begins to go golden');
+});
+
+test('the light goes golden from the burst out of the spray, stays golden through F, and is back to the chapter look by the end', () => {
+  assert.equal(flugModule.chapter.look, 'earlyAfternoon');
+  const look = pickLook(flugModule.chapter.look);
+  const hex = colour => new THREE.Color(colour).getHexString();
+  const want = l => ({ sun: hex(l.sun.color), sunI: l.sun.intensity, sky: hex(l.hemi.sky), ground: hex(l.hemi.ground), hemiI: l.hemi.intensity, fog: hex(l.fog.color) });
+  const { light } = full.seen;
+  const at = t => light.find(l => l.t >= t - 1e-9);
+  const same = (got, l, why) => {
+    for (const [key, value] of Object.entries(want(l))) {
+      if (typeof value === 'number') assert.ok(Math.abs(got[key] - value) < 1e-6, `${why}: ${key} ${got[key]} (want ${value})`);
+      else assert.equal(got[key], value, `${why}: ${key}`);
+    }
+  };
+  for (const t of [20, 100, GOLDEN.at - 0.05]) same(at(t), look, `the chapter's light at ${t} s`);
+  for (const t of [GOLDEN.at + GOLDEN.rise + 0.05, BEATS.F, 135, BEATS.G - 0.05]) same(at(t), LOOKS.golden, `golden at ${t} s`);
+  same(at(BEATS.G + GOLDEN.back + 0.05), look, 'back to the chapter\'s light in G');
+  same(light.at(-1), look, 'and so at the end');
+  // no jumps on the way: each frame moves the haze's colour a little
+  const channels = h => [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  for (let i = 1; i < light.length; i++) {
+    const step = Math.max(...channels(light[i].fog).map((v, k) => Math.abs(v - channels(light[i - 1].fog)[k])));
+    assert.ok(step <= 3, `the haze jumps ${step} at ${light[i].t.toFixed(2)} s`);
+  }
+});
+
+test('Grameðla\'s roar: once, in F, low and far, as Flugeðla speaks of her', () => {
+  const roars = full.seen.sfx.filter(s => s.name === 'gramedlaRoar');
+  assert.equal(roars.length, 1, JSON.stringify(full.seen.sfx.map(s => s.name)));
+  assert.equal(run.world.chapterState.route.beatAt(roars[0].t), 'F');
+  assert.equal(roars[0].detail?.level, ROAR.level);
+  assert.equal(ROAR.level, 0.25);
+  const line = run.captions.find(c => c.text === 'Þarna, handan fjallanna, býr Grameðla.');
+  assert.ok(roars[0].t > since(line.at) && roars[0].t - since(line.at) < 4, `the roar at ${roars[0].t.toFixed(2)} s, her line at ${since(line.at).toFixed(2)} s`);
 });
 
 test('pausing at 60 s holds the beat and silences the wind bed', async () => {

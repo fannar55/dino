@@ -22,6 +22,7 @@ import { cullBatches } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
 import { createWaterMaterial } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
+import { createFarLand } from './far-land.js';
 import { FEN } from '../forest/config.js';
 
 export const SIGHT = 100; // metres from the camera (seen from above) to a section's land (its route piece and the 160 m round it) within which it is shown
@@ -50,7 +51,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     falls: new THREE.MeshLambertMaterial({ color: GREY.falls, side: THREE.DoubleSide }), snag: lambert(GREY.snag), mark: lambert(GREY.mark), far: lambert(GREY.far),
   } : {
     ground: createGroundMaterial(real.noise), water: real.water.material,
-    falls: new THREE.MeshLambertMaterial({ color: '#dfe9ec', side: THREE.DoubleSide }), snag: lambert(FEN.snag), mark: lambert(GREY.mark), far: lambert('#6f8a80'),
+    falls: new THREE.MeshLambertMaterial({ color: '#dfe9ec', side: THREE.DoubleSide }), snag: lambert(FEN.snag), mark: lambert(GREY.mark),
   };
   const group = new THREE.Group();
   group.name = 'Árdalur';
@@ -60,7 +61,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   if (animals) group.add(animals.group);
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
-  // world/props/waterfall.js), the snag, the animal groups' marks (grey only), the far land's slot.
+  // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
+  // the far land itself, far-land.js, which the flight shows from the crest of E).
+  const farLand = real ? createFarLand(world, route, { terrain, seed }) : null;
+  if (farLand) group.add(farLand.group);
   const always = new THREE.Group();
   always.name = 'Árdalur (always)';
   always.add(createRiverSurface(route, materials.water), createPoolSurface(route.pool, materials.water));
@@ -82,14 +86,17 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     marks.setMatrixAt(i, m.compose(new THREE.Vector3(...g.at), new THREE.Quaternion(), new THREE.Vector3(r, r, r)));
   });
   marks.name = 'Animal groups (marks)';
-  const far = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 9, 1, true).translate(0, 0.5, 0), materials.far, 4);
-  [[-2050, 100, 380, 320], [-1900, -350, 300, 260], [-1950, 550, 300, 240], [-1700, -650, 260, 200]].forEach(([x, z, r, h], i) => {
-    far.setMatrixAt(i, m.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion(), new THREE.Vector3(r, h, r)));
-  });
-  far.name = 'Far land (slot)';
-  far.computeBoundingSphere();
   marks.computeBoundingSphere();
-  always.add(snag, far);
+  always.add(snag);
+  if (grey) {
+    const far = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 9, 1, true).translate(0, 0.5, 0), materials.far, 4);
+    [[-2050, 100, 380, 320], [-1900, -350, 300, 260], [-1950, 550, 300, 240], [-1700, -650, 260, 200]].forEach(([x, z, r, h], i) => {
+      far.setMatrixAt(i, m.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion(), new THREE.Vector3(r, h, r)));
+    });
+    far.name = 'Far land (slot)';
+    far.computeBoundingSphere();
+    always.add(far);
+  }
   if (!animals) always.add(marks);
   else marks.geometry.dispose();
   group.add(always);
@@ -177,6 +184,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       else downwash.set(0, 0, 0, 0);
       animals.update(dt, time);
       waterfall.update(time, world.lighting?.direction); // drawn whenever in view: its top stands high, where the haze is thin
+      // the far land at the flight's time (chapters/kafli4-flight.js sets it), every frame the page draws, a capture's still too
+      farLand.update(world.flightTime ?? -1, world.camera);
       real.water.uniforms.uTime.value = time;
       if (world.lighting?.direction) real.water.uniforms.uSunDir.value.copy(world.lighting.direction);
     }
@@ -191,6 +200,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     animals,
     /** The falls (world/props/waterfall.js), in the real look; null in the grey one (a slot). */
     waterfall,
+    /** The land round the valley (far-land.js), in the real look; null in the grey one (a slot). */
+    farLand,
     heightAt: (x, z) => terrain.heightAt(x, z),
     get visible() { return lastVisible; },
     get building() { return queue.current; },
@@ -203,6 +214,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
       for (const material of Object.values(materials)) material.dispose();
       if (real) {
+        farLand.dispose();
         waterfall.dispose();
         animals.dispose();
         real.plants.dispose();

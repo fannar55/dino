@@ -11,6 +11,9 @@ import { createFlier, rideFlier } from '../engine/flier.js';
 import { createFlightCamera, FLIGHT_RULES } from '../engine/camera/flight-camera.js';
 import { createRoute, BEATS } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
+import { rainbowLevel } from '../world/props/waterfall.js';
+import { pickLook } from '../engine/looks.js';
+import { sunDirection } from '../engine/lighting.js';
 
 const deg = THREE.MathUtils.radToDeg;
 const world = await chapterWorld({
@@ -132,7 +135,7 @@ test('the orbit circles slowly, and under reduced motion it is the vista instead
 const WHEN = {
   chase: [20, 40], face: [83, 86], side: [47, 50], orbit: [134, 141],
   belowTakeOff: [3, 5.5], waterLevel: [25, 27.5], bankShadow: [63, 66], mosiBank: [57.5, 60],
-  gorgeHigh: [90.5, 93], mosiRim: [96, 97.5], fallsSide: [110, 113], vista: [125, 128],
+  gorgeHigh: [90.5, 93], mosiRim: [96, 97.5], fallsSide: [110, 113], fallsTop: [113.4, 115.5], vista: [125, 128],
 };
 
 test('every named shot frames her and Egill at 16:10 and at an upright 0.625, and is never inside her', () => {
@@ -169,5 +172,30 @@ test('every named shot frames her and Egill at 16:10 and at an upright 0.625, an
     assert.ok(cam.distanceTo(egill.headPosition(new THREE.Vector3())) > 0.8, `${name}: the camera in Egill's face`);
     assert.ok(cam.y > (world.heightAt?.(cam.x, cam.z) ?? -Infinity), `${name}: under the ground`);
   }
+  done();
+});
+
+test('the shot over the lip looks away from the chapter sun as she comes up the last of the falls, so the rainbow shows, and the land never hides her', () => {
+  const sun = sunDirection(pickLook('earlyAfternoon')).clone().normalize(); // chapters/flug.js's look
+  const { camera, director, to, at, done } = setUp();
+  at(113.4);
+  camera.shot('fallsTop');
+  const view = new THREE.Vector3();
+  const body = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  let frames = 0;
+  to(116, t => {
+    director.apply();
+    world.camera.getWorldDirection(view);
+    assert.equal(rainbowLevel(view, sun), 1, `the rainbow whole at ${t.toFixed(2)} s`);
+    flugedla.root.localToWorld(body.set(0.06, 2.6, 0));
+    const cam = world.camera.position;
+    for (let k = 0.05; k < 0.97; k += 0.02) {
+      p.lerpVectors(cam, body, k);
+      assert.ok(world.heightAt(p.x, p.z) < p.y, `the land between the camera and her at ${t.toFixed(2)} s (${(k * 100).toFixed(0)} %)`);
+    }
+    frames++;
+  });
+  assert.ok(frames > 70);
   done();
 });

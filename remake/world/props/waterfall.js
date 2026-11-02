@@ -198,9 +198,10 @@ float sprayAt( vec3 p ) {
 void main() {
   vec3 ray = normalize( vWorld - cameraPosition );
   float angle = degrees( acos( clamp( dot( ray, -uSunDir ), -1.0, 1.0 ) ) );
-  vec3 colour = vec3( 1.0, 0.16, 0.10 ) * band( angle, 42.0, 0.55 ) + vec3( 1.0, 0.52, 0.08 ) * band( angle, 41.5, 0.5 )
-    + vec3( 0.95, 0.9, 0.2 ) * band( angle, 41.1, 0.45 ) + vec3( 0.2, 0.85, 0.3 ) * band( angle, 40.7, 0.45 )
-    + vec3( 0.15, 0.4, 1.0 ) * band( angle, 40.35, 0.45 ) + vec3( 0.45, 0.25, 0.95 ) * band( angle, 40.0, 0.4 );
+  // six bands half a degree apart, each narrow enough that they do not add up to white in the middle
+  vec3 colour = vec3( 1.0, 0.16, 0.10 ) * band( angle, 42.4, 0.3 ) + vec3( 1.0, 0.52, 0.08 ) * band( angle, 41.9, 0.28 )
+    + vec3( 0.95, 0.9, 0.2 ) * band( angle, 41.4, 0.26 ) + vec3( 0.2, 0.85, 0.3 ) * band( angle, 40.9, 0.26 )
+    + vec3( 0.15, 0.4, 1.0 ) * band( angle, 40.4, 0.26 ) + vec3( 0.45, 0.25, 0.95 ) * band( angle, 39.9, 0.24 );
   float lit = smoothstep( -0.8, 0.8, dot( uShade.xyz, vWorld ) + uShade.w );
   float a = uLevel * sprayAt( vWorld ) * lit * smoothstep( 6.0, 14.0, length( cameraPosition - vWorld ) ) * 0.55;
   #if defined( USE_FOG ) && defined( FOG_EXP2 )

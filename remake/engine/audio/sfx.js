@@ -17,7 +17,7 @@ const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot 
 // Recorded sounds, by name, beside the made ones: Grameðla's roar and breath, far off from chapter 2's lookout. Both from
 // tunetank.com, free for non-commercial use with credit (the owner, 2026-10-27): "Sound Effect: Dinosaur creature moan" and
 // "Sound Effect: T-rex exhale", download from https://tunetank.com (assets/audio/kafli2/CREDITS.md). `level` is the gain into the
-// effects' master.
+// effects' master; a play's detail may scale it: s.sfx('gramedlaRoar', { level: 0.25 }), further off (chapter 4's flight).
 const SAMPLES = {
   gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
   gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 1.0 },
@@ -419,13 +419,13 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   const buffers = new Map();
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
-    SOUNDS[name] = () => {
+    SOUNDS[name] = (detail = {}) => {
       const buffer = buffers.get(name);
       if (!buffer) return;
       const source = context.createBufferSource();
       source.buffer = buffer;
       const volume = context.createGain();
-      volume.gain.value = sample.level;
+      volume.gain.value = sample.level * (Number.isFinite(detail.level) ? detail.level : 1);
       source.connect(volume);
       track(source, [volume, ...outlet(volume, 0, master)]);
       source.start(context.currentTime);
