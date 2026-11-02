@@ -141,6 +141,32 @@ test('each one-shot is one of its recorded takes, never the same take twice runn
   assert.ok(pans(1).every(p => p > 0.5) && pans(-1).every(p => p < -0.5), 'a whoosh on the right is heard on the right');
 });
 
+test('the wind and the water dip under a line and come back after it; the one-shots do not', () => {
+  const context = createFakeContext({ state: 'running' });
+  const out = context.createGain();
+  const sounds = createFlightSounds({ context, output: out, recordings: fakeStore(context) });
+  sounds.start();
+  context.advance(2);
+  assert.ok(sounds.dip > 0.99, 'full while nobody speaks');
+  sounds.duck(true);
+  context.advance(0.6);
+  assert.ok(Math.abs(sounds.dip - FLIGHT_SOUND.duck) < 0.02, `under a line: ${sounds.dip}`);
+  assert.ok(FLIGHT_SOUND.duck <= 0.5, 'at least 6 dB down');
+  sounds.duck(false);
+  context.advance(3);
+  assert.ok(sounds.dip > 0.99, `back after it: ${sounds.dip}`);
+  // the dip is between the loops and the hold: a one-shot goes round it
+  const master = masterOf(context, out);
+  const dip = context.nodes.find(node => node.kind === 'gain' && node.outputs.includes(master) && node.gain.events.some(e => e.value === FLIGHT_SOUND.duck));
+  assert.ok(dip, 'the dip feeds the hold');
+  const loops = context.bufferSources.filter(s => s.loop);
+  assert.ok(loops.length >= 6 && loops.every(s => s.reaches(dip)), 'every loop goes through it');
+  const before = context.bufferSources.length;
+  sounds.whoosh(1);
+  const [whoosh] = context.bufferSources.slice(before);
+  assert.ok(whoosh && !whoosh.reaches(dip), 'a whoosh does not');
+});
+
 test('the bed leans with her bank, no further than 0.6 to a side', () => {
   const context = createFakeContext({ state: 'running' });
   const sounds = createFlightSounds({ context, output: context.destination, recordings: fakeStore(context) });

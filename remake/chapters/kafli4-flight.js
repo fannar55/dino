@@ -168,6 +168,7 @@ function* frames(s, c) {
       sounds.water(river.water);
       sounds.rapids(river.rapids);
       sounds.gorge(river.gorge);
+      sounds.duck(Boolean(c.speaking)); // the wind and the water dip under every line
       sounds.falls(Math.min(1, (35 / Math.max(1, p.distanceTo(fallsAt))) ** 2));
     }
     yield;

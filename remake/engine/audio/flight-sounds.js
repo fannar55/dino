@@ -11,6 +11,7 @@
 //   sounds.setPan(p);            // -1..1: the airflow leans to one side in a bank, at most 0.6
 //   sounds.water(level); sounds.rapids(level); sounds.falls(level);   // 0..1: the river under her, its white water, the falls ahead
 //   sounds.gorge(level);         // 0..1: between the gorge's walls, everything echoes
+//   sounds.duck(on);             // while a line plays: the loops dip about 8 dB, and come back after it
 //   sounds.whoosh(side); sounds.wingbeat(); sounds.gust();
 //   sounds.setPaused(on);        // held with the game (engine/audio/hold.js): silent at once, and back; pause() and resume() too
 //   sounds.stop();               // fades out over 1 s and lets go of its loops
@@ -37,7 +38,8 @@ export const FLIGHT_SOUND = {
   swap: 0.6, // s: a made loop fades out as its recording comes in
   // the recordings (levelled by tools/kafli4-sounds.mjs: loops to -24 LUFS, one-shots to a -3 dB peak): each loop's gain at full
   // level, the airflow's filter, and each one-shot's gain
-  recorded: { bed: 0.4, water: 0.7, rapids: 0.9, falls: 1.4, cutoff: [2600, 16000], wingbeat: 0.5, whoosh: 0.35, gust: 0.42 },
+  recorded: { bed: 0.45, water: 0.7, rapids: 0.9, falls: 1.4, cutoff: [2600, 16000], wingbeat: 0.5, whoosh: 0.35, gust: 0.42 },
+  duck: 0.4, // the loops' gain while a line plays (about -8 dB), so every word is heard over the wind and the water
   // the gorge: a few echoes off its walls, duller each time, of everything sent to it
   echo: { send: 0.35, taps: [[0.13, 0.5], [0.24, 0.32], [0.39, 0.18]], cutoff: 2200 },
 };
@@ -91,7 +93,7 @@ export function createFlightSounds({ context = null, output = null, recordings =
     const idle = () => {};
     return {
       start: idle, setSpeed: idle, setPan: idle, burst: idle, whoosh: idle, wingbeat: idle, gust: idle,
-      water: idle, rapids: idle, falls: idle, gorge: idle, pause: idle, resume: idle, stop: idle,
+      water: idle, rapids: idle, falls: idle, gorge: idle, duck: idle, pause: idle, resume: idle, stop: idle,
       setPaused(value) { paused = Boolean(value); },
       get playing() { return false; },
       get level() { return 0; },
@@ -124,6 +126,12 @@ export function createFlightSounds({ context = null, output = null, recordings =
   master.connect(output ?? context.destination);
   const echoIn = context.createGain();
   echoIn.gain.value = 0;
+  // the loops come in through `under`, which dips while a line plays (duck); the one-shots go round it
+  const under = context.createGain();
+  under.gain.value = 1;
+  under.connect(master);
+  under.connect(echoIn);
+  let ducking = false;
   if (context.createDelay) {
     const dull = context.createBiquadFilter();
     dull.type = 'lowpass';
@@ -223,8 +231,7 @@ export function createFlightSounds({ context = null, output = null, recordings =
     const fade = context.createGain();
     fade.gain.setValueAtTime(0, now);
     fade.gain.linearRampToValueAtTime(1, now + FLIGHT_SOUND.fadeIn);
-    fade.connect(master);
-    fade.connect(echoIn);
+    fade.connect(under);
     const nodes = [fade, pan].filter(Boolean);
     const channels = {};
     for (const name of Object.keys(FLIGHT_LOOPS)) {
@@ -424,6 +431,14 @@ export function createFlightSounds({ context = null, output = null, recordings =
     rapids: value => level('rapids', value),
     falls: value => level('falls', value),
     gorge(value) { toward(echoIn.gain, FLIGHT_SOUND.echo.send * clamp(Number(value) || 0, 0, 1), 0.6); },
+    /** While a line plays (on), the loops dip to `duck` of their gain, quickly; after it they come back, slowly. */
+    duck(on) {
+      if (Boolean(on) === ducking) return; // asked every few frames: only a change is scheduled
+      ducking = Boolean(on);
+      toward(under.gain, ducking ? FLIGHT_SOUND.duck : 1, ducking ? 0.1 : 0.5);
+    },
+    /** The loops' dip now: 1, or `duck` under a line. */
+    get dip() { return under.gain.value; },
     /** Whether the loops are playing (started and not stopped). */
     get playing() { return Boolean(live); },
     /** The hold's level now: 1 while it may sound, 0 held. */
