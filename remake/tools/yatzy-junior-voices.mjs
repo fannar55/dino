@@ -10,6 +10,7 @@
 // with voice-lines.mjs's lines; a take another checkout of the repo has in its cache is copied, not asked for again.
 // A line may carry its own say, context or seed in remake/assets/audio/yatzy-junior/lines-overrides.json (voice-lines.mjs
 // juniorOverrides), which win over the lexicon as in a lines-source.json line; the script stays the caption.
+// A request the owner rejected on a yes/no page (remake/assets/audio/heard/, tools/heard.mjs) is refused before anything is asked.
 // The script is the solo game's lines and Fjölspil's (voice-lines.mjs JUNIOR_LINES). Fjölspil's are optional: the page plays them
 // as captions until they are made, so --verify passes them by (as "unrecorded") until then, and --dry-run lists what is to make.
 // The owner makes them himself (his decision of 2026-10-24), with his key in the environment:
@@ -21,6 +22,7 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {JUNIOR_LINES,cacheKey,MODEL,SETTINGS,juniorOverrides,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
 import {readLexicon,requestFor} from './pronunciation.mjs';
+import {assertNotRejected,readHeard} from './heard.mjs';
 import {lineEntry} from './audio-lines.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
@@ -83,6 +85,8 @@ async function main(argv){
       unchosen:sent.filter(line=>line.words.some(word=>!word.recipe)).map(line=>line.id),toMake:selected.filter(toMake).map(([id])=>id)},null,2));
     return;
   }
+  // The owner's ear (tools/heard.mjs): a request he rejected is never sent or installed again, cached or not.
+  const heard=readHeard(ROOT);for(const[id,line]of selected)assertNotRejected(heard,fingerprint(line),`yatzy-junior/${id}`);
   const key=process.env.ELEVENLABS_API_KEY;if(!key)throw new Error('ELEVENLABS_API_KEY must be available in the environment.');
   const models=await fetch('https://api.elevenlabs.io/v1/models',{headers:{'xi-api-key':key},signal:AbortSignal.timeout(30000)});
   if(!models.ok)throw new Error(`ElevenLabs model verification returned HTTP ${models.status}.`);
