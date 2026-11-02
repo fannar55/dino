@@ -533,8 +533,11 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       const at = before ? Math.max(hop + (BODY[before][0] + front + WALK.margin) / WALK.deck, reach) : reach, delay = Math.max(0, at - reach);
       hop = at; before = who; void back;
       const end = spot.frame[1] < 6.5 ? [world(...WALK.via), spot.point] : [spot.point];
+      // (when it should be in its place, as the ways are long and the paces set: the report's walk, beside when it was)
+      const length = points => points.reduce((sum, p, k) => k ? sum + p.distanceTo(points[k - 1]) : 0, 0), name = who + i;
+      const expect = at + length([on, ...up, ...deck, ...off]) / WALK.deck + length([off.at(-1), ...end]) / WALK.ground;
       walkers.start(actor, [{ to: [on], speed: WALK.ground, ground: false, surface }, { to: [...up, ...deck], speed: WALK.deck, ground: false, surface }, { to: off, speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
-        { delay, yaw: spot.yaw, pitch: true, onDone: () => { if (action) { action.arrived++; action.times.push(+action.age.toFixed(2)); } } });
+        { delay, yaw: spot.yaw, pitch: true, onDone: () => { if (action) { action.arrived++; action.times.push(`${name} ${action.age.toFixed(2)}/${expect.toFixed(2)}`); } } });
     }
     // the Flugeðlur fly over, high over the trunk, and come down at their places
     members('pteranodon').forEach((actor, i) => {
