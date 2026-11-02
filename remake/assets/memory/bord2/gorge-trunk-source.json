@@ -1,0 +1,53 @@
+{
+  "file": "gorge-trunk.glb",
+  "bytes": 257548,
+  "triangles": 6000,
+  "vertices": 4348,
+  "meshes": [
+    "GorgeTrunk"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "1024 px + 1024 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "the game owner (generated with Tripo3D)",
+  "title": "tree stump (the big dead trunk)",
+  "sourceUrl": "Tripo3D, the owner's own generation (no URL)",
+  "license": "the owner's own model (no third-party licence)",
+  "licenseUrl": null,
+  "rightsNote": "The owner made this model with Tripo3D; it is not an open asset, so it needs no credit (the game names the open ones behind the \"i\").",
+  "sourceHost": "Tripo3D (made and downloaded by the game owner as a GLB, 2026-11-02: \"tree stump\", his second trunk)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/tripo-trunk-2/, git-ignored).",
+  "download": {
+    "bytes": 6392192,
+    "md5": "6d5314e145ae66ce060b8254cbc39062",
+    "triangles": 99590,
+    "maps": "three 2048 px maps (colour, normal and one more), a generated material",
+    "file": "tree stump 3d model.glb"
+  },
+  "use": "The big dead trunk at the gap on the clifftop (levels/steinagljufur/ledge.js): it stands upright on the rim, the second rope is tied to the stub near its top, everyone pulls, it tilts in three steps and falls over the gap, roots on the near rim and top on Sólarsyllan, and the group walks over it. The game turns it half a turn about its height (the stub near the top toward the open side, where the cameras stand), so that once it lies no stub points up along the way the friends walk. ?bolur=grar greys its colour map in code (the default keeps his colours).",
+  "size": {
+    "note": "7.0 m tall (scaled by its height: size=2.8313 is its widest side on the ground, the root flare); the shaft about 0.84 m thick, the root flare 2.7 by 2.8 m, the stub near the top 5.6-6.0 m up, 1 m out",
+    "bounds": {
+      "x": [
+        -1.3487,
+        1.3487
+      ],
+      "y": [
+        0,
+        6.9999
+      ],
+      "z": [
+        -1.4157,
+        1.4157
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the vertices closer than 0.15 % of the model welded (11,573), 31 flaps dropped, no pinholes to fill (14 open edges left, tiny slivers in the bark); decimated by collapse from 99,590 to 6,000 triangles; custom normals from the welded whole; scaled by its height to 7.0 m (size=2.8313: the side the script measures is the root flare, 0.4045 of the height), set on y = 0; the material rebuilt as plain metal-rough (colour map and normal map shrunk from 2048 to 1024, WebP at quality 80, roughness 0.9). quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- \"qa/memory/bord2/src/tripo-trunk-2/tree stump 3d model.glb\" gorge-trunk-blender.glb name=GorgeTrunk size=2.8313 front=0 tris=6000 tex=1024 normal=1 roughness=0.9 fill=6 weld=0.0015 flaps=1 (absolute paths: Blender writes a relative output path under C:)",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-trunk-blender.glb remake/assets/memory/bord2/gorge-trunk.glb",
+  "passes": "blenderCommand (Blender 5.2; 335568 bytes), then quantizeCommand (257548 bytes)."
+}
