@@ -7,8 +7,14 @@
 //            each, in any case, go on by themselves, go back with Backspace and fill all four from a paste; then "Áfram"
 //   join     "Hvað heitirðu?" (1–12 letters), the six friends to pick from (the ones taken or kept for the game's own
 //            character are dim) and "Tilbúin/n", which sends hello { name, avatar }. The phone remembers both
-//            (localStorage, mosi-fjolspil-guest, with the guest's id), so the next time one tap is enough
-//   lobby    "Þú ert með!" with her avatar and the seats at the table
+//            (localStorage, mosi-fjolspil-guest, with the guest's id), so the next time one tap is enough. In a lobby that
+//            wants Egill on a device of his own (Veiddu's: the view says host: 'free') Egill's portrait comes first, "Ég er
+//            Egill": one tap, no name typed, hello { name: 'Egill', avatar: 'egill' } binds this phone to his seat 0. Söngur
+//            Slóeðlu's lobby view says which friends are on offer (`offer`: the others are not shown; with none of
+//            them free, "Allar eðlurnar eru í notkun") and asks "Krakki eða fullorðinn?" (`ask: 'level'`): one of the
+//            two is needed before the hello, which carries it as `level`, and the phone remembers it too
+//   lobby    "Þú ert með!" with her avatar and the seats at the table; in a song lobby the big screen's `note` (the song
+//            Egill picks) and her level to change (act { type: 'level', level })
 //   wait     "Bíðum eftir stóra skjánum…": the big screen has gone; the connection tries again, and while its socket is open
 //            a seated page says hello again every ASK_EVERY_MS, ASK_TIMES times, until a seat or a view comes. When
 //            another tab took this seat (replaced) nothing is tried by itself: a second line, "Pikkaðu hér til að taka
@@ -16,13 +22,18 @@
 //            2026-10-24: a phone sat on this screen until a refresh)
 //   closed   "Bíðum eftir næsta leik": the game was closed on the big screen; the next lobby comes by itself
 //   over     "{name} vann!" with the winner's avatar
-//   game     a game's own screen: views[view.screen](el, view, { send, doc, control, audio }) renders it (Háls og hali and
-//            Eitt! register theirs: spil.html passes guest-hals.js's renderHals and guest-eitt.js's renderEitt); `el` is the
+//   game     a game's own screen: views[view.screen](el, view, { send, doc, control, audio, post, listen }) renders it (Háls og hali,
+//            Eitt!, Litla Yatzy, Veiddu and Söngur Slóeðlu register theirs: spil.html passes guest-hals.js's renderHals,
+//            guest-eitt.js's renderEitt, guest-yatzy.js's renderYatzy, guest-veiddu.js's renderVeiddu and guest-sloedla.js's
+//            renderSloedla); `el` is the
 //            game's element in the middle of the page, the same one while that game's views follow one another and a new one
 //            after any other screen, send(act) sends act { … } to the big screen, control(button, onTap) makes a button of the
 //            page's own (the tap, its sound and the keyboard), and audio.effects(options) a game's own effects on the page's
 //            audio (Eitt!'s, spec §7.3). A game's view with `paused: true` (the big screen is paused) says so in the
-//            status line, "Stóri skjárinn er í hléi", until a view of any screen comes without it or the big screen goes
+//            status line, "Stóri skjárinn er í hléi", until a view of any screen comes without it or the big screen goes.
+//            Söngur Slóeðlu's screen talks more than views: post(type, body) sends a message of its own (time, taps) and
+//            listen(type, fn) hears the big screen's messages that are not views or seats (song, time) until the screen
+//            changes
 //
 // The big screen decides what the page shows: every `view` it sends (spec §6.3) is the whole picture, and one older than
 // the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (spil.html passes one
@@ -72,7 +83,20 @@ const WORDS = {
   noName: 'Skrifaðu nafnið þitt',
   retake: 'Pikkaðu hér til að taka sætið þitt aftur', // under "Bíðum eftir stóra skjánum…" when another tab took the seat
   paused: 'Stóri skjárinn er í hléi', // a game's view while the big screen is paused (Litla Yatzy's junior page, 2026-10-24)
+  egill: 'Ég er Egill', // Egill's portrait on the join screen, when the game wants him on a device of his own
+  or: 'eða',
+  levelAsk: 'Krakki eða fullorðinn?', // Söngur Slóeðlu's lobby (ask: 'level'): the guest's level, the same song for all
+  kid: 'Krakki',
+  grown: 'Fullorðinn',
+  none: 'Allar eðlurnar eru í notkun', // a song lobby whose dinosaurs are all taken
 };
+
+/** Söngur Slóeðlu's levels, as the level row offers them: the child's chart or the grown-ups' (a face for those who read little). */
+const LEVEL_CHOICES = [['barn', '🧒', WORDS.kid], ['fullordinn', '🧑', WORDS.grown]];
+const isLevel = level => LEVEL_CHOICES.some(([id]) => id === level);
+
+/** A note's picture from the big screen: a file of the game's own under remake/assets/, nothing else. */
+export const SAFE_PICTURE = /^assets\/[\w-]+(\/[\w.-]+)*\.(webp|png|jpg|svg)$/;
 
 /** How often, and how many times, the wait screen says hello again while its socket is open: for two minutes. */
 export const ASK_EVERY_MS = 5000;
@@ -94,8 +118,14 @@ const EGILL = { seat: 0, name: 'Egill', avatar: 'egill' };
 const BJARNI = { seat: 2, name: 'Bjarni', avatar: 'gramedla' };
 const DEMOS = {
   code: { typed: 'GU' },
+  joinhost: { name: '', avatar: null, view: { screen: 'lobby', host: 'free', seats: [{ ...EGILL, present: false }, { ...BJARNI, seat: 1 }], available: ['kambedla', 'sloedla', 'flugedla', 'uggedla'], you: null } },
+  lobbyhost: { seat: EGILL, view: { screen: 'lobby', host: 'mine', seats: [EGILL, { seat: 1, name: 'Anna', avatar: 'kambedla' }], available: ['sloedla', 'gramedla', 'flugedla'], you: 0 } },
   join: { name: 'Ásta', avatar: 'kambedla', view: { screen: 'lobby', seats: [EGILL, { ...BJARNI, seat: 1 }], available: ['kambedla', 'sloedla', 'flugedla', 'uggedla'], you: null } },
   lobby: { seat: ASTA, view: { screen: 'lobby', seats: [EGILL, ASTA, BJARNI], available: ['sloedla', 'flugedla', 'uggedla'], you: 1 } },
+  // Söngur Slóeðlu's join screen: Egill plays Slóeðla, Kambeðla and Þórseðla are on offer, and the level is asked
+  saman: { name: 'Ásta', avatar: 'kambedla', view: {
+    screen: 'lobby', seats: [EGILL], available: ['kambedla', 'thorsedla'], you: null, offer: ['kambedla', 'thorsedla'], ask: 'level',
+  } },
   wait: { seat: ASTA, view: { screen: 'wait', reason: 'host-gone' } },
   closed: { seat: ASTA, view: { screen: 'closed' } },
   over: { seat: ASTA, view: { screen: 'over', winner: { name: 'Ásta', avatar: 'kambedla' } } },
@@ -111,6 +141,13 @@ const DEMOS = {
     canDraw: false, canPass: false, needsColour: null, eittNeeded: false, canCatch: null, winner: null,
     counts: [{ ...EGILL, cards: 4 }, { ...ASTA, cards: 5 }, { ...BJARNI, cards: 6 }],
   } },
+  // Veiddu, Ásta's own turn among three: seven cards in her hand, Egill's, Bjarni's and her own catch laid (spil.html registers renderVeiddu);
+  // -give: Bjarni asks her for the frog she holds, -no: he asks for a snail she has not got, -fish: she was told no and the pond calls
+  veiddu: { seat: ASTA, view: veidduDemo('ask') },
+  'veiddu-give': { seat: ASTA, view: veidduDemo('give') },
+  'veiddu-no': { seat: ASTA, view: veidduDemo('no') },
+  'veiddu-fish': { seat: ASTA, view: veidduDemo('fish') },
+  veiddu4: { seat: ASTA, view: veidduDemo('ask', 4) }, // four at the table: three others
   // Litla Yatzy, Ásta's own turn after one roll: two threes held, the cup offering a roll again and a pair worth six, Egill,
   // Bjarni and Mosi at the table too (spil.html registers renderYatzy)
   yatzy: { seat: ASTA, view: {
@@ -127,6 +164,20 @@ const DEMOS = {
     winner: null,
   } },
 };
+
+/** Veiddu's demo views for ?demo=veiddu…: Ásta (seat 1) among Egill (0) and Bjarni (2), and `mode` what she does now. */
+function veidduDemo(mode, seats = 3) {
+  const card = id => ({ id, kind: id.replace(/-\d+$/, '') });
+  const ask = { type: 'ask', seat: 2, target: 1, kind: 'froskur' };
+  return {
+    screen: 'veiddu', seat: 1, hand: ['froskur-1', 'skjaldbaka-2', 'salamandra-1', 'fiskur-gulur-1', 'snigill-1', 'fiskur-blar-1', 'drekafluga-1'].map(card),
+    counts: [5, 7, 6, 4].slice(0, seats), catches: [['brunnklukka'], ['vatnalaesingi', 'fiskur-raudur'], ['fiskur-graenn'], []].slice(0, seats), pond: 23, turn: mode === 'ask' ? 1 : mode === 'fish' ? 1 : 2,
+    phase: mode === 'fish' ? 'fish' : 'ask', mode: mode === 'ask' ? 'ask' : mode === 'fish' ? 'fish' : mode,
+    asked: mode === 'give' ? { from: 2, to: 1, kind: 'froskur', no: false } : mode === 'no' ? { from: 2, to: 1, kind: 'snigill', no: false } : mode === 'fish' ? { from: 1, to: 0, kind: 'froskur', no: true } : null,
+    targets: mode === 'ask' ? [0, 2] : [], lastEvent: mode === 'give' || mode === 'no' ? ask : mode === 'fish' ? { type: 'no', seat: 0, kind: 'froskur' } : { type: 'pair', seat: 0, kind: 'brunnklukka' },
+    names: ['Egill', 'Ásta', 'Bjarni', 'Uggeðla'].slice(0, seats), avatars: ['egill', 'kambedla', 'gramedla', 'uggedla'].slice(0, seats), away: [], winners: [],
+  };
+}
 
 /** A card of the deck by its id, for the demo's Eitt! view. */
 function cardOf(id) {
@@ -154,7 +205,8 @@ function readGuest(storage, crypto) {
   return {
     guestId: guestId ?? randomKey(crypto),
     name: cleanName(saved?.name),
-    avatar: AVATARS.some(a => a.id === saved?.avatar) ? saved.avatar : null,
+    avatar: AVATARS.some(a => a.id === saved?.avatar) || saved?.avatar === HOST_AVATAR.id ? saved.avatar : null, // Egill's phone remembers his portrait
+    level: isLevel(saved?.level) ? saved.level : null,
     fresh: guestId === null,
   };
 }
@@ -184,7 +236,8 @@ export function createGuestPage(doc, {
     seat: null, // { seat, name, avatar } once the big screen has given this page a seat
     available: null, // the avatar ids free, from the last lobby view; null until one has come (then none is dim)
     taken: new Set(), // avatars refused since that view (avatar-taken)
-    chosen: guest.avatar, // the avatar picked on the join screen
+    chosen: AVATARS.some(a => a.id === guest.avatar) ? guest.avatar : null, // the avatar picked on the join screen (never Egill's: his is its own button)
+    host: null, // the lobby's word on Egill's seat: 'free' (a phone may have it), 'mine', 'taken', or null (this game keeps him at the big screen)
     pending: null, // the hello sent, { name, avatar }, until its seat comes back
     again: false, // that hello is her seat's, asked for again (rehello): its answer is not what she typed
     hadSeat: false, // a seat in this room: its no-room is the end of the game, not a wrong code
@@ -194,11 +247,16 @@ export function createGuestPage(doc, {
     heardAt: null, // when the big screen's last message came (now()), for the ?debug=1 readout
     game: null, // which game's screen `gameEl` holds
     said: { text: '', kind: null }, // the status line: 'net' (the connection's), 'page' (the guest's own doing) or 'pause'
+    offer: null, // Söngur Slóeðlu's lobby: the avatars on offer (null: every one)
+    ask: null, // 'level' when the lobby asks "Krakki eða fullorðinn?"
+    level: guest.level, // the level picked ('barn' or 'fullordinn'), the phone's remembered one at first
+    listeners: new Map(), // a game screen's listen(type, fn): type -> Set of fn
   };
 
   function save() {
     try {
-      keep?.setItem(STORAGE_KEY, JSON.stringify({ guestId: guest.guestId, name: guest.name, avatar: guest.avatar }));
+      const level = guest.level ? { level: guest.level } : {};
+      keep?.setItem(STORAGE_KEY, JSON.stringify({ guestId: guest.guestId, name: guest.name, avatar: guest.avatar, ...level }));
     } catch {
       // storage is full or forbidden: the page still works, it only forgets
     }
@@ -283,6 +341,29 @@ export function createGuestPage(doc, {
   }
   function unsay(kind) {
     if (at.said.kind === kind) say('');
+  }
+
+  /**
+   * Söngur Slóeðlu's "Krakki eða fullorðinn?": the question and two big buttons; onPick(level) on a tap. render(level) presses
+   * the one picked.
+   */
+  function levelRow(onPick) {
+    const el = make('div', 'spil-levels');
+    el.setAttribute('role', 'group');
+    el.setAttribute('aria-label', WORDS.levelAsk);
+    const buttons = LEVEL_CHOICES.map(([id, look, word]) => {
+      const button = make('button', 'spil-level');
+      button.setAttribute('data-level', id);
+      button.setAttribute('aria-pressed', 'false');
+      const faceEl = make('span', 'spil-level-face', look);
+      faceEl.setAttribute('aria-hidden', 'true');
+      button.append(faceEl, make('span', 'spil-level-word', word));
+      control(button, () => onPick(id));
+      return button;
+    });
+    el.append(make('p', 'spil-level-ask', WORDS.levelAsk), ...buttons);
+    const render = level => buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(LEVEL_CHOICES[i][0] === level)));
+    return { el, buttons, render };
   }
 
   /** A little shake for a part of the screen that wants the guest's attention (spil.css: .nope). */
@@ -443,22 +524,57 @@ export function createGuestPage(doc, {
   for (const el of [avatarsEl, digitsEl]) { // the shake is over (not a tick's pop inside it)
     el.addEventListener('animationend', event => { if (event.target === el) el.classList.remove('nope'); });
   }
+  const noneEl = make('p', 'spil-none', WORDS.none); // a song lobby with all its dinosaurs taken
+  noneEl.hidden = true;
+  const joinLevels = levelRow(level => {
+    at.level = level;
+    unsay('page');
+    joinLevels.render(level);
+  });
+  joinLevels.el.hidden = true;
+  joinLevels.el.addEventListener('animationend', event => { if (event.target === joinLevels.el) joinLevels.el.classList.remove('nope'); });
   const readyEl = make('button', 'spil-ready spil-big');
   readyEl.innerHTML = `${PLAY}<span>${WORDS.ready}</span>`;
-  joinEl.append(askEl, nameEl, avatarsEl, readyEl);
+  // Egill's portrait first, where the game wants him on a device of his own (the lobby view's host: 'free')
+  const hostEl = make('button', 'spil-host');
+  hostEl.setAttribute('aria-label', WORDS.egill);
+  const hostLook = face('spil-host-face');
+  setFace(hostLook, HOST_AVATAR.id);
+  hostEl.append(hostLook.el, make('span', 'spil-host-words', WORDS.egill));
+  const orEl = make('p', 'spil-or', WORDS.or);
+  orEl.setAttribute('aria-hidden', 'true');
+  hostEl.hidden = true;
+  orEl.hidden = true;
+  const renderHost = () => {
+    hostEl.hidden = at.host !== 'free';
+    orEl.hidden = hostEl.hidden;
+    joinEl.classList.toggle('with-host', !hostEl.hidden);
+  };
+  joinEl.append(hostEl, orEl, askEl, nameEl, avatarsEl, noneEl, joinLevels.el, readyEl);
 
+  /** Is this avatar on offer? Every one, unless a song lobby offers only its dinosaurs. */
+  const offered = id => at.offer === null || at.offer.includes(id);
   /** May this avatar be picked now? Not one refused, and once a lobby has come, only one it says is free (or her own). */
   function free(id) {
-    if (at.taken.has(id)) return false;
+    if (at.taken.has(id) || !offered(id)) return false;
     return at.available === null || at.available.includes(id) || id === at.seat?.avatar;
   }
   function renderAvatars() {
     if (at.chosen && !free(at.chosen)) at.chosen = null;
     avatarButtons.forEach((el, index) => {
       const { id } = AVATARS[index];
+      el.hidden = !offered(id);
       el.disabled = !free(id);
       el.setAttribute('aria-pressed', String(id === at.chosen));
     });
+    // a song lobby with none of its dinosaurs free: say so, and wait for a lobby view with one free
+    const none = at.offer !== null && !AVATARS.some(({ id }) => free(id));
+    avatarsEl.style.setProperty('--spil-columns', String(Math.max(1, Math.min(COLUMNS, AVATARS.filter(({ id }) => offered(id)).length))));
+    noneEl.hidden = !none;
+    avatarsEl.hidden = none;
+    readyEl.hidden = none;
+    joinLevels.el.hidden = none || at.ask !== 'level';
+    joinLevels.render(at.level);
   }
   function choose(id) {
     if (!free(id)) return;
@@ -466,6 +582,16 @@ export function createGuestPage(doc, {
     unsay('page');
     renderAvatars();
   }
+
+  /** "Ég er Egill": hello with his name and portrait, which binds this phone to seat 0 where the game wants it. */
+  function imEgill() {
+    if (at.host !== 'free') return false;
+    at.pending = { name: HOST_AVATAR.name, avatar: HOST_AVATAR.id };
+    at.again = false;
+    at.connection?.send?.(message('hello', at.pending));
+    return true;
+  }
+  control(hostEl, () => imEgill());
 
   nameEl.addEventListener('input', () => unsay('page'));
   nameEl.addEventListener('keydown', event => {
@@ -475,7 +601,10 @@ export function createGuestPage(doc, {
   });
   control(readyEl, () => submit());
 
-  /** "Tilbúin/n": hello { name, avatar } to the big screen; false (and a word or a shake) while either is missing. */
+  /**
+   * "Tilbúin/n": hello { name, avatar } to the big screen (with `level` when the lobby asks for one); false (and a word or a
+   * shake) while any is missing.
+   */
   function submit() {
     const name = cleanName(nameEl.value);
     if (name === null) {
@@ -489,7 +618,12 @@ export function createGuestPage(doc, {
       avatarButtons.find(el => !el.disabled)?.focus?.();
       return false;
     }
-    at.pending = { name, avatar: at.chosen };
+    if (at.ask === 'level' && !isLevel(at.level)) {
+      nudge(joinLevels.el);
+      joinLevels.buttons[0].focus?.();
+      return false;
+    }
+    at.pending = { name, avatar: at.chosen, ...(at.ask === 'level' ? { level: at.level } : {}) };
     at.again = false;
     at.connection?.send?.(message('hello', at.pending));
     return true;
@@ -505,7 +639,8 @@ export function createGuestPage(doc, {
     const name = at.seat?.name ?? guest.name;
     const avatar = at.seat?.avatar ?? guest.avatar;
     if (!name || !avatar) return false; // nothing to ask with: the join screen's tap is the hello
-    at.pending = { name, avatar };
+    // a song lobby's level goes too: a reloaded big screen has forgotten it (the seat keeps it otherwise)
+    at.pending = { name, avatar, ...(at.ask === 'level' && isLevel(at.level) ? { level: at.level } : {}) };
     at.again = true;
     return at.connection?.send?.(message('hello', at.pending)) ?? false;
   }
@@ -535,10 +670,40 @@ export function createGuestPage(doc, {
   const lobbyWords = make('h2', 'spil-words', WORDS.lobby);
   const seatsEl = make('ul', 'spil-seats');
   seatsEl.setAttribute('aria-label', 'Við borðið');
-  lobbyEl.append(heroFace.el, lobbyWords, seatsEl);
+  // Söngur Slóeðlu's: what the big screen says ("Egill velur lag…", the song's name and picture) and her level to change
+  const lobbyNote = make('div', 'spil-lobby-note-box');
+  const lobbyNotePicture = make('img', 'spil-lobby-note-picture');
+  lobbyNotePicture.alt = '';
+  lobbyNotePicture.hidden = true;
+  const lobbyNoteText = make('p', 'spil-lobby-note');
+  lobbyNote.append(lobbyNotePicture, lobbyNoteText);
+  lobbyNote.hidden = true;
+  const lobbyLevels = levelRow(level => {
+    at.level = level;
+    guest.level = level;
+    save();
+    lobbyLevels.render(level);
+    send({ type: 'level', level });
+  });
+  lobbyLevels.el.hidden = true;
+  lobbyEl.append(heroFace.el, lobbyWords, lobbyNote, lobbyLevels.el, seatsEl);
+
+  function renderNote(note) {
+    const text = typeof note?.text === 'string' ? note.text : '';
+    const picture = typeof note?.picture === 'string' && SAFE_PICTURE.test(note.picture) ? asset(note.picture) : null;
+    lobbyNoteText.textContent = text;
+    if (picture && lobbyNotePicture.src !== picture) lobbyNotePicture.src = picture;
+    lobbyNotePicture.hidden = !picture;
+    lobbyNote.hidden = !text && !picture;
+  }
 
   function renderLobby(view) {
     setFace(heroFace, at.seat.avatar);
+    renderNote(view.note);
+    const mine = Array.isArray(view.seats) ? view.seats.find(entry => entry.seat === at.seat.seat) : null;
+    if (isLevel(mine?.level)) at.level = mine.level;
+    lobbyLevels.el.hidden = at.ask !== 'level';
+    lobbyLevels.render(at.level);
     seatsEl.replaceChildren(...(Array.isArray(view.seats) ? view.seats : []).map(entry => {
       const el = make('li', entry.seat === at.seat.seat ? 'spil-seat mine' : 'spil-seat');
       if (entry.present === false) el.classList.add('absent');
@@ -611,10 +776,11 @@ export function createGuestPage(doc, {
       gameEl = make('section', 'spil-screen spil-game');
       gameEl.setAttribute('data-game', view.screen);
       at.game = view.screen;
+      at.listeners.clear(); // the screen before is gone, and its listeners with it
     }
     unsay('page');
     show('game');
-    render(gameEl, view, { send, doc, control, audio });
+    render(gameEl, view, { send, doc, control, audio, post, listen });
     if (view.paused === true) say(WORDS.paused, 'pause');
   }
 
@@ -624,8 +790,12 @@ export function createGuestPage(doc, {
     if (you) seatAs(you);
     else at.seat = null; // never seated, or dropped at "Byrjum!" while away: one tap seats her again
     showSeat();
+    at.offer = Array.isArray(view.offer) ? [...view.offer] : null;
+    at.ask = view.ask === 'level' ? 'level' : null;
     at.available = Array.isArray(view.available) ? [...view.available] : [];
     at.taken.clear(); // the big screen's word is newer than any refusal
+    at.host = ['free', 'mine', 'taken'].includes(view.host) ? view.host : null;
+    renderHost();
     renderAvatars();
     if (at.seat) {
       renderLobby(view);
@@ -650,16 +820,22 @@ export function createGuestPage(doc, {
         unsay('page');
         return; // what she typed stays what the phone remembers
       }
-      const { name, avatar } = sent;
+      const { name, avatar, level } = sent;
       seatAs({ seat: body.seat, name, avatar });
       guest.name = name;
       guest.avatar = avatar;
+      if (isLevel(level)) guest.level = level;
       save();
       unsay('page');
       return; // the lobby's view, with her in it, comes next
     }
     if (body.reason === 'full') return say(WORDS.full, 'page');
     show('join');
+    if (body.reason === 'host-taken' || body.reason === 'already-seated') { // another phone is Egill's
+      at.host = 'taken';
+      renderHost();
+      return say(WORDS.taken, 'page');
+    }
     if (body.reason === 'bad-name') {
       nameEl.focus?.();
       return say(WORDS.noName, 'page');
@@ -678,6 +854,7 @@ export function createGuestPage(doc, {
     if (msg.type === 'view' || msg.type === 'seat') stopAsking(); // it answered
     if (msg.type === 'view') onView(msg);
     else if (msg.type === 'seat') onSeat(msg.body ?? {});
+    else for (const fn of [...(at.listeners.get(msg.type) ?? [])]) fn(msg.body, msg); // a game screen's own (Söngur Slóeðlu's)
     readout();
   }
 
@@ -714,7 +891,8 @@ export function createGuestPage(doc, {
       case 'connected': // the socket is open (again), or the big screen is back: a seat had or asked for is asked for again
         unsay('net');
         if (at.pending && !at.again) { // her own tap's hello, sent before the socket opened: hers, even when she had a seat
-          submit(); // (dropped at "Byrjum!", she may have chosen another avatar than the one she had)
+          if (at.pending.avatar === HOST_AVATAR.id) at.connection?.send?.(message('hello', at.pending)); // Egill's: as it was
+          else submit(); // (dropped at "Byrjum!", she may have chosen another avatar than the one she had)
         } else if (at.hadSeat) { // spec §6.4: hello again, and her seat and the newest view come back
           rehello();
           if (at.screen === 'wait') keepAsking(); // and again, until they do
@@ -734,7 +912,7 @@ export function createGuestPage(doc, {
     stopAsking();
     Object.assign(at, {
       connection: null, state: null, lastSeq: 0, seat: null, available: null, pending: null, again: false, hadSeat: false,
-      status: null, replaced: false, heardAt: null,
+      status: null, replaced: false, heardAt: null, host: null,
     });
     retakeEl.hidden = true;
     at.taken.clear();
@@ -755,6 +933,18 @@ export function createGuestPage(doc, {
   /** An act { … } of a game to the big screen (its view comes back). */
   function send(act) {
     return at.connection?.send?.(message('act', act)) ?? false;
+  }
+
+  /** A game screen's own message to the big screen, `type` and `body` as they are (Söngur Slóeðlu's time and taps). */
+  function post(type, body) {
+    return at.connection?.send?.(message(type, body)) ?? false;
+  }
+
+  /** fn(body, msg) for every message of `type` from the big screen while this game's screen shows; returns the unsubscribe. */
+  function listen(type, fn) {
+    if (!at.listeners.has(type)) at.listeners.set(type, new Set());
+    at.listeners.get(type).add(fn);
+    return () => { at.listeners.get(type)?.delete(fn); };
   }
 
   // The phone wakes, the tab comes to the front or the network is back: try again now, not at the end of a wait (spec

@@ -3,7 +3,7 @@
 // Paper and Nunito like qa/remake/kafli2/listen.html; each page saves the owner's choices as a JSON file he sends back.
 
 /** The speakers by the names the owner knows them by, in the order the pages show them. */
-export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', narrator: 'Sögumaður' };
+export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', uggedla: 'Uggeðla', narrator: 'Sögumaður' };
 
 export const escapeHtml = text => String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
@@ -58,11 +58,15 @@ ${script}
 /** What a request sends, in a line for the page. */
 const sentLine = sent => [`sent: ${sent.text}`, sent.context ? `samhengi (ekki talað): ${sent.context}` : '', sent.seed === undefined ? '' : `fræ ${sent.seed}`].filter(Boolean).join(' · ');
 
+/** A line-level fix of a word, as the book shows it: where, and what that line sends of its own. */
+const fixLine = fix => `<code>${escapeHtml(fix.where)}</code>${[fix.say === undefined ? '' : `sent: ${fix.say}`, fix.context === undefined ? '' : `samhengi (ekki talað): ${fix.context}`, fix.seed === undefined ? '' : `fræ ${fix.seed}`].filter(Boolean).map(part => ` · ${escapeHtml(part)}`).join('')}`;
+
 /**
  * The book's page: a section per word, a radio per recipe, a row per speaker. A row whose MP3 was made from another request than it
- * would send now (`stale`: another word's choice changed since) says so, with the command that makes it again.
+ * would send now (`stale`: another word's choice changed since) says so, with the command that makes it again. `elsewhere` (word id
+ * -> the lines that fixed it on their own, tools/heard.mjs fixesByWord) puts "Sérlausnir annars staðar" under the word.
  */
-export function bookHtml(lexicon, rows, { exists = () => true } = {}) {
+export function bookHtml(lexicon, rows, { exists = () => true, elsewhere = new Map() } = {}) {
   const sections = [];
   for (const [id, entry] of Object.entries(lexicon.words)) {
     const mine = rows.filter(row => row.word === id);
@@ -78,7 +82,9 @@ export function bookHtml(lexicon, rows, { exists = () => true } = {}) {
       return `<div class="recipe"><label><input type="radio" name="${escapeHtml(id)}" value="${escapeHtml(recipe)}"${checked}> ${escapeHtml(recipe)}${entry.chosen === recipe ? ' <span class="muted">(valið núna)</span>' : ''}</label><p class="note">${escapeHtml(note)}</p>\n${rowsHtml}</div>`;
     }).join('\n');
     const undecided = `<div class="recipe"><label><input type="radio" name="${escapeHtml(id)}" value=""${entry.chosen === null ? ' checked' : ''}> ekki ákveðið</label><p class="note">Orðið er sent eins og það er skrifað þar til þú velur.</p></div>`;
-    sections.push(`<section data-word="${escapeHtml(id)}"><h2>${escapeHtml(entry.word)}</h2><p class="note">Myndir: ${entry.forms.map(escapeHtml).join(', ')}. ${entry.chosen ? `Valið núna: <b>${escapeHtml(entry.chosen)}</b>.` : 'Ekkert valið enn.'}</p>\n${recipes}\n${undecided}</section>`);
+    const fixes = elsewhere.get(id) ?? [];
+    const fixed = fixes.length ? `<p class="note elsewhere">Sérlausnir annars staðar (línur sem löguðu orðið sjálfar): ${fixes.map(fixLine).join('; ')}</p>\n` : '';
+    sections.push(`<section data-word="${escapeHtml(id)}"><h2>${escapeHtml(entry.word)}</h2><p class="note">Myndir: ${entry.forms.map(escapeHtml).join(', ')}. ${entry.chosen ? `Valið núna: <b>${escapeHtml(entry.chosen)}</b>.` : 'Ekkert valið enn.'}</p>\n${fixed}${recipes}\n${undecided}</section>`);
   }
   return page({
     title: 'Framburðarbók',

@@ -1,0 +1,135 @@
+{
+  "about": "Söngur Slóeðlu: the crowd (tools/sloedla-crowd.mjs)",
+  "sounds": {
+    "va-1": {
+      "kind": "va",
+      "file": "crowd-va-1.mp3",
+      "seconds": 2.2,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: many people's voices say \"wow!\" together at once, amazed and delighted, like the moment after a magic trick, human voices only",
+        "duration_seconds": 2.2,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "\"Wow!\""
+    },
+    "va-2": {
+      "kind": "va",
+      "file": "crowd-va-2.mp3",
+      "seconds": 2.2,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: many people's voices say \"wow!\" together at once, amazed and delighted, like the moment after a magic trick, human voices only",
+        "duration_seconds": 2.2,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "\"Wow!\""
+    },
+    "va-3": {
+      "kind": "va",
+      "file": "crowd-va-3.mp3",
+      "seconds": 2.2,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: everyone goes \"woooow!\" together at once, amazed and delighted, rising then falling, one short gasp of wonder",
+        "duration_seconds": 2.2,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "\"Woo!\""
+    },
+    "ae-1": {
+      "kind": "ae",
+      "file": "crowd-ae-1.mp3",
+      "seconds": 2,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: everyone goes \"ohhhh\" together at once, a gentle, warm, sympathetic sigh at a near miss, kind and not mocking, falling in pitch",
+        "duration_seconds": 2,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "\"Oh.\""
+    },
+    "ae-2": {
+      "kind": "ae",
+      "file": "crowd-ae-2.mp3",
+      "seconds": 2,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: everyone goes \"ohhhh\" together at once, a gentle, warm, sympathetic sigh at a near miss, kind and not mocking, falling in pitch",
+        "duration_seconds": 2,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "\"Oh\""
+    },
+    "ae-3": {
+      "kind": "ae",
+      "file": "crowd-ae-3.mp3",
+      "seconds": 2,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: everyone goes \"ohhhh\" together at once, a gentle, warm, sympathetic sigh at a near miss, kind and not mocking, falling in pitch",
+        "duration_seconds": 2,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "\"Oh\""
+    },
+    "fagn-1": {
+      "kind": "fagn",
+      "file": "crowd-fagn-1.mp3",
+      "seconds": 3.48,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: a happy burst of cheering, whoops and a little clapping, excited children, no words",
+        "duration_seconds": 3.5,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "[cheering]"
+    },
+    "fagn-2": {
+      "kind": "fagn",
+      "file": "crowd-fagn-2.mp3",
+      "seconds": 3.48,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: a happy burst of cheering, whoops and a little clapping, excited children, no words",
+        "duration_seconds": 3.5,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "[cheering]"
+    },
+    "klapp-1": {
+      "kind": "klapp",
+      "file": "crowd-klapp-1.mp3",
+      "seconds": 5,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: warm applause and cheering at the end of a song, kids whooping, clapping that fades out at the end, no words",
+        "duration_seconds": 5,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "[cheering]"
+    },
+    "klapp-2": {
+      "kind": "klapp",
+      "file": "crowd-klapp-2.mp3",
+      "seconds": 5,
+      "asked": {
+        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: warm applause and cheering at the end of a song, kids whooping, clapping that fades out at the end, no words",
+        "duration_seconds": 5,
+        "prompt_influence": 0.6,
+        "model_id": "eleven_text_to_sound_v2"
+      },
+      "made": "2026-10-29",
+      "heard": "[aplauso]"
+    }
+  }
+}

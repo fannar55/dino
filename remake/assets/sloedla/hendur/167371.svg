@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:cc="http://creativecommons.org/ns#"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:svg="http://www.w3.org/2000/svg"
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+    xmlns:ns1="http://sozi.baierouge.fr"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    id="svg2"
+    viewBox="0 0 420 480"
+    version="1.1"
+  >
+  <g
+      id="layer1"
+      transform="translate(670 -363.79)"
+    >
+    <path
+        id="path3105"
+        d="m-473.18 839.04c1.1346-14.091-2.1296-28.752 1.007-42.518-2.8107-15.146 1.8095-32.943-2.0301-48.732-3.0021-23.246-8.4011-47.277-15.432-69.778-4.177-16.166-10.624-31.683-16.173-47.319-5.8861-15.121-21.702-23.761-30.217-37.466-9.5593-13.522-14.313-29.604-25.734-42.018-5.3499-6.455-22.967-15.723-14.643-24.815 9.1335-6.4511 19.06-0.22848 27.965 3.6418 12.359 7.6153 18.764 30.543 36.81 19.209 10.361-13.226 8.1402-31.862 8.789-47.911 0.0104-16.927-2.2247-33.51-3.7439-50.182-0.23522-10.002-3.2357-29.582 9.0854-32.362 14.172 4.1767 11.523 27.384 13.952 39.799 3.5908 12.165 1.6541 26.488 6.9499 38.451 14.281 11.17 15.609-14.758 15.99-24.215 1.7611-18.567 2.5338-37.246 4.3059-55.785 0.56891-14.304 20.942-14.476 16.727 1.5362 0.70354 21.347 2.4268 42.793 2.6834 64.091-1.0543 10.578 1.2198 26.444 9.8956 10.873 6.6339-14.66 11.72-29.949 13.801-45.967 2.6723-9.8844 3.2979-37.78 19.242-26.46 4.5201 4.7591 0.0949 12.059 0.51693 17.982-2.8097 14.944-3.5182 28.486-3.9052 44.076-0.62515 12.381 0.75575 10.289 5.0476 2.1777 4.3443-7.2226 6.6163-15.195 10.82-23.059 2.7028-18.265 25.248-13.906 15.295 3.6445-2.952 12.297-7.0711 24.808-11.821 35.856-2.7996 9.7752-7.8135 18.829-11.706 27.717-3.9922 14.467-8.8244 28.896-12.294 43.758-1.8372 14.883-8.3552 28.605-11.872 42.819-0.0218 18.647-3.0036 39.038 6.5187 55.858 4.5624 13.237 8.5556 26.038 11.517 40.086 3.8793 18.832 8.0561 38.028 11.519 56.598 3.142 15.704 5.1179 31.568 8.4946 47.482-1.0613 7.4524 10.104 27.98-1.3144 27.684h-95.662c-0.12783-1.5833-0.25573-3.1667-0.38351-4.75z"
+    />
+  </g
+  >
+  <metadata
+    >
+    <rdf:RDF
+      >
+      <cc:Work
+        >
+        <dc:format
+          >image/svg+xml</dc:format
+        >
+        <dc:type
+            rdf:resource="http://purl.org/dc/dcmitype/StillImage"
+        />
+        <cc:license
+            rdf:resource="http://creativecommons.org/licenses/publicdomain/"
+        />
+        <dc:publisher
+          >
+          <cc:Agent
+              rdf:about="http://openclipart.org/"
+            >
+            <dc:title
+              >Openclipart</dc:title
+            >
+          </cc:Agent
+          >
+        </dc:publisher
+        >
+        <dc:title
+          >Raised Hand in Silhouette</dc:title
+        >
+        <dc:date
+          >2012-01-22T22:39:00</dc:date
+        >
+        <dc:description
+          >Raised Hand in Silhouette</dc:description
+        >
+        <dc:source
+          >https://openclipart.org/detail/167371/raised-hand-in-silhouette-by-dripsandcastle-167371</dc:source
+        >
+        <dc:creator
+          >
+          <cc:Agent
+            >
+            <dc:title
+              >dripsandcastle</dc:title
+            >
+          </cc:Agent
+          >
+        </dc:creator
+        >
+        <dc:subject
+          >
+          <rdf:Bag
+            >
+            <rdf:li
+              >hand</rdf:li
+            >
+            <rdf:li
+              >raised hand</rdf:li
+            >
+            <rdf:li
+              >raised hand silhouette</rdf:li
+            >
+            <rdf:li
+              >silhouette</rdf:li
+            >
+          </rdf:Bag
+          >
+        </dc:subject
+        >
+      </cc:Work
+      >
+      <cc:License
+          rdf:about="http://creativecommons.org/licenses/publicdomain/"
+        >
+        <cc:permits
+            rdf:resource="http://creativecommons.org/ns#Reproduction"
+        />
+        <cc:permits
+            rdf:resource="http://creativecommons.org/ns#Distribution"
+        />
+        <cc:permits
+            rdf:resource="http://creativecommons.org/ns#DerivativeWorks"
+        />
+      </cc:License
+      >
+    </rdf:RDF
+    >
+  </metadata
+  >
+</svg
+>

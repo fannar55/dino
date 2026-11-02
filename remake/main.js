@@ -28,6 +28,7 @@ import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
 import { parseManifest, parseModels } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
+import { createVeidduGame } from './engine/veiddu/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createFjolspil } from './engine/fjolspil/fjolspil.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
@@ -40,6 +41,7 @@ import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
 import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
+import { createForrit } from './engine/offline/forrit.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
@@ -54,8 +56,11 @@ import { createVilla } from './engine/villa/villa.js';
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
 //   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
 //                         reload does not forget again)
+//   forrit=1|uppsett      at home (localhost) only: register the app's service worker; uppsett also downloads as the installed
+//                         app does (engine/offline/forrit.js; in the cloud the worker is always registered)
 const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
+const forrit = createForrit(); // the installed app keeps the whole game in the device and says how far under Byrja
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q); // keep the object: resolutionScale is a live getter
@@ -219,7 +224,7 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : game === 'veiddu' ? veiddu.open(options) : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
@@ -243,6 +248,17 @@ const eitt = createEittGame(document, {
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('eitt', paused);
+  },
+  onClose: () => book.refresh(), // a sticker won is in the book now
+});
+// Uggeðla's Go Fish, "Veiddu" (engine/veiddu/table.js), which the Leikir page opens over the book as it does "Eitt!" (it appears with her
+// star, k2_uggedla): the same hold on the chapter (its own, so the two never play at once), its effects, music and voices its own through
+// the page's output, and a sticker for a round won in the book when it shuts. `fjolspil` is for its round of Fjölspil (a later task).
+const veiddu = createVeidduGame(document, {
+  save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('veiddu', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
 });
@@ -290,7 +306,7 @@ const villa = createVilla(document, {
     clock: () => ({ time: clock.time, paused: clock.paused }),
     stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
     location: () => world.location ?? null,
-    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
     caption: () => {
       const el = document.getElementById('caption');
       return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
@@ -675,7 +691,9 @@ if (shotName || !chapter.script) {
     }
     stage.seeking = false;
     clock.freeze();
+    forrit.started();
   } else if (params.get('play') === '1') {
+    forrit.started();
     ui.setFade(1);
     stage.begin();
   } else {
@@ -692,6 +710,7 @@ if (shotName || !chapter.script) {
     button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
     button.addEventListener('click', () => {
       button.hidden = true;
+      forrit.started();
       ui.setFade(1); // the scene opens from black, the same as in captures
       stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
@@ -702,6 +721,7 @@ if (shotName || !chapter.script) {
       setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
       button.hidden = false;
+      forrit.startScreen();
       startReady = true;
       prepareLater().catch(error => console.error('[warm-up]', error));
     });
@@ -733,7 +753,7 @@ function render() {
     drew = false;
     return;
   }
-  drew = !(clock.paused && (book.isOpen || eitt.isOpen) && !canvasCleared);
+  drew = !(clock.paused && (book.isOpen || eitt.isOpen || veiddu.isOpen) && !canvasCleared);
   if (!drew) return;
   canvasCleared = false;
   drawNow();
@@ -803,4 +823,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

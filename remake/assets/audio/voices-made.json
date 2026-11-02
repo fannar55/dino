@@ -2167,6 +2167,492 @@
    "duration": 4.33,
    "model": "eleven_v4"
   },
+  "veiddu/veiddu_egill_ask_brunnklukka": {
+   "key": "967f5f55813e6618f0f63ac5bc871593a64e922b97a12c2bbff4a507e105b9bf",
+   "mp3": "2d0da172d33e1434ea20cb294a2ca3bb344d26108b1ca2819b01b764e565c197",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_drekafluga": {
+   "key": "0118a629e60f54ca4d46e4faa4ad8fb81d7578e5abee25fede5f7c01591b20dd",
+   "mp3": "0819b8fd9432c52a022fc95b251df6da34fa7bccfbf72857da368b2279552f46",
+   "duration": 2.01,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_fiskur_appelsinugulur": {
+   "key": "6ef836d2540a3eb0b1758e0ceb3dcbbb01087726360f50ec45ebe0646b689183",
+   "mp3": "d7c36456b913740ba2df4457a39cbcf72d3d34880fe2b466b831c615f5141804",
+   "duration": 2.57,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_fiskur_blar": {
+   "key": "9ab2988107458ea2a0de1c8666befa8a2f059f887900cab94d4511f638cea38b",
+   "mp3": "97108379668d1d473fe053af2890bb62806d4b07d59e6cde857d57f4b3aab2d8",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_fiskur_fjolublar": {
+   "key": "5043575965dcbccf2ceb4f280e3eeaab231e5565118d37c8a18d652091286a89",
+   "mp3": "6a31c0204e70b39f554e45cd1ca9e0914a2eae36150f892ac7bf5816e04ddc31",
+   "duration": 2.41,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_fiskur_graenn": {
+   "key": "e30b8ddb575fb205e1bffac18a060c85f71d9905176b337d099ba0f09419035c",
+   "mp3": "7cc452d242ebacdd30aa51f78151aebf18e227172e215a3c8d057f8fea14c4d0",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_fiskur_gulur": {
+   "key": "83658141732b882b6c117646ca9bed3b7780ef26184f0b18ba19da8c9183c0be",
+   "mp3": "6e6784649b3f22887c93ce4a764e4af03bf45de3113e8e5bf537767db5528103",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_fiskur_raudur": {
+   "key": "93250378e7038f1d3963bac34b8fb89dff3e1d3ed53622da5ac4a51f358441ba",
+   "mp3": "0ae5c65c7e9c3bf72a486f09984a24251081e52cac3b69f56c9d5e5fa10638b3",
+   "duration": 2.01,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_froskur": {
+   "key": "5aab7b2bad05644c03d33a9332d26e09a1e47dd3f5c43cf048395913bb75f91d",
+   "mp3": "97d35a8702db0ae7a8a363456b334d228371a868c3c84f0d17f927ae158d6f43",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_salamandra": {
+   "key": "41dc747121952fc85d38e09b2c77ac2262b47a31e366c5f86d72ae93eb1e4527",
+   "mp3": "65254317378eb58b9cb4518f1e6c27838d86fb753e6487c2ad8bdd05b9ddc5de",
+   "duration": 1.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_skjaldbaka": {
+   "key": "250dc29c0deffa4e895998f56f90529005a385c05097638512c578abe86e351d",
+   "mp3": "f6bcaa08326504fd1d85233630f9c852b211228c19be0610efa75288ed8139ed",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_snigill": {
+   "key": "cdd6509912cde07fa16718eb7a0618a5ee378f9d6b61026c5c068ab4307a21e0",
+   "mp3": "ba2249db1df1797b964bf0eae025d6b614f15157efc86f5d8538610256b3af48",
+   "duration": 1.61,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_ask_vatnalaesingi": {
+   "key": "e54192b4c62c8975f2f7c131e8ab037d504b882365a8a039ae475b270c1af68a",
+   "mp3": "e0c3548f4dab9bd734ba28d16e284add4546df870058c554f5fc968e352de963",
+   "duration": 2.091,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_lucky": {
+   "key": "66eafb2cbfde1be1115af61f89429ae0bca277cdf4964feb31666ea6e0d361be",
+   "mp3": "e4b6162f4e94126b4866785f43d75030bec83bbdcb025ebf02c71ce7e77d2899",
+   "duration": 1.61,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_brunnklukka": {
+   "key": "9aa4e788b1562903a587425f707a9df9d207992b18847b449496bb5a37d7ef7b",
+   "mp3": "1879f8eb6a937255a965dfc6af0f6470eb25e9e4a4664277bf9fce5297e64858",
+   "duration": 1.45,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_drekafluga": {
+   "key": "3a6a266552b74685bc900e62c789a8ce4b5791556c00b9c732d3b261794b5d5c",
+   "mp3": "3b842e5aabdecd1bbea32d10c647cd2b91b434f55cf5f9dce774795dbc287e04",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_fiskur_appelsinugulur": {
+   "key": "ffb06af0bf805c220a4ec47fa374fe2825da2fc53060d3078ed803cb26333abd",
+   "mp3": "7219ab675c6aaa1e578d22ed5b758701463477c8496a15338d84e702f7b80257",
+   "duration": 2.49,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_fiskur_blar": {
+   "key": "c1ce6379bc8b3863b415e7262d0f72140a87df7b72a26463c061b5dc93091ce8",
+   "mp3": "45992d89b4d134bcc0e9cafef32b1900d52f27b7616d8ed51abb35dfdad1a58b",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_fiskur_fjolublar": {
+   "key": "9227bc6e4f1dfa317d1d6a6a39e7dd92f79e1dec7809e2c671d7e22957a0ba6d",
+   "mp3": "552a2a9e24f48201a54517f770cf72abf10bde522980c36167c9b9b07548f63b",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_fiskur_graenn": {
+   "key": "820b1d0ff537981b13a2b39239c3cbf027f35ab2d4b83943efd0b13641a61486",
+   "mp3": "f56e0c4309c8391757dd8f0f70949f0361f2d13f52c562a0fff68ea67e18975d",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_fiskur_gulur": {
+   "key": "3c2f67c699833cab4b033014fa84af32512b7c1dd024daacb12bdd842ed0edbd",
+   "mp3": "b6c0aee8db0d858c6cfca7907dfe07c8bcb766964c4d249b5619a7eae0f3e1e4",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_fiskur_raudur": {
+   "key": "c0683f9ab7a4e6a0973af5f0ddfc2c35ddf9329ce3c1c34fe7c72d5fe3145e8b",
+   "mp3": "c77679cf41d13bc77ab1fad6d17f2a17b29f4787cad0d2ca7a6d8f775c0bf34b",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_froskur": {
+   "key": "4f74de53a241e6f45799a612f30ff95d7555ba2c2fbdc92f16bff7845e35b17f",
+   "mp3": "104a02589d1d5e4fbcc3a34a36201f8622b37d4c73fcb90b1406494935527f74",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_salamandra": {
+   "key": "1c404407f9a59ec6e552dbc04626889532bbb77a2b91db1c419cb4ef74b51f34",
+   "mp3": "b1b557fdbebb7d5e02ea158afc0ccf703fdc94daf3a4081b0fe8b790b5b66ba7",
+   "duration": 1.45,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_skjaldbaka": {
+   "key": "570965c274392e9186d5a8a2afda678c890573d996112e8d7881673ebffcb3be",
+   "mp3": "47ade5ac72b66dfc12504f0854e29d217285a207a64c1dd4fc31e1a6968164c8",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_snigill": {
+   "key": "f5e5256f0c75924af1a27cb7386c3374c7cad992329b89687fca00c99bc6c1e0",
+   "mp3": "ae295fb319cca29644cdb23767a985536d94059c864706afcfe965ef23c83563",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_name_vatnalaesingi": {
+   "key": "04efc07b54746daa31488474f44dc6218033d6b9d1cf9cd4b28e84b229d60ddb",
+   "mp3": "01f89634433812c3b2d9170a787b21d9d56c30d60233d39663d3307f6ecba2f6",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_no": {
+   "key": "45bcb0baa357ccf87f9dfc42b489cb9ee5ea8ad92e3f8cb4ef1f1c228b0cc787",
+   "mp3": "798d4ebd34b13a5b439729112d76bee4d6a3bcc98d796a73a949d4fd0ffa55cb",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_egill_yes": {
+   "key": "3ee072b579de72a5ca1158cbb3092ba842a87be226f09e34a8858216d74bdf0b",
+   "mp3": "ef2cc9832d1d3444beb6dfb8da9c7208b6717cd1f15d83f38441a570e90f8a8f",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_brunnklukka": {
+   "key": "0b6670eed36cd50a4a4be4d45b1667f509339ef6a670109c6fe86d3f9e6e9ced",
+   "mp3": "65de17f44d40e20d67cf5de4d1780367cc5588b18aa62c5fe25802cb01b9a9eb",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_drekafluga": {
+   "key": "6911c79645fe2dac4add6c89be43747acc72d065004da82845711dd82c73de4b",
+   "mp3": "ce8033c21867628e22520e4f0dc425d533dcfb9e33a0345e2b1017bd2b43a4c0",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_fiskur_appelsinugulur": {
+   "key": "30f47d6402d45e977b944b6b8d428d134c96b85027344d80c6db9a0e23947d16",
+   "mp3": "91b142bbc5bb84b05d6daa6de11957c50fadf7c13dd9ac10464fb950b9d79380",
+   "duration": 2.41,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_fiskur_blar": {
+   "key": "fd18ff4200530f58152939a8a24698c56a04d5c3345c25f8bd58b926d1d36495",
+   "mp3": "dfcd0f79dbc9f4e5b8f1671107cfb250cc1a48871bc293f2c5af55a596236d02",
+   "duration": 1.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_fiskur_fjolublar": {
+   "key": "01e8c219bdf74e7445d8d67a3fbd382aac69e7f1f6a4498ebbab6e432456f095",
+   "mp3": "5768d2eb5bd3c342d0e5d3dae2fc2baa728814cf41c5b9ec61d3dcc0268632ac",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_fiskur_graenn": {
+   "key": "6cef3af3c76ae8263b8e0a5d4ed53df5b59633b08c7aed15430ed826f7ebc884",
+   "mp3": "2b4beacbbc643c0e826434d9b2bbf4a0d76d29d50eb7399cb6955bb36d92a03b",
+   "duration": 2.01,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_fiskur_gulur": {
+   "key": "e05ef265bf71bb006438d75c5dbbdc145db48373449d295545b0ad1f6796cd88",
+   "mp3": "b1e32d85fa79e5a5a865cba227b4318c115eb32bb03b345f332e8d994d201298",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_fiskur_raudur": {
+   "key": "b107349eb49d77433641a624886357c2acb7807ccef493c7a802ccc006e4206b",
+   "mp3": "9d041cf44df2b2fb3b094b79c4015001775b5d387d9fbd535a3883d1c19c4169",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_froskur": {
+   "key": "4572061fd54bba59d91a5a44704fc1269e435b8e0aa8a75c3f848bab311cbf56",
+   "mp3": "db65261cbe074bbede8ad3d72454f1be938ac9830897f949e397e3098491ee83",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_salamandra": {
+   "key": "4fd6e8028614eaa092edc0e4f637afe43ad243d46cafbac2d7b5dead6d1644ea",
+   "mp3": "93646d2dece3b317b1732046a2ec0e5b89e0248d87c7d00525bb32e23132660b",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_skjaldbaka": {
+   "key": "0c60f68ba8a52d4cb69821400eb5db6df0d14f5e14c6dbef0a9201622a8d4b93",
+   "mp3": "fc7c3fa5e61013d930646e12f537970238ee00a3996108cf93d45b30e5e79b06",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_snigill": {
+   "key": "4f2d17288ca29e4873a3a1f816f5c1933bad6f36e8df958a91c95c478a3725a7",
+   "mp3": "51d6c921aa2e9740a2d02a5035d039fc7e1c47ae0381df22a7406213c40b8149",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_ask_vatnalaesingi": {
+   "key": "644d9e20386281aa8360bbeafd12589be9102d33aaff2a96cccc221dae2cc050",
+   "mp3": "86e991036c58a53575bdb36c5c1fa44520494dd3a2ca3fbd90f28a56d8a3a72f",
+   "duration": 1.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_give_hint": {
+   "key": "c4f59b325c4b58941c455a3d9909461e9a4f55e4cc6257108cf8dca915bdbedf",
+   "mp3": "ba64ad9ce2c859ff94849cba32bd706616f0b51424ca45485c4b2727cb72368f",
+   "duration": 3.13,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_lucky": {
+   "key": "2bc55a20f1208c66d7798ec7c9f173ef0506f8dcf8cf6e64af6cee1a80bb43ef",
+   "mp3": "428a8bed1085e48b9d516ec89bb64267c14461277608c361697cbc728a85ea69",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_no": {
+   "key": "4a755bc25295d920fff2ebe2f43670e72edcba0f333a7e7e0a315a7640d6d302",
+   "mp3": "1cb451cd6614e44779b0c539b2d14098c300ab0e62f3de2bc05e9fe19ecd4fde",
+   "duration": 2.41,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_tie": {
+   "key": "22de0bb438c56aaf8efbb1d7aa90f2d13badb48e2075301119052def44d4e448",
+   "mp3": "46b2f8c3f54a57230ae883479fbc71e59e74ee01b00b4d01f0859a0f9be2a3c7",
+   "duration": 2.97,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_why_fish": {
+   "key": "9419fc58479d07ffe6f5d6794f95c74e4bb5c93bf7cc5467eb3d7606ca4ed3e4",
+   "mp3": "5e3bd278551522839e5f2ed9cff78a1f92dcc1ba8c3aa39c964a5f2494366419",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_why_guess": {
+   "key": "8840be12a1534c30a8e0ee5e3a2f1c4e3d2191582d2d2583f8180d77267384a5",
+   "mp3": "57e81bd49f32f8480bab90aedc3e31267df7e69f2dcaf5a6fc7df27575bfd450",
+   "duration": 4.01,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_why_mosi_asked": {
+   "key": "a2f48668525b0223bc25908b6e7b0219032beeae4dea16d6d6c2e9e006d5598a",
+   "mp3": "4aab859b26541cd8e9b3d7d8502d1281ff4d9bda2c004eaa500742ef2c6a4b0a",
+   "duration": 2.97,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_why_they_asked": {
+   "key": "d81301590cdc2b3a357f87692d7a3152ee15386b34723fe840893f6e87657013",
+   "mp3": "371cbd56a62e6f4f3df7873186c8be5969387ae63c476bc27d0cf4cb3119183e",
+   "duration": 3.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_won": {
+   "key": "171af20bd4cdaeba5e29408b1c39ad176c2cfb3ba29aa8ad6e9da92238d4eed8",
+   "mp3": "7912fba347061701eeb94f8a12012d9b6b4b91a7694893db26f55240e0599f6f",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_yes": {
+   "key": "f1a5ddc4ef2b9996e4aefd38b7606bed4a5b1ee6ebbbc32d3697c853e1e65441",
+   "mp3": "e27c73e575603f4ad89f602d9917fcc4f865f31f08c3b0353677435e6b91eed7",
+   "duration": 2.01,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_mosi_you_won": {
+   "key": "4a686ada98442018c7ae01b1719ca4f0f5342f18e068d1bec2f30117199fdf7b",
+   "mp3": "d1e40640be95af5ca79f25afc970b094054d1e06c27b6a8a252dc1c814ae319a",
+   "duration": 2.65,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_ask": {
+   "key": "a704c45b138f6a1fa1e545317501586419bec759170909a93e6fd68238e09ca9",
+   "mp3": "f1e26a1674ea1b9aada32b81b68f27caa254fe7ab9a5446809c40f465ff9ed53",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_fish": {
+   "key": "ff41e77b57b4ef598a75c77cb4b2583e904b54aacbbcb6affc67ceab8273b1fc",
+   "mp3": "6aaf4228e52e80056c26d5385e0c7c22ae35663fcd57ec94f618a1adf03f3f44",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_give": {
+   "key": "bf2282c505902aebe540e3e0c71ebd22056b1bd652653417b7f2920455e0c523",
+   "mp3": "f9b5d0befc8c64deb06cf33826b6e9f6de8f47966435cd8a205d9a0a2c3cb753",
+   "duration": 3.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_laid": {
+   "key": "99c6e607f4edbf6a0457d8b68fcaae164e03397eb2f8eae4e90272f2475a2365",
+   "mp3": "d87a88323855ce4cfad8d84f98e6f662569089d55a3554b6e66032df293a696d",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_listen": {
+   "key": "67435c5b189ac88e8d37f844f9f5498c240e60b7049f71782cee94f81c766899",
+   "mp3": "b1dbd1de79b6d639cf64fdeac908a918de08644c69155695cd5366a7e1b6bb9d",
+   "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_pairs": {
+   "key": "a3517bf811197231e1bc18aff6f3f48fe67d016ed83d24360bfb01d284bb37f5",
+   "mp3": "5a68e6c259f55c234fa5ec1f37338aba9424dce4cff1bb4adc39675a3fff568f",
+   "duration": 4.81,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_real": {
+   "key": "9217033817975d0689524c4a46719960b448350cd923ad7ea445427138db1581",
+   "mp3": "c5299d1ab9ad59e5dae054a05fb579635bf43c91b13cf6c359d263ec9de8eab8",
+   "duration": 2.41,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_tut_remember": {
+   "key": "7dbbed7bb950310acf05f67e3161bfe0db994143591ff677f9eb98124b8a6bb4",
+   "mp3": "342e75ea7175f3a4d56fbd85f08761278d583ad785d37b2f9d4798fb31207006",
+   "duration": 3.29,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_brunnklukka": {
+   "key": "c83264b9e0d996122853202a4dd6b9fbb7ed6670b615a24fc4f6d114cb1a69d4",
+   "mp3": "fb8b24edd2b6e941afb2e84f7e93780e5fb6058f4fa2f2e53eddf77d195f0b12",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_drekafluga": {
+   "key": "b0238a098bdafedb18e1ca4065e575b6a8c03d5d03adb17a6fd7b6d4b586a276",
+   "mp3": "12dc9706c395d82258ff224a5c3e5649a0c96d17f6c7297b710f08cea70cda58",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_fiskur_appelsinugulur": {
+   "key": "de86734c42b96cecbad520de9c70977189d69ef6452dc3ea1f2e1931fbb7acd9",
+   "mp3": "fe4660c8b6b9250ad7ab357d01d66359818977b28813c330255713aaa7448ac7",
+   "duration": 2.41,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_fiskur_blar": {
+   "key": "e0ea80f7be2aaac9455fd540dfcdb1b0c29cae7f6a8726ec8bbd1279d234f7e2",
+   "mp3": "5f615bb83f86fbca519dfa370a93aae9bad61507fae48c83377a2b66171059f8",
+   "duration": 2.091,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_fiskur_fjolublar": {
+   "key": "e5d9f7a982415ce33cdbc28e692285b960c1acf99cc146a4e20065bc7e61131a",
+   "mp3": "2f14dd9586fd3db9990dac43a8b164cb528b88d4ce63f273f2222c26c3f7944f",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_fiskur_graenn": {
+   "key": "6aa6b015b071355a3489175a7c8dbed45fbe7c4cd8e446df9d4b89288a16c127",
+   "mp3": "e975a2d99aa1a01c92bae7475a33979fc187e891747e2bd9aed0af39475ebe1b",
+   "duration": 2.01,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_fiskur_gulur": {
+   "key": "7c3e583a426a142e89744e9c13911fba74d90b4f894ac4e9fbc6d0f3ecc7976b",
+   "mp3": "707235ed95f01206f067d8ef540b4e764dffacdc345f6bee40ed52c2bd89ec7e",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_fiskur_raudur": {
+   "key": "65438a2c9f0d133aebf7590f407ff3da18f09797f3b3935c47879131efc4ada5",
+   "mp3": "d14cc80bed2f749e442334b5fff66439011f1a616bfdf3c11b4b20469fdfd60a",
+   "duration": 1.85,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_froskur": {
+   "key": "a6d3311c6e0d1719e6f48a728b9e19d9a75cdfe4adc736fc4ef1ec26aa767a2d",
+   "mp3": "cf3be3d35daf2319c1b5215768ca8ff4373e11c09e46d07c8cba5e2afe86bfd5",
+   "duration": 1.61,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_salamandra": {
+   "key": "e11265ae473a63fe3af87d7f61c19745061941ddfc76eb0d4bbd198d8ada0cf3",
+   "mp3": "b3ae5e3372ca13f19d9aa93a7b4af4272015bc2cd900ae54a6e5c3ec74dec0ca",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_skjaldbaka": {
+   "key": "b226dcdb1617e12d601a0f3ca4274acb4e64248d40327034dd46e8512176d37b",
+   "mp3": "bad3cdac7b5a8486f906eced7495419439f137a1117081bdfaa3a565436268dc",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_snigill": {
+   "key": "ae73d480192cbc32fb7abceabe9ee62f5f1a53d90763b9b91eadbdc46a6c6a3d",
+   "mp3": "2fca8e129ee41dda273ceed67bf95ec340b05611ab0a6164f05432081d472229",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_ask_vatnalaesingi": {
+   "key": "bc6ae59c06754fe7fce7ac088a501bec23e60f3416a64903ec136edd2c58aad6",
+   "mp3": "8100adbcb3cb48e34345e3b771d490673ce175ddb50fd1ec53f02e6758575593",
+   "duration": 1.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_empty": {
+   "key": "6f974dbad3ad31cb5a1ed724891025529c2d7213440a8ef2a9ec452bdfe0b86a",
+   "mp3": "c609b918b195a75312f380968c0897a23c54f65a1d20c03507ee50a302a18513",
+   "duration": 1.93,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_lucky": {
+   "key": "54741d504267fa2ff00eb6299018f9ef2799523d980c8f91b7db22f64c887e38",
+   "mp3": "578f16316f2cd842b7e14586806ac8d00cc56d814c70ed6b220601ebb63a6b86",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_no": {
+   "key": "44da8b3d1f17a18fd0282dd2462b2f4b5aa72d475bd6fde6d87dc94d595342ca",
+   "mp3": "b9dcf4458b9d3c86fa061c1a9708a4598f1185a63cd8af021e90cac9b7ed6b71",
+   "duration": 2.57,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_won": {
+   "key": "9eb0af0ed4619ea6ade334cdabd50cfb3e2cf79229a634490abea6bd65a47732",
+   "mp3": "8a1e64367140106aab58577d18d03c55b0489df37d185c29b35ffad7ce2439fe",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_yes": {
+   "key": "3d00ef1e5fa64478bdd469abd6c1a524960a46136c3ac81e97a7f69666205e8d",
+   "mp3": "0760e0efdcdec4b3fb7d4b9e481c31f52a0b994abeb97c3e7e8d948a2fbc9f75",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_you_won": {
+   "key": "201ba8f8eb47bbc59da8868a860f034d3beff36c89c5e115ec6bcfaf5a38c449",
+   "mp3": "050884ef13946fdb13eb7cf07d933c297b4bcd2384c2b4e85713f7d380bcdedb",
+   "duration": 2.97,
+   "model": "eleven_v4"
+  },
+  "veiddu/veiddu_uggedla_your_turn": {
+   "key": "1b51e5235acf11ffec9bbcf8b9ca602e3f9f0cc6f10dbba4164c303edcc0a5bd",
+   "mp3": "2bd23bb4199344841858575aa6edeb1e939545f6ee7ed7b4cb9151f8ff7fb8ed",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
   "yatzy-junior/allHeld": {
    "key": "53ccf9acf2df45edb5f1649fb35b6e9697b862de3efdd121fb8da7390159b001",
    "mp3": "f60542f560af1db6b245a9a46ac2fc7bf4502755b7810caa40838806df424a7d",

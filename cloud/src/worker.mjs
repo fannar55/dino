@@ -2,9 +2,11 @@
 // rooms as Durable Objects. A request for a file in the site is answered by the assets before this Worker runs, except under
 // the audio paths (run_worker_first in wrangler.toml), whose byte ranges the Worker cuts itself (range.mjs). What comes here:
 // / goes on to /remake/, /fjolspil/ws/<code> to that code's Room (room-object.mjs, one object per code by idFromName), a
-// sound to the assets and then range.mjs, and anything else to the assets, which answer 404.
+// sound to the assets and then range.mjs, and anything else to the assets, which answer 404. A sound, whole or cut, keeps in the
+// browser for a day (cache.mjs), as the site's pictures and models do by site/_headers, which does not touch the Worker's answers.
 
 import { normalizeCode } from '../../remake/engine/fjolspil/protocol.js';
+import { MEDIA_CACHE, isKeptSound } from './cache.mjs';
 import { isByteRange, sliceRange } from './range.mjs';
 import { ROOM_PATH } from './room-object.mjs';
 
@@ -27,11 +29,19 @@ async function sound(request, env) {
   return new Response(head ? null : cut.body, { status: cut.status, headers: cut.headers });
 }
 
+/** The Worker's answer for a sound with the day of cache.mjs; a list (dj.json), a 304, a 404 or a 416 as it is. */
+function keep(response) {
+  if (!isKeptSound(response)) return response;
+  const kept = new Response(response.body, response);
+  kept.headers.set('cache-control', MEDIA_CACHE);
+  return kept;
+}
+
 export default {
   fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (pathname === '/') return new Response(null, { status: 302, headers: { location: '/remake/' } });
-    if (AUDIO_PATH.test(pathname)) return sound(request, env);
+    if (AUDIO_PATH.test(pathname)) return sound(request, env).then(keep);
     const path = ROOM_PATH.exec(pathname);
     if (!path) return env.ASSETS.fetch(request);
     const code = normalizeCode(path[1]);

@@ -5,7 +5,10 @@
 // child has lost in a row, the stickers won and whether the tutorial has been through (engine/eitt/table.js), and a round of
 // "Fjölspil" left under way with its seats (eitt.game: the rules' data, which table.js checks before it offers "Halda áfram",
 // and eitt.seats: the seats' snapshot, fjolspil/seats.js), the two kept together and forgotten together;
-// it is stored only once the game has been played, so a save from before the game reads as it always did.
+// it is stored only once the game has been played, so a save from before the game reads as it always did. Uggeðla's card game,
+// "Veiddu", keeps the same, as veiddu: { skill, losses, wins, tutorialDone } (engine/veiddu/table.js; a tie the child is in counts as a
+// win), and the same `game` and `seats` for a round of "Fjölspil" under way (veiddu.game and veiddu.seats, kept and forgotten together);
+// it is stored only once it has been played too.
 // "Háls og hali" keeps the fossil kinds the child has found, as hals: { found: [...] }, in the same way: stored with
 // the first find, and a save without it loads as before (engine/hals/rules.js has the kinds). Beside them it keeps the game
 // left under way (hals.game: the rules' state and who plays, which engine/hals/game.js checks with validateGame before it
@@ -60,6 +63,9 @@ function eittOf(value) {
   return { skill, losses: count(value.losses), wins: count(value.wins), tutorialDone: value.tutorialDone === true, ...(game && { game }), ...(seats && { seats }) };
 }
 
+/** "Veiddu"'s state as stored: the same shape as Eitt!'s (eittOf), for Uggeðla's game; or null. */
+const veidduOf = eittOf;
+
 /**
  * The fossil collection as stored: { found } with the ids of the kinds found, in the order they came, and what else the
  * game keeps: `game` (the game under way, a plain object: game.js validates it), `intro` and `hello` (true once said) and
@@ -77,6 +83,8 @@ function halsOf(value) {
  * `getEitt()` is a copy of the card game's { skill, losses, wins, tutorialDone, game, seats } (skill null before the first
  * round; game and seats deep copies of the round of "Fjölspil" kept, or null), and `setEitt(changes)` keeps what it is given and
  * leaves the rest as it was (game: null forgets the round kept, its seats with it).
+ * `getVeiddu()` and `setVeiddu(changes)` are the same for "Veiddu", Uggeðla's card game: { skill, losses, wins, tutorialDone, game, seats },
+ * kept in the same way and apart from Eitt!'s.
  * `getHals()` is a copy of the fossil collection, { found }, and `addHalsFound(kind)` adds a kind of fossil, once however
  * often it is called, and says whether it was new (get() leaves the collection out, so its shape stays the same).
  * `getHalsPlay()` is { game, intro, hello, played }: the game left under way (or null), whether the intro and the hello have
@@ -87,6 +95,7 @@ function halsOf(value) {
 export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   const data = { stars: [], findings: [], seen: [], places: [] }; // all there is when the storage does not work
   let eitt = null; // the card game's, once a round has been played
+  let veiddu = null; // Uggeðla's card game's, once a round has been played
   let hals = null; // the fossil collection, once the first fossil has been found
 
   try {
@@ -97,6 +106,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       data.seen = idsOf(stored.seen); // none in a save from before the book
       data.places = idsOf(stored.places); // none in a save from before the map
       eitt = eittOf(stored.eitt); // none in a save from before the game
+      veiddu = veidduOf(stored.veiddu); // none in a save from before Veiddu
       hals = halsOf(stored.hals); // none in a save from before the fossils
     }
   } catch {
@@ -105,7 +115,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
 
   function write() {
     try {
-      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(hals && { hals }) }));
+      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(veiddu && { veiddu }), ...(hals && { hals }) }));
     } catch {
       // not kept for next time; still kept for now
     }
@@ -138,6 +148,21 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
       if ('seats' in changes) next.seats = changes.seats ? copied(changes.seats) : null;
       eitt = eittOf(next) ?? eittOf({});
+      write();
+    },
+    getVeiddu: () => ({
+      skill: veiddu?.skill ?? null,
+      losses: veiddu?.losses ?? 0,
+      wins: veiddu?.wins ?? 0,
+      tutorialDone: veiddu?.tutorialDone ?? false,
+      game: veiddu?.game ? copied(veiddu.game) : null,
+      seats: veiddu?.seats ? copied(veiddu.seats) : null,
+    }),
+    setVeiddu(changes = {}) {
+      const next = { ...veiddu, ...changes };
+      if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
+      if ('seats' in changes) next.seats = changes.seats ? copied(changes.seats) : null;
+      veiddu = veidduOf(next) ?? veidduOf({});
       write();
     },
     getHals: () => ({ found: [...(hals?.found ?? [])] }),

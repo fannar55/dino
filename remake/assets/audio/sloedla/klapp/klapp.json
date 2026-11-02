@@ -1,0 +1,224 @@
+{
+  "about": [
+    "Söngur Slóeðlu: the crowd clapping along (engine/sloedla/claps.js). Downloaded with the owner's go-ahead on 2026-10-29 as Freesound's HQ mp3 previews, then each started 5 ms before its first real hit, cut (0.3 s; the choir 0.45 s), its tail faded, its peak set to -3 dBFS, saved as 16-bit mono WAV.",
+    "hopur4/8/16: gregswinford, \"Single handclaps: 4, 8 and 16 people\" (https://freesound.org/people/gregswinford/packs/27535/), CC BY 4.0: credit in KREDIT.md. kor: bastianpusch, \"Gospel Choir Hand Claps\", a 50-member choir (https://freesound.org/people/bastianpusch/packs/27785/), CC0."
+  ],
+  "claps": {
+    "kor-2": {
+      "file": "kor-2.wav",
+      "title": "HandClap02.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493706/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493706_8419061-hq.mp3"
+    },
+    "kor-1": {
+      "file": "kor-1.wav",
+      "title": "HandClap01.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493707/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493707_8419061-hq.mp3"
+    },
+    "kor-8": {
+      "file": "kor-8.wav",
+      "title": "HandClap08.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493708/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493708_8419061-hq.mp3"
+    },
+    "kor-7": {
+      "file": "kor-7.wav",
+      "title": "HandClap07.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493709/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493709_8419061-hq.mp3"
+    },
+    "kor-6": {
+      "file": "kor-6.wav",
+      "title": "HandClap06.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493710/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493710_8419061-hq.mp3"
+    },
+    "kor-5": {
+      "file": "kor-5.wav",
+      "title": "HandClap05.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493711/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493711_8419061-hq.mp3"
+    },
+    "kor-10": {
+      "file": "kor-10.wav",
+      "title": "HandClap10.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493712/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493712_8419061-hq.mp3"
+    },
+    "kor-9": {
+      "file": "kor-9.wav",
+      "title": "HandClap09.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493713/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493713_8419061-hq.mp3"
+    },
+    "kor-12": {
+      "file": "kor-12.wav",
+      "title": "HandClap12.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493714/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493714_8419061-hq.mp3"
+    },
+    "kor-11": {
+      "file": "kor-11.wav",
+      "title": "HandClap11.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493715/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493715_8419061-hq.mp3"
+    },
+    "kor-13": {
+      "file": "kor-13.wav",
+      "title": "HandClap13.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493716/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493716_8419061-hq.mp3"
+    },
+    "kor-14": {
+      "file": "kor-14.wav",
+      "title": "HandClap14.wav",
+      "author": "bastianpusch",
+      "source": "https://freesound.org/people/bastianpusch/sounds/493717/",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "from": "https://cdn.freesound.org/previews/493/493717_8419061-hq.mp3"
+    },
+    "hopur16-4": {
+      "file": "hopur16-4.wav",
+      "title": "Single handclap, 16 people, alternative 4",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487271/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487271_1020728-hq.mp3"
+    },
+    "hopur16-3": {
+      "file": "hopur16-3.wav",
+      "title": "Single handclap, 16 people, alternative 3",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487272/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487272_1020728-hq.mp3"
+    },
+    "hopur16-2": {
+      "file": "hopur16-2.wav",
+      "title": "Single handclap, 16 people, alternative 2",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487273/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487273_1020728-hq.mp3"
+    },
+    "hopur16-1": {
+      "file": "hopur16-1.wav",
+      "title": "Single handclap, 16 people, alternative 1",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487274/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487274_1020728-hq.mp3"
+    },
+    "hopur4-4": {
+      "file": "hopur4-4.wav",
+      "title": "Single handclap, 4 people, alternative 4",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487275/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487275_1020728-hq.mp3"
+    },
+    "hopur4-3": {
+      "file": "hopur4-3.wav",
+      "title": "Single handclap, 4 people, alternative 3",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487276/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487276_1020728-hq.mp3"
+    },
+    "hopur4-2": {
+      "file": "hopur4-2.wav",
+      "title": "Single handclap, 4 people, alternative 2",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487277/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487277_1020728-hq.mp3"
+    },
+    "hopur4-1": {
+      "file": "hopur4-1.wav",
+      "title": "Single handclap, 4 people, alternative 1",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487278/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487278_1020728-hq.mp3"
+    },
+    "hopur8-4": {
+      "file": "hopur8-4.wav",
+      "title": "Single handclap, 8 people, alternative 4",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487279/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487279_1020728-hq.mp3"
+    },
+    "hopur8-3": {
+      "file": "hopur8-3.wav",
+      "title": "Single handclap, 8 people, alternative 3",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487280/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487280_1020728-hq.mp3"
+    },
+    "hopur8-2": {
+      "file": "hopur8-2.wav",
+      "title": "Single handclap, 8 people, alternative 2",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487281/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487281_1020728-hq.mp3"
+    },
+    "hopur8-1": {
+      "file": "hopur8-1.wav",
+      "title": "Single handclap, 8 people, alternative 1",
+      "author": "gregswinford",
+      "source": "https://freesound.org/people/gregswinford/sounds/487282/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "from": "https://cdn.freesound.org/previews/487/487282_1020728-hq.mp3"
+    }
+  }
+}

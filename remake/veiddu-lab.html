@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Veiddu — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./veiddu.css">
+<link rel="stylesheet" href="./fjolspil.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+<!-- "Veiddu" on a page of its own, never linked from the game. With no ?state= (or state=live) a real round is played with Uggeðla and Mosi
+     (engine/veiddu/table.js), on a save held in the page (the game's own comes with the book, Task 8), and a round that is shut deals the
+     next. &seed=<text> deals the same round every time, &skill=0 to 1 sets the minds' skill, and &auto=1 plays the child's moves by
+     itself (bestAsk, after 1.2 s each), so a whole round plays on its own for a video (tools/veiddu-video.mjs). &tutorial=1 runs Mosi's
+     tutorial first (his six steps from a stacked deck; "Sleppa" ends it at any step, "Kennsla" starts it again, and a real round is
+     dealt after it; with &auto=1 the child does each step by itself, once Mosi has said it), &tutorial=first plays as a child who has
+     not been taught (it runs by itself on a save that has no tutorialDone), and with no &tutorial (or =0) the lab goes straight to a
+     round, as it always did, so the tools that record rounds are not held up. window.__veiddu is the
+     game (its phase, game and dealt, for a probe). A live round plays with the page's sound (the effects and Eitt!'s music in its key, the
+     splash on every fish: engine/veiddu/veiddu-sounds.js) and the voices (the veiddu lines of assets/audio/lines.json, one at a time:
+     engine/veiddu/speech.js), which wake at the first touch; &sound=0 starts it all muted. window.__veiddu.said lists the lines sounded.
+     It links book.css for the touch the book and the game share (fx.js: the squash and the sparks), as the game's page will. The other states are the look as still markup in veiddu.css's classes (look.js draws them):
+       live       a real round (the default); &view=0 keeps Uggeðla's picture in her window (no WebGL, a slow machine), else she is live there
+                  (engine/veiddu/uggedla-view.js; keys t talk, k think, s splash, h happy, c cheer; window.__veiddu.uggedla is her view)
+       table      a round under way: Uggeðla's picture in her window, Mosi's, their cards and pairs, the pond, the child's cards
+       ask        a card picked (Skjaldbaka lifted) and both windows glowing: whom to ask?
+       asked      Mosi asks the child "Áttu frosk?" and the frog lifts; &have=0 asks for an animal the child does not hold and the big
+                  "Farðu að veiða!" button comes
+       fish       Uggeðla said no: "Nei! Farðu að veiða!" and the pond calls; &splash=1 catches the thrown water in the air
+       win        the round won: the words, Uggeðla's sticker for the book, "Spilum aftur?" and confetti
+       cards      every card, big, and the back
+       advice     Mosi's help: he pops up with his reason and the card he means lifts and glows
+     &kinds=N (6 to 13) deals a round of Fjölspil from a deck of the first N kinds, a shorter round for a video or a check.
+     &fjolspil=1 gives the live game the page's host session of "Fjölspil" (engine/fjolspil/fjolspil.js, as the book's page has it), so it opens with
+     its setup card: "Spila við Uggeðlu og Mosa", "Fjölspil" (the lobby, with Egill's own phone first: spil.html on the same address) and
+     "Halda áfram"; the lab's save is then kept in localStorage (veiddu-lab-fjolspil), so a reload takes a round of Fjölspil up again.
+     &view=1 puts Uggeðla live in her window on a still state too (for a capture of her view).
+     &hand=N (1 to 13) gives the child N distinct kinds in a still state: 13 is a full hand, for the widths of the cards. capture.mjs
+     waits for __demoReady, which comes once the pictures are in (live: once the first deal has landed). -->
+</head>
+<body>
+<main class="veiddu" id="veiddu"></main>
+<div id="fjolspil" class="fjolspil" hidden></div>
+<script src="./vendor/qrcode-generator/qrcode.js"></script>
+<script type="module">
+  const params = new URLSearchParams(location.search);
+  const { renderStill, STILL_STATES } = await import('./engine/veiddu/look.js');
+  const live = !params.has('state') || params.get('state') === 'live';
+  const root = document.getElementById('veiddu');
+
+  if (live) {
+    // A real round. The lab keeps the minds' skill in the page (so it follows the child from round to round, as the save's will).
+    const [{ createVeidduGame }, { seededRandom }, { createAudioContext, createOutput }] = await Promise.all([
+      import('./engine/veiddu/table.js'), import('./engine/random.js'), import('./engine/audio/output.js'),
+    ]);
+    const read = path => fetch(path).then(response => (response.ok ? response.json() : null), () => null);
+    const [theme, lines] = await Promise.all([read('./assets/audio/theme.json'), read('./assets/audio/lines.json')]);
+    const context = createAudioContext();
+    const output = context && createOutput(context);
+    const teach = params.get('tutorial'); // '1' (run it), 'first' (a save that has not been taught) or anything else (taught already)
+    const withFjolspil = params.get('fjolspil') === '1';
+    const KEPT = 'veiddu-lab-fjolspil';
+    const kept = { losses: 0, wins: 0, tutorialDone: teach !== '1' && teach !== 'first' };
+    if (withFjolspil) { // a round of Fjölspil is kept across a reload of the big screen
+      try { Object.assign(kept, JSON.parse(localStorage.getItem(KEPT) ?? 'null') ?? {}); } catch { /* nothing kept */ }
+    }
+    if (params.has('skill')) kept.skill = Number(params.get('skill'));
+    const save = {
+      getVeiddu: () => ({ ...kept }),
+      setVeiddu: changes => {
+        Object.assign(kept, changes);
+        if (withFjolspil) try { localStorage.setItem(KEPT, JSON.stringify(kept)); } catch { /* not kept */ }
+      },
+    };
+    const fjolspil = withFjolspil ? (await import('./engine/fjolspil/fjolspil.js')).createFjolspil(document, { audio: { sfx: () => {} } }) : null;
+    const game = createVeidduGame(document, {
+      save, fjolspil,
+      audio: { context, output, theme, lines: lines ?? {}, muted: params.get('sound') === '0' },
+      random: params.has('seed') ? seededRandom(params.get('seed')) : Math.random,
+      auto: params.get('auto') === '1',
+      uggedlaLive: params.get('view') !== '0',
+      kinds: Math.min(13, Math.max(6, Number(params.get('kinds')) || 13)),
+      onClose: () => setTimeout(() => game.open(), 600), // the lab has no book to go back to: the next round is dealt
+    });
+    addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
+    Object.assign(window, { __veiddu: game, __veidduSave: kept, __fjolspil: fjolspil });
+    game.open({ tutorial: teach === '1' });
+    while (!fjolspil && game.dealt < 1) await new Promise(resolve => setTimeout(resolve, 100)); // with Fjölspil the setup card is first
+    await game.viewReady; // her live view has started (or has failed, and her picture stays)
+    // Keys move Uggeðla's live view: t talks, k thinks (again to stop), s splashes, h is glad, c cheers (window.__veiddu.uggedla is the view).
+    let thinking = false;
+    addEventListener('keydown', ({ key }) => {
+      const view = game.uggedla;
+      if (!view) return;
+      if (key === 't') view.talk({ duration: 1.2 });
+      if (key === 'k') view.think((thinking = !thinking));
+      if (key === 's') view.splash();
+      if (key === 'h') view.happy();
+      if (key === 'c') view.cheer();
+    });
+  } else {
+    renderStill(document, root, STILL_STATES.includes(params.get('state')) ? params.get('state') : 'table', params);
+    if (params.get('view') === '1') {
+      // &view=1 puts Uggeðla live in her window on a still too (a capture of her view; the stills keep her picture otherwise).
+      const { createUggedlaView } = await import('./engine/veiddu/uggedla-view.js');
+      const frame = document.querySelector('.veiddu-uggedla');
+      const view = await createUggedlaView(frame, { win: window });
+      frame.querySelector('img').hidden = true;
+      view.start();
+      window.__uggedla = view;
+    }
+  }
+
+  /** Waits until the font and pictures are in and nothing is moving but the idle life. */
+  async function settle() {
+    await document.fonts.ready;
+    if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
+    for (let round = 0; round < 3; round++) {
+      await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity && animation.playState === 'running');
+      await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  }
+  await settle();
+  window.__demoReady = true;
+</script>
+</body>
+</html>

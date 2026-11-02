@@ -69,3 +69,21 @@ test('the waiting card names the guest and offers to go on without her after 20 
   lobby.hideWaiting();
   assert.equal($(root, '.fjolspil-wait-words'), null);
 });
+
+test('the lobby says Fjölspil þarf net in place of the code while the network is down', () => {
+  const { seats, lobby, root } = rig();
+  lobby.show({ joinUrl: JOIN, code: 'GULL', ai: THORSEDLA });
+  lobby.needsNet(true);
+  assert.equal($(root, '.fjolspil-qr').hidden, true);
+  assert.equal($(root, '.fjolspil-code').hidden, true);
+  assert.equal($(root, '.fjolspil-needs-net').textContent, 'Fjölspil þarf net');
+  assert.equal($(root, '.fjolspil-needs-net').hidden, false);
+  seats.join({ guestId: 'g1', name: 'Anna', avatar: 'kambedla' });
+  seats.presence(1, false);
+  lobby.waitFor({ seat: 1, joinUrl: JOIN, code: 'GULL' });
+  assert.equal($(root, '.fjolspil-wait .fjolspil-needs-net').hidden, false, 'the waiting card says it too');
+  lobby.needsNet(false);
+  assert.equal($(root, '.fjolspil-qr').hidden, false);
+  assert.equal($(root, '.fjolspil-needs-net').hidden, true);
+  assert.equal($(root, '.fjolspil-wait .fjolspil-qr').hidden, false);
+});
