@@ -524,7 +524,9 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     const surfaces = Object.fromEntries(Object.entries(HALF).map(([who, reach]) => [who, trunkSurface(reach)]));
     action = { id: 'walk', phase: 'walk', age: 0, landed: 0, stepAge: 0, arrived: 0, surfaces, times: [], walked: null };
     events.push({ type: 'walk-start' });
-    const deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z)), [on, ...up] = WALK.up.map(p => world(...p)), off = WALK.off.map(p => world(...p));
+    // (the way up the trunk's side at the rim's height: the last point is over the gap, and a way down to the gap's floor and back up to the trunk's top was 6 m longer, a
+    // second and a half more of the walk at its pace; the field lifts them as high as the bark needs)
+    const deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z)), [on, ...up] = WALK.up.map(([x, z]) => U.world(x, U.rim.y, z)), off = WALK.off.map(p => world(...p));
     let hop = -Infinity, before = null;
     for (const [who, i] of WALK_ORDER) {
       const actor = who === 'mosi' ? mosi() : members(who)[i], spot = spotOf('sun', who, i), [back, front] = BODY[who], surface = surfaces[who];
