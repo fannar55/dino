@@ -106,7 +106,7 @@ test('the kafli2 set\'s lines are the two chapters\': each said by one of them, 
 test('locations as data: the Fen, who stands where in it, and the start in front of its reveal', () => {
   assert.equal(chapter.id, 'kafli3');
   assert.equal(chapter.title, 'Boð til Þórseðlu');
-  assert.equal(chapter.next, null, 'the last chapter so far');
+  assert.equal(chapter.next, 'kafli4', 'Boð til Flugeðlu follows');
   assert.equal(chapter.look, 'lateMorning');
   assert.ok(LOOKS[chapter.look], 'a look engine/looks.js has, not the morning an unknown name falls back to');
   assert.equal(LOOKS[chapter.look].sun.azimuth, 150, "the sun a little further round than chapter 1's");

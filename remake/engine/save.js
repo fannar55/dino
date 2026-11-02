@@ -193,12 +193,13 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
 
 /**
  * The chapter a page plays when its address names none (main.js), from the stars the child has: chapter 1 until Kambeðla's star
- * (k1_kambedla) is won, then chapter 2 until Uggeðla's (k2_uggedla), then chapter 3, also once its own star (k2_thorsedla) is
- * there, so the child can play it again. A save from the old chapter 2, which has Þórseðla's star but not Uggeðla's, plays the
- * new chapter 2 and meets Uggeðla; nothing in it is lost.
+ * (k1_kambedla) is won, then chapter 2 until Uggeðla's (k2_uggedla), then chapter 3 until Þórseðla's (k2_thorsedla), then
+ * chapter 4. A save from the old chapter 2, which has Þórseðla's star but not Uggeðla's, plays the new chapter 2 and meets
+ * Uggeðla; nothing in it is lost.
  */
 export function defaultChapter(save) {
   const stars = save.get().stars;
   if (!stars.includes('k1_kambedla')) return 'kafli1';
-  return stars.includes('k2_uggedla') ? 'kafli3' : 'kafli2';
+  if (!stars.includes('k2_uggedla')) return 'kafli2';
+  return stars.includes('k2_thorsedla') ? 'kafli4' : 'kafli3';
 }

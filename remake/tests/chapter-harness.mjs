@@ -26,6 +26,7 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
+import { createWind } from '../engine/wind.js';
 
 const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
@@ -66,17 +67,17 @@ const modelOf = url => {
 };
 
 /**
- * A chapter's world: its actors, a camera at 16:10, the effects and the clock main.js has, and a sun and a fog in the chapter's look
+ * A chapter's world: its actors, a camera at 16:10 (or `aspect`: 0.625 is a tablet held upright), the effects and the clock main.js has, and a sun and a fog in the chapter's look
  * (the fog as engine/fog.js lays it, without its shader patch: a chapter thickens it, as chapter 2's lookout does).
  */
-export async function chapterWorld(chapter) {
-  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200);
+export async function chapterWorld(chapter, { aspect = 1.6 } = {}) {
+  const camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 1200);
   const look = pickLook(chapter.look);
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(look.fog.color, look.fog.density);
   const world = {
     THREE, scene, camera, clock: createClock(), chapter, heightAt: () => 0, actors: new Map(), effects: createEffects(),
-    lighting: { direction: sunDirection(look) },
+    lighting: { direction: sunDirection(look) }, wind: createWind(), // the shared wind main.js has (a chapter may still it: chapter 4's white tree)
   };
   world.resolvePoint = createPointResolver(world);
   // A model a chapter's props load for themselves (chapter 2's far friends), read as the actors' are: the page has no fetch of files.
@@ -208,12 +209,13 @@ export function fakeBook() {
  * `audio` is an audio context (tests/fake-audio.mjs, running) for a chapter's own sound: world.sound is { context, output, hold }, as
  * main.js gives it, and the context's clock moves on with every frame of the run. `pauses` ([{ at, seconds }], the run's seconds) stand
  * the game still as the child's book or a hidden tab does: the clock and every update get no time, and the sound is held meanwhile.
+ * `aspect` is the screen's shape (width over height): 1.6 by default, 0.625 for a tablet held upright (800x1280).
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null, audio = null, pauses = [] } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null, audio = null, pauses = [], aspect = 1.6 } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
-  const world = await chapterWorld(chapter);
+  const world = await chapterWorld(chapter, { aspect });
   world.reduced = reduced;
   // A chapter's own sound, held with the game as main.js holds it (engine/audio/hold.js: holdLater)
   const chapterSound = holdLater();

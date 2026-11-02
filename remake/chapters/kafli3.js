@@ -455,7 +455,7 @@ function mark(c, scene) {
 export const chapter = {
   id: 'kafli3',
   title: 'Boð til Þórseðlu',
-  next: null, // the last chapter so far: its script ends in the book (main.js shows no hand-over)
+  next: 'kafli4', // Boð til Flugeðlu: main.js puts an "Áfram" over the book when the script ends
   look: 'lateMorning',
   // The song of chapter 2, "Dino Trail" (assets/audio/kafli2/theme.json, read by main.js as the page loads: engine/audio/theme.js);
   // its effects are tuned to its key, and the forest dances on every second of its 133.3 beats a minute

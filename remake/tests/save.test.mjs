@@ -30,9 +30,10 @@ test('an old chapter 2 save (Þórseðla\'s star, no Uggeðla\'s) opens chapter 
   assert.equal(defaultChapter(save), 'kafli2', 'she meets Uggeðla, whose place she has on her map already');
   assert.deepEqual(save.get(), { stars: stored.stars, findings: stored.findings, seen: stored.seen, places: stored.places });
   assert.equal(save.getHalsPlay().played, true, 'Háls og hali stays open');
-  // and Uggeðla's star takes her on to chapter 3, whichever star she had
+  // and Uggeðla's star takes her on: to chapter 4, as she has Þórseðla's star already (chapter 4's spec, section 7; the "Áfram"
+  // at the end of chapter 2 still leads to chapter 3)
   assert.equal(save.addStar('k2_uggedla'), true);
-  assert.equal(defaultChapter(save), 'kafli3');
+  assert.equal(defaultChapter(save), 'kafli4');
   assert.deepEqual(save.get().places, stored.places, 'the places are as they were');
 });
 

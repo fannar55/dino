@@ -168,7 +168,8 @@ function mistPoints(water, [cx, cz], radius, actors = {}) {
 /**
  * What the forest tells of one plant it grew (info.placementList): its kind, detail level, place and scale, the triangles
  * it costs, and its size in metres: how far it reaches round (radius), how tall it is, and for a plant with a trunk where
- * the trunk ends (top) and how thick it is there (trunk). A chapter places things by plants with it (kafli1's flowers).
+ * the trunk ends (top) and how thick it is there (trunk); for a dead snag also where its broken top is ([x, z], tip) and how thick
+ * it is there (tipR). A chapter places things by plants with it (kafli1's flowers).
  */
 export function placementInfo(p) {
   const { model, scale } = p;
@@ -177,7 +178,14 @@ export function placementInfo(p) {
     tris: (model.solid ? model.solid.triangles : 0) + (model.thin ? model.thin.triangles : 0),
     radius: model.radius * scale, height: model.height * scale,
     top: model.trunk ? model.trunk.top * scale : null, trunk: model.trunk ? model.trunk.r * scale : null,
+    ...(model.trunk?.tip ? { tip: tipOf(p), tipR: model.trunk.tipR * scale } : {}),
   };
+}
+
+/** Where a plant's trunk ends, in the world ([x, z]): its own `tip`, turned and scaled as the plant is placed (batch.js). */
+function tipOf({ model, x, z, rot, scale }) {
+  const [lx, lz] = model.trunk.tip, c = Math.cos(rot), s = Math.sin(rot);
+  return [x + (lx * c - lz * s) * scale, z + (lx * s + lz * c) * scale];
 }
 
 /**

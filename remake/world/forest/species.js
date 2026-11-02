@@ -1038,7 +1038,8 @@ function buildDeadSnag(rng, { lod, noise }) {
       });
     }
   }
-  return { solid, thin: null, height: H + 0.6, radius: r0 * 1.8, trunk: { r: r0, flare: r0 * 1.9, top: H } };
+  // tip: where its broken top is, aside of its foot (it leans and has a kink), so a flier can stand on the very top (kafli4-flugedla.js)
+  return { solid, thin: null, height: H + 0.6, radius: r0 * 1.8, trunk: { r: r0, flare: r0 * 1.9, top: H, tip: [top[0], top[2]], tipR: rTop } };
 }
 
 // A moss hummock: a low, lumpy mound of moss, wetter and darker at its foot.

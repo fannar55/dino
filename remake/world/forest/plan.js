@@ -192,7 +192,9 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
   const glade = gladeOf(layout);
   const lush = glade.ferns > 1;
   const growth = clamp(1 + FOREST.glade.fernGrowth.perFern * (glade.ferns - 1), 1, FOREST.glade.fernGrowth.max);
-  const look = pickLook(world.chapter?.look || 'morning');
+  // the sun the place is planted for: the chapter's, or the look the layout was first planted under (`plantedFor`: chapter 4 keeps
+  // chapter 3's Fen as it grew in chapter 3's late morning, though its own light is the early afternoon's)
+  const look = pickLook(layout.plantedFor || world.chapter?.look || 'morning');
   const sun = sunDirection(look);
   const shots = buildShots(world, layout, terrain, sun);
   yield;

@@ -298,15 +298,15 @@ test('the default chapter follows the stars: Kambeðla\'s, then Uggeðla\'s, and
   assert.equal(defaultChapter(saveWith(['k1_kambedla'])), 'kafli2', "with Kambeðla's star, chapter 2");
   assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_thorsedla'])), 'kafli2', 'an old chapter 2 save meets Uggeðla');
   assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_uggedla'])), 'kafli3', "with Uggeðla's star, chapter 3");
-  assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'])), 'kafli3', 'and again, to play it again');
+  assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'])), 'kafli4', "with Þórseðla's star, chapter 4");
   // The page asks it when its address names no chapter; ?chapter= still says which.
   assert.match(MAIN_TEXT, /params\.get\('chapter'\)\s*\|\|\s*defaultChapter\(save\)/);
 });
 
-test('chapter 1 hands over to chapter 2 and chapter 2 to chapter 3 with an "Áfram" when the script ends, and chapter 3 to none yet', () => {
+test('chapter 1 hands over to chapter 2, chapter 2 to chapter 3 and chapter 3 to chapter 4 with an "Áfram" when the script ends', () => {
   assert.equal(kafli1.next, 'kafli2', 'chapter 1 names the next');
   assert.equal(chapter.next, 'kafli3', 'chapter 2 names chapter 3');
-  assert.equal(kafli3.chapter.next, null, 'chapter 3 is the last so far');
+  assert.equal(kafli3.chapter.next, 'kafli4', 'chapter 3 names chapter 4');
   // main.js: when the script's task is done (and did not fail), a raised "Áfram" pill goes after the book and leads to ?chapter=<next>
   const main = MAIN_TEXT.replace(/\r\n/g, '\n');
   assert.match(main, /scriptTask = stage\.start\(chapter\.script\)/, 'the page keeps the script\'s task');
@@ -1866,7 +1866,7 @@ test('scene 7: Egill floats back into Mosi\'s saddle, she tells of the berries a
 // ---------------------------------------------------------------------------------------------
 // An old save
 
-test('the chapter on a save from before the split (Þórseðla\'s star, her places, a game of Háls og hali played): it plays through, Uggeðla\'s place adds nothing new, her star is added and the page goes on to chapter 3', async () => {
+test('the chapter on a save from before the split (Þórseðla\'s star, her places, a game of Háls og hali played): it plays through, Uggeðla\'s place adds nothing new, her star is added, and a page opened afresh goes on to chapter 4', async () => {
   const OLD = ['fen', 'sloedla', 'flugedla', 'uggedla'];
   let before = null;
   const adds = []; // what the journal's asks to put a place on the map came to: [id, was it new]
@@ -1888,7 +1888,7 @@ test('the chapter on a save from before the split (Þórseðla\'s star, her plac
   assert.deepEqual(after.places, OLD, 'the map has the same four places: hers was there already, so nothing new flies (and nothing twice)');
   assert.deepEqual(after.stars, [...before.stars, 'k2_uggedla'], 'her star is added to the two');
   assert.deepEqual(adds, [['uggedla', false]], 'the script asked once for her place, and it was there already: no marker flies');
-  assert.equal(defaultChapter(run.save), 'kafli3', 'the page goes on to chapter 3 now');
+  assert.equal(defaultChapter(run.save), 'kafli4', 'with Þórseðla\'s star there already, chapter 4 (the "Áfram" leads to chapter 3: chapter.next)');
   assert.equal(run.save.getHalsPlay().played, true, 'and Háls og hali stays open');
   assert.deepEqual(run.book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map']);
 });
