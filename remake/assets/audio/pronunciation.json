@@ -2082,6 +2082,46 @@
         }
       },
       "chosen": "hratt"
+    },
+    "fljugid": {
+      "word": "Fljúgið",
+      "stem": "[Ff]ljúgi",
+      "forms": [
+        "Fljúgið"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eigandinn heyrði „Fljúgið“ rangt í öllum fjórum tökum (2026-11-04): óbreytt, fræ 1, línurnar á undan sem samhengi, línan sjálf sem samhengi."
+        },
+        "ipa": {
+          "say": {
+            "Fljúgið": "\"/ˈfljuːjɪθ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfljuːjɪθ/: g milli sérhljóða á undan i er borið fram j, ð í lok orðs óraddað."
+        },
+        "stafsetning": {
+          "say": {
+            "Fljúgið": "Fljújið"
+          },
+          "seed": 42,
+          "note": "„Fljújið“: g-ið skrifað eins og það heyrist (j)."
+        },
+        "samhengi": {
+          "context": "Fuglarnir fljúga hátt yfir skóginum. Fljúgið þið líka, vinir mínir!",
+          "seed": 7,
+          "note": "Sent eins og það er skrifað, með setningu um að fljúga sem samhengi (ekki talað)."
+        },
+        "samhengi-ipa": {
+          "say": {
+            "Fljúgið": "\"/ˈfljuːjɪθ/\""
+          },
+          "context": "Fuglarnir fljúga hátt yfir skóginum. Fljúgið þið líka, vinir mínir!",
+          "seed": 7,
+          "note": "IPA /ˈfljuːjɪθ/ og setningin um að fljúga sem samhengi saman."
+        }
+      },
+      "chosen": null
     }
   }
 }
