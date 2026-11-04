@@ -3936,8 +3936,8 @@
  },
  "k4_mosi_run": {
   "src": "assets/audio/kafli4/k4_mosi_run.mp3",
-  "duration": 2.17,
-  "mouth": "0005eedeffe00b600000009de653dfa9000000000000"
+  "duration": 2.25,
+  "mouth": "02eedefefb0e9000000000dffc320dfec600000000000"
  },
  "k4_egill_wow": {
   "src": "assets/audio/kafli4/k4_egill_wow.mp3",
