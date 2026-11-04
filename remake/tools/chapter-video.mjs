@@ -3,7 +3,10 @@
 //
 //   node remake/tools/chapter-video.mjs --out qa/remake/kafli4/butur1 --chapter flug
 //     [--query "a=b&c=d"] [--size 1280x800] [--max 240] [--sound] [--stats] [--browser edge|chrome|<exe>] [--reduced-motion]
+//     [--theme <mp3>]
 //
+// --theme plays another song as the chapter's theme: the server answers every request for a theme.mp3 with that file, so the game
+// starts, ducks and raises it as it would its own (a candidate song heard over the picture before it goes into the game).
 // It serves the repo on a throwaway static server and loads remake/index.html?chapter=<id>&<query> at --size. When the page says it is
 // ready (window.__demoReady: the chapter drawn once behind the black and the start button showing) it starts the screencast and taps
 // the start button, as a child would (that also starts the music and lets the browser sound), so second 0 of the video is the scene's
@@ -45,7 +48,7 @@ const POLL_MS = 250;
 const TAIL_MS = 2000; // recorded after the script has ended: its last frame held a moment
 
 function parseArgs(argv) {
-  const o = { out: '', chapter: '', query: '', size: '1280x800', max: 240, sound: false, stats: false, browser: 'edge', reducedMotion: false };
+  const o = { out: '', chapter: '', query: '', size: '1280x800', max: 240, sound: false, stats: false, browser: 'edge', reducedMotion: false, theme: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -58,8 +61,9 @@ function parseArgs(argv) {
     else if (a === '--sound') o.sound = true;
     else if (a === '--stats') o.stats = true;
     else if (a === '--reduced-motion') o.reducedMotion = true;
+    else if (a === '--theme') o.theme = path.resolve(next());
     else if (a === '--help' || a === '-h') {
-      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 29).join('\n'));
+      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 33).join('\n'));
       process.exit(0);
     } else throw new Error(`Unknown argument ${a}`);
   }
@@ -69,17 +73,19 @@ function parseArgs(argv) {
   const [w, h] = o.size.split('x').map(Number);
   if (!(w > 0 && h > 0)) throw new Error(`--size must be WIDTHxHEIGHT, not ${o.size}`);
   if (!(o.max > 0)) throw new Error('--max must be a number of seconds');
+  if (o.theme && !fs.existsSync(o.theme)) throw new Error(`--theme: ${o.theme} is not there`);
   o.width = w;
   o.height = h;
   return o;
 }
 
-function startServer() {
+function startServer(theme = null) {
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
-      const file = path.resolve(ROOT, `.${decodeURIComponent(url.pathname)}`);
-      if (!file.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
+      const asked = path.resolve(ROOT, `.${decodeURIComponent(url.pathname)}`);
+      if (!asked.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
+      const file = theme && url.pathname.endsWith('/theme.mp3') ? theme : asked; // --theme: the candidate song in the theme's place
       const stat = await fsp.stat(file);
       const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
       const body = await fsp.readFile(target);
@@ -164,10 +170,10 @@ async function main() {
   const errors = [];
   const warnings = [];
   const report = {
-    chapter: o.chapter, size: o.size, query: o.query, reducedMotion: o.reducedMotion, startedAt: new Date().toISOString(),
+    chapter: o.chapter, size: o.size, query: o.query, reducedMotion: o.reducedMotion, theme: o.theme ? path.relative(ROOT, o.theme) : null, startedAt: new Date().toISOString(),
     seconds: null, ended: false, errors, warnings, timeline: [], gpu: null, stats: null, video: null,
   };
-  const server = await startServer();
+  const server = await startServer(o.theme);
   const query = [`chapter=${o.chapter}`, o.query].filter(Boolean).join('&');
   const url = `http://127.0.0.1:${server.address().port}/remake/index.html?${query}`;
   const browser = await launchBrowser(o);
