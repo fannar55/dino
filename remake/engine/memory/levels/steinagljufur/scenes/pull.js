@@ -30,7 +30,7 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
   const stillGoing = () => { if (ended()) stage.task.abort(); };
   const at = (x, y, z) => stage.task.up(x, y, z);
   return [
-    { at: 0, shot: { kind: 'wide', subjects: () => [...everyone(), trunk().top, trunk().base, trunk().far], front: view([-.25, -1]), elevation: 16, cut: true, floor: 'auto' },
+    { at: 0, shot: { kind: 'wide', ...(tall ? { scale: 'action' } : {}), subjects: () => [...everyone(), trunk().top, trunk().base, trunk().far], front: view([-.25, -1]), elevation: 16, cut: true, floor: 'auto' },
       act: all(() => { if (!stage.task.start('pull', { beats: taps })) stage.task.abort(); }, () => stage.mosi.look(trunk().middle)) },
     // Out over the gap with the rope's end, and round the stone (the shot goes with the pair, the rope behind them)
     { at: .1, wait: { until: () => phase() === 'leg' || ended(), timeout: 6 } },
@@ -84,7 +84,8 @@ export function walkScene(stage) {
     // From Sólarsyllan's side and above: they come over the trunk and step down off its top end (the frame holds the trunk over the gap and the step off; those who have
     // stepped off walk out of it to their places. Lower, the stone on Sólarsyllan stood in front of them, and those going to their places walked into the camera.)
     { at: .2, shot: { kind: 'follow', subjects: () => [...between(40.6, 48.6), at(41.3, 8.9, 9.2), trunk().top, at(48.4, 8.9, 9.2)], front: view([.55, -1], [.75, -.7]), elevation: tall ? 30 : 28, cut: true, floor: 'auto' } },
-    { at: .3, wait: { until: () => stage.task.phase() !== 'walk' || ended(), timeout: 7.6 } },
+    // (until Mosi, the last, is off it and on his way to his place: the last Flugeðla may still be gliding in, and the wide cut has her land)
+    { at: .3, wait: { until: () => mosiPast(49.5) || stage.task.phase() !== 'walk' || ended(), timeout: 7.6 } },
     // Everyone on Sólarsyllan
     { at: 1.4, shot: { kind: 'wide', subjects: () => [...everyone(), stage.task.up(57, 9, 3), stage.task.up(50, 9, 11.6)], front: view([-.25, -1]), elevation: 18, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
     { at: 1.45, wait: { until: ended, timeout: 6 } },
