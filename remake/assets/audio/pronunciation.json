@@ -2391,10 +2391,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað („Einn, tveir, TOGA!“ í Hvar er vinur minn?, g2_pull, verk 6). Óheyrt."
+          "note": "Sent eins og það er skrifað („Einn, tveir, TOGA!“ í Hvar er vinur minn?, g2_pull, verk 6). Þú samþykktir það eftir eyranu 2026-11-04."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     }
   }
 }
