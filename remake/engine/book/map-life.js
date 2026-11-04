@@ -11,7 +11,7 @@
 //                       right across the mountains, each fading in and out half a cycle after the other, so it never jumps;
 //                       a round hole (`hole`, Grameðla's) keeps the cloud, moving or drifting, out of her circle once she is found.
 // The water, and the cloud, are found by a mask cut from the painting (tools/map-life-layers.py: map-water.webp and map-mist.webp,
-// whose alpha is the water and the mist); here the two are one texture, the water in its red channel and the mist in its green.
+// whose alpha is the water and the mist); here each is a texture of its own, read by its alpha.
 // This is the shader of the approved throwaway prototype (qa/bokin/kort-lif), its lighter version, with the owner's default look
 // (every slider at 1) and without the spray, which was never wanted. The look values are the prototype's: do not retune them
 // without the owner. The tree list is its list, verbatim; the fall's and the foam's numbers are written into the shader from FALL
@@ -22,13 +22,20 @@
 // 100 picture pixels across the spine, so a tree or a cloud that moves near the spine still has pixels to move. All layers read
 // one clock, the page's, so the two halves of a river that crosses the spine are never out of step. The layer is made lazily, with
 // WebGL 1 straight (no three.js) in a context of its own, as skeleton-view.js makes the model view's renderer: its pictures are
-// loaded when it is made, it draws 30 frames a second between start() and stop() and only once its pictures are in, and the first
-// frame it draws is told to `onReady`, so the page can put the layer over the still painting without a blank flash.
+// loaded when it is made, it draws 30 frames a second between start() and stop() and only once its pictures are in and its program
+// is built, and the first frame it draws is told to `onReady`, so the page can put the layer over the still painting without a
+// blank flash.
+//
+// Nothing in making it waits for the graphics card, so the game goes on under the map in the journey as the map comes (2026-11-02:
+// building the shader stood the page still for half a second in chapter 4's goodbye): where the browser has KHR_parallel_shader_compile
+// the program is built in the background and the layer only asks, each frame and without waiting, whether it is done; and the
+// pictures are decoded as bitmaps away from the page's thread.
 //
 // Where it cannot be, there is no layer: `createLiveMap` returns null for a canvas that cannot draw, for no WebGL, for a graphics
-// card whose fragment shaders have no high-precision floats (the clock and the drift would stutter), and for a shader that will
-// not compile or link; and a layer that loses its context (`webglcontextlost`, or a picture that will not load) tells `onLost`
-// and never draws again. The page then falls back to the painting with the still mist layer, as it was before the life.
+// card whose fragment shaders have no high-precision floats (the clock and the drift would stutter), and, without the extension, for a
+// shader that will not compile or link; and a layer that loses its context (`webglcontextlost`, a picture that will not load, or a
+// program built in the background that did not link) tells `onLost` and never draws again. The page then falls back to the painting
+// with the still mist layer, as it was before the life.
 //
 // The budget (the plan's global constraints): the life may add at most 4 ms a frame on average at 1366 x 1024 and 1024 x 1366 on the
 // owner's laptop (Intel Iris Xe). It is cheap because the noise is one texture fetch from a small tiling texture, each effect is
@@ -126,7 +133,7 @@ const FALL_BOX = [FALL.left - 6, FOAM.at[0] + FOAM.r[0] + 3, FALL.top - 5, FOAM.
 const FRAG = `
 precision highp float;
 varying vec2 vUv;
-uniform sampler2D uPaint, uMask, uNoise;
+uniform sampler2D uPaint, uWater, uMist, uNoise;
 uniform vec4 uCrop; // the painting's pixels that the textures hold: left, top, width, height
 uniform vec4 uView; // the part of the painting this page shows: left, top, width, height
 uniform float uTime, uLife; // seconds; 1 for every effect, 0 for the painting as it is (for timing the life)
@@ -137,8 +144,8 @@ uniform vec3 uHole; // the round hole in the cloud: centre xy and radius, 0 when
 
 vec2 cropUv(vec2 p) { return (p - uCrop.xy) / uCrop.zw; }
 vec3 paint(vec2 p) { return texture2D(uPaint, cropUv(p)).rgb; }
-float waterAt(vec2 p) { return texture2D(uMask, cropUv(p)).r; }
-float mistAt(vec2 p) { return texture2D(uMask, cropUv(p)).g; }
+float waterAt(vec2 p) { return texture2D(uWater, cropUv(p)).a; }
+float mistAt(vec2 p) { return texture2D(uMist, cropUv(p)).a; }
 float ell(vec2 p, vec2 c, vec2 r, float a, float b) { return 1.0 - smoothstep(a, b, length((p - c) / r)); }
 // four smooth noises in one fetch from a small tiling texture, each about -0.7..0.7, with a feature about one unit of x wide
 vec4 nz4(vec2 x) { return (texture2D(uNoise, x * 0.0234375) - 0.5) * 1.4; }
@@ -247,12 +254,15 @@ function mulberry32(seed) {
   };
 }
 
-/** A small tiling texture of four smooth noises (white noise blurred, wrapping round), RGBA bytes, N by N. */
-function noiseData(N = 256, R = 3) {
+/** A small tiling texture of four smooth noises (white noise blurred, wrapping round), RGBA bytes, N by N: the same bytes on every run. */
+export function noiseData(N = 256, R = 3) {
   const random = mulberry32(7);
+  // Kept quick (it is made as the page loads, or as the first map opens): the sums are the same, in the same order, as the look was
+  // approved with (a test holds the bytes), but the wrapping round is looked up and the two pictures are used again, turn about.
+  const adds = Int32Array.from({ length: N }, (_, i) => (i + R + 1) % N); // the pixel the running sum takes in after pixel i
+  const takes = Int32Array.from({ length: N }, (_, i) => (i - R + N) % N); // and the one it lets go
   // a box blur of 2R + 1 pixels along rows or down columns, wrapping round, by a running sum (one add and one take away a pixel)
-  const blur = (src, horizontal) => {
-    const out = new Float32Array(N * N);
+  const blur = (src, out, horizontal) => {
     const along = horizontal ? 1 : N; // the step from a pixel to the next one in the direction of the blur
     const across = horizontal ? N : 1; // and from one line to the next
     for (let line = 0; line < N; line++) {
@@ -261,34 +271,49 @@ function noiseData(N = 256, R = 3) {
       for (let k = -R; k <= R; k++) sum += src[from + ((k + N) % N) * along];
       for (let i = 0; i < N; i++) {
         out[from + i * along] = sum / (2 * R + 1);
-        sum += src[from + ((i + R + 1) % N) * along] - src[from + ((i - R + N) % N) * along];
+        sum += src[from + adds[i] * along] - src[from + takes[i] * along];
       }
     }
-    return out;
   };
   const data = new Uint8Array(N * N * 4);
+  const a = new Float32Array(N * N);
+  const b = new Float32Array(N * N);
   for (let c = 0; c < 4; c++) {
-    let a = Float32Array.from({ length: N * N }, () => random());
-    for (let pass = 0; pass < 2; pass++) a = blur(blur(a, true), false);
+    for (let i = 0; i < N * N; i++) a[i] = random();
+    for (let pass = 0; pass < 2; pass++) {
+      blur(a, b, true);
+      blur(b, a, false);
+    }
     let lo = Infinity;
     let hi = -Infinity;
-    for (const v of a) {
-      lo = Math.min(lo, v);
-      hi = Math.max(hi, v);
+    for (let i = 0; i < N * N; i++) {
+      if (a[i] < lo) lo = a[i];
+      if (a[i] > hi) hi = a[i];
     }
     for (let i = 0; i < N * N; i++) data[i * 4 + c] = Math.round((a[i] - lo) / (hi - lo) * 255);
   }
   return data;
 }
-let noiseBytes = null; // made at the first layer, and shared: it is the same for all
+let noiseBytes = null; // made once, and shared: it is the same for all
 const NOISE_SIZE = 256;
+const noise = () => (noiseBytes ??= noiseData(NOISE_SIZE));
+// Making it takes a few tens of milliseconds, so it is made in the page's first quiet moment after this loads (no map opens before the
+// start button), and not as the first map opens, where it would make a frame of the game under it that much longer. A browser
+// without idle callbacks makes it at the next turn of its event loop, while the page loads; a layer that comes first makes it itself.
+if (globalThis.requestIdleCallback) globalThis.requestIdleCallback(noise, { timeout: 5000 });
+else globalThis.setTimeout?.(noise, 0);
 
 // ---- The layers ---------------------------------------------------------------------------------------------------------------
 
 const made = new Set(); // each layer made and not yet let go: { ready(), frame(seconds, life), wait() }, for timeLiveMaps
 
-/** The program from the two shaders, or null when either will not compile or they will not link. */
-function buildProgram(gl) {
+/**
+ * The program from the two shaders. Without KHR_parallel_shader_compile it is asked about at once, which waits for the graphics to
+ * build it (half a second, as the map opened in chapter 4 on the owner's laptop), and is null when either shader will not compile or
+ * they will not link. With the extension (`parallel`) nothing is asked: the graphics build it in the background while the page goes
+ * on, and the layer asks whether it is done (which never waits) before it uses it.
+ */
+function buildProgram(gl, parallel) {
   const shaders = [];
   try {
     const program = gl.createProgram();
@@ -297,11 +322,11 @@ function buildProgram(gl) {
       shaders.push(shader);
       gl.shaderSource(shader, source);
       gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return null;
+      if (!parallel && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return null;
       gl.attachShader(program, shader);
     }
     gl.linkProgram(program);
-    return gl.getProgramParameter(program, gl.LINK_STATUS) ? program : null;
+    return parallel || gl.getProgramParameter(program, gl.LINK_STATUS) ? program : null;
   } catch {
     return null;
   } finally {
@@ -325,10 +350,11 @@ function makeTexture(gl, unit, wrap) {
  * The living layer for one page of the map, drawn on `canvas` (its CSS size decides how big it is drawn; see draw below), or null
  * where it cannot be made (see the top of the file).
  *   half     0 for the left page, 1 for the right
- *   win      the window, for its animation frames, its pixel ratio and its documents
+ *   win      the window, for its animation frames and its pixel ratio, and to fetch the pictures and decode them
  *   hole     asked once a frame for the round hole in the cloud, [x, y, r] in picture pixels (r 0 while it is shut)
  *   onReady  told once, after the first frame is drawn
- *   onLost   told if the layer can no longer draw (the context was lost, or its pictures would not load): it never draws again
+ *   onLost   told if the layer can no longer draw (the context was lost, its pictures would not load, or its program built in the
+ *            background would not link): it never draws again
  * Returns
  *   start()    begins drawing, 30 frames a second, once the pictures are in
  *   stop()     draws nothing more until the next start
@@ -345,50 +371,77 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   }
   if (!gl) return null;
   const loseContext = () => gl.getExtension?.('WEBGL_lose_context')?.loseContext();
+  const parallel = gl.getExtension?.('KHR_parallel_shader_compile') ?? null;
   // a card whose fragment shaders have no high-precision floats cannot keep the clock and the drift smooth
-  const program = gl.getShaderPrecisionFormat?.(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT)?.precision ? buildProgram(gl) : null;
+  const program = gl.getShaderPrecisionFormat?.(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT)?.precision ? buildProgram(gl, parallel) : null;
   if (!program) {
     loseContext();
     return null;
   }
 
   const crop = CROPS[half];
-  gl.useProgram(program);
-  const quad = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(program, 'aPos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-  const uniform = name => gl.getUniformLocation(program, name);
-  gl.uniform1i(uniform('uPaint'), 0);
-  gl.uniform1i(uniform('uMask'), 1);
-  gl.uniform1i(uniform('uNoise'), 2);
-  gl.uniform4fv(uniform('uCrop'), crop);
-  gl.uniform4fv(uniform('uView'), VIEWS[half]);
-  // each tree: its feet and crown, its size, lean and phase (each swaying at its own pace), and the box round its moving part
-  const treeA = new Float32Array(TREES.length * 4);
-  const treeB = new Float32Array(TREES.length * 4);
-  const treeBoxes = new Float32Array(TREES.length * 4);
-  TREES.forEach((tree, i) => {
-    treeA.set([tree.p[0], tree.p[1], tree.c[0], tree.c[1]], i * 4);
-    treeB.set([tree.r[0], tree.r[1], tree.deg * Math.PI / 180, (i * 2.399) % (Math.PI * 2)], i * 4);
-    treeBoxes.set(treeBox(tree), i * 4);
-  });
-  gl.uniform4fv(uniform('uTreeA'), treeA);
-  gl.uniform4fv(uniform('uTreeB'), treeB);
-  gl.uniform4fv(uniform('uTreeBox'), treeBoxes);
-  const uTime = uniform('uTime');
-  const uLife = uniform('uLife');
-  const uHole = uniform('uHole');
+  let uTime = null;
+  let uLife = null;
+  let uHole = null;
+  /** The program put to use with what it draws from: the quad, the pictures' units, the crop and the view, and the trees. */
+  function setUp() {
+    gl.useProgram(program);
+    const quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(program, 'aPos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    const uniform = name => gl.getUniformLocation(program, name);
+    gl.uniform1i(uniform('uPaint'), 0);
+    gl.uniform1i(uniform('uWater'), 1);
+    gl.uniform1i(uniform('uMist'), 2);
+    gl.uniform1i(uniform('uNoise'), 3);
+    gl.uniform4fv(uniform('uCrop'), crop);
+    gl.uniform4fv(uniform('uView'), VIEWS[half]);
+    // each tree: its feet and crown, its size, lean and phase (each swaying at its own pace), and the box round its moving part
+    const treeA = new Float32Array(TREES.length * 4);
+    const treeB = new Float32Array(TREES.length * 4);
+    const treeBoxes = new Float32Array(TREES.length * 4);
+    TREES.forEach((tree, i) => {
+      treeA.set([tree.p[0], tree.p[1], tree.c[0], tree.c[1]], i * 4);
+      treeB.set([tree.r[0], tree.r[1], tree.deg * Math.PI / 180, (i * 2.399) % (Math.PI * 2)], i * 4);
+      treeBoxes.set(treeBox(tree), i * 4);
+    });
+    gl.uniform4fv(uniform('uTreeA'), treeA);
+    gl.uniform4fv(uniform('uTreeB'), treeB);
+    gl.uniform4fv(uniform('uTreeBox'), treeBoxes);
+    uTime = uniform('uTime');
+    uLife = uniform('uLife');
+    uHole = uniform('uHole');
+  }
   const pixel = new Uint8Array(4);
 
+  let built = false; // the program is built, linked and set up: it can draw
   let textures = false; // the pictures are in
   let drawn = false; // a frame has been drawn: onReady has been told
   let going = false;
   let gone = false; // destroyed, or its context lost: it never draws again
   let frameId = 0;
   let last = -Infinity;
+
+  /**
+   * Whether the program can draw: set up the first time the graphics say it is built. With the extension that is asked without
+   * waiting, and until it is done the page shows the painting; a program that did not link then loses the layer.
+   */
+  function usable() {
+    if (built || gone) return built && !gone;
+    if (parallel) {
+      if (!gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR)) return false;
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        giveUp();
+        return false;
+      }
+    }
+    setUp();
+    built = true;
+    return true;
+  }
 
   /** Draws one frame at `seconds` (`life` 1: every effect, 0: the painting as it is) at the canvas's size now; false if it has none. */
   function draw(seconds, life) {
@@ -414,7 +467,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     if (!going) return;
     frameId = win.requestAnimationFrame(frame);
     if (!textures || now - last < 1000 / LIFE_FPS - 2) return; // 30 a second: a frame that comes sooner than that waits for the next
-    if (!draw(lifeClock(now - CLOCK_ZERO), 1)) return;
+    if (!usable() || !draw(lifeClock(now - CLOCK_ZERO), 1)) return;
     last = now;
     if (!drawn) {
       drawn = true;
@@ -429,7 +482,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   }
 
   const layer = {
-    ready: () => textures && !gone,
+    ready: () => textures && usable(),
     frame: draw,
     wait: () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel), // reading a pixel waits for the drawing
   };
@@ -443,54 +496,38 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     made.delete(layer);
     onLost();
   }
+  /** A picture that would not come, or a program that would not link: the layer is lost, and its context is of no use to anyone. */
+  function giveUp() {
+    lose();
+    if (!gl.isContextLost?.()) loseContext();
+  }
   canvas.addEventListener?.('webglcontextlost', lose);
 
-  // The pictures. The painting cropped to this page's part, drawn through a 2D canvas; the mask from the two layers' alphas (water
-  // in red, mist in green) in the same crop; the noise. Each is made once, here, and the images are let go once they are in. Each
-  // step takes a tenth of a second or so, so they are done one to a turn of the page's event loop, and the page goes on drawing
-  // (the book's pages turning) between them instead of standing still for half a second.
-  const loadImage = src => new Promise((ok, bad) => {
-    const image = new win.Image();
-    image.onload = () => ok(image);
-    image.onerror = () => bad(new Error(`${src} will not load`));
-    image.src = src;
-  });
-  const cropped = image => {
-    const [left, top, width, height] = crop;
-    const surface = win.document.createElement('canvas');
-    surface.width = width;
-    surface.height = height;
-    const context = surface.getContext('2d', { willReadFrequently: true });
-    context.drawImage(image, left, top, width, height, 0, 0, width, height);
-    return { surface, context };
+  // The pictures: the painting, the water and the mist, each cut to this page's part, and the noise. Each picture is fetched and made
+  // a bitmap of that part, which the browser decodes away from the page's thread (drawing an image that is not decoded yet decodes it
+  // on the page's thread: a tenth of a second for the painting), goes to the graphics card as it is (the water's and the mist's
+  // alpha read there: nothing is read back or worked through on the page) and is let go once it is used. Each takes a little while,
+  // so they go a step to a turn of the page's event loop, and the page goes on drawing (the game under the map in the journey, the
+  // book's pages turning) between them instead of standing still.
+  const [left, top, width, height] = crop;
+  const bitmapOf = async src => {
+    const response = await win.fetch(src);
+    if (!response.ok) throw new Error(`${src} will not load`);
+    return win.createImageBitmap(await response.blob(), left, top, width, height);
   };
-  const alphas = image => cropped(image).context.getImageData(0, 0, crop[2], crop[3]).data;
   const pause = () => new Promise(ok => setTimeout(ok, 0));
+  let pictures = [];
   (async () => {
-    const [painting, water, mist] = await Promise.all([PAINTING_SRC, WATER_SRC, MIST_SRC].map(loadImage));
-    const [, , width, height] = crop;
-    let waters = null; // each layer's alpha, kept from one step to the next
-    let mists = null;
+    pictures = await Promise.all([PAINTING_SRC, WATER_SRC, MIST_SRC].map(bitmapOf));
+    const upload = (unit, bitmap) => {
+      makeTexture(gl, unit, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
+    };
     const steps = [
+      ...pictures.map((bitmap, unit) => () => upload(unit, bitmap)), // the painting on unit 0, the water on 1, the mist on 2
       () => {
-        makeTexture(gl, 0, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cropped(painting).surface);
-      },
-      () => { waters = alphas(water); },
-      () => { mists = alphas(mist); },
-      () => {
-        const mask = new Uint8Array(width * height * 4);
-        for (let i = 0; i < width * height; i++) {
-          mask[i * 4] = waters[i * 4 + 3];
-          mask[i * 4 + 1] = mists[i * 4 + 3];
-          mask[i * 4 + 3] = 255;
-        }
-        makeTexture(gl, 1, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, mask);
-      },
-      () => {
-        makeTexture(gl, 2, gl.REPEAT);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, NOISE_SIZE, NOISE_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, noiseBytes ??= noiseData(NOISE_SIZE));
+        makeTexture(gl, 3, gl.REPEAT);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, NOISE_SIZE, NOISE_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, noise());
       },
     ];
     for (const step of steps) {
@@ -499,9 +536,8 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
       step();
     }
     textures = true;
-  })().catch(() => {
-    lose();
-    if (!gl.isContextLost?.()) loseContext(); // a picture that would not come: the context is of no use to anyone
+  })().catch(giveUp).finally(() => {
+    for (const picture of pictures) picture.close?.();
   });
 
   return {

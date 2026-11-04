@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createBook, halsOpen } from '../engine/book/book.js';
 import { renderMap, MAP_PLACES } from '../engine/book/map-page.js';
-import { TREES, FALL, FOAM, treeBox, lifeClock, createLiveMap, timeLiveMaps } from '../engine/book/map-life.js';
+import { TREES, FALL, FOAM, treeBox, lifeClock, createLiveMap, timeLiveMaps, noiseData } from '../engine/book/map-life.js';
+import { createHash } from 'node:crypto';
 import { createMapMoment, fitMap, zoomTo } from '../engine/book/map-moment.js';
 import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
 import { parseManifest, imageSize } from '../engine/book/media.js';
@@ -236,6 +237,27 @@ test('the living map\'s clock wraps at an hour', () => {
   assert.ok(Math.abs(lifeClock(3_601_500) - 1.5) < 1e-9, 'and goes on from there');
 });
 
+test('the living map\'s noise is the same bytes it was when the owner approved the look', () => {
+  // the water's ripples, the glints, the fall's streaks and the clouds' wisps all read this noise: other bytes, another look
+  const noise = noiseData(256);
+  assert.equal(noise.length, 256 * 256 * 4, 'RGBA, 256 by 256');
+  assert.equal(createHash('sha256').update(noise).digest('hex'), 'b0f29f67e95d487ae11b418986fea2cbc8d781449a637f0e7df783aa90163efa');
+});
+
+test('the living map\'s noise is made in the page\'s first quiet moment after it loads, not as the first map opens', async () => {
+  const asked = [];
+  globalThis.requestIdleCallback = (callback, options) => asked.push({ callback, options });
+  try {
+    await import(new URL('../engine/book/map-life.js?quiet', import.meta.url).href); // a fresh copy of the module, loaded now
+  } finally {
+    delete globalThis.requestIdleCallback;
+  }
+  assert.equal(asked.length, 1, 'loading it asks for a quiet moment');
+  assert.ok(asked[0].options?.timeout > 0, 'with a time it waits at most, so it is made though the page is never quiet');
+  const made = asked[0].callback();
+  assert.equal(createHash('sha256').update(made).digest('hex'), createHash('sha256').update(noiseData(256)).digest('hex'), 'and the noise is made then');
+});
+
 test('there is no living layer where there is no WebGL', () => {
   assert.equal(createLiveMap({}, { half: 0 }), null, 'a canvas that cannot draw');
   assert.equal(createLiveMap({ getContext: () => null }, { half: 0 }), null, 'a canvas with no WebGL');
@@ -253,6 +275,126 @@ test('a graphics card with no high-precision floats, or a shader that will not b
   assert.equal(createLiveMap(canvasWith({ ...floats, getShaderParameter: () => false }), { half: 0, win }), null, 'a shader that does not compile');
   assert.equal(createLiveMap(canvasWith({ ...floats, getShaderParameter: () => true, getProgramParameter: () => false }), { half: 0, win }), null, 'a program that does not link');
   assert.equal(timeLiveMaps(), null, 'none of them was made');
+});
+
+/**
+ * A WebGL context that answers as a real one does and records what it is asked (`calls`, each [name, ...args]). With `parallel` it has
+ * KHR_parallel_shader_compile, and its program is built in the background: it says so only once `compiled.done` is set, and it links
+ * if `links`. `early` lists each question asked before then that a real browser would answer only once the build is over, so the
+ * page would stand still waiting for it (the 0.5 s freeze as the map opened in chapter 4, 2026-11-02).
+ */
+function recordingContext({ parallel = true, links = true } = {}) {
+  const COMPLETION_STATUS_KHR = 0x91B1;
+  const compiled = { done: false };
+  const calls = [];
+  const early = [];
+  const waits = name => { if (!compiled.done) early.push(name); };
+  const gl = {
+    VERTEX_SHADER: 0x8B31, FRAGMENT_SHADER: 0x8B30, HIGH_FLOAT: 0x8DF2, COMPILE_STATUS: 0x8B81, LINK_STATUS: 0x8B82,
+    getExtension: name => (name === 'KHR_parallel_shader_compile' && parallel ? { COMPLETION_STATUS_KHR }
+      : name === 'WEBGL_lose_context' ? { loseContext: () => calls.push(['loseContext']) } : null),
+    getShaderPrecisionFormat: () => ({ precision: 23 }),
+    getShaderParameter: (shader, name) => { if (name === COMPLETION_STATUS_KHR) return compiled.done; waits('getShaderParameter'); return true; },
+    getProgramParameter: (program, name) => { if (name === COMPLETION_STATUS_KHR) return compiled.done; waits('getProgramParameter'); return links; },
+    getUniformLocation: () => { waits('getUniformLocation'); return {}; },
+    getAttribLocation: () => { waits('getAttribLocation'); return 0; },
+    isContextLost: () => false,
+  };
+  const context = new Proxy(gl, { get: (target, name) => (name in target ? target[name] : (...args) => { calls.push([name, ...args]); return {}; }) });
+  return { context, compiled, calls, early, draws: () => calls.filter(([name]) => name === 'drawArrays').length };
+}
+
+/**
+ * A page for a living layer: its canvas (on `context`) and its window, whose frames come when `tick` says (each turn of the event
+ * loop, 40 ms on), which fetches the pictures and makes bitmaps of them (`bitmaps`: each picture's file, the part of it cut out, and
+ * whether it was let go). The window has no Image: a picture decoded by drawing it, on the page's own thread, is not to be had.
+ */
+function livePage(context) {
+  let now = 0;
+  const queue = [];
+  const bitmaps = [];
+  const win = {
+    devicePixelRatio: 1,
+    requestAnimationFrame: callback => queue.push(callback),
+    cancelAnimationFrame() {},
+    fetch: async src => ({ ok: true, blob: async () => ({ src }) }),
+    createImageBitmap: async (blob, ...crop) => {
+      const bitmap = { file: blob.src.split('/').pop(), crop: crop.slice(0, 4), width: crop[2], height: crop[3], closed: false, close() { this.closed = true; } };
+      bitmaps.push(bitmap);
+      return bitmap;
+    },
+    document: { createElement: () => ({ width: 0, height: 0, getContext: () => ({ drawImage() {}, getImageData: (x, y, w, h) => { reads.push([w, h]); return { data: new Uint8ClampedArray(w * h * 4) }; } }) }) },
+  };
+  const reads = []; // each time a 2D canvas was asked for its pixels, on the page's thread
+  const canvas = { clientWidth: 420, clientHeight: 470, width: 300, height: 150, getContext: () => context, addEventListener() {}, removeEventListener() {} };
+  const tick = async (turns = 1) => {
+    for (let i = 0; i < turns; i++) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      now += 40;
+      for (const callback of queue.splice(0)) callback(now);
+    }
+  };
+  return { win, canvas, tick, bitmaps, reads };
+}
+
+test('with KHR_parallel_shader_compile the living layer is made without waiting for its shader, and draws once that is built', async () => {
+  const gl = recordingContext();
+  const page = livePage(gl.context);
+  let ready = 0;
+  let lost = 0;
+  const layer = createLiveMap(page.canvas, { half: 1, win: page.win, onReady: () => ready++, onLost: () => lost++ });
+  assert.ok(layer, 'a layer, though its program is still being built');
+  assert.deepEqual(gl.early, [], 'nothing was asked that waits for the build');
+  layer.start();
+  await page.tick(12); // the pictures come in, and the frames go on
+  assert.deepEqual(gl.early, [], 'nor while it is still being built');
+  assert.equal(gl.draws(), 0, 'and nothing is drawn meanwhile: the page shows the painting');
+  assert.equal(ready, 0, 'nor is the page told it is ready');
+  gl.compiled.done = true;
+  await page.tick(3);
+  assert.ok(gl.draws() > 0, 'built, it draws');
+  assert.equal(ready, 1, 'and the page is told once');
+  assert.equal(lost, 0);
+  layer.destroy();
+});
+
+test('a living layer whose program will not link, found once it is built, is lost: the page is told and nothing is drawn', async () => {
+  const gl = recordingContext({ links: false });
+  const page = livePage(gl.context);
+  let ready = 0;
+  let lost = 0;
+  const layer = createLiveMap(page.canvas, { half: 0, win: page.win, onReady: () => ready++, onLost: () => lost++ });
+  assert.ok(layer, 'a layer: whether it links is not known yet');
+  layer.start();
+  await page.tick(12);
+  gl.compiled.done = true;
+  await page.tick(3);
+  assert.equal(lost, 1, 'the page is told it is lost, and falls back to the painting');
+  assert.equal(ready, 0);
+  assert.equal(gl.draws(), 0, 'nothing is drawn');
+  assert.equal(layer.running, false, 'it stops');
+  assert.ok(gl.calls.some(([name]) => name === 'loseContext'), 'and gives its context back');
+  assert.equal(timeLiveMaps(), null, 'no layer is left to time');
+});
+
+test('the living layer\'s pictures are decoded off the page\'s thread: fetched, and cut to its page as bitmaps', async () => {
+  const gl = recordingContext();
+  const page = livePage(gl.context);
+  let lost = 0;
+  const layer = createLiveMap(page.canvas, { half: 1, win: page.win, onLost: () => lost++ });
+  gl.compiled.done = true;
+  layer.start();
+  await page.tick(15);
+  assert.equal(lost, 0, 'a window without Image does not lose the layer');
+  const right = [740, 0, 941, 936]; // the right page's part of the painting: x 740 to 1681 (its half and 100 pixels across the spine)
+  assert.deepEqual(page.bitmaps.map(bitmap => [bitmap.file, ...bitmap.crop]).sort(), [['map-mist.webp', ...right], ['map-water.webp', ...right], ['map.webp', ...right]], 'each picture is made a bitmap of this page\'s part');
+  for (const bitmap of page.bitmaps) {
+    assert.ok(gl.calls.some(([name, ...args]) => name === 'texImage2D' && args.at(-1) === bitmap), `${bitmap.file} goes to the graphics card as its bitmap`);
+  }
+  assert.deepEqual(page.reads, [], 'and no picture is read back, or a mask built of it, on the page\'s thread');
+  assert.ok(page.bitmaps.every(bitmap => bitmap.closed), 'each bitmap is let go once it is used');
+  assert.ok(gl.draws() > 0, 'and the layer draws');
+  layer.destroy();
 });
 
 /** A stand-in for createLiveMap: records each layer made and what was asked of it. */
