@@ -17,7 +17,8 @@ import { GAP } from './upper-ground.js';
  *     top(degrees)           the middle of its top end
  *     roots()                the edge of its root plate on the near side (it lifts as the trunk tips: the dust comes from there)
  *     deck                   lying: the line along its top the friends walk ({ from, to, at(x) -> { z, y } }), and surface(x, z): the height of its top there, or null off it
- *     cover(reach, slope)    lying: a height field over it and round it that a body `reach` wide either side keeps over the bark (its side falling away at `slope`)
+ *     cover(reach, slope, from)  lying: a height field over it and round it that a body `reach` wide either side keeps over the bark (its side falling away at `slope`;
+ *                            `from`: only the mesh from that x of the frame on, so the root plate can be left out: a walk keeps wide of it instead)
  *     solids()               capsules of it as it stands or lies now (frame points, radius): the walks keep clear of it
  *     boxes()                oriented boxes of it now (frame) for the clearance audit
  *     reset()
@@ -98,10 +99,10 @@ export function createTrunk({ THREE: T = THREE, parent, model, groundAt, grey = 
   // highest bark within `reach` of a point (a body that wide either side of its line clears all of it) and beyond that falling away `slope` metres a metre (it steps up the
   // trunk's side toes first, not all at once), down to the rim it stands on. Made once for each reach.
   const CELL = .1, covers = new Map();
-  const coverOf = (reach, slope) => {
-    const key = `${reach.toFixed(2)}|${slope.toFixed(2)}`; if (covers.has(key)) return covers.get(key);
+  const coverOf = (reach, slope, from = -Infinity) => {
+    const key = `${reach.toFixed(2)}|${slope.toFixed(2)}|${from}`; if (covers.has(key)) return covers.get(key);
     const tops = new Map(); let top = -Infinity, i0 = Infinity, i1 = -Infinity, k0 = Infinity, k1 = -Infinity;
-    for (const [x, y, z] of lying) { const i = Math.floor(x / CELL), k = Math.floor(z / CELL), c = (i + 50000) * 100000 + k + 50000; if (!(tops.get(c) >= y)) tops.set(c, y); top = Math.max(top, y); i0 = Math.min(i0, i); i1 = Math.max(i1, i); k0 = Math.min(k0, k); k1 = Math.max(k1, k); }
+    for (const [x, y, z] of lying) { if (x < from) continue; const i = Math.floor(x / CELL), k = Math.floor(z / CELL), c = (i + 50000) * 100000 + k + 50000; if (!(tops.get(c) >= y)) tops.set(c, y); top = Math.max(top, y); i0 = Math.min(i0, i); i1 = Math.max(i1, i); k0 = Math.min(k0, k); k1 = Math.max(k1, k); }
     const margin = Math.ceil((reach + Math.max(0, top - baseY) / slope) / CELL) + 1, gi = i0 - margin, gk = k0 - margin, ni = i1 - i0 + 1 + 2 * margin, nk = k1 - k0 + 1 + 2 * margin;
     const grid = new Float32Array(ni * nk).fill(baseY - 1);
     for (const [c, y] of tops) {
@@ -130,7 +131,7 @@ export function createTrunk({ THREE: T = THREE, parent, model, groundAt, grey = 
     point: (h, degrees = angle) => { const c = ring(Math.min(height - .2, Math.max(.2, h))); return toFrame(new T.Vector3(c.x, h, c.z), degrees); },
     roots: (degrees = angle) => toFrame(new T.Vector3(rootRing.x + 1.2, .05, rootRing.z), degrees), // (yaw π: the model's +x is the frame's -x, the side away from the gap)
     deck, surface,
-    /** Lying: `cover(reach, slope)(x, z)` the height a body `reach` wide either side of its line keeps over the bark at a point of the frame (above), or null off it. */
+    /** Lying: `cover(reach, slope, from)(x, z)` the height a body `reach` wide either side of its line keeps over the bark at a point of the frame (above), or null off it. */
     cover: coverOf,
     /** The lying trunk's walk: the frame points along its ridge from `from` to `to` (x), each on its top. */
     line(from, to, step = .5) { const out = []; for (let x = from; x <= to + 1e-6; x += step) { const { z, y } = deck.at(x); out.push(new T.Vector3(x, y, z)); } return out; },

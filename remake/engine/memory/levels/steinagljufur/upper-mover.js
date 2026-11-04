@@ -347,7 +347,8 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   // end and fly it in three legs, a wingbeat each: out over the gap to the stone on Sólarsyllan, round the stone's far side, and back over the gap up to the stub near the trunk's
   // top, where they hover while it is knotted (ledge.js tie); then they come down in the line. Meanwhile everyone else walks to the line. The rope draws taut from the line round the
   // stone to the stub, so that a pull from the near side draws the trunk's top toward the stone, away from the pullers. Each tap: everyone leans back and strains, and the trunk
-  // tilts a step; the third throws it over (faster and faster, about its root plate, as a tree falls): a thud, dust along it, the camera shakes, and the rope goes slack into the gap.
+  // tilts a step; the third throws it over (faster and faster, about its root plate, as a tree falls): a thud, dust along it, the camera shakes, and the rope goes slack: it lies
+  // on the ground under the line and is drawn along the trunk's side over the gap (slackPath), not hanging into the gap in front of the walk.
   const LINE = { z: ROPE2.from[1], y: .5, tail: ROPE2.from[0] + 1 }, LEAN = { step: .25, pitch: .08, seconds: 1.0 }, FALL_SECONDS = 1.15;
   const STONE = { radius: .64, rise: .9, around: 1.6, fly: 1.7 }, WRAP_DEGREES = [-90, -45, 0, 45, 90];
   const PULL_FLIGHT = 5.8; // (out over the gap and back up to the top: faster than the climb's legs, the way is three times as long)
@@ -362,11 +363,15 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   const droops = points => points.map((p, k) => droop((k ? points[k - 1] : ropeStart).distanceTo(p)));
   // the rope taut: from where the line starts (behind Mosi) at the height of their mouths, round the stone, to the knot (`back`: how far the line has been pulled back)
   const linePath = (back = 0, degrees = trunk.angle) => [V(LINE.tail - back, U.groundAt(LINE.tail, LINE.z) + LINE.y, LINE.z), ...WRAP_DEGREES.map(d => aroundStone(d)), ...knotAt(degrees)];
-  // slack, once the trunk lies: along the rim on the ground, hanging into the gap, over Sólarsyllan to the stone and round it to the knot at the trunk's top
+  // slack, once the trunk lies: on the ground under the line to the gap's near lip, along the lip to the trunk's foot, drawn taut along the trunk's open side over the gap (close
+  // along its bark, half way down it: under the feet of those who walk on it), down to the ground at the far lip, over Sólarsyllan to the stone and round it to the knot at the
+  // trunk's top. (Hanging into the gap from the line, it hung in front of the walk, Task 6 fix round 1.)
   function slackPath() {
-    const y = (x, z) => U.groundAt(x, z) + .12, near = U.gap.near - .08, far = U.gap.far + .08;
-    const points = [V(LINE.tail, y(LINE.tail, LINE.z), LINE.z), V(near, y(near - .1, LINE.z), LINE.z), V(far, y(far + .1, LINE.z), LINE.z - .02), ...WRAP_DEGREES.map(d => aroundStone(d)), ...knotAt(trunk.fallen)];
-    return { points, hang: points.map((_, k) => k === 2 ? 2.4 : k === 3 ? .6 : k === 8 ? .5 : 0) };
+    const y = (x, z) => U.groundAt(x, z) + .12, near = U.gap.near - .14, far = U.gap.far + .14;
+    const side = x => { const { z, y: top } = trunk.deck.at(x), r = trunk.deck.radius(x); return V(x, Math.max(U.rim.y + .1, top - r * .9), z - r - .1); };
+    const flank = [U.gap.near + .2, (U.gap.near + U.gap.far) / 2, U.gap.far - .2].map(side), foot = flank[0].z, end = flank.at(-1).z;
+    const points = [V(LINE.tail, y(LINE.tail, LINE.z), LINE.z), V(near, y(near, LINE.z), LINE.z), V(near, y(near, foot), foot), ...flank, V(far, y(far, end), end), ...WRAP_DEGREES.map(d => aroundStone(d)), ...knotAt(trunk.fallen)];
+    return { points, hang: points.map(() => 0) };
   }
   const flightGoal = (leg, i) => {
     // (B flies a little behind and beside A: the rope runs through her beak to A's)
@@ -422,9 +427,11 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       const points = linePath(a.back, trunk.angle), taut = smooth(a.tight), d = droops(points);
       rope2.through(points, d.map(h => h * (1 - taut)));
     } else if (a.phase === 'landed' || a.phase === 'cheer') {
-      const { points, hang } = slackPath(), k = smooth(Math.min(1, a.age / .6)), line = linePath(a.back, trunk.fallen);
-      // (the line goes slack: from the taut line to the slack one, point by point while there is one of each)
-      rope2.through(k >= 1 ? points : points.map((p, j) => (line[j] ?? p).clone().lerp(p, k)), hang.map(h => h * k));
+      const { points, hang } = slackPath(), k = smooth(Math.min(1, a.age / .6)), line = linePath(a.back, trunk.fallen), held = line.length - 1, laid = points.length - held;
+      // (the line goes slack: the part round the stone and up to the knot stays where it is, and the part from the line to the stone falls from where it ran taut, each point
+      // of it from its own place along that span, to where it lies)
+      const from = j => j >= laid ? line[j - laid + 1] : line[0].clone().lerp(line[1], j / laid);
+      rope2.through(k >= 1 ? points : points.map((p, j) => from(j).clone().lerp(p, k)), hang.map(h => h * k));
     }
   }
   function updatePull(dt) {
@@ -491,24 +498,29 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   }
 
   // ---- walk (Task 6) ----
-  // Over the trunk to Sólarsyllan, one behind the other: each walks to the trunk past its root plate (`up`: wide of the roots, then slanting up its side onto its top where
-  // it leaves the near rim), walks along its top over the gap and down off its top end onto Sólarsyllan (`off`), and goes to its place there. The Þórseðlur go first, Mosi
-  // last; each starts when the one before is far enough ahead on the trunk (their lengths: BODY). The Flugeðlur fly over. Footsteps on the wood while anyone is on it.
-  // (Stepping up the side by the roots, from 1.2 m off them, the hind part of a body came through the root plate; stepping off sideways, the hind legs came through the
-  // bark as the body turned: the field each walks on is now the bark's own top widened by the body's width, see trunkSurface, and kept under the body as it turns.)
-  const WALK = { ground: 5.0, deck: 4.0, up: [[40.0, 5.9], [41.1, 8.55], [41.55, 9.05]], deckFrom: 42.0, deckTo: 45.9, off: [[47.3, 9.3]], via: [51.0, 7.2], margin: .3, slope: 1.3 };
+  // Over the trunk to Sólarsyllan, one behind the other, at level 1's crossing pace (CROSS.speed 3.6 m/s, the owner's): each walks past the root plate on its open side, steps
+  // up the trunk's side slanting in along it (`up`: it is on the bark where the trunk leaves the near rim, and it turns along it only once its hind part is past the roots),
+  // walks along its top over the gap, steps down off its top end straight on (`off`: it turns for its place only when its hind part is off the bark too), and goes to its
+  // place there. The Þórseðlur go first, Mosi last; each starts when the one before is far enough ahead on the trunk (their lengths: BODY). The Flugeðlur glide over.
+  // Footsteps on the wood while anyone is on it. The walk ends when everyone is in place.
+  // (The field each walks on is the bark's own top widened by the body's width, see trunkSurface, kept under the body as it turns. With the root plate in it, a body near
+  // the roots was lifted 0.4 m off the rim 2 m before the trunk and rose over the deck as its tail passed the roots, a Þórseðla standing up in the air: the plate is left
+  // out, and the ways keep every body's hind part wide of it instead. Turning off the trunk sideways lifted the hind part over its end: they walk off straight.)
+  const WALK = { ground: 3.8, deck: 3.6, up: [[39.7, 6.75], [40.3, 7.3], [41.2, 8.15], [41.95, 8.85], [42.6, 9.12]], deckFrom: 43.0, deckTo: 45.9, off: [[46.9, 9.2], [48.4, 9.15]],
+    via: [51.0, 7.2], margin: .3, slope: 1.0, plate: 39.6, end: .15, bark: 39.7, fly: 5.0 };
   const BODY = { mosi: [.8, .8], triceratops: [1.0, .9], stegosaurus: [1.3, 1.0], brontosaurus: [2.3, 1.4] }; // metres behind and ahead of its root
   // (how far each one's skin reaches either side of its line, in its lowest half metre: measured from the skins as they stand, and a little more)
   const HALF = { mosi: .69, triceratops: .74, stegosaurus: .5, brontosaurus: .6 };
   const WALK_ORDER = [['brontosaurus', 0], ['brontosaurus', 1], ['triceratops', 0], ['triceratops', 1], ['stegosaurus', 0], ['stegosaurus', 1], ['mosi', 0]];
   /** The lying trunk as a friend `reach` wide either side of its line walks on it (walkers.js `surface`, the scene's coordinates): the bark's top widened by that reach, its sides
-   * falling away WALK.slope metres a metre down to the ground (ledge.js cover: a body steps up its side toes first, and nothing of it is in the bark, the root plate
-   * included), and the ground round it, the gap beside it as level as the rims (a body on its way to the trunk reaches its toes out ahead of it: over the gap they would
-   * pitch it nose down and lift it off the rim). */
+   * falling away WALK.slope metres a metre down to the ground (ledge.js cover: a body steps up its side toes first, and nothing of it is in the bark; the root plate is left
+   * out, WALK.plate), and the ground round it, the gap beside it as level as the rims (a body on its way to the trunk reaches its toes out ahead of it: over the gap they would
+   * pitch it nose down and lift it off the rim). Past its top end the bark is widened by WALK.end only, so that a body stepping off walks down off its end, not off a deck
+   * that goes on in the air for a body's width. */
   function trunkSurface(reach) {
-    const v = V(0, 0, 0), cover = trunk.cover(reach, WALK.slope);
+    const v = V(0, 0, 0), cover = trunk.cover(reach, WALK.slope, WALK.plate), end = trunk.cover(Math.min(reach, WALK.end), WALK.slope, WALK.plate);
     return (x, z) => {
-      const p = U.local(v.set(x, 0, z)), ground = p.x > U.gap.near - .2 && p.x < U.gap.far + .2 ? U.rim.y : U.heightAt(x, z), h = cover(p.x, p.z);
+      const p = U.local(v.set(x, 0, z)), ground = p.x > U.gap.near - .2 && p.x < U.gap.far + .2 ? U.rim.y : U.heightAt(x, z), h = (p.x > WALK.deckTo ? end : cover)(p.x, p.z);
       return h === null ? ground : Math.max(ground, h);
     };
   }
@@ -525,30 +537,32 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     const surfaces = Object.fromEntries(Object.entries(HALF).map(([who, reach]) => [who, trunkSurface(reach)]));
     action = { id: 'walk', phase: 'walk', age: 0, landed: 0, stepAge: 0, arrived: 0, surfaces, times: [], walked: null };
     events.push({ type: 'walk-start' });
-    // (the way up the trunk's side at the rim's height: the last point is over the gap, and a way down to the gap's floor and back up to the trunk's top was 6 m longer, a
-    // second and a half more of the walk at its pace; the field lifts them as high as the bark needs)
-    const deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z)), [on, ...up] = WALK.up.map(([x, z]) => U.world(x, U.rim.y, z)), off = WALK.off.map(p => world(...p));
+    const deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z));
     let hop = -Infinity, before = null;
     for (const [who, i] of WALK_ORDER) {
       const actor = who === 'mosi' ? mosi() : members(who)[i], spot = spotOf('sun', who, i), [back, front] = BODY[who], surface = surfaces[who];
+      // (each point of the way up and off as high as this one's field there: the way's own rise is then the walk's, and its length the length walked)
+      const onField = ([x, z]) => { const p = world(x, z); p.y = surface(p.x, p.z); return p; }, [on, ...up] = WALK.up.map(onField), off = WALK.off.map(onField);
       actor.clearLook?.(); actor.stopGesture?.();
-      const reach = Math.hypot(on.x - actor.root.position.x, on.z - actor.root.position.z) / WALK.ground;
+      const reach = Math.hypot(on.x - actor.root.position.x, on.z - actor.root.position.z) / WALK.deck;
       const at = before ? Math.max(hop + (BODY[before][0] + front + WALK.margin) / WALK.deck, reach) : reach, delay = Math.max(0, at - reach);
       hop = at; before = who; void back;
       const end = spot.frame[1] < 6.5 ? [world(...WALK.via), spot.point] : [spot.point];
       // (when it should be in its place, as the ways are long and the paces set: the report's walk, beside when it was)
       const length = points => points.reduce((sum, p, k) => k ? sum + p.distanceTo(points[k - 1]) : 0, 0), name = who + i;
       const expect = at + length([on, ...up, ...deck, ...off]) / WALK.deck + length([off.at(-1), ...end]) / WALK.ground;
-      walkers.start(actor, [{ to: [on], speed: WALK.ground, ground: false, surface }, { to: [...up, ...deck], speed: WALK.deck, ground: false, surface }, { to: off, speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
+      // (to the trunk, up it, over it and off it in one way: where one way ends and the next starts, the toes are reached out along the last and then along the next, and a
+      // body that came to the trunk's side with its toes on the ground had them on its side the moment after, its root up 0.4 m at once)
+      walkers.start(actor, [{ to: [on, ...up, ...deck, ...off], speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
         { delay, yaw: spot.yaw, pitch: true, onDone: () => { if (action) { action.arrived++; action.times.push(`${name} ${action.age.toFixed(2)}/${expect.toFixed(2)}`); } } });
     }
-    // the Flugeðlur fly over, high over the trunk, and come down at their places
+    // the Flugeðlur glide over, high over the trunk, and come down at their places (the walk ends when they are down too: at 6.4 and 6.1 m/s, flapping, they were quick
+    // beside the walk; gliding at 5 they land as Mosi comes to his place)
     members('pteranodon').forEach((actor, i) => {
-      const spot = spotOf('sun', 'pteranodon', i), points = [U.world(33 + i, 12.4, 5.6 + i), U.world(43.5, 13.2, 8 + i * 1.4), U.world(spot.frame[0] - 2, 11.2, spot.frame[1])];
       actor.carry?.(false);
-      // (the walk ends when they are down too: at 5.2 and 4.9 m/s the second landed 1.8 s after Mosi was in his place)
+      const spot = spotOf('sun', 'pteranodon', i), points = [U.world(33 + i, 12.4, 5.6 + i), U.world(43.5, 13.2, 8 + i * 1.4), U.world(spot.frame[0] - 2, 11.2, spot.frame[1])];
       const landed = () => { if (action) { action.landed++; action.times.push(`pteranodon${i} ${action.age.toFixed(2)}`); } };
-      const ok = actor.fly?.(points, { speed: 6.4 - i * .3, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: landed }) || landed(); } });
+      const ok = actor.fly?.(points, { speed: WALK.fly - i * .2, glide: true, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: landed }) || landed(); } });
       if (!ok) { walkers.place(actor, spot.point, spot.yaw); action.landed++; }
     });
     return true;
@@ -559,11 +573,11 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       for (const [who, i] of WALK_ORDER) { const actor = who === 'mosi' ? mosi() : members(who)[i]; if (actor && walkers.isWalking(actor)) keepOver(actor, a.surfaces[who]); }
       // the wood under their feet: a step every third of a second while anyone is on the trunk (the nearest to the middle of the gap says where it is heard)
       if (a.stepAge >= .32) {
-        const on = [...members('brontosaurus'), ...members('triceratops'), ...members('stegosaurus'), mosi()].map(actor => ({ actor, p: U.local(actor.root.position) })).filter(({ p }) => p.x > WALK.deckFrom - .3 && p.x < WALK.deckTo + .3 && p.y > U.rim.y + .5);
+        const on = [...members('brontosaurus'), ...members('triceratops'), ...members('stegosaurus'), mosi()].map(actor => ({ actor, p: U.local(actor.root.position) })).filter(({ p }) => p.x > WALK.bark && p.x < WALK.deckTo + .3 && p.y > U.rim.y + .4);
         if (on.length) { a.stepAge = 0; events.push({ type: 'footstep', surface: 'wood', pan: 0 }); }
       }
       if (a.arrived >= WALK_ORDER.length && a.landed >= 2) { a.phase = 'cheer'; a.walked = +a.age.toFixed(2); a.age = 0; for (const actor of friends()) { actor.setMotion?.('idle'); actor.gesture?.('cheer'); } stage.mosi?.gesture?.('cheer'); }
-      else if (a.age > 16) a.landed = 2;
+      else if (a.age > 20) a.landed = 2;
     } else if (a.phase === 'cheer' && a.age >= (reduced() ? .4 : 1.3)) { const id = a.id; where = 'sun'; action = null; events.push({ type: 'bridge-complete', id }); }
   }
 

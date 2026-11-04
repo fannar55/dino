@@ -19,9 +19,11 @@ const up = (point, metres) => point.clone().setY(point.y + metres);
  * The pull: a wide cut of the group on the clifftop and the trunk at the gap; a follow cut on the Flugeðlur as they fly the rope out over the gap and round the stone; a cut at the
  * trunk's top as they knot it; then the still shot of the line, the trunk and the gap while the child taps (`taps` taps in `timeout` seconds; no taps: "Við gerum þetta saman!" and
  * they pull it over on their own). It falls in that shot (the mover shakes the camera); a wide cut of the new bridge as they cheer; then the camera glides to its resting view.
+ * On a tall screen (a phone or a tablet held up) every cut looks along the line from behind it and above, a little from the open side, as the clifftop's own view there does: from
+ * the open side the line, the gap and Sólarsyllan lie across a narrow screen and were small in it (Task 6 fix round 1).
  */
 export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
-  const view = front => () => stage.task.view(front), phase = () => stage.task.phase(), ended = () => !stage.task.busy();
+  const tall = stage.aspect() < 1, view = (front, along = [-.9, -.42]) => () => stage.task.view(tall ? along : front), phase = () => stage.task.phase(), ended = () => !stage.task.busy();
   const trunk = () => stage.task.trunk(), flyers = () => stage.pair('pteranodon');
   const everyone = () => [...stage.friends().filter(actor => actor.root.visible).map(actor => actor.root.position.clone()), stage.mosi.body()];
   const arrived = () => stage.task.waitingBeat() !== null || ended();
@@ -41,7 +43,9 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: .25, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(flyers()), trunk().tie, up(trunk().top, .4), trunk().middle], front: view([-.3, -1]), elevation: 10, cut: true, floor: 'auto' }, act: () => stage.mosi.look(trunk().tie) },
     { at: .3, wait: { until: () => !['gather', 'leg', 'knot'].includes(phase()) || ended(), timeout: 5 } },
     // The child's moment: the whole line, the rope round the stone, the trunk up to its top and the gap; the shot holds still until the taps are done and the trunk is over.
-    { at: .35, shot: { kind: 'wide', scale: 'action', subjects: () => [...everyone(), trunk().top, trunk().base, at(42.5, 15, 9.2), stage.task.stone(), trunk().far], front: view([-.22, -1]), elevation: 14, cut: true, floor: 'auto' },
+    // (on a tall screen, as it is when the scene starts, from behind the line: the line and the trunk up to its top fill it, and the gap and the stone are beyond them; the trunk falls away from the camera)
+    { at: .35, shot: { kind: 'wide', scale: 'action', subjects: () => tall ? [...everyone(), trunk().top, trunk().base, trunk().far] : [...everyone(), trunk().top, trunk().base, at(42.5, 15, 9.2), stage.task.stone(), trunk().far],
+      front: view([-.22, -1], [-.92, -.38]), elevation: tall ? 22 : 14, cut: true, floor: 'auto' },
       act: all(stillGoing, () => stage.mosi.look(trunk().middle)) },
     { at: .4, wait: { until: arrived, timeout: 9 } },
     { at: .45, act: all(stillGoing, () => stage.mosi.look(trunk().middle)), say: 'g2_pull' },
@@ -60,22 +64,27 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
 }
 
 /**
- * The walk over the trunk: a wide cut of the bridge and the group at its foot; a follow cut on the walkers as they go over it one behind the other (the Flugeðlur fly over); a wide
- * cut of everyone on Sólarsyllan; then the camera goes to its resting view there.
+ * The walk over the trunk, at level 1's crossing pace (about 10 s): a cut on the near rim, from the open side a little behind them, as they step up onto the trunk one behind
+ * the other and start over it; a cut from Sólarsyllan's side, a little ahead of them, as they come over and step off its top end (the Flugeðlur glide over); a wide cut of
+ * everyone on Sólarsyllan as they cheer; then the camera goes to its resting view there. (No shot is held longer than about 8 s, Ruling 31: the cut comes as Mosi, the last,
+ * leaves the near rim, or at 7.6 s.) On a tall screen the two cuts look more along the way, as the pull's do.
  */
 export function walkScene(stage) {
-  const view = front => () => stage.task.view(front), ended = () => !stage.task.busy(), trunk = () => stage.task.trunk();
+  const tall = stage.aspect() < 1, view = (front, along) => () => stage.task.view(tall && along ? along : front), ended = () => !stage.task.busy(), trunk = () => stage.task.trunk(), at = (x, y, z) => stage.task.up(x, y, z);
   const walkers = () => [...stage.friends().filter(actor => actor.root.visible && actor.species !== 'pteranodon'), stage.mosi.actor];
   const everyone = () => [...stage.friends().filter(actor => actor.root.visible).map(actor => actor.root.position.clone()), stage.mosi.body()];
-  // (the walkers near the trunk: those that have not yet got far onto Sólarsyllan, and the trunk's two ends)
-  const crossing = () => { const near = walkers().filter(actor => { const p = stage.task.local(actor.root.position); return p.x > 37 && p.x < 49; }).map(actor => actor.root.position.clone()); return [...near, trunk().base, trunk().top]; };
-  const mosiOver = () => stage.task.local(stage.mosi.actor.root.position).x > 46.2;
+  // (the walkers between two places along the way, x of the upper gorge's frame)
+  const between = (from, to) => walkers().filter(actor => { const x = stage.task.local(actor.root.position).x; return x > from && x < to; }).map(actor => actor.root.position.clone());
+  const mosiPast = x => stage.task.local(stage.mosi.actor.root.position).x > x;
   return [
-    { at: 0, shot: { kind: 'wide', subjects: () => [...everyone(), trunk().base, trunk().top, trunk().far], front: view([-.2, -1]), elevation: 16, cut: true, floor: 'auto' },
+    // On the near rim: the line coming to the trunk's foot and stepping up onto it, and the trunk over the gap (the frame goes along with the line as it moves up)
+    { at: 0, shot: { kind: 'follow', subjects: () => [...between(33.5, 43.6), at(39.7, 8.9, 6.6), at(42.6, 9.9, 9.2), at(44.6, 8.9, 9.2)], front: view([-.45, -1], [-.85, -.55]), elevation: tall ? 22 : 16, cut: true, floor: 'auto' },
       act: all(() => { if (!stage.task.start('walk')) stage.task.abort(); }, () => stage.mosi.look(trunk().far)) },
-    // Over the trunk, one behind the other
-    { at: 1.3, shot: { kind: 'follow', subjects: crossing, front: view([-.12, -1]), elevation: 14, cut: true, floor: 'auto' } },
-    { at: 1.35, wait: { until: () => mosiOver() || ended(), timeout: 9 } },
+    { at: .1, wait: { until: () => mosiPast(41.3) || ended(), timeout: 7.6 } },
+    // From Sólarsyllan's side and above: they come over the trunk and step down off its top end (the frame holds the trunk over the gap and the step off; those who have
+    // stepped off walk out of it to their places. Lower, the stone on Sólarsyllan stood in front of them, and those going to their places walked into the camera.)
+    { at: .2, shot: { kind: 'follow', subjects: () => [...between(40.6, 48.6), at(41.3, 8.9, 9.2), trunk().top, at(48.4, 8.9, 9.2)], front: view([.55, -1], [.75, -.7]), elevation: tall ? 30 : 28, cut: true, floor: 'auto' } },
+    { at: .3, wait: { until: () => stage.task.phase() !== 'walk' || ended(), timeout: 7.6 } },
     // Everyone on Sólarsyllan
     { at: 1.4, shot: { kind: 'wide', subjects: () => [...everyone(), stage.task.up(57, 9, 3), stage.task.up(50, 9, 11.6)], front: view([-.25, -1]), elevation: 18, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
     { at: 1.45, wait: { until: ended, timeout: 6 } },
