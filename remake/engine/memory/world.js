@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pickQuality } from '../quality.js';
-import { pickLook } from '../looks.js';
-import { createLighting } from '../lighting.js';
+import { pickLook, LOOKS } from '../looks.js';
+import { createLighting, sunDirection } from '../lighting.js';
 import { installDepthShadows } from '../shadows.js';
 import { installFog } from '../fog.js';
 import { createSky } from '../sky.js';
@@ -98,6 +98,22 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   lighting.sun.shadow.radius = 1.65;
   installFog(scene, look, lighting.direction);
   const sky = createSky({ renderer, scene, look, sunDir: lighting.direction });
+  // (Task 7) The light `t` of the way from look `a` to look `b` (stage.daylight): the sun's colour, strength and direction (`turn` of the way), the
+  // fill, the haze's colour and thickness, the sky's colours and clouds, the exposure and the sky's light on the friends. (The haze's glow toward
+  // the sun is built into the shaders once and stays where the level's own look put it: it is faint, and only seen looking up into the sun.)
+  const skyUniforms = sky.dome.material.uniforms, mixA = new THREE.Color(), mixB = new THREE.Color();
+  function mixLook(a, b, t, turn = t) {
+    const num = (x, y) => x + (y - x) * t, col = (target, x, y) => target.copy(mixA.set(x).lerp(mixB.set(y), t));
+    col(lighting.sun.color, a.sun.color, b.sun.color); lighting.sun.intensity = num(a.sun.intensity, b.sun.intensity);
+    lighting.direction.copy(sunDirection({ sun: { azimuth: a.sun.azimuth + (b.sun.azimuth - a.sun.azimuth) * turn, elevation: a.sun.elevation + (b.sun.elevation - a.sun.elevation) * turn } }));
+    skyUniforms.uSunDir.value.copy(lighting.direction);
+    col(lighting.hemi.color, a.hemi.sky, b.hemi.sky); col(lighting.hemi.groundColor, a.hemi.ground, b.hemi.ground); lighting.hemi.intensity = num(a.hemi.intensity, b.hemi.intensity);
+    col(scene.fog.color, a.fog.color, b.fog.color); scene.fog.density = num(a.fog.density, b.fog.density);
+    col(skyUniforms.uZenith.value, a.sky.zenith, b.sky.zenith); col(skyUniforms.uHorizon.value, a.sky.horizon, b.sky.horizon); col(skyUniforms.uGlow.value, a.sky.glow, b.sky.glow);
+    col(skyUniforms.uCloud.value, a.sky.cloud, b.sky.cloud); col(skyUniforms.uCloudShade.value, a.sky.cloudShade, b.sky.cloudShade); skyUniforms.uCover.value = num(a.sky.cloudCover, b.sky.cloudCover);
+    col(skyUniforms.uFogColor.value, a.fog.color, b.fog.color); col(skyUniforms.uFogSun.value, a.fog.sunColor, b.fog.sunColor); skyUniforms.uFogSunStrength.value = num(a.fog.sunStrength, b.fog.sunStrength);
+    renderer.toneMappingExposure = num(a.exposure, b.exposure); scene.environmentIntensity = num(a.envIntensity, b.envIntensity);
+  }
   const wind = createWind(); wind.uniforms.uWindStrength.value = .38;
   const layout = {
     seed: 251017, clearing: { center: [-1.5, -1.5], radius: 14 }, forestEdge: 20,
@@ -259,6 +275,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     beat: (name, cut = false) => { beats.push({ name, t: +time.toFixed(2), cut }); if (beats.length > 60) beats.shift(); },
     // The celebration's gifts (scenes/celebrate.js).
     gifts: { count: () => found().length, hover: i => giftHover(i), across: () => giftAcross(), start: startGifts, end: flyGifts },
+    // (Task 7) The light between two looks (engine/looks.js names): `t` of the way from `from` to `to`, the sun's direction `turn` of the way
+    // (a level may warm the light before it moves the shadows). Only a level that asks changes it; level 1 never does.
+    daylight: (from, to = from, t = 0, turn = t) => mixLook(LOOKS[from] ?? look, LOOKS[to] ?? look, t, turn),
     sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
     forceHome(cell) {

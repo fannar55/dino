@@ -16,6 +16,8 @@ import { pullScene, walkScene } from './scenes/pull.js';
 import { createRope } from './rope.js';
 import { createTrunk } from './ledge.js';
 import { ROPE2 } from './upper-mover.js';
+import { createDusk } from './dusk.js';
+import { createStars } from './stars.js';
 
 // The farthest hills are only seen in the overview: pale rock buttes in the haze, in the forest's far rings (a ring's `color` is the colour
 // of its crowns, `haze` what they fade into).
@@ -44,6 +46,9 @@ export function createLevelWorld(stage) {
   let models = null, upperModels = null, upper = null, rope = null, rope2 = null, trunk = null, gorge = null, interior = null, mover = null, groundLook = null, snapshot = null, taskScript = null, searchCamera = null, api = null;
   // The one number the tunnel's shaders read: how far the Kambeðlur's plates have lit it (0 dark, 1 lit; tunnel.js eases it).
   const glow = { uLight: { value: 0 } };
+  // (Task 7) The light from the afternoon to the evening (dusk.js), a stage further after each step, and the stars of the celebration (stars.js).
+  const dusk = createDusk(stage);
+  let stars = null;
   // The Kambeðlur's plates (engine/plate-glow.js): their glow is the light of the tunnel's task, raised a step with each tap; with none lit they look as they always did.
   const glows = [];
   const plates = {
@@ -132,6 +137,9 @@ export function createLevelWorld(stage) {
     stone: () => upper.world(upper.anchors.stone.x, upper.anchors.stone.y + 1, upper.anchors.stone.z),
     local: point => upper.local(point),
     done: () => mover.upper.debug().action?.done ?? 0,
+    // (Task 7) the celebration: the light on to `target` (3: the evening) over `seconds`, and the stars out over `seconds`
+    dusk: (target, seconds) => dusk.to(target, seconds),
+    stars: seconds => stars?.show(seconds),
     mosiHeight: () => stage.mosi.actor.root.position.y,
     // The way from the mouth toward the camera: the tunnel's own way out (0) turned toward where the search camera stood when the task began (1), so that the shots look into it from the glade's side.
     front(toward = .3) {
@@ -227,7 +235,8 @@ export function createLevelWorld(stage) {
       rope2 = createRope(stage, { from: upper.onGround(...ROPE2.from), to: upper.onGround(...ROPE2.to), parent: upper.group, groundAt: upper.groundAt }); rope2.mesh.name = 'Reipið (annað)';
       mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level, upper, rope, rope2, trunk, setLower: visible => { gorge.group.visible = visible; } });
       mover.setReducedMotion(stage.reducedMotion());
-      if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, upper, rope, rope2, trunk, glow, stage, mover, plates, get api() { return api; } };
+      stars = createStars({ THREE, scene });
+      if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, upper, rope, rope2, trunk, glow, stage, mover, plates, dusk, stars, get api() { return api; } };
     },
     /** The friends exist and have their LODs: the Kambeðlur's plates can glow (before the scene is compiled, so that their shader is made once). */
     afterBabies(actors) {
@@ -307,13 +316,13 @@ export function createLevelWorld(stage) {
     qaPlace(formation) { for (const species of level.friends) mover.bindPair(species, stage.babies.filter(actor => actor.species === species)); return mover.upper.qaPlace(formation); },
     isBusy: () => Boolean(mover?.isBusy()),
     /** The step rules' state (step-rules.js getState()). */
-    setStepState(state) { snapshot = { ...state }; mover?.setState(snapshot); },
+    setStepState(state) { snapshot = { ...state }; mover?.setState(snapshot); dusk.follow(snapshot); },
     /** The events the mover raised since the last call ({ type, id... }: 'bridge-complete', the beats, the light and the rocks, the goes). */
-    pollEvents: () => mover?.pollEvents() ?? [],
+    pollEvents: () => [...(mover?.pollEvents() ?? []), ...(stars?.poll() ?? [])],
 
     // ---- every frame ----
     // (the trunk is drawn from the time the rope is up the cliff: it is the clifftop's, and the cuts below the cliff are the tightest of the level's budget)
-    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); rope2?.update(); if (trunk) trunk.group.visible = Boolean(snapshot?.ropeUp); },
+    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); rope2?.update(); if (trunk) trunk.group.visible = Boolean(snapshot?.ropeUp); dusk.update(dt); stars?.update(dt); },
     afterActors() {},
 
     // ---- who is where ----
@@ -337,11 +346,11 @@ export function createLevelWorld(stage) {
     // ---- the page's debug and the round's end ----
     getDebug({ collision = false } = {}) {
       return { bridge: mover?.debug() ?? {}, mosiWalk: null, mosiAcross: false, river: null, collisionObjects: collision ? upperCollision() : [],
-        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug(), rope2: rope2?.debug(), trunk: trunk?.debug() } : null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
+        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug(), rope2: rope2?.debug(), trunk: trunk?.debug() } : null, dusk: dusk.debug(), stars: stars?.debug() ?? null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
-    reset() { snapshot = null; taskScript = null; rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
-    dispose() { interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
+    reset() { snapshot = null; taskScript = null; dusk.set(0); stars?.reset(); rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
+    dispose() { stars?.dispose(); interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
   };
   return api;
 }

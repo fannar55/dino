@@ -570,6 +570,14 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       if (recordings.has('gravel-climb')) return recording('gravel-climb', now, 0, 'gravel-climb', .85);
       sample('gravel', now, .12, -.1, 'gravel-climb'); sample('foot', now + .2, .07, .1); sample('foot', now + .45, .07, -.1); return true;
     },
+    // (Task 7) A star comes out over Sólarsyllan: the light's glow chime again, soft and high, each a step up the pentatonic scale above the
+    // tunnel's three (the fifth, the sixth, the octave...), left and right in turn.
+    starChime(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.floor(index) || 0), rate = [1.5, 1.68, 2, 2.24, 2.52, 3][i % 6], id = glowChime();
+      if (recordings.has(id)) return recording(id, now, i % 2 ? .25 : -.25, 'star-chime', .42, rate);
+      note(MEMORY_KEY[i % 5], now, .35, .015); return true;
+    },
     mute(value) {
       if (disposed) return;
       muted = Boolean(value);

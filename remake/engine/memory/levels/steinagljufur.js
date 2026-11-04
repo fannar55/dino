@@ -223,6 +223,8 @@ export const STEINAGLJUFUR = freezeLevel({
     'trunk-tilt': ['ropeTighten'],
     'trunk-fall': ['bridgeLand'],
     'trunk-dust': ['rocksTumble'],
+    // The celebration (Task 7): each of the first stars that comes out is a soft, high chime (the light's chime, a step up the scale each time).
+    'star-out': [{ method: 'starChime', arg: 'index' }],
   },
   eventCaptions: {
     'tunnel-lit': { text: 'Plöturnar lýsa eins og ljósker!', hold: 3.2 },

@@ -36,6 +36,31 @@ export const LOOKS = {
     fog: { color: '#e9dcc5', sunColor: '#ffe2b8', sunStrength: 0.8, density: 0.0042, heightFalloff: 0.04 },
     envIntensity: 0.55,
   },
+  // Task 7: level 2's round goes on from the afternoon to the evening (levels/steinagljufur/world.js blends between these four, a stage after
+  // each step). Every value is spelled out, so a blend never reads a field another look leaves out. The sun swings round from over the glade
+  // (azimuth 30) to behind the cameras of the upper gorge (they look from about 136-150 degrees), so the friends' faces on Sólarsyllan catch the
+  // last light and the sky the cameras see over the hillside is the darker, eastern one where the stars come out.
+  gorgeGolden: {
+    sun: { azimuth: 95, elevation: 24, color: '#ffcb8e', intensity: 2.9 },
+    hemi: { sky: '#d6d4dc', ground: '#8a6a45', intensity: 0.58 },
+    sky: { zenith: '#6f9bd0', horizon: '#f4d6a8', glow: '#ffd59a', cloud: '#fff0dc', cloudShade: '#d9b9a0', cloudCover: 0.5 },
+    fog: { color: '#ecd3ae', sunColor: '#ffd29a', sunStrength: 0.8, density: 0.0044, heightFalloff: 0.04 },
+    exposure: 1.0, envIntensity: 0.55,
+  },
+  gorgeSunset: {
+    sun: { azimuth: 135, elevation: 14, color: '#ffa36a', intensity: 2.8 },
+    hemi: { sky: '#d4bcc4', ground: '#8a5a3c', intensity: 0.62 },
+    sky: { zenith: '#4a5c9a', horizon: '#f2a882', glow: '#ffb070', cloud: '#ffc6a4', cloudShade: '#a8879c', cloudCover: 0.45 },
+    fog: { color: '#e8b190', sunColor: '#ffad74', sunStrength: 0.8, density: 0.0046, heightFalloff: 0.04 },
+    exposure: 1.04, envIntensity: 0.5,
+  },
+  gorgeEvening: {
+    sun: { azimuth: 150, elevation: 7, color: '#ff8f6a', intensity: 1.9 },
+    hemi: { sky: '#8f9fd0', ground: '#5a4640', intensity: 0.85 },
+    sky: { zenith: '#0f1838', horizon: '#6e5a82', glow: '#ff9466', cloud: '#4a4266', cloudShade: '#2a2a48', cloudCover: 0.62 },
+    fog: { color: '#6e5a82', sunColor: '#ff9466', sunStrength: 0.8, density: 0.0042, heightFalloff: 0.04 },
+    exposure: 1.08, envIntensity: 0.4,
+  },
   golden: {
     sun: { azimuth: 210, elevation: 15, color: '#ffc68a', intensity: 2.9 },
     hemi: { sky: '#cadcef', ground: '#6b5a37', intensity: 0.55 },
