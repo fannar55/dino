@@ -545,7 +545,9 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     members('pteranodon').forEach((actor, i) => {
       const spot = spotOf('sun', 'pteranodon', i), points = [U.world(33 + i, 12.4, 5.6 + i), U.world(43.5, 13.2, 8 + i * 1.4), U.world(spot.frame[0] - 2, 11.2, spot.frame[1])];
       actor.carry?.(false);
-      const ok = actor.fly?.(points, { speed: 5.2 - i * .3, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: () => { action && action.landed++; } }) || (action && action.landed++); } });
+      // (the walk ends when they are down too: at 5.2 and 4.9 m/s the second landed 1.8 s after Mosi was in his place)
+      const landed = () => { if (action) { action.landed++; action.times.push(`pteranodon${i} ${action.age.toFixed(2)}`); } };
+      const ok = actor.fly?.(points, { speed: 6.4 - i * .3, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: landed }) || landed(); } });
       if (!ok) { walkers.place(actor, spot.point, spot.yaw); action.landed++; }
     });
     return true;
