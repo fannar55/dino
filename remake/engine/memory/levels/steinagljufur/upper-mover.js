@@ -17,8 +17,10 @@ import { CLIMB, TREE_AT, wayPoints } from './upper-ground.js';
  *   pull      (a together step: no pair is picked) the Flugeðlur fly the second rope out over the gap, round the stone on Sólarsyllan and back up to the stub near the dead trunk's
  *             top, and knot it there, while everyone else lines up on it; each tap they all lean back and strain and the trunk tilts a step (three), the third throws it over the
  *             gap, where it lies as a bridge (ledge.js)
- *   walk      everyone goes over the trunk to Sólarsyllan, one behind the other: up its side wide of the roots, along its top, down off its top end, each body kept over
- *             the bark widened by its width (ledge.js cover; keepOver); the Flugeðlur fly over, and the walk ends when they are down too, inside 10 s (getDebug: walked, times)
+ *   walk      everyone goes over the trunk to Sólarsyllan at a calm walk (WALK.deck 3.6 m/s, level 1's crossing pace), one behind the other, each on one way with no step
+ *             at its ends: up its side wide of the roots, along its top, down off its top end, each body kept over the bark widened by its width (ledge.js cover; keepOver);
+ *             the second rope lies slack on the ground and along the trunk's open side to the stone (slackPath); the Flugeðlur glide over from the start, and the walk ends
+ *             when they are down too, inside 14 s (getDebug: walked, times)
  *   a wrong friend's go at the ledge and at the cliff (`startFail`)
  *
  * Positions are in the upper gorge's frame (upper.js: x forward, z to the right, y up) turned into the scene's by `U.world`. Everything runs on the game clock (update(dt)).
