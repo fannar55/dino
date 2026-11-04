@@ -169,7 +169,9 @@ test('level 2 tells the search with its own g2- keys and stops there until its s
   assert.equal(nextStoryStep(memory, { unlocked: friends, done: lit }, ready, STEINAGLJUFUR).key, 'g2-through-open');
   // A state written by hand (no `done`) is read through the level's own fields.
   assert.deepEqual(nextStoryStep(memory, { unlocked: friends, tunnelLit: true }, ready, STEINAGLJUFUR).key, 'g2-headbutt-ready');
-  assert.deepEqual(say({ unlocked: friends, active: 'pull', done: [] }), ['g2-doing-pull', 'Einn, tveir, TOGA!']);
+  // (the pull's count goes up in Mosi's bubble only when he says it, once everyone stands on the tied rope and the taps are wanted: scenes/pull.js says g2_pull;
+  // from the tap on the trunk until then the bubble keeps "Togum öll saman í reipið!")
+  assert.deepEqual(say({ unlocked: friends, active: 'pull', done: [] }), ['g2-doing-pull', 'Togum öll saman í reipið!']);
   assert.deepEqual(say({ unlocked: friends, done: STEINAGLJUFUR.steps.map(step => step.id) }), ['g2-home', 'Öll komumst við upp! Vel gert!']);
   assert.deepEqual(say({ unlocked: friends, asking: 'tunnel', done: [] }, ready), ['g2-who-tunnel', 'Hver getur þetta?']);
 });

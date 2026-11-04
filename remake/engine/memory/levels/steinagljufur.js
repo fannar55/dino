@@ -121,7 +121,9 @@ export const STEINAGLJUFUR = freezeLevel({
     },
     pull: {
       doing: 'g2-doing-pull', ready: 'g2-pull-ready',
-      prompts: { doing: 'Einn, tveir, TOGA!', ready: 'Togum öll saman í reipið!' },
+      // (the count, "Einn, tveir, TOGA!", is Mosi's own line when the rope is tied and everyone stands on it: scenes/pull.js says g2_pull and game.js puts it up then;
+      // from the tap until then his bubble keeps the words he asked with)
+      prompts: { doing: 'Togum öll saman í reipið!', ready: 'Togum öll saman í reipið!' },
     },
     walk: {
       doing: 'g2-doing-walk', open: 'g2-walk-open',
