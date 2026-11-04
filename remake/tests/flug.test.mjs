@@ -16,7 +16,7 @@ import * as flugModule from '../chapters/flug.js';
 
 // What a run sees: Mosi on the screen in each beat, her place and the camera at flight times, the clock's scale.
 function watcher({ at = [] } = {}) {
-  const seen = { mosiSeen: {}, places: {}, scales: [], banks: [], camera: [], u: [], framing: [], looked: 0, music: [], sfx: [], light: [] };
+  const seen = { mosiSeen: {}, places: {}, scales: [], banks: [], camera: [], u: [], framing: [], looked: 0, music: [], lenient: [], sfx: [], light: [] };
   let lastLook = -1;
   const wanted = [...at];
   const head = new THREE.Vector3();
@@ -29,7 +29,10 @@ function watcher({ at = [] } = {}) {
       world.clock.setScale = value => { seen.scales.push({ value, at: c.flier.t }); return setScale(value); };
       // the page's music, sun and fill light, which the harness's world has none of; and the sounds the flight asks for, with when
       const flightTime = () => c.s.time - c.flight.started;
-      world.music = { setLevel: (level, seconds) => seen.music.push({ level, seconds, t: flightTime() }) };
+      world.music = {
+        setLevel: (level, seconds) => seen.music.push({ level, seconds, t: flightTime() }),
+        lenient: seconds => seen.lenient.push({ seconds, t: flightTime() }),
+      };
       world.lighting.sun ??= new THREE.DirectionalLight('#ffffff', 1);
       world.lighting.hemi ??= new THREE.HemisphereLight('#ffffff', '#000000', 1);
       const sfx = c.s.sfx;
@@ -172,17 +175,19 @@ test('the slow second at the crest of E is on the game clock, and back to normal
   assert.equal(full.seen.scales.at(-1).value, 1);
 });
 
-test('the music drops to silence for the slow second at the crest and comes back with the burst out of the spray', () => {
-  const { music } = full.seen;
-  const silent = music.filter(m => m.level === 0);
-  assert.equal(silent.length, 1, JSON.stringify(music));
-  assert.ok(Math.abs(silent[0].t - SLOW.at) < 0.05 && silent[0].seconds <= 0.2, `silent at ${silent[0].t.toFixed(2)} s over ${silent[0].seconds} s`);
-  const before = music.filter(m => m.t < silent[0].t).at(-1);
-  assert.equal(before.level, MUSIC.flight, 'the flight\'s level up to the crest');
-  const back = music[music.indexOf(silent[0]) + 1];
-  assert.equal(back.level, MUSIC.flight);
-  assert.ok(back.t - silent[0].t <= SLOW.seconds * SLOW.scale + 0.05, `back at ${back.t.toFixed(2)} s: a second of the room's time later`);
-  assert.ok(Math.abs(back.t - GOLDEN.at) < 0.05, 'as the light begins to go golden');
+test('the music plays on through the slow second at the crest: never lowered there, and let run at its own speed past the slowed clock', () => {
+  // the owner (2026-11-04): the slow motion at the top is good, but the music going down with it sounded wrong
+  const { music, lenient } = full.seen;
+  assert.deepEqual(music.filter(m => m.level === 0), [], 'the music is never silenced in the flight');
+  const atCrest = music.filter(m => m.t > SLOW.at - 1 && m.t < GOLDEN.at + 1);
+  assert.deepEqual(atCrest, [], `no change of level round the crest: ${JSON.stringify(atCrest)}`);
+  const before = music.filter(m => m.t < SLOW.at).at(-1);
+  assert.equal(before.level, MUSIC.flight, 'the flight\'s level through the crest');
+  // the playhead belongs to the game clock: held to a clock at a quarter speed, the music would be dipped and moved back each
+  // second; a lenient window over the slow second lets the playhead follow the sound instead (engine/audio/music.js)
+  assert.equal(lenient.length, 1, JSON.stringify(lenient));
+  assert.ok(Math.abs(lenient[0].t - SLOW.at) < 0.05, `the window opens at the crest, at ${lenient[0].t.toFixed(2)} s`);
+  assert.ok(lenient[0].seconds >= SLOW.seconds * SLOW.scale && lenient[0].seconds <= 1, `it covers the slow second's game time: ${lenient[0].seconds} s`);
 });
 
 test('the light goes golden from the burst out of the spray, stays golden through F, and is back to the chapter look by the end', () => {

@@ -51,7 +51,8 @@ const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
 // The first shot, close in front of Egill: perched, she holds her head high, so a little higher and wider than the flight's own close-up.
 // The full chapter holds it on the white tree before the cut into the flight (kafli4.js), so the two must be the one framing.
 export const TAKE_OFF_FACE = { raise: 0.45, fov: 52 };
-// The music (spec 8: the same theme louder through the flight, silent for the slow second, quieter as she glides down).
+// The music (spec 8: the same theme louder through the flight, quieter as she glides down; it plays on through the slow second, the
+// owner's ruling of 2026-11-04 over the spec's silence there).
 export const MUSIC = { flight: 1.5, glide: 0.8 };
 export const SLOW = { at: 116.2, scale: 0.25, seconds: 1 }; // the crest of the falls: one second of the room's time at a quarter speed
 // The golden light: from the chapter's look toward LOOKS.golden over `rise` seconds from the burst out of the spray (the end of the
@@ -301,14 +302,16 @@ function* beats(s, c) {
   camera.shot('chase');
   yield* at(SLOW.at);
   if (!c.reduced) {
-    world.music?.setLevel?.(0, 0.15);
+    // the music plays on through the slow second (the owner, 2026-11-04: it going down there sounded wrong). Its playhead belongs to
+    // the game clock, which runs at a quarter now, so a lenient window lets the playhead follow the sound instead of dipping and
+    // moving it back (engine/audio/music.js): the music comes out of the second 0.75 s further on than the clock.
+    world.music?.lenient?.(SLOW.seconds * SLOW.scale + 0.25);
     world.clock?.setScale?.(SLOW.scale);
     try {
       yield s.wait(SLOW.seconds * SLOW.scale); // a second of the room's time, a quarter of one of the game's
     } finally {
       world.clock?.setScale?.(1);
     }
-    world.music?.setLevel?.(MUSIC.flight, 0.6);
     if (!s.seeking) sounds.wingbeat();
   }
 
