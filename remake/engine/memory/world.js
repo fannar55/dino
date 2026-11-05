@@ -693,7 +693,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const haloMap = () => haloTexture ??= (() => {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
     const g = canvas.getContext('2d'), fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.3, 'rgba(255,205,130,.78)'); fill.addColorStop(.6, 'rgba(255,175,95,.26)'); fill.addColorStop(.85, 'rgba(255,165,85,.04)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
+    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.3, 'rgba(255,205,130,.85)'); fill.addColorStop(.6, 'rgba(255,175,95,.34)'); fill.addColorStop(.85, 'rgba(255,165,85,.04)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
     g.fillStyle = fill; g.fillRect(0, 0, 64, 64); const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
   })();
   const haloAt = new THREE.Vector3(), haloBox = new THREE.Box3(), haloSize = new THREE.Vector3();
@@ -717,7 +717,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const group = entry.model.group;
     haloBox.setFromObject(group).getCenter(haloAt); haloBox.getSize(haloSize);
     halo.position.copy(haloAt); halo.position.y += .2; haloAt.sub(camera.position).setY(0).normalize();
-    halo.position.addScaledVector(haloAt, .35); entry.haloUnit ??= Math.max(haloSize.x, haloSize.y, haloSize.z) / Math.max(.01, group.scale.x); halo.scale.setScalar(1.6 * entry.haloUnit * group.scale.x + .3); halo.material.opacity = .8 * k; halo.visible = group.visible && k > .01;
+    halo.position.addScaledVector(haloAt, .35); entry.haloUnit ??= Math.max(haloSize.x, haloSize.y, haloSize.z) / Math.max(.01, group.scale.x); halo.scale.setScalar(1.6 * entry.haloUnit * group.scale.x + .3); halo.material.opacity = .95 * k; halo.visible = group.visible && k > .01;
   }
   function unglowGifts() {
     for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; m.color.copy(saved.base); } glowSaved.clear();
@@ -742,7 +742,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
         scale = THREE.MathUtils.lerp(size, GIFT.shrink, t);
         if (t >= 1) { group.visible = false; landed++; }
       }
-      if (gift.layout?.glow) glowGift(entry, (gift.phase === 'fly' ? 1 - smooth(fly ? gift.flyAge / fly : 1) : 1) * THREE.MathUtils.clamp((gift.age - delay - rise) / .6, 0, 1) * (.75 + .25 * Math.sin((gift.age - delay) * 3 + i)));
+      // (the glow comes up during the second half of the rise, so the row is lit while it is shown, and breathes a little: Task 7 fix round 1)
+      if (gift.layout?.glow) glowGift(entry, (gift.phase === 'fly' ? 1 - smooth(fly ? gift.flyAge / fly : 1) : 1) * THREE.MathUtils.clamp((gift.age - delay - rise * .5) / .5, 0, 1) * (.82 + .18 * Math.sin((gift.age - delay) * 3 + i)));
       group.scale.setScalar(scale); faceCamera(entry.model); entry.model.animate(gift.age);
     });
     if (gift.phase === 'fly' && landed === n) stopGifts();
