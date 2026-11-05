@@ -2395,6 +2395,28 @@
         }
       },
       "chosen": "hratt"
+    },
+    "vini": {
+      "word": "vini",
+      "stem": "[Vv]ini$",
+      "forms": [
+        "vini"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú samþykktir „Finndu tvo eins vini.“ þannig (g2_welcome, 2026-11-02), en í „Finnum vini fyrst!“ heyrðirðu „vinni“ 2026-11-05, bæði í gömlu tökunni og í Ný 3."
+        },
+        "ipa": {
+          "say": "\"/ˈvɪːnɪ/\"",
+          "note": "IPA /ˈvɪːnɪ/ (langt i, eitt n), með línuna sjálfa á undan sem samhengi og fræ 7. Þú hafnaðir henni 2026-11-05 (minnisspil, vini.html, tilraun A)."
+        },
+        "samhengi": {
+          "context": "Vinir okkar eru í feluleik undir laufunum.",
+          "seed": 7,
+          "note": "Setning um vinina í feluleik send á undan sem samhengi, ekki töluð, fræ 7. Vann hjá þér 2026-11-05 í „Finnum vini fyrst!“ (minnisspil, vini.html, tilraun B)."
+        }
+      },
+      "chosen": "hratt"
     }
   }
 }

@@ -33,7 +33,7 @@ export const VOICE_LINES = Object.freeze({
   other: { text: 'Kannski einhver annar?', seed: 251202 },
   together: { text: 'Við gerum þetta saman!', seed: 251203 },
   push: { text: 'Einn, tveir, ÝTA!', context: COUNTING, seed: 7, kept: "the owner's pick by ear, 2026-10-30: einn-4 (Litla Yatzy's counting context, seed 7)", fixes: 'einn' },
-  findFirst: { text: 'Finnum vini fyrst!', seed: 251205 },
+  findFirst: { text: 'Finnum vini fyrst!', context: 'Vinir okkar eru í feluleik undir laufunum. Finnum vini fyrst!', seed: 7, kept: "the owner's pick by ear, 2026-11-05 (qa/memory/bord2/nordur/vini.html): take B, a sentence about the friends hiding as context and seed 7, after he heard \"vinni\" in the old take and in Ný 3", fixes: 'vini' },
   notYet: { text: 'Fyrst þurfum við að lyfta greininni!', seed: 251206 },
   // The gifts (Task 9): the crossing waits for them, Mosi names each pair as it is found, and the round always ends with all three.
   giftsLeft: { text: 'Finnum fyrst gjafirnar sem eru eftir!', seed: 251301 },
