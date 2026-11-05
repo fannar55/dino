@@ -38,9 +38,10 @@ const FEN_FLIES = { at: [7, 10.5, 14, 17], off: [8, 10, 7, 12], up: 1.4 };
 // The fish: one every `every` metres up the river from `from`, `off` metres beside her path, jumping `height` m in `seconds` when
 // she is `ahead` metres before it, `across` metres out from her path.
 const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
-// The bank trees: in the gaps between the groups (but those just after a group of birds), `e` m from the water, `scale` as the
-// birds' trees in animals.js; four birds in the crown's river side ([turn from facing the river, height in the crown]).
-const PERCHES = { gaps: [0, 1, 3, 4, 6, 7], side: [-1, 1, 1, -1, -1, 1], e: 7, scale: 0.65, within: 20, out: 0.85, birds: [[-0.7, 0.3], [-0.25, -0.05], [0.25, 0.4], [0.7, 0.1]] };
+// The bank trees: in the gaps between the groups (but those just after a group of birds; the third on the far bank from the second
+// water-level shot, which stands by the near one), `e` m from the water, `scale` as the birds' trees in animals.js; four birds in
+// the crown's river side ([turn from facing the river, height in the crown]).
+const PERCHES = { gaps: [0, 1, 3, 4, 6, 7], side: [-1, 1, -1, -1, -1, 1], e: 7, scale: 0.65, within: 20, out: 0.85, birds: [[-0.7, 0.3], [-0.25, -0.05], [0.25, 0.4], [0.7, 0.1]] };
 // The water striders: one every `every` metres from `from`, on alternate banks, `e` from the water's edge; a skim within `reach`
 // sends them `out` metres off and back in `seconds`.
 const STRIDERS = { from: 40, every: 55, count: 8, e: [-2.0, -2.5, -3.0], reach: 10, out: 1.5, seconds: 2 };

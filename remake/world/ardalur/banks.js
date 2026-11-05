@@ -148,6 +148,39 @@ const SCALE = {
 const BANK = { step: 2.5, rows: [[0.6, 3.4], [3.2, 6.4]], chance: 0.85, jitter: 1.0, near: 2.0 };
 /** Within `reach` metres of an animal group, on its side of the river, nothing taller than `height` grows (REAL.low there). */
 export const LOW = { reach: 10, height: 0.6 };
+/**
+ * The still shots' views (engine/camera/flight-camera.js stillViews, spec 6): nothing taller than `tall` within `near` metres of a
+ * camera (seen from above), and nothing within `gap` metres of a line from a camera to what it looks at.
+ */
+export const VIEW = { near: 6, tall: 0.5, gap: 1 };
+const VIEW_STEP = 0.25; // metres between the points of a line of sight a plant is measured from (and VIEW_STEP / 2 more kept clear)
+
+/** The views' lines of sight, each with its box seen from above. */
+function linesOf(views) {
+  return views.flatMap(v => v.looks.map(b => {
+    const a = v.position;
+    return { a, b, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minZ: Math.min(a.z, b.z), maxZ: Math.max(a.z, b.z) };
+  }));
+}
+
+/** True when a plant at (x, y, z), `r` round and `h` tall, stands in a still shot's view: tall by its camera, or by a line of sight. */
+function inView(views, lines, x, y, z, r, h) {
+  if (h > VIEW.tall && views.some(v => Math.hypot(v.position.x - x, v.position.z - z) <= VIEW.near)) return true;
+  const reach = r + VIEW.gap + VIEW_STEP;
+  for (const { a, b, minX, maxX, minZ, maxZ } of lines) {
+    if (x < minX - reach || x > maxX + reach || z < minZ - reach || z > maxZ + reach) continue;
+    const length = a.distanceTo(b);
+    const steps = Math.max(1, Math.ceil(length / VIEW_STEP));
+    for (let k = 0; k <= steps; k++) {
+      const f = k / steps;
+      const sx = a.x + (b.x - a.x) * f, sy = a.y + (b.y - a.y) * f, sz = a.z + (b.z - a.z) * f;
+      const across = Math.hypot(sx - x, sz - z) - r;
+      const up = Math.max(0, y - sy, sy - (y + h));
+      if (Math.hypot(Math.max(0, across), up) < VIEW.gap + VIEW_STEP / 2) return true;
+    }
+  }
+  return false;
+}
 const UNDERSTORY_REACH = 60; // m from the water's edge beyond which only trees grow
 const FEN_FULL = 40; // m from her path within which the Fen grows as thick as it does at the snag; beyond, FEN_FAR of that
 const FEN_FAR = 0.35;
@@ -209,10 +242,11 @@ function inHerWay(index, x, y, z, r, h, near) {
  * The steps that grow one section's real plants (a generator for the build queue). `library` is the forest's species library (one
  * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
  * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter), `low`
- * the animal groups ({ x, z, side }) round which only low plants grow (LOW). Returns { group, placements, meshes }: the placements
- * as the forest's (world/forest/plan.js), the meshes merged a section at a time.
+ * the animal groups ({ x, z, side }) round which only low plants grow (LOW), `views` the still shots' (VIEW). Returns { group,
+ * placements, meshes }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time.
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [] }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [] }) {
+  const lines = linesOf(views);
   const { own, grid: { gx0, gz0, W } } = ground;
   const rng = seeded(seed);
   const range = ([lo, hi]) => lo + rng() * (hi - lo);
@@ -267,6 +301,8 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) return;
     const models = fine ? [{ level: 1, model: middle }, { level: 2, model: coarse }] : [{ level: one ? 1 : 2, model: one ? middle : coarse }];
     const model = models[0].model;
+    const drawn = bodyOf(model, scale);
+    if (inView(views, lines, px, y - (model.sink ?? 0) * scale, pz, Math.max(drawn.r, body.r), Math.max(drawn.h, body.h))) return; // a still shot sees past it
     placements.push({
       name, model, models, variant, lod: models[0].level, x: px, y: y - (model.sink ?? 0) * scale, z: pz, rot, scale, phase,
       band: fine ? 'near' : 'far', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky, d,

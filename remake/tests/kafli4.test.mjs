@@ -16,6 +16,7 @@ import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js'
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
 import fs from 'node:fs';
+import { createModel } from '../world/critters/models.js';
 
 // Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
 // as it was, the white tree's own patch of fen, and the far pool), the camera rules of its shots, and the whole chapter played through
@@ -220,7 +221,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = {}) {
-  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
+  const seen = { shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
   let where = null;
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
@@ -262,6 +263,23 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
       }
       const scene = world.chapterTimeline?.filter(mark => typeof mark.scene === 'number').at(-1)?.scene;
       const her = world.actors.get('flugedla'), egill = world.actors.get('egill');
+      // the shadow shot (the flight camera's bankShadow): how large the lizards it is about look, as she passes them
+      if (c?.flight?.camera?.current === 'bankShadow' && world.forest?.animals) {
+        const group = world.forest.animals.groups.find(g => g.id === 'lizards-2');
+        world.camera.updateMatrixWorld();
+        // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame
+        let low = Infinity, high = -Infinity;
+        for (const m of group.members) {
+          const p = m.position.clone().project(world.camera);
+          if (!m.visible || p.z >= 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
+          const box = projectedBox(m, world.camera);
+          low = Math.min(low, box.y0);
+          high = Math.max(high, box.y1);
+        }
+        const size = high > low ? (Math.min(high, 1) - Math.max(low, -1)) / 2 : 0;
+        const at = her.root.position;
+        seen.shadow.push({ t: world.clock.time, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera) });
+      }
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
       // scene 5: how low she comes, and the black from it till two seconds into the flight
@@ -308,6 +326,20 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
       where = world.location;
     },
   }).then(run => ({ ...run, watched: seen }));
+}
+/** A critter's model box at its pose, projected: its least and most x and y on the screen (-1 to 1 across the frame). */
+const boxes = new Map();
+function projectedBox(m, camera) {
+  if (!boxes.has(m.kind)) { const g = createModel(m.kind).geometry; g.computeBoundingBox(); boxes.set(m.kind, g.boundingBox); }
+  const box = boxes.get(m.kind);
+  const h = THREE.MathUtils.degToRad(m.heading);
+  const c = Math.cos(h), s = Math.sin(h);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const lx of [box.min.x, box.max.x]) for (const ly of [box.min.y, box.max.y]) for (const lz of [box.min.z, box.max.z]) {
+    const p = new V3((lx * c - lz * s) * m.scale, ly * m.scale, (lx * s + lz * c) * m.scale).add(m.position).project(camera);
+    x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+  }
+  return { x0, x1, y0, y1 };
 }
 let wide = null, upright = null, tapped = null;
 const playWide = () => (wide ??= playIt());
@@ -560,6 +592,15 @@ test('Egill is on her back before the place changes, and nothing goes black betw
 // breath; Slóeðla's horn sounds from the reed across the pool, false; and the chapter ends as chapter 3 does, in the book.
 
 const toPool = p => Math.hypot((p.x ?? p[0]) - FAR_POOL.center[0], (p.z ?? p[1]) - FAR_POOL.center[1]);
+
+test('the shadow shot frames the lizards it is about: the group at least 8 % of the frame\'s height as she passes', async () => {
+  const { watched } = await playWide();
+  assert.ok(watched.shadow.length > 30, `the shadow shot is seen (${watched.shadow.length} frames)`);
+  const closest = watched.shadow.reduce((a, b) => (b.near < a.near ? b : a));
+  const { middle } = closest;
+  assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `the group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
+  assert.ok(closest.size >= 0.08, `the group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+});
 
 test('the far pool is a place of its own (chapter 5 begins there): the route\'s pool, its spots, and the shots scene 7 uses', () => {
   assert.deepEqual(FAR_POOL.center, POOL.center);

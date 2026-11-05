@@ -18,6 +18,7 @@ import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.
 import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
 import { createAnimals } from './animals.js';
 import { createLife } from './life.js';
+import { stillViews } from '../../engine/camera/flight-camera.js';
 import { createCrowds } from '../critters/crowd.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
@@ -70,6 +71,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const clear = real ? [...animals.clear, ...life.clear, ...pond.clear] : [];
   // round each animal group, on its side of the river, only low plants grow (banks.js LOW): the child sees the animals over them
   const low = real ? animals.groups.map(g => ({ x: g.point.x, z: g.point.z, side: terrain.where(g.point.x, g.point.z).side })) : [];
+  // the still shots' views, where nothing stands by the camera or on its line of sight (banks.js VIEW, spec 6)
+  const views = real ? stillViews(route, { heightAt: (x, z) => terrain.heightAt(x, z) }) : [];
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
@@ -148,7 +151,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const banks = grey
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
-        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low,
+        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
       });
     return { ground, banks };
   }

@@ -19,7 +19,7 @@
 // The flight has a song of its own (c.song, made by createFlightSong): it starts with the flight, half a second in, whatever came
 // before, and the page's theme goes out under it (the full chapter brings the theme back at the far pool: kafli4.js).
 import * as THREE from 'three';
-import { BEATS, LEAP, FALLS, GORGE } from './kafli4-route.js';
+import { BEATS, LEAP, FALLS, GORGE, STILLS } from './kafli4-route.js';
 import { whiteAt } from '../world/ardalur/river.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import { createSong } from '../engine/audio/song.js';
@@ -229,6 +229,19 @@ function* beats(s, c) {
   };
   const headingAlong = path => THREE.MathUtils.radToDeg(Math.atan2(path[1][1] - path[0][1], path[1][0] - path[0][0]));
   hideMosi();
+  // the still shots, from the route's list (STILLS): the n-th of a name, when it begins and ends, and the cut to it
+  const still = (name, n = 0) => {
+    const [, from, to, options] = STILLS.filter(row => row[0] === name)[n];
+    return { from, to, cut: (extra = {}) => camera.shot(name, { ...options, ...extra }) };
+  };
+  const takeOff = still('belowTakeOff');
+  const water = [still('waterLevel', 0), still('waterLevel', 1)];
+  const bank = still('mosiBank');
+  const shadow = still('bankShadow');
+  const gorge = still('gorgeHigh');
+  const rim = still('mosiRim');
+  const fallsSide = still('fallsSide');
+  const fallsTop = still('fallsTop');
 
   // A. The take-off (0:00–0:15): close in front of Egill as she turns to him, then from below as she leaps and drops and her wings
   // snap open, and beside her as she climbs away.
@@ -237,15 +250,15 @@ function* beats(s, c) {
   s.fade(0, 0.8); // up out of the black the review chapter starts in (a capture too: it starts black)
   yield* at(0.8);
   say('flugedla', 'k4_flugedla_hold');
-  yield* at(3);
-  camera.shot('belowTakeOff');
+  yield* at(takeOff.from);
+  takeOff.cut();
   yield* at(LEAP);
   c.music?.setLevel?.(MUSIC.flight, 2); // the music rises as she leaps
   yield* at(LEAP + 1);
   whoosh(1);
   yield* at(5.2);
   say('egill', 'k4_egill_wow');
-  yield* at(8);
+  yield* at(takeOff.to);
   camera.shot('side');
 
   // B. Down to the river (0:15–0:35): the Fen rushes by, then low over the water ahead of her as she levels out over it. From here
@@ -255,9 +268,9 @@ function* beats(s, c) {
   camera.shot('chase');
   play.enable('steer', true);
   play.enable('faster', true);
-  yield* at(25);
-  camera.shot('waterLevel'); // ended a second before she shoots past it: a still shot pans 40 deg/s at most
-  yield* at(28.3);
+  yield* at(water[0].from);
+  water[0].cut(); // ended a second before she shoots past it: a still shot pans 40 deg/s at most
+  yield* at(water[0].to);
   camera.shot('chase');
 
   // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it, or as Egill taps it, and it
@@ -268,17 +281,17 @@ function* beats(s, c) {
   play.enable('call', true);
   const cues = [
     { t: 44.5, act: () => camera.shot('side') },
-    { t: 51, act: () => camera.shot('waterLevel') },
-    { t: 54.5, act: () => camera.shot('chase') },
+    { t: water[1].from, act: () => water[1].cut() },
+    { t: water[1].to, act: () => camera.shot('chase') },
     // Mosi's first cameo: placed out of sight, he runs up the shallows splashing, seen from across the river as she passes him
-    { t: 57.5, act: () => { run(route.cameos.bank.path, headingAlong(route.cameos.bank.path)); camera.shot('mosiBank'); } },
+    { t: bank.from, act: () => { run(route.cameos.bank.path, headingAlong(route.cameos.bank.path)); bank.cut(); } },
     { t: 58.2, act: () => sfx('splash') },
     { t: 59.8, act: () => say('mosi', 'k4_mosi_wait') },
     { t: 60.2, act: () => whoosh(-1) },
     { t: 61, act: () => sfx('splash') },
-    { t: 63, act: () => { hideMosi(); camera.shot('bankShadow', { group: 'lizards-2' }); } },
+    { t: shadow.from, act: () => { hideMosi(); shadow.cut(); } },
     { t: 65.7, act: () => whoosh(1) },
-    { t: 68, act: () => camera.shot('chase') },
+    { t: shadow.to, act: () => camera.shot('chase') },
     { t: 75, act: () => camera.shot('side') },
   ].sort((a, b) => a.t - b.t);
   for (const cue of cues) {
@@ -305,18 +318,18 @@ function* beats(s, c) {
   yield* at(89);
   camera.shot('chase', { quick: true });
   whoosh(1);
-  yield* at(90.5);
-  camera.shot('gorgeHigh');
+  yield* at(gorge.from);
+  gorge.cut();
   yield* at(PLAY.steerLast);
   play.enable('steer', false);
-  yield* at(95.5);
+  yield* at(rim.from - 0.5);
   run(route.cameos.rim.path, headingAlong(route.cameos.rim.path)); // up on the rim, out of sight from down in the gorge
-  yield* at(96);
+  yield* at(rim.from);
   const mosiHead = new THREE.Vector3();
-  camera.shot('mosiRim', { look: out => out.copy(c.flier.pose.position).setY(c.flier.pose.position.y + 1).lerp(mosi.raw.headPosition(mosiHead), 0.5) });
+  rim.cut({ look: out => out.copy(c.flier.pose.position).setY(c.flier.pose.position.y + 1).lerp(mosi.raw.headPosition(mosiHead), 0.5) });
   yield* at(96.5);
   say('mosi', 'k4_mosi_shortcut');
-  yield* at(99.5);
+  yield* at(rim.to);
   hideMosi();
   camera.shot('chase');
 
@@ -329,11 +342,11 @@ function* beats(s, c) {
   say('egill', 'k4_egill_falls');
   yield* at(108.3);
   say('flugedla', 'k4_flugedla_up');
-  yield* at(110);
-  camera.shot('fallsSide');
-  yield* at(113.4);
-  camera.shot('fallsTop'); // the last of the climb from over the lip: the rainbow in the spray (flight-camera.js)
-  yield* at(116);
+  yield* at(fallsSide.from);
+  fallsSide.cut();
+  yield* at(fallsTop.from);
+  fallsTop.cut(); // the last of the climb from over the lip: the rainbow in the spray (flight-camera.js)
+  yield* at(fallsTop.to);
   camera.shot('chase');
   yield* at(SLOW.at);
   if (!c.reduced) {

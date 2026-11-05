@@ -12,7 +12,7 @@
 // than 15 deg/s relative to her; a fixed one when it pans faster than 40 deg/s; any shot shorter than 2.5 s, except three quick ones
 // of 1.5 s in the gorge. Shots change by cuts.
 import * as THREE from 'three';
-import { BEATS, FALLS } from '../../chapters/kafli4-route.js';
+import { BEATS, FALLS, STILLS } from '../../chapters/kafli4-route.js';
 
 export const FLIGHT_RULES = { roll: 8, minShot: 2.5, quick: { minShot: 1.5, max: 3 }, bound: { dolly: 1.2, pan: 15 }, fixed: { pan: 40 } };
 const SLACK = 1.05; // a rule is broken past 5 % over, as the director's are
@@ -35,18 +35,39 @@ const BOUND = {
   orbit: { origin: 'body', radius: 6.8, height: 1.6, from: 160, to: 60, seconds: 16, look: { origin: 'body', at: [0, 0.8, 0] }, fov: 48 },
 };
 
+// The shadow shot: `back` metres behind the group's middle (away from the river), `above` metres over the ground, looking at a point
+// `group` of the way from her body to the group's middle.
+const SHADOW = { back: 8, above: 1.6, group: 0.6 };
+const MOSI_HEAD = 1.5; // metres over the water his head is as he runs in the shallows (the lines of sight of mosiBank)
+
+/** An animal group of the route by id or kind (the first if none): its middle on the bank, 0.3 m over the ground. */
+function groupOf(route, group) {
+  return route.groups.find(x => x.id === group || x.kind === group) ?? route.groups[0];
+}
+function groupMiddle(route, group, groundAt) {
+  const g = groupOf(route, group);
+  return new V3(g.at[0], groundAt(g.at[0], g.at[2]) + 0.3, g.at[2]);
+}
+/** Away from the river, on the group's side, seen from above. */
+function groupOut(route, group) {
+  const g = groupOf(route, group);
+  const r = route.river.at(route.river.nearest(g.at[0], g.at[2]).d);
+  return [-r.dir[1] * g.side, r.dir[0] * g.side];
+}
+
 // The fixed shots, placed when they begin from where the flight is then: { position, look(out) }.
 const FIXED = {
   // A: from the ground behind the snag as she leaps away from it, looking up
   belowTakeOff: (c) => c.ground(c.route.tree[0] + 9, c.route.tree[2] - 9, 1.7, 55),
   // B, C: low over the water ahead of her, off to one side, as she comes up the river
   waterLevel: (c, { side = 1, lead = 4.5, across = 11 } = {}) => c.overWater(lead, across * side, 0.6, 44),
-  // C: on the bank behind an animal group as her shadow goes over it
+  // C: on the bank close behind an animal group as her shadow goes over it, low, looking at the group and a little toward her, so
+  // the group fills the lower frame and she passes over it (spec 6: the group at least 8 % of the frame's height)
   bankShadow: (c, { group = 'lizards-2' } = {}) => {
-    const g = c.route.groups.find(x => x.kind === group || x.id === group) ?? c.route.groups[0];
-    const r = c.route.river.at(c.route.river.nearest(g.at[0], g.at[2]).d);
-    const out = [-r.dir[1] * g.side, r.dir[0] * g.side]; // away from the river, on the group's side
-    return c.ground(g.at[0] + out[0] * 14, g.at[2] + out[1] * 14, 2.5, 46);
+    const middle = groupMiddle(c.route, group, c.groundAt);
+    const out = groupOut(c.route, group); // away from the river, on the group's side
+    const made = c.ground(middle.x + out[0] * SHADOW.back, middle.z + out[1] * SHADOW.back, SHADOW.above, 46);
+    return { ...made, look: target => target.copy(middle).multiplyScalar(SHADOW.group).addScaledVector(c.flier.pose.position, 1 - SHADOW.group) };
   },
   // C: across the river from Mosi running in the shallows (route.cameos.bank)
   mosiBank: (c) => {
@@ -93,6 +114,45 @@ const FIXED = {
   },
 };
 
+/** What a fixed shot builder may use: the route, the flier, the flight time, the ground, and places on the ground or over the water. */
+function fixedContext(route, flier, groundAt) {
+  return {
+    route, flier, t: flier.t ?? 0, groundAt,
+    ground(x, z, above, fov) { return { position: new V3(x, groundAt(x, z) + above, z), fov }; },
+    overWater(lead, across, above, fov) {
+      const s = route.distanceAt(Math.min(BEATS.END, (flier.t ?? 0) + lead));
+      const u = s / route.length;
+      const p = route.pointAt(u);
+      const tan = route.tangentAt(u);
+      const side = new V3(-tan.z, 0, tan.x).normalize();
+      const x = p.x + side.x * across;
+      const z = p.z + side.z * across;
+      return { position: new V3(x, groundAt(x, z) + above, z), fov };
+    },
+  };
+}
+
+/**
+ * Each still shot of the flight (the route's STILLS) as the unattended flight has it: where its camera stands (the FIXED builder at the
+ * shot's first second, her unsteered) and what it looks at: her body every 0.5 s of the shot, Mosi's head along his path for mosiBank,
+ * the group's middle for bankShadow. The valley keeps its plants out of these views (world/ardalur/banks.js).
+ * Returns [{ shot, from, to, position, looks }].
+ */
+export function stillViews(route, { heightAt = () => 0 } = {}) {
+  const groundAt = (x, z) => Math.max(heightAt(x, z), route.waterAt(x, z, 1) ?? -Infinity);
+  return STILLS.map(([shot, from, to, options]) => {
+    const u = route.progressAt(from);
+    const tan = route.tangentAt(u);
+    const flier = { t: from, heading: deg(Math.atan2(tan.z, tan.x)), pose: { position: route.pointAt(u) } };
+    const { position } = FIXED[shot](fixedContext(route, flier, groundAt), options);
+    const looks = [];
+    for (let t = from; t <= to + 1e-9; t += 0.5) looks.push(route.pointAt(route.progressAt(t)));
+    if (shot === 'mosiBank') for (const [x, z] of route.cameos.bank.path) looks.push(new V3(x, (route.waterAt(x, z, 2) ?? heightAt(x, z)) + MOSI_HEAD, z));
+    if (shot === 'bankShadow') looks.push(groupMiddle(route, options.group, groundAt));
+    return { shot, from, to, position, looks };
+  });
+}
+
 /** The flight camera on `director` for `flier` (engine/flier.js). Options: world (heightAt, the route's water), egill, reduced. */
 export function createFlightCamera(director, flier, { world = null, egill = null, reduced = false } = {}) {
   const route = flier.route;
@@ -127,21 +187,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   const inFrame = ([a, u, r], out) => out.set(0, 0, 0).addScaledVector(heading, a).addScaledVector(up, u).addScaledVector(right, r);
   const toFrame = (v, out) => out.set(v.dot(heading), v.y, v.dot(right));
 
-  // What a fixed shot builder may use: the route, the flier, the flight time, and places on the ground or over the water.
-  const context = () => ({
-    route, flier, t: flier.t ?? 0,
-    ground(x, z, above, fov) { return { position: new V3(x, groundAt(x, z) + above, z), fov }; },
-    overWater(lead, across, above, fov) {
-      const s = route.distanceAt(Math.min(BEATS.END, (flier.t ?? 0) + lead));
-      const u = s / route.length;
-      const p = route.pointAt(u);
-      const tan = route.tangentAt(u);
-      const side = new V3(-tan.z, 0, tan.x).normalize();
-      const x = p.x + side.x * across;
-      const z = p.z + side.z * across;
-      return { position: new V3(x, groundAt(x, z) + above, z), fov };
-    },
-  });
+  const context = () => fixedContext(route, flier, groundAt);
 
   function step(rig, dt) {
     frame();

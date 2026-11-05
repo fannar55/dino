@@ -20,6 +20,21 @@ export const BEATS = { A: 0, B: 15, C: 35, D: 80, E: 105, F: 125, G: 150, END: 1
 export const FASTER_LAST = 98;
 /** When she leaps off the snag: the close-up of Egill holding on comes first (spec 5A), she sits still till then. */
 export const LEAP = 3.5;
+/**
+ * The still shots of the flight (engine/camera/flight-camera.js FIXED), in the order the flight cuts to them (chapters/kafli4-flight.js):
+ * [shot, from, to, options], in flight seconds. The plants keep out of their views (world/ardalur/banks.js, flight-camera.js stillViews).
+ */
+export const STILLS = [
+  ['belowTakeOff', 3, 8, {}],
+  ['waterLevel', 25, 28.3, {}],
+  ['waterLevel', 51, 54.5, {}],
+  ['mosiBank', 57.5, 63, {}],
+  ['bankShadow', 63, 68, { group: 'lizards-2' }],
+  ['gorgeHigh', 90.5, 96, {}],
+  ['mosiRim', 96, 99.5, {}],
+  ['fallsSide', 110, 113.4, {}],
+  ['fallsTop', 113.4, 116, {}],
+];
 /** The white snag: its foot at the origin, its top (where she perches) 10.5 m up. */
 export const TREE = [0, 10.5, 0];
 /** How high her body (hips) rides over her feet when she flies, at the 7.5 m size (pteranodon.glb's fly and glide clips). */

@@ -12,7 +12,8 @@ import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
 import { createAnimals, ANSWER } from '../world/ardalur/animals.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
-import { HIGH } from '../world/ardalur/banks.js';
+import { HIGH, bodyOf } from '../world/ardalur/banks.js';
+import { stillViews } from '../engine/camera/flight-camera.js';
 import { createFarLand, FAR } from '../world/ardalur/far-land.js';
 import { cullBatches } from '../world/forest/batch.js';
 import { createLocations } from '../engine/locations.js';
@@ -264,6 +265,41 @@ test('the banks of A to C are green: a plant at least every 4 m of bank, low by 
       assert.ok(h <= 0.6, `${g.id}: a ${q.name} ${h.toFixed(2)} m tall stands ${Math.hypot(q.x - g.point.x, q.z - g.point.z).toFixed(1)} m from it`);
     }
   }
+});
+
+test('the still shots see what they show: nothing tall by the camera, nothing on the line of sight', () => {
+  const place = litValley();
+  const near = placementsNear(place);
+  const views = stillViews(route, { heightAt: place.heightAt });
+  for (const shot of ['belowTakeOff', 'waterLevel', 'mosiBank', 'bankShadow', 'gorgeHigh', 'mosiRim', 'fallsSide', 'fallsTop']) {
+    assert.ok(views.some(v => v.shot === shot), `a view of ${shot}`);
+  }
+  const wrong = [];
+  for (const view of views) {
+    const p = view.position;
+    for (const q of near(p.x, p.z, 6)) {
+      const h = q.model.height * q.scale;
+      if (h > 0.5) wrong.push(`${view.shot} (${view.from} s): a ${q.name} ${h.toFixed(2)} m tall ${Math.hypot(q.x - p.x, q.z - p.z).toFixed(1)} m from the camera`);
+    }
+    const blocking = new Set();
+    for (const look of view.looks) {
+      const length = p.distanceTo(look);
+      for (let k = 0; k <= length; k += 0.25) {
+        const s = p.clone().lerp(look, k / length);
+        for (const q of near(s.x, s.z, 9)) {
+          if (blocking.has(q)) continue;
+          const body = bodyOf(q.model, q.scale);
+          const across = Math.hypot(q.x - s.x, q.z - s.z) - body.r;
+          const up = Math.max(0, q.y - s.y, s.y - (q.y + body.h));
+          if (Math.hypot(Math.max(0, across), up) < 1) {
+            blocking.add(q);
+            wrong.push(`${view.shot} (${view.from} s): a ${q.name} at ${q.x.toFixed(1)}, ${q.z.toFixed(1)} in the line of sight`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(wrong, []);
 });
 
 test('the river runs: lazy below the rapids, white water only from where they begin to the falls, lilies in the lazy reach', () => {
