@@ -81,8 +81,8 @@
   },
   "together": {
     "src": "assets/audio/memory/together.mp3",
-    "duration": 2.01,
-    "mouth": "09fb008eefdfe6ed0c8003dcffda6300000000000"
+    "duration": 2.17,
+    "mouth": "5bfeb003eeedbffaee0da000edceeb53000000000000"
   },
   "push": {
     "src": "assets/audio/memory/push.mp3",
@@ -126,8 +126,8 @@
   },
   "g2_left": {
     "src": "assets/audio/memory/g2_left.mp3",
-    "duration": 3.05,
-    "mouth": "000fffdb003e800009d90ddd70c900007eb8deaeceeedbdca650000000000"
+    "duration": 3.21,
+    "mouth": "00eeeddb000da70004fed90cefc30cb00009dbcedcddfffebcd96500000000000"
   },
   "g2_welcome": {
     "src": "assets/audio/memory/g2_welcome.mp3",
@@ -161,28 +161,28 @@
   },
   "g2_lit": {
     "src": "assets/audio/memory/g2_lit.mp3",
-    "duration": 2.89,
-    "mouth": "058ffc608e9efcadabaa8000cc6cf7cddeeefd5688507a400000000000"
+    "duration": 3.05,
+    "mouth": "03ffea0ce6cdda969ccaa9008ed70dfa9dbedceb558870994000000000000"
   },
   "g2_light_ready": {
     "src": "assets/audio/memory/g2_light_ready.mp3",
-    "duration": 3.77,
-    "mouth": "00cfffeeeeb9fdf900cefd5700000000000000044dfd935d88dabc83000ed973000000000000"
+    "duration": 3.85,
+    "mouth": "6fffd808ed9bfef50cffd9700000000000000020ddca000da0d9cca6000bebcec000000000000"
   },
   "g2_rocks_ready": {
     "src": "assets/audio/memory/g2_rocks_ready.mp3",
-    "duration": 4.09,
-    "mouth": "0efffeea6647dfbafa6eff78c9400000000000040beda06d8aa770bdda0cf8e80cd750000000000000"
+    "duration": 4.49,
+    "mouth": "6edffec90020bfedd80cfc48fff77db7620000000000000000ddc905c88c9705edc0bfbdd0ce95400000000000"
   },
   "g2_rocks_done": {
     "src": "assets/audio/memory/g2_rocks_done.mp3",
-    "duration": 2.73,
-    "mouth": "ab7ffffea63300000009cecc98dcb40ed800cfe3098400000000000"
+    "duration": 2.57,
+    "mouth": "7fefeec83000000005cddccc8ddefa6cff006b97000000000000"
   },
   "g2_through": {
     "src": "assets/audio/memory/g2_through.mp3",
-    "duration": 2.81,
-    "mouth": "009fcdcddd89fee7df60a96000000000ff002aecdeda2000000000000"
+    "duration": 3.05,
+    "mouth": "4eeed90aed7bfdc6aeec00da600000000008fa0009edeffeb500000000000"
   },
   "g2_ledge_ready": {
     "src": "assets/audio/memory/g2_ledge_ready.mp3",
@@ -191,8 +191,8 @@
   },
   "g2_reached": {
     "src": "assets/audio/memory/g2_reached.mp3",
-    "duration": 2.41,
-    "mouth": "0bfecb03db9888f60300bc9bee979ff400000000000000000"
+    "duration": 2.57,
+    "mouth": "cefcca07d8988decb6308ec8aefec58aef700000000000000000"
   },
   "g2_cliff_ready": {
     "src": "assets/audio/memory/g2_cliff_ready.mp3",
@@ -201,8 +201,8 @@
   },
   "g2_flown": {
     "src": "assets/audio/memory/g2_flown.mp3",
-    "duration": 2.49,
-    "mouth": "03efedccedcdf90ced90006fefeccefc7efc30000000000000"
+    "duration": 2.41,
+    "mouth": "00dfecddfdbbdc48dd80000edfdcbffbbfd00000000000000"
   },
   "g2_climb": {
     "src": "assets/audio/memory/g2_climb.mp3",

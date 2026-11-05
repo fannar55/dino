@@ -307,7 +307,9 @@ test("every line Mosi says goes through the pronunciation standard: each hard wo
 });
 
 // The lines whose shipped take the owner rejected and whose new take he has not picked yet: id -> why, and where the candidates are.
-const WAITING = {};
+const WAITING = {
+  findFirst: 'both takes marked wrong on 2026-11-05 ("vinni" said for vini); four candidates on qa/memory/bord2/nordur/vini.html (try-findFirst.json), his pick imported with heard.mjs --made qa/memory/bord2/nordur/voices-made.json',
+};
 
 test("the owner's verdicts (remake/assets/audio/heard/, set minnisspil): no line sends a request he rejected and no shipped MP3 is a take he rejected, but those waiting for his pick; the takes he picked are the ones that ship", async () => {
   const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { readHeard, rejection } = await import('../tools/heard.mjs');
