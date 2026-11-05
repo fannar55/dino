@@ -207,7 +207,9 @@ const musicTime = () => music.position;
 // Without a theme there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
 let followed = null;
 const ui = createStageUI(document);
-const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
+// the music lowers itself under a recorded line, and a chapter's own song (world.sound.speaking: chapter 4's flight song) with it
+let lineSounding = false;
+const voice = createVoice({ onSpeaking: on => { lineSounding = on; music.duck(on); } });
 // The chapter's recordings are fetched ahead, in the background, so a line starts the moment the scene asks for it: over the
 // network a recording asked for at its cue starts late, and the mouth ran ahead of the voice (the owner's reports of 2026-10-25).
 // The scene keeps time with the sound either way (scene.js sayTask); this makes the wait a few milliseconds instead of seconds.
@@ -218,7 +220,7 @@ if (playing) voice.preload(Object.values(chapter.lines ?? {}).map(line => lines[
 // and the chapter may raise the theme (music.setLevel: the flight plays it louder). A capture has no audio context: neither sounds.
 const chapterSound = holdLater();
 const hold = createHold([voice, music, sfx, chapterSound]);
-world.sound = { context: audio, output, hold: chapterSound.add };
+world.sound = { context: audio, output, hold: chapterSound.add, get speaking() { return lineSounding; } };
 world.music = music;
 // Seconds of game time round a change of place in which a long frame moves the music's playhead to the sound instead of seeking
 // the sound back (engine/audio/music.js: lenient): the build, the warm-up draw and the fade back in, all under the black.
@@ -226,6 +228,7 @@ const PLACE_CHANGE = 4;
 beforeBuild = () => music.lenient(PLACE_CHANGE);
 // The sound runs before the actors, the effects, the camera and the forest: one that throws is said once and the frame goes on.
 const updateMusic = guard('music', () => music.update());
+const updateChapterSound = guard('chapter sound', () => chapterSound.update()); // a chapter's own song (chapter 4's flight)
 const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
@@ -343,8 +346,13 @@ slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 80 : 8);
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
 document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
 hold('hidden', document.hidden);
-// The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked).
-window.addEventListener('pointerup', () => { if (stage.started) music.start(); }, { passive: true });
+// The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked), and
+// starts a chapter's own song a browser would start only from a touch (engine/audio/song.js: chapter 4's flight song).
+window.addEventListener('pointerup', () => {
+  if (!stage.started) return;
+  music.start();
+  chapterSound.touch();
+}, { passive: true });
 
 const shotName = params.get('shot');
 let startReady = true; // false while the start button waits for the warm-up (captures and review shots have none)
@@ -634,6 +642,7 @@ function update(dt) {
   stage.update(dt);
   wind.update(clock.time);
   updateMusic(); // if the clock lost time (a long frame) the sound is brought back to the playhead
+  updateChapterSound(); // and a chapter's own song, the game held or not, as the theme
   updateSfx(dt); // the forest's birds and rustles
   if (dance) {
     followed = followBeat(followed, beatsAt(musicTime(), dance), dt, dance, stage.seeking || clock.frozen);

@@ -21,6 +21,9 @@ export function createHold(parts) {
 /**
  * Parts that come and go while the page lives (a chapter's own sound: chapter 4's wind bed, engine/audio/flight-sounds.js), as one
  * part of a hold. `add(part)` returns the function that takes it out again; a part added while the sound is held is told at once.
+ * `touch()` tells the parts that have a touch() that the child touched the page (chapter 4's flight song, engine/audio/song.js: a
+ * browser may let an element start only from a touch). `update()` gives the parts that have an update() their frame: the page calls
+ * it every frame, the game held or not, as it updates its theme (a song held with the book stops its element once its fade is out).
  */
 export function holdLater() {
   const parts = new Set();
@@ -29,6 +32,12 @@ export function holdLater() {
     setPaused(paused) {
       held = Boolean(paused);
       for (const part of parts) part.setPaused(held);
+    },
+    touch() {
+      for (const part of parts) part.touch?.();
+    },
+    update() {
+      for (const part of parts) part.update?.();
     },
     add(part) {
       parts.add(part);

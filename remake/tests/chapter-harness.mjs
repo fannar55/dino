@@ -14,6 +14,7 @@ import { createLocations } from '../engine/locations.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createScene } from '../engine/scene/scene.js';
 import { createHold, holdLater } from '../engine/audio/hold.js';
+import { FakeMediaElement } from './fake-audio.mjs';
 import { createStageUI, DRAG_LIFT } from '../engine/scene/ui.js';
 import { createJournal } from '../engine/scene/journal.js';
 import { createSave } from '../engine/save.js';
@@ -234,7 +235,23 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   // A chapter's own sound, held with the game as main.js holds it (engine/audio/hold.js: holdLater)
   const chapterSound = holdLater();
   const holdSound = createHold([chapterSound]);
-  if (audio) world.sound = { context: audio, output: audio.destination, hold: chapterSound.add };
+  // and its own song's <audio> elements (chapter 4's flight song, engine/audio/song.js), fakes that the audio context plays, kept in
+  // world.sound.elements for a test to look at
+  const elements = [];
+  // loaded as its file is set: the run's loop gives a promise no turn while the scene waits on nothing
+  class LoadedElement extends FakeMediaElement {
+    get src() { return super.src; }
+    set src(value) {
+      super.src = value;
+      this.load();
+    }
+  }
+  if (audio) {
+    world.sound = {
+      context: audio, output: audio.destination, hold: chapterSound.add, elements,
+      createElement: () => { const element = new LoadedElement({ duration: 200 }); elements.push(element); return element; },
+    };
+  }
   let wasPaused = false;
   // The real sun, as main.js has it, updated each frame once the camera has moved: its calls start its gestures and finish their
   // handles. (Made before world.scene.add is watched below: its sprite and overlay are there from the start.)
@@ -631,6 +648,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     journal.update(step);
     for (const moment of moments) if (moment.closeAt !== null && moment.goneAt === null && !overlayUp()) moment.goneAt = stage.s.time;
     stage.update(step);
+    chapterSound.update(); // the chapter's own song, every frame, held or not, as main.js does
     updateActors(world.actors.values(), step);
     world.effects.update(step);
     director.update(step);

@@ -177,6 +177,31 @@ test('a chapter\'s own sound is held with the rest, and one added while held sta
   assert.deepEqual(log.slice(6), ['music:true', 'falls:true']);
 });
 
+test('a touch reaches the chapter\'s own sounds that ask for one (chapter 4\'s flight song, which a browser may start only from a touch)', () => {
+  const touched = [];
+  const later = holdLater();
+  later.add({ setPaused() {}, touch: () => touched.push('song') });
+  const letGo = later.add({ setPaused() {}, touch: () => touched.push('other') });
+  later.add({ setPaused() {} }); // the wind bed has no touch
+  later.touch();
+  assert.deepEqual(touched, ['song', 'other']);
+  letGo();
+  later.touch();
+  assert.deepEqual(touched, ['song', 'other', 'song']);
+});
+
+test('the page updates the chapter\'s own sounds that ask for it every frame, held or not (a song stops its element once its fade is out)', () => {
+  const updated = [];
+  const later = holdLater();
+  const hold = createHold([later]);
+  later.add({ setPaused() {}, update: () => updated.push('song') });
+  later.add({ setPaused() {} }); // the wind bed has no update
+  later.update();
+  hold('book', true);
+  later.update();
+  assert.deepEqual(updated, ['song', 'song'], 'held too');
+});
+
 // ---------------------------------------------------------------------------------------------
 // The audio context and its output
 
@@ -220,18 +245,21 @@ const MAIN = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').rep
 
 test('main.js lets the beat read the music\'s playhead, and ducks the music under the voice', () => {
   assert.match(MAIN, /const musicTime = \(\) => music\.position;/, 'one source for the beat: the music\'s playhead on the game clock');
-  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => music\.duck\(on\) \}\)/, 'a line ducks the theme');
+  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => \{ lineSounding = on; music\.duck\(on\); \} \}\)/, 'a line ducks the theme');
+  assert.match(MAIN, /get speaking\(\) \{ return lineSounding; \}/, 'and the chapter\'s own song hears of it (world.sound.speaking)');
   assert.match(MAIN, /music\.update\(\)/, 'and the sound is kept on the playhead each frame');
+  assert.match(MAIN, /updateMusic\(\);[^\n]*\n\s*updateChapterSound\(\);/, 'with the chapter\'s own song after it');
+  assert.match(MAIN, /guard\('chapter sound', \(\) => chapterSound\.update\(\)\)/);
   assert.match(MAIN, /sfx\.update\(dt\)/, 'the forest\'s birds are scheduled on the game clock');
 });
 
 test('main.js starts the sound on the first touch and holds it with the book and the tab', () => {
   assert.match(MAIN, /button\.addEventListener\('click', \(\) => \{[^}]*music\.start\(\)/, 'the start button is the first touch');
-  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{ if \(stage\.started\) music\.start\(\); \}/, 'any later touch wakes sound the system put to sleep');
+  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{\s*if \(!stage\.started\) return;\s*music\.start\(\);\s*chapterSound\.touch\(\);/, 'any later touch wakes sound the system put to sleep, and a chapter\'s own song');
   assert.match(MAIN, /document\.addEventListener\('visibilitychange', \(\) => hold\('hidden', document\.hidden\)\)/, 'a hidden tab holds the sound with the clock that stops');
   assert.match(MAIN, /\nhold\('hidden', document\.hidden\);/, 'also one that opens hidden');
   assert.match(MAIN, /createHold\(\[voice, music, sfx, chapterSound\]\)/, 'the voice, the music, the effects and the chapter\'s own sound follow the same hold');
-  assert.match(MAIN, /world\.sound = \{ context: audio, output, hold: chapterSound\.add \};/, 'a chapter makes its own sound on the page\'s output, held with the rest');
+  assert.match(MAIN, /world\.sound = \{ context: audio, output, hold: chapterSound\.add, get speaking\(\) \{ return lineSounding; \} \};/, 'a chapter makes its own sound on the page\'s output, held with the rest');
   assert.match(MAIN, /world\.music = music;/, 'and may raise the theme (chapter 4\'s flight)');
 });
 

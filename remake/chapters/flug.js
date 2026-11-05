@@ -8,7 +8,7 @@
 //   ?chapter=flug&reduced=1     as a tablet that asks for less motion sees it: no orbit, no slow second, half the bank
 //   ?chapter=flug&play=track1   a child's hands on it: steering, the calls and „Hraðar!“ at fixed times (flug-track.js), for a recording
 import { createRoute, TREE } from './kafli4-route.js';
-import { theFlight, FLIGHT_WORDS } from './kafli4-flight.js';
+import { theFlight, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
 import { lineQueue } from './kafli4-flight-play.js';
 import { track1 } from './flug-track.js';
 import { createArdalur } from '../world/ardalur/index.js';
@@ -31,7 +31,7 @@ export const chapter = {
   title: 'Flugið',
   next: null,
   look: 'earlyAfternoon', // spec 2: early afternoon; the flight turns it golden over the falls
-  // Chapter 2's song until the owner's flight theme (spec 8): the flight plays it louder (music.setLevel)
+  // The page's theme, which the forest dances to; it is silent here: the flight plays its own song (kafli4-flight.js SONG)
   theme: 'kafli2/theme.json',
   start: 'ardalur',
   locations: {
@@ -85,6 +85,9 @@ export const chapter = {
     const context = world.sound?.context ?? null;
     const sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: loadFlightRecordings(context) });
     const c = { s, world, flugedla, egill, mosi, route, flier, riding, camera, sounds, reduced, flight: null };
+    // only the flight's song: the page's theme is silent from the start, and the song is made now, so its file is there by the flight
+    world.music?.setLevel?.(0, 0);
+    c.song = createFlightSong(world);
     // the voices one at a time (a line waits for the one playing), and the page the „Hraðar!“ button goes on
     const lines = lineQueue(s);
     c.say = lines.say;

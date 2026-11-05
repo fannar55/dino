@@ -26,6 +26,10 @@
 //
 // The file's length is read from the file itself: chapter 1's is 351.6 s, which is 556.7 beats, and chapter 2's 176.24 s, 391.6 beats,
 // so at each loop the beat grid restarts from the file's own beatOffset (the forest's follower eases onto it: engine/beat.js).
+//
+// A song that plays once (loop: false: chapter 4's flight song, engine/audio/song.js) is not folded into its file: once its playhead
+// is at its end it is over, and quiet for good. cue(position) puts the playhead at a point in the song now, so a song that starts
+// with a scene is on that scene's clock whenever the scene starts: one that has not sounded starts there, one that sounds is moved.
 
 const LEVEL = 0.6; // the theme's place in the mix, where the old game kept it (dist/audio.js MUSIC_MIX.quiet)
 export const DUCK_DB = -8; // under a recorded line (the book's effects dip as much under its narrator: engine/book/book-audio.js)
@@ -40,6 +44,7 @@ const MAX_LEAD = 0.5; // s: the most a seek is aimed ahead of the playhead, to l
 const STEADY = 0.1; // s of audio time over which an element's own clock must keep pace with it before the element counts as playing
 const STALL = 0.15; // s of game time with the audio clock standing still before a context that says it runs counts as asleep
 const HAVE_FUTURE_DATA = 3; // an element's readyState: enough data to play on
+const END = 0.25; // s: a song that plays once is over this close to its end, so it is quiet before its element stops by itself
 
 /** A param that moves in straight lines and can say where it is, so a move that cuts another short starts from there and nothing jumps. */
 function createFader(param, value, now) {
@@ -66,12 +71,13 @@ function createFader(param, value, now) {
 /**
  * The music on `context` (an AudioContext, or null for none: then it is a playhead and nothing else), for the theme in `theme`
  * (theme.json) whose `src` is read against `base` (theme.json's own URL). `clock` is the game clock. `output` is the node to
- * play through (the context's destination by default). `createElement` makes the <audio> element (a test gives it a fake).
+ * play through (the context's destination by default). `createElement` makes the <audio> element (a test gives it a fake). `loop`
+ * false: a song that plays once.
  *
- * Returns { ready, start, duck, setLevel, lenient, setPaused, update, muted, position }; `ready` is a promise of whether the theme's file could be
- * opened. update() must be called every frame, after the clock has ticked: it is what starts the sound.
+ * Returns { ready, start, duck, setLevel, lenient, cue, setPaused, update, muted, position, over }; `ready` is a promise of whether
+ * the theme's file could be opened. update() must be called every frame, after the clock has ticked: it is what starts the sound.
  */
-export function createMusic({ context = null, theme = null, clock, base, output, createElement = () => new Audio() } = {}) {
+export function createMusic({ context = null, theme = null, clock, base, output, createElement = () => new Audio(), loop = true } = {}) {
   if (!clock) throw new TypeError('createMusic needs the game clock: pass `clock` (createClock)');
 
   let element = null; // the <audio> element that streams the theme
@@ -107,9 +113,9 @@ export function createMusic({ context = null, theme = null, clock, base, output,
 
   const length = () => (element && Number.isFinite(element.duration) && element.duration > 0 ? element.duration : 0);
 
-  /** A time folded into the file, which is what the playhead is. */
+  /** A time folded into the file, which is what the playhead is (a song that plays once is not folded: it runs on past its end). */
   const fold = time => {
-    const total = length();
+    const total = loop ? length() : 0;
     return total > 0 ? ((time % total) + total) % total : time;
   };
 
@@ -117,13 +123,16 @@ export function createMusic({ context = null, theme = null, clock, base, output,
 
   /** How far the element is behind the playhead (negative: ahead of it), the short way round the loop. */
   function behind() {
-    const total = length();
+    const total = loop ? length() : 0;
     let gap = playhead() - element.currentTime;
     if (total > 0) gap -= Math.round(gap / total) * total;
     return gap;
   }
 
-  const allowed = () => started && !paused && !muted && !failed;
+  /** A song that plays once has played to its end (its playhead is there, or its element has stopped there). */
+  const over = () => !loop && element !== null && (Boolean(element.ended) || (anchor !== null && length() > 0 && playhead() >= length() - END));
+
+  const allowed = () => started && !paused && !muted && !failed && !over();
   // A context that says it runs but whose clock stands still (the device is slow to start, or the system took it) is as good as asleep.
   const awake = () => context.state === 'running' && !stalled;
 
@@ -276,7 +285,7 @@ export function createMusic({ context = null, theme = null, clock, base, output,
       try {
         element = createElement();
         element.preload = 'auto';
-        element.loop = true;
+        element.loop = loop;
         element.addEventListener('loadedmetadata', () => resolve(true), { once: true });
         element.addEventListener('error', () => {
           fail(element.error ?? 'its file would not load');
@@ -321,6 +330,17 @@ export function createMusic({ context = null, theme = null, clock, base, output,
     lenient(seconds) {
       if (!Number.isFinite(seconds) || seconds < 0) throw new TypeError(`A lenient window lasts a number of seconds, not ${seconds}`);
       lenientUntil = Math.max(lenientUntil, clock.time + seconds);
+    },
+    /**
+     * Puts the playhead `position` seconds into the song now: a song that has not sounded starts there, one that sounds is moved
+     * there with the next frame (a dip and a seek, as after a long frame). A lenient window open now is shut: the cue is where the
+     * song is, and the playhead must not go back to the sound.
+     */
+    cue(position) {
+      if (!Number.isFinite(position)) throw new TypeError(`A cue is a number of seconds into the song, not ${position}`);
+      anchor = clock.time - position;
+      lenientUntil = -Infinity;
+      lastJump = -Infinity;
     },
     /** Holds the sound with the game clock (the book is open, the tab is hidden): it fades out at once. Letting go starts it again with the next frame. */
     setPaused(value) {
@@ -371,6 +391,10 @@ export function createMusic({ context = null, theme = null, clock, base, output,
     /** Seconds into the theme, in the loop: the game clock's time since the theme first sounded, or the clock's time before. */
     get position() {
       return anchor === null ? clock.time : fold(clock.time - anchor);
+    },
+    /** A song that plays once has played to its end, and is quiet for good (always false for a theme that loops). */
+    get over() {
+      return over();
     },
   };
 }

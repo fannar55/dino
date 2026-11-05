@@ -823,3 +823,69 @@ test('an element that crawls (a starved pipeline) is not taken for playing, and 
 test('createMusic says what it needs', () => {
   assert.throws(() => createMusic({ context: createFakeContext(), theme: THEME }), /clock/);
 });
+
+// ---------------------------------------------------------------------------------------------
+// A song that plays once, from a cue (chapter 4's flight song: engine/audio/song.js)
+
+/** A song of `duration` seconds on a fake context, that plays once (loop: false). */
+async function once(duration, contextOptions = {}) {
+  const context = createFakeContext(contextOptions);
+  const element = new FakeMediaElement({ duration });
+  const clock = createClock();
+  const music = createMusic({ context, theme: { src: 'flugstef.mp3' }, clock, base: THEME_URL, createElement: () => element, loop: false });
+  await music.ready;
+  return { context, element, clock, music, fade: context.mediaSources[0].outputs[0] };
+}
+
+test('a song that plays once (loop: false) is not looped or folded: at its end it is over and quiet, and nothing starts it again', async () => {
+  const world = await once(6);
+  const { context, element, music, fade } = world;
+  assert.equal(element.loop, false, 'the element does not loop');
+  music.start();
+  frames(world, 3);
+  assert.equal(music.over, false);
+  assert.ok(near(fade.gain.valueAt(context.currentTime), 1), 'it is heard');
+  frames(world, 4); // past its 6 s
+  assert.equal(music.over, true, 'it has played to its end');
+  assert.ok(music.position > 6.5, `the playhead runs on past the end, not folded into the file: ${music.position}`);
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 0, 'quiet');
+  assert.equal(element.paused, true);
+  const calls = element.playCalls;
+  music.start(); // a touch
+  music.setPaused(true); // the book opened ...
+  frames(world, 0.5);
+  music.setPaused(false); // ... and shut
+  frames(world, 2);
+  assert.equal(element.playCalls, calls, 'nothing plays it again');
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 0);
+  assert.equal((await once(6)).element.loop, false);
+  assert.equal((await setup()).element.loop, true, 'a theme loops, as before');
+});
+
+test('cue puts the playhead at a point in the song: one that has not sounded yet starts there, on the game clock', async () => {
+  const world = await once(60, { state: 'running' });
+  const { context, element, clock, music, fade } = world;
+  clock.step(4); // the scene went on a while before the song
+  music.cue(0.5);
+  assert.ok(near(music.position, 0.5), `the playhead is at the cue at once: ${music.position}`);
+  music.start();
+  frames(world, 0.4);
+  assert.ok(element.seeks.some(time => Math.abs(time - 0.5) < 0.1), `the element was moved to the cue: ${element.seeks}`);
+  assert.ok(near(music.position, 0.9, 1e-6), `and the playhead goes on from it with the clock: ${music.position}`);
+  assert.ok(Math.abs(element.currentTime - music.position) <= 0.08, `the sound is on it: ${element.currentTime} against ${music.position}`);
+  assert.ok(near(fade.gain.valueAt(context.currentTime + 1), 1), 'and heard');
+  assert.throws(() => music.cue(NaN), /cue/);
+});
+
+test('cue while the music sounds moves the sound there at once, even in a lenient window', async () => {
+  const world = await playing();
+  const { context, element, music, fade } = world;
+  frames(world, 2);
+  music.lenient(5); // a window that would otherwise move the playhead back to the sound
+  music.cue(30);
+  frames(world, 0.5);
+  assert.ok(element.seeks.some(time => Math.abs(time - 30) < 0.3), `the element was moved to the cue: ${element.seeks}`);
+  assert.ok(near(music.position, 30.5, 1e-6), `the playhead is the cue's: ${music.position}`);
+  assert.ok(Math.abs(element.currentTime - music.position) <= 0.08, `the sound is on it: ${element.currentTime}`);
+  assert.ok(near(fade.gain.valueAt(context.currentTime + 1), 1), 'and heard again');
+});

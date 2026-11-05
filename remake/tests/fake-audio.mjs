@@ -188,6 +188,9 @@ export class FakeMediaElement extends EventTarget {
     return { length: 1, start: () => 0, end: () => end };
   }
 
+  /** What the browser says once a file that does not loop has played to its end. */
+  get ended() { return !this.loop && Number.isFinite(this.duration) && this.time >= this.duration; }
+
   get currentTime() { return this.time; }
   set currentTime(value) {
     this.seeks.push(value);

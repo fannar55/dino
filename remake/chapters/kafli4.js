@@ -24,7 +24,7 @@ import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
 import { perch, holdHer, flyPath, watchHer, landingTime } from './kafli4-flugedla.js';
 import { theWind } from './kafli4-wind.js';
 import { lineQueue } from './kafli4-flight-play.js';
-import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS } from './kafli4-flight.js';
+import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
 import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
@@ -403,7 +403,7 @@ function* upAndAway(s, c) {
   const flier = (c.flier = createFlier(flugedla.raw, ROUTE, { world, reduced: c.reduced }));
   flier.update(0);
   const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced: c.reduced });
-  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, reduced: c.reduced, flight: null, doc: c.doc };
+  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, song: c.song, reduced: c.reduced, flight: null, doc: c.doc };
   f.say = c.lines.say;
   Object.defineProperty(f, 'speaking', { get: () => c.lines.speaking });
   f.mark = scene => {
@@ -462,8 +462,9 @@ function* atTheFarPool(s, c) {
   yield out;
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
   yield s.wait(BREATH);
-  // the horn, from the reed across the pool: the music goes down, the picture goes to it, and they all turn to look
-  world.music?.setLevel?.(HORN_MUSIC, 1.2);
+  // the horn, from the reed across the pool, in the quiet: the flight's song has all but ended (what is left of it goes), the picture
+  // goes to the reed, and they all turn to look
+  c.song?.stop(1.2);
   yield s.wait(1.6);
   yield s.camera.cut('pool_reed');
   const from = new world.THREE.Vector3(FAR_POOL.farReed[0], world.heightAt(...FAR_POOL.farReed) + 1.4, FAR_POOL.farReed[1]);
@@ -482,7 +483,7 @@ function* atTheFarPool(s, c) {
   yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 30 });
   yield* say(s, c, 'mosi', 'k4_mosi_horn');
   yield s.wait(1.2);
-  // once more the far reed, still now, as the music comes back: where chapter 5 begins
+  // once more the far reed, still now, as the chapter's theme comes back (out since the take-off): where chapter 5 begins
   yield s.camera.cut('pool_reed');
   world.music?.setLevel?.(1, 3);
   yield s.wait(LAST_LOOK);
@@ -499,7 +500,6 @@ const OUT_OF_THE_REED = 1.2; // seconds Mosi walks before he says he is here
 const TIRED = 1.1; // m/s: Mosi walks out of the reed, out of breath (he walks at 1.3)
 const LOW_AHEAD = { actor: 'mosi', part: 'feet', offset: [7, 0.3, 0], local: true }; // where he looks as he gets his breath: the ground ahead
 const BREATH = 2.4; // seconds Mosi gets his breath before the horn
-const HORN_MUSIC = 0.35; // the theme's level under the horn, till the last look at the reed
 const HORN_HOLD = 4; // seconds the far reed's shot holds: the horn is 2.8 s and its echo
 const LAST_LOOK = 4; // seconds the last shot of the far reed holds before the book
 const TO_THE_MAP = 1.2; // seconds the book shows its dinosaurs (Flugeðla nodding) before it turns to the map, as chapter 3's
@@ -722,7 +722,7 @@ export const chapter = {
   title: 'Boð til Flugeðlu',
   next: null, // the last chapter so far
   look: 'earlyAfternoon',
-  // Chapter 2's song until the owner's flight theme (spec 8)
+  // Chapter 2's song, out from the take-off till the last look at the far reed: the flight has its own (kafli4-flight.js SONG)
   theme: 'kafli2/theme.json',
   start: 'fen',
   locations: {
@@ -795,6 +795,7 @@ export const chapter = {
     // the gusts, and the flight's wind and water: the recordings are fetched now, in the background, for the page
     const context = world.sound?.context ?? null;
     c.sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: loadFlightRecordings(context) });
+    c.song = createFlightSong(world); // the flight's own song, made now so its file is there by the take-off
     c.doc = world.page ?? globalThis.document ?? null; // the page the wind's hint goes on
     c.ring = ringsFor(world, { most: 3 }); // the rings of her falling leaves on the water
     world.chapterState = c; // what the scenes share, for captures and probes

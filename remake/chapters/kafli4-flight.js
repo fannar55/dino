@@ -15,10 +15,14 @@
 //
 // What Egill may do (spec 6: steer, call the animals, „Hraðar!“) is kafli4-flight-play.js, switched on and off here beat by beat; the
 // animals' answers are the game's sounds and the owner's recordings (Task 16), as are the wind and the water.
+//
+// The flight has a song of its own (c.song, made by createFlightSong): it starts with the flight, half a second in, whatever came
+// before, and the page's theme goes out under it (the full chapter brings the theme back at the far pool: kafli4.js).
 import * as THREE from 'three';
 import { BEATS, LEAP, FALLS, GORGE } from './kafli4-route.js';
 import { whiteAt } from '../world/ardalur/river.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
+import { createSong } from '../engine/audio/song.js';
 import { flightPlay, PLAY } from './kafli4-flight-play.js';
 
 // The flight's lines (plan Task 15's WORDS, verbatim from spec 5 and 6; the full chapter adds the rest). The three marked * are the plan's
@@ -51,9 +55,15 @@ const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
 // The first shot, close in front of Egill: perched, she holds her head high, so a little higher and wider than the flight's own close-up.
 // The full chapter holds it on the white tree before the cut into the flight (kafli4.js), so the two must be the one framing.
 export const TAKE_OFF_FACE = { raise: 0.45, fov: 52 };
-// The music (spec 8: the same theme louder through the flight, quieter as she glides down; it plays on through the slow second, the
-// owner's ruling of 2026-11-04 over the spec's silence there).
+// The music (spec 8: louder through the flight, quieter as she glides down; it plays on through the slow second, the owner's ruling
+// of 2026-11-04 over the spec's silence there). The levels are the flight's song's when it has one, the theme's when not.
 export const MUSIC = { flight: 1.5, glide: 0.8 };
+// The flight's own song, the owner's pick of 2026-11-05 from four made for it: "Vængir yfir dalnum", an orchestral theme made with
+// ElevenLabs Music to the flight's seconds (125 beats a minute, D major), with 5 s cut from the breath at the crest so the full
+// orchestra comes in as they burst out of the spray (assets/audio/kafli4/CREDITS.md). It is `at` seconds in as the flight starts, and
+// plays `seconds` long: through the flight and her landing in the far pool, and quietly out before the horn. `themeOut`: the seconds
+// over which the page's theme goes out under it.
+export const SONG = { src: 'flugstef.mp3', at: 0.5, seconds: 184.71, themeOut: 2 };
 export const SLOW = { at: 116.2, scale: 0.25, seconds: 1 }; // the crest of the falls: one second of the room's time at a quarter speed
 // The golden light: from the chapter's look toward LOOKS.golden over `rise` seconds from the burst out of the spray (the end of the
 // slow second, as the music comes back), and back over `back` seconds from the start of G. Its sun, fill, haze and sky; not where
@@ -114,6 +124,24 @@ function lightAt(world, look, k, scratch) {
   }
 }
 
+/**
+ * The flight's song (SONG) on the page's sound (world.sound: none in a capture, where it is a playhead only), held with the game's
+ * sound and dipped under every line; the page updates it every frame with the chapter's other sounds (main.js: chapterSound), the
+ * game held or not, through the flight and on to its end. Made as the chapter starts, so its file is there when the flight is;
+ * theFlight plays it.
+ */
+export function createFlightSong(world) {
+  if (!world.clock) return null;
+  const sound = world.sound ?? null;
+  const song = createSong({
+    context: sound?.context ?? null, output: sound?.output ?? null, clock: world.clock, src: SONG.src,
+    base: new URL('../assets/audio/kafli4/', import.meta.url), speaking: () => Boolean(world.sound?.speaking),
+    ...(sound?.createElement ? { createElement: sound.createElement } : {}),
+  });
+  sound?.hold?.(song);
+  return song;
+}
+
 /** The flight: returns at BEATS.END with her over the far pool. */
 export function* theFlight(s, c) {
   const { world, flier, camera, sounds } = c;
@@ -122,6 +150,13 @@ export function* theFlight(s, c) {
   const play = (c.play = flightPlay(s, c));
   const release = s.seeking ? null : world.sound?.hold?.(sounds);
   if (!s.seeking) sounds.start();
+  // the flight's song from its cue, and the theme out under it (c.music is what the flight's levels move)
+  const song = c.song ?? null;
+  c.music = song ?? world.music ?? null;
+  if (song) {
+    world.music?.setLevel?.(0, SONG.themeOut);
+    song.play(SONG.at);
+  }
   const far = world.forest?.farLand ?? null;
   far?.show(true);
   try {
@@ -133,7 +168,7 @@ export function* theFlight(s, c) {
     camera.stop();
     sounds.stop();
     release?.();
-    world.music?.setLevel?.(1, 2);
+    if (!song) world.music?.setLevel?.(1, 2); // with a song of its own, the song goes on into the landing
     world.flightTime = null;
     far?.show(false);
     far?.update(BEATS.END + 1, world.camera); // hidden, and the camera's own far plane back
@@ -205,7 +240,7 @@ function* beats(s, c) {
   yield* at(3);
   camera.shot('belowTakeOff');
   yield* at(LEAP);
-  world.music?.setLevel?.(MUSIC.flight, 2); // the theme rises as she leaps
+  c.music?.setLevel?.(MUSIC.flight, 2); // the music rises as she leaps
   yield* at(LEAP + 1);
   whoosh(1);
   yield* at(5.2);
@@ -305,7 +340,7 @@ function* beats(s, c) {
     // the music plays on through the slow second (the owner, 2026-11-04: it going down there sounded wrong). Its playhead belongs to
     // the game clock, which runs at a quarter now, so a lenient window lets the playhead follow the sound instead of dipping and
     // moving it back (engine/audio/music.js): the music comes out of the second 0.75 s further on than the clock.
-    world.music?.lenient?.(SLOW.seconds * SLOW.scale + 0.25);
+    c.music?.lenient?.(SLOW.seconds * SLOW.scale + 0.25);
     world.clock?.setScale?.(SLOW.scale);
     try {
       yield s.wait(SLOW.seconds * SLOW.scale); // a second of the room's time, a quarter of one of the game's
@@ -346,7 +381,7 @@ function* beats(s, c) {
   yield* at(BEATS.G);
   mark('G');
   camera.shot('chase');
-  world.music?.setLevel?.(MUSIC.glide, 4);
+  c.music?.setLevel?.(MUSIC.glide, 4);
   placeMosiBelow(c);
   yield* at(150.5);
   say('flugedla', 'k4_flugedla_wind');

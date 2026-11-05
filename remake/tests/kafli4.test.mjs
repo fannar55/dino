@@ -11,7 +11,7 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
-import { FLIGHT_WORDS } from '../chapters/kafli4-flight.js';
+import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
 import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
@@ -220,12 +220,21 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = {}) {
-  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null };
+  const seen = { shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
   let where = null;
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
     onFrame({ world, director, pointer, ui, shot: label }) {
       const c = world.chapterState;
+      // the page's theme, which the harness's world has none of: what the chapter asks of it, and when
+      if (!seen.theme) {
+        seen.theme = [];
+        world.music = { setLevel: (level, seconds) => seen.theme.push({ level, seconds, t: world.clock.time }), lenient() {} };
+      }
+      // the flight's own song: where it is as the flight starts, and as the horn sounds
+      const off = c?.flight?.flight?.started ?? null;
+      if (c?.song && off !== null && seen.songCue === null) seen.songCue = c.song.position - (world.clock.time - off);
+      if (c?.horn && seen.songAtHorn === null) seen.songAtHorn = c.song?.position ?? null;
       if (label && NEW_SHOTS.has(label) && director.mode === 'hold') { // held on the shot (a move or a follow from it frames others)
         seen.shots.set(label, (seen.shots.get(label) ?? 0) + 1);
         world.camera.updateMatrixWorld();
@@ -691,6 +700,19 @@ test('Mosi comes out of the reed, out of breath, to stand by Egill: "Ég… er�
   const seven = world.chapterTimeline.find(m => m.scene === 7).at;
   const arrived = seen.spokenAt.get('k4_mosi_arrived');
   assert.ok(arrived > seven && arrived >= c.landing.downAt, 'once Egill is down');
+});
+
+test('the flight plays its own song from the take-off: the chapter\'s theme goes out under it, the horn sounds in the quiet, and the theme comes back with the last look at the reed', async () => {
+  const { world, watched } = await playWide();
+  const c = world.chapterState;
+  const started = c.flight.flight.started;
+  assert.ok(c.song, 'the chapter has the flight\'s song');
+  assert.ok(Math.abs(watched.songCue - SONG.at) < 0.05, `${SONG.at} s into it as the flight starts: ${watched.songCue}`);
+  const [out, ...rest] = watched.theme;
+  assert.ok(out && out.level === 0 && Math.abs(out.t - started) < 0.05 && out.seconds === SONG.themeOut, `the theme goes out as she takes off: ${JSON.stringify(watched.theme)}`);
+  assert.deepEqual(rest.map(m => m.level), [1], 'and comes back once, in full');
+  assert.ok(rest[0].t > c.horn.at, 'after the horn: with the last look at the reed');
+  assert.ok(watched.songAtHorn >= SONG.seconds - 1, `the song has all but ended by the horn: ${watched.songAtHorn?.toFixed(1)} of ${SONG.seconds} s`);
 });
 
 test('the horn sounds from the reed across the pool, once, between Mosi\'s coming and their two lines', async () => {

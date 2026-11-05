@@ -8,15 +8,15 @@ import * as THREE from 'three';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
-import { BEATS, FASTER_LAST } from '../chapters/kafli4-route.js';
-import { SLOW, MUSIC, GOLDEN, ROAR } from '../chapters/kafli4-flight.js';
+import { BEATS, FASTER_LAST, LEAP } from '../chapters/kafli4-route.js';
+import { SLOW, MUSIC, GOLDEN, ROAR, SONG } from '../chapters/kafli4-flight.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import * as flugModule from '../chapters/flug.js';
 
 
 // What a run sees: Mosi on the screen in each beat, her place and the camera at flight times, the clock's scale.
 function watcher({ at = [] } = {}) {
-  const seen = { mosiSeen: {}, places: {}, scales: [], banks: [], camera: [], u: [], framing: [], looked: 0, music: [], lenient: [], sfx: [], light: [] };
+  const seen = { mosiSeen: {}, places: {}, scales: [], banks: [], camera: [], u: [], framing: [], looked: 0, music: [], lenient: [], sfx: [], light: [], song: [], songLenient: [], songCue: null, songDrift: 0 };
   let lastLook = -1;
   const wanted = [...at];
   const head = new THREE.Vector3();
@@ -33,6 +33,13 @@ function watcher({ at = [] } = {}) {
         setLevel: (level, seconds) => seen.music.push({ level, seconds, t: flightTime() }),
         lenient: seconds => seen.lenient.push({ seconds, t: flightTime() }),
       };
+      // the flight's own song: where it is as the flight starts, and the levels and windows the flight gives it
+      if (c.song) {
+        seen.songCue = c.song.position - flightTime();
+        const { setLevel, lenient } = c.song;
+        c.song.setLevel = (level, seconds) => { seen.song.push({ level, seconds, t: flightTime() }); return setLevel(level, seconds); };
+        c.song.lenient = seconds => { seen.songLenient.push({ seconds, t: flightTime() }); return lenient(seconds); };
+      }
       world.lighting.sun ??= new THREE.DirectionalLight('#ffffff', 1);
       world.lighting.hemi ??= new THREE.HemisphereLight('#ffffff', '#000000', 1);
       const sfx = c.s.sfx;
@@ -40,6 +47,7 @@ function watcher({ at = [] } = {}) {
       wrapped = true;
     }
     const t = c.flier.t;
+    if (c.song && c.flight.ended === null) seen.songDrift = Math.max(seen.songDrift, Math.abs(c.song.position - (c.s.time - c.flight.started) - SONG.at));
     const { sun, hemi } = world.lighting;
     seen.light.push({
       t, sun: sun.color.getHexString(), sunI: sun.intensity, sky: hemi.color.getHexString(), ground: hemi.groundColor.getHexString(),
@@ -175,9 +183,29 @@ test('the slow second at the crest of E is on the game clock, and back to normal
   assert.equal(full.seen.scales.at(-1).value, 1);
 });
 
+test('the flight has its own song (the owner\'s pick of 2026-11-05): it begins with the flight, half a second in, and keeps to the flight\'s clock', () => {
+  const c = run.world.chapterState;
+  assert.ok(c.song, 'the flight has a song');
+  assert.ok(Math.abs(full.seen.songCue - SONG.at) < 1e-6, `${SONG.at} s into the song as the flight starts: ${full.seen.songCue}`);
+  assert.ok(full.seen.songDrift < 1e-6, `and on the flight's clock to its end: at most ${full.seen.songDrift} s off`);
+  // the song's file, beside the chapter's sounds: the cut take the owner heard, made smaller (96 kb/s, as the themes are)
+  const file = fs.statSync(new URL(`../assets/audio/kafli4/${SONG.src}`, import.meta.url));
+  assert.ok(file.size > 1.5e6 && file.size < 3e6, `${SONG.src} is ${file.size} bytes`);
+  assert.ok(SONG.seconds > BEATS.END + SONG.at + 10, 'it plays on past the flight, into her landing');
+});
+
+test('the page\'s theme is silent through the review flight, and the flight\'s levels are its song\'s: up as she leaps, down as she glides', () => {
+  const { music, song } = full.seen;
+  assert.ok(music.every(m => m.level === 0), `the theme is never raised: ${JSON.stringify(music)}`);
+  const leap = song.find(m => m.level === MUSIC.flight);
+  assert.ok(leap && Math.abs(leap.t - LEAP) < 0.05, `louder as she leaps: ${JSON.stringify(song)}`);
+  const glide = song.find(m => m.level === MUSIC.glide);
+  assert.ok(glide && Math.abs(glide.t - BEATS.G) < 0.05, 'quieter as she glides down');
+});
+
 test('the music plays on through the slow second at the crest: never lowered there, and let run at its own speed past the slowed clock', () => {
   // the owner (2026-11-04): the slow motion at the top is good, but the music going down with it sounded wrong
-  const { music, lenient } = full.seen;
+  const { song: music, songLenient: lenient } = full.seen;
   assert.deepEqual(music.filter(m => m.level === 0), [], 'the music is never silenced in the flight');
   const atCrest = music.filter(m => m.t > SLOW.at - 1 && m.t < GOLDEN.at + 1);
   assert.deepEqual(atCrest, [], `no change of level round the crest: ${JSON.stringify(atCrest)}`);
@@ -225,14 +253,15 @@ test('Grameðla\'s roar: once, in F, low and far, as Flugeðla speaks of her', (
   assert.ok(roars[0].t > since(line.at) && roars[0].t - since(line.at) < 4, `the roar at ${roars[0].t.toFixed(2)} s, her line at ${since(line.at).toFixed(2)} s`);
 });
 
-test('pausing at 60 s holds the beat and silences the wind bed', async () => {
+test('pausing at 60 s holds the beat and silences the wind bed and the song', async () => {
   const audio = createFakeContext({ state: 'running' });
   const levels = [];
   const paused = watcher();
   const onFrame = frame => {
     paused.onFrame(frame);
     const sounds = frame.world.chapterState?.sounds;
-    if (sounds) levels.push({ room: audio.currentTime, level: sounds.level, playing: sounds.playing });
+    const song = frame.world.sound?.elements?.[0];
+    if (sounds) levels.push({ room: audio.currentTime, level: sounds.level, playing: sounds.playing, song: song ? !song.paused : null, songAt: song?.currentTime, songPos: frame.world.chapterState?.song?.position });
   };
   const { world, task } = await playUnattended(flugModule, { limit: 90, seeking: false, audio, pauses: [{ at: 60, seconds: 5 }], onFrame });
   assert.equal(task.failed, false, String(task.error?.stack));
@@ -247,6 +276,13 @@ test('pausing at 60 s holds the beat and silences the wind bed', async () => {
   assert.ok(at(61).level < 0.001, `silent in the pause (${at(61).level})`);
   assert.ok(at(64.9).level < 0.001);
   assert.ok(at(67).level > 0.5, 'and back after it');
+  // the song: one element, playing before the pause, stopped in it, and playing again after it on the flight's clock
+  assert.equal(world.sound.elements.length, 1, 'the flight\'s song');
+  assert.equal(at(58).song, true, 'the song plays before the pause');
+  assert.equal(at(61).song, false, 'and is stopped in it');
+  assert.equal(at(64.9).song, false);
+  assert.equal(at(67).song, true, 'and plays after it');
+  for (const room of [58, 70]) assert.ok(Math.abs(at(room).songAt - at(room).songPos) <= 0.1, `on its playhead at ${room} s: ${at(room).songAt.toFixed(2)} against ${at(room).songPos.toFixed(2)}`);
 });
 
 test('the review flight speaks with the recorded lines: each line plays its own kafli4 recording', () => {
