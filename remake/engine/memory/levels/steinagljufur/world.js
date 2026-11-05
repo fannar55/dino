@@ -32,7 +32,9 @@ const FAR_ROCKS = Object.freeze([
 const TUNNEL = Object.freeze({ at: [-2.5, 11.4], facing: [.5, -.87], scale: 1 });
 // (Task 7) The fossils' row on Sólarsyllan in the celebration: in front of the group (the upper gorge's frame: x from the first to the last, `z` toward the open side, `rise`
 // over the ledge), and each one's box for the clearance audit while they are up.
-const ROW = Object.freeze({ x: [49.6, 57.2], z: 1.35, rise: .55, half: [.55, .55, .55] });
+// (Task 7 fix round 1: .4 m nearer the open side and .1 m lower: on a phone the first one hovered just in front of a Þríhyrna's feet, the tall camera looking
+// along the line from it to her)
+const ROW = Object.freeze({ x: [49.6, 57.2], z: .95, rise: .45, half: [.55, .55, .55] });
 
 /**
  * Level 2's world: the gorge floor with its sandstone walls, boulders and the tunnel mouth (props.js, the owner's approved models), the ground's
