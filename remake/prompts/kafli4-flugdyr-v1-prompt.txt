@@ -1,0 +1,17 @@
+Purpose: the small flyer (flugdýr) of chapter 4's flight: one image that is both the look (the mock) and the image Tripo3D turns into the 3D model.
+Template: egill-tpose-v2-prompt.txt. Colours: a proposal; they go into remake/STYLE.md section 3 once the owner has picked them.
+
+Use case: stylized-concept.
+Asset type: single isolated image-to-3D source image of a small flying animal in an Icelandic children's dinosaur adventure game. A flock of 6 to 10 nests on ledges in a rocky gorge and flies alongside Flugeðla (a big pink Pteranodon), so it must read against grey rock and blue sky and never be mistaken for her.
+Subject: ONE small friendly pterosaur, about 1.2 m from wingtip to wingtip, the size of a gull: a round head with big kind eyes, a short rounded beak with NO teeth, a small rounded crest, a short neck, a plump little body, broad rounded wings of skin, small feet, and a short tail ending in a small rounded diamond-shaped vane.
+Colours: like the Icelandic puffin (lundi): slate-black back and upper wings (#3d4552), slightly lighter slate under the wings (#5d6878), white face, throat and belly (#f2efe8), bright orange beak and feet (#f08a3a), amber eyes.
+Style: the same soft chunky storybook 3D look as the game's other dinosaurs: rounded forms, painted matte skin, big simple areas of colour. No scales, no fine pattern, no feathers, no sharp points.
+POSE IS THE HIGHEST PRIORITY: neutral rest pose, bilaterally symmetrical. Both wings spread wide and flat straight out to the sides, legs hanging down a little apart, body and tail straight, head level and looking forward, beak closed.
+CAMERA: front three-quarter view from a little above (about 30 degrees down, turned about 30 degrees to the side), near-orthographic / very long lens. Both wings fully inside the frame with 10 percent margins, the wingtips and the tail included.
+BACKGROUND AND LIGHT: uniform plain light grey background, soft even diffuse studio lighting, minimal contact shadow, no rim glow, no depth-of-field blur.
+Constraints: ONE animal, ONE view. No turnaround panels, no labels, no text, no logo, no watermark, no environment, no rocks, no props, no other animals.
+
+Tripo settings for this image:
+- Image to 3D with texture. About 8 thousand faces is plenty, 1K or 2K textures: the game cuts it to 600 triangles near, 200 far, and a 256 to 512 px texture.
+- Rig it with its wings and add these animations if Tripo has them: flap (wing beat), glide (wings open and still), sit (wings folded, standing on a ledge). Tell Claude which are missing: the game can beat the wings in code, as it does for the birds.
+- Export GLB with the skeleton and the animations.
