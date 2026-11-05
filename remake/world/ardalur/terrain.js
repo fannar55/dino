@@ -14,6 +14,8 @@ const smooth = x => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 -
 const lerp = (a, b, k) => a + (b - a) * k;
 // The Fen round the snag (chapter 3's place), and how far out it blends into the valley.
 const FEN = { center: [-30, 70], radius: 150, blend: 90 };
+/** How much (x, z) is the Fen's: 1 round the snag, 0 out in the valley. */
+export const fenShare = (x, z) => 1 - smooth((Math.hypot(x - FEN.center[0], z - FEN.center[1]) - FEN.radius) / FEN.blend);
 
 /** The ground of the valley: heightAt(x, z), and where things are (river distance, edge distance, gorge share) for the banks. */
 export function createTerrain(route, { seed = 4 } = {}) {
@@ -31,7 +33,7 @@ export function createTerrain(route, { seed = 4 } = {}) {
   function where(x, z) {
     const n = river.nearest(x, z);
     const r = river.at(n.d);
-    const fen = 1 - smooth((Math.hypot(x - FEN.center[0], z - FEN.center[1]) - FEN.radius) / FEN.blend);
+    const fen = fenShare(x, z);
     const toPool = Math.hypot(x - pool.center[0], z - pool.center[1]);
     return { d: n.d, side: n.side, e: n.dist - r.half, level: r.level, half: r.half, gorge: gorgeAt(n.d), fen, toPool };
   }

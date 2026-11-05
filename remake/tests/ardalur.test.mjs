@@ -701,6 +701,24 @@ test('the real valley: the animals have their lily pads, log and stone, and no p
   assert.equal(marks, 0);
 });
 
+test('the real valley has the life in the flight (life.js): its trees grown, drawn with the animals, no plant on a critter', () => {
+  const place = litValley();
+  const { life } = place;
+  assert.ok(life, 'the real valley has the life in the flight');
+  assert.equal(life.crowds, place.animals.crowds, 'one set of crowds for all the critters');
+  const placements = place.stats.sections.flatMap(part => part.userData.placements);
+  for (const prop of life.props) {
+    assert.ok(placements.some(p => p.name === prop.name && Math.hypot(p.x - prop.x, p.z - prop.z) < 0.01), `the ${prop.name} at ${prop.x.toFixed(1)}, ${prop.z.toFixed(1)} is grown`);
+  }
+  const props = [...life.props, ...place.animals.props];
+  for (const thing of life.things) {
+    if (thing.kind === 'bird' || thing.kind === 'fish') continue; // in a crown, under the water
+    const p = thing.at;
+    const crowd = placements.filter(q => !props.some(prop => prop.x === q.x && prop.z === q.z) && Math.hypot(q.x - p.x, q.z - p.z) < 1.2);
+    assert.equal(crowd.length, 0, `${thing.id}: ${crowd.map(q => q.name)} grow on it`);
+  }
+});
+
 test('a location with build() is used instead of a forest layout', async () => {
   const world = { scene: new THREE.Scene() };
   const place = { group: new THREE.Group(), heightAt: (x, z) => x + z, update() {} };

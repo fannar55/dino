@@ -17,6 +17,7 @@ import { bankSteps, plantSteps } from './banks.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
 import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
 import { createAnimals } from './animals.js';
+import { createLife } from './life.js';
 import { createCrowds } from '../critters/crowd.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
@@ -61,10 +62,12 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   // critter in one draw call), begun and ended round them each frame.
   const crowds = real ? createCrowds(world, { parent: group }) : null;
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds }) : null;
+  // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders; in the same crowds
+  const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds }) : null;
   // the far pool's beds of reed, and where nothing else grows by it (river.js): grown with the banks, as the animals' props are
   const pond = real ? poolPlants(route.pool, (x, z) => terrain.heightAt(x, z)) : null;
-  const props = real ? [...animals.props, ...pond.props] : [];
-  const clear = real ? [...animals.clear, ...pond.clear] : [];
+  const props = real ? [...animals.props, ...life.props, ...pond.props] : [];
+  const clear = real ? [...animals.clear, ...life.clear, ...pond.clear] : [];
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
@@ -190,6 +193,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       else downwash.set(0, 0, 0, 0);
       crowds.begin(world.camera ?? null);
       animals.update(dt, time);
+      life.update(dt, time);
       crowds.end();
       waterfall.update(time, world.lighting?.direction); // drawn whenever in view: its top stands high, where the haze is thin
       // the far land at the flight's time (chapters/kafli4-flight.js sets it), every frame the page draws, a capture's still too
@@ -215,6 +219,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     downwash,
     /** The animal groups (animals.js), in the real look; null in the grey one. */
     animals,
+    /** The life nobody taps (life.js), in the real look; null in the grey one. skim(x, z) where she touches the water. */
+    life,
     /** The falls (world/props/waterfall.js), in the real look; null in the grey one (a slot). */
     waterfall,
     /** The land round the valley (far-land.js), in the real look; null in the grey one (a slot). */
@@ -234,6 +240,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
         farLand.dispose();
         waterfall.dispose();
         animals.dispose();
+        life.dispose();
         crowds.dispose();
         real.plants.dispose();
         real.water.dispose();

@@ -156,6 +156,7 @@ export function flightPlay(s, c) {
     }
     if (now && t >= nextRing) {
       world.forest?.rippleAt?.(p.x, p.z, 1);
+      world.forest?.life?.skim(p.x, p.z); // the water striders near it skate off (world/ardalur/life.js)
       nextRing = t + PLAY.ringEvery;
     }
     touching = now;

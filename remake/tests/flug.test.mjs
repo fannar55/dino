@@ -352,7 +352,7 @@ const press = element => {
 
 /** One run as a child plays it: `child(t, run)` each frame at the flight's time t, after what the frame showed is written down. */
 async function playAs(child = () => {}) {
-  const log = { lines: [], steers: [], frames: [], taps: {}, drags: new Set(), presses: [] };
+  const log = { lines: [], steers: [], frames: [], taps: {}, drags: new Set(), presses: [], skims: [] };
   let started = false;
   let now = 0;
   const onFrame = ({ world, director, pointer, stage }) => {
@@ -370,6 +370,10 @@ async function playAs(child = () => {}) {
         return task;
       };
       const steer = c.flier.steer;
+      // where she tells the life in the flight (world/ardalur/life.js) she skims
+      const life = world.forest?.life;
+      if (life) { const skim = life.skim; life.skim = (x, z) => { log.skims.push({ x, z, t: flightTime() }); return skim(x, z); }; }
+      else if (world.forest) world.forest.life = { skim: (x, z) => log.skims.push({ x, z, t: flightTime() }) };
       c.flier.steer = x => { log.steers.push({ x, t: flightTime() }); return steer(x); };
     }
     for (const line of log.lines) if (line.to === null && line.task.done) line.to = now;
@@ -509,6 +513,8 @@ test('a skim: she drops to the water, it splashes and Egill laughs, at most once
   const laughs = log.lines.filter(l => l.id === 'k4_egill_laugh');
   assert.equal(laughs.length, 1, 'Egill laughs once');
   assert.ok(laughs[0].from >= 21 && laughs[0].from < 22.6);
+  // and the water striders near it skate off (world/ardalur/life.js): she tells the life where she touches the water
+  assert.ok(log.skims.length > 0 && log.skims.every(s => s.t >= 21 && s.t < 22.6), `the life is told of the skim (${log.skims.map(s => s.t.toFixed(2))})`);
 });
 
 test('a press on Hraðar! does not steer, and Hraðar! is hidden after FASTER_LAST', () => {

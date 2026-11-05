@@ -90,6 +90,19 @@ const FLY = { stagger: 0.08, hop: 2.5, rise: 1.2, with: 4.0, peel: 2.0, gone: 7.
 // The turtles: stretch their necks, then from `from` slide `seconds` off into the river, and are under at `gone`.
 const SLIDE = { from: 1.6, seconds: 1.5, to: -0.6, gone: 3.3, stagger: 0.2 };
 
+/**
+ * A tree prop's crown where the plants' batcher puts it (world/forest/batch.js): its middle, half-width and half-height, from the
+ * forest's species `library` (a broadleaf's usual crown without one).
+ */
+export function crownOf(prop, library = null) {
+  const model = library ? library.get(prop.name, prop.variant, 1, {}) : null;
+  const cr = model?.crown ?? DEFAULT_CROWN;
+  const c = Math.cos(prop.rot), s = Math.sin(prop.rot), sc = prop.scale;
+  const y = prop.y - (model?.sink ?? 0) * sc;
+  const middle = new THREE.Vector3(prop.x + (cr.c[0] * c - cr.c[2] * s) * sc, y + cr.c[1] * sc, prop.z + (cr.c[0] * s + cr.c[2] * c) * sc);
+  return { middle, r: cr.r * sc, ry: (cr.ry ?? cr.r) * sc };
+}
+
 export function createAnimals(world, route, { heightAt = () => 0, library = null, crowds = null } = {}) {
   const { river } = route;
   const own = !crowds;
@@ -105,15 +118,6 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
   const topOf = (name, variant, scale) => {
     const model = libraryModel(name, variant);
     return model ? (model.height - (model.sink ?? 0)) * scale : DEFAULT_TOP[name] ?? 0;
-  };
-  /** A tree's crown where the plants' batcher puts it (world/forest/batch.js): its middle, half-width and half-height. */
-  const crownOf = prop => {
-    const model = libraryModel(prop.name, prop.variant);
-    const cr = model?.crown ?? DEFAULT_CROWN;
-    const c = Math.cos(prop.rot), s = Math.sin(prop.rot), sc = prop.scale;
-    const y = prop.y - (model?.sink ?? 0) * sc;
-    const middle = new THREE.Vector3(prop.x + (cr.c[0] * c - cr.c[2] * s) * sc, y + cr.c[1] * sc, prop.z + (cr.c[0] * s + cr.c[2] * c) * sc);
-    return { middle, r: cr.r * sc, ry: (cr.ry ?? cr.r) * sc };
   };
 
   /** A spot on the bank: `along` metres up the river from distance d, `e` from the water's edge on `side`. */
@@ -150,7 +154,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       clear.push({ x: at.x, z: at.z, r: CLEAR[p.name] ?? 0.9 });
       tops.push(p.name === 'waterLily' ? at.level + LILY_TOP : y + topOf(p.name, variant, p.scale));
     }
-    const crown = g.kind === 'birds' ? crownOf(placed[0]) : null;
+    const crown = g.kind === 'birds' ? crownOf(placed[0], library) : null;
     const members = LAYOUT[g.kind].map((m, k) => {
       let at;
       let y;
