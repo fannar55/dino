@@ -693,7 +693,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const haloMap = () => haloTexture ??= (() => {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
     const g = canvas.getContext('2d'), fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.35, 'rgba(255,205,130,.78)'); fill.addColorStop(.7, 'rgba(255,175,95,.3)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
+    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.3, 'rgba(255,205,130,.78)'); fill.addColorStop(.6, 'rgba(255,175,95,.26)'); fill.addColorStop(.85, 'rgba(255,165,85,.04)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
     g.fillStyle = fill; g.fillRect(0, 0, 64, 64); const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
   })();
   const haloAt = new THREE.Vector3(), haloBox = new THREE.Box3(), haloSize = new THREE.Vector3();
@@ -711,13 +711,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       halo.name = 'fossil-halo'; halo.renderOrder = 2; scene.add(halo); halos.set(entry, halo);
     }
-    // (at the fossil's middle and a little behind it as the camera sees it, level, so the fossil stands in front of its own light and the floor
-    // does not cut the light off: pushed back along a camera looking down it went into the ledge; its size is the fossil's, measured once, so it does not
+    // (a little above the fossil's middle and a little behind it as the camera sees it, level, so the fossil stands in front of its own light and the
+    // floor does not cut the light off in a straight line: a sprite faces the camera, so from above its lower half leans down into the ledge; its size is the fossil's, measured once, so it does not
     // breathe as the fossil turns)
     const group = entry.model.group;
     haloBox.setFromObject(group).getCenter(haloAt); haloBox.getSize(haloSize);
-    halo.position.copy(haloAt); haloAt.sub(camera.position).setY(0).normalize();
-    halo.position.addScaledVector(haloAt, .35); entry.haloUnit ??= Math.max(haloSize.x, haloSize.y, haloSize.z) / Math.max(.01, group.scale.x); halo.scale.setScalar(1.9 * entry.haloUnit * group.scale.x + .35); halo.material.opacity = .8 * k; halo.visible = group.visible && k > .01;
+    halo.position.copy(haloAt); halo.position.y += .2; haloAt.sub(camera.position).setY(0).normalize();
+    halo.position.addScaledVector(haloAt, .35); entry.haloUnit ??= Math.max(haloSize.x, haloSize.y, haloSize.z) / Math.max(.01, group.scale.x); halo.scale.setScalar(1.6 * entry.haloUnit * group.scale.x + .3); halo.material.opacity = .8 * k; halo.visible = group.visible && k > .01;
   }
   function unglowGifts() {
     for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; m.color.copy(saved.base); } glowSaved.clear();
