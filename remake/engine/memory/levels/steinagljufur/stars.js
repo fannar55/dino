@@ -9,8 +9,9 @@ const COUNT = 190;
 // The first stars: low over the hillside (world azimuth from +X toward +Z, degrees; elevation, degrees), where the shots on Sólarsyllan see
 // the sky over the wall. Then the rest of the sky fills in.
 // (the wide shots look down about 9 degrees with a 35 degree picture, so their sky reaches only about 8 degrees up: the band is low; and it reaches
-// round to 266 so that a tall screen, which looks more along the ledge, has a few of them too. Task 7, first run: at 8-24 degrees none was in a picture.)
-const FIRST = Object.freeze({ azimuth: [266, 350], elevation: [4.5, 12], count: 14 });
+// round to 270 so that a tall screen, which looks more along the ledge, has a few of them too. Task 7, first run: at 8-24 degrees none was in a picture;
+// at 4.5-12 the few in a picture sat in its top 100 pixels, under the HUD: now they come out just over the far haze, between the HUD and the wall)
+const FIRST = Object.freeze({ azimuth: [272, 348], elevation: [.9, 6], count: 14 });
 // (the rest come out closer and closer behind the first: a fifth of a step apart)
 const LATER = .22, LAST = FIRST.count + (COUNT - FIRST.count) * LATER + 1;
 
@@ -31,7 +32,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
   float born = smoothstep(aOrder, aOrder + 0.9, uOut);
   // (near the horizon the sky turns to haze: the stars fade into it)
-  float high = smoothstep(0.022, 0.06, position.y);
+  float high = smoothstep(0.002, 0.014, position.y);
   float twinkle = 0.82 + 0.18 * sin(uTime * (1.3 + fract(aPhase * 7.1) * 1.6) + aPhase * 6.283);
   vBright = born * high * twinkle;
   vGlint = step(4.6, aSize) * born;
@@ -72,13 +73,13 @@ export function createStars({ THREE, scene }) {
     } else {
       // the rest over the whole sky above the haze, more of them low (where the cameras look) than overhead
       azimuth = 360 * rand();
-      elevation = 4 + 81 * Math.pow(rand(), 1.9);
+      elevation = 1.5 + 83.5 * Math.pow(rand(), 1.7);
     }
     const a = azimuth * deg, e = elevation * deg;
     position.set([Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a)], i * 3);
     // the first ones come one by one, a whole step apart; the rest closer and closer behind them
     order[i] = i < FIRST.count ? i : FIRST.count + (i - FIRST.count) * LATER;
-    size[i] = i < FIRST.count ? (i < 6 ? 6.4 : 5.4) - .6 * rand() : 2.6 + 2.2 * Math.pow(rand(), 2.2);
+    size[i] = i < FIRST.count ? (i < 6 ? 7.2 : 6.2) - .6 * rand() : 2.6 + 2.2 * Math.pow(rand(), 2.2);
     phase[i] = rand();
     // mostly white, a few a little blue and a few a little warm
     const t = rand();

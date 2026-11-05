@@ -690,7 +690,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     entry.materials ??= (() => { const list = []; entry.model.group.traverse(object => { if (object.isMesh) for (const m of [object.material].flat()) if (m?.emissive && !list.includes(m)) list.push(m); }); return list; })();
     for (const m of entry.materials) {
       if (!glowSaved.has(m)) glowSaved.set(m, { color: m.emissive.clone(), intensity: m.emissiveIntensity });
-      const saved = glowSaved.get(m); m.emissive.copy(saved.color).lerp(GLOW_GOLD, Math.min(1, amount)); m.emissiveIntensity = Math.max(saved.intensity, amount * .24); // (a warm light over the texture, not a flat gold that hides it)
+      const saved = glowSaved.get(m); // (a warm light added over the texture, not a flat gold that hides it: the material's own emission as it was, plus a little gold;
+      // three's emissiveIntensity is 1 by default, so a max() with it kept the gold at full strength: Task 7, the clip run at 1280)
+      m.emissive.copy(saved.color).multiplyScalar(saved.intensity).addScaledVector(GLOW_GOLD, Math.min(1, amount) * .2); m.emissiveIntensity = 1;
     }
   }
   function unglowGifts() { for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; } glowSaved.clear(); }
