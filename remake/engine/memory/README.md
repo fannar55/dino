@@ -351,6 +351,8 @@ director owns framing, motion and input readiness.
 owns the waiting friends' games; `gestures.js` the friends' shared moves.
 `world-home-nav.js` owns the incremental clearance planner and route reservations;
 `travel-traffic.js` checks when cooperative routes can overlap safely in time;
+`walkers.js` walks friends and Mosi along routes on the game clock (level 2's group, a wrong friend's try) and lays level 1's
+crossing walkers on its log (`lie`), so both levels share it;
 `memory-clearance.js` supplies measured skin envelopes and the independent
 anatomical audit. `world-fx.js` batches dust, leaves, poofs, stars and splashes and emits timed foot contacts;
 `world-surface-fx.js` supplies procedural bark, water flow and soft foam.

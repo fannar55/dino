@@ -6,7 +6,7 @@ import { createGladeScenery } from './scenery.js';
 import { bridgeCollisionObjects } from '../../memory-clearance.js';
 import { sampleTravel } from '../../travel-traffic.js';
 import { measureWalkGait } from '../../walk-gait.js';
-import { createWalkers } from '../steinagljufur/walkers.js';
+import { createWalkers } from '../../walkers.js';
 import { branchScene, failScene } from './scenes/branch.js';
 import { rollScene } from './scenes/roll.js';
 import { crossScene } from './scenes/cross.js';

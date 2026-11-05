@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GESTURES, FAIL_TRIES } from '../../gestures.js';
-import { createWalkers } from './walkers.js';
+import { createWalkers } from '../../walkers.js';
 import { BORE } from './props.js';
 import { CLIMB, TREE_AT, wayPoints } from './upper-ground.js';
 

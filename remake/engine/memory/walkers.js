@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { measureWalkGait } from '../../walk-gait.js';
+import { measureWalkGait } from './walk-gait.js';
 
 /**
- * Friends (and Mosi) that walk a route on the game clock: level 2's group walks in a line (through the tunnel, up the ramp, up the steep path), and a wrong friend walks to its obstacle and back.
+ * Friends (and Mosi) that walk a route on the game clock, shared by both levels: level 2's group walks in a line (through the tunnel, up the ramp, up the steep path), and a
+ * wrong friend walks to its obstacle and back; level 1's crossing lays its walkers on the log with `lie`.
  * A route is a list of segments, done one after the other:
  *   { to: [Vector3...], speed }   walk through these points (heights included: the root is that high), at `speed` metres a second
  *   { wait: seconds }             stand
