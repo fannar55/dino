@@ -8,6 +8,8 @@
 //     subject (actors) and its centre; trees may frame the edges of the frame,
 //   - nothing grows where an actor stands,
 //   - big crowns stay out of the sun corridor so the clearing keeps its light.
+//   - a layout with `tall` (an aspect, 0.6) keeps each static shot clear on a tall screen too: nothing big stands near the camera in
+//     the taller view, which the 16:10 frame's own view of it does not show.
 // A fern glade (layout.glade, config.js) grows a lusher rim of ferns round its clearing. The shots and the actors are the
 // layout's own when it carries `shots` and `actors` (a chapter location keeps its own place clear), else the chapter's.
 // The Fen (layout.biome 'fen', biome.js) grows its own plants instead (growFen below): where a point is fen, the forest's passes
@@ -23,6 +25,13 @@ import { biomeOf } from './biome.js';
 import { SPECIES } from './species.js';
 import { sunDirection } from '../../engine/lighting.js';
 import { pickLook } from '../../engine/looks.js';
+
+// The aspect the shots are authored in (engine/camera/director.js)
+const AUTHORED_ASPECT = 1.6;
+// ...and what a tall screen's twin of a shot keeps free of plants: anything this big (a sphere's radius, m) within this far of the camera
+const TALL_BIG = 0.6, TALL_NEAR = 8;
+// and its clear air round the camera (the 16:10 frame's is FOREST.shots.clearance): a crown beside the lens shows in the taller view
+const TALL_AIR = 3;
 
 class SpatialHash {
   constructor(cell = 4) { this.cell = cell; this.map = new Map(); }
@@ -89,16 +98,24 @@ function buildShots(world, layout, terrain, sun) {
     if (Math.hypot(x - cx, z - cz) < layout.forestEdge + 4) walk.push({ x, z, heading: Math.atan2(dz, dx) });
   }
   const headAt = a => [a.x + Math.cos(a.heading) * 1.7, 1.6, a.z + Math.sin(a.heading) * 1.7];
+  // A layout with `tall` (an aspect, such as 0.6) keeps each of its static shots clear on a tall screen too: the director keeps the
+  // 16:10 frame's width on a tall screen and shows more above and below it (engine/camera/director.js), so the same shot is
+  // protected again at that width and the taller height (name#tall).
+  const tallAspect = layout.tall;
   function add(name, position, target, fov, subjects, kind) {
-    const cam = new THREE.PerspectiveCamera(fov ?? 40, 1.6, 0.1, 1000);
+    addView(name, position, target, fov, subjects, kind, 1);
+    if (tallAspect && kind !== 'track') addView(`${name}#tall`, position, target, fov, subjects, kind, AUTHORED_ASPECT / tallAspect);
+  }
+  function addView(name, position, target, fov, subjects, kind, stretch) {
+    const cam = new THREE.PerspectiveCamera(fov ?? 40, AUTHORED_ASPECT, 0.1, 1000);
     cam.position.fromArray(position);
     const tv = new THREE.Vector3().fromArray(target);
     cam.lookAt(tv);
     cam.updateMatrixWorld();
     cam.updateProjectionMatrix();
     const view = cam.matrixWorldInverse.clone();
-    const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-    const tanH = tanV * cam.aspect;
+    const tanH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect;
+    const tanV = (tanH / cam.aspect) * stretch;
     const rects = [];
     const fwd = new THREE.Vector3(target[0] - position[0], 0, target[2] - position[2]).normalize();
     const intoSun = fwd.dot(new THREE.Vector3(sun.x, 0, sun.z).normalize()) > 0.55;
@@ -114,7 +131,7 @@ function buildShots(world, layout, terrain, sun) {
     }
     const targetDist = cam.position.distanceTo(tv);
     if (kind === 'static' && target[1] < 3) rects.push({ x0: -0.3, x1: 0.3, y0: -0.4, y1: 0.3, depth: targetDist * 0.92 });
-    shots.push({ name, pos: cam.position.clone(), view, tanH, tanV, rects, targetDist, kind });
+    shots.push({ name, pos: cam.position.clone(), view, tanH, tanV, rects, targetDist, kind, tall: stretch !== 1 });
   }
   for (const [name, s] of Object.entries(layout.shots ?? world.chapter?.shots ?? {})) {
     const pos = s.position;
@@ -273,7 +290,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
       for (const sp of list) {
         _v.set(sp.c[0], sp.c[1], sp.c[2]);
         const dist = _v.distanceTo(shot.pos);
-        if (dist < clearance + sp.r) return shot.name;
+        if (dist < (shot.tall ? TALL_AIR : clearance) + sp.r) return shot.name;
         _v.applyMatrix4(shot.view);
         const depth = -_v.z;
         if (depth <= 0.25) continue;
@@ -283,6 +300,8 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
         // (a framing trunk for this very shot may come in further from the edge)
         const keepMiddle = shot.name === edgeShot ? 0.2 : 0.45;
         if (depth < 5 && rx > 0.22 && Math.abs(nx) - rx < keepMiddle && Math.abs(ny) - ry < 0.9) return shot.name;
+        // on a tall screen the ground in front of the camera shows far below the 16:10 frame: nothing big stands in view near it, at the edges either
+        if (shot.tall && shot.name !== `${edgeShot}#tall` && depth < TALL_NEAR && sp.r >= TALL_BIG && Math.abs(nx) - rx * 1.5 < 1 && Math.abs(ny) - ry * 1.5 < 1) return shot.name; // (a frond or a lobe reaches beyond its sphere)
         // a trunk a few metres from the lens cuts an authored picture in two: only at the frame edges
         if (sp.trunk && shot.kind !== 'track' && depth < 7 && Math.abs(nx) - rx < (shot.name === edgeShot ? 0.2 : 0.5) && Math.abs(ny) - ry < 1) return shot.name;
         for (const rect of shot.rects) {
@@ -476,7 +495,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
   {
     const rng = createRng(seed, 'framing');
     for (const shot of shots) {
-      if (shot.kind !== 'static' || shot.pos.y > 3 || radiusOf(shot.pos.x, shot.pos.z) < edgeR + 1) continue; // eye-level shots from the forest
+      if (shot.kind !== 'static' || shot.tall || shot.pos.y > 3 || radiusOf(shot.pos.x, shot.pos.z) < edgeR + 1) continue; // eye-level shots from the forest
       const inv = new THREE.Matrix4().copy(shot.view).invert();
       for (const side of [-1, 1]) {
         for (let attempt = 0; attempt < 6; attempt++) {
@@ -732,7 +751,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     };
     const spots = [[-0.78, -0.62], [0.72, -0.7], [-0.4, -0.85], [0.42, -0.58], [0.05, -0.9], [-0.9, -0.85], [0.9, -0.9], [-0.6, -0.45], [0.6, -0.45], [-0.2, -0.65], [0.25, -0.8], [-0.95, -0.5]];
     for (const shot of shots) {
-      if (shot.kind === 'track') continue;
+      if (shot.kind === 'track' || shot.tall) continue;
       let placedHere = 0;
       for (const [nx, ny] of spots) {
         yield; // a plant tried at a time (slices.js)
@@ -880,7 +899,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     //    the picture)
     const v3 = new THREE.Vector3();
     const inMiddleThird = (x, z) => shots.some(shot => {
-      if (shot.kind !== 'static') return false;
+      if (shot.kind !== 'static' || shot.tall) return false;
       v3.set(x, terrain.heightAt(x, z) + 3, z).applyMatrix4(shot.view);
       const depth = -v3.z;
       return depth > 0.5 && depth < 90 && Math.abs(v3.x / (depth * shot.tanH)) < 0.34;

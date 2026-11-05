@@ -1,23 +1,25 @@
-// Chapter 2's lookout (remake/chapters/kafli2.js, scene 6): up on Þórseðla's head Egill finds the three friends far away, each
-// glittering where she is, and each goes onto the book's map (the fifth task of the plan). The pieces the scene calls, with their
-// constants and helpers:
+// Chapter 3's lookout (remake/chapters/kafli3.js, scene 6): up on Þórseðla's head Egill finds two friends far away, each
+// glittering where she is, and each goes onto the book's map (the fifth task of the plan); Uggeðla, who is on the map already with
+// her star, waves from her reed. The pieces the scene calls, with their constants and helpers:
 //   farFriends(s, c, spots)  the three of them and Grameðla (world/props/far-friends.js), made after the start button shows
-//                            (kafli2.js: later), or under the chapter's first black; shown from the Fen on, and only from above 6 m
+//                            (kafli3.js: later), or under the chapter's first black; shown from the Fen on, and only from above 6 m
 //   haze(c, factor, seconds) the air thickens round the lookout (the fog's density, eased): the Fen far below reads far below
 //   lookDown(s, c)           at the top, the camera looks down past Egill at Mosi: "Vá… Mosi er pínulítill!", and Mosi's answer
 //   findFriends(s, c)        "Horfðu vel, Egill…", the camera turns out over the Fen to the north-west and the child looks round for
-//                            Slóeðla and Flugeðla; then it turns round to the east-south-east and the child finds Uggeðla in the reed.
-//                            A hint for each (a pan there and Mosi's line) at 12, 24 and 36 s, and at 48 s she is found for the child;
-//                            each found glitters, does what she does (far-friends.js: react), flies onto the map and Mosi names her.
-//                            After the third the camera turns to Grameðla far off at the forest's edge (farOff): she roars, Mosi says
-//                            who she is, and she walks into the trees; she is not found and goes nowhere in the book (she comes later)
+//                            Slóeðla and Flugeðla. A hint for each (a pan there and Mosi's line) at 12, 24 and 36 s, and at 48 s she is
+//                            found for the child; each found glitters, does what she does (far-friends.js: react), flies onto the map and
+//                            Mosi names her. Then the camera turns round to the east-south-east: Uggeðla glitters in her reed, lifts her
+//                            head and her sail out of it (a wave), and Mosi and Egill say hello. There is nothing to find: she is not
+//                            a target and goes nowhere in the book. After her the camera turns to Grameðla far off at the forest's edge
+//                            (farOff): she roars, Mosi says who she is, and she walks into the trees; she is not found and goes nowhere
+//                            in the book either (she comes later)
 // `c` is the chapter's shared state; the finds are kept in c.farFinds ({ name, how, at }) for captures and probes, and when each
 // beat of the look at Grameðla began in c.teaser.
 import * as THREE from 'three';
 import { createFarFriends } from '../world/props/far-friends.js';
-import { LOOKOUT_CAMERA, LOOKOUT_HEAD, MOSI_HEAD, downToMosi } from './kafli2-thorsedla.js';
+import { LOOKOUT_CAMERA, LOOKOUT_HEAD, MOSI_HEAD, downToMosi } from './kafli3-thorsedla.js';
 
-// The friends, in the order the script hints them (Slóeðla, Flugeðla, Uggeðla: k2_mosi_hint_far1..3): where each stands in the
+// The friends, in the order the script hints them (Slóeðla, Flugeðla: k2_mosi_hint_far1..2; then Uggeðla waves): where each stands in the
 // Fen (the layout's farFriends), which way she faces (a three-quarter view from the lookout, so the crest, the wings and the sail
 // read), and what she does while she waits. Uggeðla lies low in a reed bed of her own (far-friends.js: reed), thickest on the
 // lookout's side: the Fen's own reed is culled 64 m from the camera, and the authored reed round her would not show from her head.
@@ -28,36 +30,36 @@ const FRIENDS = {
   // the lookout's side (1,400 triangles)
   uggedla: { heading: -64, clip: 'idle', y: 0, sink: 2.0, reed: { clumps: 16, near: 0.75, radius: [1.3, 3.6], height: [2.7, 3.9] } },
   // Grameðla, the sixth friend, at the forest's edge beyond the Fen to the west, where the book's map has her beyond the mountains
-  // (kafli2.js: GRAMEDLA_FAR): side-on to the search camera, facing north along the trees, so that 144 m off in the haze her shape
+  // (kafli3.js: GRAMEDLA_FAR): side-on to the search camera, facing north along the trees, so that 144 m off in the haze her shape
   // reads as hers, the big head, the two legs and the long tail. Only seen, never found (find: false).
   gramedla: { heading: -62.5, clip: 'idle', y: 0, find: false },
 };
 const FIRST = ['sloedla', 'flugedla']; // to the north-west, seen together
-const LAST = 'uggedla'; // to the east-south-east, past her conifers
-const FAR_OFF = 'gramedla'; // to the west, at the edge of the forest beyond the Fen, after the third find
-const HINTS = { sloedla: 'k2_mosi_hint_far1', flugedla: 'k2_mosi_hint_far2', uggedla: 'k2_mosi_hint_far3' };
-const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_flugedla', uggedla: 'k2_mosi_found_uggedla' };
+const LAST = 'uggedla'; // to the east-south-east, past her conifers: she waves
+const FAR_OFF = 'gramedla'; // to the west, at the edge of the forest beyond the Fen, after her wave
+const HINTS = { sloedla: 'k2_mosi_hint_far1', flugedla: 'k2_mosi_hint_far2' };
+const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_flugedla' };
 
 // The camera of the search: behind Egill on his right, 2 m above his feet, over her neck and back curving away below. First it
 // turns out over the Fen to the north-west, between Slóeðla and Flugeðla, a little to the left of their middle and 6 degrees down,
 // so both glitter in the upper half of the frame, Flugeðla left of and under the star counter, so that her burst and the marker's
-// flight into the book read (kafli2.test holds them clear of it), the Fen lies far below in its haze, and her tail curves up through
+// flight into the book read (kafli3.test holds them clear of it), the Fen lies far below in its haze, and her tail curves up through
 // the bottom left: he is nine metres up, on her. On a tall screen it looks TALL_DOWN degrees further down, or the top third is sky.
 // The lens is a little long (44 degrees), so they read from
 // 80 to 100 m (a longer one would lose her tail, which lies 25 to 40 degrees under the level from here). The free look turns as far as each
 // of them and 12 degrees more, 30 down and 10 up. Then the camera turns round (TURN_SPEED) to Uggeðla in the east-south-east, past
-// her conifers, and the free look turns 70 degrees either way from her (s.search's explore, as the brief has it). From here the line
-// to Uggeðla passes 4.8 m clear of the south-east conifer's crown, which hides her from his head (the layout's sight line from it
-// passes 1.3 m from its axis at 9.3 m): the search is seen from here, not from his eyes.
+// her conifers, and holds on her while she waves. From here the line to Uggeðla passes 4.8 m clear of the south-east conifer's
+// crown, which hides her from his head (the layout's sight line from it passes 1.3 m from its axis at 9.3 m): she is seen from
+// here, not from his eyes.
 const SEARCH_CAMERA = { offset: [-3.2, 2.0, 2.4], local: true, stiffness: 1.6, fov: 44, maxSpeed: 2.4 };
 const SEARCH_PITCH = [-30, 10]; // degrees the free look tilts down and up
 const SEARCH_MARGIN = 12; // degrees the free look turns past the friend furthest round on each side
 const SEARCH_DOWN = 6; // degrees under the level the view looks as it turns out over the Fen
 const TALL_DOWN = 8; // and this much more on a screen taller than it is wide
 const SEARCH_LEAN = -2; // degrees the view turns out to the left of the first two friends' middle, toward her tail
-const LAST_LOOK = { yaw: [-70, 70], pitch: [-30, 10] }; // the free look round Uggeðla
 const LAST_DOWN = 6; // degrees the view of her looks under her: she sits a little above the middle, the reed and the channel below
 const TURN_SPEED = 10; // degrees a second, on average, the camera turns round to Uggeðla: eased, its peak is the style's 15 (STYLE.md 8)
+const WAVE_GLIMMER = 1.5; // seconds she glitters in her reed before she lifts her head and waves
 // Hints at 12, 24 and 36 s and a find at 48 s (STYLE.md 10) for the first friend; once one was found for the child the next
 // ones come sooner (hints every 6 s, found at 24 s), so a child who taps nothing is through the lookout in about two minutes.
 const PACE = { hintAfter: 12, helpAfter: 3 };
@@ -89,7 +91,7 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
  * and keeps them updated on world.effects until they are disposed of. Call it as the chapter starts. Their models are not made yet
  * (defer): parsing four models and making their light levels are long frames, so main.js has them made once the start button
  * shows and the places are built (chapter.later), and if the child has started by then the script makes them under its first
- * black (kafli2.js). Uggeðla is kept back until the camera has turned away from her (findFriends): from the lift and the look down
+ * black (kafli3.js). Uggeðla is kept back until the camera has turned away from her (findFriends): from the lift and the look down
  * at Mosi she would show at the edge of the frame before the child is asked to look. Grameðla is kept back until the camera turns
  * to her (farOff): she stands where the first search's free look reaches.
  */
@@ -133,7 +135,7 @@ export const hazeUp = c => haze(c, HAZE.up, HAZE.rise);
 
 /**
  * At the top of the lift: he looks down at Mosi, small below on the bank beside her withers, and the camera looks down past him
- * (Task 3's LOOKOUT_CAMERA with its look down, kafli2-thorsedla.js): "Vá… Mosi er pínulítill!" once it has turned down to Mosi, so the
+ * (Task 3's LOOKOUT_CAMERA with its look down, kafli3-thorsedla.js): "Vá… Mosi er pínulítill!" once it has turned down to Mosi, so the
  * child sees what he sees. Mosi looks up at him: "Ég er ekki lítill, ég er langt í burtu!"
  */
 export function* lookDown(s, c) {
@@ -148,10 +150,11 @@ export function* lookDown(s, c) {
 
 /**
  * "Horfðu vel, Egill. Sérðu vinina okkar?": the camera comes round behind him on his right and turns out over the Fen to the
- * north-west, and the child looks round for Slóeðla and Flugeðla glittering far away (s.search); then it turns round to the
- * east-south-east and Uggeðla glitters in her reed (a second s.search). Each one found glitters and does what she does, her place
- * flies onto the book's map, and Mosi names her. After the third, Grameðla far off (farOff), and then: "Nú veistu hvar þau eru. Við
- * skrifum það í bókina."
+ * north-west, and the child looks round for Slóeðla and Flugeðla glittering far away (s.search). Each one found glitters and does
+ * what she does, her place flies onto the book's map, and Mosi names her. Then the camera turns round to the east-south-east and
+ * Uggeðla glitters in her reed, lifts her head and sail out of it and waves ("Og sjáðu! Uggeðla veifar okkur úr sefinu sínu!", "Hæ,
+ * Uggeðla!"): nothing to find, no place for the book (she is on the map already, with her star). After her, Grameðla far off
+ * (farOff), and then: "Nú veistu hvar þau eru. Við skrifum það í bókina."
  */
 export function* findFriends(s, c) {
   const { egill, mosi, world } = c;
@@ -170,12 +173,16 @@ export function* findFriends(s, c) {
   yield egill.lookAt(alongTheView(world), { weight: 0.8, maxAngle: 70, maxPitch: 30 });
   for (const target of first) far.glimmer(target.name, true);
   yield s.search({ explore: { yaw: view.yaw, pitch: SEARCH_PITCH }, targets: first.map(withHint), ...PACE, quick: QUICK, onFound });
-  // Uggeðla: round to the east-south-east, past her conifers. She is there now (behind the camera, unseen till it turns), glittering.
+  // Uggeðla: round to the east-south-east, past her conifers. She is there now (behind the camera, unseen till it turns). Nothing to
+  // search for: she glitters in her reed, then lifts her head and sail out of it, and Mosi and Egill say hello.
   far.withhold(LAST, false);
-  far.glimmer(LAST, true);
   yield* turnRound(s, c, last[0].point);
-  const helped = c.farFinds.at(-1)?.how === 'helped';
-  yield s.search({ explore: LAST_LOOK, targets: last.map(withHint), ...(helped ? QUICK : PACE), onFound });
+  s.sfx('flower');
+  far.glimmer(LAST, true);
+  yield s.wait(WAVE_GLIMMER);
+  far.glimmer(LAST, false);
+  yield s.all(far.react(LAST), s.after(0.3, () => c.say('mosi', 'k3_mosi_wave')));
+  yield* c.say('egill', 'k3_egill_hi');
   // and far off at the edge of the forest beyond the Fen, Grameðla: seen, not found
   yield* farOff(s, c);
   // her last words up here over the Fen as the child left the view

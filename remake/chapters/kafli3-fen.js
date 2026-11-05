@@ -1,15 +1,15 @@
-// Chapter 2's Fen staging (remake/chapters/kafli2.js, scenes 3 to 5): the Fen's own animals, the berry bushes and Egill's basket,
+// Chapter 3's Fen staging (remake/chapters/kafli3.js, scenes 3 to 5): the Fen's own animals, the berry bushes and Egill's basket,
 // what scene 4 does with them, and the data they stand on:
 //   fenAnimals(s, c)        the frog, the turtle, the fish and the early bird, a tap on one makes it react and puts it in the book
 //   berryBushes(world)      the bushes round the bank where Egill picks (BERRY_BUSHES)
 //   pickBerries(s, c)       the search for the five red bunches, each flying into the basket and counted; the blue ones the birds'
 //   holdUpBasket(s, c)      the child drags the basket up over Egill (or taps him; after 6 s he holds it up himself)
 //   eatFromBasket(s, c)     she eats the berries out of it, chewing
-// `c` is the chapter's shared state; `c.say(speaker, id)` says a line one voice at a time (kafli2.js).
+// `c` is the chapter's shared state; `c.say(speaker, id)` says a line one voice at a time (kafli3.js).
 import { createCritters } from '../world/critters/critters.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import { tapOrWait } from '../engine/scene/tap-or-wait.js';
-import { mouthOf } from './kafli2-thorsedla.js';
+import { mouthOf } from './kafli3-thorsedla.js';
 
 // The marsh berry bushes (world/props/berries.js), round the bank where Egill picks, clear of the Fen's plants and its water, so the
 // search is a search (the owner's play of 2026-10-25: all five were on one screen, and the last only to be found by its glint). From
@@ -49,7 +49,7 @@ export const FEN_CRITTERS = [
 ];
 
 // The sound each of the chapter's animals makes when it reacts (engine/audio/fen-sounds.js, and chapter 1's frog): the Fen's four
-// when tapped, and the dragonfly over the third print as it darts up (kafli2-trail.js). The others in the prints only splash.
+// when tapped, and the dragonfly over the third print as it darts up (kafli2-trail.js, chapter 2's). The others in the prints only splash.
 export const CRITTER_SOUNDS = { earlyBird: 'earlyBird', dragonfly: 'dragonfly', turtle: 'turtle', fish: 'fish', frog: 'frog' };
 
 /**

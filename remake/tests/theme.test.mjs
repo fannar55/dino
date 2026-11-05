@@ -12,10 +12,11 @@ import { BOOK_SFX } from '../engine/book/book-sounds.js';
 import { createSave, defaultChapter } from '../engine/save.js';
 import { chapter as kafli1 } from '../chapters/kafli1.js';
 import { chapter as kafli2 } from '../chapters/kafli2.js';
+import { chapter as kafli3 } from '../chapters/kafli3.js';
 import { centsFromKey, createFakeContext, FakeMediaElement, peakThrough, pitchesOf, withFetch } from './fake-audio.mjs';
 
 // Each chapter's theme (engine/audio/theme.js): chapter 1's page plays "Little Dino Green Valley" (assets/audio/theme.json), chapter 2's
-// "Dino Trail" (assets/audio/kafli2/theme.json), read once as the page loads, with the default if the chapter's cannot be read. Chapter
+// and 3's "Dino Trail" (assets/audio/kafli2/theme.json), read once as the page loads, with the default if the chapter's cannot be read. Chapter
 // 2's effects are tuned to its key, B-flat major, and its forest dances on every second of its 133.3 beats a minute (danceBeats).
 
 const AUDIO = new URL('../assets/audio/', import.meta.url); // what main.js reads themes against: assets/audio/ beside it
@@ -57,12 +58,14 @@ async function warned(run) {
 // ---------------------------------------------------------------------------------------------
 // Which theme a page reads
 
-test('chapter 2\'s page asks for kafli2/theme.json, Dino Trail, and chapter 1\'s for theme.json, as before', async () => {
+test('chapter 2\'s and chapter 3\'s pages ask for kafli2/theme.json, Dino Trail, and chapter 1\'s for theme.json, as before', async () => {
   assert.equal(kafli2.theme, 'kafli2/theme.json', 'chapter 2 names its own theme');
+  assert.equal(kafli3.theme, 'kafli2/theme.json', 'and chapter 3 plays the same song');
   assert.equal(kafli1.theme, undefined, 'chapter 1 names none: it plays the default');
-  for (const [search, stars] of [['?chapter=kafli2', []], ['', ['k1_kambedla']]]) {
+  const pages = [['?chapter=kafli2', []], ['', ['k1_kambedla']], ['?chapter=kafli3', []], ['', ['k1_kambedla', 'k2_uggedla']]];
+  for (const [search, stars] of pages) {
     const { told, result } = await warned(() => pageTheme(search, stars));
-    assert.deepEqual(result.asked, [new URL('kafli2/theme.json', AUDIO).href], `${search || 'a save with Kambeðla\'s star'} asks for Dino Trail only`);
+    assert.deepEqual(result.asked, [new URL('kafli2/theme.json', AUDIO).href], `${search || `a save with ${stars.join(' and ')}`} asks for Dino Trail only`);
     assert.equal(result.url.href, new URL('kafli2/theme.json', AUDIO).href, 'its song is read against its own theme.json');
     assert.deepEqual(result.theme, TRAIL);
     assert.equal(result.theme.name, 'Dino Trail');
