@@ -10,7 +10,7 @@ import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
-import { createAnimals } from '../world/ardalur/animals.js';
+import { createAnimals, ANSWER } from '../world/ardalur/animals.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { HIGH } from '../world/ardalur/banks.js';
 import { createFarLand, FAR } from '../world/ardalur/far-land.js';
@@ -559,9 +559,11 @@ test('a tap on the birds\' tree calls the birds: the group is the tree\'s crown,
   animals.dispose();
 });
 
-test('each group answers her once: frogs jump, birds fly up, dragonflies follow her, turtles stretch, lizards run', () => {
+test('each group sets off for the festival when it answers, once', () => {
   const world = animalWorld();
   const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
+  const levelAt = p => route.river.at(route.river.nearest(p.x, p.z).d).level;
+  const dAt = p => route.river.nearest(p.x, p.z).d;
   for (const g of animals.groups) {
     const t0 = passes(route.groups.find(r => r.id === g.id).u);
     world.at(t0);
@@ -570,81 +572,111 @@ test('each group answers her once: frogs jump, birds fly up, dragonflies follow 
     const handle = g.answer();
     assert.equal(handle.done, false, `${g.id}: the answer takes time`);
     assert.equal(g.answered, true);
+    const seconds = ANSWER[g.kind];
     let rose = 0;
     let neck = 0;
-    let near = Infinity;
-    for (let t = t0; t <= t0 + 12; t += DT) {
+    let closest = Infinity;
+    const upstream = g.members.map(() => -Infinity);
+    for (let i = 0; i <= Math.round(seconds / DT); i++) {
+      const t = t0 + i * DT;
       world.at(t);
       animals.update(DT, t);
       g.members.forEach((m, k) => {
+        if (!m.visible) return;
         const p = m.position;
-        if (m.visible) rose = Math.max(rose, p.y - home[k].y);
-        if (g.kind === 'turtle') neck = Math.min(neck, m.morphs.hide ?? 0);
-        if (g.kind === 'dragonflies' && Math.abs(t - (t0 + 2)) < DT / 2) near = Math.min(near, -p.distanceTo(world.flightPoint));
+        closest = Math.min(closest, p.distanceTo(world.flightPoint));
+        rose = Math.max(rose, p.y - home[k].y);
+        upstream[k] = Math.max(upstream[k], dAt(p) - dAt(home[k]));
+        if (g.kind === 'turtle') neck = Math.min(neck, m.morphs.hide);
+        assert.ok(p.y >= animalTerrain.heightAt(p.x, p.z) - 0.05, `${g.id} ${k}: under the ground at ${(t - t0).toFixed(2)} s`);
+        if (g.kind === 'frogs' || g.kind === 'turtle') assert.ok(p.y >= levelAt(p) - 0.05, `${g.id} ${k}: under the water while seen, at ${(t - t0).toFixed(2)} s`);
       });
     }
+    const near = g.kind === 'birds' ? 4 : 3; // the birds fly by her, but never close to her body
+    assert.ok(closest >= near, `${g.id}: nothing passes within ${near} m of her (${closest.toFixed(2)} m)`);
+    // when the answer is over: on their way (gone, or well up the river), but the dragonflies, which come home
+    world.at(t0 + seconds);
+    animals.update(DT, t0 + seconds);
     assert.equal(handle.done, true, `${g.id}: the answer is over`);
-    const end = g.members.map(m => m.position.clone());
-    if (g.kind === 'frogs') assert.ok(rose > 0.8, `a frog jumps (${rose.toFixed(2)} m up)`);
-    if (g.kind === 'birds') {
-      assert.ok(rose > 3, `the birds fly up out of their tree (${rose.toFixed(2)} m up)`);
-      assert.ok(g.members.every(m => !m.visible), 'and are gone');
-    }
-    if (g.kind === 'turtle') assert.ok(neck < -0.4, `the turtles stretch their necks (hide ${neck.toFixed(2)})`);
-    if (g.kind === 'dragonflies') {
-      assert.ok(-near < 8, `2 s on, every dragonfly is within 8 m of her (${(-near).toFixed(1)} m)`);
-      end.forEach((p, k) => assert.ok(p.distanceTo(g.members[k].home) < 0.6, 'and they come home')); // drifting round it
-    }
-    if (g.kind === 'lizards') {
-      end.forEach((p, k) => {
-        const ran = route.river.nearest(p.x, p.z).d - route.river.nearest(home[k].x, home[k].z).d;
-        assert.ok(ran > 12, `a lizard runs along the bank with her, upstream (${ran.toFixed(1)} m)`);
-        assert.ok(p.y >= animalTerrain.heightAt(p.x, p.z) - 0.05, 'on the ground');
+    if (g.kind === 'dragonflies') g.members.forEach(m => assert.ok(m.visible && m.position.distanceTo(m.home) < 0.6, 'the dragonflies come home'));
+    else {
+      g.members.forEach((m, k) => {
+        const away = !m.visible || ((g.kind === 'lizards' || g.kind === 'frogs') && upstream[k] >= 15);
+        assert.ok(away, `${g.id} ${k}: set off (seen ${m.visible}, ${upstream[k].toFixed(1)} m upstream)`);
       });
     }
-    if (['frogs', 'turtle'].includes(g.kind)) end.forEach((p, k) => assert.ok(p.distanceTo(home[k]) < 0.05, `${g.id} rest where they were`));
-    // once: a second answer is a finished Handle and moves nothing
-    const again = g.answer();
-    assert.equal(again.done, true, `${g.id} answers once`);
-    world.at(t0 + 13);
-    animals.update(DT, t0 + 13);
-    const rest = g.kind === 'dragonflies' ? g.members.map(m => m.home) : end;
-    g.members.forEach((m, k) => assert.ok(m.position.distanceTo(rest[k]) < 0.6, `${g.id} stays at rest`));
-    if (g.kind === 'birds') assert.ok(g.members.every(m => !m.visible), 'the birds stay gone');
+    if (g.kind === 'frogs') assert.ok(rose > 0.8, `a frog leaps off its pad (${rose.toFixed(2)} m up)`);
+    if (g.kind === 'birds') assert.ok(rose > 3, `the birds fly up out of their tree (${rose.toFixed(2)} m up)`);
+    if (g.kind === 'turtle') assert.ok(neck < -0.4, `the turtles stretch their necks first (hide ${neck.toFixed(2)})`);
+    if (g.kind === 'lizards') upstream.forEach((ran, k) => assert.ok(ran >= 15, `lizard ${k} runs up the bank with her (${ran.toFixed(1)} m)`));
+    // once: a second answer is a finished Handle, and nothing comes back
+    assert.equal(g.answer().done, true, `${g.id} answers once`);
+    world.at(t0 + seconds + 3);
+    animals.update(DT, t0 + seconds + 3);
+    if (g.kind === 'dragonflies') g.members.forEach(m => assert.ok(m.visible && m.position.distanceTo(m.home) < 0.6, 'the dragonflies stay home'));
+    else assert.ok(g.members.every(m => !m.visible), `${g.id}: gone for good`);
   }
   animals.dispose();
 });
 
-test('an answer is a function of the game clock: jumping to a time lands on the same pose as playing up to it', () => {
-  const playedWorld = animalWorld();
-  const replay = createAnimals(playedWorld, route, { heightAt: animalTerrain.heightAt });
-  const jumpedWorld = animalWorld();
-  const jumped = createAnimals(jumpedWorld, route, { heightAt: animalTerrain.heightAt });
+/** Two valleys' animals, each answering at t0 = when she passes the birds' tree; `steps(world, animals)` plays one of them. */
+function twoAnswering() {
+  const pair = [animalWorld(), animalWorld()].map(world => ({ world, animals: createAnimals(world, route, { heightAt: animalTerrain.heightAt }) }));
   const t0 = passes(route.groups[2].u);
-  for (const [w, a] of [[playedWorld, replay], [jumpedWorld, jumped]]) {
-    w.at(t0);
-    a.update(DT, t0);
-    for (const g of a.groups) g.answer();
+  for (const { world, animals } of pair) {
+    world.at(t0);
+    animals.update(DT, t0);
+    for (const g of animals.groups) g.answer();
   }
-  for (let t = t0; t < t0 + 1.7; t += DT) {
-    playedWorld.at(t);
-    replay.update(DT, t);
-  }
-  playedWorld.at(t0 + 1.7);
-  replay.update(DT, t0 + 1.7);
-  jumpedWorld.at(t0 + 1.7);
-  jumped.update(0, t0 + 1.7);
-  replay.groups.forEach((g, i) => g.members.forEach((m, k) => {
-    const other = jumped.groups[i].members[k];
-    const a = m.position;
-    const b = other.position;
-    assert.ok(a.distanceTo(b) < 1e-6, `${g.id} ${k}: ${a.toArray()} and ${b.toArray()}`);
+  return { pair, t0 };
+}
+function samePoses(a, b) {
+  a.groups.forEach((g, i) => g.members.forEach((m, k) => {
+    const other = b.groups[i].members[k];
+    assert.ok(m.position.distanceTo(other.position) < 1e-6, `${g.id} ${k}: ${m.position.toArray()} and ${other.position.toArray()}`);
     assert.equal(m.visible, other.visible, `${g.id} ${k}: seen in both`);
     assert.ok(Math.abs(m.heading - other.heading) < 1e-6, `${g.id} ${k}: turned alike`);
     assert.deepEqual(m.morphs, other.morphs, `${g.id} ${k}: posed alike`);
   }));
-  replay.dispose();
-  jumped.dispose();
+}
+
+test('an answer is a function of the game clock: jumping to a time lands on the same pose as playing up to it', () => {
+  const { pair: [played, jumped], t0 } = twoAnswering();
+  for (let t = t0; t < t0 + 3.4; t += DT) {
+    played.world.at(t);
+    played.animals.update(DT, t);
+  }
+  for (const { world, animals } of [played, jumped]) {
+    world.at(t0 + 3.4);
+    animals.update(0, t0 + 3.4);
+  }
+  samePoses(played.animals, jumped.animals);
+  played.animals.dispose();
+  jumped.animals.dispose();
+});
+
+test('a pause holds an answer: the animals stand still while the game clock does, and go on from there', () => {
+  const { pair: [paused, straight], t0 } = twoAnswering();
+  for (let t = t0; t <= t0 + 2; t += DT) {
+    paused.world.at(t);
+    paused.animals.update(DT, t);
+  }
+  paused.world.at(t0 + 2);
+  paused.animals.update(DT, t0 + 2);
+  const held = paused.animals.groups.map(g => g.members.map(m => m.position.clone()));
+  for (let i = 0; i < 90; i++) paused.animals.update(DT, t0 + 2); // 3 s of frames on a held clock
+  paused.animals.groups.forEach((g, i) => g.members.forEach((m, k) => assert.ok(m.position.distanceTo(held[i][k]) < 1e-9, `${g.id} ${k} moved in the pause`)));
+  for (let t = t0 + 2; t <= t0 + 4; t += DT) {
+    paused.world.at(t);
+    paused.animals.update(DT, t);
+  }
+  for (const { world, animals } of [paused, straight]) {
+    world.at(t0 + 4);
+    animals.update(DT, t0 + 4);
+  }
+  samePoses(paused.animals, straight.animals);
+  paused.animals.dispose();
+  straight.animals.dispose();
 });
 
 test('the real valley: the animals have their lily pads, log and stone, and no plant grows on them', () => {

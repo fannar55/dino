@@ -31,10 +31,10 @@ import { createCrowds } from '../critters/crowd.js';
 /** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s. */
 export const SCALE = { frog: 3, dragonfly: 5, turtle: 3, salamander: 4, bird: 6 };
 const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle: 'turtle', lizards: 'salamander' };
-/** How long each group's answer lasts, in seconds. */
-export const ANSWER = { frogs: 2.2, birds: 4.5, dragonflies: 10, turtle: 3.8, lizards: 6.8 };
-/** The kinds whose answer's last pose is their rest from then on: the lizards stay where they ran to, the birds stay gone. */
-const STAY = new Set(['lizards', 'birds']);
+/** How long each group's answer lasts, in seconds: then it is on its way to the festival, out of sight (the dragonflies home again). */
+export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 4, dragonflies: 10 };
+/** The kinds whose answer's last pose is their rest from then on (gone): all but the dragonflies, which come home. */
+const STAY = new Set(['frogs', 'lizards', 'birds', 'turtle']);
 const RADIUS = 4; // metres: a group's tap target, wide (spec 6)
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -78,11 +78,17 @@ const PERCH = 0.85; // how far out in its crown a bird sits, as a share of the c
 // chase camera behind her sees them flank her.
 const SWARM = [[1.5, -4.8, 0.6], [-0.5, 5.2, 1.4], [0.8, 6.0, -0.2], [-1.5, -5.8, 1.8], [2.5, 4.2, 2.2], [0.2, -6.6, 1.0]];
 const FOLLOW = { rise: 0.6, with: 4.0, peel: 1.2, away: 10 }; // seconds: catch up, follow her, peel off, home again (unseen) at `away`
-// The small lizards' run: they turn from the water, run RUN metres up the bank with her (easing in and out), and turn back to drink.
-const RUN = { turn: 0.3, metres: 18, seconds: 5, out: 1.4, stride: 0.95, stagger: 0.12 };
-const HOP = { crouch: 0.22, air: 0.62, land: 0.3, height: 1.25, stagger: 0.18 };
-// The birds' flight out of their tree: up `up` metres and `out` inland, `ahead` upstream, in `seconds`, one after another; then gone.
-const FLY = { stagger: 0.12, seconds: 3.2, up: 7, out: 9, ahead: 4, beat: 7 };
+// The small lizards: they turn from the water, run `metres` up the bank with her in `seconds` (easing in and out), then `ahead` more
+// and `inland` into the trees in `into` seconds, out of sight once `hide` of the way in.
+const RUN = { turn: 0.3, metres: 24, seconds: 4, out: 1.4, ahead: 8, inland: 25, into: 5, hide: 0.8, stride: 0.95, stagger: 0.05 };
+// The frogs: a crouch and a leap `out` metres off the pad into the river, then they swim upstream on the surface and dive at `dive`.
+const HOP = { crouch: 0.22, air: 0.62, height: 1.25, out: 1.5, stagger: 0.18 };
+const SWIM = { speed: 1.5, kick: 2.2, dive: 6.0 };
+// The birds: up out of the crown and to her (`rise`), with her (`with`), at the dragonflies' places round her `spread` wider, then
+// off up and inland (`peel`), out of sight at `gone`.
+const FLY = { stagger: 0.08, hop: 2.5, rise: 1.2, with: 4.0, peel: 2.0, gone: 7.2, beat: 7, spread: 1.4, over: 1.5 };
+// The turtles: stretch their necks, then from `from` slide `seconds` off into the river, and are under at `gone`.
+const SLIDE = { from: 1.6, seconds: 1.5, to: -0.6, gone: 3.3, stagger: 0.2 };
 
 export function createAnimals(world, route, { heightAt = () => 0, library = null, crowds = null } = {}) {
   const { river } = route;
@@ -226,25 +232,44 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         if (tau === null) break;
         const u = tau - k * HOP.stagger;
         if (u <= 0) break;
-        if (u < HOP.crouch) squash(m, 1.06, 1 - 0.18 * Math.sin((Math.PI / 2) * (u / HOP.crouch)), 1.06);
-        else if (u < HOP.crouch + HOP.air) {
+        if (u >= SWIM.dive) { m.visible = false; break; } // dived: on its way under the water
+        const water = spot(m.d, m.side, m.along, m.e - HOP.out); // where it lands, out from its pad
+        const toRiver = headingOf(-water.out[0], -water.out[1]);
+        if (u < HOP.crouch) {
+          squash(m, 1.06, 1 - 0.18 * Math.sin((Math.PI / 2) * (u / HOP.crouch)), 1.06);
+          m.heading = lerpAngle(m.rest, toRiver, smooth(u / HOP.crouch));
+        } else if (u < HOP.crouch + HOP.air) {
           const a = (u - HOP.crouch) / HOP.air;
-          m.position.y += 4 * HOP.height * a * (1 - a);
+          m.position.set(m.home.x + (water.x - m.home.x) * a, m.home.y + (water.level - m.home.y) * a + 4 * HOP.height * a * (1 - a), m.home.z + (water.z - m.home.z) * a);
+          m.heading = toRiver;
           m.morphs.leap = Math.sin(Math.PI * a);
           m.pitch = 0.35 * (1 - 2 * a); // nose up, then down to land
-        } else if (u < HOP.crouch + HOP.air + HOP.land) {
-          const a = (u - HOP.crouch - HOP.air) / HOP.land;
-          squash(m, 1.05, 1 - 0.14 * Math.sin(Math.PI * a), 1.05);
+        } else {
+          // swimming upstream on the surface, kicking
+          const s = u - HOP.crouch - HOP.air;
+          const at = spot(m.d, m.side, m.along + SWIM.speed * s, m.e - HOP.out);
+          m.position.set(at.x, at.level, at.z);
+          m.heading = lerpAngle(toRiver, headingOf(at.dir[0], at.dir[1]), smooth(s / 0.5));
+          m.morphs.leap = 0.5 + 0.5 * Math.sin(TAU * SWIM.kick * s);
         }
         break;
       }
       case 'turtle': {
-        const stretch = tau === null ? 0 : envelope(tau - k * 0.2, 0.6, 2.0, 0.8);
+        const u = tau === null ? null : tau - k * SLIDE.stagger;
+        const stretch = u === null ? 0 : envelope(u, 0.6, 0.6, 0.4);
         const look = Math.max(0, Math.sin((TAU * t) / 9 + p)) ** 2;
         m.morphs.look = look * (1 - stretch) + 0.6 * stretch;
         m.morphs.hide = -0.75 * stretch;
         m.pitch = 0.12 * stretch;
         squash(m, 1, 1 + 0.012 * Math.sin((TAU * t) / 3.2 + p), 1);
+        if (u === null || u <= SLIDE.from) break;
+        if (u >= SLIDE.gone) { m.visible = false; break; } // under: on its way along the riverbed
+        // off its stone or log, nose down, into the river
+        const a = smooth((u - SLIDE.from) / SLIDE.seconds);
+        const at = spot(m.d, m.side, m.along, m.e + (SLIDE.to - m.e) * a);
+        m.position.set(at.x, Math.max(m.home.y + (at.level - m.home.y) * a, heightAt(at.x, at.z), at.level), at.z);
+        m.heading = lerpAngle(m.rest, headingOf(-at.out[0], -at.out[1]), smooth((u - SLIDE.from) / 0.4));
+        m.pitch = -0.3 * Math.sin(Math.PI * a);
         break;
       }
       case 'birds': {
@@ -256,16 +281,28 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         if (tau === null) break;
         const u = tau - k * FLY.stagger;
         if (u <= 0) break;
-        const s = u / FLY.seconds;
-        if (s >= 1) { m.visible = false; break; } // gone: on its way to the festival
-        // up out of the crown, then away inland and a little upstream
-        const [ox, oz] = m.out;
-        const [fx, fz] = m.dir;
-        const away = FLY.out * s * s;
-        const ahead = FLY.ahead * s;
-        m.position.set(m.home.x + ox * away + fx * ahead, m.home.y + FLY.up * (1 - (1 - s) ** 2), m.home.z + oz * away + fz * ahead);
-        m.heading = headingOf(ox * 2 * FLY.out * s + fx * FLY.ahead, oz * 2 * FLY.out * s + fz * FLY.ahead);
-        m.pitch = 0.45 * (1 - s);
+        const body = herNow();
+        if (u >= FLY.gone || !body) { m.visible = false; break; } // gone: on its way to the festival
+        // a place by her, on their tree's side of her (so none crosses her), the dragonflies' places spread wider
+        const r = river.at(river.nearest(body.x, body.z).d);
+        const fx = r.dir[0], fz = r.dir[1];
+        const [b, across, up] = SWARM[k % SWARM.length];
+        const aside = (Math.abs(across) * FLY.spread + 0.5 * Math.sin(TAU * 0.9 * t + p)) * m.side;
+        target.set(body.x + fx * b * FLY.spread - fz * aside, body.y + FLY.over + up * FLY.spread + 0.4 * Math.sin(TAU * 0.7 * t + p), body.z + fz * b * FLY.spread + fx * aside);
+        const out = FLY.rise + FLY.with;
+        const peel = smooth((u - out) / FLY.peel);
+        if (peel > 0) {
+          // off up and inland, out of the shot
+          target.x += m.out[0] * 14 * peel * peel;
+          target.y += 12 * peel * peel;
+          target.z += m.out[1] * 14 * peel * peel;
+        }
+        const reach = smooth(u / FLY.rise);
+        m.position.lerpVectors(m.home, target, reach);
+        m.position.y += FLY.hop * smooth(u / 0.5) * (1 - reach); // up out of the crown first
+        const toHer = headingOf(target.x - m.home.x, target.z - m.home.z);
+        m.heading = lerpAngle(lerpAngle(toHer, headingOf(fx, fz), reach), headingOf(fx + m.out[0], fz + m.out[1]), peel);
+        m.pitch = 0.4 * (1 - reach) + 0.35 * peel;
         m.wings[0] = 0.15 + 0.6 * Math.sin(TAU * FLY.beat * t + p);
         m.wings[1] = smooth(u / 0.25);
         break;
@@ -286,7 +323,8 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         // her forward: up the river where she is
         const r = river.at(river.nearest(body.x, body.z).d);
         const fx = r.dir[0], fz = r.dir[1];
-        const [b, across, up] = SWARM[k % SWARM.length];
+        const [b, wide, up] = SWARM[k % SWARM.length];
+        const across = Math.abs(wide) * m.side; // on their own side of her, so none crosses her
         const wob = 0.4 * Math.sin(TAU * 1.3 * t + p);
         target.set(body.x + fx * b - fz * (across + wob), body.y + up + 0.3 * Math.sin(TAU * 0.9 * t + p), body.z + fz * b + fx * (across + wob));
         if (tau >= out) target.y += 6 * smooth((tau - out) / FOLLOW.peel) ** 2; // peel off upward, out of the shot
@@ -302,21 +340,21 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         m.morphs.curl = curl;
         squash(m, 1, 1 + 0.035 * Math.sin(TAU * 0.8 * t + p), 1);
         if (tau === null) break;
+        // up the bank with her, then off inland into the trees, out of sight as they reach them
         const u = Math.max(0, tau - k * RUN.stagger);
         const run = smooth((u - RUN.turn) / RUN.seconds);
-        const along = RUN.metres * run;
-        const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) * (1 - smooth((u - RUN.turn - RUN.seconds + 0.6) / 0.6) * 0.5);
+        const inland = smooth((u - RUN.turn - RUN.seconds) / RUN.into);
+        if (inland >= RUN.hide) { m.visible = false; break; }
+        const along = RUN.metres * run + RUN.ahead * inland;
+        const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) + RUN.inland * inland;
         const at = spot(m.d, m.side, m.along + along, e);
         m.position.set(at.x, heightAt(at.x, at.z), at.z);
-        // turned upstream while running, back to the water when stopped
         const upstream = headingOf(at.dir[0], at.dir[1]);
-        const water = headingOf(-at.out[0], -at.out[1]);
-        const turnAway = smooth(u / RUN.turn);
-        const turnBack = smooth((u - RUN.turn - RUN.seconds) / RUN.turn);
-        m.heading = lerpAngle(lerpAngle(m.rest, upstream, turnAway), water, turnBack);
-        const running = Math.min(smooth(u / RUN.turn), 1 - turnBack);
+        const into = headingOf(at.dir[0] * RUN.ahead + at.out[0] * RUN.inland, at.dir[1] * RUN.ahead + at.out[1] * RUN.inland);
+        m.heading = lerpAngle(lerpAngle(m.rest, upstream, smooth(u / RUN.turn)), into, smooth((u - RUN.turn - RUN.seconds) / 0.6));
+        const running = smooth(u / RUN.turn);
         if (running > 0) {
-          const step = Math.sin((TAU * along) / RUN.stride);
+          const step = Math.sin((TAU * (RUN.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland)) / RUN.stride);
           m.morphs.curl = curl * (1 - running);
           m.morphs.walkA = running * Math.max(0, step);
           m.morphs.walkB = running * Math.max(0, -step);
