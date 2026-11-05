@@ -221,7 +221,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = {}) {
-  const seen = { shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
+  const seen = { critters: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
   let where = null;
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
@@ -263,6 +263,25 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
       }
       const scene = world.chapterTimeline?.filter(mark => typeof mark.scene === 'number').at(-1)?.scene;
       const her = world.actors.get('flugedla'), egill = world.actors.get('egill');
+      // the critters in the crowds (world/critters/crowd.js) through the flight: the cut it is in, the tallest in the frame (in pixels of
+      // a 1280 by 800 frame, or 800 by 1280 upright), and their budget
+      const crowds = world.forest?.animals?.crowds;
+      const started = c?.flight?.flight?.started ?? null;
+      if (crowds && started !== null && c.flight.flight.ended === null) {
+        const shot = c.flight.camera.current;
+        if (shot !== seen.lastShot) { seen.cuts++; seen.lastShot = shot; }
+        world.camera.updateMatrixWorld();
+        const tall = world.camera.aspect >= 1 ? 800 : 1280;
+        let tallest = 0;
+        for (const r of crowds.placed()) {
+          const middle = r.position.clone().setY(r.position.y + r.height / 2).project(world.camera);
+          if (middle.z >= 1 || Math.abs(middle.x) > 1 || Math.abs(middle.y) > 1) continue;
+          const foot = r.position.clone().project(world.camera);
+          const top = r.position.clone().setY(r.position.y + r.height).project(world.camera);
+          tallest = Math.max(tallest, ((top.y - foot.y) / 2) * tall);
+        }
+        seen.critters.push({ t: world.clock.time - started, shot, cut: seen.cuts, tallest, triangles: crowds.triangles(), calls: crowds.calls() });
+      }
       // the shadow shot (the flight camera's bankShadow): how large the lizards it is about look, as she passes them
       if (c?.flight?.camera?.current === 'bankShadow' && world.forest?.animals) {
         const group = world.forest.animals.groups.find(g => g.id === 'lizards-2');
@@ -592,6 +611,29 @@ test('Egill is on her back before the place changes, and nothing goes black betw
 // breath; Slóeðla's horn sounds from the reed across the pool, false; and the chapter ends as chapter 3 does, in the book.
 
 const toPool = p => Math.hypot((p.x ?? p[0]) - FAR_POOL.center[0], (p.z ?? p[1]) - FAR_POOL.center[1]);
+
+test('in every chase shot of C a group of animals is in view, large enough to see', async () => {
+  for (const [shape, play, share] of [['16:10', playWide, 0.5], ['upright', playUpright, 0.33]]) {
+    const { watched } = await play();
+    const frames = watched.critters.filter(f => f.shot === 'chase' && f.t >= BEATS.C && f.t < BEATS.D);
+    // a chase that starts at D (its first frame a hair under 80 s on this clock) is D's, not C's
+    const cuts = [...new Set(frames.map(f => f.cut))].filter(cut => frames.filter(f => f.cut === cut).length > 15);
+    assert.ok(cuts.length >= 3, `${shape}: ${cuts.length} chase shots in C`);
+    for (const cut of cuts) {
+      const shot = frames.filter(f => f.cut === cut);
+      const seenShare = shot.filter(f => f.tallest >= 16).length / shot.length;
+      assert.ok(seenShare >= share, `${shape}: the chase from ${shot[0].t.toFixed(1)} to ${shot.at(-1).t.toFixed(1)} s shows an animal 16 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
+    }
+  }
+});
+
+test('the animals stay in their budget: 40 000 triangles and 12 draw calls in every frame of the flight', async () => {
+  const { watched } = await playWide();
+  assert.ok(watched.critters.length > 1000, `${watched.critters.length} frames of the flight`);
+  const triangles = Math.max(...watched.critters.map(f => f.triangles));
+  const calls = Math.max(...watched.critters.map(f => f.calls));
+  assert.ok(triangles <= 40000 && calls <= 12, `at most ${triangles} triangles and ${calls} draw calls in a frame`);
+});
 
 test('the shadow shot frames the lizards it is about: the group at least 8 % of the frame\'s height as she passes', async () => {
   const { watched } = await playWide();

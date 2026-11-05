@@ -23,7 +23,7 @@ import { crownOf } from './animals.js';
 import { fenShare } from './terrain.js';
 
 /** How much larger than life each is drawn, to read from her back (as animals.js SCALE). */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 5, bird: 6, waterStrider: 8 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10 };
 const TAU = Math.PI * 2;
 const clamp01 = k => Math.min(1, Math.max(0, k));
 const smooth = k => { const x = clamp01(k); return x * x * (3 - 2 * x); };

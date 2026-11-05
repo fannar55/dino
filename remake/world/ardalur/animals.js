@@ -28,8 +28,9 @@ import { DONE, Handle } from '../../engine/handle.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
 
-/** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s. */
-export const SCALE = { frog: 3, dragonfly: 5, turtle: 3, salamander: 4, bird: 6 };
+/** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s (and
+ * on an upright tablet too, where the same view is 800 px wide, not 1280: kafli4's chase test). */
+export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 4.5, salamander: 4, bird: 7 };
 const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle: 'turtle', lizards: 'salamander' };
 /** How long each group's answer lasts, in seconds: then it is on its way to the festival, out of sight (the dragonflies home again). */
 export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 4, dragonflies: 10 };
@@ -52,7 +53,7 @@ const LAYOUT = {
     { along: -3.8, e: 0.35 }, { along: -1.9, e: 0.3 }, { along: 0, e: 0.4 }, { along: 1.9, e: 0.3 }, { along: 3.8, e: 0.35 },
     { along: -3.0, e: 2.4 }, { along: -1.0, e: 3.0 }, { along: 1.0, e: 2.6 }, { along: 3.0, e: 3.2 }, { along: 0.1, e: 4.2 },
   ],
-  turtle: [{ along: -1.5, e: 1.1, on: 0 }, { along: 1.0, e: 1.6, on: 1 }, { along: 2.3, e: 1.6, on: 1 }],
+  turtle: [{ along: -2.25, e: 1.1, on: 0 }, { along: 1.5, e: 1.6, on: 1 }, { along: 3.45, e: 1.6, on: 1 }],
   dragonflies: [
     { along: -2.4, e: -3.2, up: 1.0 }, { along: -1.0, e: -2.4, up: 1.6 }, { along: 0.3, e: -3.6, up: 1.2 },
     { along: 1.4, e: -2.8, up: 0.9 }, { along: 2.6, e: -3.4, up: 1.5 }, { along: 3.8, e: -2.6, up: 1.3 },
@@ -64,8 +65,8 @@ const LAYOUT = {
 // What they sit on (forest species, world/forest/species.js), placed the same way.
 const PROPS = {
   // small pads hugging the bank, 3 m clear of her lane at its widest steer where the river is narrowest (d 470)
-  frogs: LAYOUT.frogs.map((m, i) => ({ name: 'waterLily', variant: i % 6, along: m.along, e: m.e, scale: 1.6 })),
-  turtle: [{ name: 'rock', variant: 1, along: -1.5, e: 1.1, scale: 1.0 }, { name: 'log', variant: 0, along: 1.65, e: 1.6, scale: 1.0, lengthwise: true }],
+  frogs: LAYOUT.frogs.map((m, i) => ({ name: 'waterLily', variant: i % 6, along: m.along, e: m.e, scale: 2.2 })),
+  turtle: [{ name: 'rock', variant: 1, along: -2.25, e: 1.1, scale: 1.5 }, { name: 'log', variant: 0, along: 2.5, e: 1.6, scale: 1.4, lengthwise: true }],
   birds: [{ name: 'broadleaf', along: 0, e: 7, scale: 0.65 }], // its variant: which of the groups of birds it is
 };
 const CLEAR = { log: 2.2, rock: 1.2, broadleaf: 2.0 }; // metres round a prop where nothing else grows (else 0.9)
