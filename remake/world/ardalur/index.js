@@ -68,6 +68,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const pond = real ? poolPlants(route.pool, (x, z) => terrain.heightAt(x, z)) : null;
   const props = real ? [...animals.props, ...life.props, ...pond.props] : [];
   const clear = real ? [...animals.clear, ...life.clear, ...pond.clear] : [];
+  // round each animal group, on its side of the river, only low plants grow (banks.js LOW): the child sees the animals over them
+  const low = real ? animals.groups.map(g => ({ x: g.point.x, z: g.point.z, side: terrain.where(g.point.x, g.point.z).side })) : [];
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
@@ -146,7 +148,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const banks = grey
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
-        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear,
+        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low,
       });
     return { ground, banks };
   }

@@ -128,9 +128,11 @@ export function* bankSteps({ terrain, index, route, ground, seed, materials }) {
 // the gorge's rim is bushes, cycads and rock; the lilies float near the banks of the lazy reach and round the far pool.
 const REAL = {
   fen: [['horsetailReed', 1.0], ['horsetailTall', 0.3], ['mossHummock', 0.3], ['swampConifer', 0.05], ['bush', 0.08], ['deadSnag', 0.01]],
-  edge: [['horsetailReed', 1.3], ['horsetailTall', 0.5], ['fern', 0.3], ['rockSmall', 0.4], ['rock', 0.15]],
+  edge: [['horsetailReed', 1.3], ['horsetailTall', 0.5], ['fern', 0.8], ['bush', 0.35], ['flowers', 0.6], ['mossHummock', 0.3], ['rockSmall', 0.4], ['rock', 0.15]],
   rapids: [['rock', 0.6], ['rockSmall', 0.8], ['horsetailTall', 0.3], ['fern', 0.3]],
-  near: [['broadleaf', 0.12], ['araucaria', 0.04], ['treeFern', 0.2], ['cycad', 0.2], ['bush', 0.35], ['fern', 0.3], ['rock', 0.08]],
+  near: [['broadleaf', 0.12], ['araucaria', 0.04], ['treeFern', 0.2], ['cycad', 0.2], ['bush', 0.35], ['fern', 0.5], ['flowers', 0.3], ['rock', 0.08]],
+  // by the animal groups (LOW): what the child sees over
+  low: [['flowers', 1.0], ['fern', 0.6], ['mossHummock', 0.5], ['rockSmall', 0.4]],
   far: [['broadleaf', 0.16], ['araucaria', 0.07], ['treeFern', 0.08]],
   rim: [['bush', 0.4], ['cycad', 0.15], ['araucaria', 0.04], ['rock', 0.3], ['rockSmall', 0.3]],
   water: [['waterLily', 1.2]],
@@ -138,8 +140,14 @@ const REAL = {
 const SCALE = {
   broadleaf: [0.9, 1.2], araucaria: [0.75, 1.0], swampConifer: [0.9, 1.15], deadSnag: [0.7, 1.0], treeFern: [0.9, 1.4], cycad: [0.9, 1.3],
   bush: [0.9, 1.4], fern: [1.0, 1.6], horsetailReed: [0.9, 1.3], horsetailTall: [0.9, 1.2], rock: [0.8, 2.2], rockSmall: [0.8, 1.6],
-  mossHummock: [0.8, 1.3], waterLily: [0.8, 1.2],
+  mossHummock: [0.8, 1.3], waterLily: [0.8, 1.2], flowers: [0.9, 1.4],
 };
+// The banks of the river up to the gorge, green all along: every `step` metres up each bank a plant may stand in each row (metres
+// from the water's edge), at `chance`, `jitter` metres either way along, of the mix of the bank's zone (REAL.edge, REAL.rapids), but
+// where a plant already stands within `near` metres (seen from above, in x and in z).
+const BANK = { step: 2.5, rows: [[0.6, 3.4], [3.2, 6.4]], chance: 0.85, jitter: 1.0, near: 2.0 };
+/** Within `reach` metres of an animal group, on its side of the river, nothing taller than `height` grows (REAL.low there). */
+export const LOW = { reach: 10, height: 0.6 };
 const UNDERSTORY_REACH = 60; // m from the water's edge beyond which only trees grow
 const FEN_FULL = 40; // m from her path within which the Fen grows as thick as it does at the snag; beyond, FEN_FAR of that
 const FEN_FAR = 0.35;
@@ -200,10 +208,11 @@ function inHerWay(index, x, y, z, r, h, near) {
 /**
  * The steps that grow one section's real plants (a generator for the build queue). `library` is the forest's species library (one
  * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
- * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter). Returns
- * { group, placements, meshes }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time.
+ * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter), `low`
+ * the animal groups ({ x, z, side }) round which only low plants grow (LOW). Returns { group, placements, meshes }: the placements
+ * as the forest's (world/forest/plan.js), the meshes merged a section at a time.
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [] }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [] }) {
   const { own, grid: { gx0, gz0, W } } = ground;
   const rng = seeded(seed);
   const range = ([lo, hi]) => lo + rng() * (hi - lo);
@@ -222,6 +231,47 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
   const cellsAcross = W - 1;
   const rows = own.length / cellsAcross;
   const { pool } = route;
+  /** True within LOW.reach of an animal group, on its side of the river. */
+  const lowAt = (x, z) => low.some(c => Math.abs(c.x - x) <= LOW.reach && Math.abs(c.z - z) <= LOW.reach
+    && Math.hypot(c.x - x, c.z - z) <= LOW.reach && terrain.where(x, z).side === c.side);
+  /** Grows one `name` at (px, pz) if it may stand there (`sky` its share of the sky, `d` its river distance). */
+  function* grow(name, px, pz, sky, d) {
+    let scale = range(SCALE[name]);
+    const variant = Math.floor(rng() * FOREST.trees.variants[name]);
+    const rot = rng() * Math.PI * 2;
+    const phase = rng();
+    let y;
+    if (name === 'waterLily') {
+      const wp = terrain.where(px, pz);
+      const inPool = wp.toPool < pool.radius - 1.5;
+      if (!inPool && !(wp.e < -0.5 && wp.e > -4.5 && wp.d < RAPIDS.from - 10)) return;
+      y = (inPool ? pool.level : route.river.at(wp.d).level) + 0.012;
+    } else {
+      if (terrain.where(px, pz).e < 0.3 || steep(px, pz)) return;
+      if (Math.hypot(px - route.tree[0], pz - route.tree[2]) < SNAG_CLEAR) return;
+      y = terrain.heightAt(px, pz);
+    }
+    const coarse = yield* library.getSteps(name, variant, 2, {});
+    const one = ONE_LEVEL.has(name);
+    const fine = !one && index.nearest(px, pz, FINE, near) >= 0;
+    const middle = one || fine ? yield* library.getSteps(name, variant, 1, {}) : null;
+    if (name !== 'waterLily' && lowAt(px, pz)) {
+      // by an animal group: only what can be drawn low, and drawn so
+      const tall = Math.max(coarse.height, middle?.height ?? 0);
+      if (LOW.height / tall < 0.6) return;
+      scale = Math.min(scale, (LOW.height * 0.98) / tall);
+    }
+    const body = bodyOf(coarse, scale);
+    if (inHerWay(index, px, y, pz, body.r, body.h, near)) return;
+    if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) return; // an animal or what it sits on
+    if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) return;
+    const models = fine ? [{ level: 1, model: middle }, { level: 2, model: coarse }] : [{ level: one ? 1 : 2, model: one ? middle : coarse }];
+    const model = models[0].model;
+    placements.push({
+      name, model, models, variant, lod: models[0].level, x: px, y: y - (model.sink ?? 0) * scale, z: pz, rot, scale, phase,
+      band: fine ? 'near' : 'far', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky, d,
+    });
+  }
   for (let j = 0; j < rows; j += per) {
     for (let i = 0; i < cellsAcross; i += per) {
       if (!own[j * cellsAcross + i]) continue;
@@ -243,42 +293,43 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       for (const [name, base] of REAL[zone]) {
         const chance = base * thin;
         const count = Math.floor(chance) + (rng() < chance % 1 ? 1 : 0);
-        for (let c = 0; c < count; c++) {
-          const px = x + (rng() - 0.5) * 6;
-          const pz = z + (rng() - 0.5) * 6;
-          const scale = range(SCALE[name]);
-          const variant = Math.floor(rng() * FOREST.trees.variants[name]);
-          const rot = rng() * Math.PI * 2;
-          const phase = rng();
-          let y;
-          if (name === 'waterLily') {
-            const wp = terrain.where(px, pz);
-            const inPool = wp.toPool < pool.radius - 1.5;
-            if (!inPool && !(wp.e < -0.5 && wp.e > -4.5 && wp.d < RAPIDS.from - 10)) continue;
-            y = (inPool ? pool.level : route.river.at(wp.d).level) + 0.012;
-          } else {
-            if (terrain.where(px, pz).e < 0.3 || steep(px, pz)) continue;
-            if (Math.hypot(px - route.tree[0], pz - route.tree[2]) < SNAG_CLEAR) continue;
-            y = terrain.heightAt(px, pz);
-          }
-          const coarse = yield* library.getSteps(name, variant, 2, {});
-          const body = bodyOf(coarse, scale);
-          if (inHerWay(index, px, y, pz, body.r, body.h, near)) continue;
-          if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) continue; // an animal or what it sits on
-          if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) continue;
-          const one = ONE_LEVEL.has(name);
-          const fine = !one && index.nearest(px, pz, FINE, near) >= 0;
-          const middle = one || fine ? yield* library.getSteps(name, variant, 1, {}) : null;
-          const models = fine ? [{ level: 1, model: middle }, { level: 2, model: coarse }] : [{ level: one ? 1 : 2, model: one ? middle : coarse }];
-          const model = models[0].model;
-          placements.push({
-            name, model, models, variant, lod: models[0].level, x: px, y: y - (model.sink ?? 0) * scale, z: pz, rot, scale, phase,
-            band: fine ? 'near' : 'far', sector: aboveTheFalls(route, w.d) ? ABOVE_SECTOR : 0, sky: zone === 'fen' ? FEN.sky : 0.9, d: w.d,
-          });
-        }
+        for (let c = 0; c < count; c++) yield* grow(name, x + (rng() - 0.5) * 6, z + (rng() - 0.5) * 6, zone === 'fen' ? FEN.sky : 0.9, w.d);
       }
     }
     yield 'plants';
+  }
+  // the banks, green all along up to the gorge (BANK): in each row a plant every step or so, of the bank's mix (low by the animals)
+  const ownAt = (x, z) => {
+    const i = Math.floor(x / GRID) - gx0;
+    const j = Math.floor(z / GRID) - gz0;
+    return i >= 0 && j >= 0 && i < cellsAcross && j < rows && own[j * cellsAcross + i];
+  };
+  const pick = mix => {
+    let r = rng() * mix.reduce((sum, [, weight]) => sum + weight, 0);
+    for (const [name, weight] of mix) if ((r -= weight) < 0) return name;
+    return mix.at(-1)[0];
+  };
+  for (let d = 0; d < route.gorge.from; d += BANK.step) {
+    const r = route.river.at(d);
+    for (const side of [-1, 1]) {
+      for (const [e0, e1] of BANK.rows) {
+        const middle = r.half + (e0 + e1) / 2;
+        const mx = r.x - r.dir[1] * side * middle;
+        const mz = r.z + r.dir[0] * side * middle;
+        if (!ownAt(mx, mz)) continue;
+        if (placements.some(p => p.name !== 'waterLily' && Math.abs(p.x - mx) < BANK.near && Math.abs(p.z - mz) < BANK.near)) continue; // green already
+        if (rng() >= BANK.chance) continue;
+        const at = route.river.at(Math.max(0, d + (rng() - 0.5) * 2 * BANK.jitter));
+        const out = at.half + e0 + rng() * (e1 - e0);
+        const px = at.x - at.dir[1] * side * out;
+        const pz = at.z + at.dir[0] * side * out;
+        const w = terrain.where(px, pz);
+        if (w.gorge > 0.5 || w.toPool < pool.radius + 5 || nearCameo(px, pz)) continue;
+        const mix = lowAt(px, pz) ? REAL.low : w.d < RAPIDS.from ? REAL.edge : REAL.rapids;
+        yield* grow(pick(mix), px, pz, w.fen > 0.6 ? FEN.sky : 0.9, w.d);
+      }
+    }
+    if (Math.round(d / BANK.step) % 8 === 7) yield 'banks';
   }
   // what the animals sit on, those that stand in this section's own cells
   for (const prop of props) {

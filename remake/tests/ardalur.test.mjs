@@ -209,6 +209,63 @@ test('the real valley: each section stays within the forest budget, its plants a
   }
 });
 
+/** The placements of the real valley in 5 m cells, and those within r of (x, z), seen from above. */
+function placementsNear(place) {
+  const cells = new Map();
+  const key = (i, j) => i * 100003 + j;
+  for (const q of place.stats.sections.flatMap(part => part.userData.placements)) {
+    const k = key(Math.floor(q.x / 5), Math.floor(q.z / 5));
+    if (!cells.has(k)) cells.set(k, []);
+    cells.get(k).push(q);
+  }
+  return (x, z, r) => {
+    const out = [];
+    const span = Math.ceil(r / 5);
+    for (let i = -span; i <= span; i++) {
+      for (let j = -span; j <= span; j++) {
+        for (const q of cells.get(key(Math.floor(x / 5) + i, Math.floor(z / 5) + j)) ?? []) if (Math.hypot(q.x - x, q.z - z) <= r) out.push(q);
+      }
+    }
+    return out;
+  };
+}
+
+test('the banks of A to C are green: a plant at least every 4 m of bank, low by the animals', () => {
+  const place = litValley();
+  const near = placementsNear(place);
+  const props = [...place.animals.props, ...place.life.props];
+  const isProp = q => props.some(p => Math.hypot(p.x - q.x, p.z - q.z) < 0.01);
+  const clear = [...place.animals.clear, ...place.life.clear];
+  const paths = [route.cameos.bank.path, route.cameos.rim.path];
+  const onPath = (x, z) => paths.some(path => path.some(([px, pz]) => Math.hypot(px - x, pz - z) < 7));
+  let samples = 0;
+  let green = 0;
+  const bare = [];
+  for (let d = 0; d <= 850; d += 2) {
+    const r = route.river.at(d);
+    for (const side of [-1, 1]) {
+      for (const e of [1, 3.5, 6]) {
+        const x = r.x - r.dir[1] * side * (r.half + e);
+        const z = r.z + r.dir[0] * side * (r.half + e);
+        if (clear.some(c => Math.hypot(x - c.x, z - c.z) < c.r) || onPath(x, z)) continue;
+        samples++;
+        if (near(x, z, 3).some(q => q.name !== 'waterLily')) green++;
+        else bare.push(`d ${d} side ${side} e ${e}`);
+      }
+    }
+  }
+  assert.ok(green / samples >= 0.8, `${(100 * green / samples).toFixed(1)} % of ${samples} spots on the banks have a plant within 3 m (bare: ${bare.slice(0, 6).join('; ')} ...)`);
+  // nothing but low plants within 10 m of a group, on its side of the river: the child sees the animals, not the reed
+  for (const g of place.animals.groups) {
+    const side = place.terrain.where(g.point.x, g.point.z).side;
+    for (const q of near(g.point.x, g.point.z, 10)) {
+      if (isProp(q) || place.terrain.where(q.x, q.z).side !== side) continue;
+      const h = q.model.height * q.scale;
+      assert.ok(h <= 0.6, `${g.id}: a ${q.name} ${h.toFixed(2)} m tall stands ${Math.hypot(q.x - g.point.x, q.z - g.point.z).toFixed(1)} m from it`);
+    }
+  }
+});
+
 test('the river runs: lazy below the rapids, white water only from where they begin to the falls, lilies in the lazy reach', () => {
   const place = litValley();
   const river = place.group.getObjectByName('Árdalur river');
