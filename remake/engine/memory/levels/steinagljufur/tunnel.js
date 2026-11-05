@@ -122,7 +122,11 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   back.name = 'Myrkur innst'; group.add(back); disposables.push(back.geometry, back.material);
 
   // ---- the plates' light on the stone around the mouth ----
-  const lamp = new THREE.PointLight('#ffc77a', 0, 13, 1.7); lamp.position.set(BORE.mouth + 1.2, 1.5, BORE.across); group.add(lamp);
+  // (the only point light of the game. A light that is not drawn leaves the scene's light count, which is in every lit material's program, so all of them would compile
+  // anew in the frame the lower gorge is hidden at the through cut: the world hangs the lamp where it is never hidden (`hangLamp`), and it goes dark there instead while
+  // the lower gorge is not shown (`setShown`), so it never lights the upper gorge)
+  const lamp = new THREE.PointLight('#ffc77a', 0, 13, 1.7); lamp.name = 'Ljós platnanna'; lamp.position.set(BORE.mouth + 1.2, 1.5, BORE.across); group.add(lamp);
+  let shown = true;
 
   // ---- the pile ----
   const rocks = splitRocks(models.get('gorge-rocks')), PIECES = pieceDefs(rocks), pileMaterial = models.get('gorge-rocks').material.clone(); disposables.push(pileMaterial);
@@ -198,7 +202,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
     glow.uLight.value = level;
     // The pile is in the dark inside the bore until the light comes; it is that dim, and then lit.
     glow.uDim.value = lerp(.012, 1, smooth(level * 1.25));
-    lamp.intensity = level * 11;
+    lamp.intensity = shown ? level * 11 : 0;
     for (const crystal of crystals) crystal.material.emissiveIntensity = crystalLook[crystal.name].base + level * .55 + glint * 1.6;
     for (const crystal of crystals) crystal.material.color.setScalar(lerp(.45, 1, level));
   }
@@ -288,8 +292,12 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
       // (up the crystal's own lean: those on the walls lean in)
       points: () => crystals.flatMap(crystal => crystal.list.map(([x, z, y, yaw, s, rx, rz]) => { const lean = new THREE.Vector3(0, .75 * s, 0).applyEuler(new THREE.Euler(rx, yaw, rz, 'YXZ')); return at(x + lean.x, y + lean.y, z + lean.z); })),
     },
-    reset() { level = wanted = from = 0; easeAge = 1; glint = 0; pile.reset(); apply(); },
+    reset() { level = wanted = from = 0; easeAge = 1; glint = 0; shown = true; pile.reset(); apply(); },
+    /** Moves the lamp under `node` (one that is never hidden: the scene), where it stays as it stands now. */
+    hangLamp(node) { node.attach(lamp); },
+    /** Whether the lower gorge is shown: the lamp is dark while it is not. */
+    setShown(value) { shown = Boolean(value); apply(); },
     stats: () => ({ triangles: PIECES.reduce((sum, piece) => sum + rocks[piece.kind].triangles, 0) + crystals.reduce((sum, c) => sum + (models.get(`gorge-crystal-${c.name}`).triangles) * c.list.length, 0), draws: meshes.length + crystals.length + 3, pieces: PIECES.length, crystalsStanding: crystals.reduce((sum, c) => sum + c.list.length, 0) }),
-    dispose() { tunnel.remove(group); for (const item of disposables) item.dispose?.(); },
+    dispose() { lamp.removeFromParent(); lamp.dispose(); tunnel.remove(group); for (const item of disposables) item.dispose?.(); },
   };
 }

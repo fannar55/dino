@@ -4,8 +4,9 @@ import { BORE } from './props.js';
 import { createUpperMover } from './upper-mover.js';
 
 /**
- * The mover of level 2's first two tasks and their wrong friends (level 1's is levels/berjalundur/adventure.js): who stands where at the tunnel, what each tap of the child
- * does, and the events the page hears (levels/steinagljufur.js eventSounds and eventCaptions say what each sounds and says).
+ * The mover of level 2's steps (level 1's is levels/berjalundur/adventure.js): the first two and their wrong friends are played here (who stands where at the tunnel, what
+ * each tap of the child does, and the events the page hears: levels/steinagljufur.js eventSounds and eventCaptions say what each sounds and says); every step after the
+ * rockfall (through, reach, fly, climb, pull, walk) and the wrong friends' goes at the ledge and the cliff are handed to upper-mover.js (`up` below, given out as this mover's `upper`).
  *
  *   light      the Kambeðlur hop to the tunnel and stand one at each side of its mouth; each tap lights their plates a step (three steps, the tunnel's dark gives way: tunnel.js)
  *   headbutt   the Þríhyrnur hop to the mouth, side by side, noses to the pile; each tap is a charge (back a step, in with the horns) and a hit; the third lets the pile go

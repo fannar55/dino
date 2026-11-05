@@ -140,6 +140,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   // the waiting friends chase (it hides under no leaf any more).
   const giftModels = new Map();
   let butterfly = null;
+  // (dispose's way to stop the gifts, put back their glowing materials and free the halo's texture: set where the gifts' state is made, below the build, so a build that
+  // fails, and disposes before that state exists, has none)
+  let releaseGifts = null;
   let contactBatch;
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), projection = new THREE.Vector3();
   const pickables = [];
@@ -723,6 +726,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; m.color.copy(saved.base); } glowSaved.clear();
     for (const halo of halos.values()) { scene.remove(halo); halo.material.dispose(); } halos.clear();
   }
+  releaseGifts = () => { stopGifts(); haloTexture?.dispose(); haloTexture = null; };
   function updateGifts(dt) {
     if (gift.phase === 'none' || !(dt > 0)) return;
     gift.age += dt; if (gift.phase === 'fly') gift.flyAge += dt;
@@ -1034,7 +1038,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const actor of babyActors) { if (actor.model) releaseCharacter(actor.model); actor.dispose?.(); }
     babyShadows?.dispose();
     if (!Array.isArray(babyLibrary)) babyLibrary?.dispose?.();
-    scenes.cancelAll(); mosiPuppet?.dispose(); levelWorld?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); sky.dispose();
+    scenes.cancelAll(); releaseGifts?.(); mosiPuppet?.dispose(); levelWorld?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); sky.dispose();
     for (const pair of giftModels.values()) for (const item of pair) { item.group.removeFromParent(); item.dispose(); }
     if (butterfly) { butterfly.group.removeFromParent(); butterfly.dispose(); }
     leafResources.dispose(); contactResources.dispose(); hitGeometry.dispose(); hitMaterial.dispose();

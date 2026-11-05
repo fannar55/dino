@@ -7,9 +7,8 @@ import { freezeLevel } from '../step-rules.js';
  * Everything the rules, the story and game.js need to know about the level is here; its 3D world is levels/steinagljufur/world.js
  * (levels/worlds.js says what a world is). The fields are the ones levels/berjalundur.js describes.
  *
- * Task 3 built the glade and the search and Task 4 the first two steps (the tunnel and the rockfall); the keys and words of the steps that follow (Tasks 5 and 6
- * build their scenes and record their lines) are here so that the story reads the whole ladder, but until then only those are reachable: when the rocks are gone the round waits.
- * The story keys all start with `g2-`, so that a run's timeline says which level it is in.
+ * Every step is played (Task 3 built the glade and the search, Task 4 the tunnel and the rockfall, Task 5 the walk through, the ledge, the rope and the climb, Task 6 the
+ * pull and the walk over the trunk, Task 7 the celebration on Sólarsyllan and the ending). The story keys all start with `g2-`, so that a run's timeline says which level it is in.
  *
  * Beyond level 1's fields it has: `look` (engine/looks.js: the light of the gorge's afternoon), `lines` (which of Mosi's lines are the level's own:
  * the welcome, the one for the fossils still to find, the fossils' sentence; a null has no line yet), `voice` (a line Mosi says when the story reaches a moment:
@@ -195,7 +194,7 @@ export const STEINAGLJUFUR = freezeLevel({
     aria: { targets: 'Lauf, vinapör og leiðin upp á Sólarsylluna', journey: 'Fjögur verkefni á leiðinni' },
   },
   music: () => 'glade',
-  // What the world's events sound and say (the mover's: levels/steinagljufur/mover.js lists them); the steps after the rockfall add theirs (Tasks 5 to 7).
+  // What the world's events sound and say (the movers': levels/steinagljufur/mover.js lists the tunnel's and the rockfall's, upper-mover.js those of the steps after them).
   // Each tap of the light is a chime a step higher, the whole light a chord and Mosi's line; each hit of the horns is the pile knocked, the third its collapse and Mosi's line.
   eventSounds: {
     'light-step': [{ method: 'lightStep', arg: 'index' }],

@@ -43,13 +43,16 @@ const ROW = Object.freeze({ x: [49.6, 57.2], z: .95, rise: .45, half: [.55, .55,
  *
  * Task 3 built the glade and the search; Task 4 the first two steps: the Kambeðlur light the tunnel (scenes/light.js) and the Þríhyrnur butt away the rockfall in it
  * (scenes/headbutt.js), with the wrong friends' goes (scenes/fail.js), played by the mover (mover.js) over the tunnel's inside (tunnel.js). Task 5 the walk through it, the
- * Grameðlur's ledge, the Flugeðlur's rope and the climb (scenes/through.js, reach.js, fly.js, climb.js) in the upper gorge (upper.js, rope.js); Task 6 the last two: everyone
- * pulls the owner's dead trunk over the gap on a second rope (scenes/pull.js, the trunk in ledge.js) and walks over it to Sólarsyllan, where the round waits for Task 7.
+ * Þórseðlur's ledge, the Flugeðlur's rope and the climb (scenes/through.js, reach.js, fly.js, climb.js) in the upper gorge (upper.js, rope.js), played by upper-mover.js; Task 6
+ * the last two: everyone pulls the owner's dead trunk over the gap on a second rope (scenes/pull.js, the trunk in ledge.js) and walks over it to Sólarsyllan; Task 7 the
+ * evening light (dusk.js), the stars (stars.js) and the celebration there (scenes/celebrate.js), which ends the round.
  */
 export function createLevelWorld(stage) {
   const { THREE, scene } = stage, level = stage.level, spot = level.mosiSpot;
   const frame = frameOf(level.grid);
   let models = null, upperModels = null, upper = null, rope = null, rope2 = null, trunk = null, gorge = null, interior = null, mover = null, groundLook = null, snapshot = null, taskScript = null, searchCamera = null, api = null;
+  /** The lower gorge (the glade, the tunnel) shown or hidden; the plates' lamp is dark while it is hidden. */
+  const showLower = visible => { if (gorge) gorge.group.visible = visible; interior?.setShown(visible); };
   // The one number the tunnel's shaders read: how far the Kambeðlur's plates have lit it (0 dark, 1 lit; tunnel.js eases it).
   const glow = { uLight: { value: 0 } };
   // (Task 7) The light from the afternoon to the evening (dusk.js), a stage further after each step, and the stars of the celebration (stars.js).
@@ -239,13 +242,15 @@ export function createLevelWorld(stage) {
       upperModels = await loadUpperModels();
       upper = createUpperGorge({ scene, models, upperModels, glow, groundMaterial });
       interior = createTunnelInterior({ tunnel: gorge.tunnel, models, fx: stage.fx, glow, reducedMotion: stage.reducedMotion });
+      // (the plates' lamp hangs in the scene, not in the lower gorge, which the through cut hides: showLower makes it dark instead, tunnel.js)
+      interior.hangLamp(scene);
       // The rope: tied at the foot of the cliff, it runs up the path's right edge to the tree; its texture is the owner's approved ambientCG rope.
       const rail = upper.rail.map(p => new THREE.Vector3(p.x, p.y, p.z + 0)), sideway = rail.map((p, k) => { const a = rail[Math.max(0, k - 1)], b = rail[Math.min(rail.length - 1, k + 1)], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1; return new THREE.Vector3(p.x - dz / len * 1.55, p.y, p.z + dx / len * 1.55); });
       rope = createRope(stage, { from: upper.anchors.stake, to: new THREE.Vector3(7.5, 0, .6), parent: upper.group, groundAt: upper.groundAt, route: [upper.anchors.stake, ...sideway.slice(1)], trunk: upper.tree });
       // The dead trunk at the gap (Task 6: the owner's model, ledge.js; ?bolur=grar greys it) and the second rope, coiled on the clifftop behind where the line will stand (the same tube and texture).
       trunk = createTrunk({ THREE, parent: upper.group, model: models.get('gorge-trunk'), groundAt: upper.groundAt, grey: stage.params?.get?.('bolur') === 'grar' });
       rope2 = createRope(stage, { from: upper.onGround(...ROPE2.from), to: upper.onGround(...ROPE2.to), parent: upper.group, groundAt: upper.groundAt }); rope2.mesh.name = 'Reipið (annað)';
-      mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level, upper, rope, rope2, trunk, setLower: visible => { gorge.group.visible = visible; } });
+      mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level, upper, rope, rope2, trunk, setLower: showLower });
       mover.setReducedMotion(stage.reducedMotion());
       stars = createStars({ THREE, scene });
       if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, upper, rope, rope2, trunk, glow, stage, mover, plates, dusk, stars, get api() { return api; } };
@@ -256,7 +261,7 @@ export function createLevelWorld(stage) {
     },
 
     // ---- the obstacles ----
-    /** The obstacle to ask about now: the dark tunnel until it is lit, then the rockfall in it until it is gone (the steps after them come with Tasks 5 and 6). */
+    /** The obstacle to ask about now: the dark tunnel until it is lit, then the rockfall in it until it is gone, then the next step's place (the ledge, the cliff, the trunk). */
     getTargets() {
       if (!gorge || !interior) return [];
       const waiting = stage.scenes.waiting?.(), state = snapshot ?? {};
@@ -299,7 +304,7 @@ export function createLevelWorld(stage) {
       return true;
     },
     /** QA only (?qa=1): the camera looks at points of the upper gorge's frame from the frame's direction `front` (to the camera), `elevation` degrees up. */
-    qaUpper({ points, front = [-.2, -1], elevation = 24, kind = 'wide', scale, floor } = {}) { upper.show(); gorge.group.visible = false; stage.director.shot({ kind, subjects: () => points.map(p => upper.world(...p)), front: upper.direction(...front), elevation, cut: true, scale, floor }); },
+    qaUpper({ points, front = [-.2, -1], elevation = 24, kind = 'wide', scale, floor } = {}) { upper.show(); showLower(false); stage.director.shot({ kind, subjects: () => points.map(p => upper.world(...p)), front: upper.direction(...front), elevation, cut: true, scale, floor }); },
     /** QA only (?qa=1): the round as it stands before the walk through the tunnel (the friends at their rests, the tunnel lit, the rocks gone, the Kambeðlur holding the light), and then the walk starts. */
     qaThrough() {
       level.friends.forEach((species, i) => { const actors = stage.babies.filter(actor => actor.species === species), nest = stage.nests[i]; mover.bindPair(species, actors); actors.forEach((actor, k) => { actor.root.position.copy(nest.root.position).add(nest.restOffsets[k]); actor.root.rotation.y = nest.restYaw; actor.root.visible = true; actor.setMotion?.('idle'); }); });
@@ -363,8 +368,8 @@ export function createLevelWorld(stage) {
         stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug(), rope2: rope2?.debug(), trunk: trunk?.debug() } : null, dusk: dusk.debug(), stars: stars?.debug() ?? null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
-    reset() { snapshot = null; taskScript = null; rowShown = false; dusk.set(0); stars?.reset(); rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
-    dispose() { stars?.dispose(); interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
+    reset() { snapshot = null; taskScript = null; rowShown = false; dusk.set(0); stars?.reset(); rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) showLower(true); },
+    dispose() { stars?.dispose(); rope?.dispose(); rope2?.dispose(); trunk?.dispose(); interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
   };
   return api;
 }

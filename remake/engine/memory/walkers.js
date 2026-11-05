@@ -114,6 +114,8 @@ export function createWalkers({ stage, ground = null }) {
     lie(actor, along) { const body = bodyOn(actor, along); actor.root.rotation.z = body.pitch; settle(body, body.pitch); },
     busy: () => walks.size > 0,
     isWalking: actor => walks.has(actor),
+    /** The scale an actor had when it first walked here (a `pop` grows it back to that), or undefined when it has not walked yet. */
+    baseOf: actor => base.get(actor),
     count: () => walks.size,
     clock: () => clock,
     resetClock() { clock = 0; },

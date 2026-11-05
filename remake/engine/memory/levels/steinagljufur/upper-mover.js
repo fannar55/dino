@@ -254,6 +254,9 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     return [x, y + 2.7, z + 1.2];
   };
   const circle = angle => { const c = U.tree.base; return [c.x + Math.cos(angle) * WRAP.radius, U.tree.base.y + WRAP.rise, c.z + Math.sin(angle) * WRAP.radius]; };
+  // (a phase that waits only on flights would hold the round if a flight never said it was done: it goes on after about twice as long as the flight takes, from where she
+  // is along its points at its speed, with two seconds for the take-off and the ease in; the larger of the two Flugeðlur's)
+  const flightGuard = (actor, points, speed) => { let length = 0, from = actor.root.position; for (const p of points) { length += from.distanceTo(p); from = p; } return 2 * length / Math.max(.1, speed) + 2; };
   function startFly(beats) {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'fly', species: 'pteranodon', phase: 'approach', age: 0, beats: Math.max(0, Math.floor(beats) || 0), given: 0, queue: 0, done: 0, legAge: 0, lift: 0, trail: [], trailAge: 0, b0: null, tight: 0 };
@@ -272,23 +275,25 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     rope.carry(noseFrame(A), noseFrame(B), a.lift);
   }
   function flyLeg(index) {
-    const a = action; a.queue--; a.phase = 'leg'; a.leg = index; a.arrived = 0; a.legAge = 0; a.index = index;
+    const a = action; a.queue--; a.phase = 'leg'; a.leg = index; a.arrived = 0; a.legAge = 0; a.index = index; a.guard = 0;
     events.push({ type: 'wing-beat', id: 'fly', index }); if (index === 0) events.push({ type: 'rope-lift' });
     const last = index === LEGS.length - 1, theta0 = Math.atan2(airAt(.9)[2] - U.tree.base.z, airAt(.9)[0] - U.tree.base.x) + .0;
     members('pteranodon').forEach((actor, i) => {
       const base = last ? circle(theta0 - (i ? WRAP.behind / WRAP.radius : 0)) : (() => { const p = airAt(LEGS[index]); return [p[0] - (i ? 1.1 : 0), p[1] - (i ? .25 : 0), p[2] + (i ? .5 : -.4)]; })();
       a.theta0 = theta0; actor.carry?.(true);
-      const target = U.world(...base), ok = actor.fly?.([target], { speed: LEG_SPEED, onDone: () => { a.arrived++; } });
+      const target = U.world(...base); a.guard = Math.max(a.guard, flightGuard(actor, [target], LEG_SPEED));
+      const ok = actor.fly?.([target], { speed: LEG_SPEED, onDone: () => { a.arrived++; } });
       if (!ok) { actor.root.position.copy(target); a.arrived++; }
     });
   }
   function startWrap() {
-    const a = action; a.phase = 'wrap'; a.age = 0; a.trail = []; a.trailAge = 0; a.b0 = noseFrame(members('pteranodon')[1]); a.arrived = 0;
+    const a = action; a.phase = 'wrap'; a.age = 0; a.trail = []; a.trailAge = 0; a.b0 = noseFrame(members('pteranodon')[1]); a.arrived = 0; a.guard = 0;
     events.push({ type: 'rope-knots' });
     const steps = Math.round(WRAP.turns * 14);
     members('pteranodon').forEach((actor, i) => {
       const lag = i ? WRAP.behind / WRAP.radius : 0, points = [];
       for (let k = 1; k <= steps; k++) points.push(U.world(...circle(a.theta0 - lag + k / steps * WRAP.turns * Math.PI * 2)));
+      a.guard = Math.max(a.guard, flightGuard(actor, points, WRAP.speed));
       const ok = actor.fly?.(points, { speed: WRAP.speed, onDone: () => { a.arrived++; } }); if (!ok) a.arrived++;
     });
   }
@@ -298,12 +303,15 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     else if (a.phase === 'ready') { if (a.queue > 0) flyLeg(a.done); }
     else if (a.phase === 'leg') {
       if (a.leg === 0) a.lift = Math.min(1, a.lift + dt / (reduced() ? .2 : 1.2)); else a.lift = 1;
+      if (a.legAge > a.guard) a.arrived = 2;
       if (a.arrived >= 2) { a.done++; if (a.done >= (a.beats || 3)) startWrap(); else { a.phase = 'ready'; } }
     } else if (a.phase === 'wrap') {
       a.trailAge += dt; if (a.trailAge >= .06 || !a.trail.length) { a.trailAge = 0; a.trail.push(noseFrame(members('pteranodon')[0])); }
+      if (a.age > a.guard) a.arrived = 2;
       if (a.arrived >= 2) { a.trail.push(noseFrame(members('pteranodon')[0])); a.phase = 'tie'; a.age = 0; a.tight = 0; events.push({ type: 'rope-taut' });
         // they come down by the tree
-        members('pteranodon').forEach((actor, i) => { const spot = FORMATIONS.rim.pteranodon[i], ground = world(spot[0], spot[1]); a.landed = 0; actor.land?.(ground, { yaw: facing(spot, [spot[0] + 1, spot[1] + 5]), onDone: () => { a.landed = (a.landed ?? 0) + 1; } }) || (a.landed = 2); });
+        a.landed = 0;
+        members('pteranodon').forEach((actor, i) => { const spot = FORMATIONS.rim.pteranodon[i], ground = world(spot[0], spot[1]); actor.land?.(ground, { yaw: facing(spot, [spot[0] + 1, spot[1] + 5]), onDone: () => { a.landed = (a.landed ?? 0) + 1; } }) || (a.landed = 2); });
       }
     } else if (a.phase === 'tie') {
       a.tight = Math.min(1, a.age / (reduced() ? .3 : 1.7)); rope.tighten(a.tight);
@@ -385,7 +393,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   function startPull(beats) {
     if (!trunk || !rope2) return false;
     walkers.cancelAll(); walkers.resetClock();
-    action = { id: 'pull', phase: 'gather', age: 0, beats: Math.max(0, Math.floor(beats) || 0), given: 0, queue: 0, done: 0, leg: -1, arrived: 0, landed: 0, fixed: [], tight: 0, back: 0, stepAge: 0, lift: 0, legAge: 0 };
+    action = { id: 'pull', phase: 'gather', age: 0, beats: Math.max(0, Math.floor(beats) || 0), given: 0, queue: 0, done: 0, leg: -1, arrived: 0, landed: 0, fixed: [], tight: 0, back: 0, stepAge: 0, lift: 0, legAge: 0, guard: 0 };
     events.push({ type: 'pull-start' });
     rope2.hang(); rope2.show(); trunk.set(0);
     for (const { who, i, actor } of pullers()) {
@@ -400,17 +408,19 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       // (the first stands beyond the tree from the coil: she flies out low from under its crown, away from its trunk, before she turns for the coil; straight, a wing
       // went through its trunk; up and out, into its crown and the wall behind it)
       const p = U.local(actor.root.position), behindTree = Math.hypot(p.x - TREE_AT[0], p.z - TREE_AT[1]) < 3 && p.z > TREE_AT[1];
-      const away = behindTree ? [U.world(p.x + 2.7, U.rim.y + .8, p.z - 1)] : [];
-      const ok = actor.fly?.([...away, U.world(end.x, end.y + .8, end.z), U.world(end.x, end.y, end.z)], { speed: 3.4, onDone: () => { action.arrived++; } });
+      const away = behindTree ? [U.world(p.x + 2.7, U.rim.y + .8, p.z - 1)] : [], points = [...away, U.world(end.x, end.y + .8, end.z), U.world(end.x, end.y, end.z)];
+      action.guard = Math.max(action.guard, flightGuard(actor, points, 3.4));
+      const ok = actor.fly?.(points, { speed: 3.4, onDone: () => { action.arrived++; } });
       if (!ok) { actor.root.position.copy(U.world(end.x, end.y, end.z)); action.arrived++; }
     });
     return true;
   }
   function pullLeg(leg) {
-    const a = action; a.phase = 'leg'; a.leg = leg; a.arrived = 0; a.legAge = 0;
+    const a = action; a.phase = 'leg'; a.leg = leg; a.arrived = 0; a.legAge = 0; a.guard = 0;
     events.push({ type: 'wing-beat', id: 'pull', index: leg }); if (leg === 0) events.push({ type: 'rope-lift' });
     members('pteranodon').forEach((actor, i) => {
-      const points = flightGoal(leg, i).map(p => U.world(p.x, p.y, p.z)), ok = actor.fly?.(points, { speed: leg === 1 ? 4.2 : PULL_FLIGHT, onDone: () => { a.arrived++; } });
+      const points = flightGoal(leg, i).map(p => U.world(p.x, p.y, p.z)), speed = leg === 1 ? 4.2 : PULL_FLIGHT; a.guard = Math.max(a.guard, flightGuard(actor, points, speed));
+      const ok = actor.fly?.(points, { speed, onDone: () => { a.arrived++; } });
       if (!ok) { actor.root.position.copy(points.at(-1)); a.arrived++; }
     });
   }
@@ -439,9 +449,11 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   function updatePull(dt) {
     const a = action; a.age += dt; a.legAge += dt;
     if (a.phase === 'gather') {
+      if (a.age > a.guard) a.arrived = 2;
       if (a.arrived >= 2) pullLeg(0);
     } else if (a.phase === 'leg') {
       if (a.leg === 0) a.lift = Math.min(1, a.lift + dt / (reduced() ? .2 : 1.2)); else a.lift = 1;
+      if (a.legAge > a.guard) a.arrived = 2;
       if (a.arrived >= 2) {
         if (a.leg < 2) pullLeg(a.leg + 1);
         else { a.phase = 'knot'; a.age = 0; events.push({ type: 'rope-knots' }); }
@@ -687,18 +699,19 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
   }
   // The Flugeðlur at the ledge: up to the slab's edge, they take hold and hang there (the slab does not move: it is too heavy), kicking; then they let go and drop back to the floor.
   function startDangle(a) {
-    a.step = 'up'; a.arrived = 0; a.wait = 0;
+    a.step = 'up'; a.arrived = 0; a.wait = 0; a.guard = 0;
     members('pteranodon').forEach((actor, i) => {
       // (they hang 1.05 m out from the slab's edge: at 0.6 m a tail and at 0.85 m a head went into its end as she kicked; the second, the farther from the camera, hangs
       // 0.6 m further out and 0.45 m lower, where the first and the slab's end do not hide her, veggir)
       const edge = U.slab.under(U.slab.length - .5, i ? .8 : -.8), hang = U.world(edge.x - 1.05 - (i ? .6 : 0), edge.y - 1.0 - (i ? .45 : 0), edge.z);
-      a.hang = a.hang ?? []; a.hang[i] = hang.clone();
+      a.hang = a.hang ?? []; a.hang[i] = hang.clone(); a.guard = Math.max(a.guard, flightGuard(actor, [hang], 3.1));
       const ok = actor.fly?.([hang], { speed: 3.1, onDone: () => { a.arrived++; } }); if (!ok) { a.arrived++; actor.root.position.copy(hang); }
     });
   }
   function updateDangle(a, dt) {
     const list = members('pteranodon');
     a.wait += dt;
+    if (a.step === 'up' && a.wait > a.guard) a.arrived = 2;
     if (a.step === 'up' && a.arrived >= 2) { a.step = 'dangle'; a.wait = 0; for (const actor of list) actor.gesture?.('fail-ledge-pteranodon'); }
     else if (a.step === 'dangle') {
       list.forEach((actor, i) => { actor.root.position.copy(a.hang[i]); actor.root.position.y += Math.sin(a.wait * 7 + i) * .06 - .05 * smooth(a.wait / 1.2); });
@@ -757,7 +770,14 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     }, setWhere(value) { where = value; },
     walkers, update, goes: () => goes,
     spots: formation => ({ mosi: spotOf(formation, 'mosi').point, ...Object.fromEntries(level.friends.map(species => [species, members(species).map((_, i) => spotOf(formation, species, i).point)])) }),
-    reset() { walkers.cancelAll(); action = null; where = 'glade'; goes = null; time = 0; for (const actor of friends()) { actor.root.rotation.x = actor.root.rotation.z = 0; actor.root.scale.setScalar(1); actor.cancelFlight?.(); actor.carry?.(false); } if (mosi()) mosi().root.rotation.z = 0; trunk?.reset(); },
+    reset() {
+      walkers.cancelAll(); action = null; where = 'glade'; goes = null; time = 0;
+      for (const actor of friends()) { actor.root.visible = true; actor.root.rotation.x = actor.root.rotation.z = 0; actor.root.scale.setScalar(1); actor.cancelFlight?.(); actor.carry?.(false); }
+      // (a restart while the group is in the tunnel: the through hid Mosi at the end of his way in, and the cut shrank him to pop him out of the exit; the board's reset
+      // puts the friends under their leaves, but not Mosi, so he is shown again here at the scale he walked at)
+      const m = mosi(); if (m) { m.root.visible = true; m.root.rotation.z = 0; const scale = walkers.baseOf(m); if (scale !== undefined) m.root.scale.setScalar(scale); }
+      trunk?.reset();
+    },
     debug: () => ({ action: action ? { id: action.id, phase: action.phase, age: +action.age.toFixed(2), given: action.given ?? 0, done: action.done ?? 0, hidden: action.hidden ?? 0, arrived: action.arrived ?? 0, ...(action.id === 'walk' ? { walked: action.walked, times: action.times } : {}) } : null, where, walking: walkers.count() }),
   };
   function reduced() { return reducedNow(); }
