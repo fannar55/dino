@@ -62,6 +62,21 @@ export function checkLexicon(lexicon) {
       }
     }
   }
+  // The rules for whole lines: "ny3", the speakers whose new takes go out under Ný 3 (voice-lines.mjs applyNy3).
+  if (lexicon.lines !== undefined) {
+    const { lines } = lexicon;
+    if (!lines || typeof lines !== 'object' || Array.isArray(lines)) fail('"lines" holds the rules for whole lines: { "ny3": { "speakers": [...], "note": "..." } }.');
+    const odd = Object.keys(lines).filter(key => key !== 'ny3');
+    if (odd.length) fail(`"lines" has ${odd.join(', ')}; its one rule is "ny3".`);
+    const { ny3 } = lines;
+    if (ny3 !== undefined) {
+      if (!ny3 || typeof ny3 !== 'object' || Array.isArray(ny3)) fail('lines.ny3 is { "speakers": [...], "note": "..." }.');
+      const extra = Object.keys(ny3).filter(key => !['speakers', 'note'].includes(key));
+      if (extra.length) fail(`lines.ny3: unknown ${extra.join(', ')}.`);
+      if (!Array.isArray(ny3.speakers) || !ny3.speakers.every(who => typeof who === 'string' && /^[a-z]+$/.test(who)) || new Set(ny3.speakers).size !== ny3.speakers.length) fail('lines.ny3.speakers is a list of speakers (a-z), each once.');
+      if (!isText(ny3.note)) fail('lines.ny3 needs a "note" for the owner.');
+    }
+  }
   return lexicon;
 }
 
