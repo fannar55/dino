@@ -55,11 +55,11 @@ export const LOOKS = {
     exposure: 1.04, envIntensity: 0.5,
   },
   gorgeEvening: {
-    sun: { azimuth: 150, elevation: 7, color: '#ff8f6a', intensity: 1.9 },
-    hemi: { sky: '#8f9fd0', ground: '#5a4640', intensity: 0.85 },
+    sun: { azimuth: 150, elevation: 9, color: '#ff9470', intensity: 2.2 },
+    hemi: { sky: '#97a6d6', ground: '#6a5248', intensity: 0.95 },
     sky: { zenith: '#0f1838', horizon: '#6e5a82', glow: '#ff9466', cloud: '#4a4266', cloudShade: '#2a2a48', cloudCover: 0.62 },
     fog: { color: '#6e5a82', sunColor: '#ff9466', sunStrength: 0.8, density: 0.0042, heightFalloff: 0.04 },
-    exposure: 1.08, envIntensity: 0.4,
+    exposure: 1.12, envIntensity: 0.4,
   },
   golden: {
     sun: { azimuth: 210, elevation: 15, color: '#ffc68a', intensity: 2.9 },

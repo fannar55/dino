@@ -340,6 +340,19 @@ export const GESTURES = Object.freeze({
   // lower the slab comes, the lower her head. Each starts where the one before ended (the first from standing, the last lets go and stands again); a pull that is not the last holds
   // the head where the slab is until the next tap.
   'pull-1': pullGesture(0), 'pull-2': pullGesture(1), 'pull-3': pullGesture(2),
+  // (Task 7) The Þórseðla's trick on Sólarsyllan: she stretches her long neck as high as it goes (the ledge's stretch, higher), wags her head happily at the top with her
+  // mouth open and her tail swinging, and comes down again. Only her pose moves: she stays where she stands.
+  'reach-high': { duration: 2.4, apply(rig, t, energy) {
+    const L = rig.length, seconds = t * 2.4, level = smooth(seconds / .55) * (1 - smooth((seconds - 1.75) / .6)), top = bump(seconds, .55, 1.75);
+    turnHead(rig, Z, energy * .86 * level);
+    rig.pose.rotation.z += .1 * energy * level;
+    crouch(rig, -.025 * L * energy * level);
+    turnHead(rig, Y, .2 * energy * top * Math.sin(seconds * 8));
+    openJaw(rig, .22 * energy * top);
+    rig.rotateInRoot(rig.tail, Y, .35 * energy * level * Math.sin(seconds * 6));
+    if (rig.crossed(.6 / 2.4)) rig.lids?.blink.rest(.5, .08);
+    if (rig.crossed(1.8 / 2.4)) rig.lids?.blink.rest(0, .15);
+  } },
   // The wrong friends at the ledge and the cliff (Task 5; the mover moves their roots, the stars and the sounds are its events).
   // The Kambeðla at the ledge: she rears up on her hind legs to see over it, her front legs paw the air, she wobbles... and sits down hard on her plates.
   'fail-ledge-stegosaurus': { duration: 2.7, apply(rig, t, energy) {

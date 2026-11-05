@@ -661,7 +661,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   // The celebration's gifts (scenes/celebrate.js): the gifts the child found (one of each animal, all three in a finished round) rise from
   // Mosi's basket (his back), float above him and bob while his line says what they were, then fly to the basket in the ribbon, as a
   // found pair did. The same models as the leaves'.
-  const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
+  // (Task 7: a level may lay them out its own way, `layout` { hover(i, n), scale, glow }: level 2's glow in a row on Sólarsyllan. Level 1 gives none.)
+  const gift = { phase: 'none', age: 0, flyAge: 0, entries: [], layout: null };
   const found = () => [...new Set(cells.filter(cell => cell.item && cell.status === 'found').map(cell => cell.item))]
     .filter(id => giftModels.get(id)).map(id => ({ id, model: giftModels.get(id)[0] }));
   // Round Mosi's head, a little toward the camera (the shot of them is a close one on his face): one at each side and one high above it
@@ -669,19 +670,30 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const GIFT_SLOTS = [[-2.5, -.3], [2.5, -.3], [0, .9]];
   const giftAcross = () => { const front = stage.faceOn(mosi.root.rotation.y, .5); return new THREE.Vector3(front.z, 0, -front.x); };
   function giftHover(i) {
+    if (gift.layout) return gift.layout.hover(i, Math.max(1, gift.entries.length));
     const head = mosi.headPosition(new THREE.Vector3()), front = stage.faceOn(mosi.root.rotation.y, .5), [across, rise] = GIFT_SLOTS[i % GIFT_SLOTS.length];
     return head.addScaledVector(giftAcross(), across).addScaledVector(front, 1.3).add(new THREE.Vector3(0, rise, 0));
   }
   function giftOrigin() { const yaw = mosi.root.rotation.y; return new THREE.Vector3(mosi.root.position.x - Math.cos(yaw) * .9, mosi.root.position.y + 1.7, mosi.root.position.z + Math.sin(yaw) * .9); }
-  function startGifts() {
-    stopGifts(); gift.entries = found().map(entry => ({ ...entry, shown: false })); gift.age = 0; gift.phase = gift.entries.length ? 'rise' : 'none';
+  function startGifts(layout = null) {
+    stopGifts(); gift.layout = typeof layout?.hover === 'function' ? layout : null; gift.entries = found().map(entry => ({ ...entry, shown: false })); gift.age = 0; gift.phase = gift.entries.length ? 'rise' : 'none';
   }
   function flyGifts() {
     if (gift.phase !== 'rise') return;
     gift.phase = 'fly'; gift.flyAge = 0;
     gift.entries.forEach((entry, i) => { entry.from = giftHover(i); });
   }
-  function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; gift.entries = []; gift.phase = 'none'; }
+  function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; unglowGifts(); gift.entries = []; gift.phase = 'none'; gift.layout = null; }
+  // (Task 7) A layout's glow: the models' own materials lit warm gold and breathing, put back as they were when the gifts are gone (the materials are shared with the leaves' copies).
+  const glowSaved = new Map(), GLOW_GOLD = new THREE.Color('#ffc56a');
+  function glowGift(entry, amount) {
+    entry.materials ??= (() => { const list = []; entry.model.group.traverse(object => { if (object.isMesh) for (const m of [object.material].flat()) if (m?.emissive && !list.includes(m)) list.push(m); }); return list; })();
+    for (const m of entry.materials) {
+      if (!glowSaved.has(m)) glowSaved.set(m, { color: m.emissive.clone(), intensity: m.emissiveIntensity });
+      const saved = glowSaved.get(m); m.emissive.copy(saved.color).lerp(GLOW_GOLD, Math.min(1, amount)); m.emissiveIntensity = Math.max(saved.intensity, amount * .6);
+    }
+  }
+  function unglowGifts() { for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; } glowSaved.clear(); }
   function updateGifts(dt) {
     if (gift.phase === 'none' || !(dt > 0)) return;
     gift.age += dt; if (gift.phase === 'fly') gift.flyAge += dt;
@@ -692,14 +704,16 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       if (!entry.shown && gift.age >= delay) { entry.shown = true; group.visible = true; fx.emit('stars', giftOrigin(), { count: 8 }); }
       if (!entry.shown) return;
       const k = rise ? THREE.MathUtils.clamp((gift.age - delay) / rise, 0, 1) : 1, e = easeOutBack(k), hover = giftHover(i), origin = giftOrigin();
-      let scale = THREE.MathUtils.lerp(.05, 1, Math.min(1, e));
+      const size = gift.layout?.scale ?? 1;
+      let scale = THREE.MathUtils.lerp(.05, size, Math.min(1, e));
       group.position.copy(origin).lerp(hover, e); if (k >= 1) group.position.y += Math.sin((gift.age - delay) * 3.1 + i) * .08;
       if (gift.phase === 'fly') {
         const t = smooth(fly ? gift.flyAge / fly : 1); basketWorldPoint(flightTo); flightMid.lerpVectors(entry.from, flightTo, .35); flightMid.y += 1;
         group.position.copy(entry.from).multiplyScalar((1 - t) * (1 - t)).addScaledVector(flightMid, 2 * (1 - t) * t).addScaledVector(flightTo, t * t);
-        scale = THREE.MathUtils.lerp(1, GIFT.shrink, t);
+        scale = THREE.MathUtils.lerp(size, GIFT.shrink, t);
         if (t >= 1) { group.visible = false; landed++; }
       }
+      if (gift.layout?.glow) glowGift(entry, (gift.phase === 'fly' ? 1 - smooth(fly ? gift.flyAge / fly : 1) : 1) * THREE.MathUtils.clamp((gift.age - delay - rise) / .6, 0, 1) * (.75 + .25 * Math.sin((gift.age - delay) * 3 + i)));
       group.scale.setScalar(scale); faceCamera(entry.model); entry.model.animate(gift.age);
     });
     if (gift.phase === 'fly' && landed === n) stopGifts();

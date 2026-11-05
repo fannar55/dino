@@ -35,7 +35,7 @@ export const STEINAGLJUFUR = freezeLevel({
   ribbon: 'Leiðin upp á Sólarsylluna',
   look: 'gorgeAfternoon',
   // (`through`, `climb` and `walk` are travel steps: Mosi says their line when they start, game.js launchAction)
-  lines: { welcome: 'g2_welcome', help: null, giftsLeft: 'g2_left', gifts: 'gifts4', through: 'g2_through', climb: 'g2_climb', walk: 'g2_bridge' },
+  lines: { welcome: 'g2_welcome', help: 'g2_help', giftsLeft: 'g2_left', gifts: 'gifts4', through: 'g2_through', climb: 'g2_climb', walk: 'g2_bridge' },
   voice: { 'g2-light-ready': 'g2_light_ready', 'g2-headbutt-ready': 'g2_rocks_ready', 'g2-reach-ready': 'g2_ledge_ready', 'g2-fly-ready': 'g2_cliff_ready', 'g2-pull-ready': 'g2_pull_ready' },
   soundscape: 'gorge',
   credits: [
@@ -169,6 +169,8 @@ export const STEINAGLJUFUR = freezeLevel({
     ending: {
       eyebrow: 'ÁTTA VINIR · EITT GLJÚFUR', title: 'Öll komumst við upp!',
       text: 'Þið lýstuð, stönguðuð, náðuð hátt, fluguð og toguðuð saman. Nú horfa allir á stjörnurnar.', again: 'Spila aftur',
+      // (the card's second button, game.js endingLink: back to the first level)
+      home: { level: 'berjalundur', text: 'Berjalundurinn' },
     },
     help: {
       eyebrow: 'HJÁLPUMST AÐ', title: 'Komumst upp á Sólarsylluna.',

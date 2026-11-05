@@ -22,9 +22,9 @@ const LINES = { welcome: 'welcome', help: 'help', giftsLeft: 'giftsLeft', gifts:
 const stepById = id => level.steps.find(step => step.id === id);
 const travelAt = target => level.steps.find(step => step.kind === 'travel' && step.target === target);
 // Mosi's lines that also go up in his bubble when a script says them.
-const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft', 'gifts4', 'g2_left', 'g2_pull']);
+const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft', 'gifts4', 'g2_left', 'g2_pull', 'g2_won']);
 // How long a line's words stay up in his bubble when a script says it (seconds; the others 2.6).
-const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, gifts4: 3.4, giftsLeft: 3.2, g2_left: 3.2 };
+const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, gifts4: 3.4, giftsLeft: 3.2, g2_left: 3.2, g2_won: 5.2 };
 const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
 const RETRY_AFTER = 3; // seconds the camera is still before a blocked crossing (or walk to the grove) tries again by itself
 const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -109,13 +109,30 @@ function levelCards() {
     card.addEventListener('click', () => {
       if (shut) { card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
       if (here) { start(); return; }
-      const next = new URLSearchParams(location.search); next.delete('play'); next.delete('bord'); if (item.number > 1) next.set('bord', String(item.number));
-      const query = next.toString(); location.assign(`${location.pathname}${query ? `?${query}` : ''}`);
+      goToLevel(item);
     });
     return card;
   });
 }
-function reflectPicker() { $('level-cards').replaceChildren(...levelCards()); }
+// (the page plays one level: another level is another page, ?bord=N)
+function goToLevel(item) {
+  const next = new URLSearchParams(location.search); next.delete('play'); next.delete('bord'); if (item.number > 1) next.set('bord', String(item.number));
+  const query = next.toString(); location.assign(`${location.pathname}${query ? `?${query}` : ''}`);
+}
+// (Task 7) The ending card's second button: the next level once it is open (level 1's card: "Steinagljúfrið →"), or the way back the level's copy names (level 2's:
+// "Berjalundurinn"); none while the next level is still shut.
+function endingLink() {
+  if (nextLevel && !locked.has(nextLevel.id)) return { item: nextLevel, text: nextLevel.title, arrow: true };
+  const home = level.copy.ending.home, item = home && LEVELS.find(other => other.id === home.level);
+  return item ? { item, text: home.text, arrow: false } : null;
+}
+function reflectEndingLink() {
+  const link = endingLink(), button = $('ending-next'); button.hidden = !link; if (!link) return;
+  if (button.dataset.level === link.item.id) return;
+  const arrow = document.createElement('span'); arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '→';
+  button.dataset.level = link.item.id; button.replaceChildren(link.text + (link.arrow ? ' ' : ''), ...(link.arrow ? [arrow] : []));
+}
+function reflectPicker() { $('level-cards').replaceChildren(...levelCards()); reflectEndingLink(); }
 // A level finished opens the next one for good (storage that does not take it leaves the next level locked: the game works either way).
 function unlockNext() { if (nextLevel && unlockLevel(nextLevel.id)) { locked.delete(nextLevel.id); reflectPicker(); } }
 function reflectProgress(state) {
@@ -609,6 +626,7 @@ $('start').addEventListener('click', () => start());
 // Any tap on the game counts as the child doing something (the gold arrow waits for hesitation).
 $('game').addEventListener('pointerdown', noteInput);
 $('again').addEventListener('click', () => start({ restart: true }));
+$('ending-next').addEventListener('click', () => { const link = endingLink(); if (link) goToLevel(link.item); });
 $('credits-toggle').addEventListener('click', () => setCredits($('credits').hidden));
 $('cancel-choice').addEventListener('click', cancelChoice);
 $('camera').addEventListener('click', () => { audio.unlock(); music.unlock(); if (cameraState().mode !== 'overview') cancelChoice(); setCameraMode(cameraState().mode === 'overview' ? 'auto' : 'overview'); });

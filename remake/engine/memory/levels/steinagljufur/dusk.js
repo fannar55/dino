@@ -23,7 +23,8 @@ export function createDusk(stage) {
     applied = value;
     const i = Math.min(LOOKS.length - 2, Math.floor(value)), t = value - i;
     const turn = i === 0 ? Math.min(1, Math.max(0, (value - TURN_FROM) / (1 - TURN_FROM))) : t;
-    stage.daylight(LOOKS[i], LOOKS[i + 1], t, turn);
+    // (a stage without a sky, as the rules tests' stand-in, has no daylight: the light is then only kept as a number)
+    stage.daylight?.(LOOKS[i], LOOKS[i + 1], t, turn);
   }
   return {
     /** On to `target` (never back) over `duration` seconds, eased in and out. */

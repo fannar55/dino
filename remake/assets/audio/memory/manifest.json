@@ -223,5 +223,15 @@
     "src": "assets/audio/memory/g2_pull.mp3",
     "duration": 2.73,
     "mouth": "7ff9000000000000000efdc730000000000069fff8aa70000000000"
+  },
+  "g2_won": {
+    "src": "assets/audio/memory/g2_won.mp3",
+    "duration": 5.05,
+    "mouth": "ce8006aeb3afa0406fc4bfeffeee70db878bfdddfe80cd49cba700000000000008ddedefd00000efc70cfc3bb600000000000"
+  },
+  "g2_help": {
+    "src": "assets/audio/memory/g2_help.mp3",
+    "duration": 14.01,
+    "mouth": "00dfe55f8009deedaccbacdddff90adda44ff8dcdeefaba963000000000087efee50edcbca0cc9aecdb700bda0000000000ccdcb6fc87eb0bb8400eedd58cda00000000009eda570cdcbca0cec9eedb957fe00000000008d900adeed9ddcbcc3aed000beec967750000000000000cfffdefdd46ffdeda00cdbed6038db9678ffdcffc70d96aa9850000000000"
   }
 }

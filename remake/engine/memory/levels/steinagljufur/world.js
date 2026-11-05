@@ -13,6 +13,7 @@ import { reachScene } from './scenes/reach.js';
 import { flyScene } from './scenes/fly.js';
 import { climbScene } from './scenes/climb.js';
 import { pullScene, walkScene } from './scenes/pull.js';
+import { celebrateScene } from './scenes/celebrate.js';
 import { createRope } from './rope.js';
 import { createTrunk } from './ledge.js';
 import { ROPE2 } from './upper-mover.js';
@@ -29,6 +30,9 @@ const FAR_ROCKS = Object.freeze([
 // Where the tunnel mouth stands in the glade's grid (levels/steinagljufur.js `grid`): in the middle of the back wall, its opening toward the
 // camera of the landscape view and a little toward the portrait camera's side, so that both see it at an angle.
 const TUNNEL = Object.freeze({ at: [-2.5, 11.4], facing: [.5, -.87], scale: 1 });
+// (Task 7) The fossils' row on Sólarsyllan in the celebration: in front of the group (the upper gorge's frame: x from the first to the last, `z` toward the open side, `rise`
+// over the ledge), and each one's box for the clearance audit while they are up.
+const ROW = Object.freeze({ x: [49.6, 57.2], z: 1.35, rise: .55, half: [.55, .55, .55] });
 
 /**
  * Level 2's world: the gorge floor with its sandstone walls, boulders and the tunnel mouth (props.js, the owner's approved models), the ground's
@@ -48,7 +52,7 @@ export function createLevelWorld(stage) {
   const glow = { uLight: { value: 0 } };
   // (Task 7) The light from the afternoon to the evening (dusk.js), a stage further after each step, and the stars of the celebration (stars.js).
   const dusk = createDusk(stage);
-  let stars = null;
+  let stars = null, rowShown = false;
   // The Kambeðlur's plates (engine/plate-glow.js): their glow is the light of the tunnel's task, raised a step with each tap; with none lit they look as they always did.
   const glows = [];
   const plates = {
@@ -140,6 +144,10 @@ export function createLevelWorld(stage) {
     // (Task 7) the celebration: the light on to `target` (3: the evening) over `seconds`, and the stars out over `seconds`
     dusk: (target, seconds) => dusk.to(target, seconds),
     stars: seconds => stars?.show(seconds),
+    // the Kambeðlur's plates on (their trick), and the fossils' row: where fossil `i` of `n` floats, and whether the row is up (its boxes are in the clearance audit then)
+    plates: (level, options) => plates.setAll(level, options),
+    row: (i, n) => upper.world(ROW.x[0] + (ROW.x[1] - ROW.x[0]) * (n > 1 ? i / (n - 1) : .5), upper.rim.y + ROW.rise, ROW.z),
+    rowShown(shown) { rowShown = Boolean(shown); },
     mosiHeight: () => stage.mosi.actor.root.position.y,
     // The way from the mouth toward the camera: the tunnel's own way out (0) turned toward where the search camera stood when the task began (1), so that the shots look into it from the glade's side.
     front(toward = .3) {
@@ -194,6 +202,8 @@ export function createLevelWorld(stage) {
       { id: 'gap-near', parts: [box('gap-near-face', 'rock', [near - 1.5, y / 2, 6.4], [1.5, y / 2, 6.2])] },
       { id: 'sun-ledge', parts: [box('sun-ledge-block', 'rock', [(far + 60) / 2, y / 2, 6.6], [(60 - far) / 2, y / 2, 6.1])] },
       { id: 'stone', parts: [box('stone', 'stone', [upper.anchors.stone.x, upper.anchors.stone.y + .9, upper.anchors.stone.z], [.55, .9, .55])] },
+      // (Task 7) the fossils floating in their row while the celebration shows them
+      ...(rowShown ? [{ id: 'fossil-row', parts: [0, 1, 2, 3].map(i => box(`fossil-${i}`, 'fossil', [ROW.x[0] + (ROW.x[1] - ROW.x[0]) * i / 3, y + ROW.rise + ROW.half[1], ROW.z], ROW.half)) }] : []),
     ];
   }
 
@@ -313,6 +323,8 @@ export function createLevelWorld(stage) {
       raycaster.set(eye, new THREE.Vector3(0, 1, 0)); raycaster.near = .05; raycaster.far = 9; const roof = raycaster.intersectObject(upper.group, true).find(h => /^gorge-/.test(h.object.name));
       return { camera: d.position.map(v => +v.toFixed(1)), cameraAt: upper.local(eye).toArray().map(v => +v.toFixed(1)), roof: roof ? +roof.distance.toFixed(1) : null, items };
     },
+    /** QA only (?qa=1): the celebration on Sólarsyllan by itself (the group placed there first with qaPlace('sun')). */
+    qaCelebrate() { trunk.set(trunk.fallen); taskScript = stage.scenes.play(celebrateScene(script)); return taskScript; },
     qaPlace(formation) { for (const species of level.friends) mover.bindPair(species, stage.babies.filter(actor => actor.species === species)); return mover.upper.qaPlace(formation); },
     isBusy: () => Boolean(mover?.isBusy()),
     /** The step rules' state (step-rules.js getState()). */
@@ -349,7 +361,7 @@ export function createLevelWorld(stage) {
         stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, clock: +mover.time().toFixed(2), ...upper.stats(), rope: rope?.debug(), rope2: rope2?.debug(), trunk: trunk?.debug() } : null, dusk: dusk.debug(), stars: stars?.debug() ?? null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
-    reset() { snapshot = null; taskScript = null; dusk.set(0); stars?.reset(); rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
+    reset() { snapshot = null; taskScript = null; rowShown = false; dusk.set(0); stars?.reset(); rope?.reset(); rope2?.reset(); trunk?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
     dispose() { stars?.dispose(); interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
   };
   return api;

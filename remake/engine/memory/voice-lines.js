@@ -73,4 +73,8 @@ export const VOICE_LINES = Object.freeze({
   g2_pull_ready: { text: 'Togum öll saman í reipið!', seed: 251440 },
   g2_pull: { text: 'Einn, tveir, TOGA!', context: COUNTING, seed: 7, fixes: 'einn' },
   g2_bridge: { text: 'Brúin er komin. Á Sólarsylluna!', seed: 251441 },
+  // Level 2's end and help (Task 7): everyone on Sólarsyllan under the first stars (the celebration, scenes/celebrate.js, as the Flugeðlur circle; the fossils' gifts4 follows),
+  // and the help button's line, in the manner of level 1's help.
+  g2_won: { text: 'Allir átta komnir upp á Sólarsylluna! Sjáið stjörnurnar!', seed: 251450 },
+  g2_help: { text: 'Finndu fjögur vinapör undir laufunum. Kambeðlurnar lýsa, Þríhyrnurnar stanga, Þórseðlurnar ná hátt og Flugeðlurnar fljúga. Saman komumst við upp á Sólarsylluna!', seed: 251451 },
 });

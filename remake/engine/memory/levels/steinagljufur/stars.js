@@ -8,7 +8,7 @@ const RADIUS = 450;
 const COUNT = 190;
 // The first stars: low over the hillside (world azimuth from +X toward +Z, degrees; elevation, degrees), where the shots on Sólarsyllan see
 // the sky over the wall. Then the rest of the sky fills in.
-const FIRST = Object.freeze({ azimuth: [292, 356], elevation: [6, 21], count: 14 });
+const FIRST = Object.freeze({ azimuth: [292, 350], elevation: [8, 24], count: 14 });
 // (the rest come out closer and closer behind the first: a fifth of a step apart)
 const LATER = .22, LAST = FIRST.count + (COUNT - FIRST.count) * LATER + 1;
 
@@ -29,14 +29,14 @@ void main() {
   gl_Position = projectionMatrix * mv;
   float born = smoothstep(aOrder, aOrder + 0.9, uOut);
   // (near the horizon the sky turns to haze: the stars fade into it)
-  float high = smoothstep(0.07, 0.15, position.y);
+  float high = smoothstep(0.04, 0.11, position.y);
   float twinkle = 0.82 + 0.18 * sin(uTime * (1.3 + fract(aPhase * 7.1) * 1.6) + aPhase * 6.283);
   vBright = born * high * twinkle;
-  vGlint = step(3.0, aSize) * born;
+  vGlint = step(4.6, aSize) * born;
   vTint = aTint;
   // (a star swells a little as it comes out, then settles)
   float swell = 1.0 + 0.6 * (1.0 - smoothstep(0.0, 1.0, uOut - aOrder - 0.9)) * born;
-  gl_PointSize = vBright > 0.002 ? max(2.0, aSize * uPixel * swell) * (vGlint > 0.0 ? 2.2 : 1.0) : 0.0;
+  gl_PointSize = vBright > 0.002 ? max(2.5, aSize * uPixel * swell) * (vGlint > 0.0 ? 2.4 : 1.0) : 0.0;
 }`;
 
 const fragmentShader = /* glsl */`
@@ -47,7 +47,7 @@ void main() {
   vec2 p = gl_PointCoord * 2.0 - 1.0;
   float r = length(p);
   // a round core with a soft edge; the bright ones have a thin cross of light round it
-  float core = vGlint > 0.0 ? 1.0 - smoothstep(0.12, 0.42, r) : 1.0 - smoothstep(0.35, 1.0, r);
+  float core = vGlint > 0.0 ? 1.0 - smoothstep(0.16, 0.42, r) : 1.0 - smoothstep(0.5, 1.0, r);
   float glint = vGlint > 0.0 ? (max(0.0, 1.0 - abs(p.x) * 9.0) + max(0.0, 1.0 - abs(p.y) * 9.0)) * (1.0 - smoothstep(0.2, 1.0, r)) * 0.55 : 0.0;
   float a = clamp(core + glint, 0.0, 1.0) * vBright;
   if (a < 0.003) discard;
@@ -76,7 +76,7 @@ export function createStars({ THREE, scene }) {
     position.set([Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a)], i * 3);
     // the first ones come one by one, a whole step apart; the rest closer and closer behind them
     order[i] = i < FIRST.count ? i : FIRST.count + (i - FIRST.count) * LATER;
-    size[i] = i < FIRST.count ? (i < 6 ? 4.1 : 3.4) - .4 * rand() : 2 + 1.5 * Math.pow(rand(), 2.4);
+    size[i] = i < FIRST.count ? (i < 6 ? 6.4 : 5.4) - .6 * rand() : 2.6 + 2.2 * Math.pow(rand(), 2.2);
     phase[i] = rand();
     // mostly white, a few a little blue and a few a little warm
     const t = rand();

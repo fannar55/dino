@@ -11,6 +11,8 @@
  *   task.leg()     the leg of the Flugeðlur's flight now (0 out over the gap, 1 round the stone, 2 back up to the top; -1 before)
  *   task.phase()   what the mover is doing ('gather', 'leg', 'knot', 'down', 'ready', 'tug', 'fall', 'landed', 'cheer'; the walk's 'walk', 'cheer')
  */
+import { celebrateScene } from './celebrate.js';
+
 const all = (...fns) => fns;
 const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), actor.getNosePosition()]);
 const up = (point, metres) => point.clone().setY(point.y + metres);
@@ -53,7 +55,10 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTap: () => stage.task.beat(),
       // No taps: "Við gerum þetta saman!" and they pull it over on their own.
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
-    // (it falls in the still shot, and its dust settles there before the cut)
+    // (it falls in the still shot; as it lands, a cut to its top coming down on Sólarsyllan's lip in its dust, so the still shot is not held over about 8 s: Ruling 32, Task 7)
+    { at: .52, wait: { until: () => trunk().fallen || ended(), timeout: 8 } },
+    { at: .53, shot: { kind: 'wide', scale: 'action', subjects: () => [trunk().top, trunk().far, trunk().middle, at(47.5, 8.9, 9.2), at(44.5, 11, 9.2)], front: view([-.3, -1], [-.9, -.45]), elevation: tall ? 22 : 15, cut: true, floor: 'auto' },
+      act: () => stage.mosi.look(trunk().top) },
     { at: .55, wait: { until: () => phase() === 'cheer' || ended(), timeout: 10 } },
     // The bridge: the trunk lies over the gap, its top on Sólarsyllan; everyone cheers.
     { at: .6, shot: { kind: 'wide', subjects: () => [...everyone(), trunk().base, trunk().top, trunk().near, trunk().far, at(47, 9, 4)], front: view([-.2, -1]), elevation: 24, cut: true, floor: 'auto' },
@@ -66,8 +71,8 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
 /**
  * The walk over the trunk, at level 1's crossing pace (about 10 s): a cut on the near rim, from the open side a little behind them, as they step up onto the trunk one behind
  * the other and start over it; a cut from Sólarsyllan's side, a little ahead of them, as they come over and step off its top end (the Flugeðlur glide over); a wide cut of
- * everyone on Sólarsyllan as they cheer; then the camera goes to its resting view there. (No shot is held longer than about 8 s, Ruling 31: the cut comes as Mosi, the last,
- * leaves the near rim, or at 7.6 s.) On a tall screen the two cuts look more along the way, as the pull's do.
+ * everyone on Sólarsyllan as they cheer; then the celebration (scenes/celebrate.js, Task 7), which ends on a wide shot that stays up under the ending card. (No shot is held
+ * longer than about 8 s, Ruling 31: the cut comes as Mosi, the last, leaves the near rim, or at 7.6 s.) On a tall screen the two cuts look more along the way, as the pull's do.
  */
 export function walkScene(stage) {
   const tall = stage.aspect() < 1, view = (front, along) => () => stage.task.view(tall && along ? along : front), ended = () => !stage.task.busy(), trunk = () => stage.task.trunk(), at = (x, y, z) => stage.task.up(x, y, z);
@@ -89,6 +94,7 @@ export function walkScene(stage) {
     // Everyone on Sólarsyllan
     { at: 1.4, shot: { kind: 'wide', subjects: () => [...everyone(), stage.task.up(57, 9, 3), stage.task.up(50, 9, 11.6)], front: view([-.25, -1]), elevation: 18, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
     { at: 1.45, wait: { until: ended, timeout: 6 } },
-    { at: 1.5, shot: { release: true, duration: .9 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
+    // Then the celebration, as level 1's finish plays its own (Task 7)
+    ...celebrateScene(stage).map(line => ({ ...line, at: 1.5 + line.at })),
   ];
 }
