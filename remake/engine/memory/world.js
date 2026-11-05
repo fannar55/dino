@@ -684,25 +684,48 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     gift.entries.forEach((entry, i) => { entry.from = giftHover(i); });
   }
   function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; unglowGifts(); gift.entries = []; gift.phase = 'none'; gift.layout = null; }
-  // (Task 7) A layout's glow: the models' own materials lit warm gold and breathing, put back as they were when the gifts are gone (the materials are shared with the leaves' copies).
-  const glowSaved = new Map(), GLOW_GOLD = new THREE.Color('#ffc56a'), glowAdd = new THREE.Color();
+  // (Task 7) A layout's glow: the models' own materials lit warm and breathing, put back as they were when the gifts are gone (the materials are shared with the leaves' copies).
+  // (Task 7 fix round 1: in the evening light a little gold over them left four pale stones. Now the texture itself is lit: its colour is raised and warmed, so the
+  // pattern of each fossil shows brighter, not covered; a little gold in the emission; and a soft warm halo behind each, an additive sprite made in code, not a picture.)
+  const glowSaved = new Map(), GLOW_GOLD = new THREE.Color('#ffc56a'), GLOW_WARM = new THREE.Color(1, .9, .72), GLOW_WHITE = new THREE.Color(1, 1, 1), glowAdd = new THREE.Color(), halos = new Map();
+  let haloTexture = null;
+  const haloMap = () => haloTexture ??= (() => {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
+    const g = canvas.getContext('2d'), fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.3, 'rgba(255,200,120,.55)'); fill.addColorStop(.65, 'rgba(255,170,90,.16)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
+    g.fillStyle = fill; g.fillRect(0, 0, 64, 64); const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+  })();
+  const haloAt = new THREE.Vector3();
   function glowGift(entry, amount) {
     entry.materials ??= (() => { const list = []; entry.model.group.traverse(object => { if (object.isMesh) for (const m of [object.material].flat()) if (m?.emissive && !list.includes(m)) list.push(m); }); return list; })();
+    const k = Math.min(1, Math.max(0, amount));
     for (const m of entry.materials) {
-      if (!glowSaved.has(m)) glowSaved.set(m, { color: m.emissive.clone(), intensity: m.emissiveIntensity });
-      const saved = glowSaved.get(m); // (a warm light added over the texture, not a flat gold that hides it: the material's own emission as it was, plus a little gold;
-      // three's emissiveIntensity is 1 by default, so a max() with it kept the gold at full strength: Task 7, the clip run at 1280)
-      m.emissive.copy(saved.color).multiplyScalar(saved.intensity).add(glowAdd.copy(GLOW_GOLD).multiplyScalar(Math.min(1, amount) * .2)); m.emissiveIntensity = 1;
+      if (!glowSaved.has(m)) glowSaved.set(m, { color: m.emissive.clone(), intensity: m.emissiveIntensity, base: m.color.clone() });
+      const saved = glowSaved.get(m);
+      m.color.copy(saved.base).multiply(glowAdd.copy(GLOW_WARM).lerp(GLOW_WHITE, 1 - k)).multiplyScalar(1 + .9 * k);
+      m.emissive.copy(saved.color).multiplyScalar(saved.intensity).add(glowAdd.copy(GLOW_GOLD).multiplyScalar(k * .14)); m.emissiveIntensity = 1;
     }
+    let halo = halos.get(entry);
+    if (!halo) {
+      halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      halo.name = 'fossil-halo'; halo.renderOrder = 2; scene.add(halo); halos.set(entry, halo);
+    }
+    // (a little behind the fossil as the camera sees it, so the fossil stands in front of its own light)
+    const group = entry.model.group;
+    haloAt.copy(group.position).sub(camera.position).normalize();
+    halo.position.copy(group.position).addScaledVector(haloAt, .45); halo.scale.setScalar(1.9 * group.scale.x + .2); halo.material.opacity = .62 * k; halo.visible = group.visible && k > .01;
   }
-  function unglowGifts() { for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; } glowSaved.clear(); }
+  function unglowGifts() {
+    for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; m.color.copy(saved.base); } glowSaved.clear();
+    for (const halo of halos.values()) { scene.remove(halo); halo.material.dispose(); } halos.clear();
+  }
   function updateGifts(dt) {
     if (gift.phase === 'none' || !(dt > 0)) return;
     gift.age += dt; if (gift.phase === 'fly') gift.flyAge += dt;
     const n = gift.entries.length, fly = reducedMotion ? 0 : GIFT.fly;
     let landed = 0;
     gift.entries.forEach((entry, i) => {
-      const group = entry.model.group, delay = i * .4, rise = reducedMotion ? 0 : 1.1;
+      const group = entry.model.group, delay = i * (gift.layout?.stagger ?? .4), rise = reducedMotion ? 0 : 1.1;
       if (!entry.shown && gift.age >= delay) { entry.shown = true; group.visible = true; fx.emit('stars', giftOrigin(), { count: 8 }); }
       if (!entry.shown) return;
       const k = rise ? THREE.MathUtils.clamp((gift.age - delay) / rise, 0, 1) : 1, e = easeOutBack(k), hover = giftHover(i), origin = giftOrigin();
@@ -936,6 +959,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     cheerAge += delta; bonkAge += delta;
     if (cheerAge > 1.2 && cheerAge - delta <= 1.2) mosi.openEyes();
     levelWorld.updateMosi?.(actionDelta); mosiPuppet.update(delta); mosi.update(delta); updateGifts(delta);
+    // (each clap of Mosi's is heard: a scene sound, so a glide does not hold it back; game.js plays it where the level has the sound. Task 7 fix round 1)
+    for (const hit of mosiPuppet.pollHits()) if (hit.name === 'clap') deferredEvents.push({ type: 'scene-sound', name: 'clap', index: hit.index });
     wind.update(reducedMotion ? 0 : time); sky.update(reducedMotion ? 0 : time, camera);
     scene.updateMatrixWorld();
     fx.update(delta, { actionDt: actionDelta, actors: babyActors, feet: actor => footBones.get(actor) ?? [], camera, viewportHeight: canvas.height });

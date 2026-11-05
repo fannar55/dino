@@ -109,6 +109,7 @@ function riverBuffer(context) {
 /** Starts silently. unlock() must be called from the player's gesture. All scheduling uses the audio clock. */
 export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = globalThis.fetch, extraManifests = [] } = {}) {
   let context = null, output = null, muted = false, paused = false, disposed = false, unlocked = false;
+  let clapTake = 0, cheerTake = 0;
   let played = 0, dropped = 0, callUntil = 0, lastRockAt = -Infinity, riverVoice = null, ducked = false;
   let preloadPromise = null, decodePromise = null, loadController = null, recordedPlayed = 0;
   const voices = new Set(), buffers = {}, log = [], bridgeTimes = new Map();
@@ -569,6 +570,22 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       const now = context.currentTime;
       if (recordings.has('gravel-climb')) return recording('gravel-climb', now, 0, 'gravel-climb', .85);
       sample('gravel', now, .12, -.1, 'gravel-climb'); sample('foot', now + .2, .07, .1); sample('foot', now + .45, .07, -.1); return true;
+    },
+    // (Task 7 fix round 1) Mosi claps: one real clap (Söngur Slóeðlu's, four people's, gregswinford CC BY 4.0) for each clap of his gesture, quiet,
+    // the four takes in turn and a little left and right, so no two in a row are the same. Only where the level's manifest has them (level 2).
+    mosiClap(index = 0) {
+      if (!allowed()) return false;
+      const take = clapTake = (clapTake % 4) + 1, id = `clap-${take}`;
+      if (!recordings.has(id)) return false;
+      return recording(id, context.currentTime, (index % 2 ? .1 : -.1), 'mosi-clap', .9 + .1 * ((take + index) % 3) / 2, .97 + .03 * (take % 3));
+    },
+    // (Task 7 fix round 1) The friends cheer as everyone stands on Sólarsyllan: Söngur Slóeðlu's children's cheer (ElevenLabs-made), the two takes
+    // in turn round after round. Under Mosi: it is played between his lines, and his voice ducks everything under it as it does.
+    cheer() {
+      if (!allowed()) return false;
+      const take = cheerTake = (cheerTake % 2) + 1, id = `cheer-${take}`;
+      if (!recordings.has(id)) return false;
+      return recording(id, Math.max(context.currentTime + .02, callUntil + .02), 0, 'cheer');
     },
     // (Task 7) A star comes out over Sólarsyllan: the light's glow chime again, soft and high, each a step up the pentatonic scale above the
     // tunnel's three (the fifth, the sixth, the octave...), left and right in turn.

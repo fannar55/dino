@@ -145,6 +145,48 @@
       "source": "freesound 169547",
       "peak": 0.6728,
       "rms": 0.0233
+    },
+    "clap-1": {
+      "file": "../../../sloedla/klapp/hopur4-1.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487278, gregswinford, CC BY 4.0)"
+    },
+    "clap-2": {
+      "file": "../../../sloedla/klapp/hopur4-2.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487277, gregswinford, CC BY 4.0)"
+    },
+    "clap-3": {
+      "file": "../../../sloedla/klapp/hopur4-3.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487276, gregswinford, CC BY 4.0)"
+    },
+    "clap-4": {
+      "file": "../../../sloedla/klapp/hopur4-4.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487275, gregswinford, CC BY 4.0)"
+    },
+    "cheer-1": {
+      "file": "../../../sloedla/crowd-fagn-1.mp3",
+      "duration": 3.48,
+      "gain": 0.42,
+      "loop": false,
+      "source": "Söngur Slóeðlu's crowd (fagn-1, ElevenLabs-made)"
+    },
+    "cheer-2": {
+      "file": "../../../sloedla/crowd-fagn-2.mp3",
+      "duration": 3.48,
+      "gain": 0.42,
+      "loop": false,
+      "source": "Söngur Slóeðlu's crowd (fagn-2, ElevenLabs-made)"
     }
   }
 }

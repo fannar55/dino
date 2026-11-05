@@ -39,6 +39,9 @@ let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let muted = false;
 let celebrated = false;
 let autoStep = null, autoAge = 0, blockedAuto = null, retryAge = 0, storyKey = '', captionUntil = 0;
+// (a script put Mosi's bubble away: level 2's celebration, as everyone stands on Sólarsyllan, so the walk's words do not stay up through the tricks;
+// the next words he says bring it back. Task 7 fix round 1)
+let captionCleared = false;
 let giftsLeftSaid = false; // Mosi has said `giftsLeft` for this wait
 let idleTime = 0, whoShown = false; // game seconds since the child last tapped; whether the bubbles are on screen
 let basketCount = 0; // gift pairs that have flown into the basket in the ribbon
@@ -51,7 +54,8 @@ function syncPause() {
   speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused);
   refreshControls();
 }
-function caption(text, hold = 0) { if ($('caption').textContent !== text) $('caption').textContent = text; if (hold) captionUntil = time + hold; }
+function caption(text, hold = 0) { if ($('caption').textContent !== text) $('caption').textContent = text; if (hold) captionUntil = time + hold; if (text) captionCleared = false; }
+function clearCaption() { captionCleared = true; captionUntil = 0; $('caption').textContent = ''; $('coach').hidden = true; }
 function setMute(value) {
   muted = Boolean(value); audio.mute(muted); speech.mute(muted); music.mute(muted);
   $('sound').setAttribute('aria-pressed', String(muted));
@@ -199,6 +203,8 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'bonk') audio.bonk();
   else if (name === 'ding') audio.ding();
   else if (name === 'giggle') audio.giggle();
+  else if (name === 'clap') audio.mosiClap(index);
+  else if (name === 'cheer') audio.cheer();
 }
 // What the level's own events (the world's task events: a branch lifted, a log rolling, the bark placed...) sound like, said in
 // the level's table (levels/*.js, eventSounds): by event type, a beat by its step ('beat:lift').
@@ -369,7 +375,7 @@ function reflectEnding() {
   }
   const showEnding = endingDue();
   if (showEnding && $('ending').hidden) reflectGifts();
-  $('ending').hidden = !showEnding; $('coach').hidden = !started || showEnding;
+  $('ending').hidden = !showEnding; $('coach').hidden = !started || showEnding || captionCleared;
   $('cancel-choice').hidden = !whoVisible();
   $('holding').hidden = !started || !holding(state) || levelDone() || Boolean(state.active);
 }
@@ -464,7 +470,7 @@ function refreshControls() {
   $('overview-hint').hidden = !started || !overview;
   const finished = endingDue();
   if (finished && $('ending').hidden) reflectGifts();
-  $('coach').hidden = !started || finished || overview;
+  $('coach').hidden = !started || finished || overview || captionCleared;
   $('ending').hidden = !finished || overview;
   const worldInput = !camera.moving && camera.worldInputEnabled !== false && !overview;
   // With the bubbles open (or a wrong friend trying) the leaves, homes and other obstacles wait.
@@ -562,7 +568,7 @@ function start({ restart = false } = {}) {
   // setBoard cancels every running script, shot and gesture before the new board is laid out.
   if (restart) { game.restart(); bridge.restart(); celebrated = false; giftsLeftSaid = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
-  autoStep = null; autoAge = 0; blockedAuto = null; retryAge = 0; storyKey = ''; captionUntil = 0; idleTime = 0; whoShown = false;
+  autoStep = null; autoAge = 0; blockedAuto = null; retryAge = 0; storyKey = ''; captionUntil = 0; captionCleared = false; idleTime = 0; whoShown = false;
   $('who').hidden = true; $('beat-word').classList.remove('show');
   $('coach').hidden = false; $('ending').hidden = true; $('ending-gifts').hidden = true; $('progress').hidden = false; $('journey').hidden = !journeySteps.length; setCredits(false);
   caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
@@ -600,7 +606,7 @@ function frame(timestamp) {
     world.update(frozen ? 0 : dt, time);
     for (const event of world.pollStepEvents()) {
       if (event.type === 'scene-sound') playSceneSound(event);
-      else if (event.type === 'scene-say') sayLine(event.line, event);
+      else if (event.type === 'scene-say') { if (event.clear) clearCaption(); else sayLine(event.line, event); }
       else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); reflectEnding(); }
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
       else if (event.type === 'fail-done') failDone();

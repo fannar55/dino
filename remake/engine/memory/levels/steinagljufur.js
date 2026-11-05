@@ -53,6 +53,8 @@ export const STEINAGLJUFUR = freezeLevel({
     { sound: true, title: 'Knocking into Pile of Large Stones 1', author: 'F.M.Audio', license: 'CC BY 4.0', source: 'freesound.org/people/F.M.Audio/sounds/572753' },
     { sound: true, title: 'Running_Slip_on_Gravel', author: 'Tdude9000', license: 'CC BY 3.0', source: 'freesound.org/people/Tdude9000/sounds/138343' },
     { sound: true, title: 'Gravel climbing', author: 'jorickhoofd', license: 'CC BY 4.0', source: 'freesound.org/people/jorickhoofd/sounds/169547' },
+    // (Mosi's claps: Söngur Slóeðlu's, assets/audio/sloedla/klapp/, Task 7 fix round 1)
+    { sound: true, title: 'Single handclap, 4 people (alternatives 1-4)', author: 'gregswinford', license: 'CC BY 4.0', source: 'freesound.org/people/gregswinford/sounds/487275-487278' },
     { sound: true, title: 'Stones Falling, Rock Tumble 2, Landing_Stone_1, Stone dropping, tap stone, ANI - Wine Glass - Hard, Chime, Wing Flap 1, Heavy Stone Push, Scraping Stone, Whoosh Short, Stretch - Medium, Rope Knots', author: 'iwanPlays, _stubb, KieranKeegan, alegemaate, nettimato, ani_music, Psykoosiossi, msavioti, dslrguide, FartCTO, NearTheAtmoshphere, Raulitoto', license: 'CC0 1.0', source: 'freesound.org' },
   ],
   friends: ['triceratops', 'stegosaurus', 'brontosaurus', 'pteranodon'],

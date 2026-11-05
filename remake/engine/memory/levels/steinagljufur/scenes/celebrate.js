@@ -19,10 +19,15 @@ const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), a
 const up = (point, metres) => point.clone().setY(point.y + metres);
 
 // When each beat starts (seconds): the sunset and the first stars, the four tricks, the fossils, Mosi with them, the last picture.
-const T = { stego: 3.4, tri: 5.2, bronto: 7.4, ptera: 9.4, fossils: 12.4, mosi: 14.2, last: 15.6 };
+// (Task 7 fix round 1: the row's shot is longer, 2.5 s, so that all four are in it, and they come up a fifth of a second apart)
+const T = { stego: 3.4, tri: 5.2, bronto: 7.4, ptera: 9.4, fossils: 12.4, mosi: 14.9, last: 16.4 };
 // The Flugeðlur's circle: round the middle of the group (the upper gorge's frame), its radius, how high over the ledge they go (their roots: the clips keep the body over it)
 // and how fast they glide.
 const CIRCLE = { centre: [53.6, 6.8], radius: 3.6, rise: 4, speed: 6.5, points: 8 };
+// How far the two sky shots (the sunset, and the last picture under the card) look down, in degrees. The camera's picture is 35 degrees high and a shot
+// looks down by its elevation, so its sky reaches 17.5 minus that above the horizon, and the HUD hides the top of it: at 7-9 (14-15 on a tall
+// screen) only a strip under the HUD showed, with one to four stars in it. (Task 7 fix round 1)
+const SKY_TILT = { wide: 4, tall: 8 };
 // Sólarsyllan's top in the upper gorge's frame (upper.js SUN).
 const SUN_Y = 8.9;
 
@@ -49,8 +54,11 @@ export function celebrateScene(stage) {
   const sky = (x, z, metres) => at(x, SUN_Y + metres, z);
   return [
     // The sun goes down over everyone on Sólarsyllan, low, the sky over the hillside in the picture, and the first stars come out in it one by one.
-    { at: 0, shot: { kind: 'wide', subjects: () => [...everyone(), sky(53.5, 6.6, tall ? 10 : 8.5)], front: view([-.25, -1], [-.8, -.6]), elevation: tall ? 14 : 7, cut: true, floor: 'auto' },
-      act: all(beat('sun-sets'), () => task.dusk(3, 8), () => task.stars(9.5), () => mosi.look(sky(53.5, 9.5, 10)), () => stage.friends().forEach(actor => actor.lookAt?.(sky(54, 9.5, 12), { weight: .5, maxAngle: 22 }))) },
+    // (the walk's words, "Brúin er komin. Á Sólarsylluna!", go now: Mosi's bubble is put away until he says `g2_won`; the friends cheer, between his lines,
+    // as Mosi claps with them. Task 7 fix round 1)
+    { at: 0, say: { clear: true }, sound: 'cheer' },
+    { at: 0, shot: { kind: 'wide', subjects: () => [...everyone(), sky(53.5, 6.6, tall ? 10 : 8.5)], front: view([-.25, -1], [-.8, -.6]), elevation: tall ? SKY_TILT.tall : SKY_TILT.wide, cut: true, floor: 'auto' },
+      act: all(beat('sun-sets'), () => task.dusk(3, 8), () => task.stars(9.5), () => mosi.gesture('clap'), () => mosi.look(sky(53.5, 9.5, 10)), () => stage.friends().forEach(actor => actor.lookAt?.(sky(54, 9.5, 12), { weight: .5, maxAngle: 22 }))) },
     // The Kambeðlur: their plates light up as they did in the tunnel, twice.
     { at: T.stego, shot: { kind: 'hero', subjects: () => [...bodies(stego()), ...heads(stego())], front: view([.25, -1], [-.5, -.85]), elevation: tall ? 18 : 13, cut: true, floor: 'auto' },
       act: all(beat('trick-stegosaurus'), () => stage.friends().forEach(actor => actor.clearLook?.()), () => task.plates(1, { duration: .9 }), () => stego().forEach(actor => actor.gesture('glow')), () => mosi.gesture('clap')),
@@ -70,16 +78,17 @@ export function celebrateScene(stage) {
     { at: T.ptera, shot: { kind: 'wide', subjects: () => [...everyone(), ...[0, 1, 2, 3].map(j => { const a = j * Math.PI / 2; return sky(CIRCLE.centre[0] + Math.cos(a) * CIRCLE.radius, CIRCLE.centre[1] + Math.sin(a) * CIRCLE.radius, CIRCLE.rise + 1.6); })],
       front: view([-.25, -1], [-.8, -.6]), elevation: tall ? 16 : 10, cut: true, floor: 'auto' },
       act: all(beat('trick-pteranodon'), circle, () => mosi.look(sky(53.6, 6.8, 5)), () => mosi.gesture('cheer')), sound: call('pteranodon'), say: { line: 'g2_won', queue: true } },
-    // The four fossils rise from Mosi's basket and glow in a row on the ledge, in front of everyone, while he says so.
+    // The four fossils rise from Mosi's basket and glow in a row on the ledge, in front of everyone, while he says so. (From higher, the ledge is behind
+    // them, not a friend: from 20 degrees a fossil stood in front of a Þríhyrna. Task 7 fix round 1)
     { at: T.fossils, shot: { kind: 'wide', scale: 'action', subjects: () => [...rowPoints(), ...rowPoints().map(p => up(p, 1)), ...bodies(tri().slice(0, 1)), ...bodies(stego().slice(0, 1)), ...bodies(bronto().slice(0, 1)), mosi.head()],
-      front: view([-.08, -1], [-.6, -.8]), elevation: tall ? 26 : 20, cut: true, floor: 'auto' },
-      act: all(beat('fossils-glow'), () => { stage.gifts.start({ hover: (i, n) => task.row(i, n), scale: .6, glow: true }); task.rowShown(true); }, () => mosi.look(task.row(1, 4)), () => mosi.gesture('clap')),
+      front: view([-.08, -1], [-.6, -.8]), elevation: tall ? 38 : 34, cut: true, floor: 'auto' },
+      act: all(beat('fossils-glow'), () => { stage.gifts.start({ hover: (i, n) => task.row(i, n), scale: .75, stagger: .2, glow: true }); task.rowShown(true); }, () => mosi.look(task.row(1, 4)), () => mosi.gesture('clap')),
       sound: gifts ? 'ding' : undefined, say: gifts ? { line: 'gifts4', queue: true } : undefined },
     // Mosi and the row, closer and from higher (from lower the row filled the front of the picture): he cheers over the glowing fossils.
-    { at: T.mosi, shot: { kind: 'hero', subjects: () => [mosi.head(), up(mosi.head(), .5), ...rowPoints(), ...bodies(bronto().slice(0, 1))], front: view([.06, -1], [-.5, -.85]), elevation: tall ? 30 : 26, cut: true, floor: 'auto' },
+    { at: T.mosi, shot: { kind: 'hero', subjects: () => [mosi.head(), up(mosi.head(), .5), ...rowPoints(), ...bodies(bronto().slice(0, 1))], front: view([.06, -1], [-.5, -.85]), elevation: tall ? 40 : 36, cut: true, floor: 'auto' },
       act: all(beat('mosi-cheer'), () => mosi.look(stage.camera()), () => mosi.gesture('cheer')), fx: { kind: 'stars', at: () => up(mosi.body(), .8), count: 14 } },
     // The last picture: everyone on Sólarsyllan under the stars, wide and low; the fossils fly to the basket. The card comes up over it.
-    { at: T.last, shot: { kind: 'wide', subjects: () => [...everyone(), ...rowPoints(), sky(53.5, 6.6, tall ? 9.5 : 7.5)], front: view([-.22, -1], [-.8, -.6]), elevation: tall ? 15 : 9, cut: true, floor: 'auto' },
+    { at: T.last, shot: { kind: 'wide', subjects: () => [...everyone(), ...rowPoints(), sky(53.5, 6.6, tall ? 9.5 : 7.5)], front: view([-.22, -1], [-.8, -.6]), elevation: tall ? SKY_TILT.tall + .5 : SKY_TILT.wide + .5, cut: true, floor: 'auto' },
       act: all(beat('final-wide'), () => { stage.gifts.end(); task.rowShown(false); }, () => stage.friends().forEach(actor => actor.gesture('settle')), () => mosi.look(stage.camera())) },
     { at: T.last + 1.6, act: beat('end', false) },
   ];

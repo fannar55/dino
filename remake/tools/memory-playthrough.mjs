@@ -45,7 +45,8 @@
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
 //   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
 //   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
-//                   reports what is left running (report.restartCheck: nothing should be).
+//                   reports what is left running (report.restartCheck: nothing should be). On level 2 the celebration's restart comes two seconds into it, while
+//                   the friends cheer (report.soundsBeforeRestart, report.soundsAfterRestart: no cheer or clap goes on).
 //   --restart-at rope   level 2 (use --query qa=1): restarts while the Flugeðlur fly the rope up the cliff (report.beforeRopeRestart, report.restartCheck: the rope, the flight and the upper gorge must be reset)
 //   --restart-at pull   level 2 (use --query qa=1): restarts while everyone is on the second rope, the trunk tilted (report.beforePullRestart, report.restartCheck: the trunk upright, the second
 //                   rope gone, the Flugeðlur back in the glade, the basket 0 / 4)
@@ -415,6 +416,25 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
+// (Task 7 fix round 1) Level 2, ?qa=1: the stars a child plainly sees now: out (hidden.notOut: the ones that would be seen once out), above the haze, on the screen below the HUD and above Mosi's bubble, and not behind the cliffs
+// (a ray from the camera through the upper gorge). The camera is the one the page reports (__demoStats.camera), as qaSight builds it.
+const SKY_JS = `(() => { const g = window.__gorge, d = window.__demoStats && window.__demoStats.camera; if (!g || !g.stars || !d || !d.position || !d.target) return null;
+  const T = g.stage.THREE, cam = new T.PerspectiveCamera(35, innerWidth / innerHeight, .1, 600); cam.position.fromArray(d.position); cam.lookAt(new T.Vector3().fromArray(d.target)); cam.updateMatrixWorld(true);
+  const p = g.stars.points, pos = p.geometry.attributes.position, order = p.geometry.attributes.aOrder, out = g.stars.debug().out, R = new T.Raycaster();
+  const hud = Math.max(0, ...[...document.querySelectorAll('.topbar, .topbar *')].filter(e => e.offsetParent !== null).map(e => e.getBoundingClientRect().bottom));
+  const coach = document.getElementById('coach'), card = document.getElementById('ending');
+  const below = Math.min(innerHeight, coach && !coach.hidden ? coach.getBoundingClientRect().top : innerHeight, card && !card.hidden ? card.getBoundingClientRect().top : innerHeight);
+  const look = new T.Vector3(); cam.getWorldDirection(look);
+  const hidden = { notOut: 0, haze: 0, hud: 0, below: 0, rock: 0 }, seen = [];
+  for (let i = 0; i < pos.count; i++) { const dir = new T.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)), w = cam.position.clone().addScaledVector(dir, 450).project(cam);
+    if (!(Math.abs(w.x) <= 1 && Math.abs(w.y) <= 1 && w.z < 1)) continue;
+    const x = Math.round((w.x + 1) / 2 * innerWidth), y = Math.round((1 - w.y) / 2 * innerHeight);
+    const late = order.getX(i) + .9 > out; if (dir.y < .012) { hidden.haze++; continue; }
+    if (y < hud + 4) { hidden.hud++; continue; } if (y > below - 4) { hidden.below++; continue; }
+    R.set(cam.position, dir.clone().normalize()); R.near = .1; R.far = 440; if (R.intersectObject(g.upper.group, true).length) { hidden.rock++; continue; }
+    if (late) { hidden.notOut++; continue; }
+    seen.push({ i, x, y, first: i < g.stars.first }); }
+  return { seen: seen.length, first: seen.filter(s => s.first).length, hidden, hud: Math.round(hud), look: [+((Math.atan2(look.z, look.x) * 180 / Math.PI + 360) % 360).toFixed(1), +(Math.asin(look.y) * 180 / Math.PI).toFixed(1)], out: g.stars.debug().out, at: seen.slice(0, 40).map(s => [s.x, s.y]) }; })()`;
 const GIFTS_VIEW_JS = `(() => { const d = window.__memory.stats({ measure: true }), f = d.frame, shut = f.leaves.filter(l => l.status === 'hidden');
   return { intent: d.camera.intent, moving: d.camera.moving, size: f.size, shutLeaves: shut.length, shutInside: shut.every(l => l.inside), outside: shut.filter(l => !l.inside).map(l => l.cell),
     leafPxMin: { width: Math.round(Math.min(...shut.map(l => l.width))), height: Math.round(Math.min(...shut.map(l => l.height))) }, mosiInside: f.mosi.inside, homesInside: f.homes.every(h => h.inside), mosiAt: d.scene.mosiPosition }; })()`;
@@ -1057,19 +1077,29 @@ async function main() {
         }
         continue;
       }
-      if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
-        await sleep(1200); // Mosi's gifts line is on its way (or playing)
+      // (level 2: two seconds into the celebration, while the friends' cheer plays, the stars come out and the light goes on to the evening; what was
+      // playing just before and what plays in the 1.5 s after are kept, so a cheer or a clap that goes on is seen: Task 7 fix round 1)
+      if (o.restartAt === 'celebration' && (LEVEL.number === 2 ? s.beats.includes('sun-sets') : s.beats.includes('mosi-cheer'))) {
+        const SOUNDS_JS = `(() => { const a = window.__memory.audio(); return { voices: a.voices, played: a.played, log: a.log.slice(-8).map(e => e.kind + (e.asset ? ':' + e.asset : '')) }; })()`;
+        await sleep(LEVEL.number === 2 ? 2000 : 1200); // (level 1: Mosi's gifts line is on its way, or playing)
+        if (LEVEL.number === 2) report.soundsBeforeRestart = await ev(SOUNDS_JS);
         step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
-        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck);
+        if (LEVEL.number === 2) { const after = await ev(SOUNDS_JS); report.soundsAfterRestart = { ...after, newSince: after.played - report.soundsBeforeRestart.played }; }
+        report.finished = true; break;
       }
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
       const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus': ['eating-thorsedlur', 700], 'wide-eating': ['eating-all', 500],
         'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus': ['trick-thorsedlur-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
       // (level 2's, on Sólarsyllan: the sunset and the first stars, each pair's trick, the fossils glowing in a row, Mosi over them, the last wide shot under the stars)
       const BEAT_STILLS_2 = { 'sun-sets': ['sun-sets-first-stars', 2600], 'trick-stegosaurus': ['trick-kambedlur-glow', 700], 'trick-triceratops': ['trick-thrihyrnur-butt', 800], 'trick-brontosaurus': ['trick-thorsedlur-reach-high', 1300],
-        'trick-pteranodon': ['trick-flugedlur-circle', 1600], 'fossils-glow': ['fossils-glow-in-a-row', 1300], 'mosi-cheer': ['mosi-cheers-over-the-fossils', 700], 'final-wide': ['final-wide-under-the-stars', 1200] };
+        'trick-pteranodon': ['trick-flugedlur-circle', 1600], 'fossils-glow': ['fossils-glow-in-a-row', 2000], 'mosi-cheer': ['mosi-cheers-over-the-fossils', 700], 'final-wide': ['final-wide-under-the-stars', 1200] };
       const stills = LEVEL.number === 2 ? BEAT_STILLS_2 : BEAT_STILLS;
-      for (const name of s.beats) if (stills[name]) waited ||= await milestone(`beat-${name}`, stills[name][0], stills[name][1]);
+      for (const name of s.beats) if (stills[name]) {
+        const took = await milestone(`beat-${name}`, stills[name][0], stills[name][1]); waited ||= took;
+        // (Task 7 fix round 1) the stars a child sees in the celebration's two wide shots (report.sky)
+        if (took && LEVEL.number === 2 && ['sun-sets', 'final-wide'].includes(name)) (report.sky ??= {})[name] = await ev(SKY_JS).catch(e => String(e.message ?? e));
+      }
       // The waiting friends at play during the search (the first two kinds of game the page starts).
       if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
       if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
@@ -1484,7 +1514,14 @@ async function makeSoundtrack(outDir, report, first, seconds) {
     }
     return true;
   };
-  const cueFile = id => ['gorge/', ''].map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3')).find(file => fs.existsSync(file));
+  // (a cue's file: as the soundscapes' manifests name it, which may be a path into another game's sounds, level 2's claps and cheer from
+  // Söngur Slóeðlu: Task 7 fix round 1; else <id>.mp3 beside them)
+  const named = new Map();
+  for (const dir of ['gorge/', '']) {
+    const file = path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, 'manifest.json');
+    if (fs.existsSync(file)) for (const [id, entry] of Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')).sfx ?? {})) if (!named.has(id)) named.set(id, path.resolve(path.dirname(file), entry.file));
+  }
+  const cueFile = id => [named.get(id), ...['gorge/', ''].map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3'))].find(file => file && fs.existsSync(file));
   let cues = 0, voices = 0;
   for (const cue of report.audioLog ?? []) { const file = cueFile(cue.asset); if (file && lay(pcm(file), cue.at / 1000 - first, cue.level ?? .5, cue.rate ?? 1)) cues++; }
   for (const line of report.spoken ?? []) { const file = path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3'); if (line.at && fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false)) voices++; }

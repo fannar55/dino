@@ -5,13 +5,16 @@
 // hillside wall, away from the setting sun), and stay until the round starts again (`reset`).
 
 const RADIUS = 450;
-const COUNT = 190;
+const COUNT = 240;
 // The first stars: low over the hillside (world azimuth from +X toward +Z, degrees; elevation, degrees), where the shots on Sólarsyllan see
 // the sky over the wall. Then the rest of the sky fills in.
 // (the wide shots look down about 9 degrees with a 35 degree picture, so their sky reaches only about 8 degrees up: the band is low; and it reaches
 // round to 270 so that a tall screen, which looks more along the ledge, has a few of them too. Task 7, first run: at 8-24 degrees none was in a picture;
 // at 4.5-12 the few in a picture sat in its top 100 pixels, under the HUD: now they come out just over the far haze, between the HUD and the wall)
-const FIRST = Object.freeze({ azimuth: [272, 348], elevation: [.9, 6], count: 14 });
+const FIRST = Object.freeze({ azimuth: [262, 346], elevation: [1, 6], count: 14 });
+// (and a share of the rest in the same sky: from the tall screens' look along the ledge, about 277 degrees, round past the wide screens', about 316,
+// low over the hillside, so a picture of the group under the stars has a sky full of them, on a phone too. Task 7 fix round 1)
+const BAND = Object.freeze({ azimuth: [252, 352], elevation: [1.2, 10], share: .36 });
 // (the rest come out closer and closer behind the first: a fifth of a step apart)
 const LATER = .22, LAST = FIRST.count + (COUNT - FIRST.count) * LATER + 1;
 
@@ -50,7 +53,7 @@ void main() {
   vec2 p = gl_PointCoord * 2.0 - 1.0;
   float r = length(p);
   // a round core with a soft edge; the bright ones have a thin cross of light round it
-  float core = vGlint > 0.0 ? 1.0 - smoothstep(0.16, 0.42, r) : 1.0 - smoothstep(0.5, 1.0, r);
+  float core = vGlint > 0.0 ? 1.0 - smoothstep(0.2, 0.48, r) : 1.0 - smoothstep(0.5, 1.0, r);
   float glint = vGlint > 0.0 ? (max(0.0, 1.0 - abs(p.x) * 9.0) + max(0.0, 1.0 - abs(p.y) * 9.0)) * (1.0 - smoothstep(0.2, 1.0, r)) * 0.55 : 0.0;
   float a = clamp(core + glint, 0.0, 1.0) * vBright;
   if (a < 0.003) discard;
@@ -71,15 +74,15 @@ export function createStars({ THREE, scene }) {
       azimuth = FIRST.azimuth[0] + slice * (k + .2 + .6 * rand());
       elevation = FIRST.elevation[0] + (FIRST.elevation[1] - FIRST.elevation[0]) * rand();
     } else {
-      // the rest over the whole sky above the haze, more of them low (where the cameras look) than overhead
-      azimuth = 360 * rand();
-      elevation = 1.5 + 83.5 * Math.pow(rand(), 1.7);
+      // the rest: a share low in the sky the cameras see; the others over the whole sky above the haze, more of them low than overhead
+      if (rand() < BAND.share) { azimuth = BAND.azimuth[0] + (BAND.azimuth[1] - BAND.azimuth[0]) * rand(); elevation = BAND.elevation[0] + (BAND.elevation[1] - BAND.elevation[0]) * Math.pow(rand(), 1.3); }
+      else { azimuth = 360 * rand(); elevation = 1.5 + 83.5 * Math.pow(rand(), 1.7); }
     }
     const a = azimuth * deg, e = elevation * deg;
     position.set([Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a)], i * 3);
     // the first ones come one by one, a whole step apart; the rest closer and closer behind them
     order[i] = i < FIRST.count ? i : FIRST.count + (i - FIRST.count) * LATER;
-    size[i] = i < FIRST.count ? (i < 6 ? 7.2 : 6.2) - .6 * rand() : 2.6 + 2.2 * Math.pow(rand(), 2.2);
+    size[i] = i < FIRST.count ? (i < 6 ? 8.2 : 7.2) - .6 * rand() : 3.2 + 2.4 * Math.pow(rand(), 2.2);
     phase[i] = rand();
     // mostly white, a few a little blue and a few a little warm
     const t = rand();
