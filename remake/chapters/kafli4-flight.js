@@ -276,7 +276,7 @@ function* beats(s, c) {
     { t: 59.8, act: () => say('mosi', 'k4_mosi_wait') },
     { t: 60.2, act: () => whoosh(-1) },
     { t: 61, act: () => sfx('splash') },
-    { t: 63, act: () => { hideMosi(); camera.shot('bankShadow', { group: 'turtle' }); } },
+    { t: 63, act: () => { hideMosi(); camera.shot('bankShadow', { group: 'lizards-2' }); } },
     { t: 65.7, act: () => whoosh(1) },
     { t: 68, act: () => camera.shot('chase') },
     { t: 75, act: () => camera.shot('side') },

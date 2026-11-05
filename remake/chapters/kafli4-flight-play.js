@@ -47,7 +47,7 @@ export const PLAY = {
 const CALLS = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
 const SHOUTS = ['k4_egill_faster1', 'k4_egill_faster2'];
 // Each group's answer among the game's sounds (sfx.js): the turtle's and the small lizards' are the owner's recordings (Task 16).
-export const ANSWER = { frogs: 'frog', snails: 'snail', dragonflies: 'dragonfly', turtle: 'turtleCall', lizards: 'lizards' };
+export const ANSWER = { frogs: 'frog', birds: 'birds', dragonflies: 'dragonfly', turtle: 'turtleCall', lizards: 'lizards' };
 const GROUP_RADIUS = 4; // metres: a group's own size where the grey valley has no animals to say it
 
 /**

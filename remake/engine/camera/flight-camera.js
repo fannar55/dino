@@ -42,7 +42,7 @@ const FIXED = {
   // B, C: low over the water ahead of her, off to one side, as she comes up the river
   waterLevel: (c, { side = 1, lead = 4.5, across = 11 } = {}) => c.overWater(lead, across * side, 0.6, 44),
   // C: on the bank behind an animal group as her shadow goes over it
-  bankShadow: (c, { group = 'turtle' } = {}) => {
+  bankShadow: (c, { group = 'lizards-2' } = {}) => {
     const g = c.route.groups.find(x => x.kind === group || x.id === group) ?? c.route.groups[0];
     const r = c.route.river.at(c.route.river.nearest(g.at[0], g.at[2]).d);
     const out = [-r.dir[1] * g.side, r.dir[0] * g.side]; // away from the river, on the group's side

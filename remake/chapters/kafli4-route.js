@@ -201,14 +201,23 @@ export const KEYS = [
   [BEATS.END, 'end', 9],
 ];
 
-/** The animal groups along C, in the order she meets them (spec 5C), each on its bank: [kind, river distance, side (+1 north), out]. */
+/**
+ * The animal groups along C, in the order she meets them (the life spec, 2026-11-05, section 3: nine, about 5 s apart), each on its
+ * bank: [id, kind, river distance, side (+1 north), out].
+ */
 const GROUPS = [
-  ['frogs', 'frogs', 300, 1, 2], // on the lilies
-  ['snails', 'snails', 420, -1, 3], // on a log
-  ['dragonflies', 'dragonflies', 545, 1, -3], // over the water
-  ['turtle', 'turtle', 690, -1, 1.5], // on a stone
-  ['lizards', 'lizards', 805, 1, 3], // drinking at the edge
+  ['frogs-1', 'frogs', 245, 1, 2], // on the lilies
+  ['lizards-1', 'lizards', 330, -1, 3], // drinking at the edge
+  ['birds-1', 'birds', 400, 1, 6], // in a tree by the water
+  ['frogs-2', 'frogs', 470, -1, 2], // lilies float only on the calm reach, below the rapids (river.js RAPIDS.from, d 509)
+  ['turtles', 'turtle', 540, 1, 1.5], // on a stone and a log, called before Mosi's run (d 585 to 617) and his line (59.8 s)
+  ['birds-2', 'birds', 665, -1, 6], // called just after his line; they fly up at the end of his shot
+  ['lizards-2', 'lizards', 724, 1, 3], // the shadow shot's (chapters/kafli4-flight.js)
+  ['dragonflies', 'dragonflies', 785, -1, -3], // over the water
+  ['lizards-3', 'lizards', 840, 1, 3], // her calls about 4 s apart: each line plays out (its length and the pause after it) before the next
 ];
+/** How high over the river each kind's group is (its tap target): the dragonflies over the water, the birds in their tree's crown. */
+const GROUP_UP = { dragonflies: 1.2, birds: 7.5 };
 
 // ---------------------------------------------------------------------------------------------
 
@@ -353,7 +362,7 @@ export function createRoute({ wingspan = 7.5 } = {}) {
     const nx = -r.dir[1] * side; // across the river, toward `side`
     const nz = r.dir[0] * side;
     const off = r.half + out;
-    const at = [r.x + nx * off, r.level + (kind === 'dragonflies' ? 1.2 : 0.1), r.z + nz * off];
+    const at = [r.x + nx * off, r.level + (GROUP_UP[kind] ?? 0.1), r.z + nz * off];
     return { id, kind, at, u: nearestU(at), side };
   });
   // Mosi's two cameos (spec 5C and 5D): running along the bank in the shallows, and up on the gorge's north rim.

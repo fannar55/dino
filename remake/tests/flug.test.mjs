@@ -462,7 +462,7 @@ test('nothing touched: every group is still called once and the flight ends at 1
   assert.ok(Math.abs(c.flight.ended - c.flight.started - BEATS.END) < 0.05, 'the flight ends at 170 s');
   const groups = c.play.calls.filter(call => call.id !== 'land');
   assert.deepEqual(groups.map(call => call.id), groupIds, 'each group once, in the order she meets them');
-  assert.ok(groups.every(call => call.how === 'auto' && call.voiced), 'she calls each herself, aloud');
+  assert.ok(groups.every(call => call.how === 'auto' && call.voiced), `she calls each herself, aloud (not: ${JSON.stringify(groups.filter(call => !call.voiced).map(call => [call.id, +call.t.toFixed(1), log.lines.filter(l => l.from <= call.t && (l.to ?? Infinity) > call.t).map(l => l.id)]))})`);
   assert.deepEqual(c.play.answers.map(a => a.id), groupIds, 'and each answers');
   const big = c.play.calls.filter(call => call.id === 'land');
   assert.equal(big.length, 1, 'the big call over the land, once');

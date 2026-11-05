@@ -11,6 +11,7 @@ import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } 
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
 import { createAnimals } from '../world/ardalur/animals.js';
+import { createSpeciesLibrary } from '../world/forest/species.js';
 import { HIGH } from '../world/ardalur/banks.js';
 import { createFarLand, FAR } from '../world/ardalur/far-land.js';
 import { cullBatches } from '../world/forest/batch.js';
@@ -499,35 +500,38 @@ function animalWorld() {
   };
   return world;
 }
-const morphOf = (mesh, name) => mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]];
+const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'lizards-2', 'dragonflies', 'lizards-3'];
+const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 3, dragonflies: 6 };
 
-test('five animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
+test('nine animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
   const world = animalWorld();
   const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
+  assert.deepEqual(animals.groups.map(g => g.id), NINE);
   assert.deepEqual(animals.groups.map(g => [g.id, g.kind]), route.groups.map(g => [g.id, g.kind]));
-  const count = Object.fromEntries(animals.groups.map(g => [g.kind, g.members.length]));
-  assert.ok(count.frogs >= 3 && count.snails >= 3 && count.dragonflies >= 4 && count.lizards >= 3, JSON.stringify(count));
-  assert.equal(count.turtle, 1);
+  for (const g of animals.groups) assert.equal(g.members.length, MEMBERS[g.kind], `${g.id}: ${g.members.length} animals`);
   for (const [i, g] of animals.groups.entries()) {
     assert.ok(g.point.distanceTo(new THREE.Vector3(...route.groups[i].at)) < 6, `${g.id} is by its place on the bank`);
     assert.ok(g.radius >= 3, `${g.id}: a wide tap target (${g.radius} m)`);
     assert.equal(g.answered, false);
   }
-  // each critter is one of the game's own (world/critters/models.js), one mesh of at most 400 triangles, larger than life
-  let meshes = 0;
-  animals.group.traverse(o => {
-    if (!o.isMesh) return;
-    meshes++;
-    assert.ok(o.geometry.attributes.position.count / 3 <= 400, `${o.name}: ${o.geometry.attributes.position.count / 3} triangles`);
-  });
-  assert.equal(meshes, animals.groups.reduce((n, g) => n + g.members.length, 0));
-  // none under the ground; the dragonflies over the water
+  // each critter is one of the game's own (world/critters/models.js), at most 400 triangles, larger than life, and each kind is one
+  // draw call however many of it there are
+  for (const mesh of animals.crowds.meshes) {
+    const triangles = mesh.geometry.attributes.position.count / 3;
+    assert.ok(triangles <= 400, `${mesh.name}: ${triangles} triangles`);
+  }
   animals.update(DT, 0);
+  const all = animals.groups.reduce((n, g) => n + g.members.length, 0);
+  assert.equal(animals.crowds.placed().length, all, 'with no camera, every critter is drawn');
+  assert.ok(animals.crowds.calls() <= 5, `${animals.crowds.calls()} draw calls for all nine groups`);
+  // none under the ground; the dragonflies over the water
   for (const g of animals.groups) {
     for (const m of g.members) {
-      const p = m.root.getWorldPosition(new THREE.Vector3());
+      const p = m.position;
+      assert.ok(m.visible, `${g.id}: every critter is there before she calls`);
       assert.ok(p.y >= animalTerrain.heightAt(p.x, p.z) - 0.05, `${g.id}: a critter under the ground at ${p.toArray().map(v => v.toFixed(1))}`);
       if (g.kind === 'dragonflies') assert.ok(p.y > route.river.at(route.river.nearest(p.x, p.z).d).level + 0.5, 'a dragonfly over the water');
+      assert.ok(m.height > 0.1, `${g.id}: drawn larger than life (${m.height.toFixed(2)} m tall)`);
     }
   }
   assert.ok(world.scene.children.includes(animals.group));
@@ -535,40 +539,61 @@ test('five animal groups along C, in the order she meets them, each where the ro
   assert.ok(!world.scene.children.includes(animals.group));
 });
 
-test('each group answers her once: frog jumps, snails lift their eyes, dragonflies follow her, turtle stretches, lizards run', () => {
+test('a tap on the birds\' tree calls the birds: the group is the tree\'s crown, and they sit in it', () => {
+  const library = createSpeciesLibrary(4);
+  const animals = createAnimals(animalWorld(), route, { heightAt: animalTerrain.heightAt, library });
+  const birds = animals.groups.filter(x => x.kind === 'birds');
+  assert.equal(birds.length, 2, 'two groups of birds in their trees');
+  for (const g of birds) {
+    // their tree is a prop the plants grow; its crown where the batcher puts it (world/forest/batch.js)
+    const tree = animals.props.filter(p => p.name === 'broadleaf').sort((a, b) => Math.hypot(a.x - g.point.x, a.z - g.point.z) - Math.hypot(b.x - g.point.x, b.z - g.point.z))[0];
+    assert.ok(tree, `${g.id}: a broadleaf to sit in`);
+    const model = library.get('broadleaf', tree.variant, 1, {});
+    const c = Math.cos(tree.rot), s = Math.sin(tree.rot), sc = tree.scale;
+    const y = tree.y - (model.sink ?? 0) * sc;
+    const crown = new THREE.Vector3(tree.x + (model.crown.c[0] * c - model.crown.c[2] * s) * sc, y + model.crown.c[1] * sc, tree.z + (model.crown.c[0] * s + model.crown.c[2] * c) * sc);
+    assert.ok(g.point.distanceTo(crown) < 2, `${g.id}: the tap target is the crown (${g.point.distanceTo(crown).toFixed(2)} m off)`);
+    assert.ok(g.radius >= 3, `${g.id}: as wide as a crown (${g.radius} m)`);
+    for (const m of g.members) assert.ok(m.position.distanceTo(crown) < model.crown.r * sc + 0.5, `${g.id}: a bird in its crown`);
+  }
+  animals.dispose();
+});
+
+test('each group answers her once: frogs jump, birds fly up, dragonflies follow her, turtles stretch, lizards run', () => {
   const world = animalWorld();
   const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
   for (const g of animals.groups) {
     const t0 = passes(route.groups.find(r => r.id === g.id).u);
     world.at(t0);
     animals.update(DT, t0);
-    const home = g.members.map(m => m.root.getWorldPosition(new THREE.Vector3()));
+    const home = g.members.map(m => m.position.clone());
     const handle = g.answer();
     assert.equal(handle.done, false, `${g.id}: the answer takes time`);
     assert.equal(g.answered, true);
     let rose = 0;
-    let eyes = 0;
     let neck = 0;
     let near = Infinity;
     for (let t = t0; t <= t0 + 12; t += DT) {
       world.at(t);
       animals.update(DT, t);
       g.members.forEach((m, k) => {
-        const p = m.root.getWorldPosition(new THREE.Vector3());
-        rose = Math.max(rose, p.y - home[k].y);
-        if (g.kind === 'snails') eyes = Math.min(eyes, morphOf(m.mesh, 'hide'));
-        if (g.kind === 'turtle') neck = Math.min(neck, morphOf(m.mesh, 'hide'));
+        const p = m.position;
+        if (m.visible) rose = Math.max(rose, p.y - home[k].y);
+        if (g.kind === 'turtle') neck = Math.min(neck, m.morphs.hide ?? 0);
         if (g.kind === 'dragonflies' && Math.abs(t - (t0 + 2)) < DT / 2) near = Math.min(near, -p.distanceTo(world.flightPoint));
       });
     }
     assert.equal(handle.done, true, `${g.id}: the answer is over`);
-    const end = g.members.map(m => m.root.getWorldPosition(new THREE.Vector3()));
+    const end = g.members.map(m => m.position.clone());
     if (g.kind === 'frogs') assert.ok(rose > 0.8, `a frog jumps (${rose.toFixed(2)} m up)`);
-    if (g.kind === 'snails') assert.ok(eyes < -0.3, `the snails lift their eyes (hide ${eyes.toFixed(2)})`);
-    if (g.kind === 'turtle') assert.ok(neck < -0.4, `the turtle stretches its neck (hide ${neck.toFixed(2)})`);
+    if (g.kind === 'birds') {
+      assert.ok(rose > 3, `the birds fly up out of their tree (${rose.toFixed(2)} m up)`);
+      assert.ok(g.members.every(m => !m.visible), 'and are gone');
+    }
+    if (g.kind === 'turtle') assert.ok(neck < -0.4, `the turtles stretch their necks (hide ${neck.toFixed(2)})`);
     if (g.kind === 'dragonflies') {
       assert.ok(-near < 8, `2 s on, every dragonfly is within 8 m of her (${(-near).toFixed(1)} m)`);
-      end.forEach((p, k) => assert.ok(p.distanceTo(home[k]) < 0.6, 'and they come home'));
+      end.forEach((p, k) => assert.ok(p.distanceTo(g.members[k].home) < 0.6, 'and they come home')); // drifting round it
     }
     if (g.kind === 'lizards') {
       end.forEach((p, k) => {
@@ -577,13 +602,15 @@ test('each group answers her once: frog jumps, snails lift their eyes, dragonfli
         assert.ok(p.y >= animalTerrain.heightAt(p.x, p.z) - 0.05, 'on the ground');
       });
     }
-    if (['frogs', 'snails', 'turtle'].includes(g.kind)) end.forEach((p, k) => assert.ok(p.distanceTo(home[k]) < 0.05, `${g.id} rest where they were`));
+    if (['frogs', 'turtle'].includes(g.kind)) end.forEach((p, k) => assert.ok(p.distanceTo(home[k]) < 0.05, `${g.id} rest where they were`));
     // once: a second answer is a finished Handle and moves nothing
     const again = g.answer();
     assert.equal(again.done, true, `${g.id} answers once`);
     world.at(t0 + 13);
     animals.update(DT, t0 + 13);
-    g.members.forEach((m, k) => assert.ok(m.root.getWorldPosition(new THREE.Vector3()).distanceTo(end[k]) < 0.6, `${g.id} stays at rest`));
+    const rest = g.kind === 'dragonflies' ? g.members.map(m => m.home) : end;
+    g.members.forEach((m, k) => assert.ok(m.position.distanceTo(rest[k]) < 0.6, `${g.id} stays at rest`));
+    if (g.kind === 'birds') assert.ok(g.members.every(m => !m.visible), 'the birds stay gone');
   }
   animals.dispose();
 });
@@ -608,9 +635,13 @@ test('an answer is a function of the game clock: jumping to a time lands on the 
   jumpedWorld.at(t0 + 1.7);
   jumped.update(0, t0 + 1.7);
   replay.groups.forEach((g, i) => g.members.forEach((m, k) => {
-    const a = m.root.getWorldPosition(new THREE.Vector3());
-    const b = jumped.groups[i].members[k].root.getWorldPosition(new THREE.Vector3());
+    const other = jumped.groups[i].members[k];
+    const a = m.position;
+    const b = other.position;
     assert.ok(a.distanceTo(b) < 1e-6, `${g.id} ${k}: ${a.toArray()} and ${b.toArray()}`);
+    assert.equal(m.visible, other.visible, `${g.id} ${k}: seen in both`);
+    assert.ok(Math.abs(m.heading - other.heading) < 1e-6, `${g.id} ${k}: turned alike`);
+    assert.deepEqual(m.morphs, other.morphs, `${g.id} ${k}: posed alike`);
   }));
   replay.dispose();
   jumped.dispose();
@@ -627,7 +658,7 @@ test('the real valley: the animals have their lily pads, log and stone, and no p
   }
   for (const g of animals.groups) {
     for (const m of g.members) {
-      const p = m.root.getWorldPosition(new THREE.Vector3());
+      const p = m.position;
       const crowd = placements.filter(q => !animals.props.some(prop => prop.x === q.x && prop.z === q.z) && q.name !== 'waterLily' && Math.hypot(q.x - p.x, q.z - p.z) < 1.2);
       assert.equal(crowd.length, 0, `${g.id}: ${crowd.map(q => q.name)} grow on a critter at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
     }
