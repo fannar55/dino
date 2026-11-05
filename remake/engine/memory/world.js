@@ -686,23 +686,24 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; unglowGifts(); gift.entries = []; gift.phase = 'none'; gift.layout = null; }
   // (Task 7) A layout's glow: the models' own materials lit warm and breathing, put back as they were when the gifts are gone (the materials are shared with the leaves' copies).
   // (Task 7 fix round 1: in the evening light a little gold over them left four pale stones. Now the texture itself is lit: its colour is raised and warmed, so the
-  // pattern of each fossil shows brighter, not covered; a little gold in the emission; and a soft warm halo behind each, an additive sprite made in code, not a picture.)
+  // pattern of each fossil shows brighter, not covered; a little gold in the emission; and a soft warm halo behind each, an additive sprite made in code, not a picture.
+  // The lift is small (a third): more, and the pale ones, the fern and the footprint, went white and lost their prints.)
   const glowSaved = new Map(), GLOW_GOLD = new THREE.Color('#ffc56a'), GLOW_WARM = new THREE.Color(1, .9, .72), GLOW_WHITE = new THREE.Color(1, 1, 1), glowAdd = new THREE.Color(), halos = new Map();
   let haloTexture = null;
   const haloMap = () => haloTexture ??= (() => {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
     const g = canvas.getContext('2d'), fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.3, 'rgba(255,200,120,.55)'); fill.addColorStop(.65, 'rgba(255,170,90,.16)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
+    fill.addColorStop(0, 'rgba(255,226,160,1)'); fill.addColorStop(.35, 'rgba(255,205,130,.78)'); fill.addColorStop(.7, 'rgba(255,175,95,.3)'); fill.addColorStop(1, 'rgba(255,160,80,0)');
     g.fillStyle = fill; g.fillRect(0, 0, 64, 64); const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
   })();
-  const haloAt = new THREE.Vector3();
+  const haloAt = new THREE.Vector3(), haloBox = new THREE.Box3(), haloSize = new THREE.Vector3();
   function glowGift(entry, amount) {
     entry.materials ??= (() => { const list = []; entry.model.group.traverse(object => { if (object.isMesh) for (const m of [object.material].flat()) if (m?.emissive && !list.includes(m)) list.push(m); }); return list; })();
     const k = Math.min(1, Math.max(0, amount));
     for (const m of entry.materials) {
       if (!glowSaved.has(m)) glowSaved.set(m, { color: m.emissive.clone(), intensity: m.emissiveIntensity, base: m.color.clone() });
       const saved = glowSaved.get(m);
-      m.color.copy(saved.base).multiply(glowAdd.copy(GLOW_WARM).lerp(GLOW_WHITE, 1 - k)).multiplyScalar(1 + .9 * k);
+      m.color.copy(saved.base).multiply(glowAdd.copy(GLOW_WARM).lerp(GLOW_WHITE, 1 - k)).multiplyScalar(1 + .32 * k);
       m.emissive.copy(saved.color).multiplyScalar(saved.intensity).add(glowAdd.copy(GLOW_GOLD).multiplyScalar(k * .14)); m.emissiveIntensity = 1;
     }
     let halo = halos.get(entry);
@@ -710,10 +711,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       halo.name = 'fossil-halo'; halo.renderOrder = 2; scene.add(halo); halos.set(entry, halo);
     }
-    // (a little behind the fossil as the camera sees it, so the fossil stands in front of its own light)
+    // (at the fossil's middle and a little behind it as the camera sees it, level, so the fossil stands in front of its own light and the floor
+    // does not cut the light off: pushed back along a camera looking down it went into the ledge; its size is the fossil's, measured once, so it does not
+    // breathe as the fossil turns)
     const group = entry.model.group;
-    haloAt.copy(group.position).sub(camera.position).normalize();
-    halo.position.copy(group.position).addScaledVector(haloAt, .45); halo.scale.setScalar(1.9 * group.scale.x + .2); halo.material.opacity = .62 * k; halo.visible = group.visible && k > .01;
+    haloBox.setFromObject(group).getCenter(haloAt); haloBox.getSize(haloSize);
+    halo.position.copy(haloAt); haloAt.sub(camera.position).setY(0).normalize();
+    halo.position.addScaledVector(haloAt, .35); entry.haloUnit ??= Math.max(haloSize.x, haloSize.y, haloSize.z) / Math.max(.01, group.scale.x); halo.scale.setScalar(1.9 * entry.haloUnit * group.scale.x + .35); halo.material.opacity = .8 * k; halo.visible = group.visible && k > .01;
   }
   function unglowGifts() {
     for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; m.color.copy(saved.base); } glowSaved.clear();

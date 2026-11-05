@@ -575,7 +575,8 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     // the four takes in turn and a little left and right, so no two in a row are the same. Only where the level's manifest has them (level 2).
     mosiClap(index = 0) {
       if (!allowed()) return false;
-      const take = clapTake = (clapTake % 4) + 1, id = `clap-${take}`;
+      // (the four takes in turn, each clap gesture starting on another one)
+      clapTake += index === 0 ? 2 : 1; const take = (clapTake % 4) + 1, id = `clap-${take}`;
       if (!recordings.has(id)) return false;
       return recording(id, context.currentTime, (index % 2 ? .1 : -.1), 'mosi-clap', .9 + .1 * ((take + index) % 3) / 2, .97 + .03 * (take % 3));
     },
