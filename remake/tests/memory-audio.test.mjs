@@ -329,3 +329,40 @@ test("the owner's verdicts (remake/assets/audio/heard/, set minnisspil): no line
     if (picked.length) assert.ok(picked.some(verdict => verdict.mp3 === sha(path.join(tool.ROOT, 'remake/assets/audio/memory', `${item.id}.mp3`))), `${item.id}: ships the take he picked (${picked.map(verdict => verdict.id).join(', ')})`);
   }
 });
+
+test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its caption as context and seed 7, an approved key keeps its request, a kept line is untouched, and an A/B leaves it put', async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
+  const lexicon = readLexicon(tool.ROOT);
+  const verdicts = entries => ({ verdicts: [], byKey: new Map(entries.map(([key, ...said]) => [key, said.map((verdict, i) => ({ verdict, id: `minnisspil/x${i}`, date: '2026-11-06' }))])) });
+  const none = verdicts([]);
+  // an unapproved line: the text sent stays, the context is the request's context (none here) and then the caption, the seed 7
+  const match = VOICE_LINES.match, book = tool.bookRequest(match, lexicon), bookKey = tool.fingerprintOf(book);
+  const plain = tool.memoryRequest(match, lexicon, { heard: none });
+  assert.equal(plain.ny3, true); assert.equal(plain.text, book.text); assert.equal(plain.context, match.text); assert.equal(plain.seed, 7);
+  assert.notEqual(tool.fingerprintOf(plain), bookKey);
+  // the book's context comes first (g2_flown's Flugeðla sentence), then the caption, not the say (g2_light_ready sends Hver in IPA)
+  const flown = tool.bookRequest(VOICE_LINES.g2_flown, lexicon);
+  assert.ok(flown.context, 'g2_flown has the book\'s Flugeðla context');
+  assert.equal(tool.memoryRequest(VOICE_LINES.g2_flown, lexicon, { heard: none }).context, `${flown.context} ${VOICE_LINES.g2_flown.text}`);
+  const light = tool.memoryRequest(VOICE_LINES.g2_light_ready, lexicon, { heard: none });
+  assert.equal(light.context, VOICE_LINES.g2_light_ready.text); assert.equal(light.text, tool.bookRequest(VOICE_LINES.g2_light_ready, lexicon).text);
+  // an approved key keeps its request exactly; a later "nei" on it puts the line on Ný 3 (his latest verdict, as the guard reads it)
+  const approved = tool.memoryRequest(match, lexicon, { heard: verdicts([[bookKey, 'ja']]) });
+  assert.equal(tool.fingerprintOf(approved), bookKey); assert.equal(approved.ny3, undefined); assert.equal(approved.approved.id, 'minnisspil/x0');
+  assert.equal(tool.memoryRequest(match, lexicon, { heard: verdicts([[bookKey, 'ja', 'nei']]) }).ny3, true);
+  // the A/B's fixed point: he picks the new take (old "nei", new "ja"), and the line stays on Ný 3, whose take he approved
+  const newKey = tool.fingerprintOf(plain), picked = verdicts([[bookKey, 'nei'], [newKey, 'ja']]);
+  assert.equal(tool.fingerprintOf(tool.memoryRequest(match, lexicon, { heard: picked })), newKey);
+  assert.ok(tool.approval(picked, newKey));
+  assert.equal(tool.statesOf(lexicon, { match: newKey }, [['match', match]], picked)[0].state, 'same');
+  assert.equal(tool.statesOf(lexicon, { match: bookKey }, [['match', match]], none)[0].state, 'ny3', 'its MP3 is of the book\'s request: waiting for him, which --verify allows');
+  // a kept line is untouched, whatever is heard; any other line needs the verdicts passed through
+  const who = VOICE_LINES.who, whoKey = tool.fingerprintOf(tool.ownRequest(who));
+  for (const heard of [none, verdicts([[whoKey, 'nei']])]) assert.equal(tool.fingerprintOf(tool.memoryRequest(who, lexicon, { heard })), whoKey);
+  assert.throws(() => tool.memoryRequest(match, lexicon), /needs the owner's verdicts/);
+  // in the repo now: every line not kept is approved or under Ný 3
+  for (const item of tool.statesOf(lexicon, {})) if (item.line.kept === undefined) assert.ok(item.sent.approved || item.sent.ny3, `${item.id}: approved or Ný 3`);
+  // the A/B page: the new take picked when it opens, "Báðar rangar" for both wrong
+  const html = tool.janoPage({ title: 't', intro: 'i', none: { label: 'Báðar rangar', how: 'h' }, sections: [{ title: 's', rows: [{ id: 'match', text: 'x', takes: [{ id: 'match_gamla', label: 'Gamla', src: 'a.mp3' }, { id: 'match_nyja', label: 'Nýja', src: 'b.mp3', checked: true }] }] }] });
+  assert.match(html, /value="match_nyja" checked>/); assert.doesNotMatch(html, /value="match_gamla" checked/); assert.match(html, /value=""> Báðar rangar/);
+});
