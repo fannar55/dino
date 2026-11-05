@@ -9,7 +9,8 @@
     node remake/tools/capture.mjs --page remake/tools/crowd-sheet.html --size 1600x1000 --ready "window.__sheetReady === true"
       --out qa/remake/critters/smaedla --shot run="model=smaedla&clip=run" --shot idle="model=smaedla&clip=idle" ...
   sheet (the default): the clip's frames one by one, from the side and from above, 1 to 8.
-  film: mode=film&t=<seconds>: the clips in turn (play), seen from the side and from above at 45 degrees, at that time.
+  film: mode=film&t=<seconds>: the clips in turn (play), seen from the side and from above at 45 degrees, at that time; running,
+  the animal goes forward its clip's stride a cycle over striped ground. Shots every 1/30 s, then ffmpeg, make a short film.
   model: the file in remake/assets/critters/ (smaedla); scale: the animal's (1); frog: the frog's (3).
 -->
 <style>
@@ -133,25 +134,46 @@ if (MODE === 'sheet') {
   let t = T, seg = FILM[0];
   for (const s of FILM) { seg = s; if (t < s.seconds) break; t -= s.seconds; }
   const pose = { morphs: clipPose(model, seg.clip, t) };
+  // running, she goes forward (+X) her clip's stride a cycle and the cameras go with her: feet that slide show against the stripes
+  const { seconds, stride = 0 } = model.clips[seg.clip];
+  const go = seg.clip === 'run' ? stride * (t / seconds) : 0;
   crowds.begin(null);
-  crowds.place(NAME, at(0, 0, 0), 0, SCALE, pose);
-  crowds.place('frog', at(0.7 * length, 0, 0.35 * length), 0, FROG);
-  crowds.place(NAME, at(0, 0, 50), 0, SCALE, pose);
-  crowds.place('frog', at(0.7 * length, 0, 50 + 0.35 * length), 0, FROG);
+  crowds.place(NAME, at(go, 0, 0), 0, SCALE, pose);
+  crowds.place(NAME, at(go, 0, 50), 0, SCALE, pose);
+  crowds.place('frog', at(0.95 * length, 0, 50 + 0.75 * length), 0, FROG);
   crowds.end();
-  ground(0, 0, 6 * length, 3 * length);
-  ground(0, 50, 6 * length, 3 * length);
-  const span = 1.9 * length, aspect = (width / 2) / (height - 70);
+  // the ground in stripes a tenth of a metre wide: seen edge on from the side, a checker from above
+  const stripes = [0x5f8a3c, 0xa9c97f].map(color => new THREE.MeshLambertMaterial({ color }));
+  for (let i = -30; i < 60; i++) {
+    const tile = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.025 * length, length), stripes[(i + 30) % 2]);
+    tile.position.set(i * 0.1 + 0.05, -0.0125 * length, 0.6 * length);
+    scene.add(tile);
+  }
+  const checker = document.createElement('canvas');
+  checker.width = checker.height = 2;
+  const pen = checker.getContext('2d');
+  pen.fillStyle = '#7fa35a'; pen.fillRect(0, 0, 2, 2);
+  pen.fillStyle = '#8fb366'; pen.fillRect(0, 0, 1, 1); pen.fillRect(1, 1, 1, 1);
+  const map = new THREE.CanvasTexture(checker);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.magFilter = THREE.NearestFilter;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(60, 60);
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshLambertMaterial({ map }));
+  field.rotation.x = -Math.PI / 2;
+  field.position.set(2, -0.001, 50);
+  scene.add(field);
+  const span = 1.5 * length, aspect = (width / 2) / (height - 70);
   const side = new THREE.OrthographicCamera(-span / 2, span / 2, span / 2 / aspect, -span / 2 / aspect, 0.1, 40);
-  side.position.set(-0.05 * length, 0.42 * length, -20);
+  side.position.set(go - 0.05 * length, 0.35 * length, -20);
   side.lookAt(side.position.x, side.position.y, 0);
   const above = new THREE.PerspectiveCamera(30, aspect, 0.1, 100);
-  above.position.set(-0.6 * length, 2.6 * length, 50 - 2.6 * length);
-  above.lookAt(0, 0.15 * length, 50);
+  above.position.set(go - 0.6 * length, 2.6 * length, 50 - 2.6 * length);
+  above.lookAt(go, 0.15 * length, 50);
   view(side, 0, 0, width / 2, height - 70);
   view(above, width / 2, 0, width / 2, height - 70);
   label(`${NAME === 'smaedla' ? 'Smáeðla' : NAME} ${WORDS[seg.clip] ?? seg.clip}`, 0, 0, 'title');
-  label(seg.clip === 'run' ? 'hleypur á staðnum hér; leikurinn færir hana áfram' : `${fmt(model.clips[seg.clip].seconds)} s, endurtekið`, 0, 50, 'sub');
+  label(seg.clip === 'run' ? 'rendurnar á jörðinni eru 10 cm: fæturnir eiga ekki að renna til' : `${fmt(seconds)} s, endurtekið`, 0, 50, 'sub');
 }
 
 for (const v of views) {
