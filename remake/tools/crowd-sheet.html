@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<title>Hópdýr: stellingar</title>
+<!--
+  A crowd model (remake/tools/prep-crowd.mjs) drawn by the game's own crowds (world/critters/crowd.js, crowd-models.js), next to
+  a frog from world/critters/models.js for size, for the owner to look at. Shot with remake/tools/capture.mjs:
+    node remake/tools/capture.mjs --page remake/tools/crowd-sheet.html --size 1600x1000 --ready "window.__sheetReady === true"
+      --out qa/remake/critters/smaedla --shot run="model=smaedla&clip=run" --shot idle="model=smaedla&clip=idle" ...
+  sheet (the default): the clip's frames one by one, from the side and from above, 1 to 8.
+  film: mode=film&t=<seconds>: the clips in turn (play), seen from the side and from above at 45 degrees, at that time.
+  model: the file in remake/assets/critters/ (smaedla); scale: the animal's (1); frog: the frog's (3).
+-->
+<style>
+  html, body { margin: 0; background: #e9efe4; font-family: system-ui, sans-serif; color: #2c3326; overflow: hidden; }
+  canvas { display: block; }
+  .label { position: absolute; font-size: 22px; transform: translateX(-50%); white-space: nowrap; }
+  .title { position: absolute; left: 24px; top: 14px; font-size: 30px; font-weight: 600; }
+  .sub { position: absolute; left: 24px; font-size: 20px; opacity: 0.75; }
+</style>
+<script type="importmap">{"imports":{"three":"../../dist/vendor/three.module.js","three/addons/":"../vendor/addons/"}}</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { createCrowds } from '../world/critters/crowd.js';
+import { loadCrowdModel, clipPose } from '../world/critters/crowd-models.js';
+
+const q = new URLSearchParams(location.search);
+const NAME = q.get('model') || 'smaedla';
+const MODE = q.get('mode') || 'sheet';
+const CLIP = q.get('clip') || 'run';
+const SCALE = Number(q.get('scale') || 1);
+const FROG = Number(q.get('frog') || 3);
+const T = Number(q.get('t') || 0);
+const WORDS = { run: 'hleypur', idle: 'stendur kyrr', drink: 'drekkur', look: 'lítur upp', walk: 'gengur', trot: 'brokkar', graze: 'er á beit' };
+const FILM = [{ clip: 'run', seconds: 2.7 }, { clip: 'idle', seconds: 3 }, { clip: 'drink', seconds: 2.5 }, { clip: 'look', seconds: 3 }];
+const width = innerWidth, height = innerHeight;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(width, height);
+renderer.setClearColor(0xe9efe4);
+renderer.setScissorTest(true);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdfeefc, 0x5d6b45, 1.3));
+const sun = new THREE.DirectionalLight(0xfff3df, 2.2);
+sun.position.set(-3, 6, -4);
+scene.add(sun);
+const grass = new THREE.MeshLambertMaterial({ color: 0x7fa35a });
+
+function label(text, x, y, cls = 'label') {
+  const el = document.createElement('div');
+  el.className = cls;
+  el.textContent = text;
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  document.body.appendChild(el);
+}
+const fmt = s => `${s}`.replace('.', ',');
+
+const model = await loadCrowdModel(new URL(`../assets/critters/${NAME}.glb`, import.meta.url).href);
+const crowds = createCrowds({ scene }, { seen: 1e6 });
+crowds.reserve(NAME, 24, model);
+crowds.reserve('frog', 4);
+const length = (model.length ?? 0.8) * SCALE;
+const at = (x, y, z) => new THREE.Vector3(x, y, z);
+const ground = (x, z, w, d) => {
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, d), grass);
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(x, -0.001, z);
+  scene.add(plane);
+};
+
+// two views, each a camera on its own part of the scene (the side set at z = 0, the other 50 m off)
+const views = [];
+function view(camera, x, y, w, h) { views.push({ camera, x, y, w, h }); }
+
+if (MODE === 'sheet') {
+  const { frames, seconds } = model.clips[CLIP];
+  const perRow = Math.ceil(frames / 2), step = length * 1.3, rowSide = 0.8 * length, rowTop = 0.55 * length;
+  // left to right on screen: the frog, then the frames; both cameras see +X on the left, so x falls to the right
+  const xOf = s => -s * step;
+  const spots = [];
+  crowds.begin(null);
+  for (let k = 0; k < frames; k++) {
+    const s = 1 + (k % perRow), row = Math.floor(k / perRow);
+    const pose = { morphs: clipPose(model, CLIP, (k / frames) * seconds) };
+    crowds.place(NAME, at(xOf(s), -row * rowSide, 0), 0, SCALE, pose);
+    crowds.place(NAME, at(xOf(s), 0, 50 - row * rowTop), 0, SCALE, pose);
+    spots.push({ text: `${k + 1}`, x: xOf(s) - 0.17 * length, row });
+  }
+  crowds.place('frog', at(xOf(0.1), 0, 0), 0, FROG);
+  crowds.place('frog', at(xOf(0.1), 0, 50 - rowTop / 2), 0, FROG);
+  crowds.end();
+  const left = xOf(0) + 0.45 * length, right = xOf(perRow) - 0.7 * length;
+  const middle = (left + right) / 2, spanX = (left - right) * 1.04;
+  for (let row = 0; row < 2; row++) { // seen from the side, the ground is a strip under each row
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(spanX * 1.2, 0.012 * length, length), grass);
+    strip.position.set(middle, -row * rowSide - 0.006 * length, 0.6 * length);
+    scene.add(strip);
+  }
+  ground(middle, 50 - rowTop / 2, spanX * 1.2, 2 * rowTop + 2 * length);
+  const head = 100, room = height - head;
+  const sideView = { x: 0, y: room * 0.46, w: width, h: room * 0.54 };
+  const topView = { x: 0, y: 0, w: width, h: room * 0.46 };
+  const ortho = v => new THREE.OrthographicCamera(-spanX / 2, spanX / 2, spanX / 2 * v.h / v.w, -spanX / 2 * v.h / v.w, 0.1, 40);
+  const side = ortho(sideView);
+  side.position.set(middle, -rowSide / 2 + 0.22 * length, -20);
+  side.lookAt(middle, side.position.y, 0);
+  const top = ortho(topView);
+  top.up.set(0, 0, 1);
+  top.position.set(middle, 20, 50 - rowTop / 2 + 0.04 * length);
+  top.lookAt(middle, 0, top.position.z);
+  view(side, sideView.x, sideView.y, sideView.w, sideView.h);
+  view(top, topView.x, topView.y, topView.w, topView.h);
+  side.updateMatrixWorld();
+  top.updateMatrixWorld();
+  const onScreen = (camera, v, p) => {
+    const n = p.clone().project(camera);
+    return [v.x + (n.x + 1) / 2 * v.w, height - (v.y + (n.y + 1) / 2 * v.h)];
+  };
+  label(`${NAME === 'smaedla' ? 'Smáeðla' : NAME} ${WORDS[CLIP] ?? CLIP}: ${frames} stellingar á ${fmt(seconds)} s, frá hlið og ofan frá`, 0, 0, 'title');
+  label(`stærð eins og í leiknum núna: eðlan ×${SCALE} (${fmt(+length.toFixed(2))} m löng), froskurinn ×${FROG}`, 0, 54, 'sub');
+  for (const { text, x, row } of spots) {
+    label(text, ...onScreen(side, sideView, at(x, -row * rowSide - 0.04 * length, 0)));
+    label(text, ...onScreen(top, topView, at(x, 0, 50 - row * rowTop - 0.25 * length)));
+  }
+  label(`froskur ×${FROG}`, ...onScreen(side, sideView, at(xOf(0.1), -0.04 * length, 0)));
+} else {
+  let t = T, seg = FILM[0];
+  for (const s of FILM) { seg = s; if (t < s.seconds) break; t -= s.seconds; }
+  const pose = { morphs: clipPose(model, seg.clip, t) };
+  crowds.begin(null);
+  crowds.place(NAME, at(0, 0, 0), 0, SCALE, pose);
+  crowds.place('frog', at(0.7 * length, 0, 0.35 * length), 0, FROG);
+  crowds.place(NAME, at(0, 0, 50), 0, SCALE, pose);
+  crowds.place('frog', at(0.7 * length, 0, 50 + 0.35 * length), 0, FROG);
+  crowds.end();
+  ground(0, 0, 6 * length, 3 * length);
+  ground(0, 50, 6 * length, 3 * length);
+  const span = 1.9 * length, aspect = (width / 2) / (height - 70);
+  const side = new THREE.OrthographicCamera(-span / 2, span / 2, span / 2 / aspect, -span / 2 / aspect, 0.1, 40);
+  side.position.set(-0.05 * length, 0.42 * length, -20);
+  side.lookAt(side.position.x, side.position.y, 0);
+  const above = new THREE.PerspectiveCamera(30, aspect, 0.1, 100);
+  above.position.set(-0.6 * length, 2.6 * length, 50 - 2.6 * length);
+  above.lookAt(0, 0.15 * length, 50);
+  view(side, 0, 0, width / 2, height - 70);
+  view(above, width / 2, 0, width / 2, height - 70);
+  label(`${NAME === 'smaedla' ? 'Smáeðla' : NAME} ${WORDS[seg.clip] ?? seg.clip}`, 0, 0, 'title');
+  label(seg.clip === 'run' ? 'hleypur á staðnum hér; leikurinn færir hana áfram' : `${fmt(model.clips[seg.clip].seconds)} s, endurtekið`, 0, 50, 'sub');
+}
+
+for (const v of views) {
+  renderer.setViewport(v.x, v.y, v.w, v.h);
+  renderer.setScissor(v.x, v.y, v.w, v.h);
+  renderer.render(scene, v.camera);
+}
+window.__sheetReady = true;
+</script>
+</body>
+</html>
