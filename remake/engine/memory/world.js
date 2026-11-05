@@ -685,14 +685,14 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
   function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; unglowGifts(); gift.entries = []; gift.phase = 'none'; gift.layout = null; }
   // (Task 7) A layout's glow: the models' own materials lit warm gold and breathing, put back as they were when the gifts are gone (the materials are shared with the leaves' copies).
-  const glowSaved = new Map(), GLOW_GOLD = new THREE.Color('#ffc56a');
+  const glowSaved = new Map(), GLOW_GOLD = new THREE.Color('#ffc56a'), glowAdd = new THREE.Color();
   function glowGift(entry, amount) {
     entry.materials ??= (() => { const list = []; entry.model.group.traverse(object => { if (object.isMesh) for (const m of [object.material].flat()) if (m?.emissive && !list.includes(m)) list.push(m); }); return list; })();
     for (const m of entry.materials) {
       if (!glowSaved.has(m)) glowSaved.set(m, { color: m.emissive.clone(), intensity: m.emissiveIntensity });
       const saved = glowSaved.get(m); // (a warm light added over the texture, not a flat gold that hides it: the material's own emission as it was, plus a little gold;
       // three's emissiveIntensity is 1 by default, so a max() with it kept the gold at full strength: Task 7, the clip run at 1280)
-      m.emissive.copy(saved.color).multiplyScalar(saved.intensity).addScaledVector(GLOW_GOLD, Math.min(1, amount) * .2); m.emissiveIntensity = 1;
+      m.emissive.copy(saved.color).multiplyScalar(saved.intensity).add(glowAdd.copy(GLOW_GOLD).multiplyScalar(Math.min(1, amount) * .2)); m.emissiveIntensity = 1;
     }
   }
   function unglowGifts() { for (const [m, saved] of glowSaved) { m.emissive.copy(saved.color); m.emissiveIntensity = saved.intensity; } glowSaved.clear(); }
