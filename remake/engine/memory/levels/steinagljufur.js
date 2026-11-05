@@ -34,6 +34,9 @@ export const STEINAGLJUFUR = freezeLevel({
   title: 'Steinagljúfrið',
   ribbon: 'Leiðin upp á Sólarsylluna',
   look: 'gorgeAfternoon',
+  // The HUD's pictures in place of level 1's berries (Ruling 16, Task 7): renders of the level's own fossils (tools/blender-badge.py kind=fossil,
+  // assets/memory/bord2/badges-source.json). `mark` is by the ribbon's title, on the ending card and in the overview's hint; `basket` is the basket's.
+  hud: { mark: './assets/memory/bord2/hud-ammonite.webp', basket: './assets/memory/bord2/hud-trilobite.webp' },
   // (`through`, `climb` and `walk` are travel steps: Mosi says their line when they start, game.js launchAction)
   lines: { welcome: 'g2_welcome', help: 'g2_help', giftsLeft: 'g2_left', gifts: 'gifts4', through: 'g2_through', climb: 'g2_climb', walk: 'g2_bridge' },
   voice: { 'g2-light-ready': 'g2_light_ready', 'g2-headbutt-ready': 'g2_rocks_ready', 'g2-reach-ready': 'g2_ledge_ready', 'g2-fly-ready': 'g2_cliff_ready', 'g2-pull-ready': 'g2_pull_ready' },

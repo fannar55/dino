@@ -4,7 +4,9 @@
     "badge-rocks.webp",
     "badge-ledge.webp",
     "badge-cliff.webp",
-    "badge-trunk.webp"
+    "badge-trunk.webp",
+    "hud-ammonite.webp",
+    "hud-trilobite.webp"
   ],
   "what": "The badges of level 2's first two obstacles (levels/steinagljufur.js `targets`, the gold square that shows over an obstacle that waits for a child's tap). Each is a RENDER of the level's own model, not a drawing: Blender's workbench renderer, studio light, a transparent background, 192 px, then 96 px as WebP at quality 88.",
   "tunnel": {
@@ -17,8 +19,8 @@
     "model": "gorge-rocks.glb (Quaternius, Rocks, CC0 1.0, see gorge-rocks-source.json)",
     "view": "nine of the file's eleven rocks stacked in a heap as the game stacks the pile, each in the gorge's sandstone colour (the workbench does not read the game's tint shader), from 24 degrees above and 32 degrees to the side"
   },
-  "license": "The tunnel render is the owner's; the rocks, slab and tree renders are of CC0 models. No credit is required for any; they are named behind the ending card's \"i\" all the same (levels/steinagljufur.js credits).",
-  "command": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-badge.py -- <absolute path of the glb> <absolute path of the png> kind=tunnel|rocks|slab|tree|trunk size=192, then ffmpeg -i x.png -vf scale=96:96:flags=lanczos -c:v libwebp -quality 88 -pix_fmt yuva420p badge-<kind>.webp",
+  "license": "The tunnel render is the owner's; the rocks, slab and tree renders are of CC0 models. No credit is required for any; they are named behind the ending card's \"i\" all the same (levels/steinagljufur.js credits). The HUD renders (hud-ammonite, hud-trilobite) are of two of level 2's gift models, both CC BY 4.0; their authors are named behind the ending card's \"i\" by the gift rows (surprise-items.js GIFT_CREDITS).",
+  "command": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-badge.py -- <absolute path of the glb> <absolute path of the png> kind=tunnel|rocks|slab|tree|trunk|fossil size=192 (the HUD renders: kind=fossil size=264, then scale to 132 or 96: qa/memory/bord2/t7/hud-renders.mjs), then ffmpeg -i x.png -vf scale=96:96:flags=lanczos -c:v libwebp -quality 88 -pix_fmt yuva420p badge-<kind>.webp",
   "script": "remake/tools/blender-badge.py",
   "ledge": {
     "file": "badge-ledge.webp",
@@ -34,5 +36,19 @@
     "file": "badge-trunk.webp",
     "model": "gorge-trunk.glb (the owner's own Tripo3D model: no third-party licence, see gorge-trunk-source.json)",
     "view": "the trunk with its own texture, leaned 38 degrees as it starts to fall, from the side, 14 degrees above the ground"
+  },
+  "hud-ammonite": {
+    "file": "hud-ammonite.webp",
+    "size": "132 px (the ending card shows it at 66 px, the ribbon at 24 px, the overview hint at 43 px)",
+    "model": "assets/memory/gifts/ammonite.glb (Varvara, Ammonite fossil stylized, CC BY 4.0, see ammonite-source.json)",
+    "view": "the fossil with its own texture, lying face up, from 62 degrees above and 28 degrees to the side",
+    "where": "level 2's HUD in place of level 1's berries (Ruling 16, Task 7): by the ribbon's title, on the ending card and in the overview hint (levels/steinagljufur.js hud.mark)"
+  },
+  "hud-trilobite": {
+    "file": "hud-trilobite.webp",
+    "size": "96 px (the basket shows it at 42 px, the ending card's fossil row at 40 px)",
+    "model": "assets/memory/gifts/trilobite.glb (Thomas Flynn, Trilobite (Science Zone UK), CC BY 4.0, see trilobite-source.json)",
+    "view": "as the ammonite",
+    "where": "level 2's basket in the ribbon and on the ending card (levels/steinagljufur.js hud.basket)"
   }
 }

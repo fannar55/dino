@@ -8,7 +8,9 @@ const RADIUS = 450;
 const COUNT = 190;
 // The first stars: low over the hillside (world azimuth from +X toward +Z, degrees; elevation, degrees), where the shots on Sólarsyllan see
 // the sky over the wall. Then the rest of the sky fills in.
-const FIRST = Object.freeze({ azimuth: [292, 350], elevation: [8, 24], count: 14 });
+// (the wide shots look down about 9 degrees with a 35 degree picture, so their sky reaches only about 8 degrees up: the band is low; and it reaches
+// round to 266 so that a tall screen, which looks more along the ledge, has a few of them too. Task 7, first run: at 8-24 degrees none was in a picture.)
+const FIRST = Object.freeze({ azimuth: [266, 350], elevation: [4.5, 12], count: 14 });
 // (the rest come out closer and closer behind the first: a fifth of a step apart)
 const LATER = .22, LAST = FIRST.count + (COUNT - FIRST.count) * LATER + 1;
 
@@ -29,7 +31,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
   float born = smoothstep(aOrder, aOrder + 0.9, uOut);
   // (near the horizon the sky turns to haze: the stars fade into it)
-  float high = smoothstep(0.04, 0.11, position.y);
+  float high = smoothstep(0.022, 0.06, position.y);
   float twinkle = 0.82 + 0.18 * sin(uTime * (1.3 + fract(aPhase * 7.1) * 1.6) + aPhase * 6.283);
   vBright = born * high * twinkle;
   vGlint = step(4.6, aSize) * born;
@@ -70,7 +72,7 @@ export function createStars({ THREE, scene }) {
     } else {
       // the rest over the whole sky above the haze, more of them low (where the cameras look) than overhead
       azimuth = 360 * rand();
-      elevation = 7 + 78 * Math.pow(rand(), 1.7);
+      elevation = 4 + 81 * Math.pow(rand(), 1.9);
     }
     const a = azimuth * deg, e = elevation * deg;
     position.set([Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a)], i * 3);

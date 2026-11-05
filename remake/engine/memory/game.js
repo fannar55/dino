@@ -70,6 +70,11 @@ function applyLevelDom() {
   const label = (selector, value) => { const node = document.querySelector(selector)?.firstChild; if (node?.nodeType === 3 && node.nodeValue !== `${value} `) node.nodeValue = `${value} `; };
   const describe = (id, value) => { if ($(id).getAttribute('aria-label') !== value) $(id).setAttribute('aria-label', value); };
   text('.game-title span', level.ribbon);
+  // A level with its own HUD pictures (level 2's fossils: `hud`) shows them in place of the berry marks (the same boxes, so the layout stays).
+  if (level.hud?.mark) for (const mark of document.querySelectorAll('svg.ribbon-berries, svg.ending-berries, #overview-hint > svg')) {
+    const picture = Object.assign(document.createElement('img'), { src: level.hud.mark, alt: '', className: `${mark.getAttribute('class') ?? ''} hud-mark`.trim(), width: 66, height: 66 });
+    picture.setAttribute('aria-hidden', 'true'); picture.decoding = 'async'; mark.replaceWith(picture);
+  }
   text('#welcome .eyebrow', copy.welcome.eyebrow); text('#welcome h2', copy.welcome.title); text('#welcome .fine', copy.welcome.fine); label('#start', copy.welcome.start);
   const intro = document.querySelector('#welcome > p:not(.fine)');
   if ([...intro.childNodes].map(node => node.nodeName === 'BR' ? '\n' : node.nodeValue).join('') !== copy.welcome.lines.join('\n')) {
@@ -353,6 +358,8 @@ function buildCredits() {
 }
 function setCredits(open) {
   $('credits').hidden = !open; $('credits-toggle').setAttribute('aria-expanded', String(open));
+  // (it opens above the card: no taller than the room over it, and it scrolls when a level has more rows than that, as level 2's sixteen)
+  if (open) $('credits').style.maxHeight = `${Math.max(160, Math.floor($('ending').getBoundingClientRect().top - 26))}px`;
 }
 function reflectEnding() {
   const state = bridge.getState();
@@ -668,7 +675,9 @@ window.__memory = {
 window.__memoryReady = false;
 try {
   const soundReady = Promise.allSettled([speech.ready, music.ready, audio.preload?.()]);
-  $('basket').querySelector('.basket-icon').innerHTML = BASKET_ICON; $('ending-gifts').querySelector('.basket-icon').innerHTML = BASKET_ICON; buildCredits();
+  // (the basket's picture: level 1's berry basket, or the level's own render: level 2's fossil)
+  const basketIcon = level.hud?.basket ? `<img src="${level.hud.basket}" alt="" width="48" height="48" decoding="async">` : BASKET_ICON;
+  $('basket').querySelector('.basket-icon').innerHTML = basketIcon; $('ending-gifts').querySelector('.basket-icon').innerHTML = basketIcon; buildCredits();
   world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; }, basketPoint, level });
   await soundReady;
   world.setBoard(game.getState().cards); syncBridge(); world.setReducedMotion?.(reducedMotion);

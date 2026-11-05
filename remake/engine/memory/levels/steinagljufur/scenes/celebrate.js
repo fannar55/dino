@@ -49,7 +49,7 @@ export function celebrateScene(stage) {
   const sky = (x, z, metres) => at(x, SUN_Y + metres, z);
   return [
     // The sun goes down over everyone on Sólarsyllan, low, the sky over the hillside in the picture, and the first stars come out in it one by one.
-    { at: 0, shot: { kind: 'wide', subjects: () => [...everyone(), sky(53.5, 6.6, tall ? 9 : 6.5)], front: view([-.25, -1], [-.8, -.6]), elevation: tall ? 14 : 7, cut: true, floor: 'auto' },
+    { at: 0, shot: { kind: 'wide', subjects: () => [...everyone(), sky(53.5, 6.6, tall ? 10 : 8.5)], front: view([-.25, -1], [-.8, -.6]), elevation: tall ? 14 : 7, cut: true, floor: 'auto' },
       act: all(beat('sun-sets'), () => task.dusk(3, 8), () => task.stars(9.5), () => mosi.look(sky(53.5, 9.5, 10)), () => stage.friends().forEach(actor => actor.lookAt?.(sky(54, 9.5, 12), { weight: .5, maxAngle: 22 }))) },
     // The Kambeðlur: their plates light up as they did in the tunnel, twice.
     { at: T.stego, shot: { kind: 'hero', subjects: () => [...bodies(stego()), ...heads(stego())], front: view([.25, -1], [-.5, -.85]), elevation: tall ? 18 : 13, cut: true, floor: 'auto' },
@@ -61,8 +61,9 @@ export function celebrateScene(stage) {
       act: all(beat('trick-triceratops'), () => tri().forEach(actor => actor.gesture('charge'))), sound: call('triceratops'), fx: stars(tri(), 1.4) },
     { at: T.tri + .75, act: () => tri().forEach(actor => actor.gesture('charge')) },
     { at: T.tri + 1.5, act: () => tri().forEach(actor => actor.gesture('charge')), fx: { kind: 'stars', at: () => tri()[1].getNosePosition(), count: 8 } },
-    // The Þórseðlur stretch their long necks up into the evening sky (low, the sky behind the necks).
-    { at: T.bronto, shot: { kind: 'hero', subjects: () => [...bodies(bronto()), ...bronto().map(actor => up(actor.root.position, 3.8))], front: view([.2, -1], [-.4, -.9]), elevation: tall ? 10 : 5, cut: true, floor: 'auto' },
+    // The Þórseðlur stretch their long necks up into the evening sky. (Lower than about 12 degrees the camera stood below the lip of the ledge,
+    // which hid them: Task 7, first run.)
+    { at: T.bronto, shot: { kind: 'hero', subjects: () => [...bodies(bronto()), ...bronto().map(actor => up(actor.root.position, 3.8))], front: view([.35, -1], [-.4, -.9]), elevation: tall ? 16 : 12, cut: true, floor: 'auto' },
       act: all(beat('trick-brontosaurus'), () => bronto().forEach(actor => actor.gesture('reach-high')), () => mosi.look(up(bronto()[0].root.position, 3))), sound: call('brontosaurus') },
     { at: T.bronto + .9, fx: stars(bronto(), 3.6) },
     // The Flugeðlur glide a circle over the group, under the stars; Mosi says they are all up.
@@ -72,13 +73,13 @@ export function celebrateScene(stage) {
     // The four fossils rise from Mosi's basket and glow in a row on the ledge, in front of everyone, while he says so.
     { at: T.fossils, shot: { kind: 'wide', scale: 'action', subjects: () => [...rowPoints(), ...rowPoints().map(p => up(p, 1)), ...bodies(tri().slice(0, 1)), ...bodies(stego().slice(0, 1)), ...bodies(bronto().slice(0, 1)), mosi.head()],
       front: view([-.08, -1], [-.6, -.8]), elevation: tall ? 26 : 20, cut: true, floor: 'auto' },
-      act: all(beat('fossils-glow'), () => { stage.gifts.start({ hover: (i, n) => task.row(i, n), scale: .72, glow: true }); task.rowShown(true); }, () => mosi.look(task.row(1, 4)), () => mosi.gesture('clap')),
+      act: all(beat('fossils-glow'), () => { stage.gifts.start({ hover: (i, n) => task.row(i, n), scale: .6, glow: true }); task.rowShown(true); }, () => mosi.look(task.row(1, 4)), () => mosi.gesture('clap')),
       sound: gifts ? 'ding' : undefined, say: gifts ? { line: 'gifts4', queue: true } : undefined },
-    // Mosi and the row, close: he cheers over the glowing fossils.
-    { at: T.mosi, shot: { kind: 'hero', subjects: () => [mosi.head(), up(mosi.head(), .5), ...rowPoints()], front: view([.12, -1], [-.5, -.85]), elevation: tall ? 22 : 15, cut: true, floor: 'auto' },
+    // Mosi and the row, closer and from higher (from lower the row filled the front of the picture): he cheers over the glowing fossils.
+    { at: T.mosi, shot: { kind: 'hero', subjects: () => [mosi.head(), up(mosi.head(), .5), ...rowPoints(), ...bodies(bronto().slice(0, 1))], front: view([.06, -1], [-.5, -.85]), elevation: tall ? 30 : 26, cut: true, floor: 'auto' },
       act: all(beat('mosi-cheer'), () => mosi.look(stage.camera()), () => mosi.gesture('cheer')), fx: { kind: 'stars', at: () => up(mosi.body(), .8), count: 14 } },
     // The last picture: everyone on Sólarsyllan under the stars, wide and low; the fossils fly to the basket. The card comes up over it.
-    { at: T.last, shot: { kind: 'wide', subjects: () => [...everyone(), ...rowPoints(), sky(53.5, 6.6, tall ? 8 : 5.5)], front: view([-.22, -1], [-.8, -.6]), elevation: tall ? 15 : 9, cut: true, floor: 'auto' },
+    { at: T.last, shot: { kind: 'wide', subjects: () => [...everyone(), ...rowPoints(), sky(53.5, 6.6, tall ? 9.5 : 7.5)], front: view([-.22, -1], [-.8, -.6]), elevation: tall ? 15 : 9, cut: true, floor: 'auto' },
       act: all(beat('final-wide'), () => { stage.gifts.end(); task.rowShown(false); }, () => stage.friends().forEach(actor => actor.gesture('settle')), () => mosi.look(stage.camera())) },
     { at: T.last + 1.6, act: beat('end', false) },
   ];

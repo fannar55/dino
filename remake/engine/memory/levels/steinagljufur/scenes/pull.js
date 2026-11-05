@@ -55,9 +55,11 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTap: () => stage.task.beat(),
       // No taps: "Við gerum þetta saman!" and they pull it over on their own.
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
-    // (it falls in the still shot; as it lands, a cut to its top coming down on Sólarsyllan's lip in its dust, so the still shot is not held over about 8 s: Ruling 32, Task 7)
+    // (it falls in the still shot; as it lands, a cut to its top coming down on Sólarsyllan's lip in its dust, so the still shot is not held over about 8 s: Ruling 32, Task 7.
+    // From Sólarsyllan's side of the open edge, a little above: the top on the lip and the stone in front, the trunk going back over the gap to the line on the near rim.
+    // (a tight frame on the top was all trunk and no gap; the wide cut of everyone that follows looks from the near side, so this one is from the far side)
     { at: .52, wait: { until: () => trunk().fallen || ended(), timeout: 8 } },
-    { at: .53, shot: { kind: 'wide', scale: 'action', subjects: () => [trunk().top, trunk().far, trunk().middle, at(47.5, 8.9, 9.2), at(44.5, 11, 9.2)], front: view([-.3, -1], [-.9, -.45]), elevation: tall ? 22 : 15, cut: true, floor: 'auto' },
+    { at: .53, shot: { kind: 'wide', subjects: () => [trunk().top, trunk().far, trunk().middle, trunk().near, stage.task.stone(), at(47.5, 8.9, 9.2)], front: view([.6, -1], [.75, -.7]), elevation: tall ? 26 : 18, cut: true, floor: 'auto' },
       act: () => stage.mosi.look(trunk().top) },
     { at: .55, wait: { until: () => phase() === 'cheer' || ended(), timeout: 10 } },
     // The bridge: the trunk lies over the gap, its top on Sólarsyllan; everyone cheers.
