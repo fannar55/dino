@@ -2094,7 +2094,7 @@
     },
     "hver": {
       "word": "Hver",
-      "stem": "[Hh]ver",
+      "stem": "[Hh]ver[st]?$",
       "forms": [
         "Hver",
         "hver",
@@ -2102,10 +2102,6 @@
         "Hvers",
         "hvert",
         "Hvert"
-      ],
-      "except": [
-        "Hvernig",
-        "hvernig"
       ],
       "recipes": {
         "hratt": {
