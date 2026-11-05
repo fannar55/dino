@@ -19,7 +19,8 @@ npm run start:memory
 Open `http://127.0.0.1:4206/remake/minnisspil.html`.
 The page is standalone; the existing minigame menu and other games are unchanged.
 `?seed=251025` gives a repeatable shuffle for review. `?play=1` bypasses the welcome
-dialog for screenshots; browser audio still requires a gesture.
+dialog for screenshots; browser audio still requires a gesture. `?bord=2` opens level 2, Steinagljúfrið
+(it opens for good when level 1 is finished; `remake/README.md` has its steps and its other switches, such as `?bolur=grar`).
 
 ## Review scope
 

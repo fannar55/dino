@@ -104,6 +104,29 @@ The minds (`engine/veiddu/minds.js`) are fair: they remember only what was said 
   `--sound`; `node remake/tools/veiddu-fjolspil-check.mjs` plays Fjölspil headless in Edge over the DevTools protocol (no
   Playwright) with the dev server on port 4256; `node remake/tools/veiddu-sim.mjs` estimates how often Egill wins.
 
+## Hvar er vinur minn?
+
+The memory game: `minnisspil.html` on the server above (`/remake/minnisspil.html`), its engine in `engine/memory/` (the long notes are
+`engine/memory/README.md`). It has two levels, each a data file in `engine/memory/levels/` with its own 3D world; the page plays one of them.
+
+- **Level 1, Berjalundurinn** (`levels/berjalundur.js`), always open: three friend pairs and three gift pairs under twelve leaves, then
+  the branch, the log bridge and the marsh, and the walk to the berry grove.
+- **Level 2, Steinagljúfrið** (`levels/steinagljufur.js`, its world in `levels/steinagljufur/`) opens when level 1 is finished: its id
+  is kept in `localStorage` (`minnisspil.unlocked`; with no storage only level 1 is open). Level 1's ending card then has
+  "Steinagljúfrið →", and the level picker on the welcome card opens it. `?bord=2` opens it at once, locked or not.
+  Four friend pairs (the Flugeðlur join) and four fossil pairs under sixteen leaves, then the way up the gorge, each step by one pair or
+  by everyone: the Kambeðlur light the tunnel, the Þríhyrnur butt the rockfall away, everyone goes through, the Þórseðlur reach the
+  high ledge and bring its slab down, the Flugeðlur fly the rope up the cliff, everyone climbs, everyone pulls the dead trunk over the
+  gap (a tap for each pull) and walks over it to Sólarsyllan. The light goes from the afternoon to the evening on the way
+  (`levels/steinagljufur/dusk.js`; the looks `gorgeAfternoon`, `gorgeGolden`, `gorgeSunset`, `gorgeEvening` in `engine/looks.js`).
+  On Sólarsyllan the sun sets and the stars come out (`stars.js`), each pair does its trick, the four fossils glow in a row, Mosi
+  says they are all up (`g2_won`) and the ending card has "Spila aftur" and "Berjalundurinn".
+- Query switches: `?seed=251025` (a repeatable shuffle), `?play=1` (no welcome card), `?bord=2` (level 2), `?bolur=grar` (level 2's
+  dead trunk with grey bark instead of the owner's brown, to compare them), `?chime=alt` (level 2's other glow chime), `?slab=alt`
+  (the other sound of the slab), `?idle=yawn` (one of the waiting friends' games only) and `?qa=1` (the handles the checks use).
+- Checks: `npm run test:memory` from `remake/`; `node remake/tools/memory-playthrough.mjs --level 2 --mode full --first pteranodon
+  --think 0 --out <dir>` plays level 2 headless to its ending card (`--video` records it with its sound, `--clearance` counts clip hits).
+
 ## Layout
 
 - `engine/`: clock, renderer, looks, lighting, fog, sky, wind, stats, actors and their footing

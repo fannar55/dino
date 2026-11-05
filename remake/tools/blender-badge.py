@@ -1,11 +1,13 @@
 # Blender background script: a badge for a task of "Hvar er vinur minn?" level 2 (remake/engine/memory/levels/steinagljufur.js `targets`): a RENDER of the level's own model,
 # not a drawing. The model is imported, lit by the workbench's studio light with its own texture, and rendered on a transparent background.
-#   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python remake/tools/blender-badge.py -- in.glb out.png kind=tunnel|rocks|slab|tree|trunk [size=144]
+#   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python remake/tools/blender-badge.py -- in.glb out.png kind=tunnel|rocks|slab|tree|trunk|fossil [size=144]
 #   kind=tunnel  the tunnel mouth from the front, a little above, whole.
 #   kind=slab    the slab (assets/memory/bord2/gorge-slab.glb) leaned like a ramp, in the gorge's sandstone colour, thicker as the game stands it.
 #   kind=tree    the tree (gorge-tree.glb), its two materials as the game tints them (the trunk brown, the crown olive).
 #   kind=trunk   the owner's dead trunk (gorge-trunk.glb) with its own texture, leaned 38 degrees as it starts to fall, from the side (a tall thin trunk
 #                standing upright is a sliver in a square badge).
+#   kind=fossil  one of level 2's fossils (assets/memory/gifts/ammonite.glb, trilobite.glb: flat scans lying face up) with its own texture, seen from high
+#                above and a little to the side, as the leaf shows it leant toward the camera (the HUD's ribbon, basket and ending card on level 2, Task 7).
 #   kind=rocks   the rock file's loose rocks (it holds the pile's eleven rocks side by side) stacked in a heap as the game stacks them, each in the gorge's sandstone colour
 #                (the tunnel keeps its own texture).
 # Then: ffmpeg -i out.png -c:v libwebp -quality 88 -pix_fmt yuva420p out.webp
@@ -105,10 +107,12 @@ if KIND == 'tree':
     elevation, azimuth = math.radians(10), math.radians(-30)
 if KIND == 'trunk':
     elevation, azimuth = math.radians(14), math.radians(-78)
+if KIND == 'fossil':
+    elevation, azimuth = math.radians(62), math.radians(-28)
 direction = Vector((math.cos(elevation) * math.cos(azimuth), math.cos(elevation) * math.sin(azimuth), math.sin(elevation)))
 camera.location = centre + direction * radius * 4
 camera.rotation_euler = (centre - camera.location).to_track_quat('-Z', 'Y').to_euler()
-camera_data.ortho_scale = radius * (1.9 if KIND == 'tunnel' else 2.0 if KIND in ('slab', 'tree') else 1.75 if KIND == 'trunk' else 2.2)
+camera_data.ortho_scale = radius * (1.9 if KIND == 'tunnel' else 2.0 if KIND in ('slab', 'tree') else 1.75 if KIND == 'trunk' else 1.72 if KIND == 'fossil' else 2.2)
 camera_data.shift_y = -.04
 
 scene.render.engine = 'BLENDER_WORKBENCH'

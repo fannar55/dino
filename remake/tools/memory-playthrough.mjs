@@ -37,8 +37,9 @@
 //   search        only the search: every friend pair and every gift pair found (the first tries are deliberate misses, the gifts as in `full`), the
 //                 pictures of each, and a stop when every leaf is found and every gift pair is in the basket (report.allFound, report.gladeAll, the
 //                 picture `all-found`). Level 2 ends its round here until its steps are built; its worst framing (report.renderMax, report.takes) has all eight friends.
-//   (level 2, full: finds every pair, then the tunnel (a wrong friend, the Kambeðlur, three taps) and the rockfall (a wrong friend, the Þríhyrnur, three taps), and stops once the rocks are gone;
-//    the steps after them come with the next tasks. --first pteranodon finds the Flugeðlur first, so that they are a wrong friend at the rocks; report.level2 has the light and the pile.)
+//   (level 2, full: finds every pair, then every step (each with a wrong friend first and the taps), the pull and the walk over the trunk, the celebration on Sólarsyllan
+//    (the sunset, the stars, the tricks, the fossils in a row: BEAT_STILLS_2) and the ending card. --first pteranodon finds the Flugeðlur first, so that they are a wrong friend at the rocks;
+//    report.level2 has the light, the pile and the step state as everyone reaches Sólarsyllan.)
 //   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
 //   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
@@ -76,7 +77,8 @@
 // cheer, bark-end: the third panel is down).
 // `timelineCheck` reads the page's own timeline: the crossing (Mosi's first step onto the deck, the arrival, input back,
 // and the seconds between), the marsh (the first tap on the bark, the lay's start, the third panel down, the boardwalk
-// built), the walk to the grove (Mosi's first step, all six arrived, the seconds between, the watch after) and the
+// built), the walk to the grove (Mosi's first step, all six arrived, the seconds between, the watch after), level 2's end
+// (sunLedge: the walk over the trunk starting, everyone on Sólarsyllan, the ending card after the celebration) and the
 // longest stretches of watching (a script, a task or a wrong friend's go running) with no new camera framing and no tap,
 // with where they fall; with --video each moment also has its time in round.mp4. `takes` lists every camera framing's
 // most triangles and draw calls (the shot, what was going on), the heaviest first.
@@ -345,11 +347,11 @@ const TIMELINE_JS = `(() => {
     // What each walker of the running action has done (its start and finish in the action's own seconds), the last look.
     if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { elapsed: +adventure.elapsed.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
-    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused, word, ending].join('|');
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused, word, ending, b.onSunLedge].join('|');
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending, gt: d.levelStats && d.levelStats.upper ? d.levelStats.upper.clock : undefined });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending, sun: b.onSunLedge || undefined, gt: d.levelStats && d.levelStats.upper ? d.levelStats.upper.clock : undefined });
     }
   }, 100);
   // The upper gorge's sight (level 2, ?qa=1): every 300 ms, which friends the camera sees, whether a block or the ground stands between, and whether the HUD or Mosi's bubble covers one.
@@ -579,11 +581,14 @@ function timelineCheck(timeline = [], taps = []) {
   const groveStep = timeline.find(e => e.active === 'finish' && (e.mosi === 'walk' || e.mosi === 'deck')), groveArrive = timeline.find(e => e.visited);
   // `input` is now the ending card: the celebration (a script) runs between the arrival and it.
   const groveInput = groveArrive && timeline.find(e => e.t >= groveArrive.t && e.visited && e.ending);
+  // Level 2's end: the walk over the trunk starting, everyone on Sólarsyllan (the walk is over), and the ending card after the celebration.
+  const sunWalk = timeline.find(e => e.active === 'walk'), sunArrive = timeline.find(e => e.sun), sunInput = sunArrive && timeline.find(e => e.t >= sunArrive.t && e.ending);
   return {
     framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
     crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
     marsh: layStart ? { firstTap: barkTap?.t ?? null, layStart: layStart.t, lastPanel: lastPanel?.t ?? null, boardwalk: built?.t ?? null, tapToLastPanel: barkTap && lastPanel ? span(barkTap, lastPanel) : null, layToLastPanel: span(layStart, lastPanel), layToBoardwalk: span(layStart, built) } : null,
     grove: groveStep ? { firstStep: groveStep.t, arrive: groveArrive?.t ?? null, input: groveInput?.t ?? null, firstStepToArrive: span(groveStep, groveArrive), watchAfterArrival: span(groveArrive, groveInput) } : null,
+    sunLedge: sunWalk ? { walk: sunWalk.t, arrive: sunArrive?.t ?? null, input: sunInput?.t ?? null, walkToArrive: span(sunWalk, sunArrive), watchAfterArrival: span(sunArrive, sunInput), walkToInput: span(sunWalk, sunInput) } : null,
     // The longest stretch, and the five longest (with what was going on), so a long one can be placed.
     longestWatch: stretches.sort((a, b) => b.seconds - a.seconds)[0] ?? { seconds: 0 }, longestWatches: stretches.slice(0, 5),
   };
@@ -930,11 +935,10 @@ async function main() {
         report.allFound = await ev(`(() => { const d = window.__demoStats; return { drawCalls: d.drawCalls, triangles: d.triangles, camera: d.camera.intent, babiesRendered: d.characterLod.filter(c => c.rendered).length, babiesVisible: d.cells.filter(c => c.actorVisible).length, tunnel: window.__memory.targets().find(t => t.id === 'tunnel') ?? null, gorge: window.__memory.stats().levelStats?.gorge ?? null }; })()`).catch(e => ({ error: e.message }));
         break;
       }
-      // Level 2 (full) stops here for now: everyone has walked over the trunk to Sólarsyllan and nobody moves (Task 7 carries the round on: the light, the celebration, the card).
-      if (LEVEL.number === 2 && o.mode === 'full' && s.bridge.onSunLedge && !s.bridge.active && !s.bridge.failing && !s.scene && !s.cam.moving && !s.cam.held && !s.walking && !s.giftPhases.some(phase => phase !== 'done')) {
-        report.finished = true; step('everyone is on Sólarsyllan, over the trunk: the round waits for the next task', { light: s.tunnel?.light, pile: s.tunnel?.pile, upper: s.upper, caption: s.caption }); await sleep(2500);
+      // Level 2: everyone has walked over the trunk to Sólarsyllan; the celebration plays on to the ending card (Task 7), as level 1's does. The level's state is kept once, as they arrive.
+      if (LEVEL.number === 2 && s.bridge.onSunLedge && !report.level2) {
+        step('everyone is on Sólarsyllan, over the trunk: the celebration', { light: s.tunnel?.light, pile: s.tunnel?.pile, upper: s.upper, caption: s.caption });
         report.level2 = await ev(`(() => { const d = window.__demoStats; return { tunnel: d.levelStats.tunnel, gorge: d.levelStats.gorge, targets: window.__memory.targets().filter(t => t.type === 'task'), story: window.__memory.story(), bridge: window.__memory.bridge(), drawCalls: d.drawCalls, triangles: d.triangles }; })()`).catch(e => ({ error: e.message }));
-        await shot('rocks-gone'); break;
       }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
         report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
@@ -1061,7 +1065,11 @@ async function main() {
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
       const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus': ['eating-thorsedlur', 700], 'wide-eating': ['eating-all', 500],
         'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus': ['trick-thorsedlur-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
-      for (const name of s.beats) if (BEAT_STILLS[name]) waited ||= await milestone(`beat-${name}`, BEAT_STILLS[name][0], BEAT_STILLS[name][1]);
+      // (level 2's, on Sólarsyllan: the sunset and the first stars, each pair's trick, the fossils glowing in a row, Mosi over them, the last wide shot under the stars)
+      const BEAT_STILLS_2 = { 'sun-sets': ['sun-sets-first-stars', 2600], 'trick-stegosaurus': ['trick-kambedlur-glow', 700], 'trick-triceratops': ['trick-thrihyrnur-butt', 800], 'trick-brontosaurus': ['trick-thorsedlur-reach-high', 1300],
+        'trick-pteranodon': ['trick-flugedlur-circle', 1600], 'fossils-glow': ['fossils-glow-in-a-row', 1300], 'mosi-cheer': ['mosi-cheers-over-the-fossils', 700], 'final-wide': ['final-wide-under-the-stars', 1200] };
+      const stills = LEVEL.number === 2 ? BEAT_STILLS_2 : BEAT_STILLS;
+      for (const name of s.beats) if (stills[name]) waited ||= await milestone(`beat-${name}`, stills[name][0], stills[name][1]);
       // The waiting friends at play during the search (the first two kinds of game the page starts).
       if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
       if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
@@ -1294,8 +1302,9 @@ async function main() {
     try {
       // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
       report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds'); report.audioLog = await ev('window.__audioLog');
-      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => s.id === 'gifts3');
-      report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts3: report.spoken.filter(s => s.id === 'gifts3').length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
+      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === (LEVEL.number === 2 ? 'fossils-glow' : 'mosi-cheer')), giftsLine = LEVEL.number === 2 ? 'gifts4' : 'gifts3', wonLine = LEVEL.number === 2 ? 'g2_won' : 'won', gifts = report.spoken.find(s => s.id === giftsLine);
+      // (level 2: g2_won as the Flugeðlur circle, gifts4 over the glowing row; giftsLag from the row's beat)
+      report.speechCheck = { won: report.spoken.filter(s => s.id === wonLine).length, [giftsLine]: report.spoken.filter(s => s.id === giftsLine).length, wonBeforeGifts: (report.spoken.find(s => s.id === wonLine)?.t ?? Infinity) < (gifts?.t ?? -Infinity), giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
         giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
     } catch {}
     // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
@@ -1315,7 +1324,7 @@ async function main() {
       if (report.timelineCheck) report.timelineCheck.takes = takes.length;
       if (o.clearance) report.clearance = await ev('window.__clr');
     } catch {}
-    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, marsh: report.timelineCheck.marsh?.layToBoardwalk ?? null, grove: report.timelineCheck.grove?.firstStepToArrive ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
+    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, marsh: report.timelineCheck.marsh?.layToBoardwalk ?? null, grove: report.timelineCheck.grove?.firstStepToArrive ?? null, sunLedge: report.timelineCheck.sunLedge?.watchAfterArrival ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
     try {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
@@ -1364,7 +1373,7 @@ async function main() {
   console.log(`${r.finished ? 'FINISHED' : 'NOT FINISHED'} ${o.mode} ${o.size}: round ${r.roundSeconds}s, ${r.errors.length} errors, ${r.steps.length} steps, perf ${JSON.stringify(r.perf)}, render ${JSON.stringify(r.render)}`);
   if (r.video) console.log(`Video: ${r.video.file ?? 'none'} (${r.video.frames} frames${r.video.error ? ', ' + r.video.error : ''})`);
   if (r.marks?.length) console.log(`Marks: ${r.marks.map(m => `${m.name} ${m.video ?? m.round}s`).join(', ')}`);
-  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
+  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, Sólarsyllan ${JSON.stringify(r.timelineCheck.sunLedge)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
   if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
   if (r.clearance) console.log(`Plants: ${r.clearance.plants?.samples} samples, closest gap ${r.clearance.plants?.minimum} m ${JSON.stringify(r.clearance.plants?.closest)}`);
   if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
