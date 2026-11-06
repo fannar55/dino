@@ -80,3 +80,18 @@ test('hidden-page suspension silences even help and resumes only when visible ag
   assert.equal(speech.play('help', 0, true), false); speech.update(20); assert.equal(media.currentTime, .4);
   speech.pause(true, { force: false }); await flush(); assert.equal(media.paused, false); assert.equal(media.currentTime, .4);
 });
+
+test('lastStarted names the last line that began, and a delayed line counts only when it begins', async () => {
+  const media = new Media(), speech = createMemorySpeech({ makeAudio: () => media, fetcher: response(speechManifest) });
+  await speech.ready; speech.pause(false);
+  assert.equal(speech.lastStarted(), null);
+  assert.equal(speech.play('lift'), true); assert.deepEqual(speech.lastStarted(), { id: 'lift', n: 1 });
+  assert.equal(speech.play('held'), true); assert.deepEqual(speech.lastStarted(), { id: 'held', n: 2 });
+  assert.equal(speech.play('nope'), false); assert.deepEqual(speech.lastStarted(), { id: 'held', n: 2 });
+  speech.mute(true); assert.equal(speech.play('won'), false); assert.deepEqual(speech.lastStarted(), { id: 'held', n: 2 });
+  speech.mute(false);
+  assert.equal(speech.play('won', 1), true); assert.deepEqual(speech.lastStarted(), { id: 'held', n: 2 });
+  speech.update(.5); assert.deepEqual(speech.lastStarted(), { id: 'held', n: 2 });
+  speech.update(.6); assert.deepEqual(speech.lastStarted(), { id: 'won', n: 3 });
+  assert.equal(speech.play('won'), true); assert.deepEqual(speech.lastStarted(), { id: 'won', n: 4 });
+});

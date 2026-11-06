@@ -525,3 +525,28 @@ test("the welcome card has the level picker: a card for each level with its pict
   assert.match(game, /celebrated = true; world\.celebrate\(\); audio\.win\(\); unlockNext\(\);/, 'at the win');
   assert.match(game, /aria-disabled/); assert.match(game, /dataset\.level/);
 });
+
+test('Mosi\'s ask and repeat rules (coach)', async () => {
+  const { IDLE_HINT, IDLE_REPEAT, OLD_MUTE_KEY, forgetOldMute, momentLine, askLine, repeatDue } = await import('../engine/memory/coach.js');
+  assert.equal(IDLE_HINT, 4); assert.equal(IDLE_REPEAT, 10);
+  const store = new Map([[OLD_MUTE_KEY, 'true'], ['other', '1']]);
+  forgetOldMute({ removeItem: key => store.delete(key) });
+  assert.equal(store.has(OLD_MUTE_KEY), false); assert.equal(store.get('other'), '1');
+  assert.doesNotThrow(() => forgetOldMute(null)); assert.doesNotThrow(() => forgetOldMute(undefined));
+  assert.doesNotThrow(() => forgetOldMute({ removeItem() { throw new Error('blocked'); } }));
+  assert.equal(momentLine({ key: 'a', last: { id: 'who', key: 'a' } }), 'who');
+  assert.equal(momentLine({ key: 'b', last: { id: 'who', key: 'a' }, voice: { b: 'g2_lit' } }), 'g2_lit');
+  assert.equal(momentLine({ key: 'b', last: null }), null);
+  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, speaking: true }), null);
+  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, busy: true }), null);
+  assert.equal(askLine({ key: 'b', last: null, help: 'g2_help' }), 'g2_help');
+  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, help: 'g2_help' }), 'who');
+  assert.equal(askLine({ key: 'b', last: null }), null);
+  const due = { idle: 10, key: 'a', repeated: null, mayAct: true, speaking: false, line: 'who' };
+  assert.equal(repeatDue({ ...due, idle: 9.9 }), false);
+  assert.equal(repeatDue(due), true);
+  assert.equal(repeatDue({ ...due, repeated: 'a' }), false);
+  assert.equal(repeatDue({ ...due, speaking: true }), false);
+  assert.equal(repeatDue({ ...due, line: null }), false);
+  assert.equal(repeatDue({ ...due, mayAct: false }), false);
+});
