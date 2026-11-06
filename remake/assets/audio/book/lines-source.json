@@ -169,5 +169,19 @@
  { "id": "book_skeleton_3", "speaker": "narrator", "text": "Steingervingafræðingar grafa beinin varlega upp, með burstum og litlum hömrum." },
  { "id": "book_find_me_fen", "speaker": "narrator", "text": "Finndu mig í Feninu!" },
  { "id": "book_mosi_later", "speaker": "mosi", "text": "Hana hittum við seinna!", "context": "Við hittum Kambeðlu í gær, og á morgun hittum við Þórseðlu.", "seed": 42, "fixes": "hittum", "note": "Own context and seed 42: the plain take said hitum for hittum; the owner chose this take (prufa 4) by ear on 2026-10-26. No word rule, since hittum is right in k1_mosi_book." },
- { "id": "book_mosi_fossils_all", "speaker": "mosi", "text": "Vá! Þú fannst alla átta steingervingana. Safnið er fullt!" }
+ { "id": "book_mosi_fossils_all", "speaker": "mosi", "text": "Vá! Þú fannst alla átta steingervingana. Safnið er fullt!" },
+ {"id":"myndband_gramedla_1","speaker":"narrator","text":"Hversu stór var Grameðla? Mælum hana!"},
+ {"id":"myndband_gramedla_2","speaker":"narrator","text":"Hér er Egill. Sjáðu hvað hann er lítill við hliðina á henni!"},
+ {"id":"myndband_gramedla_3","speaker":"narrator","text":"Hvað komast margir krakkar fyrir í röð, frá nefinu og aftur á halann? Teljum saman!"},
+ {"id":"myndband_tala_1","speaker":"narrator","text":"Einn!"},
+ {"id":"myndband_tala_2","speaker":"narrator","text":"Tveir!"},
+ {"id":"myndband_tala_3","speaker":"narrator","text":"Þrír!"},
+ {"id":"myndband_tala_4","speaker":"narrator","text":"Fjórir!"},
+ {"id":"myndband_tala_5","speaker":"narrator","text":"Fimm!"},
+ {"id":"myndband_tala_6","speaker":"narrator","text":"Sex!"},
+ {"id":"myndband_tala_7","speaker":"narrator","text":"Sjö!"},
+ {"id":"myndband_tala_8","speaker":"narrator","text":"Átta!"},
+ {"id":"myndband_tala_9","speaker":"narrator","text":"Níu!"},
+ {"id":"myndband_tala_10","speaker":"narrator","text":"Tíu!"},
+ {"id":"myndband_gramedla_4","speaker":"narrator","text":"Tíu krakkar í röð!"}
 ]

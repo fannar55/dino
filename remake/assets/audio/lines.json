@@ -3883,5 +3883,75 @@
   "src": "assets/audio/veiddu/veiddu_tut_real.mp3",
   "duration": 2.41,
   "mouth": "affdca630beecdddbec300efcebdfddcb9630400000000000"
+ },
+ "myndband_gramedla_1": {
+  "src": "assets/audio/book/myndband_gramedla_1.mp3",
+  "duration": 3.53,
+  "mouth": "00cb00b90000eedb753aa508babb9640300000000000009cffffedb6887540000000000"
+ },
+ "myndband_gramedla_2": {
+  "src": "assets/audio/book/myndband_gramedla_2.mp3",
+  "duration": 4.49,
+  "mouth": "009efffc8efb86000000000000000000007aabbda0bdaefe7ba79a7000b707d50befccb9876654300000000000"
+ },
+ "myndband_gramedla_3": {
+  "src": "assets/audio/book/myndband_gramedla_3.mp3",
+  "duration": 6.09,
+  "mouth": "00bfe00dffa09edb60c200b7008b00aeded9ea3ab860000000007abcccdb6ccccb95bb9c00089906995000000000000000eeffe00dca75000000000000"
+ },
+ "myndband_tala_1": {
+  "src": "assets/audio/book/myndband_tala_1.mp3",
+  "duration": 0.97,
+  "mouth": "eff00004700000000000"
+ },
+ "myndband_tala_2": {
+  "src": "assets/audio/book/myndband_tala_2.mp3",
+  "duration": 1.13,
+  "mouth": "000fffc9700000000000000"
+ },
+ "myndband_tala_3": {
+  "src": "assets/audio/book/myndband_tala_3.mp3",
+  "duration": 1.13,
+  "mouth": "000fefd9850000000000000"
+ },
+ "myndband_tala_4": {
+  "src": "assets/audio/book/myndband_tala_4.mp3",
+  "duration": 1.21,
+  "mouth": "000cfffc67600000000000000"
+ },
+ "myndband_tala_5": {
+  "src": "assets/audio/book/myndband_tala_5.mp3",
+  "duration": 1.13,
+  "mouth": "0008ffda600000000000000"
+ },
+ "myndband_tala_6": {
+  "src": "assets/audio/book/myndband_tala_6.mp3",
+  "duration": 1.05,
+  "mouth": "000ff2000000000000000"
+ },
+ "myndband_tala_7": {
+  "src": "assets/audio/book/myndband_tala_7.mp3",
+  "duration": 1.21,
+  "mouth": "00000cfffa620000000000000"
+ },
+ "myndband_tala_8": {
+  "src": "assets/audio/book/myndband_tala_8.mp3",
+  "duration": 1.05,
+  "mouth": "ffd00400c830000000000"
+ },
+ "myndband_tala_9": {
+  "src": "assets/audio/book/myndband_tala_9.mp3",
+  "duration": 0.97,
+  "mouth": "adffd958630000000000"
+ },
+ "myndband_tala_10": {
+  "src": "assets/audio/book/myndband_tala_10.mp3",
+  "duration": 0.97,
+  "mouth": "00ffeb58840000000000"
+ },
+ "myndband_gramedla_4": {
+  "src": "assets/audio/book/myndband_gramedla_4.mp3",
+  "duration": 2.25,
+  "mouth": "006fda9fff0009fa7200cb9cfebbeffc6000000000000"
  }
 }
