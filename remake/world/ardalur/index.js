@@ -26,26 +26,32 @@ import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
 import { createWaterMaterial } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
 import { createFarLand } from './far-land.js';
-import { FEN } from '../forest/config.js';
+import { FEN, FOREST } from '../forest/config.js';
+import { CARDED, createCardAtlas, createCardMaterial } from '../forest/cards.js';
 
 export const SIGHT = 100; // metres from the camera (seen from above) to a section's land (its route piece and the 160 m round it) within which it is shown
 export const DOWNWASH = 8; // metres round her body within which the reeds and the plants bend away from her
 
 /**
  * Build Árdalurinn. Options: grey (the stand-ins of chunk 1; otherwise the real look: look.js, the forest's plants, the game's
- * water), seed, route, budget(), now() (the build slices), critters (loadCritters in animals.js: the small lizard, loaded first).
+ * water), seed, route, budget(), now() (the build slices), critters (loadCritters in animals.js: the small lizard, loaded first),
+ * cardFrom (metres past which a tree is drawn as its card: world/forest/cards.js; settable on the place too).
  */
-export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {} } = {}) {
+export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom } = {}) {
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
   const lambert = colour => new THREE.MeshLambertMaterial({ color: colour });
-  // the real look's shared things: the noise and leaf textures, the plants' materials, one species library, the river's water
+  // the real look's shared things: the noise and leaf textures, the plants' materials, one species library, the river's water, the
+  // far trees' pictures (one atlas of every variant's coarse shape, the shape the meshes draw far off) and their material
   const real = grey ? null : (() => {
     const noise = createNoiseTexture(seed);
     const leaf = createLeafTexture(seed);
+    const library = createSpeciesLibrary(seed);
+    const atlas = createCardAtlas(world.renderer ?? null, CARDED.flatMap(name => Array.from({ length: FOREST.trees.variants[name] },
+      (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) }))));
     return {
-      noise, leaf, library: createSpeciesLibrary(seed), paint: groundPaint(terrain, route),
+      noise, leaf, library, atlas, cards: createCardMaterial(atlas), paint: groundPaint(terrain, route),
       plants: createPlantMaterials(world, { noise, leaf }), water: createWaterMaterial(world, { seed, river: true, noise }),
     };
   })();
@@ -139,7 +145,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const plantMeshes = sections.list.map(() => []); // each section's merged plant meshes (the real look), culled as the camera moves
   // from down in the gorge the ground hides most plants above the falls: the cull leaves those out (sight.js)
   const sight = real ? createGorgeSight(route, terrain, index) : null;
-  const hideAbove = (range, mesh) => mesh.userData.sector === ABOVE_SECTOR && sight.hidden(world.camera.position, range.sphere);
+  const hideAbove = (range, mesh) => (range.sector ?? mesh.userData.sector) === ABOVE_SECTOR && sight.hidden(world.camera.position, range.sphere);
   // low over the fen the far plants deep in the haze are left out too (sight.js)
   const haze = real ? createHazeSight(world) : null;
   const hideHazed = (range, mesh) => mesh.userData.band === 'far' && haze.hidden(world.camera.position, range.sphere);
@@ -152,6 +158,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
         terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
+        atlas: real.atlas, cards: real.cards,
       });
     return { ground, banks };
   }
@@ -192,7 +199,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       // downwash; the water's clock
       world.camera.updateMatrixWorld();
       const hide = sight.active(camera) ? hideBoth : hideHazed;
-      for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide);
+      for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
       else downwash.set(0, 0, 0, 0);
@@ -232,6 +239,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     farLand,
     heightAt: (x, z) => terrain.heightAt(x, z),
     get visible() { return lastVisible; },
+    /** Metres past which a tree is drawn as its card (Infinity: never). */
+    get cardFrom() { return cardFrom; },
+    set cardFrom(metres) { cardFrom = metres; },
     get building() { return queue.current; },
     /** Each frame (main.js calls a place's update as it does a forest's): show the near sections and build a slice. */
     update,
@@ -250,6 +260,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
         real.plants.dispose();
         real.water.dispose();
         real.leaf.dispose();
+        real.cards.dispose();
+        real.atlas.dispose();
       }
     },
   };

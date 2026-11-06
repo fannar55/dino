@@ -18,6 +18,8 @@ import { HIGH, bodyOf } from '../world/ardalur/banks.js';
 import { stillViews } from '../engine/camera/flight-camera.js';
 import { createFarLand, FAR } from '../world/ardalur/far-land.js';
 import { cullBatches } from '../world/forest/batch.js';
+import { FOREST } from '../world/forest/config.js';
+import { CARDED as CARD_SPECIES, bakeGeometry } from '../world/forest/cards.js';
 import { createLocations } from '../engine/locations.js';
 import { RAPIDS, flowAt, whiteAt } from '../world/ardalur/river.js';
 import { createWind } from '../engine/wind.js';
@@ -210,6 +212,113 @@ test('the real valley: each section stays within the forest budget, its plants a
   for (const name of ['horsetailReed', 'swampConifer', 'broadleaf', 'araucaria', 'treeFern', 'cycad', 'bush', 'rock', 'waterLily']) {
     assert.ok(names.has(name), `the valley grows ${name}`);
   }
+});
+
+// ---- far trees as cards (world/forest/cards.js) ---------------------------------------------------------------------------------
+
+const CARDED = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer']);
+/** A section's merged plant meshes, its card mesh among them. */
+const plantsOf = part => part.children.find(o => o.name === 'Árdalur plants').children;
+/** The ranges of a mesh that are the plant at (x, z) (each range's ref stands over its plant's foot). */
+const rangesAt = (mesh, p) => mesh.userData.cull.ranges.filter(r => Math.abs(r.ref.x - p.x) < 1e-6 && Math.abs(r.ref.z - p.z) < 1e-6);
+
+test("a card's picture is drawn from its tree's own shape: every vertex, its colour and its sky exposure, in its cell", () => {
+  const library = createSpeciesLibrary(4);
+  for (const name of CARD_SPECIES) {
+    const model = library.get(name, 0, 2, {});
+    const parts = [model.solid, model.thin].filter(p => p?.count);
+    const g = bakeGeometry(model, 0.5, 3, 1);
+    const pos = g.getAttribute('position'), col = g.getAttribute('aColour'), exp = g.getAttribute('aExposure');
+    assert.equal(pos.count, parts.reduce((n, p) => n + p.count, 0), `${name}: every vertex`);
+    assert.equal(g.index.count, parts.reduce((n, p) => n + p.idx.length, 0), `${name}: every triangle`);
+    const first = parts[0];
+    assert.ok(Math.abs(pos.getX(0) - (first.pos[0] * 0.5 + 3)) < 1e-6 && Math.abs(pos.getY(0) - (first.pos[1] * 0.5 + 1)) < 1e-6, `${name}: moved into its cell`);
+    assert.ok(Math.abs(col.getY(0) - first.col[1]) < 1e-6 && Math.abs(exp.getX(0) - first.exp[0]) < 1e-6, `${name}: its colour and exposure`);
+    for (let i = 0; i < pos.count; i++) assert.ok(Number.isFinite(pos.getX(i) + pos.getY(i) + col.getX(i) + exp.getX(i)), `${name}: vertex ${i}`);
+  }
+});
+
+test('a far tree is a card, a near one a mesh', () => {
+  const place = litValley();
+  const camera = litWorldOf.camera;
+  const part = place.stats.sections.find(sec => sec.userData.placements.some(p => p.name === 'broadleaf'));
+  const tree = part.userData.placements.find(p => p.name === 'broadleaf');
+  const meshes = plantsOf(part);
+  const cards = meshes.filter(m => m.userData.cards);
+  assert.equal(cards.length, 1, 'one card mesh a section');
+  assert.equal(cards[0].castShadow, false, 'cards cast no shadow');
+  assert.ok(rangesAt(cards[0], tree).length === 1, 'the tree has a card');
+  const drawn = card => meshes.filter(m => !!m.userData.cards === card).some(m => (m.userData.cull.kept ?? []).some(r => rangesAt(m, tree).includes(r)));
+  for (const [far, mesh] of [[60, true], [220, false]]) {
+    camera.position.set(tree.x + far, tree.y + 12, tree.z);
+    camera.lookAt(tree.x, tree.y + 5, tree.z);
+    camera.updateMatrixWorld();
+    cullBatches(meshes, camera, 1.5, null, FOREST.lod.cardFrom);
+    assert.equal(drawn(false), mesh, `at ${far} m the tree's mesh is ${mesh ? '' : 'not '}drawn`);
+    assert.equal(drawn(true), !mesh, `at ${far} m its card is ${mesh ? 'not ' : ''}drawn`);
+  }
+});
+
+test('a card stands where its tree stands, as tall and as wide', () => {
+  const place = litValley();
+  let checked = 0;
+  for (const part of place.stats.sections) {
+    const card = plantsOf(part).find(m => m.userData.cards);
+    if (!card) continue;
+    const centre = card.geometry.getAttribute('aCentre');
+    const size = card.geometry.getAttribute('aSize');
+    for (const tree of part.userData.placements.filter(p => CARDED.has(p.name)).slice(0, 6)) {
+      const [r] = rangesAt(card, tree);
+      assert.ok(r, `${tree.name} at (${tree.x.toFixed(1)}, ${tree.z.toFixed(1)}) has a card`);
+      const v = card.userData.cull.master[r.start];
+      // the tree's own shape, as drawn far off (its coarsest level)
+      const { model } = tree.models.at(-1);
+      let wide = 0, top = -Infinity, bottom = Infinity;
+      for (const b of [model.solid, model.thin]) {
+        if (!b?.count) continue;
+        for (let i = 0; i < b.count; i++) {
+          wide = Math.max(wide, Math.hypot(b.pos[i * 3], b.pos[i * 3 + 2]));
+          top = Math.max(top, b.pos[i * 3 + 1]);
+          bottom = Math.min(bottom, b.pos[i * 3 + 1]);
+        }
+      }
+      const tall = (top - bottom) * tree.scale;
+      const across = 2 * wide * tree.scale;
+      assert.ok(Math.hypot(centre.getX(v) - tree.x, centre.getZ(v) - tree.z) < 0.5, `${tree.name}: the card stands on its tree's foot`);
+      assert.ok(Math.abs(size.getY(v) - tall) <= 0.1 * tall, `${tree.name}: ${size.getY(v).toFixed(1)} m tall, its tree ${tall.toFixed(1)} m`);
+      assert.ok(Math.abs(size.getX(v) - across) <= 0.1 * across, `${tree.name}: ${size.getX(v).toFixed(1)} m wide, its tree ${across.toFixed(1)} m`);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 30, `${checked} cards checked`);
+});
+
+test('the vista over the land costs fewer triangles: its far trees are cards', () => {
+  const place = litValley();
+  const world = litWorldOf;
+  const { camera } = world;
+  // the vista shot at 139 s (engine/camera/flight-camera.js): 30 m behind her, 12 m to her right and 7 m up, looking over her
+  const t = 139;
+  const u = route.progressAt(t);
+  const her = route.pointAt(u);
+  const tan = route.tangentAt(u);
+  const f = new THREE.Vector3(tan.x, 0, tan.z).normalize();
+  const right = new THREE.Vector3(-f.z, 0, f.x);
+  camera.fov = 55;
+  camera.updateProjectionMatrix();
+  camera.position.copy(her).addScaledVector(f, -30).addScaledVector(right, 12).add(new THREE.Vector3(0, 7, 0));
+  camera.lookAt(her.x, her.y + 4, her.z);
+  camera.updateMatrixWorld();
+  world.flightU = u;
+  world.flightPoint = her;
+  place.update(DT, t);
+  const drawn = cardFrom => place.visible.reduce((sum, i) => sum + cullBatches(plantsOf(place.stats.sections[i]), camera, 1.5, null, cardFrom), 0);
+  const all = drawn(Infinity);
+  const carded = drawn(FOREST.lod.cardFrom);
+  world.flightPoint = null;
+  camera.fov = 40;
+  camera.updateProjectionMatrix();
+  assert.ok(carded <= 0.75 * all, `${carded} triangles with cards, ${all} without (${(100 * (1 - carded / all)).toFixed(0)} % fewer)`);
 });
 
 /** The placements of the real valley in 5 m cells, and those within r of (x, z), seen from above. */

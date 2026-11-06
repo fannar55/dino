@@ -242,10 +242,11 @@ function inHerWay(index, x, y, z, r, h, near) {
  * The steps that grow one section's real plants (a generator for the build queue). `library` is the forest's species library (one
  * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
  * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter), `low`
- * the animal groups ({ x, z, side }) round which only low plants grow (LOW), `views` the still shots' (VIEW). Returns { group,
+ * the animal groups ({ x, z, side }) round which only low plants grow (LOW), `views` the still shots' (VIEW), `atlas` and `cards`
+ * the far trees' pictures and their material (world/forest/cards.js: a tree that has one is drawn as it far off). Returns { group,
  * placements, meshes }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time.
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [] }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null }) {
   const lines = linesOf(views);
   const { own, grid: { gx0, gz0, W } } = ground;
   const rng = seeded(seed);
@@ -305,7 +306,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     if (inView(views, lines, px, y - (model.sink ?? 0) * scale, pz, Math.max(drawn.r, body.r), Math.max(drawn.h, body.h))) return; // a still shot sees past it
     placements.push({
       name, model, models, variant, lod: models[0].level, x: px, y: y - (model.sink ?? 0) * scale, z: pz, rot, scale, phase,
-      band: fine ? 'near' : 'far', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky, d,
+      band: fine ? 'near' : 'far', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky, d, card: atlas?.card(name, variant) ?? null,
     });
   }
   for (let j = 0; j < rows; j += per) {
@@ -384,7 +385,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
   for (const p of placements) batcher.add(p);
   const { meshes } = yield* batcher.buildSteps(bucket => ({
     material: bucket.kind === 'thin' ? materials.thin : materials.solid, receiveShadow: true, renderOrder: 3,
-  }));
+  }), { cards: cards ? { material: cards, renderOrder: 3 } : null });
   const group = new THREE.Group();
   group.name = 'Árdalur plants';
   for (const mesh of meshes) {
