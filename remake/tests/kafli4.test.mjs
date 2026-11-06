@@ -219,11 +219,11 @@ const SUBJECTS = {
  * The chapter played by nobody, or with a tap on Þórseðla (`tap`), or with a child's hands in the wind task (`hands`: 'up' strokes
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
-function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = {}) {
-  const seen = { critters: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
+function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
+  const seen = { critters: [], rows: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
   let where = null;
   return playUnattended(kafli4, {
-    limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith,
+    limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith, reduced,
     onFrame({ world, director, pointer, ui, shot: label }) {
       const c = world.chapterState;
       // the page's theme, which the harness's world has none of: what the chapter asks of it, and when
@@ -280,6 +280,22 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
           tallest = Math.max(tallest, ((top.y - foot.y) / 2) * tall);
         }
         seen.critters.push({ t: world.clock.time - started, shot, cut: seen.cuts, tallest, triangles: crowds.triangles(), calls: crowds.calls() });
+        // F and G (world/ardalur/life.js): how many of the rows' small lizards and the flocks' birds the frame shows 8 px tall or more
+        const life = world.forest.life;
+        if (life?.rows && world.flightTime >= BEATS.F) {
+          const large = members => members.filter(m => {
+            const foot = m.position.clone().project(world.camera);
+            if (!m.visible || foot.z >= 1 || Math.abs(foot.x) > 1 || Math.abs(foot.y) > 1) return false;
+            const box = projectedBox(m, world.camera, crowds);
+            return ((box.y1 - box.y0) / 2) * tall >= 8;
+          }).length;
+          const lizards = life.rows.flatMap(r => r.members);
+          seen.rows.push({
+            t: world.flightTime, shot, call: c.flight.play?.big?.at ?? null,
+            lizards: large(lizards), birds: large(life.flocks.flatMap(f => f.members)),
+            ran: lizards.reduce((sum, m) => sum + Math.hypot(m.position.x - m.at.x, m.position.z - m.at.z), 0) / lizards.length,
+          });
+        }
       }
       // the shadow shot (the flight camera's bankShadow): how large the lizards it is about look, as she passes them
       if (c?.flight?.camera?.current === 'bankShadow' && world.forest?.animals) {
@@ -369,6 +385,8 @@ let wide = null, upright = null, tapped = null;
 const playWide = () => (wide ??= playIt());
 const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
 const playTapped = () => (tapped ??= playIt({ tap: true }));
+let calm = null;
+const playReduced = () => (calm ??= playIt({ reduced: true }));
 
 test('scenes 1 to 7 play in order, from the Fen to the white tree, up into the flight over Árdalurinn and down at the far pool', async () => {
   const { task, stage, world } = await playWide();
@@ -654,6 +672,29 @@ test('the shadow shot frames the lizards it is about: the group at least 8 % of 
   const { middle } = closest;
   assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `the group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
   assert.ok(closest.size >= 0.08, `the group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+});
+
+// F and G (the life spec 2F, 2G; world/ardalur/life.js): after the big call the rows of small lizards stream toward the far pool where
+// the flight's shots see them, the slow circle round her (the fixed vista under reduced motion) and the chase down the glide to 162 s
+test('after the big call ten small lizards or more, 8 px tall, run toward the far pool in the slow circle and down the glide', async (t) => {
+  const plays = [['16:10', playWide, { orbit: 0.5, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
+  for (const [shape, play, wants] of plays) {
+    const { watched } = await play();
+    const frames = watched.rows.filter(f => f.call !== null && f.t > f.call + 2);
+    assert.ok(frames.length > 600, `${shape}: ${frames.length} frames after the big call`);
+    // the call sets them off (chapters/kafli4-flight-play.js bigCall): 10 s after it they have run 30 m on the mean
+    const later = frames.filter(f => f.t > f.call + 10);
+    assert.ok(later.length > 300 && later.every(f => f.ran >= 30), `${shape}: the lizards have run ${Math.min(...later.map(f => f.ran)).toFixed(1)} m 10 s after the call`);
+    for (const [shot, share] of Object.entries(wants)) {
+      const inShot = frames.filter(f => f.shot === shot && (shot !== 'chase' || (f.t >= BEATS.G && f.t < 162)));
+      const seenShare = inShot.filter(f => f.lizards >= 10).length / inShot.length;
+      const birds = inShot.filter(f => f.birds >= 9).length / inShot.length;
+      t.diagnostic(`${shape} ${shot}: ${inShot.length} frames, ten lizards ${(100 * seenShare).toFixed(0)} %, nine birds ${(100 * birds).toFixed(0)} %, most ${Math.max(...inShot.map(f => f.lizards))}`);
+      assert.ok(inShot.length > 100 && seenShare >= share, `${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
+      // and the flocks rise in the slow circle: nine birds of them 8 px tall at least 40 % of the time
+      assert.ok(shot !== 'orbit' || birds >= 0.4, `${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
+    }
+  }
 });
 
 test('the far pool is a place of its own (chapter 5 begins there): the route\'s pool, its spots, and the shots scene 7 uses', () => {

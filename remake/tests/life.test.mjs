@@ -1,13 +1,18 @@
 // The life in the flight that nobody taps (world/ardalur/life.js): the Fen's early birds and dragonflies in A, fish jumping in her
 // lane, birds flushed from the bank trees between the groups of C, water striders a skim sends skating. All of it on the flight's
-// own clock, set off by where the schedule has her, and none of it in her way.
+// own clock, set off by where the schedule has her, and none of it in her way. In F and G the big call sends rows of small lizards
+// and flocks of birds out of the groves toward the far pool.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, FAR_POOL } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { RAPIDS } from '../world/ardalur/river.js';
 import { createLife } from '../world/ardalur/life.js';
+import { groveAt } from '../world/ardalur/banks.js';
+import { SMAEDLA_MODEL } from '../world/ardalur/animals.js';
+import { crowdModelFrom } from '../world/critters/crowd-models.js';
+import { loadGlb } from './glb.mjs';
 
 const route = createRoute();
 const terrain = createTerrain(route, { seed: 4 });
@@ -22,9 +27,9 @@ const fromPath = p => {
 };
 
 /** A life in a world whose game clock runs 100 s ahead of the flight's; step(t) sets the flight's time t and updates it. */
-function made() {
+function made(options = {}) {
   const world = { scene: new THREE.Scene(), clock: { time: 0 }, flightTime: null, camera: null };
-  const life = createLife(world, route, { heightAt });
+  const life = createLife(world, route, { heightAt, ...options });
   const step = t => {
     world.flightTime = t;
     world.clock.time = 100 + t;
@@ -110,7 +115,7 @@ test('birds fly up from the bank trees as she passes', () => {
     assert.ok(w.e > 0 && w.e <= 12, `a tree within 12 m of the water (${w.e.toFixed(1)} m)`);
     assert.ok(w.d > groupsAt[0] && w.d < groupsAt.at(-1) && groupsAt.every(d => Math.abs(d - w.d) >= 15), `a tree between the groups (d ${w.d.toFixed(0)})`);
   }
-  const birds = life.things.filter(t => t.kind === 'bird');
+  const birds = life.things.filter(t => t.kind === 'bird' && t.id.startsWith('tree-'));
   assert.equal(birds.length, 24);
   for (const b of birds) {
     assert.ok(b.trigger > BEATS.C && b.trigger < BEATS.D, `${b.id} flies up in C (${b.trigger.toFixed(2)} s)`);
@@ -173,4 +178,89 @@ test('nothing in her way: every thing stays 3 m from her path at its time', () =
   }
   assert.ok(closest >= 3, `${who}: ${closest.toFixed(2)} m from her`);
   life.dispose();
+});
+
+// ---------------------------------------------------------------------------------------------
+// F and G: the big call (chapters/kafli4-flight-play.js bigCall) comes by itself at 135.5 s (its line waits for the one playing), or
+// at once on a tap on the land from 125 s
+
+const CALLS = [135.5, 126];
+const PATH = Array.from({ length: Math.round(BEATS.END / 0.1) + 1 }, (_, i) => herAt(i * 0.1));
+/** How near her path comes to a point: seen from above (`flat`), or in the air. */
+const awayFrom = (p, flat) => PATH.reduce((best, q) => Math.min(best, flat ? Math.hypot(q.x - p.x, q.z - p.z) : q.distanceTo(p)), Infinity);
+const toPool = p => Math.hypot(p.x - FAR_POOL.center[0], p.z - FAR_POOL.center[1]);
+const middleOf = points => points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(points.length);
+/** How much of a small lizard's pose is the frames of `clip` (clipPose: a pose's weights sum to 1). */
+const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+let lizard = null;
+const lizardModel = async () => (lizard ??= crowdModelFrom(await loadGlb(new URL(SMAEDLA_MODEL))));
+
+test('the big call sends rows of small lizards and flocks of birds toward the far pool', async () => {
+  const critters = { smaedla: await lizardModel() };
+  for (const at of CALLS) {
+    const { world, life, step } = made({ critters });
+    const { rows, flocks } = life;
+    assert.deepEqual(rows.map(r => `${r.where}:${r.members.length}`), ['F:10', 'F:10', 'F:10', 'G:10', 'G:10'], 'three rows of ten in F, two in G');
+    assert.deepEqual(flocks.map(f => f.members.length), [18, 18, 18, 18], 'four flocks of 18');
+    assert.ok(rows.every(r => r.members.every(m => m.kind === 'smaedla')), "the rows are the owner's small lizard");
+    assert.ok(flocks.every(f => f.members.every(b => b.kind === 'bird')), 'the flocks are birds');
+    for (const g of [...rows, ...flocks]) assert.ok(groveAt(...g.from) >= 0.5, `${g.id} comes out of a grove (${groveAt(...g.from).toFixed(2)})`);
+    for (const f of flocks) assert.ok(heightAt(...f.from) > 45, `${f.id}: a grove above the falls`);
+    // before the call nothing moves: the rows stand in their groves, the flocks are in the trees
+    step(BEATS.F);
+    const rest = new Map(rows.flatMap(r => r.members).map(m => [m, m.position.clone()]));
+    for (let t = BEATS.F; t < at; t += 0.5) {
+      step(t);
+      for (const [m, p] of rest) assert.ok(m.visible && m.position.distanceTo(p) < 1e-6 && Math.abs(weight(m, 'idle') - 1) < 1e-6, `${m.id} stands still at ${t} s`);
+      assert.ok(flocks.every(f => f.members.every(b => !b.visible)), `the flocks are in the trees at ${t} s`);
+    }
+    life.bigCall(at);
+    step(at + 0.45);
+    for (const [m, p] of rest) assert.ok(m.position.distanceTo(p) < 1e-6, `${m.id} sets off half a second after the call, not sooner`);
+    const before = rows.map(r => toPool(middleOf(r.members.map(m => m.position))));
+    step(at + 5);
+    for (const m of rest.keys()) assert.ok(Math.abs(weight(m, 'run') - 1) < 1e-6, `${m.id} runs (${weight(m, 'run').toFixed(2)})`);
+    step(at + 10);
+    rows.forEach((r, i) => {
+      const nearer = before[i] - toPool(middleOf(r.members.map(m => m.position)));
+      assert.ok(r.members.every(m => m.visible) && nearer >= 30, `${r.id} comes ${nearer.toFixed(1)} m nearer the far pool in 10 s (call at ${at} s)`);
+    });
+    for (const f of flocks) {
+      const up = f.members.filter(b => b.visible);
+      assert.equal(up.length, 18, `${f.id}: all up`);
+      const rose = middleOf(up.map(b => b.position)).y - middleOf(f.members.map(b => b.at)).y;
+      const nearer = toPool({ x: f.from[0], z: f.from[1] }) - toPool(middleOf(up.map(b => b.position)));
+      assert.ok(rose >= 10 && nearer >= 30, `${f.id} rises ${rose.toFixed(1)} m and flies ${nearer.toFixed(1)} m toward the far pool`);
+    }
+    // none comes within 25 m of her path: the lizards seen from above, the birds in the air
+    const closest = { lizard: Infinity, bird: Infinity };
+    for (let t = at; t <= BEATS.END; t += 0.5) {
+      step(t);
+      for (const r of rows) for (const m of r.members) if (m.visible) closest.lizard = Math.min(closest.lizard, awayFrom(m.position, true));
+      for (const f of flocks) for (const b of f.members) if (b.visible) closest.bird = Math.min(closest.bird, awayFrom(b.position, false));
+    }
+    assert.ok(closest.lizard >= 25 && closest.bird >= 25, `call at ${at} s: lizards ${closest.lizard.toFixed(1)} m, birds ${closest.bird.toFixed(1)} m from her path`);
+    // and once the flight is over they are gone: the far pool has its own (scene 7)
+    world.flightTime = null;
+    world.clock.time += 1;
+    life.update(DT, world.clock.time);
+    assert.ok([...rows, ...flocks].every(g => g.members.every(m => !m.visible)), 'gone after the flight');
+  }
+});
+
+test("after the big call too, life is a function of the flight's clock: jumping lands where playing does", () => {
+  const played = made();
+  const jumped = made();
+  played.life.bigCall(135.5);
+  jumped.life.bigCall(135.5);
+  for (let t = 120; t < 152.7; t += DT) played.step(t);
+  played.step(152.7);
+  jumped.step(152.7);
+  assert.ok(played.life.rows.length === 5 && played.life.flocks.length === 4, 'the rows and the flocks');
+  played.life.things.forEach((a, i) => {
+    const b = jumped.life.things[i];
+    assert.equal(a.visible, b.visible, `${a.id} seen in both`);
+    assert.ok(a.position.distanceTo(b.position) < 1e-6 && Math.abs(a.heading - b.heading) < 1e-6, `${a.id}: ${a.position.toArray()} and ${b.position.toArray()}`);
+    assert.deepEqual(a.morphs, b.morphs, `${a.id}: the same pose`);
+  });
 });

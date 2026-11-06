@@ -69,8 +69,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   // critter in one draw call), begun and ended round them each frame.
   const crowds = real ? createCrowds(world, { parent: group }) : null;
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
-  // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders; in the same crowds
-  const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds }) : null;
+  // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders, and the big call's
+  // rows of small lizards and flocks of birds; in the same crowds
+  const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
   // the far pool's beds of reed, and where nothing else grows by it (river.js): grown with the banks, as the animals' props are
   const pond = real ? poolPlants(route.pool, (x, z) => terrain.heightAt(x, z)) : null;
   // the land above the falls: its ponds' lilies and reed, its outcrops of rock, and nothing else in its water (river.js, banks.js)

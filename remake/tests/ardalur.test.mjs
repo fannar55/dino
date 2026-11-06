@@ -574,6 +574,23 @@ test('the banks of A to C are green: a plant at least every 4 m of bank, low by 
   }
 });
 
+test('the big call\'s rows of small lizards run where nothing grows: no plant over 0.5 m within 2 m of the line a row runs (life.js)', () => {
+  const place = litValley();
+  const near = placementsNear(place);
+  const wrong = [];
+  for (const row of place.life.rows) {
+    const tail = Math.min(...row.members.map(m => m.along));
+    for (let a = tail; a <= row.length; a += 1) {
+      const x = row.from[0] + row.dir[0] * a, z = row.from[1] + row.dir[1] * a;
+      for (const q of near(x, z, 2)) {
+        const h = q.model.height * q.scale;
+        if (h > 0.5) wrong.push(`${row.id} at ${a.toFixed(0)} m: a ${q.name} ${h.toFixed(2)} m tall ${Math.hypot(q.x - x, q.z - z).toFixed(1)} m off`);
+      }
+    }
+  }
+  assert.deepEqual(wrong.slice(0, 8), [], `${wrong.length} plants in the rows' way`);
+});
+
 test('the still shots see what they show: nothing tall by the camera, nothing on the line of sight', () => {
   const place = litValley();
   const near = placementsNear(place);

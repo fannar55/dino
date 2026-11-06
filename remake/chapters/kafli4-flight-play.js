@@ -214,6 +214,7 @@ export function flightPlay(s, c) {
         big.at = flightTime();
         calls.push({ id: 'land', how, t: big.at, voiced: true });
         world.forest?.farLand?.kambedla?.answerAt?.(big.at);
+        world.forest?.life?.bigCall?.(big.at); // the rows of small lizards and the flocks set off (world/ardalur/life.js)
         for (const [after, name, pan] of PLAY.bigAnswers) s.after(after, () => { s.sfx(name, { pan }); });
       },
     });
