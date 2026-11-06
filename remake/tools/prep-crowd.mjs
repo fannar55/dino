@@ -6,6 +6,9 @@
 //     [--clips run,idle,drink,look] [--frames 8] [--near 800] [--far 250] [--tex 512] [--until 30]
 //     [--seconds run=0.45,idle=3] [--report <file.json>] [--blend <file.blend>]
 //
+// The rig's "kind" picks the clips it can make: a tailed biped (smaedla) runs, idles, drinks and looks; a quadruped
+// (grasbitur.json) walks, trots, grazes and looks (by default all four of its kind).
+//
 // Step 1, Blender in the background (remake/tools/blender-crowd.py): faces +X, --length metres nose to tail, feet on y = 0; a near
 // mesh of at most --near triangles and a far one of at most --far; the base colour baked to --tex px (the other maps dropped); the
 // rig file's skeleton with automatic weights; each clip posed at --frames even steps and frozen into shape keys. Step 2, here:

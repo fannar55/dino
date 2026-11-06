@@ -16,6 +16,8 @@
 #   5. poses each clip at --frames even steps (k / frames of the clip, which loops) and freezes each pose into a shape key
 #      `<clip>.<k>` of both meshes; the legs are posed by two-bone IK from where the feet go, so planted feet stay put;
 #   6. exports `near` and `far` (shape keys as morph targets, no skin, no animation) and writes a report of what it made.
+# The rig file's kind picks the legs and the clips: a "tailed-biped" (the small lizard: two legs, small arms; run, idle, drink,
+# look) or a "quadruped" (the grazer: four upright legs, the forelegs hung from the chest; walk, trot, graze, look).
 # Bones have no rest rotation: every turn is about the animal's own axes, X forward, Y its left, Z up (in degrees below: pitch
 # about Y, positive dips the nose, and lifts a tail that points back; yaw about Z, positive turns to its left; roll about X).
 import json
@@ -41,8 +43,10 @@ def opt(name, fallback):
 
 
 RIG = json.load(open(opt('rig', ''), encoding='utf-8'))
+KIND = RIG.get('kind', 'tailed-biped')
+FOUR = KIND == 'quadruped'
 LENGTH = float(opt('length', '0.8'))
-CLIPS = opt('clips', 'run,idle,drink,look').split(',')
+CLIPS = opt('clips', 'walk,trot,graze,look' if FOUR else 'run,idle,drink,look').split(',')
 FRAMES = int(opt('frames', '8'))
 NEAR = int(opt('near', '800'))
 FAR = int(opt('far', '250'))
@@ -51,7 +55,7 @@ REPORT = opt('report', OUT + '.json')
 HEAD_DETAIL = float(opt('head-detail', '1.4'))  # how much denser the near head's triangles are than the rest's
 FAR_HEAD_DETAIL = float(opt('far-head-detail', '0.6'))  # the far one's: its face is a speck, its legs are not
 BLEND = opt('blend', None)  # also save the rigged scene here, to look at
-SECONDS = {'run': 0.45, 'idle': 3.0, 'drink': 2.5, 'look': 1.5}
+SECONDS = {'walk': 1.0, 'trot': 0.5, 'graze': 4.0, 'look': 2.0} if FOUR else {'run': 0.45, 'idle': 3.0, 'drink': 2.5, 'look': 1.5}
 for pair in filter(None, opt('seconds', '').split(',')):
     name, value = pair.split('=')
     SECONDS[name] = float(value)
@@ -162,16 +166,63 @@ def collapse(obj, ratio, free=None):
         obj.vertex_groups.remove(g)
 
 
-def decimate(name, target, detail):
+def weighted_collapse(obj, ratio, factor):
+    """Collapses with the head's vertices weighted 1 and the rest 0.5: the larger the factor, the more the head gives up."""
+    for g in list(obj.vertex_groups):
+        obj.vertex_groups.remove(g)
+    group = obj.vertex_groups.new(name='soft')
+    group.add([v.index for v in obj.data.vertices if is_head(v.co)], 1.0, 'REPLACE')
+    group.add([v.index for v in obj.data.vertices if not is_head(v.co)], 0.5, 'REPLACE')
+    mod = obj.modifiers.new('decimate', 'DECIMATE')
+    mod.decimate_type = 'COLLAPSE'
+    mod.ratio = max(0.0, min(1.0, ratio))
+    mod.use_collapse_triangulate = True
+    mod.vertex_group = 'soft'
+    mod.vertex_group_factor = factor
+    mesh = bpy.data.meshes.new_from_object(obj.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+    old = obj.data
+    obj.modifiers.remove(mod)
+    obj.data = mesh
+    bpy.data.meshes.remove(old)
+    for g in list(obj.vertex_groups):
+        obj.vertex_groups.remove(g)
+
+
+def decimate(name, target, detail, share=None):
     obj = welded_copy(name)
     total = tris(obj)
     head_total = sum(len(p.vertices) - 2 for p in obj.data.polygons if is_head(p.center))
-    base = target / (total - head_total + detail * head_total)
-    body_target = base * (total - head_total)
-    # the body first, the head kept out (its vertices have weight 0, which keeps their edges for last), then all of it
-    free = {v.index for v in obj.data.vertices if not is_head(v.co)}
-    collapse(obj, (body_target + head_total) / total, free)
-    collapse(obj, target / tris(obj))
+    if share is None:
+        base = target / (total - head_total + detail * head_total)
+        body_target = base * (total - head_total)
+        # the body first, the head kept out (its vertices have weight 0, which keeps their edges for last), then all of it
+        free = {v.index for v in obj.data.vertices if not is_head(v.co)}
+        collapse(obj, (body_target + head_total) / total, free)
+        collapse(obj, target / tris(obj))
+    else:
+        # The rig gives the head a share of the triangles. A weight of 0 locks a vertex outright (a locked border keeps a dense
+        # seam), so: all of it down to twenty times the target first, then the last step with soft weights (the head 1, the rest
+        # 0.5), the factor that makes the rest's edges dearer found by halving until the head ends with about its share.
+        collapse(obj, 20 * target / total)
+        start = obj.data
+        obj.data = start.copy()
+
+        def trial(factor):
+            old = obj.data
+            obj.data = start.copy()
+            bpy.data.meshes.remove(old)
+            weighted_collapse(obj, target / tris(obj), factor)
+            return sum(1 for p in obj.data.polygons if is_head(p.center)) / tris(obj)
+
+        lo, hi, best = -4.0, 2.0, None  # the factor's log10
+        for _ in range(14):
+            mid = (lo + hi) / 2
+            got = trial(10 ** mid)
+            if best is None or abs(got - share) < abs(best[0] - share):
+                best = (got, mid)
+            lo, hi = (mid, hi) if got > share else (lo, mid)
+        trial(10 ** best[1])
+        bpy.data.meshes.remove(start)
     while tris(obj) > target:
         collapse(obj, (target - 1) / tris(obj))
     bm = bmesh.new()
@@ -185,8 +236,9 @@ def decimate(name, target, detail):
     return obj
 
 
-near = decimate('near', NEAR, HEAD_DETAIL)
-far = decimate('far', FAR, FAR_HEAD_DETAIL)
+HEAD_SHARE = RIG.get('headShare', {})  # a rig may give the head a set share of each level's triangles instead of a density
+near = decimate('near', NEAR, HEAD_DETAIL, HEAD_SHARE.get('near'))
+far = decimate('far', FAR, FAR_HEAD_DETAIL, HEAD_SHARE.get('far'))
 
 # Only for the weights: a closed copy (voxel remeshed, so bone heat finds every bone), decimated to be quick.
 middle = welded_copy('middle')
@@ -406,11 +458,22 @@ BONES = {  # name: (head, tail, parent)
 }
 for k in range(len(J_TAIL) - 1):
     BONES[f'tail.{k}'] = (J_TAIL[k], J_TAIL[k + 1], 'hips' if k == 0 else f'tail.{k - 1}')
+# Each leg: the bone it hangs from, its joints from the top down to the toe tip, and its three bones (posed by IK in posed()).
+CHAINS = {}
 for s in 'LR':
-    BONES[f'thigh.{s}'] = (J[f'hip.{s}'], J[f'knee.{s}'], 'hips')
-    BONES[f'shin.{s}'] = (J[f'knee.{s}'], J[f'ankle.{s}'], f'thigh.{s}')
-    BONES[f'foot.{s}'] = (J[f'ankle.{s}'], J[f'toe.{s}'], f'shin.{s}')
-    BONES[f'arm.{s}'] = (J[f'shoulder.{s}'], J[f'hand.{s}'], 'chest')
+    CHAINS[f'hind.{s}'] = ('hips', [f'hip.{s}', f'knee.{s}', f'ankle.{s}', f'toe.{s}'], [f'thigh.{s}', f'shin.{s}', f'foot.{s}'])
+    if FOUR:
+        CHAINS[f'fore.{s}'] = ('chest', [f'shoulder.{s}', f'elbow.{s}', f'wrist.{s}', f'hand.{s}'],
+                               [f'upperarm.{s}', f'forearm.{s}', f'forefoot.{s}'])
+for s in 'LR':
+    for leg in (f'hind.{s}', f'fore.{s}'):
+        if leg in CHAINS:
+            parent, joints, bones = CHAINS[leg]
+            for k, bone in enumerate(bones):
+                BONES[bone] = (J[joints[k]], J[joints[k + 1]], parent if k == 0 else bones[k - 1])
+    if not FOUR:  # the lizard's small arms hang from its chest and only swing
+        BONES[f'arm.{s}'] = (J[f'shoulder.{s}'], J[f'hand.{s}'], 'chest')
+LEG_BONES = {bone for _, _, bones in CHAINS.values() for bone in bones}
 NAMES = list(BONES)
 TAILS = [n for n in NAMES if n.startswith('tail.')]
 report['joints'] = {n: [round(c, 4) for c in BONES[n][0]] for n in NAMES}
@@ -482,6 +545,20 @@ def carried_weights(obj):
 
 
 WEIGHTS = {near.name: carried_weights(near), far.name: carried_weights(far)}
+if RIG.get('rigidFeet'):
+    # Each foot below its ankle moves as one piece with its foot bone: bone heat blends a little of the shin into the soles, which
+    # slides planted soles when a knee bends. From 60 % of the ankle's height up to the ankle the foot's weights ease into the leg's.
+    feet = {leg: (J[joints[2]], index[bones[2]]) for leg, (_, joints, bones) in CHAINS.items()}
+    for obj in (near, far):
+        w = WEIGHTS[obj.name]
+        for v in obj.data.vertices:
+            ankle, bone = min(feet.values(), key=lambda f: (v.co.xy - f[0].xy).length)
+            t = max(0.0, min(1.0, (v.co.z - 0.6 * ankle.z) / (0.4 * ankle.z)))
+            if t < 1:
+                t = t * t * (3 - 2 * t)
+                one = np.zeros(len(NAMES))
+                one[bone] = 1.0
+                w[v.index] = (1 - t) * one + t * w[v.index]
 
 # ---- 5. the clips -----------------------------------------------------------------------------------------------------------
 D = math.radians
@@ -521,10 +598,12 @@ def bump(u, a, b):
 
 U = LENGTH  # distances in the clips are shares of the animal's length
 ANKLE_X = (J['ankle.L'].x + J['ankle.R'].x) / 2  # a running foot passes under here at mid-stance
+LEG_H = min(J[joints[0]].z for _, joints, _ in CHAINS.values())  # a four-legged gait's distances are shares of its leg height
+PAIR_X = {leg: sum(J[CHAINS[other][1][2]].x for other in CHAINS if other.split('.')[0] == leg.split('.')[0]) / 2 for leg in CHAINS}
 
 
 def planted():
-    return {f'foot.{s}': (Vector((0, 0, 0)), 0.0) for s in 'LR'}
+    return {bones[2]: (Vector((0, 0, 0)), 0.0) for _, _, bones in CHAINS.values()}
 
 
 def clip_idle(u):
@@ -627,7 +706,113 @@ def clip_run(u):
     return pose
 
 
-CLIP_POSES = {'run': clip_run, 'idle': clip_idle, 'drink': clip_drink, 'look': clip_look}
+# ---- the four-legged clips (the grazer). Its legs stand nearly straight at rest, so a gait lowers the body (`drop`) to give the
+# feet room to reach forward and back; a foot's phase is where in the cycle it is at mid-stance (0 = frame 0).
+GAITS = {
+    'walk': {'duty': 0.65, 'sweep': 0.6, 'lift': 0.12, 'heel': 18.0, 'drop': 0.05,
+             'phase': {'hind.L': 0.0, 'fore.L': 0.25, 'hind.R': 0.5, 'fore.R': 0.75}},
+    'trot': {'duty': 0.45, 'sweep': 0.7, 'lift': 0.18, 'heel': 24.0, 'drop': 0.10,
+             'phase': {'fore.L': 0.0, 'hind.R': 0.0, 'fore.R': 0.5, 'hind.L': 0.5}},
+}
+
+
+def gait_foot(gait, leg, u):
+    """Where a walking or trotting foot is: its shift from where it stands at rest, and its pitch about the toe tip."""
+    g = GAITS[gait]
+    phi = (u - g['phase'][leg] + 0.5) % 1 - 0.5
+    duty, sweep, lift = g['duty'], g['sweep'] * LEG_H, g['lift'] * LEG_H
+    base = PAIR_X[leg] - J[CHAINS[leg][1][2]].x  # mid-stance under the middle of the pair's rest stance
+    if abs(phi) <= duty / 2:
+        s = phi / duty  # -0.5 (lands, ahead) .. 0.5 (pushes off, behind)
+        return Vector((base - s * sweep, 0, 0)), g['heel'] * smooth((s - 0.1) / 0.4)
+    p = ((phi - duty / 2) % 1) / (1 - duty)  # 0 (toe off) .. 1 (lands)
+    x = base - sweep / 2 + sweep * smoother(p)
+    pitch = g['heel'] * (1 - smooth(p / 0.6)) - 5 * bump(p, 0.5, 1.0)
+    return Vector((x, 0, lift * math.sin(math.pi * p))), pitch
+
+
+def gait_feet(gait, u):
+    return {CHAINS[leg][2][2]: gait_foot(gait, leg, u) for leg in CHAINS}
+
+
+def clip_walk(u):
+    """1 s: a calm walk in place (the game moves it on at clips.walk.stride metres a cycle); the feet go left hind, left fore,
+    right hind, right fore, the body swaying over the feet that hold it and the head nodding as each forefoot lands."""
+    g = GAITS['walk']
+    bob = math.cos(TAU * 2 * u)
+    sway = math.sin(TAU * (u - 0.125))  # over the left feet first
+    nod = math.sin(TAU * 2 * (u - 0.25))
+    pose = {
+        'hips': (R(roll=-1.2 * sway, yaw=1.5 * sway), Vector((0, 0.008 * LEG_H * sway, -g['drop'] * LEG_H - 0.012 * LEG_H * bob))),
+        'spine': R(yaw=-1.0 * sway),
+        'chest': R(yaw=-1.0 * sway, roll=1.0 * sway),
+        'neck': R(pitch=2.5 * nod, yaw=-1.5 * sway),
+        'head': R(pitch=-1.5 * nod, yaw=-1.0 * sway),
+    }
+    for i, name in enumerate(TAILS):
+        pose[name] = R(pitch=0.6 * math.sin(TAU * 2 * (u - 0.05 * i)), yaw=4 * math.sin(TAU * (u - 0.1 * i)))
+    pose.update(gait_feet('walk', u))
+    return pose
+
+
+def clip_trot(u):
+    """0.5 s: a trot in place (the game moves it on at clips.trot.stride metres a cycle), the left fore and right hind feet down
+    together at frame 0, the others half a cycle later; the body dips as each pair lands, the head steady."""
+    g = GAITS['trot']
+    bob = math.cos(TAU * 2 * u)  # 1 when a pair is at mid-stance (low)
+    swing = math.sin(TAU * u)
+    pose = {
+        'hips': (R(roll=1.0 * swing, pitch=-1.0 * bob), Vector((0, 0, -g['drop'] * LEG_H - 0.025 * LEG_H * bob))),
+        'spine': R(pitch=0.5 * bob),
+        'chest': R(roll=-1.0 * swing, pitch=0.8 * bob),
+        'neck': R(pitch=-2.0 * bob),
+        'head': R(pitch=1.5 * bob),
+    }
+    for i, name in enumerate(TAILS):
+        pose[name] = R(pitch=(1.0 if i == 0 else 1.5) * math.cos(TAU * 2 * u - 0.6 * i), yaw=5 * math.sin(TAU * (u - 0.08 * i)))
+    pose.update(gait_feet('trot', u))
+    return pose
+
+
+GRAZE = {'reach': 1.0}  # how far down it reaches; set below so its beak comes to the grass in front of its forefeet
+
+
+def clip_graze(u):
+    """4 s: head down in the grass in front of its forefeet, four bites and a slow turn of the head from side to side; it leans
+    forward on bent elbows (its neck is short) and its feet stay put."""
+    k = GRAZE['reach']
+    bite = (1 - math.cos(TAU * 4 * u)) / 2  # 0 .. 1 (the beak down in the grass) four times
+    side = math.sin(TAU * u)
+    pose = {
+        'hips': (R(pitch=3 * k), Vector((0, 0, -0.02 * LEG_H * k))),
+        'spine': R(pitch=2.5 * k),
+        'chest': R(pitch=2.5 * k),
+        'neck': R(pitch=22 * k, yaw=5 * side),
+        'head': R(pitch=24 * k + 5 * bite, yaw=4 * side, roll=-3 * side),
+    }
+    for i, name in enumerate(TAILS):
+        pose[name] = R(pitch=-3 * k if i == 0 else 0.0, yaw=3 * math.sin(TAU * (u - 0.08 * i)))
+    pose.update(planted())
+    return pose
+
+
+def clip_look4(u):
+    """2 s: the head up high and alert, held (frames 2 to 6) with a small turn to its left and back, and down again; the body
+    keeps still (its legs are already nearly straight) and the feet stay put."""
+    up = keyed([(0, 0), (0.22, 1), (0.78, 1), (1, 0)], u)
+    turn = keyed([(0, 0), (0.3, 0), (0.42, 1), (0.6, 1), (0.72, 0), (1, 0)], u)
+    pose = {
+        'neck': R(pitch=-13 * up, yaw=6 * turn),
+        'head': R(pitch=-11 * up, yaw=8 * turn, roll=4 * turn),
+    }
+    for i, name in enumerate(TAILS):
+        pose[name] = R(pitch=(3 if i == 0 else 0.5) * up)
+    pose.update(planted())
+    return pose
+
+
+CLIP_POSES = {'walk': clip_walk, 'trot': clip_trot, 'graze': clip_graze, 'look': clip_look4} if FOUR else \
+    {'run': clip_run, 'idle': clip_idle, 'drink': clip_drink, 'look': clip_look}
 
 
 # The skeleton posed: each bone's world matrix and its skin matrix (posed world @ rest world inverse).
@@ -638,13 +823,13 @@ def basis(v, n):
 
 
 LEGS = {}
-for s in 'LR':
-    hip, knee, ankle = J[f'hip.{s}'], J[f'knee.{s}'], J[f'ankle.{s}']
+for leg, (_, joints, _) in CHAINS.items():
+    hip, knee, ankle = (J[j] for j in joints[:3])
     normal = (knee - hip).cross(ankle - knee).normalized()
     d = (ankle - hip).normalized()
     a = ((knee - hip).length ** 2 - (ankle - knee).length ** 2 + (ankle - hip).length ** 2) / (2 * (ankle - hip).length)
     bend = 1 if (knee - hip - d * a).dot(normal.cross(d)) > 0 else -1
-    LEGS[s] = {'l1': (knee - hip).length, 'l2': (ankle - knee).length, 'normal': normal, 'bend': bend}
+    LEGS[leg] = {'l1': (knee - hip).length, 'l2': (ankle - knee).length, 'normal': normal, 'bend': bend}
 
 
 def T(v):
@@ -657,17 +842,17 @@ def posed(pose, stretch):
     world['hips'] = T(J['hips'] + shift) @ rot.to_4x4()
     for name in NAMES:
         head, _, parent = BONES[name]
-        if name == 'hips' or name.split('.')[0] in ('thigh', 'shin', 'foot'):
+        if name == 'hips' or name in LEG_BONES:
             continue
         world[name] = world[parent] @ T(head - BONES[parent][0]) @ pose.get(name, Matrix.Identity(3)).to_4x4()
-    for s in 'LR':
-        leg = LEGS[s]
-        hip = world['hips'] @ (J[f'hip.{s}'] - J['hips'])
-        shift, pitch = pose[f'foot.{s}']
-        toe0 = J[f'toe.{s}']
+    for name_leg, (parent, joints, bones) in CHAINS.items():
+        leg = LEGS[name_leg]
+        rest_hip, rest_knee, rest_ankle, toe0 = (J[j] for j in joints)
+        hip = world[parent] @ (rest_hip - BONES[parent][0])
+        shift, pitch = pose[bones[2]]
         foot = R(pitch=pitch)
         toe = toe0 + shift
-        ankle = toe + foot @ (J[f'ankle.{s}'] - toe0)
+        ankle = toe + foot @ (rest_ankle - toe0)
         d = ankle - hip
         reach = d.length
         l1, l2 = leg['l1'], leg['l2']
@@ -676,14 +861,13 @@ def posed(pose, stretch):
         dh = d.normalized()
         a = (l1 * l1 - l2 * l2 + clamped * clamped) / (2 * clamped)
         b = math.sqrt(max(0.0, l1 * l1 - a * a))
-        normal = rot @ leg['normal']
+        normal = world[parent].to_3x3() @ leg['normal']
         n = (normal - dh * normal.dot(dh)).normalized()
         knee = hip + dh * a + n.cross(dh) * b * leg['bend']
         end = hip + dh * clamped
-        rest_hip, rest_knee, rest_ankle = J[f'hip.{s}'], J[f'knee.{s}'], J[f'ankle.{s}']
-        world[f'thigh.{s}'] = T(hip) @ (basis(knee - hip, n) @ basis(rest_knee - rest_hip, leg['normal']).transposed()).to_4x4()
-        world[f'shin.{s}'] = T(knee) @ (basis(end - knee, n) @ basis(rest_ankle - rest_knee, leg['normal']).transposed()).to_4x4()
-        world[f'foot.{s}'] = T(ankle) @ foot.to_4x4()
+        world[bones[0]] = T(hip) @ (basis(knee - hip, n) @ basis(rest_knee - rest_hip, leg['normal']).transposed()).to_4x4()
+        world[bones[1]] = T(knee) @ (basis(end - knee, n) @ basis(rest_ankle - rest_knee, leg['normal']).transposed()).to_4x4()
+        world[bones[2]] = T(ankle) @ foot.to_4x4()
     return {name: world[name] @ T(-BONES[name][0]) for name in NAMES}, world
 
 
@@ -699,30 +883,34 @@ def nose_tip(world):
     return world['head'] @ (J['nose'] - J['head'])
 
 
-# The drink reaches its snout down to the water in front of its feet (2 % of its length above the ground): the least reach that
-# does, scanning up from a small bend (past the right reach the head would curl back under its chest).
-def snout(k):
-    DRINK['reach'] = k
-    return nose_tip(posed(clip_drink(0.5), [])[1])
+# A clip that reaches its head down (the lizard's drink, the grazer's graze) reaches its snout to 2 % of its length above the
+# ground, in front of its front toes, at the time given here: the least reach that does, scanning up from a small bend (past the
+# right reach the head would curl back under its chest).
+REACH = {'drink': (DRINK, clip_drink, 0.5, 'water'), 'graze': (GRAZE, clip_graze, 0.125, 'grass')}
+TOES = max(J[joints[3]].x for _, joints, _ in CHAINS.values())
+for clip in [c for c in CLIPS if c in REACH]:
+    state, clip_pose, at, what = REACH[clip]
 
+    def snout(k):
+        state['reach'] = k
+        return nose_tip(posed(clip_pose(at), [])[1])
 
-TOES = max(J['toe.L'].x, J['toe.R'].x)
-steps = [0.2 + 0.05 * i for i in range(37)]
-found = next((k for k in steps if snout(k).z <= 0.02 * U), None)
-if found is None:
-    report['warnings'].append(f'the drink does not reach the water: the snout is {min(snout(k).z for k in steps):.3f} m up at best')
-    found = min(steps, key=lambda k: snout(k).z)
-else:
-    lo, hi = found - 0.05, found
-    for _ in range(20):
-        mid_k = (lo + hi) / 2
-        lo, hi = (mid_k, hi) if snout(mid_k).z > 0.02 * U else (lo, mid_k)
-    found = hi
-tip = snout(found)
-if tip.x < TOES:
-    report['warnings'].append(f'the drinking snout is behind the toes ({tip.x:.3f} < {TOES:.3f} m)')
-report['drink'] = {'reach': round(found, 3), 'snout': [round(c, 4) for c in tip]}
-log(f'drink: reach {found:.3f}, the snout at {tip.z:.3f} m up, {tip.x:.3f} m ahead (toes {TOES:.3f})')
+    steps = [0.2 + 0.05 * i for i in range(37)]
+    found = next((k for k in steps if snout(k).z <= 0.02 * U), None)
+    if found is None:
+        report['warnings'].append(f'the {clip} does not reach the {what}: the snout is {min(snout(k).z for k in steps):.3f} m up at best')
+        found = min(steps, key=lambda k: snout(k).z)
+    else:
+        lo, hi = found - 0.05, found
+        for _ in range(20):
+            mid_k = (lo + hi) / 2
+            lo, hi = (mid_k, hi) if snout(mid_k).z > 0.02 * U else (lo, mid_k)
+        found = hi
+    tip = snout(found)
+    if tip.x < TOES:
+        report['warnings'].append(f'the {clip}\'s snout is behind the toes ({tip.x:.3f} < {TOES:.3f} m)')
+    report[clip] = {'reach': round(found, 3), 'snout': [round(c, 4) for c in tip]}
+    log(f'{clip}: reach {found:.3f}, the snout at {tip.z:.3f} m up, {tip.x:.3f} m ahead (toes {TOES:.3f})')
 
 # ---- 6. freeze the frames into shape keys -----------------------------------------------------------------------------------
 for obj in (near, far):
@@ -743,10 +931,12 @@ for clip in CLIPS:
         steps.append(float(np.linalg.norm(frames[k] - frames[(k + 1) % FRAMES], axis=1).max()))
     info = {'frames': FRAMES, 'seconds': SECONDS[clip], 'step': [round(s, 4) for s in steps],
             'stretch': round(max(stretch), 4)}
-    if clip != 'run':
-        info['soles'] = round(float(max(np.linalg.norm(f[soles] - rest['near'][soles], axis=1).max() for f in frames)), 4)
-    else:
+    if clip == 'run':
         info['stride'] = round(RUN['sweep'] / RUN['duty'], 4)
+    elif clip in GAITS:
+        info['stride'] = round(GAITS[clip]['sweep'] * LEG_H / GAITS[clip]['duty'], 4)
+    else:
+        info['soles'] = round(float(max(np.linalg.norm(f[soles] - rest['near'][soles], axis=1).max() for f in frames)), 4)
     report['clips'][clip] = info
     log(f'{clip}: {info}')
 
