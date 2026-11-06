@@ -1,0 +1,37 @@
+{
+  "about": "The skeleton of the owner's Tripo flugdýr (geymsla/tripo/flugdyr-tripo-v1.glb) for remake/tools/blender-crowd.py: joints in the file's own glTF space (metres as delivered, +Y up, the beak toward +Z, its left side +X), placed from its slices (each wing's arm by span, the body by height, the tail by length, the orange feet) and its renders. It stands upright like a puffin with its wings held out; each wing is an arm (shoulder, elbow, wrist with its knob) and one long finger (a knuckle halfway, the tip), and the membrane hangs down from them to the body's side. Its left and right are mirror images. The long tail ends in a flat two-lobed vane that touches the ground behind the feet: blender-crowd-wings.py stands it on its toes.",
+  "kind": "winged",
+  "nose": "+z",
+  "joints": {
+    "hips": [0.0, 0.095, 0.065],
+    "spine": [0.0, 0.150, 0.088],
+    "chest": [0.0, 0.205, 0.100],
+    "neck": [0.0, 0.243, 0.112],
+    "head": [0.0, 0.272, 0.128],
+    "nose": [0.0, 0.282, 0.316],
+    "tail": [
+      [0.0, 0.098, 0.020],
+      [0.0, 0.082, -0.050],
+      [0.0, 0.066, -0.110],
+      [0.0, 0.051, -0.170],
+      [0.0, 0.036, -0.225],
+      [0.0, 0.036, -0.316]
+    ],
+    "hip.L": [0.040, 0.088, 0.060],
+    "ankle.L": [0.045, 0.056, 0.054],
+    "toe.L": [0.047, 0.003, 0.084],
+    "hip.R": [-0.040, 0.088, 0.060],
+    "ankle.R": [-0.045, 0.056, 0.054],
+    "toe.R": [-0.047, 0.003, 0.084],
+    "shoulder.L": [0.055, 0.220, 0.074],
+    "elbow.L": [0.125, 0.233, 0.062],
+    "wrist.L": [0.215, 0.256, 0.052],
+    "knuckle.L": [0.355, 0.259, 0.045],
+    "tip.L": [0.488, 0.222, 0.038],
+    "shoulder.R": [-0.055, 0.220, 0.074],
+    "elbow.R": [-0.125, 0.233, 0.062],
+    "wrist.R": [-0.215, 0.256, 0.052],
+    "knuckle.R": [-0.355, 0.259, 0.045],
+    "tip.R": [-0.488, 0.222, 0.038]
+  }
+}
