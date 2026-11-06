@@ -35,13 +35,16 @@ const CLIP = q.get('clip') || 'run';
 const SCALE = Number(q.get('scale') || 1);
 const FROG = Number(q.get('frog') || 3);
 const T = Number(q.get('t') || 0);
-const WORDS = { run: 'hleypur', idle: 'stendur kyrr', drink: 'drekkur', look: 'lítur upp', walk: 'gengur', trot: 'brokkar', graze: 'er á beit' };
+const WORDS = { run: 'hleypur', idle: 'stendur kyrr', drink: 'drekkur', look: 'lítur upp', walk: 'gengur', trot: 'brokkar', graze: 'er á beit',
+  flap: 'blakar vængjunum', glide: 'svífur', perch: 'situr á syllu' };
 // each animal's name, its name with the article and the word for long in its gender, and the film's clips in turn
 const ANIMALS = {
   smaedla: { name: 'Smáeðla', the: 'eðlan', long: 'löng',
     film: [{ clip: 'run', seconds: 2.7 }, { clip: 'idle', seconds: 3 }, { clip: 'drink', seconds: 2.5 }, { clip: 'look', seconds: 3 }] },
   grasbitur: { name: 'Grasbítur', the: 'grasbíturinn', long: 'langur',
     film: [{ clip: 'graze', seconds: 4 }, { clip: 'look', seconds: 2 }, { clip: 'walk', seconds: 3 }, { clip: 'trot', seconds: 2.4 }] },
+  flugdyr: { name: 'Flugdýr', the: 'flugdýrið', long: 'langt',
+    film: [{ clip: 'perch', seconds: 4 }, { clip: 'flap', seconds: 2 }, { clip: 'glide', seconds: 3 }] },
 };
 const ANIMAL = ANIMALS[NAME] ?? { name: NAME, the: NAME, long: 'löng', film: null };
 const width = innerWidth, height = innerHeight;
@@ -202,11 +205,10 @@ window.__sheetReady = true;
 // ---- the flyer's pages (flugdyr) -------------------------------------------------------------------------------------------
 // sheet: the clip's frames, one to eight, from the side, from the front and from above, each view in rows of its own camera,
 // all at one scale; perched it stands on a ledge, flying it is drawn against the sky. A frog for size on a ledge of its own.
-// film (mode=film&t=<seconds>): perch, flap and glide in turn, from the side and from behind and above.
+// film (mode=film&t=<seconds>): its film's clips in turn (ANIMALS above; else perch, flap and glide), from the side and from behind and above.
 function flyer() {
   return {
-    name: NAME === 'flugdyr' ? 'Flugdýr' : NAME,
-    say: { flap: 'blakar vængjunum', glide: 'svífur', perch: 'situr á syllu' },
+    name: ANIMAL.name,
     sky: 0xd3e5f3, page: 0xe9efe4,
     ledge: new THREE.MeshLambertMaterial({ color: 0x8d8478 }),
   };
@@ -341,14 +343,14 @@ async function flyerSheet() {
     for (const p of placed.filter(q => q.band === i)) label(p.text, x + (p.u - band.u0) * k, top + hView - NUMBERS + 2);
     y -= GAP;
   });
-  label(`${FLYER.name} ${FLYER.say[CLIP] ?? CLIP}: ${frames} stellingar á ${fmt(seconds)} s, frá hlið, framan frá og ofan frá`, 0, 0, 'title');
+  label(`${FLYER.name} ${WORDS[CLIP] ?? CLIP}: ${frames} stellingar á ${fmt(seconds)} s, frá hlið, framan frá og ofan frá`, 0, 0, 'title');
   label(`stærð eins og í leiknum: ×${SCALE}, ${fmt(+restSize.z.toFixed(2))} m milli vængbrodda og ${fmt(+restSize.x.toFixed(2))} m `
     + `frá goggi aftur á sporð; froskurinn ×${FROG}`, 0, 54, 'sub');
 }
 
 async function flyerFilm() {
   const FLYER = flyer();
-  const film = [{ clip: 'perch', seconds: 4 }, { clip: 'flap', seconds: 2 }, { clip: 'glide', seconds: 3 }]
+  const film = (ANIMAL.film ?? [{ clip: 'perch', seconds: 4 }, { clip: 'flap', seconds: 2 }, { clip: 'glide', seconds: 3 }])
     .filter(s => s.clip in model.clips);
   let t = T, seg = film[0];
   for (const s of film) { seg = s; if (t < s.seconds) break; t -= s.seconds; }
@@ -368,7 +370,7 @@ async function flyerFilm() {
   side.position.set(-0.05 * L, 0.3 * L, -20);
   side.lookAt(side.position.x, side.position.y, 0);
   const behind = new THREE.PerspectiveCamera(32, aspect, 0.05, 100);
-  behind.position.set(-2.2 * L, 1.4 * L, -1.1 * L);
+  behind.position.set(-3.4 * L, 1.9 * L, -1.0 * L); // far enough back that both wing tips are in the picture
   behind.lookAt(0, 0.25 * L, 0);
   renderer.setScissorTest(false);
   renderer.setClearColor(FLYER.page);
@@ -381,7 +383,7 @@ async function flyerFilm() {
     renderer.setClearColor(perched ? FLYER.page : FLYER.sky);
     renderer.render(scene, camera);
   }
-  label(`${FLYER.name} ${FLYER.say[seg.clip] ?? seg.clip}`, 0, 0, 'title');
+  label(`${FLYER.name} ${WORDS[seg.clip] ?? seg.clip}`, 0, 0, 'title');
   label(`${fmt(model.clips[seg.clip].seconds)} s, endurtekið`, 0, 50, 'sub');
 }
 </script>
