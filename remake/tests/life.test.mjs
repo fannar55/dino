@@ -5,12 +5,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, FAR_POOL, MEADOW } from '../chapters/kafli4-route.js';
-import { createTerrain } from '../world/ardalur/terrain.js';
+import { createRoute, BEATS, FAR_POOL, MEADOW, NESTS } from '../chapters/kafli4-route.js';
+import { createTerrain, groundDrawnAt } from '../world/ardalur/terrain.js';
 import { RAPIDS } from '../world/ardalur/river.js';
 import { createLife } from '../world/ardalur/life.js';
 import { groveAt } from '../world/ardalur/banks.js';
-import { SMAEDLA_MODEL, GRASBITUR_MODEL } from '../world/ardalur/animals.js';
+import { SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 
@@ -197,6 +197,9 @@ const lizardModel = async () => (lizard ??= crowdModelFrom(await loadGlb(new URL
 let grazer = null;
 const grazerModel = async () => (grazer ??= crowdModelFrom(await loadGlb(new URL(GRASBITUR_MODEL))));
 const bothModels = async () => ({ smaedla: await lizardModel(), grasbitur: await grazerModel() });
+let flyer = null;
+const flyerModel = async () => (flyer ??= crowdModelFrom(await loadGlb(new URL(FLUGDYR_MODEL))));
+const allModels = async () => ({ ...(await bothModels()), flugdyr: await flyerModel() });
 
 test('the big call sends rows of small lizards and flocks of birds toward the far pool', async () => {
   const critters = { smaedla: await lizardModel() };
@@ -324,16 +327,129 @@ test('the herd grazes in the dale by her way and on the top of the step until th
   }
 });
 
+// ---------------------------------------------------------------------------------------------
+// D to G: the flyers of the gorge (the life spec 2D-2G): on ledges in its walls until she comes by, then off with her, up the falls,
+// round her in the slow circle (not under reduced motion), down the glide, and onto the far pool's bank
+
+/** Her heading at flight second t, seen from above: { fx, fz }. */
+const flatAt = t => {
+  const a = herAt(t - 0.25), b = herAt(t + 0.25);
+  const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+  return { fx: (b.x - a.x) / l, fz: (b.z - a.z) / l };
+};
+/** Where p is round her at flight second t, seen from above: degrees from straight ahead of her, toward her right. */
+const bearing = (p, t) => {
+  const her = herAt(t);
+  const { fx, fz } = flatAt(t);
+  const dx = p.x - her.x, dz = p.z - her.z;
+  return THREE.MathUtils.radToDeg(Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz));
+};
+/** How far round her a flyer goes between flight seconds `from` and `to`: the span of its bearing, its steps added up. */
+function turned(b, step, from, to) {
+  let last = null, sum = 0, lo = 0, hi = 0;
+  for (let t = from; t <= to + 1e-9; t += 0.1) {
+    step(t);
+    const a = bearing(b.position, t);
+    if (last !== null) { sum += ((a - last + 540) % 360) - 180; lo = Math.min(lo, sum); hi = Math.max(hi, sum); }
+    last = a;
+  }
+  return hi - lo;
+}
+
+test('the flyers leave their nests as she passes and fly with her to the far pool', async () => {
+  const { life, step } = made({ critters: await allModels() });
+  const { flyers } = life;
+  assert.ok(NESTS.length >= 6 && NESTS.length <= 10, `${NESTS.length} nests (the spec: 6 to 10)`);
+  assert.equal(flyers.length, NESTS.length, 'a flyer on each');
+  assert.ok(flyers.every(b => b.kind === 'flugdyr'), "the owner's flyer");
+  // the nests: on the gorge's walls as they are drawn, both walls, 950 to 1150 m up the river, 10 to 25 m over it
+  const sides = new Map();
+  for (const [x, y, z] of NESTS) {
+    const w = terrain.where(x, z);
+    assert.ok(w.d >= 950 && w.d <= 1150 && w.gorge > 0.99, `a nest in the gorge (${w.d.toFixed(0)} m up the river)`);
+    assert.ok(y - w.level >= 10 && y - w.level <= 25, `a nest ${(y - w.level).toFixed(1)} m over the river`);
+    assert.ok(Math.abs(groundDrawnAt(heightAt, x, z) - y) < 0.15, `a nest on the wall as drawn (${(groundDrawnAt(heightAt, x, z) - y).toFixed(2)} m)`);
+    sides.set(w.side, (sides.get(w.side) ?? 0) + 1);
+  }
+  assert.ok(sides.size === 2 && [...sides.values()].every(n => n >= 3), `nests on both walls (${[...sides.values()].join(' and ')})`);
+  // each sits on its ledge until the schedule brings her within 25 m of it, then flies off
+  for (const b of flyers) {
+    let at = null;
+    for (let t = BEATS.C; t <= BEATS.E && at === null; t += 0.01) if (herAt(t).distanceTo(b.nest) <= 25) at = t;
+    assert.ok(at !== null && Math.abs(b.trigger - at) < 0.02, `${b.id} sets off at ${b.trigger?.toFixed(2)} s (she is 25 m off at ${at?.toFixed(2)} s)`);
+    for (const t of [0, BEATS.D, b.trigger - 0.2]) {
+      step(t);
+      assert.ok(b.visible && b.position.distanceTo(b.nest) < 1e-6 && Math.abs(weight(b, 'perch') - 1) < 1e-6, `${b.id} sits on its ledge at ${t.toFixed(1)} s`);
+    }
+    step(b.trigger + 1.5);
+    assert.ok(b.position.distanceTo(b.nest) > 3 && weight(b, 'flap') > 0.5, `${b.id} flies off its ledge (${b.position.distanceTo(b.nest).toFixed(1)} m, flapping ${weight(b, 'flap').toFixed(2)})`);
+  }
+  // with her: within 15 m of her for most of 100 to 165 s; never within 4 m of her body or Egill's head (0.8 m over it); in the
+  // air (from 1.2 s off its ledge to its last second down onto the bank) never within 1 m of the ground drawn round it, nor of the gorge's walls
+  const near = new Map(flyers.map(b => [b, 0]));
+  let samples = 0, closest = Infinity, who = '', low = Infinity, lowWho = '';
+  const round = [[0, 0], [1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5]];
+  for (let t = 0; t <= BEATS.END + 1e-9; t += 0.05) {
+    step(t);
+    const her = herAt(t);
+    const head = her.clone().add(new THREE.Vector3(0, 0.8, 0));
+    if (t >= 100 && t <= 165) samples++;
+    for (const b of flyers) {
+      assert.ok(b.visible, `${b.id} seen at ${t.toFixed(2)} s`);
+      const d = Math.min(b.position.distanceTo(her), b.position.distanceTo(head));
+      if (d < closest) { closest = d; who = `${b.id} at ${t.toFixed(2)} s`; }
+      if (t >= 100 && t <= 165 && b.position.distanceTo(her) <= 15) near.set(b, near.get(b) + 1);
+      if (t > b.trigger + 1.2 && t < b.land.to - 1) {
+        const over = b.position.y - Math.max(...round.map(([dx, dz]) => groundDrawnAt(heightAt, b.position.x + dx, b.position.z + dz)));
+        if (over < low) { low = over; lowWho = `${b.id} at ${t.toFixed(2)} s`; }
+      }
+    }
+  }
+  assert.ok(closest >= 4, `${who}: ${closest.toFixed(2)} m from her body or Egill's head`);
+  assert.ok(low >= 1, `${lowWho}: ${low.toFixed(2)} m over the ground round it`);
+  for (const [b, n] of near) assert.ok(n / samples >= 0.8, `${b.id} within 15 m of her ${((100 * n) / samples).toFixed(0)} % of 100 to 165 s`);
+  // round her in the slow circle: each goes at least half way round her in F
+  for (const b of flyers) {
+    const turn = turned(b, step, BEATS.F, BEATS.G);
+    assert.ok(turn >= 180, `${b.id} goes ${turn.toFixed(0)} degrees round her in F`);
+  }
+  // at the end: perched on the far pool's north-east bank, apart, away from where she, Egill and Mosi stand and from the beds of reed
+  step(BEATS.END);
+  for (const b of flyers) {
+    const p = b.position;
+    assert.ok(Math.abs(p.y - heightAt(p.x, p.z)) < 0.05 && p.y > FAR_POOL.level + 0.2, `${b.id} stands on the bank`);
+    assert.ok(toPool(p) >= FAR_POOL.radius + 1 && toPool(p) <= FAR_POOL.radius + 12, `${b.id} by the far pool (${toPool(p).toFixed(1)} m from its middle)`);
+    assert.ok(p.x > FAR_POOL.center[0] && p.z < FAR_POOL.center[1], `${b.id} on its north-east bank`);
+    for (const [name, [x, z]] of [['her', FAR_POOL.landing], ['Egill', FAR_POOL.bank], ['Mosi', FAR_POOL.mosi]]) {
+      assert.ok(Math.hypot(p.x - x, p.z - z) >= 10, `${b.id} away from where ${name} stands`);
+    }
+    for (const bed of FAR_POOL.reeds) assert.ok(Math.hypot(p.x - bed.at[0], p.z - bed.at[1]) >= bed.radius + 3, `${b.id} out of the reed`);
+    assert.ok(Math.abs(weight(b, 'perch') - 1) < 1e-6, `${b.id} perched`);
+  }
+  const gap = Math.min(...flyers.flatMap((a, i) => flyers.slice(i + 1).map(b => a.position.distanceTo(b.position))));
+  assert.ok(gap >= 2, `landed apart (${gap.toFixed(1)} m at the least)`);
+});
+
+test('under reduced motion the flyers hold their places round her: they never circle', async () => {
+  const { world, life, step } = made({ critters: await allModels() });
+  world.flightReduced = true;
+  for (const b of life.flyers) {
+    const turn = turned(b, step, BEATS.F, BEATS.G);
+    assert.ok(turn < 10, `${b.id} goes ${turn.toFixed(0)} degrees round her in F`);
+  }
+});
+
 test('without its model there is no herd, and the flight goes on', () => {
   const { life, step } = made({ critters: {} });
   assert.deepEqual(life.herd, []);
+  assert.deepEqual(life.flyers, [], 'nor flyers');
   life.bigCall(135.5);
   step(150);
   assert.ok(!life.things.some(t => t.kind === 'grasbitur'));
 });
 
 test("after the big call too, life is a function of the flight's clock: jumping lands where playing does", async () => {
-  const critters = await bothModels();
+  const critters = await allModels();
   const played = made({ critters });
   const jumped = made({ critters });
   played.life.bigCall(135.5);
@@ -342,6 +458,7 @@ test("after the big call too, life is a function of the flight's clock: jumping 
   played.step(152.7);
   jumped.step(152.7);
   assert.ok(played.life.rows.length === 5 && played.life.flocks.length === 4 && played.life.herd.length === 3, 'the rows, the flocks and the herd');
+  assert.ok(played.life.flyers.length >= 6, 'and the flyers');
   played.life.things.forEach((a, i) => {
     const b = jumped.life.things[i];
     assert.equal(a.visible, b.visible, `${a.id} seen in both`);

@@ -186,6 +186,7 @@ function* frames(s, c) {
   const scratch = new THREE.Color();
   let clip = null;
   let n = 0;
+  world.flightReduced = Boolean(c.reduced); // the life in the flight holds still what would circle (world/ardalur/life.js: the flyers)
   while (c.flight.ended === null) {
     const t = Math.min(BEATS.END, s.time - c.flight.started);
     flier.update(t);

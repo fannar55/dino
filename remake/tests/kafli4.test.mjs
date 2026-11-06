@@ -220,7 +220,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
   let where = null;
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith, reduced,
@@ -280,6 +280,14 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           tallest = Math.max(tallest, ((top.y - foot.y) / 2) * tall);
         }
         seen.critters.push({ t: world.clock.time - started, shot, cut: seen.cuts, tallest, triangles: crowds.triangles(), calls: crowds.calls() });
+        // D to G (world/ardalur/life.js): the gorge's flyers in the air or on their ledges, the camera, Egill's head and where she is
+        const flyers = world.forest.life?.flyers ?? [];
+        if (flyers.length) {
+          seen.flyers.push({
+            t: world.flightTime, shot, camera: world.camera.position.clone(), egill: egill.headPosition(new THREE.Vector3()),
+            her: c.flight.flier.pose.position.clone(), flyers: flyers.filter(b => b.visible).map(b => ({ id: b.id, at: b.position.clone() })),
+          });
+        }
         // F and G (world/ardalur/life.js): how many of the rows' small lizards and the flocks' birds the frame shows 8 px tall or more
         const life = world.forest.life;
         if (life?.rows && world.flightTime >= BEATS.F) {
@@ -729,6 +737,64 @@ test('the herd grazes big in the wide shot, and the slow circle sees it near as 
       assert.ok(frames.length > 100 && seen >= share, `${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
     }
   }
+});
+
+// D to G (the life spec 2D-2G, 4: world/ardalur/life.js flyers): the gorge's flyers fly with her, but never into a shot's way
+/** How far p is from the line from a to b. */
+function fromLine(p, a, b) {
+  const ab = b.clone().sub(a);
+  const k = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+  return p.distanceTo(a.clone().addScaledVector(ab, k));
+}
+/** How far round her each flyer goes in F, seen from above: the span of its bearing from her heading, its steps added up. */
+function aroundHer(frames) {
+  const inF = frames.filter(f => f.t >= BEATS.F && f.t <= BEATS.G);
+  const turns = new Map();
+  inF.forEach((f, i) => {
+    const a = inF[Math.max(0, i - 1)].her, b = inF[Math.min(inF.length - 1, i + 1)].her;
+    const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const fx = (b.x - a.x) / l, fz = (b.z - a.z) / l;
+    for (const { id, at } of f.flyers) {
+      const dx = at.x - f.her.x, dz = at.z - f.her.z;
+      const deg = THREE.MathUtils.radToDeg(Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz));
+      const turn = turns.get(id) ?? { last: deg, sum: 0, lo: 0, hi: 0 };
+      turn.sum += ((deg - turn.last + 540) % 360) - 180;
+      turn.lo = Math.min(turn.lo, turn.sum);
+      turn.hi = Math.max(turn.hi, turn.sum);
+      turn.last = deg;
+      turns.set(id, turn);
+    }
+  });
+  return new Map([...turns].map(([id, turn]) => [id, turn.hi - turn.lo]));
+}
+
+test('no flyer comes within 3 m of the camera or between the camera and Egill, in any frame of the flight', async (t) => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright], ['reduced motion', playReduced]]) {
+    const { watched } = await play();
+    const frames = watched.flyers;
+    const most = Math.max(0, ...frames.map(f => f.flyers.length));
+    let camera = Infinity, line = Infinity, cameraAt = '', lineAt = '';
+    for (const f of frames) {
+      for (const { id, at } of f.flyers) {
+        const d = at.distanceTo(f.camera);
+        if (d < camera) { camera = d; cameraAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
+        const l = fromLine(at, f.camera, f.egill);
+        if (l < line) { line = l; lineAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
+      }
+    }
+    t.diagnostic(`${shape}: ${frames.length} frames, ${most} flyers, nearest the camera ${camera.toFixed(1)} m (${cameraAt}), nearest the line to Egill ${line.toFixed(1)} m (${lineAt})`);
+    assert.ok(frames.length > 1000 && most >= 6, `${shape}: the flyers are in the flight (${frames.length} frames, ${most} of them)`);
+    assert.ok(camera >= 3, `${shape}: ${cameraAt} ${camera.toFixed(2)} m from the camera`);
+    assert.ok(line >= 2, `${shape}: ${lineAt} ${line.toFixed(2)} m from the line between the camera and Egill`);
+  }
+});
+
+test('the flyers circle her in the slow circle, and never under reduced motion', async () => {
+  const wide = aroundHer((await playWide()).watched.flyers);
+  const calm = aroundHer((await playReduced()).watched.flyers);
+  assert.ok(wide.size >= 6 && calm.size === wide.size, `${wide.size} flyers in F`);
+  for (const [id, turn] of wide) assert.ok(turn >= 180, `${id} goes ${turn.toFixed(0)} degrees round her in F`);
+  for (const [id, turn] of calm) assert.ok(turn < 10, `reduced motion: ${id} goes ${turn.toFixed(0)} degrees round her in F`);
 });
 
 test('the far pool is a place of its own (chapter 5 begins there): the route\'s pool, its spots, and the shots scene 7 uses', () => {

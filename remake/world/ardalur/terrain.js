@@ -228,6 +228,18 @@ export function createRouteIndex(route) {
 }
 
 /**
+ * The ground's surface at (x, z) as groundSteps draws it: heightAt at the corners of its GRID cell, the cell cut in two from its
+ * (i + 1, j) corner to its (i, j + 1) corner. On the gorge's steep walls it is up to a metre or two off heightAt.
+ */
+export function groundDrawnAt(heightAt, x, z) {
+  const i = Math.floor(x / GRID), j = Math.floor(z / GRID);
+  const u = x / GRID - i, v = z / GRID - j;
+  const a = heightAt(i * GRID, j * GRID), b = heightAt((i + 1) * GRID, j * GRID);
+  const c = heightAt(i * GRID, (j + 1) * GRID), d = heightAt((i + 1) * GRID, (j + 1) * GRID);
+  return u + v <= 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
+}
+
+/**
  * The steps that build one section's ground (a generator for the build queue): the cells it owns, their heights, and a mesh with
  * normals taken across the grid (so they match the next section's at the seam). With `paint(x, z, y, ny)` -> [r, g, b, rock] (the
  * real look, look.js: groundPaint) each vertex gets its colour and its share of bare rock (aRock). Returns { mesh, cells, bounds }.

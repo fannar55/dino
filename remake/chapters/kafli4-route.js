@@ -121,6 +121,22 @@ export const FAR_POOL = {
   },
 };
 
+/**
+ * The flyers' nests (the life spec 2D): ledges in the gorge's walls, [x, y, z, heading], on the walls as the ground draws them
+ * (world/ardalur/terrain.js groundDrawnAt), the north and the south wall by turns, 960 to 1135 m up the river and 12 to 21 m over it.
+ * Each flyer looks out across the river and a little down it, the way she comes (heading: degrees, 0 faces +X, 90 faces +Z).
+ */
+export const NESTS = [
+  [-1058.06, 19.26, 148.56, 51], // 960 m up the river, the north wall, 13 m over the river: she is 25 m off at 83.8 s
+  [-1079.25, 24.51, 175.79, -68], // 985 m, the south wall, 18 m: 86.1 s
+  [-1104.07, 21.76, 151.12, 68], // 1010 m, north, 15 m: 88.0 s
+  [-1132.37, 28.01, 171.23, -51], // 1035 m, south, 21 m: 90.6 s
+  [-1153.6, 19.25, 144.28, 68], // 1060 m, north, 12 m: 92.4 s
+  [-1181.7, 24.5, 163.07, -51], // 1085 m, south, 17 m: 94.8 s
+  [-1202.21, 21.76, 135.91, 72], // 1110 m, north, 14 m: 97.0 s
+  [-1231.53, 28.03, 153.77, -48], // 1135 m, south, 20 m: 99.7 s
+];
+
 // ---------------------------------------------------------------------------------------------
 // The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small
 // ponds with lilies and reed, and an open meadow between the groves and the hills where the herd grazes (chunk 4). All of it lies

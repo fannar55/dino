@@ -29,7 +29,7 @@
 // game clock, as an answer is. Outside the flight they are all where they sat, but the rows, the flocks and the herd of a call made:
 // they are gone (the far pool has its own). They are drawn in the crowds (world/critters/crowd.js), given or their own.
 import * as THREE from 'three';
-import { BEATS, FAR_POOL, MEADOW } from '../../chapters/kafli4-route.js';
+import { BEATS, FAR_POOL, MEADOW, NESTS } from '../../chapters/kafli4-route.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
 import { clipPose } from '../critters/crowd-models.js';
@@ -40,12 +40,15 @@ import { fenShare } from './terrain.js';
 /**
  * How much larger than life each is drawn, to read from her back (as animals.js SCALE). The rows' small lizards are seen from 20 to
  * 50 m above them, 40 to 150 m off: 2 m long (C's, seen close by the river, are 1.2 m); the salamander stands in at about that size.
- * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06).
+ * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06). The flyer is 2.4 m across its
+ * wings: a third of hers, seen 5 to 12 m off.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2 };
 const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
 const clamp01 = k => Math.min(1, Math.max(0, k));
 const smooth = k => { const x = clamp01(k); return x * x * (3 - 2 * x); };
+const smoother = k => { const x = clamp01(k); return x * x * x * (x * (6 * x - 15) + 10); };
 const headingOf = (dx, dz) => THREE.MathUtils.radToDeg(Math.atan2(dz, dx)); // degrees: 0 faces +X, 90 faces +Z
 
 // A flier that flies up and away: `climb` m/s up (less `drag`), `away` m/s off (gaining `faster`), out of sight at `gone` seconds.
@@ -111,6 +114,26 @@ const GRAZE = {
   delay: [0.5, 1.5], up: 0.5, look: 2, start: 0.4, walk: 4, trotIn: 1, ease: 4,
   margin: 6, reach: 200, steep: 0.8, rise: 6, path: 15, seen: 320, lane: 2.5, step: 2, low: 0.5,
 };
+// D to G, the gorge's flyers (the owner's flugdýr): one on each ledge of NESTS, perched until the schedule brings her within `within`
+// m of it; then off the ledge (`out` m out the way it looks and `drop` m down over `off` s, going her way at `along` m/s) and into
+// its place round her from `wait` s over `join` s. Its place (SLOTS: [ahead, to her right, up] m from her body, flat to her heading)
+// is on its own wall's side of her, behind her, and at least 3 m over or under where the near cameras stand (the chase 3.2 m over
+// her body, the face, the side and the slow circle 0.8 to 1.6 m), so it never comes into a shot's way. In formation it rides `bob`
+// m up and down and `sway` m back and forth, and beats its wings for `beat[0]` s every `beat[1]` s, all the way up the falls
+// (`climb`). In F the formation wheels `turns` times round her toward her right, easing in and out (`circle`; not under reduced
+// motion). From `land.from` s (each `land.every` s after the one before) it draws ahead of her `land.ahead` m and comes down over
+// `land.seconds` s in an arc (`land.arc` m over the straight way) onto its spot on the far pool's bank, flapping for the last `flare`.
+const FLY = {
+  within: 25, out: 3.5, drop: 1.5, off: 1.2, along: 6, wait: 0.3, join: 2.8, bob: 0.3, sway: 0.4, beat: [1.2, 4.5],
+  climb: [105, 119.5], turns: 1, circle: [126, 149], land: { from: 162.5, every: 0.3, seconds: 4.5, ahead: 22, arc: 2.5, flare: 1.2 },
+};
+const SLOTS = {
+  right: [[-3.5, 6, 5.2], [-6.5, 4.5, 6.4], [-5, 5.5, -2.4], [-8.5, 7.5, 5.6]],
+  left: [[-7.5, -5.5, 6.2], [-4.5, -6, 7.4], [-9.5, -2.5, -2.4], [-9.5, -7.5, 5]],
+};
+// Where they land: the far pool's north-east bank, [degrees round its middle (from +X toward +Z), metres from it]; those on her left
+// (north of her as she glides east) on the northern spots. Away from her shallows, Egill's and Mosi's spots and the beds of reed.
+const LAND = { left: [[-80, 31], [-70, 33.5], [-60, 31], [-50, 33.5]], right: [[-41, 31], [-31, 33.5], [-21, 31], [-11, 33.5]] };
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
   const { river } = route;
@@ -119,7 +142,8 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const baked = critters.smaedla ?? null;
   const LIZARD = baked ? 'smaedla' : 'salamander';
   const grazer = critters.grasbitur ?? null;
-  const BAKED = { smaedla: baked, grasbitur: grazer }; // the owner's models, as tools/prep-crowd.mjs bakes them
+  const flyer = critters.flugdyr ?? null;
+  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer }; // the owner's models, as tools/prep-crowd.mjs bakes them
   const her = new THREE.Vector3();
   const herAt = (t, out = her) => route.pointAt(route.progressAt(Math.min(BEATS.END, Math.max(0, t))), out);
   /** Her way, seen from above, at flight second t: forward and to her right. */
@@ -356,6 +380,31 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     return group;
   });
 
+  // D to G: the gorge's flyers, each on its ledge until she comes, its place round her on its own wall's side of her
+  const flyers = !flyer ? [] : NESTS.map(([x, y, z, heading], k) => {
+    const nest = new THREE.Vector3(x, y, z);
+    const b = add(`flyer-${k}`, 'flugdyr', nest, heading, { nest, look: [Math.cos(heading * DEG), Math.sin(heading * DEG)] });
+    b.trigger = firstWithin(nest, FLY.within);
+    const p = herAt(b.trigger, new THREE.Vector3());
+    const way = wayAt(b.trigger);
+    b.way = [way.fx, way.fz];
+    b.side = (x - p.x) * way.rx + (z - p.z) * way.rz > 0 ? 'right' : 'left';
+    return b;
+  });
+  for (const side of ['left', 'right']) {
+    flyers.filter(b => b.side === side).forEach((b, j) => {
+      b.slot = SLOTS[side][j];
+      const [angle, distance] = LAND[side][j];
+      const x = FAR_POOL.center[0] + distance * Math.cos(angle * DEG), z = FAR_POOL.center[1] + distance * Math.sin(angle * DEG);
+      const from = FLY.land.from + (2 * j + (side === 'right' ? 1 : 0)) * FLY.land.every;
+      b.land = {
+        spot: new THREE.Vector3(x, heightAt(x, z), z), from, to: from + FLY.land.seconds,
+        heading: headingOf(FAR_POOL.center[0] - x, FAR_POOL.center[1] - z), // looking across the pool
+      };
+      clear.push({ x, z, r: 1.2 });
+    });
+  }
+
   for (const kind of new Set(things.map(t => t.kind))) {
     const n = things.filter(t => t.kind === kind).length;
     crowds.reserve(kind, n, BAKED[kind] ? { ...BAKED[kind], seen: kind === 'grasbitur' ? GRAZE.seen : null } : { model: modelOf(kind) });
@@ -485,6 +534,111 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     blend('trot', (d / (trot.stride * b.scale)) * trot.seconds, up * going * trotting);
   }
 
+  // Where she really is against the schedule (a burst puts her ahead of it, a steer aside of it): world.flightU and world.flightPoint
+  // as the flier leaves them each frame; none of that in a world without them (a test's), and none after a seek.
+  const follow = { du: 0, aside: 0 };
+  const frame = { p: new THREE.Vector3(), fx: 1, fz: 0 };
+  const ua = new THREE.Vector3(), ub = new THREE.Vector3();
+  /** Her body at flight second t (`follow`'s lead and aside on the schedule's place) and her heading there, seen from above. */
+  function herFrame(t, out = frame) {
+    const u = THREE.MathUtils.clamp(route.progressAt(THREE.MathUtils.clamp(t, 0, BEATS.END)) + follow.du, 0, 1);
+    route.pointAt(u, out.p);
+    const du = 2 / route.length;
+    route.pointAt(Math.max(0, u - du), ua);
+    route.pointAt(Math.min(1, u + du), ub);
+    const l = Math.hypot(ub.x - ua.x, ub.z - ua.z) || 1;
+    out.fx = (ub.x - ua.x) / l;
+    out.fz = (ub.z - ua.z) / l;
+    out.p.x -= out.fz * follow.aside;
+    out.p.z += out.fx * follow.aside;
+    return out;
+  }
+  function followHer(ft) {
+    follow.du = 0;
+    follow.aside = 0;
+    if (ft === null || world.flightU === null || world.flightU === undefined) return;
+    follow.du = world.flightU - route.progressAt(THREE.MathUtils.clamp(ft, 0, BEATS.END));
+    const at = world.flightPoint;
+    if (at) { herFrame(ft); follow.aside = (at.x - frame.p.x) * -frame.fz + (at.z - frame.p.z) * frame.fx; }
+  }
+  /** How far the formation has wheeled round her at flight second t (radians, toward her right): none under reduced motion. */
+  const wheeled = t => (world.flightReduced ? 0 : TAU * FLY.turns * smoother((t - FLY.circle[0]) / (FLY.circle[1] - FLY.circle[0])));
+  /** A flyer's place round her at flight second t, `ahead` m further forward than its slot. */
+  function slotAt(b, t, ahead, out) {
+    const { p, fx, fz } = herFrame(t);
+    const [a0, r0, up] = b.slot;
+    const turn = wheeled(t);
+    const a = a0 * Math.cos(turn) - r0 * Math.sin(turn) + FLY.sway * Math.sin((TAU * t) / 4.7 + 2 * b.phase) + ahead;
+    const r = r0 * Math.cos(turn) + a0 * Math.sin(turn);
+    return out.set(p.x + fx * a - fz * r, p.y + up + FLY.bob * Math.sin((TAU * t) / 3.1 + b.phase), p.z + fz * a + fx * r);
+  }
+  const launchAt = new THREE.Vector3();
+  /** Where a flyer is at flight second t: on its ledge, off it into its place, round her, down onto the far pool's bank. */
+  function flyerAt(b, t, out) {
+    const s = t - b.trigger;
+    if (s <= 0) return out.copy(b.nest);
+    const tau = t - b.land.from;
+    if (tau >= FLY.land.seconds) return out.copy(b.land.spot);
+    slotAt(b, t, tau > 0 ? FLY.land.ahead * smooth(tau / (0.6 * FLY.land.seconds)) : 0, out);
+    const joined = smooth((s - FLY.wait) / FLY.join);
+    if (joined < 1) {
+      const o = smooth(s / FLY.off);
+      launchAt.set(
+        b.nest.x + b.look[0] * FLY.out * o + b.way[0] * FLY.along * s,
+        b.nest.y - FLY.drop * o,
+        b.nest.z + b.look[1] * FLY.out * o + b.way[1] * FLY.along * s,
+      );
+      out.lerpVectors(launchAt, out, joined);
+    }
+    if (tau > 0) {
+      const w = smooth(tau / FLY.land.seconds);
+      out.lerp(b.land.spot, w);
+      out.y += FLY.land.arc * 4 * w * (1 - w);
+    }
+    return out;
+  }
+  const window01 = (t, [from, to]) => smooth((t - from) / 0.5) * (1 - smooth((t - to) / 0.5));
+  const was = new THREE.Vector3(), will = new THREE.Vector3();
+  /**
+   * A flyer: perched on its ledge until she comes, flapping off it into its place, gliding round her with a few beats now and then
+   * (flapping up the falls), down onto the far pool's bank, and perched there, looking across the pool. Its clips' weights add up to 1.
+   */
+  function flyerPose(b, ft, clock) {
+    for (const name in b.morphs) b.morphs[name] = 0;
+    const blend = (clip, time, w) => {
+      if (w <= 0) return;
+      const frames = clipPose(flyer, clip, time, b.phase);
+      for (const name in frames) b.morphs[name] += frames[name] * w;
+    };
+    const s = ft === null ? -1 : ft - b.trigger;
+    if (s <= 0) { blend('perch', clock, 1); return; }
+    const tau = ft - b.land.from;
+    if (tau >= FLY.land.seconds) {
+      b.position.copy(b.land.spot);
+      b.heading = b.land.heading;
+      blend('perch', clock, 1);
+      return;
+    }
+    flyerAt(b, ft, b.position);
+    flyerAt(b, ft - 0.05, was);
+    flyerAt(b, ft + 0.05, will);
+    const vx = will.x - was.x, vy = will.y - was.y, vz = will.z - was.z;
+    const flat = Math.hypot(vx, vz);
+    if (flat > 0.02) b.heading = headingOf(vx, vz);
+    b.pitch = THREE.MathUtils.clamp(0.6 * Math.atan2(vy, flat), -0.45, 0.45);
+    const beatAt = ((((ft / FLY.beat[1] + b.phase) % 1) + 1) % 1) * FLY.beat[1];
+    const flap = Math.max(
+      1 - smooth((s - (FLY.wait + FLY.join - 0.6)) / 0.6), // off the ledge and into its place
+      window01(ft, FLY.climb), // up the falls
+      smooth(beatAt / 0.2) * (1 - smooth((beatAt - FLY.beat[0] + 0.2) / 0.2)), // a few beats now and then
+      smooth((tau - (FLY.land.seconds - FLY.land.flare)) / 0.3), // the last of the way down
+    );
+    const perched = Math.max(1 - smooth(s / 0.25), smooth((tau - (FLY.land.seconds - 0.3)) / 0.3));
+    blend('perch', clock, perched);
+    blend('flap', clock, (1 - perched) * flap);
+    blend('glide', clock, (1 - perched) * (1 - flap));
+  }
+
   /** Each thing's pose: `ft` the flight's time (null outside the flight), `clock` what its idle life runs on, `t` the game clock. */
   function pose(b, ft, clock, t) {
     b.position.copy(b.at);
@@ -506,6 +660,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
         break;
       case 'grasbitur':
         grazing(b, ft, clock);
+        break;
+      case 'flugdyr':
+        flyerPose(b, ft, clock);
         break;
       case 'bird':
         if (b.flock) { flocking(b, ft, clock); break; }
@@ -555,6 +712,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     const ft = world.flightTime ?? null;
     const flying = ft !== null && ft >= 0;
     const clock = flying ? ft : t;
+    followHer(flying ? ft : null);
     if (own) crowds.begin(world.camera ?? null);
     for (const b of things) {
       pose(b, flying ? ft : null, clock, t);
@@ -582,7 +740,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   }
 
   return {
-    things, rows, flocks, herd, props, clear, crowds, update, skim, bigCall,
+    things, rows, flocks, herd, flyers, props, clear, crowds, update, skim, bigCall,
     dispose() { if (own) crowds.dispose(); },
   };
 }

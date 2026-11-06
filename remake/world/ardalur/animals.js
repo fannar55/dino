@@ -42,14 +42,20 @@ const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle:
 export const SMAEDLA_MODEL = new URL('../../assets/critters/smaedla.glb', import.meta.url).href;
 /** The owner's grazer (his Tripo3D model, 2.5 m long at scale 1), as tools/prep-crowd.mjs bakes it: walk, trot, graze, look. */
 export const GRASBITUR_MODEL = new URL('../../assets/critters/grasbitur.glb', import.meta.url).href;
+/** The owner's flyer (his Tripo3D model, 0.77 m beak to tail and 1.19 m across its wings at scale 1): flap, glide, perch. */
+export const FLUGDYR_MODEL = new URL('../../assets/critters/flugdyr.glb', import.meta.url).href;
 const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
 /**
- * The valley's baked critters: { smaedla, grasbitur } as crowd models (world/critters/crowd-models.js), read through world.loadModel
- * (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out and the chapter goes on:
- * without the small lizard the salamander stands in, without the grazer there is no herd (life.js).
+ * The valley's baked critters: { smaedla, grasbitur, flugdyr } as crowd models (world/critters/crowd-models.js), read through
+ * world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out and the
+ * chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
+ * flyers (life.js).
  */
 export async function loadCritters(world) {
-  const files = [['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd']];
+  const files = [
+    ['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd'],
+    ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'],
+  ];
   const loaded = await Promise.all(files.map(async ([name, url, without]) => {
     try {
       let gltf;
