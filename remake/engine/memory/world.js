@@ -1003,7 +1003,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     // This local threshold leaves screen sizes and other games unchanged.
     updateCharacterLods(camera, canvas.height * (q.name === 'tablet' ? .8 : 1));
     updateTargets(); renderer.info.reset(); renderer.render(scene, camera);
-    lastStats = { drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, resolutionScale: resolution };
+    // (programs: the shader programs the renderer holds, for QA: the playthrough reads them over level 2's through cut)
+    lastStats = { drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, programs: renderer.info.programs?.length ?? 0, resolutionScale: resolution };
     if (q.dynamicResolution && delta > 0) {
       frameTime += delta; frameCount++;
       if (frameTime > 1.2) {
