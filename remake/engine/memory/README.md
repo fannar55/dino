@@ -162,6 +162,9 @@ recipe for each hard word) the way the other games' lines do: `memory-voices.mjs
 `qa/memory/tal/` beside the shipped ones, for the owner's ear, without installing them. A new inflection of a hard word
 must be added to its word's forms first (the tool stops on it), and a take the owner picked by ear carries `kept` in
 `voice-lines.js`. A scribe check that hears the words is weak proof: the owner listens.
+Only `--only <ids>` or `--all` makes and installs takes; a plain run, or a flag the tool does not know, prints its usage
+and makes nothing. Which request made each MP3 is recorded in the tracked `remake/assets/audio/memory/manifest.json`
+(`key` per line; a kept line's is its kept request's), so `--plan` and `--verify` read the same in every checkout.
 
 The repo's voice rules (`CLAUDE.md`) hold here too: a line with its own `say` or `context` names what it fixes in `fixes`;
 the owner's yes/no verdicts are imported with `node remake/tools/heard.mjs jano-minnisspil.json --made <page>/voices-made.json`

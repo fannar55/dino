@@ -2,236 +2,283 @@
   "welcome": {
     "src": "assets/audio/memory/welcome.mp3",
     "duration": 3.61,
-    "mouth": "6eed26fe8ddc73cededb309fdbcb86004000000000fffe70609dff8dda600000000000000"
+    "mouth": "6eed26fe8ddc73cededb309fdbcb86004000000000fffe70609dff8dda600000000000000",
+    "key": "3d769a41c615023485f7ce2560ed1cbcd547d6489721eccecf15633819ffbd3c"
   },
   "first": {
     "src": "assets/audio/memory/first.mp3",
     "duration": 4.57,
-    "mouth": "7eb0000cdceeffffd500000000000000509ffcddbd9efd0beddd804efd607dea9d3cffeec97a7000000000000000"
+    "mouth": "7eb0000cdceeffffd500000000000000509ffcddbd9efd0beddd804efd607dea9d3cffeec97a7000000000000000",
+    "key": "71a6f41d21f9c9648c0991d34e83801652e5cea1e11cdf70132c40336b7ca2d3"
   },
   "match": {
     "src": "assets/audio/memory/match.mp3",
     "duration": 2.25,
-    "mouth": "000feb500becb800fe03ffb7fdadeda70000000000000"
+    "mouth": "000feb500becb800fe03ffb7fdadeda70000000000000",
+    "key": "c4b3cb7f756a1ec62ac34d343bfbf0b6c0c60d72c244d32daf31c88c039d0d23"
   },
   "help": {
     "src": "assets/audio/memory/help.mp3",
     "duration": 13.53,
-    "mouth": "008ffe0ae400ddedeea9deeefc33ffb7cf7dbefffbba8700000000000000feb850decce9aeea74cdda0000dc6defedc9860000000000009edcd7dd80dc5ade9400cece708ddec83300000000008bfed0eedbe93dec90ade40dedccbbaa9005ececffeedb9773000000000000afffaeec86dfabba008bddc30ab800cfddceeccba08600000000000"
+    "mouth": "008ffe0ae400ddedeea9deeefc33ffb7cf7dbefffbba8700000000000000feb850decce9aeea74cdda0000dc6defedc9860000000000009edcd7dd80dc5ade9400cece708ddec83300000000008bfed0eedbe93dec90ade40dedccbbaa9005ececffeedb9773000000000000afffaeec86dfabba008bddc30ab800cfddceeccba08600000000000",
+    "key": "0bbd5300b05b0f1f86d5a2c0fa1c3f38838ffd9b2d0feb67458f23d5185b3b0f"
   },
   "won": {
     "src": "assets/audio/memory/won.mp3",
     "duration": 6.25,
-    "mouth": "0fc048dd6000de07890aeefffcfa0efbdffddc6980000000000000000bdbba98beefdc65ce708ccc40bcc90000000000678eddb700bfe9000000000000000"
+    "mouth": "0fc048dd6000de07890aeefffcfa0efbdffddc6980000000000000000bdbba98beefdc65ce708ccc40bcc90000000000678eddb700bfe9000000000000000",
+    "key": "93e378d98e15dab7a3a87bd068f18e2381d85a4b518bba51b6944b9b769940ef"
   },
   "find_bronto": {
     "src": "assets/audio/memory/find_bronto.mp3",
     "duration": 4.01,
-    "mouth": "8afdb700bd004dc9658ffeea6dc86000000000000ffbeffeede9dc00dfa7dddefdb76000000000000"
+    "mouth": "8afdb700bd004dc9658ffeea6dc86000000000000ffbeffeede9dc00dfa7dddefdb76000000000000",
+    "key": "8c123f5f30c524a8cb78d22c6196620428947df2ca8b71f764bd1ba9bb906e1f"
   },
   "lift": {
     "src": "assets/audio/memory/lift.mp3",
     "duration": 3.45,
-    "mouth": "0ff7000ddd68eefffec60000000000000aedfcdeb804bdb04dcc9ac60960000000000"
+    "mouth": "0ff7000ddd68eefffec60000000000000aedfcdeb804bdb04dcc9ac60960000000000",
+    "key": "2b2c68c9c2d2ec095d1b85ac049726310c00605d5d423ea18967b67f79a2003e"
   },
   "held": {
     "src": "assets/audio/memory/held.mp3",
     "duration": 4.49,
-    "mouth": "007fec8640decceb7edb9aed600a80000000009ffffeeb0af6dd00badef9ed85d90cb70cf5400b820000000000"
+    "mouth": "007fec8640decceb7edb9aed600a80000000009ffffeeb0af6dd00badef9ed85d90cb70cf5400b820000000000",
+    "key": "fd413645371eeac77cc84d00471bf0e093b6bdc8c6aa1a448f3fa7c1ca2d2a9e"
   },
   "roll": {
     "src": "assets/audio/memory/roll.mp3",
     "duration": 4.49,
-    "mouth": "cfd000000000000cfffcb400000007dec00bfc9500000000000cecfddecedeb8dfbbbecdd80ceec80000000000"
+    "mouth": "cfd000000000000cfffcb400000007dec00bfc9500000000000cecfddecedeb8dfbbbecdd80ceec80000000000",
+    "key": "e8b332299ca7b935252f4f3ea02d38f1ac5cef97cc7bf10596b6d260ff4f4282"
   },
   "cross": {
     "src": "assets/audio/memory/cross.mp3",
     "duration": 4.49,
-    "mouth": "065dffcdfee70dd700aefb0496000000000007fb004ac5000ed033007daa400afeebee909fe975300000000000"
+    "mouth": "065dffcdfee70dd700aefb0496000000000007fb004ac5000ed033007daa400afeebee909fe975300000000000",
+    "key": "be3ce97b6a03f714fdf7ad86da7086c05fea073381f32484899b9f1a8ecc0f0f"
   },
   "find_stego": {
     "src": "assets/audio/memory/find_stego.mp3",
     "duration": 4.81,
-    "mouth": "00afeda69fefffeddca068efeda770000000000003eeb0bb0bbed7afdbc98cb9500acd80ac503ccccddb7000000000000"
+    "mouth": "00afeda69fefffeddca068efeda770000000000003eeb0bb0bbed7afdbc98cb9500acd80ac503ccccddb7000000000000",
+    "key": "e113e63bc8fe546b365a5f946262c02ba2ad9a2c2a95ef0e5a62590227ee1e68"
   },
   "build": {
     "src": "assets/audio/memory/build.mp3",
     "duration": 4.01,
-    "mouth": "00fffd90cfde00ce86007ff80ceedb540000000000bdeeefa007dddeecdc05dedbeca600000000000"
+    "mouth": "00fffd90cfde00ce86007ff80ceedb540000000000bdeeefa007dddeecdc05dedbeca600000000000",
+    "key": "a5e6487e489271fc6b9b2f29b3ac773cc27878b6b481bca05a0e09e88ec9d07e"
   },
   "walkway": {
     "src": "assets/audio/memory/walkway.mp3",
     "duration": 3.53,
-    "mouth": "000affeaea0feeb0dffedda860000000000bfd909deedc900eccedcbba0760000000000"
+    "mouth": "000affeaea0feeb0dffedda860000000000bfd909deedc900eccedcbba0760000000000",
+    "key": "4da64889310be717d2e0230ed78ae67429436b7a3c09dc7c616ea4bc608c4022"
   },
   "finish": {
     "src": "assets/audio/memory/finish.mp3",
     "duration": 4.01,
-    "mouth": "6ffeea05ebd90004db00039ebadd984000000000003dfffdcdec005bcdf8eebb70a84000000000000"
+    "mouth": "6ffeea05ebd90004db00039ebadd984000000000003dfffdcdec005bcdf8eebb70a84000000000000",
+    "key": "5286805fd51bb8a46286802a99aa7d7cddb278ef352ce9ef7e52325df9705a36"
   },
   "who": {
     "src": "assets/audio/memory/who.mp3",
     "duration": 1.61,
-    "mouth": "0050eed900bb0fdfb7740000000000000"
+    "mouth": "0050eed900bb0fdfb7740000000000000",
+    "key": "2b87738944260ea02240e6f45f89e80d1ec81d1b8c2f51c16e0674e0a8296c2b"
   },
   "other": {
     "src": "assets/audio/memory/other.mp3",
     "duration": 2.01,
-    "mouth": "07ffd0308dddc90ce00e98dfdca40000000000000"
+    "mouth": "07ffd0308dddc90ce00e98dfdca40000000000000",
+    "key": "72e5db23f5aa139f02b34c0253e76b07e1366be055e5b60a57838c5dcbbea42c"
   },
   "together": {
     "src": "assets/audio/memory/together.mp3",
     "duration": 2.17,
-    "mouth": "5bfeb003eeedbffaee0da000edceeb53000000000000"
+    "mouth": "5bfeb003eeedbffaee0da000edceeb53000000000000",
+    "key": "9eb812b0e74a8dd3b012421d88ca169f09105840e6c4e93e218a0f8a591627fd"
   },
   "push": {
     "src": "assets/audio/memory/push.mp3",
     "duration": 2.65,
-    "mouth": "9ff8000000000000000eedc9550000000000ef900fc6000000000"
+    "mouth": "9ff8000000000000000eedc9550000000000ef900fc6000000000",
+    "key": "f9ce7986e51277fe2ff8738df25120576ade8068d0ba8e6c44af577d4e2d7ec5"
   },
   "findFirst": {
     "src": "assets/audio/memory/findFirst.mp3",
     "duration": 1.85,
-    "mouth": "00fffeefec9ddeeffe70ff760000000000000"
+    "mouth": "00fffeefec9ddeeffe70ff760000000000000",
+    "key": "1712449202621130a03b44fe4e3ee80432e5552fae984e3e828cbbaafd74a80d"
   },
   "notYet": {
     "src": "assets/audio/memory/notYet.mp3",
     "duration": 2.57,
-    "mouth": "009fd500000eebadddffeece60000df8cedefedb830000000000"
+    "mouth": "009fd500000eebadddffeece60000df8cedefedb830000000000",
+    "key": "f4acec5e636f9419386ec114d98b5755fa79e3bdcc758f9f21383ac2f1ca6984"
   },
   "gifts3": {
     "src": "assets/audio/memory/gifts3.mp3",
     "duration": 3.05,
-    "mouth": "00bed40ded9000000fc000a9ef8005ddedddb50afdcafabe9300000000000"
+    "mouth": "00bed40ded9000000fc000a9ef8005ddedddb50afdcafabe9300000000000",
+    "key": "b51a5133ed8fe55c014f02765a27827a6cd3d887ea6498455927d8fe9943d9d4"
   },
   "giftsLeft": {
     "src": "assets/audio/memory/giftsLeft.mp3",
     "duration": 2.89,
-    "mouth": "000feedc000ea50000bfff9f6ceda900eeedda6f90000a830000000000"
+    "mouth": "000feedc000ea50000bfff9f6ceda900eeedda6f90000a830000000000",
+    "key": "1d41fa2681b49bbc8d4add587266fd446d2640d21b673c6a10c92bc35e0e0cd7"
   },
   "gift_shrew": {
     "src": "assets/audio/memory/gift_shrew.mp3",
     "duration": 3.13,
-    "mouth": "000dffedd700fcffc726640000000000ded00cedcb08aeb8bcb960000000000"
+    "mouth": "000dffedd700fcffc726640000000000ded00cedcb08aeb8bcb960000000000",
+    "key": "8c1dc757c4b9fafdd100383bb3ae07ec722f3d31cba3bf0268e26613444573d1"
   },
   "gift_hermitCrab": {
     "src": "assets/audio/memory/gift_hermitCrab.mp3",
     "duration": 2.97,
-    "mouth": "08dfabcbfc096bff000b70000000000fdc80cdd655dca9cb700000000000"
+    "mouth": "08dfabcbfc096bff000b70000000000fdc80cdd655dca9cb700000000000",
+    "key": "f69606d3ddc8f9f00f3836f2c8c1d20c4f86298cf1cd9d9d66a4d18cb0720821"
   },
   "gift_crab": {
     "src": "assets/audio/memory/gift_crab.mp3",
     "duration": 2.97,
-    "mouth": "098eff000d930000000003fedb00afec967b066dbbbca830000000000000"
+    "mouth": "098eff000d930000000003fedb00afec967b066dbbbca830000000000000",
+    "key": "41381f43b0af077c26cca8bdc17ac530d17ec4061ebdd0378748b5e1746cc6a5"
   },
   "g2_left": {
     "src": "assets/audio/memory/g2_left.mp3",
     "duration": 3.21,
-    "mouth": "00eeeddb000da70004fed90cefc30cb00009dbcedcddfffebcd96500000000000"
+    "mouth": "00eeeddb000da70004fed90cefc30cb00009dbcedcddfffebcd96500000000000",
+    "key": "da02f5b9759457b699a5bfb0ac9f81ccec06bb7e93f92dedfd8b738a90bef675"
   },
   "g2_welcome": {
     "src": "assets/audio/memory/g2_welcome.mp3",
     "duration": 4.41,
-    "mouth": "8cfdc546fdeed90dc3009edeeff7ccc977000000000000000ded0bb03004beed70bfec07adedb850000000000"
+    "mouth": "8cfdc546fdeed90dc3009edeeff7ccc977000000000000000ded0bb03004beed70bfec07adedb850000000000",
+    "key": "bffaed62d44db50b3a41e529d6763b62f005532431b54cfc85570012eef187bf"
   },
   "gifts4": {
     "src": "assets/audio/memory/gifts4.mp3",
     "duration": 3.21,
-    "mouth": "00dc70cfe900000ee00069ea000bfecbbdeb308dee49fddfe9ba8600000000000"
+    "mouth": "00dc70cfe900000ee00069ea000bfecbbdeb308dee49fddfe9ba8600000000000",
+    "key": "c026eeadff8b461a161a452584feb73cf1b41dee2fbcff4fc16bc6a975f74205"
   },
   "gift_ammonite": {
     "src": "assets/audio/memory/gift_ammonite.mp3",
     "duration": 3.05,
-    "mouth": "000bfeedcdfd700cc80000000000002fed00feda0aceb9bec980000000000"
+    "mouth": "000bfeedcdfd700cc80000000000002fed00feda0aceb9bec980000000000",
+    "key": "3363d038e2d06d841ca12191df93257467d696239cbf32dc161b89554275a972"
   },
   "gift_trilobite": {
     "src": "assets/audio/memory/gift_trilobite.mp3",
     "duration": 2.81,
-    "mouth": "4df5000fe50ed8000000000003ffb0dfdf988eddaded8700000000000"
+    "mouth": "4df5000fe50ed8000000000003ffb0dfdf988eddaded8700000000000",
+    "key": "3abfbb443ede3191e4b7abc39036eb2dff631522b3693d6fd7b5223a82fc852a"
   },
   "gift_fern": {
     "src": "assets/audio/memory/gift_fern.mp3",
     "duration": 2.81,
-    "mouth": "7def806600eeb000000000000efeb0bfde967dcc9bec8700000000000"
+    "mouth": "7def806600eeb000000000000efeb0bfde967dcc9bec8700000000000",
+    "key": "886f4a30e651bda5faf4fc63f6ac23cd228a43c5d20f00b7aa72f399bfb77d8f"
   },
   "gift_footprint": {
     "src": "assets/audio/memory/gift_footprint.mp3",
     "duration": 2.73,
-    "mouth": "07dded39e906c8300000000000dffb0deda7bfb9dca600000000000"
+    "mouth": "07dded39e906c8300000000000dffb0deda7bfb9dca600000000000",
+    "key": "d71eb4cd265ef51ae1213a7ecdd3bfb18e58d900a736036d29f342359472f5b7"
   },
   "g2_lit": {
     "src": "assets/audio/memory/g2_lit.mp3",
     "duration": 3.05,
-    "mouth": "03ffea0ce6cdda969ccaa9008ed70dfa9dbedceb558870994000000000000"
+    "mouth": "03ffea0ce6cdda969ccaa9008ed70dfa9dbedceb558870994000000000000",
+    "key": "4cdeea75d3ac903fd7beefe71ff2073bb6f74d48aa13ac8b52e1b5365a829f59"
   },
   "g2_light_ready": {
     "src": "assets/audio/memory/g2_light_ready.mp3",
     "duration": 3.85,
-    "mouth": "6fffd808ed9bfef50cffd9700000000000000020ddca000da0d9cca6000bebcec000000000000"
+    "mouth": "6fffd808ed9bfef50cffd9700000000000000020ddca000da0d9cca6000bebcec000000000000",
+    "key": "d612231b5bd1cc1d4602bf0fe63abd9c7a643d01640ebfc04f0e15443cc81f48"
   },
   "g2_rocks_ready": {
     "src": "assets/audio/memory/g2_rocks_ready.mp3",
     "duration": 4.49,
-    "mouth": "6edffec90020bfedd80cfc48fff77db7620000000000000000ddc905c88c9705edc0bfbdd0ce95400000000000"
+    "mouth": "6edffec90020bfedd80cfc48fff77db7620000000000000000ddc905c88c9705edc0bfbdd0ce95400000000000",
+    "key": "89643cf790106783641fc7a9e20fc9633fa21d99fac4f709414a76f48054993a"
   },
   "g2_rocks_done": {
     "src": "assets/audio/memory/g2_rocks_done.mp3",
     "duration": 2.57,
-    "mouth": "7fefeec83000000005cddccc8ddefa6cff006b97000000000000"
+    "mouth": "7fefeec83000000005cddccc8ddefa6cff006b97000000000000",
+    "key": "9378a9505abd3c8dbfd849a82f46cf07bf51f5cda1f134928c93d369dc5009e1"
   },
   "g2_through": {
     "src": "assets/audio/memory/g2_through.mp3",
     "duration": 3.05,
-    "mouth": "4eeed90aed7bfdc6aeec00da600000000008fa0009edeffeb500000000000"
+    "mouth": "4eeed90aed7bfdc6aeec00da600000000008fa0009edeffeb500000000000",
+    "key": "ec5e9850f17aab8aef26ce81ff82fd69fba9380226a9db1071541911a8316361"
   },
   "g2_ledge_ready": {
     "src": "assets/audio/memory/g2_ledge_ready.mp3",
     "duration": 3.53,
-    "mouth": "0000ec307dfdfec0cffd2477affc70300000000000050dfeadeeefbdd70000000000000"
+    "mouth": "0000ec307dfdfec0cffd2477affc70300000000000050dfeadeeefbdd70000000000000",
+    "key": "33aa4bf5f2da6dd78b1050402db969e746767b7bf801a0adb61e90c4aecb8331"
   },
   "g2_reached": {
     "src": "assets/audio/memory/g2_reached.mp3",
     "duration": 2.57,
-    "mouth": "cefcca07d8988decb6308ec8aefec58aef700000000000000000"
+    "mouth": "cefcca07d8988decb6308ec8aefec58aef700000000000000000",
+    "key": "cb150a438dbbf71887ea6692708dd772df7f066f3770d8d9f3632d632e374052"
   },
   "g2_cliff_ready": {
     "src": "assets/audio/memory/g2_cliff_ready.mp3",
     "duration": 5.29,
-    "mouth": "08ff8403fbff09edefe70dfc00eec9300684300000000000000050dfdb00ae0cc400cfedbbeec6effebeee80ceade7000000000000"
+    "mouth": "08ff8403fbff09edefe70dfc00eec9300684300000000000000050dfdb00ae0cc400cfedbbeec6effebeee80ceade7000000000000",
+    "key": "857c937700c1aec617c336eedbcbd8334e7eec09126f7e4a900b25e941a5c7c3"
   },
   "g2_flown": {
     "src": "assets/audio/memory/g2_flown.mp3",
     "duration": 2.41,
-    "mouth": "00dfecddfdbbdc48dd80000edfdcbffbbfd00000000000000"
+    "mouth": "00dfecddfdbbdc48dd80000edfdcbffbbfd00000000000000",
+    "key": "97639b1718f6823d076056d53d09eaea23a97ca729d7a71d361f673c48372647"
   },
   "g2_climb": {
     "src": "assets/audio/memory/g2_climb.mp3",
     "duration": 3.13,
-    "mouth": "05efa600dc52cfecfee800b90000000000000eee9b9dfefd25b900000000000"
+    "mouth": "05efa600dc52cfecfee800b90000000000000eee9b9dfefd25b900000000000",
+    "key": "b57e3627d8779051a3502ffd9d703319c7412fa68091fb8220d90013c71aaa05"
   },
   "g2_bridge": {
     "src": "assets/audio/memory/g2_bridge.mp3",
     "duration": 3.21,
-    "mouth": "7efddceeffc587efedb8000000000006fea777eebceea0ad69cba500000000000"
+    "mouth": "7efddceeffc587efedb8000000000006fea777eebceea0ad69cba500000000000",
+    "key": "3904cc6fd2a08655ce7115599d07e33ef6134af2244db6f7637980a4ca79c305"
   },
   "g2_pull_ready": {
     "src": "assets/audio/memory/g2_pull_ready.mp3",
     "duration": 2.57,
-    "mouth": "06efeded200fe0053008feeeeed93efdeef908d7000000000000"
+    "mouth": "06efeded200fe0053008feeeeed93efdeef908d7000000000000",
+    "key": "758b0d4449d8642ae1106220fd0917653919f839a05879b169e7b20fbd5a3772"
   },
   "g2_pull": {
     "src": "assets/audio/memory/g2_pull.mp3",
     "duration": 2.73,
-    "mouth": "7ff9000000000000000efdc730000000000069fff8aa70000000000"
+    "mouth": "7ff9000000000000000efdc730000000000069fff8aa70000000000",
+    "key": "74c9a7e14b2e7d8e840449daf406a32cdfdc69488326df48ce336612979d8246"
   },
   "g2_won": {
     "src": "assets/audio/memory/g2_won.mp3",
     "duration": 5.05,
-    "mouth": "ce8006aeb3afa0406fc4bfeffeee70db878bfdddfe80cd49cba700000000000008ddedefd00000efc70cfc3bb600000000000"
+    "mouth": "ce8006aeb3afa0406fc4bfeffeee70db878bfdddfe80cd49cba700000000000008ddedefd00000efc70cfc3bb600000000000",
+    "key": "4efcfac8c450c68ef8b7f8c5d0bcba55468d8cce93291c4b53d6d6eac16848b5"
   },
   "g2_help": {
     "src": "assets/audio/memory/g2_help.mp3",
     "duration": 14.01,
-    "mouth": "00dfe55f8009deedaccbacdddff90adda44ff8dcdeefaba963000000000087efee50edcbca0cc9aecdb700bda0000000000ccdcb6fc87eb0bb8400eedd58cda00000000009eda570cdcbca0cec9eedb957fe00000000008d900adeed9ddcbcc3aed000beec967750000000000000cfffdefdd46ffdeda00cdbed6038db9678ffdcffc70d96aa9850000000000"
+    "mouth": "00dfe55f8009deedaccbacdddff90adda44ff8dcdeefaba963000000000087efee50edcbca0cc9aecdb700bda0000000000ccdcb6fc87eb0bb8400eedd58cda00000000009eda570cdcbca0cec9eedb957fe00000000008d900adeed9ddcbcc3aed000beec967750000000000000cfffdefdd46ffdeda00cdbed6038db9678ffdcffc70d96aa9850000000000",
+    "key": "6839f15ac2b791d2f76f4430328fa4221084c1deb021e316e02ea0c1ad8d274f"
   }
 }

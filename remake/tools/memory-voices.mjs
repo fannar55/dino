@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 // Voices the memory game's Mosi lines (remake/engine/memory/voice-lines.js) with ElevenLabs Eleven v4, in his approved voice at
 // speed .95, into remake/assets/audio/memory/; never changes other games.
-//   node remake/tools/memory-voices.mjs [--only id,id]           make the lines (all, or just these) and install them
+//   node remake/tools/memory-voices.mjs --only id,id              make these lines and install them
+//   node remake/tools/memory-voices.mjs --all                     make every line and install it (said explicitly: never a plain run)
 //   node remake/tools/memory-voices.mjs --dry [--only id,id]      what each line sends, the notes on it (REJECTED, fixes elsewhere),
 //                                                                 and whether that is what made its MP3; asks nothing (--dry-run too)
 //   node remake/tools/memory-voices.mjs --plan                    the lines whose MP3 is not of the request the tool sends now; asks nothing
-//   node remake/tools/memory-voices.mjs --ab [--only id,id] [--out dir]   new takes of those lines beside the shipped ones, NOT installed,
-//                                                                 on a yes/no page (<out>/ab.html) whose save heard.mjs imports
+//   node remake/tools/memory-voices.mjs --ab --only id,id | --all [--out dir]   new takes of these lines (--all: the lines --plan lists)
+//                                                                 beside the shipped ones, NOT installed, on a yes/no page (<out>/ab.html) whose save heard.mjs imports
 //   node remake/tools/memory-voices.mjs --try <file.json> [--out dir]     candidates for one line (a rejected one), NOT installed
 //   node remake/tools/memory-voices.mjs --verify                  the shipped MP3s, their manifest and the requests that made them
 // (making lines, --ab and --try need ffmpeg/ffprobe, and ELEVENLABS_API_KEY in the environment for a take no cache has yet)
+// A flag it does not know, a stray word, two modes, or no mode at all: it prints this usage and makes nothing (exit 1).
 //
 // THE PRONUNCIATION STANDARD. Every line goes through remake/assets/audio/pronunciation.json with the functions voice-lines.mjs
 // and yatzy-junior-voices.mjs use (pronunciation.mjs requestFor -> applyLexicon): each form of a word the owner chose a recipe for
@@ -62,9 +64,13 @@
 // imports: <out>/voices-made.json and <out>/minnisspil/lines-source.json. Nothing is installed: the take he picks goes in as the
 // line's own fields, `kept`, with its `fixes`.
 //
-// THE RECORD of which request made each MP3 is .tools/elevenlabs-remake/memory-index.json (id -> cache key), in this checkout only.
+// THE RECORD of which request made each MP3 is the `key` of its entry in remake/assets/audio/memory/manifest.json (the cache key of
+// the request, voice-lines.mjs cacheKey; a kept line's is the key of its kept request), tracked, so that every checkout reads the
+// same; the tool writes it with the entry, as voice-lines.mjs writes voices-made.json as it masters a line. A line whose entry has no
+// key yet falls back to this checkout's .tools/elevenlabs-remake/memory-index.json (where the record was kept before 2026-11-06).
 // --verify passes a line whose MP3 is of its own request but which the lexicon would now send otherwise, or of the book's request
-// that Ný 3 now sends otherwise, and lists it under "waitingForOwner" (see --plan and --ab); any other mismatch fails.
+// that Ný 3 now sends otherwise, and lists it under "waitingForOwner" (see --plan and --ab); any other mismatch fails, and so does a
+// shipped take the owner said "nei" to.
 //
 // ELEVENLABS_API_KEY is read only from the process environment and sent only in the ElevenLabs API header; never printed, logged
 // or written. Raw takes are kept in .tools/elevenlabs-remake/<cache key>.mp3 (voice-lines.mjs cacheKey: the text sent, context,
@@ -111,7 +117,19 @@ export function guard(items,heard=readHeard(ROOT)){for(const{label,key}of items)
 const OWN=['say','context','seed'];
 const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']});
 const writeJson=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(`${file}.part`,`${JSON.stringify(value,null,2)}\n`);fs.renameSync(`${file}.part`,file);};
+/** This checkout's old local record (id -> cache key), read only where the manifest has no key for a line. */
 export const readIndex=()=>readJson(INDEX,{});
+export const MANIFEST=path.join(FOLDER,'manifest.json');
+/** The shipped lines' manifest: id -> { src, duration, mouth, key }. */
+export const readManifest=()=>readJson(MANIFEST,{});
+/** THE RECORD: id -> the cache key of the request that made its MP3: its manifest entry's `key`, else the local index's. */
+export function recordOf(manifest=readManifest(),index=readIndex()){
+  const record={...index};
+  for(const[id,entry]of Object.entries(manifest))if(typeof entry?.key==='string')record[id]=entry.key;
+  return record;
+}
+/** A manifest entry for a line's MP3 (audio-lines.mjs lineEntry: src, duration, mouth) and the key of the request that made it. */
+const entryOf=(file,id,key)=>({...lineEntry(file,`assets/audio/memory/${id}.mp3`),key});
 
 // ---------------------------------------------------------------------------------------------
 // What is sent
@@ -182,13 +200,13 @@ export function uncovered(text,lexicon){
 /**
  * Each line's state: `sent` and `key` (what the tool sends now), `ownKey` (its own request: what the tool sent before it applied
  * the lexicon), `bookKey` (the book's request, before Ný 3; a kept line's own), `shipped` (the key that made its MP3, from the
- * record), and `state`: "same" (the MP3 is of the request sent now), "ny3" (it is of the book's request, which Ný 3 now sends
+ * record: recordOf), and `state`: "same" (the MP3 is of the request sent now), "ny3" (it is of the book's request, which Ný 3 now sends
  * otherwise: the owner has not approved it), "lexicon" (it is of the line's own request; the lexicon would send it otherwise) or
  * "stale" (of none of them, or not made). `heard` is the owner's verdicts, read once and passed through.
  */
-export function statesOf(lexicon,index=readIndex(),lines=LINES,heard=readHeard(ROOT)){
+export function statesOf(lexicon,record=recordOf(),lines=LINES,heard=readHeard(ROOT)){
   return lines.map(([id,line])=>{
-    const sent=memoryRequest(line,lexicon,{heard}),key=fingerprintOf(sent),ownKey=fingerprintOf(ownRequest(line)),shipped=index[id]??null;
+    const sent=memoryRequest(line,lexicon,{heard}),key=fingerprintOf(sent),ownKey=fingerprintOf(ownRequest(line)),shipped=record[id]??null;
     const bookKey=line.kept===undefined?fingerprintOf(bookRequest(line,lexicon)):ownKey;
     const state=shipped===key?'same':shipped===bookKey?'ny3':shipped===ownKey?'lexicon':'stale';
     return{id,line,sent,key,ownKey,bookKey,shipped,state,uncovered:uncovered(line.text,lexicon)};
@@ -240,11 +258,16 @@ export async function takeOf(sent,{apiKey=process.env.ELEVENLABS_API_KEY,label='
   return{raw,key,asked:true};
 }
 
-/** A raw take mastered like the game's lines (about -18 LUFS, a quarter second after the voice, mono 44.1 kHz, 96 kbps). */
-export function master(raw,target){
+/**
+ * A raw take mastered like the game's lines (about -18 LUFS, a quarter second after the voice, mono 44.1 kHz, 96 kbps), into a
+ * part file that `check(part)` looks at first (it throws to keep what is there: the part file goes, the target is untouched), then
+ * renamed over the target.
+ */
+export function master(raw,target,check=null){
   fs.mkdirSync(path.dirname(target),{recursive:true});
   const part=target.replace(/\.mp3$/,'.part.mp3');
   run('ffmpeg',['-hide_banner','-loglevel','error','-y','-i',raw,'-map_metadata','-1','-af',MASTER,'-ar','44100','-ac','1','-codec:a','libmp3lame','-b:a','96k',part]);
+  try{check?.(part);}catch(error){fs.rmSync(part,{force:true});throw error;}
   fs.renameSync(part,target);
 }
 
@@ -299,50 +322,6 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 2
 .bar { position: sticky; bottom: 0; background: var(--paper); border-top: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 12px; align-items: center; justify-content: center; }
 button { font: inherit; padding: .4rem 1rem; border-radius: 8px; border: 1px solid var(--ink); background: var(--card); color: var(--ink); cursor: pointer; }
 </style>`;
-
-/**
- * The page: `sections` of { title, note, rows }, each row { id, text (HTML, words marked), why, takes: [{ value, label, src, how }] }.
- * The owner picks one take per row; "Vista val" saves <file> with { id: value }.
- */
-export function talPage({title,intro,sections,file='val.json'}){
-  const row=item=>`<div class="line" data-id="${escapeHtml(item.id)}">
-  <p class="text">${item.text} <code>${escapeHtml(item.id)}</code></p>${item.why?`\n  <p class="why">${escapeHtml(item.why)}</p>`:''}
-  <div class="takes">${item.takes.map(take=>`
-    <label class="take"><span><input type="radio" name="${escapeHtml(item.id)}" value="${escapeHtml(take.value)}"> ${escapeHtml(take.label)}</span>
-      <audio controls preload="none" src="${escapeHtml(take.src)}"></audio>${take.how?`<small>${escapeHtml(take.how)}</small>`:''}</label>`).join('')}
-  </div>
-</div>`;
-  return `<!doctype html>
-<html lang="is">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>
-${PAGE_STYLE}
-</head>
-<body>
-<main>
-<h1>${escapeHtml(title)}</h1>
-<p class="intro">${escapeHtml(intro)}</p>
-${sections.filter(section=>section.rows.length).map(section=>`<h2>${escapeHtml(section.title)}</h2>${section.note?`\n<p class="note">${escapeHtml(section.note)}</p>`:''}\n${section.rows.map(row).join('\n')}`).join('\n')}
-</main>
-<div class="bar"><span id="count"></span><button id="save" type="button">Vista val</button></div>
-<script>
-  const ids = [...document.querySelectorAll('.line')].map(line => line.dataset.id);
-  const choices = () => Object.fromEntries(ids.flatMap(id => { const input = document.querySelector('input[name="' + CSS.escape(id) + '"]:checked'); return input ? [[id, input.value]] : []; }));
-  const count = () => { document.getElementById('count').textContent = Object.keys(choices()).length + ' af ' + ids.length + ' valdar'; };
-  document.addEventListener('change', count);
-  count();
-  document.getElementById('save').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(choices(), null, 2) + '\\n'], { type: 'application/json' });
-    const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(file)} });
-    document.body.append(link); link.click(); link.remove();
-  });
-</script>
-</body>
-</html>
-`;
-}
 
 /**
  * The yes/no page whose save heard.mjs imports: `sections` of { title, note, rows }; a row { id, text (HTML), why, takes: [{ id,
@@ -417,8 +396,8 @@ ${sections.map(section=>`<h2>${escapeHtml(section.title)}</h2>${section.note?`\n
 // The modes
 
 /** --plan's findings: `make` (lines whose MP3 is not of the request sent now), `kept` (kept lines the lexicon would send otherwise), `hidden`, `uncovered`. */
-export function planOf(lexicon,index=readIndex(),heard=readHeard(ROOT)){
-  const states=statesOf(lexicon,index,LINES,heard);
+export function planOf(lexicon,record=recordOf(),heard=readHeard(ROOT)){
+  const states=statesOf(lexicon,record,LINES,heard);
   return{
     states,
     make:states.filter(item=>item.state!=='same'),
@@ -440,8 +419,8 @@ export function notesOf(lexicon,states,heard=readHeard(ROOT)){
 }
 
 function dryRun(only){
-  const lexicon=readLexicon(ROOT),index=readIndex(),heard=readHeard(ROOT);
-  const states=statesOf(lexicon,index,LINES,heard).filter(item=>!only||only.includes(item.id));
+  const lexicon=readLexicon(ROOT),heard=readHeard(ROOT);
+  const states=statesOf(lexicon,recordOf(),LINES,heard).filter(item=>!only||only.includes(item.id));
   const cached=item=>fs.existsSync(path.join(CACHE,`${item.key}.mp3`))||siblingCaches(ROOT).some(dir=>fs.existsSync(path.join(dir,`${item.key}.mp3`)));
   const changed=states.filter(item=>item.key!==item.ownKey),notes=notesOf(lexicon,states,heard),rejected=states.filter(item=>rejection(heard,item.key));
   const approved=states.filter(item=>item.sent.approved),ny3=states.filter(item=>item.sent.ny3);
@@ -492,12 +471,12 @@ const howSent=(sent,line)=>[sent.text!==line.text?`sent: ${sent.text}`:'',sent.c
  * The rows of an A/B page for these lines (janoPage's): the shipped take, "<id>_gamla", beside the take the tool would send were the
  * line not kept, "<id>_nyja", picked when the page opens. Writes the MP3s under `out`, ab.json (what each new take sent, and the
  * old take's key) and the page record with both takes (addToPageRecord: key and MP3 sha256 of each), so that heard.mjs --made
- * <out>/voices-made.json imports his save. The old take is on the page when its MP3 is there and the record (memory-index.json)
- * says which request made it, and that request is not the new one.
+ * <out>/voices-made.json imports his save. The old take is on the page when its MP3 is there and the record (recordOf: the
+ * manifest's key) says which request made it, and that request is not the new one.
  */
 export async function abTakes({ids,out=path.join(ROOT,AB_OUT),log=console.log,heard=readHeard(ROOT)}){
   const lexicon=readLexicon(ROOT);
-  const states=statesOf(lexicon,readIndex(),LINES.filter(([id])=>ids.includes(id)),heard);
+  const states=statesOf(lexicon,recordOf(),LINES.filter(([id])=>ids.includes(id)),heard);
   stopIfUncovered(states);
   stopIfFixes(lexicon);
   const sentOf=line=>memoryRequest(line,lexicon,{ignoreKept:true,heard});
@@ -566,7 +545,7 @@ export function variantsOf(spec,lexicon){
 export async function tryTakes({file,out=path.join(ROOT,TRY_OUT),log=console.log}){
   const spec=readJson(path.resolve(file),null),lexicon=readLexicon(ROOT),heard=readHeard(ROOT);
   const items=variantsOf(spec,lexicon);
-  stopIfUncovered(statesOf(lexicon,readIndex(),[[spec.line,VOICE_LINES[spec.line]]],heard));
+  stopIfUncovered(statesOf(lexicon,recordOf(),[[spec.line,VOICE_LINES[spec.line]]],heard));
   guard(items.map(item=>({label:`${SET}/${spec.line} (${item.name})`,key:item.key})),heard);
   run('ffmpeg',['-version']);
   const variants={};
@@ -596,7 +575,8 @@ export function abIntro(rows){
 
 async function abMode(only,out){
   const lexicon=readLexicon(ROOT),heard=readHeard(ROOT);
-  const ids=only??planOf(lexicon,readIndex(),heard).make.map(item=>item.id);
+  // (--ab --all: the lines --plan lists; parseArgs has made sure one of the two was said)
+  const ids=only??planOf(lexicon,recordOf(),heard).make.map(item=>item.id);
   if(!ids.length){console.log('Nothing to compare: every MP3 is of the request the tool sends now.');return;}
   const rows=await abTakes({ids,out,heard});
   fs.writeFileSync(path.join(out,'ab.html'),janoPage({title:'Mosi: gamla takan eða sú nýja',intro:abIntro(rows),sections:[{title:'Línur',rows}],none:{label:'Báðar rangar',how:'Hvorug takan segir línuna rétt.'}}));
@@ -613,18 +593,30 @@ export function rejectedMp3(heard,id){
   return latest?.verdict==='nei'?latest:null;
 }
 
+/**
+ * --verify's findings ({ issues, waitingForOwner, rejectedByOwner }) for the lines' states and the manifest, without the files' own
+ * checks: a line waiting for the owner passes (state "ny3" or "lexicon"), a stale one fails, and so does one whose shipped take he said
+ * "nei" to (by the record's key, or by its MP3's sha256: `rejectedMp3(id)`).
+ */
+export function verdictIssues(states,heard,rejectedMp3Of=id=>rejectedMp3(heard,id)){
+  const issues=[],waitingForOwner=[],rejectedByOwner=[];
+  for(const item of states){
+    if(item.state==='lexicon'||item.state==='ny3')waitingForOwner.push(item.id);
+    else if(item.state==='stale')issues.push(`${item.id}: stale script/model/settings fingerprint`);
+    if((item.shipped&&rejection(heard,item.shipped))||rejectedMp3Of(item.id)){rejectedByOwner.push(item.id);issues.push(`${item.id}: ships a take the owner said "nei" to: make it again (--plan)`);}
+  }
+  return{issues,waitingForOwner,rejectedByOwner};
+}
+
 function verify(){
-  const lexicon=readLexicon(ROOT),index=readIndex(),manifest=readJson(path.join(FOLDER,'manifest.json'),{}),heard=readHeard(ROOT);
-  const issues=[],waitingForOwner=[],rejectedByOwner=[];let duration=0,bytes=0;
-  for(const item of statesOf(lexicon,index,LINES,heard)){
+  const lexicon=readLexicon(ROOT),manifest=readManifest(),heard=readHeard(ROOT),states=statesOf(lexicon,recordOf(manifest),LINES,heard);
+  const{issues,waitingForOwner,rejectedByOwner}=verdictIssues(states,heard);let duration=0,bytes=0;
+  for(const item of states){
     const{id}=item,entry=manifest[id],file=path.join(FOLDER,`${id}.mp3`);
     if(!entry||!fs.existsSync(file)){issues.push(`${id}: missing audio/manifest`);continue;}
     if(entry.src!==`assets/audio/memory/${id}.mp3`||!(entry.duration>.3&&entry.duration<40)||!/^[0-9a-f]+$/.test(entry.mouth))issues.push(`${id}: invalid manifest entry`);
     if(!/[1-9a-f]/.test(entry.mouth)||!entry.mouth.endsWith('000'))issues.push(`${id}: silent voice or missing closing silence`);
     if(Math.abs(entry.mouth.length-entry.duration*20)>3)issues.push(`${id}: mouth duration mismatch`);
-    if(item.state==='lexicon'||item.state==='ny3')waitingForOwner.push(id);
-    else if(item.state==='stale')issues.push(`${id}: stale script/model/settings fingerprint`);
-    if((item.shipped&&rejection(heard,item.shipped))||rejectedMp3(heard,id))rejectedByOwner.push(id);
     const probe=JSON.parse(run('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_name,sample_rate,channels','-of','json',file]));
     if(probe.streams[0]?.codec_name!=='mp3'||probe.streams[0]?.channels!==1||probe.streams[0]?.sample_rate!=='44100'||Math.abs(Number(probe.format.duration)-entry.duration)>.002)issues.push(`${id}: audio format/duration mismatch`);
     duration+=entry.duration;bytes+=fs.statSync(file).size;
@@ -633,31 +625,51 @@ function verify(){
   return{clips:LINES.length,spokenLines:LINES.length,kept:LINES.filter(([,line])=>line.kept!==undefined).length,waitingForOwner,rejectedByOwner,durationSeconds:Math.round(duration*1000)/1000,bytes,model:MODEL,voiceId:VOICE_ID,language:'is',mouthRate:20};
 }
 
-async function generate(only){
-  const lexicon=readLexicon(ROOT),index=readIndex(),heard=readHeard(ROOT),manifestFile=path.join(FOLDER,'manifest.json'),manifest=readJson(manifestFile,{});
-  const selected=statesOf(lexicon,index,LINES,heard).filter(item=>!only||only.includes(item.id));
+/**
+ * What a run that makes lines would do (generate), before anything is asked for or installed: the selected states, each with
+ * `install` (false for a kept line: never asked for, never mastered over, only its manifest entry renewed from the MP3 that is there)
+ * and `master` (a line to install whose shipped MP3 is not of its request: mastered from its take; the generate also masters one whose
+ * MP3 is missing). Throws, making nothing, when the lines are not named (`only`, the ids of --only) nor all asked for (`all`, --all),
+ * when a named line is not one, when a word is none of its word's forms, and when the owner said "nei" to exactly the request of a
+ * selected line (the guard; a kept line's too: a take he later said no to is not kept). Pure but for the guard's reading of `heard`.
+ */
+export function installPlan(states,{only=null,all=false,heard}){
+  if(!all&&!only?.length)throw new Error(`Name the lines to make with --only <ids>, or say --all. Nothing was made.\n${USAGE}`);
+  if(all&&only)throw new Error(`--only and --all do not go together. Nothing was made.\n${USAGE}`);
+  const unknown=(only??[]).filter(id=>!states.some(item=>item.id===id));
+  if(unknown.length)throw new Error(`Not a memory line: ${unknown.join(', ')}. Nothing was made.`);
+  const selected=states.filter(item=>all||only.includes(item.id));
   stopIfUncovered(selected);
-  stopIfFixes(lexicon);
-  // a kept line is never asked for or mastered over, but its request is still checked: a take he later said no to is not kept
   guard(selected.map(item=>({label:`${SET}/${item.id}`,key:item.key})),heard);
-  const missingKept=selected.filter(item=>item.line.kept!==undefined&&!fs.existsSync(path.join(FOLDER,`${item.id}.mp3`))).map(item=>item.id);
+  return selected.map(item=>({...item,install:item.line.kept===undefined,master:item.line.kept===undefined&&item.shipped!==item.key}));
+}
+
+async function generate({only=null,all=false}){
+  const lexicon=readLexicon(ROOT),heard=readHeard(ROOT),manifest=readManifest(),record=recordOf(manifest);
+  const selected=installPlan(statesOf(lexicon,record,LINES,heard),{only,all,heard});
+  stopIfFixes(lexicon);
+  const missingKept=selected.filter(item=>!item.install&&!fs.existsSync(path.join(FOLDER,`${item.id}.mp3`))).map(item=>item.id);
   if(missingKept.length)throw new Error(`Kept lines without their MP3: ${missingKept.join(', ')}. No request was made.`);
   fs.mkdirSync(FOLDER,{recursive:true});
-  let next=0,generated=0,cached=0;
+  // (each entry is written with the key of the request that made its MP3: the record, tracked; a kept line's is its kept request's)
+  const install=(item,file)=>{manifest[item.id]=entryOf(file,item.id,item.key);writeJson(MANIFEST,manifest);};
+  const length=(id,file)=>{const{duration}=lineEntry(file,`assets/audio/memory/${id}.mp3`);if(!(duration>.3&&duration<40))throw new Error(`${id}: unexpected clip duration (${duration} s); the shipped MP3 was not replaced.`);};
+  let next=0,generated=0,cached=0,stop=false;
   const worker=async()=>{
-    while(next<selected.length){
+    // (the first failure stops both: the other one makes no further request and installs nothing more)
+    while(!stop&&next<selected.length){
       const item=selected[next++],target=path.join(FOLDER,`${item.id}.mp3`);
-      if(item.line.kept!==undefined){ // never asked for again, never mastered over: its entry is renewed from the MP3 that is there
-        manifest[item.id]=lineEntry(target,`assets/audio/memory/${item.id}.mp3`);writeJson(manifestFile,manifest);
-        console.log(`Kept ${item.id}: ${item.line.kept}`);continue;
-      }
-      const{raw,key,asked}=await takeOf(item.sent,{label:item.id});
-      if(asked)generated++;else cached++;
-      if(index[item.id]!==key||!fs.existsSync(target))master(raw,target);
-      manifest[item.id]=lineEntry(target,`assets/audio/memory/${item.id}.mp3`);
-      if(!(manifest[item.id].duration>.3&&manifest[item.id].duration<40))throw new Error(`${item.id}: unexpected clip duration.`);
-      index[item.id]=key;writeJson(manifestFile,manifest);writeJson(INDEX,index);
-      console.log(`${item.id}: ${manifest[item.id].duration}s`);
+      try{
+        if(!item.install){install(item,target);console.log(`Kept ${item.id}: ${item.line.kept}`);continue;}
+        const{raw,asked}=await takeOf(item.sent,{label:item.id});
+        if(asked)generated++;else cached++;
+        if(stop)return;
+        // (mastered into a part file whose length is checked before it goes over the shipped MP3)
+        if(item.master||!fs.existsSync(target))master(raw,target,part=>length(item.id,part));
+        else length(item.id,target);
+        install(item,target);
+        console.log(`${item.id}: ${manifest[item.id].duration}s`);
+      }catch(error){stop=true;throw error;}
     }
   };
   // Two requests at a time; retries only follow explicit rate-limit rejection.
@@ -666,17 +678,54 @@ async function generate(only){
   console.log(JSON.stringify({generated,cached,...verify()},null,2));
 }
 
+export const USAGE=`Usage: memory-voices.mjs --only id,id | --all      make the lines and install them
+       memory-voices.mjs --dry [--only id,id]      what each line sends (asks nothing; --dry-run too)
+       memory-voices.mjs --plan                    the lines whose MP3 is not of the request sent now
+       memory-voices.mjs --ab --only id,id | --all [--out dir]   new takes beside the shipped ones, not installed (--all: the --plan lines)
+       memory-voices.mjs --try <file.json> [--out dir]           candidates for one line, not installed
+       memory-voices.mjs --verify                  the shipped MP3s, their manifest and the requests that made them`;
+
+/**
+ * The command line, strictly (as heard.mjs and voice-lines.mjs read theirs): { mode: 'make' | 'dry' | 'plan' | 'verify' | 'ab' | 'try',
+ * only, all, out, file }. An unknown flag, a stray word, a flag given twice, two modes, a flag that does not go with the mode, or no mode
+ * (a plain run, or one with only --out) throws with the usage: nothing is made.
+ */
+export function parseArgs(argv){
+  const fail=why=>{throw new Error(`${why}\n${USAGE}`);};
+  const args={mode:null,only:null,all:false,out:null,file:null},seen=new Set(),modes=[];
+  const valueOf=(i,flag,what)=>{const next=argv[i];if(next===undefined||next.startsWith('--')||!next.trim())fail(`${flag} needs ${what}.`);return next;};
+  for(let i=0;i<argv.length;i++){
+    const arg=argv[i],flag=arg==='--dry-run'?'--dry':arg;
+    if(seen.has(flag))fail(`${arg} is given twice.`);
+    if(flag==='--only'){args.only=valueOf(++i,'--only','line ids, separated by commas').split(',').map(id=>id.trim()).filter(Boolean);if(!args.only.length)fail('--only needs line ids, separated by commas.');}
+    else if(flag==='--all')args.all=true;
+    else if(flag==='--out')args.out=valueOf(++i,'--out','a folder');
+    else if(flag==='--try'){args.file=valueOf(++i,'--try','a candidates file');modes.push('try');}
+    else if(['--dry','--plan','--verify','--ab'].includes(flag))modes.push(flag.slice(2));
+    else fail(`Unknown argument: ${arg}`);
+    seen.add(flag);
+  }
+  for(const id of args.only??[])if(!Object.hasOwn(VOICE_LINES,id))fail(`Unknown memory line: ${id}`);
+  if(modes.length>1)fail(`${modes.map(mode=>`--${mode}`).join(' and ')} do not go together.`);
+  args.mode=modes[0]??(args.only||args.all?'make':null);
+  if(!args.mode)fail('Say what to do: name the lines to make with --only <ids> (or say --all), or give --dry, --plan, --ab, --try or --verify. Nothing was made.');
+  if(args.only&&args.all)fail('--only and --all do not go together.');
+  if(['plan','verify','try'].includes(args.mode)&&(args.only||args.all))fail(`--${args.mode} does not take --only or --all.`);
+  if(args.mode==='dry'&&args.all)fail('--dry reads every line already; --only picks some.');
+  if(args.mode==='ab'&&!args.only&&!args.all)fail('--ab makes takes: name the lines with --only <ids>, or say --all (the lines --plan lists).');
+  if(args.out!==null&&!['ab','try'].includes(args.mode))fail('--out goes with --ab and --try.');
+  return args;
+}
+
 async function main(argv){
-  const value=flag=>{const at=argv.indexOf(flag);return at>=0?argv[at+1]||'':null;};
-  const only=value('--only')?.split(',').filter(Boolean)??null,out=value('--out'),tried=value('--try');
-  for(const id of only??[])if(!Object.hasOwn(VOICE_LINES,id))throw new Error(`Unknown memory line: ${id}`);
-  if(argv.includes('--plan')){printPlan();return;}
-  if(argv.includes('--dry-run')||argv.includes('--dry')){dryRun(only);return;}
+  const args=parseArgs(argv),out=args.out===null?null:path.resolve(ROOT,args.out);
+  if(args.mode==='plan'){printPlan();return;}
+  if(args.mode==='dry'){dryRun(args.only);return;}
   run('ffmpeg',['-version']);run('ffprobe',['-version']);
-  if(argv.includes('--verify')){console.log(JSON.stringify({verified:true,...verify()},null,2));return;}
-  if(tried!==null){if(!tried)throw new Error('--try needs a candidates file.');const made=await tryTakes({file:tried,...(out?{out:path.resolve(ROOT,out)}:{})});console.log(`${Object.keys(made.variants).length} candidates in ${path.relative(ROOT,out?path.resolve(ROOT,out):path.join(ROOT,TRY_OUT))}/try/ (try.json, voices-made.json)`);return;}
-  if(argv.includes('--ab')){await abMode(only,out?path.resolve(ROOT,out):path.join(ROOT,AB_OUT));return;}
-  await generate(only);
+  if(args.mode==='verify'){console.log(JSON.stringify({verified:true,...verify()},null,2));return;}
+  if(args.mode==='try'){const made=await tryTakes({file:args.file,...(out?{out}:{})});console.log(`${Object.keys(made.variants).length} candidates in ${path.relative(ROOT,out??path.join(ROOT,TRY_OUT))}/try/ (try.json, voices-made.json)`);return;}
+  if(args.mode==='ab'){await abMode(args.only,out??path.join(ROOT,AB_OUT));return;}
+  await generate({only:args.only,all:args.all});
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
