@@ -769,6 +769,8 @@ async function main() {
       if (report.idleRepeat) return;
       const key = (await ev(SNAPSHOT_JS)).story.key, last = await ev('window.__memory.lastLine()');
       const line = (last?.key === key ? last.id : LEVEL.voice?.[key]) ?? null;
+      // (a touch on the empty screen: the idle clock starts from 0, so the wait is the whole 15 s and the repeat falls inside it)
+      await ev("document.getElementById('game').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))");
       const before = (await ev('window.__memory.audio().speech.started')).length;
       step(`idle wait for Mosi's repeat (${where})`, { key, line });
       await waitFor('window.__memory.idle() > 15', 40000, "the idle clock's 15 s"); await sleep(800);
