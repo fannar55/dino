@@ -68,15 +68,14 @@ img{-webkit-user-drag:none}
 .basket.got .basket-icon{animation:basket-got .6s cubic-bezier(.3,1.5,.5,1)}
 @keyframes basket-got{0%{transform:scale(1)}28%{transform:scale(1.4) rotate(-9deg)}58%{transform:scale(.88) rotate(5deg)}100%{transform:scale(1)}}
 
-/* ---- "Spyrja Mosa" (yatzy-junior.css .mosi-help): his face with a "?", bottom left. His picture is an <img> here, cropped to his face; the
-   shine is drawn over it. Hidden until the round starts (game.js sets #game[data-playing]) ---- */
+/* ---- "Spyrja Mosa" (yatzy-junior.css .mosi-help, as it is there): his face with a "?", bottom left. Hidden, with the pause,
+   until the round starts (game.js sets #game[data-playing]) ---- */
 .mosi-help{position:absolute;z-index:5;left:max(22px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:112px;height:112px;padding:0;border-radius:50%;border:3px solid var(--ink);
-  background:radial-gradient(circle at 50% 40%,#fffaf0,#e9e3c4);
+  background:radial-gradient(circle at 34% 24%,rgb(255 255 255 / .45),transparent 40%),url('./assets/eitt/mosi.webp') 55% 40% / 150% auto no-repeat,radial-gradient(circle at 50% 40%,#fffaf0,#e9e3c4);
   box-shadow:0 7px 0 #5e6340,0 7px 0 3px var(--ink),0 14px 16px 2px rgb(40 24 10 / .34)}
-.mosi-help img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:55% 40%;pointer-events:none}
-.mosi-help::before{content:"";position:absolute;z-index:1;inset:0;border-radius:50%;background:radial-gradient(circle at 34% 24%,rgb(255 255 255 / .45),transparent 40%);pointer-events:none}
-.mosi-help::after{content:"?";position:absolute;z-index:2;right:-6px;top:-6px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:900;color:var(--ink);background:var(--gold);border:3px solid var(--ink);box-shadow:0 3px 0 var(--gold-deep)}
+.mosi-help::after{content:"?";position:absolute;right:-6px;top:-6px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:1000;color:var(--ink);background:var(--gold);border:3px solid var(--ink);box-shadow:0 3px 0 var(--gold-deep)}
 #game:not([data-playing="true"]) .mosi-help{display:none}
+#game:not([data-playing="true"]) .corner{visibility:hidden}
 
 /* ---- Mosi's bubble beside him (yatzy-junior.css .bubble, its tail towards him): what he says, or else what the child does now ---- */
 .coach{--beside:calc(max(22px,env(safe-area-inset-left)) + 112px + 26px);position:absolute;z-index:5;left:var(--beside);bottom:calc(max(24px,env(safe-area-inset-bottom)) + 8px);
