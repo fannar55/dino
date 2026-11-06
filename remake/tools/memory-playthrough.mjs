@@ -765,22 +765,27 @@ async function main() {
     };
 
     // Mosi's repeat (once idle passes 10 s with a line for the moment): wait at a moment that has a line until idle is about 15 s; the line must begin once more, and never twice for the same moment.
+    // The page's own record of every line that began, with the story key it began under (polled every 100 ms), so that the repeat can be told from the line itself.
+    const LINELOG_JS = `(() => { if (window.__lineLog) return; window.__lineLog = []; let seen = 0; setInterval(() => { const st = window.__memory.audio().speech.started, last = window.__memory.lastLine(); for (; seen < st.length; seen++) window.__lineLog.push({ id: st[seen].id, t: st[seen].t, key: last ? last.key : null }); }, 100); })()`;
     const idleRepeatCheck = async where => {
       if (report.idleRepeat) return;
       const key = (await ev(SNAPSHOT_JS)).story.key, last = await ev('window.__memory.lastLine()');
       const line = (last?.key === key ? last.id : LEVEL.voice?.[key]) ?? null;
-      // (a touch on the empty screen: the idle clock starts from 0, so the wait is the whole 15 s and the repeat falls inside it)
-      await ev("document.getElementById('game').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))");
-      const before = (await ev('window.__memory.audio().speech.started')).length;
-      step(`idle wait for Mosi's repeat (${where})`, { key, line });
-      // (about 15 s: the repeat also waits until his voice has been quiet 3 s, so a line that was still playing may push it a little later; up to 24 s)
-      await waitFor(`window.__memory.idle() > 15 && (window.__memory.idle() > 24 || ${JSON.stringify(line)} === null || window.__memory.audio().speech.started.slice(${before}).some(x => x.id === ${JSON.stringify(line)}))`, 60000, "Mosi's repeat"); await sleep(2000);
-      const now = await ev(SNAPSHOT_JS), began = (await ev('window.__memory.audio().speech.started')).slice(before);
-      const same = line ? began.filter(x => x.id === line) : [];
-      report.idleRepeat = { key, line, at: same[0]?.t ?? null, count: same.length, others: began.filter(x => x.id !== line).map(x => x.id), keyAfter: now.story.key, where };
+      const lines = async () => (await ev('window.__lineLog || []')).filter(x => x.key === key && x.id === line);
+      let at = null, waited = false;
+      if (line && (await lines()).length < 2) {
+        // (a touch on the empty screen: the idle clock starts from 0, so the wait is the whole 15 s and the repeat falls inside it)
+        await ev("document.getElementById('game').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))");
+        step(`idle wait for Mosi's repeat (${where})`, { key, line }); waited = true;
+        // (about 15 s: the repeat also waits until his voice has been quiet 3 s, so a line still playing may push it a little later; up to 24 s)
+        await waitFor(`window.__memory.idle() > 15 && (window.__memory.idle() > 24 || window.__lineLog.filter(x => x.key === ${JSON.stringify(key)} && x.id === ${JSON.stringify(line)}).length >= 2)`, 60000, "Mosi's repeat"); await sleep(2000);
+      }
+      const same = line ? await lines() : [], now = await ev(SNAPSHOT_JS);
+      at = same[1]?.t ?? null;
+      report.idleRepeat = { key, line, at, beganOnTheMoment: same.length, repeats: Math.max(0, same.length - 1), earlierInTheWait: !waited && same.length >= 2, keyAfter: now.story.key, where };
       step('idle repeat', report.idleRepeat);
-      if (same.length > 1) errors.push('Mosi repeated his line twice for one moment: ' + JSON.stringify(report.idleRepeat));
-      else if (line && !same.length && now.story.key === key) errors.push("Mosi's line never began again after the long idle: " + JSON.stringify(report.idleRepeat));
+      if (same.length > 2) errors.push('Mosi repeated his line twice for one moment: ' + JSON.stringify(report.idleRepeat));
+      else if (line && same.length < 2 && now.story.key === key) errors.push("Mosi's line never began again after the long idle: " + JSON.stringify(report.idleRepeat));
     };
 
     if (o.unlocked) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('minnisspil.unlocked', ${JSON.stringify(o.unlocked)}); } catch {}` });
@@ -795,7 +800,7 @@ async function main() {
     // Named moments, kept with the wall clock so they can be placed in round.mp4 (its first frame's stamp) afterwards.
     report.marks = [];
     const mark = name => { if (report.marks.some(entry => entry.name === name)) return; report.marks.push({ name, at: Date.now() / 1000, t: T() }); step(`mark ${name}`); };
-    await ev(TIMELINE_JS);
+    await ev(TIMELINE_JS); await ev(LINELOG_JS);
     if (o.hideHud) await ev("document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '.topbar, #coach, #mosi-help, #targets, #who, #beat-word { display: none !important }' }))");
     if (o.clearance) await ev(CLEARANCE_JS);
     await sleep(700);
@@ -809,7 +814,7 @@ async function main() {
       if (other) {
         await ev(`document.querySelector('.level-card[data-level="${other.level}"]').click()`);
         await sleep(1200); await waitFor('window.__memoryReady === true', 120000, 'the page of the other level');
-        await ev(TIMELINE_JS); await sleep(800); report.picker.afterOtherTap = await ev(READ); await shot('picker-other-level-opened');
+        await ev(TIMELINE_JS); await ev(LINELOG_JS); await sleep(800); report.picker.afterOtherTap = await ev(READ); await shot('picker-other-level-opened');
       }
       step('the level picker', { before: report.picker.before.cards.map(c => `${c.level}:${c.disabled === 'true' ? 'locked' : c.current === 'true' ? 'here' : 'open'}`).join(' '), lockedTapStayed: report.picker.afterLockedTap ? report.picker.afterLockedTap.url === report.picker.before.url && report.picker.afterLockedTap.open : null, otherTapWent: report.picker.afterOtherTap?.url ?? null });
     }
