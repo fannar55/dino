@@ -773,7 +773,8 @@ async function main() {
       await ev("document.getElementById('game').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))");
       const before = (await ev('window.__memory.audio().speech.started')).length;
       step(`idle wait for Mosi's repeat (${where})`, { key, line });
-      await waitFor('window.__memory.idle() > 15', 40000, "the idle clock's 15 s"); await sleep(800);
+      // (about 15 s: the repeat also waits until his voice has been quiet 3 s, so a line that was still playing may push it a little later; up to 24 s)
+      await waitFor(`window.__memory.idle() > 15 && (window.__memory.idle() > 24 || ${JSON.stringify(line)} === null || window.__memory.audio().speech.started.slice(${before}).some(x => x.id === ${JSON.stringify(line)}))`, 60000, "Mosi's repeat"); await sleep(2000);
       const now = await ev(SNAPSHOT_JS), began = (await ev('window.__memory.audio().speech.started')).slice(before);
       const same = line ? began.filter(x => x.id === line) : [];
       report.idleRepeat = { key, line, at: same[0]?.t ?? null, count: same.length, others: began.filter(x => x.id !== line).map(x => x.id), keyAfter: now.story.key, where };
