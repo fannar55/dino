@@ -122,6 +122,42 @@ export const FAR_POOL = {
 };
 
 // ---------------------------------------------------------------------------------------------
+// The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small
+// ponds with lilies and reed, and an open meadow between the groves and the hills where the herd grazes (chunk 4). All of it lies
+// within the valley's corridor (world/ardalur/terrain.js: 160 m round her path), north and south of the upper river, where the wide
+// shot (the vista, F: 125 to 131 s) looks as it swings from the west round to the north-east; the meadow is in its middle at 128 s.
+// terrain.js shapes the ground (hills, the streams' beds, the ponds' basins), river.js draws their water and the ponds' plants, and
+// banks.js grows no tree in the meadow nor anything in the water.
+/** Hills: [x, z, height (m), radius (m)], a smooth bump each, faded out toward the river's edge. */
+export const HILLS = [
+  [-1505, -10, 7, 50], // north, behind the meadow's right in the wide shot; the long stream rises on its flank
+  [-1570, 60, 4, 42], // between the meadow and the river
+  [-1500, 185, 6, 50], // south of the river, on the left as the wide shot begins
+  [-1430, -35, 5, 45], // north, as she turns east
+];
+/** Outcrops: [x, z, scale], big rocks (the forest's rock) standing out of the hills and the grass. */
+export const OUTCROPS = [
+  [-1520, -5, 3.5],
+  [-1575, 52, 2.5],
+  [-1488, 178, 3],
+  [-1540, 50, 2.2],
+  [-1438, -22, 3],
+  [-1470, 20, 2],
+];
+/** Streams: { half (half the water's width, m), path: [[x, z], ...] } from a hill's flank down into the upper river (its last point at the edge). */
+export const STREAMS = [
+  { half: 1.2, path: [[-1508, 5], [-1515, 35], [-1520, 65], [-1522, 95.5]] },
+  { half: 0.85, path: [[-1505, 150], [-1509, 135], [-1512, 117.5]] },
+];
+/** Ponds: [x, z, radius]: a basin each, its water a little under its lowest rim, lilies on it and a bed of reed by it. */
+export const PONDS = [
+  [-1490, 45, 10],
+  [-1455, 158, 9],
+];
+/** The meadow: [x, z, radius], open grass with no tree, the herd's place (chunk 4), in the middle of the wide shot at 128 s. */
+export const MEADOW = [-1555, 15, 28];
+
+// ---------------------------------------------------------------------------------------------
 // Her path: [name, x, y, z]. A name marks a point the schedule (KEYS) pins to a time, or that a shot or a test refers to.
 const body = (x, level, alt, z) => [x, level + alt, z];
 export const POINTS = [
@@ -410,5 +446,7 @@ export function createRoute({ wingspan = 7.5 } = {}) {
     tree: [...TREE],
     // the far pool, with what grows in it and round it (world/ardalur/river.js: poolPlants)
     pool: { center: [...POOL.center], radius: POOL.radius, level: POOL.level, reeds: FAR_POOL.reeds, keep: FAR_POOL.keep },
+    // the land above the falls (terrain.js, river.js, banks.js)
+    land: { hills: HILLS, outcrops: OUTCROPS, streams: STREAMS, ponds: PONDS, meadow: MEADOW },
   };
 }

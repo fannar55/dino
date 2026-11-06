@@ -12,8 +12,8 @@ import * as THREE from 'three';
 import { createRoute, BEATS } from '../../chapters/kafli4-route.js';
 import { createSections, createBuildQueue, finish } from './sections.js';
 import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './terrain.js';
-import { createRiverSurface, createFallsSlot, createPoolSurface, poolPlants } from './river.js';
-import { bankSteps, plantSteps } from './banks.js';
+import { createRiverSurface, createFallsSlot, createPoolSurface, poolPlants, landPlants, createLandWaters } from './river.js';
+import { bankSteps, plantSteps, outcropProps } from './banks.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
 import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
 import { createAnimals } from './animals.js';
@@ -73,8 +73,11 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds }) : null;
   // the far pool's beds of reed, and where nothing else grows by it (river.js): grown with the banks, as the animals' props are
   const pond = real ? poolPlants(route.pool, (x, z) => terrain.heightAt(x, z)) : null;
-  const props = real ? [...animals.props, ...life.props, ...pond.props] : [];
-  const clear = real ? [...animals.clear, ...life.clear, ...pond.clear] : [];
+  // the land above the falls: its ponds' lilies and reed, its outcrops of rock, and nothing else in its water (river.js, banks.js)
+  const upland = real ? landPlants(terrain.waters, (x, z) => terrain.heightAt(x, z)) : null;
+  const outcrops = real ? outcropProps(route, (x, z) => terrain.heightAt(x, z)) : null;
+  const props = real ? [...animals.props, ...life.props, ...pond.props, ...upland.props, ...outcrops.props] : [];
+  const clear = real ? [...animals.clear, ...life.clear, ...pond.clear, ...upland.clear, ...outcrops.clear] : [];
   // round each animal group, on its side of the river, only low plants grow (banks.js LOW): the child sees the animals over them
   const low = real ? animals.groups.map(g => ({ x: g.point.x, z: g.point.z, side: terrain.where(g.point.x, g.point.z).side })) : [];
   // the still shots' views, where nothing stands by the camera or on its line of sight (banks.js VIEW, spec 6)
@@ -88,6 +91,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const always = new THREE.Group();
   always.name = 'Árdalur (always)';
   always.add(createRiverSurface(route, materials.water), createPoolSurface(route.pool, materials.water));
+  const landWaters = createLandWaters(terrain.waters, materials.water);
+  if (landWaters) always.add(landWaters);
   const { falls } = route;
   const waterfall = real
     ? createWaterfall(world, { top: [falls.face, falls.top, falls.z], bottom: [falls.face, falls.base, falls.z], width: falls.width, seed })

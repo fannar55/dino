@@ -160,6 +160,12 @@ export function createFarLand(world, route, { terrain, seed = 4 } = {}) {
     const r = river.at(n.d);
     if (n.dist - r.half < reach) for (const d of [n.d - reach, n.d, n.d + reach]) low = Math.min(low, river.at(d).level - 1.6);
     if (Math.hypot(x - pool.center[0], z - pool.center[1]) < pool.radius + reach) low = Math.min(low, pool.level - 1.6);
+    // the land's ponds and streams above the falls (terrain.js: waters), their basins and beds
+    for (const p of terrain.waters?.ponds ?? []) if (Math.hypot(x - p.x, z - p.z) < p.radius + 8 + reach) low = Math.min(low, p.level - 1.2);
+    for (const s of terrain.waters?.streams ?? []) {
+      const near = s.nearest(x, z);
+      if (near.dist < s.half + 3 + reach) low = Math.min(low, s.levelAt(near.m) - 0.6);
+    }
     return low;
   }
 

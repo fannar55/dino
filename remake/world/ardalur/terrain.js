@@ -1,8 +1,11 @@
 // The land of Árdalurinn (chapter 4's flight), shaped by the river (chapters/kafli4-route.js): a bed under the water, low banks,
 // valley sides that rise gently away from it, the gorge's walls (30 to 45 m) with a rim on top that falls away again behind it, the
 // cliff of the falls (the river's level steps 40 m at the lip, and the land with it, right across the valley), the Fen flat and low
-// round the white snag, and the far pool's basin. heightAt(x, z) is the ground anywhere; a section's ground is a mesh on a 2.5 m
-// grid of the cells within 160 m of the route whose nearest route point is in that section, so the sections meet without seams.
+// round the white snag, and the far pool's basin. Above the falls (route.land: chapters/kafli4-route.js) soft hills roll, two ponds
+// sit in basins a little under their lowest rim, and two streams cut their beds from a hill's flank down into the upper river, their
+// water falling all the way (waters: what river.js draws and banks.js keeps clear). heightAt(x, z) is the ground anywhere; a
+// section's ground is a mesh on a 2.5 m grid of the cells within 160 m of the route whose nearest route point is in that section, so
+// the sections meet without seams.
 import * as THREE from 'three';
 import { FRESH } from '../forest/slices.js';
 
@@ -16,6 +19,74 @@ const lerp = (a, b, k) => a + (b - a) * k;
 const FEN = { center: [-30, 70], radius: 150, blend: 90 };
 /** How much (x, z) is the Fen's: 1 round the snag, 0 out in the valley. */
 export const fenShare = (x, z) => 1 - smooth((Math.hypot(x - FEN.center[0], z - FEN.center[1]) - FEN.radius) / FEN.blend);
+
+// the bed's banks (m) beyond the water, its depth, the water under the ground, and how far out to each side the ground must be over it
+const STREAM = { bank: 2.5, depth: 0.45, under: 0.15, side: 3 };
+const POND = { shore: 8, under: 0.35, rings: [0, 2, 4, 8] }; // the basin's shore (m), its water under the lowest rim, the rims tried
+
+/**
+ * A stream: its path ([[x, z], ...]) from its spring to its mouth, `half` its water's half width, its water's level from `ground`
+ * (the land without it): the lowest the ground has been so far along it and 3 m out to each side (not the river's bed), a little
+ * under, so it never runs uphill nor over its banks, and never under the river's level at its mouth. pointAt(m) is
+ * [x, z, side] m metres down it (side the unit vector to its right), levelAt(m) its water there, nearest(x, z) { dist, m }, and
+ * cut(x, z, y) the ground y with its bed cut in.
+ */
+function createStream({ half, path }, ground, where) {
+  const segments = [];
+  let length = 0;
+  for (let i = 1; i < path.length; i++) {
+    const [ax, az] = path[i - 1];
+    const [bx, bz] = path[i];
+    const len = Math.hypot(bx - ax, bz - az);
+    segments.push({ ax, az, dx: (bx - ax) / len, dz: (bz - az) / len, len, from: length });
+    length += len;
+  }
+  const reach = half + STREAM.bank;
+  const box = {
+    x0: Math.min(...path.map(p => p[0])) - reach, x1: Math.max(...path.map(p => p[0])) + reach,
+    z0: Math.min(...path.map(p => p[1])) - reach, z1: Math.max(...path.map(p => p[1])) + reach,
+  };
+  function pointAt(m) {
+    const k = Math.min(length, Math.max(0, m));
+    const seg = segments.findLast(g => g.from <= k) ?? segments[0];
+    const t = Math.min(seg.len, k - seg.from);
+    return [seg.ax + seg.dx * t, seg.az + seg.dz * t, [-seg.dz, seg.dx]];
+  }
+  const steps = Math.ceil(length);
+  const levels = new Float32Array(steps + 1);
+  let low = Infinity;
+  const side = half + STREAM.side;
+  const mouth = where(...path.at(-1)).level + 0.05; // it runs into the river, never under it
+  for (let k = 0; k <= steps; k++) {
+    const [x, z, [sx, sz]] = pointAt(Math.min(length, k));
+    low = Math.min(low, ground(x, z) - STREAM.under);
+    for (const k2 of [side, -side]) if (where(x + sx * k2, z + sz * k2).e > 1) low = Math.min(low, ground(x + sx * k2, z + sz * k2) - STREAM.under);
+    levels[k] = Math.max(low, mouth);
+  }
+  function levelAt(m) {
+    const k = Math.min(length, Math.max(0, m));
+    const i = Math.min(steps - 1, Math.floor(k));
+    return levels[i] + (levels[i + 1] - levels[i]) * Math.min(1, k - i);
+  }
+  function nearest(x, z) {
+    let dist = Infinity, at = 0;
+    for (const g of segments) {
+      const t = Math.min(g.len, Math.max(0, (x - g.ax) * g.dx + (z - g.az) * g.dz));
+      const d = Math.hypot(x - g.ax - g.dx * t, z - g.az - g.dz * t);
+      if (d < dist) { dist = d; at = g.from + t; }
+    }
+    return { dist, m: at };
+  }
+  function cut(x, z, y) {
+    if (x < box.x0 || x > box.x1 || z < box.z0 || z > box.z1) return y;
+    const n = nearest(x, z);
+    if (n.dist >= reach) return y;
+    const level = levelAt(n.m);
+    const bed = n.dist < half ? level - STREAM.depth * (1 - smooth(n.dist / half)) : lerp(level, y, smooth((n.dist - half) / STREAM.bank));
+    return Math.min(y, bed);
+  }
+  return { half, path, length, pointAt, levelAt, nearest, cut };
+}
 
 /** The ground of the valley: heightAt(x, z), and where things are (river distance, edge distance, gorge share) for the banks. */
 export function createTerrain(route, { seed = 4 } = {}) {
@@ -38,7 +109,21 @@ export function createTerrain(route, { seed = 4 } = {}) {
     return { d: n.d, side: n.side, e: n.dist - r.half, level: r.level, half: r.half, gorge: gorgeAt(n.d), fen, toPool };
   }
 
-  function heightAt(x, z) {
+  // the land above the falls: its hills (faded out toward the river's edge), its ponds and its streams (createStream)
+  const land = route.land ?? {};
+  const hills = land.hills ?? [];
+  function hillsAt(x, z) {
+    let y = 0;
+    for (const [hx, hz, height, radius] of hills) {
+      if (Math.abs(x - hx) >= radius || Math.abs(z - hz) >= radius) continue;
+      const d = Math.hypot(x - hx, z - hz);
+      if (d < radius) y += height * smooth(1 - d / radius);
+    }
+    return y;
+  }
+
+  /** The valley's ground with its hills, before the ponds and the streams. */
+  function rolling(x, z) {
     const w = where(x, z);
     const { e, level } = w;
     let y;
@@ -53,6 +138,7 @@ export function createTerrain(route, { seed = 4 } = {}) {
       }
       if (w.fen > 0) y = lerp(y, Math.max(0.3, level + 0.3), w.fen);
       y += bumps(x, z) * smooth((e - 3) / 10) * (1 - w.gorge * smooth((30 - e) / 10));
+      if (hills.length) y += hillsAt(x, z) * smooth((e - 6) / 20);
     }
     // the far pool's basin
     if (w.toPool < pool.radius + 50) {
@@ -62,7 +148,39 @@ export function createTerrain(route, { seed = 4 } = {}) {
     return y;
   }
 
-  return { heightAt, where, fallsD, gorgeAt };
+  // a pond's water lies a little under the lowest of its rims; its basin goes a metre under that, its shore rises to the land
+  const ponds = (land.ponds ?? []).map(([x, z, radius]) => {
+    let rim = Infinity;
+    for (const out of POND.rings) {
+      for (let k = 0; k < 24; k++) {
+        const a = (k * Math.PI) / 12;
+        rim = Math.min(rim, rolling(x + (radius + out) * Math.cos(a), z + (radius + out) * Math.sin(a)));
+      }
+    }
+    return { x, z, radius, level: rim - POND.under };
+  });
+  function dry(x, z) {
+    let y = rolling(x, z);
+    for (const p of ponds) {
+      const reach = p.radius + POND.shore;
+      if (Math.abs(x - p.x) >= reach || Math.abs(z - p.z) >= reach) continue;
+      const d = Math.hypot(x - p.x, z - p.z);
+      if (d >= reach) continue;
+      const shore = p.level + 0.12;
+      y = d >= p.radius ? lerp(shore, y, smooth((d - p.radius) / POND.shore))
+        : shore - 0.27 * smooth(p.radius - d) - 0.9 * smooth((p.radius - d) / 4);
+    }
+    return y;
+  }
+  const streams = (land.streams ?? []).map(stream => createStream(stream, dry, where));
+
+  function heightAt(x, z) {
+    let y = dry(x, z);
+    for (const s of streams) y = s.cut(x, z, y);
+    return y;
+  }
+
+  return { heightAt, where, fallsD, gorgeAt, waters: { streams, ponds } };
 }
 
 /**

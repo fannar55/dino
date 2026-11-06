@@ -5,11 +5,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, LEAP, FALLS, GORGE } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW } from '../chapters/kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
-import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
+import { createRouteIndex, createTerrain, CORRIDOR } from '../world/ardalur/terrain.js';
 import { createAnimals, ANSWER, SMAEDLA_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
@@ -293,22 +293,32 @@ test('a card stands where its tree stands, as tall and as wide', () => {
   assert.ok(checked >= 30, `${checked} cards checked`);
 });
 
-test('the vista over the land costs fewer triangles: its far trees are cards', () => {
-  const place = litValley();
-  const world = litWorldOf;
-  const { camera } = world;
-  // the vista shot at 139 s (engine/camera/flight-camera.js): 30 m behind her, 12 m to her right and 7 m up, looking over her
-  const t = 139;
+/**
+ * The vista shot at flight time t (engine/camera/flight-camera.js): 30 m behind her, 12 m to her right and 7 m up, looking over her
+ * (4 m above her), fov 55. Sets `camera` (its aspect 16:10) and returns { u, her }.
+ */
+function vistaAt(camera, t) {
   const u = route.progressAt(t);
   const her = route.pointAt(u);
   const tan = route.tangentAt(u);
   const f = new THREE.Vector3(tan.x, 0, tan.z).normalize();
   const right = new THREE.Vector3(-f.z, 0, f.x);
   camera.fov = 55;
+  camera.aspect = 16 / 10;
   camera.updateProjectionMatrix();
   camera.position.copy(her).addScaledVector(f, -30).addScaledVector(right, 12).add(new THREE.Vector3(0, 7, 0));
   camera.lookAt(her.x, her.y + 4, her.z);
   camera.updateMatrixWorld();
+  return { u, her };
+}
+
+test('the vista over the land costs fewer triangles: its far trees are cards', () => {
+  const place = litValley();
+  const world = litWorldOf;
+  const { camera } = world;
+  const aspect = camera.aspect;
+  const t = 139;
+  const { u, her } = vistaAt(camera, t);
   world.flightU = u;
   world.flightPoint = her;
   place.update(DT, t);
@@ -317,8 +327,124 @@ test('the vista over the land costs fewer triangles: its far trees are cards', (
   const carded = drawn(FOREST.lod.cardFrom);
   world.flightPoint = null;
   camera.fov = 40;
+  camera.aspect = aspect;
   camera.updateProjectionMatrix();
   assert.ok(carded <= 0.75 * all, `${carded} triangles with cards, ${all} without (${(100 * (1 - carded / all)).toFixed(0)} % fewer)`);
+});
+
+// ---- the land above the falls (chapters/kafli4-route.js: HILLS, OUTCROPS, STREAMS, PONDS, MEADOW) -----------------------------
+
+const TREE_NAMES = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'deadSnag']);
+const WIDE_SHOT = 128; // the wide shot (vista) is on from F (125 s) to the side shot (131 s): its middle
+
+test('the land above the falls rolls: soft hills, each inside the corridor, rising over its own foot', () => {
+  const terrain = createTerrain(route, { seed: 4 });
+  const index = createRouteIndex(route);
+  const out = {};
+  assert.ok(HILLS.length >= 3 && HILLS.length <= 5, `${HILLS.length} hills`);
+  let tallest = 0;
+  for (const [x, z, h, r] of HILLS) {
+    assert.ok(h >= 3 && h <= 8 && r >= 40 && r <= 90, `a hill ${h} m high and ${r} m round`);
+    assert.ok(terrain.where(x, z).d >= terrain.fallsD && terrain.where(x, z).e > 20, `the hill at (${x}, ${z}) stands on the land above the falls, off the river`);
+    index.nearest(x, z, Infinity, out);
+    assert.ok(out.dist + r + 10 <= CORRIDOR, `the hill at (${x}, ${z}) is inside the corridor with 10 m to spare`);
+    let foot = 0;
+    for (let k = 0; k < 16; k++) foot += terrain.heightAt(x + r * Math.cos((k * Math.PI) / 8), z + r * Math.sin((k * Math.PI) / 8)) / 16;
+    const rise = terrain.heightAt(x, z) - foot;
+    assert.ok(rise >= h - 1, `the hill at (${x}, ${z}) rises ${rise.toFixed(1)} m over its foot (${h} m)`);
+    tallest = Math.max(tallest, rise);
+  }
+  assert.ok(tallest >= 6, `the tallest hill rises ${tallest.toFixed(1)} m`);
+});
+
+test('streams run down into the river and ponds hold their water', () => {
+  const terrain = createTerrain(route, { seed: 4 });
+  const { streams, ponds } = terrain.waters;
+  assert.equal(streams.length, STREAMS.length);
+  assert.ok(STREAMS.length >= 1 && STREAMS.length <= 2, `${STREAMS.length} streams`);
+  for (const [i, stream] of streams.entries()) {
+    assert.ok(stream.half >= 0.75 && stream.half <= 1.5, `stream ${i}: ${2 * stream.half} m wide`);
+    let last = Infinity;
+    for (let m = 0; m <= stream.length; m++) {
+      const level = stream.levelAt(m);
+      assert.ok(level <= last + 1e-9, `stream ${i}: its level rises at ${m} m`);
+      last = level;
+      const [x, z, side] = stream.pointAt(m);
+      if (m > 2 && m < stream.length - 2) {
+        assert.ok(terrain.heightAt(x, z) <= level - 0.3, `stream ${i}: its bed under its water at ${m} m`);
+        assert.ok(terrain.heightAt(x + side[0] * (stream.half + 3), z + side[1] * (stream.half + 3)) >= level, `stream ${i}: its bank over its water at ${m} m`);
+      }
+    }
+    assert.ok(stream.levelAt(0) > stream.levelAt(stream.length) + 0.5, `stream ${i} falls along its length`);
+    const [ex, ez] = stream.pointAt(stream.length);
+    const w = terrain.where(ex, ez);
+    assert.ok(w.d >= terrain.fallsD && Math.abs(w.e) <= 2, `stream ${i} ends ${w.e.toFixed(1)} m from the upper river's edge`);
+    assert.ok(stream.levelAt(stream.length) >= w.level - 0.05, `stream ${i} runs into the river, not up out of it`);
+  }
+  assert.equal(ponds.length, PONDS.length);
+  assert.ok(PONDS.length >= 2 && PONDS.length <= 3, `${PONDS.length} ponds`);
+  for (const [i, pond] of ponds.entries()) {
+    assert.ok(pond.radius >= 8 && pond.radius <= 14, `pond ${i}: ${pond.radius} m round`);
+    assert.ok(terrain.where(pond.x, pond.z).d >= terrain.fallsD, `pond ${i} is above the falls`);
+    assert.ok(terrain.heightAt(pond.x, pond.z) <= pond.level - 0.6, `pond ${i} is deep enough to hold water`);
+    for (let k = 0; k < 36; k++) {
+      const a = (k * Math.PI) / 18;
+      const rim = terrain.heightAt(pond.x + (pond.radius + 0.5) * Math.cos(a), pond.z + (pond.radius + 0.5) * Math.sin(a));
+      assert.ok(rim > pond.level + 0.05, `pond ${i}: its rim ${(rim - pond.level).toFixed(2)} m over its water at ${k * 10}°`);
+    }
+  }
+});
+
+test('each pond has its lilies and reed, the streams and ponds are drawn at their levels, and nothing else grows in them', () => {
+  const place = litValley();
+  const { streams, ponds } = place.terrain.waters;
+  const all = place.stats.sections.flatMap(part => part.userData.placements);
+  for (const [i, pond] of ponds.entries()) {
+    const lilies = all.filter(p => p.name === 'waterLily' && Math.hypot(p.x - pond.x, p.z - pond.z) < pond.radius);
+    const reed = all.filter(p => p.name.startsWith('horsetail') && Math.hypot(p.x - pond.x, p.z - pond.z) < pond.radius + 5);
+    assert.ok(lilies.length >= 3 && lilies.every(p => Math.abs(p.y - pond.level) < 0.1), `pond ${i}: ${lilies.length} lilies on its water`);
+    assert.ok(reed.length >= 6, `pond ${i}: ${reed.length} reeds round it`);
+    const inIt = all.filter(p => p.name !== 'waterLily' && !p.name.startsWith('horsetail') && Math.hypot(p.x - pond.x, p.z - pond.z) < pond.radius - 0.5);
+    assert.equal(inIt.length, 0, `pond ${i}: ${inIt.map(p => p.name).join(', ')} in its water`);
+  }
+  for (const [i, stream] of streams.entries()) {
+    for (const p of all) {
+      const near = stream.nearest(p.x, p.z);
+      assert.ok(near.dist >= stream.half + 0.3 || near.m > stream.length - 1, `stream ${i}: a ${p.name} in its water at ${near.m.toFixed(0)} m`);
+    }
+  }
+  const waters = place.group.getObjectByName('Árdalur upper waters');
+  assert.ok(waters, 'the streams and ponds are drawn');
+  const box = new THREE.Box3().setFromObject(waters);
+  for (const pond of ponds) assert.ok(box.containsPoint(new THREE.Vector3(pond.x, pond.level, pond.z)), 'a pond in the waters');
+  for (const stream of streams) {
+    const [x, z] = stream.pointAt(stream.length / 2);
+    assert.ok(box.containsPoint(new THREE.Vector3(x, stream.levelAt(stream.length / 2), z)), 'a stream in the waters');
+  }
+});
+
+test('outcrops of rock stand on the land above the falls', () => {
+  const place = litValley();
+  const all = place.stats.sections.flatMap(part => part.userData.placements);
+  assert.ok(OUTCROPS.length >= 4 && OUTCROPS.length <= 6, `${OUTCROPS.length} outcrops`);
+  for (const [x, z, scale] of OUTCROPS) {
+    assert.ok(scale >= 2 && scale <= 4);
+    assert.ok(place.terrain.where(x, z).d >= place.terrain.fallsD, `the outcrop at (${x}, ${z}) is above the falls`);
+    assert.ok(all.some(p => p.name === 'rock' && Math.hypot(p.x - x, p.z - z) < 0.01 && p.scale === scale), `a rock at (${x}, ${z})`);
+  }
+});
+
+test('the meadow is open and in the middle of the wide shot', () => {
+  const place = litValley();
+  const [mx, mz, radius] = MEADOW;
+  assert.ok(place.terrain.where(mx, mz).d >= place.terrain.fallsD, 'the meadow is above the falls');
+  const all = place.stats.sections.flatMap(part => part.userData.placements);
+  const trees = all.filter(p => TREE_NAMES.has(p.name) && Math.hypot(p.x - mx, p.z - mz) < radius);
+  assert.equal(trees.length, 0, `${trees.length} trees in the meadow`);
+  const camera = new THREE.PerspectiveCamera(55, 16 / 10, 0.5, 4000);
+  vistaAt(camera, WIDE_SHOT);
+  const p = new THREE.Vector3(mx, place.terrain.heightAt(mx, mz), mz).project(camera);
+  assert.ok(p.z < 1 && Math.abs(p.x) <= 1 / 3 && Math.abs(p.y) <= 1 / 3, `the meadow's middle at (${p.x.toFixed(2)}, ${p.y.toFixed(2)}) in the frame`);
 });
 
 /** The placements of the real valley in 5 m cells, and those within r of (x, z), seen from above. */
@@ -441,8 +567,12 @@ test('the river runs: lazy below the rapids, white water only from where they be
   assert.ok(whiteAt(route, route.gorge.from + 10) > 0.6);
   assert.ok(Math.abs(flowAt(route, 100) - 0.4) < 1e-6);
   assert.ok(Math.abs(flowAt(route, 1000) - 2.5) < 1e-6);
-  // the lilies float on the lazy reach, near its banks, and round the far pool (calm water both)
-  const lilies = place.stats.sections.flatMap(part => part.userData.placements.filter(p => p.name === 'waterLily'));
+  // the lilies float on the lazy reach, near its banks, round the far pool and on the land's ponds above the falls (calm water all)
+  const onPond = p => place.terrain.waters.ponds.find(pond => Math.hypot(p.x - pond.x, p.z - pond.z) < pond.radius);
+  for (const p of place.stats.sections.flatMap(part => part.userData.placements.filter(onPond))) {
+    if (p.name === 'waterLily') assert.ok(Math.abs(p.y - onPond(p).level) < 0.1, "a lily floats at its pond's level");
+  }
+  const lilies = place.stats.sections.flatMap(part => part.userData.placements.filter(p => p.name === 'waterLily' && !onPond(p)));
   const inPool = p => Math.hypot(p.x - route.pool.center[0], p.z - route.pool.center[1]) < route.pool.radius - 1;
   assert.ok(lilies.filter(p => !inPool(p)).length > 20, `${lilies.length} lilies`);
   assert.ok(lilies.some(inPool), 'lilies on the far pool');

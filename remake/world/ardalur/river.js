@@ -7,6 +7,9 @@
 // lazy below the rapids (0.4 m/s), quickens through them to 2.5 m/s in the gorge, and runs on the upper reach above the falls at
 // 0.8 m/s, faster again toward the lip. White water starts where the rapids begin (the route's RIVER[7]), grows toward the gorge,
 // and is full in it and in the plunge pool; there is none in the lazy reach nor above the falls (the lip's foam is the falls').
+//
+// Above the falls the land's streams and ponds (terrain.js: waters) are one more mesh (createLandWaters), with their own lilies and
+// reed (landPlants), and nothing else grows in them.
 import * as THREE from 'three';
 import { RIVER, GORGE } from '../../chapters/kafli4-route.js';
 import { FOREST } from '../forest/config.js';
@@ -151,6 +154,97 @@ function fromSegment(x, z, a, b) {
   const dz = b[1] - a[1];
   const k = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
   return Math.hypot(x - a[0] - dx * k, z - a[1] - dz * k);
+}
+
+const LAND = { lilies: 6, reed: { count: 14, radius: 3.5, at: 225 }, stream: 0.6, step: 1.5 }; // the ponds' plants (reed: degrees round), a stream's speed (m/s)
+
+/**
+ * The plants of the land's ponds (terrain.waters): lilies on each pond's water and a bed of reed at its rim (as poolPlants grows the
+ * far pool's), and where nothing else may grow: each pond's water and each stream's (circles along it). Returns { props, clear }.
+ */
+export function landPlants(waters, heightAt) {
+  const props = [];
+  const clear = [];
+  const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+  waters.ponds.forEach((pond, p) => {
+    for (let i = 0; i < LAND.lilies; i++) {
+      const a = i * GOLDEN + p;
+      const r = pond.radius * 0.72 * Math.sqrt((i + 0.5) / LAND.lilies);
+      props.push({ name: 'waterLily', variant: (i + p) % FOREST.trees.variants.waterLily, x: pond.x + r * Math.cos(a), y: pond.level + 0.012, z: pond.z + r * Math.sin(a), rot: a * 2.3, scale: 1.6 });
+    }
+    const a = (LAND.reed.at * Math.PI) / 180;
+    const bed = { at: [pond.x + (pond.radius + 1) * Math.cos(a), pond.z + (pond.radius + 1) * Math.sin(a)], radius: LAND.reed.radius, count: LAND.reed.count };
+    const reed = poolPlants({ reeds: [bed] }, heightAt);
+    props.push(...reed.props.map(r => ({ ...r, y: Math.max(r.y, pond.level) })));
+    clear.push(...reed.clear, { x: pond.x, z: pond.z, r: pond.radius });
+  });
+  for (const stream of waters.streams) {
+    for (let m = 0; m <= stream.length; m += LAND.step) {
+      const [x, z] = stream.pointAt(m);
+      clear.push({ x, z, r: stream.half + 0.4 });
+    }
+  }
+  return { props, clear };
+}
+
+/**
+ * The land's streams and ponds as one mesh (one draw call), with the water's aWater and aFlow: each stream a ribbon at its level,
+ * running down it at LAND.stream m/s, a little wider than its water so its edge tucks under the banks; each pond a disc as the far
+ * pool's. Null if there are none.
+ */
+export function createLandWaters(waters, material) {
+  const positions = [];
+  const water = [];
+  const flow = [];
+  const indices = [];
+  const n = ACROSS.length;
+  for (const stream of waters.streams) {
+    const first = positions.length / 3;
+    const rows = Math.max(1, Math.ceil(stream.length / LAND.step));
+    for (let r = 0; r <= rows; r++) {
+      const m = Math.min(stream.length, r * LAND.step);
+      const [x, z, [sx, sz]] = stream.pointAt(m);
+      const level = stream.levelAt(m);
+      const wide = stream.half + 0.15;
+      for (const a of ACROSS) {
+        positions.push(x + sx * a * wide, level, z + sz * a * wide);
+        water.push(-wide * (1 - Math.abs(a)), 0.45 * (1 - Math.abs(a)), 0);
+        flow.push(sz * LAND.stream, -sx * LAND.stream); // down the stream (its side is the way down turned to the right)
+      }
+      if (r > 0) {
+        const a0 = first + (r - 1) * n;
+        const b0 = first + r * n;
+        for (let k = 0; k < n - 1; k++) indices.push(a0 + k, b0 + k, a0 + k + 1, a0 + k + 1, b0 + k, b0 + k + 1);
+      }
+    }
+  }
+  const SIDES = 32;
+  for (const pond of waters.ponds) {
+    const centre = positions.length / 3;
+    const edge = pond.radius + 1;
+    positions.push(pond.x, pond.level, pond.z);
+    water.push(-edge, DEPTH, 0);
+    flow.push(0, 0);
+    for (let k = 0; k < SIDES; k++) {
+      const a = (k / SIDES) * Math.PI * 2;
+      positions.push(pond.x + edge * Math.cos(a), pond.level, pond.z + edge * Math.sin(a));
+      water.push(0, 0, 0);
+      flow.push(0, 0);
+      indices.push(centre, centre + 1 + ((k + 1) % SIDES), centre + 1 + k);
+    }
+  }
+  if (!positions.length) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(positions.map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+  geometry.setAttribute('aWater', new THREE.Float32BufferAttribute(water, 3));
+  geometry.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 2));
+  geometry.setIndex(indices);
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'Árdalur upper waters';
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 /** The far pool's surface (with the water's aWater and aFlow when drawn as water: a still pool, its shore fading in). */

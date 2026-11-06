@@ -239,6 +239,20 @@ function inHerWay(index, x, y, z, r, h, near) {
 }
 
 /**
+ * The outcrops of the land above the falls (route.land.outcrops: [x, z, scale]) as rock props for plantSteps, each on the ground,
+ * and where nothing else grows round them. Returns { props, clear }.
+ */
+export function outcropProps(route, heightAt) {
+  const props = [];
+  const clear = [];
+  (route.land?.outcrops ?? []).forEach(([x, z, scale], i) => {
+    props.push({ name: 'rock', variant: i % FOREST.trees.variants.rock, x, y: heightAt(x, z), z, rot: i * 2.39, scale });
+    clear.push({ x, z, r: 1.2 * scale });
+  });
+  return { props, clear };
+}
+
+/**
  * The steps that grow one section's real plants (a generator for the build queue). `library` is the forest's species library (one
  * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
  * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter), `low`
@@ -248,6 +262,7 @@ function inHerWay(index, x, y, z, r, h, near) {
  */
 export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null }) {
   const lines = linesOf(views);
+  const meadow = route.land?.meadow ?? null;
   const { own, grid: { gx0, gz0, W } } = ground;
   const rng = seeded(seed);
   const range = ([lo, hi]) => lo + rng() * (hi - lo);
@@ -300,6 +315,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     if (inHerWay(index, px, y, pz, body.r, body.h, near)) return;
     if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) return; // an animal or what it sits on
     if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) return;
+    if (TREES.has(name) && meadow && Math.hypot(px - meadow[0], pz - meadow[1]) < meadow[2] + body.r) return; // the herd's open meadow
     const models = fine ? [{ level: 1, model: middle }, { level: 2, model: coarse }] : [{ level: one ? 1 : 2, model: one ? middle : coarse }];
     const model = models[0].model;
     const drawn = bodyOf(model, scale);
@@ -376,9 +392,10 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     const middle = yield* library.getSteps(prop.name, prop.variant, 1, {});
     const models = ONE_LEVEL.has(prop.name) ? [{ level: 1, model: middle }]
       : [{ level: 1, model: middle }, { level: 2, model: yield* library.getSteps(prop.name, prop.variant, 2, {}) }];
+    const d = terrain.where(prop.x, prop.z).d;
     placements.push({
       name: prop.name, model: middle, models, variant: prop.variant, lod: 1, x: prop.x, y: prop.y - (middle.sink ?? 0) * prop.scale, z: prop.z,
-      rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: 0, sky: 0.9, d: terrain.where(prop.x, prop.z).d,
+      rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky: 0.9, d,
     });
   }
   const batcher = createBatcher();
