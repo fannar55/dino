@@ -182,6 +182,37 @@ function inView(views, lines, x, y, z, r, h) {
   return false;
 }
 const UNDERSTORY_REACH = 60; // m from the water's edge beyond which only trees grow
+
+// The groves (spec 5, the forest): the trees of the valley's sides and of the land above the falls grow in groves, thick at their
+// hearts, with open glades between, where the animals are seen. groveAt is a seeded value noise of blobs about GROVE.cell metres
+// across (a finer one roughens their edges), stretched so about 45 % of the land is grove (0.5 or more). The grove plants (the trees,
+// the cycads and the bushes) are not more than an even forest's, only gathered (the tablet's budget): a plant's chance is its zone's
+// times thickAt(groveAt), low + high * groveAt², scaled in each section to 1 on the mean over its near and far cells (at most `most`
+// times, for a section nearly all glade), so a grove's heart is about 3 times as thick as the even forest and a glade nearly open.
+// Where the groves still gather more than a section may draw (`budget` triangles, the plants at their finest level, the forest's
+// test), the grove plants where it is thinnest go first, so the glades open further and the groves keep their hearts. Round each
+// animal group no tree grows within `view` metres on its side of the river, so the child sees it from the river with open land behind.
+export const GROVE = { cell: 60, fine: 25, roughness: 0.22, share: 0.53, stretch: 2.4, low: 0.05, high: 3.2, most: 2, view: 25, budget: 145000 };
+const GROVE_PLANTS = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'deadSnag', 'cycad', 'bush']);
+/** How many times its zone's chance a grove plant has where groveAt is g (before the section's scaling). */
+export const thickAt = g => GROVE.low + GROVE.high * g * g;
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = k => k * k * (3 - 2 * k);
+function lattice(i, j, seed) {
+  const s = Math.sin(i * 127.1 + j * 311.7 + seed * 74.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+function valueNoise(x, z, cell, seed) {
+  const gx = x / cell, gz = z / cell;
+  const i = Math.floor(gx), j = Math.floor(gz);
+  const sx = ease(gx - i), sz = ease(gz - j);
+  return lerp(lerp(lattice(i, j, seed), lattice(i + 1, j, seed), sx), lerp(lattice(i, j + 1, seed), lattice(i + 1, j + 1, seed), sx), sz);
+}
+/** How much (x, z) is grove (0 to 1): 0.5 or more in a grove, 0.2 or less in a glade. `seed` is the valley's. */
+export function groveAt(x, z, seed = 4) {
+  const n = (1 - GROVE.roughness) * valueNoise(x, z, GROVE.cell, seed) + GROVE.roughness * valueNoise(x, z, GROVE.fine, seed + 17);
+  return ease(Math.min(1, Math.max(0, (n - GROVE.share) * GROVE.stretch + 0.5)));
+}
 const FEN_FULL = 40; // m from her path within which the Fen grows as thick as it does at the snag; beyond, FEN_FAR of that
 const FEN_FAR = 0.35;
 const FINE = 30; // m from her path within which a plant has its middle detail level for when the camera comes near; beyond, only the coarse one
@@ -257,10 +288,11 @@ export function outcropProps(route, heightAt) {
  * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
  * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter), `low`
  * the animal groups ({ x, z, side }) round which only low plants grow (LOW), `views` the still shots' (VIEW), `atlas` and `cards`
- * the far trees' pictures and their material (world/forest/cards.js: a tree that has one is drawn as it far off). Returns { group,
+ * the far trees' pictures and their material (world/forest/cards.js: a tree that has one is drawn as it far off), `grove` the
+ * valley's seed for its groves (groveAt: the trees of the near and far zones grow thick in them, thin in the glades). Returns { group,
  * placements, meshes }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time.
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null, grove = null }) {
   const lines = linesOf(views);
   const meadow = route.land?.meadow ?? null;
   const { own, grid: { gx0, gz0, W } } = ground;
@@ -284,8 +316,11 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
   /** True within LOW.reach of an animal group, on its side of the river. */
   const lowAt = (x, z) => low.some(c => Math.abs(c.x - x) <= LOW.reach && Math.abs(c.z - z) <= LOW.reach
     && Math.hypot(c.x - x, c.z - z) <= LOW.reach && terrain.where(x, z).side === c.side);
-  /** Grows one `name` at (px, pz) if it may stand there (`sky` its share of the sky, `d` its river distance). */
-  function* grow(name, px, pz, sky, d) {
+  /** True within GROVE.view of an animal group, on its side of the river: no tree there, so it is seen with open land behind it. */
+  const openAt = (x, z) => low.some(c => Math.abs(c.x - x) < GROVE.view && Math.abs(c.z - z) < GROVE.view
+    && Math.hypot(c.x - x, c.z - z) < GROVE.view && terrain.where(x, z).side === c.side);
+  /** Grows one `name` at (px, pz) if it may stand there (`sky` its share of the sky, `d` its river distance, `grove` its thickAt). */
+  function* grow(name, px, pz, sky, d, grove = null) {
     let scale = range(SCALE[name]);
     const variant = Math.floor(rng() * FOREST.trees.variants[name]);
     const rot = rng() * Math.PI * 2;
@@ -316,6 +351,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) return; // an animal or what it sits on
     if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) return;
     if (TREES.has(name) && meadow && Math.hypot(px - meadow[0], pz - meadow[1]) < meadow[2] + body.r) return; // the herd's open meadow
+    if (TREES.has(name) && openAt(px, pz)) return; // a group's glade
     const models = fine ? [{ level: 1, model: middle }, { level: 2, model: coarse }] : [{ level: one ? 1 : 2, model: one ? middle : coarse }];
     const model = models[0].model;
     const drawn = bodyOf(model, scale);
@@ -323,8 +359,14 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     placements.push({
       name, model, models, variant, lod: models[0].level, x: px, y: y - (model.sink ?? 0) * scale, z: pz, rot, scale, phase,
       band: fine ? 'near' : 'far', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky, d, card: atlas?.card(name, variant) ?? null,
+      ...(grove === null ? {} : { grove }),
     });
   }
+  // first each own cell's spot and zone, then the groves' scaling in this section: thickAt over its near and far cells (weighed by
+  // their grove plants) is no more than 1 on the mean, so it has no more grove plants than an even forest would (the budget); a
+  // section that is mostly glade keeps its groves as thick as anywhere
+  const cells = [];
+  let groveSum = 0, groveBase = 0;
   for (let j = 0; j < rows; j += per) {
     for (let i = 0; i < cellsAcross; i += per) {
       if (!own[j * cellsAcross + i]) continue;
@@ -341,16 +383,35 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       else if (w.gorge > 0.5 && w.e < 32) zone = 'rim';
       else zone = w.e < UNDERSTORY_REACH ? 'near' : 'far';
       if (!zone || nearCameo(x, z)) continue;
-      // the Fen's far reed is sparser (as chapter 2's Fen has it): a few pixels a blade, it reads by the gold of the ground under it
-      const thin = zone === 'fen' && index.nearest(x, z, FEN_FULL, near) < 0 ? FEN_FAR : 1;
-      for (const [name, base] of REAL[zone]) {
-        const chance = base * thin;
-        const count = Math.floor(chance) + (rng() < chance % 1 ? 1 : 0);
-        for (let c = 0; c < count; c++) yield* grow(name, x + (rng() - 0.5) * 6, z + (rng() - 0.5) * 6, zone === 'fen' ? FEN.sky : 0.9, w.d);
+      const g = grove !== null && (zone === 'near' || zone === 'far') ? thickAt(groveAt(x, z, grove)) : null;
+      if (g !== null) {
+        const base = REAL[zone].reduce((sum, [name, chance]) => sum + (GROVE_PLANTS.has(name) ? chance : 0), 0);
+        groveSum += g * base;
+        groveBase += base;
       }
+      cells.push({ x, z, w, zone, g, j });
     }
     yield 'plants';
   }
+  const groveScale = groveSum > 0 ? Math.min(GROVE.most, groveBase / groveSum) : 1;
+  let row = cells[0]?.j;
+  for (const { x, z, w, zone, g, j } of cells) {
+    if (j !== row) {
+      row = j;
+      yield 'plants';
+    }
+    // the Fen's far reed is sparser (as chapter 2's Fen has it): a few pixels a blade, it reads by the gold of the ground under it
+    const thin = zone === 'fen' && index.nearest(x, z, FEN_FULL, near) < 0 ? FEN_FAR : 1;
+    // the trees of the valley's sides grow in groves (GROVE): thick in them, nearly none in the glades between
+    const thick = g === null ? 1 : groveScale * g;
+    for (const [name, base] of REAL[zone]) {
+      const chance = base * thin * (GROVE_PLANTS.has(name) ? thick : 1);
+      const count = Math.floor(chance) + (rng() < chance % 1 ? 1 : 0);
+      const gathered = g !== null && GROVE_PLANTS.has(name) ? g : null;
+      for (let c = 0; c < count; c++) yield* grow(name, x + (rng() - 0.5) * 6, z + (rng() - 0.5) * 6, zone === 'fen' ? FEN.sky : 0.9, w.d, gathered);
+    }
+  }
+  yield 'plants';
   // the banks, green all along up to the gorge (BANK): in each row a plant every step or so, of the bank's mix (low by the animals)
   const ownAt = (x, z) => {
     const i = Math.floor(x / GRID) - gx0;
@@ -397,6 +458,19 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       name: prop.name, model: middle, models, variant: prop.variant, lod: 1, x: prop.x, y: prop.y - (middle.sink ?? 0) * prop.scale, z: prop.z,
       rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky: 0.9, d,
     });
+  }
+  // the budget: the grove plants where the grove is thinnest go first while the section would draw more than GROVE.budget
+  const finest = p => { const m = p.models[0].model; return (m.solid ? m.solid.triangles : 0) + (m.thin ? m.thin.triangles : 0); };
+  const groundIndex = ground.mesh?.geometry?.index;
+  let cost = (groundIndex ? groundIndex.count / 3 : 0) + placements.reduce((sum, p) => sum + finest(p), 0);
+  if (cost > GROVE.budget) {
+    const drop = new Set();
+    for (const p of placements.filter(q => q.grove !== undefined).sort((a, b) => a.grove - b.grove)) {
+      if (cost <= GROVE.budget) break;
+      drop.add(p);
+      cost -= finest(p);
+    }
+    for (let k = placements.length - 1; k >= 0; k--) if (drop.has(placements[k])) placements.splice(k, 1);
   }
   const batcher = createBatcher();
   for (const p of placements) batcher.add(p);

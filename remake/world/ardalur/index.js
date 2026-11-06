@@ -163,7 +163,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
         terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
-        atlas: real.atlas, cards: real.cards,
+        atlas: real.atlas, cards: real.cards, grove: seed,
       });
     return { ground, banks };
   }

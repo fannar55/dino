@@ -14,7 +14,7 @@ import { createAnimals, ANSWER, SMAEDLA_MODEL } from '../world/ardalur/animals.j
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
-import { HIGH, bodyOf } from '../world/ardalur/banks.js';
+import { HIGH, bodyOf, groveAt } from '../world/ardalur/banks.js';
 import { stillViews } from '../engine/camera/flight-camera.js';
 import { createFarLand, FAR } from '../world/ardalur/far-land.js';
 import { cullBatches } from '../world/forest/batch.js';
@@ -447,6 +447,76 @@ test('the meadow is open and in the middle of the wide shot', () => {
   assert.ok(p.z < 1 && Math.abs(p.x) <= 1 / 3 && Math.abs(p.y) <= 1 / 3, `the meadow's middle at (${p.x.toFixed(2)}, ${p.y.toFixed(2)}) in the frame`);
 });
 
+// ---- groves and glades (banks.js: groveAt) ----------------------------------------------------------------------------------------
+
+/** Where trees may grow at all (banks.js: the near and far zones), on a 10 m grid over the corridor: [x, z] each. */
+function treeLand(terrain) {
+  const index = createRouteIndex(route);
+  const out = {};
+  const land = [];
+  for (let x = -1700; x <= 250; x += 10) {
+    for (let z = -260; z <= 460; z += 10) {
+      if (index.nearest(x, z, CORRIDOR, out) < 0) continue;
+      const w = terrain.where(x, z);
+      if (w.e < 6 || w.fen > 0.6 || w.gorge > 0.5 || w.toPool < route.pool.radius + 5) continue;
+      land.push([x, z]);
+    }
+  }
+  return land;
+}
+
+test('trees grow in groves with glades between', () => {
+  const place = litValley();
+  const land = treeLand(place.terrain);
+  // the groves: blobs 60 to 120 m across, about 45 % of the land
+  const grove = land.filter(([x, z]) => groveAt(x, z, 4) >= 0.5).length / land.length;
+  assert.ok(grove >= 0.35 && grove <= 0.55, `${(grove * 100).toFixed(0)} % of the land in groves`);
+  let edges = 0, runs = 0, lines = 0;
+  for (let z = -200; z <= 400; z += 40) {
+    let last = null;
+    for (let x = -1600; x <= 200; x += 5) {
+      const now = groveAt(x, z, 4) >= 0.5;
+      if (last !== null && now !== last) edges++;
+      last = now;
+    }
+    runs += 1800;
+    lines++;
+  }
+  const across = runs / (edges + lines); // the mean length of a grove or a glade along a line
+  assert.ok(across >= 60 && across <= 120, `groves and glades ${across.toFixed(0)} m across`);
+  // trees a hectare in the groves (groveAt 0.6 or more) and in the glades (0.2 or less)
+  const area = { grove: 0, glade: 0 };
+  for (const [x, z] of land) {
+    const g = groveAt(x, z, 4);
+    if (g >= 0.6) area.grove += 0.01;
+    else if (g <= 0.2) area.glade += 0.01;
+  }
+  const trees = { grove: 0, glade: 0 };
+  const props = new Set(place.animals.props.map(p => `${p.x}:${p.z}`));
+  for (const p of place.stats.sections.flatMap(part => part.userData.placements)) {
+    if (!TREE_NAMES.has(p.name) || props.has(`${p.x}:${p.z}`)) continue;
+    const w = place.terrain.where(p.x, p.z);
+    if (w.e < 6 || w.fen > 0.6 || w.gorge > 0.5) continue;
+    const g = groveAt(p.x, p.z, 4);
+    if (g >= 0.6) trees.grove++;
+    else if (g <= 0.2) trees.glade++;
+  }
+  const dense = trees.grove / area.grove, open = trees.glade / area.glade;
+  assert.ok(dense >= 3 * open, `${dense.toFixed(1)} trees a hectare in the groves, ${open.toFixed(1)} in the glades`);
+});
+
+test('each group is seen from the river: no tree behind it within 25 m', () => {
+  const place = litValley();
+  const props = new Set(place.animals.props.map(p => `${p.x}:${p.z}`));
+  const all = place.stats.sections.flatMap(part => part.userData.placements);
+  for (const g of place.animals.groups) {
+    const side = place.terrain.where(g.point.x, g.point.z).side;
+    const behind = all.filter(p => TREE_NAMES.has(p.name) && !props.has(`${p.x}:${p.z}`) && Math.hypot(p.x - g.point.x, p.z - g.point.z) < 25
+      && place.terrain.where(p.x, p.z).side === side);
+    assert.equal(behind.length, 0, `${g.id}: ${behind.map(p => `a ${p.name} ${Math.hypot(p.x - g.point.x, p.z - g.point.z).toFixed(0)} m off`).join(', ')}`);
+  }
+});
+
 /** The placements of the real valley in 5 m cells, and those within r of (x, z), seen from above. */
 function placementsNear(place) {
   const cells = new Map();
@@ -693,7 +763,7 @@ test('from down in the gorge the ground hides most plants above the falls: the c
   const ruled = drawn();
   for (const part of withAbove) if (part.visible) cullBatches(aboveMeshes(part), world.camera);
   const plain = drawn();
-  assert.ok(plain > 30000, `a plain cull draws ${plain} triangles above the falls at t 90`);
+  assert.ok(plain > 20000, `a plain cull draws ${plain} triangles above the falls at t 90`); // the groves and the meadow (banks.js) leave fewer in this view
   assert.ok(ruled < plain * 0.25, `the rule draws ${ruled} of them`);
   // over the lip, looking up the valley: the rule is off
   look(-1350, 61, 125.6, -1470, 70, 92, 112);
@@ -775,7 +845,7 @@ test('low over the fen the far plants deep in the haze are left out, and only th
   for (const t of [22, 30, 40.45]) {
     const ruled = view(t);
     const all = plain();
-    assert.ok(all.far > 40000, `t ${t}: a plain cull draws ${all.far} far triangles`);
+    assert.ok(all.far > 30000, `t ${t}: a plain cull draws ${all.far} far triangles`);
     assert.ok(ruled.far < all.far * 0.85, `t ${t}: the haze rule draws ${ruled.far} of ${all.far} far triangles`);
     assert.equal(ruled.near, all.near, `t ${t}: the near band is never left out for haze`);
     // every far piece left out is more than FOG_CUT fogged at its nearest point and at its top; every one kept is less
