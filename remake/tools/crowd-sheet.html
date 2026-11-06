@@ -35,13 +35,16 @@ const CLIP = q.get('clip') || 'run';
 const SCALE = Number(q.get('scale') || 1);
 const FROG = Number(q.get('frog') || 3);
 const T = Number(q.get('t') || 0);
-const WORDS = { run: 'hleypur', idle: 'stendur kyrr', drink: 'drekkur', look: 'lítur upp', walk: 'gengur', trot: 'brokkar', graze: 'er á beit' };
+const WORDS = { run: 'hleypur', idle: 'stendur kyrr', drink: 'drekkur', look: 'lítur upp', walk: 'gengur', trot: 'brokkar', graze: 'er á beit',
+  flap: 'blakar vængjunum', glide: 'svífur', perch: 'situr á syllu' };
 // each animal's name, its name with the article and the word for long in its gender, and the film's clips in turn
 const ANIMALS = {
   smaedla: { name: 'Smáeðla', the: 'eðlan', long: 'löng',
     film: [{ clip: 'run', seconds: 2.7 }, { clip: 'idle', seconds: 3 }, { clip: 'drink', seconds: 2.5 }, { clip: 'look', seconds: 3 }] },
   grasbitur: { name: 'Grasbítur', the: 'grasbíturinn', long: 'langur',
     film: [{ clip: 'graze', seconds: 4 }, { clip: 'look', seconds: 2 }, { clip: 'walk', seconds: 3 }, { clip: 'trot', seconds: 2.4 }] },
+  flugdyr: { name: 'Flugdýr', the: 'flugdýrið', long: 'langt',
+    film: [{ clip: 'perch', seconds: 4 }, { clip: 'flap', seconds: 2 }, { clip: 'glide', seconds: 3 }] },
 };
 const ANIMAL = ANIMALS[NAME] ?? { name: NAME, the: NAME, long: 'löng', film: null };
 const width = innerWidth, height = innerHeight;
@@ -86,7 +89,12 @@ const ground = (x, z, w, d) => {
 const views = [];
 function view(camera, x, y, w, h) { views.push({ camera, x, y, w, h }); }
 
-if (MODE === 'sheet') {
+// A flyer (a model with a flap or glide clip) spans wider than it is long: its pages are flyerSheet and flyerFilm below.
+const WINGED = 'flap' in model.clips || 'glide' in model.clips;
+
+if (WINGED) {
+  await (MODE === 'sheet' ? flyerSheet : flyerFilm)();
+} else if (MODE === 'sheet') {
   const { frames, seconds } = model.clips[CLIP];
   const perRow = Math.ceil(frames / 2), step = length * 1.3, rowSide = 0.8 * length, rowTop = 0.55 * length;
   // left to right on screen: the frog, then the frames; both cameras see +X on the left, so x falls to the right
@@ -193,6 +201,191 @@ for (const v of views) {
   renderer.render(scene, v.camera);
 }
 window.__sheetReady = true;
+
+// ---- the flyer's pages (flugdyr) -------------------------------------------------------------------------------------------
+// sheet: the clip's frames, one to eight, from the side, from the front and from above, each view in rows of its own camera,
+// all at one scale; perched it stands on a ledge, flying it is drawn against the sky. A frog for size on a ledge of its own.
+// film (mode=film&t=<seconds>): its film's clips in turn (ANIMALS above; else perch, flap and glide), from the side and from behind and above.
+function flyer() {
+  return {
+    name: ANIMAL.name,
+    sky: 0xd3e5f3, page: 0xe9efe4,
+    ledge: new THREE.MeshLambertMaterial({ color: 0x8d8478 }),
+  };
+}
+
+/** The box the clip's frames fill (the morph targets are offsets from the rest shape), at the animal's scale. */
+function framesBox(clip, frames) {
+  const geometry = model.lods[0].geometry;
+  const rest = geometry.getAttribute('position');
+  const targets = geometry.morphAttributes.position ?? [];
+  const box = new THREE.Box3(), p = new THREE.Vector3(), d = new THREE.Vector3();
+  for (let k = 0; k < frames; k++) {
+    const target = targets.find(t => t.name === `${clip}.${k}`);
+    for (let i = 0; i < rest.count; i++) {
+      p.fromBufferAttribute(rest, i);
+      if (!target) { /* the rest shape */ } else if (geometry.morphTargetsRelative) p.add(d.fromBufferAttribute(target, i));
+      else p.fromBufferAttribute(target, i);
+      box.expandByPoint(p.multiplyScalar(SCALE));
+    }
+  }
+  return box;
+}
+
+async function flyerSheet() {
+  const FLYER = flyer();
+  const { frames, seconds } = model.clips[CLIP];
+  const perched = !['flap', 'glide'].includes(CLIP);
+  const box = framesBox(CLIP, frames).expandByPoint(new THREE.Vector3(0, 0, 0));
+  const size = box.getSize(new THREE.Vector3());
+  const restSize = new THREE.Box3().setFromBufferAttribute(model.lods[0].geometry.getAttribute('position'))
+    .getSize(new THREE.Vector3()).multiplyScalar(SCALE);
+  const { createModel } = await import('../world/critters/models.js');
+  const frogBox = new THREE.Box3().setFromBufferAttribute(createModel('frog').geometry.getAttribute('position'));
+  const fb = { min: frogBox.min.clone().multiplyScalar(FROG), max: frogBox.max.clone().multiplyScalar(FROG) };
+  // each view: how far apart its frames stand (along the screen), the animal's extent across the screen and along it, and
+  // the frog's the same ways
+  const VIEWS = [
+    { key: 'side', name: 'frá hlið', step: 1.15 * size.x, across: [box.min.y, box.max.y], from: [-box.max.x, -box.min.x],
+      frogAcross: [fb.min.y, fb.max.y], frogFrom: [-fb.max.x, -fb.min.x] },
+    { key: 'front', name: 'framan frá', step: 1.06 * size.z, across: [box.min.y, box.max.y], from: [-box.max.z, -box.min.z],
+      frogAcross: [fb.min.y, fb.max.y], frogFrom: [-fb.max.z, -fb.min.z] },
+    { key: 'top', name: 'ofan frá', step: 1.15 * size.x, across: [box.min.z, box.max.z], from: [-box.max.x, -box.min.x],
+      frogAcross: [fb.min.z, fb.max.z], frogFrom: [-fb.max.x, -fb.min.x] },
+  ];
+  const NUMBERS = 30, GAP = 8, SIDE = 24, head = 100;
+  const room = { w: width - 2 * SIDE, h: height - head };
+  // rows of 4 or 8 frames, whichever draws the animal larger
+  const plan = perRow => {
+    const bands = [];
+    for (const v of VIEWS) for (let b = 0; b * perRow < frames; b++) {
+      const count = Math.min(perRow, frames - b * perRow);
+      // the first row starts with the frog, as far before frame 1 as a step or, when it is wider, clear of it
+      const frogU = Math.min(0, v.step + v.from[0] - 0.05 * v.step - v.frogFrom[1]);
+      const u0 = b ? 0.5 * v.step + v.from[0] - 0.02 * v.step : Math.min(-0.35 * v.step + v.from[0], frogU + v.frogFrom[0]) - 0.02 * v.step;
+      const u1 = count * v.step + v.from[1] + 0.02 * v.step;
+      const lo = b ? v.across[0] : Math.min(v.across[0], v.frogAcross[0]), hi = b ? v.across[1] : Math.max(v.across[1], v.frogAcross[1]);
+      const pad = 0.04 * (hi - lo);
+      bands.push({ view: v, band: b, count, u0, u1, v0: lo - pad, v1: hi + pad, frogU });
+    }
+    const wide = Math.max(...bands.map(b => b.u1 - b.u0));
+    const tall = bands.reduce((t, b) => t + b.v1 - b.v0, 0);
+    const k = Math.min(room.w / wide, (room.h - bands.length * (NUMBERS + GAP)) / tall);
+    return { bands, k, perRow };
+  };
+  const { bands, k, perRow } = [plan(4), plan(8)].sort((a, b) => b.k - a.k)[0];
+
+  crowds.begin(null);
+  const ledge = FLYER.ledge;
+  const slab = (x, z, w, d) => { // a ledge, its top at y = 0, x and z its middle
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05 * size.y + 0.02, d), ledge);
+    m.position.set(x, -(0.05 * size.y + 0.02) / 2, z);
+    scene.add(m);
+  };
+  const placed = [];
+  bands.forEach((band, i) => {
+    const base = new THREE.Vector3(1000 * i, 0, 1000 * i); // each row far from the others: no camera sees two
+    const v = band.view;
+    const spot = s => (v.key === 'front' ? base.clone().add(at(0, 0, -s * v.step)) : base.clone().add(at(-s * v.step, 0, 0)));
+    for (let j = 0; j < band.count; j++) {
+      const kf = band.band * perRow + j;
+      const pose = { morphs: clipPose(model, CLIP, (kf / frames) * seconds) };
+      crowds.place(NAME, spot(j + 1), 0, SCALE, pose);
+      placed.push({ band: i, text: `${kf + 1}`, u: (j + 1) * v.step });
+      if (perched && v.key !== 'top') {
+        const p = spot(j + 1);
+        if (v.key === 'side') slab(p.x, p.z + 0.08 * size.z + 0.5, v.step * 1.0, 1);
+        else slab(p.x - 0.08 * size.x - 0.5, p.z, 1, v.step * 1.0);
+      }
+    }
+    if (band.band === 0) { // the frog, on a ledge of its own
+      const p = spot(band.frogU / v.step), wide = 1.1 * (v.frogFrom[1] - v.frogFrom[0]);
+      crowds.place('frog', p, 0, FROG);
+      if (v.key === 'side') slab(p.x, p.z + 0.5, wide, 1);
+      else if (v.key === 'front') slab(p.x - 0.5, p.z, 1, wide);
+      placed.push({ band: i, text: `froskur ×${FROG}`, u: band.frogU });
+    }
+    if (v.key === 'top' && perched) {
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(band.u1 - band.u0 + 2, band.v1 - band.v0 + 2), ledge);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(base.x - (band.u0 + band.u1) / 2, -0.02, base.z + (band.v0 + band.v1) / 2);
+      scene.add(ground);
+    }
+    band.base = base;
+  });
+  crowds.end();
+
+  // the rows top to bottom, each centred
+  renderer.setScissorTest(false);
+  renderer.setClearColor(FLYER.page);
+  renderer.clear();
+  renderer.setScissorTest(true);
+  let y = height - head;
+  bands.forEach((band, i) => {
+    const v = band.view, base = band.base;
+    const w = (band.u1 - band.u0) * k, hView = (band.v1 - band.v0) * k + NUMBERS;
+    const x = SIDE + (room.w - w) / 2;
+    y -= hView;
+    const extra = NUMBERS / k; // the numbers' strip under the frames, in metres
+    const uc = (band.u0 + band.u1) / 2, vc = (band.v0 + band.v1 - extra) / 2;
+    const halfU = (band.u1 - band.u0) / 2, halfV = (band.v1 - band.v0 + extra) / 2;
+    const camera = new THREE.OrthographicCamera(-halfU, halfU, halfV, -halfV, 0.1, 40);
+    if (v.key === 'side') { camera.position.set(base.x - uc, vc, base.z - 20); camera.lookAt(base.x - uc, vc, base.z); }
+    else if (v.key === 'front') { camera.position.set(base.x + 20, vc, base.z - uc); camera.lookAt(base.x, vc, base.z - uc); }
+    else { camera.up.set(0, 0, 1); camera.position.set(base.x - uc, 20, base.z + vc); camera.lookAt(base.x - uc, 0, base.z + vc); }
+    camera.updateMatrixWorld();
+    renderer.setViewport(x, y, w, hView);
+    renderer.setScissor(x, y, w, hView);
+    renderer.setClearColor(perched ? FLYER.page : FLYER.sky);
+    renderer.render(scene, camera);
+    const top = height - (y + hView);
+    if (band.band === 0) label(v.name, x + 8, top + 4, 'sub');
+    for (const p of placed.filter(q => q.band === i)) label(p.text, x + (p.u - band.u0) * k, top + hView - NUMBERS + 2);
+    y -= GAP;
+  });
+  label(`${FLYER.name} ${WORDS[CLIP] ?? CLIP}: ${frames} stellingar á ${fmt(seconds)} s, frá hlið, framan frá og ofan frá`, 0, 0, 'title');
+  label(`stærð eins og í leiknum: ×${SCALE}, ${fmt(+restSize.z.toFixed(2))} m milli vængbrodda og ${fmt(+restSize.x.toFixed(2))} m `
+    + `frá goggi aftur á sporð; froskurinn ×${FROG}`, 0, 54, 'sub');
+}
+
+async function flyerFilm() {
+  const FLYER = flyer();
+  const film = (ANIMAL.film ?? [{ clip: 'perch', seconds: 4 }, { clip: 'flap', seconds: 2 }, { clip: 'glide', seconds: 3 }])
+    .filter(s => s.clip in model.clips);
+  let t = T, seg = film[0];
+  for (const s of film) { seg = s; if (t < s.seconds) break; t -= s.seconds; }
+  const perched = seg.clip === 'perch';
+  const restBox = new THREE.Box3().setFromBufferAttribute(model.lods[0].geometry.getAttribute('position'));
+  const L = (restBox.max.x - restBox.min.x) * SCALE, S = (restBox.max.z - restBox.min.z) * SCALE;
+  crowds.begin(null);
+  crowds.place(NAME, at(0, 0, 0), 0, SCALE, { morphs: clipPose(model, seg.clip, t) });
+  crowds.end();
+  if (perched) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.4 * L, 0.6 * L, 1.2 * S), FLYER.ledge);
+    m.position.set(-0.1 * L, -0.3 * L, 0);
+    scene.add(m);
+  }
+  const aspect = (width / 2) / (height - 70), span = 1.6 * L;
+  const side = new THREE.OrthographicCamera(-span / 2, span / 2, span / 2 / aspect, -span / 2 / aspect, 0.1, 40);
+  side.position.set(-0.05 * L, 0.3 * L, -20);
+  side.lookAt(side.position.x, side.position.y, 0);
+  const behind = new THREE.PerspectiveCamera(32, aspect, 0.05, 100);
+  behind.position.set(-3.4 * L, 1.9 * L, -1.0 * L); // far enough back that both wing tips are in the picture
+  behind.lookAt(0, 0.25 * L, 0);
+  renderer.setScissorTest(false);
+  renderer.setClearColor(FLYER.page);
+  renderer.clear();
+  renderer.setScissorTest(true);
+  for (const [camera, x] of [[side, 0], [behind, width / 2]]) {
+    camera.updateMatrixWorld();
+    renderer.setViewport(x, 0, width / 2, height - 70);
+    renderer.setScissor(x, 0, width / 2, height - 70);
+    renderer.setClearColor(perched ? FLYER.page : FLYER.sky);
+    renderer.render(scene, camera);
+  }
+  label(`${FLYER.name} ${WORDS[seg.clip] ?? seg.clip}`, 0, 0, 'title');
+  label(`${fmt(model.clips[seg.clip].seconds)} s, endurtekið`, 0, 50, 'sub');
+}
 </script>
 </body>
 </html>

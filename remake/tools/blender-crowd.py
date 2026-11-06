@@ -97,7 +97,7 @@ high.name = 'high'
 # glTF (x, y up, z) is Blender (x, -z, y) once imported; the rig file's joints are in the file's glTF space.
 to_blender = lambda p: Vector((p[0], -p[2], p[1]))
 turn = {'-x': Matrix.Rotation(math.pi, 4, 'Z'), '+x': Matrix.Identity(4),
-        '+z': Matrix.Rotation(-math.pi / 2, 4, 'Z'), '-z': Matrix.Rotation(math.pi / 2, 4, 'Z')}[RIG.get('nose', '-x')]
+        '+z': Matrix.Rotation(math.pi / 2, 4, 'Z'), '-z': Matrix.Rotation(-math.pi / 2, 4, 'Z')}[RIG.get('nose', '-x')]
 high.data.transform(turn)
 xs = [v.co.x for v in high.data.vertices]
 scale = LENGTH / (max(xs) - min(xs))
@@ -441,6 +441,12 @@ material.use_backface_culling = True  # a closed surface: one-sided is cheaper
 for obj in (near, far):
     obj.data.materials.clear()
     obj.data.materials.append(material)
+
+# A flyer (the rig file's kind "winged": wings, not legs) is rigged, posed and exported from here on by blender-crowd-wings.py.
+if RIG.get('kind') == 'winged':
+    WINGED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blender-crowd-wings.py')
+    exec(compile(open(WINGED, encoding='utf-8').read(), WINGED, 'exec'))
+    sys.exit(0)
 
 # ---- 4. the rig: bones from the joints, bone-heat weights on the middle mesh, carried to near and far -------------------------
 BONES = {  # name: (head, tail, parent)
