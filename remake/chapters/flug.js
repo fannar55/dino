@@ -12,6 +12,7 @@ import { theFlight, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
 import { lineQueue } from './kafli4-flight-play.js';
 import { track1 } from './flug-track.js';
 import { createArdalur } from '../world/ardalur/index.js';
+import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier } from '../engine/flier.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
@@ -36,7 +37,7 @@ export const chapter = {
   start: 'ardalur',
   locations: {
     ardalur: {
-      build: world => createArdalur(world, { grey: !params.has('lit'), route }),
+      build: async world => createArdalur(world, { grey: !params.has('lit'), route, critters: params.has('lit') ? await loadCritters(world) : {} }),
       shots: {
         // While the start button waits: the white snag on the Fen, with her on top of it and Egill on her back.
         flug_snag: { position: [17, 5, 13], target: [...TREE].map((v, i) => (i === 1 ? v + 1.5 : v)), fov: 42 },

@@ -10,7 +10,9 @@ import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
-import { createAnimals, ANSWER } from '../world/ardalur/animals.js';
+import { createAnimals, ANSWER, SMAEDLA_MODEL } from '../world/ardalur/animals.js';
+import { crowdModelFrom } from '../world/critters/crowd-models.js';
+import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { HIGH, bodyOf } from '../world/ardalur/banks.js';
 import { stillViews } from '../engine/camera/flight-camera.js';
@@ -709,6 +711,44 @@ test('each group sets off for the festival when it answers, once', () => {
     if (g.kind === 'dragonflies') g.members.forEach(m => assert.ok(m.visible && m.position.distanceTo(m.home) < 0.6, 'the dragonflies stay home'));
     else assert.ok(g.members.every(m => !m.visible), `${g.id}: gone for good`);
   }
+  animals.dispose();
+});
+
+test('the lizards are the owner\'s small lizard: drinking or idle at rest, looking up as she passes over, running as they answer', async () => {
+  const smaedla = crowdModelFrom(await loadGlb(new URL(SMAEDLA_MODEL)));
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt, critters: { smaedla } });
+  // how much of a member's pose is the clip's frames (a pose from clipPose sums to 1)
+  const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+  const lizards = animals.groups.filter(g => g.kind === 'lizards');
+  assert.equal(lizards.length, 3);
+  for (const g of lizards) {
+    assert.ok(g.members.every(m => m.kind === 'smaedla'), `${g.id}: small lizards`);
+    const t0 = passes(route.groups.find(r => r.id === g.id).u);
+    // long before she comes: the row at the edge drinks, the row behind stands about
+    world.at(t0 - 20);
+    animals.update(DT, t0 - 20);
+    g.members.forEach((m, k) => {
+      const clip = m.e < 1 ? 'drink' : 'idle';
+      assert.ok(Math.abs(weight(m, clip) - 1) < 1e-6, `${g.id} ${k}: ${clip} at rest (${weight(m, clip).toFixed(2)})`);
+    });
+    // as she passes over them, they look up at her
+    world.at(t0);
+    animals.update(DT, t0);
+    g.members.forEach((m, k) => assert.ok(weight(m, 'look') > 0.9, `${g.id} ${k}: looks up as she passes (${weight(m, 'look').toFixed(2)})`));
+    // their answer: they run with her
+    g.answer();
+    world.at(t0 + 2);
+    animals.update(DT, t0 + 2);
+    g.members.forEach((m, k) => assert.ok(!m.visible || Math.abs(weight(m, 'run') - 1) < 1e-6, `${g.id} ${k}: runs (${weight(m, 'run').toFixed(2)})`));
+    // the run's frames go round with the ground they cover, not on their own: half a second on, other frames
+    const before = JSON.stringify(g.members[0].morphs);
+    world.at(t0 + 2.5);
+    animals.update(DT, t0 + 2.5);
+    assert.notEqual(JSON.stringify(g.members[0].morphs), before, `${g.id}: the run goes on`);
+  }
+  // drawn from the model's two levels: near and far, two draw calls at most for the kind
+  assert.equal(animals.crowds.meshes.filter(mesh => mesh.userData.kind === 'smaedla').length, 2);
   animals.dispose();
 });
 

@@ -6,9 +6,12 @@
 //
 // They are the game's own critters (world/critters/models.js: at most 400 triangles each), drawn larger than life (SCALE) so that
 // they read from the air, and drawn as crowds (world/critters/crowd.js): each kind in one draw call however many there are. The small
-// lizards are the Fen's salamander until the owner's own model comes.
+// lizards are the owner's own model (assets/critters/smaedla.glb, baked by tools/prep-crowd.mjs: its clips in morph frames, two
+// levels of detail) when the chapter has loaded it (loadCritters); the Fen's salamander stands in without it. At rest the row at
+// the edge drinks and the row behind stands about, they look up at her as she passes over, and run with her when they answer.
 //
-//   const animals = createAnimals(world, route, { heightAt, library, crowds });   // library: the forest's species (prop sizes), optional
+//   const critters = await loadCritters(world);                                    // { smaedla } (crowd-models.js), {} if it cannot be had
+//   const animals = createAnimals(world, route, { heightAt, library, crowds, critters }); // library: the forest's species (prop sizes)
 //   animals.crowds                         what draws them (shared with the flight's other life when given; their own otherwise)
 //   animals.group                          the crowds' group (in world.scene unless the crowds were given)
 //   animals.props                          what they sit on: [{ name, variant, x, y, z, rot, scale }] for the plants to grow (banks.js)
@@ -24,14 +27,42 @@
 // dragonflies follow her where she is now (world.flightPoint, or route.pointAt(world.flightU)); once they let her go they are out of
 // sight until they are home again. answer() a second time is a finished Handle: a group answers once.
 import * as THREE from 'three';
+import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { DONE, Handle } from '../../engine/handle.js';
+import { clipPose, crowdModelFrom } from '../critters/crowd-models.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
 
 /** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s (and
  * on an upright tablet too, where the same view is 800 px wide, not 1280: kafli4's chase test). */
-export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 4.5, salamander: 4, bird: 7 };
+export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 4.5, salamander: 4, smaedla: 1.5, bird: 7 };
 const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle: 'turtle', lizards: 'salamander' };
+
+/** The owner's small lizard (his Tripo3D model, 0.8 m long at scale 1), as tools/prep-crowd.mjs bakes it. */
+export const SMAEDLA_MODEL = new URL('../../assets/critters/smaedla.glb', import.meta.url).href;
+const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
+/**
+ * The valley's baked critters: { smaedla } as crowd models (world/critters/crowd-models.js), read through world.loadModel (the
+ * tests read the file) or three's loader (the page). {} when it cannot be had: the salamander stands in, and the chapter goes on.
+ */
+export async function loadCritters(world) {
+  try {
+    let gltf;
+    if (world.loadModel) gltf = await world.loadModel(SMAEDLA_MODEL);
+    else {
+      if (!critterFiles.has(SMAEDLA_MODEL)) critterFiles.set(SMAEDLA_MODEL, new GLTFLoader().loadAsync(SMAEDLA_MODEL));
+      gltf = await critterFiles.get(SMAEDLA_MODEL);
+    }
+    return { smaedla: crowdModelFrom(gltf) };
+  } catch (error) {
+    critterFiles.delete(SMAEDLA_MODEL);
+    console.warn('[animals] the small lizard could not be loaded; the salamander stands in:', error?.message ?? error);
+    return {};
+  }
+}
+// The small lizard looks up at her as she passes over: fully within `near` metres of her (seen from above), not at all beyond
+// `near` + `fade`; its look clip from its first frame to `frame`, the head up.
+const LOOK = { near: 16, fade: 10, frame: 5 };
 /** How long each group's answer lasts, in seconds: then it is on its way to the festival, out of sight (the dragonflies home again). */
 export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 4, dragonflies: 10 };
 /** The kinds whose answer's last pose is their rest from then on (gone): all but the dragonflies, which come home. */
@@ -80,7 +111,8 @@ const PERCH = 0.85; // how far out in its crown a bird sits, as a share of the c
 const SWARM = [[1.5, -4.8, 0.6], [-0.5, 5.2, 1.4], [0.8, 6.0, -0.2], [-1.5, -5.8, 1.8], [2.5, 4.2, 2.2], [0.2, -6.6, 1.0]];
 const FOLLOW = { rise: 0.6, with: 4.0, peel: 1.2, away: 10 }; // seconds: catch up, follow her, peel off, home again (unseen) at `away`
 // The small lizards: they turn from the water, run `metres` up the bank with her in `seconds` (easing in and out), then `ahead` more
-// and `inland` into the trees in `into` seconds, out of sight once `hide` of the way in.
+// and `inland` into the trees in `into` seconds, out of sight once `hide` of the way in. Their legs go round once every `stride`
+// metres covered (the small lizard's own stride at its size is 0.5 m: at her speed its feet would blur).
 const RUN = { turn: 0.3, metres: 24, seconds: 4, out: 1.4, ahead: 8, inland: 25, into: 5, hide: 0.8, stride: 0.95, stagger: 0.05 };
 // The frogs: a crouch and a leap `out` metres off the pad into the river, then they swim upstream on the surface and dive at `dive`.
 const HOP = { crouch: 0.22, air: 0.62, height: 1.25, out: 1.5, stagger: 0.18 };
@@ -104,12 +136,19 @@ export function crownOf(prop, library = null) {
   return { middle, r: cr.r * sc, ry: (cr.ry ?? cr.r) * sc };
 }
 
-export function createAnimals(world, route, { heightAt = () => 0, library = null, crowds = null } = {}) {
+export function createAnimals(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
   const { river } = route;
   const own = !crowds;
   crowds ??= createCrowds(world);
+  const baked = critters.smaedla ?? null;
+  const memberOf = kind => (kind === 'lizards' && baked ? 'smaedla' : MEMBER[kind]);
   const models = {};
   const modelOf = kind => (models[kind] ??= (() => {
+    if (kind === 'smaedla') {
+      // the frames' names, as the crowd draws them (the same in both levels), and its height standing
+      const morphs = (baked.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
+      return { morphs, height: baked.height, wings: false };
+    }
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
     model.height = model.geometry.boundingBox.max.y - model.geometry.boundingBox.min.y;
@@ -138,7 +177,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     const near = river.nearest(g.at[0], g.at[2]);
     const d = near.d;
     const side = g.side;
-    const kind = MEMBER[g.kind];
+    const kind = memberOf(g.kind);
     const model = modelOf(kind);
     const scale = SCALE[kind];
     // the props first: the members sit on them
@@ -188,7 +227,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         along: g.kind === 'birds' ? 0 : m.along, e: g.kind === 'birds' ? PROPS.birds[0].e : m.e, d, side, phase: k * 1.37 + d * 0.01,
       };
     });
-    crowds.reserve(kind, members.length, { model });
+    crowds.reserve(kind, members.length, kind === 'smaedla' ? baked : { model });
     const point = crown ? crown.middle.clone() : members.reduce((sum, m) => sum.add(m.home), new THREE.Vector3()).divideScalar(members.length);
     const entry = {
       id: g.id, kind: g.kind, point, radius: crown ? Math.max(RADIUS, crown.r) : RADIUS, members, answered: false, start: null, handle: null,
@@ -339,6 +378,10 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         break;
       }
       case 'lizards': {
+        if (m.kind === 'smaedla') {
+          smaedla(m, t, tau === null ? null : Math.max(0, tau - k * RUN.stagger));
+          break;
+        }
         const curl = 0.45 * (0.5 + 0.5 * Math.sin((TAU * t) / 7 + p));
         m.morphs.walkA = 0;
         m.morphs.walkB = 0;
@@ -368,6 +411,37 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       }
       default: break;
     }
+  }
+  /**
+   * The small lizard (the owner's model) at game time t, `u` seconds into its run (null before its answer): the same way up the bank
+   * and inland as the salamander's, its pose from its clips (clipPose): drinking at the edge or standing about behind, looking up
+   * at her as she passes over, running. The weights of its frames add up to 1.
+   */
+  function smaedla(m, t, u) {
+    for (const name in m.morphs) m.morphs[name] = 0;
+    const add = (pose, w) => { if (w > 0) for (const name in pose) m.morphs[name] += pose[name] * w; };
+    let running = 0;
+    let travelled = 0;
+    if (u !== null) {
+      const run = smooth((u - RUN.turn) / RUN.seconds);
+      const inland = smooth((u - RUN.turn - RUN.seconds) / RUN.into);
+      if (inland >= RUN.hide) { m.visible = false; return; }
+      const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) + RUN.inland * inland;
+      const at = spot(m.d, m.side, m.along + RUN.metres * run + RUN.ahead * inland, e);
+      m.position.set(at.x, heightAt(at.x, at.z), at.z);
+      const upstream = headingOf(at.dir[0], at.dir[1]);
+      const into = headingOf(at.dir[0] * RUN.ahead + at.out[0] * RUN.inland, at.dir[1] * RUN.ahead + at.out[1] * RUN.inland);
+      m.heading = lerpAngle(lerpAngle(m.rest, upstream, smooth(u / RUN.turn)), into, smooth((u - RUN.turn - RUN.seconds) / 0.6));
+      running = smooth(u / RUN.turn);
+      travelled = RUN.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland;
+    }
+    const body = herNow();
+    const look = body ? 1 - smooth((Math.hypot(body.x - m.home.x, body.z - m.home.z) - LOOK.near) / LOOK.fade) : 0;
+    const still = 1 - running;
+    const { clips } = baked;
+    add(clipPose(baked, m.e < 1 ? 'drink' : 'idle', t, m.phase), still * (1 - look));
+    add(clipPose(baked, 'look', ((look * LOOK.frame) / clips.look.frames) * clips.look.seconds), still * look);
+    add(clipPose(baked, 'run', (travelled / RUN.stride) * clips.run.seconds, m.phase), running);
   }
   const lerpAngle = (a, b, k) => a + (((b - a + 540) % 360) - 180) * k;
   // the birds' way out of their tree: inland (away from the river) and upstream, from where they sit

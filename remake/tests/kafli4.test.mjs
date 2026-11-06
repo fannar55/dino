@@ -16,7 +16,6 @@ import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js'
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
 import fs from 'node:fs';
-import { createModel } from '../world/critters/models.js';
 
 // Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
 // as it was, the white tree's own patch of fen, and the far pool), the camera rules of its shots, and the whole chapter played through
@@ -291,7 +290,7 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
         for (const m of group.members) {
           const p = m.position.clone().project(world.camera);
           if (!m.visible || p.z >= 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
-          const box = projectedBox(m, world.camera);
+          const box = projectedBox(m, world.camera, world.forest.animals.crowds);
           low = Math.min(low, box.y0);
           high = Math.max(high, box.y1);
         }
@@ -346,10 +345,16 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null } = 
     },
   }).then(run => ({ ...run, watched: seen }));
 }
-/** A critter's model box at its pose, projected: its least and most x and y on the screen (-1 to 1 across the frame). */
+/**
+ * A critter's model box at its pose, projected: its least and most x and y on the screen (-1 to 1 across the frame). The box is its
+ * kind's shape at rest, as the crowds draw it (the fine level of a baked critter, such as the small lizard).
+ */
 const boxes = new Map();
-function projectedBox(m, camera) {
-  if (!boxes.has(m.kind)) { const g = createModel(m.kind).geometry; g.computeBoundingBox(); boxes.set(m.kind, g.boundingBox); }
+function projectedBox(m, camera, crowds) {
+  if (!boxes.has(m.kind)) {
+    const mesh = crowds.meshes.find(x => x.userData.kind === m.kind && !x.userData.level);
+    boxes.set(m.kind, new THREE.Box3().setFromBufferAttribute(mesh.geometry.getAttribute('position')));
+  }
   const box = boxes.get(m.kind);
   const h = THREE.MathUtils.degToRad(m.heading);
   const c = Math.cos(h), s = Math.sin(h);
@@ -633,6 +638,13 @@ test('the animals stay in their budget: 40 000 triangles and 12 draw calls in ev
   const triangles = Math.max(...watched.critters.map(f => f.triangles));
   const calls = Math.max(...watched.critters.map(f => f.calls));
   assert.ok(triangles <= 40000 && calls <= 12, `at most ${triangles} triangles and ${calls} draw calls in a frame`);
+});
+
+test('the lizards of C are the owner\'s small lizard, loaded before the valley is built', async () => {
+  const { world } = await playWide();
+  const lizards = world.forest.animals.groups.filter(g => g.kind === 'lizards');
+  assert.equal(lizards.length, 3);
+  assert.ok(lizards.every(g => g.members.every(m => m.kind === 'smaedla')), lizards.map(g => `${g.id}: ${g.members[0].kind}`).join(', '));
 });
 
 test('the shadow shot frames the lizards it is about: the group at least 8 % of the frame\'s height as she passes', async () => {

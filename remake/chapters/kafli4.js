@@ -27,6 +27,7 @@ import { lineQueue } from './kafli4-flight-play.js';
 import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
 import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
+import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
@@ -735,7 +736,8 @@ export const chapter = {
     // so that they are drawn then too. Its other sections are still built a slice a frame as she flies (all of them here would double
     // the wait for the start button).
     ardalur: {
-      build: world => createArdalur(world, { grey: false, route: ROUTE }), shots: FAR_POOL.shots, warmUp: [],
+      // the owner's small lizard first (world/ardalur/animals.js: loadCritters), so C's lizards are his from their first frame
+      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world) }), shots: FAR_POOL.shots, warmUp: [],
       async ready(world, valley) {
         valley.farLand?.prefetch();
         await valley.farLand?.load();

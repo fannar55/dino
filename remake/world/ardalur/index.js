@@ -33,9 +33,9 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
 
 /**
  * Build Árdalurinn. Options: grey (the stand-ins of chunk 1; otherwise the real look: look.js, the forest's plants, the game's
- * water), seed, route, budget(), now() (the build slices).
+ * water), seed, route, budget(), now() (the build slices), critters (loadCritters in animals.js: the small lizard, loaded first).
  */
-export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now() } = {}) {
+export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {} } = {}) {
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
@@ -62,7 +62,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   // the animal groups of C (animals.js), in the real look; the grey one has their marks. They are drawn as crowds (each kind of
   // critter in one draw call), begun and ended round them each frame.
   const crowds = real ? createCrowds(world, { parent: group }) : null;
-  const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds }) : null;
+  const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
   // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders; in the same crowds
   const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds }) : null;
   // the far pool's beds of reed, and where nothing else grows by it (river.js): grown with the banks, as the animals' props are
