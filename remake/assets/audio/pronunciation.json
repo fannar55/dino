@@ -5,7 +5,8 @@
     "A recipe: \"say\" (what is sent in place of the form: one string for every form, or form -> string; IPA goes in double quotes and slashes, \"/.../\", the way Eleven v4 reads it), \"context\" (sent as previous_text, never spoken: a string, or speaker -> string with \"*\" for the rest), \"seed\", and \"note\" (for the owner, shown in the book). \"hratt\" sends the word as written.",
     "\"chosen\" is the recipe the owner picked by ear in the pronunciation book (node remake/tools/voice-lines.mjs --pick picks.json), or null: then the word is sent as written. \"audition\" (speaker -> sentence) gives the book a sentence for a speaker who has no line with the word.",
     "The text the child sees (lines-source.json, the captions, lines.json) is never changed: only the request is.",
-    "A line that carries its own \"say\" or \"context\" (lines-source.json of a set, yatzy-junior/lines-overrides.json) names what it fixes in \"fixes\": a word id of this book or a list of them (a word without an entry gets one, \"chosen\": null and a \"hratt\" recipe, so no request changes), \"punctuation\" (its say differs from the text in punctuation and spaces alone, and it has no context) or \"line\" (the whole line's tone; its note says so). remake/tests/heard.test.mjs checks it; voice-lines.mjs --dry and the book page show each word's fixes elsewhere, so the recipe that already won is tried first, and a fix that wins for a word becomes a recipe of it here."
+    "A line that carries its own \"say\" or \"context\" (lines-source.json of a set, yatzy-junior/lines-overrides.json) names what it fixes in \"fixes\": a word id of this book or a list of them (a word without an entry gets one, \"chosen\": null and a \"hratt\" recipe, so no request changes), \"punctuation\" (its say differs from the text in punctuation and spaces alone, and it has no context) or \"line\" (the whole line's tone; its note says so). remake/tests/heard.test.mjs checks it; voice-lines.mjs --dry and the book page show each word's fixes elsewhere, so the recipe that already won is tried first, and a fix that wins for a word becomes a recipe of it here.",
+    "\"lines\" holds the rules for whole lines. Its one rule, \"ny3\" ({ \"speakers\", \"note\" }), names the speakers whose new takes (a line never made, one whose take the owner rejected, one made again) are sent with the line itself as context after the words' contexts, never spoken, and seed 7 unless the line has its own (remake/tools/voice-lines.mjs applyNy3); a line that ships a take of the book's request keeps it."
   ],
   "words": {
     "kambedla": {
@@ -2082,6 +2083,14 @@
         }
       },
       "chosen": "hratt"
+    }
+  },
+  "lines": {
+    "ny3": {
+      "speakers": [
+        "mosi"
+      ],
+      "note": "Ný 3 (c7): the line itself as context, seed 7. Plain eleven_v4 takes of Mosi came out sounding Norwegian or Danish to the owner, though the request was right; he picked Ný 3 by ear for 11 of 11 lines in chapter 4 (a86be9b, 2026-11-04) and 9 of 11 in the memory game (codex/minnisspil-first-playable). Made the default for every new take of Mosi on 2026-11-05, his word \"Já, bara Mosi\" (Flugeðla's plain lines were fine)."
     }
   }
 }

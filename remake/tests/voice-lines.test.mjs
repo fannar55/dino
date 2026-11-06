@@ -1230,3 +1230,80 @@ test('the book marks a row whose MP3 plays an older request than it would send n
   await main(['--book', 'egill'], { env, root, fetch, log() {} });
   assert.ok(readJson(path.join(book, 'book.json')).rows.every(row => !row.stale), 'rendered again: none stale');
 });
+
+test('Ný 3: a new take of a speaker the book names goes out with the line itself as context, after the book\'s, and seed 7 (its own seed wins); a shipped take of the book\'s request keeps it, a rejected one is made again under Ný 3, and the rule stays put', needsFfmpeg, async t => {
+  const tool = await import('../tools/voice-lines.mjs');
+  const { checkLexicon } = await import('../tools/pronunciation.mjs');
+  const junior = await import('../tools/yatzy-junior-voices.mjs');
+  const shipped = [
+    { id: 'k1_mosi_two', speaker: 'mosi', text: 'Tvö!' },
+    { id: 'k1_egill_wow', speaker: 'egill', text: 'Vá! Ég sé yfir allt!' },
+    { id: 'k1_mosi_kept', speaker: 'mosi', text: 'Fjögur!', kept: "the owner's pick" },
+  ];
+  const root = makeRoot(t, { lines: shipped, lexicon: fixtureLexicon() }); // made before the rule
+  const audio = path.join(root, 'remake/assets/audio');
+  fs.writeFileSync(path.join(audio, 'kafli1/k1_mosi_kept.mp3'), mastered(tone(330)));
+  const { fetch, calls } = fakeApi();
+  const env = { ELEVENLABS_API_KEY: KEY };
+  await main([], { env, root, fetch, log() {} });
+  assert.equal(calls.length, 2);
+  const lexicon = fixtureLexicon();
+  lexicon.lines = { ny3: { speakers: ['mosi'], note: 'Ný 3 for the test.' } };
+  assert.throws(() => checkLexicon({ ...lexicon, lines: { ny3: { speakers: 'mosi', note: 'x' } } }), /lines\.ny3\.speakers/);
+  assert.throws(() => checkLexicon({ ...lexicon, lines: { other: {} } }), /its one rule is "ny3"/);
+  fs.writeFileSync(path.join(audio, 'pronunciation.json'), JSON.stringify(lexicon, null, 2));
+  const fresh = [
+    { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!' }, // never made: the book's context, then the caption
+    { id: 'k1_mosi_three', speaker: 'mosi', text: 'Þrjú!', seed: 3 }, // its own seed wins
+    { id: 'k1_mosi_high', speaker: 'mosi', text: 'Hærra!', context: 'Hærra!', seed: 7, fixes: 'line', note: 'Ný 3 by hand; it fixes the whole line.' }, // not added twice
+    { id: 'k1_egill_go', speaker: 'egill', text: 'Áfram!' }, // a speaker the book does not name
+  ];
+  fs.writeFileSync(path.join(audio, 'kafli1/lines-source.json'), JSON.stringify([...shipped, ...fresh]));
+  const out = [];
+  await main(['--dry'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.match(out[0], /, 3 under Ný 3$/);
+  const greetAt = out.findIndex(line => line.startsWith('  k1_mosi_greet: '));
+  assert.deepEqual(out.slice(greetAt + 1, greetAt + 3), [`      context (not spoken): ${JSON.stringify(`${VISIT} Kambeðla! Halló!`)}`, `      ${tool.NY3_NAME} (never made)`], 'named on the line');
+  assert.equal(out.filter(line => line.includes(tool.NY3_NAME)).length, 3, 'on the three new lines of Mosi only');
+  let plan = regenerationPlan(root, { junior: {} }).kafli1;
+  assert.deepEqual(plan.make.map(item => [item.id, item.reasons, item.ny3 ?? null]), [
+    ['k1_mosi_greet', ['no MP3 yet'], 'never made'], ['k1_mosi_three', ['no MP3 yet'], 'never made'], ['k1_mosi_high', ['no MP3 yet'], 'never made'], ['k1_egill_go', ['no MP3 yet'], null],
+  ]);
+  assert.equal(plan.current, 2, "Mosi's and Egill's shipped takes keep the book's request: nothing to make for the rule");
+
+  await main([], { env, root, fetch, log() {} });
+  const sent = Object.fromEntries(calls.slice(2).map(call => [call.body.text, [call.body.previous_text, call.body.seed]]));
+  assert.deepEqual(sent, {
+    'Kambeðla! Halló!': [`${VISIT} Kambeðla! Halló!`, 7], 'Þrjú!': ['Þrjú!', 3], 'Hærra!': ['Hærra!', 7], 'Áfram!': [undefined, undefined],
+  }, 'only the new lines are asked for; the kept line never');
+  assert.equal(recordOf(root)['kafli1/k1_mosi_greet'].key, cacheKey({ text: 'Kambeðla! Halló!', voiceId: VOICES.mosi, seed: 7, context: `${VISIT} Kambeðla! Halló!` }));
+  plan = regenerationPlan(root, { junior: {} }).kafli1;
+  assert.deepEqual([plan.make, plan.current], [[], 6], 'a take made under Ný 3 stays as it should be');
+
+  // His "nei" on the shipped "Tvö!": the line is made again, under Ný 3, and then stays.
+  const record = recordOf(root)['kafli1/k1_mosi_two'];
+  fs.mkdirSync(path.join(audio, 'heard'));
+  fs.writeFileSync(path.join(audio, 'heard/2026-11-05-kafli1.json'), `${JSON.stringify({ set: 'kafli1', date: '2026-11-05', source: 'jano-kafli1.json', verdicts: { 'kafli1/k1_mosi_two': { verdict: 'nei', key: record.key, mp3: record.mp3, speaker: 'mosi', text: 'Tvö!' } } }, null, 2)}\n`);
+  out.length = 0;
+  await main(['--plan'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.ok(out.includes(`  k1_mosi_two: the owner rejected its take (kafli1/k1_mosi_two, 2026-11-05); ${tool.NY3_NAME} (the owner rejected its take)`), out.join('\n'));
+  await main(['--only', 'k1_mosi_two'], { env, root, fetch, log() {} });
+  assert.deepEqual([calls.at(-1).body.text, calls.at(-1).body.previous_text, calls.at(-1).body.seed], ['Tvö!', 'Tvö!', 7]);
+  assert.deepEqual(regenerationPlan(root, { junior: {} }).kafli1.make, []);
+
+  // A new take beside a kept line goes out under Ný 3; the kept take stays in the game.
+  await main(['--remake-kept', 'kafli1', '--only', 'k1_mosi_kept'], { env, root, fetch, log() {} });
+  assert.deepEqual([calls.at(-1).body.text, calls.at(-1).body.previous_text, calls.at(-1).body.seed], ['Fjögur!', 'Fjögur!', 7]);
+  assert.ok(fs.readFileSync(path.join(audio, 'kafli1/k1_mosi_kept.mp3')).equals(mastered(tone(330))));
+
+  // The book's audition of a real line under the rule is the very request the line would be made with.
+  const rows = tool.bookPlan(lexicon, [{ set: 'kafli1', ...fresh[0] }], 'kambedla', { ny3: () => 'never made' });
+  assert.ok(rows.length > 1 && rows.every(row => row.ny3 === 'never made' && row.sent.seed === 7 && (row.sent.context === 'Kambeðla! Halló!' || row.sent.context.endsWith(' Kambeðla! Halló!'))), JSON.stringify(rows.map(row => row.sent)));
+  assert.ok(tool.bookPlan(lexicon, [{ set: 'kafli1', ...fresh[0] }], 'kambedla').every(row => row.ny3 === undefined), 'pure without the rule');
+  // Litla Yatzy's tool decides the same way: a line never made goes out under Ný 3, a shipped take of the book's request keeps it.
+  const none = { verdicts: [], byKey: new Map() };
+  const hi = junior.juniorSent('hi', { text: 'Hæ!' }, { lexicon, voiceId: VOICES.mosi, made: {}, heard: none, hasMp3: false });
+  assert.deepEqual([hi.text, hi.context, hi.seed, hi.ny3], ['Hæ!', 'Hæ!', 7, 'never made']);
+  const kept = junior.juniorSent('hi', { text: 'Hæ!' }, { lexicon, voiceId: VOICES.mosi, made: { 'yatzy-junior/hi': { key: cacheKey({ text: 'Hæ!', voiceId: VOICES.mosi }) } }, heard: none, hasMp3: true });
+  assert.deepEqual([kept.context, kept.seed, kept.ny3], [undefined, undefined, undefined]);
+});
