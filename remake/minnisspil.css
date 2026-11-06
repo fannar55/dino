@@ -101,6 +101,10 @@ img{-webkit-user-drag:none}
 .task-badge svg{width:64px;height:64px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
 .task-badge img{width:64px;height:64px;object-fit:contain;display:block;pointer-events:none}
 .choice-visible .task-badge,.is-next .task-badge{opacity:1;scale:1}
+/* A badge stands half over its obstacle: while it shows, a tap on it is a tap on the obstacle (the click goes up to the button), and the
+   one to tap now (next, guided, a tap-along) lies over its neighbours: on a phone the 88 px buttons of the branch and the log overlap. */
+.world-target:not(:disabled):is(.choice-visible,.is-next) .task-badge{pointer-events:auto}
+.world-target:is(.is-next,.is-guided,.tap-along){z-index:1}
 .is-next .task-badge{transition:none}
 .task-target.choice-visible:before{content:'';position:absolute;left:15%;right:15%;bottom:10%;height:18%;border:3px solid var(--gold);border-radius:50%;box-shadow:0 0 22px #ffe59477}
 /* The glow that pulses at once on what the game waits for (yatzy-junior.css .junior-card.pick, pick-glow): the next obstacle's badge and the

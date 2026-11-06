@@ -6,7 +6,7 @@
  *   friends()                        all six actors              pair(species)               a pair's two actors
  *   mosi.yaw()                       the way Mosi faces
  *   gifts.count()                    how many gifts were found (0 to 3: a finished round has all three)
- *   gifts.hover(i)                   where gift i floats (left, right, high above)          gifts.start() / gifts.end()  show them rising from Mosi's basket / fly them to the one in the ribbon
+ *   gifts.hover(i)                   where gift i floats (left, right, high above)          gifts.start() / gifts.end()  show them rising from Mosi's basket / fly them to the one in the corner chip
  *   beat(name, cut)                  notes a beat in the page's debug (the playthrough's report and pictures)
  * The Kambeðlur eat with their own `eat` clip and the others with the nibble gesture (gestures.js); tricks: the Þríhyrnur hop,
  * the Kambeðlur and the Þórseðlur play their `happy` clips (a friend without the clip, or in reduced motion, cheers instead).
