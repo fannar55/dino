@@ -2,7 +2,7 @@ import { createMemoryGame } from './rules.js';
 import { createMemoryWorld } from './world.js';
 import { createMemoryAudio, soundscapeUrl } from './audio.js';
 import { createStepRules, obstaclesOf } from './step-rules.js';
-import { LEVELS, chooseLevel, unlockLevel } from './levels/index.js';
+import { LEVELS, chooseLevel, finishLevel } from './levels/index.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
 import { GIFT_ITEMS, GIFT_CREDITS } from './surprise-items.js';
@@ -142,8 +142,8 @@ function reflectEndingLink() {
   button.dataset.level = link.item.id; button.replaceChildren(link.text + (link.arrow ? ' ' : ''), ...(link.arrow ? [arrow] : []));
 }
 function reflectPicker() { $('level-cards').replaceChildren(...levelCards()); reflectEndingLink(); }
-// A level finished opens the next one for good (storage that does not take it leaves the next level locked: the game works either way).
-function unlockNext() { if (nextLevel && unlockLevel(nextLevel.id)) { locked.delete(nextLevel.id); reflectPicker(); } }
+// A level finished is open for good, and so is the next, which this page's ending card offers at once even when storage does not take it (levels/index.js finishLevel).
+function unlockNext() { finishLevel(level, locked); reflectPicker(); }
 function reflectProgress(state) {
   $('progress').setAttribute('aria-label', `${state.matchedPairs} af ${level.friends.length} pörum fundin`);
   $('progress-text').textContent = `${state.matchedPairs} / ${level.friends.length} pör`;

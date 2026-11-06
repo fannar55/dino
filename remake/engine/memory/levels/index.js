@@ -39,6 +39,19 @@ export function unlockLevel(id, storage = browserStorage) {
 }
 
 /**
+ * A level played to the end (game.js, at the win): the level itself and the next one are opened for good, as far as storage takes it (so a level
+ * reached by ?bord and finished is open the next time too), and the next is taken out of this page's `locked` (chooseLevel's) whether storage took it
+ * or not, so that the ending card offers it now. A page opened later reads only storage: without it, the next level is locked there again.
+ * Returns the next level, or null after the last.
+ */
+export function finishLevel(level, locked, storage = browserStorage) {
+  const next = LEVELS[LEVELS.indexOf(level) + 1] ?? null;
+  unlockLevel(level.id, storage);
+  if (next) { unlockLevel(next.id, storage); locked.delete(next.id); }
+  return next;
+}
+
+/**
  * The level to play from the address (`?bord=2` opens level 2 directly, without being unlocked; a number that is no level is ignored)
  * and the ids of the levels that are still locked (not the one asked for by number).
  */

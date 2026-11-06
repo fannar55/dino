@@ -353,6 +353,11 @@ test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff 
   for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) { const method = typeof entry === 'string' ? entry : entry.method; if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`); }
   for (const id of ['wing-flap', 'slab-lower', 'slab-lower-alt', 'rope-whoosh', 'rope-tighten', 'rope-knots', 'gravel-slip', 'gravel-climb']) assert.ok(manifest.sfx[id] && fs.existsSync(new URL(`../assets/audio/memory/soundscape/gorge/${manifest.sfx[id].file}`, import.meta.url)), `${id} is a sound of the gorge`);
   audio.dispose();
+  // No manifest has more sounds than audio.js loads from one (the ones past its cap would never be heard, and nothing would say so): the shared soundscape's and every level's own.
+  const { MANIFEST_SOUNDS } = await import('../engine/memory/audio.js'), soundscape = new URL('../assets/audio/memory/soundscape/', import.meta.url);
+  const manifests = [new URL('manifest.json', soundscape), ...fs.readdirSync(soundscape, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => new URL(`${entry.name}/manifest.json`, soundscape)).filter(url => fs.existsSync(url))];
+  assert.ok(manifests.length >= 2, 'the shared soundscape and the gorge');
+  for (const url of manifests) { const count = Object.keys(JSON.parse(fs.readFileSync(url, 'utf8')).sfx ?? {}).length; assert.ok(count <= MANIFEST_SOUNDS, `${url.pathname.split('/soundscape/')[1]}: ${count} sounds, the cap is ${MANIFEST_SOUNDS}`); }
   // The two CC BY sounds the step adds, and the three models, are named behind the ending card's "i".
   const credited = level.credits.map(row => `${row.author} ${row.license} ${row.source}`).join(' | ');
   for (const needle of ['Tdude9000 CC BY 3.0', 'jorickhoofd CC BY 4.0', 'F.M.Audio CC BY 4.0', 'Kenney CC0', 'ambientCG CC0']) assert.ok(credited.includes(needle), `${needle} is credited`);

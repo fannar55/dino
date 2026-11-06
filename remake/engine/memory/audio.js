@@ -3,6 +3,8 @@ import { createAudioContext, createOutput } from '../audio/output.js';
 // Exact tuning of remake/assets/audio/theme.json. Calls are imagined animal voices, not musical cues.
 export const MEMORY_KEY = Object.freeze([524.28, 588.48, 660.55, 785.53, 881.73]);
 const LIMIT = 24;
+/** The most sounds one manifest gives (the shared soundscape's, and each level's own): entries past it are not loaded (memory-bridge-rules.test.mjs holds every manifest under it). */
+export const MANIFEST_SOUNDS = 24;
 // Each pair found is a step higher (semitones above the first pair's chime): C, E and G major, a clear rise a child hears.
 const CHIME_RISE = Object.freeze([0, 4, 7]);
 const riseRate = nestIndex => 2 ** (CHIME_RISE[Math.max(0, Math.min(CHIME_RISE.length - 1, Math.floor(nestIndex) || 0))] / 12);
@@ -142,7 +144,7 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
           const response = await fetcher(String(url), { signal: loadController.signal });
           if (!response.ok) throw new Error('manifest unavailable');
           const manifest = await response.json();
-          const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, 24);
+          const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, MANIFEST_SOUNDS);
           await Promise.all(entries.map(async ([id, entry]) => {
             try {
               const response = await fetcher(new URL(entry.file, url).href, { signal: loadController.signal });

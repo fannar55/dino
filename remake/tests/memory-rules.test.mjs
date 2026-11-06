@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createMemoryGame } from '../engine/memory/rules.js';
-import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel } from '../engine/memory/levels/index.js';
+import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel, finishLevel } from '../engine/memory/levels/index.js';
 import { BERJALUNDUR } from '../engine/memory/levels/berjalundur.js';
 import { STEINAGLJUFUR } from '../engine/memory/levels/steinagljufur.js';
 
@@ -380,6 +380,25 @@ test('unlocking is remembered: level 2 opens once level 1 has been finished and 
   assert.deepEqual([...unlockedLevels(memoryStorage(storage.value))].sort(), ['berjalundur', 'steinagljufur']);
 });
 
+test('finishing a level opens it and the next for good, and shows the next on this page even when storage does not take it', () => {
+  // level 1 played to the end: level 2 is open now and next time
+  const storage = memoryStorage(null), first = chooseLevel(new URLSearchParams(''), storage);
+  assert.deepEqual([...first.locked], ['steinagljufur']);
+  assert.equal(finishLevel(first.level, first.locked, storage), STEINAGLJUFUR, 'the next level');
+  assert.deepEqual([...first.locked], [], "this page's ending card offers Steinagljúfrið");
+  assert.deepEqual([...unlockedLevels(storage)].sort(), ['berjalundur', 'steinagljufur']);
+  assert.deepEqual([...chooseLevel(new URLSearchParams(''), storage).locked], [], 'and a page opened later');
+  // storage that throws (a private window): this page still offers level 2, a page opened later has it locked again, as the plan says
+  const shut = chooseLevel(new URLSearchParams(''), blockedStorage);
+  assert.equal(finishLevel(shut.level, shut.locked, blockedStorage), STEINAGLJUFUR);
+  assert.deepEqual([...shut.locked], [], 'offered on this page without storage');
+  assert.deepEqual([...chooseLevel(new URLSearchParams(''), blockedStorage).locked], ['steinagljufur'], 'locked again on the next page');
+  // level 2 reached by ?bord=2 on a device where level 1 was never finished: played to the end, it is open on level 1's picker
+  const direct = memoryStorage(null), second = chooseLevel(new URLSearchParams('bord=2'), direct);
+  assert.equal(second.level, STEINAGLJUFUR); assert.equal(finishLevel(second.level, second.locked, direct), null, 'no level after the last');
+  assert.deepEqual([...chooseLevel(new URLSearchParams(''), direct).locked], [], 'the level just finished does not show as locked');
+});
+
 test('an unknown ?bord falls back to level 1, and the known numbers pick their level', () => {
   const storage = memoryStorage(null);
   for (const query of ['bord=3', 'bord=9', 'bord=0', 'bord=-2', 'bord=abc', 'bord=2x', 'bord=1.5', 'bord=%20', 'x=2']) assert.equal(chooseLevel(new URLSearchParams(query), storage).level, BERJALUNDUR, query);
@@ -501,6 +520,8 @@ test("the welcome card has the level picker: a card for each level with its pict
   for (const level of LEVELS) assert.ok(existsSync(new URL(`../assets/memory/levels/${level.id}.webp`, import.meta.url)), `${level.id}: the picture of its world`);
   assert.equal(STEINAGLJUFUR.copy.locked, 'Kláraðu Berjalundinn fyrst'); assert.equal(BERJALUNDUR.copy.locked, undefined, 'level 1 is never locked');
   const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
-  assert.match(game, /unlockLevel\(nextLevel\.id\)/, 'a level finished opens the next');
+  // (what finishing does is finishLevel's, tested above; here only that the win calls it, unconditionally, and refreshes the picker and the ending card)
+  assert.match(game, /function unlockNext\(\) \{ finishLevel\(level, locked\); reflectPicker\(\); \}/, 'a level finished opens itself and the next');
+  assert.match(game, /celebrated = true; world\.celebrate\(\); audio\.win\(\); unlockNext\(\);/, 'at the win');
   assert.match(game, /aria-disabled/); assert.match(game, /dataset\.level/);
 });
