@@ -11,6 +11,9 @@ game and tool in `remake/`.
 - **Before recording, look.** Run `node remake/tools/voice-lines.mjs --dry --set <set> [--only ids]` (or `--set all`) and read the
   notes under each line: "REJECTED" (the owner said no to exactly that request) and "<word>: fixed on its own line in ...". Try the
   recipe that already won for that word first.
+- **Ný 3 for every new take of Mosi** (his word of 2026-11-05): a line never made, one he rejected or one made again goes out with
+  the line itself as context after the book's, seed 7 unless it has its own (`pronunciation.json` `"lines"` → `"ny3"`); a shipped
+  take of the book's request keeps it, and `--dry` names the rule on each line it applies to.
 - **When the owner rejects a line,** make 3-4 candidates for him to pick by ear: a context (sent as previous_text, never spoken),
   IPA in `"/.../"`, a respelling, another seed. A fix that wins for a word goes into the book as a recipe of that word, and becomes
   its `chosen` when the owner agrees (or the second time it wins). A line that keeps its own `say` or `context` must say what it
