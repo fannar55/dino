@@ -2,5 +2,6 @@
   "phase": "First playable 3-pair review",
   "triceratops": { "status": "New baby adaptation of the owner's Mosi mesh", "model": "triceratops-baby.glb", "source": "triceratops-baby-source.json" },
   "stegosaurus": { "status": "New baby adaptation of the owner's Kambeðla mesh, approved by the owner", "model": "stegosaurus-baby.glb", "source": "stegosaurus-baby-source.json" },
-  "brontosaurus": { "status": "New baby adaptation of the owner's Þórseðla mesh (second pass), shown 1.62 times longer so she stands tallest", "model": "brontosaurus-baby.glb", "source": "brontosaurus-baby-source.json" }
+  "brontosaurus": { "status": "New baby adaptation of the owner's Þórseðla mesh (second pass), shown 1.62 times longer so she stands tallest", "model": "brontosaurus-baby.glb", "source": "brontosaurus-baby-source.json" },
+  "pteranodon": { "status": "New baby adaptation of the owner's Flugeðla mesh (level 2): head 1.35, wings 0.75, legs 0.8; review candidate, the owner approves it before level 2 uses it", "model": "pteranodon-baby.glb", "source": "pteranodon-baby-source.json" }
 }

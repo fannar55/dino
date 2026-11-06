@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { createMemoryAudio, MEMORY_KEY } from '../engine/memory/audio.js';
 import { FakeContext } from './fake-audio.mjs';
 
@@ -287,3 +289,187 @@ test('river ambience is one gesture-gated loop with bounded PCM and explicit lif
   assert.ok(context.started.every(source => source.disconnected));
   assert.equal(audio.river(true), false); assert.equal(context.closeCalls, 1);
 }));
+
+test("every line Mosi says goes through the pronunciation standard: each hard word's inflection is a form of its word, a line's say gets the lexicon too, and the owner's picks are sent as he heard them", async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs');
+  const lexicon = readLexicon(tool.ROOT), states = tool.statesOf(lexicon, tool.recordOf(tool.readManifest(), {}));
+  assert.deepEqual(states.flatMap(item => item.uncovered.map(word => `${item.id}: ${word}`)), [], "add each to its word's forms (or except) in remake/assets/audio/pronunciation.json, or it is sent as written");
+  // by the tracked record (the manifest's keys), every MP3 is of the request sent now, or of the book's that Ný 3 replaces (waiting for him): none is stale
+  assert.deepEqual(states.filter(item => !['same', 'ny3'].includes(item.state)).map(item => `${item.id}: ${item.state}`), []);
+  for (const item of states) {
+    if (item.line.kept !== undefined) { assert.equal(item.key, item.ownKey, `${item.id}: kept, sent as its own fields`); continue; }
+    for (const word of item.sent.words.filter(found => found.recipe)) {
+      const recipe = lexicon.words[word.id].recipes[word.recipe];
+      for (const form of recipe.say === undefined ? [] : word.forms) assert.ok(item.sent.text.includes(typeof recipe.say === 'string' ? recipe.say : recipe.say[form]), `${item.id}: ${form} is sent as its recipe says`);
+    }
+  }
+  for (const id of ['who', 'won', 'push', 'roll', 'gift_shrew', 'help', 'cross', 'held', 'find_stego', 'g2_ledge_ready']) assert.ok(states.find(item => item.id === id).line.kept, `${id}: the owner's pick by ear stays kept`);
+  // A line that keeps its own say or context names what it fixes, as main's lines do (heard.mjs fixesProblems).
+  assert.deepEqual(tool.fixesFindings(lexicon), []);
+});
+
+// The lines whose shipped take the owner rejected and whose new take he has not picked yet: id -> why, and where the candidates are.
+const WAITING = {};
+
+test("the owner's verdicts (remake/assets/audio/heard/, set minnisspil): no line sends a request he rejected and no shipped MP3 is a take he rejected, but those waiting for his pick; the takes he picked are the ones that ship", async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { readHeard, rejection } = await import('../tools/heard.mjs');
+  const heard = readHeard(tool.ROOT), states = tool.statesOf(readLexicon(tool.ROOT), tool.recordOf(tool.readManifest(), {}), tool.LINES, heard);
+  assert.ok(heard.verdicts.some(verdict => verdict.id.startsWith(`${tool.SET}/`)), 'the tal page of 2026-11-02 is imported');
+  const refused = states.filter(item => rejection(heard, item.key)).map(item => item.id);
+  // (a shipped take he rejected: by the record's key or by the MP3's sha256, as --verify finds it)
+  const shippedNo = states.filter(item => tool.rejectedMp3(heard, item.id) || (item.shipped && rejection(heard, item.shipped))).map(item => item.id);
+  assert.deepEqual(tool.verdictIssues(states, heard).rejectedByOwner, shippedNo, '--verify fails on the same lines');
+  assert.deepEqual(refused.filter(id => !Object.hasOwn(WAITING, id)), [], 'these send a request the owner rejected: change the recipe or seed (memory-voices.mjs --dry and --try)');
+  assert.deepEqual(shippedNo.filter(id => !Object.hasOwn(WAITING, id)), [], 'these ship a take the owner rejected: make them again (memory-voices.mjs --plan)');
+  for (const [id, why] of Object.entries(WAITING)) {
+    assert.ok(why.length > 20, `${id}: WAITING says why`);
+    assert.ok(shippedNo.includes(id), `${id} no longer ships a rejected take: take it out of WAITING`);
+  }
+  // Each take he said yes to that is a line's request now is the very MP3 that line ships (installed from the take he heard).
+  const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const yes = heard.verdicts.filter(verdict => verdict.id.startsWith(`${tool.SET}/`) && verdict.verdict === 'ja');
+  for (const item of states) {
+    const picked = yes.filter(verdict => verdict.key === item.key && !rejection(heard, item.key));
+    if (picked.length) assert.ok(picked.some(verdict => verdict.mp3 === sha(path.join(tool.ROOT, 'remake/assets/audio/memory', `${item.id}.mp3`))), `${item.id}: ships the take he picked (${picked.map(verdict => verdict.id).join(', ')})`);
+  }
+});
+
+test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its caption as context and seed 7, an approved key keeps its request, a kept line is untouched, and an A/B leaves it put', async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { VOICE_LINES } = await import('../engine/memory/voice-lines.js'), { readHeard } = await import('../tools/heard.mjs');
+  const lexicon = readLexicon(tool.ROOT);
+  const verdicts = entries => ({ verdicts: [], byKey: new Map(entries.map(([key, ...said]) => [key, said.map((verdict, i) => ({ verdict, id: `minnisspil/x${i}`, date: '2026-11-06' }))])) });
+  const none = verdicts([]);
+  // an unapproved line: the text sent stays, the context is the request's context (none here) and then the caption, the seed 7
+  const match = VOICE_LINES.match, book = tool.bookRequest(match, lexicon), bookKey = tool.fingerprintOf(book);
+  const plain = tool.memoryRequest(match, lexicon, { heard: none });
+  assert.equal(plain.ny3, true); assert.equal(plain.text, book.text); assert.equal(plain.context, match.text); assert.equal(plain.seed, 7);
+  assert.notEqual(tool.fingerprintOf(plain), bookKey);
+  // the book's context comes first (g2_flown's Flugeðla sentence), then the caption, not the say (g2_light_ready sends Hver in IPA)
+  const flown = tool.bookRequest(VOICE_LINES.g2_flown, lexicon);
+  assert.ok(flown.context, 'g2_flown has the book\'s Flugeðla context');
+  assert.equal(tool.memoryRequest(VOICE_LINES.g2_flown, lexicon, { heard: none }).context, `${flown.context} ${VOICE_LINES.g2_flown.text}`);
+  const light = tool.memoryRequest(VOICE_LINES.g2_light_ready, lexicon, { heard: none });
+  assert.equal(light.context, VOICE_LINES.g2_light_ready.text); assert.equal(light.text, tool.bookRequest(VOICE_LINES.g2_light_ready, lexicon).text);
+  // an approved key keeps its request exactly; a later "nei" on it puts the line on Ný 3 (his latest verdict, as the guard reads it)
+  const approved = tool.memoryRequest(match, lexicon, { heard: verdicts([[bookKey, 'ja']]) });
+  assert.equal(tool.fingerprintOf(approved), bookKey); assert.equal(approved.ny3, undefined); assert.equal(approved.approved.id, 'minnisspil/x0');
+  assert.equal(tool.memoryRequest(match, lexicon, { heard: verdicts([[bookKey, 'ja', 'nei']]) }).ny3, true);
+  // the A/B's fixed point: he picks the new take (old "nei", new "ja"), and the line stays on Ný 3, whose take he approved
+  const newKey = tool.fingerprintOf(plain), picked = verdicts([[bookKey, 'nei'], [newKey, 'ja']]);
+  assert.equal(tool.fingerprintOf(tool.memoryRequest(match, lexicon, { heard: picked })), newKey);
+  assert.ok(tool.approval(picked, newKey));
+  assert.equal(tool.statesOf(lexicon, { match: newKey }, [['match', match]], picked)[0].state, 'same');
+  assert.equal(tool.statesOf(lexicon, { match: bookKey }, [['match', match]], none)[0].state, 'ny3', 'its MP3 is of the book\'s request: waiting for him, which --verify allows');
+  // a kept line is untouched, whatever is heard; any other line needs the verdicts passed through
+  const who = VOICE_LINES.who, whoKey = tool.fingerprintOf(tool.ownRequest(who));
+  for (const heard of [none, verdicts([[whoKey, 'nei']])]) assert.equal(tool.fingerprintOf(tool.memoryRequest(who, lexicon, { heard })), whoKey);
+  assert.throws(() => tool.memoryRequest(match, lexicon), /needs the owner's verdicts/);
+  // in the repo now (2026-11-06): 11 kept, 17 sent as the book has them because he approved that take, 9 under Ný 3 whose new
+  // take he picked, and level 1's 10 under Ný 3 waiting for his ear. When a verdict moves a line, move it here.
+  const heardNow = readHeard(tool.ROOT), split = { kept: [], approved: [], ny3Picked: [], ny3Waiting: [] };
+  for (const item of tool.statesOf(lexicon, tool.recordOf(tool.readManifest(), {}), tool.LINES, heardNow)) {
+    if (item.line.kept !== undefined) split.kept.push(item.id);
+    else if (item.sent.approved) split.approved.push(item.id);
+    else if (item.sent.ny3) split[tool.approval(heardNow, item.key) ? 'ny3Picked' : 'ny3Waiting'].push(item.id);
+    else assert.fail(`${item.id}: neither kept, approved nor under Ný 3`);
+  }
+  assert.deepEqual(split, {
+    kept: ['help', 'won', 'held', 'roll', 'cross', 'find_stego', 'who', 'push', 'findFirst', 'gift_shrew', 'g2_ledge_ready'],
+    approved: ['match', 'find_bronto', 'build', 'other', 'g2_welcome', 'gifts4', 'gift_ammonite', 'gift_trilobite', 'gift_fern', 'gift_footprint', 'g2_cliff_ready', 'g2_climb', 'g2_pull_ready', 'g2_pull', 'g2_bridge', 'g2_won', 'g2_help'],
+    ny3Picked: ['together', 'g2_left', 'g2_light_ready', 'g2_lit', 'g2_rocks_ready', 'g2_rocks_done', 'g2_through', 'g2_reached', 'g2_flown'],
+    ny3Waiting: ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab'],
+  });
+  // the A/B page: the new take picked when it opens, "Báðar rangar" for both wrong
+  const html = tool.janoPage({ title: 't', intro: 'i', none: { label: 'Báðar rangar', how: 'h' }, sections: [{ title: 's', rows: [{ id: 'match', text: 'x', takes: [{ id: 'match_gamla', label: 'Gamla', src: 'a.mp3' }, { id: 'match_nyja', label: 'Nýja', src: 'b.mp3', checked: true }] }] }] });
+  assert.match(html, /value="match_nyja" checked>/); assert.doesNotMatch(html, /value="match_gamla" checked/); assert.match(html, /value=""> Báðar rangar/);
+});
+
+test('memory-voices.mjs reads its command line strictly: an unknown flag, a stray word, two modes or no mode at all prints the usage and makes nothing', async () => {
+  const tool = await import('../tools/memory-voices.mjs');
+  for (const argv of [[], ['stray'], ['--bogus'], ['--dry', 'stray'], ['--dry', '--plan'], ['--dry', '--dry'], ['--out', 'x'], ['--only'], ['--only', '--all'], ['--only', 'match', '--all'], ['--only', 'nope'], ['--plan', '--only', 'match'], ['--verify', '--all'], ['--dry', '--all'], ['--ab'], ['--ab', '--out', 'x'], ['--dry', '--out', 'x'], ['--try'], ['--try', 'c.json', '--only', 'match']]) {
+    assert.throws(() => tool.parseArgs(argv), error => error.message.endsWith(tool.USAGE), argv.join(' ') || '(a plain run)');
+  }
+  const parsed = argv => { const { mode, only, all, out, file } = tool.parseArgs(argv); return { mode, only, all, out, file }; };
+  assert.deepEqual(parsed(['--only', 'match,other']), { mode: 'make', only: ['match', 'other'], all: false, out: null, file: null });
+  assert.deepEqual(parsed(['--all']), { mode: 'make', only: null, all: true, out: null, file: null });
+  assert.deepEqual(parsed(['--dry-run', '--only', 'match']), { mode: 'dry', only: ['match'], all: false, out: null, file: null });
+  for (const mode of ['dry', 'plan', 'verify']) assert.equal(parsed([`--${mode}`]).mode, mode);
+  assert.deepEqual(parsed(['--ab', '--all', '--out', 'qa/x']), { mode: 'ab', only: null, all: true, out: 'qa/x', file: null });
+  assert.deepEqual(parsed(['--try', 'c.json']), { mode: 'try', only: null, all: false, out: null, file: 'c.json' });
+  // the command itself: exit 1 with the usage, nothing made (a stray word after --dry)
+  const { spawnSync } = await import('node:child_process');
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== 'ELEVENLABS_API_KEY'));
+  const run = spawnSync(process.execPath, [path.join(tool.ROOT, 'remake/tools/memory-voices.mjs'), '--dry', 'stray'], { encoding: 'utf8', env });
+  assert.equal(run.status, 1); assert.equal(run.stdout, ''); assert.match(run.stderr, /Unknown argument: stray\s+Usage: memory-voices\.mjs/);
+});
+
+test('what a make installs (installPlan): only the lines named with --only or --all, a kept line never made again, and never a request the owner said "nei" to', async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { readHeard } = await import('../tools/heard.mjs');
+  const lexicon = readLexicon(tool.ROOT), heard = readHeard(tool.ROOT), record = tool.recordOf(tool.readManifest(), {});
+  const states = tool.statesOf(lexicon, record, tool.LINES, heard);
+  assert.throws(() => tool.installPlan(states, { heard }), /--only <ids>, or say --all\. Nothing was made\.\nUsage:/);
+  assert.throws(() => tool.installPlan(states, { only: [], heard }), /--only <ids>, or say --all/);
+  assert.throws(() => tool.installPlan(states, { only: ['match'], all: true, heard }), /do not go together/);
+  assert.throws(() => tool.installPlan(states, { only: ['nope'], heard }), /Not a memory line: nope/);
+  // --all: every line; a kept one is only written back to the manifest (its kept request's key); the MP3s mastered anew are --plan's
+  const all = tool.installPlan(states, { all: true, heard });
+  assert.deepEqual(all.map(item => item.id), tool.LINES.map(([id]) => id));
+  for (const item of all) assert.equal(item.install, item.line.kept === undefined, `${item.id}: ${item.line.kept === undefined ? 'made' : 'kept, never made again'}`);
+  assert.deepEqual(all.filter(item => item.master).map(item => item.id), tool.planOf(lexicon, record, heard).make.map(item => item.id));
+  assert.deepEqual(tool.installPlan(states, { only: ['who'], heard }).map(({ id, install, master }) => ({ id, install, master })), [{ id: 'who', install: false, master: false }]);
+  // the request a line sends now is one he said "nei" to: the make stops before anything is asked (T-M3, the guard); a kept line's too
+  const withNo = (key, id) => {
+    const no = { id: `${tool.SET}/${id}_x`, key, verdict: 'nei', date: '2026-11-06' };
+    return { ...heard, verdicts: [...heard.verdicts, no], byKey: new Map([...heard.byKey, [key, [...(heard.byKey.get(key) ?? []), no]]]) };
+  };
+  for (const id of ['welcome', 'g2_lit', 'who']) {
+    const key = states.find(item => item.id === id).key, heardNo = withNo(key, id);
+    const again = tool.statesOf(lexicon, record, tool.LINES.filter(([line]) => line === id), heardNo);
+    assert.equal(again[0].key, key, `${id}: still sends that request`);
+    assert.throws(() => tool.installPlan(again, { only: [id], heard: heardNo }), /The owner rejected exactly this request/, id);
+  }
+});
+
+test('the record of which request made each MP3 is tracked in the manifest (a key per line), so --plan and --verify say the same with the local index as without it', async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs'), { readHeard } = await import('../tools/heard.mjs');
+  const lexicon = readLexicon(tool.ROOT), heard = readHeard(tool.ROOT), manifest = tool.readManifest();
+  for (const [id] of tool.LINES) assert.match(manifest[id]?.key ?? '', /^[0-9a-f]{64}$/, `${id}: the manifest records the key of the request that made its MP3`);
+  const tracked = tool.statesOf(lexicon, tool.recordOf(manifest, {}), tool.LINES, heard);
+  assert.deepEqual(tool.statesOf(lexicon, tool.recordOf(manifest, tool.readIndex()), tool.LINES, heard), tracked, 'the local index adds nothing');
+  for (const item of tracked) if (item.line.kept !== undefined) assert.equal(manifest[item.id].key, item.ownKey, `${item.id}: kept, recorded as its kept request`);
+  // what --verify reads from it: no issue from the record, none rejected, level 1's ten waiting for his ear; --plan lists those ten
+  const { issues, waitingForOwner, rejectedByOwner } = tool.verdictIssues(tracked, heard);
+  assert.deepEqual(issues, []); assert.deepEqual(rejectedByOwner, []);
+  assert.deepEqual(waitingForOwner, ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab']);
+  assert.deepEqual(tool.planOf(lexicon, tool.recordOf(manifest, {}), heard).make.map(item => item.id), waitingForOwner);
+  // the manifest's key wins; the index (before 2026-11-06) only fills a line the manifest has none for
+  assert.deepEqual(tool.recordOf({ a: { key: 'k1' }, b: { src: 'b.mp3' } }, { a: 'old', b: 'k2', c: 'k3' }), { a: 'k1', b: 'k2', c: 'k3' });
+});
+
+test('--verify fails when a shipped take is one the owner said "nei" to, by the record\'s key or by the MP3 he heard', async () => {
+  const tool = await import('../tools/memory-voices.mjs');
+  const said = (...verdicts) => verdicts.map((verdict, i) => ({ verdict, id: `minnisspil/x${i}`, date: '2026-11-06' }));
+  const heard = { verdicts: [], byKey: new Map([['k-no', said('ja', 'nei')], ['k-yes', said('nei', 'ja')]]) };
+  const states = [{ id: 'a', state: 'same', shipped: 'k-no' }, { id: 'b', state: 'same', shipped: 'k-yes' }, { id: 'c', state: 'same', shipped: 'k-yes' }, { id: 'd', state: 'ny3', shipped: 'k-other' }];
+  const found = tool.verdictIssues(states, heard, id => (id === 'c' ? { verdict: 'nei' } : null));
+  assert.deepEqual(found.rejectedByOwner, ['a', 'c']); assert.deepEqual(found.waitingForOwner, ['d']);
+  assert.deepEqual(found.issues, ['a', 'c'].map(id => `${id}: ships a take the owner said "nei" to: make it again (--plan)`));
+});
+
+test('a take is mastered to a part file and goes over the shipped MP3 only when its length checks out', async t => {
+  const { spawnSync } = await import('node:child_process');
+  if (spawnSync('ffmpeg', ['-version']).status !== 0) { t.skip('no ffmpeg'); return; }
+  const tool = await import('../tools/memory-voices.mjs'), os = await import('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-master-')), target = path.join(dir, 'match.mp3');
+  try {
+    const raw = path.join(tool.ROOT, 'remake/assets/audio/memory/match.mp3');
+    fs.writeFileSync(target, 'the shipped take');
+    assert.throws(() => tool.master(raw, target, () => { throw new Error('too short'); }), /too short/);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'the shipped take', 'a take that fails its check leaves the shipped MP3 as it was');
+    assert.deepEqual(fs.readdirSync(dir), ['match.mp3'], 'and no part file behind');
+    let checked = null;
+    tool.master(raw, target, part => { checked = part; assert.ok(fs.statSync(part).size > 1000); });
+    assert.equal(checked, path.join(dir, 'match.part.mp3'));
+    assert.notEqual(fs.readFileSync(target).subarray(0, 16).toString(), 'the shipped take'); assert.deepEqual(fs.readdirSync(dir), ['match.mp3']);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

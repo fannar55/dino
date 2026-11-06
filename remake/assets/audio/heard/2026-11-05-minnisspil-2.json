@@ -1,0 +1,177 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-05",
+  "source": "jano-minnisspil.json",
+  "verdicts": {
+    "minnisspil/match_gamla": {
+      "verdict": "ja",
+      "key": "c4b3cb7f756a1ec62ac34d343bfbf0b6c0c60d72c244d32daf31c88c039d0d23",
+      "mp3": "a1b17d0740a1b57edcafbbdca3bf953113eedad6e6e176d64a025a180f85417b",
+      "speaker": "mosi",
+      "text": "Þeir fundu hvor annan!"
+    },
+    "minnisspil/match_nyja": {
+      "verdict": "nei",
+      "key": "3eefd333f7d2586adca09129b2b9427e7dbce2fd49cbf4908a0d6a445884052e",
+      "mp3": "2402012dd2f5e0f36e388794b8651dc0833ab69eb40e7d5630fa10e986f93331",
+      "speaker": "mosi",
+      "text": "Þeir fundu hvor annan!"
+    },
+    "minnisspil/other_gamla": {
+      "verdict": "ja",
+      "key": "72e5db23f5aa139f02b34c0253e76b07e1366be055e5b60a57838c5dcbbea42c",
+      "mp3": "8b0a243f2138443372bf3bfb64b5332b2be0defba82088025ef276711ddaab23",
+      "speaker": "mosi",
+      "text": "Kannski einhver annar?"
+    },
+    "minnisspil/other_nyja": {
+      "verdict": "nei",
+      "key": "7cd8b75edd3511dc7d061145b8e39dac234dfeee801b48b4cd779ef5bbd418f2",
+      "mp3": "5dd9e2cdecb31ffb9ebec669738f62b7ffbf5f1cb93bbc5a123099c424dc691f",
+      "speaker": "mosi",
+      "text": "Kannski einhver annar?"
+    },
+    "minnisspil/together_gamla": {
+      "verdict": "nei",
+      "key": "ad7176fd5c69ba71f364443ecb77f2f9de10541f77cbe6b8974d0ad51a31a702",
+      "mp3": "b2f0cf4417beff2234c87df46e337b0fb235cd6b3832fbcad713b78346511cd7",
+      "speaker": "mosi",
+      "text": "Við gerum þetta saman!"
+    },
+    "minnisspil/together_nyja": {
+      "verdict": "ja",
+      "key": "9eb812b0e74a8dd3b012421d88ca169f09105840e6c4e93e218a0f8a591627fd",
+      "mp3": "17ddd271fb509b49051c7bec7cdcf644e94a45811230c79af1e316949d15858d",
+      "speaker": "mosi",
+      "text": "Við gerum þetta saman!"
+    },
+    "minnisspil/findFirst_gamla": {
+      "verdict": "nei",
+      "key": "36a38e8a4a455a226c961b48232ebb91f846271059adad776d089bcf2cca594f",
+      "mp3": "c6a67d9c3cc576a23b97793bf691c84c9cdf9bd2c23474cddac126a92c829bfc",
+      "speaker": "mosi",
+      "text": "Finnum vini fyrst!",
+      "note": "\"vinni\" er ragnt sagt"
+    },
+    "minnisspil/findFirst_nyja": {
+      "verdict": "nei",
+      "key": "928c1b0fa7cc700bb44dd67529ff28e9ec15fcd553b890d8c738425b7ee577ab",
+      "mp3": "061152ed4816cc0d19e227799c76bba973037cf50a294dd0470e09ec6d2bc5a0",
+      "speaker": "mosi",
+      "text": "Finnum vini fyrst!",
+      "note": "\"vinni\" er ragnt sagt"
+    },
+    "minnisspil/g2_left_gamla": {
+      "verdict": "nei",
+      "key": "dae5438540ef21e8ae2c41ea4351c9fcd96d0a56edc57503d807d225d6bfe5e5",
+      "mp3": "9e7dc8f277e79003892c9eaa058462ddb30705db77a04bd4877373d3623dd08c",
+      "speaker": "mosi",
+      "text": "Finnum fyrst það sem er eftir undir laufunum!"
+    },
+    "minnisspil/g2_left_nyja": {
+      "verdict": "ja",
+      "key": "da02f5b9759457b699a5bfb0ac9f81ccec06bb7e93f92dedfd8b738a90bef675",
+      "mp3": "3d2a83189b121daa9827ccd42fafab5efe2bd08fdf9d78959a598ecbcba4cb9f",
+      "speaker": "mosi",
+      "text": "Finnum fyrst það sem er eftir undir laufunum!"
+    },
+    "minnisspil/g2_light_ready_gamla": {
+      "verdict": "nei",
+      "key": "7e268f4ba7586cf977b1b31fd977cfcfbc8cae821c5b29a6ccdb70c921d9e480",
+      "mp3": "354b4cf3b75be01932ea8b9c2aeca7f671492ac75021405ba6cda8e72eb6a50a",
+      "speaker": "mosi",
+      "text": "Göngin eru dimm. Hver getur lýst þau upp?"
+    },
+    "minnisspil/g2_light_ready_nyja": {
+      "verdict": "ja",
+      "key": "d612231b5bd1cc1d4602bf0fe63abd9c7a643d01640ebfc04f0e15443cc81f48",
+      "mp3": "5d166d13994c9076a82d730c970dc2ce67fbe039ecaf3d3c43eda212389e04ec",
+      "speaker": "mosi",
+      "text": "Göngin eru dimm. Hver getur lýst þau upp?"
+    },
+    "minnisspil/g2_lit_gamla": {
+      "verdict": "nei",
+      "key": "41813ee6c4191ff82a70a639ba72d7fd344654970d0c10dca4547dbf2ad1f1a8",
+      "mp3": "dea60fba92d4d93e7a53b7264394ada52666ffa8a85e4ab24ad4ba2abbb09b85",
+      "speaker": "mosi",
+      "text": "Plöturnar lýsa eins og ljósker!"
+    },
+    "minnisspil/g2_lit_nyja": {
+      "verdict": "ja",
+      "key": "4cdeea75d3ac903fd7beefe71ff2073bb6f74d48aa13ac8b52e1b5365a829f59",
+      "mp3": "73dd4e4cb13394801d6f40ace99cefc4da7fa7bc3e6b2e68d688ec0684ab7a6d",
+      "speaker": "mosi",
+      "text": "Plöturnar lýsa eins og ljósker!"
+    },
+    "minnisspil/g2_rocks_ready_gamla": {
+      "verdict": "nei",
+      "key": "9a1a99b55af2e12242dfc1deb9cf74be2ce1f7e684f964ff067e68612d87ac54",
+      "mp3": "b0ff9898914454c17cc1948d2f12154f2a451c58633189cccae1c5e90d0a5a82",
+      "speaker": "mosi",
+      "text": "Grjót lokar göngunum. Hver getur stangað það burt?"
+    },
+    "minnisspil/g2_rocks_ready_nyja": {
+      "verdict": "ja",
+      "key": "89643cf790106783641fc7a9e20fc9633fa21d99fac4f709414a76f48054993a",
+      "mp3": "049bb3644d0d01002cd52f44c16a9b6a26b897e85859ee5baabf2cdf861c031a",
+      "speaker": "mosi",
+      "text": "Grjót lokar göngunum. Hver getur stangað það burt?"
+    },
+    "minnisspil/g2_rocks_done_gamla": {
+      "verdict": "nei",
+      "key": "2b22002f4eee2b34eed85fa1070f9197ea8b3c81e9eaf7389dac67a11898cd05",
+      "mp3": "9d1aada76a54c807814a7415a6a8ffff034bae276b5f63b70885cc8bfbaa75e4",
+      "speaker": "mosi",
+      "text": "Búmm! Leiðin er opin!"
+    },
+    "minnisspil/g2_rocks_done_nyja": {
+      "verdict": "ja",
+      "key": "9378a9505abd3c8dbfd849a82f46cf07bf51f5cda1f134928c93d369dc5009e1",
+      "mp3": "e55b3b0ac21bea48455f8fdd742297c0e5c9075c744e55afc0856fdbf5397537",
+      "speaker": "mosi",
+      "text": "Búmm! Leiðin er opin!"
+    },
+    "minnisspil/g2_through_gamla": {
+      "verdict": "nei",
+      "key": "a635c506f6b44899440fe6b129844e7e59449f5549ca22a4d232d11995be2a87",
+      "mp3": "4290e3ed998e9e733dadffb0014ea75bb32e99c26e3c170086cec135e1a31eef",
+      "speaker": "mosi",
+      "text": "Göngin eru opin. Allir með!"
+    },
+    "minnisspil/g2_through_nyja": {
+      "verdict": "ja",
+      "key": "ec5e9850f17aab8aef26ce81ff82fd69fba9380226a9db1071541911a8316361",
+      "mp3": "d0159245668e412912ac301a9c9d5b68f992de53a15d6e3ffeb44c1c5d085ba9",
+      "speaker": "mosi",
+      "text": "Göngin eru opin. Allir með!"
+    },
+    "minnisspil/g2_reached_gamla": {
+      "verdict": "nei",
+      "key": "7269b11319fdfa3bf71e5b4767e237a9a6195e753482ee657d1352a582fc1af3",
+      "mp3": "47c407a226158b06ba89e71ec713611390ab30fef95189b8b0c2f8a13c863335",
+      "speaker": "mosi",
+      "text": "Langir hálsar ná hátt!"
+    },
+    "minnisspil/g2_reached_nyja": {
+      "verdict": "ja",
+      "key": "cb150a438dbbf71887ea6692708dd772df7f066f3770d8d9f3632d632e374052",
+      "mp3": "38eadd04fe5438d177d761eecfe4df84a186e7e7fcd20bffabb54a1388d1837f",
+      "speaker": "mosi",
+      "text": "Langir hálsar ná hátt!"
+    },
+    "minnisspil/g2_flown_gamla": {
+      "verdict": "nei",
+      "key": "5a15c38645c282367a3674843750edcb28285b3a5df71339f79acf5dafdb723f",
+      "mp3": "2c7f871e11211a9df76ba985da325927769453d2d610fe78f5176dd793e8b4dd",
+      "speaker": "mosi",
+      "text": "Flugeðlurnar fljúga upp!"
+    },
+    "minnisspil/g2_flown_nyja": {
+      "verdict": "ja",
+      "key": "97639b1718f6823d076056d53d09eaea23a97ca729d7a71d361f673c48372647",
+      "mp3": "48a6afdbc8755808f865b34cb5601cde24d00c051e597dfe5ce38eb0219716e1",
+      "speaker": "mosi",
+      "text": "Flugeðlurnar fljúga upp!"
+    }
+  }
+}

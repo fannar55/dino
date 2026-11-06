@@ -1,0 +1,53 @@
+{
+  "file": "ammonite.glb",
+  "bytes": 56108,
+  "triangles": 2900,
+  "vertices": 1454,
+  "meshes": [
+    "Ammonite"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "512 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "Varvara (https://sketchfab.com/krauchankavarvara)",
+  "title": "Ammonite fossil stylized",
+  "sourceUrl": "https://sketchfab.com/3d-models/ammonite-fossil-stylized-a7068c98ff4a47eaa00b890cf6c5a255",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "rightsNote": "Creative Commons Attribution 4.0: the author, the title, the licence and the changes made must be credited. The game credits it behind the small \"i\" on the ending card (game.js, the Líkan / Leyfi / Frá rows).",
+  "sourceHost": "Sketchfab (downloaded by the game owner as a GLB, 2026-10-31)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/a2-ammonite/, git-ignored).",
+  "download": {
+    "bytes": 2011988,
+    "md5": "27ac052a9a2afcdeb2cd90a421c376c0",
+    "triangles": 3052,
+    "maps": "a 1024 px JPEG colour map and two 1024 px PNG maps (normal and one more), an OpenPBR material",
+    "file": "ammonite_fossil_stylized.glb"
+  },
+  "use": "The snigilsteinn gift (surprise-items.js GIFT_ITEMS.ammonite): two instances, one on each of the pair's leaves, lying flat and leant toward the camera. +Y up, the origin on the ground in the middle of its footprint (feet on y = 0).",
+  "size": {
+    "note": "1.7 m across, 0.66 m high; an ammonite of a few centimetres on a stone, shown about 30 times its size so a child sees it from the glade (a closed leaf is about 2.1 m across)",
+    "bounds": {
+      "x": [
+        -0.85,
+        0.85
+      ],
+      "y": [
+        -0.8137,
+        0.8137
+      ],
+      "z": [
+        0,
+        0.6628
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the two meshes (the stone and the ammonite, one material) joined, the seam vertices welded, decimated by collapse from 3,052 to 2,900 triangles, custom normals from the welded whole, scaled to 1.7 m and set on y = 0, the material rebuilt as plain metal-rough (colour map only, roughness 0.8), the colour map written as WebP at quality 80 at 512 px. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/a2-ammonite/ammonite_fossil_stylized.glb ammonite-blender.glb name=Ammonite size=1.7 tris=2900 tex=512 normal=0 roughness=0.8",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs ammonite-blender.glb remake/assets/memory/gifts/ammonite.glb",
+  "passes": "blenderCommand (Blender 5.2; 83736 bytes), then quantizeCommand (56108 bytes)."
+}

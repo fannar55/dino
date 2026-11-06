@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import './setup.mjs';
 const THREE = await import('three');
-const { createBridgeProps, BRIDGE } = await import('../engine/memory/bridge-props.js');
-const { logPushOffset } = await import('../engine/memory/bridge-adventure.js');
+const { createBridgeProps, BRIDGE } = await import('../engine/memory/levels/berjalundur/bridge-props.js');
+const { logPushOffset } = await import('../engine/memory/levels/berjalundur/adventure.js');
 const { objectBox, assessSceneClearances } = await import('../engine/memory/memory-clearance.js');
 
 test('the captured late-push beak clears the rendered bark, not only its nose marker', async () => {

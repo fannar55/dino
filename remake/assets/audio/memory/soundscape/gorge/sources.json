@@ -1,0 +1,460 @@
+{
+  "version": 1,
+  "provider": "Freesound (HQ mp3 previews)",
+  "note": "Found sounds, not generated ones. Each was approved by the owner and downloaded by Claude on his word (\"Já, sækja\", 2026-10-31); the previews are in qa/memory/bord2/src/ (git-ignored) with SOURCES.md. Processed by qa/memory/bord2/t4/work/make-sounds.mjs: mono 44.1 kHz, trimmed to the first real sound with 5 ms kept before it, the tail faded, the peak at -3 dBFS, mp3 128 kbit/s. Task 5 added eight more (the wingbeat, the slab, the rope, the gravel), processed by qa/memory/bord2/t5/work/make-sounds.mjs the same way (approved by the owner and downloaded by Claude on his word \"Já, sækja\", 2026-11-01). The CC BY sounds (rock-hit, gravel-slip, gravel-climb) are credited behind the ending card's \"i\".",
+  "sounds": [
+    {
+      "id": "rocks-fall",
+      "file": "rocks-fall.mp3",
+      "title": "Stones Falling",
+      "author": "iwanPlays",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/iwanPlays/sounds/567251/",
+      "previewUrl": "https://cdn.freesound.org/previews/567/567251_7108319-hq.mp3",
+      "download": {
+        "bytes": 116486,
+        "md5": "5aac858c20ca21a666c744485c04075c",
+        "seconds": 4.202
+      },
+      "use": "The pile falls apart into steps (the third headbutt): the whole collapse.",
+      "processing": {
+        "firstSoundAtSeconds": 0,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 3.4,
+        "tailFadeMs": 700,
+        "cutAtSeconds": 3.4,
+        "peakDbfs": -3,
+        "seconds": 3.4,
+        "peak": 0.6677,
+        "rms": 0.103,
+        "bytes": 55631
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "rocks-tumble",
+      "file": "rocks-tumble.mp3",
+      "title": "Rock Tumble 2.wav",
+      "author": "_stubb",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/_stubb/sounds/389618/",
+      "previewUrl": "https://cdn.freesound.org/previews/389/389618_6068748-hq.mp3",
+      "download": {
+        "bytes": 24240,
+        "md5": "ff5ce77f89b774fd843aaa125ec28c05",
+        "seconds": 1.2
+      },
+      "use": "The pile shifts after the first and the second headbutt: a short slide of stones.",
+      "processing": {
+        "firstSoundAtSeconds": 0.0091,
+        "keptFromSeconds": 0.0041,
+        "keptToSeconds": 1.117,
+        "tailFadeMs": 180,
+        "peakDbfs": -3,
+        "seconds": 1.113,
+        "peak": 0.6702,
+        "rms": 0.0222,
+        "bytes": 18851
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "rock-hit",
+      "file": "rock-hit.mp3",
+      "title": "Knocking into Pile of Large Stones 1.wav",
+      "author": "F.M.Audio",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "page": "https://freesound.org/people/F.M.Audio/sounds/572753/",
+      "previewUrl": "https://cdn.freesound.org/previews/572/572753_7805242-hq.mp3",
+      "download": {
+        "bytes": 19296,
+        "md5": "f5925695c2a611174fb5953f3a6ce2b0",
+        "seconds": 0.685
+      },
+      "use": "Each headbutt: the Þríhyrnur knock into the pile (three times, a little lower and louder each time).",
+      "processing": {
+        "firstSoundAtSeconds": 0.0417,
+        "keptFromSeconds": 0.0367,
+        "keptToSeconds": 0.685,
+        "tailFadeMs": 90,
+        "peakDbfs": -3,
+        "seconds": 0.648,
+        "peak": 0.6728,
+        "rms": 0.0679,
+        "bytes": 11327
+      },
+      "credit": "Hljóð: „Knocking into Pile of Large Stones 1“ eftir F.M.Audio, CC BY 4.0 (freesound.org/people/F.M.Audio/sounds/572753)",
+      "creditRequired": true
+    },
+    {
+      "id": "rock-land",
+      "file": "rock-land.mp3",
+      "title": "Landing_Stone_1.wav",
+      "author": "KieranKeegan",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/KieranKeegan/sounds/422753/",
+      "previewUrl": "https://cdn.freesound.org/previews/422/422753_6616210-hq.mp3",
+      "download": {
+        "bytes": 8559,
+        "md5": "b5f8eaf4647757ef9b56278ac118fd76",
+        "seconds": 0.222
+      },
+      "use": "A rock of the pile lands on its step as it falls.",
+      "processing": {
+        "firstSoundAtSeconds": 0.0383,
+        "keptFromSeconds": 0.0333,
+        "keptToSeconds": 0.222,
+        "tailFadeMs": 40,
+        "peakDbfs": -3,
+        "seconds": 0.188,
+        "peak": 0.6754,
+        "rms": 0.1193,
+        "bytes": 4222
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "pebble",
+      "file": "pebble.mp3",
+      "title": "Stone dropping",
+      "author": "alegemaate",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/alegemaate/sounds/364711/",
+      "previewUrl": "https://cdn.freesound.org/previews/364/364711_2531187-hq.mp3",
+      "download": {
+        "bytes": 17120,
+        "md5": "616fdadd16de39aef9b36966f95324d8",
+        "seconds": 0.471
+      },
+      "use": "The wrong friend at the rocks: the pebble lands on the Kambeðla's head.",
+      "processing": {
+        "firstSoundAtSeconds": 0.0046,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 0.426,
+        "tailFadeMs": 70,
+        "peakDbfs": -3,
+        "seconds": 0.426,
+        "peak": 0.6699,
+        "rms": 0.0444,
+        "bytes": 7984
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "peck",
+      "file": "peck.mp3",
+      "title": "tap stone",
+      "author": "nettimato",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/nettimato/sounds/350343/",
+      "previewUrl": "https://cdn.freesound.org/previews/350/350343_1815993-hq.mp3",
+      "download": {
+        "bytes": 5638,
+        "md5": "28da94b647b3d53198a48f21801e1fdf",
+        "seconds": 0.158
+      },
+      "use": "The wrong friend at the rocks: the Flugeðla's \"tikk\" on a stone.",
+      "processing": {
+        "firstSoundAtSeconds": 0.0043,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 0.158,
+        "tailFadeMs": 20,
+        "peakDbfs": -3,
+        "seconds": 0.158,
+        "peak": 0.6716,
+        "rms": 0.0607,
+        "bytes": 3804
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "glow-chime",
+      "file": "glow-chime.mp3",
+      "title": "ANI - Wine Glass - Hard",
+      "author": "ani_music",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/ani_music/sounds/198401/",
+      "previewUrl": "https://cdn.freesound.org/previews/198/198401_3008343-hq.mp3",
+      "download": {
+        "bytes": 36110,
+        "md5": "d6f0d046b332a9df3c74eea58092bd67",
+        "seconds": 1.592
+      },
+      "use": "The first choice for the plates' glow: one chime for each of the three taps of the light, a step higher each time. To swap it for the other, open the page with ?chime=alt (or point \"glow-chime\" at glow-chime-alt.mp3 in manifest.json).",
+      "processing": {
+        "firstSoundAtSeconds": 0,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 0.561,
+        "tailFadeMs": 140,
+        "peakDbfs": -3,
+        "seconds": 0.561,
+        "peak": 0.6833,
+        "rms": 0.0392,
+        "bytes": 10074
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "glow-chime-alt",
+      "file": "glow-chime-alt.mp3",
+      "title": "Chime.wav",
+      "author": "Psykoosiossi",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/Psykoosiossi/sounds/398661/",
+      "previewUrl": "https://cdn.freesound.org/previews/398/398661_2798307-hq.mp3",
+      "download": {
+        "bytes": 29952,
+        "md5": "d7a9ae1f7aee8c6af63f19c32083acc8",
+        "seconds": 1.287
+      },
+      "use": "The other glow chime, kept as an alternative (the page plays it with ?chime=alt).",
+      "processing": {
+        "firstSoundAtSeconds": 0,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 1.287,
+        "tailFadeMs": 400,
+        "peakDbfs": -3,
+        "seconds": 1.287,
+        "peak": 0.6725,
+        "rms": 0.1157,
+        "bytes": 21776
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "wing-flap",
+      "file": "wing-flap.mp3",
+      "title": "Wing Flap 1",
+      "author": "_stubb",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/_stubb/sounds/389634/",
+      "previewUrl": "https://cdn.freesound.org/previews/389/389634_6068748-hq.mp3",
+      "download": {
+        "bytes": 19392,
+        "md5": "7097196a0b5f252ceb3c63a7de68cd34",
+        "seconds": 0.933
+      },
+      "use": "The Flugeðlur's wingbeat: once for each tap of the child while they fly the rope up the cliff.",
+      "processing": {
+        "firstSoundAtSeconds": 0.1142,
+        "keptFromSeconds": 0.1092,
+        "keptToSeconds": 0.933,
+        "tailFadeMs": 140,
+        "peakDbfs": -3,
+        "seconds": 0.824,
+        "peak": 0.6637,
+        "rms": 0.047,
+        "bytes": 14253
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "slab-lower",
+      "file": "slab-lower.mp3",
+      "title": "Heavy Stone Push",
+      "author": "msavioti",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/msavioti/sounds/558254/",
+      "previewUrl": "https://cdn.freesound.org/previews/558/558254_10531612-hq.mp3",
+      "download": {
+        "bytes": 32736,
+        "md5": "95020c3ef401b805ec3b6bee71649afe",
+        "seconds": 1.134
+      },
+      "use": "The first choice for the slab that the Þórseðlur pull down: once for each of the three steps. To swap it for the other, open the page with ?slab=alt (or point \"slab-lower\" at slab-lower-alt.mp3 in manifest.json).",
+      "processing": {
+        "firstSoundAtSeconds": 0.0323,
+        "keptFromSeconds": 0.0273,
+        "keptToSeconds": 1.134,
+        "tailFadeMs": 160,
+        "peakDbfs": -3,
+        "seconds": 1.107,
+        "peak": 0.6731,
+        "rms": 0.1504,
+        "bytes": 18851
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "slab-lower-alt",
+      "file": "slab-lower-alt.mp3",
+      "title": "Scraping Stone",
+      "author": "dslrguide",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/dslrguide/sounds/321488/",
+      "previewUrl": "https://cdn.freesound.org/previews/321/321488_5485024-hq.mp3",
+      "download": {
+        "bytes": 45504,
+        "md5": "f5813cf581a700ecac5fc1034fd624f5",
+        "seconds": 2.521
+      },
+      "use": "The other slab sound, kept as an alternative (the page plays it with ?slab=alt).",
+      "processing": {
+        "firstSoundAtSeconds": 0.0005,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 2.305,
+        "tailFadeMs": 320,
+        "peakDbfs": -3,
+        "seconds": 2.305,
+        "peak": 0.6715,
+        "rms": 0.0711,
+        "bytes": 38077
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "rope-whoosh",
+      "file": "rope-whoosh.mp3",
+      "title": "Whoosh Short",
+      "author": "FartCTO",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/FartCTO/sounds/789840/",
+      "previewUrl": "https://cdn.freesound.org/previews/789/789840_16960853-hq.mp3",
+      "download": {
+        "bytes": 14976,
+        "md5": "82fbc502c429a20c73e0eea2201f8d07",
+        "seconds": 0.53
+      },
+      "use": "The rope thrown up: the Þórseðla's wrong try at the cliff, and the Flugeðlur's lift-off with the rope.",
+      "processing": {
+        "firstSoundAtSeconds": 0.0227,
+        "keptFromSeconds": 0.0177,
+        "keptToSeconds": 0.53,
+        "tailFadeMs": 90,
+        "peakDbfs": -3,
+        "seconds": 0.512,
+        "peak": 0.6711,
+        "rms": 0.1099,
+        "bytes": 9238
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "rope-tighten",
+      "file": "rope-tighten.mp3",
+      "title": "Stretch - Medium",
+      "author": "NearTheAtmoshphere",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/NearTheAtmoshphere/sounds/676987/",
+      "previewUrl": "https://cdn.freesound.org/previews/676/676987_2578040-hq.mp3",
+      "download": {
+        "bytes": 75024,
+        "md5": "28efc452fd76ce29b81db653b705935c",
+        "seconds": 2.563
+      },
+      "use": "The rope draws taut once the Flugeðlur have wrapped it round the tree.",
+      "processing": {
+        "firstSoundAtSeconds": 0.0852,
+        "keptFromSeconds": 0.0802,
+        "keptToSeconds": 2.498,
+        "tailFadeMs": 420,
+        "peakDbfs": -3,
+        "seconds": 2.417,
+        "peak": 0.6587,
+        "rms": 0.0159,
+        "bytes": 39749
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "rope-knots",
+      "file": "rope-knots.mp3",
+      "title": "Rope Knots - Nudos Cuerda",
+      "author": "Raulitoto",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "page": "https://freesound.org/people/Raulitoto/sounds/273530/",
+      "previewUrl": "https://cdn.freesound.org/previews/273/273530_2911664-hq.mp3",
+      "download": {
+        "bytes": 89342,
+        "md5": "1d8ffb6deb6f48be2b8ac9ed65e3bee2",
+        "seconds": 5
+      },
+      "use": "The Flugeðlur wrap the rope round the tree (2 s of the 5 s sample, from its first knock).",
+      "processing": {
+        "firstSoundAtSeconds": 0.5,
+        "keptFromSeconds": 0.495,
+        "keptToSeconds": 2.495,
+        "tailFadeMs": 380,
+        "cutAtSeconds": 2,
+        "peakDbfs": -3,
+        "seconds": 2,
+        "peak": 0.666,
+        "rms": 0.0578,
+        "bytes": 33061
+      },
+      "creditRequired": false
+    },
+    {
+      "id": "gravel-slip",
+      "file": "gravel-slip.mp3",
+      "title": "Running_Slip_on_Gravel",
+      "author": "Tdude9000",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "page": "https://freesound.org/people/Tdude9000/sounds/138343/",
+      "previewUrl": "https://cdn.freesound.org/previews/138/138343_2531092-hq.mp3",
+      "download": {
+        "bytes": 49776,
+        "md5": "63eb3fe427f049888c19fd66bdab20a9",
+        "seconds": 2.127
+      },
+      "use": "The Kambeðla's wrong try at the cliff: she tries the path and slides back down it.",
+      "processing": {
+        "firstSoundAtSeconds": 0,
+        "keptFromSeconds": 0,
+        "keptToSeconds": 2.127,
+        "tailFadeMs": 260,
+        "peakDbfs": -3,
+        "seconds": 2.127,
+        "peak": 0.6797,
+        "rms": 0.0366,
+        "bytes": 35151
+      },
+      "credit": "Hljóð: „Running_Slip_on_Gravel“ eftir Tdude9000, CC BY 3.0 (freesound.org/people/Tdude9000/sounds/138343)",
+      "creditRequired": true
+    },
+    {
+      "id": "gravel-climb",
+      "file": "gravel-climb.mp3",
+      "title": "Gravel climbing",
+      "author": "jorickhoofd",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "page": "https://freesound.org/people/jorickhoofd/sounds/169547/",
+      "previewUrl": "https://cdn.freesound.org/previews/169/169547_2888453-hq.mp3",
+      "download": {
+        "bytes": 100609,
+        "md5": "272e19337d8d3cdd7eaf71f4d8990c96",
+        "seconds": 3.912
+      },
+      "use": "Everyone climbs the steep path with the rope as a handrail.",
+      "processing": {
+        "firstSoundAtSeconds": 0.069,
+        "keptFromSeconds": 0.064,
+        "keptToSeconds": 3.794,
+        "tailFadeMs": 420,
+        "peakDbfs": -3,
+        "seconds": 3.73,
+        "peak": 0.6728,
+        "rms": 0.0233,
+        "bytes": 60647
+      },
+      "credit": "Hljóð: „Gravel climbing“ eftir jorickhoofd, CC BY 4.0 (freesound.org/people/jorickhoofd/sounds/169547)",
+      "creditRequired": true
+    }
+  ]
+}

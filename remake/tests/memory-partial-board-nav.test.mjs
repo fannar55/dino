@@ -5,7 +5,7 @@ import './setup.mjs';
 const THREE=await import('three');
 const {createHomeNavigation}=await import('../engine/memory/world-home-nav.js');
 const {bridgeCollisionObjects,reposedSnapshot}=await import('../engine/memory/memory-clearance.js');
-const {riverDistance,bridgeValley}=await import('../engine/memory/bridge-props.js');
+const {riverDistance,bridgeValley}=await import('../engine/memory/levels/berjalundur/bridge-props.js');
 const {createTerrain}=await import('../world/forest/terrain.js');
 const fixture=JSON.parse(await readFile(new URL('./fixtures/memory-roll-partial-board.json',import.meta.url)));
 

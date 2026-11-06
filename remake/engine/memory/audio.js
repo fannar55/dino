@@ -3,15 +3,25 @@ import { createAudioContext, createOutput } from '../audio/output.js';
 // Exact tuning of remake/assets/audio/theme.json. Calls are imagined animal voices, not musical cues.
 export const MEMORY_KEY = Object.freeze([524.28, 588.48, 660.55, 785.53, 881.73]);
 const LIMIT = 24;
+/** The most sounds one manifest gives (the shared soundscape's, and each level's own): entries past it are not loaded (memory-bridge-rules.test.mjs holds every manifest under it). */
+export const MANIFEST_SOUNDS = 24;
 // Each pair found is a step higher (semitones above the first pair's chime): C, E and G major, a clear rise a child hears.
 const CHIME_RISE = Object.freeze([0, 4, 7]);
 const riseRate = nestIndex => 2 ** (CHIME_RISE[Math.max(0, Math.min(CHIME_RISE.length - 1, Math.floor(nestIndex) || 0))] / 12);
 const MANIFEST_URL = new URL('../../assets/audio/memory/soundscape/manifest.json', import.meta.url);
+/** The manifest of a level's own soundscape (levels/*.js `soundscape`): found sounds in a folder of their own beside level 1's, in the same format. */
+export const soundscapeUrl = name => new URL(`../../assets/audio/memory/soundscape/${name}/manifest.json`, import.meta.url);
+// The glow chime of level 2's light: the first choice (ani_music's wine glass) or, with ?chime=alt in the page's address, the other (Psykoosiossi's chime), to be judged by ear.
+const glowChime = () => /[?&]chime=alt\b/.test(globalThis.location?.search ?? '') ? 'glow-chime-alt' : 'glow-chime';
+// The sound of the slab coming down (level 2's ledge): the first choice (msavioti's heavy stone push) or, with ?slab=alt, the other (dslrguide's scraping stone), to be judged by ear.
+const slabSound = () => /[?&]slab=alt\b/.test(globalThis.location?.search ?? '') ? 'slab-lower-alt' : 'slab-lower';
 const RECORDED_BASE = { leaf: .13, straw: .075, foot: .09, triceratops: .21, stegosaurus: .21, brontosaurus: .21 };
 const MOTIFS = {
   triceratops: { duration: 0.59, pitch: 172, formants: [490, 1330], pulses: [[0.01, 0.22], [0.29, 0.25]], breath: 0.13 },
   stegosaurus: { duration: 0.49, pitch: 228, formants: [380, 1040], pulses: [[0.01, 0.15], [0.22, 0.24]], breath: 0.065 },
   brontosaurus: { duration: 0.75, pitch: 139, formants: [320, 880], pulses: [[0.01, 0.70]], breath: 0.035 },
+  // The Flugeðla baby (level 2): the highest of the four, three quick, bright chirps, the last a little longer.
+  pteranodon: { duration: 0.54, pitch: 318, formants: [640, 1760], pulses: [[0.01, 0.14], [0.19, 0.12], [0.34, 0.19]], breath: 0.08 },
 };
 
 /** Friendly, breathy voiced PCM: glottal harmonics shaped by two broad moving vocal resonances. */
@@ -99,8 +109,9 @@ function riverBuffer(context) {
 }
 
 /** Starts silently. unlock() must be called from the player's gesture. All scheduling uses the audio clock. */
-export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = globalThis.fetch } = {}) {
+export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = globalThis.fetch, extraManifests = [] } = {}) {
   let context = null, output = null, muted = false, paused = false, disposed = false, unlocked = false;
+  let clapTake = 0, cheerTake = 0;
   let played = 0, dropped = 0, callUntil = 0, lastRockAt = -Infinity, riverVoice = null, ducked = false;
   let preloadPromise = null, decodePromise = null, loadController = null, recordedPlayed = 0;
   const voices = new Set(), buffers = {}, log = [], bridgeTimes = new Map();
@@ -127,20 +138,24 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     if (!preloadPromise) preloadPromise = (async () => {
       loadController = new AbortController();
       const timeout = setTimeout(() => loadController?.abort(), 15000);
-      try {
-        const response = await fetcher(String(manifestUrl), { signal: loadController.signal });
-        if (!response.ok) throw new Error('manifest unavailable');
-        const manifest = await response.json();
-        const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, 24);
-        await Promise.all(entries.map(async ([id, entry]) => {
-          try {
-            const response = await fetcher(new URL(entry.file, manifestUrl).href, { signal: loadController.signal });
-            if (!response.ok) throw new Error('recording unavailable');
-            const bytes = await response.arrayBuffer();
-            if (!disposed && bytes.byteLength > 0) { recordingBytes.set(id, bytes); recordingMeta.set(id, entry); }
-          } catch { if (!disposed) recordingFailed.add(id); }
-        }));
-      } catch { if (!disposed) recordingFailed.add('manifest'); }
+      // The shared soundscape, and the level's own (a level that has one: its manifest is in a folder of its own); a manifest that does not come costs only its own sounds.
+      const load = async url => {
+        try {
+          const response = await fetcher(String(url), { signal: loadController.signal });
+          if (!response.ok) throw new Error('manifest unavailable');
+          const manifest = await response.json();
+          const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, MANIFEST_SOUNDS);
+          await Promise.all(entries.map(async ([id, entry]) => {
+            try {
+              const response = await fetcher(new URL(entry.file, url).href, { signal: loadController.signal });
+              if (!response.ok) throw new Error('recording unavailable');
+              const bytes = await response.arrayBuffer();
+              if (!disposed && bytes.byteLength > 0) { recordingBytes.set(id, bytes); recordingMeta.set(id, entry); }
+            } catch { if (!disposed) recordingFailed.add(id); }
+          }));
+        } catch { if (!disposed) recordingFailed.add(url === manifestUrl ? 'manifest' : String(url)); }
+      };
+      try { await Promise.all([manifestUrl, ...extraManifests].map(load)); }
       finally { clearTimeout(timeout); }
       return recordingBytes.size > 0;
     })();
@@ -181,7 +196,7 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     voice.cleanup = cleanup; source.onended = cleanup; voices.add(voice);
     source.start(at); source.stop(at + duration + 0.015); played++;
     if (sourceType === 'recorded') recordedPlayed++;
-    record({ kind, ...(species ? { species } : {}), ...(asset ? { asset } : {}), source: sourceType, start: at, end: at + duration, pan: panner.pan.value });
+    record({ kind, ...(species ? { species } : {}), ...(asset ? { asset } : {}), source: sourceType, start: at, end: at + duration, pan: panner.pan.value, level, rate: source.playbackRate?.value ?? 1, at: Date.now() + (at - context.currentTime) * 1000 });
     return true;
   }
 
@@ -443,6 +458,146 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       const at = Math.max(now + 0.06, callUntil + 0.045);
       [0, 2, 3].forEach((n, i) => note(MEMORY_KEY[n] / 2, at + i * 0.12, 0.5, 0.025));
     }),
+    // ---- Level 2: the tunnel and the rockfall (found sounds: soundscape/gorge/) ----
+    // Each tap of the light: a chime a step higher than the last (the major third and the fifth), the plates glowing.
+    lightStep(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, rate = [1, 1.26, 1.5][Math.max(0, Math.min(2, Math.floor(index) || 0))], id = glowChime();
+      if (recordings.has(id)) return recording(id, now, 0, 'light-step', 1, rate);
+      note(MEMORY_KEY[Math.min(4, 1 + Math.floor(index))] / 2, now, .5, .03); return true;
+    },
+    // The tunnel is lit: all three chimes together, and a bright one above them.
+    tunnelLit() {
+      if (!allowed()) return false;
+      const now = context.currentTime, id = glowChime();
+      if (recordings.has(id)) { [1, 1.26, 1.5].forEach((rate, i) => recording(id, now + i * .07, (i - 1) * .2, 'tunnel-lit', .8, rate)); recording(id, now + .3, 0, 'tunnel-lit', .55, 2); return true; }
+      [0, 2, 4].forEach((n, i) => note(MEMORY_KEY[n] / 2, now + i * .09, .7, .025)); return true;
+    },
+    // The horns meet the pile, each time lower and harder.
+    rockHit(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.min(2, Math.floor(index) || 0)), rate = [1, .93, .84][i], scale = [.85, 1, 1.15][i];
+      if (recordings.has('rock-hit')) { recording('rock-hit', now, 0, 'rock-hit', scale, rate); if (i < 2 && recordings.has('rocks-tumble')) recording('rocks-tumble', now + .14, .1, 'rocks-slide', .45 + .15 * i, 1 + .1 * i); return true; }
+      sample('wood', now, .16 * scale, 0, 'rock-hit'); sample('gravel', now + .05, .12, .1, 'rocks-slide'); return true;
+    },
+    // The third hit lets the pile go: the collapse, with a short tumble on top of it.
+    rocksFall() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rocks-fall')) { recording('rocks-fall', now + .05, 0, 'rocks-fall'); if (recordings.has('rocks-tumble')) recording('rocks-tumble', now + .2, -.15, 'rocks-slide', .5, .9); return true; }
+      sample('gravel', now, .25, 0, 'rocks-fall'); sample('wood', now + .1, .14, -.1, 'rocks-fall'); return true;
+    },
+    // One rock of the pile lands on its step (throttled: several land together).
+    rockLand() {
+      if (!allowed()) return false;
+      const now = context.currentTime; if (now - (bridgeTimes.get('rock-land') ?? -Infinity) < .11) return false;
+      bridgeTimes.set('rock-land', now); const k = (played % 5) / 4;
+      if (recordings.has('rock-land')) return recording('rock-land', now, (k - .5) * .5, 'rock-land', .75 + .3 * k, .9 + .25 * k);
+      return sample('foot', now, .09, (k - .5) * .5, 'rock-land');
+    },
+    // A pebble lands on the Kambeðla's head.
+    pebble() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('pebble')) return recording('pebble', now, 0, 'pebble');
+      return sample('wood', now, .1, 0, 'pebble');
+    },
+    // The Flugeðla's beak on a stone: "tikk" (each peck a little different).
+    peck() {
+      if (!allowed()) return false;
+      const now = context.currentTime, k = played % 3;
+      if (recordings.has('peck')) return recording('peck', now, 0, 'peck', .9 + .08 * k, .96 + .06 * k);
+      return sample('foot', now, .08, 0, 'peck');
+    },
+    // ---- Level 2: the ledge, the cliff and the climb (found sounds: soundscape/gorge/) ----
+    // Each tap the Þórseðlur pull the slab down a step: a heavy stone pushed, a little lower each time.
+    slabLower(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.min(2, Math.floor(index) || 0)), id = slabSound();
+      if (recordings.has(id)) return recording(id, now, 0, 'slab-lower', 1 + .1 * i, [1, .94, .88][i]);
+      sample('gravel', now, .2, 0, 'slab-lower'); sample('wood', now + .08, .1, .1); return true;
+    },
+    // The slab settles as a ramp: a landing stone, deep, with the tumble of the pile's collapse under it.
+    slabDown() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rock-land')) { recording('rock-land', now, 0, 'slab-down', 1.7, .62); if (recordings.has('rocks-tumble')) recording('rocks-tumble', now + .05, .1, 'slab-down', .5, .8); return true; }
+      sample('wood', now, .2, 0, 'slab-down'); sample('gravel', now + .05, .12, .1); return true;
+    },
+    // A wingbeat of the Flugeðlur, each tap a little higher.
+    wingFlap(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.min(2, Math.floor(index) || 0));
+      if (recordings.has('wing-flap')) return recording('wing-flap', now, 0, 'wing-flap', 1, [1, 1.05, 1.1][i]);
+      return sample('flutter', now, .2, 0, 'wing-flap');
+    },
+    // The rope thrown or lifted: a whoosh.
+    ropeWhoosh() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rope-whoosh')) return recording('rope-whoosh', now, .05, 'rope-whoosh');
+      return sample('flutter', now, .14, .05, 'rope-whoosh');
+    },
+    // The rope wound round the tree: knots pulled.
+    ropeKnots() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rope-knots')) return recording('rope-knots', now, 0, 'rope-knots');
+      return sample('straw', now, .1, 0, 'rope-knots');
+    },
+    // The rope draws taut.
+    ropeTighten() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rope-tighten')) return recording('rope-tighten', now, 0, 'rope-tighten');
+      return sample('straw', now, .08, 0, 'rope-tighten');
+    },
+    // Stones knocked off the rim tumble down into the gap under the dust of the fallen trunk (the rockfall's tumble, softer and lower).
+    rocksTumble() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rocks-tumble')) return recording('rocks-tumble', now, .1, 'rocks-tumble', .55, .85);
+      return sample('gravel', now, .14, .1, 'rocks-tumble');
+    },
+    // The Kambeðla slides back down the path.
+    gravelSlip() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('gravel-slip')) return recording('gravel-slip', now, 0, 'gravel-slip');
+      return sample('gravel', now, .18, 0, 'gravel-slip');
+    },
+    // Everyone climbs the steep path (one pass of the sample for each stretch of the climb).
+    gravelClimb() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('gravel-climb')) return recording('gravel-climb', now, 0, 'gravel-climb', .85);
+      sample('gravel', now, .12, -.1, 'gravel-climb'); sample('foot', now + .2, .07, .1); sample('foot', now + .45, .07, -.1); return true;
+    },
+    // (Task 7 fix round 1) Mosi claps: one real clap (Söngur Slóeðlu's, four people's, gregswinford CC BY 4.0) for each clap of his gesture, quiet,
+    // the four takes in turn and a little left and right, so no two in a row are the same. Only where the level's manifest has them (level 2).
+    mosiClap(index = 0) {
+      if (!allowed()) return false;
+      // (the four takes in turn, each clap gesture starting on another one)
+      clapTake += index === 0 ? 2 : 1; const take = (clapTake % 4) + 1, id = `clap-${take}`;
+      if (!recordings.has(id)) return false;
+      return recording(id, context.currentTime, (index % 2 ? .1 : -.1), 'mosi-clap', .9 + .1 * ((take + index) % 3) / 2, .97 + .03 * (take % 3));
+    },
+    // (Task 7 fix round 1) The friends cheer as everyone stands on Sólarsyllan: Söngur Slóeðlu's children's cheer (ElevenLabs-made), the two takes
+    // in turn round after round. Under Mosi: it is played between his lines, and his voice ducks everything under it as it does.
+    cheer() {
+      if (!allowed()) return false;
+      const take = cheerTake = (cheerTake % 2) + 1, id = `cheer-${take}`;
+      if (!recordings.has(id)) return false;
+      return recording(id, Math.max(context.currentTime + .02, callUntil + .02), 0, 'cheer');
+    },
+    // (Task 7) A star comes out over Sólarsyllan: the light's glow chime again, soft and high, each a step up the pentatonic scale above the
+    // tunnel's three (the fifth, the sixth, the octave...), left and right in turn.
+    starChime(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.floor(index) || 0), rate = [1.5, 1.68, 2, 2.24, 2.52, 3][i % 6], id = glowChime();
+      if (recordings.has(id)) return recording(id, now, i % 2 ? .25 : -.25, 'star-chime', .42, rate);
+      note(MEMORY_KEY[i % 5], now, .35, .015); return true;
+    },
     mute(value) {
       if (disposed) return;
       muted = Boolean(value);

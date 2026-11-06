@@ -1,0 +1,53 @@
+{
+  "file": "footprint.glb",
+  "bytes": 60364,
+  "triangles": 2899,
+  "vertices": 1649,
+  "meshes": [
+    "Footprint"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "512 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "anthony.romilio (https://sketchfab.com/anthony.romilio)",
+  "title": "Dinosaur footprint Mount Morgan A1",
+  "sourceUrl": "https://sketchfab.com/3d-models/dinosaur-footprint-mount-morgan-a1-f81831f616ae47eab3a8a179efa0c4c9",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "rightsNote": "Creative Commons Attribution 4.0: the author, the title, the licence and the changes made must be credited. The game credits it behind the small \"i\" on the ending card (game.js, the Líkan / Leyfi / Frá rows).",
+  "sourceHost": "Sketchfab (downloaded by the game owner as a GLB, 2026-10-31)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/s1-footprint/, git-ignored).",
+  "download": {
+    "bytes": 1076956,
+    "md5": "6523736fe1540feca3d88f4482b2b86e",
+    "triangles": 24999,
+    "maps": "one 1024 px JPEG colour map, an unlit (KHR_materials_unlit) material (a photogrammetry scan with its light baked in)",
+    "file": "dinosaur_footprint_mount_morgan_a1.glb"
+  },
+  "use": "The risaspor gift (surprise-items.js GIFT_ITEMS.footprint): two instances, one on each of the pair's leaves, lying flat and leant toward the camera. +Y up, the origin on the ground in the middle of its footprint.",
+  "size": {
+    "note": "1.7 m across, 0.11 m high; a dinosaur track slab of about 36 cm, shown about 5 times its size",
+    "bounds": {
+      "x": [
+        -0.8469,
+        0.8469
+      ],
+      "y": [
+        -0.85,
+        0.85
+      ],
+      "z": [
+        0,
+        0.1072
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the seam vertices welded, decimated by collapse from 24,999 to 2,899 triangles, custom normals from the welded whole, scaled to 1.7 m and set on y = 0, the unlit material replaced by a plain metal-rough one fed by the same colour map (roughness 0.9), the map shrunk to 512 and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/s1-footprint/dinosaur_footprint_mount_morgan_a1.glb footprint-blender.glb name=Footprint size=1.7 tris=2900 tex=512 normal=0 roughness=0.9",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs footprint-blender.glb remake/assets/memory/gifts/footprint.glb",
+  "passes": "blenderCommand (Blender 5.2; 89796 bytes), then quantizeCommand (60364 bytes)."
+}

@@ -1,0 +1,355 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-02",
+  "source": "jano-minnisspil.json",
+  "verdicts": {
+    "minnisspil/g2_welcome_steinagljufrid_hratt": {
+      "verdict": "nei",
+      "key": "d2f81e3340c748da3bbf41310739ea47c24bb62227a05508ee5ac07ff0ee1c6f",
+      "mp3": "185fbcc685e7f7233c4b03d7d1231d9529954b42933568f61727ca7db3adeda4",
+      "speaker": "mosi",
+      "text": "Velkomin í Steinagljúfrið! Finndu tvo eins vini."
+    },
+    "minnisspil/g2_welcome_steinagljufrid_ipa": {
+      "verdict": "nei",
+      "key": "2a31350d9300e3f4062da1cc85f60fe6eb80515ac4808bf8f57657e14ef1f886",
+      "mp3": "ea7b8269b70c4cac85a9aa504ee94eddfd8978986d1d99c16adc24d811baf0d0",
+      "speaker": "mosi",
+      "text": "Velkomin í Steinagljúfrið! Finndu tvo eins vini."
+    },
+    "minnisspil/g2_welcome_steinagljufrid_samhengi": {
+      "verdict": "ja",
+      "key": "bffaed62d44db50b3a41e529d6763b62f005532431b54cfc85570012eef187bf",
+      "mp3": "cd158f957e4080c4bd166b8f6b6f25a334fd6dedaff6b17245bb07937a2a1059",
+      "speaker": "mosi",
+      "text": "Velkomin í Steinagljúfrið! Finndu tvo eins vini."
+    },
+    "minnisspil/g2_bridge_solarsyllan_hratt": {
+      "verdict": "nei",
+      "key": "c3647c05bd5ce85e24680c383e5120617fb4e2f06be0c8dac1df420d7ae819e5",
+      "mp3": "935c203c2cf292e5dab1c3bc1cff032f9c40ccef39544f21b0db1c8cd9ab3953",
+      "speaker": "mosi",
+      "text": "Brúin er komin. Á Sólarsylluna!"
+    },
+    "minnisspil/g2_bridge_solarsyllan_ipa": {
+      "verdict": "nei",
+      "key": "fe81b3e6df24e3f6bf42230819a3ca200ca4158185256a59c71f72b0cf615456",
+      "mp3": "7414ad416102c3868e5dd2a69945a7e02509c1cfad0cf693b8c91c77b0141620",
+      "speaker": "mosi",
+      "text": "Brúin er komin. Á Sólarsylluna!"
+    },
+    "minnisspil/g2_bridge_solarsyllan_samhengi": {
+      "verdict": "ja",
+      "key": "3904cc6fd2a08655ce7115599d07e33ef6134af2244db6f7637980a4ca79c305",
+      "mp3": "202440745e8132ac34456b7c7d86e562f5bd41fabe56d67ce2051781658260d9",
+      "speaker": "mosi",
+      "text": "Brúin er komin. Á Sólarsylluna!"
+    },
+    "minnisspil/help_thrihyrna_hratt": {
+      "verdict": "ja",
+      "key": "0855afff119064431a40ab9088ae90176bf6bae85bfd8837efc08747ae8c0ea8",
+      "mp3": "789e7255c1016ecfd63e6de7725419a876ee02d080551e300b7b3f5e6f142078",
+      "speaker": "mosi",
+      "text": "Finndu þrjú vinapör undir laufunum. Þórseðlurnar lyfta greininni. Þríhyrnurnar gera brú. Kambeðlurnar leggja leið yfir mýrina. Saman komumst við í berjalundinn!"
+    },
+    "minnisspil/help_thrihyrna_ipa": {
+      "verdict": "nei",
+      "key": "0866e2965936e977d2b6e89cb48a26195086ffbec6992b07ecbd86b111c0406d",
+      "mp3": "42d83e91cdcb156896ee023d3a0abed6838d05dbb735329aa5b1198a7c719428",
+      "speaker": "mosi",
+      "text": "Finndu þrjú vinapör undir laufunum. Þórseðlurnar lyfta greininni. Þríhyrnurnar gera brú. Kambeðlurnar leggja leið yfir mýrina. Saman komumst við í berjalundinn!"
+    },
+    "minnisspil/help_thrihyrna_samhengi": {
+      "verdict": "nei",
+      "key": "7fc2828e91880d1fde030780e394f7309188f413f40d13bee44da82002a65f2b",
+      "mp3": "efe0fb82caf0b5cfe517b3ed7a92e797b15f8c6b29fdbbc4a54a89d5d12f11ad",
+      "speaker": "mosi",
+      "text": "Finndu þrjú vinapör undir laufunum. Þórseðlurnar lyfta greininni. Þríhyrnurnar gera brú. Kambeðlurnar leggja leið yfir mýrina. Saman komumst við í berjalundinn!"
+    },
+    "minnisspil/gift_footprint_risaspor_hratt": {
+      "verdict": "nei",
+      "key": "886811214fc4b4b26fe72936ebebaa90736dbf9d58fbb99eaa57bbe509a45a3d",
+      "mp3": "6161e33a0add5ded8d9f3b10bc53e94aa43121e31dd122bb339700a704db51c8",
+      "speaker": "mosi",
+      "text": "Risaspor! Það fer í körfuna."
+    },
+    "minnisspil/gift_footprint_risaspor_ipa": {
+      "verdict": "ja",
+      "key": "d71eb4cd265ef51ae1213a7ecdd3bfb18e58d900a736036d29f342359472f5b7",
+      "mp3": "77f243484027a616a8f67cb10e95b7a3f4c6f198be041e40545cd500cf708064",
+      "speaker": "mosi",
+      "text": "Risaspor! Það fer í körfuna."
+    },
+    "minnisspil/gift_footprint_risaspor_samhengi": {
+      "verdict": "nei",
+      "key": "a6ea50ec0a2838a9e88516679bd1f11007ee876f239114ddbc25ab8b790c5162",
+      "mp3": "e44bb8aa1f50ec0463afc713a1c7e2e94fc8ac4f185ef7496375e9d184be865e",
+      "speaker": "mosi",
+      "text": "Risaspor! Það fer í körfuna."
+    },
+    "minnisspil/gift_trilobite_poddusteinn_hratt": {
+      "verdict": "nei",
+      "key": "b2fc3375efca545b694e0432ee216288b1b344937ac863b665ee39cecf2e9be7",
+      "mp3": "0e4a0bb90d7cafddd5496d4302cc409c476f3e6bdca81328774ee0d150aa6543",
+      "speaker": "mosi",
+      "text": "Pöddusteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_trilobite_poddusteinn_ipa": {
+      "verdict": "nei",
+      "key": "abab477c340ea97522a01de3bc59d2c445f16d601aa051d6eb15b23638a19016",
+      "mp3": "f2213f89d70e4c681b65510d72f0f6f680815327d025797fb67addfcc4f7d54c",
+      "speaker": "mosi",
+      "text": "Pöddusteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_trilobite_poddusteinn_samhengi": {
+      "verdict": "ja",
+      "key": "3abfbb443ede3191e4b7abc39036eb2dff631522b3693d6fd7b5223a82fc852a",
+      "mp3": "a0b0f1650940d68833a123205c28e392d6cf3ff2523a1abaf8a9b60909295741",
+      "speaker": "mosi",
+      "text": "Pöddusteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_fern_laufsteinn_hratt": {
+      "verdict": "nei",
+      "key": "06380609d235cc4d038a0683369235a034f4d9842d0cdc8e735c860b7a84bf6b",
+      "mp3": "71be500c72eb7669748b9cff806d27de80e95b28a5f265c6e7ac1cc078e5de68",
+      "speaker": "mosi",
+      "text": "Laufsteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_fern_laufsteinn_ipa": {
+      "verdict": "nei",
+      "key": "8494fdc44100b403f9c74c36d2b9b960a571a05fa8baa01c422b1d779ba60ad8",
+      "mp3": "c913ca748761c9afa1be84019b0f0314648008ed6e7cb3a7973731aa242c2ac5",
+      "speaker": "mosi",
+      "text": "Laufsteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_fern_laufsteinn_samhengi": {
+      "verdict": "ja",
+      "key": "886f4a30e651bda5faf4fc63f6ac23cd228a43c5d20f00b7aa72f399bfb77d8f",
+      "mp3": "af6d48dce076d6607926a6346a6c996af9a58bf3e73e0cf80575cd04d3bedaf5",
+      "speaker": "mosi",
+      "text": "Laufsteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_ammonite_snigilsteinn_hratt": {
+      "verdict": "nei",
+      "key": "5c3ff95cddec39b09cde37e4c28acbaf4b4cfc863dafb7fa6a470e870463e303",
+      "mp3": "b4ded2e295c33c58cc73a7f2f926abe210ad6edd4a09d6a388e2f3a4d1e7f8ac",
+      "speaker": "mosi",
+      "text": "Snigilsteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_ammonite_snigilsteinn_ipa": {
+      "verdict": "nei",
+      "key": "4061ea62c167d830a5fe9ff63d1548ea8a980c3394fcdc02266dc0a3ab6f3196",
+      "mp3": "a47cf6ecb99a5bb3f2962e4d7c0f3cdda6ca0aa7b1c22c627bf0558e593c2092",
+      "speaker": "mosi",
+      "text": "Snigilsteinn! Hann fer í körfuna."
+    },
+    "minnisspil/gift_ammonite_snigilsteinn_samhengi": {
+      "verdict": "ja",
+      "key": "3363d038e2d06d841ca12191df93257467d696239cbf32dc161b89554275a972",
+      "mp3": "dc1c4ad9e7319f2690830ce4c84833b3fa6325fa042eca11e711ff3fd26e1a44",
+      "speaker": "mosi",
+      "text": "Snigilsteinn! Hann fer í körfuna."
+    },
+    "minnisspil/g2_ledge_ready_stallurinn_hratt": {
+      "verdict": "nei",
+      "key": "cf128d091463bbbde161799232f03da669f5cf317c9818718514c83cb969a383",
+      "mp3": "39e62321f6b7fb4f70853ceb3c7271e02a2da659ff5a6b0231505c76900c64db",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?",
+      "note": "engin réttur"
+    },
+    "minnisspil/g2_ledge_ready_stallurinn_ipa": {
+      "verdict": "nei",
+      "key": "6aad31bac6166159df41d8e8620c7ff00b7ae9e5d12864673ca6beb9cc35ef6d",
+      "mp3": "b8aa19a4f52ff1106a59fb06d9e01a885ab62bad36b1b17786cb4bddc1d378dc",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?",
+      "note": "engin réttur"
+    },
+    "minnisspil/g2_ledge_ready_stallurinn_samhengi": {
+      "verdict": "nei",
+      "key": "abc39755fc019b2884de8eb6aa0ff70ca375719055fc7620f08464b4331b9c91",
+      "mp3": "fc17cced068cf095fb4d59ee977731755b1b8790a08bb9bc9e2748cf79d55e23",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?",
+      "note": "engin réttur"
+    },
+    "minnisspil/g2_cliff_ready_klettaveggurinn_hratt": {
+      "verdict": "nei",
+      "key": "aa612052401516da286d25dbf3460004200b14182e1ae6d9104abe79c2b3a384",
+      "mp3": "50b909c3b1b95f06c8661137b235f77023184636f4a50d02c1b7d1a12c366154",
+      "speaker": "mosi",
+      "text": "Klettaveggurinn er brattur. Hver getur flogið með reipið upp?"
+    },
+    "minnisspil/g2_cliff_ready_klettaveggurinn_ipa": {
+      "verdict": "nei",
+      "key": "dffdacee76525acf70cb7ede2173bf1a5e588f7094572cf051c2016be670e8cf",
+      "mp3": "805bac3a468de767c31642c58bf42e208a9964a3884794115fa81bb33d961f2c",
+      "speaker": "mosi",
+      "text": "Klettaveggurinn er brattur. Hver getur flogið með reipið upp?"
+    },
+    "minnisspil/g2_cliff_ready_klettaveggurinn_samhengi": {
+      "verdict": "ja",
+      "key": "857c937700c1aec617c336eedbcbd8334e7eec09126f7e4a900b25e941a5c7c3",
+      "mp3": "c38db32f08e3232f658d296ccabc214f3f027f97ee07d8a020cf894c2f23fa9a",
+      "speaker": "mosi",
+      "text": "Klettaveggurinn er brattur. Hver getur flogið með reipið upp?"
+    },
+    "minnisspil/g2_climb_reipid_hratt": {
+      "verdict": "nei",
+      "key": "705c9706d01fc8013d51b216f0effe2cf227741ba86ca2b5d1f49525620697eb",
+      "mp3": "24b137f3b831f39ae609cc832f2388e76de55ff09ddbf7bf98043ff877829b75",
+      "speaker": "mosi",
+      "text": "Haldið í reipið. Upp með ykkur!"
+    },
+    "minnisspil/g2_climb_reipid_ipa": {
+      "verdict": "nei",
+      "key": "56134fc03cdbe39f05c9cad8b5455897cfe625907759c8d63839430d5d03358e",
+      "mp3": "52d1d3fe944e955bb1df56ca7708d0700df01f9368ab097411e3d8aaf4da882e",
+      "speaker": "mosi",
+      "text": "Haldið í reipið. Upp með ykkur!"
+    },
+    "minnisspil/g2_climb_reipid_samhengi": {
+      "verdict": "ja",
+      "key": "b57e3627d8779051a3502ffd9d703319c7412fa68091fb8220d90013c71aaa05",
+      "mp3": "798748afa37d9195721e7b2687e58e217ca24c1a0762725701caef0a6288edaa",
+      "speaker": "mosi",
+      "text": "Haldið í reipið. Upp með ykkur!"
+    },
+    "minnisspil/gifts4_steingervingana_hratt": {
+      "verdict": "nei",
+      "key": "9874c501bdb722ac6981515285aa33f57172d0719d740a92708243a710a797bc",
+      "mp3": "57e450a1c875d1fa9a557bd32926bb37d89bc4e474d77bb0a7daebb321080a42",
+      "speaker": "mosi",
+      "text": "Þú fannst alla fjóra steingervingana!"
+    },
+    "minnisspil/gifts4_steingervingana_ipa": {
+      "verdict": "nei",
+      "key": "913c163f657985bdf49d704709dbe823c74243fc6597ae3dc3641218edea6d00",
+      "mp3": "ea9685f1d9bcd3a20b16c59d3da4dd6f8c376070a6c0fc838d33f0be106983f9",
+      "speaker": "mosi",
+      "text": "Þú fannst alla fjóra steingervingana!"
+    },
+    "minnisspil/gifts4_steingervingana_samhengi": {
+      "verdict": "ja",
+      "key": "c026eeadff8b461a161a452584feb73cf1b41dee2fbcff4fc16bc6a975f74205",
+      "mp3": "47ca23a7c624614ae00fc46876679b2c0591b32cf25fa702004864e21595cd76",
+      "speaker": "mosi",
+      "text": "Þú fannst alla fjóra steingervingana!"
+    },
+    "minnisspil/help_gamla": {
+      "verdict": "ja",
+      "key": "0bbd5300b05b0f1f86d5a2c0fa1c3f38838ffd9b2d0feb67458f23d5185b3b0f",
+      "mp3": "b8dc91e61cb9d6eed03271cf7bbe321bf20615b4c15327b9ac2f252a3ffc35f1",
+      "speaker": "mosi",
+      "text": "Finndu þrjú vinapör undir laufunum. Þórseðlurnar lyfta greininni. Þríhyrnurnar gera brú. Kambeðlurnar leggja leið yfir mýrina. Saman komumst við í berjalundinn!"
+    },
+    "minnisspil/help_nyja": {
+      "verdict": "nei",
+      "key": "0855afff119064431a40ab9088ae90176bf6bae85bfd8837efc08747ae8c0ea8",
+      "mp3": "789e7255c1016ecfd63e6de7725419a876ee02d080551e300b7b3f5e6f142078",
+      "speaker": "mosi",
+      "text": "Finndu þrjú vinapör undir laufunum. Þórseðlurnar lyfta greininni. Þríhyrnurnar gera brú. Kambeðlurnar leggja leið yfir mýrina. Saman komumst við í berjalundinn!"
+    },
+    "minnisspil/cross_gamla": {
+      "verdict": "ja",
+      "key": "be3ce97b6a03f714fdf7ad86da7086c05fea073381f32484899b9f1a8ecc0f0f",
+      "mp3": "1b49c44cd0c51aef87e076f9bcc0625257499d2daa7086ac4a09e60b03b5b0c8",
+      "speaker": "mosi",
+      "text": "Brúin er tilbúin. Allir sex fara saman yfir!"
+    },
+    "minnisspil/cross_nyja": {
+      "verdict": "nei",
+      "key": "855d6f97eb4a71618a166a7457bc4d1b3c4d280139cab09bea32d838dca85be6",
+      "mp3": "9331d135a306329ce3be98dcf300c328455857fc12b26c18fc1cabb68ef07371",
+      "speaker": "mosi",
+      "text": "Brúin er tilbúin. Allir sex fara saman yfir!"
+    },
+    "minnisspil/build_gamla": {
+      "verdict": "nei",
+      "key": "9a87990cd42892b91f350ec23fcfd8b8afafe32c35bddce7f92c38b1c7d4eed4",
+      "mp3": "8167472057109954851291da6d7f5012c708404403268f7cb7d06e74e090ff7c",
+      "speaker": "mosi",
+      "text": "Þær bera börkinn saman. Ein fjöl í einu!"
+    },
+    "minnisspil/build_nyja": {
+      "verdict": "ja",
+      "key": "a5e6487e489271fc6b9b2f29b3ac773cc27878b6b481bca05a0e09e88ec9d07e",
+      "mp3": "28a2c70e697e38cbf9fe34b6262414370963046eb889b178ee5db96392f757a3",
+      "speaker": "mosi",
+      "text": "Þær bera börkinn saman. Ein fjöl í einu!"
+    },
+    "minnisspil/won_gamla": {
+      "verdict": "ja",
+      "key": "93e378d98e15dab7a3a87bd068f18e2381d85a4b518bba51b6944b9b769940ef",
+      "mp3": "e7ff2d1e2ab0782c544f121101d7f140039f9a2c4bb3a37e751c1420a8ff2807",
+      "speaker": "mosi",
+      "text": "Allir sex komnir í berjalundinn! Hver vinur hjálpaði til. Vel gert!"
+    },
+    "minnisspil/won_nyja": {
+      "verdict": "nei",
+      "key": "6a381fb33b55b0a1d19d636dc21a4f08255df89fa1e6e1b8960bd89b28246cc2",
+      "mp3": "bb8030918b6dd5985db2ac75e8e0e603e553e3d404d33d72c881fc05e0466fef",
+      "speaker": "mosi",
+      "text": "Allir sex komnir í berjalundinn! Hver vinur hjálpaði til. Vel gert!"
+    },
+    "minnisspil/g2_ledge_ready_gamla": {
+      "verdict": "nei",
+      "key": "b3952a6bfedf2720bc21fa0306c33c298389af4f7c830d020972efa1701f6120",
+      "mp3": "077cc1e673c40ee22d72538d6a550ac79c7ace269e22dd71b1942682588a05ab",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?",
+      "note": "engin réttur"
+    },
+    "minnisspil/g2_ledge_ready_nyja": {
+      "verdict": "nei",
+      "key": "cf128d091463bbbde161799232f03da669f5cf317c9818718514c83cb969a383",
+      "mp3": "39e62321f6b7fb4f70853ceb3c7271e02a2da659ff5a6b0231505c76900c64db",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?",
+      "note": "engin réttur"
+    },
+    "minnisspil/find_bronto_gamla": {
+      "verdict": "nei",
+      "key": "4862e89cfd5c78dd6b17aeb6f112c00036cbe11c5e718b924ba660cdf1cd9899",
+      "mp3": "52ee3e6060aa65b8ec5f4441f064d63d8506786792f7cf26d34eebf397b0cf28",
+      "speaker": "mosi",
+      "text": "Veldu þórseðluparið. Þær ná upp að greininni!"
+    },
+    "minnisspil/find_bronto_nyja": {
+      "verdict": "ja",
+      "key": "8c123f5f30c524a8cb78d22c6196620428947df2ca8b71f764bd1ba9bb906e1f",
+      "mp3": "037d850c6a2c6156fb4977d50a3c9515a897da92091e453da94099562767cecf",
+      "speaker": "mosi",
+      "text": "Veldu þórseðluparið. Þær ná upp að greininni!"
+    },
+    "minnisspil/held_gamla": {
+      "verdict": "ja",
+      "key": "fd413645371eeac77cc84d00471bf0e093b6bdc8c6aa1a448f3fa7c1ca2d2a9e",
+      "mp3": "677d91cb6ef502bbb021cb238692876d0b5a2902175842922eb9b09ff35e1ba5",
+      "speaker": "mosi",
+      "text": "Þórseðlurnar halda. Nú geta þríhyrnurnar hjálpað!"
+    },
+    "minnisspil/held_nyja": {
+      "verdict": "nei",
+      "key": "8901dbe6d517a63bfc12ff50b011fa1c84ef2624cedc319eaf60be2de468974d",
+      "mp3": "9e5d7f28df9ea4e9bbb4920f74c1edfb1dd7778eb52c58ee0a648c18df29736d",
+      "speaker": "mosi",
+      "text": "Þórseðlurnar halda. Nú geta þríhyrnurnar hjálpað!"
+    },
+    "minnisspil/find_stego_gamla": {
+      "verdict": "ja",
+      "key": "e113e63bc8fe546b365a5f946262c02ba2ad9a2c2a95ef0e5a62590227ee1e68",
+      "mp3": "5ea72195c5b92391311bbe17e28087129bd8cd3fa16ce252a9fd6eee84668cd3",
+      "speaker": "mosi",
+      "text": "Hér er mjúk mýri. Veldu kambeðlurnar til að byggja leið!"
+    },
+    "minnisspil/find_stego_nyja": {
+      "verdict": "nei",
+      "key": "97e8f06b680c58455ac6483dd0c41b29d23c4ed487f8b5045493bfda5eb12678",
+      "mp3": "554e2ede561ac7307f49952d53b3938d4bbd42df0ed7549215d438ecdbae5775",
+      "speaker": "mosi",
+      "text": "Hér er mjúk mýri. Veldu kambeðlurnar til að byggja leið!"
+    }
+  }
+}

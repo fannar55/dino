@@ -34,8 +34,9 @@ export const MOSI_GESTURES = Object.freeze({
     if (rig.crossed(.08)) rig.lids?.blink.rest(.6, .12);
     if (rig.crossed(.9)) rig.lids?.blink.rest(0, .2);
   } },
-  // Claps with his front feet: left, right, left, right, rocking back so the front comes up.
-  clap: { duration: 1.4, apply(rig, t, energy) {
+  // Claps with his front feet: left, right, left, right, rocking back so the front comes up. (`hits`: where in the gesture each foot comes
+  // down, the moment its clap is heard: Task 7 fix round 1)
+  clap: { duration: 1.4, hits: [.26, .49, .72, .95], apply(rig, t, energy) {
     const L = rig.length, [left, right] = rig.front;
     const stampL = arc(t, .04, .26) + arc(t, .5, .72), stampR = arc(t, .27, .49) + arc(t, .73, .95);
     if (left) rig.offsetInRoot(left.leg, .035 * L * energy * stampL, .07 * L * energy * stampL);
@@ -75,6 +76,7 @@ export function createMosiPuppet(mosi) {
   const base = new Map(bones.map(bone => [bone, { position: bone.position.clone(), quaternion: bone.quaternion.clone() }]));
   const rootQ = new THREE.Quaternion(), parentQ = new THREE.Quaternion(), offsetQ = new THREE.Quaternion(), delta = new THREE.Vector3(), at = new THREE.Vector3();
   let gesture = null, from = 0, applied = false, reduced = false, disposed = false;
+  const hits = [];
   root.updateMatrixWorld(true);
   const length = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3()).x / Math.max(1e-6, root.scale.x);
 
@@ -115,8 +117,11 @@ export function createMosiPuppet(mosi) {
     update(dt) {
       if (!gesture || !(dt > 0)) return;
       from = gesture.t; gesture.t = Math.min(1, gesture.t + dt / gesture.duration);
+      (MOSI_GESTURES[gesture.name].hits ?? []).forEach((at, index) => { if (from < at && gesture.t >= at) hits.push({ name: gesture.name, index }); });
     },
-    cancel() { gesture = null; mosi.eyelids?.blink.rest(0, .2); },
+    /** The hits of his gesture since the last call ({ name, index }: each clap of 'clap'), for the sounds. */
+    pollHits() { return hits.splice(0); },
+    cancel() { gesture = null; hits.length = 0; mosi.eyelids?.blink.rest(0, .2); },
     setReducedMotion(value) { reduced = Boolean(value); },
     get current() { return gesture?.name ?? null; },
     dispose() { disposed = true; gesture = null; mosi.control(null); },

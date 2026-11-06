@@ -73,7 +73,7 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
     if (seconds > 0) { pending = { id, remaining: seconds, inDialog }; return true; }
     current = { id, ...manifest[id] }; duringDialog = inDialog;
     element.src = new URL(`../../${current.src}`, import.meta.url).href;
-    played++; started.push({ id, t: +clock().toFixed(2) }); if (started.length > 200) started.shift(); resume(); return true;
+    played++; started.push({ id, t: +clock().toFixed(2), at: Date.now() }); if (started.length > 200) started.shift(); resume(); return true;
   }
   element.addEventListener('ended', () => { current = null; duringDialog = false; });
   element.addEventListener('error', () => { if (current) errors.push(current.id); current = null; });

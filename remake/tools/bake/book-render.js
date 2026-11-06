@@ -23,7 +23,7 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 //
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/memory/portraits/triceratops.webp --query "who=memory-triceratops&width=512"
 //
-// (and memory-brontosaurus, memory-stegosaurus the same way).
+// (and memory-brontosaurus, memory-stegosaurus and, for level 2, memory-pteranodon the same way).
 //
 // The book's map (engine/book/map-page.js) takes its friends' stickers from the cards' pictures and, for Uggeðla, who has no card
 // picture, from the spinosaurus shot here:
@@ -57,7 +57,7 @@ const status = text => { window.__bakeStatus = text; console.log('[book-render]'
 const rad = THREE.MathUtils.degToRad;
 
 const MODELS = Object.fromEntries(['mosi', 'egill', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon', 'spinosaurus']
-  .map(name => [name, `../../assets/characters/${name}.glb`]).concat(['triceratops', 'brontosaurus', 'stegosaurus']
+  .map(name => [name, `../../assets/characters/${name}.glb`]).concat(['triceratops', 'brontosaurus', 'stegosaurus', 'pteranodon']
   .map(name => [`${name}-baby`, `../../assets/memory/${name}-baby.glb`])));
 
 // The shots. A camera's az is world degrees (0 in front of a character that faces +X, 90 on its +Z side), el is how far
@@ -124,6 +124,11 @@ const SHOTS = {
   'memory-stegosaurus': {
     camera: { az: 38, el: 8, fov: 22, fill: [0.8, 0.86], front: 0.5 },
     actors: [{ model: 'stegosaurus-baby', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 28, nod: 2 }],
+    look: { shadow: 0 },
+  },
+  'memory-pteranodon': {
+    camera: { az: 38, el: 8, fov: 22, fill: [0.8, 0.86], top: 0.62 }, // her head, crest and neck (the top 62 % of her height): the crest would run out of the frame in the front share
+    actors: [{ model: 'pteranodon-baby', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 28, nod: 2 }],
     look: { shadow: 0 },
   },
   'stegosaurus-tail': {

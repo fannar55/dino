@@ -1,0 +1,35 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-02",
+  "source": "jano-minnisspil.json",
+  "verdicts": {
+    "minnisspil/g2_ledge_ready_a": {
+      "verdict": "nei",
+      "key": "4c42c10f64cb2cac7add3eb708e4f7e12b7e1800a8ac9439233bee1fbb8afa2b",
+      "mp3": "418157be7465fac0003d9659c058da02c39f32fc8eed99fb10609dba537cc428",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?"
+    },
+    "minnisspil/g2_ledge_ready_b": {
+      "verdict": "ja",
+      "key": "33aa4bf5f2da6dd78b1050402db969e746767b7bf801a0adb61e90c4aecb8331",
+      "mp3": "0382366fca186549eeb7288bcc7896a9835af7ec94796befb286827600520d88",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?"
+    },
+    "minnisspil/g2_ledge_ready_c": {
+      "verdict": "nei",
+      "key": "d97017e9156ae3f84ceec60663d8f19e438fd0948a4d6fb98c2d60dacec2f12c",
+      "mp3": "7453eb021965b99c943afd677d231aaecd1187186c3de0b72c3a160f3713c359",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?"
+    },
+    "minnisspil/g2_ledge_ready_d": {
+      "verdict": "nei",
+      "key": "2369f481f3bff7063034754d933947a40065c5e37f5362bf97448cc4f0f6d9ce",
+      "mp3": "ec601ebed5f79e90decf8639c3cf52ce6bb1b77f31a1520099f4b8256c0414ad",
+      "speaker": "mosi",
+      "text": "Stallurinn er of hár. Hver nær hátt?"
+    }
+  }
+}

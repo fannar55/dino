@@ -26,7 +26,7 @@ const KEY = 'sk_test_0123456789abcdef0123456789abcdef0123456789ab';
 const MOSI = 'osSKuDKznhXBktjJ9Z9F';
 
 /** The tools that send to ElevenLabs text-to-speech but do not take the book and the guard yet: file -> why, and when it goes. */
-const PENDING = { 'memory-voices.mjs': 'fixed on codex/minnisspil-first-playable (072553f); remove when it merges' };
+const PENDING = {};
 
 // ---------------------------------------------------------------------------------------------
 // The repo as it is

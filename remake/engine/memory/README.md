@@ -19,7 +19,8 @@ npm run start:memory
 Open `http://127.0.0.1:4206/remake/minnisspil.html`.
 The page is standalone; the existing minigame menu and other games are unchanged.
 `?seed=251025` gives a repeatable shuffle for review. `?play=1` bypasses the welcome
-dialog for screenshots; browser audio still requires a gesture.
+dialog for screenshots; browser audio still requires a gesture. `?bord=2` opens level 2, Steinagljúfrið
+(it opens for good when level 1 is finished; `remake/README.md` has its steps and its other switches, such as `?bolur=grar`).
 
 ## Review scope
 
@@ -39,7 +40,7 @@ dialog for screenshots; browser audio still requires a gesture.
   and the last gift pair has landed in the basket, once. Until then Mosi says `giftsLeft` ("Finnum fyrst gjafirnar sem eru
   eftir!"), the gold arrow (the big arrow of the obstacles, just above its leaf) points at a shut leaf and a tap on the staging spot (when
   it is on the screen) says the same. The wait is played in the search view, so the leaves keep their play size; the camera
-  glides out to the wide view of the bridge only once the last pair has landed (`world.js` `cameraCue`), and the crossing starts from there.
+  glides out to the wide view of the bridge only once the last pair has landed (`levels/berjalundur/world.js` `cameraCue`), and the crossing starts from there.
   On a phone (under 600 px wide) a gift is drawn 1.75 times larger from its pop on the leaf to the basket (`GIFT.phone`), so it is about
   45 px across or more.
 - The gift models are `assets/memory/gifts/{shrew,hermit-crab,crab}.glb`, each at most 4,000 triangles, one mesh, one
@@ -118,12 +119,12 @@ dialog for screenshots; browser audio still requires a gesture.
   stays queued until they arrive, so starting an action never freezes them
   halfway home. Overview, pause and camera focus hold automatic travel safely.
 
-- The ending (`scenes/celebrate.js`, played by `scenes/finish.js` once all six have arrived): about
+- The ending (`levels/berjalundur/scenes/celebrate.js`, played by `scenes/finish.js` there once all six have arrived): about
   seventeen seconds of cuts, never more than three apart. The friends eat berries (the Kambeðlur with their
   own `eat` clip, the others with the `nibble` gesture), each pair does its trick (the Þríhyrnur hop, the
   Kambeðlur and the Þórseðlur play their `happy` clips), Mosi cheers and the three gifts rise from his basket
   (one at each side of his head, one high above it) while he says "Þú fannst allar þrjár gjafirnar!" (`gifts3`). The six
-  stand in a row and Mosi at the back in the middle (`bridge-adventure.js`
+  stand in a row and Mosi at the back in the middle (`levels/berjalundur/adventure.js`
   `FINAL_PARKING`, `GROVE_LEADER`) so that every face shows. The last wide shot stays up under the ending
   card, which says the same sentence beside the basket and has the small "i" for the models' credits.
 - Waiting friends (`idle-play.js`): a found friend at its waiting place, with no task, plays one game at a
@@ -154,6 +155,22 @@ node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/<name>
 node remake/tools/memory-voices.mjs --verify
 node remake/tools/memory-sound-design.mjs --audit
 ```
+
+Mosi's lines go through the remake's pronunciation standard (`remake/assets/audio/pronunciation.json`, the owner's
+recipe for each hard word) the way the other games' lines do: `memory-voices.mjs --dry-run` shows what each line sends,
+`--plan` lists the lines whose MP3 is not of that request, and `--ab --only <ids>` makes their new takes into
+`qa/memory/tal/` beside the shipped ones, for the owner's ear, without installing them. A new inflection of a hard word
+must be added to its word's forms first (the tool stops on it), and a take the owner picked by ear carries `kept` in
+`voice-lines.js`. A scribe check that hears the words is weak proof: the owner listens.
+Only `--only <ids>` or `--all` makes and installs takes; a plain run, or a flag the tool does not know, prints its usage
+and makes nothing. Which request made each MP3 is recorded in the tracked `remake/assets/audio/memory/manifest.json`
+(`key` per line; a kept line's is its kept request's), so `--plan` and `--verify` read the same in every checkout.
+
+The repo's voice rules (`CLAUDE.md`) hold here too: a line with its own `say` or `context` names what it fixes in `fixes`;
+the owner's yes/no verdicts are imported with `node remake/tools/heard.mjs jano-minnisspil.json --made <page>/voices-made.json`
+(set `minnisspil`), and the tool refuses a request he rejected before it asks or installs anything. For a line he rejected,
+`--try <candidates.json>` makes 3-4 candidates (a context, IPA, a respelling, another seed) into `qa/memory/tal2/`, with the
+record the page's save is imported with; `janoPage` in the tool is that yes/no page.
 
 The unit checks use the bundled Three.js through the test setup; no install is
 needed. `memory-playthrough.mjs` plays a whole round the way a child does (its header lists the
@@ -314,26 +331,31 @@ texel. High quality keeps the engine's original visible-model LOD thresholds.
   the staging spot (or the grove) carries the gold arrow while it waits. The lift, the roll and the bark are tapped again by the child, as before.
 - **`?planblock=cross` (QA only)** runs the first plan of each named action out of budget at once, to see the blocked crossing and its retry.
 - **`window.__demoStats` is a getter**, built when it is read (at most once a frame) and not by `world.getDebug()` on every frame.
-- **Calm motion while Mosi walks** keeps his walk clip (`setReducedMotion` in `world.js`); only a standing Mosi goes still.
+- **Calm motion while Mosi walks** keeps his walk clip (`setReducedMotion` in `levels/berjalundur/world.js`); only a standing Mosi goes still.
 - **`memory-playthrough.mjs`** gained `--cpu-throttle N`, `--toggle-motion`, `--stop-after-retry`, the list of blocked walks, the reach check
   (can a finger reach each button it taps; every enabled target sampled for overlap) and the ending render scale.
 
 ## Ownership and boundaries
 
 `rules.js` owns shuffled cards and clock-driven transitions. `game.js` owns DOM,
-input, narration, music and the RAF. `world.js` owns the scene/camera; `world-props.js`
+input, narration, music and the RAF. `world.js` owns the shared stage (the renderer, the camera, the leaves, the nests, the friends, Mosi, the reveal, the match, the hops home, the gifts, the effects, the waiting friends' play, the dynamic resolution and the debug) and asks the level's world for the rest; `world-props.js`
 owns the leaf/nest geometry; `baby-actors.js` owns the character rigs. `audio.js`
 owns recorded SFX, their local synthesized fallbacks and sound cancellation;
 `presentation-audio.js` owns gesture-gated music and the queued Mosi narration.
 `surprise-items.js` is the table of the gifts (`GIFT_ITEMS`: name, the words for the first and the found leaf, the voice line, the model) and their credits (`GIFT_CREDITS`).
-`bridge-rules.js` owns helper selection and cooperative bridge progress;
-`bridge-adventure.js` owns the physical branch, log, carrying and crossings on the
-shared game clock. `build-props.js` owns the marsh and bark walkway; the camera
+`levels/` describes each level as data (`levels/berjalundur.js`: friends, gifts, the steps in order, the story's keys and hints, the words on the cards, the sounds and captions of the world's events; `levels/index.js`: which levels exist, which are unlocked, which one the address asks for);
+`step-rules.js` plays a level's steps (what glows next, who can do it, which pair is held busy, what is done) and `playful-flow.js` tells the story from the same description;
+`bridge-rules.js` is level 1's name for those rules (helper selection and cooperative bridge progress);
+`levels/worlds.js` loads a level's world (`levels/<id>/world.js`: its ground, props, scenes, the mover that plays its steps and Mosi's walk; the file lists what the shared stage gives it and what it gives back). Level 1's world is `levels/berjalundur/`:
+`adventure.js` owns the physical branch, log, carrying and crossings on the
+shared game clock, `bridge-props.js` the river, log and branch, `build-props.js` the marsh and bark walkway, `ground.js` and `dressing.js` the ground's look and low plants, `scenery.js` the glade's edge plants, `scenes/` the timed scripts of its five steps and the ending; the camera
 director owns framing, motion and input readiness.
-`scenes.js` and `scenes/` are the timed scripts of each moment; `idle-play.js`
+`scenes.js` and `scenes/first-minute.js` are the timed scripts of the leaves' moments; `idle-play.js`
 owns the waiting friends' games; `gestures.js` the friends' shared moves.
 `world-home-nav.js` owns the incremental clearance planner and route reservations;
 `travel-traffic.js` checks when cooperative routes can overlap safely in time;
+`walkers.js` walks friends and Mosi along routes on the game clock (level 2's group, a wrong friend's try) and lays level 1's
+crossing walkers on its log (`lie`), so both levels share it;
 `memory-clearance.js` supplies measured skin envelopes and the independent
 anatomical audit. `world-fx.js` batches dust, leaves, poofs, stars and splashes and emits timed foot contacts;
 `world-surface-fx.js` supplies procedural bark, water flow and soft foam.

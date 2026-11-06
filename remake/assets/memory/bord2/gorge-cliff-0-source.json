@@ -1,0 +1,53 @@
+{
+  "file": "gorge-cliff-0.glb",
+  "bytes": 51052,
+  "triangles": 766,
+  "vertices": 462,
+  "meshes": [
+    "GorgeCliff0"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "512 px + 512 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "YadroGames (https://sketchfab.com/erroratten)",
+  "title": "Sandstone | Cliff",
+  "sourceUrl": "https://sketchfab.com/3d-models/sandstone-cliff-d1638530b12343748e9f38586009cb75",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "rightsNote": "Creative Commons Attribution 4.0: the author, the title, the licence and the changes made must be credited. The game credits it behind the small \"i\" on the ending card (game.js, the Líkan / Leyfi / Frá rows).",
+  "sourceHost": "Sketchfab (downloaded by the game owner as a GLB, 2026-10-31)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/v1-cliff-0/, git-ignored).",
+  "download": {
+    "bytes": 658528,
+    "md5": "e94a5a678545ad11e5eabdca1fc8f666",
+    "triangles": 766,
+    "maps": "two 1024 px JPEG maps (colour and normal), spec-gloss material",
+    "file": "sandstone__cliff.glb"
+  },
+  "use": "A piece of the gorge wall (levels/steinagljufur/props.js): placed, turned and scaled in the world (about 2 to 4 times its size here), several to a wall. Feet on y = 0, the origin in the middle of its footprint.",
+  "size": {
+    "note": "5.0 m on the ground, about 2 m high (the sandstone cliff of the download, left at its own scale)",
+    "bounds": {
+      "x": [
+        -1.2189,
+        1.2189
+      ],
+      "y": [
+        -2.5,
+        2.5
+      ],
+      "z": [
+        0,
+        1.9558
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the imported node transforms taken into the vertices, the model joined into one mesh with one material (it was one already), not decimated (already under the cap), scaled by the factor in \"size\" so its longest side on the ground is 5.0 m (its own size, give or take 1 %), set on y = 0, the material rebuilt as plain metal-rough (colour map and normal map, roughness 0.92; the spec-gloss map of the download is dropped), both maps shrunk from 1024 to 512 and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit over the model's extent, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/v1-cliff-0/sandstone__cliff.glb gorge-cliff-0-blender.glb name=GorgeCliff0 size=5.0 tris=1000 tex=512 normal=1 roughness=0.92",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-cliff-0-blender.glb remake/assets/memory/bord2/gorge-cliff-0.glb",
+  "passes": "blenderCommand (Blender 5.2; 60932 bytes), then quantizeCommand (51052 bytes)."
+}

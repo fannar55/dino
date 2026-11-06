@@ -361,9 +361,12 @@ ${LEAF_SHADOW_GLSL}`,
       offset += k * 9;
     }
     g.setDrawRange(0, offset);
-    dynamic.clearUpdateRanges();
-    dynamic.addUpdateRange(0, Math.max(offset, 9));
-    dynamic.needsUpdate = true;
+    // (a place that grows no grass at all, level 2's gorge, has an empty index: nothing to upload)
+    if (out.length) {
+      dynamic.clearUpdateRanges();
+      dynamic.addUpdateRange(0, Math.min(out.length, Math.max(offset, 9)));
+      dynamic.needsUpdate = true;
+    }
     submitted = offset / 3;
   }
 

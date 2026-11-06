@@ -5,9 +5,17 @@
 // paths during scripts). It takes screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
 //
 //   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
-//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
+//     [--size 1280x800] [--level 1|2] [--mode full|branch|first-minute|rapid|glade|search] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
+//     [--hide-hud]            the ribbon, the buttons, Mosi's bubble and the tap targets are hidden: the pictures are the world alone (the level cards' pictures)
+//     [--unlocked '["steinagljufur"]']   the page's saved key minnisspil.unlocked (the levels the child has opened): the level picker's open state (a new profile has none: level 2 is locked)
+//     [--picker-check]        on the welcome card: reads the level cards (report.picker), taps the locked one (nothing may happen) and the other open one (the page must reload at its level; the run then goes on there)
+//     [--wrong tunnel=brontosaurus,rocks=brontosaurus]   the wrong friend the driver tries first at an obstacle (level 2; the level's own `wrongFriends` otherwise)
+//     [--wrong-all]           the story modes try every wrong friend the bubbles offer at each obstacle, one after the other (every one of level 2's goes), then the right one
+//     [--qa-fail species:target]   level 2, with --query qa=1: instead of a wrong friend from the bubbles, the world is asked for that go once the target is next (the Kambeðlur at the rocks are never in the bubbles: they hold the light)
+//     [--no-encode]           with --video: keep the frames and the report but do not make round.mp4 (a long encode, run it alone afterwards with --encode-only)
+//     [--encode-only]         makes round.mp4, and round-sound.mp4 with the sounds the page played laid under it, from the frames of an earlier --video run in --out; no browser
 //     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
 //     [--help-shot]           opens the help dialog once after the glade picture: a picture and report.helpDialog (its items, its size against the screen, whether it scrolls), then closes it
 //     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
@@ -26,12 +34,28 @@
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
 //                 enabled button three times as well, and while a script runs it keeps tapping every leaf, obstacle and
 //                 bubble, the way a six-year-old does. The round must still finish.
+//   search        only the search: every friend pair and every gift pair found (the first tries are deliberate misses, the gifts as in `full`), the
+//                 pictures of each, and a stop when every leaf is found and every gift pair is in the basket (report.allFound, report.gladeAll, the
+//                 picture `all-found`). Level 2 ends its round here until its steps are built; its worst framing (report.renderMax, report.takes) has all eight friends.
+//   (level 2, full: finds every pair, then every step (each with a wrong friend first and the taps), the pull and the walk over the trunk, the celebration on Sólarsyllan
+//    (the sunset, the stars, the tricks, the fossils in a row: BEAT_STILLS_2) and the ending card. --first pteranodon finds the Flugeðlur first, so that they are a wrong friend at the rocks;
+//    report.level2 has the light, the pile and the step state as everyone reaches Sólarsyllan.)
 //   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
 //   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
 //   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
 //   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
-//                   reports what is left running (report.restartCheck: nothing should be).
+//                   reports what is left running (report.restartCheck: nothing should be). On level 2 the celebration's restart comes two seconds into it, while
+//                   the friends cheer (report.soundsBeforeRestart, report.soundsAfterRestart: no cheer or clap goes on).
+//   --restart-at rope   level 2 (use --query qa=1): restarts while the Flugeðlur fly the rope up the cliff (report.beforeRopeRestart, report.restartCheck: the rope, the flight and the upper gorge must be reset)
+//   --restart-at pull   level 2 (use --query qa=1): restarts while everyone is on the second rope, the trunk tilted (report.beforePullRestart, report.restartCheck: the trunk upright, the second
+//                   rope gone, the Flugeðlur back in the glade, the basket 0 / 4)
+//   --restart-at glow   level 2: pauses while the first tap's light is on the plates (report.pauseGlow: the light and the plates must not move, nor anything else), goes on, and restarts there.
+//   --restart-at through   level 2 (use --query qa=1): restarts the instant the group is cut to the upper gorge, while Mosi is still hidden in the exit's dark at .02 of his size
+//                   (report.beforeThroughRestart, report.afterThroughRestart: Mosi shown at his own scale on his spot, everyone in the glade, the upper gorge hidden and the lower shown)
+//   Every restart ("Spila aftur" too) is checked, and what is left fails the run: a clean board (restartLeftovers: no script, beat, gift, idle game, line, card;
+//   on level 2 the group in the glade, nothing flying, the tunnel dark) and each mode's own things (report.restartVerdict).
+//   The longest watch (timelineCheck.longestWatch) over 9 s fails the run too, but in a slowed run (--cpu-throttle, --clearance).
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
@@ -46,6 +70,9 @@
 //                   game's own anatomical envelopes) every 300 ms; report.clearance has the worst overlaps per moment
 //                   (it slows the game down a little, so use it for a check run, not for timings).
 //
+// --level N       the level to play (adds ?bord=N, default 1): the obstacles it asks about and the friends the driver tries first at each come from its description
+//                 (levels/*.js: steps, wrongFriends). In `glade` and `search` modes report.leafTargets lists the leaf buttons (16 in level 2, each at least 44 px).
+//
 // <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
 // frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps). Without --video the
 // game is paused for each milestone picture (report.pauseHolds says nothing moved meanwhile); with --video a milestone
@@ -56,7 +83,8 @@
 // cheer, bark-end: the third panel is down).
 // `timelineCheck` reads the page's own timeline: the crossing (Mosi's first step onto the deck, the arrival, input back,
 // and the seconds between), the marsh (the first tap on the bark, the lay's start, the third panel down, the boardwalk
-// built), the walk to the grove (Mosi's first step, all six arrived, the seconds between, the watch after) and the
+// built), the walk to the grove (Mosi's first step, all six arrived, the seconds between, the watch after), level 2's end
+// (sunLedge: the walk over the trunk starting, everyone on Sólarsyllan, the ending card after the celebration) and the
 // longest stretches of watching (a script, a task or a wrong friend's go running) with no new camera framing and no tap,
 // with where they fall; with --video each moment also has its time in round.mp4. `takes` lists every camera framing's
 // most triangles and draw calls (the shot, what was going on), the heaviest first.
@@ -80,6 +108,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { levelNumber } from '../engine/memory/levels/index.js';
+import { obstaclesOf } from '../engine/memory/step-rules.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BROWSERS = {
@@ -94,14 +124,12 @@ const MIME = {
   '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
 };
-const MODES = ['full', 'branch', 'first-minute', 'rapid', 'glade'];
-// The one pair that can do each obstacle (the game's BRIDGE_OBSTACLES), so the driver can pick right or wrong.
-const RIGHT = { branch: 'brontosaurus', log: 'triceratops', bark: 'stegosaurus' };
+const MODES = ['full', 'branch', 'first-minute', 'rapid', 'glade', 'search'];
 const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -116,8 +144,17 @@ function parseArgs(argv) {
     else if (a === '--hold') o.hold = Number(next());
     else if (a === '--think') o.think = Number(next());
     else if (a === '--first') o.first = next();
-    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow', 'through', 'rope', 'pull'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift, glow, through, rope or pull'); }
     else if (a === '--gifts-last') o.giftsLast = true;
+    else if (a === '--hide-hud') o.hideHud = true;
+    else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
+    else if (a === '--wrong-all') o.wrongAll = true;
+    else if (a === '--qa-fail') o.qaFail = next();
+    else if (a === '--no-encode') o.encode = false;
+    else if (a === '--encode-only') o.encodeOnly = true;
+    else if (a === '--picker-check') o.pickerCheck = true;
+    else if (a === '--unlocked') o.unlocked = next();
+    else if (a === '--level') { o.level = Number(next()); if (![1, 2].includes(o.level)) throw new Error('--level must be 1 or 2'); }
     else if (a === '--toggle-motion') o.toggleMotion = true;
     else if (a === '--help-shot') o.helpShot = true;
     else if (a === '--stop-after-retry') o.stopAfterRetry = true;
@@ -268,7 +305,7 @@ function killProfileProcesses(exe, userDir) {
 // wall-clock time (for the video).
 const TIMELINE_JS = `(() => {
   window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
-  window.__taps = []; window.__origin = performance.timeOrigin; window.__sounds = {}; const heard = new Set();
+  window.__taps = []; window.__origin = performance.timeOrigin; window.__sounds = {}; window.__audioLog = []; const heard = new Set();
   document.addEventListener('click', event => {
     const button = event.target.closest && event.target.closest('button'); if (!button) return;
     window.__taps.push({ t: +(performance.now() / 1000).toFixed(2), key: button.dataset.target || (button.dataset.species ? 'who-' + button.dataset.species : button.id || 'button') });
@@ -302,11 +339,11 @@ const TIMELINE_JS = `(() => {
     // The render scale the game's dynamic resolution chose: the lowest it went and every change (it steps down when frames are slow and back up when there is headroom).
     if (Number.isFinite(d.resolutionScale)) { const r = (window.__res ||= { min: d.resolutionScale, last: d.resolutionScale, changes: [] }); r.min = Math.min(r.min, d.resolutionScale); if (d.resolutionScale !== r.last) { r.changes.push({ t: +(performance.now() / 1000).toFixed(1), from: r.last, to: d.resolutionScale }); r.last = d.resolutionScale; } }
     // The sounds the page played (kind and whether recorded or its synth fallback), each counted once.
-    for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; } }
+    for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; if (entry.asset && entry.at) window.__audioLog.push({ asset: entry.asset, kind: entry.kind, at: entry.at, level: entry.level, rate: entry.rate, duration: +(entry.end - entry.start).toFixed(3) }); } }
     const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
     const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
-    const adventure = d.bridge && d.bridge.action, act = adventure ? adventure.id + ':' + adventure.phase : null;
+    const adventure = d.bridge && d.bridge.action, upperAction = d.levelStats && d.levelStats.upper && d.levelStats.upper.action, act = adventure ? adventure.id + ':' + adventure.phase : upperAction ? upperAction.id + ':' + upperAction.phase : null;
     const placed = d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0;
     // The most triangles and draw calls of each camera framing (a shot, a glide, the way back), with what was going on.
     const take = window.__takes[cam.takes || 0] ||= { take: cam.takes || 0, t: +(performance.now() / 1000).toFixed(2), shot: cam.shot || (cam.returning ? 'return' : ''), act, tris: 0, calls: 0 };
@@ -316,13 +353,32 @@ const TIMELINE_JS = `(() => {
     // What each walker of the running action has done (its start and finish in the action's own seconds), the last look.
     if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { elapsed: +adventure.elapsed.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
-    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused, word, ending].join('|');
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused, word, ending, b.onSunLedge].join('|');
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending, sun: b.onSunLedge || undefined, gt: d.levelStats && d.levelStats.upper ? d.levelStats.upper.clock : undefined });
     }
   }, 100);
+  // The upper gorge's sight (level 2, ?qa=1): every 300 ms, which friends the camera sees, whether a block or the ground stands between, and whether the HUD or Mosi's bubble covers one.
+  window.__sight = { takes: {}, events: [] };
+  const HUD = ['progress', 'camera', 'sound', 'help', 'pause', 'caption', 'who', 'beat-word', 'holding', 'coach'];
+  setInterval(() => {
+    const g = window.__gorge, d = window.__demoStats; if (!g || !g.api || !g.api.qaSight || !d) return;
+    const sight = g.api.qaSight(); if (!sight) return;
+    const cam = d.camera || {}, take = (window.__sight.takes[cam.takes || 0] ||= { take: cam.takes || 0, shot: cam.shot || '', samples: 0, inView: 0, hidden: 0, hiddenBy: {}, hud: 0, hudBy: {}, hiddenNames: {} });
+    const rects = HUD.map(id => { const el = document.getElementById(id); if (!el || el.hidden) return null; const r = el.getBoundingClientRect(), style = getComputedStyle(el); return r.width > 0 && r.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0.3 ? { id, r } : null; }).filter(Boolean);
+    let hidden = 0, hud = 0;
+    for (const item of sight.items) {
+      if (item.by) { hidden++; take.hiddenBy[item.by] = (take.hiddenBy[item.by] || 0) + 1; take.hiddenNames[item.name] = (take.hiddenNames[item.name] || 0) + 1; continue; }
+      const covered = rects.find(({ r }) => item.x >= r.left && item.x <= r.right && item.y >= r.top && item.y <= r.bottom);
+      if (covered) { hud++; take.hudBy[covered.id] = (take.hudBy[covered.id] || 0) + 1; }
+    }
+    take.samples++; take.inView = Math.max(take.inView, sight.items.length); take.hidden = Math.max(take.hidden, hidden); take.hud = Math.max(take.hud, hud); take.act = d.levelStats && d.levelStats.upper && d.levelStats.upper.action ? d.levelStats.upper.action.id + ':' + d.levelStats.upper.action.phase : take.act;
+    const fresh = sight.items.filter(i => i.by && !(window.__sight.seen ||= new Set()).has(take.take + i.name)); fresh.forEach(i => window.__sight.seen.add(take.take + i.name));
+    if (fresh.length && window.__sight.events.length < 120) window.__sight.events.push({ t: +(performance.now() / 1000).toFixed(1), take: take.take, shot: take.shot, cameraAt: sight.cameraAt, hidden: fresh.map(i => i.name + ' ' + JSON.stringify(i.at) + ' by ' + i.by + ' ' + JSON.stringify(i.hit)) });
+    if (sight.roof !== null) { take.roof = Math.min(take.roof ?? 99, sight.roof); }
+  }, 300);
 })()`;
 
 // --clearance: while the marsh is laid or the walk to the grove runs, the game's own clearance audit (the anatomical
@@ -356,13 +412,64 @@ const CLEARANCE_JS = `(async () => {
 
 // What a restart must leave: a clean board, no script, no beat, no gift, no idle game, nothing said, nothing on the ending card.
 const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.state(), b = m.bridge();
-  return { phase: s.phase, matched: s.matchedPairs, hiddenCards: s.cards.filter(c => c.status === 'hidden').length, bridge: { active: b.active, visited: b.visited, asking: b.asking, branch: b.branch, boardwalkBuilt: b.boardwalkBuilt },
+  return { phase: s.phase, matched: s.matchedPairs, cards: s.cards.length, hiddenCards: s.cards.filter(c => c.status === 'hidden').length, bridge: { active: b.active, visited: b.visited, asking: b.asking, branch: b.branch, boardwalkBuilt: b.boardwalkBuilt },
     sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
     basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
+    tunnel: (d.levelStats && d.levelStats.tunnel) || null, upper: (d.levelStats && d.levelStats.upper) || null, dusk: (d.levelStats && d.levelStats.dusk) || null, stars: (d.levelStats && d.levelStats.stars) || null, holding: (b.holding || null), action: b.action || null,
+    flights: window.__gorge ? window.__gorge.stage.babies.map(a => a.getDebugState().flight).filter(Boolean).length : null, ropeVisible: window.__gorge ? window.__gorge.rope.visible : null, rope2Visible: window.__gorge && window.__gorge.rope2 ? window.__gorge.rope2.visible : null, trunk: window.__gorge && window.__gorge.trunk ? window.__gorge.trunk.debug() : null, flyersHome: window.__gorge ? window.__gorge.stage.babies.filter(a => a.species === 'pteranodon').map(a => ({ visible: a.root.visible, flight: Boolean(a.getDebugState().flight), y: +a.root.position.y.toFixed(2) })) : null, babiesVisible: window.__gorge ? window.__gorge.stage.babies.filter(a => a.root.visible).length : null, babiesTilted: window.__gorge ? window.__gorge.stage.babies.filter(a => Math.abs(a.root.rotation.z) > 1e-6 || Math.abs(a.root.rotation.x) > 1e-6).length : null, lowerVisible: window.__gorge ? window.__gorge.gorge.group.visible : null, upperVisible: window.__gorge ? window.__gorge.upper.group.visible : null,
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
+// (final fix round 1, T-I3) What RESTART_JS read that a restart has left behind: [] for a clean board. Level 2's part (the group in the glade, nothing flying, the
+// tunnel dark, the gorges as they start) is read where the page gives it (levelStats; window.__gorge with ?qa=1).
+function restartLeftovers(c) {
+  if (!c) return ['nothing could be read after the restart'];
+  const bad = [], add = (wrong, what) => { if (wrong) bad.push(what); };
+  add(c.phase !== 'ready', `the phase is ${c.phase}`);
+  add(c.matched || c.found || c.basket || c.hiddenCards !== c.cards, `the board is not new (${c.matched} pairs, ${c.found} found, ${c.basket} in the basket, ${c.hiddenCards} of ${c.cards} leaves shut)`);
+  add(!/^0\s*\/\s*[1-9]\d*$/.test((c.basketText || '').trim()), `the basket says ${JSON.stringify(c.basketText)}`);
+  add(c.bridge?.active || c.bridge?.asking || c.action || c.holding, `a step goes on (${JSON.stringify({ active: c.bridge?.active, asking: c.bridge?.asking, action: c.action, holding: c.holding })})`);
+  add(c.sceneBusy || c.waiting || c.beats, `a script goes on (busy ${c.sceneBusy}, waiting ${JSON.stringify(c.waiting)}, ${c.beats} beats)`);
+  add(c.gifts !== 'none' || c.giftPhases?.length || c.giftModelsVisible, `a gift is out (${c.gifts}, phases ${JSON.stringify(c.giftPhases)}, ${c.giftModelsVisible} shown)`);
+  add(c.idleActive, `an idle game goes on (${JSON.stringify(c.idleActive)})`);
+  add(c.speech || c.speechPending, `Mosi still speaks (${JSON.stringify(c.speech ?? c.speechPending)})`);
+  add(c.ending || c.endingGifts || c.creditsOpen || c.who || c.word, `something is still on the screen (${['ending', 'endingGifts', 'creditsOpen', 'who', 'word'].filter(k => c[k]).join(', ')})`);
+  if (c.tunnel) add(c.tunnel.light || c.tunnel.plates || c.tunnel.pile || c.tunnel.falling, `the tunnel is not dark and shut (${JSON.stringify({ light: c.tunnel.light, plates: c.tunnel.plates, pile: c.tunnel.pile, falling: c.tunnel.falling })})`);
+  if (c.upper) add(c.upper.where !== 'glade' || c.upper.action || c.upper.walking || c.upper.visible, `the group is not back in the glade (${JSON.stringify({ where: c.upper.where, action: c.upper.action, walking: c.upper.walking, upperShown: c.upper.visible })})`);
+  add(c.flights, `${c.flights} friends still fly`);
+  add(c.ropeVisible || c.rope2Visible, `a rope is still drawn (${c.ropeVisible ? 'the first' : 'the second'})`);
+  add(c.babiesTilted, `${c.babiesTilted} friends are still tilted`);
+  add(c.lowerVisible === false || c.upperVisible === true, `the gorges are not as they start (lower shown ${c.lowerVisible}, upper shown ${c.upperVisible})`);
+  return bad;
+}
+
+// (final fix round 1, G-I1) Level 2 with ?qa=1: where the upper mover is and how Mosi stands (shown, his scale and the base a pop grows him back to, how far from his spot), and
+// which of the two gorges is shown. THROUGH_CUT_JS restarts in the same breath once the mover is past the cut ('exit'), so the restart comes before Mosi pops out.
+const THROUGH_JS = `(() => { const g = window.__gorge; if (!g) return null; const m = g.stage.mosi.actor, u = g.mover.upper, d = u.debug(), spot = g.stage.level.mosiSpot;
+  return { phase: d.action ? d.action.phase : null, where: d.where, walking: d.walking, upperVisible: g.upper.group.visible, lowerVisible: g.gorge.group.visible,
+    mosi: { visible: m.root.visible, scale: +m.root.scale.x.toFixed(4), base: u.walkers.baseOf(m) ?? null, fromSpot: +Math.hypot(m.root.position.x - spot.x, m.root.position.z - spot.z).toFixed(2) } }; })()`;
+const THROUGH_CUT_JS = `(() => { const now = ${THROUGH_JS}; if (now && now.phase === 'exit') window.__memory.restart(); return now; })()`;
+
 // The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
+// (Task 7 fix round 1) Level 2, ?qa=1: the stars a child plainly sees now: out (hidden.notOut: the ones that would be seen once out), above the haze, on the screen below the HUD and above Mosi's bubble, and not behind the cliffs
+// (a ray from the camera through the upper gorge). The camera is the one the page reports (__demoStats.camera), as qaSight builds it.
+const SKY_JS = `(() => { const g = window.__gorge, d = window.__demoStats && window.__demoStats.camera; if (!g || !g.stars || !d || !d.position || !d.target) return null;
+  const T = g.stage.THREE, cam = new T.PerspectiveCamera(35, innerWidth / innerHeight, .1, 600); cam.position.fromArray(d.position); cam.lookAt(new T.Vector3().fromArray(d.target)); cam.updateMatrixWorld(true);
+  const p = g.stars.points, pos = p.geometry.attributes.position, order = p.geometry.attributes.aOrder, out = g.stars.debug().out, R = new T.Raycaster();
+  const hud = Math.max(0, ...[...document.querySelectorAll('.topbar, .topbar *')].filter(e => e.offsetParent !== null).map(e => e.getBoundingClientRect().bottom));
+  const coach = document.getElementById('coach'), card = document.getElementById('ending');
+  const below = Math.min(innerHeight, coach && !coach.hidden ? coach.getBoundingClientRect().top : innerHeight, card && !card.hidden ? card.getBoundingClientRect().top : innerHeight);
+  const look = new T.Vector3(); cam.getWorldDirection(look);
+  const hidden = { notOut: 0, haze: 0, hud: 0, below: 0, rock: 0 }, seen = [];
+  for (let i = 0; i < pos.count; i++) { const dir = new T.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)), w = cam.position.clone().addScaledVector(dir, 450).project(cam);
+    if (!(Math.abs(w.x) <= 1 && Math.abs(w.y) <= 1 && w.z < 1)) continue;
+    const x = Math.round((w.x + 1) / 2 * innerWidth), y = Math.round((1 - w.y) / 2 * innerHeight);
+    const late = order.getX(i) + .9 > out; if (dir.y < .012) { hidden.haze++; continue; }
+    if (y < hud + 4) { hidden.hud++; continue; } if (y > below - 4) { hidden.below++; continue; }
+    R.set(cam.position, dir.clone().normalize()); R.near = .1; R.far = 440; if (R.intersectObject(g.upper.group, true).length) { hidden.rock++; continue; }
+    if (late) { hidden.notOut++; continue; }
+    seen.push({ i, x, y, first: i < g.stars.first }); }
+  return { seen: seen.length, first: seen.filter(s => s.first).length, hidden, hud: Math.round(hud), look: [+((Math.atan2(look.z, look.x) * 180 / Math.PI + 360) % 360).toFixed(1), +(Math.asin(look.y) * 180 / Math.PI).toFixed(1)], out: g.stars.debug().out, at: seen.slice(0, 40).map(s => [s.x, s.y]) }; })()`;
 const GIFTS_VIEW_JS = `(() => { const d = window.__memory.stats({ measure: true }), f = d.frame, shut = f.leaves.filter(l => l.status === 'hidden');
   return { intent: d.camera.intent, moving: d.camera.moving, size: f.size, shutLeaves: shut.length, shutInside: shut.every(l => l.inside), outside: shut.filter(l => !l.inside).map(l => l.cell),
     leafPxMin: { width: Math.round(Math.min(...shut.map(l => l.width))), height: Math.round(Math.min(...shut.map(l => l.height))) }, mosiInside: f.mosi.inside, homesInside: f.homes.every(h => h.inside), mosiAt: d.scene.mosiPosition }; })()`;
@@ -399,6 +506,7 @@ const SNAPSHOT_JS = `(() => {
     wait: w ? { target: w.target, count: w.count, left: w.left } : null, idle: m.idle(),
     trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
     arrow: Boolean(document.querySelector('#targets .is-guided')),
+    tunnel: (d.levelStats && d.levelStats.tunnel) || null, upper: (d.levelStats && d.levelStats.upper) || null, programs: d.programs ?? null,
     cancel: !cancel.hidden && !cancel.disabled,
     blocked: d.bridge && d.bridge.blocked ? d.bridge.blocked.length : 0,
     cancelBox: (() => { const r = cancel.getBoundingClientRect(), cs = getComputedStyle(cancel); return { hidden: cancel.hidden, disabled: cancel.disabled, shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } }; })(),
@@ -451,10 +559,10 @@ const tapJs = (keys, times, gapMs) => `(async () => {
 
 // Rapid mode while a script runs: every leaf, obstacle and bubble through window.__memory (past the buttons' own disabled
 // state), the way a child taps through a cut. The game must ignore every one of them that is not its turn.
-const HAMMER_JS = `(() => {
+const hammerJs = level => `(() => {
   const m = window.__memory, s = m.state();
-  for (const target of ['branch', 'log', 'bark']) { m.ask(target); m.tap(target); }
-  for (const species of ['triceratops', 'brontosaurus', 'stegosaurus']) m.choose(species);
+  for (const target of ${JSON.stringify(Object.keys(obstaclesOf(level)))}) { m.ask(target); m.tap(target); }
+  for (const species of ${JSON.stringify(level.friends)}) m.choose(species);
   for (const card of s.cards) if (card.status === 'hidden') m.pick(card.id);
   return true;
 })()`;
@@ -528,11 +636,14 @@ function timelineCheck(timeline = [], taps = []) {
   const groveStep = timeline.find(e => e.active === 'finish' && (e.mosi === 'walk' || e.mosi === 'deck')), groveArrive = timeline.find(e => e.visited);
   // `input` is now the ending card: the celebration (a script) runs between the arrival and it.
   const groveInput = groveArrive && timeline.find(e => e.t >= groveArrive.t && e.visited && e.ending);
+  // Level 2's end: the walk over the trunk starting, everyone on Sólarsyllan (the walk is over), and the ending card after the celebration.
+  const sunWalk = timeline.find(e => e.active === 'walk'), sunArrive = timeline.find(e => e.sun), sunInput = sunArrive && timeline.find(e => e.t >= sunArrive.t && e.ending);
   return {
     framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
     crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
     marsh: layStart ? { firstTap: barkTap?.t ?? null, layStart: layStart.t, lastPanel: lastPanel?.t ?? null, boardwalk: built?.t ?? null, tapToLastPanel: barkTap && lastPanel ? span(barkTap, lastPanel) : null, layToLastPanel: span(layStart, lastPanel), layToBoardwalk: span(layStart, built) } : null,
     grove: groveStep ? { firstStep: groveStep.t, arrive: groveArrive?.t ?? null, input: groveInput?.t ?? null, firstStepToArrive: span(groveStep, groveArrive), watchAfterArrival: span(groveArrive, groveInput) } : null,
+    sunLedge: sunWalk ? { walk: sunWalk.t, arrive: sunArrive?.t ?? null, input: sunInput?.t ?? null, walkToArrive: span(sunWalk, sunArrive), watchAfterArrival: span(sunArrive, sunInput), walkToInput: span(sunWalk, sunInput) } : null,
     // The longest stretch, and the five longest (with what was going on), so a long one can be placed.
     longestWatch: stretches.sort((a, b) => b.seconds - a.seconds)[0] ?? { seconds: 0 }, longestWatches: stretches.slice(0, 5),
   };
@@ -568,6 +679,9 @@ const IDLE_GAP = { min: 6, max: 10 };
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
+  // The level being played: what it has to be asked (the one pair that can do each obstacle, the game's own rule: step-rules.js obstaclesOf), whom the driver tries first at each (its `wrongFriends`).
+  const LEVEL = levelNumber(o.level), OBSTACLE_IDS = Object.keys(obstaclesOf(LEVEL));
+  const RIGHT = Object.fromEntries(Object.entries(obstaclesOf(LEVEL)).map(([target, value]) => [target, value.species]));
   const outDir = path.resolve(ROOT, o.out);
   await fsp.mkdir(outDir, { recursive: true });
   const framesDir = path.join(outDir, 'frames');
@@ -575,14 +689,29 @@ async function main() {
 
   const errors = [];
   const report = {
-    page: o.page, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, cpuThrottle: o.cpuThrottle || null, startedAt: new Date().toISOString(),
+    page: o.page, level: o.level, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, cpuThrottle: o.cpuThrottle || null, startedAt: new Date().toISOString(),
     finished: false, stalled: null, roundSeconds: null, errors, steps: [], shots: [], pauseHolds: [], timeline: [], perf: null, render: null, renderMax: null, gpu: null, video: null,
   };
+  // (final fix round 1, T-I3) A restart's verdict: the mode's own [wrong, what] pairs, then restartLeftovers over report.restartCheck; each that is wrong fails the run.
+  const restartVerdict = (mode, own = []) => {
+    const bad = [...own.filter(([wrong]) => wrong).map(([, what]) => what), ...restartLeftovers(report.restartCheck)];
+    report.restartVerdict = { mode, passed: !bad.length, bad };
+    if (bad.length) errors.push(`--restart-at ${mode}: ${bad.join('; ')}`);
+    return report.restartVerdict;
+  };
   const server = await startServer();
-  const query = [`seed=${o.seed}`, o.query].filter(Boolean).join('&');
+  const query = [`seed=${o.seed}`, o.level > 1 ? `bord=${o.level}` : '', o.query].filter(Boolean).join('&');
   const url = `http://127.0.0.1:${server.address().port}/${o.page.replace(/\\/g, '/').replace(/^\//, '')}?${query}`;
-  const browser = await launchBrowser(o);
+  const browser = await launchBrowser(o).catch(error => { server.close(); throw error; });
   const { cdp } = browser;
+  // (final fix round 1, T-M12) Ctrl+C: the browser and the server are stopped before the process goes, as the finally below does.
+  let interrupted = false;
+  const onInterrupt = () => {
+    if (interrupted) return; interrupted = true;
+    console.error('Interrupted: stopping the browser and the server (the report is not written)');
+    stopBrowser(browser).catch(() => {}).finally(() => { server.close(); process.exit(130); });
+  };
+  process.on('SIGINT', onInterrupt);
   const t0 = Date.now();
   const T = () => +((Date.now() - t0) / 1000).toFixed(1);
   const frames = { n: 0, stamps: [], writes: [] };
@@ -635,19 +764,36 @@ async function main() {
       step(`TIMEOUT waiting for ${label}`); return -1;
     };
 
+    if (o.unlocked) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('minnisspil.unlocked', ${JSON.stringify(o.unlocked)}); } catch {}` });
     await send('Page.navigate', { url });
     if (await waitFor('window.__memoryReady === true', 120000, 'the page to be ready') < 0) throw new Error('The page never became ready');
     report.gpu = await ev(GPU_JS).catch(e => `error: ${e.message}`);
     report.reducedMotionActive = await ev("matchMedia('(prefers-reduced-motion: reduce)').matches").catch(() => null);
     step('loaded', { url: url.replace(/^http:\/\/127\.0\.0\.1:\d+/, '') });
+    // The credits the page built behind the ending card's "i" (hidden until the card shows): each group's Líkan or Hljóð, Leyfi and Frá rows.
+    report.creditsBuilt = await ev("[...document.querySelectorAll('#credits .credit-group')].map(group => [...group.querySelectorAll('p')].map(p => p.textContent).join(' | '))").catch(() => null);
     if (o.video) await send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: 960, maxHeight: 960, everyNthFrame: 2 });
     // Named moments, kept with the wall clock so they can be placed in round.mp4 (its first frame's stamp) afterwards.
     report.marks = [];
     const mark = name => { if (report.marks.some(entry => entry.name === name)) return; report.marks.push({ name, at: Date.now() / 1000, t: T() }); step(`mark ${name}`); };
     await ev(TIMELINE_JS);
+    if (o.hideHud) await ev("document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '.topbar, #coach, #targets, #who, #beat-word { display: none !important }' }))");
     if (o.clearance) await ev(CLEARANCE_JS);
     await sleep(700);
     await shot('welcome');
+    if (o.pickerCheck) {
+      const READ = `(() => ({ url: location.search, level: document.querySelector('.level-card[aria-current="true"]')?.dataset.level ?? null, open: document.getElementById('welcome').open, startFocused: document.activeElement?.id === 'start',
+        cards: [...document.querySelectorAll('#level-cards .level-card')].map(card => ({ level: card.dataset.level, disabled: card.getAttribute('aria-disabled'), current: card.getAttribute('aria-current'), label: card.getAttribute('aria-label'), text: card.textContent.trim(), padlock: card.textContent.includes('🔒'), box: (r => ({ width: Math.round(r.width), height: Math.round(r.height) }))(card.getBoundingClientRect()) })) }))()`;
+      report.picker = { before: await ev(READ) };
+      const locked = report.picker.before.cards.find(card => card.disabled === 'true'), other = report.picker.before.cards.find(card => card.disabled === 'false' && card.current !== 'true');
+      if (locked) { await ev(`document.querySelector('.level-card[data-level="${locked.level}"]').click()`); await sleep(300); report.picker.afterLockedTap = await ev(READ); report.picker.afterLockedTap.shook = await ev(`document.querySelector('.level-card[data-level="${locked.level}"]').classList.contains('nope')`); await shot('picker-locked-tapped'); }
+      if (other) {
+        await ev(`document.querySelector('.level-card[data-level="${other.level}"]').click()`);
+        await sleep(1200); await waitFor('window.__memoryReady === true', 120000, 'the page of the other level');
+        await ev(TIMELINE_JS); await sleep(800); report.picker.afterOtherTap = await ev(READ); await shot('picker-other-level-opened');
+      }
+      step('the level picker', { before: report.picker.before.cards.map(c => `${c.level}:${c.disabled === 'true' ? 'locked' : c.current === 'true' ? 'here' : 'open'}`).join(' '), lockedTapStayed: report.picker.afterLockedTap ? report.picker.afterLockedTap.url === report.picker.before.url && report.picker.afterLockedTap.open : null, otherTapWent: report.picker.afterOtherTap?.url ?? null });
+    }
 
     await ev(`document.getElementById('start').click()`);
     const roundStart = Date.now();
@@ -664,7 +810,7 @@ async function main() {
     // The search view: every baby's on-screen size (projected posed bounds, hidden ones measured at their cells),
     // Mosi and the leaves, with whether each is inside the frame.
     report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
-    if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside) });
+    if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside), homesInside: report.glade.homes.every(b => b?.inside) });
     // The twelve leaf buttons as the page lays them out: none under 44 px either way, and how many pairs overlap each other.
     const LEAF_BOXES_JS = (only = '') => `(() => { const boxes = [...document.querySelectorAll('.world-target[data-target^="leaf-"]${only}')].map(b => { const r = b.getBoundingClientRect(); return { key: b.dataset.target, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) }; });
       let overlaps = 0, deepest = 0; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], b = boxes[j], ox = (a.width + b.width) / 2 - Math.abs(a.x - b.x), oy = (a.height + b.height) / 2 - Math.abs(a.y - b.y); if (ox > 0 && oy > 0) { overlaps++; deepest = Math.max(deepest, Math.min(ox, oy)); } }
@@ -719,8 +865,8 @@ async function main() {
     // third after the second (every one after the last friend pair with --gifts-last). The first try of the first two is a deliberate miss.
     const giftItems = [...new Set(first.cards.filter(c => c.item).map(c => c.item))];
     report.gifts = [];
-    const giftAt = giftItems.map((_, k) => o.giftsLast ? 3 : k); // matched friend pairs when each pair is opened
-    const giftMissed = new Set(), wantGifts = o.mode === 'full' || o.mode === 'rapid';
+    const giftAt = giftItems.map((_, k) => o.giftsLast ? LEVEL.friends.length : k); // matched friend pairs when each pair is opened
+    const giftMissed = new Set(), wantGifts = o.mode === 'full' || o.mode === 'rapid' || o.mode === 'search';
     let giftsLeftChecked = false;
     const hiddenGift = (s, item) => s.cards.filter(c => c.item === item && c.status === 'hidden').map(c => c.id);
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
@@ -728,8 +874,8 @@ async function main() {
     report.blocked = []; report.blockedRetry = []; let blockedSeen = 0, retryWatch = null; // (the adventure's own list of walks it gave up)
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
-    const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
-    const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
+    const wrongTried = {}; // the wrong friends each obstacle has had so far (one each by default: the branch, the log and the bark; --wrong-all tries every one the bubbles offer)
+    const WRONG = LEVEL.wrongFriends ?? {}; // whom the driver tries first at each (level 1's log: the right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
     let barkTaps = 0, runTake = null, holdFrom = null, thinkUntil = 0;
     const thought = new Set();
     const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
@@ -848,8 +994,22 @@ async function main() {
         } catch (e) { report.credits = { error: e.message }; }
         if (o.restartAt === 'ending') {
           const beats = await ev('window.__memory.stats().scene.beats'); if (beats.length) report.celebration = { beats, seconds: +(beats.at(-1).t - beats[0].t).toFixed(2), cuts: beats.filter(b => b.cut).map(b => b.t).map((t, i, all) => i ? +(t - all[i - 1]).toFixed(2) : null).filter(Boolean) };
-          await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck); }
+          await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck);
+          restartVerdict('ending'); }
         break;
+      }
+      // search: every leaf found (the friends home, the fossil pairs in the basket) and nothing moving: level 2's round waits here until its steps are built.
+      if (o.mode === 'search' && s.phase === 'won' && s.basket >= giftItems.length && !s.walking && !s.cam.moving && !s.cam.held && !s.scene && !s.giftPhases.some(phase => phase !== 'done')) {
+        report.finished = true; step('every leaf is found and every gift pair is in the basket: the round waits', { basket: s.basket, matched: s.matched, caption: s.caption }); await sleep(2500);
+        report.gladeAll = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message })); await shot('all-found');
+        step('the frame with every friend home', { babiesInside: report.gladeAll.babies?.filter(b => b.visible).every(b => b.inside), visibleBabies: report.gladeAll.babies?.filter(b => b.visible).length, mosiInside: report.gladeAll.mosi?.inside, homesInside: report.gladeAll.homes?.every(b => b.inside) });
+        report.allFound = await ev(`(() => { const d = window.__demoStats; return { drawCalls: d.drawCalls, triangles: d.triangles, camera: d.camera.intent, babiesRendered: d.characterLod.filter(c => c.rendered).length, babiesVisible: d.cells.filter(c => c.actorVisible).length, tunnel: window.__memory.targets().find(t => t.id === 'tunnel') ?? null, gorge: window.__memory.stats().levelStats?.gorge ?? null }; })()`).catch(e => ({ error: e.message }));
+        break;
+      }
+      // Level 2: everyone has walked over the trunk to Sólarsyllan; the celebration plays on to the ending card (Task 7), as level 1's does. The level's state is kept once, as they arrive.
+      if (LEVEL.number === 2 && s.bridge.onSunLedge && !report.level2) {
+        step('everyone is on Sólarsyllan, over the trunk: the celebration', { light: s.tunnel?.light, pile: s.tunnel?.pile, upper: s.upper, caption: s.caption });
+        report.level2 = await ev(`(() => { const d = window.__demoStats; return { tunnel: d.levelStats.tunnel, gorge: d.levelStats.gorge, targets: window.__memory.targets().filter(t => t.type === 'task'), story: window.__memory.story(), bridge: window.__memory.bridge(), drawCalls: d.drawCalls, triangles: d.triangles }; })()`).catch(e => ({ error: e.message }));
       }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
         report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
@@ -886,7 +1046,7 @@ async function main() {
       if (s.giftPhases.includes('rise')) waited ||= await milestone('gift-rise', 'gift-pair-rises', 450);
       if (s.giftPhases.includes('fly')) waited ||= await milestone('gift-fly', 'gift-pair-flies', 250);
       if (s.basket >= 1) waited ||= await milestone('gift-basket', 'gift-in-basket', 350);
-      if (s.story.key === 'gifts-left') waited ||= await milestone('gifts-left', 'gifts-left-wait', 1500);
+      if (/gifts-left$/.test(s.story.key)) waited ||= await milestone('gifts-left', 'gifts-left-wait', 1500);
       // The branch: the obstacle glowing, the arrow after hesitating, the bubbles, a wrong friend's go and Mosi's laugh,
       // the walk there, each tap of the tap-along (or the timeout's "Við gerum þetta saman!") and the cheer.
       if (s.story.kind === 'work' && s.story.target === 'branch' && s.story.available && !s.cam.held && !s.scene) waited ||= await milestone('glow-branch', 'branch-glowing', 400);
@@ -894,8 +1054,8 @@ async function main() {
       if (s.story.kind === 'work' && s.story.target === 'bark' && s.story.available && !s.cam.held && !s.scene) { waited ||= await milestone('glow-bark', 'bark-glowing', 400); if (seen.has('glow-bark')) waited ||= await milestone('glow-bark-2', 'bark-glowing-later', 650); }
       if (s.arrow) waited ||= await milestone('arrow', 'gold-arrow', 200);
       if (s.who.open) waited ||= await milestone(`who-${s.who.asking}`, `who-${s.who.asking}`, 450);
-      if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(`fail-${s.bridge.failing}`, `fail-${s.bridge.failing}`, 500);
-      if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone(`mosi-laugh-${s.bridge.asking}`, `mosi-laughs-${s.bridge.asking}`, 350);
+      if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(LEVEL.number > 1 ? `fail-${s.bridge.asking}-${s.bridge.failing}` : `fail-${s.bridge.failing}`, LEVEL.number > 1 ? `fail-${s.bridge.asking}-${s.bridge.failing}` : `fail-${s.bridge.failing}`, 500);
+      if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone(LEVEL.number > 1 ? `mosi-laugh-${s.bridge.asking}-${s.bridge.failing}` : `mosi-laugh-${s.bridge.asking}`, LEVEL.number > 1 ? `mosi-laughs-${s.bridge.asking}-${s.bridge.failing}` : `mosi-laughs-${s.bridge.asking}`, 350);
       if (s.bridge.active === 'lift' && s.cam.shot === 'follow') waited ||= await milestone('bronto-walk', 'brontos-walk-to-branch', 500);
       if (s.caption === 'Við gerum þetta saman!') waited ||= await milestone(`together-${s.bridge.active}`, `timeout-together-${s.bridge.active === 'roll' ? 'log' : s.bridge.active === 'lay' ? 'bark' : 'branch'}`, 300);
       if (s.bridge.branch === 'held' && !s.bridge.active && !s.landed && s.scene && s.cam.shot === 'hero') { mark('branch-end'); waited ||= await milestone('cheer', 'cheer-branch-up', 450); }
@@ -934,17 +1094,70 @@ async function main() {
         // The render scale must be back at 1 a moment after the restart (it steps down again only if the next 1.2 s are slow).
         report.resolutionRestart = { before: await ev('window.__demoStats.resolutionScale') };
         await ev('window.__memory.restart()'); await sleep(150); report.resolutionRestart.after = await ev('window.__demoStats.resolutionScale'); await sleep(1350);
-        report.restartCheck = await ev(RESTART_JS); step('after the restart', { ...report.restartCheck, resolution: report.resolutionRestart }); report.finished = true; break;
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', { ...report.restartCheck, resolution: report.resolutionRestart });
+        restartVerdict('gift', [[report.resolutionRestart.after !== 1, `the render scale is ${report.resolutionRestart.after} after the restart`]]);
+        report.finished = true; break;
       }
-      if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
-        await sleep(1200); // Mosi's gifts line is on its way (or playing)
+      if (o.restartAt === 'glow' && s.bridge.active === 'light' && s.tunnel && s.tunnel.light > .3) {
+        // Paused while the plates glow: the light, the plates and every pose must stand still; then on, and a restart in the middle of it.
+        await ev('window.__memory.pause(true)'); await sleep(300);
+        const before = await ev(POSE_JS), l1 = (await ev(SNAPSHOT_JS)).tunnel; await sleep(1200);
+        const after = await ev(POSE_JS), l2 = (await ev(SNAPSHOT_JS)).tunnel;
+        report.pauseGlow = { light: [l1.light, l2.light], plates: [l1.plates, l2.plates], drift: +Math.max(...before.values.map((v, i) => Math.abs(v - after.values[i]))).toExponential(2), still: l1.light === l2.light && l1.plates === l2.plates };
+        step('paused while the plates glow', report.pauseGlow); await shot('paused-while-glowing');
+        await ev('window.__memory.pause(false)'); await sleep(500);
+        const during = (await ev(SNAPSHOT_JS)).tunnel; step('restart while the tunnel glows', { light: during.light, plates: during.plates, pile: during.pile });
+        await ev('window.__memory.restart()'); await sleep(1500);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); await shot('restarted');
+        const g = report.pauseGlow;
+        restartVerdict('glow', [[!g.still, `the light or the plates moved while paused (${JSON.stringify({ light: g.light, plates: g.plates })})`], [!(g.drift < 1e-6), `a pose drifted ${g.drift} while paused`]]);
+        report.finished = true; break;
+      }
+      if (o.qaFail && LEVEL.number === 2 && !seen.has('qa-fail') && s.story.target === o.qaFail.split(':')[1] && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.walking && !s.who.open) {
+        seen.add('qa-fail'); const [species, target] = o.qaFail.split(':');
+        step(`QA: the world is asked for ${species}'s go at the ${target}`);
+        const started = await ev(`window.__gorge.api.startFail(${JSON.stringify(species)}, ${JSON.stringify(target)}, { qa: true })`).catch(e => e.message);
+        step('the go started', { started });
+        if (started === true) {
+          report.qaFail = { species, target, pictures: [], before: (await ev(SNAPSHOT_JS)).tunnel }; let tries = 0;
+          while (tries++ < 120) {
+            const now = await ev(SNAPSHOT_JS).catch(() => null); if (!now) break;
+            if (now.trying && !report.qaFail.pictures.includes('try')) { report.qaFail.pictures.push('try'); await milestone(`qa-fail-${species}-${target}`, `qa-fail-${target}-${species}`, 900); }
+            if (!(await ev('window.__gorge.mover.isBusy()'))) break;
+            await sleep(250);
+          }
+          // The light the pair holds must not have dropped or moved while it had its go.
+          report.qaFail.after = (await ev(SNAPSHOT_JS)).tunnel; report.qaFail.holdsLight = report.qaFail.before.light === report.qaFail.after.light && report.qaFail.before.plates === report.qaFail.after.plates && report.qaFail.after.light >= .99;
+          step('the go is over', { species, target, light: [report.qaFail.before.light, report.qaFail.after.light], plates: [report.qaFail.before.plates, report.qaFail.after.plates], holdsLight: report.qaFail.holdsLight });
+          if (!report.qaFail.holdsLight) errors.push(`the light dropped during the QA go: ${JSON.stringify(report.qaFail)}`);
+        }
+        continue;
+      }
+      // (level 2: two seconds into the celebration, while the friends' cheer plays, the stars come out and the light goes on to the evening; what was
+      // playing just before and what plays in the 1.5 s after are kept, so a cheer or a clap that goes on is seen: Task 7 fix round 1)
+      if (o.restartAt === 'celebration' && (LEVEL.number === 2 ? s.beats.includes('sun-sets') : s.beats.includes('mosi-cheer'))) {
+        const SOUNDS_JS = `(() => { const a = window.__memory.audio(); return { voices: a.voices, played: a.played, log: a.log.slice(-8).map(e => e.kind + (e.asset ? ':' + e.asset : '')) }; })()`;
+        await sleep(LEVEL.number === 2 ? 2000 : 1200); // (level 1: Mosi's gifts line is on its way, or playing)
+        if (LEVEL.number === 2) report.soundsBeforeRestart = await ev(SOUNDS_JS);
         step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
-        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck);
+        if (LEVEL.number === 2) { const after = await ev(SOUNDS_JS); report.soundsAfterRestart = { ...after, newSince: after.played - report.soundsBeforeRestart.played }; }
+        const heard = report.soundsAfterRestart;
+        restartVerdict('celebration', heard ? [[heard.newSince !== 0, `${heard.newSince} sounds started after the restart (${JSON.stringify(heard.log.slice(-Math.max(1, heard.newSince)))})`], [heard.voices !== 0, `${heard.voices} sounds still play`]] : []);
+        report.finished = true; break;
       }
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
       const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus': ['eating-thorsedlur', 700], 'wide-eating': ['eating-all', 500],
         'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus': ['trick-thorsedlur-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
-      for (const name of s.beats) if (BEAT_STILLS[name]) waited ||= await milestone(`beat-${name}`, BEAT_STILLS[name][0], BEAT_STILLS[name][1]);
+      // (level 2's, on Sólarsyllan: the sunset and the first stars, each pair's trick, the fossils glowing in a row, Mosi over them, the last wide shot under the stars)
+      const BEAT_STILLS_2 = { 'sun-sets': ['sun-sets-first-stars', 2600], 'trick-stegosaurus': ['trick-kambedlur-glow', 700], 'trick-triceratops': ['trick-thrihyrnur-butt', 800], 'trick-brontosaurus': ['trick-thorsedlur-reach-high', 1300],
+        'trick-pteranodon': ['trick-flugedlur-circle', 1600], 'fossils-glow': ['fossils-glow-in-a-row', 2000], 'mosi-cheer': ['mosi-cheers-over-the-fossils', 700], 'final-wide': ['final-wide-under-the-stars', 1200] };
+      const stills = LEVEL.number === 2 ? BEAT_STILLS_2 : BEAT_STILLS;
+      for (const name of s.beats) if (stills[name]) {
+        const took = await milestone(`beat-${name}`, stills[name][0], stills[name][1]); waited ||= took;
+        // (Task 7 fix round 1) the stars a child sees in the celebration's two wide shots (report.sky)
+        if (took && LEVEL.number === 2 && ['sun-sets', 'final-wide'].includes(name)) (report.sky ??= {})[name] = await ev(SKY_JS).catch(e => String(e.message ?? e));
+      }
       // The waiting friends at play during the search (the first two kinds of game the page starts).
       if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
       if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
@@ -952,6 +1165,109 @@ async function main() {
       if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
       if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
       if (s.bridge.boardwalkBuilt) waited ||= await milestone('walkway', 'walkway-built', 600);
+      // Level 2's first two tasks: the dark tunnel before, each step of the light, the lit tunnel with the pile in it, each hit, the pile coming down and on its steps.
+      if (LEVEL.number === 2 && s.tunnel) {
+        if (s.story.kind === 'work' && s.story.target === 'tunnel' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('tunnel-dark', 'tunnel-dark-before', 700);
+        if (s.bridge.active === 'light') for (const [n, at] of [[1, .38], [2, .7], [3, .99]]) if (s.tunnel.light >= at - .04) waited ||= await milestone(`light-${n}`, `light-stage-${n}`, 450);
+        if (s.bridge.active === 'light' && s.tunnel.light >= .99 && s.cam.shot === 'hero') waited ||= await milestone('tunnel-lit-pile', 'tunnel-lit-the-pile', 1100);
+        if (s.bridge.tunnelLit && s.tunnel.light >= .99 && !s.bridge.active && !s.scene && !s.cam.held && !s.cam.moving && s.story.target === 'rocks') waited ||= await milestone('tunnel-lit-glade', 'tunnel-lit-glade-view', 500);
+        if (s.bridge.active === 'headbutt' && s.cam.shot === 'hero' && s.wait) waited ||= await milestone('pile-before', 'pile-before-the-hits', 350);
+        if (s.bridge.active === 'headbutt') for (const n of [1, 2, 3]) if (s.tunnel.pile >= n) waited ||= await milestone(`hit-${n}`, `headbutt-hit-${n}`, n === 3 ? 200 : 120);
+        if (s.bridge.active === 'headbutt' && s.tunnel.pile >= 3 && s.tunnel.falling) waited ||= await milestone('pile-falling', 'pile-falling-into-steps', 900);
+        if (s.bridge.rocksFallen && !s.tunnel.falling && !s.scene && !s.cam.held && !s.cam.moving) waited ||= await milestone('pile-fallen', 'pile-fallen-steps', 700);
+      }
+      // Level 2's steps after the rockfall: the walk through the tunnel, the ledge before and each pull of the slab, the ramp, the cliff before, each wingbeat, the rope round the tree and drawn taut, the climb.
+      if (LEVEL.number === 2 && s.upper) {
+        const u = s.upper, a = u.action ?? {}, act = s.bridge.active;
+        if (act === 'through') {
+          // (final fix round 1, G-M1) the renderer's programs over the walk through: the last count before the cut, the first after it and at the line-up.
+          // The plates' lamp is never hidden now (it goes dark), so the cut adds no light and no lit material is compiled anew there.
+          const p = (report.throughPrograms ??= { beforeCut: null, afterCut: null, lineup: null, samples: [] }), cut = ['exit', 'lineup'].includes(a.phase);
+          if (!cut) p.beforeCut = s.programs; else if (p.afterCut === null) p.afterCut = s.programs;
+          if (a.phase === 'lineup') p.lineup = s.programs;
+          if (`${p.samples.at(-1)?.[0]}:${p.samples.at(-1)?.[1]}` !== `${a.phase}:${s.programs}`) p.samples.push([a.phase, s.programs]);
+          if (a.phase === 'gather') waited ||= await milestone('through-gather', 'through-everyone-runs-to-the-tunnel', 600);
+          if (a.phase === 'enter' && s.cam.shot === 'hero') waited ||= await milestone('through-enter', 'through-into-the-lit-tunnel', 700);
+          if (a.phase === 'exit' && a.arrived >= 1) waited ||= await milestone('through-exit', 'through-out-of-the-tunnel', 500);
+          if (a.phase === 'lineup') waited ||= await milestone('through-floor', 'through-on-the-floor-before-the-ledge', 300);
+        }
+        if (s.story.kind === 'work' && s.story.target === 'ledge' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('ledge-before', 'ledge-before-the-slab-comes-down', 900);
+        if (act === 'reach') {
+          if (u.slab <= 32) waited ||= await milestone('slab-1', 'slab-step-1', 350);
+          if (u.slab <= 11) waited ||= await milestone('slab-2', 'slab-step-2', 350);
+          if (u.slab <= -23) waited ||= await milestone('slab-3', 'slab-ramp-down', 500);
+          if (a.phase === 'ascend') waited ||= await milestone('ramp-walk', 'everyone-walks-up-the-ramp', 700);
+        }
+        if (s.story.kind === 'work' && s.story.target === 'cliff' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('cliff-before', 'cliff-before-the-rope-flies', 900);
+        if (act === 'fly') {
+          if (a.phase === 'ready' && a.given >= 1) waited ||= await milestone('wing-0', 'wingbeat-0-rope-lifted', 300);
+          if (a.phase === 'leg' && a.done >= 1) waited ||= await milestone('wing-1', 'wingbeat-1-up-the-cliff', 500);
+          if (a.phase === 'leg' && a.done >= 2) waited ||= await milestone('wing-2', 'wingbeat-2-to-the-tree', 400);
+          if (a.phase === 'wrap') waited ||= await milestone('rope-wrap', 'rope-round-the-tree', 1100);
+          if (a.phase === 'tie') waited ||= await milestone('rope-taut', 'rope-drawn-taut', 1000);
+          if (a.phase === 'cheer') waited ||= await milestone('rope-tied', 'rope-tied-the-flugedlur-land', 500);
+        }
+        if (act === 'climb') {
+          if (s.cam.shot === 'wide' && !seen.has('climb-follow')) waited ||= await milestone('climb-start', 'climb-start-the-rope-beside-the-path', 600);
+          if (s.cam.shot === 'follow') waited ||= await milestone('climb-follow', 'climb-handrail-follow', 700);
+          if (s.cam.shot === 'wide' && seen.has('climb-follow')) waited ||= await milestone('climb-high', 'climb-high-on-the-cliff', 900);
+          if (a.phase === 'cheer') waited ||= await milestone('climb-top', 'climb-everyone-on-the-rim', 500);
+        }
+        // Task 6: the trunk standing at the gap, the rope flown out and tied at its top, the nine on the rope, each tilt, the fall and its dust, the bridge, the walk, Sólarsyllan.
+        if (s.story.kind === 'work' && s.story.target === 'trunk' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('trunk-before', 'trunk-standing-at-the-gap', 900);
+        if (act === 'pull') {
+          if (a.phase === 'leg' && s.cam.shot === 'follow') waited ||= await milestone('pull-flight', 'pull-rope-flown-over-the-gap', 1400);
+          if (a.phase === 'knot') waited ||= await milestone('pull-knot', 'pull-rope-tied-at-the-top', 700);
+          if (a.phase === 'ready' && (a.given ?? 0) === 0) waited ||= await milestone('pull-line', 'pull-nine-on-the-rope', 500);
+          if (a.phase === 'landed') waited ||= await milestone('pull-fall', 'pull-trunk-falls-dust', 220);
+          if (a.phase === 'cheer') waited ||= await milestone('pull-bridge', 'pull-trunk-lies-as-a-bridge', 600);
+        }
+        if (act === 'walk') {
+          if (s.cam.shot === 'follow') waited ||= await milestone('walk-across', 'walk-across-the-trunk', 900);
+          if (s.cam.shot === 'follow' && seen.has('walk-across')) waited ||= await milestone('walk-across-2', 'walk-across-the-trunk-later', 1200);
+          if (a.phase === 'cheer' && !report.walk) { report.walk = { seconds: a.walked ?? null, arrived: a.times ?? null }; step('the walk', report.walk); }
+          if (a.phase === 'cheer') waited ||= await milestone('walk-sun', 'walk-everyone-on-solarsyllan', 400);
+        }
+        if (o.restartAt === 'pull' && act === 'pull' && a.phase === 'tug' && u.trunk && u.trunk.angle > 3) {
+          report.beforePullRestart = await ev(RESTART_JS); step('restart while everyone pulls', { phase: a.phase, trunk: report.beforePullRestart.trunk, rope2: report.beforePullRestart.rope2Visible, basket: report.beforePullRestart.basketText });
+          await shot('pull-before-the-restart');
+          await ev('window.__memory.restart()'); await sleep(1600);
+          report.restartCheck = await ev(RESTART_JS); step('after the restart', { trunk: report.restartCheck.trunk, rope2: report.restartCheck.rope2Visible, flyers: report.restartCheck.flyersHome, basket: report.restartCheck.basketText, upper: report.restartCheck.upper && report.restartCheck.upper.where, flights: report.restartCheck.flights });
+          // (the basket, the flights, the second rope and the glade are in restartLeftovers now, with the rest of a clean board)
+          const c = report.restartCheck;
+          report.restartPull = restartVerdict('pull', [[!c.trunk || Math.abs(c.trunk.angle) > .01, `the trunk is not upright: ${JSON.stringify(c.trunk)}`], [!/^0\s*\/\s*4$/.test((c.basketText || '').trim()), `the basket is not 0 / 4 (${JSON.stringify(c.basketText)})`]]);
+          await shot('restarted-after-the-pull'); report.finished = true; break;
+        }
+        if (o.restartAt === 'rope' && act === 'fly' && ['leg', 'wrap'].includes(a.phase) && u.rope) {
+          await sleep(500);
+          report.beforeRopeRestart = await ev(RESTART_JS); step('restart while the rope is in flight', { phase: a.phase, rope: u.rope, flights: report.beforeRopeRestart.flights, upper: report.beforeRopeRestart.upper?.where });
+          await ev('window.__memory.restart()'); await sleep(1600);
+          report.restartCheck = await ev(RESTART_JS); step('after the restart', { upper: report.restartCheck.upper, flights: report.restartCheck.flights, ropeVisible: report.restartCheck.ropeVisible, babiesVisible: report.restartCheck.babiesVisible, babiesTilted: report.restartCheck.babiesTilted, lowerVisible: report.restartCheck.lowerVisible, hiddenCards: report.restartCheck.hiddenCards, basket: report.restartCheck.basketText });
+          // (the rope, the flights, the glade and the tilted friends are in restartLeftovers; before it, the rope must have been in flight)
+          restartVerdict('rope', [[!report.beforeRopeRestart?.ropeVisible, 'the rope was not drawn when the restart came: it tested nothing']]);
+          await shot('restarted-after-the-rope'); report.finished = true; break;
+        }
+        // (final fix round 1, G-I1) The restart the instant the group is cut to the upper gorge: polled every few milliseconds from the first frame of the walk
+        // through, and restarted in the same breath as the page is seen past the cut, so Mosi is still hidden in the exit's dark at .02 of his size.
+        if (o.restartAt === 'through' && act === 'through') {
+          let before = await ev(THROUGH_CUT_JS); const until = Date.now() + 20000;
+          while (before && before.phase !== 'exit' && Date.now() < until) { await sleep(10); before = await ev(THROUGH_CUT_JS); }
+          report.beforeThroughRestart = before; step('restart at the cut to the upper gorge', before);
+          await sleep(1600);
+          report.restartCheck = await ev(RESTART_JS); report.afterThroughRestart = await ev(THROUGH_JS); step('after the restart', report.afterThroughRestart);
+          const b = before?.mosi, m = report.afterThroughRestart?.mosi;
+          restartVerdict('through', [
+            [!before, 'window.__gorge is missing: run it with --query qa=1'],
+            [before && before.phase !== 'exit', `the restart did not come at the cut (the walk through was at ${before?.phase})`],
+            [b && b.visible && b.scale >= b.base * .9, `Mosi was already out of the dark at the restart (${JSON.stringify(b)}): it tested nothing`],
+            [before && (!before.upperVisible || before.lowerVisible), `the cut had not shown the upper gorge yet (${JSON.stringify(before)}): it tested nothing`],
+            [m && !m.visible, 'Mosi is hidden'],
+            [m && (m.base === null || Math.abs(m.scale - m.base) > 1e-3), `Mosi's scale is ${m?.scale}, his own ${m?.base}`],
+            [m && m.fromSpot > .5, `Mosi is ${m?.fromSpot} m from his spot in the glade`],
+          ]);
+          await shot('restarted-after-the-tunnel'); report.finished = true; break;
+        }
+      }
       if (waited) continue;
 
       const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
@@ -972,25 +1288,30 @@ async function main() {
           tapWait = target;
           // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).
           if (bark) { barkTaps++; await sleep(rapid ? 100 : 350); if (shots) await milestone(`bark-still-${barkTaps}`, `bark-still-${barkTaps}`, 0); await sleep(rapid ? 0 : 150); }
-          else await sleep(rapid ? 100 : 500);
+          else await sleep(rapid ? 100 : LEVEL.number === 2 ? 250 : 500);
           for (let i = 1; i <= count; i++) {
             const tapped = await ev(tapJs([`task-${target}`], 1, 0));
             step(`tap along ${target} ${bark ? barkTaps : i}`, { taken: tapped });
             // The picture once this step has landed (a step of the lift takes about 0.6 s, a third of the roll 0.77 s, the big word
             // of a panel is up at once).
-            if (shots) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
+            // (level 2's steps have their own pictures, by the light and the pile; a picture here would hold the next tap back past the wait's 4 s)
+            if (shots && LEVEL.number !== 2) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
+            // (the trunk: a child pulls about once a second, and each pull is a lean of a second; a picture as each tilt lands, all three inside the wait's 4 s)
+            if (target === 'trunk') { await sleep(rapid ? 200 : 820); if (shots) await milestone(`pull-tilt-${i}`, `pull-tilt-${i}`, 0); continue; }
             await sleep(rapid ? 120 : 250);
           }
         }
       } else if (s.who.open && mayAct) {
         // The bubbles: at the branch, the log and the bark in the story modes one wrong friend first (at the branch the
         // Þríhyrnur, at the log the Kambeðlur, the only other free pair there, at the bark the Þórseðlur), then the right one.
-        const right = RIGHT[s.who.asking], wrong = s.who.candidates.find(sp => sp === WRONG[s.who.asking] && sp !== right) ?? s.who.candidates.find(sp => sp !== right);
-        const pick = story && !wrongDone.has(s.who.asking) && ['branch', 'log', 'bark'].includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
-        if (pick === wrong && pick) wrongDone.add(s.who.asking);
+        const right = RIGHT[s.who.asking], tried = (wrongTried[s.who.asking] ??= new Set()), first = o.wrong?.[s.who.asking] ?? WRONG[s.who.asking];
+        const wanted = o.wrongAll ? s.who.candidates.filter(sp => sp !== right && !tried.has(sp)).sort((a, b) => (b === first) - (a === first)) : tried.size ? [] : [s.who.candidates.find(sp => sp === first && sp !== right) ?? s.who.candidates.find(sp => sp !== right)].filter(Boolean);
+        const wrong = wanted[0];
+        const pick = story && OBSTACLE_IDS.includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
+        if (pick === wrong && pick) tried.add(pick);
         if (pick) await act(`who-${pick}`, `pick ${pick} for the ${s.who.asking}${pick === right ? '' : ' (the wrong friend, on purpose)'}`);
         else if (s.cancel) { await ev(`document.getElementById('cancel-choice').click()`); step('close the bubbles: nobody there can do it'); }
-      } else if (s.story.kind === 'work' && s.story.available && s.story.target && mayAct && ['ready', 'won'].includes(s.phase) && !s.walking && Date.now() - lastAsk > 1500
+      } else if (o.mode !== 'search' && s.story.kind === 'work' && s.story.available && s.story.target && mayAct && ['ready', 'won'].includes(s.phase) && !s.walking && Date.now() - lastAsk > 1500
         && !(story && !o.usualOrder && s.story.target === 'log' && s.cards.some(c => c.species && c.status !== 'matched'))) {
         // (The story modes find every pair before the log, so the Kambeðlur can be its wrong friend; --usual-order does not.)
         // Hesitate once (full mode, at the branch) so the gold arrow shows, then tap the glowing obstacle.
@@ -999,8 +1320,10 @@ async function main() {
           if (await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 12000, 'the gold arrow') >= 0) await milestone('arrow', 'gold-arrow', 150);
           continue;
         }
+        // (level 2: Mosi says what the tunnel and the rockfall are when they come; a child listens to him first, so the driver waits for his line to end)
+        if (LEVEL.number === 2 && !seen.has(`listened-${s.story.target}`)) { seen.add(`listened-${s.story.target}`); await sleep(600); await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 9000, "Mosi's line to end"); continue; }
         lastAsk = Date.now();
-        if (['branch', 'log', 'bark'].includes(s.story.target)) mark(`${s.story.target}-start`);
+        if (OBSTACLE_IDS.includes(s.story.target)) mark(`${s.story.target}-start`);
         const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
         await act(`task-${s.story.target}`, `tap the ${s.story.target}`, { since: +((Date.now() - lastProgress) / 1000).toFixed(1), at: where });
       } else if (s.phase === 'one-open' && mayAct && s.cards.some(c => c.status === 'open' && c.item)) {
@@ -1025,7 +1348,7 @@ async function main() {
       } else if (s.phase === 'ready' && mayAct && !s.bridge.asking) {
         let id;
         // With every friend found, the bridge built and gifts left (--gifts-last): Mosi says so, the gold arrow points at a shut leaf and a tap on the staging spot says the same.
-        if (wantGifts && o.giftsLast && s.story.key === 'gifts-left' && !giftsLeftChecked) {
+        if (wantGifts && o.giftsLast && /gifts-left$/.test(s.story.key) && !giftsLeftChecked) {
           giftsLeftChecked = true; step('every friend home, the bridge built, gifts left: hesitate for the arrow');
           const speechBefore = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft').length;
           // The wait is played in the search view (camera intent 'glade'): once the glide has settled, every shut leaf is inside the frame.
@@ -1034,10 +1357,10 @@ async function main() {
           const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
           const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
           report.giftsArrow = await ev(ARROW_JS).catch(e => ({ error: e.message })); step('the gold arrow', report.giftsArrow ?? {});
-          const stagingButton = await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
+          const stagingButton = LEVEL.number > 1 ? { present: false } : await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
           const before = await ev(SNAPSHOT_JS);
           const leafButtons = await ev(LEAF_BOXES_JS(':not(:disabled)')); delete leafButtons.boxes; // the shut leaves' buttons as the wide view lays them out
-          await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
+          if (LEVEL.number === 1) await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
           const after = await ev(SNAPSHOT_JS); await milestone('gifts-left-tap', 'gifts-left-staging-tap', 100);
           const spoken = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft');
           report.giftsLeft = { stagingButton, story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
@@ -1065,21 +1388,27 @@ async function main() {
         step('close stray bubbles', { asking: s.bridge.asking });
       }
       // Rapid: while a script holds the camera, tap everything anyway, every 0.4 s.
-      if (rapid && (s.scene || s.cam.held) && Date.now() - lastHammer > 400) { lastHammer = Date.now(); await ev(HAMMER_JS); }
+      if (rapid && (s.scene || s.cam.held) && Date.now() - lastHammer > 400) { lastHammer = Date.now(); await ev(hammerJs(LEVEL)); }
       await sleep(rapid ? 120 : 150);
     }
     report.roundSeconds = +((Date.now() - roundStart) / 1000).toFixed(1);
     for (const entry of report.marks) entry.round = +(entry.at - roundStart / 1000).toFixed(1);
     try { const end = await ev(SNAPSHOT_JS); report.found = end.found; report.basketEnd = end.basket; } catch {}
+    try { report.storage = await ev("(() => { try { return localStorage.getItem('minnisspil.unlocked'); } catch (e) { return 'blocked: ' + e.message; } })()"); } catch {}
     if (retryWatch) report.blockedRetry.push({ ...retryWatch, neverRetried: true });
 
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
+    // (final fix round 1, T-M11) The spec: no watch longer than about 8 s without a cut or a tap (Ruling 31). longestWatch is the longest stretch of game time,
+    // while a script, a task or a wrong friend's go runs, with no new framing (a cut or the start of a glide) and no tap: over 9 s fails the run.
+    // A slowed run (--cpu-throttle, --clearance) is not timed: its seconds are the slow machine's.
+    const watch = report.timelineCheck?.longestWatch;
+    if (watch && watch.seconds > 9 && !o.cpuThrottle && !o.clearance) errors.push(`the longest watch is ${watch.seconds} s with no new framing and no tap (over 9 s): ${JSON.stringify({ act: watch.act, shot: watch.shot, caption: watch.caption })}`);
     // The glide from the search view into the crossing once the last gift pair has landed (--gifts-last): from the camera on every frame.
     try {
       const track = await ev('window.__camTrack');
-      if (o.giftsLast && track?.length) {
+      if (o.giftsLast && track?.length && LEVEL.number === 1) {
         const [w, h] = o.size.split('x').map(Number);
         report.giftsGlide = analyseGlide(track, w / h, report.giftsView?.mosiAt);
         const keep = report.giftsGlide.landedAt != null ? track.filter(f => f.t >= report.giftsGlide.landedAt - 1.5) : track.slice(-300);
@@ -1089,9 +1418,10 @@ async function main() {
     } catch (e) { report.giftsGlide = { error: e.message }; }
     try {
       // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
-      report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds');
-      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => s.id === 'gifts3');
-      report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts3: report.spoken.filter(s => s.id === 'gifts3').length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
+      report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds'); report.audioLog = await ev('window.__audioLog');
+      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === (LEVEL.number === 2 ? 'fossils-glow' : 'mosi-cheer')), giftsLine = LEVEL.number === 2 ? 'gifts4' : 'gifts3', wonLine = LEVEL.number === 2 ? 'g2_won' : 'won', gifts = report.spoken.find(s => s.id === giftsLine);
+      // (level 2: g2_won as the Flugeðlur circle, gifts4 over the glowing row; giftsLag from the row's beat)
+      report.speechCheck = { won: report.spoken.filter(s => s.id === wonLine).length, [giftsLine]: report.spoken.filter(s => s.id === giftsLine).length, wonBeforeGifts: (report.spoken.find(s => s.id === wonLine)?.t ?? Infinity) < (gifts?.t ?? -Infinity), giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
         giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
     } catch {}
     // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
@@ -1111,11 +1441,11 @@ async function main() {
       if (report.timelineCheck) report.timelineCheck.takes = takes.length;
       if (o.clearance) report.clearance = await ev('window.__clr');
     } catch {}
-    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, marsh: report.timelineCheck.marsh?.layToBoardwalk ?? null, grove: report.timelineCheck.grove?.firstStepToArrive ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
+    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, marsh: report.timelineCheck.marsh?.layToBoardwalk ?? null, grove: report.timelineCheck.grove?.firstStepToArrive ?? null, sunLedge: report.timelineCheck.sunLedge?.watchAfterArrival ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
     try {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
-      report.renderMax = await ev('window.__max');
+      report.renderMax = await ev('window.__max'); report.sight = await ev('window.__sight || null');
       // What one world.getDebug() costs here (it used to run on every frame for window.__demoStats; now only when it is read).
       report.debugCostMs = await ev("(() => { const t = performance.now(); for (let i = 0; i < 20; i++) window.__memory.stats({ collision: false }); return +((performance.now() - t) / 20).toFixed(2); })()").catch(() => null);
       // The ending render scale: a full 1280x800 round that ends below 1 is flagged (the scale must recover once the frames are fast again).
@@ -1135,9 +1465,14 @@ async function main() {
   } catch (e) {
     fatal = e; errors.push(`driver: ${e.stack || e.message}`.slice(0, 900));
   } finally {
-    if (o.video) {
-      await Promise.allSettled(frames.writes);
-      report.video = await makeVideo(framesDir, outDir, frames);
+    // (final fix round 1, T-M12) the browser and the server go first: an encode can take long, and a throw in it must not leave Edge running
+    if (o.video) await Promise.allSettled(frames.writes);
+    await stopBrowser(browser);
+    server.close();
+    process.off('SIGINT', onInterrupt);
+    if (o.video) try {
+      report.video = await makeVideo(framesDir, outDir, frames, { encode: o.encode });
+      if (o.encode && report.video.file) report.soundtrack = await makeSoundtrack(outDir, report, frames.stamps.find(Number.isFinite), report.video.videoSeconds);
       // Each mark's place in round.mp4: seconds after the first screencast frame; the timeline check's moments too.
       const first = frames.stamps.find(Number.isFinite);
       if (Number.isFinite(first)) for (const entry of report.marks ?? []) entry.video = +(entry.at - first).toFixed(1);
@@ -1148,18 +1483,16 @@ async function main() {
           groveFirstStep: video(check.grove?.firstStep), groveArrive: video(check.grove?.arrive), groveInput: video(check.grove?.input),
           longestWatchFrom: video(check.longestWatch?.from), longestWatchTo: video(check.longestWatch?.to) };
       }
-    }
+    } catch (e) { errors.push(`video: ${e.stack || e.message}`.slice(0, 900)); }
     report.finishedAt = new Date().toISOString();
     report.totalSeconds = T();
-    await stopBrowser(browser);
-    server.close();
     await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
   }
   const r = report;
   console.log(`${r.finished ? 'FINISHED' : 'NOT FINISHED'} ${o.mode} ${o.size}: round ${r.roundSeconds}s, ${r.errors.length} errors, ${r.steps.length} steps, perf ${JSON.stringify(r.perf)}, render ${JSON.stringify(r.render)}`);
   if (r.video) console.log(`Video: ${r.video.file ?? 'none'} (${r.video.frames} frames${r.video.error ? ', ' + r.video.error : ''})`);
   if (r.marks?.length) console.log(`Marks: ${r.marks.map(m => `${m.name} ${m.video ?? m.round}s`).join(', ')}`);
-  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
+  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, Sólarsyllan ${JSON.stringify(r.timelineCheck.sunLedge)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
   if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
   if (r.clearance) console.log(`Plants: ${r.clearance.plants?.samples} samples, closest gap ${r.clearance.plants?.minimum} m ${JSON.stringify(r.clearance.plants?.closest)}`);
   if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
@@ -1167,6 +1500,8 @@ async function main() {
   if (r.blocked) console.log(`Blocked walks (bridge-blocked): ${r.blocked.length}${r.blocked.length ? ' ' + JSON.stringify(r.blocked) : ''}; retried by itself: ${JSON.stringify((r.blockedRetry ?? []).map(x => ({ id: x.id, reason: x.reason, seconds: x.secondsToRetry, arrow: x.arrowAt != null, captions: x.captions })))}`);
   if (r.resolution) console.log(`Resolution scale: end ${r.resolution.end}, lowest ${r.resolution.min}, ${r.resolution.changes.length} changes${r.resolution.afterRelief !== undefined ? `, ${r.resolution.afterRelief} after 15 s without the throttle` : ''}${r.resolution.flag ? ' - FLAG: ' + r.resolution.flag : ''}`);
   if (r.resolutionRestart) console.log(`Resolution across the restart: ${JSON.stringify(r.resolutionRestart)}`);
+  if (r.restartVerdict) console.log(`Restart (${r.restartVerdict.mode}): ${r.restartVerdict.passed ? 'clean' : `NOT CLEAN: ${r.restartVerdict.bad.join('; ')}`}`);
+  if (r.throughPrograms) console.log(`Programs over the through cut: ${r.throughPrograms.beforeCut} before, ${r.throughPrograms.afterCut} after, ${r.throughPrograms.lineup} at the line-up (${JSON.stringify(r.throughPrograms.samples)})`);
   if (r.cancelCheck) console.log(`"Aftur" check with the bubbles open: ${JSON.stringify(r.cancelCheck)}`);
   if (r.debugCostMs != null) console.log(`One world.getDebug() call: ${r.debugCostMs} ms`);
   console.log(`GPU: ${r.gpu}`);
@@ -1211,7 +1546,7 @@ function analyseGlide(track, aspect, mosiAt) {
 // while the scene moves here), so the frames are laid out by the time the browser stamped on each (frames.txt, ffmpeg's
 // concat list) and the video plays at the speed the round was played. Without usable stamps it falls back to a plain
 // 15 fps sequence, and the report's captureSeconds against videoSeconds shows by how much that speed is off.
-async function makeVideo(framesDir, outDir, frames) {
+async function makeVideo(framesDir, outDir, frames, { encode = true } = {}) {
   const info = { frames: frames.n, file: null, bytes: null, captureSeconds: null, videoSeconds: null, timing: null };
   if (!frames.n) { info.error = 'the screencast sent no frames'; return info; }
   const stamps = frames.stamps;
@@ -1238,11 +1573,69 @@ async function makeVideo(framesDir, outDir, frames) {
     args = ['-framerate', String(VIDEO_FPS), '-i', path.join(framesDir, '%05d.jpg'), '-vf', pad];
     info.videoSeconds = +(frames.n / VIDEO_FPS).toFixed(1);
   }
-  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '23', file], { encoding: 'utf8', timeout: 10 * 60 * 1000 });
+  await fsp.writeFile(path.join(outDir, 'frames-stamps.json'), JSON.stringify(stamps));
+  if (!encode) { info.encoded = false; return info; }
+  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', file], { encoding: 'utf8', timeout: 60 * 60 * 1000 });
   if (r.status !== 0) { info.error = `ffmpeg failed: ${(r.stderr || r.error?.message || '').slice(0, 400)}`; return info; }
   info.file = path.relative(ROOT, file).replace(/\\/g, '/');
   info.bytes = fs.statSync(file).size;
   return info;
 }
 
-main().catch(e => { console.error(e); process.exit(2); });
+// The sounds the page played, laid under the video: each recorded cue of the audio log (its file, when it began by the wall clock, how loud and how fast) and each of Mosi's lines
+// (the speech log), mixed to one mono track in the file's own time (the screencast's first frame is 0) and muxed into round-sound.mp4. The music is left out: the owner
+// listens to the cues and the voice. The envelope of each cue is the page's own (full for 70 % of it, then down to nothing).
+async function makeSoundtrack(outDir, report, first, seconds) {
+  if (!Number.isFinite(first) || !(seconds > 0)) return { error: 'no first frame stamp' };
+  const RATE = 44100, total = Math.ceil((seconds + 2) * RATE), mix = new Float32Array(total), cache = new Map();
+  const pcm = file => {
+    if (!cache.has(file)) {
+      const r = spawnSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 28 });
+      cache.set(file, r.status === 0 ? new Float32Array(r.stdout.buffer.slice(r.stdout.byteOffset, r.stdout.byteOffset + r.stdout.length)) : null);
+    }
+    return cache.get(file);
+  };
+  const lay = (data, at, level, rate = 1, fade = true) => {
+    if (!data || !(at >= -1)) return false;
+    const start = Math.round(at * RATE), n = Math.floor(data.length / rate);
+    for (let i = 0; i < n; i++) {
+      const j = start + i; if (j < 0 || j >= total) continue;
+      const x = i * rate, k = Math.floor(x), f = x - k, value = (data[k] ?? 0) * (1 - f) + (data[k + 1] ?? 0) * f, u = i / n;
+      mix[j] += value * (fade && u > .7 ? level * Math.pow(.0001 / Math.max(level, .0002), (u - .7) / .3) : level);
+    }
+    return true;
+  };
+  // (a cue's file: as the soundscapes' manifests name it, which may be a path into another game's sounds, level 2's claps and cheer from
+  // Söngur Slóeðlu: Task 7 fix round 1; else <id>.mp3 beside them)
+  const named = new Map();
+  for (const dir of ['gorge/', '']) {
+    const file = path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, 'manifest.json');
+    if (fs.existsSync(file)) for (const [id, entry] of Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')).sfx ?? {})) if (!named.has(id)) named.set(id, path.resolve(path.dirname(file), entry.file));
+  }
+  const cueFile = id => [named.get(id), ...['gorge/', ''].map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3'))].find(file => file && fs.existsSync(file));
+  let cues = 0, voices = 0;
+  for (const cue of report.audioLog ?? []) { const file = cueFile(cue.asset); if (file && lay(pcm(file), cue.at / 1000 - first, cue.level ?? .5, cue.rate ?? 1)) cues++; }
+  for (const line of report.spoken ?? []) { const file = path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3'); if (line.at && fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false)) voices++; }
+  let peak = 0; for (const v of mix) peak = Math.max(peak, Math.abs(v));
+  if (peak > .95) for (let i = 0; i < mix.length; i++) mix[i] *= .95 / peak;
+  const track = path.join(outDir, 'soundtrack.m4a'), silent = path.join(outDir, 'round.mp4'), sound = path.join(outDir, 'round-sound.mp4');
+  let r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'f32le', '-ar', String(RATE), '-ac', '1', '-i', '-', '-c:a', 'aac', '-b:a', '128k', track], { input: Buffer.from(mix.buffer), maxBuffer: 1 << 28 });
+  if (r.status !== 0) return { error: String(r.stderr).slice(0, 300) };
+  r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', silent, '-i', track, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'copy', '-shortest', sound], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
+  if (r.status !== 0) return { error: String(r.stderr).slice(0, 300) };
+  return { file: path.relative(ROOT, sound).replace(/\\/g, '/'), cues, voices, peak: +peak.toFixed(2), seconds: +seconds.toFixed(1) };
+}
+
+// --encode-only: the video and its sound from the frames of an earlier --video run (--no-encode) in --out, with no browser.
+async function encodeOnly(o) {
+  const outDir = path.resolve(ROOT, o.out), report = JSON.parse(await fsp.readFile(path.join(outDir, 'report.json'), 'utf8'));
+  const framesDir = path.join(outDir, 'frames'), names = (await fsp.readdir(framesDir)).filter(name => name.endsWith('.jpg')), stamps = JSON.parse(await fsp.readFile(path.join(outDir, 'frames-stamps.json'), 'utf8'));
+  const frames = { n: names.length, stamps };
+  report.video = await makeVideo(framesDir, outDir, frames, { encode: true });
+  if (report.video.file) report.soundtrack = await makeSoundtrack(outDir, report, stamps.find(Number.isFinite), report.video.videoSeconds);
+  await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+  console.log('Video:', JSON.stringify(report.video), 'Sound:', JSON.stringify(report.soundtrack));
+}
+
+if (process.argv.includes('--encode-only')) encodeOnly(parseArgs(process.argv.slice(2))).catch(e => { console.error(e); process.exit(2); });
+else main().catch(e => { console.error(e); process.exit(2); });
