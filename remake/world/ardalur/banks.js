@@ -286,7 +286,8 @@ export function outcropProps(route, heightAt) {
 /**
  * The steps that grow one section's real plants (a generator for the build queue). `library` is the forest's species library (one
  * for the whole valley, so each shape is made once), `materials` { solid, thin } (look.js: createPlantMaterials), `props` what the
- * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter), `low`
+ * animals sit on and `clear` where nothing else may grow (animals.js: the lily pads, the log, the stone, round each critter; a circle
+ * with `over` keeps out only plants taller than that, as life.js's herd's ways), `low`
  * the animal groups ({ x, z, side }) round which only low plants grow (LOW), `views` the still shots' (VIEW), `atlas` and `cards`
  * the far trees' pictures and their material (world/forest/cards.js: a tree that has one is drawn as it far off), `grove` the
  * valley's seed for its groves (groveAt: the trees of the near and far zones grow thick in them, thin in the glades). Returns { group,
@@ -348,7 +349,9 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     }
     const body = bodyOf(coarse, scale);
     if (inHerWay(index, px, y, pz, body.r, body.h, near)) return;
-    if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) return; // an animal or what it sits on
+    // an animal or what it sits on; a circle with `over` keeps out only what stands taller than that (the herd's way: its grass stays)
+    const standing = Math.max(coarse.height, middle?.height ?? 0) * scale;
+    if (clear.some(c => (c.over === undefined || standing > c.over) && Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) return;
     if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) return;
     if (TREES.has(name) && meadow && Math.hypot(px - meadow[0], pz - meadow[1]) < meadow[2] + body.r) return; // the herd's open meadow
     if (TREES.has(name) && openAt(px, pz)) return; // a group's glade

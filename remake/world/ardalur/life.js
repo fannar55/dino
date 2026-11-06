@@ -5,9 +5,9 @@
 //   C: six trees on the banks between the groups, four birds in each, fly up as she passes.
 //   F and G: at the big call, rows of small lizards stream out of the groves toward the far pool, and flocks of birds rise out of
 //   the groves above the falls and fly off toward it (the life spec 2F and 2G).
-//   F: a herd of the owner's grazer grazes above the falls, in three groups: in the meadow the wide shot looks over before the call,
-//   and on the open top of the step, south and north, which the slow circle sees after it (the north under reduced motion). At the
-//   call each lifts its head, walks, then trots toward the far pool to the end of its open ground, and stands looking.
+//   F: a herd of the owner's grazer grazes above the falls, in three groups: in the open dale near the wide shot before the call,
+//   in the step's north-east corner that the slow circle passes close as they lift their heads, and on the step's south side that it
+//   sees after. At the call each lifts its head, walks, then trots toward the far pool to the end of its open ground, and stands looking.
 //
 //   const life = createLife(world, route, { heightAt, library, crowds, critters }); // library: the forest's species (the trees'
 //                        crowns); critters: { smaedla, grasbitur } (animals.js loadCritters), the Fen's salamander stands in for the
@@ -18,6 +18,7 @@
 //   life.flocks          [{ id, from, dir, delay, members }]: the flocks of birds, `from` the middle of the grove they sit in
 //   life.herd            [{ id, at, dir, room, members }]: the herd's groups, `room` how far they go ([] without the grazer)
 //   life.props           the trees the birds sit in, for the plants to grow (banks.js); life.clear  where nothing else may grow
+//                        (the herd's ways: nothing taller than GRAZE.low)
 //   life.update(dt, t)   each frame, on the game clock t; the flight's own time is world.flightTime (null or < 0 outside the flight)
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
 //   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows, the flocks and the herd set off
@@ -39,8 +40,9 @@ import { fenShare } from './terrain.js';
 /**
  * How much larger than life each is drawn, to read from her back (as animals.js SCALE). The rows' small lizards are seen from 20 to
  * 50 m above them, 40 to 150 m off: 2 m long (C's, seen close by the river, are 1.2 m); the salamander stands in at about that size.
+ * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06).
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 2 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3 };
 const TAU = Math.PI * 2;
 const clamp01 = k => Math.min(1, Math.max(0, k));
 const smooth = k => { const x = clamp01(k); return x * x * (3 - 2 * x); };
@@ -65,10 +67,10 @@ const STRIDERS = { from: 40, every: 55, count: 8, e: [-2.0, -2.5, -3.0], reach: 
 // F and G, the big call's rows of small lizards: each huddles in its grove, its front at `from`, and runs toward `to` (the far pool's
 // middle if not given) `length` metres (to `to` if not given), setting off `delay` s after the call. Each is placed where the flight's
 // shots after the call see it (measured on the flight camera, 2026-11-06): F1 over the land above the falls to the top of its step (the
-// vista, under reduced motion); F2 and F3 out of the groves at the step's foot (the slow circle round her); G1 and G2 across the low
-// land toward the far pool's north bank (the glide down). All at least 25 m from her path, seen from above.
+// vista, under reduced motion), south of the herd's corner group; F2 and F3 out of the groves at the step's foot (the slow circle round
+// her); G1 and G2 across the low land toward the far pool's north bank (the glide down). All at least 25 m from her path, from above.
 const ROWS = [
-  { id: 'F1', where: 'F', from: [-1410, 20], length: 62, delay: 0.5 },
+  { id: 'F1', where: 'F', from: [-1408, 10], length: 60, delay: 0.5 },
   { id: 'F2', where: 'F', from: [-1300, -40], length: 90, delay: 0.9 },
   { id: 'F3', where: 'F', from: [-1332, 1.5], length: 100, delay: 1.3 },
   { id: 'G1', where: 'G', from: [-1125, -4], to: [-990, 24], delay: 0.7 },
@@ -88,23 +90,26 @@ const FLOCKS = [
   { id: 'flock-4', from: [-1505, 5], delay: 2.9 },
 ];
 const FLOCK = { count: 18, canopy: 8, spread: 6, stagger: 0.6, rise: 16, riseFor: 3, climb: 1.2, speed: 9, accel: 2.5, gone: 22, beat: 7 };
-// F, the herd: the owner's grazer (drawn 2.5 m x LIFE_SCALE long), `count` of each group on a disc `spread` m round `at`: the meadow
-// the wide shot (the vista, 124-132 s) looks over, and the open top of the step east of the groves: its south side, which the slow
-// circle after the call frames (136-150 s, 6 to 17 px a metre; the meadow is out of its picture), and its north side, which the circle
-// frames under reduced motion, a fixed vista that does not see the south side (measured on the flight camera, 2026-11-06).
+// F, the herd: the owner's grazer (drawn 2.5 m x LIFE_SCALE long), `count` of each group on a disc `spread` m round `at` (none nearer
+// another than its own length). Measured on the flight camera (2026-11-06): the dale between the stream and the groves, 90-110 m
+// from the wide shot (the vista, 124-131 s: 20 px tall, not the meadow's 6 at 180 m), north of its pond and 20 m from her way; the
+// step's north-east corner, which the slow circle passes 40-60 m off as they lift their heads (call to 7 s after it: 30-50 px), and
+// which the circle frames under reduced motion, a fixed vista; and the step's south side, which the slow circle frames from 2 s
+// after the call to its end (20 px).
 const HERD = [
-  { id: 'meadow', at: [MEADOW[0], MEADOW[1]], count: 6, spread: 10 },
-  { id: 'step', at: [-1390, -32], count: 7, spread: 11 },
-  { id: 'stepNorth', at: [-1395, 8], count: 6, spread: 9 },
+  { id: 'dale', at: [-1502, 75], count: 6, spread: 13 },
+  { id: 'step', at: [-1388, -30], count: 7, spread: 14 },
+  { id: 'stepNorth', at: [-1367, 31], count: 5, spread: 12 },
 ];
 // At the call each lifts its head from the grass (`up` s) `delay` s after it, the one in front first so none runs into another;
 // looks about till `look` s; walks off over `start` s and walks `walk` s; then trots (taking `trotIn` s to), toward the far pool, its
 // legs at their clips' stride, easing to a stop over the last `ease` m. Each group goes `margin` m short of where its open ground
 // ends for the first of it (the step's edge, a grove, water, `path` m from her path; looked for to `reach` m), and stands looking
-// about. They are drawn to `seen` m. Their ground keeps its grass: nothing tall grows on the open land they graze and go over.
+// about. They are drawn to `seen` m. Nothing taller than `low` m grows within `lane` m of where each stands and goes, nose to tail
+// (circles every `step` m); the grass they graze stays.
 const GRAZE = {
   delay: [0.5, 1.5], up: 0.5, look: 2, start: 0.4, walk: 4, trotIn: 1, ease: 4,
-  margin: 6, reach: 200, steep: 0.8, rise: 6, path: 30, seen: 320,
+  margin: 6, reach: 200, steep: 0.8, rise: 6, path: 15, seen: 320, lane: 2.5, step: 2, low: 0.5,
 };
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
@@ -343,6 +348,10 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     spots.forEach(([x, z], k) => {
       const delay = GRAZE.delay[0] + ((GRAZE.delay[1] - GRAZE.delay[0]) * order.indexOf(k)) / Math.max(1, spec.count - 1);
       group.members.push(add(`${group.id}-grazer-${k}`, 'grasbitur', new THREE.Vector3(x, heightAt(x, z), z), run + 70 * Math.sin(k * 2.3 + gi * 1.1), { group, k, delay, run }));
+      const half = (grazer.length * LIFE_SCALE.grasbitur) / 2;
+      for (let a = -half; a <= group.room + half; a += GRAZE.step) {
+        clear.push({ x: x + group.dir[0] * a, z: z + group.dir[1] * a, r: GRAZE.lane, over: GRAZE.low });
+      }
     });
     return group;
   });

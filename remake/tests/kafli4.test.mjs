@@ -705,22 +705,28 @@ test('after the big call ten small lizards or more, 8 px tall, run toward the fa
   }
 });
 
-test('the herd grazes in the wide shot, and the slow circle sees it answer the big call', async (t) => {
-  // [group, shot, px tall, share of the shot's frames that show five of the group that tall]: the meadow's group in the wide shot
-  // (the vista, before the call), the step's group in the slow circle from 2 s after it, and under reduced motion (where the circle is
-  // a fixed vista over the step's north side) the group there
+test('the herd grazes big in the wide shot, and the slow circle sees it near as it answers the big call', async (t) => {
+  // [group, when, how many, px tall, share of those frames that show that many of the group that tall]: the dale's group in the wide
+  // shot (the vista, before the call); the step's corner group in the slow circle as it lifts its heads (`call`: from the call to 7 s
+  // after it); the step's south group in the slow circle from 2 s after it (`orbit`); under reduced motion (where the circle is a fixed
+  // vista over the step's north side) the corner group there. The owner asked for the herd bigger and nearer (2026-11-06).
   const plays = [
-    ['16:10', playWide, [['meadow', 'vista', 6, 0.5], ['step', 'orbit', 8, 0.4]]],
-    ['upright', playUpright, [['meadow', 'vista', 4, 0.5], ['step', 'orbit', 6, 0.3]]],
-    ['reduced motion', playReduced, [['stepNorth', 'orbit', 8, 0.6]]],
+    ['16:10', playWide, [['dale', 'vista', 5, 18, 0.8], ['stepNorth', 'call', 3, 30, 0.35], ['step', 'orbit', 5, 15, 0.3]]],
+    ['upright', playUpright, [['dale', 'vista', 5, 10, 0.8], ['stepNorth', 'call', 3, 20, 0.5], ['step', 'orbit', 5, 10, 0.3]]],
+    ['reduced motion', playReduced, [['stepNorth', 'call', 5, 15, 0.6], ['stepNorth', 'orbit', 5, 12, 0.6]]],
   ];
+  const within = {
+    vista: f => f.shot === 'vista' && (f.call === null || f.t < f.call),
+    call: f => f.shot === 'orbit' && f.call !== null && f.t >= f.call && f.t <= f.call + 7,
+    orbit: f => f.shot === 'orbit' && f.call !== null && f.t > f.call + 2,
+  };
   for (const [shape, play, wants] of plays) {
     const { watched } = await play();
-    for (const [group, shot, px, share] of wants) {
-      const frames = watched.rows.filter(f => f.shot === shot && (shot === 'vista' ? f.call === null || f.t < f.call : f.call !== null && f.t > f.call + 2));
-      const five = frames.filter(f => (f.herd[group] ?? []).filter(h => h >= px).length >= 5).length / Math.max(1, frames.length);
-      t.diagnostic(`${shape} ${shot}: ${frames.length} frames, five of the ${group} group ${px} px tall ${(100 * five).toFixed(0)} %, tallest ${Math.max(0, ...frames.flatMap(f => f.herd[group] ?? [])).toFixed(1)} px`);
-      assert.ok(frames.length > 100 && five >= share, `${shape}: the ${shot} shows five of the ${group} group ${px} px tall ${(100 * five).toFixed(0)} % of the time (at least ${100 * share} %)`);
+    for (const [group, when, count, px, share] of wants) {
+      const frames = watched.rows.filter(within[when]);
+      const seen = frames.filter(f => (f.herd[group] ?? []).filter(h => h >= px).length >= count).length / Math.max(1, frames.length);
+      t.diagnostic(`${shape} ${when}: ${frames.length} frames, ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} %, tallest ${Math.max(0, ...frames.flatMap(f => f.herd[group] ?? [])).toFixed(1)} px`);
+      assert.ok(frames.length > 100 && seen >= share, `${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
     }
   }
 });

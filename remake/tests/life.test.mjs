@@ -251,18 +251,18 @@ test('the big call sends rows of small lizards and flocks of birds toward the fa
   }
 });
 
-test('the herd grazes in the meadow and on the top of the step until the big call, lifts its heads, walks, then trots toward the far pool', async () => {
+test('the herd grazes in the dale by her way and on the top of the step until the big call, lifts its heads, walks, then trots toward the far pool', async () => {
   const critters = await bothModels();
   for (const at of CALLS) {
     const { world, life, step } = made({ critters });
     const { herd } = life;
-    assert.deepEqual(herd.map(g => `${g.id}:${g.members.length}`), ['meadow:6', 'step:7', 'stepNorth:6'], 'one herd, grazing in three groups');
+    assert.deepEqual(herd.map(g => `${g.id}:${g.members.length}`), ['dale:6', 'step:7', 'stepNorth:5'], 'one herd, grazing in three groups');
     const grazers = herd.flatMap(g => g.members);
     assert.ok(grazers.every(m => m.kind === 'grasbitur'), "the owner's grazer");
     const [mx, mz, mr] = MEADOW;
     const inMeadow = p => Math.hypot(p.x - mx, p.z - mz) < mr;
-    assert.ok(herd[0].members.every(m => Math.hypot(m.at.x - mx, m.at.z - mz) < mr - 4), 'the first group in the meadow');
-    assert.ok(herd.slice(1).every(g => g.members.every(m => m.at.y > 55 && groveAt(m.at.x, m.at.z) < 0.5)), 'the others on the open top of the step above the falls');
+    assert.ok(herd[0].members.every(m => groveAt(m.at.x, m.at.z) < 0.5 && awayFrom(m.at, true) >= 15 && awayFrom(m.at, true) < 50), 'the first group in the open dale, 15 to 50 m from her way');
+    assert.ok(herd.slice(1).every(g => g.members.every(m => m.at.y > 54 && groveAt(m.at.x, m.at.z) < 0.5)), 'the others on the open top of the step above the falls');
     // none closer to another than its own length, standing or running
     const apart = () => Math.min(...herd.flatMap(g => g.members.flatMap((a, i) => g.members.slice(i + 1).map(b => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z)))));
     // before the call they graze where they stand
@@ -284,16 +284,19 @@ test('the herd grazes in the meadow and on the top of the step until the big cal
     }
     for (const m of grazers) assert.ok(lifted.has(m) && lifted.get(m) >= 0.45 && lifted.get(m) <= 1.55, `${m.id} lifts its head ${lifted.get(m)?.toFixed(2)} s after the call`);
     step(at + 5.5);
-    for (const m of grazers) assert.ok(weight(m, 'walk') > 0.99, `${m.id} walks 5.5 s after the call (${weight(m, 'walk').toFixed(2)})`);
+    // all have set off walking (the dale's and the corner's, with a few metres of open ground, already slowing to stand), the south
+    // group in full stride
+    for (const m of grazers) assert.ok(weight(m, 'walk') > 0.5 && m.position.distanceTo(m.at) > 1, `${m.id} walks 5.5 s after the call (${weight(m, 'walk').toFixed(2)}, ${m.position.distanceTo(m.at).toFixed(1)} m)`);
+    for (const m of herd[1].members) assert.ok(weight(m, 'walk') > 0.99, `${m.id} walks in full stride 5.5 s after the call (${weight(m, 'walk').toFixed(2)})`);
     step(at + 10);
-    for (const m of herd.slice(1).flatMap(g => g.members)) assert.ok(weight(m, 'trot') > 0.99, `${m.id} trots 10 s after the call (${weight(m, 'trot').toFixed(2)})`);
-    // toward the far pool: 15 s after the call the step's groups are 20 m nearer it, the meadow's 10 m (to the end of its open grass)
+    for (const m of herd[1].members) assert.ok(weight(m, 'trot') > 0.99, `${m.id} trots 10 s after the call (${weight(m, 'trot').toFixed(2)})`);
+    // toward the far pool: 15 s after the call the step's south group is 20 m nearer it, the dale's and the step's corner's 5 m (to the end of their open ground), the meadow's 10 m (to the end of its open grass)
     step(BEATS.F);
     const before = herd.map(g => toPool(middleOf(g.members.map(m => m.position))));
     step(at + 15);
     herd.forEach((g, i) => {
       const nearer = before[i] - toPool(middleOf(g.members.map(m => m.position)));
-      assert.ok(nearer >= [10, 20, 20][i], `${g.id} comes ${nearer.toFixed(1)} m nearer the far pool in 15 s (call at ${at} s)`);
+      assert.ok(nearer >= [5, 20, 5][i], `${g.id} comes ${nearer.toFixed(1)} m nearer the far pool in 15 s (call at ${at} s)`);
     });
     // on open ground all the way, never over the step's edge, never in a grove, never near her; apart; then they stop and look
     let least = Infinity, closest = Infinity;
@@ -308,7 +311,7 @@ test('the herd grazes in the meadow and on the top of the step until the big cal
       }
     }
     assert.ok(least >= length - 0.5, `the herd keeps apart: ${least.toFixed(1)} m at the least`);
-    assert.ok(closest >= 25, `call at ${at} s: the herd ${closest.toFixed(1)} m from her path at the nearest`);
+    assert.ok(closest >= 15, `call at ${at} s: the herd ${closest.toFixed(1)} m from her path at the nearest`);
     step(at + 30);
     const stopped = grazers.map(m => m.position.clone());
     step(at + 31);
