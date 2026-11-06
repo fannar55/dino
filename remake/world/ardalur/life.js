@@ -5,36 +5,42 @@
 //   C: six trees on the banks between the groups, four birds in each, fly up as she passes.
 //   F and G: at the big call, rows of small lizards stream out of the groves toward the far pool, and flocks of birds rise out of
 //   the groves above the falls and fly off toward it (the life spec 2F and 2G).
+//   F: a herd of the owner's grazer grazes above the falls, in three groups: in the meadow the wide shot looks over before the call,
+//   and on the open top of the step, south and north, which the slow circle sees after it (the north under reduced motion). At the
+//   call each lifts its head, walks, then trots toward the far pool to the end of its open ground, and stands looking.
 //
 //   const life = createLife(world, route, { heightAt, library, crowds, critters }); // library: the forest's species (the trees'
-//                        crowns); critters: { smaedla } (animals.js loadCritters), the Fen's salamander stands in for the rows without it
+//                        crowns); critters: { smaedla, grasbitur } (animals.js loadCritters), the Fen's salamander stands in for the
+//                        rows without the first, and there is no herd without the second
 //   life.things          [{ id, kind, at, trigger, position, visible, ... }]: each critter, where it sits (at) and the flight second
 //                        it sets off (trigger; null for those that only hover or skate), its pose at the last update
 //   life.rows            [{ id, where ('F' or 'G'), from, dir, length, delay, members }]: the rows of small lizards, `from` the front
 //   life.flocks          [{ id, from, dir, delay, members }]: the flocks of birds, `from` the middle of the grove they sit in
+//   life.herd            [{ id, at, dir, room, members }]: the herd's groups, `room` how far they go ([] without the grazer)
 //   life.props           the trees the birds sit in, for the plants to grow (banks.js); life.clear  where nothing else may grow
 //   life.update(dt, t)   each frame, on the game clock t; the flight's own time is world.flightTime (null or < 0 outside the flight)
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
-//   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows and the flocks set off
+//   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows, the flocks and the herd set off
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
 // time, so a pose is a function of world.flightTime: a seek or a capture finds them where playing would have. A skate is timed on the
-// game clock, as an answer is. Outside the flight they are all where they sat, but the rows and the flocks of a call made: they are
-// gone (the far pool has its own). They are drawn in the crowds (world/critters/crowd.js), given or their own.
+// game clock, as an answer is. Outside the flight they are all where they sat, but the rows, the flocks and the herd of a call made:
+// they are gone (the far pool has its own). They are drawn in the crowds (world/critters/crowd.js), given or their own.
 import * as THREE from 'three';
-import { BEATS, FAR_POOL } from '../../chapters/kafli4-route.js';
+import { BEATS, FAR_POOL, MEADOW } from '../../chapters/kafli4-route.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
 import { clipPose } from '../critters/crowd-models.js';
 import { crownOf } from './animals.js';
+import { groveAt } from './banks.js';
 import { fenShare } from './terrain.js';
 
 /**
  * How much larger than life each is drawn, to read from her back (as animals.js SCALE). The rows' small lizards are seen from 20 to
  * 50 m above them, 40 to 150 m off: 2 m long (C's, seen close by the river, are 1.2 m); the salamander stands in at about that size.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 2 };
 const TAU = Math.PI * 2;
 const clamp01 = k => Math.min(1, Math.max(0, k));
 const smooth = k => { const x = clamp01(k); return x * x * (3 - 2 * x); };
@@ -82,6 +88,24 @@ const FLOCKS = [
   { id: 'flock-4', from: [-1505, 5], delay: 2.9 },
 ];
 const FLOCK = { count: 18, canopy: 8, spread: 6, stagger: 0.6, rise: 16, riseFor: 3, climb: 1.2, speed: 9, accel: 2.5, gone: 22, beat: 7 };
+// F, the herd: the owner's grazer (drawn 2.5 m x LIFE_SCALE long), `count` of each group on a disc `spread` m round `at`: the meadow
+// the wide shot (the vista, 124-132 s) looks over, and the open top of the step east of the groves: its south side, which the slow
+// circle after the call frames (136-150 s, 6 to 17 px a metre; the meadow is out of its picture), and its north side, which the circle
+// frames under reduced motion, a fixed vista that does not see the south side (measured on the flight camera, 2026-11-06).
+const HERD = [
+  { id: 'meadow', at: [MEADOW[0], MEADOW[1]], count: 6, spread: 10 },
+  { id: 'step', at: [-1390, -32], count: 7, spread: 11 },
+  { id: 'stepNorth', at: [-1395, 8], count: 6, spread: 9 },
+];
+// At the call each lifts its head from the grass (`up` s) `delay` s after it, the one in front first so none runs into another;
+// looks about till `look` s; walks off over `start` s and walks `walk` s; then trots (taking `trotIn` s to), toward the far pool, its
+// legs at their clips' stride, easing to a stop over the last `ease` m. Each group goes `margin` m short of where its open ground
+// ends for the first of it (the step's edge, a grove, water, `path` m from her path; looked for to `reach` m), and stands looking
+// about. They are drawn to `seen` m. Their ground keeps its grass: nothing tall grows on the open land they graze and go over.
+const GRAZE = {
+  delay: [0.5, 1.5], up: 0.5, look: 2, start: 0.4, walk: 4, trotIn: 1, ease: 4,
+  margin: 6, reach: 200, steep: 0.8, rise: 6, path: 30, seen: 320,
+};
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
   const { river } = route;
@@ -89,6 +113,8 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   crowds ??= createCrowds(world);
   const baked = critters.smaedla ?? null;
   const LIZARD = baked ? 'smaedla' : 'salamander';
+  const grazer = critters.grasbitur ?? null;
+  const BAKED = { smaedla: baked, grasbitur: grazer }; // the owner's models, as tools/prep-crowd.mjs bakes them
   const her = new THREE.Vector3();
   const herAt = (t, out = her) => route.pointAt(route.progressAt(Math.min(BEATS.END, Math.max(0, t))), out);
   /** Her way, seen from above, at flight second t: forward and to her right. */
@@ -124,8 +150,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
 
   const models = {};
   const modelOf = kind => (models[kind] ??= (() => {
-    // the owner's small lizard: its frames' names, as the crowd draws them, and its height standing
-    if (kind === 'smaedla') return { morphs: (baked.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name), height: baked.height, wings: false };
+    // the owner's small lizard and grazer: their frames' names, as the crowd draws them, and their height standing
+    const own = BAKED[kind];
+    if (own) return { morphs: (own.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name), height: own.height, wings: false };
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
     model.height = model.geometry.boundingBox.max.y - model.geometry.boundingBox.min.y;
@@ -275,8 +302,54 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     return flock;
   });
 
+  // F: the herd, grazing in its three groups until the big call (none without the owner's grazer)
+  const land = route.land ?? {};
+  const meadowAt = (x, z) => Math.hypot(x - MEADOW[0], z - MEADOW[1]) < MEADOW[2]; // no tree grows in it (banks.js)
+  const wetAt = (x, z) => (land.ponds ?? []).some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 3)
+    || (land.streams ?? []).some(s => s.path.some((b, i) => i > 0 && toSegment(x, z, s.path[i - 1], b) < s.half + 3));
+  const PATH = Array.from({ length: Math.round(BEATS.END / 0.5) + 1 }, (_, i) => herAt(i * 0.5, new THREE.Vector3()));
+  const fromPath = (x, z) => PATH.reduce((best, p) => Math.min(best, Math.hypot(p.x - x, p.z - z)), Infinity);
+  /**
+   * How far from (x, z) along `dir` the ground stays open and walkable: to the step's edge (a drop steeper than `steep` a metre, or
+   * `rise` m off its own level), a grove, water, or near her path.
+   */
+  function openFor(x, z, dir) {
+    const level = heightAt(x, z);
+    let last = level;
+    for (let a = 1; a <= GRAZE.reach; a++) {
+      const px = x + dir[0] * a, pz = z + dir[1] * a;
+      const y = heightAt(px, pz);
+      const shut = Math.abs(y - last) > GRAZE.steep || Math.abs(y - level) > GRAZE.rise
+        || (!meadowAt(px, pz) && groveAt(px, pz) >= 0.5) || wetAt(px, pz) || fromPath(px, pz) < GRAZE.path;
+      if (shut) return a - 1;
+      last = y;
+    }
+    return GRAZE.reach;
+  }
+  const herd = !grazer ? [] : HERD.map((spec, gi) => {
+    const dx = FAR_POOL.center[0] - spec.at[0], dz = FAR_POOL.center[1] - spec.at[1];
+    const far = Math.hypot(dx, dz);
+    const group = { id: spec.id, at: [...spec.at], dir: [dx / far, dz / far], room: 0, members: [] };
+    const run = headingOf(group.dir[0], group.dir[1]);
+    const spots = Array.from({ length: spec.count }, (_, k) => {
+      const r = spec.spread * Math.sqrt((k + 0.5) / spec.count);
+      const a = k * 2.39996 + gi; // the golden angle: a disc of them, none on another
+      return [spec.at[0] + r * Math.cos(a), spec.at[1] + r * Math.sin(a)];
+    });
+    group.room = Math.max(0, Math.min(...spots.map(([x, z]) => openFor(x, z, group.dir))) - GRAZE.margin);
+    // the one in front sets off first, so none runs into the one before it
+    const ahead = ([x, z]) => (x - spec.at[0]) * group.dir[0] + (z - spec.at[1]) * group.dir[1];
+    const order = spots.map((_, k) => k).sort((i, j) => ahead(spots[j]) - ahead(spots[i]));
+    spots.forEach(([x, z], k) => {
+      const delay = GRAZE.delay[0] + ((GRAZE.delay[1] - GRAZE.delay[0]) * order.indexOf(k)) / Math.max(1, spec.count - 1);
+      group.members.push(add(`${group.id}-grazer-${k}`, 'grasbitur', new THREE.Vector3(x, heightAt(x, z), z), run + 70 * Math.sin(k * 2.3 + gi * 1.1), { group, k, delay, run }));
+    });
+    return group;
+  });
+
   for (const kind of new Set(things.map(t => t.kind))) {
-    crowds.reserve(kind, things.filter(t => t.kind === kind).length, kind === 'smaedla' ? baked : { model: modelOf(kind) });
+    const n = things.filter(t => t.kind === kind).length;
+    crowds.reserve(kind, n, BAKED[kind] ? { ...BAKED[kind], seen: kind === 'grasbitur' ? GRAZE.seen : null } : { model: modelOf(kind) });
   }
 
   let last = 0;
@@ -351,6 +424,58 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.wings[1] = smooth(s / 0.2);
   }
 
+  /**
+   * How far a grazer has gone `s` s after it set off walking (its group's `room` m at most), how much of its pose is going, and how
+   * much of that trotting: walking at its walk's stride, then trotting at its trot's, so the feet keep to the ground; easing to a
+   * stop over the last `ease` m.
+   */
+  function went(s, room, scale) {
+    if (s <= 0 || room <= 0) return [0, 0, 0];
+    const clips = grazer.clips;
+    const vw = (clips.walk.stride * scale) / clips.walk.seconds;
+    const vt = (clips.trot.stride * scale) / clips.trot.seconds;
+    const { start, walk, trotIn } = GRAZE;
+    const w = Math.min(Math.max(0, s - walk), trotIn);
+    const d = s < start ? (vw * s * s) / (2 * start)
+      : s < walk ? vw * (s - start / 2)
+        : vw * (walk - start / 2) + vw * w + ((vt - vw) * w * w) / (2 * trotIn) + vt * Math.max(0, s - walk - trotIn);
+    const going = smooth(s / start);
+    const trotting = smooth((s - walk) / trotIn);
+    const ease = Math.min(GRAZE.ease, room);
+    const easing = room - ease;
+    if (d <= easing) return [d, going, trotting];
+    const x = Math.min(2, (d - easing) / ease); // slowing evenly: the last `ease` metres take twice the going
+    return [easing + ease * (x - (x * x) / 4), going * (1 - x / 2), trotting];
+  }
+
+  /**
+   * A grazer of the herd: grazing where it stands until the big call, then its head up, a look about, a walk and a trot toward the
+   * far pool to the end of its group's open ground, where it stands looking about; gone once the flight is over. Its clips' weights
+   * add up to 1 (clipPose).
+   */
+  function grazing(b, ft, clock) {
+    const { group } = b;
+    if (call !== null && ft === null) { b.visible = false; return; }
+    for (const name in b.morphs) b.morphs[name] = 0;
+    const blend = (clip, time, w) => {
+      if (w <= 0) return;
+      const frames = clipPose(grazer, clip, time, b.phase);
+      for (const name in frames) b.morphs[name] += frames[name] * w;
+    };
+    const u = call === null || ft === null ? -1 : ft - call - b.delay;
+    if (u <= 0) { blend('graze', clock, 1); return; }
+    const [d, going, trotting] = went(u - GRAZE.look, group.room, b.scale);
+    const x = b.at.x + group.dir[0] * d, z = b.at.z + group.dir[1] * d;
+    b.position.set(x, heightAt(x, z), z);
+    b.heading = lerpAngle(b.rest, b.run, smooth((u - GRAZE.look + 0.4) / 0.8));
+    const up = smooth(u / GRAZE.up);
+    const { walk, trot } = grazer.clips;
+    blend('graze', clock, 1 - up);
+    blend('look', u, up * (1 - going));
+    blend('walk', (d / (walk.stride * b.scale)) * walk.seconds, up * going * (1 - trotting));
+    blend('trot', (d / (trot.stride * b.scale)) * trot.seconds, up * going * trotting);
+  }
+
   /** Each thing's pose: `ft` the flight's time (null outside the flight), `clock` what its idle life runs on, `t` the game clock. */
   function pose(b, ft, clock, t) {
     b.position.copy(b.at);
@@ -369,6 +494,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       case 'smaedla':
       case 'salamander':
         lizard(b, ft, clock);
+        break;
+      case 'grasbitur':
+        grazing(b, ft, clock);
         break;
       case 'bird':
         if (b.flock) { flocking(b, ft, clock); break; }
@@ -439,13 +567,13 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     }
   }
 
-  /** The big call came at flight second `at`: the rows and the flocks set off. The first call is the one. */
+  /** The big call came at flight second `at`: the rows, the flocks and the herd set off. The first call is the one. */
   function bigCall(at) {
     if (call === null && Number.isFinite(at)) call = at;
   }
 
   return {
-    things, rows, flocks, props, clear, crowds, update, skim, bigCall,
+    things, rows, flocks, herd, props, clear, crowds, update, skim, bigCall,
     dispose() { if (own) crowds.dispose(); },
   };
 }
@@ -455,4 +583,11 @@ const lerpAngle = (a, b, k) => a + (((b - a + 540) % 360) - 180) * k;
 function unit(x, z) {
   const l = Math.hypot(x, z) || 1;
   return [x / l, z / l];
+}
+
+/** How far (x, z) is from the line from a to b, seen from above. */
+function toSegment(x, z, [ax, az], [bx, bz]) {
+  const vx = bx - ax, vz = bz - az;
+  const k = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz || 1)));
+  return Math.hypot(x - ax - vx * k, z - az - vz * k);
 }

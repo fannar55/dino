@@ -40,11 +40,12 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
   let eye = null;
   const eyeAt = new THREE.Vector3();
 
-  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height } = {}) {
+  // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
+  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, seen: reach = null } = {}) {
     if (built) throw new Error(`[crowds] reserve "${kind}" before the first begin()`);
     const k = kinds.get(kind);
     if (k) { k.capacity += count; return; }
-    kinds.set(kind, { model: model ?? (lods ? bakedModel(kind, lods, pivot, height) : createModel(kind)), material, capacity: count });
+    kinds.set(kind, { model: model ?? (lods ? bakedModel(kind, lods, pivot, height) : createModel(kind)), material, capacity: count, reach });
   }
 
   function build() {
@@ -99,7 +100,8 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
     const k = kinds.get(kind);
     if (!k) throw new Error(`[crowds] "${kind}" was not reserved`);
     const far = eye ? eye.distanceToSquared(position) : 0;
-    if (far > seen * seen) return -1;
+    const reach = k.reach ?? seen;
+    if (far > reach * reach) return -1;
     let l = 0;
     while (l < k.levels.length - 1 && far > k.levels[l].until * k.levels[l].until) l++;
     const level = k.levels[l];

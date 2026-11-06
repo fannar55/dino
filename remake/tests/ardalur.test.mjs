@@ -10,7 +10,7 @@ import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain, CORRIDOR } from '../world/ardalur/terrain.js';
-import { createAnimals, ANSWER, SMAEDLA_MODEL } from '../world/ardalur/animals.js';
+import { createAnimals, ANSWER, SMAEDLA_MODEL, GRASBITUR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -41,10 +41,12 @@ function litWorld() {
 let lit = null;
 let litWorldOf = null;
 /** The real valley, built once for the tests that only look at it (litWorldOf: its world, for the tests that move its camera). */
+// the owner's grazer, as the chapter loads it (animals.js loadCritters), so the lit valley has its herd (life.js)
+const grazer = crowdModelFrom(await loadGlb(new URL(GRASBITUR_MODEL)));
 function litValley() {
   if (!lit) {
     litWorldOf = litWorld();
-    lit = createArdalur(litWorldOf, { grey: false, route });
+    lit = createArdalur(litWorldOf, { grey: false, route, critters: { grasbitur: grazer } });
     lit.buildAll();
   }
   return lit;
@@ -589,6 +591,25 @@ test('the big call\'s rows of small lizards run where nothing grows: no plant ov
     }
   }
   assert.deepEqual(wrong.slice(0, 8), [], `${wrong.length} plants in the rows' way`);
+});
+
+test('the herd grazes and goes where nothing grows: no plant over 0.5 m within 2.5 m of where a grazer stands or the line it goes (life.js)', () => {
+  const place = litValley();
+  const near = placementsNear(place);
+  const wrong = [];
+  assert.equal(place.life.herd.length, 3, 'the herd, in its three groups');
+  for (const group of place.life.herd) {
+    for (const m of group.members) {
+      for (let a = 0; a <= group.room; a += 1) {
+        const x = m.at.x + group.dir[0] * a, z = m.at.z + group.dir[1] * a;
+        for (const q of near(x, z, 2.5)) {
+          const h = q.model.height * q.scale;
+          if (h > 0.5) wrong.push(`${m.id} at ${a.toFixed(0)} m: a ${q.name} ${h.toFixed(2)} m tall ${Math.hypot(q.x - x, q.z - z).toFixed(1)} m off`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(wrong.slice(0, 8), [], `${wrong.length} plants in the herd's way`);
 });
 
 test('the still shots see what they show: nothing tall by the camera, nothing on the line of sight', () => {

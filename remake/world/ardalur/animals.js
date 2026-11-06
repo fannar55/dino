@@ -10,7 +10,7 @@
 // levels of detail) when the chapter has loaded it (loadCritters); the Fen's salamander stands in without it. At rest the row at
 // the edge drinks and the row behind stands about, they look up at her as she passes over, and run with her when they answer.
 //
-//   const critters = await loadCritters(world);                                    // { smaedla } (crowd-models.js), {} if it cannot be had
+//   const critters = await loadCritters(world);                                    // { smaedla, grasbitur } (crowd-models.js), those that can be had
 //   const animals = createAnimals(world, route, { heightAt, library, crowds, critters }); // library: the forest's species (prop sizes)
 //   animals.crowds                         what draws them (shared with the flight's other life when given; their own otherwise)
 //   animals.group                          the crowds' group (in world.scene unless the crowds were given)
@@ -40,25 +40,32 @@ const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle:
 
 /** The owner's small lizard (his Tripo3D model, 0.8 m long at scale 1), as tools/prep-crowd.mjs bakes it. */
 export const SMAEDLA_MODEL = new URL('../../assets/critters/smaedla.glb', import.meta.url).href;
+/** The owner's grazer (his Tripo3D model, 2.5 m long at scale 1), as tools/prep-crowd.mjs bakes it: walk, trot, graze, look. */
+export const GRASBITUR_MODEL = new URL('../../assets/critters/grasbitur.glb', import.meta.url).href;
 const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
 /**
- * The valley's baked critters: { smaedla } as crowd models (world/critters/crowd-models.js), read through world.loadModel (the
- * tests read the file) or three's loader (the page). {} when it cannot be had: the salamander stands in, and the chapter goes on.
+ * The valley's baked critters: { smaedla, grasbitur } as crowd models (world/critters/crowd-models.js), read through world.loadModel
+ * (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out and the chapter goes on:
+ * without the small lizard the salamander stands in, without the grazer there is no herd (life.js).
  */
 export async function loadCritters(world) {
-  try {
-    let gltf;
-    if (world.loadModel) gltf = await world.loadModel(SMAEDLA_MODEL);
-    else {
-      if (!critterFiles.has(SMAEDLA_MODEL)) critterFiles.set(SMAEDLA_MODEL, new GLTFLoader().loadAsync(SMAEDLA_MODEL));
-      gltf = await critterFiles.get(SMAEDLA_MODEL);
+  const files = [['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd']];
+  const loaded = await Promise.all(files.map(async ([name, url, without]) => {
+    try {
+      let gltf;
+      if (world.loadModel) gltf = await world.loadModel(url);
+      else {
+        if (!critterFiles.has(url)) critterFiles.set(url, new GLTFLoader().loadAsync(url));
+        gltf = await critterFiles.get(url);
+      }
+      return [name, crowdModelFrom(gltf)];
+    } catch (error) {
+      critterFiles.delete(url);
+      console.warn(`[animals] ${name} could not be loaded; ${without}:`, error?.message ?? error);
+      return null;
     }
-    return { smaedla: crowdModelFrom(gltf) };
-  } catch (error) {
-    critterFiles.delete(SMAEDLA_MODEL);
-    console.warn('[animals] the small lizard could not be loaded; the salamander stands in:', error?.message ?? error);
-    return {};
-  }
+  }));
+  return Object.fromEntries(loaded.filter(Boolean));
 }
 // The small lizard looks up at her as she passes over: fully within `near` metres of her (seen from above), not at all beyond
 // `near` + `fade`; its look clip from its first frame to `frame`, the head up.

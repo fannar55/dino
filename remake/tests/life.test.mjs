@@ -5,12 +5,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, FAR_POOL } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, FAR_POOL, MEADOW } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { RAPIDS } from '../world/ardalur/river.js';
 import { createLife } from '../world/ardalur/life.js';
 import { groveAt } from '../world/ardalur/banks.js';
-import { SMAEDLA_MODEL } from '../world/ardalur/animals.js';
+import { SMAEDLA_MODEL, GRASBITUR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 
@@ -194,6 +194,9 @@ const middleOf = points => points.reduce((sum, p) => sum.add(p), new THREE.Vecto
 const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
 let lizard = null;
 const lizardModel = async () => (lizard ??= crowdModelFrom(await loadGlb(new URL(SMAEDLA_MODEL))));
+let grazer = null;
+const grazerModel = async () => (grazer ??= crowdModelFrom(await loadGlb(new URL(GRASBITUR_MODEL))));
+const bothModels = async () => ({ smaedla: await lizardModel(), grasbitur: await grazerModel() });
 
 test('the big call sends rows of small lizards and flocks of birds toward the far pool', async () => {
   const critters = { smaedla: await lizardModel() };
@@ -248,15 +251,94 @@ test('the big call sends rows of small lizards and flocks of birds toward the fa
   }
 });
 
-test("after the big call too, life is a function of the flight's clock: jumping lands where playing does", () => {
-  const played = made();
-  const jumped = made();
+test('the herd grazes in the meadow and on the top of the step until the big call, lifts its heads, walks, then trots toward the far pool', async () => {
+  const critters = await bothModels();
+  for (const at of CALLS) {
+    const { world, life, step } = made({ critters });
+    const { herd } = life;
+    assert.deepEqual(herd.map(g => `${g.id}:${g.members.length}`), ['meadow:6', 'step:7', 'stepNorth:6'], 'one herd, grazing in three groups');
+    const grazers = herd.flatMap(g => g.members);
+    assert.ok(grazers.every(m => m.kind === 'grasbitur'), "the owner's grazer");
+    const [mx, mz, mr] = MEADOW;
+    const inMeadow = p => Math.hypot(p.x - mx, p.z - mz) < mr;
+    assert.ok(herd[0].members.every(m => Math.hypot(m.at.x - mx, m.at.z - mz) < mr - 4), 'the first group in the meadow');
+    assert.ok(herd.slice(1).every(g => g.members.every(m => m.at.y > 55 && groveAt(m.at.x, m.at.z) < 0.5)), 'the others on the open top of the step above the falls');
+    // none closer to another than its own length, standing or running
+    const apart = () => Math.min(...herd.flatMap(g => g.members.flatMap((a, i) => g.members.slice(i + 1).map(b => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z)))));
+    // before the call they graze where they stand
+    step(BEATS.F);
+    const rest = new Map(grazers.map(m => [m, m.position.clone()]));
+    const length = critters.grasbitur.length * grazers[0].scale; // drawn, nose to tail
+    assert.ok(apart() >= length + 0.5, `apart at rest: ${apart().toFixed(1)} m (each ${length.toFixed(1)} m long)`);
+    for (let t = BEATS.F; t < at; t += 0.5) {
+      step(t);
+      for (const [m, p] of rest) assert.ok(m.visible && m.position.distanceTo(p) < 1e-6 && Math.abs(weight(m, 'graze') - 1) < 1e-6, `${m.id} grazes at ${t} s`);
+    }
+    life.bigCall(at);
+    // each lifts its head from the grass 0.5 to 1.5 s after the call
+    const lifted = new Map();
+    for (let i = 0; i <= 44; i++) {
+      const s = i * 0.05;
+      step(at + s);
+      for (const m of grazers) if (!lifted.has(m) && weight(m, 'look') > 0.01) lifted.set(m, s);
+    }
+    for (const m of grazers) assert.ok(lifted.has(m) && lifted.get(m) >= 0.45 && lifted.get(m) <= 1.55, `${m.id} lifts its head ${lifted.get(m)?.toFixed(2)} s after the call`);
+    step(at + 5.5);
+    for (const m of grazers) assert.ok(weight(m, 'walk') > 0.99, `${m.id} walks 5.5 s after the call (${weight(m, 'walk').toFixed(2)})`);
+    step(at + 10);
+    for (const m of herd.slice(1).flatMap(g => g.members)) assert.ok(weight(m, 'trot') > 0.99, `${m.id} trots 10 s after the call (${weight(m, 'trot').toFixed(2)})`);
+    // toward the far pool: 15 s after the call the step's groups are 20 m nearer it, the meadow's 10 m (to the end of its open grass)
+    step(BEATS.F);
+    const before = herd.map(g => toPool(middleOf(g.members.map(m => m.position))));
+    step(at + 15);
+    herd.forEach((g, i) => {
+      const nearer = before[i] - toPool(middleOf(g.members.map(m => m.position)));
+      assert.ok(nearer >= [10, 20, 20][i], `${g.id} comes ${nearer.toFixed(1)} m nearer the far pool in 15 s (call at ${at} s)`);
+    });
+    // on open ground all the way, never over the step's edge, never in a grove, never near her; apart; then they stop and look
+    let least = Infinity, closest = Infinity;
+    for (let t = at; t <= BEATS.END; t += 0.25) {
+      step(t);
+      least = Math.min(least, apart());
+      for (const m of grazers) {
+        assert.ok(m.visible, `${m.id} seen at ${t} s`);
+        assert.ok(Math.abs(m.position.y - m.at.y) < 6, `${m.id} keeps to the top of its ground at ${t} s (${(m.position.y - m.at.y).toFixed(1)} m)`);
+        assert.ok(inMeadow(m.position) || groveAt(m.position.x, m.position.z) < 0.5, `${m.id} out of the groves at ${t} s`);
+        closest = Math.min(closest, awayFrom(m.position, true));
+      }
+    }
+    assert.ok(least >= length - 0.5, `the herd keeps apart: ${least.toFixed(1)} m at the least`);
+    assert.ok(closest >= 25, `call at ${at} s: the herd ${closest.toFixed(1)} m from her path at the nearest`);
+    step(at + 30);
+    const stopped = grazers.map(m => m.position.clone());
+    step(at + 31);
+    grazers.forEach((m, i) => assert.ok(m.position.distanceTo(stopped[i]) < 1e-6 && weight(m, 'look') > 0.99, `${m.id} stands and looks 30 s after the call`));
+    // and once the flight is over they are gone: the far pool has its own
+    world.flightTime = null;
+    world.clock.time += 1;
+    life.update(DT, world.clock.time);
+    assert.ok(grazers.every(m => !m.visible), 'gone after the flight');
+  }
+});
+
+test('without its model there is no herd, and the flight goes on', () => {
+  const { life, step } = made({ critters: {} });
+  assert.deepEqual(life.herd, []);
+  life.bigCall(135.5);
+  step(150);
+  assert.ok(!life.things.some(t => t.kind === 'grasbitur'));
+});
+
+test("after the big call too, life is a function of the flight's clock: jumping lands where playing does", async () => {
+  const critters = await bothModels();
+  const played = made({ critters });
+  const jumped = made({ critters });
   played.life.bigCall(135.5);
   jumped.life.bigCall(135.5);
   for (let t = 120; t < 152.7; t += DT) played.step(t);
   played.step(152.7);
   jumped.step(152.7);
-  assert.ok(played.life.rows.length === 5 && played.life.flocks.length === 4, 'the rows and the flocks');
+  assert.ok(played.life.rows.length === 5 && played.life.flocks.length === 4 && played.life.herd.length === 3, 'the rows, the flocks and the herd');
   played.life.things.forEach((a, i) => {
     const b = jumped.life.things[i];
     assert.equal(a.visible, b.visible, `${a.id} seen in both`);

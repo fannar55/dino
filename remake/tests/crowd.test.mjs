@@ -42,6 +42,18 @@ test('a critter beyond seen is not drawn', () => {
   crowds.dispose();
 });
 
+test('a kind reserved with its own seen is drawn that far, the others as far as the crowd sees', () => {
+  const crowds = createCrowds(world(), { seen: 160 });
+  crowds.reserve('frog', 2);
+  crowds.reserve('turtle', 2, { seen: 320 });
+  crowds.begin(camera());
+  assert.equal(crowds.place('frog', new THREE.Vector3(200, 0, 0), 0, 1), -1, 'a frog at 200 m is not drawn');
+  assert.ok(crowds.place('turtle', new THREE.Vector3(200, 0, 0), 0, 1) >= 0, 'a turtle at 200 m is');
+  assert.equal(crowds.place('turtle', new THREE.Vector3(330, 0, 0), 0, 1), -1, 'but not at 330 m');
+  crowds.end();
+  crowds.dispose();
+});
+
 test('each critter has its own pose', () => {
   const crowds = createCrowds(world());
   crowds.reserve('frog', 2);

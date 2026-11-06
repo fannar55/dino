@@ -290,9 +290,17 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
             return ((box.y1 - box.y0) / 2) * tall >= 8;
           }).length;
           const lizards = life.rows.flatMap(r => r.members);
+          // the herd's groups (life.herd): how many of each the frame shows `px` tall or more, foot to the top of its standing height
+          const tallOf = m => {
+            const foot = m.position.clone().project(world.camera);
+            if (!m.visible || foot.z >= 1 || Math.abs(foot.x) > 1 || Math.abs(foot.y) > 1) return 0;
+            const top = m.position.clone().setY(m.position.y + m.height).project(world.camera);
+            return ((top.y - foot.y) / 2) * tall;
+          };
           seen.rows.push({
             t: world.flightTime, shot, call: c.flight.play?.big?.at ?? null,
             lizards: large(lizards), birds: large(life.flocks.flatMap(f => f.members)),
+            herd: Object.fromEntries((life.herd ?? []).map(g => [g.id, g.members.map(tallOf)])),
             ran: lizards.reduce((sum, m) => sum + Math.hypot(m.position.x - m.at.x, m.position.z - m.at.z), 0) / lizards.length,
           });
         }
@@ -693,6 +701,26 @@ test('after the big call ten small lizards or more, 8 px tall, run toward the fa
       assert.ok(inShot.length > 100 && seenShare >= share, `${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
       // and the flocks rise in the slow circle: nine birds of them 8 px tall at least 40 % of the time
       assert.ok(shot !== 'orbit' || birds >= 0.4, `${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
+    }
+  }
+});
+
+test('the herd grazes in the wide shot, and the slow circle sees it answer the big call', async (t) => {
+  // [group, shot, px tall, share of the shot's frames that show five of the group that tall]: the meadow's group in the wide shot
+  // (the vista, before the call), the step's group in the slow circle from 2 s after it, and under reduced motion (where the circle is
+  // a fixed vista over the step's north side) the group there
+  const plays = [
+    ['16:10', playWide, [['meadow', 'vista', 6, 0.5], ['step', 'orbit', 8, 0.4]]],
+    ['upright', playUpright, [['meadow', 'vista', 4, 0.5], ['step', 'orbit', 6, 0.3]]],
+    ['reduced motion', playReduced, [['stepNorth', 'orbit', 8, 0.6]]],
+  ];
+  for (const [shape, play, wants] of plays) {
+    const { watched } = await play();
+    for (const [group, shot, px, share] of wants) {
+      const frames = watched.rows.filter(f => f.shot === shot && (shot === 'vista' ? f.call === null || f.t < f.call : f.call !== null && f.t > f.call + 2));
+      const five = frames.filter(f => (f.herd[group] ?? []).filter(h => h >= px).length >= 5).length / Math.max(1, frames.length);
+      t.diagnostic(`${shape} ${shot}: ${frames.length} frames, five of the ${group} group ${px} px tall ${(100 * five).toFixed(0)} %, tallest ${Math.max(0, ...frames.flatMap(f => f.herd[group] ?? [])).toFixed(1)} px`);
+      assert.ok(frames.length > 100 && five >= share, `${shape}: the ${shot} shows five of the ${group} group ${px} px tall ${(100 * five).toFixed(0)} % of the time (at least ${100 * share} %)`);
     }
   }
 });
