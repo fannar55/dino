@@ -1,7 +1,8 @@
 {
-  "about": "The skeleton of the owner's Tripo flugdýr (geymsla/tripo/flugdyr-tripo-v1.glb) for remake/tools/blender-crowd.py: joints in the file's own glTF space (metres as delivered, +Y up, the beak toward +Z, its left side +X), placed from its slices (each wing's arm by span, the body by height, the tail by length, the orange feet) and its renders. It stands upright like a puffin with its wings held out; each wing is an arm (shoulder, elbow, wrist with its knob) and one long finger (a knuckle halfway, the tip), and the membrane hangs down from them to the body's side. Its left and right are mirror images. The long tail ends in a flat two-lobed vane that touches the ground behind the feet: blender-crowd-wings.py stands it on its toes.",
+  "about": "The skeleton of the owner's Tripo flugdýr (geymsla/tripo/flugdyr-tripo-v1.glb) for remake/tools/blender-crowd.py: joints in the file's own glTF space (metres as delivered, +Y up, the beak toward +Z, its left side +X), placed from its slices (each wing's arm by span, the body by height, the tail by length, the orange feet) and its renders. It stands upright like a puffin with its wings held out; each wing is an arm (shoulder, elbow, wrist with its knob) and one long finger (a knuckle halfway, the tip), and the membrane hangs down from them to the body's side. Its left and right are mirror images. The long tail ends in a flat two-lobed vane that touches the ground behind the feet: blender-crowd-wings.py stands it on its toes. headShare: the head's share of each level's triangles, at most (his round head is detailed and would take four fifths of them; the wings need the triangles to keep their shape from afar).",
   "kind": "winged",
   "nose": "+z",
+  "headShare": { "near": 0.35, "far": 0.4 },
   "joints": {
     "hips": [0.0, 0.095, 0.065],
     "spine": [0.0, 0.150, 0.088],

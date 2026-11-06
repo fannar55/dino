@@ -298,3 +298,54 @@ test('the grazer is the owner\'s model baked within the budget, walking, trottin
   assert.ok(Math.abs(box.min.y) < 0.01, `feet on y = 0 (${box.min.y.toFixed(4)})`);
   assert.ok(Math.abs(model.height - (box.max.y - box.min.y)) < 0.01);
 });
+
+test('the flyer is the owner\'s model baked within the budget, flapping, gliding and perching', async () => {
+  const model = crowdModelFrom(await loadGlb(new URL('../assets/critters/flugdyr.glb', import.meta.url)));
+  const triangles = g => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  assert.ok(triangles(model.lods[0].geometry) <= 800, `near ${triangles(model.lods[0].geometry)} triangles`);
+  assert.ok(triangles(model.lods[1].geometry) <= 250, `far ${triangles(model.lods[1].geometry)} triangles`);
+  assert.equal(model.lods[0].until, 30);
+  for (const clip of ['flap', 'glide', 'perch']) assert.equal(model.clips[clip]?.frames, 8, `${clip} has 8 frames`);
+  const seconds = clip => model.clips[clip].seconds;
+  assert.ok(Math.abs(seconds('flap') - 0.5) < 0.05 && Math.abs(seconds('glide') - 3) < 0.5 && Math.abs(seconds('perch') - 4) < 0.5);
+  for (const { geometry } of model.lods) {
+    const frames = geometry.morphAttributes.position;
+    const names = frames.map(a => a.name);
+    for (const [clip, { frames: n }] of Object.entries(model.clips)) {
+      for (let k = 0; k < n; k++) assert.ok(names.includes(`${clip}.${k}`), `${clip}.${k}`);
+      for (let k = 0; k < n; k++) {
+        const a = frames[names.indexOf(`${clip}.${k}`)], b = frames[names.indexOf(`${clip}.${(k + 1) % n}`)];
+        let most = 0;
+        for (let i = 0; i < a.count; i++) most = Math.max(most, Math.hypot(a.getX(i) - b.getX(i), a.getY(i) - b.getY(i), a.getZ(i) - b.getZ(i)));
+        assert.ok(most > 0.002, `${clip}.${k} and the next differ (${most.toFixed(4)} m)`);
+      }
+    }
+  }
+  // the near level's box in each frame of a clip (the frames are offsets from the rest shape)
+  const geometry = model.lods[0].geometry;
+  const rest = geometry.getAttribute('position');
+  const frameBox = (clip, k) => {
+    const d = geometry.morphAttributes.position.find(a => a.name === `${clip}.${k}`);
+    const box = new THREE.Box3(), p = new THREE.Vector3();
+    for (let i = 0; i < rest.count; i++) box.expandByPoint(p.set(rest.getX(i) + d.getX(i), rest.getY(i) + d.getY(i), rest.getZ(i) + d.getZ(i)));
+    return box;
+  };
+  const box = new THREE.Box3().setFromBufferAttribute(rest);
+  assert.ok(Math.abs(box.max.x - box.min.x - 0.77) < 0.04, `0.77 m beak to tail (${(box.max.x - box.min.x).toFixed(3)})`);
+  const span = box.max.z - box.min.z;
+  assert.ok(span > 1 && span < 1.5, `1 to 1.5 m between the wing tips (${span.toFixed(3)})`);
+  assert.ok(Math.abs(box.min.y) < 0.005, `feet on y = 0 (${box.min.y.toFixed(4)})`);
+  assert.ok(Math.abs(model.height - (box.max.y - box.min.y)) < 0.005);
+  const range = (clip, f) => { const v = [...Array(8).keys()].map(k => f(frameBox(clip, k))); return [Math.min(...v), Math.max(...v)]; };
+  // flapping, the wing tips rise above its back and sweep down below it
+  const [low, high] = range('flap', b => b.max.y - b.min.y);
+  assert.ok(high - low > 0.15, `the wings beat (${low.toFixed(3)} to ${high.toFixed(3)} m tall)`);
+  // gliding, the wings stay spread
+  const [narrowest] = range('glide', b => b.max.z - b.min.z);
+  assert.ok(narrowest > 0.9 * span, `glide keeps the wings spread (${narrowest.toFixed(3)} of ${span.toFixed(3)} m)`);
+  // perched, it stands on its toes on the ledge with its wings folded along its sides
+  const [lowest, highestFoot] = range('perch', b => b.min.y);
+  assert.ok(lowest > -0.005 && highestFoot < 0.005, `perched on its toes (${lowest.toFixed(4)} to ${highestFoot.toFixed(4)} m)`);
+  const [, widest] = range('perch', b => b.max.z - b.min.z);
+  assert.ok(widest < 0.3, `wings folded (${widest.toFixed(3)} m wide)`);
+});
