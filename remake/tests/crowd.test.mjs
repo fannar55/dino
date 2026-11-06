@@ -269,3 +269,32 @@ test('the small lizard is the owner\'s model baked within the budget', async () 
   assert.ok(Math.abs(box.min.y) < 0.005, `feet on y = 0 (${box.min.y.toFixed(4)})`);
   assert.ok(Math.abs(model.height - (box.max.y - box.min.y)) < 0.005);
 });
+
+test('the grazer is the owner\'s model baked within the budget, walking, trotting and grazing', async () => {
+  const model = crowdModelFrom(await loadGlb(new URL('../assets/critters/grasbitur.glb', import.meta.url)));
+  const triangles = g => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  assert.ok(triangles(model.lods[0].geometry) <= 1500, `near ${triangles(model.lods[0].geometry)} triangles`);
+  assert.ok(triangles(model.lods[1].geometry) <= 400, `far ${triangles(model.lods[1].geometry)} triangles`);
+  assert.equal(model.lods[0].until, 30);
+  for (const clip of ['walk', 'trot', 'graze', 'look']) assert.equal(model.clips[clip]?.frames, 8, `${clip} has 8 frames`);
+  // the game moves a walking or trotting grazer on at its clip's stride a cycle, the trot the quicker
+  const speed = clip => model.clips[clip].stride / model.clips[clip].seconds;
+  assert.ok(speed('walk') > 0.3 && speed('trot') > 1.5 * speed('walk'), `walk ${speed('walk')} m/s, trot ${speed('trot')} m/s`);
+  for (const { geometry } of model.lods) {
+    const frames = geometry.morphAttributes.position;
+    const names = frames.map(a => a.name);
+    for (const [clip, { frames: n }] of Object.entries(model.clips)) {
+      for (let k = 0; k < n; k++) assert.ok(names.includes(`${clip}.${k}`), `${clip}.${k}`);
+      for (let k = 0; k < n; k++) {
+        const a = frames[names.indexOf(`${clip}.${k}`)], b = frames[names.indexOf(`${clip}.${(k + 1) % n}`)];
+        let most = 0;
+        for (let i = 0; i < a.count; i++) most = Math.max(most, Math.hypot(a.getX(i) - b.getX(i), a.getY(i) - b.getY(i), a.getZ(i) - b.getZ(i)));
+        assert.ok(most > 0.005, `${clip}.${k} and the next differ (${most.toFixed(4)} m)`);
+      }
+    }
+  }
+  const box = new THREE.Box3().setFromBufferAttribute(model.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(box.max.x - box.min.x - 2.5) < 0.03, `2.5 m beak to tail (${(box.max.x - box.min.x).toFixed(3)})`);
+  assert.ok(Math.abs(box.min.y) < 0.01, `feet on y = 0 (${box.min.y.toFixed(4)})`);
+  assert.ok(Math.abs(model.height - (box.max.y - box.min.y)) < 0.01);
+});
