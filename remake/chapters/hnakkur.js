@@ -10,6 +10,7 @@
 //   view   the flight's own bound shots, as the flight frames them: face, chase, side, orbit (at the orbit's start); or one close to the
 //          seat: back, backHigh, left, right, front, top, under, legL, legR, head (his head and hers, from her left)
 //   saddle 1: she wears her saddle (engine/flier-saddle.js) and he rides on it; or the address of another fitted saddle file
+//   her    the address of another build of her model (to compare a rebake with the game's)
 // Units are metres; heading 0 faces +X.
 import { chapter as grunnur } from './grunnur.js';
 import { rideFlier } from '../engine/flier.js';
@@ -46,7 +47,7 @@ export const chapter = {
   look: 'earlyAfternoon',
   layout: grunnur.layout, // the same clearing and forest
   actors: {
-    flugedla: { url: '../assets/characters/pteranodon.glb', position: SPOT, heading: 0 },
+    flugedla: { url: params.get('her') || '../assets/characters/pteranodon.glb', position: SPOT, heading: 0 },
     egill: { url: '../assets/characters/egill.glb', position: [SPOT[0] - 3, 0, SPOT[2]], heading: 0 },
   },
   startShot: 'hero',
