@@ -2,7 +2,8 @@
 // groups about 5 s apart, frogs on lily pads, small lizards drinking at the edge, birds in a tree by the water, turtles on a stone
 // and a log, dragonflies over the water. When she calls, a group answers her, once: the frogs jump (and croak: the chapter's sound),
 // the small lizards squeak and run along the bank with her for 5 s, the birds fly up out of their tree and away, the turtles stretch
-// their necks, the dragonflies follow her in a swarm for 4 s.
+// their necks, the dragonflies follow her in a swarm for 4 s. Where a frog lands in the river, and where a turtle slides into it,
+// the water splashes (world/props/splash.js; the juice review of 2026-11-07).
 //
 // They are the game's own critters (world/critters/models.js: at most 400 triangles each), drawn larger than life (SCALE) so that
 // they read from the air, and drawn as crowds (world/critters/crowd.js): each kind in one draw call however many there are. The small
@@ -32,6 +33,7 @@ import { DONE, Handle } from '../../engine/handle.js';
 import { clipPose, crowdModelFrom } from '../critters/crowd-models.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
+import { splash } from '../props/splash.js';
 
 /** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s (and
  * on an upright tablet too, where the same view is 800 px wide, not 1280: kafli4's chase test). */
@@ -130,6 +132,9 @@ const RUN = { turn: 0.3, metres: 24, seconds: 4, out: 1.4, ahead: 8, inland: 25,
 // The frogs: a crouch and a leap `out` metres off the pad into the river, then they swim upstream on the surface and dive at `dive`.
 const HOP = { crouch: 0.22, air: 0.62, height: 1.25, out: 1.5, stagger: 0.18 };
 const SWIM = { speed: 1.5, kick: 2.2, dive: 6.0 };
+// The splash as one goes in: a frog where it lands (at the end of its hop), a turtle partway down its slide (`at` of the way), each
+// `size` of a splash her size (splash.js); one a frame late (a seek past it) by more than `fresh` seconds is left out.
+export const IN = { frogs: { size: 0.4 }, turtle: { size: 0.55, at: 0.55 }, fresh: 0.3 };
 // The birds: up out of the crown and to her (`rise`), with her (`with`), at the dragonflies' places round her `spread` wider, then
 // off up and inland (`peel`), out of sight at `gone`.
 const FLY = { stagger: 0.08, hop: 2.5, rise: 1.2, with: 4.0, peel: 2.0, gone: 7.2, beat: 7, spread: 1.4, over: 1.5 };
@@ -464,6 +469,20 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     for (const m of g.members) { m.out = water.out; m.dir = water.dir; }
   }
 
+  // when (seconds into its answer) a member goes into the water, for its splash: null for those that do not
+  const inAt = (g, k) => (g.kind === 'frogs' ? k * HOP.stagger + HOP.crouch + HOP.air
+    : g.kind === 'turtle' ? k * SLIDE.stagger + SLIDE.from + IN.turtle.at * SLIDE.seconds : null);
+  const effects = Boolean(world.effects && world.scene);
+  function splashFrame(g, m, k, tau) {
+    const when = inAt(g, k);
+    if (when === null || m.splashed || tau === null || tau < when) return;
+    m.splashed = true;
+    if (!effects || tau - when > IN.fresh) return;
+    const water = spot(m.d, m.side, m.along, g.kind === 'frogs' ? m.e - HOP.out : SLIDE.to);
+    const point = new THREE.Vector3(g.kind === 'frogs' ? water.x : m.position.x, water.level, g.kind === 'frogs' ? water.z : m.position.z);
+    splash(world, point, { size: IN[g.kind].size, count: 18, seed: `${g.id} ${k} in` });
+  }
+
   function update(dt, t = now()) {
     last = t;
     if (own) crowds.begin(world.camera ?? null);
@@ -473,6 +492,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       const at = tau === null ? null : STAY.has(g.kind) ? Math.min(tau, ANSWER[g.kind]) : answering ? tau : null;
       g.members.forEach((m, k) => {
         pose(g, m, k, t, at);
+        splashFrame(g, m, k, tau);
         if (m.visible) crowds.place(m.kind, m.position, m.heading, m.scale, m); // a member is its own pose: morphs, wings, pitch, squash
       });
       if (g.handle && !g.handle.done && tau >= ANSWER[g.kind]) g.handle.finish();

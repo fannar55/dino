@@ -31,6 +31,7 @@
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
 //   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows, the flocks and the herd set off
 //   life.arrive()        scene 7 has begun: from now on, outside the flight, the arrivals stand at the far pool
+//   life.cheer(at)       she has landed in the far pool: the arrivals hop for joy from game second `at` (CHEER), one after another
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
@@ -69,7 +70,7 @@ const FEN_BIRDS = { at: [5.5, 7.5, 9.5, 11.5, 13.5], off: [9, 8, 10, 7, 11, 6, 1
 const FEN_FLIES = { at: [7, 10.5, 14, 17], off: [8, 10, 7, 12], up: 1.4 };
 // The fish: one every `every` metres up the river from `from`, `off` metres beside her path, jumping `height` m in `seconds` when
 // she is `ahead` metres before it, `across` metres out from her path.
-const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
+export const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
 // The bank trees: in the gaps between the groups (but those just after a group of birds; the third on the far bank from the second
 // water-level shot, which stands by the near one), `e` m from the water, `scale` as the birds' trees in animals.js; four birds in
 // the crown's river side ([turn from facing the river, height in the crown]).
@@ -148,6 +149,8 @@ const SLOTS = {
 // her in the shallows give or take `turn` degrees. The lizards stand about (now and then a look up, over `look` s), the grazers
 // graze and look up by turns (over `graze` s). Nothing taller than `low` m grows within `lane` m of where they stand.
 const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low: 0.4, lane: [1.6, 2.5] };
+// Scene 7: as she lands (life.cheer), each that came hops twice for joy, one after another over `spread` seconds; metres high by kind.
+export const CHEER = { hops: 2, seconds: 0.45, spread: 0.9, height: { smaedla: 0.5, salamander: 0.4, grasbitur: 0.3, flugdyr: 0.7 } };
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
   const { river } = route;
@@ -442,6 +445,8 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   toTheirSpots(rows.filter(r => r.where === GATHER.rows).flatMap(r => r.members), 'lizard', GATHER.lane[0]);
   toTheirSpots(herd.find(g => g.id === GATHER.herd)?.members ?? [], 'grazer', GATHER.lane[1]);
   for (const b of flyers) { b.gather = { at: b.land.spot, heading: b.land.heading }; arrivals.push(b); }
+  arrivals.forEach((b, k) => { b.cheerDelay = ((k * 0.618034) % 1) * CHEER.spread; }); // not in rows: here and there along the bank
+  let cheerAt = null; // the game second they cheer from (life.cheer)
 
   for (const kind of new Set(things.map(t => t.kind))) {
     const n = things.filter(t => t.kind === kind).length;
@@ -450,6 +455,15 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
 
   let last = 0;
   const now = () => world.clock?.time ?? last;
+
+  /** One that came, hopping for joy at the game second `t` if they cheer (CHEER): up and down twice, after its own delay. */
+  function hop(b, t) {
+    if (cheerAt === null) return;
+    const u = t - cheerAt - (b.cheerDelay ?? 0);
+    if (!(u > 0 && u < CHEER.hops * CHEER.seconds)) return;
+    const a = (u % CHEER.seconds) / CHEER.seconds;
+    b.position.y += (CHEER.height[b.kind] ?? 0.4) * 4 * a * (1 - a);
+  }
 
   /** A flier perched at `at` until `s` = 0 (its trigger), then up and away, gone at FLUSH.gone. */
   function flier(b, s, clock) {
@@ -484,6 +498,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   function standing(b, clock) {
     b.position.copy(b.gather.at);
     b.heading = b.gather.heading;
+    hop(b, clock);
     for (const name in b.morphs) b.morphs[name] = 0;
     const model = BAKED[b.kind];
     const blend = (clip, time, w) => {
@@ -682,6 +697,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (ft === null && arrived) {
       b.position.copy(b.gather.at);
       b.heading = b.gather.heading;
+      hop(b, clock);
       blend('perch', clock, 1);
       return;
     }
@@ -814,13 +830,18 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (call === null && Number.isFinite(at)) call = at;
   }
 
+  /** Scene 7: she has landed (chapters/kafli4.js), and those that came hop for joy from the game second `at` (CHEER). */
+  function cheer(at = now()) {
+    if (Number.isFinite(at)) cheerAt = at;
+  }
+
   /** Scene 7 has begun (chapters/kafli4.js): outside the flight from now on, those that came stand at the far pool. */
   function arrive() {
     arrived = true;
   }
 
   return {
-    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive,
+    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive, cheer,
     dispose() { if (own) crowds.dispose(); },
   };
 }
