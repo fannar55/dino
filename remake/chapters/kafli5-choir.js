@@ -9,7 +9,8 @@
 // fourth she remembers the whole song ('done').
 //
 // The child can never fail. A wrong tap sings happily and is not counted; the right group hops and glows again ('light', again) and
-// the help starts over for the same note. A tap while she shows or echoes (before `busyUntil`) just sings. Without a right tap the
+// the help starts over for the same note, but the note never waits longer than HELP.auto from when it was first wanted, so wrong
+// taps never hold a phrase. A tap while she shows or echoes (before `busyUntil`) just sings. Without a right tap the
 // help comes at HELP's times from when the note was wanted: the right group glows harder and hops ('glow'), Mosi names it ('point'),
 // and it sings by itself and counts ('auto'). A child whose hands are off the screen (a note sang by itself and nothing has been
 // touched since) gets the rest of that phrase sooner (HANDS_OFF: a glow and the note, no naming), so the chapter keeps its length;
@@ -38,7 +39,8 @@ export function createChoir({ melody = MELODY, help = HELP, quick = HANDS_OFF, b
   let phrase = 0;
   let index = 0;
   let busyUntil = Infinity; // nothing is wanted before the start
-  let wantedSince = null; // when the wanted note became wanted (null: none is)
+  let wantedSince = null; // when the help for the wanted note started (null: none is wanted); a wrong tap starts it over
+  let firstWanted = null; // when the wanted note became wanted
   let given = new Set(); // the help levels given for it since then
   let handsOff = false;
   const modeOf = p => (p < 2 ? 'follow' : 'remember');
@@ -52,6 +54,7 @@ export function createChoir({ melody = MELODY, help = HELP, quick = HANDS_OFF, b
   /** The note at (phrase, index) is wanted from `time`. */
   function want(time) {
     wantedSince = time;
+    firstWanted = time;
     given = new Set();
     busyUntil = time;
     if (modeOf(phrase) === 'follow') emit(time, { type: 'light', group: melody[phrase][index] });
@@ -100,9 +103,11 @@ export function createChoir({ melody = MELODY, help = HELP, quick = HANDS_OFF, b
   function helpBy(now) {
     if (wantedSince === null || done) return false;
     const plan = handsOff && index > 0 ? quick : help;
+    const autoAt = Math.min(wantedSince + plan.auto, firstWanted + help.auto); // wrong taps never hold it longer
     for (const level of LEVELS) {
       if (given.has(level) || !Number.isFinite(plan[level])) continue;
-      const at = wantedSince + plan[level];
+      const at = level === 'auto' ? autoAt : wantedSince + plan[level];
+      if (level !== 'auto' && at > autoAt + EPS) continue; // the note sings by itself before this step would come
       if (now + EPS < at) return false;
       given.add(level);
       const group = melody[phrase][index];

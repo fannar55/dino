@@ -87,6 +87,21 @@ test('a wrong tap sings, is not counted, and the same note is still wanted', () 
   assert.ok(choir.events().some(e => e.type === 'sing' && e.group === wanted && e.counted));
 });
 
+test('wrong taps never hold a phrase: tapped wrong every 3 s, the note still sings by itself 18 s after it was wanted', () => {
+  const choir = createChoir();
+  choir.start(0);
+  const wanted = MELODY[0][0];
+  const log = run(choir, 0, 19, t => {
+    if (t > 0 && Math.abs(t / 3 - Math.round(t / 3)) < 1e-6 && choir.state().index === 0) choir.tap(wrongFor(wanted), t);
+  });
+  const sing = log.find(e => e.type === 'sing' && e.counted);
+  assert.ok(sing, 'the note counted');
+  assert.equal(sing.group, wanted);
+  assert.equal(sing.auto, true);
+  near(sing.time, HELP.auto, 'at 18 s from when it was wanted, whatever was tapped');
+  assert.ok(sorted(log), 'events come in time order');
+});
+
 test('a tap while she shows or echoes a phrase sings and is not counted, and the phrase waits for her', () => {
   const choir = createChoir();
   choir.start(0);
