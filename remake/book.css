@@ -410,6 +410,12 @@
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-tile {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.5) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.6);
 }
+/* The five tiles are small on a tablet (about 125-160 px wide): the names shrink with the tile, not below 15 px, and each name has
+   room for two lines, centred, so a name never spills out and the five stay the same height. */
+.book-leaf[data-tab="games"] .book-tiles[data-open="5"] .tile-name {
+  display: flex; align-items: center; justify-content: center; min-height: 2.28em;
+  white-space: normal; text-wrap: balance; font-size: clamp(15px, var(--tile-w) * .135, 30px);
+}
 .book-leaf[data-tab="games"] .book-tiles[data-open="2"] { grid-template-rows: auto; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="2"] .game-slot[data-place] { grid-column: auto; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="1"] { grid-template-columns: auto; grid-template-rows: auto; }
