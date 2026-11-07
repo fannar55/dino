@@ -29,6 +29,12 @@ const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, gifts4: 3.4, giftsLeft: 3.2, g2_le
 // (seconds of no tap before the tap hint, the finger, shows on what the child should tap: coach.js IDLE_HINT, 4)
 // Mosi's repeat waits for his voice to have been quiet this long too, so a line of the moment that has only just ended is not said again at once.
 const REPEAT_QUIET = 3;
+// What Mosi says again at a moment (his button, his repeat): the instruction of the moment, never a reaction line (coach.js momentLine).
+// A waiting moment has its own line (the level's `voice`, by story key; a wait for the gifts says the level's giftsLeft line); a search says
+// `first` ("Ýttu á lauf..."), and the picker `who`. A moment with none says nothing on the repeat, and the button says the help line.
+const MOMENT_VOICE = { ...Object.fromEntries(level.steps.filter(step => step.waitsForGifts).map(step => [level.story[step.id].gifts, LINES.giftsLeft])), ...level.voice };
+const MOMENT_KINDS = { search: 'first', choose: 'who' };
+const momentNow = () => { const story = currentStory(); return { key: story.key, kind: story.kind, voice: MOMENT_VOICE, kinds: MOMENT_KINDS }; };
 // The tap hint of every leaf and obstacle button (Litla Yatzy's, engine/yatzy-junior/game.js: a ring that closes and a drawn finger).
 const TAP_HINT = '<span class="tap-hint" aria-hidden="true"><i class="tap-ring"></i><svg viewBox="0 0 24 24"><path d="M9.2 11.4V4.6a1.6 1.6 0 0 1 3.2 0v5.6m0-.4a1.6 1.6 0 0 1 3.2 0v1.2m0-.2a1.6 1.6 0 0 1 3.2 0v3.4c0 3.7-2.5 6.2-6.1 6.2h-1.1c-2.1 0-3.5-.8-4.7-2.4l-2.6-3.5a1.6 1.6 0 0 1 2.4-2.1l2.5 2.3"/></svg></span>';
 const RETRY_AFTER = 3; // seconds the camera is still before a blocked crossing (or walk to the grove) tries again by itself
@@ -49,9 +55,8 @@ let captionCleared = false;
 let giftsLeftSaid = false; // Mosi has said `giftsLeft` for this wait
 let idleTime = 0, whoShown = false; // game seconds since the child last tapped; whether the bubbles are on screen
 let basketCount = 0; // gift pairs that have flown into the basket in the corner chip
-// Mosi's button and his repeat (coach.js): the last line that began and the story key it began under, the speech's count of lines when it was
-// last read, the key he has repeated his line for, and how long his voice has been quiet (game seconds).
-let momentLast = null, linesSeen = 0, repeatedKey = null, voiceQuiet = 0;
+// Mosi's button and his repeat (coach.js): the key he has repeated his line for, and how long his voice has been quiet (game seconds).
+let repeatedKey = null, voiceQuiet = 0;
 // There is no sound button any more: a tablet muted by the old one would stay silent, so its saved key is forgotten (the sound is never muted).
 try { forgetOldMute(localStorage); } catch {}
 const dialogs = [$('welcome'), $('pause-dialog')];
@@ -215,27 +220,20 @@ function sayAgain(line) {
   const text = VOICE_LINES[line]?.text;
   if (text) caption(text, CAPTION_HOLD[line] ?? 2.6);
 }
-// "Spyrja Mosa" (his button, bottom left): the last line he said at this moment of the story, or the level's line for it, or else his help
-// line (coach.js askLine). Never over a line he is saying or about to say, during a step or a scene, or while the game is held. A tap on him is the
+// "Spyrja Mosa" (his button, bottom left): the instruction of this moment of the story, or else his help line (coach.js askLine). Never over a line he is saying or about to say, during a step or a scene, or while the game is held. A tap on him is the
 // child doing something (the finger and the repeat wait again).
 function askMosi() {
   noteInput();
   if (!world || !started) return;
-  const line = askLine({ key: currentStory().key, last: momentLast, voice: level.voice, help: LINES.help, speaking: speech.isPlaying() || Boolean(speech.getStats().pending),
+  const line = askLine({ ...momentNow(), help: LINES.help, speaking: speech.isPlaying() || Boolean(speech.getStats().pending),
     busy: held() || Boolean(bridge.getState().active) || Boolean(world?.sceneBusy()) });
   if (!line) return;
   audio.unlock(); music.unlock(); sayAgain(line);
 }
-// The line of the moment (coach.js momentLine): each line that begins is kept with the story key it began under.
-function noteLineBegun() {
-  const begun = speech.lastStarted();
-  if (!begun || begun.n === linesSeen) return;
-  linesSeen = begun.n; momentLast = { id: begun.id, key: currentStory().key };
-}
 // After a long wait (coach.js IDLE_REPEAT, 10 s of the idle clock, which stands still while the picker asks, a scene plays or the camera moves)
-// Mosi says the line of the moment once more, once for each moment, and only when his voice has been quiet a while (REPEAT_QUIET).
+// Mosi says the instruction of the moment once more, once for each moment, and only when his voice has been quiet a while (REPEAT_QUIET).
 function repeatMoment() {
-  const key = currentStory().key, line = momentLine({ key, last: momentLast, voice: level.voice });
+  const moment = momentNow(), key = moment.key, line = momentLine(moment);
   if (!repeatDue({ idle: idleTime, key, repeated: repeatedKey, mayAct: canExplore(), speaking: speech.isPlaying() || voiceQuiet < REPEAT_QUIET, line })) return;
   repeatedKey = key; sayAgain(line);
 }
@@ -596,8 +594,8 @@ function start({ restart = false } = {}) {
   if (restart) { game.restart(); bridge.restart(); celebrated = false; giftsLeftSaid = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
   autoStep = null; autoAge = 0; blockedAuto = null; retryAge = 0; storyKey = ''; captionUntil = 0; captionCleared = false; idleTime = 0; whoShown = false;
-  // (a new round: Mosi has said nothing in it yet, and has repeated nothing; a line that began before this is not the round's)
-  momentLast = null; repeatedKey = null; voiceQuiet = 0; linesSeen = speech.lastStarted()?.n ?? 0;
+  // (a new round: Mosi has repeated nothing in it yet)
+  repeatedKey = null; voiceQuiet = 0;
   $('who').hidden = true; $('beat-word').classList.remove('show');
   $('coach').hidden = false; $('ending').hidden = true; $('ending-gifts').hidden = true; $('progress').hidden = false; setCredits(false);
   caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
@@ -653,8 +651,7 @@ function frame(timestamp) {
       }
     }
     updateStory(frozen ? 0 : dt);
-    // Mosi's line of the moment (what his button says again), and his repeat after a long wait (never while the game is held).
-    noteLineBegun();
+    // Mosi's repeat of the moment's instruction after a long wait (never while the game is held).
     if (!frozen) { voiceQuiet = speech.isPlaying() ? 0 : voiceQuiet + dt; repeatMoment(); }
     refreshControls();
     statsFrame++; // (window.__demoStats is built when QA reads it: see below)
@@ -710,8 +707,8 @@ window.__memory = {
   start: () => start(), pick: choose, nest: chooseNest,
   restart: () => start({ restart: true }),
   pause(value) { userPaused = Boolean(value); syncPause(); },
-  // Mosi's button (the same path as a tap on it), and the line it would say again: { id, key } of the last line that began, or null.
-  askMosi, lastLine: () => momentLast,
+  // Mosi's button (the same path as a tap on it), and the instruction it and the repeat would say: { id, key } (id null when the moment has none).
+  askMosi, lastLine: () => { const moment = momentNow(); return { id: momentLine(moment), key: moment.key }; },
 };
 window.__memoryReady = false;
 try {

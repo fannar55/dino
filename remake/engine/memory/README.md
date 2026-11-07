@@ -36,10 +36,13 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
   "Rólegri hreyfing" (`#motion`) and "Byrja upp á nýtt" (`#restart`). The sound has no button: the device's volume does it. The old
   sound button's saved state (`mosi.memory.muted.v1`) is removed at load (`coach.js` `forgetOldMute`).
 - **Bottom left, Mosi** (`#mosi-help`, "Spyrja Mosa", his face with a gold "?") and his bubble beside him (`#coach`: `#caption`, and
-  `#holding` while a pair holds something up). A tap says the line of the moment again, or the level's line for it, or else its help
-  line; never over a line he is saying, nor during a scene, the picker or a dialog (`coach.js` `askLine`). After 10 s without a tap he
-  says the moment's line once more, once for that moment, and only when no line has played for 3 s (`repeatDue`, `REPEAT_QUIET`).
-  `window.__memory.askMosi()` is the button's path, `window.__memory.lastLine()` the `{ id, key }` it would use.
+  `#holding` while a pair holds something up). A tap says what to do now, the instruction of the moment (`coach.js` `momentLine`): a
+  waiting moment's own line (the level's `voice`; the wait for the gifts says `giftsLeft`), `first` in a search, `who` at the picker;
+  never a reaction line (a match, a gift). A moment with none (level 1's three waits, until their lines are made) gets the help line.
+  Never over a line he is saying, nor during a scene, the picker or a dialog (`askLine`). After 10 s without a tap he says the
+  moment's instruction once more, once for that moment, and only when no line has played for 3 s (`repeatDue`, `REPEAT_QUIET`); a
+  moment with none stays quiet. `window.__memory.askMosi()` is the button's path, `window.__memory.lastLine()` the `{ id, key }` it
+  would use (`id` null when the moment has none).
 - **Over the world** (`#targets`): the leaves (44 px at least) and the obstacles (88 px, an 80 px badge with the level's picture). The
   obstacle to tap next glows and pulses at once (`.is-next`), as does the tap-along ring. After 4 s without a tap (`coach.js`
   `IDLE_HINT`) Litla Yatzy's tap hint (`.tap-hint`: a ring closing under a drawn finger) shows where the old gold arrow did: on a shut

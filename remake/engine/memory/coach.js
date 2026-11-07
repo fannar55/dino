@@ -1,11 +1,13 @@
 // Mosi's ask and repeat rules for "Hvar er vinur minn?".
 //
 // The spec asks two things of Mosi:
-//  - "Spyrja Mosa" (his round button): when the child taps it, Mosi says the line of the moment again. If he has
-//    not yet said one for this moment, he says the level's line for it, or else the level's help line. He never
-//    starts over a line he is already saying, and never during a scene or a dialog (`busy`).
+//  - "Spyrja Mosa" (his round button): when the child taps it, Mosi says what to do now: the instruction of the
+//    moment. If the moment has none, he says the level's help line. He never starts over a line he is already
+//    saying, and never during a scene or a dialog (`busy`).
 //  - Waiting: the finger shows after IDLE_HINT seconds without a tap; after IDLE_REPEAT seconds Mosi says the
-//    moment's line once more, and only once for that moment (`repeated` holds the key he repeated for).
+//    moment's instruction once more, and only once for that moment (`repeated` holds the key he repeated for).
+// The instruction is never a reaction line (a match, a gift, "not that one"): a waiting moment has its own line
+// (`voice[key]`), and a kind of moment may have one for all its keys (`kinds[kind]`, e.g. a search says `first`).
 // All pure: the game passes in what it knows and plays whatever line comes back.
 
 export const IDLE_HINT = 4;
@@ -17,14 +19,14 @@ export function forgetOldMute(storage) {
   try { storage?.removeItem(OLD_MUTE_KEY); } catch { /* storage blocked: nothing to forget */ }
 }
 
-// `last` is { id, key } | null: the last line that began and the story key it began under.
-export function momentLine({ key, last, voice }) {
-  return last?.key === key ? last.id : voice?.[key] ?? null;
+// The instruction of a moment: its own line, else its kind's line, else none.
+export function momentLine({ key, kind, voice, kinds }) {
+  return voice?.[key] ?? kinds?.[kind] ?? null;
 }
 
-export function askLine({ key, last, voice, help, speaking, busy }) {
+export function askLine({ key, kind, voice, kinds, help, speaking, busy }) {
   if (speaking || busy) return null;
-  return momentLine({ key, last, voice }) ?? help ?? null;
+  return momentLine({ key, kind, voice, kinds }) ?? help ?? null;
 }
 
 export function repeatDue({ idle, key, repeated, mayAct, speaking, line }) {

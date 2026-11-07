@@ -365,8 +365,9 @@ test("level 1's words are the markup's own words, on the new screen: the pause, 
   const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
   assert.match(game, /from '\.\/coach\.js'/); assert.match(game, /forgetOldMute\(/);
   assert.ok(!game.includes('setMute('), 'no mute'); assert.ok(!game.includes("'mosi.memory.muted.v1'"), "the old key is named in coach.js only");
-  // Mosi's button and the repeat use the coach's rules; a restart forgets what he said.
-  assert.match(game, /askLine\(\{/); assert.match(game, /repeatDue\(\{/); assert.match(game, /momentLast = null; repeatedKey = null;/);
+  // Mosi's button and the repeat use the coach's rules (a search says `first`, the picker `who`); a restart forgets what he repeated.
+  assert.match(game, /askLine\(\{/); assert.match(game, /repeatDue\(\{/); assert.match(game, /repeatedKey = null; voiceQuiet = 0;/);
+  assert.match(game, /const MOMENT_KINDS = \{ search: 'first', choose: 'who' \};/); assert.ok(!game.includes('momentLast'), 'no reaction line is kept for the repeat');
 });
 
 // ---- level 2 and the lock ----
@@ -549,14 +550,18 @@ test('Mosi\'s ask and repeat rules (coach)', async () => {
   assert.equal(store.has(OLD_MUTE_KEY), false); assert.equal(store.get('other'), '1');
   assert.doesNotThrow(() => forgetOldMute(null)); assert.doesNotThrow(() => forgetOldMute(undefined));
   assert.doesNotThrow(() => forgetOldMute({ removeItem() { throw new Error('blocked'); } }));
-  assert.equal(momentLine({ key: 'a', last: { id: 'who', key: 'a' } }), 'who');
-  assert.equal(momentLine({ key: 'b', last: { id: 'who', key: 'a' }, voice: { b: 'g2_lit' } }), 'g2_lit');
-  assert.equal(momentLine({ key: 'b', last: null }), null);
-  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, speaking: true }), null);
-  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, busy: true }), null);
-  assert.equal(askLine({ key: 'b', last: null, help: 'g2_help' }), 'g2_help');
-  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, help: 'g2_help' }), 'who');
-  assert.equal(askLine({ key: 'b', last: null }), null);
+  // The instruction of the moment: its own line, else its kind's (a search says `first`), never the last line he said (a match, a gift...).
+  const kinds = { search: 'first', choose: 'who' };
+  assert.equal(momentLine({ key: 'g2-light-ready', kind: 'work', voice: { 'g2-light-ready': 'g2_light_ready' }, kinds }), 'g2_light_ready');
+  assert.equal(momentLine({ key: 'find-friends', kind: 'search', kinds }), 'first');
+  assert.equal(momentLine({ key: 'gifts-left', kind: 'search', voice: { 'gifts-left': 'giftsLeft' }, kinds }), 'giftsLeft', 'its own line first');
+  assert.equal(momentLine({ key: 'lift-ready', kind: 'work', voice: {}, kinds }), null, "level 1's waits have no line yet: the repeat says nothing");
+  assert.equal(momentLine({ key: 'b' }), null);
+  assert.equal(askLine({ key: 'a', kind: 'search', kinds, speaking: true }), null);
+  assert.equal(askLine({ key: 'a', kind: 'search', kinds, busy: true }), null);
+  assert.equal(askLine({ key: 'lift-ready', kind: 'work', kinds, help: 'help' }), 'help', 'a moment with no line: the help line');
+  assert.equal(askLine({ key: 'who-branch', kind: 'choose', kinds, help: 'help' }), 'who');
+  assert.equal(askLine({ key: 'b' }), null);
   const due = { idle: 10, key: 'a', repeated: null, mayAct: true, speaking: false, line: 'who' };
   assert.equal(repeatDue({ ...due, idle: 9.9 }), false);
   assert.equal(repeatDue(due), true);
