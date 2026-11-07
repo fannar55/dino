@@ -16,7 +16,9 @@ import { sparkleBurst } from '../world/props/sparkles.js';
 // It is a skinned mesh on her own skeleton (her bones, by the names in the file: extras.joints), next to her body in her model, so
 // it is drawn with her, hidden with her, and drawn by the chapter's warm-up with her actor. Its places (where Egill's seat, hands,
 // knees and ankles go) are bind-frame points with the saddle's weights there (extras.places), skinned the same way each time they
-// are asked for. The pop grows it from the seat in the shader (a skinned mesh's own scale does not move its vertices).
+// are asked for. The pop grows it from the seat in the shader (a skinned mesh's own scale does not move its vertices). Where her
+// wing roots swing up over her back (wings up or folded) no blend of her bones keeps the pad out of her, so the fit adds corrections:
+// morph targets, each on as much as her upper arms are turned as in the pose it is for (correctionsAt), set each time it is drawn.
 
 export const SADDLE_MODEL = new URL('../assets/characters/pteranodon-saddle.glb', import.meta.url).href;
 const models = new Map(); // the page's loads by address: each saddle is a mesh of its own on a copy of the file's geometry
@@ -25,6 +27,33 @@ const popIn = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
 const clamp01 = t => Math.min(1, Math.max(0, t));
 const V3 = THREE.Vector3;
 const SIDES = ['left', 'right'];
+
+/**
+ * How much of each of the saddle's corrections is on (its morph targets: tools/saddle-fit.mjs correctInPoses) as her bones are
+ * turned now (`turnOf(name)`: a bone's turn in its parent, a Quaternion). Each correction is for one of her poses, and so is each
+ * of the `clean` poses, which need none (extras.corrections, extras.clean: [{ at: { bone: quaternion }, radius }]): each pose
+ * counts fully at its own turns and fades out smoothly as any of its bones turns `radius` radians from them, and where poses
+ * overlap they share (their counts are divided by the sum, when it is over one). So the saddle has a pose's correction in that pose,
+ * a blend of the near ones' between poses, and none near a clean pose or far from all of them. Into `out`.
+ */
+export function correctionsAt(corrections, clean, turnOf, out = []) {
+  const near = c => {
+    let far = 0;
+    for (const name in c.at) {
+      const q = turnOf(name), key = c.at[name];
+      const dot = Math.abs(q.x * key[0] + q.y * key[1] + q.z * key[2] + q.w * key[3]);
+      far = Math.max(far, 2 * Math.acos(Math.min(1, dot)));
+    }
+    const x = clamp01(1 - far / c.radius);
+    return x * x * (3 - 2 * x);
+  };
+  out.length = corrections.length;
+  let sum = 0;
+  corrections.forEach((c, k) => { out[k] = near(c); sum += out[k]; });
+  for (const c of clean) sum += near(c);
+  if (sum > 1) for (let k = 0; k < out.length; k++) out[k] /= sum;
+  return out;
+}
 
 /** The body: the skinned mesh with the most vertices (not an eyelid or a shadow caster). */
 function bodyOf(host) {
@@ -44,6 +73,9 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
   let spots = null; // name -> { bind, weights: [[bone, w]] }
   let shown = false;
   let disposed = false;
+  let corrections = [];
+  let clean = [];
+  let correct = () => {};
   const uniforms = { popScale: { value: 1 }, popCentre: { value: new V3() } };
   const places = { seat: new V3(), grips: { left: new V3(), right: new V3() }, knees: { left: new V3(), right: new V3() }, ankles: { left: new V3(), right: new V3() } };
 
@@ -71,6 +103,8 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
     // (her bindMatrix's own inverse: in the attached bind mode three keeps bindMatrixInverse as the inverse of her world matrix)
     const unbind = body.bindMatrix.clone().invert();
     geometry.applyMatrix4(unbind);
+    const turn = new THREE.Matrix3().setFromMatrix4(unbind); // the corrections are moves (relative morph targets): turned only
+    for (const target of geometry.morphAttributes.position ?? []) target.applyMatrix3(turn);
     const spot = ({ bind, weights }) => ({
       bind: new V3(...bind).applyMatrix4(unbind),
       weights: Object.entries(weights).map(([name, w]) => [bones.findIndex(bone => bone.name === name), w]).filter(([b]) => b >= 0),
@@ -93,6 +127,16 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
     mesh.receiveShadow = true;
     mesh.frustumCulled = false; // as her body: its bounds are the bind pose's, not where she is
     mesh.visible = shown;
+    // its corrections, on as her upper arms say each time it is drawn (where her wing roots swing up over her back)
+    corrections = source.userData.corrections ?? [];
+    clean = source.userData.clean ?? [];
+    if (corrections.length && mesh.morphTargetInfluences?.length === corrections.length) {
+      const named = new Map(bones.map(bone => [bone.name, bone]));
+      const turnOf = name => named.get(name).quaternion;
+      for (const c of [...corrections, ...clean]) for (const name in c.at) if (!named.has(name)) throw new Error(`${host.name} has no bone "${name}" for the saddle's corrections`);
+      correct = () => correctionsAt(corrections, clean, turnOf, mesh.morphTargetInfluences);
+      mesh.onBeforeRender = correct;
+    }
     body.parent.add(mesh);
     return true;
   }).catch(error => {
@@ -116,6 +160,11 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
     host,
     loaded,
     get mesh() { return mesh; },
+    /** Its corrections' drivers (extras.corrections), in the order of its morph targets, and the poses that need none (extras.clean). */
+    get corrections() { return corrections; },
+    get clean() { return clean; },
+    /** Sets its corrections as her bones are turned now (done each time it is drawn). */
+    correct() { correct(); },
     /** On her and seen (or popping on). */
     get shown() { return shown; },
     /** Its places can be had: the model is on her. */

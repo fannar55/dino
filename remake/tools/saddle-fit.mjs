@@ -7,18 +7,23 @@
 //
 // 1. Puts the saddle on her back in the bind pose, its frame level with her back as it is in carry's first pose (flier.js SEAT: the
 //    seat on her Spine bone), so its seat sits on the top of her back, its underside `GAP` over her skin.
-// 2. Lays what faces her skin onto it (the pad's underside, the inside of the girth): each such vertex goes to the closest point of her
-//    skin, GAP out from it, and the rest of the saddle near it follows by a smooth field of those moves (FALLOFF), fading out toward
-//    the seat, so the pad drapes over the wing roots either side of her back and the girth hugs her, while the seat and the handlebar
-//    keep their shape. Then anything still within GAP / 2 of her skin, or inside it, is put GAP out from it.
+// 2. Lays the pad over her back as a cloth over a broad back: the owner's pad bends down either side as over a barrel, and her back is
+//    nearly flat a metre across, so its arch is unrolled onto her back's top (padArch, backSurface): each point goes as far across her
+//    back from the middle as it was round the arch, and as far over her skin as it was over the arch's underside, so the pad keeps its
+//    size and its thickness. Up toward the seat this fades out, so the seat, the cantle and the handlebar keep their shape. Then
+//    anything still within GAP / 2 of her skin, or inside it, is put GAP out from it.
 // 3. Gives each vertex her skin's bone weights at its closest point; up toward the seat they blend into the weights at the seat (her
 //    spine's), so the seat and the handlebar move as one with her back while the pad and the girth bend as her skin bends under them,
 //    over her wing roots in the wing beats too.
 // 4. Holds in her poses (holdInPoses): in each of the poses she is in with the saddle on (POSES), where her skin comes into the saddle
 //    it is pushed out, and the weights and bind places are fitted to those poses; then counts what is still inside her in each.
-// 5. Writes one mesh in her bind frame (her mesh's own, as GLTFLoader reads it) with JOINTS_0 and WEIGHTS_0 naming her bones by name
-//    (extras.joints), the same material and maps, and in extras the places a rider uses (seat, grips, knees, ankles: bind-frame points
-//    with their weights) and what the fit did. engine/flier-saddle.js binds it to her skeleton when it loads.
+// 5. Corrects what no weights can hold (correctInPoses): where her wing roots swing up over her back (wings up, wings folded), a
+//    morph target for that pose pushes the pad out, on as much as her upper arms are turned as in it (engine/flier-saddle.js
+//    correctionsAt); then counts again.
+// 6. Writes one mesh in her bind frame (her mesh's own, as GLTFLoader reads it) with JOINTS_0 and WEIGHTS_0 naming her bones by name
+//    (extras.joints), the same material and maps, the corrections as sparse morph targets (their drivers in extras.corrections), and
+//    in extras the places a rider uses (seat, grips, knees, ankles: bind-frame points with their weights) and what the fit did.
+//    engine/flier-saddle.js binds it to her skeleton when it loads.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -26,6 +31,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { skinSurface } from '../engine/skin-surface.js';
 import { SEAT } from '../engine/flier.js';
+import { correctionsAt } from '../engine/flier-saddle.js';
 
 const V3 = THREE.Vector3;
 const smooth = x => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
@@ -33,23 +39,41 @@ const smooth = x => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 -
 /** The fit's numbers: metres, in the saddle's frame (x ahead, y up, z her right; the origin on the seat). */
 export const FIT = {
   gap: 0.006, // between her skin and the saddle's underside
-  ahead: 0, // the saddle's origin this far ahead of the seat on her back (along her back, level)
-  contact: 0.4, // a vertex that faces her skin and lies within this of it is laid onto it
-  facing: 0.35, // ... facing it: the cosine between its normal and the way to her skin
-  falloff: 0.07, // over which a laid vertex's move spreads into the saddle round it
-  anchor: 0.08, // how firmly the rest of the saddle stays put where few laid vertices are near (the field's weight of staying)
-  padTop: -0.05, // below this height the saddle follows her skin (the pad and the girth)
-  underside: 0.3, // the pad's underside is the lowest of the saddle within this under its origin (the girth hangs lower)
+  ahead: -0.16, // the saddle's origin this far ahead of the seat on her back (along her back, level): back, so his head is clear of
+  //              her crest as she glides (it reaches back over him; on the seat itself his hair is 5 cm into it, 12 cm back 2 cm)
+  arch: 0.4, // the pad's arch is measured round a point this far under its underside below the seat (padArch)
+  bend: 0.3, // the tightest the pad bends over her back (backSurface: it bridges grooves narrower than this bends round)
+  spread: 'footprint', // how far across her back the pad's arch is laid: 'footprint' as wide as it is seen from above, or a share of its length round
+  contact: 0.012, // what is within this over the pad's underside lies on her skin (holdInPoses lays it back on where it lifts)
+  padTop: -0.05, // below this height the saddle is the pad, laid over her back
+  underside: 0.3, // the pad's underside is the lowest of the saddle within this under its origin
   rigid: 0.02, // above this height it moves with her back at the seat alone (the seat, the cantle, the handlebar)
 };
 
 /** Where a rider's places are on the saddle, in its frame: set for the model in hand (blender-saddle.py's report). */
 export const PLACES = {
   seat: [0, 0, 0],
-  grips: { left: [0.25, 0.17, -0.1], right: [0.25, 0.17, 0.1] },
-  knees: { left: [0.2, 0.05, -0.32], right: [0.2, 0.05, 0.32] },
-  ankles: { left: [-0.05, -0.12, -0.36], right: [-0.05, -0.12, 0.36] },
+  grips: { left: [0.23, 0.17, -0.15], right: [0.23, 0.17, 0.17] }, // the middle of the bar's wrapped grips (v1's bar sits 2.5 cm right)
+  // his knees bend toward these and his feet go to these, over her back: [ahead, above her skin, across]. Her back is a metre wide and
+  // nearly flat, so he kneels astride it, his knees out to the sides and his feet back on the pad behind them.
+  knees: { left: [0.1, 0.12, -0.45], right: [0.1, 0.12, 0.45] },
+  ankles: { left: [-0.22, 0.1, -0.24], right: [-0.22, 0.1, 0.24] },
 };
+
+/** A fitted saddle's places for a rider (extras.places, as engine/flier-saddle.js reads them): bind points and the weights there. */
+export function placesOf(fitted, names, places = PLACES) {
+  const named = w => Object.fromEntries([...w].map(([bone, x]) => [names[bone], Number(x.toFixed(4))]));
+  const one = (local, over) => {
+    const { point, weights } = fitted.place(local, { over });
+    return { local, ...(over ? { over: true } : {}), bind: point.toArray().map(x => Number(x.toFixed(5))), weights: named(weights) };
+  };
+  const out = { seat: one(places.seat, false) };
+  for (const part of ['grips', 'knees', 'ankles']) {
+    const over = part !== 'grips';
+    out[part] = { left: one(places[part].left, over), right: one(places[part].right, over) };
+  }
+  return out;
+}
 
 /**
  * Her frame for the saddle, in her bind pose: the seat (SEAT on its bone, bind frame) and her back's axes there as they are when her
@@ -71,79 +95,68 @@ export function backFrame(gltf, mesh) {
 
 /**
  * The fit. `saddle`: { positions (Float32Array, saddle frame, metres), normals, index }; `skin`: skinSurface of her mesh (bind
- * pose); `frame`: backFrame(). Returns { positions, normals (bind frame), weights: Array of Map(bone -> w), place(p), report }, where
- * place(p) takes a point of the saddle's frame to the bind frame as the fit moved the saddle round it.
+ * pose); `frame`: backFrame(). Returns { positions, normals (bind frame), weights: Array of Map(bone -> w), contact, place(p), report },
+ * where place(p) takes a point of the saddle's frame to the bind frame as the fit moved the saddle round it.
  */
 export function fitSaddle(saddle, skin, frame, { fit = FIT } = {}) {
   const n = saddle.positions.length / 3;
   const P = i => new V3(saddle.positions[3 * i], saddle.positions[3 * i + 1], saddle.positions[3 * i + 2]);
-  const N = i => new V3(saddle.normals[3 * i], saddle.normals[3 * i + 1], saddle.normals[3 * i + 2]);
-  const toBind = (p, out = new V3()) => out.copy(frame.seat)
-    .addScaledVector(frame.ahead, p.x + fit.ahead).addScaledVector(frame.up, p.y).addScaledVector(frame.right, p.z);
-  const dirToBind = (d, out = new V3()) => out.set(0, 0, 0).addScaledVector(frame.ahead, d.x).addScaledVector(frame.up, d.y).addScaledVector(frame.right, d.z);
+  // her frame round the seat (x ahead, y up, z right; metres from the seat point) to the bind frame; the saddle's frame into hers
+  const herToBind = p => frame.seat.clone().addScaledVector(frame.ahead, p.x).addScaledVector(frame.up, p.y).addScaledVector(frame.right, p.z);
+  const toHer = p => new V3(p.x + fit.ahead, p.y, p.z);
 
   // 1. On her back: the underside below the seat on the top of her back, GAP over it.
   let bottom = Infinity;
+  let x0 = Infinity, x1 = -Infinity;
   for (let i = 0; i < n; i++) {
     const p = P(i);
     if (Math.abs(p.x) < 0.06 && Math.abs(p.z) < 0.06 && p.y > -fit.underside) bottom = Math.min(bottom, p.y);
+    x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
   }
   if (!Number.isFinite(bottom)) throw new Error('the saddle has nothing under its origin: is its origin on the seat?');
-  const under = skin.closest(toBind(new V3(0, bottom, 0)));
+  const under = skin.closest(herToBind(toHer(new V3(0, bottom, 0))));
   const raise = fit.gap - under.distance; // to her skin, and GAP over it
-  const placed = Array.from({ length: n }, (_, i) => toBind(P(i)).addScaledVector(frame.up, raise));
+  const placed = Array.from({ length: n }, (_, i) => herToBind(toHer(P(i))).addScaledVector(frame.up, raise));
   const height = Array.from({ length: n }, (_, i) => P(i).y);
 
-  // 2. What faces her skin, laid onto it.
-  const moves = new Array(n).fill(null);
-  const near = new Array(n);
-  const normal = new V3();
-  const toward = new V3();
+  // 2. The pad laid over her back: its arch unrolled across onto her back's top (as smoothed by backSurface), each point as far along
+  //    her back from the middle as it was round the pad's arch, and as far over it as it was over the arch's underside.
+  const back = backSurface(skin.mesh, frame, { x: [x0 + fit.ahead - 0.06, x1 + fit.ahead + 0.06], bend: fit.bend });
+  const arch = padArch(saddle, { below: fit.padTop, centre: bottom - fit.arch });
+  // laid flat, the arch would reach further out than the pad does seen from above (onto her wing roots, which lift as she beats):
+  // fit.spread 'footprint' keeps it to that width
+  let spread = fit.spread;
+  if (spread === 'footprint') {
+    let wide = 0, round = 0;
+    for (let i = 0; i < n; i++) if (height[i] < fit.padTop) {
+      wide = Math.max(wide, Math.abs(saddle.positions[3 * i + 2]));
+      round = Math.max(round, Math.abs(arch.at(height[i], saddle.positions[3 * i + 2]).s));
+    }
+    spread = round > 0 ? Math.min(1, wide / round) : 1;
+  }
+  const lay = local => {
+    const { s, d } = arch.at(local.y, local.z);
+    const x = local.x + fit.ahead;
+    const z = back.across(x, s * spread);
+    return new V3(x, back.height(x, z), z).addScaledVector(back.normal(x, z), fit.gap + Math.max(0, d));
+  };
+  // a point over her back: [ahead, above her skin, across] in the saddle's frame (for a rider's knees and feet on the pad)
+  const overBack = ([ahead, above, across]) => {
+    const x = ahead + fit.ahead;
+    return new V3(x, back.height(x, across), across).addScaledVector(back.normal(x, across), above);
+  };
+  const onBack = y => 1 - smooth((y - fit.padTop) / (fit.rigid - fit.padTop)); // how much a point at this height lies on her back
   let laid = 0;
-  for (let i = 0; i < n; i++) {
-    const c = skin.closest(placed[i]);
-    near[i] = c;
-    if (!c || height[i] > fit.padTop) continue;
-    dirToBind(N(i), normal).normalize();
-    toward.subVectors(c.point, placed[i]);
-    const facing = toward.lengthSq() > 1e-12 ? normal.dot(toward.normalize()) : 1;
-    if (c.distance < fit.gap || (facing > fit.facing && c.distance < fit.contact)) {
-      moves[i] = c.point.clone().addScaledVector(c.normal, fit.gap).sub(placed[i]);
-      laid++;
-    }
-  }
-  // the field: each vertex moves by its laid neighbours' moves, weighted by closeness, against a weight of staying; fading out
-  // toward the seat
-  const cell = fit.falloff * 2;
-  const grid = new Map();
-  const key = p => `${Math.floor(p.x / cell)},${Math.floor(p.y / cell)},${Math.floor(p.z / cell)}`;
-  for (let i = 0; i < n; i++) if (moves[i]) {
-    const k = key(placed[i]);
-    if (!grid.has(k)) grid.set(k, []);
-    grid.get(k).push(i);
-  }
-  const moved = placed.map(p => p.clone());
-  const sum = new V3();
-  for (let i = 0; i < n; i++) {
-    if (moves[i]) { moved[i].add(moves[i]); continue; }
-    const p = placed[i];
-    const cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell), cz = Math.floor(p.z / cell);
-    sum.set(0, 0, 0);
-    let total = 0;
-    for (let x = cx - 2; x <= cx + 2; x++) for (let y = cy - 2; y <= cy + 2; y++) for (let z = cz - 2; z <= cz + 2; z++) {
-      for (const j of grid.get(`${x},${y},${z}`) ?? []) {
-        const g = Math.exp(-(placed[j].distanceToSquared(p)) / (fit.falloff * fit.falloff));
-        sum.addScaledVector(moves[j], g);
-        total += g;
-      }
-    }
-    const fade = 1 - smooth((height[i] - fit.padTop) / (fit.rigid - fit.padTop));
-    if (total > 0) moved[i].addScaledVector(sum, fade / (total + fit.anchor));
-  }
+  const moved = placed.map((p, i) => {
+    const k = onBack(height[i]);
+    if (k <= 0) return p.clone();
+    laid++;
+    return p.clone().lerp(herToBind(lay(P(i))), k);
+  });
+  const contact = new Uint8Array(n); // what lies on her skin: the pad's underside, and what was put out to her skin
+  for (let i = 0; i < n; i++) if (height[i] < fit.padTop && arch.at(height[i], P(i).z).d < fit.contact) contact[i] = 1;
   // anything left within GAP / 2 of her skin, or inside it, out to GAP
   let pushed = 0;
-  const contact = new Uint8Array(n); // what lies on her skin: laid onto it, or put out to it
-  for (let i = 0; i < n; i++) if (moves[i]) contact[i] = 1;
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < n; i++) {
       const c = skin.closest(moved[i]);
@@ -170,25 +183,161 @@ export function fitSaddle(saddle, skin, frame, { fit = FIT } = {}) {
   // a point of the saddle's frame to the bind frame, moved as the saddle round it was; its weights the saddle's round it (as they are
   // when it is asked: after holdInPoses, those)
   const result = { positions: moved, normals, weights, contact, index: saddle.index, place, report: null };
-  function place(local) {
-    const p = toBind(new V3(...local)).addScaledVector(frame.up, raise);
-    const cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell), cz = Math.floor(p.z / cell);
-    sum.set(0, 0, 0);
-    let total = 0;
-    for (let x = cx - 2; x <= cx + 2; x++) for (let y = cy - 2; y <= cy + 2; y++) for (let z = cz - 2; z <= cz + 2; z++) {
-      for (const j of grid.get(`${x},${y},${z}`) ?? []) {
-        const g = Math.exp(-(placed[j].distanceToSquared(p)) / (fit.falloff * fit.falloff));
-        sum.addScaledVector(moves[j], g);
-        total += g;
-      }
+  // place(local): a point of the saddle's frame; place(local, { over: true }): [ahead, above her skin, across] over her back
+  function place(local, { over = false } = {}) {
+    let at;
+    if (over) at = herToBind(overBack(local));
+    else {
+      const p = new V3(...local);
+      at = herToBind(toHer(p)).addScaledVector(frame.up, raise);
+      const k = onBack(p.y);
+      if (k > 0) at.lerp(herToBind(lay(p)), k);
     }
-    const fade = 1 - smooth((local[1] - fit.padTop) / (fit.rigid - fit.padTop));
-    if (total > 0) p.addScaledVector(sum, fade / (total + fit.anchor));
-    return { point: p, weights: weightsNear(result, p) };
+    return { point: at, weights: weightsNear(result, at) };
   }
 
-  result.report = { vertices: n, laid, pushed, raise: Number(raise.toFixed(4)), bottom: Number(bottom.toFixed(4)) };
+  result.report = { vertices: n, laid, pushed, spread: Number(spread.toFixed(3)), raise: Number(raise.toFixed(4)), bottom: Number(bottom.toFixed(4)) };
   return result;
+}
+
+/**
+ * Her back's top as a pad would lie on it, in her frame round the seat (x ahead, y up, z right; metres from the seat point, her bind
+ * pose): the top of her skin over a grid (every `dx` along, `dz` across), smoothed from above as a sheet that bends no tighter than
+ * `bend` metres would rest on it (it bridges the grooves at her wing roots). height(x, z), normal(x, z), and across(x, s): where an arc
+ * length s across her back from the middle (signed: negative to her left) ends.
+ */
+export function backSurface(mesh, frame, { x: [x0, x1], z: [z0, z1] = [-1, 1], bend = FIT.bend, dx = 0.02, dz = 0.01 } = {}) {
+  const position = mesh.geometry.attributes.position;
+  const index = mesh.geometry.index;
+  const L = new Float32Array(position.count * 3);
+  const v = new V3();
+  for (let i = 0; i < position.count; i++) {
+    v.fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(frame.seat);
+    L[3 * i] = v.dot(frame.ahead); L[3 * i + 1] = v.dot(frame.up); L[3 * i + 2] = v.dot(frame.right);
+  }
+  const nx = Math.round((x1 - x0) / dx) + 1, nz = Math.round((z1 - z0) / dz) + 1;
+  const at = (ix, iz) => ix * nz + iz;
+  // her skin's top over each grid point: the highest of the triangles over it (each triangle over the points its shadow covers)
+  const raw = new Float32Array(nx * nz).fill(-Infinity);
+  for (let f = 0; f < index.count; f += 3) {
+    const [a, b, c] = [index.getX(f), index.getX(f + 1), index.getX(f + 2)];
+    const ax = L[3 * a], ay = L[3 * a + 1], az = L[3 * a + 2];
+    const bx = L[3 * b], by = L[3 * b + 1], bz = L[3 * b + 2];
+    const cx = L[3 * c], cy = L[3 * c + 1], cz = L[3 * c + 2];
+    const area = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
+    if (Math.abs(area) < 1e-10) continue;
+    const ix0 = Math.max(0, Math.ceil((Math.min(ax, bx, cx) - x0) / dx)), ix1 = Math.min(nx - 1, Math.floor((Math.max(ax, bx, cx) - x0) / dx));
+    const iz0 = Math.max(0, Math.ceil((Math.min(az, bz, cz) - z0) / dz)), iz1 = Math.min(nz - 1, Math.floor((Math.max(az, bz, cz) - z0) / dz));
+    for (let ix = ix0; ix <= ix1; ix++) for (let iz = iz0; iz <= iz1; iz++) {
+      const x = x0 + ix * dx, z = z0 + iz * dz;
+      const wb = ((x - ax) * (cz - az) - (cx - ax) * (z - az)) / area;
+      const wc = ((bx - ax) * (z - az) - (x - ax) * (bz - az)) / area;
+      if (wb < -1e-9 || wc < -1e-9 || wb + wc > 1 + 1e-9) continue;
+      const y = ay + wb * (by - ay) + wc * (cy - ay);
+      if (y > raw[at(ix, iz)]) raw[at(ix, iz)] = y;
+    }
+  }
+  // where she is not under the grid (past her sides), her nearest top across, level
+  for (let ix = 0; ix < nx; ix++) {
+    const found = [];
+    for (let iz = 0; iz < nz; iz++) if (raw[at(ix, iz)] > -Infinity) found.push(iz);
+    if (!found.length) continue;
+    for (let iz = 0; iz < found[0]; iz++) raw[at(ix, iz)] = raw[at(ix, found[0])];
+    for (let iz = found.at(-1) + 1; iz < nz; iz++) raw[at(ix, iz)] = raw[at(ix, found.at(-1))];
+  }
+  // the sheet from above: at each point the highest of her top round it less how far a sheet of that bend falls over the distance
+  const reach = Math.sqrt(2 * bend * 0.02); // past this it has fallen 2 cm: lower than any groove it bridges matters
+  const wx = Math.ceil(reach / dx), wz = Math.ceil(reach / dz);
+  const top = new Float32Array(nx * nz);
+  for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
+    let best = -Infinity;
+    for (let jx = Math.max(0, ix - wx); jx <= Math.min(nx - 1, ix + wx); jx++) for (let jz = Math.max(0, iz - wz); jz <= Math.min(nz - 1, iz + wz); jz++) {
+      const h = raw[at(jx, jz)];
+      if (h === -Infinity) continue;
+      const ddx = (jx - ix) * dx, ddz = (jz - iz) * dz;
+      best = Math.max(best, h - (ddx * ddx + ddz * ddz) / (2 * bend));
+    }
+    top[at(ix, iz)] = best === -Infinity ? 0 : best;
+  }
+  // arc lengths across each row from the middle
+  const middle = Math.round(-z0 / dz);
+  const arc = new Float32Array(nx * nz);
+  for (let ix = 0; ix < nx; ix++) {
+    for (let iz = middle + 1; iz < nz; iz++) arc[at(ix, iz)] = arc[at(ix, iz - 1)] + Math.hypot(dz, top[at(ix, iz)] - top[at(ix, iz - 1)]);
+    for (let iz = middle - 1; iz >= 0; iz--) arc[at(ix, iz)] = arc[at(ix, iz + 1)] - Math.hypot(dz, top[at(ix, iz)] - top[at(ix, iz + 1)]);
+  }
+  const clampX = x => Math.min(nx - 1, Math.max(0, (x - x0) / dx));
+  const clampZ = z => Math.min(nz - 1, Math.max(0, (z - z0) / dz));
+  const bilinear = (grid, x, z) => {
+    const fx = clampX(x), fz = clampZ(z);
+    const ix = Math.min(nx - 2, Math.floor(fx)), iz = Math.min(nz - 2, Math.floor(fz));
+    const tx = fx - ix, tz = fz - iz;
+    return (grid[at(ix, iz)] * (1 - tz) + grid[at(ix, iz + 1)] * tz) * (1 - tx) + (grid[at(ix + 1, iz)] * (1 - tz) + grid[at(ix + 1, iz + 1)] * tz) * tx;
+  };
+  const rowAcross = (ix, s) => { // the z at arc length s along row ix (past its ends, on along the level)
+    let lo = 0, hi = nz - 1;
+    if (s <= arc[at(ix, lo)]) return z0 + (s - arc[at(ix, lo)]);
+    if (s >= arc[at(ix, hi)]) return z0 + hi * dz + (s - arc[at(ix, hi)]);
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (arc[at(ix, mid)] <= s) lo = mid; else hi = mid; }
+    const t = (s - arc[at(ix, lo)]) / (arc[at(ix, hi)] - arc[at(ix, lo)]);
+    return z0 + (lo + t) * dz;
+  };
+  return {
+    height: (x, z) => bilinear(top, x, z),
+    normal(x, z) {
+      const hx = (bilinear(top, x + dx, z) - bilinear(top, x - dx, z)) / (2 * dx);
+      const hz = (bilinear(top, x, z + dz) - bilinear(top, x, z - dz)) / (2 * dz);
+      return new V3(-hx, 1, -hz).normalize();
+    },
+    across(x, s) {
+      const fx = clampX(x);
+      const ix = Math.min(nx - 2, Math.floor(fx)), t = fx - ix;
+      return rowAcross(ix, s) * (1 - t) + rowAcross(ix + 1, s) * t;
+    },
+  };
+}
+
+/**
+ * The pad's arch across (the owner's pad bends down either side, as over a barrel): a point of the saddle's frame as how far round the
+ * arch from its middle it is (s, signed: negative to the left) and how far over the arch's underside (d), both measured round `centre`
+ * (metres up from the seat, under the middle of the pad). The underside is the innermost of the vertices lower than `below` (the pad)
+ * at each angle round the centre.
+ */
+export function padArch(saddle, { below, centre }) {
+  const BINS = 181; // one a degree, straight up in the middle
+  const step = Math.PI / 180;
+  const binOf = theta => Math.min(BINS - 1, Math.max(0, theta / step + 90));
+  const inner = new Float64Array(BINS).fill(Infinity);
+  const { positions } = saddle;
+  for (let i = 0; i < positions.length / 3; i++) {
+    const y = positions[3 * i + 1], z = positions[3 * i + 2];
+    if (y >= below) continue;
+    const b = Math.round(binOf(Math.atan2(z, y - centre)));
+    inner[b] = Math.min(inner[b], Math.hypot(z, y - centre));
+  }
+  // bins with nothing in them from their neighbours (level past the ends); then the innermost of each bin's few round it, smoothed
+  const filled = Array.from(inner);
+  const known = filled.map((r, b) => (Number.isFinite(r) ? b : -1)).filter(b => b >= 0);
+  if (!known.length) throw new Error('the saddle has no pad under its seat');
+  for (let b = 0; b < BINS; b++) {
+    if (Number.isFinite(filled[b])) continue;
+    const after = known.find(k => k > b), before = known.findLast(k => k < b);
+    filled[b] = before === undefined ? inner[after] : after === undefined ? inner[before] : inner[before] + (inner[after] - inner[before]) * (b - before) / (after - before);
+  }
+  const low = filled.map((_, b) => Math.min(...filled.slice(Math.max(0, b - 2), b + 3)));
+  const r = low.map((_, b) => { const near = low.slice(Math.max(0, b - 1), b + 2); return near.reduce((s, x) => s + x, 0) / near.length; });
+  // arc length round it from the middle
+  const S = new Float64Array(BINS);
+  const mid = 90;
+  for (let b = mid + 1; b < BINS; b++) S[b] = S[b - 1] + Math.hypot((r[b] + r[b - 1]) / 2 * step, r[b] - r[b - 1]);
+  for (let b = mid - 1; b >= 0; b--) S[b] = S[b + 1] - Math.hypot((r[b] + r[b + 1]) / 2 * step, r[b] - r[b + 1]);
+  const lerp = (table, f) => { const b = Math.min(BINS - 2, Math.floor(f)); const t = f - b; return table[b] * (1 - t) + table[b + 1] * t; };
+  return {
+    at(y, z) {
+      const f = binOf(Math.atan2(z, y - centre));
+      return { s: lerp(S, f), d: Math.hypot(z, y - centre) - lerp(r, f) };
+    },
+  };
 }
 
 /** The weights at a point by the saddle's: its vertices' within a few centimetres, the nearer the more (four bones at most). */
@@ -215,7 +364,10 @@ export const POSES = [
   ['land', [0, 0.2, 0.4, 0.6, 0.8, 0.97]],
 ];
 
-/** Puts `scene` (a copy of her, `mesh` its body) in each pose in turn and calls visit(label, matrices): each bone's world matrix by its inverse bind. */
+/**
+ * Puts `scene` (a copy of her, `mesh` its body) in each pose in turn and calls visit(label, matrices, bones): each bone's world matrix
+ * by its inverse bind, and her bones posed (their turns drive the saddle's corrections).
+ */
 export function eachPose(gltf, scene, mesh, visit, poses = POSES) {
   const mixer = new THREE.AnimationMixer(scene);
   const { bones, boneInverses } = mesh.skeleton;
@@ -227,7 +379,7 @@ export function eachPose(gltf, scene, mesh, visit, poses = POSES) {
       mixer.clipAction(clip).play();
       mixer.setTime(k * clip.duration);
       scene.updateMatrixWorld(true);
-      visit(`${name} ${k}`, bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, boneInverses[i])));
+      visit(`${name} ${k}`, bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, boneInverses[i])), bones);
     }
   }
   mixer.stopAllAction();
@@ -259,29 +411,8 @@ export function holdInPoses(fitted, skin, posing, { fit = FIT, hold = HOLD } = {
   const n = positions.length;
   const start = fitted.weights.map(w => new Map(w));
   const firstPlace = positions.map(p => p.clone());
-  // each vertex's neighbours by bind distance, for spreading the pushes
-  const cell = hold.spread * 2.5;
-  const grid = new Map();
-  const key = (x, y, z) => ((x + 2048) * 4096 + (y + 2048)) * 4096 + (z + 2048);
-  positions.forEach((p, i) => {
-    const k = key(Math.floor(p.x / cell), Math.floor(p.y / cell), Math.floor(p.z / cell));
-    if (!grid.has(k)) grid.set(k, []);
-    grid.get(k).push(i);
-  });
-  const from = new Int32Array(n + 1);
-  const js = [], gs = [];
-  for (let i = 0; i < n; i++) {
-    const p = positions[i];
-    const cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell), cz = Math.floor(p.z / cell);
-    for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++) for (let z = cz - 1; z <= cz + 1; z++) {
-      for (const j of grid.get(key(x, y, z)) ?? []) {
-        const g = Math.exp(-positions[j].distanceToSquared(p) / (hold.spread * hold.spread));
-        if (g > 0.01 && j !== i) { js.push(j); gs.push(g); }
-      }
-    }
-    from[i + 1] = js.length;
-  }
-  const near = { j: Int32Array.from(js), g: Float32Array.from(gs) };
+  const near = neighbours(positions, hold.spread); // for spreading the pushes
+  const { from } = near;
 
   const worst = [];
   const q = new V3();
@@ -335,6 +466,160 @@ export function holdInPoses(fitted, skin, posing, { fit = FIT, hold = HOLD } = {
   }
   if (hold.rest > 0) fitted.normals = smoothNormals(positions, fitted.index);
   return worst;
+}
+
+/** Each vertex's neighbours by bind distance with a Gaussian weight of `spread` (m): those of i are j[from[i]..from[i+1]), g likewise. */
+function neighbours(positions, spread) {
+  const n = positions.length;
+  const cell = spread * 2.5;
+  const grid = new Map();
+  const key = (x, y, z) => ((x + 2048) * 4096 + (y + 2048)) * 4096 + (z + 2048);
+  positions.forEach((p, i) => {
+    const k = key(Math.floor(p.x / cell), Math.floor(p.y / cell), Math.floor(p.z / cell));
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  });
+  const from = new Int32Array(n + 1);
+  const js = [], gs = [];
+  for (let i = 0; i < n; i++) {
+    const p = positions[i];
+    const cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell), cz = Math.floor(p.z / cell);
+    for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++) for (let z = cz - 1; z <= cz + 1; z++) {
+      for (const j of grid.get(key(x, y, z)) ?? []) {
+        const g = Math.exp(-positions[j].distanceToSquared(p) / (spread * spread));
+        if (g > 0.01 && j !== i) { js.push(j); gs.push(g); }
+      }
+    }
+    from[i + 1] = js.length;
+  }
+  return { from, j: Int32Array.from(js), g: Float32Array.from(gs) };
+}
+
+/**
+ * correctInPoses's numbers: the bones whose turns say how much of each correction is on (her upper arms: the skin that still comes into
+ * the pad is her wing roots'); a vertex nearer her skin than `clear` (m) is pushed out to it; a pose whose deepest is above `inside`
+ * needs nothing; poses whose turns are within `merge` (radians, the most of any of those bones) of each other share a key; a key
+ * fades out as her turns go `radius` from its own; the spread of a push (m) and the field's weight of staying; rounds; moves under
+ * `least` (m) are left out.
+ */
+export const CORRECT = { drivers: ['LeftUpperArm', 'RightUpperArm'], clear: 0.01, inside: -0.003, merge: 0.05, radius: 0.35, spread: 0.06, anchor: 0.05, rounds: 12, least: 0.001 };
+
+/** Where vertex i of a fitted saddle is in the bind frame with its corrections on as much as `on` says. */
+export function correctedAt(fitted, i, on, out = new V3()) {
+  out.copy(fitted.positions[i]);
+  (fitted.corrections ?? []).forEach((c, k) => {
+    if (on[k] > 0) out.set(out.x + c.deltas[3 * i] * on[k], out.y + c.deltas[3 * i + 1] * on[k], out.z + c.deltas[3 * i + 2] * on[k]);
+  });
+  return out;
+}
+
+/** How much of each of a fitted saddle's corrections is on with her bones posed as `bones` (eachPose's third argument). */
+export function correctionsOn(fitted, bones) {
+  if (!fitted.corrections?.length) return [];
+  const byName = new Map(bones.map(b => [b.name, b]));
+  return correctionsAt(fitted.corrections, fitted.clean ?? [], name => byName.get(name).quaternion);
+}
+
+/**
+ * Corrections for the poses where her skin still comes into the saddle after the hold. Some of it cannot be held by bone weights:
+ * where her wings are up (the top of a wing beat) or folded, the skin of her wing roots swings up over her back, over the pad, and
+ * down again as the wing comes the other way, while the pad has to stay on her back; no blend of her bones does both. Each of her
+ * poses (merged where her upper arms are turned within CORRECT.merge of another's) is a key: in each round, in each pose, the saddle
+ * with the corrections so far (engine/flier-saddle.js correctionsAt: each key counts by how near her upper arms are to its turns,
+ * shared where keys overlap) is pushed out where she comes into it, each push spread smoothly into the pad round it, and the push
+ * goes into its key's correction in the bind frame: a morph target. The keys that never need one are the clean poses, which keep
+ * the blend near them at none. Sets fitted.corrections: [{ label, at: { bone: quaternion }, radius, deltas }] and fitted.clean.
+ */
+export function correctInPoses(fitted, skin, posing, { fit = FIT, correct = CORRECT } = {}) {
+  const { positions, weights } = fitted;
+  const n = positions.length;
+  const near = neighbours(positions, correct.spread);
+  const angle = (a, b) => 2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3])));
+  // the keys: her poses, merged
+  const keys = [];
+  posing((label, matrices, bones) => {
+    const byName = new Map(bones.map(b => [b.name, b]));
+    const at = Object.fromEntries(correct.drivers.map(name => [name, byName.get(name).quaternion.toArray()]));
+    if (!keys.some(k => Math.max(...correct.drivers.map(name => angle(at[name], k.at[name]))) < correct.merge)) keys.push({ label, at, radius: correct.radius, deltas: null });
+  });
+  const split = () => {
+    fitted.corrections = keys.filter(k => k.deltas);
+    fitted.clean = keys.filter(k => !k.deltas).map(({ label, at, radius }) => ({ label, at, radius }));
+  };
+  split();
+  const p = new V3(), q = new V3(), d = new V3();
+  const sum = new THREE.Matrix4(), turn = new THREE.Matrix3();
+  const push = new Float32Array(3 * n), spread = new Float32Array(3 * n), total = new Float32Array(n);
+  const pushed = new Uint8Array(n);
+  for (let round = 0; round < correct.rounds; round++) {
+    let added = 0;
+    posing((label, matrices, bones) => {
+      const byName = new Map(bones.map(b => [b.name, b]));
+      const turns = Object.fromEntries(correct.drivers.map(name => [name, byName.get(name).quaternion.toArray()]));
+      const shares = correctionsAt(keys, [], name => byName.get(name).quaternion); // every key's share here
+      const on = fitted.corrections.map(c => shares[keys.indexOf(c)]);
+      skin.pose();
+      push.fill(0);
+      pushed.fill(0);
+      const moved = [];
+      let deepest = Infinity;
+      for (let i = 0; i < n; i++) {
+        skinnedAt(correctedAt(fitted, i, on, p), weights[i], matrices, q);
+        const c = skin.closest(q, { reach: 0.3 });
+        if (!c) continue;
+        deepest = Math.min(deepest, c.distance);
+        if (c.distance >= correct.clear) continue;
+        const k = correct.clear - c.distance;
+        push[3 * i] = c.normal.x * k; push[3 * i + 1] = c.normal.y * k; push[3 * i + 2] = c.normal.z * k;
+        pushed[i] = 1;
+        moved.push(i);
+      }
+      if (deepest > correct.inside) return;
+      // its key: the nearest by her upper arms' turns (every pose is within merge of one)
+      let k = 0, best = Infinity;
+      keys.forEach((key, j) => {
+        const far = Math.max(...correct.drivers.map(name => angle(turns[name], key.at[name])));
+        if (far < best) { best = far; k = j; }
+      });
+      const key = keys[k];
+      if (!key.deltas) { key.deltas = new Float32Array(3 * n); split(); }
+      const scale = 1 / Math.max(shares[k], 0.25);
+      // each push spread into the pad round it (from the pushed vertices to their neighbours), kept near none by `anchor`
+      spread.fill(0);
+      total.fill(0);
+      for (const j of moved) {
+        for (let m = near.from[j]; m < near.from[j + 1]; m++) {
+          const i = near.j[m];
+          if (pushed[i]) continue;
+          const g = near.g[m];
+          spread[3 * i] += push[3 * j] * g; spread[3 * i + 1] += push[3 * j + 1] * g; spread[3 * i + 2] += push[3 * j + 2] * g;
+          total[i] += g;
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        let x, y, z;
+        if (pushed[i]) { x = push[3 * i]; y = push[3 * i + 1]; z = push[3 * i + 2]; } else {
+          if (total[i] === 0) continue;
+          const s = 1 / (total[i] + correct.anchor);
+          x = spread[3 * i] * s; y = spread[3 * i + 1] * s; z = spread[3 * i + 2] * s;
+        }
+        // into the bind frame: by the inverse of the vertex's blended bone turn in this pose
+        sum.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        for (const [bone, w] of weights[i]) for (let e = 0; e < 16; e++) sum.elements[e] += matrices[bone].elements[e] * w;
+        turn.setFromMatrix4(sum).invert();
+        d.set(x, y, z).applyMatrix3(turn).multiplyScalar(scale);
+        key.deltas[3 * i] += d.x; key.deltas[3 * i + 1] += d.y; key.deltas[3 * i + 2] += d.z;
+      }
+      added++;
+    });
+    skin.unpose();
+    if (!added) break;
+  }
+  // what moves less than CORRECT.least is left out (the spread's far tails: nothing to see, and the file stays small)
+  for (const c of fitted.corrections) {
+    for (let i = 0; i < n; i++) if (Math.hypot(c.deltas[3 * i], c.deltas[3 * i + 1], c.deltas[3 * i + 2]) < correct.least) c.deltas.fill(0, 3 * i, 3 * i + 3);
+  }
+  return fitted.corrections;
 }
 
 /** Moves bind position p to where, skinned by `weights`, it best meets the poses' targets: least squares, kept near `home` by rest. */
@@ -415,16 +700,20 @@ function simplex(v) {
   return v.map(x => Math.max(0, x - theta));
 }
 
-/** How the fit holds in her poses: for each, the saddle's vertices inside her skin, the deepest (metres, below zero), and what lies on her skin but has lifted more than 2 cm off it. */
+/**
+ * How the fit holds in her poses: for each, the saddle's vertices inside her skin (with its corrections on as her bones say, when it
+ * has them), the deepest (metres, below zero), and what lies on her skin but has lifted more than 2 cm off it.
+ */
 export function checkInPoses(fitted, skin, posing, { part = null } = {}) {
   const out = [];
-  const q = new V3();
-  posing((label, matrices) => {
+  const q = new V3(), p = new V3();
+  posing((label, matrices, bones) => {
     skin.pose();
+    const on = correctionsOn(fitted, bones ?? []);
     let inside = 0, worst = 0, lifted = 0;
     const parts = {};
     for (let i = 0; i < fitted.positions.length; i++) {
-      skinnedAt(fitted.positions[i], fitted.weights[i], matrices, q);
+      skinnedAt(correctedAt(fitted, i, on, p), fitted.weights[i], matrices, q);
       const c = skin.closest(q, { reach: 0.3 });
       if (!c) continue;
       if (c.distance < 0) {
@@ -597,6 +886,27 @@ export function writeFitted(file, saddle, fitted, { joints, slot, extras }) {
     indices: addAccessor(wide ? Uint32Array : Uint16Array, saddle.index, 'SCALAR', wide ? 5125 : 5123, { target: 34963 }),
     material: 0,
   };
+  // the corrections as morph targets, sparse: only the vertices each moves
+  const corrections = fitted.corrections ?? [];
+  if (corrections.length) {
+    primitive.targets = corrections.map(({ deltas }) => {
+      const moved = [];
+      for (let i = 0; i < n; i++) if (Math.hypot(deltas[3 * i], deltas[3 * i + 1], deltas[3 * i + 2]) > 1e-5) moved.push(i);
+      const values = Float32Array.from(moved.flatMap(i => [deltas[3 * i], deltas[3 * i + 1], deltas[3 * i + 2]]));
+      const indices = (wide ? Uint32Array : Uint16Array).from(moved);
+      const min = [0, 1, 2].map(k => Math.min(0, ...moved.map(i => deltas[3 * i + k])));
+      const max = [0, 1, 2].map(k => Math.max(0, ...moved.map(i => deltas[3 * i + k])));
+      accessors.push({
+        componentType: 5126, count: n, type: 'VEC3', min, max,
+        sparse: {
+          count: moved.length,
+          indices: { bufferView: addView(Buffer.from(indices.buffer, indices.byteOffset, indices.byteLength)), componentType: wide ? 5125 : 5123 },
+          values: { bufferView: addView(Buffer.from(values.buffer, values.byteOffset, values.byteLength)) },
+        },
+      });
+      return { POSITION: accessors.length - 1 };
+    });
+  }
   const material = src.materials?.[saddle.material ?? 0] ?? { pbrMetallicRoughness: { baseColorFactor: [0.44, 0.33, 0.25, 1], metallicFactor: 0, roughnessFactor: 0.8 } };
   // the maps' extensions as they were (Blender writes WebP maps: EXT_texture_webp); the vertices are written plain, so not quantization
   const extensions = list => (list ?? []).filter(name => name !== 'KHR_mesh_quantization');
@@ -609,7 +919,7 @@ export function writeFitted(file, saddle, fitted, { joints, slot, extras }) {
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ name: 'Hnakkur', mesh: 0, extras: { joints, ...extras } }],
-    meshes: [{ name: 'Hnakkur', primitives: [primitive] }],
+    meshes: [{ name: 'Hnakkur', primitives: [primitive], ...(corrections.length ? { extras: { targetNames: corrections.map(c => c.label) } } : {}) }],
     materials: [material],
     ...(src.textures ? { textures: src.textures } : {}),
     ...(src.samplers ? { samplers: src.samplers } : {}),
@@ -636,9 +946,16 @@ export function writeFitted(file, saddle, fitted, { joints, slot, extras }) {
 
 // --- the command ------------------------------------------------------------------------------------------------------------------
 async function main() {
-  const [input, output] = process.argv.slice(2);
+  const [input, output] = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  // --name=value overrides a number of FIT (to try one before it goes in)
+  const fit = { ...FIT };
+  for (const a of process.argv.slice(2).filter(a => a.startsWith('--'))) {
+    const [name, value] = a.slice(2).split('=');
+    if (!(name in FIT)) throw new Error(`no such fit setting: ${name}`);
+    fit[name] = Number.isNaN(Number(value)) ? value : Number(value);
+  }
   if (!input || !output) {
-    console.error('usage: node --import ./remake/tests/setup.mjs remake/tools/saddle-fit.mjs <prepped.glb> <out.glb>');
+    console.error('usage: node --import ./remake/tests/setup.mjs remake/tools/saddle-fit.mjs <prepped.glb> <out.glb> [--<FIT setting>=<value>]');
     process.exit(1);
   }
   const { loadCharacter, skinnedMeshOf } = await import('../tests/characters.mjs');
@@ -650,29 +967,30 @@ async function main() {
   const skin = skinSurface(mesh, { around: frame.seat, near: 1.4 });
   const saddle = readSaddle(input);
   const t0 = Date.now();
-  const fitted = fitSaddle(saddle, skin, frame);
+  const fitted = fitSaddle(saddle, skin, frame, { fit });
   const posing = visit => eachPose(gltf, scene, mesh, visit);
   const rows = rows => rows.map(r => `${r.label} ${r.inside} (${(r.worst * 100).toFixed(1)} cm)`).join(', ');
   console.log(`[saddle-fit] laid on her back; inside her in her poses: ${rows(checkInPoses(fitted, skin, posing))}`);
-  holdInPoses(fitted, skin, posing);
+  holdInPoses(fitted, skin, posing, { fit });
+  console.log(`[saddle-fit] held in her poses; inside her: ${rows(checkInPoses(fitted, skin, posing))}`);
+  correctInPoses(fitted, skin, posing, { fit });
   const held = checkInPoses(fitted, skin, posing);
-  console.log(`[saddle-fit] held in her poses; inside her: ${rows(held)}`);
+  console.log(`[saddle-fit] ${fitted.corrections.length} corrections (${fitted.corrections.map(c => c.label).join(', ')}), ${fitted.clean.length} clean poses; inside her: ${rows(held)}`);
   const bones = mesh.skeleton.bones.map(b => b.name);
   const used = [...new Set(fitted.weights.flatMap(w => [...w.keys()]))].sort((a, b) => a - b);
   const joints = used.map(i => bones[i]);
-  const named = w => Object.fromEntries([...w].map(([bone, x]) => [bones[bone], Number(x.toFixed(4))]));
-  const placeOf = local => { const { point, weights } = fitted.place(local); return { local, bind: point.toArray().map(x => Number(x.toFixed(5))), weights: named(weights) }; };
-  const places = {
-    seat: placeOf(PLACES.seat),
-    grips: { left: placeOf(PLACES.grips.left), right: placeOf(PLACES.grips.right) },
-    knees: { left: placeOf(PLACES.knees.left), right: placeOf(PLACES.knees.right) },
-    ankles: { left: placeOf(PLACES.ankles.left), right: placeOf(PLACES.ankles.right) },
-  };
+  const places = placesOf(fitted, bones);
+  const key = ({ label, at, radius }) => ({ label, radius, at: Object.fromEntries(Object.entries(at).map(([name, q]) => [name, q.map(x => Number(x.toFixed(6)))])) });
   const extras = {
     frame: { seat: frame.seat.toArray(), ahead: frame.ahead.toArray(), up: frame.up.toArray(), right: frame.right.toArray() },
-    fit: { ...FIT, ...fitted.report, hold: HOLD, seconds: (Date.now() - t0) / 1000 },
+    fit: { ...fit, ...fitted.report, hold: HOLD, seconds: (Date.now() - t0) / 1000 },
     poses: held.map(({ label, inside, worst, lifted }) => ({ label, inside, worst: Number(worst.toFixed(4)), lifted })),
     places,
+    // the morph targets' drivers, in their order: her bones' turns in the pose each is for, and how far from them it fades out; and
+    // likewise the poses that need none (engine/flier-saddle.js correctionsAt)
+    corrections: fitted.corrections.map(key),
+    clean: fitted.clean.map(key),
+    correct: CORRECT,
     source: path.basename(input),
   };
   writeFitted(output, saddle, fitted, { joints, slot: new Map(used.map((bone, k) => [bone, k])), extras }); // JOINTS_0 indexes extras.joints

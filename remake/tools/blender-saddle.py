@@ -2,7 +2,8 @@
 # Step 1 of preparing it:
 #   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup
 #     --python remake/tools/blender-saddle.py -- in.glb out.glb [length=0.8] [tris=5000] [tex=1024] [turn=0] [seat=auto|x,z]
-#     [preview=<folder>]
+#     [cut=<y> [front=<x>,<z>,<y>]] [preview=<folder>]
+# The owner's v1 (geymsla/tripo/hnakkur-tripo-v1.glb): turn=180 cut=-0.31 front=0.24,0.17,-0.13 length=0.8 tris=8000 tex=1024.
 # It joins Tripo's parts into one mesh with one material, welds it (Tripo's parts and seams, as blender-butterfly.py does),
 # turns it `turn` degrees about the vertical so that its front (the handlebar) faces +X with +Y up (glTF's axes), scales it to
 # `length` metres front to back, puts the origin on the seat (where Egill sits: the lowest point of the seat's top between the
@@ -32,6 +33,11 @@ TEX = int(option('tex', 1024))
 TURN = float(option('turn', 0))
 SEAT = option('seat', 'auto')
 PREVIEW = option('preview', None)
+# The girth off, where it would go through her (the owner's v1: it hangs from the pad's front into her chest): everything lower than
+# `cut` metres under the seat, and ahead of `front`=x along, within z across the middle, everything lower than y (where the girth comes
+# down from under the pad's front edge). The ends left are capped.
+CUT = option('cut', None)
+FRONT = option('front', None)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=src)
@@ -199,6 +205,60 @@ else:
     seat = Vector((along, -across, max(p.z for p in near)))
 saddle.matrix_world = Matrix.Translation(-seat)
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+def cut_girth(obj, low, front):
+    # (Blender's axes here: x ahead, y her left, z up; the origin on the seat)
+    ahead, across, under = front if front else (math.inf, 0, -math.inf)
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    # a clean cut all round at `low` (the pad is all above it), then in front what has any corner under `under` (its ragged edge is
+    # under the pad's front, on her back)
+    before = len(bm.faces)
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, low), plane_no=(0, 0, 1), clear_inner=True)
+    gone = lambda co: co.x > ahead and abs(co.y) < across and co.z < under
+    faces = [f for f in bm.faces if any(gone(v.co) for v in f.verts)]
+    bmesh.ops.delete(bm, geom=faces, context='FACES')
+    faces = before - len(bm.faces)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    # pieces cut off from the saddle (a buckle without its strap): all but the largest
+    seen, pieces = set(), []
+    for f in bm.faces:
+        if f.index in seen:
+            continue
+        piece, stack = [], [f]
+        seen.add(f.index)
+        while stack:
+            g = stack.pop()
+            piece.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in seen:
+                        seen.add(h.index)
+                        stack.append(h)
+        pieces.append(piece)
+    pieces.sort(key=len, reverse=True)
+    stray = [f for piece in pieces[1:] for f in piece]
+    bmesh.ops.delete(bm, geom=stray, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    # the cut ends capped: the open edges the cut made (by the faces gone round them), coloured as the strap next to them
+    near = lambda co: co.z < low + 0.04 or (co.x > ahead - 0.04 and abs(co.y) < across + 0.04 and co.z < under + 0.04)
+    edges = [e for e in bm.edges if e.is_boundary and all(near(v.co) for v in e.verts)]
+    uv = bm.loops.layers.uv.active
+    caps = bmesh.ops.holes_fill(bm, edges=edges, sides=0)['faces']
+    for f in caps:
+        others = [g for e in f.edges for g in e.link_faces if g is not f and g not in caps]
+        if others and uv:
+            colour = next(l for l in others[0].loops if l.vert in f.verts)[uv].uv.copy()
+            for loop in f.loops:
+                loop[uv].uv = colour
+    bmesh.ops.triangulate(bm, faces=caps)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    print(f'[saddle] girth off: {faces} faces cut, {len(stray)} in {len(pieces) - 1} stray pieces, {len(caps)} ends capped; {tris(obj)} triangles')
+
+if CUT:
+    cut_girth(saddle, float(CUT), [float(n) for n in FRONT.split(',')] if FRONT else None)
 vs = world_verts()
 bounds = [[round(min(v[k] for v in vs), 3), round(max(v[k] for v in vs), 3)] for k in range(3)]
 print(f'[saddle] seat at {seat.x:+.3f} along, {seat.z:.3f} up from its foot; bounds from the seat (Blender axes) {bounds}')
@@ -228,12 +288,15 @@ material.name = 'hnakkur'
 print(f'[saddle] maps: {[(i.name, i.size[0]) for i in bpy.data.images]}, single-sided: {closed}')
 
 if PREVIEW:
+    PREVIEW = os.path.abspath(PREVIEW)  # (Blender reads a relative render path against the .blend file's folder, and there is none)
     os.makedirs(PREVIEW, exist_ok=True)
     scene.render.engine = 'BLENDER_WORKBENCH'
     scene.display.shading.light = 'STUDIO'
     scene.display.shading.color_type = 'TEXTURE'
     scene.render.resolution_x, scene.render.resolution_y = 800, 600
     camera = bpy.data.objects.new('camera', bpy.data.cameras.new('camera'))
+    camera.data.type = 'ORTHO'  # the whole saddle in each view, at one scale
+    camera.data.ortho_scale = 1.4 * max(bounds[k][1] - bounds[k][0] for k in range(3))
     scene.collection.objects.link(camera)
     scene.camera = camera
     centre = Vector(((bounds[0][0] + bounds[0][1]) / 2, (bounds[1][0] + bounds[1][1]) / 2, (bounds[2][0] + bounds[2][1]) / 2))
@@ -241,7 +304,8 @@ if PREVIEW:
     marker.empty_display_type = 'PLAIN_AXES'
     marker.empty_display_size = 0.05
     scene.collection.objects.link(marker)
-    for name, at in (('front', Vector((1.6, 0, 0.35))), ('side', Vector((0, -1.6, 0.35))), ('above', Vector((0.01, 0, 1.8))), ('three-quarter', Vector((1.1, -1.1, 0.8)))):
+    # (from above with its front at the top of the picture and its right side on the right: the camera a hair behind)
+    for name, at in (('front', Vector((1.6, 0, 0.35))), ('side', Vector((0, -1.6, 0.35))), ('above', Vector((-0.01, 0, 1.8))), ('three-quarter', Vector((1.1, -1.1, 0.8)))):
         camera.location = centre + at
         camera.rotation_euler = (centre - camera.location).to_track_quat('-Z', 'Y').to_euler()
         scene.render.filepath = os.path.join(PREVIEW, f'hnakkur-{name}.png')

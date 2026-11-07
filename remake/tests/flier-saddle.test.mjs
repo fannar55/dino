@@ -19,7 +19,7 @@ import { createFlierSaddle, SADDLE_MODEL } from '../engine/flier-saddle.js';
 import { SIT_DEPTH } from '../engine/riding.js';
 import { skinSurface } from '../engine/skin-surface.js';
 import { createRoute, LEAP } from '../chapters/kafli4-route.js';
-import { backFrame, fitSaddle, writeFitted, eachPose, checkInPoses, skinnedAt, PLACES } from '../tools/saddle-fit.mjs';
+import { backFrame, fitSaddle, writeFitted, eachPose, checkInPoses, skinnedAt, placesOf, PLACES } from '../tools/saddle-fit.mjs';
 
 const DT = 1 / 30;
 const world = await chapterWorld({
@@ -47,10 +47,7 @@ const index = Array.from({ length: geometry.attributes.position.count }, (_, i) 
 const fitted = fitSaddle({ positions: geometry.attributes.position.array, normals: geometry.attributes.normal.array, index }, skin, frame);
 const names = mesh.skeleton.bones.map(b => b.name);
 const used = [...new Set(fitted.weights.flatMap(w => [...w.keys()]))].sort((a, b) => a - b);
-const named = w => Object.fromEntries([...w].map(([b, x]) => [names[b], x]));
-const placeOf = local => { const { point, weights } = fitted.place(local); return { local, bind: point.toArray(), weights: named(weights) }; };
-const places = { seat: placeOf(PLACES.seat) };
-for (const part of ['grips', 'knees', 'ankles']) places[part] = { left: placeOf(PLACES[part].left), right: placeOf(PLACES[part].right) };
+const places = placesOf(fitted, names);
 const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'flier-saddle-')), 'boxes.glb');
 writeFitted(file, { glb: { json: {}, bin: Buffer.alloc(0) }, uvs: new Float32Array(index.length * 2), index, material: null }, fitted,
   { joints: used.map(b => names[b]), slot: new Map(used.map((b, k) => [b, k])), extras: { places } });
@@ -191,7 +188,11 @@ test('the game\'s saddle stays out of her skin in every pose she flies in with i
   const geo = saddle.mesh.geometry;
   const positions = Array.from({ length: geo.attributes.position.count }, (_, i) => new THREE.Vector3().fromBufferAttribute(geo.attributes.position, i));
   const weights = positions.map((_, i) => new Map([0, 1, 2, 3].map(k => [geo.attributes.skinIndex.getComponent(i, k), geo.attributes.skinWeight.getComponent(i, k)]).filter(([, w]) => w > 0)));
-  const rows = checkInPoses({ positions, weights, contact: new Uint8Array(positions.length) }, skin, visit => eachPose(gltf, scene, mesh, visit));
+  // with its corrections (morph targets) on as her upper arms say in each pose, as it is drawn
+  const targets = geo.morphAttributes.position ?? [];
+  assert.equal(targets.length, saddle.corrections.length, 'a driver for each morph target');
+  const corrections = saddle.corrections.map((c, k) => ({ ...c, deltas: targets[k].array }));
+  const rows = checkInPoses({ positions, weights, corrections, clean: saddle.clean, contact: new Uint8Array(positions.length) }, skin, visit => eachPose(gltf, scene, mesh, visit));
   for (const r of rows) {
     assert.ok(r.worst > -0.01, `${r.label}: a vertex is ${(-r.worst * 100).toFixed(1)} cm inside her`);
     assert.ok(r.inside <= positions.length * 0.01, `${r.label}: ${r.inside} of ${positions.length} vertices are inside her`);
