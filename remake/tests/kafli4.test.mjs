@@ -379,6 +379,8 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           mosi: mosi.root.position.clone(), mosiShown: mosi.root.visible, fade: ui.fadeLevel,
           shot: director.mode === 'drive' ? 'pool_glide' : label, camera: world.camera.position.clone(), mosiHead: mosi.headPosition(new THREE.Vector3()),
           arrivals: (world.forest?.life?.arrivals ?? []).filter(b => b.visible).map(b => ({ id: b.id, kind: b.kind, at: b.position.clone(), height: b.height, inFrame: inFrame(b) })),
+          // what the crowds draw outside the frame (world/critters/crowd.js: inView)
+          outside: (world.forest?.animals?.crowds?.placed() ?? []).filter(r => !inFrame(r)).length,
         });
       }
       where = world.location;
@@ -990,7 +992,13 @@ test('the animals that came stand at the far pool, never in front of Mosi, the r
   assert.ok(wide.some(f => f.shot === 'pool_bank') && wide.some(f => f.shot === 'pool_glide'), `the wide shots: ${[...new Set(pool.map(f => f.shot))].join(', ')}`);
   const fewest = Math.min(...wide.map(f => f.arrivals.filter(b => b.inFrame).length));
   assert.ok(fewest >= 15, `at least 15 in the frame of every wide frame: ${fewest}`);
-  t.diagnostic(`${life.arrivals.length} at the pool, at least ${fewest} in a wide frame, nearest a line ${nearest.toFixed(1)} m`);
+  // and the crowds draw only what the frame can show, or a shadow into it: the horn shot drew all of them, the ones behind the camera
+  // too, and went over the frame's 250k triangles (STYLE.md 11; world/critters/crowd.js inView)
+  const horn = pool.filter(f => f.shot === 'pool_horn');
+  assert.ok(horn.length > 0, 'the horn shot');
+  const outside = Math.max(...horn.map(f => f.outside));
+  assert.ok(outside <= 6, `at most 6 drawn outside the horn shot's frame: ${outside}`);
+  t.diagnostic(`${life.arrivals.length} at the pool, at least ${fewest} in a wide frame, nearest a line ${nearest.toFixed(1)} m, ${outside} drawn outside the horn shot`);
 });
 
 test('the flight plays its own song from the take-off: the chapter\'s theme goes out under it, the horn sounds in the quiet, and the theme comes back with the last look at the reed', async () => {

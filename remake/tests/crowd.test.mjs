@@ -54,6 +54,33 @@ test('a kind reserved with its own seen is drawn that far, the others as far as 
   crowds.dispose();
 });
 
+// The far pool's horn shot drew the 33 animals gathered there, the 19 behind and beside the camera too: 251k triangles, over the
+// budget's 250k (STYLE.md 11). A crowd made inView draws only what the camera's view could show, a critter or its shadow.
+test('a crowd made inView draws only what is in view or near enough its edge to cast a shadow into it', () => {
+  const crowds = createCrowds(world(), { inView: true });
+  crowds.reserve('frog', 5);
+  const c = camera(); // at 0 looking down -Z, 50 degrees high, 1.6 wide: at 20 m the frame's side is 14.9 m out
+  crowds.begin(c);
+  assert.ok(crowds.place('frog', new THREE.Vector3(0, 0, -20), 0, 1) >= 0, 'ahead');
+  assert.ok(crowds.place('frog', new THREE.Vector3(15.5, 0, -20), 0, 1) >= 0, 'just past the side, its shadow may reach in');
+  assert.equal(crowds.place('frog', new THREE.Vector3(0, 0, 20), 0, 1), -1, 'behind the camera');
+  assert.equal(crowds.place('frog', new THREE.Vector3(60, 0, -20), 0, 1), -1, 'far off to the side');
+  crowds.end();
+  assert.equal(crowds.placed().length, 2);
+  assert.equal(crowds.triangles(), 2 * frogTriangles);
+  // with no camera, and in a crowd not made inView, every one near enough is drawn
+  crowds.begin(null);
+  assert.ok(crowds.place('frog', new THREE.Vector3(0, 0, 20), 0, 1) >= 0, 'no camera: all of them');
+  crowds.end();
+  crowds.dispose();
+  const all = createCrowds(world());
+  all.reserve('frog', 1);
+  all.begin(c);
+  assert.ok(all.place('frog', new THREE.Vector3(0, 0, 20), 0, 1) >= 0, 'not inView: behind the camera too');
+  all.end();
+  all.dispose();
+});
+
 test('each critter has its own pose', () => {
   const crowds = createCrowds(world());
   crowds.reserve('frog', 2);

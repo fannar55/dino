@@ -28,7 +28,10 @@ function bakedModel(kind, lods, pivot, height) {
   return { geometry: lods[0].geometry, morphs, pivot, height, triangles: levels[0].triangles, wings: 0, levels };
 }
 
-export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
+// `inView`: a critter the camera's view cannot show, nor its shadow (SHADOW_REACH times its height past the view's edge), is not
+// drawn either (the far pool's horn shot drew 19 behind and beside the camera).
+const SHADOW_REACH = 3;
+export function createCrowds(world, { parent = world.scene, seen = 160, inView = false } = {}) {
   const group = new THREE.Group();
   group.name = 'Crowds';
   parent?.add?.(group);
@@ -41,6 +44,10 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
   let placedCount = 0;
   let eye = null;
   const eyeAt = new THREE.Vector3();
+  const view = new THREE.Frustum();
+  const viewMatrix = new THREE.Matrix4();
+  const bounds = new THREE.Sphere();
+  let culling = false;
 
   // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
   function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, seen: reach = null } = {}) {
@@ -93,6 +100,8 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
     for (const k of kinds.values()) for (const level of k.levels) level.n = 0;
     placedCount = 0;
     eye = camera ? camera.getWorldPosition(eyeAt) : null;
+    culling = Boolean(inView && camera?.isCamera);
+    if (culling) view.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
   }
 
   const along = new THREE.Matrix4();
@@ -109,6 +118,12 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
     const far = eye ? eye.distanceToSquared(position) : 0;
     const reach = k.reach ?? seen;
     if (far > reach * reach) return -1;
+    if (culling) {
+      const height = pose.height ?? k.height * scale;
+      bounds.center.set(position.x, position.y + height / 2, position.z);
+      bounds.radius = height * SHADOW_REACH + 1;
+      if (!view.intersectsSphere(bounds)) return -1;
+    }
     let l = 0;
     while (l < k.levels.length - 1 && far > k.levels[l].until * k.levels[l].until) l++;
     const level = k.levels[l];
