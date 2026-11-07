@@ -35,6 +35,11 @@ const CARD_FROM = FOREST.lod.cardFrom ?? Infinity;
 // the characters' levels do, engine/character-lod.js), so one standing at a switch does not flicker between the two, and its mesh's
 // index is not rewritten each time it does. A plant seen for the first time takes the switch as it is.
 const HYSTERESIS = 0.08;
+// A camera that moved more than CUT m since the last view has cut to another shot: what was drawn before says nothing, and each plant
+// takes its switches as they are again (so a still at a time looks as it did before the hysteresis, whatever was drawn before it).
+const CUT = 12;
+let _epoch = 0;
+const _lastEye = new THREE.Vector3(Infinity, 0, 0);
 
 /** One record per tree: crown centre and half-extent, and the level chosen for this view. */
 function crownLod(placement, first) {
@@ -377,7 +382,9 @@ function asCard(plant, d, cardFrom) {
   if (!plant) return d >= cardFrom;
   if (plant.cardView === _view) return plant.card;
   plant.cardView = _view;
-  const by = plant.card === null ? 1 : plant.card ? 1 - HYSTERESIS : 1 + HYSTERESIS;
+  const was = plant.epoch === _epoch ? plant.card : null;
+  plant.epoch = _epoch;
+  const by = was === null ? 1 : was ? 1 - HYSTERESIS : 1 + HYSTERESIS;
   plant.card = d >= cardFrom * by;
   return plant.card;
 }
@@ -386,6 +393,7 @@ function asCard(plant, d, cardFrom) {
 function bandOf(plant, d) {
   if (plant.levelView === _view) return plant.li;
   plant.levelView = _view;
+  if (plant.levelEpoch !== _epoch) { plant.levelEpoch = _epoch; plant.li = -1; }
   let li = plant.bands.findIndex(([lo, hi]) => d >= lo && d < hi);
   if (plant.li >= 0 && li !== plant.li) {
     const [lo, hi] = plant.bands[plant.li];
@@ -399,6 +407,8 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
   _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_m4);
   _cam.setFromMatrixPosition(camera.matrixWorld);
+  if (_cam.distanceTo(_lastEye) > CUT) _epoch++;
+  _lastEye.copy(_cam);
   // crowns in view, largest on screen first (one that was fine a little ahead of the others, so two of a size do not take turns)
   _view++;
   _crowns.length = 0;
@@ -407,7 +417,8 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
       const c = r.crown;
       if (!c || c.frame === _view) continue;
       if (r.carded && asCard(r.plant, _cam.distanceTo(r.ref), cardFrom)) continue; // a card this view
-      c.prev = c.frame < 0 ? null : c.level;
+      c.prev = c.frame < 0 || c.epoch !== _epoch ? null : c.level;
+      c.epoch = _epoch;
       c.frame = _view;
       c.proj = c.size / Math.max(0.5, _cam.distanceTo(c.centre));
       c.rank = c.prev === 0 ? c.proj * (1 + HYSTERESIS) : c.proj;
@@ -442,8 +453,9 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
       }
       if (r.cull !== Infinity) {
         // small plants fade out of the grass and mist at their own distance, HYSTERESIS past it once drawn
-        const by = r.near === null || r.near === undefined ? 1 : r.near ? 1 + HYSTERESIS : 1 - HYSTERESIS;
+        const by = r.near === null || r.near === undefined || r.nearEpoch !== _epoch ? 1 : r.near ? 1 + HYSTERESIS : 1 - HYSTERESIS;
         r.near = _cam.distanceTo(r.sphere.center) - r.sphere.radius <= r.cull * by;
+        r.nearEpoch = _epoch;
         if (!r.near) return;
       }
       _sphere.copy(r.sphere);

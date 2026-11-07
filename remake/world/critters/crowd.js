@@ -40,6 +40,8 @@ const CAST_MARGIN = 0.5; // m
 // A critter's level changes LOD_HYSTERESIS past its distance (a critter that is its own pose object keeps its level), so one at the
 // switch does not flicker between the two (engine/character-lod.js has the same 8 %).
 const LOD_HYSTERESIS = 0.08;
+const CUT = 12; // m: a camera that moved more than this since the last frame has cut to another shot
+
 export function createCrowds(world, { parent = world.scene, seen = 160, inView = false } = {}) {
   const group = new THREE.Group();
   group.name = 'Crowds';
@@ -63,7 +65,8 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   const shadowMatrix = new THREE.Matrix4();
   const lookAt = new THREE.Vector3();
   let shadowing = false;
-  const levelOf = new WeakMap(); // a pose object -> the level it was drawn at last (hysteresis)
+  let levelOf = new WeakMap(); // a pose object -> the level it was drawn at last (hysteresis)
+  const lastEye = new THREE.Vector3(Infinity, 0, 0); // a camera that moved more than CUT m since the last frame cut: levels as they are
 
   // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
   function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, seen: reach = null } = {}) {
@@ -125,6 +128,8 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     for (const k of kinds.values()) for (const level of k.levels) { level.n = 0; level.casting = 0; level.still = 0; }
     placedCount = 0;
     eye = camera ? camera.getWorldPosition(eyeAt) : null;
+    if (eye && eye.distanceTo(lastEye) > CUT) levelOf = new WeakMap();
+    if (eye) lastEye.copy(eye);
     culling = Boolean(inView && camera?.isCamera);
     if (culling) view.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     shadowing = shadowBox();
