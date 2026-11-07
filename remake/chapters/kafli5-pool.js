@@ -40,7 +40,7 @@ export const CHOIR = {
   lizards: spot(205, 28.5, 4),
   flyers: spot(221, 31, 3.8),
 };
-export const GROUPS = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'];
+export { GROUPS } from './kafli5-song.js'; // low to high, as the song has them
 
 /**
  * Her four steps out of the reed, one after each phrase (spec 3): deep in it with only her crest over it, her head out of it, her neck
