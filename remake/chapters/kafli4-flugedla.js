@@ -11,14 +11,20 @@
 //   perched.release()     gives her back to her clips, in the pose she has (her wings spread, as the clip 'spread' holds them)
 //
 //   const held = holdHer(c);                 // her root from now on: where she is, held there till a path moves it
-//   yield* flyPath(s, c, held, { points, seconds, clips, face });   // she flies `points` (where her feet would be), banking
-//   watchHer(c, label, { position });        // a camera that stands and turns to follow her (the director's drive)
+//   yield* flyPath(s, c, held, { points, seconds, clips, face, landing });   // she flies `points` (where her feet would be),
+//                                            // banking, heard (wings, a whoosh, and the thump and leaves where she lands: landing
+//                                            // 'ground', the default; 'water' or null for none)
+//   const view = watchHer(c, label, { position });   // a camera that stands and turns to follow her (the director's drive);
+//   view.pushIn(degrees, seconds)            // its lens closes in a little, and holds
+//   const flap = wingFlaps(her);             // flap() each frame: true on each downstroke of her fly clip
 //
 // Her pose is the model's own (pteranodon-source.json: Tripo's, baked as the bind pose): standing upright on her two feet with both
 // wings spread to the sides. No clip holds it (idle folds the wings), so the perch puts the skeleton back in it after the clips every
 // frame; her look and her mouth go on over it, so she turns her head to whoever speaks and speaks her lines.
 import * as THREE from 'three';
 import { BODY_HEIGHT } from './kafli4-route.js';
+import { panOf } from './kafli4-flight-play.js';
+import { leafPuff } from './kafli4-wind.js';
 
 const V3 = THREE.Vector3;
 const UP = new V3(0, 1, 0);
@@ -186,8 +192,14 @@ export function holdHer(c) {
  * then takes landingTime(points, speed) seconds, not `seconds`. A generator: yield* it. Each frame's place is in c.flying while she
  * flies.
  */
-export function* flyPath(s, c, held, { points, seconds, clips = [], face = null, turn = 0.2, turnIn = 0.2, speed: from = 0 }) {
+export function* flyPath(s, c, held, { points, seconds, clips = [], face = null, turn = 0.2, turnIn = 0.2, speed: from = 0, landing = 'ground' }) {
   const her = c.flugedla.raw;
+  // heard (the juice review of 2026-11-07): her wings as she takes off and on each downstroke of her fly clip, a whoosh as she sets
+  // off gliding, from her side; and where she lands on the snag or the ground (`landing` 'ground'; 'water' or null: none), a thump
+  // and a puff of leaves
+  const sounds = s.seeking ? null : c.sounds ?? null;
+  const flap = sounds ? wingFlaps(her) : () => false;
+  const sideOf = () => (c.world.camera?.updateMatrixWorld && panOf(c.world, held.root.position) < 0 ? -1 : 1);
   const curve = pathCurve(points);
   const length = curve.getLength();
   if (from > 0) seconds = (2 * length) / from;
@@ -214,6 +226,8 @@ export function* flyPath(s, c, held, { points, seconds, clips = [], face = null,
         if (u >= share && !begun.has(i)) {
           begun.add(i);
           her.play(name, { fade });
+          if (name === 'takeOff') sounds?.wingbeat();
+          if (name === 'glide' && i > 0) sounds?.whoosh(sideOf());
         }
       });
       // eased off and in; or, coming from a flight, slowing evenly from `from` to rest
@@ -241,7 +255,14 @@ export function* flyPath(s, c, held, { points, seconds, clips = [], face = null,
       held.root.quaternion.copy(q);
       held.root.position.copy(HIPS).applyQuaternion(q).negate().add(body); // her root under it, turned with her
       Object.assign(flying, { k, heading: deg(heading), bank, pitch, speed });
-      if (u >= 1) break;
+      if (flap()) sounds?.flap();
+      if (u >= 1) {
+        if (landing === 'ground' && clips.some(([, name]) => name === 'land') && !s.seeking) {
+          s.sfx('step', { level: 1.4 });
+          leafPuff(c.world, held.root.position.clone(), { way: [0, 1.2, 0], share: 0.45, seed: `landing ${Math.round(s.time * 10)}` });
+        }
+        break;
+      }
       yield;
     }
   } finally {
@@ -279,7 +300,8 @@ export function watchHer(c, label, { position, fov = 50, lag = 0.45, from = null
   const aim = new V3();
   let started = false;
   let lens = null; // { from, age }
-  return c.world.director.drive(label, (rig, dt) => {
+  const push = { to: 0, now: 0, rate: 0 }; // degrees the lens closes in by (pushIn)
+  const drive = c.world.director.drive(label, (rig, dt) => {
     goal.copy(HIPS).applyQuaternion(her.root.quaternion).add(her.root.position);
     if (!started) {
       started = true;
@@ -290,9 +312,16 @@ export function watchHer(c, label, { position, fov = 50, lag = 0.45, from = null
     lens.age += dt;
     rig.position.copy(at);
     rig.target.copy(aim);
-    rig.fov = zoom > 0 ? lens.from + (fov - lens.from) * smooth(lens.age / zoom) : fov;
+    push.now += clamp(push.to - push.now, -push.rate * dt, push.rate * dt);
+    rig.fov = (zoom > 0 ? lens.from + (fov - lens.from) * smooth(lens.age / zoom) : fov) - push.now;
     if ('roll' in rig) rig.roll = 0;
   });
+  // closes the lens in by `degrees` over `seconds`, and holds it there (the far pool's splash: the juice review's item 14)
+  drive.pushIn = (degrees, seconds = 0.8) => {
+    push.to = degrees;
+    push.rate = Math.abs(degrees - push.now) / Math.max(0.05, seconds);
+  };
+  return drive;
 }
 
 /**
