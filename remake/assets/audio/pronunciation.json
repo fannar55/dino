@@ -458,7 +458,8 @@
         "Grameðlu",
         "grameðla",
         "grameðlu",
-        "Grameðlur"
+        "Grameðlur",
+        "grameðlan"
       ],
       "recipes": {
         "hratt": {
@@ -470,7 +471,8 @@
             "Grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
             "grameðla": "\"/ˈkraːmˌɛðla/\"",
             "grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
-            "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\""
+            "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\"",
+            "grameðlan": "\"/ˈkraːmˌɛðlan/\""
           },
           "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
         },
@@ -2369,10 +2371,12 @@
         "Steingervingar",
         "steingervingum",
         "steingervingnum",
-        "steingervingana"
+        "steingervingana",
+        "steingervingi"
       ],
       "except": [
-        "Steingervingafræðingar"
+        "Steingervingafræðingar",
+        "steingervingafræðingur"
       ],
       "recipes": {
         "hratt": {

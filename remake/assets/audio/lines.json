@@ -4058,5 +4058,150 @@
   "src": "assets/audio/book/book_myndband_raf_20.mp3",
   "duration": 7.85,
   "mouth": "36e00c600bc930000000000000c80bffee0009d89ba9760000000007aeecd80aa8983009a0aba300009600ab97030000000000000000fffcacbb008dec99970aa00099aeffe9cc940000000000000"
+ },
+ "book_myndband_steinn_1": {
+  "src": "assets/audio/book/book_myndband_steinn_1.mp3",
+  "duration": 5.61,
+  "mouth": "0000ecdd8db0c80bd966acdcb006c507eddd000effffc8004400000000000000000bf7000bb83a9008abbccb8747970000ba7200000000000"
+ },
+ "book_myndband_steinn_2": {
+  "src": "assets/audio/book/book_myndband_steinn_2.mp3",
+  "duration": 2.81,
+  "mouth": "00bddefffd8aca88500abcbbbb7dc8000000ecbabc742000000000000"
+ },
+ "book_myndband_steinn_3": {
+  "src": "assets/audio/book/book_myndband_steinn_3.mp3",
+  "duration": 2.49,
+  "mouth": "00ce00febffacd7000fecced90b80000cab953000000000000"
+ },
+ "book_myndband_steinn_4": {
+  "src": "assets/audio/book/book_myndband_steinn_4.mp3",
+  "duration": 4.57,
+  "mouth": "0000bfefff0ac05ec90053000000000000009a000000bb7b5000330cffcdddefeeffcdbb70bab500000000000000"
+ },
+ "book_myndband_steinn_5": {
+  "src": "assets/audio/book/book_myndband_steinn_5.mp3",
+  "duration": 4.81,
+  "mouth": "006dfce9000decc60000000000bf9ff3009cbfedac900630000000000ec7db08da4fd2000609a67baa830000000000000"
+ },
+ "book_myndband_steinn_6": {
+  "src": "assets/audio/book/book_myndband_steinn_6.mp3",
+  "duration": 6.33,
+  "mouth": "0000ffeca7ebbec9fe50cfdca74000000000007da00aeed0006a75870400000000000000000000df6000eecb9aba40000eeff307bb88a54aaa8530000000000"
+ },
+ "book_myndband_steinn_7": {
+  "src": "assets/audio/book/book_myndband_steinn_7.mp3",
+  "duration": 6.97,
+  "mouth": "07dfb43000a5dfeffd8899a97000ffdcca8998008a500000000000000000008ebd9afed89b00dc908ddbd80006764000000009d40bdddeb97407976676000300000000000000"
+ },
+ "book_myndband_steinn_8": {
+  "src": "assets/audio/book/book_myndband_steinn_8.mp3",
+  "duration": 2.97,
+  "mouth": "6fff0dbaeffb3bcba9a9000aae008ceddddcb408bb804000000000000000"
+ },
+ "book_myndband_steinn_9": {
+  "src": "assets/audio/book/book_myndband_steinn_9.mp3",
+  "duration": 6.57,
+  "mouth": "bffffc86c600e90dcca8400000cb479000feffeecbcddb6000bc97876330000000000000cf50adf3003d00000cbbbaaa70000ab7dfee6cc8a04c8400000000000000"
+ },
+ "book_myndband_steinn_10": {
+  "src": "assets/audio/book/book_myndband_steinn_10.mp3",
+  "duration": 4.49,
+  "mouth": "00bdeb40000befaedcddfe06fcdea6300000000000007ef73000000cd0000dabfffd9800770380540000000000"
+ },
+ "book_myndband_steinn_11": {
+  "src": "assets/audio/book/book_myndband_steinn_11.mp3",
+  "duration": 5.21,
+  "mouth": "9febf9300feffec9eed0030aeffebba0d40009cddb80063000000000094000dca9ab900a400ceed309a6009954000000000000000"
+ },
+ "book_myndband_steinn_12": {
+  "src": "assets/audio/book/book_myndband_steinn_12.mp3",
+  "duration": 4.41,
+  "mouth": "07effffefb9cd5000d00002aa30d700cdb400bbbcc409cb974430000000078072007c00000000000000000000"
+ },
+ "book_myndband_steinn_13": {
+  "src": "assets/audio/book/book_myndband_steinn_13.mp3",
+  "duration": 5.13,
+  "mouth": "00009fffff99fff000de90ba05c54cdba60a9800000b600f9007900630000000000009c60000000009920450000000000000000"
+ },
+ "book_myndband_steinn_14": {
+  "src": "assets/audio/book/book_myndband_steinn_14.mp3",
+  "duration": 6.01,
+  "mouth": "3cee400000d908efee94455a4300000700000ea0000000960630000d90000000000000000000efeddeeafdd500000fffef00db6465003000000000000"
+ },
+ "book_myndband_steinn_15": {
+  "src": "assets/audio/book/book_myndband_steinn_15.mp3",
+  "duration": 4.81,
+  "mouth": "0000dffff00fdced60aa8000007ba4bb90000000000000cf7000bda000dddb5bdbb6db00a700009bb9750000000000000"
+ },
+ "book_myndband_steinn_16": {
+  "src": "assets/audio/book/book_myndband_steinn_16.mp3",
+  "duration": 6.49,
+  "mouth": "5ceffeedceefed646bba9698789605500000000000006aff9000b95dc7ffe800c934006edc9ad08a730030000000000007c9a4000000a590004400000000000000"
+ },
+ "book_myndband_steinn_17": {
+  "src": "assets/audio/book/book_myndband_steinn_17.mp3",
+  "duration": 5.05,
+  "mouth": "00fdfaeefffcdcac8007ccba000abb4aa96589830049cb07730ac800900098000000006700008cdc007633400000000000000"
+ },
+ "book_myndband_steinn_18": {
+  "src": "assets/audio/book/book_myndband_steinn_18.mp3",
+  "duration": 3.21,
+  "mouth": "0bd40008cdb790003aee00b6000e7540003cb008edebfffb75702200000000000"
+ },
+ "book_myndband_steinn_19": {
+  "src": "assets/audio/book/book_myndband_steinn_19.mp3",
+  "duration": 5.53,
+  "mouth": "5eeeffeff90deb0ba4ceefb000dddccca006a4000998897005900ca400000cdcbc90000ddceeb600000dffc0bcbdc067332000000000000"
+ },
+ "book_myndband_steinn_20": {
+  "src": "assets/audio/book/book_myndband_steinn_20.mp3",
+  "duration": 3.77,
+  "mouth": "0bfffef9bd0c60000bdb700000000940acddcddb977786008c9cdb00b9565400000000000000"
+ },
+ "book_myndband_steinn_21": {
+  "src": "assets/audio/book/book_myndband_steinn_21.mp3",
+  "duration": 3.61,
+  "mouth": "00cf7000bfffd000bccba5bb9566efecdeedbcda00b6000efe006bc90a974300000000000"
+ },
+ "book_myndband_steinn_22": {
+  "src": "assets/audio/book/book_myndband_steinn_22.mp3",
+  "duration": 5.61,
+  "mouth": "0cfffffef9ccc00c8009700ad50000000000007b809903cec08e83cea0680040000000000897d00bd7000d978000998bba564400000000000"
+ },
+ "book_myndband_steinn_23": {
+  "src": "assets/audio/book/book_myndband_steinn_23.mp3",
+  "duration": 3.13,
+  "mouth": "3cfffa00dfda92000bc9877098200a7000a986429b6abb94400030000000000"
+ },
+ "book_myndband_steinn_24": {
+  "src": "assets/audio/book/book_myndband_steinn_24.mp3",
+  "duration": 2.89,
+  "mouth": "9e800d5bfec00dfffdca645caa6b8a6000effa09747603440000000000"
+ },
+ "book_myndband_steinn_25": {
+  "src": "assets/audio/book/book_myndband_steinn_25.mp3",
+  "duration": 7.29,
+  "mouth": "4cfe03c0000ddddced8000000009cdff80003cedb200000000dc60000000009b009fd000004530000000000000000bfffeefeaffd00cccc89ddfa00cebba7800940530000000000000"
+ },
+ "book_myndband_steinn_26": {
+  "src": "assets/audio/book/book_myndband_steinn_26.mp3",
+  "duration": 6.57,
+  "mouth": "000ffc00000cccd576ddbed09fec900abb96a300deb08757304200000000000004fc00cb0cba976b00208fec5000cffa0a88993093004d9000375000000000000000"
+ },
+ "book_myndband_steinn_27": {
+  "src": "assets/audio/book/book_myndband_steinn_27.mp3",
+  "duration": 8.01,
+  "mouth": "07fa0eb00eec7000000000000ef8db000dfd0acb96ccec0dfce60cee09fe0c40008eeddca38a0000deeebfcbff0099985775500000000afdeffc00bc800bca50009dda6200000ca000000000000000000"
+ },
+ "book_myndband_steinn_28": {
+  "src": "assets/audio/book/book_myndband_steinn_28.mp3",
+  "duration": 9.61,
+  "mouth": "0efffacd00000da77aa9506b8830009dddd00bdb038bdfd300066400000000000004adcc900bdefccc9a98539a88507b96300000000000000000000000effac00009ca0000000007040400dfdcdfc70cc000000b947dcbc005a80030000000000"
+ },
+ "book_myndband_steinn_29": {
+  "src": "assets/audio/book/book_myndband_steinn_29.mp3",
+  "duration": 6.09,
+  "mouth": "009ffeaeecc500000007ba87200000000000000000df300e9fbec00b600009dcffb05dcc9fe4940999860430000a9708daa9350000aa80000000000000"
  }
 }
