@@ -198,3 +198,63 @@ test('the game\'s saddle stays out of her skin in every pose she flies in with i
   }
   saddle.dispose();
 });
+
+test('on the game\'s saddle Egill sits on its seat, holds its bar, and nothing of him goes into her: head, legs or feet', { skip: hasReal ? false : `no ${path.basename(real)} yet` }, async () => {
+  const saddle = createFlierSaddle(her);
+  assert.equal(await saddle.loaded, true);
+  saddle.show();
+  const flier = createFlier(her, route, { world });
+  const riding = rideFlier(egill, flier, { saddle });
+  const body = skinnedMeshOf(her.model);
+  const boy = skinnedMeshOf(egill.model);
+  const herSkin = skinSurface(body, { around: frame.seat, near: 2.2 });
+  const v = new THREE.Vector3();
+  const now = [];
+  // inside her by the crossings of rays through her whole posed body (the closest-point side test errs where sheets meet)
+  const inside = p => {
+    const geo = body.geometry;
+    now.length = 0;
+    for (let i = 0; i < geo.attributes.position.count; i++) now.push(body.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(body.matrixWorld));
+    const hit = new THREE.Vector3();
+    return [[0.1, 1, 0.05], [1, 0.1, -0.2], [-0.2, -0.3, 1]].filter(d => {
+      const ray = new THREE.Ray(p, new THREE.Vector3(...d).normalize());
+      let n = 0;
+      for (let f = 0; f < geo.index.count; f += 3) if (ray.intersectTriangle(now[geo.index.getX(f)], now[geo.index.getX(f + 1)], now[geo.index.getX(f + 2)], false, hit)) n++;
+      return n % 2 === 1;
+    }).length >= 2;
+  };
+  const moments = new Set([LEAP - 0.5, LEAP + 0.6, LEAP + 1.4, LEAP + 3, LEAP + 6, 40, 41, 60, 80].map(t => Math.round(t / DT)));
+  const problems = [];
+  for (let k = 0; k <= Math.max(...moments); k++) {
+    const t = k * DT;
+    flier.update(t);
+    updateActors(world.actors.values(), DT);
+    if (!moments.has(k)) continue;
+    world.scene.updateMatrixWorld(true);
+    herSkin.pose();
+    const at = saddle.update();
+    const turn = riding.frame(new THREE.Quaternion());
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(turn);
+    const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(turn);
+    const across = new THREE.Vector3(0, 0, 1).applyQuaternion(turn);
+    boy.skeleton.update();
+    let bottom = Infinity, deepest = null;
+    for (let i = 0; i < boy.geometry.attributes.position.count; i++) {
+      boy.getVertexPosition(i, v).applyMatrix4(boy.matrixWorld);
+      const d = v.clone().sub(at.seat);
+      if (Math.abs(d.dot(across)) < 0.08 && Math.abs(d.dot(ahead)) < 0.08) bottom = Math.min(bottom, d.dot(up));
+      const c = herSkin.closest(v, { reach: 0.1 });
+      if (c && c.distance < -0.015 && (!deepest || c.distance < deepest.distance)) deepest = { distance: c.distance, at: v.clone() };
+    }
+    if (bottom < -0.015 || bottom > 0.03) problems.push(`t=${t.toFixed(1)}: his bottom is ${(bottom * 100).toFixed(1)} cm over the seat`);
+    if (deepest && inside(deepest.at)) problems.push(`t=${t.toFixed(1)}: he is ${(-deepest.distance * 100).toFixed(1)} cm inside her`);
+    for (const [side, grip] of [['Left', at.grips.left], ['Right', at.grips.right]]) {
+      const off = egill.model.getObjectByName(`${side}Hand`).getWorldPosition(new THREE.Vector3()).distanceTo(grip);
+      if (off > 0.07) problems.push(`t=${t.toFixed(1)}: his ${side.toLowerCase()} wrist is ${(off * 100).toFixed(1)} cm from its grip`);
+    }
+  }
+  riding.stop();
+  flier.stop();
+  saddle.dispose();
+  assert.deepEqual(problems, []);
+});

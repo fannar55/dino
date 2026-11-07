@@ -294,10 +294,10 @@ const WRIST = [-0.04, 0.03, 0];
  * Seat `rider` on the flier's back for the flight: he plays `sit`, and his root follows the seat each frame, turned with her back;
  * his hands go to her neck. `settle`: seconds he takes to settle into the seat from where he is (riding.js floatTo leaves him
  * upright under it, and her back is tipped); 0 puts him there at once. `saddle` (engine/flier-saddle.js): while it is on her and
- * shown, he sits on it, his hands on its handlebar and his legs down its sides. Returns { stop(), seatLocal, frame(out) } (frame:
+ * shown, he sits on it, his hands on its handlebar and his legs down its sides. `lean`: degrees his spine leans forward (LEAN). Returns { stop(), seatLocal, frame(out) } (frame:
  * her back's turn now); stop() gives him back where he is.
  */
-export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = SEAT.local, settle = 0, saddle = null } = {}) {
+export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = SEAT.local, settle = 0, saddle = null, lean = LEAN } = {}) {
   const host = flier.actor;
   const bone = host.model.getObjectByName(boneName);
   if (!bone) throw new Error(`${host.name} has no bone named "${boneName}"`);
@@ -315,7 +315,7 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
   const hands = handsOn(rider, grips);
   const knees = { left: new V3(), right: new V3() };
   const ankles = { left: new V3(), right: new V3() };
-  const legs = legsOn(rider, ankles, knees, { lean: LEAN });
+  const legs = legsOn(rider, ankles, knees, { lean });
   const move = new THREE.Matrix4(); // her root as it was, to where the flier has put it this frame
   const wrist = new V3();
   let t = 0;
