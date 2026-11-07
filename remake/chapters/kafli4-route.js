@@ -119,6 +119,20 @@ export const FAR_POOL = {
     // enough out that Mosi's head, reaching toward us, stays in the picture.
     pool_horn: { position: up(around(44.6, 16.5), 6.8), target: up(around(46.8, 26.6), 7.4), fov: 44 },
   },
+  // Scene 7 (the life spec 2): where the animals that came to the festival stand, [x, z, who] (world/ardalur/life.js arrivals).
+  // The flyers on the north-east bank, where they come down at the flight's end: the four that flew on her left (north of her)
+  // first. The grazers and the small lizards on the bank beyond Egill and Mosi, either side of his reed: the bank's and the glide's
+  // shots see them over the water, the horn's behind the two of them. Every spot dry, flat and open (nothing over 0.5 m within 3 m
+  // as the banks grow), 9 m or more from her, Egill's, Mosi's and the reed's spots, out of the reed and the kept ground by 3 m, and
+  // 9 m or more off every scene 7 camera's line to Mosi's head, his reed and Slóeðla's (measured on the lit valley, 2026-11-07).
+  gather: [
+    ...[[-80, 31], [-70, 33.5], [-60, 31], [-50, 33.5], [-41, 31], [-31, 33.5], [-21, 31], [-11, 33.5]].map(([a, d]) => [...around(a, d), 'flyer']),
+    ...[[56, 50], [33, 50], [27, 58], [27, 67], [57, 59]].map(([a, d]) => [...around(a, d), 'grazer']),
+    ...[
+      [56, 43], [31, 37], [32, 40], [30, 42], [34, 42], [37, 43], [32, 44], [29, 45], [33, 58], [27, 36],
+      [64, 40], [66, 42], [25, 43], [62, 43], [59, 44], [27, 52], [15, 36], [19, 36], [23, 36], [15, 39],
+    ].map(([a, d]) => [...around(a, d), 'lizard']),
+  ],
 };
 
 /**

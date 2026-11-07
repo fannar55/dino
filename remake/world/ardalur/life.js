@@ -8,26 +8,34 @@
 //   F: a herd of the owner's grazer grazes above the falls, in three groups: in the open dale near the wide shot before the call,
 //   in the step's north-east corner that the slow circle passes close as they lift their heads, and on the step's south side that it
 //   sees after. At the call each lifts its head, walks, then trots toward the far pool to the end of its open ground, and stands looking.
+//   D to G: the gorge's flyers leave their ledges as she passes, fly round her up the falls and in the slow circle, and come down on
+//   the far pool's bank at the flight's end.
+//   Scene 7 (chapters/kafli4.js): those that came stand at the far pool (FAR_POOL.gather): the G rows' small lizards, the herd's
+//   corner group and the flyers, idle on the bank beyond Egill and Mosi, looking at her.
 //
 //   const life = createLife(world, route, { heightAt, library, crowds, critters }); // library: the forest's species (the trees'
-//                        crowns); critters: { smaedla, grasbitur } (animals.js loadCritters), the Fen's salamander stands in for the
-//                        rows without the first, and there is no herd without the second
+//                        crowns); critters: { smaedla, grasbitur, flugdyr } (animals.js loadCritters), the Fen's salamander stands
+//                        in for the rows without the first, there is no herd without the second and no flyers without the third
 //   life.things          [{ id, kind, at, trigger, position, visible, ... }]: each critter, where it sits (at) and the flight second
 //                        it sets off (trigger; null for those that only hover or skate), its pose at the last update
 //   life.rows            [{ id, where ('F' or 'G'), from, dir, length, delay, members }]: the rows of small lizards, `from` the front
 //   life.flocks          [{ id, from, dir, delay, members }]: the flocks of birds, `from` the middle of the grove they sit in
 //   life.herd            [{ id, at, dir, room, members }]: the herd's groups, `room` how far they go ([] without the grazer)
+//   life.flyers          the gorge's flyers, each with its ledge (nest), its place round her (slot) and its landing (land)
+//   life.arrivals        those that stand at the far pool in scene 7, each with its spot there (gather: { at, heading })
 //   life.props           the trees the birds sit in, for the plants to grow (banks.js); life.clear  where nothing else may grow
 //                        (the herd's ways: nothing taller than GRAZE.low)
 //   life.update(dt, t)   each frame, on the game clock t; the flight's own time is world.flightTime (null or < 0 outside the flight)
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
 //   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows, the flocks and the herd set off
+//   life.arrive()        scene 7 has begun: from now on, outside the flight, the arrivals stand at the far pool
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
 // time, so a pose is a function of world.flightTime: a seek or a capture finds them where playing would have. A skate is timed on the
 // game clock, as an answer is. Outside the flight they are all where they sat, but the rows, the flocks and the herd of a call made:
-// they are gone (the far pool has its own). They are drawn in the crowds (world/critters/crowd.js), given or their own.
+// they are gone; and once scene 7 has begun (arrive), the arrivals stand at the far pool. They are drawn in the crowds
+// (world/critters/crowd.js), given or their own.
 import * as THREE from 'three';
 import { BEATS, FAR_POOL, MEADOW, NESTS } from '../../chapters/kafli4-route.js';
 import { createModel } from '../critters/models.js';
@@ -131,9 +139,13 @@ const SLOTS = {
   right: [[-3.5, 6, 5.2], [-6.5, 4.5, 6.4], [-5, 5.5, -2.4], [-8.5, 7.5, 5.6]],
   left: [[-7.5, -5.5, 6.2], [-4.5, -6, 7.4], [-9.5, -2.5, -2.4], [-9.5, -7.5, 5]],
 };
-// Where they land: the far pool's north-east bank, [degrees round its middle (from +X toward +Z), metres from it]; those on her left
-// (north of her as she glides east) on the northern spots. Away from her shallows, Egill's and Mosi's spots and the beds of reed.
-const LAND = { left: [[-80, 31], [-70, 33.5], [-60, 31], [-50, 33.5]], right: [[-41, 31], [-31, 33.5], [-21, 31], [-11, 33.5]] };
+// Where they land is the far pool's (FAR_POOL.gather, 'flyer'): its north-east bank, those on her left (north of her as she glides
+// east) on the northern spots, away from her shallows, Egill's and Mosi's spots and the beds of reed.
+// Scene 7, the arrivals (the life spec 2, scene 7): the rows of `rows` (they ran to the far pool's north bank), the herd's group
+// `herd` and the flyers stand at the far pool's spots for them (FAR_POOL.gather: 'lizard', 'grazer', 'flyer'), each turned toward
+// her in the shallows give or take `turn` degrees. The lizards stand about (now and then a look up, over `look` s), the grazers
+// graze and look up by turns (over `graze` s). Nothing taller than `low` m grows within `lane` m of where they stand.
+const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low: 0.4, lane: [1.6, 2.5] };
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
   const { river } = route;
@@ -391,11 +403,12 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.side = (x - p.x) * way.rx + (z - p.z) * way.rz > 0 ? 'right' : 'left';
     return b;
   });
+  const spotsOf = who => FAR_POOL.gather.filter(g => g[2] === who);
+  const perches = spotsOf('flyer');
   for (const side of ['left', 'right']) {
     flyers.filter(b => b.side === side).forEach((b, j) => {
       b.slot = SLOTS[side][j];
-      const [angle, distance] = LAND[side][j];
-      const x = FAR_POOL.center[0] + distance * Math.cos(angle * DEG), z = FAR_POOL.center[1] + distance * Math.sin(angle * DEG);
+      const [x, z] = perches[(side === 'left' ? 0 : perches.length / 2) + j];
       const from = FLY.land.from + (2 * j + (side === 'right' ? 1 : 0)) * FLY.land.every;
       b.land = {
         spot: new THREE.Vector3(x, heightAt(x, z), z), from, to: from + FLY.land.seconds,
@@ -404,6 +417,26 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       clear.push({ x, z, r: 1.2 });
     });
   }
+
+  // Scene 7: the arrivals, each given its spot at the far pool, turned toward her in the shallows; the flyers stand where they landed
+  let arrived = false;
+  const arrivals = [];
+  const [lx, lz] = FAR_POOL.landing;
+  const toTheirSpots = (members, who, lane) => {
+    const spots = spotsOf(who);
+    members.slice(0, spots.length).forEach((b, k) => {
+      const [x, z] = spots[k];
+      const heading = headingOf(lx - x, lz - z) + GATHER.turn * Math.sin(k * 2.3 + 0.4);
+      b.gather = { at: new THREE.Vector3(x, heightAt(x, z), z), heading };
+      arrivals.push(b);
+      const half = b.kind === 'grasbitur' ? (grazer.length * b.scale) / 2 : 0;
+      const [hx, hz] = [Math.cos(heading * DEG), Math.sin(heading * DEG)];
+      for (let a = -half; a <= half; a += GRAZE.step) clear.push({ x: x + hx * a, z: z + hz * a, r: lane, over: GATHER.low });
+    });
+  };
+  toTheirSpots(rows.filter(r => r.where === GATHER.rows).flatMap(r => r.members), 'lizard', GATHER.lane[0]);
+  toTheirSpots(herd.find(g => g.id === GATHER.herd)?.members ?? [], 'grazer', GATHER.lane[1]);
+  for (const b of flyers) { b.gather = { at: b.land.spot, heading: b.land.heading }; arrivals.push(b); }
 
   for (const kind of new Set(things.map(t => t.kind))) {
     const n = things.filter(t => t.kind === kind).length;
@@ -440,11 +473,41 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   }
 
   /**
+   * One that came, at its spot by the far pool in scene 7, turned toward her: a small lizard stands about and now and then looks up
+   * (its look clip held at its fifth frame, as animals.js does), a grazer grazes and looks up by turns. Its frames' weights add up to 1.
+   */
+  function standing(b, clock) {
+    b.position.copy(b.gather.at);
+    b.heading = b.gather.heading;
+    for (const name in b.morphs) b.morphs[name] = 0;
+    const model = BAKED[b.kind];
+    const blend = (clip, time, w) => {
+      if (w <= 0) return;
+      const frames = clipPose(model, clip, time, b.phase);
+      for (const name in frames) b.morphs[name] += frames[name] * w;
+    };
+    const up = period => smooth(1.5 * Math.sin((TAU * clock) / period + b.phase) - 0.3); // head up some of the time
+    if (b.kind === 'grasbitur') {
+      const w = up(GATHER.graze);
+      blend('graze', clock, 1 - w);
+      blend('look', clock, w);
+    } else if (model) {
+      const w = up(GATHER.look);
+      blend('idle', clock, 1 - w);
+      blend('look', (5 / model.clips.look.frames) * model.clips.look.seconds, w);
+    } else {
+      b.morphs.curl = 0.45 * (0.5 + 0.5 * Math.sin((TAU * clock) / 7 + b.phase));
+    }
+  }
+
+  /**
    * A row's small lizard: standing about in its grove until the big call, then off after the one before it toward the far pool,
-   * huddling again where its row stops; gone once the flight is over. Its frames' weights add up to 1 (clipPose).
+   * huddling again where its row stops; gone once the flight is over (but those that stand at the far pool in scene 7). Its frames'
+   * weights add up to 1 (clipPose).
    */
   function lizard(b, ft, clock) {
     const { row } = b;
+    if (ft === null && arrived && b.gather) { standing(b, clock); return; }
     if (call !== null && ft === null) { b.visible = false; return; }
     const u = call === null || ft === null ? 0 : ft - call - row.delay - b.k * ROW.stagger;
     const [travelled, running] = ran(u, row.length);
@@ -513,6 +576,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
    */
   function grazing(b, ft, clock) {
     const { group } = b;
+    if (ft === null && arrived && b.gather) { standing(b, clock); return; }
     if (call !== null && ft === null) { b.visible = false; return; }
     for (const name in b.morphs) b.morphs[name] = 0;
     const blend = (clip, time, w) => {
@@ -610,6 +674,12 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       const frames = clipPose(flyer, clip, time, b.phase);
       for (const name in frames) b.morphs[name] += frames[name] * w;
     };
+    if (ft === null && arrived) {
+      b.position.copy(b.gather.at);
+      b.heading = b.gather.heading;
+      blend('perch', clock, 1);
+      return;
+    }
     const s = ft === null ? -1 : ft - b.trigger;
     if (s <= 0) { blend('perch', clock, 1); return; }
     const tau = ft - b.land.from;
@@ -739,8 +809,13 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (call === null && Number.isFinite(at)) call = at;
   }
 
+  /** Scene 7 has begun (chapters/kafli4.js): outside the flight from now on, those that came stand at the far pool. */
+  function arrive() {
+    arrived = true;
+  }
+
   return {
-    things, rows, flocks, herd, flyers, props, clear, crowds, update, skim, bigCall,
+    things, rows, flocks, herd, flyers, arrivals, props, clear, crowds, update, skim, bigCall, arrive,
     dispose() { if (own) crowds.dispose(); },
   };
 }

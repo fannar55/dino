@@ -368,9 +368,17 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
       if (scene === 6 && world.location === 'ardalur') seen.flown = her.root.position.clone();
       if (scene === 7) {
         const mosi = world.actors.get('mosi');
+        // and the animals that came (world/ardalur/life.js arrivals): where each stands, and whether the frame shows its middle
+        world.camera.updateMatrixWorld();
+        const inFrame = b => {
+          const p = b.position.clone().setY(b.position.y + b.height / 2).project(world.camera);
+          return p.z < 1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
+        };
         seen.pool.push({
           t: world.clock.time, her: her.root.position.clone(), egill: egill.root.position.clone(), riding: egill.controlled,
           mosi: mosi.root.position.clone(), mosiShown: mosi.root.visible, fade: ui.fadeLevel,
+          shot: director.mode === 'drive' ? 'pool_glide' : label, camera: world.camera.position.clone(), mosiHead: mosi.headPosition(new THREE.Vector3()),
+          arrivals: (world.forest?.life?.arrivals ?? []).filter(b => b.visible).map(b => ({ id: b.id, kind: b.kind, at: b.position.clone(), height: b.height, inFrame: inFrame(b) })),
         });
       }
       where = world.location;
@@ -936,6 +944,53 @@ test('Mosi comes out of the reed, out of breath, to stand by Egill: "Ég… er�
   const seven = world.chapterTimeline.find(m => m.scene === 7).at;
   const arrived = seen.spokenAt.get('k4_mosi_arrived');
   assert.ok(arrived > seven && arrived >= c.landing.downAt, 'once Egill is down');
+});
+
+// Scene 7 (the life spec 2, scene 7; world/ardalur/life.js arrivals, kafli4-route.js FAR_POOL.gather): the small lizards, the grazers
+// and the flyers that came stand idle on the far pool's bank, seen in the wide shots, and never in the way of what the scene shows
+test('the animals that came stand at the far pool, never in front of Mosi, the reed or the horn', async (t) => {
+  const { world, watched } = await playWide();
+  const c = world.chapterState;
+  const pool = watched.pool;
+  const life = world.forest.life;
+  assert.ok(life.arrivals.length >= 15, `${life.arrivals.length} came to the far pool`);
+  for (const kind of ['smaedla', 'grasbitur', 'flugdyr']) assert.ok(life.arrivals.some(b => b.kind === kind), `a ${kind} among them`);
+  // each stands on the bank, out of the water and off the pool's people, and stays where it stands through the scene
+  const first = new Map(pool[0].arrivals.map(b => [b.id, b.at]));
+  assert.equal(first.size, life.arrivals.length, 'all of them there from the scene\'s first frame');
+  for (const [id, at] of first) {
+    const ground = world.heightAt(at.x, at.z);
+    assert.ok(toPool(at) > FAR_POOL.radius + 1 && ground > FAR_POOL.level + 0.1 && Math.abs(at.y - ground) < 0.05, `${id} on the bank: ${toPool(at).toFixed(1)} m from the middle`);
+    for (const spot of ['landing', 'bank', 'mosi', 'reed']) {
+      assert.ok(Math.hypot(at.x - FAR_POOL[spot][0], at.z - FAR_POOL[spot][1]) > 8, `${id} 8 m off ${spot}`);
+    }
+  }
+  let moved = 0;
+  for (const f of pool) for (const b of f.arrivals) moved = Math.max(moved, b.at.distanceTo(first.get(b.id)));
+  assert.ok(moved < 0.05, `they stand: at most ${moved.toFixed(3)} m from where they stood`);
+  // never between the camera and Mosi's head (once he is out of the reed), the reed he comes out of, or Slóeðla's bed across the pool
+  const middle = ([x, z]) => new THREE.Vector3(x, world.heightAt(x, z) + 1, z);
+  const reed = middle(FAR_POOL.reeds[0].at), bed = middle(FAR_POOL.reeds[1].at);
+  const wrong = [];
+  let nearest = Infinity;
+  for (const f of pool) {
+    const targets = [['the reed', reed], ['Slóeðla\'s bed', bed], ...(f.mosiShown ? [['Mosi\'s head', f.mosiHead]] : [])];
+    for (const b of f.arrivals) {
+      const body = b.at.clone().setY(b.at.y + b.height / 2);
+      for (const [name, target] of targets) {
+        const off = fromLine(body, f.camera, target);
+        nearest = Math.min(nearest, off);
+        if (off < 2) wrong.push(`${b.id} ${off.toFixed(1)} m from the line to ${name} in ${f.shot} at ${f.t.toFixed(1)} s`);
+      }
+    }
+  }
+  assert.deepEqual(wrong.slice(0, 6), [], `${wrong.length} frames with one in the way`);
+  // fifteen or more in the frame of the wide shots: the bank's, and the glide's once she is down in the water
+  const wide = pool.filter(f => f.shot === 'pool_bank' || (f.shot === 'pool_glide' && f.t >= c.landing.touchAt));
+  assert.ok(wide.some(f => f.shot === 'pool_bank') && wide.some(f => f.shot === 'pool_glide'), `the wide shots: ${[...new Set(pool.map(f => f.shot))].join(', ')}`);
+  const fewest = Math.min(...wide.map(f => f.arrivals.filter(b => b.inFrame).length));
+  assert.ok(fewest >= 15, `at least 15 in the frame of every wide frame: ${fewest}`);
+  t.diagnostic(`${life.arrivals.length} at the pool, at least ${fewest} in a wide frame, nearest a line ${nearest.toFixed(1)} m`);
 });
 
 test('the flight plays its own song from the take-off: the chapter\'s theme goes out under it, the horn sounds in the quiet, and the theme comes back with the last look at the reed', async () => {

@@ -424,6 +424,8 @@ function* atTheFarPool(s, c) {
   mark(c, 7);
   const { world, mosi, egill, flugedla } = c;
   const her = flugedla.raw;
+  // the animals that came to the festival stand idle on the far pool's bank, beyond Egill and Mosi (world/ardalur/life.js arrivals)
+  world.forest?.life?.arrive?.();
   // the flier gives her back where the flight left her, at its speed, and the scenes' root takes her on: Egill rides on it
   const speed = c.flier.speed;
   c.flier.stop();
