@@ -338,7 +338,7 @@ test("level 1's words are the markup's own words, on the new screen: the pause, 
   const html = readFileSync(new URL('../minnisspil.html', import.meta.url), 'utf8');
   const { copy, friends, gifts } = BERJALUNDUR, { welcome, ending, loading, aria } = copy;
   const inMarkup = [
-    '<h1 class="sr-only">Saman getum við það!</h1>',
+    '<h1 class="sr-only">Saman getum við það!</h1>', '<title>Saman getum við það! · Mosi</title>', 'aria-label="Saman getum við það! Minnisspil með Mosa"',
     `<h2>${welcome.title}</h2>`, `<p>${welcome.lines.join('<br>')}</p>`,
     `type="button">${welcome.start} <span aria-hidden="true">→</span></button>`,
     `<h2>${ending.title}</h2><p id="ending-copy">${ending.text}</p>`,

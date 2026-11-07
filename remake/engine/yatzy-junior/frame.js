@@ -5,18 +5,21 @@
 // own buttons out from under it when it is told it is in the book (?inbook=1). The page may also ask to close by posting
 // { type: 'yatzy-junior:close' } to its parent.
 //
-//   createJuniorFrame(doc, { onPause, onClose, src }) returns { open(), close(), isOpen }
+//   createJuniorFrame(doc, { onPause, onClose, src, label, closeType }) returns { open(), close(), isOpen }
 //     onPause(paused)  holds the chapter while the frame is open, and lets it go after
 //     onClose()        after the frame is gone (the book refreshes)
+//     label            the dialog's aria-label and the iframe's title (Litla Yatzy við Mosa by default); the memory game, Saman getum við
+//                      það!, opens through this frame too, with its own page and label
+//     closeType        the message type with which the page asks to close ('yatzy-junior:close' by default)
 const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>';
 
-export function createJuniorFrame(doc, { onPause = null, onClose = null, src = './yatzy-junior.html?inbook=1', win = doc.defaultView } = {}) {
+export function createJuniorFrame(doc, { onPause = null, onClose = null, src = './yatzy-junior.html?inbook=1', label = 'Litla Yatzy við Mosa', closeType = 'yatzy-junior:close', win = doc.defaultView } = {}) {
   let root = null;
   let frame = null;
 
   function onMessage(event) {
     if (event.origin !== win.location.origin || event.source !== frame?.contentWindow) return;
-    if (event.data?.type === 'yatzy-junior:close') close();
+    if (event.data?.type === closeType) close();
   }
   function onKey(event) {
     if (event.key === 'Escape') close();
@@ -28,11 +31,11 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     root.className = 'junior-frame';
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.setAttribute('aria-label', 'Litla Yatzy við Mosa');
+    root.setAttribute('aria-label', label);
     frame = doc.createElement('iframe');
     frame.className = 'junior-frame-page';
     frame.src = src;
-    frame.title = 'Litla Yatzy við Mosa';
+    frame.title = label;
     frame.setAttribute('allow', 'autoplay');
     const closeEl = doc.createElement('button');
     closeEl.type = 'button';
