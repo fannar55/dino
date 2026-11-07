@@ -528,7 +528,10 @@ function refreshControls() {
       tapAlongOn ||= tapAlong;
       button.disabled = tapAlong ? held() : !mayExplore || !available || target.enabled === false;
       button.classList.toggle('tap-along', tapAlong);
-      button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false);
+      // The next obstacle shows its badge from the start (.is-ahead: plain, and a tap asks about it), and glows and pulses (.is-next)
+      // only once a found pair at home can do it: the story's moment is its work (the audit's #4: no glow on what cannot be done yet).
+      const next = Boolean(target.next) && mayExplore && target.enabled !== false, doable = story.kind === 'work' && story.target === target.id;
+      button.classList.toggle('is-next', next && doable); button.classList.toggle('is-ahead', next && !doable);
       button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false && !(travelAt(target.id)?.waitsForGifts && giftsToLand() > 0) || target.id === story.target && !target.unbuilt && (hesitating || retrying));
       button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : level.targets[target.id]?.label);
     } else {
@@ -539,7 +542,7 @@ function refreshControls() {
     }
   }
   for (const [key, button] of buttons) if (!visibleKeys.has(key)) {
-    button.disabled = true; button.classList.remove('choice-visible', 'pair-ready', 'pair-selected', 'is-next', 'is-guided', 'tap-along');
+    button.disabled = true; button.classList.remove('choice-visible', 'pair-ready', 'pair-selected', 'is-next', 'is-ahead', 'is-guided', 'tap-along');
   }
   // The picker asks, or a tap-along runs: the chip and the pause dim, so the child's eye is on what to tap.
   const choosingNow = String(whoVisible() || tapAlongOn); if ($('game').dataset.choosing !== choosingNow) $('game').dataset.choosing = choosingNow;

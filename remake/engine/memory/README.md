@@ -44,7 +44,8 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
   moment with none stays quiet. `window.__memory.askMosi()` is the button's path, `window.__memory.lastLine()` the `{ id, key }` it
   would use (`id` null when the moment has none).
 - **Over the world** (`#targets`): the leaves (44 px at least) and the obstacles (88 px, an 80 px badge with the level's picture). The
-  obstacle to tap next glows and pulses at once (`.is-next`), as does the tap-along ring. After 4 s without a tap (`coach.js`
+  next obstacle's badge shows at once, plain (`.is-ahead`: a tap asks about it), and glows and pulses (`.is-next`) only once a found
+  pair at home can do it (the story's `work` moment for it); the tap-along ring glows at once. After 4 s without a tap (`coach.js`
   `IDLE_HINT`) Litla Yatzy's tap hint (`.tap-hint`: a ring closing under a drawn finger) shows where the old gold arrow did: on a shut
   leaf while gifts are left before the crossing, on the obstacle that waits (`.is-guided`). It runs on the idle clock, which stands still
   while the picker asks, during a scene or a tap-along and while the camera moves.
