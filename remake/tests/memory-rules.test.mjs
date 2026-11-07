@@ -367,7 +367,9 @@ test("level 1's words are the markup's own words, on the new screen: the pause, 
   assert.ok(!game.includes('setMute('), 'no mute'); assert.ok(!game.includes("'mosi.memory.muted.v1'"), "the old key is named in coach.js only");
   // Mosi's button and the repeat use the coach's rules (a search says `first`, the picker `who`); a restart forgets what he repeated.
   assert.match(game, /askLine\(\{/); assert.match(game, /repeatDue\(\{/); assert.match(game, /repeatedKey = null; voiceQuiet = 0;/);
-  assert.match(game, /const MOMENT_KINDS = \{ search: 'first', choose: 'who' \};/); assert.ok(!game.includes('momentLast'), 'no reaction line is kept for the repeat');
+  assert.match(game, /const MOMENT_KINDS = \{ search: 'first', choose: 'who' \};/);
+  // His bubble has the words he says: the welcome and the match line.
+  assert.match(game, /caption\(VOICE_LINES\[LINES\.welcome\]\.text, WELCOME_HOLD\)/); assert.match(game, /caption\(VOICE_LINES\.match\.text, 3\.4\)/); assert.ok(!game.includes('momentLast'), 'no reaction line is kept for the repeat');
 });
 
 // ---- level 2 and the lock ----

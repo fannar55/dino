@@ -23,8 +23,10 @@ const LINES = { welcome: 'welcome', help: 'help', giftsLeft: 'giftsLeft', gifts:
 const stepById = id => level.steps.find(step => step.id === id);
 const travelAt = target => level.steps.find(step => step.kind === 'travel' && step.target === target);
 // Mosi's lines that also go up in his bubble when a script says them.
-const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft', 'gifts4', 'g2_left', 'g2_pull', 'g2_won']);
+const CAPTIONED = new Set(['match', 'who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft', 'gifts4', 'g2_left', 'g2_pull', 'g2_won']);
 // How long a line's words stay up in his bubble when a script says it (seconds; the others 2.6).
+// (the welcome's words stay up while he says them: 3.6 s on level 1, 4.4 s on level 2)
+const WELCOME_HOLD = 4.5;
 const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, gifts4: 3.4, giftsLeft: 3.2, g2_left: 3.2, g2_won: 5.2 };
 // (seconds of no tap before the tap hint, the finger, shows on what the child should tap: coach.js IDLE_HINT, 4)
 // Mosi's repeat waits for his voice to have been quiet this long too, so a line of the moment that has only just ended is not said again at once.
@@ -189,18 +191,26 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'clap') audio.mosiClap(index);
   else if (name === 'cheer') audio.cheer();
 }
+// The keys of an event in the level's tables: a beat by its step ('beat:lift'); any other by its type, and also by its type and id
+// ('pair-arrived:cross') and by those and its index ('wing-beat:pull:0'), the more particular after.
+function eventKeys(event) {
+  if (event.type === 'beat') return [`beat:${event.id}`];
+  const keys = [event.type];
+  if (event.id !== undefined) { keys.push(`${event.type}:${event.id}`); if (event.index !== undefined) keys.push(`${event.type}:${event.id}:${event.index}`); }
+  return keys;
+}
 // What the level's own events (the world's task events: a branch lifted, a log rolling, the bark placed...) sound like, said in
-// the level's table (levels/*.js, eventSounds): by event type, a beat by its step ('beat:lift').
+// the level's table (levels/*.js, eventSounds), by its keys (eventKeys). A line of Mosi's is queued once in a round, or again with `again`.
 function playEventSounds(event) {
-  for (const entry of level.eventSounds[event.type === 'beat' ? `beat:${event.id}` : event.type] ?? []) {
+  for (const key of eventKeys(event)) for (const entry of level.eventSounds[key] ?? []) {
     if (typeof entry === 'string') audio[entry]();
-    else if (entry.say) speech.queue(entry.say, { delay: entry.delay });
+    else if (entry.say) speech.queue(entry.say, { delay: entry.delay, once: !entry.again });
     else audio[entry.method](event[entry.arg]);
   }
 }
-// The words Mosi's bubble shows for an event, from the level's table (eventCaptions).
+// The words Mosi's bubble shows for an event, from the level's table (eventCaptions): the most particular of its keys.
 function showEventCaption(event) {
-  const entry = level.eventCaptions[event.type];
+  const entry = eventKeys(event).map(key => level.eventCaptions[key]).filter(Boolean).at(-1);
   if (entry) caption(entry.by?.[event.id] ?? entry.text, entry.hold);
 }
 // A beat of the tap-along: its big word, the step's beatWords by the beat's number (the last one if there are more beats than words).
@@ -409,7 +419,8 @@ function accept(events) {
     } else if (event.type === 'match') {
       // The match script plays the chime, the call and Mosi's line at their moments (scene-sound, scene-say).
       world.match(event.ids, event.nestIndex, event.species);
-      nestSpecies[event.nestIndex] = event.species; caption('Já! Vinirnir fundu hvor annan!', 3.4);
+      // (his bubble has the words he says a moment later: `match`, the caption matches the voice)
+      nestSpecies[event.nestIndex] = event.species; caption(VOICE_LINES.match.text, 3.4);
       if (bridge.unlock(event.species)) syncBridge();
     } else if (event.type === 'won') {
       guidance(); reflectEnding();
@@ -601,7 +612,8 @@ function start({ restart = false } = {}) {
   repeatedKey = null; voiceQuiet = 0;
   $('who').hidden = true; $('beat-word').classList.remove('show');
   $('coach').hidden = false; $('ending').hidden = true; $('ending-gifts').hidden = true; $('progress').hidden = false; setCredits(false);
-  caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
+  // (the round's first words in his bubble are the welcome he says: level 1's `welcome`, level 2's `g2_welcome`; a restart has no welcome)
+  if (restart) caption(currentStory().prompt); else caption(VOICE_LINES[LINES.welcome].text, WELCOME_HOLD);
   reflectProgress(game.getState()); reflectBasket(); reflectEnding(); syncPause(); audio.unlock(); music.unlock();
   if (!restart) speech.play(LINES.welcome);
 }
