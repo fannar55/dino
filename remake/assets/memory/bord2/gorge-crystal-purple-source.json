@@ -1,0 +1,54 @@
+{
+  "file": "gorge-crystal-purple.glb",
+  "bytes": 18692,
+  "triangles": 590,
+  "vertices": 762,
+  "meshes": [
+    "GorgeCrystalPurple"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "256 px WebP map (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "Quaternius (https://quaternius.com)",
+  "title": "Big Crystal",
+  "sourceUrl": "https://poly.pizza/m/pf5lzmgr2J",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "Poly Pizza (downloaded by Claude on the owner's word \"Já, sækja\", 2026-10-31)",
+  "sourceExport": "The owner's approved download, not in the repository (qa/memory/bord2/src/k1-big-crystal/, git-ignored).",
+  "download": {
+    "bytes": 33576,
+    "md5": "280aa4d7b4a03ff09ffdb5e106df027d",
+    "triangles": 590,
+    "maps": "one small PNG palette atlas (Atlas.png)",
+    "file": "big-crystal-k1.glb"
+  },
+  "use": "The purple crystals of the tunnel (levels/steinagljufur/props.js): a few stand inside the tunnel and at its mouth; the world stands them (one instanced draw) and each tap of the light task makes them sparkle.",
+  "size": {
+    "note": "1.2 m across, 1.34 m high (the crystal's cluster of points)",
+    "bounds": {
+      "x": [
+        -0.5975,
+        0.5975
+      ],
+      "y": [
+        -0.6,
+        0.6
+      ],
+      "z": [
+        0,
+        1.3399
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the imported node scale (100) taken into the vertices, one mesh already, not decimated, scaled so its widest side is 1.2 m on the ground and set on y = 0, the material rebuilt as plain metal-rough (the palette atlas only, roughness 0.35), the atlas shrunk to 256 px and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/k1-big-crystal/big-crystal-k1.glb gorge-crystal-purple-blender.glb name=GorgeCrystalPurple size=1.2 tris=1000 tex=256 normal=0 roughness=0.35",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-crystal-purple-blender.glb remake/assets/memory/bord2/gorge-crystal-purple.glb",
+  "passes": "blenderCommand (Blender 5.2; 32156 bytes), then quantizeCommand (18692 bytes).",
+  "fileUrl": "https://static.poly.pizza/f2bbae6a-f84c-493e-8a39-7498e90fbd49.glb"
+}

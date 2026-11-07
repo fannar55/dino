@@ -1,0 +1,21 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-05",
+  "source": "jano-minnisspil.json",
+  "verdicts": {
+    "minnisspil/g2_won_verk7": {
+      "verdict": "ja",
+      "key": "4efcfac8c450c68ef8b7f8c5d0bcba55468d8cce93291c4b53d6d6eac16848b5",
+      "mp3": "f54c2b86dd099561318c9ee4bde09f082eca284ea9ff9a14362237f5256bb50c",
+      "speaker": "mosi",
+      "text": "Allir átta komnir upp á Sólarsylluna! Sjáið stjörnurnar!"
+    },
+    "minnisspil/g2_help_verk7": {
+      "verdict": "ja",
+      "key": "6839f15ac2b791d2f76f4430328fa4221084c1deb021e316e02ea0c1ad8d274f",
+      "mp3": "bfab4759ac01c21d5a322a07d3003051c0414a17a39764108ac5164abfd54042",
+      "speaker": "mosi",
+      "text": "Finndu fjögur vinapör undir laufunum. Kambeðlurnar lýsa, Þríhyrnurnar stanga, Þórseðlurnar ná hátt og Flugeðlurnar fljúga. Saman komumst við upp á Sólarsylluna!"
+    }
+  }
+}

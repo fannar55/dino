@@ -16,6 +16,19 @@
 # darks come up (a pale belly hardly moves). It is done on the shrunk map, in the map's own (sRGB) values.
 # Step 2 is node remake/tools/quantize-glb.mjs, for the static ones only (three ignores the node scale quantization needs
 # on a skinned mesh). The welding and pinhole code is blender-decimate.py's.
+# Level 2 (Steinagljúfrið) uses it for scenery and flat scans as well, with three more options and one more kind of material:
+#   cut=0.04     cuts away everything below this fraction of the model's height (a ragged floor a generator left under the model: a bisect
+#                at that height, the part below it cleared). The welding runs first, the pinholes the cut leaves are filled after it.
+#   fill=6       the pinholes the welding closes: loops of up to this many edges (default 6; the cut's own long loops stay open).
+#   weld=0.0015  how close two vertices must be to be one, as a fraction of the model's largest side (default 0.00001: the seams of a UV
+#                island). A generator leaves slivers a thousandth of the model across, whose two open edges no pinhole fill can close:
+#                welding at that size collapses them.
+#   flaps=1      with the welding, drops the flaps: faces with two open edges that hang from one edge of the surface (a generator's tiny
+#                slivers; the open edges that are left are not holes, so no fill closes them).
+#   pitch=-90    turns the model this many degrees about X (Blender's frame, before it is turned to face +X and set on the ground): a slab
+#                a scan stands upright is laid flat, its imprint face up.
+# A scan with an unlit material (Sketchfab's KHR_materials_unlit: an Emission shader over its colour map, no Principled BSDF) gets a plain
+# metal-rough material fed by that colour map, as any other model does.
 import json
 import math
 import sys
@@ -37,6 +50,11 @@ ROUGHNESS = float(options.get('roughness', 0.6))
 LIFT = float(options.get('lift', 1.0))
 NORMAL = options.get('normal', '1') == '1'
 ANIM = options.get('anim', '0') == '1'
+CUT = float(options.get('cut', 0))
+FILL = int(options.get('fill', 6))
+PITCH = float(options.get('pitch', 0))
+FLAPS = options.get('flaps', '0') == '1'
+WELD = float(options.get('weld', 1e-5))
 CREDIT = json.load(open(options['credit'])) if 'credit' in options else {}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -87,17 +105,31 @@ if not skinned:
     # A static mesh takes its transform into its vertices.
     select_only([mesh])
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    if PITCH:
+        mesh.data.transform(Matrix.Rotation(math.radians(PITCH), 4, 'X'))
+        print(f'[gift] pitched {PITCH:+.1f} degrees about X')
 else:
     print(f'[gift] skinned: armature {armatures[0].name}, {len(armatures[0].data.bones)} bones, actions {[a.name for a in bpy.data.actions]}')
+    if PITCH or CUT:
+        raise SystemExit('[gift] pitch= and cut= are for static models')
 
-def weld(obj, dist):
+def weld(obj, dist, drop_flaps=FLAPS):
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     before = len(bm.verts)
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+    flaps = 0
+    while drop_flaps:
+        loose = [f for f in bm.faces if sum(e.is_boundary for e in f.edges) >= 2]
+        if not loose:
+            break
+        flaps += len(loose)
+        bmesh.ops.delete(bm, geom=loose, context='FACES')
+        bmesh.ops.delete(bm, geom=[e for e in bm.edges if not e.link_faces], context='EDGES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_edges], context='VERTS')
     # Pinholes of the welded seams are closed with a face that takes its neighbour's UV, as blender-decimate.py does.
     uv = bm.loops.layers.uv.active
-    faces = bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=6)['faces']
+    faces = bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=FILL)['faces']
     for f in faces:
         others = [g for e in f.edges for g in e.link_faces if g is not f and g not in faces]
         if not others:
@@ -113,12 +145,34 @@ def weld(obj, dist):
         with bpy.context.temp_override(object=obj, active_object=obj, selected_objects=[obj]):
             bpy.ops.mesh.customdata_custom_splitnormals_clear()
     obj.data.shade_smooth()
-    print(f'[gift] welded {before - len(obj.data.vertices)} vertices, filled {len(faces)} pinholes, {open_edges} open edges left')
+    print(f'[gift] welded {before - len(obj.data.vertices)} vertices, dropped {flaps} flaps, filled {len(faces)} pinholes, {open_edges} open edges left')
+
+CUT_LEVEL = None
+def cut_floor(obj, fraction):
+    global CUT_LEVEL
+    """Everything below `fraction` of the model's height is cut away (the cut is left open: the ground closes it)."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    zs = [v.co.z for v in bm.verts]
+    low, high = min(zs), max(zs)
+    level = CUT_LEVEL = low + fraction * (high - low)
+    before = sum(e.is_boundary for e in bm.edges)
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, level), plane_no=(0, 0, 1), clear_inner=True)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    after = sum(e.is_boundary for e in bm.edges)
+    above = sum(1 for e in bm.edges if e.is_boundary and (e.verts[0].co.z + e.verts[1].co.z) / 2 - level > 0.002 * (high - low))
+    bm.to_mesh(obj.data)
+    bm.free()
+    print(f'[gift] cut below {fraction:.3f} of the height (z {level:+.4f}): open edges {before} -> {after}, {above} of them above the cut itself')
 
 # Decimate when over the target. The model is scaled first, so the welding distance is the same fraction of every model.
 extent = Vector(max(v.co[i] for v in mesh.data.vertices) - min(v.co[i] for v in mesh.data.vertices) for i in range(3))
+if (tris(mesh) > TRIS or CUT > 0) and not skinned:
+    weld(mesh, max(extent) * WELD)
+    if CUT > 0:
+        cut_floor(mesh, CUT)
+        weld(mesh, max(extent) * 1e-5, drop_flaps=False)  # the cut leaves a few pinholes: closed too (its own vertices are not welded again)
 if tris(mesh) > TRIS and not skinned:
-    weld(mesh, max(extent) * 1e-5)
     mod = mesh.modifiers.new('decimate', 'DECIMATE')
     mod.decimate_type = 'COLLAPSE'
     mod.ratio = min(1.0, TRIS / tris(mesh))
@@ -137,12 +191,29 @@ if tris(mesh) > TRIS and not skinned:
 elif tris(mesh) > TRIS:
     raise SystemExit(f'[gift] a skinned mesh of {tris(mesh)} triangles is over the target {TRIS}: decimating a skin is not done here')
 print(f'[gift] {tris(mesh)} triangles, {len(mesh.data.vertices)} vertices')
+if CUT_LEVEL is not None:
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    edges = [e for e in bm.edges if e.is_boundary]
+    rim = sum(1 for e in edges if (e.verts[0].co.z + e.verts[1].co.z) / 2 - CUT_LEVEL <= 0.002 * (max(v.co.z for v in bm.verts) - CUT_LEVEL))
+    print(f'[gift] open edges after decimation: {len(edges)}, {rim} on the cut and {len(edges) - rim} above it')
+    bm.free()
 
 # Material: the colour map and (if wanted) the normal map, plain metal-rough. The imported nodes are walked from the
 # Principled BSDF: whatever image feeds Base Color is the colour map, the one behind its Normal Map node the normal map.
 material = mesh.data.materials[0]
 nodes, links = material.node_tree.nodes, material.node_tree.links
-bsdf = next(n for n in nodes if n.type == 'BSDF_PRINCIPLED')
+bsdf = next((n for n in nodes if n.type == 'BSDF_PRINCIPLED'), None)
+if bsdf is None:
+    # An unlit scan: an Emission shader over its colour map. A Principled BSDF takes the place of the shader, fed by that map.
+    picture = next(n for n in nodes if n.type == 'TEX_IMAGE')
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    links.new(picture.outputs['Color'], bsdf.inputs['Base Color'])
+    surface = next(n for n in nodes if n.type == 'OUTPUT_MATERIAL').inputs['Surface']
+    for link in list(surface.links):
+        links.remove(link)
+    links.new(bsdf.outputs['BSDF'], surface)
+    print(f'[gift] unlit material {material.name}: the colour map {picture.image.name} now feeds a Principled BSDF')
 def image_behind(socket):
     link = socket.links[0] if socket.links else None
     node = link.from_node if link else None

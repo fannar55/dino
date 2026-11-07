@@ -1,0 +1,53 @@
+{
+  "file": "gorge-slab.glb",
+  "bytes": 8708,
+  "triangles": 214,
+  "vertices": 324,
+  "meshes": [
+    "GorgeSlab"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "no map: plain metal-rough materials (colours only, matt), double-sided",
+  "extensions": [
+    "KHR_mesh_quantization"
+  ],
+  "author": "Kenney (https://kenney.nl)",
+  "title": "Rock Flat",
+  "sourceUrl": "https://poly.pizza/m/CrSoV13mCU",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "Poly Pizza (downloaded by Claude on the owner's word \"Já, sækja\", 2026-11-01)",
+  "sourceExport": "The owner's approved download, not in the repository (qa/memory/bord2/src/p1-rock-flat/, git-ignored).",
+  "download": {
+    "bytes": 13380,
+    "md5": "1198a866338957fd9a5a11c471e04da8",
+    "triangles": 214,
+    "maps": "none: one material \"rock\", a plain pale tan colour (no image)",
+    "file": "rock-flat-p1.glb"
+  },
+  "use": "The slab that becomes a ramp (levels/steinagljufur/upper.js): it stands on the high ledge, leaning, and as the Þórseðlur stretch their necks and pull, each tap lowers it a step until it lies as a ramp from the floor up the ledge; the world scales its thickness up a little and tints it to the gorge's sandstone.",
+  "size": {
+    "note": "3.6 m by 2.9 m and 0.33 m thick as shipped (Kenney's Rock Flat, scale 2.015233)",
+    "bounds": {
+      "x": [
+        -1.8,
+        1.8
+      ],
+      "y": [
+        -1.4589,
+        1.4589
+      ],
+      "z": [
+        0,
+        0.3325
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: one mesh already, the imported node scale taken into the vertices, not decimated (214 triangles, under the 1,000 target), scaled so its longest side is 3.6 m on the ground and set on y = 0, the material rebuilt as plain metal-rough (its colour kept, roughness 0.95; the file has no map). quantize-glb.mjs: positions 16-bit, normals 8-bit. In the game (upper.js): the thickness scaled up, the colour tinted to the gorge's sandstone.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/p1-rock-flat/rock-flat-p1.glb gorge-slab-blender.glb name=GorgeSlab size=3.6 tris=1000 tex=256 normal=0 roughness=0.95",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-slab-blender.glb remake/assets/memory/bord2/gorge-slab.glb",
+  "passes": "blenderCommand (Blender 5.2; 12916 bytes), then quantizeCommand (8708 bytes).",
+  "fileUrl": "https://static.poly.pizza/3e9d82ac-0749-42b6-8dfd-082393547ed5.glb"
+}

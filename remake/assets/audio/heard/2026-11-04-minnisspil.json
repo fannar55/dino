@@ -1,0 +1,21 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-04",
+  "source": "jano-minnisspil.json",
+  "verdicts": {
+    "minnisspil/g2_pull_ready_verk6": {
+      "verdict": "ja",
+      "key": "758b0d4449d8642ae1106220fd0917653919f839a05879b169e7b20fbd5a3772",
+      "mp3": "03a22d460a76c0f5c375a5d5b1d0691f11d28b52c3f90261369be2528487596b",
+      "speaker": "mosi",
+      "text": "Togum öll saman í reipið!"
+    },
+    "minnisspil/g2_pull_verk6": {
+      "verdict": "ja",
+      "key": "74c9a7e14b2e7d8e840449daf406a32cdfdc69488326df48ce336612979d8246",
+      "mp3": "5fc7b42504e14076cc878c4549c764cb767c780c8cbb872fca772ebc2934d978",
+      "speaker": "mosi",
+      "text": "Einn, tveir, TOGA!"
+    }
+  }
+}

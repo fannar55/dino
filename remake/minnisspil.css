@@ -1,167 +1,298 @@
+/* "Hvar er vinur minn?" (minnisspil.html): the screen around the 3D glade, in the look of the small games (Litla Yatzy, Eitt), as the
+   spec of 2026-11-06 (docs/superpowers/specs/2026-11-06-hvar-er-vinur-minn-vidmot-design.md) asks: only the least on the screen, and what the
+   child must tap stands out at once. The tokens, the round buttons, Mosi's button, the tap hint, the pills and the cards are copied from
+   yatzy-junior.css (the small games share no file; this copy is the one Eitt makes too). engine/memory/game.js renders into these:
+
+     .topbar                 the top band: .tally at the left, .corner at the right (the friend picker keeps below its bottom)
+     .tally                  one cream chip: #progress (a dot for each friend pair, .found once found) and #basket (the level's basket picture
+                             and #basket-text "2 / 4"); the gift pairs fly into it (game.js basketPoint reads #basket)
+     .corner                 #pause.round, two bars: the pause card
+     #mosi-help.mosi-help    "Spyrja Mosa": his face with a gold "?", bottom left; he says the moment's line again
+     #coach                  his bubble beside him, no name over it: #caption, and #holding while a pair holds something up
+     #targets                the buttons over the world: the leaves, the obstacles (.task-target with its .task-badge), the tap-along ring.
+                             .is-next and .tap-along glow at once; .is-guided carries the tap hint (.tap-hint: .tap-ring and a drawn finger)
+     #who                    "Hver getur þetta?": the friends' faces (.who-friend) and "Aftur" (#cancel-choice.who-back) on its corner
+     #game[data-choosing]    "true" while the picker is open or a tap-along runs: the chip and the pause dim
+     #game[data-motion]      "reduced" from the pause card's "Rólegri hreyfing" (or the tablet's setting): the glow and the finger stand still
+     .panel                  the welcome and pause cards; #ending, #loading and #error are cards of the same look
+
+   Every control is at least 88 px (--target) but the leaves (44 px, game.js) and the credits' "i" (88 px to tap, drawn small: it is not
+   the child's), Nunito only. */
 @font-face{font-family:Nunito;src:url('./assets/fonts/nunito-latin.woff2') format('woff2');font-weight:400 900;font-display:swap}
-:root{color-scheme:light;--paper:#fff1cb;--ink:#3b3021;--soft:#786044;--gold:#f0bd54;--forest:#345b41;--leaf:#90b65e;--bark:#61472d;--font:Nunito,ui-rounded,'Arial Rounded MT Bold','Trebuchet MS',system-ui,sans-serif}
+:root{
+  color-scheme:light;
+  /* (yatzy-junior.css :root) */
+  --paper:#f6efdf;--card:#fffaf0;--card-deep:#e3d4b5;--ink:#3b2f25;--ink-soft:#6b5a4a;
+  --gold:#f2b630;--gold-deep:#c58a16;--green:#6fae4f;--green-deep:#4f8a34;--teal:#2f8f86;
+  --target:88px;
+  --raise:0 6px 0 var(--card-deep),0 6px 0 3px var(--ink),0 10px 12px 2px rgb(40 24 10 / .25);
+  --pressed:0 2px 0 var(--card-deep),0 2px 0 3px var(--ink),0 4px 6px 1px rgb(40 24 10 / .22);
+  --tape:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M4 1L96 0L99 5L95 10L100 15L95 20L99 25L96 30L4 29L1 25L5 20L0 15L5 10L1 5Z'/%3E%3C/svg%3E");
+  --frame:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M7 3C110 1.6 290 4.4 393 2.6C396.4 2.8 397.6 4.6 397.4 8C396 110 398.4 200 397.2 292C396.9 295.8 395 297.3 391 297.2C280 298.6 120 296.2 9 297.6C5.2 297.6 3 295.8 3 292C3.8 190 1.8 100 2.8 8C3 4.6 4.4 3.1 7 3Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  --font:Nunito,ui-rounded,'Arial Rounded MT Bold','Trebuchet MS',system-ui,sans-serif;
+}
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#314b35;color:var(--ink);font-family:var(--font)}
-button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-button:focus-visible{outline:4px solid #fff0a6;outline-offset:4px;box-shadow:0 0 0 7px #3a563f}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#314b35;color:var(--ink);font-family:var(--font);font-weight:800;font-synthesis:none}
+button{font:inherit;color:inherit;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible{outline:4px solid var(--teal);outline-offset:5px}
 button:disabled{cursor:default}
+img{-webkit-user-drag:none}
 [hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .icon-library{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
-#game{position:relative;width:100%;height:100%;height:100dvh;isolation:isolate;overflow:hidden}
+#game{position:relative;width:100%;height:100%;height:100dvh;isolation:isolate;overflow:hidden;user-select:none;-webkit-user-select:none}
 #world{display:block;width:100%;height:100%;touch-action:none}
 
-/* Trail and found-pair leaves share one layout at every viewport width. */
-.topbar{position:absolute;inset:max(16px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) auto max(20px,env(safe-area-inset-left));display:flex;justify-content:space-between;align-items:flex-start;gap:20px;pointer-events:none;z-index:3}
-.adventure-ribbon{position:relative;flex:none;width:452px;padding:9px 14px 11px;border:2px solid #b39760;border-radius:18px 23px 20px 13px;background:radial-gradient(ellipse at 18% -20%,#91a65c44,transparent 67%),linear-gradient(160deg,#466844,#294a36);box-shadow:0 4px 0 #3c4127,0 9px 20px #172b2738,inset 0 1px 0 #d9df9970}
-.adventure-ribbon:before,.adventure-ribbon:after{content:'';position:absolute;width:5px;height:5px;border-radius:50%;top:10px;background:#c4ad72;box-shadow:inset 0 1px 2px #6c6b42}
-.adventure-ribbon:before{left:9px}.adventure-ribbon:after{right:9px}
-.ribbon-heading{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:7px;min-height:23px}
-.ribbon-leaf{width:23px;height:23px;flex:none;transform:rotate(-13deg)}
-.ribbon-berries{width:24px;height:24px;flex:none;transform:rotate(12deg)}
-.game-title h1{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.game-title>span{display:block;color:#fff1cb;font-size:14px;line-height:1.2;font-weight:850;letter-spacing:.01em;text-shadow:0 2px #284031}
-.ribbon-progress{display:flex;align-items:center;gap:14px}
-.progress{order:2;display:flex;flex-direction:column;justify-content:center;gap:6px;padding-left:12px;border-left:1px solid #b3bd8055;color:#fff0c6;pointer-events:none;flex:none}
-#progress-text{font-size:14px;line-height:1.2;font-weight:800;white-space:nowrap}
-.nest-dots{display:flex;align-items:center;gap:4px;height:21px;padding:0 1px}
-.nest-dots i{display:block;position:relative;width:16px;height:20px;border:1.5px solid #b2be83;border-radius:75% 25% 65% 35%;background:#203e2d;transform:rotate(20deg);transition:background .2s,transform .25s,box-shadow .25s}
-.nest-dots i:after{content:'';position:absolute;left:6px;top:5px;width:2px;height:10px;transform:rotate(16deg);border-radius:1px;background:#80976b}
-.nest-dots i.found{background:linear-gradient(130deg,#ffe391,#d7a443);border-color:#fff2b5;transform:rotate(12deg);box-shadow:0 0 9px #ffe29466}
-.nest-dots i.found:after{background:#a67f35}
-.journey{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex:1;min-width:0;list-style:none;margin:0;padding:0;pointer-events:none}
-.journey li{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;min-width:0;color:#d0d8b7}
-.journey li+li:before{content:'';position:absolute;width:15px;left:-15px;top:24px;border-top:3px dotted #a6b87e88}
-.trail-medallion{position:relative;display:grid;place-items:center;width:48px;height:48px;border:2px solid #9b875d;border-radius:50%;background:linear-gradient(145deg,#d5c28f,#a99162);box-shadow:0 3px 0 #243b2c,inset 0 2px 0 #f7eac278;transition:background .25s,border-color .25s,box-shadow .25s}
-.trail-medallion>svg{width:41px;height:41px;filter:saturate(.72);opacity:.78;transition:filter .25s,opacity .25s}
-.journey b{position:absolute;right:-6px;bottom:-4px;display:grid;place-items:center;width:22px;height:22px;border:2px solid #465b3d;border-radius:50%;background:#d8c596;color:#5f5739;font-size:14px;font-weight:900;line-height:1}
-.trail-label{font-size:14px;line-height:1.1;font-weight:850;white-space:nowrap;text-shadow:0 1px #1e3928}
-.journey li.current{color:#ffefb5}
-.journey li.current .trail-medallion{border-color:#fff0ab;background:linear-gradient(145deg,#ffeab2,#eec365);box-shadow:0 3px 0 #7d642f,0 0 0 3px #d5b45b44,0 0 18px #ffda7433,inset 0 2px 0 #fff6d5}
-.journey li.current .trail-medallion>svg,.journey li.done .trail-medallion>svg{filter:none;opacity:1}
-.journey li.current b{background:#edb349;color:#3b4f31;border-color:#fff0b7}
-.journey li.done .trail-medallion{background:linear-gradient(145deg,#bdd47d,#93b568);border-color:#cde1a2}
-.journey li.done b{background:#5f9253;border-color:#e3edbc;color:white}.journey li.done{color:#e4ebc8}
+/* ---- The round button (yatzy-junior.css .round): a cream circle with an ink line and a solid drop ---- */
+.round{position:relative;display:grid;place-items:center;flex:none;width:var(--target);height:var(--target);padding:0;border:3px solid var(--ink);border-radius:50%;color:var(--ink);
+  background:radial-gradient(circle at 36% 28%,rgb(255 255 255 / .55),transparent 46%),var(--card);box-shadow:var(--raise)}
+.round svg{width:44%;height:44%;fill:currentColor}
+.round:active:not(:disabled),.mosi-help:active,.plain:active:not(:disabled){transform:translateY(4px);box-shadow:var(--pressed)}
 
-.basket{order:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding-left:12px;border-left:1px solid #b3bd8055;color:#fff0c6;pointer-events:none;flex:none}
-.basket-icon{display:block;width:42px;height:42px}.basket-icon svg{display:block;width:100%;height:100%}
-#basket-text{font-size:14px;line-height:1.2;font-weight:800;white-space:nowrap}
-.basket.full #basket-text{color:#ffe08d}
+/* ---- The top band: the chip of pairs and gifts at the left, the pause at the right (yatzy-junior.css .corner's place) ---- */
+.topbar{position:absolute;z-index:6;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));right:max(14px,env(safe-area-inset-right));display:flex;justify-content:space-between;align-items:flex-start;gap:14px;pointer-events:none}
+.corner{display:flex;align-items:flex-start;gap:14px;margin-left:auto;pointer-events:auto}
+.tally{display:flex;align-items:center;gap:16px;min-height:62px;padding:6px 18px 6px 16px;border:3px solid var(--ink);border-radius:999px;background:var(--card);box-shadow:var(--raise);pointer-events:none}
+.tally:not(:has(>:not([hidden]))){display:none} /* before the round starts both are hidden: no empty chip */
+.tally,.corner{transition:opacity .25s}
+#game[data-choosing="true"] :is(.tally,.corner){opacity:.6} /* the picker or a tap-along has the child's eye; the pause still works */
+.progress{display:flex;align-items:center}
+.nest-dots{display:flex;align-items:center;gap:8px}
+/* a dot for each friend pair (yatzy-junior.css .rounds i, round): cream until the pair is found, then gold */
+.nest-dots i{display:block;width:24px;height:24px;border:3px solid var(--ink);border-radius:50%;background:var(--paper);box-shadow:0 3px 0 var(--card-deep);transition:background-color .25s,box-shadow .25s,scale .3s cubic-bezier(.3,1.7,.5,1)}
+.nest-dots i.found{background:var(--gold);box-shadow:0 3px 0 var(--gold-deep);scale:1.12}
+.basket{display:flex;align-items:center;gap:8px}
+.basket-icon{display:block;width:46px;height:46px}.basket-icon svg{display:block;width:100%;height:100%}.basket-icon img{display:block;width:100%;height:100%;object-fit:contain}.hud-mark{display:block;object-fit:contain}
+#basket-text{font-size:24px;line-height:1;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.basket.full #basket-text{color:var(--gold-deep)}
 .basket.got .basket-icon{animation:basket-got .6s cubic-bezier(.3,1.5,.5,1)}
 @keyframes basket-got{0%{transform:scale(1)}28%{transform:scale(1.4) rotate(-9deg)}58%{transform:scale(.88) rotate(5deg)}100%{transform:scale(1)}}
 
-nav{display:flex;gap:8px;pointer-events:auto}
-.round-control{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:62px;height:66px;padding:5px 2px;border:2px solid #c1ad76;border-radius:17px 19px 16px 18px;background:linear-gradient(145deg,#648153,#3b5a40);color:#fff0c9;box-shadow:0 4px 0 #30432d,0 7px 14px #162b283b,inset 0 1px 0 #c7d79b9c;transition:transform .15s,filter .15s}
-.round-control:hover{filter:brightness(1.13);transform:translateY(-2px)}
-.round-control:active{transform:translateY(2px);box-shadow:0 2px 0 #30432d,inset 0 1px 0 #c7d79b9c}
-.round-control>span{display:grid;place-items:center;font-size:25px;font-weight:900;line-height:1;height:25px}
-.round-control svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-.round-control small{font-size:14px;line-height:1.1;font-weight:850}
-.round-control[aria-pressed=true]{background:linear-gradient(145deg,#8c9155,#5d7143);border-color:#ffdf8f}
+/* ---- "Spyrja Mosa" (yatzy-junior.css .mosi-help, as it is there): his face with a "?", bottom left. Hidden, with the pause,
+   until the round starts (game.js sets #game[data-playing]) ---- */
+.mosi-help{position:absolute;z-index:5;left:max(22px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:112px;height:112px;padding:0;border-radius:50%;border:3px solid var(--ink);
+  background:radial-gradient(circle at 34% 24%,rgb(255 255 255 / .45),transparent 40%),url('./assets/eitt/mosi.webp') 55% 40% / 150% auto no-repeat,radial-gradient(circle at 50% 40%,#fffaf0,#e9e3c4);
+  box-shadow:0 7px 0 #5e6340,0 7px 0 3px var(--ink),0 14px 16px 2px rgb(40 24 10 / .34)}
+.mosi-help::after{content:"?";position:absolute;right:-6px;top:-6px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:1000;color:var(--ink);background:var(--gold);border:3px solid var(--ink);box-shadow:0 3px 0 var(--gold-deep)}
+#game:not([data-playing="true"]) .mosi-help{display:none}
+#game:not([data-playing="true"]) .corner{visibility:hidden}
 
-/* Choice rings sit under animals, leaving their faces and bodies unobscured. */
+/* ---- Mosi's bubble beside him (yatzy-junior.css .bubble, its tail towards him): what he says, or else what the child does now ---- */
+.coach{--beside:calc(max(22px,env(safe-area-inset-left)) + 112px + 26px);position:absolute;z-index:5;left:var(--beside);bottom:calc(max(24px,env(safe-area-inset-bottom)) + 8px);
+  display:flex;flex-direction:column;justify-content:center;width:max-content;max-width:min(560px,calc(100% - var(--beside) - max(22px,env(safe-area-inset-right))));min-height:84px;
+  padding:14px 22px 16px;border:3px solid var(--ink);border-radius:26px;background:var(--card);
+  box-shadow:0 8px 0 var(--card-deep),0 8px 0 3px var(--ink),0 14px 16px 2px rgb(40 24 10 / .3);pointer-events:none}
+.coach::before{content:"";position:absolute;left:-19px;bottom:24px;width:30px;height:30px;rotate:-135deg;background:var(--card);border-right:3px solid var(--ink);border-top:3px solid var(--ink)}
+.coach p{margin:0;font-size:clamp(20px,2vw,26px);line-height:1.22;font-weight:900;text-wrap:pretty}
+.holding{display:flex;align-items:center;gap:6px;margin-top:6px;color:var(--ink-soft);font-size:17px;font-weight:800}.holding span{font-size:19px;line-height:1}
+.coach[data-tone=celebrate],.coach[data-tone=celebrate]::before{background:#fff2c9}
+
+/* ---- What the child taps over the world ---- */
 #targets{position:absolute;inset:0;pointer-events:none}
 .world-target{position:absolute;pointer-events:auto;transform:translate(-50%,-50%);padding:0;border:0;border-radius:50%;background:transparent;color:transparent;touch-action:manipulation;user-select:none}
 .world-target:disabled{pointer-events:none}
 .world-target:focus-visible{outline:3px solid #fff0a1;outline-offset:1px;background:#ffe7a315;box-shadow:0 0 0 6px #294a3659}
-.world-target.pair-ready:before,.world-target.pair-selected:before,.world-target.is-guided:before{content:'';position:absolute;left:5%;right:5%;bottom:7%;height:23%;border-radius:50%;border:2px solid #fff3b98a;background:radial-gradient(ellipse,#ffdd7c18 25%,#ffed9766 70%,transparent 75%);box-shadow:0 0 12px #ffe69d33;pointer-events:none}
-.world-target.pair-selected:before,.world-target.is-guided:before{border-color:#ffe08d;box-shadow:0 0 0 4px #ffda6822,0 0 24px #ffdc8c77;background:radial-gradient(ellipse,#ffce4533,#ffeea155 65%,transparent 72%)}
-/* The gold arrow over a guided target: one big arrow (32 px, 9 px gold border, shadow and glow) for the leaves and the obstacles alike. A leaf's sits just above it (its tip about 12 px over the button), an obstacle's higher (below). */
-.world-target.is-guided:after{content:'';position:absolute;left:calc(50% - 16px);top:-62px;width:32px;height:32px;border-right:9px solid #ffd45c;border-bottom:9px solid #ffd45c;border-radius:5px;transform:rotate(45deg);filter:drop-shadow(0 3px 0 #6a4a22) drop-shadow(0 0 10px #fff3b0);animation:point-way 1.3s ease-in-out infinite;pointer-events:none}
-.task-badge{position:absolute;left:50%;top:4%;transform:translate(-50%,-50%);display:grid;place-items:center;width:49px;height:49px;border:2px solid #fff0b1;border-radius:17px 20px 17px 15px;background:linear-gradient(145deg,#ffdf86,#e9ac46);color:#604727;box-shadow:0 4px 0 #906535,0 8px 17px #283b3040,inset 0 2px 0 #fff2c4;opacity:0;transition:opacity .18s,scale .18s;pointer-events:none;scale:.9}
-.task-badge svg{width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
-.choice-visible .task-badge{opacity:1;scale:1}
-.task-target.choice-visible:before{content:'';position:absolute;left:15%;right:15%;bottom:10%;height:18%;border:2px solid #ffe494a6;border-radius:50%;box-shadow:0 0 22px #ffe59477}
-.lower-branch .branch-arrow{transform:rotate(180deg);transform-origin:16px 11.5px}
-@keyframes point-way{0%,100%{translate:0 -3px}50%{translate:0 4px}}
-.world-target.is-next:before{content:'';position:absolute;left:12%;right:12%;bottom:8%;height:20%;border:2px solid #ffe7a0b0;border-radius:50%;box-shadow:0 0 18px #ffd97a88;animation:next-glow 1.6s ease-in-out infinite;pointer-events:none}
-@keyframes next-glow{0%,100%{opacity:.55;scale:.94}50%{opacity:1;scale:1.06}}
-.task-target.is-guided:after{top:-66px}
+/* the guided leaf: a gold ring under it (the finger shows over it) */
+.world-target.is-guided:not(.task-target):before{content:'';position:absolute;left:5%;right:5%;bottom:7%;height:23%;border-radius:50%;border:3px solid var(--gold);background:radial-gradient(ellipse,#ffce4533,#ffeea155 65%,transparent 72%);box-shadow:0 0 0 4px #ffda6822,0 0 24px #ffdc8c77;pointer-events:none}
+/* An obstacle's badge: a cream tile with its picture (64 px: level 1's drawings, level 2's renders), shown when the obstacle can be asked
+   about now (.is-next, at once) or Mosi points at it (.choice-visible) */
+.task-badge{position:absolute;left:50%;top:4%;translate:-50% -50%;display:grid;place-items:center;width:80px;height:80px;border:3px solid var(--ink);border-radius:24px;
+  background:radial-gradient(circle at 36% 28%,rgb(255 255 255 / .55),transparent 46%),var(--card);color:var(--ink);box-shadow:var(--raise);opacity:0;scale:.9;transition:opacity .18s,scale .18s;pointer-events:none}
+.task-badge svg{width:64px;height:64px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.task-badge img{width:64px;height:64px;object-fit:contain;display:block;pointer-events:none}
+.choice-visible .task-badge,.is-next .task-badge{opacity:1;scale:1}
+/* A badge stands half over its obstacle: while it shows, a tap on it is a tap on the obstacle (the click goes up to the button), and the
+   one to tap now (next, guided, a tap-along) lies over its neighbours: on a phone the 88 px buttons of the branch and the log overlap. */
+.world-target:not(:disabled):is(.choice-visible,.is-next) .task-badge{pointer-events:auto}
+.world-target:is(.is-next,.is-guided,.tap-along){z-index:1}
+.is-next .task-badge{transition:none}
+.task-target.choice-visible:before{content:'';position:absolute;left:15%;right:15%;bottom:10%;height:18%;border:3px solid var(--gold);border-radius:50%;box-shadow:0 0 22px #ffe59477}
+/* The glow that pulses at once on what the game waits for (yatzy-junior.css .junior-card.pick, pick-glow): the next obstacle's badge and the
+   ring under it, and the tap-along's ring. It starts at its brightest (the negative delay), so it is seen from the first frame. */
+.task-target.is-next .task-badge::after{content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;box-shadow:0 0 0 4px var(--gold),0 0 18px 4px rgb(255 214 110 / .9);animation:pick-glow 1.5s ease-in-out -.75s infinite}
+.world-target.is-next:before{content:'';position:absolute;left:12%;right:12%;bottom:8%;height:20%;border:3px solid var(--gold);border-radius:50%;box-shadow:0 0 18px 4px rgb(255 214 110 / .8);animation:pick-glow 1.5s ease-in-out -.75s infinite;pointer-events:none}
+/* the tap-along: a gold ring with ink lines (yatzy-junior.css .cup-ring), its glow pulsing */
 .world-target.tap-along{border-radius:50%;cursor:pointer}
-.world-target.tap-along:before{content:'';position:absolute;inset:18%;border:4px dashed #fff2b8cc;border-radius:50%;box-shadow:0 0 26px #ffd86f88,inset 0 0 26px #ffd86f55;animation:tap-ring 1.1s ease-in-out infinite;pointer-events:none}
+.world-target.tap-along:before{content:'';position:absolute;inset:16%;border:5px solid var(--gold);border-radius:50%;box-shadow:0 0 0 3px var(--ink),inset 0 0 0 3px var(--ink);pointer-events:none}
+.world-target.tap-along:after{content:'';position:absolute;inset:16%;border-radius:50%;box-shadow:0 0 34px 10px rgb(255 214 110 / .75),inset 0 0 30px rgb(255 214 110 / .45);animation:pick-glow 1.5s ease-in-out -.75s infinite;pointer-events:none}
 .world-target.tap-along:active:before{scale:.86;transition:scale .06s}
-@keyframes tap-ring{0%,100%{scale:.92;opacity:.7}50%{scale:1.05;opacity:1}}
-.who{--who-size:92px;position:absolute;left:0;top:0;z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 14px 12px;border:2px solid #d9b866;border-radius:26px;background:radial-gradient(ellipse at 50% 0,#fffbe9,#fff1cf 70%);box-shadow:0 5px 0 #a8834a,0 12px 26px #1d362a55;pointer-events:none}
-.who[hidden]{display:none}
-.who:after{content:'';position:absolute;left:var(--tail,50%);bottom:-13px;width:22px;height:22px;margin-left:-11px;background:#fff1cf;border-right:2px solid #d9b866;border-bottom:2px solid #d9b866;border-radius:0 0 6px 0;transform:rotate(45deg);box-shadow:4px 4px 0 #a8834a}
-.who.below:after{bottom:auto;top:-13px;transform:rotate(225deg);box-shadow:none}
+/* The tap hint (yatzy-junior.css .tap-hint, .tap-ring; its markup is engine/yatzy-junior/game.js's): a gold ring closing onto the spot under a
+   drawn finger. It shows at once on .is-guided, which game.js puts on after IDLE_HINT (4 s) without a tap (Yatzy waits 3 s in its CSS): on a
+   leaf over its middle, on an obstacle over its badge. */
+.tap-hint{position:absolute;z-index:2;left:50%;top:50%;width:72px;height:72px;translate:-50% -50%;pointer-events:none;opacity:0}
+.task-target .tap-hint{top:4%}
+.tap-ring{position:absolute;inset:0;border-radius:50%;border:4px solid var(--gold);box-shadow:0 0 0 2px var(--ink),inset 0 0 0 2px var(--ink);opacity:0}
+.tap-hint svg{position:absolute;left:30%;top:28%;width:72%;height:72%;fill:var(--card);stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 3px 2px rgb(40 24 10 / .35))}
+.world-target.is-guided .tap-hint{opacity:1}
+.world-target.is-guided .tap-ring{animation:tap-ring 1.5s ease-out infinite}
+.world-target.is-guided .tap-hint svg{animation:tap-finger 1.5s ease-in-out infinite}
+@keyframes pick-glow{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes tap-ring{0%{scale:1.9;opacity:0}35%{opacity:1}85%{scale:.75;opacity:.9}100%{scale:.7;opacity:0}}
+@keyframes tap-finger{0%,30%,100%{translate:0 0}55%,70%{translate:0 5px}}
+/* Calm motion ("Rólegri hreyfing", or the tablet asks for less): the glow and the finger are there, still. */
+#game[data-motion="reduced"] .world-target .tap-ring,#game[data-motion="reduced"] .world-target .tap-hint svg{animation:none}
+#game[data-motion="reduced"] .world-target.is-guided .tap-ring{opacity:1;scale:.85}
+#game[data-motion="reduced"] .task-target.is-next .task-badge::after,#game[data-motion="reduced"] .world-target.is-next:before,#game[data-motion="reduced"] .world-target.tap-along:after{animation:none;opacity:1}
+
+/* ---- "Hver getur þetta?": the friend picker over the obstacle asked about, a cream card with a tail towards it; the faces are big, and
+   "Aftur" is a round button on its corner (the look of Eitt's close, eitt.css .eitt-close) ---- */
+.who{--who-size:120px;position:absolute;left:0;top:0;z-index:6;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:340px;padding:8px 16px 16px;
+  border:3px solid var(--ink);border-radius:28px;background:var(--card);box-shadow:var(--raise);pointer-events:none}
+.who:after{content:'';position:absolute;left:var(--tail,50%);bottom:-19px;width:30px;height:30px;margin-left:-15px;rotate:45deg;background:var(--card);border-right:3px solid var(--ink);border-bottom:3px solid var(--ink)}
+.who.below:after{bottom:auto;top:-19px;rotate:225deg}
 .who.pop{animation:who-in .32s cubic-bezier(.3,1.6,.5,1) both}
 @keyframes who-in{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
-.who-title{margin:0;color:#6b5026;font-size:18px;line-height:1.1;font-weight:900;letter-spacing:.01em}
-.who-row{display:flex;gap:12px}
-.who-friend{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:var(--who-size);padding:0;border:0;background:none;color:#563f20;font:inherit;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+/* (the title keeps clear of "Aftur", which reaches 48 px into the card's corner) */
+.who-title{display:flex;align-items:center;justify-content:center;align-self:stretch;min-height:46px;margin:0;padding:0 50px;font-size:21px;line-height:1.1;font-weight:900;text-align:center;color:var(--ink)}
+.who-row{display:flex;justify-content:center;gap:14px}
+.who-back{position:absolute;z-index:1;top:-40px;right:-40px;pointer-events:auto}
+.who-back svg{fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.who-friend{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:var(--who-size);padding:0;border:0;background:none;color:var(--ink);font:inherit;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
 .who.pop .who-friend{animation:who-pop .42s cubic-bezier(.3,1.7,.5,1) both;animation-delay:calc(.06s + var(--i,0) * .08s)}
 @keyframes who-pop{0%{transform:scale(.2) translateY(12px);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
-.who-face{position:relative;display:block;width:var(--who-size);height:var(--who-size);overflow:hidden;border:4px solid #f0bd54;border-radius:50%;background:radial-gradient(circle at 50% 38%,#f4f6dc,#b9d18b 78%);box-shadow:0 4px 0 #a1702f,inset 0 -6px 10px #6f8e4a55;transition:transform .28s cubic-bezier(.3,1.7,.5,1)}
+.who-face{position:relative;display:block;width:var(--who-size);height:var(--who-size);overflow:hidden;border:4px solid var(--gold);border-radius:50%;background:radial-gradient(circle at 50% 38%,#f4f6dc,#b9d18b 78%);
+  box-shadow:0 0 0 3px var(--ink),0 6px 0 3px var(--ink);transition:transform .28s cubic-bezier(.3,1.7,.5,1)}
 .who-face img{position:absolute;width:calc(100% * var(--z));height:auto;max-width:none;left:calc(50% - 100% * var(--z) * var(--hx));top:calc(50% - 75% * var(--z) * var(--hy));pointer-events:none}
 .who-friend[data-species=triceratops]{--z:1.5;--hx:.64;--hy:.55}
 .who-friend[data-species=brontosaurus]{--z:1.7;--hx:.63;--hy:.22}
 .who-friend[data-species=stegosaurus]{--z:1.6;--hx:.65;--hy:.49}
+.who-friend[data-species=pteranodon]{--z:1.4;--hx:.52;--hy:.5}
 .who-friend:hover .who-face{filter:brightness(1.06)}
 .who-friend:active .who-face{transform:scale(1.12,.84);transition-duration:.06s}
 .who-friend:focus-visible{outline:none}
-.who-friend:focus-visible .who-face{outline:3px solid #fff0a1;outline-offset:3px}
-.who-name{font-size:17px;line-height:1.05;font-weight:900;white-space:nowrap}
+.who-friend:focus-visible .who-face{outline:4px solid var(--teal);outline-offset:6px}
+.who-name{font-size:19px;line-height:1.05;font-weight:900;white-space:nowrap}
 .beat-word{position:absolute;left:50%;top:34%;z-index:5;transform:translate(-50%,-50%);color:#fff3b0;font-size:clamp(64px,10vw,124px);line-height:1;font-weight:900;-webkit-text-stroke:5px #6a4a22;paint-order:stroke fill;text-shadow:0 7px 0 #6a4a22,0 12px 26px #0007;opacity:0;pointer-events:none;white-space:nowrap}
 .beat-word.show{animation:beat-pop .85s cubic-bezier(.3,1.6,.5,1) both}
 #game[data-paused=true] .beat-word,#game[data-paused=true] .who-friend,#game[data-paused=true] .who{animation-play-state:paused}
 @keyframes beat-pop{0%{opacity:0;scale:.3}22%{opacity:1;scale:1.2}55%{opacity:1;scale:1}100%{opacity:0;scale:1.04;translate:0 -26px}}
-@media(max-width:560px){.who{--who-size:66px;padding:8px 10px 10px;gap:4px;border-radius:22px}.who-row{gap:8px}.who-title{font-size:16px}.who-name{font-size:15px}.who-face{border-width:3px}}
 
-/* Mosi is a character beside a speech bubble, rather than another HUD panel. */
-.coach{position:absolute;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:flex-end;gap:0;width:max-content;max-width:min(670px,calc(100% - 36px));pointer-events:none;z-index:4;filter:drop-shadow(0 7px 11px #15342638)}
-.coach-portrait{position:relative;flex:none;width:104px;height:105px;align-self:flex-end;margin-right:-6px;z-index:1}
-.coach-portrait:before{content:'';position:absolute;left:5px;right:3px;bottom:0;height:89px;border:3px solid #dec483;border-radius:45% 48% 40% 45%;background:radial-gradient(ellipse at 50% 20%,#b4ce80,#5a874b 80%);box-shadow:0 3px 0 #4b5e36,inset 0 2px 0 #e7e7aa}
-.coach-portrait img{position:absolute;left:-6px;bottom:0;width:119px;height:119px;object-fit:contain;filter:drop-shadow(0 2px 1px #36513c55)}
-.coach-portrait>svg{position:absolute;left:-7px;bottom:-4px;width:37px;height:37px;transform:rotate(-24deg)}
-.coach-message{position:relative;max-width:550px;min-width:200px;padding:12px 21px 13px 25px;border:2px solid #b2975f;border-radius:22px 24px 23px 6px;background:radial-gradient(ellipse at 0 0,#fff9e5,transparent 65%),linear-gradient(#fff2d3,#f4e5be);box-shadow:0 4px 0 #816b41,inset 0 2px 0 #fffaf0}
-.speaker{display:inline-block;margin-bottom:2px;color:#5d7c45;font-size:14px;line-height:1.1;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
-.coach p{font-size:clamp(18px,1.8vw,23px);line-height:1.27;font-weight:850;margin:0;text-wrap:pretty}
-.coach-actions{display:flex;align-items:center;gap:10px}.coach-actions:has(button:not([hidden])){margin-top:10px}
-.choice-back{pointer-events:auto;display:flex;align-items:center;gap:5px;flex:none;min-width:44px;min-height:44px;padding:5px 8px;border:0;border-radius:12px;background:#d7c998;color:#5d6040;font-size:14px;font-weight:850;box-shadow:0 2px 0 #b4a879}
-.choice-back svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.choice-back:hover{background:#c8bf8a}
-.holding{display:flex;align-items:center;gap:5px;margin-top:6px;color:#637c49;font-size:14px;font-weight:800}.holding span{font-size:17px;line-height:1}
-.coach[data-tone=celebrate] .coach-message{border-color:#d8ad4e;background:linear-gradient(#fff6da,#ffe7a9)}.coach[data-tone=celebrate] .speaker{color:#9a7337}
-#game[data-busy=true] .adventure-ribbon{opacity:.82;transition:opacity .3s}#game[data-busy=true] .coach-message{max-width:430px}
-.overview-hint{position:absolute;left:50%;bottom:max(25px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 30px);padding:9px 19px 9px 12px;border:2px solid #c2b176;border-radius:22px;background:#35543cef;color:#fff1ce;box-shadow:0 4px 0 #293e2a,0 7px 20px #16312840;text-align:left;font-size:18px;line-height:1.2;font-weight:850;pointer-events:none;z-index:4}
-.overview-hint>svg{width:43px;height:43px;flex:none}.overview-hint span{display:block;font-size:14px;font-weight:700;color:#e0d6b3;margin-top:3px}
+/* ---- The pills (yatzy-junior.css .big, .plain): the big green raised pill and the plain cream one; .primary is the big pill in gold (the
+   spec's gold "Leikum saman →", and "Spila aftur") ---- */
+.big,.plain,.primary{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:.4em;min-height:var(--target);min-width:var(--target);padding:0 1.1em;border:3px solid var(--ink);border-radius:999px;
+  font-size:clamp(28px,3.4vmin,36px);font-weight:900;line-height:1.1;text-align:center;color:#fff;-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill;
+  background:radial-gradient(circle at 30% 18%,rgb(255 255 255 / .38),transparent 46%),var(--green);box-shadow:0 7px 0 var(--green-deep),0 7px 0 3px var(--ink),0 14px 16px 2px rgb(40 24 10 / .34)}
+.big:active:not(:disabled){transform:translateY(4px);box-shadow:0 3px 0 var(--green-deep),0 3px 0 3px var(--ink),0 6px 8px 1px rgb(40 24 10 / .3)}
+.primary{background:radial-gradient(circle at 30% 18%,rgb(255 255 255 / .45),transparent 46%),var(--gold);box-shadow:0 7px 0 var(--gold-deep),0 7px 0 3px var(--ink),0 14px 16px 2px rgb(40 24 10 / .34)}
+.primary:active:not(:disabled){transform:translateY(4px);box-shadow:0 3px 0 var(--gold-deep),0 3px 0 3px var(--ink),0 6px 8px 1px rgb(40 24 10 / .3)}
+.plain{font-size:clamp(22px,2.8vmin,28px);padding:0 1em;color:var(--ink);-webkit-text-stroke:0;background:var(--paper);box-shadow:var(--raise)}
+.plain[aria-pressed="true"]{background:radial-gradient(circle at 30% 18%,rgb(255 255 255 / .5),transparent 46%),#ffe08a}
 
-.ending{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(760px,calc(100% - 32px));display:flex;align-items:center;gap:18px;justify-content:space-between;border:3px solid #d2b976;border-radius:25px 30px 25px 22px;background:linear-gradient(125deg,#fff3ce,#f2dfac);padding:20px 24px;box-shadow:0 5px 0 #8a7144,0 12px 40px #23392b40;z-index:5}
-.ending-gifts{display:flex;align-items:center;gap:10px;margin-top:10px!important;font-size:21px!important;line-height:1.2!important;font-weight:900;color:#7b3a2e}.ending-gifts[hidden]{display:none}.ending-gifts .basket-icon{width:40px;height:40px;flex:none}.ending-berries{width:66px;height:66px;flex:none}.ending h2{font-size:28px;margin:3px 0 4px;line-height:1.1;font-weight:900}.ending p{font-size:15px;line-height:1.35;margin:0}
-.credits-toggle{position:absolute;right:-8px;top:-17px;width:44px;height:44px;padding:0;border:2px solid #b69a55;border-radius:50%;background:#fff3ce;color:#6a4f22;font:italic 900 22px/1 Georgia,'Times New Roman',serif;display:grid;place-items:center;box-shadow:0 3px 0 #8a7144;opacity:.85}
-.credits-toggle[aria-expanded=true]{opacity:1;background:#ffe9a8}
-.credits{position:absolute;right:0;bottom:calc(100% + 14px);width:min(430px,100%);display:grid;gap:10px;padding:12px 16px;border:3px solid #d2b976;border-radius:20px;background:#fff3ce;color:#4c3a1c;box-shadow:0 5px 0 #8a7144,0 12px 30px #23392b40;font-size:15px;line-height:1.3;z-index:6;text-align:left}.credits[hidden]{display:none}
-.credits p{margin:0!important;display:flex;gap:8px;font-size:15px!important;line-height:1.3!important;overflow-wrap:anywhere}.credit-group+.credit-group{border-top:1px solid #c9b57d;padding-top:8px}.credit-label{flex:none;min-width:3.4em;color:#7a6a3d;font-weight:800}.credit-value{font-weight:700}
-.eyebrow{color:#6b804a;letter-spacing:.09em;font-size:14px;font-weight:900}
-.primary,.secondary{border:2px solid #fff0ae;min-height:58px;border-radius:17px 22px 18px 19px;padding:12px 22px;font-size:21px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:20px;transition:filter .15s,transform .15s}
-.primary{background:linear-gradient(150deg,#efc65d,#e4a23b);color:#543c21;box-shadow:0 5px 0 #9c6a31,inset 0 1px 0 #fff2bd}
-.primary:hover{filter:brightness(1.07);transform:translateY(-1px)}.primary:active{transform:translateY(3px);box-shadow:0 2px 0 #9c6a31}
-.secondary{border-color:#c1d28c;background:linear-gradient(#728f58,#557644);color:#fff4d8;box-shadow:0 4px 0 #3f5c35}
-.text-button{background:none;border:0;color:var(--soft);text-decoration:underline;font-weight:800;font-size:15px;min-height:44px;padding:10px}
-.journal-panel{width:min(450px,calc(100% - 32px));max-height:calc(100dvh - 28px);border:3px solid #b79e64;border-radius:30px 35px 29px 24px;background:radial-gradient(ellipse at 50% 0,#ffffef,transparent 70%),linear-gradient(#fff2d1,#ecdcaf);padding:28px 32px;color:var(--ink);box-shadow:0 7px 0 #705635,0 22px 100px #10291d66,inset 0 2px 0 #fffbe7;text-align:center;overflow:auto}
-.journal-panel::backdrop{background:#173b2b77;backdrop-filter:blur(5px)}
-.journal-panel h2{font-size:35px;line-height:1.08;letter-spacing:-.035em;margin:9px 0 14px;font-weight:900}
-.journal-panel p{font-size:18px;line-height:1.4;margin:12px 0 20px;color:var(--soft);font-weight:700}.journal-panel .fine{font-size:14px;font-weight:800;margin:15px 0 0;color:#657748}
-.journal-panel>.primary,.journal-panel>.secondary{width:100%;margin-top:12px}
-.welcome-mosi{position:relative;width:146px;height:125px;margin:-8px auto 6px}.welcome-mosi:before{content:'';position:absolute;inset:18px 9px 0;border:3px solid #cbd598;border-radius:50%;background:radial-gradient(ellipse at 50% 25%,#c7da90,#769954)}
-.welcome-mosi img{position:absolute;width:160px;height:160px;bottom:-1px;left:-7px;object-fit:contain;filter:drop-shadow(0 4px 1px #53684444)}.welcome-mosi>svg{position:absolute;width:44px;height:44px;left:-5px;bottom:-4px;transform:rotate(-30deg)}
-.intro-pairs{display:flex;justify-content:center;align-items:center;gap:12px;margin:18px 0 22px}.intro-pairs>span{display:grid;place-items:center;width:57px;height:57px;border:2px solid #bda46e;border-radius:50%;background:#e7d4a1;box-shadow:0 3px 0 #c4ad76,inset 0 2px #fff2c3}.intro-pairs svg{width:49px;height:49px}.intro-pairs i{font-size:22px;color:#8d9763;font-style:normal;letter-spacing:1px}
-.journal-panel ol{text-align:left;padding-left:23px;font-size:17px;line-height:1.4;font-weight:750}.journal-panel li+li{margin-top:9px}
-.loading,.error-panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;padding:24px 30px;background:linear-gradient(#fff4d5,#efddb2);border:3px solid #baa06b;border-radius:26px 32px 27px 23px;width:min(410px,calc(100% - 32px));box-shadow:0 5px 0 #8d7549,0 12px 50px #10291d33;z-index:6}
-.loading h2,.error-panel h2{font-size:25px;line-height:1.2;margin:14px 0 12px}.loading p,.error-panel p{font-size:17px;color:var(--soft);margin:0}.error-panel button{margin:24px auto 0}
-.loading-mark{width:46px;height:35px;margin:auto;border:2px solid #6e8e48;border-radius:75% 15% 70% 15%;background:linear-gradient(130deg,#b4d070,#769b4d);transform:rotate(-16deg);animation:breathe 1.8s ease-in-out infinite}@keyframes breathe{50%{transform:rotate(-10deg) scale(1.07)}}
+/* ---- The cards (yatzy-junior.css .panel): a cream card with a drawn line inside, a strip of tape, Mosi's picture over the top; here with
+   a 3 px ink border, as the spec says ---- */
+.panel{width:min(580px,calc(100vw - 40px));max-width:none;max-height:calc(100dvh - 32px);margin:auto;padding:clamp(24px,4vh,40px) clamp(24px,3.6vw,44px) clamp(28px,4.4vh,44px);border:3px solid var(--ink);border-radius:30px;overflow:visible;
+  background:var(--frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat,var(--card);color:var(--ink);text-align:center;
+  box-shadow:0 30px 60px rgb(14 8 3 / .45),0 8px 18px rgb(14 8 3 / .3)}
+.panel[open]{display:grid;justify-items:center;gap:clamp(12px,2.4vh,22px)}
+.panel::backdrop{background:rgb(59 47 37 / .38)}
+.panel::before{content:"";position:absolute;top:-14px;left:7%;width:min(22%,120px);height:34px;rotate:-8deg;
+  background:repeating-linear-gradient(90deg,rgb(255 255 255 / .22) 0 3px,transparent 3px 9px),color-mix(in srgb,var(--teal) 55%,transparent);
+  -webkit-mask:var(--tape) center / 100% 100% no-repeat;mask:var(--tape) center / 100% 100% no-repeat}
+.panel:has(.panel-mosi){padding-top:clamp(70px,10vh,92px)}
+.panel-mosi{position:absolute;top:calc(clamp(104px,14vh,132px) * -.55);left:50%;width:clamp(104px,14vh,132px);height:auto;aspect-ratio:1;translate:-50% 0;rotate:-6deg;border-radius:50%;object-fit:cover;object-position:55% 40%;
+  background:radial-gradient(circle at 50% 38%,#fffaf0,color-mix(in srgb,#868862 45%,#fffaf0) 72%);box-shadow:0 0 0 7px #fff,0 0 0 10px var(--ink),0 14px 22px 8px rgb(40 24 10 / .3)}
+.panel h2{margin:0;max-width:100%;font-size:clamp(36px,5.6vmin,52px);font-weight:900;line-height:1.05;color:var(--gold);-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill;text-shadow:0 .07em 0 var(--ink);rotate:-2deg;text-wrap:balance}
+.panel p{margin:0;max-width:30ch;font-size:24px;line-height:1.3;font-weight:800;text-wrap:pretty}
+.panel-actions{display:grid;justify-items:center;gap:18px;width:100%;margin-top:4px}
+.panel-actions .big{min-width:min(100%,320px)}
+.panel-row{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 14px}
+#welcome #start{min-width:min(100%,320px);margin-top:4px}
+/* The level cards of the welcome card: one for each level, its own picture, its number and name; the one being played is ringed in gold, a
+   locked one is dimmed under a padlock and says what opens it. */
+.level-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;justify-self:stretch;margin:0}
+.level-card{position:relative;display:flex;flex-direction:column;align-items:stretch;min-height:var(--target);padding:0 0 10px;border:3px solid var(--ink);border-radius:20px;background:var(--card);box-shadow:var(--raise);overflow:hidden;font:inherit;color:var(--ink);text-align:center;cursor:pointer;touch-action:manipulation;transition:transform .28s cubic-bezier(.3,1.7,.5,1),filter .15s}
+.level-card:hover{filter:brightness(1.04)}.level-card:active{transform:translateY(3px) scale(1.04,.94);transition-duration:.07s,.15s}
+.level-card[aria-current="true"]{box-shadow:0 0 0 5px var(--gold),0 6px 0 3px var(--ink),0 0 24px 8px rgb(255 214 110 / .55)}
+.level-picture{display:block;width:100%;height:auto;aspect-ratio:640/330;object-fit:cover;background:var(--card-deep);border-bottom:3px solid var(--ink)}
+.level-number{position:absolute;left:7px;top:7px;display:grid;place-items:center;width:34px;height:34px;border:3px solid var(--ink);border-radius:50%;background:var(--gold);color:var(--ink);font-size:18px;font-weight:900;box-shadow:0 3px 0 var(--gold-deep)}
+.level-title{display:block;margin:8px 6px 0;font-size:19px;font-weight:900;line-height:1.15}
+.level-note{display:block;margin:4px 8px 0;font-size:15px;font-weight:800;line-height:1.2;color:var(--ink-soft)}
+.level-card[aria-disabled="true"]{cursor:not-allowed;background:var(--paper)}
+.level-card[aria-disabled="true"] .level-picture{filter:grayscale(.8) brightness(.62)}
+.level-lock{position:absolute;left:0;right:0;top:0;display:grid;place-items:center;aspect-ratio:640/330;font-size:40px;line-height:1;text-shadow:0 2px 6px #0007;pointer-events:none}
+.level-card.nope{animation:level-nope .45s ease}@keyframes level-nope{20%{transform:translateX(-5px)}45%{transform:translateX(5px)}70%{transform:translateX(-3px)}}
+
+/* ---- The ending card at the bottom: the level's mark, the title, one sentence, the gifts line, "Spila aftur" and the other level; the
+   credits' "i" on its corner ---- */
+.ending{position:absolute;z-index:6;left:50%;bottom:max(24px,env(safe-area-inset-bottom));translate:-50% 0;width:min(800px,calc(100% - 32px));display:flex;align-items:center;gap:20px;
+  padding:34px 28px 26px;border:3px solid var(--ink);border-radius:30px;background:var(--frame) center / calc(100% - 20px) calc(100% - 20px) no-repeat,var(--card);
+  box-shadow:0 8px 0 var(--card-deep),0 8px 0 3px var(--ink),0 14px 16px 2px rgb(40 24 10 / .3)}
+.ending>div:first-of-type{flex:1;min-width:0}
+.ending-berries{width:72px;height:72px;flex:none}
+.ending h2{margin:0 0 8px;padding-top:2px;font-size:clamp(30px,3.6vw,42px);font-weight:900;line-height:1.05;color:var(--gold);-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill;text-shadow:0 .07em 0 var(--ink)}
+.ending p{margin:0;font-size:19px;line-height:1.3;font-weight:800;text-wrap:pretty}
+.ending-gifts{display:flex;align-items:center;gap:10px;margin-top:10px!important;font-size:21px!important;line-height:1.2!important;font-weight:900}.ending-gifts .basket-icon{width:40px;height:40px;flex:none}
+.ending-actions{display:flex;flex-direction:column;gap:14px;flex:none}
+.ending-actions>button{white-space:nowrap}
+.credits-toggle{position:absolute;right:-34px;top:-42px;isolation:isolate;display:grid;place-items:center;width:var(--target);height:var(--target);padding:0;border:0;background:none;color:var(--ink);font-size:24px;font-weight:900;line-height:1;opacity:.9}
+.credits-toggle::before{content:"";position:absolute;z-index:-1;inset:22px;border-radius:50%;border:3px solid var(--ink);background:var(--paper);box-shadow:0 3px 0 var(--card-deep),0 3px 0 3px var(--ink)}
+.credits-toggle[aria-expanded=true]{opacity:1}.credits-toggle[aria-expanded=true]::before{background:#ffe08a}
+.credits{position:absolute;right:0;bottom:calc(100% + 18px);width:min(430px,100%);display:grid;gap:10px;padding:12px 16px;border:3px solid var(--ink);border-radius:20px;background:var(--card);color:var(--ink);box-shadow:var(--raise);font-size:15px;line-height:1.3;z-index:6;text-align:left;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--ink-soft) transparent}
+.credits p{margin:0!important;display:flex;gap:8px;font-size:15px!important;line-height:1.3!important;overflow-wrap:anywhere}.credit-group+.credit-group{border-top:2px solid var(--card-deep);padding-top:8px}.credit-label{flex:none;min-width:3.4em;color:var(--ink-soft);font-weight:800}.credit-value{font-weight:700}
+
+/* ---- Loading and failure: a card of the same look in the middle ---- */
+.loading,.error-panel{position:absolute;z-index:20;left:50%;top:50%;translate:-50% -50%;display:grid;justify-items:center;gap:12px;width:min(440px,calc(100% - 32px));padding:28px 30px 30px;text-align:center;
+  border:3px solid var(--ink);border-radius:30px;background:var(--frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat,var(--card);box-shadow:0 30px 60px rgb(14 8 3 / .45),0 8px 18px rgb(14 8 3 / .3)}
+.loading h2,.error-panel h2{margin:0;font-size:clamp(28px,4vmin,38px);line-height:1.1;font-weight:900;color:var(--gold);-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill;text-shadow:0 .07em 0 var(--ink);text-wrap:balance}
+.loading p,.error-panel p{margin:0;font-size:20px;font-weight:800;color:var(--ink-soft)}
+.error-panel .big{margin-top:8px}
+.loading-mark{width:46px;height:35px;margin:auto;border:3px solid var(--ink);border-radius:75% 15% 70% 15%;background:linear-gradient(130deg,#b4d070,#769b4d);transform:rotate(-16deg);animation:breathe 1.8s ease-in-out infinite}@keyframes breathe{50%{transform:rotate(-10deg) scale(1.07)}}
 
 /* A pressed button squashes (wider, lower) and springs back. */
-.round-control,.primary,.secondary,.choice-back,.text-button{transition:transform .28s cubic-bezier(.3,1.7,.5,1),filter .15s,box-shadow .15s}
-.round-control:active,.primary:active,.secondary:active,.choice-back:active,.text-button:active{transform:translateY(3px) scale(1.07,.86);transition-duration:.07s,.15s,.15s}
+.round,.big,.plain,.primary,.mosi-help{transition:transform .28s cubic-bezier(.3,1.7,.5,1),box-shadow .15s,filter .15s}
+.round:active,.big:active,.plain:active,.primary:active,.mosi-help:active{transition-duration:.07s,.07s,.15s}
 
-@media(max-width:800px){
- .topbar{left:15px;right:15px;top:max(13px,env(safe-area-inset-top));gap:14px}.adventure-ribbon{width:440px;padding:8px 12px 10px}.ribbon-progress{gap:11px}.progress{padding-left:10px}.trail-medallion{width:44px;height:44px}.trail-medallion>svg{width:38px;height:38px}.journey{gap:12px}.journey li+li:before{left:-12px;width:12px;top:22px}.game-title>span{font-size:14px}.ribbon-leaf,.ribbon-berries{width:21px;height:21px}.round-control{width:48px;height:52px}nav{gap:6px}.coach{max-width:calc(100% - 30px);bottom:max(18px,env(safe-area-inset-bottom))}.coach p{font-size:20px}.coach-message{padding:11px 18px 12px 22px}.coach-portrait{width:90px;height:95px}.coach-portrait:before{height:80px}.coach-portrait img{width:106px;height:106px}.ending{gap:13px;padding:17px}.ending h2{font-size:24px}.ending-berries{width:49px;height:49px}.ending .primary{font-size:17px;min-height:54px;padding:11px 16px;white-space:nowrap}
-}
+/* ---- A phone held upright: Mosi 80 px, his bubble beside him, a smaller chip; the pause stays 88 px ---- */
 @media(max-width:560px){
- .topbar{left:12px;right:12px;top:max(12px,env(safe-area-inset-top));gap:12px}.adventure-ribbon{width:236px;padding:8px 12px 9px}.ribbon-heading{gap:4px;margin-bottom:7px}.game-title>span{font-size:12px}.ribbon-leaf,.ribbon-berries{width:20px;height:20px}.ribbon-progress{display:grid;grid-template-columns:1fr auto;gap:6px 8px;align-items:center}.progress{grid-column:1;flex-direction:row;gap:7px;border:0;border-top:1px solid #a4b07755;width:auto;padding:6px 0 0;min-height:21px}.basket{grid-column:2;flex-direction:row;gap:6px;border:0;border-top:1px solid #a4b07755;padding:4px 0 0}.basket-icon{width:28px;height:28px}.nest-dots{gap:5px;height:15px}.nest-dots i{width:11px;height:14px;border-width:1px}.nest-dots i:after{left:4px;top:3px;height:7px;width:1.5px}#progress-text{font-size:12px}#basket-text{font-size:12px}.journey{grid-column:1/-1;width:100%;gap:14px}.trail-medallion{width:42px;height:42px}.trail-medallion>svg{width:36px;height:36px}.trail-label{font-size:12px}.journey b{width:18px;height:18px;font-size:12px;right:-5px}.journey li+li:before{width:19px;left:-18px;top:21px}nav{display:grid;grid-template-columns:repeat(2,46px);gap:7px}.round-control{width:46px;height:48px;border-radius:15px}.round-control small{font-size:12px}.round-control svg{width:23px;height:23px}.round-control>span{height:23px}.coach{width:calc(100% - 24px);max-width:390px;bottom:max(15px,env(safe-area-inset-bottom))}.coach-message{min-width:0;flex:1;padding:10px 13px 11px 17px;border-radius:20px 22px 20px 7px}.coach p{font-size:18px;line-height:1.25}.speaker{font-size:12px}.coach-portrait{width:68px;height:82px;margin-right:-6px}.coach-portrait:before{height:65px;left:1px;right:0;border-width:2px}.coach-portrait img{width:88px;height:88px;left:-10px}.coach-portrait>svg{width:29px;height:29px;left:-6px}.coach-actions{gap:7px;flex-wrap:wrap}.choice-back{padding:5px;min-width:44px;justify-content:center}.choice-back span{display:none}.holding{font-size:12px}.ending{flex-wrap:wrap;gap:8px 13px;text-align:left;padding:16px 17px}.ending>div{flex:1;min-width:0}.ending h2{font-size:25px}.ending p{font-size:14px}.ending-gifts{font-size:18px!important;gap:8px}.ending-gifts .basket-icon{width:32px;height:32px}.ending .primary{width:100%;margin-top:5px;font-size:19px}.ending-berries{width:52px;height:52px}.overview-hint{font-size:17px;padding:9px 13px;gap:8px}.overview-hint>svg{width:35px;height:35px}.overview-hint span{font-size:12px}.journal-panel{padding:22px 24px}.journal-panel h2{font-size:31px}.journal-panel p{font-size:17px}.welcome-mosi{height:112px;width:130px}.welcome-mosi img{width:147px;height:147px}
+  .topbar{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));gap:10px}
+  .corner{gap:10px}
+  .tally{gap:10px;min-height:52px;padding:5px 14px 5px 12px}
+  .nest-dots{gap:6px}.nest-dots i{width:19px;height:19px;border-width:3px}
+  .basket{gap:6px}.basket-icon{width:34px;height:34px}#basket-text{font-size:19px}
+  .mosi-help{left:max(10px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));width:80px;height:80px}
+  .mosi-help::after{width:32px;height:32px;font-size:22px}
+  .coach{--beside:calc(max(10px,env(safe-area-inset-left)) + 80px + 22px);bottom:calc(max(14px,env(safe-area-inset-bottom)) + 6px);max-width:calc(100% - var(--beside) - max(10px,env(safe-area-inset-right)));min-height:72px;padding:10px 14px 12px;border-radius:20px}
+  .coach::before{bottom:16px}
+  .coach p{font-size:18px;line-height:1.22}
+  .holding{font-size:14px}
+  .who{--who-size:88px;min-width:300px;padding:6px 12px 12px;gap:6px;border-radius:24px}
+  .who-title{font-size:18px;min-height:44px}
+  .who-row{gap:8px}
+  .who-row:has(>:nth-child(4)){display:grid;grid-template-columns:repeat(2,auto);gap:8px 16px} /* four faces stand two by two */
+  .who-name{font-size:16px}
+  .panel{width:calc(100vw - 28px);padding-left:20px;padding-right:20px}
+  .panel p{font-size:20px}
+  .level-cards{gap:12px}
+  .level-title{font-size:17px}
+  .ending{flex-wrap:wrap;gap:10px 14px;padding:36px 22px 24px;text-align:left}
+  .ending-berries{width:54px;height:54px}
+  .ending h2{font-size:28px}.ending p{font-size:16px}
+  .ending-gifts{font-size:18px!important;gap:8px}.ending-gifts .basket-icon{width:32px;height:32px}
+  .ending-actions{width:100%}.ending-actions>button{width:100%}
+  .credits-toggle{right:-22px}
 }
-@media(max-width:370px){.topbar{left:9px;right:9px;gap:9px}.adventure-ribbon{width:216px;padding-left:10px;padding-right:10px}.game-title>span{font-size:12px}.ribbon-leaf,.ribbon-berries{width:18px;height:18px}nav{grid-template-columns:repeat(2,44px);gap:5px}.round-control{width:44px;height:47px}.journey{gap:10px}.journey li+li:before{width:14px;left:-13px}.coach p{font-size:17px}.coach-message{padding-right:11px}.coach-portrait{width:62px}.coach-portrait img{width:82px;height:82px}}
+/* ---- A phone or a small tablet held wide (a low screen): the cards lie lower, the pictures go from the level cards ---- */
 @media(max-height:560px) and (min-width:561px){
- .topbar{top:10px;left:14px;right:14px}.adventure-ribbon{padding:7px 11px 8px;width:392px}.ribbon-heading{margin-bottom:4px;min-height:18px}.ribbon-heading svg{width:18px;height:18px}.game-title>span{font-size:12px}.trail-medallion{width:36px;height:36px}.trail-medallion>svg{width:32px;height:32px}.trail-label{font-size:12px}.journey li+li:before{top:18px}.journey b{width:18px;height:18px;font-size:12px}.round-control{width:48px;height:50px}.round-control small{font-size:12px}.round-control svg{width:22px;height:22px}.progress{gap:4px}#progress-text{font-size:12px}#basket-text{font-size:12px}.basket-icon{width:32px;height:32px}.nest-dots i{width:12px;height:16px}.coach{bottom:12px;max-width:min(600px,calc(100% - 40px))}.coach-portrait{width:69px;height:75px}.coach-portrait:before{height:63px}.coach-portrait img{width:86px;height:86px;left:-9px}.coach-portrait>svg{width:28px;height:28px}.coach-message{padding:8px 15px 9px 18px}.coach p{font-size:18px}.speaker{font-size:12px}.coach-actions:has(button:not([hidden])){margin-top:6px}.holding{font-size:12px}.ending{bottom:14px;padding:12px 20px}.journal-panel{padding:18px 26px}.journal-panel h2{font-size:27px}.journal-panel p{font-size:15px;margin:8px 0 13px}.welcome-mosi{display:none}.intro-pairs{margin:10px 0 14px}.intro-pairs>span{width:42px;height:42px}.intro-pairs svg{width:36px;height:36px}.journal-panel>.primary,.journal-panel>.secondary{min-height:49px;font-size:18px;margin-top:9px}
+  .topbar{top:10px}
+  .tally{min-height:50px;padding:4px 14px}
+  .nest-dots i{width:19px;height:19px}.basket-icon{width:34px;height:34px}#basket-text{font-size:19px}
+  .mosi-help{width:88px;height:88px;bottom:max(12px,env(safe-area-inset-bottom))}
+  .coach{--beside:calc(max(22px,env(safe-area-inset-left)) + 88px + 24px);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 4px);min-height:72px;padding:9px 18px 11px}
+  .coach::before{bottom:16px}
+  .coach p{font-size:19px}
+  .who{--who-size:88px}
+  .panel{overflow:auto;padding-top:18px;padding-bottom:20px}
+  .panel:has(.panel-mosi){padding-top:18px}
+  .panel-mosi,.panel::before{display:none}
+  .panel h2{font-size:32px}
+  .panel p{font-size:18px}
+  .level-picture{display:none}
+  .level-lock{position:static;display:inline;aspect-ratio:auto;font-size:18px;text-shadow:none;margin-right:4px}
+  .level-number{position:static;display:inline-grid;align-self:center;width:28px;height:28px;font-size:15px;margin:8px 0 0}
+  .level-title{margin-top:2px}
+  .ending{bottom:12px;padding:12px 20px}
 }
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .world-target.is-guided .tap-ring{opacity:1;scale:.85}
+}

@@ -26,6 +26,41 @@ export const LOOKS = {
     fog: { color: '#d3d8b4', sunColor: '#ffd9a0', sunStrength: 1, density: 0.0055, heightFalloff: 0.035 },
     envIntensity: 0.5,
   },
+  // Level 2's (engine/memory/levels/steinagljufur.js): the gorge in the afternoon, the sun high and warm over the search camera's right shoulder so
+  // the sandstone walls facing the glade are lit and the friends' shadows fall away behind them, warm light bounced up from the sand and a dusty haze.
+  // (Later stages of the round take it on to golden, sunset and evening: Task 7.)
+  gorgeAfternoon: {
+    ...morning,
+    sun: { azimuth: 30, elevation: 42, color: '#ffe4c0', intensity: 2.8 },
+    hemi: { sky: '#d0dcea', ground: '#85704f', intensity: 0.6 },
+    fog: { color: '#e9dcc5', sunColor: '#ffe2b8', sunStrength: 0.8, density: 0.0042, heightFalloff: 0.04 },
+    envIntensity: 0.55,
+  },
+  // Task 7: level 2's round goes on from the afternoon to the evening (levels/steinagljufur/world.js blends between these four, a stage after
+  // each step). Every value is spelled out, so a blend never reads a field another look leaves out. The sun swings round from over the glade
+  // (azimuth 30) to behind the cameras of the upper gorge (they look from about 136-150 degrees), so the friends' faces on Sólarsyllan catch the
+  // last light and the sky the cameras see over the hillside is the darker, eastern one where the stars come out.
+  gorgeGolden: {
+    sun: { azimuth: 95, elevation: 24, color: '#ffcb8e', intensity: 2.9 },
+    hemi: { sky: '#d6d4dc', ground: '#8a6a45', intensity: 0.58 },
+    sky: { zenith: '#6f9bd0', horizon: '#f4d6a8', glow: '#ffd59a', cloud: '#fff0dc', cloudShade: '#d9b9a0', cloudCover: 0.5 },
+    fog: { color: '#ecd3ae', sunColor: '#ffd29a', sunStrength: 0.8, density: 0.0044, heightFalloff: 0.04 },
+    exposure: 1.0, envIntensity: 0.55,
+  },
+  gorgeSunset: {
+    sun: { azimuth: 135, elevation: 14, color: '#ffa36a', intensity: 2.8 },
+    hemi: { sky: '#d4bcc4', ground: '#8a5a3c', intensity: 0.62 },
+    sky: { zenith: '#4a5c9a', horizon: '#f2a882', glow: '#ffb070', cloud: '#ffc6a4', cloudShade: '#a8879c', cloudCover: 0.45 },
+    fog: { color: '#e8b190', sunColor: '#ffad74', sunStrength: 0.8, density: 0.0046, heightFalloff: 0.04 },
+    exposure: 1.04, envIntensity: 0.5,
+  },
+  gorgeEvening: {
+    sun: { azimuth: 150, elevation: 9, color: '#ff9470', intensity: 2.2 },
+    hemi: { sky: '#97a6d6', ground: '#6a5248', intensity: 0.95 },
+    sky: { zenith: '#0f1838', horizon: '#6e5a82', glow: '#ff9466', cloud: '#4a4266', cloudShade: '#2a2a48', cloudCover: 0.62 },
+    fog: { color: '#6e5a82', sunColor: '#ff9466', sunStrength: 0.8, density: 0.0042, heightFalloff: 0.04 },
+    exposure: 1.12, envIntensity: 0.4,
+  },
   golden: {
     sun: { azimuth: 210, elevation: 15, color: '#ffc68a', intensity: 2.9 },
     hemi: { sky: '#cadcef', ground: '#6b5a37', intensity: 0.55 },

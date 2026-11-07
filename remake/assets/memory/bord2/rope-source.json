@@ -1,0 +1,31 @@
+{
+  "file": "rope-color.webp",
+  "bytes": 16578,
+  "width": 512,
+  "height": 256,
+  "author": "ambientCG (https://ambientcg.com)",
+  "title": "Rope 001",
+  "sourceUrl": "https://ambientcg.com/view?id=Rope001",
+  "fileUrl": "https://ambientcg.com/get?file=Rope001_1K-JPG.zip",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "ambientCG (downloaded by Claude on the owner's word \"Já, sækja\", 2026-11-01)",
+  "sourceExport": "The owner's approved download, not in the repository: the zip (r1-rope001-zip/, left unopened) and the four JPG maps taken out of it (r1-rope001-maps/, git-ignored) under qa/memory/bord2/src/.",
+  "download": {
+    "zip": {
+      "bytes": 4226862,
+      "md5": "6f8f7d38f57f184dfb239cc6905e6207"
+    },
+    "map": {
+      "file": "Rope001_1K-JPG_Color.jpg",
+      "bytes": 527156,
+      "md5": "c000eda5064e4ef2dd38e2b83d7e1156",
+      "width": 1024,
+      "height": 512
+    }
+  },
+  "use": "The texture of the rope (levels/steinagljufur/rope.js): a tube bent by the code, the texture repeated along it (the diagonal strands read as the rope's twist). Only the Color map is used: at the rope's size on the screen (about 7 cm thick) the Normal, Roughness and Displacement maps show nothing, so they are not shipped.",
+  "modifications": "ffmpeg: shrunk from 1024 x 512 to 512 x 256 (lanczos) and written as WebP at quality 80. In the game: the code tints it slightly and repeats it along the tube.",
+  "command": "ffmpeg -i qa/memory/bord2/src/r1-rope001-maps/Rope001_1K-JPG_Color.jpg -vf scale=512:256:flags=lanczos -c:v libwebp -quality 80 remake/assets/memory/bord2/rope-color.webp"
+}

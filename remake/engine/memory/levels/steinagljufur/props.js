@@ -1,0 +1,222 @@
+import * as THREE from 'three';
+import { GLTFLoader } from '../../../../../dist/vendor/GLTFLoader.js';
+import { closure, outside } from './ground.js';
+
+/**
+ * The gorge's static scenery, all of it the owner's approved models (assets/memory/bord2/, each with a -source.json): seven pieces of sandstone
+ * cliff (YadroGames, CC BY) stacked into the walls, two boulders (Quaternius, CC0) at their foot and on the floor, and the tunnel mouth the
+ * owner made in Tripo3D. Nothing here is drawn or modelled by hand: the world only places, turns and scales them. (The owner's dead trunk, gorge-trunk, is read
+ * with them and stood at the gap in the upper gorge: ledge.js.)
+ *
+ * Each model is read once and baked (the node's scale and the quantized positions) into plain float geometry; every kind of piece is one
+ * InstancedMesh, so the whole static gorge is one draw call for each of its kinds (the budget is the ≤ 40,000 triangles the plan sets
+ * for the gorge in the search view: `stats().triangles` says what stands).
+ */
+const FILES = ['gorge-cliff-0', 'gorge-cliff-1', 'gorge-cliff-2', 'gorge-cliff-3', 'gorge-cliff-4', 'gorge-cliff-5', 'gorge-cliff-6', 'gorge-boulder-1', 'gorge-boulder-2', 'gorge-tunnel', 'gorge-rocks', 'gorge-crystal-purple', 'gorge-crystal-blue', 'gorge-trunk'];
+const url = name => new URL(`../../../../assets/memory/bord2/${name}.glb`, import.meta.url).href;
+
+// A small seeded generator (mulberry32): the gorge is the same every time.
+const seeded = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+/** The first mesh of a model as plain float geometry in the model's own frame (its node's scale applied), with the material the file has. */
+function bake(mesh) {
+  mesh.updateWorldMatrix(true, false);
+  const source = mesh.geometry, matrix = mesh.matrixWorld, normal = new THREE.Matrix3().getNormalMatrix(matrix), count = source.attributes.position.count;
+  const position = new Float32Array(count * 3), normals = new Float32Array(count * 3), uv = new Float32Array(count * 2), v = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    v.fromBufferAttribute(source.attributes.position, i).applyMatrix4(matrix).toArray(position, i * 3);
+    v.fromBufferAttribute(source.attributes.normal, i).applyMatrix3(normal).normalize().toArray(normals, i * 3);
+    uv[i * 2] = source.attributes.uv.getX(i); uv[i * 2 + 1] = source.attributes.uv.getY(i);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3)); geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3)); geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geometry.setIndex(new THREE.BufferAttribute(Uint32Array.from(source.index.array), 1));
+  geometry.computeBoundingBox(); geometry.computeBoundingSphere();
+  return { geometry, material: mesh.material, triangles: source.index.count / 3 };
+}
+
+/** Reads the gorge's models: a Map of name -> { geometry, material, triangles }. */
+export async function loadGorgeModels() {
+  const loader = new GLTFLoader();
+  return new Map(await Promise.all(FILES.map(async name => {
+    const gltf = await loader.loadAsync(url(name));
+    gltf.scene.updateMatrixWorld(true);
+    let mesh = null; gltf.scene.traverse(object => { if (object.isMesh && !mesh) mesh = object; });
+    if (!mesh) throw new Error(`${name} has no mesh`);
+    return [name, bake(mesh)];
+  })));
+}
+
+/**
+ * The tunnel mouth's bore, in the model's own frame (x along the tunnel, the mouth at +x; y up; z across): measured from the shipped file, a gap about
+ * 2.7 m wide whose middle is a little off the model's (BORE.across), its roof 2.3 to 2.9 m up, 7.8 m long (the back end is open: tunnel.js closes it).
+ * The rock lining of the bore is lit by the day for the first couple of metres from the mouth and, further in, by the Kambeðlur's plates only.
+ */
+export const BORE = Object.freeze({ mouth: 3.92, back: -3.92, across: -.12, half: 1.33, roof: 2.35 });
+// How far the light of the plates (glow.uLight, 0 to 1) reaches into the bore from its mouth, and how much of the day shows inside: the same numbers
+// in the lining's shader and in the floor liner (tunnel.js), so that the floor and the walls grow light together.
+export const REACH = Object.freeze({ dark: 1.4, lit: 7.6, day: 1.9, floor: .03 });
+const DARK_GLSL = `
+  float tunnelIn = (1.0 - smoothstep(1.55, 1.95, abs(vTunnel.z - (${BORE.across.toFixed(2)})))) * (1.0 - smoothstep(3.1, 3.6, vTunnel.y));
+  float tunnelD = max(0.0, ${BORE.mouth.toFixed(2)} - vTunnel.x);
+  float tunnelReach = mix(${REACH.dark.toFixed(2)}, ${REACH.lit.toFixed(2)}, uLight);
+  float tunnelSeen = clamp(max(1.0 - smoothstep(0.1, ${REACH.day.toFixed(2)}, tunnelD), uLight * (1.0 - smoothstep(0.2 * tunnelReach, tunnelReach, tunnelD))), 0.0, 1.0);
+  diffuseColor.rgb *= mix(1.0, mix(${REACH.floor.toFixed(2)}, 1.0, tunnelSeen), tunnelIn);`;
+const WARM_GLSL = `
+  totalEmissiveRadiance += vec3(1.0, 0.66, 0.28) * uLight * 0.2 * tunnelIn * (1.0 - smoothstep(0.0, tunnelReach, tunnelD)) * smoothstep(0.1, 0.9, tunnelD);`;
+/** The bore of a tunnel material goes dark: its lining dims with the depth (a lit tunnel grows light with `glow.uLight`), the rest of the rock is as it was. */
+export function darkInside(material, glow) {
+  material.onBeforeCompile = shader => {
+    shader.uniforms.uLight = glow.uLight;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTunnel;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvTunnel = position;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTunnel;\nuniform float uLight;')
+      .replace('#include <color_fragment>', `#include <color_fragment>${DARK_GLSL}`).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>${WARM_GLSL}`);
+  };
+  material.customProgramCacheKey = () => 'gorge-tunnel-dark-v2';
+}
+
+/**
+ * How near a rock comes to the rests: the least horizontal distance from a rest's middle to a vertex of `positions` (x, y, z, ...) through `matrix`,
+ * less the rest's radius, over the vertices from the rest's ground `y` up to `height` above it (lower is sunk in the ground, higher is over every
+ * head). Negative: the rock reaches into the rest. `rests` [{ x, y, z, radius, height }].
+ */
+export function restGap(positions, matrix, rests) {
+  const e = matrix.elements; let gap = Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    const px = positions[i], py = positions[i + 1], pz = positions[i + 2];
+    const x = e[0] * px + e[4] * py + e[8] * pz + e[12], y = e[1] * px + e[5] * py + e[9] * pz + e[13], z = e[2] * px + e[6] * py + e[10] * pz + e[14];
+    for (const rest of rests) {
+      if (y < rest.y - .05 || y > rest.y + rest.height) continue;
+      const d = Math.hypot(x - rest.x, z - rest.z) - rest.radius; if (d < gap) gap = d;
+    }
+  }
+  return gap;
+}
+
+/**
+ * Stands the scenery. `frame` is the glade's (ground.js frameOf), `heightAt(x, z)` the ground, `avoid(u, v, radius)` says where nothing may
+ * stand (the leaves, the rests, Mosi and the tunnel's mouth). `rests` ([{ x, z, radius }], world) are the places the friends and Mosi wait at,
+ * with the room their bodies need round them: no wall piece's rock comes into one. Returns { group, tunnel, solids, stats(), dispose() }.
+ */
+export function buildGorge({ scene, frame, heightAt, models, avoid = () => false, rests = [], tunnel: place, glow = { uLight: { value: 0 } } }) {
+  const group = new THREE.Group(); group.name = 'Steinagljúfrið'; scene.add(group);
+  const random = seeded(20261031), range = (a, b) => a + (b - a) * random(), pick = list => list[Math.floor(random() * list.length) % list.length];
+  const dummy = new THREE.Object3D(), disposables = [], solids = [];
+  const placements = new Map(); // model name -> [{ x, y, z, yaw, scale, tilt, tint }]
+  const add = (name, entry) => { if (!placements.has(name)) placements.set(name, []); placements.get(name).push(entry); };
+
+  // The tunnel's place, worked out first: the wall pieces are put round it. `anchor` is the tunnel mesh's own frame (x along the tunnel, the mouth at +x).
+  const [tx, tz] = frame.toWorld(...place.at), anchor = new THREE.Object3D();
+  anchor.position.set(tx, heightAt(tx, tz) - .05, tz); anchor.rotation.y = frame.yawToward(...place.facing); anchor.scale.setScalar(place.scale ?? 1); anchor.updateMatrixWorld(true);
+  const toTunnel = anchor.matrixWorld.clone().invert(), behind = new THREE.Vector3(-1, 0, 0).applyQuaternion(anchor.quaternion), corner = new THREE.Vector3();
+  // A wall piece must stand clear of the bore (a cliff block in the way is a solid face behind the arch, not a tunnel): the box of its bounds, drawn in a little (the blocks are
+  // rounded), against the bore's own box. A piece in the way is moved straight back from the mouth until it is clear (the tunnel's back end is shut by the dark, tunnel.js).
+  const BORE_BOX = new THREE.Box3(new THREE.Vector3(BORE.back - .1, .15, BORE.across - BORE.half - .5), new THREE.Vector3(BORE.mouth + 1, 3.1, BORE.across + BORE.half + .5));
+  const clearOfBore = (name, entry) => {
+    const box = models.get(name).geometry.boundingBox, mine = new THREE.Box3();
+    for (let shift = 0; shift <= 18; shift += .5) {
+      const x = entry.x + behind.x * shift, z = entry.z + behind.z * shift, y = heightAt(x, z) - entry.sink * entry.scale;
+      dummy.position.set(x, y, z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix(); mine.makeEmpty();
+      for (const cx of [box.min.x, box.max.x]) for (const cy of [box.min.y, box.max.y]) for (const cz of [box.min.z, box.max.z]) mine.expandByPoint(corner.set(cx, cy, cz).applyMatrix4(dummy.matrix).applyMatrix4(toTunnel));
+      const middle = mine.getCenter(new THREE.Vector3()), drawn = mine.getSize(new THREE.Vector3()).multiplyScalar(.36);
+      mine.set(middle.clone().sub(drawn), middle.clone().add(drawn));
+      if (!mine.intersectsBox(BORE_BOX)) return Object.assign(entry, { x, y, z, moved: shift });
+    }
+    return null;
+  };
+  // A wall piece must also stand clear of the rests: the rock itself (its vertices from the rest's ground up to 3 m, through the piece's matrix), not its middle
+  // or its box. A piece that comes into one is moved straight out along its row's ray (further outside the floor's edge) until it is clear.
+  const restRooms = rests.map(rest => ({ ...rest, y: heightAt(rest.x, rest.z), height: 3 })), pushed = [];
+  const clearOfRests = (name, entry, angle, offset) => {
+    const positions = models.get(name).geometry.attributes.position.array;
+    for (let shift = 0; shift <= 12; shift += .5) {
+      if (shift) { const [x, z] = frame.toWorld(...edgePoint(angle, offset + shift)); Object.assign(entry, { x, z, y: heightAt(x, z) - entry.sink * entry.scale }); }
+      dummy.position.set(entry.x, entry.y, entry.z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix();
+      if (restGap(positions, dummy.matrix, restRooms) >= 0) { if (shift) pushed.push({ name, shift, x: +entry.x.toFixed(2), z: +entry.z.toFixed(2) }); return entry; }
+    }
+    return null;
+  };
+
+  // ---- the walls: three rows of cliff pieces round the back and the left of the floor, each further out and higher ----
+  // A row follows the floor's edge at `offset` metres outside it; walking the rows round the grid, a piece stands about `spacing` metres after the
+  // last one wherever the wall is closed (`closure`), smaller where it fades out over the open side.
+  const ROWS = [
+    { offset: 1.8, spacing: 4.6, scale: [2.5, 3.3], sink: .55, kinds: [0, 3, 4, 5, 6, 1, 2] },
+    { offset: 6.2, spacing: 5.6, scale: [3.4, 4.2], sink: .7, kinds: [1, 2, 5, 6, 0, 3] },
+    { offset: 11.4, spacing: 6.8, scale: [4.2, 5.2], sink: .9, kinds: [2, 1, 6, 5, 0] },
+  ];
+  const edgePoint = (angle, offset) => {
+    // Along the ray from the middle of the floor at `angle`, the point `offset` metres outside the floor's edge.
+    let near = 0, far = 80;
+    for (let i = 0; i < 28; i++) { const mid = (near + far) / 2; if (outside(Math.cos(angle) * mid, Math.sin(angle) * mid) > offset) far = mid; else near = mid; }
+    return [Math.cos(angle) * near, Math.sin(angle) * near];
+  };
+  for (const [rowIndex, row] of ROWS.entries()) {
+    let angle = THREE.MathUtils.degToRad(-8), last = null;
+    for (let step = 0; step < 400 && angle < THREE.MathUtils.degToRad(352); step++) {
+      const offset = row.offset + range(-.7, .7), [u, v] = edgePoint(angle, offset), wall = closure(u, v);
+      if (!last || Math.hypot(u - last[0], v - last[1]) >= row.spacing * range(.8, 1.15)) {
+        if (wall > .42) {
+          const kind = pick(row.kinds), scale = range(...row.scale) * (.55 + .45 * wall), [x, z] = frame.toWorld(u, v);
+          const entry = { x, z, y: heightAt(x, z) - row.sink * scale, sink: row.sink, yaw: range(0, Math.PI * 2), scale, tilt: range(-.05, .05), tint: .86 + .2 * random() };
+          const clear = clearOfRests(`gorge-cliff-${kind}`, entry, angle, offset), standing = clear && clearOfBore(`gorge-cliff-${kind}`, clear);
+          if (standing) add(`gorge-cliff-${kind}`, standing);
+          last = [u, v];
+        }
+      }
+      angle += THREE.MathUtils.degToRad(1.2);
+    }
+    void rowIndex;
+  }
+
+  // ---- the boulders: at the foot of the walls, where they hide the seam, and a few on the floor's rim and the open side ----
+  const BOULDERS = [
+    // [u, v, boulder, scale, yaw]
+    [-7.8, 10.2, 1, .62, .4], [-1.6, 11.6, 2, .46, 2.1], [5.4, 11.4, 1, .55, 1.2], [10.6, 8.4, 2, .4, 3.4], [-13.4, 1.8, 1, .6, 2.6], [-12.6, -6.8, 2, .5, .9], [-9.4, -10.8, 1, .5, 5.2],
+    [13.6, -9.6, 2, .45, 1.7], [14.8, -2.2, 1, .5, 4.1], [9.6, -13.2, 1, .6, .3], [3.2, -13.4, 2, .38, 2.9], [-3.2, -14.2, 1, .52, 3.7], [15.6, 5.6, 1, .66, 5.9],
+  ];
+  for (const [u, v, kind, scale, yaw] of BOULDERS) {
+    if (avoid(u, v, 2.4)) continue;
+    const [x, z] = frame.toWorld(u, v), model = models.get(`gorge-boulder-${kind}`).geometry.boundingBox, radius = Math.max(model.max.x - model.min.x, model.max.z - model.min.z) / 2 * scale * .8;
+    add(`gorge-boulder-${kind}`, { x, z, y: heightAt(x, z) - .18 * scale, yaw, scale, tilt: 0, tint: .9 + .15 * random() });
+    solids.push({ id: `boulder-${solids.length}`, a: new THREE.Vector3(x, 0, z), b: new THREE.Vector3(x, 0, z), radius });
+  }
+
+  // ---- instanced meshes, one for each kind ----
+  let triangles = 0, draws = 0;
+  const warm = new THREE.Color('#e8d3be'); // a little of the sandstone's orange taken out, so the walls sit back behind the green leaves
+  for (const [name, list] of placements) {
+    const model = models.get(name), material = model.material.clone();
+    material.side = THREE.FrontSide; disposables.push(material);
+    if (name.startsWith('gorge-boulder')) material.color.set('#ffdcb4'); // the palette's brown, lightened to sit with the sandstone
+    else material.color.copy(warm);
+    const mesh = new THREE.InstancedMesh(model.geometry, material, list.length); mesh.name = name;
+    list.forEach((entry, i) => {
+      dummy.position.set(entry.x, entry.y, entry.z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix); mesh.setColorAt(i, new THREE.Color(entry.tint, entry.tint, entry.tint));
+    });
+    mesh.instanceMatrix.needsUpdate = true; mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.castShadow = name.startsWith('gorge-boulder');
+    group.add(mesh); triangles += model.triangles * list.length; draws++;
+  }
+
+  // ---- the tunnel mouth: stands against the wall, its opening toward the glade ----
+  const tunnelModel = models.get('gorge-tunnel'), tunnelMaterial = tunnelModel.material.clone(); disposables.push(tunnelMaterial);
+  tunnelMaterial.color.set('#e8c0a2'); // a little deeper than the owner's model, to sit with the cliffs
+  darkInside(tunnelMaterial, glow);
+  const tunnel = new THREE.Mesh(tunnelModel.geometry, tunnelMaterial); tunnel.name = 'Gangaopið'; tunnel.receiveShadow = true;
+  tunnel.position.copy(anchor.position); tunnel.rotation.y = anchor.rotation.y; tunnel.scale.copy(anchor.scale);
+  group.add(tunnel); triangles += tunnelModel.triangles; draws++;
+  tunnel.updateMatrixWorld(true);
+  const facing = new THREE.Vector3(1, 0, 0).applyQuaternion(tunnel.quaternion), side = new THREE.Vector3(0, 0, 1).applyQuaternion(tunnel.quaternion);
+  const half = [3.9 * (place.scale ?? 1), 4.5 * (place.scale ?? 1)];
+  // The mound as the friends' walks and play see it: a thick wall across its width (the opening is walked into only by the tunnel's own scenes).
+  solids.push({ id: 'tunnel', a: tunnel.position.clone().addScaledVector(side, -half[1] * .7).addScaledVector(facing, -half[0] * .35), b: tunnel.position.clone().addScaledVector(side, half[1] * .7).addScaledVector(facing, -half[0] * .35), radius: half[0] * .75 });
+
+  return {
+    group, tunnel, solids,
+    /** Where the opening is: its middle on the ground, and the way it faces. */
+    mouth: { point: tunnel.position.clone().addScaledVector(facing, half[0]), facing },
+    stats: () => ({ triangles, draws, kinds: [...placements].map(([name, list]) => `${name} x${list.length}`), pushedFromRests: pushed }),
+    dispose() { scene.remove(group); for (const item of disposables) item.dispose(); for (const model of models.values()) model.geometry.dispose(); },
+  };
+}

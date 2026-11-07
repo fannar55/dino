@@ -1,6 +1,6 @@
 // The remake's pronunciation standard, remake/assets/audio/pronunciation.json: the hard words, each with every form the lines say,
-// the recipes that can be sent in their place and the one the owner chose by ear. voice-lines.mjs and yatzy-junior-voices.mjs send
-// every line through requestFor -> applyLexicon; nothing here asks ElevenLabs or knows a key.
+// the recipes that can be sent in their place and the one the owner chose by ear. voice-lines.mjs, yatzy-junior-voices.mjs and
+// memory-voices.mjs (the memory game) send every line through requestFor -> applyLexicon; nothing here asks ElevenLabs or knows a key.
 //
 // The file is written as JSON.stringify(lexicon, null, 2) plus a newline (lexiconText), and --pick rewrites it that way, so a choice
 // changes one line of it. Edit it, or add candidates, with node (read, change, writeLexicon or lexiconText), not with Python's
@@ -60,6 +60,21 @@ export function checkLexicon(lexicon) {
       for (const [who, sentence] of Object.entries(entry.audition)) {
         if (!/^[a-z]+$/.test(who) || !isText(sentence) || !pattern.test(sentence)) fail(`${id}: an "audition" is speaker -> a sentence with the word.`);
       }
+    }
+  }
+  // The rules for whole lines: "ny3", the speakers whose new takes go out under Ný 3 (voice-lines.mjs applyNy3).
+  if (lexicon.lines !== undefined) {
+    const { lines } = lexicon;
+    if (!lines || typeof lines !== 'object' || Array.isArray(lines)) fail('"lines" holds the rules for whole lines: { "ny3": { "speakers": [...], "note": "..." } }.');
+    const odd = Object.keys(lines).filter(key => key !== 'ny3');
+    if (odd.length) fail(`"lines" has ${odd.join(', ')}; its one rule is "ny3".`);
+    const { ny3 } = lines;
+    if (ny3 !== undefined) {
+      if (!ny3 || typeof ny3 !== 'object' || Array.isArray(ny3)) fail('lines.ny3 is { "speakers": [...], "note": "..." }.');
+      const extra = Object.keys(ny3).filter(key => !['speakers', 'note'].includes(key));
+      if (extra.length) fail(`lines.ny3: unknown ${extra.join(', ')}.`);
+      if (!Array.isArray(ny3.speakers) || !ny3.speakers.every(who => typeof who === 'string' && /^[a-z]+$/.test(who)) || new Set(ny3.speakers).size !== ny3.speakers.length) fail('lines.ny3.speakers is a list of speakers (a-z), each once.');
+      if (!isText(ny3.note)) fail('lines.ny3 needs a "note" for the owner.');
     }
   }
   return lexicon;

@@ -52,7 +52,7 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
   const manifestURL = new URL('../../assets/audio/memory/manifest.json', import.meta.url);
   const element = makeAudio(); element.preload = 'auto'; element.volume = .74;
   let manifest = {}, muted = false, paused = true, pending = null, current = null, disposed = false;
-  let duringDialog = false, forcePaused = false, blocked = false, revision = 0, played = 0;
+  let duringDialog = false, forcePaused = false, blocked = false, revision = 0, played = 0, last = null;
   const seen = new Set(), errors = [], started = []; // started: every line that began, with the game clock (QA reads it)
   const ready = fetcher(manifestURL).then(r => r.ok ? r.json() : {}).then(data => { manifest = data; }).catch(() => {});
   function stop() {
@@ -73,7 +73,7 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
     if (seconds > 0) { pending = { id, remaining: seconds, inDialog }; return true; }
     current = { id, ...manifest[id] }; duringDialog = inDialog;
     element.src = new URL(`../../${current.src}`, import.meta.url).href;
-    played++; started.push({ id, t: +clock().toFixed(2) }); if (started.length > 200) started.shift(); resume(); return true;
+    played++; last = { id, n: played }; started.push({ id, t: +clock().toFixed(2), at: Date.now() }); if (started.length > 200) started.shift(); resume(); return true;
   }
   element.addEventListener('ended', () => { current = null; duringDialog = false; });
   element.addEventListener('error', () => { if (current) errors.push(current.id); current = null; });
@@ -92,6 +92,7 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
     mute(value) { muted = Boolean(value); if (muted) stop(); },
     pause(value, { force = false } = {}) { paused = Boolean(value); forcePaused = Boolean(force); if (forcePaused || paused && !duringDialog) { revision++; element.pause(); } else resume(); },
     reset() { stop(); seen.clear(); blocked = false; },
+    lastStarted: () => last ? { ...last } : null,
     isPlaying: () => Boolean(current && !element.paused),
     amplitude: () => current && !element.paused ? parseInt(current.mouth?.[Math.floor(element.currentTime * 20)] || '0', 16) / 15 : 0,
     dispose() { stop(); disposed = true; element.src = ''; },

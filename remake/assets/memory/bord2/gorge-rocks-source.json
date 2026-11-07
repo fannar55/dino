@@ -1,0 +1,54 @@
+{
+  "file": "gorge-rocks.glb",
+  "bytes": 76452,
+  "triangles": 2230,
+  "vertices": 2968,
+  "meshes": [
+    "GorgeRocks"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "512 px WebP map (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "Quaternius (https://quaternius.com)",
+  "title": "Rocks",
+  "sourceUrl": "https://poly.pizza/m/gYhoEOKItJ",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "Poly Pizza (downloaded by Claude on the owner's word \"Já, sækja\", 2026-10-31)",
+  "sourceExport": "The owner's approved download, not in the repository (qa/memory/bord2/src/h1-rocks/, git-ignored).",
+  "download": {
+    "bytes": 3152056,
+    "md5": "85017654a4611653960fb2414f762f88",
+    "triangles": 2230,
+    "maps": "one PNG colour map (Rocks.png, about 3 MB: dark grey rock with green moss)",
+    "file": "rocks-h1.glb"
+  },
+  "use": "The rockfall in the tunnel (levels/steinagljufur/props.js): the file is five separate rocks side by side (Rock_1 to Rock_5, 228, 202, 712, 456 and 632 triangles); the world cuts them apart by their triangles, stands them in a pile across the tunnel (some of them twice, turned and sized differently), tints them to the gorge's sandstone and, as the Þríhyrnur butt it, lets the pile fall apart into steps.",
+  "size": {
+    "note": "6.9 m for the row of five, 2.0 m for the tallest (Quaternius's Rocks, about the size the file has: scale 0.948053)",
+    "bounds": {
+      "x": [
+        -3.45,
+        3.45
+      ],
+      "y": [
+        -0.6244,
+        0.6244
+      ],
+      "z": [
+        0,
+        2.0411
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the five meshes joined into one (the same material), the imported node scale taken into the vertices, not decimated (2,230 triangles, under the 6,000 target), scaled so the row is 6.9 m on the ground and set on y = 0, the material rebuilt as plain metal-rough (the colour map only, roughness 0.95), the map shrunk from 2048 px to 512 px and written as WebP at quality 80. The five rocks are still five separate islands of triangles in the one mesh: the world splits them. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/h1-rocks/rocks-h1.glb gorge-rocks-blender.glb name=GorgeRocks size=6.9 tris=6000 tex=512 normal=0 roughness=0.95",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-rocks-blender.glb remake/assets/memory/bord2/gorge-rocks.glb",
+  "passes": "blenderCommand (Blender 5.2; 132996 bytes), then quantizeCommand (76452 bytes).",
+  "fileUrl": "https://static.poly.pizza/01671e28-0504-4db1-a5d5-af71ce0a6a1e.glb"
+}

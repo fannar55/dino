@@ -1,0 +1,54 @@
+{
+  "file": "gorge-boulder-1.glb",
+  "bytes": 8168,
+  "triangles": 222,
+  "vertices": 310,
+  "meshes": [
+    "GorgeBoulder1"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "128 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "Quaternius (https://quaternius.com)",
+  "title": "Rock Large",
+  "sourceUrl": "https://poly.pizza/m/54jZKTAt5p",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "Poly Pizza (downloaded by Claude on the owner's word \"Já, sækja\", 2026-10-31)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/b1-rock-large/, git-ignored).",
+  "download": {
+    "bytes": 18608,
+    "md5": "0008e4beb08ebd753ebfce8e6f2091a8",
+    "triangles": 222,
+    "maps": "one 512 px PNG palette atlas",
+    "file": "rock-large-b1.glb"
+  },
+  "use": "A boulder of the gorge glade (levels/steinagljufur/props.js): a broad low one, placed round the floor and at the foot of the walls, tinted warm by the world.",
+  "size": {
+    "note": "7.7 m across, 3.3 m high (Quaternius's Rock Large, left at its own scale)",
+    "bounds": {
+      "x": [
+        -3.85,
+        3.85
+      ],
+      "y": [
+        -3.6803,
+        3.6803
+      ],
+      "z": [
+        0,
+        3.3011
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the imported node scale (100) taken into the vertices, one mesh already, not decimated, scaled to 7.7 m on the ground and set on y = 0, the material rebuilt as plain metal-rough (the palette atlas only, roughness 0.95), the atlas shrunk from 512 to 128 px and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/b1-rock-large/rock-large-b1.glb gorge-boulder-1-blender.glb name=GorgeBoulder1 size=7.7 tris=1000 tex=128 normal=0 roughness=0.95",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-boulder-1-blender.glb remake/assets/memory/bord2/gorge-boulder-1.glb",
+  "passes": "blenderCommand (Blender 5.2; 13500 bytes), then quantizeCommand (8168 bytes).",
+  "fileUrl": "https://static.poly.pizza/c14651f6-9ef8-41e8-8aca-cafed61d9ca2.glb"
+}

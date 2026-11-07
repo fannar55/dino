@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import './setup.mjs';
 
 const THREE = await import('three');
-const { createBridgeAdventure } = await import('../engine/memory/bridge-adventure.js');
+const { createBridgeAdventure } = await import('../engine/memory/levels/berjalundur/adventure.js');
 const { canDepart } = await import('../engine/memory/travel-traffic.js');
 
 const SPECIES = ['triceratops', 'brontosaurus', 'stegosaurus'];

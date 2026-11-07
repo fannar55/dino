@@ -11,6 +11,9 @@
 // A line may carry its own say, context or seed in remake/assets/audio/yatzy-junior/lines-overrides.json (voice-lines.mjs
 // juniorOverrides), which win over the lexicon as in a lines-source.json line; the script stays the caption.
 // A request the owner rejected on a yes/no page (remake/assets/audio/heard/, tools/heard.mjs) is refused before anything is asked.
+// Ný 3 (voice-lines.mjs applyNy3) as for every set: a new take (a line never made, one whose take he rejected, one made again)
+// goes out with the line itself as context after the book's and seed 7; a line that ships a take of the book's request keeps it.
+// What each line sends is decided once, before the first request, from the record and his verdicts; --dry-run names the rule.
 // The script is the solo game's lines and Fjölspil's (voice-lines.mjs JUNIOR_LINES). Fjölspil's are optional: the page plays them
 // as captions until they are made, so --verify passes them by (as "unrecorded") until then, and --dry-run lists what is to make.
 // The owner makes them himself (his decision of 2026-10-24), with his key in the environment:
@@ -20,7 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
-import {JUNIOR_LINES,cacheKey,MODEL,SETTINGS,juniorOverrides,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
+import {JUNIOR_LINES,NY3_NAME,applyNy3,cacheKey,MODEL,SETTINGS,juniorOverrides,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
 import {readLexicon,requestFor} from './pronunciation.mjs';
 import {assertNotRejected,readHeard} from './heard.mjs';
 import {lineEntry} from './audio-lines.mjs';
@@ -34,8 +37,10 @@ const readJson=(file,fallback)=>fs.existsSync(file)?JSON.parse(fs.readFileSync(f
 
 /** What is sent for a junior line: voice-lines.mjs's requestFor (the lexicon applied; the line's own say, context or seed win), in Mosi's voice. */
 export const juniorRequest=(line,lexicon)=>requestFor({speaker:SPEAKER,text:line.text,...Object.fromEntries(['say','context','seed'].filter(field=>line[field]!==undefined).map(field=>[field,line[field]]))},lexicon);
-/** The cache key of what is sent: the same as voice-lines.mjs's for the same request (no context, no seed: as it always was). */
+/** The cache key of the book's request: the same as voice-lines.mjs's for the same request (no context, no seed: as it always was); what a run sends is juniorSent's. */
 export const juniorFingerprint=(line,{voiceId,lexicon})=>{const sent=juniorRequest(line,lexicon);return cacheKey({text:sent.text,voiceId,seed:sent.seed,context:sent.context});};
+/** What a run sends for a junior line: its book request (juniorRequest), under Ný 3 when voice-lines.mjs applyNy3 says so; `made` is the record, `heard` the owner's verdicts, `hasMp3` whether its MP3 is there. */
+export const juniorSent=(id,line,{lexicon,voiceId,made,heard,hasMp3})=>applyNy3({id,speaker:SPEAKER,...line},juniorRequest(line,lexicon),{lexicon,voiceId,record:made[`yatzy-junior/${id}`]??null,hasMp3,heard});
 
 async function main(argv){
   const voiceId=readJson(path.join(ROOT,'remake/assets/audio/voices.json'),{}).mosi;
@@ -48,14 +53,17 @@ async function main(argv){
   const onlyAt=argv.indexOf('--only'),only=onlyAt>=0?(argv[onlyAt+1]||'').split(','):null;
   for(const id of only||[])if(!Object.hasOwn(JUNIOR_LINES,id))throw new Error(`Unknown junior line: ${id}`);
   const selected=only?all.filter(([id])=>only.includes(id)):all;
-  const fingerprint=line=>juniorFingerprint(line,{voiceId,lexicon});
+  // What each line sends, decided once from the record and the owner's verdicts as the run starts (Ný 3 for a new take).
+  const heard=readHeard(ROOT),startMade=readMade(ROOT);
+  const sends=new Map(all.map(([id,line])=>[id,juniorSent(id,line,{lexicon,voiceId,made:startMade,heard,hasMp3:fs.existsSync(path.join(FOLDER,`${id}.mp3`))})]));
+  const fingerprint=id=>{const sent=sends.get(id);return cacheKey({text:sent.text,voiceId,seed:sent.seed,context:sent.context});};
   const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']});
   const writeJson=(file,value)=>{fs.writeFileSync(`${file}.part`,`${JSON.stringify(value,null,2)}\n`);fs.renameSync(`${file}.part`,file);};
   const manifestFile=path.join(FOLDER,'manifest.json');
   const manifest=readJson(manifestFile,{});
   const recorded=id=>readMade(ROOT)[`yatzy-junior/${id}`]?.key;
   // What a run would make: a line with no MP3 or manifest entry yet, or one made from another request than it would send now.
-  const toMake=([id,line])=>!manifest[id]?.src||!fs.existsSync(path.join(FOLDER,`${id}.mp3`))||recorded(id)!==fingerprint(line);
+  const toMake=([id,line])=>!manifest[id]?.src||!fs.existsSync(path.join(FOLDER,`${id}.mp3`))||recorded(id)!==fingerprint(id);
 
   function verify(){
     const issues=[],unrecorded=[];let duration=0,bytes=0;
@@ -66,7 +74,7 @@ async function main(argv){
       if(entry.src!==`assets/audio/yatzy-junior/${id}.mp3`||!(entry.duration>.3&&entry.duration<40)||!/^[0-9a-f]+$/.test(entry.mouth))issues.push(`${id}: invalid manifest entry`);
       if(!/[1-9a-f]/.test(entry.mouth)||!entry.mouth.endsWith('000'))issues.push(`${id}: silent voice or missing closing silence`);
       if(Math.abs(entry.mouth.length-entry.duration*20)>3)issues.push(`${id}: mouth duration mismatch`);
-      if(recorded(id)!==fingerprint(line))issues.push(`${id}: stale script/model/settings/pronunciation fingerprint`);
+      if(recorded(id)!==fingerprint(id))issues.push(`${id}: stale script/model/settings/pronunciation fingerprint`);
       const probe=JSON.parse(run('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_name,sample_rate,channels','-of','json',file]));
       if(probe.streams[0]?.codec_name!=='mp3'||probe.streams[0]?.channels!==1||probe.streams[0]?.sample_rate!=='44100'||Math.abs(Number(probe.format.duration)-entry.duration)>.002)issues.push(`${id}: audio format/duration mismatch`);
       duration+=entry.duration;bytes+=fs.statSync(file).size;
@@ -79,14 +87,14 @@ async function main(argv){
   run('ffmpeg',['-version']);run('ffprobe',['-version']);
   if(argv.includes('--verify')){console.log(JSON.stringify({verified:true,...verify()},null,2));return;}
   if(argv.includes('--dry-run')){
-    const sent=selected.map(([id,line])=>({id,...juniorRequest(line,lexicon),caption:line.text}));
-    console.log(JSON.stringify({clips:selected.length,characters:sent.reduce((n,line)=>n+line.text.length,0),cached:selected.filter(([,line])=>fs.existsSync(path.join(CACHE,`${fingerprint(line)}.mp3`))).length,model:MODEL,voiceId,language:'is',settings:SETTINGS,
-      withRecipe:sent.filter(line=>line.text!==line.caption||line.context!==undefined).map(line=>({id:line.id,text:line.text,...(line.context===undefined?{}:{context:line.context}),...(line.seed===undefined?{}:{seed:line.seed})})),
+    const sent=selected.map(([id,line])=>({id,...sends.get(id),caption:line.text}));
+    console.log(JSON.stringify({clips:selected.length,characters:sent.reduce((n,line)=>n+line.text.length,0),cached:selected.filter(([id])=>fs.existsSync(path.join(CACHE,`${fingerprint(id)}.mp3`))).length,model:MODEL,voiceId,language:'is',settings:SETTINGS,
+      withRecipe:sent.filter(line=>line.text!==line.caption||line.context!==undefined).map(line=>({id:line.id,text:line.text,...(line.context===undefined?{}:{context:line.context}),...(line.seed===undefined?{}:{seed:line.seed}),...(line.ny3?{rule:`${NY3_NAME} (${line.ny3})`}:{})})),
       unchosen:sent.filter(line=>line.words.some(word=>!word.recipe)).map(line=>line.id),toMake:selected.filter(toMake).map(([id])=>id)},null,2));
     return;
   }
   // The owner's ear (tools/heard.mjs): a request he rejected is never sent or installed again, cached or not.
-  const heard=readHeard(ROOT);for(const[id,line]of selected)assertNotRejected(heard,fingerprint(line),`yatzy-junior/${id}`);
+  for(const[id]of selected)assertNotRejected(heard,fingerprint(id),`yatzy-junior/${id}`);
   const key=process.env.ELEVENLABS_API_KEY;if(!key)throw new Error('ELEVENLABS_API_KEY must be available in the environment.');
   const models=await fetch('https://api.elevenlabs.io/v1/models',{headers:{'xi-api-key':key},signal:AbortSignal.timeout(30000)});
   if(!models.ok)throw new Error(`ElevenLabs model verification returned HTTP ${models.status}.`);
@@ -96,7 +104,7 @@ async function main(argv){
   let next=0,generated=0,cached=0;
   const worker=async()=>{
     while(next<selected.length){
-      const[id,line]=selected[next++],sent=juniorRequest(line,lexicon),hash=fingerprint(line),raw=path.join(CACHE,`${hash}.mp3`),target=path.join(FOLDER,`${id}.mp3`);
+      const[id,line]=selected[next++],sent=sends.get(id),hash=fingerprint(id),raw=path.join(CACHE,`${hash}.mp3`),target=path.join(FOLDER,`${id}.mp3`);
       const elsewhere=fs.existsSync(raw)?null:siblingCaches(ROOT).map(dir=>path.join(dir,`${hash}.mp3`)).find(file=>fs.existsSync(file));
       if(elsewhere){fs.copyFileSync(elsewhere,`${raw}.part`);fs.renameSync(`${raw}.part`,raw);cached++;}
       else if(!fs.existsSync(raw)){
@@ -119,7 +127,7 @@ async function main(argv){
       manifest[id]=lineEntry(target,`assets/audio/yatzy-junior/${id}.mp3`);
       if(!(manifest[id].duration>.3&&manifest[id].duration<40))throw new Error(`${id}: unexpected clip duration.`);
       writeJson(manifestFile,manifest);recordMade(ROOT,{[`yatzy-junior/${id}`]:madeEntry(hash,target,manifest[id].duration)});
-      console.log(`${id}: ${manifest[id].duration}s`);
+      console.log(`${id}: ${manifest[id].duration}s${sent.ny3?` (${NY3_NAME})`:''}`);
     }
   };
   // Two requests at a time; retries only follow explicit rate-limit rejection.

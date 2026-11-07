@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBridgeAdventure, BRIDGE_HELPERS, BRIDGE_ACTIONS } from '../engine/memory/bridge-rules.js';
+import { createStepRules } from '../engine/memory/step-rules.js';
 
 const HELPERS = ['triceratops', 'brontosaurus', 'stegosaurus'];
 const ACTIONS = ['lift', 'roll', 'cross', 'lay', 'finish'];
-const empty = () => ({ unlocked: [], free: [], selected: null, active: null, branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false, next: 'branch', asking: null, candidates: [], failing: null, phase: 'locked' });
+const empty = () => ({ unlocked: [], free: [], selected: null, active: null, branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false, next: 'branch', asking: null, candidates: [], failing: null, phase: 'locked', done: [] });
 function run(game, id) {
   assert.equal(game.can(id), true, id + ' is available'); assert.equal(game.choose(id), true);
   assert.equal(game.getState().active, id);
@@ -152,4 +153,275 @@ test('repeated mixed commands preserve every stage prerequisite', () => {
     if (after.boardwalkBuilt) assert.ok(after.atStaging);
     if (after.visited) assert.ok(after.boardwalkBuilt && after.branch === 'down' && after.active === null);
   }
+});
+
+// A level that is not level 1: a task, a "together" step and a travel step. The rules read the ladder from the description.
+const fakeLevel = (extra = {}) => ({
+  id: 'fake', friends: ['x', 'y'],
+  steps: [
+    { id: 'a', kind: 'task', target: 'rock', species: 'x' },
+    { id: 'b', kind: 'together', target: 'rope', beatWords: ['Einn!', 'Tveir!'] },
+    { id: 'c', kind: 'travel', target: 'far', needsAllFound: true, automatic: true },
+  ],
+  flags: done => ({ rockMoved: done.has('a') }),
+  ...extra,
+});
+
+test("step rules run any level's ladder", () => {
+  const rules = createStepRules(fakeLevel());
+  assert.equal(rules.next(), 'rock', 'the first step glows first');
+  assert.deepEqual(rules.getState().done, []);
+  assert.equal(rules.getState().rockMoved, false, "the level's flags are part of the state");
+  assert.deepEqual(rules.ask('rope'), { kind: 'not-yet' }, 'the together step waits for the one before it');
+  assert.equal(rules.ask('far'), null, 'a travel step is not an obstacle');
+  assert.deepEqual(rules.ask('rock'), { kind: 'find-first' });
+  rules.unlock('x');
+  assert.deepEqual(rules.ask('rock'), { kind: 'choose', candidates: ['x'] });
+  assert.deepEqual(rules.pick('x'), { kind: 'start', action: 'a' });
+  assert.equal(rules.complete('a'), true);
+  assert.deepEqual(rules.getState().done, ['a']); assert.equal(rules.getState().rockMoved, true);
+  assert.equal(rules.next(), 'rope');
+  assert.deepEqual(rules.ask('rope'), { kind: 'start', action: 'b' }, 'a together step starts at once');
+  const together = rules.getState();
+  assert.equal(together.asking, null); assert.deepEqual(together.candidates, []); assert.equal(together.active, 'b', 'no bubbles, the step is running');
+  assert.equal(rules.complete('b'), true);
+  assert.equal(rules.next(), null, 'a travel step starts on its own');
+  assert.equal(rules.can('c'), false, 'y is not found yet'); assert.equal(rules.choose('c'), false);
+  rules.unlock('y'); assert.equal(rules.can('c'), true);
+  assert.equal(rules.choose('c'), true); assert.equal(rules.complete('c'), true);
+  assert.equal(rules.getState().phase, 'complete'); assert.deepEqual(rules.getState().done, ['a', 'b', 'c']);
+  rules.restart();
+  assert.deepEqual(rules.getState().done, []); assert.equal(rules.getState().rockMoved, false); assert.equal(rules.next(), 'rock');
+});
+
+test('a step the one before it has not finished cannot start, even by asking', () => {
+  const rules = createStepRules(fakeLevel()); rules.unlock('x'); rules.unlock('y');
+  for (const id of ['b', 'c']) assert.equal(rules.can(id), false);
+  assert.deepEqual(rules.ask('rope'), { kind: 'not-yet' });
+  assert.equal(rules.getState().active, null, 'a not-yet answer starts nothing');
+  assert.equal(rules.select('x'), true); assert.equal(rules.choose('a'), true);
+  assert.deepEqual(rules.ask('rope'), null, 'nothing is asked while a step runs'); assert.equal(rules.getState().active, 'a');
+});
+
+test("cancel hands the level's onCancel the step, the options and the done steps", () => {
+  const calls = [];
+  const rules = createStepRules(fakeLevel({ onCancel: (id, opts, done) => calls.push([id, opts, [...done]]) }));
+  rules.unlock('x'); rules.select('x');
+  assert.equal(rules.cancel('a', { why: 'blocked' }), false); assert.equal(calls.length, 0, 'nothing runs, nothing to cancel');
+  rules.choose('a');
+  assert.equal(rules.cancel('b', { why: 'blocked' }), false); assert.equal(calls.length, 0, 'another step is not the running one');
+  assert.equal(rules.cancel('a', { why: 'blocked' }), true);
+  assert.deepEqual(calls, [['a', { why: 'blocked' }, []]]);
+  assert.equal(rules.getState().active, null); assert.deepEqual(rules.getState().done, [], 'a cancelled step is not done');
+});
+
+test('holds keep a species busy until the named step', () => {
+  const game = allFound(); lift(game);
+  assert.equal(game.getState().free.includes('brontosaurus'), false, 'holding the branch');
+  assert.equal(game.getState().free.includes('triceratops'), true);
+  game.select('triceratops'); run(game, 'roll');
+  assert.equal(game.getState().free.includes('brontosaurus'), true, 'the roll let the branch go');
+  // The same rule in a level of another shape: x is busy after a until b is done.
+  const rules = createStepRules(fakeLevel({ steps: [
+    { id: 'a', kind: 'task', target: 'rock', species: 'x', holds: 'b' },
+    { id: 'b', kind: 'task', target: 'log', species: 'y' },
+  ] }));
+  rules.unlock('x'); rules.unlock('y'); rules.select('x'); rules.choose('a'); rules.complete('a');
+  assert.deepEqual([...rules.getState().free], ['y']);
+  assert.deepEqual(rules.ask('log'), { kind: 'choose', candidates: ['y'] }, 'only the free pair can be chosen');
+  rules.pick('y'); rules.complete('b');
+  assert.deepEqual([...rules.getState().free], ['x', 'y']);
+});
+
+test("level 1's state keeps today's five fields and adds the done steps", () => {
+  const game = allFound();
+  assert.deepEqual(game.getState().done, []);
+  lift(game); assert.deepEqual(game.getState().done, ['lift']); assert.equal(game.getState().branch, 'held');
+  game.select('triceratops'); run(game, 'roll'); assert.deepEqual(game.getState().done, ['lift', 'roll']);
+  run(game, 'cross'); game.select('stegosaurus'); run(game, 'lay'); run(game, 'finish');
+  assert.deepEqual(game.getState().done, ACTIONS);
+  assert.deepEqual(Object.keys(game.getState()), Object.keys(empty()), 'done is not one of the listed fields: snapshots still compare as before');
+  game.restart(); assert.deepEqual(game.getState().done, []);
+});
+
+// ---- level 2: the tunnel and the rockfall (Task 4) ----
+const gorge = async () => (await import('../engine/memory/levels/steinagljufur.js')).STEINAGLJUFUR;
+const everyone = (level, rules) => { for (const species of level.friends) rules.unlock(species); return rules; };
+
+test('level 2 opens light, then headbutt; a wrong friend fails and the right one starts', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level));
+  assert.equal(rules.next(), 'tunnel', 'the tunnel glows first');
+  assert.deepEqual(rules.ask('rocks'), { kind: 'not-yet' }, 'the rockfall waits for the light');
+  assert.deepEqual(rules.ask('tunnel'), { kind: 'choose', candidates: [...level.friends] }, 'every found pair is a choice');
+  assert.equal(level.steps[0].species, 'stegosaurus', 'the Kambeðlur light the tunnel');
+  // Three wrong friends, each fails and the bubbles come back; the table of the playthrough's first try is one of them.
+  const wrongAtTunnel = level.friends.filter(species => species !== 'stegosaurus');
+  assert.ok(wrongAtTunnel.includes(level.wrongFriends.tunnel), `the driver tries a wrong friend at the tunnel (${level.wrongFriends.tunnel})`);
+  for (const species of wrongAtTunnel) {
+    assert.deepEqual(rules.pick(species), { kind: 'fail' }); assert.equal(rules.getState().failing, species); assert.equal(rules.getState().phase, 'failing');
+    assert.equal(rules.pick('stegosaurus'), null, 'nothing is picked while a wrong friend tries');
+    assert.equal(rules.failDone(), true); assert.equal(rules.getState().asking, 'tunnel', 'the bubbles come back');
+  }
+  assert.deepEqual(rules.pick('stegosaurus'), { kind: 'start', action: 'light' }); assert.equal(rules.getState().active, 'light');
+  assert.equal(rules.complete('light'), true); assert.equal(rules.getState().tunnelLit, true); assert.equal(rules.next(), 'rocks');
+  // The rockfall: the Kambeðlur are still at the tunnel (they hold the light), so the choice is the other three, and the playthrough's wrong try is one of them.
+  assert.deepEqual(rules.ask('rocks'), { kind: 'choose', candidates: ['triceratops', 'brontosaurus', 'pteranodon'] });
+  assert.ok(['brontosaurus', 'pteranodon'].includes(level.wrongFriends.rocks), `the driver tries a wrong friend at the rocks that the bubbles offer (${level.wrongFriends.rocks})`);
+  for (const species of ['brontosaurus', 'pteranodon']) { assert.deepEqual(rules.pick(species), { kind: 'fail' }); assert.equal(rules.failDone(), true); }
+  assert.deepEqual(rules.pick('triceratops'), { kind: 'start', action: 'headbutt' });
+  assert.equal(rules.complete('headbutt'), true); assert.equal(rules.getState().rocksFallen, true);
+  assert.equal(rules.next(), null, 'the walk through the tunnel starts on its own (Task 5)');
+  assert.deepEqual(level.steps.find(step => step.id === 'headbutt').beatWords, ['Einn!', 'Tveir!', 'BÚMM!'], 'three taps in rhythm');
+});
+
+test('the stegosaurus pair holds the light until through', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level));
+  rules.ask('tunnel'); rules.pick('stegosaurus'); rules.complete('light');
+  assert.deepEqual([...rules.getState().free], ['triceratops', 'brontosaurus', 'pteranodon'], 'the Kambeðlur stay at the tunnel');
+  rules.ask('rocks'); rules.pick('triceratops'); rules.complete('headbutt');
+  assert.equal(rules.getState().free.includes('stegosaurus'), false, 'still holding the light while the rocks are gone');
+  assert.equal(rules.getState().tunnelLit, true);
+  assert.equal(rules.can('through'), true); assert.equal(rules.choose('through'), true); assert.equal(rules.complete('through'), true);
+  assert.deepEqual([...rules.getState().free], [...level.friends], 'through lets the light go');
+  assert.equal(rules.getState().tunnelLit, true, 'the tunnel stays lit until the trunk is down');
+  // What the world raises while it works is heard and said: each name is an audio method that exists.
+  const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null });
+  const names = Object.keys(level.eventSounds);
+  for (const type of ['light-step', 'tunnel-lit', 'beat:headbutt', 'rocks-hit', 'rocks-fall', 'fail-bump', 'fail-pebble', 'fail-peck']) assert.ok(names.includes(type), `${type} has a sound`);
+  for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) {
+    const method = typeof entry === 'string' ? entry : entry.method;
+    if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`);
+  }
+  audio.dispose();
+  assert.equal(level.eventCaptions['tunnel-lit'].text, 'Plöturnar lýsa eins og ljósker!'); assert.equal(level.eventCaptions['rocks-fall'].text, 'Búmm! Leiðin er opin!');
+});
+
+// ---- level 2: through the tunnel, the ledge and the cliff (Task 5) ----
+test('through waits for every pair and every gift', async () => {
+  const level = await gorge(), rules = createStepRules(level), through = level.steps.find(step => step.id === 'through');
+  // The step is a travel step that starts by itself, and needs every friend found and every fossil in the basket (the leaves are behind the camera once it begins).
+  assert.deepEqual([through.kind, through.needsAllFound, through.waitsForGifts, through.automatic], ['travel', true, true, true]);
+  for (const species of ['stegosaurus', 'triceratops', 'brontosaurus']) rules.unlock(species);
+  rules.select('stegosaurus'); assert.equal(rules.choose('light'), true); assert.equal(rules.complete('light'), true);
+  rules.select('triceratops'); assert.equal(rules.choose('headbutt'), true); assert.equal(rules.complete('headbutt'), true);
+  assert.equal(rules.can('through'), false, 'the Flugeðlur are still under the leaves');
+  assert.equal(rules.choose('through'), false);
+  assert.equal(rules.unlock('pteranodon'), true);
+  assert.equal(rules.can('through'), true, 'all four pairs are found');
+  assert.equal(rules.choose('through'), true); assert.equal(rules.complete('through'), true);
+  assert.equal(rules.getState().throughTunnel, true);
+  // The next obstacle is the ledge, and the Kambeðlur, free again, can try it (and fail) like the rest.
+  assert.equal(rules.next(), 'ledge');
+  assert.deepEqual([...rules.ask('ledge').candidates].sort(), [...level.friends].sort());
+});
+
+test('level 2 has a wrong go for every friend that cannot do the ledge or the cliff, and the right one starts', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level)), { FAIL_TRIES, GESTURES } = await import('../engine/memory/gestures.js');
+  for (const species of ['stegosaurus', 'triceratops']) { rules.select(species); assert.equal(rules.choose(species === 'stegosaurus' ? 'light' : 'headbutt'), true); rules.complete(species === 'stegosaurus' ? 'light' : 'headbutt'); }
+  rules.choose('through'); rules.complete('through');
+  // The ledge: the Þórseðlur reach it; the Þríhyrnur hop and cannot, the Kambeðlur rear up and wobble, the Flugeðlur fly up and dangle from the slab.
+  for (const [target, right, wrong] of [['ledge', 'brontosaurus', ['triceratops', 'stegosaurus', 'pteranodon']], ['cliff', 'pteranodon', ['brontosaurus', 'triceratops', 'stegosaurus']]]) {
+    assert.deepEqual(rules.ask(target), { kind: 'choose', candidates: [...level.friends] }, `every found pair is a choice at the ${target}`);
+    assert.ok(wrong.includes(level.wrongFriends[target]), `the driver tries a wrong friend at the ${target}: ${level.wrongFriends[target]}`);
+    for (const species of wrong) {
+      assert.deepEqual(rules.pick(species), { kind: 'fail' }, `${species} fails at the ${target}`); assert.equal(rules.failDone(), true);
+      assert.ok(GESTURES[FAIL_TRIES[`${target}:${species}`]], `${species} at the ${target} has a funny try of its own`);
+    }
+    assert.deepEqual(rules.pick(right), { kind: 'start', action: target === 'ledge' ? 'reach' : 'fly' });
+    assert.equal(rules.complete(target === 'ledge' ? 'reach' : 'fly'), true);
+  }
+  assert.equal(rules.getState().ropeUp, true); assert.equal(rules.next(), null, 'the climb starts on its own');
+  assert.equal(rules.can('climb'), true);
+});
+
+test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff and the climb', async () => {
+  const level = await gorge(), { VOICE_LINES } = await import('../engine/memory/voice-lines.js'), fs = await import('node:fs');
+  const TEXT = { g2_through: 'Göngin eru opin. Allir með!', g2_ledge_ready: 'Stallurinn er of hár. Hver nær hátt?', g2_reached: 'Langir hálsar ná hátt!', g2_cliff_ready: 'Klettaveggurinn er brattur. Hver getur flogið með reipið upp?', g2_flown: 'Flugeðlurnar fljúga upp!', g2_climb: 'Haldið í reipið. Upp með ykkur!' };
+  for (const [id, text] of Object.entries(TEXT)) {
+    assert.equal(VOICE_LINES[id]?.text, text, `${id}: the words`);
+    assert.ok(fs.existsSync(new URL(`../assets/audio/memory/${id}.mp3`, import.meta.url)), `${id} is recorded`);
+  }
+  // Mosi says the travel steps' lines as they start, the two "who can" lines when the pair is home, the other two as their tasks begin.
+  assert.deepEqual([level.lines.through, level.lines.climb], ['g2_through', 'g2_climb']);
+  assert.equal(level.voice['g2-reach-ready'], 'g2_ledge_ready'); assert.equal(level.voice['g2-fly-ready'], 'g2_cliff_ready');
+  assert.equal(level.story.reach.prompts.ready, TEXT.g2_ledge_ready); assert.equal(level.story.fly.prompts.ready, TEXT.g2_cliff_ready); assert.equal(level.story.through.prompts.open, TEXT.g2_through); assert.equal(level.story.climb.prompts.doing, TEXT.g2_climb);
+  assert.deepEqual(level.eventSounds['reach-start'], [{ say: 'g2_reached', delay: .9 }]); assert.deepEqual(level.eventSounds['fly-start'], [{ say: 'g2_flown', delay: .9 }]);
+  assert.equal(level.eventCaptions['reach-start'].text, TEXT.g2_reached); assert.equal(level.eventCaptions['fly-start'].text, TEXT.g2_flown);
+  // What the world raises while it works is heard: each name is an audio method that exists, and each recorded cue is in the gorge's manifest.
+  const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null }), manifest = JSON.parse(fs.readFileSync(new URL('../assets/audio/memory/soundscape/gorge/manifest.json', import.meta.url), 'utf8'));
+  for (const type of ['reach-start', 'beat:reach', 'slab-step', 'slab-down', 'fly-start', 'wing-beat', 'rope-lift', 'rope-knots', 'rope-taut', 'climb-step', 'fail-rope', 'fail-slip']) assert.ok(level.eventSounds[type], `${type} has a sound`);
+  for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) { const method = typeof entry === 'string' ? entry : entry.method; if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`); }
+  for (const id of ['wing-flap', 'slab-lower', 'slab-lower-alt', 'rope-whoosh', 'rope-tighten', 'rope-knots', 'gravel-slip', 'gravel-climb']) assert.ok(manifest.sfx[id] && fs.existsSync(new URL(`../assets/audio/memory/soundscape/gorge/${manifest.sfx[id].file}`, import.meta.url)), `${id} is a sound of the gorge`);
+  audio.dispose();
+  // No manifest has more sounds than audio.js loads from one (the ones past its cap would never be heard, and nothing would say so): the shared soundscape's and every level's own.
+  const { MANIFEST_SOUNDS } = await import('../engine/memory/audio.js'), soundscape = new URL('../assets/audio/memory/soundscape/', import.meta.url);
+  const manifests = [new URL('manifest.json', soundscape), ...fs.readdirSync(soundscape, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => new URL(`${entry.name}/manifest.json`, soundscape)).filter(url => fs.existsSync(url))];
+  assert.ok(manifests.length >= 2, 'the shared soundscape and the gorge');
+  for (const url of manifests) { const count = Object.keys(JSON.parse(fs.readFileSync(url, 'utf8')).sfx ?? {}).length; assert.ok(count <= MANIFEST_SOUNDS, `${url.pathname.split('/soundscape/')[1]}: ${count} sounds, the cap is ${MANIFEST_SOUNDS}`); }
+  // The two CC BY sounds the step adds, and the three models, are named behind the ending card's "i".
+  const credited = level.credits.map(row => `${row.author} ${row.license} ${row.source}`).join(' | ');
+  for (const needle of ['Tdude9000 CC BY 3.0', 'jorickhoofd CC BY 4.0', 'F.M.Audio CC BY 4.0', 'Kenney CC0', 'ambientCG CC0']) assert.ok(credited.includes(needle), `${needle} is credited`);
+  assert.ok(level.credits.some(row => row.title.startsWith('Tréð') && row.author === 'Quaternius'));
+});
+
+// ---- level 2: everyone pulls, the trunk falls, the walk to Sólarsyllan (Task 6) ----
+test('a together step starts without bubbles and every friend joins', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level)), fs = await import('node:fs');
+  for (const [species, id] of [['stegosaurus', 'light'], ['triceratops', 'headbutt'], [null, 'through'], ['brontosaurus', 'reach'], ['pteranodon', 'fly'], [null, 'climb']]) {
+    if (species) rules.select(species); assert.equal(rules.choose(id), true, id); assert.equal(rules.complete(id), true, id);
+  }
+  assert.equal(rules.getState().atClifftop, true); assert.equal(rules.next(), 'trunk', 'on the clifftop the trunk is next');
+  const pull = level.steps.find(step => step.id === 'pull');
+  assert.deepEqual([pull.kind, pull.target, pull.beatWords], ['together', 'trunk', ['Einn!', 'Tveir!', 'TOGA!']]);
+  // A tap on the trunk starts the pull at once: no bubbles ask who can, no pair is picked.
+  assert.deepEqual(rules.ask('trunk'), { kind: 'start', action: 'pull' });
+  assert.equal(rules.getState().asking, null); assert.equal(rules.getState().selected, null); assert.equal(rules.getState().active, 'pull');
+  // The game plays the step at that tap (game.js askObstacle: a 'start' answer plays the world's step, and cancels it when it cannot begin).
+  const game = fs.readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8'), ask = game.slice(game.indexOf('function askObstacle'), game.indexOf('function pickFriend'));
+  assert.match(ask, /answer\.kind === 'start'/, 'askObstacle starts a together step');
+  assert.match(ask, /world\.playStep\(answer\.action/, 'and plays its scene');
+  // Every friend joins: all eight and Mosi have a place on the rope, and a place on Sólarsyllan at the end of the walk over the trunk.
+  const { FORMATIONS } = await import('../engine/memory/levels/steinagljufur/upper-mover.js');
+  for (const formation of ['rope', 'sun']) {
+    assert.ok(FORMATIONS[formation]?.mosi, `Mosi has a place in ${formation}`);
+    for (const species of level.friends) assert.equal(FORMATIONS[formation][species]?.length, 2, `both ${species} have a place in ${formation}`);
+  }
+  assert.equal(rules.complete('pull'), true); assert.equal(rules.getState().trunkDown, true);
+  // The walk over the trunk starts by itself, and Mosi says the bridge's line as it does; before the tap he calls everyone to the rope.
+  const walk = level.steps.find(step => step.id === 'walk');
+  assert.deepEqual([walk.kind, walk.automatic], ['travel', true]); assert.equal(rules.can('walk'), true);
+  assert.equal(rules.choose('walk'), true); assert.equal(rules.complete('walk'), true); assert.equal(rules.getState().onSunLedge, true);
+  const { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
+  assert.equal(level.lines.walk, 'g2_bridge'); assert.equal(level.voice['g2-pull-ready'], 'g2_pull_ready');
+  assert.equal(VOICE_LINES.g2_pull_ready?.text, 'Togum öll saman í reipið!'); assert.equal(VOICE_LINES.g2_bridge?.text, 'Brúin er komin. Á Sólarsylluna!');
+  for (const id of ['g2_pull_ready', 'g2_bridge']) assert.ok(fs.existsSync(new URL(`../assets/audio/memory/${id}.mp3`, import.meta.url)), `${id} is recorded`);
+  // What the pull and the fall sound like: each a method of the audio that exists.
+  const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null });
+  for (const type of ['beat:pull', 'trunk-tilt', 'trunk-fall', 'trunk-dust', 'rope-lift', 'wing-beat', 'rope-knots', 'rope-taut']) assert.ok(level.eventSounds[type], `${type} has a sound`);
+  for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) { const method = typeof entry === 'string' ? entry : entry.method; if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`); }
+  assert.ok(level.eventSounds['trunk-fall'].includes('bridgeLand'), "the trunk lands with level 1's thud");
+  audio.dispose();
+});
+
+test("level 2's upper gorge is as the story says: a ledge too high to walk up, a steep path up to a flat rim with room for Task 6, and a rope, slab and tree within their caps", async () => {
+  const { groundAt, LEDGE, CLIMB, RIM, CLIMB_LENGTH, wayPoints } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
+  const { ROPE_TRIANGLES } = await import('../engine/memory/levels/steinagljufur/rope.js');
+  const fs = await import('node:fs'), asset = name => JSON.parse(fs.readFileSync(new URL(`../assets/memory/bord2/${name}`, import.meta.url), 'utf8'));
+  // the exit floor is level and the ledge is a step of 1.9 metres up in under a metre of ground: too high for a baby to walk up, and the slab (4.8 m, 24 degrees) is what lets them
+  assert.equal(groundAt(-6, -1), 0); assert.equal(groundAt(LEDGE.x + 2.5, 0), LEDGE.height);
+  assert.ok(groundAt(LEDGE.x - .6, 0) < .05 && groundAt(LEDGE.x + .05, 0) === LEDGE.height, 'the riser is a step (the whole height in 60 centimetres), not a slope');
+  assert.ok(LEDGE.height > 1.2 && LEDGE.height < 2.6, 'a baby stands about a metre high');
+  // the path climbs from the terrace to the rim in bends, steeply but not a wall; every point of it is on the ground it says
+  const way = wayPoints(1), rise = CLIMB.at(-1)[2] - CLIMB[0][2];
+  assert.ok(Math.abs(rise - (RIM.y - LEDGE.height)) < 1.1, `the path ends at the rim: ${rise} metres up`);
+  assert.ok(Math.atan2(rise, CLIMB_LENGTH) > .3 && Math.atan2(rise, CLIMB_LENGTH) < .6, 'steep: between 17 and 34 degrees on average');
+  for (const [x, z, y] of way) assert.ok(Math.abs(groundAt(x, z) - y) < .05, `the path is the ground at ${x}, ${z}`);
+  const headings = way.slice(1).map((p, i) => Math.atan2(p[1] - way[i][1], p[0] - way[i][0]));
+  assert.ok(Math.max(...headings) - Math.min(...headings) > .7, 'the path winds (the camera follows it up)');
+  // the rim is flat and wide, with room for the dead trunk and the gap beyond the tree (Task 6): level for more than ten metres past the top of the path
+  for (let x = 26; x <= 36; x += 2) assert.equal(groundAt(x, RIM.from[1] + (RIM.to[1] - RIM.from[1]) * (x - RIM.from[0]) / (RIM.to[0] - RIM.from[0])), RIM.y, `the rim is level at ${x}`);
+  // the caps the plan sets: the rope 1,000 triangles, the slab 1,000, the tree 3,000
+  assert.ok(ROPE_TRIANGLES <= 1000, `the rope's tube: ${ROPE_TRIANGLES}`);
+  assert.ok(asset('gorge-slab-source.json').triangles <= 1000); assert.ok(asset('gorge-tree-source.json').triangles <= 3000);
+  assert.equal(asset('rope-source.json').width, 512); assert.ok(asset('rope-source.json').height <= 512, 'the rope texture is 512 px or less');
 });

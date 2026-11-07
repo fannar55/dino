@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "provider": "Freesound (HQ mp3 previews, the owner approved each)",
+  "sfx": {
+    "rocks-fall": {
+      "file": "rocks-fall.mp3",
+      "duration": 3.4,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 567251",
+      "peak": 0.6677,
+      "rms": 0.103
+    },
+    "rocks-tumble": {
+      "file": "rocks-tumble.mp3",
+      "duration": 1.113,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 389618",
+      "peak": 0.6702,
+      "rms": 0.0222
+    },
+    "rock-hit": {
+      "file": "rock-hit.mp3",
+      "duration": 0.648,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 572753",
+      "peak": 0.6728,
+      "rms": 0.0679
+    },
+    "rock-land": {
+      "file": "rock-land.mp3",
+      "duration": 0.188,
+      "gain": 0.35,
+      "loop": false,
+      "source": "freesound 422753",
+      "peak": 0.6754,
+      "rms": 0.1193
+    },
+    "pebble": {
+      "file": "pebble.mp3",
+      "duration": 0.426,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 364711",
+      "peak": 0.6699,
+      "rms": 0.0444
+    },
+    "peck": {
+      "file": "peck.mp3",
+      "duration": 0.158,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 350343",
+      "peak": 0.6716,
+      "rms": 0.0607
+    },
+    "glow-chime": {
+      "file": "glow-chime.mp3",
+      "duration": 0.561,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 198401",
+      "peak": 0.6833,
+      "rms": 0.0392
+    },
+    "glow-chime-alt": {
+      "file": "glow-chime-alt.mp3",
+      "duration": 1.287,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 398661",
+      "peak": 0.6725,
+      "rms": 0.1157
+    },
+    "wing-flap": {
+      "file": "wing-flap.mp3",
+      "duration": 0.824,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 389634",
+      "peak": 0.6637,
+      "rms": 0.047
+    },
+    "slab-lower": {
+      "file": "slab-lower.mp3",
+      "duration": 1.107,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 558254",
+      "peak": 0.6731,
+      "rms": 0.1504
+    },
+    "slab-lower-alt": {
+      "file": "slab-lower-alt.mp3",
+      "duration": 2.305,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 321488",
+      "peak": 0.6715,
+      "rms": 0.0711
+    },
+    "rope-whoosh": {
+      "file": "rope-whoosh.mp3",
+      "duration": 0.512,
+      "gain": 0.45,
+      "loop": false,
+      "source": "freesound 789840",
+      "peak": 0.6711,
+      "rms": 0.1099
+    },
+    "rope-tighten": {
+      "file": "rope-tighten.mp3",
+      "duration": 2.417,
+      "gain": 0.6,
+      "loop": false,
+      "source": "freesound 676987",
+      "peak": 0.6587,
+      "rms": 0.0159
+    },
+    "rope-knots": {
+      "file": "rope-knots.mp3",
+      "duration": 2,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 273530",
+      "peak": 0.666,
+      "rms": 0.0578
+    },
+    "gravel-slip": {
+      "file": "gravel-slip.mp3",
+      "duration": 2.127,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 138343",
+      "peak": 0.6797,
+      "rms": 0.0366
+    },
+    "gravel-climb": {
+      "file": "gravel-climb.mp3",
+      "duration": 3.73,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 169547",
+      "peak": 0.6728,
+      "rms": 0.0233
+    },
+    "clap-1": {
+      "file": "../../../sloedla/klapp/hopur4-1.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487278, gregswinford, CC BY 4.0)"
+    },
+    "clap-2": {
+      "file": "../../../sloedla/klapp/hopur4-2.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487277, gregswinford, CC BY 4.0)"
+    },
+    "clap-3": {
+      "file": "../../../sloedla/klapp/hopur4-3.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487276, gregswinford, CC BY 4.0)"
+    },
+    "clap-4": {
+      "file": "../../../sloedla/klapp/hopur4-4.wav",
+      "duration": 0.3,
+      "gain": 0.32,
+      "loop": false,
+      "source": "Söngur Slóeðlu's clap (freesound 487275, gregswinford, CC BY 4.0)"
+    },
+    "cheer-1": {
+      "file": "../../../sloedla/crowd-fagn-1.mp3",
+      "duration": 3.48,
+      "gain": 0.42,
+      "loop": false,
+      "source": "Söngur Slóeðlu's crowd (fagn-1, ElevenLabs-made)"
+    },
+    "cheer-2": {
+      "file": "../../../sloedla/crowd-fagn-2.mp3",
+      "duration": 3.48,
+      "gain": 0.42,
+      "loop": false,
+      "source": "Söngur Slóeðlu's crowd (fagn-2, ElevenLabs-made)"
+    }
+  }
+}

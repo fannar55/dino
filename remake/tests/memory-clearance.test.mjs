@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import './setup.mjs';
 const THREE=await import('three');
 const {objectBox,boxClearance,boxFromCorners,measureActor,actorCollisionSnapshot,assessActorClearances}=await import('../engine/memory/memory-clearance.js');
-const {createBridgeAdventure}=await import('../engine/memory/bridge-adventure.js');
-const {createBuildProps}=await import('../engine/memory/build-props.js');
+const {createBridgeAdventure}=await import('../engine/memory/levels/berjalundur/adventure.js');
+const {createBuildProps}=await import('../engine/memory/levels/berjalundur/build-props.js');
 
 test('oriented clearance catches a long tail cutting across another body',()=>{
   const a=objectBox('tail',[0,.8,0],[1.4,.08,.08],Math.PI/4),b=objectBox('body',[.6,.8,-.6],[.35,.3,.35]);
@@ -124,4 +124,42 @@ test('retrying a partially blocked river crossing leaves arrived helpers on the 
     assert.equal(crossingPlans.get(arrived),plansBefore,'retry does not ask the near-bank planner to route an already-arrived helper');
     const events=adventure.pollEvents();assert.equal(events.filter(event=>event.type==='bridge-complete'&&event.id==='cross').length,1);assert.equal(events.some(event=>event.type==='bridge-blocked'),false);
   }finally{adventure.dispose()}
+});
+
+test('a gorge wall piece is measured against the rests by its rock: what reaches in is caught, what is sunk or over the heads is not', async () => {
+  const { restGap } = await import('../engine/memory/levels/steinagljufur/props.js');
+  // a ring of rock points 1 m round its middle, from the ground to 2 m up, one point sunk 1 m and one 4 m up
+  const points = [];
+  for (let k = 0; k < 16; k++) for (const y of [0, 1, 2]) points.push(Math.cos(k * Math.PI / 8), y, Math.sin(k * Math.PI / 8));
+  points.push(-1.4, -1, 0, -1.4, 4, 0);
+  const rock = new Float32Array(points), at = x => new THREE.Matrix4().makeTranslation(x, 0, 0), rests = [{ x: 0, y: 0, z: 0, radius: 3.75, height: 3 }];
+  assert.ok(Math.abs(restGap(rock, at(5.5), rests) - .75) < 1e-6, 'its near side at 4.5 m is 0.75 m clear of the rest');
+  assert.ok(restGap(rock, at(4), rests) < 0, 'its near side at 3 m is inside the 3.75 m rest');
+  assert.ok(restGap(rock, at(5.1), rests) > 0, 'the sunk point and the point over the heads (both at 3.7 m) do not count');
+  assert.ok(restGap(rock, new THREE.Matrix4().makeTranslation(3, 5, 0), rests) === Infinity, 'a rock wholly over the heads does not count');
+});
+
+test('every place of the upper gorge stands on flat ground: the ground under no friend\'s feet or tail rises there (veggir)', async () => {
+  const { FORMATIONS } = await import('../engine/memory/levels/steinagljufur/upper-mover.js');
+  const { groundAt, gridLines } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
+  // the ground as it is drawn: upper.js lays a grid over groundAt (0.9 m cells, finer across the ledge's riser and the gap's lips), two triangles a cell, so a slope starts
+  // up to a cell before groundAt's does
+  const { xs, zs } = gridLines();
+  const cell = (list, v) => { let k = 0; while (k < list.length - 2 && list[k + 1] <= v) k++; return k; };
+  const drawn = (x, z) => {
+    const i = cell(xs, x), j = cell(zs, z), u = (x - xs[i]) / (xs[i + 1] - xs[i]), v = (z - zs[j]) / (zs[j + 1] - zs[j]);
+    const a = groundAt(xs[i], zs[j]), b = groundAt(xs[i + 1], zs[j]), c = groundAt(xs[i], zs[j + 1]), d = groundAt(xs[i + 1], zs[j + 1]);
+    return u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - u) * (c - d) + (1 - v) * (b - d);
+  };
+  // where its feet and tail are on the ground as it stands facing forward (+x): metres behind, ahead and to either side of its place (and 0.1 m wider: the stride sways)
+  const FOOT = { mosi: [.8, .8, .4], triceratops: [1.0, .9, .45], stegosaurus: [1.3, 1.0, .45], brontosaurus: [2.3, 1.4, .5], pteranodon: [1.0, 1.0, .5] };
+  for (const [formation, places] of Object.entries(FORMATIONS)) for (const [who, list] of Object.entries(places)) {
+    (who === 'mosi' ? [list] : list).forEach(([x, z], i) => {
+      const [back, front, side] = FOOT[who], g = groundAt(x, z);
+      for (let a = -back; a <= front + 1e-9; a += .1) for (let c = -side - .1; c <= side + .1 + 1e-9; c += .1) {
+        const rise = drawn(x + a, z + c) - g;
+        assert.ok(rise < .06, `${formation}: ${who} ${i} at (${x}, ${z}): the ground ${a.toFixed(1)} m along and ${c.toFixed(1)} m across rises ${rise.toFixed(2)} m`);
+      }
+    });
+  }
 });

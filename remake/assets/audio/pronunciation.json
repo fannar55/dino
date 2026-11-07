@@ -1,11 +1,12 @@
 {
   "about": [
-    "The pronunciation standard of the remake's voices: remake/tools/voice-lines.mjs and remake/tools/yatzy-junior-voices.mjs apply it to every line they send.",
-    "One entry per hard word: \"word\" (its name in the pronunciation book), \"stem\" (a regular expression for the start of every inflection, which remake/tests/pronunciation.test.mjs checks over all the sets and Litla Yatzy), \"forms\" (the surface forms, matched case-sensitively as whole words), optional \"except\" (words the stem matches that are not this word), \"recipes\" and \"chosen\".",
+    "The pronunciation standard of the remake's voices: remake/tools/voice-lines.mjs, remake/tools/yatzy-junior-voices.mjs and remake/tools/memory-voices.mjs (the memory game) apply it to every line they send.",
+    "One entry per hard word: \"word\" (its name in the pronunciation book), \"stem\" (a regular expression for the start of every inflection, which remake/tests/pronunciation.test.mjs checks over all the sets, Litla Yatzy and the memory game, and memory-voices.mjs before it sends anything), \"forms\" (the surface forms, matched case-sensitively as whole words), optional \"except\" (words the stem matches that are not this word), \"recipes\" and \"chosen\".",
     "A recipe: \"say\" (what is sent in place of the form: one string for every form, or form -> string; IPA goes in double quotes and slashes, \"/.../\", the way Eleven v4 reads it), \"context\" (sent as previous_text, never spoken: a string, or speaker -> string with \"*\" for the rest), \"seed\", and \"note\" (for the owner, shown in the book). \"hratt\" sends the word as written.",
     "\"chosen\" is the recipe the owner picked by ear in the pronunciation book (node remake/tools/voice-lines.mjs --pick picks.json), or null: then the word is sent as written. \"audition\" (speaker -> sentence) gives the book a sentence for a speaker who has no line with the word.",
     "The text the child sees (lines-source.json, the captions, lines.json) is never changed: only the request is.",
-    "A line that carries its own \"say\" or \"context\" (lines-source.json of a set, yatzy-junior/lines-overrides.json) names what it fixes in \"fixes\": a word id of this book or a list of them (a word without an entry gets one, \"chosen\": null and a \"hratt\" recipe, so no request changes), \"punctuation\" (its say differs from the text in punctuation and spaces alone, and it has no context) or \"line\" (the whole line's tone; its note says so). remake/tests/heard.test.mjs checks it; voice-lines.mjs --dry and the book page show each word's fixes elsewhere, so the recipe that already won is tried first, and a fix that wins for a word becomes a recipe of it here."
+    "A line that carries its own \"say\" or \"context\" (lines-source.json of a set, yatzy-junior/lines-overrides.json) names what it fixes in \"fixes\": a word id of this book or a list of them (a word without an entry gets one, \"chosen\": null and a \"hratt\" recipe, so no request changes), \"punctuation\" (its say differs from the text in punctuation and spaces alone, and it has no context) or \"line\" (the whole line's tone; its note says so). remake/tests/heard.test.mjs checks it; voice-lines.mjs --dry and the book page show each word's fixes elsewhere, so the recipe that already won is tried first, and a fix that wins for a word becomes a recipe of it here.",
+    "\"lines\" holds the rules for whole lines. Its one rule, \"ny3\" ({ \"speakers\", \"note\" }), names the speakers whose new takes (a line never made, one whose take the owner rejected, one made again) are sent with the line itself as context after the words' contexts, never spoken, and seed 7 unless the line has its own (remake/tools/voice-lines.mjs applyNy3); a line that ships a take of the book's request keeps it."
   ],
   "words": {
     "kambedla": {
@@ -19,7 +20,9 @@
         "kambeðlur",
         "Kambeðlan",
         "kambeðlan",
-        "kambeðlu"
+        "kambeðlu",
+        "Kambeðlurnar",
+        "kambeðlurnar"
       ],
       "recipes": {
         "hratt": {
@@ -49,7 +52,8 @@
         "Snigillinn"
       ],
       "except": [
-        "snigil"
+        "snigil",
+        "Snigilsteinn"
       ],
       "recipes": {
         "hratt": {
@@ -335,7 +339,8 @@
         "Flugeðla",
         "Flugeðlu",
         "Flugeðlan",
-        "Flugeðlur"
+        "Flugeðlur",
+        "Flugeðlurnar"
       ],
       "recipes": {
         "hratt": {
@@ -346,7 +351,8 @@
             "Flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
             "Flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
             "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\"",
-            "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\""
+            "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
+            "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -366,7 +372,9 @@
         "Þórseðla",
         "Þórseðlu",
         "Þórseðlan",
-        "þórseðlan"
+        "þórseðlan",
+        "Þórseðlurnar",
+        "þórseðluparið"
       ],
       "recipes": {
         "hratt": {
@@ -377,7 +385,9 @@
             "Þórseðla": "\"/ˈθoursˌɛðla/\"",
             "Þórseðlu": "\"/ˈθoursˌɛðlʏ/\"",
             "Þórseðlan": "\"/ˈθoursˌɛðlan/\"",
-            "þórseðlan": "\"/ˈθoursˌɛðlan/\""
+            "þórseðlan": "\"/ˈθoursˌɛðlan/\"",
+            "Þórseðlurnar": "\"/ˈθoursˌɛðlʏrtnar/\"",
+            "þórseðluparið": "\"/ˈθoursˌɛðlʏˌpʰaːrɪð/\""
           },
           "note": "IPA /ˈθoursˌɛðla/ (óheyrt)."
         },
@@ -2122,6 +2132,341 @@
         }
       },
       "chosen": "samhengi"
+    },
+    "hver": {
+      "word": "Hver",
+      "stem": "[Hh]ver[st]?$",
+      "forms": [
+        "Hver",
+        "hver",
+        "hvers",
+        "Hvers",
+        "hvert",
+        "Hvert"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt línurnar með orðinu þannig í hinum leikjunum. Í Hvar er vinur minn? bera línurnar IPA-ið sjálfar (\"fixes\": \"hver\")."
+        },
+        "ipa": {
+          "say": {
+            "Hver": "\"/kʰvɛːr/\"",
+            "hver": "\"/kʰvɛːr/\"",
+            "hvers": "\"/kʰvɛrs/\"",
+            "Hvers": "\"/kʰvɛrs/\"",
+            "hvert": "\"/kʰvɛrt/\"",
+            "Hvert": "\"/kʰvɛrt/\""
+          },
+          "note": "IPA /kʰvɛːr/: þú valdir hana eftir eyranu í Hvar er vinur minn? 2026-10-30 (hver-2, „Hver getur þetta?“). „hvers“ og „hvert“ eru óheyrð. Ekki valin fyrir alla leiki: það er þín ákvörðun."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "snjaldurmus": {
+      "word": "Snjáldurmús",
+      "stem": "[Ss]njáldurm",
+      "forms": [
+        "Snjáldurmús"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað."
+        },
+        "samhengi": {
+          "context": "Hér er lítil snjáldurmús. Snjáldurmús er pínulítið dýr.",
+          "note": "Setning um hana send á undan sem samhengi, ekki töluð: þú valdir þá töku eftir eyranu 2026-10-30 (taka A, gift_shrew, fræ 251311)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "steinagljufrid": {
+      "word": "Steinagljúfrið",
+      "stem": "[Ss]teinagljúf",
+      "forms": [
+        "Steinagljúfrið"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; Eleven missir „gl“ (talgreinirinn heyrði „Steinadýfrið“). Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_welcome)."
+        },
+        "ipa": {
+          "say": "\"/ˈsteiːnaˌkljuːvrɪθ/\"",
+          "note": "IPA /ˈsteiːnaˌkljuːvrɪθ/, takan í leiknum til 2026-11-02. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_welcome)."
+        },
+        "samhengi": {
+          "context": "Gljúfrið er fullt af steinum. Þess vegna heitir það Steinagljúfrið.",
+          "note": "Setning um gljúfrið send á undan sem samhengi, ekki töluð. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_welcome)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "solarsylla": {
+      "word": "Sólarsyllan",
+      "stem": "[Ss]ólarsyll",
+      "forms": [
+        "Sólarsyllan",
+        "Sólarsylluna"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_bridge sem kemur í verki 6)."
+        },
+        "ipa": {
+          "say": {
+            "Sólarsyllan": "\"/ˈsouːlarˌsɪtlan/\"",
+            "Sólarsylluna": "\"/ˈsouːlarˌsɪtlʏna/\""
+          },
+          "note": "IPA /ˈsouːlarˌsɪtlʏna/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_bridge sem kemur í verki 6). „Sólarsyllan“ er óheyrð."
+        },
+        "samhengi": {
+          "context": "Sólin skín á sylluna. Við förum öll upp á Sólarsylluna.",
+          "note": "Setning um sylluna send á undan sem samhengi, ekki töluð. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_bridge „Brúin er komin. Á Sólarsylluna!“, fræ 251441, sem kemur í verki 6)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "thrihyrna": {
+      "word": "Þríhyrna",
+      "stem": "[Þþ]ríhyrn",
+      "forms": [
+        "Þríhyrna",
+        "þríhyrna",
+        "Þríhyrnur",
+        "þríhyrnur",
+        "þríhyrnu",
+        "þríhyrnunum",
+        "Þríhyrnurnar",
+        "þríhyrnurnar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, „Þríhyrnurnar“ í help, fram yfir IPA og samhengi); bókin segir orðið líka svona."
+        },
+        "samhengi": {
+          "context": "Þríhyrnurnar eru vinkonur mínar með þrjú horn.",
+          "note": "Setning um þær send á undan sem samhengi, ekki töluð. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, help)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "risaspor": {
+      "word": "Risaspor",
+      "stem": "[Rr]isaspor",
+      "forms": [
+        "Risaspor"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; talgreinirinn heyrði „Rísaspor“. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_footprint)."
+        },
+        "ipa": {
+          "say": "\"/ˈrɪːsaˌspɔːr/\"",
+          "note": "IPA /ˈrɪːsaˌspɔːr/ (stutt i, ekki í). Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_footprint)."
+        },
+        "samhengi": {
+          "context": "Risaeðlan steig í leðjuna og skildi eftir risaspor. Risaspor er steingervingur.",
+          "note": "Setning um sporið send á undan sem samhengi, ekki töluð. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_footprint)."
+        }
+      },
+      "chosen": "ipa"
+    },
+    "poddusteinn": {
+      "word": "Pöddusteinn",
+      "stem": "[Pp]öddustein",
+      "forms": [
+        "Pöddusteinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, takan í leiknum til 2026-11-02. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_trilobite)."
+        },
+        "ipa": {
+          "say": "\"/ˈpʰœtːʏˌsteitn̥/\"",
+          "note": "IPA /ˈpʰœtːʏˌsteitn̥/; Eleven les „-steinn“ illa í IPA. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_trilobite)."
+        },
+        "samhengi": {
+          "context": "Hér er steinn með pöddu í. Pöddusteinn er steingervingur.",
+          "note": "Setning um steininn send á undan sem samhengi, ekki töluð. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_trilobite)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "laufsteinn": {
+      "word": "Laufsteinn",
+      "stem": "[Ll]aufstein",
+      "forms": [
+        "Laufsteinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; talgreinirinn heyrði „Lafstein“. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_fern)."
+        },
+        "ipa": {
+          "say": "\"/ˈlœyfˌsteitn̥/\"",
+          "note": "IPA /ˈlœyfˌsteitn̥/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_fern)."
+        },
+        "samhengi": {
+          "context": "Hér er steinn með laufblaði í. Laufsteinn er steingervingur.",
+          "note": "Setning um steininn send á undan sem samhengi, ekki töluð; takan í leiknum. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_fern)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "snigilsteinn": {
+      "word": "Snigilsteinn",
+      "stem": "[Ss]nigilstein",
+      "forms": [
+        "Snigilsteinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; talgreinirinn heyrði „Snigilstæinn“. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_ammonite)."
+        },
+        "ipa": {
+          "say": "\"/ˈstniːjɪlˌsteitn̥/\"",
+          "note": "IPA eftir Snigli bókarinnar. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_ammonite)."
+        },
+        "samhengi": {
+          "context": "Hér er steinn með snigli í. Snigilsteinn er steingervingur.",
+          "note": "Setning um steininn send á undan sem samhengi, ekki töluð; takan í leiknum. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, gift_ammonite)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "stallur": {
+      "word": "Stallur",
+      "stem": "[Ss]tall",
+      "forms": [
+        "Stallurinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú hafnaðir öllum tökum línunnar „Stallurinn er of hár. Hver nær hátt?“ þannig 2026-11-02 („engin réttur“)."
+        },
+        "ipa": {
+          "say": "\"/ˈstatlʏrɪn/\"",
+          "note": "IPA /ˈstatlʏrɪn/: ll sem „tl“, eins og í Snigli. Þú hafnaðir henni 2026-11-02, bæði með „of“ í IPA og með „of“ eins og það er skrifað (tal2, tökur A og D)."
+        },
+        "stafsetning": {
+          "say": "Statlurinn",
+          "note": "Stafsett með „tl“, eins og ll er borið fram. Þú valdir hana eftir eyranu 2026-11-02 (tal2, taka B, með „of“ eins og það er skrifað)."
+        },
+        "samhengi": {
+          "context": "Sjáðu stallinn í klettinum. Hann er allt of hár fyrir okkur.",
+          "note": "Setning með „stallinn“ og „of hár“ send á undan sem samhengi, ekki töluð. Þú hafnaðir henni 2026-11-02 (tal2, taka C)."
+        }
+      },
+      "chosen": "stafsetning"
+    },
+    "klettaveggur": {
+      "word": "Klettaveggur",
+      "stem": "[Kk]lettavegg",
+      "forms": [
+        "Klettaveggurinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, takan í leiknum til 2026-11-02. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready)."
+        },
+        "ipa": {
+          "say": "\"/ˈkʰlɛhtaˌvɛkːʏrɪn/\"",
+          "note": "IPA /ˈkʰlɛhtaˌvɛkːʏrɪn/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready, með „reipið“ líka í IPA)."
+        },
+        "samhengi": {
+          "context": "Klettaveggurinn er hár og brattur. Við bindum reipið fast við tréð.",
+          "note": "Setning um vegginn og reipið send á undan sem samhengi, ekki töluð. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "reipi": {
+      "word": "Reipi",
+      "stem": "[Rr]eip",
+      "forms": [
+        "reipið"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, takan í leiknum til 2026-11-02. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_climb)."
+        },
+        "ipa": {
+          "say": "\"/ˈreiːpɪð/\"",
+          "note": "IPA /ˈreiːpɪð/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_climb)."
+        },
+        "samhengi": {
+          "context": "Reipið er sterkt. Haldið fast í reipið.",
+          "note": "Setning um reipið send á undan sem samhengi, ekki töluð. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_climb)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "steingervingur": {
+      "word": "Steingervingur",
+      "stem": "[Ss]teingerving",
+      "forms": [
+        "Steingervingur",
+        "steingervingur",
+        "Steingervingar",
+        "steingervingum",
+        "steingervingnum",
+        "steingervingana"
+      ],
+      "except": [
+        "Steingervingafræðingar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt línur bókarinnar og Háls og hala með orðinu þannig."
+        },
+        "samhengi": {
+          "context": "Steingervingar eru ævagamlir steinar. Við fundum alla steingervingana.",
+          "note": "Setning um steingervinga send á undan sem samhengi, ekki töluð. Þú valdir þessa töku eftir eyranu 2026-11-02 (tal-síðan, Hvar er vinur minn?, gifts4, sem ber samhengið sjálf). Ekki valin fyrir allar línur enn: það breytti 17 línum bókarinnar og Háls og hala."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "toga": {
+      "word": "TOGA",
+      "stem": "TOGA$",
+      "forms": [
+        "TOGA"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað („Einn, tveir, TOGA!“ í Hvar er vinur minn?, g2_pull, verk 6). Þú samþykktir það eftir eyranu 2026-11-04."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "vini": {
+      "word": "vini",
+      "stem": "[Vv]ini$",
+      "forms": [
+        "vini"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú samþykktir „Finndu tvo eins vini.“ þannig (g2_welcome, 2026-11-02), en í „Finnum vini fyrst!“ heyrðirðu „vinni“ 2026-11-05, bæði í gömlu tökunni og í Ný 3."
+        },
+        "ipa": {
+          "say": "\"/ˈvɪːnɪ/\"",
+          "note": "Uppskriftin geymir aðeins IPA-ið /ˈvɪːnɪ/ (langt i, eitt n) í stað orðsins, hvorki samhengi né fræ. Tilraun A var send með þessu IPA-i, línunni sjálfri á undan sem samhengi (ekki sögð) og fræi 7, og þú hafnaðir henni 2026-11-05 (minnisspil, vini.html, tilraun A)."
+        },
+        "samhengi": {
+          "context": "Vinir okkar eru í feluleik undir laufunum.",
+          "seed": 7,
+          "note": "Setning um vinina í feluleik send á undan sem samhengi, ekki töluð, fræ 7. Vann hjá þér 2026-11-05 í „Finnum vini fyrst!“ (minnisspil, vini.html, tilraun B)."
+        }
+      },
+      "chosen": "hratt"
+    }
+  },
+  "lines": {
+    "ny3": {
+      "speakers": [
+        "mosi"
+      ],
+      "note": "Ný 3 (c7): the line itself as context, seed 7. Plain eleven_v4 takes of Mosi came out sounding Norwegian or Danish to the owner, though the request was right; he picked Ný 3 by ear for 11 of 11 lines in chapter 4 (a86be9b, 2026-11-04) and 9 of 11 in the memory game (codex/minnisspil-first-playable). Made the default for every new take of Mosi on 2026-11-05, his word \"Já, bara Mosi\" (Flugeðla's plain lines were fine)."
     }
   }
 }

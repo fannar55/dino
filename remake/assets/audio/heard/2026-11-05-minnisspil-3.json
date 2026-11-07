@@ -1,0 +1,35 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-05",
+  "source": "jano-minnisspil-vini.json",
+  "verdicts": {
+    "minnisspil/findFirst_a": {
+      "verdict": "nei",
+      "key": "7ee192b9666f57dd904c02bb343276c2065cf1315c828be8228aca4a773806b2",
+      "mp3": "7b617f81783d71b04017cf470eaf095a02232c46dab37ee8e6402ccbde9b109b",
+      "speaker": "mosi",
+      "text": "Finnum vini fyrst!"
+    },
+    "minnisspil/findFirst_b": {
+      "verdict": "ja",
+      "key": "1712449202621130a03b44fe4e3ee80432e5552fae984e3e828cbbaafd74a80d",
+      "mp3": "548f90baeb5a6c5c57db8921f3b8261c7e6027cb6d12362821833ab713396bed",
+      "speaker": "mosi",
+      "text": "Finnum vini fyrst!"
+    },
+    "minnisspil/findFirst_c": {
+      "verdict": "nei",
+      "key": "e94edbeb8668535a3e489748893d965d043faa0db710bed32729dd4012696dc4",
+      "mp3": "9a12cfc1d01c8bc052b3a328109810eb8aad3faa47fc440a1a5688482a2800cc",
+      "speaker": "mosi",
+      "text": "Finnum vini fyrst!"
+    },
+    "minnisspil/findFirst_d": {
+      "verdict": "nei",
+      "key": "cad3953ae59fdc9ca472a948343132a157a562f6aab5ad27b1e5c6441b62a68a",
+      "mp3": "d10700db9052381c52cc3b191c9c77f92c25ab3c934f25ebf86a7089df2bde28",
+      "speaker": "mosi",
+      "text": "Finnum vini fyrst!"
+    }
+  }
+}

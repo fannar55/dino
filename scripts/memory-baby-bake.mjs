@@ -1,10 +1,11 @@
 // Author the infant memory-game friends from the owner's textured adult meshes: the Triceratops
-// from Mosi, the Brontosaurus (Þórseðla) and the Stegosaurus (Kambeðla) from their game models.
+// from Mosi, the Brontosaurus (Þórseðla) and the Stegosaurus (Kambeðla) from their game models, and
+// the Pteranodon (Flugeðla, level 2) from her flying model.
 // UVs, texture maps, triangle topology and skin weights are retained. Geometry, bind skeleton,
 // facial metadata and translation tracks pass through the same smooth anatomical map, one per
 // species. These are stylised game characters, not reconstructions of real hatchlings.
 //
-//   node scripts/memory-baby-bake.mjs [--species triceratops|brontosaurus|stegosaurus]
+//   node scripts/memory-baby-bake.mjs [--species triceratops|brontosaurus|stegosaurus|pteranodon]
 //
 // The default is the Triceratops, whose map and output are unchanged from the first bake.
 import fs from 'node:fs';
@@ -74,6 +75,30 @@ const SPECIES = {
       ],
     }),
   },
+  pteranodon: {
+    source: 'pteranodon.glb', asset: 'pteranodon-baby.glb', name: 'Flugeðla', rootName: 'Baby Flugeðla (Pteranodon)', skinName: 'Baby Flugeðla skin',
+    design: 'large head with its crest and long beak, and bigger eyes; shorter wings; shorter legs; original Flugeðla painted skin',
+    status: 'Review candidate for the owner (level 2); the owner approves the baby before the level uses it',
+    // The owner's starting values (plan Task 2, 2026-10-31), as factors on each source part: head 1.35, wings 0.75 and legs 0.8,
+    // the rest of the body unchanged. The wings shorten along their span only (their chord and the membrane's hang are kept), the legs
+    // shorten in length only (the hips come down with them), and the head, with its crest and beak, grows about the top of her neck.
+    // Every band is measured on this rig (bind pose, Y up, wings along Z, wrists at 1.68 m):
+    // - head: the plane between the Head/Jaw skin and the neck skin leans 65 degrees from +X in the side view and passes 0.03 m
+    //   below the Head joint (the 1 % / 99 % margin there is 2 cm); the crest sweeps back from it and the beak forward. The plane is
+    //   infinite and the wingtips lie above it, so the growth also fades out across 0.55 to 1 m from the middle (the head is 0.4 m
+    //   out at most, the wing arms 1 m and more);
+    // - wings: the body, hips and feet lie within 0.7 m of the middle, the shoulders 0.24 m out; the span shortens from 0.35 to 0.85 m
+    //   out, only above 0.8 to 1.1 m (the membranes hang down to 1.0 m; the legs stand below it);
+    // - legs: the feet stand at 0, the knees at 0.92 m, the hips at 1.43 m; the tail and the membranes' lower edges hang from 0.65 m.
+    map: babyPterosaur({
+      factors: { head: 1.35, wings: .75, legs: .8 },
+      eye: QUADRUPED_EYE,
+      head: { angle: 65, band: [-.25, .1], centre: -.1, width: [.55, 1] },
+      wings: { band: [.35, .85], above: [.8, 1.1] },
+      legs: { band: [.9, 1.5] },
+      landmarks: ({ positions }) => ({ nose: extreme(positions, 0), bone: 'Head' }), // the beak's tip
+    }),
+  },
 };
 const spec = SPECIES[speciesId];
 if (!spec) throw new Error(`Unknown --species ${speciesId}; use ${Object.keys(SPECIES).join('|')}`);
@@ -94,6 +119,8 @@ function values(id) {
 }
 const clamp = THREE.MathUtils.clamp;
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+// The integral of smoothstep over [a, b]: a coordinate's rate goes from 1 to k across the band.
+const ramp = (a, b, u) => { if (u <= a) return 0; if (u >= b) return (b - a) / 2 + u - b; const t = (u - a) / (b - a); return (b - a) * (t ** 3 - t ** 4 / 2); };
 const meshNode = gltf.nodes.find(n => n.mesh !== undefined);
 const primitive = gltf.meshes[meshNode.mesh].primitives[0], attributes = primitive.attributes;
 const originalEyes = structuredClone(meshNode.extras.face.eyes);
@@ -197,7 +224,7 @@ else{
     provenance:`Derived from the owner’s textured Tripo ${spec.name} (${spec.source}: its rig, clips, face and mouth data), with an author-authored baby deformation computed from that model; no drawing, sculpting or new modelling; retains parent asset rights.`,
     author:parentSource.author,license:parentSource.license,licenseUrl:parentSource.licenseUrl,rightsNote:parentSource.rightsNote,newPaidGeneration:false,
     ...measured,flippedTriangles:flipped,flippedSlivers,map:map.values,parts:map.partSummary,design:spec.design,bake:`node scripts/memory-baby-bake.mjs --species ${speciesId}`,
-    status:'Review candidate for the owner; not in the game until he approves it (MEMORY_CHARACTER_ART still loads the adult)'};
+    status:spec.status??'Review candidate for the owner; not in the game until he approves it (MEMORY_CHARACTER_ART still loads the adult)'};
 }
 fs.writeFileSync(path.join(outDir,spec.asset.replace(/\.glb$/,'-source.json')),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify(report,null,2));
@@ -254,8 +281,6 @@ function triceratopsMap({values,before}) {
 function babyQuadruped(P) {
   return ({ before, bonePosition, indices, attributes }) => {
     const f = P.factors, rel = { head: f.head / f.torso, neck: f.neck / f.torso, tail: f.tail / f.torso, legs: f.legs / f.torso };
-    // The integral of smoothstep over [a, b]: a coordinate's rate goes from 1 to k across the band.
-    const ramp = (a, b, u) => { if (u <= a) return 0; if (u >= b) return (b - a) / 2 + u - b; const t = (u - a) / (b - a); return (b - a) * (t ** 3 - t ** 4 / 2); };
     const eyes = originalEyes.map(e => { const size = (e.halfWidth + (e.top + e.bottom) / 2) / 2; return { c: new V(...e.centre).setY(e.centre[1] - ground), inner: P.eye.inner * size, outer: P.eye.outer * size }; });
     const tailX = bonePosition(P.tail.bone).x, neckBase = bonePosition(P.neck.bone), headJoint = bonePosition('Head');
     const neckDir = headJoint.clone().sub(neckBase).normalize(), headN = new V(Math.cos(P.head.angle * Math.PI / 180), Math.sin(P.head.angle * Math.PI / 180), 0);
@@ -322,6 +347,42 @@ function babyQuadruped(P) {
       landmarks: P.landmarks ?? (() => null),
       values: { factors: f, relativeToTorso: Object.fromEntries(Object.entries(rel).map(([k, v]) => [k, r3(v)])), eye: P.eye, head: { ...P.head, centrePoint: headJoint.clone().addScaledVector(headN, at).toArray().map(r3) }, neck: P.neck, tail: { ...P.tail, x: r3(tailX) }, legs: P.legs, girth: P.girth },
       partSummary: parts.length ? parts.map(p => ({ kind: p.kind, vertices: p.vertices, scale: p.scale, base: p.base.toArray().map(r3), height: r3(p.height) })) : undefined,
+    };
+  };
+}
+
+// The winged map, for the Pteranodon: she stands upright with both wings spread, so the quadruped's neck, tail and torso warps do
+// not apply. In order: the eye sockets grow around the painted eyes; the wings shorten along their span (z -> sign(z) g(|z|), g' never
+// below the factor, only above a height so the legs keep their stance); the legs shorten (a one-dimensional warp in y whose rate goes
+// from the factor to 1 across the band, so everything above the hips comes down with them); then the head grows about a point just
+// above the top of her neck, fading in across a band along the plane between neck and head and out toward the wings. Each step is smooth and keeps a
+// positive Jacobian (the first two are triangular: x and y, or x and z, are untouched); the bake checks it on every vertex.
+function babyPterosaur(P) {
+  return ({ bonePosition }) => {
+    const f = P.factors;
+    const eyes = originalEyes.map(e => { const size = (e.halfWidth + (e.top + e.bottom) / 2) / 2; return { c: new V(...e.centre).setY(e.centre[1] - ground), inner: P.eye.inner * size, outer: P.eye.outer * size }; });
+    const headJoint = bonePosition('Head'), headN = new V(Math.cos(P.head.angle * Math.PI / 180), Math.sin(P.head.angle * Math.PI / 180), 0);
+    function body(q) {
+      const span = Math.abs(q.z), above = smooth(P.wings.above[0], P.wings.above[1], q.y);
+      q.z = Math.sign(q.z) * (span - (1 - f.wings) * ramp(P.wings.band[0], P.wings.band[1], span) * above);
+      q.y = f.legs * q.y + (1 - f.legs) * ramp(P.legs.band[0], P.legs.band[1], q.y);
+      return q;
+    }
+    const at = P.head.centre, band = P.head.band.map(t => t - at);
+    const headCentre = body(headJoint.clone().setY(headJoint.y - ground).addScaledVector(headN, at));
+    function deform(p) {
+      const q = p.clone(); q.y -= ground;
+      for (const e of eyes) { const d = q.clone().sub(e.c); q.addScaledVector(d, P.eye.gain * (1 - smooth(e.inner, e.outer, d.length()))); }
+      body(q);
+      const d = q.clone().sub(headCentre);
+      return q.addScaledVector(d, (f.head - 1) * smooth(band[0], band[1], d.dot(headN)) * (1 - smooth(P.head.width[0], P.head.width[1], Math.abs(q.z))));
+    }
+    const r3 = v => +v.toFixed(3);
+    return {
+      deform, partOf: () => -1,
+      landmarks: P.landmarks,
+      values: { factors: f, eye: P.eye, head: { ...P.head, centrePoint: headJoint.clone().addScaledVector(headN, at).toArray().map(r3) }, wings: P.wings, legs: P.legs },
+      partSummary: undefined,
     };
   };
 }

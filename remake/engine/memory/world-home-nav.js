@@ -201,7 +201,7 @@ export function createHomeNavigation({ heightAt, riverDistance, actors, leaves, 
       if (performance.now() - started >= budgetMs) break;
     }
   }
-  // The planner CPU (ms) this actor's current search has been given: a walk times out on this, not on game seconds (bridge-adventure.js).
+  // The planner CPU (ms) this actor's current search has been given: a walk times out on this, not on game seconds (adventure.js).
   return { plan, request, pump, canStart, spent: actor => jobs.get(actor)?.cpuMs ?? 0, release: (actor, departed = false) => {
     jobs.delete(actor);
     // An unfinished search may still see the departing friend in its old

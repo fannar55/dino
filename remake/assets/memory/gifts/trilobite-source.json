@@ -1,0 +1,53 @@
+{
+  "file": "trilobite.glb",
+  "bytes": 107576,
+  "triangles": 2900,
+  "vertices": 1452,
+  "meshes": [
+    "Trilobite"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "512 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "Thomas Flynn (https://sketchfab.com/nebulousflynn)",
+  "title": "Trilobite, Science Zone UK",
+  "sourceUrl": "https://sketchfab.com/3d-models/trilobite-science-zone-uk-6681082381a9432f9bdee9aa2e18724d",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "rightsNote": "Creative Commons Attribution 4.0: the author, the title, the licence and the changes made must be credited. The game credits it behind the small \"i\" on the ending card (game.js, the Líkan / Leyfi / Frá rows).",
+  "sourceHost": "Sketchfab (downloaded by the game owner as a GLB, 2026-10-31)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/tr1-trilobite/, git-ignored).",
+  "download": {
+    "bytes": 3339448,
+    "md5": "f43590c5e217ff4e201b2c456ef65f82",
+    "triangles": 29998,
+    "maps": "a 1024 px JPEG colour map and a 1024 px PNG normal map (a photogrammetry scan)",
+    "file": "trilobite_science_zone_uk.glb"
+  },
+  "use": "The pöddusteinn gift (surprise-items.js GIFT_ITEMS.trilobite): two instances, one on each of the pair's leaves, lying flat and leant toward the camera. +Y up, the origin on the ground in the middle of its footprint.",
+  "size": {
+    "note": "1.7 m long, 0.6 m high; a trilobite fossil of about 14 cm, shown about 12 times its size",
+    "bounds": {
+      "x": [
+        -0.85,
+        0.85
+      ],
+      "y": [
+        -0.5608,
+        0.5608
+      ],
+      "z": [
+        0,
+        0.6072
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the imported node transform taken into the vertices, the seam vertices welded, decimated by collapse from 29,998 to 2,900 triangles (the colour map keeps the detail; the normal map is dropped), custom normals from the welded whole, scaled to 1.7 m and set on y = 0, the material rebuilt as plain metal-rough (colour map only, roughness 0.85), the colour map shrunk to 512 and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/tr1-trilobite/trilobite_science_zone_uk.glb trilobite-blender.glb name=Trilobite size=1.7 tris=2900 tex=512 normal=0 roughness=0.85",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs trilobite-blender.glb remake/assets/memory/gifts/trilobite.glb",
+  "passes": "blenderCommand (Blender 5.2; 163376 bytes), then quantizeCommand (107576 bytes)."
+}

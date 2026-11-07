@@ -1,0 +1,53 @@
+{
+  "file": "gorge-tree.glb",
+  "bytes": 77748,
+  "triangles": 2888,
+  "vertices": 5776,
+  "meshes": [
+    "GorgeTree"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "no map: plain metal-rough materials (colours only, matt), double-sided",
+  "extensions": [
+    "KHR_mesh_quantization"
+  ],
+  "author": "Quaternius (https://quaternius.com)",
+  "title": "Tree",
+  "sourceUrl": "https://poly.pizza/m/2paAm1ja4w",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "Poly Pizza (downloaded by Claude on the owner's word \"Já, sækja\", 2026-11-01)",
+  "sourceExport": "The owner's approved download, not in the repository (qa/memory/bord2/src/t1-tree/, git-ignored).",
+  "download": {
+    "bytes": 158708,
+    "md5": "9ce9355f1d7376a235e4f95289444ae6",
+    "triangles": 2888,
+    "maps": "none: two materials, \"Wood\" and \"Green\", plain colours (no image)",
+    "file": "tree-t1.glb"
+  },
+  "use": "The tree on the clifftop (levels/steinagljufur/upper.js) that the Flugeðlur wrap the rope round; the world leans it a little, and tints its two materials (the trunk and the crown) to the gorge's palette.",
+  "size": {
+    "note": "3.7 m across the crown, 4.83 m high (Quaternius's Tree, scale 1.947254)",
+    "bounds": {
+      "x": [
+        -1.8393,
+        1.8393
+      ],
+      "y": [
+        -2.7,
+        2.7
+      ],
+      "z": [
+        0,
+        4.8303
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: one mesh with two materials (the trunk \"Wood\", the crown \"Green\": the file's two primitives are kept), the imported node scale taken into the vertices, not decimated (2,888 triangles, under the 3,000 target), scaled so its widest side is 5.4 m on the ground and set on y = 0; the first material was rebuilt as plain metal-rough (roughness 0.95; the script renames it \"gorgetree\"), the second left as the file has it. quantize-glb.mjs: positions 16-bit, normals 8-bit. In the game (upper.js): both materials tinted and made matt, the whole tree leaned a few degrees.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/t1-tree/tree-t1.glb gorge-tree-blender.glb name=GorgeTree size=5.4 tris=3000 tex=256 normal=0 roughness=0.95",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-tree-blender.glb remake/assets/memory/bord2/gorge-tree.glb",
+  "passes": "blenderCommand (Blender 5.2; 158816 bytes), then quantizeCommand (77748 bytes).",
+  "fileUrl": "https://static.poly.pizza/18bfa206-01b3-4368-a391-513f21078bb1.glb"
+}
