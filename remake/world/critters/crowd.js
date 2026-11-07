@@ -31,6 +31,15 @@ function bakedModel(kind, lods, pivot, height) {
 // `inView`: a critter the camera's view cannot show, nor its shadow (SHADOW_REACH times its height past the view's edge), is not
 // drawn either (the far pool's horn shot drew 19 behind and beside the camera).
 const SHADOW_REACH = 3;
+// The sun's shadow pass draws only the critters whose bounds touch its box (the shadow camera's frustum, where the sun stands this
+// frame: main.js focuses it before the place's update), the rest of the drawn ones only in the main pass: each level keeps those that
+// cast first in its instances, and its count is theirs while the shadow pass draws it. Every critter cast before, the 28 m box or not.
+// A critter's bounds for this: its model's rest sphere, grown by CAST_GROW and CAST_MARGIN for its frames and wings.
+const CAST_GROW = 1.25;
+const CAST_MARGIN = 0.5; // m
+// A critter's level changes LOD_HYSTERESIS past its distance (a critter that is its own pose object keeps its level), so one at the
+// switch does not flicker between the two (engine/character-lod.js has the same 8 %).
+const LOD_HYSTERESIS = 0.08;
 export function createCrowds(world, { parent = world.scene, seen = 160, inView = false } = {}) {
   const group = new THREE.Group();
   group.name = 'Crowds';
@@ -48,6 +57,13 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   const viewMatrix = new THREE.Matrix4();
   const bounds = new THREE.Sphere();
   let culling = false;
+  // the sun's shadow box this frame, or null (no sun that casts: every critter casts, as before)
+  const shadowView = new THREE.Frustum();
+  const shadowEye = new THREE.OrthographicCamera();
+  const shadowMatrix = new THREE.Matrix4();
+  const lookAt = new THREE.Vector3();
+  let shadowing = false;
+  const levelOf = new WeakMap(); // a pose object -> the level it was drawn at last (hysteresis)
 
   // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
   function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, seen: reach = null } = {}) {
@@ -81,12 +97,21 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
         // makes the morph texture, one row a critter, sized by the mesh's count (the capacity now)
         if (k.holder) mesh.setMorphAt(0, k.holder);
         mesh.count = 0;
+        const entry = { mesh, until, triangles, n: 0, casting: 0, still: 0 };
+        // the shadow pass draws the first `casting` instances, the main pass all `n`
+        mesh.onBeforeShadow = () => { mesh.count = entry.casting; };
+        mesh.onAfterShadow = () => { mesh.count = entry.n; };
         meshes.push(mesh);
         group.add(mesh);
-        return { mesh, until, triangles, n: 0 };
+        return entry;
       });
       model.geometry.computeBoundingBox();
       k.height = model.height ?? model.geometry.boundingBox.max.y - model.geometry.boundingBox.min.y;
+      model.geometry.computeBoundingSphere();
+      const sphere = model.geometry.boundingSphere;
+      // its middle straight above its foot (the heading turns the rest round it), its reach round that
+      k.castCentre = new THREE.Vector3(0, sphere.center.y + (model.pivot ?? 0), 0);
+      k.castRadius = (sphere.radius + Math.hypot(sphere.center.x, sphere.center.z)) * CAST_GROW;
     }
   }
 
@@ -97,11 +122,25 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
 
   function begin(camera) {
     if (!built) build();
-    for (const k of kinds.values()) for (const level of k.levels) level.n = 0;
+    for (const k of kinds.values()) for (const level of k.levels) { level.n = 0; level.casting = 0; level.still = 0; }
     placedCount = 0;
     eye = camera ? camera.getWorldPosition(eyeAt) : null;
     culling = Boolean(inView && camera?.isCamera);
     if (culling) view.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    shadowing = shadowBox();
+  }
+
+  // The sun's shadow camera as three's shadow pass will set it (DirectionalLightShadow.updateMatrices): at the light, looking at
+  // its target, with the box lighting.focus() gave it. False when there is no sun that casts.
+  function shadowBox() {
+    const sun = world.lighting?.sun;
+    if (!sun?.castShadow || !sun.shadow?.camera?.isOrthographicCamera || world.renderer?.shadowMap?.enabled === false) return false;
+    const box = sun.shadow.camera;
+    shadowEye.position.setFromMatrixPosition(sun.matrixWorld);
+    shadowEye.lookAt(lookAt.setFromMatrixPosition(sun.target.matrixWorld));
+    shadowEye.updateMatrixWorld();
+    shadowView.setFromProjectionMatrix(shadowMatrix.multiplyMatrices(box.projectionMatrix, shadowEye.matrixWorldInverse));
+    return true;
   }
 
   const along = new THREE.Matrix4();
@@ -124,14 +163,21 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
       bounds.radius = height * SHADOW_REACH + 1;
       if (!view.intersectsSphere(bounds)) return -1;
     }
-    let l = 0;
-    while (l < k.levels.length - 1 && far > k.levels[l].until * k.levels[l].until) l++;
+    const l = levelFor(k, Math.sqrt(far), pose);
     const level = k.levels[l];
     if (level.n >= k.capacity) {
       if (!warned.has(kind)) { warned.add(kind); console.warn(`[crowds] more ${kind} placed than the ${k.capacity} reserved`); }
       return -1;
     }
-    const i = level.n++;
+    // those that cast from the front of the level's instances, the others from its back (end() closes the gap)
+    let casts = true;
+    if (shadowing) {
+      bounds.center.copy(k.castCentre).multiplyScalar(scale).add(position);
+      bounds.radius = k.castRadius * scale + CAST_MARGIN;
+      casts = shadowView.intersectsSphere(bounds);
+    }
+    const i = casts ? level.casting++ : k.capacity - 1 - level.still++;
+    level.n++;
     // T(position)·R(heading)·S(scale) · T(0, pivot, 0)·R_z(pitch)·S(squash)
     along.compose(position, turn.setFromAxisAngle(up, -heading * DEG), size.setScalar(scale));
     own.makeRotationZ(pose.pitch ?? 0).setPosition(0, k.model.pivot, 0);
@@ -155,10 +201,39 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     return i;
   }
 
+  // The level a critter `d` metres away is drawn at: the first whose `until` it is within, but a critter that was drawn at a level
+  // last frame (its pose object says who it is) keeps it until it is LOD_HYSTERESIS past the switch.
+  function levelFor(k, d, pose) {
+    const levels = k.levels;
+    let l = 0;
+    while (l < levels.length - 1 && d > levels[l].until) l++;
+    if (levels.length < 2 || !pose || typeof pose !== 'object') return l;
+    const was = levelOf.get(pose);
+    if (was !== undefined && was !== l && was < levels.length) {
+      if (was < l && d <= levels[was].until * (1 + LOD_HYSTERESIS)) l = was; // going away: the finer one a little longer
+      else if (was > l && d > levels[l].until * (1 - LOD_HYSTERESIS)) l = was; // coming near: the coarser one a little longer
+    }
+    levelOf.set(pose, l);
+    return l;
+  }
+
   function end() {
     for (const k of kinds.values()) {
-      for (const { mesh, n } of k.levels) {
+      for (const level of k.levels) {
+        const { mesh, n, casting, still } = level;
+        // close the gap: those that only show (written from the back) come right after those that cast
+        if (still && casting + still < k.capacity) {
+          const from = k.capacity - still;
+          mesh.instanceMatrix.array.copyWithin(casting * 16, from * 16, k.capacity * 16);
+          if (mesh.morphTexture) {
+            const rows = mesh.morphTexture.source.data.data;
+            const len = rows.length / k.capacity;
+            rows.copyWithin(casting * len, from * len, k.capacity * len);
+          }
+          if (k.flight) k.flight.array.copyWithin(casting * 2, from * 2, k.capacity * 2);
+        }
         mesh.count = n;
+        mesh.castShadow = casting > 0;
         if (!n) continue;
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.morphTexture) mesh.morphTexture.needsUpdate = true;

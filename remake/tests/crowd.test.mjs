@@ -244,6 +244,57 @@ test('a crowd with two levels draws near critters fine and far ones coarse', () 
   crowds.dispose();
 });
 
+// The sun's shadow pass drew every critter drawn, the 28 m box or not (10-20k triangles at the far pool). Now only those whose
+// bounds touch its box are in it, first in the instances; and a critter keeps its level 8 % past the switch, so it does not flicker.
+test('only the critters in the sun\'s shadow box cast, and a critter keeps its level a little past the switch', () => {
+  const sun = new THREE.DirectionalLight();
+  sun.castShadow = true;
+  Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 0.5, far: 112 });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.position.set(0.3, 0.9, 0.3).normalize().multiplyScalar(56);
+  sun.updateMatrixWorld();
+  sun.target.updateMatrixWorld();
+  const crowds = createCrowds({ scene: new THREE.Scene(), lighting: { sun } });
+  crowds.reserve('frog', 4);
+  crowds.begin(camera());
+  crowds.place('frog', new THREE.Vector3(60, 0, 0), 0, 1); // out of the box: drawn, casts nothing
+  crowds.place('frog', new THREE.Vector3(2, 0, -3), 0, 1); // in it
+  crowds.end();
+  const frog = meshOf(crowds, 'frog');
+  assert.equal(frog.count, 2, 'both are drawn');
+  assert.ok(frog.castShadow);
+  frog.onBeforeShadow();
+  assert.equal(frog.count, 1, 'one is drawn in the shadow pass');
+  frog.onAfterShadow();
+  assert.equal(frog.count, 2);
+  const at = i => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(frog.instanceMatrix.array, i * 16));
+  assert.deepEqual(at(0).toArray(), [2, 0, -3], 'the one that casts comes first');
+  assert.deepEqual(at(1).toArray(), [60, 0, 0], 'the other right after it');
+  crowds.begin(camera());
+  crowds.place('frog', new THREE.Vector3(60, 0, 0), 0, 1);
+  crowds.end();
+  assert.equal(frog.castShadow, false, 'none in the box: the shadow pass skips the kind');
+  crowds.dispose();
+
+  const model = bakedModel(); // fine within 30 m
+  const lizards = createCrowds(world());
+  lizards.reserve('lizard', 1, model);
+  const [fine, coarse] = lizards.meshes.length ? lizards.meshes : (lizards.ready(), lizards.meshes);
+  const pose = {};
+  const levelAt = d => {
+    lizards.begin(camera());
+    lizards.place('lizard', new THREE.Vector3(d, 0, 0), 0, 1, pose);
+    lizards.end();
+    return fine.count ? 0 : coarse.count ? 1 : -1;
+  };
+  assert.equal(levelAt(20), 0);
+  assert.equal(levelAt(32), 0, 'going away: fine to 8 % past 30 m');
+  assert.equal(levelAt(33), 1);
+  assert.equal(levelAt(28.5), 1, 'coming near: coarse to 8 % inside it');
+  assert.equal(levelAt(27), 0);
+  lizards.dispose();
+});
+
 test('a baked crowd GLB\'s scene becomes levels in metres with named frames', () => {
   // As the GLTFLoader gives a quantized file: 16-bit positions and frames, the node scaling them back to metres.
   const scene = new THREE.Group();
