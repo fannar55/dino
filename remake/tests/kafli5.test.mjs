@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as kafli5 from '../chapters/kafli5.js';
 import { playUnattended } from './chapter-harness.mjs';
+import { createFakeContext } from './fake-audio.mjs';
 import { MELODY, GROUPS, TEMPO } from '../chapters/kafli5-song.js';
 import { HELP } from '../chapters/kafli5-choir.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
@@ -37,10 +38,10 @@ const inFrame = (point, camera) => {
  * frame's pointer), with what the run sees on the way: the caption colours, every held shot's subjects out of frame, and the choir
  * shot's frames (the groups and the reed out of frame, the camera).
  */
-function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null } = {}) {
+function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null, audio = null } = {}) {
   const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [] };
   return playUnattended(kafli5, {
-    seeking, limit: 720, shaped: true, aspect, reduced, eager,
+    seeking, limit: 720, shaped: true, aspect, reduced, eager, audio,
     onFrame(frame) {
       const { world, ui, director, shot } = frame;
       if (!seen.wrapped) {
@@ -119,7 +120,8 @@ const play = (name, options) => {
   if (!once.has(name)) once.set(name, playIt(options));
   return once.get(name);
 };
-const untouched = () => play('untouched', { seeking: false });
+// in time, with the chapter's own sound playing (a fake context that throws on a non-finite value, as a browser does)
+const untouched = () => play('untouched', { seeking: false, audio: createFakeContext({ state: 'running' }) });
 const quick = () => play('eager', { eager: true, child: eagerChild });
 const wrong = () => play('wrong', { child: wrongChild });
 const slow = () => play('slow', { child: slowChild });

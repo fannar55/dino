@@ -313,7 +313,7 @@ function* theWholeSong(s, c) {
       }
       if (!group) continue;
       c.her.horn();
-      c.sounds.horn(group, { seconds: beat * 0.95, pan: panOf(world, around(222, 12)) });
+      c.sounds.horn(group, { seconds: beat * 0.95, pan: panOf(world, [WADE.at[0], LEVEL + 2.4, WADE.at[1]]) }); // her horn, out in the pool
       sing(s, c, group, { counted: false, level: 0.12, log: 'song' });
       c.glow.flash(group);
     }

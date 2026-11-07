@@ -16,6 +16,10 @@ export class FakeParam {
   set value(value) { this.setValueAtTime(value, this.context.currentTime); }
 
   insert(event) {
+    // as a browser does: a value or time that is not a finite number throws (a NaN pan stopped chapter 5's song on the page)
+    for (const key of ['value', 'time', 'tau']) {
+      if (key in event && !Number.isFinite(event[key])) throw new TypeError(`Failed to set the AudioParam: the provided ${key} (${event[key]}) is non-finite.`);
+    }
     let i = this.events.length;
     while (i > 0 && this.events[i - 1].time > event.time) i--;
     this.events.splice(i, 0, event);
