@@ -51,7 +51,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const atlas = createCardAtlas(world.renderer ?? null, CARDED.flatMap(name => Array.from({ length: FOREST.trees.variants[name] },
       (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) }))));
     return {
-      noise, leaf, library, atlas, cards: createCardMaterial(atlas), paint: groundPaint(terrain, route),
+      noise, leaf, library, atlas, cards: createCardMaterial(atlas, { coverage: Boolean(world.q?.antialias) }), paint: groundPaint(terrain, route),
       plants: createPlantMaterials(world, { noise, leaf }), water: createWaterMaterial(world, { seed, river: true, noise }),
     };
   })();

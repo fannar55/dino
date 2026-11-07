@@ -336,12 +336,17 @@ export function patchLambert(material, key, uniforms, parts) {
  * (terrain.js: ACTOR_GLSL and the uniforms it reads, the grass's and the ground's own) that the ferns
  * lean away from. The caller hands them in because terrain.js imports this file.
  */
-export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors }) {
+export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors, leafFade = null }) {
   if (!actors) throw new Error('createVegetationMaterial needs `actors`, { glsl, uniforms }: the footprints the ferns lean away from');
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side });
   material.name = key;
   if (low) material.defines = { FOREST_LOW: '' };
-  key = low ? `${key}-low` : key;
+  // `leafFade` ({ from, to, mean }: metres, and leafTone's mean, leafFadeOf): the painted leaves fade to their mean tone between
+  // from and to metres, where their texture's mip levels have all but blurred them out, and past `to` the texture is not read
+  else if (leafFade) {
+    material.defines = { FOREST_LEAF_FADE: '', LEAF_FADE_FROM: leafFade.from.toFixed(1), LEAF_FADE_TO: leafFade.to.toFixed(1), LEAF_MEAN: leafFade.mean.toFixed(5) };
+  }
+  key = low ? `${key}-low` : leafFade ? `${key}-fade` : key;
   return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
     vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}`,
     vertexAfter: [
@@ -371,7 +376,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   gShadowUse = smoothstep( 0.55, 0.92, vSun );
   gLeaf = vLeaf;
   diffuseColor.a = 1.0;
-  #if !defined( DOUBLE_SIDED ) && !defined( FOREST_LOW )
+  #if !defined( DOUBLE_SIDED ) && !defined( FOREST_LOW ) && !defined( FOREST_LEAF_FADE )
   if ( vLeaf > 0.5 ) {
     // painted leaf clusters, projected on the plane the surface faces most
     vec3 an = abs( vForestNormal );
@@ -379,9 +384,37 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
     vec4 lc = texture2D( uLeaf, luv * 0.7 );
     diffuseColor.rgb *= mix( 0.84, 1.06, lc.r ) * mix( 0.93, 1.0, lc.g );
   }
+  #endif
+  #if !defined( DOUBLE_SIDED ) && defined( FOREST_LEAF_FADE )
+  if ( vLeaf > 0.5 ) {
+    // the same, faded to its mean tone far off, read with the gradients the plain read takes (taken out of the branch below)
+    vec3 an = abs( vForestNormal );
+    vec2 luv = ( an.y > max( an.x, an.z ) ? vForestPos.xz : ( an.x > an.z ? vForestPos.zy : vForestPos.xy ) ) * 0.7;
+    vec2 ldx = dFdx( luv ), ldy = dFdy( luv );
+    float leafAway = smoothstep( LEAF_FADE_FROM, LEAF_FADE_TO, distance( vForestPos, cameraPosition ) );
+    float leafTone = LEAF_MEAN;
+    if ( leafAway < 1.0 ) {
+      vec4 lc = textureGrad( uLeaf, luv, ldx, ldy );
+      leafTone = mix( mix( 0.84, 1.06, lc.r ) * mix( 0.93, 1.0, lc.g ), LEAF_MEAN, leafAway );
+    }
+    diffuseColor.rgb *= leafTone;
+  }
   #endif`],
     ],
   });
+}
+
+/**
+ * The painted leaves' tone far off, for createVegetationMaterial's leafFade: what the leaf texture's last mip level gives, its red
+ * and green each averaged over it, through the same mix as the shader's.
+ */
+export function leafMeanOf(leafTexture) {
+  const data = leafTexture.image.data;
+  let r = 0, g = 0;
+  for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i + 1]; }
+  const n = (data.length / 4) * 255;
+  const mix = (a, b, k) => a + (b - a) * k;
+  return mix(0.84, 1.06, r / n) * mix(0.93, 1.0, g / n);
 }
 
 /** Shadow-pass material that sways with the same wind and the same beat, so shadows match the moving crowns. */

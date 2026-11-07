@@ -10,7 +10,7 @@
 //                                                                    and how far round it the air pushes the plants away; w 0 is none)
 import * as THREE from 'three';
 import { PALETTE, FEN, FOREST } from '../forest/config.js';
-import { createSharedUniforms, createVegetationMaterial } from '../forest/materials.js';
+import { createSharedUniforms, createVegetationMaterial, leafMeanOf } from '../forest/materials.js';
 import { ACTOR_GLSL } from '../forest/terrain.js';
 import { RAPIDS } from './river.js';
 
@@ -122,6 +122,10 @@ function withDownwash(material, key, downwash) {
   return material;
 }
 
+// metres over which the plants' painted leaves fade to their mean tone (world/forest/materials.js leafFade): from 60 m the leaf
+// texture is read at its third mip level or coarser (a cell about two texels), so the fade shows as little as the mip levels do
+export const LEAF_FADE = [60, 90];
+
 /** The plants' materials: the forest's (solid and double-sided thin parts), bending away under her. */
 export function createPlantMaterials(world, { noise, leaf }) {
   const shared = createSharedUniforms(world, noise, leaf, 0);
@@ -137,7 +141,10 @@ export function createPlantMaterials(world, { noise, leaf }) {
   };
   const downwash = { value: new THREE.Vector4(0, 0, 0, 0) };
   const low = world.q?.name === 'low';
-  const solid = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors }), `ardalur-solid${low ? '-low' : ''}`, downwash);
+  // far off the painted leaves fade to their mean tone, and past LEAF_FADE[1] their texture is not read (most of a crown seen from the
+  // flight is that far)
+  const leafFade = low ? null : { from: LEAF_FADE[0], to: LEAF_FADE[1], mean: leafMeanOf(leaf) };
+  const solid = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}`, downwash);
   const thin = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors }), `ardalur-thin${low ? '-low' : ''}`, downwash);
   return {
     solid, thin, downwash: downwash.value,
