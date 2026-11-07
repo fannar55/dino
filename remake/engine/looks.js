@@ -85,6 +85,14 @@ LOOKS.earlyAfternoon = {
   sun: { ...blendLooks(LOOKS.lateMorning, LOOKS.golden, 0.4).sun, azimuth: 215, elevation: 22 },
 };
 
+// Chapter 5's (its spec 1, "gullið síðdegi"): the golden afternoon at the far pool, later the same day, everything 70 % of the way
+// from lateMorning toward golden, the sun's colour too, and the sun lower than chapter 4's from the same way (heading 215), so the
+// pool's shots keep their light as chapter 4 left it; not yet the sunset (chapter 6 and the festival have that).
+LOOKS.goldenAfternoon = {
+  ...blendLooks(LOOKS.lateMorning, LOOKS.golden, 0.7),
+  sun: { ...blendLooks(LOOKS.lateMorning, LOOKS.golden, 0.7).sun, azimuth: 215, elevation: 14 },
+};
+
 /**
  * A look `k` of the way from `a` to `b` (0 is a, 1 is b): its colours mixed as written (sRGB hex, channel by channel) and its numbers
  * in between; the sun's place is a's.

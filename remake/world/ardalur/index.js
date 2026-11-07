@@ -36,8 +36,13 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
  * Build Árdalurinn. Options: grey (the stand-ins of chunk 1; otherwise the real look: look.js, the forest's plants, the game's
  * water), seed, route, budget(), now() (the build slices), critters (loadCritters in animals.js: the small lizard, loaded first),
  * cardFrom (metres past which a tree is drawn as its card: world/forest/cards.js; settable on the place too).
+ * `at` ([x, z]) is for a chapter that stands in one spot of the valley and does not fly (chapter 5 at the far pool): only the sections
+ * whose land is within SIGHT of it are built, all at once, none queued (its cameras stand near it: one that wanders off has the land
+ * round it built when it comes, noted in stats.late), and they are shown with no flight (world.flightU
+ * null: none wanted round the snag). `views` ({ position, looks }: Vector3s) are a still camera's lines of sight more, kept clear of
+ * plants as the flight's are (banks.js VIEW), and `keep` ({ x, z, r }) spots where nothing grows: that chapter's own shots and spots.
  */
-export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom } = {}) {
+export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [] } = {}) {
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
@@ -80,11 +85,11 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const upland = real ? landPlants(terrain.waters, (x, z) => terrain.heightAt(x, z)) : null;
   const outcrops = real ? outcropProps(route, (x, z) => terrain.heightAt(x, z)) : null;
   const props = real ? [...animals.props, ...life.props, ...pond.props, ...upland.props, ...outcrops.props] : [];
-  const clear = real ? [...animals.clear, ...life.clear, ...pond.clear, ...upland.clear, ...outcrops.clear] : [];
+  const clear = real ? [...animals.clear, ...life.clear, ...pond.clear, ...upland.clear, ...outcrops.clear, ...keep] : [];
   // round each animal group, on its side of the river, only low plants grow (banks.js LOW): the child sees the animals over them
   const low = real ? animals.groups.map(g => ({ x: g.point.x, z: g.point.z, side: terrain.where(g.point.x, g.point.z).side })) : [];
   // the still shots' views, where nothing stands by the camera or on its line of sight (banks.js VIEW, spec 6)
-  const views = real ? stillViews(route, { heightAt: (x, z) => terrain.heightAt(x, z) }) : [];
+  const views = real ? [...stillViews(route, { heightAt: (x, z) => terrain.heightAt(x, z) }), ...moreViews] : [];
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
@@ -183,18 +188,20 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     stats.built.push(i);
   };
   const order = (a, b) => needed[a] - needed[b] || a - b;
-  // Round the snag at once; the rest a slice at a time, soonest needed first.
-  const first = new Set([...sections.wanted(0), ...nearTo(route.tree[0], route.tree[2])]);
+  // Round the snag at once; the rest a slice at a time, soonest needed first. A chapter that stands at `at`: the land round it at once,
+  // and nothing more.
+  const first = at ? new Set(nearTo(at[0], at[1])) : new Set([...sections.wanted(0), ...nearTo(route.tree[0], route.tree[2])]);
   for (const i of [...first].sort(order)) finish({ steps: build(i), done: done(i) });
-  for (const i of sections.list.map(s => s.index).filter(i => !first.has(i)).sort(order)) queue.add(i, build(i), done(i));
+  if (!at) for (const i of sections.list.map(s => s.index).filter(i => !first.has(i)).sort(order)) queue.add(i, build(i), done(i));
 
   let lastVisible = [];
   const downwash = real ? real.plants.downwash : new THREE.Vector4();
   function update(dt, time = 0) {
-    const u = world.flightU ?? 0;
+    // no flight where the chapter stands still (`at`): only what the camera is near is wanted
+    const u = at && (world.flightU === null || world.flightU === undefined) ? null : world.flightU ?? 0;
     const camera = world.camera?.position;
     const near = camera ? nearTo(camera.x, camera.z) : [];
-    for (const i of new Set([...sections.wanted(u), ...near])) {
+    for (const i of new Set([...(u === null ? [] : sections.wanted(u)), ...near])) {
       if (sections.list[i].built) continue;
       const job = queue.take(i);
       if (job) finish(job);
@@ -246,6 +253,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     /** The land round the valley (far-land.js), in the real look; null in the grey one (a slot). */
     farLand,
     heightAt: (x, z) => terrain.heightAt(x, z),
+    /** The sections whose land is within `reach` metres of (x, z), seen from above. */
+    near: (x, z, reach = SIGHT) => nearTo(x, z, reach),
     get visible() { return lastVisible; },
     /** Metres past which a tree is drawn as its card (Infinity: never). */
     get cardFrom() { return cardFrom; },

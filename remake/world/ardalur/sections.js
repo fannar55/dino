@@ -34,9 +34,9 @@ export function createSections(route, { length = SECTION.length, ahead = SECTION
   }
   return {
     list, length, count, indexAt, wanted,
-    /** Show the built sections wanted at u and those in `near` (indices); hide the rest. Returns the visible indices. */
+    /** Show the built sections wanted at u (none if u is null: no flight) and those in `near` (indices); hide the rest. Returns the visible indices. */
     update(u, near = []) {
-      const show = new Set([...wanted(u), ...near]);
+      const show = new Set([...(u === null ? [] : wanted(u)), ...near]);
       for (const section of list) section.visible = section.built && show.has(section.index);
       return list.filter(s => s.visible).map(s => s.index);
     },
