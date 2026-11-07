@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createMemoryGame } from '../engine/memory/rules.js';
-import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel, finishLevel } from '../engine/memory/levels/index.js';
+import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel, finishLevel, isNewLevel, markPlayed } from '../engine/memory/levels/index.js';
 import { BERJALUNDUR } from '../engine/memory/levels/berjalundur.js';
 import { STEINAGLJUFUR } from '../engine/memory/levels/steinagljufur.js';
 
@@ -324,6 +324,29 @@ test('unlocking a level is written as a JSON array of ids, and tells whether it 
   assert.equal(unlockLevel('berjalundur', storage), true); assert.deepEqual(JSON.parse(storage.value), ['berjalundur'], 'twice is once');
   assert.equal(unlockLevel('berjalundur', blockedStorage), false, 'storage that throws is a no, not a crash');
   assert.deepEqual([...unlockedLevels(storage)], ['berjalundur']);
+});
+
+test('«Nýtt!»: an open level other than level 1 is new until a round of it starts (minnisspil.played), and blocked storage is no crash', () => {
+  const keys = {}, storage = { getItem: key => keys[key] ?? null, setItem(key, value) { keys[key] = value; } };
+  const [one, two] = LEVELS;
+  assert.equal(isNewLevel(one, new Set(), storage), false, 'level 1 is never new');
+  assert.equal(isNewLevel(two, new Set([two.id]), storage), false, 'a locked level is not new');
+  assert.equal(isNewLevel(two, new Set(), storage), true);
+  assert.equal(markPlayed(two, storage), true); assert.deepEqual(JSON.parse(keys['minnisspil.played']), [two.id]);
+  assert.equal(isNewLevel(two, new Set(), storage), false, 'played: not new any more');
+  assert.equal(keys['minnisspil.unlocked'], undefined, 'the played key is its own, next to the unlocked one');
+  assert.equal(markPlayed(two, blockedStorage), false); assert.equal(isNewLevel(two, new Set(), blockedStorage), true);
+});
+
+test('the juice pass: the page sounds are Litla Yatzy\'s, on the buttons and the picker, never on the finger or the repeat; the star, the basket and the end', () => {
+  const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
+  assert.match(game, /import \{ createJuniorAudio \} from '\.\.\/yatzy-junior\/sounds\.js'/);
+  const body = name => game.slice(game.indexOf(`function ${name}(`), game.indexOf('\n}', game.indexOf(`function ${name}(`)));
+  for (const quiet of ['repeatMoment', 'refreshControls', 'sayAgain']) assert.ok(!body(quiet).includes('uiSound('), `${quiet} makes no page sound`);
+  for (const [name, kind] of [['giftLanded', 'land'], ['landDot', 'pip'], ['setEnding', 'win'], ['pressMosi', 'tap'], ['tapFriend', 'tap']]) assert.ok(body(name).includes(`uiSound('${kind}'`), `${name} plays ${kind}`);
+  assert.match(game, /if \(uiDucked !== voice\) \{ uiDucked = voice; ui\.duck\(voice\); \}/, 'the page sounds dip under his voice');
+  const scenes = readFileSync(new URL('../engine/memory/scenes/first-minute.js', import.meta.url), 'utf8');
+  assert.match(scenes, /say: 'match', sound: \{ name: 'star', nestIndex \}/, 'the star flies as Mosi claps at home');
 });
 
 test('choosing a level: level 1 by default, ?bord= by number, an unknown number falls back to level 1', () => {

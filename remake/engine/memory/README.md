@@ -55,6 +55,25 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
 - **Cards**: the welcome (`#welcome`, Mosi on top, the title, two lines, the level cards and "Leikum saman"), the ending (`#ending`: the
   title, the sentence, the gifts in the basket, "Spila aftur", the next level, and the small "i" of the models' credits), `#loading`
   and `#error`.
+- **The page's juice** (the juice pass of 2026-11-07, package B; code-made shapes and sounds only). Every button taps as it is pressed
+  (Litla Yatzy's page sounds, `engine/yatzy-junior/sounds.js`, through `uiSound()`: `tap`, a locked level card's `oh`, "Aftur"'s
+  `close`, the pause card's `pause` and `resume`; the picker's `bubble` as it pops in); they dip under Mosi's voice (`duck`), each kind
+  waits its own gap (`JUNIOR_GAPS`), and the finger and the 10 s repeat make none. `hud-fx.js` draws the rest with Litla Yatzy's
+  `.yj-spark` stars: a found pair's star flies from the pair at home to its dot as Mosi claps (the match script's `star` sound), and
+  the dot fills as it lands (a pop, a few stars, `pip`; a dot owed with no script fills a moment later all the same); a gift pair
+  landing in the basket bursts stars from the chip, pops the count and plays `land` with the world's `ding`; the first time the
+  ending card shows in a round, paper confetti falls (`#confetti`, Eitt's, as DOM) with the fanfare (`win`). The ending card springs
+  up from below; «Nýtt!» (`.new-tag`) and a breathing gold glow mark the ending card's button to a level not played yet, and «Nýtt!»
+  that level's card on the welcome card (`levels/index.js` `isNewLevel`, `markPlayed` when a round of it starts, kept in
+  `minnisspil.played` next to `minnisspil.unlocked`). Mosi's bubble gives a light squeeze when its words change, and his face on
+  his button grows and tilts a little with his voice (`speech.amplitude()`). Under less motion nothing of this moves (a star lands at
+  once, no confetti, no squeeze, no tilt); the sounds stay. In the world, `world.js` `perform()` has an fx kind `done` for a task
+  done (a big gold `burst` and a short shake, `shake: false` where the moment shakes already), and a flying gift pair leaves a gold
+  `trail`; both pass `spare` to `world-fx.js`, so they never take the footstep dust's room in the shared pool of 192.
+  `window.__memory.audio().ui` is what the page's sounds did (`asked`: each kind asked for, with the game's and the page's time), and
+  `window.__memory.dots()` the dots filled.
+  Level 2's last picture keeps the lower part of the screen free for the ending card (a shot's `clear` in `camera-director.js`: .44 of
+  the height, .56 on a tall screen), so everyone on Sólarsyllan stands above it.
 
 Gone from the screen in that remake: the green box with the way's title, "0 / 4 pör" and the trail of steps (and the levels' `ribbon`, the steps' `journey` names, `aria.journey`), the camera
 button and its hint, the sound button, the help card (`copy.help`), the small eyebrow and fine print on the cards (`welcome.eyebrow`,
