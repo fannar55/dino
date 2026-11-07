@@ -5,11 +5,12 @@ import * as THREE from 'three';
 // `around` in the bind pose, so a saddle can be fitted to her back and tested against it without the rest of her.
 //
 //   const skin = skinSurface(mesh, { around, near: 1.2 })   // bind-pose positions, in the mesh's own (bind) frame
-//   skin.closest(point)        // { point, normal, distance (positive outside her), face, weights: Map(bone index -> weight) }
+//   skin.closest(point)        // { point, normal, distance (positive outside her), corners (the mesh's vertices), weights: Map(bone -> w) }
 //   skin.pose()                // re-skins the region in the pose her bones are in now, in the world (a test's frames)
 //
-// The skin is one closed, consistently wound shell (the bake tools weld it so), so the closest triangle's normal tells the side; near an
-// edge the side is taken from the normals of all the triangles that share the closest point, weighted by their angles there.
+// The skin is one closed, consistently wound shell, so the closest triangle's normal tells the side; near an edge the side is taken from
+// the normals of all the triangles that share the closest point, weighted by their angles there. Its vertices are split at UV seams,
+// so the triangles round a point are found by place (vertices at one place are one), not by vertex.
 
 const tri = new THREE.Triangle();
 const v = new THREE.Vector3();
@@ -44,9 +45,17 @@ export function skinSurface(mesh, { around = null, near = Infinity, cell = 0.05 
     used.add(a); used.add(b); used.add(c);
   }
   const vertices = [...used];
-  const around3 = new Map(); // vertex -> the region's triangles (offsets into faces) that use it
+  // vertices at one place, one (by bind position, to a hundredth of a millimetre)
+  const placeOf = new Map();
+  const place = new Int32Array(count).fill(-1);
+  for (const i of vertices) {
+    const k = `${Math.round(bind[3 * i] * 1e5)},${Math.round(bind[3 * i + 1] * 1e5)},${Math.round(bind[3 * i + 2] * 1e5)}`;
+    if (!placeOf.has(k)) placeOf.set(k, placeOf.size);
+    place[i] = placeOf.get(k);
+  }
+  const around3 = new Map(); // place -> the region's triangles (offsets into faces) that use a vertex there
   for (let f = 0; f < faces.length; f += 3) for (let k = 0; k < 3; k++) {
-    const i = faces[f + k];
+    const i = place[faces[f + k]];
     if (!around3.has(i)) around3.set(i, []);
     around3.get(i).push(f);
   }
@@ -117,7 +126,7 @@ export function skinSurface(mesh, { around = null, near = Infinity, cell = 0.05 
     if (bestF < 0) return null;
     // the side: the normals of the triangles round the closest point, by their angles at it (one triangle's own when it is inside it)
     const normal = new THREE.Vector3();
-    const round = new Set([bestF, ...[0, 1, 2].flatMap(k => around3.get(faces[bestF + k]))]);
+    const round = new Set([bestF, ...[0, 1, 2].flatMap(k => around3.get(place[faces[bestF + k]]))]);
     for (const f of round) {
       tri.set(at(faces[f], A), at(faces[f + 1], B), at(faces[f + 2], C));
       tri.closestPointToPoint(best, cand);
@@ -149,7 +158,7 @@ export function skinSurface(mesh, { around = null, near = Infinity, cell = 0.05 
         weights.set(bone, (weights.get(bone) ?? 0) + w);
       }
     });
-    return { point: best.clone(), normal, distance: side * bestD, face: bestF / 3, weights };
+    return { point: best.clone(), normal, distance: side * bestD, corners: [faces[bestF], faces[bestF + 1], faces[bestF + 2]], weights };
   }
 
   return {
