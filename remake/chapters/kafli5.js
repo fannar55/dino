@@ -77,7 +77,8 @@ const SONG_TIMES = 2; // she plays the whole song twice in scene 6
 const ROAR = { level: 0.3 };
 // The choir's shot turns gently toward the group that sings: this share of the way from its own aim to the group, over `seconds`
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
-const LEAN = { share: 0.15, seconds: 1.6 };
+// The share is halved until every group and the reed are inside FRAMED of the frame from its middle (an upright screen turns less).
+const LEAN = { share: 0.15, seconds: 1.6, framed: 0.9, tries: 4 };
 const TO_THE_MAP = 1.2; // s the book shows its dinosaurs (Slóeðla nodding) before it turns to the map, as chapter 4's
 
 // ---------------------------------------------------------------------------------------------
@@ -416,10 +417,28 @@ function sendTheChoir(c) {
 
 /** The choir's shot turns a little toward `group` (not with less motion, nor while she steps out between phrases). */
 function leanTo(s, c, group) {
-  if (c.reduced || c.interlude || c.scene < 4) return;
-  const { target } = SHOTS.choir_wide;
+  if (c.reduced || c.interlude || c.scene < 4 || !c.world.camera) return;
+  const { target, position } = SHOTS.choir_wide;
   const p = tapPoint(c, group);
-  s.camera.lookAt(target.map((v, i) => v + (p[i] - v) * LEAN.share), { duration: LEAN.seconds });
+  const V3 = c.world.THREE.Vector3;
+  const eye = c.world.camera.clone();
+  eye.position.set(...position);
+  const seen = [...GROUPS.map(g => tapPoint(c, g)), REED_POINT].map(point => new V3(...point));
+  const framed = aim => {
+    eye.lookAt(...aim);
+    eye.updateMatrixWorld(true);
+    return seen.every(point => {
+      const q = point.clone().project(eye);
+      return q.z < 1 && Math.abs(q.x) <= LEAN.framed && Math.abs(q.y) <= LEAN.framed;
+    });
+  };
+  let share = LEAN.share;
+  for (let k = 0; k < LEAN.tries; k++, share /= 2) {
+    const aim = target.map((v, i) => v + (p[i] - v) * share);
+    if (!framed(aim)) continue;
+    s.camera.lookAt(aim, { duration: LEAN.seconds });
+    return;
+  }
 }
 
 /** The group sings its tone: its sound, and every member hops. */
