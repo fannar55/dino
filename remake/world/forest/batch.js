@@ -31,6 +31,10 @@ const CROWN_LOD = new Set(['broadleaf', 'araucaria', 'swampConifer']);
 const [CROWN_T0, CROWN_T1] = FOREST.lod.crownSize;
 const CROWN_FINE = FOREST.lod.crownFine ?? 4;
 const CARD_FROM = FOREST.lod.cardFrom ?? Infinity;
+// A plant's level, its crown's, its card and its fade-out distance change HYSTERESIS past their switch, in the way it is going (as
+// the characters' levels do, engine/character-lod.js), so one standing at a switch does not flicker between the two, and its mesh's
+// index is not rewritten each time it does. A plant seen for the first time takes the switch as it is.
+const HYSTERESIS = 0.08;
 
 /** One record per tree: crown centre and half-extent, and the level chosen for this view. */
 function crownLod(placement, first) {
@@ -109,17 +113,20 @@ export function createBatcher() {
     const sw = UNDERSTORY.has(placement.name) ? LOD_SWITCH_SMALL : LOD_SWITCH;
     const crown = crownLod(placement, levels[0].level);
     const carded = !!placement.card;
-    if (carded) cards.push({ placement, ref });
+    // what the plant was drawn as last (its level's place in `bands`, its card), shared by all its ranges, for the hysteresis
+    const plant = { bands: [], li: -1, levelView: -1, card: null, cardView: -1 };
+    if (carded) cards.push({ placement, ref, plant });
     levels.forEach(({ level, model }, i) => {
       // distance band of this level: [switch before it, switch after it)
       const minD = i === 0 ? 0 : sw[Math.min(level, sw.length) - 1];
       const maxD = i === levels.length - 1 ? Infinity : sw[Math.min(level, sw.length - 1)];
+      plant.bands.push([minD, maxD]);
       for (const kind of ['solid', 'thin']) {
         const builder = model[kind];
         if (!builder || !builder.count) continue;
         // thin parts (fronds, petals) are small: they share wider sectors, which saves draw calls
         const s = kind === 'thin' ? Math.floor(sector / 2) * 2 : sector;
-        main.push(`${band}:${s}:${kind}`, { band, sector: s, kind }, { builder, placement, minD, maxD, ref, level, crown, carded }, builder);
+        main.push(`${band}:${s}:${kind}`, { band, sector: s, kind }, { builder, placement, minD, maxD, ref, level, crown, carded, plant, li: i }, builder);
       }
     });
   }
@@ -151,7 +158,7 @@ export function createBatcher() {
     let v = 0, k = 0;
     const box = new THREE.Box3();
     const tmp = new THREE.Vector3();
-    for (const { builder: m, placement: p, minD, maxD, ref, level, crown, carded = false } of bucket.items) {
+    for (const { builder: m, placement: p, minD, maxD, ref, level, crown, carded = false, plant = null, li = -1 } of bucket.items) {
       const c = Math.cos(p.rot), s = Math.sin(p.rot), sc = p.scale;
       const phase = Math.round((p.phase % 1) * 255);
       const sky = p.sky;
@@ -202,7 +209,7 @@ export function createBatcher() {
         // pieces after the first mark are the crown: cullBatches picks their level per view
         ranges.push({
           start, count: k - start, sphere, cull: CULL_DISTANCE[p.name] ?? Infinity, minD, maxD, ref: ref || sphere.center,
-          name: p.name, lod: level ?? p.lod, crown: c2 > 0 && crown ? crown : null, carded,
+          name: p.name, lod: level ?? p.lod, crown: c2 > 0 && crown ? crown : null, carded, plant, li, near: null,
         });
       }
       yield; // a plant at a time
@@ -263,7 +270,7 @@ export function createBatcher() {
     const ranges = [];
     const box = new THREE.Box3();
     let biggest = 0;
-    cards.forEach(({ placement: p, ref }, t) => {
+    cards.forEach(({ placement: p, ref, plant }, t) => {
       const { uv: [u0, v0, u1, v1], width, height, bottom } = p.card;
       const w = width * p.scale, h = height * p.scale, y = p.y + bottom * p.scale;
       const flip = Math.sin(p.rot) < 0;
@@ -279,7 +286,7 @@ export function createBatcher() {
       const sphere = new THREE.Sphere(new THREE.Vector3(p.x, y + h / 2, p.z), Math.hypot(w, h) / 2);
       ranges.push({
         start: t * 6, count: 6, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref, name: p.name, lod: 3, crown: null,
-        card: true, sector: p.sector,
+        card: true, sector: p.sector, plant,
       });
       box.expandByPoint(sphere.center);
       biggest = Math.max(biggest, sphere.radius);
@@ -365,28 +372,54 @@ const _crowns = [];
  * call. `hide(range, mesh)`, if given, true leaves out more (a place that knows what its ground hides:
  * world/ardalur/sight.js). Returns the number of triangles now submitted.
  */
+/** Whether a plant `d` m away is drawn as its card: past cardFrom, HYSTERESIS past it either way once it has been drawn. */
+function asCard(plant, d, cardFrom) {
+  if (!plant) return d >= cardFrom;
+  if (plant.cardView === _view) return plant.card;
+  plant.cardView = _view;
+  const by = plant.card === null ? 1 : plant.card ? 1 - HYSTERESIS : 1 + HYSTERESIS;
+  plant.card = d >= cardFrom * by;
+  return plant.card;
+}
+
+/** The place in plant.bands of the level a plant `d` m away is drawn at, kept HYSTERESIS past its band once drawn. */
+function bandOf(plant, d) {
+  if (plant.levelView === _view) return plant.li;
+  plant.levelView = _view;
+  let li = plant.bands.findIndex(([lo, hi]) => d >= lo && d < hi);
+  if (plant.li >= 0 && li !== plant.li) {
+    const [lo, hi] = plant.bands[plant.li];
+    if (d >= lo * (1 - HYSTERESIS) && d < hi * (1 + HYSTERESIS)) li = plant.li;
+  }
+  plant.li = li;
+  return li;
+}
+
 export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom = CARD_FROM) {
   _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_m4);
   _cam.setFromMatrixPosition(camera.matrixWorld);
-  // crowns in view, largest on screen first
+  // crowns in view, largest on screen first (one that was fine a little ahead of the others, so two of a size do not take turns)
   _view++;
   _crowns.length = 0;
   for (const mesh of meshes) {
     for (const r of mesh.userData.cull.ranges) {
       const c = r.crown;
       if (!c || c.frame === _view) continue;
-      if (r.carded && _cam.distanceTo(r.ref) >= cardFrom) continue; // a card this view
+      if (r.carded && asCard(r.plant, _cam.distanceTo(r.ref), cardFrom)) continue; // a card this view
+      c.prev = c.frame < 0 ? null : c.level;
       c.frame = _view;
       c.proj = c.size / Math.max(0.5, _cam.distanceTo(c.centre));
+      c.rank = c.prev === 0 ? c.proj * (1 + HYSTERESIS) : c.proj;
       c.level = 2;
       _sphere.set(c.centre, c.size + margin);
       if (_frustum.intersectsSphere(_sphere)) _crowns.push(c);
     }
   }
-  _crowns.sort((a, b) => b.proj - a.proj);
+  _crowns.sort((a, b) => b.rank - a.rank);
+  const past = (prev, finer) => (prev === null ? 1 : prev <= finer ? 1 - HYSTERESIS : 1 + HYSTERESIS);
   _crowns.forEach((c, i) => {
-    const want = i < CROWN_FINE && c.proj > CROWN_T0 ? 0 : c.proj > CROWN_T1 ? 1 : 2;
+    const want = i < CROWN_FINE && c.proj > CROWN_T0 * past(c.prev, 0) ? 0 : c.proj > CROWN_T1 * past(c.prev, 1) ? 1 : 2;
     c.level = Math.max(want, c.first);
   });
   let total = 0;
@@ -396,16 +429,23 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
     const keep = [];
     data.ranges.forEach((r, i) => {
       if (r.card || r.carded) {
-        const far = _cam.distanceTo(r.ref) >= cardFrom;
+        const far = asCard(r.plant, _cam.distanceTo(r.ref), cardFrom);
         if (r.card ? !far : far) return;
       }
       if (r.crown) {
         if (r.lod !== r.crown.level) return;
+      } else if (r.plant && r.li >= 0) {
+        if (bandOf(r.plant, _cam.distanceTo(r.ref)) !== r.li) return;
       } else {
         const d = _cam.distanceTo(r.ref);
         if (d < r.minD || d >= r.maxD) return;
       }
-      if (_cam.distanceTo(r.sphere.center) - r.sphere.radius > r.cull) return;
+      if (r.cull !== Infinity) {
+        // small plants fade out of the grass and mist at their own distance, HYSTERESIS past it once drawn
+        const by = r.near === null || r.near === undefined ? 1 : r.near ? 1 + HYSTERESIS : 1 - HYSTERESIS;
+        r.near = _cam.distanceTo(r.sphere.center) - r.sphere.radius <= r.cull * by;
+        if (!r.near) return;
+      }
       _sphere.copy(r.sphere);
       _sphere.radius += margin;
       if (!_frustum.intersectsSphere(_sphere)) return;

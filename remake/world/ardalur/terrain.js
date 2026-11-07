@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { FRESH } from '../forest/slices.js';
 
 export const GRID = 2.5;
+export const TILE = 16; // cells a side of a ground tile (40 m), the piece the place culls the ground by
 export const CORRIDOR = 160;
 export const GREY = { ground: '#9a9a9a', water: '#7d8a94', rock: '#b0b0b0', plant: '#8e948b', falls: '#b9c3ca', snag: '#d9d7cf', mark: '#c8b48e', far: '#a3a8ad' };
 
@@ -312,16 +313,40 @@ export function* groundSteps(terrain, index, { from, to }, material, paint = nul
     }
     return vertexOf[id];
   };
+  const cellsAcross = W - 1;
+  const quads = new Int32Array(cellsAcross * (H - 1) * 4).fill(-1); // each owned cell's corners' vertices: (i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)
   for (let j = 0; j < H - 1; j++) {
     for (let i = 0; i < W - 1; i++) {
-      if (!own[j * (W - 1) + i]) continue;
-      const a = corner(i, j);
-      const b = corner(i + 1, j);
-      const c = corner(i, j + 1);
-      const d = corner(i + 1, j + 1);
-      indices.push(a, c, b, b, c, d);
+      const cell = j * cellsAcross + i;
+      if (!own[cell]) continue;
+      quads.set([corner(i, j), corner(i + 1, j), corner(i, j + 1), corner(i + 1, j + 1)], cell * 4);
     }
     if (paint && j % 3 === 2) yield 'paint'; // painting a vertex asks where it is: a few rows a step
+  }
+  // The cells in tiles of TILE cells a side, each tile's triangles one range of the index: the place culls the tiles out of view
+  // (world/forest/batch.js cullBatches, as the plants), still in one draw call.
+  const ranges = [];
+  const box = new THREE.Box3();
+  const point = new THREE.Vector3();
+  for (let tj = 0; tj < H - 1; tj += TILE) {
+    for (let ti = 0; ti < W - 1; ti += TILE) {
+      const start = indices.length;
+      box.makeEmpty();
+      for (let j = tj; j < Math.min(H - 1, tj + TILE); j++) {
+        for (let i = ti; i < Math.min(W - 1, ti + TILE); i++) {
+          const q = (j * cellsAcross + i) * 4;
+          if (quads[q] < 0) continue;
+          const [a, b, c, d] = quads.subarray(q, q + 4);
+          indices.push(a, c, b, b, c, d);
+          for (const v of [a, d]) box.expandByPoint(point.fromArray(positions, v * 3));
+          box.expandByPoint(point.fromArray(positions, b * 3)).expandByPoint(point.fromArray(positions, c * 3));
+        }
+      }
+      if (indices.length === start) continue;
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      ranges.push({ start, count: indices.length - start, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref: sphere.center, name: 'ground', lod: 0, crown: null });
+    }
+    yield 'tiles';
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -330,11 +355,17 @@ export function* groundSteps(terrain, index, { from, to }, material, paint = nul
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
     geometry.setAttribute('aRock', new THREE.Float32BufferAttribute(rocks, 1));
   }
-  geometry.setIndex(indices);
+  const IndexArray = positions.length / 3 > 65535 ? Uint32Array : Uint16Array;
+  const master = IndexArray.from(indices);
+  // drawn whole until the first cull; then only the tiles in view (the index rewritten, cullBatches)
+  const drawn = new THREE.BufferAttribute(IndexArray.from(indices), 1);
+  drawn.setUsage(THREE.DynamicDrawUsage);
+  geometry.setIndex(drawn);
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = `Árdalur ground ${i0}`;
   mesh.receiveShadow = true;
+  mesh.userData = { band: 'ground', triangles: indices.length / 3, cull: { master, ranges, signature: -1, submitted: indices.length / 3 }, hidden: false };
   return { mesh, cells, own, grid: { gx0, gz0, W, H }, samples: [i0, i1] };
 }
