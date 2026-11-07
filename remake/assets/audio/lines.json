@@ -3953,5 +3953,10 @@
   "src": "assets/audio/book/book_myndband_gramedla_4.mp3",
   "duration": 2.25,
   "mouth": "006fda9fff0009fa7200cb9cfebbeffc6000000000000"
+ },
+ "book_myndband_thorsedla_1": {
+  "src": "assets/audio/book/book_myndband_thorsedla_1.mp3",
+  "duration": 3.45,
+  "mouth": "007d600cbccddfd3009a007a500074000000000000009cfeffddb7788740000000000"
  }
 }

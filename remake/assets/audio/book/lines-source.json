@@ -183,5 +183,6 @@
  { "id": "book_myndband_tala_8", "speaker": "narrator", "text": "Átta!" },
  { "id": "book_myndband_tala_9", "speaker": "narrator", "text": "Níu!" },
  { "id": "book_myndband_tala_10", "speaker": "narrator", "text": "Tíu!" },
- { "id": "book_myndband_gramedla_4", "speaker": "narrator", "text": "Tíu krakkar í röð!" }
+ { "id": "book_myndband_gramedla_4", "speaker": "narrator", "text": "Tíu krakkar í röð!" },
+ { "id": "book_myndband_thorsedla_1", "speaker": "narrator", "text": "Hversu löng var Þórseðla? Mælum hana!" }
 ]

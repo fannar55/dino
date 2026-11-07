@@ -697,6 +697,12 @@
    "duration": 0.97,
    "model": "eleven_v4"
   },
+  "book/book_myndband_thorsedla_1": {
+   "key": "0fa5aaf556afee8ccea3e6deea024b805a28d869e5947cf660fb89794898d25a",
+   "mp3": "34f729fbf4c202d76fba154af8b94891a1ebcb07bbea57399c4890d82bc429ab",
+   "duration": 3.45,
+   "model": "eleven_v4"
+  },
   "book/book_salamander_1": {
    "key": "db6a12be394ead3ca6febe256a2cf09c3e18074643d7f1c00f339d96417128f3",
    "mp3": "a54af1e0892e7a779b70e387ffb5c5a5ed0198164d4633e495014e17129cc933",
