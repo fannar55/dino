@@ -240,6 +240,82 @@ export function groundDrawnAt(heightAt, x, z) {
   return u + v <= 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
 }
 
+// The ground far off in cells twice as wide (5 m), where that changes nothing that shows: a block of 2x2 cells is drawn as one coarse
+// cell only if its five middle points (four edge middles and the middle) lie within `rise` m of the coarse cell's surface, their
+// colours within `colour` (in display values, 0 to 1), their rock within `rock` and their normals within `turn` (the dot) of what the
+// coarse cell gives there. From `from` m (to a tile's middle; its near edge is then about 70 m off, where `rise` is under a pixel at
+// 16:10) the tile is drawn coarse. A coarse cell next to anything else (a fine block, another tile, another section, the corridor's
+// edge) keeps the middle of that edge, as a fan round its own middle, so no crack opens whatever its neighbours draw.
+export const COARSE = { from: 100, rise: 0.06, colour: 1.5 / 255, rock: 0.02, turn: 0.9998 };
+
+const display = c => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+
+/**
+ * One tile's coarse triangles (vertex indices), or null when no block of it can be coarse. The tile is TILE cells a side from cell
+ * (ti, tj); its blocks are 2x2 cells from even offsets in it. A block that cannot be coarse is drawn as its own fine cells.
+ */
+function coarseTile({ ti, tj, W, H, quads, cellsAcross, vertexAt, positions, normals, colours, rocks }) {
+  const blocks = TILE / 2;
+  const coarse = new Uint8Array(blocks * blocks);
+  let any = false;
+  const height = v => positions[v * 3 + 1];
+  // whether point p lies on the coarse surface between u and w (the middle of their edge) within the limits
+  const between = (p, u, w) => {
+    if (Math.abs(height(p) - (height(u) + height(w)) / 2) > COARSE.rise) return false;
+    if (Math.abs(rocks[p] - (rocks[u] + rocks[w]) / 2) > COARSE.rock) return false;
+    for (let k = 0; k < 3; k++) {
+      if (Math.abs(display(colours[p * 3 + k]) - display((colours[u * 3 + k] + colours[w * 3 + k]) / 2)) > COARSE.colour) return false;
+    }
+    const nx = normals[u * 3] + normals[w * 3], ny = normals[u * 3 + 1] + normals[w * 3 + 1], nz = normals[u * 3 + 2] + normals[w * 3 + 2];
+    const dot = (nx * normals[p * 3] + ny * normals[p * 3 + 1] + nz * normals[p * 3 + 2]) / Math.hypot(nx, ny, nz);
+    return dot >= COARSE.turn;
+  };
+  const corners = (bi, bj) => {
+    const i = ti + bi * 2, j = tj + bj * 2;
+    const v = (a, b) => vertexAt(i + a, j + b);
+    return { a: v(0, 0), b: v(2, 0), c: v(0, 2), d: v(2, 2), ab: v(1, 0), ac: v(0, 1), bd: v(2, 1), cd: v(1, 2), e: v(1, 1) };
+  };
+  const owned = (i, j) => i < W - 1 && j < H - 1 && quads[(j * cellsAcross + i) * 4] >= 0;
+  for (let bj = 0; bj < blocks; bj++) {
+    for (let bi = 0; bi < blocks; bi++) {
+      const i = ti + bi * 2, j = tj + bj * 2;
+      if (!owned(i, j) || !owned(i + 1, j) || !owned(i, j + 1) || !owned(i + 1, j + 1)) continue;
+      const p = corners(bi, bj);
+      if (between(p.ab, p.a, p.b) && between(p.ac, p.a, p.c) && between(p.bd, p.b, p.d) && between(p.cd, p.c, p.d) && between(p.e, p.b, p.c)) {
+        coarse[bj * blocks + bi] = 1;
+        any = true;
+      }
+    }
+  }
+  if (!any) return null;
+  const out = [];
+  const isCoarse = (bi, bj) => bi >= 0 && bj >= 0 && bi < blocks && bj < blocks && coarse[bj * blocks + bi] === 1;
+  for (let bj = 0; bj < blocks; bj++) {
+    for (let bi = 0; bi < blocks; bi++) {
+      const i = ti + bi * 2, j = tj + bj * 2;
+      if (!isCoarse(bi, bj)) {
+        // its own fine cells, as the fine range has them
+        for (const [ci, cj] of [[i, j], [i + 1, j], [i, j + 1], [i + 1, j + 1]]) {
+          if (!owned(ci, cj)) continue;
+          const q = (cj * cellsAcross + ci) * 4;
+          out.push(quads[q], quads[q + 2], quads[q + 1], quads[q + 1], quads[q + 2], quads[q + 3]);
+        }
+        continue;
+      }
+      const p = corners(bi, bj);
+      const split = { ac: !isCoarse(bi - 1, bj), cd: !isCoarse(bi, bj + 1), bd: !isCoarse(bi + 1, bj), ab: !isCoarse(bi, bj - 1) };
+      if (!split.ac && !split.cd && !split.bd && !split.ab) {
+        out.push(p.a, p.c, p.b, p.b, p.c, p.d); // as a fine cell is cut: from its (i + 1, j) corner to its (i, j + 1) corner
+        continue;
+      }
+      // a fan round its middle, round its edge from a to c, d, b and back (the fine cells' winding), through the middles it keeps
+      const ring = [p.a, ...(split.ac ? [p.ac] : []), p.c, ...(split.cd ? [p.cd] : []), p.d, ...(split.bd ? [p.bd] : []), p.b, ...(split.ab ? [p.ab] : [])];
+      for (let k = 0; k < ring.length; k++) out.push(p.e, ring[k], ring[(k + 1) % ring.length]);
+    }
+  }
+  return out;
+}
+
 /**
  * The steps that build one section's ground (a generator for the build queue): the cells it owns, their heights, and a mesh with
  * normals taken across the grid (so they match the next section's at the seam). With `paint(x, z, y, ny)` -> [r, g, b, rock] (the
@@ -324,10 +400,14 @@ export function* groundSteps(terrain, index, { from, to }, material, paint = nul
     if (paint && j % 3 === 2) yield 'paint'; // painting a vertex asks where it is: a few rows a step
   }
   // The cells in tiles of TILE cells a side, each tile's triangles one range of the index: the place culls the tiles out of view
-  // (world/forest/batch.js cullBatches, as the plants), still in one draw call.
+  // (world/forest/batch.js cullBatches, as the plants), still in one draw call. A tile whose land is smooth also has a coarse range
+  // (coarseTile), drawn from COARSE.from metres; the fine ranges come first in the index, the coarse ones after them.
   const ranges = [];
+  const coarseRanges = [];
+  const coarseIndices = [];
   const box = new THREE.Box3();
   const point = new THREE.Vector3();
+  const vertexAt = (i, j) => (i >= 0 && j >= 0 && i < W && j < H ? vertexOf[j * W + i] : -1);
   for (let tj = 0; tj < H - 1; tj += TILE) {
     for (let ti = 0; ti < W - 1; ti += TILE) {
       const start = indices.length;
@@ -344,10 +424,22 @@ export function* groundSteps(terrain, index, { from, to }, material, paint = nul
       }
       if (indices.length === start) continue;
       const sphere = box.getBoundingSphere(new THREE.Sphere());
-      ranges.push({ start, count: indices.length - start, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref: sphere.center, name: 'ground', lod: 0, crown: null });
+      const range = { start, count: indices.length - start, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref: sphere.center, name: 'ground', lod: 0, crown: null };
+      ranges.push(range);
+      const coarse = paint ? coarseTile({ ti, tj, W, H, quads, cellsAcross, vertexAt, positions, normals, colours, rocks }) : null;
+      if (coarse) {
+        // the tile's two levels: fine within COARSE.from m of the camera, coarse past it (cullBatches' bands, with its hysteresis)
+        const plant = { bands: [[0, COARSE.from], [COARSE.from, Infinity]], li: -1, levelView: -1, card: null, cardView: -1 };
+        Object.assign(range, { maxD: COARSE.from, plant, li: 0 });
+        coarseRanges.push({ ...range, start: coarseIndices.length, count: coarse.length, minD: COARSE.from, maxD: Infinity, lod: 1, li: 1 });
+        for (const v of coarse) coarseIndices.push(v);
+      }
     }
     yield 'tiles';
   }
+  const fineCount = indices.length;
+  for (const r of coarseRanges) { r.start += fineCount; ranges.push(r); }
+  for (const v of coarseIndices) indices.push(v);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
@@ -357,8 +449,8 @@ export function* groundSteps(terrain, index, { from, to }, material, paint = nul
   }
   const IndexArray = positions.length / 3 > 65535 ? Uint32Array : Uint16Array;
   const master = IndexArray.from(indices);
-  // drawn whole until the first cull; then only the tiles in view (the index rewritten, cullBatches)
-  const drawn = new THREE.BufferAttribute(IndexArray.from(indices), 1);
+  // drawn whole and fine until the first cull; then only the tiles in view, each at its level (the index rewritten, cullBatches)
+  const drawn = new THREE.BufferAttribute(master.slice(0, fineCount), 1);
   drawn.setUsage(THREE.DynamicDrawUsage);
   geometry.setIndex(drawn);
   geometry.computeBoundingSphere();
@@ -366,6 +458,6 @@ export function* groundSteps(terrain, index, { from, to }, material, paint = nul
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = `Árdalur ground ${i0}`;
   mesh.receiveShadow = true;
-  mesh.userData = { band: 'ground', triangles: indices.length / 3, cull: { master, ranges, signature: -1, submitted: indices.length / 3 }, hidden: false };
+  mesh.userData = { band: 'ground', triangles: fineCount / 3, cull: { master, ranges, signature: -1, submitted: fineCount / 3 }, hidden: false };
   return { mesh, cells, own, grid: { gx0, gz0, W, H }, samples: [i0, i1] };
 }
