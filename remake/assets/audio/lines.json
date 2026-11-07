@@ -3958,5 +3958,105 @@
   "src": "assets/audio/book/book_myndband_thorsedla_1.mp3",
   "duration": 3.45,
   "mouth": "007d600cbccddfd3009a007a500074000000000000009cfeffddb7788740000000000"
+ },
+ "book_myndband_raf_1": {
+  "src": "assets/audio/book/book_myndband_raf_1.mp3",
+  "duration": 6.81,
+  "mouth": "000aefece0dfee800ceebbbbddcc9332000000000009effad966ab996342000000000008a733ddeefeee6addcbb5899999300000000000000fffffd66a600000000000000"
+ },
+ "book_myndband_raf_2": {
+  "src": "assets/audio/book/book_myndband_raf_2.mp3",
+  "duration": 5.45,
+  "mouth": "00beffded50006de9008cdaffffeefffeebb78aaa400ceede940000000000000003c30d80ae405ddafed8586284000000000000000000"
+ },
+ "book_myndband_raf_3": {
+  "src": "assets/audio/book/book_myndband_raf_3.mp3",
+  "duration": 3.21,
+  "mouth": "005efdef8d6000bbd005bca640000000000afbb9bde70adb86654000000000000"
+ },
+ "book_myndband_raf_4": {
+  "src": "assets/audio/book/book_myndband_raf_4.mp3",
+  "duration": 5.29,
+  "mouth": "000cfffc68d500000cffcb30000dda654000000000000008adda0ca007cfdb8bb80000defb6db44bdd9069008ca964300000000000"
+ },
+ "book_myndband_raf_5": {
+  "src": "assets/audio/book/book_myndband_raf_5.mp3",
+  "duration": 7.45,
+  "mouth": "00ee30bc0035deda8099cd9000099940000000000000000de500bfffcffffedfe60c30004def0008a364000000000beeffd00000b0000c40007ae90003bb09800deb85400000000000000"
+ },
+ "book_myndband_raf_6": {
+  "src": "assets/audio/book/book_myndband_raf_6.mp3",
+  "duration": 3.45,
+  "mouth": "000cffecefedeff509b000cdb7875400000000006c40a000a80000040000000000000"
+ },
+ "book_myndband_raf_7": {
+  "src": "assets/audio/book/book_myndband_raf_7.mp3",
+  "duration": 5.29,
+  "mouth": "007effeded006b0000b900aca77775000000000000fe300de00000380000000000000000f9005dff005900b0ad3000000000000000"
+ },
+ "book_myndband_raf_8": {
+  "src": "assets/audio/book/book_myndband_raf_8.mp3",
+  "duration": 8.25,
+  "mouth": "0bfffdeb00aee7dcccdc2089aefb93a940000abcdfd208b005ccabba84cda740000000000000000ffd0ce900ee3000b900a99bc4000002befea9c50000000000000b00afffacd9ab000a75300000000000000"
+ },
+ "book_myndband_raf_9": {
+  "src": "assets/audio/book/book_myndband_raf_9.mp3",
+  "duration": 7.05,
+  "mouth": "0cffff00e00cc009ba96000bb00f300038ceb70008979aa85430000000000000004fff7eed09fa200003c8000000009804dcc000008900099a930000088998304430000000000"
+ },
+ "book_myndband_raf_10": {
+  "src": "assets/audio/book/book_myndband_raf_10.mp3",
+  "duration": 6.25,
+  "mouth": "4bdffffb08aa009e8dda998400000009eecb700000aa8575420000000000000000effccdb454bbb40685200000000b9000000000570043000000000000000"
+ },
+ "book_myndband_raf_11": {
+  "src": "assets/audio/book/book_myndband_raf_11.mp3",
+  "duration": 2.01,
+  "mouth": "0b80007effffeeebacbb007500000000000000000"
+ },
+ "book_myndband_raf_12": {
+  "src": "assets/audio/book/book_myndband_raf_12.mp3",
+  "duration": 7.93,
+  "mouth": "0000dffeefe8ded05babcaa80ca6009efddc99a860000000003bd00bb00bb0cd47ab8689a900053000000000000000dfffe00ddea000abaa98600000009deed003000000bcb303a2000000000000000"
+ },
+ "book_myndband_raf_13": {
+  "src": "assets/audio/book/book_myndband_raf_13.mp3",
+  "duration": 6.97,
+  "mouth": "5b00ac03cefd08cdcfeecdccca079975000005830009cccacc7a66a60009dbb50007700200000a900000000000000000000fffd7defdffffea99ddbad8233000000000000000"
+ },
+ "book_myndband_raf_14": {
+  "src": "assets/audio/book/book_myndband_raf_14.mp3",
+  "duration": 4.49,
+  "mouth": "5d80dfedc900003fffecefb00fc8aebab9d48db404000004a67ec709c00cb6b40206aaaec50086530000000000"
+ },
+ "book_myndband_raf_15": {
+  "src": "assets/audio/book/book_myndband_raf_15.mp3",
+  "duration": 8.25,
+  "mouth": "000affff67830000000000dfeecceeea0dc3eb8cde95000000000000049cfd00d80ddd0000000049ca009a04cc9000005dfdeda5cdd600000000abfffee90acb0000099dbdcad84b4306a9900000000000000"
+ },
+ "book_myndband_raf_16": {
+  "src": "assets/audio/book/book_myndband_raf_16.mp3",
+  "duration": 6.49,
+  "mouth": "3bdfffb0000aeff98f000cdc00000b94a7000a7a005ca64300000000000000b00adefde60b40309db700a87887005bdbbd88499b998dc006663333000000000000"
+ },
+ "book_myndband_raf_17": {
+  "src": "assets/audio/book/book_myndband_raf_17.mp3",
+  "duration": 5.45,
+  "mouth": "0dfdfffec8cdcb6cf9fddeb08d0aed0a600000bcc00ccddc00000006cddedb7cb000000009eddcb98a60007d700edb873000000000000"
+ },
+ "book_myndband_raf_18": {
+  "src": "assets/audio/book/book_myndband_raf_18.mp3",
+  "duration": 4.97,
+  "mouth": "0ceffffceec00dcdcb9ab60b300407899a8997b820cccc00aee7cda00876730300000007ff50008eff80d904400000000000"
+ },
+ "book_myndband_raf_19": {
+  "src": "assets/audio/book/book_myndband_raf_19.mp3",
+  "duration": 6.17,
+  "mouth": "00b60cea00089cdfd7bfefea9edb85000006a4009edddc89efb0088786344200000000000000003b9bcbb03300bdba000df9c78fffec7034300000000000"
+ },
+ "book_myndband_raf_20": {
+  "src": "assets/audio/book/book_myndband_raf_20.mp3",
+  "duration": 7.85,
+  "mouth": "36e00c600bc930000000000000c80bffee0009d89ba9760000000007aeecd80aa8983009a0aba300009600ab97030000000000000000fffcacbb008dec99970aa00099aeffe9cc940000000000000"
  }
 }
