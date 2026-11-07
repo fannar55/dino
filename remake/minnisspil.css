@@ -54,6 +54,8 @@ img{-webkit-user-drag:none}
 .corner{display:flex;align-items:flex-start;gap:14px;margin-left:auto;pointer-events:auto}
 .tally{display:flex;align-items:center;gap:16px;min-height:62px;padding:6px 18px 6px 16px;border:3px solid var(--ink);border-radius:999px;background:var(--card);box-shadow:var(--raise);pointer-events:none}
 .tally:not(:has(>:not([hidden]))){display:none} /* before the round starts both are hidden: no empty chip */
+/* In the book its own round close (88 px, 14 px from the corner, yatzy-junior.css) sits top right: the band stops 12 px short of it, so the pause sits left of it. */
+#game[data-inbook="1"] .topbar{right:calc(max(14px,env(safe-area-inset-right)) + 88px + 14px)}
 .tally,.corner{transition:opacity .25s}
 #game[data-choosing="true"] :is(.tally,.corner){opacity:.6} /* the picker or a tap-along has the child's eye; the pause still works */
 .progress{display:flex;align-items:center}

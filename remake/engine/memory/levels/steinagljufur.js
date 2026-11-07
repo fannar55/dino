@@ -165,7 +165,7 @@ export const STEINAGLJUFUR = freezeLevel({
   copy: {
     locked: 'Kláraðu Berjalundinn fyrst',
     welcome: {
-      title: 'Hvar er vinur minn?',
+      title: 'Saman getum við það!',
       lines: ['Velkomin í Steinagljúfrið!', 'Finndu tvo eins vini.'],
       start: 'Leikum saman',
     },

@@ -136,7 +136,7 @@ export const BERJALUNDUR = freezeLevel({
   },
   copy: {
     welcome: {
-      title: 'Hvar er vinur minn?',
+      title: 'Saman getum við það!',
       lines: ['Finndu tvo eins vini.', 'Saman opnum við leiðina í berjalundinn!'],
       start: 'Leikum saman',
     },
