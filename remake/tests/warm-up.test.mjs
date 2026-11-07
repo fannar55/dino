@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { warmUp } from '../engine/warm-up.js';
+import { warmUp, warmParts } from '../engine/warm-up.js';
 
 // The warm-up draw (engine/warm-up.js): what has never been drawn is drawn once, behind the black, so its shaders are built where
 // no frame the child sees stalls. These tests use a renderer that records what each draw would have seen.
@@ -131,10 +131,35 @@ test('a shot that fails still puts every flag and the camera back', () => {
   assert.ok(camera.position.equals(was));
 });
 
+// main.js draws a place before the start button shows a part a frame (chapter.readyFirst), and a part's frame builds every shader its
+// meshes need: meshes that share a material but draw with other shaders (instanced, skinned, morph frames of their own) are parts of
+// their own. Chapter 4's crowds share one material over four kinds of critter, four shaders in a frame of 2 s.
+test('a warm-up in parts: a part a shader, a few meshes a part', () => {
+  const shared = new THREE.MeshStandardMaterial();
+  const crowdOf = frames => {
+    const geometry = new THREE.BoxGeometry();
+    geometry.morphAttributes.position = Array.from({ length: frames }, () => geometry.getAttribute('position').clone());
+    const mesh = new THREE.InstancedMesh(geometry, shared, 3);
+    mesh.setMorphAt(0, { morphTargetInfluences: new Float32Array(frames) });
+    return mesh;
+  };
+  const crowds = [crowdOf(24), crowdOf(32), crowdOf(2), crowdOf(24)];
+  const plain = Array.from({ length: 6 }, () => new THREE.Mesh(new THREE.BoxGeometry(), shared));
+  const root = new THREE.Group();
+  root.add(...crowds, ...plain);
+  const parts = warmParts([root]);
+  const partOf = mesh => parts.findIndex(part => part.includes(mesh));
+  assert.equal(parts.flat().length, 10, 'every mesh, once');
+  assert.equal(partOf(crowds[0]), partOf(crowds[3]), 'two crowds drawn alike share a part');
+  assert.equal(new Set(crowds.slice(0, 3).map(partOf)).size, 3, 'other morph frames, another part');
+  assert.ok(crowds.every(m => !plain.map(partOf).includes(partOf(m))), 'the instanced apart from the plain');
+  assert.deepEqual(parts.filter(part => part.some(m => plain.includes(m))).map(part => part.length), [4, 2], 'six alike: four, then two');
+});
+
 test('main.js draws the chapter once before the start button shows, builds its later places once it shows, and draws each new place before it fades in', async () => {
   const fs = await import('node:fs');
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(main, /import \{ warmUp \} from '\.\/engine\/warm-up\.js';/);
+  assert.match(main, /import \{ warmUp, warmParts \} from '\.\/engine\/warm-up\.js';/);
   // behind the start button: black until the warm-up is done, then the button
   const start = main.slice(main.indexOf('// Wait for a tap'), main.indexOf("if (params.get('orbit') === '1')"));
   assert.match(start, /ui\.setFade\(1\);/);
@@ -160,7 +185,7 @@ test('main.js draws the chapter once before the start button shows, builds its l
   // drawn in parts, a group of meshes by their materials a frame, never over a game that has the canvas (Háls og hali)
   const parts = main.slice(main.indexOf('async function canvasFree()'), main.indexOf('/** Everything that is done behind the black'));
   assert.match(parts, /while \(hals\.isOpen\) await nextFrames\(\d+\);/);
-  assert.match(parts, /for \(const meshes of byMaterial\(roots\)\) \{\s*await canvasFree\(\);[\s\S]*?await nextFrames\(1\);/);
+  assert.match(parts, /for \(const meshes of warmParts\(roots\)\) \{\s*await canvasFree\(\);[\s\S]*?await nextFrames\(1\);/);
   assert.match(later, /await chapter\.later\.make\(world\);[\s\S]*?await warmChapterInParts\(\[\], null\)/);
   // the chapter's first find's drawing, shown once behind the button or under the first black; a long black shows the star
   assert.match(later, /if \(!stage\.started\) warmDrawing\(\);/);

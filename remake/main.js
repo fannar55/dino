@@ -38,7 +38,7 @@ import { createSfx } from './engine/audio/sfx.js';
 import { loadTheme } from './engine/audio/theme.js';
 import { createHold, holdLater } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
-import { warmUp } from './engine/warm-up.js';
+import { warmUp, warmParts } from './engine/warm-up.js';
 import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
 import { createForrit } from './engine/offline/forrit.js';
@@ -482,23 +482,6 @@ function withPlace(forest, fn) {
 // the materials they draw with, each group building its own shaders. A group's frame draws only it, on a layer of its own (the
 // lights too, so the shaders are the ones the whole scene builds).
 const WARM_LAYER = 31;
-function byMaterial(roots) {
-  const groups = new Map();
-  for (const root of roots) {
-    root.traverse(o => {
-      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
-      const key = [...[o.material].flat(), o.customDepthMaterial, o.customDistanceMaterial].filter(Boolean).map(m => m.uuid).join()
-        + (o.isSkinnedMesh ? ' skinned' : '') + (o.isInstancedMesh ? ' instanced' : '');
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(o);
-    });
-  }
-  // and a group of many meshes a few at a time: the first draw of a mesh uploads it (a skinned one most of all)
-  return [...groups.values()].flatMap(meshes => {
-    const most = meshes[0].isSkinnedMesh ? 1 : 4;
-    return Array.from({ length: Math.ceil(meshes.length / most) }, (_, i) => meshes.slice(i * most, (i + 1) * most));
-  });
-}
 function warmPart(views, meshes) {
   const lights = [];
   scene.traverse(o => { if (o.isLight) lights.push(o); });
@@ -523,7 +506,7 @@ async function canvasFree() {
  */
 async function warmInParts(views, roots, around = fn => fn()) {
   const sum = { draws: 0, programs: 0, ms: 0, frames: 0, longestPart: 0 };
-  for (const meshes of byMaterial(roots)) {
+  for (const meshes of warmParts(roots)) {
     await canvasFree();
     if (stage.started && ui.fadeLevel < 0.999) break;
     const part = around(() => warmPart(views, meshes));

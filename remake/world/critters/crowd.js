@@ -3,6 +3,8 @@
 // each critter, end(). A critter farther than `seen` metres from the camera is not drawn, so the cost is what is near.
 // A baked model (world/critters/crowd-models.js) has two levels of detail: `reserve(kind, n, model)` draws a critter within
 // `lods[0].until` metres of the camera from the fine level and one beyond it from the coarse one, one draw call a level.
+// ready(): the meshes now, once every kind is reserved, so a warm-up drawn before the first frame builds their shaders (begin()
+// makes them otherwise; main.js warms what a place has before the start button shows).
 import * as THREE from 'three';
 import { createModel } from './models.js';
 import { birdMaterial } from './critters.js';
@@ -79,6 +81,11 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
       model.geometry.computeBoundingBox();
       k.height = model.height ?? model.geometry.boundingBox.max.y - model.geometry.boundingBox.min.y;
     }
+  }
+
+  /** Make the meshes now (every kind reserved), not at the first begin(): a warm-up before the first frame draws them. */
+  function ready() {
+    if (!built) build();
   }
 
   function begin(camera) {
@@ -167,5 +174,5 @@ export function createCrowds(world, { parent = world.scene, seen = 160 } = {}) {
     ground.dispose();
   }
 
-  return { reserve, begin, place, end, placed, triangles, calls, group, meshes, dispose };
+  return { reserve, ready, begin, place, end, placed, triangles, calls, group, meshes, dispose };
 }

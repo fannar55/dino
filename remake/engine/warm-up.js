@@ -78,3 +78,28 @@ export function warmUp(renderer, scene, camera, { objects = [], shots = [] } = {
   }
   return { draws, ms: performance.now() - started, programs: (renderer.info.programs?.length ?? 0) - programsBefore };
 }
+
+/**
+ * The parts of a warm-up drawn a frame each (main.js: a place drawn before the start button shows, so the picture never holds long):
+ * the meshes under `roots`, grouped by the shaders they draw with (their materials, their shadow's, and how they draw them:
+ * skinned, instanced, with morph frames, each with its own), a few a part, a skinned one alone (the first draw of a mesh uploads
+ * it). Meshes that share a material but not a shader are parts of their own: each part's frame builds only its own shaders.
+ */
+export function warmParts(roots) {
+  const groups = new Map();
+  for (const root of roots) {
+    root.traverse(o => {
+      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
+      const frames = o.geometry?.morphAttributes?.position?.length ?? 0;
+      const key = [...[o.material].flat(), o.customDepthMaterial, o.customDistanceMaterial].filter(Boolean).map(m => m.uuid).join()
+        + (o.isSkinnedMesh ? ' skinned' : '') + (o.isInstancedMesh ? ' instanced' : '')
+        + (frames ? ` morph ${frames}${o.morphTexture ? ' each' : ''}` : '');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(o);
+    });
+  }
+  return [...groups.values()].flatMap(meshes => {
+    const most = meshes[0].isSkinnedMesh ? 1 : 4;
+    return Array.from({ length: Math.ceil(meshes.length / most) }, (_, i) => meshes.slice(i * most, (i + 1) * most));
+  });
+}

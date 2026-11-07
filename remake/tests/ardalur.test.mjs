@@ -10,7 +10,7 @@ import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain, CORRIDOR } from '../world/ardalur/terrain.js';
-import { createAnimals, ANSWER, SMAEDLA_MODEL, GRASBITUR_MODEL } from '../world/ardalur/animals.js';
+import { createAnimals, ANSWER, SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -768,6 +768,42 @@ test('the reeds bend under her: the plants\' downwash follows her, 8 m round', (
   world.flightPoint = null;
   place.update(DT, 31);
   assert.equal(place.downwash.w, 0);
+  place.dispose();
+});
+
+// main.js draws a place once before the start button shows (chapter.readyFirst: chapter 4's Árdalurinn), a group of its meshes a
+// frame, each group building its shaders then; a mesh made later builds its shaders where it is first drawn. The white tree's black
+// drew the whole valley again for them, 2.4-4.9 s in one frame (the crowds' animals: instanced, with morph frames).
+test('all the valley draws is made with it: its first frames make nothing new to draw', async () => {
+  const critters = {
+    smaedla: crowdModelFrom(await loadGlb(new URL(SMAEDLA_MODEL))),
+    grasbitur: grazer,
+    flugdyr: crowdModelFrom(await loadGlb(new URL(FLUGDYR_MODEL))),
+  };
+  const world = { ...litWorld(), clock: { time: 0 }, flightTime: null };
+  const place = createArdalur(world, { grey: false, route, critters });
+  place.buildAll();
+  // what a draw builds a shader for: each material a mesh draws with (its shadow's too), and how it draws it
+  const drawsWith = () => {
+    const out = new Set();
+    place.group.traverse(o => {
+      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
+      const how = `${o.isInstancedMesh ? ' instanced' : ''}${o.morphTexture ? ' morphing' : ''}${o.isSkinnedMesh ? ' skinned' : ''}`;
+      for (const m of [o.material, o.customDepthMaterial].flat().filter(Boolean)) out.add(`${o.name || o.type}: ${m.name || m.type} ${m.uuid}${how}`);
+    });
+    return out;
+  };
+  const made = drawsWith();
+  for (const t of [0, BEATS.C + 5, BEATS.F + 5, BEATS.G + 5]) {
+    world.flightTime = t;
+    world.clock.time = 100 + t;
+    world.flightU = route.progressAt(t);
+    world.camera.position.copy(route.pointAt(world.flightU)).add(new THREE.Vector3(0, 3, 8));
+    world.camera.updateMatrixWorld();
+    place.update(DT, world.clock.time);
+  }
+  const later = [...drawsWith()].filter(k => !made.has(k));
+  assert.deepEqual(later, [], 'nothing is drawn that was not there once the valley was built');
   place.dispose();
 });
 
