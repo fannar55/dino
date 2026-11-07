@@ -245,8 +245,8 @@ test('a crowd with two levels draws near critters fine and far ones coarse', () 
 });
 
 // The sun's shadow pass drew every critter drawn, the 28 m box or not (10-20k triangles at the far pool). Now only those whose
-// bounds touch its box are in it, first in the instances; and a critter keeps its level 8 % past the switch, so it does not flicker.
-test('only the critters in the sun\'s shadow box cast, and a critter keeps its level a little past the switch', () => {
+// bounds touch its box are in it, first in the instances; and a critter keeps its finer level 8 % past the switch, so it does not flicker.
+test('only the critters in the sun\'s shadow box cast, and a critter keeps its finer level a little past the switch', () => {
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
   Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 0.5, far: 112 });
@@ -290,8 +290,7 @@ test('only the critters in the sun\'s shadow box cast, and a critter keeps its l
   assert.equal(levelAt(20), 0);
   assert.equal(levelAt(32), 0, 'going away: fine to 8 % past 30 m');
   assert.equal(levelAt(33), 1);
-  assert.equal(levelAt(28.5), 1, 'coming near: coarse to 8 % inside it');
-  assert.equal(levelAt(27), 0);
+  assert.equal(levelAt(29.5), 0, 'coming near: fine again at the switch, never coarser than before');
   lizards.dispose();
 });
 

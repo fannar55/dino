@@ -31,9 +31,9 @@ const CROWN_LOD = new Set(['broadleaf', 'araucaria', 'swampConifer']);
 const [CROWN_T0, CROWN_T1] = FOREST.lod.crownSize;
 const CROWN_FINE = FOREST.lod.crownFine ?? 4;
 const CARD_FROM = FOREST.lod.cardFrom ?? Infinity;
-// A plant's level, its crown's, its card and its fade-out distance change HYSTERESIS past their switch, in the way it is going (as
-// the characters' levels do, engine/character-lod.js), so one standing at a switch does not flicker between the two, and its mesh's
-// index is not rewritten each time it does. A plant seen for the first time takes the switch as it is.
+// A plant's level, its crown's, its card and its fade-out distance go finer (nearer, or drawn again) at their switch, as before, and
+// coarser only HYSTERESIS past it, so one standing at a switch does not flicker between the two and its mesh's index is not rewritten
+// each time it does; nothing is ever coarser than it was without this. A plant seen for the first time takes the switch as it is.
 const HYSTERESIS = 0.08;
 // A camera that moved more than CUT m since the last view has cut to another shot: what was drawn before says nothing, and each plant
 // takes its switches as they are again (so a still at a time looks as it did before the hysteresis, whatever was drawn before it).
@@ -377,28 +377,24 @@ const _crowns = [];
  * call. `hide(range, mesh)`, if given, true leaves out more (a place that knows what its ground hides:
  * world/ardalur/sight.js). Returns the number of triangles now submitted.
  */
-/** Whether a plant `d` m away is drawn as its card: past cardFrom, HYSTERESIS past it either way once it has been drawn. */
+/** Whether a plant `d` m away is drawn as its card: past cardFrom; one drawn as itself stays so to HYSTERESIS past it. */
 function asCard(plant, d, cardFrom) {
   if (!plant) return d >= cardFrom;
   if (plant.cardView === _view) return plant.card;
   plant.cardView = _view;
   const was = plant.epoch === _epoch ? plant.card : null;
   plant.epoch = _epoch;
-  const by = was === null ? 1 : was ? 1 - HYSTERESIS : 1 + HYSTERESIS;
-  plant.card = d >= cardFrom * by;
+  plant.card = d >= cardFrom * (was === false ? 1 + HYSTERESIS : 1);
   return plant.card;
 }
 
-/** The place in plant.bands of the level a plant `d` m away is drawn at, kept HYSTERESIS past its band once drawn. */
+/** The place in plant.bands (finer first) of the level a plant `d` m away is drawn at; a finer one is kept to HYSTERESIS past its band. */
 function bandOf(plant, d) {
   if (plant.levelView === _view) return plant.li;
   plant.levelView = _view;
   if (plant.levelEpoch !== _epoch) { plant.levelEpoch = _epoch; plant.li = -1; }
   let li = plant.bands.findIndex(([lo, hi]) => d >= lo && d < hi);
-  if (plant.li >= 0 && li !== plant.li) {
-    const [lo, hi] = plant.bands[plant.li];
-    if (d >= lo * (1 - HYSTERESIS) && d < hi * (1 + HYSTERESIS)) li = plant.li;
-  }
+  if (plant.li >= 0 && li > plant.li && d < plant.bands[plant.li][1] * (1 + HYSTERESIS)) li = plant.li;
   plant.li = li;
   return li;
 }
@@ -428,7 +424,7 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
     }
   }
   _crowns.sort((a, b) => b.rank - a.rank);
-  const past = (prev, finer) => (prev === null ? 1 : prev <= finer ? 1 - HYSTERESIS : 1 + HYSTERESIS);
+  const past = (prev, finer) => (prev !== null && prev <= finer ? 1 - HYSTERESIS : 1); // finer at the threshold, coarser past it
   _crowns.forEach((c, i) => {
     const want = i < CROWN_FINE && c.proj > CROWN_T0 * past(c.prev, 0) ? 0 : c.proj > CROWN_T1 * past(c.prev, 1) ? 1 : 2;
     c.level = Math.max(want, c.first);
@@ -452,8 +448,8 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
         if (d < r.minD || d >= r.maxD) return;
       }
       if (r.cull !== Infinity) {
-        // small plants fade out of the grass and mist at their own distance, HYSTERESIS past it once drawn
-        const by = r.near === null || r.near === undefined || r.nearEpoch !== _epoch ? 1 : r.near ? 1 + HYSTERESIS : 1 - HYSTERESIS;
+        // small plants fade out of the grass and mist at their own distance, HYSTERESIS past it once drawn, and come back at it
+        const by = r.near === true && r.nearEpoch === _epoch ? 1 + HYSTERESIS : 1;
         r.near = _cam.distanceTo(r.sphere.center) - r.sphere.radius <= r.cull * by;
         r.nearEpoch = _epoch;
         if (!r.near) return;

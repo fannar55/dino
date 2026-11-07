@@ -37,8 +37,8 @@ const SHADOW_REACH = 3;
 // A critter's bounds for this: its model's rest sphere, grown by CAST_GROW and CAST_MARGIN for its frames and wings.
 const CAST_GROW = 1.25;
 const CAST_MARGIN = 0.5; // m
-// A critter's level changes LOD_HYSTERESIS past its distance (a critter that is its own pose object keeps its level), so one at the
-// switch does not flicker between the two (engine/character-lod.js has the same 8 %).
+// A critter's level goes finer at its distance, as before, and coarser only LOD_HYSTERESIS past it (a critter that is its own pose
+// object keeps its level), so one at the switch does not flicker between the two (engine/character-lod.js has the same 8 %).
 const LOD_HYSTERESIS = 0.08;
 const CUT = 12; // m: a camera that moved more than this since the last frame has cut to another shot
 
@@ -216,7 +216,6 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     const was = levelOf.get(pose);
     if (was !== undefined && was !== l && was < levels.length) {
       if (was < l && d <= levels[was].until * (1 + LOD_HYSTERESIS)) l = was; // going away: the finer one a little longer
-      else if (was > l && d > levels[l].until * (1 - LOD_HYSTERESIS)) l = was; // coming near: the coarser one a little longer
     }
     levelOf.set(pose, l);
     return l;
