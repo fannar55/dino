@@ -31,13 +31,13 @@ const SIDES = ['left', 'right'];
 /**
  * How much of each of the saddle's corrections is on (its morph targets: tools/saddle-fit.mjs correctInPoses) as her bones are
  * turned now (`turnOf(name)`: a bone's turn in its parent, a Quaternion). Each correction is for one of her poses, and so is each
- * of the `clean` poses, which need none (extras.corrections, extras.clean: [{ at: { bone: quaternion }, radius }]): each pose
- * counts fully at its own turns and fades out smoothly as any of its bones turns `radius` radians from them, and where poses
- * overlap they share (their counts are divided by the sum, when it is over one). So the saddle has a pose's correction in that pose,
- * a blend of the near ones' between poses, and none near a clean pose or far from all of them. Into `out`.
+ * of the `clean` poses, which need none (extras.corrections, extras.clean: [{ at: { bone: quaternion }, radius }]). How far she is
+ * from a pose is the most any of its bones is turned from its turn there; each pose counts by one over that squared, fading to
+ * nothing at `radius` radians, and the counts are shared out (divided by their sum). So in one of the poses the saddle has exactly
+ * that pose's correction (none in a clean pose), between poses a blend of the nearest, and none far from all of them. Into `out`.
  */
 export function correctionsAt(corrections, clean, turnOf, out = []) {
-  const near = c => {
+  const count = c => {
     let far = 0;
     for (const name in c.at) {
       const q = turnOf(name), key = c.at[name];
@@ -45,13 +45,13 @@ export function correctionsAt(corrections, clean, turnOf, out = []) {
       far = Math.max(far, 2 * Math.acos(Math.min(1, dot)));
     }
     const x = clamp01(1 - far / c.radius);
-    return x * x * (3 - 2 * x);
+    return (x * x * (3 - 2 * x)) / (far * far + 1e-8);
   };
   out.length = corrections.length;
   let sum = 0;
-  corrections.forEach((c, k) => { out[k] = near(c); sum += out[k]; });
-  for (const c of clean) sum += near(c);
-  if (sum > 1) for (let k = 0; k < out.length; k++) out[k] /= sum;
+  corrections.forEach((c, k) => { out[k] = count(c); sum += out[k]; });
+  for (const c of clean) sum += count(c);
+  for (let k = 0; k < out.length; k++) out[k] = sum > 0 ? out[k] / sum : 0;
   return out;
 }
 

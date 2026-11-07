@@ -321,10 +321,13 @@ export function authorWingedClips(rig, options = {}) {
   })();
 
   // Opening and folding go in stages, each bone's turn blended between them: the folded wing lifts off the
-  // ground (LIFTED), swings out to her side still folded (OUT), and opens into the raised wing of a first
-  // beat; folding is the same way back.
-  const LIFTED = foldedWing({ ...fold, out: 26, arm: 28, elbow: 118 });
-  const OUT = foldedWing({ ...fold, sweep: 25, out: 12, arm: -15, elbow: 105, wrist: -5, knuckle: 140 });
+  // ground and swings out to her side, still folded and low (LIFTED), reaches forward and up tipped out
+  // (OUT), and opens into the raised wing of a first beat; folding is the same way back. Low and out to the
+  // side, then up only ahead of her shoulders, so a child on the saddle behind them (engine/flier-saddle.js:
+  // his knees 42 cm out from her middle) is never in the wing's way; swung up along her back instead, the
+  // folded wings would close over him.
+  const LIFTED = foldedWing({ ...fold, sweep: 0, out: 0, arm: 60, elbow: 118 });
+  const OUT = foldedWing({ ...fold, sweep: -10, out: 45, arm: -15, elbow: 105, wrist: -5, knuckle: 140 });
   /** The right wing `k` of the way (0 to 1) from standing folded to `open` (a wing's turns). */
   function unfold(k, open) {
     if (k < 0.3) return mixWing(standWing, LIFTED, smoother(k / 0.3));

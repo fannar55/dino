@@ -496,13 +496,17 @@ function neighbours(positions, spread) {
 }
 
 /**
- * correctInPoses's numbers: the bones whose turns say how much of each correction is on (her upper arms: the skin that still comes into
- * the pad is her wing roots'); a vertex nearer her skin than `clear` (m) is pushed out to it; a pose whose deepest is above `inside`
- * needs nothing; poses whose turns are within `merge` (radians, the most of any of those bones) of each other share a key; a key
- * fades out as her turns go `radius` from its own; the spread of a push (m) and the field's weight of staying; rounds; moves under
- * `least` (m) are left out.
+ * correctInPoses's numbers: the bones whose turns say how much of each correction is on (null: the bones the saddle hangs on, whose
+ * turns are what bends it and the skin under it; her hips turn 46 degrees between standing and flying, so her upper arms alone would
+ * take a take-off pose for a wing beat's); a vertex nearer her skin than `touch` (m: under the fit's gap, so the pad lying on her
+ * is left as it lies) is pushed out to `clear` from it; a pose whose deepest is above `inside` needs nothing; poses whose turns are
+ * within `merge` (radians, the most of any of those bones) of each other share a key; a key fades out as her turns go `radius` from
+ * its own; the spread of a push (m) and the field's weight of staying; the clips whose keys push along her skin's normal (standing:
+ * her folded arm over the pad's edge), the others pushing up from her back; the least slope a push up counts the skin it is in as
+ * having (the dot of their normals: a push up as far as clears it, so skin facing aside or down is cleared in a few rounds, not
+ * none); the most a vertex is pushed in a round (m); rounds; moves under `least` (m) are left out.
  */
-export const CORRECT = { drivers: ['LeftUpperArm', 'RightUpperArm'], clear: 0.01, inside: -0.003, merge: 0.05, radius: 0.35, spread: 0.06, anchor: 0.05, rounds: 12, least: 0.001 };
+export const CORRECT = { drivers: null, touch: 0.005, clear: 0.012, inside: -0.003, merge: 0.05, radius: 1, spread: 0.06, anchor: 0.05, along: ['idle'], facing: 0.3, most: 0.06, rounds: 24, least: 0.001 };
 
 /** Where vertex i of a fitted saddle is in the bind frame with its corrections on as much as `on` says. */
 export function correctedAt(fitted, i, on, out = new V3()) {
@@ -524,23 +528,25 @@ export function correctionsOn(fitted, bones) {
  * Corrections for the poses where her skin still comes into the saddle after the hold. Some of it cannot be held by bone weights:
  * where her wings are up (the top of a wing beat) or folded, the skin of her wing roots swings up over her back, over the pad, and
  * down again as the wing comes the other way, while the pad has to stay on her back; no blend of her bones does both. Each of her
- * poses (merged where her upper arms are turned within CORRECT.merge of another's) is a key: in each round, in each pose, the saddle
- * with the corrections so far (engine/flier-saddle.js correctionsAt: each key counts by how near her upper arms are to its turns,
- * shared where keys overlap) is pushed out where she comes into it, each push spread smoothly into the pad round it, and the push
- * goes into its key's correction in the bind frame: a morph target. The keys that never need one are the clean poses, which keep
- * the blend near them at none. Sets fitted.corrections: [{ label, at: { bone: quaternion }, radius, deltas }] and fitted.clean.
+ * poses (merged where the bones the saddle hangs on are turned within CORRECT.merge of another's) is a key: in each round, in each
+ * pose, the saddle with the corrections so far (engine/flier-saddle.js correctionsAt: exactly a key's own in its pose, a blend of
+ * the nearest between) is pushed out where she comes into it, each push spread smoothly into the pad round it, and the push goes
+ * into its key's correction in the bind frame: a morph target. The keys that never need one are the clean poses, which hold the
+ * blend near them at none. Sets fitted.corrections: [{ label, at: { bone: quaternion }, radius, deltas }] and fitted.clean.
  */
-export function correctInPoses(fitted, skin, posing, { fit = FIT, correct = CORRECT } = {}) {
+export function correctInPoses(fitted, skin, posing, { up, correct = CORRECT } = {}) {
   const { positions, weights } = fitted;
   const n = positions.length;
   const near = neighbours(positions, correct.spread);
   const angle = (a, b) => 2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3])));
-  // the keys: her poses, merged
+  // the keys: her poses, merged; by the turns of the bones the saddle hangs on (or those asked for)
   const keys = [];
+  let drivers = correct.drivers;
   posing((label, matrices, bones) => {
+    drivers ??= [...new Set(weights.flatMap(w => [...w.keys()]))].sort((a, b) => a - b).map(i => bones[i].name);
     const byName = new Map(bones.map(b => [b.name, b]));
-    const at = Object.fromEntries(correct.drivers.map(name => [name, byName.get(name).quaternion.toArray()]));
-    if (!keys.some(k => Math.max(...correct.drivers.map(name => angle(at[name], k.at[name]))) < correct.merge)) keys.push({ label, at, radius: correct.radius, deltas: null });
+    const at = Object.fromEntries(drivers.map(name => [name, byName.get(name).quaternion.toArray()]));
+    if (!keys.some(k => Math.max(...drivers.map(name => angle(at[name], k.at[name]))) < correct.merge)) keys.push({ label, at, radius: correct.radius, deltas: null });
   });
   const split = () => {
     fitted.corrections = keys.filter(k => k.deltas);
@@ -552,12 +558,20 @@ export function correctInPoses(fitted, skin, posing, { fit = FIT, correct = CORR
   const push = new Float32Array(3 * n), spread = new Float32Array(3 * n), total = new Float32Array(n);
   const pushed = new Uint8Array(n);
   for (let round = 0; round < correct.rounds; round++) {
-    let added = 0;
+    let added = 0, worst = 0;
     posing((label, matrices, bones) => {
       const byName = new Map(bones.map(b => [b.name, b]));
-      const turns = Object.fromEntries(correct.drivers.map(name => [name, byName.get(name).quaternion.toArray()]));
+      const turns = Object.fromEntries(drivers.map(name => [name, byName.get(name).quaternion.toArray()]));
       const shares = correctionsAt(keys, [], name => byName.get(name).quaternion); // every key's share here
       const on = fitted.corrections.map(c => shares[keys.indexOf(c)]);
+      // its key: the nearest by those bones' turns (every pose is within merge of one)
+      let k = 0, best = Infinity;
+      keys.forEach((key, j) => {
+        const far = Math.max(...drivers.map(name => angle(turns[name], key.at[name])));
+        if (far < best) { best = far; k = j; }
+      });
+      const key = keys[k];
+      const alongSkin = correct.along.includes(key.label.split(' ')[0]);
       skin.pose();
       push.fill(0);
       pushed.fill(0);
@@ -568,23 +582,31 @@ export function correctInPoses(fitted, skin, posing, { fit = FIT, correct = CORR
         const c = skin.closest(q, { reach: 0.3 });
         if (!c) continue;
         deepest = Math.min(deepest, c.distance);
-        if (c.distance >= correct.clear) continue;
-        const k = correct.clear - c.distance;
-        push[3 * i] = c.normal.x * k; push[3 * i + 1] = c.normal.y * k; push[3 * i + 2] = c.normal.z * k;
+        if (c.distance >= correct.touch) continue;
+        let move;
+        if (alongSkin) {
+          // standing, her folded arm lies over the pad's edge: out of it along her skin's normal, down under the arm
+          d.copy(c.normal);
+          move = Math.min(correct.most, correct.clear - c.distance);
+        } else {
+          // flying, her wing root swells up under the pad as her wing comes up: pushed up from her back as her back is turned there
+          // in this pose, as far as clears the slope of the skin it is in (her skin's own normal flips from side to side where a
+          // wing root folds, so pushes along it would go back and forth)
+          sum.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+          for (const [bone, w] of weights[i]) for (let e = 0; e < 16; e++) sum.elements[e] += matrices[bone].elements[e] * w;
+          d.copy(up).applyMatrix3(turn.setFromMatrix4(sum)).normalize();
+          move = Math.min(correct.most, (correct.clear - c.distance) / Math.max(c.normal.dot(d), correct.facing));
+        }
+        push[3 * i] = d.x * move; push[3 * i + 1] = d.y * move; push[3 * i + 2] = d.z * move;
         pushed[i] = 1;
         moved.push(i);
       }
-      if (deepest > correct.inside) return;
-      // its key: the nearest by her upper arms' turns (every pose is within merge of one)
-      let k = 0, best = Infinity;
-      keys.forEach((key, j) => {
-        const far = Math.max(...correct.drivers.map(name => angle(turns[name], key.at[name])));
-        if (far < best) { best = far; k = j; }
-      });
-      const key = keys[k];
+      worst = Math.min(worst, deepest);
+      if (deepest > correct.inside || !moved.length) return;
       if (!key.deltas) { key.deltas = new Float32Array(3 * n); split(); }
       const scale = 1 / Math.max(shares[k], 0.25);
-      // each push spread into the pad round it (from the pushed vertices to their neighbours), kept near none by `anchor`
+      // each push spread into the pad round it, kept near none there by `anchor` (a pushed vertex takes its own push); what a push
+      // falls short by, the next round makes up
       spread.fill(0);
       total.fill(0);
       for (const j of moved) {
@@ -597,12 +619,10 @@ export function correctInPoses(fitted, skin, posing, { fit = FIT, correct = CORR
         }
       }
       for (let i = 0; i < n; i++) {
-        let x, y, z;
-        if (pushed[i]) { x = push[3 * i]; y = push[3 * i + 1]; z = push[3 * i + 2]; } else {
-          if (total[i] === 0) continue;
-          const s = 1 / (total[i] + correct.anchor);
-          x = spread[3 * i] * s; y = spread[3 * i + 1] * s; z = spread[3 * i + 2] * s;
-        }
+        if (pushed[i]) { spread[3 * i] = push[3 * i]; spread[3 * i + 1] = push[3 * i + 1]; spread[3 * i + 2] = push[3 * i + 2]; total[i] = 1; }
+        if (total[i] === 0) continue;
+        const s = 1 / (total[i] + (pushed[i] ? 0 : correct.anchor));
+        const x = spread[3 * i] * s, y = spread[3 * i + 1] * s, z = spread[3 * i + 2] * s;
         // into the bind frame: by the inverse of the vertex's blended bone turn in this pose
         sum.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         for (const [bone, w] of weights[i]) for (let e = 0; e < 16; e++) sum.elements[e] += matrices[bone].elements[e] * w;
@@ -613,6 +633,7 @@ export function correctInPoses(fitted, skin, posing, { fit = FIT, correct = CORR
       added++;
     });
     skin.unpose();
+    if (process.env.SADDLE_DEBUG) console.log(`[saddle-fit] correction round ${round}: ${added} poses pushed, deepest ${(worst * 100).toFixed(1)} cm`);
     if (!added) break;
   }
   // what moves less than CORRECT.least is left out (the spread's far tails: nothing to see, and the file stays small)
@@ -973,7 +994,7 @@ async function main() {
   console.log(`[saddle-fit] laid on her back; inside her in her poses: ${rows(checkInPoses(fitted, skin, posing))}`);
   holdInPoses(fitted, skin, posing, { fit });
   console.log(`[saddle-fit] held in her poses; inside her: ${rows(checkInPoses(fitted, skin, posing))}`);
-  correctInPoses(fitted, skin, posing, { fit });
+  correctInPoses(fitted, skin, posing, { up: frame.up });
   const held = checkInPoses(fitted, skin, posing);
   console.log(`[saddle-fit] ${fitted.corrections.length} corrections (${fitted.corrections.map(c => c.label).join(', ')}), ${fitted.clean.length} clean poses; inside her: ${rows(held)}`);
   const bones = mesh.skeleton.bones.map(b => b.name);
