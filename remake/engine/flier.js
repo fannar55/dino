@@ -15,7 +15,7 @@
 // own sideways move; at most 30 degrees, halved under reduced motion. The model faces +X; the bank is about her own X (her right
 // wing, +Z, goes down in a right turn), the pitch about her Z.
 import * as THREE from 'three';
-import { carryRider, handsOn, SIT_DEPTH } from './riding.js';
+import { carryRider, handsOn, legsOn, SIT_DEPTH } from './riding.js';
 import { BEATS, FASTER_LAST, LEAP, BODY_HEIGHT } from '../chapters/kafli4-route.js';
 
 const V3 = THREE.Vector3;
@@ -279,6 +279,13 @@ export function perchedHeading(route) {
 export const SEAT = { bone: 'Spine', local: [-0.056, 0.198, 0.009] };
 // His hands on her neck ahead of him: [ahead, up, across (his right)] in metres from his root, in the seat's frame.
 const HANDS = { left: [0.3, 0.5, -0.1], right: [0.3, 0.5, 0.1] };
+// His legs astride her back, likewise: each knee bends toward `knee`, ahead and out over her side, and the ankle reaches for `ankle`, down
+// her side. Her back is wider than his legs are long (0.7 m against 0.4), so they go out more than down, as a small boy's on a pony.
+const LEGS = {
+  left: { knee: [0.25, 0.36, -0.3], ankle: [0.08, 0.17, -0.34] },
+  right: { knee: [0.25, 0.36, 0.3], ankle: [0.08, 0.17, 0.34] },
+};
+const LEAN = 12; // degrees his spine leans forward to the grips
 
 /**
  * Seat `rider` on the flier's back for the flight: he plays `sit`, and his root follows the seat each frame, turned with her back;
@@ -302,6 +309,9 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
   const rootTurn = new THREE.Quaternion();
   const grips = { left: new V3(), right: new V3() };
   const hands = handsOn(rider, grips);
+  const knees = { left: new V3(), right: new V3() };
+  const ankles = { left: new V3(), right: new V3() };
+  const legs = legsOn(rider, ankles, knees, { lean: LEAN });
   let t = 0;
   const fromTurn = rider.root.quaternion.clone();
   const from = rider.root.position.clone();
@@ -324,6 +334,7 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
     drive(dt) {
       t += dt;
       hands.restore();
+      legs.restore();
       frame(turn);
       const k = settle > 0 ? smooth(t / settle) : 1;
       rider.root.position.copy(seat).addScaledVector(Y.clone().applyQuaternion(turn), -SIT_DEPTH);
@@ -332,9 +343,17 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
       rider.root.quaternion.slerpQuaternions(fromTurn, turn, k);
       place(HANDS.left, grips.left);
       place(HANDS.right, grips.right);
+      for (const side of ['left', 'right']) {
+        place(LEGS[side].knee, knees[side]);
+        place(LEGS[side].ankle, ankles[side]);
+      }
     },
-    pose() { hands.apply(smooth(t / 0.4)); },
-    end() { hands.restore(); },
+    pose() {
+      const k = smooth(t / 0.4);
+      legs.apply(k); // first: the spine's lean moves his shoulders, which the hands reach from
+      hands.apply(k);
+    },
+    end() { hands.restore(); legs.restore(); },
   };
   const carried = carryRider(rider, controller);
   rider.play('sit', { fade: 0.3 });

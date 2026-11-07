@@ -455,6 +455,54 @@ export function handsOn(rider, grips) {
   };
 }
 
+// The rider's legs astride a back, and his spine leaning to the grips. After his clips have posed him, his spine leans `lean` degrees
+// forward and each leg reaches for its ankle's place (ik.js reachTwoBones: thigh and shin, the knee bending toward its pole), the
+// targets blended in from the clip's own ankle and knee. As with the hands, the clip's pose goes back before his clips run again.
+// Apply it before the hands: they reach from where the spine has put the shoulders.
+const LEAN_AXIS = new V3(0, 0, 1);
+export function legsOn(rider, ankles, knees, { lean = 0 } = {}) {
+  const legs = [['Left', ankles.left, knees.left], ['Right', ankles.right, knees.right]].map(([side, ankle, knee]) => {
+    const upper = findBone(rider.model, `${side}UpperLeg`);
+    const lower = findBone(rider.model, `${side}LowerLeg`);
+    const foot = findBone(rider.model, `${side}Foot`);
+    return upper && lower && foot ? { upper, lower, foot, ankle, knee, upperTurn: new THREE.Quaternion(), lowerTurn: new THREE.Quaternion() } : null;
+  }).filter(Boolean);
+  const spine = findBone(rider.model, 'Spine');
+  const spineTurn = new THREE.Quaternion();
+  const bend = new THREE.Quaternion();
+  let applied = false;
+  const at = new V3();
+  const target = new V3();
+  const pole = new V3();
+  return {
+    restore() {
+      if (!applied) return;
+      for (const leg of legs) {
+        leg.upper.quaternion.copy(leg.upperTurn);
+        leg.lower.quaternion.copy(leg.lowerTurn);
+      }
+      spine?.quaternion.copy(spineTurn);
+      applied = false;
+    },
+    apply(weight) {
+      if (weight <= 0) return;
+      if (spine) {
+        spineTurn.copy(spine.quaternion);
+        spine.quaternion.multiply(bend.setFromAxisAngle(LEAN_AXIS, -THREE.MathUtils.degToRad(lean * weight)));
+      }
+      rider.root.updateMatrixWorld(true);
+      for (const leg of legs) {
+        leg.upperTurn.copy(leg.upper.quaternion);
+        leg.lowerTurn.copy(leg.lower.quaternion);
+        target.lerpVectors(leg.foot.getWorldPosition(at), leg.ankle, weight);
+        pole.lerpVectors(leg.lower.getWorldPosition(at), leg.knee, weight);
+        reachTwoBones(leg.upper, leg.lower, leg.foot, target, pole);
+      }
+      applied = true;
+    },
+  };
+}
+
 const HANDS_IN = 0.3; // seconds for his hands to go to the handle once he is in the seat
 
 /**
