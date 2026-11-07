@@ -295,6 +295,28 @@ export function watchHer(c, label, { position, fov = 50, lag = 0.45, from = null
   });
 }
 
+/**
+ * Her wingbeats as they happen: a function that, called every frame, says true once in each loop of her `fly` clip, as its
+ * downstroke begins (FLAP.at of the loop: the clip starts with the wings up, takeOff's last pose), and false otherwise; nothing while
+ * another clip has most of her pose (gliding, landing, idle). For a flap sound that follows the wings (the juice review's item 6).
+ */
+export const FLAP = { clip: 'fly', at: 0.04, weight: 0.5 };
+export function wingFlaps(her) {
+  let last = null; // the loop's share at the last call, while fly leads
+  return () => {
+    const clip = her.clips?.get?.(FLAP.clip);
+    const action = clip ? her.mixer?.existingAction?.(clip) : null;
+    if (!action || !action.isRunning() || action.getEffectiveWeight() < FLAP.weight || !(clip.duration > 0)) {
+      last = null;
+      return false;
+    }
+    const now = (((action.time % clip.duration) + clip.duration) % clip.duration) / clip.duration;
+    const was = last ?? 0;
+    last = now;
+    return (was < FLAP.at && now >= FLAP.at) || (now < was && now >= FLAP.at); // crossed it, or looped past it in one frame
+  };
+}
+
 const wrap = x => Math.atan2(Math.sin(x), Math.cos(x));
 const smooth = x => {
   const k = clamp(x, 0, 1);

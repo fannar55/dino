@@ -16,7 +16,10 @@ import { BEATS, FALLS, STILLS } from '../../chapters/kafli4-route.js';
 
 export const FLIGHT_RULES = { roll: 8, minShot: 2.5, quick: { minShot: 1.5, max: 3 }, bound: { dolly: 1.2, pan: 15 }, fixed: { pan: 40 } };
 const SLACK = 1.05; // a rule is broken past 5 % over, as the director's are
-const BOOST = { degrees: 8, in: 0.4, out: 1 };
+const BOOST = { degrees: 8, in: 0.4, out: 1, reduced: 0.5 }; // reduced: the share of the widening under reduced motion
+// The lens with her speed (the juice review's item 14): in the chase, wider by up to `degrees` as she goes from `from` to `to` m/s,
+// the lens moving `rate` degrees a second at most (the zoom rule is 8); none under reduced motion.
+const SPEED_LENS = { degrees: 2.5, from: 16, to: 22, rate: 3 };
 const CLEAR = 1.2; // metres the camera keeps over the ground and the water
 
 const V3 = THREE.Vector3;
@@ -157,7 +160,7 @@ export function stillViews(route, { heightAt = () => 0 } = {}) {
 export function createFlightCamera(director, flier, { world = null, egill = null, reduced = false } = {}) {
   const route = flier.route;
   const shots = Object.freeze([...Object.keys(BOUND), ...Object.keys(FIXED)]);
-  const state = { name: null, kind: null, started: null, quick: false, quicks: 0, broken: new Set(), roll: 0, boost: 0, boostTo: 0, last: null };
+  const state = { name: null, kind: null, started: null, quick: false, quicks: 0, broken: new Set(), roll: 0, boost: 0, boostTo: 0, last: null, fast: 0 };
   const heading = new V3();
   const right = new V3();
   const up = new V3(0, 1, 0);
@@ -192,10 +195,14 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   function step(rig, dt) {
     frame();
     const base = bound?.fov ?? fixed?.fov ?? rig.fov;
-    // the boost: wider by 8 degrees in 0.4 s, back in 1 s
+    // the boost: wider by 8 degrees in 0.4 s, back in 1 s (half of it under reduced motion)
     const rate = state.boostTo > state.boost ? 1 / BOOST.in : 1 / BOOST.out;
     state.boost = state.boostTo > state.boost ? Math.min(state.boostTo, state.boost + rate * dt) : Math.max(state.boostTo, state.boost - rate * dt);
-    rig.fov = base + BOOST.degrees * smooth(state.boost);
+    // and the chase a little wider the faster she goes, easing at the lens's own pace (at once on a cut: a new shot's lens)
+    const fast = !reduced && state.name === 'chase' ? SPEED_LENS.degrees * smooth((flier.speed - SPEED_LENS.from) / (SPEED_LENS.to - SPEED_LENS.from)) : 0;
+    state.fast = dt > 0 ? state.fast + clamp(fast - state.fast, -SPEED_LENS.rate * dt, SPEED_LENS.rate * dt) : fast;
+    // the two do not add up: a burst's widening already holds her speed's (so a burst's view, and what it draws, is as it was)
+    rig.fov = base + Math.max(BOOST.degrees * (reduced ? BOOST.reduced : 1) * smooth(state.boost), state.fast);
     if (bound) {
       let offset;
       if (bound.radius) {
@@ -290,13 +297,15 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     get current() { return state.name; },
     get roll() { return state.roll; },
     get fov() { return director.rig.fov; },
+    /** Degrees the chase is wider now for her speed (SPEED_LENS). */
+    get speedLens() { return state.fast; },
     shot,
     /** Hear every cut, with the shot's name, as it is made (what Egill may do follows the shot: kafli4-flight-play.js). Returns the off. */
     onCut(fn) {
       cutListeners.push(fn);
       return () => { const i = cutListeners.indexOf(fn); if (i >= 0) cutListeners.splice(i, 1); };
     },
-    /** „Hraðar!“: the lens widens 8 degrees over 0.4 s, and back over 1 s. */
+    /** „Hraðar!“: the lens widens 8 degrees over 0.4 s (4 under reduced motion), and back over 1 s. */
     boost(on) { state.boostTo = on ? 1 : 0; },
     /** One frame without the director (a test); the director calls the same step each frame while a flight shot is its mode. */
     update(dt) { step(director.rig, dt); director.apply(); },

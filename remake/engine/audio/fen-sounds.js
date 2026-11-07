@@ -155,17 +155,18 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
     },
     // The fish jumps: a plip as it leaves the water (a quarter of a second in) and a splash as it falls back (0.95 s), as it does.
     // A script that times a jump itself asks for each half, as it happens: { part: 'out' } the plip now, { part: 'in' } the splash now.
-    fish({ part } = {}) {
+    // `pan` puts it to a side (chapter 4's flight: a fish jumping beside her); by default it is in the middle.
+    fish({ part, pan = 0 } = {}) {
       const lead = part ? 0 : 0.25, back = part === 'in' ? 0 : 0.95;
-      if (part !== 'in') droplet(key[3] * 2, lead, 0.04, 0);
+      if (part !== 'in') droplet(key[3] * 2, lead, 0.04, pan);
       if (part === 'out') return;
-      noise({ type: 'bandpass', frequency: 1200, end: 450, q: 1, duration: 0.22, level: 0.09, attack: 0.005, delay: back });
-      tone({ frequency: key[2] / 2, end: key[0] / 2, duration: 0.1, level: 0.05, attack: 0.004, delay: back });
-      [2, 4].forEach((n, i) => droplet(key[n] * 2, back + 0.07 + i * 0.07, 0.018, (i - 0.5) * 0.3));
+      noise({ type: 'bandpass', frequency: 1200, end: 450, q: 1, duration: 0.22, level: 0.09, attack: 0.005, delay: back, pan });
+      tone({ frequency: key[2] / 2, end: key[0] / 2, duration: 0.1, level: 0.05, attack: 0.004, delay: back, pan });
+      [2, 4].forEach((n, i) => droplet(key[n] * 2, back + 0.07 + i * 0.07, 0.018, pan + (i - 0.5) * 0.3));
     },
     // The early bird flies up: two notes of a call, la falling to mi, a short sol after, and a flutter of wings.
-    earlyBird() {
-      const pan = between(-0.3, 0.3);
+    earlyBird({ pan: side } = {}) {
+      const pan = Number.isFinite(side) ? side : between(-0.3, 0.3); // or from a side (chapter 4's flight: flushed beside her)
       tone({ frequency: key[4] * 2, end: key[2] * 2, duration: 0.22, level: 0.05, pan, attack: 0.02 });
       tone({ frequency: key[3] * 2, duration: 0.12, level: 0.04, pan, attack: 0.01, delay: 0.3 });
       for (let i = 0; i < 4; i++) noise({ kind: 'warm', type: 'bandpass', frequency: 1400, q: 1, duration: 0.07, level: 0.035, attack: 0.01, delay: 0.05 + i * 0.09, pan });

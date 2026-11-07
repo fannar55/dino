@@ -49,6 +49,24 @@ export const FLIGHT_WORDS = {
   k4_egill_faster1: 'Hraðar!',
   k4_egill_faster2: 'Hraðar!',
   k4_flugedla_holdon: 'Haltu þér!',
+  // the juice review of 2026-11-07 (its section 1): what she tells him he may do, each left out once he has done it (B, C)
+  k4_flugedla_steer: 'Strjúktu til hliðar, þá beygi ég!',
+  k4_flugedla_faster: 'Ýttu á takkann, þá flýg ég hraðar!',
+  k4_flugedla_skim: 'Strjúktu niður, þá snerti ég vatnið!',
+  k4_flugedla_animals: 'Sjáðu dýrin! Bankaðu á þau, þá kalla ég.',
+  // Egill, once a kind, when a tap on a group has called it
+  k4_egill_frogs: 'Froskarnir svara!',
+  k4_egill_birds: 'Fuglarnir fljúga!',
+  k4_egill_turtles: 'Skjaldbökurnar heyrðu!',
+  k4_egill_lizards: 'Eðlurnar hlaupa með!',
+  k4_egill_dragonflies: 'Drekaflugurnar elta okkur!',
+  // D's flyers round her, G's landing, and the takes that take turns with „Haltu þér!“ and the laugh
+  k4_egill_flyers: 'Sjáðu, þau fljúga með okkur!',
+  k4_flugedla_landing: 'Nú lendum við! Haltu þér!',
+  k4_flugedla_holdon2: 'Vúhú! Hér förum við!',
+  k4_flugedla_holdon3: 'Hraðar og hraðar!',
+  k4_egill_splash: 'Skvamp!',
+  k4_egill_laugh2: 'Hí hí hí!',
 };
 
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
