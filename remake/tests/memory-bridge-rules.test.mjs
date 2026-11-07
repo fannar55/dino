@@ -346,6 +346,8 @@ test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff 
   assert.equal(level.voice['g2-reach-ready'], 'g2_ledge_ready'); assert.equal(level.voice['g2-fly-ready'], 'g2_cliff_ready');
   assert.equal(level.story.reach.prompts.ready, TEXT.g2_ledge_ready); assert.equal(level.story.fly.prompts.ready, TEXT.g2_cliff_ready); assert.equal(level.story.through.prompts.open, TEXT.g2_through); assert.equal(level.story.climb.prompts.doing, TEXT.g2_climb);
   assert.deepEqual(level.eventSounds['reach-start'], [{ say: 'g2_reached', delay: .9 }]); assert.deepEqual(level.eventSounds['fly-start'], [{ say: 'g2_flown', delay: .9 }]);
+  // (the second rope's long flight: the same line again, queued; each pair calls at the end of a long walk)
+  assert.deepEqual(level.eventSounds['wing-beat:pull:0'], [{ say: 'g2_flown', delay: .5, again: true }]); assert.deepEqual(level.eventSounds['pair-arrived'], [{ method: 'arrivalCall', arg: 'species' }]);
   assert.equal(level.eventCaptions['reach-start'].text, TEXT.g2_reached); assert.equal(level.eventCaptions['fly-start'].text, TEXT.g2_flown);
   // What the world raises while it works is heard: each name is an audio method that exists, and each recorded cue is in the gorge's manifest.
   const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null }), manifest = JSON.parse(fs.readFileSync(new URL('../assets/audio/memory/soundscape/gorge/manifest.json', import.meta.url), 'utf8'));

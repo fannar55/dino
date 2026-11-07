@@ -27,7 +27,8 @@ import { CLIMB, TREE_AT, wayPoints } from './upper-ground.js';
  *
  * Events (the page hears them: levels/steinagljufur.js eventSounds and eventCaptions): 'through-start', 'reach-start', 'slab-step' { index }, 'slab-down', 'fly-start', 'wing-beat' { index },
  * 'rope-lift', 'rope-knots', 'rope-taut', 'rope-tied', 'climb-start', 'climb-step', 'footstep', 'bridge-complete' { id }; the pull's 'pull-start', 'trunk-tilt' { index }, 'trunk-fall',
- * 'trunk-dust' and the walk's 'walk-start' and 'footstep' { surface: 'wood' }; the goes: 'fail-bump', 'fail-rope', 'fail-slip', 'fail-done'.
+ * 'trunk-dust' and the walk's 'walk-start' and 'footstep' { surface: 'wood' }; the goes: 'fail-bump', 'fail-rope', 'fail-slip', 'fail-done'. At the end of each long walk (out of
+ * the tunnel, up the ramp, over the trunk) 'pair-arrived' { id, species } as the last of a pair comes to its place (its call: the audit's #16).
  */
 const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -98,6 +99,17 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     });
   }
 
+  // A pair at the end of a long walk: register each of its walkers (`arrive(who)` gives the walker's onDone), and when the last of a pair is at its place it
+  // raises 'pair-arrived' once (Mosi has no call of his own).
+  function pairArrivals(id) {
+    const left = new Map();
+    return who => {
+      if (who === 'mosi') return () => {};
+      left.set(who, (left.get(who) ?? 0) + 1);
+      return () => { const n = left.get(who) - 1; left.set(who, n); if (n === 0) events.push({ type: 'pair-arrived', id, species: who }); };
+    };
+  }
+
   // ---- through ----
   const ENTER = { first: 2.0, every: .26, run: 6.4, walk: 4.4 };
   const ORDER = ['stegosaurus', 'mosi', 'triceratops', 'brontosaurus', 'pteranodon'];
@@ -130,7 +142,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     action.cut = true; action.phase = 'exit'; action.age = 0; where = 'upper';
     setLower(false); U.show(); walkers.cancelAll(); walkers.resetClock();
     // (`bore(x)`: the frame's x of a place in the exit's tunnel, in the tunnel's own x as the glade's lanes are given: the mouth at BORE.mouth; its middle is the frame's z = 0)
-    const t0 = walkers.clock(), mouth = U.anchors.exit.mouth.x, bore = x => mouth - BORE.mouth + x;
+    const t0 = walkers.clock(), mouth = U.anchors.exit.mouth.x, bore = x => mouth - BORE.mouth + x, arrive = pairArrivals('through');
     ORDER.forEach((who, g) => {
       const list = who === 'mosi' ? [mosi()] : members(who);
       list.forEach((actor, i) => {
@@ -140,7 +152,8 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
         const out = file ? [world(bore(LIP.back), lane), world(mouth + .3, lane), spot.point] : [world(bore(LIP.back), lane), world(bore(LIP.to), lane + lip), world(mouth + .3, lane + lip), world(mouth + .9, lane * 1.4), spot.point];
         walkers.place(actor, inside, forward(0), false); actor.root.scale.setScalar(.02);
         const delay = g * .3 + i * .1;
-        walkers.start(actor, [{ until: t0 + delay }, { pop: .22 }, { to: out, speed: 5.4 }], { yaw: spot.yaw, onDone: () => { action.arrived++; } });
+        const called = arrive(who);
+        walkers.start(actor, [{ until: t0 + delay }, { pop: .22 }, { to: out, speed: 5.4 }], { yaw: spot.yaw, onDone: () => { action.arrived++; called(); } });
       });
     });
     return true;
@@ -201,18 +214,18 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       if (a.age >= (reduced() ? .4 : 1.4)) {
         // everyone walks up the ramp to the terrace: two lanes up the slab, then to their places
         a.phase = 'ascend'; a.age = 0; walkers.resetClock();
-        const t0 = 0, surface = rampSurface(); let k = 0;
+        const t0 = 0, surface = rampSurface(), arrive = pairArrivals(a.id); let k = 0;
         for (const [who, formation] of [['mosi', 'terrace'], ['brontosaurus', 'terrace'], ['triceratops', 'terrace'], ['stegosaurus', 'terrace'], ['pteranodon', 'terrace']]) {
           const list = who === 'mosi' ? [mosi()] : members(who);
           list.forEach((actor, i) => {
-            const lane = who === 'mosi' ? 0 : (i ? .85 : -.85), spot = spotOf(formation, who, i), foot = U.slab.ramp(lane).map(p => U.world(p.x, p.y, p.z));
+            const lane = who === 'mosi' ? 0 : (i ? .85 : -.85), spot = spotOf(formation, who, i), foot = U.slab.ramp(lane).map(p => U.world(p.x, p.y, p.z)), called = arrive(who);
             // (from where it stands: to the foot of the slab, up it, and on to its place on the terrace; off the slab's top every body lies on the terrace and the slab as it
             // steps down, not pitched along the line (its front feet went 8-15 cm into the terrace, veggir). The Þórseðlur back out to the slab's foot first, and lie on the
             // slab and the floor all the way)
             if (who === 'brontosaurus') {
               actor.clearLook?.();
-              walkers.start(actor, [{ to: [world(...BACK_TO[i])], speed: 3.4, ground: false, backward: true }, { to: [...foot, spot.point], speed: 4, ground: false, surface }], { yaw: spot.yaw, pitch: true });
-            } else walkers.start(actor, [{ until: t0 + k * .2 }, { to: foot, speed: 4, ground: false }, { to: [spot.point], speed: 4, ground: false, surface }], { yaw: spot.yaw, pitch: true });
+              walkers.start(actor, [{ to: [world(...BACK_TO[i])], speed: 3.4, ground: false, backward: true }, { to: [...foot, spot.point], speed: 4, ground: false, surface }], { yaw: spot.yaw, pitch: true, onDone: called });
+            } else walkers.start(actor, [{ until: t0 + k * .2 }, { to: foot, speed: 4, ground: false }, { to: [spot.point], speed: 4, ground: false, surface }], { yaw: spot.yaw, pitch: true, onDone: called });
           });
           k += who === 'mosi' ? 1 : 2;
         }
@@ -552,7 +565,7 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
     action = { id: 'walk', phase: 'walk', age: 0, landed: 0, stepAge: 0, arrived: 0, surfaces, times: [], walked: null };
     events.push({ type: 'walk-start' });
     const deck = trunk.line(WALK.deckFrom, WALK.deckTo, .5).map(p => U.world(p.x, p.y, p.z));
-    let hop = -Infinity, before = null;
+    let hop = -Infinity, before = null; const arrive = pairArrivals('walk');
     for (const [who, i] of WALK_ORDER) {
       const actor = who === 'mosi' ? mosi() : members(who)[i], spot = spotOf('sun', who, i), [back, front] = BODY[who], surface = surfaces[who];
       // (each point of the way up and off as high as this one's field there: the way's own rise is then the walk's, and its length the length walked)
@@ -563,19 +576,19 @@ export function createUpperMover({ stage, level, upper: U, rope, rope2 = null, t
       hop = at; before = who; void back;
       const end = spot.frame[1] < 6.5 ? [world(...WALK.via), spot.point] : [spot.point];
       // (when it should be in its place, as the ways are long and the paces set: the report's walk, beside when it was)
-      const length = points => points.reduce((sum, p, k) => k ? sum + p.distanceTo(points[k - 1]) : 0, 0), name = who + i;
+      const length = points => points.reduce((sum, p, k) => k ? sum + p.distanceTo(points[k - 1]) : 0, 0), name = who + i, called = arrive(who);
       const expect = at + length([on, ...up, ...deck, ...off]) / WALK.deck + length([off.at(-1), ...end]) / WALK.ground;
       // (to the trunk, up it, over it and off it in one way: where one way ends and the next starts, the toes are reached out along the last and then along the next, and a
       // body that came to the trunk's side with its toes on the ground had them on its side the moment after, its root up 0.4 m at once)
       walkers.start(actor, [{ to: [on, ...up, ...deck, ...off], speed: WALK.deck, ground: false, surface }, { to: end, speed: WALK.ground }],
-        { delay, yaw: spot.yaw, pitch: true, onDone: () => { if (action) { action.arrived++; action.times.push(`${name} ${action.age.toFixed(2)}/${expect.toFixed(2)}`); } } });
+        { delay, yaw: spot.yaw, pitch: true, onDone: () => { if (action) { action.arrived++; action.times.push(`${name} ${action.age.toFixed(2)}/${expect.toFixed(2)}`); called(); } } });
     }
     // the Flugeðlur glide over, high over the trunk, and come down at their places (the walk ends when they are down too: at 6.4 and 6.1 m/s, flapping, they were quick
     // beside the walk; gliding at 5 they land as Mosi comes to his place)
     members('pteranodon').forEach((actor, i) => {
       actor.carry?.(false);
       const spot = spotOf('sun', 'pteranodon', i), points = [U.world(33 + i, 12.4, 5.6 + i), U.world(43.5, 13.2, 8 + i * 1.4), U.world(spot.frame[0] - 2, 11.2, spot.frame[1])];
-      const landed = () => { if (action) { action.landed++; action.times.push(`pteranodon${i} ${action.age.toFixed(2)}`); } };
+      const called = arrive('pteranodon'), landed = () => { if (action) { action.landed++; action.times.push(`pteranodon${i} ${action.age.toFixed(2)}`); called(); } };
       const ok = actor.fly?.(points, { speed: WALK.fly - i * .2, glide: true, onDone: () => { actor.land?.(spot.point, { yaw: spot.yaw, onDone: landed }) || landed(); } });
       if (!ok) { walkers.place(actor, spot.point, spot.yaw); action.landed++; }
     });

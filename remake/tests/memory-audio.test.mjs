@@ -28,9 +28,12 @@ test('audio remains uninitialized until gesture and notes match the shipped them
   const limiter = contexts[0].of('compressor')[0];
   assert.ok(contexts[0].started.every(source => source.reaches(limiter)));
   assert.equal(audio.getStats().log.filter(entry => entry.kind === 'call').length, 1);
+  // (without her real cries the Flugeðla baby's call is the old synth)
+  contexts[0].advance(3); audio.reveal('pteranodon', 1);
+  assert.equal(audio.getStats().log.find(entry => entry.kind === 'call' && entry.species === 'pteranodon')?.source, 'synth');
 }));
 
-const recordedIds = ['triceratops', 'stegosaurus', 'brontosaurus', 'leaf', 'straw', 'foot', 'branch-lift', 'branch-lower', 'log-roll', 'bridge-land', 'bark-pickup', 'bark-place', 'match-chime', 'win', 'river'];
+const recordedIds = ['triceratops', 'stegosaurus', 'brontosaurus', 'leaf', 'straw', 'foot', 'branch-lift', 'branch-lower', 'log-roll', 'bridge-land', 'bark-pickup', 'bark-place', 'match-chime', 'win', 'river', 'flyer-1', 'flyer-2'];
 function recordedFixture({ failed = null, delay = null } = {}) {
   const requested = [];
   return { requested, options: {
@@ -51,9 +54,9 @@ test('recorded preload is silent, caches files, uses actual cue lengths and play
   await fixture(async ({ audio, contexts }) => {
     await audio.preload(); await audio.preload();
     assert.equal(contexts.length, 0, 'network preload neither creates nor wakes audio');
-    assert.equal(bank.requested.length, 16, 'manifest plus15cues are fetched once');
+    assert.equal(bank.requested.length, 18, 'manifest plus 17 cues are fetched once');
     await audio.unlock(); await audio.preload(); const context = contexts[0];
-    assert.equal(audio.getStats().recordedLoaded, 15);
+    assert.equal(audio.getStats().recordedLoaded, 17);
     audio.reveal('brontosaurus', 0); audio.reveal('brontosaurus', 1);
     const calls = audio.getStats().log.filter(entry => entry.kind === 'call');
     assert.equal(calls.length, 2); assert.ok(calls.every(entry => entry.source === 'recorded'));
@@ -61,6 +64,10 @@ test('recorded preload is silent, caches files, uses actual cue lengths and play
     assert.ok(calls[1].start > calls[0].end);
     const sources = context.started.filter(source => source.buffer.duration === .3);
     assert.equal(sources[0].buffer, sources[1].buffer, 'same species reuses identical recorded motif');
+    // The Flugeðla baby's call: chapter 4's two flyer cries in turn, played higher.
+    context.advance(3); audio.reveal('pteranodon', 2); context.advance(3); audio.reveal('pteranodon', 2);
+    const cries = audio.getStats().log.filter(entry => entry.kind === 'call' && entry.species === 'pteranodon');
+    assert.deepEqual(cries.map(entry => entry.asset), ['flyer-1', 'flyer-2']); assert.ok(cries.every(entry => entry.source === 'recorded' && entry.rate > 1.2));
     context.advance(3); audio.match('triceratops'); audio.win();
     for (const [method, argument] of journeyCues) { context.advance(3); audio[method](argument); }
     context.advance(3); audio.footstep('wood', -.2); assert.equal(audio.footstep('wood', .2), false, 'crowded footsteps remain throttled');
@@ -80,11 +87,11 @@ test('a missing recorded cue falls back locally while other generated cues remai
   const bank = recordedFixture({ failed: 'branch-lower' });
   await fixture(async ({ audio, contexts }) => {
     await audio.unlock(); await audio.preload();
-    assert.equal(audio.getStats().recordedLoaded, 14); assert.deepEqual(audio.getStats().recordedFailed, ['branch-lower']);
+    assert.equal(audio.getStats().recordedLoaded, 16); assert.deepEqual(audio.getStats().recordedFailed, ['branch-lower']);
     audio.branchLift(); contexts[0].advance(3); audio.branchLower();
     assert.equal(audio.getStats().log.find(entry => entry.kind === 'branch-lift').source, 'recorded');
     assert.equal(audio.getStats().log.find(entry => entry.kind === 'branch-lower').source, 'synth');
-    await audio.preload(); assert.equal(bank.requested.length, 16, 'failed local assets are not fetched repeatedly on every event');
+    await audio.preload(); assert.equal(bank.requested.length, 18, 'failed local assets are not fetched repeatedly on every event');
   }, bank.options);
 });
 
@@ -94,7 +101,7 @@ test('late asset loading cannot start sound during pause or resurrect cancelled 
   await fixture(async ({ audio, contexts }) => {
     await audio.unlock(); const context = contexts[0]; audio.reveal('triceratops', 0); audio.pause(true);
     const count = context.started.length; release(); await audio.preload();
-    assert.equal(audio.getStats().recordedLoaded, 15); assert.equal(context.started.length, count);
+    assert.equal(audio.getStats().recordedLoaded, 17); assert.equal(context.started.length, count);
     assert.equal(audio.getStats().voices, 0); assert.equal(context.state, 'suspended');
     audio.pause(false); context.advance(3); assert.equal(context.started.length, count);
     audio.reveal('triceratops', 0); assert.equal(audio.getStats().log.at(-1).source, 'recorded');

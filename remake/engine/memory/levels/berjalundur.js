@@ -166,6 +166,8 @@ export const BERJALUNDUR = freezeLevel({
     'log-roll': ['logRoll', { say: 'roll', delay: 0.12 }],
     'bridge-land': ['bridgeLand'],
     'staging-arrival': ['stagingArrival'],
+    // (each pair calls as the last of it comes over the bridge; the walk to the grove ends in the friends' cheer instead)
+    'pair-arrived:cross': [{ method: 'arrivalCall', arg: 'species' }],
     'bark-pickup': ['barkPickup'],
     'bark-place': [{ method: 'barkPlace', arg: 'panel' }],
     'boardwalk-complete': ['boardwalkComplete'],

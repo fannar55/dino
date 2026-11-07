@@ -155,7 +155,8 @@ button and its hint, the sound button, the help card (`copy.help`), the small ey
   halfway home. Pause and camera focus hold automatic travel safely.
 
 - The ending (`levels/berjalundur/scenes/celebrate.js`, played by `scenes/finish.js` there once all six have arrived): about
-  seventeen seconds of cuts, never more than three apart. The friends eat berries (the Kambeðlur with their
+  seventeen seconds of cuts, never more than three apart. The friends cheer as they arrive (Söngur Slóeðlu's cheer, in level 1's own
+  folder `soundscape/grove/` with Mosi's claps, as level 2 has them in `gorge/`) and Mosi's `won` follows. The friends eat berries (the Kambeðlur with their
   own `eat` clip, the others with the `nibble` gesture), each pair does its trick (the Þríhyrnur hop, the
   Kambeðlur and the Þórseðlur play their `happy` clips), Mosi cheers and the three gifts rise from his basket
   (one at each side of his head, one high above it) while he says "Þú fannst allar þrjár gjafirnar!" (`gifts3`). The six
@@ -178,6 +179,12 @@ button and its hint, the sound button, the help card (`copy.help`), the small ey
   the frames are in `camtrack.json`).
 - Two small creature sounds, `giggle` (a wrong pair ducking, a wrong friend's go) and `strain` (each tap of a
   tap-along), made with `memory-sound-design.mjs`; both have synthesized fallbacks in `audio.js`.
+- At the end of each long walk (level 1's crossing, level 2's tunnel, ramp and trunk) each pair calls once as the last of it comes to its
+  place: the world raises `pair-arrived` { id, species } and the level's `eventSounds` play `arrivalCall` (queued up to 3.2 s, so four
+  calls in a row are all heard). A level's tables are read by an event's type, then by type and id (`pair-arrived:cross`) and by type, id
+  and index (`wing-beat:pull:0`, where level 2 says `g2_flown` again, `again: true`, as the second rope flies).
+- The Flugeðla baby's call is chapter 4's flyer cries (`kafli4/hljod/flyer-1`, `-2`, in the gorge's manifest), the two in turn, played
+  1.32 times as fast for a baby (`audio.js` `BABY_CALLS`); the old synth (`MOTIFS.pteranodon`) is the fallback.
 
 The new baby art and recorded speech remain subject to human visual/listening
 review. This milestone does not claim final AA quality or measured tablet FPS.
