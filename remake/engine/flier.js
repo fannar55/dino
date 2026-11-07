@@ -286,14 +286,18 @@ const LEGS = {
   right: { knee: [0.25, 0.36, 0.3], ankle: [0.08, 0.17, 0.34] },
 };
 const LEAN = 12; // degrees his spine leans forward to the grips
+// On her saddle (engine/flier-saddle.js) his seat, knees and ankles are its places, and each wrist goes this far from its grip on the
+// handlebar, [ahead, up, across] in the seat's frame: a little behind and over it, his hand round the bar.
+const WRIST = [-0.04, 0.03, 0];
 
 /**
  * Seat `rider` on the flier's back for the flight: he plays `sit`, and his root follows the seat each frame, turned with her back;
  * his hands go to her neck. `settle`: seconds he takes to settle into the seat from where he is (riding.js floatTo leaves him
- * upright under it, and her back is tipped); 0 puts him there at once. Returns { stop(), seatLocal, frame(out) } (frame: her back's
- * turn now); stop() gives him back where he is.
+ * upright under it, and her back is tipped); 0 puts him there at once. `saddle` (engine/flier-saddle.js): while it is on her and
+ * shown, he sits on it, his hands on its handlebar and his legs down its sides. Returns { stop(), seatLocal, frame(out) } (frame:
+ * her back's turn now); stop() gives him back where he is.
  */
-export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = SEAT.local, settle = 0 } = {}) {
+export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = SEAT.local, settle = 0, saddle = null } = {}) {
   const host = flier.actor;
   const bone = host.model.getObjectByName(boneName);
   if (!bone) throw new Error(`${host.name} has no bone named "${boneName}"`);
@@ -312,6 +316,8 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
   const knees = { left: new V3(), right: new V3() };
   const ankles = { left: new V3(), right: new V3() };
   const legs = legsOn(rider, ankles, knees, { lean: LEAN });
+  const move = new THREE.Matrix4(); // her root as it was, to where the flier has put it this frame
+  const wrist = new V3();
   let t = 0;
   const fromTurn = rider.root.quaternion.clone();
   const from = rider.root.position.clone();
@@ -336,11 +342,21 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
       hands.restore();
       legs.restore();
       frame(turn);
+      const on = saddle?.ready && saddle.shown ? saddle.update(move.multiplyMatrices(rootNow, rootThen)) : null;
       const k = settle > 0 ? smooth(t / settle) : 1;
-      rider.root.position.copy(seat).addScaledVector(Y.clone().applyQuaternion(turn), -SIT_DEPTH);
+      rider.root.position.copy(on ? on.seat : seat).addScaledVector(Y.clone().applyQuaternion(turn), -SIT_DEPTH);
       off ??= from.clone().sub(rider.root.position);
       rider.root.position.addScaledVector(off, 1 - k);
       rider.root.quaternion.slerpQuaternions(fromTurn, turn, k);
+      if (on) {
+        wrist.set(WRIST[0], WRIST[1], WRIST[2]).applyQuaternion(turn);
+        for (const side of ['left', 'right']) {
+          grips[side].copy(on.grips[side]).add(wrist);
+          knees[side].copy(on.knees[side]);
+          ankles[side].copy(on.ankles[side]);
+        }
+        return;
+      }
       place(HANDS.left, grips.left);
       place(HANDS.right, grips.right);
       for (const side of ['left', 'right']) {
