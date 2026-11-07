@@ -1028,7 +1028,7 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   const { save, book, played, sounds, tap, tile, slot, slots } = bookRig(s => s.addStar('k1_kambedla'));
   book.open('games', 'child');
   assert.equal(slot('veiddu').hidden, true, 'no Veiddu without Uggeðla\'s star');
-  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior'], 'four slots: the two card games side by side, then the board and the dice');
+  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior', 'minnisspil'], 'five slots: the two card games side by side, then the board, the dice and the memory game (hidden here)');
   assert.equal(tile('veiddu').parentNode.parentNode.getAttribute('data-open'), '2', 'Eitt! and Litla Yatzy are the two open');
   assert.ok(tile('veiddu').classList.contains('unfound'));
   sounds.length = 0;

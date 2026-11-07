@@ -884,8 +884,8 @@ test('the star k4_flugedla is saved once and map piece d is drawn; the book open
   assert.equal(fromChapter3.save.get().places.filter(id => id === 'flugedla').length, 1, 'once, if chapter 3 marked it');
   const end = world.chapterTimeline.at(-1).at;
   assert.ok(seen.spokenAt.get('k4_mosi_horn') < end, 'after the last line');
-  // No Leikir tile for her: none appears without a game (spec 7), and the book opens no game on her star
-  assert.equal(fs.readFileSync(new URL('../engine/book/book.js', import.meta.url), 'utf8').includes('k4_flugedla'), false);
+  // Her Leikir tile is the memory game, Saman getum við það! (2026-11-07, the owner's choice): the book names her star for it
+  assert.equal(fs.readFileSync(new URL('../engine/book/book.js', import.meta.url), 'utf8').includes('k4_flugedla'), true);
 });
 
 test('the flight inside the chapter meets every beat within 0.5 s, and scene 7 takes over as it ends', async () => {
