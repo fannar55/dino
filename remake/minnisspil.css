@@ -294,6 +294,14 @@ img{-webkit-user-drag:none}
   .level-title{margin-top:2px}
   .ending{bottom:12px;padding:12px 20px}
 }
+/* In the book on a phone the band is 88 + 14 + 14 px shorter: the chip tightens so the pause still clears the book's X */
+@media(max-width:560px){
+  #game[data-inbook="1"] .topbar{gap:6px}
+  #game[data-inbook="1"] .tally{gap:6px;padding:5px 10px}
+  #game[data-inbook="1"] .nest-dots{gap:4px}#game[data-inbook="1"] .nest-dots i{width:15px;height:15px}
+  #game[data-inbook="1"] .basket{gap:4px}#game[data-inbook="1"] .basket-icon{width:28px;height:28px}#game[data-inbook="1"] #basket-text{font-size:17px}
+  #game[data-inbook="1"] #pause{width:72px;height:72px}
+}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
   .world-target.is-guided .tap-ring{opacity:1;scale:.85}
