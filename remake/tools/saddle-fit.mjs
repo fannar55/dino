@@ -598,8 +598,14 @@ export function writeFitted(file, saddle, fitted, { joints, slot, extras }) {
     material: 0,
   };
   const material = src.materials?.[saddle.material ?? 0] ?? { pbrMetallicRoughness: { baseColorFactor: [0.44, 0.33, 0.25, 1], metallicFactor: 0, roughnessFactor: 0.8 } };
+  // the maps' extensions as they were (Blender writes WebP maps: EXT_texture_webp); the vertices are written plain, so not quantization
+  const extensions = list => (list ?? []).filter(name => name !== 'KHR_mesh_quantization');
+  const used = extensions(src.extensionsUsed);
+  const required = extensions(src.extensionsRequired);
   const json = {
     asset: { version: '2.0', generator: 'remake/tools/saddle-fit.mjs' },
+    ...(used.length ? { extensionsUsed: used } : {}),
+    ...(required.length ? { extensionsRequired: required } : {}),
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ name: 'Hnakkur', mesh: 0, extras: { joints, ...extras } }],

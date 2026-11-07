@@ -29,6 +29,7 @@ import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
+import { createFlierSaddle } from '../engine/flier-saddle.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 import { createSaddle, ride, floatTo, floatDown, SIT_DEPTH } from '../engine/riding.js';
@@ -344,8 +345,9 @@ function* roundTheTree(s, c) {
   yield s.wait(0.8);
 }
 
-// 5. On her back: she asks Egill along, comes down and sits low beside Mosi, and Egill floats from the saddle onto her back between
-// her wings, as onto the saddle in chapter 1 (engine/riding.js: floatTo). Mosi will run. She flies up to the top again with him.
+// 5. On her back: she asks Egill along, comes down and sits low beside Mosi, a saddle pops onto her back between her wings with a
+// burst of sparkles (engine/flier-saddle.js, as Mosi's in chapter 1), and Egill floats from Mosi's saddle onto hers (engine/riding.js:
+// floatTo). Mosi will run. She flies up to the top again with him.
 function* onHerBack(s, c) {
   mark(c, 5);
   const { mosi, egill, flugedla, world } = c;
@@ -369,11 +371,13 @@ function* onHerBack(s, c) {
   yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.7, maxAngle: 70, maxPitch: 40 });
   yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 45 });
   yield egill.lookAt(null);
+  s.sfx('saddle');
+  yield c.herSaddle.appear();
   s.sfx('float');
   c.boarding = s.time; // from here he is on her, or on his way
   yield floatTo(egill.raw, backSeat(c), { duration: FLOAT });
   c.ridden = { actor: flugedla.raw, get root() { return c.flier?.root ?? c.held.root; } }; // the flight's root once it flies
-  c.riding = rideFlier(egill.raw, c.ridden, { settle: SETTLE }); // from upright under the seat onto her tipped back
+  c.riding = rideFlier(egill.raw, c.ridden, { settle: SETTLE, saddle: c.herSaddle }); // from upright under the seat onto her tipped back
   yield flugedla.lookAt(null);
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 45 });
   yield* say(s, c, 'mosi', 'k4_mosi_run');
@@ -601,7 +605,10 @@ function upPoints(c, board) {
   return [board.toArray(), at(6.6, -3.0, 2.2), at(11.8, -2.6, 6.4), before(5.5, 1.6), top.toArray()];
 }
 
-/** Where Egill floats to on her back: the seat on her Spine bone (engine/flier.js: SEAT), his root as far under it as he sits. */
+/**
+ * Where Egill floats to on her back: her saddle's seat (engine/flier-saddle.js) once it is on her, else the seat on her Spine bone
+ * (engine/flier.js: SEAT); his root as far under it as he sits.
+ */
 function backSeat(c) {
   const her = c.flugedla.raw;
   const bone = her.model.getObjectByName(SEAT.bone);
@@ -610,7 +617,9 @@ function backSeat(c) {
     host: her,
     update() {
       her.root.updateMatrixWorld(true);
-      bone.localToWorld(seat.set(...SEAT.local));
+      const on = c.herSaddle?.ready && c.herSaddle.shown ? c.herSaddle.update() : null;
+      if (on) seat.copy(on.seat);
+      else bone.localToWorld(seat.set(...SEAT.local));
       seat.y -= SIT_DEPTH;
       return seat;
     },
@@ -805,6 +814,7 @@ export const chapter = {
     world.chapterState = c; // what the scenes share, for captures and probes
     // As chapter 3 ended: Egill in the saddle on Mosi, on his hummock by Þórseðla's head; Flugeðla is at the white tree.
     flugedla.raw.root.visible = false;
+    c.herSaddle = createFlierSaddle(flugedla.raw); // on her model, hidden till it pops on in scene 5 (the warm-ups draw it with her)
     thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
     mosi.place(MOSI_FEN.position[0], MOSI_FEN.position[2], MOSI_FEN.heading);
     c.saddle = createSaddle(mosi.raw);

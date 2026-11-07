@@ -14,6 +14,7 @@ import { track1 } from './flug-track.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier } from '../engine/flier.js';
+import { createFlierSaddle } from '../engine/flier-saddle.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 
@@ -81,11 +82,14 @@ export const chapter = {
     const reduced = reducedMotion(world);
     const flier = createFlier(flugedla.raw, route, { world, reduced });
     flier.update(0); // on top of the snag, wings folded
-    const riding = rideFlier(egill.raw, flier);
+    // she wears her saddle from the start (engine/flier-saddle.js; the full chapter pops it on in scene 5), and Egill sits on it
+    const saddle = createFlierSaddle(flugedla.raw);
+    saddle.show();
+    const riding = rideFlier(egill.raw, flier, { saddle });
     const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced });
     const context = world.sound?.context ?? null;
     const sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: loadFlightRecordings(context) });
-    const c = { s, world, flugedla, egill, mosi, route, flier, riding, camera, sounds, reduced, flight: null };
+    const c = { s, world, flugedla, egill, mosi, route, flier, saddle, riding, camera, sounds, reduced, flight: null };
     // only the flight's song: the page's theme is silent from the start, and the song is made now, so its file is there by the flight
     world.music?.setLevel?.(0, 0);
     c.song = createFlightSong(world);
@@ -105,7 +109,9 @@ export const chapter = {
     // frame nobody sees: the flight starts in black); a capture goes on at once and has her long before she is seen at 116 s
     const far = world.forest?.farLand ?? null;
     far?.prefetch();
+    yield saddle.loaded; // on her before the start (he sits on her back till it is)
     yield s.ready(); // the start button; immediate in captures
+    if (!s.seeking && saddle.mesh) world.warmObjects?.([saddle.mesh]); // its model may have come after the warm-up: once under the black
     if (far) {
       if (s.seeking) far.load();
       else {
