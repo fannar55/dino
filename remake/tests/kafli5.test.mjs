@@ -39,7 +39,7 @@ const inFrame = (point, camera) => {
  * shot's frames (the groups and the reed out of frame, the camera).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null, audio = null } = {}) {
-  const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [] };
+  const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [], turtleLift: Infinity };
   return playUnattended(kafli5, {
     seeking, limit: 720, shaped: true, aspect, reduced, eager, audio,
     onFrame(frame) {
@@ -62,6 +62,10 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, 
         const out = GROUPS.filter(group => !inFrame(new THREE.Vector3(...c.points[group]), world.camera));
         if (!inFrame(REED, world.camera)) out.push('reed');
         seen.choirFrames.push({ t: c.s.time, out, camera: world.camera.position.clone(), turn: world.camera.quaternion.clone() });
+      }
+      // how high the turtles sit over the ground (their stone) while the choir sings
+      if (c.scene === 4 || c.scene === 5) {
+        for (const b of world.forest.life.pool.turtles) seen.turtleLift = Math.min(seen.turtleLift, b.position.y - world.heightAt(b.position.x, b.position.z));
       }
       // the note the choir wants now, and since when (scene time)
       const st = c.choir?.state();
@@ -236,6 +240,11 @@ test('every line of WORDS is said once at least, and the captions name Slóeðla
   assert.ok(hers.length >= 3, `${hers.length} of her captions`);
   assert.ok(hers.every(entry => entry.colour === FRIENDS.a.dark), `her colour is the dark of her blue (${FRIENDS.a.dark})`);
   assert.deepEqual(run.captions.filter(entry => /^k\d_[a-z]+_/.test(entry.text)).map(entry => entry.text), [], 'no caption shows an id');
+});
+
+test('the turtles sit on their stone the whole choir, not in it', async () => {
+  const run = await untouched();
+  assert.ok(run.watched.turtleLift > 0.8, `the lowest turtle is ${run.watched.turtleLift.toFixed(2)} m over the ground`);
 });
 
 test('upright (aspect 0.625): the choir shot shows all five groups and the reed the whole task', async () => {

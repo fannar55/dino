@@ -59,7 +59,7 @@ import { fenShare } from './terrain.js';
  * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06). The flyer is 2.4 m across its
  * wings: a third of hers, seen 5 to 12 m off.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, frog: 4.5, turtle: 4 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, frog: 4.5, turtle: 4.5 };
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clamp01 = k => Math.min(1, Math.max(0, k));
@@ -156,8 +156,36 @@ const SLOTS = {
 const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low: 0.4, lane: [1.6, 2.5] };
 // Chapter 5's pool (createLife's `choir`): a frog sits LILY m over the water on its pad, the pads and the stone are grown with the
 // banks, and a move turns its way over TURN of it at each end; a flyer flies over at most FLY_UP m; a hop is HOP's.
-const POOL_LIFE = { lily: 0.03, pad: 2.2, padUp: 0.012, turn: 0.15, flyUp: 5, rockTop: 0.55 };
+const POOL_LIFE = { lily: 0.03, pad: 2.2, padUp: 0.012, turn: 0.15, flyUp: 5, rockTop: 0.55, rockTurn: 0.6 };
 const HOP_DEFAULT = { height: 0.6, seconds: 0.45 };
+
+/**
+ * Chapter 5's stone: how high its drawn surface is over (x, z), so a turtle sits on it and not in it (the stone is lumpy). The stone
+ * is placed as world/ardalur/banks.js places a prop (lod 1, sunk by its model's sink, turned by `rot`, scaled); without its model it
+ * is a smooth top POOL_LIFE.rockTop of its scale high.
+ */
+function rockSurface(model, { x, y, z, rot, scale }) {
+  const smooth = () => y + POOL_LIFE.rockTop * scale;
+  const pos = model?.solid?.pos;
+  if (!pos?.length) return smooth;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  if (model.solid.idx?.length) geometry.setIndex(model.solid.idx);
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  // banks.js and batch.js turn a vertex (lx, lz) to (lx cos rot - lz sin rot, lx sin rot + lz cos rot): three's turn by -rot
+  mesh.position.set(x, y - (model.sink ?? 0) * scale, z);
+  mesh.rotation.y = -rot;
+  mesh.scale.setScalar(scale);
+  mesh.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  const from = new THREE.Vector3();
+  return (px, pz) => {
+    ray.set(from.set(px, y + 4 * scale, pz), down);
+    const hit = ray.intersectObject(mesh, false)[0];
+    return hit ? hit.point.y : smooth();
+  };
+}
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {}, choir = null } = {}) {
   const { river } = route;
@@ -468,12 +496,13 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (rock) {
       const [x, z] = rock.at;
       const y = heightAt(x, z);
-      props.push({ name: 'rock', variant: rock.variant, x, y, z, rot: 0.6, scale: rock.scale });
+      const rot = POOL_LIFE.rockTurn;
+      props.push({ name: 'rock', variant: rock.variant, x, y, z, rot, scale: rock.scale });
       clear.push({ x, z, r: 1.2 * rock.scale });
       const model = library?.get?.('rock', rock.variant, 1, {}) ?? null;
-      const top = y + (model ? (model.height - (model.sink ?? 0)) * rock.scale : POOL_LIFE.rockTop * rock.scale);
+      const surface = rockSurface(model, { x, y, z, rot, scale: rock.scale });
       choir.turtles.forEach(({ at: [tx, tz], heading }, k) => {
-        const turtle = add(`pool-turtle-${k}`, 'turtle', new THREE.Vector3(tx, top - 0.12 * Math.hypot(tx - x, tz - z), tz), heading);
+        const turtle = add(`pool-turtle-${k}`, 'turtle', new THREE.Vector3(tx, surface(tx, tz), tz), heading);
         turtle.gather = { at: turtle.at.clone(), heading };
         pool.turtles.push(turtle);
       });
@@ -872,7 +901,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
    */
   function moveTo(b, { at, via = [], heading = b.gather?.heading ?? b.rest, seconds = 4 } = {}) {
     if (!b.gather) return;
-    const point = ([x, z]) => new THREE.Vector3(x, b.kind === 'frog' ? b.gather.at.y : heightAt(x, z), z);
+    // a frog keeps to the water and a turtle to its stone (its height there); the rest walk on the ground
+    const keepsHeight = b.kind === 'frog' || b.kind === 'turtle';
+    const point = ([x, z]) => new THREE.Vector3(x, keepsHeight ? b.gather.at.y : heightAt(x, z), z);
     const way = [b.gather.at.clone(), ...(b.kind === 'flugdyr' ? [] : via.map(point)), point(at)];
     const lengths = way.slice(1).map((p, i) => Math.hypot(p.x - way[i].x, p.z - way[i].z));
     const total = lengths.reduce((sum, d) => sum + d, 0);
@@ -898,7 +929,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     const f = lengths[i] > 1e-6 ? Math.min(1, left / lengths[i]) : 1;
     const x = a.x + (b2.x - a.x) * f;
     const z = a.z + (b2.z - a.z) * f;
-    const y = b.kind === 'flugdyr' ? from.y + (to.y - from.y) * e + POOL_LIFE.flyUp * Math.sin(Math.PI * e) : b.kind === 'frog' ? from.y : heightAt(x, z);
+    const y = b.kind === 'flugdyr' ? from.y + (to.y - from.y) * e + POOL_LIFE.flyUp * Math.sin(Math.PI * e) : b.kind === 'frog' || b.kind === 'turtle' ? from.y : heightAt(x, z);
     b.gather.at.set(x, y, z);
     const way = headingOf(b2.x - a.x, b2.z - a.z);
     const far = total > 0.5;

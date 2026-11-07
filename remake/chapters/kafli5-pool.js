@@ -47,7 +47,7 @@ export { GROUPS } from './kafli5-song.js'; // low to high, as the song has them
 // turtles share one stone (ROCK); the rest of those that came (world/ardalur/life.js arrivals) stay where chapter 4 left them.
 const SEATS = {
   grazers: [[0, 0], [3.4, 2.4], [-3.4, 2.4]],
-  turtles: [[0, 0.15], [-0.9, -0.35], [0.95, -0.3]],
+  turtles: [[0, 0.1], [-0.75, -0.2], [0.75, -0.15]],
   frogs: [[0, 0], [1.7, 0.5], [-1.7, 0.5], [3.2, 1.3], [-3.2, 1.3]],
   lizards: [[0, 0], [1.6, 0], [-1.6, 0], [0.8, 1.8], [-0.8, 1.8], [2.4, 1.8]],
   flyers: [[0, 0], [1.8, 0.3], [-1.8, 0.3], [0, 1.9]],
@@ -64,7 +64,7 @@ export function seatsOf(group) {
   }));
 }
 /** The turtles' stone, on the bank at their spot (a 'rock' of the plants' library). */
-export const ROCK = { at: [...CHOIR.turtles.at], variant: 1, scale: 3.2 };
+export const ROCK = { at: [...CHOIR.turtles.at], variant: 1, scale: 2.6 };
 /** What life.js puts at the pool for chapter 5 at build (createArdalur's `choir`): the frogs on their pads and the turtles on their stone. */
 export const POOL_LIFE = { frogs: seatsOf('frogs'), turtles: seatsOf('turtles'), rock: ROCK, level: LEVEL };
 

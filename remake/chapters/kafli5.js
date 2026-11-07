@@ -405,6 +405,7 @@ function sendTheChoir(c) {
     c.members[group].forEach((b, k) => {
       const seat = seats[k % seats.length];
       const from = [b.gather.at.x, b.gather.at.z];
+      if (Math.hypot(seat.at[0] - from[0], seat.at[1] - from[1]) < 0.3) return; // the pool's own frogs and turtles are there already
       const via = group === 'flyers' ? [] : roundThePool(from, seat.at);
       const way = [from, ...via, seat.at];
       const length = way.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - way[i][0], p[1] - way[i][1]), 0);
@@ -639,7 +640,7 @@ export const chapter = {
         grey: false, route: ROUTE, at: FAR_POOL.center, critters: await loadCritters(world), views: viewsOf(world), keep: KEEP, choir: POOL_LIFE,
       }),
       shots: SHOTS,
-      warmUp: ['choir_wide', 'reed_close', 'bank_talk'],
+      warmUp: ['choir_wide', 'reed_close', 'bank_talk', 'sloedla_out', 'west_listen'], // every shot drawn once before the start (the first video stalled 165 ms at the cut west)
     },
   },
   actors: {
