@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createBook, halsOpen } from '../engine/book/book.js';
+import { createBook, halsOpen, MINNISSPIL_STAR } from '../engine/book/book.js';
 import { renderMap, MAP_PLACES } from '../engine/book/map-page.js';
 import { TREES, FALL, FOAM, treeBox, lifeClock, createLiveMap, timeLiveMaps, noiseData } from '../engine/book/map-life.js';
 import { createHash } from 'node:crypto';
@@ -2216,6 +2216,25 @@ test('the Leikir page shows only the games that are open', () => {
   save.addStar('k2_thorsedla');
   book.refresh();
   assert.equal(slot('hals').hidden, false, 'and Háls og hali with her star');
+});
+
+test("Flugeðla's game, Saman getum við það!, is the last tile, with her star, new until opened, and a tap opens it", () => {
+  const { save, book, root, played, tap } = savedRig(s => { s.addStar('k1_kambedla'); s.addStar('k2_uggedla'); s.addStar('k2_thorsedla'); });
+  const tile = () => root.findAll(e => e.getAttribute('data-game') === 'minnisspil')[0];
+  const grid = () => root.findAll(e => e.getAttribute('data-open'))[0];
+  book.open('games', 'child');
+  assert.equal(MINNISSPIL_STAR, 'k4_flugedla');
+  assert.equal(tile().parentNode.hidden, true, 'hidden without her star');
+  assert.equal(grid().getAttribute('data-open'), '4');
+  save.addStar(MINNISSPIL_STAR);
+  book.refresh();
+  assert.equal(tile().parentNode.hidden, false, 'shown with k4_flugedla');
+  assert.equal(grid().getAttribute('data-open'), '5');
+  assert.equal(tile().parentNode.getAttribute('data-place'), '5', 'last');
+  assert.ok(tile().classList.contains('new') && !tile().classList.contains('found'), 'new until opened');
+  tap(tile());
+  assert.deepEqual(played, ['minnisspil']);
+  assert.ok(save.get().seen.includes('minnisspil') && tile().classList.contains('found'), 'then seen');
 });
 
 test('the book opened for a dinosaur nods its tile once it has grown, and the journal passes the nod on', () => {

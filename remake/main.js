@@ -233,7 +233,7 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : game === 'veiddu' ? veiddu.open(options) : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : game === 'minnisspil' ? minnisspil.open() : game === 'veiddu' ? veiddu.open(options) : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
@@ -280,6 +280,16 @@ const junior = createJuniorFrame(document, {
   },
   onClose: () => book.refresh(),
 });
+// "Saman getum við það!", the memory game (remake/minnisspil.html), Flugeðla's game in the book: the same kind of frame, its own page and label.
+const minnisspil = createJuniorFrame(document, {
+  src: './minnisspil.html?inbook=1',
+  label: 'Saman getum við það!',
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('minnisspil', paused);
+  },
+  onClose: () => book.refresh(),
+});
 // Þórseðla's snakes and ladders, "Háls og hali" (engine/hals/game.js), which the Leikir page opens over the book as it does "Eitt!",
 // holding the chapter the same way (its own hold). It draws its board with this page's renderer: the canvas moves into the game
 // while it is open, so the chapter draws nothing then (render() below), and draws once more when the game shuts, under the book.
@@ -315,7 +325,7 @@ const villa = createVilla(document, {
     clock: () => ({ time: clock.time, paused: clock.paused }),
     stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
     location: () => world.location ?? null,
-    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, minnisspil: minnisspil.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
     caption: () => {
       const el = document.getElementById('caption');
       return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
@@ -843,4 +853,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __timeline: () => world.chapterTimeline ?? null, __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __timeline: () => world.chapterTimeline ?? null, __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __minnisspil: minnisspil, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

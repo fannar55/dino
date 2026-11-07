@@ -1,4 +1,4 @@
-# Hvar er vinur minn? — review slice
+# Saman getum við það! — review slice
 
 The current milestone revises the connected three-task woodland journey for
 clearer child-facing choices and continuous movement. Every pair has a different

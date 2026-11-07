@@ -35,9 +35,11 @@ import { validateGame } from '../hals/rules.js';
 // 2026-10-26). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla, which hands Þórseðla's snakes and ladders to
 // onPlay('hals') (engine/hals/game.js) and appears once it is open (halsOpen: her star, k2_thorsedla, or a game of it played), new
 // until it is first played. Then the "Litla Yatzy" tile, a taped photo of Mosi, always there and new until it is first played, which
-// hands the junior dice game with Mosi to onPlay('yatzy-junior'): a page of its own that main.js opens in a frame over the book. The
-// slots that show share the left page (data-open says how many: one big, two side by side, three with the first big, or the four of a
-// full book in two rows; data-place numbers the ones that show, for the style sheet). It has had the third tile since Slóeðla's
+// hands the junior dice game with Mosi to onPlay('yatzy-junior'): a page of its own that main.js opens in a frame over the book. Last comes
+// "Saman getum við það!", the memory game (remake/minnisspil.html), Flugeðla's: a taped picture of her (the pteranodon the map has), shown with
+// her star (k4_flugedla, MINNISSPIL_STAR), new until it is first played, which hands the game to onPlay('minnisspil'), another frame over the
+// book (main.js). The slots that show share the left page (data-open says how many: one big, two side by side, three with the first big, the
+// four of a full book in two rows, or five, three on top and two centred below; data-place numbers the ones that show, for the style sheet). It has had the third tile since Slóeðla's
 // Risaeðlu-Yatzy left the game (the owner's choice of 2026-10-24); before, it was a small button under hers. The "Veiddu" tile, a render
 // of Uggeðla, is the fourth: it appears with her star (k2_uggedla, VEIDDU_STAR), is new until it is first played, and hands Uggeðla's
 // Go Fish to onPlay('veiddu') (engine/veiddu/table.js, from main.js). Each round the child wins from her (a tie the child is in too) is a
@@ -75,6 +77,9 @@ const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp'
 const UGGEDLA_PICTURE = new URL('../../assets/book/images/uggedla-render.webp', import.meta.url).href;
 const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
 const MOSI_PICTURE = new URL('../../assets/eitt/mosi.webp', import.meta.url).href;
+export const MINNISSPIL_STAR = 'k4_flugedla'; // the star that opens "Saman getum við það!": Flugeðla's (chapter 4's friend)
+const MINNISSPIL_SEEN = 'minnisspil'; // kept in the save's seen list once the game has been opened, so its tile is new no more
+const FLUGEDLA_PICTURE = new URL('../../assets/eitt/pteranodon.webp', import.meta.url).href; // the art the map has for her
 export const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
 const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
 const JUNIOR_SEEN = 'yatzy-junior'; // kept in the save's seen list once Litla Yatzy has been opened, so its tile is new no more
@@ -110,7 +115,7 @@ export function halsOpen(save) {
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior')` opens a game from the Leikir page; `onTab(tab)` is told
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page; `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
@@ -280,7 +285,28 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   const juniorSlot = make('div', 'game-slot');
   juniorSlot.append(juniorTile);
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
-  gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot); // each shows once its game is open (renderGameSlots)
+  // "Saman getum við það!": a taped picture of Flugeðla, last on the page, once her star is in.
+  const minnisTile = make('button', 'tile game-tile');
+  minnisTile.setAttribute('type', 'button');
+  minnisTile.setAttribute('data-game', 'minnisspil');
+  minnisTile.setAttribute('aria-label', 'Saman getum við það!, minnisspil Flugeðlu');
+  minnisTile.style.setProperty('--hue', '#dc8090'); // Flugeðla's pink, as on her card (book.css [data-card="flugedla"])
+  const minnisPicture = make('span', 'tile-picture');
+  const minnisImage = doc.createElement('img');
+  minnisImage.src = FLUGEDLA_PICTURE;
+  minnisImage.alt = '';
+  minnisImage.draggable = false;
+  minnisPicture.append(minnisImage);
+  const minnisName = make('span', 'tile-name');
+  minnisName.textContent = 'Saman getum við það!';
+  const minnisBadge = make('span', 'badge-new');
+  minnisBadge.textContent = 'Nýtt!';
+  minnisBadge.setAttribute('aria-hidden', 'true');
+  minnisTile.append(minnisPicture, minnisName);
+  const minnisSlot = make('div', 'game-slot');
+  minnisSlot.append(minnisTile);
+
+  gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot, minnisSlot); // each shows once its game is open (renderGameSlots)
   gamesRight.append(sheet);
 
   // The Safnið ribbon's own "Nýtt!", while a fossil is found and not tapped yet (renderRibbonNew).
@@ -331,6 +357,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     renderVeiddu(state);
     renderHals(state);
     renderJunior(state);
+    renderMinnisspil(state);
     renderGameSlots(state);
     map.render();
     museum.render();
@@ -439,7 +466,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   /**
    * The Leikir page shows only the games that are open: "Eitt!" with Kambeðla's star, "Veiddu" with Uggeðla's, "Háls og hali" once
-   * halsOpen, and "Litla Yatzy" always; the stickers (Kambeðla's and Uggeðla's) when either card game is open. `data-open` is how many
+   * halsOpen, "Litla Yatzy" always, and "Saman getum við það!" last, with Flugeðla's star; the stickers (Kambeðla's and Uggeðla's) when either card game is open. `data-open` is how many
    * slots show, and each slot's `data-place` its order among them (0 for one that is hidden), for the page's layout (book.css).
    */
   function renderGameSlots(state) {
@@ -447,7 +474,8 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     const veiddu = state.stars.includes(VEIDDU_STAR);
     const hals = halsOpen(save);
     let places = 0;
-    for (const [slot, open] of [[eittSlot, eitt], [veidduSlot, veiddu], [halsSlot, hals], [juniorSlot, true]]) {
+    const minnisspil = state.stars.includes(MINNISSPIL_STAR);
+    for (const [slot, open] of [[eittSlot, eitt], [veidduSlot, veiddu], [halsSlot, hals], [juniorSlot, true], [minnisSlot, minnisspil]]) {
       slot.hidden = !open;
       slot.setAttribute('data-place', String(open ? ++places : 0));
     }
@@ -462,6 +490,15 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     juniorTile.classList.toggle('new', fresh);
     if (fresh && juniorBadge.parentNode !== juniorTile) juniorTile.append(juniorBadge);
     if (!fresh) juniorBadge.remove();
+  }
+
+  /** "Saman getum við það!" shows with Flugeðla's star (renderGameSlots hides its slot before), and is new until it is first played. */
+  function renderMinnisspil(state) {
+    const fresh = !state.seen.includes(MINNISSPIL_SEEN);
+    minnisTile.classList.toggle('found', !fresh);
+    minnisTile.classList.toggle('new', fresh);
+    if (fresh && minnisBadge.parentNode !== minnisTile) minnisTile.append(minnisBadge);
+    if (!fresh) minnisBadge.remove();
   }
 
   /** A tile that is not open yet wiggles (and says so with its sound), as a tile does that waits for its star. */
@@ -492,6 +529,14 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     save.addSeen(JUNIOR_SEEN);
     render();
     onPlay?.('yatzy-junior');
+  }
+
+  /** A tap on the "Saman getum við það!" tile: the memory page opens in a frame over the book (main.js). */
+  function tapMinnisspil() {
+    audio?.sfx?.('tile');
+    save.addSeen(MINNISSPIL_SEEN);
+    render();
+    onPlay?.('minnisspil');
   }
 
   /** A tap on the "Eitt!" tile: it opens the game once Kambeðla's star is in, and wiggles before. */
@@ -825,6 +870,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   pressable(veidduTile, { audio, sound: null, win, onTap: () => tapVeiddu() }); // the tile plays its own sound
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
   pressable(juniorTile, { audio, sound: null, win, onTap: () => tapJunior() });
+  pressable(minnisTile, { audio, sound: null, win, onTap: () => tapMinnisspil() });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's

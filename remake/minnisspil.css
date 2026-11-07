@@ -54,6 +54,8 @@ img{-webkit-user-drag:none}
 .corner{display:flex;align-items:flex-start;gap:14px;margin-left:auto;pointer-events:auto}
 .tally{display:flex;align-items:center;gap:16px;min-height:62px;padding:6px 18px 6px 16px;border:3px solid var(--ink);border-radius:999px;background:var(--card);box-shadow:var(--raise);pointer-events:none}
 .tally:not(:has(>:not([hidden]))){display:none} /* before the round starts both are hidden: no empty chip */
+/* In the book its own round close (88 px, 14 px from the corner, yatzy-junior.css) sits top right: the band stops 12 px short of it, so the pause sits left of it. */
+#game[data-inbook="1"] .topbar{right:calc(max(14px,env(safe-area-inset-right)) + 88px + 14px)}
 .tally,.corner{transition:opacity .25s}
 #game[data-choosing="true"] :is(.tally,.corner){opacity:.6} /* the picker or a tap-along has the child's eye; the pause still works */
 .progress{display:flex;align-items:center}
@@ -291,6 +293,14 @@ img{-webkit-user-drag:none}
   .level-number{position:static;display:inline-grid;align-self:center;width:28px;height:28px;font-size:15px;margin:8px 0 0}
   .level-title{margin-top:2px}
   .ending{bottom:12px;padding:12px 20px}
+}
+/* In the book on a phone the band is 88 + 14 + 14 px shorter: the chip tightens so the pause still clears the book's X */
+@media(max-width:560px){
+  #game[data-inbook="1"] .topbar{gap:6px}
+  #game[data-inbook="1"] .tally{gap:6px;padding:5px 10px}
+  #game[data-inbook="1"] .nest-dots{gap:4px}#game[data-inbook="1"] .nest-dots i{width:15px;height:15px}
+  #game[data-inbook="1"] .basket{gap:4px}#game[data-inbook="1"] .basket-icon{width:28px;height:28px}#game[data-inbook="1"] #basket-text{font-size:17px}
+  #game[data-inbook="1"] #pause{width:72px;height:72px}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
