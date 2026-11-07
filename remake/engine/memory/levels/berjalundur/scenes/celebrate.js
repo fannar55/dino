@@ -10,7 +10,8 @@
  *   beat(name, cut)                  notes a beat in the page's debug (the playthrough's report and pictures)
  * The Kambeðlur eat with their own `eat` clip and the others with the nibble gesture (gestures.js); tricks: the Þríhyrnur hop,
  * the Kambeðlur and the Þórseðlur play their `happy` clips (a friend without the clip, or in reduced motion, cheers instead).
- * Mosi's lines: `won` at the start, then the gifts line (gifts3: "Þú fannst allar þrjár gjafirnar!") once it is over; no gifts, no gifts line.
+ * The friends cheer as they arrive (Söngur Slóeðlu's cheer, soundscape/grove/, as level 2's), and Mosi's lines come after it: `won` at
+ * WON_AT, then the gifts line (gifts3: "Þú fannst allar þrjár gjafirnar!") once it is over; no gifts, no gifts line.
  * The six stand close round Mosi (adventure.js FINAL_PARKING), so a close shot of a pair or of Mosi and the last wide shot all
  * show faces; every close shot looks down at 18 to 24 degrees, over the reeds and berries at the edge of the grove.
  */
@@ -21,6 +22,8 @@ const UP = new THREE.Vector3(0, 1, 0);
 const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), actor.getNosePosition()]);
 const up = (point, metres) => point.clone().setY(point.y + metres);
 const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, point.z + z);
+// (Mosi's `won` waits for the first of the cheer, 3.5 s, so the two are not heard at once; his voice ducks the rest of it)
+const WON_AT = 1.8;
 
 export function celebrateScene(stage) {
   const friends = () => stage.friends(), pair = species => stage.pair(species), mosi = stage.mosi;
@@ -47,10 +50,11 @@ export function celebrateScene(stage) {
     return [point, up(point, 1.6), point.clone().addScaledVector(across, .9), point.clone().addScaledVector(across, -.9)];
   });
   return [
-    // They have all arrived: the whole grove, the cheer still going, Mosi's line; he looks them over.
-    { at: 0, shot: { kind: 'wide', subjects: group, elevation: 26, cut: true },
+    // They have all arrived: the whole grove, the friends cheer, then Mosi's line; he looks them over.
+    { at: 0, sound: 'cheer', shot: { kind: 'wide', subjects: group, elevation: 26, cut: true },
       act: all(beat('wide-start'), () => mosi.look(friends()[0]?.getNosePosition() ?? mosi.head()), () => friends().forEach(actor => actor.lookAt?.(mosi.head(), { weight: .5, maxAngle: 18 }))),
-      fx: { kind: 'stars', at: () => up(mosi.body(), .4), count: 14 }, say: { line: 'won', queue: true } },
+      fx: { kind: 'stars', at: () => up(mosi.body(), .4), count: 14 } },
+    { at: WON_AT, say: { line: 'won', queue: true } },
     // The berries: a close shot of each pair at its meal.
     { at: T.eat, shot: { kind: 'face', subjects: () => faces(tri()), front: frontOf(tri, .1), elevation: 20, cut: true },
       act: all(beat('eat-triceratops'), () => friends().forEach(actor => actor.clearLook?.()), eatAll, () => mosi.gesture('clap')) },

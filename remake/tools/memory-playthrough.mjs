@@ -1639,13 +1639,14 @@ async function makeSoundtrack(outDir, report, first, seconds) {
     return true;
   };
   // (a cue's file: as the soundscapes' manifests name it, which may be a path into another game's sounds, level 2's claps and cheer from
-  // Söngur Slóeðlu: Task 7 fix round 1; else <id>.mp3 beside them)
-  const named = new Map();
-  for (const dir of ['gorge/', '']) {
+  // Söngur Slóeðlu: Task 7 fix round 1; else <id>.mp3 beside them). Every level's folder (gorge/, grove/...) and the shared one.
+  const named = new Map(), scapes = path.join(ROOT, 'remake/assets/audio/memory/soundscape');
+  const dirs = [...fs.readdirSync(scapes, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name + '/'), ''];
+  for (const dir of dirs) {
     const file = path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, 'manifest.json');
     if (fs.existsSync(file)) for (const [id, entry] of Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')).sfx ?? {})) if (!named.has(id)) named.set(id, path.resolve(path.dirname(file), entry.file));
   }
-  const cueFile = id => [named.get(id), ...['gorge/', ''].map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3'))].find(file => file && fs.existsSync(file));
+  const cueFile = id => [named.get(id), ...dirs.map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3'))].find(file => file && fs.existsSync(file));
   let cues = 0, voices = 0;
   for (const cue of report.audioLog ?? []) { const file = cueFile(cue.asset); if (file && lay(pcm(file), cue.at / 1000 - first, cue.level ?? .5, cue.rate ?? 1)) cues++; }
   for (const line of report.spoken ?? []) { const file = path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3'); if (line.at && fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false)) voices++; }

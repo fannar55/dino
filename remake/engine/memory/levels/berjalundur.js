@@ -19,6 +19,7 @@ import { freezeLevel } from '../step-rules.js';
  *              same words); `holding` (level 2's) is the line under Mosi's words while a pair holds something up
  * wrongFriends  the friend the playthrough tool tries first at each obstacle, on purpose (a friend that cannot do it)
  * music        the music stage for a state; eventSounds, eventCaptions: what the world's events sound and say
+ * soundscape   the folder of the level's own sounds beside the shared ones (audio.js soundscapeUrl); credits: its rows behind the ending card's "i"
  */
 const TIGHT = 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.';
 const WAIT = 'Vinirnir bíða. Veldu verkefnið aftur þegar leiðin er laus.';
@@ -35,6 +36,11 @@ export const BERJALUNDUR = freezeLevel({
   id: 'berjalundur',
   number: 1,
   title: 'Berjalundurinn',
+  // (Mosi's claps and the friends' cheer at the grove: Söngur Slóeðlu's, as level 2 has them, soundscape/grove/)
+  soundscape: 'grove',
+  credits: [
+    { sound: true, title: 'Single handclap, 4 people (alternatives 1-4)', author: 'gregswinford', license: 'CC BY 4.0', source: 'freesound.org/people/gregswinford/sounds/487275-487278' },
+  ],
   friends: ['triceratops', 'stegosaurus', 'brontosaurus'],
   gifts: ['shrew', 'hermitCrab', 'crab'],
   roster: { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla' },
