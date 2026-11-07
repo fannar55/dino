@@ -8,7 +8,7 @@
 //     [--size 1280x800] [--level 1|2] [--mode full|branch|first-minute|rapid|glade|search] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
-//     [--hide-hud]            the ribbon, the buttons, Mosi's bubble and the tap targets are hidden: the pictures are the world alone (the level cards' pictures)
+//     [--hide-hud]            the corner chip, the pause, Mosi's button and bubble and the tap targets are hidden: the pictures are the world alone (the level cards' pictures)
 //     [--unlocked '["steinagljufur"]']   the page's saved key minnisspil.unlocked (the levels the child has opened): the level picker's open state (a new profile has none: level 2 is locked)
 //     [--picker-check]        on the welcome card: reads the level cards (report.picker), taps the locked one (nothing may happen) and the other open one (the page must reload at its level; the run then goes on there)
 //     [--wrong tunnel=brontosaurus,rocks=brontosaurus]   the wrong friend the driver tries first at an obstacle (level 2; the level's own `wrongFriends` otherwise)
@@ -17,7 +17,7 @@
 //     [--no-encode]           with --video: keep the frames and the report but do not make round.mp4 (a long encode, run it alone afterwards with --encode-only)
 //     [--encode-only]         makes round.mp4, and round-sound.mp4 with the sounds the page played laid under it, from the frames of an earlier --video run in --out; no browser
 //     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
-//     [--help-shot]           opens the help dialog once after the glade picture: a picture and report.helpDialog (its items, its size against the screen, whether it scrolls), then closes it
+//     [--help-shot]           taps Mosi's button ("Spyrja Mosa") once after the glade picture: a picture (mosi-ask) and report.mosiAsk (the line, the bubble's words, the lines started); an error when no line starts or the bubble stays empty
 //     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
 //     [--cpu-throttle 4]      CDP Emulation.setCPUThrottlingRate (a slower tablet's CPU): the whole run is that many times slower; after the final frame-rate sample the throttle is lifted
 //                             and the run waits 15 s, so report.resolution.afterRelief says whether the game's dynamic resolution stepped back up
@@ -63,7 +63,7 @@
 //   --gifts-last    full and rapid find the three gift pairs only after every friend pair (and the bridge), so the crossing's wait for the gifts is seen:
 //                   the gifts-left story, Mosi's line, the gold arrow on a shut leaf and a tap on the staging spot (report.giftsLeft), and that the crossing
 //                   starts once, after the last pair has landed in the basket (report.crossAfterGifts). The wait is played in the search view:
-//                   report.giftsView (the camera's intent and every shut leaf inside the frame), report.giftsArrow (the gold arrow's box, inside the
+//                   report.giftsView (the camera's intent and every shut leaf inside the frame), report.giftsArrow (the finger's box, inside the
 //                   screen, off the HUD and the caption) and report.giftsGlide (the camera from the last landing to the crossing's first shot: the
 //                   intents it passed, seconds, jumps, Mosi on screen; the frames are in camtrack.json).
 //   --clearance     while the marsh is laid, the walk to the grove runs or a wrong friend has a go, measures the clearance between the animated bodies (the
@@ -362,7 +362,7 @@ const TIMELINE_JS = `(() => {
   }, 100);
   // The upper gorge's sight (level 2, ?qa=1): every 300 ms, which friends the camera sees, whether a block or the ground stands between, and whether the HUD or Mosi's bubble covers one.
   window.__sight = { takes: {}, events: [] };
-  const HUD = ['progress', 'camera', 'sound', 'help', 'pause', 'caption', 'who', 'beat-word', 'holding', 'coach'];
+  const HUD = ['progress', 'basket', 'pause', 'mosi-help', 'caption', 'who', 'beat-word', 'holding', 'coach'];
   setInterval(() => {
     const g = window.__gorge, d = window.__demoStats; if (!g || !g.api || !g.api.qaSight || !d) return;
     const sight = g.api.qaSight(); if (!sight) return;
@@ -474,17 +474,17 @@ const GIFTS_VIEW_JS = `(() => { const d = window.__memory.stats({ measure: true 
   return { intent: d.camera.intent, moving: d.camera.moving, size: f.size, shutLeaves: shut.length, shutInside: shut.every(l => l.inside), outside: shut.filter(l => !l.inside).map(l => l.cell),
     leafPxMin: { width: Math.round(Math.min(...shut.map(l => l.width))), height: Math.round(Math.min(...shut.map(l => l.height))) }, mosiInside: f.mosi.inside, homesInside: f.homes.every(h => h.inside), mosiAt: d.scene.mosiPosition }; })()`;
 
-// The gold arrow over a guided leaf, from its own computed style: the turned square's box (and the glow and the bob around it), whether it is inside the screen, and what it overlaps of the HUD and the caption.
+// The finger over a guided target (its .tap-hint: the ring and the drawn finger), from the element's own box: whether it is shown and inside the screen, and what it overlaps of the HUD, Mosi's button and the caption.
 const ARROW_JS = `(() => {
   const el = document.querySelector('#targets .is-guided'); if (!el) return null;
-  const r = el.getBoundingClientRect(), a = getComputedStyle(el, '::after'), px = value => parseFloat(value) || 0;
-  const borderBox = a.boxSizing === 'border-box', W = borderBox ? px(a.width) : px(a.width) + px(a.borderRightWidth), H = borderBox ? px(a.height) : px(a.height) + px(a.borderBottomWidth);
-  const cx = r.left + px(a.left) + W / 2, cy = r.top + px(a.top) + H / 2, half = (W + H) / 2 * Math.SQRT1_2;
+  const hint = el.querySelector('.tap-hint'); if (!hint) return { leaf: el.dataset.target, noHint: true };
+  const r = el.getBoundingClientRect(), h = hint.getBoundingClientRect(), style = getComputedStyle(hint), W = h.width, H = h.height;
+  const cx = h.left + W / 2, cy = h.top + H / 2, half = (W + H) / 4;
   const box = (pad, bob) => ({ left: Math.round(cx - half - pad), top: Math.round(cy - half - pad - bob), right: Math.round(cx + half + pad), bottom: Math.round(cy + half + pad + bob) });
   const core = box(0, 4), glow = box(12, 4);
-  const hits = [['ribbon', '.adventure-ribbon'], ['controls', '.topbar nav'], ['coach-portrait', '.coach-portrait'], ['caption', '.coach-message']].map(([name, selector]) => { const e = document.querySelector(selector), b = e && !e.closest('[hidden]') ? e.getBoundingClientRect() : null; return b && b.width ? { name, overlap: core.left < b.right && core.right > b.left && core.top < b.bottom && core.bottom > b.top, glowOverlap: glow.left < b.right && glow.right > b.left && glow.top < b.bottom && glow.bottom > b.top } : null; }).filter(Boolean);
+  const hits = [['tally', '.tally'], ['controls', '.corner'], ['mosi', '#mosi-help'], ['caption', '#coach']].map(([name, selector]) => { const e = document.querySelector(selector), b = e && !e.closest('[hidden]') ? e.getBoundingClientRect() : null; return b && b.width ? { name, overlap: core.left < b.right && core.right > b.left && core.top < b.bottom && core.bottom > b.top, glowOverlap: glow.left < b.right && glow.right > b.left && glow.top < b.bottom && glow.bottom > b.top } : null; }).filter(Boolean);
   return { leaf: el.dataset.target, leafBox: { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) },
-    arrow: { width: W, height: H, borderRight: px(a.borderRightWidth), color: a.borderRightColor, top: a.top, left: a.left, filter: a.filter, side: Math.round(half * 2) }, core, glow,
+    arrow: { width: Math.round(W), height: Math.round(H), shown: Number(style.opacity) > 0.5, display: style.display, hasRing: !!hint.querySelector('.tap-ring'), hasFinger: !!hint.querySelector('svg'), side: Math.round(half * 2) }, core, glow,
     insideScreen: core.left >= 0 && core.top >= 0 && core.right <= innerWidth && core.bottom <= innerHeight, glowInside: glow.left >= 0 && glow.top >= 0 && glow.right <= innerWidth && glow.bottom <= innerHeight,
     overHud: hits.filter(h => h.overlap).map(h => h.name), glowOverHud: hits.filter(h => h.glowOverlap).map(h => h.name) }; })()`;
 
@@ -764,6 +764,30 @@ async function main() {
       step(`TIMEOUT waiting for ${label}`); return -1;
     };
 
+    // Mosi's repeat (once idle passes 10 s with a line for the moment): wait at a moment that has a line until idle is about 15 s; the line must begin once more, and never twice for the same moment.
+    // The page's own record of every line that began, with the story key it began under (polled every 100 ms), so that the repeat can be told from the line itself.
+    const LINELOG_JS = `(() => { if (window.__lineLog) return; window.__lineLog = []; let seen = 0; setInterval(() => { const st = window.__memory.audio().speech.started, last = window.__memory.lastLine(); for (; seen < st.length; seen++) window.__lineLog.push({ id: st[seen].id, t: st[seen].t, key: last ? last.key : null }); }, 100); })()`;
+    const idleRepeatCheck = async where => {
+      if (report.idleRepeat) return;
+      const key = (await ev(SNAPSHOT_JS)).story.key, last = await ev('window.__memory.lastLine()');
+      const line = (last?.key === key ? last.id : LEVEL.voice?.[key]) ?? null;
+      const lines = async () => (await ev('window.__lineLog || []')).filter(x => x.key === key && x.id === line);
+      let at = null, waited = false;
+      if (line && (await lines()).length < 2) {
+        // (a touch on the empty screen: the idle clock starts from 0, so the wait is the whole 15 s and the repeat falls inside it)
+        await ev("document.getElementById('game').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))");
+        step(`idle wait for Mosi's repeat (${where})`, { key, line }); waited = true;
+        // (about 15 s: the repeat also waits until his voice has been quiet 3 s, so a line still playing may push it a little later; up to 24 s)
+        await waitFor(`window.__memory.idle() > 15 && (window.__memory.idle() > 24 || window.__lineLog.filter(x => x.key === ${JSON.stringify(key)} && x.id === ${JSON.stringify(line)}).length >= 2)`, 60000, "Mosi's repeat"); await sleep(2000);
+      }
+      const same = line ? await lines() : [], now = await ev(SNAPSHOT_JS);
+      at = same[1]?.t ?? null;
+      report.idleRepeat = { key, line, at, beganOnTheMoment: same.length, repeats: Math.max(0, same.length - 1), earlierInTheWait: !waited && same.length >= 2, keyAfter: now.story.key, where };
+      step('idle repeat', report.idleRepeat);
+      if (same.length > 2) errors.push('Mosi repeated his line twice for one moment: ' + JSON.stringify(report.idleRepeat));
+      else if (line && same.length < 2 && now.story.key === key) errors.push("Mosi's line never began again after the long idle: " + JSON.stringify(report.idleRepeat));
+    };
+
     if (o.unlocked) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('minnisspil.unlocked', ${JSON.stringify(o.unlocked)}); } catch {}` });
     await send('Page.navigate', { url });
     if (await waitFor('window.__memoryReady === true', 120000, 'the page to be ready') < 0) throw new Error('The page never became ready');
@@ -776,8 +800,8 @@ async function main() {
     // Named moments, kept with the wall clock so they can be placed in round.mp4 (its first frame's stamp) afterwards.
     report.marks = [];
     const mark = name => { if (report.marks.some(entry => entry.name === name)) return; report.marks.push({ name, at: Date.now() / 1000, t: T() }); step(`mark ${name}`); };
-    await ev(TIMELINE_JS);
-    if (o.hideHud) await ev("document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '.topbar, #coach, #targets, #who, #beat-word { display: none !important }' }))");
+    await ev(TIMELINE_JS); await ev(LINELOG_JS);
+    if (o.hideHud) await ev("document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '.topbar, #coach, #mosi-help, #targets, #who, #beat-word { display: none !important }' }))");
     if (o.clearance) await ev(CLEARANCE_JS);
     await sleep(700);
     await shot('welcome');
@@ -790,7 +814,7 @@ async function main() {
       if (other) {
         await ev(`document.querySelector('.level-card[data-level="${other.level}"]').click()`);
         await sleep(1200); await waitFor('window.__memoryReady === true', 120000, 'the page of the other level');
-        await ev(TIMELINE_JS); await sleep(800); report.picker.afterOtherTap = await ev(READ); await shot('picker-other-level-opened');
+        await ev(TIMELINE_JS); await ev(LINELOG_JS); await sleep(800); report.picker.afterOtherTap = await ev(READ); await shot('picker-other-level-opened');
       }
       step('the level picker', { before: report.picker.before.cards.map(c => `${c.level}:${c.disabled === 'true' ? 'locked' : c.current === 'true' ? 'here' : 'open'}`).join(' '), lockedTapStayed: report.picker.afterLockedTap ? report.picker.afterLockedTap.url === report.picker.before.url && report.picker.afterLockedTap.open : null, otherTapWent: report.picker.afterOtherTap?.url ?? null });
     }
@@ -801,11 +825,19 @@ async function main() {
     await sleep(2500);
     await shot('glade');
     if (o.helpShot) {
-      await ev(`document.getElementById('help').click()`); await sleep(700);
-      report.helpDialog = await ev(`(() => { const d = document.getElementById('help-dialog'), r = d.getBoundingClientRect(); return { open: d.open, items: [...d.querySelectorAll('li')].map(li => li.textContent), box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }, insideScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, scrolls: d.scrollHeight > d.clientHeight + 1, scrollHeight: d.scrollHeight, clientHeight: d.clientHeight, viewport: { width: innerWidth, height: innerHeight } }; })()`);
-      step('help dialog', { items: report.helpDialog.items.length, second: report.helpDialog.items[1], box: report.helpDialog.box, scrolls: report.helpDialog.scrolls });
-      await shot('help-dialog');
-      await ev(`document.querySelector('#help-dialog [data-resume]').click()`); await sleep(500);
+      // Mosi's button (bottom left): once his own line is over a tap must make him say a line, with its words in the bubble.
+      await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 15000, "Mosi's line to end"); await sleep(600);
+      const askedBefore = (await ev('window.__memory.audio().speech.started')).length;
+      await ev(`document.getElementById('mosi-help').click()`);
+      const askAt = await waitFor(`window.__memory.audio().speech.started.length > ${askedBefore}`, 6000, "Mosi's answer to the button");
+      await sleep(500);
+      const askedStarted = (await ev('window.__memory.audio().speech.started')).slice(askedBefore);
+      report.mosiAsk = { line: await ev('window.__memory.lastLine()'), caption: await ev(`(document.getElementById('caption')?.textContent || '').trim()`), started: askedStarted.map(x => x.id), seconds: askAt };
+      step('Mosi button', report.mosiAsk);
+      if (!askedStarted.length) errors.push('the "Spyrja Mosa" button started no line: ' + JSON.stringify(report.mosiAsk));
+      if (!report.mosiAsk.caption) errors.push("the \"Spyrja Mosa\" button left Mosi's bubble empty: " + JSON.stringify(report.mosiAsk));
+      await shot('mosi-ask');
+      await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 15000, "Mosi's answer to end"); await sleep(400);
     }
     // The search view: every baby's on-screen size (projected posed bounds, hidden ones measured at their cells),
     // Mosi and the leaves, with whether each is inside the frame.
@@ -1317,11 +1349,12 @@ async function main() {
         // Hesitate once (full mode, at the branch) so the gold arrow shows, then tap the glowing obstacle.
         if (o.mode !== 'rapid' && !arrowWaited && s.story.target === 'branch') {
           arrowWaited = true; step('wait for the gold arrow');
-          if (await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 12000, 'the gold arrow') >= 0) await milestone('arrow', 'gold-arrow', 150);
+          if (await waitFor('window.__memory.idle() > 4.4 && document.querySelector("#targets .is-guided")', 12000, 'the gold arrow') >= 0) await milestone('arrow', 'gold-arrow', 150);
+          await idleRepeatCheck('the branch');
           continue;
         }
         // (level 2: Mosi says what the tunnel and the rockfall are when they come; a child listens to him first, so the driver waits for his line to end)
-        if (LEVEL.number === 2 && !seen.has(`listened-${s.story.target}`)) { seen.add(`listened-${s.story.target}`); await sleep(600); await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 9000, "Mosi's line to end"); continue; }
+        if (LEVEL.number === 2 && !seen.has(`listened-${s.story.target}`)) { seen.add(`listened-${s.story.target}`); await sleep(600); await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 9000, "Mosi's line to end"); await idleRepeatCheck(`the ${s.story.target}`); continue; }
         lastAsk = Date.now();
         if (OBSTACLE_IDS.includes(s.story.target)) mark(`${s.story.target}-start`);
         const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
@@ -1354,7 +1387,7 @@ async function main() {
           // The wait is played in the search view (camera intent 'glade'): once the glide has settled, every shut leaf is inside the frame.
           await waitFor('!window.__demoStats.camera.moving', 20000, 'the wait camera');
           report.giftsView = await ev(GIFTS_VIEW_JS); step('the wait view', report.giftsView);
-          const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
+          const arrowAt = await waitFor('window.__memory.idle() > 4.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
           const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
           report.giftsArrow = await ev(ARROW_JS).catch(e => ({ error: e.message })); step('the gold arrow', report.giftsArrow ?? {});
           const stagingButton = LEVEL.number > 1 ? { present: false } : await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);

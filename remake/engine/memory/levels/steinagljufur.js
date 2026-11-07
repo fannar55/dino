@@ -31,10 +31,9 @@ export const STEINAGLJUFUR = freezeLevel({
   id: 'steinagljufur',
   number: 2,
   title: 'Steinagljúfrið',
-  ribbon: 'Leiðin upp á Sólarsylluna',
   look: 'gorgeAfternoon',
-  // The HUD's pictures in place of level 1's berries (Ruling 16, Task 7): renders of the level's own fossils (tools/blender-badge.py kind=fossil,
-  // assets/memory/bord2/badges-source.json). `mark` is by the ribbon's title, on the ending card and in the overview's hint; `basket` is the basket's.
+  // The pictures in place of level 1's berries (Ruling 16, Task 7): renders of the level's own fossils (tools/blender-badge.py kind=fossil,
+  // assets/memory/bord2/badges-source.json). `mark` is the ending card's; `basket` is the basket's, in the corner chip and on the ending card.
   hud: { mark: './assets/memory/bord2/hud-ammonite.webp', basket: './assets/memory/bord2/hud-trilobite.webp' },
   // (`through`, `climb` and `walk` are travel steps: Mosi says their line when they start, game.js launchAction)
   lines: { welcome: 'g2_welcome', help: 'g2_help', giftsLeft: 'g2_left', gifts: 'gifts4', through: 'g2_through', climb: 'g2_climb', walk: 'g2_bridge' },
@@ -166,32 +165,20 @@ export const STEINAGLJUFUR = freezeLevel({
   copy: {
     locked: 'Kláraðu Berjalundinn fyrst',
     welcome: {
-      eyebrow: 'ÆVINTÝRI MEÐ MOSA', title: 'Hvar er vinur minn?',
+      title: 'Hvar er vinur minn?',
       lines: ['Velkomin í Steinagljúfrið!', 'Finndu tvo eins vini.'],
-      start: 'Leikum saman', fine: 'Finna vini · hjálpast að · komast upp',
+      start: 'Leikum saman',
     },
     ending: {
-      eyebrow: 'ÁTTA VINIR · EITT GLJÚFUR', title: 'Öll komumst við upp!',
+      title: 'Öll komumst við upp!',
       text: 'Þið lýstuð, stönguðuð, náðuð hátt, fluguð og toguðuð saman. Nú horfa allir á stjörnurnar.', again: 'Spila aftur',
       // (the card's second button, game.js endingLink: back to the first level)
       home: { level: 'berjalundur', text: 'Berjalundurinn' },
     },
-    help: {
-      eyebrow: 'HJÁLPUMST AÐ', title: 'Komumst upp á Sólarsylluna.',
-      items: [
-        'Opnaðu lauf. Finndu tvo eins vini!',
-        'Undir sumum laufum eru steingervingar. Finndu tvo eins, þá fara þeir í körfuna!',
-        'Ýttu á það sem glóir. Hver getur þetta? Veldu vin!',
-        'Kambeðlurnar lýsa, Þríhyrnurnar stanga, Þórseðlurnar ná hátt og Flugeðlurnar fljúga með reipið.',
-        'Í lokin toga allir saman. Þá komumst við upp á Sólarsylluna!',
-      ],
-      note: 'Gullna örin bendir á næsta verkefni. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.',
-      resume: 'Aftur í feluleikinn',
-    },
-    // (the line over the ribbon while a pair holds something up: the Kambeðlur hold the light from when the tunnel is lit until everyone is through)
+    // (the line under Mosi's words while a pair holds something up: the Kambeðlur hold the light from when the tunnel is lit until everyone is through)
     holding: 'Kambeðlurnar halda ljósinu',
     loading: { title: 'Gljúfrið vaknar…', copy: 'Mosi finnur ungana.' },
-    aria: { targets: 'Lauf, vinapör og leiðin upp á Sólarsylluna', journey: 'Fjögur verkefni á leiðinni' },
+    aria: { targets: 'Lauf, vinapör og leiðin upp á Sólarsylluna' },
   },
   music: () => 'glade',
   // What the world's events sound and say (the movers': levels/steinagljufur/mover.js lists the tunnel's and the rockfall's, upper-mover.js those of the steps after them).

@@ -5,7 +5,7 @@ import { freezeLevel } from '../step-rules.js';
  * the crossing, the bark over the marsh, the walk). Everything the rules, the story and game.js need to know about the level is here;
  * its 3D world (the terrain, the props, the scenes of its steps) is levels/berjalundur/world.js (see levels/worlds.js).
  *
- * steps        the ladder, in order (step-rules.js says what each kind means). `journey` is the step's name in the ribbon.
+ * steps        the ladder, in order (step-rules.js says what each kind means)
  * story        the words of the story, by step (playful-flow.js says which moment uses which): `doing`, `ready`, `arriving`, `find`,
  *              `open`, `gather`, `gifts`, `landing` are the story keys, `prompts` has the same names with Mosi's hint; `common` is
  *              what belongs to no step. `seeks`: with one leaf open the search names the other half.
@@ -15,7 +15,8 @@ import { freezeLevel } from '../step-rules.js';
  * roster       the friends' names; pairs: the names the "who" bubbles show
  * grid, nests, mosiSpot, gladeView   where the leaves, the pairs' rests and Mosi stand, and how the search view looks (world.js)
  * targets      each obstacle's badge (icon) and its accessible name
- * copy         the words on the welcome card, the ending card, the help card and the loading card (the markup has the same words)
+ * copy         the words on the welcome card, the ending card and the loading card, and the accessible name of the targets (the markup has the
+ *              same words); `holding` (level 2's) is the line under Mosi's words while a pair holds something up
  * wrongFriends  the friend the playthrough tool tries first at each obstacle, on purpose (a friend that cannot do it)
  * music        the music stage for a state; eventSounds, eventCaptions: what the world's events sound and say
  */
@@ -34,7 +35,6 @@ export const BERJALUNDUR = freezeLevel({
   id: 'berjalundur',
   number: 1,
   title: 'Berjalundurinn',
-  ribbon: 'Leiðin að berjalundinum',
   friends: ['triceratops', 'stegosaurus', 'brontosaurus'],
   gifts: ['shrew', 'hermitCrab', 'crab'],
   roster: { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla' },
@@ -56,10 +56,10 @@ export const BERJALUNDUR = freezeLevel({
   gladeView: { landscape: [.464, .375, .803], portrait: [.52, .8, -.3] },
   wrongFriends: { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' },
   steps: [
-    { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll', journey: 'Lyfta grein' },
-    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], journey: 'Gera trjábrú' },
+    { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll' },
+    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'] },
     { id: 'cross', kind: 'travel', target: 'staging', needsAllFound: true, waitsForGifts: true, automatic: true },
-    { id: 'lay', kind: 'task', target: 'bark', species: 'stegosaurus', beatWords: ['Ein!', 'Tvær!', 'Þrjár!'], journey: 'Leggja gönguleið' },
+    { id: 'lay', kind: 'task', target: 'bark', species: 'stegosaurus', beatWords: ['Ein!', 'Tvær!', 'Þrjár!'] },
     { id: 'finish', kind: 'travel', target: 'grove', automatic: true },
   ],
   story: {
@@ -136,28 +136,16 @@ export const BERJALUNDUR = freezeLevel({
   },
   copy: {
     welcome: {
-      eyebrow: 'ÆVINTÝRI MEÐ MOSA', title: 'Hvar er vinur minn?',
+      title: 'Hvar er vinur minn?',
       lines: ['Finndu tvo eins vini.', 'Saman opnum við leiðina í berjalundinn!'],
-      start: 'Leikum saman', fine: 'Finna vini · hjálpast að · halda saman',
+      start: 'Leikum saman',
     },
     ending: {
-      eyebrow: 'SEX VINIR · EIN LEIÐ', title: 'Öll komumst við!',
+      title: 'Öll komumst við!',
       text: 'Þið lyftuð, ýttuð og byggðuð. Nú njóta allir vinirnir berjalundarins.', again: 'Spila aftur',
     },
-    help: {
-      eyebrow: 'HJÁLPUMST AÐ', title: 'Opnum leiðina saman.',
-      items: [
-        'Opnaðu lauf. Finndu tvo eins vini!',
-        'Undir sumum laufum eru gjafir. Finndu tvær eins, þá fara þær í körfuna!',
-        'Ýttu á það sem glóir. Hver getur þetta? Veldu vin!',
-        'Þríhyrnurnar ýta bolnum. Þegar brúin er tilbúin fara vinirnir saman yfir.',
-        'Kambeðlurnar byggja yfir mýrina. Þá ganga allir í berjalundinn!',
-      ],
-      note: 'Gullna örin bendir á næsta verkefni. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.',
-      resume: 'Aftur í feluleikinn',
-    },
     loading: { title: 'Hreiðurlundurinn vaknar…', copy: 'Mosi finnur ungana.' },
-    aria: { targets: 'Lauf, vinapör og leiðin að berjalundinum', journey: 'Þrjú verkefni á leiðinni' },
+    aria: { targets: 'Lauf, vinapör og leiðin að berjalundinum' },
   },
   music: state => (state.visited ? 'grove' : state.atStaging ? 'marsh' : 'glade'),
   // The world's events, by type ('beat' by 'beat:<step>'): each entry is an audio method of game.js's audio, { method, arg } (the

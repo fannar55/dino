@@ -248,7 +248,7 @@ test('level 1 is described as frozen data the rules, the story and the game read
   assert.deepEqual(LEVELS.map(level => level.id), ['berjalundur', 'steinagljufur']);
   assert.equal(levelById('berjalundur'), BERJALUNDUR); assert.equal(levelById('nope'), null);
   assert.equal(levelNumber(1), BERJALUNDUR); assert.equal(levelNumber(9), null);
-  assert.equal(BERJALUNDUR.number, 1); assert.equal(BERJALUNDUR.title, 'Berjalundurinn'); assert.equal(BERJALUNDUR.ribbon, 'Leiðin að berjalundinum');
+  assert.equal(BERJALUNDUR.number, 1); assert.equal(BERJALUNDUR.title, 'Berjalundurinn');
   assert.deepEqual([...BERJALUNDUR.friends], ['triceratops', 'stegosaurus', 'brontosaurus']);
   assert.deepEqual([...BERJALUNDUR.gifts], ['shrew', 'hermitCrab', 'crab']);
   assert.deepEqual(BERJALUNDUR.steps.map(step => [step.id, step.kind, step.target]), [['lift', 'task', 'branch'], ['roll', 'task', 'log'], ['cross', 'travel', 'staging'], ['lay', 'task', 'bark'], ['finish', 'travel', 'grove']]);
@@ -256,7 +256,7 @@ test('level 1 is described as frozen data the rules, the story and the game read
   assert.equal(BERJALUNDUR.steps[0].holds, 'roll');
   assert.deepEqual(BERJALUNDUR.steps.find(step => step.id === 'roll').beatWords, ['Einn!', 'Tveir!', 'ÝTA!']);
   assert.deepEqual(BERJALUNDUR.steps.find(step => step.id === 'lay').beatWords, ['Ein!', 'Tvær!', 'Þrjár!']);
-  assert.deepEqual(BERJALUNDUR.steps.filter(step => step.journey).map(step => step.journey), ['Lyfta grein', 'Gera trjábrú', 'Leggja gönguleið']);
+  assert.ok(BERJALUNDUR.steps.every(step => !('journey' in step)), 'the steps have no trail names: the screen has no trail of steps');
   const cross = BERJALUNDUR.steps.find(step => step.id === 'cross');
   assert.deepEqual([cross.needsAllFound, cross.waitsForGifts, cross.automatic], [true, true, true]);
   assert.throws(() => { BERJALUNDUR.steps[0].target = 'changed'; }, TypeError, 'the description cannot be changed by the game');
@@ -334,24 +334,39 @@ test('choosing a level: level 1 by default, ?bord= by number, an unknown number 
   }
 });
 
-test("level 1's words are the markup's own words: the first paint stays as it was", () => {
+test("level 1's words are the markup's own words, on the new screen: the pause, Mosi to ask, the chip of pairs and gifts, nothing more", () => {
   const html = readFileSync(new URL('../minnisspil.html', import.meta.url), 'utf8');
-  const { copy, ribbon, friends, gifts } = BERJALUNDUR, { welcome, ending, help, loading, aria } = copy;
+  const { copy, friends, gifts } = BERJALUNDUR, { welcome, ending, loading, aria } = copy;
   const inMarkup = [
-    `<h1>Hvar er vinur minn?</h1><span>${ribbon}</span>`,
-    `<span class="eyebrow">${welcome.eyebrow}</span><h2>${welcome.title}</h2>`, `<p>${welcome.lines.join('<br>')}</p>`,
-    `type="button">${welcome.start} <span aria-hidden="true">→</span></button>`, `<p class="fine">${welcome.fine}</p>`,
-    `<span class="eyebrow">${help.eyebrow}</span><h2>${help.title}</h2>`, `<ol>${help.items.map(item => `<li>${item}</li>`).join('')}</ol>`,
-    `<p>${help.note}</p>`, `data-resume type="button">${help.resume}</button>`,
-    `<span class="eyebrow">${ending.eyebrow}</span><h2>${ending.title}</h2><p id="ending-copy">${ending.text}</p>`,
+    '<h1 class="sr-only">Hvar er vinur minn?</h1>',
+    `<h2>${welcome.title}</h2>`, `<p>${welcome.lines.join('<br>')}</p>`,
+    `type="button">${welcome.start} <span aria-hidden="true">→</span></button>`,
+    `<h2>${ending.title}</h2><p id="ending-copy">${ending.text}</p>`,
     `type="button">${ending.again} <span aria-hidden="true">↻</span></button>`,
     `<h2>${loading.title}</h2><p id="loading-copy">${loading.copy}</p>`,
-    `id="targets" aria-label="${aria.targets}"`, `id="journey" class="journey" aria-label="${aria.journey}"`,
-    `aria-label="0 af ${friends.length} pörum fundin" hidden><div class="nest-dots" aria-hidden="true">${'<i></i>'.repeat(friends.length)}</div><span id="progress-text">0 / ${friends.length} pör</span>`,
+    `id="targets" aria-label="${aria.targets}"`,
+    `aria-label="0 af ${friends.length} pörum fundin" hidden><div class="nest-dots" aria-hidden="true">${'<i></i>'.repeat(friends.length)}</div></div>`,
     `aria-label="Karfan: 0 af ${gifts.length} fundið" hidden><span class="basket-icon" aria-hidden="true"></span><span id="basket-text" aria-hidden="true">0 / ${gifts.length}</span>`,
-    ...BERJALUNDUR.steps.filter(step => step.journey).map(step => `<li data-step="${step.id}">`),
+    '<button id="pause" class="round" type="button" aria-label="Gera hlé">',
+    '<button id="mosi-help" class="mosi-help" type="button" aria-label="Spyrja Mosa">',
+    '<h2>Mosi bíður.</h2>',
   ];
   for (const snippet of inMarkup) assert.ok(html.includes(snippet), snippet);
+  // What left the screen (spec section 1, "Fer af skjánum"): the overview, sound and help buttons, the help card, the green ribbon with its trail, the small print.
+  for (const gone of ['id="camera"', 'id="sound"', 'id="help"', 'help-dialog', 'overview-hint', 'adventure-ribbon', 'id="journey"', 'class="eyebrow"', 'class="fine"', 'class="speaker"', 'progress-text']) {
+    assert.ok(!html.includes(gone), `no ${gone} on the new screen`);
+  }
+  // ... and the level fields only they read (levels/*.js).
+  for (const level of LEVELS) {
+    assert.deepEqual([level.ribbon, level.copy.help, level.copy.welcome.eyebrow, level.copy.welcome.fine, level.copy.ending.eyebrow, level.copy.aria.journey], Array(6).fill(undefined), level.id);
+    assert.ok(level.steps.every(step => !('journey' in step)), `${level.id}: no step has a trail name`);
+  }
+  // The sound is never muted now: the old saved mute is forgotten at load (coach.js), and game.js has no mute of its own.
+  const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
+  assert.match(game, /from '\.\/coach\.js'/); assert.match(game, /forgetOldMute\(/);
+  assert.ok(!game.includes('setMute('), 'no mute'); assert.ok(!game.includes("'mosi.memory.muted.v1'"), "the old key is named in coach.js only");
+  // Mosi's button and the repeat use the coach's rules; a restart forgets what he said.
+  assert.match(game, /askLine\(\{/); assert.match(game, /repeatDue\(\{/); assert.match(game, /momentLast = null; repeatedKey = null;/);
 });
 
 // ---- level 2 and the lock ----
@@ -434,7 +449,7 @@ test('level 2 deals 16 cards with four fossil pairs and the baby Flugeðla among
 
 test('level 2 is described as frozen data: its steps, its pairs, its glade and its words', () => {
   const level = STEINAGLJUFUR;
-  assert.equal(level.number, 2); assert.equal(level.title, 'Steinagljúfrið'); assert.equal(level.ribbon, 'Leiðin upp á Sólarsylluna');
+  assert.equal(level.number, 2); assert.equal(level.title, 'Steinagljúfrið');
   assert.equal(levelById('steinagljufur'), level); assert.equal(levelNumber(2), level);
   assert.deepEqual(level.steps.map(step => [step.id, step.kind, step.target]), [['light', 'task', 'tunnel'], ['headbutt', 'task', 'rocks'], ['through', 'travel', 'tunnelExit'], ['reach', 'task', 'ledge'], ['fly', 'task', 'cliff'], ['climb', 'travel', 'clifftop'], ['pull', 'together', 'trunk'], ['walk', 'travel', 'sunLedge']]);
   assert.deepEqual(level.steps.filter(step => step.species).map(step => [step.id, step.species]), [['light', 'stegosaurus'], ['headbutt', 'triceratops'], ['reach', 'brontosaurus'], ['fly', 'pteranodon']]);
@@ -524,4 +539,29 @@ test("the welcome card has the level picker: a card for each level with its pict
   assert.match(game, /function unlockNext\(\) \{ finishLevel\(level, locked\); reflectPicker\(\); \}/, 'a level finished opens itself and the next');
   assert.match(game, /celebrated = true; world\.celebrate\(\); audio\.win\(\); unlockNext\(\);/, 'at the win');
   assert.match(game, /aria-disabled/); assert.match(game, /dataset\.level/);
+});
+
+test('Mosi\'s ask and repeat rules (coach)', async () => {
+  const { IDLE_HINT, IDLE_REPEAT, OLD_MUTE_KEY, forgetOldMute, momentLine, askLine, repeatDue } = await import('../engine/memory/coach.js');
+  assert.equal(IDLE_HINT, 4); assert.equal(IDLE_REPEAT, 10);
+  const store = new Map([[OLD_MUTE_KEY, 'true'], ['other', '1']]);
+  forgetOldMute({ removeItem: key => store.delete(key) });
+  assert.equal(store.has(OLD_MUTE_KEY), false); assert.equal(store.get('other'), '1');
+  assert.doesNotThrow(() => forgetOldMute(null)); assert.doesNotThrow(() => forgetOldMute(undefined));
+  assert.doesNotThrow(() => forgetOldMute({ removeItem() { throw new Error('blocked'); } }));
+  assert.equal(momentLine({ key: 'a', last: { id: 'who', key: 'a' } }), 'who');
+  assert.equal(momentLine({ key: 'b', last: { id: 'who', key: 'a' }, voice: { b: 'g2_lit' } }), 'g2_lit');
+  assert.equal(momentLine({ key: 'b', last: null }), null);
+  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, speaking: true }), null);
+  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, busy: true }), null);
+  assert.equal(askLine({ key: 'b', last: null, help: 'g2_help' }), 'g2_help');
+  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, help: 'g2_help' }), 'who');
+  assert.equal(askLine({ key: 'b', last: null }), null);
+  const due = { idle: 10, key: 'a', repeated: null, mayAct: true, speaking: false, line: 'who' };
+  assert.equal(repeatDue({ ...due, idle: 9.9 }), false);
+  assert.equal(repeatDue(due), true);
+  assert.equal(repeatDue({ ...due, repeated: 'a' }), false);
+  assert.equal(repeatDue({ ...due, speaking: true }), false);
+  assert.equal(repeatDue({ ...due, line: null }), false);
+  assert.equal(repeatDue({ ...due, mayAct: false }), false);
 });

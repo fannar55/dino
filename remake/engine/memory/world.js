@@ -43,7 +43,7 @@ const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // (Where Mosi stands, the leaves, the rests and the search view's directions are the level's: levels/*.js `mosiSpot`, `grid`, `nests`, `gladeView`.)
 // A tapped leaf squashes first (TAP.squash), then swings away over TAP.swing; what it hid appears after. A gift stands up on its
 // leaf (GIFT.pop); when its pair is found both rise (GIFT.rise) to GIFT.hover metres above their leaves, hold, then fly to the basket
-// in the ribbon (GIFT.fly; the screen point basketPoint() says), `target` metres in front of the camera. A gift under a leaf that
+// in the corner chip (GIFT.fly; the screen point basketPoint() says), `target` metres in front of the camera. A gift under a leaf that
 // closes ducks (GIFT.duck). `apart`: how far the two of a pair fly from one another on the screen's side to side, in metres.
 // `phone`: on a phone (under 600 px wide) the search view is far away and a gift is 25-30 px across, so it is drawn 1.75 times larger
 // at 390 px wide (682 / width, between 1.55 and 2.2) from the pop on its leaf until it has flown to the basket (about 45-70 px).
@@ -662,7 +662,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     model.group.visible = state.shown; model.group.scale.setScalar(scale); faceCamera(model); model.animate(state.age);
   }
   // The celebration's gifts (scenes/celebrate.js): the gifts the child found (one of each animal, all three in a finished round) rise from
-  // Mosi's basket (his back), float above him and bob while his line says what they were, then fly to the basket in the ribbon, as a
+  // Mosi's basket (his back), float above him and bob while his line says what they were, then fly to the basket in the corner chip, as a
   // found pair did. The same models as the leaves'.
   // (Task 7: a level may lay them out its own way, `layout` { hover(i, n), scale, glow }: level 2's glow in a row on Sólarsyllan. Level 1 gives none.)
   const gift = { phase: 'none', age: 0, flyAge: 0, entries: [], layout: null };
