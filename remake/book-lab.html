@@ -15,6 +15,7 @@
      what shows:
        animals (the default), dinosaurs, fossils   the book open on that ribbon (Risaeðlur, Dýrin, Safnið); it closes into the button, and the
                                       button opens it again
+       games                          the Leikir page; ?progress= as for the map (3, the default: four tiles; 4 adds Flugeðla's star: five)
        map                            the Kortið page; ?progress= says how far the child has got, in the order of the painted path (the owner,
                                       2026-10-29), each level with the ones before it: 0 (a fresh save, no trail), 1 (Kambeðla's star, chapter 1),
                                       2 (Uggeðla's star too: piece b, the glade to Uggeðla), 3 (Þórseðla's star too, the default, with the places
@@ -97,7 +98,7 @@
 
   const params = new URLSearchParams(location.search);
   const asked = params.get('state');
-  const state = ['dinosaurs', 'animals', 'fossils', 'map', 'journey', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const state = ['dinosaurs', 'animals', 'fossils', 'games', 'map', 'journey', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
   const leg = params.get('leg') === '2' ? 2 : 1; // the map in the journey: chapter 1's departure or chapter 2's
   const read = async path => (await fetch(path)).json();
   const [cardData, mediaData, theme, lines] = await Promise.all([
@@ -111,7 +112,7 @@
   const modelPage = cards.find(card => card.id === cardId)?.pages[Math.max(0, pageAsked)];
   if (cardAsked && params.has('model') && modelPage) modelPage.model = params.get('model'); // a look at a 3D page
   const save = createSave(null);
-  const progress = state === 'map' ? Number(params.get('progress') ?? 3) : state === 'journey' ? leg - 1 : 1; // the map's states: how far the child has got (a journey's leg 1 sets out with nothing done)
+  const progress = state === 'map' || state === 'games' ? Number(params.get('progress') ?? 3) : state === 'journey' ? leg - 1 : 1; // the map's states: how far the child has got (a journey's leg 1 sets out with nothing done)
   // The painted path's order, one friend a level (the stars are read by their key's friend, so the number in it only aids reading).
   if (progress >= 1) save.addStar('k1_kambedla');
   if (progress >= 2) save.addStar('k2_uggedla');
@@ -222,7 +223,7 @@
     };
     if (params.get('seen') === '1') for (const id of leg === 2 ? ['map-route-b', 'map-route-c'] : ['map-route-a']) save.addSeen(id);
     window.__journey();
-  } else book.open(state === 'fossils' ? 'fossils' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
+  } else book.open(state === 'fossils' ? 'fossils' : state === 'games' ? 'games' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
   if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at: the line's, and the dot's riding at its head
     for (const animation of document.getAnimations()) {
       const target = animation.effect?.target;
