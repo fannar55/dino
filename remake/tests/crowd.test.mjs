@@ -245,7 +245,8 @@ test('a crowd with two levels draws near critters fine and far ones coarse', () 
 });
 
 // The sun's shadow pass drew every critter drawn, the 28 m box or not (10-20k triangles at the far pool). Now only those whose
-// bounds touch its box are in it, first in the instances; and a critter keeps its finer level 8 % past the switch, so it does not flicker.
+// bounds touch its box are in it, first in the instances, with a soft shade under those out of it; and a critter keeps its finer level
+// 8 % past the switch, so it does not flicker.
 test('only the critters in the sun\'s shadow box cast, and a critter keeps its finer level a little past the switch', () => {
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
@@ -254,7 +255,7 @@ test('only the critters in the sun\'s shadow box cast, and a critter keeps its f
   sun.position.set(0.3, 0.9, 0.3).normalize().multiplyScalar(56);
   sun.updateMatrixWorld();
   sun.target.updateMatrixWorld();
-  const crowds = createCrowds({ scene: new THREE.Scene(), lighting: { sun } });
+  const crowds = createCrowds({ scene: new THREE.Scene(), lighting: { sun } }, { groundAt: () => 0 });
   crowds.reserve('frog', 4);
   crowds.begin(camera());
   crowds.place('frog', new THREE.Vector3(60, 0, 0), 0, 1); // out of the box: drawn, casts nothing
@@ -270,6 +271,11 @@ test('only the critters in the sun\'s shadow box cast, and a critter keeps its f
   const at = i => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(frog.instanceMatrix.array, i * 16));
   assert.deepEqual(at(0).toArray(), [2, 0, -3], 'the one that casts comes first');
   assert.deepEqual(at(1).toArray(), [60, 0, 0], 'the other right after it');
+  const { shades } = crowds;
+  assert.equal(shades.count, 1, 'a soft shade under the one out of the box only (in it, its real shadow)');
+  assert.ok(Math.abs(new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(shades.instanceMatrix.array, 0)).x - 60) < 1);
+  assert.ok(shades.geometry.getAttribute('aShade').getX(0) > 0.3);
+  assert.equal(crowds.calls(), 2, 'the shades are one call');
   crowds.begin(camera());
   crowds.place('frog', new THREE.Vector3(60, 0, 0), 0, 1);
   crowds.end();

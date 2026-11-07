@@ -67,8 +67,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   group.name = 'Árdalur';
   world.scene?.add?.(group);
   // the animal groups of C (animals.js), in the real look; the grey one has their marks. They are drawn as crowds (each kind of
-  // critter in one draw call), begun and ended round them each frame; only those in view, or near enough to cast a shadow into it.
-  const crowds = real ? createCrowds(world, { parent: group, inView: true }) : null;
+  // critter in one draw call), begun and ended round them each frame; only those in view, or near enough to cast a shadow into it;
+  // a soft shade under each on the ground where the sun's shadow map does not reach (crowd.js groundAt)
+  const crowds = real ? createCrowds(world, { parent: group, inView: true, groundAt: (x, z) => terrain.heightAt(x, z) }) : null;
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
   // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders, and the big call's
   // rows of small lizards and flocks of birds; in the same crowds
