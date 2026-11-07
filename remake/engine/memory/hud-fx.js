@@ -4,8 +4,10 @@
 //   burst(element, { count })          gold stars thrown out all round an element (the chip at the top: Yatzy's sparkle only goes up)
 //   flyStar(from, element, onLand)     one gold star flying from a point of the page (px) to an element, on an arc; onLand when it is there
 //   confetti(box, { count })           paper confetti falling over the last picture (Eitt's .eitt-confetti, as DOM: minnisspil.css .memory-confetti)
+//   squeeze(element)                   a light squeeze of a bubble whose words changed (Mosi's)
 //   cancel()                           removes all of it at once (a restart)
-// Under less motion (`reduced()`) nothing flies or falls: a star lands at once, a burst is a short fade where it is, and there is no confetti.
+// Under less motion (`reduced()`) nothing flies or falls: a star lands at once, a burst is a short fade where it is, there is no confetti
+// and no squeeze.
 
 const STAR = 'polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)';
 
@@ -71,10 +73,15 @@ export function createHudFx({ reduced = () => false, doc = globalThis.document }
     box.hidden = false;
   }
 
+  function squeeze(element) {
+    if (!element || calm()) return;
+    play(element, [{ scale: '1 1' }, { scale: '1.035 .93', offset: .3 }, { scale: '.99 1.025', offset: .65 }, { scale: '1 1' }], { duration: 340, easing: 'ease-out' });
+  }
+
   function cancel() {
     serial++;
     for (const element of [...live]) drop(element);
   }
 
-  return { burst, flyStar, confetti, cancel };
+  return { burst, flyStar, confetti, squeeze, cancel };
 }

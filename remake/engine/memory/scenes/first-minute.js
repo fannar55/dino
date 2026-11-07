@@ -66,7 +66,7 @@ export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
     { at: wideAt + .05, wait: { until: () => stage.home(first) && stage.home(second), timeout: 9, onTimeout: () => pair.forEach(cell => stage.forceHome(cell)) } },
     // Home: a wide cut with Mosi, who claps and says his line.
     { at: wideAt + .1, shot: { kind: 'wide', subjects: () => [...pair.flatMap(cell => [cell.actor.root.position.clone(), stage.head(cell)]), stage.mosi.head()], cut: true },
-      act: () => stage.mosi.gesture('clap'), say: 'match' },
+      act: () => stage.mosi.gesture('clap'), say: 'match', sound: { name: 'star', nestIndex } },
     // Back to the glade; Mosi laughs with delight on the way, in view on the left.
     { at: wideAt + 1, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];

@@ -2,13 +2,16 @@ import { createMemoryGame } from './rules.js';
 import { createMemoryWorld } from './world.js';
 import { createMemoryAudio, soundscapeUrl } from './audio.js';
 import { createStepRules, obstaclesOf } from './step-rules.js';
-import { LEVELS, chooseLevel, finishLevel } from './levels/index.js';
+import { LEVELS, chooseLevel, finishLevel, isNewLevel, markPlayed } from './levels/index.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
 import { GIFT_ITEMS, GIFT_CREDITS } from './surprise-items.js';
 import { VOICE_LINES } from './voice-lines.js';
 import { IDLE_HINT, forgetOldMute, momentLine, askLine, repeatDue } from './coach.js';
 import { BASKET_ICON } from '../scene/ui.js';
+import { createJuniorAudio } from '../yatzy-junior/sounds.js';
+import { createJuice } from '../yatzy-junior/juice.js';
+import { createHudFx } from './hud-fx.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -44,6 +47,13 @@ const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>
 const game = createMemoryGame({ ...(params.has('seed') ? { random: seeded(Number(params.get('seed')) || 251025) } : {}), species: level.friends, gifts: level.gifts });
 // (a level may add a soundscape of its own to the shared one: levels/*.js `soundscape`)
 const audio = createMemoryAudio({ extraManifests: level.soundscape ? [soundscapeUrl(level.soundscape)] : [] });
+// The page's own sounds and small effects (the juice pass of 2026-11-07, package B): Litla Yatzy's sounds for the buttons, the picker, the
+// basket, the dots and the end (engine/yatzy-junior/sounds.js: made on the spot, never recorded; each kind waits its own gap, JUNIOR_GAPS,
+// and all of them dip under Mosi's voice), its pops (juice.js), and the stars and confetti of the corner chip and the ending (hud-fx.js).
+// Under less motion nothing of theirs moves; the sounds stay.
+const ui = createJuniorAudio();
+const juice = createJuice({ reduced: () => reducedMotion });
+const hudFx = createHudFx({ reduced: () => reducedMotion });
 const bridge = createStepRules(level);
 const buttons = new Map();
 const nestSpecies = [];
@@ -57,6 +67,12 @@ let captionCleared = false;
 let giftsLeftSaid = false; // Mosi has said `giftsLeft` for this wait
 let idleTime = 0, whoShown = false; // game seconds since the child last tapped; whether the bubbles are on screen
 let basketCount = 0; // gift pairs that have flown into the basket in the corner chip
+// (#7) The dots filled in the chip: a found pair's dot fills when its star lands (a star waiting to fly, one in the air, and how long a dot
+// has been owed with neither), and whether the ending's confetti and fanfare have come in this round (#9).
+let dotsLanded = 0, starQueued = null, starFlying = false, dotsLate = 0, endingCheered = false;
+// (#8) How much Mosi's face on his button moves with his voice (smoothed), and what was last written.
+let talk = 0, talkWritten = '';
+let uiDucked = null; // whether the page's sounds are dipped under his voice now
 // Mosi's button and his repeat (coach.js): the key he has repeated his line for, and how long his voice has been quiet (game seconds).
 let repeatedKey = null, voiceQuiet = 0;
 // There is no sound button any more: a tablet muted by the old one would stay silent, so its saved key is forgotten (the sound is never muted).
@@ -66,10 +82,25 @@ const busyDialog = () => dialogs.some(dialog => dialog.open);
 const held = () => !started || userPaused || document.hidden || busyDialog();
 function syncPause() {
   const paused = held(); game.pause(paused); audio.pause(paused); $('game').dataset.paused = String(paused);
-  speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused);
+  speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused); ui.pause(paused);
   refreshControls();
 }
-function caption(text, hold = 0) { if ($('caption').textContent !== text) $('caption').textContent = text; if (hold) captionUntil = time + hold; if (text) captionCleared = false; }
+function caption(text, hold = 0) { if ($('caption').textContent !== text) { $('caption').textContent = text; if (text) squeezeBubble(); } if (hold) captionUntil = time + hold; if (text) captionCleared = false; }
+// (#8) His bubble gives a light squeeze when its words change (not under less motion, and at most once in .3 s).
+let squeezedAt = -Infinity;
+function squeezeBubble() {
+  const now = performance.now(); if (now - squeezedAt < 300 || $('coach').hidden) return;
+  squeezedAt = now; hudFx.squeeze($('coach'));
+}
+// A sound of the page (a button, the picker, the basket, a dot, the end), asked of Litla Yatzy's sounds; QA reads what was asked and when
+// (window.__memory.audio().ui.asked: the game's seconds and the page's).
+const uiAsked = [];
+function uiSound(kind, options) {
+  ui.unlock();
+  const sounded = ui.cue(kind, options);
+  uiAsked.push({ t: Math.round(time * 100) / 100, wall: Math.round(performance.now()), kind, sounded }); if (uiAsked.length > 200) uiAsked.shift();
+  return sounded;
+}
 function clearCaption() { captionCleared = true; captionUntil = 0; $('caption').textContent = ''; $('coach').hidden = true; }
 // The words and counts on the page come from the level (levels/*.js, `copy`, `friends`, `gifts`). The markup has the same words
 // for level 1, so its first paint is the markup's own: only what differs is written.
@@ -108,21 +139,28 @@ function levelCards() {
   const make = (tag, className, text = '') => Object.assign(document.createElement(tag), { className, textContent: text });
   return LEVELS.map(item => {
     const here = item === level, shut = locked.has(item.id) && !here, card = make('button', 'level-card');
+    // (#10) A level that is open and has not been played yet carries «Nýtt!» (levels/index.js isNewLevel) until a round of it starts.
+    const fresh = !shut && isNewLevel(item, locked);
     card.type = 'button'; card.dataset.level = item.id; card.setAttribute('aria-disabled', String(shut));
     if (here) card.setAttribute('aria-current', 'true');
-    card.setAttribute('aria-label', shut ? `${item.title}, læst. ${item.copy.locked ?? ''}` : `${item.title}, borð ${item.number}${here ? ', þú ert hér' : ''}`);
+    card.setAttribute('aria-label', shut ? `${item.title}, læst. ${item.copy.locked ?? ''}` : `${item.title}, borð ${item.number}${here ? ', þú ert hér' : ''}${fresh ? ', nýtt' : ''}`);
     const picture = Object.assign(document.createElement('img'), { className: 'level-picture', src: `./assets/memory/levels/${item.id}.webp`, alt: '', width: 640, height: 330, draggable: false });
     const parts = [picture, make('span', 'level-number', String(item.number)), make('span', 'level-title', item.title)];
     if (shut) { parts.push(make('span', 'level-lock', '🔒')); parts.push(make('span', 'level-note', item.copy.locked ?? '')); }
+    if (fresh) parts.push(newTag());
     card.append(...parts);
     card.addEventListener('click', () => {
-      if (shut) { card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
+      // (a locked card says "oh" as it shakes its head; an open one taps)
+      if (shut) { uiSound('oh'); card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
+      uiSound('tap');
       if (here) { start(); return; }
       goToLevel(item);
     });
     return card;
   });
 }
+// The «Nýtt!» tag on a level card and on the ending card's button to the next level (read out by the button's own label, not the tag).
+function newTag() { const tag = Object.assign(document.createElement('span'), { className: 'new-tag', textContent: 'Nýtt!' }); tag.setAttribute('aria-hidden', 'true'); return tag; }
 // (the page plays one level: another level is another page, ?bord=N)
 function goToLevel(item) {
   const next = new URLSearchParams(location.search); next.delete('play'); next.delete('bord'); if (item.number > 1) next.set('bord', String(item.number));
@@ -137,9 +175,12 @@ function endingLink() {
 }
 function reflectEndingLink() {
   const link = endingLink(), button = $('ending-next'); button.hidden = !link; if (!link) return;
-  if (button.dataset.level === link.item.id) return;
+  // (#10) The next level, open and not played yet: «Nýtt!» on the button and a gold glow breathing round it (minnisspil.css .is-new).
+  const fresh = link.arrow && isNewLevel(link.item, locked);
+  if (button.dataset.level === link.item.id && button.classList.contains('is-new') === fresh) return;
   const arrow = document.createElement('span'); arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '→';
-  button.dataset.level = link.item.id; button.replaceChildren(link.text + (link.arrow ? ' ' : ''), ...(link.arrow ? [arrow] : []));
+  button.dataset.level = link.item.id; button.classList.toggle('is-new', fresh);
+  button.replaceChildren(link.text + (link.arrow ? ' ' : ''), ...(link.arrow ? [arrow] : []), ...(fresh ? [newTag()] : []));
 }
 function reflectPicker() { $('level-cards').replaceChildren(...levelCards()); reflectEndingLink(); }
 // A level finished is open for good, and so is the next, which this page's ending card offers at once even when storage does not take it (levels/index.js finishLevel).
@@ -147,7 +188,28 @@ function unlockNext() { finishLevel(level, locked); reflectPicker(); }
 // The pairs found: a dot each, filled once found (the chip has no words; its label says it).
 function reflectProgress(state) {
   $('progress').setAttribute('aria-label', `${state.matchedPairs} af ${level.friends.length} pörum fundin`);
-  $('progress').querySelectorAll('i').forEach((dot, index) => dot.classList.toggle('found', index < state.matchedPairs));
+  $('progress').querySelectorAll('i').forEach((dot, index) => dot.classList.toggle('found', index < Math.min(dotsLanded, state.matchedPairs)));
+}
+// (#7) A found pair's star: from the pair at home (its home's button, which follows their heads) to its dot in the chip, which fills as the
+// star lands, with a pop, a few stars and "pip". The match script asks for it as Mosi claps (scene-sound 'star'), a moment after its cut;
+// a dot owed with no star on its way and no script playing is filled a moment later all the same (a match the world did not play).
+function sendStar(nestIndex) { if (!starFlying && dotsLanded < game.getState().matchedPairs) starQueued = { nestIndex, wait: .15 }; }
+function launchStar() {
+  const { nestIndex } = starQueued; starQueued = null;
+  const dot = $('progress').querySelectorAll('.nest-dots i')[dotsLanded];
+  if (!dot) { landDot(); return; }
+  const home = world.getTargets().find(target => target.type === 'nest' && target.index === nestIndex), box = $('world').getBoundingClientRect();
+  const inside = (value, size) => Math.max(24, Math.min(size - 24, value));
+  const from = home ? { x: box.left + inside(home.x, box.width), y: box.top + inside(home.y, box.height) } : { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  starFlying = true;
+  hudFx.flyStar(from, dot, () => { starFlying = false; landDot(); });
+}
+function landDot() {
+  dotsLanded = Math.min(dotsLanded + 1, game.getState().matchedPairs); dotsLate = 0;
+  reflectProgress(game.getState());
+  const dot = $('progress').querySelectorAll('.nest-dots i')[dotsLanded - 1];
+  if (dot) { juice.pop(dot, 1.5); hudFx.burst(dot, { count: 6, reach: .6 }); }
+  uiSound('pip');
 }
 // The basket counts the gift pairs, as each pair lands in it: "0 / 3" from the start of the round; hidden when a round has none.
 const giftTotal = () => level.gifts.length;
@@ -162,6 +224,11 @@ function reflectBasket(pulse = false) {
   basket.setAttribute('aria-label', `Karfan: ${basketCount} af ${total} fundið`);
   basket.classList.toggle('full', total > 0 && basketCount >= total);
   if (pulse) { basket.classList.remove('got'); void basket.offsetWidth; basket.classList.add('got'); }
+}
+// (#6) A gift pair lands in the basket: the count pops, gold stars burst from the chip, and Litla Yatzy's "land" goes with the world's ding.
+function giftLanded() {
+  basketCount++; reflectBasket(true);
+  hudFx.burst($('basket'), { count: 10, reach: 1.1 }); juice.pop($('basket-text'), 1.5); uiSound('land');
 }
 // Where the basket is, in canvas pixels: the world flies a gift pair there.
 function basketPoint() {
@@ -190,6 +257,7 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'giggle') audio.giggle();
   else if (name === 'clap') audio.mosiClap(index);
   else if (name === 'cheer') audio.cheer();
+  else if (name === 'star') sendStar(nestIndex);
 }
 // The keys of an event in the level's tables: a beat by its step ('beat:lift'); any other by its type, and also by its type and id
 // ('pair-arrived:cross') and by those and its index ('wing-beat:pull:0'), the more particular after.
@@ -232,6 +300,8 @@ function sayAgain(line) {
 }
 // "Spyrja Mosa" (his button, bottom left): the instruction of this moment of the story, or else his help line (coach.js askLine). Never over a line he is saying or about to say, during a step or a scene, or while the game is held. A tap on him is the
 // child doing something (the finger and the repeat wait again).
+// (his button taps as it is pressed, whether or not he has something to say now; the playthrough's child takes the same path)
+function pressMosi() { uiSound('tap'); askMosi(); }
 function askMosi() {
   noteInput();
   if (!world || !started) return;
@@ -357,6 +427,8 @@ function pickFriend(species) {
   // Mosi's bubble follows at once (the script's shots hold the camera, so guidance() would wait).
   syncBridge(); caption(currentStory().prompt); reflectEnding();
 }
+// A face in the bubbles tapped: a tap's sound, then the pick (the playthrough's child takes the same path, window.__memory.choose).
+function tapFriend(species) { uiSound('tap'); pickFriend(species); }
 // After a wrong friend's go the bubbles come back, unless no friend in them can do it: then Mosi sends the child
 // back to the leaves.
 function failDone() {
@@ -397,9 +469,16 @@ function reflectEnding() {
   }
   const showEnding = endingDue();
   if (showEnding && $('ending').hidden) reflectGifts();
-  $('ending').hidden = !showEnding; $('coach').hidden = !started || showEnding || captionCleared;
+  setEnding(showEnding); $('coach').hidden = !started || showEnding || captionCleared;
   $('cancel-choice').hidden = !whoVisible();
   $('holding').hidden = !started || !holding(state) || levelDone() || Boolean(state.active);
+}
+// The ending card shown or put away. (#9) The first time in a round: paper confetti over the last picture (not under less motion), and
+// Litla Yatzy's fanfare with its confetti's rustle. (#10) The card springs up from below as it shows (minnisspil.css .ending).
+function setEnding(visible) {
+  if ($('ending').hidden === !visible) return;
+  $('ending').hidden = !visible;
+  if (visible && !endingCheered) { endingCheered = true; uiSound('win', { winner: 'you' }); hudFx.confetti($('confetti')); }
 }
 function accept(events) {
   for (const event of events) {
@@ -411,7 +490,7 @@ function accept(events) {
       caption(gift ? (game.getState().selected.length > 1 ? `${gift.name}!` : gift.seek) : `${roster[event.species]}! Hvar er vinur hans?`, .8);
     } else if (event.type === 'gift') {
       // Both animals rise from their leaves and fly to the basket together (the world; the count follows on landing: scene-basket).
-      if (!world.foundGift(event.ids)) { basketCount++; reflectBasket(true); } // (a pair the world cannot show still counts: the crossing waits for the basket)
+      if (!world.foundGift(event.ids)) giftLanded(); // (a pair the world cannot show still counts: the crossing waits for the basket)
       const gift = GIFT_ITEMS[event.item];
       caption(gift?.caption ?? 'Gjöf!', 3.4); if (gift) speech.play(gift.voice);
     } else if (event.type === 'conceal') {
@@ -491,7 +570,7 @@ function refreshControls() {
   const finished = endingDue();
   if (finished && $('ending').hidden) reflectGifts();
   $('coach').hidden = !started || finished || overview || captionCleared;
-  $('ending').hidden = !finished || overview;
+  setEnding(finished && !overview);
   // Mosi's button: from the start of the round, not over the welcome card or the ending card.
   const mosiHidden = !started || finished || $('welcome').open; if ($('mosi-help').hidden !== mosiHidden) $('mosi-help').hidden = mosiHidden;
   const worldInput = !camera.moving && camera.worldInputEnabled !== false && !overview;
@@ -573,7 +652,7 @@ function reflectWho() {
         button = document.createElement('button'); button.type = 'button'; button.className = 'who-friend'; button.dataset.species = species;
         button.setAttribute('aria-label', pairs[species].label);
         button.innerHTML = `<span class="who-face"><img src="./assets/memory/portraits/${species}.webp" alt="" width="512" height="384" draggable="false"></span><span class="who-name">${pairs[species].name}</span>`;
-        button.addEventListener('click', () => pickFriend(species));
+        button.addEventListener('click', () => tapFriend(species));
         whoButtons.set(species, button);
       }
       button.style.setProperty('--i', String(i));
@@ -583,7 +662,7 @@ function reflectWho() {
   if (!whoShown) {
     // Popping in again restarts the animation; the friends who may answer bounce, keen.
     box.hidden = false; box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
-    whoShown = true; world.eager(wanted);
+    whoShown = true; world.eager(wanted); uiSound('bubble');
   }
   const target = world.getTargets().find(value => value.type === 'task' && value.id === state.asking);
   const width = box.offsetWidth, height = box.offsetHeight, W = $('game').clientWidth, H = $('game').clientHeight;
@@ -606,6 +685,11 @@ function start({ restart = false } = {}) {
   for (const dialog of dialogs) if (dialog.open) dialog.close();
   // setBoard cancels every running script, shot and gesture before the new board is laid out.
   if (restart) { game.restart(); bridge.restart(); celebrated = false; giftsLeftSaid = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
+  // (the page's stars, pops, confetti and sounds of the round before go at once: no star lands in a dot of the new round)
+  ui.cancel(); juice.cancel(); hudFx.cancel(); $('confetti').hidden = true; $('confetti').replaceChildren();
+  dotsLanded = 0; starQueued = null; starFlying = false; dotsLate = 0; endingCheered = false;
+  // (#10) A round of this level begun: it is not new any more (its «Nýtt!» goes from the cards)
+  if (isNewLevel(level, locked)) { markPlayed(level); reflectPicker(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
   autoStep = null; autoAge = 0; blockedAuto = null; retryAge = 0; storyKey = ''; captionUntil = 0; captionCleared = false; idleTime = 0; whoShown = false;
   // (a new round: Mosi has repeated nothing in it yet)
@@ -618,8 +702,8 @@ function start({ restart = false } = {}) {
   if (!restart) speech.play(LINES.welcome);
 }
 function openDialog(id) {
-  if (!world || !started || busyDialog()) return;
-  $(id).showModal(); syncPause();
+  if (!world || !started || busyDialog()) return false;
+  $(id).showModal(); syncPause(); return true;
 }
 function frame(timestamp) {
   if (disposed) return;
@@ -642,13 +726,22 @@ function frame(timestamp) {
     speech.update(frozen ? 0 : dt, camera.mode === 'auto' && camera.moving);
     world.setMosiSpeech?.(speech.amplitude());
     const voice = speech.isPlaying(), action = Boolean(bridgeState.active);
+    if (uiDucked !== voice) { uiDucked = voice; ui.duck(voice); }
+    // (#8) His face on his button moves with his voice: a little bigger, and a little tilt to and fro (still under less motion).
+    talk += ((reducedMotion || $('mosi-help').hidden ? 0 : speech.amplitude()) - talk) * Math.min(1, dt * 14);
+    const talkNow = talk < .01 ? '' : `${(1 + talk * .07).toFixed(3)}|${(Math.sin(timestamp / 1000 * 13) * talk * 5).toFixed(1)}deg`;
+    if (talkNow !== talkWritten) {
+      talkWritten = talkNow; const [grow, tilt] = talkNow.split('|');
+      if (talkNow) { $('mosi-help').style.setProperty('--talk-scale', grow); $('mosi-help').style.setProperty('--talk-tilt', tilt); }
+      else { $('mosi-help').style.removeProperty('--talk-scale'); $('mosi-help').style.removeProperty('--talk-tilt'); }
+    }
     music.update(dt, { speech: voice, action, stage: level.music(bridgeState) });
     audio.duck?.(voice); audio.river(!frozen, voice || action);
     world.update(frozen ? 0 : dt, time);
     for (const event of world.pollStepEvents()) {
       if (event.type === 'scene-sound') playSceneSound(event);
       else if (event.type === 'scene-say') { if (event.clear) clearCaption(); else sayLine(event.line, event); }
-      else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); reflectEnding(); }
+      else if (event.type === 'scene-basket') { giftLanded(); reflectEnding(); }
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
       else if (event.type === 'fail-done') failDone();
       else if (event.type === 'bridge-complete') {
@@ -666,6 +759,11 @@ function frame(timestamp) {
       }
     }
     updateStory(frozen ? 0 : dt);
+    // (#7) The star of a found pair flies a moment after the match script's cut; a dot owed with no star and no script is filled all the same.
+    if (!frozen) {
+      if (starQueued && (starQueued.wait -= dt) <= 0) launchStar();
+      if (!starQueued && !starFlying && dotsLanded < game.getState().matchedPairs && !world.sceneBusy()) { dotsLate += dt; if (dotsLate > 1.5) landDot(); } else dotsLate = 0;
+    }
     // Mosi's repeat of the moment's instruction after a long wait (never while the game is held).
     if (!frozen) { voiceQuiet = speech.isPlaying() ? 0 : voiceQuiet + dt; repeatMoment(); }
     refreshControls();
@@ -679,26 +777,29 @@ const music = createMemoryMusic();
 applyLevelDom();
 // (the motion the world and the tap hint use: calm when the tablet asks for it, until "Rólegri hreyfing" says otherwise; Mosi's button waits for the round)
 $('game').dataset.motion = reducedMotion ? 'reduced' : 'full'; $('mosi-help').hidden = true;
-$('start').addEventListener('click', () => start());
+// (every button taps as it is pressed: Litla Yatzy's page sounds, uiSound)
+$('start').addEventListener('click', () => { uiSound('tap'); start(); });
 // Any tap on the game counts as the child doing something (the finger and Mosi's repeat wait for hesitation).
 $('game').addEventListener('pointerdown', noteInput);
-$('again').addEventListener('click', () => start({ restart: true }));
-$('ending-next').addEventListener('click', () => { const link = endingLink(); if (link) goToLevel(link.item); });
-$('credits-toggle').addEventListener('click', () => setCredits($('credits').hidden));
-$('cancel-choice').addEventListener('click', cancelChoice);
-$('mosi-help').addEventListener('click', askMosi);
-$('restart').addEventListener('click', () => start({ restart: true }));
-$('pause').addEventListener('click', () => openDialog('pause-dialog'));
+$('again').addEventListener('click', () => { start({ restart: true }); uiSound('tap'); });
+$('ending-next').addEventListener('click', () => { const link = endingLink(); uiSound('tap'); if (link) goToLevel(link.item); });
+$('credits-toggle').addEventListener('click', () => { uiSound('tap'); setCredits($('credits').hidden); });
+$('cancel-choice').addEventListener('click', () => { uiSound('close'); cancelChoice(); });
+$('mosi-help').addEventListener('click', pressMosi);
+$('restart').addEventListener('click', () => { start({ restart: true }); uiSound('tap'); });
+$('pause').addEventListener('click', () => { if (openDialog('pause-dialog')) uiSound('dialog', { id: 'pause-dialog' }); });
 $('retry').addEventListener('click', () => location.reload());
 $('motion').setAttribute('aria-pressed', String(reducedMotion));
 $('motion').addEventListener('click', () => {
+  uiSound('tap');
   reducedMotion = !reducedMotion; $('motion').setAttribute('aria-pressed', String(reducedMotion)); $('game').dataset.motion = reducedMotion ? 'reduced' : 'full';
   world?.setReducedMotion?.(reducedMotion);
 });
-document.querySelectorAll('[data-resume]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+// (the pause card's "Halda áfram", and Escape on it, sound as the game goes on: Litla Yatzy's resume)
+document.querySelectorAll('[data-resume]').forEach(button => button.addEventListener('click', () => { const dialog = button.closest('dialog'); uiSound('dialogClose', { id: dialog.id }); dialog.close(); }));
 for (const dialog of dialogs) {
   dialog.addEventListener('close', syncPause);
-  dialog.addEventListener('cancel', event => { if (dialog.id === 'welcome') event.preventDefault(); });
+  dialog.addEventListener('cancel', event => { if (dialog.id === 'welcome') event.preventDefault(); else uiSound('dialogClose', { id: dialog.id }); });
 }
 document.addEventListener('visibilitychange', syncPause);
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !busyDialog()) cancelChoice(); });
@@ -711,11 +812,12 @@ window.addEventListener('pageshow', event => { if (event.persisted) { userPaused
 let statsFrame = 0, statsBuilt = -1, statsCache;
 Object.defineProperty(window, '__demoStats', { configurable: true, get() { if (statsBuilt !== statsFrame || !statsCache) { statsCache = world?.getDebug({ collision: false }); statsBuilt = statsFrame; } return statsCache; } });
 window.__memory = {
-  state: () => game.getState(), basket: () => basketCount, giftsLeft: () => ({ toLand: giftsToLand(), unfound: giftsUnfound() }), stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
+  state: () => game.getState(), basket: () => basketCount, giftsLeft: () => ({ toLand: giftsToLand(), unfound: giftsUnfound() }), stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats(), ui: { ...ui.getStats(), asked: uiAsked.slice() } }),
+  dots: () => dotsLanded,
   targets: () => world?.getTargets(),
   bridge: () => bridge.getState(), task: chooseTask,
   // The playthrough's child: tap an obstacle, pick a friend from the bubbles, tap along (the same paths as the buttons).
-  ask: chooseTask, choose: pickFriend, tap: chooseTask,
+  ask: chooseTask, choose: tapFriend, tap: chooseTask,
   who: () => ({ open: whoVisible(), asking: bridge.getState().asking, candidates: [...bridge.getState().candidates] }),
   story: () => currentStory(), idle: () => idleTime,
   camera: setCameraMode,
@@ -723,7 +825,7 @@ window.__memory = {
   restart: () => start({ restart: true }),
   pause(value) { userPaused = Boolean(value); syncPause(); },
   // Mosi's button (the same path as a tap on it), and the instruction it and the repeat would say: { id, key } (id null when the moment has none).
-  askMosi, lastLine: () => { const moment = momentNow(); return { id: momentLine(moment), key: moment.key }; },
+  askMosi: pressMosi, lastLine: () => { const moment = momentNow(); return { id: momentLine(moment), key: moment.key }; },
 };
 window.__memoryReady = false;
 try {
@@ -742,5 +844,5 @@ try {
   console.error('Memory game could not initialize:', error);
   $('loading').hidden = true; $('error').hidden = false;
   $('error-copy').textContent = 'Ekki tókst að hlaða öllum hlutum leiksins. Prófaðu aftur.';
-  world?.dispose(); audio.dispose(); speech.dispose(); music.dispose();
+  world?.dispose(); audio.dispose(); speech.dispose(); music.dispose(); ui.dispose(); hudFx.cancel();
 }
