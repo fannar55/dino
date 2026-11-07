@@ -253,6 +253,15 @@ test('Grameðla\'s roar: once, in F, low and far, as Flugeðla speaks of her', (
   assert.ok(roars[0].t > since(line.at) && roars[0].t - since(line.at) < 4, `the roar at ${roars[0].t.toFixed(2)} s, her line at ${since(line.at).toFixed(2)} s`);
 });
 
+test('the big call\'s answers include the herd and the flyers (the owner\'s picks of 2026-11-07), after the call', () => {
+  const big = run.world.chapterState.play.big.at;
+  assert.ok(Number.isFinite(big), 'the big call came');
+  const after = full.seen.sfx.filter(s => s.t > big);
+  for (const name of ['frog', 'lizards', 'birds', 'grazers', 'flyers']) {
+    assert.ok(after.some(s => s.name === name), `${name} answer the big call (heard after it: ${after.map(s => s.name)})`);
+  }
+});
+
 test('pausing at 60 s holds the beat and silences the wind bed and the song', async () => {
   const audio = createFakeContext({ state: 'running' });
   const levels = [];

@@ -22,6 +22,8 @@
 //   life.flocks          [{ id, from, dir, delay, members }]: the flocks of birds, `from` the middle of the grove they sit in
 //   life.herd            [{ id, at, dir, room, members }]: the herd's groups, `room` how far they go ([] without the grazer)
 //   life.flyers          the gorge's flyers, each with its ledge (nest), its place round her (slot) and its landing (land)
+//   life.flyersOff       { at, side }: the flight second the first of them leaves its nest, and its side of her ('left' or 'right');
+//                        null without them (chapters/kafli4-flight-play.js: they cry then)
 //   life.arrivals        those that stand at the far pool in scene 7, each with its spot there (gather: { at, heading })
 //   life.props           the trees the birds sit in, for the plants to grow (banks.js); life.clear  where nothing else may grow
 //                        (the herd's ways: nothing taller than GRAZE.low)
@@ -417,6 +419,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       clear.push({ x, z, r: 1.2 });
     });
   }
+  // the first to leave its nest, and its side of her: they cry then (chapters/kafli4-flight-play.js)
+  const first = flyers.reduce((a, b) => (a && a.trigger <= b.trigger ? a : b), null);
+  const flyersOff = first ? { at: first.trigger, side: first.side } : null;
 
   // Scene 7: the arrivals, each given its spot at the far pool, turned toward her in the shallows; the flyers stand where they landed
   let arrived = false;
@@ -815,7 +820,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   }
 
   return {
-    things, rows, flocks, herd, flyers, arrivals, props, clear, crowds, update, skim, bigCall, arrive,
+    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive,
     dispose() { if (own) crowds.dispose(); },
   };
 }

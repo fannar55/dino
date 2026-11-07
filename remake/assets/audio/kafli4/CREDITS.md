@@ -11,7 +11,8 @@ plays it from its start, half a second in (chapters/kafli4-flight.js: SONG).
 ## The flight's sounds and the rest
 
 The flight's sounds (engine/audio/flight-sounds.js) and the skim, the turtle and the small lizards (engine/audio/sfx.js), as the owner
-picked them by ear on 2026-11-02. `node remake/tools/kafli4-sounds.mjs` cuts and levels them; each cut is in `hljod/sounds.json`.
+picked them by ear on 2026-11-02, and the herd and the flyers (sfx.js), his picks of 2026-11-07. `node remake/tools/kafli4-sounds.mjs`
+cuts and levels them; each cut is in `hljod/sounds.json`.
 The ElevenLabs takes were generated for this game with its sound generation. The Freesound recordings are under the licences named
 here. The two that ask for credit:
 
@@ -45,3 +46,9 @@ here. The two that ask for credit:
 | `hljod/smalldino-2.mp3` | the small lizards answering her call | ElevenLabs take smalldino-2 | ElevenLabs sound generation, made for this game |
 | `hljod/smalldino-3.mp3` | the small lizards answering her call | "Tiny Croc Chirp" by iwanPlays, https://freesound.org/s/511430/ (0–1.3 s) | CC0 1.0 |
 | `hljod/smalldino-4.mp3` | the small lizards answering her call | "ThằngLằng.wav" by SieuAmThanh, https://freesound.org/s/400573/ | CC0 1.0 |
+| `hljod/grazer-1.mp3` | the herd answering her big call | ElevenLabs take grazer-1 (0–1.75 s) | ElevenLabs sound generation, made for this game |
+| `hljod/grazer-2.mp3` | the herd answering her big call | ElevenLabs take grazer-2 | ElevenLabs sound generation, made for this game |
+| `hljod/grazer-3.mp3` | the herd answering her big call | ElevenLabs take grazer-3 (0–1.1 s) | ElevenLabs sound generation, made for this game |
+| `hljod/grazer-4.mp3` | the herd answering her big call | ElevenLabs take grazer-4 (0.6–1.6 s) | ElevenLabs sound generation, made for this game |
+| `hljod/flyer-1.mp3` | the gorge's flyers: their cry as they leave their nests, and their answer to her big call | ElevenLabs take flyer-1 | ElevenLabs sound generation, made for this game |
+| `hljod/flyer-2.mp3` | the gorge's flyers: their cry as they leave their nests, and their answer to her big call | ElevenLabs take flyer-3 (0–1.35 s) | ElevenLabs sound generation, made for this game |

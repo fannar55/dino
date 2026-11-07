@@ -309,5 +309,87 @@
       "licence": "CC0 1.0",
       "page": "https://freesound.org/s/400573/"
     }
+  },
+  "grazer-1.mp3": {
+    "what": "the herd answering her big call",
+    "loop": false,
+    "seconds": 1.75,
+    "from": "eleven/grazer-1.raw.mp3",
+    "cut": [
+      0,
+      1.75
+    ],
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "grazer-1",
+      "prompt": "eleven/grazer-1.json"
+    }
+  },
+  "grazer-2.mp3": {
+    "what": "the herd answering her big call",
+    "loop": false,
+    "seconds": 2,
+    "from": "eleven/grazer-2.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "grazer-2",
+      "prompt": "eleven/grazer-2.json"
+    }
+  },
+  "grazer-3.mp3": {
+    "what": "the herd answering her big call",
+    "loop": false,
+    "seconds": 1.1,
+    "from": "eleven/grazer-3.raw.mp3",
+    "cut": [
+      0,
+      1.1
+    ],
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "grazer-3",
+      "prompt": "eleven/grazer-3.json"
+    }
+  },
+  "grazer-4.mp3": {
+    "what": "the herd answering her big call",
+    "loop": false,
+    "seconds": 1,
+    "from": "eleven/grazer-4.raw.mp3",
+    "cut": [
+      0.6,
+      1
+    ],
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "grazer-4",
+      "prompt": "eleven/grazer-4.json"
+    }
+  },
+  "flyer-1.mp3": {
+    "what": "the gorge's flyers: their cry as they leave their nests, and their answer to her big call",
+    "loop": false,
+    "seconds": 1.48,
+    "from": "eleven/flyer-1.raw.mp3",
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "flyer-1",
+      "prompt": "eleven/flyer-1.json"
+    }
+  },
+  "flyer-2.mp3": {
+    "what": "the gorge's flyers: their cry as they leave their nests, and their answer to her big call",
+    "loop": false,
+    "seconds": 1.35,
+    "from": "eleven/flyer-3.raw.mp3",
+    "cut": [
+      0,
+      1.35
+    ],
+    "source": {
+      "licence": "ElevenLabs sound generation, made for this game",
+      "take": "flyer-3",
+      "prompt": "eleven/flyer-3.json"
+    }
   }
 }

@@ -40,8 +40,13 @@ export const PLAY = {
   answerAfter: 0.6, // seconds from her call to the group's answer
   targetSize: 2, // a group's target radius: this many times the group's own
   bigCall: 135, // F: seconds into the flight at which the big call comes by itself
-  // seconds after the big call: answers from everywhere, [after, sound, pan] (plan Task 16: frogs, birds and lizards, 0.4 to 0.9 aside)
-  bigAnswers: [[3, 'frog', -0.7], [3.3, 'lizards', 0.6], [3.6, 'birds', 0.85], [4.3, 'frog', 0.5], [4.6, 'lizards', -0.45], [5, 'birds', -0.9]],
+  // seconds after the big call: answers from everywhere, [after, sound, pan] (plan Task 16: frogs, birds and lizards, 0.4 to 0.9 aside;
+  // the life plan's Task 17: the herd below her and the flyers round her)
+  bigAnswers: [
+    [3, 'frog', -0.7], [3.3, 'lizards', 0.6], [3.6, 'birds', 0.85], [3.9, 'grazers', -0.45], [4.3, 'frog', 0.5], [4.6, 'lizards', -0.45],
+    [5, 'birds', -0.9], [5.4, 'flyers', 0.4], [5.8, 'grazers', 0.55],
+  ],
+  cryPan: 0.5, // the flyers' cry as the first leaves its nest (world/ardalur/life.js flyersOff), this far to its side of her
   shoutEvery: 3, // Egill shouts on the first burst and every third after it
 };
 const CALLS = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
@@ -221,6 +226,16 @@ export function flightPlay(s, c) {
   }
   const offLand = s.onTap(null, () => { if (on.call && flightTime() >= BEATS.F) bigCall('tap'); });
 
+  // D: the gorge's flyers cry as the first of them leaves its nest (world/ardalur/life.js flyersOff), once, from its side of her; not
+  // where the flight starts past it (a seek), nor in a world with no flyers (the review flight's)
+  let cried = false;
+  function cryFrame(before, t) {
+    const off = world.forest?.life?.flyersOff ?? null;
+    if (cried || !off || before === null || before >= off.at || t < off.at) return;
+    cried = true;
+    s.sfx('flyers', { pan: off.side === 'right' ? PLAY.cryPan : -PLAY.cryPan });
+  }
+
   // ---- „Hraðar!“ -------------------------------------------------------------------------------------------------------------------
   const speedLines = createSpeedLines(world, world.camera);
   // drawn once now, as the flight starts in the black, so the first burst is not their first draw (a stall of some 0.1 s: main.js)
@@ -299,12 +314,14 @@ export function flightPlay(s, c) {
     },
     bigCall,
     update(t) {
+      const before = last;
       const dt = last === null ? 0 : Math.max(0, t - last);
       last = t;
       follow();
       skimFrame(t);
       hintFrame(t);
       groupsFrame();
+      cryFrame(before, t);
       if (t >= boostUntil && boostUntil > -Infinity) {
         camera.boost(false);
         speedLines.show(false);

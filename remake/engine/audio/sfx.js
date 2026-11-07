@@ -27,6 +27,9 @@ export const SAMPLES = {
   skim: { urls: [kafli4('skim-1.mp3'), kafli4('skim-2.mp3')], level: 0.55, instead: 'splash' }, // her feet on the river
   turtleCall: { urls: [kafli4('turtle-1.mp3'), kafli4('turtle-2.mp3')], level: 0.5, instead: 'turtle' }, // the turtle answering her
   lizards: { urls: ['smalldino-1.mp3', 'smalldino-2.mp3', 'smalldino-3.mp3', 'smalldino-4.mp3'].map(kafli4), level: 0.45 }, // the small ones
+  // the owner's picks of 2026-11-07: the herd answering her big call, and the gorge's flyers (as they leave their nests, and answering)
+  grazers: { urls: ['grazer-1.mp3', 'grazer-2.mp3', 'grazer-3.mp3', 'grazer-4.mp3'].map(kafli4), level: 0.5 },
+  flyers: { urls: ['flyer-1.mp3', 'flyer-2.mp3'].map(kafli4), level: 0.4 },
 };
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.

@@ -247,7 +247,7 @@ test('every recorded file in kafli4/hljod is played and has a credit line', () =
   }
 });
 
-test('the skim, the turtle and the small lizards: a recorded take each time, panned where asked, and the made sound until they decode', async () => {
+test('the skim, the turtle, the small lizards, the herd and the flyers: a recorded take each time, panned where asked, and the made sound until they decode', async () => {
   const context = createFakeContext({ state: 'running' });
   const real = globalThis.fetch;
   let release;
@@ -264,7 +264,7 @@ test('the skim, the turtle and the small lizards: a recorded take each time, pan
     release();
     for (let i = 0; i < 5; i++) await settle();
     context.advance(2);
-    for (const name of ['skim', 'turtleCall', 'lizards']) {
+    for (const name of ['skim', 'turtleCall', 'lizards', 'grazers', 'flyers']) {
       const takes = SAMPLES[name].urls;
       assert.ok(takes.length >= 2, `${name} has takes`);
       const before = context.bufferSources.length;
@@ -277,7 +277,7 @@ test('the skim, the turtle and the small lizards: a recorded take each time, pan
     }
     assert.deepEqual([ANSWER.turtle, ANSWER.lizards], ['turtleCall', 'lizards'], 'the turtle and the lizards answer with their recordings');
     const sides = PLAY.bigAnswers.map(([, , pan]) => pan);
-    assert.ok(PLAY.bigAnswers.some(([, name]) => name === 'lizards'), 'the lizards answer the big call');
+    for (const who of ['lizards', 'grazers', 'flyers']) assert.ok(PLAY.bigAnswers.some(([, name]) => name === who), `the ${who} answer the big call`);
     assert.ok(sides.every(p => Math.abs(p) >= 0.4 && Math.abs(p) <= 0.9) && sides.some(p => p < 0) && sides.some(p => p > 0), `from all sides: ${sides}`);
   } finally {
     globalThis.fetch = real;

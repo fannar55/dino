@@ -1028,3 +1028,16 @@ test('the horn sounds from the reed across the pool, once, between Mosi\'s comin
   assert.deepEqual(c.horn.from, FAR_POOL.farReed, 'from the far reed');
   assert.ok(Number.isFinite(horns[0].detail?.pan) && Math.abs(horns[0].detail.pan) <= 1, 'from its side');
 });
+
+test('the flyers cry as they leave their nests, once, from the side the first one leaves', async () => {
+  const { world, soundLog } = await playUntouched(); // heard only in time: a capture's seeking play is silent
+  const f = world.chapterState.flight;
+  const off = world.forest.life.flyersOff;
+  assert.ok(off && Number.isFinite(off.at) && off.at > 0, 'life says when the first flyer leaves its nest');
+  // before the big call, which they answer too (kafli4-flight-play.js PLAY.bigAnswers)
+  const cries = soundLog.filter(e => e.name === 'flyers' && e.at - f.flight.started < f.play.big.at);
+  assert.equal(cries.length, 1, `once: at ${cries.map(e => (e.at - f.flight.started).toFixed(2))} s`);
+  const at = cries[0].at - f.flight.started;
+  assert.ok(at >= off.at - 1e-6 && at < off.at + 0.1, `as the first leaves: ${at.toFixed(2)} s, it leaves at ${off.at.toFixed(2)} s`);
+  assert.equal(Math.sign(cries[0].detail?.pan ?? 0), off.side === 'right' ? 1 : -1, `from its side (${off.side})`);
+});

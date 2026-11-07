@@ -7,6 +7,7 @@
 //
 //   node remake/tools/kafli4-sounds.mjs          make every file from its source (ffmpeg and ffprobe on the PATH)
 //   node remake/tools/kafli4-sounds.mjs --dry    print what it would make
+//   node remake/tools/kafli4-sounds.mjs --only grazer-1.mp3,flyer-1.mp3   make only these; the rest stay as they are
 //
 // Loops are stereo, 44.1 kHz, 128 kbps, levelled to LOOP_LUFS; a Freesound slice is made seamless by mixing what follows its end into
 // its head (equal-power fades over `xfade` s); an ElevenLabs loop is as generated (it was asked for as a loop). One-shots are mono,
@@ -36,7 +37,7 @@ const FREESOUND = {
   511430: freesound(511430, 'Tiny Croc Chirp', 'iwanPlays', 'CC0 1.0'),
   400573: freesound(400573, 'ThằngLằng.wav', 'SieuAmThanh', 'CC0 1.0'),
 };
-const eleven = (take, what) => ({ from: `eleven/${take}.raw.mp3`, source: { ...ELEVEN, take, prompt: `eleven/${take}.json` }, what });
+const eleven = (take, what, cut = null) => ({ from: `eleven/${take}.raw.mp3`, source: { ...ELEVEN, take, prompt: `eleven/${take}.json` }, what, ...(cut ? { cut } : {}) });
 const free = (id, what, cut = null) => ({ from: `freesound/${id}/${id}.mp3`, source: FREESOUND[id], what, ...(cut ? { cut } : {}) });
 
 /** Each shipped file: its source, what it is in the flight, and, for a recording, the cut ([start, seconds], and `xfade` for a loop). */
@@ -66,6 +67,13 @@ export const SOUNDS = {
   'smalldino-2.mp3': eleven('smalldino-2', 'the small lizards answering her call'),
   'smalldino-3.mp3': free(511430, 'the small lizards answering her call', [0, 1.3]),
   'smalldino-4.mp3': free(400573, 'the small lizards answering her call'),
+  // the owner's picks of 2026-11-07 (qa/remake/kafli4/hljod/hljod-dyr-val.json), cut to the call
+  'grazer-1.mp3': eleven('grazer-1', 'the herd answering her big call', [0, 1.75]),
+  'grazer-2.mp3': eleven('grazer-2', 'the herd answering her big call'),
+  'grazer-3.mp3': eleven('grazer-3', 'the herd answering her big call', [0, 1.1]),
+  'grazer-4.mp3': eleven('grazer-4', 'the herd answering her big call', [0.6, 1.0]),
+  'flyer-1.mp3': eleven('flyer-1', 'the gorge\'s flyers: their cry as they leave their nests, and their answer to her big call'),
+  'flyer-2.mp3': eleven('flyer-3', 'the gorge\'s flyers: their cry as they leave their nests, and their answer to her big call', [0, 1.35]),
 };
 
 const ffmpeg = args => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: ['ignore', 'ignore', 'inherit'] });
@@ -122,8 +130,19 @@ function creditsMarkdown(manifest) {
   });
   return `# Recorded sounds in chapter 4
 
+## The flight's song
+
+\`flugstef.mp3\`, "Vængir yfir dalnum": an orchestral theme made for this game with ElevenLabs Music (model music_v2_5) on
+2026-11-04, from a composition plan written to the flight's seconds (125 beats a minute, D major). The owner picked it on 2026-11-05
+from four songs made for the flight, in a version with 5.04 s cut out of the breath at the top of the falls (114.36–119.40 s of the
+take, joined with a 0.24 s crossfade), so the full orchestra comes in as they burst out of the spray. 96 kb/s, 184.7 s. The flight
+plays it from its start, half a second in (chapters/kafli4-flight.js: SONG).
+
+## The flight's sounds and the rest
+
 The flight's sounds (engine/audio/flight-sounds.js) and the skim, the turtle and the small lizards (engine/audio/sfx.js), as the owner
-picked them by ear on 2026-11-02. \`node remake/tools/kafli4-sounds.mjs\` cuts and levels them; each cut is in \`hljod/sounds.json\`.
+picked them by ear on 2026-11-02, and the herd and the flyers (sfx.js), his picks of 2026-11-07. \`node remake/tools/kafli4-sounds.mjs\`
+cuts and levels them; each cut is in \`hljod/sounds.json\`.
 The ElevenLabs takes were generated for this game with its sound generation. The Freesound recordings are under the licences named
 here. The two that ask for credit:
 
@@ -140,9 +159,19 @@ ${rows.join('\n')}
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const dry = process.argv.includes('--dry');
+  const at = process.argv.indexOf('--only');
+  const only = at > 0 ? new Set(process.argv[at + 1].split(',')) : null;
+  for (const name of only ?? []) if (!SOUNDS[name]) throw new Error(`--only: no such file ${name}`);
   if (!dry) fs.mkdirSync(path.join(ROOT, OUT), { recursive: true });
+  // with --only, the others keep their files and their lines in sounds.json
+  const before = only ? JSON.parse(fs.readFileSync(path.join(ROOT, OUT, 'sounds.json'), 'utf8')) : {};
   const manifest = {};
   for (const [name, job] of Object.entries(SOUNDS)) {
+    if (only && !only.has(name)) {
+      if (!before[name]) throw new Error(`${name} is not made yet: make it too (--only ${[...only, name]})`);
+      manifest[name] = before[name];
+      continue;
+    }
     if (dry) { console.log(`would make ${OUT}/${name} from ${SOURCES}/${job.from}${job.cut ? ` [${job.cut}]` : ''}`); continue; }
     const seconds = make(name, job);
     manifest[name] = { what: job.what, loop: Boolean(job.loop), seconds, from: job.from, ...(job.cut ? { cut: job.cut } : {}), ...(job.xfade ? { xfade: job.xfade } : {}), source: job.source };
