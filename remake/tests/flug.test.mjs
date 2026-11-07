@@ -547,7 +547,10 @@ test('a press on Hraðar! does not steer, and Hraðar! is hidden after FASTER_LA
   const firstQuiet = bursts.find(quiet);
   const said = log.lines.map(l => `${l.id} ${l.from.toFixed(2)}-${l.to?.toFixed(2)}`).join(', ');
   assert.ok(Math.abs(shouts[0].from - firstQuiet.t) < 0.05, `on the first burst with no line playing (${firstQuiet.t.toFixed(2)}; bursts ${bursts.map(b => b.t.toFixed(2))}; ${said})`);
-  assert.equal(log.lines.filter(l => l.id === 'k4_flugedla_holdon').length, shouts.length, 'and she answers each shout');
+  // her answers take turns (the juice review of 2026-11-07): „Haltu þér!“, „Vúhú! Hér förum við!“, „Hraðar og hraðar!“
+  const answers = log.lines.filter(l => /^k4_flugedla_holdon\d?$/.test(l.id)).map(l => l.id);
+  const turns = ['k4_flugedla_holdon', 'k4_flugedla_holdon2', 'k4_flugedla_holdon3'];
+  assert.deepEqual(answers, shouts.map((_, i) => turns[i % turns.length]), 'and she answers each shout, in turn');
 });
 
 test('a burst widens the lens by 8 degrees and it comes back', () => {

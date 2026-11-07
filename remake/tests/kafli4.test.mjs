@@ -553,7 +553,8 @@ test('untouched, the wind fills by itself and the scene ends within 60 s of its 
   const wind = world.chapterState.wind;
   const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
   assert.ok(wind.hints.length >= 1 && Math.abs(wind.hints[0] - three - 6) < 0.5, `the hint at 6 s: ${wind.hints.map(h => (h - three).toFixed(1))}`);
-  assert.ok(seen.spokenAt.get('k4_mosi_swipe') >= wind.hints[0], 'Mosi: "Strjúktu upp, Egill!"');
+  assert.ok(Math.abs(seen.spokenAt.get('k4_mosi_swipe') - three) < 1, 'Mosi as the scene opens: "Strjúktu upp, Egill!"');
+  assert.ok(seen.spokenAt.get('k4_mosi_swipe2') >= wind.hints[0], 'and at the hint: "Strjúktu fingrinum upp skjáinn!"');
   assert.ok(Math.abs(wind.showedAt - three - 12) < 0.5, `Mosi shows how at 12 s: ${(wind.showedAt - three).toFixed(1)}`);
   assert.ok(seen.spokenAt.get('k4_mosi_blow') >= wind.showedAt, 'Mosi: "Svona! Fúúú!"');
   const autos = wind.gusts.filter(g => g.by === 'auto').map(g => g.at - three);
@@ -871,19 +872,22 @@ test('an untouched child finishes in about 6.5 to 7.5 minutes and never over 10'
   assert.ok(end.at >= 370 && end.at <= 540, `end=${end.at.toFixed(1)}`);
 });
 
-test('the star k4_flugedla is saved once and map piece d is drawn; the book opens on Flugeðla, nodding, then on the map', async () => {
+test('the star k4_flugedla is saved once and map piece d is drawn; she asks Egill to play and the book opens on its games', async () => {
   const { save, moments, book, world, seen } = await playWide();
   assert.equal(save.get().stars.filter(id => id === 'k4_flugedla').length, 1);
   assert.deepEqual(moments.flatMap(moment => moment.ids), ['d'], 'piece d, once: by her star, it ends at her place (engine/book/map-page.js)');
-  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
-  assert.deepEqual(book.nods.slice(-2), ['flugedla', null], 'Flugeðla, new on the Risaeðlur page, nods as it opens');
+  // as chapter 1 ends (the juice review of 2026-11-07): Mosi's „Fjórar komnar“, her ask to play, and the book on its games
+  assert.equal(book.opened.map(([tab]) => tab).at(-1), 'games', 'the book opens on its games, where her game waits');
+  const four = seen.spokenAt.get('k4_mosi_four');
+  const play = seen.spokenAt.get('k4_flugedla_play');
+  assert.ok(seen.spokenAt.get('k4_mosi_horn') < four && four < play, 'Mosi says where they stand after the horn, then she asks Egill to play');
   // her tile shows by her place (cards.json: flugedla unlocks with the place), which chapter 3's lookout marks; an old chapter 2 save
   // comes here without chapter 3 (save.js defaultChapter), so meeting her marks it too, and the tile that nods is hers, not a shadow
   assert.ok(save.get().places.includes('flugedla'), `her place is on the map: ${save.get().places}`);
   const fromChapter3 = await playIt({ savedWith: s => { ['k1_kambedla', 'k2_thorsedla'].forEach(id => s.addStar(id)); s.addPlace('flugedla'); } });
   assert.equal(fromChapter3.save.get().places.filter(id => id === 'flugedla').length, 1, 'once, if chapter 3 marked it');
   const end = world.chapterTimeline.at(-1).at;
-  assert.ok(seen.spokenAt.get('k4_mosi_horn') < end, 'after the last line');
+  assert.ok(play < end, 'after the last line');
   // Her Leikir tile is the memory game, Saman getum við það! (2026-11-07, the owner's choice): the book names her star for it
   assert.equal(fs.readFileSync(new URL('../engine/book/book.js', import.meta.url), 'utf8').includes('k4_flugedla'), true);
 });

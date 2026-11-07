@@ -423,7 +423,7 @@ export function flightPlay(s, c) {
     // the press shows: squashed (style.css .flight-faster.is-pressed) and sparkling, for a moment before the button goes
     pressedUntil = s.time + PLAY.pressShow;
     button.classList.add('is-pressed');
-    sparkle(button);
+    if (button.getBoundingClientRect) sparkle(button);
     if (!s.seeking) {
       c.sounds?.gust();
       c.sounds?.wingbeat();
