@@ -41,8 +41,9 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
  * round it built when it comes, noted in stats.late), and they are shown with no flight (world.flightU
  * null: none wanted round the snag). `views` ({ position, looks }: Vector3s) are a still camera's lines of sight more, kept clear of
  * plants as the flight's are (banks.js VIEW), and `keep` ({ x, z, r }) spots where nothing grows: that chapter's own shots and spots.
+ * `choir` is chapter 5's life at the pool (chapters/kafli5-pool.js POOL_LIFE: life.js createLife's `choir`), made with the valley.
  */
-export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [] } = {}) {
+export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [], choir = null } = {}) {
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
@@ -76,7 +77,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
   // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders, and the big call's
   // rows of small lizards and flocks of birds; in the same crowds
-  const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
+  const life = real ? createLife(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters, choir }) : null;
   // every kind is reserved: their meshes now, with the valley, so the warm-up before the start button draws them (main.js getReady)
   crowds?.ready();
   // the far pool's beds of reed, and where nothing else grows by it (river.js): grown with the banks, as the animals' props are

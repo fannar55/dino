@@ -42,6 +42,32 @@ export const CHOIR = {
 };
 export { GROUPS } from './kafli5-song.js'; // low to high, as the song has them
 
+// Where each member of a group sits at its spot, [side, back] in metres: to the group's right as it faces the pool's middle, and back
+// away from the water. The grazers are 7.5 m long, so three stand side by side; the frogs each sit on a lily pad, in a bow; the
+// turtles share one stone (ROCK); the rest of those that came (world/ardalur/life.js arrivals) stay where chapter 4 left them.
+const SEATS = {
+  grazers: [[0, 0], [3.4, 2.4], [-3.4, 2.4]],
+  turtles: [[0, 0.15], [-0.9, -0.35], [0.95, -0.3]],
+  frogs: [[0, 0], [1.7, 0.5], [-1.7, 0.5], [3.2, 1.3], [-3.2, 1.3]],
+  lizards: [[0, 0], [1.6, 0], [-1.6, 0], [0.8, 1.8], [-0.8, 1.8], [2.4, 1.8]],
+  flyers: [[0, 0], [1.8, 0.3], [-1.8, 0.3], [0, 1.9]],
+};
+/** The seats of `group`'s members: [{ at: [x, z], heading }], each facing the pool's middle, a little each its own way. */
+export function seatsOf(group) {
+  const { at, heading } = CHOIR[group];
+  const h = (heading * Math.PI) / 180;
+  const [fx, fz] = [Math.cos(h), Math.sin(h)];
+  const [rx, rz] = [-fz, fx];
+  return SEATS[group].map(([side, back], k) => ({
+    at: [at[0] + rx * side - fx * back, at[1] + rz * side - fz * back],
+    heading: heading + 9 * Math.sin(k * 2.3 + 0.7),
+  }));
+}
+/** The turtles' stone, on the bank at their spot (a 'rock' of the plants' library). */
+export const ROCK = { at: [...CHOIR.turtles.at], variant: 1, scale: 3.2 };
+/** What life.js puts at the pool for chapter 5 at build (createArdalur's `choir`): the frogs on their pads and the turtles on their stone. */
+export const POOL_LIFE = { frogs: seatsOf('frogs'), turtles: seatsOf('turtles'), rock: ROCK, level: LEVEL };
+
 /**
  * Her four steps out of the reed, one after each phrase (spec 3): deep in it with only her crest over it, her head out of it, her neck
  * and shoulders at its edge, and her whole body in the shallows. Each faces Egill's bank and is nearer it than the last.

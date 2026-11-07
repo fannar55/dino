@@ -31,6 +31,12 @@
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
 //   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows, the flocks and the herd set off
 //   life.arrive()        scene 7 has begun: from now on, outside the flight, the arrivals stand at the far pool
+//   life.pool            chapter 5's (`choir` given: chapters/kafli5-pool.js POOL_LIFE): { frogs, turtles }, the frogs on their
+//                        lily pads and the turtles on their stone at the far pool, there from the build (the crowds reserve them then)
+//   life.moveTo(b, { at, via, heading, seconds })  one that stands at the pool (an arrival, or one of the pool's) walks there by
+//                        the points `via` ([x, z]s: round the pool), a flyer flies, in `seconds` of game time, and stands there
+//                        turned to `heading`
+//   life.hop(b, { height, seconds })  it hops once where it is (a frog leaps), as it sings its tone (chapter 5's choir)
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
@@ -53,7 +59,7 @@ import { fenShare } from './terrain.js';
  * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06). The flyer is 2.4 m across its
  * wings: a third of hers, seen 5 to 12 m off.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, frog: 4.5, turtle: 4 };
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clamp01 = k => Math.min(1, Math.max(0, k));
@@ -148,8 +154,12 @@ const SLOTS = {
 // her in the shallows give or take `turn` degrees. The lizards stand about (now and then a look up, over `look` s), the grazers
 // graze and look up by turns (over `graze` s). Nothing taller than `low` m grows within `lane` m of where they stand.
 const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low: 0.4, lane: [1.6, 2.5] };
+// Chapter 5's pool (createLife's `choir`): a frog sits LILY m over the water on its pad, the pads and the stone are grown with the
+// banks, and a move turns its way over TURN of it at each end; a flyer flies over at most FLY_UP m; a hop is HOP's.
+const POOL_LIFE = { lily: 0.03, pad: 2.2, padUp: 0.012, turn: 0.15, flyUp: 5, rockTop: 0.55 };
+const HOP_DEFAULT = { height: 0.6, seconds: 0.45 };
 
-export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
+export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {}, choir = null } = {}) {
   const { river } = route;
   const own = !crowds;
   crowds ??= createCrowds(world);
@@ -442,6 +452,33 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   toTheirSpots(rows.filter(r => r.where === GATHER.rows).flatMap(r => r.members), 'lizard', GATHER.lane[0]);
   toTheirSpots(herd.find(g => g.id === GATHER.herd)?.members ?? [], 'grazer', GATHER.lane[1]);
   for (const b of flyers) { b.gather = { at: b.land.spot, heading: b.land.heading }; arrivals.push(b); }
+
+  // Chapter 5: the far pool's frogs, each on a lily pad, and its turtles on their stone, there from the build
+  const pool = { frogs: [], turtles: [] };
+  if (choir) {
+    const level = choir.level ?? FAR_POOL.level;
+    choir.frogs.forEach(({ at: [x, z], heading }, k) => {
+      props.push({ name: 'waterLily', variant: k % 6, x, y: level + POOL_LIFE.padUp, z, rot: (k * 1.7) % TAU, scale: POOL_LIFE.pad });
+      clear.push({ x, z, r: 0.9 });
+      const frog = add(`pool-frog-${k}`, 'frog', new THREE.Vector3(x, level + POOL_LIFE.lily, z), heading);
+      frog.gather = { at: frog.at.clone(), heading };
+      pool.frogs.push(frog);
+    });
+    const { rock } = choir;
+    if (rock) {
+      const [x, z] = rock.at;
+      const y = heightAt(x, z);
+      props.push({ name: 'rock', variant: rock.variant, x, y, z, rot: 0.6, scale: rock.scale });
+      clear.push({ x, z, r: 1.2 * rock.scale });
+      const model = library?.get?.('rock', rock.variant, 1, {}) ?? null;
+      const top = y + (model ? (model.height - (model.sink ?? 0)) * rock.scale : POOL_LIFE.rockTop * rock.scale);
+      choir.turtles.forEach(({ at: [tx, tz], heading }, k) => {
+        const turtle = add(`pool-turtle-${k}`, 'turtle', new THREE.Vector3(tx, top - 0.12 * Math.hypot(tx - x, tz - z), tz), heading);
+        turtle.gather = { at: turtle.at.clone(), heading };
+        pool.turtles.push(turtle);
+      });
+    }
+  }
 
   for (const kind of new Set(things.map(t => t.kind))) {
     const n = things.filter(t => t.kind === kind).length;
@@ -739,6 +776,18 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       case 'flugdyr':
         flyerPose(b, ft, clock);
         break;
+      case 'frog':
+        b.position.copy(b.gather.at);
+        b.heading = b.gather.heading;
+        b.squash[1] = 1 + 0.03 * Math.sin(TAU * 0.7 * clock + p);
+        b.morphs.leap = 0;
+        break;
+      case 'turtle':
+        b.position.copy(b.gather.at);
+        b.heading = b.gather.heading;
+        b.morphs.look = Math.max(0, Math.sin((TAU * clock) / 9 + p)) ** 2;
+        b.morphs.hide = 0;
+        break;
       case 'bird':
         if (b.flock) { flocking(b, ft, clock); break; }
         b.heading = b.rest + 18 * Math.sin(TAU * clock / 4.3 + p) * Math.max(0, Math.sin(TAU * clock / 11 + 2 * p));
@@ -790,7 +839,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     followHer(flying ? ft : null);
     if (own) crowds.begin(world.camera ?? null);
     for (const b of things) {
+      const going = flying ? 0 : moving(b, t);
       pose(b, flying ? ft : null, clock, t);
+      if (!flying) { walk(b, going, clock); hopping(b, t); }
       if (b.visible) crowds.place(b.kind, b.position, b.heading, b.scale, b);
     }
     if (own) crowds.end();
@@ -814,13 +865,87 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (call === null && Number.isFinite(at)) call = at;
   }
 
+  /**
+   * Chapter 5: `b`, one that stands at the pool, goes to `at` ([x, z]) in `seconds` of game time, from where it stands by the points
+   * `via`, and stands there turned to `heading`. It turns its way at the start, walks (a flyer flies over), and turns to `heading` at
+   * the end.
+   */
+  function moveTo(b, { at, via = [], heading = b.gather?.heading ?? b.rest, seconds = 4 } = {}) {
+    if (!b.gather) return;
+    const point = ([x, z]) => new THREE.Vector3(x, b.kind === 'frog' ? b.gather.at.y : heightAt(x, z), z);
+    const way = [b.gather.at.clone(), ...(b.kind === 'flugdyr' ? [] : via.map(point)), point(at)];
+    const lengths = way.slice(1).map((p, i) => Math.hypot(p.x - way[i].x, p.z - way[i].z));
+    const total = lengths.reduce((sum, d) => sum + d, 0);
+    b.trip = { way, lengths, total, from: way[0], to: way.at(-1), start: now(), seconds: Math.max(0.1, seconds), h0: b.gather.heading, h1: heading };
+  }
+  /** Chapter 5: `b` hops once where it stands (a frog leaps), `height` m up over `seconds` of game time. */
+  function hop(b, { height = HOP_DEFAULT.height, seconds = HOP_DEFAULT.seconds } = {}) {
+    b.hopped = { start: now(), height, seconds };
+  }
+  /** Where a move has `b` now (its gather spot as it goes); how much of its pose is going (0 standing, 1 on its way). */
+  function moving(b, t) {
+    const trip = b.trip;
+    if (!trip) return 0;
+    const k = clamp01((t - trip.start) / trip.seconds);
+    const e = smoother(k);
+    const { from, to, way: points, lengths, total } = trip;
+    // where along the way it is, and the way it goes there
+    let left = e * total;
+    let i = 0;
+    while (i < lengths.length - 1 && left > lengths[i]) left -= lengths[i++];
+    const a = points[i];
+    const b2 = points[i + 1];
+    const f = lengths[i] > 1e-6 ? Math.min(1, left / lengths[i]) : 1;
+    const x = a.x + (b2.x - a.x) * f;
+    const z = a.z + (b2.z - a.z) * f;
+    const y = b.kind === 'flugdyr' ? from.y + (to.y - from.y) * e + POOL_LIFE.flyUp * Math.sin(Math.PI * e) : b.kind === 'frog' ? from.y : heightAt(x, z);
+    b.gather.at.set(x, y, z);
+    const way = headingOf(b2.x - a.x, b2.z - a.z);
+    const far = total > 0.5;
+    const turn = POOL_LIFE.turn;
+    b.gather.heading = !far ? lerpAngle(trip.h0, trip.h1, smooth(k))
+      : k < turn ? lerpAngle(trip.h0, way, smooth(k / turn))
+        : k > 1 - turn ? lerpAngle(way, trip.h1, smooth((k - 1 + turn) / turn)) : way;
+    trip.travelled = e * total;
+    if (k >= 1) {
+      b.gather.at.copy(to);
+      b.gather.heading = trip.h1;
+      b.trip = null;
+      return 0;
+    }
+    return far ? smooth(Math.min(k, 1 - k) / 0.08) : 0;
+  }
+  /** Its walk (a run, a flyer's flapping) over the standing pose, `going` of it, its feet in step with how far it has come. */
+  function walk(b, going, clock) {
+    if (going <= 0 || !b.trip) return;
+    const model = BAKED[b.kind];
+    const clip = b.kind === 'grasbitur' ? 'walk' : b.kind === 'smaedla' ? 'run' : b.kind === 'flugdyr' ? 'flap' : null;
+    if (!model || !clip || !model.clips?.[clip]) return;
+    const { stride, seconds } = model.clips[clip];
+    const time = stride ? (b.trip.travelled / (stride * b.scale)) * seconds : clock;
+    const frames = clipPose(model, clip, time, b.phase);
+    for (const name in b.morphs) b.morphs[name] *= 1 - going;
+    for (const name in frames) b.morphs[name] = (b.morphs[name] ?? 0) + frames[name] * going;
+  }
+  /** A hop where it stands: up and down again, a frog's legs out as it goes. */
+  function hopping(b, t) {
+    const h = b.hopped;
+    if (!h) return;
+    const u = (t - h.start) / h.seconds;
+    if (u < 0) return;
+    if (u >= 1) { b.hopped = null; return; }
+    b.position.y += 4 * h.height * u * (1 - u);
+    if (b.kind === 'frog') b.morphs.leap = Math.sin(Math.PI * u);
+    b.squash[1] *= 1 + 0.08 * Math.sin(Math.PI * u);
+  }
+
   /** Scene 7 has begun (chapters/kafli4.js): outside the flight from now on, those that came stand at the far pool. */
   function arrive() {
     arrived = true;
   }
 
   return {
-    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive,
+    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive, pool, moveTo, hop,
     dispose() { if (own) crowds.dispose(); },
   };
 }
