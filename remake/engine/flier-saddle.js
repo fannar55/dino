@@ -68,9 +68,11 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
     const geometry = source.geometry.clone();
     const skinIndex = geometry.attributes.skinIndex;
     for (let i = 0; i < skinIndex.count; i++) for (let k = 0; k < 4; k++) skinIndex.setComponent(i, k, slot[skinIndex.getComponent(i, k)]);
-    geometry.applyMatrix4(body.bindMatrixInverse);
+    // (her bindMatrix's own inverse: in the attached bind mode three keeps bindMatrixInverse as the inverse of her world matrix)
+    const unbind = body.bindMatrix.clone().invert();
+    geometry.applyMatrix4(unbind);
     const spot = ({ bind, weights }) => ({
-      bind: new V3(...bind).applyMatrix4(body.bindMatrixInverse),
+      bind: new V3(...bind).applyMatrix4(unbind),
       weights: Object.entries(weights).map(([name, w]) => [bones.findIndex(bone => bone.name === name), w]).filter(([b]) => b >= 0),
     });
     spots = { seat: spot(fitted.seat) };

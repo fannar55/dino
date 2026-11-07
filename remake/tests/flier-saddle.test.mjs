@@ -99,6 +99,32 @@ test('drawn, it bends with her bones as the fit worked it out: the file names he
   }
 });
 
+test('loaded while she is away from the middle of the world and turned, it is on her back where the fit put it', async () => {
+  her.root.position.set(37, 4, -21);
+  her.root.rotation.set(0, 1.1, 0.3);
+  pose('glide', 1.5); // her world matrices as the page has them (three keeps her bindMatrixInverse as their inverse)
+  const away = createFlierSaddle(her, { url: pathToFileURL(file).href });
+  assert.equal(await away.loaded, true);
+  pose('glide', 1.5);
+  const saddle = away.mesh;
+  saddle.skeleton.update();
+  const matrices = saddle.skeleton.bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, saddle.skeleton.boneInverses[i]));
+  const v = new THREE.Vector3();
+  const w = new THREE.Vector3();
+  let most = 0;
+  for (let i = 0; i < fitted.positions.length; i += 7) {
+    saddle.getVertexPosition(i, v).applyMatrix4(saddle.matrixWorld);
+    most = Math.max(most, v.distanceTo(skinnedAt(fitted.positions[i], fitted.weights[i], matrices, w)));
+  }
+  assert.ok(most < 1e-4, `a vertex is ${most.toFixed(4)} m from where the fit puts it`);
+  const at = away.update();
+  const spine = her.model.getObjectByName('Spine').getWorldPosition(new THREE.Vector3());
+  assert.ok(at.seat.distanceTo(spine) < 0.6, `the seat is ${at.seat.distanceTo(spine).toFixed(2)} m from her spine`);
+  away.dispose();
+  her.root.position.set(0, 0, 0);
+  her.root.rotation.set(0, 0, 0);
+});
+
 test('its places (seat, grips) follow her as its vertices do', () => {
   pose('fly', 0.7);
   const at = boxes.update();
