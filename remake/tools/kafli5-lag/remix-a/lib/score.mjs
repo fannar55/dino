@@ -60,7 +60,7 @@ export const SECTIONS = [
   { id: 'break', name: 'Her horn', nameIs: 'Hornið hennar', bar: 56, bars: 8, feature: 'sloedla',
     what: 'The headliner: the drums and bass step away and Slóeðla plays her whole tune on her horn, alone with the fireflies.' },
   { id: 'rise', name: 'The build', nameIs: 'Upp með vængina', bar: 64, bars: 8, feature: 'flugedla',
-    what: 'The long build: "Vængina upp! Hendur upp, Egill!", her wing beats quicken from halves to sixteenths, "Látið heyra í ykkur!" and the forest roars (beat 268); the countdown "Fimm! Fjórir! Þrír! Tveir! Einn!" (beats 278-286), each number answered by a group, do re mi sol la.' },
+    what: 'The long build: "Vængina upp! Hendur upp, Egill!", her wing beats quicken from halves to sixteenths, "Látið heyra í ykkur!" and the forest roars (beat 268); the countdown "Fimm! Fjórir! Þrír! Tveir! Einn!" (beats 278-286), each number answered a beat later by a group, do re mi sol la.' },
   { id: 'drop', name: 'The big drop', nameIs: 'NÚ!', bar: 72, bars: 4, feature: 'all',
     what: '"NÚ!": the biggest drop. All five groups sing their tones at once with a roar of the forest, then each dances its own pattern over the full disco; she laughs, "Ha ha! Jibbíí!"; "Öll saman!" (beat 301.5).' },
   { id: 'anthem', name: 'Anthem', nameIs: 'Öll saman', bar: 76, bars: 8, feature: 'all',
@@ -555,13 +555,14 @@ export function buildScore() {
   roar(268, 0.85, 2.2, 3);
   for (let e = 0; e < 8; e++) call(GROUPS[e % 5], 272 + e / 2, { mode: 'chop', dur: 0.45, vel: 0.8 });
   for (let s = 0; s < 8; s++) call(GROUPS[s % 5], 276 + s / 4, { mode: 'chop', dur: 0.24, vel: 0.8 });
-  // the countdown: each number answered by a group, do re mi sol la, doubled by the robot and the marimba
+  // the countdown: she calls each number on its beat and a group answers on the next, do re mi sol la (call and response),
+  // doubled by the robot and the marimba; the flyers' la leads straight into the drop
   GROUPS.forEach((g, k) => {
-    const beat = 278 + 2 * k;
-    call(g, beat, { dur: 1.6, vel: 0.95, pan: 0 });
+    const beat = 279 + 2 * k;
+    call(g, beat, { dur: 0.9, vel: 0.95, pan: 0 });
     S.marimba.push({ beat, midi: TONE[g], vel: 0.6 });
-    S.robot.push({ beat, dur: 1.5 * 0.48, midi: TONE[g], vel: 0.55 + 0.06 * k, vowels: ['o', 'a'] });
-    S.cues.push({ beat, kind: 'count', n: 5 - k });
+    S.robot.push({ beat, dur: 0.85 * 0.48, midi: TONE[g], vel: 0.55 + 0.06 * k, vowels: ['o', 'a'] });
+    S.cues.push({ beat: beat - 1, kind: 'count', n: 5 - k });
   });
   fly(272, 16, 67, { vel: 0.32, glideTo: mtofLocal(79), panFrom: -0.6, panTo: 0.6 });
   S.hpf.push({ from: 280, to: 288, hz: 160 });
@@ -704,6 +705,12 @@ export function buildScore() {
   wing(397, 0.6);
   S.whoosh.push({ beat: 397.5, take: 0, vel: 0.45, peakAt: false });
   S.cues.push({ beat: 396, kind: 'end' }, { beat: 397.5, kind: 'whoosh' });
+
+  // the crowd cheers each act as she finishes naming it (and cheers Slóeðla onto the stage, then hushes for her horn)
+  [[134, 0.35], [154.5, 0.35], [164, 0.4], [183, 0.4], [198.5, 0.4], [213.5, 0.4], [223.5, 0.45]].forEach(([beat, vel], k) => {
+    S.crowd.push({ beat, vel, seconds: 1.8, seed: 80 + k });
+    S.cues.push({ beat, kind: 'cheer' });
+  });
 
   // section dynamics
   const DYN = {
