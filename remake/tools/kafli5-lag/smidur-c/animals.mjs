@@ -76,7 +76,11 @@ export function horn(target) {
   return onTone(HORN, target, { exact: true });
 }
 /** A recording's licence, as sounds.json names it. */
-export function licence(file) { return SOUNDS[file]?.source?.licence ?? 'unknown'; }
+export function licence(file) {
+  const s = SOUNDS[file]?.source ?? {};
+  // a CC BY recording names its title, author and page, as the credit asks
+  return /BY/.test(s.licence ?? '') ? `${s.licence}: "${s.name}" by ${s.author}, ${s.page}` : (s.licence ?? 'unknown');
+}
 /** Measures a rendered call: its median pitch against `target` (cents, octave-free). */
 export function pitchCheck(y, target, from = 0, to = y.length) {
   const p = medianPitch(y, from, to, 60, 4000, 0.6);
