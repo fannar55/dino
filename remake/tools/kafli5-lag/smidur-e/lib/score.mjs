@@ -264,6 +264,7 @@ export function buildScore() {
     epComp(bar, 0.42);
   }
   S.cymbal.push({ beat: 48, seconds: 2.4, vel: 0.12 });
+  S.cues.push({ beat: 48, kind: 'hit' });
   sing(48, { robot: 'echo' });
 
   // ======== Parade (bars 20-39)
@@ -407,8 +408,9 @@ export function buildScore() {
     for (const b of [1, 3]) S.snare.push({ beat: bar * 4 + b, vel: 0.42 });
     discoBass(bar);
     padBar(bar);
+    if (bar >= 64) S.pad.push({ beat: bar * 4, beats: 4, notes: CHORDS[chordOfBar(bar)].pad.slice(2).map(m => m + 12), attack: 0.05, release: 0.3, vel: 0.45 });
     epComp(bar, 0.4);
-    arpBar(bar, bar < 64 ? 0.16 : 0.2);
+    arpBar(bar, bar < 64 ? 0.16 : 0.24);
   }
   S.cymbal.push({ beat: 224, seconds: 2.6, vel: 0.16 }, { beat: 256, seconds: 2.6, vel: 0.15 });
   S.cues.push({ beat: 224, kind: 'peak' }, { beat: 256, kind: 'peak' });

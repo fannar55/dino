@@ -248,15 +248,18 @@ export function renderAnimals(score, n, kicks, HLJOD, log) {
     } else {
       m = moved(take, tone, ev.octave);
       c = cutOf(ev, m);
-      for (let pass = 0; pass < 2; pass++) {
+      let best = { err: Infinity, m, c };
+      for (let pass = 0; pass < 5; pass++) {
         const s = steady(c.y, { fmin: Math.max(60, m.hz / 1.45), fmax: Math.min(5000, m.hz * 1.45), win: 1024, hop: 128 });
         if (!s) break;
         let err = cents(s.hz, tone);
         err -= 1200 * Math.round(err / 1200);
+        if (Math.abs(err) < Math.abs(best.err)) best = { err, m, c };
         if (Math.abs(err) <= 6) break;
         m = movedRate(take, m.rate * 2 ** (-err / 1200));
         c = cutOf(ev, m);
       }
+      ({ m, c } = best);
       settled.set(key, m.rate);
     }
     const norm = 0.25 / rmsOf(m.y, m.steadyFrom, m.steadyTo, true);
