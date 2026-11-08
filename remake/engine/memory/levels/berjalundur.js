@@ -9,6 +9,8 @@ import { freezeLevel } from '../step-rules.js';
  * story        the words of the story, by step (playful-flow.js says which moment uses which): `doing`, `ready`, `arriving`, `find`,
  *              `open`, `gather`, `gifts`, `landing` are the story keys, `prompts` has the same names with Mosi's hint; `common` is
  *              what belongs to no step. `seeks`: with one leaf open the search names the other half.
+ * voice        the line Mosi says when the story reaches a moment, by story key (game.js: once as it begins, again on his 10 s repeat and
+ *              on his button); its words are the moment's prompt
  * flags        the fields the rules add to their state, from the Set of finished steps
  * doneFrom     the ladder read back from those fields (the story is also asked with a state written by hand)
  * onCancel     what a cancelled step changes besides stopping
@@ -100,6 +102,8 @@ export const BERJALUNDUR = freezeLevel({
       prompts: { doing: 'Nú komast allir yfir. Berin bíða okkar!', open: 'Leiðin er opin. Förum saman!' },
     },
   },
+  // The three waits for the child (the branch, the log, the marsh): Mosi says the prompt's words (the juice pass, package C; the owner's yes of 2026-11-08).
+  voice: { 'lift-ready': 'lift_ready', 'roll-ready': 'roll_ready', 'lay-ready': 'lay_ready' },
   // The branch is held from the lift until the roll lets it go; the bridge, the staging spot, the boardwalk and the grove follow their steps.
   flags: done => ({
     branch: done.has('lift') && !done.has('roll') ? 'held' : 'down',

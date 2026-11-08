@@ -43,7 +43,7 @@ export const VOICE_LINES = Object.freeze({
   gift_crab: { text: 'Krabbi! Hann fer í körfuna.', seed: 251305 },
   // Level 1's three waiting moments (the juice pass, package C): what Mosi says when the branch, the log and the marsh wait for the child,
   // the words of the moments' prompts in levels/berjalundur.js, like level 2's g2_*_ready lines. "Hver" goes as IPA, as in g2_light_ready.
-  // Made under Ný 3 (no seed of their own) for the owner's yes/no; nothing plays them until he has heard them.
+  // Made under Ný 3 (no seed of their own); the owner said yes to all three on 2026-11-08, and levels/berjalundur.js `voice` plays them.
   lift_ready: { text: 'Greinin er fyrir. Hver nær upp að henni?', say: `Greinin er fyrir. ${HVER} nær upp að henni?`, fixes: 'hver' },
   roll_ready: { text: 'Stóri bolurinn getur orðið að brú. Hver getur ýtt honum?', say: `Stóri bolurinn getur orðið að brú. ${HVER} getur ýtt honum?`, fixes: 'hver' },
   lay_ready: { text: 'Mýrin er mjúk. Hver getur byggt leið yfir?', say: `Mýrin er mjúk. ${HVER} getur byggt leið yfir?`, fixes: 'hver' },

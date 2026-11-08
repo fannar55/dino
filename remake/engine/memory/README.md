@@ -38,7 +38,8 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
 - **Bottom left, Mosi** (`#mosi-help`, "Spyrja Mosa", his face with a gold "?") and his bubble beside him (`#coach`: `#caption`, and
   `#holding` while a pair holds something up). A tap says what to do now, the instruction of the moment (`coach.js` `momentLine`): a
   waiting moment's own line (the level's `voice`; the wait for the gifts says `giftsLeft`), `first` in a search, `who` at the picker;
-  never a reaction line (a match, a gift). A moment with none (level 1's three waits, until their lines are made) gets the help line.
+  never a reaction line (a match, a gift). A moment with none gets the help line. (Level 1's three waits have their lines since
+  2026-11-08: `lift_ready`, `roll_ready`, `lay_ready`, as level 2's five have theirs.)
   Never over a line he is saying, nor during a scene, the picker or a dialog (`askLine`). After 10 s without a tap he says the
   moment's instruction once more, once for that moment, and only when no line has played for 3 s (`repeatDue`, `REPEAT_QUIET`); a
   moment with none stays quiet. `window.__memory.askMosi()` is the button's path, `window.__memory.lastLine()` the `{ id, key }` it

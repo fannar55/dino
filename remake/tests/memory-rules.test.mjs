@@ -569,6 +569,7 @@ test("the welcome card has the level picker: a card for each level with its pict
 
 test('Mosi\'s ask and repeat rules (coach)', async () => {
   const { IDLE_HINT, IDLE_REPEAT, OLD_MUTE_KEY, forgetOldMute, momentLine, askLine, repeatDue } = await import('../engine/memory/coach.js');
+  const { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
   assert.equal(IDLE_HINT, 4); assert.equal(IDLE_REPEAT, 10);
   const store = new Map([[OLD_MUTE_KEY, 'true'], ['other', '1']]);
   forgetOldMute({ removeItem: key => store.delete(key) });
@@ -580,7 +581,14 @@ test('Mosi\'s ask and repeat rules (coach)', async () => {
   assert.equal(momentLine({ key: 'g2-light-ready', kind: 'work', voice: { 'g2-light-ready': 'g2_light_ready' }, kinds }), 'g2_light_ready');
   assert.equal(momentLine({ key: 'find-friends', kind: 'search', kinds }), 'first');
   assert.equal(momentLine({ key: 'gifts-left', kind: 'search', voice: { 'gifts-left': 'giftsLeft' }, kinds }), 'giftsLeft', 'its own line first');
-  assert.equal(momentLine({ key: 'lift-ready', kind: 'work', voice: {}, kinds }), null, "level 1's waits have no line yet: the repeat says nothing");
+  assert.equal(momentLine({ key: 'lift-ready', kind: 'work', voice: {}, kinds }), null, 'a wait with no line of its own: the repeat says nothing');
+  // Level 1's three waits have their lines (the owner's yes of 2026-11-08), and their words are the moments' prompts.
+  assert.deepEqual({ ...BERJALUNDUR.voice }, { 'lift-ready': 'lift_ready', 'roll-ready': 'roll_ready', 'lay-ready': 'lay_ready' });
+  for (const [key, id] of Object.entries(BERJALUNDUR.voice)) {
+    const step = BERJALUNDUR.steps.find(item => BERJALUNDUR.story[item.id]?.ready === key);
+    assert.equal(VOICE_LINES[id]?.text, BERJALUNDUR.story[step.id].prompts.ready, `${key}: Mosi says what his bubble says`);
+    assert.equal(momentLine({ key, kind: 'work', voice: BERJALUNDUR.voice, kinds }), id, `${key}: the repeat and the button say ${id}`);
+  }
   assert.equal(momentLine({ key: 'b' }), null);
   assert.equal(askLine({ key: 'a', kind: 'search', kinds, speaking: true }), null);
   assert.equal(askLine({ key: 'a', kind: 'search', kinds, busy: true }), null);
