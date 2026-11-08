@@ -7,9 +7,9 @@
   },
   "first": {
     "src": "assets/audio/memory/first.mp3",
-    "duration": 4.57,
-    "mouth": "7eb0000cdceeffffd500000000000000509ffcddbd9efd0beddd804efd607dea9d3cffeec97a7000000000000000",
-    "key": "71a6f41d21f9c9648c0991d34e83801652e5cea1e11cdf70132c40336b7ca2d3"
+    "duration": 4.49,
+    "mouth": "af4006fffeeffc93000000000000748ded9e9cc7fff69bdee90008d30bee90da4effeee98dc800000000000000",
+    "key": "a0696cca2095569c9cb983ff0ea170d5fceffc00a960bfa83b22f4ac75d76fb3"
   },
   "match": {
     "src": "assets/audio/memory/match.mp3",

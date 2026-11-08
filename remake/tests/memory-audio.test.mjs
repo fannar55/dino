@@ -371,9 +371,9 @@ test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its
   const who = VOICE_LINES.who, whoKey = tool.fingerprintOf(tool.ownRequest(who));
   for (const heard of [none, verdicts([[whoKey, 'nei']])]) assert.equal(tool.fingerprintOf(tool.memoryRequest(who, lexicon, { heard })), whoKey);
   assert.throws(() => tool.memoryRequest(match, lexicon), /needs the owner's verdicts/);
-  // in the repo now (2026-11-08): 11 kept, 17 sent as the book has them because he approved that take, 9 under Ný 3 whose new
-  // take he picked, and level 1's 13 under Ný 3 waiting for his ear (the three waiting lines of package C are made and on his page,
-  // played nowhere yet). When a verdict moves a line, move it here.
+  // in the repo now (2026-11-08): 11 kept, 17 sent as the book has them because he approved that take, 13 under Ný 3 whose new
+  // take he picked (first and package C's three waiting lines on 2026-11-08), and level 1's 9 under Ný 3 waiting for his ear.
+  // When a verdict moves a line, move it here.
   const heardNow = readHeard(tool.ROOT), split = { kept: [], approved: [], ny3Picked: [], ny3Waiting: [] };
   for (const item of tool.statesOf(lexicon, tool.recordOf(tool.readManifest(), {}), tool.LINES, heardNow)) {
     if (item.line.kept !== undefined) split.kept.push(item.id);
@@ -384,8 +384,8 @@ test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its
   assert.deepEqual(split, {
     kept: ['help', 'won', 'held', 'roll', 'cross', 'find_stego', 'who', 'push', 'findFirst', 'gift_shrew', 'g2_ledge_ready'],
     approved: ['match', 'find_bronto', 'build', 'other', 'g2_welcome', 'gifts4', 'gift_ammonite', 'gift_trilobite', 'gift_fern', 'gift_footprint', 'g2_cliff_ready', 'g2_climb', 'g2_pull_ready', 'g2_pull', 'g2_bridge', 'g2_won', 'g2_help'],
-    ny3Picked: ['together', 'g2_left', 'g2_light_ready', 'g2_lit', 'g2_rocks_ready', 'g2_rocks_done', 'g2_through', 'g2_reached', 'g2_flown'],
-    ny3Waiting: ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab', 'lift_ready', 'roll_ready', 'lay_ready'],
+    ny3Picked: ['first', 'together', 'lift_ready', 'roll_ready', 'lay_ready', 'g2_left', 'g2_light_ready', 'g2_lit', 'g2_rocks_ready', 'g2_rocks_done', 'g2_through', 'g2_reached', 'g2_flown'],
+    ny3Waiting: ['welcome', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab'],
   });
   // the A/B page: the new take picked when it opens, "Báðar rangar" for both wrong
   const html = tool.janoPage({ title: 't', intro: 'i', none: { label: 'Báðar rangar', how: 'h' }, sections: [{ title: 's', rows: [{ id: 'match', text: 'x', takes: [{ id: 'match_gamla', label: 'Gamla', src: 'a.mp3' }, { id: 'match_nyja', label: 'Nýja', src: 'b.mp3', checked: true }] }] }] });
@@ -445,10 +445,11 @@ test('the record of which request made each MP3 is tracked in the manifest (a ke
   const tracked = tool.statesOf(lexicon, tool.recordOf(manifest, {}), tool.LINES, heard);
   assert.deepEqual(tool.statesOf(lexicon, tool.recordOf(manifest, tool.readIndex()), tool.LINES, heard), tracked, 'the local index adds nothing');
   for (const item of tracked) if (item.line.kept !== undefined) assert.equal(manifest[item.id].key, item.ownKey, `${item.id}: kept, recorded as its kept request`);
-  // what --verify reads from it: no issue from the record, none rejected, level 1's ten waiting for his ear; --plan lists those ten
+  // what --verify reads from it: no issue from the record, none rejected, level 1's nine waiting for his ear (first went in on
+  // 2026-11-08, his pick of its Ný 3 take); --plan lists those nine
   const { issues, waitingForOwner, rejectedByOwner } = tool.verdictIssues(tracked, heard);
   assert.deepEqual(issues, []); assert.deepEqual(rejectedByOwner, []);
-  assert.deepEqual(waitingForOwner, ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab']);
+  assert.deepEqual(waitingForOwner, ['welcome', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab']);
   assert.deepEqual(tool.planOf(lexicon, tool.recordOf(manifest, {}), heard).make.map(item => item.id), waitingForOwner);
   // the manifest's key wins; the index (before 2026-11-06) only fills a line the manifest has none for
   assert.deepEqual(tool.recordOf({ a: { key: 'k1' }, b: { src: 'b.mp3' } }, { a: 'old', b: 'k2', c: 'k3' }), { a: 'k1', b: 'k2', c: 'k3' });
