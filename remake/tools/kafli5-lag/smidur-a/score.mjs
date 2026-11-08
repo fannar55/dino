@@ -380,8 +380,8 @@ export function compose() {
     n('strings', 'pad', b, d, v2, 0.26, { section: 'vln', tremolo: 7, attack: 0.6, release: 0.9, voices: 6, part: 'trem2' });
     n('strings', 'pad', b, d, octave(v1, 1), 0.18, { section: 'vln', tremolo: 6, attack: 0.8, release: 0.9, voices: 6, part: 'trem1' });
     n('strings', 'pad', b, d, vla, 0.26, { section: 'vla', attack: 0.7, release: 0.9, part: 'midvla' });
-    n('strings', 'bass', b, d, octave(CH[c].bass, 1), 0.3, { section: 'cb', attack: 0.6, release: 0.9 });
-    n('strings', 'bass', b, d, vc, 0.25, { section: 'vc', attack: 0.6, release: 0.9 });
+    n('strings', 'bass', b, d, octave(CH[c].bass, 1), 0.22, { section: 'cb', attack: 0.6, release: 0.9 });
+    n('strings', 'bass', b, d, vc, 0.18, { section: 'vc', attack: 0.6, release: 0.9 });
   }
   for (let bar = 46; bar < 54; bar++) harpArp(B(bar), B(bar + 1), { step: 2, vel: 0.2, pattern: bar % 2 ? [3, 4] : [2, 5] });
   // her song, slow, on her horn: sol mi / re mi do / la sol mi sol / la sol mi re ... and no do (the song is not back yet)
@@ -391,7 +391,7 @@ export function compose() {
     [50, 0, 2, 'D4'], [50, 2, 2, 'C4'], [51, 0, 2, 'A3'], [51, 2, 2, 'C4'],
     [52, 0, 2, 'D4'], [52, 2, 2, 'C4'], [53, 0, 2, 'A3'], [53, 2, 3, 'G3'],
   ];
-  for (const [bar, b, d, m] of HORN) horn(m, B(bar, b), d, 0.42);
+  for (const [bar, b, d, m] of HORN) horn(m, B(bar, b), d, 0.38);
   // the forest answers her softly: a flute echo, a celesta twinkle, one animal
   [[47, 2, 'C6'], [47, 3, 'A5']].forEach(([bar, b, m]) => n('wind', 'lead', B(bar, b), 0.9, m, 0.28, { kind: 'flute' }));
   [[49, 2, 'F6'], [49, 2.5, 'A6'], [49, 3, 'C7']].forEach(([bar, b, m]) => n('glock', 'lead', B(bar, b), 1, m, 0.3, { soft: true }));
