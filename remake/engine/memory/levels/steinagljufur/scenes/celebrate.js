@@ -31,7 +31,7 @@ const SKY_TILT = { wide: 4, tall: 8 };
 // (the juice pass's #17) The last picture keeps the lower part of the screen free for the ending card that comes up over it (the camera
 // director's `clear`: the share of the picture's height), so that everyone on Sólarsyllan stands above the card; its sky point is lower than
 // the sunset's, so they are not small in the band left (metres over the ledge).
-const LAST = { clear: { wide: .44, tall: .56 }, sky: { wide: 4.5, tall: 5 } };
+const LAST = { clear: { wide: .44, tall: .56 }, sky: { wide: 3.2, tall: 5 } };
 // Sólarsyllan's top in the upper gorge's frame (upper.js SUN).
 const SUN_Y = 8.9;
 
