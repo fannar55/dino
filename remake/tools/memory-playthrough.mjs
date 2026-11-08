@@ -60,6 +60,8 @@
 //   The longest watch (timelineCheck.longestWatch) over 9 s fails the run too, but in a slowed run (--cpu-throttle, --clearance).
 //   --repeat-all    full: Mosi's 10 s repeat is waited for and checked at every wait the level gives a line (report.idleRepeats, one per
 //                   moment), not only at the first (report.idleRepeat is the first either way). Level 1's three waits: about 35 s more.
+//   --ask-all       with --repeat-all: after the repeat at each such wait Mosi's button ("Spyrja Mosa") is tapped once; the line that
+//                   starts must be the moment's line and his bubble must show its words (report.asks), or the run fails.
 //   (full mode, Mosi's lines: at a wait the level gives a line (levels/*.js `voice`) the child listens to him before tapping, and at a
 //    tap-along whose beat words he counts (coach.js countLine) the child lets a sentence he is saying end first, when the wait leaves
 //    the taps their time, then taps along about once for each count: report.beats has every beat, report.countCheck says each counted
@@ -118,7 +120,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { levelNumber } from '../engine/memory/levels/index.js';
 import { obstaclesOf } from '../engine/memory/step-rules.js';
-import { COUNT_TAKES } from '../engine/memory/voice-lines.js';
+import { COUNT_TAKES, VOICE_LINES } from '../engine/memory/voice-lines.js';
 import { countLine } from '../engine/memory/coach.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -139,7 +141,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null, repeatAll: false };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null, repeatAll: false, askAll: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -157,6 +159,7 @@ function parseArgs(argv) {
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow', 'through', 'rope', 'pull'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift, glow, through, rope or pull'); }
     else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--repeat-all') o.repeatAll = true;
+    else if (a === '--ask-all') o.askAll = true;
     else if (a === '--hide-hud') o.hideHud = true;
     else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
     else if (a === '--wrong-all') o.wrongAll = true;
@@ -799,6 +802,19 @@ async function main() {
       step('idle repeat', result);
       if (same.length > 2) errors.push('Mosi repeated his line twice for one moment: ' + JSON.stringify(result));
       else if (line && same.length < 2 && now.story.key === key) errors.push("Mosi's line never began again after the long idle: " + JSON.stringify(result));
+      if (o.askAll && line && now.story.key === key) {
+        // His button at the same wait: the moment's line once more, its words in his bubble.
+        await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 15000, "Mosi's line to end"); await sleep(600);
+        const before = (await ev('window.__memory.audio().speech.started')).length;
+        await ev(`document.getElementById('mosi-help').click()`);
+        const seconds = await waitFor(`window.__memory.audio().speech.started.length > ${before}`, 6000, "Mosi's answer to the button"); await sleep(500);
+        const started = (await ev('window.__memory.audio().speech.started')).slice(before).map(x => x.id);
+        const ask = { key, line, started, caption: await ev(`(document.getElementById('caption')?.textContent || '').trim()`), words: VOICE_LINES[line]?.text ?? null, seconds, where };
+        (report.asks ??= []).push(ask); step('Mosi button at the wait', ask);
+        if (started[0] !== line) errors.push("Mosi's button at a wait did not say the moment's line: " + JSON.stringify(ask));
+        else if (ask.caption !== ask.words) errors.push("Mosi's bubble at a wait did not show the words of his line: " + JSON.stringify(ask));
+        await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 15000, "Mosi's answer to end"); await sleep(400);
+      }
     };
 
     if (o.unlocked) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('minnisspil.unlocked', ${JSON.stringify(o.unlocked)}); } catch {}` });
