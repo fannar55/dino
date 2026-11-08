@@ -874,11 +874,13 @@ async function main() {
     const rapid = o.mode === 'rapid', shots = o.mode !== 'rapid', story = ['full', 'branch', 'rapid'].includes(o.mode);
     const seen = new Set();
     // A picture the first time `key` is seen (after delayMs, so the thing has had time to show). True if it waited.
-    const milestone = async (key, name, delayMs = 0) => {
+    // (`until`: an expression in the page that ends the delay early: the picture is taken then)
+    const milestone = async (key, name, delayMs = 0, until = null) => {
       if (seen.has(key)) return false;
       seen.add(key);
       if (!shots) return false;
-      if (delayMs) await sleep(delayMs);
+      if (delayMs && until) { const end = Date.now() + delayMs; while (Date.now() < end && !(await ev(`Boolean(${until})`).catch(() => false))) await sleep(100); }
+      else if (delayMs) await sleep(delayMs);
       // A capture takes a second or more here. Without a video the game is paused for it (the game clock
       // stops, as it does for a child's pause), so the picture is the moment it is named after.
       if (o.video) {
@@ -1205,7 +1207,9 @@ async function main() {
       }
       // The waiting friends at play during the search (the first two kinds of game the page starts).
       if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
-      if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
+      // (a task whose tap-along Mosi counts: its picture is taken by the time its taps are due at the latest, so the child does not come late to them)
+      const countedTask = !rapid && Boolean(LEVEL.steps.find(item => item.id === s.bridge.active)?.beatWords?.some(word => countLine(word, COUNT_TAKES)));
+      if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000, countedTask ? 'window.__demoStats?.scene?.waiting?.target' : null);
       if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
       if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
       if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
