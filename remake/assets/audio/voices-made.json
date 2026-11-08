@@ -613,6 +613,192 @@
    "duration": 1.93,
    "model": "eleven_v4"
   },
+  "book/book_myndband_fuglar_1": {
+   "key": "2d8f5d1cec5b493f17567f5b34d5a3243678514c90c72e7455e4e0d45ab87b69",
+   "mp3": "6df36d876d89e283a01053e43bcad39f368151f43d6dfa91a06773ceb8199a86",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_10": {
+   "key": "553675525547956d913afa3996f15eede452401fac4db3a830cc15dd05dd0b4f",
+   "mp3": "b143baf0bfb7e1bb1087df8657ca797689c95d67295191e6c074e97c92be4557",
+   "duration": 3.45,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_11": {
+   "key": "8b3068300eae7d0d2239be4397dcc6bc21a105c3d6a2dbc916aa252cf06948da",
+   "mp3": "ccde264ca221273cd83aa7b96cafcd518413044147ebd6c79a28d5e2fafc517a",
+   "duration": 6.97,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_12": {
+   "key": "91066b057cc49126e8e312a9f397e09a668162961ee549179b4707815923a9f5",
+   "mp3": "4f89d90e3c18c98ea794b9b9481fcdb007b38cd5bf04672bf3344d37dea0b743",
+   "duration": 4.651,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_13": {
+   "key": "361738151de43b2d3a6a0a96ba3382d9591bf55a6efba666008bc4b024f2743b",
+   "mp3": "9ab6528887f68657e94d864414226b4dfb7b7fca961e0ce0451863ba4c95556e",
+   "duration": 3.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_14": {
+   "key": "a63915f127fc33bbc94d3e86c5d46ed0e61c24b407437576a70eb6d260b7d876",
+   "mp3": "ea30980caa3a2dd0e344d73524f7849435d724be217f39a1f7eeb1f338456aaf",
+   "duration": 9.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_15": {
+   "key": "5c1376e3bdcafd0af7d7554769ece6b110de21f725b36afebe55daa3979dc221",
+   "mp3": "6965ad5ef0b7308fa7650d26f9c5305468ae1ea98b8811acd6de12a9bbb95318",
+   "duration": 6.49,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_16": {
+   "key": "12634e15436cc1af0259255ecde302e35bebfe8f66a9890e43dd742b515cfaa3",
+   "mp3": "d1b388a7d0067f060cff693377755d7a99a46ed2df4638a0f91dcceaca3bf3da",
+   "duration": 4.57,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_17": {
+   "key": "c20806582cc2f20246fa1bd6f56fbd8934cb1952b775a3a17f0aa4032f02aeff",
+   "mp3": "ea16d1fc69f6b922344c669a3f8e773ce1b57420f5d531b696d400bc67a2d569",
+   "duration": 3.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_18": {
+   "key": "ecb642d5d79faa1831e62186d91d01f03f653e50f57b0f01ad4fb91b76a8f0a3",
+   "mp3": "08c8af57b7c9f00c863d3d28d8f457bf515b88303d0d31699143bbe5415e5c81",
+   "duration": 8.01,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_19": {
+   "key": "9c04bed4897825f9372b62d9ac1c8e014de5307f0e534abf77b8cffcf9d1e935",
+   "mp3": "9ad7d204c227c38b36d68cc8efa1b2aab7eab659acc5d3df9bcdcf47f5863ab6",
+   "duration": 3.371,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_2": {
+   "key": "674d9f98cc764c1ba3e31c1f31c0c9b04863eb3c8998b5901f5a21854fbcc9aa",
+   "mp3": "ee176400642846048c19b3029fb878a2f4b4479ca3844f6f72e2513e5bd30773",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_20": {
+   "key": "8d726ed8f331eaa4caecc0a4196a12bd98d02e860d4bf9dc037eabbc4abf66a4",
+   "mp3": "a7b9399ff6501701a37477baa779adb8501d419809020c52ecb0b78f4a68261d",
+   "duration": 5.77,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_21": {
+   "key": "702cb8ce1d2de6ce6b2d5cc7aed3892950d4384a589ce30e8d80880ed74960cb",
+   "mp3": "38a5e3a14c0bfc967a5aa6383530794c95762e16d2b26b7234e032be3231364e",
+   "duration": 5.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_22": {
+   "key": "3d8878033030d6c74105468d3c19fae7ed8b5967780c05431edef908adec4ff2",
+   "mp3": "8864512c8b1ec3ef1bbbd9a23d8346529e0f209b716f668f3ca15251b24cb278",
+   "duration": 3.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_23": {
+   "key": "35b73eac6dc9448da3fa91c3f8fb5c53c1d10353126b2101fe3f87e5dba725cd",
+   "mp3": "2e995d3dc32bc89a5503bba6957f28a2ea98c6eb36b26e0587c69cf565a15bb9",
+   "duration": 5.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_24": {
+   "key": "0c3535d3f0bdfc06c33be3ec4a282cbbde4b7f129b2d4c91d10d249506834a87",
+   "mp3": "53aeab47cfc84065504513fcb9e181227f50fc8a9ab5531a81747b418a6635a2",
+   "duration": 5.45,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_25": {
+   "key": "725fd3dd64f1dd43a5239bf5cb353b895a60707e81e020ade1108181f10ede0e",
+   "mp3": "456cad1b4a7449990bdda06786aca351dd8bf7dbadd8d3d65df25dbef281aa60",
+   "duration": 9.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_26": {
+   "key": "921c9bf5fcaac0a60f09b24a22a0bd124e73f89b082ce6209de906527d1bac65",
+   "mp3": "291457dd0acfc16f75cceb44c1d3ebb2614846c9ac56ff49ef1da76c0dcb4f5b",
+   "duration": 9.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_27": {
+   "key": "95f334a7d57c3e596e951c29e95e93d8f0ba02d4cf6f9fe4f99d40c8c70ab08a",
+   "mp3": "e4b72bb651d080d2409b46b31dd0be0d80748100f6dce883c1117fefad812285",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_28": {
+   "key": "153a3a0c36d9385af3585929a203bba81713ef243906a9b5843201bf824eebc4",
+   "mp3": "bd50d180bfce7fba394769d4cf2989391716cc4fca4a7ff6e0d6f4d459ef3010",
+   "duration": 4.17,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_29": {
+   "key": "c61497d12d12b053dd5ad2f79d68e38b9afd976346d5056d3bc23665d0209720",
+   "mp3": "63d7d7907d98d2a34e7561e5a86f3e510f97e5c6f61274c653a1b67ba5de2fd9",
+   "duration": 8.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_3": {
+   "key": "28f2fd8c8b61d441b16abb7ec6dd33fd084dd16967ecf9c53d691c2060b458ac",
+   "mp3": "51350e0ad9d75dcda10f6bd4ecd672ac942e915ad64dd320abd88e1b8b1e1b22",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_30": {
+   "key": "0e421947f67ca2fb066b420909813b59ba44091c733e7fb0b185bd95057abee4",
+   "mp3": "3cba5410ba128b382982d9247a902105d419c7232f70c9d9e44a61735406f215",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_31": {
+   "key": "d48db8790485dc76f108278719f263b0afa96d690db279017bf00c21ca7298bd",
+   "mp3": "ea38f3175f319a75d55e86f85c684857d5c382263f93719adb35dda95acbec55",
+   "duration": 6.09,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_4": {
+   "key": "9a16602a63a86eaa21a8e4d372be772162246bb15665537f772f64bf27798cf4",
+   "mp3": "a3b2157ad62d23ed3a9dcc246823a216ec7621cbcc9f74632c48167bdb056a7c",
+   "duration": 4.41,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_5": {
+   "key": "f743b83b7e71b47719a292c0dc4c4ee8be75ed1a0075932da205fad5c09a26b8",
+   "mp3": "77eb9ad948d4585e1c058fcf83e2a55b1164424e0df03bcfd508e69bb6af0019",
+   "duration": 3.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_6": {
+   "key": "a5980ac300a43fc3053741bab20e8b664f451f0bae9e217e36814a0c6f1702a4",
+   "mp3": "6340fbaf74d183bc1e1bf1de54cbd8fe6bbbfc60e4adb307aaa26697772e7b92",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_7": {
+   "key": "158be24cca84f18a8564f4852334681f6dd1d5e03002435e8a7a9dbc1ce3c948",
+   "mp3": "1541b9cd5a214b58b4701a8ce0178643703440318d4e44195d4068668bb74d17",
+   "duration": 7.211,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_8": {
+   "key": "16064a86353f7e0cdfda66552502dc5d9e2a558e879dcbb11783a0cd2eef241b",
+   "mp3": "282557bccdda875150155072fcdd25bc390795154f45dd492faf5bdc348aec8a",
+   "duration": 6.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_fuglar_9": {
+   "key": "acce997bdf3dda4d2a6ab78723b42b92477fc643fb5f4483508688c2ed7fcbd2",
+   "mp3": "0dc742aac18e23baa12c335010cc9e34e9d7a275e15a5a18edf3ef766dd4e60d",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
   "book/book_myndband_gramedla_1": {
    "key": "665ae6ec1179cc2c61d99a2c5556a2f12dbf2333df18aab2fe14372e4f9309c1",
    "mp3": "00ec8a4469f88a974a2fec81ef00a2441d5982076cb2096c29e29ce83188d8f5",

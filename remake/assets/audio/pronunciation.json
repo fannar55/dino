@@ -318,7 +318,8 @@
       "word": "Mundu",
       "stem": "[Mm]und",
       "forms": [
-        "Mundu"
+        "Mundu",
+        "mundu"
       ],
       "recipes": {
         "hratt": {
@@ -459,7 +460,8 @@
         "grameðla",
         "grameðlu",
         "Grameðlur",
-        "grameðlan"
+        "grameðlan",
+        "Grameðlan"
       ],
       "recipes": {
         "hratt": {
@@ -472,7 +474,8 @@
             "grameðla": "\"/ˈkraːmˌɛðla/\"",
             "grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
             "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\"",
-            "grameðlan": "\"/ˈkraːmˌɛðlan/\""
+            "grameðlan": "\"/ˈkraːmˌɛðlan/\"",
+            "Grameðlan": "\"/ˈkraːmˌɛðlan/\""
           },
           "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
         },
@@ -2423,6 +2426,26 @@
         }
       },
       "chosen": "hratt"
+    },
+    "vaff": {
+      "word": "V (bókstafurinn)",
+      "stem": "V$",
+      "forms": [
+        "V"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þá er óvíst hvort Eleven segir nafn stafsins („vaff“) eða bara hljóðið."
+        },
+        "stafsetning": {
+          "say": {
+            "V": "vaff"
+          },
+          "seed": 42,
+          "note": "„vaff“, nafn stafsins á íslensku; textinn á skjánum heldur „V“ (fuglamyndbandið, lína 11; óheyrt). Fræ 42."
+        }
+      },
+      "chosen": "stafsetning"
     }
   },
   "lines": {
