@@ -157,6 +157,7 @@ if (!process.argv.includes('--no-pitch')) {
     }
     let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v));
     let on = 0; for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > pk * 0.25) { on = i / SR; break; }
+    on -= e.i === 'horn' ? 0.035 : p.group === 'grazers' && !p.chop ? 0.015 : p.group === 'frogs' && !p.low && p.role !== 'hat' ? 0.02 : 0; // the render starts these early
     const look = Math.min(x.length / SR, Math.max(0.06, Math.min(0.45, (p.dur ?? 0.4))));
     const fr = track(x.subarray(0, Math.round(look * SR)), SR, { size: 1024, hop: 128, fmin: target / 1.9, fmax: target * 1.9 }).filter(f => f.clarity > 0.5 && f.hz);
     const med = fr.length ? median(fr.map(f => f.hz)) : null;
@@ -173,11 +174,11 @@ if (!process.argv.includes('--no-pitch')) {
   const inPlace = song.tuneNotes.map(t => {
     const a = Math.round(t.beat * SPB) + Math.round(0.03 * SR);
     const target = hz(TONE[t.group]);
-    const fr = track(an.subarray(a, a + Math.round(0.3 * SR)), SR, { size: 1024, hop: 128, fmin: target / 1.9, fmax: target * 1.9 }).filter(f => f.clarity > 0.5 && f.hz);
+    const fr = track(an.subarray(a, a + Math.round(0.2 * SR)), SR, { size: 1024, hop: 128, fmin: target / 1.9, fmax: target * 1.9 }).filter(f => f.clarity > 0.5 && f.hz);
     const med = fr.length ? median(fr.map(f => f.hz)) : null;
     return { ...t, cents: med ? Math.round(cents(med, target)) : null };
   });
   report.tuneInPlace = inPlace;
-  console.log('tune notes in place (cents):', inPlace.map(t => `${t.group[0]}${t.cents}`).join(' '));
+  console.log('tune notes in place (cents):', inPlace.map(t => `${t.group.slice(0, 2)}${t.cents}`).join(' '));
 }
 writeFileSync(join(OUT, 'measure.json'), JSON.stringify(report, null, 1) + '\n');

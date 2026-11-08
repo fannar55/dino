@@ -151,17 +151,17 @@ export function buildScore() {
   section('Intro', 'Inngangur', 0, 16, null, 'The pond wakes up one sound at a time: a water drop, then sticks, then feet, then hands; the frogs tick last.');
   add(0, 'pond', 'pad', { dur: 10.5 }, 0.22, 0, 0.1);
   // bar 0: drops alone, a hint of the tune's shape
-  [[0, 'B5'], [1, 'D6'], [2, 'E6'], [2.5, 'D6'], [3, 'B5']].forEach(([o, n], k) => dropAt(o, n, 0.55 + 0.05 * k));
+  [[0, 'B5'], [1, 'D6'], [2, 'E6'], [2.5, 'D6'], [3, 'B5']].forEach(([o, n], k) => dropAt(o, n, 0.8 + 0.05 * k));
   // bar 1: sticks join on the eighths
-  [[4, 'G5'], [5, 'B5'], [6, 'D6'], [7, 'E6'], [7.5, 'G6']].forEach(([o, n]) => dropAt(o, n, 0.55));
-  for (let o = 4; o < 8; o += 0.5) stickAt(o, o % 1 ? 0.3 : 0.42);
+  [[4, 'G5'], [5, 'B5'], [6, 'D6'], [7, 'E6'], [7.5, 'G6']].forEach(([o, n]) => dropAt(o, n, 0.8));
+  for (let o = 4; o < 8; o += 0.5) stickAt(o, o % 1 ? 0.42 : 0.6);
   // bar 2: feet and leaves
-  [[8, 'E6'], [9, 'D6'], [10, 'B5'], [11, 'D6']].forEach(([o, n]) => dropAt(o, n, 0.5));
-  for (let o = 8; o < 12; o += 0.5) stickAt(o, o % 1 ? 0.3 : 0.4);
+  [[8, 'E6'], [9, 'D6'], [10, 'B5'], [11, 'D6']].forEach(([o, n]) => dropAt(o, n, 0.75));
+  for (let o = 8; o < 12; o += 0.5) stickAt(o, o % 1 ? 0.4 : 0.55);
   stompAt(8, 0.55); stompAt(10, 0.55); stompAt(10.5, 0.4);
   shaker(2, 0.25);
   // bar 3: hands, then the frogs tick, and a stick roll into the tune
-  [[12, 'G5'], [13, 'A5'], [14, 'B5']].forEach(([o, n]) => dropAt(o, n, 0.5));
+  [[12, 'G5'], [13, 'A5'], [14, 'B5']].forEach(([o, n]) => dropAt(o, n, 0.7));
   stompAt(12, 0.65); stompAt(14, 0.65); stompAt(14.5, 0.5);
   clapAt(13, 0.6); clapAt(15, 0.7);
   shaker(3, 0.32);
@@ -287,7 +287,7 @@ export function buildScore() {
 
   // ==================================================================================================================
   // 7. Flyers: the rain bridge, half time, no home chord (bars 40-47)
-  section('Flyers in the rain', 'Flugeðlur í rigningu', 160, 32, 'flyers', 'A summer shower: half-time feet, rain on the pond, chords that float without coming home; the small flyers whistle la through the trees and echo, a grass whistle sings a new melody.');
+  section('Flyers in the rain', 'Flugeðlur í rigningu', 160, 32, 'flyers', 'A summer shower: the band wades in and drums on the water with cupped hands, half time; rain on the pond, chords that float without coming home; the small flyers whistle la through the trees and echo, a grass whistle sings a new melody.');
   add(160, 'splash', 'beat', { size: 1 }, 0.5, 0, 0.3);
   cues.push({ beat: 160, kind: 'hit' });
   add(160, 'pond', 'pad', { dur: 18 }, 0.2, 0, 0.1);
@@ -301,8 +301,12 @@ export function buildScore() {
     const b = bar * 4, k = bar - 40, c = BRIDGE[k];
     reeds(b, c, 4, 0.5, { top: true, attack: 0.5 });
     bass(b, CH[c].root, 3.6, 0.8, 0.5);
-    stompAt(b, 0.75); if (k % 2) stompAt(b + 2.5, 0.5);
-    clapAt(b + 2, 0.55, 4); snapAt(b + 2, 0.5);
+    // the band wades in: cupped hands drum on the water, half time (deep plunge on 1, slap on 3)
+    const wd = k % 2 === 0
+      ? [[0, 150, 0.95, 1], [0.75, 330, 0.3, 0.45], [1.5, 240, 0.6, 0.6], [2, 300, 0.35, 0.9], [2.75, 330, 0.3, 0.4], [3.5, 240, 0.6, 0.55]]
+      : [[0, 150, 0.95, 0.95], [1, 330, 0.3, 0.4], [1.5, 165, 0.9, 0.6], [2, 300, 0.35, 0.9], [3, 240, 0.6, 0.55], [3.25, 240, 0.6, 0.45], [3.75, 330, 0.3, 0.45]];
+    for (const [o, f, cup, gg] of wd) add(sw(b + o), 'waterDrum', 'beat', { f, cup }, gg, ((f - 240) / 200) * 0.5, 0.18);
+    clapAt(b + 2, 0.32, 4); snapAt(b + 2, 0.4);
     for (const o of [0.5, 1.5, 2.5, 3.5]) leavesAt(b + o, 0.18, 0.12);
     // rain: tiny high drops
     for (let d = 0; d < 14; d++) add(b + ((d * 0.618 * 4 + k * 0.37) % 4), 'drop', 'beat', { f: 2400 + ((d * 733 + k * 151) % 2600), size: 0.4 }, 0.12, ((d * 0.37) % 1.4) - 0.7, 0.2);
@@ -354,7 +358,10 @@ export function buildScore() {
     for (const o of [1, 3]) clapAt(b + o, 0.6 + k * 0.08);
     if (k === 3) for (const o of [0, 2]) clapAt(b + o, 0.7);
     const sstep = [0.5, 0.5, 0.25, 0.25][k];
-    for (let o = 0; o < 4; o += sstep) stickAt(b + o, 0.25 + k * 0.06 + (o / 4) * 0.08);
+    for (let o = 0; o < 4; o += sstep) stickAt(b + o, 0.3 + k * 0.1 + (o / 4) * 0.1);
+    if (k >= 1) for (let o = 0; o < 4; o += k >= 2 ? 0.25 : 0.5) leavesAt(b + o, 0.25 + k * 0.08 + (o / 4) * 0.1);
+    if (k === 3) for (const o of [2.5, 3.5]) clapAt(b + o, 0.6, 4);
+    if (k === 3) for (const o of [0.5, 1.5]) add(b + o, 'chest', 'beat', {}, 0.7, 0, 0.05);
     bass(b, CH[c].root, 1.8, 0.85); bass(b + 2, CH[c].root, 1.8, 0.85);
     if (k >= 2) for (const o of [0.5, 1.5, 2.5, 3.5]) bass(b + o, CH[c].fifth, 0.4, 0.5, 0.5);
   });
@@ -406,7 +413,7 @@ export function buildScore() {
   cues.push({ beat: 280, kind: 'end' });
 
   // the song's dynamics: each part's overall level (the rise climbs into the peak); the loop (bars 16-19) sits in one level
-  const DYN = [[0, 1], [16, 1], [48, 0.86], [80, 0.84], [96, 1], [128, 1.0], [144, 0.86], [160, 0.8], [192, 0.8], [224, 0.8], [240, 1.15], [272, 1.12]];
+  const DYN = [[0, 1], [16, 1], [48, 0.86], [80, 0.86], [96, 1.08], [128, 1.0], [144, 1.0], [160, 0.86], [192, 0.84], [224, 0.8], [240, 1.15], [272, 1.12]];
   const dyn = b => {
     if (b >= 224 && b < 240) return 0.8 + ((b - 224) / 16) * 0.3;
     let g = 1;

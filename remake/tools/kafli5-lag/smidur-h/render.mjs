@@ -22,18 +22,18 @@ const at = b => Math.round(b * SPB);
 
 // --- the animals' calls: which take, which part, its own measured pitch (measure-takes.mjs), how much glide to keep -----
 export const RECIPES = {
-  grazers: { file: 'grazers-3.mp3', from: 0.0, to: 0.95, ref: 181.5, flatten: 0.6 }, // a cow's moo
-  grazersChop: { file: 'grazers-3.mp3', from: 0.17, to: 0.8, ref: 181.5, flatten: 0.5 }, // the steady middle of the moo
+  grazers: { file: 'grazers-3.mp3', from: 0.04, to: 0.95, ref: 181.5, flatten: 0.6, lead: 0.015 }, // a cow's moo
+  grazersChop: { file: 'grazers-3.mp3', from: 0.28, to: 0.8, ref: 181.5, flatten: 0.5 }, // the steady middle of the moo
   turtles: { file: 'turtles-2.mp3', from: 0.0, to: 0.74, ref: 238.4, flatten: 0.85 },
-  frogs: { file: 'frogs-5.mp3', from: 0.025, to: 0.42, ref: 1926.3, flatten: 0.3 }, // a ribbit
+  frogs: { file: 'frogs-5.mp3', from: 0.025, to: 0.42, ref: 1926.3, flatten: 0.3, lead: 0.02 }, // a ribbit
   frogsLow: { file: 'frogs-1.mp3', from: 0.0, to: 0.56, ref: 1147.4, flatten: 0.5 },
-  frogsHat: { file: 'frogs-2.mp3', from: 0.008, to: 0.07, ref: 2256.1 }, // one pulse of the trill
+  frogsHat: { file: 'frogs-2.mp3', from: 0.008, to: 0.07, ref: 2224.7 }, // one pulse of the trill (its own pitch is a little under the take's)
   lizards: { file: 'lizards-1.mp3', from: 0.0, to: 0.29, ref: 1130, flatten: 0.7 },
-  lizardsGecko: { file: 'lizards-3.mp3', from: 0.018, to: 0.15, ref: 2084.2 },
-  flyers: { file: 'flyers-3.mp3', from: 0.1, to: 0.75, ref: 1395, flatten: 0.6 }, // a curlew's whistle
-  flyersTrill: { file: 'flyers-1.mp3', from: 0.0, to: 0.95, ref: 2060 },
+  lizardsGecko: { file: 'lizards-3.mp3', from: 0.018, to: 0.15, ref: 2103.4 },
+  flyers: { file: 'flyers-3.mp3', from: 0.36, to: 0.72, ref: 1395, flatten: 0.9 }, // the loud top of a curlew's rising whistle
+  flyersTrill: { file: 'flyers-1.mp3', from: 0.0, to: 0.95, ref: 2088 },
 };
-const HORN = { file: 'horn-1.mp3', from: 0.06, to: 2.75, ref: 273.1, flatten: 0.4 };
+const HORN = { file: 'horn-1.mp3', from: 0.06, to: 2.75, ref: 273.1, flatten: 0.4, lead: 0.035 };
 // each group's level trim (their takes differ in loudness)
 const TRIM = { grazers: 0.95, turtles: 1.0, frogs: 0.62, lizards: 0.7, flyers: 0.6 };
 
@@ -87,6 +87,7 @@ const INSTR = {
   logBass: (p, s) => F.logBass({ ...p, seed: s }),
   drop: (p, s) => F.drop({ ...p, seed: s }),
   splash: (p, s) => F.splash({ ...p, seed: s }),
+  waterDrum: (p, s) => F.waterDrum({ ...p, seed: s }),
   leaves: (p, s) => F.leaves({ ...p, seed: s }),
   rustle: (p, s) => F.rustle({ ...p, seed: s }),
   bbKick: (p, s) => F.bbKick({ seed: s }),
@@ -103,7 +104,7 @@ const INSTR = {
 // how loud each kind sits before its event gain
 const LEVEL = {
   stomp: 0.85, clap: 0.5, snap: 0.28, patsch: 0.45, chest: 0.5, stick: 0.3, stones: 0.32, logMarimba: 0.46, shell: 0.55,
-  logBass: 0.33, drop: 0.38, splash: 0.4, leaves: 0.2, rustle: 0.2, bbKick: 1.0, bbSnare: 0.7, bbHat: 0.3, lipPop: 0.7,
+  logBass: 0.33, drop: 0.38, splash: 0.4, waterDrum: 0.6, leaves: 0.2, rustle: 0.2, bbKick: 1.0, bbSnare: 0.7, bbHat: 0.3, lipPop: 0.7,
   tongue: 0.35, reed: 0.2, whistle: 0.26, pond: 0.3, call: 0.8, horn: 0.6,
 };
 export const STEMS = ['pad', 'bass', 'beat', 'lead', 'animals'];
@@ -123,7 +124,9 @@ export function renderStems(score, { onlyStems = STEMS } = {}) {
     const trim = e.i === 'call' ? TRIM[e.p.group] : 1;
     const g = e.g * LEVEL[e.i] * trim;
     const st = stems[e.s];
-    const pos = at(e.b);
+    // a take whose attack swells is started a little early, so its onset lands on the beat
+    const lead = e.i === 'horn' ? HORN.lead : e.i === 'call' && !e.p.chop && !e.p.low && !e.p.gecko && !e.p.trill && e.p.role !== 'hat' ? RECIPES[e.p.group].lead ?? 0 : 0;
+    const pos = at(e.b) - secs(lead);
     let L, R;
     if (Array.isArray(buf)) [L, R] = buf; else { L = buf; R = buf; }
     const pan = Math.max(-1, Math.min(1, e.pan));

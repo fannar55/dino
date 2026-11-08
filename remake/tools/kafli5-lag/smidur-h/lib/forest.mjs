@@ -361,3 +361,26 @@ export function pond({ dur, seed = 1 } = {}) {
   }
   return [L, R];
 }
+
+/**
+ * Water drumming: cupped hands striking the pond's surface. A hollow low "bloomp" (the air pocket, pitch falling onto `f`), the
+ * slap of water, and a few bubbles after. `cup` 0..1: flat slap to deep cupped plunge.
+ */
+export function waterDrum({ f = 220, seed = 1, cup = 0.7 } = {}) {
+  const r = rng(seed), n = secs(0.4);
+  const x = new Float32Array(n);
+  let ph = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / SR, ff = f * (1 + 0.6 * Math.exp(-t / 0.012));
+    ph += (TAU * ff) / SR;
+    x[i] = Math.sin(ph) * Math.min(1, t / 0.002) * Math.exp(-t / (0.035 + 0.05 * cup)) * cup;
+  }
+  addInto(x, adEnv(biquad(white(n, r), 'bp', 1300 + r() * 500, 0.8), 0.001, 0.025 + 0.02 * (1 - cup)), 0, 0.8 - 0.3 * cup);
+  addInto(x, adEnv(biquad(white(n, r), 'lp', 600, 0.7), 0.002, 0.03), 0, 0.5);
+  for (let k = 0; k < 4; k++) {
+    const d = drop({ f: 500 + r() * 1400, seed: Math.floor(r() * 1e9), size: 0.5 + r() * 0.5, dur: 0.07 });
+    addInto(x, d, secs(0.03 + r() * 0.15), 0.08 + r() * 0.08);
+  }
+  softclip(x, 1.2);
+  return fades(normalize(x), 0.0005, 0.05);
+}
