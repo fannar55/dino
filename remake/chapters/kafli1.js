@@ -1173,7 +1173,6 @@ export const chapter = {
     // Mosi is far down the path in the forest, to trot in from the first frame (MOSI_FAR); Kambeðla is in her glade, not in the clearing.
     kambedla.raw.root.visible = false;
     c.saddle = createSaddle(mosi.raw); // hidden until it pops on in scene 5
-    yield c.saddle.loaded; // its file, on him before the warm-up behind the start button draws it
     c.glow = world.effects.add(addPlateGlow(kambedla.raw)); // her plates are grey until the flowers light them
     c.rjodur = setUpClearing(s, c);
     yield s.camera.cut('dawn');

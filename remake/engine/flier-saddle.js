@@ -157,6 +157,13 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL, places: early = nu
     console.warn(`[flier-saddle] ${host.name}'s saddle has no model, so she flies without it:`, error?.message ?? error);
     return false;
   });
+  // The scene waits for it where it already waits for what loads: main.js's warm-up behind the start button (so the saddle's first
+  // draw is there, unseen) and a capture's seek; the tests' frames too. world.loading is a set each load leaves as it settles.
+  if (world) {
+    const loading = (world.loading ??= new Set());
+    loading.add(loaded);
+    loaded.then(() => loading.delete(loaded));
+  }
 
   const skinned = new THREE.Matrix4();
   const tmp = new V3();

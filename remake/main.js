@@ -551,9 +551,15 @@ function warmPrepared(name, forest) {
 }
 
 /** Everything that is done behind the black before the start button shows: the start place and the chapter, drawn once. */
+/** Until every load in `loading` (world.loading: a set each load leaves as it settles) has settled, those added meanwhile too. */
+async function settled(loading) {
+  while (loading?.size > 0) await Promise.allSettled([...loading]);
+}
+
 async function getReady() {
   await characterLodsReady(); // the shadow casters the levels bring are drawn too
   await nextFrames(2); // the script's setup has run and the start shot holds
+  await settled(world.loading); // and the files its setup asked for are in (Mosi's saddle), so they are drawn here too
   const warmed = [];
   const warm = chapter.warmUp?.(world, { place: world.location }) ?? { objects: [], shots: [], dispose() {} };
   try {
@@ -711,8 +717,8 @@ if (shotName || !chapter.script) {
       const dt = Math.min(step, seekTo - t);
       clock.step(dt);
       update(dt);
-      // A script waiting on a promise (loading, say) gets the chance to see it settle.
-      for (let tries = 0; stage.scheduler.pending > 0 && tries < 500; tries++) {
+      // A script waiting on a promise (loading, say) gets the chance to see it settle, as do the files the scene is loading.
+      for (let tries = 0; (stage.scheduler.pending > 0 || world.loading?.size > 0) && tries < 500; tries++) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     }

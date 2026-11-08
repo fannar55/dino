@@ -164,7 +164,7 @@ async function createPiece(world, board, id, index, host) {
     const mine = ++gestures;
     riding?.stop();
     riding = null;
-    gestureLegs ??= saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees) : null;
+    gestureLegs ??= saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { flatFeet: Boolean(saddle.flatFeet) }) : null;
     rider.control(() => {
       gestureLegs?.restore();
       saddle.update();

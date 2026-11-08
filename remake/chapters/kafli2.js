@@ -649,7 +649,6 @@ export const chapter = {
     c.saddle = createSaddle(mosi.raw);
     c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
-    yield c.saddle.loaded; // its file, on him before the warm-up behind the start button draws it
     c.glow = world.effects.add(addPlateGlow(kambedla.raw));
     c.glow.setAll(1, { duration: 0 });
     yield s.camera.cut('glade_leaving');

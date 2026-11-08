@@ -149,7 +149,7 @@ export function createSaddle(host, { url = MOSI_SADDLE_MODEL, places = MOSI_SADD
   }
   update();
   return {
-    host, seat, grips, knees, ankles, lean: LEAN,
+    host, seat, grips, knees, ankles, lean: LEAN, flatFeet: true, // his back is broad: Egill's soles lie on the pad (legsOn)
     loaded: fitted.loaded,
     get object() { return fitted.mesh; },
     get shown() { return fitted.shown; },
@@ -296,19 +296,22 @@ export function handsOn(rider, grips) {
 
 // The rider's legs astride a back, and his spine leaning to the grips. After his clips have posed him, his spine leans `lean` degrees
 // forward and each leg reaches for its ankle's place (ik.js reachTwoBones: thigh and shin, the knee bending toward its pole), the
-// targets blended in from the clip's own ankle and knee. As with the hands, the clip's pose goes back before his clips run again.
-// Apply it before the hands: they reach from where the spine has put the shoulders.
+// targets blended in from the clip's own ankle and knee. With `flatFeet` (a broad back: Mosi's) his feet keep the clip's turn under
+// him, soles down, as his shins swing out; else they roll with his shins. As with the hands, the clip's pose goes back before his
+// clips run again. Apply it before the hands: they reach from where the spine has put the shoulders.
 const LEAN_AXIS = new V3(0, 0, 1);
-export function legsOn(rider, ankles, knees, { lean = 0 } = {}) {
+export function legsOn(rider, ankles, knees, { lean = 0, flatFeet = false } = {}) {
   const legs = [['Left', ankles.left, knees.left], ['Right', ankles.right, knees.right]].map(([side, ankle, knee]) => {
     const upper = findBone(rider.model, `${side}UpperLeg`);
     const lower = findBone(rider.model, `${side}LowerLeg`);
     const foot = findBone(rider.model, `${side}Foot`);
-    return upper && lower && foot ? { upper, lower, foot, ankle, knee, upperTurn: new THREE.Quaternion(), lowerTurn: new THREE.Quaternion() } : null;
+    return upper && lower && foot ? { upper, lower, foot, ankle, knee, upperTurn: new THREE.Quaternion(), lowerTurn: new THREE.Quaternion(), footTurn: new THREE.Quaternion() } : null;
   }).filter(Boolean);
   const spine = findBone(rider.model, 'Spine');
   const spineTurn = new THREE.Quaternion();
   const bend = new THREE.Quaternion();
+  const sole = new THREE.Quaternion();
+  const shin = new THREE.Quaternion();
   let applied = false;
   const at = new V3();
   const target = new V3();
@@ -319,6 +322,7 @@ export function legsOn(rider, ankles, knees, { lean = 0 } = {}) {
       for (const leg of legs) {
         leg.upper.quaternion.copy(leg.upperTurn);
         leg.lower.quaternion.copy(leg.lowerTurn);
+        leg.foot.quaternion.copy(leg.footTurn);
       }
       spine?.quaternion.copy(spineTurn);
       applied = false;
@@ -333,9 +337,17 @@ export function legsOn(rider, ankles, knees, { lean = 0 } = {}) {
       for (const leg of legs) {
         leg.upperTurn.copy(leg.upper.quaternion);
         leg.lowerTurn.copy(leg.lower.quaternion);
+        leg.footTurn.copy(leg.foot.quaternion);
+        if (flatFeet) leg.foot.getWorldQuaternion(sole); // the sit clip's foot under him: sole down, toes ahead
         target.lerpVectors(leg.foot.getWorldPosition(at), leg.ankle, weight);
         pole.lerpVectors(leg.lower.getWorldPosition(at), leg.knee, weight);
         reachTwoBones(leg.upper, leg.lower, leg.foot, target, pole);
+        // on a broad back (flatFeet) the foot keeps that turn as the shin swings out astride, so his soles stay on the pad, not
+        // turned out to the side; on a narrow one it rolls with the shin, against her flank
+        if (flatFeet) {
+          leg.lower.getWorldQuaternion(shin);
+          leg.foot.quaternion.slerp(shin.invert().multiply(sole), weight);
+        }
       }
       applied = true;
     },
@@ -356,7 +368,7 @@ export function ride(rider, saddle, { settle = 0.8 } = {}) {
   const from = { position: rider.root.position.clone(), quaternion: rider.root.quaternion.clone() };
   const blend = from.position.distanceTo(saddle.update()) < 0.02 ? 0 : settle;
   const hands = handsOn(rider, saddle.grips);
-  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0 }) : null;
+  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0, flatFeet: Boolean(saddle.flatFeet) }) : null;
   const facing = new THREE.Quaternion();
   let t = 0;
   const controller = {
@@ -408,7 +420,7 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
   const rise = new V3();
   const hover = new V3();
   const facing = new THREE.Quaternion();
-  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0 }) : null;
+  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0, flatFeet: Boolean(saddle.flatFeet) }) : null;
   let t = 0;
   let sitting = false;
   const controller = {
@@ -465,7 +477,7 @@ export function floatDown(rider, saddle, spot, { duration = 2.2, heading = headi
   const facing = new THREE.Quaternion().setFromAxisAngle(UP, -THREE.MathUtils.degToRad(heading));
   const lift = new V3();
   const over = new V3();
-  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0 }) : null;
+  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0, flatFeet: Boolean(saddle.flatFeet) }) : null;
   let t = 0;
   let standing = false;
   const controller = {

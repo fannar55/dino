@@ -594,7 +594,6 @@ export const chapter = {
     c.saddle = createSaddle(mosi.raw);
     c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
-    yield c.saddle.loaded; // its file, on him before the warm-up behind the start button draws it
     yield s.camera.cut('fen_reveal');
     yield s.ready(); // the start button; immediate in captures
     // What main.js readies once the start button shows, for a child who tapped before it got there: the far friends, made (four
