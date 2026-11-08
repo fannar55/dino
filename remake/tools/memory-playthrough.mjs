@@ -1626,23 +1626,25 @@ const UI_NAMES = { tap: ['tap'], oh: ['oh'], bubble: ['bubble'], close: ['close'
 const UI_LEVEL = .9; // how loud they are laid: as in the page (its output's headroom; they dip under Mosi's voice there, not here: they are short and few)
 async function renderUiSounds(ev, outDir, asked) {
   const names = [...new Set(asked.flatMap(sound => UI_NAMES[sound.kind] ?? []))]; if (!names.length) return { names: [] };
-  const rendered = await ev(`(async () => {
-    const base = new URL('./engine/', location.href);
-    const { createSfx } = await import(new URL('audio/sfx.js', base)), { juniorSounds } = await import(new URL('yatzy-junior/sounds.js', base));
-    const theme = await fetch(new URL('../assets/audio/theme.json', base)).then(r => r.ok ? r.json() : null, () => null), out = {};
-    for (const name of ${JSON.stringify(names)}) {
+  await fsp.mkdir(path.join(outDir, 'ui-sounds'), { recursive: true });
+  // (one name at a time, cut where it falls silent: one answer with them all was too big for the DevTools socket, which closed)
+  for (const name of names) {
+    const text = await ev(`(async () => {
+      const base = new URL('./engine/', location.href);
+      const { createSfx } = await import(new URL('audio/sfx.js', base)), { juniorSounds } = await import(new URL('yatzy-junior/sounds.js', base));
+      const theme = await fetch(new URL('../assets/audio/theme.json', base)).then(r => r.ok ? r.json() : null, () => null);
       const context = new OfflineAudioContext(1, 44100 * 3, 44100);
       Object.defineProperty(context, 'state', { value: 'running' }); // (the sounds play only on a running context; an offline one runs once it renders)
-      createSfx({ context, theme, output: context.destination, sounds: tools => juniorSounds(tools, () => ({})) }).play(name);
-      const bytes = new Uint8Array((await context.startRendering()).getChannelData(0).buffer); let text = '';
+      createSfx({ context, theme, output: context.destination, sounds: tools => juniorSounds(tools, () => ({})) }).play(${JSON.stringify(name)});
+      const data = (await context.startRendering()).getChannelData(0); let last = 0;
+      for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > 1e-4) last = i;
+      const bytes = new Uint8Array(data.slice(0, Math.min(data.length, last + 2205)).buffer); let text = '';
       for (let i = 0; i < bytes.length; i += 32768) text += String.fromCharCode(...bytes.subarray(i, i + 32768));
-      out[name] = btoa(text);
-    }
-    return out;
-  })()`);
-  await fsp.mkdir(path.join(outDir, 'ui-sounds'), { recursive: true });
-  for (const [name, text] of Object.entries(rendered)) await fsp.writeFile(path.join(outDir, 'ui-sounds', name + '.f32'), Buffer.from(text, 'base64'));
-  return { names: Object.keys(rendered) };
+      return btoa(text);
+    })()`);
+    await fsp.writeFile(path.join(outDir, 'ui-sounds', name + '.f32'), Buffer.from(text, 'base64'));
+  }
+  return { names };
 }
 
 // The sounds the page played, laid under the video: each recorded cue of the audio log (its file, when it began by the wall clock, how loud and how fast) and each of Mosi's lines
