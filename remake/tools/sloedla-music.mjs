@@ -143,6 +143,76 @@ export const PRESETS = {
     ],
     negative: [...NEGATIVE, 'piano', 'keys', 'guitar', 'synth lead', 'strings', 'melody', 'pads', 'brass'],
   },
+  // Lag Slóeðlu (chapter 5, docs/superpowers/plans/2026-11-07-kafli-5-sloedla.md Task 7): her own song's backing. The chapter plays
+  // it in stems that join one by one as the child plays her four phrases (a pad first, alone and low), so each of its four parts is
+  // one instrument the stem separator knows (other = the pad, piano or guitar = the chords, bass, drums), and the verses and choruses
+  // (bars 4 to 36) have all four, the same calm way, so the chapter can loop them. The animals and her horn sing the lead on top, in
+  // F major's pentatonic (kafli5-song.js). The four versions are the candidates the owner picks from by ear.
+  sloedla: {
+    name: 'Lag Slóeðlu',
+    style: 'calm, warm lullaby-like song for children',
+    bpm: 84,
+    key: 'F major',
+    keyWords: 'F major',
+    folder: 'v2/sloedla',
+    chords: { roman: 'I-vi-IV-V', names: ['F', 'Dm', 'Bb', 'C'], words: 'F, D minor, B flat, C', perBar: 1 },
+    form: [
+      ['Intro', 'intro', 4, ['the warm string pad alone for two bars, very soft', 'the chords and the bass come in on the third bar, the drums on the fourth']],
+      ['Verse 1', 'verse', 8],
+      ['Chorus 1', 'chorus', 8],
+      ['Verse 2', 'verse', 8],
+      ['Chorus 2', 'chorus', 8],
+      ['Outro', 'outro', 4],
+    ],
+    kinds: {
+      intro: ['intro', 'very soft and sparse, builds gently'],
+      verse: ['verse', 'gentle steady groove, all four instruments playing softly', 'leaves open space for a lead melody'],
+      chorus: ['chorus', 'a little fuller and warmer, the same instruments and the same calm energy', 'leaves open space for a lead melody'],
+      outro: ['outro', 'winds down on the same gentle groove without slowing down', 'ends cleanly on a soft F major chord, no fade out'],
+    },
+    core: [
+      'a calm, warm and gentle song for young children, like a lullaby on a golden afternoon by a quiet pond',
+      'exactly four instruments: soft felt piano, a warm string pad, upright bass and light brushed drums',
+      'soft felt piano playing gentle broken chords', 'a warm soft string pad holding each chord',
+      'a round, soft upright bass on the root of each chord', 'very light brushed drums with a soft shaker keeping a steady gentle beat',
+      'simple and sparse with lots of space', 'acoustic, intimate and clean warm production',
+    ],
+    negative: [...NEGATIVE, 'guitar', 'electric guitar', 'synth lead', 'flute', 'whistling', 'bells', 'marimba', 'xylophone', 'brass', 'saxophone', 'loud drums', 'heavy bass', 'sad', 'dark', 'dramatic', 'minor key'],
+    revisions: {
+      2: {
+        core: [
+          'a calm, warm and gentle song for young children, like a lullaby on a golden afternoon by a quiet pond',
+          'exactly four instruments: a mellow Rhodes electric piano, a warm soft synth pad, a round electric bass and soft hand percussion',
+          'a mellow Rhodes electric piano playing gentle chords', 'a warm soft synth pad holding each chord',
+          'a round, soft electric bass on the root of each chord', 'soft hand percussion, a gentle shaker and a quiet rim click keeping a steady beat',
+          'simple and sparse with lots of space', 'dreamy, warm and clean production',
+        ],
+        revision: 'a Rhodes electric piano, a synth pad and hand percussion in place of the felt piano, the strings and the brushes',
+      },
+      3: {
+        core: [
+          'a calm, warm and gentle song for young children, like a lullaby on a golden afternoon by a quiet pond',
+          'exactly four instruments: a fingerpicked nylon-string guitar, a warm string pad, upright bass and light brushed drums',
+          'a fingerpicked nylon-string acoustic guitar playing gentle broken chords', 'a warm soft string pad holding each chord',
+          'a round, soft upright bass on the root of each chord', 'very light brushed drums with a soft shaker keeping a steady gentle beat',
+          'simple and sparse with lots of space', 'acoustic, intimate and clean warm production',
+        ],
+        negative: [...NEGATIVE, 'piano', 'electric guitar', 'synth lead', 'flute', 'whistling', 'bells', 'marimba', 'xylophone', 'brass', 'saxophone', 'loud drums', 'heavy bass', 'sad', 'dark', 'dramatic', 'minor key'],
+        revision: 'a fingerpicked nylon-string guitar in place of the felt piano',
+      },
+      4: {
+        core: [
+          'a calm, warm and sunny song for young children, a gentle stroll on a golden afternoon by a quiet pond',
+          'exactly four instruments: a softly strummed ukulele, a warm string pad, upright bass and light brushed drums',
+          'a softly strummed ukulele playing the chords in a gentle swaying rhythm', 'a warm soft string pad holding each chord',
+          'a round, soft upright bass on the root of each chord', 'very light brushed drums with a soft shaker keeping a steady gentle beat',
+          'simple and sparse with lots of space', 'acoustic, happy and clean warm production',
+        ],
+        negative: [...NEGATIVE, 'piano', 'electric guitar', 'synth lead', 'flute', 'whistling', 'bells', 'marimba', 'xylophone', 'brass', 'saxophone', 'loud drums', 'heavy bass', 'sad', 'dark', 'dramatic', 'minor key'],
+        revision: 'a softly strummed ukulele in place of the felt piano, a little sunnier',
+      },
+    },
+  },
 };
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
