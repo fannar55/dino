@@ -392,7 +392,7 @@ export function crowd(seconds, { vel = 1, attack = 0.12, seed = 23, voices = 10 
     for (let i = start; i < n; i++) {
       const t = (i - start) / SR;
       const m = Math.min(1, t / 0.35);
-      if ((i & 15) === 0) for (let k = 0; k < 3; k++) {
+      if (i === start || ((i - start) & 15) === 0) for (let k = 0; k < 3; k++) {
         const fc = (E[k] + (A[k] - E[k]) * m) * shift;
         fs[k].set(fc, fc / [110, 140, 200][k]);
       }
