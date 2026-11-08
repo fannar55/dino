@@ -27,9 +27,9 @@ const deg = THREE.MathUtils.radToDeg;
 const smooth = k => k * k * (3 - 2 * k);
 
 /** How far under her ground she stands at each kind of step (m): the reed, then the water, hides the rest of her. */
-export const SINK = { crest: -1.35, head: -0.55, neck: -0.25, whole: 0 };
+export const SINK = { crest: -1.75, head: -0.55, neck: -0.25, whole: 0 };
 /** The peek: she rises `lift` m over `seconds`, her head `raise` degrees up. */
-export const PEEK = { lift: 1.05, seconds: 0.9, raise: 10 };
+export const PEEK = { lift: 1.45, seconds: 1.2, raise: 10 };
 /** Shy to brave: her head `low` degrees down at courage 0; her walk `slow` m/s at courage 0 and `brave` at 1; her head turns at most `settle` deg/s. */
 export const SHY = { low: 22, slow: 0.55, brave: 1.0, settle: 24 };
 /**
@@ -80,19 +80,25 @@ function rotateBoneWorld(bone, q) {
 
 /**
  * Where her crest's tip and her eyes are in her head bone's own frame, from her bind pose: the highest point of her body, and the
- * middle of her eyelids.
+ * middle of her eyelids; and the top of her back (the highest point from behind her hips to her spine) in her hip bone's frame.
  */
-function measure(her, head) {
+function measure(her, head, hips, spine) {
   her.model.traverse(o => { if (o.isSkinnedMesh) o.skeleton.pose(); });
   her.root.updateMatrixWorld(true);
   const v = new THREE.Vector3();
+  const l = new THREE.Vector3();
+  const along = bone => her.root.worldToLocal(bone.getWorldPosition(new THREE.Vector3())).x;
+  const [from, to] = [along(hips) - 1.2, along(spine)]; // her crest curls back as far as over her spine: the back ends there
   let crest = null;
+  let back = null;
   her.model.traverse(o => {
     if (!o.isMesh || o === her.eyelids?.mesh) return;
     const pos = o.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
       if (!crest || v.y > crest.y) crest = v.clone();
+      her.root.worldToLocal(l.copy(v));
+      if (l.x >= from && l.x <= to && (!back || v.y > back.y)) back = v.clone();
     }
   });
   const lids = her.eyelids?.mesh;
@@ -101,7 +107,7 @@ function measure(her, head) {
     if (!lids.geometry.boundingBox) lids.geometry.computeBoundingBox();
     eyes = lids.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(lids.matrixWorld);
   } else eyes = head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0.35, 0.15, 0)); // a model without eyelids: ahead of the head bone
-  return { crest: head.worldToLocal(crest), eyes: head.worldToLocal(eyes) };
+  return { crest: head.worldToLocal(crest), eyes: head.worldToLocal(eyes), back: hips.worldToLocal(back) };
 }
 
 /**
@@ -139,7 +145,7 @@ export function sloedlaLife(actor) {
   const head = bone('Head');
   const body = [bone('Tail6'), bone('Jaw')];
   const chain = NECK.map(([name, share]) => ({ bone: bone(name), share, base: new THREE.Quaternion(), held: false })).filter(link => link.bone);
-  const parts = measure(her, head);
+  const parts = measure(her, head, bone('Hips'), bone('Spine'));
   if (her.clips.has('happy')) her.clips.set('happy', calmClip(her.clips.get('happy')));
   const state = {
     x: STEPS[0].at[0], z: STEPS[0].at[1], heading: STEPS[0].heading, face: STEPS[0].heading,
@@ -306,7 +312,7 @@ export function sloedlaLife(actor) {
     },
     /**
      * Where her parts are now, in the world: her root and heading (degrees), her head bone and the way it faces, her eyes, her
-     * crest's tip, her body from above (tail to jaw) and her body's bones.
+     * crest's tip, the top of her back, her body from above (tail to jaw) and her body's bones.
      */
     points() {
       root.updateMatrixWorld(true);
@@ -319,6 +325,7 @@ export function sloedlaLife(actor) {
         facing: parts.eyes.clone().normalize().applyQuaternion(q),
         eyes: head.localToWorld(parts.eyes.clone()),
         crest: head.localToWorld(parts.crest.clone()),
+        back: bone('Hips').localToWorld(parts.back.clone()),
         body: body.map(at),
         bones: Object.fromEntries(['Hips', 'Chest', 'Neck2', 'Neck3', 'Head'].map(name => [name, at(bone(name))])),
       };

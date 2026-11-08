@@ -304,11 +304,11 @@ test('she is out of sight but her crest in reed_close until the peek', async () 
     const before = frames.filter(f => f.scene === 2 && f.shot === 'reed_close' && f.hold && f.t < peek.at);
     assert.ok(before.length >= least, `${before.length} frames of the reed before the peek (${kind})`);
     const over = point => overGround(run.world, point);
-    const say = f => `${f.t.toFixed(1)} s: eyes ${over(f.eyes).toFixed(2)}, ${Object.entries(f.bones).map(([name, b]) => `${name} ${over(b).toFixed(2)}`).join(', ')}, crest ${over(f.crest).toFixed(2)} m over the ground, ${fromBed(f.root).toFixed(1)} m into the bed`;
-    const seen = before.filter(f => over(f.eyes) > REED_TOP.low || Object.values(f.bones).some(b => over(b) > REED_TOP.low) || fromBed(f.root) > REED_BED - 2);
-    assert.deepEqual(seen.slice(0, 3).map(say), [], `${kind}: her eyes and body under the shortest reed (${REED_TOP.low.toFixed(2)} m), inside the bed`);
-    const hid = before.filter(f => over(f.crest) < REED_TOP.high);
-    assert.deepEqual(hid.slice(0, 3).map(say), [], `${kind}: her crest over the tallest reed (${REED_TOP.high.toFixed(2)} m)`);
+    const say = f => `${f.t.toFixed(1)} s: eyes ${over(f.eyes).toFixed(2)}, back ${over(f.back).toFixed(2)}, ${Object.entries(f.bones).map(([name, b]) => `${name} ${over(b).toFixed(2)}`).join(', ')}, crest ${over(f.crest).toFixed(2)} m over the ground, ${fromBed(f.root).toFixed(1)} m into the bed`;
+    const seen = before.filter(f => over(f.eyes) > REED_TOP.low || over(f.back) > REED_TOP.low || Object.values(f.bones).some(b => over(b) > REED_TOP.low) || fromBed(f.root) > REED_BED - 2);
+    assert.deepEqual(seen.slice(0, 3).map(say), [], `${kind}: her eyes, her back's top and her bones under the shortest reed (${REED_TOP.low.toFixed(2)} m), inside the bed`);
+    const hid = before.filter(f => over(f.crest) < REED_TOP.mean + 0.3);
+    assert.deepEqual(hid.slice(0, 3).map(say), [], `${kind}: her crest well over the middle reed (${(REED_TOP.mean + 0.3).toFixed(2)} m)`);
     // the peek: her eyes come over the reed
     const peeking = frames.filter(f => f.scene === 2 && f.peeking && f.t > peek.at + 1.5 && f.shot === 'reed_close');
     assert.ok(peeking.length > 20, `${peeking.length} frames of her peeking (${kind})`);

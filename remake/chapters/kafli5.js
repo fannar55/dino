@@ -260,7 +260,7 @@ function* phraseDone(s, c, phrase) {
     c.log({ type: 'step', step: phrase + 1 });
     if (phrase === 1) yield* say(s, c, 'mosi', 'k5_mosi_remember');
     else yield s.wait(2.6);
-    yield s.camera.cut('reed_close');
+    yield s.camera.cut(phrase + 1 === STEPS.length - 1 ? 'sloedla_out' : 'reed_close'); // the last step comes out of the reed's shot, into the pool's
     yield out;
     yield s.wait(0.5);
     if (phrase === 0) yield* say(s, c, 'sloedla', 'k5_sloedla_mine');
