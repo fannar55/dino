@@ -11,8 +11,10 @@ import { createFakeContext } from './fake-audio.mjs';
 import { MELODY, GROUPS, TEMPO } from '../chapters/kafli5-song.js';
 import { HELP } from '../chapters/kafli5-choir.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
-import { SHOTS } from '../chapters/kafli5-pool.js';
+import { SHOTS, STEPS, WADE, SPOTS } from '../chapters/kafli5-pool.js';
 import { FRIENDS } from '../engine/sloedla/friends.js';
+import { createSpeciesLibrary } from '../world/forest/species.js';
+import { FOREST } from '../world/forest/config.js';
 
 const { chapter, NAMES, SHOWS } = kafli5;
 const BEAT = 60 / TEMPO.bpm;
@@ -32,6 +34,23 @@ const inFrame = (point, camera) => {
   const p = point.clone().project(camera);
   return p.z < 1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
 };
+// How tall the far reed stands over its ground (world/ardalur/river.js poolPlants: the reed's variants, at scales 0.95 to 1.25; the
+// land's seed is createArdalur's, 4): the shortest plant, about the middle one, and the tallest. The tall horsetails among it are thin
+// stems and hide nothing.
+const REED_TOP = (() => {
+  const library = createSpeciesLibrary(4);
+  const heights = Array.from({ length: FOREST.trees.variants.horsetailReed }, (_, v) => library.get('horsetailReed', v, 1, {}).height);
+  return { low: Math.min(...heights) * 0.95, mean: (heights.reduce((a, b) => a + b, 0) / heights.length) * 1.1, high: Math.max(...heights) * 1.25 };
+})();
+const REED_BED = 7; // the far bed's radius (kafli4-route.js FAR_POOL.reeds)
+const CLEAR = 2.5; // m: as she walks, her body (tail to jaw, from above) stays this far from anyone
+/** How far [x, z] point `p` (a Vector3, from above) is from the segment from `a` to `b`. */
+const toSegment = (p, a, b) => {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(p.x - a.x - dx * k, p.z - a.z - dz * k);
+};
 
 /**
  * The chapter played by `child` (a function of the chapter's state, the frame and what the run has seen, that taps with the
@@ -39,7 +58,7 @@ const inFrame = (point, camera) => {
  * shot's frames (the groups and the reed out of frame, the camera).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null, audio = null } = {}) {
-  const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [], turtleLift: Infinity };
+  const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [], turtleLift: Infinity, her: [] };
   return playUnattended(kafli5, {
     seeking, limit: 720, shaped: true, aspect, reduced, eager, audio,
     onFrame(frame) {
@@ -66,6 +85,18 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, 
       // how high the turtles sit over the ground (their stone) while the choir sings
       if (c.scene === 4 || c.scene === 5) {
         for (const b of world.forest.life.pool.turtles) seen.turtleLift = Math.min(seen.turtleLift, b.position.y - world.heightAt(b.position.x, b.position.z));
+      }
+      // her, from scene 2 to scene 6: where she is and how she holds herself (kafli5-sloedla.js points), and who is nearest her body
+      if (c.her?.points && c.scene >= 2 && c.scene <= 6) {
+        const p = c.her.points();
+        const others = ['mosi', 'egill', 'flugedla'].map(who => [who, world.actors.get(who).root.position])
+          .concat(GROUPS.flatMap(group => (c.members[group] ?? []).map((b, k) => [`${group} ${k}`, b.position])));
+        let near = { d: Infinity, who: null };
+        for (const [who, at] of others) {
+          const d = toSegment(at, p.body[0], p.body[1]);
+          if (d < near.d) near = { d, who };
+        }
+        seen.her.push({ t: c.s.time, scene: c.scene, shot, hold: director.mode === 'hold', step: c.her.step, moving: c.her.moving, peeking: c.her.peeking, near, ...p });
       }
       // the note the choir wants now, and since when (scene time)
       const st = c.choir?.state();
@@ -257,5 +288,79 @@ test('upright (aspect 0.625): the choir shot shows all five groups and the reed 
     assert.deepEqual(out.slice(0, 3).map(frame => `${frame.out} at ${frame.t.toFixed(1)} s`), [], `${shape}: ${out.length} frames miss some`);
     assert.deepEqual(run.director.warnings, [], `the director (${shape})`);
     assert.deepEqual(run.watched.out, [], `every held shot shows whom it is for (${shape})`);
+  }
+});
+
+// Her life in the reed and out of it (kafli5-sloedla.js): hidden but her crest, the peek, a step out after each phrase, the wade.
+const overGround = (world, point) => point.y - world.heightAt(point.x, point.z);
+const fromBed = point => Math.hypot(point.x - FAR_POOL.farReed[0], point.z - FAR_POOL.farReed[1]);
+
+test('she is out of sight but her crest in reed_close until the peek', async () => {
+  for (const [kind, playKind, least] of [['untouched', untouched, 150], ['eager', quick, 20]]) {
+    const run = await playKind();
+    const frames = run.watched.her;
+    const [peek] = logOf(run, 'peek');
+    assert.ok(peek, `she peeks (${kind})`);
+    const before = frames.filter(f => f.scene === 2 && f.shot === 'reed_close' && f.hold && f.t < peek.at);
+    assert.ok(before.length >= least, `${before.length} frames of the reed before the peek (${kind})`);
+    const over = point => overGround(run.world, point);
+    const say = f => `${f.t.toFixed(1)} s: eyes ${over(f.eyes).toFixed(2)}, ${Object.entries(f.bones).map(([name, b]) => `${name} ${over(b).toFixed(2)}`).join(', ')}, crest ${over(f.crest).toFixed(2)} m over the ground, ${fromBed(f.root).toFixed(1)} m into the bed`;
+    const seen = before.filter(f => over(f.eyes) > REED_TOP.low || Object.values(f.bones).some(b => over(b) > REED_TOP.low) || fromBed(f.root) > REED_BED - 2);
+    assert.deepEqual(seen.slice(0, 3).map(say), [], `${kind}: her eyes and body under the shortest reed (${REED_TOP.low.toFixed(2)} m), inside the bed`);
+    const hid = before.filter(f => over(f.crest) < REED_TOP.high);
+    assert.deepEqual(hid.slice(0, 3).map(say), [], `${kind}: her crest over the tallest reed (${REED_TOP.high.toFixed(2)} m)`);
+    // the peek: her eyes come over the reed
+    const peeking = frames.filter(f => f.scene === 2 && f.peeking && f.t > peek.at + 1.5 && f.shot === 'reed_close');
+    assert.ok(peeking.length > 20, `${peeking.length} frames of her peeking (${kind})`);
+    const low = peeking.filter(f => over(f.eyes) < REED_TOP.mean + 0.1);
+    assert.deepEqual(low.slice(0, 3).map(say), [], `${kind}: peeking, her eyes over the reed (${REED_TOP.mean.toFixed(2)} m)`);
+  }
+});
+
+test('each phrase takes her one step nearer, and never through Egill, Mosi or a group', async () => {
+  for (const [kind, playKind] of [['untouched', untouched], ['eager', quick]]) {
+    const run = await playKind();
+    ended(run, kind);
+    const steps = logOf(run, 'step');
+    const phrases = logOf(run, 'phrase');
+    assert.deepEqual(steps.map(entry => entry.step), [1, 2, 3], `${kind}: a step after each phrase but the last`);
+    steps.forEach((entry, k) => assert.ok(entry.at > phrases[k].at && entry.at < phrases[k + 1].at, `${kind}: step ${entry.step} between phrases ${k} and ${k + 1}`));
+    const frames = run.watched.her;
+    const walking = frames.filter(f => f.moving);
+    assert.ok(walking.length > 300, `${kind}: she walks out (${walking.length} frames)`);
+    // where she stops: each step, then out in the pool, each nearer Egill than the last
+    const stops = frames.filter((f, i) => i > 0 && frames[i - 1].moving && !f.moving);
+    const wanted = [...STEPS.slice(1).map(entry => entry.at), WADE.at];
+    assert.equal(stops.length, wanted.length, `${kind}: she stops ${stops.length} times`);
+    stops.forEach((f, k) => {
+      const off = Math.hypot(f.root.x - wanted[k][0], f.root.z - wanted[k][1]);
+      assert.ok(off < 0.3, `${kind}: stop ${k + 1} is ${off.toFixed(2)} m from its place`);
+    });
+    const toEgill = [STEPS[0].at, ...wanted].map(([x, z]) => Math.hypot(x - SPOTS.egill[0], z - SPOTS.egill[1]));
+    toEgill.forEach((d, k) => k && assert.ok(d < toEgill[k - 1] - 1, `${kind}: each stop nearer Egill (${toEgill.map(v => v.toFixed(1))})`));
+    // never through anyone
+    const close = walking.filter(f => f.near.d < CLEAR);
+    assert.deepEqual(close.slice(0, 3).map(f => `${f.t.toFixed(1)} s: ${f.near.d.toFixed(2)} m from ${f.near.who}`), [], `${kind}: as she walks no one is within ${CLEAR} m of her body`);
+  }
+});
+
+test('nothing of her jumps more than 8 degrees or 0.1 m in a frame from scene 2 to scene 6', async () => {
+  const DEG = 180 / Math.PI;
+  for (const [kind, playKind] of [['untouched', untouched], ['eager', quick], ['upright', upright]]) {
+    const frames = (await playKind()).watched.her;
+    assert.ok(frames.length > 3000, `${kind}: ${frames.length} frames of her`);
+    const jumps = [];
+    for (let i = 1; i < frames.length; i++) {
+      const [a, b] = [frames[i - 1], frames[i]];
+      assert.ok(b.t - a.t < FRAME * 1.5, `${kind}: every frame from scene 2 to 6 (${a.t.toFixed(2)} to ${b.t.toFixed(2)} s)`);
+      const moved = Object.fromEntries(['root', 'head', 'eyes', 'crest'].map(k => [k, a[k].distanceTo(b[k])]));
+      let turned = Math.abs(b.heading - a.heading) % 360;
+      turned = Math.min(turned, 360 - turned);
+      const looked = a.facing.angleTo(b.facing) * DEG;
+      if (Math.max(...Object.values(moved)) > 0.1 || turned > 8 || looked > 8) {
+        jumps.push(`${b.t.toFixed(2)} s, scene ${b.scene} in ${b.shot}: ${Object.entries(moved).map(([k, m]) => `${k} ${m.toFixed(3)} m`).join(', ')}; turned ${turned.toFixed(1)}, her head ${looked.toFixed(1)} degrees`);
+      }
+    }
+    assert.deepEqual(jumps.slice(0, 5), [], `${kind}: ${jumps.length} jumps`);
   }
 });

@@ -26,7 +26,7 @@ import { lineQueue } from './kafli4-flight-play.js';
 import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
 import { MELODY, TEMPO, nextBeat } from './kafli5-song.js';
 import { createChoir, ECHO, NOTE, WHOLE } from './kafli5-choir.js';
-import { sloedlaLife } from './kafli5-sloedla.js';
+import { sloedlaLife, COURAGE } from './kafli5-sloedla.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
@@ -206,10 +206,9 @@ function onChoir(s, c, event) {
       break;
     case 'show':
       // she plays the phrase first: her horn, and the note flies from her crest to the group
-      c.her.horn();
+      c.her.blow({ seconds: NOTE });
       c.sounds.horn(event.group, { seconds: NOTE * 0.95, pan: panOf(c.world, REED_POINT) });
       glow.fly(c, crestPoint(c), tapPoint(c, event.group), NOTE * 0.9, () => glow.flash(event.group));
-      if (event.index === MELODY[event.phrase].length - 1) s.after(NOTE, () => { c.her.idle(); return null; });
       break;
     case 'sing':
       sing(s, c, event.group, { counted: event.counted });
@@ -220,9 +219,8 @@ function onChoir(s, c, event) {
       }
       break;
     case 'echo':
-      c.her.horn();
+      c.her.blow({ seconds: 0.9 });
       c.sounds.horn(event.group, { seconds: 0.9, pan: panOf(c.world, REED_POINT) });
-      s.after(0.9, () => { c.her.idle(); return null; });
       break;
     case 'help':
       if (event.level === 'glow') {
@@ -244,27 +242,29 @@ function onChoir(s, c, event) {
 /** A phrase is done: she plays it whole, and (but after the last) comes a step out of the reed while the choir's clock waits. */
 function* phraseDone(s, c, phrase) {
   const notes = MELODY[phrase];
-  c.her.horn();
+  c.her.blow({ seconds: notes.length * WHOLE });
   for (const group of notes) {
     c.sounds.horn(group, { seconds: WHOLE * 0.95, pan: panOf(c.world, REED_POINT) });
     c.glow.flash(group);
     hop(c, group);
     yield s.wait(WHOLE);
   }
-  c.her.idle();
   if (phrase >= MELODY.length - 1) return;
-  // the step out: the camera looks at Egill and Mosi as she comes, then at her, further out
+  // the step out: the camera looks at Egill and Mosi as she sets off, then at her as she comes on out, and she stops
   c.interlude = true;
   try {
     yield s.wait(0.3);
     yield s.camera.cut('bank_talk');
-    c.her.stepTo(phrase + 1);
+    c.her.courage = COURAGE[phrase + 1];
+    const out = c.her.stepOut(phrase + 1);
     c.log({ type: 'step', step: phrase + 1 });
     if (phrase === 1) yield* say(s, c, 'mosi', 'k5_mosi_remember');
     else yield s.wait(2.6);
     yield s.camera.cut('reed_close');
+    yield out;
+    yield s.wait(0.5);
     if (phrase === 0) yield* say(s, c, 'sloedla', 'k5_sloedla_mine');
-    else yield s.wait(2.6);
+    else yield s.wait(1.6);
     yield s.camera.cut('choir_wide');
     if (phrase === 1) mark(c, 5);
   } finally {
@@ -278,7 +278,7 @@ function* theWholeSong(s, c) {
   mark(c, 6);
   const { mosi, egill, flugedla, world } = c;
   yield s.camera.cut('sloedla_out');
-  c.her.stepTo(STEPS.length - 1);
+  c.her.courage = COURAGE[STEPS.length];
   yield c.her.wade();
   c.her.happy();
   for (const who of [mosi, egill]) yield who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 35 });
@@ -312,7 +312,7 @@ function* theWholeSong(s, c) {
         s.sfx('splash');
       }
       if (!group) continue;
-      c.her.horn();
+      c.her.blow({ seconds: beat });
       c.sounds.horn(group, { seconds: beat * 0.95, pan: panOf(world, [WADE.at[0], LEVEL + 2.4, WADE.at[1]]) }); // her horn, out in the pool
       sing(s, c, group, { counted: false, level: 0.12, log: 'song' });
       c.glow.flash(group);
