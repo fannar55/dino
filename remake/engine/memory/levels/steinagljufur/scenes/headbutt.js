@@ -32,7 +32,8 @@ export function headbuttScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
     { at: 1.55, wait: { until: () => ['fall', 'cheer', 'home'].includes(stage.task.phase()) || !stage.task.busy(), timeout: 9 } },
     // The pile comes down into steps: wide and low, with all of it (and the dust) in the frame.
-    { at: 1.6, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(tris()), pile().top, pile().front, mouth(), up(mouth(), 2)], front: front(.75), elevation: 28, cut: true }, act: () => stage.mosi.look(pile().centre) },
+    { at: 1.6, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(tris()), pile().top, pile().front, mouth(), up(mouth(), 2)], front: front(.75), elevation: 28, cut: true }, act: () => stage.mosi.look(pile().centre),
+      fx: { kind: 'done', at: () => pile().top, shake: false } },
     { at: 1.65, wait: { until: () => ['cheer', 'home'].includes(stage.task.phase()) || !stage.task.busy(), timeout: 6 } },
     // We did it: the pair's cheer, Mosi claps.
     { at: 1.7, shot: { kind: 'face', subjects: () => [...heads(), ...heads().map(p => up(p, .5)), ...tris().map(actor => actor.root.position.clone())], front: front(.7), elevation: 14, cut: true },

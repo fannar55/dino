@@ -9,6 +9,8 @@ import { freezeLevel } from '../step-rules.js';
  * story        the words of the story, by step (playful-flow.js says which moment uses which): `doing`, `ready`, `arriving`, `find`,
  *              `open`, `gather`, `gifts`, `landing` are the story keys, `prompts` has the same names with Mosi's hint; `common` is
  *              what belongs to no step. `seeks`: with one leaf open the search names the other half.
+ * voice        the line Mosi says when the story reaches a moment, by story key (game.js: once as it begins, again on his 10 s repeat and
+ *              on his button); its words are the moment's prompt
  * flags        the fields the rules add to their state, from the Set of finished steps
  * doneFrom     the ladder read back from those fields (the story is also asked with a state written by hand)
  * onCancel     what a cancelled step changes besides stopping
@@ -19,6 +21,7 @@ import { freezeLevel } from '../step-rules.js';
  *              same words); `holding` (level 2's) is the line under Mosi's words while a pair holds something up
  * wrongFriends  the friend the playthrough tool tries first at each obstacle, on purpose (a friend that cannot do it)
  * music        the music stage for a state; eventSounds, eventCaptions: what the world's events sound and say
+ * soundscape   the folder of the level's own sounds beside the shared ones (audio.js soundscapeUrl); credits: its rows behind the ending card's "i"
  */
 const TIGHT = 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.';
 const WAIT = 'Vinirnir bíða. Veldu verkefnið aftur þegar leiðin er laus.';
@@ -35,6 +38,11 @@ export const BERJALUNDUR = freezeLevel({
   id: 'berjalundur',
   number: 1,
   title: 'Berjalundurinn',
+  // (Mosi's claps and the friends' cheer at the grove: Söngur Slóeðlu's, as level 2 has them, soundscape/grove/)
+  soundscape: 'grove',
+  credits: [
+    { sound: true, title: 'Single handclap, 4 people (alternatives 1-4)', author: 'gregswinford', license: 'CC BY 4.0', source: 'freesound.org/people/gregswinford/sounds/487275-487278' },
+  ],
   friends: ['triceratops', 'stegosaurus', 'brontosaurus'],
   gifts: ['shrew', 'hermitCrab', 'crab'],
   roster: { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla' },
@@ -55,9 +63,11 @@ export const BERJALUNDUR = freezeLevel({
   mosiSpot: { x: 3, z: 2.8, heading: 90 },
   gladeView: { landscape: [.464, .375, .803], portrait: [.52, .8, -.3] },
   wrongFriends: { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' },
+  // (`leadIn`: the line Mosi says as a tap-along begins, here the roll scene's «Einn, tveir, ÝTA!». A tap of the child's that he counts cuts it,
+  // so the child hears the count at once: game.js countBeat, the owner's word of 2026-11-08)
   steps: [
     { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll' },
-    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'] },
+    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], leadIn: 'push' },
     { id: 'cross', kind: 'travel', target: 'staging', needsAllFound: true, waitsForGifts: true, automatic: true },
     { id: 'lay', kind: 'task', target: 'bark', species: 'stegosaurus', beatWords: ['Ein!', 'Tvær!', 'Þrjár!'] },
     { id: 'finish', kind: 'travel', target: 'grove', automatic: true },
@@ -94,6 +104,8 @@ export const BERJALUNDUR = freezeLevel({
       prompts: { doing: 'Nú komast allir yfir. Berin bíða okkar!', open: 'Leiðin er opin. Förum saman!' },
     },
   },
+  // The three waits for the child (the branch, the log, the marsh): Mosi says the prompt's words (the juice pass, package C; the owner's yes of 2026-11-08).
+  voice: { 'lift-ready': 'lift_ready', 'roll-ready': 'roll_ready', 'lay-ready': 'lay_ready' },
   // The branch is held from the lift until the roll lets it go; the bridge, the staging spot, the boardwalk and the grove follow their steps.
   flags: done => ({
     branch: done.has('lift') && !done.has('roll') ? 'held' : 'down',
@@ -160,6 +172,8 @@ export const BERJALUNDUR = freezeLevel({
     'log-roll': ['logRoll', { say: 'roll', delay: 0.12 }],
     'bridge-land': ['bridgeLand'],
     'staging-arrival': ['stagingArrival'],
+    // (each pair calls as the last of it comes over the bridge; the walk to the grove ends in the friends' cheer instead)
+    'pair-arrived:cross': [{ method: 'arrivalCall', arg: 'species' }],
     'bark-pickup': ['barkPickup'],
     'bark-place': [{ method: 'barkPlace', arg: 'panel' }],
     'boardwalk-complete': ['boardwalkComplete'],

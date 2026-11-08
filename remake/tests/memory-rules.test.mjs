@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createMemoryGame } from '../engine/memory/rules.js';
-import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel, finishLevel } from '../engine/memory/levels/index.js';
+import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel, finishLevel, isNewLevel, markPlayed } from '../engine/memory/levels/index.js';
 import { BERJALUNDUR } from '../engine/memory/levels/berjalundur.js';
 import { STEINAGLJUFUR } from '../engine/memory/levels/steinagljufur.js';
 
@@ -326,6 +326,29 @@ test('unlocking a level is written as a JSON array of ids, and tells whether it 
   assert.deepEqual([...unlockedLevels(storage)], ['berjalundur']);
 });
 
+test('«Nýtt!»: an open level other than level 1 is new until a round of it starts (minnisspil.played), and blocked storage is no crash', () => {
+  const keys = {}, storage = { getItem: key => keys[key] ?? null, setItem(key, value) { keys[key] = value; } };
+  const [one, two] = LEVELS;
+  assert.equal(isNewLevel(one, new Set(), storage), false, 'level 1 is never new');
+  assert.equal(isNewLevel(two, new Set([two.id]), storage), false, 'a locked level is not new');
+  assert.equal(isNewLevel(two, new Set(), storage), true);
+  assert.equal(markPlayed(two, storage), true); assert.deepEqual(JSON.parse(keys['minnisspil.played']), [two.id]);
+  assert.equal(isNewLevel(two, new Set(), storage), false, 'played: not new any more');
+  assert.equal(keys['minnisspil.unlocked'], undefined, 'the played key is its own, next to the unlocked one');
+  assert.equal(markPlayed(two, blockedStorage), false); assert.equal(isNewLevel(two, new Set(), blockedStorage), true);
+});
+
+test('the juice pass: the page sounds are Litla Yatzy\'s, on the buttons and the picker, never on the finger or the repeat; the star, the basket and the end', () => {
+  const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
+  assert.match(game, /import \{ createJuniorAudio \} from '\.\.\/yatzy-junior\/sounds\.js'/);
+  const body = name => game.slice(game.indexOf(`function ${name}(`), game.indexOf('\n}', game.indexOf(`function ${name}(`)));
+  for (const quiet of ['repeatMoment', 'refreshControls', 'sayAgain']) assert.ok(!body(quiet).includes('uiSound('), `${quiet} makes no page sound`);
+  for (const [name, kind] of [['giftLanded', 'land'], ['landDot', 'pip'], ['setEnding', 'win'], ['pressMosi', 'tap'], ['tapFriend', 'tap']]) assert.ok(body(name).includes(`uiSound('${kind}'`), `${name} plays ${kind}`);
+  assert.match(game, /if \(uiDucked !== voice\) \{ uiDucked = voice; ui\.duck\(voice\); \}/, 'the page sounds dip under his voice');
+  const scenes = readFileSync(new URL('../engine/memory/scenes/first-minute.js', import.meta.url), 'utf8');
+  assert.match(scenes, /say: 'match', sound: \{ name: 'star', nestIndex \}/, 'the star flies as Mosi claps at home');
+});
+
 test('choosing a level: level 1 by default, ?bord= by number, an unknown number falls back to level 1', () => {
   const storage = memoryStorage(null);
   for (const query of ['', 'bord=1', 'bord=3', 'bord=9', 'bord=abc', 'bord=0', 'bord=-1', 'bord=2.5', 'bord=']) {
@@ -365,8 +388,11 @@ test("level 1's words are the markup's own words, on the new screen: the pause, 
   const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
   assert.match(game, /from '\.\/coach\.js'/); assert.match(game, /forgetOldMute\(/);
   assert.ok(!game.includes('setMute('), 'no mute'); assert.ok(!game.includes("'mosi.memory.muted.v1'"), "the old key is named in coach.js only");
-  // Mosi's button and the repeat use the coach's rules; a restart forgets what he said.
-  assert.match(game, /askLine\(\{/); assert.match(game, /repeatDue\(\{/); assert.match(game, /momentLast = null; repeatedKey = null;/);
+  // Mosi's button and the repeat use the coach's rules (a search says `first`, the picker `who`); a restart forgets what he repeated.
+  assert.match(game, /askLine\(\{/); assert.match(game, /repeatDue\(\{/); assert.match(game, /repeatedKey = null; voiceQuiet = 0;/);
+  assert.match(game, /const MOMENT_KINDS = \{ search: 'first', choose: 'who' \};/);
+  // His bubble has the words he says: the welcome and the match line.
+  assert.match(game, /caption\(VOICE_LINES\[LINES\.welcome\]\.text, WELCOME_HOLD\)/); assert.match(game, /caption\(VOICE_LINES\.match\.text, 3\.4\)/); assert.ok(!game.includes('momentLast'), 'no reaction line is kept for the repeat');
 });
 
 // ---- level 2 and the lock ----
@@ -543,20 +569,32 @@ test("the welcome card has the level picker: a card for each level with its pict
 
 test('Mosi\'s ask and repeat rules (coach)', async () => {
   const { IDLE_HINT, IDLE_REPEAT, OLD_MUTE_KEY, forgetOldMute, momentLine, askLine, repeatDue } = await import('../engine/memory/coach.js');
+  const { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
   assert.equal(IDLE_HINT, 4); assert.equal(IDLE_REPEAT, 10);
   const store = new Map([[OLD_MUTE_KEY, 'true'], ['other', '1']]);
   forgetOldMute({ removeItem: key => store.delete(key) });
   assert.equal(store.has(OLD_MUTE_KEY), false); assert.equal(store.get('other'), '1');
   assert.doesNotThrow(() => forgetOldMute(null)); assert.doesNotThrow(() => forgetOldMute(undefined));
   assert.doesNotThrow(() => forgetOldMute({ removeItem() { throw new Error('blocked'); } }));
-  assert.equal(momentLine({ key: 'a', last: { id: 'who', key: 'a' } }), 'who');
-  assert.equal(momentLine({ key: 'b', last: { id: 'who', key: 'a' }, voice: { b: 'g2_lit' } }), 'g2_lit');
-  assert.equal(momentLine({ key: 'b', last: null }), null);
-  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, speaking: true }), null);
-  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, busy: true }), null);
-  assert.equal(askLine({ key: 'b', last: null, help: 'g2_help' }), 'g2_help');
-  assert.equal(askLine({ key: 'a', last: { id: 'who', key: 'a' }, help: 'g2_help' }), 'who');
-  assert.equal(askLine({ key: 'b', last: null }), null);
+  // The instruction of the moment: its own line, else its kind's (a search says `first`), never the last line he said (a match, a gift...).
+  const kinds = { search: 'first', choose: 'who' };
+  assert.equal(momentLine({ key: 'g2-light-ready', kind: 'work', voice: { 'g2-light-ready': 'g2_light_ready' }, kinds }), 'g2_light_ready');
+  assert.equal(momentLine({ key: 'find-friends', kind: 'search', kinds }), 'first');
+  assert.equal(momentLine({ key: 'gifts-left', kind: 'search', voice: { 'gifts-left': 'giftsLeft' }, kinds }), 'giftsLeft', 'its own line first');
+  assert.equal(momentLine({ key: 'lift-ready', kind: 'work', voice: {}, kinds }), null, 'a wait with no line of its own: the repeat says nothing');
+  // Level 1's three waits have their lines (the owner's yes of 2026-11-08), and their words are the moments' prompts.
+  assert.deepEqual({ ...BERJALUNDUR.voice }, { 'lift-ready': 'lift_ready', 'roll-ready': 'roll_ready', 'lay-ready': 'lay_ready' });
+  for (const [key, id] of Object.entries(BERJALUNDUR.voice)) {
+    const step = BERJALUNDUR.steps.find(item => BERJALUNDUR.story[item.id]?.ready === key);
+    assert.equal(VOICE_LINES[id]?.text, BERJALUNDUR.story[step.id].prompts.ready, `${key}: Mosi says what his bubble says`);
+    assert.equal(momentLine({ key, kind: 'work', voice: BERJALUNDUR.voice, kinds }), id, `${key}: the repeat and the button say ${id}`);
+  }
+  assert.equal(momentLine({ key: 'b' }), null);
+  assert.equal(askLine({ key: 'a', kind: 'search', kinds, speaking: true }), null);
+  assert.equal(askLine({ key: 'a', kind: 'search', kinds, busy: true }), null);
+  assert.equal(askLine({ key: 'lift-ready', kind: 'work', kinds, help: 'help' }), 'help', 'a moment with no line: the help line');
+  assert.equal(askLine({ key: 'who-branch', kind: 'choose', kinds, help: 'help' }), 'who');
+  assert.equal(askLine({ key: 'b' }), null);
   const due = { idle: 10, key: 'a', repeated: null, mayAct: true, speaking: false, line: 'who' };
   assert.equal(repeatDue({ ...due, idle: 9.9 }), false);
   assert.equal(repeatDue(due), true);
@@ -564,4 +602,33 @@ test('Mosi\'s ask and repeat rules (coach)', async () => {
   assert.equal(repeatDue({ ...due, speaking: true }), false);
   assert.equal(repeatDue({ ...due, line: null }), false);
   assert.equal(repeatDue({ ...due, mayAct: false }), false);
+  // Mosi counts a beat by its word (the owner's ruling of 2026-11-08): only «Einn!», «Tveir!», «Þrír!», the words of his counting takes.
+  const { countLine } = await import('../engine/memory/coach.js'), { COUNT_TAKES } = await import('../engine/memory/voice-lines.js');
+  assert.deepEqual(['Einn!', 'Tveir!', 'Þrír!'].map(word => countLine(word, COUNT_TAKES)), ['hals_mosi_1', 'hals_mosi_2', 'hals_mosi_3']);
+  for (const word of ['Upp!', 'ÝTA!', 'BÚMM!', 'TOGA!', 'Ein!', 'Tvær!', 'Þrjár!', 'einn!', 'Einn', undefined]) assert.equal(countLine(word, COUNT_TAKES), null, `${word}: words only`);
+  const counted = level => Object.fromEntries(level.steps.filter(step => step.beatWords).map(step => [step.id, step.beatWords.flatMap((word, i) => countLine(word, COUNT_TAKES) ? [i + 1] : [])]));
+  assert.deepEqual(counted(BERJALUNDUR), { lift: [], roll: [1, 2], lay: [] });
+  assert.deepEqual(counted(STEINAGLJUFUR), { headbutt: [1, 2], reach: [1, 2, 3], fly: [1, 2, 3], pull: [1, 2] });
+  // The takes are Háls og hali's, as lines.json has them, and the ones the owner said yes to for this game (heard set "hals", by the MP3's sha256).
+  const { createHash } = await import('node:crypto');
+  const lines = JSON.parse(readFileSync(new URL('../assets/audio/lines.json', import.meta.url), 'utf8'));
+  const heard = JSON.parse(readFileSync(new URL('../assets/audio/heard/2026-11-08-hals.json', import.meta.url), 'utf8'));
+  for (const [id, take] of Object.entries(COUNT_TAKES)) {
+    assert.deepEqual({ src: take.src, duration: take.duration, mouth: take.mouth }, lines[id], `${id}: its entry in lines.json`);
+    const verdict = heard.verdicts[`hals/${id}`], mp3 = readFileSync(new URL(`../${take.src}`, import.meta.url));
+    assert.deepEqual([heard.set, verdict?.verdict, verdict?.text], ['hals', 'ja', take.word], `${id}: the owner's yes`);
+    assert.equal(createHash('sha256').update(mp3).digest('hex'), verdict.mp3, `${id}: the MP3 he heard`);
+  }
+  // game.js: each beat's word is counted through his own voice (the same path for the playthrough's taps)
+  const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
+  assert.match(game, /createMemorySpeech\(\{ clock: \(\) => time, counts: COUNT_TAKES \}\)/); assert.match(game, /showWord\(word\); countBeat\(word, event\);/);
+  assert.match(game, /const take = countLine\(word, COUNT_TAKES\), lead = stepById\(event\.id\)\?\.leadIn \?\? null;/);
+  assert.match(game, /const said = take \? speech\.count\(take, \{ cuts: lead \}\) : false;/);
+  // The child's counted tap cuts the tap-along's own lead-in (the owner's word of 2026-11-08): each tap-along that counts and has one names it,
+  // a line of Mosi's that its scene or the level's eventSounds says as it begins.
+  const leads = level => Object.fromEntries(level.steps.filter(step => step.leadIn).map(step => [step.id, step.leadIn]));
+  assert.deepEqual(leads(BERJALUNDUR), { roll: 'push' });
+  assert.deepEqual(leads(STEINAGLJUFUR), { reach: 'g2_reached', fly: 'g2_flown', pull: 'g2_pull' });
+  for (const line of ['push', 'g2_reached', 'g2_flown', 'g2_pull']) assert.ok(VOICE_LINES[line], `${line}: a line of his`);
+  assert.deepEqual([STEINAGLJUFUR.eventSounds['reach-start'][0].say, STEINAGLJUFUR.eventSounds['fly-start'][0].say], ['g2_reached', 'g2_flown']);
 });

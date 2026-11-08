@@ -28,7 +28,8 @@ export function createCameraDirector({ camera, overview, fallback }) {
     const focus = description.focus ? vector(description.focus) : new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
     const direction = vector(description.direction ?? (portrait ? [-.08, .84, .54] : [.25, .52, .82])).normalize();
     probe.aspect = aspect; probe.fov = camera.fov; probe.updateProjectionMatrix();
-    const topPixels = width < 600 ? 164 : portrait ? 145 : 160, bottomPixels = mode === 'overview' ? 96 : width < 600 ? 140 : 130;
+    // (a shot may keep the lower `clear` share of the picture free, for a card that comes up over it: level 2's last picture under the ending card)
+    const topPixels = width < 600 ? 164 : portrait ? 145 : 160, bottomPixels = Math.max(mode === 'overview' ? 96 : width < 600 ? 140 : 130, Math.round((description.clear ?? 0) * height));
     const horizontal = 1 - 2 * (width < 600 ? 26 : 42) / width, top = 1 - 2 * topPixels / height, bottom = -1 + 2 * bottomPixels / height;
     const projected = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3();
     let solvedTarget = focus.clone();
@@ -89,7 +90,7 @@ export function createCameraDirector({ camera, overview, fallback }) {
       back.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), .32);
       box(shoulder, .4, .3, .4); rest.forEach(p => box(p, .9, p.y - floor, .6)); direction = lifted(back, options.elevation ?? 18);
     } else { subjects.forEach(p => box(p, 1.3, p.y - floor, 1.1)); direction = lifted(front, options.elevation ?? (options.kind === 'follow' ? 26 : 24)); scale = options.kind === 'wide' ? 'wide' : 'action'; }
-    return solve({ shot: true, points, direction, scale: options.scale ?? scale });
+    return solve({ shot: true, points, direction, scale: options.scale ?? scale, clear: options.clear });
   }
 
   function compose() {
@@ -163,9 +164,9 @@ export function createCameraDirector({ camera, overview, fallback }) {
     reset() { mode = 'auto'; cue = null; cueKey = ''; initialized = false; shot = returning = nudging = shaking = null; takes = 0; request(true); },
     update,
     /** Hold a scripted shot until release(). `subjects` gives the points to frame (re-read every frame for 'follow'). */
-    shot({ kind = 'wide', subjects, cut = true, duration = 1.05, front, elevation, scale, floor } = {}) {
+    shot({ kind = 'wide', subjects, cut = true, duration = 1.05, front, elevation, scale, floor, clear } = {}) {
       if (!SHOT_KINDS.includes(kind) || typeof subjects !== 'function') return false;
-      shot = { options: { kind, subjects, front, elevation, scale, floor }, cut: Boolean(cut), duration: Math.max(.05, Number(duration) || 1.05), active: false, age: 0 };
+      shot = { options: { kind, subjects, front, elevation, scale, floor, clear: Math.max(0, Math.min(.7, Number(clear) || 0)) }, cut: Boolean(cut), duration: Math.max(.05, Number(duration) || 1.05), active: false, age: 0 };
       return true;
     },
     /** Back to the cue's frame: a glide (or a cut), after which world input returns. */

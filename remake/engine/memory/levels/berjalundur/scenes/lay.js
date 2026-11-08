@@ -65,7 +65,7 @@ export function layScene(stage, { panels = 3, timeout = 4 } = {}) {
     } else {
       // The last one: the whole boardwalk, done. The pair walks back while Mosi claps.
       lines.push({ at: next(.5), shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), spot(0), shift(spot(panels - 1), 0, 0, -.8), up(spot(panels - 1), 1)], front: DONE_FRONT, elevation: 20, cut: true },
-        act: all(() => stage.pairGesture('stegosaurus', 'cheer'), () => stage.mosi.gesture('clap')), fx: { kind: 'stars', at: () => up(spot(panels - 1), 1.1), count: 12 } });
+        act: all(() => stage.pairGesture('stegosaurus', 'cheer'), () => stage.mosi.gesture('clap')), fx: { kind: 'done', at: () => up(spot(panels - 1), 1.1), shake: false } });
     }
   }
   lines.push({ at: next(), wait: { until: () => !going(), timeout: 8 } });

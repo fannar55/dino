@@ -20,9 +20,15 @@ const MOTIFS = {
   triceratops: { duration: 0.59, pitch: 172, formants: [490, 1330], pulses: [[0.01, 0.22], [0.29, 0.25]], breath: 0.13 },
   stegosaurus: { duration: 0.49, pitch: 228, formants: [380, 1040], pulses: [[0.01, 0.15], [0.22, 0.24]], breath: 0.065 },
   brontosaurus: { duration: 0.75, pitch: 139, formants: [320, 880], pulses: [[0.01, 0.70]], breath: 0.035 },
-  // The Flugeðla baby (level 2): the highest of the four, three quick, bright chirps, the last a little longer.
+  // The Flugeðla baby (level 2): the highest of the four, three quick, bright chirps, the last a little longer. Heard only when her real cries
+  // (BABY_CALLS) do not come.
   pteranodon: { duration: 0.54, pitch: 318, formants: [640, 1760], pulses: [[0.01, 0.14], [0.19, 0.12], [0.34, 0.19]], breath: 0.08 },
 };
+// A friend whose call is another game's real cry, played higher for a baby: the Flugeðla's are chapter 4's flyer cries (kafli4/hljod/flyer-1, -2, the
+// owner's picks of 2026-11-07, in the gorge's manifest), the two in turn. Without them her call is the synth above.
+const BABY_CALLS = { pteranodon: { takes: ['flyer-1', 'flyer-2'], rate: 1.32 } };
+// How far ahead a call may be queued: a tap's answer 1.2 s (no stale chatter), the calls of the pairs that arrive at the end of a long walk 3.2 s (four calls in a row).
+const CALL_AHEAD = 1.2, ARRIVAL_AHEAD = 3.2;
 
 /** Friendly, breathy voiced PCM: glottal harmonics shaped by two broad moving vocal resonances. */
 function animalBuffer(context, spec) {
@@ -112,6 +118,7 @@ function riverBuffer(context) {
 export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = globalThis.fetch, extraManifests = [] } = {}) {
   let context = null, output = null, muted = false, paused = false, disposed = false, unlocked = false;
   let clapTake = 0, cheerTake = 0;
+  const babyTurn = {};
   let played = 0, dropped = 0, callUntil = 0, lastRockAt = -Infinity, riverVoice = null, ducked = false;
   let preloadPromise = null, decodePromise = null, loadController = null, recordedPlayed = 0;
   const voices = new Set(), buffers = {}, log = [], bridgeTimes = new Map();
@@ -200,12 +207,12 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     return true;
   }
 
-  function recording(id, at, pan = 0, kind = id, scale = 1, rate = 1, cutoff = 11000) {
+  function recording(id, at, pan = 0, kind = id, scale = 1, rate = 1, cutoff = 11000, species = MOTIFS[id] ? id : undefined) {
     if (!recordings.has(id)) return false;
     if (!allowed() || voices.size >= LIMIT) { dropped++; return false; }
     const source = context.createBufferSource(); source.buffer = recordings.get(id); source.playbackRate.value = rate;
     return connectVoice(source, { at, duration: source.buffer.duration / rate, level: (recordingMeta.get(id)?.gain ?? .6) * scale,
-      pan, cutoff, kind, species: MOTIFS[id] ? id : undefined, asset: id, sourceType: 'recorded' });
+      pan, cutoff, kind, species, asset: id, sourceType: 'recorded' });
   }
 
   function sample(name, at, level, pan = 0, kind = name) {
@@ -222,14 +229,21 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     return connectVoice(source, { at, duration, level, cutoff: 2400, kind: 'note' });
   }
 
-  function call(species, index, delay = 0.075) {
+  // The baby's real cry for this call (BABY_CALLS), the takes in turn, or null for the friend's own call.
+  function babyTake(species) {
+    const baby = BABY_CALLS[species], ready = baby?.takes.filter(id => recordings.has(id)) ?? [];
+    if (!ready.length) return null;
+    babyTurn[species] = ((babyTurn[species] ?? -1) + 1) % ready.length;
+    return { id: ready[babyTurn[species]], rate: baby.rate };
+  }
+  function call(species, index, delay = 0.075, ahead = CALL_AHEAD) {
     if (!allowed() || !MOTIFS[species]) return false;
     const now = context.currentTime, at = Math.max(now + delay, callUntil + 0.045);
     // Rapid taps can queue the next answer, but cannot build seconds of stale animal chatter.
-    if (at - now > 1.2) { dropped++; return false; }
-    const pan = ((Number.isFinite(index) ? index : 1) % 3 - 1) * 0.27;
-    const accepted = sample(species, at, 0.21, pan, 'call');
-    if (accepted) callUntil = at + (recordings.get(species)?.duration ?? MOTIFS[species].duration);
+    if (at - now > ahead) { dropped++; return false; }
+    const pan = ((Number.isFinite(index) ? index : 1) % 3 - 1) * 0.27, take = babyTake(species);
+    const accepted = take ? recording(take.id, at, pan, 'call', 1, take.rate, 11000, species) : sample(species, at, 0.21, pan, 'call');
+    if (accepted) callUntil = at + (take ? recordings.get(take.id).duration / take.rate : recordings.get(species)?.duration ?? MOTIFS[species].duration);
     return accepted;
   }
 
@@ -381,6 +395,13 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       if (!allowed()) return false;
       sample('straw', context.currentTime, 0.075);
       return call(species, index, 0.04);
+    },
+    // A pair at the end of a long walk (over the bridge, out of the tunnel, up the ramp, over the trunk) calls once as it comes to its place:
+    // its own call, one after another when the pairs come close together (ARRIVAL_AHEAD), each from its own side.
+    arrivalCall(species) {
+      if (!allowed()) return false;
+      const index = { triceratops: 0, stegosaurus: 2, brontosaurus: 1, pteranodon: 2 }[species] ?? 1;
+      return call(species, index, 0.12, ARRIVAL_AHEAD);
     },
     rockPush() {
       if (!allowed() || context.currentTime - lastRockAt < 0.25) return false;
