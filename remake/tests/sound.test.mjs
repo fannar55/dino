@@ -265,7 +265,9 @@ test('main.js starts the sound on the first touch and holds it with the book and
 
 test('main.js keeps captures and review shots silent and gives the scene its effects', () => {
   assert.match(MAIN, /voice\.muted = true;\s*music\.muted = true;\s*sfx\.muted = true;/, 'the seek replay is silent');
-  assert.match(MAIN, /const playing = params\.get\('t'\) === null && params\.get\('shot'\) === null && Boolean\(chapter\.script\);/);
+  assert.match(MAIN, /const playing = \(params\.get\('t'\) === null \|\| params\.get\('play'\) === '1'\) && params\.get\('shot'\) === null && Boolean\(chapter\.script\);/, 'a capture (t without play=1) and a review shot are not played');
+  assert.match(MAIN, /if \(playing\) \{[^}]*clock\.setPaused\(true\);\s*addEventListener\('pointerdown', \(\) => \{\s*voice\.muted = music\.muted = sfx\.muted = bookAudio\.muted = false;\s*music\.start\(\);\s*clock\.setPaused\(false\);/, 'a review from a time (t with play=1) holds at t and plays on, with sound, from the first touch');
+  assert.match(MAIN, /\} else clock\.freeze\(\);/, 'a capture freezes at t');
   assert.match(MAIN, /const audio = playing \? createAudioContext\(\) : null;/, 'a capture or a review shot makes no audio context at all');
   assert.match(MAIN, /createScene\(\{[^}]*\bsfx\b[^}]*\}\)/, 'the scene can play effects');
   assert.match(MAIN, /theme, clock, base: themeUrl/, 'the music reads its file against theme.json\'s own URL');

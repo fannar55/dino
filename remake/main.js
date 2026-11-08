@@ -51,7 +51,8 @@ import { createForrit } from './engine/offline/forrit.js';
 //   look=morning|lateMorning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
 //   t=<seconds>           seek to that time and freeze it (the scene, or a review shot's animation); silent
-//   play=1                start the scene at once, without the start button
+//   play=1                start the scene at once, without the start button; with t: seek there, hold it until a tap, then
+//                         play on from there with sound (a review from a time; the child's save is still left alone)
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
@@ -190,7 +191,7 @@ const { theme, url: themeUrl } = await loadTheme(chapter, new URL('./assets/audi
 const dance = theme && danceGrid(theme);
 // Sound. A capture (?t=) and a review shot (?shot=) are silent and make no audio context at all; a scene somebody plays
 // gets one, which the browser keeps asleep until the first touch (the start button), so nothing sounds before it.
-const playing = params.get('t') === null && params.get('shot') === null && Boolean(chapter.script);
+const playing = (params.get('t') === null || params.get('play') === '1') && params.get('shot') === null && Boolean(chapter.script);
 const audio = playing ? createAudioContext() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
@@ -723,7 +724,15 @@ if (shotName || !chapter.script) {
       }
     }
     stage.seeking = false;
-    clock.freeze();
+    if (playing) {
+      // ?play=1 too: it stands at t until a tap, the touch the browser wants before it lets sound begin, and plays on from there
+      clock.setPaused(true);
+      addEventListener('pointerdown', () => {
+        voice.muted = music.muted = sfx.muted = bookAudio.muted = false;
+        music.start();
+        clock.setPaused(false);
+      }, { once: true, capture: true });
+    } else clock.freeze();
     forrit.started();
   } else if (params.get('play') === '1') {
     forrit.started();

@@ -181,8 +181,13 @@ const SEAT_FLAT = 0.3; // below this much of the bone's way lying flat, the seat
  *   host        the host
  *   update()    brings them up to date and returns the seat
  * ride(), floatTo() and floatDown() take it as they take a saddle (they use seat, grips, host and update).
+ *
+ * With `skin` the rider sits on the host's skin instead: { seat, grips: { left, right }, knees, ankles }, points in the bone's own
+ * frame (they turn with it, so they stay on her skin however her head pitches). The seat of his trousers goes on `seat` (his root
+ * SIT_DEPTH under it, upright), his wrists to `grips`, and his legs astride to `knees` and `ankles` (legsOn), his spine leaning
+ * `lean` degrees and his soles flat (`flatFeet`) on a broad top. The seat then also returns knees, ankles, lean and flatFeet.
  */
-export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: hands = {} } = {}) {
+export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: hands = {}, skin = null, lean = 0, flatFeet = false } = {}) {
   if (!boneName) throw new TypeError('createSeat needs the bone the seat is on: { bone: \'Head\' }');
   const { bone, inverse } = skinOf(host).bone(boneName);
   // The way the host faces, in the bone's own frame as it was bound (the host faces +X in its model's frame).
@@ -197,6 +202,10 @@ export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: ha
   const turn = new THREE.Quaternion();
   const facing = new V3();
   const hostWay = new V3();
+  const pair = p => ({ left: new V3(...p.left), right: new V3(...p.right) });
+  const on = skin && { seat: new V3(...skin.seat), grips: pair(skin.grips), knees: skin.knees && pair(skin.knees), ankles: skin.ankles && pair(skin.ankles) };
+  const knees = on?.knees ? { left: new V3(), right: new V3() } : null;
+  const ankles = on?.ankles ? { left: new V3(), right: new V3() } : null;
   function update() {
     bone.updateWorldMatrix(true, false);
     bone.matrixWorld.decompose(origin, turn, facing);
@@ -210,12 +219,20 @@ export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: ha
       if (facing.lengthSq() < 1e-8) facing.copy(hostWay);
     }
     quaternion.setFromAxisAngle(UP, -Math.atan2(facing.z, facing.x));
+    if (on) {
+      for (const side of ['left', 'right']) {
+        grips[side].copy(on.grips[side]).applyMatrix4(bone.matrixWorld);
+        knees?.[side].copy(on.knees[side]).applyMatrix4(bone.matrixWorld);
+        ankles?.[side].copy(on.ankles[side]).applyMatrix4(bone.matrixWorld);
+      }
+      return seat.copy(on.seat).applyMatrix4(bone.matrixWorld).addScaledVector(UP, -SIT_DEPTH);
+    }
     grips.left.copy(holds.left).applyQuaternion(quaternion).add(origin);
     grips.right.copy(holds.right).applyQuaternion(quaternion).add(origin);
     return seat.copy(at).applyQuaternion(quaternion).add(origin);
   }
   update();
-  return { object: null, seat, grips, quaternion, host, update };
+  return { object: null, seat, grips, knees, ankles, lean: on ? lean : 0, flatFeet: Boolean(on && flatFeet), quaternion, host, update };
 }
 
 // Taking riders over ------------------------------------------------------------------------------
@@ -410,8 +427,10 @@ const FLOAT_SIT = 0.6;
  * Lift the rider, cartoon-style, from where he stands onto the saddle's seat over `duration` seconds,
  * playing `lifted` and leaving a trail of sparkles. Returns a Handle that finishes with him exactly on
  * the seat, facing the host's way; he stays held there until ride() takes over (or another float).
+ * With `carryLegs` his legs open astride as they will sit, carried down with him (each place as far over the saddle's as he is
+ * over the seat), not reaching down to it ahead of him: for a seat close over skin (createSeat `skin`), where they would go into it.
  */
-export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
+export function floatTo(rider, saddle, { duration = 2.2, carryLegs = false } = {}) {
   const world = rider.world;
   if (!world?.effects) throw new Error('floatTo needs the rider\'s world.effects (engine/effects.js), which main.js updates');
   const handle = new Handle(`${rider.name} floats up`);
@@ -420,7 +439,10 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
   const rise = new V3();
   const hover = new V3();
   const facing = new THREE.Quaternion();
-  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0, flatFeet: Boolean(saddle.flatFeet) }) : null;
+  const astride = saddle.knees && saddle.ankles;
+  const pair = () => ({ left: new V3(), right: new V3() });
+  const carried = astride && carryLegs ? { ankles: pair(), knees: pair(), over: new V3() } : null;
+  const legs = astride ? legsOn(rider, carried?.ankles ?? saddle.ankles, carried?.knees ?? saddle.knees, { lean: saddle.lean ?? 0, flatFeet: Boolean(saddle.flatFeet) }) : null;
   let t = 0;
   let sitting = false;
   const controller = {
@@ -434,6 +456,13 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
       hover.copy(end).addScaledVector(UP, FLOAT_HOVER);
       const a = (1 - k) ** 3, b = 3 * (1 - k) ** 2 * k, c = 3 * (1 - k) * k * k, e = k ** 3;
       rider.root.position.set(0, 0, 0).addScaledVector(start, a).addScaledVector(rise, b).addScaledVector(hover, c).addScaledVector(end, e);
+      if (carried) {
+        carried.over.subVectors(rider.root.position, end);
+        for (const side of ['left', 'right']) {
+          carried.ankles[side].copy(saddle.ankles[side]).add(carried.over);
+          carried.knees[side].copy(saddle.knees[side]).add(carried.over);
+        }
+      }
       facing.setFromAxisAngle(UP, -THREE.MathUtils.degToRad(saddle.host.heading));
       rider.root.quaternion.slerpQuaternions(startTurn, facing, smooth(clamp01(u / 0.7)));
       if (!sitting && t >= duration - FLOAT_SIT) {
