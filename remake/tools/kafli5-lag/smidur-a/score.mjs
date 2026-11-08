@@ -291,6 +291,8 @@ export function compose() {
     n('strings', 'lead', B(14) + b, d, m, 0.6, { section: 'vc', voices: 4, attack: 0.08, release: 0.3, vibDepth: 18, part: 'cellolead' });
   }
 
+  roll('snare', B(17, 3), 1, 0.25, 0.22, 0.42); // into the chorus
+
   // =========================================================================================== 5. chorus 1 (18-25)
   chorus(18, 1);
 
