@@ -93,7 +93,7 @@ export function chordOfBar(bar) {
 // Her lines (lines.json), where each lands and what is done with it. echo: tempo echo thrown on the last word; radio: a band-passed
 // megaphone colour; stutter: the first sixteenth of the line repeated that many times on the sixteenths before it.
 export const DJ = [
-  { id: 'welcome', beat: 16, echo: 'last', duck: 3 },
+  { id: 'welcome', beat: 16, echo: 'last', duck: 2, lift: 4 },
   { id: 'egill', beat: 32, radio: true, duck: 3 },
   { id: 'clap', beat: 40, echo: 'last', duck: 3 },
   { id: 'party-on', beat: 64, echo: 'last', stutter: 2, duck: 4 },
@@ -118,7 +118,7 @@ export const DJ = [
   { id: 'hear-you', beat: 336, echo: 'last', radio: true, duck: 3, key: 'hear-you-2' },
   { id: 'all', beat: 343.5, duck: 3, key: 'all-2' },
   { id: 'one-more', beat: 349.5, echo: 'last', stutter: 2, duck: 3 },
-  { id: 'goodnight', beat: 389, echo: 'last', duck: 3 },
+  { id: 'goodnight', beat: 389, echo: 'last', duck: 3, lift: 3 },
 ];
 
 // ---------------------------------------------------------------- the score
@@ -310,10 +310,10 @@ export function buildScore() {
 
   // ======== Arrival (bars 0-3): the forest gathers
   for (let bar = 0; bar < 8; bar++) {
-    padBar(bar, { attack: bar === 0 ? 1.2 : 0.3, release: 0.6, vel: 0.9 + 0.02 * bar });
+    padBar(bar, { attack: bar === 0 ? 1.2 : 0.3, release: 0.6, vel: 1.1 + 0.03 * bar });
     twinkles(bar, [3, 4, 5, 6, 6, 6, 7, 8][bar], 100 + bar, 0.2 + bar * 0.015);
   }
-  for (let bar = 1; bar < 6; bar++) tick8(bar, 0.12 + 0.03 * bar);
+  for (let bar = 1; bar < 6; bar++) tick8(bar, 0.16 + 0.035 * bar);
   // far calls of every group, coming from every side
   call('frogs', 2, { take: 1, vel: 0.35, pan: 0.7 });
   call('lizards', 4.5, { vel: 0.3, pan: -0.7 });
@@ -335,7 +335,8 @@ export function buildScore() {
   S.cymbal.push({ beat: 12, seconds: 4 * 0.48, reverse: true, vel: 0.12 });
   roar(24, 0.75, 2.4, 1);
   S.bass.push({ beat: 24, dur: 1.9, midi: 31, vel: 0.5, bright: 0.25 });
-  for (let bar = 6; bar < 8; bar++) for (let b = 0; b < 4; b++) S.kick.push({ beat: bar * 4 + b, vel: 0.4 + (bar - 6) * 0.12 + b * 0.03, tone: 0.25 });
+  for (let bar = 4; bar < 8; bar++) for (let b = 0; b < 4; b++) S.kick.push({ beat: bar * 4 + b, vel: 0.32 + (bar - 4) * 0.06 + b * 0.015, tone: 0.2 + 0.03 * (bar - 4) });
+  for (let bar = 4; bar < 8; bar++) for (const b of [0.5, 1.5, 2.5, 3.5]) S.shaker.push({ beat: bar * 4 + b, vel: 0.1 + 0.02 * (bar - 4) });
   [[28, 0.15], [28.5, 0.2], [29, 0.25], [29.5, 0.3], [30, 0.35], [30.5, 0.4], [31, 0.45], [31.25, 0.5], [31.5, 0.55], [31.75, 0.6]].forEach(([b, v]) => S.hat.push({ beat: b, vel: v * 0.6 }));
   S.cymbal.push({ beat: 28, seconds: 4 * 0.48, reverse: true, vel: 0.16 });
   S.cues.push({ beat: 16, kind: 'hit' }, { beat: 28, kind: 'rise' });
@@ -343,7 +344,7 @@ export function buildScore() {
   // ======== Warm-up (bars 8-15)
   for (let bar = 8; bar < 16; bar++) {
     const u = (bar - 8) / 7;
-    fourFloor(bar, 0.7 + 0.15 * u, 0.5 + 0.4 * u);
+    fourFloor(bar, 0.75 + 0.15 * u, 0.65 + 0.35 * u);
     padBar(bar, { vel: 0.85 });
     if (bar < 12) rootBass(bar, 0.6, 0.4);
     else discoBass(bar, 0.75, 0.7);
@@ -355,6 +356,10 @@ export function buildScore() {
   }
   S.cymbal.push({ beat: 32, seconds: 2.2, vel: 0.1 });
   S.cues.push({ beat: 32, kind: 'hit' }, { beat: 48, kind: 'rise' });
+  // the crowd gets excited: whoops from all over the forest, between her words
+  [['lizards', 36.5, 0.6], ['flyers', 38, -0.5], ['frogs', 43.5, 0.5], ['grazers', 46, -0.6], ['lizards', 47.5, 0.7], ['turtles', 50, -0.4],
+    ['flyers', 51.5, 0.3], ['frogs', 53.5, -0.6], ['lizards', 55, 0.6], ['frogs', 57.5, 0.4], ['flyers', 59, -0.3], ['grazers', 60, -0.5],
+    ['lizards', 61.5, 0.5], ['frogs', 62.5, -0.5]].forEach(([g, beat, pan], k) => call(g, beat, { dur: 1, vel: 0.4 + 0.02 * k, pan, take: k % 2 }));
   // the build into the first drop: snare roll, riser, high-pass sweep
   for (let bar = 14; bar < 16; bar++) {
     const per = bar === 14 ? 0.5 : 0.25;
@@ -559,7 +564,7 @@ export function buildScore() {
     S.cues.push({ beat, kind: 'count', n: 5 - k });
   });
   fly(272, 16, 67, { vel: 0.32, glideTo: mtofLocal(79), panFrom: -0.6, panTo: 0.6 });
-  S.hpf.push({ from: 280, to: 288, hz: 220 });
+  S.hpf.push({ from: 280, to: 288, hz: 160 });
 
   // ======== The big drop (bars 72-75)
   for (let bar = 72; bar < 76; bar++) {
@@ -615,9 +620,10 @@ export function buildScore() {
     crowdClaps(bar, 0.75, 0.5);
     padBar(bar, { vel: 0.85 });
     openHats(bar, 0.25);
-    if (bar >= 86) rootBass(bar, 0.6, 0.4);
+    rootBass(bar, 0.65, 0.45);
+    hats16(bar, 0.16);
   }
-  roar(340, 1, 2.6, 5);
+  roar(340, 0.7, 2.6, 5);
   // the answer to "Öll saman!": everyone sings the first phrase, sol mi
   [['lizards', 346, 1.5], ['frogs', 347.5, 2]].forEach(([g, beat, dur]) => {
     call(g, beat, { dur, vel: 1, pan: 0 });
@@ -628,7 +634,7 @@ export function buildScore() {
   });
   for (let b = 348; b < 352; b += 0.25) S.snare.push({ beat: b, vel: 0.2 + 0.3 * ((b - 348) / 4) });
   S.cymbal.push({ beat: 348, seconds: 4 * 0.48, reverse: true, vel: 0.2 });
-  S.hpf.push({ from: 344, to: 352, hz: 180 });
+  S.hpf.push({ from: 344, to: 352, hz: 120 });
 
   // ======== One more time (bars 88-95)
   for (let bar = 88; bar < 96; bar++) {
@@ -702,7 +708,7 @@ export function buildScore() {
   // section dynamics
   const DYN = {
     welcome: { kick: 0.9 },
-    warmup: { kick: 0.85, bass: 0.85, pad: 0.9 },
+    warmup: { kick: 1, bass: 0.95, pad: 0.95 },
     groove: { kick: 0.82, bass: 0.82, pad: 0.85, hat: 0.85 },
     tuneA: { kick: 0.9, bass: 0.9 },
     grazers: { kick: 0.82, bass: 0.84 },

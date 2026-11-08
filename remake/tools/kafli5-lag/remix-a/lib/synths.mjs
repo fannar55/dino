@@ -376,7 +376,7 @@ export function buzz(f, seconds, { vel = 1, glideTo = 0, rate = 125 / 60 * 16, a
  * The forest as a crowd: a cheer of many voices made of noise through moving formants ("ye-aah"), each voice with its own
  * flutter, swelling in `attack` s and dying over `seconds`. Returns { L, R }.
  */
-export function crowd(seconds, { vel = 1, attack = 0.12, seed = 23, voices = 10 } = {}) {
+export function crowd(seconds, { vel = 1, attack = 0.22, seed = 23, voices = 10 } = {}) {
   const n = N(seconds + 0.4);
   const r = rng(seed);
   const L = new Float32Array(n), R = new Float32Array(n);

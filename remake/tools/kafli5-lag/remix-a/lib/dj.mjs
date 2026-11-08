@@ -114,18 +114,8 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
     const a = at + sh.onset, b = Math.min(n, at + sh.voicedEnd);
     // her level: a few dB over the music under her (after the duck), kept within reach of the song's own loudness
     const under = kLoud(music.L, music.R, a, b);
-    let gain;
-    let voiceLoud = null;
-    if (has) {
-      const y = new Float32Array(x.length);
-      y.set(x);
-      voiceLoud = kLoud(y, y, sh.onset, sh.voicedEnd) - 3.01; // mono into both sides: count it once
-      const target = Math.min(musicInt + 6, Math.max(musicInt - 3, under - d.duck + lift));
-      gain = 10 ** ((target - voiceLoud) / 20);
-      if (!(gain > 0.01 && gain < 30)) throw new Error(`line ${d.id}: gain ${gain} (voice ${voiceLoud}, music ${under})`);
-    } else gain = 0.06;
-    // the take, coloured
-    let y = Float32Array.from(x, v => v * gain);
+    // the take, coloured first (a megaphone: band-passed and driven), so her level is set on what is heard
+    let y = Float32Array.from(x);
     if (d.radio && has) {
       const r = Float32Array.from(y);
       for (const f of [new Biquad('hp', 450, 0.7), new Biquad('hp', 450, 0.7), new Biquad('lp', 3800, 0.7), new Biquad('lp', 3800, 0.7), new Biquad('peak', 1800, 1, 4)]) f.run(r);
@@ -137,6 +127,14 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
       const k = py / (pr || 1);
       for (let i = 0; i < y.length; i++) y[i] = 0.3 * y[i] + 0.8 * Math.tanh((2.2 * r[i] * k) / (py || 1)) * (py / 2.2);
     }
+    let gain;
+    if (has) {
+      const voiceLoud = kLoud(y, y, sh.onset, sh.voicedEnd) - 3.01; // mono into both sides: count it once
+      const target = Math.min(musicInt + 5, Math.max(musicInt - 4, under - d.duck + (d.lift ?? lift)));
+      gain = 10 ** ((target - voiceLoud) / 20);
+      if (!(gain > 0.01 && gain < 30)) throw new Error(`line ${d.id}: gain ${gain} (voice ${voiceLoud}, music ${under})`);
+    } else gain = 0.06;
+    for (let i = 0; i < y.length; i++) y[i] *= gain;
     addMono(dry, y, at, 1, 0);
     // stutter: the first sixteenth again on the sixteenths before the line
     if (d.stutter && has) {
