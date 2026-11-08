@@ -343,7 +343,9 @@
         "Flugeðlan",
         "Flugeðlur",
         "Flugeðlurnar",
-        "flugeðla"
+        "flugeðla",
+        "flugeðlunum",
+        "flugeðlur"
       ],
       "recipes": {
         "hratt": {
@@ -356,7 +358,9 @@
             "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\"",
             "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
             "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\"",
-            "flugeðla": "\"/ˈflʏːɣˌɛðla/\""
+            "flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
+            "flugeðlunum": "\"/ˈflʏːɣˌɛðlʏnʏm/\"",
+            "flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -409,7 +413,8 @@
       "stem": "[Uu]ggeðl",
       "forms": [
         "Uggeðla",
-        "Uggeðlu"
+        "Uggeðlu",
+        "uggeðla"
       ],
       "recipes": {
         "hratt": {
@@ -418,7 +423,8 @@
         "ipa": {
           "say": {
             "Uggeðla": "\"/ˈʏkːˌɛðla/\"",
-            "Uggeðlu": "\"/ˈʏkːˌɛðlʏ/\""
+            "Uggeðlu": "\"/ˈʏkːˌɛðlʏ/\"",
+            "uggeðla": "\"/ˈʏkːˌɛðla/\""
           },
           "note": "IPA /ˈʏkːˌɛðla/ (óheyrt)."
         },
@@ -466,7 +472,8 @@
         "grameðlu",
         "Grameðlur",
         "grameðlan",
-        "Grameðlan"
+        "Grameðlan",
+        "grameðlunnar"
       ],
       "recipes": {
         "hratt": {
@@ -480,7 +487,8 @@
             "grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
             "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\"",
             "grameðlan": "\"/ˈkraːmˌɛðlan/\"",
-            "Grameðlan": "\"/ˈkraːmˌɛðlan/\""
+            "Grameðlan": "\"/ˈkraːmˌɛðlan/\"",
+            "grameðlunnar": "\"/ˈkraːmˌɛðlʏnar/\""
           },
           "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
         },
