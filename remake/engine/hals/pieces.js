@@ -130,7 +130,7 @@ async function createPiece(world, board, id, index, host) {
   if (rider) {
     actor.update(0);
     saddle = createSaddle(actor);
-    saddle.object.visible = true;
+    saddle.show();
     riding = ride(rider, saddle, { settle: 0 });
   }
 

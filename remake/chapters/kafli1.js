@@ -827,8 +827,8 @@ function overSaddle(c, out = new THREE.Vector3()) {
  * heartbeat, until the task is cancelled (then it is its own size again).
  */
 function* glitterSaddle(s, c) {
-  const saddle = c.saddle.object;
-  const size = saddle.scale.x;
+  const saddle = c.saddle;
+  const size = saddle.size;
   let over = false;
   let age = 0;
   c.world.effects.add({
@@ -836,7 +836,7 @@ function* glitterSaddle(s, c) {
       if (over) return false;
       age += dt;
       const beat = Math.max(0, Math.sin((age / GLITTER_BEAT) * Math.PI * 2));
-      saddle.scale.setScalar(size * (1 + 0.14 * beat * beat));
+      saddle.size = size * (1 + 0.14 * beat * beat);
       return true;
     },
   });
@@ -853,7 +853,7 @@ function* glitterSaddle(s, c) {
     }
   } finally {
     over = true;
-    saddle.scale.setScalar(size);
+    saddle.size = size;
   }
 }
 

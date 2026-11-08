@@ -1050,7 +1050,7 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
       c.ring = ringsFor(world, { most: 3 });
       world.chapterState = c;
       c.saddle = createSaddle(mosi.raw);
-      c.saddle.object.visible = true;
+      c.saddle.show();
       c.riding = ride(egill.raw, c.saddle, { settle: 0 });
       arriveInSiki(s, c);
       mosi.raw.place(MOSI_BANK.position[0], MOSI_BANK.position[2], MOSI_BANK.heading);

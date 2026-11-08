@@ -5,7 +5,8 @@ import { sparkleBurst } from '../world/props/sparkles.js';
 
 // Flugeðla's saddle (chapter 4 from scene 5, and the flug review chapter): Egill rides her on it, hands on its handlebar. The owner's
 // Tripo model, made small by tools/blender-saddle.py and fitted to her back and bound to her bones by tools/saddle-fit.mjs, so it
-// bends with her back and over her wing roots as she flies, as her skin does.
+// bends with her back and over her wing roots as she flies, as her skin does. The same saddle, fitted to Mosi's back
+// (saddle-fit.mjs --host=mosi), is his (riding.js createSaddle builds on this).
 //
 //   const saddle = createFlierSaddle(her)   // her actor; the model loads (world.loadModel in the tests, three's loader on the page)
 //   await saddle.loaded                      // true once it is on her (hidden); false where there is no model
@@ -65,7 +66,11 @@ function bodyOf(host) {
   return body;
 }
 
-export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
+/**
+ * `url`: the fitted saddle's file (hers by default; riding.js gives Mosi's). `places`: its places as the file has them (extras.places),
+ * to use until the file has loaded, so a rider can be seated on it from the first frame (riding.js: Mosi's, all on his Body bone).
+ */
+export function createFlierSaddle(host, { url = SADDLE_MODEL, places: early = null } = {}) {
   const body = bodyOf(host);
   const { bones, boneInverses } = body.skeleton;
   const world = host.world;
@@ -78,6 +83,20 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
   let correct = () => {};
   const uniforms = { popScale: { value: 1 }, popCentre: { value: new V3() } };
   const places = { seat: new V3(), grips: { left: new V3(), right: new V3() }, knees: { left: new V3(), right: new V3() }, ankles: { left: new V3(), right: new V3() } };
+  // the file's places (bind frame, saddle-fit's) as points in her mesh's own frame with her bones' indices
+  const spotsOf = (fitted, unbind) => {
+    const spot = ({ bind, weights }) => ({
+      bind: new V3(...bind).applyMatrix4(unbind),
+      weights: Object.entries(weights).map(([name, w]) => [bones.findIndex(bone => bone.name === name), w]).filter(([b]) => b >= 0),
+    });
+    const out = { seat: spot(fitted.seat) };
+    for (const side of SIDES) for (const part of ['grips', 'knees', 'ankles']) out[`${part}.${side}`] = spot(fitted[part][side]);
+    return out;
+  };
+  if (early) {
+    spots = spotsOf(early, body.bindMatrix.clone().invert());
+    uniforms.popCentre.value.copy(spots.seat.bind);
+  }
 
   const load = () => {
     if (world?.loadModel) return world.loadModel(url);
@@ -105,12 +124,7 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
     geometry.applyMatrix4(unbind);
     const turn = new THREE.Matrix3().setFromMatrix4(unbind); // the corrections are moves (relative morph targets): turned only
     for (const target of geometry.morphAttributes.position ?? []) target.applyMatrix3(turn);
-    const spot = ({ bind, weights }) => ({
-      bind: new V3(...bind).applyMatrix4(unbind),
-      weights: Object.entries(weights).map(([name, w]) => [bones.findIndex(bone => bone.name === name), w]).filter(([b]) => b >= 0),
-    });
-    spots = { seat: spot(fitted.seat) };
-    for (const side of SIDES) for (const part of ['grips', 'knees', 'ankles']) spots[`${part}.${side}`] = spot(fitted[part][side]);
+    spots = spotsOf(fitted, unbind);
     uniforms.popCentre.value.copy(spots.seat.bind);
     const material = source.material.clone();
     material.onBeforeCompile = shader => {
@@ -167,8 +181,11 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL } = {}) {
     correct() { correct(); },
     /** On her and seen (or popping on). */
     get shown() { return shown; },
-    /** Its places can be had: the model is on her. */
+    /** Its places can be had: the model is on her (or its places were given). */
     get ready() { return Boolean(spots); },
+    /** Its size, from its seat: 1 is as fitted (chapter 1's glitter swells Mosi's a little and back). */
+    get size() { return uniforms.popScale.value; },
+    set size(k) { uniforms.popScale.value = Math.max(1e-4, k); },
     places,
     /**
      * Its places in the world as her bones are now (her last pose: her model's world matrices must be current), each moved by `move`

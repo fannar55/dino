@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { mergeGeometries } from '../../dist/vendor/BufferGeometryUtils.js';
 import { Handle } from './handle.js';
 import { reachTwoBones } from './ik.js';
-import { sparkleBurst, sparkleTrail } from '../world/props/sparkles.js';
+import { createFlierSaddle } from './flier-saddle.js';
+import { sparkleTrail } from '../world/props/sparkles.js';
 
 // Riding (chapter 1, scenes 5 and 6). A saddle pops onto Mosi's back, Egill floats up into it,
 // cartoon-style, and rides there holding its handle:
@@ -30,8 +30,6 @@ const V3 = THREE.Vector3;
 const UP = new V3(0, 1, 0);
 const smooth = t => t * t * (3 - 2 * t);
 const clamp01 = t => Math.min(1, Math.max(0, t));
-/** Grows from nothing past its size and settles back (as the journal's star pops in). */
-const popIn = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
 const findBone = (model, name) => model.getObjectByName(name) ?? model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
 
 /**
@@ -56,85 +54,45 @@ function skinOf(host) {
     if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o;
   });
   if (!mesh) throw new Error(`${host.name} has no skin to sit on`);
-  const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
-  const bind = [];
-  for (let i = 0; i < position.count; i++) bind.push(new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix));
-  host.root.updateMatrixWorld(true);
   const skin = {
     mesh,
-    // Metres in one bind unit (GLTFLoader binds with an identity bind matrix, in the mesh's own units).
-    unit: mesh.getWorldScale(new V3()).x / host.root.getWorldScale(new V3()).x,
     bone(name) {
       const bone = findBone(host.model, name);
       const index = mesh.skeleton.bones.indexOf(bone);
       if (index < 0) throw new Error(`${host.name} has no bone named "${name}"`);
       const inverse = mesh.skeleton.boneInverses[index];
-      return { bone, index, inverse, at: new V3().setFromMatrixPosition(inverse.clone().invert()) };
-    },
-    /** The bind-pose vertices that these bones (skeleton indices) carry at least half of. */
-    carriedBy(bones) {
-      const out = [];
-      for (let i = 0; i < bind.length; i++) {
-        let share = 0;
-        for (let k = 0; k < 4; k++) if (bones.has(skinIndex.getComponent(i, k))) share += skinWeight.getComponent(i, k);
-        if (share >= 0.5) out.push(bind[i]);
-      }
-      return out;
+      return { bone, index, inverse, mesh };
     },
   };
   skins.set(host, skin);
   return skin;
 }
 
-/**
- * The height of the top of a skin above (x, z), from its vertices: a plane fitted to the highest of them
- * within `reach` of (x, z) seen from above, in the units of the points. -Infinity where there are none.
- */
-function topAt(points, x, z, reach) {
-  let top = -Infinity;
-  const near = [];
-  for (const p of points) {
-    if ((p.x - x) ** 2 + (p.z - z) ** 2 > reach * reach) continue;
-    near.push(p);
-    top = Math.max(top, p.y);
-  }
-  const layer = near.filter(p => p.y > top - reach); // the top of the skin, not what lies under it
-  if (layer.length < 3) return top;
-  // Least squares for y = a + b (px - x) + c (pz - z); a is the height at (x, z).
-  let n = 0, sx = 0, sz = 0, sy = 0, sxx = 0, szz = 0, sxz = 0, sxy = 0, szy = 0;
-  for (const p of layer) {
-    const dx = p.x - x;
-    const dz = p.z - z;
-    n++; sx += dx; sz += dz; sy += p.y; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; sxy += dx * p.y; szy += dz * p.y;
-  }
-  const det = n * (sxx * szz - sxz * sxz) - sx * (sx * szz - sxz * sz) + sz * (sx * sxz - sxx * sz);
-  if (Math.abs(det) < 1e-12) return sy / n;
-  return (sy * (sxx * szz - sxz * sxz) - sx * (sxy * szz - sxz * szy) + sz * (sxy * sxz - sxx * szy)) / det;
-}
-
 // The saddle --------------------------------------------------------------------------------------
-// Sized for Egill, 1.1 m tall. In the sit clip his hips stay at standing height over his root, the
-// underside of his thighs is SIT_DEPTH above it and his feet hang 0.19 m below that. On a back as broad
-// as Mosi's they would sink into it, so the saddle raises him: he sits astride a narrow seat with his
-// shins hanging beside it (they come no nearer the middle than 0.1 m), on a broad pad on the back, with
-// a high cantle behind him and a leather loop in front for both hands.
+// The owner's Tripo saddle, the same as Flugeðla's (engine/flier-saddle.js), fitted to Mosi's back by tools/saddle-fit.mjs --host=mosi:
+// its pad draped over his back behind his shoulders, on the spot the owner marked (2026-10-16: Egill's hips 1.75 m in front of the
+// Body bone, 1.18 m along Mosi from his origin), and bound to his Body bone, so it moves with his back as he stands and walks. Egill
+// sits on its seat with his hands round its handlebar, leaning to it, his knees out to the sides over Mosi's broad back and his feet
+// back on the pad (Egill is 1.1 m tall; the back is more than a metre across, so he kneels astride it as on Flugeðla's).
 //
-// It sits on the top of Mosi's back behind his shoulders, in the middle of the spot the owner marked
-// (2026-10-16): Egill's hips AHEAD (1.75 m) in front of the Body bone, which puts them 1.18 m along Mosi
-// from his origin, and the pad from 0.74 to 1.44 m (also from his origin). The skin there is the Body's
-// alone. With his head straight the frill stays more than 20 cm from Egill, standing and walking; but a
-// head turned far round, or raised high, swings the frill's edge back onto him, so while he rides or
-// floats up the host's looks are capped (LOOK_CAPS, below).
-const LEATHER = '#6f5440'; // the colour of Egill's boots (STYLE.md section 3)
+// With his head straight Mosi's frill stays clear of Egill, standing and walking; but a head turned far round, or raised high, swings
+// the frill's edge back onto him, so while he rides or floats up the host's looks are capped (LOOK_CAPS, below).
 export const SIT_DEPTH = 0.32; // the underside of a sitting rider's thighs above his root (neck-ride.js sits him on her skin with it)
-const FEET_BELOW = 0.21; // his feet below his seat, with 2 cm to spare
-const AHEAD = 1.75;
-const SEAT = { back: -0.17, front: 0.24, halfWidth: 0.095 }; // metres about the rider's hips
-const PAD = { back: -0.44, front: 0.26, halfWidth: 0.42, thickness: 0.045 };
-// The handle, a leather loop standing across the front of the seat (centre and radius, from the rider's
-// root), and where his wrists go to hold it: well within reach of his short arms (0.27 m).
-const HANDLE = { x: 0.225, y: 0.4625, radius: 0.105, tube: 0.022 };
-const GRIP = { x: 0.18, y: 0.555, z: 0.085 };
+export const MOSI_SADDLE_MODEL = new URL('../assets/characters/mosi-saddle.glb', import.meta.url).href;
+// Its places as saddle-fit wrote them into the file (extras.places: bind points in his own units, with their weights) and the up of
+// its frame (extras.frame.up), so that Egill can be seated on it from the first frame, before the file has loaded; tests/riding.test.mjs
+// keeps them the file's.
+export const MOSI_SADDLE = {
+  up: [0, 1, 0],
+  seat: { bind: [0.55836, 1.56824, -0.00207], weights: { Body: 1 } },
+  grips: { left: { bind: [0.66573, 1.64886, -0.07305], weights: { Body: 1 } }, right: { bind: [0.66573, 1.64886, 0.07847], weights: { Body: 1 } } },
+  knees: { left: { bind: [0.6139, 1.5253, -0.23436], weights: { Body: 1 } }, right: { bind: [0.61409, 1.52117, 0.23276], weights: { Body: 1 } } },
+  ankles: { left: { bind: [0.45713, 1.57067, -0.12463], weights: { Body: 1 } }, right: { bind: [0.45753, 1.56928, 0.12153], weights: { Body: 1 } } },
+};
+// Each wrist from the middle of its grip on the bar, [ahead, up, across] in the saddle's frame: a little behind and over it, his hand
+// round the bar (as on Flugeðla's: engine/flier.js WRIST). And how far his spine leans forward to the bar (flier.js LEAN).
+const WRIST = [-0.04, 0.03, 0];
+const LEAN = 12;
 // The caps (degrees) on the host's looks while a rider is on the saddle or floating up to it: how far his
 // head may turn aside and tilt up. Measured on the baked Mosi with Egill seated, as the gap between their
 // skins: without caps, a look round to his left or at Egill on his back comes within 0.4 to 2.4 cm of
@@ -145,183 +103,64 @@ const GRIP = { x: 0.18, y: 0.555, z: 0.085 };
 // only stops a scene that asks for more.
 const LOOK_CAPS = { yaw: 40, up: 30 };
 
-// Builds closed shapes from rings of points that go round the same way (right side, top, left side,
-// bottom, seen from behind), joined front to back with both ends closed.
-function shapes() {
-  const positions = [];
-  const indices = [];
-  const add = p => positions.push(p.x, p.y, p.z) / 3 - 1;
-  return {
-    loft(rings) {
-      const n = rings[0].length;
-      const first = positions.length / 3;
-      for (const ring of rings) ring.forEach(add);
-      for (let r = 0; r + 1 < rings.length; r++) {
-        for (let i = 0; i < n; i++) {
-          const a = first + r * n + i;
-          const b = first + r * n + ((i + 1) % n);
-          indices.push(a, a + n, b, b, a + n, b + n);
-        }
-      }
-      for (const [ring, back] of [[rings[0], true], [rings[rings.length - 1], false]]) {
-        const centre = add(ring.reduce((sum, p) => sum.add(p), new V3()).divideScalar(n));
-        const start = positions.length / 3;
-        ring.forEach(add); // the cap's own corners, so its edge stays crisp
-        for (let i = 0; i < n; i++) {
-          const a = start + i;
-          const b = start + ((i + 1) % n);
-          indices.push(...(back ? [centre, a, b] : [centre, b, a]));
-        }
-      }
-    },
-    geometry() {
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      geometry.setIndex(indices);
-      geometry.computeVertexNormals();
-      return geometry;
-    },
-  };
-}
-
-// The saddle's shape in its own frame (x forward, y up, z to the right side; metres, on the top of the
-// back), from `back(x, z)`, the height of the back there. Returns the geometry, the seat (where the
-// rider's root goes), the top of the seat and the grips (where his wrists go).
-function saddleShape(back) {
-  const build = shapes();
-  // The pad: a cushion lying on the back, its edges rounded down onto it.
-  const padRings = [];
-  for (let k = 0; k <= 16; k++) {
-    const x = PAD.back + ((PAD.front - PAD.back) * k) / 16;
-    const along = Math.abs((2 * k) / 16 - 1);
-    const ring = [];
-    for (let j = 0; j <= 16; j++) {
-      const z = PAD.halfWidth * (1 - (2 * j) / 16); // the top, right to left
-      const edge = Math.max(along, Math.abs(z) / PAD.halfWidth);
-      ring.push(new V3(x, back(x, z) + 0.006 + PAD.thickness * Math.sqrt(Math.max(0, 1 - edge ** 6)), z));
-    }
-    for (let j = 15; j >= 1; j--) ring.push(new V3(x, back(x, ring[j].z) - 0.03, ring[j].z)); // underneath, out of sight
-    padRings.push(ring);
-  }
-  build.loft(padRings);
-  // The seat: high enough to keep his feet off the back, narrow enough for his shins to hang beside it,
-  // rising behind his hips into a high cantle and in front of his knees into the pommel the loop stands on.
-  const feet = Math.max(...[0.1, 0.2].flatMap(x => [-0.17, 0.17].map(z => back(x, z))));
-  const top = feet + FEET_BELOW;
-  let bottom = Infinity;
-  for (let x = SEAT.back; x <= SEAT.front + 1e-9; x += 0.03) for (const z of [-SEAT.halfWidth, 0, SEAT.halfWidth]) bottom = Math.min(bottom, back(x, z));
-  bottom -= 0.06; // inside the back
-  const profile = x => top + (x < -0.03 ? Math.min(0.14, 18 * (x + 0.03) ** 2) : x > 0.15 ? Math.min(0.07, 10 * (x - 0.15) ** 2) : 0);
-  const seatRings = [];
-  for (let k = 0; k <= 16; k++) {
-    const t = -0.97 + (1.94 * k) / 16;
-    const x = (SEAT.back + SEAT.front) / 2 + (t * (SEAT.front - SEAT.back)) / 2;
-    const round = (1 - Math.abs(t) ** 4) ** 0.25; // rounded ends seen from above
-    const half = SEAT.halfWidth * round;
-    const height = (profile(x) - bottom) * round ** 0.8;
-    const ring = [];
-    for (let j = 0; j < 24; j++) {
-      const a = (2 * Math.PI * j) / 24; // from the right side over the top
-      const c = Math.cos(a);
-      const s = Math.sin(a);
-      ring.push(new V3(x, bottom + (height / 2) * (1 + Math.sign(s) * Math.abs(s) ** 0.6), half * Math.sign(c) * Math.abs(c) ** 0.6));
-    }
-    seatRings.push(ring);
-  }
-  build.loft(seatRings);
-  const seat = new V3(0, top - SIT_DEPTH, 0);
-  // The loop: five sixths of a ring standing across the saddle, open at the bottom, where its ends sink
-  // into the pommel.
-  const loop = new THREE.TorusGeometry(HANDLE.radius, HANDLE.tube, 10, 28, (5 / 3) * Math.PI);
-  loop.rotateZ(-Math.PI / 3);
-  loop.rotateY(Math.PI / 2);
-  loop.translate(HANDLE.x, seat.y + HANDLE.y, 0);
-  loop.deleteAttribute('uv');
-  return {
-    geometry: mergeGeometries([build.geometry(), loop]),
-    seat,
-    top,
-    grips: { left: new V3(GRIP.x, seat.y + GRIP.y, -GRIP.z), right: new V3(GRIP.x, seat.y + GRIP.y, GRIP.z) },
-  };
-}
-
 /**
- * A saddle on the host's back, hidden until appear(). It hangs on `bone` with the bone's scale
- * undone, so it follows the bone in any pose and stays in metres; `ahead` is how far in front of the
- * bone (along the host, metres) the rider's hips go. Returns
- *   object   the saddle (in the scene, on the bone)
+ * Mosi's saddle on the host's back (the file fitted to Mosi's, `url`), hidden until show() or appear(). Returns
+ *   object   the saddle's mesh, on his skeleton next to his body (null until its file has loaded)
+ *   loaded   a Promise of true once it is on him (false where the file could not be had: he is ridden bare-backed, on its places)
  *   seat     where a rider's root goes, in the world, as of the last update()
- *   grips    { left, right }: where a rider's wrists go to hold the handle, likewise
+ *   grips    { left, right }: where a rider's wrists go to hold the bar, likewise
+ *   knees, ankles  { left, right }: where his knees bend toward and his feet go, likewise (ride() lays his legs on them)
+ *   lean     the degrees his spine leans forward to the bar as he rides
  *   host     the host
- *   update() brings seat and grips up to date and returns the seat
+ *   update() brings them up to date and returns the seat
+ *   show() / hide()  on his back at once, or off; shown: whether it is
  *   appear({ duration = 0.8 }) pops the saddle in with a burst of sparkles; returns a Handle
+ *   size     its size from its seat (1 as fitted): chapter 1's glitter swells it a little and back
  */
-export function createSaddle(host, { bone: boneName = 'Body', ahead = AHEAD } = {}) {
-  const skin = skinOf(host);
-  const { bone, inverse, at } = skin.bone(boneName);
-  const unit = skin.unit;
-  // The back under the saddle: skin the bone and the bones above it carry (for Mosi's Body bone, the
-  // Body's own), never the neck and frill, which turn with his head.
-  const chain = new Set();
-  for (let b = bone; b?.isBone; b = b.parent) chain.add(skin.mesh.skeleton.bones.indexOf(b));
-  const origin = new V3(at.x + ahead / unit, 0, at.z);
-  const under = skin.carriedBy(chain).filter(p => Math.abs(p.x - origin.x) < 0.8 / unit && Math.abs(p.z - origin.z) < 0.6 / unit);
-  const reach = 0.08 / unit;
-  origin.y = topAt(under, origin.x, origin.z, reach);
-  if (!Number.isFinite(origin.y)) throw new Error(`${host.name} has no back by ${boneName} to put a saddle on`);
-  const back = (x, z) => {
-    const y = topAt(under, origin.x + x / unit, origin.z + z / unit, reach);
-    return Number.isFinite(y) ? (y - origin.y) * unit : 0;
-  };
-  const shape = saddleShape(back);
-  const object = new THREE.Mesh(shape.geometry, new THREE.MeshStandardMaterial({ color: LEATHER, roughness: 0.8, metalness: 0 }));
-  object.name = `${host.name} saddle`;
-  object.castShadow = false; // a shadow would cost the shadow pass a draw call for a sliver on his back
-  object.receiveShadow = true;
-  const turn = new THREE.Quaternion();
-  inverse.decompose(new V3(), turn, new V3());
-  object.position.copy(origin).applyMatrix4(inverse); // in the bone's frame
-  object.quaternion.copy(turn); // the bone's own turn in the bind pose, undone
-  host.root.updateMatrixWorld(true);
-  const size = host.root.getWorldScale(new V3()).x / bone.getWorldScale(new V3()).x; // undoes the bone's scale
-  object.scale.setScalar(size);
-  object.visible = false;
-  bone.add(object);
+export function createSaddle(host, { url = MOSI_SADDLE_MODEL, places = MOSI_SADDLE } = {}) {
+  const fitted = createFlierSaddle(host, { url, places });
+  // The seat's bone, for its frame: the way up and ahead on his back as it is posed now.
+  const boneName = Object.keys(places.seat.weights).reduce((a, b) => (places.seat.weights[a] >= places.seat.weights[b] ? a : b));
+  const { bone, inverse, mesh } = skinOf(host).bone(boneName);
+  const upBind = new V3(...places.up);
   const seat = new V3();
   const grips = { left: new V3(), right: new V3() };
+  const knees = { left: new V3(), right: new V3() };
+  const ankles = { left: new V3(), right: new V3() };
+  const toWorld = new THREE.Matrix4();
+  const turn = new THREE.Quaternion();
+  const up = new V3();
+  const wrist = new V3();
+  const scratch = new V3();
   function update() {
-    object.updateWorldMatrix(true, false);
-    grips.left.copy(shape.grips.left).applyMatrix4(object.matrixWorld);
-    grips.right.copy(shape.grips.right).applyMatrix4(object.matrixWorld);
-    return seat.copy(shape.seat).applyMatrix4(object.matrixWorld);
-  }
-  function appear({ duration = 0.8 } = {}) {
-    const world = host.world;
-    if (!world?.effects) throw new Error('saddle.appear needs the host\'s world.effects (engine/effects.js), which main.js updates');
-    const handle = new Handle(`${host.name} saddle appears`);
-    object.scale.setScalar(size);
-    update();
-    const burst = new V3(0.03, shape.top + 0.1, 0).applyMatrix4(object.matrixWorld); // just above the seat
-    object.visible = true;
-    object.scale.setScalar(size * 1e-4); // a zero scale would leave the normal matrix singular
-    let t = 0;
-    world.effects.add({
-      update(dt) {
-        if (handle.done) return false;
-        t += dt;
-        const k = clamp01(t / duration);
-        object.scale.setScalar(size * Math.max(1e-4, popIn(k)));
-        if (k < 1) return true;
-        handle.finish();
-        return false;
-      },
-    });
-    handle.onCancel = () => object.scale.setScalar(size);
-    sparkleBurst(world, burst, { duration, seed: `${host.name} saddle` });
-    return handle;
+    host.root.updateMatrixWorld(true);
+    const on = fitted.update();
+    toWorld.multiplyMatrices(bone.matrixWorld, inverse).multiply(mesh.bindMatrix);
+    toWorld.decompose(scratch, turn, wrist);
+    up.copy(upBind).applyQuaternion(turn).normalize();
+    seat.copy(on.seat).addScaledVector(up, -SIT_DEPTH);
+    wrist.set(WRIST[0], WRIST[1], WRIST[2]).applyQuaternion(turn);
+    for (const side of ['left', 'right']) {
+      grips[side].copy(on.grips[side]).add(wrist);
+      knees[side].copy(on.knees[side]);
+      ankles[side].copy(on.ankles[side]);
+    }
+    return seat;
   }
   update();
-  return { object, seat, grips, host, update, appear };
+  return {
+    host, seat, grips, knees, ankles, lean: LEAN,
+    loaded: fitted.loaded,
+    get object() { return fitted.mesh; },
+    get shown() { return fitted.shown; },
+    get size() { return fitted.size; },
+    set size(k) { fitted.size = k; },
+    update,
+    show() { fitted.show(); },
+    hide() { fitted.hide(); },
+    appear(options) { return fitted.appear(options); },
+    dispose() { fitted.dispose(); },
+  };
 }
 
 // The seat with no saddle --------------------------------------------------------------------------
@@ -507,29 +346,37 @@ const HANDS_IN = 0.3; // seconds for his hands to go to the handle once he is in
 
 /**
  * The rider sits in the saddle: the root follows `saddle.seat` and the host's heading each frame, the
- * rider plays `sit`, and once seated his hands go to the handle's grips. A rider who is not on the seat
- * yet settles into it over `settle` seconds; one who is (after floatTo) stays exactly on it. stop()
- * gives the rider back where he is.
+ * rider plays `sit`, and once seated his hands go to the handle's grips, and on a saddle with places for
+ * them (Mosi's: knees, ankles) his legs go astride the back and his spine leans `saddle.lean` degrees to
+ * the bar. A rider who is not on the seat yet settles into it over `settle` seconds; one who is (after
+ * floatTo) stays exactly on it. stop() gives the rider back where he is.
  */
 export function ride(rider, saddle, { settle = 0.8 } = {}) {
   const from = { position: rider.root.position.clone(), quaternion: rider.root.quaternion.clone() };
   const blend = from.position.distanceTo(saddle.update()) < 0.02 ? 0 : settle;
   const hands = handsOn(rider, saddle.grips);
+  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0 }) : null;
   const facing = new THREE.Quaternion();
   let t = 0;
   const controller = {
     drive(dt) {
       t += dt;
       hands.restore();
+      legs?.restore();
       saddle.update();
       facing.setFromAxisAngle(UP, -THREE.MathUtils.degToRad(saddle.host.heading));
       const k = blend > 0 ? smooth(clamp01(t / blend)) : 1;
       rider.root.position.lerpVectors(from.position, saddle.seat, k);
       rider.root.quaternion.slerpQuaternions(from.quaternion, facing, k);
     },
-    pose() { hands.apply(smooth(clamp01((t - blend) / HANDS_IN))); },
+    pose() {
+      const k = smooth(clamp01((t - blend) / HANDS_IN));
+      legs?.apply(k); // first: the spine's lean moves his shoulders, which the hands reach from
+      hands.apply(k);
+    },
     end() {
       hands.restore();
+      legs?.restore();
       uncap();
     },
   };
