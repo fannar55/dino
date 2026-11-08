@@ -159,14 +159,14 @@ export function score() {
   function chorus(bar, level, { last = 'run' } = {}) {
     const B = bar * 4;
     groove(bar, CHORUS_CHORDS, {
-      style: `ch${Math.min(level, 3)}`, str: [0, 0.4, 0.55, 0.75, 0.85][level], strHigh: level >= 3, fill: false, bassGain: [0, 1, 1.05, 1.15, 1.2][level],
-      stomps: level >= 3 ? [0, 1, 2, 3] : [0, 2], stompGain: [0, 0.75, 0.8, 0.85, 0.95][level], clapGain: [0, 0.5, 0.55, 0.65, 0.7][level],
-      strumGain: [0, 0.5, 0.55, 0.6, 0.62][level], bodGain: [0, 0.9, 0.95, 1.05, 1.12][level],
+      style: `ch${Math.min(level, 3)}`, str: [0, 0.4, 0.55, 0.8, 1.0][level], strHigh: level >= 3, fill: false, bassGain: [0, 1, 1.05, 1.15, 1.2][level],
+      stomps: level >= 3 ? [0, 1, 2, 3] : [0, 2], stompGain: [0, 0.75, 0.8, 0.9, 1.0][level], clapGain: [0, 0.5, 0.55, 0.65, 0.7][level],
+      strumGain: [0, 0.5, 0.55, 0.6, 0.62][level], bodGain: [0, 0.9, 0.95, 1.1, 1.2][level],
     });
     // the tune
     const wl = [];
     TUNE.forEach(([group, b, d, deg, orn], i) => {
-      call(group, B + b, d, { gain: level >= 3 ? 1.05 : 1 });
+      call(group, B + b, d, { gain: [0, 1, 1, 1.08, 1.12][level] });
       melody.push({ group, beat: B + b });
       const n = level >= 4 ? shift(OCT5[deg], 1) : OCT5[deg];
       wl.push({ b, d: d * 0.94 - 0.04, n, v: 0.85, orn, slur: false });
@@ -207,7 +207,7 @@ export function score() {
   }
 
   // ---------------------------------------------------------------- 1. the forest wakes (bars 0-1)
-  add({ stem: 'pad', kind: 'drone', freqs: ['F2', 'C3', 'F3'].map(H), beat: 0, beats: 8.6, attack: 2.6, release: 0.8, gain: 0.5, pan: 0, send: 0.35, key: 'drone|intro' });
+  add({ stem: 'pad', kind: 'drone', freqs: ['F2', 'C3', 'F3'].map(H), beat: 0, beats: 8.6, attack: 2.6, release: 0.8, gain: 0.3, pan: 0, send: 0.35, key: 'drone|intro' });
   harpRun(0, ['F3', 'A3', 'C4', 'F4', 'A4', 'C5', 'F5', 'A5'], { step: 0.5, gain: 0.55 });
   harpRun(4, ['D4', 'F4', 'A4', 'D5', 'F5', 'A5', 'D6', 'F6'], { step: 0.5, gain: 0.6 });
   // a bird in the trees (the whistle's trills) and the first animals waking, far off
@@ -301,7 +301,7 @@ export function score() {
   whistle(183, [{ b: 0, d: 0.9, n: 'D6', v: 0.55, orn: 'trill', up: H('F6') }], { gain: 0.6, send: 0.5 });
 
   // ---------------------------------------------------------------- 11. engines off: Slóeðla's horn across the valley (bars 46-53)
-  add({ stem: 'pad', kind: 'drone', freqs: ['F2', 'C3', 'F3'].map(H), beat: 184, beats: 33, attack: 1.2, release: 1.6, gain: 0.55, pan: 0, send: 0.4, key: 'drone|mid' });
+  add({ stem: 'pad', kind: 'drone', freqs: ['F2', 'C3', 'F3'].map(H), beat: 184, beats: 33, attack: 1.2, release: 1.6, gain: 0.2, pan: 0, send: 0.4, key: 'drone|mid' });
   harpRun(184, ['F3', 'A3', 'C4', 'F4', 'A4', 'C5', 'F5', 'A5'], { step: 0.5, gain: 0.5 });
   // her call, and the valley answers a bar later (the echo); the harp fills the echoes' gaps
   horn('C4', 188, 2, { valley: true }); horn('A3', 190, 2, { valley: true });

@@ -12,11 +12,11 @@ export const TONE = { grazers: 349.228, turtles: 391.995, frogs: 440, lizards: 5
 
 // The takes used, and the part of each (s). Short ones serve quick notes, long ones held notes.
 export const TAKES = {
-  grazers: { short: { file: 'grazers-2.mp3', cut: [0, 0.95] }, long: { file: 'grazers-3.mp3', cut: [0, 1.5] } },
+  grazers: { short: { file: 'grazers-3.mp3', cut: [0.12, 1.0] }, long: { file: 'grazers-3.mp3', cut: [0, 1.5] } },
   turtles: { short: { file: 'turtles-2.mp3', cut: [0.02, 0.44] }, long: { file: 'turtles-2.mp3', cut: [0.02, 0.44] } },
   frogs: { short: { file: 'frogs-5.mp3', cut: [0, 0.42] }, long: { file: 'frogs-1.mp3', cut: [0, 0.6] } },
   lizards: { short: { file: 'lizards-1.mp3', cut: [0, 0.36] }, long: { file: 'lizards-1.mp3', cut: [0, 0.36] } },
-  flyers: { short: { file: 'flyers-2.mp3', cut: [0.05, 0.62] }, long: { file: 'flyers-1.mp3', cut: [0, 0.85] } },
+  flyers: { short: { file: 'flyers-2.mp3', cut: [0.05, 0.5] }, long: { file: 'flyers-1.mp3', cut: [0, 0.85] } },
 };
 export const HORN = { file: 'horn-1.mp3', cut: [0.05, 2.75] };
 

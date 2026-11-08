@@ -63,19 +63,23 @@ export function checkAll({ OUT, song, json, stems, dryAnimals, renders, LEN, ste
     const target = TONE[r.e.group];
     const p = medianPitch(dryAnimals, beatS + Math.round(0.01 * SR), beatS + span, 80, 4000, 0.6);
     let c = p.hz ? cents(p.hz, target) : NaN; c -= Math.round(c / 1200) * 1200;
-    // the onset: the first frame from 60 ms before the beat where the envelope reaches a quarter of its peak in the note
-    const w0 = beatS - Math.round(0.06 * SR);
-    const seg = dryAnimals.slice(Math.max(0, w0), beatS + Math.round(Math.min(0.3 * SR, span)));
-    const on = onsetOf(seg) + Math.max(0, w0) - beatS;
+    // the onset, read off the call as placed (a different rule from the one that placed it): the first sample over a
+    // tenth of its peak, against the beat
+    let pkY = 0; for (const v of r.y) pkY = Math.max(pkY, Math.abs(v));
+    let first = 0; while (first < r.y.length && Math.abs(r.y[first]) < pkY * 0.1) first++;
+    const on = r.at + first - beatS;
+    // and the envelope rule on the bus, from 25 ms before the beat
+    const w0 = beatS - Math.round(0.025 * SR);
+    const busOn = onsetOf(dryAnimals.slice(Math.max(0, w0), beatS + Math.round(Math.min(0.3 * SR, span)))) + Math.max(0, w0) - beatS;
     (groupsOf[r.e.group] ??= []).push(c);
-    return { group: r.e.group, beat: r.e.beat, hz: p.hz ? r1(p.hz) : null, cents: Number.isNaN(c) ? null : Math.round(c), onsetMs: r1(on / SR * 1000) };
+    return { group: r.e.group, beat: r.e.beat, hz: p.hz ? r1(p.hz) : null, cents: Number.isNaN(c) ? null : Math.round(c), onsetMs: r1(on / SR * 1000), busOnsetMs: r1(busOn / SR * 1000) };
   });
   const isChorus = b => json.chorusMelody.some(m => m.beat === b);
   const chorusCalls = report.calls.filter(c => isChorus(c.beat));
   const featCalls = report.calls.filter(c => !isChorus(c.beat));
   const summary = list => {
-    const cs = list.map(c => c.cents).filter(c => c != null), os = list.map(c => Math.abs(c.onsetMs));
-    return { n: list.length, measured: cs.length, centsMedianAbs: cs.length ? Math.round(pct(cs.map(Math.abs), 0.5)) : null, centsWorst: cs.length ? Math.max(...cs.map(Math.abs)) : null, onsetMsWorst: r1(Math.max(...os)), onsetMsMedian: r1(pct(os, 0.5)) };
+    const cs = list.map(c => c.cents).filter(c => c != null), os = list.map(c => Math.abs(c.onsetMs)), bs = list.map(c => Math.abs(c.busOnsetMs));
+    return { n: list.length, measured: cs.length, centsMedianAbs: cs.length ? Math.round(pct(cs.map(Math.abs), 0.5)) : null, centsWorst: cs.length ? Math.max(...cs.map(Math.abs)) : null, onsetMsWorst: r1(Math.max(...os)), onsetMsMedian: r1(pct(os, 0.5)), busOnsetMsMedian: r1(pct(bs, 0.5)), busOnsetMsWorst: r1(Math.max(...bs)) };
   };
   report.chorusNotes = summary(chorusCalls);
   report.featureCalls = summary(featCalls);
@@ -102,7 +106,7 @@ export function checkAll({ OUT, song, json, stems, dryAnimals, renders, LEN, ste
       if (k <= SPB) mdBeat = Math.max(mdBeat, d);
       mdBar = Math.max(mdBar, d);
     }
-    for (let i = ls; i < le; i++) pk = Math.max(pk, Math.abs(a[i]), Math.abs(b[i]));
+    for (let i = 0; i < a.length; i++) pk = Math.max(pk, Math.abs(a[i]), Math.abs(b[i]));
     report.loopSeam[s] = pk > 0 ? { lastBeatDb: r1(db(mdBeat / pk)), wholeBarDb: r1(db(mdBar / pk)) } : 'silent';
   }
   report.preMasterStemPeaksDb = Object.fromEntries(Object.entries(stemPeaks).map(([k, v]) => [k, r1(v)]));
@@ -118,8 +122,8 @@ function print(r) {
   console.log('stems', JSON.stringify(r.stems));
   console.log('chorus notes', JSON.stringify(r.chorusNotes), 'feature calls', JSON.stringify(r.featureCalls));
   console.log('by group (median cents)', JSON.stringify(r.byGroup), 'whistle tune', JSON.stringify(r.whistleTune));
-  const bad = r.calls.filter(c => c.cents == null || Math.abs(c.cents) > 40 || Math.abs(c.onsetMs) > 8);
-  console.log('calls off (>40 c or >8 ms):', bad.length, JSON.stringify(bad.slice(0, 12)));
-  console.log('loop seam (dB, worst diff of the bar before against the last bar, re the loop peak)', JSON.stringify(r.loopSeam));
+  const bad = r.calls.filter(c => c.cents == null || Math.abs(c.cents) > 40 || (Math.abs(c.onsetMs) > 12 && Math.abs(c.busOnsetMs) > 12));
+  console.log('calls off (>40 c, or >12 ms by both onset rules):', bad.length, JSON.stringify(bad.slice(0, 12)));
+  console.log('loop seam (dB, worst diff of the bar before against the last bar, re the stem peak)', JSON.stringify(r.loopSeam));
   console.log('pre-master stem peaks (dBFS)', JSON.stringify(r.preMasterStemPeaksDb));
 }

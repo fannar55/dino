@@ -25,7 +25,7 @@ const dryAnimals = new Float32Array(LEN); // for the pitch and onset checks
 const renders = []; // what the checks read: { e, y, at }
 
 // the stems' own levels (into the pre-master sum)
-const LEVEL = { pad: 0.75, bass: 0.62, beat: 0.55, lead: 0.5, animals: 0.5 };
+const LEVEL = { pad: 0.75, bass: 0.62, beat: 0.55, lead: 0.5, animals: 0.6 };
 const KIND_GAIN = { strum: 0.55, harp: 0.5, strings: 0.32, drone: 0.22, bass: 0.7, bodhran: 0.85, stomp: 0.8, clap: 0.55, riser: 0.4, fiddle: 1.5, whistle: 0.42, horn: 0.6, pick: 0.6, call: 0.62 };
 
 const SHAPES = {
@@ -113,7 +113,7 @@ for (const e of song.events) {
     if (e.kind === 'horn' && e.valley) mixIn(valley, y, at, g, 0);
     if (e.kind === 'call') {
       for (let i = 0; i < y.length; i++) { const j = at + i; if (j >= 0 && j < LEN) dryAnimals[j] += y[i] * g; }
-      renders.push({ e, at, len: y.length, pre });
+      renders.push({ e, at, len: y.length, pre, y, g });
     }
     if (e.kind === 'whistle' && /^tune/.test(e.key ?? '')) renders.push({ e, at, y });
   }
@@ -148,7 +148,7 @@ for (const s of STEMS) {
 }
 // the valley: her horn comes back a bar later, darker, from the other side, and once more fainter
 const vm = new Float32Array(LEN); for (let i = 0; i < LEN; i++) vm[i] = (valley[0][i] + valley[1][i]) * 0.5;
-const vEcho = echo(vm, { delay: 4 * SPB, feedback: 0.42, lp: 2000, repeats: 2, pan: 0.7, gain: 0.5 });
+const vEcho = echo(vm, { delay: 4 * SPB, feedback: 0.42, lp: 2000, repeats: 2, pan: 0.7, gain: 0.42 });
 const vWet = reverb(vEcho, { rt60: 2.8, damp: 0.5, size: 1.3 });
 mixStereo(stems.lead, vEcho, 0, 1); mixStereo(stems.lead, vWet, 0, 0.6);
 log('stems mixed');
