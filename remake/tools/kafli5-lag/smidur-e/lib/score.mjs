@@ -251,6 +251,7 @@ export function buildScore() {
     padBar(bar);
     arpBar(bar, 0.4);
   }
+  S.cymbal.push({ beat: 16, seconds: 2.2, vel: 0.11 }); // its wash is gone long before the loop's bars
   S.cues.push({ beat: 16, kind: 'hit' });
 
   // ======== Her song, sung by the animals (bars 12-19)
