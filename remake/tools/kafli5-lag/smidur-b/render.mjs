@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { SR, Bus, fdnReverb, pingPong, hshelf, filt, biquad } from './dsp.mjs';
 import { buildScore, SECTIONS, BPM, SPB, SEC, END_BEAT, LOOP, TONE_MIDI } from './score.mjs';
-import { lufs, truePeakDb, limit, glue, sectionMeasures, kWeight } from './meter.mjs';
+import { lufs, truePeakDb, limit, glue, sectionMeasures, kWeight, momentaryJumps } from './meter.mjs';
 import { checks } from './checks.mjs';
 import { TAKES } from './voices.mjs';
 
@@ -30,7 +30,7 @@ mkdirSync(join(OUT, 'stems'), { recursive: true });
 const { events, cues, chorusMelody } = buildScore();
 log(`${events.length} events, ${cues.length} cues`);
 
-const LEN = Math.round(END_BEAT * SPB + 3.6 * SR);
+const LEN = Math.round(END_BEAT * SPB + 4.6 * SR);
 const stems = {};
 for (const name of STEMS) {
   const dry = new Bus(LEN), hall = new Bus(LEN);
@@ -54,6 +54,7 @@ for (const name of STEMS) {
   }
   const wet = fdnReverb(hall, ROOM[name]);
   dry.mix(wet, ROOM[name].wet);
+  for (const ch of [dry.L, dry.R]) filt(ch, biquad('hp', 22, 0.6));
   stems[name] = dry;
   log(`${name}: ${count} events, peak ${dry.peak().toFixed(3)}`);
 }
@@ -69,8 +70,10 @@ let end = LEN;
 const quiet = 10 ** (-72 / 20);
 while (end > END_BEAT * SPB + SR && Math.abs(sum.L[end - 1]) < quiet && Math.abs(sum.R[end - 1]) < quiet) end--;
 end = Math.min(LEN, end + Math.round(0.05 * SR));
+const tailDb = 20 * Math.log10(Math.max(...[...sum.L.subarray(end - 2205, end)].map(Math.abs), 1e-9));
 log(`length ${(end / SR).toFixed(2)} s`);
-const cut = b => { const o = new Bus(end); o.L.set(b.L.subarray(0, end)); o.R.set(b.R.subarray(0, end)); return o; };
+// the last 30 ms only guard against a click where the ring is already near silence (tailDb); it is not a fade-out
+const cut = b => { const o = new Bus(end); o.L.set(b.L.subarray(0, end)); o.R.set(b.R.subarray(0, end)); const G = Math.round(0.03 * SR); for (let i = 0; i < G; i++) { const g = i / G; o.L[end - 1 - i] *= g; o.R[end - 1 - i] *= g; } return o; };
 for (const n of STEMS) stems[n] = cut(stems[n]);
 let mix = cut(sum);
 const pre = { L: Float32Array.from(mix.L), R: Float32Array.from(mix.R) };
@@ -179,7 +182,7 @@ const pitch = checks({ stems, chorusMelody });
 const report = {
   bpm: BPM, samplesPerBeat: SPB, lengthSec: +(end / SR).toFixed(3), loudnessJs: { lufs: +meas.integrated.toFixed(2), truePeak: +tp.toFixed(2), shortTermMax: +meas.shortTermMax.toFixed(2) },
   loudness: loud, stemLoudness: stemLoud, stemPeaksDbfs: stemPeaks, stemSumError: stemSum, limiterMaxReductionDb: +lim.maxReductionDb.toFixed(2),
-  loopSeamDiffDb: loopSeam, perSection, stemBalance, perSectionMastered, ...pitch,
+  tailDbBeforeGuard: +tailDb.toFixed(1), startle: momentaryJumps(mix.L, mix.R), loopSeamDiffDb: loopSeam, perSection, stemBalance, perSectionMastered, ...pitch,
 };
 writeFileSync(join(OUT, 'checks.json'), JSON.stringify(report, null, 2) + '\n');
 

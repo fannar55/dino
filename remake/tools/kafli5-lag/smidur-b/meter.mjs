@@ -180,3 +180,19 @@ export function sectionMeasures(L, R, sections, spb) {
     };
   });
 }
+
+/** Startle check: momentary loudness (400 ms, every 100 ms) and its largest rises within 0.5 s, with where they are (s). */
+export function momentaryJumps(L, R) {
+  const { L: kl, R: kr } = kWeight(L, R);
+  const B = Math.round(0.4 * SR), H = Math.round(0.1 * SR);
+  const m = [];
+  for (let s = 0; s + B <= kl.length; s += H) {
+    let a = 0;
+    for (let i = s; i < s + B; i++) a += kl[i] * kl[i] + kr[i] * kr[i];
+    m.push(-0.691 + 10 * Math.log10(a / B + 1e-12));
+  }
+  const jumps = [];
+  for (let i = 5; i < m.length; i++) jumps.push({ at: +((i * H + B) / SR).toFixed(1), rise: +(m[i] - Math.min(...m.slice(i - 5, i))).toFixed(1), to: +m[i].toFixed(1) });
+  jumps.sort((a, b) => b.rise - a.rise);
+  return { maxMomentary: +Math.max(...m).toFixed(1), topRises: jumps.filter(j => j.to > -30).slice(0, 6) };
+}

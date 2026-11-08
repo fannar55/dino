@@ -177,11 +177,11 @@ export function padNote(midi, dur, v, seed, { bright = 1, xf = 0.3 } = {}) {
 
 // Formants (Hz, gain) of the vowels the choir and the chant sing.
 const VOWEL = {
-  oo: [[320, 1], [800, 0.3], [2300, 0.05]],
-  ah: [[730, 1], [1100, 0.5], [2450, 0.12]],
-  oh: [[520, 1], [850, 0.45], [2400, 0.08]],
-  eh: [[560, 1], [1800, 0.32], [2500, 0.14]],
-  ee: [[300, 1], [2250, 0.2], [2950, 0.1]],
+  oo: [[320, 1], [800, 0.4], [2300, 0.1]],
+  ah: [[730, 1], [1100, 0.65], [2450, 0.28]],
+  oh: [[520, 1], [850, 0.65], [2400, 0.22]],
+  eh: [[560, 1], [1800, 0.65], [2500, 0.4]],
+  ee: [[300, 1], [2250, 0.55], [2950, 0.35]],
 };
 function formant(src, vowel, n) {
   const out = new Float32Array(n);
@@ -240,8 +240,8 @@ export function chant(word, midis, v, seed) {
       ff[i] = f * 2 ** ((-60 * Math.exp(-t / 0.025) - (t > dur * 0.7 ? 260 * (t - dur * 0.7) / 0.2 : 0)) / 1200);
     }
     const src = saw(n, ff, r());
-    addInto(src, noise(n, seed + 7 + k), 0, 0.06);
-    onePoleLP(src, 3000);
+    addInto(src, noise(n, seed + 7 + k), 0, 0.14);
+    onePoleLP(src, 4500);
     const a = formant(src, v1, n), b = formant(src, v2, n);
     const voice = new Float32Array(n);
     for (let i = 0; i < n; i++) { const t = Math.min(1, i / (n * 0.7)); voice[i] = a[i] * (1 - t) + b[i] * t; }
