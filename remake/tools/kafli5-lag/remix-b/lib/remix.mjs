@@ -40,18 +40,18 @@ export const OUT_SECTIONS = [
     what: 'The drop, cut short: "Einu sinni enn!", she rewinds and drops the top again; everyone sings her tune with the robot voice and her horn.' },
   { id: 'peak2', name: 'All together, again', nameIs: 'Öll saman aftur', from: 316, to: 348, feature: 'all',
     what: 'Her tune once more, everyone together; the beetles and dragonflies join in; "Jibbí! Stærsta djamm í heimi!"' },
-  { id: 'end', name: 'Ending', nameIs: 'Lokin', from: 348, to: 364, feature: 'all',
+  { id: 'end', name: 'Ending', nameIs: 'Lokin', from: 348, to: 362.25, feature: 'all',
     what: 'Stop-time last phrase, then do with all five at once held while she says thanks, the last hit, and the record powers down and the needle lifts.' },
 ];
 export const OUT_LOOP = { startBeat: 40, beats: 16 }; // source beats 32-48 (the dance floor), the same as the four bars before
 export const LAST_HIT = 360;
-export const END_SEC = 363.25 * 0.48 + 0.42; // the needle lifts at 363.25, then a breath of quiet
+export const END_SEC = 362.25 * 0.48 + 0.42; // the needle lifts at 362.25, then a breath of quiet
 
 // juggles (sixteenths): [outStep, srcStep, lenSteps]; every quarter of the output still gets a kick from the record
 const J_FROG3 = [[0, 0, 4], [4, 0, 2], [6, 6, 2], [8, 0, 2], [10, 10, 2], [12, 12, 2], [14, 12, 2]];
 const J_FROG4 = [[0, 0, 8], [8, 8, 2], [10, 8, 2], [12, 8, 2], [14, 14, 2]];
 const J_SOLO = [[0, 0, 2], [2, 0, 2], [4, 4, 2], [6, 4, 2], [8, 0, 4], [12, 12, 2], [14, 14, 1], [15, 14, 1]];
-const GAP = { pad: 0, bass: 0, lead: 0, animals: 0, rest: 0.45, vinyl: 1 }; // Egill's gap: kick and hats only
+const GAP = { pad: 0.3, bass: 0, lead: 0, animals: 0, rest: 0.6, vinyl: 1 }; // Egill's gap: kick, hats and a soft pad
 
 /** The moves on the decks, in time order. */
 export function buildMoves() {
@@ -90,12 +90,12 @@ export function buildMoves() {
   m.push(rewind(282, 283.75, 230, 224)); // "Einu sinni enn!"
   m.push(play(284, 348, 224));
   m.push(play(348, 360.5, 288));
-  m.push(brake(360.5, 363, 300.5, { p: 1.6, noFadeOut: true })); // the power goes off: the last chord slows to rest
+  m.push(brake(360.5, 362, 300.5, { p: 1.3, noFadeOut: true })); // the power goes off: the last chord slows to rest
   return m;
 }
 
 /** How loud the record's own crackle is (output beats → gain), with half-beat ramps. */
-export const VINYL = [[0, 1], [15.5, 1], [16.5, 0.3], [176, 0.3], [177, 0.6], [210, 0.6], [212, 0.1], [243, 0.1], [244, 0.3], [356, 0.3], [360.5, 0.9], [364, 0.9]];
+export const VINYL = [[0, 1], [15.5, 1], [16.5, 0.3], [176, 0.3], [177, 0.6], [210, 0.6], [212, 0.1], [243, 0.1], [244, 0.3], [356, 0.3], [360.5, 0.9], [363, 0.9]];
 
 // her tune's groups and their tones (from E's score) for the new riffs; the band answers with all five at once
 const FIVE = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'];

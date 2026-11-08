@@ -194,7 +194,9 @@ const dfCheck = [];
     cues.push({ beat: d.beat, kind: 'call', group: 'dragonflies' });
     if (d.dur >= 0.5) {
       const s = steady(y.subarray(Math.round(0.09 * SR), Math.max(Math.round(0.09 * SR) + 4096, y.length - Math.round(0.06 * SR))), { fmin: 400, fmax: 1400, win: 1024, hop: 128 });
-      dfCheck.push({ beat: d.beat, hz: s ? +s.hz.toFixed(1) : null, cents: s ? Math.round(cents(s.hz, mtof(76))) : null });
+      let c = s ? cents(s.hz, mtof(76)) : null;
+      if (c !== null) c -= 1200 * Math.round(c / 1200); // any octave of E
+      dfCheck.push({ beat: d.beat, hz: s ? +s.hz.toFixed(1) : null, cents: c === null ? null : Math.round(c) });
     }
   });
   addStereo(outAnimals, reverb(send, { decay: 1.4, damp: 6000, lowcut: 400, seed: 23 }), 0, 0.6);
@@ -218,8 +220,8 @@ const dfCheck = [];
 }
 // the needle
 addMono(outBeat, needleDrop(), 0, 0.09, 0);
-addMono(outBeat, needleLift(), sampleOf(363.25), 0.05, 0);
-cues.push({ beat: 0, kind: 'needle' }, { beat: 363.25, kind: 'needle' });
+addMono(outBeat, needleLift(), sampleOf(362.25), 0.05, 0);
+cues.push({ beat: 0, kind: 'needle' }, { beat: 362.25, kind: 'needle' });
 
 // how loud each new layer is against the record's music where it plays (sample peak and RMS over its zone)
 const layerLevels = {};
