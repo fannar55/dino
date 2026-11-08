@@ -140,7 +140,7 @@ for (let it = 0; it < 3 && loud.TP > -1.15; it++) {
 log('pictures');
 const mixMp3 = join(OUT, 'mix.mp3');
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', mixMp3, '-lavfi', 'showspectrumpic=s=1600x640:legend=1:scale=log:fscale=lin:stop=12000', join(OUT, 'spectrogram.png')]);
-execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', mixMp3, '-lavfi', 'showwavespic=s=1600x360:split_channels=1:colors=#2b6cb0|#c05621', join(OUT, 'waveform.png')]);
+execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', mixMp3, '-lavfi', 'showwavespic=s=1600x360:split_channels=1:colors=#2b6cb0|#c05621:scale=sqrt', join(OUT, 'waveform.png')]);
 
 // ---------------------------------------------------------------- measure
 log('measuring');

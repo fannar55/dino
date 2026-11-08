@@ -96,10 +96,10 @@ export function compose(desk) {
   const vr = (inst, beat, lo, hi) => rand(k(inst, beat) + 'v', lo, hi);
 
   // the fader ride: each section's level, so the song breathes (the rise climbs beat by beat)
-  const RIDE = [[1, -2], [5, -2.5], [13, -2], [21, -1.5], [25, -2.5], [29, -1.5], [33, -1], [37, -2.5], [41, -1], [49, -4], [53, 1]];
+  const RIDE = [[1, -2], [5, -3.5], [13, -3], [21, -3.5], [25, -3], [29, -2.5], [33, -2], [37, -3], [41, -1.5], [49, -5], [53, 1.5]];
   const ride = beat => {
     const bar = Math.floor(beat / 4) + 1;
-    if (bar >= 49 && bar <= 52) return -4 + 4 * ((beat - B(49)) / 16);
+    if (bar >= 49 && bar <= 52) return -5 + 4 * ((beat - B(49)) / 16);
     let v = 0;
     for (const [b, d] of RIDE) if (bar >= b) v = d;
     return v;
@@ -107,13 +107,13 @@ export function compose(desk) {
   const put = (stem, buf, beat, o = {}) => {
     const s = at(beat) + (o.shift ?? 0);
     const r = ride(beat) * (stem === 'animals' ? 0.5 : 1);
-    const lift = stem === 'beat' ? o.lift ?? 6 : 0; // the hand percussion is the heart of cumbia: up front
+    const lift = stem === 'beat' ? o.lift ?? 9 : 0; // the hand percussion is the heart of cumbia: up front
     desk.put(stem, buf, s, { ...o, db: (o.db ?? 0) + r + lift, beatSample: at(beat) });
   };
 
   // ---------- percussion ----------
-  const kick = (beat, vel = 1, db = -9) => put('beat', I.lowDrum(64, { vel, key: k('kick', beat), knock: 0.35 }), beat, { db, lift: 2, shift: jit('kick', beat, 2) });
-  const stomp = (beat, vel = 1) => put('beat', I.lowDrum(52, { vel, t60: 0.5, knock: 0.7, key: k('stomp', beat) }), beat, { db: -10, lift: 2, send: 0.12 });
+  const kick = (beat, vel = 1, db = -9) => put('beat', I.lowDrum(64, { vel, key: k('kick', beat), knock: 0.35 }), beat, { db, lift: 3, shift: jit('kick', beat, 2) });
+  const stomp = (beat, vel = 1) => put('beat', I.lowDrum(52, { vel, t60: 0.5, knock: 0.7, key: k('stomp', beat) }), beat, { db: -10, lift: 3, send: 0.12 });
   const palo = (beat, vel = 1) => put('beat', I.woodClick(1150, { vel, key: k('palo', beat), t60: 0.05 }), beat, { db: -22, pan: -0.1, send: 0.1, shift: jit('palo', beat, 3) });
   const guiro = (beat, len, vel = 1) =>
     put('beat', I.scrape(len, { ridge: len > 0.1 ? 58 : 85, key: k('guiro', beat), vel }), beat, { db: -18, pan: 0.32, send: 0.08, shift: jit('guiro', beat, 3) });
@@ -244,13 +244,13 @@ export function compose(desk) {
         animal(MAIN[g], beat, { tune: true, db, seconds: Math.max(0.5, Math.min(1.3, dur + 0.25)), fadeOut: 0.12 });
         if (double && SECOND[g]) animal(SECOND[g], beat, { db: db - 3, silentCue: true, seconds: Math.max(0.35, Math.min(1.0, dur + 0.1)), fadeOut: 0.1 });
         if (marimba) marimbaTone(g, beat, { db: double ? -12 : -14 });
-        if (withHorn) horn(g, beat, Math.min(3, (nextPos - TUNE_POS[p][i]) / 2) * 0.98, { db: -13 });
+        if (withHorn) horn(g, beat, Math.min(3, (nextPos - TUNE_POS[p][i]) / 2) * 0.98, { db: -11 });
       });
     }
   };
 
   // ================================================================ 1. Intro (bars 1-4)
-  for (let q = 0; q < 16; q++) guiroBeat(B(1, q), q < 4 ? 0.8 : 1);
+  for (let q = 0; q < 16; q++) guiroBeat(B(1, q), 1);
   animal('flyers-3', B(1, 2), { send: 0.35 });
   animal('flyers-2', B(2, 2.5), { send: 0.35, db: -2 });
   for (let bar = 2; bar <= 4; bar++) {
@@ -332,10 +332,10 @@ export function compose(desk) {
   animal('grazers-2', B(24, 0), { seconds: 0.4 });
   animal('grazers-2', B(24, 1), { seconds: 0.4 });
   animal('grazers-3', B(24, 2), { seconds: 1.2 });
-  line(1, 21, [[4, 55, 1], [5, 57, 1], [6, 59, 1], [7, 62, 1]], { vel: 1, bright: 0.6 });
-  line(1, 22, [[4, 60, 1], [5, 59, 1], [6, 57, 1], [7, 55, 1]], { vel: 1, bright: 0.6 });
-  line(1, 23, [[4, 62, 1], [5, 59, 1], [6, 55, 2]], { vel: 1, bright: 0.6 });
-  line(1, 24, [[5, 60, 1], [6, 64, 1], [7, 67, 1]], { vel: 1, bright: 0.6 });
+  line(1, 21, [[4, 55, 1], [5, 57, 1], [6, 59, 1], [7, 62, 1]], { vel: 0.75, bright: 0.6 });
+  line(1, 22, [[4, 60, 1], [5, 59, 1], [6, 57, 1], [7, 55, 1]], { vel: 0.75, bright: 0.6 });
+  line(1, 23, [[4, 62, 1], [5, 59, 1], [6, 55, 2]], { vel: 0.75, bright: 0.6 });
+  line(1, 24, [[5, 60, 1], [6, 64, 1], [7, 67, 1]], { vel: 0.75, bright: 0.6 });
 
   // ================================================================ 4b. Turtles (bars 25-28)
   for (let bar = 25; bar <= 28; bar++) {
@@ -448,8 +448,8 @@ export function compose(desk) {
   const PH_LEN = [[6, 6], [3, 3, 6], [3, 3, 3, 3], [3, 3, 2, 1, 3]];
   for (let bar = 41; bar <= 48; bar++) {
     // bombo and the 12/8 bell
-    put('beat', I.lowDrum(70, { vel: 0.9, t60: 0.45, knock: 0.3, key: k('bombo', B(bar)) }), B(bar, 0), { db: -12, lift: 2 });
-    put('beat', I.lowDrum(76, { vel: 0.55, t60: 0.3, knock: 0.3, key: k('bombo2', B(bar)) }), tri(bar, 6), { db: -14, lift: 2 });
+    put('beat', I.lowDrum(70, { vel: 0.9, t60: 0.45, knock: 0.3, key: k('bombo', B(bar)) }), B(bar, 0), { db: -12, lift: 3 });
+    put('beat', I.lowDrum(76, { vel: 0.55, t60: 0.3, knock: 0.3, key: k('bombo2', B(bar)) }), tri(bar, 6), { db: -14, lift: 3 });
     [0, 2, 4, 5, 7, 9, 11].forEach(t => put('beat', I.woodClick(2100, { vel: t === 0 ? 0.9 : 0.65, key: k('cl', tri(bar, t)), t60: 0.05 }), tri(bar, t), { db: -24, pan: 0.3, send: 0.15, shift: jit('cl', tri(bar, t), 3) }));
     // cununos: hembra open on each beat's last triplet, macho slap on 2 and 4
     [2, 5, 8, 11].forEach(t => put('beat', I.membrane(205, { t60: 0.3, drop: 0.1, key: k('cun', tri(bar, t)), vel: 0.8 }), tri(bar, t), { db: -14, pan: -0.28, send: 0.15, shift: jit('cun', tri(bar, t), 4) }));
@@ -507,8 +507,8 @@ export function compose(desk) {
   for (let s = 0; s < 14; s++) timbal(B(52, s / 4), 0.25 + 0.03 * s, s % 2 === 0);
   put('pad', I.riser(3.5 * beatSec, { key: 'riser', vel: 1 }), B(52, 0), { db: -26, send: 0.3 });
   // the guitar trembles upward
-  trem(69, B(51, 0), 2, 0.45); trem(71, B(51, 2), 2, 0.5);
-  trem(74, B(52, 0), 2, 0.55); trem(76, B(52, 2), 1, 0.6); trem(78, B(52, 3), 0.5, 0.65);
+  trem(69, B(51, 0), 2, 0.34); trem(71, B(51, 2), 2, 0.38);
+  trem(74, B(52, 0), 2, 0.41); trem(76, B(52, 2), 1, 0.45); trem(78, B(52, 3), 0.5, 0.49);
   // the animals line up, low to high, faster and higher
   const ORDER = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'];
   const LADDER = { grazers: 'grazers-3', turtles: 'turtles-2', frogs: 'frogs-5', lizards: 'lizards-2', flyers: 'flyers-2' };
@@ -546,8 +546,8 @@ export function compose(desk) {
   for (const [bar, notes] of Object.entries(ANSWERS)) {
     const b = +bar + 40;
     if (b > 56) continue;
-    line(1, b, notes, { vel: 0.9 });
-    line(2, b, notes.map(n => T(third(n[1], -1), n)), { vel: 0.75 });
+    line(1, b, notes, { vel: 0.9, db: 2 });
+    line(2, b, notes.map(n => T(third(n[1], -1), n)), { vel: 0.75, db: 2 });
   }
   // bars 57-60: the guitars play the tune too, in thirds an octave over the animals' marimba
   const TUNE_MIDI = { grazers: 67, turtles: 69, frogs: 71, lizards: 74, flyers: 76 };
@@ -557,8 +557,8 @@ export function compose(desk) {
       const pos = TUNE_POS[p][i];
       const dur = ((TUNE_POS[p][i + 1] ?? 16) - pos) / 2;
       const m = TUNE_MIDI[g] + 12;
-      gtr(1, m, B(pb, pos / 2), Math.min(dur, 2), { vel: 0.8 });
-      gtr(2, third(m, -1), B(pb, pos / 2), Math.min(dur, 2), { vel: 0.65 });
+      gtr(1, m, B(pb, pos / 2), Math.min(dur, 2), { vel: 0.8, db: 2 });
+      gtr(2, third(m, -1), B(pb, pos / 2), Math.min(dur, 2), { vel: 0.65, db: 2 });
     });
   }
   // the flyers' descant on the last four bars
@@ -599,15 +599,15 @@ export function compose(desk) {
   cue(FIN, 'end');
   kick(FIN, 0.9);
   bassNote(43, FIN, 3.2, 1);
-  organHit([55, 59, 62, 64, 69, 71], FIN, 3.4, { db: -15, tone: 0.5, a: 0.01, r: 0.9 });
+  organHit([55, 59, 62, 64, 69, 71], FIN, 3.4, { db: -17, tone: 0.5, a: 0.015, r: 0.9 });
   strum(63, 0, 'G', 3.5);
   put('beat', I.scrape(0.42, { ridge: 50, key: 'finscrape' }), FIN, { db: -20, pan: 0.3, send: 0.2 });
   timbal(FIN, 0.5, false);
   bell(FIN, 0.7);
   for (const g of ORDER) {
-    animal(MAIN[g], FIN, { seconds: 1.6, fadeOut: 0.5, db: -1 });
+    animal(MAIN[g], FIN, { seconds: 1.6, fadeOut: 0.5, db: -3 });
   }
-  horn('grazers', FIN, 3.6, { db: -11, send: 0.3 });
+  horn('grazers', FIN, 3.6, { db: -12, send: 0.3 });
   marimbaTone('grazers', FIN, { db: -13, seconds: 2.2 });
   marimbaTone('lizards', FIN, { db: -15, seconds: 2.2 });
 

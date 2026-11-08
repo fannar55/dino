@@ -30,7 +30,7 @@ export const TAKES = {
   'frogs-2': { group: 'frogs', win: [0.16, 0.4], use: [0.0, 0.45], flat: 0.4, licence: 'ElevenLabs sound generation, made for this game' },
   'lizards-2': { group: 'lizards', win: [0.09, 0.42], use: [0.0, 0.59], flat: 0.85, licence: 'ElevenLabs sound generation, made for this game' },
   'lizards-3': { group: 'lizards', win: [0.03, 0.06], use: [0.0, 0.27], flat: 0, licence: 'CC0 1.0', noClear: true },
-  'flyers-3': { group: 'flyers', win: [0.5, 0.7], use: [0.3, 0.75], flat: 0.55, licence: 'CC BY 4.0 (Benboncan)' },
+  'flyers-3': { group: 'flyers', win: [0.5, 0.7], use: [0.38, 0.75], flat: 0.55, licence: 'CC BY 4.0 (Benboncan)' },
   'flyers-2': { group: 'flyers', win: [0.08, 0.45], use: [0.05, 1.15], flat: 0.7, licence: 'CC BY 4.0 (Benboncan)' },
   marimba: { win: [0.02, 0.58], use: [0, 2.5], flat: 0, licence: 'CC0 1.0' },
   'horn-1': { win: [0.1, 2.7], use: [0.0, 2.75], flat: 0.5, licence: 'CC0 1.0' },
