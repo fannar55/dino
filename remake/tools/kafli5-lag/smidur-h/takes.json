@@ -1,0 +1,242 @@
+{
+ "grazers-1.mp3": {
+  "listed": 1198.02,
+  "seconds": 1.064,
+  "onset": 0.018,
+  "peakAt": 0.313,
+  "steady": {
+   "hz": 1248.32,
+   "t0": 0.464,
+   "t1": 0.708,
+   "frames": 43
+  }
+ },
+ "grazers-2.mp3": {
+  "listed": 184.89,
+  "seconds": 1.556,
+  "onset": 0.002,
+  "peakAt": 0.174,
+  "steady": {
+   "hz": 177.23,
+   "t0": 0.673,
+   "t1": 0.766,
+   "frames": 17
+  }
+ },
+ "grazers-3.mp3": {
+  "listed": 182.63,
+  "seconds": 1.5,
+  "onset": 0.006,
+  "peakAt": 0.991,
+  "steady": {
+   "hz": 181.54,
+   "t0": 0.261,
+   "t1": 0.807,
+   "frames": 95
+  }
+ },
+ "turtles-1.mp3": {
+  "listed": 78.05,
+  "seconds": 0.856,
+  "onset": 0.001,
+  "peakAt": 0.328,
+  "steady": {
+   "hz": 77.94,
+   "t0": 0.267,
+   "t1": 0.737,
+   "frames": 82
+  }
+ },
+ "turtles-2.mp3": {
+  "listed": 253.02,
+  "seconds": 1.36,
+  "onset": 0.002,
+  "peakAt": 0.652,
+  "steady": {
+   "hz": 238.41,
+   "t0": 0.035,
+   "t1": 0.377,
+   "frames": 60
+  }
+ },
+ "turtles-3.mp3": {
+  "listed": null,
+  "seconds": 0.5,
+  "onset": 0.002,
+  "peakAt": 0.021,
+  "steady": {
+   "hz": 193.33,
+   "t0": 0.221,
+   "t1": 0.226,
+   "frames": 2
+  }
+ },
+ "frogs-1.mp3": {
+  "listed": 1139.92,
+  "seconds": 0.6,
+  "onset": 0.013,
+  "peakAt": 0.315,
+  "steady": {
+   "hz": 1147.45,
+   "t0": 0.325,
+   "t1": 0.401,
+   "frames": 14
+  }
+ },
+ "frogs-2.mp3": {
+  "listed": 2262.93,
+  "seconds": 0.447,
+  "onset": 0.013,
+  "peakAt": 0.382,
+  "steady": {
+   "hz": 2256.1,
+   "t0": 0.075,
+   "t1": 0.337,
+   "frames": 46
+  }
+ },
+ "frogs-3.mp3": {
+  "listed": 1185.06,
+  "seconds": 0.319,
+  "onset": 0.015,
+  "peakAt": 0.23,
+  "steady": {
+   "hz": 1184.53,
+   "t0": 0.174,
+   "t1": 0.255,
+   "frames": 15
+  }
+ },
+ "frogs-4.mp3": {
+  "listed": 2799.18,
+  "seconds": 0.65,
+  "onset": 0.114,
+  "peakAt": 0.48,
+  "steady": {
+   "hz": 1512.18,
+   "t0": 0.081,
+   "t1": 0.232,
+   "frames": 27
+  }
+ },
+ "frogs-5.mp3": {
+  "listed": 1930.25,
+  "seconds": 0.42,
+  "onset": 0.031,
+  "peakAt": 0.179,
+  "steady": {
+   "hz": 1926.35,
+   "t0": 0.139,
+   "t1": 0.226,
+   "frames": 16
+  }
+ },
+ "lizards-1.mp3": {
+  "listed": 1013.39,
+  "seconds": 0.898,
+  "onset": 0.001,
+  "peakAt": 0.532,
+  "steady": {
+   "hz": 1129.74,
+   "t0": 0.07,
+   "t1": 0.186,
+   "frames": 21
+  }
+ },
+ "lizards-2.mp3": {
+  "listed": 2222.1,
+  "seconds": 0.595,
+  "onset": 0.011,
+  "peakAt": 0.187,
+  "steady": {
+   "hz": 2241.86,
+   "t0": 0.308,
+   "t1": 0.337,
+   "frames": 6
+  }
+ },
+ "lizards-3.mp3": {
+  "listed": null,
+  "seconds": 0.27,
+  "onset": 0.026,
+  "peakAt": 0.04,
+  "steady": {
+   "hz": 2084.19,
+   "t0": 0.075,
+   "t1": 0.11,
+   "frames": 7
+  }
+ },
+ "flyers-1.mp3": {
+  "listed": 2013.76,
+  "seconds": 0.954,
+  "onset": 0.002,
+  "peakAt": 0.224,
+  "steady": {
+   "hz": 1925.47,
+   "t0": 0.621,
+   "t1": 0.697,
+   "frames": 14
+  }
+ },
+ "flyers-2.mp3": {
+  "listed": 2375.41,
+  "seconds": 1.15,
+  "onset": 0.08,
+  "peakAt": 0.1,
+  "steady": {
+   "hz": 1999.22,
+   "t0": 0.54,
+   "t1": 0.691,
+   "frames": 27
+  }
+ },
+ "flyers-3.mp3": {
+  "listed": 1404.67,
+  "seconds": 0.75,
+  "onset": 0.116,
+  "peakAt": 0.672,
+  "steady": {
+   "hz": 1395.05,
+   "t0": 0.389,
+   "t1": 0.679,
+   "frames": 51
+  }
+ },
+ "marimba.mp3": {
+  "listed": 525.46,
+  "seconds": 2.5,
+  "onset": 0.005,
+  "peakAt": 0.011,
+  "steady": {
+   "hz": 524.65,
+   "t0": 0.023,
+   "t1": 0.772,
+   "frames": 130
+  }
+ },
+ "horn-1.mp3": {
+  "listed": 273.02,
+  "seconds": 2.75,
+  "onset": 0.075,
+  "peakAt": 0.469,
+  "steady": {
+   "hz": 273.1,
+   "t0": 0.099,
+   "t1": 2.723,
+   "frames": 453
+  }
+ },
+ "horn-2.mp3": {
+  "listed": 69.27,
+  "seconds": 3,
+  "onset": 0.007,
+  "peakAt": 2.724,
+  "steady": {
+   "hz": 69.27,
+   "t0": 0.023,
+   "t1": 2.972,
+   "frames": 509
+  }
+ }
+}
