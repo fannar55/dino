@@ -230,6 +230,38 @@ test('a recording that fails to load falls back to the made tone', async () => {
   assert.deepEqual(other.started.map(source => source.kind), bare.started.map(source => source.kind), 'all made, as with no recordings');
 });
 
+test('her horn\'s takes serve her false horn too, and chapter 4\'s false horn takes its turn with them', async () => {
+  const { context, output } = running();
+  context.decodeAudioData = async () => context.createBuffer(1, context.sampleRate * 3, context.sampleRate);
+  const list = {
+    files: { 'horn-1.mp3': { roles: ['horn', 'hornFalse'], wobble: true, hz: 86.33 }, 'horn-2.mp3': { roles: ['horn', 'hornFalse'], wobble: true, hz: 174.6 } },
+    levels: {},
+    madeToo: { hornFalse: true },
+  };
+  const recordings = choirModule.loadChoirRecordings(context, { fetch: fetchFor(), base: 'http://localhost/x/', sounds: list });
+  await recordings.ready;
+  let seed = 7;
+  const sounds = createChoirSounds({ context, output, recordings, random: () => (seed = (seed * 16807) % 2147483647) / 2147483647 });
+  const ours = source => source.kind === 'bufferSource' && Object.keys(list.files).some(file => recordings.get(file) === source.buffer);
+  for (let i = 0; i < 6; i++) {
+    const before = startedNow(context);
+    sounds.horn('frogs', { at: 1 });
+    assert.equal(since(context, before).filter(ours).length, 1, 'her true horn is always a recording');
+  }
+  const heard = { made: 0, recorded: 0 };
+  let last = null;
+  for (let i = 0; i < 30; i++) {
+    const before = startedNow(context);
+    assert.equal(sounds.falseHorn(), true);
+    const take = since(context, before).find(ours);
+    const which = take ? take.buffer : 'made';
+    heard[take ? 'recorded' : 'made'] += 1;
+    assert.notEqual(which, last, 'never the same false horn twice running');
+    last = which;
+  }
+  assert.ok(heard.made > 0 && heard.recorded > 0, `both heard: ${JSON.stringify(heard)}`);
+});
+
 test('every recording is in CREDITS.md with its licence', () => {
   const folder = new URL('../assets/audio/kafli5/', import.meta.url);
   const sounds = JSON.parse(fs.readFileSync(new URL('hljod/sounds.json', folder), 'utf8'));

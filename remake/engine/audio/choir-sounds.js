@@ -61,7 +61,7 @@ export function loadChoirRecordings(context, { fetch = globalThis.fetch, base = 
       .then(response => (response.ok ? response.json() : Promise.reject(new Error(`${response.status}`))));
   store.ready = list
     .then(data => {
-      store.sounds = { files: data?.files ?? {}, levels: data?.levels ?? {} };
+      store.sounds = { files: data?.files ?? {}, levels: data?.levels ?? {}, madeToo: data?.madeToo ?? {} };
       return Promise.all(Object.keys(store.sounds.files).map(file => Promise.resolve()
         .then(() => fetch(new URL(file, base).href))
         .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
@@ -207,19 +207,22 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
     return { marimba, colour, seconds: Math.max(ring, 1.1) };
   }
 
-  // The recordings: the takes of `role` (of `group`) that have come, one picked so the same is not heard twice running.
+  // The recordings: the takes of `role` (of `group`) that have come, one picked so the same is not heard twice running. A file may
+  // serve more than one role (`roles`: her horn's takes are her false horn too); where the list says the made sound of a role is one
+  // of the picks (`madeToo`), it takes its turn with them (a pick of { made: true }).
   const lastTake = new Map();
   function pick(role, group = null) {
     const files = recordings?.sounds?.files ?? {};
     const ready = Object.entries(files)
-      .filter(([file, entry]) => entry.role === role && (group === null || entry.group === group) && recordings.get(file))
+      .filter(([file, entry]) => (entry.roles ?? [entry.role]).includes(role) && (group === null || entry.group === group) && recordings.get(file))
       .map(([file, entry]) => ({ file, entry, buffer: recordings.get(file) }));
     if (!ready.length) return null;
+    if (recordings.sounds.madeToo?.[role]) ready.push({ file: 'made', made: true });
     const which = `${role}:${group}`;
     const fresh = ready.length > 1 ? ready.filter(take => take.file !== lastTake.get(which)) : ready;
     const take = fresh[Math.floor(random() * fresh.length) % fresh.length];
     lastTake.set(which, take.file);
-    return take;
+    return take.made ? null : take; // the made sound's turn: the caller makes it, as with no recording
   }
   const levelOf = role => recordings?.sounds?.levels?.[role] ?? 1;
   /** Plays `take` at `at` at `rate`, its peak at `level`, cut and faded at `seconds` when it is longer; `bend` may move its pitch. */
