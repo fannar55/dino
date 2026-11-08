@@ -98,7 +98,8 @@ export function chordOfBar(bar) {
 // over the music at beat `ref`: the dance just before a freeze or the build before the countdown gap, so she never jumps out of
 // the quiet).
 export const DJ = [
-  { id: 'welcome', beat: 3, echo: [0.75, 0.42], rev: 0.25, duck: 0, over: 3 },
+  { id: 'welcome', beat: 2, seg: 0, rev: 0.3, duck: 0, over: 2 },
+  { id: 'welcome', beat: 7, seg: 1, rev: 0.3, duck: 0, over: 2 },
   { id: 'count-in', beat: 12, seg: 0, radio: 1, rev: 0.1, duck: 2, over: 3 },
   { id: 'count-in', beat: 13, seg: 1, radio: 1, rev: 0.1, duck: 2, over: 3 },
   { id: 'count-in', beat: 14, seg: 2, radio: 1, rev: 0.1, duck: 2, over: 3 },
@@ -293,11 +294,11 @@ export function buildScore() {
   [[12, 0.15], [12.5, 0.2], [13, 0.25], [13.5, 0.3], [14, 0.35], [14.5, 0.4], [15, 0.45], [15.25, 0.5], [15.5, 0.55], [15.75, 0.6]].forEach(([b, v]) => S.hat.push({ beat: b, vel: v * 0.6 }));
   S.cymbal.push({ beat: 12, seconds: 4 * 0.48, reverse: true, vel: 0.22 });
   // her wings, nearer each beat, then the landing
-  [[0, 0.3, -0.5], [1, 0.42, -0.3], [2, 0.6, -0.1]].forEach(([b, v, p]) => wing(b, v, { pan: p, rev: 0.35 }));
-  S.sample.push({ beat: 1.5, file: 'kafli4/hljod/whoosh-3.mp3', vel: 0.3, align: 'peak', pan: 0.2, rev: 0.3, group: 'fx' });
-  S.cues.push({ beat: 2.5, kind: 'land' });
-  call('frogs', 9.5, { take: 1, vel: 0.4, pan: 0.6 });
-  call('lizards', 11, { vel: 0.35, pan: -0.6 });
+  // a far frog at dusk, then her wings sweep in and she lands (her welcome starts at beat 2)
+  call('frogs', 0, { take: 1, vel: 0.35, pan: 0.6 });
+  [[0.5, 0.5, -0.5], [1, 0.65, -0.25], [1.5, 0.8, 0]].forEach(([b, v, p]) => wing(b, v, { pan: p, rev: 0.35 }));
+  S.sample.push({ beat: 1.75, file: 'kafli4/hljod/whoosh-3.mp3', vel: 0.5, align: 'peak', pan: 0.2, rev: 0.3, group: 'fx' });
+  S.cues.push({ beat: 1.75, kind: 'land' });
   S.cues.push({ beat: 12, kind: 'rise' });
 
   // ======== Dance floor (bars 4-11): two identical 4-bar halves (the loop is the second)

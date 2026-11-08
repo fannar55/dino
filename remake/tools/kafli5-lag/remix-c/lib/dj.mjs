@@ -155,6 +155,11 @@ function compress(y) {
     env += (x - env) * (x > env ? a : r);
     if (env > th) y[i] *= (env / th) ** (1 / 3 - 1);
   }
+  // then a soft clip of what still pokes out: no peak more than 12 dB over the piece's RMS (a "pp" burst, a sharp onset)
+  let s = 0;
+  for (const v of y) s += v * v;
+  const c = 4 * Math.sqrt(s / Math.max(1, y.length));
+  for (let i = 0; i < y.length; i++) if (Math.abs(y[i]) > 0.5 * c) y[i] = Math.sign(y[i]) * (0.5 * c + 0.5 * c * Math.tanh((Math.abs(y[i]) - 0.5 * c) / (0.5 * c)));
   return y;
 }
 
