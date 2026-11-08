@@ -1333,14 +1333,15 @@ async function main() {
           tapWait = target;
           // (a tap-along whose beat words Mosi counts (coach.js countLine), in the modes but rapid: the child lets a sentence he is saying end
           // first, while the wait still leaves the taps their time, then taps along about once for each count, as close together as the
-          // time left asks: `gap` seconds, .25 to .8. Rapid taps as fast as before, so its counts cut each other or are dropped.)
+          // time left asks: `gap` seconds, .2 to .8 (level 1's steps queue the taps, so its counts keep their pace). Rapid taps as fast as
+          // before, so its counts cut each other or are dropped.)
           const counted = !rapid && Boolean(LEVEL.steps.find(item => item.target === target)?.beatWords?.some(word => countLine(word, COUNT_TAKES)));
           let gap = null;
           if (counted) {
-            const least = count * .25 + .5, takes = JSON.stringify(Object.keys(COUNT_TAKES));
+            const least = count * .2 + .3, takes = JSON.stringify(Object.keys(COUNT_TAKES));
             const listened = await waitFor(`(() => { const a = window.__memory.audio().speech, w = window.__demoStats?.scene?.waiting; return !w || w.left < ${least} || !a.pending && (!a.current || ${takes}.includes(a.current)); })()`, 9000, "Mosi's sentence before the taps");
             const left = await ev('window.__demoStats?.scene?.waiting?.left ?? 0');
-            gap = Math.max(.25, Math.min(.8, (left - .5) / count));
+            gap = Math.max(.2, Math.min(.8, (left - .35) / count));
             step(`listen, then tap along ${target}`, { listened, left: +left.toFixed(2), gap: +gap.toFixed(2) });
           }
           // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).

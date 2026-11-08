@@ -51,6 +51,10 @@ test('narration waits for camera and game clock, and queues behind current speec
   speech.queue('held', { delay: .1 }); speech.update(10); assert.equal(speech.getStats().current, 'lift');
   media.end(); speech.update(.2); assert.equal(speech.getStats().current, 'held');
   assert.equal(speech.queue('held'), false);
+  // a line said once counts as said when it begins: one dropped before it began (a tap stops him) is queued again when its moment comes back
+  media.end(); assert.equal(speech.queue('won', { delay: .5 }), true); speech.stop(); speech.update(1); assert.equal(speech.getStats().current, null);
+  assert.equal(speech.queue('won', { delay: .5 }), true, 'never begun: it may come again'); speech.update(.6); assert.equal(speech.getStats().current, 'won');
+  assert.equal(speech.queue('won'), false, 'begun: once in the round');
 });
 
 test('narration pause resumes the same playhead; restart and mute cancel stale instructions', async () => {

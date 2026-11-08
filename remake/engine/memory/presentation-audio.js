@@ -97,15 +97,16 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
   element.addEventListener('error', () => { if (current) errors.push(current.id); current = null; log = null; });
   return {
     ready, play, count, stop: () => stop(),
+    // (`once`: said once in a round. It counts as said when it begins, so a line dropped before it began (a tap's stop, another line)
+    // is queued again when its moment comes back: a wait's line that a leaf cut off is said when the child comes back to the wait)
     queue(id, { delay = .35, once = true } = {}) {
       if (muted || disposed || !manifest[id] || once && seen.has(id)) return false;
-      if (once) seen.add(id);
-      pending = { id, remaining: delay, inDialog: false }; return true;
+      pending = { id, remaining: delay, inDialog: false, once }; return true;
     },
     update(dt, waitingForCamera = false) {
       if (disposed || muted || paused || waitingForCamera || !pending || current && !element.paused) return;
       pending.remaining -= Math.max(0, dt);
-      if (pending.remaining <= 0) { const next = pending; pending = null; play(next.id, 0, next.inDialog); }
+      if (pending.remaining <= 0) { const next = pending; pending = null; if (play(next.id, 0, next.inDialog) && next.once) seen.add(next.id); }
     },
     mute(value) { muted = Boolean(value); if (muted) stop(); },
     pause(value, { force = false } = {}) { paused = Boolean(value); forcePaused = Boolean(force); if (forcePaused || paused && !duringDialog) { revision++; element.pause(); } else resume(); },
