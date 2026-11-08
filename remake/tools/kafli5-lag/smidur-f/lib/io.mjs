@@ -38,11 +38,8 @@ export function writeWav(file, chans) {
   buf.writeUInt16LE(32, 34);
   buf.write('data', 36);
   buf.writeUInt32LE(dataBytes, 40);
-  let o = 44;
-  for (let i = 0; i < n; i++) for (let c = 0; c < nc; c++) {
-    buf.writeFloatLE(chans[c][i], o);
-    o += 4;
-  }
+  const inter = new Float32Array(buf.buffer, buf.byteOffset + 44, n * nc);
+  for (let i = 0; i < n; i++) for (let c = 0; c < nc; c++) inter[i * nc + c] = chans[c][i];
   writeFileSync(file, buf);
 }
 

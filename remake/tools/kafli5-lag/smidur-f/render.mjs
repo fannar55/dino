@@ -176,7 +176,7 @@ for (const sec of SECTIONS) {
 const an = new Float32Array(n);
 for (let t = 0; t < n; t++) an[t] = (desk.stems.animals.L[t] + desk.stems.animals.R[t]) / 2;
 for (const tn of tuneNotes) {
-  const c = calls.find(x => x.tune && Math.abs(x.beat - tn.beat) < 1e-6);
+  const c = calls.find(x => x.tune && Math.abs(x.beat - tn.beat) < 1e-3);
   const s = at(tn.beat);
   const attack = attackNear(an, s);
   const ps = [];

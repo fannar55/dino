@@ -43,7 +43,7 @@ export function ksString(hz, seconds, { bright = 0.6, pick = 0.18, t60 = 2.2, ke
     const a = buf[i0 % size], b = buf[(i0 + 1) % size];
     const y = a + (b - a) * fr0; // read between the two
     let g = 10 ** (-3 / (fr * t60));
-    if (t > relN) g *= 0.985; // the fretting hand lets go
+    if (t > relN) g *= 10 ** (-3 / (fr * release)); // the fretting hand lets go: -60 dB over `release`
     const filt = (1 - s) * y + s * prev;
     prev = y;
     let v = filt * g;
@@ -133,7 +133,7 @@ function organTable(hz, tone) {
     if (h % 2 === 1) a += 1 / h; // 8' square
     if (h % 2 === 0 && (h / 2) % 2 === 1) a += 0.55 / (h / 2); // 4' square (odd harmonics of 2f)
     if (h % 3 === 0) a += 0.18 / (h / 3); // a touch of 2 2/3'
-    a *= Math.exp(-((h * hz) / (lim * (0.35 + 0.5 * tone))) ** 2);
+    a *= Math.exp(-(((h * hz) / (lim * (0.35 + 0.5 * tone))) ** 2));
     for (let i = 0; i < N; i++) tab[i] += a * Math.sin((TAU * h * i) / N);
   }
   tableCache.set(key, tab);
@@ -157,10 +157,11 @@ export function organ(hzs, seconds, { a = 0.006, r = 0.05, tone = 0.6, vib = 7, 
       const v = tab[i] + (tab[(i + 1) & 2047] - tab[i]) * f;
       let e = s < a ? s / a : 1;
       if (swell) e *= Math.min(1, s / swell) ** 1.5;
-      if (s > seconds) e *= Math.exp(-(s - seconds) / (r / 3));
+      if (s > seconds) e *= Math.exp(-(s - seconds) / (r / 5));
       out[t] += (v * e) / hzs.length ** 0.6;
     }
   }
+  for (let i = 0; i < 128 && i < n; i++) out[n - 1 - i] *= i / 128;
   // key click
   for (let t = 0; t < 120 && t < n; t++) out[t] += (rng() * 2 - 1) * 0.05 * (1 - t / 120);
   return out;
@@ -255,6 +256,7 @@ export function shake(seconds, { tone = 7000, key = 's', vel = 1, attack = 0.008
     const grain = rng() < 0.35 ? 1 : 0.35;
     out[t] = hp(bp(rng() * 2 - 1)) * e * grain * vel;
   }
+  for (let i = 0; i < 220 && i < n; i++) out[n - 1 - i] *= i / 220;
   return out;
 }
 

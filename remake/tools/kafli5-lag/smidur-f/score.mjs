@@ -95,9 +95,19 @@ export function compose(desk) {
   const jit = (inst, beat, ms) => Math.round((rand(k(inst, beat) + 'j', -ms, ms) / 1000) * SR);
   const vr = (inst, beat, lo, hi) => rand(k(inst, beat) + 'v', lo, hi);
 
+  // the fader ride: each section's level, so the song breathes (the rise climbs beat by beat)
+  const RIDE = [[1, -2], [5, -2.5], [13, -2], [21, -1.5], [25, -2.5], [29, -1.5], [33, -1], [37, -2.5], [41, -1], [49, -4], [53, 1]];
+  const ride = beat => {
+    const bar = Math.floor(beat / 4) + 1;
+    if (bar >= 49 && bar <= 52) return -4 + 4 * ((beat - B(49)) / 16);
+    let v = 0;
+    for (const [b, d] of RIDE) if (bar >= b) v = d;
+    return v;
+  };
   const put = (stem, buf, beat, o = {}) => {
     const s = at(beat) + (o.shift ?? 0);
-    desk.put(stem, buf, s, { ...o, beatSample: at(beat) });
+    const r = ride(beat) * (stem === 'animals' ? 0.5 : 1);
+    desk.put(stem, buf, s, { ...o, db: (o.db ?? 0) + r, beatSample: at(beat) });
   };
 
   // ---------- percussion ----------
@@ -161,7 +171,7 @@ export function compose(desk) {
   // ---------- organ ----------
   const organHit = (notes, beat, beats, o = {}) => {
     const buf = I.organ(notes.map(midiHz), beats * beatSec, { key: k('org', beat), ...o });
-    desk.putSub('organ', buf, at(beat) + jit('org', beat, 2), { db: o.db ?? -15, beatSample: at(beat) });
+    desk.putSub('organ', buf, at(beat) + jit('org', beat, 2), { db: (o.db ?? -15) + ride(beat), beatSample: at(beat) });
   };
   const chucu = (bar, vel = 1) => {
     for (let q = 0; q < 4; q++) {
@@ -180,7 +190,7 @@ export function compose(desk) {
     const hz = o.bend ? s => midiHz(midi + o.bend * Math.min(1, Math.max(0, (s - (o.bendAt ?? 0.08)) / (o.bendTime ?? 0.18)))) : midiHz(midi);
     let buf = I.ksString(hz, Math.max(0.06, beats * beatSec * 0.95), { key: k('g' + part + midi, beat), bright: o.bright ?? 0.72, pick: o.pick ?? 0.14, t60: o.t60 ?? 1.6, hard: 0.7, vel: o.vel ?? 1 });
     if (beats * beatSec > 0.35 && !o.noVib) buf = I.vibrato(buf, { cents: o.vib ?? 16, rate: 5.4, delay: 0.18 });
-    desk.putSub('gtr' + part, buf, at(beat) + jit('g' + part, beat, 3), { db: o.db ?? 0, beatSample: at(beat) });
+    desk.putSub('gtr' + part, buf, at(beat) + jit('g' + part, beat, 3), { db: (o.db ?? 0) + ride(beat), beatSample: at(beat) });
   };
   /** a line of [pos8, midi, dur8, opts] from a bar's start */
   const line = (part, bar, notes, o = {}) => notes.forEach(([p, m, d, oo]) => gtr(part, m + (o.oct ?? 0) * 12, B(bar, p / 2), d / 2, { ...o, ...oo }));
