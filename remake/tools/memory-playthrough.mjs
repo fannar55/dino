@@ -33,7 +33,9 @@
 //   first-minute  stops when the first pair is matched and its friends have walked home.
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
 //                 enabled button three times as well, and while a script runs it keeps tapping every leaf, obstacle and
-//                 bubble, the way a six-year-old does. The round must still finish.
+//                 bubble, the way a six-year-old does. The round must still finish. (The first leaf of a pair is hammered
+//                 with the other buttons but not the other leaves: those opened a random second leaf, a miss every time, and
+//                 the plan's gift pair could take a quarter of an hour to come up by chance.)
 //   search        only the search: every friend pair and every gift pair found (the first tries are deliberate misses, the gifts as in `full`), the
 //                 pictures of each, and a stop when every leaf is found and every gift pair is in the basket (report.allFound, report.gladeAll, the
 //                 picture `all-found`). Level 2 ends its round here until its steps are built; its worst framing (report.renderMax, report.takes) has all eight friends.
@@ -915,8 +917,8 @@ async function main() {
     // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
     const act = async (key, what, extra = {}) => {
       const s = await ev(SNAPSHOT_JS);
-      const keys = [key];
-      if (rapid) for (const other of s.enabled) if (!keys.includes(other)) keys.push(other);
+      const keys = [key], firstLeaf = key.startsWith('leaf-') && s.phase === 'ready';
+      if (rapid) for (const other of s.enabled) if (!keys.includes(other) && !(firstLeaf && other.startsWith('leaf-'))) keys.push(other);
       // Could a finger reach it? (disabled, not inside the screen, covered by the HUD or by another target)
       const reach = await ev(reachJs(key)).catch(() => null), tally = (report.reach ||= { checks: 0, hard: [], sampled: 0, obstructed: {} });
       tally.checks++;
