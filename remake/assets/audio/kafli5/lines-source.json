@@ -1,0 +1,578 @@
+[
+  {
+    "id": "k5_dj_a_welcome",
+    "speaker": "flugedla",
+    "text": "Halló, skógur! Velkomin á hátíðina!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_egill",
+    "speaker": "flugedla",
+    "text": "Egill! Ertu tilbúinn?",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_clap",
+    "speaker": "flugedla",
+    "text": "Klappið með!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_party_on",
+    "speaker": "flugedla",
+    "text": "Nú byrjar djammið!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_grazers",
+    "speaker": "flugedla",
+    "text": "Stóru grasbítarnir! Stappið!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_turtles_slow",
+    "speaker": "flugedla",
+    "text": "Skjaldbökurnar... hææægt...",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_turtles_fast",
+    "speaker": "flugedla",
+    "text": "Og hratt!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_frogs",
+    "speaker": "flugedla",
+    "text": "Já, froskadjamm!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_lizards",
+    "speaker": "flugedla",
+    "text": "Litlu eðlurnar! Svo snöggar!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_flyers",
+    "speaker": "flugedla",
+    "text": "Og hátt uppi... litlu flugdýrin!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_guests",
+    "speaker": "flugedla",
+    "text": "Bjöllurnar og drekaflugurnar líka!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_sloedla",
+    "speaker": "flugedla",
+    "text": "Og nú... Slóeðla!",
+    "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu. Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_wings",
+    "speaker": "flugedla",
+    "text": "Vængina upp! Hendur upp, Egill!",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_hear_you",
+    "speaker": "flugedla",
+    "text": "Látið heyra í ykkur!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_count_5",
+    "speaker": "flugedla",
+    "text": "Fimm!",
+    "context": "Jæja krakkar, við teljum niður: fimm, fjórir, þrír, tveir, einn!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_count_4",
+    "speaker": "flugedla",
+    "text": "Fjórir!",
+    "context": "Jæja krakkar, við teljum niður: fimm, fjórir, þrír, tveir, einn!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_count_3",
+    "speaker": "flugedla",
+    "text": "Þrír!",
+    "context": "Jæja krakkar, við teljum niður: fimm, fjórir, þrír, tveir, einn!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_count_2",
+    "speaker": "flugedla",
+    "text": "Tveir!",
+    "context": "Jæja krakkar, við teljum niður: fimm, fjórir, þrír, tveir, einn!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_count_1",
+    "speaker": "flugedla",
+    "text": "Einn!",
+    "context": "Jæja krakkar, við teljum niður: fimm, fjórir, þrír, tveir, einn!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_now",
+    "speaker": "flugedla",
+    "text": "Nú!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_laugh",
+    "speaker": "flugedla",
+    "text": "Ha ha! Jibbíí!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_all",
+    "speaker": "flugedla",
+    "text": "Öll saman!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_one_more",
+    "speaker": "flugedla",
+    "text": "Einu sinni enn!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_a_goodnight",
+    "speaker": "flugedla",
+    "text": "Takk fyrir djammið! Góða nótt, skógur!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_welcome",
+    "speaker": "flugedla",
+    "text": "Góða kvöldið, skógur!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_egill_ready",
+    "speaker": "flugedla",
+    "text": "Egill! Ertu tilbúinn?",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_count_in",
+    "speaker": "flugedla",
+    "text": "Einn! Tveir! Þrír! Fjórir!",
+    "context": "Jæja krakkar, við teljum: einn, tveir, þrír, fjórir!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_aftur",
+    "speaker": "flugedla",
+    "text": "Aftur!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_grazers",
+    "speaker": "flugedla",
+    "text": "Stóru grasbítar! Stapp, stapp!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_turtles_slow",
+    "speaker": "flugedla",
+    "text": "Skjaldbökur... hægt... hægt...",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_turtles_now",
+    "speaker": "flugedla",
+    "text": "Núna!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_frogs",
+    "speaker": "flugedla",
+    "text": "Já, froskadjamm!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_lizards",
+    "speaker": "flugedla",
+    "text": "Litlu eðlur! Hratt, hratt!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_faster",
+    "speaker": "flugedla",
+    "text": "Hraðar!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_flyers",
+    "speaker": "flugedla",
+    "text": "Upp, upp, litlu flugdýr!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_dragonflies",
+    "speaker": "flugedla",
+    "text": "Og drekaflugurnar!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_my_turn",
+    "speaker": "flugedla",
+    "text": "Nú er komið að mér!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_djamm",
+    "speaker": "flugedla",
+    "text": "Djamm!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_beetles",
+    "speaker": "flugedla",
+    "text": "Bjöllur, smellið með!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_egill_yes",
+    "speaker": "flugedla",
+    "text": "Egill, segðu já!",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_louder",
+    "speaker": "flugedla",
+    "text": "Hærra!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_sloedla",
+    "speaker": "flugedla",
+    "text": "Slóeðla! Spilaðu fyrir okkur!",
+    "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu. Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_wings_up",
+    "speaker": "flugedla",
+    "text": "Upp með vængina!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_hold_on",
+    "speaker": "flugedla",
+    "text": "Haltu þér fast!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_everyone",
+    "speaker": "flugedla",
+    "text": "Öll saman núna!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_one_more",
+    "speaker": "flugedla",
+    "text": "Einu sinni enn!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_biggest",
+    "speaker": "flugedla",
+    "text": "Jibbí! Stærsta djamm í heimi!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_b_thanks",
+    "speaker": "flugedla",
+    "text": "Takk fyrir djammið!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_welcome",
+    "speaker": "flugedla",
+    "text": "Velkomin á Stjörnuhátíðina! Ég er dídjei Flugeðla!",
+    "context": "Veistu hvað, Egill? Í kvöld kvikna fyrstu stjörnur sumarsins. Þá höldum við Stjörnuhátíðina! Flugeðlan flýgur hátt yfir skóginum og veifar vængjunum. Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_count_in",
+    "speaker": "flugedla",
+    "text": "Einn! Tveir! Þrír! Fjórir!",
+    "context": "Jæja krakkar, við teljum: einn, tveir, þrír, fjórir!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_hi_egill",
+    "speaker": "flugedla",
+    "text": "Hæ, Egill! Í kvöld förum við í leiki!",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_grazers_in",
+    "speaker": "flugedla",
+    "text": "Grasbítar! Stappið!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_grazers_shake",
+    "speaker": "flugedla",
+    "text": "Jörðin hristist!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_turtles_slow",
+    "speaker": "flugedla",
+    "text": "Skjaldbökur... hægt... hægt...",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_turtles_fast",
+    "speaker": "flugedla",
+    "text": "Snöggt!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_frogs_in",
+    "speaker": "flugedla",
+    "text": "Já, froskadjamm!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_hopp",
+    "speaker": "flugedla",
+    "text": "Hopp!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_lizards_in",
+    "speaker": "flugedla",
+    "text": "Smáeðlur! Hraðar!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_hradar",
+    "speaker": "flugedla",
+    "text": "Hraðar!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_flyers_in",
+    "speaker": "flugedla",
+    "text": "Flugdýr! Hærra!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_haerra",
+    "speaker": "flugedla",
+    "text": "Hærra!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_freeze_in",
+    "speaker": "flugedla",
+    "text": "Stoppdans! Allir dansa!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_stopp",
+    "speaker": "flugedla",
+    "text": "Stopp!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_turtle_moved",
+    "speaker": "flugedla",
+    "text": "Ha ha! Skjaldbakan hreyfði sig!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_dansa",
+    "speaker": "flugedla",
+    "text": "Dansið!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_egill_freeze",
+    "speaker": "flugedla",
+    "text": "Egill! Ekki hreyfa þig!",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_horn_in",
+    "speaker": "flugedla",
+    "text": "Slóeðla! Spilaðu fyrir okkur!",
+    "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu. Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_wings_up",
+    "speaker": "flugedla",
+    "text": "Allir! Upp með vængina!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_hold",
+    "speaker": "flugedla",
+    "text": "Haltu þér fast, Egill!",
+    "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins! Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_nu",
+    "speaker": "flugedla",
+    "text": "Nú!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_allir_saman",
+    "speaker": "flugedla",
+    "text": "Allir saman! Jibbí!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  },
+  {
+    "id": "k5_dj_c_snail",
+    "speaker": "flugedla",
+    "text": "Snigillinn er kominn! Loksins!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+  }
+]
