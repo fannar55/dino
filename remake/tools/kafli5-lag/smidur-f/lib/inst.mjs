@@ -4,6 +4,13 @@ import { rngFor, biquad, onePoleLP, svf } from './dsp.mjs';
 
 const TAU = 2 * Math.PI;
 const env = (t, a, d) => (t < a ? t / a : Math.exp(-(t - a) / d));
+/** Scale a hit so its peak is `vel` (the dB on the desk then means the same for every hit). */
+function norm(out, vel) {
+  let p = 0;
+  for (let i = 0; i < out.length; i++) p = Math.max(p, Math.abs(out[i]));
+  if (p > 0) for (let i = 0; i < out.length; i++) out[i] *= vel / p;
+  return out;
+}
 
 // ---------------- strings ----------------
 /**
@@ -94,19 +101,35 @@ export function bass(hz, seconds, { vel = 1, key = 'b', bright = 0.5, slideFrom 
   const n = Math.round((seconds + 0.08) * SR);
   const out = new Float32Array(n);
   const H = Math.min(28, Math.floor(4200 / hz));
-  const ph = new Float64Array(H + 1);
   const rel = seconds;
+  // each harmonic a rotating phasor with its own decay (no sin or exp per sample); a glide falls back to plain phases
+  for (let h = 1; h <= H; h++) {
+    const amp0 = h === 1 ? 1 : (0.9 * bright + 0.25) / h ** 1.15;
+    const dec = Math.exp(-(0.8 + 1.6 * (h - 1) * (1.2 - bright)) / SR);
+    if (!slideFrom) {
+      const w = (TAU * hz * h) / SR;
+      const c = Math.cos(w), sn = Math.sin(w);
+      let re = 1, im = 0, amp = amp0;
+      for (let t = 0; t < n; t++) {
+        out[t] += amp * im;
+        const r2 = re * c - im * sn;
+        im = re * sn + im * c;
+        re = r2;
+        amp *= dec;
+      }
+    } else {
+      let ph = 0, amp = amp0;
+      for (let t = 0; t < n; t++) {
+        const s = t / SR;
+        ph += (TAU * h * (slideFrom + (hz - slideFrom) * Math.min(1, s / 0.06))) / SR;
+        out[t] += amp * Math.sin(ph);
+        amp *= dec;
+      }
+    }
+  }
   for (let t = 0; t < n; t++) {
     const s = t / SR;
-    const glide = slideFrom ? slideFrom + (hz - slideFrom) * Math.min(1, s / 0.06) : hz;
-    const a = Math.min(1, s / 0.004) * (s > rel ? Math.exp(-(s - rel) / 0.025) : 1);
-    let v = 0;
-    for (let h = 1; h <= H; h++) {
-      ph[h] += (TAU * glide * h) / SR;
-      const amp = (h === 1 ? 1 : (0.9 * bright + 0.25) / h ** 1.15) * Math.exp(-s * (0.8 + 1.6 * (h - 1) * (1.2 - bright)));
-      v += amp * Math.sin(ph[h]);
-    }
-    out[t] = v * a;
+    out[t] *= Math.min(1, s / 0.004) * (s > rel ? Math.exp(-(s - rel) / 0.025) : 1);
   }
   // body: a soft drive makes 2nd/3rd harmonics; a mid bump where small speakers live
   const pk = biquad('peak', 700, 0.9, 4);
@@ -219,7 +242,7 @@ export function membrane(hz, { t60 = 0.35, drop = 0.18, dropT = 0.012, slap = 0,
     out[t] += hp(bp(rng() * 2 - 1)) * e * (slap ? 2.2 * slap : 0.35);
   }
   for (let t = 0; t < n; t++) out[t] *= vel;
-  return out;
+  return norm(out, vel);
 }
 
 /** Güiro / guacharaca scrape: noise through a ridge train; long (down) or short (up) strokes. */
@@ -240,7 +263,7 @@ export function scrape(seconds, { ridge = 62, bright = 0.6, key = 'g', vel = 1 }
     const x = rng() * 2 - 1;
     out[t] = hp(bp(x) * 0.8 + bp2(x) * 0.5) * (0.25 + am) * e * vel;
   }
-  return out;
+  return norm(out, vel);
 }
 
 /** Shaker / maracas / guasá: filtered noise with a grainy envelope. */
@@ -257,7 +280,7 @@ export function shake(seconds, { tone = 7000, key = 's', vel = 1, attack = 0.008
     out[t] = hp(bp(rng() * 2 - 1)) * e * grain * vel;
   }
   for (let i = 0; i < 220 && i < n; i++) out[n - 1 - i] *= i / 220;
-  return out;
+  return norm(out, vel);
 }
 
 /** A wooden click (claves, the timbal shell "cáscara", the tambora's rim "palo"). */
@@ -273,7 +296,7 @@ export function woodClick(hz, { t60 = 0.06, key = 'w', vel = 1, noise = 0.6 } = 
     if (t < 400) out[t] += bp(rng() * 2 - 1) * noise * Math.exp(-t / 70);
     out[t] *= vel * Math.min(1, s / 0.0004);
   }
-  return out;
+  return norm(out, vel);
 }
 
 /** A small cowbell (campana / bongo bell): inharmonic partials, a strike, soft by default. */
@@ -293,7 +316,7 @@ export function cowbell({ hz = 820, vel = 1, t60 = 0.28, key = 'c', mouth = 0 } 
   for (let t = 0; t < 300; t++) out[t] += bp(rng() * 2 - 1) * 0.6 * Math.exp(-t / 60);
   const lp = biquad('lp', mouth ? 1800 : 5200, 0.7);
   for (let t = 0; t < n; t++) out[t] = lp(out[t]) * vel * Math.min(1, t / 20);
-  return out;
+  return norm(out, vel);
 }
 
 /** The kick/tambora body: a round low drum whose harmonics reach the mids (felt on big speakers, heard on small). */

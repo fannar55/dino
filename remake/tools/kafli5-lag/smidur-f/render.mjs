@@ -172,22 +172,25 @@ for (const sec of SECTIONS) {
   const count = ons.filter(o => o >= from && o < to).length;
   qa.sections.push({ name: sec.name, bars: sec.bars, rmsDb: +r.rms.toFixed(1), under150Db: +r.low.toFixed(1), onsetsPerBar: +(count / bars).toFixed(1) });
 }
-// her tune, as heard in the animals stem: pitch on each note's first steady 150 ms and its attack against the beat
+// her tune, as heard in the animals stem: the attack (where the stem's energy rises at the note) against the beat, and the
+// pitch over the note's held part (from 60 ms after the attack to the next note or 0.5 s), median of the clear frames
 const an = new Float32Array(n);
 for (let t = 0; t < n; t++) an[t] = (desk.stems.animals.L[t] + desk.stems.animals.R[t]) / 2;
-for (const tn of tuneNotes) {
+tuneNotes.forEach((tn, i) => {
   const c = calls.find(x => x.tune && Math.abs(x.beat - tn.beat) < 1e-3);
   const s = at(tn.beat);
   const attack = attackNear(an, s);
+  const next = tuneNotes[i + 1] ? at(tuneNotes[i + 1].beat) : s + SR;
+  const until = Math.min(attack + Math.round(0.5 * SR), next - Math.round(0.03 * SR));
   const ps = [];
-  for (let o = 0.03; o <= 0.2; o += 0.02) {
-    const p = pitchAt(an, attack + Math.round(o * SR), c.target);
-    if (p.clarity > 0.75) ps.push(p.hz);
+  for (let p0 = attack + Math.round(0.06 * SR); p0 + 2048 <= until + 1024; p0 += Math.round(0.015 * SR)) {
+    const p = pitchAt(an, p0, c.target);
+    if (p.clarity > 0.8) ps.push(p.hz);
   }
-  ps.sort((a, b) => a - b);
+  ps.sort((x, y) => x - y);
   const hz = ps.length ? ps[ps.length >> 1] : null;
   qa.tune.push({ group: tn.group, beat: tn.beat, target: +c.target.toFixed(1), heardHz: hz && +hz.toFixed(1), cents: hz ? +(1200 * Math.log2(hz / c.target)).toFixed(1) : null, attackMs: +(((attack - s) / SR) * 1000).toFixed(1), clearFrames: ps.length });
-}
+});
 // every take as moved: pitch on its steady part, alone
 const seen = new Set();
 for (const c of calls) {
@@ -199,6 +202,15 @@ for (const c of calls) {
   const good = fr.filter(f => f.clarity > 0.8 && f.rms > pk * 0.3).map(f => f.hz * 2 ** Math.round(Math.log2(cc.target / f.hz))).sort((a, b) => a - b);
   const m = good[good.length >> 1];
   qa.takes[c.name] = { group: c.group, own: +cc.own.toFixed(1), target: +cc.target.toFixed(1), rate: +cc.rate.toFixed(4), heard: m ? +m.toFixed(1) : null, cents: m ? +(1200 * Math.log2(m / cc.target)).toFixed(1) : null, uses: calls.filter(x => x.name === c.name).length };
+}
+// bar by bar: each stem's RMS and the mix's, so the arrangement's story can be read
+qa.bars = [];
+for (let bar = 1; bar <= END_BEAT / 4 + 1; bar++) {
+  const a = at(B(bar)), b = Math.min(n, at(B(bar + 1)));
+  const row = { bar };
+  for (const s of names) row[s] = +rmsStretch(desk.stems[s].L, desk.stems[s].R, a, b).rms.toFixed(1);
+  row.mix = +rmsStretch(mL, mR, a, b).rms.toFixed(1);
+  qa.bars.push(row);
 }
 // the loop's seam: what comes before its start must equal what comes before its end
 for (const s of names) {
@@ -251,3 +263,5 @@ console.log('stems:', JSON.stringify(qa.stems));
 console.log('loudness:', JSON.stringify(qa.loudness), 'pre-rolls trimmed at the loop end:', qa.trimmedPreRolls);
 log('done', relative(ROOT, OUT));
 void existsSync; void toneHz;
+console.log('bars (rms dB: pad bass beat lead animals | mix)');
+for (const r of qa.bars) console.log(`  ${String(r.bar).padStart(2)} ${[r.pad, r.bass, r.beat, r.lead, r.animals].map(v => String(Math.round(v)).padStart(4)).join('')} | ${r.mix}`);

@@ -136,12 +136,23 @@ export function pitchAt(x, at, near) {
   return { hz: f, clarity };
 }
 
-/** The heard attack (sample) near `at`: first 5 ms window reaching -12 dB of the local peak in [at-60ms, at+250ms]. */
+/**
+ * The heard attack (sample) of a note placed at `at`: on a 5 ms RMS envelope (2.5 ms hop) over [at-40 ms, at+150 ms], the first
+ * point that rises 30% of the way from the level just before the window to the window's peak. Tails of earlier sounds raise
+ * the floor, not the rise, so the new note's attack is found even over them.
+ */
 export function attackNear(x, at) {
-  const a = Math.max(0, at - Math.round(0.06 * SR)), b = Math.min(x.length, at + Math.round(0.25 * SR));
-  let peak = 0;
-  for (let i = a; i < b; i++) peak = Math.max(peak, Math.abs(x[i]));
-  const thr = peak * 10 ** (-12 / 20);
-  for (let i = a; i < b; i++) if (Math.abs(x[i]) >= thr) return i;
-  return at;
+  const hop = Math.round(0.0025 * SR), w = Math.round(0.005 * SR);
+  const a = Math.max(0, at - Math.round(0.04 * SR)), b = Math.min(x.length - w, at + Math.round(0.15 * SR));
+  const env = [];
+  for (let s = a; s < b; s += hop) {
+    let e = 0;
+    for (let i = s; i < s + w; i++) e += x[i] * x[i];
+    env.push(Math.sqrt(e / w));
+  }
+  const floor = Math.min(...env.slice(0, 6));
+  const peak = Math.max(...env);
+  const thr = floor + 0.3 * (peak - floor);
+  const k = env.findIndex((v, i) => i >= 4 && v >= thr);
+  return a + Math.max(0, k) * hop;
 }

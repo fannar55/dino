@@ -92,7 +92,7 @@ export function compose(desk) {
 
   // keys: in the Baile both rounds share their random choices, so the loop is the same bar for bar
   const k = (inst, beat) => (beat >= BAILE[0] && beat < BAILE[1] ? `${inst}:b${((beat - BAILE[0]) % 16).toFixed(4)}` : `${inst}:${beat.toFixed(4)}`);
-  const jit = (inst, beat, ms) => Math.round((rand(k(inst, beat) + 'j', -ms, ms) / 1000) * SR);
+  const jit = (inst, beat, ms) => Math.round(((beat >= BAILE[0] && beat < BAILE[1] ? rand(k(inst, beat) + 'j', 0, ms) : rand(k(inst, beat) + 'j', -ms, ms)) / 1000) * SR);
   const vr = (inst, beat, lo, hi) => rand(k(inst, beat) + 'v', lo, hi);
 
   // the fader ride: each section's level, so the song breathes (the rise climbs beat by beat)
@@ -115,13 +115,13 @@ export function compose(desk) {
   const stomp = (beat, vel = 1) => put('beat', I.lowDrum(52, { vel, t60: 0.5, knock: 0.7, key: k('stomp', beat) }), beat, { db: -8, send: 0.12 });
   const palo = (beat, vel = 1) => put('beat', I.woodClick(1150, { vel, key: k('palo', beat), t60: 0.05 }), beat, { db: -22, pan: -0.1, send: 0.1, shift: jit('palo', beat, 3) });
   const guiro = (beat, len, vel = 1) =>
-    put('beat', I.scrape(len, { ridge: len > 0.1 ? 58 : 85, key: k('guiro', beat), vel }), beat, { db: -21, pan: 0.32, send: 0.08, shift: jit('guiro', beat, 3) });
+    put('beat', I.scrape(len, { ridge: len > 0.1 ? 58 : 85, key: k('guiro', beat), vel }), beat, { db: -18, pan: 0.32, send: 0.08, shift: jit('guiro', beat, 3) });
   const guiroBeat = (beat, vel = 1) => {
     guiro(beat, 0.155, vel * vr('gv', beat, 0.9, 1));
     guiro(beat + 0.5, 0.05, 0.6 * vel * vr('gv', beat + 0.5, 0.85, 1));
     guiro(beat + 0.75, 0.045, 0.55 * vel * vr('gv', beat + 0.75, 0.85, 1));
   };
-  const shaker = (beat, vel = 1) => put('beat', I.shake(0.07, { key: k('sh', beat), vel }), beat, { db: -30, pan: -0.38, send: 0.06, shift: jit('sh', beat, 4) });
+  const shaker = (beat, vel = 1) => put('beat', I.shake(0.07, { key: k('sh', beat), vel }), beat, { db: -28, pan: -0.38, send: 0.06, shift: jit('sh', beat, 4) });
   const shaker16 = (bar, vel = 1) => {
     for (let s = 0; s < 16; s++) shaker(B(bar, s / 4), vel * (s % 4 === 2 ? 1 : s % 2 ? 0.45 : 0.7) * vr('shv', B(bar, s / 4), 0.85, 1));
   };
@@ -129,7 +129,7 @@ export function compose(desk) {
     for (let e = 0; e < 8; e++) shaker(B(bar, e / 2), vel * (e % 2 ? 1 : 0.6));
   };
   const llamador = (beat, vel = 1) =>
-    put('beat', I.membrane(310, { t60: 0.14, slap: 0.15, key: k('ll', beat), vel }), beat, { db: -19, pan: 0.12, send: 0.1, shift: jit('ll', beat, 3) + Math.round(0.004 * SR) });
+    put('beat', I.membrane(310, { t60: 0.14, slap: 0.15, key: k('ll', beat), vel }), beat, { db: -15, pan: 0.12, send: 0.1, shift: jit('ll', beat, 3) + Math.round(0.004 * SR) });
   const conga = (beat, type, vel = 1) => {
     const o = { key: k('cg' + type, beat), vel };
     const buf =
@@ -138,18 +138,18 @@ export function compose(desk) {
       type === 's' ? I.membrane(240, { t60: 0.07, slap: 1, ...o }) :
       type === 'h' ? I.membrane(200, { t60: 0.05, slap: 0, body: 0.6, ...o }) :
       I.membrane(260, { t60: 0.04, slap: 0.2, body: 0.4, ...o });
-    put('beat', buf, beat, { db: type === 'h' || type === 't' ? -26 : -18, pan: -0.25, send: 0.12, shift: jit('cg', beat, 4) });
+    put('beat', buf, beat, { db: type === 'h' || type === 't' ? -21 : -13, pan: -0.25, send: 0.12, shift: jit('cg', beat, 4) });
   };
   // a two-bar conga part in sixteenths
   const CONGA = ['h.t.s..Oh.t.s.OO', 'h.t.s..Oh.t.s.oo'];
   const congaBar = (bar, which, vel = 1) => {
     [...CONGA[which]].forEach((c, s) => c !== '.' && conga(B(bar, s / 4), c, vel * vr('cgv', B(bar, s / 4), 0.85, 1)));
   };
-  const shell = (beat, vel = 1) => put('beat', I.woodClick(1650, { vel, key: k('shell', beat), t60: 0.035, noise: 0.9 }), beat, { db: -23, pan: 0.36, send: 0.1, shift: jit('shell', beat, 3) });
+  const shell = (beat, vel = 1) => put('beat', I.woodClick(1650, { vel, key: k('shell', beat), t60: 0.035, noise: 0.9 }), beat, { db: -21, pan: 0.36, send: 0.1, shift: jit('shell', beat, 3) });
   const CASCARA = ['x.x.xx.x', '.xx.x.x.'];
   const timbal = (beat, vel = 1, hi = true) =>
-    put('beat', I.membrane(hi ? 520 : 410, { t60: 0.45, drop: 0.04, slap: 0.2, key: k('tb', beat), vel, modes: [1, 1.5, 1.98, 2.44, 2.9], amps: [1, 0.6, 0.4, 0.3, 0.2] }), beat, { db: -21, pan: 0.3, send: 0.15 });
-  const bell = (beat, vel = 1, mouth = false) => put('beat', I.cowbell({ vel, key: k('bell', beat), mouth, hz: 780 }), beat, { db: -27, pan: 0.18, send: 0.1, shift: jit('bell', beat, 3) });
+    put('beat', I.membrane(hi ? 520 : 410, { t60: 0.45, drop: 0.04, slap: 0.2, key: k('tb', beat), vel, modes: [1, 1.5, 1.98, 2.44, 2.9], amps: [1, 0.6, 0.4, 0.3, 0.2] }), beat, { db: -16, pan: 0.3, send: 0.15 });
+  const bell = (beat, vel = 1, mouth = false) => put('beat', I.cowbell({ vel, key: k('bell', beat), mouth, hz: 780 }), beat, { db: -25, pan: 0.18, send: 0.1, shift: jit('bell', beat, 3) });
 
   // ---------- bass ----------
   const bassNote = (midi, beat, beats, vel = 1, o = {}) =>
@@ -213,7 +213,7 @@ export function compose(desk) {
 
   // ---------- the animals and her horn ----------
   const PAN = { grazers: -0.5, turtles: -0.25, frogs: 0, lizards: 0.25, flyers: 0.5 };
-  const LEVEL = { grazers: -7, turtles: -6, frogs: -10, lizards: -11, flyers: -10 };
+  const LEVEL = { grazers: -9.5, turtles: -9.5, frogs: -10, lizards: -11, flyers: -10 };
   const TRIM = { 'grazers-3': 0, 'grazers-2': -1, 'turtles-2': 0, 'frogs-5': 0, 'frogs-1': -2, 'frogs-2': -3, 'lizards-2': 0, 'lizards-3': -2, 'flyers-3': 0, 'flyers-2': -2 };
   const animal = (name, beat, o = {}) => {
     const c = call(name, { seconds: o.seconds ?? 0, fadeOut: o.fadeOut ?? 0.05 });
@@ -351,7 +351,7 @@ export function compose(desk) {
     bassNote(c.root, B(bar, 0), 1.4, 0.95);
     bassNote(c.fifth, B(bar, 2), 1.2, 0.85);
     bassNote(approach(CH[chordAt(bar + 1) ?? 'G'].root), B(bar, 3.5), 0.4, 0.7);
-    pad(bar, 4, { db: -21, tone: 0.3 });
+    pad(bar, 4, { db: -25, tone: 0.3 });
   }
   cue(B(25), 'hit');
   animal('turtles-2', B(25, 1.5));
@@ -447,28 +447,28 @@ export function compose(desk) {
   const PH_LEN = [[6, 6], [3, 3, 6], [3, 3, 3, 3], [3, 3, 2, 1, 3]];
   for (let bar = 41; bar <= 48; bar++) {
     // bombo and the 12/8 bell
-    put('beat', I.lowDrum(70, { vel: 0.9, t60: 0.45, knock: 0.3, key: k('bombo', B(bar)) }), B(bar, 0), { db: -9 });
-    put('beat', I.lowDrum(76, { vel: 0.55, t60: 0.3, knock: 0.3, key: k('bombo2', B(bar)) }), tri(bar, 6), { db: -11 });
+    put('beat', I.lowDrum(70, { vel: 0.9, t60: 0.45, knock: 0.3, key: k('bombo', B(bar)) }), B(bar, 0), { db: -12 });
+    put('beat', I.lowDrum(76, { vel: 0.55, t60: 0.3, knock: 0.3, key: k('bombo2', B(bar)) }), tri(bar, 6), { db: -14 });
     [0, 2, 4, 5, 7, 9, 11].forEach(t => put('beat', I.woodClick(2100, { vel: t === 0 ? 0.9 : 0.65, key: k('cl', tri(bar, t)), t60: 0.05 }), tri(bar, t), { db: -24, pan: 0.3, send: 0.15, shift: jit('cl', tri(bar, t), 3) }));
     // cununos: hembra open on each beat's last triplet, macho slap on 2 and 4
-    [2, 5, 8, 11].forEach(t => put('beat', I.membrane(205, { t60: 0.3, drop: 0.1, key: k('cun', tri(bar, t)), vel: 0.8 }), tri(bar, t), { db: -17, pan: -0.28, send: 0.15, shift: jit('cun', tri(bar, t), 4) }));
-    [3, 9].forEach(t => put('beat', I.membrane(265, { t60: 0.08, slap: 0.9, key: k('cunm', tri(bar, t)), vel: 0.7 }), tri(bar, t), { db: -19, pan: -0.15, send: 0.15 }));
+    [2, 5, 8, 11].forEach(t => put('beat', I.membrane(205, { t60: 0.3, drop: 0.1, key: k('cun', tri(bar, t)), vel: 0.8 }), tri(bar, t), { db: -14, pan: -0.28, send: 0.15, shift: jit('cun', tri(bar, t), 4) }));
+    [3, 9].forEach(t => put('beat', I.membrane(265, { t60: 0.08, slap: 0.9, key: k('cunm', tri(bar, t)), vel: 0.7 }), tri(bar, t), { db: -16, pan: -0.15, send: 0.15 }));
     // guasá on every triplet
-    for (let t = 0; t < 12; t++) put('beat', I.shake(0.09, { key: k('gua', tri(bar, t)), vel: t % 3 === 0 ? 0.9 : 0.5, tone: 5200, attack: 0.02 }), tri(bar, t), { db: -29, pan: 0.42, send: 0.08 });
+    for (let t = 0; t < 12; t++) put('beat', I.shake(0.09, { key: k('gua', tri(bar, t)), vel: t % 3 === 0 ? 0.9 : 0.5, tone: 5200, attack: 0.02 }), tri(bar, t), { db: -28, pan: 0.42, send: 0.08 });
     // marimba: bordón (low, synthesised) on 0 and 2 of each beat, tiple (the real marimba) on 1 and 2
     for (let q = 0; q < 4; q++) {
       const c = CH[chordAt(bar, q)];
       const low = c.root < 45 ? c.root + 12 : c.root; // G2 → G3 etc.
-      marimbaSynth(low, tri(bar, 3 * q), { vel: 0.95, soft: 0.5, db: -11, pan: -0.15 });
-      marimbaSynth(c.fifth < low ? c.fifth + 12 : c.fifth, tri(bar, 3 * q + 2), { vel: 0.7, soft: 0.5, db: -13, pan: -0.15 });
+      marimbaSynth(low, tri(bar, 3 * q), { vel: 0.95, soft: 0.5, db: -15, pan: -0.15 });
+      marimbaSynth(c.fifth < low ? c.fifth + 12 : c.fifth, tri(bar, 3 * q + 2), { vel: 0.7, soft: 0.5, db: -17, pan: -0.15 });
       const hi = c.stab.map(m => m + 12);
-      marimbaSynth(hi[(q + bar) % 3], tri(bar, 3 * q + 1), { vel: 0.6, soft: 0.3, db: -16, pan: 0.2 });
+      marimbaSynth(hi[(q + bar) % 3], tri(bar, 3 * q + 1), { vel: 0.6, soft: 0.3, db: -19, pan: 0.2 });
     }
   }
   for (let p = 0; p < 4; p++) {
     const hb = 41 + 2 * p;
     TUNE[p].forEach((g, i) => {
-      horn(g, tri(hb, PH_T[p][i]), (PH_LEN[p][i] / 3) * 0.95, { db: -6, send: 0.3 });
+      horn(g, tri(hb, PH_T[p][i]), (PH_LEN[p][i] / 3) * 0.95, { db: -9, send: 0.3 });
       const ab = tri(hb + 1, PH_T[p][i]);
       animal(MAIN[g], ab, { tune: true, seconds: Math.max(0.45, Math.min(1.2, (PH_LEN[p][i] / 3) * beatSec + 0.2)), fadeOut: 0.12 });
       marimbaTone(g, ab, { db: -15 });

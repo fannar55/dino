@@ -22,13 +22,13 @@ export const toneHz = (group, octave = 0) => 440 * 2 ** ((TONE_MIDI[group] + 12 
  * flat: how much of the take's own pitch movement is flattened (0 none, 1 all); licence for song.json.
  */
 export const TAKES = {
-  'grazers-3': { group: 'grazers', win: [0.27, 0.76], use: [0.1, 1.5], flat: 0.65, licence: 'CC0 1.0' },
+  'grazers-3': { group: 'grazers', win: [0.27, 0.76], use: [0.15, 1.5], flat: 0.85, licence: 'CC0 1.0' },
   'grazers-2': { group: 'grazers', win: [0.5, 0.68], use: [0.0, 1.0], flat: 0.5, licence: 'ElevenLabs sound generation, made for this game' },
   'turtles-2': { group: 'turtles', win: [0.05, 0.37], use: [0.02, 0.76], flat: 0.95, licence: 'ElevenLabs sound generation, made for this game' },
   'frogs-5': { group: 'frogs', win: [0.13, 0.23], use: [0.0, 0.42], flat: 0.4, licence: 'CC0 1.0' },
   'frogs-1': { group: 'frogs', win: [0.08, 0.4], use: [0.0, 0.6], flat: 0.5, licence: 'ElevenLabs sound generation, made for this game' },
   'frogs-2': { group: 'frogs', win: [0.16, 0.4], use: [0.0, 0.45], flat: 0.4, licence: 'ElevenLabs sound generation, made for this game' },
-  'lizards-2': { group: 'lizards', win: [0.09, 0.42], use: [0.0, 0.59], flat: 0.6, licence: 'ElevenLabs sound generation, made for this game' },
+  'lizards-2': { group: 'lizards', win: [0.09, 0.42], use: [0.0, 0.59], flat: 0.85, licence: 'ElevenLabs sound generation, made for this game' },
   'lizards-3': { group: 'lizards', win: [0.03, 0.06], use: [0.0, 0.27], flat: 0, licence: 'CC0 1.0', noClear: true },
   'flyers-3': { group: 'flyers', win: [0.5, 0.7], use: [0.3, 0.75], flat: 0.55, licence: 'CC BY 4.0 (Benboncan)' },
   'flyers-2': { group: 'flyers', win: [0.08, 0.45], use: [0.05, 1.15], flat: 0.7, licence: 'CC BY 4.0 (Benboncan)' },
