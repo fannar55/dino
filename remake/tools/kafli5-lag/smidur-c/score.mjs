@@ -317,7 +317,7 @@ export function score() {
   for (let b = 200; b < 216; b += 2) add({ stem: 'beat', kind: 'bodhran', beat: b, v: 0.22 + 0.012 * (b - 200), tone: 0.05, up: false, gain: 0.8, pan: 0, send: 0.2, key: `heart|${b % 4}` });
 
   // ---------------------------------------------------------------- 12. the build (bars 54-57): the bodhrán doubles bar by bar
-  horn('F3', 216, 4, { valley: true, gain: 0.5 });
+  horn('F3', 216, 4, { valley: true, gain: 0.32 });
   cue(216, 'riser');
   add({ stem: 'beat', kind: 'riser', beat: 216, beats: 16, v: 0.35, pan: 0, send: 0.2, key: 'riser' });
   const BUILD = ['Dm', 'Bb', 'C', 'C'];
@@ -334,7 +334,7 @@ export function score() {
     for (const s of cl) add({ stem: 'beat', kind: 'clap', beat: b0 + s, v: 1, gain: 0.5 + 0.05 * k, pan: s % 1 ? 0.2 : -0.2, send: 0.12, key: `bcl|${k}|${s}` });
     strings(ch, b0, 4, { gain: 0.16 + 0.11 * k, tremolo: 0.6, shape: 'rise', notes: k < 2 ? STR[ch] : ['C4', 'G4', 'E5', 'G5'], key: `bstr|${k}` });
     if (k >= 2) for (let s = 0; s < 4; s += k === 3 ? 0.5 : 1) add({ stem: 'bass', kind: 'bass', beat: b0 + s, f: H('C2'), beats: k === 3 ? 0.4 : 0.8, v: 0.8, gain: 0.8 + 0.1 * k, pan: 0, send: 0.04, key: `bbs|${k}|${s}` });
-    if (k >= 2) for (let s = 0; s < 4; s += k === 3 ? 0.5 : 1) add({ stem: 'pad', kind: 'strum', beat: b0 + s, freqs: GTR.C.map(H), down: true, v: 0.5 + 0.1 * k, dampBeats: k === 3 ? 0.45 : 0.9, gain: 0.45, pan: -0.38, send: 0.16, key: `bgt|${k}|${s}` });
+    if (k >= 1) for (let s = 0; s < 4; s += k === 3 ? 0.5 : 1) add({ stem: 'pad', kind: 'strum', beat: b0 + s, freqs: GTR[k === 1 ? 'Bb' : 'C'].map(H), down: true, v: 0.4 + 0.12 * k, dampBeats: k === 3 ? 0.45 : 0.9, gain: 0.45, pan: -0.38, send: 0.16, key: `bgt|${k}|${s}` });
   });
   whistle(224, [{ b: 0, d: 3.8, n: 'G5', v: 0.6, orn: 'trill', up: H('A5') }], { gain: 0.6 });
   fiddle(228, eighths(['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'Bb5', 'C6'], { v: 0.75, slurPairs: false, accent: [0, 4] }), { gain: 0.95, key: 'climb' });
