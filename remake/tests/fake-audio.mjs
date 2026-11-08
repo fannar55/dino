@@ -343,7 +343,7 @@ export class FakeContext extends EventTarget {
   }
 
   createBufferSource() {
-    const source = new FakeSource(this, 'bufferSource', { playbackRate: 1 });
+    const source = new FakeSource(this, 'bufferSource', { playbackRate: 1, detune: 0 });
     source.buffer = null;
     source.loop = false;
     return source;

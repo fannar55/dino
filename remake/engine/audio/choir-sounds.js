@@ -9,6 +9,13 @@
 // her crest) at a group's tone an octave down, scooping up into the note and holding it, with no wobble; her false horn is chapter
 // 4's own, played by an sfx instance of its own so stop() can silence it.
 //
+// With the owner's picked recordings (Task 6: loadChoirRecordings, the list in assets/audio/kafli5/hljod/sounds.json, mastered by
+// tools/kafli5-sounds.mjs) a sung note is the group's animal take, moved to its tone (to the octave of the tone nearest its own pitch,
+// so no take moves more than half an octave; a take with little pitch plays as it is), over the picked instrument's note at the exact
+// tone; her horn is the picked horn take at the tone, and her false horn the picked false one. One instrument take and one horn take
+// serve all five tones, each in one octave, so the five stay low to high. A part whose file has not come (or never will) is made as
+// above in its place: the marimba for the instrument, the colour for the animal, chapter 4's horns for hers.
+//
 // Everything passes `master`, which the game's hold silences (setPaused: the book open, the tab hidden). A sound is made only while
 // the page's sound runs (after the first touch), as the game's effects are; with no audio context (a capture) nothing is.
 import { createSfx } from './sfx.js';
@@ -16,10 +23,59 @@ import { KEY, toneHz } from '../../chapters/kafli5-song.js';
 
 const LEVEL = 0.22; // a sung note's peak gain into the master
 const HORN = { level: 0.16, seconds: 1.4, octave: -1 };
+const FALSE_LEVEL = 0.18; // a recorded false horn's peak
 // Each group's colour over its marimba note: how long the note rings (s), and the colour's own sources.
 const RING = { grazers: 1.1, turtles: 0.6, frogs: 0.8, lizards: 0.8, flyers: 0.9 };
+const INSTRUMENT_SECONDS = 2.0; // an instrument note is cut (faded) after this
+const PEAK = 10 ** (-3 / 20); // a mastered file's peak (tools/kafli5-sounds.mjs SHOT_PEAK, -3 dBFS)
+/** Where the chapter's recordings are. */
+export const HLJOD = new URL('../../assets/audio/kafli5/hljod/', import.meta.url).href;
 
-export function createChoirSounds({ context = null, output = null, key = KEY, random = Math.random } = {}) {
+/** The rate that puts a take of pitch `hz` on `tone` in the octave nearest its own, never over half an octave; 1 with no pitch. */
+export function takeRate(hz, tone) {
+  if (!(hz > 0) || !(tone > 0)) return 1;
+  return (tone * 2 ** Math.round(Math.log2(hz / tone))) / hz;
+}
+/** The rate that puts one take of pitch `hz`, serving all five tones, on `group`'s: in the octave nearest the take, set on mi. */
+export function setRate(hz, group, key = KEY) {
+  if (!(hz > 0)) return 1;
+  return toneHz(group, key, Math.round(Math.log2(hz / toneHz('frogs', key)))) / hz;
+}
+
+const stores = new WeakMap();
+/**
+ * The picked recordings for the page's audio context, fetched and decoded in the background (the next call for the same context
+ * gives the same store, unless `sounds` is handed in): { sounds (the list: files and levels), get(file) → its AudioBuffer once
+ * decoded, ready → a promise that settles (true) when every file has come or failed }. A file that cannot be had is never there, and
+ * its part stays made; a list that cannot be had leaves everything made. No context, no store.
+ */
+export function loadChoirRecordings(context, { fetch = globalThis.fetch, base = HLJOD, sounds = null } = {}) {
+  if (!context) return null;
+  if (!sounds && stores.has(context)) return stores.get(context);
+  const buffers = new Map();
+  const store = { sounds: { files: {}, levels: {} }, get: file => buffers.get(file), ready: null };
+  const list = sounds
+    ? Promise.resolve(sounds)
+    : Promise.resolve()
+      .then(() => fetch(new URL('sounds.json', base).href))
+      .then(response => (response.ok ? response.json() : Promise.reject(new Error(`${response.status}`))));
+  store.ready = list
+    .then(data => {
+      store.sounds = { files: data?.files ?? {}, levels: data?.levels ?? {} };
+      return Promise.all(Object.keys(store.sounds.files).map(file => Promise.resolve()
+        .then(() => fetch(new URL(file, base).href))
+        .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
+        .then(bytes => context.decodeAudioData(bytes))
+        .then(buffer => { buffers.set(file, buffer); })
+        .catch(() => {})));
+    })
+    .catch(() => {})
+    .then(() => true);
+  if (!sounds) stores.set(context, store);
+  return store;
+}
+
+export function createChoirSounds({ context = null, output = null, key = KEY, random = Math.random, recordings = null } = {}) {
   if (!context) {
     return { sing: () => false, horn: () => false, falseHorn: () => false, stop() {}, setPaused() {}, get now() { return 0; } };
   }
@@ -148,19 +204,64 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
       lizards: [tone('sine', f * 2, twice(0.06, 0.3), { from: 0.9, glide: 0.035 })],
       flyers: [tone('sine', f * 2, at => envelope(at, { attack: 0.04, hold: 0.15, decay: 0.4, peak: 0.4 }), { from: 0.97, glide: 0.08 })],
     }[group];
-    return [[...marimba, ...colour], Math.max(ring, 1.1)];
+    return { marimba, colour, seconds: Math.max(ring, 1.1) };
+  }
+
+  // The recordings: the takes of `role` (of `group`) that have come, one picked so the same is not heard twice running.
+  const lastTake = new Map();
+  function pick(role, group = null) {
+    const files = recordings?.sounds?.files ?? {};
+    const ready = Object.entries(files)
+      .filter(([file, entry]) => entry.role === role && (group === null || entry.group === group) && recordings.get(file))
+      .map(([file, entry]) => ({ file, entry, buffer: recordings.get(file) }));
+    if (!ready.length) return null;
+    const which = `${role}:${group}`;
+    const fresh = ready.length > 1 ? ready.filter(take => take.file !== lastTake.get(which)) : ready;
+    const take = fresh[Math.floor(random() * fresh.length) % fresh.length];
+    lastTake.set(which, take.file);
+    return take;
+  }
+  const levelOf = role => recordings?.sounds?.levels?.[role] ?? 1;
+  /** Plays `take` at `at` at `rate`, its peak at `level`, cut and faded at `seconds` when it is longer; `bend` may move its pitch. */
+  function recorded(take, at, { rate = 1, level, pan = 0, seconds = null, bend = null }) {
+    const source = context.createBufferSource();
+    source.buffer = take.buffer;
+    source.playbackRate.value = rate;
+    const [voice, out] = outlet(level / PEAK, pan);
+    const fade = context.createGain();
+    source.connect(fade);
+    fade.connect(voice);
+    const length = take.buffer.duration / rate;
+    const end = at + (seconds ? Math.min(seconds, length) : length);
+    if (seconds && seconds < length) {
+      fade.gain.setValueAtTime(1, Math.max(at, end - 0.12));
+      fade.gain.linearRampToValueAtTime(0.0001, end);
+    }
+    run(source, at, end + 0.02, [fade, ...out]);
+    bend?.(source, at, end);
+    return true;
   }
 
   return {
     /** `group` sings its tone at audio time `at` (now), `level` its peak gain, from the side `pan` says. Whether it did. */
     sing(group, { at = context.currentTime, level = LEVEL, pan = 0 } = {}) {
       if (!ok()) return false;
-      const [parts, seconds] = partsOf(group, toneHz(group, key));
-      return play(at, level, pan, parts, seconds);
+      const tone = toneHz(group, key);
+      const { marimba, colour, seconds } = partsOf(group, tone);
+      const take = pick('animal', group);
+      const instrument = pick('instrument');
+      // the made parts in the place of what has not come, at the picks' levels (1 each with no recordings)
+      if (!instrument) play(at, level * levelOf('instrument'), pan, marimba, seconds);
+      if (!take) play(at, level * levelOf('animal'), pan, colour, seconds);
+      if (take) recorded(take, at, { rate: take.entry.clear ? takeRate(take.entry.hz, tone) : 1, level: level * levelOf('animal'), pan });
+      if (instrument) recorded(instrument, at, { rate: setRate(instrument.entry.hz, group, key), level: level * levelOf('instrument'), pan, seconds: INSTRUMENT_SECONDS });
+      return true;
     },
-    /** Her horn at `group`'s tone, an octave down: true, held, no wobble. */
+    /** Her horn at `group`'s tone (made: an octave down): true, held, no wobble. */
     horn(group, { at = context.currentTime, level = HORN.level, pan = 0, seconds = HORN.seconds, octave = HORN.octave } = {}) {
       if (!ok()) return false;
+      const blown = pick('horn');
+      if (blown) return recorded(blown, at, { rate: setRate(blown.entry.hz, group, key), level: level * levelOf('horn'), pan, seconds });
       const f = toneHz(group, key, octave);
       const crest = at => {
         const filter = context.createBiquadFilter(); // her crest: a ringing lowpass that opens with her breath
@@ -196,9 +297,36 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
       });
       return true;
     },
-    /** Her false horn, as chapter 4 has it (sfx.js sloedlaHorn), now. */
+    /**
+     * Her false horn, now: the picked recording (a false take as it is, or her true horn's take made false: a quarter tone flat,
+     * sliding down between re and mi and wobbling), or chapter 4's (sfx.js sloedlaHorn).
+     */
     falseHorn({ pan = 0, level } = {}) {
       if (!ok()) return false;
+      const wrong = pick('hornFalse');
+      if (wrong) {
+        const peak = (level ?? FALSE_LEVEL) * levelOf('hornFalse');
+        if (!wrong.entry.wobble) return recorded(wrong, context.currentTime, { level: peak, pan });
+        return recorded(wrong, context.currentTime, {
+          rate: setRate(wrong.entry.hz, 'frogs', key),
+          level: peak,
+          pan,
+          seconds: 1.8,
+          bend: (source, at, end) => {
+            // between the key's notes all the way: mi less 50, 90 and 140 cents never comes within 30 of re or mi
+            source.detune.setValueAtTime(-50, at);
+            source.detune.linearRampToValueAtTime(-90, at + (end - at) * 0.55);
+            source.detune.linearRampToValueAtTime(-140, end);
+            const wobble = context.createOscillator();
+            wobble.frequency.value = 5.5;
+            const depth = context.createGain();
+            depth.gain.value = 30;
+            wobble.connect(depth);
+            depth.connect(source.detune);
+            run(wobble, at, end, [depth]);
+          },
+        });
+      }
       const bus = context.createGain();
       bus.gain.value = 1;
       bus.connect(master);
