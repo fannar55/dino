@@ -143,73 +143,77 @@ export const PRESETS = {
     ],
     negative: [...NEGATIVE, 'piano', 'keys', 'guitar', 'synth lead', 'strings', 'melody', 'pads', 'brass'],
   },
-  // Lag Slóeðlu (chapter 5, docs/superpowers/plans/2026-11-07-kafli-5-sloedla.md Task 7): her own song's backing. The chapter plays
-  // it in stems that join one by one as the child plays her four phrases (a pad first, alone and low), so each of its four parts is
-  // one instrument the stem separator knows (other = the pad, piano or guitar = the chords, bass, drums), and the verses and choruses
-  // (bars 4 to 36) have all four, the same calm way, so the chapter can loop them. The animals and her horn sing the lead on top, in
-  // F major's pentatonic (kafli5-song.js). The four versions are the candidates the owner picks from by ear.
-  sloedla: {
-    name: 'Lag Slóeðlu',
-    style: 'calm, warm lullaby-like song for children',
-    bpm: 84,
+  // Dýr skógarins, Slóeðla's song (chapter 5, docs/superpowers/plans/2026-11-07-kafli-5-sloedla.md Task 7). The owner turned down
+  // four calm backings on 2026-11-08 (preset `sloedla` in 6ea1020) and asked for a lively, cinematic song with a clear form and a
+  // middle section that a fun video can be cut to, with the animals of the forest taking part. The four versions are the
+  // candidates he picks from by ear. The animals and her horn sing their pentatonic tune on top (kafli5-song.js), so the verses
+  // stay light. The song keeps one tempo and one key, so their tones always fit, and it is played by instrument families the
+  // stem separator can keep apart (drums, bass, the rest), so the chapter can still bring its parts in one at a time.
+  skogur: {
+    name: 'Dýr skógarins',
+    style: 'lively, joyful cinematic adventure song for children',
+    bpm: 112,
     key: 'F major',
     keyWords: 'F major',
-    folder: 'v2/sloedla',
-    chords: { roman: 'I-vi-IV-V', names: ['F', 'Dm', 'Bb', 'C'], words: 'F, D minor, B flat, C', perBar: 1 },
+    folder: 'v2/skogur',
+    chords: { roman: 'I-V-vi-IV', names: ['F', 'C', 'Dm', 'Bb'], words: 'F, C, D minor, B flat', perBar: 1 },
+    bridgeChords: { roman: 'vi-IV-I-V', names: ['Dm', 'Bb', 'F', 'C'], words: 'D minor, B flat, F, C', perBar: 1 },
     form: [
-      ['Intro', 'intro', 4, ['the warm string pad alone for two bars, very soft', 'the chords and the bass come in on the third bar, the drums on the fourth']],
+      ['Intro', 'intro', 4, ['a cinematic opening, the forest waking up: a soft shimmering string tremolo and one bright French horn call for two bars', 'the drums and the whole orchestra swell in over the last two bars']],
       ['Verse 1', 'verse', 8],
       ['Chorus 1', 'chorus', 8],
-      ['Verse 2', 'verse', 8],
+      ['Verse 2', 'verse', 8, ['a little fuller than the first verse, with extra percussion']],
       ['Chorus 2', 'chorus', 8],
+      ['Middle', 'bridge', 8, ['a clearly different middle section: the big drums drop out to a soft light pulse', 'pizzicato strings and woodwinds tiptoe playfully, like small animals sneaking through the forest', 'a little mysterious but still happy']],
+      ['Build', 'bridge', 4, ['a big build back to the final chorus: a timpani roll, rising strings and horns, a snare roll in the last bar']],
+      ['Final Chorus', 'final', 8],
       ['Outro', 'outro', 4],
     ],
     kinds: {
-      intro: ['intro', 'very soft and sparse, builds gently'],
-      verse: ['verse', 'gentle steady groove, all four instruments playing softly', 'leaves open space for a lead melody'],
-      chorus: ['chorus', 'a little fuller and warmer, the same instruments and the same calm energy', 'leaves open space for a lead melody'],
-      outro: ['outro', 'winds down on the same gentle groove without slowing down', 'ends cleanly on a soft F major chord, no fade out'],
+      intro: ['intro', 'builds up over four bars'],
+      verse: ['verse', 'light and bouncy, medium energy', 'the orchestra plays short playful figures', 'leaves open space for a melody on top'],
+      chorus: ['chorus', 'the full orchestra plays the big, catchy main theme', 'high energy, bright and soaring'],
+      bridge: ['middle section', 'drums keep exactly the same steady tempo'],
+      final: ['final chorus', 'the biggest and most triumphant section: the main theme with the whole orchestra and extra percussion'],
+      outro: ['outro', 'a short joyful ending on the same tempo', 'ends with one big final orchestral hit on an F major chord, no fade out'],
     },
     core: [
-      'a calm, warm and gentle song for young children, like a lullaby on a golden afternoon by a quiet pond',
-      'exactly four instruments: soft felt piano, a warm string pad, upright bass and light brushed drums',
-      'soft felt piano playing gentle broken chords', 'a warm soft string pad holding each chord',
-      'a round, soft upright bass on the root of each chord', 'very light brushed drums with a soft shaker keeping a steady gentle beat',
-      'simple and sparse with lots of space', 'acoustic, intimate and clean warm production',
+      'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+      'a full film orchestra: strings, French horns, trumpets, woodwinds, timpani and orchestral percussion',
+      'bouncy pizzicato strings and playful woodwinds in the verses', 'a big soaring theme on strings and French horns in the choruses',
+      'a driving orchestral groove with timpani, snare drum and cymbals keeping a clear steady beat',
+      'bright, warm and triumphant, like the finale of an animated family film',
     ],
-    negative: [...NEGATIVE, 'guitar', 'electric guitar', 'synth lead', 'flute', 'whistling', 'bells', 'marimba', 'xylophone', 'brass', 'saxophone', 'loud drums', 'heavy bass', 'sad', 'dark', 'dramatic', 'minor key'],
+    negative: [
+      ...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)), 'electronic', 'synthesizer', 'dubstep', 'trailer braams',
+      'electric guitar', 'marimba', 'xylophone', 'glockenspiel', 'bells', 'sad', 'dark', 'scary', 'horror', 'slow', 'lullaby', 'ambient', 'minor key',
+    ],
     revisions: {
       2: {
         core: [
-          'a calm, warm and gentle song for young children, like a lullaby on a golden afternoon by a quiet pond',
-          'exactly four instruments: a mellow Rhodes electric piano, a warm soft synth pad, a round electric bass and soft hand percussion',
-          'a mellow Rhodes electric piano playing gentle chords', 'a warm soft synth pad holding each chord',
-          'a round, soft electric bass on the root of each chord', 'soft hand percussion, a gentle shaker and a quiet rim click keeping a steady beat',
-          'simple and sparse with lots of space', 'dreamy, warm and clean production',
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'big cinematic drums: taiko, toms and deep frame drums, with bouncy hand percussion, congas and shakers',
+          'a driving low string ostinato', 'bold French horns and strings playing a big catchy theme in the choruses',
+          'rhythmic, earthy and wild, like a parade of animals through the jungle', 'bright and triumphant, never dark',
         ],
-        revision: 'a Rhodes electric piano, a synth pad and hand percussion in place of the felt piano, the strings and the brushes',
+        revision: 'big cinematic drums and hand percussion carry it: taiko, toms, congas, a low string ostinato and bold horns',
       },
       3: {
         core: [
-          'a calm, warm and gentle song for young children, like a lullaby on a golden afternoon by a quiet pond',
-          'exactly four instruments: a fingerpicked nylon-string guitar, a warm string pad, upright bass and light brushed drums',
-          'a fingerpicked nylon-string acoustic guitar playing gentle broken chords', 'a warm soft string pad holding each chord',
-          'a round, soft upright bass on the root of each chord', 'very light brushed drums with a soft shaker keeping a steady gentle beat',
-          'simple and sparse with lots of space', 'acoustic, intimate and clean warm production',
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'a fiddle and a tin whistle playing a lively dancing folk theme', 'a strummed acoustic guitar and a bouncy bodhran drum',
+          'orchestral strings and French horns swelling in the choruses', 'Celtic adventure film music, joyful and dancing',
         ],
-        negative: [...NEGATIVE, 'piano', 'electric guitar', 'synth lead', 'flute', 'whistling', 'bells', 'marimba', 'xylophone', 'brass', 'saxophone', 'loud drums', 'heavy bass', 'sad', 'dark', 'dramatic', 'minor key'],
-        revision: 'a fingerpicked nylon-string guitar in place of the felt piano',
+        revision: 'Celtic folk adventure: a fiddle, a tin whistle, an acoustic guitar and a bodhran with the orchestra',
       },
       4: {
         core: [
-          'a calm, warm and sunny song for young children, a gentle stroll on a golden afternoon by a quiet pond',
-          'exactly four instruments: a softly strummed ukulele, a warm string pad, upright bass and light brushed drums',
-          'a softly strummed ukulele playing the chords in a gentle swaying rhythm', 'a warm soft string pad holding each chord',
-          'a round, soft upright bass on the root of each chord', 'very light brushed drums with a soft shaker keeping a steady gentle beat',
-          'simple and sparse with lots of space', 'acoustic, happy and clean warm production',
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'a cheeky, bouncy cartoon parade march', 'an oompah tuba and a bassoon on the bass',
+          'clarinets, a piccolo and trumpets playing a playful catchy theme', 'snare drum, bass drum and cymbals marching on a steady beat',
+          'pizzicato strings', 'funny and joyful, like the animals marching in a parade in an animated film',
         ],
-        negative: [...NEGATIVE, 'piano', 'electric guitar', 'synth lead', 'flute', 'whistling', 'bells', 'marimba', 'xylophone', 'brass', 'saxophone', 'loud drums', 'heavy bass', 'sad', 'dark', 'dramatic', 'minor key'],
-        revision: 'a softly strummed ukulele in place of the felt piano, a little sunnier',
+        revision: 'a cheeky cartoon parade march: tuba, bassoon, clarinets, piccolo, trumpets, snare drum and pizzicato',
       },
     },
   },
