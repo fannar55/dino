@@ -14,16 +14,16 @@ export function stomp({ size = 1, seed = 1, bright = 1 } = {}) {
     const t = i / SR;
     const f = (52 + 75 * Math.exp(-t / 0.022)) / Math.sqrt(size);
     ph += (TAU * f) / SR;
-    x[i] = Math.sin(ph) * Math.exp(-t / (0.13 * size)) * 0.9;
+    x[i] = Math.sin(ph) * Math.exp(-t / (0.085 * size)) * 0.55;
   }
   // thud of the sole: low noise
   const thud = adEnv(biquad(white(n, r), 'lp', 380, 0.8), 0.002, 0.035);
   addInto(x, thud, 0, 1.6);
   // the ground and the boards: mid modes for small speakers
   const knock = modal(n, [
-    { f: 170 / size ** 0.3, a: 0.5, d: 0.09 }, { f: 330 + r() * 20, a: 0.35, d: 0.05 }, { f: 610 + r() * 40, a: 0.18, d: 0.03 },
+    { f: 165 / size ** 0.3, a: 0.55, d: 0.1 }, { f: 245 + r() * 10, a: 0.45, d: 0.07 }, { f: 330 + r() * 20, a: 0.4, d: 0.05 }, { f: 610 + r() * 40, a: 0.2, d: 0.03 },
   ], { hard: 1.2 });
-  addInto(x, knock, 0, 0.7 * bright);
+  addInto(x, knock, 0, 1.25 * bright);
   // a little grit of dirt
   const grit = adEnv(biquad(white(n, r), 'bp', 2500, 0.9), 0.001, 0.012);
   addInto(x, grit, 0, 0.08 * bright);
@@ -181,7 +181,7 @@ export function drop({ f, seed = 1, size = 1, dur = 0.22 } = {}) {
   let ph = 0;
   for (let i = 0; i < n; i++) {
     const t = i / SR;
-    const ff = f * (0.72 + 0.28 * (1 - Math.exp(-t / (0.008 * size))) + 0.04 * Math.min(1, t / 0.15));
+    const ff = f * (0.72 + 0.28 * (1 - Math.exp(-t / (0.008 * size))));
     ph += (TAU * ff) / SR;
     x[i] = Math.sin(ph) * Math.min(1, t / 0.0015) * Math.exp(-t / (0.05 + 0.04 * size));
   }

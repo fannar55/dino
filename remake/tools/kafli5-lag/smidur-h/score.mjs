@@ -173,12 +173,12 @@ export function buildScore() {
   // ==================================================================================================================
   // 1. Her song, the first time: the animals pass it along, the band answers with feet and hands (bars 4-11)
   section('Her song', 'Lagið hennar', 16, 32, null, 'The animals sing her tune for the first time, note by note, each group on its own tone (the camera hops to each singer); feet, hands and sticks answer every phrase.');
-  tunePass(16, { log: 0.42 });
-  answersFeet(16, 0.9);
+  tunePass(16, { log: 0.6, g: 1.15 });
+  answersFeet(16, 0.62);
   PASS_CHORDS.forEach((c, k) => reeds(16 + k * 4, c, 4, k < 4 ? 0.3 : 0.38));
   for (let bar = 4; bar < 12; bar++) {
     stompAt(bar * 4, 0.5);
-    if (bar >= 8) { shaker(bar, 0.3, false); const c = CH[PASS_CHORDS[bar - 4]]; bass(bar * 4, c.root, 2.4, 0.75); }
+    if (bar >= 8) { shaker(bar, 0.3, false); const c = CH[PASS_CHORDS[bar - 4]]; bass(bar * 4, c.root, 2.4, 0.75); patschAt(bar * 4 + 1, 0.35); patschAt(bar * 4 + 3, 0.35); }
   }
   cues.push({ beat: 16, kind: 'hit' });
 
@@ -250,19 +250,19 @@ export function buildScore() {
   section('Frogs', 'Froskar', 128, 16, 'frogs', 'The band drops out; mouths beatbox and the frogs take over: ribbits on mi in a syncopated riff, their trill as the hi-hat.');
   for (let bar = 32; bar < 36; bar++) {
     const b = bar * 4, k = bar - 32;
-    reeds(b, k % 2 ? 'C' : 'G', 4, 0.22);
-    add(b, 'bbKick', 'beat', {}, 0.85, 0, 0.05); add(b + 1.75, 'bbKick', 'beat', {}, 0.6, 0, 0.05); add(b + 2.5, 'bbKick', 'beat', {}, 0.75, 0, 0.05);
-    add(b + 1, 'bbSnare', 'beat', {}, 0.7, 0.05, 0.1); add(b + 3, 'bbSnare', 'beat', {}, 0.75, 0.05, 0.1);
+    reeds(b, k % 2 ? 'C' : 'G', 4, 0.34);
+    add(b, 'bbKick', 'beat', {}, 1.0, 0, 0.05); add(b + 1.75, 'bbKick', 'beat', {}, 0.7, 0, 0.05); add(b + 2.5, 'bbKick', 'beat', {}, 0.9, 0, 0.05);
+    add(b + 1, 'bbSnare', 'beat', {}, 0.9, 0.05, 0.1); add(b + 3, 'bbSnare', 'beat', {}, 0.95, 0.05, 0.1);
     for (let o = 0; o < 4; o += 0.5) add(sw(b + o + 0.25), 'bbHat', 'beat', {}, 0.32, 0.3, 0.05);
     if (k === 3) add(b + 3.5, 'bbHat', 'beat', { open: true }, 0.4, 0.3, 0.1);
     // a cheek-pop bass: do and sol
-    for (const [o, n] of [[0, 'G3'], [0.75, 'G3'], [1.5, 'D4'], [2.5, 'G3'], [3.25, 'B3']]) add(b + o, 'lipPop', 'bass', { f: hz(n) }, 0.75, 0, 0.05);
+    for (const [o, n] of [[0, 'G3'], [0.75, 'G3'], [1.5, 'D4'], [2.5, 'G3'], [3.25, 'B3']]) add(b + o, 'lipPop', 'bass', { f: hz(n) }, 1.0, 0, 0.05);
     // the frogs' riff
     const riff = k % 2 === 0 ? [0.5, 1.25, 2, 2.75, 3.5] : [0.5, 1, 1.5, 2.25, 3, 3.25, 3.5];
-    for (const o of riff) call(b + o, 'frogs', 'riff', { dur: 0.2 }, 0.85);
+    for (const o of riff) call(b + o, 'frogs', 'riff', { dur: 0.2 }, 1.05);
     // the low frog answers an octave down
-    call(b + 3.75, 'frogs', 'riff', { dur: 0.2, low: true }, 0.7);
-    frogHats(bar, 0.55, [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75]);
+    call(b + 3.75, 'frogs', 'riff', { dur: 0.2, low: true }, 0.9);
+    frogHats(bar, 0.7, [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75]);
     if (k >= 2) add(b + 3.5, 'tongue', 'beat', { f: 1600 }, 0.4, -0.3, 0.1);
   }
 
@@ -404,6 +404,16 @@ export function buildScore() {
   stompAt(280, 1.0, 1.2); clapAt(280, 0.9, 5); add(280, 'splash', 'beat', { size: 0.8 }, 0.35, 0, 0.3);
   dropAt(282, 'G6', 0.6, 'lead', 0);
   cues.push({ beat: 280, kind: 'end' });
+
+  // the song's dynamics: each part's overall level (the rise climbs into the peak); the loop (bars 16-19) sits in one level
+  const DYN = [[0, 1], [16, 1], [48, 0.86], [80, 0.84], [96, 1], [128, 1.0], [144, 0.86], [160, 0.8], [192, 0.8], [224, 0.8], [240, 1.15], [272, 1.12]];
+  const dyn = b => {
+    if (b >= 224 && b < 240) return 0.8 + ((b - 224) / 16) * 0.3;
+    let g = 1;
+    for (const [s0, v] of DYN) if (b >= s0) g = v;
+    return g;
+  };
+  for (const e of ev) e.g *= dyn(e.b);
 
   ev.sort((a, b) => a.b - b.b);
   cues.sort((a, b) => a.beat - b.beat);

@@ -46,8 +46,8 @@ function renderCall(p) {
     return normalize(x);
   }
   if (group === 'grazers') {
-    if (p.chop) return call(RECIPES.grazersChop, target * 2 ** (p.octave ?? 0), { dur: p.dur, attack: 0.004, release: 0.04, lp: 3200 });
-    return call(RECIPES.grazers, target, { dur: p.dur, attack: 0.006, release: 0.08 });
+    if (p.chop) return call(RECIPES.grazersChop, target * 2 ** (p.octave ?? 0), { dur: p.dur, attack: 0.004, release: 0.04, lp: 3200, hp: 110 });
+    return call(RECIPES.grazers, target, { dur: p.dur, attack: 0.006, release: 0.08, hp: 110 });
   }
   if (group === 'turtles') return call(RECIPES.turtles, target, { dur: p.dur, attack: 0.004, release: 0.06 });
   if (group === 'frogs') {
@@ -70,6 +70,9 @@ function renderHorn(p) {
   biquad(x, 'hs', 3500, 0.7, -3);
   return x;
 }
+
+export const renderCallForCheck = p => renderCall(p);
+export const renderHornForCheck = p => renderHorn(p);
 
 const INSTR = {
   stomp: (p, s) => F.stomp({ ...p, seed: s }),
@@ -99,9 +102,9 @@ const INSTR = {
 };
 // how loud each kind sits before its event gain
 const LEVEL = {
-  stomp: 0.9, clap: 0.42, snap: 0.25, patsch: 0.4, chest: 0.5, stick: 0.3, stones: 0.3, logMarimba: 0.38, shell: 0.55,
-  logBass: 0.62, drop: 0.32, splash: 0.4, leaves: 0.16, rustle: 0.18, bbKick: 0.7, bbSnare: 0.45, bbHat: 0.22, lipPop: 0.5,
-  tongue: 0.3, reed: 0.075, whistle: 0.22, pond: 0.25, call: 0.55, horn: 0.5,
+  stomp: 0.85, clap: 0.5, snap: 0.28, patsch: 0.45, chest: 0.5, stick: 0.3, stones: 0.32, logMarimba: 0.46, shell: 0.55,
+  logBass: 0.33, drop: 0.38, splash: 0.4, leaves: 0.2, rustle: 0.2, bbKick: 1.0, bbSnare: 0.7, bbHat: 0.3, lipPop: 0.7,
+  tongue: 0.35, reed: 0.2, whistle: 0.26, pond: 0.3, call: 0.8, horn: 0.6,
 };
 export const STEMS = ['pad', 'bass', 'beat', 'lead', 'animals'];
 
