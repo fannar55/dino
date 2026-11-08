@@ -305,19 +305,19 @@ export function score() {
   add({ stem: 'pad', kind: 'drone', freqs: ['F2', 'C3', 'F3'].map(H), beat: 184, beats: 33, attack: 1.2, release: 1.6, gain: 0.2, pan: 0, send: 0.4, key: 'drone|mid' });
   harpRun(184, ['F3', 'A3', 'C4', 'F4', 'A4', 'C5', 'F5', 'A5'], { step: 0.5, gain: 0.5 });
   // her call, and the valley answers a bar later (the echo); the harp fills the echoes' gaps
-  horn('C4', 188, 2, { valley: true, gain: 0.85 }); horn('A3', 190, 2, { valley: true, gain: 0.85 });
+  horn('C4', 188, 2, { valley: true, gain: 0.55 }); horn('A3', 190, 2, { valley: true, gain: 0.55 });
   harpNote('C5', 194, { gain: 0.45 }); harpNote('A4', 195, { gain: 0.4 });
-  horn('G3', 196, 1, { valley: true, gain: 0.85 }); horn('A3', 197, 1, { valley: true, gain: 0.85 }); horn('F3', 198, 2, { valley: true, gain: 0.85 });
+  horn('G3', 196, 1, { valley: true, gain: 0.55 }); horn('A3', 197, 1, { valley: true, gain: 0.55 }); horn('F3', 198, 2, { valley: true, gain: 0.55 });
   harpRun(200, ['D4', 'F4', 'A4', 'D5', 'F5', 'A5'], { step: 0.5, gain: 0.45 });
-  horn('D4', 204, 1, { valley: true, gain: 0.85 }); horn('C4', 205, 1, { valley: true, gain: 0.85 }); horn('A3', 206, 1, { valley: true, gain: 0.85 }); horn('C4', 207, 1, { valley: true, gain: 0.85 });
+  horn('D4', 204, 1, { valley: true, gain: 0.55 }); horn('C4', 205, 1, { valley: true, gain: 0.55 }); horn('A3', 206, 1, { valley: true, gain: 0.55 }); horn('C4', 207, 1, { valley: true, gain: 0.55 });
   harpRun(208, ['Bb3', 'D4', 'F4', 'Bb4', 'D5', 'F5'], { step: 0.5, gain: 0.45 });
   strings('F', 200, 16, { notes: ['F4', 'C5', 'F5'], gain: 0.16, shape: 'slow', key: 'air' });
-  horn('D4', 212, 1, { valley: true, gain: 0.85 }); horn('C4', 213, 1, { valley: true, gain: 0.85 }); horn('A3', 214, 1, { valley: true, gain: 0.85 }); horn('G3', 215, 1, { valley: true, gain: 0.85 });
+  horn('D4', 212, 1, { valley: true, gain: 0.55 }); horn('C4', 213, 1, { valley: true, gain: 0.55 }); horn('A3', 214, 1, { valley: true, gain: 0.55 }); horn('G3', 215, 1, { valley: true, gain: 0.55 });
   // a heartbeat comes back in the second half: the bodhrán's open skin, softly, on 1 and 3
   for (let b = 200; b < 216; b += 2) add({ stem: 'beat', kind: 'bodhran', beat: b, v: 0.22 + 0.012 * (b - 200), tone: 0.05, up: false, gain: 0.8, pan: 0, send: 0.2, key: `heart|${b % 4}` });
 
   // ---------------------------------------------------------------- 12. the build (bars 54-57): the bodhrán doubles bar by bar
-  horn('F3', 216, 4, { valley: true, gain: 1 });
+  horn('F3', 216, 4, { valley: true, gain: 0.5 });
   cue(216, 'riser');
   add({ stem: 'beat', kind: 'riser', beat: 216, beats: 16, v: 0.35, pan: 0, send: 0.2, key: 'riser' });
   const BUILD = ['Dm', 'Bb', 'C', 'C'];
@@ -326,13 +326,13 @@ export function score() {
     const per = [4, 8, 12, 16][k];
     for (let i = 0; i < per; i++) {
       const x = (k * 4 + (i / per) * 4) / 16; // 0 .. 1 through the build
-      add({ stem: 'beat', kind: 'bodhran', beat: b0 + (i * 4) / per, v: 0.35 + 0.55 * x + (i % (per / 4) === 0 ? 0.12 : 0), tone: 0.1 + 0.5 * x, up: i % 2 === 1, gain: 1, pan: -0.08, send: 0.12, key: `build|${k}|${i}` });
+      add({ stem: 'beat', kind: 'bodhran', beat: b0 + (i * 4) / per, v: 0.22 + 0.7 * x * x + (i % (per / 4) === 0 ? 0.1 : 0), tone: 0.1 + 0.5 * x, up: i % 2 === 1, gain: 1, pan: -0.08, send: 0.12, key: `build|${k}|${i}` });
     }
     const st = [[0], [0, 2], [0, 1, 2, 3], [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]][k];
     for (const s of st) add({ stem: 'beat', kind: 'stomp', beat: b0 + s, v: 0.6 + 0.1 * k, gain: 0.85, pan: 0, send: 0.08, key: `bst|${k}|${s}` });
     const cl = [[], [], [1, 3], [0.5, 1, 1.5, 2, 2.5, 3, 3.5]][k];
     for (const s of cl) add({ stem: 'beat', kind: 'clap', beat: b0 + s, v: 1, gain: 0.5 + 0.05 * k, pan: s % 1 ? 0.2 : -0.2, send: 0.12, key: `bcl|${k}|${s}` });
-    strings(ch, b0, 4, { gain: 0.22 + 0.12 * k, tremolo: 0.6, shape: 'rise', notes: k < 2 ? STR[ch] : ['C4', 'G4', 'E5', 'G5'], key: `bstr|${k}` });
+    strings(ch, b0, 4, { gain: 0.1 + 0.17 * k, tremolo: 0.6, shape: 'rise', notes: k < 2 ? STR[ch] : ['C4', 'G4', 'E5', 'G5'], key: `bstr|${k}` });
     if (k >= 2) for (let s = 0; s < 4; s += k === 3 ? 0.5 : 1) add({ stem: 'bass', kind: 'bass', beat: b0 + s, f: H('C2'), beats: k === 3 ? 0.4 : 0.8, v: 0.8, gain: 0.8 + 0.1 * k, pan: 0, send: 0.04, key: `bbs|${k}|${s}` });
     if (k >= 2) for (let s = 0; s < 4; s += k === 3 ? 0.5 : 1) add({ stem: 'pad', kind: 'strum', beat: b0 + s, freqs: GTR.C.map(H), down: true, v: 0.5 + 0.1 * k, dampBeats: k === 3 ? 0.45 : 0.9, gain: 0.45, pan: -0.38, send: 0.16, key: `bgt|${k}|${s}` });
   });
