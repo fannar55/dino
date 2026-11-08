@@ -165,7 +165,7 @@ export const PRESETS = {
       ['Verse 2', 'verse', 8, ['a little fuller than the first verse, with extra percussion']],
       ['Chorus 2', 'chorus', 8],
       ['Middle', 'bridge', 8, ['a clearly different middle section: the big drums drop out to a soft light pulse', 'pizzicato strings and woodwinds tiptoe playfully, like small animals sneaking through the forest', 'a little mysterious but still happy']],
-      ['Build', 'bridge', 4, ['a big build back to the final chorus: a timpani roll, rising strings and horns, a snare roll in the last bar']],
+      ['Build', 'build', 4, ['a big build back to the final chorus: a timpani roll, rising strings and horns, a snare roll in the last bar']],
       ['Final Chorus', 'final', 8],
       ['Outro', 'outro', 4],
     ],
@@ -174,6 +174,7 @@ export const PRESETS = {
       verse: ['verse', 'light and bouncy, medium energy', 'the orchestra plays short playful figures', 'leaves open space for a melody on top'],
       chorus: ['chorus', 'the full orchestra plays the big, catchy main theme', 'high energy, bright and soaring'],
       bridge: ['middle section', 'drums keep exactly the same steady tempo'],
+      build: ['build-up', 'rising energy and tension', 'drums keep exactly the same steady tempo'],
       final: ['final chorus', 'the biggest and most triumphant section: the main theme with the whole orchestra and extra percussion'],
       outro: ['outro', 'a short joyful ending on the same tempo', 'ends with one big final orchestral hit on an F major chord, no fade out'],
     },
@@ -215,6 +216,31 @@ export const PRESETS = {
         ],
         revision: 'a cheeky cartoon parade march: tuba, bassoon, clarinets, piccolo, trumpets, snare drum and pizzicato',
       },
+      // Versions 1-4 came back with every section from verse 1 on the same (drum onsets in the middle as in the choruses): the
+      // whole song's words reached every section and won. Version 5 is the film orchestra again with each section's own words first
+      // and its own forbidden styles.
+      5: {
+        sectionFirst: true,
+        core: [
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'film orchestra: strings, French horns, trumpets, woodwinds, timpani and orchestral percussion',
+          'bright, warm and triumphant, like an animated family film', 'a clear dynamic arc: every section sounds clearly different from the one before',
+        ],
+        kinds: {
+          intro: ['intro', 'a soft cinematic opening that grows', 'quiet at first'],
+          verse: ['verse', 'light and bouncy, medium-low energy: only pizzicato strings, woodwinds and a light snare drum', 'leaves open space for a melody on top'],
+          chorus: ['chorus', 'loud and full: the whole orchestra with big drums, timpani and cymbals', 'the big catchy main theme on strings and French horns', 'high energy'],
+          bridge: ['breakdown', 'a sudden quiet, sparse breakdown with no drums at all', 'only pizzicato strings and a clarinet tiptoeing softly, like small animals sneaking through the forest', 'low energy, soft and a little mysterious but still happy'],
+          build: ['build-up', 'a big crescendo: a timpani roll and a snare drum roll growing louder and louder', 'strings and horns rising', 'tension rising into the final chorus'],
+          final: ['final chorus', 'the loudest, biggest and most triumphant section: the whole orchestra with big drums and crashing cymbals', 'the main theme'],
+          outro: ['outro', 'a short joyful ending on the same tempo', 'ends with one big final orchestral hit on an F major chord, no fade out'],
+        },
+        kindNegative: {
+          verse: ['loud drums', 'timpani', 'cymbal crashes', 'full orchestra', 'brass'],
+          bridge: ['drums', 'drum kit', 'percussion', 'timpani', 'snare drum', 'cymbals', 'brass', 'loud', 'full orchestra'],
+        },
+        revision: 'the film orchestra again, each section with its own words first and its own forbidden styles: a light verse, a loud chorus, a breakdown with no drums, a crescendo, the biggest final chorus',
+      },
     },
   },
 };
@@ -250,15 +276,19 @@ export function planOf(preset, version = 1) {
   const kinds = { ...KINDS, ...(p.kinds ?? {}) };
   const chunks = sectionsOf(preset).map(section => {
     const chords = section.kind === 'bridge' ? p.bridgeChords ?? p.chords : p.chords;
+    const grid = [
+      `${p.bpm} BPM`, `steady tempo, never speeds up or slows down`, `in ${p.keyWords}`,
+      `simple chord progression ${chords.roman} in ${p.keyWords}: ${chords.words}, one chord per bar, repeating`,
+    ];
+    const whole = [...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals'];
+    const own = [...kinds[section.kind], ...section.styles];
     return {
       text: `[${section.name}]`,
       duration_ms: section.durationMs,
-      positive_styles: [
-        `${p.bpm} BPM`, `steady tempo, never speeds up or slows down`, `in ${p.keyWords}`,
-        `simple chord progression ${chords.roman} in ${p.keyWords}: ${chords.words}, one chord per bar, repeating`,
-        ...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals', ...kinds[section.kind], ...section.styles,
-      ],
-      negative_styles: p.negative ?? NEGATIVE,
+      // sectionFirst: the section's own words before the whole song's, so the model does not play every section the same way
+      positive_styles: p.sectionFirst ? [...grid, ...own, ...whole] : [...grid, ...whole, ...own],
+      // kindNegative: styles one kind of section may not have (a middle section with no drums)
+      negative_styles: [...(p.negative ?? NEGATIVE), ...(p.kindNegative?.[section.kind] ?? [])],
     };
   });
   return { chunks };
