@@ -41,6 +41,12 @@ export const VOICE_LINES = Object.freeze({
   gift_shrew: { text: 'Snjáldurmús! Hún fer í körfuna.', context: 'Hér er lítil snjáldurmús. Snjáldurmús er pínulítið dýr.', seed: 251311, kept: "the owner's pick by ear, 2026-10-30: take A (its context, seed 251311)", fixes: 'snjaldurmus' },
   gift_hermitCrab: { text: 'Kuðungakrabbi! Hann fer í körfuna.', seed: 251304 },
   gift_crab: { text: 'Krabbi! Hann fer í körfuna.', seed: 251305 },
+  // Level 1's three waiting moments (the juice pass, package C): what Mosi says when the branch, the log and the marsh wait for the child,
+  // the words of the moments' prompts in levels/berjalundur.js, like level 2's g2_*_ready lines. "Hver" goes as IPA, as in g2_light_ready.
+  // Made under Ný 3 (no seed of their own) for the owner's yes/no; nothing plays them until he has heard them.
+  lift_ready: { text: 'Greinin er fyrir. Hver nær upp að henni?', say: `Greinin er fyrir. ${HVER} nær upp að henni?`, fixes: 'hver' },
+  roll_ready: { text: 'Stóri bolurinn getur orðið að brú. Hver getur ýtt honum?', say: `Stóri bolurinn getur orðið að brú. ${HVER} getur ýtt honum?`, fixes: 'hver' },
+  lay_ready: { text: 'Mýrin er mjúk. Hver getur byggt leið yfir?', say: `Mýrin er mjúk. ${HVER} getur byggt leið yfir?`, fixes: 'hver' },
   // Level 2, Steinagljúfrið (Task 3): the welcome, the wait for the fossils still under the leaves (said when the way through the tunnel
   // waits for them), the fossils' sentence and the four fossils, named as each pair is found. The lines of the tasks (g2_light_ready...)
   // come with their scenes in Tasks 4 to 7.
