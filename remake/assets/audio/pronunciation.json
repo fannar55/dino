@@ -369,6 +369,19 @@
           "context": "Flugeðlan flýgur hátt yfir skóginum og veifar vængjunum.",
           "seed": 42,
           "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42 (tapaði fyrir IPA í Eitt!)."
+        },
+        "bandstrik": {
+          "say": {
+            "Flugeðla": "Flug-eðla",
+            "Flugeðlu": "Flug-eðlu",
+            "Flugeðlan": "Flug-eðlan",
+            "Flugeðlur": "Flug-eðlur",
+            "Flugeðlurnar": "Flug-eðlurnar",
+            "flugeðla": "flug-eðla",
+            "flugeðlunum": "flug-eðlunum",
+            "flugeðlur": "flug-eðlur"
+          },
+          "note": "Bandstrik milli orðhlutanna, „flug-eðlur“. Hjá sögumanninum heyrði talgreining fyrstu töku línu 62 í heimsmyndbandinu („Yfir lóninu fljúga flugeðlur“) sem „flug eðlur“ eða „flugæðlur“, fræ 1 sem „flugæðlur“ og fræ 7 sem „flugeldur“, en þessa sem „flugeðlur“ í öll þrjú skiptin; lína 62 sendir þetta sjálf, með samhengi bókarinnar (óheyrt, 2026-11-09)."
         }
       },
       "chosen": "samhengi"
