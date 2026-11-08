@@ -4523,5 +4523,170 @@
   "src": "assets/audio/book/book_myndband_grannar_33.mp3",
   "duration": 8.65,
   "mouth": "8affd00ceeedfa4dec606ccd50cdca00aaa809a98440000000000000000008efeffeedaab0000b8000dcd998aa5050000000000cddc7ca000ab40698509720000000000000000000ce600dd90cfeda760000000000000"
+ },
+ "book_myndband_heimur_1": {
+  "src": "assets/audio/book/book_myndband_heimur_1.mp3",
+  "duration": 4.17,
+  "mouth": "00bc40efbb9600d600b99b8b0059300940700000000000000aa0ee50030aff7dfb949500000000000000"
+ },
+ "book_myndband_heimur_2": {
+  "src": "assets/audio/book/book_myndband_heimur_2.mp3",
+  "duration": 6.57,
+  "mouth": "00efe5fffdb50000000000007efb09cd700ecb6c400ba0000cc9007aa97774004600007edc9b508dcca9774007bb97ded400a889757077000a400543300000000000"
+ },
+ "book_myndband_heimur_3": {
+  "src": "assets/audio/book/book_myndband_heimur_3.mp3",
+  "duration": 2.65,
+  "mouth": "00df60ffaffb434defffedc350a9ee40498995565300000000000"
+ },
+ "book_myndband_heimur_4": {
+  "src": "assets/audio/book/book_myndband_heimur_4.mp3",
+  "duration": 8.65,
+  "mouth": "00defffedcee70acba989988630007dc8dddcddabbba000eed00acb6094000da000007deeeeedcaa99057600000000000000000000000eb00ffff500ceda884006de6000a90000bedda69999bcffb0003000000000000"
+ },
+ "book_myndband_heimur_5": {
+  "src": "assets/audio/book/book_myndband_heimur_5.mp3",
+  "duration": 6.49,
+  "mouth": "04e5009e6027cd009bdb000200000000000000afffff0fc000b940000000000cabbc70000000000abab9000000000adc0000000000000fe000ffa0000000000000"
+ },
+ "book_myndband_heimur_6": {
+  "src": "assets/audio/book/book_myndband_heimur_6.mp3",
+  "duration": 7.211,
+  "mouth": "00fff66ce96b9a9730000000000000bca600cb00765000000000000007abffcdccb8750464000000000000000000cbcbacf9000009bb600069bef500007aa87750040000000000000"
+ },
+ "book_myndband_heimur_7": {
+  "src": "assets/audio/book/book_myndband_heimur_7.mp3",
+  "duration": 6.17,
+  "mouth": "00fc000d800b900000000000000000003ffffa009cb707744000000000000009ab800000bffb6cd06bd900870000ba9acdddbb9987269954520000000000"
+ },
+ "book_myndband_heimur_8": {
+  "src": "assets/audio/book/book_myndband_heimur_8.mp3",
+  "duration": 6.73,
+  "mouth": "0dff643000000002a60076600000cb3000000000000000000009cfffc08eabd88aec00000b9000bb400000000000008dc5ffc56dddea784078309a90000000000000000"
+ },
+ "book_myndband_heimur_9": {
+  "src": "assets/audio/book/book_myndband_heimur_9.mp3",
+  "duration": 4.17,
+  "mouth": "00fffedee000c9765dfea00fea5000685200000000fc50008cb9000009dbcc5000850020000000000000"
+ },
+ "book_myndband_heimur_10": {
+  "src": "assets/audio/book/book_myndband_heimur_10.mp3",
+  "duration": 8.65,
+  "mouth": "000bffd88300000004ea0fe05ffb0ddb8dee0009a763330000000000000000bf0000dbdfb07bbb9a609980304ba9009d40009aaccb00007c9388009dc6003300000000000bdbb40000bfeb00980794000000000000000"
+ },
+ "book_myndband_heimur_11": {
+  "src": "assets/audio/book/book_myndband_heimur_11.mp3",
+  "duration": 2.41,
+  "mouth": "005ecd6df80dfcfdfadc400ab77bec60ba830000000000000"
+ },
+ "book_myndband_heimur_12": {
+  "src": "assets/audio/book/book_myndband_heimur_12.mp3",
+  "duration": 4.09,
+  "mouth": "06dffa00afa97007d0000dddab50000000000000000989885009ca307908cffc0009a5000000000000"
+ },
+ "book_myndband_heimur_13": {
+  "src": "assets/audio/book/book_myndband_heimur_13.mp3",
+  "duration": 7.77,
+  "mouth": "000beff0007ccce700aa8700000bda7d008c000a8856700007b9b94000000000000000bbdecffebc604a857ad006a07b909a973000000000957f8ddcb006fefb00eaeffe000eb893330000000000"
+ },
+ "book_myndband_heimur_14": {
+  "src": "assets/audio/book/book_myndband_heimur_14.mp3",
+  "duration": 5.85,
+  "mouth": "7efe000890076000000000000000049cfdffd00bda428444000000000002cac006fed00adb00a000ca00000adfededdcbba908863430000000000"
+ },
+ "book_myndband_heimur_15": {
+  "src": "assets/audio/book/book_myndband_heimur_15.mp3",
+  "duration": 7.37,
+  "mouth": "007fffcccc80007ddbcbd700007a600009a000000089a98630000ad89c50000000000000000000009ffbcffcc800986500000000099cc68b300005b8bccdc80670093000000000000000"
+ },
+ "book_myndband_heimur_16": {
+  "src": "assets/audio/book/book_myndband_heimur_16.mp3",
+  "duration": 4.49,
+  "mouth": "06afef9ef7fb004d00db4009fb97cededa4a96500000000b80add906cba960038a9a00ac953000000000000000"
+ },
+ "book_myndband_heimur_17": {
+  "src": "assets/audio/book/book_myndband_heimur_17.mp3",
+  "duration": 8.17,
+  "mouth": "9a0000ee00bfdefefb9beff900c940950000000000000000009eda500acda9d76a97788dcca00b54a950009740000000790337dff00db9678708900000adbabac40009eb0068477099400542000000000000"
+ },
+ "book_myndband_heimur_18": {
+  "src": "assets/audio/book/book_myndband_heimur_18.mp3",
+  "duration": 6.41,
+  "mouth": "03ffe300ffddc7ed700fd8eed00ddb6cb000d500000aaaa99bca4003000000000000000cfb80009fda3000000fe60007bc9300008edde5000a600200000000000"
+ },
+ "book_myndband_heimur_19": {
+  "src": "assets/audio/book/book_myndband_heimur_19.mp3",
+  "duration": 9.771,
+  "mouth": "9fffe00ffa05ddefffea86000000000000003ca000a4aca687800097aabcccca7009700aabb950000000000000000000000ac0be84009c00bdc4000c0bac08c900585400000000000008ac805efcec9b5dd6aab40b00acbabce00753000000000000"
+ },
+ "book_myndband_heimur_20": {
+  "src": "assets/audio/book/book_myndband_heimur_20.mp3",
+  "duration": 6.33,
+  "mouth": "000efcf908c00cd600000000000000000000000bff00f600acb80874600000000000000c8a000bd000000bdc77b80f70000addcccaaab489745520000000000"
+ },
+ "book_myndband_heimur_21": {
+  "src": "assets/audio/book/book_myndband_heimur_21.mp3",
+  "duration": 5.85,
+  "mouth": "000ffffacc4000ed0000046ed8bb6000000000000000004cccabbcffff8afe7000000effedb600005300000befccde40007ba5440000000000000"
+ },
+ "book_myndband_heimur_22": {
+  "src": "assets/audio/book/book_myndband_heimur_22.mp3",
+  "duration": 5.85,
+  "mouth": "3960009ddef70870000000008dddfffeb76300000000006bcde000000bb8007d0bbd008d30005ccdfeefc09b48abba99885059000500000000000"
+ },
+ "book_myndband_heimur_23": {
+  "src": "assets/audio/book/book_myndband_heimur_23.mp3",
+  "duration": 7.13,
+  "mouth": "0cef809eebd80009ccc68ca8bddc0ac0acbb9877775007409b507baca6000000000000000000009007fd80ffacbc00abfe00a60030000000000ffb0efffef700036000000000000"
+ },
+ "book_myndband_heimur_24": {
+  "src": "assets/audio/book/book_myndband_heimur_24.mp3",
+  "duration": 5.05,
+  "mouth": "8ffb00000000000008b90ad05eea03c9aaefc874340000000000000ef0ad600ccee9e00000ec77a0077007764000000000000"
+ },
+ "book_myndband_heimur_25": {
+  "src": "assets/audio/book/book_myndband_heimur_25.mp3",
+  "duration": 8.81,
+  "mouth": "05ec09b00dda400000000000000bcddffeda899a60a80329df90ba84788000c5006900003dba00243000000000000000000000bcfffffebcdd00deeddcccbb700a8a000ada655300007dd0039ff00ca746540000000000000"
+ },
+ "book_myndband_heimur_26": {
+  "src": "assets/audio/book/book_myndband_heimur_26.mp3",
+  "duration": 7.53,
+  "mouth": "00acddfeeea0000ceffeffffe80bcd705bb9ecc89baa87cdb00c86840000000000000008b700078ddb000ad940000007500006dcbaadb98a0000abba899a8006bb97a000744000000000000"
+ },
+ "book_myndband_heimur_27": {
+  "src": "assets/audio/book/book_myndband_heimur_27.mp3",
+  "duration": 5.69,
+  "mouth": "00cfff908ddfedef809dbbeec0098997343000000000acec7efe06d93dca7000b900000bddccca79400009839bdca706ab9974000000000000"
+ },
+ "book_myndband_heimur_28": {
+  "src": "assets/audio/book/book_myndband_heimur_28.mp3",
+  "duration": 3.77,
+  "mouth": "4efff609fefdea58ca75000000000dfb000aedcedd9000d609c3000980955840000000000000"
+ },
+ "book_myndband_heimur_29": {
+  "src": "assets/audio/book/book_myndband_heimur_29.mp3",
+  "duration": 7.211,
+  "mouth": "000ffffa9940000004ebccaab306bc0ee00fb60000000000000000000009dee000ceffefc9dc800b9aa86777750003a7799cdba000008700009600005500003640000000000000000"
+ },
+ "book_myndband_heimur_30": {
+  "src": "assets/audio/book/book_myndband_heimur_30.mp3",
+  "duration": 7.45,
+  "mouth": "0004efffe800bd7000ba607c8009ddddbaff408a997677786408ba900d80003cdda0008500000000000000007d74009fec0000000000cfd90002cdb700006dcaf90008600300000000000"
+ },
+ "book_myndband_heimur_31": {
+  "src": "assets/audio/book/book_myndband_heimur_31.mp3",
+  "duration": 4.33,
+  "mouth": "26fa04e000dc8200000000000000fffa0007da30000006bf7000788eddd54b8539a89000860330000000000"
+ },
+ "book_myndband_heimur_32": {
+  "src": "assets/audio/book/book_myndband_heimur_32.mp3",
+  "duration": 7.37,
+  "mouth": "5dfe4003e00aefedaa0000b809cbdee008b8c800dedc0000fb03b9aa800650003985300000000000000008affd00ffeeac96ba000c7000cd30addb0005b40087007cb000500000000000"
+ },
+ "book_myndband_heimur_33": {
+  "src": "assets/audio/book/book_myndband_heimur_33.mp3",
+  "duration": 6.73,
+  "mouth": "8dbaefeffef604b000960cc0a009cdded9500000000000066000000bced00ba00000defffcebbeda8aab000cedaea7300000000000000ac600adc36ebaa985000000000"
  }
 }

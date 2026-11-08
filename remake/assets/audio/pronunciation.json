@@ -22,7 +22,8 @@
         "kambeðlan",
         "kambeðlu",
         "Kambeðlurnar",
-        "kambeðlurnar"
+        "kambeðlurnar",
+        "kambeðlunni"
       ],
       "recipes": {
         "hratt": {
@@ -377,7 +378,8 @@
         "Þórseðlan",
         "þórseðlan",
         "Þórseðlurnar",
-        "þórseðluparið"
+        "þórseðluparið",
+        "Þórseðlur"
       ],
       "recipes": {
         "hratt": {
@@ -390,7 +392,8 @@
             "Þórseðlan": "\"/ˈθoursˌɛðlan/\"",
             "þórseðlan": "\"/ˈθoursˌɛðlan/\"",
             "Þórseðlurnar": "\"/ˈθoursˌɛðlʏrtnar/\"",
-            "þórseðluparið": "\"/ˈθoursˌɛðlʏˌpʰaːrɪð/\""
+            "þórseðluparið": "\"/ˈθoursˌɛðlʏˌpʰaːrɪð/\"",
+            "Þórseðlur": "\"/ˈθoursˌɛðlʏr/\""
           },
           "note": "IPA /ˈθoursˌɛðla/ (óheyrt)."
         },
@@ -1961,7 +1964,8 @@
       "stem": "[Hh]itt",
       "forms": [
         "hittum",
-        "hittast"
+        "hittast",
+        "hittust"
       ],
       "recipes": {
         "hratt": {
@@ -2473,6 +2477,101 @@
           },
           "seed": 42,
           "note": "IPA eftir sömu reglu og Flugeðla /ˈflʏːɣˌɛðla/, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "elfting": {
+      "word": "Elfting",
+      "stem": "[Ee]lfting",
+      "forms": [
+        "Elfting",
+        "elftingu",
+        "elftingar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði „Elting“, „eltingu“ og „eltingar“, án f, í línum 31 og 32 í heimsmyndbandinu (líka með samhengi og fræjum 1, 7 og 42), en „elftingar“ rétt í línum 9, 18 og 30 (2026-11-08)."
+        },
+        "samhengi": {
+          "context": "Sumar plöntur frá tímum risaeðlanna eru samt enn til: burknar, barrtré og elftingar.",
+          "seed": 42,
+          "note": "Lína 30 í heimsmyndbandinu, þar sem talgreining heyrði „elftingar“ rétt, send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði samt „Elting“ (óheyrt)."
+        },
+        "samhengi-planta": {
+          "context": "Elfting er lítil græn planta með mjóa stöngla. Elftingar eru eldgamlar plöntur.",
+          "seed": 1,
+          "note": "Setning um elftingu send á undan sem samhengi en ekki töluð, fræ 1. Talgreining heyrði samt „Elting“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Elfting": "\"/ˈɛlftiŋk/\"",
+            "elftingu": "\"/ˈɛlftiŋkʏ/\"",
+            "elftingar": "\"/ˈɛlftiŋkar/\""
+          },
+          "seed": 42,
+          "note": "IPA með skýru f, fræ 42. Talgreining heyrði „Elfdink“ í línu 31 og „elftingum“, „elftingarnar“ í línu 32 (óheyrt)."
+        },
+        "ipa-1": {
+          "say": {
+            "Elfting": "\"/ˈɛlftiŋk/\"",
+            "elftingu": "\"/ˈɛlftiŋkʏ/\"",
+            "elftingar": "\"/ˈɛlftiŋkar/\""
+          },
+          "seed": 1,
+          "note": "Sama IPA, fræ 1. Talgreining heyrði „Elfding“ í línu 31 og „elfdingu“, „elfdingar“ í línu 32: f-ið og endingarnar rétt (d er óblásið t). Línur 31 og 32 senda þetta sjálfar (óheyrt)."
+        },
+        "ipa-7": {
+          "say": {
+            "Elfting": "\"/ˈɛlftiŋk/\"",
+            "elftingu": "\"/ˈɛlftiŋkʏ/\"",
+            "elftingar": "\"/ˈɛlftiŋkar/\""
+          },
+          "seed": 7,
+          "note": "Sama IPA, fræ 7. Talgreining heyrði „Elfding“ í línu 31 en „eldingu“, „eldingar“ í línu 32 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "sitjum": {
+      "word": "Sitjum",
+      "stem": "[Ss]itjum",
+      "forms": [
+        "Sitjum"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; lína 24 í heimsmyndbandinu sendir þetta. Talgreining (scribe) heyrði allar sex tökurnar sem „Setjum“, líka IPA með í-hljóði, en heyrir „situr“ og „sitjandi“ rétt í öðrum línum: líklega villa talgreiningar, en óheyrt (2026-11-08)."
+        },
+        "samhengi": {
+          "context": "Krakkarnir sitja kyrr á stólunum sínum. Við sitjum líka kyrr.",
+          "seed": 42,
+          "note": "Setning um að sitja send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Sitjum": "\"/ˈsɪːtjʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA, fræ 42. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "fraeid-7": {
+          "seed": 7,
+          "note": "Eins og það er skrifað, fræ 7. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "ipa-i": {
+          "say": {
+            "Sitjum": "\"/ˈsiːtjʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA með i eins og í „sítt“, fræ 42. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "ipa-7": {
+          "say": {
+            "Sitjum": "\"/ˈsɪːtjʏm/\""
+          },
+          "seed": 7,
+          "note": "Sama IPA og ipa, fræ 7. Talgreining heyrði „Setjum“ (óheyrt)."
         }
       },
       "chosen": null
