@@ -93,7 +93,7 @@ export function buildMoves() {
 }
 
 /** How loud the record's own crackle is (output beats → gain), with half-beat ramps. */
-export const VINYL = [[0, 1], [15.5, 1], [16.5, 0.22], [176, 0.22], [177, 0.5], [210, 0.5], [212, 0.08], [243, 0.08], [244, 0.22], [356, 0.22], [360.5, 0.8], [364, 0.8]];
+export const VINYL = [[0, 1], [15.5, 1], [16.5, 0.3], [176, 0.3], [177, 0.6], [210, 0.6], [212, 0.1], [243, 0.1], [244, 0.3], [356, 0.3], [360.5, 0.9], [364, 0.9]];
 
 // her tune's groups and their tones (from E's score) for the new riffs; the band answers with all five at once
 const FIVE = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'];
@@ -180,7 +180,7 @@ export const PLACES = {
   beetles: { beat: 184 },
   'egill-yes': { beat: 192 },
   louder: { beat: 200, echo: { beats: 0.5, fb: 0.4, taps: 2 } },
-  sloedla: { split: 250, beats: [206, 208] },
+  sloedla: { split: 180, beats: [206, 208] },
   'wings-up': { beat: 244, echo: { beats: 0.5, fb: 0.4, taps: 3 } },
   'hold-on': { beat: 260 },
   everyone: { beat: 273, radio: false },

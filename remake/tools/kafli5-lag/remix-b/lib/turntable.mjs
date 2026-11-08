@@ -199,7 +199,10 @@ export function beetleClick({ vel = 1, tone = 0.5, seed = 3 } = {}) {
   }
   // a second, softer tick 9 ms on: a click beetle's "tik-ik"
   const j = Math.round(0.009 * SR);
-  for (let i = 0; i + j < n; i++) y[i + j] += y[i] * 0.35;
+  for (let i = n - 1 - j; i >= 0; i--) y[i + j] += y[i] * 0.35;
+  let pk = 0;
+  for (const v of y) pk = Math.max(pk, Math.abs(v));
+  for (let i = 0; i < n; i++) y[i] *= vel / pk; // peak = vel
   return y;
 }
 

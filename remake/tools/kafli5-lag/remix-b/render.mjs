@@ -86,7 +86,7 @@ if (!FRESH && existsSync(metaFile) && JSON.parse(readFileSync(metaFile, 'utf8'))
   }
   const g0 = 10 ** ((-18.5 - lufs(sum.L, sum.R)) / 20);
   for (const k of SRC_STEMS.slice(0, 6)) gains[k] *= g0;
-  gains.vinyl = 0.05; // the crackle: far under everything (its automation lifts it in the intro and at the end)
+  gains.vinyl = 0.4; // the crackle: far under everything (its automation lifts it in the intro and at the end)
   for (const k of SRC_STEMS) for (let i = 0; i < srcN; i++) {
     src[k].L[i] *= gains[k];
     src[k].R[i] *= gains[k];
@@ -110,7 +110,7 @@ const n = Math.round(END_SEC * SR);
 const moves = prepare(buildMoves());
 setLoopEnd(OUT_LOOP.startBeat + OUT_LOOP.beats);
 const deck = {};
-for (const k of SRC_STEMS) deck[k] = renderDeck(k, src[k], moves, n, { fastGain: k === 'vinyl' ? 1 : 0.5 });
+for (const k of SRC_STEMS) deck[k] = renderDeck(k, src[k], moves, n, { fastSoft: k === 'vinyl' ? 0 : 0.25 });
 say('decks played');
 // the copy is exact where the record plays at speed 1: her song in the output against her song on the record
 const exact = (() => {
@@ -154,7 +154,7 @@ const outBeat = stereo(n), outAnimals = stereo(n), djFx = stereo(n);
 for (const c of layers.crowd) {
   [[0, 0, 0.3], [0.004, -0.6, 0.85], [0.009, 0.55, 0.8], [0.014, -0.3, 0.7], [0.019, 0.7, 0.6]].forEach(([dt, pan, v], k) => {
     const y = V.clap({ vel: c.vel * v, seed: 41 + k });
-    addMono(outBeat, y, sampleOf(c.beat) + Math.round(dt * SR), 0.42 * G.rest * 0.45, pan);
+    addMono(outBeat, y, sampleOf(c.beat) + Math.round(dt * SR), 0.26, pan);
   });
   cues.push({ beat: c.beat, kind: 'clap' });
 }
@@ -176,8 +176,8 @@ const outLog = [];
     if (!cache.has(key)) cache.set(key, beetleClick({ vel: b.vel, tone: b.tone, seed: 3 + (k % 3) }));
     const y = cache.get(key);
     const pan = (k % 2 ? 0.55 : -0.45) * (b.accent ? 0.7 : 1);
-    addMono(outAnimals, y, sampleOf(b.beat), 0.5 * G.animals * 4, pan);
-    addMono(send, y, sampleOf(b.beat), 0.5 * G.animals, pan);
+    addMono(outAnimals, y, sampleOf(b.beat), 0.16, pan);
+    addMono(send, y, sampleOf(b.beat), 0.05, pan);
     if (b.accent) cues.push({ beat: b.beat, kind: 'call', group: 'beetles' });
   });
   addStereo(outAnimals, reverb(send, { decay: 0.8, damp: 7000, lowcut: 800, seed: 21 }), 0, 0.5);
@@ -189,8 +189,8 @@ const dfCheck = [];
   layers.dragonflies.forEach((d, k) => {
     const y = dragonfly(d.dur * 0.48, { from: d.from, vel: d.vel, seed: 4 + k, swoop: 0.05 });
     const pan = [-0.5, 0.4, -0.2, 0.6, -0.6, 0.2][k % 6];
-    addMono(outAnimals, y, sampleOf(d.beat), 0.16 * G.animals * 6, pan);
-    addMono(send, y, sampleOf(d.beat), 0.16 * G.animals * 2, pan);
+    addMono(outAnimals, y, sampleOf(d.beat), 0.5, pan);
+    addMono(send, y, sampleOf(d.beat), 0.17, pan);
     cues.push({ beat: d.beat, kind: 'call', group: 'dragonflies' });
     if (d.dur >= 0.5) {
       const s = steady(y.subarray(Math.round(0.12 * SR), Math.max(Math.round(0.12 * SR) + 4096, y.length - Math.round(0.06 * SR))), { fmin: 400, fmax: 1400, win: 1024, hop: 128 });
@@ -212,12 +212,12 @@ const dfCheck = [];
   });
   layers.wings.forEach((w, k) => {
     const s = W[k % 3];
-    addMono(outBeat, s.y, sampleOf(w.beat) - s.pre, (0.09 / s.pk) * w.vel * G.rest * 6, k % 2 ? 0.25 : -0.25);
+    addMono(outBeat, s.y, sampleOf(w.beat) - s.pre, (0.57 / s.pk) * w.vel * G.rest * 6, k % 2 ? 0.25 : -0.25);
     cues.push({ beat: w.beat, kind: 'wing' });
   });
 }
 // the needle
-addMono(outBeat, needleDrop(), 0, 0.06, 0);
+addMono(outBeat, needleDrop(), 0, 0.09, 0);
 addMono(outBeat, needleLift(), sampleOf(363.25), 0.05, 0);
 cues.push({ beat: 0, kind: 'needle' }, { beat: 363.25, kind: 'needle' });
 

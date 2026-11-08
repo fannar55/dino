@@ -123,9 +123,10 @@ const XF = Math.round(0.001 * SR); // half the crossfade (1 ms each side of a bo
 
 /**
  * Render one stem through a list of segments into an output stereo buffer of n samples.
- * Each segment may carry `gains` ({ stem: g }) and `level` (stylus level follows speed: silent at rest).
+ * Each segment may carry `gains` ({ stem: g }) and `level` (stylus level follows speed: silent at rest; `fastSoft` holds a
+ * fast spin down: 1 / (1 + fastSoft (|speed| - 1))).
  */
-export function renderDeck(stemName, src, segs, n, { levelPow = 0.8, fastGain = 1 } = {}) {
+export function renderDeck(stemName, src, segs, n, { levelPow = 0.8, fastSoft = 0 } = {}) {
   const L = new Float32Array(n), R = new Float32Array(n);
   for (const sg of segs) {
     const g0 = sg.gains?.[stemName] ?? sg.gain ?? 1;
@@ -154,7 +155,11 @@ export function renderDeck(stemName, src, segs, n, { levelPow = 0.8, fastGain = 
         r = readAt(src.R, p, sp);
       }
       let g = g0 * w;
-      if (sg.level) g *= Math.min(1, Math.abs(sp)) ** levelPow * (Math.abs(sp) > 1 ? fastGain : 1);
+      if (sg.level) {
+        // the stylus level follows the record's speed: silent at rest, and a fast spin is held down smoothly (no step at 1)
+        const a = Math.abs(sp);
+        g *= a <= 1 ? a ** levelPow : 1 / (1 + fastSoft * (a - 1));
+      }
       L[i] += l * g;
       R[i] += r * g;
     }
