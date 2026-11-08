@@ -341,7 +341,8 @@
         "Flugeðlu",
         "Flugeðlan",
         "Flugeðlur",
-        "Flugeðlurnar"
+        "Flugeðlurnar",
+        "flugeðla"
       ],
       "recipes": {
         "hratt": {
@@ -353,7 +354,8 @@
             "Flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
             "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\"",
             "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
-            "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\""
+            "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\"",
+            "flugeðla": "\"/ˈflʏːɣˌɛðla/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -1944,7 +1946,8 @@
       "forms": [
         "Synti",
         "synt",
-        "syntu"
+        "syntu",
+        "synti"
       ],
       "recipes": {
         "hratt": {
@@ -2446,6 +2449,33 @@
         }
       },
       "chosen": "stafsetning"
+    },
+    "svanedla": {
+      "word": "Svaneðla",
+      "stem": "[Ss]vaneðl",
+      "forms": [
+        "svaneðla",
+        "svaneðlurnar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði fyrstu töku línu 10 í dýramyndbandinu sem „svamiðla“ (2026-11-08)."
+        },
+        "samhengi": {
+          "context": "Svaneðlan synti um sjóinn og teygði langa hálsinn sinn.",
+          "seed": 42,
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42, eins og hjá Flugeðlu (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "svaneðla": "\"/ˈsvaːnˌɛðla/\"",
+            "svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\""
+          },
+          "seed": 42,
+          "note": "IPA eftir sömu reglu og Flugeðla /ˈflʏːɣˌɛðla/, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {

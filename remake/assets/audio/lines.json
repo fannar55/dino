@@ -4358,5 +4358,170 @@
   "src": "assets/audio/book/book_myndband_fuglar_31.mp3",
   "duration": 6.09,
   "mouth": "9efd00000eeb0ba00ec5000fa000000098788000000000cfff0bedeff65a9a763400000000000000bf80008dd09ca76aeef400aa698734400000000000"
+ },
+ "book_myndband_grannar_1": {
+  "src": "assets/audio/book/book_myndband_grannar_1.mp3",
+  "duration": 1.93,
+  "mouth": "58fec009efeeea5dccfd0058004300000000000"
+ },
+ "book_myndband_grannar_2": {
+  "src": "assets/audio/book/book_myndband_grannar_2.mp3",
+  "duration": 5.77,
+  "mouth": "07eee60acbecea4ddc037cbc0000dfa60a807800030000000000000000c80fd50cc00dc00fdcc500ba980aeffc98408a59effc85300000000000"
+ },
+ "book_myndband_grannar_3": {
+  "src": "assets/audio/book/book_myndband_grannar_3.mp3",
+  "duration": 2.41,
+  "mouth": "000ffccfa700eb0000ddeecdbffb08a985755500000000000"
+ },
+ "book_myndband_grannar_4": {
+  "src": "assets/audio/book/book_myndband_grannar_4.mp3",
+  "duration": 7.37,
+  "mouth": "004efefffeffdb00000000000000000da0039cb00b006a8009999408900280000006c000004200000004000dd000d30000300000000000000cb06900a936a9600b9bbaa8000000000000"
+ },
+ "book_myndband_grannar_5": {
+  "src": "assets/audio/book/book_myndband_grannar_5.mp3",
+  "duration": 6.81,
+  "mouth": "000fd4000f5003fc0000a950000000000002a500085bbadb8eefffea00009933700000debbbddc7bda004300000000000009a09900ba97546bc8008aa9640000000000000"
+ },
+ "book_myndband_grannar_6": {
+  "src": "assets/audio/book/book_myndband_grannar_6.mp3",
+  "duration": 7.45,
+  "mouth": "bfffffc5000000000009c00f5000deffe89a8644000000000000000000beedb9cdbcd864adb4007b90000bd88dd904987734554500000006aa00b500009a5be9006544000000000000000"
+ },
+ "book_myndband_grannar_7": {
+  "src": "assets/audio/book/book_myndband_grannar_7.mp3",
+  "duration": 6.25,
+  "mouth": "06efef00cdffebedfc300bca600000000000aaa30002cefeb005a40bfe00893052000000000000006debb700bf4000000ba99789acdc70043000000000000"
+ },
+ "book_myndband_grannar_8": {
+  "src": "assets/audio/book/book_myndband_grannar_8.mp3",
+  "duration": 3.61,
+  "mouth": "000c900000eb0000009745ca94df8000055afffe7cf600005ef65fc966004400000000000"
+ },
+ "book_myndband_grannar_9": {
+  "src": "assets/audio/book/book_myndband_grannar_9.mp3",
+  "duration": 7.61,
+  "mouth": "aefe4007d00be0009b95000000000fffe00ae888003ccdda5200000000000000000699ac8f70e84309dea000ffe99aaadfba00474000000000000ac09809a44acda000ec99530000000000000"
+ },
+ "book_myndband_grannar_10": {
+  "src": "assets/audio/book/book_myndband_grannar_10.mp3",
+  "duration": 5.05,
+  "mouth": "7dfefffc600000000000000b40d00046c99bfe976420000000000000dcccc0008500000ab04babab600aab853000000000000"
+ },
+ "book_myndband_grannar_11": {
+  "src": "assets/audio/book/book_myndband_grannar_11.mp3",
+  "duration": 6.97,
+  "mouth": "bc7bfd408fefedc9bcbaa735bacdccdebbb7b900002bcca0005aa30aa7530000000000000000ddf300fedec0025afea4000000009e0007defcd509edaff00083000000000000"
+ },
+ "book_myndband_grannar_12": {
+  "src": "assets/audio/book/book_myndband_grannar_12.mp3",
+  "duration": 5.53,
+  "mouth": "6b000eefffffd000d700bad089530ace00375000000000000006400009b9d40000d90ab77a000003bbca697f5000cc5c700000000000000"
+ },
+ "book_myndband_grannar_13": {
+  "src": "assets/audio/book/book_myndband_grannar_13.mp3",
+  "duration": 4.49,
+  "mouth": "7dec3cffffeb9005200000000000000ddcbc908bb948cc90acaabb87650097073008d600005000000000000000"
+ },
+ "book_myndband_grannar_14": {
+  "src": "assets/audio/book/book_myndband_grannar_14.mp3",
+  "duration": 7.93,
+  "mouth": "0efff900ffffddeb2adabcda740000000000000000507f0000cfedc908b70099bcdbcd000000efb8309c6b7300cbbb909908da705400000000000000000de0be00fed88cdd009dbcccb400000000000"
+ },
+ "book_myndband_grannar_15": {
+  "src": "assets/audio/book/book_myndband_grannar_15.mp3",
+  "duration": 6.49,
+  "mouth": "3ceffffda700000000000d70de00307cffc03ca066000000000000003b40008d700007c9ba97d900ebccc700896008000000eeeeb0000bdbca6000000000000000"
+ },
+ "book_myndband_grannar_16": {
+  "src": "assets/audio/book/book_myndband_grannar_16.mp3",
+  "duration": 4.25,
+  "mouth": "0deccfff609feead089988aa62aac80cf999000000cddb8000800e00059ffafb0a8043000000000000000"
+ },
+ "book_myndband_grannar_17": {
+  "src": "assets/audio/book/book_myndband_grannar_17.mp3",
+  "duration": 9.29,
+  "mouth": "afa0000e805ddca2000bffedcf40cdc005debdc000ab00ccdb00700463000000000000009ddee8efcbcffa00000005abcfc0000000c30f70000886000cd7000bc400200990000dbec830000cccaabd0003ffe0004b0005000000000000"
+ },
+ "book_myndband_grannar_18": {
+  "src": "assets/audio/book/book_myndband_grannar_18.mp3",
+  "duration": 8.01,
+  "mouth": "00cffa00fffffeea0000000000000000000003acd80c000000c400009874689abdaaa009cd80a00bc7049987409a7ba007777045420000000000000000de80a804cba8449cd9007cb9843000000000000"
+ },
+ "book_myndband_grannar_19": {
+  "src": "assets/audio/book/book_myndband_grannar_19.mp3",
+  "duration": 8.41,
+  "mouth": "0befedfe93000000000000aa0bd000003efff00030000000000087abb0007b9003bbcbcdddb0074008906bbaab8000000000000000000000cffc00000dde70796000cb8a950000ca9840799700043000000000000"
+ },
+ "book_myndband_grannar_20": {
+  "src": "assets/audio/book/book_myndband_grannar_20.mp3",
+  "duration": 7.77,
+  "mouth": "0003ffffdedb2000ee84464000000079200aecc9ba0004c5000006a8904dd94000000000000000000fe30000ff00dffeee90cdcdca9890000bc96dcb8000cb9b97abdddca7799856530000000000"
+ },
+ "book_myndband_grannar_21": {
+  "src": "assets/audio/book/book_myndband_grannar_21.mp3",
+  "duration": 9.13,
+  "mouth": "6efffb00efefdfc0000ef6000000a800bb8664000000000000000397bdbc8008700980009d000025000000027000000ecdbcddf90006b400000059009d000095006aa63000000000000006d5bc05fbade900edba755000000000000"
+ },
+ "book_myndband_grannar_22": {
+  "src": "assets/audio/book/book_myndband_grannar_22.mp3",
+  "duration": 8.73,
+  "mouth": "0cfffeffd94000000000000d70fcffffeeb000a976652300000000006abcccc800b900dda0aba965774008900ad0000978500bba84400000000000000bfeaa00000eeaa0000bcbca9cdda50940008ddb400400000000000"
+ },
+ "book_myndband_grannar_23": {
+  "src": "assets/audio/book/book_myndband_grannar_23.mp3",
+  "duration": 5.29,
+  "mouth": "00a60008c700000dc9c86cc008dddffffe8890000bbc90005000000009eed0000006ddad3009d80c5330ffe0040400000000000000"
+ },
+ "book_myndband_grannar_24": {
+  "src": "assets/audio/book/book_myndband_grannar_24.mp3",
+  "duration": 6.73,
+  "mouth": "0009ffffc0db00cf0000c73000000000007dfec90006ced8ad7bc500590004b9cddda8c87a7a300b9864000000000000000ba08807a846ab8006a6ab954000000000000"
+ },
+ "book_myndband_grannar_25": {
+  "src": "assets/audio/book/book_myndband_grannar_25.mp3",
+  "duration": 6.89,
+  "mouth": "36cfaeffea5000000000ea09fe0000fd000000000097000eb000ced97daff77acffb000bb8873030000000000007d20ddefdddbbec20bcbca00004ccae8000000000000000"
+ },
+ "book_myndband_grannar_26": {
+  "src": "assets/audio/book/book_myndband_grannar_26.mp3",
+  "duration": 7.77,
+  "mouth": "aff000aeda74000000000bcb5007c00000abb3009900009effdcedc0bb9588a700000000ccda89cfec0068004ba859a80000034000000000000000002bfffb30aec300ca003a6043000000000000"
+ },
+ "book_myndband_grannar_27": {
+  "src": "assets/audio/book/book_myndband_grannar_27.mp3",
+  "duration": 9.45,
+  "mouth": "ce800afb8efee7afff00cbbc99908970000cec979957630000000000000000000000005dffeeeccc0bc9000000000006baacbab9b54ba7000000009cee803cbbddbba0ba6000005cbaeffdccb0080087000004a979a7b8000400000000000"
+ },
+ "book_myndband_grannar_28": {
+  "src": "assets/audio/book/book_myndband_grannar_28.mp3",
+  "duration": 4.57,
+  "mouth": "0cd04ede9dffc600db000b000ccac6800000970000000006ddd004cdee800bbfffb46b6007cca785000000000000"
+ },
+ "book_myndband_grannar_29": {
+  "src": "assets/audio/book/book_myndband_grannar_29.mp3",
+  "duration": 9.85,
+  "mouth": "008ffa0be0bdbdd700000000009c95007c30cb000000000cea000b505a9000000006b9300000ab3000000add8dcbada000000007cfed9008eb000000000eeb90009ab0000000cd0004cdb00000006dcbad6000bedcffffff009ff60b7530000000000"
+ },
+ "book_myndband_grannar_30": {
+  "src": "assets/audio/book/book_myndband_grannar_30.mp3",
+  "duration": 7.61,
+  "mouth": "07f00e008cb730000000000003cff04cc75edacfeb00dfb8acddffb000aa634acade09cbadd506886365400000000000694fa00cfe09e70cdeec5aa009dcbb988289680000300000000000000"
+ },
+ "book_myndband_grannar_31": {
+  "src": "assets/audio/book/book_myndband_grannar_31.mp3",
+  "duration": 8.57,
+  "mouth": "00dfe00bea0dffed59a000038880005e38a9b98aaccbdc00000e4030ffb40cee7cdccc009dbcfa3000000000000000000000fb6300d904deffec00cde8ceb00bc0000000ab87700008deb97039750000000000000000"
+ },
+ "book_myndband_grannar_32": {
+  "src": "assets/audio/book/book_myndband_grannar_32.mp3",
+  "duration": 7.05,
+  "mouth": "beedf600ffdeffefa00dfc0dcec000000000000000effffc60aefe00a76000300000000000000000000dbff50df8addcdeba7bd504d600dff0067300009b97800000000000000"
+ },
+ "book_myndband_grannar_33": {
+  "src": "assets/audio/book/book_myndband_grannar_33.mp3",
+  "duration": 8.65,
+  "mouth": "8affd00ceeedfa4dec606ccd50cdca00aaa809a98440000000000000000008efeffeedaab0000b8000dcd998aa5050000000000cddc7ca000ab40698509720000000000000000000ce600dd90cfeda760000000000000"
  }
 }
