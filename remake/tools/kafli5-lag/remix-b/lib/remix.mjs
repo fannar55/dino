@@ -51,7 +51,7 @@ export const END_SEC = 362.25 * 0.48 + 0.42; // the needle lifts at 362.25, then
 const J_FROG3 = [[0, 0, 4], [4, 0, 2], [6, 6, 2], [8, 0, 2], [10, 10, 2], [12, 12, 2], [14, 12, 2]];
 const J_FROG4 = [[0, 0, 8], [8, 8, 2], [10, 8, 2], [12, 8, 2], [14, 14, 2]];
 const J_SOLO = [[0, 0, 2], [2, 0, 2], [4, 4, 2], [6, 4, 2], [8, 0, 4], [12, 12, 2], [14, 14, 1], [15, 14, 1]];
-const GAP = { pad: 0.3, bass: 0, lead: 0, animals: 0, rest: 0.6, vinyl: 1 }; // Egill's gap: kick, hats and a soft pad
+const GAP = { pad: 0.4, bass: 0, lead: 0, animals: 0, rest: 0.6, vinyl: 1 }; // Egill's gap: kick, hats and a soft pad
 
 /** The moves on the decks, in time order. */
 export function buildMoves() {
@@ -111,11 +111,11 @@ export function buildLayers() {
   L.crowd.push({ beat: 23.5, vel: 0.6 }, { beat: 283.5, vel: 0.6 });
   // the band answers Egill: all five at once (her tune's tones are the G6/9 chord)
   const answer = (beat, dur, vel) => FIVE.forEach(g => L.calls.push({ group: g, beat, dur, vel: vel * (g === 'grazers' ? 1.2 : 0.8), mode: 'onset' }));
-  answer(198, 1, 0.9);
-  answer(198.75, 0.7, 0.75);
-  answer(204, 0.45, 0.9);
-  answer(204.5, 0.45, 0.9);
-  answer(205, 1, 1);
+  answer(198, 1, 0.8);
+  answer(198.75, 0.7, 0.7);
+  answer(204, 0.45, 0.75);
+  answer(204.5, 0.45, 0.8);
+  answer(205, 1, 0.9);
   // the cut-up riff: her tune's first phrases chopped to sixteenths (sol mi / re mi do) on the decks
   const R1 = [[0, 'lizards', 0.5], [0.75, 'lizards', 0.25], [1, 'frogs', 0.5], [1.5, 'frogs', 0.25], [1.75, 'frogs', 0.25]];
   const R2 = [[0, 'turtles', 0.5], [0.5, 'frogs', 0.25], [0.75, 'frogs', 0.25], [1, 'grazers', 0.75], [1.75, 'grazers', 0.25]];
