@@ -174,14 +174,18 @@ export function neckCurve(host, out = null) {
 /**
  * The rider sits with his legs straight out in front of him, laid over whatever his clips pose (sit), blended in and out:
  * `to(weight, { duration })` (1 out, 0 his clip's own legs) and `stop({ duration })`, after which his clips have his legs again.
- * It runs on world.effects, after the actors, so it lays the legs over the pose his clips gave him in that frame.
+ * It runs on world.effects, after the actors, so it lays the legs over the pose his clips gave him in that frame. With `hold` the
+ * first `to` starts from the pose he holds as it is made, not his clip's: a ride's legs astride, its lean and his hands on its
+ * grips (riding.js legsOn, handsOn), which the next carry takes off him at once; his thighs, spine and arms go from there to his
+ * clip's as his shins and feet go out, so his legs swing out from astride and do not drop first.
  */
-export function legsOut(rider) {
+const HELD = ['LeftUpperLeg', 'RightUpperLeg', 'Spine', 'LeftUpperArm', 'LeftLowerArm', 'RightUpperArm', 'RightLowerArm'];
+export function legsOut(rider, { hold = false } = {}) {
   const world = rider.world;
-  const legs = ['LeftLowerLeg', 'RightLowerLeg', 'LeftFoot', 'RightFoot']
-    .map(name => findBone(rider.model, name))
-    .filter(Boolean)
-    .map(bone => ({ bone, clip: bone.quaternion.clone(), applied: new THREE.Quaternion(), fresh: true }));
+  const legs = [...['LeftLowerLeg', 'RightLowerLeg', 'LeftFoot', 'RightFoot'].map(name => [name, true]), ...(hold ? HELD.map(name => [name, false]) : [])]
+    .map(([name, out]) => [findBone(rider.model, name), out])
+    .filter(([bone]) => bone)
+    .map(([bone, out]) => ({ bone, out, clip: bone.quaternion.clone(), held: hold ? bone.quaternion.clone() : null, applied: new THREE.Quaternion(), fresh: true }));
   let weight = 0, from = 0, goal = 0, t = 0, span = 0, over = false;
   const effect = {
     label: `${rider.name}'s legs out`,
@@ -193,9 +197,10 @@ export function legsOut(rider) {
         // bone still as it was left last frame still has the clip's pose from then.
         if (leg.fresh || !leg.bone.quaternion.equals(leg.applied)) leg.clip.copy(leg.bone.quaternion);
         leg.fresh = false;
-        leg.bone.quaternion.copy(leg.clip).slerp(STRAIGHT, weight);
+        leg.bone.quaternion.copy(leg.held ?? leg.clip).slerp(leg.out ? STRAIGHT : leg.clip, weight);
         leg.applied.copy(leg.bone.quaternion);
       }
+      if (weight >= 1) for (const leg of legs) leg.held = null; // out: from here on his clip's pose is what they go back to
       if (!over || weight > 0) return true;
       for (const leg of legs) leg.bone.quaternion.copy(leg.clip);
       return false;
