@@ -89,12 +89,12 @@ function renderEvent(e) {
 }
 
 /** Renders the events (or those `keep` lets through) into the five stems, dry. */
-export function renderStems(events, length, keep = () => true) {
+export function renderStems(events, length, keep = () => true, offset = 0) {
   const stems = Object.fromEntries(STEMS.map(s => [s, [new Float32Array(length), new Float32Array(length)]]));
   for (const e of events) {
     if (!keep(e)) continue;
     const { x, at } = renderEvent(e);
-    addTo(stems[e.stem], x, at, STEM[e.stem].gain, panOf(e));
+    addTo(stems[e.stem], x, at - offset, STEM[e.stem].gain, panOf(e));
   }
   return stems;
 }

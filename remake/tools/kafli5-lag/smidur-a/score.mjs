@@ -174,7 +174,7 @@ export function compose() {
     n('strings', 'pad', b, d, v2, 0.28, { section: 'vln', attack: b === 0 ? 3.0 : 0.8, release: 0.8, part: 'pad2' });
     n('strings', 'pad', b, d, octave(v1, 1), 0.2, { section: 'vln', attack: b === 0 ? 3.5 : 0.9, release: 0.8, tremolo: 6, part: 'pad3' });
   }
-  gliss(0, 2, 53, 81, 0.35); // the forest opens its eyes
+  gliss(0, 2, 53, 81, 0.25); // the forest opens its eyes
   n('glock', 'lead', 3, 1, 'A6', 0.25, { soft: true });
   n('glock', 'lead', 3.5, 1, 'C7', 0.22, { soft: true });
   // birds in the trees: flute and piccolo calls, an oboe's answer
@@ -186,7 +186,7 @@ export function compose() {
   n('brass', 'lead', 8, 2, 'C4', 0.35, { kind: 'horn' });
   n('brass', 'lead', 10, 2, 'A3', 0.32, { kind: 'horn' });
   n('wind', 'lead', 12, 2, 'D6', 0.36, { kind: 'piccolo', trill: 2 });
-  gliss(13, 1.5, 53, 84, 0.42);
+  gliss(13, 1.5, 53, 84, 0.32);
   n('glock', 'lead', 14, 1, 'F6', 0.3, {});
   n('glock', 'lead', 14.5, 1, 'A6', 0.3, {});
   n('glock', 'lead', 15, 1, 'C7', 0.3, {});
@@ -250,7 +250,7 @@ export function compose() {
   ];
   for (const [b, m, d] of GRAZE) {
     n('wind', 'lead', B(10) + b, d * 0.85, m, 0.6, { kind: 'bassoon' });
-    if (m === 'F3' || b >= 12) n('brass', 'lead', B(10) + b, d * 0.8, octave(m, -1), 0.45, { kind: 'tuba' });
+    if (m === 'F3' || b >= 12) n('brass', 'lead', B(10) + b, d * 0.8, octave(m, -1), 0.35, { kind: 'tuba' });
   }
   n('cymbal', 'beat', B(10), 2, null, 0.3);
   cue(B(10), 'hit');
@@ -274,12 +274,12 @@ export function compose() {
   }
   // the turtles sing re (G3), slow and two-syllabled
   for (const bar of [14, 15, 16]) {
-    call('turtles-2', 'turtles', B(bar), 2, 0.9);
-    call('turtles-2', 'turtles', B(bar, 2), 2, 0.85);
+    call('turtles-2', 'turtles', B(bar), 2, 0.62);
+    call('turtles-2', 'turtles', B(bar, 2), 2, 0.58);
   }
-  call('turtles-2', 'turtles', B(17), 2, 0.9);
-  call('turtles-1', 'turtles', B(17, 2), 1, 0.75);
-  call('turtles-1', 'turtles', B(17, 3), 1, 0.75);
+  call('turtles-2', 'turtles', B(17), 2, 0.62);
+  call('turtles-1', 'turtles', B(17, 2), 1, 0.55);
+  call('turtles-1', 'turtles', B(17, 3), 1, 0.55);
   // the cellos sing with them, warm and legato, on G3 at every call
   const CELLO = [
     [0, 'G3', 1.5], [1.5, 'F3', 0.5], [2, 'G3', 1.5], [3.5, 'A3', 0.5],
@@ -288,7 +288,7 @@ export function compose() {
     [12, 'G3', 2], [14, 'G3', 1], [15, 'G3', 1],
   ];
   for (const [b, m, d] of CELLO) {
-    n('strings', 'lead', B(14) + b, d, m, 0.75, { section: 'vc', voices: 4, attack: 0.08, release: 0.3, vibDepth: 18, part: 'cellolead' });
+    n('strings', 'lead', B(14) + b, d, m, 0.6, { section: 'vc', voices: 4, attack: 0.08, release: 0.3, vibDepth: 18, part: 'cellolead' });
   }
 
   // =========================================================================================== 5. chorus 1 (18-25)
@@ -381,7 +381,7 @@ export function compose() {
     n('strings', 'bass', b, d, octave(CH[c].bass, 1), 0.3, { section: 'cb', attack: 0.6, release: 0.9 });
     n('strings', 'bass', b, d, vc, 0.25, { section: 'vc', attack: 0.6, release: 0.9 });
   }
-  for (let bar = 46; bar < 54; bar++) harpArp(B(bar), B(bar + 1), { step: 1, vel: 0.28, pattern: bar % 2 ? [1, 3, 4, 2] : [0, 2, 4, 5] });
+  for (let bar = 46; bar < 54; bar++) harpArp(B(bar), B(bar + 1), { step: 2, vel: 0.2, pattern: bar % 2 ? [3, 4] : [2, 5] });
   // her song, slow, on her horn: sol mi / re mi do / la sol mi sol / la sol mi re ... and no do (the song is not back yet)
   const HORN = [
     [46, 0, 4, 'C4'], [47, 0, 4, 'A3'],
@@ -389,7 +389,7 @@ export function compose() {
     [50, 0, 2, 'D4'], [50, 2, 2, 'C4'], [51, 0, 2, 'A3'], [51, 2, 2, 'C4'],
     [52, 0, 2, 'D4'], [52, 2, 2, 'C4'], [53, 0, 2, 'A3'], [53, 2, 3, 'G3'],
   ];
-  for (const [bar, b, d, m] of HORN) horn(m, B(bar, b), d, 0.95);
+  for (const [bar, b, d, m] of HORN) horn(m, B(bar, b), d, 0.42);
   // the forest answers her softly: a flute echo, a celesta twinkle, one animal
   [[47, 2, 'C6'], [47, 3, 'A5']].forEach(([bar, b, m]) => n('wind', 'lead', B(bar, b), 0.9, m, 0.28, { kind: 'flute' }));
   [[49, 2, 'F6'], [49, 2.5, 'A6'], [49, 3, 'C7']].forEach(([bar, b, m]) => n('glock', 'lead', B(bar, b), 1, m, 0.3, { soft: true }));
@@ -455,7 +455,7 @@ export function compose() {
   }
   // her horn walks home: la sol mi re ... and the strings and flute fall with her
   [[74, 0, 'D4'], [74, 2, 'C4'], [75, 0, 'A3'], [75, 2, 'G3']].forEach(([bar, b, m]) => {
-    horn(m, B(bar, b), 2, 1);
+    horn(m, B(bar, b), 2, 0.62);
     n('strings', 'lead', B(bar, b), 2, octave(m, 1), 0.6, { section: 'vln', voices: 6, attack: 0.06, release: 0.3, part: 'homev' });
     n('wind', 'lead', B(bar, b), 1.9, octave(m, 2), 0.42, { kind: 'flute' });
   });
@@ -473,7 +473,7 @@ export function compose() {
   for (const [kind, m] of [['tuba', 'F1'], ['trombone', 'F3'], ['horn', 'C4'], ['horn', 'A4'], ['trumpet', 'C5'], ['trumpet', 'F5']]) {
     n('brass', kind === 'tuba' ? 'bass' : 'lead', END, 2, m, 0.7, { kind, part: `endb${m}` });
   }
-  horn('F3', END, 5, 1);
+  horn('F3', END, 5, 0.6);
   for (const [g, t] of [['grazers', 'grazers-3'], ['turtles', 'turtles-2'], ['frogs', 'frogs-1'], ['lizards', 'lizards-2'], ['flyers', 'flyers-1']]) {
     call(t, g, END, 3, g === 'grazers' ? 0.8 : 0.6);
   }
@@ -499,23 +499,23 @@ export function compose() {
     for (const [b, d, group, m] of TUNE) {
       const at = c0 + b;
       chorusMelody.push({ group, beat: at, note: m, hz: Number(hz(m).toFixed(2)) });
-      call(tuneTake(group, d), group, at, d, big ? 1 : 0.92);
-      n('strings', 'lead', at, d * 0.96, m, big ? 0.62 : 0.55, { section: 'vln', voices: 8, attack: 0.04, release: 0.3, part: 'tune' });
-      n('wind', 'lead', at, d * 0.92, octave(m, 1), big ? 0.42 : 0.4, { kind: 'flute' });
+      call(tuneTake(group, d), group, at, d, big ? 1.1 : 1.0);
+      n('strings', 'lead', at, d * 0.96, m, big ? 0.75 : 0.68, { section: 'vln', voices: 8, attack: 0.04, release: 0.3, part: 'tune' });
+      n('wind', 'lead', at, d * 0.92, octave(m, 1), big ? 0.46 : 0.45, { kind: 'flute' });
       n('glock', 'lead', at, 1, octave(m, 1), level === 1 ? 0.32 : 0.28, {});
-      if (level >= 2) n('brass', 'lead', at, d * 0.92, m, big ? 0.55 : 0.45, { kind: 'trumpet' });
-      if (big) n('strings', 'lead', at, d * 0.96, octave(m, 1), 0.48, { section: 'vln', voices: 7, attack: 0.04, release: 0.3, part: 'tune8va' });
+      if (level >= 2) n('brass', 'lead', at, d * 0.92, m, big ? 0.6 : 0.5, { kind: 'trumpet' });
+      if (big) n('strings', 'lead', at, d * 0.96, octave(m, 1), 0.55, { section: 'vln', voices: 7, attack: 0.04, release: 0.3, part: 'tune8va' });
       if (level === 4) {
         n('wind', 'lead', at, d * 0.9, octave(m, 2), 0.32, { kind: 'piccolo' });
-        horn(HORN_NOTE[group], at, d, 0.8);
+        horn(HORN_NOTE[group], at, d, 0.48);
       }
     }
     // the harmony under it
-    padStrings(c0, c0 + 32, { vel: big ? 0.5 : 0.44, attack: 0.18, release: 0.5 });
-    if (level >= 2) {
+    padStrings(c0, c0 + 32, { vel: big ? 0.62 : level === 2 ? 0.56 : 0.52, attack: 0.18, release: 0.5 });
+    {
       for (const [b, c, d] of segs(c0, c0 + 32)) {
-        n('brass', 'pad', b, d, CH[c].pad[1], big ? 0.42 : 0.34, { kind: 'horn', part: 'chhorn' });
-        n('brass', 'pad', b, d, CH[c].pad[2], big ? 0.4 : 0.32, { kind: 'horn', part: 'chhorn2' });
+        n('brass', 'pad', b, d, CH[c].pad[1], big ? 0.46 : level === 2 ? 0.36 : 0.26, { kind: 'horn', part: 'chhorn' });
+        n('brass', 'pad', b, d, CH[c].pad[2], big ? 0.44 : level === 2 ? 0.34 : 0.24, { kind: 'horn', part: 'chhorn2' });
       }
     }
     oompah(c0, c0 + 32, { vel: big ? 0.72 : 0.62 });
@@ -530,7 +530,7 @@ export function compose() {
       }
     }
     // the drums
-    kit(c0, c0 + 32, { kick: big ? 0.7 : 0.58, snare: big ? 0.45 : 0.36, tamb: big ? 0.36 : 0.3, timp: big ? 0.5 : 0.38 });
+    kit(c0, c0 + 32, { kick: big ? 0.78 : 0.66, snare: big ? 0.5 : 0.42, tamb: big ? 0.38 : 0.32, timp: big ? 0.56 : 0.45 });
     for (const k of [0, 16]) n('triangle', 'beat', c0 + k, 4, null, 0.4);
     n('cymbal', 'beat', c0, 4, null, big ? 0.5 : level === 2 ? 0.42 : 0.36);
     if (level === 2 || level === 4) n('cymbal', 'beat', c0 + 16, 4, null, 0.3);
@@ -558,9 +558,9 @@ export function compose() {
     else roll('snare', c0 + 23, 1, 0.25, 0.3, 0.5);
     // in the drop her horn calls in the answers, and Flugeðla's wings beat the time on the gran cassa
     if (big) {
-      horn('A3', c0 + 5, 1.5, 0.85); horn('D4', c0 + 6, 2, 0.9);
-      horn('D4', c0 + 13, 1, 0.85); horn('C4', c0 + 14, 2, 0.9);
-      horn('D4', c0 + 21, 1, 0.85); horn('C4', c0 + 22, 2, 0.9);
+      horn('A3', c0 + 5, 1.5, 0.5); horn('D4', c0 + 6, 2, 0.55);
+      horn('D4', c0 + 13, 1, 0.5); horn('C4', c0 + 14, 2, 0.55);
+      horn('D4', c0 + 21, 1, 0.5); horn('C4', c0 + 22, 2, 0.55);
       for (const b of [5, 7, 13, 15, 21, 23]) n('granCassa', 'beat', c0 + b, 1, null, 0.45);
     }
     // the last bar: the tune's do held; the drums and a fill lead on (no fill before the horn unit: engines off)

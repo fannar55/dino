@@ -172,7 +172,7 @@ const WIND = {
   oboe: { formants: [[1100, 260, 1], [2800, 500, 0.45]], tilt: 0.5, maxH: 18, a: 0.04, r: 0.09, vib: 5.2, vibDepth: 10, vibDelay: 0.25,
     breath: 0.02, band: 3, chiff: 0.04, body: [['hp', 220, 0.7], ['lp', 6800, 0.7]], level: 0.26 },
   bassoon: { formants: [[470, 170, 1], [1150, 300, 0.65]], tilt: 0.55, maxH: 30, a: 0.035, r: 0.1, vib: 4.8, vibDepth: 6,
-    vibDelay: 0.3, breath: 0.02, band: 4, chiff: 0.04, body: [['hp', 50, 0.7], ['peak', 480, 1, 2], ['lp', 4000, 0.7]], level: 0.36 },
+    vibDelay: 0.3, breath: 0.02, band: 4, chiff: 0.04, body: [['hp', 50, 0.7], ['peak', 480, 1, 2], ['lp', 4000, 0.7]], level: 0.22 },
 };
 function windAmps(P, f) {
   if (P.amps) return P.amps;
