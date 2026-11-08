@@ -102,6 +102,16 @@ report.chorus = song.chorusMelody.map(c => {
   return { beat: c.beat, group: c.group, note: c.note, animalF0: Number(fa.toFixed(1)), animalCents: fa ? Number(centsToPitchClass(fa, want).toFixed(0)) : null,
     leadF0: Number(fl.toFixed(1)), leadCents: fl ? Number(centsToPitchClass(fl, want).toFixed(0)) : null };
 });
+// how far each sung chorus note stands over the orchestra at the same moment (1-5 kHz, where the calls live)
+const band = x => eq(Float32Array.from(x), [['hp', 1000, 0.7], ['lp', 5000, 0.7]]);
+const aBand = band(aMono);
+const restBand = band(mono([0, 1].map(ch => { const o = new Float32Array(mix.length); for (const st of ['pad', 'bass', 'beat', 'lead']) { const a = stems[st][ch]; for (let i = 0; i < o.length && i < a.length; i++) o[i] += a[i]; } return o; })));
+for (const r of report.chorus) {
+  const a = Math.round(r.beat * BEAT_SAMPLES);
+  const b = a + Math.round(0.9 * SPB * SR);
+  r.overOrchestraDb = Number((db(rms(aBand, a, b)) - db(rms(restBand, a, b))).toFixed(1));
+}
+report.chorusOverOrchestraDb = { min: Math.min(...report.chorus.map(r => r.overOrchestraDb)), mean: Number((report.chorus.reduce((s, r) => s + r.overOrchestraDb, 0) / report.chorus.length).toFixed(1)) };
 const chorusBad = report.chorus.filter(r => r.animalCents === null || Math.abs(r.animalCents) > 30 || r.leadCents === null || Math.abs(r.leadCents) > 30);
 
 // ---- the loop's seam: bar 5 must equal bar 9 in every stem, and what bars 4 and 8 leave ringing past bars 6 and 10 must be tiny
@@ -166,4 +176,6 @@ for (const r of chorusBad) console.log('  ', JSON.stringify(r));
 console.log('loop', report.loop);
 console.log('bars (dB):', report.barsDb.map((v, i) => (i % 8 === 0 ? `
   ${String(i).padStart(2)}: ` : '') + v).join(' '));
+console.log('chorus notes over the orchestra (1-5 kHz):', report.chorusOverOrchestraDb);
+{ const z = mix.length - Math.round(0.25 * SR); console.log('last 0.25 s of the mix:', db(rms(mix, z, mix.length)), 'dBFS'); }
 console.log('bass stem 200 Hz-2 kHz relative to all of it:', report.bassMidsDb.toFixed(1), 'dB');

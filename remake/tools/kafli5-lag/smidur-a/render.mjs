@@ -17,7 +17,7 @@ export const OUT = `${ROOT}qa/remake/kafli5/lag/keppni/smidur-a/`;
 const TMP = `${OUT}tmp/`;
 const args = new Set(process.argv.slice(2));
 export const STEMS = ['pad', 'bass', 'beat', 'lead', 'animals'];
-const TAIL_SEC = 3.4; // the last hit rings this long after beat 304 (no fade: the sounds end by themselves)
+const TAIL_SEC = 4.6; // the last hit rings this long after beat 304 (no fade: the sounds end by themselves)
 
 /** Each stem's level into the mix, its hall send, and its tone (tamed over 8 kHz). */
 const STEM = {
@@ -25,7 +25,7 @@ const STEM = {
   bass: { gain: 0.62, wet: 0.12, eq: [['lp', 6000, 0.7]] },
   beat: { gain: 0.62, wet: 0.2, eq: [['highshelf', 7000, 0.7, -3], ['lp', 9500, 0.6]] },
   lead: { gain: 0.52, wet: 0.26, eq: [['highshelf', 7500, 0.7, -2.5], ['lp', 10000, 0.6]] },
-  animals: { gain: 0.5, wet: 0.2, eq: [['highshelf', 7000, 0.7, -3], ['lp', 9500, 0.6]] },
+  animals: { gain: 0.6, wet: 0.2, eq: [['highshelf', 7000, 0.7, -3], ['lp', 9500, 0.6]] },
 };
 /** Where each instrument sits (orchestral seating, kept narrow enough for a tablet). */
 function panOf(e) {

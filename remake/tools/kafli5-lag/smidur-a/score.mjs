@@ -91,7 +91,7 @@ export function compose() {
 
   // ---- layers ----
   /** Sustained strings on the chords: cellos, violas, second and first violins, each its own section. */
-  function padStrings(from, to, { vel = 0.45, attack = 0.3, release = 0.6, tremolo = 0, skip = [], up = 0, voicesVln = 6, bright = 1 } = {}) {
+  function padStrings(from, to, { vel = 0.45, attack = 0.3, release = 0.6, tremolo = 0, skip = [], up = 0, voicesVln = 6, bright = 0.9 } = {}) {
     for (const [b, c, d] of segs(from, to)) {
       const [vc, vla, v2, v1] = CH[c].pad;
       const parts = [['vc', vc], ['vla', vla], ['vln', v2], ['vln', v1]];
@@ -259,10 +259,10 @@ export function compose() {
   chords(14, [['Dm', 4], ['Bb', 4], ['Gm', 4], ['C', 4]]);
   padStrings(B(14), B(18), { vel: 0.36, skip: [0], bright: 0.85 });
   for (const [b, c, d] of segs(B(14), B(18))) {
-    n('brass', 'pad', b, d, CH[c].pad[1], 0.32, { kind: 'horn', part: 'hornpad' });
-    n('brass', 'pad', b, d, CH[c].pad[2], 0.3, { kind: 'horn', part: 'hornpad2' });
-    n('brass', 'bass', b, d * 0.95, CH[c].bass, 0.45, { kind: 'tuba' });
-    n('strings', 'bass', b, d, octave(CH[c].bass, 1), 0.4, { section: 'cb', attack: 0.15, release: 0.4 });
+    n('brass', 'pad', b, d, CH[c].pad[1], 0.26, { kind: 'horn', part: 'hornpad' });
+    n('brass', 'pad', b, d, CH[c].pad[2], 0.24, { kind: 'horn', part: 'hornpad2' });
+    n('brass', 'bass', b, d * 0.95, CH[c].bass, 0.34, { kind: 'tuba' });
+    n('strings', 'bass', b, d, octave(CH[c].bass, 1), 0.3, { section: 'cb', attack: 0.15, release: 0.4 });
   }
   // half time: the gran cassa on 1, a low woodblock plod on 2 and 4, timpani on 1
   for (let bar = 14; bar < 18; bar++) {
@@ -481,7 +481,6 @@ export function compose() {
   n('granCassa', 'beat', END, 4, null, 0.75);
   n('cymbal', 'beat', END, 4, null, 0.5, { t60: 3 });
   n('glock', 'lead', END, 2, 'F6', 0.5, {});
-  n('harp', 'pad', END, 2, 'F2', 0.6, {});
   n('harp', 'pad', END, 2, 'C3', 0.5, {});
   n('harp', 'pad', END, 2, 'F3', 0.5, {});
 
@@ -499,8 +498,8 @@ export function compose() {
     for (const [b, d, group, m] of TUNE) {
       const at = c0 + b;
       chorusMelody.push({ group, beat: at, note: m, hz: Number(hz(m).toFixed(2)) });
-      call(tuneTake(group, d), group, at, d, big ? 1.1 : 1.0);
-      n('strings', 'lead', at, d * 0.96, m, big ? 0.75 : 0.68, { section: 'vln', voices: 8, attack: 0.04, release: 0.3, part: 'tune' });
+      call(tuneTake(group, d), group, at, d, big ? 1.2 : 1.1);
+      n('strings', 'lead', at, d * 0.96, m, big ? 0.82 : 0.76, { section: 'vln', voices: 8, attack: 0.04, release: 0.3, part: 'tune' });
       n('wind', 'lead', at, d * 0.92, octave(m, 1), big ? 0.46 : 0.45, { kind: 'flute' });
       n('glock', 'lead', at, 1, octave(m, 1), level === 1 ? 0.32 : 0.28, {});
       if (level >= 2) n('brass', 'lead', at, d * 0.92, m, big ? 0.6 : 0.5, { kind: 'trumpet' });
@@ -511,7 +510,7 @@ export function compose() {
       }
     }
     // the harmony under it
-    padStrings(c0, c0 + 32, { vel: big ? 0.62 : level === 2 ? 0.56 : 0.52, attack: 0.18, release: 0.5 });
+    padStrings(c0, c0 + 32, { vel: big ? 0.56 : level === 2 ? 0.5 : 0.45, attack: 0.18, release: 0.5 });
     {
       for (const [b, c, d] of segs(c0, c0 + 32)) {
         n('brass', 'pad', b, d, CH[c].pad[1], big ? 0.46 : level === 2 ? 0.36 : 0.26, { kind: 'horn', part: 'chhorn' });
