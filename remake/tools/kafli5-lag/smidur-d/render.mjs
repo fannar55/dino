@@ -65,14 +65,15 @@ function arcAt(beat) {
 const SOUNDS = JSON.parse(readFileSync(join(HLJOD, 'sounds.json'), 'utf8')).files;
 const takeCache = new Map();
 /** A recording on `midi`'s pitch class in the octave nearest its own (my own YIN median sets the rate), RMS-levelled, with its onset. */
-function tuned(file, midi, { exact = false } = {}) {
-  const key = `${file}:${midi}:${exact}`;
+function tuned(file, midi, { exact = false, even = false } = {}) {
+  const key = `${file}:${midi}:${exact}:${even}`;
   if (takeCache.has(key)) return takeCache.get(key);
   const raw = D.decode(join(HLJOD, file));
   const own = D.pitchOf(raw, 50, 3500).hz;
   const target = hz(midi);
   const rate = !own ? 1 : exact ? target / own : (target * 2 ** Math.round(Math.log2(own / target))) / own;
   const x = D.resample(raw, rate);
+  if (even) evenOut(x);
   let peak = 0;
   for (const v of x) peak = Math.max(peak, Math.abs(v));
   let sum = 0;
@@ -86,6 +87,26 @@ function tuned(file, midi, { exact = false } = {}) {
     spread: after.hz ? 1200 * Math.log2(after.q3 / after.q1) : null };
   takeCache.set(key, t);
   return t;
+}
+/** Her horn's take swells and sags; past its first 0.3 s, pull a 60 ms envelope most of the way to its median so a held note holds. */
+function evenOut(x) {
+  const w = Math.round(0.06 * SR);
+  const env = new Float32Array(x.length);
+  let acc = 0;
+  for (let i = 0; i < x.length; i++) {
+    acc += x[i] * x[i] - (i >= w ? x[i - w] * x[i - w] : 0);
+    env[i] = Math.sqrt(Math.max(acc, 0) / w);
+  }
+  const centred = new Float32Array(x.length);
+  for (let i = 0; i < x.length; i++) centred[i] = env[Math.min(x.length - 1, i + (w >> 1))];
+  const start = Math.round(0.3 * SR);
+  const body = [...centred.slice(start, x.length - w)].sort((a, b) => a - b);
+  const median = body[body.length >> 1] || 1;
+  for (let i = start; i < x.length; i++) {
+    const g = Math.min(2.2, Math.max(0.45, (median / (centred[i] + 1e-9)) ** 0.7));
+    const blend = Math.min(1, (i - start) / (0.1 * SR));
+    x[i] *= 1 + (g - 1) * blend;
+  }
 }
 
 // ---------------------------------------------------------------- the song being written
@@ -197,9 +218,9 @@ class Song {
       onsetSample: this.at(b), chorus });
   }
   /** Her horn (the recorded alphorn-like pipe) on `group`'s tone an octave down, n beats, onset on the beat. */
-  horn(b, n, group, { gain = 0.95, send = 0.3 } = {}) {
+  horn(b, n, group, { gain = 0.55, send = 0.3 } = {}) {
     // all five in the octave around mi, as the game sets her horn (setRate): F3 G3 A3 C4 D4, so do stays the lowest
-    const t = tuned(HORN_TAKE, TONE[group] - 12, { exact: true });
+    const t = tuned(HORN_TAKE, TONE[group] - 12, { exact: true, even: true });
     this.used.add(HORN_TAKE);
     const keep = Math.min(t.x.length, t.onset + Math.round(SEC(n) * SR));
     const x = t.x.slice(0, keep);
@@ -224,7 +245,7 @@ class Song {
     }
     for (const v of voices) {
       const x = I.strings(hz(v.m), SEC(v.n), v.v, { attack: v.attack, release: v.release, cut: 5000, seed: hash('str', v.m, v.b % 16) });
-      this.put('pad', x, v.b, { gain: 0.085, pan: (v.k - 1.5) * 0.22, send: 0.22 });
+      this.put('pad', x, v.b, { gain: 0.2, pan: (v.k - 1.5) * 0.22, send: 0.22 });
     }
   }
 }
@@ -374,10 +395,10 @@ function chorus(b, level) {
     const tag = { chorus: level, note: k + 1, group: g };
     S.call(g, b + t, { n: n + 0.3, gain: 1, chorus: tag });
     S.melody.push({ group: g, beat: b + t });
-    S.tpt(b + t, n, m, 0.74, { legato: n > 1 ? 0.94 : 0.9, gain: level === 3 ? 0.2 : 0.17, check: tag });
+    S.tpt(b + t, n, m, 0.74, { legato: n > 1 ? 0.94 : 0.9, gain: level === 3 ? 0.22 : 0.21, check: tag });
     if (level >= 2) S.clar(b + t, n, level === 3 ? m + 12 : m, 0.6, { legato: 0.9, gain: level === 3 ? 0.16 : 0.13 });
     if (level === 3 || n >= 2) S.glk(b + t, m + 24, level === 3 ? 0.5 : 0.42, { gain: 0.11 });
-    if (level === 3) S.horn(b + t, n, g, { gain: 0.6 });
+    if (level === 3) S.horn(b + t, n, g, { gain: 0.46 });
   });
   // the band's answers in the gaps
   const ansA = [[5, 77], [5.5, 76], [6, 79], [6.5, 76], [7, 72]];
@@ -478,15 +499,15 @@ unit({ name: 'Tiptoe: the animals sneak past (drums off)', nameIs: 'Læðst á t
   what: 'Engines off: every drum stops. Only a soft dark pad, pizzicato on the beats (D minor colours, still F major) and a sneaky staccato clarinet; at the end the line hangs and one frog peeps "oops".' }, b => {
   const chs = ['Dm', 'Gm', 'Dm', 'C'];
   chs.forEach((ch, k) => {
-    S.chord(b + 4 * k, 4, ch, { v: 0.3, attack: 0.6 });
+    S.chord(b + 4 * k, 4, ch, { v: 0.36, attack: 0.6 });
     const [r, f] = ROOT5[ch];
-    S.pz(b + 4 * k, r, 0.62, { stem: 'bass', t60: 0.55, gain: 0.34, bright: 0.35 });
-    S.pz(b + 4 * k + 2, f, 0.5, { stem: 'bass', t60: 0.5, gain: 0.3, bright: 0.35 });
-    [1, 3].forEach(t => PAH[ch].forEach((m, i) => S.pz(b + 4 * k + t, m, 0.32, { gain: 0.12, pan: (i - 1) * 0.3, bright: 0.4 })));
+    S.pz(b + 4 * k, r, 0.62, { stem: 'bass', t60: 0.55, gain: 0.46, bright: 0.35 });
+    S.pz(b + 4 * k + 2, f, 0.5, { stem: 'bass', t60: 0.5, gain: 0.4, bright: 0.35 });
+    [1, 3].forEach(t => PAH[ch].forEach((m, i) => S.pz(b + 4 * k + t, m, 0.32, { gain: 0.17, pan: (i - 1) * 0.3, bright: 0.4 })));
   });
   const sneak = [[0, 62], [1, 65], [2, 69], [2.5, 67], [3, 65], [4, 67], [5, 70], [6, 74], [6.5, 72], [7, 70], [8, 69], [9, 65], [10, 62], [10.5, 64], [11, 65], [12, 64], [13, 67]];
-  sneak.forEach(([t, m]) => S.clar(b + t, 0.5, m, 0.42, { legato: 0.45, gain: 0.24, pan: -0.15 }));
-  S.clar(b + 14, 1, 72, 0.4, { legato: 0.7, gain: 0.22, pan: -0.15 });
+  sneak.forEach(([t, m]) => S.clar(b + t, 0.5, m, 0.45, { legato: 0.45, gain: 0.33, pan: -0.15 }));
+  S.clar(b + 14, 1, 72, 0.42, { legato: 0.7, gain: 0.3, pan: -0.15 });
   S.call('frogs', b + 15, { take: 'frogs-2.mp3', n: 1, gain: 0.55 });
 });
 
@@ -533,7 +554,7 @@ unit({ name: 'The build: everyone gathers', nameIs: 'Allir safnast saman', start
   S.clar(b + 12, 3, 84, 0.75, { legato: 0.95, gain: 0.16 });
   [[0, [62, 65, 70], 0.42], [2, [62, 65, 70], 0.48], [4, [65, 70, 74], 0.52], [6, [65, 70, 74], 0.58], [8, [64, 67, 72], 0.64], [10, [64, 67, 72], 0.7], [12, [64, 70, 72], 0.78]].forEach(([t, ms, v]) =>
     ms.forEach(m => S.tpt(b + t, t === 12 ? 3 : 2, m, v, { legato: 0.96, gain: 0.08 })));
-  S.horn(b + 8, 4, 'lizards', { gain: 0.8 });
+  S.horn(b + 8, 4, 'lizards', { gain: 0.6 });
   [['grazers', 0], ['turtles', 0.5], ['frogs', 1], ['lizards', 1.5], ['flyers', 2]].forEach(([g, t]) => S.call(g, b + 12 + t, { n: 1, gain: 1.05 }));
   S.stab(b + 15, 'C7', 0.85);
   S.pahChord(b + 15, 'C7', 0.85, { n: 0.4 });
@@ -575,18 +596,17 @@ unit({ name: 'Outro: the walk home and the last hit', nameIs: 'Heim á leið', s
   S.cue(h, 'hit');
   S.cue(h, 'end');
   S.tuba(h, 2.2, 41, 0.92, { legato: 1 });
-  S.tuba(h, 2.2, 29, 0.8, { legato: 1, gain: 0.3 });
-  [65, 69, 72, 77].forEach(m => S.tpt(h, 2.2, m, 0.8, { legato: 1, gain: 0.13 }));
+  [65, 69, 72, 77].forEach(m => S.tpt(h, 2.2, m, 0.75, { legato: 1, gain: 0.1 }));
   [77, 81].forEach(m => S.clar(h, 2.2, m, 0.65, { legato: 1, gain: 0.14 }));
   S.picc(h, 2.2, 89, 0.5, { legato: 1, gain: 0.07 });
   [89, 93, 96].forEach(m => S.glk(h, m, 0.5, { t60: 2 }));
   S.chord(h, 2.2, 'F', { v: 0.6, attack: 0.02, release: 1.1, tie: false });
-  S.pahChord(h, 'F', 0.8, { n: 1.5 });
-  S.bd(h, 0.85);
-  S.sn(h, 0.6);
-  S.cym(h, 0.42, 1.8);
-  S.horn(h, 2.5, 'grazers', { gain: 0.75 });
-  ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'].forEach(g => S.call(g, h, { n: 2.2, gain: 0.8 }));
+  S.pahChord(h, 'F', 0.65, { n: 1.5 });
+  S.bd(h, 0.7);
+  S.sn(h, 0.5);
+  S.cym(h, 0.32, 1.8);
+  S.horn(h, 2.5, 'grazers', { gain: 0.5 });
+  ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'].forEach(g => S.call(g, h, { n: 2.2, gain: 0.6 }));
 });
 
 // ---------------------------------------------------------------- mix and master
