@@ -58,21 +58,9 @@ export function ffmpeg(args) {
   return execFileSync('ffmpeg', ['-hide_banner', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 28 });
 }
 
-/** ffmpeg's EBU R128 reading of a file: { lufs, truePeak }. */
+/** ffmpeg's EBU R128 reading of a file: { lufs, truePeak, lra }. */
 export function ebur128(file) {
-  let text = '';
-  try {
-    execFileSync('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=peak=true', '-f', 'null', '-'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  } catch (e) {
-    text = String(e.stderr || '');
-  }
-  if (!text) {
-    const r = spawnText(['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=peak=true', '-f', 'null', '-']);
-    text = r;
-  }
+  const text = spawnText(['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=peak=true', '-f', 'null', '-']);
   const summary = text.slice(text.lastIndexOf('Summary:'));
   const lufs = Number(/I:\s+(-?[\d.]+) LUFS/.exec(summary)?.[1]);
   const truePeak = Number(/Peak:\s+(-?[\d.]+|-inf) dBFS/.exec(summary.slice(summary.indexOf('True peak')))?.[1]);
