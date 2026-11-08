@@ -94,7 +94,7 @@ export function svf(x, fc, q, mode = 'lp') {
     const v2 = ic2 + a2 * ic1 + a3 * v3;
     ic1 = 2 * v1 - ic1;
     ic2 = 2 * v2 - ic2;
-    x[i] = mode === 'lp' ? v2 : mode === 'bp' ? v1 : x[i] - k * v1 - v2;
+    x[i] = mode === 'lp' ? v2 : mode === 'bp' ? v1 : mode === 'bpn' ? k * v1 : x[i] - k * v1 - v2;
   }
   return x;
 }

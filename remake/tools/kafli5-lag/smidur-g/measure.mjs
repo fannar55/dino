@@ -101,10 +101,11 @@ function onsets(L, R) {
   return out;
 }
 
+const QUICK = process.argv.includes('--quick');
 const report = { sections: [], stems: {}, loop: {}, animals: {}, horn: {} };
 const mix = decode(path.join(OUT, 'mix.mp3'));
 const lowL = lowpass150(mix.L); const lowR = lowpass150(mix.R);
-const on = onsets(mix.L, mix.R);
+const on = QUICK ? [] : onsets(mix.L, mix.R);
 console.log('section'.padEnd(22), 'from(s)'.padStart(8), 'RMS dB'.padStart(8), '<150 dB'.padStart(8), 'peak dB'.padStart(8), 'onsets/bar'.padStart(11));
 for (const s of song.sections) {
   const a = Math.round(swing(s.startBeat) * SPB);
@@ -151,6 +152,7 @@ const last = (re) => { let m; let v = null; const g = new RegExp(re, 'g'); while
 report.loudness = { I: last('I:\\s+(-?[\\d.]+) LUFS'), LRA: last('LRA:\\s+(-?[\\d.]+) LU'), truePeak: last('Peak:\\s+(-?[\\d.]+) dBFS') };
 console.log('ebur128:', report.loudness);
 
+if (QUICK) process.exit(0);
 // stems: peaks and clipping, and the loop's seam (the last 1.5 s before the loop's end against the same before its start)
 const ls = Math.round(swing(song.loop.startBeat) * SPB);
 const le = Math.round(swing(song.loop.startBeat + song.loop.beats) * SPB);

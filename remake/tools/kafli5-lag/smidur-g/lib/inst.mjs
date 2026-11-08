@@ -162,9 +162,9 @@ export function horn(kind, hz, dur, vel, opts = {}) {
       const close = t > dur ? Math.min(1, (t - dur) / 0.05) : 0;
       return closed + (open - closed) * o * (1 - close * 0.8);
     };
-    svf(y, fc, 2.2, 'bp');
+    svf(y, fc, 2.2, 'bpn');
     const mix = depth;
-    for (let i = 0; i < n; i++) y[i] = y[i] * 1.6 * mix + dry[i] * (1 - mix) * 0.6;
+    for (let i = 0; i < n; i++) y[i] = y[i] * 1.5 * mix + dry[i] * (1 - mix) * 0.7;
   }
   return y;
 }

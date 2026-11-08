@@ -38,7 +38,7 @@ const LV = {
   solo: { trumpet: 0.21, trombone: 0.27, clarinet: 0.36, vibes: 0.46 },
   vibes: 0.46, piano: 0.36, guitar: 0.42, bass: 0.36, sloedla: 0.46,
   call: 0.9, marimba: 0.24,
-  ride: 0.52, hatfoot: 0.52, kick: 0.45, snare: 0.46, rim: 0.42, tom: 0.45, crash: 0.3, snap: 0.62, sweep: 0.42, btap: 0.45, block: 0.62,
+  ride: 0.52, hatfoot: 0.52, kick: 0.45, snare: 0.46, rim: 0.42, tom: 0.45, crash: 0.3, snap: 0.62, sweep: 0.42, btap: 0.45, block: 0.42,
 };
 
 // time of a notated beat, in samples (swung eighths), with a small human push for horns (never for the grid's own parts)
@@ -95,7 +95,7 @@ for (const e of score.events) {
   const o = e.opts ?? {};
   switch (e.inst) {
     case 'trumpet': case 'trombone': case 'alto': case 'tenor': case 'bari': case 'clarinet': {
-      const hum = o.section ? (r() - 0.5) * 0.014 : (r() - 0.35) * 0.012; // section players spread, soloists a hair behind
+      const hum = o.section ? 0.004 + (r() - 0.5) * 0.014 : 0.012 + (r() - 0.5) * 0.012; // sections spread, soloists sit behind the beat
       at += Math.round(hum * SR);
       const det = o.section ? 2 ** (((r() - 0.5) * 7) / 1200) : 1;
       const hold = o.staccato ? Math.min(dur, 0.16) : Math.max(0.06, dur - 0.03);

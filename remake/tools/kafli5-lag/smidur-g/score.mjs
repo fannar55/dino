@@ -125,6 +125,10 @@ export function build() {
       const [bp, dur, note, flags = ''] = tok.split(':');
       const [b, p] = bp.split('.').length === 3 ? [bp.split('.')[0], `${bp.split('.')[1]}.${bp.split('.')[2]}`] : bp.split('.');
       const n = { t: at(base + Number(b), Number(p)), d: Number(dur), midi: nm(note), vel: vel0, opts: {} };
+      // swing articulation: the upbeat eighth leans, the downbeat eighth before it is lighter
+      const frac = Number(p) % 1;
+      if (Math.abs(frac - 0.5) < 1e-6) n.vel = Math.min(1, n.vel * 1.08);
+      else if (frac === 0 && Number(dur) <= 0.5) n.vel *= 0.92;
       for (const f of flags.split(',').filter(Boolean)) {
         const k = f[0];
         const v = Number(f.slice(1));
@@ -459,7 +463,7 @@ export function build() {
 
   // ------------------------------------------------ 8-15 head A1: the animals sing her tune, the horns answer
   sec('Her tune (sung)', 'Lagið hennar (sungið)', 8, 8, null, 'The animals sing her tune, each note by its own group (the camera jumps to each singer); the horns answer every phrase.');
-  singTune(8);
+  singTune(8, { vel: 1.2 });
   section('lead', 9, '0.1.5:0.5:D5:s 0.2.5:1:E5:w,a 0.4:0.5:D5:s', 0.62, BRASS);
   for (const n of parse(11, '0.1.5:0.5:G4 0.2:0.5:A4 0.2.5:0.5:B4 0.3:0.5:D5 0.3.5:0.5:E5 0.4:0.5:G5:s,a', 0.62)) {
     for (const [inst, , oct, pan, lvl] of SAX_UNI) E('lead', inst, n.t, n.d, n.midi + 12 * oct, n.vel * lvl, pan, { ...n.opts, section: true });
@@ -604,8 +608,8 @@ export function build() {
   sec('Everyone', 'Allir saman', 80, 8, 'all', 'The shout chorus, the high point: the animals sing her tune with the whole band shouting it in harmony; between phrases every group sings at once and Slóeðla answers on her horn.');
   cue(at(80, 1), 'peak');
   E('beat', 'crash', at(80, 1), 0.5, null, 0.42, 0.3, {});
-  singTune(80, { vel: 1.1 });
-  section('lead', 80, `0.1:2:D6:a 0.3:2:B5 2.1:1:A5 2.2:1:B5 2.3:2:G5 4.1:1:E6:a 4.2:1:D6 4.3:1:B5 4.4:1:D6 6.1:1:E6:a 6.2:1:D6 6.3:1:B5 6.4:1:A5 7.1:2:G5`, 0.86, [...TRUMPETS, ...BONES], { spread: 'drop2' });
+  singTune(80, { vel: 1.25 });
+  section('lead', 80, `0.1:2:D6:a 0.3:2:B5:u120 2.1:1:A5 2.2:1:B5 2.3:2:G5:u120 4.1:1:E6:a 4.2:1:D6 4.3:1:B5 4.4:1:D6:u120 6.1:1:E6:a 6.2:1:D6 6.3:1:B5 6.4:1:A5 7.1:2:G5`, 0.86, [...TRUMPETS, ...BONES], { spread: 'drop2' });
   for (const n of parse(80, '0.1:2:D5 0.3:2:B4 2.1:1:A4 2.2:1:B4 2.3:2:G4 4.1:1:E5 4.2:1:D5 4.3:1:B4 4.4:1:D5 6.1:1:E5 6.2:1:D5 6.3:1:B4 6.4:1:A4 7.1:2:G4', 0.74)) {
     for (const [inst, , oct, pan, lvl] of SAX_UNI) E('lead', inst, n.t, n.d, n.midi + 12 * oct, n.vel * lvl, pan, { section: true });
   }
@@ -615,7 +619,10 @@ export function build() {
   };
   for (const b of [81, 83, 85]) {
     everyone(at(b, 2));
-    section('lead', b, '0.1.5:0.5:E5:s,a 0.2:0.5:D5:s', 0.62, SAXES.slice(0, 4));
+    const top = b === 85 ? 'E6' : 'D6';
+    section('lead', b, `0.1.5:0.5:B5:s,a 0.2:1:${top}:a`, 0.84, [...TRUMPETS, ...BONES], { spread: 'drop2' });
+    section('lead', b, '0.1.5:0.5:E5:s,a 0.2:1:D5:a', 0.7, SAXES.slice(0, 4));
+    section('pad', b, '0.3:2:B4', 0.4, SAXES.slice(0, 4), { spread: 'drop2' });
   }
   hornNote(81, '0.3:0.5:G4 0.3.5:0.5:E4 0.4:1:G4:u100');
   hornNote(83, '0.3:0.5:A4:f60 0.3.5:0.5:G4 0.4:1:E4');
@@ -646,10 +653,10 @@ export function build() {
   // plinks (piano above) and the button: the band's short soft chord, bass and kick, her horn's last do
   cue(BEATS, 'end');
   E('bass', 'bass', BEATS, 0.6, nm('G2'), 0.7, 0);
-  E('beat', 'kick', BEATS, 0.5, null, 0.5, 0, {});
+  E('beat', 'kick', BEATS, 0.5, null, 0.38, 0, {});
   E('pad', 'piano', BEATS, 0.5, nm('G5'), 0.5, 0.38);
   E('pad', 'piano', BEATS, 0.5, nm('D5'), 0.4, 0.38);
-  section('lead', 95, '1.1:0.5:D5:s', 0.5, [...SAXES.slice(0, 4), ...BONES]);
+  section('lead', 95, '1.1:0.5:D5:s', 0.42, [...SAXES.slice(0, 4), ...BONES]);
   hornNote(96, '0.1:0.6:G3', 0.85);
 
   // the tune sung must be at the head and the shout; sort everything
