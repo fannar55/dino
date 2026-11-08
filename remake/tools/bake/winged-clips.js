@@ -233,8 +233,9 @@ export function authorWingedClips(rig, options = {}) {
   function tailPose(pitch, sway = 0) {
     tailNames.forEach((n, i) => bones[n].quaternion.copy(turn(rad(sway * (0.6 + 0.4 * i)), 0, rad(i ? pitch * 0.3 : pitch))));
   }
-  // The neck and head in level flight: the neck stretched forward and up, the head level.
-  const FLY_NECK = [[0, 0, 10], [0, 0, 12], [0, 0, 12]], FLY_HEAD = [0, 0, 20];
+  // The neck and head in level flight: the neck stretched forward and up, the head level but for a few degrees down, which lifts her
+  // crest off a rider's head (Egill on her saddle: 20 degrees here laid the crest on his hair, 15 leaves 5 to 9 cm between them).
+  const FLY_NECK = [[0, 0, 10], [0, 0, 12], [0, 0, 12]], FLY_HEAD = [0, 0, 15];
   const FLY_TAIL = 26; // the tail straight out behind
 
   // --- poses held and blended --------------------------------------------------------------------------

@@ -62,6 +62,16 @@ function pose(clip, time) {
   world.scene.updateMatrixWorld(true);
 }
 
+/** Her clips as she stands before a flight in the game: idle alone. pose() plays clips past her actor, and one left playing at full
+ * weight under a flight's own clips would blend her into a pose she never flies in. Two plays, so idle is started even when it was
+ * her actor's last clip (her actor plays a clip again only when it is not the one it has). */
+function standing() {
+  her.mixer.stopAllAction();
+  her.play('takeOff', { fade: 0 });
+  her.play('idle', { fade: 0 });
+  her.mixer.update(0);
+}
+
 test('the saddle loads onto her own skeleton, hidden until it is shown', () => {
   assert.equal(loaded, true);
   const saddle = boxes.mesh;
@@ -153,6 +163,7 @@ test('it pops on with sparkles over the seat, and has its full size when the pop
 });
 
 test('on the saddle Egill sits on its seat and holds its bar, through the take-off and the flight', () => {
+  standing();
   boxes.show();
   const flier = createFlier(her, route, { world });
   const riding = rideFlier(egill, flier, { saddle: boxes });
@@ -204,6 +215,7 @@ test('on the game\'s saddle Egill sits on its seat, holds its bar, and nothing o
   const saddle = createFlierSaddle(her);
   assert.equal(await saddle.loaded, true);
   saddle.show();
+  standing();
   const flier = createFlier(her, route, { world });
   const riding = rideFlier(egill, flier, { saddle });
   const body = skinnedMeshOf(her.model);
