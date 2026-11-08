@@ -11,8 +11,9 @@
 // kafli5-sloedla.js and the tones in engine/audio/choir-sounds.js. The golden afternoon sun (engine/looks.js goldenAfternoon)
 // stands at heading 215, 14 degrees up.
 //
-// Chunk 1 (the plan's Task 4): the place, the animals and her model in their real look, made tones, captions only, no music, and
-// her placeholder poses. The scenes:
+// Chunks 1 and 2 (the plan's Tasks 4 and 5): the place, the animals and her model in their real look, made tones, captions only,
+// no music; her life in the reed and out of it (kafli5-sloedla.js: she hides, peeks, walks a step out after each phrase, shy to
+// brave, and wades out for the whole song). The scenes:
 //   1 the map draws piece e; the false horn from the reed; "Þarna aftur!" "Hún er í sefinu."
 //   2 Egill and Mosi walk down to the water across from the reed, her crest over it; a tap on the reed (or 8 s) and she peeks out;
 //     the invitation and her answer; as Mosi says the animals remember, they set off round the pool to their places
