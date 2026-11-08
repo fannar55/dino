@@ -250,12 +250,12 @@ export function bass(hz, dur, vel, { seed = 1, slide = 0 } = {}) {
   const r = rng(seed);
   const n = Math.ceil((dur + 0.12) * SR);
   const y = new Float32Array(n);
-  const amps = [0.75, 1.0, 0.85, 0.62, 0.48, 0.34, 0.24, 0.17, 0.12, 0.08, 0.06, 0.045, 0.03, 0.02];
+  const amps = [0.5, 0.78, 0.9, 0.85, 0.76, 0.66, 0.56, 0.47, 0.39, 0.32, 0.26, 0.21, 0.17, 0.14, 0.11, 0.09, 0.07, 0.055];
   const tau0 = 0.75;
-  const lift = amps.map((_, j) => { const f = (j + 1) * hz; return f < 60 ? 0.6 : 1 + 0.9 * Math.exp(-(Math.log2(f / 380) ** 2) / 1.1); });
+  const lift = amps.map((_, j) => { const f = (j + 1) * hz; return f < 60 ? 0.55 : f > 2000 ? 0.5 : 1 + 1.6 * Math.exp(-(Math.log2(f / 520) ** 2) / 1.6); });
   for (let k = 1; k <= amps.length; k++) {
     let ph = r() * 0.2;
-    const tau = tau0 / (1 + 0.32 * (k - 1));
+    const tau = tau0 / (1 + 0.22 * (k - 1));
     for (let i = 0; i < n; i++) {
       const t = i / SR;
       const sag = 1 + 0.006 * Math.exp(-t / 0.03) + (slide ? (slide / 1200) * Math.LN2 * Math.exp(-t / 0.05) : 0);
@@ -271,8 +271,8 @@ export function bass(hz, dur, vel, { seed = 1, slide = 0 } = {}) {
   const fm = Math.round(0.025 * SR);
   const th = new Float32Array(fm);
   for (let i = 0; i < fm; i++) th[i] = (r() * 2 - 1) * Math.exp(-i / (0.004 * SR));
-  lp(th, 1100);
-  for (let i = 0; i < fm; i++) y[i] += th[i] * 0.35;
+  lp(th, 1600);
+  for (let i = 0; i < fm; i++) y[i] += th[i] * 0.4;
   // a gentle saturation adds the growl that carries pitch on small speakers
   for (let i = 0; i < n; i++) {
     const v = y[i] * 0.9;

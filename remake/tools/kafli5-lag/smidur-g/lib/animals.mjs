@@ -133,13 +133,20 @@ export function loadSingers(hljod) {
     const r = rmsOf(y.filter((v, i) => i % 4 === 0 && Math.abs(v) > 0.02)) || rmsOf(y);
     const g = (10 ** (-18 / 20) / Math.max(r, 1e-6)) * 10 ** ((cfg.trim ?? 0) / 20);
     for (let i = 0; i < y.length; i++) y[i] *= g;
+    // where the call is first heard: the 5 ms envelope reaching a third of its peak
+    let env = 0; let envMax = 0;
+    const ea = Math.exp(-1 / (0.005 * SR));
+    const envs = new Float32Array(y.length);
+    for (let i = 0; i < y.length; i++) { env = Math.max(Math.abs(y[i]), ea * env); envs[i] = env; if (env > envMax) envMax = env; }
+    let onset = 0;
+    for (let i = 0; i < y.length; i++) if (envs[i] > envMax / 3) { onset = i / SR; break; }
     const after = centrePitch(y, { fmin: Math.max(55, fmin * R0 * 0.6), fmax: 3800 });
     const target = toneHz * 2 ** Math.round(Math.log2(ref / toneHz));
     const res = {
-      y, ref, rate: R0, target, after: after.hz,
+      y, ref, rate: R0, target, after: after.hz, onset,
       cents: after.hz ? 1200 * Math.log2(after.hz / target) : null,
     };
-    info[key] = { take: name, tone: toneHz, own: ref, rate: R0, target, landed: after.hz, cents: res.cents };
+    info[key] = { take: name, tone: toneHz, own: ref, rate: R0, target, landed: after.hz, cents: res.cents, onsetMs: Math.round(onset * 1000) };
     cache.set(key, res);
     return res;
   }

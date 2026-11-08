@@ -476,7 +476,7 @@ export function build() {
   // ------------------------------------------------ 16-23 head A2: she plays it on her horn, saxes under her
   sec('Her tune (horn)', 'Lagið hennar (horn)', 16, 8, 'sloedla', 'Slóeðla plays her tune on her horn, swung, the saxes holding soft chords under her and the brass answering.');
   hornNote(16, '0.1:1.5:D4:f80,x14 0.2.5:1.5:B3:x14 2.1:0.75:A3 2.2:0.75:B3 2.3:2:G3:x16 4.1:0.75:E4:f60 4.2:0.75:D4 4.3:0.75:B3 4.4:1:D4:u120 6.1:0.75:E4 6.2:0.75:D4 6.3:0.75:B3 6.4:0.75:A3 7.1:2.5:G3:x16', 0.85);
-  section('pad', 16, '0.1:4:B4 2.1:2:C5 2.3:2:C5 4.1:4:B4 6.1:2:C5 6.3:2:C5 7.1:3:B4', 0.38, SAXES, { spread: 'drop2' });
+  section('pad', 16, '0.1:4:D5 2.1:2:E5 2.3:2:E5 4.1:4:D5 6.1:2:E5 6.3:2:E5 7.1:3:D5', 0.36, SAXES.slice(0, 4), { spread: 'close' });
   section('lead', 17, '0.1.5:0.5:D5:s 0.2.5:1:E5:w,a 0.4:0.5:G5:s', 0.6, BRASS);
   for (const n of parse(19, '0.1.5:0.5:E5 0.2:0.5:D5 0.2.5:0.5:B4 0.3:0.5:A4 0.3.5:0.5:G4 0.4:0.5:E4:s', 0.6)) {
     for (const [inst, , oct, pan, lvl] of SAX_UNI) E('lead', inst, n.t, n.d, n.midi + 12 * oct, n.vel * lvl, pan, { ...n.opts, section: true });
@@ -596,9 +596,9 @@ export function build() {
   hornNote(72, '2.1:0.5:E4 2.1.5:0.5:D4 2.2:1:B3 2.3:0.5:D4 2.3.5:1.5:E4 3.1:2.5:G4:x16 3.4:1:A4:f80', 0.74);
   hornNote(72, '4.1:0.5:G4 4.1.5:0.5:E4 4.2:1:D4 4.3:0.5:E4 4.3.5:1.5:G4 5.1:3:A4:x16', 0.84);
   hornNote(72, '6.1:4:G4:x14 7.1:3.5:A4:x18,u100', 0.95);
-  section('pad', 74, '0.1:4:B4 1.1:4:B4', 0.26, SAXES, { spread: 'drop2' });
-  section('pad', 74, '2.1:4:C5 3.1:4:C5', 0.34, SAXES, { spread: 'drop2' });
-  section('pad', 74, '4.1:4:C5 5.1:4:C5', 0.44, SAXES, { spread: 'drop2' });
+  section('pad', 74, '0.1:4:D5 1.1:4:D5', 0.26, SAXES.slice(0, 4), { spread: 'close' });
+  section('pad', 74, '2.1:4:E5 3.1:4:E5', 0.34, SAXES.slice(0, 4), { spread: 'close' });
+  section('pad', 74, '4.1:4:E5 5.1:4:E5', 0.44, SAXES.slice(0, 4), { spread: 'close' });
   section('lead', 76, '0.1:3:E4:w 1.1:3:E4:w', 0.5, BONES.map(([i, idx, , pan, l]) => [i, idx, 0, pan, l]));
   // the climb: the whole band in harmony, a pentatonic stair into the shout
   cue(at(78, 1), 'rise');

@@ -217,7 +217,8 @@ const lead = decode(path.join(OUT, 'stems/lead.mp3'));
 const hornChecks = [];
 const NAMES = { 0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'B' };
 void NAMES;
-for (const c of song.cues.filter(c => c.kind === 'horn' && ((c.beat >= 0 && c.beat < 4) || (c.beat >= 256 && c.beat < 288)))) {
+const hornCues = song.cues.filter(c => c.kind === 'horn');
+for (const c of hornCues.filter((c, i) => ((c.beat >= 0 && c.beat < 4) || (c.beat >= 256 && c.beat < 288)) && (hornCues[i + 1]?.beat ?? 1e9) - c.beat >= 1)) {
   const a = Math.round((swing(c.beat) * SPB) + 0.08 * SR);
   const seg = lead.L.slice(a, a + Math.round(0.18 * SR));
   const fr = pitchTrack(seg, { fmin: 150, fmax: 900, size: 1024, hop: 512 }).filter(f => f.hz > 0 && f.ap < 0.3);
