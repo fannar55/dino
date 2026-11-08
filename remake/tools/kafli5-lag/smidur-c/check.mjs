@@ -95,12 +95,15 @@ export function checkAll({ OUT, song, json, stems, dryAnimals, renders, LEN, ste
   const ls = Math.round(song.loop.startBeat * SPB), le = Math.round((song.loop.startBeat + song.loop.beats) * SPB);
   report.loopSeam = {};
   for (const [s, [a, b]] of Object.entries(stems)) {
-    let md = 0, pk = 0;
+    // what crosses the wrap is what rings at the end of the bar: compare the last beat (and the whole bar, for the record)
+    let mdBeat = 0, mdBar = 0, pk = 0;
     for (let k = 1; k <= 4 * SPB; k++) {
-      md = Math.max(md, Math.abs(a[ls - k] - a[le - k]), Math.abs(b[ls - k] - b[le - k]));
+      const d = Math.max(Math.abs(a[ls - k] - a[le - k]), Math.abs(b[ls - k] - b[le - k]));
+      if (k <= SPB) mdBeat = Math.max(mdBeat, d);
+      mdBar = Math.max(mdBar, d);
     }
     for (let i = ls; i < le; i++) pk = Math.max(pk, Math.abs(a[i]), Math.abs(b[i]));
-    report.loopSeam[s] = pk > 0 ? r1(db(md / pk)) : 'silent';
+    report.loopSeam[s] = pk > 0 ? { lastBeatDb: r1(db(mdBeat / pk)), wholeBarDb: r1(db(mdBar / pk)) } : 'silent';
   }
   report.preMasterStemPeaksDb = Object.fromEntries(Object.entries(stemPeaks).map(([k, v]) => [k, r1(v)]));
   print(report);

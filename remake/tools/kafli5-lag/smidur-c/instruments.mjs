@@ -288,11 +288,12 @@ export function bodhran({ v = 1, tone = 0, up = false, seed = 1, edge = 0.3 }) {
     const a = (k === 0 ? 1 : (0.55 * (edge + 0.3)) / (1 + 0.35 * k)) * (0.8 + 0.4 * r()) * (up && k === 0 ? 0.6 : 1);
     const tk = t0 / (1 + 0.7 * k);
     const fk = f0 * MODES[k]; let ph = r() * 0.3;
-    for (let i = 0; i < len; i++) {
-      const t = i / SR;
-      const bend = 1 + 0.07 * exp(-t / 0.025);
-      ph += TAU * fk * bend / SR;
-      out[i] += a * exp(-t / tk) * Math.sin(ph);
+    const dk = exp(-1 / (tk * SR)), db = exp(-1 / (0.025 * SR)), w = TAU * fk / SR;
+    let env = a, bend = 0.07;
+    const n = Math.min(len, Math.ceil(tk * SR * 9)); // to -78 dB
+    for (let i = 0; i < n; i++) {
+      ph += w * (1 + bend); bend *= db;
+      out[i] += env * Math.sin(ph); env *= dk;
     }
   }
   // the tipper on the skin: a soft click and a slap

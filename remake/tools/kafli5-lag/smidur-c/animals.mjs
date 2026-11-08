@@ -40,7 +40,7 @@ export function onsetOf(y) {
   for (let i = 0; i + w <= y.length; i += 110) { let s = 0; for (let j = 0; j < w; j++) s += y[i + j] * y[i + j]; env.push([i, Math.sqrt(s / w)]); }
   let pk = 0; for (const [, v] of env) pk = Math.max(pk, v);
   const hit = env.find(([, v]) => v >= pk * 0.25);
-  return hit ? hit[0] + w / 2 : 0;
+  return hit ? Math.round(hit[0] + w / 2) : 0;
 }
 const prepared = new Map();
 /**

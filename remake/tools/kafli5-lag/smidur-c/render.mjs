@@ -25,7 +25,7 @@ const dryAnimals = new Float32Array(LEN); // for the pitch and onset checks
 const renders = []; // what the checks read: { e, y, at }
 
 // the stems' own levels (into the pre-master sum)
-const LEVEL = { pad: 0.42, bass: 0.62, beat: 0.62, lead: 0.5, animals: 0.42 };
+const LEVEL = { pad: 0.75, bass: 0.62, beat: 0.55, lead: 0.5, animals: 0.5 };
 const KIND_GAIN = { strum: 0.55, harp: 0.5, strings: 0.32, drone: 0.22, bass: 0.7, bodhran: 0.85, stomp: 0.8, clap: 0.55, riser: 0.4, fiddle: 1.5, whistle: 0.42, horn: 0.6, pick: 0.6, call: 0.62 };
 
 const SHAPES = {
@@ -101,7 +101,7 @@ log(`score: ${song.events.length} events, ${LEN} samples (${(LEN / SR).toFixed(2
 let k = 0;
 for (const e of song.events) {
   const { y, pre } = renderEvent(e);
-  const at = Math.round(e.beat * SPB) - pre;
+  const at = Math.round(e.beat * SPB) - Math.round(pre);
   const g = (e.gain ?? 1) * (KIND_GAIN[e.kind] ?? 1);
   const b = bus[e.stem];
   if (y.stereo) {

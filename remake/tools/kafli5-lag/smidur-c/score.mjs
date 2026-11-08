@@ -159,9 +159,9 @@ export function score() {
   function chorus(bar, level, { last = 'run' } = {}) {
     const B = bar * 4;
     groove(bar, CHORUS_CHORDS, {
-      style: `ch${Math.min(level, 3)}`, str: [0, 0.32, 0.42, 0.55, 0.62][level], strHigh: level >= 4, fill: false,
-      stomps: level >= 4 ? [0, 1, 2, 3] : [0, 2], stompGain: [0, 0.75, 0.8, 0.9, 0.95][level], clapGain: [0, 0.5, 0.55, 0.6, 0.65][level],
-      strumGain: [0, 0.5, 0.52, 0.55, 0.56][level], bodGain: [0, 0.95, 1, 1.05, 1.1][level],
+      style: `ch${Math.min(level, 3)}`, str: [0, 0.4, 0.55, 0.75, 0.85][level], strHigh: level >= 3, fill: false, bassGain: [0, 1, 1.05, 1.15, 1.2][level],
+      stomps: level >= 3 ? [0, 1, 2, 3] : [0, 2], stompGain: [0, 0.75, 0.8, 0.85, 0.95][level], clapGain: [0, 0.5, 0.55, 0.65, 0.7][level],
+      strumGain: [0, 0.5, 0.55, 0.6, 0.62][level], bodGain: [0, 0.9, 0.95, 1.05, 1.12][level],
     });
     // the tune
     const wl = [];
@@ -246,7 +246,7 @@ export function score() {
   // ---------------------------------------------------------------- 5. the grazers (bars 18-21): big and low, stomping
   const cello = (beat, names) => fiddle(beat, eighths(names, { v: 0.75, accent: [0], len: 0.95 }), { gain: 1.0, cello: true, pan: -0.3, key: `cello|${names}` });
   feature(18, 'grazers', {
-    groove: { style: 'graz', stomps: [0, 1, 2, 3], stompGain: 0.95, bassGain: 1.1, strumGain: 0.42, str: 0.18 },
+    groove: { style: 'graz', stomps: [0, 1, 2, 3], stompGain: 0.85, bassGain: 1.0, strumGain: 0.34, bod: 'light', claps: [], str: 0 },
     answers: [[2], [6, 7], [10, 11], [12, 13, 14]],
     calls: [[0, ['F2', 'A2', 'C3', 'A2']], [4, ['D3', 'C3', 'A2', 'F2']], [8, ['Bb2', 'C3', 'D3', 'F3']]],
     fillIn: ['C3', 'E3'],
@@ -256,7 +256,7 @@ export function score() {
   // ---------------------------------------------------------------- 6. the turtles (bars 22-25): slow, steady, plucked
   const pick = (beat, names) => names.forEach((n, i) => add({ stem: 'lead', kind: 'pick', f: H(n), beat: beat + i * 0.5, beats: 0.5, gain: 0.9, pan: -0.15, send: 0.18, key: `pick|${n}|${i}` }));
   feature(22, 'turtles', {
-    groove: { style: 'turt', stomps: [0, 2], stompGain: 0.75, strumGain: 0.36, bod: 'light', str: 0.16 },
+    groove: { style: 'turt', stomps: [0], stompGain: 0.65, strumGain: 0.32, bod: 'soft', claps: [1, 3], clapGain: 0.35, bassGain: 0.85, bassStyle: 'roots', str: 0 },
     answers: [[2], [6, 7], [10, 11], [12, 13, 14]],
     calls: [[0, ['F3', 'G3', 'A3', 'C4']], [4, ['D4', 'C4', 'A3', 'F3']], [8, ['Bb3', 'A3', 'G3', 'F3']]],
     fillIn: ['E3', 'G3'],
@@ -270,7 +270,7 @@ export function score() {
   // ---------------------------------------------------------------- 8. the frogs (bars 34-37): hopping on the fiddle
   const spic = (beat, names) => fiddle(beat, eighths(names, { v: 0.7, spic: true, slurPairs: false, accent: [0] }), { gain: 0.95, key: `spic|${names}` });
   feature(34, 'frogs', {
-    groove: { style: 'frog', strumGain: 0.42, str: 0.2 },
+    groove: { style: 'frog', strumGain: 0.34, bod: 'light', stomps: [0], stompGain: 0.6, clapGain: 0.4, bassGain: 0.9, str: 0 },
     answers: [[2], [6, 7], [10, 10.5, 11], [12, 13, 13.5, 14]],
     calls: [[0, ['A4', 'C5', 'A4', 'F4']], [4, ['D5', 'C5', 'A4', 'C5']], [8, ['Bb4', 'C5', 'D5', 'F5']]],
     fillIn: ['E5', 'G5'],
@@ -280,7 +280,7 @@ export function score() {
   // ---------------------------------------------------------------- 9. the lizards (bars 38-41): quick on the whistle
   const wh = (beat, names) => whistle(beat, names.map((n, i) => ({ b: i * 0.5, d: 0.44, n, v: 0.75, orn: i === 0 ? 'cut' : null, slur: i % 2 === 1 })), { gain: 0.8, key: `wh|${names}` });
   feature(38, 'lizards', {
-    groove: { style: 'liz', strumGain: 0.42, str: 0.2, bodTone: 0.1 },
+    groove: { style: 'liz', strumGain: 0.34, bod: 'light', stomps: [0], stompGain: 0.6, clapGain: 0.4, bassGain: 0.9, str: 0, bodTone: 0.1 },
     answers: [[2], [6, 7], [10, 10.5, 11], [12, 12.5, 13, 14]],
     calls: [[0, ['F5', 'A5', 'C6', 'A5']], [4, ['D6', 'C6', 'A5', 'F5']], [8, ['F5', 'G5', 'A5', 'Bb5']]],
     fillIn: ['G5', 'A5'],
@@ -290,7 +290,7 @@ export function score() {
   // ---------------------------------------------------------------- 10. the flyers (bars 42-45): high and light, harp and whistle
   const hp = (beat, names) => names.forEach((n, i) => harpNote(n, beat + i * 0.5, { gain: 0.85, pan: 0.45 }));
   feature(42, 'flyers', {
-    groove: { style: 'fly', strumGain: 0.34, bassGain: 0.6, bod: 'light', bodTone: 0.25, stomps: [], claps: [1, 3], clapGain: 0.5, str: 0.14, strHigh: true },
+    groove: { style: 'fly', strumGain: 0.28, bassGain: 0.6, bod: 'soft', bodTone: 0.25, stomps: [], claps: [1, 3], clapGain: 0.4, str: 0.12, strHigh: true },
     answers: [[2], [6, 7], [10, 10.5, 11], [12, 13, 14]],
     calls: [[0, ['F5', 'A5', 'C6', 'D6']], [4, ['D6', 'A5', 'F5', 'D5']], [8, ['Bb5', 'D6', 'F6', 'D6']]],
     play: hp,
