@@ -76,9 +76,10 @@ function tuned(file, midi, { exact = false, even = false } = {}) {
   if (even) evenOut(x);
   let peak = 0;
   for (const v of x) peak = Math.max(peak, Math.abs(v));
+  const k = D.filt(Float32Array.from(x), D.biquad('hs', 1681.97, 0.7071, 4), D.biquad('hp', 38.13, 0.5));
   let sum = 0;
   let count = 0;
-  for (const v of x) if (Math.abs(v) > peak * 0.05) { sum += v * v; count++; }
+  for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > peak * 0.05) { sum += k[i] * k[i]; count++; }
   const rms = Math.sqrt(sum / Math.max(1, count));
   const level = Math.min(0.15 / rms, 0.85 / peak);
   for (let i = 0; i < x.length; i++) x[i] *= level;
@@ -375,7 +376,7 @@ function below(m, chord) {
 
 /** A chorus: her 14 notes, each by its animal with a trumpet on it; the band answers in the gaps. Level 1, 2 or 3 (the drop). */
 function chorus(b, level) {
-  const vPad = [0.5, 0.56, 0.66][level - 1];
+  const vPad = [0.5, 0.56, 0.72][level - 1];
   for (const [t, ch, n] of CHORUS_CHART) {
     S.chord(b + t, n, ch, { v: vPad });
     if (level === 3) S.chord(b + t, n, ch, { v: vPad * 0.6, notes: PAD[ch].slice(1).map(m => m + 12) });
@@ -392,7 +393,7 @@ function chorus(b, level) {
   for (let t = 1; t < 32; t += 2) S.pahChord(b + t, chordAt(t), level === 3 ? 0.8 : 0.7, { gain: level === 3 ? 0.11 : 0.09 });
   // drums
   for (let k = 0; k < 8; k++) {
-    S.march(b + 4 * k, { v: [0.7, 0.76, 0.84][level - 1], ghosts: true, bdAll: level === 3, ruff: level >= 2 && k % 2 === 1, cymOn: level === 3 ? [1, 3] : [] });
+    S.march(b + 4 * k, { v: [0.7, 0.76, 0.9][level - 1], ghosts: true, bdAll: level === 3, ruff: level >= 2 && k % 2 === 1, cymOn: level === 3 ? [1, 3] : [] });
   }
   S.cym(b, [0.3, 0.3, 0.4][level - 1], level === 3 ? 1.5 : 1.1);
   S.cym(b + 16, 0.3, 1.0);
@@ -543,13 +544,13 @@ unit({ name: 'The build: everyone gathers', nameIs: 'Allir safnast saman', start
   S.chord(b + 12, 3.5, 'C7', { v: 0.7 });
   for (let i = 0; i < 8; i++) S.sn(b + i * 0.5, 0.18 + i * 0.02, 0.12);
   for (let i = 0; i < 16; i++) S.sn(b + 4 + i * 0.25, 0.3 + i * 0.012, 0.11);
-  for (let i = 0; i < 24; i++) S.sn(b + 8 + i / 6, 0.4 + i * 0.008, 0.09);
-  for (let i = 0; i < 24; i++) S.sn(b + 12 + i / 8, 0.45 + i * 0.008, 0.08);
-  [3, 3.25, 3.5].forEach((t, i) => S.sn(b + 12 + t, 0.6 + 0.05 * i, 0.12));
+  for (let i = 0; i < 24; i++) S.sn(b + 8 + i / 6, 0.36 + i * 0.007, 0.09);
+  for (let i = 0; i < 24; i++) S.sn(b + 12 + i / 8, 0.38 + i * 0.008, 0.08);
+  [3, 3.25, 3.5].forEach((t, i) => S.sn(b + 12 + t, 0.55 + 0.05 * i, 0.12));
   [0, 2].forEach((t, i) => S.bd(b + t, 0.4 + 0.05 * i));
   [0, 1, 2, 3].forEach((t, i) => S.bd(b + 4 + t, 0.45 + 0.03 * i));
-  for (let i = 0; i < 8; i++) S.bd(b + 8 + i * 0.5, 0.52 + 0.015 * i);
-  for (let i = 0; i < 6; i++) S.bd(b + 12 + i * 0.5, 0.55 + 0.025 * i);
+  for (let i = 0; i < 8; i++) S.bd(b + 8 + i * 0.5, 0.48 + 0.015 * i);
+  for (let i = 0; i < 6; i++) S.bd(b + 12 + i * 0.5, 0.5 + 0.025 * i);
   S.bd(b + 15, 0.7);
   S.put('beat', I.sweep(SEC(15.5), 1, hash('sweep')), b, { gain: 0.09, send: 0.2 });
   for (let i = 0; i < 30; i++) {
@@ -562,8 +563,8 @@ unit({ name: 'The build: everyone gathers', nameIs: 'Allir safnast saman', start
   S.clar(b + 12, 3, 84, 0.75, { legato: 0.95, gain: 0.16 });
   [[0, [62, 65, 70], 0.42], [2, [62, 65, 70], 0.48], [4, [65, 70, 74], 0.52], [6, [65, 70, 74], 0.58], [8, [64, 67, 72], 0.64], [10, [64, 67, 72], 0.7], [12, [64, 70, 72], 0.78]].forEach(([t, ms, v]) =>
     ms.forEach(m => S.tpt(b + t, t === 12 ? 3 : 2, m, v, { legato: 0.96, gain: 0.07 })));
-  S.horn(b + 8, 4, 'lizards', { gain: 0.6 });
-  [['grazers', 0], ['turtles', 0.5], ['frogs', 1], ['lizards', 1.5], ['flyers', 2]].forEach(([g, t]) => S.call(g, b + 12 + t, { n: 1, gain: 0.85 }));
+  S.horn(b + 8, 4, 'lizards', { gain: 0.45 });
+  [['grazers', 0], ['turtles', 0.5], ['frogs', 1], ['lizards', 1.5], ['flyers', 2]].forEach(([g, t]) => S.call(g, b + 12 + t, { n: 1, gain: 0.65 }));
   S.stab(b + 15, 'C7', 0.85);
   S.pahChord(b + 15, 'C7', 0.85, { n: 0.4 });
 });
