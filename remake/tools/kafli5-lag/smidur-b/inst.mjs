@@ -3,7 +3,7 @@
 // marimba, a glockenspiel. Each returns mono Float32Array, or { L, R } where the instrument is wide. Deterministic per seed.
 import {
   SR, rng, midiHz, saw, pulse, sine, constF, glide, vibrato, noise, adsr, expEnv, mul, scale, addInto, edgeFade, softClip,
-  svfLP, bp, lp, hp, peak, modes, onePoleLP,
+  svfLP, bp, lp, hp, peak, modes, onePoleLP, hshelf,
 } from './dsp.mjs';
 
 const len = s => Math.max(1, Math.round(s * SR));
@@ -203,7 +203,8 @@ export function choirNote(midi, dur, v, seed, { vowel = 'oo', xf = 0.35 } = {}) 
   for (let k = 0; k < 4; k++) {
     const ff = vibrato(constF(n, f * 2 ** (((r() - 0.5) * 16) / 1200)), 18, 4.8 + r() * 0.9, 0.35, r());
     const src = saw(n, ff, r());
-    onePoleLP(src, 2500);
+    hshelf(src, 1200, 6);
+    onePoleLP(src, 4000);
     const voice = formant(src, vowel, n);
     const pan = k % 2 ? 0.45 : -0.45;
     const th = (pan + 1) * Math.PI / 4;
@@ -241,7 +242,8 @@ export function chant(word, midis, v, seed) {
     }
     const src = saw(n, ff, r());
     addInto(src, noise(n, seed + 7 + k), 0, 0.14);
-    onePoleLP(src, 4500);
+    hshelf(src, 1200, 12); // a shout pushes its upper formants
+    onePoleLP(src, 6000);
     const a = formant(src, v1, n), b = formant(src, v2, n);
     const voice = new Float32Array(n);
     for (let i = 0; i < n; i++) { const t = Math.min(1, i / (n * 0.7)); voice[i] = a[i] * (1 - t) + b[i] * t; }

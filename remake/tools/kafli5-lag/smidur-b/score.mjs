@@ -309,7 +309,7 @@ export function buildScore() {
   cue(16, 'hit');
 
   // 2. Parade arrives (bars 5-10, beats 16-40); bars 7-10 are the loop
-  DS = 0.85;
+  DS = 0.78;
   for (let k = 0; k < 6; k++) {
     const b = 16 + 4 * k;
     const callBar = k % 2 === 0;
@@ -354,7 +354,7 @@ export function buildScore() {
     bar('tek', b, '....x.......x...', 0.8);
     bar('shaker', b, 'o.x.o.x.o.x.o.x.', 0.7);
     if (k === 3) fill(b, 0.8);
-    ostinato(b, 0.85);
+    ostinato(b, 0.78);
     pad(b, 4, 0.36);
     const root = CH[chordAt(b)].bass;
     for (const [step, iv, len] of [[4, 0, 2], [6, 0, 2], [10, 7, 2], [12, 12, 3]]) {
@@ -373,20 +373,20 @@ export function buildScore() {
     bar('shaker', b, 'o.x.o.x.o.x.o.x.', 0.75);
     logRiff(b, chordAt(b), '..o..o....o..o..', 0.8);
     if (k === 3) fill(b, 0.85);
-    ostinato(b, 0.85);
-    pad(b, 4, 0.38);
+    ostinato(b, 0.75);
+    pad(b, 4, 0.36);
     const riff = chordAt(b) === 'Gm7' ? [[0, 55], [3, 62], [6, 55], [8, 58], [11, 62], [14, 55]] : [[0, 55], [3, 60], [6, 55], [8, 62], [11, 60], [14, 55]];
-    for (const [step, m] of riff) add('lead', b + step / 4, () => I.lowMarimba(m, 0.8, seedOf('lmar', b + step / 4, m)), { g: 0.33, pan: -0.15, hall: 0.25 });
+    for (const [step, m] of riff) add('lead', b + step / 4, () => I.lowMarimba(m, 0.8, seedOf('lmar', b + step / 4, m)), { g: 0.28, pan: -0.15, hall: 0.25 });
     const T = k < 3
       ? [[0, 'sing'], [6, 'groan'], [8, 'sing'], [11, 'groan', 2], [12, 'sing']]
       : [[0, 'sing'], [4, 'groan'], [8, 'sing'], [10, 'sing', 2], [12, 'sing'], [14, 'groan', 2]];
-    for (const [step, id, steps] of T) animal(b + step / 4, 'turtles', id, { steps: steps ?? null, from: steps ? 'hit' : 'start', v: id === 'groan' ? 0.7 : 0.85 });
+    for (const [step, id, steps] of T) animal(b + step / 4, 'turtles', id, { steps: steps ?? null, from: steps ? 'hit' : 'start', v: id === 'groan' ? 0.7 : 0.85, g: 0.7 });
   }
 
   // 5. Chorus 1 (bars 19-26, beats 72-104)
   DS = 1;
   chorus(72, { level: 0.95 });
-  DS = 0.85;
+  DS = 0.78;
 
   // 6. Frogs (bars 27-30, beats 104-120)
   const FROG = [
@@ -402,8 +402,8 @@ export function buildScore() {
     bar('shaker', b, 'oqxqoqxqoqxqoqxq', 0.85);
     bar('dum', b, '......o...o.....', 0.7);
     if (k === 3) fill(b, 0.85);
-    ostinato(b, 0.85);
-    pad(b, 4, 0.38);
+    ostinato(b, 0.75);
+    pad(b, 4, 0.36);
     const ch = chordAt(b);
     const riff = ch === 'Am' ? [[0, 69], [3, 69], [4, 72], [6, 81], [8, 69], [10, 76], [11, 69], [14, 72]] : ch === 'F' ? [[0, 69], [3, 69], [4, 72], [6, 81], [8, 69], [10, 77], [11, 69], [14, 72]] : [[0, 69], [3, 69], [4, 72], [6, 81], [8, 69], [10, 74], [11, 69], [14, 72]];
     for (const [step, m] of riff) add('lead', b + step / 4, () => I.kalimba(m, step % 4 === 0 ? 0.85 : 0.65, seedOf('kal', b + step / 4, m)), { g: 0.22, pan: 0.12, hall: 0.25 });
@@ -425,8 +425,8 @@ export function buildScore() {
     bar('shaker', b, 'o.x.o.x.o.x.o.x.', 0.7);
     bar('dum', b, '..o.......o.....', 0.6);
     if (k === 3) fill(b, 0.85);
-    ostinato(b, 0.85);
-    pad(b, 4, 0.38);
+    ostinato(b, 0.75);
+    pad(b, 4, 0.36);
     const riff = [[0, 84], [2, 79], [3, 84], [6, 81], [8, 84], [10, 86], [11, 84], [14, 79]];
     for (const [step, m] of riff) add('lead', b + step / 4, () => I.xylo(m, step % 4 === 0 ? 0.85 : 0.6, seedOf('xy', b + step / 4, m)), { g: 0.32, pan: 0.28, hall: 0.25 });
     for (const [step, id, steps] of LIZ[k % 2]) animal(b + step / 4, 'lizards', id, { steps: steps ?? null, from: 'start', v: id === 'chirp' ? 0.9 : 1 });
@@ -435,7 +435,7 @@ export function buildScore() {
   // 8. Chorus 2 (bars 35-42, beats 136-168)
   DS = 1;
   chorus(136, { level: 1, flute: 1 });
-  DS = 0.85;
+  DS = 0.78;
 
   // 9. Small flyers (bars 43-46, beats 168-184): lighter, the low end leaving
   const FLY = [
