@@ -15,6 +15,11 @@ function kCoeffs() {
   const s2 = { b0: 1, b1: -2, b2: 1, a1: 2 * (K * K - 1) / a0, a2: (1 - K / Q2 + K * K) / a0 };
   return [s1, s2];
 }
+/** K-weighted copies of L, R (for a loudness-like balance of parts). */
+export function kWeight(L, R) {
+  const [s1, s2] = kCoeffs();
+  return { L: filt(filt(Float32Array.from(L), s1), s2), R: filt(filt(Float32Array.from(R), s1), s2) };
+}
 /** Integrated loudness (LUFS) of stereo L, R, with the short-term max. */
 export function lufs(L, R) {
   const [s1, s2] = kCoeffs();

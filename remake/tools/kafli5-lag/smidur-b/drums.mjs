@@ -11,8 +11,8 @@ const len = s => Math.round(s * SR);
 export function taiko(v, seed, { f0 = 65.41, decay = 1 } = {}) {
   const r = rng(seed);
   const n = len(1.9);
-  const amps = [1, 0.5, 0.32, 0.25, 0.16, 0.11, 0.08];
-  const taus = [0.62, 0.32, 0.22, 0.19, 0.15, 0.12, 0.1];
+  const amps = [0.8, 0.55, 0.38, 0.3, 0.2, 0.13, 0.09];
+  const taus = [0.4, 0.3, 0.22, 0.19, 0.15, 0.12, 0.1];
   const body = modes(n, MEMBRANE.map((m, i) => ({ f: f0 * m * (1 + (r() - 0.5) * 0.004), amp: amps[i], tau: taus[i] * decay * (0.8 + 0.2 * v), phase: 0 })),
     { bend: 0.42 + 0.1 * v, bendTau: 0.028 });
   // stick and skin: a band of noise that falls fast
@@ -28,10 +28,10 @@ export function taiko(v, seed, { f0 = 65.41, decay = 1 } = {}) {
   const out = new Float32Array(n);
   addInto(out, body, 0, 0.9);
   addInto(out, hit, 0, 0.35 * v + 0.1);
-  addInto(out, shell, 0, 1.6);
+  addInto(out, shell, 0, 2.2);
   softClip(out, 1.4);
-  hp(out, 28);
-  peak(out, 180, 1.2, 3); // low-mid weight a tablet still plays
+  hp(out, 42); hp(out, 42);
+  peak(out, 190, 1.1, 4); // low-mid weight a tablet still plays
   scale(out, 0.25 + 0.75 * v ** 1.3);
   return edgeFade(out, 0.02);
 }
@@ -184,11 +184,11 @@ export function stomp(v, seed, feet = 3) {
     const th = noise(len(0.1), seed + 20 + k);
     lp(th, 900);
     mul(th, expEnv(th.length, 0.001, 0.018));
-    addInto(out, body, off, 0.7 / Math.sqrt(feet));
+    addInto(out, body, off, 0.45 / Math.sqrt(feet));
     addInto(out, th, off, 1.1 / Math.sqrt(feet));
   }
   softClip(out, 1.5);
-  hp(out, 30);
+  hp(out, 45);
   peak(out, 400, 1, 2);
   scale(out, 0.2 + 0.8 * v ** 1.2);
   return edgeFade(out, 0.02);

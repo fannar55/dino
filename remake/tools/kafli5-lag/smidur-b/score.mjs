@@ -130,12 +130,14 @@ export function buildScore() {
   // drums
   const PANS = { taiko: 0, taiko2: 0, tomHi: 0.35, tomMid: 0.05, tomLo: -0.3, shime: 0.25, dum: -0.12, tek: 0.18, log: -0.32, shaker: 0.42, clap: 0, stomp: 0 };
   const HALL = { taiko: 0.3, taiko2: 0.25, tomHi: 0.28, tomMid: 0.28, tomLo: 0.28, shime: 0.18, dum: 0.22, tek: 0.25, log: 0.3, shaker: 0.12, clap: 0.3, stomp: 0.22 };
-  const GAIN = { taiko: 0.95, taiko2: 0.8, tomHi: 0.55, tomMid: 0.6, tomLo: 0.62, shime: 0.3, dum: 0.55, tek: 0.4, log: 0.42, shaker: 0.22, clap: 0.45, stomp: 0.6 };
-  function drum(name, beat, v, extra = {}) {
+  const GAIN = { taiko: 0.95, taiko2: 0.55, tomHi: 0.55, tomMid: 0.6, tomLo: 0.62, shime: 0.3, dum: 0.55, tek: 0.4, log: 0.42, shaker: 0.22, clap: 0.45, stomp: 0.6 };
+  let DS = 1;
+  function drum(name, beat, v0, extra = {}) {
+    const v = Math.min(1, v0 * DS);
     const sd = seedOf(name, loopSafe(beat), v, extra.f ?? 0);
     const make = {
       taiko: () => D.taiko(v, sd),
-      taiko2: () => D.taiko(v, sd, { f0: 49.0, decay: 1.2 }),
+      taiko2: () => D.taiko(v, sd, { f0: 55.0, decay: 1.1 }),
       tomHi: () => D.tom(v, sd, 196.0),
       tomMid: () => D.tom(v, sd, 146.83),
       tomLo: () => D.tom(v, sd, 110.0),
@@ -184,8 +186,8 @@ export function buildScore() {
     add('bass', beat, () => I.bowedBass(m, beats * SEC, v, seedOf('bow', beat, m), { bright: bright(beat) }), { g: 0.5, hall: 0.2 });
   }
   function subBass(beat, beats, v, chord = chordAt(beat)) {
-    const m = CH[chord].bass - 12 < 28 ? CH[chord].bass : CH[chord].bass - 12;
-    add('bass', beat, () => I.sub(m, beats * SEC - 0.03, v), { g: 0.35 });
+    const m = CH[chord].bass;
+    add('bass', beat, () => I.sub(m, beats * SEC - 0.03, v), { g: 0.22 });
   }
 
   // pad: the string section per bar (or half bar), a choir over it where asked
@@ -289,11 +291,11 @@ export function buildScore() {
   hornNote(2, 'lizards', 2, 0.8, { echo: 0.35, hall: 0.6, g: 0.75 });
   hornNote(4, 'frogs', 3.5, 0.8, { echo: 0.35, hall: 0.6, g: 0.75 });
   // the five wake, low to high, answering her
-  animal(8, 'grazers', 'moo', { v: 0.7, hall: 0.4 });
-  animal(9, 'turtles', 'sing', { v: 0.7, hall: 0.4 });
-  animal(10, 'frogs', 'ribbit', { v: 0.7, hall: 0.4 });
-  animal(11, 'lizards', 'sing', { v: 0.7, hall: 0.4 });
-  animal(12, 'flyers', 'curlew', { v: 0.75, hall: 0.4 });
+  animal(8, 'grazers', 'moo', { v: 0.55, hall: 0.4 });
+  animal(9, 'turtles', 'sing', { v: 0.55, hall: 0.4 });
+  animal(10, 'frogs', 'ribbit', { v: 0.55, hall: 0.4 });
+  animal(11, 'lizards', 'sing', { v: 0.55, hall: 0.4 });
+  animal(12, 'flyers', 'curlew', { v: 0.5, hall: 0.4 });
   // a heartbeat, the shakers wake, the bass bows
   bar('dum', 8, 'o.......o.......', 0.55);
   bar('dum', 12, 'o.......o...o...', 0.65);
@@ -307,6 +309,7 @@ export function buildScore() {
   cue(16, 'hit');
 
   // 2. Parade arrives (bars 5-10, beats 16-40); bars 7-10 are the loop
+  DS = 0.85;
   for (let k = 0; k < 6; k++) {
     const b = 16 + 4 * k;
     const callBar = k % 2 === 0;
@@ -351,7 +354,7 @@ export function buildScore() {
     bar('tek', b, '....x.......x...', 0.8);
     bar('shaker', b, 'o.x.o.x.o.x.o.x.', 0.7);
     if (k === 3) fill(b, 0.8);
-    ostinato(b, 0.95, { octaveDown: 0.75 });
+    ostinato(b, 0.85);
     pad(b, 4, 0.36);
     const root = CH[chordAt(b)].bass;
     for (const [step, iv, len] of [[4, 0, 2], [6, 0, 2], [10, 7, 2], [12, 12, 3]]) {
@@ -373,15 +376,17 @@ export function buildScore() {
     ostinato(b, 0.85);
     pad(b, 4, 0.38);
     const riff = chordAt(b) === 'Gm7' ? [[0, 55], [3, 62], [6, 55], [8, 58], [11, 62], [14, 55]] : [[0, 55], [3, 60], [6, 55], [8, 62], [11, 60], [14, 55]];
-    for (const [step, m] of riff) add('lead', b + step / 4, () => I.lowMarimba(m, 0.8, seedOf('lmar', b + step / 4, m)), { g: 0.45, pan: -0.15, hall: 0.25 });
+    for (const [step, m] of riff) add('lead', b + step / 4, () => I.lowMarimba(m, 0.8, seedOf('lmar', b + step / 4, m)), { g: 0.33, pan: -0.15, hall: 0.25 });
     const T = k < 3
       ? [[0, 'sing'], [6, 'groan'], [8, 'sing'], [11, 'groan', 2], [12, 'sing']]
       : [[0, 'sing'], [4, 'groan'], [8, 'sing'], [10, 'sing', 2], [12, 'sing'], [14, 'groan', 2]];
-    for (const [step, id, steps] of T) animal(b + step / 4, 'turtles', id, { steps: steps ?? null, from: steps ? 'hit' : 'start', v: 1 });
+    for (const [step, id, steps] of T) animal(b + step / 4, 'turtles', id, { steps: steps ?? null, from: steps ? 'hit' : 'start', v: id === 'groan' ? 0.7 : 0.85 });
   }
 
   // 5. Chorus 1 (bars 19-26, beats 72-104)
+  DS = 1;
   chorus(72, { level: 0.95 });
+  DS = 0.85;
 
   // 6. Frogs (bars 27-30, beats 104-120)
   const FROG = [
@@ -401,7 +406,7 @@ export function buildScore() {
     pad(b, 4, 0.38);
     const ch = chordAt(b);
     const riff = ch === 'Am' ? [[0, 69], [3, 69], [4, 72], [6, 81], [8, 69], [10, 76], [11, 69], [14, 72]] : ch === 'F' ? [[0, 69], [3, 69], [4, 72], [6, 81], [8, 69], [10, 77], [11, 69], [14, 72]] : [[0, 69], [3, 69], [4, 72], [6, 81], [8, 69], [10, 74], [11, 69], [14, 72]];
-    for (const [step, m] of riff) add('lead', b + step / 4, () => I.kalimba(m, step % 4 === 0 ? 0.85 : 0.65, seedOf('kal', b + step / 4, m)), { g: 0.4, pan: 0.12, hall: 0.25 });
+    for (const [step, m] of riff) add('lead', b + step / 4, () => I.kalimba(m, step % 4 === 0 ? 0.85 : 0.65, seedOf('kal', b + step / 4, m)), { g: 0.22, pan: 0.12, hall: 0.25 });
     const P = k === 3 ? [[0, 'peep', 2], [2, 'peep', 2], [4, 'ribbit'], [8, 'croak', 4], [12, 'ribbit', 1], [13, 'ribbit', 1], [14, 'ribbit', 1], [15, 'ribbit', 1]] : FROG[k % 2];
     for (const [step, id, steps] of P) animal(b + step / 4, 'frogs', id, { steps: steps ?? null, from: steps ? 'hit' : 'start', v: 1 });
   }
@@ -428,7 +433,9 @@ export function buildScore() {
   }
 
   // 8. Chorus 2 (bars 35-42, beats 136-168)
+  DS = 1;
   chorus(136, { level: 1, flute: 1 });
+  DS = 0.85;
 
   // 9. Small flyers (bars 43-46, beats 168-184): lighter, the low end leaving
   const FLY = [
@@ -446,21 +453,21 @@ export function buildScore() {
     ostinato(b, 0.7 * fade, { octaveDown: 0, up: 12, to: k === 3 ? 2 : 4 });
     pad(b, 4, 0.4);
     const fl = [[0, 86, 3], [4, 84, 2], [6, 86, 2], [8, 81, 4], [12, 86, 4]];
-    for (const [step, m, len] of fl) add('lead', b + step / 4, () => I.flute(m, (len / 4) * SEC * 0.95, 0.75, seedOf('fly', b + step / 4, m)), { g: 0.34, pan: 0.3, hall: 0.35 });
+    for (const [step, m, len] of fl) add('lead', b + step / 4, () => I.flute(m, (len / 4) * SEC * 0.95, 0.75, seedOf('fly', b + step / 4, m)), { g: 0.26, pan: 0.3, hall: 0.35 });
     add('lead', b, () => I.glock(86, 0.7, seedOf('gl', b)), { g: 0.2, pan: 0.4, hall: 0.4 });
     add('lead', b + 2.5, () => I.glock(81, 0.5, seedOf('gl', b + 2.5)), { g: 0.16, pan: 0.4, hall: 0.4 });
-    for (const [step, id, steps, from] of FLY[k % 2]) animal(b + step / 4, 'flyers', id, { steps: steps ?? null, from: from ?? 'start', v: 1 });
+    for (const [step, id, steps, from] of FLY[k % 2]) animal(b + step / 4, 'flyers', id, { steps: steps ?? null, from: from ?? 'start', v: 1, g: 0.6 });
   }
 
   // 10. Middle: Slóeðla's horn (bars 47-54, beats 184-216). Engines off.
-  padBars(184, 8, 0.45, { choir: 0.32, vowel: 'oo' });
-  for (let k = 0; k < 8; k++) bowed(184 + 4 * k, 4, k < 4 ? 0.32 : 0.38);
+  padBars(184, 8, 0.34, { choir: 0.24, vowel: 'oo' });
+  for (let k = 0; k < 8; k++) bowed(184 + 4 * k, 4, k < 4 ? 0.26 : 0.3);
   const H = { echo: 0.38, hall: 0.55 };
   hornNote(184, 'lizards', 2, 1, H); hornNote(186, 'frogs', 2, 1, H);
   hornNote(192, 'turtles', 1, 1, H); hornNote(193, 'frogs', 1, 1, H); hornNote(194, 'grazers', 2, 1, H);
   hornNote(200, 'flyers', 1, 1, H); hornNote(201, 'lizards', 1, 1, H); hornNote(202, 'frogs', 1, 1, H); hornNote(203, 'lizards', 1, 1, H);
   hornNote(208, 'flyers', 1, 1, H); hornNote(209, 'lizards', 1, 1, H); hornNote(210, 'frogs', 1, 1, H); hornNote(211, 'turtles', 4.5, 1, H);
-  const E = { v: 0.75, g: 0.7, hall: 0.5, echo: 0.3 };
+  const E = { v: 0.7, g: 0.6, hall: 0.5, echo: 0.25 };
   animal(188, 'lizards', 'sing', E); animal(189, 'frogs', 'ribbit', E);
   animal(196, 'turtles', 'sing', E); animal(197, 'frogs', 'ribbit', E); animal(198, 'grazers', 'moo', E);
   animal(204, 'flyers', 'trill', { ...E, seconds: 0.45 }); animal(205, 'lizards', 'sing', { ...E, seconds: 0.45 }); animal(206, 'frogs', 'ribbit', E); animal(207, 'lizards', 'sing', { ...E, seconds: 0.45 });
@@ -476,6 +483,7 @@ export function buildScore() {
 
   // 11. Riser (bars 55-58, beats 216-232): the drums gather, everyone stacks up, a half-beat breath
   cue(216, 'riser');
+  DS = 1;
   bar('taiko', 216, 'o...o...o...o...', 0.55);
   bar('shime', 216, 'q.q.q.q.q.q.q.q.', 0.7);
   bar('taiko', 220, 'o.o.o.o.o.o.o.o.', 0.62);

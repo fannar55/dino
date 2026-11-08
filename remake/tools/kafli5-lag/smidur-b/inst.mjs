@@ -9,7 +9,7 @@ import {
 const len = s => Math.max(1, Math.round(s * SR));
 
 /** Low strings, marcato (the bass ostinato): cello + bass section on `midi`, `dur` s, v 0..1, bright 0..1.3. */
-export function lowStrings(midi, dur, v, seed, { bright = 1, octaveDown = 0.45 } = {}) {
+export function lowStrings(midi, dur, v, seed, { bright = 1, octaveDown = 0 } = {}) {
   const r = rng(seed);
   const rel = 0.07;
   const n = len(dur + rel + 0.02);
@@ -20,7 +20,7 @@ export function lowStrings(midi, dur, v, seed, { bright = 1, octaveDown = 0.45 }
     const ff = constF(n, f * 2 ** (c / 1200));
     addInto(out, saw(n, ff, r()), 0, 0.3);
   }
-  if (octaveDown > 0) {
+  if (octaveDown > 0 && f / 2 >= 55) {
     for (const c of [-5, 5]) addInto(out, saw(n, f / 2 * 2 ** (c / 1200), r()), 0, 0.3 * octaveDown);
   }
   // bow bite: the cutoff opens on the attack and settles
@@ -32,8 +32,8 @@ export function lowStrings(midi, dur, v, seed, { bright = 1, octaveDown = 0.45 }
   svfLP(out, fc, 0.12);
   // body: wood in the low mids and a presence a small speaker can play
   peak(out, 240, 1.1, 3);
-  peak(out, 900, 1.2, 3);
-  hp(out, 32);
+  peak(out, 900, 1.2, 4);
+  hp(out, 38);
   // rosin: a breath of noise on the attack
   const bow = noise(len(0.05), seed + 3);
   bp(bow, 2400, 1.2);

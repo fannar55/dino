@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { SR, Bus, fdnReverb, pingPong, hshelf, filt, biquad } from './dsp.mjs';
 import { buildScore, SECTIONS, BPM, SPB, SEC, END_BEAT, LOOP, TONE_MIDI } from './score.mjs';
-import { lufs, truePeakDb, limit, glue, sectionMeasures } from './meter.mjs';
+import { lufs, truePeakDb, limit, glue, sectionMeasures, kWeight } from './meter.mjs';
 import { checks } from './checks.mjs';
 import { TAKES } from './voices.mjs';
 
@@ -21,6 +21,8 @@ const ROOM = {
   lead: { rt60: 2.3, damp: 4800, pre: 0.02, size: 1.0, wet: 1 },
   animals: { rt60: 1.9, damp: 5200, pre: 0.02, size: 0.95, wet: 1 },
 };
+// the stems' balance (measured K-weighted per unit; the animals and the tune in front, the drums driving under them)
+const STEM_GAIN = { pad: 1.6, bass: 1.25, beat: 0.8, lead: 1.12, animals: 1.8 };
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 
@@ -38,6 +40,7 @@ for (const name of STEMS) {
     if (e.stem !== name) continue;
     const at = Math.round(e.beat * SPB);
     const s = e.make();
+    e.g *= STEM_GAIN[name];
     const add = bus => (s instanceof Float32Array ? bus.add(s, at, e.g, e.pan) : bus.add2(s.L, s.R, at, e.g));
     add(dry);
     if (e.hall > 0) (s instanceof Float32Array ? hall.add(s, at, e.g * e.hall, e.pan) : hall.add2(s.L, s.R, at, e.g * e.hall));
@@ -74,8 +77,8 @@ const pre = { L: Float32Array.from(mix.L), R: Float32Array.from(mix.R) };
 
 // ---------- master: tame the air, glue, set the loudness, limit the true peak ----------
 for (const ch of [mix.L, mix.R]) { hshelf(ch, 8500, -3); filt(ch, biquad('lp', 15000, 0.7)); }
-glue(mix.L, mix.R, { thresholdDb: -20, ratio: 1.7 });
-const TARGET = -16, CEIL = -1.7;
+glue(mix.L, mix.R, { thresholdDb: -17, ratio: 1.5 });
+const TARGET = -15.75, CEIL = -1.5;
 let gain = 0, lim = null, meas = null;
 const base = { L: Float32Array.from(mix.L), R: Float32Array.from(mix.R) };
 for (let it = 0; it < 4; it++) {
@@ -165,11 +168,18 @@ const loopSeam = (() => {
   }
   return o;
 })();
+const kw = Object.fromEntries(STEMS.map(n => [n, kWeight(stems[n].L, stems[n].R)]));
+const stemBalance = sec.map(s => {
+  const a = Math.round(s.startBeat * SPB), b = Math.min(end, Math.round((s.startBeat + s.beats) * SPB));
+  const o = { name: s.name };
+  for (const n of STEMS) { let q = 0; for (let i = a; i < b; i++) q += kw[n].L[i] ** 2 + kw[n].R[i] ** 2; o[n] = +(-0.691 + 10 * Math.log10(q / (b - a) + 1e-14)).toFixed(1); }
+  return o;
+});
 const pitch = checks({ stems, chorusMelody });
 const report = {
   bpm: BPM, samplesPerBeat: SPB, lengthSec: +(end / SR).toFixed(3), loudnessJs: { lufs: +meas.integrated.toFixed(2), truePeak: +tp.toFixed(2), shortTermMax: +meas.shortTermMax.toFixed(2) },
   loudness: loud, stemLoudness: stemLoud, stemPeaksDbfs: stemPeaks, stemSumError: stemSum, limiterMaxReductionDb: +lim.maxReductionDb.toFixed(2),
-  loopSeamDiffDb: loopSeam, perSection, perSectionMastered, ...pitch,
+  loopSeamDiffDb: loopSeam, perSection, stemBalance, perSectionMastered, ...pitch,
 };
 writeFileSync(join(OUT, 'checks.json'), JSON.stringify(report, null, 2) + '\n');
 
