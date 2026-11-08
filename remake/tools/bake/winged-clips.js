@@ -233,8 +233,9 @@ export function authorWingedClips(rig, options = {}) {
   function tailPose(pitch, sway = 0) {
     tailNames.forEach((n, i) => bones[n].quaternion.copy(turn(rad(sway * (0.6 + 0.4 * i)), 0, rad(i ? pitch * 0.3 : pitch))));
   }
-  // The neck and head in level flight: the neck stretched forward and up, the head level.
-  const FLY_NECK = [[0, 0, 10], [0, 0, 12], [0, 0, 12]], FLY_HEAD = [0, 0, 20];
+  // The neck and head in level flight: the neck stretched forward and up, the head level but for a few degrees down, which lifts her
+  // crest off a rider's head (Egill on her saddle: 20 degrees here laid the crest on his hair, 15 leaves 5 to 9 cm between them).
+  const FLY_NECK = [[0, 0, 10], [0, 0, 12], [0, 0, 12]], FLY_HEAD = [0, 0, 15];
   const FLY_TAIL = 26; // the tail straight out behind
 
   // --- poses held and blended --------------------------------------------------------------------------
@@ -321,10 +322,13 @@ export function authorWingedClips(rig, options = {}) {
   })();
 
   // Opening and folding go in stages, each bone's turn blended between them: the folded wing lifts off the
-  // ground (LIFTED), swings out to her side still folded (OUT), and opens into the raised wing of a first
-  // beat; folding is the same way back.
-  const LIFTED = foldedWing({ ...fold, out: 26, arm: 28, elbow: 118 });
-  const OUT = foldedWing({ ...fold, sweep: 25, out: 12, arm: -15, elbow: 105, wrist: -5, knuckle: 140 });
+  // ground and swings out to her side, still folded and low (LIFTED), reaches forward and up tipped out
+  // (OUT), and opens into the raised wing of a first beat; folding is the same way back. Low and out to the
+  // side, then up only ahead of her shoulders, so a child on the saddle behind them (engine/flier-saddle.js:
+  // his knees 42 cm out from her middle) is never in the wing's way; swung up along her back instead, the
+  // folded wings would close over him.
+  const LIFTED = foldedWing({ ...fold, sweep: 0, out: 0, arm: 60, elbow: 118 });
+  const OUT = foldedWing({ ...fold, sweep: -10, out: 45, arm: -15, elbow: 105, wrist: -5, knuckle: 140 });
   /** The right wing `k` of the way (0 to 1) from standing folded to `open` (a wing's turns). */
   function unfold(k, open) {
     if (k < 0.3) return mixWing(standWing, LIFTED, smoother(k / 0.3));

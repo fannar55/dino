@@ -1,0 +1,22 @@
+Purpose: the saddle Egill rides on Flugeðla's back in chapter 4 (scenes 5 to 7 and the whole flight): one image that is both the look (the mock) and the image Tripo3D turns into the 3D model.
+Template: kafli4-flugdyr-v1-prompt.txt. Colours: the owner's choice (2026-11-07): brown leather like Mosi's saddle and Egill's boots, on a light pad.
+In the game: it pops onto her back with sparkles just before Egill floats up to it (scene 5), as Mosi's saddle does in chapter 1. Almost every shot of the flight looks at Egill on it, from behind, from the side and close in front of him, so it is seen big and must look good.
+
+Use case: stylized-concept.
+Asset type: single isolated image-to-3D source image of a riding saddle for a child, made for the back of a big friendly pink Pteranodon (7.5 m wingspan) in an Icelandic children's dinosaur adventure game. Her back between the wings is a rounded ridge about 60 cm across, so the saddle's underside is arched to sit on it.
+Subject: ONE child's riding saddle, sized for a six-year-old boy 1.1 m tall, made of soft thick leather:
+- a deep, comfortable seat about 30 cm long and 22 cm wide, with a high rounded back (cantle) behind it to lean on;
+- in front of the seat a raised pommel with a sturdy HANDLEBAR for two small hands: a gently curved bar about 28 cm wide standing about 18 cm above the seat, its two grips wrapped in leather, its rounded ends in a slightly darker wood; it reads clearly as "hold on here";
+- under the saddle a thick soft cream felt pad, larger than the saddle (about 80 cm long and 70 cm wide), with rounded corners and a darker brown leather edge, curving down on both sides as if lying over a round barrel;
+- ONE broad girth strap that goes from the saddle's sides down and round under it in a full closed loop, as if round an invisible round body about 60 cm wide and 70 cm deep, with a simple rounded buckle on each side.
+Colours: warm brown leather (#6f5440) for the saddle, the pommel and the girth; darker brown (#4e3a2c) for the edges, the stitching lines and the handle ends; cream pad (#efe2c8). Matte everywhere.
+Style: the same soft chunky storybook 3D look as the game's characters: rounded forms, thick soft edges, painted matte surfaces, big simple areas of colour, a few broad stitching lines. No fine leather grain, no shiny metal, no sharp corners, no realistic photo texture.
+SHAPE IS THE HIGHEST PRIORITY: bilaterally symmetrical, front to back along the middle. The seat, the handlebar and the pad clearly separate shapes. The girth loop round and even, hanging straight down under the saddle, not twisted, with clear empty space inside it. No stirrups, no saddle bags, no reins, no rope, no loose straps or dangling ends.
+CAMERA: front three-quarter view from a little above (about 30 degrees down, turned about 35 degrees to the side), so the seat, the handlebar and one side of the pad and the girth are all clearly seen; near-orthographic / very long lens. The whole saddle and the whole girth loop inside the frame with 10 percent margins.
+BACKGROUND AND LIGHT: uniform plain light grey background, soft even diffuse studio lighting, minimal contact shadow, no rim glow, no depth-of-field blur.
+Constraints: ONE saddle, ONE view. No animal, no rider, no stand, no mannequin, no turnaround panels, no labels, no text, no logo, no watermark, no environment, no other objects.
+
+Tripo settings for this image:
+- Image to 3D with texture. About 10 to 15 thousand faces is plenty, 2K textures: the game cuts it to a few thousand triangles and a 1024 px texture.
+- No rig and no animations: the game fits it to Flugeðla's back and binds it to her bones, so it bends with her back and her wing beats.
+- Export GLB. Put it in C:/Risaeðla/geymsla/tripo/ (for example hnakkur-tripo-v1.glb) and tell Claude; send the image too if you have it.

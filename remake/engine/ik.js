@@ -80,11 +80,12 @@ function turnWorld(bone, q) {
 
 /**
  * Reach `target` (a world point) with the end of a two-bone chain: `upper` and then `lower` turn so
- * that `end` (a child of `lower`) lands on it, the middle joint bending out the way it bends now. A
+ * that `end` (a child of `lower`) lands on it, the middle joint bending out the way it bends now, or
+ * toward `pole` (a world point) when one is given (a rider's knee toward a point ahead of it). A
  * target out of reach, or too near, leaves `end` as close as the bones allow, on the line toward it.
  * The chain's world matrices must be current; they stay so.
  */
-export function reachTwoBones(upper, lower, end, target) {
+export function reachTwoBones(upper, lower, end, target, pole = null) {
   upper.getWorldPosition(p0);
   lower.getWorldPosition(p1);
   end.getWorldPosition(p2);
@@ -95,7 +96,7 @@ export function reachTwoBones(upper, lower, end, target) {
   const d = clamp(toward.length(), Math.abs(a - b) + 1e-4, 0.999 * (a + b));
   toward.normalize();
   // The way the middle joint points out from the line to the target; for a straight chain, any way.
-  bend.subVectors(p1, p0);
+  bend.subVectors(pole ?? p1, p0);
   bend.addScaledVector(toward, -bend.dot(toward));
   if (bend.lengthSq() < 1e-12) bend.set(1, 0, 0).cross(toward);
   if (bend.lengthSq() < 1e-12) bend.set(0, 0, 1).cross(toward);
