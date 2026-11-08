@@ -31,7 +31,7 @@ function rms(x, a, b) {
   return Math.sqrt(s / Math.max(1, b - a));
 }
 /** Onsets: a 23 ms RMS envelope (hop 5.8 ms) rising 6 dB over its least of the last 23 ms, above (loudest - 40 dB), 60 ms apart. */
-function onsets(x) {
+function onsets(x, rise = 6, floor = 40) {
   const w = Math.round(0.023 * SR);
   const hop = 256;
   const env = [];
@@ -43,7 +43,7 @@ function onsets(x) {
   for (let k = back; k < env.length; k++) {
     let least = Infinity;
     for (let j = k - back; j < k; j++) least = Math.min(least, env[j]);
-    if (env[k] - least > 6 && env[k] > top - 40 && env[k] >= env[k - 1] && (k - last) * hop > 0.06 * SR) {
+    if (env[k] - least > rise && env[k] > top - floor && env[k] >= env[k - 1] && (k - last) * hop > 0.06 * SR) {
       found.push((k * hop + w / 2) / SR);
       last = k;
     }
@@ -52,6 +52,8 @@ function onsets(x) {
 }
 const onLow = onsets(low);
 const onHigh = onsets(high);
+const strongLow = onsets(low, 10, 25);
+const strongHigh = onsets(high, 10, 25);
 const stems = Object.fromEntries(Object.keys(song.stems).map(s => [s, D.decodeStereo(join(OUT, song.stems[s]))]));
 const stemMono = Object.fromEntries(Object.entries(stems).map(([s, x]) => [s, mono(x)]));
 
@@ -65,6 +67,7 @@ const sections = song.sections.map(sec => {
     section: sec.nameIs, beats: `${sec.startBeat}-${sec.startBeat + sec.beats}`, sec: `${t0.toFixed(1)}-${t1.toFixed(1)}`,
     rmsDb: r1(db(rms(m, a, b))), under150Db: r1(db(rms(low, a, b))), over5kDb: r1(db(rms(high, a, b))),
     lowOnsetsPerSec: r1(count(onLow) / (t1 - t0)), highOnsetsPerSec: r1(count(onHigh) / (t1 - t0)),
+    strongLowPerSec: r1(count(strongLow) / (t1 - t0)), strongHighPerSec: r1(count(strongHigh) / (t1 - t0)),
     stemsDb: Object.fromEntries(Object.entries(stemMono).map(([s, x]) => [s, r1(db(rms(x, a, b)))])),
   };
 });
@@ -113,6 +116,22 @@ for (const [s, [Lc, Rc]] of Object.entries(stems)) {
   seam[s] = { differenceDb: r1(db(Math.sqrt(diff / (2 * w))) - db(Math.sqrt(ref / (2 * w)) + 1e-12)), levelDb: r1(db(Math.sqrt(ref / (2 * w)))), lastSampleJump: +jump.toFixed(5) };
 }
 
+// the stems sum to the mix before its master: mix - masterGain * (sum of stems), relative to the mix (the limiter and mp3 are the rest)
+let stemSum;
+{
+  const g = 10 ** (checks.masterGainDb / 20);
+  let res = 0;
+  let ref = 0;
+  for (let c = 0; c < 2; c++) {
+    for (let i = 0; i < mix[c].length; i++) {
+      let s = 0;
+      for (const x of Object.values(stems)) s += x[c][i] ?? 0;
+      res += (mix[c][i] - g * s) ** 2;
+      ref += mix[c][i] ** 2;
+    }
+  }
+  stemSum = { residualDb: r1(10 * Math.log10(res / ref)) };
+}
 // startle check: where a 100 ms RMS rises most over the mean of the second before it (a child jumps at a big sudden rise)
 const startle = [];
 {
@@ -134,7 +153,7 @@ for (let b = 52; b < 60; b++) {
   bars.push({ bar: b + 1, rmsDb: r1(db(rms(m, a, Math.round((b + 1) * 4 * SPB)))), beatStemDb: r1(db(rms(stemMono.beat, a, Math.round((b + 1) * 4 * SPB)))) });
 }
 
-const report = { loudness: loud, peaksDbfs: peaks, sections, buildBars: bars, startle, pitch, offGrid, chorusRise: rise, seam,
+const report = { loudness: loud, peaksDbfs: peaks, stemSum, sections, buildBars: bars, startle, pitch, offGrid, chorusRise: rise, seam,
   cues: song.cues.reduce((o, c) => ({ ...o, [c.kind]: (o[c.kind] ?? 0) + 1 }), {}) };
 writeFileSync(join(OUT, 'analysis.json'), `${JSON.stringify(report, null, 2)}\n`);
 
@@ -146,6 +165,7 @@ console.table(pitch.calls);
 console.table(pitch.horn);
 const weak = rise.filter(r => r.jump < 3 || Math.abs(r.at) > 0.03);
 console.log(`chorus calls rising on their beat: ${rise.length - weak.length}/${rise.length}`, weak.length ? weak : '');
+console.log('stems against the mix (before its master)', stemSum);
 console.log('build and drop by bar', bars);
 console.log('biggest sudden rises (100 ms over the second before)', startle);
 console.log('loop seam', seam);

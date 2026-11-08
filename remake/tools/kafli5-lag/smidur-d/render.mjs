@@ -403,7 +403,7 @@ function chorus(b, level) {
     const tag = { chorus: level, note: k + 1, group: g };
     S.call(g, b + t, { n: n + 0.3, gain: 1, chorus: tag });
     S.melody.push({ group: g, beat: b + t });
-    S.tpt(b + t, n, m, 0.74, { legato: n > 1 ? 0.94 : 0.9, gain: level === 3 ? 0.22 : 0.21, check: tag });
+    S.tpt(b + t, n, m, 0.74, { legato: n > 1 ? 0.94 : 0.9, gain: level === 3 ? 0.26 : 0.3, check: tag });
     if (level >= 2) S.clar(b + t, n, level === 3 ? m + 12 : m, 0.6, { legato: 0.9, gain: level === 3 ? 0.16 : 0.13 });
     if (level === 3 || n >= 2) S.glk(b + t, m + 24, level === 3 ? 0.5 : 0.42, { gain: 0.11 });
     if (level === 3) S.horn(b + t, n, g, { gain: 0.46 });
