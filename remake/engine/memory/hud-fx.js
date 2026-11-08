@@ -9,7 +9,8 @@
 // Under less motion (`reduced()`) nothing flies or falls: a star lands at once, a burst is a short fade where it is, there is no confetti
 // and no squeeze.
 
-const STAR = 'polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)';
+// (a fat five-pointed star, so that it reads at 18 px over the white chip as well as over the world; a gold gradient, as the clip cuts any glow)
+const STAR = 'polygon(50% 0%,63% 33%,98% 36%,71% 58%,80% 93%,50% 74%,20% 93%,29% 58%,2% 36%,37% 33%)';
 
 export function createHudFx({ reduced = () => false, doc = globalThis.document } = {}) {
   const live = new Set();
@@ -25,7 +26,7 @@ export function createHudFx({ reduced = () => false, doc = globalThis.document }
   const spark = (x, y, size, light) => {
     const star = doc.createElement('i');
     star.className = 'yj-spark'; star.setAttribute('aria-hidden', 'true');
-    Object.assign(star.style, { left: `${x - size / 2}px`, top: `${y - size / 2}px`, width: `${size}px`, height: `${size}px`, clipPath: STAR, background: light ? '#fff6d0' : '#ffe9a0' });
+    Object.assign(star.style, { left: `${x - size / 2}px`, top: `${y - size / 2}px`, width: `${size}px`, height: `${size}px`, clipPath: STAR, background: light ? 'radial-gradient(circle at 50% 55%,#fffbe6 0 28%,#ffd75a 62%,#f2a516)' : 'radial-gradient(circle at 50% 55%,#fff1b0 0 22%,#f9c22e 58%,#d98a0c)' });
     return add(star);
   };
 
@@ -34,12 +35,12 @@ export function createHudFx({ reduced = () => false, doc = globalThis.document }
     if (!rect?.width || !doc?.body) return;
     const still = calm(), cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
     for (let i = 0; i < count; i++) {
-      const size = 10 + (i % 3) * 4, star = spark(cx, cy, size, i % 3 === 0);
-      const angle = (i / count) * Math.PI * 2 + (i % 2) * .3, travel = (30 + (i % 4) * 9) * reach, dx = Math.cos(angle) * travel, dy = Math.sin(angle) * travel * .8;
+      const size = 18 + (i % 3) * 6, star = spark(cx, cy, size, i % 3 === 0);
+      const angle = (i / count) * Math.PI * 2 + (i % 2) * .3, travel = (40 + (i % 4) * 12) * reach, dx = Math.cos(angle) * travel, dy = Math.sin(angle) * travel * .8;
       const animation = still
         ? play(star, [{ opacity: 0 }, { opacity: 1, offset: .3 }, { opacity: 0 }], { duration: 520, fill: 'both' })
-        : play(star, [{ opacity: 0, transform: 'translate(0,0) scale(.3)' }, { opacity: 1, transform: `translate(${dx * .6}px,${dy * .6}px) scale(1.15) rotate(60deg)`, offset: .4 },
-          { opacity: 0, transform: `translate(${dx}px,${dy}px) scale(.4) rotate(150deg)` }], { duration: 620 + (i % 3) * 60, delay: i * 14, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
+        : play(star, [{ opacity: 0, transform: 'translate(0,0) scale(.3)' }, { opacity: 1, transform: `translate(${dx * .4}px,${dy * .4}px) scale(1.15) rotate(40deg)`, offset: .2 },
+          { opacity: 1, transform: `translate(${dx * .85}px,${dy * .85}px) scale(1) rotate(110deg)`, offset: .65 }, { opacity: 0, transform: `translate(${dx}px,${dy}px) scale(.5) rotate(150deg)` }], { duration: 620 + (i % 3) * 60, delay: i * 14, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
       after(animation, star);
     }
   }
