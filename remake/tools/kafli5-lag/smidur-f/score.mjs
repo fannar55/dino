@@ -182,9 +182,17 @@ export function compose(desk) {
     }
   };
   const pad = (bar, beats = 4, o = {}) => {
-    const c = CH[chordAt(bar, o.q ?? 0)];
-    const notes = o.up ? c.pad.map(m => m + 12) : c.pad;
-    organHit(notes, B(bar, o.q ?? 0), beats, { db: o.db ?? -24, tone: o.tone ?? 0.35, a: 0.05, r: 0.25, swell: o.swell ?? 0, vib: 9 });
+    // a bar that changes chord gets one held chord per part, each changing where the harmony does
+    const from = o.q ?? 0;
+    const segs = typeof CHORDS[bar] === 'string' ? [[0, CHORDS[bar]]] : CHORDS[bar];
+    segs.forEach(([q, name], i) => {
+      const end = Math.min(from + beats, segs[i + 1]?.[0] ?? 4);
+      const start = Math.max(q, from);
+      if (end <= start) return;
+      const c = CH[name];
+      const notes = o.up ? c.pad.map(m => m + 12) : c.pad;
+      organHit(notes, B(bar, start), end - start, { db: o.db ?? -24, tone: o.tone ?? 0.35, a: 0.05, r: segs.length > 1 && i < segs.length - 1 ? 0.08 : 0.25, swell: o.swell ?? 0, vib: 9 });
+    });
   };
 
   // ---------- guitars ----------
@@ -259,19 +267,20 @@ export function compose(desk) {
     palo(B(bar, 3.5), 0.7);
     for (let q = 0; q < 4; q++) llamador(B(bar, q + 0.5), bar === 2 ? 0.5 : 0.7);
   }
+  shaker8(2, 0.4);
   shaker8(3, 0.6);
   shaker16(4, 0.8);
   pad(3, 4, { swell: 3.5, db: -24 });
   pad(4, 4, { db: -24 });
   bassNote(43, B(3, 0), 1.8, 0.55);
   bassNote(50, B(3, 2), 1.4, 0.7);
-  bassNote(50, B(4, 0), 0.75, 0.85);
+  bassNote(50, B(4, 0), 0.75, 0.72);
   bassNote(50, B(4, 1.5), 0.4, 0.7);
   bassNote(45, B(4, 2), 0.75, 0.8);
   bassNote(42, B(4, 3.5), 0.4, 0.75);
   kick(B(3, 0), 0.4);
-  kick(B(4, 0), 0.7);
-  kick(B(4, 2), 0.75);
+  kick(B(4, 0), 0.55);
+  kick(B(4, 2), 0.65);
   // the twang run that lifts the band in
   line(1, 4, [[3, 62, 1], [4, 64, 1], [5, 66, 1], [6, 69, 1], [7, 71, 1]], { vel: 0.9 });
   for (let s = 0; s < 4; s++) timbal(B(4, 3 + s / 4), 0.25 + 0.1 * s, s % 2 === 0);
