@@ -62,20 +62,27 @@ function glue([L, R], thrDb, ratio = 2) {
   return out;
 }
 
-/** Masters the pre-master sum: returns { mix, lufs, truePeak } measured on the encoded mp3. */
+/** Masters the pre-master sum: returns { mix, lufs, truePeak }, measured on the encoded mp3 as the listener gets it. */
 export function master(sum, tmp) {
   let x = [Float32Array.from(sum[0]), Float32Array.from(sum[1])];
   for (const ch of x) { biquad(ch, 'hs', 8000, 0.7, -4); biquad(ch, 'lp', 13500, 0.6); biquad(ch, 'hp', 28, 0.7); }
   x = glue(x, -20, 1.8);
-  let gain = 1, mix = x, res = null;
-  for (let it = 0; it < 4; it++) {
-    const g = [x[0].map(v => v * gain), x[1].map(v => v * gain)];
-    mix = limit(g, 10 ** (-1.7 / 20));
-    writeWav(tmp + 'm.wav', mix); encodeMp3(tmp + 'm.wav', tmp + 'm.mp3');
+  let gain = 1, ceilDb = -1.7, mix = x, res = null;
+  for (let pass = 0; pass < 3; pass++) {
+    // loudness on the WAV (fast), then one mp3 and its true peak
+    for (let it = 0; it < 4; it++) {
+      const g = [x[0].map(v => v * gain), x[1].map(v => v * gain)];
+      mix = limit(g, 10 ** (ceilDb / 20));
+      writeWav(tmp + 'm.wav', mix);
+      res = lufsOf(tmp + 'm.wav');
+      const err = -16 - res.lufs;
+      if (Math.abs(err) < 0.2) break;
+      gain *= 10 ** (err / 20);
+    }
+    encodeMp3(tmp + 'm.wav', tmp + 'm.mp3');
     res = lufsOf(tmp + 'm.mp3');
-    const err = -16 - res.lufs;
-    if (Math.abs(err) < 0.25 && res.truePeak <= -1.05) break;
-    gain *= 10 ** (err / 20);
+    if (res.truePeak <= -1.1) break;
+    ceilDb -= res.truePeak + 1.1 + 0.2;
   }
   return { mix, lufs: res.lufs, truePeak: res.truePeak };
 }

@@ -12,7 +12,7 @@ export const TONE = { grazers: 349.228, turtles: 391.995, frogs: 440, lizards: 5
 
 // The takes used, and the part of each (s). Short ones serve quick notes, long ones held notes.
 export const TAKES = {
-  grazers: { short: { file: 'grazers-3.mp3', cut: [0.12, 1.0] }, long: { file: 'grazers-3.mp3', cut: [0, 1.5] } },
+  grazers: { short: { file: 'grazers-3.mp3', cut: [0.12, 1.0] }, long: { file: 'grazers-3.mp3', cut: [0.07, 1.5] } },
   turtles: { short: { file: 'turtles-2.mp3', cut: [0.02, 0.44] }, long: { file: 'turtles-2.mp3', cut: [0.02, 0.44] } },
   frogs: { short: { file: 'frogs-5.mp3', cut: [0, 0.42] }, long: { file: 'frogs-1.mp3', cut: [0, 0.6] } },
   lizards: { short: { file: 'lizards-1.mp3', cut: [0, 0.36] }, long: { file: 'lizards-1.mp3', cut: [0, 0.36] } },
@@ -47,12 +47,16 @@ const prepared = new Map();
  * A take put on a pitch: `target` Hz (its octave is chosen nearest the take's own pitch unless `exact`). Returns
  * { y (mono), onset (samples), rate, own (Hz measured), hz (its new pitch) }.
  */
-export function onTone(take, target, { exact = false } = {}) {
-  const key = `${take.file}|${take.cut}|${target}|${exact}`;
+export function onTone(take, target, { exact = false, heard = null } = {}) {
+  const key = `${take.file}|${take.cut}|${target}|${exact}|${heard}`;
   if (prepared.has(key)) return prepared.get(key);
   const listed = SOUNDS[take.file]?.hz;
   const y0 = cutOf(take.file, take.cut);
-  const p = medianPitch(y0, 0, y0.length, listed / 1.8, listed * 1.8, 0.6);
+  // the pitch of the part that is heard: a short note hears only the start of a gliding call
+  const o0 = onsetOf(y0);
+  const to = heard ? Math.min(y0.length, o0 + Math.round(heard * SR)) : y0.length;
+  let p = medianPitch(y0, o0, to, listed / 1.8, listed * 1.8, 0.6);
+  if (!p.hz) p = medianPitch(y0, 0, y0.length, listed / 1.8, listed * 1.8, 0.6);
   const own = p.hz || listed;
   const t = exact ? target : target * 2 ** Math.round(Math.log2(own / target));
   const rate = t / own;
@@ -63,9 +67,9 @@ export function onTone(take, target, { exact = false } = {}) {
   prepared.set(key, out);
   return out;
 }
-/** A group's call on its tone: `long` picks its held take. */
-export function call(group, { long = false } = {}) {
-  return onTone(TAKES[group][long ? 'long' : 'short'], TONE[group]);
+/** A group's call on its tone: `long` picks its held take; `heard` (s) is how much of it the note lets through. */
+export function call(group, { long = false, heard = null } = {}) {
+  return onTone(TAKES[group][long ? 'long' : 'short'], TONE[group], { heard: heard == null ? null : Math.round(heard * 20) / 20 });
 }
 /** Her horn on `target` Hz exactly (the alphorn take, rate = target / its pitch). */
 export function horn(target) {

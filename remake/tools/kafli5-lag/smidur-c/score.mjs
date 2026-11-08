@@ -12,6 +12,7 @@ export const SPB = 21000; // samples a beat at 44.1 kHz
 export const BEATS_PER_BAR = 4;
 export const END_BEAT = 304; // the last hit
 export const TAIL_BEATS = 6.5; // the last hit rings this long (no fade)
+const LOOP_END = 40; // nothing may reach back over the loop's end
 
 // ---- harmony ----
 const GTR = {
@@ -39,9 +40,9 @@ export function score() {
 
   // ---------------------------------------------------------------- building blocks
   /** An animal's call on its tone at `beat`, held `beats` (cut there with a short release). */
-  function call(group, beat, beats = 1, { gain = 1, long = null, send = 0.22, pan = null, quiet = false } = {}) {
+  function call(group, beat, beats = 1, { gain = 1, long = null, send = 0.22, pan = null, quiet = false, noPreroll = false } = {}) {
     const PAN = { grazers: -0.5, turtles: -0.25, frogs: 0.05, lizards: 0.3, flyers: 0.55 };
-    add({ stem: 'animals', kind: 'call', group, beat, beats, long: long ?? beats >= 2, gain, send, pan: pan ?? PAN[group] });
+    add({ stem: 'animals', kind: 'call', group, beat, beats, long: long ?? beats >= 2, gain, send, pan: pan ?? PAN[group], noPreroll: noPreroll || beat === LOOP_END });
     cue(beat, 'call', { group, ...(quiet ? { quiet: true } : {}) });
   }
   /** Her horn (the recorded alphorn) on `note` at `beat` for `beats`; `valley` sends it to the valley echo. */
@@ -304,14 +305,14 @@ export function score() {
   add({ stem: 'pad', kind: 'drone', freqs: ['F2', 'C3', 'F3'].map(H), beat: 184, beats: 33, attack: 1.2, release: 1.6, gain: 0.2, pan: 0, send: 0.4, key: 'drone|mid' });
   harpRun(184, ['F3', 'A3', 'C4', 'F4', 'A4', 'C5', 'F5', 'A5'], { step: 0.5, gain: 0.5 });
   // her call, and the valley answers a bar later (the echo); the harp fills the echoes' gaps
-  horn('C4', 188, 2, { valley: true }); horn('A3', 190, 2, { valley: true });
+  horn('C4', 188, 2, { valley: true, gain: 0.85 }); horn('A3', 190, 2, { valley: true, gain: 0.85 });
   harpNote('C5', 194, { gain: 0.45 }); harpNote('A4', 195, { gain: 0.4 });
-  horn('G3', 196, 1, { valley: true }); horn('A3', 197, 1, { valley: true }); horn('F3', 198, 2, { valley: true });
+  horn('G3', 196, 1, { valley: true, gain: 0.85 }); horn('A3', 197, 1, { valley: true, gain: 0.85 }); horn('F3', 198, 2, { valley: true, gain: 0.85 });
   harpRun(200, ['D4', 'F4', 'A4', 'D5', 'F5', 'A5'], { step: 0.5, gain: 0.45 });
-  horn('D4', 204, 1, { valley: true }); horn('C4', 205, 1, { valley: true }); horn('A3', 206, 1, { valley: true }); horn('C4', 207, 1, { valley: true });
+  horn('D4', 204, 1, { valley: true, gain: 0.85 }); horn('C4', 205, 1, { valley: true, gain: 0.85 }); horn('A3', 206, 1, { valley: true, gain: 0.85 }); horn('C4', 207, 1, { valley: true, gain: 0.85 });
   harpRun(208, ['Bb3', 'D4', 'F4', 'Bb4', 'D5', 'F5'], { step: 0.5, gain: 0.45 });
   strings('F', 200, 16, { notes: ['F4', 'C5', 'F5'], gain: 0.16, shape: 'slow', key: 'air' });
-  horn('D4', 212, 1, { valley: true }); horn('C4', 213, 1, { valley: true }); horn('A3', 214, 1, { valley: true }); horn('G3', 215, 1, { valley: true });
+  horn('D4', 212, 1, { valley: true, gain: 0.85 }); horn('C4', 213, 1, { valley: true, gain: 0.85 }); horn('A3', 214, 1, { valley: true, gain: 0.85 }); horn('G3', 215, 1, { valley: true, gain: 0.85 });
   // a heartbeat comes back in the second half: the bodhrán's open skin, softly, on 1 and 3
   for (let b = 200; b < 216; b += 2) add({ stem: 'beat', kind: 'bodhran', beat: b, v: 0.22 + 0.012 * (b - 200), tone: 0.05, up: false, gain: 0.8, pan: 0, send: 0.2, key: `heart|${b % 4}` });
 

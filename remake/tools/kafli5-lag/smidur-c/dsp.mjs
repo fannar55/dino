@@ -241,8 +241,9 @@ export function decodeStereo(path) {
 }
 /** Writes a 32-bit float stereo WAV. */
 export function writeWav(path, [L, R]) {
-  const n = L.length; const data = Buffer.alloc(n * 8);
-  for (let i = 0; i < n; i++) { data.writeFloatLE(L[i], i * 8); data.writeFloatLE(R[i], i * 8 + 4); }
+  const n = L.length; const inter = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) { inter[2 * i] = L[i]; inter[2 * i + 1] = R[i]; }
+  const data = Buffer.from(inter.buffer);
   const h = Buffer.alloc(44);
   h.write('RIFF', 0); h.writeUInt32LE(36 + data.length, 4); h.write('WAVE', 8); h.write('fmt ', 12);
   h.writeUInt32LE(16, 16); h.writeUInt16LE(3, 20); h.writeUInt16LE(2, 22); h.writeUInt32LE(SR, 24);

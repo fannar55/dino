@@ -61,7 +61,8 @@ export function checkAll({ OUT, song, json, stems, dryAnimals, renders, LEN, ste
     const beatS = Math.round(r.e.beat * SPB);
     const span = Math.min(r.len - r.pre, Math.round(r.e.beats * SPB * 0.85));
     const target = TONE[r.e.group];
-    const p = medianPitch(dryAnimals, beatS + Math.round(0.01 * SR), beatS + span, 80, 4000, 0.6);
+    // on the call as rendered, alone (three can sing at once on the last hit)
+    const p = medianPitch(r.y, r.pre + Math.round(0.01 * SR), r.pre + span, 80, 4000, 0.6);
     let c = p.hz ? cents(p.hz, target) : NaN; c -= Math.round(c / 1200) * 1200;
     // the onset, read off the call as placed (a different rule from the one that placed it): the first sample over a
     // tenth of its peak, against the beat

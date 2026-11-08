@@ -71,12 +71,15 @@ function renderEvent(e) {
       break;
     }
     case 'call': {
-      const c = A.call(e.group, { long: e.long });
+      const c = A.call(e.group, { long: e.long, heard: e.beats * SPBs * 0.9 });
       const keep = Math.min(c.y.length, c.onset + Math.round(e.beats * SPB * 0.96));
-      y = c.y.slice(0, keep);
+      // a call that must not reach back over a boundary (the loop's end) starts on its beat
+      const from = e.noPreroll ? c.onset : 0;
+      y = c.y.slice(from, keep);
+      if (from) for (let i = 0; i < 132 && i < y.length; i++) y[i] *= i / 132;
       const rel = Math.min(Math.round(0.05 * SR), y.length);
       for (let i = 0; i < rel; i++) y[y.length - 1 - i] *= i / rel;
-      pre = c.onset;
+      pre = c.onset - from;
       break;
     }
     case 'horn': {
@@ -175,7 +178,7 @@ writeWav(TMP + 'mix.wav', mix);
 encodeMp3(TMP + 'mix.wav', OUT + 'mix.mp3');
 log('mix written');
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', OUT + 'mix.mp3', '-lavfi', 'showspectrumpic=s=1600x700:legend=1:scale=log:fscale=lin:stop=12000', OUT + 'spectrogram.png']);
-execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', OUT + 'mix.mp3', '-filter_complex', 'showwavespic=s=1600x400:split_channels=0:colors=0x3a7bd5', '-frames:v', '1', OUT + 'waveform.png']);
+execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', OUT + 'mix.mp3', '-filter_complex', 'showwavespic=s=1600x400:split_channels=0:filter=peak:colors=0x3a7bd5', '-frames:v', '1', OUT + 'waveform.png']);
 
 // song.json
 const secs = b => +(b * SPBs).toFixed(3);
