@@ -282,7 +282,7 @@ export function compose(desk) {
   kick(B(4, 0), 0.55);
   kick(B(4, 2), 0.65);
   // the twang run that lifts the band in
-  line(1, 4, [[3, 62, 1], [4, 64, 1], [5, 66, 1], [6, 69, 1], [7, 71, 1]], { vel: 0.9 });
+  line(1, 4, [[3, 62, 1], [4, 64, 1], [5, 66, 1], [6, 69, 1], [7, 71, 1]], { vel: 0.7 });
   for (let s = 0; s < 4; s++) timbal(B(4, 3 + s / 4), 0.25 + 0.1 * s, s % 2 === 0);
   cue(B(5), 'hit');
 
