@@ -4196,8 +4196,8 @@
  },
  "k5_dj_a_one_more": {
   "src": "assets/audio/kafli5/k5_dj_a_one_more.mp3",
-  "duration": 1.53,
-  "mouth": "efcc9ce70febde6efea750000000000"
+  "duration": 1.61,
+  "mouth": "cebb7ad70ecbbeaaffb85200000000000"
  },
  "k5_dj_a_goodnight": {
   "src": "assets/audio/kafli5/k5_dj_a_goodnight.mp3",
@@ -4216,8 +4216,8 @@
  },
  "k5_dj_b_count_in": {
   "src": "assets/audio/kafli5/k5_dj_b_count_in.mp3",
-  "duration": 4.41,
-  "mouth": "eedb00000000000000002ffcbea8600000000000000dffdba89700000000000000efefecffd83000000000000"
+  "duration": 4.33,
+  "mouth": "bfcea000000000000004cfffdc950000000000000defdbba970000000000000efeddbfdda40000000000000"
  },
  "k5_dj_b_aftur": {
   "src": "assets/audio/kafli5/k5_dj_b_aftur.mp3",
@@ -4311,8 +4311,8 @@
  },
  "k5_dj_b_one_more": {
   "src": "assets/audio/kafli5/k5_dj_b_one_more.mp3",
-  "duration": 1.53,
-  "mouth": "efcc9ce70febde6efea750000000000"
+  "duration": 1.61,
+  "mouth": "cebb7ad70ecbbeaaffb85200000000000"
  },
  "k5_dj_b_biggest": {
   "src": "assets/audio/kafli5/k5_dj_b_biggest.mp3",
@@ -4331,8 +4331,8 @@
  },
  "k5_dj_c_count_in": {
   "src": "assets/audio/kafli5/k5_dj_c_count_in.mp3",
-  "duration": 4.41,
-  "mouth": "eedb00000000000000002ffcbea8600000000000000dffdba89700000000000000efefecffd83000000000000"
+  "duration": 4.33,
+  "mouth": "bfcea000000000000004cfffdc950000000000000defdbba970000000000000efeddbfdda40000000000000"
  },
  "k5_dj_c_hi_egill": {
   "src": "assets/audio/kafli5/k5_dj_c_hi_egill.mp3",
@@ -4346,8 +4346,8 @@
  },
  "k5_dj_c_grazers_shake": {
   "src": "assets/audio/kafli5/k5_dj_c_grazers_shake.mp3",
-  "duration": 2.01,
-  "mouth": "acfeed60cd9cbcdff700009e80000000000000000"
+  "duration": 2.091,
+  "mouth": "9cffddc47cbac8bcffc00000db4000000000000000"
  },
  "k5_dj_c_turtles_slow": {
   "src": "assets/audio/kafli5/k5_dj_c_turtles_slow.mp3",

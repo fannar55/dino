@@ -181,7 +181,8 @@
     "text": "Einu sinni enn!",
     "context": "Jæja krakkar, nú byrjar fjörið!",
     "fixes": "line",
-    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+    "note": "DJ Flugeðla in remix-a's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy. Seed 8: the first take (seed 7) began on the vowel with no lead-in.",
+    "seed": 8
   },
   {
     "id": "k5_dj_a_goodnight",
@@ -213,7 +214,8 @@
     "text": "Einn! Tveir! Þrír! Fjórir!",
     "context": "Jæja krakkar, við teljum: einn, tveir, þrír, fjórir!",
     "fixes": "line",
-    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy. Seed 8: the first take (seed 7) began on the vowel with no lead-in.",
+    "seed": 8
   },
   {
     "id": "k5_dj_b_aftur",
@@ -365,7 +367,8 @@
     "text": "Einu sinni enn!",
     "context": "Jæja krakkar, nú byrjar fjörið!",
     "fixes": "line",
-    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+    "note": "DJ Flugeðla in remix-b's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy. Seed 8: the first take (seed 7) began on the vowel with no lead-in.",
+    "seed": 8
   },
   {
     "id": "k5_dj_b_biggest",
@@ -397,7 +400,8 @@
     "text": "Einn! Tveir! Þrír! Fjórir!",
     "context": "Jæja krakkar, við teljum: einn, tveir, þrír, fjórir!",
     "fixes": "line",
-    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy. Seed 8: the first take (seed 7) began on the vowel with no lead-in.",
+    "seed": 8
   },
   {
     "id": "k5_dj_c_hi_egill",
@@ -421,7 +425,8 @@
     "text": "Jörðin hristist!",
     "context": "Jæja krakkar, nú byrjar fjörið!",
     "fixes": "line",
-    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
+    "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy. Seed 9: the takes of seeds 7 and 8 began on the J with no lead-in.",
+    "seed": 9
   },
   {
     "id": "k5_dj_c_turtles_slow",
