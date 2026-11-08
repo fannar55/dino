@@ -47,12 +47,36 @@ export function shapeOf(x) {
       break;
     }
   }
-  const toS = i => (i * hop + w / 2);
+  const toS = i => Math.round(i * hop + w / 2);
   const onset = Math.max(0, toS(st) - Math.round(0.005 * SR));
   const voicedEnd = Math.min(x.length, toS(end) + w);
   let lw = lastWord > 0 ? toS(lastWord) : -1;
   if (lw < 0 || voicedEnd - lw < 0.15 * SR) lw = Math.max(onset, voicedEnd - Math.round(0.45 * SR));
   return { onset, voicedEnd, lastWord: Math.max(onset, lw - Math.round(0.01 * SR)), peak: max };
+}
+
+/**
+ * Her mic chain: a low cut, a little presence (tablet speakers), and a gentle compressor (peak follower 2 ms / 90 ms, 3:1 over a
+ * threshold 9 dB under the take's peak, soft knee), so her shouts sit on the music without the master limiter squashing them.
+ */
+function voiceChain(x) {
+  const y = Float32Array.from(x);
+  for (const f of [new Biquad('hp', 110, 0.7), new Biquad('peak', 3200, 0.9, 2.5)]) f.run(y);
+  let pk = 0;
+  for (const v of y) pk = Math.max(pk, Math.abs(v));
+  const thr = pk * 10 ** (-9 / 20), ratio = 3, knee = 3;
+  const att = 1 - Math.exp(-1 / (0.002 * SR)), rel = 1 - Math.exp(-1 / (0.09 * SR));
+  let env = 0;
+  for (let i = 0; i < y.length; i++) {
+    const a = Math.abs(y[i]);
+    env += (a - env) * (a > env ? att : rel);
+    const over = 20 * Math.log10(Math.max(env, 1e-9) / thr);
+    let grDb = 0;
+    if (over > knee / 2) grDb = over * (1 - 1 / ratio);
+    else if (over > -knee / 2) grDb = ((over + knee / 2) ** 2 / (2 * knee)) * (1 - 1 / ratio);
+    y[i] *= 10 ** (-grDb / 20);
+  }
+  return y;
 }
 
 /**
@@ -74,7 +98,11 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
     let x, sh;
     if (has) {
       [x] = decode(file);
+      // a 3 ms fade-in: some takes begin on their consonant at full strength (the coordinator: an L, not a cut)
+      const fi = Math.round(0.003 * SR);
+      for (let i = 0; i < fi && i < x.length; i++) x[i] *= i / fi;
       sh = shapeOf(x);
+      x = voiceChain(x);
     } else {
       const len = Math.round((0.12 + 0.19 * syllables(line.text)) * SR);
       x = new Float32Array(len + Math.round(0.25 * SR));
@@ -94,6 +122,7 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
       voiceLoud = kLoud(y, y, sh.onset, sh.voicedEnd) - 3.01; // mono into both sides: count it once
       const target = Math.min(musicInt + 6, Math.max(musicInt - 3, under - d.duck + lift));
       gain = 10 ** ((target - voiceLoud) / 20);
+      if (!(gain > 0.01 && gain < 30)) throw new Error(`line ${d.id}: gain ${gain} (voice ${voiceLoud}, music ${under})`);
     } else gain = 0.06;
     // the take, coloured
     let y = Float32Array.from(x, v => v * gain);
