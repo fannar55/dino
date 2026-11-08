@@ -102,7 +102,7 @@ const FIVE = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'];
 export function buildLayers() {
   const L = { kick: [], crowd: [], calls: [], beetles: [], dragonflies: [], wings: [], cues: [] };
   // kicks where the record's own kick is off the grid feel: half-time under the half-speed turtles, four on the floor at 2x
-  for (const b of [104, 106, 108, 110]) L.kick.push({ beat: b, vel: 0.95, tone: 0.8 });
+  for (const [b, v] of [[104, 0.95], [105.5, 0.7], [108, 0.95], [109.5, 0.7]]) L.kick.push({ beat: b, vel: v, tone: 0.8 }); // half-time: one and the and of two
   for (let b = 152; b < 160; b++) L.kick.push({ beat: b, vel: 0.92, tone: 1 });
   // the animals clap on the beat while she rewinds or brakes the record
   for (const b of [22, 23, 102, 103, 210, 211, 282, 283]) L.crowd.push({ beat: b, vel: 0.85 });

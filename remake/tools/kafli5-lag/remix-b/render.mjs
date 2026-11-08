@@ -46,7 +46,8 @@ const r1 = v => +v.toFixed(1);
 // ================================================================ 1. the record (E's song, my copy), cached
 const SRC_STEMS = ['kick', 'rest', 'pad', 'bass', 'lead', 'animals', 'vinyl'];
 const codeHash = createHash('sha1');
-for (const f of ['score', 'synths', 'parts', 'takes', 'dsp', 'turntable', 'pitch', 'analyze', 'master']) codeHash.update(readFileSync(join(here, 'lib', `${f}.mjs`)));
+for (const f of ['score', 'synths', 'parts', 'takes', 'dsp', 'pitch', 'analyze', 'master']) codeHash.update(readFileSync(join(here, 'lib', `${f}.mjs`)));
+codeHash.update(recordCrackle.toString());
 const HASH = codeHash.digest('hex').slice(0, 12);
 const score = buildScore();
 const srcN = Math.ceil((END_BEAT * 0.48 + 3.0) * SR);
@@ -427,12 +428,6 @@ for (const [k, st] of Object.entries(stems)) {
   writeWav(join(WORK, `${k}.wav`), st.L, st.R);
   encodeMp3(join(WORK, `${k}.wav`), join(OUT, 'stems', `${k}.mp3`));
 }
-// the loop as its own file too (2 to 8 bars, cut from the float mix on the grid)
-{
-  const a = Math.round(OUT_LOOP.startBeat * SPB), b = Math.round((OUT_LOOP.startBeat + OUT_LOOP.beats) * SPB);
-  writeWav(join(WORK, 'loop.wav'), mix.L.subarray(a, b), mix.R.subarray(a, b));
-  encodeMp3(join(WORK, 'loop.wav'), join(OUT, 'loop.mp3'));
-}
 const stemLoud = {};
 if (!QUICK) for (const k of Object.keys(stems)) stemLoud[k] = ebur128(join(OUT, 'stems', `${k}.mp3`));
 say(`stems mp3: ${JSON.stringify(stemLoud)}`);
@@ -482,7 +477,7 @@ const song = {
   sections: OUT_SECTIONS.map(s => ({ name: s.name, nameIs: s.nameIs, startBeat: s.from, beats: s.to - s.from, startSec: +(s.from * 0.48).toFixed(3), feature: s.feature, what: s.what })),
   tuneNotes,
   cues,
-  loop: { ...OUT_LOOP, file: 'loop.mp3' },
+  loop: OUT_LOOP,
   stems: { pad: 'stems/pad.mp3', bass: 'stems/bass.mp3', beat: 'stems/beat.mp3', lead: 'stems/lead.mp3', animals: 'stems/animals.mp3', dj: 'stems/dj.mp3' },
   dj: lineInfo.map(l => ({ id: l.id, beat: l.beat, sec: l.sec, text: l.text, ...(l.beats ? { words: l.beats } : {}) })),
   newAnimals: {
@@ -574,5 +569,5 @@ checks.summary = {
 };
 writeFileSync(join(OUT, 'checks.json'), JSON.stringify(checks, null, 1) + '\n');
 console.log(JSON.stringify({ summary: checks.summary, sections: checks.sections, loop: checks.loop, mp3OffsetSamples: checks.mp3OffsetSamples, dj: lineInfo.map(l => [l.id, l.beat, l.voiceOverMusicDb, l.gainDb, l.attackMs]) }, null, 1));
-for (const f of ['mix.wav', 'loop.wav', ...Object.keys(stems).map(k => `${k}.wav`)]) rmSync(join(WORK, f), { force: true });
+for (const f of ['mix.wav', ...Object.keys(stems).map(k => `${k}.wav`)]) rmSync(join(WORK, f), { force: true });
 say('done');
