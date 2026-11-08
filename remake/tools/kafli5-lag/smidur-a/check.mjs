@@ -167,6 +167,18 @@ for (let bar = 0; bar * 4 * BEAT_SAMPLES < mix.length; bar++) {
   const mids = eq(Float32Array.from(bm), [['hp', 200, 0.7], ['lp', 2000, 0.7]]);
   report.bassMidsDb = db(rms(mids, 0, mids.length)) - db(rms(bm, 0, bm.length));
 }
+// clicks: 5 ms blocks whose energy over 9 kHz jumps 12 dB over both neighbours' and stands above -60 dBFS
+{
+  const hp = eq(Float32Array.from(mix), [['hp', 9000, 0.7], ['hp', 9000, 0.7]]);
+  const blk = Math.round(0.005 * SR);
+  const e = [];
+  for (let i = 0; i + blk < hp.length; i += blk) e.push(rms(hp, i, i + blk));
+  report.clicks = [];
+  for (let k = 2; k < e.length - 2; k++) {
+    const around = Math.max(e[k - 2], e[k + 2]);
+    if (e[k] > 0.001 && e[k] > 4 * around) report.clicks.push(Number(((k * blk) / SR).toFixed(3)));
+  }
+}
 writeFileSync(`${OUT}check.json`, `${JSON.stringify({ ...report, callRows: pitchRows }, null, 2)}\n`);
 console.log('loudness', report.loudness, 'stem peaks', report.stemPeaksDb);
 console.log('unit                      from   rms   <150  >5k  onL/bar onH/bar | pad bass beat lead animals');
@@ -180,6 +192,7 @@ for (const r of chorusBad) console.log('  ', JSON.stringify(r));
 console.log('loop', report.loop);
 console.log('bars (dB):', report.barsDb.map((v, i) => (i % 8 === 0 ? `
   ${String(i).padStart(2)}: ` : '') + v).join(' '));
+console.log('clicks (s):', report.clicks.length, report.clicks.slice(0, 20).join(' '));
 console.log('chorus notes over the orchestra (1-5 kHz):', report.chorusOverOrchestraDb);
 { const z = mix.length - Math.round(0.25 * SR); console.log('last 0.25 s of the mix:', db(rms(mix, z, mix.length)), 'dBFS'); }
 console.log('bass stem 200 Hz-2 kHz relative to all of it:', report.bassMidsDb.toFixed(1), 'dB');
