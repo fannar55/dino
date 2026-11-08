@@ -348,8 +348,9 @@ const HANDS_IN = 0.3; // seconds for his hands to go to the handle once he is in
  * The rider sits in the saddle: the root follows `saddle.seat` and the host's heading each frame, the
  * rider plays `sit`, and once seated his hands go to the handle's grips, and on a saddle with places for
  * them (Mosi's: knees, ankles) his legs go astride the back and his spine leans `saddle.lean` degrees to
- * the bar. A rider who is not on the seat yet settles into it over `settle` seconds; one who is (after
- * floatTo) stays exactly on it. stop() gives the rider back where he is.
+ * the bar. A rider who is not on the seat yet settles into it over `settle` seconds, his legs going astride
+ * as his hands go to the bar; one who is (after floatTo, which has laid his legs there) stays exactly on
+ * it, his legs astride at once. stop() gives the rider back where he is.
  */
 export function ride(rider, saddle, { settle = 0.8 } = {}) {
   const from = { position: rider.root.position.clone(), quaternion: rider.root.quaternion.clone() };
@@ -371,7 +372,7 @@ export function ride(rider, saddle, { settle = 0.8 } = {}) {
     },
     pose() {
       const k = smooth(clamp01((t - blend) / HANDS_IN));
-      legs?.apply(k); // first: the spine's lean moves his shoulders, which the hands reach from
+      legs?.apply(blend > 0 ? k : 1); // first: the spine's lean moves his shoulders, which the hands reach from
       hands.apply(k);
     },
     end() {
@@ -388,7 +389,8 @@ export function ride(rider, saddle, { settle = 0.8 } = {}) {
 
 // The float: a cubic curve, eased at both ends, from where he stands straight up toward FLOAT_HOVER m
 // above the seat, across, and down onto it, so it peaks about half a metre over the seat wherever the
-// seat is; he takes the sit pose for the last FLOAT_SIT seconds, so he lands sitting.
+// seat is; he takes the sit pose for the last FLOAT_SIT seconds, so he lands sitting, and on a saddle with places for his legs
+// they open astride onto it over those seconds (ride() keeps them there).
 const FLOAT_HOVER = 0.9;
 const FLOAT_SIT = 0.6;
 
@@ -406,11 +408,13 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
   const rise = new V3();
   const hover = new V3();
   const facing = new THREE.Quaternion();
+  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0 }) : null;
   let t = 0;
   let sitting = false;
   const controller = {
     drive(dt) {
       if (!handle.cancelled) t += dt;
+      legs?.restore();
       const end = saddle.update();
       const u = clamp01(t / duration);
       const k = smooth(u);
@@ -426,7 +430,9 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
       }
       if (u >= 1 && !handle.done) handle.finish();
     },
+    pose() { legs?.apply(smooth(clamp01((t - (duration - FLOAT_SIT)) / FLOAT_SIT))); },
     end() {
+      legs?.restore();
       if (!handle.done) handle.cancel(); // a cancelled float leaves him held where he is
       uncap();
     },
@@ -448,6 +454,7 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
  * (LOOK_CAPS above: the host's looks are capped until he is down). Returns a Handle that finishes with him on the ground, given
  * back (actor.control(null)), so footing has his feet from there.
  */
+const LEGS_OFF = 0.4; // seconds his legs take to come off a saddle's pad as he rises off it (floatDown)
 export function floatDown(rider, saddle, spot, { duration = 2.2, heading = headingOf(rider.root.quaternion) } = {}) {
   const world = rider.world;
   if (!world?.effects) throw new Error('floatDown needs the rider\'s world.effects (engine/effects.js), which main.js updates');
@@ -458,11 +465,13 @@ export function floatDown(rider, saddle, spot, { duration = 2.2, heading = headi
   const facing = new THREE.Quaternion().setFromAxisAngle(UP, -THREE.MathUtils.degToRad(heading));
   const lift = new V3();
   const over = new V3();
+  const legs = saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { lean: saddle.lean ?? 0 }) : null;
   let t = 0;
   let standing = false;
   const controller = {
     drive(dt) {
       if (!handle.cancelled) t += dt;
+      legs?.restore();
       const seat = saddle.update();
       const u = clamp01(t / duration);
       const k = smooth(u);
@@ -480,7 +489,9 @@ export function floatDown(rider, saddle, spot, { duration = 2.2, heading = headi
         release(rider, controller); // on his feet: footing takes them from here
       }
     },
+    pose() { legs?.apply(1 - smooth(clamp01(t / LEGS_OFF))); },
     end() {
+      legs?.restore();
       if (!handle.done) handle.cancel(); // a cancelled float leaves him held where he is
       uncap();
     },
