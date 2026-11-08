@@ -79,12 +79,16 @@ export function placesOf(fitted, names, places = PLACES) {
   return out;
 }
 
-/** Mosi's places on the saddle: the saddle's own (seat, grips) as on her; his knees and feet over his back, which is as broad and flat. */
+/**
+ * Mosi's places on the saddle: the saddle's own (seat, grips) as on her; his knees and feet over his back, [ahead, above his skin,
+ * across]. His back is broad and flat on top (5 cm lower 0.3 m out from the middle), so Egill sits astride as a small boy on a big
+ * horse: his knees bent, ahead and out over the pad, his feet down on it by its edges, under his knees.
+ */
 export const MOSI_PLACES = {
   seat: [0, 0, 0],
   grips: PLACES.grips,
-  knees: { left: [0.1, 0.12, -0.45], right: [0.1, 0.12, 0.45] },
-  ankles: { left: [-0.22, 0.1, -0.24], right: [-0.22, 0.1, 0.24] },
+  knees: { left: [0.12, 0.22, -0.22], right: [0.12, 0.22, 0.22] },
+  ankles: { left: [0.06, 0.05, -0.28], right: [0.06, 0.05, 0.28] },
 };
 
 /** Mosi's poses with Egill on him (chapters 1 to 4, and Háls og hali): standing and walking; his head turns, but no skin under the pad. */

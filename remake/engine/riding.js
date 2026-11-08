@@ -86,8 +86,8 @@ export const MOSI_SADDLE = {
   up: [0, 1, 0],
   seat: { bind: [0.55836, 1.56824, -0.00207], weights: { Body: 1 } },
   grips: { left: { bind: [0.66573, 1.64886, -0.07305], weights: { Body: 1 } }, right: { bind: [0.66573, 1.64886, 0.07847], weights: { Body: 1 } } },
-  knees: { left: { bind: [0.6139, 1.5253, -0.23436], weights: { Body: 1 } }, right: { bind: [0.61409, 1.52117, 0.23276], weights: { Body: 1 } } },
-  ankles: { left: { bind: [0.45713, 1.57067, -0.12463], weights: { Body: 1 } }, right: { bind: [0.45753, 1.56928, 0.12153], weights: { Body: 1 } } },
+  knees: { left: { bind: [0.63409, 1.60241, -0.12254], weights: { Body: 1 } }, right: { bind: [0.63487, 1.60058, 0.12186], weights: { Body: 1 } } },
+  ankles: { left: { bind: [0.589, 1.52406, -0.1398], weights: { Body: 1 } }, right: { bind: [0.58945, 1.52218, 0.13659], weights: { Body: 1 } } },
 };
 // Each wrist from the middle of its grip on the bar, [ahead, up, across] in the saddle's frame: a little behind and over it, his hand
 // round the bar (as on Flugeðla's: engine/flier.js WRIST). And how far his spine leans forward to the bar (flier.js LEAN).
