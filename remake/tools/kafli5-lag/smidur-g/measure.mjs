@@ -6,6 +6,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pitchTrack } from './lib/takes.mjs';
+import { filt, biquad } from './lib/dsp.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '../../../..');
@@ -203,13 +204,16 @@ void worst;
 const an = decode(path.join(OUT, 'stems/animals.mp3'));
 const anOn = onsets(an.L, an.R);
 const offs = [];
+const offBy = [];
 for (const c of song.cues.filter(c => c.kind === 'call')) {
   const t = (swing(c.beat) * SPB) / SR;
   const near = anOn.reduce((best, o) => (Math.abs(o - t) < Math.abs(best - t) ? o : best), Infinity);
   offs.push(Math.round((near - t) * 1000));
+  offBy.push({ beat: c.beat, group: c.group, ms: Math.round((near - t) * 1000) });
 }
 const absOffs = offs.map(Math.abs).sort((a, b) => a - b);
 report.animals.onsetMs = { median: absOffs[Math.floor(absOffs.length / 2)], p90: absOffs[Math.floor(absOffs.length * 0.9)], max: absOffs[absOffs.length - 1], n: offs.length };
+report.animals.worstOnsets = offBy.sort((a, b) => Math.abs(b.ms) - Math.abs(a.ms)).slice(0, 8);
 console.log('animal cue onsets vs beat (ms): median', report.animals.onsetMs.median, 'p90', report.animals.onsetMs.p90, 'max', report.animals.onsetMs.max, 'of', offs.length);
 
 // her horn: render-free check, the lead stem around a few horn notes where she plays alone (bar 0, the stop-time)
@@ -220,7 +224,9 @@ void NAMES;
 const hornCues = song.cues.filter(c => c.kind === 'horn');
 for (const c of hornCues.filter((c, i) => ((c.beat >= 0 && c.beat < 4) || (c.beat >= 256 && c.beat < 288)) && (hornCues[i + 1]?.beat ?? 1e9) - c.beat >= 1)) {
   const a = Math.round((swing(c.beat) * SPB) + 0.08 * SR);
+  // low-passed (4th order at 520 Hz): her notes here are G3-G4, and a vibraphone ringing on at 786 Hz otherwise pulls the tracker
   const seg = lead.L.slice(a, a + Math.round(0.18 * SR));
+  filt(seg, biquad('lp', 520, 0.5412)); filt(seg, biquad('lp', 520, 1.3066));
   const fr = pitchTrack(seg, { fmin: 150, fmax: 900, size: 1024, hop: 512 }).filter(f => f.hz > 0 && f.ap < 0.3);
   if (!fr.length) continue;
   const hz = fr.map(f => f.hz).sort((x, y) => x - y)[Math.floor(fr.length / 2)];
