@@ -39,3 +39,27 @@ for (const st of ['pad', 'bass', 'beat', 'lead', 'animals']) {
   for (let i = 0; i < a.length; i++) { const m = (a[i] + b[i]) / 2; all += m * m; const y = h2(h1(m)); hi += y * y; }
   console.log(' ', st.padEnd(8), (100 * hi / all).toFixed(0) + '%');
 }
+
+// startle check: momentary loudness (400 ms K-weighted windows, 50 ms hop); the biggest jumps over 250 ms
+{
+  const kw = () => { const a = biquad('highshelf', 1681.97, 0.7072, 4.0), b = biquad('hp', 38.13, 0.5003); return x => b(a(x)); };
+  const fl = kw(), fr = kw();
+  const hop = Math.round(0.05 * SR), win = 8;
+  const e = [];
+  let acc = 0, c = 0;
+  for (let i = 0; i < L.length; i++) {
+    const l = fl(L[i]), r = fr(R[i]);
+    acc += l * l + r * r;
+    if (++c === hop) { e.push(acc / hop); acc = 0; c = 0; }
+  }
+  const M = [];
+  for (let i = win; i <= e.length; i++) M.push(-0.691 + 10 * Math.log10(e.slice(i - win, i).reduce((s, v) => s + v, 0) / win + 1e-12));
+  const jumps = [];
+  for (let i = 5; i < M.length; i++) jumps.push({ t: ((i + win) * hop) / SR, from: M[i - 5], to: M[i], d: M[i] - M[i - 5] });
+  jumps.sort((a, b) => b.d - a.d);
+  const top = [];
+  for (const j of jumps) if (top.every(t => Math.abs(t.t - j.t) > 2) && top.length < 6) top.push(j);
+  console.log('biggest momentary-loudness rises over 250 ms (s: from → to LUFS):');
+  for (const j of top) console.log(`  ${j.t.toFixed(2)}s (beat ${((j.t * song.bpm) / 60).toFixed(1)}): ${j.from.toFixed(1)} → ${j.to.toFixed(1)} (+${j.d.toFixed(1)})`);
+  console.log('  loudest momentary:', Math.max(...M).toFixed(1), 'LUFS at', ((M.indexOf(Math.max(...M)) + win) * hop / SR).toFixed(2), 's');
+}

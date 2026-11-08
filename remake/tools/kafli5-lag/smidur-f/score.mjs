@@ -158,10 +158,11 @@ export function compose(desk) {
   const bassCumbia = (bar, vel = 1, nextName = null) => {
     const c = CH[chordAt(bar)];
     const next = CH[nextName ?? chordAt(bar + 1, 0) ?? 'G'] ?? c;
-    bassNote(c.root, B(bar, 0), 0.75, vel);
-    bassNote(c.root, B(bar, 1.5), 0.4, 0.75 * vel);
-    bassNote(c.fifth, B(bar, 2), 0.75, 0.9 * vel);
-    bassNote(approach(next.root), B(bar, 3.5), 0.4, 0.7 * vel);
+    // boom (held) ba-boom (held) ba: the notes ring to the next one, so the groove never drops into a hole
+    bassNote(c.root, B(bar, 0), 1.45, vel);
+    bassNote(c.root, B(bar, 1.5), 0.5, 0.75 * vel);
+    bassNote(c.fifth, B(bar, 2), 1.45, 0.9 * vel);
+    bassNote(approach(next.root), B(bar, 3.5), 0.5, 0.7 * vel);
   };
   const bassHalf = (bar, vel = 1) => {
     const c = CH[chordAt(bar)];
@@ -251,8 +252,8 @@ export function compose(desk) {
 
   // ================================================================ 1. Intro (bars 1-4)
   for (let q = 0; q < 16; q++) guiroBeat(B(1, q), 1);
-  animal('flyers-3', B(1, 2), { send: 0.35 });
-  animal('flyers-2', B(2, 2.5), { send: 0.35, db: -2 });
+  animal('flyers-3', B(1, 2), { send: 0.4, db: -7 });
+  animal('flyers-2', B(2, 2.5), { send: 0.4, db: -8 });
   for (let bar = 2; bar <= 4; bar++) {
     palo(B(bar, 1.5), 0.7);
     palo(B(bar, 3.5), 0.7);
@@ -262,13 +263,13 @@ export function compose(desk) {
   shaker16(4, 0.8);
   pad(3, 4, { swell: 3.5, db: -24 });
   pad(4, 4, { db: -24 });
-  bassNote(43, B(3, 0), 1.8, 0.8);
+  bassNote(43, B(3, 0), 1.8, 0.55);
   bassNote(50, B(3, 2), 1.4, 0.7);
   bassNote(50, B(4, 0), 0.75, 0.85);
   bassNote(50, B(4, 1.5), 0.4, 0.7);
   bassNote(45, B(4, 2), 0.75, 0.8);
   bassNote(42, B(4, 3.5), 0.4, 0.75);
-  kick(B(3, 0), 0.6);
+  kick(B(3, 0), 0.4);
   kick(B(4, 0), 0.7);
   kick(B(4, 2), 0.75);
   // the twang run that lifts the band in
@@ -286,6 +287,7 @@ export function compose(desk) {
     if (o.shaker !== false) shaker16(bar, o.shakerVel ?? 0.8);
     if (o.bass !== false) bassCumbia(bar, o.bassVel ?? 1);
     if (o.chucu !== false) chucu(bar, o.chucuVel ?? 1);
+    if (o.glue !== false) pad(bar, 4, { db: -31, tone: 0.25 }); // a held organ under the chucu, very soft
   };
   const GANCHO = [
     [[0, 71, 1], [1, 74, 1], [3, 79, 2], [5, 78, 1], [6, 76, 1], [7, 74, 1]],
@@ -318,7 +320,7 @@ export function compose(desk) {
 
   // ================================================================ 4a. Grazers (bars 21-24)
   for (let bar = 21; bar <= 24; bar++) {
-    groove(bar, { kick: false, conga: false, llamador: false, bass: false, chucu: false, shakerVel: 0.6 });
+    groove(bar, { kick: false, conga: false, llamador: false, bass: false, chucu: false, shakerVel: 0.6, glue: false });
     stomp(B(bar, 0), 1);
     stomp(B(bar, 2), 0.8);
     bassHalf(bar, 1);
@@ -534,7 +536,7 @@ export function compose(desk) {
   // ================================================================ 7. All together (bars 53-60)
   cue(B(53), 'peak');
   for (let bar = 53; bar <= 60; bar++) {
-    groove(bar, { bass: bar !== 60, shakerVel: 0.9, congaVel: 1 });
+    groove(bar, { bass: bar !== 60, shakerVel: 0.9, congaVel: 1, glue: false });
     pad(bar, 4, { db: -26, tone: 0.3 });
     CASCARA[(bar - 53) % 2].split('').forEach((c, e) => c === 'x' && shell(B(bar, e / 2), 0.8));
     for (let q = 0; q < 4; q++) bell(B(bar, q), q === 0 ? 0.9 : 0.55, q % 2 === 1);
