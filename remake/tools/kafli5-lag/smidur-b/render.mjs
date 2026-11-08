@@ -38,8 +38,8 @@ for (const name of STEMS) {
   let count = 0;
   for (const e of events) {
     if (e.stem !== name) continue;
-    const at = Math.round(e.beat * SPB);
     const s = e.make();
+    const at = Math.round(e.beat * SPB) - (s.pre || 0); // a soft-attack call's lead-in sounds just before its beat
     e.g *= STEM_GAIN[name];
     const add = bus => (s instanceof Float32Array ? bus.add(s, at, e.g, e.pan) : bus.add2(s.L, s.R, at, e.g));
     add(dry);

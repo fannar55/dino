@@ -36,6 +36,20 @@ export const TAKES = {
 /** Where each group stands in the stereo picture (the camera moves between them). */
 export const PAN = { grazers: -0.35, turtles: -0.15, frogs: 0.12, lizards: 0.3, flyers: 0.42 };
 
+/**
+ * Where a sound is heard to start: the first point (after its -30 dB onset) where a 5 ms envelope comes within 9 dB of its peak
+ * in the first 250 ms. A call is placed so that this point, not its quiet lead-in, lands on the beat.
+ */
+export function attackOf(x, from = 0) {
+  const W = Math.round(0.005 * SR), H = 44;
+  const env = [];
+  const lim = Math.min(x.length - W, from + Math.round(0.25 * SR));
+  for (let i = from; i < lim; i += H) { let s = 0; for (let k = i; k < i + W; k++) s += x[k] * x[k]; env.push(10 * Math.log10(s / W + 1e-14)); }
+  const pk = Math.max(...env);
+  const k = env.findIndex(v => v >= pk - 9);
+  return from + Math.max(0, k) * H + Math.round(W / 2);
+}
+
 const raw = new Map();
 function file(name) {
   if (!raw.has(name)) raw.set(name, decode(join(HLJOD, name)));
@@ -66,7 +80,8 @@ export function take(group, id) {
   scale(buf, 0.7 / pk);
   const onset = onsetOf(buf, -30);
   const hitAt = Math.round(((t.hit - t.seg[0]) * SR) / rate);
-  const out = { group, id, file: t.file, buf, rate, ownHz, onset, hitAt: Math.max(onset, hitAt) };
+  const attack = attackOf(buf, onset);
+  const out = { group, id, file: t.file, buf, rate, ownHz, onset, attack, hitAt: Math.max(onset, hitAt) };
   prepared.set(key, out);
   return out;
 }
@@ -82,7 +97,9 @@ export function call(group, id, { from = 'start', seconds = null, v = 1, fadeIn 
   const n = seconds ? Math.min(avail, Math.round(seconds * SR)) : avail;
   const out = t.buf.slice(start, start + n);
   edgeFade(out, Math.min(0.04, n / SR / 4), from === 'hit' ? fadeIn : 0.001);
-  return scale(out, v);
+  scale(out, v);
+  out.pre = from === 'hit' ? 0 : Math.max(0, t.attack - start); // samples it sounds before its beat
+  return out;
 }
 
 // ---------- her horn ----------
@@ -100,7 +117,8 @@ export function horn(group, seconds, { v = 1, rel = 0.35 } = {}) {
   if (!hornCache.has(group)) hornCache.set(group, resample(hornRaw.x, rate));
   const y = hornCache.get(group);
   const on = onsetOf(y, -30);
-  const want = Math.round((seconds + rel) * SR);
+  const pre = Math.min(Math.round(0.09 * SR), attackOf(y, on) - on);
+  const want = Math.round((seconds + rel) * SR) + pre;
   const n = Math.min(y.length - on, want);
   const out = y.slice(on, on + n);
   const R = Math.min(n, Math.round(rel * SR));
@@ -109,7 +127,9 @@ export function horn(group, seconds, { v = 1, rel = 0.35 } = {}) {
   hp(out, 70);
   let pk = 0;
   for (const v of out) pk = Math.max(pk, Math.abs(v));
-  return scale(out, (0.7 / pk) * v);
+  scale(out, (0.7 / pk) * v);
+  out.pre = pre;
+  return out;
 }
 export function hornHz() { horn('frogs', 0.5); return hornRaw.hz; }
 

@@ -41,14 +41,14 @@ export function checks({ stems, chorusMelody }) {
   // the grid: every event on a whole sample
   const { events } = buildScore();
   const offGrid = events.filter(e => Math.abs(e.beat * SPB - Math.round(e.beat * SPB)) > 1e-6).length;
-  // each chorus note's onset in the animals stem: the steepest rise of a 5 ms envelope within -20..+60 ms of its beat
+  // each chorus note's onset in the animals stem: the steepest rise of a 5 ms envelope within 60 ms of its beat
   const a = stems.animals;
   const W = Math.round(0.005 * SR);
   const env = i => { let s = 0; for (let k = i; k < i + W; k++) s += a.L[k] * a.L[k] + a.R[k] * a.R[k]; return 10 * Math.log10(s / W + 1e-12); };
   const offsets = chorusMelody.map(({ beat, group }) => {
     const at = Math.round(beat * SPB);
     let best = -1e9, bestT = 0;
-    for (let i = at - Math.round(0.02 * SR); i < at + Math.round(0.06 * SR); i += 22) {
+    for (let i = at - Math.round(0.06 * SR); i < at + Math.round(0.06 * SR); i += 22) {
       const d = env(i) - env(i - W);
       if (d > best) { best = d; bestT = i; }
     }
