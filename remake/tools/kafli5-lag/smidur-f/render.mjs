@@ -170,12 +170,25 @@ for (const sec of SECTIONS) {
   const r = rmsStretch(dL.subarray(lag), dR.subarray(lag), from, Math.min(to, dL.length - lag));
   const bars = sec.bars[1] - sec.bars[0] + 1;
   const count = ons.filter(o => o >= from && o < to).length;
-  qa.sections.push({ name: sec.name, bars: sec.bars, rmsDb: +r.rms.toFixed(1), under150Db: +r.low.toFixed(1), onsetsPerBar: +(count / bars).toFixed(1) });
+  const lu = lufs(dL.subarray(lag + from, lag + Math.min(to, dL.length - lag)), dR.subarray(lag + from, lag + Math.min(to, dL.length - lag)));
+  qa.sections.push({ name: sec.name, bars: sec.bars, lufs: +lu.toFixed(1), rmsDb: +r.rms.toFixed(1), under150Db: +r.low.toFixed(1), onsetsPerBar: +(count / bars).toFixed(1) });
 }
 // her tune, as heard in the animals stem: the attack (where the stem's energy rises at the note) against the beat, and the
 // pitch over the note's held part (from 60 ms after the attack to the next note or 0.5 s), median of the clear frames
 const an = new Float32Array(n);
 for (let t = 0; t < n; t++) an[t] = (desk.stems.animals.L[t] + desk.stems.animals.R[t]) / 2;
+// for the pitch, each note is heard through a band around its own tone (two band-passes), so a neighbour's tail does not lead
+const banded = new Map();
+const bandFor = hz => {
+  const key = Math.round(hz);
+  if (!banded.has(key)) {
+    const f1 = biquad('bp', hz, 2), f2 = biquad('bp', hz, 2);
+    const y = new Float32Array(n);
+    for (let t = 0; t < n; t++) y[t] = f2(f1(an[t]));
+    banded.set(key, y);
+  }
+  return banded.get(key);
+};
 tuneNotes.forEach((tn, i) => {
   const c = calls.find(x => x.tune && Math.abs(x.beat - tn.beat) < 1e-3);
   const s = at(tn.beat);
@@ -184,7 +197,7 @@ tuneNotes.forEach((tn, i) => {
   const until = Math.min(attack + Math.round(0.5 * SR), next - Math.round(0.03 * SR));
   const ps = [];
   for (let p0 = attack + Math.round(0.06 * SR); p0 + 2048 <= until + 1024; p0 += Math.round(0.015 * SR)) {
-    const p = pitchAt(an, p0, c.target);
+    const p = pitchAt(bandFor(c.target), p0, c.target);
     if (p.clarity > 0.8) ps.push(p.hz);
   }
   ps.sort((x, y) => x - y);
@@ -255,7 +268,7 @@ rmSync(WORK, { recursive: true, force: true });
 
 // ---------------------------------------------------------------- report
 console.log('\nsections');
-for (const s of qa.sections) console.log(' ', s.name.padEnd(13), `bars ${s.bars.join('-').padEnd(6)} rms ${String(s.rmsDb).padStart(6)}  <150Hz ${String(s.under150Db).padStart(6)}  onsets/bar ${s.onsetsPerBar}`);
+for (const s of qa.sections) console.log(' ', s.name.padEnd(13), `bars ${s.bars.join('-').padEnd(6)} lufs ${String(s.lufs).padStart(6)} rms ${String(s.rmsDb).padStart(6)}  <150Hz ${String(s.under150Db).padStart(6)}  onsets/bar ${s.onsetsPerBar}`);
 console.log('tune notes (cents off, attack ms):', qa.tune.map(t => `${t.group[0]}${t.cents ?? '?'}/${t.attackMs}`).join(' '));
 console.log('takes:', Object.entries(qa.takes).map(([k, v]) => `${k} ${v.cents}c`).join(', '));
 console.log('loop:', JSON.stringify(qa.loop));

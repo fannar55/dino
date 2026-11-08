@@ -76,16 +76,19 @@ export function take(name) {
   return cache.get(name);
 }
 
-/** The heard attack (s) of a buffer: where its 5 ms peak envelope first reaches `db` under its peak. */
-export function heardOnset(buf, db = -12) {
-  const w = Math.round(0.005 * SR);
-  let peak = 0;
-  for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
-  const thr = peak * 10 ** (db / 20);
-  for (let s = 0; s < buf.length; s += w) {
-    for (let i = s; i < Math.min(buf.length, s + w); i++) if (Math.abs(buf[i]) >= thr) return s / SR;
+/** The heard attack (s) of a buffer: on a 5 ms RMS envelope (2.5 ms hop), the first point reaching 30% of its peak RMS
+ * (the same rule the render's check uses on the stem, there measured from the floor left by earlier sounds). */
+export function heardOnset(buf) {
+  const hop = Math.round(0.0025 * SR), w = Math.round(0.005 * SR);
+  const env = [];
+  for (let s = 0; s + w <= buf.length; s += hop) {
+    let e = 0;
+    for (let i = s; i < s + w; i++) e += buf[i] * buf[i];
+    env.push(Math.sqrt(e / w));
   }
-  return 0;
+  const peak = Math.max(...env);
+  const k = env.findIndex(v => v >= 0.3 * peak);
+  return (Math.max(0, k) * hop) / SR;
 }
 
 /** The target pitch for a take moved to `group`'s tone in the octave nearest its own pitch. */
