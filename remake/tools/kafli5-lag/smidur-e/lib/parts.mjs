@@ -4,9 +4,17 @@ import { SR } from './io.mjs';
 import { stereo, addMono, addStereo, mtof, SVF, Biquad, eqStereo, pingPong, reverb, chorus, duckCurve, applyGain } from './dsp.mjs';
 import * as V from './synths.mjs';
 import { SPB, TONE, sectionAt } from './score.mjs';
-import { TAKES, loadTake, moved, resample } from './takes.mjs';
+import { TAKES, loadTake, moved, movedRate, resample } from './takes.mjs';
+import { steady, cents } from './pitch.mjs';
+import { LOOP } from './score.mjs';
 
 const sampleOf = beat => Math.round(beat * SPB);
+// Nothing that belongs after the loop may sound inside it: a sound placed on or after the loop's end starts no earlier than it.
+const LOOP_END = (LOOP.startBeat + LOOP.beats) * SPB;
+function placeAt(y, at, beatSample) {
+  if (beatSample >= LOOP_END && at < LOOP_END) return { y: y.subarray(LOOP_END - at), at: LOOP_END };
+  return { y, at };
+}
 const DOTTED8 = 0.75 * SPB;
 
 function cached(map, key, make) {
@@ -166,15 +174,17 @@ export function renderLead(score, n, kicks, HLJOD) {
     const y = cached(rc, `horn${ev.midi}`, () => resample(horn.x, rate));
     const on = horn.onset / rate;
     const len = Math.min(y.length, Math.round(on + ev.dur * SR + 0.16 * SR));
-    const cut = fadeOut(y.subarray(0, len), 0.16);
-    addMono(rec, cut, sampleOf(ev.beat) - Math.round(on), hornLevel * 0.13 * ev.vel, -0.05);
+    const cut = fadeOut(Float32Array.from(y.subarray(0, len)), 0.16);
+    const p = placeAt(cut, sampleOf(ev.beat) - Math.round(on), sampleOf(ev.beat));
+    addMono(rec, p.y, p.at, hornLevel * 0.13 * ev.vel, -0.05);
   }
   const mar = loadTake(HLJOD, { file: 'marimba.mp3', fmin: 300, fmax: 900 });
   const marLevel = 0.5 / rmsOf(mar.x, 0, 0.3);
   for (const ev of score.marimba) {
     const rate = mtof(ev.midi) / mar.hz;
     const y = cached(rc, `mar${ev.midi}`, () => fadeOut(resample(mar.x, rate).slice(0, Math.round(1.4 * SR)), 0.5));
-    addMono(rec, y, sampleOf(ev.beat) - Math.round(mar.onset / rate), marLevel * 0.055 * ev.vel, 0.1);
+    const p = placeAt(y, sampleOf(ev.beat) - Math.round(mar.onset / rate), sampleOf(ev.beat));
+    addMono(rec, p.y, p.at, marLevel * 0.055 * ev.vel, 0.1);
   }
   const out = stereo(n);
   addStereo(out, robotCh, 0, 1);
@@ -205,11 +215,8 @@ export function renderAnimals(score, n, kicks, HLJOD, log) {
   const takes = {};
   for (const [g, list] of Object.entries(TAKES)) if (g !== 'horn') takes[g] = list.map(t => loadTake(HLJOD, t));
   const LEVEL = { grazers: 0.2, turtles: 0.19, frogs: 0.15, lizards: 0.13, flyers: 0.13 };
-  for (const ev of score.calls) {
-    const list = takes[ev.group];
-    const take = list[ev.take % list.length];
-    const m = moved(take, mtof(TONE[ev.group]), ev.octave);
-    const norm = 0.25 / rmsOf(m.y, m.steadyFrom, m.steadyTo, true);
+  const settled = new Map();
+  const cutOf = (ev, m) => {
     let start, at, len;
     if (ev.mode === 'chop') {
       start = Math.max(0, Math.round(m.steadyFrom * SR - 0.006 * SR));
@@ -221,15 +228,44 @@ export function renderAnimals(score, n, kicks, HLJOD, log) {
       len = Math.min(m.y.length - start, Math.round(m.onset - start + ev.dur * 0.48 * SR + 0.06 * SR));
     }
     const y = Float32Array.from(m.y.subarray(start, start + len));
-    const fi = Math.round((ev.mode === 'chop' ? 0.004 : 0.002) * SR);
     if (ev.group === 'grazers' || ev.group === 'turtles') new Biquad('peak', 2200, 0.8, 5).run(y); // presence for tablet speakers
+    const fi = Math.round((ev.mode === 'chop' ? 0.004 : 0.002) * SR);
     for (let i = 0; i < fi && i < y.length; i++) y[i] *= i / fi;
     fadeOut(y, ev.mode === 'chop' ? 0.03 : 0.06);
+    return { y, at };
+  };
+  for (const ev of score.calls) {
+    const list = takes[ev.group];
+    const take = list[ev.take % list.length];
+    const tone = mtof(TONE[ev.group]);
+    // the take's own steady pitch puts it near the tone; then the cut call itself is measured (the part a listener hears as its
+    // note) and the rate trimmed, at most twice, until that part is within 6 cents
+    const key = `${take.file}|${ev.octave}|${ev.mode}|${ev.dur}`;
+    let m, c;
+    if (settled.has(key)) {
+      m = movedRate(take, settled.get(key));
+      c = cutOf(ev, m);
+    } else {
+      m = moved(take, tone, ev.octave);
+      c = cutOf(ev, m);
+      for (let pass = 0; pass < 2; pass++) {
+        const s = steady(c.y, { fmin: Math.max(60, m.hz / 1.45), fmax: Math.min(5000, m.hz * 1.45), win: 1024, hop: 128 });
+        if (!s) break;
+        let err = cents(s.hz, tone);
+        err -= 1200 * Math.round(err / 1200);
+        if (Math.abs(err) <= 6) break;
+        m = movedRate(take, m.rate * 2 ** (-err / 1200));
+        c = cutOf(ev, m);
+      }
+      settled.set(key, m.rate);
+    }
+    const norm = 0.25 / rmsOf(m.y, m.steadyFrom, m.steadyTo, true);
     const gain = LEVEL[ev.group] * ev.vel * norm;
-    addMono(out, y, at, gain, ev.pan);
-    addMono(send, y, at, gain * (ev.mode === 'chop' ? 0.25 : 0.4), ev.pan);
-    if (ev.group === 'flyers') addMono(flyEcho, y, at, gain * 0.5, ev.pan);
-    log?.push({ group: ev.group, beat: ev.beat, file: m.file, rate: m.rate, hz: m.hz, mode: ev.mode, y, at, gain });
+    const p = placeAt(c.y, c.at, sampleOf(ev.beat));
+    addMono(out, p.y, p.at, gain, ev.pan);
+    addMono(send, p.y, p.at, gain * (ev.mode === 'chop' ? 0.25 : 0.4), ev.pan);
+    if (ev.group === 'flyers') addMono(flyEcho, p.y, p.at, gain * 0.5, ev.pan);
+    log?.push({ group: ev.group, beat: ev.beat, file: m.file, rate: m.rate, hz: m.hz, mode: ev.mode, y: c.y, at: c.at, gain });
   }
   applyGain(out, pump(n, kicks, 0.12));
   const dl = pingPong(flyEcho, DOTTED8, 0.4, 6000, 600);

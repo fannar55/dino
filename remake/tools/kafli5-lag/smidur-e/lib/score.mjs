@@ -332,7 +332,8 @@ export function buildScore() {
     const flyer = bar === 39 ? [[0, 4], [4, 4], [8, 4], [12, 4]] : [[0, 8], [10, 6]];
     for (const [s, len] of flyer) call('flyers', bar * 4 + s / 4, { dur: len / 4, vel: 0.95, pan: (s / 16) * 1.0 - 0.4 });
   }
-  [[144, 76, 7.2], [152, 78, 3.4], [156, 79, 3.4]].forEach(([b, m, beats]) => S.robot.push({ beat: b, dur: beats * 0.48, midi: m, vel: 0.5, vowels: ['o', 'a'], morph: 0.4 }));
+  // the robot climbs with the birds: D5 E5 G5 A5, one a bar (each the chord's root, fifth or ninth)
+  [[144, 74, 3.6], [148, 76, 3.6], [152, 79, 3.6], [156, 81, 3.4]].forEach(([b, m, beats]) => S.robot.push({ beat: b, dur: beats * 0.48, midi: m, vel: 0.5, vowels: ['o', 'a'], morph: 0.4 }));
   S.cymbal.push({ beat: 156, seconds: 4 * 0.48, reverse: true, vel: 0.15 });
 
   // ======== Her horn (bars 40-47)
@@ -350,7 +351,7 @@ export function buildScore() {
     twinkles(bar, 4, 200 + bar, 0.2);
     if (bar >= 44) {
       for (let b = 0; b < 4; b++) S.shaker.push({ beat: bar * 4 + b + 0.5, vel: 0.12 + (bar - 44) * 0.04 });
-      S.bass.push({ beat: bar * 4, dur: 3.6 * 0.48, midi: CHORDS[name].root + 12, vel: 0.45 + (bar - 44) * 0.05, bright: 0.25 });
+      S.bass.push({ beat: bar * 4, dur: 3.6 * 0.48, midi: CHORDS[name].root + 12, vel: 0.3 + (bar - 44) * 0.07, bright: 0.25 });
     }
   }
   S.cues.push({ beat: 160, kind: 'hit' });
@@ -464,16 +465,25 @@ export function buildScore() {
   const DYN = {
     groove: { kick: 0.8, bass: 0.8, pad: 0.85, hat: 0.85 },
     tuneA: { kick: 0.9, bass: 0.9 },
-    grazers: { kick: 0.88, bass: 0.88 },
+    grazers: { kick: 0.82, bass: 0.84 },
     turtles: { kick: 0.84, bass: 0.86, hat: 0.9 },
-    frogs: { kick: 0.88, bass: 0.9 },
-    lizards: { kick: 0.92, bass: 0.94 },
-    flyers: { kick: 0.96, bass: 0.97 },
+    frogs: { kick: 0.9, bass: 0.92 },
+    lizards: { kick: 0.95, bass: 0.96 },
+    flyers: { kick: 1, bass: 1 },
     end: { kick: 0.92 },
   };
   for (const part of ['kick', 'bass', 'pad', 'hat']) for (const ev of S[part]) {
     const f = DYN[sectionAt(ev.beat).id]?.[part];
     if (f) ev.vel = +(ev.vel * f).toFixed(4);
+  }
+  // a group's chop never doubles its own note of her tune: the tune note wins
+  const sung = S.tuneNotes.map(t => t);
+  const clash = c => c.mode === 'chop' && sung.some(t => t.group === c.group && Math.abs(t.beat - c.beat) < 0.5);
+  const dropped = S.calls.filter(clash);
+  S.calls = S.calls.filter(c => !clash(c));
+  for (const d of dropped) {
+    const i = S.cues.findIndex(q => q.kind === 'call' && q.group === d.group && q.beat === round(d.beat));
+    if (i >= 0) S.cues.splice(i, 1);
   }
   S.cues.sort((a, b) => a.beat - b.beat || a.kind.localeCompare(b.kind));
   return S;

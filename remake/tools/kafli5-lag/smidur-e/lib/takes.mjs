@@ -81,7 +81,10 @@ export function resample(x, rate) {
 const shifted = new Map();
 /** A take moved to `toneHz` (an exact octave of it is picked nearest the take's own pitch, then `octave` more). */
 export function moved(take, toneHz, octave = 0) {
-  const rate = takeRate(take.hz, toneHz) * 2 ** octave;
+  return movedRate(take, takeRate(take.hz, toneHz) * 2 ** octave);
+}
+/** A take resampled by an exact rate. */
+export function movedRate(take, rate) {
   const key = `${take.file}@${rate.toFixed(9)}`;
   if (!shifted.has(key)) {
     const y = resample(take.x, rate);

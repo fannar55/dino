@@ -201,7 +201,7 @@ for (const [k, st] of Object.entries(stems)) checks.loop[k] = loopSeam(st, LOOP.
 checks.loop.mix = loopSeam(mix, LOOP.startBeat * SPB, LOOP.beats * SPB, skip);
 // her tune as the animals sing it: pitch on each call's steady part, and its attack against the beat
 const tuneSet = new Set(score.tuneNotes.map(t => `${t.group}@${t.beat}`));
-checks.tune = callLog.filter(c => tuneSet.has(`${c.group}@${c.beat}`)).map(c => ({
+checks.tune = callLog.filter(c => c.mode === 'onset' && tuneSet.has(`${c.group}@${c.beat}`)).map(c => ({
   group: c.group, beat: c.beat, file: c.file, ...callCheck(c, mtof(TONE[c.group]), sampleOf(c.beat)),
 }));
 checks.calls = callLog.map(c => ({ group: c.group, beat: c.beat, mode: c.mode, file: c.file, ...callCheck(c, mtof(TONE[c.group]), sampleOf(c.beat)) }));
