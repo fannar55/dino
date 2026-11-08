@@ -6,6 +6,8 @@ import { SR, TAU, rng, addSaw, addSine, svf, eq, env, ks, noise, onePole } from 
 
 const len = s => Math.max(1, Math.round(s * SR));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+/** Brightness as a function of the sample index (a number is held). */
+const brightFn = b => (typeof b === 'function' ? b : () => b);
 
 function mulEnv(x, e) {
   for (let i = 0; i < x.length; i++) x[i] *= e[i];
@@ -63,9 +65,10 @@ export function strings({ f, dur, vel = 0.7, seed, bright = 1, section = 'vln', 
     }
   }
   const e = env(n, { a: attack, hold: dur, r: release, level: swell });
-  const base = (S.cut + S.cutVel * vel) * bright;
+  const base = S.cut + S.cutVel * vel;
+  const bf = brightFn(bright);
   const biteN = 0.06 * SR;
-  svf(out, i => base * (0.5 + 0.5 * e[i]) * (1 + bite * Math.exp(-i / biteN)), 1.25);
+  svf(out, i => base * bf(i) * (0.5 + 0.5 * e[i]) * (1 + bite * Math.exp(-i / biteN)), 1.25);
   eq(out, S.body);
   const g = (vel * 0.33) / Math.sqrt(voices);
   for (let i = 0; i < n; i++) out[i] *= e[i] * g;
@@ -144,7 +147,8 @@ export function brass({ f, dur, vel = 0.7, seed, bright = 1, kind = 'horn', swel
   const bloomN = P.bloom * SR;
   const key = (f / 220) ** 0.35;
   const accN = 0.08 * SR;
-  svf(out, i => (P.cut0 * key + P.cutEnv * vel * (1 - Math.exp(-i / bloomN)) * e[i] * (1 + accent * Math.exp(-i / accN))) * bright, 1.1);
+  const bf = brightFn(bright);
+  svf(out, i => (P.cut0 * key + P.cutEnv * vel * (1 - Math.exp(-i / bloomN)) * e[i] * (1 + accent * Math.exp(-i / accN))) * bf(i), 1.1);
   const td = Math.tanh(P.drive);
   for (let i = 0; i < n; i++) out[i] = Math.tanh((P.drive * out[i] * e[i]) / Math.sqrt(P.voices)) / td;
   // lip buzz
@@ -187,7 +191,7 @@ export function wind({ f, dur, vel = 0.7, seed, bright = 1, kind = 'flute', tril
   const P = WIND[kind];
   const r = rng(seed);
   const n = len(dur + P.r + 0.04);
-  const amps = windAmps(P, f).map((a, h) => ((h + 1) * f < 7500 ? a * bright ** h : 0));
+  const amps = windAmps(P, f).map((a, h) => ((h + 1) * f < 7500 ? a * bright ** (0.35 * h) : 0));
   const out = new Float32Array(n);
   const rate = P.vib * (0.9 + 0.2 * r());
   const ph0 = r() * TAU;
