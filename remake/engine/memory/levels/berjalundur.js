@@ -63,9 +63,11 @@ export const BERJALUNDUR = freezeLevel({
   mosiSpot: { x: 3, z: 2.8, heading: 90 },
   gladeView: { landscape: [.464, .375, .803], portrait: [.52, .8, -.3] },
   wrongFriends: { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' },
+  // (`leadIn`: the line Mosi says as a tap-along begins, here the roll scene's «Einn, tveir, ÝTA!». A tap of the child's that he counts cuts it,
+  // so the child hears the count at once: game.js countBeat, the owner's word of 2026-11-08)
   steps: [
     { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll' },
-    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'] },
+    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], leadIn: 'push' },
     { id: 'cross', kind: 'travel', target: 'staging', needsAllFound: true, waitsForGifts: true, automatic: true },
     { id: 'lay', kind: 'task', target: 'bark', species: 'stegosaurus', beatWords: ['Ein!', 'Tvær!', 'Þrjár!'] },
     { id: 'finish', kind: 'travel', target: 'grove', automatic: true },

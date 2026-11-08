@@ -49,7 +49,7 @@ export function createMemoryMusic({ fetcher = defaultFetch, makeAudio = defaultE
 /** One voice, one pending instruction and a game-clock delay. No stale timeout
  * may speak over a new action, a restart, or a hidden tab.
  * `counts` (id -> { src, duration, mouth }: voice-lines.js COUNT_TAKES) are his counts of a tap-along's beats, said through the same voice
- * (his mouth moves with them and the page's sounds dip under them) by `count(id)`, now or never. */
+ * (his mouth moves with them and the page's sounds dip under them) by `count(id, { cuts })`, now or never. */
 export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = defaultElement, clock = () => 0, counts = {} } = {}) {
   const manifestURL = new URL('../../assets/audio/memory/manifest.json', import.meta.url);
   const element = makeAudio(); element.preload = 'auto'; element.volume = .74;
@@ -86,11 +86,13 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
     if (seconds > 0) { pending = { id, remaining: seconds, inDialog }; return true; }
     begin(id, manifest[id], inDialog); return true;
   }
-  // A count of a tap-along's beat («Einn!»): now or never. It may cut the count before it (fast taps), but never starts over a sentence of
-  // his, one playing or one waiting to play (that beat stays silent), and it is never queued: a count that cannot play now is dropped.
-  function count(id) {
+  // A count of a tap-along's beat («Einn!»): now or never. It may cut the count before it (fast taps) and the tap-along's own lead-in
+  // (`cuts`, the line he says as it begins, playing or waiting to play: the child is already doing what it says). It never starts over any
+  // other sentence of his, one playing or one waiting to play (that beat stays silent), and it is never queued: a count that cannot play now
+  // is dropped.
+  function count(id, { cuts = null } = {}) {
     if (disposed || muted || forcePaused || paused || !counts[id]) return false;
-    if (pending || current && !current.count && !element.paused) return false;
+    if (pending && pending.id !== cuts || current && !current.count && !element.paused && current.id !== cuts) return false;
     stop(id); begin(id, counts[id], false, true); return true;
   }
   element.addEventListener('ended', () => { current = null; duringDialog = false; log = null; });

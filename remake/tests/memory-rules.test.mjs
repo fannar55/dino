@@ -622,5 +622,13 @@ test('Mosi\'s ask and repeat rules (coach)', async () => {
   // game.js: each beat's word is counted through his own voice (the same path for the playthrough's taps)
   const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
   assert.match(game, /createMemorySpeech\(\{ clock: \(\) => time, counts: COUNT_TAKES \}\)/); assert.match(game, /showWord\(word\); countBeat\(word, event\);/);
-  assert.match(game, /const take = countLine\(word, COUNT_TAKES\);\n  const said = take \? speech\.count\(take\) : false;/);
+  assert.match(game, /const take = countLine\(word, COUNT_TAKES\), lead = stepById\(event\.id\)\?\.leadIn \?\? null;/);
+  assert.match(game, /const said = take \? speech\.count\(take, \{ cuts: lead \}\) : false;/);
+  // The child's counted tap cuts the tap-along's own lead-in (the owner's word of 2026-11-08): each tap-along that counts and has one names it,
+  // a line of Mosi's that its scene or the level's eventSounds says as it begins.
+  const leads = level => Object.fromEntries(level.steps.filter(step => step.leadIn).map(step => [step.id, step.leadIn]));
+  assert.deepEqual(leads(BERJALUNDUR), { roll: 'push' });
+  assert.deepEqual(leads(STEINAGLJUFUR), { reach: 'g2_reached', fly: 'g2_flown', pull: 'g2_pull' });
+  for (const line of ['push', 'g2_reached', 'g2_flown', 'g2_pull']) assert.ok(VOICE_LINES[line], `${line}: a line of his`);
+  assert.deepEqual([STEINAGLJUFUR.eventSounds['reach-start'][0].say, STEINAGLJUFUR.eventSounds['fly-start'][0].say], ['g2_reached', 'g2_flown']);
 });

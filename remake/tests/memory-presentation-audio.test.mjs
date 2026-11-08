@@ -111,6 +111,16 @@ test("a tap-along's counts: one may cut the count before it, none starts over a 
   // a sentence queued while a count plays waits for it to end (it does not cut it, and the count does not cut the sentence)
   assert.equal(speech.count('hals_mosi_2'), true); speech.queue('won', { delay: .1 }); speech.update(.5);
   assert.equal(speech.getStats().current, 'hals_mosi_2'); media.end(); speech.update(.2); assert.equal(speech.getStats().current, 'won');
+  // the tap-along's own lead-in (`cuts`, the owner's word of 2026-11-08): the child's counted tap cuts it, playing or waiting to play;
+  // any other sentence still keeps that beat silent
+  assert.equal(speech.count('hals_mosi_1', { cuts: 'lift' }), false, 'another sentence plays: silent');
+  assert.equal(speech.count('hals_mosi_1', { cuts: 'won' }), true, 'its lead-in plays: the tap cuts it');
+  const cutLead = speech.getStats().started.at(-2);
+  assert.deepEqual([speech.getStats().current, cutLead.id, cutLead.cutBy], ['hals_mosi_1', 'won', 'hals_mosi_1']); assert.ok(cutLead.cut >= cutLead.at);
+  media.end(); speech.queue('welcome', { delay: .3 });
+  assert.equal(speech.count('hals_mosi_2', { cuts: 'lift' }), false, 'another sentence waits to play: silent'); assert.equal(speech.getStats().pending, 'welcome');
+  assert.equal(speech.count('hals_mosi_2', { cuts: 'welcome' }), true, 'its lead-in waits to play: dropped'); assert.equal(speech.getStats().pending, null);
+  media.end(); speech.update(5); assert.equal(speech.getStats().current, null, 'and not said after the count');
   speech.mute(true); assert.equal(speech.count('hals_mosi_1'), false, 'never when muted');
 });
 

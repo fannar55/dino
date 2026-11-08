@@ -292,15 +292,18 @@ function showBeatWord(event) {
 }
 // (audit #11) Mosi says the count with the tap, with Háls og hali's approved take of that word (voice-lines.js COUNT_TAKES, coach.js countLine:
 // by the word, so «Upp!», «ÝTA!» or the bark's «Ein!» stay words only). Through his own voice (presentation-audio.js count): his mouth moves
-// and the page's sounds dip under it; it may cut the count before it, never starts over a sentence of his (that beat is silent) and is
-// never queued (fast taps drop counts, they do not pile up). The playthrough's taps (window.__memory.tap) come the same way.
+// and the page's sounds dip under it; it may cut the count before it and the step's lead-in (`leadIn`, «Einn, tveir, ÝTA!»: the child is
+// already doing what it says, so a quick child hears the count too: the owner's word of 2026-11-08), never starts over any other sentence of
+// his (that beat is silent) and is never queued (fast taps drop counts, they do not pile up). The playthrough's taps (window.__memory.tap)
+// come the same way.
 const beatLog = []; // (the beats of the round, for QA: window.__memory.beats())
 function countBeat(word, event) {
-  const take = countLine(word, COUNT_TAKES);
-  const said = take ? speech.count(take) : false;
-  // (QA reads each beat: window.__memory.beats(); a counted beat left silent names the sentence that kept it so)
-  const { current, pending } = take && !said ? speech.getStats() : {};
-  beatLog.push({ t: Math.round(time * 100) / 100, wall: Date.now(), id: event.id, index: event.index, word, take, said, over: take && !said ? pending ?? current ?? null : null });
+  const take = countLine(word, COUNT_TAKES), lead = stepById(event.id)?.leadIn ?? null;
+  // (QA reads each beat: window.__memory.beats(); a count names the lead-in it cut, a counted beat left silent the sentence that kept it so)
+  const { current = null, pending = null } = take ? speech.getStats() : {};
+  const said = take ? speech.count(take, { cuts: lead }) : false;
+  beatLog.push({ t: Math.round(time * 100) / 100, wall: Date.now(), id: event.id, index: event.index, word, take, said, lead,
+    cut: said && lead && (pending === lead || current === lead) ? lead : null, over: take && !said ? pending ?? current : null });
   if (beatLog.length > 100) beatLog.shift();
 }
 // A script's line for Mosi: heard, and the task lines also shown in his bubble.

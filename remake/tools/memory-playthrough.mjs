@@ -68,6 +68,8 @@
 //    beat was said or which sentence kept it silent, and fails the run when a count began over a sentence.)
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
+//   --quick-taps    full: at a tap-along Mosi counts, the child does not wait for his sentence: it taps half a second into the wait, at the same pace,
+//                   so the first count cuts the step's lead-in (levels/*.js `leadIn`, «Einn, tveir, ÝTA!»; report.countCheck.leadCuts).
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
 //   --gifts-last    full and rapid find the three gift pairs only after every friend pair (and the bridge), so the crossing's wait for the gifts is seen:
@@ -141,7 +143,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null, repeatAll: false, askAll: false };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null, repeatAll: false, askAll: false, quickTaps: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -151,6 +153,7 @@ function parseArgs(argv) {
     else if (a === '--reduced-motion') o.reducedMotion = true;
     else if (a === '--video') o.video = true;
     else if (a === '--no-tap-along') o.tapAlong = false;
+    else if (a === '--quick-taps') o.quickTaps = true;
     else if (a === '--usual-order') o.usualOrder = true;
     else if (a === '--clearance') o.clearance = true;
     else if (a === '--hold') o.hold = Number(next());
@@ -1359,14 +1362,15 @@ async function main() {
           let gap = null;
           if (counted) {
             const least = count * .2 + .3, takes = JSON.stringify(Object.keys(COUNT_TAKES));
-            const listened = await waitFor(`(() => { const a = window.__memory.audio().speech, w = window.__demoStats?.scene?.waiting; return !w || w.left < ${least} || !a.pending && (!a.current || ${takes}.includes(a.current)); })()`, 9000, "Mosi's sentence before the taps");
-            const left = await ev('window.__demoStats?.scene?.waiting?.left ?? 0');
+            // (--quick-taps: a child who does not wait for him: half a second into the wait it taps, and the first count cuts his lead-in)
+            const listened = o.quickTaps ? 'quick' : await waitFor(`(() => { const a = window.__memory.audio().speech, w = window.__demoStats?.scene?.waiting; return !w || w.left < ${least} || !a.pending && (!a.current || ${takes}.includes(a.current)); })()`, 9000, "Mosi's sentence before the taps");
+            const left = (await ev('window.__demoStats?.scene?.waiting?.left ?? 0')) - (o.quickTaps ? .5 : 0);
             gap = Math.max(.2, Math.min(.8, (left - .35) / count));
-            step(`listen, then tap along ${target}`, { listened, left: +left.toFixed(2), gap: +gap.toFixed(2) });
+            step(`${o.quickTaps ? 'tap at once' : 'listen, then tap'} along ${target}`, { listened, left: +left.toFixed(2), gap: +gap.toFixed(2) });
           }
           // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).
           if (bark) { barkTaps++; await sleep(rapid ? 100 : 350); if (shots) await milestone(`bark-still-${barkTaps}`, `bark-still-${barkTaps}`, 0); await sleep(rapid ? 0 : 150); }
-          else await sleep(rapid ? 100 : gap !== null ? 80 : LEVEL.number === 2 ? 250 : 500);
+          else await sleep(rapid ? 100 : gap !== null ? (o.quickTaps ? 500 : 80) : LEVEL.number === 2 ? 250 : 500);
           for (let i = 1; i <= count; i++) {
             const tapped = await ev(tapJs([`task-${target}`], 1, 0)), tappedAt = Date.now();
             step(`tap along ${target} ${bark ? barkTaps : i}`, { taken: tapped });
@@ -1707,16 +1711,21 @@ async function renderUiSounds(ev, outDir, asked) {
 }
 
 // Mosi's counts in a run (report.countCheck): the beats whose word he counts (coach.js countLine), how many he said, the ones a sentence of his
-// kept silent (`over`, the sentence playing or waiting to play) and the counts the speech log has. A problem fails the run: a count that cut a
-// sentence of his (the log's `cutBy`), a counted beat left silent with no sentence to keep it so, or a said count missing from the log.
+// kept silent (`over`, the sentence playing or waiting to play), the lead-ins a count cut (`leadCuts`: the step's `leadIn`, which the child's tap
+// may cut) and the counts the speech log has. A problem fails the run: a count that cut any other sentence of his (the log's `cutBy`), a
+// counted beat left silent under its own step's lead-in or with no sentence to keep it so, or a said count missing from the log.
 function countCheckOf(beats = [], spoken = []) {
   const takes = Object.keys(COUNT_TAKES), counted = beats.filter(beat => beat.take), problems = [];
-  const said = counted.filter(beat => beat.said), silent = counted.filter(beat => !beat.said).map(({ t, id, index, word, over }) => ({ t, id, index, word, over }));
+  const said = counted.filter(beat => beat.said), silent = counted.filter(beat => !beat.said).map(({ t, id, index, word, over, lead }) => ({ t, id, index, word, over, lead }));
+  const leadCuts = said.filter(beat => beat.cut).map(({ t, id, index, cut }) => ({ t, id, index, cut }));
   const spokenCounts = spoken.filter(line => takes.includes(line.id)), cutSentences = spoken.filter(line => !takes.includes(line.id) && takes.includes(line.cutBy));
-  for (const line of cutSentences) problems.push(`a count (${line.cutBy}) cut Mosi's sentence ${line.id} at ${line.t}s`);
-  for (const beat of silent) if (!beat.over) problems.push(`a counted beat (${beat.id} ${beat.index + 1}, ${beat.word}) said nothing, with no sentence of his to keep it silent`);
+  for (const line of cutSentences) if (!leadCuts.some(beat => beat.cut === line.id)) problems.push(`a count (${line.cutBy}) cut Mosi's sentence ${line.id} at ${line.t}s, not a lead-in of its tap-along`);
+  for (const beat of silent) {
+    if (!beat.over) problems.push(`a counted beat (${beat.id} ${beat.index + 1}, ${beat.word}) said nothing, with no sentence of his to keep it silent`);
+    else if (beat.over === beat.lead) problems.push(`a counted beat (${beat.id} ${beat.index + 1}, ${beat.word}) stayed silent under its own lead-in ${beat.lead}`);
+  }
   if (spokenCounts.length !== said.length) problems.push(`${said.length} counts said by the beats, ${spokenCounts.length} in the speech log`);
-  return { beats: beats.length, counted: counted.length, said: said.length, silent, counts: spokenCounts.map(({ id, t, cut }) => ({ id, t, cut: cut ? true : undefined })), problems };
+  return { beats: beats.length, counted: counted.length, said: said.length, silent, leadCuts, counts: spokenCounts.map(({ id, t, cut }) => ({ id, t, cut: cut ? true : undefined })), problems };
 }
 
 // The sounds the page played, laid under the video: each recorded cue of the audio log (its file, when it began by the wall clock, how loud and how fast) and each of Mosi's lines
