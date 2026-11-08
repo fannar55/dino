@@ -94,6 +94,7 @@ test("a tap-along's counts: one may cut the count before it, none starts over a 
   assert.equal(speech.count('hals_mosi_2'), true); assert.equal(speech.getStats().current, 'hals_mosi_2');
   const [first, second] = speech.getStats().started;
   assert.equal(first.src, 'assets/audio/hals/hals_mosi_1.mp3'); assert.ok(first.cut >= first.at, 'the cut count says when it was cut'); assert.equal(second.cut, undefined);
+  assert.equal(first.cutBy, 'hals_mosi_2', 'and by which line');
   // a sentence cuts a count; a count never starts over a sentence that plays, nor over one that waits to play
   assert.equal(speech.play('lift'), true); assert.equal(speech.getStats().current, 'lift');
   assert.equal(speech.count('hals_mosi_1'), false, 'that beat is silent'); assert.equal(speech.getStats().current, 'lift');
@@ -102,7 +103,7 @@ test("a tap-along's counts: one may cut the count before it, none starts over a 
   speech.update(.4); assert.equal(speech.getStats().current, 'held');
   // the dropped counts were never queued: after the sentence ends nothing follows
   media.end(); speech.update(5); assert.equal(speech.getStats().current, null);
-  assert.deepEqual(speech.getStats().started.map(line => line.id), ['hals_mosi_1', 'hals_mosi_2', 'lift', 'held']);
+  assert.deepEqual(speech.getStats().started.map(line => [line.id, line.cutBy ?? null]), [['hals_mosi_1', 'hals_mosi_2'], ['hals_mosi_2', 'lift'], ['lift', null], ['held', null]], 'no count ever cut a sentence');
   // a sentence queued while a count plays waits for it to end (it does not cut it, and the count does not cut the sentence)
   assert.equal(speech.count('hals_mosi_2'), true); speech.queue('won', { delay: .1 }); speech.update(.5);
   assert.equal(speech.getStats().current, 'hals_mosi_2'); media.end(); speech.update(.2); assert.equal(speech.getStats().current, 'won');

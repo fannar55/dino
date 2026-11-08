@@ -288,15 +288,20 @@ function showBeatWord(event) {
   const words = stepById(event.id)?.beatWords;
   if (!words) return;
   const word = words[event.index] ?? words.at(-1);
-  showWord(word); countBeat(word);
+  showWord(word); countBeat(word, event);
 }
 // (audit #11) Mosi says the count with the tap, with Háls og hali's approved take of that word (voice-lines.js COUNT_TAKES, coach.js countLine:
 // by the word, so «Upp!», «ÝTA!» or the bark's «Ein!» stay words only). Through his own voice (presentation-audio.js count): his mouth moves
 // and the page's sounds dip under it; it may cut the count before it, never starts over a sentence of his (that beat is silent) and is
 // never queued (fast taps drop counts, they do not pile up). The playthrough's taps (window.__memory.tap) come the same way.
-function countBeat(word) {
+const beatLog = []; // (the beats of the round, for QA: window.__memory.beats())
+function countBeat(word, event) {
   const take = countLine(word, COUNT_TAKES);
-  if (take) speech.count(take);
+  const said = take ? speech.count(take) : false;
+  // (QA reads each beat: window.__memory.beats(); a counted beat left silent names the sentence that kept it so)
+  const { current, pending } = take && !said ? speech.getStats() : {};
+  beatLog.push({ t: Math.round(time * 100) / 100, wall: Date.now(), id: event.id, index: event.index, word, take, said, over: take && !said ? pending ?? current ?? null : null });
+  if (beatLog.length > 100) beatLog.shift();
 }
 // A script's line for Mosi: heard, and the task lines also shown in his bubble.
 // `queue`: the celebration's lines wait until what he is saying is over (the gifts line after "Allir sex komnir…").
@@ -826,6 +831,8 @@ Object.defineProperty(window, '__demoStats', { configurable: true, get() { if (s
 window.__memory = {
   state: () => game.getState(), basket: () => basketCount, giftsLeft: () => ({ toLand: giftsToLand(), unfound: giftsUnfound() }), stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats(), ui: { ...ui.getStats(), asked: uiAsked.slice() } }),
   dots: () => dotsLanded,
+  // Each tap-along beat: { t, wall, id, index, word, take (null for a word he does not count), said, over (the sentence that kept a count silent) }.
+  beats: () => beatLog.map(beat => ({ ...beat })),
   targets: () => world?.getTargets(),
   bridge: () => bridge.getState(), task: chooseTask,
   // The playthrough's child: tap an obstacle, pick a friend from the bubbles, tap along (the same paths as the buttons).

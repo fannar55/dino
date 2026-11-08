@@ -621,6 +621,6 @@ test('Mosi\'s ask and repeat rules (coach)', async () => {
   }
   // game.js: each beat's word is counted through his own voice (the same path for the playthrough's taps)
   const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
-  assert.match(game, /createMemorySpeech\(\{ clock: \(\) => time, counts: COUNT_TAKES \}\)/); assert.match(game, /showWord\(word\); countBeat\(word\);/);
-  assert.match(game, /const take = countLine\(word, COUNT_TAKES\);\n  if \(take\) speech\.count\(take\);/);
+  assert.match(game, /createMemorySpeech\(\{ clock: \(\) => time, counts: COUNT_TAKES \}\)/); assert.match(game, /showWord\(word\); countBeat\(word, event\);/);
+  assert.match(game, /const take = countLine\(word, COUNT_TAKES\);\n  const said = take \? speech\.count\(take\) : false;/);
 });

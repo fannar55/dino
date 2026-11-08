@@ -58,6 +58,12 @@
 //   Every restart ("Spila aftur" too) is checked, and what is left fails the run: a clean board (restartLeftovers: no script, beat, gift, idle game, line, card;
 //   on level 2 the group in the glade, nothing flying, the tunnel dark) and each mode's own things (report.restartVerdict).
 //   The longest watch (timelineCheck.longestWatch) over 9 s fails the run too, but in a slowed run (--cpu-throttle, --clearance).
+//   --repeat-all    full: Mosi's 10 s repeat is waited for and checked at every wait the level gives a line (report.idleRepeats, one per
+//                   moment), not only at the first (report.idleRepeat is the first either way). Level 1's three waits: about 35 s more.
+//   (full mode, Mosi's lines: at a wait the level gives a line (levels/*.js `voice`) the child listens to him before tapping, and at a
+//    tap-along whose beat words he counts (coach.js countLine) the child lets a sentence he is saying end first, when the wait leaves
+//    the taps their time, then taps along about once for each count: report.beats has every beat, report.countCheck says each counted
+//    beat was said or which sentence kept it silent, and fails the run when a count began over a sentence.)
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
@@ -112,6 +118,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { levelNumber } from '../engine/memory/levels/index.js';
 import { obstaclesOf } from '../engine/memory/step-rules.js';
+import { COUNT_TAKES } from '../engine/memory/voice-lines.js';
+import { countLine } from '../engine/memory/coach.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BROWSERS = {
@@ -131,7 +139,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null, repeatAll: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -148,6 +156,7 @@ function parseArgs(argv) {
     else if (a === '--first') o.first = next();
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow', 'through', 'rope', 'pull'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift, glow, through, rope or pull'); }
     else if (a === '--gifts-last') o.giftsLast = true;
+    else if (a === '--repeat-all') o.repeatAll = true;
     else if (a === '--hide-hud') o.hideHud = true;
     else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
     else if (a === '--wrong-all') o.wrongAll = true;
@@ -770,8 +779,9 @@ async function main() {
     // The page's own record of every line that began, with the story key it began under (polled every 100 ms), so that the repeat can be told from the line itself.
     const LINELOG_JS = `(() => { if (window.__lineLog) return; window.__lineLog = []; let seen = 0; setInterval(() => { const st = window.__memory.audio().speech.started, last = window.__memory.lastLine(); for (; seen < st.length; seen++) window.__lineLog.push({ id: st[seen].id, t: st[seen].t, key: last ? last.key : null }); }, 100); })()`;
     const idleRepeatCheck = async where => {
-      if (report.idleRepeat) return;
+      if (report.idleRepeat && !o.repeatAll) return;
       const key = (await ev(SNAPSHOT_JS)).story.key, last = await ev('window.__memory.lastLine()');
+      if (report.idleRepeats?.some(item => item.key === key)) return;
       const line = (last?.key === key ? last.id : LEVEL.voice?.[key]) ?? null;
       const lines = async () => (await ev('window.__lineLog || []')).filter(x => x.key === key && x.id === line);
       let at = null, waited = false;
@@ -784,10 +794,11 @@ async function main() {
       }
       const same = line ? await lines() : [], now = await ev(SNAPSHOT_JS);
       at = same[1]?.t ?? null;
-      report.idleRepeat = { key, line, at, beganOnTheMoment: same.length, repeats: Math.max(0, same.length - 1), earlierInTheWait: !waited && same.length >= 2, keyAfter: now.story.key, where };
-      step('idle repeat', report.idleRepeat);
-      if (same.length > 2) errors.push('Mosi repeated his line twice for one moment: ' + JSON.stringify(report.idleRepeat));
-      else if (line && same.length < 2 && now.story.key === key) errors.push("Mosi's line never began again after the long idle: " + JSON.stringify(report.idleRepeat));
+      const result = { key, line, at, beganOnTheMoment: same.length, repeats: Math.max(0, same.length - 1), earlierInTheWait: !waited && same.length >= 2, keyAfter: now.story.key, where };
+      report.idleRepeat ??= result; (report.idleRepeats ??= []).push(result);
+      step('idle repeat', result);
+      if (same.length > 2) errors.push('Mosi repeated his line twice for one moment: ' + JSON.stringify(result));
+      else if (line && same.length < 2 && now.story.key === key) errors.push("Mosi's line never began again after the long idle: " + JSON.stringify(result));
     };
 
     if (o.unlocked) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('minnisspil.unlocked', ${JSON.stringify(o.unlocked)}); } catch {}` });
@@ -1320,12 +1331,32 @@ async function main() {
         if (o.tapAlong && tapWait !== s.wait.target) {
           const target = s.wait.target, bark = target === 'bark', count = s.wait.count;
           tapWait = target;
+          // (a tap-along whose beat words Mosi counts (coach.js countLine), in the modes but rapid: the child lets a sentence he is saying end
+          // first, while the wait still leaves the taps their time, then taps along about once for each count, as close together as the
+          // time left asks: `gap` seconds, .25 to .8. Rapid taps as fast as before, so its counts cut each other or are dropped.)
+          const counted = !rapid && Boolean(LEVEL.steps.find(item => item.target === target)?.beatWords?.some(word => countLine(word, COUNT_TAKES)));
+          let gap = null;
+          if (counted) {
+            const least = count * .25 + .5, takes = JSON.stringify(Object.keys(COUNT_TAKES));
+            const listened = await waitFor(`(() => { const a = window.__memory.audio().speech, w = window.__demoStats?.scene?.waiting; return !w || w.left < ${least} || !a.pending && (!a.current || ${takes}.includes(a.current)); })()`, 9000, "Mosi's sentence before the taps");
+            const left = await ev('window.__demoStats?.scene?.waiting?.left ?? 0');
+            gap = Math.max(.25, Math.min(.8, (left - .5) / count));
+            step(`listen, then tap along ${target}`, { listened, left: +left.toFixed(2), gap: +gap.toFixed(2) });
+          }
           // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).
           if (bark) { barkTaps++; await sleep(rapid ? 100 : 350); if (shots) await milestone(`bark-still-${barkTaps}`, `bark-still-${barkTaps}`, 0); await sleep(rapid ? 0 : 150); }
-          else await sleep(rapid ? 100 : LEVEL.number === 2 ? 250 : 500);
+          else await sleep(rapid ? 100 : gap !== null ? 80 : LEVEL.number === 2 ? 250 : 500);
           for (let i = 1; i <= count; i++) {
-            const tapped = await ev(tapJs([`task-${target}`], 1, 0));
+            const tapped = await ev(tapJs([`task-${target}`], 1, 0)), tappedAt = Date.now();
             step(`tap along ${target} ${bark ? barkTaps : i}`, { taken: tapped });
+            if (gap !== null) {
+              // (a counted tap-along: the picture of each step at most `gap` after its tap, and the next tap `gap` after this one)
+              const ms = Math.round(gap * 1000), rest = () => sleep(Math.max(0, ms - (Date.now() - tappedAt)));
+              if (shots && LEVEL.number !== 2) await milestone(`tap-${target}-${i}`, `${target}-tap-${i}`, Math.min(ms - 40, 450));
+              await rest();
+              if (target === 'trunk' && shots) await milestone(`pull-tilt-${i}`, `pull-tilt-${i}`, 0);
+              continue;
+            }
             // The picture once this step has landed (a step of the lift takes about 0.6 s, a third of the roll 0.77 s, the big word
             // of a panel is up at once).
             // (level 2's steps have their own pictures, by the light and the pile; a picture here would hold the next tap back past the wait's 4 s)
@@ -1355,8 +1386,9 @@ async function main() {
           await idleRepeatCheck('the branch');
           continue;
         }
-        // (level 2: Mosi says what the tunnel and the rockfall are when they come; a child listens to him first, so the driver waits for his line to end)
-        if (LEVEL.number === 2 && !seen.has(`listened-${s.story.target}`)) { seen.add(`listened-${s.story.target}`); await sleep(600); await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 9000, "Mosi's line to end"); await idleRepeatCheck(`the ${s.story.target}`); continue; }
+        // (level 2: Mosi says what the tunnel and the rockfall are when they come; a child listens to him first, so the driver waits for his line to end.
+        // Level 1's three waits have their lines too since package C: the story modes but rapid listen there as well)
+        if ((LEVEL.number === 2 || !rapid && LEVEL.voice?.[s.story.key]) && !seen.has(`listened-${s.story.target}`)) { seen.add(`listened-${s.story.target}`); await sleep(600); await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 9000, "Mosi's line to end"); await idleRepeatCheck(`the ${s.story.target}`); continue; }
         lastAsk = Date.now();
         if (OBSTACLE_IDS.includes(s.story.target)) mark(`${s.story.target}-start`);
         const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
@@ -1462,6 +1494,10 @@ async function main() {
       // (level 2: g2_won as the Flugeðlur circle, gifts4 over the glowing row; giftsLag from the row's beat)
       report.speechCheck = { won: report.spoken.filter(s => s.id === wonLine).length, [giftsLine]: report.spoken.filter(s => s.id === giftsLine).length, wonBeforeGifts: (report.spoken.find(s => s.id === wonLine)?.t ?? Infinity) < (gifts?.t ?? -Infinity), giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
         giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
+      // Mosi's counts (game.js countBeat): every tap-along beat, and of those he counts each said or kept silent by a sentence of his.
+      report.beats = (await ev('window.__memory.beats?.() ?? []')) ?? [];
+      report.countCheck = countCheckOf(report.beats, report.spoken);
+      errors.push(...report.countCheck.problems);
     } catch {}
     // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
     try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, homeNavigation: d.homeNavigation && { planned: d.homeNavigation.planned, failures: d.homeNavigation.failures, maxPlanningMs: d.homeNavigation.maxPlanningMs, maxIterations: d.homeNavigation.maxIterations, maxSliceMs: d.homeNavigation.maxSliceMs, lastPlan: d.homeNavigation.lastPlan, lastTrafficBlock: d.homeNavigation.lastTrafficBlock }, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }
@@ -1649,6 +1685,19 @@ async function renderUiSounds(ev, outDir, asked) {
   return { names };
 }
 
+// Mosi's counts in a run (report.countCheck): the beats whose word he counts (coach.js countLine), how many he said, the ones a sentence of his
+// kept silent (`over`, the sentence playing or waiting to play) and the counts the speech log has. A problem fails the run: a count that cut a
+// sentence of his (the log's `cutBy`), a counted beat left silent with no sentence to keep it so, or a said count missing from the log.
+function countCheckOf(beats = [], spoken = []) {
+  const takes = Object.keys(COUNT_TAKES), counted = beats.filter(beat => beat.take), problems = [];
+  const said = counted.filter(beat => beat.said), silent = counted.filter(beat => !beat.said).map(({ t, id, index, word, over }) => ({ t, id, index, word, over }));
+  const spokenCounts = spoken.filter(line => takes.includes(line.id)), cutSentences = spoken.filter(line => !takes.includes(line.id) && takes.includes(line.cutBy));
+  for (const line of cutSentences) problems.push(`a count (${line.cutBy}) cut Mosi's sentence ${line.id} at ${line.t}s`);
+  for (const beat of silent) if (!beat.over) problems.push(`a counted beat (${beat.id} ${beat.index + 1}, ${beat.word}) said nothing, with no sentence of his to keep it silent`);
+  if (spokenCounts.length !== said.length) problems.push(`${said.length} counts said by the beats, ${spokenCounts.length} in the speech log`);
+  return { beats: beats.length, counted: counted.length, said: said.length, silent, counts: spokenCounts.map(({ id, t, cut }) => ({ id, t, cut: cut ? true : undefined })), problems };
+}
+
 // The sounds the page played, laid under the video: each recorded cue of the audio log (its file, when it began by the wall clock, how loud and how fast) and each of Mosi's lines
 // (the speech log), mixed to one mono track in the file's own time (the screencast's first frame is 0) and muxed into round-sound.mp4. The music is left out: the owner
 // listens to the cues and the voice. The envelope of each cue is the page's own (full for 70 % of it, then down to nothing).
@@ -1662,13 +1711,15 @@ async function makeSoundtrack(outDir, report, first, seconds) {
     }
     return cache.get(file);
   };
-  const lay = (data, at, level, rate = 1, fade = true) => {
+  // (`seconds`: where the page cut the sound off, a short ramp down so the cut does not click)
+  const lay = (data, at, level, rate = 1, fade = true, seconds = Infinity) => {
     if (!data || !(at >= -1)) return false;
-    const start = Math.round(at * RATE), n = Math.floor(data.length / rate);
+    const start = Math.round(at * RATE), whole = Math.floor(data.length / rate), n = Math.min(whole, Math.max(0, Math.round(seconds * RATE))), ramp = n < whole ? Math.min(n, 220) : 0;
     for (let i = 0; i < n; i++) {
       const j = start + i; if (j < 0 || j >= total) continue;
-      const x = i * rate, k = Math.floor(x), f = x - k, value = (data[k] ?? 0) * (1 - f) + (data[k + 1] ?? 0) * f, u = i / n;
-      mix[j] += value * (fade && u > .7 ? level * Math.pow(.0001 / Math.max(level, .0002), (u - .7) / .3) : level);
+      const x = i * rate, k = Math.floor(x), f = x - k, value = (data[k] ?? 0) * (1 - f) + (data[k + 1] ?? 0) * f, u = i / whole;
+      const cut = ramp && i >= n - ramp ? (n - i) / ramp : 1;
+      mix[j] += cut * value * (fade && u > .7 ? level * Math.pow(.0001 / Math.max(level, .0002), (u - .7) / .3) : level);
     }
     return true;
   };
@@ -1683,7 +1734,13 @@ async function makeSoundtrack(outDir, report, first, seconds) {
   const cueFile = id => [named.get(id), ...dirs.map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3'))].find(file => file && fs.existsSync(file));
   let cues = 0, voices = 0;
   for (const cue of report.audioLog ?? []) { const file = cueFile(cue.asset); if (file && lay(pcm(file), cue.at / 1000 - first, cue.level ?? .5, cue.rate ?? 1)) cues++; }
-  for (const line of report.spoken ?? []) { const file = path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3'); if (line.at && fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false)) voices++; }
+  // (Mosi's one voice: each line from its file (the speech log's `src`: a count's is Háls og hali's) until the page cut it off or the next line began)
+  const spoken = (report.spoken ?? []).filter(line => line.at);
+  spoken.forEach((line, i) => {
+    const file = line.src ? path.join(ROOT, 'remake', line.src) : path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3');
+    const until = Math.min(line.cut ?? Infinity, spoken[i + 1]?.at ?? Infinity);
+    if (fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false, (until - line.at) / 1000)) voices++;
+  });
   // (the page's own sounds, rendered in the page: renderUiSounds)
   let ui = 0;
   const raw = file => { const bytes = fs.readFileSync(file); return new Float32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length)); };

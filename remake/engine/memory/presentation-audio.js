@@ -55,13 +55,14 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
   const element = makeAudio(); element.preload = 'auto'; element.volume = .74;
   let manifest = {}, muted = false, paused = true, pending = null, current = null, disposed = false;
   let duringDialog = false, forcePaused = false, blocked = false, revision = 0, played = 0, last = null;
-  // started: every line that began, with the game clock, the wall clock (`at`, ms), its file and, once it was cut off, when (`cut`, ms):
-  // QA reads it (the playthrough lays each line under its video from `at` until `cut` or the next line, as the one voice plays it)
+  // started: every line that began, with the game clock, the wall clock (`at`, ms), its file and, once it was cut off, when (`cut`, ms) and
+  // by which line (`cutBy`, none for a plain stop): QA reads it (the playthrough lays each line under its video from `at` until `cut` or
+  // the next line, as the one voice plays it, and fails a run where a count cut a sentence)
   const seen = new Set(), errors = [], started = [];
   let log = null; // the entry of `started` for the line now playing
   const ready = fetcher(manifestURL).then(r => r.ok ? r.json() : {}).then(data => { manifest = data; }).catch(() => {});
-  function stop() {
-    if (current && log && !log.cut) log.cut = Date.now();
+  function stop(by = null) {
+    if (current && log && !log.cut) { log.cut = Date.now(); if (by) log.cutBy = by; }
     revision++; pending = null; element.pause(); element.currentTime = 0; current = null; duringDialog = false; log = null;
   }
   function resume() {
@@ -81,7 +82,7 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
   }
   function play(id, seconds = 0, inDialog = false) {
     if (disposed || muted || forcePaused || paused && !inDialog || !manifest[id]) return false;
-    stop();
+    stop(id);
     if (seconds > 0) { pending = { id, remaining: seconds, inDialog }; return true; }
     begin(id, manifest[id], inDialog); return true;
   }
@@ -90,12 +91,12 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
   function count(id) {
     if (disposed || muted || forcePaused || paused || !counts[id]) return false;
     if (pending || current && !current.count && !element.paused) return false;
-    stop(); begin(id, counts[id], false, true); return true;
+    stop(id); begin(id, counts[id], false, true); return true;
   }
   element.addEventListener('ended', () => { current = null; duringDialog = false; log = null; });
   element.addEventListener('error', () => { if (current) errors.push(current.id); current = null; log = null; });
   return {
-    ready, play, stop, count,
+    ready, play, count, stop: () => stop(),
     queue(id, { delay = .35, once = true } = {}) {
       if (muted || disposed || !manifest[id] || once && seen.has(id)) return false;
       if (once) seen.add(id);
