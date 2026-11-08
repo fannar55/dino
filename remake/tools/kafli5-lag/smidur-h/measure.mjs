@@ -85,6 +85,21 @@ console.log('per bar RMS:', perBar.map(b => b.rms).join(' '));
 console.log('per bar onsets:', perBar.map(b => b.onsets).join(' '));
 report.perBar = perBar;
 
+// --- each stem's level in each section (the arrangement's story) -----------------------------------------------------
+{
+  const stemRms = {};
+  for (const s of Object.keys(song.stems)) {
+    const x = mono(join(WORK, `${s}.wav`));
+    stemRms[s] = song.sections.map(sec => {
+      const a = Math.round(sec.startBeat * SPB), b = Math.min(x.length, Math.round((sec.startBeat + sec.beats) * SPB));
+      return +db(rms(x, a, b)).toFixed(1);
+    });
+  }
+  report.stemBySection = stemRms;
+  console.log('stem RMS by section:', song.sections.map(s => s.name.slice(0, 7)).join(' | '));
+  for (const s of Object.keys(stemRms)) console.log(' ', s.padEnd(8), stemRms[s].map(v => String(v).padStart(6)).join(' '));
+}
+
 // --- loudness and peaks ---------------------------------------------------------------------------------------------
 function loud(file) {
   const t = ffmpeg(['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=peak=true', '-f', 'null', '-']);

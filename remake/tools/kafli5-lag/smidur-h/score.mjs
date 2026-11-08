@@ -142,7 +142,8 @@ export function buildScore() {
         bass(b, CH[c].root, 2.4, bassG);
         bass(b + 2.5, walk && k % 2 ? CH[c].fifth : CH[c].root, 1.4, bassG * 0.8, 0.7);
       }
-      if (moo && c !== 'D') { call(b, 'grazers', 'bass', { dur: 0.32, chop: true }, moo); }
+      // the grazers push the bass on the and of 3 (off the tune's beats, so every tune note is one group's alone)
+      if (moo && c !== 'D') { call(b + 2.5, 'grazers', 'bass', { dur: 0.32, chop: true }, moo); }
     });
   };
 
@@ -208,6 +209,9 @@ export function buildScore() {
     // drops answer every second bar (the lead of the loop)
     if (k === 1) { dropAt(b + 2.5, 'B5', 0.45); dropAt(b + 3, 'D6', 0.5); }
     if (k === 3) { dropAt(b + 1.5, 'E6', 0.45); dropAt(b + 2, 'D6', 0.45); dropAt(b + 2.5, 'B5', 0.45); dropAt(b + 3, 'G5', 0.5); }
+    // a soft hollow-log riff that answers the moo (not her tune): the loop's lead
+    const riff = [[[3, 'D5'], [3.5, 'E5']], [[1.5, 'E5'], [2, 'D5']], [[3, 'B4'], [3.5, 'D5']], [[0.5, 'E5'], [1, 'D5']]][k];
+    for (const [o, n] of riff) logAt(b + o, n, 0.36, 0.4);
   }
 
   // ==================================================================================================================
@@ -327,7 +331,9 @@ export function buildScore() {
     cues.push({ beat: b, kind: 'horn', note: HORN[group] });
   }));
   // the pond answers each phrase
-  [[196.5, 'B5'], [197, 'D6'], [205, 'E6'], [205.5, 'D6'], [206, 'B5'], [213.5, 'G5'], [214, 'A5'], [214.5, 'B5'], [215, 'D6']].forEach(([b, n]) => dropAt(b, n, 0.42, 'lead', 0.4));
+  [[196.5, 'B5'], [197, 'D6'], [205, 'E6'], [205.5, 'D6'], [206, 'B5'], [213.5, 'G5'], [214, 'A5'], [214.5, 'B5'], [215, 'D6']].forEach(([b, n]) => dropAt(b, n, 0.6, 'lead', 0.4));
+  // in the answer bars the forest leans in: leaves and a soft clap
+  for (const bar of [49, 51, 53]) { shaker(bar, 0.35); clapAt(bar * 4 + 3, 0.4, 2); }
   // her flourish at the end, her horn's own: sol la sol, do
   [[220, 'D4', 0.5], [220.5, 'E4', 0.5], [221, 'D4', 1], [222, 'G3', 2]].forEach(([b, n, len]) => { add(b, 'horn', 'lead', { f: hz(n), dur: len * 60 / BPM }, 0.85, -0.05, 0.3); cues.push({ beat: b, kind: 'horn', note: n }); });
   passHarmony(192, { g: 0.4, bassG: 0.8 });
