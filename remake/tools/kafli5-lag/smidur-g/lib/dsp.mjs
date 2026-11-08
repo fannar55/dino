@@ -367,11 +367,11 @@ export function writeWav(file, L, R) {
   buf.writeUInt16LE(32, 34);
   buf.write('data', 36);
   buf.writeUInt32LE(n * 8, 40);
-  let o = 44;
+  const inter = new Float32Array(n * 2);
   for (let i = 0; i < n; i++) {
-    buf.writeFloatLE(L[i], o);
-    buf.writeFloatLE(R[i], o + 4);
-    o += 8;
+    inter[2 * i] = L[i];
+    inter[2 * i + 1] = R[i];
   }
+  Buffer.from(inter.buffer).copy(buf, 44);
   writeFileSync(file, buf);
 }

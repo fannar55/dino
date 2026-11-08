@@ -76,12 +76,12 @@ function pitchCurve(hz, dur, r, { scoop = 25, scoopTime = 0.035, vib = 0, vibRat
 }
 
 const HORN = {
-  trumpet: { fmin: 700, fmax: 4200, tilt: 0.25, formant: [[1300, 900, 1.2], [2600, 900, 0.5]], attack: 0.022, release: 0.07 },
-  trombone: { fmin: 380, fmax: 2400, tilt: 0.15, formant: [[600, 400, 1.0], [1300, 700, 0.5]], attack: 0.03, release: 0.09 },
-  alto: { fmin: 900, fmax: 3600, tilt: 0.45, formant: [[720, 380, 1.4], [1650, 600, 0.7], [2900, 900, 0.6]], attack: 0.03, release: 0.08, reed: true },
-  tenor: { fmin: 650, fmax: 3000, tilt: 0.4, formant: [[520, 300, 1.4], [1350, 550, 0.8], [2500, 900, 0.5]], attack: 0.032, release: 0.09, reed: true },
-  bari: { fmin: 420, fmax: 2200, tilt: 0.35, formant: [[360, 220, 1.3], [1000, 450, 0.8], [2000, 800, 0.4]], attack: 0.035, release: 0.1, reed: true },
-  clarinet: { fmin: 1400, fmax: 4200, tilt: 0.7, formant: [[1500, 700, 0.6], [3000, 1000, 0.3]], attack: 0.025, release: 0.08, odd: true },
+  trumpet: { fmin: 650, fmax: 6500, tilt: 0.12, formant: [[1300, 900, 1.2], [2600, 900, 0.5]], attack: 0.022, release: 0.07 },
+  trombone: { fmin: 380, fmax: 3200, tilt: 0.12, formant: [[600, 400, 1.0], [1300, 700, 0.5]], attack: 0.03, release: 0.09 },
+  alto: { fmin: 1400, fmax: 6000, tilt: 0.15, formant: [[720, 380, 1.4], [1650, 600, 0.7], [2900, 900, 0.6]], attack: 0.03, release: 0.08, reed: true },
+  tenor: { fmin: 1100, fmax: 5000, tilt: 0.15, formant: [[520, 300, 1.4], [1350, 550, 0.8], [2500, 900, 0.5]], attack: 0.032, release: 0.09, reed: true },
+  bari: { fmin: 700, fmax: 3600, tilt: 0.15, formant: [[360, 220, 1.3], [1000, 450, 0.8], [2000, 800, 0.4]], attack: 0.035, release: 0.1, reed: true },
+  clarinet: { fmin: 2200, fmax: 7000, tilt: 0.35, formant: [[1500, 700, 0.6], [3000, 1000, 0.3]], attack: 0.025, release: 0.08, odd: true },
 };
 
 /**
@@ -108,7 +108,7 @@ export function horn(kind, hz, dur, vel, opts = {}) {
   const forms = p.formant;
   const weights = (t, f0, out) => {
     const a = env(t);
-    const bright = p.fmin + (p.fmax - p.fmin) * Math.min(1.2, (a * dyn) ** 1.4);
+    const bright = p.fmin + (p.fmax - p.fmin) * Math.min(1.2, (a * dyn) ** 2);
     let norm = 0;
     for (let k = 1; k <= K; k++) {
       const f = k * f0;
@@ -214,13 +214,13 @@ export function piano(hz, dur, vel, { seed = 1 } = {}) {
   const y = new Float32Array(n);
   const B = 0.00035 * (hz / 261.6) ** 0.5;
   const tau0 = Math.min(6, Math.max(0.5, 3.2 * (261.6 / hz) ** 0.6));
-  const bright = 1200 + 4200 * vel;
+  const bright = 2600 + 6500 * vel;
   for (let k = 1; k <= 28; k++) {
     const f = k * hz * Math.sqrt(1 + B * k * k);
     if (f > SR * 0.45) break;
     const amp = (k ** -0.85) * Math.exp(-f / bright) * (k === 1 ? 0.9 : 1);
     if (amp < 0.002) continue;
-    const tau = tau0 / (1 + 0.22 * (k - 1) + f / 3000);
+    const tau = tau0 / (1 + 0.12 * (k - 1) + f / 6000);
     const det = 1 + (r() - 0.5) * 0.0012;
     const w1 = (TAU * f) / SR;
     const w2 = w1 * det;
@@ -252,6 +252,7 @@ export function bass(hz, dur, vel, { seed = 1, slide = 0 } = {}) {
   const y = new Float32Array(n);
   const amps = [0.75, 1.0, 0.85, 0.62, 0.48, 0.34, 0.24, 0.17, 0.12, 0.08, 0.06, 0.045, 0.03, 0.02];
   const tau0 = 0.75;
+  const lift = amps.map((_, j) => { const f = (j + 1) * hz; return f < 60 ? 0.6 : 1 + 0.9 * Math.exp(-(Math.log2(f / 380) ** 2) / 1.1); });
   for (let k = 1; k <= amps.length; k++) {
     let ph = r() * 0.2;
     const tau = tau0 / (1 + 0.32 * (k - 1));
@@ -263,7 +264,7 @@ export function bass(hz, dur, vel, { seed = 1, slide = 0 } = {}) {
       ph += (TAU * f) / SR;
       let e = Math.exp(-t / tau) * (0.85 + 0.15 * Math.exp(-t / 0.05));
       if (t > dur) e *= Math.exp(-(t - dur) / 0.04);
-      y[i] += Math.sin(ph) * amps[k - 1] * e;
+      y[i] += Math.sin(ph) * amps[k - 1] * lift[k - 1] * e;
     }
   }
   // finger: a soft thump with a little string click

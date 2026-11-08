@@ -434,7 +434,7 @@ export function build() {
 
   // ------------------------------------------------ 0-7 intro: her call, the vamp, the loop with the roll call
   sec('Intro', 'Inngangur', 0, 8, null, 'Her horn calls sol-mi alone over finger snaps; the rhythm section and the saxes start the vamp; on its second pass (the loop) the animals answer one by one, low to high.');
-  hornNote(0, '0.1:1.5:D4:f60,x12 0.3:1.5:B3:x12', 0.8);
+  hornNote(0, '0.1:1.5:D4:f60,x12 0.3:1.5:B3:x12', 0.72);
   // the saxes' vamp riff (2 bars) in bars 2-3, 4-5, 6-7, in pentatonic fourths and thirds
   const RIFF = ['0.1.5:0.5:B4 0.2:0.5:D5 0.2.5:1:E5:a 0.3.5:0.5:D5 0.4:0.5:B4:s', '1.1.5:0.5:G4 1.2:0.5:A4 1.2.5:1:B4 1.3.5:0.5:A4 1.4:0.75:G4'];
   const below = { E: 'B', D: 'A', B: 'G', A: 'E', G: 'D' };
@@ -525,7 +525,7 @@ export function build() {
   for (const [b, p, take] of [[41, 3, 'frogs-5'], [41, 4, 'frogs-1'], [43, 3, 'frogs-5'], [43, 4, 'frogs-2'], [45, 3, 'frogs-5'], [45, 4, 'frogs-3'], [47, 4, 'frogs-5']]) {
     call('frogs', at(b, p), { len: 1, take });
   }
-  section('pad', 40, '0.1:2:E4:w 0.3:2:E4:w 1.1:3.5:E4:w 2.1:2:D4:w 2.3:2:D4:w 3.1:3.5:D4:w 4.1:2:C4:w 4.3:2:E4:w 5.1:3.5:C4:w 6.1:4:C4:w 7.1:4:C4:w', 0.4, BONES.map(([i, idx, , pan, l]) => [i, idx, 0, pan, l]), { n: 3 });
+  section('pad', 40, '0.1:2:E4:w 0.3:2:E4:w 1.1:3.5:E4:w 2.1:2:D4:w 2.3:2:D4:w 3.1:3.5:D4:w 4.1:2:C4:w 4.3:2:E4:w 5.1:3.5:C4:w 6.1:4:C4:w 7.1:4:C4:w', 0.26, BONES.map(([i, idx, , pan, l]) => [i, idx, 0, pan, l]), { n: 3 });
 
   // ------------------------------------------------ 48-55 lizards: a clarinet darting, chirps in the gaps
   sec('Lizards', 'Smáeðlur', 48, 8, 'lizards', 'A clarinet darts about up high in quick swung runs and the small lizards chirp in its gaps; the saxes riff behind.');
@@ -572,7 +572,7 @@ export function build() {
   sec('Slóeðla alone', 'Slóeðla ein', 64, 8, 'sloedla', 'Stop-time: the band only hits one soft chord at the top of each bar, the snaps keep the beat, and Slóeðla plays her horn alone in the gaps, brave, quoting her tune.');
   for (let b = 64; b <= 71; b++) {
     const top = { 64: 'B4', 65: 'D5', 66: 'C5', 67: 'B4', 68: 'E5', 69: 'D5', 70: 'C5', 71: 'B4' }[b];
-    section('lead', b, `0.1:0.5:${top}:s`, 0.5, [...SAXES.slice(0, 4), ...BONES]);
+    section('lead', b, `0.1:0.5:${top}:s`, 0.4, [...SAXES.slice(0, 4), ...BONES]);
     cue(at(b, 1), 'hit');
   }
   hornNote(64, `
@@ -583,36 +583,34 @@ export function build() {
     4.2:1:E4 4.3:0.5:D4 4.3.5:0.5:B3 4.4:1:D4
     5.2:2.5:G4:f100,x16,a
     6.2:0.5:E4 6.2.5:0.5:D4 6.3:0.5:B3 6.3.5:0.5:A3 6.4:1:G3
-    7.2:0.5:B3 7.2.5:0.5:D4 7.3:0.5:E4 7.3.5:1.5:G4:f60`, 0.85);
+    7.2:0.5:B3 7.2.5:0.5:D4 7.3:0.5:E4 7.3.5:1.5:G4:f60`, 0.76);
 
   // ------------------------------------------------ 72-79 the rise: the band comes back under her
   sec('The rise', 'Upprisan', 72, 8, 'sloedla', 'The bridge again as the rise: the rhythm section comes back under her horn, then the saxes swell, the trombones and trumpets join and the whole band climbs into the shout.');
   cue(at(72, 1), 'rise');
-  hornNote(72, `
-    0.1:1.5:E4:f60 0.2.5:0.5:D4 0.3:1:B3 0.4:1:D4
-    1.1:2:E4:x14 1.3.5:1.5:G4:f80
-    2.1:0.5:E4 2.1.5:0.5:D4 2.2:1:B3 2.3:0.5:D4 2.3.5:1.5:E4
-    3.1:2.5:G4:x16 3.4:1:A4:f80
-    4.1:0.5:G4 4.1.5:0.5:E4 4.2:1:D4 4.3:0.5:E4 4.3.5:1.5:G4
-    5.1:3:A4:x16
-    6.1:4:G4:x14
-    7.1:3.5:A4:x18,u100`, 0.88);
-  section('pad', 74, '0.1:4:B4 1.1:4:B4 2.1:4:C5 3.1:4:C5 4.1:4:C5 5.1:4:C5', 0.34, SAXES, { spread: 'drop2' });
+  hornNote(72, '0.1:1.5:E4:f60 0.2.5:0.5:D4 0.3:1:B3 0.4:1:D4 1.1:2:E4:x14 1.3.5:1.5:G4:f80', 0.66);
+  hornNote(72, '2.1:0.5:E4 2.1.5:0.5:D4 2.2:1:B3 2.3:0.5:D4 2.3.5:1.5:E4 3.1:2.5:G4:x16 3.4:1:A4:f80', 0.74);
+  hornNote(72, '4.1:0.5:G4 4.1.5:0.5:E4 4.2:1:D4 4.3:0.5:E4 4.3.5:1.5:G4 5.1:3:A4:x16', 0.84);
+  hornNote(72, '6.1:4:G4:x14 7.1:3.5:A4:x18,u100', 0.95);
+  section('pad', 74, '0.1:4:B4 1.1:4:B4', 0.26, SAXES, { spread: 'drop2' });
+  section('pad', 74, '2.1:4:C5 3.1:4:C5', 0.34, SAXES, { spread: 'drop2' });
+  section('pad', 74, '4.1:4:C5 5.1:4:C5', 0.44, SAXES, { spread: 'drop2' });
   section('lead', 76, '0.1:3:E4:w 1.1:3:E4:w', 0.5, BONES.map(([i, idx, , pan, l]) => [i, idx, 0, pan, l]));
   // the climb: the whole band in harmony, a pentatonic stair into the shout
   cue(at(78, 1), 'rise');
-  section('lead', 78, '0.1:1:A4 0.2:1:B4 0.3:1:D5 0.4:1:E5 1.1:1:G5 1.2:1:A5 1.3:1:B5 1.4:1:C6:a', 0.56, [...TRUMPETS, ...BONES, ...SAXES.slice(0, 4).map(([i, idx, , pan, l]) => [i, idx, -1, pan, l])], { spread: 'drop2' });
+  section('lead', 78, '0.1:1:A4:v0.5 0.2:1:B4:v0.55 0.3:1:D5:v0.6 0.4:1:E5:v0.65 1.1:1:G5:v0.7 1.2:1:A5:v0.75 1.3:1:B5:v0.8 1.4:1:C6:v0.85', 0.56, [...TRUMPETS, ...BONES, ...SAXES.slice(0, 4).map(([i, idx, , pan, l]) => [i, idx, -1, pan, l])], { spread: 'drop2' });
 
   // ------------------------------------------------ 80-87 shout chorus: everyone
   sec('Everyone', 'Allir saman', 80, 8, 'all', 'The shout chorus, the high point: the animals sing her tune with the whole band shouting it in harmony; between phrases every group sings at once and Slóeðla answers on her horn.');
   cue(at(80, 1), 'peak');
+  E('beat', 'crash', at(80, 1), 0.5, null, 0.42, 0.3, {});
   singTune(80, { vel: 1.1 });
-  section('lead', 80, `0.1:2:D6:a 0.3:2:B5 2.1:1:A5 2.2:1:B5 2.3:2:G5 4.1:1:E6:a 4.2:1:D6 4.3:1:B5 4.4:1:D6 6.1:1:E6:a 6.2:1:D6 6.3:1:B5 6.4:1:A5 7.1:2:G5`, 0.72, [...TRUMPETS, ...BONES], { spread: 'drop2' });
-  for (const n of parse(80, '0.1:2:D5 0.3:2:B4 2.1:1:A4 2.2:1:B4 2.3:2:G4 4.1:1:E5 4.2:1:D5 4.3:1:B4 4.4:1:D5 6.1:1:E5 6.2:1:D5 6.3:1:B4 6.4:1:A4 7.1:2:G4', 0.62)) {
+  section('lead', 80, `0.1:2:D6:a 0.3:2:B5 2.1:1:A5 2.2:1:B5 2.3:2:G5 4.1:1:E6:a 4.2:1:D6 4.3:1:B5 4.4:1:D6 6.1:1:E6:a 6.2:1:D6 6.3:1:B5 6.4:1:A5 7.1:2:G5`, 0.86, [...TRUMPETS, ...BONES], { spread: 'drop2' });
+  for (const n of parse(80, '0.1:2:D5 0.3:2:B4 2.1:1:A4 2.2:1:B4 2.3:2:G4 4.1:1:E5 4.2:1:D5 4.3:1:B4 4.4:1:D5 6.1:1:E5 6.2:1:D5 6.3:1:B4 6.4:1:A4 7.1:2:G4', 0.74)) {
     for (const [inst, , oct, pan, lvl] of SAX_UNI) E('lead', inst, n.t, n.d, n.midi + 12 * oct, n.vel * lvl, pan, { section: true });
   }
   const everyone = (t, len = 1.2) => {
-    for (const g of GROUPS) call(g, t, { len, vel: 0.85 });
+    for (const g of GROUPS) call(g, t, { len, vel: 1 });
     cue(t, 'hit');
   };
   for (const b of [81, 83, 85]) {

@@ -34,11 +34,11 @@ log('score', score.events.length, 'events; horn take', singers.hornPitch().toFix
 
 // instrument levels into their stems
 const LV = {
-  trumpet: 0.15, trombone: 0.17, alto: 0.15, tenor: 0.15, bari: 0.14, clarinet: 0.3,
-  solo: { trumpet: 0.42, trombone: 0.34, clarinet: 0.34, vibes: 0.42 },
-  vibes: 0.42, piano: 0.3, guitar: 0.62, bass: 0.62, sloedla: 0.62,
-  call: 0.6, marimba: 0.2,
-  ride: 0.3, hatfoot: 0.36, kick: 0.55, snare: 0.32, rim: 0.32, tom: 0.4, crash: 0.26, snap: 0.42, sweep: 0.3, btap: 0.32, block: 0.4,
+  trumpet: 0.17, trombone: 0.15, alto: 0.15, tenor: 0.13, bari: 0.12, clarinet: 0.3,
+  solo: { trumpet: 0.21, trombone: 0.27, clarinet: 0.36, vibes: 0.46 },
+  vibes: 0.46, piano: 0.36, guitar: 0.42, bass: 0.36, sloedla: 0.46,
+  call: 0.9, marimba: 0.24,
+  ride: 0.52, hatfoot: 0.52, kick: 0.45, snare: 0.46, rim: 0.42, tom: 0.45, crash: 0.3, snap: 0.62, sweep: 0.42, btap: 0.45, block: 0.62,
 };
 
 // time of a notated beat, in samples (swung eighths), with a small human push for horns (never for the grid's own parts)
@@ -99,7 +99,7 @@ for (const e of score.events) {
       at += Math.round(hum * SR);
       const det = o.section ? 2 ** (((r() - 0.5) * 7) / 1200) : 1;
       const hold = o.staccato ? Math.min(dur, 0.16) : Math.max(0.06, dur - 0.03);
-      y = I.horn(e.inst, midiHz(e.midi) * det, hold, e.vel, { ...o, seed: seedOf(`${e.t}|${e.midi}|${e.pan}`) });
+      y = I.horn(e.inst, midiHz(e.midi) * det, hold, e.vel, { ...o, seed: seedOf(`${e.t < 32 ? (e.t % 16) + 100 : e.t}|${e.midi}|${e.pan}`) });
       gain = o.solo ? LV.solo[e.inst] ?? LV[e.inst] : LV[e.inst];
       break;
     }
@@ -195,10 +195,11 @@ log('pre-master peak', pre.toFixed(3), 'scale', scale.toFixed(3));
 const master = new Bus(N);
 master.mix(sum);
 for (const ch of [master.L, master.R]) {
-  hp(ch, 38);
-  lowshelf(ch, 120, -1.5);
-  peakEq(ch, 2800, 0.8, 1.0);
-  highshelf(ch, 9000, 0.5);
+  hp(ch, 40);
+  lowshelf(ch, 150, -2.5);
+  peakEq(ch, 320, 0.9, -1.5);
+  peakEq(ch, 2500, 0.7, 2.0);
+  highshelf(ch, 8000, 1.0);
 }
 compress(master, { threshold: -20, ratio: 1.8, attack: 0.025, release: 0.3 });
 let L0 = lufs(master.L, master.R);
