@@ -87,8 +87,8 @@ export function placesOf(fitted, names, places = PLACES) {
 export const MOSI_PLACES = {
   seat: [0, 0, 0],
   grips: PLACES.grips,
-  knees: { left: [0.12, 0.22, -0.22], right: [0.12, 0.22, 0.22] },
-  ankles: { left: [0.06, 0.05, -0.28], right: [0.06, 0.05, 0.28] },
+  knees: { left: [0.12, 0.26, -0.22], right: [0.12, 0.26, 0.22] },
+  ankles: { left: [0.06, 0.14, -0.28], right: [0.06, 0.14, 0.28] }, // his ankle is 0.1 m over his sole: the soles on the pad
 };
 
 /** Mosi's poses with Egill on him (chapters 1 to 4, and Háls og hali): standing and walking; his head turns, but no skin under the pad. */
