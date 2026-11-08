@@ -105,24 +105,31 @@ export function barRms(x, spb, bars) {
   return out;
 }
 
-/** How cleanly [S, S+N) repeats [S-N, S): the worst difference in dB under the loop's own RMS. */
-export function loopSeam(st, startS, lenS) {
+/**
+ * How cleanly the loop repeats: [S+skip, S+N) against [S-N+skip, S), so both sides are preceded by the same music (the bars before
+ * S-N are the intro, whose tails would otherwise count). Worst and RMS difference in dB, and the loop's own RMS.
+ */
+export function loopSeam(st, startS, lenS, skipS = 0) {
   let d2 = 0, s2 = 0, worst = 0;
   for (const ch of [st.L, st.R]) {
-    for (let i = 0; i < lenS; i++) {
+    for (let i = skipS; i < lenS; i++) {
       const a = ch[startS + i], b = ch[startS - lenS + i];
       d2 += (a - b) ** 2;
       s2 += a * a;
       worst = Math.max(worst, Math.abs(a - b));
     }
   }
-  const r = Math.sqrt(s2 / (2 * lenS));
-  return { loopRmsDb: +db(r).toFixed(1), diffRmsDb: +db(Math.sqrt(d2 / (2 * lenS))).toFixed(1), worstDiffDb: +db(worst).toFixed(1) };
+  const m = 2 * (lenS - skipS);
+  return { loopRmsDb: +db(Math.sqrt(s2 / m)).toFixed(1), diffRmsDb: +db(Math.sqrt(d2 / m)).toFixed(1), worstDiffDb: +db(worst).toFixed(1) };
 }
 
 /** Pitch of one rendered call (dry), and where its attack lands against its beat. */
+const pitchCache = new Map();
 export function callCheck(entry, targetHz, beatSample) {
-  const s = steady(entry.y, { fmin: Math.max(60, targetHz / 2.2), fmax: Math.min(4000, targetHz * 1.6), win: 1024, hop: 128 });
+  const key = `${entry.file}|${entry.rate}|${entry.y.length}|${entry.mode}`;
+  if (!pitchCache.has(key))
+    pitchCache.set(key, steady(entry.y, { fmin: Math.max(60, entry.hz / 1.45), fmax: Math.min(5000, entry.hz * 1.45), win: 1024, hop: 128 }));
+  const s = pitchCache.get(key);
   // attack: first sample of the placed call over 12% of its peak
   let peak = 0;
   for (const v of entry.y) peak = Math.max(peak, Math.abs(v));

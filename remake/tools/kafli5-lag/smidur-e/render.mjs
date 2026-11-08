@@ -56,7 +56,20 @@ for (const st of Object.values(stems))
     st.R[n - 1 - i] *= g;
   }
 
-// balance: one gain for all stems so their sum sits near -18.5 LUFS before the master
+// balance: each stem to its own loudness (measured, gated: so a stem is judged where it plays), then one gain for all so their sum
+// sits near -18.5 LUFS before the master
+const BALANCE = { pad: -26, bass: -24.5, beat: -22.5, lead: -22.5, animals: -22 };
+const stemGainDb = {};
+for (const [k, st] of Object.entries(stems)) {
+  const l = lufs(st.L, st.R);
+  const g = 10 ** ((BALANCE[k] - l) / 20);
+  stemGainDb[k] = +(20 * Math.log10(g)).toFixed(2);
+  for (let i = 0; i < n; i++) {
+    st.L[i] *= g;
+    st.R[i] *= g;
+  }
+}
+say(`stem balance gains (dB): ${JSON.stringify(stemGainDb)}`);
 const sumOf = list => {
   const s = stereo(n);
   for (const st of list) for (let i = 0; i < n; i++) {
@@ -75,8 +88,8 @@ for (const st of Object.values(stems)) for (let i = 0; i < n; i++) {
 pre = sumOf(Object.values(stems));
 say(`pre-master ${lufs(pre.L, pre.R).toFixed(2)} LUFS (stem gain ${(20 * Math.log10(g0)).toFixed(2)} dB)`);
 const stemPeaks = {};
-for (const [k, st] of Object.entries(stems)) stemPeaks[k] = +(20 * Math.log10(truePeak(st.L, st.R))).toFixed(2);
-say(`stem true peaks (dBTP): ${JSON.stringify(stemPeaks)}`);
+for (const [k, st] of Object.entries(stems)) stemPeaks[k] = +(20 * Math.log10(peakOf(st))).toFixed(2);
+say(`stem sample peaks (dBFS): ${JSON.stringify(stemPeaks)}`);
 
 // ---------------------------------------------------------------- master: gain to -16 LUFS, look-ahead true-peak limiter
 function master(gain, ceilingDb) {
@@ -160,7 +173,7 @@ spawnText(['-y', '-v', 'error', '-i', join(OUT, 'mix.mp3'), '-filter_complex', '
 say('pictures');
 
 // ---------------------------------------------------------------- checks
-const checks = { takes: takeInfo, stemTruePeakFloat: stemPeaks, mp3: { mix: loud, stems: stemLoud } };
+const checks = { takes: takeInfo, stemGainDb, stemSamplePeakFloat: stemPeaks, mp3: { mix: loud, stems: stemLoud } };
 // sections, on the decoded mp3 (what the game plays)
 const [dl, dr] = decode(join(OUT, 'mix.mp3'), 2);
 const secList = SECTIONS.map(s => ({ id: s.id, startBeat: s.bar * 4, beats: s.bars * 4 }));
@@ -180,8 +193,9 @@ checks.barRmsLow = barRms(lowpassed(mono(dl, dr)), SPB, Math.ceil(END_BEAT / 4) 
 }
 // the loop seam in each stem (float, before the mp3)
 checks.loop = {};
-for (const [k, st] of Object.entries(stems)) checks.loop[k] = loopSeam(st, LOOP.startBeat * SPB, LOOP.beats * SPB);
-checks.loop.mix = loopSeam(mix, LOOP.startBeat * SPB, LOOP.beats * SPB);
+const skip = 8 * SPB; // compare the loop's last 2 bars with the 2 bars one loop earlier
+for (const [k, st] of Object.entries(stems)) checks.loop[k] = loopSeam(st, LOOP.startBeat * SPB, LOOP.beats * SPB, skip);
+checks.loop.mix = loopSeam(mix, LOOP.startBeat * SPB, LOOP.beats * SPB, skip);
 // her tune as the animals sing it: pitch on each call's steady part, and its attack against the beat
 const tuneSet = new Set(score.tuneNotes.map(t => `${t.group}@${t.beat}`));
 checks.tune = callLog.filter(c => tuneSet.has(`${c.group}@${c.beat}`)).map(c => ({

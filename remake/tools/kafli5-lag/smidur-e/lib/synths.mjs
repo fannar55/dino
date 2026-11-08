@@ -22,7 +22,7 @@ export function kick({ vel = 1, tone = 1, seed = 1 } = {}) {
     const f = 49 + 125 * Math.exp(-t / 0.018) + 22 * Math.exp(-t / 0.09);
     ph += (TAU * f) / SR;
     const tail = t > 0.36 ? Math.max(0, 1 - (t - 0.36) / 0.1) : 1;
-    const amp = Math.min(1, t / 0.002) * Math.exp(-t / 0.26) * tail;
+    const amp = Math.min(1, t / 0.002) * Math.exp(-t / 0.17) * tail;
     let v = Math.sin(ph) * amp;
     v += Math.sin(2 * ph + 0.4) * Math.exp(-t / 0.055) * 0.32 * tone; // knock (~100-300 Hz)
     if (i < click.length) v += click[i] * (1 - i / click.length) * 0.5 * tone;
@@ -192,7 +192,7 @@ export function bass(f, seconds, { vel = 1, bright = 1, glideFrom = 0 } = {}) {
     if (i % 16 === 0) flt.set(Math.min(9000, (170 + 2300 * bright * vel * Math.exp(-t / 0.085) + 420 * bright) * (fr / 98) ** 0.5), 1.3);
     const s = a.next(fr * 1.004) * 0.5 + b.next(fr * 0.996) * 0.5;
     const lp = flt.tick(s);
-    let v = lp * 0.9 + Math.sin(ph) * 0.75;
+    let v = lp * 1.0 + Math.sin(ph) * 0.55;
     const att = Math.min(1, t / 0.003);
     const env = att * (0.78 + 0.22 * Math.exp(-t / 0.12)) * (t > seconds ? Math.exp(-(t - seconds) / (rel / 4)) : 1);
     v = Math.tanh(2.0 * v * env) * 0.62;
@@ -305,9 +305,9 @@ export function robot(f, seconds, { vel = 1, vowels = ['u', 'a'], morph = 0.12, 
     let v = 0;
     for (let k = 0; k < 3; k++) {
       fs[k].tick(src);
-      v += fs[k].bp * gains[k];
+      v += fs[k].bp * fs[k].k * gains[k]; // unity-peak band-pass: each formant lifts its harmonics, never past 1
     }
-    v = v * 1.6 + air.tick(src) * 0.05;
+    v = v * 2.2 + air.tick(src) * 0.05;
     let e = Math.min(1, t / 0.012);
     if (t > seconds) e *= Math.exp(-(t - seconds) / rel);
     y[i] = Math.tanh(v * 1.4) * e * vel * 0.8;

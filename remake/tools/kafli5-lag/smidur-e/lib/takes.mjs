@@ -9,7 +9,7 @@ export const TAKES = {
   grazers: [{ file: 'grazers-3.mp3', fmin: 80, fmax: 500 }, { file: 'grazers-2.mp3', fmin: 80, fmax: 500 }],
   turtles: [{ file: 'turtles-2.mp3', fmin: 120, fmax: 500 }],
   frogs: [{ file: 'frogs-1.mp3', fmin: 500, fmax: 3000 }, { file: 'frogs-3.mp3', fmin: 500, fmax: 3000 }, { file: 'frogs-5.mp3', fmin: 800, fmax: 3000 }],
-  lizards: [{ file: 'lizards-1.mp3', fmin: 500, fmax: 3000 }, { file: 'lizards-2.mp3', fmin: 800, fmax: 3600 }],
+  lizards: [{ file: 'lizards-1.mp3', fmin: 500, fmax: 3000 }], // lizards-2 is a chirp glide with ~17 ms of steady pitch
   flyers: [{ file: 'flyers-3.mp3', fmin: 600, fmax: 3000 }],
   horn: [{ file: 'horn-1.mp3', fmin: 150, fmax: 600 }],
 };

@@ -83,7 +83,7 @@ export function renderPad(score, n, kicks) {
     out.R[i] = fr.tick(raw.R[i]);
   }
   eqStereo(out, () => [new Biquad('hp', 120, 0.7), new Biquad('peak', 2600, 0.8, 1.5)]);
-  const ens = chorus(out, { depthMs: 2.6, rate: 5 / 7.68, mix: 0.45, baseMs: 8 });
+  const ens = chorus(out, { depthMs: 2.6, cycles: [5, 7, 3], mix: 0.45, baseMs: 8 });
   // e-piano
   const ep = stereo(n);
   const epc = new Map();
@@ -93,7 +93,7 @@ export function renderPad(score, n, kicks) {
       addMono(ep, y, sampleOf(ev.beat), 0.32, (k / Math.max(1, ev.notes.length - 1)) * 0.7 - 0.35);
     });
   }
-  const epCh = chorus(ep, { depthMs: 1.8, rate: 4 / 7.68, mix: 0.4, baseMs: 6 });
+  const epCh = chorus(ep, { depthMs: 1.8, cycles: [4, 6, 3], mix: 0.4, baseMs: 6 });
   addStereo(ens, epCh, 0, 1);
   applyGain(ens, pump(n, kicks, 1));
   const wet = reverb(ens, { decay: 1.7, damp: 5200, predelay: 0.02, lowcut: 300, seed: 3 });
@@ -149,7 +149,7 @@ export function renderLead(score, n, kicks, HLJOD) {
     );
     addMono(robot, y, sampleOf(ev.beat), 0.5, 0.05);
   }
-  const robotCh = chorus(robot, { depthMs: 1.2, rate: 3 / 7.68, mix: 0.3, baseMs: 5 });
+  const robotCh = chorus(robot, { depthMs: 1.2, cycles: [3, 5, 2], mix: 0.3, baseMs: 5 });
   const bells = stereo(n);
   const bc = new Map();
   for (const ev of score.bell) {

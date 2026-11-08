@@ -245,9 +245,8 @@ export function buildScore() {
   // ======== Dance floor (bars 4-11): two identical 4-bar halves (the loop is the second)
   for (let bar = 4; bar < 12; bar++) {
     fourFloor(bar);
-    claps(bar);
     hats16(bar);
-    openHats(bar);
+    shaker16(bar, 0.16);
     discoBass(bar);
     padBar(bar);
     arpBar(bar, 0.4);
@@ -404,6 +403,7 @@ export function buildScore() {
     openHats(bar, 0.42);
     shaker16(bar, 0.26);
     congas(bar, bar < 64 ? 0.3 : 0.38);
+    for (const b of [1, 3]) S.snare.push({ beat: bar * 4 + b, vel: 0.42 });
     discoBass(bar);
     padBar(bar);
     epComp(bar, 0.4);
@@ -414,8 +414,11 @@ export function buildScore() {
   sing(224, { robot: 'unison', horn: 'echo' });
   sing(256, { robot: 'third', horn: 'unison' });
   // every group's own pattern underneath, softly, on the bars where her tune rests most
-  for (const [bar, g] of [[257, 'grazers'], [259, 'turtles'], [261, 'frogs'], [263, 'lizards']].map(([b, g]) => [b / 4, g]))
-    chopPattern(g, Math.floor(bar), CHOPS[g][0].filter(([s]) => s >= 4), { vel: 0.42 });
+  for (let bar = 64; bar < 72; bar++) {
+    chopPattern('turtles', bar, CHOPS.turtles[0], { vel: 0.34 });
+    if (bar % 2 === 0) chopPattern('frogs', bar, CHOPS.frogs[0].filter(([s]) => s >= 3), { vel: 0.32 });
+    else chopPattern('lizards', bar, CHOPS.lizards[0], { vel: 0.3 });
+  }
 
   // ======== Ending (bars 72-75)
   S.cymbal.push({ beat: 284, seconds: 4 * 0.48, reverse: true, vel: 0.14 });

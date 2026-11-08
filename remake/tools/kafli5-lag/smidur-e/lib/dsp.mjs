@@ -288,12 +288,12 @@ export function reverb(src, { decay = 1.8, damp = 6000, predelay = 0.02, size = 
 }
 
 /** Ensemble chorus (three modulated taps per side), returns processed stereo (dry+wet mix). */
-export function chorus(src, { depthMs = 3.5, rate = 0.6, mix = 0.5, baseMs = 9 } = {}) {
+export function chorus(src, { depthMs = 3.5, cycles = [5, 7, 3], period = 7.68, mix = 0.5, baseMs = 9 } = {}) {
   const out = stereo(src.n);
   const max = Math.ceil(((baseMs + depthMs * 2) / 1000) * SR) + 4;
   const bl = new Float32Array(max), br = new Float32Array(max);
   let w = 0;
-  const rates = [rate, rate * 1.37, rate * 0.71];
+  const rates = cycles.map(c => c / period); // whole cycles per loop length, so the loop's seam stays clean
   const phases = [0, 2.1, 4.2];
   for (let i = 0; i < src.n; i++) {
     bl[w] = src.L[i];
