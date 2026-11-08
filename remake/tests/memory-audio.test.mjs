@@ -371,8 +371,9 @@ test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its
   const who = VOICE_LINES.who, whoKey = tool.fingerprintOf(tool.ownRequest(who));
   for (const heard of [none, verdicts([[whoKey, 'nei']])]) assert.equal(tool.fingerprintOf(tool.memoryRequest(who, lexicon, { heard })), whoKey);
   assert.throws(() => tool.memoryRequest(match, lexicon), /needs the owner's verdicts/);
-  // in the repo now (2026-11-06): 11 kept, 17 sent as the book has them because he approved that take, 9 under Ný 3 whose new
-  // take he picked, and level 1's 10 under Ný 3 waiting for his ear. When a verdict moves a line, move it here.
+  // in the repo now (2026-11-08): 11 kept, 17 sent as the book has them because he approved that take, 9 under Ný 3 whose new
+  // take he picked, and level 1's 13 under Ný 3 waiting for his ear (the three waiting lines of package C are made and on his page,
+  // played nowhere yet). When a verdict moves a line, move it here.
   const heardNow = readHeard(tool.ROOT), split = { kept: [], approved: [], ny3Picked: [], ny3Waiting: [] };
   for (const item of tool.statesOf(lexicon, tool.recordOf(tool.readManifest(), {}), tool.LINES, heardNow)) {
     if (item.line.kept !== undefined) split.kept.push(item.id);
@@ -384,7 +385,7 @@ test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its
     kept: ['help', 'won', 'held', 'roll', 'cross', 'find_stego', 'who', 'push', 'findFirst', 'gift_shrew', 'g2_ledge_ready'],
     approved: ['match', 'find_bronto', 'build', 'other', 'g2_welcome', 'gifts4', 'gift_ammonite', 'gift_trilobite', 'gift_fern', 'gift_footprint', 'g2_cliff_ready', 'g2_climb', 'g2_pull_ready', 'g2_pull', 'g2_bridge', 'g2_won', 'g2_help'],
     ny3Picked: ['together', 'g2_left', 'g2_light_ready', 'g2_lit', 'g2_rocks_ready', 'g2_rocks_done', 'g2_through', 'g2_reached', 'g2_flown'],
-    ny3Waiting: ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab'],
+    ny3Waiting: ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab', 'lift_ready', 'roll_ready', 'lay_ready'],
   });
   // the A/B page: the new take picked when it opens, "Báðar rangar" for both wrong
   const html = tool.janoPage({ title: 't', intro: 'i', none: { label: 'Báðar rangar', how: 'h' }, sections: [{ title: 's', rows: [{ id: 'match', text: 'x', takes: [{ id: 'match_gamla', label: 'Gamla', src: 'a.mp3' }, { id: 'match_nyja', label: 'Nýja', src: 'b.mp3', checked: true }] }] }] });
