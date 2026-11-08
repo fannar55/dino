@@ -141,7 +141,10 @@ for (const e of score.events) {
       const name = o.take ?? MAIN[o.group];
       const toneHz = midiHz(60 + ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].indexOf(tone));
       const c = singers.take(name, toneHz);
-      at -= Math.round(Math.max(0, Math.min(0.06, c.onset - 0.004)) * SR); // the call's attack, not its first breath, on the beat
+      // the call's attack, not its first breath, on the beat (at most 30 ms early); calls on the loop's edges start exactly on them,
+      // so nothing of them leaks across the seam
+      const edge = e.t === score.loop.startBeat || e.t === score.loop.startBeat + score.loop.beats;
+      if (!edge) at -= Math.round(Math.max(0, Math.min(0.03, c.onset - 0.004)) * SR);
       const maxLen = Math.round((dur + 0.08) * SR);
       y = c.y.length > maxLen ? c.y.slice(0, maxLen) : c.y;
       if (c.y.length > maxLen) {
