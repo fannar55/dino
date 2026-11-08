@@ -174,7 +174,7 @@ if (!process.argv.includes('--no-pitch')) {
   const inPlace = song.tuneNotes.map(t => {
     const a = Math.round(t.beat * SPB) + Math.round(0.03 * SR);
     const target = hz(TONE[t.group]);
-    const fr = track(an.subarray(a, a + Math.round(0.2 * SR)), SR, { size: 1024, hop: 128, fmin: target / 1.9, fmax: target * 1.9 }).filter(f => f.clarity > 0.5 && f.hz);
+    const fr = track(an.subarray(a, a + Math.round(0.2 * SR)), SR, { size: 1024, hop: 128, fmin: target / 1.25, fmax: target * 1.25 }).filter(f => f.clarity > 0.5 && f.hz);
     const med = fr.length ? median(fr.map(f => f.hz)) : null;
     return { ...t, cents: med ? Math.round(cents(med, target)) : null };
   });

@@ -54,7 +54,7 @@ const CH = {
 };
 
 // Where the groups stand by the pond (pan).
-const PAN = { grazers: -0.45, turtles: -0.2, frogs: 0.05, lizards: 0.3, flyers: 0.5 };
+const PAN = { grazers: -0.3, turtles: -0.15, frogs: 0.05, lizards: 0.25, flyers: 0.4 };
 
 export function buildScore() {
   const ev = [];
@@ -413,7 +413,7 @@ export function buildScore() {
   cues.push({ beat: 280, kind: 'end' });
 
   // the song's dynamics: each part's overall level (the rise climbs into the peak); the loop (bars 16-19) sits in one level
-  const DYN = [[0, 1], [16, 1], [48, 0.86], [80, 0.86], [96, 1.08], [128, 1.0], [144, 1.0], [160, 0.86], [192, 0.84], [224, 0.8], [240, 1.15], [272, 1.12]];
+  const DYN = [[0, 1], [16, 1], [48, 0.86], [80, 0.78], [96, 1.08], [128, 1.0], [144, 1.0], [160, 0.86], [192, 0.8], [224, 0.8], [240, 1.15], [272, 1.12]];
   const dyn = b => {
     if (b >= 224 && b < 240) return 0.8 + ((b - 224) / 16) * 0.3;
     let g = 1;

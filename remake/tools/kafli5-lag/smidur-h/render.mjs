@@ -22,7 +22,7 @@ const at = b => Math.round(b * SPB);
 
 // --- the animals' calls: which take, which part, its own measured pitch (measure-takes.mjs), how much glide to keep -----
 export const RECIPES = {
-  grazers: { file: 'grazers-3.mp3', from: 0.04, to: 0.95, ref: 181.5, flatten: 0.6, lead: 0.015 }, // a cow's moo
+  grazers: { file: 'grazers-3.mp3', from: 0.04, to: 0.95, ref: 181.5, flatten: 0.85, lead: 0.015 }, // a cow's moo
   grazersChop: { file: 'grazers-3.mp3', from: 0.28, to: 0.8, ref: 181.5, flatten: 0.5 }, // the steady middle of the moo
   turtles: { file: 'turtles-2.mp3', from: 0.0, to: 0.74, ref: 238.4, flatten: 0.85 },
   frogs: { file: 'frogs-5.mp3', from: 0.025, to: 0.42, ref: 1926.3, flatten: 0.3, lead: 0.02 }, // a ribbit
@@ -35,7 +35,7 @@ export const RECIPES = {
 };
 const HORN = { file: 'horn-1.mp3', from: 0.06, to: 2.75, ref: 273.1, flatten: 0.4, lead: 0.035 };
 // each group's level trim (their takes differ in loudness)
-const TRIM = { grazers: 0.95, turtles: 1.0, frogs: 0.62, lizards: 0.7, flyers: 0.6 };
+const TRIM = { grazers: 0.75, turtles: 1.0, frogs: 0.62, lizards: 0.7, flyers: 0.62 };
 
 function renderCall(p) {
   const { group } = p;
@@ -212,6 +212,8 @@ export function master(stems, { target = -16, ceiling = -1.6 } = {}) {
   const sumL = new Float32Array(N), sumR = new Float32Array(N);
   for (const s of STEMS) for (let i = 0; i < N; i++) { sumL[i] += stems[s][0][i]; sumR[i] += stems[s][1][i]; }
   // a touch of air and a little less mud, then level
+  // for small speakers: a little less below 110 Hz, a little more air
+  for (const ch of [sumL, sumR]) { biquad(ch, 'ls', 110, 0.7, -1.5); biquad(ch, 'hs', 5000, 0.7, 1.5); }
   const tmp = join(WORK, 'premaster.wav');
   writeWav(tmp, [sumL, sumR]);
   const pre = loudness(tmp);
