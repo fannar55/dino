@@ -41,18 +41,21 @@ export function checks({ stems, chorusMelody }) {
   // the grid: every event on a whole sample
   const { events } = buildScore();
   const offGrid = events.filter(e => Math.abs(e.beat * SPB - Math.round(e.beat * SPB)) > 1e-6).length;
-  // each chorus note's onset in the animals stem: the steepest rise of a 5 ms envelope within 60 ms of its beat
+  // each chorus note's heard onset in the rendered animals stem: where its 5 ms envelope first comes within 9 dB of its peak
+  // (looking from 80 ms before the beat to 250 ms after), against the beat; and where it first rises 15 dB over the floor before it
   const a = stems.animals;
-  const W = Math.round(0.005 * SR);
+  const W = Math.round(0.005 * SR), H = 22;
   const env = i => { let s = 0; for (let k = i; k < i + W; k++) s += a.L[k] * a.L[k] + a.R[k] * a.R[k]; return 10 * Math.log10(s / W + 1e-12); };
   const offsets = chorusMelody.map(({ beat, group }) => {
     const at = Math.round(beat * SPB);
-    let best = -1e9, bestT = 0;
-    for (let i = at - Math.round(0.06 * SR); i < at + Math.round(0.06 * SR); i += 22) {
-      const d = env(i) - env(i - W);
-      if (d > best) { best = d; bestT = i; }
-    }
-    return { beat, group, ms: +(((bestT - at) / SR) * 1000).toFixed(1), riseDb: +best.toFixed(1) };
+    const from = at - Math.round(0.08 * SR), to = at + Math.round(0.25 * SR);
+    const e = [];
+    for (let i = from; i < to; i += H) e.push(env(i));
+    const pk = Math.max(...e), floor = Math.min(...e.slice(0, 8));
+    const k9 = e.findIndex(v => v >= pk - 9);
+    const k15 = e.findIndex(v => v >= floor + 15);
+    const t = k => +((((from + k * H + W / 2) - at) / SR) * 1000).toFixed(1);
+    return { beat, group, ms: t(k9), firstMs: k15 >= 0 ? t(k15) : null };
   });
   const ms = offsets.map(o => o.ms);
   return {

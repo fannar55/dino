@@ -39,7 +39,9 @@ for (const name of STEMS) {
   for (const e of events) {
     if (e.stem !== name) continue;
     const s = e.make();
-    const at = Math.round(e.beat * SPB) - (s.pre || 0); // a soft-attack call's lead-in sounds just before its beat
+    // a soft-attack call's lead-in sounds just before its beat, except at the loop's two edges (it would leak across the seam)
+    const edge = e.beat === LOOP.startBeat || e.beat === LOOP.startBeat + LOOP.beats;
+    const at = Math.round(e.beat * SPB) - (edge ? 0 : s.pre || 0);
     e.g *= STEM_GAIN[name];
     const add = bus => (s instanceof Float32Array ? bus.add(s, at, e.g, e.pan) : bus.add2(s.L, s.R, at, e.g));
     add(dry);
