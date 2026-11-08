@@ -11,7 +11,7 @@ import { lufs, truePeak, limit } from './lib/master.mjs';
 import { BPM, SPB, KEY, TONE, TUNE, SECTIONS, LOOP, END_BEAT, TAIL_SEC, buildScore } from './lib/score.mjs';
 import { kickSamples, renderPad, renderBass, renderBeat, renderLead, renderAnimals, sampleOf } from './lib/parts.mjs';
 import { TAKES, loadTake, resample } from './lib/takes.mjs';
-import { sectionStats, loopSeam, callCheck, barRms, mono, lowpassed } from './lib/analyze.mjs';
+import { sectionStats, loopSeam, callCheck, barRms, mono, lowpassed, biggestJump } from './lib/analyze.mjs';
 import { steady, cents } from './lib/pitch.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +20,7 @@ const HLJOD = join(ROOT, 'remake/assets/audio/kafli5/hljod');
 const OUT = join(ROOT, 'qa/remake/kafli5/lag/keppni/smidur-e');
 const WORK = join(OUT, 'work');
 const SLOT = 'smidur-e';
+const QUICK = process.argv.includes('--quick'); // while composing: skip the stems' R128 readings and the pictures
 const t0 = Date.now();
 const say = msg => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
 
@@ -58,7 +59,7 @@ for (const st of Object.values(stems))
 
 // balance: each stem to its own loudness (measured, gated: so a stem is judged where it plays), then one gain for all so their sum
 // sits near -18.5 LUFS before the master
-const BALANCE = { pad: -26, bass: -24.5, beat: -22.5, lead: -22.5, animals: -22 };
+const BALANCE = { pad: -26, bass: -25, beat: -23.5, lead: -22, animals: -21.5 };
 const stemGainDb = {};
 for (const [k, st] of Object.entries(stems)) {
   const l = lufs(st.L, st.R);
@@ -120,7 +121,7 @@ function writeOut() {
 writeOut();
 let loud = ebur128(join(OUT, 'mix.mp3'));
 say(`mix.mp3: ${loud.lufs} LUFS, true peak ${loud.truePeak} dBTP`);
-for (let it = 0; it < 3 && (loud.truePeak > -1.1 || Math.abs(loud.lufs + 16) > 0.3); it++) {
+for (let it = 0; it < 3 && (loud.truePeak > -1.1 || Math.abs(loud.lufs + 16) > 0.12); it++) {
   if (loud.truePeak > -1.1) ceiling -= loud.truePeak + 1.25;
   gain *= 10 ** ((-16 - loud.lufs) / 20);
   mix = master(gain, ceiling);
@@ -130,7 +131,7 @@ for (let it = 0; it < 3 && (loud.truePeak > -1.1 || Math.abs(loud.lufs + 16) > 0
   say(`mix.mp3 again: ${loud.lufs} LUFS, true peak ${loud.truePeak} dBTP (ceiling ${ceiling.toFixed(2)})`);
 }
 const stemLoud = {};
-for (const k of Object.keys(stems)) stemLoud[k] = ebur128(join(OUT, 'stems', `${k}.mp3`));
+if (!QUICK) for (const k of Object.keys(stems)) stemLoud[k] = ebur128(join(OUT, 'stems', `${k}.mp3`));
 say(`stems mp3: ${JSON.stringify(stemLoud)}`);
 
 // ---------------------------------------------------------------- song.json
@@ -168,8 +169,8 @@ writeFileSync(join(OUT, 'song.json'), JSON.stringify(song, null, 2) + '\n');
 say('song.json');
 
 // ---------------------------------------------------------------- pictures
-spawnText(['-y', '-v', 'error', '-i', join(OUT, 'mix.mp3'), '-lavfi', 'showspectrumpic=s=1800x700:legend=1:scale=log:fscale=log:start=40:stop=16000', join(OUT, 'spectrogram.png')]);
-spawnText(['-y', '-v', 'error', '-i', join(OUT, 'mix.mp3'), '-filter_complex', 'showwavespic=s=1800x360:split_channels=1:colors=#3b6ea8|#c0567a', '-frames:v', '1', join(OUT, 'waveform.png')]);
+if (!QUICK) spawnText(['-y', '-v', 'error', '-i', join(OUT, 'mix.mp3'), '-lavfi', 'showspectrumpic=s=1800x700:legend=1:scale=log:fscale=log:start=40:stop=16000', join(OUT, 'spectrogram.png')]);
+if (!QUICK) spawnText(['-y', '-v', 'error', '-i', join(OUT, 'mix.mp3'), '-filter_complex', 'showwavespic=s=1800x360:split_channels=1:colors=#3b6ea8|#c0567a', '-frames:v', '1', join(OUT, 'waveform.png')]);
 say('pictures');
 
 // ---------------------------------------------------------------- checks
@@ -180,6 +181,8 @@ const secList = SECTIONS.map(s => ({ id: s.id, startBeat: s.bar * 4, beats: s.ba
 checks.sections = sectionStats(dl, dr, secList, SPB);
 checks.barRms = barRms(mono(dl, dr), SPB, Math.ceil(END_BEAT / 4) + 1);
 checks.barRmsLow = barRms(lowpassed(mono(dl, dr)), SPB, Math.ceil(END_BEAT / 4) + 1);
+checks.biggestJump = biggestJump(mono(dl, dr).subarray(Math.round(2 * SR)));
+checks.biggestJump.sec += 2;
 // mp3 alignment: does the decoded mix line up with the float mix sample for sample?
 {
   let best = 0, bestLag = 0;
@@ -212,11 +215,12 @@ checks.horn = [...new Set(score.horn.map(h => h.midi))].map(m => {
 const bad = checks.calls.filter(c => c.cents === null || Math.abs(c.cents) > 20);
 const late = checks.calls.filter(c => c.mode === 'onset' && Math.abs(c.attackMs) > 25);
 checks.summary = {
-  lengthSec, lufs: loud.lufs, truePeak: loud.truePeak, stemsMaxTruePeak: Math.max(...Object.values(stemLoud).map(s => s.truePeak)),
+  lengthSec, lufs: loud.lufs, truePeak: loud.truePeak, stemsMaxTruePeak: QUICK ? null : Math.max(...Object.values(stemLoud).map(s => s.truePeak)),
   calls: checks.calls.length, callsOff20c: bad.length, worstCallCents: Math.max(...checks.calls.filter(c => c.cents !== null).map(c => Math.abs(c.cents))),
   tuneNotes: checks.tune.length, tuneWorstCents: Math.max(...checks.tune.map(c => Math.abs(c.cents ?? 999))), tuneWorstAttackMs: Math.max(...checks.tune.map(c => Math.abs(c.attackMs))),
   onsetCallsOff25ms: late.length, hornWorstCents: Math.max(...checks.horn.map(h => Math.abs(h.cents))),
   loopWorstDiffDb: Math.max(...Object.values(checks.loop).map(l => l.worstDiffDb)),
+  biggestJumpDb: checks.biggestJump,
 };
 writeFileSync(join(OUT, 'checks.json'), JSON.stringify(checks, null, 1) + '\n');
 console.log(JSON.stringify({ summary: checks.summary, sections: checks.sections, loop: checks.loop, horn: checks.horn, mp3OffsetSamples: checks.mp3OffsetSamples }, null, 1));

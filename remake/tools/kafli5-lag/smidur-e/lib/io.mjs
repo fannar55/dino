@@ -26,11 +26,12 @@ export function decode(file, channels = 1) {
 export function writeWav(file, left, right) {
   mkdirSync(dirname(file), { recursive: true });
   const n = left.length;
-  const data = Buffer.alloc(n * 8);
+  const inter = new Float32Array(n * 2);
   for (let i = 0; i < n; i++) {
-    data.writeFloatLE(left[i], i * 8);
-    data.writeFloatLE(right[i], i * 8 + 4);
+    inter[2 * i] = left[i];
+    inter[2 * i + 1] = right[i];
   }
+  const data = Buffer.from(inter.buffer); // little-endian on every machine this runs on
   const head = Buffer.alloc(44);
   head.write('RIFF', 0);
   head.writeUInt32LE(36 + data.length, 4);

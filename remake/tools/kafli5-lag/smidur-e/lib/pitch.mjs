@@ -64,11 +64,11 @@ export function track(x, { win = 2048, hop = 256, fmin = 50, fmax = 4000, sr = S
 const cents = (a, b) => 1200 * Math.log2(a / b);
 
 /**
- * The steady part: the longest run of loud, clear frames whose pitch stays within ±`tol` cents of the run's running median.
+ * The steady part: the longest run of loud, clear frames whose whole spread (highest to lowest) stays within 2·`tol` cents.
  * Returns { hz (median of the run), from, to (s), frames, clarity } or null.
  */
 export function steady(x, opts = {}) {
-  const tol = opts.tol ?? 35;
+  const tol = opts.tol ?? 20;
   const fr = track(x, opts);
   if (!fr.length) return null;
   const peak = Math.max(...fr.map(f => f.rms));
@@ -77,10 +77,13 @@ export function steady(x, opts = {}) {
   for (let i = 0; i < fr.length; i++) {
     if (!good[i]) continue;
     const run = [fr[i].hz];
+    let lo = fr[i].hz, hi = fr[i].hz;
     let j = i + 1;
     while (j < fr.length && good[j]) {
-      const med = median(run);
-      if (Math.abs(cents(fr[j].hz, med)) > tol) break;
+      const nlo = Math.min(lo, fr[j].hz), nhi = Math.max(hi, fr[j].hz);
+      if (cents(nhi, nlo) > 2 * tol) break;
+      lo = nlo;
+      hi = nhi;
       run.push(fr[j].hz);
       j++;
     }

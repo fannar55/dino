@@ -8,7 +8,7 @@ import { steady } from './pitch.mjs';
 export const TAKES = {
   grazers: [{ file: 'grazers-3.mp3', fmin: 80, fmax: 500 }, { file: 'grazers-2.mp3', fmin: 80, fmax: 500 }],
   turtles: [{ file: 'turtles-2.mp3', fmin: 120, fmax: 500 }],
-  frogs: [{ file: 'frogs-1.mp3', fmin: 500, fmax: 3000 }, { file: 'frogs-3.mp3', fmin: 500, fmax: 3000 }, { file: 'frogs-5.mp3', fmin: 800, fmax: 3000 }],
+  frogs: [{ file: 'frogs-1.mp3', fmin: 500, fmax: 3000 }, { file: 'frogs-5.mp3', fmin: 1200, fmax: 3000 }], // frogs-3 wanders over 3 pitches
   lizards: [{ file: 'lizards-1.mp3', fmin: 500, fmax: 3000 }], // lizards-2 is a chirp glide with ~17 ms of steady pitch
   flyers: [{ file: 'flyers-3.mp3', fmin: 600, fmax: 3000 }],
   horn: [{ file: 'horn-1.mp3', fmin: 150, fmax: 600 }],
@@ -20,7 +20,7 @@ const cache = new Map();
 export function loadTake(dir, t) {
   if (cache.has(t.file)) return cache.get(t.file);
   const [x] = decode(join(dir, t.file));
-  const s = steady(x, { fmin: t.fmin, fmax: t.fmax, hop: 256, win: 1024 });
+  const s = steady(x, { fmin: t.fmin, fmax: t.fmax, hop: 128, win: 1024 });
   if (!s) throw new Error(`no steady pitch in ${t.file}`);
   let peak = 0;
   for (const v of x) peak = Math.max(peak, Math.abs(v));
@@ -48,6 +48,8 @@ function bessel0(x) {
 const HALF = 24;
 const BETA = 8;
 const I0B = bessel0(BETA);
+const WT = 4096; // Kaiser window table over u in [0, 1]
+const WIN = new Float64Array(WT + 2).map((_, k) => (k > WT ? 0 : bessel0(BETA * Math.sqrt(Math.max(0, 1 - (k / WT) ** 2))) / I0B));
 /** Resample x by `rate` (rate > 1 raises pitch and shortens). */
 export function resample(x, rate) {
   const n = Math.floor(x.length / rate);
@@ -63,7 +65,9 @@ export function resample(x, rate) {
       const d = p - k;
       const u = d / half;
       if (Math.abs(u) >= 1) continue;
-      const w = bessel0(BETA * Math.sqrt(1 - u * u)) / I0B;
+      const au = Math.abs(u) * WT;
+      const ki = Math.floor(au);
+      const w = WIN[ki] + (WIN[ki + 1] - WIN[ki]) * (au - ki);
       const arg = Math.PI * d * cut;
       const sinc = arg === 0 ? 1 : Math.sin(arg) / arg;
       s += x[k] * sinc * cut * w;

@@ -140,3 +140,16 @@ export function callCheck(entry, targetHz, beatSample) {
   if (c !== null) c -= 1200 * Math.round(c / 1200); // any octave
   return { hz: s ? +s.hz.toFixed(1) : null, cents: c === null ? null : Math.round(c), attackMs: Math.round(attackMs) };
 }
+
+/** Startle check: the largest rise in 400 ms loudness (dB, RMS of the mono mix) from one window to the next, and where. */
+export function biggestJump(x, win = 0.4) {
+  const w = Math.round(win * SR);
+  const lv = [];
+  for (let s = 0; s + w <= x.length; s += Math.round(w / 4)) lv.push(db(rms(x, s, s + w)));
+  let best = { db: -99, sec: 0 };
+  for (let i = 4; i < lv.length; i++) {
+    const d = lv[i] - lv[i - 4];
+    if (d > best.db && lv[i] > -40) best = { db: +d.toFixed(1), sec: +((i * w) / 4 / SR).toFixed(2) };
+  }
+  return best;
+}

@@ -212,10 +212,10 @@ export function buildScore() {
       [[2, 1.6], [6, 1.6], [10, 1.6], [12, 1.6], [14, 1.6]],
     ],
     frogs: [
-      [[0, 2, 0], [3, 2, 1], [6, 2, 2], [10, 2, 0], [12, 2, 2], [14, 2, 1]],
-      [[0, 2, 0], [3, 2, 1], [6, 2, 2], [10, 2, 0], [12, 2, 2], [14, 2, 1]],
-      [[0, 2, 0], [3, 2, 1], [6, 2, 2], [10, 2, 0], [12, 2, 2], [14, 2, 1]],
-      [[0, 2, 0], [3, 2, 1], [6, 2, 2], [8, 1, 2], [10, 2, 0], [12, 1, 2], [13, 1, 1], [14, 2, 2]],
+      [[0, 2, 0], [3, 2, 1], [6, 2, 0], [10, 2, 1], [12, 2, 0], [14, 2, 1]],
+      [[0, 2, 0], [3, 2, 1], [6, 2, 0], [10, 2, 1], [12, 2, 0], [14, 2, 1]],
+      [[0, 2, 0], [3, 2, 1], [6, 2, 0], [10, 2, 1], [12, 2, 0], [14, 2, 1]],
+      [[0, 2, 0], [3, 2, 1], [6, 2, 0], [8, 1, 1], [10, 2, 0], [12, 1, 1], [13, 1, 0], [14, 2, 1]],
     ],
     lizards: [
       [[2, 1, 0], [3, 1, 1], [4, 1, 0], [7, 1, 1], [10, 1, 0], [11, 1, 1], [12, 1, 0], [15, 1, 1]],
@@ -235,8 +235,8 @@ export function buildScore() {
   S.bass.push({ beat: 12, dur: 1.3, midi: 38, vel: 0.6, bright: 0.3 });
   [[12, 0.15], [12.5, 0.2], [13, 0.25], [13.5, 0.3], [14, 0.35], [14.5, 0.4], [15, 0.45], [15.25, 0.5], [15.5, 0.55], [15.75, 0.6]].forEach(([b, v]) => S.hat.push({ beat: b, vel: v * 0.6 }));
   S.cymbal.push({ beat: 12, seconds: 4 * 0.48, reverse: true, vel: 0.22 });
-  call('frogs', 5, { take: 2, vel: 0.45, pan: 0.6 });
-  call('lizards', 9.5, { take: 1, vel: 0.4, pan: -0.6 });
+  call('frogs', 5, { take: 1, vel: 0.45, pan: 0.6 });
+  call('lizards', 9.5, { vel: 0.4, pan: -0.6 });
   call('flyers', 13, { vel: 0.45, pan: 0.3 });
   S.robot.push({ beat: 8, dur: 1.5 * 0.48, midi: 74, vel: 0.35, vowels: ['u', 'o'] });
   S.robot.push({ beat: 9.5, dur: 2.2 * 0.48, midi: 71, vel: 0.35, vowels: ['u', 'o'] });
@@ -438,11 +438,11 @@ export function buildScore() {
   });
   S.cues.push({ beat: 288, kind: 'hit' });
   // do: all five at once
-  for (const g of GROUPS) call(g, 292, { dur: 4, vel: g === 'grazers' ? 1 : 0.8 });
+  for (const g of GROUPS) call(g, 292, { dur: 4, vel: g === 'grazers' ? 0.9 : 0.62 });
   S.marimba.push({ beat: 292, midi: 67, vel: 0.6 });
-  hornNote(292, 5, 55, 1);
+  hornNote(292, 5, 55, 0.85);
   S.robot.push({ beat: 292, dur: 7.6 * 0.48, midi: 67, vel: 0.65, vowels: ['o', 'a'], morph: 0.5 });
-  S.pad.push({ beat: 292, beats: 8, notes: CHORDS.G69.pad, attack: 0.02, release: 0.5, vel: 1 });
+  S.pad.push({ beat: 292, beats: 8, notes: CHORDS.G69.pad, attack: 0.02, release: 0.5, vel: 0.85 });
   S.bass.push({ beat: 292, dur: 3.5 * 0.48, midi: 31, vel: 1, bright: 0.8 });
   S.bass.push({ beat: 296, dur: 3.5 * 0.48, midi: 43, vel: 0.85, bright: 0.6 });
   S.cymbal.push({ beat: 292, seconds: 3, vel: 0.16 });
@@ -461,6 +461,20 @@ export function buildScore() {
   S.marimba.push({ beat: 300, midi: 67, vel: 0.5 });
   S.cues.push({ beat: 292, kind: 'hit' }, { beat: 300, kind: 'end' });
 
+  const DYN = {
+    groove: { kick: 0.8, bass: 0.8, pad: 0.85, hat: 0.85 },
+    tuneA: { kick: 0.9, bass: 0.9 },
+    grazers: { kick: 0.88, bass: 0.88 },
+    turtles: { kick: 0.84, bass: 0.86, hat: 0.9 },
+    frogs: { kick: 0.88, bass: 0.9 },
+    lizards: { kick: 0.92, bass: 0.94 },
+    flyers: { kick: 0.96, bass: 0.97 },
+    end: { kick: 0.92 },
+  };
+  for (const part of ['kick', 'bass', 'pad', 'hat']) for (const ev of S[part]) {
+    const f = DYN[sectionAt(ev.beat).id]?.[part];
+    if (f) ev.vel = +(ev.vel * f).toFixed(4);
+  }
   S.cues.sort((a, b) => a.beat - b.beat || a.kind.localeCompare(b.kind));
   return S;
 }

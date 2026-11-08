@@ -124,7 +124,7 @@ export function renderBeat(score, n) {
     addMono(dry, y, sampleOf(ev.beat), gain, pan);
     if (rev) addMono(send, y, sampleOf(ev.beat), gain * rev, pan);
   };
-  for (const ev of score.kick) put(ev, `k${ev.vel.toFixed(3)}|${ev.tone.toFixed(3)}`, () => V.kick({ vel: ev.vel, tone: ev.tone }), 0.86, 0);
+  for (const ev of score.kick) put(ev, `k${ev.vel.toFixed(3)}|${ev.tone.toFixed(3)}`, () => V.kick({ vel: ev.vel, tone: ev.tone }), 0.64, 0);
   for (const ev of score.clap) put(ev, `c${ev.vel}`, () => V.clap({ vel: ev.vel }), 0.42, 0, 0.35);
   for (const ev of score.hat) put(ev, `h${ev.vel.toFixed(3)}`, () => V.hat({ vel: ev.vel }), 0.3, 0.18);
   for (const ev of score.ohat) put(ev, `o${ev.vel}`, () => V.hat({ vel: ev.vel, open: true, seed: 13 }), 0.24, -0.12, 0.1);
@@ -216,12 +216,13 @@ export function renderAnimals(score, n, kicks, HLJOD, log) {
       at = sampleOf(ev.beat);
       len = Math.min(m.y.length - start, Math.round(ev.dur * 0.48 * SR * 0.95));
     } else {
-      start = Math.max(0, Math.round(m.onset - 0.012 * SR));
+      start = Math.max(0, Math.round(m.onset - 0.002 * SR));
       at = sampleOf(ev.beat) - Math.round(m.onset - start);
       len = Math.min(m.y.length - start, Math.round(m.onset - start + ev.dur * 0.48 * SR + 0.06 * SR));
     }
     const y = Float32Array.from(m.y.subarray(start, start + len));
-    const fi = ev.mode === 'chop' ? Math.round(0.004 * SR) : 0;
+    const fi = Math.round((ev.mode === 'chop' ? 0.004 : 0.002) * SR);
+    if (ev.group === 'grazers' || ev.group === 'turtles') new Biquad('peak', 2200, 0.8, 5).run(y); // presence for tablet speakers
     for (let i = 0; i < fi && i < y.length; i++) y[i] *= i / fi;
     fadeOut(y, ev.mode === 'chop' ? 0.03 : 0.06);
     const gain = LEVEL[ev.group] * ev.vel * norm;

@@ -192,7 +192,7 @@ export function bass(f, seconds, { vel = 1, bright = 1, glideFrom = 0 } = {}) {
     if (i % 16 === 0) flt.set(Math.min(9000, (170 + 2300 * bright * vel * Math.exp(-t / 0.085) + 420 * bright) * (fr / 98) ** 0.5), 1.3);
     const s = a.next(fr * 1.004) * 0.5 + b.next(fr * 0.996) * 0.5;
     const lp = flt.tick(s);
-    let v = lp * 1.0 + Math.sin(ph) * 0.55;
+    let v = lp * 1.0 + Math.sin(ph) * 0.42;
     const att = Math.min(1, t / 0.003);
     const env = att * (0.78 + 0.22 * Math.exp(-t / 0.12)) * (t > seconds ? Math.exp(-(t - seconds) / (rel / 4)) : 1);
     v = Math.tanh(2.0 * v * env) * 0.62;
