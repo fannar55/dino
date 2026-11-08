@@ -20,11 +20,13 @@ for (const [file, e] of Object.entries(sounds.files)) {
   const [x] = decode(join(HLJOD, file));
   const s = steady(x, { fmin: 40, fmax: 4000 });
   const fr = track(x, { fmin: 40, fmax: 4000 });
-  const peak = Math.max(...x.map(Math.abs));
+  let peak = 0;
+  for (const v of x) peak = Math.max(peak, Math.abs(v));
   // onset: first sample over 10% of the peak
   let on = 0;
   while (on < x.length && Math.abs(x[on]) < peak * 0.1) on++;
-  const voiced = fr.filter(f => f.hz > 0 && f.ap < 0.25 && f.rms > 0.05 * Math.max(...fr.map(g => g.rms)));
+  const loud = fr.reduce((m, g) => Math.max(m, g.rms), 0);
+  const voiced = fr.filter(f => f.hz > 0 && f.ap < 0.25 && f.rms > 0.05 * loud);
   const spread = voiced.length ? `${Math.round(Math.min(...voiced.map(f => f.hz)))}-${Math.round(Math.max(...voiced.map(f => f.hz)))}` : '-';
   console.log(
     file.padEnd(16),
