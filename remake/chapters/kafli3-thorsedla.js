@@ -255,7 +255,7 @@ export function* liftUp(s, c) {
   s.camera.lookAt(betweenHimAndHer(c), { duration: 1 });
   s.sfx('float');
   // Halfway up he sits, so that he comes down onto her head sitting; his legs open astride as he comes down, carried with him so they land with him (floatTo carryLegs).
-  s.after(FLOAT * 0.4, () => egill.raw.play('sit', { fade: 0.5 }));
+  s.after(FLOAT * 0.4, () => { egill.raw.play('sit', { fade: 0.5 }); }); // nothing back: after() waits on what its call returns
   yield floatTo(egill.raw, c.seat, { duration: FLOAT, carryLegs: true });
   c.riding = ride(egill.raw, c.seat);
   c.phase = 'lifting';
