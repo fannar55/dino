@@ -42,7 +42,7 @@ export function ksString(hz, seconds, { bright = 0.6, pick = 0.18, t60 = 2.2, ke
   const relN = Math.round(seconds * SR);
   for (let t = 0; t < n; t++) {
     const fr = f(t / SR);
-    const D = SR / fr - 0.5; // the loss filter's half-sample delay
+    const D = SR / fr - s; // the loss filter delays the loop by s samples
     let rp = w - D;
     while (rp < 0) rp += size;
     const i0 = Math.floor(rp);
@@ -97,7 +97,7 @@ export function vibrato(buf, { cents = 14, rate = 5.6, delay = 0.25, ramp = 0.3 
 
 // ---------------- bass ----------------
 /** Electric bass: additive pluck with its harmonics up in the mids (tablets hear 200-800 Hz), finger noise, soft drive. */
-export function bass(hz, seconds, { vel = 1, key = 'b', bright = 0.5, slideFrom = 0 } = {}) {
+export function bass(hz, seconds, { vel = 1, key = 'b', bright = 0.75, slideFrom = 0 } = {}) {
   const n = Math.round((seconds + 0.08) * SR);
   const out = new Float32Array(n);
   const H = Math.min(28, Math.floor(4200 / hz));
@@ -132,12 +132,15 @@ export function bass(hz, seconds, { vel = 1, key = 'b', bright = 0.5, slideFrom 
     out[t] *= Math.min(1, s / 0.004) * (s > rel ? Math.exp(-(s - rel) / 0.025) : 1);
   }
   // body: a soft drive makes 2nd/3rd harmonics; a mid bump where small speakers live
-  const pk = biquad('peak', 700, 0.9, 4);
-  const lp = biquad('lp', 3200, 0.7);
+  // (the sub under 70 Hz eased: a tablet cannot play it and it only eats headroom)
+  const pk = biquad('peak', 750, 0.8, 6);
+  const pk2 = biquad('peak', 1400, 1.2, 2);
+  const ls = biquad('lowshelf', 75, 0.7, -4);
+  const lp = biquad('lp', 3600, 0.7);
   const rng = rngFor(key);
   for (let t = 0; t < n; t++) {
     const pluck = t < 300 ? (rng() * 2 - 1) * 0.12 * (1 - t / 300) : 0;
-    out[t] = lp(pk(Math.tanh(1.4 * (out[t] * 0.8 + pluck)) * vel));
+    out[t] = lp(pk2(pk(ls(Math.tanh(2.0 * (out[t] * 0.8 + pluck)) * vel))));
   }
   return out;
 }

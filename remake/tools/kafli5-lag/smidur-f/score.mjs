@@ -154,7 +154,7 @@ export function compose(desk) {
 
   // ---------- bass ----------
   const bassNote = (midi, beat, beats, vel = 1, o = {}) =>
-    put('bass', I.bass(midiHz(midi), beats * beatSec * 0.92, { vel, key: k('bass', beat), ...o }), beat, { db: -9, shift: jit('bass', beat, 2) });
+    put('bass', I.bass(midiHz(midi), beats * beatSec * 0.92, { vel, key: k('bass', beat), ...o }), beat, { db: -11, shift: jit('bass', beat, 2) });
   const bassCumbia = (bar, vel = 1, nextName = null) => {
     const c = CH[chordAt(bar)];
     const next = CH[nextName ?? chordAt(bar + 1, 0) ?? 'G'] ?? c;
@@ -243,7 +243,7 @@ export function compose(desk) {
         const dur = ((nextPos - TUNE_POS[p][i]) / 2) * beatSec;
         animal(MAIN[g], beat, { tune: true, db, seconds: Math.max(0.5, Math.min(1.3, dur + 0.25)), fadeOut: 0.12 });
         if (double && SECOND[g]) animal(SECOND[g], beat, { db: db - 3, silentCue: true, seconds: Math.max(0.35, Math.min(1.0, dur + 0.1)), fadeOut: 0.1 });
-        if (marimba) marimbaTone(g, beat, { db: double ? -12 : -14 });
+        if (marimba) marimbaTone(g, beat, { db: double ? -10 : -11 });
         if (withHorn) horn(g, beat, Math.min(3, (nextPos - TUNE_POS[p][i]) / 2) * 0.98, { db: -11 });
       });
     }
@@ -325,6 +325,7 @@ export function compose(desk) {
     pad(bar, 4, { db: -27, tone: 0.45 });
   }
   cue(B(21), 'hit');
+  for (const q of [[21, 0], [22, 0], [23, 0], [23, 2.5], [24, 0], [24, 1], [24, 2]]) marimbaTone('grazers', B(q[0], q[1]), { db: -15, seconds: 0.9 });
   animal('grazers-3', B(21, 0), { seconds: 1.4 });
   animal('grazers-3', B(22, 0), { seconds: 1.4 });
   animal('grazers-3', B(23, 0), { seconds: 1.1 });
@@ -355,6 +356,7 @@ export function compose(desk) {
     pad(bar, 4, { db: -25, tone: 0.3 });
   }
   cue(B(25), 'hit');
+  for (const q of [[25, 1.5], [26, 1.5], [26, 3], [27, 1.5], [28, 1], [28, 2], [28, 3]]) marimbaTone('turtles', B(q[0], q[1]), { db: -14, seconds: 0.9 });
   animal('turtles-2', B(25, 1.5));
   animal('turtles-2', B(26, 1.5));
   animal('turtles-2', B(26, 3));
