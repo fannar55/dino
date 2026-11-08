@@ -71,6 +71,8 @@ export function call(group, { long = false } = {}) {
 export function horn(target) {
   return onTone(HORN, target, { exact: true });
 }
+/** A recording's licence, as sounds.json names it. */
+export function licence(file) { return SOUNDS[file]?.source?.licence ?? 'unknown'; }
 /** Measures a rendered call: its median pitch against `target` (cents, octave-free). */
 export function pitchCheck(y, target, from = 0, to = y.length) {
   const p = medianPitch(y, from, to, 60, 4000, 0.6);
