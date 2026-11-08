@@ -1452,6 +1452,10 @@ async function main() {
     try {
       // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
       report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds'); report.audioLog = await ev('window.__audioLog');
+      // The page's own sounds (the juice pass: Litla Yatzy's, on the buttons, the picker, the basket, the dots and the end) that sounded, and when;
+      // with --video each kind is rendered once in the page, to lay under the video too.
+      report.uiSounds = ((await ev('window.__memory.audio().ui?.asked ?? []')) ?? []).filter(sound => sound.sounded);
+      if (o.video) report.uiRendered = await renderUiSounds(ev, outDir, report.uiSounds).catch(error => ({ error: error.message }));
       const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === (LEVEL.number === 2 ? 'fossils-glow' : 'mosi-cheer')), giftsLine = LEVEL.number === 2 ? 'gifts4' : 'gifts3', wonLine = LEVEL.number === 2 ? 'g2_won' : 'won', gifts = report.spoken.find(s => s.id === giftsLine);
       // (level 2: g2_won as the Flugeðlur circle, gifts4 over the glowing row; giftsLag from the row's beat)
       report.speechCheck = { won: report.spoken.filter(s => s.id === wonLine).length, [giftsLine]: report.spoken.filter(s => s.id === giftsLine).length, wonBeforeGifts: (report.spoken.find(s => s.id === wonLine)?.t ?? Infinity) < (gifts?.t ?? -Infinity), giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
@@ -1615,6 +1619,32 @@ async function makeVideo(framesDir, outDir, frames, { encode = true } = {}) {
   return info;
 }
 
+// The page's own sounds are made on the spot by Litla Yatzy's sound code (engine/yatzy-junior/sounds.js), so there is no file to lay: each name that
+// sounded is rendered once in the page with that same code into an OfflineAudioContext (mono, 44.1 kHz, 3 s) and kept beside the frames as
+// ui-sounds/<name>.f32 (raw float32) for the soundtrack. A kind may be more than one name (the end: the confetti's rustle and the fanfare).
+const UI_NAMES = { tap: ['tap'], oh: ['oh'], bubble: ['bubble'], close: ['close'], dialog: ['pause'], dialogClose: ['resume'], land: ['land'], pip: ['pip'], win: ['confetti', 'fanfare'] };
+const UI_LEVEL = .9; // how loud they are laid: as in the page (its output's headroom; they dip under Mosi's voice there, not here: they are short and few)
+async function renderUiSounds(ev, outDir, asked) {
+  const names = [...new Set(asked.flatMap(sound => UI_NAMES[sound.kind] ?? []))]; if (!names.length) return { names: [] };
+  const rendered = await ev(`(async () => {
+    const base = new URL('./engine/', location.href);
+    const { createSfx } = await import(new URL('audio/sfx.js', base)), { juniorSounds } = await import(new URL('yatzy-junior/sounds.js', base));
+    const theme = await fetch(new URL('../assets/audio/theme.json', base)).then(r => r.ok ? r.json() : null, () => null), out = {};
+    for (const name of ${JSON.stringify(names)}) {
+      const context = new OfflineAudioContext(1, 44100 * 3, 44100);
+      Object.defineProperty(context, 'state', { value: 'running' }); // (the sounds play only on a running context; an offline one runs once it renders)
+      createSfx({ context, theme, output: context.destination, sounds: tools => juniorSounds(tools, () => ({})) }).play(name);
+      const bytes = new Uint8Array((await context.startRendering()).getChannelData(0).buffer); let text = '';
+      for (let i = 0; i < bytes.length; i += 32768) text += String.fromCharCode(...bytes.subarray(i, i + 32768));
+      out[name] = btoa(text);
+    }
+    return out;
+  })()`);
+  await fsp.mkdir(path.join(outDir, 'ui-sounds'), { recursive: true });
+  for (const [name, text] of Object.entries(rendered)) await fsp.writeFile(path.join(outDir, 'ui-sounds', name + '.f32'), Buffer.from(text, 'base64'));
+  return { names: Object.keys(rendered) };
+}
+
 // The sounds the page played, laid under the video: each recorded cue of the audio log (its file, when it began by the wall clock, how loud and how fast) and each of Mosi's lines
 // (the speech log), mixed to one mono track in the file's own time (the screencast's first frame is 0) and muxed into round-sound.mp4. The music is left out: the owner
 // listens to the cues and the voice. The envelope of each cue is the page's own (full for 70 % of it, then down to nothing).
@@ -1650,6 +1680,13 @@ async function makeSoundtrack(outDir, report, first, seconds) {
   let cues = 0, voices = 0;
   for (const cue of report.audioLog ?? []) { const file = cueFile(cue.asset); if (file && lay(pcm(file), cue.at / 1000 - first, cue.level ?? .5, cue.rate ?? 1)) cues++; }
   for (const line of report.spoken ?? []) { const file = path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3'); if (line.at && fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false)) voices++; }
+  // (the page's own sounds, rendered in the page: renderUiSounds)
+  let ui = 0;
+  const raw = file => { const bytes = fs.readFileSync(file); return new Float32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length)); };
+  for (const sound of report.uiSounds ?? []) for (const name of UI_NAMES[sound.kind] ?? []) {
+    const file = path.join(outDir, 'ui-sounds', name + '.f32');
+    if (sound.wall && fs.existsSync(file) && lay(cache.get(file) ?? cache.set(file, raw(file)).get(file), sound.wall / 1000 - first, UI_LEVEL, 1, false)) ui++;
+  }
   let peak = 0; for (const v of mix) peak = Math.max(peak, Math.abs(v));
   if (peak > .95) for (let i = 0; i < mix.length; i++) mix[i] *= .95 / peak;
   const track = path.join(outDir, 'soundtrack.m4a'), silent = path.join(outDir, 'round.mp4'), sound = path.join(outDir, 'round-sound.mp4');
@@ -1657,7 +1694,7 @@ async function makeSoundtrack(outDir, report, first, seconds) {
   if (r.status !== 0) return { error: String(r.stderr).slice(0, 300) };
   r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', silent, '-i', track, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'copy', '-shortest', sound], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
   if (r.status !== 0) return { error: String(r.stderr).slice(0, 300) };
-  return { file: path.relative(ROOT, sound).replace(/\\/g, '/'), cues, voices, peak: +peak.toFixed(2), seconds: +seconds.toFixed(1) };
+  return { file: path.relative(ROOT, sound).replace(/\\/g, '/'), cues, voices, ui, peak: +peak.toFixed(2), seconds: +seconds.toFixed(1) };
 }
 
 // --encode-only: the video and its sound from the frames of an earlier --video run (--no-encode) in --out, with no browser.

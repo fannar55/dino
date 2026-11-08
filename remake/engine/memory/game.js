@@ -93,12 +93,13 @@ function squeezeBubble() {
   squeezedAt = now; hudFx.squeeze($('coach'));
 }
 // A sound of the page (a button, the picker, the basket, a dot, the end), asked of Litla Yatzy's sounds; QA reads what was asked and when
-// (window.__memory.audio().ui.asked: the game's seconds and the page's).
+// (window.__memory.audio().ui.asked: the game's seconds, and the wall clock in ms, as the memory audio's own log has it: the playthrough
+// lays them under its video).
 const uiAsked = [];
 function uiSound(kind, options) {
   ui.unlock();
   const sounded = ui.cue(kind, options);
-  uiAsked.push({ t: Math.round(time * 100) / 100, wall: Math.round(performance.now()), kind, sounded }); if (uiAsked.length > 200) uiAsked.shift();
+  uiAsked.push({ t: Math.round(time * 100) / 100, wall: Math.round(performance.timeOrigin + performance.now()), kind, sounded }); if (uiAsked.length > 200) uiAsked.shift();
   return sounded;
 }
 function clearCaption() { captionCleared = true; captionUntil = 0; $('caption').textContent = ''; $('coach').hidden = true; }
