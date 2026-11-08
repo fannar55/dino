@@ -98,7 +98,7 @@ export const DJ = [
   { id: 'clap', beat: 40, echo: 'last', duck: 3 },
   { id: 'party-on', beat: 64, echo: 'last', stutter: 2, duck: 4 },
   { id: 'grazers', beat: 128, echo: 'last', duck: 4 },
-  { id: 'turtles-slow', beat: 144, radio: true, duck: 4 },
+  { id: 'turtles-slow', beat: 144, radio: true, duck: 2, lift: 4 },
   { id: 'turtles-fast', beat: 152, echo: 'last', duck: 4 },
   { id: 'frogs', beat: 160, echo: 'last', duck: 4 },
   { id: 'lizards', beat: 176, duck: 4 },
@@ -425,10 +425,12 @@ export function buildScore() {
       S.kick.push({ beat: bar * 4, vel: 0.9, tone: 0.9 });
       S.clap.push({ beat: bar * 4 + 2, vel: 0.7 });
       S.crowdClap.push({ beat: bar * 4 + 2, vel: 0.45 });
-      for (const b of [1, 3]) S.hat.push({ beat: bar * 4 + b, vel: 0.2 });
+      for (let e = 0; e < 8; e++) S.hat.push({ beat: bar * 4 + e / 2, vel: e % 2 ? 0.2 : 0.12 });
+      for (const b of [0.5, 1.5, 2.5, 3.5]) S.shaker.push({ beat: bar * 4 + b, vel: 0.14 });
+      S.pad.push({ beat: bar * 4, beats: 4, notes: CHORDS[chordOfBar(bar)].pad.slice(2).map(m => m + 12), attack: 0.4, release: 0.5, vel: 0.35 });
       S.bass.push({ beat: bar * 4, dur: 3.4 * 0.48, midi: ch.root, vel: 0.85, bright: 0.45 });
       call('turtles', bar * 4 + 1, { mode: 'chop', dur: 1.6, vel: 0.9 });
-      call('turtles', bar * 4 + 3, { mode: 'chop', dur: 0.9, vel: 0.75 });
+      call('turtles', bar * 4 + 3, { mode: 'chop', dur: 0.9, vel: 0.6 });
       S.tom.push({ beat: bar * 4 + 3.5, midi: ch.root + 24 + 7, vel: 0.5 });
     } else {
       fourFloor(bar, 0.95);
@@ -635,7 +637,8 @@ export function buildScore() {
   });
   for (let b = 348; b < 352; b += 0.25) S.snare.push({ beat: b, vel: 0.2 + 0.3 * ((b - 348) / 4) });
   S.cymbal.push({ beat: 348, seconds: 4 * 0.48, reverse: true, vel: 0.2 });
-  S.hpf.push({ from: 344, to: 352, hz: 120 });
+  S.hpf.push({ from: 348, to: 352, hz: 100 });
+  S.riser.push({ beat: 344, seconds: 8 * 0.48, vel: 0.26 });
 
   // ======== One more time (bars 88-95)
   for (let bar = 88; bar < 96; bar++) {
@@ -656,7 +659,7 @@ export function buildScore() {
     if (bar % 2 === 0) chopPattern('frogs', bar, CHOPS.frogs[0].filter(([s]) => s >= 3), { vel: 0.32 });
     else chopPattern('lizards', bar, CHOPS.lizards[0], { vel: 0.3 });
   }
-  roar(352, 0.8, 2.2, 6);
+  roar(352, 0.55, 2.2, 6);
   S.cymbal.push({ beat: 352, seconds: 2.6, vel: 0.15 });
   S.cues.push({ beat: 352, kind: 'peak' });
   sing(352, { robot: 'third', horn: 'unison', choir: 0.55 });
