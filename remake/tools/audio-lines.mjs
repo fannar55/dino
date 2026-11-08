@@ -52,6 +52,7 @@ export const LINES_FILE = 'remake/assets/audio/lines.json';
 export const SETS = {
   kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
   kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
+  kafli5: 'remake/assets/audio/kafli5',
 };
 /** Where the chapter's lines are: the set a tool works on unless it is told another. */
 export const REMAKE_AUDIO = SETS.kafli1;

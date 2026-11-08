@@ -482,10 +482,11 @@ const BOOK_LINES = [
   { id: 'book_wait', speaker: 'narrator', text: 'Bíddu aðeins!' },
 ];
 
-test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's, Veiddu's and chapter 4's, each in a folder of its own", () => {
+test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's, Veiddu's, chapter 4's and chapter 5's, each in a folder of its own", () => {
   assert.deepEqual(SETS, {
     kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
     kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
+    kafli5: 'remake/assets/audio/kafli5',
   });
   assert.equal(REMAKE_AUDIO, SETS.kafli1, 'the chapter stays the default');
 });
