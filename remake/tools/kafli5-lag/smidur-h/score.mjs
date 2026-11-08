@@ -54,7 +54,7 @@ const CH = {
 };
 
 // Where the groups stand by the pond (pan).
-const PAN = { grazers: -0.3, turtles: -0.15, frogs: 0.05, lizards: 0.25, flyers: 0.4 };
+const PAN = { grazers: -0.2, turtles: -0.15, frogs: 0.05, lizards: 0.25, flyers: 0.4 };
 
 export function buildScore() {
   const ev = [];
@@ -327,7 +327,7 @@ export function buildScore() {
     const [o, len] = TUNE_AT[pi][ni];
     const b = 192 + o;
     const hold = ni === phrase.length - 1 ? len + 0.6 : len;
-    add(b, 'horn', 'lead', { f: hz(HORN[group]), dur: hold * 60 / BPM }, 0.95, -0.05, 0.3);
+    add(b, 'horn', 'lead', { f: hz(HORN[group]), dur: hold * 60 / BPM }, 0.82, -0.05, 0.3);
     cues.push({ beat: b, kind: 'horn', note: HORN[group] });
   }));
   // the pond answers each phrase

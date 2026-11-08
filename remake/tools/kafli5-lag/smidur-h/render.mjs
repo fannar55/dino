@@ -35,7 +35,7 @@ export const RECIPES = {
 };
 const HORN = { file: 'horn-1.mp3', from: 0.06, to: 2.75, ref: 273.1, flatten: 0.4, lead: 0.035 };
 // each group's level trim (their takes differ in loudness)
-const TRIM = { grazers: 0.75, turtles: 1.0, frogs: 0.62, lizards: 0.7, flyers: 0.62 };
+const TRIM = { grazers: 0.62, turtles: 1.0, frogs: 0.62, lizards: 0.7, flyers: 0.62 };
 
 function renderCall(p) {
   const { group } = p;
