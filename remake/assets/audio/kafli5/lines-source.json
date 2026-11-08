@@ -514,7 +514,7 @@
   {
     "id": "k5_dj_c_dansa",
     "speaker": "flugedla",
-    "text": "Dansið!",
+    "text": "Dansa!",
     "context": "Jæja krakkar, nú byrjar fjörið!",
     "fixes": "line",
     "note": "DJ Flugeðla in remix-c's party remix of Ljósfluguballið (the remix experiment, 2026-11-08): the book's contexts for its words, then the DJ's party mood (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
