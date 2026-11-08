@@ -28,7 +28,7 @@ const t0 = Date.now();
 const say = msg => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
 const LINES = JSON.parse(readFileSync(join(here, 'lines.json'), 'utf8'));
 // the texts as she says them (the coordinator's changes of 2026-11-08)
-const SAID = { 'count-in': 'Einn! Tveir! Þrír! Fjórir!', dansa: 'Dansið!' };
+const SAID = { 'count-in': 'Einn! Tveir! Þrír! Fjórir!' };
 for (const l of LINES) if (SAID[l.id]) l.text = SAID[l.id];
 
 mkdirSync(join(OUT, 'stems'), { recursive: true });
@@ -99,6 +99,10 @@ const g0 = 10 ** ((-18.5 - lufs(music.L, music.R)) / 20);
 for (const st of Object.values(stems)) scale(st, g0);
 music = sumOf(Object.values(stems));
 say(`music stems balanced (dB): ${JSON.stringify(stemGainDb)}, all ${(20 * Math.log10(g0)).toFixed(2)}`);
+// the loop seam of each music stem, before her voice ducks it: the loop's last 2 bars against the same bars one loop earlier
+const S0 = LOOP.startBeat * SPB, LN = LOOP.beats * SPB;
+const loopStems = {};
+for (const [k, st] of Object.entries(stems)) loopStems[k] = loopSeam(st, S0, LN, 8 * SPB);
 
 // ---------------------------------------------------------------- her voice: placed, coloured, set over the music, the music ducked
 const dj = renderDj(score, n, music, DJDIR, LINES);
@@ -235,6 +239,26 @@ checks.barRmsLow = barRms(lowpassed(mono(dl, dr)), SPB, bars);
 checks.biggestJump = biggestJump(mono(dl, dr).subarray(Math.round(2 * SR)));
 checks.biggestJump.sec += 2;
 checks.biggestJump.beat = +((checks.biggestJump.sec * SR) / SPB).toFixed(2);
+// every rise of more than 6 dB from one 400 ms window to the next (100 ms steps), the largest of each 2 s, to see all candidates
+{
+  const m = mono(dl, dr), w = Math.round(0.4 * SR), hop = Math.round(0.1 * SR);
+  const lv = [];
+  for (let s = 0; s + w <= m.length; s += hop) {
+    let a = 0;
+    for (let i = s; i < s + w; i++) a += m[i] * m[i];
+    lv.push(10 * Math.log10(a / w + 1e-12));
+  }
+  const rises = [];
+  for (let i = 4; i < lv.length; i++) {
+    const d = lv[i] - lv[i - 4];
+    if (d > 6 && lv[i] > -40) {
+      const sec = (i * hop) / SR, last = rises[rises.length - 1];
+      if (last && sec - last.sec < 2) { if (d > last.db) Object.assign(last, { db: +d.toFixed(1), sec: +sec.toFixed(2), beat: +((sec * SR) / SPB).toFixed(2) }); }
+      else rises.push({ db: +d.toFixed(1), sec: +sec.toFixed(2), beat: +((sec * SR) / SPB).toFixed(2) });
+    }
+  }
+  checks.rises = rises;
+}
 {
   let best = 0, bestLag = 0;
   const a = Math.round(16 * SPB), len = SR * 2;
@@ -245,12 +269,10 @@ checks.biggestJump.beat = +((checks.biggestJump.sec * SR) / SPB).toFixed(2);
   }
   checks.mp3OffsetSamples = bestLag;
 }
-// the loop seam: each music stem's last 2 loop bars against the same bars one loop earlier (float, before the mp3); the mix and the
-// dj stem on the last bar (her greeting's tail lies in the bar before that, long gone when the loop starts), and the dj stem's
-// loudest sample anywhere in the loop and the bar before it
-checks.loop = {};
-const S0 = LOOP.startBeat * SPB, LN = LOOP.beats * SPB;
-for (const k of ['pad', 'bass', 'beat', 'lead', 'animals']) checks.loop[k] = loopSeam(stems[k], S0, LN, 8 * SPB);
+// the loop seam: each music stem (float, before the duck) as above; the mix on the loop's last bar against the bar a loop earlier
+// (the music ducks under her greeting in bars 5-6, which the loop's own bars never hear: it ends 6 beats before the loop starts),
+// and the dj stem's loudest sample anywhere in the loop and the bar before it
+checks.loop = { ...loopStems };
 checks.loop.mix = loopSeam(mix, S0, LN, 12 * SPB);
 let djInLoop = 0;
 for (let i = S0 - 4 * SPB; i < S0 + LN; i++) djInLoop = Math.max(djInLoop, Math.abs(stems.dj.L[i]), Math.abs(stems.dj.R[i]));
@@ -277,7 +299,7 @@ checks.snail = synthLog.filter(s => s.check).map(s => {
 // span of her words, and how far the music was ducked there
 checks.dj = dj.placed.map(p => {
   const t = loadLine(DJDIR, p.id);
-  const a = p.at + Math.round(p.attackSec * SR), b = Math.min(n, p.at + p.len);
+  const a = p.at + p.words[0], b = Math.min(n, p.at + p.words[1]);
   const v = kLoudness(stems.dj.L, stems.dj.R, a, b), m = kLoudness(music2.L, music2.R, a, b);
   let dmin = 1;
   for (let i = a; i < b; i++) dmin = Math.min(dmin, dj.duck[i]);

@@ -143,49 +143,42 @@ function colour(y, d) {
   return y;
 }
 
+/** The DJ's mic chain: a peak compressor (3 ms attack, 70 ms release, 3:1 over a threshold 10 dB under the piece's peak). */
+function compress(y) {
+  let pk = 0;
+  for (const v of y) pk = Math.max(pk, Math.abs(v));
+  const th = pk * 10 ** (-10 / 20);
+  const a = 1 - Math.exp(-1 / (0.003 * SR)), r = 1 - Math.exp(-1 / (0.07 * SR));
+  let env = 0;
+  for (let i = 0; i < y.length; i++) {
+    const x = Math.abs(y[i]);
+    env += (x - env) * (x > env ? a : r);
+    if (env > th) y[i] *= (env / th) ** (1 / 3 - 1);
+  }
+  return y;
+}
+
 /**
- * Render the dj stem. `music` is the music's sum (before the master, after balance) for the level under each line. Returns
- * { dj (stereo), duck (Float32Array gain for the music), placed: [{ id, beat, sec, text, ... levels }] }.
+ * Render the dj stem. `music` is the music's sum (after balance, before the master). Two passes: each piece is cut, coloured and
+ * compressed and the music's duck under it laid down; then each line is set `over` dB above the ducked music under its words (or,
+ * for a line in a freeze or in the gap before the drop, `over` dB above the music at `ref`, the dance just before). Returns
+ * { dj (stereo), duck (Float32Array gain for the music), placed: [{ id, beat, sec, text, ... }] }.
  */
 export function renderDj(score, n, music, dir, lines) {
-  const dry = stereo(n), echoIn = stereo(n), revIn = stereo(n);
   const duck = new Float32Array(n).fill(1);
-  const placed = [];
   const textOf = Object.fromEntries(lines.map(l => [l.id, l.text]));
-  for (const d of score.dj) {
+  const pieces = score.dj.map(d => {
     const t = loadLine(dir, d.id);
-    const est = estimateSec(textOf[d.id] ?? '');
-    const p = pieceOf(t, d, d.head ? 0.12 : d.seg !== undefined ? 0.5 : est);
-    const y = colour(p.y, d);
-    const beatS = Math.round(d.beat * SPB);
-    const at = beatS - p.attack;
-    // the line's level: its own loudness against the music's over the same span (or over a reference span, for lines in a freeze)
-    const span = [at, Math.min(n, at + y.length)];
-    const refS = d.ref !== undefined ? Math.round(d.ref * SPB) : span[0];
-    const refSpan = [refS, Math.min(n, refS + (span[1] - span[0]))];
-    const mus = kLoudness(music.L, music.R, refSpan[0], refSpan[1]);
-    let gain = 1;
-    if (!p.placeholder) {
-      const vl = kLoudness(y, y, 0, y.length) - 3.01; // centre-panned: each side gets 1/sqrt(2)
-      gain = 10 ** ((mus + (d.lift ?? 4) - vl) / 20);
-    }
-    addMono(dry, y, at, gain, 0);
-    // the echo throw: only the last word goes into the delay
-    if (d.echo && !p.placeholder) {
-      const last = Float32Array.from(y.subarray(p.lastFrom));
-      const fi = Math.min(last.length, Math.round(0.012 * SR));
-      for (let i = 0; i < fi; i++) last[i] *= i / fi;
-      addMono(echoIn, last, at + p.lastFrom, gain, 0);
-    }
-    addMono(revIn, y, at, gain * (d.rev ?? 0.15), 0);
-
-    // duck the music under her: down by `duck` dB from 15 ms before her attack, back over 250 ms after her voice ends
+    const p = pieceOf(t, d, d.head ? 0.12 : d.seg !== undefined ? 0.5 : estimateSec(textOf[d.id] ?? ''));
+    const y = p.placeholder ? p.y : compress(colour(p.y, d));
+    const at = Math.round(d.beat * SPB) - p.attack;
+    const voicedEnd = p.placeholder ? y.length : lastLoud(envelope(y, 0.02, 0.005), y.length);
+    const words = [Math.max(0, p.attack - Math.round(0.03 * SR)), Math.max(p.attack + 64, voicedEnd)]; // her words, inside the piece
     if (d.duck) {
+      // the music dips by `duck` dB from 15 ms before her attack, and comes back over 250 ms after her words end
       const depth = 1 - 10 ** (-d.duck / 20);
-      const env = p.placeholder ? null : envelope(y, 0.02, 0.005);
-      const voicedEnd = p.placeholder ? y.length : lastLoud(env, y.length);
       const a = Math.round(0.015 * SR), r = Math.round(0.25 * SR);
-      for (let i = -a; i < voicedEnd + r; i++) {
+      for (let i = -a; i < voicedEnd - p.attack + r; i++) {
         const j = at + p.attack + i;
         if (j < 0 || j >= n) continue;
         let k = 1;
@@ -195,27 +188,46 @@ export function renderDj(score, n, music, dir, lines) {
         if (g < duck[j]) duck[j] = g;
       }
     }
-    placed.push({ id: d.id, beat: d.beat, sec: +((d.beat * SPB) / SR).toFixed(3), text: textOf[d.id], seg: d.seg, head: d.head, rate: d.rate,
-      real: t.real, at, len: y.length, gainDb: +(20 * Math.log10(gain)).toFixed(1), musicLufs: +mus.toFixed(1), attackSec: +(p.attack / SR).toFixed(3) });
-  }
-  // the echo throws: one tempo delay per time used, each band-limited like an old tape echo
-  const out = stereo(n);
+    return { d, t, p, y, at, words };
+  });
+  const ducked = { L: new Float32Array(n), R: new Float32Array(n) };
   for (let i = 0; i < n; i++) {
-    out.L[i] = dry.L[i];
-    out.R[i] = dry.R[i];
+    ducked.L[i] = music.L[i] * duck[i];
+    ducked.R[i] = music.R[i] * duck[i];
   }
-  const times = [...new Set(score.dj.filter(d => d.echo).map(d => d.echo.join(',')))];
-  for (const key of times) {
-    const [beats, fb] = key.split(',').map(Number);
-    const src = stereo(n);
-    for (const d of score.dj) {
-      if (!d.echo || d.echo.join(',') !== key) continue;
-      const pl = placed.find(q => q.id === d.id && q.beat === d.beat);
-      for (let i = pl.at; i < Math.min(n, pl.at + pl.len + Math.round(0.05 * SR)); i++) {
-        src.L[i] += echoIn.L[i];
-        src.R[i] += echoIn.R[i];
-      }
+  const dry = stereo(n), revIn = stereo(n);
+  const echoIn = new Map();
+  const placed = [];
+  for (const { d, t, p, y, at, words } of pieces) {
+    const w0 = at + words[0], w1 = Math.min(n, at + words[1]);
+    const mus = d.ref !== undefined
+      ? kLoudness(music.L, music.R, Math.round(d.ref * SPB), Math.round(d.ref * SPB) + (w1 - w0))
+      : kLoudness(ducked.L, ducked.R, w0, w1);
+    let gain = 1;
+    if (!p.placeholder) {
+      const vl = kLoudness(y, y, words[0], words[1]) - 3.01; // centre-panned: each side gets 1/sqrt(2)
+      gain = 10 ** ((mus + (d.over ?? 4) - vl) / 20);
     }
+    addMono(dry, y, at, gain, 0);
+    if (d.echo && !p.placeholder) {
+      // the echo throw: only the end of her last word goes into the delay
+      const key = d.echo.join(',');
+      if (!echoIn.has(key)) echoIn.set(key, stereo(n));
+      const last = Float32Array.from(y.subarray(p.lastFrom));
+      const fi = Math.min(last.length, Math.round(0.012 * SR));
+      for (let i = 0; i < fi; i++) last[i] *= i / fi;
+      addMono(echoIn.get(key), last, at + p.lastFrom, gain, 0);
+    }
+    addMono(revIn, y, at, gain * (d.rev ?? 0.15), 0);
+    placed.push({ id: d.id, beat: d.beat, sec: +((d.beat * SPB) / SR).toFixed(3), text: textOf[d.id], seg: d.seg, head: d.head, rate: d.rate,
+      real: t.real, at, len: y.length, words, gainDb: +(20 * Math.log10(gain)).toFixed(1), musicLufs: +mus.toFixed(1), attackSec: +(p.attack / SR).toFixed(3) });
+  }
+  // the echo throws: one tempo delay per time used, band-limited like an old tape echo
+  const out = stereo(n);
+  out.L.set(dry.L);
+  out.R.set(dry.R);
+  for (const [key, src] of echoIn) {
+    const [beats, fb] = key.split(',').map(Number);
     const e = pingPong(src, beats * SPB, fb, 5200, 450);
     for (let i = 0; i < n; i++) {
       out.L[i] += e.L[i] * 0.55;
@@ -227,8 +239,8 @@ export function renderDj(score, n, music, dir, lines) {
     out.L[i] += wet.L[i] * 0.6;
     out.R[i] += wet.R[i] * 0.6;
   }
-  for (const f of [new Biquad('hp', 90, 0.7)]) f.run(out.L);
-  for (const f of [new Biquad('hp', 90, 0.7)]) f.run(out.R);
+  new Biquad('hp', 90, 0.7).run(out.L);
+  new Biquad('hp', 90, 0.7).run(out.R);
   return { dj: out, duck, placed };
 }
 

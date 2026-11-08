@@ -94,42 +94,44 @@ export function chordOfBar(bar) {
 // Her lines: where each is placed (the first syllable's attack on the beat) and what the DJ does with it. `seg` takes one word of a
 // take (by index; -1 the last), `head` only its first seconds; `rate` pitches lightly (and so slows/quickens); fx: echo (a throw
 // on the last word: time in beats, feedback), radio (a band-pass telephone colour), shake (a 16th tremolo), slow (dark low-pass),
-// rev (reverb send), duck (dB the music dips under her), lift (dB over the music under her).
+// rev (reverb send), duck (dB the music dips under her), over (dB her words sit over the ducked music under them, or, with `ref`,
+// over the music at beat `ref`: the dance just before a freeze or the build before the countdown gap, so she never jumps out of
+// the quiet).
 export const DJ = [
-  { id: 'welcome', beat: 3, echo: [0.75, 0.42], rev: 0.25, duck: 3, lift: 5 },
-  { id: 'count-in', beat: 12, seg: 0, radio: 1, rev: 0.1, duck: 2, lift: 4 },
-  { id: 'count-in', beat: 13, seg: 1, radio: 1, rev: 0.1, duck: 2, lift: 4 },
-  { id: 'count-in', beat: 14, seg: 2, radio: 1, rev: 0.1, duck: 2, lift: 4 },
-  { id: 'count-in', beat: 15, seg: 3, echo: [0.5, 0.38], rev: 0.2, duck: 3, lift: 5 },
-  { id: 'hi-egill', beat: 18, rev: 0.12, duck: 4, lift: 4 },
-  { id: 'grazers-in', beat: 80, rev: 0.25, echo: [0.75, 0.35], duck: 4, lift: 4 },
-  { id: 'grazers-shake', beat: 88, shake: 0.4, rev: 0.2, duck: 4, lift: 4 },
-  { id: 'turtles-slow', beat: 96, rate: 0.95, slow: 1, rev: 0.4, duck: 4, lift: 4 },
-  { id: 'turtles-fast', beat: 104, echo: [0.25, 0.3], rev: 0.15, duck: 4, lift: 4 },
-  { id: 'frogs-in', beat: 112, echo: [0.5, 0.5], rev: 0.2, duck: 4, lift: 4 },
-  ...[[120, 0], [121, 0.5], [122, 1], [123, 1.5], [126, 1], [127, 2]].map(([beat, st]) => ({ id: 'hopp', beat, rate: 2 ** (st / 12), rev: 0.15, duck: 3, lift: 4 })),
-  { id: 'lizards-in', beat: 128, rev: 0.12, duck: 4, lift: 4 },
-  ...[136, 138, 140, 141].map(beat => ({ id: 'hradar', beat, echo: [0.25, 0.25], rev: 0.12, duck: 3, lift: 4 })),
-  ...[142, 142.5, 143, 143.25, 143.5, 143.75].map(beat => ({ id: 'hradar', beat, head: 0.1, rev: 0.1, duck: 3, lift: 3 })),
-  { id: 'flyers-in', beat: 144, echo: [0.75, 0.4], rev: 0.25, duck: 4, lift: 4 },
-  ...[[148, 0, 0.25], [152, 1, 0.32], [156, 2, 0.4]].map(([beat, st, rev]) => ({ id: 'haerra', beat, rate: 2 ** (st / 12), echo: [0.75, 0.4], rev, duck: 4, lift: 4 })),
-  { id: 'freeze-in', beat: 160, echo: [0.5, 0.4], rev: 0.2, duck: 4, lift: 4 },
-  { id: 'stopp', beat: 168, echo: [0.5, 0.45], rev: 0.3, duck: 0, lift: 5, ref: 164 },
-  { id: 'turtle-moved', beat: 170, rev: 0.15, duck: 0, lift: 5, ref: 164 },
-  { id: 'dansa', beat: 175, rev: 0.15, duck: 0, lift: 5, ref: 164 },
-  { id: 'stopp', beat: 184, echo: [0.5, 0.45], rev: 0.3, duck: 0, lift: 5, ref: 180 },
-  { id: 'egill-freeze', beat: 185, rev: 0.05, duck: 0, lift: 3, ref: 180 },
-  { id: 'dansa', beat: 191, rev: 0.15, duck: 0, lift: 5, ref: 180 },
-  { id: 'horn-in', beat: 204, rev: 0.3, duck: 3, lift: 4 },
-  { id: 'wings-up', beat: 240, echo: [0.75, 0.4], rev: 0.25, duck: 3, lift: 4 },
-  { id: 'hold', beat: 256, rev: 0.2, duck: 4, lift: 4 },
-  { id: 'count-in', beat: 269, seg: 2, radio: 1, echo: [0.25, 0.25], rev: 0.15, duck: 0, lift: 4, ref: 264 },
-  { id: 'count-in', beat: 270, seg: 1, radio: 1, echo: [0.25, 0.25], rev: 0.15, duck: 0, lift: 4, ref: 264 },
-  { id: 'count-in', beat: 271, seg: 0, radio: 1, echo: [0.25, 0.25], rev: 0.15, duck: 0, lift: 4, ref: 264 },
-  { id: 'nu', beat: 272, echo: [0.75, 0.5], rev: 0.4, duck: 3, lift: 4 },
-  { id: 'allir-saman', beat: 302, echo: [0.5, 0.45], rev: 0.25, duck: 4, lift: 4 },
-  { id: 'allir-saman', beat: 328, seg: -1, echo: [0.5, 0.5], rev: 0.3, duck: 4, lift: 4 },
-  { id: 'snail', beat: 345, echo: [0.75, 0.4], rev: 0.2, duck: 4, lift: 4 },
+  { id: 'welcome', beat: 3, echo: [0.75, 0.42], rev: 0.25, duck: 0, over: 3 },
+  { id: 'count-in', beat: 12, seg: 0, radio: 1, rev: 0.1, duck: 2, over: 3 },
+  { id: 'count-in', beat: 13, seg: 1, radio: 1, rev: 0.1, duck: 2, over: 3 },
+  { id: 'count-in', beat: 14, seg: 2, radio: 1, rev: 0.1, duck: 2, over: 3 },
+  { id: 'count-in', beat: 15, seg: 3, echo: [0.5, 0.38], rev: 0.2, duck: 3, over: 4 },
+  { id: 'hi-egill', beat: 18, rev: 0.12, duck: 4, over: 4 },
+  { id: 'grazers-in', beat: 80, rev: 0.25, echo: [0.75, 0.35], duck: 4, over: 4 },
+  { id: 'grazers-shake', beat: 88, shake: 0.4, rev: 0.2, duck: 4, over: 4 },
+  { id: 'turtles-slow', beat: 96, rate: 0.95, slow: 1, rev: 0.4, duck: 4, over: 4 },
+  { id: 'turtles-fast', beat: 104, echo: [0.25, 0.3], rev: 0.15, duck: 4, over: 5 },
+  { id: 'frogs-in', beat: 112, echo: [0.5, 0.5], rev: 0.2, duck: 4, over: 5 },
+  ...[[120, 0], [121, 0.5], [122, 1], [123, 1.5], [126, 1], [127, 2]].map(([beat, st]) => ({ id: 'hopp', beat, rate: 2 ** (st / 12), rev: 0.15, duck: 3, over: 4 })),
+  { id: 'lizards-in', beat: 128, rev: 0.12, duck: 4, over: 4 },
+  ...[136, 138, 140, 141].map(beat => ({ id: 'hradar', beat, echo: [0.25, 0.25], rev: 0.12, duck: 3, over: 3 })),
+  ...[142, 142.5, 143, 143.25, 143.5, 143.75].map(beat => ({ id: 'hradar', beat, head: 0.1, rev: 0.1, duck: 3, over: 2 })),
+  { id: 'flyers-in', beat: 144, echo: [0.75, 0.4], rev: 0.25, duck: 4, over: 4 },
+  ...[[148, 0, 0.25], [152, 1, 0.32], [156, 2, 0.4]].map(([beat, st, rev]) => ({ id: 'haerra', beat, rate: 2 ** (st / 12), echo: [0.75, 0.4], rev, duck: 4, over: 4 })),
+  { id: 'freeze-in', beat: 160, echo: [0.5, 0.4], rev: 0.2, duck: 4, over: 5 },
+  { id: 'stopp', beat: 168, echo: [0.5, 0.45], rev: 0.3, duck: 0, over: 0, ref: 164 },
+  { id: 'turtle-moved', beat: 170, rev: 0.15, duck: 0, over: -1, ref: 164 },
+  { id: 'dansa', beat: 175, rev: 0.15, duck: 0, over: 0, ref: 164 },
+  { id: 'stopp', beat: 184, echo: [0.5, 0.45], rev: 0.3, duck: 0, over: 0, ref: 180 },
+  { id: 'egill-freeze', beat: 185, rev: 0.05, duck: 0, over: -3, ref: 180 },
+  { id: 'dansa', beat: 191, rev: 0.15, duck: 0, over: 0, ref: 180 },
+  { id: 'horn-in', beat: 204, rev: 0.3, duck: 3, over: 4 },
+  { id: 'wings-up', beat: 240, echo: [0.75, 0.4], rev: 0.25, duck: 3, over: 4 },
+  { id: 'hold', beat: 256, rev: 0.2, duck: 4, over: 4 },
+  { id: 'count-in', beat: 269, seg: 2, radio: 1, echo: [0.25, 0.25], rev: 0.15, duck: 0, over: -1, ref: 264 },
+  { id: 'count-in', beat: 270, seg: 1, radio: 1, echo: [0.25, 0.25], rev: 0.15, duck: 0, over: -1, ref: 264 },
+  { id: 'count-in', beat: 271, seg: 0, radio: 1, echo: [0.25, 0.25], rev: 0.15, duck: 0, over: -1, ref: 264 },
+  { id: 'nu', beat: 272, echo: [0.75, 0.5], rev: 0.4, duck: 3, over: 5 },
+  { id: 'allir-saman', beat: 302, echo: [0.5, 0.45], rev: 0.25, duck: 4, over: 4 },
+  { id: 'allir-saman', beat: 328, seg: -1, echo: [0.5, 0.5], rev: 0.3, duck: 4, over: 4 },
+  { id: 'snail', beat: 345, echo: [0.75, 0.4], rev: 0.2, duck: 4, over: 4 },
 ];
 
 // ---------------------------------------------------------------- the score
@@ -461,8 +463,8 @@ export function buildScore() {
   };
   const freeze = from => {
     // the music stops; what is left is the moment frozen: its chord held bright and still, ice twinkling, the beetles' clock
-    S.pad.push({ beat: from, beats: 8, notes: CHORDS.C.pad.map(m => m + 12), attack: 0.015, release: 0.5, vel: 0.62 });
-    S.pad.push({ beat: from, beats: 8, notes: [CHORDS.C.root + 24, CHORDS.C.root + 31], attack: 0.015, release: 0.5, vel: 0.5 });
+    S.pad.push({ beat: from, beats: 8, notes: CHORDS.C.pad.map(m => m + 12), attack: 0.015, release: 0.5, vel: 0.85 });
+    S.pad.push({ beat: from, beats: 8, notes: [CHORDS.C.root + 24, CHORDS.C.root + 31], attack: 0.015, release: 0.5, vel: 0.75 });
     const r = rng(from);
     for (let s = 0; s < 32; s++) {
       if (r() < 0.45) continue;
@@ -543,7 +545,7 @@ export function buildScore() {
   }
   for (let b = 268; b < GAP; b += 0.125) S.snare.push({ beat: b, vel: 0.6 });
   S.bell.splice(0, S.bell.length, ...S.bell.filter(e => !(e.beat >= GAP && e.beat < 272)));
-  S.riser.push({ beat: 240, seconds: 32 * 0.48, vel: 0.38 });
+  S.riser.push({ beat: 240, seconds: 32 * 0.48, vel: 0.46 });
   S.cymbal.push({ beat: 264, seconds: 8 * 0.48, reverse: true, vel: 0.2 });
   S.cues.push({ beat: 240, kind: 'rise' });
   GROUPS.slice(0, 4).forEach((g, k) => {
@@ -561,7 +563,7 @@ export function buildScore() {
   for (const b of [269, 270, 271]) wing(b, 0.7, { rev: 0.3 });
   wing(272, 0.8, { rev: 0.3 });
   S.sample.push({ beat: 248, file: 'kafli4/hljod/gust-1.mp3', vel: 0.25, align: 'start', fadeIn: 0.4, pan: -0.3, rev: 0.1, group: 'fx' });
-  S.sample.push({ beat: 256, file: 'kafli4/hljod/airflow.mp3', vel: 0.32, align: 'start', len: 16 * 0.48, fadeIn: 16 * 0.48, fadeOut: 0.08, rev: 0, group: 'fx' });
+  S.sample.push({ beat: 256, file: 'kafli4/hljod/airflow.mp3', vel: 0.5, align: 'start', len: 16 * 0.48, fadeIn: 16 * 0.48, fadeOut: 0.08, rev: 0, group: 'fx' });
   S.sample.push({ beat: 260, file: 'kafli4/hljod/gust-3.mp3', vel: 0.22, align: 'start', fadeIn: 0.8, pan: 0.3, rev: 0.1, group: 'fx' });
   S.sample.push({ beat: 272, file: 'kafli4/hljod/whoosh-2.mp3', vel: 0.35, align: 'peak', rev: 0.2, group: 'fx' });
   S.cues.push({ beat: 269, kind: 'countdown' });
