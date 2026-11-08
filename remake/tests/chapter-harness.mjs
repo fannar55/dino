@@ -723,7 +723,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       }
     }
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
-    if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
+    if (stage.scheduler.pending > 0 || world.loading?.size > 0) await new Promise(resolve => setImmediate(resolve)); // as main.js's seek: loads settle
   }
   return { world, task, stage, director, journal, book, save, moments, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines, builds };
 }

@@ -24,6 +24,10 @@
 //    (extras.joints), the same material and maps, the corrections as sparse morph targets (their drivers in extras.corrections), and
 //    in extras the places a rider uses (seat, grips, knees, ankles: bind-frame points with their weights) and what the fit did.
 //    engine/flier-saddle.js binds it to her skeleton when it loads.
+//
+// The same saddle goes on Mosi (chapters 1 to 4: Egill rides him on it): `--host=mosi` (HOSTS: whose back, where on it, which poses).
+// Mosi's model is in its own units (his node scales him to 8.5 m long), so the fit works on a copy of the host's skin put in metres
+// (inMetres: its bind frame is then the world at rest) and writes the saddle back in his units.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -76,20 +80,61 @@ export function placesOf(fitted, names, places = PLACES) {
 }
 
 /**
- * Her frame for the saddle, in her bind pose: the seat (SEAT on its bone, bind frame) and her back's axes there as they are when her
- * back is level (carry's first pose): ahead, up, right.
+ * Mosi's places on the saddle: the saddle's own (seat, grips) as on her; his knees and feet over his back, [ahead, above his skin,
+ * across]. His back is broad and flat on top (5 cm lower 0.3 m out from the middle), so Egill sits astride as a small boy on a big
+ * horse: his knees bent, ahead and out over the pad, his feet down on it by its edges, under his knees.
  */
-export function backFrame(gltf, mesh) {
+export const MOSI_PLACES = {
+  seat: [0, 0, 0],
+  grips: PLACES.grips,
+  knees: { left: [0.12, 0.26, -0.22], right: [0.12, 0.26, 0.22] },
+  ankles: { left: [0.06, 0.14, -0.28], right: [0.06, 0.14, 0.28] }, // his ankle is 0.1 m over his sole: the soles on the pad
+};
+
+/** Mosi's poses with Egill on him (chapters 1 to 4, and Háls og hali): standing and walking; his head turns, but no skin under the pad. */
+export const MOSI_POSES = [
+  ['idle', [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]],
+  ['walk', [0, 0.0625, 0.125, 0.1875, 0.25, 0.3125, 0.375, 0.4375, 0.5, 0.5625, 0.625, 0.6875, 0.75, 0.8125, 0.875, 0.9375]],
+];
+
+/** How far in front of Mosi's Body bone (metres, along him) Egill's hips go: the spot the owner marked (riding.js, 2026-10-16). */
+export const MOSI_AHEAD = 1.75;
+
+/**
+ * Puts a copy of a host's skin in metres: its bind frame becomes the world at rest (the mesh's world matrix applied to its vertices,
+ * undone in its bones' inverse binds), so it skins to the same places and the fit's numbers are metres for every host. Gives the
+ * geometry and the inverse binds copies of their own (the loaded file's stay as they were). Returns the matrix it applied.
+ */
+export function inMetres(mesh) {
+  mesh.updateWorldMatrix(true, false);
+  if (!mesh.bindMatrix.equals(new THREE.Matrix4())) throw new Error('the fit expects the skin bound with an identity bind matrix (GLTFLoader\'s)');
+  const M = mesh.matrixWorld.clone();
+  const inverse = M.clone().invert();
+  mesh.geometry = mesh.geometry.clone();
+  mesh.geometry.applyMatrix4(M);
+  mesh.skeleton.boneInverses = mesh.skeleton.boneInverses.map(b => b.clone().multiply(inverse));
+  return M;
+}
+
+/**
+ * The host's frame for the saddle, in the bind pose (her skin in metres: inMetres): the seat (host.seat) and her back's axes there as
+ * they are when her back is level (host.level's first pose): ahead, up, right. A direction that turns with the seat's bone and is level
+ * in that pose: the bone's turn at rest, after the turn in that pose undone.
+ */
+export function backFrame(gltf, mesh, host = HOSTS.flugedla) {
   const bones = mesh.skeleton.bones;
-  const index = bones.findIndex(b => b.name === SEAT.bone);
-  const seat = new V3(...SEAT.local).applyMatrix4(mesh.skeleton.boneInverses[index].clone().invert());
-  // the bone's turn in carry's first pose, read on a copy with a mixer of its own
-  const scene = cloneSkinned(gltf.scene);
-  const mixer = new THREE.AnimationMixer(scene);
-  const carry = gltf.animations.find(c => c.name === 'carry');
-  if (carry) { mixer.clipAction(carry).play(); mixer.setTime(0); }
-  scene.updateMatrixWorld(true);
-  const back = scene.getObjectByName(SEAT.bone).getWorldQuaternion(new THREE.Quaternion()).invert();
+  const index = bones.findIndex(b => b.name === host.bone);
+  if (index < 0) throw new Error(`${host.character} has no bone named "${host.bone}"`);
+  const seat = host.seat(mesh, index);
+  // the bone's turn at rest and in the level pose, read on copies with a mixer of their own
+  const turnIn = clipName => {
+    const scene = cloneSkinned(gltf.scene);
+    const clip = clipName && gltf.animations.find(c => c.name === clipName);
+    if (clip) { const mixer = new THREE.AnimationMixer(scene); mixer.clipAction(clip).play(); mixer.setTime(0); }
+    scene.updateMatrixWorld(true);
+    return scene.getObjectByName(host.bone).getWorldQuaternion(new THREE.Quaternion());
+  };
+  const back = turnIn(null).multiply(turnIn(host.level).invert());
   return { seat, ahead: new V3(1, 0, 0).applyQuaternion(back), up: new V3(0, 1, 0).applyQuaternion(back), right: new V3(0, 0, 1).applyQuaternion(back) };
 }
 
@@ -363,6 +408,47 @@ export const POSES = [
   ['glide', [0, 0.25, 0.5, 0.75]],
   ['land', [0, 0.2, 0.4, 0.6, 0.8, 0.97]],
 ];
+
+/**
+ * Whose back the saddle goes on. For each: the character (tests/characters.mjs), the bone the seat is on and the clip whose first pose
+ * has the back level, where the seat is in the bind frame in metres (seat(mesh, bone): mesh in metres, inMetres; bone its index), her
+ * poses with the saddle on, the rider's places, the fit's numbers and the file the game loads.
+ */
+export const HOSTS = {
+  flugedla: {
+    character: 'flugedla',
+    bone: SEAT.bone,
+    level: 'carry',
+    seat: (mesh, bone) => new V3(...SEAT.local).applyMatrix4(mesh.skeleton.boneInverses[bone].clone().invert()),
+    poses: POSES,
+    places: PLACES,
+    fit: FIT,
+    file: 'pteranodon-saddle.glb',
+  },
+  mosi: {
+    character: 'mosi',
+    bone: 'Body',
+    level: 'idle',
+    // the top of his back MOSI_AHEAD in front of his Body bone: the highest of his skin within 6 cm of there, seen from above
+    seat(mesh, bone) {
+      const body = new V3().setFromMatrixPosition(mesh.skeleton.boneInverses[bone].clone().invert());
+      const x = body.x + MOSI_AHEAD, z = body.z;
+      const position = mesh.geometry.attributes.position;
+      let top = -Infinity;
+      const v = new V3();
+      for (let i = 0; i < position.count; i++) {
+        v.fromBufferAttribute(position, i);
+        if (Math.hypot(v.x - x, v.z - z) < 0.06) top = Math.max(top, v.y);
+      }
+      if (!Number.isFinite(top)) throw new Error('Mosi has no back where the saddle goes');
+      return new V3(x, top, z);
+    },
+    poses: MOSI_POSES,
+    places: MOSI_PLACES,
+    fit: { ...FIT, ahead: 0 },
+    file: 'mosi-saddle.glb',
+  },
+};
 
 /**
  * Puts `scene` (a copy of her, `mesh` its body) in each pose in turn and calls visit(label, matrices, bones): each bone's world matrix
@@ -966,47 +1052,87 @@ export function writeFitted(file, saddle, fitted, { joints, slot, extras }) {
 }
 
 // --- the command ------------------------------------------------------------------------------------------------------------------
+/**
+ * A fitted saddle (and its places) from the fit's metres into the host's own bind frame: `M` takes that frame to metres (inMetres).
+ * Positions by its inverse, normals by its inverse's normal matrix, the corrections' moves by its inverse's turn and scale.
+ */
+export function inHostUnits(fitted, places, M) {
+  const inverse = M.clone().invert();
+  const linear = new THREE.Matrix3().setFromMatrix4(inverse);
+  const normal = new THREE.Matrix3().getNormalMatrix(inverse);
+  const move = d => {
+    const out = new Float32Array(d.length);
+    const v = new V3();
+    for (let i = 0; i < d.length; i += 3) { v.set(d[i], d[i + 1], d[i + 2]).applyMatrix3(linear); out[i] = v.x; out[i + 1] = v.y; out[i + 2] = v.z; }
+    return out;
+  };
+  const point = bind => new V3(...bind).applyMatrix4(inverse).toArray().map(x => Number(x.toFixed(5)));
+  const placesOut = { seat: { ...places.seat, bind: point(places.seat.bind) } };
+  for (const part of ['grips', 'knees', 'ankles']) {
+    placesOut[part] = Object.fromEntries(Object.entries(places[part]).map(([side, p]) => [side, { ...p, bind: point(p.bind) }]));
+  }
+  return {
+    fitted: {
+      ...fitted,
+      positions: fitted.positions.map(p => p.clone().applyMatrix4(inverse)),
+      normals: fitted.normals.map(n => n.clone().applyMatrix3(normal).normalize()),
+      corrections: (fitted.corrections ?? []).map(c => ({ ...c, deltas: move(c.deltas) })),
+    },
+    places: placesOut,
+  };
+}
+
 async function main() {
   const [input, output] = process.argv.slice(2).filter(a => !a.startsWith('--'));
-  // --name=value overrides a number of FIT (to try one before it goes in)
-  const fit = { ...FIT };
-  for (const a of process.argv.slice(2).filter(a => a.startsWith('--'))) {
-    const [name, value] = a.slice(2).split('=');
+  // --host=mosi puts it on Mosi (HOSTS); --name=value overrides a number of the host's fit (to try one before it goes in)
+  const options = Object.fromEntries(process.argv.slice(2).filter(a => a.startsWith('--')).map(a => a.slice(2).split('=')));
+  const hostName = options.host ?? 'flugedla';
+  delete options.host;
+  const host = HOSTS[hostName];
+  if (!host) throw new Error(`no such host: ${hostName} (${Object.keys(HOSTS).join(', ')})`);
+  const fit = { ...host.fit };
+  for (const [name, value] of Object.entries(options)) {
     if (!(name in FIT)) throw new Error(`no such fit setting: ${name}`);
     fit[name] = Number.isNaN(Number(value)) ? value : Number(value);
   }
   if (!input || !output) {
-    console.error('usage: node --import ./remake/tests/setup.mjs remake/tools/saddle-fit.mjs <prepped.glb> <out.glb> [--<FIT setting>=<value>]');
+    console.error('usage: node --import ./remake/tests/setup.mjs remake/tools/saddle-fit.mjs <prepped.glb> <out.glb> [--host=mosi] [--<FIT setting>=<value>]');
     process.exit(1);
   }
   const { loadCharacter, skinnedMeshOf } = await import('../tests/characters.mjs');
-  const gltf = await loadCharacter('flugedla');
+  const gltf = await loadCharacter(host.character);
   const scene = cloneSkinned(gltf.scene);
   scene.updateMatrixWorld(true);
   const mesh = skinnedMeshOf(scene);
-  const frame = backFrame(gltf, mesh);
+  const M = inMetres(mesh); // the identity for her; Mosi's node's scale for him
+  const frame = backFrame(gltf, mesh, host);
   const skin = skinSurface(mesh, { around: frame.seat, near: 1.4 });
   const saddle = readSaddle(input);
   const t0 = Date.now();
   const fitted = fitSaddle(saddle, skin, frame, { fit });
-  const posing = visit => eachPose(gltf, scene, mesh, visit);
+  const posing = visit => eachPose(gltf, scene, mesh, visit, host.poses);
   const rows = rows => rows.map(r => `${r.label} ${r.inside} (${(r.worst * 100).toFixed(1)} cm)`).join(', ');
-  console.log(`[saddle-fit] laid on her back; inside her in her poses: ${rows(checkInPoses(fitted, skin, posing))}`);
+  console.log(`[saddle-fit] laid on ${hostName}'s back; inside in the poses: ${rows(checkInPoses(fitted, skin, posing))}`);
   holdInPoses(fitted, skin, posing, { fit });
-  console.log(`[saddle-fit] held in her poses; inside her: ${rows(checkInPoses(fitted, skin, posing))}`);
+  console.log(`[saddle-fit] held in the poses; inside: ${rows(checkInPoses(fitted, skin, posing))}`);
   correctInPoses(fitted, skin, posing, { up: frame.up });
   const held = checkInPoses(fitted, skin, posing);
-  console.log(`[saddle-fit] ${fitted.corrections.length} corrections (${fitted.corrections.map(c => c.label).join(', ')}), ${fitted.clean.length} clean poses; inside her: ${rows(held)}`);
+  console.log(`[saddle-fit] ${fitted.corrections.length} corrections (${fitted.corrections.map(c => c.label).join(', ')}), ${fitted.clean.length} clean poses; inside: ${rows(held)}`);
   const bones = mesh.skeleton.bones.map(b => b.name);
   const used = [...new Set(fitted.weights.flatMap(w => [...w.keys()]))].sort((a, b) => a - b);
   const joints = used.map(i => bones[i]);
-  const places = placesOf(fitted, bones);
+  const out = inHostUnits(fitted, placesOf(fitted, bones, host.places), M);
   const key = ({ label, at, radius }) => ({ label, radius, at: Object.fromEntries(Object.entries(at).map(([name, q]) => [name, q.map(x => Number(x.toFixed(6)))])) });
+  const inverse = M.clone().invert();
+  const turn = d => d.clone().transformDirection(inverse).toArray();
   const extras = {
-    frame: { seat: frame.seat.toArray(), ahead: frame.ahead.toArray(), up: frame.up.toArray(), right: frame.right.toArray() },
+    host: hostName,
+    // her frame for the fit in her own bind frame (the seat point, her back's level axes), and the matrix from that frame to metres
+    frame: { seat: frame.seat.clone().applyMatrix4(inverse).toArray(), ahead: turn(frame.ahead), up: turn(frame.up), right: turn(frame.right) },
+    metres: M.toArray(),
     fit: { ...fit, ...fitted.report, hold: HOLD, seconds: (Date.now() - t0) / 1000 },
     poses: held.map(({ label, inside, worst, lifted }) => ({ label, inside, worst: Number(worst.toFixed(4)), lifted })),
-    places,
+    places: out.places,
     // the morph targets' drivers, in their order: her bones' turns in the pose each is for, and how far from them it fades out; and
     // likewise the poses that need none (engine/flier-saddle.js correctionsAt)
     corrections: fitted.corrections.map(key),
@@ -1014,7 +1140,7 @@ async function main() {
     correct: CORRECT,
     source: path.basename(input),
   };
-  writeFitted(output, saddle, fitted, { joints, slot: new Map(used.map((bone, k) => [bone, k])), extras }); // JOINTS_0 indexes extras.joints
+  writeFitted(output, saddle, out.fitted, { joints, slot: new Map(used.map((bone, k) => [bone, k])), extras }); // JOINTS_0 indexes extras.joints
   console.log(`[saddle-fit] ${fitted.report.vertices} vertices, ${saddle.index.length / 3} triangles; laid ${fitted.report.laid}, pushed out ${fitted.report.pushed}; raised ${fitted.report.raise} m; joints ${joints.join(' ')}`);
   console.log(`[saddle-fit] wrote ${output} (${fs.statSync(output).size} bytes) in ${extras.fit.seconds} s`);
 }

@@ -647,7 +647,7 @@ export const chapter = {
     world.chapterState = c; // what the scenes share, for captures and probes
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight.
     c.saddle = createSaddle(mosi.raw);
-    c.saddle.object.visible = true;
+    c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
     c.glow = world.effects.add(addPlateGlow(kambedla.raw));
     c.glow.setAll(1, { duration: 0 });

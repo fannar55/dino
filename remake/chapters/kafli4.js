@@ -818,7 +818,7 @@ export const chapter = {
     thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
     mosi.place(MOSI_FEN.position[0], MOSI_FEN.position[2], MOSI_FEN.heading);
     c.saddle = createSaddle(mosi.raw);
-    c.saddle.object.visible = true;
+    c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
     yield s.camera.cut('fen_star_rise');
     yield s.ready(); // the start button; immediate in captures
