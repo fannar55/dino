@@ -47,16 +47,22 @@ export function createMemoryMusic({ fetcher = defaultFetch, makeAudio = defaultE
 }
 
 /** One voice, one pending instruction and a game-clock delay. No stale timeout
- * may speak over a new action, a restart, or a hidden tab. */
-export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = defaultElement, clock = () => 0 } = {}) {
+ * may speak over a new action, a restart, or a hidden tab.
+ * `counts` (id -> { src, duration, mouth }: voice-lines.js COUNT_TAKES) are his counts of a tap-along's beats, said through the same voice
+ * (his mouth moves with them and the page's sounds dip under them) by `count(id)`, now or never. */
+export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = defaultElement, clock = () => 0, counts = {} } = {}) {
   const manifestURL = new URL('../../assets/audio/memory/manifest.json', import.meta.url);
   const element = makeAudio(); element.preload = 'auto'; element.volume = .74;
   let manifest = {}, muted = false, paused = true, pending = null, current = null, disposed = false;
   let duringDialog = false, forcePaused = false, blocked = false, revision = 0, played = 0, last = null;
-  const seen = new Set(), errors = [], started = []; // started: every line that began, with the game clock (QA reads it)
+  // started: every line that began, with the game clock, the wall clock (`at`, ms), its file and, once it was cut off, when (`cut`, ms):
+  // QA reads it (the playthrough lays each line under its video from `at` until `cut` or the next line, as the one voice plays it)
+  const seen = new Set(), errors = [], started = [];
+  let log = null; // the entry of `started` for the line now playing
   const ready = fetcher(manifestURL).then(r => r.ok ? r.json() : {}).then(data => { manifest = data; }).catch(() => {});
   function stop() {
-    revision++; pending = null; element.pause(); element.currentTime = 0; current = null; duringDialog = false;
+    if (current && log && !log.cut) log.cut = Date.now();
+    revision++; pending = null; element.pause(); element.currentTime = 0; current = null; duringDialog = false; log = null;
   }
   function resume() {
     if (!current || muted || disposed || forcePaused || paused && !duringDialog) return;
@@ -67,18 +73,29 @@ export function createMemorySpeech({ fetcher = defaultFetch, makeAudio = default
       blocked = false;
     }, () => { if (token === revision) blocked = true; });
   }
+  function begin(id, entry, inDialog, count = false) {
+    current = { id, ...entry, count }; duringDialog = inDialog;
+    element.src = new URL(`../../${current.src}`, import.meta.url).href;
+    played++; last = { id, n: played }; log = { id, t: +clock().toFixed(2), at: Date.now(), src: current.src };
+    started.push(log); if (started.length > 200) started.shift(); resume();
+  }
   function play(id, seconds = 0, inDialog = false) {
     if (disposed || muted || forcePaused || paused && !inDialog || !manifest[id]) return false;
     stop();
     if (seconds > 0) { pending = { id, remaining: seconds, inDialog }; return true; }
-    current = { id, ...manifest[id] }; duringDialog = inDialog;
-    element.src = new URL(`../../${current.src}`, import.meta.url).href;
-    played++; last = { id, n: played }; started.push({ id, t: +clock().toFixed(2), at: Date.now() }); if (started.length > 200) started.shift(); resume(); return true;
+    begin(id, manifest[id], inDialog); return true;
   }
-  element.addEventListener('ended', () => { current = null; duringDialog = false; });
-  element.addEventListener('error', () => { if (current) errors.push(current.id); current = null; });
+  // A count of a tap-along's beat («Einn!»): now or never. It may cut the count before it (fast taps), but never starts over a sentence of
+  // his, one playing or one waiting to play (that beat stays silent), and it is never queued: a count that cannot play now is dropped.
+  function count(id) {
+    if (disposed || muted || forcePaused || paused || !counts[id]) return false;
+    if (pending || current && !current.count && !element.paused) return false;
+    stop(); begin(id, counts[id], false, true); return true;
+  }
+  element.addEventListener('ended', () => { current = null; duringDialog = false; log = null; });
+  element.addEventListener('error', () => { if (current) errors.push(current.id); current = null; log = null; });
   return {
-    ready, play, stop,
+    ready, play, stop, count,
     queue(id, { delay = .35, once = true } = {}) {
       if (muted || disposed || !manifest[id] || once && seen.has(id)) return false;
       if (once) seen.add(id);

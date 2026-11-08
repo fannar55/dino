@@ -602,4 +602,25 @@ test('Mosi\'s ask and repeat rules (coach)', async () => {
   assert.equal(repeatDue({ ...due, speaking: true }), false);
   assert.equal(repeatDue({ ...due, line: null }), false);
   assert.equal(repeatDue({ ...due, mayAct: false }), false);
+  // Mosi counts a beat by its word (the owner's ruling of 2026-11-08): only «Einn!», «Tveir!», «Þrír!», the words of his counting takes.
+  const { countLine } = await import('../engine/memory/coach.js'), { COUNT_TAKES } = await import('../engine/memory/voice-lines.js');
+  assert.deepEqual(['Einn!', 'Tveir!', 'Þrír!'].map(word => countLine(word, COUNT_TAKES)), ['hals_mosi_1', 'hals_mosi_2', 'hals_mosi_3']);
+  for (const word of ['Upp!', 'ÝTA!', 'BÚMM!', 'TOGA!', 'Ein!', 'Tvær!', 'Þrjár!', 'einn!', 'Einn', undefined]) assert.equal(countLine(word, COUNT_TAKES), null, `${word}: words only`);
+  const counted = level => Object.fromEntries(level.steps.filter(step => step.beatWords).map(step => [step.id, step.beatWords.flatMap((word, i) => countLine(word, COUNT_TAKES) ? [i + 1] : [])]));
+  assert.deepEqual(counted(BERJALUNDUR), { lift: [], roll: [1, 2], lay: [] });
+  assert.deepEqual(counted(STEINAGLJUFUR), { headbutt: [1, 2], reach: [1, 2, 3], fly: [1, 2, 3], pull: [1, 2] });
+  // The takes are Háls og hali's, as lines.json has them, and the ones the owner said yes to for this game (heard set "hals", by the MP3's sha256).
+  const { createHash } = await import('node:crypto');
+  const lines = JSON.parse(readFileSync(new URL('../assets/audio/lines.json', import.meta.url), 'utf8'));
+  const heard = JSON.parse(readFileSync(new URL('../assets/audio/heard/2026-11-08-hals.json', import.meta.url), 'utf8'));
+  for (const [id, take] of Object.entries(COUNT_TAKES)) {
+    assert.deepEqual({ src: take.src, duration: take.duration, mouth: take.mouth }, lines[id], `${id}: its entry in lines.json`);
+    const verdict = heard.verdicts[`hals/${id}`], mp3 = readFileSync(new URL(`../${take.src}`, import.meta.url));
+    assert.deepEqual([heard.set, verdict?.verdict, verdict?.text], ['hals', 'ja', take.word], `${id}: the owner's yes`);
+    assert.equal(createHash('sha256').update(mp3).digest('hex'), verdict.mp3, `${id}: the MP3 he heard`);
+  }
+  // game.js: each beat's word is counted through his own voice (the same path for the playthrough's taps)
+  const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
+  assert.match(game, /createMemorySpeech\(\{ clock: \(\) => time, counts: COUNT_TAKES \}\)/); assert.match(game, /showWord\(word\); countBeat\(word\);/);
+  assert.match(game, /const take = countLine\(word, COUNT_TAKES\);\n  if \(take\) speech\.count\(take\);/);
 });

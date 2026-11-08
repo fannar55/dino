@@ -84,3 +84,14 @@ export const VOICE_LINES = Object.freeze({
   g2_won: { text: 'Allir átta komnir upp á Sólarsylluna! Sjáið stjörnurnar!', seed: 251450 },
   g2_help: { text: 'Finndu fjögur vinapör undir laufunum. Kambeðlurnar lýsa, Þríhyrnurnar stanga, Þórseðlurnar ná hátt og Flugeðlurnar fljúga. Saman komumst við upp á Sólarsylluna!', seed: 251451 },
 });
+
+// Mosi's counts in a tap-along (the juice pass, audit #11): where a beat's big word is the word of one of these takes, he says it with the
+// tap (game.js countBeat, coach.js countLine). They are not this game's lines and memory-voices.mjs never makes, installs or checks them:
+// they are Háls og hali's shipped takes, played where they are (remake/assets/audio/hals/), and the owner said yes to all three for this
+// game on 2026-11-08 (remake/assets/audio/heard/2026-11-08-hals.json, set "hals"). `duration` and `mouth` are their entries in
+// remake/assets/audio/lines.json (memory-rules.test.mjs holds them to it, and to his verdicts).
+export const COUNT_TAKES = Object.freeze({
+  hals_mosi_1: Object.freeze({ word: 'Einn!', src: 'assets/audio/hals/hals_mosi_1.mp3', duration: 0.97, mouth: 'aff70004a30000000000' }),
+  hals_mosi_2: Object.freeze({ word: 'Tveir!', src: 'assets/audio/hals/hals_mosi_2.mp3', duration: 1.29, mouth: '008affffdb8500000000000000' }),
+  hals_mosi_3: Object.freeze({ word: 'Þrír!', src: 'assets/audio/hals/hals_mosi_3.mp3', duration: 1.13, mouth: '000defefdb5400000000000' }),
+});

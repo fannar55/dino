@@ -6,8 +6,8 @@ import { LEVELS, chooseLevel, finishLevel, isNewLevel, markPlayed } from './leve
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
 import { GIFT_ITEMS, GIFT_CREDITS } from './surprise-items.js';
-import { VOICE_LINES } from './voice-lines.js';
-import { IDLE_HINT, forgetOldMute, momentLine, askLine, repeatDue } from './coach.js';
+import { VOICE_LINES, COUNT_TAKES } from './voice-lines.js';
+import { IDLE_HINT, forgetOldMute, momentLine, askLine, repeatDue, countLine } from './coach.js';
 import { BASKET_ICON } from '../scene/ui.js';
 import { createJuniorAudio } from '../yatzy-junior/sounds.js';
 import { createJuice } from '../yatzy-junior/juice.js';
@@ -282,10 +282,21 @@ function showEventCaption(event) {
   const entry = eventKeys(event).map(key => level.eventCaptions[key]).filter(Boolean).at(-1);
   if (entry) caption(entry.by?.[event.id] ?? entry.text, entry.hold);
 }
-// A beat of the tap-along: its big word, the step's beatWords by the beat's number (the last one if there are more beats than words).
+// A beat of the tap-along: its big word, the step's beatWords by the beat's number (the last one if there are more beats than words),
+// and Mosi counts it where the word is one of his counting takes' («Einn!», «Tveir!», «Þrír!»: countBeat).
 function showBeatWord(event) {
   const words = stepById(event.id)?.beatWords;
-  if (words) showWord(words[event.index] ?? words.at(-1));
+  if (!words) return;
+  const word = words[event.index] ?? words.at(-1);
+  showWord(word); countBeat(word);
+}
+// (audit #11) Mosi says the count with the tap, with Háls og hali's approved take of that word (voice-lines.js COUNT_TAKES, coach.js countLine:
+// by the word, so «Upp!», «ÝTA!» or the bark's «Ein!» stay words only). Through his own voice (presentation-audio.js count): his mouth moves
+// and the page's sounds dip under it; it may cut the count before it, never starts over a sentence of his (that beat is silent) and is
+// never queued (fast taps drop counts, they do not pile up). The playthrough's taps (window.__memory.tap) come the same way.
+function countBeat(word) {
+  const take = countLine(word, COUNT_TAKES);
+  if (take) speech.count(take);
 }
 // A script's line for Mosi: heard, and the task lines also shown in his bubble.
 // `queue`: the celebration's lines wait until what he is saying is over (the gifts line after "Allir sex komnir…").
@@ -773,7 +784,7 @@ function frame(timestamp) {
   raf = requestAnimationFrame(frame);
 }
 
-const speech = createMemorySpeech({ clock: () => time });
+const speech = createMemorySpeech({ clock: () => time, counts: COUNT_TAKES });
 const music = createMemoryMusic();
 applyLevelDom();
 // (the motion the world and the tap hint use: calm when the tablet asks for it, until "Rólegri hreyfing" says otherwise; Mosi's button waits for the round)

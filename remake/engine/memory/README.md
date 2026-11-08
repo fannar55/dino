@@ -75,6 +75,15 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
   `window.__memory.dots()` the dots filled.
   Level 2's last picture keeps the lower part of the screen free for the ending card (a shot's `clear` in `camera-director.js`: .44 of
   the height, .56 on a tall screen), so everyone on Sólarsyllan stands above it.
+- **Mosi counts the taps** (package C, audit #11): where a tap-along beat's big word is «Einn!», «Tveir!» or «Þrír!», he says it with
+  the beat, with Háls og hali's approved takes (`voice-lines.js` `COUNT_TAKES`: `hals_mosi_1..3`, played from `assets/audio/hals/`, the
+  owner's yes of 2026-11-08 in heard set `hals`; `coach.js` `countLine` matches by the word, so «Upp!», «ÝTA!», «BÚMM!», «TOGA!» and the
+  bark's «Ein!»/«Tvær!»/«Þrjár!» stay words only). Level 1 counts the log's beats 1 and 2; level 2 the rocks' 1 and 2, the ledge's and
+  the cliff's 1 to 3, the pull's 1 and 2. They go through his own voice (`presentation-audio.js` `count`), so his mouth moves and the page's
+  sounds dip under them. A count may cut the count before it, never starts over a sentence of his that plays or waits to play (that beat is
+  silent: «Einn, tveir, ÝTA!» at the log and «Einn, tveir, TOGA!» at the pull cover the first taps when the child taps at once), and
+  is never queued: a count that cannot play now is dropped. The speech log (`audio().speech.started`) gives each line's file (`src`)
+  and, once cut off, when (`cut`).
 
 Gone from the screen in that remake: the green box with the way's title, "0 / 4 pör" and the trail of steps (and the levels' `ribbon`, the steps' `journey` names, `aria.journey`), the camera
 button and its hint, the sound button, the help card (`copy.help`), the small eyebrow and fine print on the cards (`welcome.eyebrow`,
