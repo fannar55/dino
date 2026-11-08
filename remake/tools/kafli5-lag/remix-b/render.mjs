@@ -187,13 +187,13 @@ const dfCheck = [];
 {
   const send = stereo(n);
   layers.dragonflies.forEach((d, k) => {
-    const y = dragonfly(d.dur * 0.48, { from: d.from, vel: d.vel, seed: 4 + k, swoop: 0.05 });
+    const y = dragonfly(d.dur * 0.48, { from: d.from, vel: d.vel, seed: 4 + k, swoop: 0.08 });
     const pan = [-0.5, 0.4, -0.2, 0.6, -0.6, 0.2][k % 6];
-    addMono(outAnimals, y, sampleOf(d.beat), 0.5, pan);
-    addMono(send, y, sampleOf(d.beat), 0.17, pan);
+    addMono(outAnimals, y, sampleOf(d.beat), 0.32, pan);
+    addMono(send, y, sampleOf(d.beat), 0.11, pan);
     cues.push({ beat: d.beat, kind: 'call', group: 'dragonflies' });
     if (d.dur >= 0.5) {
-      const s = steady(y.subarray(Math.round(0.12 * SR), Math.max(Math.round(0.12 * SR) + 4096, y.length - Math.round(0.06 * SR))), { fmin: 400, fmax: 1400, win: 1024, hop: 128 });
+      const s = steady(y.subarray(Math.round(0.09 * SR), Math.max(Math.round(0.09 * SR) + 4096, y.length - Math.round(0.06 * SR))), { fmin: 400, fmax: 1400, win: 1024, hop: 128 });
       dfCheck.push({ beat: d.beat, hz: s ? +s.hz.toFixed(1) : null, cents: s ? Math.round(cents(s.hz, mtof(76))) : null });
     }
   });
@@ -448,6 +448,7 @@ for (const sg of moves) {
   if (sg.kind === 'rewind') cues.push({ beat: sg.o0, kind: 'rewind', to: sg.to });
   if (sg.kind === 'brake') cues.push({ beat: sg.o0, kind: 'brake' });
   if (sg.kind === 'half' || sg.kind === 'double') cues.push({ beat: sg.o0, kind: 'speed', rate: sg.rate });
+  if (sg.kind === 'glide') cues.push({ beat: sg.o0, kind: 'glide' });
 }
 for (const b of [136, 140, 188]) cues.push({ beat: b, kind: 'juggle' });
 cues.push({ beat: 272, kind: 'stutter' });
@@ -517,6 +518,17 @@ checks.barRmsLow = barRms(lowpassed(mono(dl, dr)), SPB, bars);
 checks.biggestJump = biggestJump(mono(dl, dr).subarray(Math.round(2 * SR)));
 checks.biggestJump.sec = +(checks.biggestJump.sec + 2).toFixed(2);
 checks.biggestJumpFrom0 = biggestJump(mono(dl, dr));
+// every 400 ms rise of more than 7 dB, and where (beats)
+{
+  const x = mono(dl, dr), w = Math.round(0.4 * SR), hop = Math.round(w / 4), lv = [];
+  for (let s = 0; s + w <= x.length; s += hop) {
+    let e = 0;
+    for (let i = s; i < s + w; i++) e += x[i] * x[i];
+    lv.push(db(Math.sqrt(e / w)));
+  }
+  checks.jumpsOver7 = [];
+  for (let i = 4; i < lv.length; i++) if (lv[i] - lv[i - 4] > 7 && lv[i] > -40) checks.jumpsOver7.push({ db: r1(lv[i] - lv[i - 4]), beat: r1(((i * hop + w) / SR) / 0.48) });
+}
 {
   let best = 0, bestLag = 0;
   const a = Math.round(28 * SPB), len = SR * 2;

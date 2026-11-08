@@ -210,7 +210,7 @@ export function beetleClick({ vel = 1, tone = 0.5, seed = 3 } = {}) {
  * Dragonfly (drekafluga) buzz: a reedy tone fluttering at its wing beat (~32 Hz), that swoops into its note from `from`
  * semitones away (a scratch-like zip) and holds it. Its note is E (the flyers' la), here E5.
  */
-export function dragonfly(seconds, { midi = 76, from = -7, swoop = 0.09, vel = 1, seed = 4, out = 0 } = {}) {
+export function dragonfly(seconds, { midi = 76, from = -7, swoop = 0.08, vel = 1, seed = 4 } = {}) {
   const n = N(seconds + 0.05);
   const y = new Float32Array(n);
   const r = rng(seed);
@@ -220,7 +220,7 @@ export function dragonfly(seconds, { midi = 76, from = -7, swoop = 0.09, vel = 1
   let ph = 0;
   for (let i = 0; i < n; i++) {
     const t = i / SR;
-    const semi = from * Math.exp(-t / swoop) + (out && t > seconds - 0.08 ? out * ((t - (seconds - 0.08)) / 0.08) ** 2 : 0);
+    const semi = from * (1 - Math.min(1, t / swoop)) ** 3; // lands exactly on its note after `swoop` s
     const fr = f * 2 ** (semi / 12);
     ph += (TAU * 32) / SR;
     const flutter = 0.55 + 0.45 * Math.sin(ph) ** 2;

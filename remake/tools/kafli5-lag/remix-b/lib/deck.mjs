@@ -77,6 +77,11 @@ export function brake(o0, o1, src, { p = 1.25, from = 1, ...opts } = {}) {
   return curve('brake', o0, o1, src, u => from * (1 - u) ** p, opts);
 }
 
+/** Glide: the record's speed moves smoothly from `from` to `to` (e.g. 1 to 0.5: down into half speed); its level stays. */
+export function glide(o0, o1, src, from, to, opts = {}) {
+  return curve('glide', o0, o1, src, u => from + (to - from) * u, { level: false, ...opts });
+}
+
 /**
  * Rewind: her hand stops the record, spins it back fast and lets it come to rest exactly on the cue point `to` (source beat) at
  * the segment's end. The forward motion dies in the first `grab` of the segment; the spin back rises fast and eases to rest.

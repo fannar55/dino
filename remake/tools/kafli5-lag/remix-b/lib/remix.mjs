@@ -2,7 +2,7 @@
 // make on the decks (in output beats, against source beats of E's song), the new layers on the output's own grid (crowd claps,
 // half-time kicks, the animals' answers and cut-up riffs, beetles, dragonflies, her wing beats), her scratches and her lines.
 // Every output beat is on the same 125 bpm grid as the source (beat 0 at 0 s); no move changes the grid.
-import { play, brake, rewind, stutter, juggle } from './deck.mjs';
+import { play, brake, glide, rewind, stutter, juggle } from './deck.mjs';
 import { baby, chirp, transformer, flare, stab } from './turntable.mjs';
 
 export const OUT_SECTIONS = [
@@ -15,7 +15,7 @@ export const OUT_SECTIONS = [
   { id: 'tuneA', name: 'Her song', nameIs: 'Lagið hennar', from: 56, to: 88, feature: null,
     what: 'The animals sing her tune, each note by its own group, as in Ljósfluguballið; the DJ lets it play untouched.' },
   { id: 'grazers', name: 'Grazers', nameIs: 'Grasbítarnir', from: 88, to: 104, feature: 'grazers',
-    what: 'Half-time stomp with the big grazers ("Stapp, stapp!"); she drags a moo slowly on the record, then brakes the record to a stop while the animals clap.' },
+    what: 'Half-time stomp with the big grazers ("Stapp, stapp!"); she drags a moo slowly on the record, then the record slides down to half speed.' },
   { id: 'turtles', name: 'Turtles', nameIs: 'Skjaldbökurnar', from: 104, to: 128, feature: 'turtles',
     what: 'Turtles are slow: the record plays at half speed (an octave down, half-time on the same beat) while she drawls "hægt... hægt...", then "Núna!" and the turtle groove at full speed.' },
   { id: 'frogs', name: 'Frogs', nameIs: 'Froskarnir', from: 128, to: 144, feature: 'frogs',
@@ -62,7 +62,8 @@ export function buildMoves() {
   m.push(play(24, 56, 16));
   m.push(play(56, 88, 48));
   m.push(play(88, 102, 80));
-  m.push(brake(102, 104, 94));
+  // turtles are slow: the record slides down to half speed (it skips half a beat so the turtles' bar lands on the bar)
+  m.push(glide(102, 104, 94.5, 1, 0.5, { xf: 3 }));
   m.push(play(104, 112, 96, 0.5, { gains: { kick: 0 }, xf: 3 }));
   m.push(play(112, 128, 96));
   m.push(play(128, 136, 112));
@@ -83,7 +84,8 @@ export function buildMoves() {
   m.push(play(212, 244, 160));
   m.push(play(244, 272, 192));
   // the stutter build: half, quarter, eighth and sixteenth slices of the last bar's beats
-  m.push(...stutter(272, 220, 0.5, 2), ...stutter(273, 221, 0.25, 4), ...stutter(274, 222, 0.125, 8), ...stutter(275, 223, 0.0625, 16));
+  const st = { gain: 0.62 }; // the slices pile up energy: held down so the build is not the loudest bar
+  m.push(...stutter(272, 220, 0.5, 2, st), ...stutter(273, 221, 0.25, 4, st), ...stutter(274, 222, 0.125, 8, st), ...stutter(275, 223, 0.0625, 16, st));
   m.push(play(276, 282, 224));
   m.push(rewind(282, 283.75, 230, 224)); // "Einu sinni enn!"
   m.push(play(284, 348, 224));
@@ -105,7 +107,7 @@ export function buildLayers() {
   for (const [b, v] of [[104, 0.95], [105.5, 0.7], [108, 0.95], [109.5, 0.7]]) L.kick.push({ beat: b, vel: v, tone: 0.8 }); // half-time: one and the and of two
   for (let b = 152; b < 160; b++) L.kick.push({ beat: b, vel: 0.92, tone: 1 });
   // the animals clap on the beat while she rewinds or brakes the record
-  for (const b of [22, 23, 102, 103, 210, 211, 282, 283]) L.crowd.push({ beat: b, vel: 0.85 });
+  for (const b of [22, 23, 210, 211, 282, 283]) L.crowd.push({ beat: b, vel: 0.85 });
   L.crowd.push({ beat: 23.5, vel: 0.6 }, { beat: 283.5, vel: 0.6 });
   // the band answers Egill: all five at once (her tune's tones are the G6/9 chord)
   const answer = (beat, dur, vel) => FIVE.forEach(g => L.calls.push({ group: g, beat, dur, vel: vel * (g === 'grazers' ? 1.2 : 0.8), mode: 'onset' }));
