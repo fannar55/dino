@@ -102,14 +102,18 @@ report.chorus = song.chorusMelody.map(c => {
   return { beat: c.beat, group: c.group, note: c.note, animalF0: Number(fa.toFixed(1)), animalCents: fa ? Number(centsToPitchClass(fa, want).toFixed(0)) : null,
     leadF0: Number(fl.toFixed(1)), leadCents: fl ? Number(centsToPitchClass(fl, want).toFixed(0)) : null };
 });
-// how far each sung chorus note stands over the orchestra at the same moment (1-5 kHz, where the calls live)
-const band = x => eq(Float32Array.from(x), [['hp', 1000, 0.7], ['lp', 5000, 0.7]]);
-const aBand = band(aMono);
-const restBand = band(mono([0, 1].map(ch => { const o = new Float32Array(mix.length); for (const st of ['pad', 'bass', 'beat', 'lead']) { const a = stems[st][ch]; for (let i = 0; i < o.length && i < a.length; i++) o[i] += a[i]; } return o; })));
+// how far each sung chorus note stands over the orchestra at the same moment, in the band where that group's call lives
+const BANDS = { low: [150, 1500], mid: [700, 5000], high: [1500, 6500] };
+const BAND_OF = { grazers: 'low', turtles: 'low', frogs: 'mid', lizards: 'high', flyers: 'high' };
+const band = (x, [lo, hi]) => eq(Float32Array.from(x), [['hp', lo, 0.7], ['lp', hi, 0.7]]);
+const rest = mono([0, 1].map(ch => { const o = new Float32Array(mix.length); for (const st of ['pad', 'bass', 'beat', 'lead']) { const a = stems[st][ch]; for (let i = 0; i < o.length && i < a.length; i++) o[i] += a[i]; } return o; }));
+const aB = Object.fromEntries(Object.entries(BANDS).map(([k, v]) => [k, band(aMono, v)]));
+const rB = Object.fromEntries(Object.entries(BANDS).map(([k, v]) => [k, band(rest, v)]));
 for (const r of report.chorus) {
   const a = Math.round(r.beat * BEAT_SAMPLES);
   const b = a + Math.round(0.9 * SPB * SR);
-  r.overOrchestraDb = Number((db(rms(aBand, a, b)) - db(rms(restBand, a, b))).toFixed(1));
+  const k = BAND_OF[r.group];
+  r.overOrchestraDb = Number((db(rms(aB[k], a, b)) - db(rms(rB[k], a, b))).toFixed(1));
 }
 report.chorusOverOrchestraDb = { min: Math.min(...report.chorus.map(r => r.overOrchestraDb)), mean: Number((report.chorus.reduce((s, r) => s + r.overOrchestraDb, 0) / report.chorus.length).toFixed(1)) };
 const chorusBad = report.chorus.filter(r => r.animalCents === null || Math.abs(r.animalCents) > 30 || r.leadCents === null || Math.abs(r.leadCents) > 30);

@@ -56,6 +56,8 @@ const CHORUS_CHORDS = [['F', 4], ['Dm', 4], ['C', 1], ['F', 3], ['Bb', 2], ['C',
   ['F/C', 1], ['C7', 1], ['F', 4]];
 /** Her horn's notes in her own octave (the recorded alphorn moved by rate: F3 .. D4, never more than 8 semitones). */
 const HORN_NOTE = { grazers: 'F3', turtles: 'G3', frogs: 'A3', lizards: 'C4', flyers: 'D4' };
+/** How much each group's call is lifted in the choruses so it sings over the orchestra in its own register (check.mjs). */
+const CHORUS_GAIN = { grazers: 1.8, turtles: 1.3, frogs: 1.5, lizards: 1.0, flyers: 0.8 };
 /** The take each group sings a tune note with, by its length. */
 function tuneTake(group, beats) {
   return { grazers: 'grazers-3', turtles: 'turtles-2', frogs: beats >= 2 ? 'frogs-1' : 'frogs-3', lizards: 'lizards-2',
@@ -192,7 +194,6 @@ export function compose() {
   n('glock', 'lead', 15, 1, 'C7', 0.3, {});
   roll('timpani', 12, 4, 0.125, 0.12, 0.42, 'F2');
   n('cymbalSwell', 'beat', 12, 4, null, 0.35, { swellSec: 4 * SPB });
-  cue(0, 'unit', { name: 'dawn' });
 
   // =========================================================================================== 2. the song grows (4-9)
   chords(4, [['Bb', 4], ['C', 4]]);
@@ -203,7 +204,6 @@ export function compose() {
   pahs(B(4), B(5), { vel: 0.32 });
   kit(B(4), B(5), { kick: 0.4, snare: 0, shaker: 0.4 });
   for (const bar of [5, 6, 7, 8, 9]) grooveBar(bar);
-  cue(B(4), 'unit', { name: 'groove' });
 
   /** One bar of the loop groove (bars 6-9, and bar 5 = bar 9 so the wrap is clean). Everything depends on bar % 4 only. */
   function grooveBar(bar) {
@@ -397,7 +397,6 @@ export function compose() {
   call('frogs-1', 'frogs', B(47, 2), 2, 0.3);
   call('grazers-3', 'grazers', B(49, 2), 2, 0.35);
   call('lizards-2', 'lizards', B(51, 3), 1, 0.25);
-  cue(B(46), 'unit', { name: 'horn' });
 
   // =========================================================================================== 11. everyone comes: the riser (54-57)
   chords(54, [['Csus', 4], ['C', 4], ['Bb/C', 4], ['C7', 4]]);
@@ -444,7 +443,6 @@ export function compose() {
 
   // =========================================================================================== 13. home: a written cadence (74-76)
   chords(74, [['Bb', 2], ['F/A', 2], ['Gm7', 2], ['C7', 2], ['F', 8]]);
-  cue(B(74), 'unit', { name: 'home' });
   for (const [b, c, d] of segs(B(74), B(76))) {
     const [vc, vla, v2, v1] = CH[c].pad;
     [['vc', vc], ['vla', vla], ['vln', v2], ['vln', v1]].forEach(([section, m], k) =>
@@ -498,7 +496,7 @@ export function compose() {
     for (const [b, d, group, m] of TUNE) {
       const at = c0 + b;
       chorusMelody.push({ group, beat: at, note: m, hz: Number(hz(m).toFixed(2)) });
-      call(tuneTake(group, d), group, at, d, big ? 1.2 : 1.1);
+      call(tuneTake(group, d), group, at, d, (big ? 1.2 : 1.1) * CHORUS_GAIN[group]);
       n('strings', 'lead', at, d * 0.96, m, big ? 0.82 : 0.76, { section: 'vln', voices: 8, attack: 0.04, release: 0.3, part: 'tune' });
       n('wind', 'lead', at, d * 0.92, octave(m, 1), big ? 0.46 : 0.45, { kind: 'flute' });
       n('glock', 'lead', at, 1, octave(m, 1), level === 1 ? 0.32 : 0.28, {});

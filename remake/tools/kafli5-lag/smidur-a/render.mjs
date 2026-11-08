@@ -229,7 +229,7 @@ function main() {
   writeFileSync(`${OUT}song.json`, `${JSON.stringify(song, null, 2)}\n`);
   if (!args.has('--fast')) {
     ffmpeg(['-i', `${OUT}mix.mp3`, '-lavfi', 'showspectrumpic=s=1800x600:legend=1:scale=log:fscale=lin:stop=12000', `${OUT}spectrogram.png`]);
-    ffmpeg(['-i', `${OUT}mix.mp3`, '-filter_complex', 'showwavespic=s=1800x400:split_channels=1:colors=0x3a6ea5|0x5a9e5a', '-frames:v', '1', `${OUT}waveform.png`]);
+    ffmpeg(['-i', `${OUT}mix.mp3`, '-filter_complex', 'showwavespic=s=1800x400:split_channels=1:scale=sqrt:colors=0x3a6ea5|0x5a9e5a', '-frames:v', '1', `${OUT}waveform.png`]);
   }
   rmSync(TMP, { recursive: true, force: true });
   console.log(`done in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${result.lufs} LUFS, TP ${result.truePeak}, stem peaks ${JSON.stringify(song.stemPeaksDb)}`);
