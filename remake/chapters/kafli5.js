@@ -31,7 +31,7 @@ import { sloedlaLife, COURAGE } from './kafli5-sloedla.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
-import { createChoirSounds } from '../engine/audio/choir-sounds.js';
+import { createChoirSounds, loadChoirRecordings } from '../engine/audio/choir-sounds.js';
 import { demoAsked, startDemoChild } from './kafli5-demo.js';
 
 const ROUTE = createRoute({ wingspan: 7.5 }); // chapter 4's valley, the very same land (kafli4.js ROUTE)
@@ -677,7 +677,9 @@ export const chapter = {
     c.log = entry => c.choirLog.push({ ...entry, at: s.time });
     c.reduced = reducedMotion(world);
     c.lines = lineQueue(s); // Mosi's names for the groups, as the child plays: one at a time
-    c.sounds = createChoirSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
+    const context = world.sound?.context ?? null;
+    // the owner's picked recordings (Task 6), fetched in the background; until each has come its part is made
+    c.sounds = createChoirSounds({ context, output: world.sound?.output ?? null, recordings: loadChoirRecordings(context) });
     c.glow = createGlow(world, { reduced: c.reduced });
     c.her = sloedlaLife(sloedla);
     world.chapterState = c; // what the scenes share, for captures, probes and tests
