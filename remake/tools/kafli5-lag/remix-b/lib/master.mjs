@@ -26,6 +26,12 @@ function runBiquad(x, c) {
   return y;
 }
 
+/** K-weighted copy of a mono signal (BS.1770 pre-filter), for comparing loudness of two signals over the same span. */
+export function kweight(x) {
+  const [s1, s2] = kFilters();
+  return runBiquad(runBiquad(x, s1), s2);
+}
+
 /** Integrated loudness (LUFS) of a stereo signal; also momentary block loudness list. */
 export function lufs(L, R, { from = 0, to = L.length } = {}) {
   const [s1, s2] = kFilters();
