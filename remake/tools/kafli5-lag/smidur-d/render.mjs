@@ -366,6 +366,13 @@ unit({ name: 'The turtles plod in', nameIs: 'Skjaldbökurnar', startBeat: 48, be
   stopBar(b + 12, 'C7', 'turtles', [[1, 'turtles-2.mp3', 2]], s => { S.tpt(s + 3, 0.5, 69, 0.7, { legato: 0.7 }); S.tpt(s + 3.5, 0.5, 70, 0.75, { legato: 0.7 }); });
 });
 
+/** The nearest note of `chord` at least a minor third under m: the drop's harmony line. */
+function below(m, chord) {
+  const pcs = PAD[chord].map(x => x % 12);
+  for (let c = m - 3; c > m - 10; c--) if (pcs.includes(c % 12)) return c;
+  return m - 12;
+}
+
 /** A chorus: her 14 notes, each by its animal with a trumpet on it; the band answers in the gaps. Level 1, 2 or 3 (the drop). */
 function chorus(b, level) {
   const vPad = [0.5, 0.56, 0.66][level - 1];
@@ -382,12 +389,12 @@ function chorus(b, level) {
     if (level === 3) S.bassoon(b + t, 1, r + 12, 0.6, { stem: 'bass', legato: 0.7, gain: 0.22 });
   }
   const chordAt = t => [...CHORUS_CHART].reverse().find(([s]) => s <= t)[1];
-  for (let t = 1; t < 32; t += 2) S.pahChord(b + t, chordAt(t), level === 3 ? 0.8 : 0.7);
+  for (let t = 1; t < 32; t += 2) S.pahChord(b + t, chordAt(t), level === 3 ? 0.8 : 0.7, { gain: level === 3 ? 0.11 : 0.09 });
   // drums
   for (let k = 0; k < 8; k++) {
     S.march(b + 4 * k, { v: [0.7, 0.76, 0.84][level - 1], ghosts: true, bdAll: level === 3, ruff: level >= 2 && k % 2 === 1, cymOn: level === 3 ? [1, 3] : [] });
   }
-  S.cym(b, [0.3, 0.36, 0.44][level - 1], level === 3 ? 1.5 : 1.1);
+  S.cym(b, [0.3, 0.3, 0.4][level - 1], level === 3 ? 1.5 : 1.1);
   S.cym(b + 16, 0.3, 1.0);
   // her song: each note its animal, a trumpet (and more as it grows) on it
   CHORUS.forEach(([t, g, n], k) => {
@@ -399,6 +406,7 @@ function chorus(b, level) {
     if (level >= 2) S.clar(b + t, n, level === 3 ? m + 12 : m, 0.6, { legato: 0.9, gain: level === 3 ? 0.16 : 0.13 });
     if (level === 3 || n >= 2) S.glk(b + t, m + 24, level === 3 ? 0.5 : 0.42, { gain: 0.11 });
     if (level === 3) S.horn(b + t, n, g, { gain: 0.46 });
+    if (level === 3) S.tpt(b + t, n, below(m, chordAt(t)), 0.66, { legato: n > 1 ? 0.94 : 0.9, gain: 0.13, pan: -0.1 });
   });
   // the band's answers in the gaps
   const ansA = [[5, 77], [5.5, 76], [6, 79], [6.5, 76], [7, 72]];
@@ -455,14 +463,14 @@ unit({ name: 'The small lizards scurry in', nameIs: 'Smáeðlurnar', startBeat: 
   what: 'Quick staccato trumpets (ta-ta-ta TAA), the lizards chirp on C (one, two, three-and), the trumpets skip about; stop time: hit, two lizards alone, a piccolo pickup.' }, b => {
   [['F', 0], ['C', 4], ['F', 8]].forEach(([ch, t]) => S.chord(b + t, 4, ch, { v: 0.45 }));
   [[0, 72, 0.5], [0.5, 72, 0.5], [1, 72, 0.5], [2, 77, 1], [3, 72, 0.5], [3.5, 69, 0.5]].forEach(([t, m, n]) =>
-    S.tpt(b + t, n, m, 0.78, { legato: n < 1 ? 0.5 : 0.85, gain: 0.22 }));
+    S.tpt(b + t, n, m, 0.78, { legato: n < 1 ? 0.5 : 0.85, gain: 0.3 }));
   S.oompah(b, 'F');
   S.march(b, { v: 0.7 });
   [[4, 1], [5, 1], [6, 0.5], [6.5, 1.5]].forEach(([t, n]) => S.call('lizards', b + t, { take: 'lizards-2.mp3', n }));
   S.oompah(b + 4, 'C');
   S.march(b + 4, { v: 0.7 });
-  [[0, 69], [0.5, 72], [1, 77], [1.5, 79], [2, 77], [2.5, 72]].forEach(([t, m]) => S.tpt(b + 8 + t, 0.5, m, 0.75, { legato: 0.5, gain: 0.22 }));
-  S.tpt(b + 11, 1, 69, 0.75, { legato: 0.8, gain: 0.22 });
+  [[0, 69], [0.5, 72], [1, 77], [1.5, 79], [2, 77], [2.5, 72]].forEach(([t, m]) => S.tpt(b + 8 + t, 0.5, m, 0.75, { legato: 0.5, gain: 0.3 }));
+  S.tpt(b + 11, 1, 69, 0.75, { legato: 0.8, gain: 0.3 });
   S.oompah(b + 8, 'F');
   S.march(b + 8, { v: 0.7, ruff: true });
   stopBar(b + 12, 'C7', 'lizards', [[1, 'lizards-2.mp3', 1], [2, 'lizards-1.mp3', 1]], s => { S.picc(s + 3, 0.5, 81, 0.6, { legato: 0.7 }); S.picc(s + 3.5, 0.5, 84, 0.65, { legato: 0.7 }); });
@@ -472,8 +480,8 @@ unit({ name: 'The small flyers flutter in', nameIs: 'Flugdýrin', startBeat: 128
   what: 'A fluttering piccolo trill and a glockenspiel, the flyers whistle on D on beats 1 and 3, the piccolo runs up to G6; stop time: hit, the flyer alone, a trumpet pickup into chorus 2.' }, b => {
   [['Bb', 0], ['Gm', 4], ['Bb', 8]].forEach(([ch, t]) => S.chord(b + t, 4, ch, { v: 0.42 }));
   [[0, 86, 0.25], [0.25, 88, 0.25], [0.5, 86, 0.25], [0.75, 88, 0.25], [1, 89, 0.5], [1.5, 86, 0.5], [2, 82, 1], [3, 86, 0.5], [3.5, 89, 0.5]].forEach(([t, m, n]) =>
-    S.picc(b + t, n, m, 0.66, { legato: 0.85, gain: 0.15 }));
-  [[0, 86], [2, 82], [3.5, 89]].forEach(([t, m]) => S.glk(b + t, m, 0.5));
+    S.picc(b + t, n, m, 0.66, { legato: 0.85, gain: 0.2 }));
+  [[0, 86], [2, 82], [3.5, 89]].forEach(([t, m]) => S.glk(b + t, m, 0.6));
   S.oompah(b, 'Bb', { v: 0.6, vp: 0.6 });
   S.march(b, { v: 0.56 });
   S.call('flyers', b + 4, { take: 'flyers-1.mp3', n: 2 });
@@ -481,8 +489,8 @@ unit({ name: 'The small flyers flutter in', nameIs: 'Flugdýrin', startBeat: 128
   [[4.5, 86], [5.5, 82], [6.5, 79], [7.5, 86]].forEach(([t, m]) => S.glk(b + t, m, 0.38));
   S.oompah(b + 4, 'Gm', { v: 0.6, vp: 0.6 });
   S.march(b + 4, { v: 0.56 });
-  [[0, 82], [0.5, 84], [1, 86], [1.5, 89], [2, 91], [2.5, 89]].forEach(([t, m]) => S.picc(b + 8 + t, 0.5, m, 0.66, { legato: 0.7, gain: 0.15 }));
-  S.picc(b + 11, 1, 86, 0.66, { legato: 0.85, gain: 0.15 });
+  [[0, 82], [0.5, 84], [1, 86], [1.5, 89], [2, 91], [2.5, 89]].forEach(([t, m]) => S.picc(b + 8 + t, 0.5, m, 0.66, { legato: 0.7, gain: 0.2 }));
+  S.picc(b + 11, 1, 86, 0.66, { legato: 0.85, gain: 0.2 });
   [[0, 82], [1, 86], [2, 91]].forEach(([t, m]) => S.glk(b + 8 + t, m, 0.45));
   S.oompah(b + 8, 'Bb', { v: 0.6, vp: 0.6 });
   S.march(b + 8, { v: 0.58, ruff: true });
@@ -536,26 +544,26 @@ unit({ name: 'The build: everyone gathers', nameIs: 'Allir safnast saman', start
   for (let i = 0; i < 8; i++) S.sn(b + i * 0.5, 0.18 + i * 0.02, 0.12);
   for (let i = 0; i < 16; i++) S.sn(b + 4 + i * 0.25, 0.3 + i * 0.012, 0.11);
   for (let i = 0; i < 24; i++) S.sn(b + 8 + i / 6, 0.4 + i * 0.008, 0.09);
-  for (let i = 0; i < 24; i++) S.sn(b + 12 + i / 8, 0.5 + i * 0.01, 0.08);
-  [3, 3.25, 3.5].forEach((t, i) => S.sn(b + 12 + t, 0.72 + 0.06 * i, 0.12));
+  for (let i = 0; i < 24; i++) S.sn(b + 12 + i / 8, 0.45 + i * 0.008, 0.08);
+  [3, 3.25, 3.5].forEach((t, i) => S.sn(b + 12 + t, 0.6 + 0.05 * i, 0.12));
   [0, 2].forEach((t, i) => S.bd(b + t, 0.4 + 0.05 * i));
   [0, 1, 2, 3].forEach((t, i) => S.bd(b + 4 + t, 0.45 + 0.03 * i));
   for (let i = 0; i < 8; i++) S.bd(b + 8 + i * 0.5, 0.52 + 0.015 * i);
-  for (let i = 0; i < 6; i++) S.bd(b + 12 + i * 0.5, 0.62 + 0.03 * i);
-  S.bd(b + 15, 0.82);
+  for (let i = 0; i < 6; i++) S.bd(b + 12 + i * 0.5, 0.55 + 0.025 * i);
+  S.bd(b + 15, 0.7);
   S.put('beat', I.sweep(SEC(15.5), 1, hash('sweep')), b, { gain: 0.09, send: 0.2 });
   for (let i = 0; i < 30; i++) {
     const t = i * 0.5;
     const m = (t < 8 ? 34 : 36) + (i % 2 ? 12 : 0);
-    S.tuba(b + t, 0.5, m, 0.6 + 0.01 * i, { legato: 0.6, gain: 0.36 });
+    S.tuba(b + t, 0.5, m, 0.6 + 0.01 * i, { legato: 0.6, gain: 0.3 });
   }
   S.tuba(b + 15, 0.5, 36, 0.92, { legato: 0.7 });
-  [65, 67, 69, 70, 72, 74, 76, 77, 79, 81, 82, 84].forEach((m, i) => S.clar(b + i, 1, m, 0.5 + 0.025 * i, { legato: 0.9, gain: 0.2 }));
+  [65, 67, 69, 70, 72, 74, 76, 77, 79, 81, 82, 84].forEach((m, i) => S.clar(b + i, 1, m, 0.5 + 0.025 * i, { legato: 0.9, gain: 0.17 }));
   S.clar(b + 12, 3, 84, 0.75, { legato: 0.95, gain: 0.16 });
   [[0, [62, 65, 70], 0.42], [2, [62, 65, 70], 0.48], [4, [65, 70, 74], 0.52], [6, [65, 70, 74], 0.58], [8, [64, 67, 72], 0.64], [10, [64, 67, 72], 0.7], [12, [64, 70, 72], 0.78]].forEach(([t, ms, v]) =>
-    ms.forEach(m => S.tpt(b + t, t === 12 ? 3 : 2, m, v, { legato: 0.96, gain: 0.08 })));
+    ms.forEach(m => S.tpt(b + t, t === 12 ? 3 : 2, m, v, { legato: 0.96, gain: 0.07 })));
   S.horn(b + 8, 4, 'lizards', { gain: 0.6 });
-  [['grazers', 0], ['turtles', 0.5], ['frogs', 1], ['lizards', 1.5], ['flyers', 2]].forEach(([g, t]) => S.call(g, b + 12 + t, { n: 1, gain: 1.05 }));
+  [['grazers', 0], ['turtles', 0.5], ['frogs', 1], ['lizards', 1.5], ['flyers', 2]].forEach(([g, t]) => S.call(g, b + 12 + t, { n: 1, gain: 0.85 }));
   S.stab(b + 15, 'C7', 0.85);
   S.pahChord(b + 15, 'C7', 0.85, { n: 0.4 });
 });
@@ -596,17 +604,16 @@ unit({ name: 'Outro: the walk home and the last hit', nameIs: 'Heim á leið', s
   S.cue(h, 'hit');
   S.cue(h, 'end');
   S.tuba(h, 2.2, 41, 0.92, { legato: 1 });
-  [65, 69, 72, 77].forEach(m => S.tpt(h, 2.2, m, 0.75, { legato: 1, gain: 0.1 }));
+  [65, 69, 72, 77].forEach(m => S.tpt(h, 2.2, m, 0.72, { legato: 1, gain: 0.085 }));
   [77, 81].forEach(m => S.clar(h, 2.2, m, 0.65, { legato: 1, gain: 0.14 }));
   S.picc(h, 2.2, 89, 0.5, { legato: 1, gain: 0.07 });
   [89, 93, 96].forEach(m => S.glk(h, m, 0.5, { t60: 2 }));
   S.chord(h, 2.2, 'F', { v: 0.6, attack: 0.02, release: 1.1, tie: false });
   S.pahChord(h, 'F', 0.65, { n: 1.5 });
-  S.bd(h, 0.7);
-  S.sn(h, 0.5);
-  S.cym(h, 0.32, 1.8);
+  S.bd(h, 0.66);
+  S.cym(h, 0.26, 1.8);
   S.horn(h, 2.5, 'grazers', { gain: 0.5 });
-  ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'].forEach(g => S.call(g, h, { n: 2.2, gain: 0.6 }));
+  ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'].forEach(g => S.call(g, h, { n: 2.2, gain: 0.5 }));
 });
 
 // ---------------------------------------------------------------- mix and master
