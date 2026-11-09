@@ -465,7 +465,6 @@ export function buildScore() {
   claps(42, 63, -2, 77);
   S.cues.push({ beat: 48, kind: 'rise' });
   hit(64);
-  fx('kidsYay', 64, { db: -9 });
   // ======== her song
   hit(96);
   sing(96);

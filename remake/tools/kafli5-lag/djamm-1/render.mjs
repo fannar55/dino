@@ -337,7 +337,7 @@ checks.biggestJump.sec = +(checks.biggestJump.sec + 2).toFixed(2);
   for (let i = 1; i < joined.length; i++) d2 += (joined[i] - joined[i - 1]) ** 2;
   const stepRms = Math.sqrt(d2 / joined.length);
   const others = {};
-  for (const k of ['animals', 'horn', 'dj']) {
+  for (const k of ['animals', 'horn', 'dj', 'fx']) {
     let e = 0;
     for (let i = a; i < b; i++) e += stems[k].L[i] ** 2 + stems[k].R[i] ** 2;
     others[k] = +db(Math.sqrt(e / (2 * (b - a)))).toFixed(1);
