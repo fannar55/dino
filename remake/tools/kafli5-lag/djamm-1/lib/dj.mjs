@@ -8,7 +8,7 @@ import { stereo, addMono, addStereo, Biquad, pingPong, reverb } from './dsp.mjs'
 import { kLoud } from './master.mjs';
 import { SPB } from './score.mjs';
 
-export const SLOT = 'remix-a';
+export const SLOT = 'djamm-1';
 const TAKE_DIR = 'remake/assets/audio/kafli5';
 export const takeFile = id => `k5_dj_a_${id.replaceAll('-', '_')}.mp3`; // the coordinator's names
 export const takePath = (ROOT, id) => join(ROOT, TAKE_DIR, takeFile(id));
@@ -49,10 +49,14 @@ export function shapeOf(x) {
   }
   const toS = i => Math.round(i * hop + w / 2);
   const onset = Math.max(0, toS(st) - Math.round(0.005 * SR));
+  // the first vowel: the first frame over half the peak, walked back to where that rise leaves the consonant (30% of the peak)
+  let vw = env.findIndex(v => v > 0.5 * max);
+  while (vw > 0 && env[vw - 1] > 0.3 * max && env[vw - 1] < env[vw]) vw--;
+  const vowel = Math.max(onset, toS(vw) - Math.round(0.005 * SR));
   const voicedEnd = Math.min(x.length, toS(end) + w);
   let lw = lastWord > 0 ? toS(lastWord) : -1;
   if (lw < 0 || voicedEnd - lw < 0.15 * SR) lw = Math.max(onset, voicedEnd - Math.round(0.45 * SR));
-  return { onset, voicedEnd, lastWord: Math.max(onset, lw - Math.round(0.01 * SR)), peak: max };
+  return { onset, vowel, voicedEnd, lastWord: Math.max(onset, lw - Math.round(0.01 * SR)), peak: max };
 }
 
 /**
@@ -108,9 +112,10 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
       x = new Float32Array(len + Math.round(0.25 * SR));
       const bl = Math.round(0.05 * SR);
       for (let i = 0; i < bl; i++) x[i] = Math.sin((2 * Math.PI * 1318.5 * i) / SR) * Math.sin((Math.PI * i) / bl) * 0.5;
-      sh = { onset: 0, voicedEnd: len, lastWord: Math.round(len * 0.6), peak: 0.5 };
+      sh = { onset: 0, vowel: 0, voicedEnd: len, lastWord: Math.round(len * 0.6), peak: 0.5 };
     }
-    const at = sampleOf(d.beat) - sh.onset; // first syllable's attack on the beat
+    // first syllable's attack on the beat (or, with align 'vowel', the first vowel: the consonant before it comes early)
+    const at = sampleOf(d.beat) - (d.align === 'vowel' ? sh.vowel : sh.onset);
     const a = at + sh.onset, b = Math.min(n, at + sh.voicedEnd);
     // her level: a few dB over the music under her (after the duck), kept within reach of the song's own loudness
     const under = kLoud(music.L, music.R, a, b);
@@ -162,7 +167,7 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
     info.push({
       key: d.key ?? d.id, id: d.id, beat: d.beat, sec: +((d.beat * SPB) / SR).toFixed(3), text: line.text, take: has ? `${TAKE_DIR}/${takeFile(d.id)}` : null,
       seconds: +((sh.voicedEnd - sh.onset) / SR).toFixed(2), musicUnderLufs: +under.toFixed(1), gainDb: +(20 * Math.log10(gain)).toFixed(1),
-      fx: { echo: d.echo ?? null, radio: !!d.radio, stutter: d.stutter ?? 0, duckDb: d.duck },
+      fx: { echo: d.echo ?? null, radio: !!d.radio, stutter: d.stutter ?? 0, duckDb: d.duck }, align: d.align ?? 'attack', consonantLeadMs: Math.round(((sh.vowel - sh.onset) / SR) * 1000),
     });
   }
   // the echoes (dotted eighths, bouncing left and right, thinned so they never muddy her next words) and a small stage reverb
