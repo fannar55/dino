@@ -331,6 +331,79 @@ export const PRESETS = {
   },
 };
 
+// More records for DJ Flugeðla's crate (2026-11-09). The owner picked djamm's disco-funk band, and agreed that its one eight-bar
+// vamp for three minutes is the weak spot. The model plays one thing for a whole song whatever its sections ask, but every request
+// gets a character of its own, so each new part is a short song of its own by the same band at the same 125 bpm: four bars in,
+// sixteen bars of the part, four bars out (the DJ cuts the sixteen). The animals sing A B C# E F# over them (the vamp came back
+// as Em7-A7), so the parts ask for A major; whatever key comes back is measured.
+const DJAMM_PART = {
+  bpm: 125, key: 'A major', keyWords: 'A major', sectionFirst: true,
+  form: [['Lead-in', 'in', 4], ['Part', 'part', 16], ['Lead-out', 'out', 4]],
+  negative: [...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)), 'sad', 'dark', 'scary', 'slow', 'lullaby', 'ambient', 'lo-fi', 'chiptune', '8-bit', 'toy instruments', 'thin sound', 'cheap MIDI sound', 'fade in', 'fade out'],
+};
+const DJAMM_BAND = 'a real live disco-funk band recorded in a studio: a punchy live drum kit, a slapped funky electric bass guitar, a chicken-scratch wah rhythm guitar, a tight brass section of trumpets and saxophones, lush disco strings, a clavinet, congas and a cowbell';
+const DJAMM_SOUND = 'loud, punchy, wide and polished modern production with a huge low end';
+Object.assign(PRESETS, {
+  // the chorus the vamp never had: other chords and a hook to sing along to
+  'djamm-vidlag': {
+    ...DJAMM_PART,
+    name: 'Djamm: viðlag',
+    style: 'the big, catchy chorus of a joyful disco-funk party song',
+    folder: 'v2/djamm-vidlag',
+    chords: { roman: 'I-IV-vi-V', names: ['A', 'D', 'F#m', 'E'], words: 'A, D, F sharp minor, E', perBar: 1 },
+    kinds: {
+      in: ['the chorus starts at once at full power, no intro'],
+      part: ['the chorus', 'the brass section plays a big, bright, catchy hook that a child could sing back, answered by the strings', 'four-on-the-floor kick with open hi-hats on the off-beats and hand claps on two and four', 'the loudest, happiest part of the song, very high energy'],
+      out: ['the chorus hook one more time at the same tempo', 'ends with one big hit on an A major chord'],
+    },
+    core: ['the big chorus of an explosive, joyful disco-funk party song for a children\'s dance party', 'in 4/4 time', DJAMM_BAND, DJAMM_SOUND, 'irresistibly danceable'],
+  },
+  // a heavy half-time funk part for the big, slow animals
+  'djamm-fonk': {
+    ...DJAMM_PART,
+    name: 'Djamm: þungt fönk',
+    style: 'a heavy, slow-feeling half-time funk groove',
+    folder: 'v2/djamm-fonk',
+    chords: { roman: 'I7', names: ['A7'], words: 'one chord only, A7, a one-chord funk vamp', perBar: 1 },
+    kinds: {
+      in: ['the groove starts at once, no intro'],
+      part: ['a heavy half-time funk groove: the snare drum hits only on beat three, so it feels half as fast at exactly the same tempo', 'a deep, fat, growling bass guitar riff and a funky clavinet riff', 'low brass stabs from trombones and a baritone saxophone', 'big, heavy and swaggering, like huge animals stomping', 'leaves open space on top'],
+      out: ['the same heavy groove', 'ends with one big hit'],
+    },
+    core: ['a heavy, swaggering half-time funk groove from a joyful party song for a children\'s dance party', 'in 4/4 time', DJAMM_BAND, DJAMM_SOUND],
+  },
+  // a percussion break: nothing pitched, so it fits under anything
+  'djamm-slagverk': {
+    ...DJAMM_PART,
+    name: 'Djamm: slagverk',
+    style: 'a live percussion break',
+    folder: 'v2/djamm-slagverk',
+    chords: { roman: 'none', names: [], words: 'no chords at all: only drums and percussion', perBar: 1 },
+    kinds: {
+      in: ['the percussion starts at once, no intro'],
+      part: ['a percussion break: only drums and hand percussion, no bass, no chords and no melody', 'a four-on-the-floor kick drum, congas, bongos, timbales, a cowbell, shakers, a tambourine and loud hand claps', 'the players trade exciting fills', 'a crowd-pleasing drum break at high energy'],
+      out: ['the percussion keeps going', 'ends with a timbales fill and one big hit'],
+    },
+    core: ['a live percussion break from an explosive, joyful disco-funk party song for a children\'s dance party', 'in 4/4 time', 'real live drummers and percussionists recorded in a studio', DJAMM_SOUND],
+    negative: [...DJAMM_PART.negative, 'bass guitar', 'bass line', 'guitar', 'piano', 'keys', 'brass', 'strings', 'synthesizer', 'chords', 'melody'],
+  },
+  // a quiet bed under Slóeðla's horn: no drums at all
+  'djamm-rolegt': {
+    ...DJAMM_PART,
+    name: 'Djamm: rólegt',
+    style: 'a quiet, warm breakdown with no drums',
+    folder: 'v2/djamm-rolegt',
+    chords: { roman: 'IV-V-vi-I', names: ['D', 'E', 'F#m', 'A'], words: 'D, E, F sharp minor, A', perBar: 1 },
+    kinds: {
+      in: ['the quiet part starts at once, no intro'],
+      part: ['a quiet breakdown with no drums and no percussion at all', 'only a warm electric piano playing soft chords on the beat and slow, lush disco strings', 'calm, magical and full of wonder, like fireflies over a pond at night', 'leaves open space for a solo on top', 'the strings rise a little over the last four bars'],
+      out: ['the same quiet chords', 'ends on a soft held A major chord'],
+    },
+    core: ['the quiet breakdown of a joyful disco-funk party song for a children\'s dance party', 'in 4/4 time', 'a warm electric piano and lush disco strings recorded in a studio', 'warm, wide and polished modern production'],
+    negative: [...DJAMM_PART.negative.filter(style => !['slow', 'ambient'].includes(style)), 'drums', 'drum kit', 'percussion', 'kick drum', 'snare drum', 'cymbals', 'hi-hats', 'bass guitar', 'brass', 'loud'],
+  },
+});
+
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
 /** A preset by name (or a preset itself) as it is for a version. */
 const baseOf = preset => (typeof preset === 'string' ? PRESETS[preset] : preset);
