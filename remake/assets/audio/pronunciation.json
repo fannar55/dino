@@ -1986,7 +1986,8 @@
       "forms": [
         "hittum",
         "hittast",
-        "hittust"
+        "hittust",
+        "hitta"
       ],
       "recipes": {
         "hratt": {
@@ -2782,6 +2783,39 @@
         }
       },
       "chosen": "hratt"
+    },
+    "fleki": {
+      "word": "Flekar",
+      "stem": "[Ff]lek[aiu]",
+      "forms": [
+        "Flekarnir",
+        "flekar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði fyrstu töku línu 45 í landreksmyndbandinu sem „Flekkarnir“ (2026-11-09)."
+        },
+        "fraeid-7": {
+          "seed": 7,
+          "note": "Eins og það er skrifað, fræ 7 (óheyrt)."
+        },
+        "bandstrik": {
+          "say": {
+            "Flekarnir": "Fle-karnir",
+            "flekar": "fle-kar"
+          },
+          "note": "Bandstrik á milli atkvæða, svo e-ið verði langt og k-ið eitt (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Flekarnir": "\"/ˈflɛːkarnɪr/\"",
+            "flekar": "\"/ˈflɛːkar/\""
+          },
+          "seed": 42,
+          "note": "IPA með löngu e og einu k, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {

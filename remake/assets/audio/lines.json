@@ -5033,5 +5033,180 @@
   "src": "assets/audio/book/book_myndband_heimur_102.mp3",
   "duration": 7.69,
   "mouth": "6cb7aeeddeffffe6dc009cb970009c700000acec944a507ccbb96532300000000000000009c608dfe00dcbba8aa700006d940000000000003000047adda890000c8cffd7030000000000000000"
+ },
+ "book_myndband_landrek_1": {
+  "src": "assets/audio/book/book_myndband_landrek_1.mp3",
+  "duration": 4.57,
+  "mouth": "00008bbdcbe0b70b0000ffa00000000000000000ac3bb0000d93000b0002d60000dfe649dffda743000000000000"
+ },
+ "book_myndband_landrek_2": {
+  "src": "assets/audio/book/book_myndband_landrek_2.mp3",
+  "duration": 4.25,
+  "mouth": "000dfff34ae9300affdcfaabcb9850075000000000009983000aa99800000bb8bdc005a03400000000000"
+ },
+ "book_myndband_landrek_3": {
+  "src": "assets/audio/book/book_myndband_landrek_3.mp3",
+  "duration": 1.93,
+  "mouth": "00fe00ecbffb4da000dee307974300000000000"
+ },
+ "book_myndband_landrek_4": {
+  "src": "assets/audio/book/book_myndband_landrek_4.mp3",
+  "duration": 3.61,
+  "mouth": "00db009c004c007bcc9540000000009ff0f80000feff0000df30000ca0350000000000000"
+ },
+ "book_myndband_landrek_5": {
+  "src": "assets/audio/book/book_myndband_landrek_5.mp3",
+  "duration": 4.651,
+  "mouth": "00feff48eeedcbbc606dff038b739a956886000000bb08ccaa99a8cb50008400600050080068750000000000000000"
+ },
+ "book_myndband_landrek_6": {
+  "src": "assets/audio/book/book_myndband_landrek_6.mp3",
+  "duration": 4.73,
+  "mouth": "05ffc0dfd000efd704ed077feb06a752000000000066ab079007aabccbba9603000ca40008a86cb9400000000000000"
+ },
+ "book_myndband_landrek_7": {
+  "src": "assets/audio/book/book_myndband_landrek_7.mp3",
+  "duration": 1.53,
+  "mouth": "000dffde8000adee00ef90000000000"
+ },
+ "book_myndband_landrek_8": {
+  "src": "assets/audio/book/book_myndband_landrek_8.mp3",
+  "duration": 7.37,
+  "mouth": "00df3effca4000000000008c0afdb3ac0000a8a004aba97706446000300000000000000000abbaa9000000000000ddbb900000000008dc600000000000000df5000ffc20000000000000"
+ },
+ "book_myndband_landrek_9": {
+  "src": "assets/audio/book/book_myndband_landrek_9.mp3",
+  "duration": 4.89,
+  "mouth": "008effc8cfefde600eeeeb0a800b6000975530000000000000bb8a9000ceec008bb6cc7049800690008853400000000000"
+ },
+ "book_myndband_landrek_13": {
+  "src": "assets/audio/book/book_myndband_landrek_13.mp3",
+  "duration": 6.49,
+  "mouth": "0c8affe00efb0b6006bbcffc7c80069300000000000000009fecccbcccc997069866c7aab9008705872000b7009700887778803960bb0000fb0000000000000000"
+ },
+ "book_myndband_landrek_17": {
+  "src": "assets/audio/book/book_myndband_landrek_17.mp3",
+  "duration": 2.57,
+  "mouth": "000ffea00d700677ffc40bba807b900899837830000000000000"
+ },
+ "book_myndband_landrek_18": {
+  "src": "assets/audio/book/book_myndband_landrek_18.mp3",
+  "duration": 6.09,
+  "mouth": "00cfc00dcdfe80eb000bceee009cc59fffd09dd4000a64000000baa854000000000aa3003cd700000000006a9cddd8007800990009b962000000000000"
+ },
+ "book_myndband_landrek_19": {
+  "src": "assets/audio/book/book_myndband_landrek_19.mp3",
+  "duration": 4.01,
+  "mouth": "0a4009fff9edec8f600ed00000a006fd800220000000000005c900000000bb9b97554330000000000"
+ },
+ "book_myndband_landrek_22": {
+  "src": "assets/audio/book/book_myndband_landrek_22.mp3",
+  "duration": 2.65,
+  "mouth": "008aba940008c8000ceff9000cc6006dbf9b66652000000000000"
+ },
+ "book_myndband_landrek_23": {
+  "src": "assets/audio/book/book_myndband_landrek_23.mp3",
+  "duration": 3.13,
+  "mouth": "4adfffd000dc5d0a5000d60bb00000060000000000098564023000000000000"
+ },
+ "book_myndband_landrek_24": {
+  "src": "assets/audio/book/book_myndband_landrek_24.mp3",
+  "duration": 4.01,
+  "mouth": "009ffde0026e7000009c889c50bb0be85efc05d0ba06b3000000ceccdfcbef8000974000000000000"
+ },
+ "book_myndband_landrek_26": {
+  "src": "assets/audio/book/book_myndband_landrek_26.mp3",
+  "duration": 2.49,
+  "mouth": "0cff9ffe08eed900005b6000005920000a3740000000000000"
+ },
+ "book_myndband_landrek_35": {
+  "src": "assets/audio/book/book_myndband_landrek_35.mp3",
+  "duration": 3.53,
+  "mouth": "00ef5cf6000eedd506eeeeacff500898507a9bb7a97d5bc500009450003000000000000"
+ },
+ "book_myndband_landrek_36": {
+  "src": "assets/audio/book/book_myndband_landrek_36.mp3",
+  "duration": 2.65,
+  "mouth": "0bec08fddffe3bb479a90000008ab650a7bb70005000000000000"
+ },
+ "book_myndband_landrek_37": {
+  "src": "assets/audio/book/book_myndband_landrek_37.mp3",
+  "duration": 4.17,
+  "mouth": "0bfffc00dfcdddce900c600888860007c605d70005b4033accba608a0000006700003000000000000000"
+ },
+ "book_myndband_landrek_45": {
+  "src": "assets/audio/book/book_myndband_landrek_45.mp3",
+  "duration": 3.93,
+  "mouth": "000cffa0bd6ec000cdc6650000000000008ccbefffd00dfe9000ceecb600ddc0007420000000000"
+ },
+ "book_myndband_landrek_46": {
+  "src": "assets/audio/book/book_myndband_landrek_46.mp3",
+  "duration": 2.49,
+  "mouth": "06effc0bfee35ab8fe78dd730000dfec700040000000000000"
+ },
+ "book_myndband_landrek_47": {
+  "src": "assets/audio/book/book_myndband_landrek_47.mp3",
+  "duration": 3.93,
+  "mouth": "3efffc9fe00fcabc800c69eccddeb00a96789705da80000000000000000000efd95500000000000"
+ },
+ "book_myndband_landrek_48": {
+  "src": "assets/audio/book/book_myndband_landrek_48.mp3",
+  "duration": 7.211,
+  "mouth": "0007deffdefc0adfed6cea5b87400008ba5007c00000dbdfc00999868087669889700040000000000000cf70bf800de6000bcddff000b9859ba0009b3000005aabc83000000000000"
+ },
+ "book_myndband_landrek_49": {
+  "src": "assets/audio/book/book_myndband_landrek_49.mp3",
+  "duration": 3.53,
+  "mouth": "0000dff90bf605dfc00eedba96007bbc99ef000beca43a4000dec500430000000000000"
+ },
+ "book_myndband_landrek_50": {
+  "src": "assets/audio/book/book_myndband_landrek_50.mp3",
+  "duration": 6.25,
+  "mouth": "000ffe9a500000000effe00004bfe7bf626aca600adfc0ca5cdefecdb00de9bdbec703a703400000000000000eeeea004cebfe930bea008a5520000000000"
+ },
+ "book_myndband_landrek_53": {
+  "src": "assets/audio/book/book_myndband_landrek_53.mp3",
+  "duration": 2.89,
+  "mouth": "009b3007efffeeddd09c03beeededdb5a850004a057400000000000000"
+ },
+ "book_myndband_landrek_54": {
+  "src": "assets/audio/book/book_myndband_landrek_54.mp3",
+  "duration": 3.21,
+  "mouth": "0dccf900ac09ebfefee00ac000affc04bb700deddb00d56ab8975400000000000"
+ },
+ "book_myndband_landrek_55": {
+  "src": "assets/audio/book/book_myndband_landrek_55.mp3",
+  "duration": 1.45,
+  "mouth": "0ffe50de00007ba60430000000000"
+ },
+ "book_myndband_landrek_57": {
+  "src": "assets/audio/book/book_myndband_landrek_57.mp3",
+  "duration": 3.61,
+  "mouth": "00efe0086000000000eb0bfef85bdb8200000000cf900000e50ceb0950300000000000000"
+ },
+ "book_myndband_landrek_65": {
+  "src": "assets/audio/book/book_myndband_landrek_65.mp3",
+  "duration": 2.01,
+  "mouth": "2cfffeb0008cddbfdbba037864000000000000000"
+ },
+ "book_myndband_landrek_66": {
+  "src": "assets/audio/book/book_myndband_landrek_66.mp3",
+  "duration": 4.41,
+  "mouth": "0cefff00efa3bd90bcbee607dcc406a96400000000000000a800bacca005deeddc80086076300000000000000"
+ },
+ "book_myndband_landrek_68": {
+  "src": "assets/audio/book/book_myndband_landrek_68.mp3",
+  "duration": 2.97,
+  "mouth": "007fefff7d009db038a009ddc5ceeeecbca9bc7056563000000000000000"
+ },
+ "book_myndband_landrek_69": {
+  "src": "assets/audio/book/book_myndband_landrek_69.mp3",
+  "duration": 7.77,
+  "mouth": "9efb0000dee67d00de00059604987870000000000afffe08cac300d806ddd400cd035ceb04653000000000000000000eff300aaa994495007edffd9577700799da0b7008dc000000000000000000"
+ },
+ "book_myndband_landrek_70": {
+  "src": "assets/audio/book/book_myndband_landrek_70.mp3",
+  "duration": 1.61,
+  "mouth": "05fa030bdf70feceda840000000000000"
  }
 }
