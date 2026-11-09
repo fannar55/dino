@@ -12,8 +12,14 @@
 // a gust of his), and from 20 s a gust comes by itself every 4 s, so the wind always fills. Full: a big gust, the clouds set off,
 // „Nú!“, and she lifts off the top. The scene is over once she is up (scene 4 takes her round the tree).
 //
+// The juice review of 2026-11-07 added: Mosi's „Strjúktu upp, Egill!“ as the scene opens (the hint's first line is then the other
+// way of saying it, „Strjúktu fingrinum upp skjáinn!“); her „Ó! Smá vindur!“ after the first gust and „Næstum því!“ as the wind is
+// all but full; Egill's own „Fúúú!“ the first two times he blows, and a breath heard when a mouth only puffs; each gust a little
+// higher than the one before. leafPuff (below) is the gust's leaves and seeds in a puff, for her take-off and landings.
+//
 // What happened is in c.wind, for tests and probes: { filled, gusts: [{ by, at, n }], blows: [{ who, gust, at }], hints: [at],
-// showedAt, fullAt, bigAt, endedAt, cloudSpeed, lifted }. `by` is 'up', 'tap', 'mosi' or 'auto'; `n` the gust's number.
+// showedAt, almost, fullAt, bigAt, endedAt, cloudSpeed, lifted }. `by` is 'up', 'tap', 'mosi' or 'auto'; `n` the gust's number; a blow
+// of Egill's has `said` when he said his line.
 import * as THREE from 'three';
 import { glints, run } from '../world/props/sparkles.js';
 
@@ -36,9 +42,15 @@ export const WIND = {
   mosiEvery: 3, // and Mosi on every third
   clouds: 12, // how fast the clouds go once the wind is up
   lift: 0.6, // metres she rises off the top on the big gust
+  // the juice review of 2026-11-07: a gust's pitch, [the first's, the rise each gust after it] (0.96 up to 1.11 by the sixth);
+  // the times Egill says his „Fúúú!“ as he blows at most (after that his mouth only puffs, as Mosi's does)
+  pitch: [0.96, 0.03],
+  egillSays: 2,
 };
 
 const FLUGEDLA_HEAD = { actor: 'flugedla', part: 'head' };
+// Mosi's hint, in turn: the second way first, as the scene's opening line said the first (the juice review of 2026-11-07)
+const HINTS = ['k4_mosi_swipe2', 'k4_mosi_swipe'];
 // Blowing: the mouth opens for a long puff (talk.js: one hex digit a frame, 20 frames a second)
 const PUFF = '258bdeeeeeeeeedca8641';
 // How a gust looks: leaves and seeds, soft and of sizes that differ, flying up along the stroke (the sparkles' machinery, sparkles.js)
@@ -50,7 +62,7 @@ const AUTO_STROKE = [[-0.35, -0.75], [0.1, 0.35]];
 
 export function* theWind(s, c) {
   const { world } = c;
-  const wind = (c.wind = { filled: 0, gusts: [], blows: [], hints: [], showedAt: null, fullAt: null, bigAt: null, endedAt: null, cloudSpeed: 1, lifted: 0 });
+  const wind = (c.wind = { filled: 0, gusts: [], blows: [], hints: [], showedAt: null, almost: null, fullAt: null, bigAt: null, endedAt: null, cloudSpeed: 1, lifted: 0 });
   const strength = world.wind?.uniforms?.uWindStrength ?? { value: WIND.calm };
   strength.value = WIND.calm;
   let pulse = null; // the gust blowing: { at, from, peak, hold, ease, base }
@@ -90,12 +102,19 @@ export function* theWind(s, c) {
     }
     blowUp(WIND.gust);
     c.perch.stir(1);
-    if (!s.seeking) c.sounds?.gust();
+    // a little higher with each gust, as the wind grows (the juice review: no gust sounds the same as the one before)
+    if (!s.seeking) c.sounds?.gust({ rate: WIND.pitch[0] + WIND.pitch[1] * Math.min(n - 1, WIND.fill) });
     leavesAlong(stroke, `gust ${n}`);
     // Egill and Mosi blow along: Egill on every second gust, Mosi on every third (one who is speaking just speaks)
     if (n % WIND.egillEvery === 0) blow('egill', n);
     if (n % WIND.mosiEvery === 0 && by !== 'mosi') blow('mosi', n);
     if (n === WIND.cheerAt) s.after(0.5, () => c.lines.say('flugedla', 'k4_flugedla_more').task);
+    // her other cheers (the juice review): she feels the first gust, and the wind all but full; each only when no line plays
+    if (n === 1) s.after(0.5, () => { c.lines.say('flugedla', 'k4_flugedla_breeze', { ifQuiet: true }); return null; });
+    if (wind.filled >= WIND.fill - 1 && wind.filled < WIND.fill && !wind.almost) {
+      wind.almost = s.time;
+      s.after(0.5, () => { if (wind.fullAt === null) c.lines.say('flugedla', 'k4_flugedla_almost', { ifQuiet: true }); return null; });
+    }
     if (wind.filled >= WIND.fill) wind.fullAt = s.time;
   }
 
@@ -121,24 +140,20 @@ export function* theWind(s, c) {
     }
     for (const kind of [LEAVES, SEEDS]) flyAlong(from, to, kind, `${seed} ${kind.size}`);
   }
-  function flyAlong(from, to, kind, seed) {
-    const way = to.clone().sub(from);
-    const look = { ...FLYING, core: kind.heart, rise: Math.max(0.8, way.y * 0.6), drift: [way.x * 0.6, way.z * 0.6] };
-    const life = 1.5;
-    const set = glints(world, { count: kind.count, life, spread: 1.1, fall: 0, size: kind.size, colour: kind.colour, seed, look });
-    for (let i = 0; i < kind.count; i++) {
-      const k = i / kind.count;
-      set.position.set([from.x + way.x * k * 0.5, from.y + way.y * k * 0.5, from.z + way.z * k * 0.5], i * 3); // the first half of the stroke
-      set.birth[i] = k * 0.35; // born as the finger goes by
-    }
-    run(world, set, life + 0.4, 'wind leaves');
-  }
+  const flyAlong = (from, to, kind, seed) => leavesFly(world, from, to, kind, seed);
 
   function blow(who, n) {
     const actor = c[who];
     if (!actor?.raw || actor.raw.talking) return;
     wind.blows.push({ who, gust: n, at: s.time });
-    actor.raw.talk({ mouth: PUFF, duration: PUFF.length / 20 });
+    // Egill says his „Fúúú!“ the first times he blows, when no line plays; else (and Mosi always) the mouth puffs and a breath is heard
+    const said = who === 'egill' && wind.blows.filter(b => b.who === 'egill' && b.said).length < WIND.egillSays
+      && c.lines.say('egill', 'k4_egill_blow', { ifQuiet: true }) !== null;
+    wind.blows.at(-1).said = said;
+    if (!said) {
+      actor.raw.talk({ mouth: PUFF, duration: PUFF.length / 20 });
+      if (!s.seeking) s.sfx('blow', { pan: who === 'mosi' ? -0.25 : 0.25, level: who === 'mosi' ? 1.2 : 0.8 });
+    }
     const head = actor.raw.headPosition(new THREE.Vector3());
     const her = world.resolvePoint(FLUGEDLA_HEAD, new THREE.Vector3());
     flyAlong(head, head.clone().lerp(her, 0.35), SEEDS, `${who} blows ${n}`);
@@ -164,7 +179,7 @@ export function* theWind(s, c) {
       showHint(true);
       if (said < WIND.hintSaid) {
         said++;
-        c.lines.say('mosi', 'k4_mosi_swipe');
+        c.lines.say('mosi', HINTS[(said - 1) % HINTS.length]);
       }
     }
     if (idle >= WIND.showAfter && wind.showedAt === null) {
@@ -189,6 +204,8 @@ export function* theWind(s, c) {
     } else nextAuto = null;
   }
 
+  // Mosi tells him how as the scene opens (the juice review: the hint's line, at once); the hint after 6 s says it the other way
+  c.lines.say('mosi', 'k4_mosi_swipe');
   const off = s.onSwipe(event => {
     const width = event.width ?? 1280, height = event.height ?? 800;
     if (event.kind === 'up') gust('up', { ndc: [ndc(event.x0, event.y0, width, height), ndc(event.x, event.y, width, height)] });
@@ -231,3 +248,28 @@ export function* theWind(s, c) {
 }
 
 const smooth = k => k * k * (3 - 2 * k);
+
+/** `kind`'s leaves or seeds (LEAVES, SEEDS) flying from `from` toward `to`, born along the first half of the way over 0.35 s. */
+function leavesFly(world, from, to, kind, seed, count = kind.count) {
+  const way = to.clone().sub(from);
+  const look = { ...FLYING, core: kind.heart, rise: Math.max(0.8, way.y * 0.6), drift: [way.x * 0.6, way.z * 0.6] };
+  const life = 1.5;
+  const set = glints(world, { count, life, spread: 1.1, fall: 0, size: kind.size, colour: kind.colour, seed, look });
+  for (let i = 0; i < count; i++) {
+    const k = i / count;
+    set.position.set([from.x + way.x * k * 0.5, from.y + way.y * k * 0.5, from.z + way.z * k * 0.5], i * 3); // the first half of the stroke
+    set.birth[i] = k * 0.35; // born as the finger goes by
+  }
+  return run(world, set, life + 0.4, 'wind leaves');
+}
+
+/**
+ * A puff of the snag's dry leaves and seeds where her wings beat at `at` (a THREE.Vector3), blown along `way` ([x, y, z] m): as she
+ * leaps off the snag into the flight, and where she lands (chapters/kafli4.js, kafli4-flight.js; the juice review of 2026-11-07).
+ * Two sets of glints (two draw calls) for about 2 s; `share` of the gust's numbers of them.
+ */
+export function leafPuff(world, at, { way = [0, 2.5, 0], share = 1, seed = 'leaf puff' } = {}) {
+  if (!world?.effects || !world?.scene) return;
+  const to = at.clone().add(new THREE.Vector3(...way));
+  for (const kind of [LEAVES, SEEDS]) leavesFly(world, at, to, kind, `${seed} ${kind.size}`, Math.max(4, Math.round(kind.count * share)));
+}

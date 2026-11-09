@@ -192,6 +192,8 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   animation: faster-ready .35s cubic-bezier(.3, 1.6, .5, 1) both;
 }
 .flight-faster:active { scale: .92; }
+/* pressed: it squashes for the moment it shows before it goes (kafli4-flight-play.js PLAY.pressShow), the book's sparks round it */
+.flight-faster.is-pressed { scale: .84; transition: scale .08s ease-out; }
 .flight-faster:focus-visible { outline: 4px solid var(--book-teal); outline-offset: 5px; }
 @keyframes faster-ready {
   from { opacity: 0; transform: scale(.6); }
@@ -216,6 +218,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 }
 @media (prefers-reduced-motion: reduce) {
   .flight-faster { animation: none; }
+  .flight-faster.is-pressed { scale: none; opacity: .65; transition: opacity .08s ease-out; }
   .flight-hint { animation: hint-breathe 2.4s ease-in-out infinite; }
   @keyframes hint-breathe { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 }
