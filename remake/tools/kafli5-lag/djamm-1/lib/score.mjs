@@ -453,7 +453,7 @@ export function buildScore() {
   call('frogs', 10.5, { vel: 0.24, pan: 0.5 });
   call('lizards', 11.5, { take: 0, vel: 0.2, pan: 0.65 });
   // ======== welcome: she swoops in and lands; the forest answers, and so does the crowd
-  S.whoosh.push({ beat: 13.2, take: 0, vel: 0.3, peakAt: true });
+  S.whoosh.push({ beat: 13.2, take: 0, vel: 0.22, peakAt: true });
   S.cues.push({ beat: 13, kind: 'whoosh' });
   wing(14, 0.9);
   wing(14.75, 0.8);
@@ -552,7 +552,7 @@ export function buildScore() {
     chopPattern('lizards', bar, CHOPS.lizards[0].filter(([s]) => s >= 8), { vel: 0.32 });
     if (bar % 2 === 1) call('flyers', bar * 4 + 2, { dur: 1.8, vel: 0.55, pan: -0.4 });
   }
-  S.whoosh.push({ beat: 295, take: 1, vel: 0.3, peakAt: true });
+  // no whoosh into the big drop: the beat before "Nú!" is silent
   S.cues.push({ beat: 296, kind: 'peak' });
   // ======== the rewind: the spin-back of what was just played, the platter's sound under it; "Aftur!"; the drop again
   fx('vinylRewind', 304, { db: -14, len: 0.7 });
