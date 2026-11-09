@@ -243,6 +243,92 @@ export const PRESETS = {
       },
     },
   },
+  // Djamm: the music under DJ Flugeðla's party set (chapter 5, scene 6). The owner liked the DJ and the idea of the code-made
+  // remixes (2026-11-09) but found their music fake and without energy, so the music is a real-sounding party track and the DJ,
+  // the animals and her horn are laid on top in code. The form is the DJ set "Stóra sviðið" (tools/kafli5-lag/remix-a) bar for
+  // bar at its 125 bpm in G major, so that set's own dj and animals stems land on these sections: 100 bars, 192 s. The three
+  // versions are three kinds of party band; every section has its own words first (see skogur's version 5).
+  djamm: {
+    name: 'Djamm skógarins',
+    style: 'explosive, joyful disco-funk party track played by a live band',
+    bpm: 125,
+    key: 'G major',
+    keyWords: 'G major',
+    folder: 'v2/djamm',
+    sectionFirst: true,
+    chords: { roman: 'I-V-vi-IV', names: ['G', 'D', 'Em', 'C'], words: 'G, D, E minor, C', perBar: 1 },
+    form: [
+      ['Intro', 'intro', 4],
+      ['Welcome', 'welcome', 4],
+      ['Warm-up', 'warmup', 8],
+      ['Dance floor', 'chorus', 8],
+      ['Her tune', 'tune', 8],
+      ['Big animals', 'low', 8],
+      ['Hopping animals', 'bouncy', 8],
+      ['Flying animals', 'high', 8],
+      ['Horn', 'breakdown', 8],
+      ['Build', 'build', 8],
+      ['Drop', 'drop', 4],
+      ['All together', 'final', 8],
+      ['Clap along', 'claps', 4],
+      ['One more time', 'final', 8],
+      ['Outro', 'outro', 4],
+    ],
+    kinds: {
+      intro: ['intro', 'the groove heard muffled and filtered, as if from far away, opening up brighter and brighter over four bars', 'quiet at first'],
+      welcome: ['second half of the intro', 'only the drums and the bass play the groove, punchy and clear', 'no chords and no melody yet', 'a drum fill in the last bar'],
+      warmup: ['verse', 'the groove with drums, bass and a rhythm part, medium energy', 'grows a little every two bars', 'the main hook is not played yet', 'a rising fill into the next section'],
+      chorus: ['chorus', 'loud and full: the whole band at high energy plays the big, catchy main hook', 'extra percussion and hand claps'],
+      tune: ['verse', 'the drums and the bass keep the groove strong while everything else pulls back', 'light chords only: leaves open space for a melody on top', 'medium energy'],
+      low: ['verse', 'a heavy, low, stomping version of the groove: big low drums and deep bass notes, like big animals stamping their feet', 'leaves open space for a melody on top', 'the second half feels lazier and heavier, a half-time feel at exactly the same tempo'],
+      bouncy: ['verse', 'a bouncy, springy, playful version of the groove with short staccato notes, like frogs hopping', 'the second half gets busier, with fast and light sixteenth-note percussion', 'leaves open space for a melody on top'],
+      high: ['verse', 'a light, airy version of the groove: the bass thins out, high sparkling instruments and light percussion', 'the last two bars are only clicking percussion and a rising whoosh into the breakdown', 'leaves open space for a melody on top'],
+      breakdown: ['breakdown', 'a sudden quiet, sparse breakdown with no drums at all', 'only soft, warm sustained chords', 'low energy, calm and magical: leaves open space for a solo on top'],
+      build: ['build-up', 'the kick drum returns softly and the music grows louder and louder for eight bars', 'rising tension: a riser, and a snare roll that speeds up through the last two bars'],
+      drop: ['the drop', 'the loudest and biggest moment of the song: the whole band slams back in at full power with the main hook', 'crash cymbals and huge drums'],
+      final: ['final chorus', 'the biggest and most triumphant section: the main hook with the whole band, extra percussion and hand claps', 'very high energy'],
+      claps: ['clap-along break', 'only the drums and loud hand claps on every beat, like a crowd clapping along', 'the bass and every other instrument drop out', 'a drum fill and a rise in the last bar'],
+      outro: ['outro', 'the main hook one last time at the same tempo', 'ends with one big final hit on a G major chord, no fade out'],
+    },
+    kindNegative: {
+      tune: ['prominent lead melody', 'lead solo'],
+      low: ['prominent lead melody', 'lead solo'],
+      bouncy: ['prominent lead melody', 'lead solo'],
+      high: ['prominent lead melody', 'lead solo', 'heavy bass'],
+      breakdown: ['drums', 'drum kit', 'percussion', 'kick drum', 'snare drum', 'cymbals', 'hi-hats', 'bass line', 'loud', 'full band', 'lead melody'],
+      claps: ['bass', 'chords', 'melody', 'brass', 'strings', 'synth lead'],
+    },
+    core: [
+      'an explosive, joyful disco-funk party track for a children\'s dance party', 'in 4/4 time',
+      'a real live band recorded in a studio: a punchy live drum kit playing four-on-the-floor with open hi-hats on the off-beats, a slapped funky electric bass guitar, a chicken-scratch wah rhythm guitar, a tight brass section of trumpets and saxophones, lush disco strings, a clavinet, congas and a cowbell',
+      'loud, punchy, wide and polished modern production with a huge low end', 'irresistibly danceable', 'every section sounds clearly different from the one before',
+    ],
+    negative: [
+      ...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)),
+      'sad', 'dark', 'scary', 'slow', 'lullaby', 'ambient', 'lo-fi', 'chiptune', '8-bit', 'toy instruments', 'thin sound', 'cheap MIDI sound', 'minor key',
+    ],
+    revision: 'a live disco-funk band: four-on-the-floor drum kit, slapped bass, wah guitar, brass section, disco strings',
+    revisions: {
+      2: {
+        style: 'explosive, joyful festival dance-pop anthem',
+        core: [
+          'an explosive, joyful festival dance-pop EDM anthem for a children\'s dance party', 'in 4/4 time',
+          'a huge punchy electronic kick drum on every beat, pumping sidechained supersaw chords, a bouncy plucked synth hook, a deep sub bass, big claps and snares, white-noise risers, snare rolls and impacts',
+          'loud, wide and polished modern festival production with a huge low end', 'irresistibly danceable', 'every section sounds clearly different from the one before',
+        ],
+        revision: 'a festival dance-pop anthem: big electronic kick, pumping supersaw chords, a plucked synth hook, risers and a huge drop',
+      },
+      3: {
+        style: 'explosive, joyful Brazilian carnival samba party with a big brass band',
+        core: [
+          'an explosive, joyful Brazilian carnival samba party for a children\'s dance party', 'in 4/4 time',
+          'a real live samba drum school: deep surdo drums, snare drums, tamborims, agogo bells, shakers and a carnival whistle, with a big brass section of trumpets, trombones and saxophones playing catchy riffs, a piano montuno and an electric bass guitar',
+          'a street carnival parade recorded live: loud, punchy and exciting, with a huge low end', 'irresistibly danceable', 'every section sounds clearly different from the one before',
+        ],
+        revision: 'a carnival samba party: a live samba drum school, a big brass section, piano and bass',
+      },
+    },
+  },
 };
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
