@@ -164,7 +164,7 @@ export function buildBand() {
   put(115, 88, 3); // goodnight: Em7 A7 Em7; bar 118 is the last hit only
   const srcOf = o => 4 * bars[Math.floor(o / 4)] + (o - 4 * Math.floor(o / 4));
 
-  const B = { bars, recs: [], over: [], gain: {}, lp: {}, hp: {}, verb: [], echo: [], riser: [], rewind: [], tapestop: [] };
+  const B = { bars, recs: [], over: [], gain: {}, lp: {}, hp: {}, verb: [], echo: [], riser: [], rewind: [], tapestop: [], level2: [] };
   const CHANNELS = [...STEMS, 'fonk', 'slagverk', 'rolegt', 'vidlag', 'song3'];
   for (const s of CHANNELS) {
     B.gain[s] = [[-1, 0]];
@@ -256,7 +256,8 @@ export function buildBand() {
   set(ALL, 208, OFF);
   // -------- beetles (208-224): percussion alone
   rec('slagverk', 52, 8, 4); // its bars 8-11: the off-beats fuller than in bars 4-7, and no fill bar
-  B.verb.push({ stems: ['slagverk'], from: 208, to: 224, send: 0.5 });
+  B.level2.push({ stems: ['slagverk'], from: 208, to: 224.5, thr: -14, ratio: 3 });
+  B.verb.push({ stems: ['slagverk'], from: 208, to: 224, send: 0.85 });
   // -------- dragonflies (224-232): drums and strings
   set(['drums'], 224, 0);
   set(['other'], 224, -2);
@@ -312,7 +313,8 @@ export function buildBand() {
   set(['song3'], 404, OFF);
   // -------- the crowd (404-420): percussion alone; a roll of its own hits into the fake ending
   rec('slagverk', 101, 12, 3);
-  B.verb.push({ stems: ['slagverk'], from: 404, to: 420, send: 0.45 });
+  B.level2.push({ stems: ['slagverk'], from: 404, to: 416, thr: -14, ratio: 2.5 });
+  B.verb.push({ stems: ['slagverk'], from: 404, to: 420, send: 0.6 });
   for (let b = 416; b < 418; b += 0.5) B.recs.push({ rec: 'slagverk', o: b, n: 0.5, s: 4 * 15, g: 0.7 + 0.08 * (b - 416) });
   for (let b = 418; b < 420; b += 0.25) B.recs.push({ rec: 'slagverk', o: b, n: 0.25, s: 4 * 15, g: 0.85 + 0.08 * (b - 418) });
   B.riser.push({ beat: 414, beats: 6, vel: 0.2 });
@@ -344,7 +346,7 @@ export function buildBand() {
   over(['drums'], 472, 7, 4 * 96, { hold: 2.5, tau: 0.7 });
   B.verb.push({ stems: ['bass', 'guitar', 'other', 'piano', 'drums'], from: 471.9, to: 479, send: 0.35 });
   // the band's level by section (dB, on every channel): the drops the loudest, the rest a little under them
-  B.level = [[0, 0], [32, -1], [128, -1.5], [144, -1], [176, -1.5], [208, -1], [224, -1], [232, 0], [264, -1], [296, 0.5], [304, 0], [308, 1],
+  B.level = [[0, 0], [32, -1], [128, -1.5], [144, -1], [176, -1.5], [208, -1], [224, -1], [232, 0], [264, -1], [296, 1], [304, 0], [308, 1],
     [324, -0.5], [356, -0.5], [372, 0], [404, -0.5], [420, -1], [428, 0.5], [460, -0.5]];
   return B;
 }
@@ -534,14 +536,14 @@ export function buildScore() {
   for (let s = 0; s < 8; s++) call(GROUPS[s % 5], 284 + s / 4, { mode: 'chop', dur: 0.24, vel: 0.55 });
   GROUPS.forEach((g, k) => {
     const beat = 287 + 2 * k;
-    call(g, beat, { dur: 0.9, vel: 0.7 + 0.03 * k, pan: 0 });
+    call(g, beat, { dur: k === 4 ? 0.4 : 0.9, vel: (0.7 + 0.03 * k) * (k === 4 ? 0.7 : 1), pan: 0 });
     S.cues.push({ beat: beat - 1, kind: 'count', n: 5 - k });
   });
   // ======== the drop
-  fx('revCymbal', 296, { align: 'end', db: -13 });
+  fx('revCymbal', 296, { align: 'end', db: -19 });
   impact(296);
-  fx('cheerSwell', 296, { db: -6 });
-  fx('kidsCheer', 296.3, { db: -9 });
+  fx('cheerSwell', 296.5, { db: -8 });
+  fx('kidsCheer', 296.8, { db: -11 });
   roar(296, 1, 4);
   for (const g of GROUPS) call(g, 296, { dur: 3, vel: g === 'grazers' ? 0.85 : 0.6, pan: PAN[g] * 1.4 });
   for (let bar = 74; bar < 76; bar++) {
@@ -585,7 +587,7 @@ export function buildScore() {
   fx('needle', 362.9, { db: -16 });
   call('turtles', 363.25, { dur: 0.6, vel: 0.5, pan: -0.3 });
   S.cues.push({ beat: 363.25, kind: 'moved', group: 'turtles' });
-  fx('kidsLaugh', 369.6, { db: -14, len: 0.75 });
+  fx('kidsLaugh', 369.6, { db: -9, len: 0.75 });
   S.cues.push({ beat: 372, kind: 'unfreeze' });
   // ======== carnival: the slam; claps on 2 and 4; samba whistles from the flyers; a stomp from the grazers on each bar
   record(372, 'vamp', 'song3', 'freeze, then slam');

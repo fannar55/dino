@@ -142,6 +142,39 @@ function sweep(st, w, kind, n) {
 }
 
 /** The spin-back: from `beat`, what was played before it, backwards, the platter sped up from 1x by `accel` per second, for `sec`. */
+// a leveller: in a window, the stem's loud hits held down against its quiet off-beats (a peak follower, fast attack, slow
+// release; the threshold relative to the window's own loudest hit), then made up to the window's loudness before. Its edges fade
+// over 50 ms. It fills the gaps of a record of bare percussion so the hits do not jump out of near silence.
+function leveller(st, w, n) {
+  const a = Math.max(0, outS(w.from) - PRE), b = Math.min(n, outS(w.to) - PRE);
+  const att = Math.exp(-1 / (0.002 * SR)), rel = Math.exp(-1 / ((w.release ?? 0.18) * SR));
+  const env = new Float32Array(b - a);
+  let e = 0, top = 0;
+  for (let i = a; i < b; i++) {
+    const x = Math.max(Math.abs(st.L[i]), Math.abs(st.R[i]));
+    e = x > e ? att * e + (1 - att) * x : rel * e + (1 - rel) * x;
+    env[i - a] = e;
+    if (e > top) top = e;
+  }
+  const thr = top * 10 ** (w.thr / 20), xf = Math.round(0.05 * SR);
+  let before = 0, after = 0;
+  const g = new Float32Array(b - a);
+  for (let i = a; i < b; i++) {
+    const v = env[i - a];
+    const gc = v > thr ? (v / thr) ** (1 / w.ratio - 1) : 1;
+    const m = Math.min(1, (i - a) / xf, (b - i) / xf);
+    g[i - a] = 1 + (gc - 1) * m;
+    before += st.L[i] * st.L[i] + st.R[i] * st.R[i];
+    after += (st.L[i] * g[i - a]) ** 2 + (st.R[i] * g[i - a]) ** 2;
+  }
+  const up = after > 0 ? Math.sqrt(before / after) : 1;
+  for (let i = a; i < b; i++) {
+    const m = Math.min(1, (i - a) / xf, (b - i) / xf);
+    const k = g[i - a] * (1 + (up - 1) * m);
+    st.L[i] *= k;
+    st.R[i] *= k;
+  }
+}
 function rewind(st, w) {
   const a = outS(w.beat), len = Math.round(w.sec * SR);
   for (const ch of [st.L, st.R]) {
@@ -193,6 +226,7 @@ export function renderBand(B, ROOT, n, work) {
     }
     for (const w of B.lp[s] ?? []) sweep(st, w, 'lp', n);
     for (const w of B.hp[s] ?? []) sweep(st, w, 'hp', n);
+    for (const w of (B.level2 ?? []).filter(x => x.stems.includes(s))) leveller(st, w, n);
     out[s] = st;
     log[s] = clips.length;
   }
