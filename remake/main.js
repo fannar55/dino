@@ -81,6 +81,33 @@ if (params.get('nyr') === '1') {
 }
 const save = createSave(params.get('t') === null ? undefined : null);
 const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
+// The bug report tool (engine/villa/villa.js) is registered before the first await so F1 works from the first moment, even
+// while the chapter and its models are still downloading.
+let villaHeldClock = false, holdFn = null, drawNowFn = null, juniorRef = null, minnisspilRef = null, halsRef = null;
+let villaContext = () => ({
+  chapterId,
+  params: Object.fromEntries(params),
+  canvas: () => ({ width: canvas.width, height: canvas.height }),
+  clock: () => ({ time: clock.time, paused: clock.paused }),
+  save: () => ({ ...save.get(), chapterAt: defaultChapter(save) }),
+  consoleLog: () => consoleLog.entries(),
+});
+const villa = createVilla(document, {
+  button: params.get('villa') === '1',
+  shoot: () => {
+    const sub = juniorRef?.shoot?.() ?? minnisspilRef?.shoot?.();
+    if (sub) return sub;
+    if (halsRef?.isOpen) halsRef.world?.render?.();
+    else drawNowFn?.();
+    return canvas.toDataURL('image/png');
+  },
+  onPause: paused => {
+    if (paused) { villaHeldClock = clock.paused; clock.setPaused(true); } else clock.setPaused(villaHeldClock);
+    holdFn?.('villa', paused);
+  },
+  context: () => villaContext(),
+});
+window.__villa = villa;
 const { chapter } = await import(`./chapters/${chapterId}.js`);
 const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
@@ -311,15 +338,12 @@ const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cas
 // the owner draws boxes over the screen and writes what is wrong; the report goes to the dev server's qa/villur/ (tools/serve.mjs),
 // or downloads where no server answers. Each part of the game is handed as a thunk: it is read at the moment of the report, and
 // one that throws is reported as such instead of stopping the report (engine/villa/skyrsla.js).
-let villaHeldClock = false;
-const villa = createVilla(document, {
-  button: params.get('villa') === '1',
-  shoot: () => { if (!hals.isOpen) drawNow(); return canvas.toDataURL('image/png'); }, // the frame as it stands (the board game draws its own)
-  onPause: paused => {
-    if (paused) { villaHeldClock = clock.paused; clock.setPaused(true); } else clock.setPaused(villaHeldClock);
-    hold('villa', paused);
-  },
-  context: () => ({
+holdFn = hold;
+juniorRef = junior;
+minnisspilRef = minnisspil;
+halsRef = hals;
+drawNowFn = () => { renderer.info.reset(); renderer.render(scene, camera); };
+villaContext = () => ({
     chapterId,
     params: Object.fromEntries(params),
     canvas: () => ({ width: canvas.width, height: canvas.height }),
@@ -347,7 +371,6 @@ const villa = createVilla(document, {
     memory: () => (performance.memory ? { usedMB: Math.round(performance.memory.usedJSHeapSize / 1048576), limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576) } : null),
     consoleLog: () => consoleLog.entries(),
     timeline: () => world.chapterTimeline ?? null, // when each scene began (a chapter that marks them), for the video tool too
-  }),
 });
 // A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
 // while the scene plays (the frame keeps room to draw), and 80 under the black, where no frame is seen (no more: the game clock

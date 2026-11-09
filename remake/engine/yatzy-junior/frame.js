@@ -22,7 +22,29 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     if (event.data?.type === closeType) close();
   }
   function onKey(event) {
-    if (event.key === 'Escape') close();
+    if (event.key === 'Escape' && doc.getElementById('villa')?.hidden !== false) close();
+  }
+  function onFrameLoad() {
+    const subWin = frame?.contentWindow;
+    const subDoc = frame?.contentDocument;
+    if (!subWin || !subDoc) return;
+    subWin.addEventListener?.('help', event => { event.preventDefault(); }, true);
+    subDoc.addEventListener('keydown', event => {
+      const f1 = event.key === 'F1' || event.code === 'F1' || event.keyCode === 112;
+      const villaOpen = doc.getElementById('villa')?.hidden === false;
+      if (f1 || (villaOpen && event.key === 'Escape')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: event.key === 'Escape' ? 'Escape' : 'F1', code: event.code || 'F1', bubbles: true, cancelable: true }));
+      }
+    }, true);
+  }
+  function shoot() {
+    if (!root) return null;
+    const c = frame?.contentDocument?.querySelector('canvas');
+    if (!c) return null;
+    c.__drawNow?.();
+    return c.toDataURL('image/png');
   }
 
   function open() {
@@ -37,6 +59,7 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     frame.src = src;
     frame.title = label;
     frame.setAttribute('allow', 'autoplay');
+    frame.addEventListener('load', onFrameLoad);
     const closeEl = doc.createElement('button');
     closeEl.type = 'button';
     closeEl.className = 'junior-close';
@@ -62,5 +85,5 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     onClose?.();
   }
 
-  return { open, close, get isOpen() { return root !== null; } };
+  return { open, close, shoot, get isOpen() { return root !== null; } };
 }

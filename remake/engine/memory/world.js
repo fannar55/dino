@@ -94,6 +94,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   renderer.shadowMap.type = THREE.PCFShadowMap; renderer.info.autoReset = false;
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(SHOT.fov, 1.6, .1, 600);
   camera.name = 'Minnisspil · fast sjónarhorn';
+  canvas.__drawNow = () => { if (!disposed) renderer.render(scene, camera); };
   const lighting = createLighting(scene, look, q), depthShadow = installDepthShadows(renderer, lighting.sun);
   lighting.sun.shadow.radius = 1.65;
   installFog(scene, look, lighting.direction);

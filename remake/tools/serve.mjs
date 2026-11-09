@@ -5,8 +5,10 @@
 //   node remake/tools/serve.mjs --lan      -> also reachable from a tablet on the same Wi-Fi
 //   node remake/tools/serve.mjs --port 8080
 //
-// It answers byte-range requests, as any real host does. A browser moves about in a sound by asking for ranges of the file: from a
-// server that gives none, the theme (assets/audio/theme.mp3) cannot be moved to where the game's clock is, and Safari will not play it.
+// It answers byte-range requests, as any real host does. A browser moves about in a sound or video by asking for ranges of the
+// file: from a server that gives none, the theme (assets/audio/theme.mp3) cannot be moved to where the game's clock is, and
+// Safari will not play it. The book's eight educational videos (/myndbond/<id>.mp4, served from R2 in the cloud) are streamed
+// here from ../myndband-gramedla/out/ (or <root>/myndbond/ when present).
 //
 // It is also Fjölspil's meeting point at home (spec §9.1): the WebSocket at /fjolspil/ws/<code> is tools/fjolspil-server.mjs,
 // and with --lan the phone page's addresses are printed too, as the host's QR code carries them.
@@ -27,11 +29,22 @@ import { attachFjolspil, lanJoinUrls } from './fjolspil-server.mjs';
 import { folderName } from '../engine/villa/skyrsla.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const VIDEOS_OUT = path.resolve(ROOT, '../myndband-gramedla/out');
+const VIDEO_FILES = {
+  'heimur.mp4': 'heimur-2.mp4',
+  'grannar.mp4': 'grannar-sfx.mp4',
+  'thorsedla.mp4': 'thorsedla-sfx.mp4',
+  'gramedla.mp4': 'gramedla-hljod.mp4',
+  'landrek.mp4': 'landrek.mp4',
+  'fuglar.mp4': 'fuglar-sfx.mp4',
+  'raf.mp4': 'raf-sfx.mp4',
+  'steinn.mp4': 'steinn-sfx.mp4',
+};
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.glb': 'model/gltf-binary',
-  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm',
+  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
 };
 
@@ -40,35 +53,49 @@ const REPORT_LIMIT = 25 * 1024 * 1024; // bytes of one report: two PNGs of the f
 // The files a report may bring, and nothing else: the pictures as JPEG (PNG from an older page still taken), the layers page as text.
 const REPORT_FILES = { 'skjaskot.jpg': 'jpeg', 'merkt.jpg': 'jpeg', 'skjaskot.png': 'png', 'merkt.png': 'png', 'spjold.html': 'text' };
 
+/** Resolves a `/myndbond/<name>.mp4` path to `<root>/myndbond/<name>.mp4` if there, or `videosDir/<mapped>.mp4`. */
+function resolveVideo(pathname, root, videosDir) {
+  const match = /^\/myndbond\/([a-z0-9-]+\.mp4)$/.exec(pathname);
+  if (!match) return null;
+  const inRoot = path.join(root, 'myndbond', match[1]);
+  if (fs.existsSync(inRoot)) return inRoot;
+  const mapped = VIDEO_FILES[match[1]] ?? match[1];
+  return path.join(videosDir, mapped);
+}
+
 /**
  * Answers one request (exported so a test can run it on a server of its own, with a `root` and a `reportLimit` of its own):
- * POST /villa files a bug report; anything else is a file under the root.
+ * POST /villa files a bug report; `/myndbond/<id>.mp4` streams an educational video; anything else is a file under the root.
  */
-export async function handle(req, res, { root = ROOT, reportLimit = REPORT_LIMIT } = {}) {
+export async function handle(req, res, { root = ROOT, videosDir = VIDEOS_OUT, reportLimit = REPORT_LIMIT } = {}) {
   try {
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname === '/villa') {
       if (req.method === 'POST') { await saveReport(req, res, { root, reportLimit }); return; }
       if (req.method === 'GET' || req.method === 'HEAD') { res.writeHead(204, { 'X-Villa': '1', 'Cache-Control': 'no-store' }); res.end(); return; } // "I am here"
     }
-    if (url.pathname === '/') { res.writeHead(302, { Location: '/remake/' }); res.end(); return; }
-    const file = path.resolve(root, '.' + decodeURIComponent(url.pathname));
-    if (file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
+    if (url.pathname === '/') { res.writeHead(302, { Location: `/remake/${url.search}` }); res.end(); return; }
+    const videoFile = resolveVideo(decodeURIComponent(url.pathname), root, videosDir);
+    const file = videoFile ?? path.resolve(root, '.' + decodeURIComponent(url.pathname));
+    if (!videoFile && file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
     const stat = await fsp.stat(file);
     const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
-    const body = await fsp.readFile(target);
+    const size = (target === file ? stat : await fsp.stat(target)).size;
     const headers = { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes' };
+    const head = req.method === 'HEAD';
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || ''); // bytes=a-b, bytes=a- (to the end), bytes=-n (the last n)
     if (range && (range[1] || range[2])) {
-      const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));
-      const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
-      if (start >= body.length || start > end) { res.writeHead(416, { 'Content-Range': `bytes */${body.length}` }); res.end(); return; }
-      res.writeHead(206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${body.length}`, 'Content-Length': end - start + 1 });
-      res.end(body.subarray(start, end + 1));
+      const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+      if (start >= size || start > end) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return; }
+      res.writeHead(206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+      if (head) { res.end(); return; }
+      fs.createReadStream(target, { start, end }).pipe(res);
       return;
     }
-    res.writeHead(200, { ...headers, 'Content-Length': body.length });
-    res.end(body);
+    res.writeHead(200, { ...headers, 'Content-Length': size });
+    if (head) { res.end(); return; }
+    fs.createReadStream(target).pipe(res);
   } catch {
     res.writeHead(404); res.end('not found');
   }

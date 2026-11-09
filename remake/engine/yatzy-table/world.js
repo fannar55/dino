@@ -419,6 +419,7 @@ export async function createYatzyWorld(canvas, { shot = SHOT } = {}) {
     if (disposed) return;
     renderer.info.reset(); renderer.render(scene, camera);
   }
+  canvas.__drawNow = render;
   Object.assign(world, {
     table: TABLE, chair: furniture.chair, update, render, resize,
     setView: cameraRig.setView, setDiceFocus: cameraRig.setDiceFocus, isViewTransitioning: cameraRig.isViewTransitioning, getViewState: cameraRig.getState,
