@@ -2356,14 +2356,18 @@
       "word": "Klettaveggur",
       "stem": "[Kk]lettavegg",
       "forms": [
-        "Klettaveggurinn"
+        "Klettaveggurinn",
+        "klettaveggjanna"
       ],
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað, takan í leiknum til 2026-11-02. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready)."
         },
         "ipa": {
-          "say": "\"/ˈkʰlɛhtaˌvɛkːʏrɪn/\"",
+          "say": {
+            "Klettaveggurinn": "\"/ˈkʰlɛhtaˌvɛkːʏrɪn/\"",
+            "klettaveggjanna": "\"/ˈkʰlɛhtaˌvɛcːanːa/\""
+          },
           "note": "IPA /ˈkʰlɛhtaˌvɛkːʏrɪn/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready, með „reipið“ líka í IPA)."
         },
         "samhengi": {
@@ -2404,7 +2408,8 @@
         "steingervingum",
         "steingervingnum",
         "steingervingana",
-        "steingervingi"
+        "steingervingi",
+        "steingervinga"
       ],
       "except": [
         "Steingervingafræðingar",
@@ -2789,7 +2794,8 @@
       "stem": "[Ff]lek[aiu]",
       "forms": [
         "Flekarnir",
-        "flekar"
+        "flekar",
+        "flekum"
       ],
       "recipes": {
         "hratt": {
@@ -2802,17 +2808,91 @@
         "bandstrik": {
           "say": {
             "Flekarnir": "Fle-karnir",
-            "flekar": "fle-kar"
+            "flekar": "fle-kar",
+            "flekum": "fle-kum"
           },
           "note": "Bandstrik á milli atkvæða, svo e-ið verði langt og k-ið eitt (óheyrt)."
         },
         "ipa": {
           "say": {
             "Flekarnir": "\"/ˈflɛːkarnɪr/\"",
-            "flekar": "\"/ˈflɛːkar/\""
+            "flekar": "\"/ˈflɛːkar/\"",
+            "flekum": "\"/ˈflɛːkʏm/\""
           },
           "seed": 42,
           "note": "IPA með löngu e og einu k, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "marie": {
+      "word": "Marie",
+      "stem": "Marie",
+      "forms": [
+        "Marie"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Marie": "Marí"
+          },
+          "note": "Eins og íslenskur sögumaður segir nafnið: Marí (lína 40 í landreksmyndbandinu, óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Marie": "\"/ˈmaːri/\""
+          },
+          "seed": 42,
+          "note": "IPA, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "tharp": {
+      "word": "Tharp",
+      "stem": "Tharp",
+      "forms": [
+        "Tharp"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Tharp": "Þarp"
+          },
+          "note": "Th eins og þ, eins og íslenskur sögumaður segir nafnið: Þarp (lína 40 í landreksmyndbandinu, óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Tharp": "\"/θarp/\""
+          },
+          "seed": 42,
+          "note": "IPA, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "wegener": {
+      "word": "Wegener",
+      "stem": "Wegener",
+      "forms": [
+        "Wegener"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði „Wegener“ í línum 6, 26 og 69 og „Vegener“ í línum 17 og 46 í landreksmyndbandinu (2026-11-09); hvort g-ið er hart (eins og á þýsku) bíður eyrans hans."
+        },
+        "ipa": {
+          "say": {
+            "Wegener": "\"/ˈveːɡənɐ/\""
+          },
+          "seed": 42,
+          "note": "Þýskur framburður í IPA: v og hart g, fræ 42 (óheyrt)."
         }
       },
       "chosen": null
