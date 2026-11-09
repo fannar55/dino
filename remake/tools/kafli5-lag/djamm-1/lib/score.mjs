@@ -57,7 +57,7 @@ export const SECTIONS = [
   { id: 'flyers', name: 'Small flyers', nameIs: 'Litlu flugdýrin', bar: 48, bars: 4, feature: 'flyers', record: 'vamp',
     what: 'the brass and strings come in for the first time; the bass thinned: long flyer whistles; a scratch into the beetles\' record' },
   { id: 'beetles', name: 'Beetles', nameIs: 'Bjöllurnar', bar: 52, bars: 4, feature: 'beetles', record: 'slagverk',
-    what: 'a record of percussion alone: the beetles play it' },
+    what: 'a record of percussion alone (its bars 8-11) in a big room: the beetles play it' },
   { id: 'dragonflies', name: 'Dragonflies', nameIs: 'Drekaflugurnar', bar: 56, bars: 2, feature: 'dragonflies', record: 'vamp',
     what: 'the first record\'s drums and strings, the dragonflies buzz past the stage; its last beat thrown into the echo' },
   { id: 'break', name: 'Her horn', nameIs: 'Hornið hennar', bar: 58, bars: 8, feature: 'sloedla', record: 'rolegt',
@@ -123,10 +123,10 @@ export const DJ = [
   { id: 'aftur', beat: 306, align: 'vowel', echo: 'last', duck: 3, lift: 6, ceil: 7 },
   { id: 'laugh', beat: 312, echo: 'last', duck: 3, ceil: 7 },
   { id: 'all', beat: 321.5, duck: 3, ceil: 7 },
-  { id: 'freeze-in', beat: 356.5, duck: 3, ceil: 6 },
-  { id: 'stopp', beat: 364, align: 'vowel', echo: 'last', duck: 3, ceil: 6 },
-  { id: 'turtle-moved', beat: 366.5, duck: 2, ceil: 5 },
-  { id: 'dansa', beat: 371, duck: 3, ceil: 6 },
+  { id: 'freeze-in', beat: 356, duck: 3, ceil: 6 },
+  { id: 'stopp', beat: 362, align: 'vowel', echo: 'last', duck: 3, ceil: 5 },
+  { id: 'turtle-moved', beat: 364, duck: 2, ceil: 4 },
+  { id: 'dansa', beat: 371, duck: 3, ceil: 5 },
   { id: 'allir-saman', beat: 376, echo: 'last', duck: 3, ceil: 6 },
   { id: 'hopp', beat: 390, duck: 3 },
   { id: 'hopp', key: 'hopp-2', beat: 398, echo: 'last', duck: 3 },
@@ -160,7 +160,7 @@ export function buildBand() {
   put(74, 72, 2); // the drop
   put(77, 72, 4); // the drop again, from its first bar
   put(81, 76, 8); // anthem
-  put(89, 84, 3); // freeze dance: two bars and the beat that stops
+  put(89, 84, 2); // freeze dance: a bar and a half, and the beat that stops
   put(115, 88, 3); // goodnight: Em7 A7 Em7; bar 118 is the last hit only
   const srcOf = o => 4 * bars[Math.floor(o / 4)] + (o - 4 * Math.floor(o / 4));
 
@@ -255,7 +255,8 @@ export function buildBand() {
   B.verb.push({ stems: ['other', 'guitar', 'piano'], from: 207, to: 208, send: 0.5 });
   set(ALL, 208, OFF);
   // -------- beetles (208-224): percussion alone
-  rec('slagverk', 52, 4, 4);
+  rec('slagverk', 52, 8, 4); // its bars 8-11: the off-beats fuller than in bars 4-7, and no fill bar
+  B.verb.push({ stems: ['slagverk'], from: 208, to: 224, send: 0.5 });
   // -------- dragonflies (224-232): drums and strings
   set(['drums'], 224, 0);
   set(['other'], 224, -2);
@@ -301,16 +302,17 @@ export function buildBand() {
   // -------- anthem (324-356)
   set(['drums', 'bass'], 324, 0);
   set(['guitar', 'other', 'piano'], 324, -3);
-  // -------- freeze dance (356-372): the band, then "Stopp!" on 364: a tape stop, silence until the slam on 372
+  // -------- freeze dance (356-372): the band, then "Stopp!" on 362: a tape stop, silence until the slam on 372
   set(['guitar', 'other', 'piano'], 356, -2);
-  B.tapestop.push({ beat: 364, sec: 0.55 });
-  set(ALL, 364.62, OFF);
+  B.tapestop.push({ beat: 362, sec: 0.55 });
+  set(ALL, 362.62, OFF);
   // -------- carnival (372-404): the samba record, slammed in
   rec('song3', 93, 24, 8);
   lp(['song3'], 400, 404, 12000, 900);
   set(['song3'], 404, OFF);
   // -------- the crowd (404-420): percussion alone; a roll of its own hits into the fake ending
   rec('slagverk', 101, 12, 3);
+  B.verb.push({ stems: ['slagverk'], from: 404, to: 420, send: 0.45 });
   for (let b = 416; b < 418; b += 0.5) B.recs.push({ rec: 'slagverk', o: b, n: 0.5, s: 4 * 15, g: 0.7 + 0.08 * (b - 416) });
   for (let b = 418; b < 420; b += 0.25) B.recs.push({ rec: 'slagverk', o: b, n: 0.25, s: 4 * 15, g: 0.85 + 0.08 * (b - 418) });
   B.riser.push({ beat: 414, beats: 6, vel: 0.2 });
@@ -536,9 +538,9 @@ export function buildScore() {
     S.cues.push({ beat: beat - 1, kind: 'count', n: 5 - k });
   });
   // ======== the drop
-  fx('revCymbal', 296, { align: 'end', db: -7 });
+  fx('revCymbal', 296, { align: 'end', db: -13 });
   impact(296);
-  fx('cheerSwell', 295.6, { db: -6 });
+  fx('cheerSwell', 296, { db: -6 });
   fx('kidsCheer', 296.3, { db: -9 });
   roar(296, 1, 4);
   for (const g of GROUPS) call(g, 296, { dur: 3, vel: g === 'grazers' ? 0.85 : 0.6, pan: PAN[g] * 1.4 });
@@ -554,7 +556,7 @@ export function buildScore() {
   // ======== the rewind: the spin-back of what was just played, the platter's sound under it; "Aftur!"; the drop again
   fx('vinylRewind', 304, { db: -14, len: 0.7 });
   S.cues.push({ beat: 304, kind: 'rewind' });
-  fx('revCymbal', 308, { align: 'end', db: -7 });
+  fx('revCymbal', 308, { align: 'end', db: -13 });
   // ======== the drop again, with the air horn
   impact(308, 0.5);
   fx('airPulse', 308, { db: -9 });
@@ -575,20 +577,21 @@ export function buildScore() {
   // ======== freeze dance: "Stopp!", the tape stop, the needle; a turtle wobbles; the children laugh; "Dansa!"
   hit(356);
   for (let bar = 89; bar < 91; bar++) {
-    chopPattern('frogs', bar, CHOPS.frogs[0].filter(([s]) => s >= 3), { vel: 0.4 });
-    chopPattern('lizards', bar, CHOPS.lizards[0].filter(([s]) => s >= 8), { vel: 0.36 });
+    const before = ([s]) => bar === 89 || s < 8; // nothing after "Stopp!" on 362
+    chopPattern('frogs', bar, CHOPS.frogs[0].filter(([s]) => s >= 3).filter(before), { vel: 0.4 });
+    chopPattern('lizards', bar, CHOPS.lizards[0].filter(([s]) => s >= 8).filter(before), { vel: 0.36 });
   }
-  S.cues.push({ beat: 364, kind: 'freeze' });
-  fx('needle', 364.9, { db: -16 });
-  call('turtles', 365.75, { dur: 0.6, vel: 0.5, pan: -0.3 });
-  S.cues.push({ beat: 365.75, kind: 'moved', group: 'turtles' });
-  fx('kidsLaugh', 367.6, { db: -14 });
+  S.cues.push({ beat: 362, kind: 'freeze' });
+  fx('needle', 362.9, { db: -16 });
+  call('turtles', 363.25, { dur: 0.6, vel: 0.5, pan: -0.3 });
+  S.cues.push({ beat: 363.25, kind: 'moved', group: 'turtles' });
+  fx('kidsLaugh', 369.6, { db: -14, len: 0.75 });
   S.cues.push({ beat: 372, kind: 'unfreeze' });
   // ======== carnival: the slam; claps on 2 and 4; samba whistles from the flyers; a stomp from the grazers on each bar
   record(372, 'vamp', 'song3', 'freeze, then slam');
   impact(372);
   fx('airLong', 372, { db: -11 });
-  fx('cheerSwell', 371.6, { db: -7 });
+  fx('cheerSwell', 372, { db: -7 });
   fx('kidsCheer', 372.3, { db: -10 });
   roar(372, 0.8, 8);
   claps(377, 403, -1, 91);
@@ -605,8 +608,8 @@ export function buildScore() {
   record(404, 'song3', 'slagverk', 'low-pass');
   hit(404);
   S.cues.push({ beat: 407.5, kind: 'egill-turn' });
-  roar(412, 0.6, 9);
-  fx('kidsYay', 412, { db: -8 });
+  roar(412, 0.5, 9);
+  fx('kidsYay', 412, { db: -10 });
   fx('cheerShort', 412.2, { db: -11 });
   roar(416, 0.9, 10);
   fx('kidsCheer', 416, { db: -8 });
@@ -616,12 +619,12 @@ export function buildScore() {
   S.cues.push({ beat: 420, kind: 'end-fake' });
   call('grazers', 420, { dur: 2, vel: 0.9, pan: 0 });
   fx('cheerBig', 420.2, { db: -9, len: 6.5 });
-  fx('revCymbal', 428, { align: 'end', db: -7 });
+  fx('revCymbal', 428, { align: 'end', db: -11 });
   // ======== the last chorus: everyone sings; her horn answers the band in the gaps of its hook, and joins the last note
   record(428, 'vamp', 'vidlag', 'drum fill');
   impact(428);
   fx('airPulse', 428, { db: -10 });
-  fx('cheerSwell', 427.6, { db: -8 });
+  fx('cheerSwell', 428, { db: -8 });
   S.cues.push({ beat: 428, kind: 'peak' });
   sing(428, { voices: 2 });
   for (const at of [434, 442, 450]) ['frogs', 'lizards', 'flyers'].forEach((g, k) => hornNote(at + 0.5 * k, k === 2 ? 1 : 0.5, TONE[g] - 12, 0.95));

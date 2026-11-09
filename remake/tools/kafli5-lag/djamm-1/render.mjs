@@ -30,7 +30,7 @@ const say = msg => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${ms
 mkdirSync(join(OUT, 'stems'), { recursive: true });
 mkdirSync(WORK, { recursive: true });
 const db = v => 20 * Math.log10(Math.max(v, 1e-12));
-const FX_DB = 6; // the fx stem against the band (each event's own level is in the score)
+const FX_DB = 0; // the fx stem against the band (each event's own level is in the score); round one of round two had 6: too hot
 
 // ---------------------------------------------------------------- the takes, measured
 const takeInfo = {};
