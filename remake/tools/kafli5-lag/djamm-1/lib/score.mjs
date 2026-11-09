@@ -411,13 +411,13 @@ export function buildScore() {
   }
   hit(152);
   hit(160);
-  for (let bar = 40; bar < 44; bar++) chopPattern('frogs', bar, CHOPS.frogs[bar - 40], { vel: 0.95 });
+  for (let bar = 40; bar < 44; bar++) chopPattern('frogs', bar, CHOPS.frogs[bar - 40], { vel: 1.05 });
   hit(176);
-  for (let bar = 44; bar < 48; bar++) chopPattern('lizards', bar, CHOPS.lizards[bar - 44], { vel: 0.9 });
+  for (let bar = 44; bar < 48; bar++) chopPattern('lizards', bar, CHOPS.lizards[bar - 44], { vel: 1.2 });
   hit(192);
   for (let bar = 48; bar < 52; bar++) {
     const flyer = bar === 51 ? [[0, 4], [4, 4], [8, 4], [12, 4]] : [[0, 8], [10, 6]];
-    for (const [s, len] of flyer) call('flyers', bar * 4 + s / 4, { dur: len / 4, vel: 0.95, pan: (s / 16) * 1.0 - 0.4 });
+    for (const [s, len] of flyer) call('flyers', bar * 4 + s / 4, { dur: len / 4, vel: 1.15, pan: (s / 16) * 1.0 - 0.4 });
   }
   // the beetles are the drummer: a cue on every beat and off-beat of their two bars
   hit(208);
