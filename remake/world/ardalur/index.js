@@ -23,7 +23,7 @@ import { createCrowds } from '../critters/crowd.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
-import { createWaterMaterial } from '../props/water.js';
+import { createWaterMaterial, ringsUntil } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
 import { createFarLand } from './far-land.js';
 import { FEN, FOREST } from '../forest/config.js';
@@ -51,10 +51,11 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const atlas = createCardAtlas(world.renderer ?? null, CARDED.flatMap(name => Array.from({ length: FOREST.trees.variants[name] },
       (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) }))));
     return {
-      noise, leaf, library, atlas, cards: createCardMaterial(atlas), paint: groundPaint(terrain, route),
+      noise, leaf, library, atlas, cards: createCardMaterial(atlas, { coverage: Boolean(world.q?.antialias) }), paint: groundPaint(terrain, route),
       plants: createPlantMaterials(world, { noise, leaf }), water: createWaterMaterial(world, { seed, river: true, noise }),
     };
   })();
+  if (real) real.water.uniforms.uRingsUntil.value = -1; // no ring yet: rippleAt keeps it
   const materials = grey ? {
     ground: lambert(GREY.ground), water: lambert(GREY.water), rock: lambert(GREY.rock), plant: lambert(GREY.plant),
     falls: new THREE.MeshLambertMaterial({ color: GREY.falls, side: THREE.DoubleSide }), snag: lambert(GREY.snag), mark: lambert(GREY.mark), far: lambert(GREY.far),
@@ -66,8 +67,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   group.name = 'Árdalur';
   world.scene?.add?.(group);
   // the animal groups of C (animals.js), in the real look; the grey one has their marks. They are drawn as crowds (each kind of
-  // critter in one draw call), begun and ended round them each frame; only those in view, or near enough to cast a shadow into it.
-  const crowds = real ? createCrowds(world, { parent: group, inView: true }) : null;
+  // critter in one draw call), begun and ended round them each frame; only those in view, or near enough to cast a shadow into it;
+  // a soft shade under each on the ground where the sun's shadow map does not reach (crowd.js groundAt)
+  const crowds = real ? createCrowds(world, { parent: group, inView: true, groundAt: (x, z) => terrain.heightAt(x, z) }) : null;
   const animals = real ? createAnimals(world, route, { heightAt: (x, z) => terrain.heightAt(x, z), library: real.library, crowds, critters }) : null;
   // the life nobody taps (life.js): the Fen's birds, the fish, the birds in the bank trees, the water striders, and the big call's
   // rows of small lizards and flocks of birds; in the same crowds
@@ -151,6 +153,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
 
   const parts = sections.list.map(() => null); // each section's group once built
   const plantMeshes = sections.list.map(() => []); // each section's merged plant meshes (the real look), culled as the camera moves
+  const groundMeshes = sections.list.map(() => null); // and its ground, culled by its 40 m tiles (terrain.js TILE)
   // from down in the gorge the ground hides most plants above the falls: the cull leaves those out (sight.js)
   const sight = real ? createGorgeSight(route, terrain, index) : null;
   const hideAbove = (range, mesh) => (range.sector ?? mesh.userData.sector) === ABOVE_SECTOR && sight.hidden(world.camera.position, range.sphere);
@@ -176,6 +179,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     part.add(ground.mesh, banks.group);
     part.userData.placements = banks.placements ?? [];
     plantMeshes[i] = banks.meshes ?? [];
+    groundMeshes[i] = ground.mesh;
+    // after the plants (3): from above, the crowns cover much of it, and early depth testing then skips the ground under them
+    ground.mesh.renderOrder = 4;
     part.visible = false;
     parts[i] = part;
     group.add(part);
@@ -208,6 +214,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       world.camera.updateMatrixWorld();
       const hide = sight.active(camera) ? hideBoth : hideHazed;
       for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
+      // the ground's tiles in view (only the frustum: the ground is what hides the rest)
+      cullBatches(lastVisible.map(i => groundMeshes[i]).filter(Boolean), world.camera, 2);
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
       else downwash.set(0, 0, 0, 0);
@@ -231,6 +239,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const rings = real.water.uniforms.uRipples.value;
     rings[ring].set(x, z, real.water.uniforms.uTime.value, strength);
     ring = (ring + 1) % rings.length;
+    real.water.uniforms.uRingsUntil.value = ringsUntil(rings); // until then the river's shader goes through its rings
   }
 
   return {

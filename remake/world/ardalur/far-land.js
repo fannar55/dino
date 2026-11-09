@@ -284,6 +284,7 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
   ground.name = 'Far land';
   ground.castShadow = false;
   ground.receiveShadow = false;
+  ground.renderOrder = 5; // after the valley's own ground (4), which covers it in the corridor
 
   // Only the slice of the land the view looks over is drawn (from G's start the land behind her was a quarter of the frame's
   // triangles for nothing). The view's frustum seen from above is the hull of its eight corners, out to its far plane. Unless that

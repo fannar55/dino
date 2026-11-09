@@ -242,10 +242,16 @@ float printDistance( vec2 p ) {
 #endif
 #include <common>
 #include <fog_pars_fragment>
-float waterLayers( vec2 p, vec2 drift ) {
-  // two layers of soft noise drifting against each other, and with the flow
-  float a = texture2D( uNoise, ( p - drift ) * 0.19 + vec2( uTime * 0.012, uTime * 0.008 ) ).g;
-  float b = texture2D( uNoise, ( p - drift * 1.4 ) * 0.43 - vec2( uTime * 0.019, -uTime * 0.014 ) ).b;
+// The taps below are made only where they count (the waves within 35 m or on white water, the sparks toward the sun), inside a
+// branch, so they are read with the gradients the plain reads would have had, taken outside it (a GPU may not branch round a read
+// that takes its own; and a branch's edge gets no wrong mip level): the world's (gP) and the flow's (gF), x and y.
+vec2 gPx, gPy, gFx, gFy;
+float waterLayers( vec2 p, vec2 drift, float driftBy ) {
+  // two layers of soft noise drifting against each other, and with the flow (drift is the flow times driftBy)
+  vec2 ua = ( p - drift ) * 0.19 + vec2( uTime * 0.012, uTime * 0.008 );
+  vec2 ub = ( p - drift * 1.4 ) * 0.43 - vec2( uTime * 0.019, -uTime * 0.014 );
+  float a = textureGrad( uNoise, ua, ( gPx - gFx * driftBy ) * 0.19, ( gPy - gFy * driftBy ) * 0.19 ).g;
+  float b = textureGrad( uNoise, ub, ( gPx - gFx * ( driftBy * 1.4 ) ) * 0.43, ( gPy - gFy * ( driftBy * 1.4 ) ) * 0.43 ).b;
   return a * 0.6 + b * 0.4;
 }
 #ifdef RIVER_WATER
@@ -258,27 +264,39 @@ float waterHeight( vec2 p ) {
   float k0 = fract( uTime / uRiverPeriod );
   float k1 = fract( uTime / uRiverPeriod + 0.5 );
   float w = 1.0 - abs( 1.0 - 2.0 * k0 );
-  return mix( waterLayers( p + vec2( 3.7, 1.9 ), vFlow * ( k1 * uRiverPeriod ) ), waterLayers( p, vFlow * ( k0 * uRiverPeriod ) ), w );
+  return mix( waterLayers( p + vec2( 3.7, 1.9 ), vFlow * ( k1 * uRiverPeriod ), k1 * uRiverPeriod ), waterLayers( p, vFlow * ( k0 * uRiverPeriod ), k0 * uRiverPeriod ), w );
 }
 #else
 float waterHeight( vec2 p ) {
-  return waterLayers( p, vFlow * uTime );
+  return waterLayers( p, vFlow * uTime, uTime );
 }
 #endif
+uniform float uRingsUntil; // the clock's time the last ring dies (rings are skipped after it)
 void main() {
   vec2 p = vWorld.xz;
+  gPx = dFdx( p ); gPy = dFdy( p ); gFx = dFdx( vFlow ); gFy = dFdy( vFlow );
   // the small waves fade out with distance, so far water lies smooth and reflects the sky
   float detail = 1.0 - smoothstep( 12.0, 35.0, length( cameraPosition - vWorld ) );
   #ifdef PRINT_WATER
   detail *= 1.0 - 0.85 * vState.x; // a counted print's water lies still
   #endif
+  #ifdef RIVER_WATER
+  float bump = 0.07 * detail + 0.22 * vWhite; // white water is rough, near or far
+  #else
+  float bump = 0.07 * detail;
+  #endif
+  // the waves' slope (and h0, which only white water's foam reads): none where they would be scaled by nothing
   float e = 0.12;
-  float h0 = waterHeight( p );
-  vec2 grad = vec2( waterHeight( p + vec2( e, 0.0 ) ) - h0, waterHeight( p + vec2( 0.0, e ) ) - h0 ) / e;
+  float h0 = 0.0;
+  vec2 grad = vec2( 0.0 );
+  if ( bump > 0.0 ) {
+    h0 = waterHeight( p );
+    grad = vec2( waterHeight( p + vec2( e, 0.0 ) ) - h0, waterHeight( p + vec2( 0.0, e ) ) - h0 ) / e;
+  }
   // rings: a crest spreading from where something touched the water, and a fainter one inside it
   vec2 tilt = vec2( 0.0 );
   float crest = 0.0;
-  for ( int i = 0; i < ${RIPPLES}; i ++ ) {
+  if ( uTime <= uRingsUntil ) for ( int i = 0; i < ${RIPPLES}; i ++ ) {
     vec4 r = uRipples[ i ];
     float age = uTime - r.z;
     if ( r.w <= 0.0 || age < 0.0 || age > ${RIPPLE.life.toFixed(2)} ) continue;
@@ -295,11 +313,6 @@ void main() {
       tilt += ( d / max( dist, 1e-3 ) ) * ( -x * w );
     }
   }
-  #ifdef RIVER_WATER
-  float bump = 0.07 * detail + 0.22 * vWhite; // white water is rough, near or far
-  #else
-  float bump = 0.07 * detail;
-  #endif
   vec3 n = normalize( vec3( -grad.x * bump - tilt.x * 0.35, 1.0, -grad.y * bump - tilt.y * 0.35 ) );
   vec3 v = normalize( cameraPosition - vWorld );
   float facing = max( dot( n, v ), 0.0 );
@@ -317,8 +330,14 @@ void main() {
   float sun = max( dot( rr, uSunDir ), 0.0 );
   float sheen = pow( sun, 10.0 ) * 0.16;
   float glint = pow( sun, 420.0 ) * 1.8;
-  float sparks = smoothstep( 0.7, 0.92, texture2D( uNoise, p * 2.1 + vec2( uTime * 0.07, -uTime * 0.05 ) ).a )
-    * smoothstep( 0.62, 0.9, texture2D( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ) ).r );
+  float sparks = 0.0;
+  #ifndef PRINT_WATER
+  if ( sun > 0.6 ) // turned less to the sun the glitter is under a millionth (0.6 to the 28th, 4 times): its two taps are left out
+  #endif
+  {
+    sparks = smoothstep( 0.7, 0.92, textureGrad( uNoise, p * 2.1 + vec2( uTime * 0.07, -uTime * 0.05 ), gPx * 2.1, gPy * 2.1 ).a )
+      * smoothstep( 0.62, 0.9, textureGrad( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ), gPx * 2.9, gPy * 2.9 ).r );
+  }
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
   col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
@@ -657,6 +676,8 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
     uSunDir: { value: sunDir },
     uNoise: { value: noise },
     uRipples: { value: Array.from({ length: RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0)) },
+    // the clock's time the last ring dies, after which the shader skips the rings: always on unless its owner keeps it (ringsUntil)
+    uRingsUntil: { value: 1e9 },
     uFade: { value: fade },
     ...(prints ? {
       uGold: { value: new THREE.Color(PRINT_GOLD) },
@@ -680,3 +701,10 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
 }
 export const RIPPLE_SLOTS = RIPPLES;
 export const RIPPLE_LIFE = RIPPLE.life;
+
+/** When the last of `rings` (uRipples' values) dies on the water's clock, for uRingsUntil: -1 when none is set. */
+export function ringsUntil(rings) {
+  let until = -1;
+  for (const r of rings) if (r.w > 0) until = Math.max(until, r.z + RIPPLE.life);
+  return until;
+}

@@ -152,8 +152,10 @@ export function createCardAtlas(renderer, entries) {
  * 0.5 across and 0 to 1 up, aSize its width and height in metres) and its normal leans up from the camera's side, so the sun lights
  * it as it lights a crown seen from the side. Fog as everything else.
  */
-export function createCardMaterial(atlas, { up = 0.9 } = {}) {
-  const material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.4 });
+export function createCardMaterial(atlas, { up = 0.9, coverage = false } = {}) {
+  // `coverage`: with MSAA (the tablet's preset) the cut-out's edge is alpha to coverage, soft and steady as the card moves, not a
+  // hard edge that shimmers; without it (no samples to cover) it stays the plain cut-out
+  const material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.4, alphaToCoverage: coverage });
   material.name = 'far-tree-cards';
   return patchLambert(material, 'far-tree-cards', { uTranslucency: { value: 0.55 } }, {
     vertexHead: 'attribute vec2 aCorner;\nattribute vec2 aSize;',
