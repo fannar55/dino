@@ -526,7 +526,7 @@ export function buildScore() {
   for (let b = 264; b < 272; b += 2) wing(b, 0.5);
   for (let b = 272; b < 280; b += 1) wing(b, 0.45);
   for (let b = 280; b < 288; b += 0.5) wing(b, 0.35, 0.5);
-  for (let b = 288; b < 295; b += 0.25) wing(b, 0.22 + 0.14 * ((b - 288) / 8), 0.25);
+  for (let b = 288; b < 294.5; b += 0.25) wing(b, 0.22 + 0.14 * ((b - 288) / 8), 0.25); // stops half a beat before the near-silent beat
   ['grazers', 'turtles'].forEach((g, k) => {
     for (let b = 0; b < 4; b++) call(g, 264 + k * 4 + b, { mode: 'chop', dur: 0.7, vel: 0.75, take: b % 2 && g !== 'turtles' ? 1 : 0 });
   });
@@ -536,7 +536,7 @@ export function buildScore() {
   for (let s = 0; s < 8; s++) call(GROUPS[s % 5], 284 + s / 4, { mode: 'chop', dur: 0.24, vel: 0.55 });
   GROUPS.forEach((g, k) => {
     const beat = 287 + 2 * k;
-    call(g, beat, { dur: k === 4 ? 0.35 : 0.9, vel: (0.7 + 0.03 * k) * (k === 4 ? 0.35 : 1), pan: 0 });
+    if (k < 4) call(g, beat, { dur: 0.9, vel: 0.7 + 0.03 * k, pan: 0 }); // the fifth group answers "Einn!" on the drop itself (296), so 295 stays near silent
     S.cues.push({ beat: beat - 1, kind: 'count', n: 5 - k });
   });
   // ======== the drop
