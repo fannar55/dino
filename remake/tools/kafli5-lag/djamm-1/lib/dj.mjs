@@ -49,9 +49,18 @@ export function shapeOf(x) {
   }
   const toS = i => Math.round(i * hop + w / 2);
   const onset = Math.max(0, toS(st) - Math.round(0.005 * SR));
-  // the first vowel: the first frame over half the peak, walked back to where that rise leaves the consonant (30% of the peak)
-  let vw = env.findIndex(v => v > 0.5 * max);
-  while (vw > 0 && env[vw - 1] > 0.3 * max && env[vw - 1] < env[vw]) vw--;
+  // the first vowel: where the voice's 0.7-3.5 kHz band (the vowel's formants; a nasal like the N of 'Nú' hums under it) first
+  // passes 35% of that band's peak
+  const hb = Float32Array.from(x);
+  for (const f of [new Biquad('hp', 700, 0.7), new Biquad('hp', 700, 0.7), new Biquad('lp', 3500, 0.7)]) f.run(hb);
+  const henv = [];
+  for (let s = 0; s + w <= hb.length; s += hop) {
+    let a = 0;
+    for (let i = s; i < s + w; i++) a += hb[i] * hb[i];
+    henv.push(Math.sqrt(a / w));
+  }
+  const hmax = Math.max(...henv, 1e-9);
+  const vw = henv.findIndex(v => v > 0.35 * hmax);
   const vowel = Math.max(onset, toS(vw) - Math.round(0.005 * SR));
   const voicedEnd = Math.min(x.length, toS(end) + w);
   let lw = lastWord > 0 ? toS(lastWord) : -1;
@@ -135,7 +144,7 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
     let gain;
     if (has) {
       const voiceLoud = kLoud(y, y, sh.onset, sh.voicedEnd) - 3.01; // mono into both sides: count it once
-      const target = Math.min(musicInt + 5, Math.max(musicInt - 4, under - d.duck + (d.lift ?? lift)));
+      const target = Math.min(musicInt + (d.ceil ?? 5), Math.max(musicInt - 4, under - d.duck + (d.lift ?? lift)));
       gain = 10 ** ((target - voiceLoud) / 20);
       if (!(gain > 0.01 && gain < 30)) throw new Error(`line ${d.id}: gain ${gain} (voice ${voiceLoud}, music ${under})`);
     } else gain = 0.06;

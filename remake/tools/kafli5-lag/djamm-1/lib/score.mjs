@@ -85,7 +85,7 @@ export const DJ = [
   { id: 'clap', beat: 40, echo: 'last', duck: 3 },
   { id: 'party-on', beat: 60.5, stutter: 2, duck: 3 },
   { id: 'grazers', beat: 128, echo: 'last', duck: 3 },
-  { id: 'turtles-slow', beat: 144, radio: true, duck: 2, lift: 4 },
+  { id: 'turtles-slow', beat: 144, radio: true, duck: 2, lift: 2.5 },
   { id: 'turtles-fast', beat: 152, echo: 'last', duck: 3 },
   { id: 'frogs', beat: 160, echo: 'last', duck: 3 },
   { id: 'lizards', beat: 176, duck: 3 },
@@ -99,9 +99,9 @@ export const DJ = [
   { id: 'count-3', beat: 282, duck: 3 },
   { id: 'count-2', beat: 284, duck: 3 },
   { id: 'count-1', beat: 286, duck: 3 },
-  { id: 'now', beat: 288, align: 'vowel', echo: 'last', duck: 3 },
-  { id: 'laugh', beat: 292, echo: 'last', duck: 3 },
-  { id: 'all', beat: 301.5, duck: 3 },
+  { id: 'now', beat: 288, align: 'vowel', echo: 'last', duck: 3, lift: 8, ceil: 8 },
+  { id: 'laugh', beat: 292, echo: 'last', duck: 3, ceil: 7 },
+  { id: 'all', beat: 301.5, duck: 3, ceil: 7 },
   { id: 'hear-you', key: 'hear-you-2', beat: 336, echo: 'last', radio: true, duck: 2 },
   { id: 'all', key: 'all-2', beat: 343.5, duck: 2 },
   { id: 'one-more', beat: 349.5, echo: 'last', stutter: 2, duck: 3 },
@@ -200,7 +200,7 @@ export function buildBand() {
   }
   set(['bass'], 144, 0);
   set(['guitar', 'piano', 'other'], 144, -1);
-  lp(['bass', ...MUSIC], 144, 152, 1200, 1200);
+  lp(['bass', ...MUSIC], 144, 152, 2600, 2600);
   set(['drums'], 152, 0);
   set(['bass'], 152, 0);
   set(['guitar'], 152, 0);
@@ -247,11 +247,12 @@ export function buildBand() {
   set(['guitar', 'other', 'piano', 'vocals'], 256, -2);
   lp(MUSIC, 256, 272, 900, 6000);
   hp(MUSIC, 272, 287.5, 20, 450);
+  ramp(MUSIC, 278, 287.4, -2, -6);
   hp(['drums'], 268, 287.5, 20, 260);
   const ROLL2 = 4 * 65 + 1;
-  for (let b = 272; b < 280; b += 0.5) over(['drums'], b, 0.5, ROLL2, { g: 0.6 + 0.02 * (b - 272) });
-  for (let b = 280; b < 284; b += 0.25) over(['drums'], b, 0.25, ROLL2, { g: 0.78 + 0.03 * (b - 280) });
-  for (let b = 284; b < 287.5; b += 0.125) over(['drums'], b, 0.125, ROLL2, { g: 0.9 + 0.03 * (b - 284) });
+  for (let b = 272; b < 280; b += 0.5) over(['drums'], b, 0.5, ROLL2, { g: 0.5 + 0.015 * (b - 272) });
+  for (let b = 280; b < 284; b += 0.25) over(['drums'], b, 0.25, ROLL2, { g: 0.6 + 0.02 * (b - 280) });
+  for (let b = 284; b < 287.5; b += 0.125) over(['drums'], b, 0.125, ROLL2, { g: 0.68 + 0.02 * (b - 284) });
   set(ALL, 287.5, OFF);
   B.riser.push({ beat: 256, beats: 31, vel: 0.28 });
   // -------- the drop (288-304): the whole band, a little hotter than anywhere else
@@ -433,19 +434,19 @@ export function buildScore() {
   }));
   // ======== the build: her wings quicken; the forest climbs with her; the countdown
   S.cues.push({ beat: 256, kind: 'rise' });
-  for (let b = 256; b < 264; b += 2) wing(b, 0.6);
-  for (let b = 264; b < 272; b += 1) wing(b, 0.62);
-  for (let b = 272; b < 280; b += 0.5) wing(b, 0.55, 0.5);
-  for (let b = 280; b < 287; b += 0.25) wing(b, 0.4 + 0.25 * ((b - 280) / 8), 0.25);
+  for (let b = 256; b < 264; b += 2) wing(b, 0.5);
+  for (let b = 264; b < 272; b += 1) wing(b, 0.45);
+  for (let b = 272; b < 280; b += 0.5) wing(b, 0.35, 0.5);
+  for (let b = 280; b < 287; b += 0.25) wing(b, 0.22 + 0.14 * ((b - 280) / 8), 0.25);
   ['grazers', 'turtles'].forEach((g, k) => {
     for (let b = 0; b < 4; b++) call(g, 256 + k * 4 + b, { mode: 'chop', dur: 0.7, vel: 0.75, take: b % 2 && g !== 'turtles' ? 1 : 0 });
   });
   roar(268, 0.85, 3);
-  for (let e = 0; e < 8; e++) call(GROUPS[e % 5], 272 + e / 2, { mode: 'chop', dur: 0.45, vel: 0.8 });
-  for (let s = 0; s < 8; s++) call(GROUPS[s % 5], 276 + s / 4, { mode: 'chop', dur: 0.24, vel: 0.8 });
+  for (let e = 0; e < 8; e++) call(GROUPS[e % 5], 272 + e / 2, { mode: 'chop', dur: 0.45, vel: 0.55 });
+  for (let s = 0; s < 8; s++) call(GROUPS[s % 5], 276 + s / 4, { mode: 'chop', dur: 0.24, vel: 0.55 });
   GROUPS.forEach((g, k) => {
     const beat = 279 + 2 * k;
-    call(g, beat, { dur: 0.9, vel: 0.95, pan: 0 });
+    call(g, beat, { dur: 0.9, vel: 0.7 + 0.03 * k, pan: 0 });
     S.cues.push({ beat: beat - 1, kind: 'count', n: 5 - k });
   });
   // ======== the drop
