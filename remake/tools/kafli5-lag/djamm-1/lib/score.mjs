@@ -119,7 +119,7 @@ export const DJ = [
   { id: 'count-3', beat: 290, duck: 3 },
   { id: 'count-2', beat: 292, duck: 3 },
   { id: 'count-1', beat: 294, duck: 3 },
-  { id: 'now', beat: 296, align: 'vowel', echo: 'last', duck: 3, lift: 8, ceil: 8 },
+  { id: 'now', beat: 296, align: 'vowel', echo: 'last', duck: 3, lift: 10, ceil: 10 },
   { id: 'aftur', beat: 306, align: 'vowel', echo: 'last', duck: 3, lift: 6, ceil: 7 },
   { id: 'laugh', beat: 312, echo: 'last', duck: 3, ceil: 7 },
   { id: 'all', beat: 321.5, duck: 3, ceil: 7 },
@@ -536,12 +536,11 @@ export function buildScore() {
   for (let s = 0; s < 8; s++) call(GROUPS[s % 5], 284 + s / 4, { mode: 'chop', dur: 0.24, vel: 0.55 });
   GROUPS.forEach((g, k) => {
     const beat = 287 + 2 * k;
-    call(g, beat, { dur: k === 4 ? 0.4 : 0.9, vel: (0.7 + 0.03 * k) * (k === 4 ? 0.7 : 1), pan: 0 });
+    call(g, beat, { dur: k === 4 ? 0.35 : 0.9, vel: (0.7 + 0.03 * k) * (k === 4 ? 0.35 : 1), pan: 0 });
     S.cues.push({ beat: beat - 1, kind: 'count', n: 5 - k });
   });
   // ======== the drop
-  fx('revCymbal', 296, { align: 'end', db: -19 });
-  impact(296);
+  impact(296, -3);
   fx('cheerSwell', 296.5, { db: -8 });
   fx('kidsCheer', 296.8, { db: -11 });
   roar(296, 1, 4);
@@ -553,7 +552,7 @@ export function buildScore() {
     chopPattern('lizards', bar, CHOPS.lizards[0].filter(([s]) => s >= 8), { vel: 0.32 });
     if (bar % 2 === 1) call('flyers', bar * 4 + 2, { dur: 1.8, vel: 0.55, pan: -0.4 });
   }
-  S.whoosh.push({ beat: 295, take: 1, vel: 0.5, peakAt: true });
+  S.whoosh.push({ beat: 295, take: 1, vel: 0.3, peakAt: true });
   S.cues.push({ beat: 296, kind: 'peak' });
   // ======== the rewind: the spin-back of what was just played, the platter's sound under it; "Aftur!"; the drop again
   fx('vinylRewind', 304, { db: -14, len: 0.7 });
