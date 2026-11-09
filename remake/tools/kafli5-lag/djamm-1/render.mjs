@@ -1,14 +1,17 @@
 // djamm-1: "Stóra sviðið" on the real disco-funk track. DJ Flugeðla's set, the band re-arranged from its own stems. Run from anywhere:
 //   node remake/tools/kafli5-lag/djamm-1/render.mjs [--quick]
-// Writes qa/remake/kafli5/lag/djamm/1/: mix.mp3, stems/{drums,bass,music,animals,horn,dj}.mp3, song.json, spectrogram.png,
-// waveform.png, checks.json (its work files in work/render/, removed at the end). Deterministic: no clock, no outside seed.
+// Writes qa/remake/kafli5/lag/djamm/1/: mix.mp3, stems/{drums,bass,music,animals,horn,dj,fx}.mp3, song.json, spectrogram.png,
+// waveform.png, checks.json (its work files in work/render/, removed at the end; the shifted records stay in work/records/).
+// Deterministic: no clock, no outside seed. Needs the fetched sounds (fetch-sounds.mjs --fetch, --eleven) in sounds/.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SR, writeWav, encodeMp3, ebur128, decode, spawnText } from './lib/io.mjs';
 import { stereo, mtof, peakOf } from './lib/dsp.mjs';
 import { lufs, limit, kLoud } from './lib/master.mjs';
-import { BPM, SPB, KEY, TONE, TUNE, SECTIONS, LOOP, END_BEAT, TAIL_SEC, DJ, buildScore, buildBand } from './lib/score.mjs';
+import { BPM, SPB, KEY, TONE, TUNE, SECTIONS, LOOP, END_BEAT, TAIL_SEC, DJ, DROPS, buildScore, buildBand } from './lib/score.mjs';
+import { RECORDS } from './lib/records.mjs';
+import { renderFx, soundSources, SOUND_DIR } from './lib/fx.mjs';
 import { renderBeat, renderLead, renderAnimals, sampleOf } from './lib/parts.mjs';
 import { renderBand, TRACK_DIR, T0_SEC, STEM_LAG } from './lib/band.mjs';
 import { TAKES, loadTake, resample } from './lib/takes.mjs';
@@ -27,6 +30,7 @@ const say = msg => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${ms
 mkdirSync(join(OUT, 'stems'), { recursive: true });
 mkdirSync(WORK, { recursive: true });
 const db = v => 20 * Math.log10(Math.max(v, 1e-12));
+const FX_DB = 6; // the fx stem against the band (each event's own level is in the score)
 
 // ---------------------------------------------------------------- the takes, measured
 const takeInfo = {};
@@ -41,7 +45,7 @@ say(`takes measured: ${Object.values(takeInfo).flat().map(t => `${t.file} ${t.hz
 const score = buildScore();
 const plan = buildBand();
 const n = Math.ceil((END_BEAT * 0.48 + TAIL_SEC) * SR);
-const band = renderBand(plan, ROOT, n);
+const band = renderBand(plan, ROOT, n, join(OUT, 'work/records'));
 say(`band: clips per stem ${JSON.stringify(band.log)}`);
 const EMPTY = { kick: [], clap: [], hat: [], ohat: [], shaker: [], conga: [], tom: [], snare: [], cymbal: [], riser: [], crowdClap: [], wing: [], whoosh: [] };
 const riser = renderBeat({ ...EMPTY, riser: plan.riser.map(r => ({ beat: r.beat, seconds: r.beats * 0.48, vel: r.vel })) }, n, ROOT);
@@ -54,7 +58,10 @@ const add = (dst, src, g = 1) => {
 const music = stereo(n);
 for (const s of ['guitar', 'other', 'piano', 'vocals']) add(music, band.stems[s]);
 add(music, riser);
-const stems = { drums: band.stems.drums, bass: band.stems.bass, music };
+// the other records have no stems: each goes whole to the stem it stands for (the percussion record to drums, the rest to music)
+const drums = band.stems.drums;
+for (const [r, info] of Object.entries(RECORDS)) if (band.stems[r]) add(info.to === 'drums' ? drums : music, band.stems[r]);
+const stems = { drums, bass: band.stems.bass, music };
 
 // ---------------------------------------------------------------- the animals (with her wings) and her horn
 const callLog = [];
@@ -80,17 +87,24 @@ const span = (a, b) => [sampleOf(a), Math.min(n, sampleOf(b))];
 let bandSum = sumOf([stems.drums, stems.bass, stems.music]);
 const gBand = 10 ** ((-19 - lufs(bandSum.L, bandSum.R)) / 20);
 for (const st of [stems.drums, stems.bass, stems.music, bandSum]) scale(st, gBand);
-// the animals: in the anthem, 2 dB under the band there (the tune heard, the band still hitting)
+// the animals: in the anthem, half a dB under the band there (round two: 1.5 dB up on round one; the tune heard, the band hitting)
 const kl = (st, a, b) => kLoud(st.L, st.R, ...span(a, b));
-const gAnimals = 10 ** ((kl(bandSum, 304, 336) - 2 - kl(animals, 304, 336)) / 20);
+const gAnimals = 10 ** ((kl(bandSum, 324, 356) - 0.5 - kl(animals, 324, 356)) / 20);
 scale(animals, gAnimals);
 // their peaks (the forest's roars, every group at once) held under the band's own: a look-ahead limiter on the animals alone
-const animalsLim = limit(animals.L, animals.R, 10 ** (-9 / 20));
+const animalsLim = limit(animals.L, animals.R, 10 ** (-7.5 / 20));
 // her horn: in the break, 3 dB over the bed there
-const gHorn = 10 ** ((kl(bandSum, 224, 256) + 3 - kl(horn, 224, 256)) / 20);
+const gHorn = 10 ** ((kl(bandSum, 232, 264) + 3 - kl(horn, 232, 264)) / 20);
 scale(horn, gHorn);
 stems.animals = animals;
 stems.horn = horn;
+// the crowd and the DJ's sounds: each cut levelled to a -1 dBFS peak and placed at its own level (score.mjs); the whole stem moves
+// with the band's gain, so the crowd keeps its place against the band
+const fxOut = renderFx(score.fx, n, ROOT);
+scale(fxOut.stem, gBand * 10 ** (FX_DB / 20));
+const fxLim = limit(fxOut.stem.L, fxOut.stem.R, 10 ** (-6 / 20));
+stems.fx = fxOut.stem;
+say(`fx: ${score.fx.length} events, ${fxOut.used.length} sounds, limiter at most ${db(fxLim.most).toFixed(1)} dB`);
 say(`gains (dB): band ${db(gBand).toFixed(2)}, animals ${db(gAnimals).toFixed(2)} (limiter at most ${db(animalsLim.most).toFixed(1)} dB), horn ${db(gHorn).toFixed(2)}`);
 
 // ---------------------------------------------------------------- her voice, and the rest ducked under it
@@ -159,9 +173,17 @@ say(`stems mp3: ${JSON.stringify(stemLoud)}`);
 
 // ---------------------------------------------------------------- song.json
 const lengthSec = +(n / SR).toFixed(3);
+const recordBars = s => {
+  const out = [];
+  for (let b = s.bar; b < s.bar + s.bars; b++) {
+    const c = plan.recs.find(r => r.rec === s.record && r.o <= 4 * b && r.o + r.n > 4 * b);
+    out.push(c ? Math.floor((c.s + 4 * b - c.o) / 4) : null);
+  }
+  return out;
+};
 const sections = SECTIONS.map(s => ({
   id: s.id, name: s.name, nameIs: s.nameIs, startBeat: s.bar * 4, beats: s.bars * 4, startSec: +(s.bar * 4 * 0.48).toFixed(3), feature: s.feature,
-  trackBars: plan.bars.slice(s.bar, s.bar + s.bars).map(b => (b === null ? null : b)), what: s.what,
+  record: s.record, trackBars: s.record === 'vamp' ? plan.bars.slice(s.bar, s.bar + s.bars).map(b => (b === null ? null : b)) : recordBars(s), what: s.what,
 }));
 const LIC = {
   'grazers-2.mp3': 'ElevenLabs sound generation, made for this game', 'grazers-3.mp3': 'CC0 1.0, "z-moo01.wav" by Zozzy',
@@ -171,18 +193,25 @@ const LIC = {
   'horn-1.mp3': 'CC0 1.0, "Alpenhorn.aiff" by Danjocross',
 };
 const used = [...new Set(callLog.map(c => c.file)), 'horn-1.mp3'];
+const soundSrc = soundSources(ROOT);
 const sources = [
   `${TRACK_DIR}/{drums,bass,guitar,other,piano,vocals}.mp3 (the track "Djamm skógarins", ElevenLabs Music, made for this game; its stems from ElevenLabs' separator; read ${STEM_LAG} samples late to line up with song.mp3, the track's beat 0 at ${T0_SEC * 1000} ms)`,
   ...used.map(f => `remake/assets/audio/kafli5/hljod/${f} (${LIC[f] ?? '?'})`),
   ...['wing-1.mp3', 'wing-2.mp3', 'wing-3.mp3'].map(f => `remake/assets/audio/kafli4/hljod/${f} (CC0 1.0, "Large Wings Flapping - Foley.wav" by tothrec2, https://freesound.org/s/596541/)`),
   ...['whoosh-1.mp3', 'whoosh-2.mp3'].map(f => `remake/assets/audio/kafli4/hljod/${f} (ElevenLabs sound generation, made for this game)`),
-  ...[...new Set(dj.info.filter(i => i.take).map(i => i.take))].map(f => `${f} (the game's own line: Flugeðla, recorded for remix-a)`),
+  ...Object.entries(RECORDS).filter(([r]) => band.stems[r]).map(([r, x]) => `${x.file} (record "${r}": ${x.what}; ElevenLabs Music, made for this game${x.shift ? `; moved up ${x.shift} semitones with rubberband into A major` : ''}; its beat 0 at ${(x.t0 * 1000).toFixed(1)} ms)`),
+  ...[...new Set(dj.info.filter(i => i.take).map(i => i.take))].map(f => `${f} (the game's own line: Flugeðla, recorded by the coordinator)`),
+  ...fxOut.used.map(id => {
+    const x = soundSrc[id];
+    if (!x) return `${SOUND_DIR}/${id} (? no sources.json entry)`;
+    return x.page ? `${SOUND_DIR}/${x.file} ("${(x.title ?? '').replace(/^Freesound - /, '').replace(/ by [^|]*$/, '')}" by ${x.author}, ${x.licence}, ${x.page}; ${x.purpose})` : `${SOUND_DIR}/${x.file} (${x.source}; ${x.purpose})`;
+  }),
   'remake/tools/kafli5-lag/djamm-1/lib/synths.mjs (only the risers and the dragonflies\' wing buzz: synthesized noise and a buzz, no music)',
 ];
 const song = {
   slot: SLOT,
   name: 'Stóra sviðið',
-  style: 'DJ Flugeðla\'s main-stage set on a live disco-funk band (four-on-the-floor kit, slap bass, wah guitar, brass and strings): the band\'s own stems cut, muted, filtered, looped and rolled into builds, a breakdown, drops and a last hit; the forest as her crowd answering on its tones',
+  style: 'DJ Flugeðla\'s main-stage set on a live disco-funk band (four-on-the-floor kit, slap bass, wah guitar, brass and strings): the band\'s own stems cut, muted, filtered, looped and rolled into builds, a breakdown, drops and a last hit; between them she changes records in the open (a half-time funk, a percussion record, a quiet bed for her horn, a carnival samba, a chorus with a brass hook); a real crowd and children cheering and clapping in time, air horns, impacts, a spin-back, a freeze dance and a fake ending; the forest as her crowd answering on its tones',
   remixOf: `${TRACK_DIR}/song.mp3 ("Djamm skógarins", disco-funk), with remix-a's set`,
   bpm: BPM,
   beatZeroSec: 0,
@@ -195,9 +224,18 @@ const song = {
   dj: dj.info.map(i => ({ id: i.key, beat: i.beat, sec: i.sec, text: i.text })),
   cues: score.cues,
   loop: { ...LOOP, sec: +(LOOP.startBeat * 0.48).toFixed(3), endSec: +((LOOP.startBeat + LOOP.beats) * 0.48).toFixed(3), what: 'the band only (the track\'s bars 24-31, one whole chord cycle): nothing of hers, no animals' },
-  stems: { drums: 'stems/drums.mp3', bass: 'stems/bass.mp3', music: 'stems/music.mp3', animals: 'stems/animals.mp3', horn: 'stems/horn.mp3', dj: 'stems/dj.mp3' },
+  stems: { drums: 'stems/drums.mp3', bass: 'stems/bass.mp3', music: 'stems/music.mp3', animals: 'stems/animals.mp3', horn: 'stems/horn.mp3', dj: 'stems/dj.mp3', fx: 'stems/fx.mp3' },
+  stemNotes: 'the records without stems play whole: the percussion record (slagverk) in drums, the others (fonk, rolegt, vidlag, song3) in music; fx holds the crowd and the DJ\'s sounds',
+  records: Object.fromEntries(Object.entries(RECORDS).map(([r, x]) => [r, { file: x.file, what: x.what, shiftSemitones: x.shift, beatZeroMs: +(x.t0 * 1000).toFixed(1) }])),
+  cueKinds: {
+    call: 'a group sings (group)', roar: 'every group at once', horn: 'her horn', wings: 'her wing beat', whoosh: 'she swoops', hit: 'a section starts', peak: 'a high point',
+    rise: 'a build starts', count: 'countdown number (n)', dj: 'her line (id)', record: 'she changes records (from, to, how)', scratch: 'a scratch', impact: 'an impact with a sub',
+    'reverse-cymbal': 'a reverse cymbal ends here (it starts about 3 s before)', airhorn: 'the air horn', crowd: 'the crowd or the children cheer (sound)', clap: 'the crowd claps',
+    rewind: 'she spins the record back', freeze: 'everything stops: freeze', moved: 'someone moved in the freeze (group)', unfreeze: 'everything slams back',
+    'egill-turn': 'the gap for Egill to shout', 'end-fake': 'it sounds like the end (it is not)', end: 'the last hit',
+  },
   newAnimals: {
-    beetles: 'Bjöllur: the beetles are the band\'s drummer in their two bars (the drums alone); cues "call" group "beetles" on every beat and off-beat.',
+    beetles: 'Bjöllur: the beetles play the percussion record in their four bars (beats 208-224); cues "call" group "beetles" on every beat and off-beat.',
     dragonflies: 'Drekaflugur: dragonflies whose wings buzz on E and A as they fly past the stage; cues "call" group "dragonflies".',
   },
   sources,
@@ -212,7 +250,7 @@ if (!QUICK) spawnText(['-y', '-v', 'error', '-i', join(OUT, 'mix.mp3'), '-filter
 say('pictures');
 
 // ---------------------------------------------------------------- checks
-const checks = { takes: takeInfo, gainsDb: { band: +db(gBand).toFixed(2), animals: +db(gAnimals).toFixed(2), horn: +db(gHorn).toFixed(2) }, stemSamplePeakFloat: stemPeaks, mp3: { mix: loud, stems: stemLoud } };
+const checks = { takes: takeInfo, gainsDb: { band: +db(gBand).toFixed(2), animals: +db(gAnimals).toFixed(2), horn: +db(gHorn).toFixed(2), fx: +(db(gBand) + FX_DB).toFixed(2) }, fxSounds: fxOut.used, stemSamplePeakFloat: stemPeaks, mp3: { mix: loud, stems: stemLoud } };
 const [dl, dr] = decode(join(OUT, 'mix.mp3'), 2);
 const dm = mono(dl, dr);
 const secList = SECTIONS.map(s => ({ id: s.id, startBeat: s.bar * 4, beats: s.bars * 4 }));
@@ -250,13 +288,15 @@ checks.biggestJump.sec = +(checks.biggestJump.sec + 2).toFixed(2);
   const jm = [];
   for (let i = 4; i < M.length; i++) if (M[i] - M[i - 4] > 7 && M[i] > -40) jm.push({ lu: +(M[i] - M[i - 4]).toFixed(1), sec: +((i * hop + w) / SR).toFixed(2), beat: +((i * hop + w) / SPB).toFixed(2), from: +M[i - 4].toFixed(1), to: +M[i].toFixed(1) });
   checks.jumpsMomentary = jm.filter((j, k) => !jm.some((q, m) => m !== k && Math.abs(q.sec - j.sec) < 0.4 && q.lu > j.lu));
-  let best = null;
-  for (let i = 4; i < M.length; i++) {
-    const end = (i * hop + w) / SPB;
-    if (end < 287.8 || end > 289.5) continue;
-    if (!best || M[i] - M[i - 4] > best.lu) best = { lu: +(M[i] - M[i - 4]).toFixed(1), beat: +end.toFixed(2), from: +M[i - 4].toFixed(1), to: +M[i].toFixed(1) };
-  }
-  checks.dropJumpMomentary = best;
+  checks.dropJumpsMomentary = DROPS.map(d => {
+    let best = null;
+    for (let i = 4; i < M.length; i++) {
+      const end = (i * hop + w) / SPB;
+      if (end < d.beat - 0.2 || end > d.beat + 1.5) continue;
+      if (!best || M[i] - M[i - 4] > best.lu) best = { what: d.what, lu: +(M[i] - M[i - 4]).toFixed(1), beat: +end.toFixed(2), from: +M[i - 4].toFixed(1), to: +M[i].toFixed(1) };
+    }
+    return best;
+  });
   checks.momentaryMax = { lufs: +Math.max(...M).toFixed(1), beat: +((M.indexOf(Math.max(...M)) * hop + w) / SPB).toFixed(1) };
 }
 {
@@ -315,7 +355,7 @@ checks.biggestJump.sec = +(checks.biggestJump.sec + 2).toFixed(2);
   const pre = Math.round(0.04 * SR), post = Math.round(0.1 * SR), acc = new Float64Array(pre + post);
   const beats = [];
   for (let k = 64; k < 96; k++) beats.push(k);
-  for (let k = 288; k < 336; k++) beats.push(k);
+  for (let k = 308; k < 356; k++) beats.push(k);
   for (const k of beats) for (let i = -pre; i < post; i++) acc[i + pre] += Math.abs(lo[sampleOf(k) + i]);
   let pk = 0;
   for (const v of acc) pk = Math.max(pk, v);
@@ -340,13 +380,14 @@ checks.horn = [...new Set(score.horn.map(h => h.midi))].map(m => {
 });
 const bad = checks.calls.filter(c => c.cents === null || Math.abs(c.cents) > 20);
 const late = checks.calls.filter(c => c.mode === 'onset' && Math.abs(c.attackMs) > 25);
-const dropJump = checks.jumps.filter(j => j.beat > 286 && j.beat < 290);
+const nearDrop = beat => DROPS.some(d => beat > d.beat - 2 && beat < d.beat + 2);
+const dropJump = checks.jumps.filter(j => nearDrop(j.beat));
 checks.summary = {
   lengthSec, lufs: loud.lufs, truePeak: loud.truePeak, lra: loud.lra, stemsMaxTruePeak: QUICK ? null : Math.max(...Object.values(stemLoud).map(s => s.truePeak)),
   calls: checks.calls.length, callsOff20c: bad.length, worstCallCents: Math.max(...checks.calls.filter(c => c.cents !== null).map(c => Math.abs(c.cents))),
   tuneNotes: checks.tune.length, tuneWorstCents: Math.max(...checks.tune.map(c => Math.abs(c.cents ?? 999))), tuneWorstAttackMs: Math.max(...checks.tune.map(c => Math.abs(c.attackMs))),
   onsetCallsOff25ms: late.length, hornWorstCents: Math.max(...checks.horn.map(h => Math.abs(h.cents))),
-  biggestJumpDb: checks.biggestJump, dropJump, jumpsOver9: checks.jumps.filter(j => j.db > 9), dropJumpMomentary: checks.dropJumpMomentary, momentaryOver9: checks.jumpsMomentary.filter(j => j.lu > 9), momentaryMax: checks.momentaryMax,
+  biggestJumpDb: checks.biggestJump, dropJump, jumpsOver9: checks.jumps.filter(j => j.db > 9), dropJumpsMomentary: checks.dropJumpsMomentary, momentaryOver9NotDrops: checks.jumpsMomentary.filter(j => j.lu > 9 && !nearDrop(j.beat)), momentaryMax: checks.momentaryMax,
   djOverMusic: { min: Math.min(...checks.dj.map(d => d.overMusicDb)), max: Math.max(...checks.dj.map(d => d.overMusicDb)) },
 };
 writeFileSync(join(OUT, 'checks.json'), JSON.stringify(checks, null, 1) + '\n');

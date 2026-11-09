@@ -10,8 +10,9 @@ import { SPB } from './score.mjs';
 
 export const SLOT = 'djamm-1';
 const TAKE_DIR = 'remake/assets/audio/kafli5';
-export const takeFile = id => `k5_dj_a_${id.replaceAll('-', '_')}.mp3`; // the coordinator's names
-export const takePath = (ROOT, id) => join(ROOT, TAKE_DIR, takeFile(id));
+// the coordinator's names: remix-a's takes by the line's id, and round two's b and c takes by the line's own `take`
+export const takeFile = (id, line = {}) => `${line.take ?? `k5_dj_a_${id.replaceAll('-', '_')}`}.mp3`;
+export const takePath = (ROOT, id, line) => join(ROOT, TAKE_DIR, takeFile(id, line));
 const sampleOf = beat => Math.round(beat * SPB);
 
 /** Rough syllable count of an Icelandic line (vowel groups). */
@@ -106,7 +107,7 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
   for (const d of DJ) {
     const line = byId[d.id];
     if (!line) throw new Error(`no line ${d.id} in lines.json`);
-    const file = takePath(ROOT, d.id);
+    const file = takePath(ROOT, d.id, line);
     const has = existsSync(file);
     let x, sh;
     if (has) {
@@ -149,7 +150,23 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
       if (!(gain > 0.01 && gain < 30)) throw new Error(`line ${d.id}: gain ${gain} (voice ${voiceLoud}, music ${under})`);
     } else gain = 0.06;
     for (let i = 0; i < y.length; i++) y[i] *= gain;
-    addMono(dry, y, at, 1, 0);
+    // stutterWord: the line's last word started twice on the eighths before it, the line split around it
+    // ("Já, frosk- frosk- froskadjamm!"): the first words on the beat, the cut word on beat+1 and beat+1.5, the whole word on beat+2
+    let endAt = b;
+    if (d.stutterWord && has) {
+      const lw = sh.lastWord, len = Math.round(0.42 * SPB);
+      const head = Float32Array.from(y.subarray(0, lw));
+      const f = Math.round(0.008 * SR);
+      for (let i = 0; i < f && i < head.length; i++) head[head.length - 1 - i] *= i / f;
+      addMono(dry, head, at, 1, 0);
+      const chunk = Float32Array.from(y.subarray(lw, lw + len));
+      for (let i = 0; i < f; i++) chunk[chunk.length - 1 - i] *= i / f;
+      const pre = Math.round(0.01 * SR); // lastWord sits 10 ms before the word's attack
+      addMono(dry, chunk, sampleOf(d.beat + 1) - pre, 0.9, -0.25);
+      addMono(dry, chunk, sampleOf(d.beat + 1.5) - pre, 0.9, 0.25);
+      addMono(dry, y.subarray(lw), sampleOf(d.beat + 2) - pre, 1, 0);
+      endAt = Math.min(n, sampleOf(d.beat + 2) - pre + (sh.voicedEnd - lw));
+    } else addMono(dry, y, at, 1, 0);
     // stutter: the first sixteenth again on the sixteenths before the line
     if (d.stutter && has) {
       const len = Math.round(SPB / 4);
@@ -162,21 +179,21 @@ export function renderDj(DJ, lines, ROOT, n, music, { lift = 5 } = {}) {
       for (let k = 1; k <= d.stutter; k++) addMono(dry, chunk, sampleOf(d.beat - k / 4), 0.8, k % 2 ? -0.3 : 0.3);
     }
     // echo throw: the last word into the tempo echo
-    if (d.echo === 'last') addMono(echoSend, y.subarray(sh.lastWord), at + sh.lastWord, 1, 0);
+    if (d.echo === 'last') addMono(echoSend, y.subarray(sh.lastWord), d.stutterWord && has ? sampleOf(d.beat + 2) - Math.round(0.01 * SR) : at + sh.lastWord, 1, 0);
     // duck the music while she speaks: 40 ms down before her attack, back up over 250 ms after her last syllable
     const depth = 10 ** (-d.duck / 20);
     const dn = Math.round(0.04 * SR), up = Math.round(0.25 * SR);
-    for (let j = Math.max(0, a - dn); j < Math.min(n, b + up); j++) {
+    for (let j = Math.max(0, a - dn); j < Math.min(n, endAt + up); j++) {
       let g;
       if (j < a) g = 1 - (1 - depth) * ((j - (a - dn)) / dn);
-      else if (j < b) g = depth;
-      else g = depth + (1 - depth) * ((j - b) / up);
+      else if (j < endAt) g = depth;
+      else g = depth + (1 - depth) * ((j - endAt) / up);
       if (g < duck[j]) duck[j] = g;
     }
     info.push({
-      key: d.key ?? d.id, id: d.id, beat: d.beat, sec: +((d.beat * SPB) / SR).toFixed(3), text: line.text, take: has ? `${TAKE_DIR}/${takeFile(d.id)}` : null,
-      seconds: +((sh.voicedEnd - sh.onset) / SR).toFixed(2), musicUnderLufs: +under.toFixed(1), gainDb: +(20 * Math.log10(gain)).toFixed(1),
-      fx: { echo: d.echo ?? null, radio: !!d.radio, stutter: d.stutter ?? 0, duckDb: d.duck }, align: d.align ?? 'attack', consonantLeadMs: Math.round(((sh.vowel - sh.onset) / SR) * 1000),
+      key: d.key ?? d.id, id: d.id, beat: d.beat, sec: +((d.beat * SPB) / SR).toFixed(3), text: line.text, take: has ? `${TAKE_DIR}/${takeFile(d.id, line)}` : null,
+      seconds: +((endAt - a) / SR).toFixed(2), musicUnderLufs: +under.toFixed(1), gainDb: +(20 * Math.log10(gain)).toFixed(1),
+      fx: { echo: d.echo ?? null, radio: !!d.radio, stutter: d.stutter ?? 0, stutterWord: !!d.stutterWord, duckDb: d.duck }, align: d.align ?? 'attack', consonantLeadMs: Math.round(((sh.vowel - sh.onset) / SR) * 1000),
     });
   }
   // the echoes (dotted eighths, bouncing left and right, thinned so they never muddy her next words) and a small stage reverb

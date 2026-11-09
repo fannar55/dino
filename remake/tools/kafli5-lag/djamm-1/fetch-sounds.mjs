@@ -48,6 +48,9 @@ export const PICKS = {
 };
 // what is made with ElevenLabs sound generation
 export const MAKE = {
+  'kids-cheer-big': { seconds: 6, influence: 0.6, purpose: 'a crowd of children cheering on the drops (the Freesound cheers are adult sports crowds)', text: 'A big crowd of excited young children cheering and screaming with joy at an outdoor concert, the moment the music drops, a happy roar of yaaay, no music, no words, no adults talking.' },
+  'kids-yay': { seconds: 3, influence: 0.6, purpose: 'children shouting yay together, the forest crowd answering her', text: 'A group of happy young children shout a short loud yaaay together, all at once, outdoors, then it fades, no music, no other words.' },
+  'kids-laugh': { seconds: 3, influence: 0.6, purpose: 'children laughing together when the turtle moves in the freeze dance', text: 'A group of young children burst out laughing together, giggling happily, outdoors at a party, no music, no words.' },
 };
 
 const sources = dir => {

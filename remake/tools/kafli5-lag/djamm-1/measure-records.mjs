@@ -91,7 +91,7 @@ const hp = (x, f = 1500) => {
 };
 
 for (const n of names) {
-  const [L, R] = decode(`${BASE}/${FILES[n]}`, 2);
+  const [L, R] = decode(FILES[n] ? `${BASE}/${FILES[n]}` : n, 2); // a name above, or a path
   const x = mono(L, R), dur = x.length / SR;
   console.log(`\n=== ${n} (${FILES[n]}) ${dur.toFixed(2)} s`);
   const lo = flux(lowpassed(x, 120)), hi = flux(hp(x));
