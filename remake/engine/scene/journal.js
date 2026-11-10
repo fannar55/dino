@@ -29,11 +29,11 @@ const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px acro
  */
 export const FRIENDS = [
   { key: 'kambedla', name: 'Kambeðla', colour: '#8f6aa3' },
-  { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
-  { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
   { key: 'uggedla', name: 'Uggeðla', colour: '#47908a' },
-  { key: 'sloedla', name: 'Slóeðla', colour: '#6793d0' },
+  { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
   { key: 'flugedla', name: 'Flugeðla', colour: '#dc8090' },
+  { key: 'sloedla', name: 'Slóeðla', colour: '#6793d0' },
+  { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
 ];
 
 const STAR_PATH = 'M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z';

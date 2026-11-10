@@ -298,11 +298,15 @@ function* theInvitation(s, c) {
 }
 
 // 6. The ferry: "Up on my back, Egill!" He floats from Mosi's saddle onto her back, in front of her sail with his hands on its front edge
-// (her back seat: making it has her lower her neck for him), and she swims him along the channel to the hummocks while Mosi wades the shallow
-// edge beside them. The chat on the way is the owner's: the water is wet, why such a big sail, "boat", the tail splash, Þórseðla's head over
-// the trees. Three of the ferry's shots (kafli2-siki.js) cut in as it suits what is said; a ferry shot is never within 2.5 s of another.
+// (her back seat: making it has her lower her neck for him), and she swims him along the channel to the hummocks while Mosi sinks deep
+// into the water beside them and swims with only his head and frill above the surface (his back and saddle submerged). The chat on the
+// way is the owner's: the water is wet, why such a big sail, "boat", the tail splash, Þórseðla's head over the trees. Three of the ferry's
+// shots (kafli2-siki.js) cut in as it suits what is said; a ferry shot is never within 2.5 s of another.
 const FERRY_SPEED = 1.25; // m/s she swims
-const MOSI_WADE_SPEED = 1.55; // m/s Mosi wades: his line along the shallow edge is a third longer than hers
+const MOSI_WADE_SPEED = 1.55; // m/s Mosi swims along the channel edge: his line is a third longer than hers
+const MOSI_SWIM_SINK = 3.00; // m below the water surface Mosi's root sinks while swimming beside her (his back and saddle under water)
+const MOSI_SWIM_SHIFT = 0.55; // m to his right (into the channel, away from the near bank's edge)
+const MOSI_SWIM_TILT = 24; // degrees his body pitches up in the water so his head stays out while his back and saddle sink
 function* theFerry(s, c) {
   mark(c, 6);
   const { mosi, egill, uggedla } = c;
@@ -314,8 +318,38 @@ function* theFerry(s, c) {
   yield egill.lookAt(null);
   yield floatTo(egill.raw, seat, { duration: 3 });
   c.riding = ride(egill.raw, seat, { settle: 0 });
-  // off they go: she swims the channel to the pool at the hummocks, Mosi wades along the near edge
+  // off they go: she swims the channel to the pool at the hummocks, and Mosi plunges deep into the water to swim beside her
   const swim = s.after(0, () => swimAlong(s, c, FERRY_LINE, { speed: FERRY_SPEED }));
+  let lastRingAt = s.time + 1.2;
+  const ringPos = new THREE.Vector3();
+  c.mosiSink = 0;
+  mosi.raw.setOverlay((dt, { pitchNeck, pitchHead }) => {
+    const pos = mosi.raw.root.position;
+    const fromBank = Math.hypot(pos.x - MOSI_BANK.position[0], pos.z - MOSI_BANK.position[2]);
+    const toHummock = Math.hypot(pos.x - HUMMOCK.position[0], pos.z - HUMMOCK.position[2]);
+    const w = THREE.MathUtils.smoothstep(fromBank, 0.35, 3.8) * THREE.MathUtils.smoothstep(toHummock, 0.5, 4.4);
+    c.mosiSink = w * MOSI_SWIM_SINK;
+    if (w <= 0) return;
+    const level = c.world.forest?.water?.surfaceAt?.(pos.x, pos.z) ?? -0.18;
+    const bob = 0.05 * Math.sin(s.time * 3.0);
+    const targetY = level - MOSI_SWIM_SINK + bob;
+    mosi.raw.model.position.y = (targetY - pos.y) * w;
+    mosi.raw.model.position.z = MOSI_SWIM_SHIFT * w;
+    mosi.raw.model.rotation.z = THREE.MathUtils.degToRad(MOSI_SWIM_TILT * w);
+    mosi.raw.model.rotation.x = THREE.MathUtils.degToRad(1.5 * w * Math.sin(s.time * 2.2));
+    pitchNeck(10 * w);
+    pitchHead(-18 * w);
+    if (w > 0.6 && s.time - lastRingAt >= 2.6) {
+      lastRingAt = s.time;
+      mosi.raw.headPosition(ringPos);
+      c.ring?.([ringPos.x, 0, ringPos.z], 0.42);
+    }
+  });
+  s.after(1.4, () => {
+    s.sfx('splash');
+    mosi.raw.headPosition(ringPos);
+    c.world.forest?.water?.rippleAt?.([ringPos.x, 0, ringPos.z], 0.75);
+  });
   c.wade = mosi.walkTo([...MOSI_WADE_LINE, [HUMMOCK.position[0], HUMMOCK.position[2]]], { speed: MOSI_WADE_SPEED });
   yield* ferryChat(s, c);
   yield swim;
@@ -379,6 +413,8 @@ function* theHummocks(s, c) {
   const { mosi, egill, uggedla, world } = c;
   yield s.camera.cut('siki_hummocks');
   yield c.wade; // Mosi comes up out of the water onto the hummock
+  mosi.raw.setOverlay(null);
+  c.mosiSink = 0;
   mosi.turnTo(HUMMOCK.heading, { rate: 60 }); // to face her across the pool, as Egill floats to him and she speaks
   yield floatTo(egill.raw, c.saddle, { duration: 2.6 });
   c.riding = ride(egill.raw, c.saddle, { settle: 0 });

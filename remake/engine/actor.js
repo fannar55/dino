@@ -391,6 +391,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let controlled = false;
   let drive = null; // while controlled, called first in each update to put the root
   let pose = null; // and this after the clips, to lay something over their pose (hands on a grip)
+  let overlay = null; // laid over the walk and footing before look and talk (a swim sink and tilt)
   function setControlled(value) {
     if (controlled && !value) footing.reset(); // the feet start over from where the actor was left
     controlled = value;
@@ -534,6 +535,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       drive = driveFn ?? null;
       pose = driveFn ? poseFn : null;
     },
+    /**
+     * Lay a pose adjustment (such as sinking and tilting while swimming) over the walk and footing
+     * each frame, before look and talk run. `setOverlay(null)` clears it and restores the model frame.
+     */
+    setOverlay(fn = null) {
+      overlay = fn;
+      if (!fn) {
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+      }
+    },
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
     /**
@@ -581,6 +593,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     },
     update(dt) {
       if (layered) layerBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
+      if (overlay) {
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+      }
       footing.restore();
       if (controlled) drive?.(dt);
       else {
@@ -591,9 +607,28 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       if (controlled) pose?.(dt);
       else footing.update(dt);
       layerBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
+      if (overlay) {
+        root.updateMatrixWorld(true);
+        const right = v1.set(0, 0, 1).applyQuaternion(root.quaternion);
+        overlay(dt, {
+          neck,
+          head,
+          pitchNeck(degAngle) {
+            if (!neck) return;
+            model.updateMatrixWorld(true);
+            rotateBoneWorld(neck, qa.setFromAxisAngle(right, rad(degAngle)));
+          },
+          pitchHead(degAngle) {
+            if (!head) return;
+            model.updateMatrixWorld(true);
+            rotateBoneWorld(head, qa.setFromAxisAngle(right, rad(degAngle)));
+          },
+        });
+        model.updateMatrixWorld(true);
+      }
       const looked = applyLook(dt);
       const talked = applyTalk(dt);
-      layered = looked || talked;
+      layered = Boolean(overlay) || looked || talked;
       lids?.update(dt);
     },
     /** Stop walking, turning, looking and talking, open the eyes; settle into idle. */

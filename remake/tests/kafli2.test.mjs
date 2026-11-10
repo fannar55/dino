@@ -383,7 +383,8 @@ function playIdle() {
           t: s.time, scene, shot, sink: c.uggedlaRig?.v.sink, tuck: c.uggedlaRig?.v.tuck, visible: her.root.visible, her: her.root.position.clone(),
           heading: her.heading, mosi: mosi.root.position.clone(), mosiHeading: mosi.heading, depth: water?.depthAt(mosi.root.position.x, mosi.root.position.z),
           egill: egill.root.position.clone(), egillControlled: egill.controlled, sailTarget: pointer.targets.has('sail'),
-          seat: c.backSeat ? c.backSeat.seat.clone() : null, saddle: scene === 7 ? c.saddle.update().clone() : null,
+          seat: c.backSeat ? c.backSeat.seat.clone() : null, saddle: scene >= 6 ? c.saddle.update().clone() : null,
+          mosiSink: c.mosiSink ?? 0, mosiHeadY: scene >= 6 ? mosi.headPosition(new V3()).y : null,
         };
         if (scene >= 6) {
           her.root.updateMatrixWorld(true);
@@ -1761,10 +1762,14 @@ test('scene 6: she swims along the ferry line and Mosi wades the shallow edge be
   for (const frame of frames) farthest = Math.max(farthest, lineOf(frame.her));
   assert.ok(farthest < 3.5, `she keeps to the ferry line (${farthest.toFixed(1)} m at the furthest)`);
   assert.ok(frames.every(frame => water.depthAt(frame.her.x, frame.her.z) >= 0.8), 'in water deeper than 0.8 m');
-  // Mosi wades: his feet in water 0.3 to 0.6 m deep from the time he is in it until they are across
+  // Mosi wades: his feet in water 0.3 to 0.6 m deep from the time he is in it until they are across, and his body sinks deep under the surface
   const wading = frames.filter(frame => frame.t > brrr + 2.5); // (he steps into the water at "brrr")
   const depths = wading.map(frame => frame.depth);
   assert.ok(Math.min(...depths) >= 0.28 && Math.max(...depths) <= 0.62, `his feet are in ${Math.min(...depths).toFixed(2)} to ${Math.max(...depths).toFixed(2)} m of water`);
+  const level = WATER_LEVEL();
+  assert.ok(wading.every(frame => frame.mosiSink > 2.8), 'Mosi sinks deep into the water as he swims beside her');
+  assert.ok(wading.every(frame => frame.saddle.y < level + 0.35), 'his saddle is down at the water, so Egill needed her ferry');
+  assert.ok(wading.every(frame => frame.mosiHeadY > level + 0.25), 'while his head and frill stay above the water');
   // beside her: within 3 to 9 m of her middle through the chat
   const apart = wading.map(frame => Math.hypot(frame.mosi.x - frame.her.x, frame.mosi.z - frame.her.z));
   assert.ok(Math.min(...apart) > 2.5 && Math.max(...apart) < 10, `Mosi is ${Math.min(...apart).toFixed(1)} to ${Math.max(...apart).toFixed(1)} m from her middle`);
