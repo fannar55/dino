@@ -225,6 +225,9 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   function markTurn(seat) {
     places.forEach((place, s) => place.el.classList.toggle('turn', s === seat));
   }
+  function markAsked(seat) {
+    places.forEach((place, s) => place.el.classList.toggle('asked', s === seat));
+  }
   function thinking(seat, value) {
     places[seat]?.el.classList.toggle('thinking', value);
     if (seat === uggedlaSeat) uggedla.view()?.think(value);
@@ -432,6 +435,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
       face.style.setProperty('--c', avatar?.colour ?? '#79c7a1');
       textEl.append(face);
       bubble.style.setProperty('--c', avatar?.colour ?? 'var(--ink)');
+      if (to !== null && places[to]) textEl.dataset.who = `${nameOf(from)} ➔ ${nameOf(to)}`;
     }
     textEl.append(doc.createTextNode(text));
     bubble.append(textEl);
@@ -672,7 +676,9 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** The act has been shown: on to whoever's turn it is, or the end. */
   async function proceed() {
-    await lineDone();
+    const humanFish = game.phase === 'fish' && hasPhone(entryOf(game.turn)) && entryOf(game.turn).present && !entryOf(game.turn).covered;
+    if (!humanFish) await lineDone();
+    markAsked(null);
     if (game.phase === 'over') return endRound();
     return turn(game.turn);
   }
@@ -693,7 +699,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   async function turn(seat) {
     const token = round;
     busy = true;
-    clearBubble();
+    if (game.phase !== 'fish') clearBubble();
     markTurn(seat);
     renderTags();
     if (game.phase === 'fish') return doFish(seat);
@@ -714,15 +720,21 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const result = ask(game, seat, target, kind);
     pending = { from: seat, to: target, kind };
     lastEvent = publicEvent(result.events[0]);
+    markAsked(target);
     sendViews();
     await speak(seat, target, words.asking(kind), lineFor(seat, 'ask', kind));
-    await lineDone();
+    const humanTarget = hasPhone(entryOf(target)) && entryOf(target).present && !entryOf(target).covered;
+    if (!humanTarget) await lineDone();
     const need = holds(game, target, kind) ? 'give' : 'no';
     await decide(target, need, kind, async () => {
       await wait(ANSWER_BEAT_MS);
       return { type: need };
     });
     if (stale(token)) return undefined;
+    if (humanTarget) {
+      speech.cut(1);
+      bubbleUntil = 0;
+    }
     commit(result);
     await playEvents(result.events.slice(1), seat);
     return proceed();
@@ -732,10 +744,13 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   async function doFish(seat) {
     const token = round;
     await decide(seat, 'fish', null, async () => {
+      await lineDone();
       await wait(FISH_BEAT_MS);
       return { type: 'fish' };
     });
     if (stale(token)) return undefined;
+    clearBubble();
+    speech.cut(1);
     const result = fish(game, seat);
     commit(result);
     await playEvents(result.events);
@@ -761,7 +776,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     shownCount = places.map(() => 0);
     shownPairs = places.map(() => []);
     places.forEach((place, seat) => {
-      place.el.classList.remove('turn', 'thinking', 'out');
+      place.el.classList.remove('turn', 'asked', 'thinking', 'out');
       place.fan.replaceChildren();
       const empty = makeCatch(seat, [], 0);
       place.catchEl.replaceWith(empty);
@@ -849,7 +864,8 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     busy = true;
     pondEl.classList.remove('calls');
     markTurn(null);
-    for (const place of places) place.el.classList.remove('out', 'thinking');
+    markAsked(null);
+    for (const place of places) place.el.classList.remove('asked', 'out', 'thinking');
     clearBubble();
     const winners = game.winners;
     const herRound = uggedlaSeat !== null && isHer(uggedlaSeat);

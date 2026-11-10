@@ -5,7 +5,8 @@ import { KINDS, COPIES, makeDeck, kindOf } from '../engine/veiddu/cards.js';
 import { newGame, ask, fish, legalTargets, holds, isOver, winners } from '../engine/veiddu/rules.js';
 import { createMind, bestAsk, inRoundSkill, recallChance, VEIDDU_SKILL_START, SEAT } from '../engine/veiddu/minds.js';
 import { createSpeech, GUARD_MS, LATE_START_MS, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from '../engine/veiddu/speech.js';
-import { SAY, WHY, asking } from '../engine/veiddu/table.js';
+import { SAY, WHY, asking, createVeidduGame } from '../engine/veiddu/table.js';
+import { tableElement } from '../engine/veiddu/look.js';
 import { veidduSounds, VEIDDU_SFX, VEIDDU_GAPS, SPLASHES, splashFor, createSplash } from '../engine/veiddu/veiddu-sounds.js';
 import { EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
 import { createSfx } from '../engine/audio/sfx.js';
@@ -1115,4 +1116,58 @@ test('a win in Veiddu is a sticker in the book that was open, the next time the 
   save.setVeiddu({ skill: 0.25, losses: 0, wins: 1 }); // as table.js endRound does
   book.refresh(); // and as main.js does when the game shuts
   assert.equal(stickers().filter(s => s.classList.contains('uggedla')).length, 1);
+});
+
+test('seats show their name tags, and a bubble marks both the speaker (.turn) and the seat asked (.asked)', () => {
+  const doc = new FakeDocument(['veiddu']);
+  const tableEl = tableElement(doc, {
+    mine: ['froskur', 'skjaldbaka'],
+    theirs: [5, 4],
+    pairs: [[], [], []],
+    pond: 30,
+    bubble: [SEAT.mosi, SEAT.child, 'Áttu frosk?'],
+  });
+  const seats = tableEl.querySelectorAll('.veiddu-seat');
+  assert.deepEqual([...seats].map(s => s.querySelector('.veiddu-seat-tag')?.innerHTML), ['Uggeðla', 'Mosi']);
+  assert.equal(tableEl.getAttribute('data-turn'), '2', 'Mosi is asking');
+  assert.equal(tableEl.getAttribute('data-asked'), '0', 'Egill is being asked');
+  assert.equal(seats[1].classList.contains('turn'), true);
+  assert.equal(tableEl.querySelector('.veiddu-me-catch').classList.contains('asked'), true);
+});
+
+test('when told "Nei! Farðu að veiða!", the pond calls at once so a quick tap fishes while the bubble is still up', async () => {
+  const doc = new FakeDocument(['veiddu']);
+  const win = { matchMedia: () => ({ matches: true }), addEventListener() {} };
+  const root = doc.getElementById('veiddu');
+  const noBubbleUp = () => (root.querySelector('.veiddu-bubble')?.findAll(e => e.innerHTML?.includes('Farðu að veiða!')).length ?? 0) > 0;
+  let now = 0;
+  const veiddu = createVeidduGame(doc, {
+    win, uggedlaLive: false, audio: { muted: true },
+    clock: () => now,
+    setTimer: (fn, ms) => setTimeout(() => { now += ms; fn(); }, noBubbleUp() || ms >= 6000 ? ms : 1),
+  });
+  const tap = el => {
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  veiddu.open({ tutorial: true });
+  const waitPhase = async target => {
+    for (let i = 0; i < 200 && veiddu.phase !== target; i++) await new Promise(r => setTimeout(r, 5));
+    assert.equal(veiddu.phase, target);
+  };
+  await waitPhase('tutorial ask pick');
+  tap(root.findAll(e => e.dataset?.kind === 'skjaldbaka')[0]);
+  assert.equal(veiddu.phase, 'tutorial ask target');
+  tap(root.querySelector('.veiddu-uggedla'));
+  await waitPhase('tutorial fish pick');
+  tap(root.findAll(e => e.dataset?.kind === 'drekafluga')[0]);
+  tap(root.querySelector('.veiddu-mosi'));
+  await waitPhase('tutorial fish fish');
+  assert.equal(noBubbleUp(), true, 'the "Nei! Farðu að veiða!" bubble is still showing');
+  const pond = root.querySelector('.veiddu-pond');
+  assert.equal(pond.classList.contains('calls'), true, 'the pond calls immediately while the bubble is still up');
+  const before = veiddu.game.pond.length;
+  tap(pond);
+  assert.equal(veiddu.game.pond.length, before - 1, 'the very first tap on the pond fishes the card immediately');
+  veiddu.close();
 });

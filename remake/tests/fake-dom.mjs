@@ -84,6 +84,22 @@ export class FakeElement extends EventTarget {
     this.append(...nodes);
   }
 
+  replaceWith(node) {
+    if (!this.parentNode) return;
+    this.parentNode.insertBefore(node, this);
+    this.remove();
+  }
+
+  closest(selector) {
+    const name = selector.replace(/^\./, '');
+    let node = this;
+    while (node) {
+      if (node.classList?.contains?.(name) || node.tagName === selector.toUpperCase()) return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+
   remove() {
     if (!this.parentNode) return;
     this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1);
@@ -92,6 +108,7 @@ export class FakeElement extends EventTarget {
 
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
+  removeAttribute(name) { this.attributes.delete(name); }
 
   getBoundingClientRect() {
     const { left, top, width, height } = this.rect;
@@ -122,13 +139,17 @@ export class FakeElement extends EventTarget {
 
   querySelectorAll(selector) {
     const parts = selector.trim().split(/\s+/);
-    if (!parts.every(part => /^[a-z0-9]*(\.[\w-]+)*$/i.test(part))) { // anything else: as a class name, as it always was
+    if (!parts.every(part => /^[a-z0-9]*(\.[\w-]+)*(\[[\w-]+="[^"]*"\])?$/i.test(part))) { // anything else: as a class name, as it always was
       const name = selector.replace(/^\./, '');
       return this.findAll(element => element.classList.contains(name));
     }
     const matches = part => element => {
-      const [tag, ...names] = part.split('.');
-      return (!tag || element.tagName === tag.toUpperCase()) && names.every(name => element.classList.contains(name));
+      const attrMatch = part.match(/\[([\w-]+)="([^"]*)"\]$/);
+      const base = attrMatch ? part.slice(0, -attrMatch[0].length) : part;
+      const [tag, ...names] = base.split('.');
+      return (!tag || element.tagName === tag.toUpperCase())
+        && names.every(name => element.classList.contains(name))
+        && (!attrMatch || String(element.getAttribute(attrMatch[1]) ?? '') === attrMatch[2]);
     };
     let found = this.findAll(matches(parts[0]));
     for (const part of parts.slice(1)) found = [...new Set(found.flatMap(element => element.findAll(matches(part))))];

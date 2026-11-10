@@ -161,6 +161,16 @@
 .veiddu-uggedla-frame::after, .veiddu-mosi::after { right: -6%; transform: rotate(22deg); background-color: color-mix(in srgb, var(--gold) 58%, transparent); }
 .veiddu-mosi::before { background-color: color-mix(in srgb, var(--green) 62%, transparent); }
 
+/* Each opponent's name tag at the top of its window, and the badge that shows when it is on turn or asked */
+.veiddu-seat-tag {
+  grid-row: 1; align-self: start; justify-self: center; position: relative; z-index: 4; pointer-events: none;
+  translate: 0 -46%; padding: .14em .68em .18em; border-radius: 999px;
+  font-size: clamp(19px, 2.1cqmin, 25px); font-weight: 900; line-height: 1.15; white-space: nowrap;
+  color: var(--ink); background: var(--card); border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 #e3d4b5, 0 4px 0 3px var(--ink), 0 8px 12px rgb(40 24 10 / .24);
+  transition: transform .25s cubic-bezier(.3, 1.5, .5, 1), opacity .25s;
+}
+
 /* A window that may be asked: gold, glowing and breathing, and a tap asks it */
 .veiddu-target { cursor: pointer; box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 16px var(--gold), 0 0 40px 18px rgb(242 182 48 / .85), 0 14px 26px 6px rgb(40 24 10 / .3); animation: target-pulse 1.3s ease-in-out infinite; }
 
@@ -231,6 +241,7 @@
     0 0 0 8px var(--sand), 0 0 0 11px var(--ink),
     0 26px 30px 6px rgb(40 24 10 / .34);
 }
+.veiddu-pond > * { pointer-events: none; } /* every tap on the water or a floating card hits the pond itself */
 .veiddu-pond::after { /* the glow round it, while it calls */
   content: ""; position: absolute; inset: -16px; z-index: -1; border-radius: 50%; pointer-events: none; opacity: 0;
   box-shadow: 0 0 0 7px var(--gold), 0 0 46px 20px rgb(242 182 48 / .85);
@@ -448,7 +459,24 @@
 .veiddu-bubble p::after { /* the tail, toward whoever speaks */
   content: ""; position: absolute; width: 24px; height: 24px; background: var(--card); border: 3px solid var(--ink);
 }
-.veiddu-bubble-arrow { position: absolute; width: clamp(48px, 5.2cqmin, 64px); aspect-ratio: 1; overflow: visible; rotate: var(--turn, 0deg); filter: drop-shadow(0 4px 3px rgb(40 24 10 / .3)); }
+/* Who is speaking to whom: a clear pill on top of the bubble when a seat is asked or answered */
+.veiddu-bubble[data-to] p::before, .veiddu-bubble.mp p[data-who]::before {
+  position: absolute; left: 50%; top: 0; translate: -50% -68%;
+  padding: .14em .65em .18em; border-radius: 999px;
+  font-size: clamp(16px, 1.85cqmin, 22px); font-weight: 900; line-height: 1.1; white-space: nowrap;
+  color: #fff; -webkit-text-stroke: .11em var(--ink); paint-order: stroke fill;
+  background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .38), transparent 48%), var(--orange);
+  border: 2.5px solid var(--ink);
+  box-shadow: 0 3px 0 var(--orange-deep), 0 3px 0 2.5px var(--ink), 0 6px 10px rgb(40 24 10 / .25);
+}
+.veiddu-bubble[data-from="1"][data-to="2"] p::before { content: "Uggeðla ➔ Mosi"; }
+.veiddu-bubble[data-from="1"][data-to="0"] p::before { content: "Uggeðla ➔ Þú"; }
+.veiddu-bubble[data-from="2"][data-to="1"] p::before { content: "Mosi ➔ Uggeðla"; }
+.veiddu-bubble[data-from="2"][data-to="0"] p::before { content: "Mosi ➔ Þú"; }
+.veiddu-bubble[data-from="0"][data-to="1"] p::before { content: "Þú ➔ Uggeðla"; }
+.veiddu-bubble[data-from="0"][data-to="2"] p::before { content: "Þú ➔ Mosi"; }
+.veiddu-bubble.mp p[data-who]::before { content: attr(data-who); }
+.veiddu-bubble-arrow { position: absolute; width: clamp(54px, 5.8cqmin, 72px); aspect-ratio: 1; overflow: visible; rotate: var(--turn, 0deg); filter: drop-shadow(0 4px 3px rgb(40 24 10 / .35)); animation: arrow-nudge .85s ease-in-out infinite; }
 /* Uggeðla speaks on the left: the bubble beside her window, its tail to her */
 .veiddu-bubble[data-from="1"] { left: calc(var(--edge) + var(--gutter) + var(--window-w) + 20px); top: calc(18px + var(--top) + var(--window-w) / 1.6 * .14); }
 .veiddu-bubble[data-from="1"] p::after { left: -13px; top: 38%; border-top: 0; border-right: 0; transform: rotate(45deg); border-bottom-left-radius: 6px; }
@@ -616,12 +644,62 @@
 /* Mosi's longer sentences (the tutorial's steps): a wider bubble in smaller letters, starting further left over the cards */
 .veiddu-advice p.long { max-width: 13em; font-size: clamp(21px, 2.3cqmin, 28px); }
 
-/* ---- The live table: whose turn it is, a mind thinking, a seat that is out (table.js sets .turn, .thinking and .out) --------------- */
+/* ---- The live table: whose turn it is, who is asked, a mind thinking, a seat that is out (table.js sets .turn, .asked, .thinking, .out) --- */
 
-.veiddu-seat.turn :is(.veiddu-uggedla, .veiddu-mosi):not(.veiddu-target) { /* the one on turn: ringed in teal */
-  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 16px var(--teal), 0 0 34px 12px rgb(63 176 184 / .55), 0 14px 26px 6px rgb(40 24 10 / .3);
+.veiddu-table[data-turn] .veiddu-seat:not(.turn):not(.asked):not(:has(.veiddu-target)) :is(.veiddu-uggedla, .veiddu-mosi, .veiddu-seat-tag) {
+  opacity: .78;
 }
-.veiddu-me-catch.turn .veiddu-tag { box-shadow: 0 0 0 5px var(--teal), 0 0 0 8px var(--ink), 0 0 24px 8px rgb(63 176 184 / .55); }
+.veiddu-seat.turn :is(.veiddu-uggedla, .veiddu-mosi):not(.veiddu-target) { /* the one on turn: ringed in bright green-teal and pulsing */
+  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--green), 0 0 40px 16px rgb(111 174 79 / .8), 0 16px 28px 6px rgb(40 24 10 / .32);
+  animation: target-pulse 1.35s ease-in-out infinite;
+}
+.veiddu-seat.turn .veiddu-seat-tag {
+  color: #fff; -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
+  background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--green);
+  box-shadow: 0 4px 0 var(--green-deep), 0 4px 0 3px var(--ink), 0 10px 16px rgb(40 24 10 / .3);
+  scale: 1.08;
+}
+.veiddu-seat.turn .veiddu-seat-tag::after { content: " · Á leik!"; }
+.veiddu-me-catch.turn .veiddu-tag {
+  position: relative;
+  box-shadow: 0 0 0 6px var(--green), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(111 174 79 / .75);
+  animation: eitt-pulse 1.35s ease-in-out infinite;
+}
+.veiddu-me-catch.turn .veiddu-tag::after, .veiddu-me-catch.asked .veiddu-tag::after,
+.veiddu-place.turn .veiddu-tag::after, .veiddu-place.asked .veiddu-tag::after {
+  content: "Þú átt leik!"; position: absolute; left: 50%; top: 0; translate: -50% -78%;
+  padding: .12em .62em .16em; border-radius: 999px;
+  font-size: clamp(16px, 1.8cqmin, 21px); font-weight: 900; line-height: 1.1; white-space: nowrap;
+  color: #fff; -webkit-text-stroke: .11em var(--ink); paint-order: stroke fill;
+  background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--green);
+  border: 2.5px solid var(--ink);
+  box-shadow: 0 3px 0 var(--green-deep), 0 3px 0 2.5px var(--ink), 0 6px 10px rgb(40 24 10 / .28);
+}
+
+/* The seat being asked (.asked): ringed in warm orange-gold with a "Spurð?" / "Spurður?" badge */
+.veiddu-seat.asked :is(.veiddu-uggedla, .veiddu-mosi):not(.veiddu-target) {
+  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--orange), 0 0 42px 16px rgb(224 122 63 / .85), 0 16px 28px 6px rgb(40 24 10 / .32);
+  animation: target-pulse 1.15s ease-in-out infinite;
+}
+.veiddu-seat.asked .veiddu-seat-tag {
+  color: #fff; -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
+  background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--orange);
+  box-shadow: 0 4px 0 var(--orange-deep), 0 4px 0 3px var(--ink), 0 10px 16px rgb(40 24 10 / .3);
+  scale: 1.08;
+}
+.veiddu-seat[data-seat="1"].asked .veiddu-seat-tag::after { content: " · Spurð?"; }
+.veiddu-seat[data-seat="2"].asked .veiddu-seat-tag::after { content: " · Spurður?"; }
+.veiddu-me-catch.asked .veiddu-tag {
+  position: relative;
+  box-shadow: 0 0 0 6px var(--orange), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(224 122 63 / .8);
+  animation: eitt-pulse 1.15s ease-in-out infinite;
+}
+.veiddu-me-catch.asked .veiddu-tag::after {
+  content: "Spurður?";
+  background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--orange);
+  box-shadow: 0 3px 0 var(--orange-deep), 0 3px 0 2.5px var(--ink), 0 6px 10px rgb(40 24 10 / .28);
+}
+
 .veiddu-seat.thinking .veiddu-uggedla img { transform-origin: 50% 92%; animation: think-tilt 1.1s ease-in-out infinite; } /* her head tilts */
 .veiddu-seat.thinking .veiddu-mosi img { animation-duration: 1.2s; } /* he sways faster */
 .veiddu-seat.out :is(.veiddu-uggedla, .veiddu-mosi), .veiddu-me-catch.out .veiddu-tag { opacity: .5; } /* no cards and no pond: the turn goes by */
@@ -676,6 +754,10 @@
 @keyframes eitt-pulse {
   0%, 100% { scale: 1; }
   50% { scale: 1.06; }
+}
+@keyframes arrow-nudge {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(6px) scale(1.1); }
 }
 @keyframes advice-pop {
   from { opacity: 0; transform: translateY(30px) scale(.7); }
@@ -859,9 +941,21 @@
 .veiddu-place .veiddu-count { min-width: 44px; height: 44px; font-size: 28px; }
 .veiddu-place .veiddu-tag { font-size: clamp(26px, 2.8cqmin, 34px); }
 .veiddu-place .veiddu-face { width: clamp(52px, 6cqmin, 72px); }
-.veiddu-place.turn .veiddu-tag { box-shadow: 0 0 0 5px var(--teal), 0 0 0 8px var(--ink), 0 0 24px 8px rgb(63 176 184 / .55); animation: eitt-pulse 1.4s ease-in-out infinite; }
-.veiddu-place.turn .veiddu-uggedla { /* her window on turn: ringed in teal */
-  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 16px var(--teal), 0 0 34px 12px rgb(63 176 184 / .55), 0 14px 26px 6px rgb(40 24 10 / .3);
+.veiddu-place.turn .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--green), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(111 174 79 / .75); animation: eitt-pulse 1.4s ease-in-out infinite; }
+.veiddu-place.turn .veiddu-tag::after { content: "Á leik!"; }
+.veiddu-place.turn .veiddu-uggedla { /* her window on turn: ringed in green */
+  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--green), 0 0 40px 16px rgb(111 174 79 / .8), 0 14px 26px 6px rgb(40 24 10 / .3);
+  animation: target-pulse 1.35s ease-in-out infinite;
+}
+.veiddu-place.asked .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--orange), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(224 122 63 / .8); animation: eitt-pulse 1.15s ease-in-out infinite; }
+.veiddu-place.asked .veiddu-tag::after {
+  content: "Spurð/ur?";
+  background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--orange);
+  box-shadow: 0 3px 0 var(--orange-deep), 0 3px 0 2.5px var(--ink), 0 6px 10px rgb(40 24 10 / .28);
+}
+.veiddu-place.asked .veiddu-uggedla {
+  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--orange), 0 0 42px 16px rgb(224 122 63 / .85), 0 14px 26px 6px rgb(40 24 10 / .3);
+  animation: target-pulse 1.15s ease-in-out infinite;
 }
 .veiddu-place.thinking .veiddu-uggedla img { transform-origin: 50% 92%; animation: think-tilt 1.1s ease-in-out infinite; } /* her head tilts, until her live view is ready */
 .veiddu-place.thinking .veiddu-tag { animation: think-tilt 1.1s ease-in-out infinite; }

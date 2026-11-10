@@ -227,6 +227,7 @@ export function seatElement(doc, seat, { held, laid, target = false }) {
   window.append(picture);
   el.append(window);
   if (seat === SEATS.uggedla) el.append(make(doc, 'div', 'veiddu-uggedla-frame', { 'aria-hidden': 'true' }));
+  el.append(make(doc, 'span', 'veiddu-seat-tag', { 'aria-hidden': 'true' }, person.name));
   const fan = make(doc, 'div', 'veiddu-their-hand', { role: 'img', 'aria-label': `${person.name} á ${held} spil` });
   for (let k = 0; k < held; k++) fan.append(cardElement(doc, null));
   el.append(fan, make(doc, 'span', 'veiddu-count', { 'aria-hidden': 'true' }, String(held)), catchElement(doc, laid, person.name));
@@ -319,7 +320,19 @@ export function tableElement(doc, round) {
     hand.append(card);
   }
   table.append(hand, make(doc, 'button', 'veiddu-mosi-help', { 'aria-label': 'Spyrja Mosa' }));
-  if (round.bubble) table.append(bubbleElement(doc, ...round.bubble));
+  if (round.bubble) {
+    const [from, to] = round.bubble;
+    const seatFor = s => (s === SEATS.child ? table.querySelector('.veiddu-me-catch') : [...table.querySelectorAll('.veiddu-seat')].find(el => String(el.getAttribute('data-seat')) === String(s)));
+    if (from !== null && from !== undefined) {
+      seatFor(from)?.classList.add('turn');
+      table.setAttribute('data-turn', String(from));
+    }
+    if (to !== null && to !== undefined) {
+      seatFor(to)?.classList.add('asked');
+      table.setAttribute('data-asked', String(to));
+    }
+    table.append(bubbleElement(doc, ...round.bubble));
+  }
   if (round.advice) {
     const advice = make(doc, 'div', 'veiddu-advice');
     advice.append(make(doc, 'img', '', { src: asset('assets/book/images/mosi-render.webp'), alt: '' }), make(doc, 'p', '', {}, round.advice));
