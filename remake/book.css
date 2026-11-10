@@ -428,6 +428,30 @@
    title. A fossil found and not tapped yet is .new, with a .badge-new, as an animal's tile is; the glow, the rocking and the badge are
    the tile rules above. */
 .ribbon[data-tab="fossils"] { --ribbon: #b9824a; color: var(--book-card); } /* sandstone */
+.ribbon[data-tab="videos"] { --ribbon: #8f6aa3; color: var(--book-card); } /* Kambeðla's violet, for Myndbönd */
+.video-tile .tile-picture img { inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+.video-tile.unfound .tile-picture img { filter: brightness(0); opacity: .28; }
+.video-tile .tile-name {
+  display: flex; align-items: center; justify-content: center; min-height: 2.16em;
+  white-space: normal; text-wrap: balance; font-size: clamp(20px, var(--tile-w) * .11, 32px); line-height: 1.08;
+}
+.video-tiles:has(> :nth-child(5)) {
+  --gap: max(14px, 3cqmin);
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.24);
+}
+.video-tiles:has(> :nth-child(5)) .tile-name {
+  font-size: clamp(16px, var(--tile-w) * .12, 26px);
+}
+.video-play-badge {
+  position: absolute; z-index: 2; inset: 0; margin: auto; pointer-events: none;
+  width: calc(var(--tile-w) * .28); height: calc(var(--tile-w) * .28);
+  display: grid; place-items: center; border-radius: 50%;
+  color: var(--book-ink);
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / .65), transparent 48%), var(--book-gold);
+  border: 3px solid var(--book-ink);
+  box-shadow: 0 4px 0 #b88418, 0 4px 0 2.5px var(--book-ink), 0 8px 14px rgb(24 15 6 / .42);
+}
+.video-play-badge .book-icon { width: 54%; height: 54%; }
 .book-leaf[data-tab="fossils"] .book-tiles {
   --pad-top: 17cqh; --pad-bottom: 6cqh;
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.3);
@@ -758,11 +782,15 @@
   background: var(--book-frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat, var(--book-grain), var(--book-card);
   box-shadow: inset 0 0 0 3px rgb(59 47 37 / .16), 0 30px 60px rgb(14 8 3 / .45), 0 8px 18px rgb(14 8 3 / .3);
 }
-/* While a card is open, the spread behind it holds still and offers nothing to tap: its close and ribbons step out. */
-.book:has(.card:not([hidden])) :is(.book-close, .book-ribbons) { visibility: hidden; }
+/* While a card or video player is open, the spread behind it holds still and offers nothing to tap: its close and ribbons step out. */
+.book:has(.card:not([hidden])) :is(.book-close, .book-ribbons),
+.book:has(.video-player:not([hidden])) :is(.book-close, .book-ribbons, .card) { visibility: hidden; }
 .book:has(.card:not([hidden])) .book-spread *,
 .book:has(.card:not([hidden])) .book-spread *::before,
-.book:has(.card:not([hidden])) .book-spread *::after { animation-play-state: paused; }
+.book:has(.card:not([hidden])) .book-spread *::after,
+.book:has(.video-player:not([hidden])) .book-spread *,
+.book:has(.video-player:not([hidden])) .book-spread *::before,
+.book:has(.video-player:not([hidden])) .book-spread *::after { animation-play-state: paused; }
 
 .card-image { /* the page's picture, a photo taped on the card; a tap on it zooms it */
   --photo-pad: clamp(10px, 1.7cqmin, 20px);
@@ -841,6 +869,14 @@
   min-width: var(--book-target); min-height: var(--book-target);
   position: absolute; z-index: 2; top: var(--clear); left: var(--clear);
 }
+.card-video { /* opens the video linked to this card, when unlocked */
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; top: var(--clear); right: var(--clear);
+  --face: var(--book-gold); --side: #b88418;
+  color: var(--book-ink);
+}
+.card-video .book-icon { width: 54%; height: 54%; }
+.card-video .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2.6; }
 .card-done { /* the last page: the big way back to the animals, where the arrow on would be */
   grid-area: next; align-self: center; justify-self: center;
   width: clamp(112px, 15cqmin, 150px); height: clamp(112px, 15cqmin, 150px);
@@ -857,6 +893,95 @@
 .card-dots > span[aria-current="step"] {
   width: 26px; height: 26px; background: var(--book-orange); border: 3px solid var(--book-ink);
   box-shadow: 0 3px 0 var(--book-orange-deep), 0 3px 0 2px var(--book-ink);
+}
+
+/* ---- The video player (engine/book/video-player.js): an educational video over the spread ------------------------ */
+
+.video-player {
+  --video-gap: clamp(16px, 2.6cqmin, 34px);
+  position: absolute; z-index: 15; inset: 0;
+  display: grid; place-items: center;
+  background: rgb(24 17 11 / .68);
+}
+.video-player.closing { pointer-events: none; }
+.video-frame {
+  --pad: clamp(18px, 2.4cqmin, 28px);
+  position: relative;
+  width: min(100cqw - 2 * var(--video-gap), (100cqh - 2 * var(--video-gap)) * 1.48);
+  height: min(100cqh - 2 * var(--video-gap), (100cqw - 2 * var(--video-gap)) / 1.15);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(12px, 2cqh, 20px);
+  padding: var(--pad);
+  border-radius: 28px;
+  background: var(--book-frame) center / calc(100% - 20px) calc(100% - 20px) no-repeat, var(--book-grain), var(--book-card);
+  box-shadow: inset 0 0 0 3px rgb(59 47 37 / .18), 0 30px 64px rgb(12 7 3 / .55), 0 8px 18px rgb(12 7 3 / .35);
+}
+.video-close {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 3;
+  top: 12px; right: 12px;
+}
+.video-stage {
+  position: relative; width: 100%; height: 100%; min-height: 0;
+  display: grid; place-items: center; overflow: hidden;
+  border-radius: 16px; border: 3px solid var(--book-ink);
+  background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, #868862) 28%, #1e1812), #120e0a);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .12), 0 10px 24px rgb(24 15 6 / .28);
+}
+.video-screen {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+  border-radius: 13px; cursor: pointer;
+}
+.video-center-play {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; inset: 0; margin: auto;
+  width: clamp(96px, 12cqmin, 128px); height: clamp(96px, 12cqmin, 128px);
+  --face: var(--book-gold); --side: #b88418;
+}
+.video-bar {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  align-items: center; gap: clamp(14px, 2.2cqw, 24px);
+  padding: 2px 6px 0;
+}
+.video-toggle {
+  min-width: var(--book-target); min-height: var(--book-target);
+  --face: var(--book-teal); --side: var(--book-teal-deep);
+  color: var(--book-card);
+}
+.video-toggle .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2.6; }
+.video-progress {
+  min-height: var(--book-target);
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  padding: 8px 14px; border-radius: 18px; cursor: pointer;
+  background: rgb(59 47 37 / .07);
+}
+.video-meta {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.video-title {
+  margin: 0; font-size: clamp(22px, 3cqmin, 34px); font-weight: 900; line-height: 1.1;
+  color: var(--book-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.video-time {
+  flex: none; font-size: clamp(20px, 2.5cqmin, 28px); font-weight: 800; line-height: 1;
+  color: var(--book-ink-soft); font-variant-numeric: tabular-nums;
+}
+.video-track {
+  position: relative; width: 100%; height: 20px; border-radius: 999px;
+  background: #e2d4b7; border: 3px solid var(--book-ink);
+  box-shadow: inset 0 2px 4px rgb(40 24 10 / .2);
+}
+.video-fill {
+  position: absolute; top: 0; left: 0; bottom: 0; width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--book-orange), var(--book-gold));
+}
+.video-thumb {
+  position: absolute; top: 50%; left: 0%; width: 32px; height: 32px;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: var(--book-card); border: 3.5px solid var(--book-ink);
+  box-shadow: 0 3px 0 var(--book-card-deep), 0 3px 0 2.5px var(--book-ink), 0 5px 10px rgb(40 24 10 / .35);
 }
 
 /* ---- The zoom: a picture at full screen, over everything -------------------------------------------------------- */
@@ -1030,9 +1155,10 @@
       linear-gradient(to bottom, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
   }
   .book-tiles { --pad-x: 7cqw; --pad-top: 6.5cqh; --pad-bottom: 6cqh; }
-  .book-ribbons { gap: calc(var(--ribbon-size) * .3); } /* five ribbons and the close fit across a tablet held upright */
-  .ribbon { width: 4.6em; }
-  .ribbon[data-tab="dinosaurs"] { width: 5.3em; } /* "Risaeðlur" is the longest label */
+  .book-ribbons { left: max(var(--edge) + 1.5%, 18px); gap: 6px; } /* six ribbons and the close fit across a tablet held upright */
+  .ribbon { width: 3.9em; padding-inline: .15em; }
+  .ribbon[data-tab="dinosaurs"], .ribbon[data-tab="videos"] { width: 4.3em; } /* "Risaeðlur" and "Myndbönd" are the longest labels */
+  .ribbon-label { font-size: .82em; }
   .book-leaf[data-tab="map"] .book-tiles { --pad-x: 4cqw; --pad-top: 3.6cqh; --pad-bottom: 3.6cqh; }
   .map-half[data-half] { justify-self: center; }
 
@@ -1046,9 +1172,14 @@
   }
   .card-image { height: auto; width: 100%; max-height: 100%; aspect-ratio: 1; } /* as tall as the row lets it be */
   .card-image::before { left: 16%; transform: rotate(-8deg); } /* its tape along the top, clear of the back button */
+  .card-image::after { right: 16%; transform: rotate(8deg); } /* and clear of the video button on the right */
   .card-info { right: -8px; } /* the photo is as wide as the card here, so the ⓘ's reach stays inside the frame */
   .card-text { font-size: min(5.4cqw, 54px); }
   .card-arrow { width: clamp(112px, 17cqw, 156px); }
+  .video-frame {
+    width: calc(100cqw - 2 * var(--video-gap));
+    height: min(100cqh - 2 * var(--video-gap), (100cqw - 2 * var(--video-gap)) * 1.25);
+  }
 }
 
 /* "Litla Yatzy við Mosa" in the book (engine/yatzy-junior/frame.js): the junior page in a frame over the book, under the book's

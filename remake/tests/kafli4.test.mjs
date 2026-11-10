@@ -89,7 +89,7 @@ test('the chapter as data: the Fen first, then the white tree, in the early afte
   assert.deepEqual(chapter.cast.flugedla, { name: 'Flugeðla', colour: '#955055' }, 'her crest\'s raspberry, as in the flight');
   assert.deepEqual(chapter.cast.thorsedla, { name: 'Þórseðla', colour: '#89682e' });
   for (const [id, text] of Object.entries(SCENE_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
-  for (const id of Object.keys(chapter.lines)) assert.match(id, /^k4_(mosi|egill|flugedla)_[a-z0-9_]+$/, `${id}: k4_<speaker>_<name>`);
+  for (const id of Object.keys(chapter.lines)) assert.match(id, /^k4_(mosi|egill|flugedla|thorsedla)_[a-z0-9_]+$/, `${id}: k4_<speaker>_<name>`);
   // A name in two places would overwrite the other silently (main.js).
   const names = [...Object.keys(chapter.shots), ...Object.values(chapter.locations).flatMap(location => Object.keys(location.shots))];
   assert.equal(new Set(names).size, names.length, 'every shot has a name of its own');
@@ -971,9 +971,14 @@ test('the animals that came stand at the far pool, never in front of Mosi, the r
       assert.ok(Math.hypot(at.x - FAR_POOL[spot][0], at.z - FAR_POOL[spot][1]) > 8, `${id} 8 m off ${spot}`);
     }
   }
-  let moved = 0;
-  for (const f of pool) for (const b of f.arrivals) moved = Math.max(moved, b.at.distanceTo(first.get(b.id)));
-  assert.ok(moved < 0.05, `they stand: at most ${moved.toFixed(3)} m from where they stood`);
+  let moved = 0, hopped = 0;
+  for (const f of pool) for (const b of f.arrivals) {
+    const start = first.get(b.id);
+    moved = Math.max(moved, Math.hypot(b.at.x - start.x, b.at.z - start.z));
+    hopped = Math.max(hopped, b.at.y - start.y);
+  }
+  assert.ok(moved < 0.05, `they stay on their spots: at most ${moved.toFixed(3)} m aside`);
+  assert.ok(hopped > 0.3 && hopped <= 0.75, `and hop for joy as she lands: ${hopped.toFixed(2)} m`);
   // never between the camera and Mosi's head (once he is out of the reed), the reed he comes out of, or Slóeðla's bed across the pool
   const middle = ([x, z]) => new THREE.Vector3(x, world.heightAt(x, z) + 1, z);
   const reed = middle(FAR_POOL.reeds[0].at), bed = middle(FAR_POOL.reeds[1].at);

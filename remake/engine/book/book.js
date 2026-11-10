@@ -6,6 +6,8 @@ import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked, bookState } from './cards.js';
 import { renderMap } from './map-page.js';
 import { createMuseumPage } from './museum-page.js';
+import { BOOK_VIDEOS, createVideosPage, videoSeenId } from './videos.js';
+import { createVideoPlayer } from './video-player.js';
 import { validateGame } from '../hals/rules.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
@@ -63,8 +65,8 @@ import { validateGame } from '../hals/rules.js';
 // A fast second tap cuts the motion under way short and starts its own from there. Where the page has no animations, or the tablet
 // asks for less motion, the book opens and turns at once (it fades in and out).
 
-const TABS = ['dinosaurs', 'animals', 'games', 'map', 'fossils'];
-const LABELS = { dinosaurs: 'Risaeðlur', animals: 'Dýrin', games: 'Leikir', map: 'Kortið', fossils: 'Safnið' };
+const TABS = ['dinosaurs', 'animals', 'games', 'map', 'fossils', 'videos'];
+const LABELS = { dinosaurs: 'Risaeðlur', animals: 'Dýrin', games: 'Leikir', map: 'Kortið', fossils: 'Safnið', videos: 'Myndbönd' };
 const DINOSAUR_FIND_ME = 'book_mosi_later'; // Mosi, for a dinosaur not met yet: "Hana hittum við seinna!"
 const MOSI_RIBBON_PICTURE = new URL('../../assets/book/images/mosi-render-thumb.webp', import.meta.url).href; // the Risaeðlur ribbon's icon
 const EITT_STAR = 'k1_kambedla'; // the star that opens "Eitt!": Kambeðla's
@@ -309,10 +311,13 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot, minnisSlot); // each shows once its game is open (renderGameSlots)
   gamesRight.append(sheet);
 
-  // The Safnið ribbon's own "Nýtt!", while a fossil is found and not tapped yet (renderRibbonNew).
+  // The Safnið and Myndbönd ribbons' own "Nýtt!", while a fossil or an unlocked video is not tapped yet (renderRibbonNew).
   const ribbonNew = make('span', 'ribbon-new');
   ribbonNew.textContent = 'Nýtt!';
   ribbonNew.setAttribute('aria-hidden', 'true');
+  const videosRibbonNew = make('span', 'ribbon-new');
+  videosRibbonNew.textContent = 'Nýtt!';
+  videosRibbonNew.setAttribute('aria-hidden', 'true');
 
   const spine = make('div', 'book-spine');
   spine.setAttribute('aria-hidden', 'true');
@@ -329,10 +334,30 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   root.replaceChildren(spread);
   root.hidden = true;
 
-  // The card and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
+  // The card, the video player and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
   const zoom = createZoom(doc, { audio, win, root });
-  const cardViewer = createCardViewer(doc, root, { media, models, audio, zoom, win, onClose: () => { animals.render(); dinosaurs.render(); } });
+  let videosPage = null;
+  let videoPlayer = null;
+  const onWatchVideo = (video, fromRect) => {
+    save.addSeen(videoSeenId(video.id));
+    videosPage?.render();
+    renderRibbonNew();
+    videoPlayer.close(true);
+    videoPlayer.open(video, fromRect);
+  };
+  const cardViewer = createCardViewer(doc, root, {
+    media,
+    models,
+    videos: BOOK_VIDEOS,
+    save,
+    audio,
+    zoom,
+    win,
+    onWatch: onWatchVideo,
+    onClose: () => { animals.render(); dinosaurs.render(); },
+  });
+  videoPlayer = createVideoPlayer(doc, root, { audio, win, onClose: () => { videosPage?.render(); renderRibbonNew(); } });
   const refound = new Set(); // the cards whose animals were found again in a new place, until each is next opened (foundAgain)
   const onOpenCard = (card, fromRect) => {
     const page = refound.has(card.id) ? card.refind : 0; // found again: its newest page, once
@@ -341,13 +366,25 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   };
   // The Safnið leaf: the fossil collection (museum-page.js), whose cards (group 'fossil', when the data has them) open as an animal's do.
   const museum = createMuseumPage(leaves.get('fossils'), { save, audio, win, cards, onOpenCard, onChange: () => renderRibbonNew() });
+  // The Myndbönd leaf: the eight educational videos (videos.js), four on each page.
+  videosPage = createVideosPage(leaves.get('videos'), {
+    save,
+    audio,
+    win,
+    videos: BOOK_VIDEOS,
+    onOpenVideo: (video, fromRect) => {
+      videoPlayer.close(true);
+      videoPlayer.open(video, fromRect);
+    },
+    onChange: () => renderRibbonNew(),
+  });
   const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), { cards: animalCards, media, save, audio, win, onOpenCard });
   // The Risaeðlur leaf: the same page over the dinosaur cards, whose friends not met yet have Mosi say he will meet them later.
   const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME });
   // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
   const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`), ...(liveMap ? { liveMap } : {}) });
 
-  /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils. */
+  /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils, the videos. */
   function render() {
     const state = bookState(save);
     dinosaurs.render();
@@ -361,6 +398,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     renderGameSlots(state);
     map.render();
     museum.render();
+    videosPage.render();
     renderRibbonNew();
   }
 
@@ -382,12 +420,16 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     });
   }
 
-  /** The Safnið ribbon wears its "Nýtt!" while a fossil is found and not tapped yet (the museum page says so). */
+  /** The Safnið and Myndbönd ribbons wear their "Nýtt!" while a fossil or unlocked video is not tapped yet. */
   function renderRibbonNew() {
     const ribbon = ribbons.get('fossils');
     const fresh = museum.hasNew();
     if (fresh && ribbonNew.parentNode !== ribbon) ribbon.append(ribbonNew);
     if (!fresh) ribbonNew.remove();
+    const videoRibbon = ribbons.get('videos');
+    const freshVideo = videosPage?.hasNew?.() ?? false;
+    if (freshVideo && videosRibbonNew.parentNode !== videoRibbon) videoRibbon?.append(videosRibbonNew);
+    if (!freshVideo) videosRibbonNew.remove();
   }
 
   /**
@@ -563,9 +605,10 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     onPlay?.('veiddu');
   }
 
-  /** The card and what is zoomed in it are put away at once, as the book is shut or turns to another page. */
+  /** The card, the video player and what is zoomed are put away at once, as the book is shut or turns to another page. */
   function putCardAway() {
     zoom.close(true);
+    videoPlayer.close(true);
     cardViewer.close(true);
   }
 
@@ -859,6 +902,17 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     return cardViewer.open(card, null, page);
   }
 
+  /** Opens a video by id in the video player (used by the lab and tests). */
+  function openVideo(id) {
+    const video = BOOK_VIDEOS.find(v => v.id === id);
+    if (!video || !isOpen) return false;
+    videoPlayer.close(true);
+    save.addSeen(videoSeenId(video.id));
+    videosPage.render();
+    renderRibbonNew();
+    return videoPlayer.open(video, null);
+  }
+
   for (const [name, ribbon] of ribbons) {
     pressable(ribbon, { audio, sound: null, win, onTap: () => (name === tab ? audio?.sfx?.('tap') : turnTo(name)) });
   }
@@ -888,8 +942,10 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     refresh: render,
     pictureOf,
     openCard,
+    openVideo,
     foundAgain,
     cardViewer,
+    videoPlayer,
     zoom,
     get isOpen() { return isOpen; },
     get tab() { return tab; },

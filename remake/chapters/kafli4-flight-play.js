@@ -386,6 +386,7 @@ export function flightPlay(s, c) {
   };
   const guides = PLAY.guide.map(([at, id, late]) => ({ at, id, late, over: false }));
   function guideFrame(t) {
+    if (skimming) return;
     for (const g of guides) {
       if (g.over || t < g.at) continue;
       if (t > g.at + g.late || done[g.id]()) {
