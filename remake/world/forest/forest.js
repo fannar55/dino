@@ -43,6 +43,7 @@ import { createBatcher, cullBatches, cullCasters } from './batch.js';
 import { createGrassSteps } from './grass.js';
 import { createFarForestSteps } from './far.js';
 import { createAtmosphere } from './atmosphere.js';
+import { createForestLife } from './life.js';
 import { createHangingMoss } from './moss.js';
 import { smoothstep, clamp } from './random.js';
 import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
@@ -288,6 +289,9 @@ function* forestSteps(world, layout) {
     : null;
   if (water) group.add(water.group);
   yield 'water';
+  const life = createForestLife(world, { layout, seed, terrain, placements: plan.placements, water, q });
+  group.add(life.group);
+  yield 'life';
   // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing (some 25 ms: a slice of its own)
   yield FRESH;
   const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, {
@@ -338,6 +342,7 @@ function* forestSteps(world, layout) {
   if (off.has('ground')) groundMesh.visible = false;
   if (off.has('far')) far.mesh.visible = false;
   if (off.has('air')) air.group.visible = false;
+  if (off.has('life')) life.group.visible = false;
   const castersOn = !off.has('shadows') && !off.has('trees');
   for (const band of ['clearing', 'edge', 'inner', 'deep']) {
     if (off.has(band)) for (const m of meshes) if (m.userData.band === band) m.userData.hidden = true;
@@ -409,6 +414,7 @@ function* forestSteps(world, layout) {
     cullIfMoved();
     grass.update(world.camera);
     air.update(world.camera);
+    life.update(dt, time ?? 0);
     water?.update(time ?? 0);
     water?.wade(world.actors.values()); // rings round the feet of whoever stands in the water
     for (const mist of mists) mist.update(time ?? 0);
@@ -426,6 +432,8 @@ function* forestSteps(world, layout) {
     butterflies: air.butterflies,
     /** The Fen's water (world/props/water.js: surfaceAt, depthAt, rippleAt, bubblesAt), or null where there is none. */
     water,
+    /** Ambient wildlife (world/forest/life.js: songbirds, lizards, turtles, frogs, dragonflies, flyers). */
+    life,
     /** The place's low mists (world/props/mist.js: setLevel), in the layout's order. */
     mists,
     dispose() {
@@ -434,6 +442,7 @@ function* forestSteps(world, layout) {
       floor.material.dispose();
       floor.mask.tex.dispose();
       floor.mask.shade?.dispose();
+      life.dispose();
       water?.dispose();
       moss?.dispose();
       for (const mist of mists) mist.dispose();

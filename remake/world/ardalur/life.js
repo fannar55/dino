@@ -54,7 +54,7 @@ import { fenShare } from './terrain.js';
  * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06). The flyer is 2.4 m across its
  * wings: a third of hers, seen 5 to 12 m off.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, turtle: 4 };
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clamp01 = k => Math.min(1, Math.max(0, k));
@@ -150,7 +150,7 @@ const SLOTS = {
 // graze and look up by turns (over `graze` s). Nothing taller than `low` m grows within `lane` m of where they stand.
 const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low: 0.4, lane: [1.6, 2.5] };
 // Scene 7: as she lands (life.cheer), each that came hops twice for joy, one after another over `spread` seconds; metres high by kind.
-export const CHEER = { hops: 2, seconds: 0.45, spread: 0.9, height: { smaedla: 0.5, salamander: 0.4, grasbitur: 0.3, flugdyr: 0.7 } };
+export const CHEER = { hops: 2, seconds: 0.45, spread: 0.9, height: { smaedla: 0.5, salamander: 0.4, grasbitur: 0.3, flugdyr: 0.7, turtle: 0.35 } };
 
 export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
   const { river } = route;
@@ -160,7 +160,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const LIZARD = baked ? 'smaedla' : 'salamander';
   const grazer = critters.grasbitur ?? null;
   const flyer = critters.flugdyr ?? null;
-  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer, bird: critters.fugl ?? null }; // the owner's models, as tools/prep-crowd.mjs bakes them
+  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer, bird: critters.fugl ?? null, turtle: critters.skjaldbaka ?? null }; // the owner's models, as tools/prep-crowd.mjs bakes them
   const her = new THREE.Vector3();
   const herAt = (t, out = her) => route.pointAt(route.progressAt(Math.min(BEATS.END, Math.max(0, t))), out);
   /** Her way, seen from above, at flight second t: forward and to her right. */
@@ -445,6 +445,13 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   toTheirSpots(rows.filter(r => r.where === GATHER.rows).flatMap(r => r.members), 'lizard', GATHER.lane[0]);
   toTheirSpots(herd.find(g => g.id === GATHER.herd)?.members ?? [], 'grazer', GATHER.lane[1]);
   for (const b of flyers) { b.gather = { at: b.land.spot, heading: b.land.heading }; arrivals.push(b); }
+  spotsOf('turtle').forEach(([x, z], k) => {
+    const heading = headingOf(lx - x, lz - z) + GATHER.turn * Math.sin(k * 1.9 + 0.7);
+    const t = add(`pool-turtle-${k}`, 'turtle', new THREE.Vector3(x, heightAt(x, z), z), heading);
+    t.gather = { at: t.at.clone(), heading };
+    arrivals.push(t);
+    clear.push({ x, z, r: GATHER.lane[0], over: GATHER.low });
+  });
   arrivals.forEach((b, k) => { b.cheerDelay = ((k * 0.618034) % 1) * CHEER.spread; }); // not in rows: here and there along the bank
   let cheerAt = null; // the game second they cheer from (life.cheer)
 
@@ -507,6 +514,18 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       for (const name in frames) b.morphs[name] += frames[name] * w;
     };
     const up = period => smooth(1.5 * Math.sin((TAU * clock) / period + b.phase) - 0.3); // head up some of the time
+    if (b.kind === 'turtle') {
+      const stretch = smooth(1.4 * Math.sin((TAU * clock) / 8.5 + b.phase) - 0.35);
+      const look = Math.max(0, Math.sin((TAU * clock) / 6.2 + 1.7 * b.phase)) ** 2;
+      if ('stretch' in b.morphs) {
+        b.morphs.stretch = 0.75 * stretch;
+        b.morphs.look = look * (1 - 0.5 * stretch);
+      } else {
+        b.morphs.hide = -0.6 * stretch;
+        b.morphs.look = look * (1 - stretch) + 0.5 * stretch;
+      }
+      return;
+    }
     if (b.kind === 'grasbitur') {
       const w = up(GATHER.graze);
       blend('graze', clock, 1 - w);
@@ -754,6 +773,10 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
         break;
       case 'flugdyr':
         flyerPose(b, ft, clock);
+        break;
+      case 'turtle':
+        if (ft !== null || !arrived) { b.visible = false; break; }
+        standing(b, clock);
         break;
       case 'bird':
         if (b.flock) { flocking(b, ft, clock); break; }

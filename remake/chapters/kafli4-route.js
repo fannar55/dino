@@ -27,7 +27,7 @@ export const LEAP = 3.5;
 export const STILLS = [
   ['belowTakeOff', 3, 8, {}],
   ['waterLevel', 25, 28.3, {}],
-  ['waterLevel', 51, 54.5, {}],
+  ['waterLevel', 51, 53.6, {}],
   ['mosiBank', 57.5, 63, {}],
   ['bankShadow', 63, 68, { group: 'lizards-2' }],
   ['gorgeHigh', 90.5, 96, {}],
@@ -132,6 +132,7 @@ export const FAR_POOL = {
       [56, 43], [31, 37], [32, 40], [30, 42], [34, 42], [37, 43], [32, 44], [29, 45], [33, 58], [27, 36],
       [64, 40], [66, 42], [25, 43], [62, 43], [59, 44], [27, 52], [15, 36], [19, 36], [23, 36], [15, 39],
     ].map(([a, d]) => [...around(a, d), 'lizard']),
+    ...[[61, 34.5], [63, 36.5], [32, 35.5], [30, 37.5]].map(([a, d]) => [...around(a, d), 'turtle']),
   ],
 };
 
@@ -291,7 +292,7 @@ const GROUPS = [
   ['lizards-1', 'lizards', 330, -1, 3], // drinking at the edge
   ['birds-1', 'birds', 400, 1, 6], // in a tree by the water
   ['frogs-2', 'frogs', 470, -1, 2], // lilies float only on the calm reach, below the rapids (river.js RAPIDS.from, d 509)
-  ['turtles', 'turtle', 540, 1, 1.5], // on a stone and a log, called before Mosi's run (d 585 to 617) and his line (59.8 s)
+  ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after waterLevel[1] and before Mosi's run (d 585 to 617)
   ['birds-2', 'birds', 665, -1, 6], // called just after his line; they fly up at the end of his shot
   ['lizards-2', 'lizards', 724, 1, 3], // the shadow shot's (chapters/kafli4-flight.js)
   ['dragonflies', 'dragonflies', 785, -1, -3], // over the water

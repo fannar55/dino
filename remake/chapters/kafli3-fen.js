@@ -43,9 +43,9 @@ export const PICK_LOOK = { yaw: [-70, 70], pitch: [-12, 16] };
 // above the ground, or the water (`water`).
 export const FEN_CRITTERS = [
   { name: 'fen-bird', kind: 'earlyBird', at: [5.4, 8.0], up: 0, heading: 150 },
-  { name: 'fen-turtle', kind: 'turtle', at: [17.7, -13.5], up: 0, heading: -150 },
+  { name: 'fen-turtle', kind: 'turtle', at: [13.2, -10.4], up: 0, heading: -145, scale: 1.8 },
   { name: 'fen-fish', kind: 'fish', at: [16.5, -15.4], up: 0, water: true, heading: 10 },
-  { name: 'fen-frog', kind: 'frog', at: [11.0, -14.25], up: 0, heading: 10, again: true },
+  { name: 'fen-frog', kind: 'frog', at: [11.0, -14.25], up: 0, heading: 10, scale: 1.6, again: true },
 ];
 
 // The sound each of the chapter's animals makes when it reacts (engine/audio/fen-sounds.js, and chapter 1's frog): the Fen's four
@@ -60,8 +60,9 @@ export const CRITTER_SOUNDS = { earlyBird: 'earlyBird', dragonfly: 'dragonfly', 
 export function fenAnimals(s, c) {
   const { world } = c;
   const ground = (x, z) => world.heightAt(x, z);
-  const spots = FEN_CRITTERS.map(({ name, kind, at: [x, z], up, water, heading }) => ({
-    name, kind, heading, position: [x, (water ? world.forest?.water?.level ?? ground(x, z) : ground(x, z)) + up, z],
+  const spots = FEN_CRITTERS.map(({ name, kind, at: [x, z], up, water, heading, scale }) => ({
+    name, kind, heading, ...(scale ? { scale } : {}),
+    position: [x, (water ? world.forest?.water?.level ?? ground(x, z) : ground(x, z)) + up, z],
   }));
   const critters = createCritters(world, { spots, ripple: (point, strength) => c.ring(point, strength) });
   const unhear = critters.targets.map(t => {

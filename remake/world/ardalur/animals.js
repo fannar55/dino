@@ -37,7 +37,7 @@ import { splash } from '../props/splash.js';
 
 /** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s (and
  * on an upright tablet too, where the same view is 800 px wide, not 1280: kafli4's chase test). */
-export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 4.5, salamander: 4, smaedla: 1.5, bird: 7 };
+export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 5.5, salamander: 4, smaedla: 1.5, bird: 7 };
 const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle: 'turtle', lizards: 'salamander' };
 
 /** The owner's small lizard (his Tripo3D model, 0.8 m long at scale 1), as tools/prep-crowd.mjs bakes it. */
@@ -86,7 +86,7 @@ export async function loadCritters(world) {
 // `near` + `fade`; its look clip from its first frame to `frame`, the head up.
 const LOOK = { near: 16, fade: 10, frame: 5 };
 /** How long each group's answer lasts, in seconds: then it is on its way to the festival, out of sight (the dragonflies home again). */
-export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 4, dragonflies: 10 };
+export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 7, dragonflies: 10 };
 /** The kinds whose answer's last pose is their rest from then on (gone): all but the dragonflies, which come home. */
 const STAY = new Set(['frogs', 'lizards', 'birds', 'turtle']);
 const RADIUS = 4; // metres: a group's tap target, wide (spec 6)
@@ -106,7 +106,14 @@ const LAYOUT = {
     { along: -3.8, e: 0.35 }, { along: -1.9, e: 0.3 }, { along: 0, e: 0.4 }, { along: 1.9, e: 0.3 }, { along: 3.8, e: 0.35 },
     { along: -3.0, e: 2.4 }, { along: -1.0, e: 3.0 }, { along: 1.0, e: 2.6 }, { along: 3.0, e: 3.2 }, { along: 0.1, e: 4.2 },
   ],
-  turtle: [{ along: -2.25, e: 1.1, on: 0 }, { along: 1.5, e: 1.6, on: 1 }, { along: 3.45, e: 1.6, on: 1 }],
+  turtle: [
+    { along: -3.2, e: 1.85, on: 0 },
+    { along: -1.4, e: 2.2, on: 1 },
+    { along: -0.05, e: 2.2, on: 1 },
+    { along: 1.8, e: 1.9, on: 2 },
+    { along: 2.85, e: 2.25, on: 3 },
+    { along: 4.15, e: 2.25, on: 3 },
+  ],
   dragonflies: [
     { along: -2.4, e: -3.2, up: 1.0 }, { along: -1.0, e: -2.4, up: 1.6 }, { along: 0.3, e: -3.6, up: 1.2 },
     { along: 1.4, e: -2.8, up: 0.9 }, { along: 2.6, e: -3.4, up: 1.5 }, { along: 3.8, e: -2.6, up: 1.3 },
@@ -119,7 +126,12 @@ const LAYOUT = {
 const PROPS = {
   // small pads hugging the bank, 3 m clear of her lane at its widest steer where the river is narrowest (d 470)
   frogs: LAYOUT.frogs.map((m, i) => ({ name: 'waterLily', variant: i % 6, along: m.along, e: m.e, scale: 2.2 })),
-  turtle: [{ name: 'rock', variant: 1, along: -2.25, e: 1.1, scale: 1.5 }, { name: 'log', variant: 0, along: 2.5, e: 1.6, scale: 1.4, lengthwise: true }],
+  turtle: [
+    { name: 'rock', variant: 1, along: -3.2, e: 1.85, scale: 1.55 },
+    { name: 'log', variant: 0, along: -0.6, e: 2.2, scale: 1.45, lengthwise: true },
+    { name: 'rock', variant: 0, along: 1.8, e: 1.9, scale: 1.45 },
+    { name: 'log', variant: 1, along: 3.5, e: 2.25, scale: 1.4, lengthwise: true },
+  ],
   birds: [{ name: 'broadleaf', along: 0, e: 7, scale: 0.65 }], // its variant: which of the groups of birds it is
 };
 const CLEAR = { log: 2.2, rock: 1.2, broadleaf: 2.0 }; // metres round a prop where nothing else grows (else 0.9)
@@ -145,8 +157,8 @@ export const IN = { frogs: { size: 0.4 }, turtle: { size: 0.55, at: 0.55 }, fres
 // The birds: up out of the crown and to her (`rise`), with her (`with`), at the dragonflies' places round her `spread` wider, then
 // off up and inland (`peel`), out of sight at `gone`.
 const FLY = { stagger: 0.08, hop: 2.5, rise: 1.2, with: 4.0, peel: 2.0, gone: 7.2, beat: 7, spread: 1.4, over: 1.5 };
-// The turtles: stretch their necks, then from `from` slide `seconds` off into the river, and are under at `gone`.
-const SLIDE = { from: 1.6, seconds: 1.5, to: -0.6, gone: 3.3, stagger: 0.2 };
+// The turtles: stretch their necks, slide `seconds` off into the river, swim upstream on the surface, and dive under at `gone`.
+const SLIDE = { from: 1.5, seconds: 1.3, to: -0.9, swim: 1.35, gone: 5.5, stagger: 0.16 };
 
 /**
  * A tree prop's crown where the plants' batcher puts it (world/forest/batch.js): its middle, half-width and half-height, from the
@@ -360,12 +372,26 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         squash(m, 1, 1 + 0.012 * Math.sin((TAU * t) / 3.2 + p), 1);
         if (u === null || u <= SLIDE.from) break;
         if (u >= SLIDE.gone) { m.visible = false; break; } // under: on its way along the riverbed
-        // off its stone or log, nose down, into the river
-        const a = smooth((u - SLIDE.from) / SLIDE.seconds);
-        const at = spot(m.d, m.side, m.along, m.e + (SLIDE.to - m.e) * a);
-        m.position.set(at.x, Math.max(m.home.y + (at.level - m.home.y) * a, heightAt(at.x, at.z), at.level), at.z);
-        m.heading = lerpAngle(m.rest, headingOf(-at.out[0], -at.out[1]), smooth((u - SLIDE.from) / 0.4));
-        m.pitch = -0.3 * Math.sin(Math.PI * a);
+        if (u < SLIDE.from + SLIDE.seconds) {
+          // off its stone or log, nose down, into the river
+          const a = smooth((u - SLIDE.from) / SLIDE.seconds);
+          const at = spot(m.d, m.side, m.along, m.e + (SLIDE.to - m.e) * a);
+          m.position.set(at.x, Math.max(m.home.y + (at.level - m.home.y) * a, heightAt(at.x, at.z), at.level), at.z);
+          m.heading = lerpAngle(m.rest, headingOf(-at.out[0], -at.out[1]), smooth((u - SLIDE.from) / 0.4));
+          m.pitch = -0.3 * Math.sin(Math.PI * a);
+        } else {
+          // swimming upstream on the surface before diving
+          const s = u - SLIDE.from - SLIDE.seconds;
+          const at = spot(m.d, m.side, m.along + SLIDE.swim * s, SLIDE.to);
+          const toRiver = headingOf(-at.out[0], -at.out[1]);
+          m.position.set(at.x, Math.max(at.level, heightAt(at.x, at.z)), at.z);
+          m.heading = lerpAngle(toRiver, headingOf(at.dir[0], at.dir[1]), smooth(s / 0.5));
+          const paddle = 0.35 + 0.4 * (0.5 + 0.5 * Math.sin(TAU * 1.8 * s + p));
+          if (hasStretch) m.morphs.stretch = paddle;
+          else m.morphs.hide = -0.45 * paddle;
+          m.morphs.look = 0.25 * Math.sin(TAU * 0.9 * s + p) ** 2;
+          m.pitch = 0.06 * Math.sin(TAU * 1.8 * s);
+        }
         break;
       }
       case 'birds': {
@@ -529,7 +555,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         splashFrame(g, m, k, tau);
         if (m.visible) crowds.place(m.kind, m.position, m.heading, m.scale, m); // a member is its own pose: morphs, wings, pitch, squash
       });
-      if (g.handle && !g.handle.done && tau >= ANSWER[g.kind]) g.handle.finish();
+      if (g.handle && !g.handle.done && tau >= ANSWER[g.kind] - 1e-6) g.handle.finish();
     }
     if (own) crowds.end();
   }

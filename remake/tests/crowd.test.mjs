@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { createCrowds } from '../world/critters/crowd.js';
 import { createModel } from '../world/critters/models.js';
 import { clipPose, crowdModelFrom } from '../world/critters/crowd-models.js';
+import { pickQuality } from '../engine/quality.js';
+import { createForestLife } from '../world/forest/life.js';
 import { loadGlb } from './glb.mjs';
 
 const world = () => ({ scene: new THREE.Scene() });
@@ -561,4 +563,110 @@ test('the snail, beetle, turtle and songbird are baked within budget with morphs
   assert.ok(fine.material.userData.wingShader, 'crowds wraps baked winged GLBs in birdMaterial');
   assert.ok(fine.geometry.hasAttribute('aFlight') && coarse.geometry.hasAttribute('aFlight'), 'both LODs receive aFlight');
   crowds.dispose();
+});
+
+test('Android quality auto-tuning caps pixel ratio at 1x and chooses low on <=3 GB tablets', () => {
+  const androidTablet = { userAgent: 'Mozilla/5.0 (Linux; Android 13; SM-X200)', deviceMemory: 4 };
+  const qTablet = pickQuality(new URLSearchParams(), androidTablet);
+  assert.equal(qTablet.name, 'tablet');
+  assert.equal(qTablet.maxScale, 1, 'Android caps resolution scale at 1x unless overridden');
+
+  const androidLowMem = { userAgent: 'Mozilla/5.0 (Linux; Android 12; Lenovo TB-X306F)', deviceMemory: 3 };
+  const qLow = pickQuality(new URLSearchParams(), androidLowMem);
+  assert.equal(qLow.name, 'low', 'Android with <=3 GB RAM selects low preset');
+  assert.equal(qLow.maxScale, 1);
+
+  const overridden = pickQuality(new URLSearchParams('quality=high&resolutionCap=1.5'), androidLowMem);
+  assert.equal(overridden.name, 'high');
+  assert.equal(overridden.maxScale, 1.5);
+});
+
+test('crowds skip shadow-map rendering when castShadow is false and only upload morphs when weights change', () => {
+  const crowds = createCrowds(world(), { castShadow: false, groundAt: () => 0 });
+  crowds.reserve('turtle', 4);
+  crowds.ready();
+  const mesh = meshOf(crowds, 'turtle');
+  assert.equal(mesh.castShadow, false, 'skips shadow pass');
+
+  const cam = camera();
+  crowds.begin(cam);
+  crowds.end();
+  assert.equal(mesh.visible, false, 'hidden while count is 0');
+  crowds.begin(cam);
+  crowds.place('turtle', new THREE.Vector3(0, 0, -6), 0, 1.5, { morphs: { hide: 0, look: 0.4 } });
+  crowds.end();
+  assert.equal(mesh.visible, true);
+  assert.equal(crowds.shades.visible, true, 'ground contact shadow replaces shadow-map pass');
+  const v1 = mesh.morphTexture.version;
+
+  // Identical frame: morphTexture version must NOT increment
+  crowds.begin(cam);
+  crowds.place('turtle', new THREE.Vector3(0, 0, -6), 0, 1.5, { morphs: { hide: 0, look: 0.4 } });
+  crowds.end();
+  assert.equal(mesh.morphTexture.version, v1, 'morphTexture skipped when weights are unchanged');
+
+  // Changed weight: morphTexture version MUST increment
+  crowds.begin(cam);
+  crowds.place('turtle', new THREE.Vector3(0, 0, -6), 0, 1.5, { morphs: { hide: 0.5, look: 0.1 } });
+  crowds.end();
+  assert.ok(mesh.morphTexture.version > v1, 'morphTexture uploads when a morph weight changes');
+  crowds.dispose();
+});
+
+test('forest life populates woodland clearings and wetlands with baked low-poly critters within budget', async () => {
+  const loaderWorld = () => ({
+    scene: new THREE.Scene(),
+    actors: new Map(),
+    camera: (() => {
+      const c = new THREE.PerspectiveCamera(46, 1.6, 0.1, 300);
+      c.position.set(0, 2, 12);
+      c.lookAt(0, 0.5, 0);
+      c.updateMatrixWorld();
+      return c;
+    })(),
+    loadModel: url => loadGlb(new URL(url)),
+  });
+
+  // 1. Woodland clearing
+  const wForest = loaderWorld();
+  const forestLife = createForestLife(wForest, {
+    seed: 11,
+    layout: { clearing: { center: [0, 0], radius: 11 } },
+    terrain: { heightAt: () => 0 },
+    placements: [
+      { name: 'broadleaf', x: -8, y: 0, z: -4, scale: 1 },
+      { name: 'rock', x: 5, y: 0, z: 2, scale: 1 },
+      { name: 'log', x: -4, y: 0, z: 3, scale: 1 },
+    ],
+  });
+  await forestLife.loaded;
+  forestLife.update(1 / 30, 2.5);
+  assert.ok(forestLife.counts.bird >= 6 && forestLife.counts.lizard >= 4, 'birds and lizards in woodland clearing');
+  assert.ok(forestLife.counts.beetle >= 2 && forestLife.counts.snail >= 2, 'beetles and snails near cover');
+  assert.ok(forestLife.crowds.calls() <= 6 && forestLife.crowds.triangles() <= 12000);
+  forestLife.dispose();
+
+  // 2. Wetland with water shape & lily pads
+  const wFen = loaderWorld();
+  const shape = { signedAt: (x, z) => Math.hypot(x, z + 2) - 10, pools: [{ at: [0, -2], rx: 10, rz: 10, rot: 0 }] };
+  let ripples = 0;
+  const fenLife = createForestLife(wFen, {
+    seed: 31,
+    layout: { biome: 'fen', clearing: { center: [0, 0], radius: 14 }, water: { level: 0, shape } },
+    terrain: { heightAt: (x, z) => (shape.signedAt(x, z) < 0 ? -0.35 : 0.22) },
+    water: { shape, level: 0, rippleAt: () => { ripples++; } },
+    placements: [
+      { name: 'waterLily', x: -1.5, y: 0.01, z: -1.5, scale: 1.2 },
+      { name: 'waterLily', x: 1.2, y: 0.01, z: -2.2, scale: 1.2 },
+      { name: 'swampConifer', x: -9, y: 0.22, z: -5, scale: 1 },
+      { name: 'rock', x: 6.5, y: 0.22, z: 1.5, scale: 1.1 },
+    ],
+  });
+  await fenLife.loaded;
+  for (let i = 0; i < 120; i++) fenLife.update(0.05, i * 0.05);
+  assert.ok(fenLife.counts.turtle >= 4 && fenLife.counts.frog >= 6, 'basking turtles and frogs in wetlands');
+  assert.ok(fenLife.counts.dragonfly >= 4 && fenLife.counts.flyer >= 1, 'dragonflies and overhead flyers in wetlands');
+  assert.ok(ripples >= 1, 'hopping wetland frogs ripple the water');
+  assert.ok(fenLife.crowds.calls() <= 8 && fenLife.crowds.triangles() <= 15000);
+  fenLife.dispose();
 });

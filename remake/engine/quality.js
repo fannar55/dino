@@ -22,8 +22,14 @@ export const PRESETS = {
   },
 };
 
-export function pickQuality(params) {
-  const preset = PRESETS[params.get('quality')] || PRESETS.tablet;
+export function pickQuality(params, nav = globalThis.navigator) {
+  const ua = nav?.userAgent ?? '';
+  const isAndroid = /Android/i.test(ua);
+  const lowMem = isAndroid && Number(nav?.deviceMemory) > 0 && Number(nav.deviceMemory) <= 3;
+  const preset = PRESETS[params.get('quality')] || (lowMem ? PRESETS.low : PRESETS.tablet);
   const cap = Number(params.get('resolutionCap'));
-  return Number.isFinite(cap) && cap >= 1 && cap <= 2 ? { ...preset, maxScale: cap } : preset;
+  if (Number.isFinite(cap) && cap >= 1 && cap <= 2) return { ...preset, maxScale: cap };
+  // Android tablets throttle thermally when dynamic resolution climbs to 1.25x (+56% pixels); cap native Android touch to 1.0x unless requested.
+  if (isAndroid && preset.maxScale > 1) return { ...preset, maxScale: 1 };
+  return preset;
 }

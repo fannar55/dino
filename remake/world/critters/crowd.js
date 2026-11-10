@@ -52,11 +52,11 @@ const SHADE_STRENGTH = 0.42; // the darkest, at its middle (the memory game's co
 const SHADE_FADE = [70, 150]; // m
 const SHADE_LIFT = 0.04; // m over the ground
 
-export function createCrowds(world, { parent = world.scene, seen = 160, inView = false, groundAt = null } = {}) {
+export function createCrowds(world, { parent = world.scene, seen = 160, inView = false, groundAt = null, castShadow = true } = {}) {
   const group = new THREE.Group();
   group.name = 'Crowds';
   parent?.add?.(group);
-  const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 });
+  const ground = new THREE.MeshLambertMaterial({ vertexColors: true });
   ground.name = 'crowds';
   const kinds = new Map(); // kind -> { model, material, capacity, levels: [{ mesh, until, triangles, n }], holder, flight, height }
   const meshes = [];
@@ -80,11 +80,14 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   let shade = null; // the shades under the critters (groundAt given): { mesh, strength, n }
 
   // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
-  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, wing = null, seen: reach = null } = {}) {
+  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, wing = null, seen: reach = null, castShadow: kindCast = castShadow } = {}) {
     if (built) throw new Error(`[crowds] reserve "${kind}" before the first begin()`);
     const k = kinds.get(kind);
     if (k) { k.capacity += count; return; }
-    kinds.set(kind, { model: model ?? (lods ? bakedModel(kind, lods, pivot, height, wing) : createModel(kind)), material, capacity: count, reach });
+    kinds.set(kind, {
+      model: model ?? (lods ? bakedModel(kind, lods, pivot, height, wing) : createModel(kind)),
+      material, capacity: count, reach, castShadow: Boolean(kindCast),
+    });
   }
 
   function build() {
@@ -112,16 +115,18 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
         mesh.name = level ? `${kind} far` : kind;
         mesh.userData = { kind, level };
         mesh.frustumCulled = false; // critters move: `count` keeps the cost to what is near
-        mesh.castShadow = true;
+        mesh.castShadow = k.castShadow;
         mesh.receiveShadow = true;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         // makes the morph texture, one row a critter, sized by the mesh's count (the capacity now)
         if (k.holder) mesh.setMorphAt(0, k.holder);
         mesh.count = 0;
-        const entry = { mesh, until, triangles, n: 0, casting: 0, still: 0 };
-        // the shadow pass draws the first `casting` instances, the main pass all `n`
-        mesh.onBeforeShadow = () => { mesh.count = entry.casting; };
-        mesh.onAfterShadow = () => { mesh.count = entry.n; };
+        const entry = { mesh, until, triangles, n: 0, casting: 0, still: 0, lastMorphs: null, lastMorphCount: -1 };
+        if (k.castShadow) {
+          // the shadow pass draws the first `casting` instances, the main pass all `n`
+          mesh.onBeforeShadow = () => { mesh.count = entry.casting; };
+          mesh.onAfterShadow = () => { mesh.count = entry.n; };
+        }
         meshes.push(mesh);
         group.add(mesh);
         return entry;
@@ -237,13 +242,13 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
       return -1;
     }
     // those that cast from the front of the level's instances, the others from its back (end() closes the gap)
-    let casts = true;
-    if (shadowing) {
+    let casts = k.castShadow;
+    if (casts && shadowing) {
       bounds.center.copy(k.castCentre).multiplyScalar(scale).add(position);
       bounds.radius = k.castRadius * scale + CAST_MARGIN;
       casts = shadowView.intersectsSphere(bounds);
     }
-    const i = casts ? level.casting++ : k.capacity - 1 - level.still++;
+    const i = k.castShadow ? (casts ? level.casting++ : k.capacity - 1 - level.still++) : level.n;
     level.n++;
     // T(position)·R(heading)·S(scale) · T(0, pivot, 0)·R_z(pitch)·S(squash)
     along.compose(position, turn.setFromAxisAngle(up, -heading * DEG), size.setScalar(scale));
@@ -332,17 +337,34 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
           if (k.flight) k.flight.array.copyWithin(casting * 2, from * 2, k.capacity * 2);
         }
         mesh.count = n;
-        mesh.castShadow = casting > 0;
-        if (!n) continue;
+        mesh.castShadow = k.castShadow && casting > 0;
+        if (!k.castShadow) mesh.visible = n > 0;
+        if (!n) { level.lastMorphCount = 0; continue; }
         mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.morphTexture) mesh.morphTexture.needsUpdate = true;
+        if (mesh.morphTexture) {
+          const rows = mesh.morphTexture.source.data.data;
+          const used = n * (rows.length / k.capacity);
+          let dirty = level.lastMorphCount !== n || !level.lastMorphs;
+          if (!dirty) {
+            for (let j = 0; j < used; j++) if (Math.abs(rows[j] - level.lastMorphs[j]) > 1e-6) { dirty = true; break; }
+          }
+          if (dirty) {
+            level.lastMorphs ??= new Float32Array(rows.length);
+            level.lastMorphs.set(rows.subarray(0, used));
+            level.lastMorphCount = n;
+            mesh.morphTexture.needsUpdate = true;
+          }
+        }
         if (k.flight) k.flight.needsUpdate = true;
       }
     }
     if (shade) {
       shade.mesh.count = shade.n;
-      shade.mesh.instanceMatrix.needsUpdate = true;
-      shade.strength.needsUpdate = true;
+      shade.mesh.visible = shade.n > 0;
+      if (shade.n > 0) {
+        shade.mesh.instanceMatrix.needsUpdate = true;
+        shade.strength.needsUpdate = true;
+      }
     }
   }
 

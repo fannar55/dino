@@ -1022,7 +1022,7 @@ function animalWorld() {
   return world;
 }
 const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'lizards-2', 'dragonflies', 'lizards-3'];
-const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 3, dragonflies: 6 };
+const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 6, dragonflies: 6 };
 
 test('nine animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
   const world = animalWorld();

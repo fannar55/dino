@@ -112,7 +112,7 @@ export function birdMaterial(kind = 'bird', { flight = null, map = null, vertexC
   const e = new THREE.Matrix4().makeRotationZ(folding.rotation[2]).multiply(new THREE.Matrix4().makeRotationX(folding.rotation[0])).elements;
   const fold = `mat3( ${[e[0], e[1], e[2], e[4], e[5], e[6], e[8], e[9], e[10]].map(v => v.toFixed(6)).join(', ')} )`;
   const [sx, sy, sz] = shoulder;
-  const material = new THREE.MeshStandardMaterial({ map, vertexColors, roughness: kind === 'dragonfly' ? 0.6 : 0.85, metalness: 0, side: THREE.DoubleSide });
+  const material = new THREE.MeshLambertMaterial({ map, vertexColors, side: THREE.DoubleSide });
   material.name = kind === 'bird' ? 'critter birds' : `critter ${kind}`;
   material.userData.wingShader = true;
   if (flight) material.userData.flight = flight;
@@ -365,7 +365,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
 
   const group = new THREE.Group();
   group.name = 'Critters';
-  const groundMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 });
+  const groundMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   groundMaterial.name = 'critters';
   const geometries = [];
   const materials = []; // the winged spots' own
@@ -736,9 +736,11 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       const baked = crowdModelFrom(gltf);
       const geo = baked.lods[0].geometry;
       if (baked.lods[1]) baked.lods[1].geometry.dispose();
-      const mat = baked.material.clone();
+      const mat = baked.material.map
+        ? new THREE.MeshLambertMaterial({ map: baked.material.map, color: baked.material.color })
+        : groundMaterial;
       geometries.push(geo);
-      materials.push(mat);
+      if (mat !== groundMaterial) materials.push(mat);
       for (const c of groupOfKind) {
         c.mesh.geometry = geo;
         c.mesh.material = mat;
