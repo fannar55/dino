@@ -1029,8 +1029,8 @@ export function createEittGame(doc, {
     const said = showAdvice(REAL.id, REAL.text, { stay: true });
     await wait(Math.max(MIN_STEP_MS, said * 1000 + 900));
     if (token !== round || !isOpen) return;
-    if (fjolspil) showSetup(); // with the page's host session the child picks: this tablet, or "Fjölspil"
-    else run(deal());
+    leaveMulti();
+    run(deal());
   }
 
   /** The tutorial from the start: its first deal, and Mosi's first step. */
@@ -1142,7 +1142,7 @@ export function createEittGame(doc, {
 
   function tapCard(id) {
     poke();
-    if (!childMoves()) return;
+    if (!childMoves() || (tutorial && talking)) return;
     if (tutorial?.live === 'check' && id !== tutorial.check) return wrongAnswer(id);
     if (tutorial && tutorial.live !== 'check' && tutorial.live !== id) return;
     const card = game.hands[CHILD].find(held => held.id === id);
@@ -1201,7 +1201,7 @@ export function createEittGame(doc, {
 
   async function chooseColour(colour) {
     wake();
-    if (!pendingWild || flying || !isOpen) return;
+    if (!pendingWild || flying || !isOpen || (tutorial && talking)) return;
     const token = round;
     const card = pendingWild;
     pendingWild = null;
@@ -1222,7 +1222,7 @@ export function createEittGame(doc, {
 
   async function tapDeck() {
     poke();
-    if (!childMoves() || (tutorial && tutorial.live !== 'deck')) return;
+    if (!childMoves() || (tutorial && (talking || tutorial.live !== 'deck'))) return;
     if (!canDraw(game, CHILD)) {
       nope(deckEl);
       if (!game.drew && !hinting) {
@@ -1255,7 +1255,7 @@ export function createEittGame(doc, {
   async function tapEitt() {
     wake();
     if (!isOpen || !game || game.winner !== null || ending) return;
-    if (tutorial && tutorial.live !== 'eitt') return;
+    if (tutorial && (talking || tutorial.live !== 'eitt')) return;
     if (game.unsaid === CHILD) {
       game = callEitt(game, CHILD);
       eittEl.classList.remove('needed');

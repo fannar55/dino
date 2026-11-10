@@ -1173,8 +1173,8 @@ export function createVeidduGame(doc, {
     await wait(Math.max(MIN_STEP_MS, said > 0 ? said * 1000 + 900 : lineMs(REAL.text)));
     if (token !== round || !isOpen) return;
     hideAdvice(true);
-    if (fjolspil) showSetup(); // with the page's host session the child picks: a round on this tablet, or "Fjölspil"
-    else run(deal());
+    multi?.leave();
+    run(deal());
   }
 
   /** The tutorial from the start: its stacked deck is dealt, and Mosi says the first step. */

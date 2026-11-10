@@ -273,7 +273,16 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     }
   }
 
-  button.addEventListener('click', () => openBook('animals', buttonBeckons ? 'script' : 'child'));
+  let tutorialTarget = null;
+  function lockTutorial(target = null) {
+    tutorialTarget = target;
+    book?.lockTutorial?.(target);
+  }
+
+  button.addEventListener('click', () => {
+    if (tutorialTarget !== null && tutorialTarget !== 'button') return;
+    openBook('animals', buttonBeckons || tutorialTarget === 'button' ? 'script' : 'child');
+  });
 
   render();
   badgeEl.hidden = true;
@@ -295,6 +304,8 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     beckonTab: tab => book?.beckonTab?.(tab),
     /** The journal button in the top-right corner beckons the child to tap it and reopen the book. */
     beckonButton,
+    lockTutorial,
+    playGame: (game, options) => book?.playGame?.(game, options) ?? null,
     get isOpen() { return book?.isOpen ?? false; },
     get tab() { return book?.tab ?? 'animals'; },
     get stars() { return save.get().stars; },

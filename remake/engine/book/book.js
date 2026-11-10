@@ -605,6 +605,29 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     onPlay?.('veiddu');
   }
 
+  /** Opens a minigame from a chapter script (`s.journal.playGame`), marking it seen in the book and returning the opened game. */
+  function playGame(game, options) {
+    const seen = game === 'hals' ? HALS_SEEN : game === 'yatzy-junior' ? JUNIOR_SEEN : game === 'minnisspil' ? MINNISSPIL_SEEN : game === 'veiddu' ? VEIDDU_SEEN : EITT_SEEN;
+    save.addSeen(seen);
+    render();
+    return onPlay?.(game, options) ?? null;
+  }
+
+  /**
+   * Locks or unlocks the book for a guided tutorial step (`target` is `'none'`, `'close'`, `'button'`, `'tab:<name>'`, `'game:<id>'`,
+   * or `null` to unlock). While locked, only the specified control responds to presses and stray taps inside the book never claim it.
+   */
+  let tutorialTarget = null;
+  function lockTutorial(target = null) {
+    tutorialTarget = target;
+    root._tutorialAllow = target === null ? null : el => {
+      if (target === 'close') return el === closeEl;
+      if (target.startsWith('tab:')) return el === ribbons.get(target.slice(4));
+      if (target.startsWith('game:')) return el.getAttribute?.('data-game') === target.slice(5);
+      return false;
+    };
+  }
+
   /** The card, the video player and what is zoomed are put away at once, as the book is shut or turns to another page. */
   function putCardAway() {
     zoom.close(true);
@@ -642,7 +665,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   /** The child touched a book a script opened: it is the child's now, and holds the game until it is shut. */
   function claim() {
-    if (!isOpen || holder !== 'script') return;
+    if (!isOpen || holder !== 'script' || tutorialTarget !== null) return;
     holder = 'child';
     pause(true);
   }
@@ -929,6 +952,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   pressable(minnisTile, { audio, sound: null, win, onTap: () => tapMinnisspil() });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
+    if (tutorialTarget !== null) return; // a locked book tutorial never pauses the scene or lets stray taps claim the book
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's
     if ([...ribbons.values()].some(r => r.classList.contains('beckon') && (event.target === r || r.contains?.(event.target)))) return; // tapping a beckoning ribbon in a script's tutorial keeps the book the script's
     claim();
@@ -946,6 +970,8 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     beckonTab(name = null) {
       for (const [key, ribbon] of ribbons) ribbon.classList.toggle('beckon', key === name);
     },
+    lockTutorial,
+    playGame,
     refresh: render,
     pictureOf,
     openCard,
@@ -955,6 +981,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     videoPlayer,
     zoom,
     get isOpen() { return isOpen; },
+    get isChildOpen() { return isOpen && holder === 'child'; },
     get tab() { return tab; },
     get spread() { return spreadNumbers[spreadIndex]; },
   };

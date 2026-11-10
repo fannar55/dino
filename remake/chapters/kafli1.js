@@ -486,10 +486,9 @@ function* upOnBack(s, c) {
   yield s.say('mosi', 'k1_mosi_hold');
 }
 
-// Seconds Mosi waits after asking the child to tap the butterfly on his horn before reminding them again.
+// Seconds Mosi waits after asking the child to tap the butterfly on his horn or a book tutorial control before reminding them again.
 const BUTTERFLY_REMIND_WAIT = 10;
-// Seconds each step of the book tutorial waits after Mosi's prompt before advancing by itself.
-const BOOK_STEP_WAIT = 4.5;
+const BOOK_REMIND_WAIT = 10;
 // Metres: the hero butterfly within this of the horn's point still sits on it.
 const ON_HORN = 0.35;
 // Seconds the butterfly's picture takes to fly into the book's button, and a moment to land (engine/scene/journal.js FLIGHT_SECONDS).
@@ -504,7 +503,8 @@ const BUTTERFLY_CLOSE = { position: { actor: 'egill', part: 'head', offset: [-0.
  * butterfly (or after 2 s in a capture's seeking mode). The tap sends it fluttering up and away and its picture into the book,
  * revealing the book button. Then the book opens on Dýrin, Mosi explains it and asks the child to tap X to close it, then tap the
  * book button in the corner to reopen it, and step through Risaeðlur, Myndbönd, Kortið and Leikir (where Mosi's Litla Yatzy awaits)
- * before closing the book with X to set off.
+ * before closing the book with X to set off. Throughout the tutorial, Mosi's speech finishes before each target becomes clickable,
+ * and every other control in the book is locked so the child is guided step by step without stray clicks pausing or leaving the flow.
  */
 function* butterflyIntoTheBook(s, c) {
   const { world, mosi } = c;
@@ -521,91 +521,123 @@ function* butterflyIntoTheBook(s, c) {
   if (!c.hornGlitter || c.hornGlitter.done) {
     c.hornGlitter = s.after(0, () => glitterHeroButterfly(s, c, out => world.resolvePoint(horn, out)));
   }
-  let tappedAt = null;
-  let tapped = false;
-  let promptLine = null;
-  s.target(HERO, { point: horn, radius: 0.75 });
-  const stopTap = s.onTap(HERO, tap => {
-    tappedAt = tap;
-    tapped = true;
-  });
-  try {
+
+  function* waitForStep({ line, target, beckon, done, seekAct }) {
+    s.journal.lockTutorial('none');
+    beckon(false);
+    yield s.say('mosi', line);
     if (s.seeking) {
-      yield s.say('mosi', 'k1_mosi_butterfly');
-      yield s.wait(2);
-    } else {
-      while (!tapped) {
-        promptLine = s.say('mosi', 'k1_mosi_butterfly');
-        yield s.race(s.until(() => tapped), (function* remind() {
-          yield s.until(() => promptLine.done);
-          yield s.wait(BUTTERFLY_REMIND_WAIT);
-        })());
+      s.journal.lockTutorial(target);
+      beckon(true);
+      try {
+        yield s.wait(1.5);
+      } finally {
+        beckon(false);
+        s.journal.lockTutorial('none');
       }
+      seekAct();
+      return;
     }
-    butterflies?.flutter?.(HERO);
-    sparkleBurst(world, world.resolvePoint(horn, hornAt).clone(), { count: 18, duration: 0.9, size: 0.32, spread: 0.45, seed: 'hero off' });
-    s.sfx('butterfly');
-    s.found('butterfly', tappedAt, { again: true });
-    c.bookIntroduced = true;
-  } finally {
-    stopTap();
-    s.target(HERO, null);
-    c.hornGlitter?.cancel();
-    c.hornGlitter = null;
+    while (!done()) {
+      s.journal.lockTutorial(target);
+      beckon(true);
+      try {
+        yield s.race(s.until(done), s.wait(BOOK_REMIND_WAIT));
+      } finally {
+        beckon(false);
+        s.journal.lockTutorial('none');
+      }
+      if (!done()) yield s.say('mosi', line);
+    }
   }
-  yield s.wait(INTO_THE_BOOK);
-  if (promptLine) yield s.until(() => promptLine.done);
-  const stepWait = () => (s.seeking ? 1.5 : BOOK_STEP_WAIT);
-  s.journal.open('animals');
-  yield s.say('mosi', 'k1_mosi_book');
-  s.journal.beckonClose(true);
-  try {
-    yield s.say('mosi', 'k1_mosi_book_close');
-    yield s.race(s.until(() => !s.journal.isOpen), s.wait(stepWait()));
-  } finally {
-    s.journal.beckonClose(false);
-  }
-  if (s.journal.isOpen) s.journal.close();
-  yield s.wait(0.4);
 
-  // Reopen the book using the top-right book button.
-  s.journal.beckonButton(true);
+  s.journal.lockTutorial('none');
   try {
-    yield s.say('mosi', 'k1_mosi_book_reopen');
-    yield s.race(s.until(() => s.journal.isOpen), s.wait(stepWait()));
-  } finally {
-    s.journal.beckonButton(false);
-  }
-  if (!s.journal.isOpen) s.journal.open('animals');
-
-  // Step through the book's tabs: Risaeðlur, Myndbönd, Kortið, and Leikir (Mosi's Litla Yatzy).
-  const tutorialTabs = [
-    ['dinosaurs', 'k1_mosi_book_dinos'],
-    ['videos', 'k1_mosi_book_videos'],
-    ['map', 'k1_mosi_book_map'],
-    ['games', 'k1_mosi_book_games'],
-  ];
-  for (const [tab, line] of tutorialTabs) {
-    if (!s.journal.isOpen) s.journal.open(tab);
-    s.journal.beckonTab(tab);
+    let tappedAt = null;
+    let tapped = false;
+    const stopTap = s.onTap(HERO, tap => {
+      tappedAt = tap;
+      tapped = true;
+    });
     try {
-      yield s.say('mosi', line);
-      yield s.race(s.until(() => s.journal.tab === tab), s.wait(stepWait()));
+      yield s.say('mosi', 'k1_mosi_butterfly');
+      if (s.seeking) {
+        s.target(HERO, { point: horn, radius: 0.75 });
+        yield s.wait(2);
+      } else {
+        while (!tapped) {
+          s.target(HERO, { point: horn, radius: 0.75 });
+          try {
+            yield s.race(s.until(() => tapped), s.wait(BUTTERFLY_REMIND_WAIT));
+          } finally {
+            s.target(HERO, null);
+          }
+          if (!tapped) yield s.say('mosi', 'k1_mosi_butterfly');
+        }
+      }
+      butterflies?.flutter?.(HERO);
+      sparkleBurst(world, world.resolvePoint(horn, hornAt).clone(), { count: 18, duration: 0.9, size: 0.32, spread: 0.45, seed: 'hero off' });
+      s.sfx('butterfly');
+      s.found('butterfly', tappedAt, { again: true });
+      c.bookIntroduced = true;
     } finally {
-      s.journal.beckonTab(null);
+      stopTap();
+      s.target(HERO, null);
+      c.hornGlitter?.cancel();
+      c.hornGlitter = null;
     }
-    if (s.journal.tab !== tab) s.journal.open(tab);
-  }
+    yield s.wait(INTO_THE_BOOK);
+    s.journal.open('animals');
+    yield s.say('mosi', 'k1_mosi_book');
+    yield* waitForStep({
+      line: 'k1_mosi_book_close',
+      target: 'close',
+      beckon: on => s.journal.beckonClose(on),
+      done: () => !s.journal.isOpen,
+      seekAct: () => s.journal.close(),
+    });
+    yield s.wait(0.4);
 
-  // Close the book with X to set off on the ride.
-  s.journal.beckonClose(true);
-  try {
-    yield s.say('mosi', 'k1_mosi_book_done');
-    yield s.race(s.until(() => !s.journal.isOpen), s.wait(stepWait()));
+    // Reopen the book using the top-right book button.
+    yield* waitForStep({
+      line: 'k1_mosi_book_reopen',
+      target: 'button',
+      beckon: on => s.journal.beckonButton(on),
+      done: () => s.journal.isOpen,
+      seekAct: () => s.journal.open('animals'),
+    });
+
+    // Step through the book's tabs: Risaeðlur, Myndbönd, Kortið, and Leikir (Mosi's Litla Yatzy).
+    const tutorialTabs = [
+      ['dinosaurs', 'k1_mosi_book_dinos'],
+      ['videos', 'k1_mosi_book_videos'],
+      ['map', 'k1_mosi_book_map'],
+      ['games', 'k1_mosi_book_games'],
+    ];
+    for (const [tab, line] of tutorialTabs) {
+      yield* waitForStep({
+        line,
+        target: `tab:${tab}`,
+        beckon: on => s.journal.beckonTab(on ? tab : null),
+        done: () => s.journal.tab === tab,
+        seekAct: () => s.journal.open(tab),
+      });
+    }
+
+    // Close the book with X to set off on the ride.
+    yield* waitForStep({
+      line: 'k1_mosi_book_done',
+      target: 'close',
+      beckon: on => s.journal.beckonClose(on),
+      done: () => !s.journal.isOpen,
+      seekAct: () => s.journal.close(),
+    });
   } finally {
     s.journal.beckonClose(false);
+    s.journal.beckonButton(false);
+    s.journal.beckonTab(null);
+    s.journal.lockTutorial(null);
   }
-  if (s.journal.isOpen) s.journal.close();
   yield s.wait(0.6);
 }
 
@@ -891,9 +923,10 @@ function* invitation(s, c) {
   // Kambeðla asks the child to play her card game, "Eitt!" (part 3), which her star has just opened in the book.
   yield kambedla.lookAt('egill.head', { weight: 0.7 });
   yield s.say('kambedla', 'k1_kambedla_play');
-  // Into the book, which opens over the glade on its games, where "Eitt!" waits, new, while Mosi wonders who is next.
+  // Into the book, which opens over the glade on its games, and straight into "Eitt!" in tutorial mode before Mosi wonders who is next.
   s.fade(0.45, 1.6);
   s.journal.open('games');
+  if (!s.seeking) yield s.journal.playGame('eitt', { tutorial: true });
   yield s.say('mosi', 'k1_mosi_next');
 }
 

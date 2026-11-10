@@ -543,10 +543,11 @@ function* atTheFarPool(s, c) {
   yield flugedla.lookAt(EGILL_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
   yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
   yield* say(s, c, 'flugedla', 'k4_flugedla_play');
-  // into the book, as chapter 1 ends: open on its games, where her game waits, new
+  // into the book, as chapter 1 ends: open on its games, and open her memory game
   mark(c, 'end');
   s.fade(0.45, 1.6);
   s.journal.open('games');
+  if (!s.seeking) yield s.journal.playGame('minnisspil');
   yield s.wait(BOOK_HOLD);
 }
 const FLOAT_DOWN = 2.6; // seconds Egill floats from her back onto the bank

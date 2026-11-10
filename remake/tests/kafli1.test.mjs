@@ -220,7 +220,7 @@ test('every required wait has an auto option for seeking: the chapter plays to i
 });
 
 test('no fail states: a child who never touches the screen is helped through every wait to the end', async () => {
-  const { task, stage, world, journal, captions, director, seen, added } = await ignoredByAChild();
+  const { task, stage, world, journal, book, captions, director, seen } = await ignoredByAChild();
   assert.equal(task.done, true, `the chapter was still waiting at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   const said = id => captions.filter(c => c.text === chapter.lines[id].text).length;
@@ -237,6 +237,7 @@ test('no fail states: a child who never touches the screen is helped through eve
   assert.equal(seen.trayRemoved.length, 3, 'each one left the tray by itself');
   assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'and each left his hands as she took it');
   assert.deepEqual(journal.stars, ['k1_kambedla'], 'the star flew to the book by itself');
+  assert.deepEqual(book.played, [['eitt', { tutorial: true }]], 'Kambeðla\'s invitation opens Eitt! in tutorial mode');
   assert.deepEqual(director.warnings, [], 'the hints and the waits keep the camera rules too');
   assert.ok(stage.s.time > (await unattended()).stage.s.time + 120, "and the waits were real ones, longer than a capture's");
 });

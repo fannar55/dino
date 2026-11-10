@@ -2449,3 +2449,43 @@ test('cards linked to an unlocked video show the card-video button and open the 
   assert.equal(book.videoPlayer.video.id, 'grannar');
   assert.ok(save.get().seen.includes('video:grannar'), 'watching from the card marks the video seen');
 });
+
+test('lockTutorial blocks stray clicks and prevents claiming the book during a tutorial, and playGame opens a game from the script', () => {
+  const { book, root, tap, ribbon, pauses, all } = rig();
+  const closeEl = all('book-close')[0];
+  book.open('animals', 'script');
+  assert.equal(book.isOpen, true);
+  assert.equal(book.isChildOpen, false);
+  assert.deepEqual(pauses, []);
+
+  // Lock everything ('none') while Mosi is speaking.
+  book.lockTutorial('none');
+  root.dispatchEvent(pointerEvent('pointerdown', { x: 100, y: 100 }));
+  tap(ribbon('dinosaurs'));
+  tap(closeEl);
+  assert.equal(book.isOpen, true, 'close is blocked while locked to none');
+  assert.equal(book.tab, 'animals', 'ribbon is blocked while locked to none');
+  assert.equal(book.isChildOpen, false, 'stray taps never claim the book while locked');
+  assert.deepEqual(pauses, []);
+
+  // Lock to 'tab:dinosaurs': only the dinosaurs ribbon responds.
+  book.lockTutorial('tab:dinosaurs');
+  tap(ribbon('videos'));
+  tap(closeEl);
+  assert.equal(book.tab, 'animals');
+  tap(ribbon('dinosaurs'));
+  assert.equal(book.tab, 'dinosaurs', 'the allowed ribbon turns the page');
+
+  // Lock to 'close': only X closes the book.
+  book.lockTutorial('close');
+  tap(ribbon('animals'));
+  assert.equal(book.tab, 'dinosaurs');
+  tap(closeEl);
+  assert.equal(book.isOpen, false, 'close works when locked to close');
+
+  // Unlock and test playGame.
+  const fen = fenRig({ fill: s => s.addStar('k1_kambedla') });
+  fen.book.open('games', 'script');
+  fen.book.playGame('eitt', { tutorial: true });
+  assert.ok(fen.save.get().seen.includes('eitt'), 'playGame marks the game seen');
+});

@@ -553,6 +553,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       beckonTab: tab => { needJournal('s.journal.beckonTab'); journal.beckonTab?.(tab); return DONE; },
       /** The corner book button beckons (on) while a script waits for the child to tap it, or stops (off). */
       beckonButton: on => { needJournal('s.journal.beckonButton'); journal.beckonButton?.(on); return DONE; },
+      /** Locks or unlocks the book and corner button to a single allowed tutorial target (`'none'`, `'close'`, `'button'`, `'tab:<name>'`, or `null`). */
+      lockTutorial: target => { needJournal('s.journal.lockTutorial'); journal.lockTutorial?.(target); return DONE; },
+      /** Opens a minigame from the book (`'eitt'`, `'veiddu'`, `'hals'`, `'yatzy-junior'`, `'minnisspil'`) and waits until the child closes it. */
+      playGame: (game, options) => {
+        needJournal('s.journal.playGame');
+        const active = journal.playGame?.(game, options);
+        return active?.isOpen ? until(() => !active.isOpen) : DONE;
+      },
       /**
        * The map in the journey (engine/book/map-moment.js), which a scene plays at a departure: `play(ids)` slides the map up over the
        * game and draws the named pieces, `close()` slides it away (scene/map-moment-scene.js times both beside Mosi's line).

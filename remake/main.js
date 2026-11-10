@@ -262,7 +262,11 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : game === 'minnisspil' ? minnisspil.open() : game === 'veiddu' ? veiddu.open(options) : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => {
+    const target = game === 'hals' ? hals : game === 'yatzy-junior' ? junior : game === 'minnisspil' ? minnisspil : game === 'veiddu' ? veiddu : eitt;
+    target.open(options);
+    return target;
+  }, // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
@@ -284,7 +288,7 @@ const fjolspil = createFjolspil(document, { audio: bookAudio });
 const eitt = createEittGame(document, {
   save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('eitt', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
@@ -295,7 +299,7 @@ const eitt = createEittGame(document, {
 const veiddu = createVeidduGame(document, {
   save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('veiddu', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
@@ -304,7 +308,7 @@ const veiddu = createVeidduGame(document, {
 // the chapter held meanwhile as for the other games.
 const junior = createJuniorFrame(document, {
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('yatzy-junior', paused);
   },
   onClose: () => book.refresh(),
@@ -314,7 +318,7 @@ const minnisspil = createJuniorFrame(document, {
   src: './minnisspil.html?inbook=1',
   label: 'Saman getum við það!',
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('minnisspil', paused);
   },
   onClose: () => book.refresh(),
@@ -325,7 +329,7 @@ const minnisspil = createJuniorFrame(document, {
 const hals = createHalsGame(document, {
   save, renderer, q, params, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('hals', paused);
   },
   onClose: () => {

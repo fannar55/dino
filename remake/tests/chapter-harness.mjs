@@ -190,7 +190,7 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
 /** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened (and which tile it was asked to nod), and no pictures to fly. */
 export function fakeBook() {
   return {
-    opened: [], nods: [], isOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null,
+    opened: [], nods: [], played: [], isOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null, lockedTutorial: null,
     open(tab, by, options) {
       this.opened.push([tab, by]);
       this.nods.push(options?.nod ?? null);
@@ -205,6 +205,11 @@ export function fakeBook() {
     },
     beckonClose(on = true) { this.beckoningClose = Boolean(on); },
     beckonTab(tab = null) { this.beckoningTab = tab; },
+    lockTutorial(target = null) { this.lockedTutorial = target; },
+    playGame(game, options) {
+      this.played.push([game, options]);
+      return null;
+    },
     refresh() {},
     pictureOf: () => null,
   };
@@ -570,7 +575,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   let choicesUp = null;
   let bookBeckonSince = null;
   let asked = false;
-  function eagerChild(t) {
+  function stepBookTutorial(t) {
     if (!mosi.talking) {
       if (book.beckoningClose) {
         bookBeckonSince ??= t;
@@ -596,6 +601,9 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     } else {
       bookBeckonSince = null;
     }
+  }
+  function eagerChild(t) {
+    stepBookTutorial(t);
     if (!choicesEl.hidden && choicesEl.children.length) {
       choicesUp ??= t;
       if (t - choicesUp > 1.2) {
@@ -669,18 +677,18 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     }
   }
 
-  // The butterfly on Mosi's horn in scene 5 requires a click to start the book tutorial: in non-seeking, non-eager headless runs,
-  // tap it after Mosi's prompt and reminder (16 s) so full-chapter simulations can continue past the mandatory tutorial gate.
+  // The butterfly on Mosi's horn and the book tutorial in scene 5 require clicks: in non-seeking, non-eager headless runs,
+  // tap the butterfly after Mosi's prompt and reminder (15 s after the target first appears) and step through the beckoning
+  // book controls so full-chapter simulations can continue past the mandatory tutorial gate.
   let heroSince = null;
   function mandatoryButterflyTap(t) {
-    if (!pointer.targets.has('butterfly-hero')) {
-      heroSince = null;
-      return;
-    }
-    heroSince ??= t;
-    if (t - heroSince >= 16 - 1e-9) {
-      pointer.tap('butterfly-hero');
-      heroSince = null;
+    stepBookTutorial(t);
+    if (pointer.targets.has('butterfly-hero')) {
+      heroSince ??= t;
+      if (t - heroSince >= 15 - 1e-9) {
+        pointer.tap('butterfly-hero');
+        heroSince = null;
+      }
     }
   }
 
