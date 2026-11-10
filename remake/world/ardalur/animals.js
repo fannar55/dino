@@ -48,17 +48,22 @@ export const GRASBITUR_MODEL = new URL('../../assets/critters/grasbitur.glb', im
 export const FLUGDYR_MODEL = new URL('../../assets/critters/flugdyr.glb', import.meta.url).href;
 /** The owner's frog (0.22 m long at scale 1), as tools/prep-frog.mjs bakes it: leap, crouch, breathe. */
 export const FROSKUR_MODEL = new URL('../../assets/critters/froskur.glb', import.meta.url).href;
+/** The owner's turtle (0.36 m long at scale 1), as tools/prep-critter.mjs bakes it: hide, look, stretch. */
+export const SKJALDBAKA_MODEL = new URL('../../assets/critters/skjaldbaka.glb', import.meta.url).href;
+/** The owner's songbird (0.30 m across its spread wings at scale 1), as tools/prep-critter.mjs bakes it with `_WING` tags. */
+export const FUGL_MODEL = new URL('../../assets/critters/fugl.glb', import.meta.url).href;
 const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
 /**
- * The valley's baked critters: { smaedla, grasbitur, flugdyr, froskur } as crowd models (world/critters/crowd-models.js), read through
- * world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out and the
- * chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
- * flyers (life.js), without the frog the procedural frog stands in.
+ * The valley's baked critters: { smaedla, grasbitur, flugdyr, froskur, skjaldbaka, fugl } as crowd models (world/critters/crowd-models.js),
+ * read through world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out
+ * and the chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
+ * flyers (life.js), and without the frog, turtle or bird their procedural meshes stand in.
  */
 export async function loadCritters(world) {
   const files = [
     ['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd'],
     ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'], ['froskur', FROSKUR_MODEL, 'the procedural frog stands in'],
+    ['skjaldbaka', SKJALDBAKA_MODEL, 'the procedural turtle stands in'], ['fugl', FUGL_MODEL, 'the procedural bird stands in'],
   ];
   const loaded = await Promise.all(files.map(async ([name, url, without]) => {
     try {
@@ -161,18 +166,19 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
   const own = !crowds;
   crowds ??= createCrowds(world);
   const baked = critters.smaedla ?? null;
-  const bakedFrog = critters.froskur ?? null;
+  const bakedKinds = {
+    smaedla: baked,
+    frog: critters.froskur ?? null,
+    turtle: critters.skjaldbaka ?? null,
+    bird: critters.fugl ?? null,
+  };
   const memberOf = kind => (kind === 'lizards' && baked ? 'smaedla' : MEMBER[kind]);
   const models = {};
   const modelOf = kind => (models[kind] ??= (() => {
-    if (kind === 'smaedla') {
-      // the frames' names, as the crowd draws them (the same in both levels), and its height standing
-      const morphs = (baked.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
-      return { morphs, height: baked.height, wings: false };
-    }
-    if (kind === 'frog' && bakedFrog) {
-      const morphs = (bakedFrog.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
-      return { morphs, height: bakedFrog.height, wings: false };
+    const bakedKind = bakedKinds[kind];
+    if (bakedKind) {
+      const morphs = (bakedKind.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
+      return { morphs, height: bakedKind.height, wings: Boolean(bakedKind.wing) };
     }
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
@@ -252,7 +258,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         along: g.kind === 'birds' ? 0 : m.along, e: g.kind === 'birds' ? PROPS.birds[0].e : m.e, d, side, phase: k * 1.37 + d * 0.01,
       };
     });
-    crowds.reserve(kind, members.length, kind === 'smaedla' ? baked : (kind === 'frog' && bakedFrog) ? bakedFrog : { model });
+    crowds.reserve(kind, members.length, bakedKinds[kind] ?? { model });
     const point = crown ? crown.middle.clone() : members.reduce((sum, m) => sum.add(m.home), new THREE.Vector3()).divideScalar(members.length);
     const entry = {
       id: g.id, kind: g.kind, point, radius: crown ? Math.max(RADIUS, crown.r) : RADIUS, members, answered: false, start: null, handle: null,
@@ -342,8 +348,14 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         const u = tau === null ? null : tau - k * SLIDE.stagger;
         const stretch = u === null ? 0 : envelope(u, 0.6, 0.6, 0.4);
         const look = Math.max(0, Math.sin((TAU * t) / 9 + p)) ** 2;
-        m.morphs.look = look * (1 - stretch) + 0.6 * stretch;
-        m.morphs.hide = -0.75 * stretch;
+        const hasStretch = 'stretch' in m.morphs;
+        m.morphs.look = look * (1 - stretch) + (hasStretch ? 0 : 0.6 * stretch);
+        if (hasStretch) {
+          m.morphs.stretch = stretch;
+          m.morphs.hide = 0;
+        } else {
+          m.morphs.hide = -0.75 * stretch;
+        }
         m.pitch = 0.12 * stretch;
         squash(m, 1, 1 + 0.012 * Math.sin((TAU * t) / 3.2 + p), 1);
         if (u === null || u <= SLIDE.from) break;

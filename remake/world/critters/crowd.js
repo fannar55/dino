@@ -16,7 +16,7 @@ const trianglesOf = geometry => (geometry.index ? geometry.index.count : geometr
  * A baked model's levels as the crowd keeps a kind's model: the frames' names (the same in every level), pivot, triangles, and
  * its height standing at rest (three's bounding box would take in every frame).
  */
-function bakedModel(kind, lods, pivot, height) {
+function bakedModel(kind, lods, pivot, height, wing = null) {
   const namesOf = geometry => (geometry.morphAttributes.position ?? []).map(a => a.name);
   const morphs = namesOf(lods[0].geometry);
   for (const level of lods) {
@@ -25,7 +25,8 @@ function bakedModel(kind, lods, pivot, height) {
   const levels = lods.map(({ geometry, until = Infinity }) => ({ geometry, until, triangles: trianglesOf(geometry) }));
   const rest = new THREE.Box3().setFromBufferAttribute(lods[0].geometry.getAttribute('position'));
   height ??= rest.max.y - rest.min.y;
-  return { geometry: lods[0].geometry, morphs, pivot, height, triangles: levels[0].triangles, wings: 0, levels };
+  const wings = lods[0].geometry.hasAttribute('aWing') ? 2 : 0;
+  return { geometry: lods[0].geometry, morphs, pivot, height, triangles: levels[0].triangles, wings, wing, levels };
 }
 
 // `inView`: a critter the camera's view cannot show, nor its shadow (SHADOW_REACH times its height past the view's edge), is not
@@ -79,26 +80,33 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   let shade = null; // the shades under the critters (groundAt given): { mesh, strength, n }
 
   // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
-  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, seen: reach = null } = {}) {
+  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, wing = null, seen: reach = null } = {}) {
     if (built) throw new Error(`[crowds] reserve "${kind}" before the first begin()`);
     const k = kinds.get(kind);
     if (k) { k.capacity += count; return; }
-    kinds.set(kind, { model: model ?? (lods ? bakedModel(kind, lods, pivot, height) : createModel(kind)), material, capacity: count, reach });
+    kinds.set(kind, { model: model ?? (lods ? bakedModel(kind, lods, pivot, height, wing) : createModel(kind)), material, capacity: count, reach });
   }
 
   function build() {
     built = true;
     for (const [kind, k] of kinds) {
       const { model } = k;
+      const levels = model.levels ?? [{ geometry: model.geometry, until: Infinity, triangles: model.triangles }];
       if (model.wings) {
         k.flight = new THREE.InstancedBufferAttribute(new Float32Array(k.capacity * 2), 2);
         k.flight.setUsage(THREE.DynamicDrawUsage);
-        model.geometry.setAttribute('aFlight', k.flight);
+        for (const { geometry } of levels) geometry.setAttribute('aFlight', k.flight);
+        if (k.material && !k.material.userData?.wingShader) {
+          k.material = birdMaterial(kind, {
+            map: k.material.map ?? null,
+            vertexColors: Boolean(k.material.vertexColors),
+            wing: model.wing ?? null,
+          });
+        }
       }
-      k.material ??= model.wings ? birdMaterial(kind) : ground;
+      k.material ??= model.wings ? birdMaterial(kind, { wing: model.wing ?? null }) : ground;
       k.ownMaterial = k.material !== ground;
       if (model.morphs.length) k.holder = { morphTargetInfluences: new Float32Array(model.morphs.length) };
-      const levels = model.levels ?? [{ geometry: model.geometry, until: Infinity, triangles: model.triangles }];
       k.levels = levels.map(({ geometry, until, triangles }, level) => {
         const mesh = new THREE.InstancedMesh(geometry, k.material, k.capacity);
         mesh.name = level ? `${kind} far` : kind;

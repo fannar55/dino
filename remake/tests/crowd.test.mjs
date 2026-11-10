@@ -472,3 +472,93 @@ test('the frog is baked within the budget, crouching, leaping and breathing with
   assert.ok(crouch.max.y < box.max.y - 0.008, `crouch lowers the back (${crouch.max.y.toFixed(3)} < ${box.max.y.toFixed(3)})`);
   assert.ok((leap.max.x - leap.min.x) > (box.max.x - box.min.x) * 1.25, `leap kicks the legs out (${(leap.max.x - leap.min.x).toFixed(3)} m)`);
 });
+
+test('the snail, beetle, turtle and songbird are baked within budget with morphs and GPU wing tags', async () => {
+  const triangles = g => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  const morphBox = (geometry, name) => {
+    const rest = geometry.getAttribute('position');
+    const d = geometry.morphAttributes.position.find(a => a.name === name);
+    const out = new THREE.Box3(), p = new THREE.Vector3();
+    for (let i = 0; i < rest.count; i++) out.expandByPoint(p.set(rest.getX(i) + d.getX(i), rest.getY(i) + d.getY(i), rest.getZ(i) + d.getZ(i)));
+    return out;
+  };
+
+  // 1. Snigill
+  const snail = crowdModelFrom(await loadGlb(new URL('../assets/critters/snigill.glb', import.meta.url)));
+  assert.ok(triangles(snail.lods[0].geometry) <= 700 && triangles(snail.lods[1].geometry) <= 260);
+  for (const { geometry } of snail.lods) {
+    assert.deepEqual((geometry.morphAttributes.position ?? []).map(a => a.name), ['hide', 'sway']);
+  }
+  const snailBox = new THREE.Box3().setFromBufferAttribute(snail.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(snailBox.max.x - snailBox.min.x - 0.22) < 0.02);
+  assert.ok(snailBox.min.y >= -0.002 && snailBox.min.y <= 0.005);
+  const snailHide = morphBox(snail.lods[0].geometry, 'hide');
+  assert.ok(snailHide.max.x < snailBox.max.x - 0.03, 'hide draws the head inside the shell');
+  assert.ok(snailHide.min.y >= -0.002, 'hide keeps the tucked foot on y = 0');
+
+  // 2. Bjalla
+  const beetle = crowdModelFrom(await loadGlb(new URL('../assets/critters/bjalla.glb', import.meta.url)));
+  assert.ok(triangles(beetle.lods[0].geometry) <= 700 && triangles(beetle.lods[1].geometry) <= 260);
+  assert.equal(beetle.pivot, 0.052);
+  for (const { geometry } of beetle.lods) {
+    assert.deepEqual((geometry.morphAttributes.position ?? []).map(a => a.name), ['kickA', 'kickB']);
+  }
+  const beetleBox = new THREE.Box3().setFromBufferAttribute(beetle.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(beetleBox.min.y + beetle.pivot) < 0.004, 'soles stand on ground when shifted by pivot');
+  const kickA = beetle.lods[0].geometry.morphAttributes.position[0];
+  const kickB = beetle.lods[0].geometry.morphAttributes.position[1];
+  let legDiff = 0;
+  for (let i = 0; i < kickA.count; i++) legDiff = Math.max(legDiff, Math.hypot(kickA.getX(i) - kickB.getX(i), kickA.getY(i) - kickB.getY(i), kickA.getZ(i) - kickB.getZ(i)));
+  assert.ok(legDiff > 0.015, `kickA and kickB alternate legs (${legDiff.toFixed(4)} m)`);
+
+  // 3. Skjaldbaka
+  const turtle = crowdModelFrom(await loadGlb(new URL('../assets/critters/skjaldbaka.glb', import.meta.url)));
+  assert.ok(triangles(turtle.lods[0].geometry) <= 700 && triangles(turtle.lods[1].geometry) <= 260);
+  for (const { geometry } of turtle.lods) {
+    assert.deepEqual((geometry.morphAttributes.position ?? []).map(a => a.name), ['hide', 'look', 'stretch']);
+  }
+  const turtleBox = new THREE.Box3().setFromBufferAttribute(turtle.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(turtleBox.max.x - turtleBox.min.x - 0.36) < 0.025);
+  assert.ok(turtleBox.min.y >= -0.002 && turtleBox.min.y <= 0.005);
+  const turtleStretch = morphBox(turtle.lods[0].geometry, 'stretch');
+  const turtleHide = morphBox(turtle.lods[0].geometry, 'hide');
+  assert.ok(turtleStretch.min.y >= -0.002, 'stretch keeps all four feet planted');
+  const turtlePos = turtle.lods[0].geometry.getAttribute('position');
+  const stretchDelta = turtle.lods[0].geometry.morphAttributes.position.find(a => a.name === 'stretch');
+  let restHeadY = -Infinity, stretchHeadY = -Infinity;
+  for (let i = 0; i < turtlePos.count; i++) {
+    if (turtlePos.getX(i) > 0.11) {
+      restHeadY = Math.max(restHeadY, turtlePos.getY(i));
+      stretchHeadY = Math.max(stretchHeadY, turtlePos.getY(i) + stretchDelta.getY(i));
+    }
+  }
+  assert.ok(stretchHeadY > restHeadY + 0.015, `stretch raises the head (${restHeadY.toFixed(3)} -> ${stretchHeadY.toFixed(3)} m)`);
+  assert.ok(turtleHide.max.x < turtleBox.max.x - 0.025, 'hide retracts the head');
+
+  // 4. Smáfugl (`fugl.glb`)
+  const bird = crowdModelFrom(await loadGlb(new URL('../assets/critters/fugl.glb', import.meta.url)));
+  assert.ok(triangles(bird.lods[0].geometry) <= 500 && triangles(bird.lods[1].geometry) <= 190);
+  assert.ok(bird.wing?.shoulder && bird.wing?.fold, 'wing hinge and fold stored in extras');
+  for (const { geometry } of bird.lods) {
+    const tag = geometry.getAttribute('aWing');
+    assert.ok(tag && tag.count === geometry.getAttribute('position').count, 'both LODs carry aWing');
+    let left = 0, right = 0;
+    for (let i = 0; i < tag.count; i++) {
+      if (tag.getX(i) > 0.5) right++;
+      if (tag.getX(i) < -0.5) left++;
+    }
+    assert.ok(left > 5 && right > 5, `both wings tagged (${left} L, ${right} R)`);
+  }
+  const crowds = createCrowds(world());
+  crowds.reserve('bird', 3, bird);
+  crowds.begin(camera());
+  crowds.place('bird', new THREE.Vector3(8, 0, 0), 0, 1, { wings: [0.4, 1] });
+  crowds.place('bird', new THREE.Vector3(55, 0, 0), 0, 1, { wings: [0, 0] });
+  crowds.end();
+  const [fine, coarse] = crowds.meshes.filter(m => m.userData.kind === 'bird');
+  assert.equal(fine.count, 1);
+  assert.equal(coarse.count, 1);
+  assert.ok(fine.material.userData.wingShader, 'crowds wraps baked winged GLBs in birdMaterial');
+  assert.ok(fine.geometry.hasAttribute('aFlight') && coarse.geometry.hasAttribute('aFlight'), 'both LODs receive aFlight');
+  crowds.dispose();
+});

@@ -39,6 +39,7 @@ export function crowdModelFrom(gltf) {
     length: info.length,
     height: info.height,
     pivot: info.pivot ?? 0,
+    wing: info.wing ?? null,
   };
 }
 
@@ -54,7 +55,8 @@ function inMetres(mesh) {
     for (let i = 0; i < attribute.count; i++) for (let c = 0; c < attribute.itemSize; c++) out.setComponent(i, c, attribute.getComponent(i, c));
     return out;
   };
-  for (const [name, attribute] of Object.entries(source.attributes)) {
+  for (const [rawName, attribute] of Object.entries(source.attributes)) {
+    const name = rawName === '_wing' || rawName === '_WING' ? 'aWing' : rawName;
     const copy = floats(attribute);
     if (name === 'position') copy.applyMatrix4(matrix);
     else if (name === 'normal') { copy.applyNormalMatrix(normalMatrix); copy.normalized = false; }

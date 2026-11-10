@@ -1378,3 +1378,52 @@ test('when world.loadModel supplies froskur.glb, the frog swaps to the rigged lo
   assert.ok(low > -0.004, `never sinks below ground (${low.toFixed(4)})`);
   critters.dispose();
 });
+
+test('when world.loadModel supplies snigill, bjalla, skjaldbaka and fugl GLBs, all four swap cleanly and react without sinking', async () => {
+  const s = stage();
+  s.world.loadModel = url => loadGlb(new URL(url));
+  const critters = createCritters(s.world, {
+    spots: [
+      { name: 'snail', kind: 'snail', position: [0, 0, 0] },
+      { name: 'beetle', kind: 'beetle', position: [1.5, 0, 0] },
+      { name: 'turtle', kind: 'turtle', position: [3, 0, 0] },
+    ],
+    birds: BIRDS.slice(0, 2),
+  });
+  assert.equal(await critters.loaded, true);
+
+  const snail = meshOf(critters, 'snail');
+  const beetle = meshOf(critters, 'beetle');
+  const turtle = meshOf(critters, 'turtle');
+  const birds = critters.group.getObjectByName('Birds');
+  assert.ok('hide' in snail.morphTargetDictionary && 'sway' in snail.morphTargetDictionary);
+  assert.ok('kickA' in beetle.morphTargetDictionary && 'kickB' in beetle.morphTargetDictionary);
+  assert.ok('hide' in turtle.morphTargetDictionary && 'look' in turtle.morphTargetDictionary && 'stretch' in turtle.morphTargetDictionary);
+  assert.ok(birds.geometry.hasAttribute('aWing') && birds.geometry.hasAttribute('aFlight'));
+  assert.equal(birds.material.userData.wingShader, true);
+
+  // Idle life: snail sways eye stalks, turtle looks about
+  const sways = [];
+  for (let i = 0; i < 45; i++) { s.frame(); sways.push(influence(snail, 'sway')); }
+  assert.ok(Math.max(...sways) - Math.min(...sways) > 0.05, 'snail sways gently at rest');
+
+  // Reactions: snail hides, beetle rolls 360 deg and kicks without sinking, turtle hides, bird flies off
+  const hSnail = critters.react('snail');
+  const hBeetle = critters.react('beetle');
+  const hTurtle = critters.react('turtle');
+  const hBird = critters.react('bird-1');
+  let maxSnailHide = 0, maxTurtleHide = 0, maxKick = 0, beetleLow = Infinity;
+  for (let i = 0; (!hSnail.done || !hBeetle.done || !hTurtle.done || !hBird.done) && i < 160; i++) {
+    s.frame();
+    maxSnailHide = Math.max(maxSnailHide, influence(snail, 'hide'));
+    maxTurtleHide = Math.max(maxTurtleHide, influence(turtle, 'hide'));
+    maxKick = Math.max(maxKick, influence(beetle, 'kickA'), influence(beetle, 'kickB'));
+    beetleLow = Math.min(beetleLow, lowest(beetle));
+  }
+  assert.ok(hSnail.done && hBeetle.done && hTurtle.done && hBird.done);
+  assert.ok(maxSnailHide > 0.95);
+  assert.ok(maxTurtleHide > 0.95);
+  assert.ok(maxKick > 0.7, `beetle kicks on its back (${maxKick.toFixed(2)})`);
+  assert.ok(beetleLow > -0.004, `baked beetle never sinks below ground (${beetleLow.toFixed(4)} m)`);
+  critters.dispose();
+});

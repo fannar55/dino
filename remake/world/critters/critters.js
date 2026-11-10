@@ -7,7 +7,12 @@ import { crowdModelFrom } from './crowd-models.js';
 import { BEETLE_SIZE, BIRD, DRAGONFLY, EARLY_BIRD, KINDS, WINGED, createModel } from './models.js';
 
 export const FROG_MODEL = new URL('../../assets/critters/froskur.glb', import.meta.url).href;
-const frogModels = new Map(); // url -> Promise<gltf>, shared across places
+export const SNAIL_MODEL = new URL('../../assets/critters/snigill.glb', import.meta.url).href;
+export const BEETLE_MODEL = new URL('../../assets/critters/bjalla.glb', import.meta.url).href;
+export const TURTLE_MODEL = new URL('../../assets/critters/skjaldbaka.glb', import.meta.url).href;
+export const BIRD_MODEL = new URL('../../assets/critters/fugl.glb', import.meta.url).href;
+const SPOT_MODELS = { frog: FROG_MODEL, snail: SNAIL_MODEL, beetle: BEETLE_MODEL, turtle: TURTLE_MODEL };
+const bakedModels = new Map(); // url -> Promise<gltf>, shared across places
 
 // Critters a child can tap: a frog, a snail and a beetle by the path and in the glade, and little birds in the bushes. A tap
 // makes one react, with no words (the sound and the journal entry are the chapter's): the frog hops to a spot beside it, and
@@ -102,13 +107,14 @@ const WINGS = {
   dragonfly: { shoulder: DRAGONFLY.shoulder, fold: { rotation: [0, 0, 0], offset: [0, 0, 0] } }, // a dragonfly never folds its wings
   earlyBird: EARLY_BIRD,
 };
-export function birdMaterial(kind = 'bird', { flight = null } = {}) {
-  const { shoulder, fold: folding } = WINGS[kind];
+export function birdMaterial(kind = 'bird', { flight = null, map = null, vertexColors = !map, wing = null } = {}) {
+  const { shoulder, fold: folding } = wing ?? WINGS[kind];
   const e = new THREE.Matrix4().makeRotationZ(folding.rotation[2]).multiply(new THREE.Matrix4().makeRotationX(folding.rotation[0])).elements;
   const fold = `mat3( ${[e[0], e[1], e[2], e[4], e[5], e[6], e[8], e[9], e[10]].map(v => v.toFixed(6)).join(', ')} )`;
   const [sx, sy, sz] = shoulder;
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: kind === 'dragonfly' ? 0.6 : 0.85, metalness: 0, side: THREE.DoubleSide });
+  const material = new THREE.MeshStandardMaterial({ map, vertexColors, roughness: kind === 'dragonfly' ? 0.6 : 0.85, metalness: 0, side: THREE.DoubleSide });
   material.name = kind === 'bird' ? 'critter birds' : `critter ${kind}`;
+  material.userData.wingShader = true;
   if (flight) material.userData.flight = flight;
   const beat = flight ? 'uniform vec2 uFlight; // x: the angle of the wings (down positive), y: 0 at rest, 1 in flight\n#define aFlight uFlight'
     : 'attribute vec2 aFlight; // x: the angle of the wings (down positive), y: 0 at rest, 1 in flight';
@@ -149,7 +155,10 @@ const vec3 BIRD_SHOULDER = vec3( ${sx.toFixed(4)}, ${sy.toFixed(4)}, ${sz.toFixe
     transformed = pivot + w;
   }`);
   };
-  material.customProgramCacheKey = () => (kind === 'bird' ? 'critter-birds' : `critter-wings-${kind}`);
+  const wingKey = wing ? `-${shoulder.map(v => v.toFixed(4)).join(',')}` : '';
+  const colorKey = vertexColors ? '' : '-uv';
+  const baseKey = kind === 'bird' ? 'critter-birds' : `critter-wings-${kind}`;
+  material.customProgramCacheKey = () => `${baseKey}${colorKey}${wingKey}`;
   return material;
 }
 
@@ -430,6 +439,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       c.far = c.home.clone().add(ahead.set(Math.cos(rad(heading)), 0, Math.sin(rad(heading))).multiplyScalar(HOP.distance));
       c.far.y = c.home.y + heightAt(c.far.x, c.far.z) - heightAt(c.home.x, c.home.z);
     }
+    if (spot.kind === 'snail') c.phase = seededRandom(`${spot.name} sway`)() * TAU;
     return c;
   });
 
@@ -441,6 +451,13 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     const pulse = Math.sin(TAU * 0.85 * time + phase);
     const puff = Math.max(0, Math.sin(TAU * 0.22 * time + phase * 0.7)) ** 3;
     c.mesh.morphTargetInfluences[idx] = 0.35 * (0.5 + 0.5 * pulse) + 0.65 * puff;
+  }
+
+  /** Gentle eye-stalk sway when the baked low-poly snail sits at rest (leaves matrixWorld and tap point untouched). */
+  function idleSnail(c, time) {
+    const idx = c.mesh.morphTargetDictionary?.sway;
+    if (idx === undefined) return;
+    c.mesh.morphTargetInfluences[idx] = 0.5 + 0.5 * Math.sin((TAU * time) / 4.2 + (c.phase ?? 0));
   }
 
   /** The way the critter is when it has no reaction going (a Fen animal: its idle, as it is now). */
@@ -458,6 +475,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       c.root.rotation.y = -rad(c.leg === 0 ? c.heading : c.heading + 180 * (c.leg - 1));
       idleFrog(c, now());
     }
+    if (c.kind === 'snail') idleSnail(c, now());
     settle(c);
   }
 
@@ -519,7 +537,9 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     },
     snail(c, tau) {
       const hide = tau < HIDE.in ? smooth(tau / HIDE.in) : tau < HIDE.in + HIDE.hold ? 1 : 1 - smooth((tau - HIDE.in - HIDE.hold) / HIDE.out);
-      c.mesh.morphTargetInfluences[c.mesh.morphTargetDictionary.hide] = hide;
+      const dict = c.mesh.morphTargetDictionary;
+      c.mesh.morphTargetInfluences[dict.hide] = hide;
+      if (dict.sway !== undefined) c.mesh.morphTargetInfluences[dict.sway] = (1 - hide) * (0.5 + 0.5 * Math.sin((TAU * now()) / 4.2 + (c.phase ?? 0)));
       c.mesh.rotation.z = -0.07 * hide; // the shell dips forward as it ducks in
     },
     beetle(c, tau) {
@@ -556,6 +576,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
   function stepSpot(c, time) {
     if (!c.reaction) {
       if (c.kind === 'frog') { idleFrog(c, time); return; }
+      if (c.kind === 'snail') { idleSnail(c, time); return; }
       if (!c.life) return;
       c.life.idle(c, time);
       ground(c);
@@ -695,42 +716,75 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
   list.forEach(rest);
   for (const b of birdList) sit(b);
 
-  // Swap procedural stand-in frogs to the baked low-poly AssetHub/Tripo model (`froskur.glb`) once loaded
-  let loaded = Promise.resolve(false);
-  const frogs = list.filter(c => c.kind === 'frog');
-  if (frogs.length) {
-    let load = null;
-    if (world.loadModel) load = world.loadModel(FROG_MODEL);
-    else if (typeof document !== 'undefined') {
-      if (!frogModels.has(FROG_MODEL)) frogModels.set(FROG_MODEL, new GLTFLoader().loadAsync(FROG_MODEL));
-      load = frogModels.get(FROG_MODEL);
+  // Swap procedural stand-in critters (`frog`, `snail`, `beetle`, `turtle`, `bird`) to their baked low-poly GLBs once loaded
+  const fetchModel = url => {
+    if (world.loadModel) return world.loadModel(url);
+    if (typeof document !== 'undefined') {
+      if (!bakedModels.has(url)) bakedModels.set(url, new GLTFLoader().loadAsync(url));
+      return bakedModels.get(url);
     }
-    if (load) {
-      loaded = Promise.resolve(load).then(gltf => {
+    return null;
+  };
+  const swapJobs = [];
+  for (const [kind, url] of Object.entries(SPOT_MODELS)) {
+    const groupOfKind = list.filter(c => c.kind === kind);
+    if (!groupOfKind.length) continue;
+    const req = fetchModel(url);
+    if (!req) continue;
+    swapJobs.push(Promise.resolve(req).then(gltf => {
+      if (!gltf || disposed) return false;
+      const baked = crowdModelFrom(gltf);
+      const geo = baked.lods[0].geometry;
+      if (baked.lods[1]) baked.lods[1].geometry.dispose();
+      const mat = baked.material.clone();
+      geometries.push(geo);
+      materials.push(mat);
+      for (const c of groupOfKind) {
+        c.mesh.geometry = geo;
+        c.mesh.material = mat;
+        c.mesh.updateMorphTargets();
+        c.model = { ...c.model, pivot: baked.pivot ?? 0 };
+        if (c.reaction) {
+          const tau = Math.max(0, now() - c.reaction.start);
+          if (c.life) c.life.react(c, tau, now());
+          else poses[c.kind](c, tau);
+          ground(c);
+        } else {
+          rest(c);
+        }
+        settle(c);
+      }
+      return true;
+    }).catch(error => {
+      bakedModels.delete(url);
+      console.warn(`[critters] ${kind} could not be loaded; the procedural ${kind} stands in:`, error?.message ?? error);
+      return false;
+    }));
+  }
+  if (birdList.length) {
+    const req = fetchModel(BIRD_MODEL);
+    if (req) {
+      swapJobs.push(Promise.resolve(req).then(gltf => {
         if (!gltf || disposed) return false;
         const baked = crowdModelFrom(gltf);
-        const frogGeo = baked.lods[0].geometry;
+        const geo = baked.lods[0].geometry;
         if (baked.lods[1]) baked.lods[1].geometry.dispose();
-        const frogMat = baked.material.clone();
-        geometries.push(frogGeo);
-        materials.push(frogMat);
-        for (const c of frogs) {
-          c.mesh.geometry = frogGeo;
-          c.mesh.material = frogMat;
-          c.mesh.updateMorphTargets();
-          c.model = { ...c.model, pivot: baked.pivot ?? 0 };
-          if (c.reaction) poses.frog(c, Math.max(0, now() - c.reaction.start));
-          else rest(c);
-          settle(c);
-        }
+        geo.setAttribute('aFlight', flight);
+        const mat = birdMaterial('bird', { map: baked.material.map ?? null, vertexColors: false, wing: baked.wing });
+        geometries.push(geo);
+        birdMat?.dispose();
+        birdMat = mat;
+        birdMesh.geometry = geo;
+        birdMesh.material = mat;
         return true;
       }).catch(error => {
-        frogModels.delete(FROG_MODEL);
-        console.warn('[critters] froskur could not be loaded; the procedural frog stands in:', error?.message ?? error);
+        bakedModels.delete(BIRD_MODEL);
+        console.warn('[critters] fugl could not be loaded; the procedural bird stands in:', error?.message ?? error);
         return false;
-      });
+      }));
     }
   }
+  const loaded = swapJobs.length ? Promise.all(swapJobs).then(res => res.some(Boolean)) : Promise.resolve(false);
 
   function react(name) {
     const c = byName.get(name);

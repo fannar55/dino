@@ -160,7 +160,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const LIZARD = baked ? 'smaedla' : 'salamander';
   const grazer = critters.grasbitur ?? null;
   const flyer = critters.flugdyr ?? null;
-  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer }; // the owner's models, as tools/prep-crowd.mjs bakes them
+  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer, bird: critters.fugl ?? null }; // the owner's models, as tools/prep-crowd.mjs bakes them
   const her = new THREE.Vector3();
   const herAt = (t, out = her) => route.pointAt(route.progressAt(Math.min(BEATS.END, Math.max(0, t))), out);
   /** Her way, seen from above, at flight second t: forward and to her right. */
@@ -198,7 +198,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const modelOf = kind => (models[kind] ??= (() => {
     // the owner's small lizard and grazer: their frames' names, as the crowd draws them, and their height standing
     const own = BAKED[kind];
-    if (own) return { morphs: (own.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name), height: own.height, wings: false };
+    if (own) return { morphs: (own.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name), height: own.height, wings: Boolean(own.wing) };
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
     model.height = model.geometry.boundingBox.max.y - model.geometry.boundingBox.min.y;
