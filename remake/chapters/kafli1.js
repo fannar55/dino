@@ -643,31 +643,33 @@ function* butterflyIntoTheBook(s, c) {
 
 /** Sparkles and a gentle scale pulse on the hero butterfly on Mosi's horn, asking the child to tap it; `pointOf(out)` says where. */
 function* glitterHeroButterfly(s, c, pointOf) {
-  const at = new THREE.Vector3();
   const heroGroup = c.world.forest?.butterflies?.hero?.group;
-  let since = GLITTER_EVERY;
-  let t = 0;
-  try {
-    for (let i = 0; ; ) {
-      const dt = yield;
-      t += dt;
-      since += dt;
+  let over = false;
+  let age = 0;
+  c.world.effects.add({
+    update(dt) {
+      if (over) return false;
+      age += dt;
       if (heroGroup) {
-        const beat = Math.sin(t * Math.PI * 2.4);
+        const beat = Math.max(0, Math.sin((age / GLITTER_BEAT) * Math.PI * 2));
         heroGroup.scale.setScalar(1 + 0.24 * beat * beat);
       }
-      if (since >= GLITTER_EVERY) {
-        since = 0;
-        pointOf(at);
-        const k = i * 2.39996;
-        at.x += Math.cos(k) * 0.14;
-        at.z += Math.sin(k) * 0.14;
-        at.y += 0.06;
-        sparkleBurst(c.world, at.clone(), { count: 14, duration: 1.1, size: 0.34, spread: 0.42, seed: `horn glitter ${i % 8}` });
-        i++;
-      }
+      return true;
+    },
+  });
+  const at = new THREE.Vector3();
+  try {
+    for (let i = 0; ; i++) {
+      pointOf(at);
+      const k = i * 2.39996;
+      at.x += Math.cos(k) * 0.14;
+      at.z += Math.sin(k) * 0.14;
+      at.y += 0.06;
+      sparkleBurst(c.world, at.clone(), { count: 14, duration: 1.1, size: 0.34, spread: 0.42, seed: `horn glitter ${i % 8}` });
+      yield s.wait(GLITTER_EVERY);
     }
   } finally {
+    over = true;
     if (heroGroup) heroGroup.scale.setScalar(1);
   }
 }

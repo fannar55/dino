@@ -871,3 +871,19 @@ test('the points on the characters sit where they are named: Mosi\'s nose, sneez
   const plates = world.resolvePoint(POINTS.kambedlaPlates, new THREE.Vector3());
   assert.ok(plates.y > 3.7 && plates.y < 4.1, `the star rises from just above her tallest plates, at ${plates.y.toFixed(2)} m`);
 });
+
+test('the hero butterfly on Mosi\'s horn pulses with finite scale while glittering and returns to scale 1 when tapped', async () => {
+  const scales = [];
+  const run = await playUnattended(kafli1, {
+    limit: 190,
+    onFrame({ world }) {
+      const hero = world.forest?.butterflies?.hero?.group;
+      if (hero) scales.push(hero.scale.x);
+    },
+  });
+  assert.ok(scales.length > 100);
+  assert.ok(scales.every(s => Number.isFinite(s) && s >= 1 && s <= 1.25), `hero butterfly scale stayed finite in [1, 1.24], never NaN`);
+  assert.ok(scales.some(s => s > 1.15), 'hero butterfly pulsed above 1.15 while glittering on Mosi\'s horn');
+  const rjodurHero = run.forests[0].butterflies.hero.group;
+  assert.equal(rjodurHero.scale.x, 1, 'hero butterfly scale reset to 1 after being tapped');
+});

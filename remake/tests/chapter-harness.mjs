@@ -134,6 +134,7 @@ export function groundOnly(layout, { shaped = false, world = null } = {}) {
     butterflies: {
       targets,
       landed,
+      hero: { name: 'butterfly-hero', group: new THREE.Group(), loaded: Promise.resolve(true) },
       flutter: () => new Handle('flutter').finish(),
       land(spec) {
         landed.push(spec);
