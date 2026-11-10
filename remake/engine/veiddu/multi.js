@@ -576,9 +576,33 @@ export function createVeidduMulti(doc, {
     renderFan(seat);
   }
 
+  /** Ensures Egill's hand on the big screen matches `game.hands[0]` after an act's animations finish. */
+  function syncHand() {
+    if (!game || !onScreen(entryOf(0))) return;
+    const heldIds = new Set(game.hands[0].map(card => card.id));
+    let changed = false;
+    for (const [id, btn] of handEls) {
+      if (!heldIds.has(id)) {
+        handEls.delete(id);
+        btn.remove();
+        changed = true;
+      }
+    }
+    for (const card of game.hands[0]) {
+      if (!handEls.has(card.id)) {
+        addToHand(card, false);
+        changed = true;
+      } else {
+        handEls.get(card.id).style.visibility = '';
+      }
+    }
+    if (changed) renderHand();
+    shownCount[0] = handEls.size;
+  }
+
   /** A card given from `from` to `to`: it flies from one hand/fan to the other. */
-  async function giveCard(from, to, cardIds = []) {
-    const cardId = cardIds[0];
+  async function giveCard(from, to, cardId = null) {
+    if (Array.isArray(cardId)) cardId = cardId[0] ?? null;
     let start = fanOf(from);
     if (from === 0 && onScreen(entryOf(0)) && cardId && handEls.has(cardId)) {
       const btn = handEls.get(cardId);
@@ -860,7 +884,7 @@ export function createVeidduMulti(doc, {
         case 'give':
           await speak(event.from, asker, yesText(event.from), lineFor(event.from, 'yes'));
           await wait(ANSWER_BEAT_MS * 0.6);
-          await giveCard(event.from, event.to, event.cardIds);
+          await giveCard(event.from, event.to, event.cardId);
           break;
         case 'no':
           await speak(event.seat, asker, noText(event.seat), lineFor(event.seat, 'no'));
@@ -898,6 +922,7 @@ export function createVeidduMulti(doc, {
 
   /** The act has been shown: on to whoever's turn it is, or the end. */
   async function proceed() {
+    syncHand();
     const humanTurn = game.phase !== 'over' && isHuman(entryOf(game.turn)) && entryOf(game.turn).present;
     if (!humanTurn) await lineDone();
     markAsked(null);
