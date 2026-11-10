@@ -293,6 +293,11 @@ function* theInvitation(s, c) {
   yield* say(s, c, 'mosi', 'k2_mosi_second');
   yield star;
   s.sfx('journal');
+  if (!s.seeking) {
+    s.journal.open('games');
+    yield s.journal.playGame('veiddu', { tutorial: true });
+    s.journal.close();
+  }
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
 }

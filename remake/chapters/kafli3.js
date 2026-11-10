@@ -428,6 +428,11 @@ function* theStar(s, c) {
   yield* say(s, c, 'mosi', 'k3_mosi_third');
   yield star;
   s.sfx('journal');
+  if (!s.seeking) {
+    s.journal.open('games');
+    yield s.journal.playGame('hals', { tutorial: true });
+    s.journal.close();
+  }
   // The sun, seen over her back from the far side of her pool (her conifers hide it from every shot with her head in it), hugs itself
   // with a big grin and winks.
   yield s.camera.cut('fen_sun_hug');

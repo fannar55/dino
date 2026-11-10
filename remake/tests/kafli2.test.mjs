@@ -1718,6 +1718,7 @@ test('scene 5: Mosi invites her, she says yes, her star rises from the top of he
   assert.ok(star.point.distanceTo(star.top) < 0.6, `from the top of her sail (${star.point.distanceTo(star.top).toFixed(2)} m from its highest point)`);
   // nobody taps: it flies in by itself after the wait for a tap
   assert.deepEqual(journal.stars, ['k2_uggedla'], 'and it is in the book');
+  assert.deepEqual(run.book.played, [['veiddu', { tutorial: true }]], 'her game opens in tutorial mode once her star is in');
   assert.ok(run.soundLog.some(e => e.name === 'star' && e.at >= start && e.at < ferry), 'with the star\'s sound');
   assert.ok(ferry - star.at > 7.5 && ferry - star.at < 14, `the star waits for the tap at most 8 s (the ferry begins ${(ferry - star.at).toFixed(1)} s after it rose)`);
 });

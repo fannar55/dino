@@ -545,6 +545,7 @@ test('the chapter plays to its end unattended with no director warnings', async 
   assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [3, 4, 5, 6, 7, 8]);
   assert.equal(world.location, 'fen');
   assert.deepEqual(journal.stars, ['k2_thorsedla'], 'Þórseðla\'s star is in the book');
+  assert.deepEqual(book.played, [['hals', { tutorial: true }]], 'and her game opens in tutorial mode once her star is in');
   assert.deepEqual([...journal.places].sort(), ['fen', 'flugedla', 'sloedla'], 'and the Fen and the two friends found are on its map (Uggeðla was on it already)');
   assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
   assert.deepEqual(book.nods.slice(-2), ['thorsedla', null], 'Þórseðla, new on the Risaeðlur page, nods as it opens');

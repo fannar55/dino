@@ -878,6 +878,8 @@ test('the star k4_flugedla is saved once and map piece d is drawn; she asks Egil
   assert.deepEqual(moments.flatMap(moment => moment.ids), ['d'], 'piece d, once: by her star, it ends at her place (engine/book/map-page.js)');
   // as chapter 1 ends (the juice review of 2026-11-07): Mosi's „Fjórar komnar“, her ask to play, and the book on its games
   assert.equal(book.opened.map(([tab]) => tab).at(-1), 'games', 'the book opens on its games, where her game waits');
+  const untouchedRun = await playUntouched();
+  assert.ok(untouchedRun.book.played.some(([id, opts]) => id === 'minnisspil' && opts?.tutorial === true), 'her game opens in tutorial mode');
   const four = seen.spokenAt.get('k4_mosi_four');
   const play = seen.spokenAt.get('k4_flugedla_play');
   assert.ok(seen.spokenAt.get('k4_mosi_horn') < four && four < play, 'Mosi says where they stand after the horn, then she asks Egill to play');

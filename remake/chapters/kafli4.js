@@ -374,6 +374,11 @@ function* roundTheTree(s, c) {
   yield* say(s, c, 'mosi', 'k4_mosi_star');
   yield star;
   s.sfx('journal');
+  if (!s.seeking) {
+    s.journal.open('games');
+    yield s.journal.playGame('minnisspil', { tutorial: true });
+    s.journal.close();
+  }
   yield s.wait(0.8);
 }
 
@@ -547,7 +552,7 @@ function* atTheFarPool(s, c) {
   mark(c, 'end');
   s.fade(0.45, 1.6);
   s.journal.open('games');
-  if (!s.seeking) yield s.journal.playGame('minnisspil');
+  if (!s.seeking) yield s.journal.playGame('minnisspil', { tutorial: true });
   yield s.wait(BOOK_HOLD);
 }
 const FLOAT_DOWN = 2.6; // seconds Egill floats from her back onto the bank

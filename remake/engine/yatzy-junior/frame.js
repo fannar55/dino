@@ -47,7 +47,7 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     return c.toDataURL('image/png');
   }
 
-  function open() {
+  function open({ tutorial = false } = {}) {
     if (root) return;
     root = doc.createElement('div');
     root.className = 'junior-frame';
@@ -56,7 +56,7 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     root.setAttribute('aria-label', label);
     frame = doc.createElement('iframe');
     frame.className = 'junior-frame-page';
-    frame.src = src;
+    frame.src = tutorial ? `${src}${src.includes('?') ? '&' : '?'}play=1&tutorial=1` : src;
     frame.title = label;
     frame.setAttribute('allow', 'autoplay');
     frame.addEventListener('load', onFrameLoad);

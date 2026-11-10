@@ -1333,7 +1333,7 @@ export function createHalsGame(doc, {
    * A new game for `choice` ({ players } on one tablet, or { seats }, the seats of "Fjölspil" in order), always in the adventure
    * mode, or the kept one (`kept`: { state, setup }, in its own mode; one with seats comes with them as `choice`).
    */
-  async function start(choice = setup, kept = null) {
+  async function start(choice = setup, kept = null, { teach = false } = {}) {
     const token = ++round;
     for (const id of timers) clearTimeout(id);
     timers.clear();
@@ -1381,7 +1381,7 @@ export function createHalsGame(doc, {
     renderDock();
     sendViews(); // the board on every phone, before the first turn
     hw.view.overview();
-    if (!introDone && !(save?.getHalsPlay?.().intro)) {
+    if (teach || (!introDone && !(save?.getHalsPlay?.().intro))) {
       phase = 'intro';
       await wait(500);
       if (token !== round) return;
@@ -1423,7 +1423,7 @@ export function createHalsGame(doc, {
     }
   }
 
-  function open() {
+  function open({ tutorial: teachFirst = false } = {}) {
     if (isOpen) return;
     isOpen = true;
     root.hidden = false;
@@ -1437,13 +1437,19 @@ export function createHalsGame(doc, {
     last = globalThis.performance?.now?.() ?? 0;
     raf = win.requestAnimationFrame(frame);
     const kept = save?.getHalsPlay?.() ?? { hello: true };
-    introDone = introDone || kept.intro === true;
-    showSetup();
-    if (!kept.hello) {
-      later(700, () => {
-        say('hals_thor_hello', { by: nearestThorsedla() });
-        save?.setHalsPlay?.({ hello: true });
-      });
+    const teach = teachFirst || Boolean(save?.getHalsPlay && !kept.intro && !kept.played && !savedGame());
+    introDone = !teach && (introDone || kept.intro === true);
+    if (teach) {
+      save?.setHalsPlay?.({ hello: true });
+      run(start({ players: 1 }, null, { teach: true }));
+    } else {
+      showSetup();
+      if (!kept.hello) {
+        later(700, () => {
+          say('hals_thor_hello', { by: nearestThorsedla() });
+          save?.setHalsPlay?.({ hello: true });
+        });
+      }
     }
     ensureWorld()
       .then(() => {
