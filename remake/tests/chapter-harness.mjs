@@ -613,7 +613,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       tapped.delete(name);
     }
     for (const [name, since] of appeared) {
-      if (/^(bird|butterfly|glade)-/.test(name)) continue;
+      if (/^(bird|butterfly-(?!hero)|glade)-/.test(name)) continue;
       const flower = ['stone', 'ferns', 'tree'].includes(name);
       const again = name === 'nose' && tapped.has(name) && t - tapped.get(name) > 3.5 && t - tapped.get(name) < 3.5 + dt;
       if ((!tapped.has(name) && t - since > 1.2 && (!flower || t - lastFlower > 4)) || again) {
@@ -669,6 +669,21 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     }
   }
 
+  // The butterfly on Mosi's horn in scene 5 requires a click to start the book tutorial: in non-seeking, non-eager headless runs,
+  // tap it after Mosi's prompt and reminder (16 s) so full-chapter simulations can continue past the mandatory tutorial gate.
+  let heroSince = null;
+  function mandatoryButterflyTap(t) {
+    if (!pointer.targets.has('butterfly-hero')) {
+      heroSince = null;
+      return;
+    }
+    heroSince ??= t;
+    if (t - heroSince >= 16 - 1e-9) {
+      pointer.tap('butterfly-hero');
+      heroSince = null;
+    }
+  }
+
   const dt = 1 / 30;
   for (let t = 0; t < limit && !task.done; t += dt) {
     runTime = t;
@@ -681,6 +696,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       build.resolve();
     }
     if (eager) eagerChild(t);
+    else if (!seeking) mandatoryButterflyTap(t);
     if (noseAt) noseChild(t);
     if (earlyTap) earlyChild(t);
     world.clock.step(step);

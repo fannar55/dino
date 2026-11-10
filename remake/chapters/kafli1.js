@@ -403,6 +403,8 @@ function* festival(s, c) {
   const { world, mosi } = c;
   yield s.camera.cut('face');
   butterflyLand(world, onBone(mosi.raw, ...POINTS.mosiHorn), { name: HERO }); // the hero butterfly (its own model) comes to rest on his horn
+  c.hornGlitter?.cancel();
+  c.hornGlitter = s.after(2.8, () => glitterHeroButterfly(s, c, out => world.resolvePoint(onBone(mosi.raw, ...POINTS.mosiHorn), out)));
   s.camera.handheld(0.5, { duration: 1.5 });
   yield mosi.lookAt('camera', { weight: 0.7 });
   s.camera.push({ distance: 0.6, duration: 8 });
@@ -484,8 +486,8 @@ function* upOnBack(s, c) {
   yield s.say('mosi', 'k1_mosi_hold');
 }
 
-// Seconds the child has to tap the butterfly on his horn, from the end of Mosi's asking, before it flies off into the book by itself.
-const BUTTERFLY_ASK_WAIT = 8;
+// Seconds Mosi waits after asking the child to tap the butterfly on his horn before reminding them again.
+const BUTTERFLY_REMIND_WAIT = 10;
 // Seconds each step of the book tutorial waits after Mosi's prompt before advancing by itself.
 const BOOK_STEP_WAIT = 4.5;
 // Metres: the hero butterfly within this of the horn's point still sits on it.
@@ -496,13 +498,13 @@ const INTO_THE_BOOK = 1.8;
 const BUTTERFLY_CLOSE = { position: { actor: 'egill', part: 'head', offset: [-0.2, 0.3, 0.42], local: true }, fov: 34 };
 
 /**
- * The butterfly that came to rest on his horn in the festival scene goes into the book, the first animal there, and the book opens
- * for the first time (the owner, 2026-10-25 and 2026-11-10). Close over Egill's shoulder, Mosi says it is in his way and asks Egill
- * to tap it; the tap sends it up and away and its picture into the book (butterflyTaps), and a child who taps nothing sees it fly off
- * by itself after BUTTERFLY_ASK_WAIT. Then the book opens on Dýrin, Mosi explains it and asks the child to tap X to close it, then
- * tap the book button in the corner to reopen it, and step through Risaeðlur, Myndbönd, Kortið and Leikir (where Mosi's Litla Yatzy
- * awaits) before closing the book with X to set off. Each step beckons its button or tab and advances automatically after BOOK_STEP_WAIT
- * if the child does not tap.
+ * The butterfly that came to rest on his horn in the festival scene glitters and pulses on his horn, and the child must tap it to
+ * send it into the book and start the book tutorial (the owner, 2026-10-25 and 2026-11-10). Close over Egill's shoulder, Mosi says
+ * it is in his way and asks Egill to tap it, repeating his prompt every BUTTERFLY_REMIND_WAIT seconds until the child taps the
+ * butterfly (or after 2 s in a capture's seeking mode). The tap sends it fluttering up and away and its picture into the book,
+ * revealing the book button. Then the book opens on Dýrin, Mosi explains it and asks the child to tap X to close it, then tap the
+ * book button in the corner to reopen it, and step through Risaeðlur, Myndbönd, Kortið and Leikir (where Mosi's Litla Yatzy awaits)
+ * before closing the book with X to set off.
  */
 function* butterflyIntoTheBook(s, c) {
   const { world, mosi } = c;
@@ -511,28 +513,48 @@ function* butterflyIntoTheBook(s, c) {
   const at = new THREE.Vector3();
   const hornAt = new THREE.Vector3();
   const onHorn = () => Boolean(butterflies?.hero?.group) && butterflies.hero.group.getWorldPosition(at).distanceTo(world.resolvePoint(horn, hornAt)) < ON_HORN;
-  // Ask while it sits on the horn; where there is no hero to see (a test's world), while no butterfly is in the book yet.
-  const ask = butterflies?.hero?.group ? onHorn() : !s.journal.findings.includes('butterfly');
-  if (ask) {
-    yield s.camera.cut({ position: BUTTERFLY_CLOSE.position, target: horn, fov: BUTTERFLY_CLOSE.fov });
-    s.camera.handheld(0.4, { duration: 1 });
-    const glitter = s.after(0, () => glitterAt(s, c, out => world.resolvePoint(horn, out)));
-    try {
-      yield s.say('mosi', 'k1_mosi_butterfly');
-      yield s.race(s.tap(HERO), s.wait(BUTTERFLY_ASK_WAIT));
-      // A tap sent it off and into the book (butterflyTaps); with none (or a capture's stand-in tap) it flies off by itself, and into
-      // the book all the same.
-      if (!s.journal.findings.includes('butterfly')) {
-        butterflies?.flutter?.(HERO);
-        sparkleBurst(world, world.resolvePoint(horn, hornAt).clone(), { count: 14, duration: 0.8, seed: 'hero off' });
-        s.sfx('butterfly');
-        s.found('butterfly');
-      }
-    } finally {
-      glitter.cancel();
-    }
-    yield s.wait(INTO_THE_BOOK);
+  if (butterflies?.hero?.group && !onHorn()) {
+    butterflies.land(horn, { name: HERO, duration: 0.25 });
   }
+  yield s.camera.cut({ position: BUTTERFLY_CLOSE.position, target: horn, fov: BUTTERFLY_CLOSE.fov });
+  s.camera.handheld(0, { duration: 0.3 });
+  if (!c.hornGlitter || c.hornGlitter.done) {
+    c.hornGlitter = s.after(0, () => glitterHeroButterfly(s, c, out => world.resolvePoint(horn, out)));
+  }
+  let tappedAt = null;
+  let tapped = false;
+  let promptLine = null;
+  s.target(HERO, { point: horn, radius: 0.75 });
+  const stopTap = s.onTap(HERO, tap => {
+    tappedAt = tap;
+    tapped = true;
+  });
+  try {
+    if (s.seeking) {
+      yield s.say('mosi', 'k1_mosi_butterfly');
+      yield s.wait(2);
+    } else {
+      while (!tapped) {
+        promptLine = s.say('mosi', 'k1_mosi_butterfly');
+        yield s.race(s.until(() => tapped), (function* remind() {
+          yield s.until(() => promptLine.done);
+          yield s.wait(BUTTERFLY_REMIND_WAIT);
+        })());
+      }
+    }
+    butterflies?.flutter?.(HERO);
+    sparkleBurst(world, world.resolvePoint(horn, hornAt).clone(), { count: 18, duration: 0.9, size: 0.32, spread: 0.45, seed: 'hero off' });
+    s.sfx('butterfly');
+    s.found('butterfly', tappedAt, { again: true });
+    c.bookIntroduced = true;
+  } finally {
+    stopTap();
+    s.target(HERO, null);
+    c.hornGlitter?.cancel();
+    c.hornGlitter = null;
+  }
+  yield s.wait(INTO_THE_BOOK);
+  if (promptLine) yield s.until(() => promptLine.done);
   const stepWait = () => (s.seeking ? 1.5 : BOOK_STEP_WAIT);
   s.journal.open('animals');
   yield s.say('mosi', 'k1_mosi_book');
@@ -587,17 +609,34 @@ function* butterflyIntoTheBook(s, c) {
   yield s.wait(0.6);
 }
 
-/** Sparkles round a point, a burst every GLITTER_EVERY seconds, asking for a tap there; `pointOf(out)` says where. */
-function* glitterAt(s, c, pointOf) {
+/** Sparkles and a gentle scale pulse on the hero butterfly on Mosi's horn, asking the child to tap it; `pointOf(out)` says where. */
+function* glitterHeroButterfly(s, c, pointOf) {
   const at = new THREE.Vector3();
-  for (let i = 0; ; i++) {
-    pointOf(at);
-    const k = i * 2.39996;
-    at.x += Math.cos(k) * 0.12;
-    at.z += Math.sin(k) * 0.12;
-    at.y += 0.05;
-    sparkleBurst(c.world, at.clone(), { count: 10, duration: 1.0, size: 0.22, spread: 0.3, seed: `horn glitter ${i % 8}` });
-    yield s.wait(GLITTER_EVERY);
+  const heroGroup = c.world.forest?.butterflies?.hero?.group;
+  let since = GLITTER_EVERY;
+  let t = 0;
+  try {
+    for (let i = 0; ; ) {
+      const dt = yield;
+      t += dt;
+      since += dt;
+      if (heroGroup) {
+        const beat = Math.sin(t * Math.PI * 2.4);
+        heroGroup.scale.setScalar(1 + 0.24 * beat * beat);
+      }
+      if (since >= GLITTER_EVERY) {
+        since = 0;
+        pointOf(at);
+        const k = i * 2.39996;
+        at.x += Math.cos(k) * 0.14;
+        at.z += Math.sin(k) * 0.14;
+        at.y += 0.06;
+        sparkleBurst(c.world, at.clone(), { count: 14, duration: 1.1, size: 0.34, spread: 0.42, seed: `horn glitter ${i % 8}` });
+        i++;
+      }
+    }
+  } finally {
+    if (heroGroup) heroGroup.scale.setScalar(1);
   }
 }
 
@@ -995,16 +1034,21 @@ function setUpClearing(s, c) {
     })),
     onReact: (name, kind) => s.sfx(kind === 'bird' ? 'birds' : kind), // the birds Mosi's steps send up as well
   });
-  // The birds and the butterflies can be tapped from the start; the critters by the path, on the ride (scene 6).
+  // The birds and the pale butterflies can be tapped from the start; the hero butterfly on Mosi's horn in scene 5 introduces
+  // the book, after which birds and butterflies tapped go into the journal too.
   const stops = [];
   for (const t of critters.targets.filter(target => target.name.startsWith('bird-'))) {
     s.target(t.name, t);
-    stops.push(s.onTap(t.name, tap => { critters.react(t.name); s.found('birds', tap); }));
+    stops.push(s.onTap(t.name, tap => {
+      critters.react(t.name);
+      if (c.bookIntroduced) s.found('birds', tap);
+    }));
   }
-  stops.push(...butterflyTaps(s, world));
+  stops.push(...butterflyTaps(s, world, c));
   return {
     critters,
     leave() {
+      c.hornGlitter?.cancel();
       for (const stop of stops) stop();
       for (const t of [...critters.targets, ...(world.forest.butterflies?.targets ?? [])]) s.target(t.name, null);
       critters.dispose();
@@ -1012,16 +1056,20 @@ function setUpClearing(s, c) {
   };
 }
 
-/** The forest's butterflies, each a tap target: a tap sends it fluttering up, glittering, and into the journal. */
-function butterflyTaps(s, world) {
+/**
+ * The forest's butterflies, each a tap target: a tap sends it fluttering up and glittering, and into the journal once the book
+ * has been introduced (or always in the glade, where `c` is omitted). In the clearing (`c` given), `HERO` (`butterfly-hero`) is
+ * reserved for Mosi's horn in scene 5 so it cannot be tapped away before `butterflyIntoTheBook`.
+ */
+function butterflyTaps(s, world, c = null) {
   const butterflies = world.forest.butterflies;
-  return (butterflies?.targets ?? []).map(t => {
+  return (butterflies?.targets ?? []).filter(t => !c || t.name !== HERO).map(t => {
     s.target(t.name, t);
     return s.onTap(t.name, tap => {
       butterflies.flutter(t.name);
       sparkleBurst(world, t.point.clone(), { count: 14, duration: 0.8, seed: t.name });
       s.sfx('butterfly');
-      s.found('butterfly', tap);
+      if (!c || c.bookIntroduced) s.found('butterfly', tap);
     });
   });
 }
