@@ -425,7 +425,7 @@
   box-shadow: 0 7px 0 var(--side), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
 }
 
-/* "Eitt!": big and round, beside the child's cards on the right; it pulses when it must be tapped */
+/* "Eitt!" and "Grípa!": big and round, beside the child's cards on the right; hidden until needed */
 .eitt-eitt {
   grid-area: eitt; align-self: end; justify-self: center; z-index: 5;
   width: clamp(116px, 12cqmin, 150px); height: clamp(116px, 12cqmin, 150px); margin-bottom: 4cqh;
@@ -434,6 +434,11 @@
   font-size: clamp(34px, 3.6cqmin, 44px); font-weight: 900; color: #fff;
   -webkit-text-stroke: .15em var(--ink); paint-order: stroke fill;
   transform: rotate(-6deg);
+}
+.eitt-eitt.catch {
+  --side: var(--teal-deep);
+  background: radial-gradient(circle at 34% 26%, rgb(255 255 255 / .5), transparent 44%), radial-gradient(circle at 50% 60%, #4fb3a8, var(--teal) 70%);
+  font-size: clamp(28px, 3cqmin, 36px);
 }
 .eitt-eitt.needed {
   box-shadow: 0 7px 0 var(--side), 0 7px 0 3px var(--ink), 0 0 0 9px var(--gold), 0 0 40px 18px rgb(255 205 80 / .95);

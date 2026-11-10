@@ -273,6 +273,7 @@ const book = createBook(document, {
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
+    if (paused) ui.clearCaption();
     clock.setPaused(paused);
     hold('book', paused);
   },

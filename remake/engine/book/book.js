@@ -667,6 +667,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   function claim() {
     if (!isOpen || holder !== 'script' || tutorialTarget !== null) return;
     holder = 'child';
+    root.classList.add('child-open');
     pause(true);
   }
 
@@ -871,6 +872,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     }
     isOpen = true;
     holder = by === 'child' ? 'child' : 'script';
+    root.classList.toggle('child-open', holder === 'child');
     tab = next;
     spreadIndex = found ? Math.max(0, spreadNumbers.indexOf(found.spread ?? 1)) : 0; // the Dýrin page remembers no spread
     render();
@@ -891,6 +893,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     const was = holder;
     isOpen = false;
     holder = null;
+    root.classList.remove('child-open');
     audio?.stop?.(); // nothing reads on after the book is shut
     museum.stop();
     putCardAway();

@@ -47,11 +47,13 @@ test('a child\'s open holds the game and closing lets it go', () => {
   book.open('animals', 'child');
   assert.equal(book.isOpen, true);
   assert.equal(root.hidden, false);
+  assert.equal(root.classList.contains('child-open'), true, 'marked as child-open so scene captions hide');
   assert.equal(book.tab, 'animals');
   assert.deepEqual(pauses, [true], 'the game holds still');
   close();
   assert.equal(book.isOpen, false);
   assert.equal(root.hidden, true);
+  assert.equal(root.classList.contains('child-open'), false);
   assert.deepEqual(pauses, [true, false], 'and goes on when it is shut');
 
   // A pause that fails is said, and leaves no book half open.
@@ -74,6 +76,7 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   const { book, root, pauses, close } = rig();
   book.open('dinosaurs', 'script'); // the chapter's last scene, while Mosi speaks
   assert.equal(book.isOpen, true);
+  assert.equal(root.classList.contains('child-open'), false, 'script-opened book lets scene captions show');
   assert.deepEqual(pauses, [], 'the scene goes on under it');
   book.close();
   assert.deepEqual(pauses, [], 'and shutting it lets nothing go');
@@ -81,6 +84,7 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   book.open('dinosaurs', 'script');
   root.dispatchEvent(pointerEvent('pointerdown', { x: 400, y: 300 })); // the child touches the book
   assert.deepEqual(pauses, [true], 'it is the child\'s now');
+  assert.equal(root.classList.contains('child-open'), true, 'claiming marks it child-open');
   root.dispatchEvent(pointerEvent('pointerdown', { x: 420, y: 300 }));
   assert.deepEqual(pauses, [true], 'once');
   close();

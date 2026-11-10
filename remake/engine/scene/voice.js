@@ -109,9 +109,15 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
     get preloaded() { return ready.size; },
     /** Follow the game clock's pause; a line that has ended is not replayed. */
     setPaused(paused) {
-      if (!current || current.ended) return;
+      if (!current) return;
+      if (current.ended) {
+        finish(current);
+        return;
+      }
       if (paused) current.pause();
-      else current.play().catch(() => {});
+      else current.play().catch(error => {
+        if (error?.name !== 'AbortError') finish(current);
+      });
     },
   };
 }

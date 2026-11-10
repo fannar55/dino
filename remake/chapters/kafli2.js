@@ -27,7 +27,7 @@
 // chapter 3's.
 import * as THREE from 'three';
 import { chapter as kafli1 } from './kafli1.js';
-import { createSaddle, ride, floatTo } from '../engine/riding.js';
+import { createSaddle, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up's throwaways)
 import { createCritters } from '../world/critters/critters.js';
 import {
@@ -35,7 +35,7 @@ import {
   printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import {
-  SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, arriveInSiki,
+  SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, EGILL_BANK, UGGEDLA_REED, THORSEDLA_FAR, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, arriveInSiki,
 } from './kafli2-siki.js';
 import { fishing } from './kafli2-fishing.js';
 import { riseSail, headUpWithFish, swimAlong, tailSplash, createBackSeat, SINK } from './kafli2-uggedla.js';
@@ -254,15 +254,19 @@ function screenOf(world, point) {
   return { x: box.left + ((p.x + 1) / 2) * box.width, y: box.top + ((1 - p.y) / 2) * box.height };
 }
 
-// 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. She
-// asks Egill to tap the big fish when they jump; he taps five, and she thanks him (kafli2-fishing.js). She got up in scene 3.
+// 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. Egill
+// floats down off Mosi to stand by the water's edge; she asks him to tap the big fish when they jump, he taps five, and she thanks him
+// (kafli2-fishing.js). She got up in scene 3.
 function* fishingScene(s, c) {
   mark(c, 4);
   const { mosi, egill } = c;
   yield s.camera.cut('siki_fishing');
   yield mosi.lookAt('uggedla.head', { weight: 0.7 });
-  yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
+  const down = floatDown(egill.raw, c.saddle, [EGILL_BANK.position[0], EGILL_BANK.position[2]], { duration: 1.8, heading: EGILL_BANK.heading });
+  c.riding = null;
   yield* say(s, c, 'uggedla', 'k2_uggedla_help');
+  yield down;
+  yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
   yield* fishing(s, c);
   yield* say(s, c, 'uggedla', 'k2_uggedla_thanks');
   yield mosi.lookAt(null);

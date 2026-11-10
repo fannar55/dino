@@ -7,7 +7,7 @@ import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { fakeTimers, $, $$, tap } from './fjolspil-guest-rig.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { renderEitt } from '../engine/fjolspil/guest-eitt.js';
-import { createEittGame } from '../engine/eitt/table.js';
+import { createEittGame, EITT_GRACE_MS } from '../engine/eitt/table.js';
 import { makeDeck, newGame } from '../engine/eitt/rules.js';
 import { createSeats, avatarOf } from '../engine/fjolspil/seats.js';
 import { setWay, wayElement } from '../engine/eitt/way.js';
@@ -282,4 +282,89 @@ test('on the big screen a reverse turns the arrows once, and the turn goes to th
   assert.equal(big.eitt.game.turn, 2);
   assert.deepEqual(big.rows().map(row => row.classList.contains('turn')), [false, true], 'Bjarni, the seat before Egill, has the mark');
   assert.equal(big.me().classList.contains('turn'), false, 'and Egill\'s tag has not');
+});
+
+test('Eitt! and Grípa! buttons: Eitt! appears at once with a 2 s grace window; Grípa! appears 2 s after an opponent has one card left', async t => {
+  t.mock.method(console, 'warn', () => {});
+  assert.equal(EITT_GRACE_MS, 2000);
+  const doc = new FakeDocument(['eitt']);
+  const root = doc.getElementById('eitt');
+  const seats = createSeats({});
+  seats.join({ guestId: '1'.repeat(32), name: 'Ásta', avatar: 'kambedla' });
+  seats.join({ guestId: '2'.repeat(32), name: 'Bjarni', avatar: 'gramedla' });
+  const views = new Map();
+  let actHandler = null;
+  const fjolspil = {
+    seats,
+    send(seat, v) { views.set(seat, v); },
+    onAct(fn) { actHandler = fn; },
+    async resume() {}, async openLobby() { return null; }, async waitFor() { return 'back'; }, closeGame() {},
+  };
+  const deck = makeDeck();
+  const byId = id => deck.find(c => c.id === id);
+  const hand0 = ['red-3-a', 'blue-8-a'].map(byId);
+  const hand1 = ['red-9-a', 'green-2-a'].map(byId);
+  const hand2 = ['yellow-4-a', 'blue-5-a', 'green-7-a'].map(byId);
+  const top = byId('red-5-a');
+  const used = new Set([top.id, ...hand0.map(c => c.id), ...hand1.map(c => c.id), ...hand2.map(c => c.id)]);
+  const game = {
+    deck: deck.filter(c => !used.has(c.id)),
+    pile: [top],
+    hands: [hand0, hand1, hand2],
+    colour: 'red',
+    turn: 0,
+    direction: 1,
+    drew: false,
+    unsaid: null,
+    winner: null,
+  };
+  const snapshot = seats.snapshot();
+  const save = { getEitt: () => ({ tutorialDone: true, game, seats: { ...snapshot, seats: snapshot.seats.slice(0, 3) } }), setEitt() {} };
+  const eitt = createEittGame(doc, { save, fjolspil, win: undefined });
+  t.after(() => eitt.close());
+  eitt.open();
+  for (const type of ['pointerdown', 'pointerup']) root.querySelector('.eitt-continue').dispatchEvent(pointerEvent(type, { x: 10, y: 10 }));
+  const until = async (ready, what) => {
+    for (let waited = 0; waited < 5000 && !ready(); waited += 50) await new Promise(resolve => setTimeout(resolve, 50));
+    assert.ok(ready(), what);
+  };
+  await until(() => eitt.phase === 'child', 'the table waits for Egill');
+  const eittBtn = root.querySelector('.eitt-eitt');
+  assert.equal(eittBtn.hidden, true, 'hidden while nobody has 1 card left');
+
+  // Egill plays red-3-a down to 1 card: Eitt! button appears at once, and for 2 s nobody can catch him.
+  const red3 = root.querySelector('.eitt-hand .eitt-card.red');
+  for (const type of ['pointerdown', 'pointerup']) red3.dispatchEvent(pointerEvent(type, { x: 10, y: 10 }));
+  assert.equal(eittBtn.hidden, false, 'Eitt! button appears at once when Egill has 1 card left');
+  assert.equal(eittBtn.querySelector('span').textContent, 'Eitt!');
+  assert.equal(eittBtn.classList.contains('catch'), false);
+  await until(() => eitt.phase === 'remote', 'Ásta\'s turn');
+  assert.equal(views.get(1)?.canCatch, null, 'during the 2 s grace window, opponents cannot catch Egill');
+  actHandler(1, { type: 'catch' });
+  assert.equal(eitt.game.hands[0].length, 1, 'an early catch within 2 s is refused');
+
+  // Egill taps Eitt! within the 2 s window: button hides.
+  for (const type of ['pointerdown', 'pointerup']) eittBtn.dispatchEvent(pointerEvent(type, { x: 10, y: 10 }));
+  assert.equal(eittBtn.hidden, true, 'Eitt! button hides once tapped');
+  assert.equal(eitt.game.unsaid, null);
+
+  // Now Ásta (seat 1) plays red-9-a down to 1 card without calling Eitt!: Grípa! stays hidden for 2 s, then appears.
+  actHandler(1, { type: 'play', cardId: 'red-9-a' });
+  await until(() => eitt.game.turn === 2 && eitt.game.unsaid === 1, 'Ásta played down to 1 card');
+  assert.equal(eittBtn.hidden, true, 'Grípa! is hidden during the opponent\'s 2 s grace window');
+  assert.equal(views.get(1)?.eittNeeded, true, 'Ásta sees her own Eitt! button at once');
+  assert.equal(views.get(2)?.canCatch, null, 'Bjarni cannot catch her yet during the 2 s grace window');
+
+  // After 2 seconds, Grípa! appears on the big screen and on Bjarni's phone.
+  await until(() => !eittBtn.hidden, 'Grípa! button appears after 2 s');
+  assert.equal(eittBtn.querySelector('span').textContent, 'Grípa!');
+  assert.equal(eittBtn.classList.contains('catch'), true);
+  assert.equal(eittBtn.classList.contains('needed'), true);
+  assert.equal(views.get(2)?.canCatch, 1, 'and Bjarni can catch her now too');
+
+  // Egill taps Grípa! to catch Ásta.
+  for (const type of ['pointerdown', 'pointerup']) eittBtn.dispatchEvent(pointerEvent(type, { x: 10, y: 10 }));
+  assert.equal(eittBtn.hidden, true, 'Grípa! hides once tapped');
+  assert.equal(eitt.game.hands[1].length, 3, 'Ásta drew two penalty cards');
+  assert.equal(eitt.game.unsaid, null);
 });
