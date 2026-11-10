@@ -9,6 +9,7 @@ import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createFjolspil } from '../engine/fjolspil/fjolspil.js';
 import { createSeats, playsFromPhone, HOST_AVATAR } from '../engine/fjolspil/seats.js';
 import { COVER_AFTER_MS } from '../engine/fjolspil/protocol.js';
+import { createVeidduMulti } from '../engine/veiddu/multi.js';
 
 globalThis.qrcode = createRequire(import.meta.url)('../vendor/qrcode-generator/qrcode.js');
 
@@ -408,4 +409,36 @@ test('Egill\'s phone remembered after a reload: it goes back to its seat, and a 
   r.net.statusFn('connected');
   assert.deepEqual(hellos(r.net).at(-1).body, { name: 'Egill', avatar: 'egill' }, 'the reconnect is Egill\'s hello, not a guest\'s');
   assert.equal(g$(r.root, '.spil-avatar[aria-pressed="true"]'), null, 'and Egill\'s portrait is not one of the six friends');
+});
+
+test('Veiddu Fjölspil starts with Egill at the big screen: connecting one phone enables "Byrjum!" immediately', async () => {
+  const doc = new FakeDocument(['fjolspil', 'veiddu']);
+  const win = { location: new URL(`${LAN}/remake/?play=1`), addEventListener() {} };
+  const nets = fakeNets();
+  const timers = fakeTimers();
+  const fjolspil = createFjolspil(doc, { win, storage: fakeStorage(), random: () => 0.5, timers, net: nets.create, audio: { sfx() {} } });
+  const uggHome = doc.createElement('div');
+  const multi = createVeidduMulti(doc, {
+    root: doc.getElementById('veiddu'), fjolspil, save: null, win, calm: () => true,
+    uggedla: { windowEl: doc.createElement('div'), frameEl: doc.createElement('div'), home: uggHome, view: () => null, start() {}, stop() {} },
+    sound: { sfx() {}, splashes: { play() {} }, say: () => 0, speech: { stop() {}, cut() {}, talking: false }, clock: () => 0, lineMs: () => 10 },
+    words: { SAY: { yes: 'Já', give: 'Gjörðu', no: 'Nei', childNo: 'Farðu að veiða!', lucky: 'Heppilegt', empty: 'Tóm' }, asking: k => `Áttu ${k}?` },
+  });
+  const lobbyRoot = doc.getElementById('fjolspil');
+  const openPromise = multi.openLobby();
+  const net = nets.made.at(-1);
+  net.welcome();
+  assert.deepEqual(states(lobbyRoot), ['host', 'empty', 'empty', 'empty'], 'Egill is already seated at the big screen');
+  assert.equal($(lobbyRoot, '.fjolspil-start').disabled, true, 'waiting for at least one opponent');
+
+  net.joined('anna-phone');
+  net.hello('anna-phone', 'Anna', 'kambedla');
+  assert.deepEqual(states(lobbyRoot), ['host', 'taken', 'empty', 'empty']);
+  assert.equal($(lobbyRoot, '.fjolspil-start').disabled, false, 'connecting one phone enables "Byrjum!" immediately');
+
+  tap($(lobbyRoot, '.fjolspil-start'));
+  assert.equal(await openPromise, true, 'the round begins');
+  assert.equal(multi.isOn, true);
+  assert.equal(doc.getElementById('veiddu').querySelector('.veiddu-multi').dataset.host, 'screen');
+  multi.leave({ close: true });
 });
