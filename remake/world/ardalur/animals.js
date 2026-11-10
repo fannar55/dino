@@ -46,17 +46,19 @@ export const SMAEDLA_MODEL = new URL('../../assets/critters/smaedla.glb', import
 export const GRASBITUR_MODEL = new URL('../../assets/critters/grasbitur.glb', import.meta.url).href;
 /** The owner's flyer (his Tripo3D model, 0.77 m beak to tail and 1.19 m across its wings at scale 1): flap, glide, perch. */
 export const FLUGDYR_MODEL = new URL('../../assets/critters/flugdyr.glb', import.meta.url).href;
+/** The owner's frog (0.22 m long at scale 1), as tools/prep-frog.mjs bakes it: leap, crouch, breathe. */
+export const FROSKUR_MODEL = new URL('../../assets/critters/froskur.glb', import.meta.url).href;
 const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
 /**
- * The valley's baked critters: { smaedla, grasbitur, flugdyr } as crowd models (world/critters/crowd-models.js), read through
+ * The valley's baked critters: { smaedla, grasbitur, flugdyr, froskur } as crowd models (world/critters/crowd-models.js), read through
  * world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out and the
  * chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
- * flyers (life.js).
+ * flyers (life.js), without the frog the procedural frog stands in.
  */
 export async function loadCritters(world) {
   const files = [
     ['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd'],
-    ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'],
+    ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'], ['froskur', FROSKUR_MODEL, 'the procedural frog stands in'],
   ];
   const loaded = await Promise.all(files.map(async ([name, url, without]) => {
     try {
@@ -159,6 +161,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
   const own = !crowds;
   crowds ??= createCrowds(world);
   const baked = critters.smaedla ?? null;
+  const bakedFrog = critters.froskur ?? null;
   const memberOf = kind => (kind === 'lizards' && baked ? 'smaedla' : MEMBER[kind]);
   const models = {};
   const modelOf = kind => (models[kind] ??= (() => {
@@ -166,6 +169,10 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       // the frames' names, as the crowd draws them (the same in both levels), and its height standing
       const morphs = (baked.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
       return { morphs, height: baked.height, wings: false };
+    }
+    if (kind === 'frog' && bakedFrog) {
+      const morphs = (bakedFrog.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
+      return { morphs, height: bakedFrog.height, wings: false };
     }
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
@@ -245,7 +252,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         along: g.kind === 'birds' ? 0 : m.along, e: g.kind === 'birds' ? PROPS.birds[0].e : m.e, d, side, phase: k * 1.37 + d * 0.01,
       };
     });
-    crowds.reserve(kind, members.length, kind === 'smaedla' ? baked : { model });
+    crowds.reserve(kind, members.length, kind === 'smaedla' ? baked : (kind === 'frog' && bakedFrog) ? bakedFrog : { model });
     const point = crown ? crown.middle.clone() : members.reduce((sum, m) => sum.add(m.home), new THREE.Vector3()).divideScalar(members.length);
     const entry = {
       id: g.id, kind: g.kind, point, radius: crown ? Math.max(RADIUS, crown.r) : RADIUS, members, answered: false, start: null, handle: null,
@@ -289,16 +296,29 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     const p = m.phase;
     switch (g.kind) {
       case 'frogs': {
-        squash(m, 1, 1 + 0.03 * Math.sin(TAU * 0.7 * t + p), 1);
+        const hasRig = 'crouch' in m.morphs;
         m.morphs.leap = 0;
+        if (hasRig) {
+          m.morphs.crouch = 0;
+          m.morphs.breathe = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(TAU * 0.8 * t + p));
+        } else {
+          squash(m, 1, 1 + 0.03 * Math.sin(TAU * 0.7 * t + p), 1);
+        }
         if (tau === null) break;
         const u = tau - k * HOP.stagger;
         if (u <= 0) break;
         if (u >= SWIM.dive) { m.visible = false; break; } // dived: on its way under the water
+        if (hasRig) m.morphs.breathe = 0;
         const water = spot(m.d, m.side, m.along, m.e - HOP.out); // where it lands, out from its pad
         const toRiver = headingOf(-water.out[0], -water.out[1]);
         if (u < HOP.crouch) {
-          squash(m, 1.06, 1 - 0.18 * Math.sin((Math.PI / 2) * (u / HOP.crouch)), 1.06);
+          const c = Math.sin((Math.PI / 2) * (u / HOP.crouch));
+          if (hasRig) {
+            m.morphs.crouch = c;
+            squash(m, 1 + 0.03 * c, 1 - 0.04 * c, 1 + 0.03 * c);
+          } else {
+            squash(m, 1.06, 1 - 0.18 * c, 1.06);
+          }
           m.heading = lerpAngle(m.rest, toRiver, smooth(u / HOP.crouch));
         } else if (u < HOP.crouch + HOP.air) {
           const a = (u - HOP.crouch) / HOP.air;
@@ -312,7 +332,9 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
           const at = spot(m.d, m.side, m.along + SWIM.speed * s, m.e - HOP.out);
           m.position.set(at.x, at.level, at.z);
           m.heading = lerpAngle(toRiver, headingOf(at.dir[0], at.dir[1]), smooth(s / 0.5));
-          m.morphs.leap = 0.5 + 0.5 * Math.sin(TAU * SWIM.kick * s);
+          const kick = 0.5 + 0.5 * Math.sin(TAU * SWIM.kick * s);
+          m.morphs.leap = kick;
+          if (hasRig) m.morphs.crouch = 0.35 * (1 - kick);
         }
         break;
       }

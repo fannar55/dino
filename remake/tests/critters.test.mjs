@@ -1353,3 +1353,28 @@ test('critters can be driven by hand on a world with no effects', () => {
   assert.equal(handle.done, true);
   critters.dispose();
 });
+
+test('when world.loadModel supplies froskur.glb, the frog swaps to the rigged low-poly mesh, breathes, crouches and leaps', async () => {
+  const s = stage();
+  s.world.loadModel = url => loadGlb(new URL(url));
+  const critters = createCritters(s.world, { spots: [SPOTS[0]] });
+  assert.equal(await critters.loaded, true);
+  const frog = meshOf(critters, 'frog');
+  assert.ok('crouch' in frog.morphTargetDictionary && 'leap' in frog.morphTargetDictionary && 'breathe' in frog.morphTargetDictionary);
+  const breaths = [];
+  for (let i = 0; i < 45; i++) { s.frame(); breaths.push(influence(frog, 'breathe')); }
+  assert.ok(Math.max(...breaths) - Math.min(...breaths) > 0.05, 'its throat breathes at rest');
+  const hop = critters.react('frog');
+  let maxCrouch = 0, maxLeap = 0, low = Infinity;
+  for (let i = 0; !hop.done && i < 120; i++) {
+    s.frame();
+    maxCrouch = Math.max(maxCrouch, influence(frog, 'crouch'));
+    maxLeap = Math.max(maxLeap, influence(frog, 'leap'));
+    low = Math.min(low, lowest(frog));
+  }
+  assert.ok(hop.done);
+  assert.ok(maxCrouch > 0.85, `crouches before springing (${maxCrouch.toFixed(2)})`);
+  assert.ok(maxLeap > 0.95, `extends in the air (${maxLeap.toFixed(2)})`);
+  assert.ok(low > -0.004, `never sinks below ground (${low.toFixed(4)})`);
+  critters.dispose();
+});

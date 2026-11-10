@@ -444,3 +444,31 @@ test('the flyer is the owner\'s model baked within the budget, flapping, gliding
   const [, widest] = range('perch', b => b.max.z - b.min.z);
   assert.ok(widest < 0.3, `wings folded (${widest.toFixed(3)} m wide)`);
 });
+
+test('the frog is baked within the budget, crouching, leaping and breathing with its feet on the ground', async () => {
+  const model = crowdModelFrom(await loadGlb(new URL('../assets/critters/froskur.glb', import.meta.url)));
+  const triangles = g => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  assert.ok(triangles(model.lods[0].geometry) <= 700, `near ${triangles(model.lods[0].geometry)} triangles`);
+  assert.ok(triangles(model.lods[1].geometry) <= 260, `far ${triangles(model.lods[1].geometry)} triangles`);
+  assert.equal(model.lods[0].until, 30);
+  for (const { geometry } of model.lods) {
+    const names = (geometry.morphAttributes.position ?? []).map(a => a.name);
+    assert.deepEqual(names, ['leap', 'crouch', 'breathe']);
+  }
+  const geometry = model.lods[0].geometry;
+  const rest = geometry.getAttribute('position');
+  const box = new THREE.Box3().setFromBufferAttribute(rest);
+  assert.ok(Math.abs(box.max.x - box.min.x - 0.22) < 0.015, `0.22 m nose to rump (${(box.max.x - box.min.x).toFixed(3)})`);
+  assert.ok(box.min.y >= -0.002 && box.min.y <= 0.005, `feet on y = 0 (${box.min.y.toFixed(4)})`);
+  const morphBox = name => {
+    const d = geometry.morphAttributes.position.find(a => a.name === name);
+    const out = new THREE.Box3(), p = new THREE.Vector3();
+    for (let i = 0; i < rest.count; i++) out.expandByPoint(p.set(rest.getX(i) + d.getX(i), rest.getY(i) + d.getY(i), rest.getZ(i) + d.getZ(i)));
+    return out;
+  };
+  const crouch = morphBox('crouch');
+  const leap = morphBox('leap');
+  assert.ok(crouch.min.y >= -0.002, `crouch keeps feet on y = 0 (${crouch.min.y.toFixed(4)})`);
+  assert.ok(crouch.max.y < box.max.y - 0.008, `crouch lowers the back (${crouch.max.y.toFixed(3)} < ${box.max.y.toFixed(3)})`);
+  assert.ok((leap.max.x - leap.min.x) > (box.max.x - box.min.x) * 1.25, `leap kicks the legs out (${(leap.max.x - leap.min.x).toFixed(3)} m)`);
+});

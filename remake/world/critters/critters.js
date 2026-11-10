@@ -1,8 +1,13 @@
 import * as THREE from 'three';
+import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { DONE, Handle } from '../../engine/handle.js';
 import { seededRandom } from '../../engine/random.js';
 import { clamp, smoothstep } from '../forest/random.js';
+import { crowdModelFrom } from './crowd-models.js';
 import { BEETLE_SIZE, BIRD, DRAGONFLY, EARLY_BIRD, KINDS, WINGED, createModel } from './models.js';
+
+export const FROG_MODEL = new URL('../../assets/critters/froskur.glb', import.meta.url).href;
+const frogModels = new Map(); // url -> Promise<gltf>, shared across places
 
 // Critters a child can tap: a frog, a snail and a beetle by the path and in the glade, and little birds in the bushes. A tap
 // makes one react, with no words (the sound and the journal entry are the chapter's): the frog hops to a spot beside it, and
@@ -420,12 +425,23 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     }
     if (spot.kind === 'frog') {
       // its home and the spot it hops to: along its heading, the ground at the new spot as it is
+      c.phase = seededRandom(`${spot.name} breath`)() * TAU;
       c.home = root.position.clone();
       c.far = c.home.clone().add(ahead.set(Math.cos(rad(heading)), 0, Math.sin(rad(heading))).multiplyScalar(HOP.distance));
       c.far.y = c.home.y + heightAt(c.far.x, c.far.z) - heightAt(c.home.x, c.home.z);
     }
     return c;
   });
+
+  /** Gentle throat-sac breathing when the baked low-poly frog sits at rest (leaves matrixWorld and tap point untouched). */
+  function idleFrog(c, time) {
+    const idx = c.mesh.morphTargetDictionary?.breathe;
+    if (idx === undefined) return;
+    const phase = c.phase ?? 0;
+    const pulse = Math.sin(TAU * 0.85 * time + phase);
+    const puff = Math.max(0, Math.sin(TAU * 0.22 * time + phase * 0.7)) ** 3;
+    c.mesh.morphTargetInfluences[idx] = 0.35 * (0.5 + 0.5 * pulse) + 0.65 * puff;
+  }
 
   /** The way the critter is when it has no reaction going (a Fen animal: its idle, as it is now). */
   function rest(c) {
@@ -440,6 +456,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     if (c.kind === 'frog') {
       c.root.position.copy(c.leg % 2 === 0 ? c.home : c.far);
       c.root.rotation.y = -rad(c.leg === 0 ? c.heading : c.heading + 180 * (c.leg - 1));
+      idleFrog(c, now());
     }
     settle(c);
   }
@@ -489,9 +506,16 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       mesh.position.y = c.model.pivot + lift;
       // stretched in the air, flat when it crouches and when it lands, and tipped up as it goes and down as it comes
       const stretch = flying ? Math.sin(Math.PI * u) : 0;
-      mesh.scale.set(1 + 0.1 * squash - 0.06 * stretch, 1 - 0.22 * squash + 0.12 * stretch, 1 + 0.1 * squash - 0.06 * stretch);
+      const dict = mesh.morphTargetDictionary;
+      if (dict.breathe !== undefined) mesh.morphTargetInfluences[dict.breathe] = 0;
+      if (dict.crouch !== undefined) {
+        mesh.morphTargetInfluences[dict.crouch] = squash;
+        mesh.scale.set(1 + 0.03 * squash - 0.04 * stretch, 1 - 0.04 * squash + 0.08 * stretch, 1 + 0.03 * squash - 0.04 * stretch);
+      } else {
+        mesh.scale.set(1 + 0.1 * squash - 0.06 * stretch, 1 - 0.22 * squash + 0.12 * stretch, 1 + 0.1 * squash - 0.06 * stretch);
+      }
       mesh.rotation.z = flying ? 1.8 * (0.5 - u) * Math.sin(Math.PI * u) : 0;
-      mesh.morphTargetInfluences[mesh.morphTargetDictionary.leap] = flying ? Math.min(1, 4 * u * (1 - u) * 1.3) : 0;
+      mesh.morphTargetInfluences[dict.leap] = flying ? Math.min(1, 4 * u * (1 - u) * 1.3) : 0;
     },
     snail(c, tau) {
       const hide = tau < HIDE.in ? smooth(tau / HIDE.in) : tau < HIDE.in + HIDE.hold ? 1 : 1 - smooth((tau - HIDE.in - HIDE.hold) / HIDE.out);
@@ -531,6 +555,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
 
   function stepSpot(c, time) {
     if (!c.reaction) {
+      if (c.kind === 'frog') { idleFrog(c, time); return; }
       if (!c.life) return;
       c.life.idle(c, time);
       ground(c);
@@ -670,6 +695,43 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
   list.forEach(rest);
   for (const b of birdList) sit(b);
 
+  // Swap procedural stand-in frogs to the baked low-poly AssetHub/Tripo model (`froskur.glb`) once loaded
+  let loaded = Promise.resolve(false);
+  const frogs = list.filter(c => c.kind === 'frog');
+  if (frogs.length) {
+    let load = null;
+    if (world.loadModel) load = world.loadModel(FROG_MODEL);
+    else if (typeof document !== 'undefined') {
+      if (!frogModels.has(FROG_MODEL)) frogModels.set(FROG_MODEL, new GLTFLoader().loadAsync(FROG_MODEL));
+      load = frogModels.get(FROG_MODEL);
+    }
+    if (load) {
+      loaded = Promise.resolve(load).then(gltf => {
+        if (!gltf || disposed) return false;
+        const baked = crowdModelFrom(gltf);
+        const frogGeo = baked.lods[0].geometry;
+        if (baked.lods[1]) baked.lods[1].geometry.dispose();
+        const frogMat = baked.material.clone();
+        geometries.push(frogGeo);
+        materials.push(frogMat);
+        for (const c of frogs) {
+          c.mesh.geometry = frogGeo;
+          c.mesh.material = frogMat;
+          c.mesh.updateMorphTargets();
+          c.model = { ...c.model, pivot: baked.pivot ?? 0 };
+          if (c.reaction) poses.frog(c, Math.max(0, now() - c.reaction.start));
+          else rest(c);
+          settle(c);
+        }
+        return true;
+      }).catch(error => {
+        frogModels.delete(FROG_MODEL);
+        console.warn('[critters] froskur could not be loaded; the procedural frog stands in:', error?.message ?? error);
+        return false;
+      });
+    }
+  }
+
   function react(name) {
     const c = byName.get(name);
     if (!c) throw new Error(`No critter named "${name}" (the critters here are ${[...byName.keys()].join(', ') || 'none'})`);
@@ -728,5 +790,5 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     },
   });
 
-  return { group, targets, react, scare, update, dispose };
+  return { group, targets, react, scare, update, dispose, loaded };
 }
