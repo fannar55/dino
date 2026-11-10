@@ -14,9 +14,11 @@ export function createRenderer(canvas, q) {
   renderer.info.autoReset = false;
 
   let dynamic = 1;
+  let sizePending = false;
   const camera = { current: null };
 
   function applySize(cam = camera.current) {
+    sizePending = false;
     camera.current = cam;
     const w = Math.max(1, canvas.clientWidth || innerWidth);
     const h = Math.max(1, canvas.clientHeight || innerHeight);
@@ -24,6 +26,14 @@ export function createRenderer(canvas, q) {
     renderer.setSize(w, h, false);
     if (cam) { cam.aspect = w / h; cam.updateProjectionMatrix(); }
   }
+
+  // Setting canvas.width / canvas.height clears the WebGL drawingbuffer; applying adaptive scale changes
+  // immediately before the next render prevents an empty frame from compositing after render().
+  const rawRender = renderer.render.bind(renderer);
+  renderer.render = (scene, cam) => {
+    if (sizePending) applySize(camera.current ?? cam);
+    rawRender(scene, cam);
+  };
 
   // The pixel ratio at a render scale: the preset's, times the scale, never past the screen's own; past the preset's
   // maxPixelRatio only as far as a scale over 1 takes it (q.maxScale, engine/quality.js RESOLUTION_CAP).
@@ -65,7 +75,7 @@ export function createRenderer(canvas, q) {
       ceiling = Math.max(1, dynamic);
       ceilingUntil = clock + HOLD;
     }
-    if (dynamic !== before) applySize();
+    if (dynamic !== before) sizePending = true;
   }
 
   addEventListener('resize', () => applySize());

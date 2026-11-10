@@ -62,6 +62,7 @@ import { createForrit } from './engine/offline/forrit.js';
 //                         app does (engine/offline/forrit.js; in the cloud the worker is always registered)
 const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
+if (!params.get('shot')) document.getElementById('fade')?.style.setProperty('opacity', '1');
 const forrit = createForrit(); // the installed app keeps the whole game in the device and says how far under Byrja
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
@@ -415,6 +416,7 @@ const nextFrames = count => new Promise(resolve => {
 
 /** One warm-up draw from each of `views` (shot names), with `warm`'s objects, and this frame's own view put back after. */
 function warmViews(views, warm) {
+  slicedInFrame = true;
   const result = warmUp(renderer, scene, camera, {
     objects: warm.objects,
     shots: views.map(name => director.poseOf(name)).map(pose => cam => {
@@ -616,6 +618,7 @@ async function getReady() {
     const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
     warmed.push(Object.assign(entry, await warmPrepared(name, forest)));
   }
+  if (!hals.isOpen) drawNow();
   world.warmUps = warmed; // for a probe: { label, draws, ms, programs } of each warm-up (prepareLater adds the places')
   console.info('[warm-up]', warmed.map(describeWarm).join('; '));
 }

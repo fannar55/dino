@@ -244,4 +244,10 @@ test('while the start screen is black for the warm-up a small gold star breathes
   assert.match(start, /ui\.setFade\(1\);[\s\S]*loading\.hidden = false;[\s\S]*getReady\(\)/);
   assert.match(start, /\.finally\(\(\) => \{[\s\S]*loading\.classList\.add\('done'\);[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
   assert.equal((main.match(/loading\.hidden = false/g) ?? []).length, 1, 'nowhere else');
+  // The page and #fade start dark (#15110c) before the first await, and adaptive resolution never resizes the canvas after render().
+  assert.match(rule('html, body'), /background:\s*#15110c/i, 'page background matches .fade so loading and canvas resizes never flash white');
+  assert.ok(main.indexOf("document.getElementById('fade')") < main.indexOf('await import('), '#fade is opaque before the first await');
+  const rendererSrc = read('engine/renderer.js');
+  assert.match(rendererSrc, /if \(dynamic !== before\) sizePending = true;/, 'adapt() defers canvas resize until the next render');
+  assert.match(rendererSrc, /if \(sizePending\) applySize\(/, 'renderer.render applies pending size right before drawing');
 });

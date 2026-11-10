@@ -23,7 +23,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; } /* a rule that sets display would otherwise show what the page hid */
-html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde3; font-family: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #15110c; font-family: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
 /* What sits over the world lets taps through, except the buttons and things to carry, so a target in
