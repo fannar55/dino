@@ -84,6 +84,9 @@ export class FakeElement extends EventTarget {
     this.append(...nodes);
   }
 
+  get firstElementChild() { return this.children[0] ?? null; }
+  get lastElementChild() { return this.children.at(-1) ?? null; }
+
   replaceWith(node) {
     if (!this.parentNode) return;
     this.parentNode.insertBefore(node, this);
@@ -106,7 +109,14 @@ export class FakeElement extends EventTarget {
     this.parentNode = null;
   }
 
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  setAttribute(name, value) {
+    const str = String(value);
+    this.attributes.set(name, str);
+    if (name.startsWith('data-')) {
+      const key = name.slice(5).replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
+      this.dataset[key] = str;
+    }
+  }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   removeAttribute(name) { this.attributes.delete(name); }
 
@@ -193,6 +203,12 @@ export class FakeDocument extends EventTarget {
   createElement(tag) {
     this.created++;
     return new FakeElement(this, tag);
+  }
+
+  createTextNode(text) {
+    const node = new FakeElement(this, '#text');
+    node.textContent = String(text ?? '');
+    return node;
   }
 
   getElementById(id) {

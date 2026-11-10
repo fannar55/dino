@@ -73,9 +73,32 @@ const POINTER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h9V3.5
  *   isOn, game, phase what a probe asks: whether a round is on, the rules' game, and what the table waits for ('shut', 'busy', 'over', or
  *                     '<seat> <ask|fish|give|no>' while it waits for that seat's phone, 'away <seat>' while it waits for a phone that is gone)
  */
-export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Math.random, calm = () => false, kinds = KINDS.length, uggedla, sound, words, onShow = () => {}, onHide = () => {}, onQuit = () => {} }) {
+export function createVeidduMulti(doc, {
+  root, fjolspil, save, win, random = Math.random, calm = () => false, kinds = KINDS.length, uggedla, sound, words,
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = id => clearTimeout(id),
+  onShow = () => {}, onHide = () => {}, onQuit = () => {},
+}) {
   const { sfx, splashes, say, speech, clock, lineMs } = sound;
   const el = (tag, className, attributes, html) => make(doc, tag, className, attributes, html);
+
+  function bindTap(target, fn) {
+    let fromPointer = false;
+    pressable(target, {
+      win,
+      sound: null,
+      onTap: event => {
+        fromPointer = true;
+        fn(event);
+      },
+    });
+    target.addEventListener('click', event => {
+      if (fromPointer) {
+        fromPointer = false;
+        return;
+      }
+      fn(event);
+    });
+  }
 
   // ---- The page -------------------------------------------------------------------------------------------------------------
 
@@ -127,7 +150,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   const entryOf = seat => fjolspil.seats.bySeat(seat);
   const nameOf = seat => entryOf(seat)?.name ?? '';
   const later = (ms, fn) => {
-    const id = setTimeout(() => {
+    const id = setTimer(() => {
       timers.delete(id);
       fn();
     }, ms);
@@ -184,8 +207,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
         fan.hidden = true;
         count.hidden = true;
       } else {
-        pressable(placeEl, { win, sound: null, onTap: () => tapPlace(seat) });
-        placeEl.addEventListener('click', () => tapPlace(seat));
+        bindTap(placeEl, () => tapPlace(seat));
       }
       multiEl.append(placeEl);
       return { el: placeEl, tag, face, name, fan, count, catchEl: caught, top, low };
@@ -230,7 +252,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const place = places[seat];
     if (!place || (seat === 0 && onScreen(entryOf(0)))) return;
     const want = Math.min(shownCount[seat] ?? 0, FAN_MAX);
-    while (place.fan.children.length > want) place.fan.lastElementChild.remove();
+    while (place.fan.children.length > want) (place.fan.lastElementChild ?? place.fan.children.at(-1))?.remove();
     while (place.fan.children.length < want) place.fan.append(cardElement(doc, null, { back: true }));
     layTheirs(place.fan, place.el);
     place.count.textContent = String(shownCount[seat] ?? 0);
@@ -246,8 +268,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   function addToHand(card, hidden = false) {
     const button = cardElement(doc, card, { tag: 'button' });
     if (hidden) button.style.visibility = 'hidden';
-    pressable(button, { win, sound: null, onTap: () => tapCard(card.id) });
-    button.addEventListener('click', () => tapCard(card.id));
+    bindTap(button, () => tapCard(card.id));
     handEls.set(card.id, button);
     return button;
   }
@@ -267,10 +288,14 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     for (const card of handEls.values()) {
       const kind = card.dataset.kind;
       card.classList.toggle('picked', need === 'ask' && kind === picked);
-      card.classList.toggle('is-give', need === 'give' && kind === awaiting.kind);
+      const give = need === 'give' && kind === awaiting.kind;
+      card.classList.toggle('hint', give);
+      card.classList.toggle('is-give', give);
     }
     places.forEach((place, seat) => {
-      place.el.classList.toggle('is-target', seat > 0 && targets.includes(seat));
+      const isTarget = seat > 0 && targets.includes(seat);
+      place.el.classList.toggle('is-target', isTarget);
+      if (seat === uggedlaSeat) uggedla.windowEl?.classList.toggle('veiddu-target', isTarget);
     });
     pondEl.classList.toggle('calls', Boolean(awaiting && awaiting.need === 'fish'));
   }
@@ -285,13 +310,11 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   function showFishButton() {
     fishButton?.remove();
-    fishButton = el('button', 'veiddu-fish-button', {}, words.SAY.childNo);
+    fishButton = el('button', 'veiddu-fish-button', {}, `<span>${words.SAY.childNo}</span>`);
     multiEl.append(fishButton);
-    const tapNo = () => {
+    bindTap(fishButton, () => {
       if (awaiting?.seat === 0 && awaiting?.need === 'no') heard(0, { type: 'no' });
-    };
-    pressable(fishButton, { win, sound: null, onTap: tapNo });
-    fishButton.addEventListener('click', tapNo);
+    });
   }
   function removeFishButton() {
     fishButton?.remove();
@@ -303,8 +326,14 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const card = handEls.get(id);
     if (!card) return;
     if (awaiting.need === 'ask') {
+      const kind = card.dataset.kind;
+      const targets = legalTargets(game, 0);
+      if (picked === kind && targets.length === 1) {
+        tapPlace(targets[0]);
+        return;
+      }
       sfx('flick', { soft: true });
-      picked = card.dataset.kind;
+      picked = kind;
       clearBubble();
       say(nameLine(picked));
       marks();
@@ -312,8 +341,10 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     }
     if (awaiting.need === 'give') {
       if (card.dataset.kind !== awaiting.kind) return nope(card);
-      heard(0, { type: 'give' });
+      heard(0, { type: 'give', cardId: id });
+      return;
     }
+    nope(card);
   }
 
   function tapPlace(seat) {
@@ -392,7 +423,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   const pondTop = () => placeOf(pondShown.at(-1) ?? pondEl, pondShown.length ? Number.parseFloat(pondShown.at(-1).style.getPropertyValue('--r')) : 0);
   const pondMiddle = () => ({ ...placeOf(pondEl), w: backWidth() });
   const placeHand = card => {
-    const r = Number.parseFloat(card.style.getPropertyValue('--r')) || 0;
+    const r = 3 * Number(card.style.getPropertyValue('--i') || 0);
     return placeOf(card, r, card.offsetWidth || 96);
   };
   /** Where a seat's cards are: the middle of its fan (of its place, while it holds none), or handEl for Egill at the big screen. */
@@ -867,8 +898,8 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** The act has been shown: on to whoever's turn it is, or the end. */
   async function proceed() {
-    const humanFish = game.phase === 'fish' && isHuman(entryOf(game.turn)) && entryOf(game.turn).present;
-    if (!humanFish) await lineDone();
+    const humanTurn = game.phase !== 'over' && isHuman(entryOf(game.turn)) && entryOf(game.turn).present;
+    if (!humanTurn) await lineDone();
     markAsked(null);
     if (game.phase === 'over') return endRound();
     return turn(game.turn);
@@ -890,11 +921,13 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   async function turn(seat) {
     const token = round;
     busy = true;
-    if (game.phase !== 'fish') clearBubble();
+    if (game.phase !== 'fish' && clock() >= bubbleUntil) clearBubble();
     markTurn(seat);
     renderTags();
     if (game.phase === 'fish') return doFish(seat);
     const act = await decide(seat, 'ask', null, async () => {
+      await lineDone();
+      clearBubble();
       thinking(seat, true);
       await wait(THINK_MS);
       thinking(seat, false);
@@ -912,10 +945,14 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     pending = { from: seat, to: target, kind };
     lastEvent = publicEvent(result.events[0]);
     markAsked(target);
-    sendViews();
-    await speak(seat, target, words.asking(kind), lineFor(seat, 'ask', kind));
     const humanTarget = isHuman(entryOf(target)) && entryOf(target).present;
-    if (!humanTarget) await lineDone();
+    speech.stop();
+    bubbleUntil = 0;
+    await speak(seat, target, words.asking(kind), lineFor(seat, 'ask', kind));
+    if (!humanTarget) {
+      sendViews();
+      await lineDone();
+    }
     const need = holds(game, target, kind) ? 'give' : 'no';
     await decide(target, need, kind, async () => {
       await wait(ANSWER_BEAT_MS);
@@ -923,7 +960,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     });
     if (stale(token)) return undefined;
     if (humanTarget) {
-      speech.cut(1);
+      speech.stop();
       bubbleUntil = 0;
     }
     commit(result);
@@ -941,7 +978,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     });
     if (stale(token)) return undefined;
     clearBubble();
-    speech.cut(1);
+    speech.stop();
     const result = fish(game, seat);
     commit(result);
     await playEvents(result.events);
@@ -950,7 +987,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** Back to an empty table: the cards, the catches, the words, every timer. */
   function reset() {
-    for (const id of timers) clearTimeout(id);
+    for (const id of timers) clearTimer(id);
     timers.clear();
     awaiting?.reject?.(STALE);
     awaiting = null;
@@ -1002,19 +1039,25 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     lastEvent = null;
     keep();
     sendViews(); // the phones deal it too, as the table does
+    const dealtCards = start.events.filter(event => event.type === 'deal');
+    const screenHost = onScreen(entryOf(0));
+    if (screenHost) {
+      for (const { seat, cardId } of dealtCards) {
+        if (seat === 0) addToHand(cardOf(cardId), true);
+      }
+      renderHand();
+    }
     await wait(700);
     const flights = [];
     const from = pondMiddle();
-    const dealtCards = start.events.filter(event => event.type === 'deal');
     for (const { seat, cardId } of dealtCards) {
-      if (seat === 0 && onScreen(entryOf(0))) {
+      if (seat === 0 && screenHost) {
         const card = cardOf(cardId);
-        const target = addToHand(card, true);
-        renderHand();
-        const to = placeHand(target);
+        const target = handEls.get(cardId);
+        const to = target ? placeHand(target) : fanOf(0);
         const flight = flyer(card, from, { width: Math.max(to.w, from.w), up: true });
         flights.push(flight.move(to, { turn: true, duration: DEAL_MS }).then(() => {
-          target.style.visibility = '';
+          if (target) target.style.visibility = '';
           flight.drop();
           shownCount[0]++;
           sfx('flick', { soft: true });
@@ -1031,6 +1074,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
       await wait(DEAL_GAP);
     }
     await Promise.all(flights);
+    for (const btn of handEls.values()) btn.style.visibility = '';
     await wait(250);
     for (const event of start.events) {
       if (event.type === 'pair') await pairUp(event.seat, event.kind, event.cardIds);
@@ -1164,8 +1208,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   // ---- Touch ---------------------------------------------------------------------------------------------------------------
 
-  pressable(pondEl, { win, sound: null, onTap: () => tapPond() });
-  pondEl.addEventListener('click', () => tapPond());
+  bindTap(pondEl, () => tapPond());
   pressable(quitEl, { win, sound: null, onTap: () => onQuit() });
   pressable(winCard.querySelector('.veiddu-close'), { win, sound: null, onTap: () => onQuit() });
   pressable(winCard.querySelector('.veiddu-again'), { win, sound: null, onTap: () => { if (on && ended) dealSeats(); } });

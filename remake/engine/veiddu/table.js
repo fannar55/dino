@@ -1214,7 +1214,7 @@ export function createVeidduGame(doc, {
 
   const multi = fjolspil
     ? createVeidduMulti(doc, {
-      root, fjolspil, save, win, random, calm, kinds,
+      root, fjolspil, save, win, random, calm, kinds, setTimer, clearTimer,
       uggedla: {
         windowEl: windowEls[UGGEDLA], frameEl: seatEls[UGGEDLA].querySelector('.veiddu-uggedla-frame'), home: seatEls[UGGEDLA],
         view: () => view, start: () => startView(), stop: () => view?.stop(),

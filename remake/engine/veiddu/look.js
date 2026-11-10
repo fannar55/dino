@@ -86,11 +86,20 @@ export function cardElement(doc, card, { back = false, tag = 'div', mini = false
 
 /** Where the child's cards may lie across the table: between Egill's place and Mosi's button (the table's edges when it is upright). */
 function handBounds(handEl) {
-  const table = handEl.closest('.veiddu-table');
+  const upright = Boolean(handEl.ownerDocument.defaultView?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
+  const multi = handEl.closest('.veiddu-multi');
+  if (multi) {
+    const box = handEl.getBoundingClientRect();
+    const base = multi.getBoundingClientRect();
+    const me = multi.querySelector('.veiddu-place.me');
+    const left = !upright && me ? Math.max(box.left + 8, me.getBoundingClientRect().right + 12) : (box.width ? box.left : base.left) + 8;
+    const right = Math.max(left + 160, (box.width ? box.right : base.right) - 8);
+    return [left, right];
+  }
+  const table = handEl.closest('.veiddu-table') ?? handEl.parentElement ?? handEl;
   const base = table.getBoundingClientRect();
   const me = table.querySelector('.veiddu-me-catch');
   const help = table.querySelector('.veiddu-mosi-help');
-  const upright = Boolean(handEl.ownerDocument.defaultView?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
   if (upright || !me || !help) return [base.left + 8, base.right - 8];
   return [me.getBoundingClientRect().right + 10, help.getBoundingClientRect().left - 10];
 }

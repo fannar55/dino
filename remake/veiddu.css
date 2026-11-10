@@ -939,7 +939,7 @@
 }
 .veiddu-place > * { grid-column: 1; }
 .veiddu-place.her { width: var(--window-w); }
-.veiddu-place.me { width: auto; z-index: 6; }
+.veiddu-place.me { width: auto; z-index: 6; pointer-events: none; }
 .veiddu-place[data-slot="top"] { left: 50%; top: max(2cqh, 16px); translate: -50% 0; }
 .veiddu-place[data-slot="l"] { left: 3cqw; top: 50%; translate: 0 -50%; }
 .veiddu-place[data-slot="r"] { right: 3cqw; top: 50%; translate: 0 -50%; }
@@ -957,9 +957,11 @@
   animation: eitt-pulse 1.2s ease-in-out infinite;
 }
 .veiddu-place.is-target .veiddu-tag::after {
-  content: "Spurðu!";
+  content: "Spurðu!"; position: absolute; left: 50%; top: 0; translate: -50% -78%;
+  padding: .12em .62em .16em; border-radius: 999px;
+  font-size: clamp(16px, 1.8cqmin, 21px); font-weight: 900; line-height: 1.1; white-space: nowrap;
   background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .45), transparent 50%), var(--gold);
-  color: var(--ink); -webkit-text-stroke: 0;
+  color: var(--ink); -webkit-text-stroke: 0; border: 2.5px solid var(--ink);
   box-shadow: 0 3px 0 #b88114, 0 3px 0 2.5px var(--ink), 0 6px 10px rgb(40 24 10 / .28);
 }
 .veiddu-place.is-target .veiddu-uggedla {
@@ -974,6 +976,7 @@
 .veiddu-place .veiddu-face { width: clamp(52px, 6cqmin, 72px); }
 .veiddu-place.turn .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--green), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(111 174 79 / .75); animation: eitt-pulse 1.4s ease-in-out infinite; }
 .veiddu-place.turn .veiddu-tag::after { content: "Á leik!"; }
+.veiddu-place.me.turn .veiddu-tag::after { content: "Þú átt leik!"; }
 .veiddu-place.turn .veiddu-uggedla { /* her window on turn: ringed in green */
   box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--green), 0 0 40px 16px rgb(111 174 79 / .8), 0 14px 26px 6px rgb(40 24 10 / .3);
   animation: target-pulse 1.35s ease-in-out infinite;
@@ -984,6 +987,7 @@
   background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--orange);
   box-shadow: 0 3px 0 var(--orange-deep), 0 3px 0 2.5px var(--ink), 0 6px 10px rgb(40 24 10 / .28);
 }
+.veiddu-place.me.asked .veiddu-tag::after { content: "Spurður?"; }
 .veiddu-place.asked .veiddu-uggedla {
   box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--orange), 0 0 42px 16px rgb(224 122 63 / .85), 0 14px 26px 6px rgb(40 24 10 / .3);
   animation: target-pulse 1.15s ease-in-out infinite;
@@ -1017,4 +1021,5 @@
   .veiddu-place[data-slot="r"] { left: 50%; right: auto; top: auto; bottom: max(3cqh, 14px); translate: -50% 0; }
   .veiddu-place[data-slot="tl"], .veiddu-place[data-slot="bl"] { left: 3cqw; }
   .veiddu-place[data-slot="tr"], .veiddu-place[data-slot="br"] { right: 3cqw; }
+  .veiddu-multi[data-host="screen"] .veiddu-place.me { bottom: calc(var(--hand-w) * 1.45 + 16px); }
 }
