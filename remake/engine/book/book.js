@@ -775,6 +775,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   // ---- What it does ------------------------------------------------------------------------------------------------------
 
   function turnTo(next) {
+    ribbons.get(next)?.classList.remove('beckon');
     if (next === tab) return;
     const from = tab;
     finishTurn(); // a turn still under way lands where it was going
@@ -862,6 +863,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   function close() {
     closeEl.classList.remove('beckon');
+    for (const ribbon of ribbons.values()) ribbon.classList.remove('beckon');
     if (!isOpen) return;
     const was = holder;
     isOpen = false;
@@ -928,6 +930,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's
+    if ([...ribbons.values()].some(r => r.classList.contains('beckon') && (event.target === r || r.contains?.(event.target)))) return; // tapping a beckoning ribbon in a script's tutorial keeps the book the script's
     claim();
   }, true);
   root.addEventListener('contextmenu', event => event.preventDefault()); // a long press is a tap, never the browser's menu
@@ -939,6 +942,10 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     close,
     /** The close pulses to be tapped (on), as when a scene has opened the book and waits for the child to shut it. */
     beckonClose(on = true) { closeEl.classList.toggle('beckon', Boolean(on)); },
+    /** A ribbon pulses to be tapped (`name`, or null to clear), as when a scene tutorial guides the child through the book's tabs. */
+    beckonTab(name = null) {
+      for (const [key, ribbon] of ribbons) ribbon.classList.toggle('beckon', key === name);
+    },
     refresh: render,
     pictureOf,
     openCard,

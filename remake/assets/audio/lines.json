@@ -4228,5 +4228,35 @@
   "src": "assets/audio/kafli4/k4_flugedla_play.mp3",
   "duration": 2.01,
   "mouth": "09f50c800effdfeada8cb55bccfa0000000000000"
+ },
+ "k1_mosi_book_reopen": {
+  "src": "assets/audio/kafli1/k1_mosi_book_reopen.mp3",
+  "duration": 4.97,
+  "mouth": "05cfdce8cdffedcd0044ed8007cdeb0aee904effdbe909ddb2cf900dc9660000aefa0f9500dffedecdb00096400000000000"
+ },
+ "k1_mosi_book_dinos": {
+  "src": "assets/audio/kafli1/k1_mosi_book_dinos.mp3",
+  "duration": 6.65,
+  "mouth": "00cffcecdfffdfc04fee80deeedb6400000000000004deb0009ffeccccc50bedccca09dc75bcdb00aceb5eeeeedd908cebeedddb96000cebdeefeddb9430000000000"
+ },
+ "k1_mosi_book_videos": {
+  "src": "assets/audio/kafli1/k1_mosi_book_videos.mp3",
+  "duration": 5.61,
+  "mouth": "003ffa404efedffffffc700eed40bea29700000000000000cdb9c9ca5509c50009dbcdeddd300bb9500bd7cb6aa8bace80088400000000000"
+ },
+ "k1_mosi_book_map": {
+  "src": "assets/audio/kafli1/k1_mosi_book_map.mp3",
+  "duration": 5.931,
+  "mouth": "bc8340efd9300efd0ddfc9003b800000000000009fff546deddccc0839dcccabbbb9004b078eecaaddddeebdeedeb9ddcedeeea6400000000000000"
+ },
+ "k1_mosi_book_games": {
+  "src": "assets/audio/kafli1/k1_mosi_book_games.mp3",
+  "duration": 7.13,
+  "mouth": "000dff7300db9bfffeedee8005d970000000000000cfddadeadcec003ccccd8000edded6ccddda770000000ac009eeddadcded709ea40aecb00db03acbacdeeecdcb94000000000"
+ },
+ "k1_mosi_book_done": {
+  "src": "assets/audio/kafli1/k1_mosi_book_done.mp3",
+  "duration": 5.21,
+  "mouth": "03dfe80000000000000000fea300dedee685fc960dee3cddddefd0dd0efa3bb86000000000feceb02eedcda70bffd300000000000"
  }
 }

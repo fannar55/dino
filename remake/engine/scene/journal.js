@@ -124,8 +124,15 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     button.hidden = !on;
   }
 
+  let buttonBeckons = false;
+  function beckonButton(on = true) {
+    buttonBeckons = Boolean(on);
+    button.classList.toggle('beckon', buttonBeckons);
+  }
+
   /** Opening the book takes the badge off: the child has seen what is new in it. On its animals, it opens for the newest find. */
   function openBook(tab, by, { nod = null } = {}) {
+    beckonButton(false);
     badgeEl.hidden = true;
     const find = newest;
     newest = null;
@@ -266,7 +273,7 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     }
   }
 
-  button.addEventListener('click', () => openBook('animals', 'child'));
+  button.addEventListener('click', () => openBook('animals', buttonBeckons ? 'script' : 'child'));
 
   render();
   badgeEl.hidden = true;
@@ -284,7 +291,12 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     close: () => book?.close(),
     /** The book's close beckons the child (book.js beckonClose): a scene that opened the book and waits for them to shut it. */
     beckonClose: on => book?.beckonClose?.(on),
+    /** A ribbon in the open book beckons the child (book.js beckonTab): a scene tutorial guiding them through the tabs. */
+    beckonTab: tab => book?.beckonTab?.(tab),
+    /** The journal button in the top-right corner beckons the child to tap it and reopen the book. */
+    beckonButton,
     get isOpen() { return book?.isOpen ?? false; },
+    get tab() { return book?.tab ?? 'animals'; },
     get stars() { return save.get().stars; },
     get findings() { return save.get().findings; },
     get places() { return save.get().places ?? []; },

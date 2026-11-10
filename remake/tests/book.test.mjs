@@ -89,6 +89,17 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   book.open('dinosaurs', 'script');
   close(); // a child who only shuts it
   assert.deepEqual(pauses, [true, false], 'resumes nothing that was not held');
+
+  // While a script guides the child through the book's tabs, tapping a beckoning ribbon switches pages without pausing the scene.
+  const guided = rig();
+  guided.book.open('animals', 'script');
+  guided.book.beckonTab('dinosaurs');
+  assert.equal(guided.ribbon('dinosaurs').classList.contains('beckon'), true, 'the requested ribbon beckons');
+  assert.equal(guided.ribbon('videos').classList.contains('beckon'), false);
+  guided.tap(guided.ribbon('dinosaurs'));
+  assert.equal(guided.book.tab, 'dinosaurs', 'tapping the beckoning ribbon turns to its tab');
+  assert.equal(guided.ribbon('dinosaurs').classList.contains('beckon'), false, 'and stops beckoning once tapped');
+  assert.deepEqual(guided.pauses, [], 'without pausing the scene');
 });
 
 test('ribbons switch pages with a turn sound', () => {

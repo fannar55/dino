@@ -382,11 +382,11 @@ function* hello(s, c) {
   yield s.say('mosi', 'k1_mosi_fannar'); // he has not seen a person since Fannar, who sent word that Egill was coming (the owner, 2026-10-25)
   yield s.say('mosi', 'welcome');
   // The child may tap his nose: once it tickles, the second time he sneezes, and the pollen flies on the "atsjú!". The nose
-  // waits 5 s for a first tap, and after the giggle at least NOSE_AGAIN more for the second, so a child who finds it late
-  // still gets the whole joke.
-  yield s.camera.handheld(0, { duration: 0.6 });
+  // waits briefly (1.5 s) for a first tap so the story does not stall after Mosi's question, and after the giggle at least
+  // NOSE_AGAIN more for the second, so a child who finds it still gets the whole joke.
+  yield s.camera.handheld(0, { duration: 0.25 });
   s.target('nose', { point: onBone(mosi.raw, ...POINTS.mosiNose), radius: 0.45 });
-  let until = s.time + 5;
+  let until = s.time + 1.5;
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
@@ -486,8 +486,8 @@ function* upOnBack(s, c) {
 
 // Seconds the child has to tap the butterfly on his horn, from the end of Mosi's asking, before it flies off into the book by itself.
 const BUTTERFLY_ASK_WAIT = 8;
-// Seconds the book a script opened stays open after Mosi has said how to shut it, before it shuts by itself.
-const BOOK_SHUTS_AFTER = 10;
+// Seconds each step of the book tutorial waits after Mosi's prompt before advancing by itself.
+const BOOK_STEP_WAIT = 4.5;
 // Metres: the hero butterfly within this of the horn's point still sits on it.
 const ON_HORN = 0.35;
 // Seconds the butterfly's picture takes to fly into the book's button, and a moment to land (engine/scene/journal.js FLIGHT_SECONDS).
@@ -497,12 +497,12 @@ const BUTTERFLY_CLOSE = { position: { actor: 'egill', part: 'head', offset: [-0.
 
 /**
  * The butterfly that came to rest on his horn in the festival scene goes into the book, the first animal there, and the book opens
- * for the first time (the owner, 2026-10-25). Close over Egill's shoulder, Mosi says it is in his way and asks Egill to tap it; the
- * tap sends it up and away and its picture into the book (butterflyTaps), and a child who taps nothing sees it fly off by itself
- * after BUTTERFLY_ASK_WAIT. A child who tapped it (or another butterfly) earlier has the book's first animal already, and hears only
- * the book. Then the book opens by itself on its animals, Mosi tells what the book is for and how to shut it, its close beckoning
- * meanwhile; the child shuts it, or it shuts by itself after BOOK_SHUTS_AFTER. A child who taps inside it makes it theirs, and the
- * game then waits (the clock held) until they shut it.
+ * for the first time (the owner, 2026-10-25 and 2026-11-10). Close over Egill's shoulder, Mosi says it is in his way and asks Egill
+ * to tap it; the tap sends it up and away and its picture into the book (butterflyTaps), and a child who taps nothing sees it fly off
+ * by itself after BUTTERFLY_ASK_WAIT. Then the book opens on Dýrin, Mosi explains it and asks the child to tap X to close it, then
+ * tap the book button in the corner to reopen it, and step through Risaeðlur, Myndbönd, Kortið and Leikir (where Mosi's Litla Yatzy
+ * awaits) before closing the book with X to set off. Each step beckons its button or tab and advances automatically after BOOK_STEP_WAIT
+ * if the child does not tap.
  */
 function* butterflyIntoTheBook(s, c) {
   const { world, mosi } = c;
@@ -533,12 +533,53 @@ function* butterflyIntoTheBook(s, c) {
     }
     yield s.wait(INTO_THE_BOOK);
   }
+  const stepWait = () => (s.seeking ? 1.5 : BOOK_STEP_WAIT);
   s.journal.open('animals');
   yield s.say('mosi', 'k1_mosi_book');
   s.journal.beckonClose(true);
   try {
     yield s.say('mosi', 'k1_mosi_book_close');
-    yield s.race(s.until(() => !s.journal.isOpen), s.wait(BOOK_SHUTS_AFTER));
+    yield s.race(s.until(() => !s.journal.isOpen), s.wait(stepWait()));
+  } finally {
+    s.journal.beckonClose(false);
+  }
+  if (s.journal.isOpen) s.journal.close();
+  yield s.wait(0.4);
+
+  // Reopen the book using the top-right book button.
+  s.journal.beckonButton(true);
+  try {
+    yield s.say('mosi', 'k1_mosi_book_reopen');
+    yield s.race(s.until(() => s.journal.isOpen), s.wait(stepWait()));
+  } finally {
+    s.journal.beckonButton(false);
+  }
+  if (!s.journal.isOpen) s.journal.open('animals');
+
+  // Step through the book's tabs: Risaeðlur, Myndbönd, Kortið, and Leikir (Mosi's Litla Yatzy).
+  const tutorialTabs = [
+    ['dinosaurs', 'k1_mosi_book_dinos'],
+    ['videos', 'k1_mosi_book_videos'],
+    ['map', 'k1_mosi_book_map'],
+    ['games', 'k1_mosi_book_games'],
+  ];
+  for (const [tab, line] of tutorialTabs) {
+    if (!s.journal.isOpen) s.journal.open(tab);
+    s.journal.beckonTab(tab);
+    try {
+      yield s.say('mosi', line);
+      yield s.race(s.until(() => s.journal.tab === tab), s.wait(stepWait()));
+    } finally {
+      s.journal.beckonTab(null);
+    }
+    if (s.journal.tab !== tab) s.journal.open(tab);
+  }
+
+  // Close the book with X to set off on the ride.
+  s.journal.beckonClose(true);
+  try {
+    yield s.say('mosi', 'k1_mosi_book_done');
+    yield s.race(s.until(() => !s.journal.isOpen), s.wait(stepWait()));
   } finally {
     s.journal.beckonClose(false);
   }
@@ -727,6 +768,16 @@ function* platesLight(s, c) {
   yield egill.turnTo('kambedla');
   yield egill.lookAt('kambedla.head', { weight: 0.8, maxPitch: 40 });
   const mouth = onBone(kambedla.raw, ...POINTS.kambedlaMouth);
+  // A flower dropped anywhere on Kambeðla (snout, head, body, back plates, legs or tail) counts as feeding her, and flies into her mouth.
+  const kambedlaTarget = [
+    mouth,
+    'kambedla.head',
+    'kambedla',
+    POINTS.kambedlaPlates,
+    { actor: 'kambedla', part: 'feet', offset: [0.8, 1.1, 0], local: true },
+    { actor: 'kambedla', part: 'feet', offset: [-1.1, 1.5, 0], local: true },
+    { actor: 'kambedla', part: 'feet', offset: [-2.1, 1.2, 0], local: true },
+  ];
   // The flowers in his hands are in the tray too, and the child may give any of them, in any order, from the moment the
   // tray shows: a drag listens for every flower still in it and listens again the moment one is given, while she eats.
   // Twelve seconds into a wait Mosi says it again, and after twenty Egill gives her the first one left himself.
@@ -738,7 +789,7 @@ function* platesLight(s, c) {
     while (left.length) {
       let nudge = null;
       const reminder = s.after(12, () => (nudge = s.say('mosi', 'k1_mosi_give')));
-      const { id } = yield s.drag(left, mouth, { idle: 20 });
+      const { id } = yield s.drag(left, kambedlaTarget, { radius: 165, idle: 20 });
       if (!nudge) reminder.cancel();
       given.push({ id, nudge });
       left = left.filter(other => other !== id);
@@ -1082,6 +1133,12 @@ export const chapter = {
     k1_mosi_butterfly: { text: 'Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.', audio: 'k1_mosi_butterfly' },
     k1_mosi_book: { text: 'Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og risaeðlurnar sem við hittum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.', audio: 'k1_mosi_book' },
     k1_mosi_book_close: { text: 'Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.', audio: 'k1_mosi_book_close' },
+    k1_mosi_book_reopen: { text: 'Prófaðu nú að smella á bókina uppi í horninu til að opna hana aftur!', audio: 'k1_mosi_book_reopen' },
+    k1_mosi_book_dinos: { text: 'Hér eru myndir af dýrunum. Smelltu á Risaeðlur flipann til að sjá myndir af mér og vinum mínum!', audio: 'k1_mosi_book_dinos' },
+    k1_mosi_book_videos: { text: 'Smelltu nú á Myndbönd flipann! Þar eru skemmtileg myndbönd sem þú getur horft á.', audio: 'k1_mosi_book_videos' },
+    k1_mosi_book_map: { text: 'Og smelltu á Kortið! Þar sjáum við skóginn og hvar vinir mínir eiga heima.', audio: 'k1_mosi_book_map' },
+    k1_mosi_book_games: { text: 'Smelltu svo á Leikir! Þar er Litla Yatzy leikurinn minn, og fleiri leikir bætast við á leiðinni.', audio: 'k1_mosi_book_games' },
+    k1_mosi_book_done: { text: 'Flott! Smelltu nú á krossinn til að loka bókinni, þá leggjum við af stað!', audio: 'k1_mosi_book_done' },
     k1_mosi_map_ride: { text: 'Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.', audio: 'k1_mosi_map_ride' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },

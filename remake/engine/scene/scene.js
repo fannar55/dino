@@ -295,8 +295,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return { x: ((point.x + 1) / 2) * box.width, y: ((1 - point.y) / 2) * box.height, inFront, box };
   }
 
-  /** Is the drop on the canvas and within `radius` px of where the target is on it? */
+  /** Is the drop on the canvas and within `radius` px of where the target (or any point in a list of targets) is on it? */
   function onTarget(drop, spec, radius) {
+    if (Array.isArray(spec) && spec.length && !spec.every(x => typeof x === 'number')) {
+      return spec.some(pointSpec => onTarget(drop, pointSpec, radius));
+    }
     const { x, y, inFront, box } = screenOf(spec);
     if (drop.x < 0 || drop.y < 0 || drop.x > box.width || drop.y > box.height) return false;
     return inFront && Math.hypot(drop.x - x, drop.y - y) <= radius;
@@ -540,10 +543,16 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
       /** Whether the book is open, the child's or a script's. */
       get isOpen() { return journal?.isOpen ?? false; },
+      /** The active tab of the book ('animals' | 'dinosaurs' | 'videos' | 'map' | 'games'). */
+      get tab() { return journal?.tab ?? 'animals'; },
       /** The animals the book has (their ids), for a scene that asks whether one is in it yet. */
       get findings() { return journal?.findings ?? []; },
       /** The book's close beckons (on) while a script waits for the child to shut it, or stops (off). */
       beckonClose: on => { needJournal('s.journal.beckonClose'); journal.beckonClose?.(on); return DONE; },
+      /** One of the book's tabs beckons (name) while a script waits for the child to tap it, or stops (null). */
+      beckonTab: tab => { needJournal('s.journal.beckonTab'); journal.beckonTab?.(tab); return DONE; },
+      /** The corner book button beckons (on) while a script waits for the child to tap it, or stops (off). */
+      beckonButton: on => { needJournal('s.journal.beckonButton'); journal.beckonButton?.(on); return DONE; },
       /**
        * The map in the journey (engine/book/map-moment.js), which a scene plays at a departure: `play(ids)` slides the map up over the
        * game and draws the named pieces, `close()` slides it away (scene/map-moment-scene.js times both beside Mosi's line).

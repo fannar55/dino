@@ -190,9 +190,21 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
 /** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened (and which tile it was asked to nod), and no pictures to fly. */
 export function fakeBook() {
   return {
-    opened: [], nods: [], isOpen: false,
-    open(tab, by, options) { this.opened.push([tab, by]); this.nods.push(options?.nod ?? null); this.isOpen = true; },
-    close() { this.isOpen = false; },
+    opened: [], nods: [], isOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null,
+    open(tab, by, options) {
+      this.opened.push([tab, by]);
+      this.nods.push(options?.nod ?? null);
+      this.isOpen = true;
+      this.tab = tab;
+      this.beckoningTab = null;
+    },
+    close() {
+      this.isOpen = false;
+      this.beckoningClose = false;
+      this.beckoningTab = null;
+    },
+    beckonClose(on = true) { this.beckoningClose = Boolean(on); },
+    beckonTab(tab = null) { this.beckoningTab = tab; },
     refresh() {},
     pictureOf: () => null,
   };
@@ -554,9 +566,36 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   let trayUp = null;
   let lastDrop = -Infinity;
   const choicesEl = doc.getElementById('choices');
+  const journalBtn = doc.getElementById('journal-button');
   let choicesUp = null;
+  let bookBeckonSince = null;
   let asked = false;
   function eagerChild(t) {
+    if (!mosi.talking) {
+      if (book.beckoningClose) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          book.close();
+          bookBeckonSince = null;
+        }
+      } else if (journalBtn.classList.contains('beckon')) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          journalBtn.dispatchEvent(new Event('click'));
+          bookBeckonSince = null;
+        }
+      } else if (book.beckoningTab) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          book.open(book.beckoningTab, 'script');
+          bookBeckonSince = null;
+        }
+      } else {
+        bookBeckonSince = null;
+      }
+    } else {
+      bookBeckonSince = null;
+    }
     if (!choicesEl.hidden && choicesEl.children.length) {
       choicesUp ??= t;
       if (t - choicesUp > 1.2) {

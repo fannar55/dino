@@ -74,7 +74,13 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
     - Egill, uppi í hnakknum: „Vá! Ég sé yfir allt!“
     - Fiðrildið sem settist á horn Mosa í senu 4 fer í bókina, fyrsta dýrið þar, og bókin opnast í fyrsta sinn (bætt við eftir prufuspilun 25. október): nærmynd yfir öxl Egils á hornið og fiðrildið, sem glitrar. Mosi: „Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.“ Við smell flýgur það upp og burt og myndin af því svífur í bókartakkann; geri barnið ekkert í 8 s flýgur það sjálft í bókina. Bókin opnast sjálf á dýrasíðunni með fiðrildinu.
     - Mosi: „Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og risaeðlurnar sem við hittum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.“
-    - Mosi: „Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.“ Krossinn glóir og bifast á meðan; barnið lokar bókinni, og geri það ekkert í 10 s lokast hún sjálf. Barn sem pikkar inni í bókinni gerir hana að sinni og leikurinn bíður þar til það lokar henni.
+    - Mosi: „Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.“ Krossinn glóir og bifast á meðan; barnið lokar bókinni, og geri það ekkert lokast hún sjálf.
+    - Leiðsögn í gegnum bókina skref fyrir skref (bætt við eftir prufuspilun 10. nóvember): bókartakkinn uppi í horninu glóir og bifast og Mosi segir: „Prófaðu nú að smella á bókina uppi í horninu til að opna hana aftur!“ Þegar bókin opnast glóa fliparnir einn af öðrum og Mosi leiðir barnið í gegnum þá (eða opnar næsta skref sjálfur ef ekkert er smellt):
+        - Mosi: „Hér eru myndir af dýrunum. Smelltu á Risaeðlur flipann til að sjá myndir af mér og vinum mínum!“
+        - Mosi: „Smelltu nú á Myndbönd flipann! Þar eru skemmtileg myndbönd sem þú getur horft á.“
+        - Mosi: „Og smelltu á Kortið! Þar sjáum við skóginn og hvar vinir mínir eiga heima.“
+        - Mosi: „Smelltu svo á Leikir! Þar er Litla Yatzy leikurinn minn, og fleiri leikir bætast við á leiðinni.“
+        - Mosi: „Flott! Smelltu nú á krossinn til að loka bókinni, þá leggjum við af stað!“
     - Kortið rennur upp yfir leikinn (bætt við 28. október; sjá `2026-10-28-kortid-lifandi-og-i-ferdalaginu-design.md`, 3. kafla): rauða línan teiknast frá rjóðrinu að burknalautinni á meðan Mosi segir þetta, kortið stendur kyrrt í 0,8 s og rennur burt, og ekkert er klippt. Mosi: „Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.“
     - Mosi: „Haltu þér fast. Af stað!“
 - **Barnið:** pikkar á Egil og hann svífur upp í hnakkinn. Geri barnið ekkert svífur hann sjálfur eftir smá stund. Pikkar svo á fiðrildið á horninu og lokar bókinni.

@@ -250,6 +250,14 @@
 .ribbon[data-tab="animals"] { --ribbon: var(--book-teal); color: var(--book-card); }
 .ribbon[aria-selected="false"] { height: 4.55em; filter: drop-shadow(0 3px 2px rgb(40 24 10 / .3)) saturate(.88) brightness(.96); }
 .ribbon[aria-selected="true"] { z-index: 1; }
+.ribbon.beckon {
+  z-index: 3;
+  animation: ribbon-beckon 1.05s ease-in-out infinite;
+}
+@keyframes ribbon-beckon {
+  0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 8px rgba(242, 182, 48, .75)) drop-shadow(0 4px 3px rgb(40 24 10 / .35)); }
+  50% { transform: translateY(-6px) scale(1.12); filter: drop-shadow(0 0 18px rgba(242, 182, 48, 1)) drop-shadow(0 0 28px rgba(255, 232, 140, .85)) drop-shadow(0 6px 5px rgb(40 24 10 / .4)); }
+}
 .ribbon-label { white-space: nowrap; }
 .ribbon-new { /* the Safnið ribbon's "Nýtt!", while a fossil there is new: a text badge as .badge-new is, on the band's top corner */
   position: absolute; z-index: 4; top: -.2em; right: -.4em; pointer-events: none;

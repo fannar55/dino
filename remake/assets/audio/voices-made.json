@@ -1627,6 +1627,42 @@
    "duration": 6.01,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_book_dinos": {
+   "key": "5c0199a08482368e6660badb4b89fae3e597d0c108107720ed36fa8a4844af26",
+   "mp3": "90b8b4a04f30c664bce9e38273af7e8fe23a2c0f2a8d44e8242c68f432b96cda",
+   "duration": 6.65,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_book_done": {
+   "key": "cd3870c22da9f6a03d44e850bfd6a116b65446921765a22d743d3021d79fbd2c",
+   "mp3": "ce116e77ccb6e07242da198fc7ee1fd58d54abdcfb4c43551afe06e6e76bee44",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_book_games": {
+   "key": "661672718573ca42c18bcf3e03b65eb8b7ea0cde9f3854fd455d16c59894ab6b",
+   "mp3": "0b378ff7cf1b5156f23a221becd1c22b6147f10d981d158a896fea02fefbc31e",
+   "duration": 7.13,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_book_map": {
+   "key": "ec71ef4ace0e722d534ca31a9c05aa99fdcefd74b328b7f5a06d388d87dc473f",
+   "mp3": "1fa791d79fd00b4ccb9cd26a61f9506f358a9ccf941a4af18e3bc16cfe600fcf",
+   "duration": 5.931,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_book_reopen": {
+   "key": "8fc59245769bd49ff7cc3c531d723036ec9c1fb12f5e51323edaef36caf401b0",
+   "mp3": "7aa489c24ea861b04a1f8073f12675c2f108ed20c51c32da0ddd4d039f84d823",
+   "duration": 4.97,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_book_videos": {
+   "key": "b926e8454ad62eae047c02d9bf1d41e539d3b7bdedb573710a3eece5c501dcb6",
+   "mp3": "d8d87ab6848c63528a836b70b0c5cdfd495d3000164d53233a3381cf8599127b",
+   "duration": 5.61,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_butterfly": {
    "key": "cfbfa1b2322f900557a551a6eb6b898b809232aaf8b9816aef0075d9b67fb851",
    "mp3": "d3daf1689f3fc0f635903fa6030038401053ca12e50c366e9412a83371e8555c",
