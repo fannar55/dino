@@ -4698,5 +4698,20 @@
   "src": "assets/audio/kafli5/k5_mosi_flyers.mp3",
   "duration": 1.37,
   "mouth": "00efd3000efebca6000000000000"
+ },
+ "k5_sloedla_forgot": {
+  "src": "assets/audio/kafli5/k5_sloedla_forgot.mp3",
+  "duration": 5.05,
+  "mouth": "9abbbaa740000000000000cfffdabdfc0ecba88aaaa702000000000000000005cbb0009ccd8a4056007dd9000000000000000"
+ },
+ "k5_sloedla_mine": {
+  "src": "assets/audio/kafli5/k5_sloedla_mine.mp3",
+  "duration": 3.13,
+  "mouth": "000ca000cb960000000000004f80fbfeefc9cc00bf887430000000000000000"
+ },
+ "k5_sloedla_thanks": {
+  "src": "assets/audio/kafli5/k5_sloedla_thanks.mp3",
+  "duration": 4.25,
+  "mouth": "24dc00003000ca7420000000000000000dffe5000deedddcbb00cffd0089947c8ada00874550000000000"
  }
 }

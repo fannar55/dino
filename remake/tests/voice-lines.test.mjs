@@ -117,7 +117,7 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   const lines = readJson(REAL.source);
   const voices = readJson(REAL.voices);
   const recorded = readJson(REAL.lines);
-  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla', 'flugedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla), chapter 2's Uggeðla (picked by the owner 2026-10-31) and chapter 4's Flugeðla (the song game's DJ voice, the owner's choice 2026-11-02) are not chapter 1's
+  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla', 'flugedla', 'sloedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla), chapter 2's Uggeðla (picked by the owner 2026-10-31) and chapter 4's Flugeðla (the song game's DJ voice, the owner's choice 2026-11-02) and chapter 5's Slóeðla (designed, his pick 2026-11-11) are not chapter 1's
   const ids = new Set();
   const takes = new Map();
   for (const line of lines) {

@@ -11,4 +11,5 @@ export const WAITING_FOR_VOICE = new Set([]);
 // three lines are in kafli5/lines-source.json with no recording and are shown as captions, timed by their words. The same two
 // tests let them wait (kafli5-lines.test.mjs, voice-lines.test.mjs); kafli5-lines.test.mjs fails the day she has a voice and one of
 // these still has no recording, and when one that has its recording is still named here.
-export const WAITING_FOR_HER_VOICE = new Set(['k5_sloedla_forgot', 'k5_sloedla_mine', 'k5_sloedla_thanks']);
+// The owner picked her voice on 2026-11-11 (the fourth of the six) and her three lines were recorded that evening, so none waits.
+export const WAITING_FOR_HER_VOICE = new Set([]);

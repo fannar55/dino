@@ -2474,6 +2474,18 @@
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        },
+        "samhengi": {
+          "context": "Sjáðu stóru dýrin sem bíta gras á bakkanum! Þetta eru grasbítarnir.",
+          "note": "Bent á dýrin. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-kall": {
+          "context": "Nú eiga stóru grasbítarnir að syngja. Mosi bendir á þá og kallar glaður til Egils:",
+          "note": "Glatt kall. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-rolegt": {
+          "context": "Mosi kennir Agli nöfnin á dýrunum við tjörnina, rólega og skýrt. Þetta eru grasbítarnir.",
+          "note": "Rólegt og skýrt. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
         }
       },
       "chosen": null
@@ -2504,6 +2516,18 @@
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        },
+        "samhengi": {
+          "context": "Sjáðu dýrin sem fljúga þarna uppi yfir tjörninni! Þetta eru flugdýrin.",
+          "note": "Bent á dýrin. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-kall": {
+          "context": "Nú eiga litlu flugdýrin að syngja. Mosi bendir á þau og kallar glaður til Egils:",
+          "note": "Glatt kall. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-rolegt": {
+          "context": "Mosi kennir Agli nöfnin á dýrunum við tjörnina, rólega og skýrt. Þetta eru flugdýrin.",
+          "note": "Rólegt og skýrt. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
         }
       },
       "chosen": null
