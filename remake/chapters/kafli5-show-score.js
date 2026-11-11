@@ -8,13 +8,13 @@
 //
 //   fireflies   createFireflies: each one's place, size, light and colour at a beat
 //   dusk        duskAt: how deep the dusk is (the quiet part under her horn and the build after it), liftAt: the soft flashes
-//   splashes    SPLASHES, dropAt, splashRingAt: the crowns of drops on the drops, a ring where a frog lands
+//   splashes    SPLASHES, dropAt, splashRingAt: the crowns of drops on the drops, a ring where a frog lands and where the grazers stomp
 //   the count   COUNTS, countAt: the big number on the screen
 //   notes       NOTES, noteAt, notePoint: the glowing notes between the groups, her crest and the sky
 //   the beat    pulseAt, energyOf, beatRingsAt: the backbeat in the lights, rings of light on the water
 import { SONG } from './kafli5-set.js';
 import { danceBeatAt, sectionAt } from './kafli5-video.js';
-import { GROUPS, WADE, seatsOf } from './kafli5-pool.js';
+import { CHOIR, GROUPS, WADE, around, seatsOf } from './kafli5-pool.js';
 import { FAR_POOL } from './kafli4-route.js';
 
 const SET = SONG.set;
@@ -214,7 +214,8 @@ export const SPLASH = { ring: 4, rim: 0.8, crowns: 12, height: 4.5, frogAfter: 0
 /**
  * Every splash of the set: { beat, at: [x, z], drops, up (m a beat), spread (m a beat), ring (m a beat), seed }. On the bursts and
  * the last hit the water jumps up all round the pool (SPLASH.crowns crowns near its rim); a frog's call makes a small one at a lily
- * pad as the frog lands (SPLASH.frogAfter beats after its call).
+ * pad as the frog lands (SPLASH.frogAfter beats after its call); and in the grazers' part each stomp (their calls) sends a ring out
+ * over the water from the bank at their feet, with no drops.
  */
 export const SPLASHES = (() => {
   const out = [];
@@ -231,6 +232,10 @@ export const SPLASHES = (() => {
   });
   heard(cues('call').filter(call => call.group === 'frogs')).forEach((call, k) => {
     out.push({ beat: call.beat + SPLASH.frogAfter, at: padOf(call.setBeat), drops: 5, up: speedFor(0.45), spread: 0.3, ring: 0.8, seed: 1000 + k });
+  });
+  const feet = [-6, 5, 0].map(turn => around(CHOIR.grazers.angle + turn, POOL.radius - 1.5)); // the water's edge before the three of them
+  heard(cues('call').filter(call => call.group === 'grazers' && sectionAt(call.beat)?.id === 'grazers')).forEach((call, k) => {
+    out.push({ beat: call.beat, at: feet[k % feet.length], drops: 0, up: 0, spread: 0, ring: 1.4, seed: 2000 + k });
   });
   return out.sort((a, b) => a.beat - b.beat);
 })();

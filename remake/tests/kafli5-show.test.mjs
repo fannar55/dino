@@ -185,7 +185,7 @@ test('the splashes: crowns of drops all round the pool on the bursts, and a smal
       assert.equal(dropAt(splash, j, SPLASH_AIR + 0.01, out), false, 'down again');
       assert.equal(dropAt(splash, j, -0.01, out), false);
     }
-    assert.ok(top <= (splash.drops > 6 ? SPLASH.height : 0.5) + 0.01 && top > (splash.drops > 6 ? 1.5 : 0.2), `as high as ${top.toFixed(2)} m`);
+    if (splash.drops) assert.ok(top <= (splash.drops > 6 ? SPLASH.height : 0.5) + 0.01 && top > (splash.drops > 6 ? 1.5 : 0.2), `as high as ${top.toFixed(2)} m`);
     assert.equal(splashRingAt(splash, SPLASH.ring), null);
     assert.ok(splashRingAt(splash, 1).radius > splashRingAt(splash, 0).radius && splashRingAt(splash, 3).level < splashRingAt(splash, 1).level);
   }
@@ -197,6 +197,15 @@ test('the splashes: crowns of drops all round the pool on the bursts, and a smal
     assert.ok(SPLASHES.some(splash => splash.beat === beat && splash.at === padOf(call.beat)), `a ring at a lily pad as the frog of ${call.beat} lands`);
   }
   assert.equal(new Set(frogs.map(call => padOf(call.beat))).size, pads.length, 'every pad has its turn');
+  // the grazers' stomps: a ring out over the water from the bank at their feet, and no drops
+  const stomps = SET.cues.filter(cue => cue.kind === 'call' && cue.group === 'grazers' && sectionAt(cue.beat).id === 'grazers');
+  assert.ok(stomps.length >= 8);
+  for (const stomp of stomps) {
+    const ring = SPLASHES.find(splash => splash.beat === stomp.beat && splash.drops === 0);
+    assert.ok(ring, `a ring on the stomp at ${stomp.beat}`);
+    assert.ok(Math.hypot(ring.at[0] - FAR_POOL.center[0], ring.at[1] - FAR_POOL.center[1]) < FAR_POOL.radius, 'on the water');
+    assert.ok(Math.hypot(ring.at[0] - CHOIR.grazers.at[0], ring.at[1] - CHOIR.grazers.at[1]) < 9, 'at their feet');
+  }
 });
 
 test('the fireflies: out of the reed, round her in the quiet part, out over the whole pool on the drop, and never a jump', () => {
@@ -516,7 +525,7 @@ test('the chapter left in the middle of the build (dusk, a number on the screen)
       if (!c?.video || !Number.isFinite(c.songStart)) return;
       seen.shows = Math.max(seen.shows, lights(world).length);
       if (light() !== seen.light) seen.dusk = true;
-      if (numbers(world.page).length && c.show.parts.number.shown) seen.number = true;
+      if (numbers(world.page).some(el => el.style.display === 'flex')) seen.number = true;
       if (c.video.setBeat >= COUNTS[2].beat + 0.5) { // "Þrír!" is on the screen: the child leaves
         assert.ok(seen.dusk && seen.number && seen.shows === 2);
         assert.notEqual(light(), seen.light);
