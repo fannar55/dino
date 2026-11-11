@@ -122,6 +122,7 @@ const WHERE = {
   // the set (scene 6): she wades, Egill is at the water's edge, Flugeðla in the shallows where she landed
   set_her_close: { sloedla: WADE.at },
   set_her_low: { sloedla: WADE.at },
+  set_her_reed: { sloedla: WADE.at },
   set_egill_close: { egill: SPOTS.egill },
   set_flugedla: { flugedla: SPOTS.flugedla },
 };

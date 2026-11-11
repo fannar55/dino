@@ -68,15 +68,20 @@ export const CAMERA = [
   { beat: 161, cut: 'set_frogs_mid', quick: true },
   { beat: 162, cut: 'set_frogs_close', quick: true },
   { beat: 168, cut: 'set_frogs', then: { push: 1.5, beats: 7 } },
-  { beat: 176, cut: 'set_lizards', then: { push: 1.5, beats: 7 } },
-  { beat: 184, cut: 'set_lizards_close', then: { orbit: -12, beats: 7 } },
+  // the lizards line up (176), run out along the water's edge past the frogs and shake their tails there (178 to 185), run home
+  // (185 to 190) and shake them again: their place, the whole run, their place close
+  { beat: 176, cut: 'set_lizards' },
+  { beat: 180, cut: 'set_lizards_run', then: { push: 1.2, beats: 7 } },
+  { beat: 188, cut: 'set_lizards_close' },
   { beat: 192, cut: 'set_flyers' }, // they take off
-  { beat: 196, cut: 'set_sky', then: { zoom: 44, beats: 11 } }, // and fly their eight over the pool
-  { beat: 208, cut: 'set_water_low', then: { push: 2.5, beats: 7 } }, // the beetles' drums (their own shot comes with their place)
+  { beat: 196, cut: 'set_sky', then: { zoom: 44, beats: 11 } }, // and fly their eight over the pool, diving past the camera
+  { beat: 208, cut: 'set_beetles', then: { push: 0.8, beats: 7 } }, // the beetles drum on their log
   { beat: 216, cut: 'set_low_wide', then: { push: 2, beats: 7 } },
   { beat: 224, cut: 'set_her_low', then: { push: 1.5, beats: 7 } }, // the dragonflies dart to her
-  // her horn: all hers, slowly round her; Egill and Mosi listen; her again, low, the sky over her
-  { beat: 232, cut: 'set_her_close', then: { orbit: 30, beats: 15 } },
+  // her horn, in the dusk: low, the dark reed behind her and the air over her crest for her notes to rise in; slowly round her;
+  // Egill and Mosi listen; her again, low, the sky over her
+  { beat: 232, cut: 'set_her_reed', then: { push: 1.5, beats: 7 } },
+  { beat: 240, cut: 'set_her_close', then: { orbit: 15, beats: 7 } },
   { beat: 248, cut: 'bank_talk', then: { push: 0.8, beats: 5 } },
   { beat: 254, cut: 'set_her_low', then: { push: 2.5, beats: 9 } },
   // the build: her wings up, Egill's hands up, the whole pool closing in, and a group a number
@@ -95,12 +100,14 @@ export const CAMERA = [
   // everyone sings her tune
   { beat: 324, cut: 'set_low_wide', then: { orbit: -8, beats: 15 } },
   { beat: 340, cut: 'set_her_close', then: { orbit: -14, beats: 7 } },
-  { beat: 348, cut: 'set_water_low', then: { push: 2.5, beats: 7 } },
-  // Stoppdans: dancing, frozen in this shot at 362, then the turtle that moved
-  { beat: 356, cut: 'set_low_wide' },
+  { beat: 348, cut: 'choir_wide', then: { push: 2.5, beats: 7 } },
+  // Stoppdans: dancing, low over the water, the camera gliding on as everything freezes at 362 (through the fireflies that hang
+  // in the air); the turtle that moved; and gliding again through the frozen pool until "Dansa!"
+  { beat: 356, cut: 'set_water_low', then: { push: 2.9, beats: 8 } },
   { beat: 364, cut: 'set_turtles_close' },
+  { beat: 368, cut: 'set_low_wide', then: { push: 1.4, beats: 4 } },
   // the carnival: the parade, the flyers over it, everyone hopping
-  { beat: 372, cut: 'set_low_wide', then: { orbit: 8, beats: 15 } },
+  { beat: 372, cut: 'set_water_low', then: { orbit: 6, beats: 15 } },
   { beat: 388, cut: 'set_sky', then: { zoom: 46, beats: 7 } },
   { beat: 396, cut: 'choir_wide', then: { push: 2.5, beats: 7 } },
   // "Egill, segðu já!": him, the forest's answer, him again

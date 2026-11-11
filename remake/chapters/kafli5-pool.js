@@ -122,6 +122,13 @@ const SET_SHOTS = {
   // her, out in the pool: close from the north-east (the choir's banks behind her), and low from the east with the sky over her
   set_her_close: seen(WADE.at, 140, 9, 1.5, 1.7, 34), // she wades deep: her head is a metre and a half over the water, three when she blows her horn
   set_her_low: seen(WADE.at, 112, 13, 1.0, 2.4, 44),
+  // her horn in the dusk: from the pool's middle, low, her dark reed and the trees behind her and the air over her crest in frame
+  // (the notes of her horn rise eight metres there: kafli5-show.js), the low sun just off the frame's left
+  set_her_reed: seen(WADE.at, 252, 11, 1.0, 3.8, 46),
+  // the lizards' run along the water's edge, from their place (204 degrees) past the frogs (181) and back: from the water west of her
+  set_lizards_run: { position: up(around(211.3, 16.4), LEVEL + 1.3), target: up(around(192, 27.5), LEVEL + 0.9), fov: 44 },
+  // the beetles' log on the bank between the turtles and the frogs (173 degrees, 29.6 m: kafli5-dances.js), from the water's edge
+  set_beetles: seen(around(173, 29.6), 173, 4.4, 1.1, 0.9, 46),
   // the whole dance floor: low over the water from the north-east, wide; and lower still, from the pool's middle
   set_low_wide: { position: up(around(335, 15), LEVEL + 1.2), target: up(around(188, 24), LEVEL + 1.7), fov: 56 },
   set_water_low: { position: up(around(285, 9), LEVEL + 1.0), target: up(around(176, 26), LEVEL + 1.9), fov: 50 },
@@ -169,6 +176,7 @@ export const SHOWS = {
   ...Object.fromEntries(Object.keys(SET_SHOTS).map(name => [name, []])),
   set_her_close: ['sloedla'],
   set_her_low: ['sloedla'],
+  set_her_reed: ['sloedla'],
   set_egill_close: ['egill'],
   set_flugedla: ['flugedla'],
 };
