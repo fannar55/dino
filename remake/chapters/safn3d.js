@@ -20,17 +20,17 @@ const CHARS = '../assets/characters/';
 // camera and the step are worked out from the model (portraitFor; ?probe=1 prints them).
 const FRIENDS = {
   thorsedla: { url: 'brontosaurus.glb', home: [0, -16], heading: 90, clip: 'lowerHead', clipAt: 0.62, headSize: 1.3, fov: 40, fact: 'statue_brachiosaurus_special', name: 'name_brachiosaurus' },
-  mosi: { url: 'mosi.glb', home: [10, -8], heading: 135, maxStep: 4, headSize: 2.6, fov: 50, fact: 'encyclopedia_triceratops_horns', name: 'name_triceratops' },
-  gramedla: { url: 'trex.glb', home: [-10, -9], heading: 50, headSize: 2.2, fov: 50, fact: 'statue_trex_special', name: 'name_trex' },
+  mosi: { url: 'mosi.glb', home: [10, -8], heading: 135, pop: 0.67, maxStep: 4, headSize: 2.6, fov: 50, fact: 'encyclopedia_triceratops_horns', name: 'name_triceratops' },
+  gramedla: { url: 'trex.glb', home: [-10, -9], heading: 50, pop: 0.66, headSize: 2.2, fov: 50, fact: 'statue_trex_special', name: 'name_trex' },
   uggedla: { url: 'spinosaurus.glb', home: [-12.5, -1], heading: 10, maxStep: 3.5, headSize: 2.2, fov: 50, fact: 'statue_spinosaurus_special', name: 'name_spinosaurus' },
-  sloedla: { url: 'parasaurolophus.glb', home: [11.5, 0], heading: 175, headSize: 1.8, fov: 46, fact: 'statue_parasaurolophus_special', name: 'name_parasaurolophus' },
+  sloedla: { url: 'parasaurolophus.glb', home: [12, -1], heading: 175, headSize: 1.8, fov: 46, fact: 'statue_parasaurolophus_special', name: 'name_parasaurolophus' },
   kambedla: { url: 'stegosaurus.glb', home: [-8, 7], heading: -15, headSize: 1.2, fov: 44, fact: 'statue_stegosaurus_special', name: 'name_stegosaurus' },
-  flugedla: { url: 'pteranodon.glb', home: [7.5, 7.5], heading: 195, maxStep: 4, headSize: 2.2, fov: 46, fact: 'statue_pteranodon_special', name: 'name_pteranodon' },
+  flugedla: { url: 'pteranodon.glb', home: [1.5, 10.5], heading: 240, maxStep: 4, headSize: 2.2, fov: 46, fact: 'statue_pteranodon_special', name: 'name_pteranodon' },
 };
 const NAMES = Object.keys(FRIENDS);
 const EYES = [0.5, 0.7, 0.9, 1.1, 1.3]; // the camera's heights at a portrait: a child's eye, sitting to standing (low looks up, and the ground leaves the frame)
 const HEAD_SHARE = 0.55; // the head may fill at most this share of the frame's height at the pop-out
-const POP = 0.55; // the head bone's depth at the pop-out as a share of D (its snout comes nearer, to about 0.47)
+const POP = 0.6; // the head bone's depth at the pop-out as a share of D: its snout comes nearer, to about 0.45-0.5 (measured 2026-11-11)
 const PORTRAIT_FOV = 40;
 const HEAD_V = 0.4; // where the head sits on the screen at the pop-out (0 top, 1 bottom): above the captions
 
@@ -105,7 +105,7 @@ export const chapter = {
         const c = actors[n].centre(ndc);
         const depth = depthOf(cam, c);
         c.project(cam);
-        if (depth > 0 && Math.abs(c.x) < 1.25 && Math.abs(c.y) < 1.25) d = Math.min(d, depth);
+        if (depth > 0 && Math.abs(c.x) < 1.7 && Math.abs(c.y) < 1.5) d = Math.min(d, depth); // (a big friend whose centre is just outside still pokes in)
       }
       return d;
     }
@@ -167,7 +167,7 @@ export const chapter = {
             const plane = comfortPlane(cam, [centre]);
             const headDepth = depthOf(cam, head);
             const ratio = headDepth / plane;
-            if (Math.abs(ratio - POP) > 0.03) continue;
+            if (Math.abs(ratio - (f.pop ?? POP)) > 0.03) continue;
             // the head (its frill, crest or snout) must fit well inside the frame, clear of the edges
             const share = f.headSize / (2 * headDepth * tanHalf);
             const pose = { r, eye, step, ratio, share, plane, position: position.toArray(), aim: aim.toArray(), head: head.toArray(), at: [f.home[0] + fx * step, f.home[1] + fz * step] };
@@ -178,7 +178,7 @@ export const chapter = {
         }
       }
       // nothing fits: the smallest head among the poses at POP of D
-      if (!best) console.info(`[safn3d] ${name}'s head fills ${near?.share.toFixed(2)} of the frame at ${POP} of D (wanted ${HEAD_SHARE} at most)`);
+      if (!best) console.info(`[safn3d] ${name}'s head fills ${near?.share.toFixed(2)} of the frame at ${f.pop ?? POP} of D (wanted ${HEAD_SHARE} at most)`);
       return best ?? near;
     }
 
@@ -244,11 +244,14 @@ export const chapter = {
     let celebrated = false;
     for (;;) {
       for (const n of NAMES) s.target(n, { point: n, radius: Math.max(2.2, actors[n].size?.y ?? 2.5) });
-      const order = first && NAMES.includes(first) && !visited.has(first) ? [first, ...NAMES.filter(n => n !== first)] : NAMES;
+      // (the order only matters while seeking, where the first is taken: ?vinur= first, then the friends not seen yet)
+      const fresh = NAMES.filter(n => !visited.has(n));
+      const order = [...new Set([...(first && fresh.includes(first) ? [first] : []), ...fresh, ...NAMES])];
       const name = yield s.tap(order);
       for (const n of NAMES) s.target(n, null);
       yield* visit(name);
       visited.add(name);
+      state.visited = [...visited];
       sparkleBurst(world, actors[name].headPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.6, 0)), { count: 26, duration: 1.3, size: 0.4, spread: 1.1, seed: `safn ${name}` });
       s.sfx('star');
       if (visited.size === NAMES.length && !celebrated) {
