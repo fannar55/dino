@@ -13,7 +13,8 @@ import * as THREE from 'three';
 // so both eyes draw the same set of things. The sun's shadow map is drawn once, for the first eye.
 
 const KEY = 'mosi.gler.v1';
-const DEFAULTS = { on: false, strength: 0.02, method: 'dubois', glasses: 'cyan', swap: false };
+// pop scales D: over 1 the screen plane moves away, so more of the scene comes out of the screen (and the eyes move apart with it)
+const DEFAULTS = { on: false, strength: 0.02, method: 'dubois', glasses: 'cyan', swap: false, pop: 1 };
 const METHODS = { dubois: 0, half: 1, grey: 2, pass: 3 }; // pass: the left eye as it is (a check against the normal render)
 const PLANE = { min: 1.5, max: 60, tau: 0.6 }; // m, m, s
 
@@ -69,7 +70,9 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   if (METHODS[params.get('adferd')] !== undefined) settings.method = params.get('adferd');
   if (['cyan', 'blue'].includes(params.get('gleraugu'))) settings.glasses = params.get('gleraugu');
   if (params.get('vixla') !== null) settings.swap = params.get('vixla') === '1';
-  const fromAddress = ['gler', 'styrkur', 'adferd', 'gleraugu', 'vixla'].some(k => params.get(k) !== null);
+  if (params.get('ut') !== null && Number.isFinite(Number(params.get('ut')))) settings.pop = Number(params.get('ut'));
+  settings.pop = THREE.MathUtils.clamp(Number(settings.pop) || 1, 0.6, 2);
+  const fromAddress = ['gler', 'styrkur', 'adferd', 'gleraugu', 'vixla', 'ut'].some(k => params.get(k) !== null);
 
   let targets = null;
   // MSAA in the eye targets when the preset has antialias; ?glersamples=0 (or 2) to compare the cost
@@ -120,7 +123,7 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     const dt = Math.min(0.1, (now - lastDraw) / 1000);
     lastDraw = now;
     const look = director?.rig?.target ? camera.position.distanceTo(director.rig.target) : 8;
-    const goal = THREE.MathUtils.clamp(manual ?? look, PLANE.min, PLANE.max);
+    const goal = THREE.MathUtils.clamp((manual ?? look) * settings.pop, PLANE.min, PLANE.max);
     // a cut: the camera jumped further in a frame than any comfortable move goes
     if (camera.position.distanceToSquared(lastPos) > 1.5 * 1.5) jumpNext = true;
     lastPos.copy(camera.position);
@@ -200,6 +203,7 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     panel.innerHTML = `
       <label>Þrívídd <input type="checkbox" data-k="on"></label>
       <label>Dýpt <input type="range" min="0" max="0.04" step="0.002" data-k="strength"></label>
+      <label>Út úr skjánum <input type="range" min="0.6" max="2" step="0.1" data-k="pop"></label>
       <label>Litaaðferð <select data-k="method"><option value="dubois">Dubois</option><option value="half">Hálfur litur</option><option value="grey">Grátt</option></select></label>
       <label>Gleraugu <select data-k="glasses"><option value="cyan">Rauð og blágræn</option><option value="blue">Rauð og blá</option></select></label>
       <label>Víxla augum <input type="checkbox" data-k="swap"></label>

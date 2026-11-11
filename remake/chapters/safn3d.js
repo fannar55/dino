@@ -20,7 +20,7 @@ const CHARS = '../assets/characters/';
 // camera and the step are worked out from the model (portraitFor; ?probe=1 prints them).
 const FRIENDS = {
   thorsedla: { url: 'brontosaurus.glb', home: [0, -16], heading: 90, clip: 'lowerHead', clipAt: 0.62, headSize: 1.3, fov: 40, fact: 'statue_brachiosaurus_special', name: 'name_brachiosaurus' },
-  mosi: { url: 'mosi.glb', home: [10, -8], heading: 135, pop: 0.67, maxStep: 4, headSize: 2.6, fov: 50, fact: 'encyclopedia_triceratops_horns', name: 'name_triceratops' },
+  mosi: { url: 'mosi.glb', home: [10, -8], heading: 135, pop: 0.67, maxStep: 4, headSize: 2.6, fov: 50, fact: 'mosi', name: null }, // his own short line about himself, which he says
   gramedla: { url: 'trex.glb', home: [-10, -9], heading: 50, pop: 0.66, headSize: 2.2, fov: 50, fact: 'statue_trex_special', name: 'name_trex' },
   uggedla: { url: 'spinosaurus.glb', home: [-12.5, -1], heading: 10, maxStep: 3.5, headSize: 2.2, fov: 50, fact: 'statue_spinosaurus_special', name: 'name_spinosaurus' },
   sloedla: { url: 'parasaurolophus.glb', home: [12, -1], heading: 175, headSize: 1.8, fov: 46, fact: 'statue_parasaurolophus_special', name: 'name_parasaurolophus' },
@@ -36,7 +36,7 @@ const HEAD_V = 0.4; // where the head sits on the screen at the pop-out (0 top, 
 
 // Captions and the facts' texts, unchanged from the old game (dist/story.js, dist/mini-content.js, dist/assets/audio/narration-is.json).
 const TEXT = {
-  name_triceratops: 'Þríhyrna. Tríseratops.',
+  mosi: 'Ég er þríhyrna, Tríseratops. Þrjú horn og einn mjög svangur magi! En vinir mínir kalla mig Mosa.',
   name_stegosaurus: 'Kambeðla. Stegósárus.',
   name_brachiosaurus: 'Þórseðla. Brontósárus.',
   name_trex: 'Grameðla. Týrannósárus rex.',
@@ -49,7 +49,6 @@ const TEXT = {
   statue_spinosaurus_special: 'Háir beinangar mynduðu seglið á bakinu. Til hvers var það? Við vitum það ekki örugglega. Kannski hjálpaði það dýrunum að sýna sig.',
   statue_parasaurolophus_special: 'Kamburinn aftan á höfðinu var holur. Loft gat farið um hann og hann gæti hafa hjálpað slóeðlum að kalla hver á aðra.',
   statue_pteranodon_special: 'Pteranódon var flugeðla, ekki risaeðla. Vængirnir voru úr himnu sem mjög langur fingur studdi við.',
-  encyclopedia_triceratops_horns: 'Hvað er inni í horni?. Bein að innan, hornslíður utan um. Inni í hornunum voru beinkjarnar. Utan um þá var slíður úr keratíni, efni sem er líka í nöglunum þínum. Hornið á lifandi dýri var því stærra en beinkjarninn sem varðveitist í steingervingi. Á höfuðkúpu í American Museum of Natural History sést gróinn áverki. Hann gæti hafa komið eftir átök við aðra þríhyrnu.',
 };
 
 const rad = d => (d * Math.PI) / 180;
@@ -302,7 +301,7 @@ export const chapter = {
       state.out = true;
       state.outAt = s.time;
       const speaker = name === 'mosi' ? 'mosi' : 'sogumadur';
-      yield s.say(speaker, f.name, { hold: 0.3 });
+      if (f.name) yield s.say(speaker, f.name, { hold: 0.3 });
       yield s.say(speaker, f.fact, { hold: 0.8 });
       state.out = false;
       // back: the friend straightens up, the camera returns, the friend goes home

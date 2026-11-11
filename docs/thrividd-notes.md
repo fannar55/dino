@@ -9,3 +9,8 @@
 - Works: `?chapter=safn3d` turns the glasses on; seven friends round the clearing, all in the overview; tap -> glide (near) or fade (far) to a portrait, the friend looks at the camera, steps in (Þórseðla also brings her head down with lowerHead held at 0.62), name + fact lines with captions, back, sparkle; all seven -> sparkles over everyone + the sun's hug. A seek through all seven (t=262) runs without errors.
 - Comfort: D every frame = nearer of the ground at the bottom edge, the friend's body and any friend at/inside the frame edge; held while the head is out. The portrait camera (eye height 0.5-1.3 m, step, distance) is solved per friend so the head bone sits at 0.6 D (Mosi 0.67, Grameðla 0.66): measured head parallax +0.015..+0.023 W, far trees -0.009..-0.016 W.
 - Not great: Mosi's head fills ~0.6 of the frame (the ground edge keeps D small for a low wide head); his 32 s horns caption is a big box under his face. Eye targets with 4x MSAA cost ~3x GPU (lineup 7.0 -> 20.2 ms); `glersamples=0` gives 10.0 ms. Next: the owner's look through real glasses.
+
+## After the build (controller, 2026-11-11)
+- Mosi says his own short line (`mosi`, 9.6 s, he mouths it) instead of the 32 s horns entry; no name line for him.
+- New knob "Út úr skjánum" (`pop`, `?ut=`, 0.6-2, default 1) scales D: at 1.8 in the overview Flugeðla sits at the screen (+0.002 W), Mosi +0.014, trees +0.017, the ground at the bottom edge -0.016.
+- Checked by projecting points through both eye cameras: 0 at D, +0.0199 at 1000 m, -0.02 at D/2 (strength 0.02). A tap on a friend starts its visit.
