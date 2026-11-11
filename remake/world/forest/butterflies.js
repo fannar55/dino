@@ -7,6 +7,7 @@
 //   flutter(name)       up and away for 3 s, then back to its loop (a child tapped it)
 //   land(spec, options) a flight to a point spec, resolved every frame, and a landing that stays on the moving point
 //                       until flutter(name) sends it away (world/forest/atmosphere.js: butterflyLand)
+//   addHero(name, opts) one more moth of the hero's model, only when a chapter asks (the 3D show has three); none otherwise
 //   follow(name, path)  a flight along a path the caller gives (a function that puts it somewhere each frame), until land
 //                       or flutter takes it (the 3D show, chapters/fidrildi3d.js, flies the hero out of the screen with it)
 //
@@ -134,7 +135,7 @@ function wingAngle(flyer, time, extra = 0, lo = 0.25, hi = 1.3) {
  * model comes through world.loadModel (the tests read the file) or three's loader (the page); until it is here, or where neither
  * can be, the group is empty and the hero flies, lands and finishes its handles unseen.
  */
-function createHero(world) {
+function createHero(world, { tint = null } = {}) {
   const group = new THREE.Group();
   group.name = 'Hero butterfly';
   const wings = { L: null, R: null };
@@ -154,6 +155,15 @@ function createHero(world) {
       o.castShadow = false; // too small for the sun shadow's cost; the pale ones cast none either
       o.receiveShadow = true;
     });
+    if (tint) {
+      // a copy of each material, its colour multiplied by `tint`: this moth only (the file's materials stay as they are)
+      const by = new THREE.Color(tint);
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone();
+        for (const m of [o.material].flat()) m.color?.multiply(by);
+      });
+    }
     for (const side of ['L', 'R']) wings[side] = model.getObjectByName(`Wing${side}`) ?? null;
     feet = model.getObjectByName('Body')?.userData.feet ?? feet;
     group.add(model);
@@ -460,7 +470,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
       const held = pose(b, time);
       b.point.copy(b.pos);
       if (b.hero) {
-        hero.pose(b.pos, b.yaw, b.flap);
+        (b.poser ?? hero).pose(b.pos, b.yaw, b.flap);
         return;
       }
       holds[i].set(b.pos.x, b.pos.y, b.pos.z, b.flap);
@@ -544,9 +554,31 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     b.flap0 = b.flap;
   }
 
+  /**
+   * One more moth of the hero's model, named `name` (a chapter's own: nothing makes one unless asked), its colours multiplied by
+   * `tint` (a colour, or null for the hero's own). It loops where the hero does, a little out of step, until follow(), land() or
+   * flutter() takes it; it is not a tap target. Returns { name, group, loaded }.
+   */
+  function addHero(name, { tint = null } = {}) {
+    if (byName.has(name)) throw new Error(`A butterfly named "${name}" is here already`);
+    const poser = createHero(world, { tint });
+    mesh.add(poser.group);
+    extras.push(poser);
+    const flyer = { ...heroFlyer, phase: heroFlyer.phase + (extras.length * 2 * Math.PI) / 3 };
+    const b = entry(flyer, name, true);
+    b.poser = poser;
+    list.push(b);
+    byName.set(name, b);
+    pose(b, now());
+    poser.pose(b.pos, b.yaw, b.flap);
+    return { name, group: poser.group, loaded: poser.loaded };
+  }
+  const extras = [];
+
   function dispose() {
     if (disposed) return;
     disposed = true;
+    for (const extra of extras) extra.dispose();
     for (const b of list) release(b); // a script waiting on a butterfly goes on
     geometry.dispose();
     material.dispose();
@@ -554,5 +586,5 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   }
 
   update(); // the points are right from the start
-  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, follow, update, dispose };
+  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, follow, addHero, update, dispose };
 }
