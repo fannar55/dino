@@ -11,6 +11,7 @@ import { SONG } from '../chapters/kafli5-set.js';
 import { CHOIR, GROUPS, WADE, POOL_LIFE } from '../chapters/kafli5-pool.js';
 import { createRoute, FAR_POOL } from '../chapters/kafli4-route.js';
 import { createLife } from '../world/ardalur/life.js';
+import { createCrowds } from '../world/critters/crowd.js';
 
 const SET = SONG.set;
 const BEAT_SECONDS = 60 / SONG.bpm;
@@ -357,8 +358,15 @@ test('the parade: the grazers in single file behind the stone, the lizards along
   const grazers = of('grazers');
   const far = grazers.map(m => at(m, 15.5));
   grazers.forEach((m, k) => assert.ok(angleOf(far[k]) > angleOf([m.x, 0, m.z]) + 8, `grazer ${k} has gone toward the reed`));
-  const alongBank = far.map(p => angleOf(p) * DEG * fromMiddle(p)).sort((a, b) => a - b);
-  for (let i = 1; i < alongBank.length; i++) assert.ok(alongBank[i] - alongBank[i - 1] > 7.6, `nose to tail (${(alongBank[i] - alongBank[i - 1]).toFixed(1)} m apart)`);
+  // two lanes: the two on the outer one are well over a body apart, the one on the inner lane is between them, and all the way
+  // none is in another (their middles never nearer than 2.5 m: they are 7.5 m long and some 2 m wide)
+  const [inner, behind, ahead] = far;
+  assert.ok((angleOf(ahead) - angleOf(behind)) * DEG * 36 > 15 && angleOf(inner) > angleOf(behind) + 5 && angleOf(inner) < angleOf(ahead) - 5, 'a file in two lanes');
+  assert.ok(fromMiddle(ahead) - fromMiddle(inner) > 2.4);
+  for (let beat = 0; beat <= 32; beat += 0.25) {
+    const now = grazers.map(m => at(m, beat));
+    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) assert.ok(Math.hypot(now[i][0] - now[j][0], now[i][2] - now[j][2]) > 2.5, `grazers ${i} and ${j} at part beat ${beat}`);
+  }
   for (const p of far) assert.ok(fromMiddle(p) > 33, 'behind the turtles\' stone');
   // facing along the bank on the way out, the other way on the way back
   const facing = (m, beat) => m.heading + danceOf(m, from + beat).turn;
@@ -536,4 +544,21 @@ test('the scene\'s dances: every dancer gets its pose each frame, a call\'s own 
   dances.dispose();
   step(world.clock.time + 5); // the tap's hop is over
   for (const b of [...life.pool.frogs, ...life.pool.turtles, ...life.pool.beetles]) assert.ok(b.dance === null && b.position.distanceTo(b.gather.at) < 1e-9);
+});
+
+test('the crowds draw a roll: a critter rolled a quarter turn has its top to its right, one rolled half a turn is on its back', () => {
+  const crowds = createCrowds({ scene: new THREE.Scene() });
+  crowds.reserve('turtle', 3);
+  crowds.begin(null);
+  const at = new THREE.Vector3(10, 2, -4);
+  crowds.place('turtle', at, 0, 2, { roll: 0 });
+  crowds.place('turtle', at, 0, 2, { roll: Math.PI / 2 });
+  crowds.place('turtle', at, 90, 2, { roll: Math.PI, pitch: 0 });
+  crowds.end();
+  const mesh = crowds.meshes[0];
+  const top = i => { const m = new THREE.Matrix4(); mesh.getMatrixAt(i, m); return new THREE.Vector3(0, 1, 0).transformDirection(m).toArray().map(v => Math.round(v * 1e6) / 1e6 + 0); };
+  assert.deepEqual(top(0), [0, 1, 0]);
+  assert.deepEqual(top(1), [0, 0, 1], 'heading 0 faces +X: its right is +Z');
+  assert.deepEqual(top(2), [0, -1, 0]);
+  crowds.dispose();
 });

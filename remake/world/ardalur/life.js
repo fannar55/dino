@@ -543,6 +543,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       });
       stage.dragonflies.forEach(({ at: [dx, dz], up, heading }, k) => {
         const fly = add(`pool-dragonfly-${k}`, 'dragonfly', new THREE.Vector3(dx, level + up, dz), heading, { reach: stage.dragonfliesSeen ?? null });
+        if (stage.dragonflyScale) { fly.height *= stage.dragonflyScale / fly.scale; fly.scale = stage.dragonflyScale; }
         fly.gather = { at: fly.at.clone(), heading };
         pool.dragonflies.push(fly);
       });

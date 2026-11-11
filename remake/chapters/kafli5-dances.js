@@ -68,13 +68,14 @@ export const SLIP = { turtle: 1, at: SET.cues.find(cue => cue.kind === 'moved').
 // --- who dances --------------------------------------------------------------------------------
 
 /** How high each can jump, metres (the big jumps: the drop, the roars, the last hit). */
-export const JUMP = { grazers: 1.0, turtles: 0.55, frogs: 1.5, lizards: 1.0, flyers: 1.9, beetles: 0.5, dragonflies: 0 };
+export const JUMP = { grazers: 1.2, turtles: 0.8, frogs: 2.1, lizards: 1.5, flyers: 2.6, beetles: 0.6, dragonflies: 0 };
 // The line's order: the lizards' seats by how far toward the log (their right) each sits, the leader first.
 const LINE = [5, 1, 3, 0, 4, 2];
 // The frogs' pads along the bow, toward the reed (seat numbers).
 const BOW = [3, 1, 0, 2, 4];
 // The parade's order (toward the reed): the grazers by seat, the leader first, and how far each goes compared to the middle one (m).
-const FILE = { order: [2, 0, 1], more: [5.2, 0, -5.2] };
+// Two lanes: the one that sits nearest the water goes on the inner lane, between the two on the outer one.
+const FILE = { order: [2, 0, 1], more: [5.2, 0, -5.2], lane: [33.4, 36, 36] };
 
 /** A member for danceOf: seat `k` of its group's `seats` ([{ x, y, z, heading }]: where each stands as the set starts). */
 export function memberOf(group, k, seats) {
@@ -774,11 +775,11 @@ const MOVES = {
     const top = hop(frac(u / 2 + 0.5)); // 1 on each second beat (2, 4, 6), 0 on the odd ones
     switch (m.group) {
       case 'grazers': {
-        const way = Math.floor(u / 2 + 0.5) % 2 ? 1 : -1;
-        shift(P, m, 0.7 * a * top * way);
-        P.roll += 0.16 * a * top * way;
-        P.dy += 0.6 * a * top;
-        P.pitch += 0.1 * a * top;
+        const way = (Math.floor(u / 2 + 0.5) + m.k) % 2 ? 1 : -1; // each its own way: one up on its left, the next on its right
+        shift(P, m, 0.5 * a * top * way);
+        P.roll += 0.2 * a * top * way;
+        P.dy += 0.9 * a * top;
+        P.pitch += 0.2 * a * top;
         P.walk = 0.7; P.walkAt = u / 2;
         break;
       }
@@ -796,14 +797,14 @@ const MOVES = {
         break;
       case 'lizards': {
         const mine = m.k % 2 ? top : hop(frac(u / 2));
-        P.dy += 0.75 * a * mine;
-        P.pitch += 0.3 * a * mine;
+        P.dy += 1.1 * a * mine;
+        P.pitch += 0.45 * a * mine;
         P.turn += 30 * a * Math.sin(Math.PI * u) * (m.k % 2 ? 1 : -1);
         P.run = 0.8; P.runAt = u * 2;
         break;
       }
       case 'flyers':
-        P.dy += 1.3 * a * top;
+        P.dy += 1.8 * a * top;
         P.flap = Math.max(P.flap, 0.3 + 0.7 * top); P.flapAt = u + 0.3;
         P.roll += 0.25 * a * top * (m.k % 2 ? 1 : -1);
         break;
@@ -823,7 +824,7 @@ const MOVES = {
       case 'grazers': {
         const j = FILE.order.indexOf(m.k);
         const along = -[0, 3.4, -3.4][m.k]; // where its seat is along the bank (toward the reed)
-        const [px, pz] = paradePoint('grazers', along + (PARADE.grazers.out + FILE.more[j]) * far);
+        const [px, pz] = paradePoint('grazers', along + (PARADE.grazers.out + FILE.more[j]) * far, FILE.lane[m.k]);
         const onLane = win(far, 0, 0.12);
         goTo(P, m, [px, x.ground(px, pz), pz], onLane);
         // facing: along the bank on the way out, about through the pool's side, back along it, and to the pool again

@@ -22,8 +22,8 @@ const LEVEL = FAR_POOL.level;
 export const LOG = { angle: 173, distance: 29.6, at: around(173, 29.6), heading: 173 + 90, variant: 0, scale: 1 };
 /** The beetles: how far along the log each sits from its middle (m, toward growing angle), drawn `scale` times life (0.8 m long). */
 export const BEETLES = { along: [-2, -1.2, -0.4, 0.4, 1.2, 2], scale: 4, seen: 32 };
-/** The dragonflies: where each hovers ([angle, distance]) and how high over the water; drawn within `seen` m of the camera. */
-export const DRAGONFLIES = { spots: [[176, 24.6], [171.5, 25.3], [180, 24.9]], up: [1.2, 1.5, 1.0], seen: 48 };
+/** The dragonflies: where each hovers ([angle, distance]) and how high over the water; drawn `scale` times life (1.6 m across the wings: they are seen from 13 m and more), within `seen` m of the camera. */
+export const DRAGONFLIES = { spots: [[176, 24.6], [171.5, 25.3], [180, 24.9]], up: [1.2, 1.5, 1.0], scale: 7, seen: 48 };
 
 /**
  * The lizards' lane: a ring `distance` m from the pool's middle (the water's edge is at 26), `zig` m to each side of it every
@@ -37,14 +37,14 @@ export function runPoint(s, zig = RUN.zig) {
 
 /**
  * The parade's lanes, each a ring `distance` m out, `s` metres along it from the group's spot toward the reed (growing angle):
- * the grazers pass behind the turtles' stone, the lizards go along the water's edge past the flyers' empty place.
+ * the grazers pass behind the turtles' stone (in two lanes 1.3 m to each side of theirs, so none walks through another), the
+ * lizards go along the water's edge past the flyers' empty place.
  */
 export const PARADE = {
   grazers: { distance: 34.6, out: 11 },
   lizards: { distance: 27.6, out: 7.5 },
 };
-export function paradePoint(group, s) {
-  const { distance } = PARADE[group];
+export function paradePoint(group, s, distance = PARADE[group].distance) {
   return around(CHOIR[group].angle + (s / distance) / DEG, distance);
 }
 
@@ -76,7 +76,7 @@ export function stageLife() {
   }
   for (let s = -5; s <= PARADE.grazers.out + 9; s += 2.5) {
     const [x, z] = paradePoint('grazers', s);
-    clear.push({ x, z, r: 2.6, over: 0.5 });
+    clear.push({ x, z, r: 3.4, over: 0.5 });
   }
   for (let s = 0; s <= PARADE.lizards.out + 1; s += 2) {
     const [x, z] = paradePoint('lizards', s);
@@ -90,6 +90,7 @@ export function stageLife() {
     beetleScale: BEETLES.scale,
     beetlesSeen: BEETLES.seen,
     dragonflies: DRAGONFLIES.spots.map(([angle, distance], k) => ({ at: around(angle, distance), up: DRAGONFLIES.up[k], heading: facing + 180 + 40 * Math.sin(k * 1.9) })),
+    dragonflyScale: DRAGONFLIES.scale,
     dragonfliesSeen: DRAGONFLIES.seen,
     clear,
   };
