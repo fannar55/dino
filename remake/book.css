@@ -460,6 +460,36 @@
   box-shadow: 0 4px 0 #b88418, 0 4px 0 2.5px var(--book-ink), 0 8px 14px rgb(24 15 6 / .42);
 }
 .video-play-badge .book-icon { width: 54%; height: 54%; }
+/* "3D myndbönd" (videos.js BOOK_3D): the right page's last column, set apart by a dashed rule and a faint wash, headed in the
+   book's hand with "3D" in the glasses' two colours (a red copy to the left, a cyan one to the right: plain letters, no drawing).
+   The right page is then a grid: its four videos in two columns and two rows, the column on the third, with room for two tiles. */
+.video-tiles.with-3d {
+  display: grid; grid-template-columns: repeat(3, var(--tile-w)); grid-template-rows: auto auto;
+  justify-content: center; align-content: center; gap: var(--gap) calc(var(--gap) * 1.3);
+}
+.video-3d-column {
+  grid-column: 3; grid-row: 1 / span 2; align-self: stretch;
+  display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .45);
+  margin: calc(var(--gap) * -.35) calc(var(--gap) * -.5); padding: calc(var(--gap) * .35) calc(var(--gap) * .5);
+  border-left: 3px dashed rgb(59 47 37 / .32); border-radius: 0 12px 12px 0;
+  background: rgb(156 178 74 / .1);
+}
+.video-3d-head {
+  margin: 0; font: inherit; font-weight: 800; color: var(--book-ink); text-align: center; white-space: nowrap;
+  font-size: clamp(16px, var(--tile-w) * .13, 28px); line-height: 1.1;
+}
+.glasses-3d {
+  display: inline-block; font-weight: 900; letter-spacing: .02em; color: var(--book-ink);
+  text-shadow: -.07em 0 0 rgb(226 54 46 / .85), .07em 0 0 rgb(30 184 200 / .85);
+}
+.video-3d-badge {
+  position: absolute; z-index: 2; top: 6%; left: 6%; pointer-events: none;
+  padding: .08em .38em .04em; border-radius: 7px; border: 2px solid var(--book-ink);
+  background: var(--book-card); color: var(--book-ink);
+  font-weight: 900; font-size: clamp(13px, var(--tile-w) * .11, 24px); line-height: 1.1;
+  text-shadow: -.07em 0 0 rgb(226 54 46 / .85), .07em 0 0 rgb(30 184 200 / .85);
+  box-shadow: 0 3px 6px rgb(24 15 6 / .3);
+}
 .book-leaf[data-tab="fossils"] .book-tiles {
   --pad-top: 17cqh; --pad-bottom: 6cqh;
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.3);

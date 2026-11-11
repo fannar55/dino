@@ -6,7 +6,7 @@ import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked, bookState } from './cards.js';
 import { renderMap } from './map-page.js';
 import { createMuseumPage } from './museum-page.js';
-import { BOOK_VIDEOS, createVideosPage, videoSeenId } from './videos.js';
+import { BOOK_VIDEOS, BOOK_3D, createVideosPage, videoSeenId } from './videos.js';
 import { createVideoPlayer } from './video-player.js';
 import { validateGame } from '../hals/rules.js';
 
@@ -117,7 +117,8 @@ export function halsOpen(save) {
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page; `onTab(tab)` is told
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page;
+ * `onOpenShow(entry)` plays a "3D myndbönd" show from the Myndbönd page (videos.js BOOK_3D: main.js goes to its chapter); `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
@@ -136,7 +137,7 @@ export function halsOpen(save) {
  *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onOpenShow = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -366,12 +367,14 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   };
   // The Safnið leaf: the fossil collection (museum-page.js), whose cards (group 'fossil', when the data has them) open as an animal's do.
   const museum = createMuseumPage(leaves.get('fossils'), { save, audio, win, cards, onOpenCard, onChange: () => renderRibbonNew() });
-  // The Myndbönd leaf: the eight educational videos (videos.js), four on each page.
+  // The Myndbönd leaf: the nine educational videos (videos.js), five on the left page and four on the right, and the "3D myndbönd" column.
   videosPage = createVideosPage(leaves.get('videos'), {
     save,
     audio,
     win,
     videos: BOOK_VIDEOS,
+    shows: BOOK_3D,
+    onOpenShow: entry => onOpenShow?.(entry),
     onOpenVideo: (video, fromRect) => {
       videoPlayer.close(true);
       videoPlayer.open(video, fromRect);

@@ -24,6 +24,27 @@ import { pollenBurst } from '../world/props/pollen.js';
 import { glints, run, sparkleTrail, sparkleBurst, SPARKLE_LOOK } from '../world/props/sparkles.js';
 
 const params = new URLSearchParams(globalThis.location?.search ?? '');
+// Opened from the book's "3D myndbönd" (main.js onOpenShow): the chapter it came from, cleaned as main.js cleans a chapter's id. The
+// start and end cards then offer "Til baka" there, keeping quality and debug as "Áfram" does.
+const FROM = (params.get('fra') ?? '').replace(/[^a-z0-9_-]/gi, '');
+function goBack() {
+  const next = new URLSearchParams();
+  for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
+  next.set('chapter', FROM);
+  globalThis.location.search = `?${next}`;
+}
+const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;cursor:pointer;pointer-events:auto';
+/** The "Til baka" button, or null when the show was not opened from the book. */
+function backButton() {
+  if (!FROM) return null;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'fidrildi-back';
+  button.textContent = 'Til baka';
+  button.style.cssText = BUTTON + ';background:#efe6d2;color:#3b2f25;box-shadow:inset 0 0 0 3px #3b2f25';
+  button.addEventListener('click', goBack, { once: true });
+  return button;
+}
 const CHARS = '../assets/characters/';
 const LENGTH = 60; // seconds of the show
 
@@ -340,9 +361,14 @@ export const chapter = {
 
     // ---- start card ----
     const cardStyle = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw';
-    const card = document.createElement('p');
-    card.textContent = 'Settu upp gleraugun! Rauða glerið á vinstra auga.';
-    card.style.cssText = cardStyle;
+    const card = document.createElement('div');
+    const say = document.createElement('p');
+    say.style.margin = '0';
+    say.textContent = 'Settu upp gleraugun! Rauða glerið á vinstra auga.';
+    card.append(say);
+    const back = backButton();
+    if (back) card.append(back);
+    card.style.cssText = cardStyle + ';display:flex;flex-direction:column;align-items:center;gap:14px';
     document.body.append(card);
     try {
       yield s.ready();
@@ -357,10 +383,12 @@ export const chapter = {
       end.style.cssText = cardStyle + ';display:flex;flex-direction:column;align-items:center;gap:14px';
       const button = document.createElement('button');
       button.textContent = 'Aftur';
-      button.style.cssText = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;background:#6f8f3a;color:#fff;cursor:pointer';
+      button.style.cssText = BUTTON + ';background:#6f8f3a;color:#fff';
       let again = false;
       button.addEventListener('click', () => { again = true; });
       end.append(button);
+      const back = backButton();
+      if (back) end.append(back);
       document.body.append(end);
       try {
         yield s.until(() => again);

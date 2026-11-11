@@ -272,6 +272,15 @@ const book = createBook(document, {
     target.open(options);
     return target;
   }, // the Leikir page's games
+  // A "3D myndbönd" show on the Myndbönd page (videos.js BOOK_3D) is a chapter of its own: the page goes there, as "Áfram" does, and
+  // says where it came from (fra), so the show's cards can offer "Til baka".
+  onOpenShow: entry => {
+    const next = new URLSearchParams();
+    for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
+    next.set('chapter', entry.chapter);
+    next.set('fra', chapterId);
+    location.search = `?${next}`;
+  },
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },

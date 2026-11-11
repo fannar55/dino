@@ -2,7 +2,10 @@ import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { isUnlocked, bookState, FIND_ME } from './cards.js';
 
-// The Myndbönd page: eight short educational videos, four on each page of the Myndbönd leaf as taped video tiles with a play badge.
+// The Myndbönd page: nine short educational videos, five on the left page of the Myndbönd leaf and four on the right, as taped video
+// tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan glasses, open from the
+// start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one with a `src` would play
+// in the video player as the others do.
 // Each video shares the unlock rules of the dinosaur, animal or fossil it belongs to (cards.js isUnlocked), so the child unlocks
 // videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly.
 
@@ -115,6 +118,20 @@ export const BOOK_VIDEOS = [
   },
 ];
 
+/** "3D myndbönd": shows for red/cyan glasses. `chapter` is a chapter the game plays (it turns the glasses on itself). */
+export const BOOK_3D = [
+  {
+    id: 'fidrildi3d',
+    name: 'Fiðrildadansinn',
+    title: 'Fiðrildadansinn',
+    chapter: 'fidrildi3d',
+    poster: videoUrl('fidrildi3d-thumb.webp'),
+    hue: '#9cb24a',
+    unlock: { start: true },
+    label: 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum',
+  },
+];
+
 export const videoSeenId = id => `video:${id}`;
 
 export function isVideoUnlocked(video, state) {
@@ -135,9 +152,10 @@ export function videoForCard(cardId, videos = BOOK_VIDEOS) {
 
 /**
  * The Myndbönd page on `leaf` (book.js's { el, pages, tiles }), over the `save` and the book's `audio`.
- * `onOpenVideo(video, fromRect)` opens a found video in the player; `onChange()` is told when a tile's seen state changes.
+ * `onOpenVideo(video, fromRect)` opens a found video in the player; `onOpenShow(entry)` plays a 3D entry that is a chapter (`shows`,
+ * BOOK_3D); `onChange()` is told when a tile's seen state changes.
  */
-export function createVideosPage(leaf, { save, audio = null, win = globalThis.window, videos = BOOK_VIDEOS, onOpenVideo = null, onChange = null } = {}) {
+export function createVideosPage(leaf, { save, audio = null, win = globalThis.window, videos = BOOK_VIDEOS, shows = BOOK_3D, onOpenVideo = null, onOpenShow = null, onChange = null } = {}) {
   const doc = leaf.el.ownerDocument;
   const make = (tag, className) => {
     const element = doc.createElement(tag);
@@ -147,8 +165,8 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   let lastOpen = -Infinity;
   let findLine = null;
 
-  const items = videos.map(video => {
-    const tile = make('button', 'tile video-tile');
+  const tileOf = (video, threeD) => {
+    const tile = make('button', threeD ? 'tile video-tile video-tile-3d' : 'tile video-tile');
     tile.setAttribute('type', 'button');
     tile.setAttribute('data-video', video.id);
     tile.style.setProperty('--hue', video.hue);
@@ -161,20 +179,41 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
     playBadge.setAttribute('aria-hidden', 'true');
     playBadge.innerHTML = ICONS.play;
     picture.append(img, playBadge);
+    if (threeD) {
+      const glasses = make('span', 'video-3d-badge');
+      glasses.textContent = '3D';
+      glasses.setAttribute('aria-hidden', 'true');
+      picture.append(glasses);
+    }
     const name = make('span', 'tile-name');
     name.textContent = video.name;
     const badge = make('span', 'badge-new');
     badge.textContent = 'Nýtt!';
     badge.setAttribute('aria-hidden', 'true');
     tile.append(picture, name);
-    return { video, tile, picture, name, badge, playBadge };
-  });
+    return { video, tile, picture, name, badge, playBadge, threeD };
+  };
+  const regular = videos.map(video => tileOf(video, false));
+  const threeDs = shows.map(video => tileOf(video, true));
+  const items = [...regular, ...threeDs];
 
   const [left, right] = leaf.tiles;
   left.classList.add('video-tiles');
   right.classList.add('video-tiles');
-  left.append(...items.slice(0, 4).map(item => item.tile));
-  right.append(...items.slice(4).map(item => item.tile));
+  const leftCount = threeDs.length ? Math.ceil(regular.length / 2) : 4; // with a 3D column: five and four
+  left.append(...regular.slice(0, leftCount).map(item => item.tile));
+  right.append(...regular.slice(leftCount).map(item => item.tile));
+  if (threeDs.length) {
+    // the 3D column: its own heading, set apart from the videos, room for two tiles
+    right.classList.add('with-3d');
+    const column = make('div', 'video-3d-column');
+    const head = make('h3', 'video-3d-head');
+    const mark = make('span', 'glasses-3d');
+    mark.textContent = '3D';
+    head.append(mark, doc.createTextNode(' myndbönd'));
+    column.append(head, ...threeDs.map(item => item.tile));
+    right.append(column);
+  }
 
   function render() {
     const state = bookState(save);
@@ -186,7 +225,7 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
       tile.classList.toggle('unfound', !open);
       playBadge.hidden = !open;
       name.textContent = open ? video.name : '?';
-      tile.setAttribute('aria-label', open ? `${video.name}, myndband` : `${video.name} (ólæst síðar)`);
+      tile.setAttribute('aria-label', open ? (video.label ?? `${video.name}, myndband`) : `${video.name} (ólæst síðar)`);
       if (fresh && badge.parentNode !== tile) tile.append(badge);
       if (!fresh) badge.remove();
     }
@@ -229,7 +268,8 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
     const wasNew = save.addSeen(videoSeenId(item.video.id));
     render();
     if (wasNew) onChange?.();
-    onOpenVideo?.(item.video, item.picture.getBoundingClientRect());
+    if (item.video.chapter) onOpenShow?.(item.video); // a 3D show the game plays
+    else onOpenVideo?.(item.video, item.picture.getBoundingClientRect());
   }
 
   for (const item of items) pressable(item.tile, { audio, sound: null, win, onTap: () => tap(item) });
