@@ -805,35 +805,35 @@ if (shotName || !chapter.script) {
     loading.hidden = false;
     const button = document.getElementById('start');
     // A chapter may have a start of its own (chapter.startButton(document) resolves to { element, button }, laid on the page hidden,
-    // or to null for Byrja): fidrildi3d's glasses. Its button's tap is Byrja's, the one tap, and the touch that lets sound begin.
+    // or to null for Byrja): fidrildi3d's glasses. Its button's tap is Byrja's (it clicks Byrja), the one tap, and the touch that lets
+    // sound begin.
     const ownStart = Promise.resolve().then(() => chapter.startButton?.(document) ?? null).catch(error => {
       console.error('[start]', error);
       return null;
     });
-    let begun = false;
-    const begin = () => {
-      if (begun) return;
-      begun = true;
+    // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
+    button.addEventListener('pointerdown', () => button.classList.add('pressed'));
+    button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
+    button.addEventListener('click', () => {
       button.hidden = true;
       forrit.started();
       ui.setFade(1); // the scene opens from black, the same as in captures
       stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
-    };
-    // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
-    button.addEventListener('pointerdown', () => button.classList.add('pressed'));
-    button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
-    button.addEventListener('click', begin, { once: true });
-    getReady().catch(error => console.error('[warm-up]', error)).finally(async () => {
-      const own = await ownStart;
+    }, { once: true });
+    getReady().catch(error => console.error('[warm-up]', error)).finally(() => {
       warmedPlace = world.location; // from now on a place the scene comes to is drawn once before it shows
       loading.classList.add('done');
       setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
-      if (own) {
+      ownStart.then(own => {
+        if (!own) {
+          button.hidden = false;
+          return;
+        }
         own.element.hidden = false;
-        own.button.addEventListener('click', () => { own.element.remove(); begin(); }, { once: true });
-      } else button.hidden = false;
+        own.button.addEventListener('click', () => { own.element.remove(); button.click(); }, { once: true });
+      });
       forrit.startScreen();
       startReady = true;
       prepareLater().catch(error => console.error('[warm-up]', error));
