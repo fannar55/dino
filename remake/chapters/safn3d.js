@@ -19,18 +19,20 @@ const CHARS = '../assets/characters/';
 // her head at about 3 m); maxStep: the most it walks toward the camera; fact and name: Mosi's lines about it. The portrait
 // camera and the step are worked out from the model (portraitFor; ?probe=1 prints them).
 const FRIENDS = {
-  thorsedla: { url: 'brontosaurus.glb', home: [0, -16], heading: 90, clip: 'lowerHead', clipAt: 0.62, fact: 'statue_brachiosaurus_special', name: 'name_brachiosaurus' },
-  mosi: { url: 'mosi.glb', home: [10, -8], heading: 135, fact: 'encyclopedia_triceratops_horns', name: 'name_triceratops' },
-  gramedla: { url: 'trex.glb', home: [-10, -9], heading: 50, fact: 'statue_trex_special', name: 'name_trex' },
-  uggedla: { url: 'spinosaurus.glb', home: [-12.5, -1], heading: 10, eye: 2, maxStep: 3.5, fact: 'statue_spinosaurus_special', name: 'name_spinosaurus' },
-  sloedla: { url: 'parasaurolophus.glb', home: [11.5, 0], heading: 175, fact: 'statue_parasaurolophus_special', name: 'name_parasaurolophus' },
-  kambedla: { url: 'stegosaurus.glb', home: [-8, 7], heading: -15, fact: 'statue_stegosaurus_special', name: 'name_stegosaurus' },
-  flugedla: { url: 'pteranodon.glb', home: [7.5, 7.5], heading: 195, maxStep: 3.5, fact: 'statue_pteranodon_special', name: 'name_pteranodon' },
+  thorsedla: { url: 'brontosaurus.glb', home: [0, -16], heading: 90, clip: 'lowerHead', clipAt: 0.62, headSize: 1.3, fov: 40, fact: 'statue_brachiosaurus_special', name: 'name_brachiosaurus' },
+  mosi: { url: 'mosi.glb', home: [10, -8], heading: 135, maxStep: 4, headSize: 2.6, fov: 50, fact: 'encyclopedia_triceratops_horns', name: 'name_triceratops' },
+  gramedla: { url: 'trex.glb', home: [-10, -9], heading: 50, headSize: 2.2, fov: 50, fact: 'statue_trex_special', name: 'name_trex' },
+  uggedla: { url: 'spinosaurus.glb', home: [-12.5, -1], heading: 10, maxStep: 3.5, headSize: 2.2, fov: 50, fact: 'statue_spinosaurus_special', name: 'name_spinosaurus' },
+  sloedla: { url: 'parasaurolophus.glb', home: [11.5, 0], heading: 175, headSize: 1.8, fov: 46, fact: 'statue_parasaurolophus_special', name: 'name_parasaurolophus' },
+  kambedla: { url: 'stegosaurus.glb', home: [-8, 7], heading: -15, headSize: 1.2, fov: 44, fact: 'statue_stegosaurus_special', name: 'name_stegosaurus' },
+  flugedla: { url: 'pteranodon.glb', home: [7.5, 7.5], heading: 195, maxStep: 4, headSize: 2.2, fov: 46, fact: 'statue_pteranodon_special', name: 'name_pteranodon' },
 };
 const NAMES = Object.keys(FRIENDS);
-const EYE = 1.25; // the camera's height at a portrait: a child's eye
-const POP = 0.5; // the head bone's depth at the pop-out as a share of D (its snout comes a little nearer)
+const EYES = [0.5, 0.7, 0.9, 1.1, 1.3]; // the camera's heights at a portrait: a child's eye, sitting to standing (low looks up, and the ground leaves the frame)
+const HEAD_SHARE = 0.55; // the head may fill at most this share of the frame's height at the pop-out
+const POP = 0.55; // the head bone's depth at the pop-out as a share of D (its snout comes nearer, to about 0.47)
 const PORTRAIT_FOV = 40;
+const HEAD_V = 0.4; // where the head sits on the screen at the pop-out (0 top, 1 bottom): above the captions
 
 // Captions and the facts' texts, unchanged from the old game (dist/story.js, dist/mini-content.js, dist/assets/audio/narration-is.json).
 const TEXT = {
@@ -68,8 +70,8 @@ export const chapter = {
   startShot: 'overview',
   shots: {
     // the whole clearing, every friend inside the frame, from the open south side
-    overview: { position: [0, 2.6, 19], target: [0, 3.6, -3], fov: 50 },
-    hero: { position: [0, 2.6, 19], target: [0, 3.6, -3], fov: 50 },
+    overview: { position: [0, 3, 20.5], target: [0, 3.4, -3], fov: 54 },
+    hero: { position: [0, 3, 20.5], target: [0, 3.4, -3], fov: 54 },
   },
 
   *script(s) {
@@ -107,6 +109,14 @@ export const chapter = {
       }
       return d;
     }
+    // the point to aim at so that the head sits at HEAD_V on the screen (the camera tilts down by that much from the head)
+    function aimFor(position, head, fov) {
+      const tilt = Math.atan((HEAD_V - 0.5) * 2 * Math.tan(rad(director.effectiveFov(fov)) / 2));
+      const d = head.clone().sub(position);
+      const pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)) + tilt;
+      const flat = Math.hypot(d.x, d.z);
+      return position.clone().add(new THREE.Vector3(d.x, Math.tan(pitch) * flat, d.z));
+    }
     function poseCam(position, target, fov) {
       probeCam.fov = director.effectiveFov(fov);
       probeCam.aspect = camera.aspect;
@@ -143,20 +153,33 @@ export const chapter = {
       const home = headAtHome(name);
       const centre = actors[name].centre(new THREE.Vector3());
       const [fx, fz] = forwardOf(f.heading);
+      const fov = f.fov ?? PORTRAIT_FOV;
+      const tanHalf = Math.tan(rad(director.effectiveFov(fov)) / 2);
       let best = null;
-      for (let step = 0.5; step <= (f.maxStep ?? 2.5) + 1e-6; step += 0.25) {
-        const head = home.clone().add(new THREE.Vector3(fx * step, 0, fz * step));
-        for (let r = 1.5; r <= 16; r += 0.1) {
-          const position = new THREE.Vector3(head.x + fx * r, f.eye ?? EYE, head.z + fz * r);
-          const cam = poseCam(position, head, f.fov ?? PORTRAIT_FOV);
-          const plane = comfortPlane(cam, [centre]);
-          const ratio = depthOf(cam, head) / plane;
-          if (Math.abs(ratio - POP) > 0.03) continue;
-          if (!best || plane > best.plane) best = { r, step, ratio, plane, position: position.toArray(), head: head.toArray(), at: [f.home[0] + fx * step, f.home[1] + fz * step] };
+      let near = null;
+      for (const eye of f.eye ? [f.eye] : EYES) {
+        for (let step = 0.5; step <= (f.maxStep ?? 2.5) + 1e-6; step += 0.25) {
+          const head = home.clone().add(new THREE.Vector3(fx * step, 0, fz * step));
+          for (let r = 1.5; r <= 16; r += 0.1) {
+            const position = new THREE.Vector3(head.x + fx * r, eye, head.z + fz * r);
+            const aim = aimFor(position, head, fov);
+            const cam = poseCam(position, aim, fov);
+            const plane = comfortPlane(cam, [centre]);
+            const headDepth = depthOf(cam, head);
+            const ratio = headDepth / plane;
+            if (Math.abs(ratio - POP) > 0.03) continue;
+            // the head (its frill, crest or snout) must fit well inside the frame, clear of the edges
+            const share = f.headSize / (2 * headDepth * tanHalf);
+            const pose = { r, eye, step, ratio, share, plane, position: position.toArray(), aim: aim.toArray(), head: head.toArray(), at: [f.home[0] + fx * step, f.home[1] + fz * step] };
+            if (!near || share < near.share) near = pose;
+            if (share > HEAD_SHARE) continue;
+            if (!best || plane > best.plane) best = pose;
+          }
         }
       }
-      if (!best) console.warn(`[safn3d] no portrait puts ${name}'s head at ${POP} of D`);
-      return best;
+      // nothing fits: the smallest head among the poses at POP of D
+      if (!best) console.info(`[safn3d] ${name}'s head fills ${near?.share.toFixed(2)} of the frame at ${POP} of D (wanted ${HEAD_SHARE} at most)`);
+      return best ?? near;
     }
 
     const portraits = Object.fromEntries(NAMES.map(n => [n, portraitFor(n)]));
@@ -165,7 +188,7 @@ export const chapter = {
       // who else is in each portrait's frame, and how near (a friend nearer than D at an edge breaks the comfort rule)
       for (const [n, p] of Object.entries(portraits)) {
         if (!p) continue;
-        const cam = poseCam(new THREE.Vector3(...p.position), new THREE.Vector3(...p.head), FRIENDS[n].fov ?? PORTRAIT_FOV);
+        const cam = poseCam(new THREE.Vector3(...p.position), new THREE.Vector3(...p.aim), FRIENDS[n].fov ?? PORTRAIT_FOV);
         p.others = NAMES.filter(o => o !== n).map(o => {
           const c = actors[o].centre(new THREE.Vector3());
           const ndc = c.clone().project(cam);
@@ -243,7 +266,7 @@ export const chapter = {
       const a = actors[name];
       const actor = s.actor(name);
       const p = portraits[name];
-      const shot = { position: p.position, target: `${name}.head`, fov: PORTRAIT_FOV, label: `portrait ${name}` };
+      const shot = { position: p.position, target: p.aim, fov: FRIENDS[name].fov ?? PORTRAIT_FOV, label: `portrait ${name}` };
       state.focus = name;
       state.ratio = null;
       for (const n of NAMES) if (n !== name) actors[n].lookAt(`${name}.head`, { weight: 0.4 }); // the others look at the one chosen
