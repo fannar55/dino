@@ -274,6 +274,7 @@ const updateMusic = guard('music', () => music.update());
 const updateChapterSound = guard('chapter sound', () => chapterSound.update()); // a chapter's own song (chapter 4's flight)
 const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
+let showOpen = false; // a "3D myndbönd" show is open over the book (onShow below): nothing here runs, draws or sounds
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
   onPlay: (game, options) => {
@@ -415,7 +416,7 @@ hold('hidden', document.hidden);
 // The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked), and
 // starts a chapter's own song a browser would start only from a touch (engine/audio/song.js: chapter 4's flight song).
 window.addEventListener('pointerup', () => {
-  if (!stage.started) return;
+  if (!stage.started || showOpen) return; // not under a show: its opening touch would wake the sound onShow just put to sleep
   music.start();
   chapterSound.touch();
 }, { passive: true });
@@ -861,7 +862,6 @@ function drawNow() {
 // A book a script opened holds nothing, so the scene goes on under it. `drew` says whether this frame was drawn.
 let canvasCleared = false;
 let drew = true;
-let showOpen = false; // a "3D myndbönd" show is open over the book (onShow above): nothing here runs, nor draws
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
 function render() {
   if (hals.isOpen) { // the game draws its board on this canvas: the chapter waits
