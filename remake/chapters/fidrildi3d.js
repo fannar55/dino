@@ -256,11 +256,10 @@ export const chapter = {
       end.append(button);
       document.body.append(end);
       try {
-        yield s.until(() => again || s.seeking);
+        yield s.until(() => again);
       } finally {
         end.remove();
       }
-      if (s.seeking) return; // a capture past the end: nothing more to do
     }
 
     // ================================================================================================================
