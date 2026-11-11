@@ -521,7 +521,7 @@ test('the pool has its dance floor: six beetles on the log and three dragonflies
   assert.equal(none.pool.beetles.length + none.pool.dragonflies.length, 0, 'a pool with no dance floor has none');
 });
 
-test('the scene\'s dances: every dancer gets its pose each frame, a call\'s own hop is left to the dance, and the end puts everyone back', () => {
+test('the scene\'s dances: every dancer gets its pose each frame, a tap\'s hop comes on top, and the end puts everyone back', () => {
   const { life, world, step } = pool();
   const c = {
     world: { forest: { life }, heightAt: () => LEVEL + 1, THREE },
@@ -538,12 +538,14 @@ test('the scene\'s dances: every dancer gets its pose each frame, a call\'s own 
   step();
   assert.ok(life.pool.frogs.some(b => b.position.distanceTo(b.gather.at) > 0.3), 'a frog is between its pads');
   assert.ok(life.pool.frogs.every(b => b.dance), 'each has its dance');
-  life.hop(life.pool.frogs[0]);
-  dances.cue({ kind: 'call', group: 'frogs', beat: 163.5 });
-  assert.equal(life.pool.frogs[0].hopped, null, 'the call\'s hop is the dance\'s');
-  life.hop(life.pool.turtles[0]);
-  dances.cue({ kind: 'call', group: 'frogs', beat: 164 });
-  assert.ok(life.pool.turtles[0].hopped, 'a tap\'s hop on another group stays');
+  // a child's tap hops a group on top of its dance, whatever cues come
+  const turtle = life.pool.turtles[0];
+  const danced = turtle.position.y;
+  life.hop(turtle, { height: 0.5, seconds: 0.4 });
+  dances.cue({ kind: 'call', group: 'turtles', beat: 164 });
+  dances.update({ beat: 163.2, setBeat: 163.2, frozen: false, rewinding: false, section: null });
+  step(world.clock.time + 0.2);
+  assert.ok(turtle.position.y > danced + 0.4, 'a tap\'s hop is on top of the dance');
   dances.dispose();
   step(world.clock.time + 5); // the tap's hop is over
   for (const b of [...life.pool.frogs, ...life.pool.turtles, ...life.pool.beetles]) assert.ok(b.dance === null && b.position.distanceTo(b.gather.at) < 1e-9);

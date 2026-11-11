@@ -9,6 +9,7 @@
 //     [--at "angle,distance,over;angle,distance,over;fov"]   the same by the pool's own frame: degrees round its middle, metres
 //                                    from it, metres over the water, for the camera and for what it looks at
 //     [--stats]                      print what each still draws (window.__demoStats)
+//     [--bench 120]                  and what a frame of it costs (window.__benchmark: GPU time, draw calls, triangles)
 //
 // --beats are the SET's beats (a range `a:b:step` works too); the dance beat of each is worked out as the scene does it (the
 // rewind, the freeze). Writes <out>/b<beat>.png and <out>/montage.png. The people and the show stay as they were at the seek.
@@ -108,6 +109,11 @@ try {
     await fsp.writeFile(path.join(out, `${name}.png`), Buffer.from(data.data, 'base64'));
     const entry = { name };
     if (args.includes('--stats')) { entry.stats = await evaluate('window.__demoStats ? JSON.parse(JSON.stringify(window.__demoStats)) : null'); console.log(name, JSON.stringify(entry.stats)); }
+    if (opt('bench')) {
+      const b = await evaluate(`window.__benchmark(${Number(opt('bench'))})`, true);
+      entry.bench = b;
+      console.log(name, `gpu ${b.gpuMs?.median} ms median, ${Number(b.msPerFrame).toFixed(2)} ms a frame, ${b.drawCalls} calls, ${b.triangles} triangles`);
+    }
     report.shots.push(entry);
   }
   if (errors.length) console.log(`page errors:\n  ${[...new Set(errors)].slice(0, 8).join('\n  ')}`);

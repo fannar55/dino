@@ -1020,11 +1020,9 @@ export function createDances(c) {
     update({ beat, setBeat }) {
       for (const { b, m } of dancers) b.dance = danceOf(m, beat, { reduced, ground, her, setBeat });
     },
-    cue(event) {
-      // a group that sings in the set marks it in its dance (on the dance beat, so the rewind and the freeze hold it); the scene's
-      // own hop for the call (kafli5.js onSet, on the game's clock) would come on top of it, and move in the freeze
-      if (event.kind === 'call') for (const b of groups[event.group] ?? []) b.hopped = null;
-    },
+    // nothing here waits for a cue: every call, count, roar and "Hopp!" of the set is in the dances by its beat (so the rewind and
+    // the freeze hold them too), and a child's tap hops a group on top of its dance (kafli5.js sing: life.js hop)
+    cue() {},
     dispose() {
       for (const { b } of dancers) b.dance = null;
     },
