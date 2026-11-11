@@ -100,11 +100,11 @@ export function createTreeProbe(placements, { near = () => true, minHeight = 1.2
             if (dy >= r) continue;
             const reachR = Math.sqrt(r * r - dy * dy); // the ball's half-width at the slab's nearer face
             const depth = d.r + reachR - Math.hypot(x - d.cx, z - d.cz);
-            if (depth > 0 && (!best || depth > best.depth)) best = { depth, y, bone: cap.bone };
+            if (depth > 0 && (!best || depth > best.depth)) best = { depth, y, px: x, pz: z, bone: cap.bone };
           }
         }
       }
-      if (best) out.push({ plant: plant.index, name: plant.name, x: +plant.x.toFixed(2), z: +plant.z.toFixed(2), depth: best.depth, y: +best.y.toFixed(2), bone: best.bone });
+      if (best) out.push({ plant: plant.index, name: plant.name, x: +plant.x.toFixed(2), z: +plant.z.toFixed(2), depth: best.depth, y: +best.y.toFixed(2), at: [+best.px.toFixed(2), +best.pz.toFixed(2)], bone: best.bone });
     }
     return out;
   }

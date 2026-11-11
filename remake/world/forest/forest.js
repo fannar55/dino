@@ -24,6 +24,9 @@
 //   farFriends, lookout  where the friends far out in the Fen are and the point they are seen from: tall plants keep out of
 //           the lines between them
 //   mossClear [{ center: [x, z], radius }]: no hanging moss from inside these discs (moss.js), the plan unchanged
+//   leaveOut  (plant) => true for a plant (placementInfo: name, x, z, height, radius, ...) the place grows without: the plan is
+//           made as it would be and those plants are taken out of it before anything is built (a walk through the trees in one
+//           chapter, Fiðrildadansinn), so every other plant stays where it was
 //   sectors   { clearing, edge, inner, deep }: how many sector meshes each band is cut into (config.js: bands.sectors); fewer, bigger ones draw in fewer calls
 //   farRings  the far treeline's rings (far.js) instead of the biome's own: [{ radius, rows, spacing, height, crown, strip, color, haze, topHaze, araucaria }]
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
@@ -224,6 +227,12 @@ function* forestSteps(world, layout) {
   const { terrain } = ground;
   const library = createSpeciesLibrary(seed);
   const plan = yield* planForestSteps({ world, layout, seed, terrain, library, q });
+  // a chapter's own few plants left out of the place as planned (layout.leaveOut), before anything is built from the plan
+  if (layout.leaveOut) {
+    const before = plan.placements.length;
+    plan.placements = plan.placements.filter(p => !layout.leaveOut(placementInfo(p)));
+    plan.stats.leftOut = before - plan.placements.length;
+  }
   yield 'planned';
 
   // canopy shade from the crowns round the clearing (their ground shadows along the sun)
@@ -318,6 +327,7 @@ function* forestSteps(world, layout) {
   const info = {
     buildMs: Math.round(performance.now() - t0),
     placements: plan.stats.counts,
+    leftOut: plan.stats.leftOut ?? 0,
     rejected: plan.stats.rejected,
     framing: plan.stats.framing,
     accents: plan.stats.accents,

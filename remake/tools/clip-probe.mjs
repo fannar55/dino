@@ -142,7 +142,7 @@ const TREE_STEP = (n, step, tolerance) => `(async () => {
     for (const f of found) {
       const h = (c.hits[f.plant] ??= { name: f.name, x: f.x, z: f.z, from: st.time, to: st.time, depth: 0, steps: 0 });
       h.to = st.time; h.steps++;
-      if (f.depth > h.depth) Object.assign(h, { depth: f.depth, at: st.time, y: f.y, bone: f.bone });
+      if (f.depth > h.depth) Object.assign(h, { depth: f.depth, at: st.time, y: f.y, where: f.at, bone: f.bone });
     }
   }
   return st.time;
@@ -349,7 +349,7 @@ async function treeProbe(o) {
     for (let done = 0; done < total; done += chunk) await evaluate(TREE_STEP(Math.min(chunk, total - done), o.step, o.tolerance));
     const r = await evaluate(`(() => { const c = window.__trees; return { steps: c.steps.length, bad: c.steps.filter(s => s.n > 0).length, hits: Object.entries(c.hits).map(([i, h]) => ({ plant: +i, ...h })) }; })()`);
     console.log(`steps with her inside a plant: ${r.bad} of ${r.steps} (${(r.bad * o.step).toFixed(2)} s)`);
-    for (const h of r.hits.sort((a, b) => a.from - b.from)) console.log(`  plant ${h.plant} ${h.name} at (${h.x}, ${h.z}): ${h.from.toFixed(2)}-${h.to.toFixed(2)} s, ${h.steps} steps, deepest ${h.depth.toFixed(2)} m at ${h.at.toFixed(2)} s (${h.bone}, ${h.y} m up)`);
+    for (const h of r.hits.sort((a, b) => a.from - b.from)) console.log(`  plant ${h.plant} ${h.name} at (${h.x}, ${h.z}): ${h.from.toFixed(2)}-${h.to.toFixed(2)} s, ${h.steps} steps, deepest ${h.depth.toFixed(2)} m at ${h.at.toFixed(2)} s (${h.bone}, ${h.y} m up at x, z ${h.where})`);
     if (o.json) await fsp.writeFile(path.resolve(o.json), JSON.stringify(r, null, 2));
     failed = r.bad > 0;
     console.log(failed ? 'FAIL' : 'OK: she passes through no plant');

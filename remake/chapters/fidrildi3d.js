@@ -3,7 +3,7 @@
 // out of the screen, lands on his horn, he sneezes it off in a puff of pollen that blows at the viewer, a swarm of pale butterflies
 // rises from the grass and dances in a spiral round the view axis, out of the screen and back, Þórseðla's head comes down through
 // them and out, a few sit on it, and at the end the moth settles in the exact middle of the frame at the screen plane. "Aftur"
-// plays it again.
+// plays it again, "Hætta" leaves.
 //
 // Depth is laid out in the frame, not in the world: a point is (u, v, k), u and v its place in the frame (0..1 from the top left)
 // and k its depth as a share of D, the zero-parallax distance (Mosi's head). Flights are timed keys of (u, v, k), smoothed
@@ -24,8 +24,12 @@ import { pollenBurst } from '../world/props/pollen.js';
 import { glints, run, sparkleTrail, sparkleBurst, SPARKLE_LOOK } from '../world/props/sparkles.js';
 import { createShell } from '../engine/shell.js';
 import { createClipProbe, bodyMesh } from '../engine/clip-probe.js';
+import { leaveShow } from '../engine/book/show-player.js';
 
 const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;cursor:pointer;pointer-events:auto';
+// the end card's second choice (round 6, the owner: "þegar sena endar þá er bara hægt að velja spila aftur, en ekki hætta"): smaller
+// and quieter than "Aftur", which stays the first, but as tall (the row stretches both), so it is as easy to hit
+const QUIT = 'font:800 clamp(19px,2.5vw,25px)/1 Nunito,sans-serif;padding:14px 26px;border:3px solid #6f8f3a;border-radius:999px;cursor:pointer;pointer-events:auto;background:#fff;color:#4f6a25';
 const CARD = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw;display:flex;flex-direction:column;align-items:center;gap:14px';
 
 // The start: a big picture of the red/cyan glasses in the middle, breathing about once a second (gently under less motion); a tap
@@ -51,6 +55,31 @@ const GLASSES_STYLE = `
   }
   @media (prefers-reduced-motion: reduce) { .gler-start { animation: gler-pulse-calm 2.4s ease-in-out infinite; } }`;
 /** The glasses start, laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */
+/**
+ * The end card: "Aftur" (plays it again) and beside it "Hætta" (engine/book/show-player.js leaveShow: closes the book's frame, or
+ * goes to the game's start when the show was opened on its own). Returns { element, again, quit } (the two buttons).
+ */
+export function endCard(doc, { onAgain, onQuit }) {
+  const element = doc.createElement('div');
+  element.style.cssText = CARD;
+  element.className = 'dans-end';
+  const row = doc.createElement('div');
+  row.style.cssText = 'display:flex;flex-direction:row;align-items:stretch;justify-content:center;gap:18px;flex-wrap:wrap';
+  const again = doc.createElement('button');
+  again.type = 'button';
+  again.textContent = 'Aftur';
+  again.style.cssText = BUTTON + ';background:#6f8f3a;color:#fff';
+  again.addEventListener('click', () => onAgain());
+  const quit = doc.createElement('button');
+  quit.type = 'button';
+  quit.textContent = 'Hætta';
+  quit.style.cssText = QUIT;
+  quit.addEventListener('click', () => onQuit());
+  row.append(again, quit);
+  element.append(row);
+  return { element, again, quit };
+}
+
 function glassesStart(doc) {
   return new Promise(resolve => {
     const wrap = doc.createElement('div');
@@ -109,7 +138,28 @@ const SEAT_LIFT = 0.025; // a sitter's centre over the skull's surface
 const SEAT_ABOVE = 0.5; // and the point straight above its seat it comes down from
 // Þórseðla walks in (round 2, the owner: "láttu Þórseðlu ganga inn í myndina"): from deep in the forest off the right of the frame
 // to her spot, arriving ARRIVE seconds into the show at the walk clip's own speed (actor.walkTo matches the clip: no sliding).
-const THOR_FROM = [[30, -14], [19, -11]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
+// Round 6 (the owner: "þegar þórseðla lappar inn í mynd á bakvið á klippir haus hennar í gegnum tré"): her head, 8 m up as she
+// walks, went through the crown of the edge tree in the frame's top right corner (at 19.2, -15.3) and her body through bushes,
+// horsetails, a tree fern and an araucaria out of the frame. The edge trees' crowns close the clearing's right side at her head's
+// height but for one gap, between that tree and the next one nearer (24.1, -1.5, out of the frame on every screen); she now comes
+// along it, south of the corner tree, and the chapter leaves out the nearer tree and the low plants on her way, all out of the
+// frame (THOR_LEAVE_OUT, layout.leaveOut). tools/clip-probe.mjs --trees measures it: no step with her in a plant.
+const THOR_FROM = [[35, -12.5], [28, -8.6], [21, -7.0], [16, -6.1]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
+// what the place grows without for her: the one tree by its foot, and every plant lower than LOW m within WIDE m of her way while
+// it is out of the frame (x beyond 13 m; the last stretch is in the open clearing)
+const THOR_LEAVE_OUT = { trees: [[24.13, -1.53]], way: [[37, -13.5], ...THOR_FROM, [10.2, -5.4]], low: 4.5, wide: 3.4, beyond: 13 };
+function leaveOut(p) {
+  const L = THOR_LEAVE_OUT;
+  if (L.trees.some(([x, z]) => Math.hypot(p.x - x, p.z - z) < 0.5)) return true;
+  if (p.height >= L.low || p.x < L.beyond) return false;
+  for (let i = 0; i + 1 < L.way.length; i++) {
+    const [ax, az] = L.way[i], [bx, bz] = L.way[i + 1];
+    const dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.z - az) * dz) / (dx * dx + dz * dz)));
+    if (Math.hypot(p.x - ax - dx * t, p.z - az - dz * t) < L.wide + p.radius) return true;
+  }
+  return false;
+}
 const THOR_STRAIGHT = 7; // metres of the last stretch, straight along her heading at the spot
 const ARRIVE = 42.6;
 const THOR_SPEED = 1.3; // m/s asked; walkTo plays the clip faster or slower to match it (state.thorWalkScale says by how much)
@@ -198,7 +248,7 @@ export const chapter = {
   look: 'morning',
   gler: { panel: false }, // main.js turns the glasses on, without the "3D" settings button (saved settings and ?ut= still hold)
   startButton: glassesStart, // main.js: the glasses picture is the start, one tap, instead of Byrja
-  layout: { ...grunnur.layout, leafShadows: true, glade: { shafts: 3 } },
+  layout: { ...grunnur.layout, leafShadows: true, glade: { shafts: 3 }, leaveOut },
   actors: {
     mosi: { url: CHARS + 'mosi.glb', position: [-1.5, 0, 3], heading: 90 },
     thorsedla: { url: CHARS + 'brontosaurus.glb', position: [0, 0, -6], heading: 90 },
@@ -531,15 +581,9 @@ export const chapter = {
 
     for (;;) {
       yield* show();
-      // the end card: one button, which plays it again (in the book's frame its close button is the way out)
-      const end = document.createElement('div');
-      end.style.cssText = CARD;
-      const button = document.createElement('button');
-      button.textContent = 'Aftur';
-      button.style.cssText = BUTTON + ';background:#6f8f3a;color:#fff';
+      // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
       let again = false;
-      button.addEventListener('click', () => { again = true; });
-      end.append(button);
+      const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => leaveShow(window) });
       document.body.append(end);
       try {
         yield s.until(() => again);
