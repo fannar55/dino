@@ -108,8 +108,8 @@ const SET_SHOTS = {
   // each group in its part: all of it, and close
   set_grazers: seen(CHOIR.grazers.at, 138, 17, 1.4, 2.4, 46),
   set_grazers_close: seen(CHOIR.grazers.at, 124, 10.5, 1.0, 2.8, 42), // low, looking up at them: they are big
-  set_turtles: seen(CHOIR.turtles.at, 160, 8, 1.5, 1.7, 38), // they sit on top of their stone, 1.7 m over the water
-  set_turtles_close: seen(CHOIR.turtles.at, 148, 5.6, 2.1, 2.0, 36), // on their backs they spin 0.6 m apart: 3.2 m across
+  set_turtles: seen(CHOIR.turtles.at, 160, 7, 1.8, 2.1, 38), // they sit on top of their stone, their middles 2.4 m over the water
+  set_turtles_close: seen(CHOIR.turtles.at, 148, 4.6, 2.4, 2.4, 36), // level with them; on their backs they spin 3.2 m across
   set_frogs: seen(CHOIR.frogs.at, 160, 8.5, 1.3, 0.5, 40),
   set_frogs_mid: seen(CHOIR.frogs.at, 160, 5.8, 1.15, 0.45, 36),
   set_frogs_close: seen(CHOIR.frogs.at, 160, 3.8, 1.0, 0.4, 32),
@@ -128,7 +128,7 @@ const SET_SHOTS = {
   // the lizards' run along the water's edge, from their place (204 degrees) past the frogs (181) and back: from the water west of her
   set_lizards_run: { position: up(around(211.3, 16.4), LEVEL + 1.3), target: up(around(192, 27.5), LEVEL + 0.9), fov: 44 },
   // the beetles' log on the bank between the turtles and the frogs (173 degrees, 29.6 m: kafli5-dances.js), from the water's edge
-  set_beetles: seen(around(173, 29.6), 173, 4.4, 1.1, 0.9, 46),
+  set_beetles: seen(around(173, 29.6), 173, 4.2, 1.5, 1.55, 44), // level with the log's top, where they sit and hop
   // the whole dance floor: low over the water from the north-east, wide; and lower still, from the pool's middle
   set_low_wide: { position: up(around(335, 15), LEVEL + 1.2), target: up(around(188, 24), LEVEL + 1.7), fov: 56 },
   set_water_low: { position: up(around(285, 9), LEVEL + 1.0), target: up(around(176, 26), LEVEL + 1.9), fov: 50 },

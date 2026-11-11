@@ -764,7 +764,9 @@ export const chapter = {
         grey: false, route: ROUTE, at: FAR_POOL.center, critters: await loadCritters(world), views: viewsOf(world), keep: KEEP, choir: POOL_LIFE,
       }),
       shots: SHOTS,
-      warmUp: ['choir_wide', 'reed_close', 'bank_talk', 'sloedla_out', 'west_listen'], // every shot drawn once before the start (the first video stalled 165 ms at the cut west)
+      // every shot drawn once before the start (the first video stalled 165 ms at the cut west), the music video's too (its first
+      // recording stalled 233 ms at a first cut)
+      warmUp: ['choir_wide', 'reed_close', 'bank_talk', 'sloedla_out', 'west_listen', ...Object.keys(SHOTS).filter(name => name.startsWith('set_'))],
     },
   },
   actors: {

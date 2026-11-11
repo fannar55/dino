@@ -129,7 +129,7 @@ const WHERE = {
 
 test('the set\'s shots of a group show the group: every seat in its wide shot, its middle in its close one, at 16:10 and upright', () => {
   const HIGH = { grazers: 2.6, turtles: 0.6, frogs: 0.3, lizards: 0.5, flyers: 0.9 }; // m: about where a member's head is over what it stands on
-  const BASE = { grazers: 0, turtles: 0.9, frogs: 0, lizards: 0, flyers: 0 }; // m: the turtles sit on their stone (kafli5.test.mjs: over 0.8 m up)
+  const BASE = { grazers: 0, turtles: 1.8, frogs: 0, lizards: 0, flyers: 0 }; // m: the turtles sit on top of their stone (their middles are 2.4 m over the water in the stills)
   for (const group of GROUPS) {
     const { all, close } = GROUP_SHOTS[group];
     assert.ok(SHOTS[all] && SHOTS[close], `${group} has its two shots`);
