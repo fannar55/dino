@@ -188,8 +188,10 @@ const MOTHS = [
     [0, 0.85, 0.4, 2.5], [5, 0.78, 0.45, 0.9], [9, 0.8, 0.55, 0.62], [13, 0.82, 0.5, 0.7], [17, 0.78, 0.6, 0.8], [21, 0.8, 0.52, 0.66],
     // round 5: from 42.6 high on the right, in front of Þórseðla's neck as it comes down and goes back up (not under her head), and
     // away to the left behind Mosi
-    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [42.6, 0.8, 0.4, 0.66], [44.5, 0.83, 0.38, 0.64], [47, 0.83, 0.42, 0.6],
-    [50, 0.83, 0.36, 0.62], [53, 0.83, 0.32, 0.62], [55, 0.82, 0.32, 0.63], [56.6, 0.6, 0.3, 0.8], [58.6, 0.3, 0.32, 2.8, 'rest'], [60, 0.3, 0.31, 2.9]] },
+    // round 6: from 44.5 low on the right in front of her chest, out of the way her head and neck come down (at 47.9 her neck came
+    // down into it, high on the right), and away low in front of Mosi and up his left side into the trees
+    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [42.6, 0.8, 0.6, 0.66], [44.5, 0.81, 0.75, 0.64], [47, 0.8, 0.82, 0.63],
+    [50, 0.8, 0.83, 0.64], [53, 0.81, 0.82, 0.64], [55.2, 0.8, 0.8, 0.64], [56.6, 0.52, 0.82, 0.63], [57.8, 0.2, 0.6, 0.7], [59.2, 0.17, 0.35, 2.4, 'rest'], [60, 0.17, 0.35, 2.5]] },
 ];
 // the swarm's depth through its dance (as a share of D), which the moths' ring follows too; and (round 5) how far right of the
 // middle its ring turns: behind the screen and through it it turns right of Mosi, whose head and body are there (k 1-1.6), and in
@@ -762,9 +764,10 @@ export const chapter = {
       return run(world, set, LENGTH + 2, 'dans motes');
     }
 
-    // The swarm: rising from the grass behind Mosi (30-33.5), a spiral round the view axis, one turn in 8 s, out of the screen to k
-    // 0.5 at the nearest (38-40.5) and back behind it, small and high between Mosi and her; four sit on Þórseðla's head (48-53.5,
-    // round 5: off it before it goes up); all drift away into the trees (55-59.5).
+    // The swarm: rising from the grass right of Mosi (30-33.5), a spiral round the view axis, one turn in 8 s, out of the screen to k
+    // 0.52 at the nearest (38-40.5); from 41.4 (round 6) two thirds stay in front, round Mosi's face and round her head, and the rest
+    // go back behind the screen, small and high between Mosi and her; four sit on Þórseðla's head (48-53.5, round 5: off it before it
+    // goes up); all drift away into the trees (55-59.5).
     function dance() {
       const random = mulberry(25);
       const each = [];
@@ -786,6 +789,77 @@ export const chapter = {
           from: new THREE.Vector3(), yaw: 0,
         });
       }
+      // Round 6 (the owner: "þegar þórseðla kemur fram í mynd með haus niður fara öll hvítu fiðrildi í bakgrunn, væri flott að mörg
+      // þeir færi frekar forgrunn fyrir framan þórseðlu og mosa"): from FRONT_FROM, while the spiral is out in front, two thirds of
+      // the swarm stay in front of the screen instead of going back with it. FRONT_MOSI circle Mosi's face slowly, in front of his
+      // beak (k 0.78) and left of where her snout comes (it comes to k 0.44 at u 0.45-0.55, v 0.5-0.6: nothing can be in front of
+      // it, the comfort floor is 0.52); FRONT_HER wait low in front of her chest under where her head comes down, go up round the
+      // right of her throat once it is down (48.3-50) to a ring in front of her neck beside her face, come back down before it lifts
+      // (53.2), and rise between the two of them into the trees once it is up (56.7). The rest, with the four sitters, keep to the
+      // spiral behind the screen. Every station is in the stage's frame round where the bodies are (measured at 50 s), loose and slow.
+      const FRONT_MOSI = [1, 4, 7, 10, 13, 16, 19, 22], FRONT_HER = [2, 5, 8, 11, 14, 17, 20, 23];
+      const FRONT_FROM = 41.4, FRONT_IN = 3;
+      each.forEach((b, i) => {
+        b.group = FRONT_MOSI.includes(i) ? 1 : FRONT_HER.includes(i) ? 2 : 0;
+        b.j = b.group === 1 ? FRONT_MOSI.indexOf(i) : FRONT_HER.indexOf(i);
+      });
+      const TAU = 2 * Math.PI;
+      // Mosi's: a ring round the left of his face and frill, one turn in 14 s (his face u 0.2-0.5, v 0.2-0.65; her snout, nearer
+      // than they may come, from u 0.4)
+      const mosiRing = (b, t, o) => {
+        const ang = (b.j / 8) * TAU + (TAU * (t - 41)) / 14, sc = 0.8 + 0.2 * ((b.j * 0.37) % 1);
+        o[0] = 0.27 + 0.09 * sc * Math.cos(ang); o[1] = 0.42 + 0.2 * sc * Math.sin(ang); o[2] = 0.65 + 0.03 * Math.sin(0.7 * t + b.bob);
+        return o;
+      };
+      // hers: while her head comes down, high over Mosi's frill (k 0.9) left of the way it comes, one turn in 16 s. Not under it (her
+      // head's shell, a ball a metre round, reaches down to v 0.8, and a butterfly under a body is pushed up over it: the shell's
+      // seam), nor up her right side (her bent neck's shell reaches k 0.64 there, so near the edge of the frame).
+      const lowRing = (b, t, o) => {
+        const ang = (b.j / 8) * TAU + (TAU * (t - 41)) / 16;
+        o[0] = 0.32 + 0.07 * Math.cos(ang); o[1] = 0.155 + 0.02 * Math.sin(ang); o[2] = 0.65 + 0.012 * Math.sin(0.8 * t + b.bob);
+        return o;
+      };
+      // and once her head is down, a small loose ring over it, in front of her neck (k 1) and a wing and the shell's soft zone clear
+      // of her head's shell; there along the top of the frame over her head (VIA) and back the same way before her head lifts. Nothing can be
+      // in front of her face itself: her snout comes to k 0.44 and her head's shell, a ball a metre round, fills the frame round it
+      // nearer than k 0.6 (the comfort floor is 0.52).
+      const neckRing = (b, t, o) => {
+        const ang = (b.j / 8) * TAU + (TAU * (t - 48)) / 10;
+        o[0] = 0.765 + 0.04 * Math.cos(ang); o[1] = 0.18 + 0.03 * Math.sin(ang); o[2] = 0.62 + 0.008 * Math.sin(0.9 * t + b.bob);
+        return o;
+      };
+      const UP_AT = b => 48.3 + 0.12 * b.j, UP = 1.8, DOWN_AT = b => 51.4 + 0.08 * b.j, DOWN = 1.4;
+      const VIA = [[0, 0.58, 0.14, 0.64]];
+      const herAt = (b, t, o) => {
+        const u0 = UP_AT(b), d0 = DOWN_AT(b);
+        if (t < u0) return lowRing(b, t, o);
+        if (t < u0 + UP) {
+          b.up ??= track([[-1, ...lowRing(b, u0, [])], ...VIA, [1, ...neckRing(b, u0 + UP, [])]]);
+          return b.up(-1 + 2 * smooth((t - u0) / UP), o);
+        }
+        if (t < d0) return neckRing(b, t, o);
+        if (t < d0 + DOWN) {
+          b.down ??= track([[-1, ...neckRing(b, d0, [])], ...VIA.map(([x, ...p]) => [-x, ...p]).reverse(), [1, ...lowRing(b, d0 + DOWN, [])]]);
+          return b.down(-1 + 2 * smooth((t - d0) / DOWN), o);
+        }
+        return lowRing(b, t, o);
+      };
+      // out: up to a gate in front of the screen, then back into the trees (Mosi's up left of his frill, hers between the two)
+      const GATE = { 1: [0.17, 0.2, 0.66], 2: [0.4, 0.14, 0.7] }; // (Mosi's leave his face at its own depth, not back into his beak)
+      const OUT_AT = b => (b.group === 1 ? 55.4 + 0.12 * b.j : 55.6 + 0.1 * b.j);
+      const farOf = b => (b.group === 1 ? [0.13 + 0.01 * b.j, 0.13 + 0.004 * b.j, 2.3 + 0.1 * (b.j % 3)] : [0.42 + 0.015 * b.j, 0.13 + 0.004 * b.j, 2.3 + 0.1 * (b.j % 3)]);
+      const station = [], gateTo = [];
+      function frontAt(b, t, out) {
+        if (b.group === 1) mosiRing(b, t, station); else herAt(b, t, station);
+        const x0 = OUT_AT(b);
+        if (t > x0) {
+          const g = GATE[b.group], far = farOf(b), e1 = smooth((t - x0) / 1.6), e2 = smooth((t - x0 - 1.2) / 3.2);
+          for (let n = 0; n < 3; n++) { gateTo[n] = lerp(station[n], g[n], e1); station[n] = lerp(gateTo[n], far[n], e2); }
+        }
+        return framePoint(station[0], station[1], station[2], out);
+      }
+      const front = new THREE.Vector3();
+
       const kc = [], ring = [];
       const spiral = (b, t, out) => {
         KC(t, kc);
@@ -802,7 +876,7 @@ export const chapter = {
       // they sit while her head is still (it is down by 48.5 and goes up at 53.2) and are off it before it moves: riding it up took
       // them out of the top of the frame in front of the screen (the comfort rules), so they leave from where it rests
       const sitFrom = b => 48 + 0.25 * b.sit;
-      const leaveAt = b => (b.sit >= 0 ? 52 + 0.15 * b.sit : 55 + 0.06 * (b.phase * 4));
+      const leaveAt = b => (b.sit >= 0 ? 52 + 0.15 * b.sit : b.group ? Infinity : 55 + 0.06 * (b.phase * 4));
       const LEAVE_BACK = 1.8; // and they go up off it and back, deeper, out of the way her head will go up
       const seatOf = (b, out) => out.copy(seats[b.sit].local).applyMatrix4(seats[b.sit].bone.matrixWorld);
       const above = new THREE.Vector3(), seat = new THREE.Vector3();
@@ -821,6 +895,11 @@ export const chapter = {
           const lift = Math.sin(Math.PI * k) * 0.5;
           out.lerpVectors(b.ground, out, k);
           out.y += lift;
+        }
+        // the front groups leave the spiral where it is at FRONT_FROM, out in front: the spiral then goes back through Mosi's head
+        if (b.group && t > FRONT_FROM) {
+          spiral(b, FRONT_FROM, out);
+          out.lerp(frontAt(b, t, front), smooth((t - FRONT_FROM - 0.06 * b.j) / FRONT_IN));
         }
         const t0 = leaveAt(b);
         if (b.sit >= 0 && t >= sitFrom(b)) {
