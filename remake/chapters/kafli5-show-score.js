@@ -83,10 +83,10 @@ export function duskAt(beat) {
 }
 
 /**
- * The sun's nightcap (the owner's wish of 2026-11-11), 0 (off) to 1 (on its head): it comes down over the last bar of the sinking
+ * The sun's nightcap (the owner's wish of 2026-11-11), 0 (off) to 1 (on its head): it comes down in the second bar of the sinking
  * dusk, as the camera looks at the sun (kafli5-video.js: set_sun), stays on while the dusk does, and is off as the day comes back.
  */
-export const CAP = { from: DUSK.sink / 2, beats: DUSK.sink / 2 };
+export const CAP = { from: 4, beats: 3 }; // down over beats 236 to 239 of the set, seen from the cut at 236
 export function capAt(beat) {
   const from = startOf('break');
   const to = startOf('drop');

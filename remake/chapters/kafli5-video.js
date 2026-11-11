@@ -84,8 +84,8 @@ export const CAMERA = [
   // pulling its nightcap on as the dusk falls (her notes rise toward it); slowly round her; Egill and Mosi listen; her again, low,
   // the sky over her
   { beat: 232, cut: 'set_her_reed', then: { push: 0.8, beats: 3.5 } },
-  { beat: 236, cut: 'set_sun', then: { zoom: 30, beats: 3.5 } },
-  { beat: 240, cut: 'set_her_close', then: { orbit: 15, beats: 7 } },
+  { beat: 236, cut: 'set_sun', then: { zoom: 30, beats: 5 } }, // the cap is on by 239: three beats to see it worn
+  { beat: 242, cut: 'set_her_close', then: { orbit: 10, beats: 5 } },
   { beat: 248, cut: 'bank_talk', then: { push: 0.8, beats: 5 } },
   { beat: 254, cut: 'set_her_low', then: { push: 2.5, beats: 9 } },
   // the build: her wings up, Egill's hands up, the whole pool closing in, and a group a number
