@@ -205,7 +205,8 @@ try {
 let cards = [];
 let media = new Map();
 let models = new Map(); // the 3D pages' models, from the same manifest
-try {
+// A show's frame never opens its book: it reads none of the book's cards, and draws none of their pictures.
+if (!syning) try {
   const read = async path => {
     const response = await fetch(new URL(path, import.meta.url));
     if (!response.ok) throw new Error(`${path}: ${response.status}`);
