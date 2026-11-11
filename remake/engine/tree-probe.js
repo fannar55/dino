@@ -51,6 +51,7 @@ export function plantVolumes(p) {
         box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], y); box[2] = Math.min(box[2], z);
         box[3] = Math.max(box[3], x); box[4] = Math.max(box[4], y); box[5] = Math.max(box[5], z);
       }
+      const own = new Map();
       for (const [k, xz] of slices) {
         let cx = 0, cz = 0;
         const n = xz.length / 2;
@@ -58,7 +59,20 @@ export function plantVolumes(p) {
         cx /= n; cz /= n;
         let r = 0;
         for (let i = 0; i < xz.length; i += 2) r = Math.max(r, Math.hypot(xz[i] - cx, xz[i + 1] - cz));
-        discs.push({ y0: k * SLICE, y1: (k + 1) * SLICE, cx, cz, r });
+        own.set(k, { cx, cz, r });
+      }
+      // a slice between two of a piece's rings of vertices (a trunk's rings may be further apart than SLICE) is the two blended
+      const keys = [...own.keys()].sort((a, b) => a - b);
+      for (let j = 0; j < keys.length; j++) {
+        const k = keys[j], d = own.get(k);
+        discs.push({ y0: k * SLICE, y1: (k + 1) * SLICE, ...d });
+        const next = keys[j + 1];
+        if (next == null) continue;
+        const e = own.get(next);
+        for (let m = k + 1; m < next; m++) {
+          const t = (m - k) / (next - k);
+          discs.push({ y0: m * SLICE, y1: (m + 1) * SLICE, cx: d.cx + (e.cx - d.cx) * t, cz: d.cz + (e.cz - d.cz) * t, r: Math.max(d.r + (e.r - d.r) * t, 0) });
+        }
       }
     }
   }
@@ -66,8 +80,38 @@ export function plantVolumes(p) {
 }
 
 /**
+ * How far any of `capsules` ([{ a, b, r, bone }], world) reaches into a plant's volumes (plantVolumes), each grown by `grow` metres:
+ * { depth, y, px, pz, bone } for the deepest reach, or null where none does.
+ */
+export function reachInto(plant, capsules, grow = 0) {
+  const b = plant.box;
+  let best = null;
+  for (const cap of capsules) {
+    const r = cap.r + grow;
+    if (Math.max(cap.a[0], cap.b[0]) + r < b[0] || Math.min(cap.a[0], cap.b[0]) - r > b[3]) continue;
+    if (Math.max(cap.a[1], cap.b[1]) + r < b[1] || Math.min(cap.a[1], cap.b[1]) - r > b[4]) continue;
+    if (Math.max(cap.a[2], cap.b[2]) + r < b[2] || Math.min(cap.a[2], cap.b[2]) - r > b[5]) continue;
+    const L = Math.hypot(cap.b[0] - cap.a[0], cap.b[1] - cap.a[1], cap.b[2] - cap.a[2]);
+    const n = Math.max(1, Math.ceil(L / Math.max(0.05, r * 0.5)));
+    for (let j = 0; j <= n; j++) {
+      const t = j / n;
+      const x = cap.a[0] + (cap.b[0] - cap.a[0]) * t, y = cap.a[1] + (cap.b[1] - cap.a[1]) * t, z = cap.a[2] + (cap.b[2] - cap.a[2]) * t;
+      for (const d of plant.discs) {
+        // the ball of radius r at (x, y, z) against the disc's slab: how far it reaches in (round and up)
+        const dy = y < d.y0 ? d.y0 - y : y > d.y1 ? y - d.y1 : 0;
+        if (dy >= r) continue;
+        const reachR = Math.sqrt(r * r - dy * dy); // the ball's half-width at the slab's nearer face
+        const depth = d.r + reachR - Math.hypot(x - d.cx, z - d.cz);
+        if (depth > 0 && (!best || depth > best.depth)) best = { depth, y, px: x, pz: z, bone: cap.bone };
+      }
+    }
+  }
+  return best;
+}
+
+/**
  * A probe for one shell against the plants near a path: `placements` (forest.placements), `near(x, z)` true for a plant to keep (by
- * its place). look(capsules) → [{ plant, name, x, z, depth, y, bone }] for every plant a capsule reaches into (depth: metres, the
+ * its place). look(capsules) → [{ plant, name, x, z, depth, y, at, bone }] for every plant a capsule reaches into (depth: metres, the
  * deepest reach of any capsule into one of its discs).
  */
 export function createTreeProbe(placements, { near = () => true, minHeight = 1.2 } = {}) {
@@ -82,28 +126,7 @@ export function createTreeProbe(placements, { near = () => true, minHeight = 1.2
   function look(capsules) {
     const out = [];
     for (const plant of plants) {
-      const b = plant.box;
-      let best = null;
-      for (const cap of capsules) {
-        const r = cap.r;
-        if (Math.max(cap.a[0], cap.b[0]) + r < b[0] || Math.min(cap.a[0], cap.b[0]) - r > b[3]) continue;
-        if (Math.max(cap.a[1], cap.b[1]) + r < b[1] || Math.min(cap.a[1], cap.b[1]) - r > b[4]) continue;
-        if (Math.max(cap.a[2], cap.b[2]) + r < b[2] || Math.min(cap.a[2], cap.b[2]) - r > b[5]) continue;
-        const L = Math.hypot(cap.b[0] - cap.a[0], cap.b[1] - cap.a[1], cap.b[2] - cap.a[2]);
-        const n = Math.max(1, Math.ceil(L / Math.max(0.05, r * 0.5)));
-        for (let j = 0; j <= n; j++) {
-          const t = j / n;
-          const x = cap.a[0] + (cap.b[0] - cap.a[0]) * t, y = cap.a[1] + (cap.b[1] - cap.a[1]) * t, z = cap.a[2] + (cap.b[2] - cap.a[2]) * t;
-          for (const d of plant.discs) {
-            // the ball of radius r at (x, y, z) against the disc's slab: how far it reaches in (round and up)
-            const dy = y < d.y0 ? d.y0 - y : y > d.y1 ? y - d.y1 : 0;
-            if (dy >= r) continue;
-            const reachR = Math.sqrt(r * r - dy * dy); // the ball's half-width at the slab's nearer face
-            const depth = d.r + reachR - Math.hypot(x - d.cx, z - d.cz);
-            if (depth > 0 && (!best || depth > best.depth)) best = { depth, y, px: x, pz: z, bone: cap.bone };
-          }
-        }
-      }
+      const best = reachInto(plant, capsules);
       if (best) out.push({ plant: plant.index, name: plant.name, x: +plant.x.toFixed(2), z: +plant.z.toFixed(2), depth: best.depth, y: +best.y.toFixed(2), at: [+best.px.toFixed(2), +best.pz.toFixed(2)], bone: best.bone });
     }
     return out;

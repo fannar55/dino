@@ -25,6 +25,8 @@ import { glints, run, sparkleTrail, sparkleBurst, SPARKLE_LOOK } from '../world/
 import { createShell } from '../engine/shell.js';
 import { createClipProbe, bodyMesh } from '../engine/clip-probe.js';
 import { leaveShow } from '../engine/book/show-player.js';
+import { plantVolumes, reachInto } from '../engine/tree-probe.js';
+import { WALK } from './fidrildi3d-walk.js';
 
 const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;cursor:pointer;pointer-events:auto';
 // the end card's second choice (round 6, the owner: "þegar sena endar þá er bara hægt að velja spila aftur, en ekki hætta"): smaller
@@ -141,24 +143,31 @@ const SEAT_ABOVE = 0.5; // and the point straight above its seat it comes down f
 // Round 6 (the owner: "þegar þórseðla lappar inn í mynd á bakvið á klippir haus hennar í gegnum tré"): her head, 8 m up as she
 // walks, went through the crown of the edge tree in the frame's top right corner (at 19.2, -15.3) and her body through bushes,
 // horsetails, a tree fern and an araucaria out of the frame. The edge trees' crowns close the clearing's right side at her head's
-// height but for one gap, between that tree and the next one nearer (24.1, -1.5, out of the frame on every screen); she now comes
-// along it, south of the corner tree, and the chapter leaves out the nearer tree and the low plants on her way, all out of the
-// frame (THOR_LEAVE_OUT, layout.leaveOut). tools/clip-probe.mjs --trees measures it: no step with her in a plant.
-const THOR_FROM = [[35, -12.5], [28, -8.6], [21, -7.0], [16, -6.1]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
-// what the place grows without for her: the one tree by its foot, and every plant lower than LOW m within WIDE m of her way while
-// it is out of the frame (x beyond 13 m; the last stretch is in the open clearing)
-const THOR_LEAVE_OUT = { trees: [[24.13, -1.53]], way: [[37, -13.5], ...THOR_FROM, [10.2, -5.4]], low: 4.5, wide: 3.4, beyond: 13 };
-function leaveOut(p) {
-  const L = THOR_LEAVE_OUT;
-  if (L.trees.some(([x, z]) => Math.hypot(p.x - x, p.z - z) < 0.5)) return true;
-  if (p.height >= L.low || p.x < L.beyond) return false;
-  for (let i = 0; i + 1 < L.way.length; i++) {
-    const [ax, az] = L.way[i], [bx, bz] = L.way[i + 1];
-    const dx = bx - ax, dz = bz - az;
-    const t = Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.z - az) * dz) / (dx * dx + dz * dz)));
-    if (Math.hypot(p.x - ax - dx * t, p.z - az - dz * t) < L.wide + p.radius) return true;
+// height but for one narrow gap, south of that tree; she now comes along it, and the place grows without whatever plant her walk
+// would still pass through (leaveOut below), whatever the quality plans there. tools/clip-probe.mjs --trees measures it.
+export const THOR_FROM = [[35, -12.5], [28, -8.6], [21, -7.0], [16, -6.1]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
+// The leave-out follows from the walk itself: WALK (fidrildi3d-walk.js, made by clip-probe.mjs --sweep) holds where her root is
+// through the walk and her shell's capsules in her root's frame at a few moments of it; a plant at least LEAVE_LOW m tall (lower
+// ones, ferns and flowers, lean away from a character's footprint as the grass does) whose volumes, fitted from its own geometry
+// (engine/tree-probe.js), any of those capsules at any of those places would come within LEAVE_MARGIN of is left out of the plan.
+const LEAVE_LOW = 1.2;
+const LEAVE_MARGIN = 0.15;
+export const leftOut = []; // what it took, for the notes and the probe (world.dans.state.leftOut)
+export function leaveOut(info, placement) {
+  if (!WALK || !placement?.model || info.height < LEAVE_LOW) return false;
+  const reach = 14 + info.radius; // her root to her nose or tail tip is under 13 m
+  const near = WALK.poses.filter(([x, , z]) => Math.hypot(x - info.x, z - info.z) < reach);
+  if (!near.length) return false;
+  const plant = plantVolumes(placement);
+  const caps = [];
+  for (const [x, y, z, yaw] of near) {
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    const at = (lx, ly, lz) => [x + lx * c + lz * sn, y + ly, z - lx * sn + lz * c];
+    for (const k of WALK.capsules) caps.push({ a: at(k[0], k[1], k[2]), b: at(k[3], k[4], k[5]), r: k[6] });
   }
-  return false;
+  const hit = reachInto(plant, caps, LEAVE_MARGIN);
+  if (hit) leftOut.push({ name: info.name, x: +info.x.toFixed(2), z: +info.z.toFixed(2), height: +info.height.toFixed(1), depth: +(hit.depth - LEAVE_MARGIN).toFixed(2) });
+  return Boolean(hit);
 }
 const THOR_STRAIGHT = 7; // metres of the last stretch, straight along her heading at the spot
 const ARRIVE = 42.6;
@@ -486,7 +495,7 @@ export const chapter = {
     // ---- the swarm (one draw call), the state for probes ----
     const swarm = createSwarm({ count: SWARM, scale: SWARM_SCALE, seed: 'fidrildadans', uWindTime: world.wind?.uniforms?.uWindTime, antialias: true });
     world.scene.add(swarm.mesh);
-    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, thorPath, mothCheck, swarm: [], drawn: {}, swarmContact: [], shellCost: cost, time: 0, heroContact: false, flown: {} };
+    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, thorPath, thorRoute: THOR_FROM, leftOut, mothCheck, swarm: [], drawn: {}, swarmContact: [], shellCost: cost, time: 0, heroContact: false, flown: {} };
     world.dans = { state, framePoint, frameOf, measure, butterflies: points, clipProbe: (names = SHELLED) => createClipProbe(world, names), shells, shellOf: n => shells[SHELLED.indexOf(n)] };
 
     /** Every butterfly of the show as it is drawn now, for the clip probe: [{ name, p, wing, contact }]. */

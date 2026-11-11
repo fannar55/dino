@@ -12,6 +12,13 @@
 // near her path, each fitted from its model's geometry as stacked discs (engine/tree-probe.js); it exits with 1 if any capsule
 // reaches more than --tolerance into a plant at any step, and lists each plant she touches (where, when, how deep, which bone).
 //
+//   node remake/tools/clip-probe.mjs --sweep remake/chapters/fidrildi3d-walk.js
+//
+// --sweep writes the walk the chapter's forest is cleared for (layout.leaveOut in chapters/fidrildi3d.js): where her root is every
+// 3rd step from the start of the show to her settling, and her shell's capsules in her root's own frame at standing, four phases
+// of the walk cycle and the turn at the end. Make it again whenever her way in (THOR_FROM) changes: tests/fidrildi3d.test.mjs holds
+// the file to the way.
+//
 // The page is opened at ?chapter=fidrildi3d&t=<from> (a silent seek that freezes), then main.js's window.__advance steps it on.
 // A chapter that says which butterflies it has (world.dans.butterflies(): [{ name, p, wing, contact }]) is asked; an older one is
 // read from the scene (the three moths by the hero's geometry, the swarm from world.dans.state.swarm), with its contacts by time.
@@ -33,10 +40,11 @@ const SHAPES = ['1024x768', '1280x800', '1280x720', '1170x540'];
 
 function parseArgs(argv) {
   const given = new Set(argv);
-  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, size: '960x600', quality: 'tablet', trace: null, eval: null, jump: 0.3, maxPush: 0.15, maxPushStep: 0.03, trees: false, tolerance: 0.02 };
+  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, size: '960x600', quality: 'tablet', trace: null, eval: null, jump: 0.3, maxPush: 0.15, maxPushStep: 0.03, trees: false, tolerance: 0.02, sweep: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--step') o.step = Number(next());
+    else if (a === '--sweep') o.sweep = next(); // write her walk's sweep (a module) that the chapter's forest is cleared for
     else if (a === '--trees') o.trees = true; // Þórseðla's walk against the trees (engine/tree-probe.js), not the butterflies
     else if (a === '--tolerance') o.tolerance = Number(next()); // --trees: how far a capsule may reach into a plant's discs (metres)
     else if (a === '--from') o.from = Number(next());
@@ -56,8 +64,14 @@ function parseArgs(argv) {
     else if (a === '--trace') o.trace = next(); // print one butterfly's place and where it was drawn (state.drawn) every step
     else throw new Error(`unknown argument ${a}`);
   }
-  if (o.trees && !given.has('--from')) o.from = 20;
-  if (o.trees && !given.has('--to')) o.to = 44;
+  if (o.sweep) {
+    o.trees = true;
+    if (!given.has('--from')) o.from = 0.1;
+    if (!given.has('--to')) o.to = 46;
+  } else {
+    if (o.trees && !given.has('--from')) o.from = 20;
+    if (o.trees && !given.has('--to')) o.to = 44;
+  }
   return o;
 }
 
@@ -146,6 +160,50 @@ const TREE_STEP = (n, step, tolerance) => `(async () => {
     }
   }
   return st.time;
+})()`;
+
+// --sweep: her root every 3rd step (every step while she turns at the end), her capsules in her root's frame at chosen moments
+const SWEEP_STEP = (n, step) => `(async () => {
+  const w = window.__world, st = w.dans.state, T = w.THREE;
+  const c = (window.__sweep ??= { i: 0, poses: [], sets: [], wanted: null, turned: false });
+  const thor = w.actors.get('thorsedla');
+  const root = thor.root;
+  const Q = new T.Quaternion(), P = new T.Vector3(), E = new T.Euler();
+  for (let i = 0; i < ${n}; i++) {
+    await window.__advance(${step}, ${step});
+    root.updateMatrixWorld(true);
+    root.getWorldPosition(P);
+    root.getWorldQuaternion(Q);
+    E.setFromQuaternion(Q, 'YXZ');
+    const turning = st.arrived != null && st.time < (st.settled ?? Infinity) + 0.2;
+    const pose = [+P.x.toFixed(3), +P.y.toFixed(3), +P.z.toFixed(3), +E.y.toFixed(4)];
+    const last = c.poses[c.poses.length - 1];
+    const moved = !last || pose.some((x, k) => x !== last[k]);
+    if ((c.i++ % 3 === 0 || turning) && moved) c.poses.push(pose); // (one place for all the time she stands)
+    if (!c.wanted && st.walkAt != null && st.thorWalkScale) {
+      const walk = (thor.raw ?? thor).clips.get('walk');
+      const cycle = walk.duration / st.thorWalkScale;
+      const mid = st.walkAt + 9;
+      c.wanted = [mid, mid + cycle / 4, mid + cycle / 2, mid + (3 * cycle) / 4];
+    }
+    let due = c.wanted?.find(t => Math.abs(st.time - t) <= ${step} / 2 + 1e-6) ?? null;
+    if (due == null && !c.stood && st.time >= 1) { c.stood = true; due = st.time; } // standing at the start of the show
+    if (due == null && st.arrived != null && !c.turned && st.time > st.arrived + 0.5) { c.turned = true; due = st.time; }
+    if (due != null) {
+      const inv = Q.clone().invert();
+      const caps = w.dans.shellOf('thorsedla').place().map(cap => {
+        const a = new T.Vector3(...cap.a).sub(P).applyQuaternion(inv), b = new T.Vector3(...cap.b).sub(P).applyQuaternion(inv);
+        return [...a.toArray(), ...b.toArray(), cap.r].map(x => +x.toFixed(3));
+      });
+      c.sets.push({ t: +st.time.toFixed(2), caps });
+      if (c.wanted) c.wanted = c.wanted.filter(t => t !== due);
+    }
+  }
+  return st.time;
+})()`;
+const SWEEP_READ = `(() => {
+  const c = window.__sweep, st = window.__world.dans.state;
+  return { route: st.thorRoute, spot: st.thor.map(x => +x.toFixed(3)), walkAt: st.walkAt, arrived: st.arrived, settled: st.settled, poses: c.poses, sets: c.sets };
 })()`;
 
 const STEP = (n, step, trace, jump) => `(async () => {
@@ -342,6 +400,23 @@ async function treeProbe(o) {
       if (Date.now() - t0 > o.timeout * 1000) throw new Error('the page did not get ready');
       await sleep(250);
     }
+    if (o.sweep) {
+      const total = Math.round((o.to - Math.max(0.001, o.from)) / o.step);
+      for (let done = 0; done < total; done += 30) await evaluate(SWEEP_STEP(Math.min(30, total - done), o.step));
+      const w = await evaluate(SWEEP_READ);
+      const capsules = w.sets.flatMap(set => set.caps);
+      const body = { route: w.route, spot: w.spot, sets: w.sets.map(set => set.t), poses: w.poses, capsules };
+      const file = o.sweep.replace(/\\/g, '/');
+      const text = `// Þórseðla's walk in Fiðrildadansinn, which the forest is cleared for (chapters/fidrildi3d.js layout.leaveOut, round 6): ${w.poses.length}
+// places of her root ([x, y, z, yaw]) from the start of the show to her settling, and her shell's ${capsules.length} capsules
+// ([ax, ay, az, bx, by, bz, r], in her root's own frame) at ${w.sets.length} moments: standing, four phases of the walk cycle and the turn
+// (${body.sets.join(', ')} s). Made by: node remake/tools/clip-probe.mjs --sweep ${file} (do not edit; made again when her way in changes).
+export const WALK = ${JSON.stringify(body)};
+`;
+      await fsp.writeFile(path.resolve(o.sweep), text);
+      console.log(`sweep: ${w.poses.length} places, ${w.sets.length} sets of capsules (${body.sets.join(', ')} s); walk ${w.walkAt}-${w.arrived} s, settled ${w.settled} s; written to ${file}`);
+      return false;
+    }
     const plants = await evaluate(TREE_SETUP);
     console.log(`tree probe: Þórseðla's shell against ${plants} plants within 9 m of her path; ${o.from}-${o.to} s in steps of ${o.step.toFixed(4)} s, tolerance ${o.tolerance} m`);
     const total = Math.round((o.to - Math.max(0.001, o.from)) / o.step);
@@ -350,6 +425,9 @@ async function treeProbe(o) {
     const r = await evaluate(`(() => { const c = window.__trees; return { steps: c.steps.length, bad: c.steps.filter(s => s.n > 0).length, hits: Object.entries(c.hits).map(([i, h]) => ({ plant: +i, ...h })) }; })()`);
     console.log(`steps with her inside a plant: ${r.bad} of ${r.steps} (${(r.bad * o.step).toFixed(2)} s)`);
     for (const h of r.hits.sort((a, b) => a.from - b.from)) console.log(`  plant ${h.plant} ${h.name} at (${h.x}, ${h.z}): ${h.from.toFixed(2)}-${h.to.toFixed(2)} s, ${h.steps} steps, deepest ${h.depth.toFixed(2)} m at ${h.at.toFixed(2)} s (${h.bone}, ${h.y} m up at x, z ${h.where})`);
+    r.leftOut = await evaluate('window.__world.dans.state.leftOut ?? []');
+    console.log(`plants this place grows without for her walk (layout.leaveOut): ${r.leftOut.length}`);
+    for (const p of r.leftOut) console.log(`  ${p.name} at (${p.x}, ${p.z}), ${p.height} m tall, her shell ${p.depth > 0 ? p.depth + ' m into it' : -p.depth + ' m from it'}`);
     if (o.json) await fsp.writeFile(path.resolve(o.json), JSON.stringify(r, null, 2));
     failed = r.bad > 0;
     console.log(failed ? 'FAIL' : 'OK: she passes through no plant');
