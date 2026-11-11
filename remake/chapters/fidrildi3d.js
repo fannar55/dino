@@ -22,6 +22,8 @@ import { HERO, COLOURS } from '../world/forest/butterflies.js';
 import { createSwarm } from '../world/forest/swarm.js';
 import { pollenBurst } from '../world/props/pollen.js';
 import { glints, run, sparkleTrail, sparkleBurst, SPARKLE_LOOK } from '../world/props/sparkles.js';
+import { createShell } from '../engine/shell.js';
+import { createClipProbe, bodyMesh } from '../engine/clip-probe.js';
 
 const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;cursor:pointer;pointer-events:auto';
 const CARD = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw;display:flex;flex-direction:column;align-items:center;gap:14px';
@@ -94,6 +96,12 @@ const FRIENDS_BACK = { sloedla: { url: 'parasaurolophus.glb', at: [1.5, -12.5] }
 const SWARM = 25;
 const SWARM_SCALE = 1.25; // the swarm's butterflies against the clearing's pale ones
 const HERO_SCALE = 1.5; // the hero moth's model, scaled up so it reads at the middle of the frame (the owner: "stærð er fín")
+// Round 5 (the owner: "fiðrildi klippa í gegnum Mosa og Þórseðlu"): every butterfly is kept out of the animals by their shells
+// (engine/shell.js), out by its wing's reach and SAFE more (the capsules hold all but a few cm of the skin: shell.test.mjs).
+const SWARM_WING = 0.21; // the swarm's wing reach at SWARM_SCALE
+const SAFE = 0.08;
+const SEAT_LIFT = 0.025; // a sitter's centre over the skull's surface
+const SEAT_ABOVE = 0.9; // and the point straight above its seat it comes down from and goes back up to
 // Þórseðla walks in (round 2, the owner: "láttu Þórseðlu ganga inn í myndina"): from deep in the forest off the right of the frame
 // to her spot, arriving ARRIVE seconds into the show at the walk clip's own speed (actor.walkTo matches the clip: no sliding).
 const THOR_FROM = [[30, -14], [19, -11]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
@@ -113,8 +121,9 @@ const MOTHS = [
     [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [44.5, 0.8, 0.55, 0.85], [50, 0.8, 0.5, 0.62], [54, 0.78, 0.45, 0.76],
     [58, 0.84, 0.15, 2.8, 'rest'], [60, 0.84, 0.15, 2.9]] },
 ];
-// the swarm's depth through its dance (as a share of D), which the moths' ring follows too
-const KC = track([[30, 0, 0, 1.45], [33.5, 0, 0, 1.3], [38, 0, 0, 0.62, 'rest'], [40.5, 0, 0, 0.62, 'rest'], [44.5, 0, 0, 1.15], [50, 0, 0, 1.3]]);
+// the swarm's depth through its dance (as a share of D), which the moths' ring follows too; and (round 5) how far right of the
+// middle its ring turns: behind the screen it turns right of Mosi, whose body is there (k 1-1.6), and in the middle out in front
+const KC = track([[30, 0.1, 0, 1.45], [33.5, 0.1, 0, 1.3], [38, 0, 0, 0.62, 'rest'], [40.5, 0, 0, 0.62, 'rest'], [44.5, 0.1, 0, 1.15], [50, 0.1, 0, 1.3]]);
 /** A moth's (u, v, k) at show time t: its keys with a lively loop on top, and during the swarm a ring round its edge. */
 function mothAt(m, t, out = []) {
   m.track ??= track(m.keys);
@@ -126,8 +135,8 @@ function mothAt(m, t, out = []) {
   const w = smooth((t - 30.5) / 2) * (1 - smooth((t - 43.5) / 2));
   if (w > 0) {
     const turn = m.ring + (2 * Math.PI * (t - 30)) / 8;
-    const kc = KC(t, [])[2];
-    out[0] = lerp(out[0], 0.53 + 0.3 * Math.cos(turn), w);
+    const [du, , kc] = KC(t, []);
+    out[0] = lerp(out[0], 0.53 + du + 0.3 * Math.cos(turn), w);
     out[1] = lerp(out[1], 0.47 + 0.26 * Math.sin(turn), w);
     out[2] = lerp(out[2], Math.max(0.55, kc + 0.05), w);
   }
@@ -286,6 +295,44 @@ export const chapter = {
     const tx = thorWant.x + reach * Math.sin(side), tz = thorWant.z - reach * Math.cos(side);
     const thorHeading = (Math.atan2(thorWant.z - tz, thorWant.x - tx) - Math.atan2(thorLocal.z, thorLocal.x)) * 180 / Math.PI;
     const fwd = [Math.cos(rad(thorHeading)), Math.sin(rad(thorHeading))];
+    const seats = skullSeats();
+
+    // The four sitters' seats on the top of her skull (round 5: they sat on a point a world-up offset from her Head bone, which is low
+    // in her skull, so they sat inside it). Read off her own posed skin with the head down as it is held, at heading 0 (as
+    // thorHeadLocal left her): the crown is the head's vertices within 25 cm of its top; the seats spread across it as the camera sees
+    // it (her heading turns her local side into the camera's right), each on the highest vertex there, SEAT_LIFT over it, and are kept
+    // in the Head bone's own frame, so they ride the head as it comes up.
+    function skullSeats() {
+      const headBone = thor.model.getObjectByName('Head');
+      const body = bodyMesh(thor);
+      body.skeleton.update();
+      const bones = body.skeleton.bones;
+      const ofHead = new Set();
+      headBone.traverse(o => { const j = bones.indexOf(o); if (j >= 0) ofHead.add(j); });
+      const si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight;
+      const crown = [];
+      const p = new THREE.Vector3();
+      for (let i = 0; i < si.count; i++) {
+        let best = 0, w = -1;
+        for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); best = si.getComponent(i, k); }
+        if (!ofHead.has(best)) continue;
+        body.getVertexPosition(i, p).applyMatrix4(body.matrixWorld);
+        crown.push(p.clone());
+      }
+      const top = Math.max(...crown.map(q => q.y));
+      const h = rad(thorHeading);
+      const across = q => q.x * Math.cos(h) - q.z * Math.sin(h); // world x once she is turned to her heading
+      const ridge = crown.filter(q => q.y > top - 0.25);
+      const lo = Math.min(...ridge.map(across)), hi = Math.max(...ridge.map(across));
+      // as the four sat before (to the camera's right of her head: -0.45, 0.15, -0.15, 0.4 m), across the crown
+      return [0.12, 0.62, 0.38, 0.88].map(f => {
+        const want = lo + f * (hi - lo);
+        let seat = null;
+        for (const q of ridge) if (Math.abs(across(q) - want) < 0.06 && (!seat || q.y > seat.y)) seat = q;
+        seat ??= ridge.reduce((a, q) => (Math.abs(across(q) - want) < Math.abs(across(a) - want) ? q : a));
+        return { bone: headBone, local: headBone.worldToLocal(seat.clone().add(new THREE.Vector3(0, SEAT_LIFT, 0))) };
+      });
+    }
     const thorPath = [...THOR_FROM, [tx - fwd[0] * THOR_STRAIGHT, tz - fwd[1] * THOR_STRAIGHT], [tx, tz]];
     const thorStart = () => {
       const [a, b] = thorPath;
@@ -325,11 +372,69 @@ export const chapter = {
       return { name: m.name, near: +near.toFixed(3), far: +far.toFixed(3), edgeSamples: edge, fastestK: +fastest.toFixed(3) };
     });
 
+    // ---- round 5: the shells every butterfly keeps out of, updated each frame after the actors (an effect) ----
+    const SHELLED = ['mosi', 'thorsedla', ...Object.keys(FRIENDS_BACK)];
+    const shells = SHELLED.map(n => createShell(THREE, s.actor(n).raw));
+    const forward = [0, 0, -1];
+    const look = new THREE.Vector3();
+    function updateShells() {
+      camera.getWorldDirection(look).toArray(forward);
+      for (const shell of shells) shell.update();
+    }
+    updateShells();
+    world.effects.add({ label: 'dans shells', update() { updateShells(); if (state.showing) flownCheck(); return true; } });
+    /** A butterfly drawn at `p` (moved in place): out of every animal by `margin`, `weight` (0..1) of the way. */
+    function keepOut(p, margin, weight = 1) {
+      if (weight <= 0) return p;
+      let q = [p.x, p.y, p.z];
+      for (const shell of shells) q = shell.push(q, { margin, forward });
+      return p.set(lerp(p.x, q[0], weight), lerp(p.y, q[1], weight), lerp(p.z, q[2], weight));
+    }
+    // the hero model's wing reach at HERO_SCALE (its mesh's bounding sphere, scaled as drawn), once it has loaded
+    let heroReach = 0;
+    function heroWing() {
+      if (heroReach > 0) return heroReach;
+      let mesh = null;
+      butterflies?.hero?.group.traverse(o => { if (o.isMesh && !mesh) mesh = o; });
+      if (!mesh) return 0.105 * HERO_SCALE * 2;
+      mesh.geometry.computeBoundingSphere();
+      heroReach = mesh.geometry.boundingSphere.radius * mesh.getWorldScale(new THREE.Vector3()).x;
+      return heroReach;
+    }
+
     // ---- the swarm (one draw call), the state for probes ----
     const swarm = createSwarm({ count: SWARM, scale: SWARM_SCALE, seed: 'fidrildadans', uWindTime: world.wind?.uniforms?.uWindTime, antialias: true });
     world.scene.add(swarm.mesh);
-    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], time: 0 };
-    world.dans = { state, framePoint, frameOf, measure };
+    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], swarmDrawn: [], swarmContact: [], time: 0, heroContact: false, flown: {} };
+    world.dans = { state, framePoint, frameOf, measure, butterflies: points, clipProbe: (names = SHELLED) => createClipProbe(world, names), shells };
+
+    /** Every butterfly of the show as it is drawn now, for the clip probe: [{ name, p, wing, contact }]. */
+    function points() {
+      const out = [];
+      const p = new THREE.Vector3();
+      if (butterflies?.hero) out.push({ name: 'hero', p: butterflies.hero.group.getWorldPosition(p).toArray(), wing: heroWing(), contact: state.heroContact });
+      for (const m of MOTHS) if (m.handle) out.push({ name: m.name, p: m.handle.group.getWorldPosition(p).toArray(), wing: heroWing(), contact: false });
+      state.swarm.forEach((a, i) => { if (a[1] > -40) out.push({ name: 's' + i, p: a, wing: SWARM_WING, contact: Boolean(state.swarmContact[i]) }); });
+      return out;
+    }
+    // the flights as flown (pushed), checked every frame of a show: the comfort rules on where they really are, and the largest jump
+    function flownCheck() {
+      const p = new THREE.Vector3();
+      for (const { name, p: at } of points()) {
+        const [u, vv, k] = frameOf(p.fromArray(at));
+        if (k <= 0.05) continue;
+        const c = (state.flown[name] ??= { near: Infinity, far: 0, edgeSamples: 0, nearWide: 0, jump: 0, jumpAt: null, last: null });
+        c.near = Math.min(c.near, +k.toFixed(3));
+        c.far = Math.max(c.far, +k.toFixed(3));
+        if (k < 1 && (u < 0.12 || u > 0.88 || vv < 0.12 || vv > 0.88)) c.edgeSamples++;
+        if (k < 0.6 && (Math.abs(u - 0.5) > 0.3 || Math.abs(vv - 0.5) > 0.3)) c.nearWide++;
+        if (c.last) {
+          const d = Math.hypot(at[0] - c.last[0], at[1] - c.last[1], at[2] - c.last[2]);
+          if (d > c.jump) { c.jump = +d.toFixed(4); c.jumpAt = +state.time.toFixed(2); }
+        }
+        c.last = at.slice();
+      }
+    }
 
     // ---- the zero-parallax plane, every frame (jumped: a seek lands exactly) ----
     let T0 = null;
@@ -415,13 +520,16 @@ export const chapter = {
     // ================================================================================================================
     function* show() {
       T0 = s.time;
+      state.showing = true;
+      state.flown = {};
+      state.heroContact = false;
       const handles = [];
       // reset: Þórseðla upright, the moth far off in the forest, the swarm hidden
       thorStart();
       state.walking = false;
       for (const m of MOTHS) {
         const at = [];
-        butterflies?.follow(m.name, out => { mothAt(m, tau(), at); return framePoint(at[0], at[1], at[2], out); });
+        butterflies?.follow(m.name, out => { mothAt(m, tau(), at); return keepOut(framePoint(at[0], at[1], at[2], out), heroWing() + SAFE); }, { snap: true });
       }
       const walkAt = ARRIVE - thorLength / THOR_SPEED;
       state.walkAt = +walkAt.toFixed(2);
@@ -438,9 +546,9 @@ export const chapter = {
         const t = tau();
         heroKeys(t, uvk);
         const [du, dv] = hover(t);
-        return framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out);
+        return keepOut(framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out), heroWing() + SAFE);
       };
-      butterflies?.follow(HERO, heroPath);
+      butterflies?.follow(HERO, heroPath, { snap: true }); // round 5: on its path at once, under the opening black (not eased in from its loop, through Mosi)
       state.hero = () => butterflies?.hero?.group.getWorldPosition(new THREE.Vector3());
 
       // the motes: pale specks at many depths, in front of the screen only within the middle of the frame
@@ -460,6 +568,7 @@ export const chapter = {
       yield s.until(() => tau() >= 17.4);
       // back in, onto his horn
       butterflies?.land(horn, { name: HERO, duration: 3.2 });
+      state.heroContact = true; // meant contact: onto the horn, sitting there, and the first second of being blown off it
       yield s.until(() => tau() >= 21.2);
 
       // 18-30: tickle, sneeze, the pollen blows out at the viewer and the moth is blown off
@@ -509,6 +618,7 @@ export const chapter = {
       yield s.fade(1, 1.2);
       swarmRun.cancel?.();
       for (const h of handles) h?.cancel?.();
+      state.showing = false;
     }
 
     // Þórseðla walks in from the forest to her spot and turns the last degrees to her heading, her footfalls heard all the way.
@@ -538,7 +648,9 @@ export const chapter = {
         const t = tau();
         keys(t, uvk2);
         const w = t > t0 + 6 ? 0.025 : 0;
-        return framePoint(uvk2[0] + w * Math.sin(0.9 * t), uvk2[1] + w * 0.6 * Math.sin(1.7 * t), uvk2[2], out);
+        state.heroContact = t < t0 + 1;
+        // off the horn it is in the shell's margin: the push comes in over its first second, as it leaves the head
+        return keepOut(framePoint(uvk2[0] + w * Math.sin(0.9 * t), uvk2[1] + w * 0.6 * Math.sin(1.7 * t), uvk2[2], out), heroWing() + SAFE, smooth(t - t0));
       });
     }
 
@@ -567,11 +679,16 @@ export const chapter = {
     function dance() {
       const random = mulberry(25);
       const each = [];
-      const p = new THREE.Vector3();
+      const p = new THREE.Vector3(), q = new THREE.Vector3();
       for (let i = 0; i < SWARM; i++) {
         const kg = 1.15 + 0.5 * random();
-        framePoint(0.25 + 0.55 * random(), 0.5, kg, p);
+        framePoint(0.45 + 0.4 * random(), 0.5, kg, p); // round 5: right of Mosi (from 0.25: some rose up through him)
         p.y = world.heightAt(p.x, p.z) + 0.06;
+        // not in the grass under Mosi's feet (round 5: one waited inside his foot): further from him until clear of his shell
+        for (let tries = 0; tries < 12 && keepOut(q.copy(p), SWARM_WING + SAFE).distanceToSquared(p) > 1e-6; tries++) {
+          p.x += p.x < mosi.root.position.x ? -0.2 : 0.2;
+          p.y = world.heightAt(p.x, p.z) + 0.06;
+        }
         each.push({
           ground: p.clone(), birth: 30 + 0.14 * i, phase: (i / SWARM) * Math.PI * 2 + 0.3 * random(),
           radius: 0.26 + 0.22 * random(), dk: (random() - 0.5) * 0.2, bob: random() * 6.28,
@@ -581,20 +698,27 @@ export const chapter = {
         });
       }
       const kc = [];
-      const thorHead = new THREE.Vector3();
-      const right = new THREE.Vector3();
       const spiral = (b, t, out) => {
         KC(t, kc);
         const turn = b.phase + (2 * Math.PI * (t - 30)) / 8;
         const k = Math.max(0.52, kc[2] + b.dk);
         const r = b.radius * (k < 1 ? 1 : 1 + 0.4 * (k - 1)); // wider behind the screen
-        const x = 0.06 + r * Math.cos(turn) / camera.aspect, y = 0.05 + r * Math.sin(turn);
+        const x = 0.06 + 2 * kc[0] + r * Math.cos(turn) / camera.aspect, y = 0.05 + r * Math.sin(turn);
         return framePoint(0.5 + 0.5 * x, 0.5 - 0.5 * y + 0.012 * Math.sin(3.1 * t + b.bob), k, out);
       };
-      const onHead = (b, out) => {
-        thor.headPosition(thorHead);
-        right.set(1, 0, 0).applyQuaternion(camera.quaternion);
-        return out.copy(thorHead).addScaledVector(right, [-0.45, 0.15, -0.15, 0.4][b.sit]).add(v.set(0, [0.85, 0.98, 1.0, 0.8][b.sit], 0));
+      // A sitter (round 5): from the dance to the point SEAT_ABOVE over its seat (SIT_TO s), straight down onto the seat (SIT_DOWN s),
+      // sitting there as her head comes up, straight back up (RISE s) and away into the trees. Its seat is in her Head bone's frame.
+      const SIT_TO = 1.6, SIT_DOWN = 1.0, RISE = 1.2;
+      const sitFrom = b => 48.5 + 0.5 * b.sit;
+      const leaveAt = b => 55 + 0.06 * (b.phase * 4);
+      const seatOf = (b, out) => out.copy(seats[b.sit].local).applyMatrix4(seats[b.sit].bone.matrixWorld);
+      const above = new THREE.Vector3(), seat = new THREE.Vector3();
+      // how much of the shell's push a butterfly takes (1 but on the last stretch down onto its seat and the first up from it)
+      const pushOf = (b, t) => {
+        if (b.sit < 0) return 1;
+        const s0 = sitFrom(b) + SIT_TO, l = leaveAt(b);
+        if (t < s0 || t > l + RISE) return 1;
+        return 1 - Math.min(smooth((t - s0) / SIT_DOWN), 1 - smooth((t - l) / RISE));
       };
       const at = (b, t, out) => {
         if (t < b.birth) return out.copy(b.ground);
@@ -605,40 +729,46 @@ export const chapter = {
           out.lerpVectors(b.ground, out, k);
           out.y += lift;
         }
-        if (b.sit >= 0 && t >= 48.5 + 0.5 * b.sit) {
-          const k = smooth((t - 48.5 - 0.5 * b.sit) / 2.4);
-          out.lerp(onHead(b, p), k);
+        const t0 = leaveAt(b);
+        if (b.sit >= 0 && t >= sitFrom(b)) {
+          seatOf(b, seat);
+          above.copy(seat).y += SEAT_ABOVE;
+          const s0 = sitFrom(b);
+          if (t < s0 + SIT_TO) out.lerp(above, smooth((t - s0) / SIT_TO));
+          else if (t < t0) out.lerpVectors(above, seat, smooth((t - s0 - SIT_TO) / SIT_DOWN));
+          else out.lerpVectors(seat, above, smooth((t - t0) / RISE));
         }
-        if (t >= 55 + 0.06 * (b.phase * 4)) {
-          const t0 = 55 + 0.06 * (b.phase * 4);
-          if (b.leaveAt !== t0) { b.leaveAt = t0; }
-          const k = smooth((t - t0) / 4.2);
-          const away = framePoint(b.far[0], b.far[1], b.far[2], p);
-          out.lerp(away, k);
+        if (t >= t0) {
+          const go = b.sit >= 0 ? t0 + RISE : t0;
+          const k = smooth((t - go) / (4.2 - (go - t0)));
+          if (k > 0) out.lerp(framePoint(b.far[0], b.far[1], b.far[2], p), k);
         }
         return out;
       };
       const a = new THREE.Vector3(), c = new THREE.Vector3();
-      function* fly() {
-        for (;;) {
-          const t = tau();
-          state.swarm.length = 0;
-          for (let i = 0; i < SWARM; i++) {
-            const b = each[i];
-            at(b, t, a);
-            at(b, t + 0.05, c);
-            const dx = c.x - a.x, dz = c.z - a.z;
-            if (Math.hypot(dx, dz) > 2e-4) b.yaw = Math.atan2(dz, dx);
-            const sitting = t < b.birth || (b.sit >= 0 && t >= 48.5 + 0.5 * b.sit + 2.4 && t < 55 + 0.06 * (b.phase * 4));
-            const flap = t < b.birth ? 1.25 : sitting ? 0.7 + 0.45 * Math.sin(1.6 * t + b.bob) : -1;
-            const size = smooth((t - 27) / 1.5) * (1 - smooth((t - 57.6) / 1.8));
-            swarm.set(i, a, b.yaw, size, flap);
-            state.swarm.push(a.toArray());
-          }
-          yield;
+      // placed every frame after the actors (an effect: the shells and the seats are where the bones are now), pushed out of the animals
+      function fly() {
+        const t = tau();
+        state.swarm.length = 0;
+        for (let i = 0; i < SWARM; i++) {
+          const b = each[i];
+          const push = pushOf(b, t);
+          state.swarmDrawn[i] = at(b, t, a).toArray();
+          keepOut(a, SWARM_WING + SAFE, push);
+          keepOut(at(b, t + 0.05, c), SWARM_WING + SAFE, push);
+          const dx = c.x - a.x, dz = c.z - a.z;
+          if (Math.hypot(dx, dz) > 2e-4) b.yaw = Math.atan2(dz, dx);
+          const sitting = t < b.birth || (b.sit >= 0 && t >= sitFrom(b) + SIT_TO + SIT_DOWN && t < leaveAt(b));
+          const flap = t < b.birth ? 1.25 : sitting ? 0.7 + 0.45 * Math.sin(1.6 * t + b.bob) : -1;
+          const size = smooth((t - 27) / 1.5) * (1 - smooth((t - 57.6) / 1.8));
+          swarm.set(i, a, b.yaw, size, flap);
+          state.swarm.push(a.toArray());
+          state.swarmContact[i] = push < 1;
         }
       }
-      return s.after(0, () => fly());
+      let going = true;
+      world.effects.add({ label: 'dans swarm', update() { if (going) fly(); return going; } });
+      return { cancel() { going = false; } };
     }
 
     // ---- the parallax table: world points through both eye cameras (share of the screen's width; near is positive) ----
@@ -684,7 +814,9 @@ export const chapter = {
         comfort[n] = { outsideMiddle: +mid.toFixed(3), atEdge: +edge.toFixed(3) };
       }
       const walk = { walkAt: state.walkAt, firstIn: state.firstIn, arrived: state.arrived, settled: state.settled, near: state.walkNear, edge: state.walkEdge, scale: state.thorWalkScale, length: +thorLength.toFixed(2), feet: state.thorFeet, at: thor.root.position.toArray().map(x => +x.toFixed(3)) };
-      return { t: state.time, D: plane(), rows, comfort, walk, moths: mothCheck };
+      // the flights as drawn (mothCheck, over the whole show) and as flown, pushed out of the animals (this show so far: comfort, jumps)
+      const flown = Object.fromEntries(Object.entries(state.flown).map(([n, c]) => [n, { near: c.near, far: c.far, edgeSamples: c.edgeSamples, nearWide: c.nearWide, jump: c.jump, jumpAt: c.jumpAt }]));
+      return { t: state.time, D: plane(), rows, comfort, walk, moths: mothCheck, flown };
     }
   },
 };

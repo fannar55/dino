@@ -24,7 +24,7 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180 };
+  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, trace: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--step') o.step = Number(next());
@@ -35,6 +35,7 @@ function parseArgs(argv) {
     else if (a === '--query') o.query = next();
     else if (a === '--bodies') o.bodies = next();
     else if (a === '--browser') o.browser = next();
+    else if (a === '--trace') o.trace = next(); // print one butterfly's place (and, for the swarm, where it was drawn) every step
     else throw new Error(`unknown argument ${a}`);
   }
   return o;
@@ -90,15 +91,27 @@ const SETUP = bodies => `(async () => {
       return out;
     };
   }
-  window.__clip = { probe, points, steps: [], names };
+  window.__clip = { probe, points, steps: [], names, last: {}, jump: { d: 0, name: null, t: null }, jumps: {} };
   return names;
 })()`;
 
-const STEP = (n, step) => `(async () => {
+const STEP = (n, step, trace) => `(async () => {
   const c = window.__clip, st = window.__world.dans.state;
   for (let i = 0; i < ${n}; i++) {
     await window.__advance(${step}, ${step});
-    const found = c.probe.look(c.points()).filter(f => f.inside || f.clearance < 0.3);
+    const pts = c.points();
+    for (const q of pts) {
+      const last = c.last[q.name];
+      if (last) {
+        const d = Math.hypot(q.p[0] - last[0], q.p[1] - last[1], q.p[2] - last[2]);
+        if (d > c.jump.d) c.jump = { d, name: q.name, t: st.time };
+        if (d > (c.jumps[q.name]?.d ?? 0)) c.jumps[q.name] = { d, t: st.time };
+      }
+      c.last[q.name] = q.p.slice();
+    }
+    const tr = pts.find(q => q.name === ${JSON.stringify(trace)});
+    if (tr) { const i = /^s(\\d+)$/.exec(tr.name); (c.trace ??= []).push([+st.time.toFixed(3), tr.p.map(x => +x.toFixed(3)), i ? st.swarmDrawn[+i[1]]?.map(x => +x.toFixed(3)) : null]); }
+    const found = c.probe.look(pts).filter(f => f.inside || f.clearance < 0.3);
     c.steps.push({ t: +st.time.toFixed(3), found });
   }
   return st.time;
@@ -115,6 +128,8 @@ const TABLE = (step, clearance) => `(async () => {
   for (const s of c.steps) if (s.found.some(f => f.inside)) { const b = Math.floor(s.t / 5) * 5; buckets[b] = +((buckets[b] ?? 0) + ${step}).toFixed(3); }
   table.insideBy5s = buckets;
   table.steps = c.steps.length;
+  table.jump = { metres: +c.jump.d.toFixed(4), name: c.jump.name, t: c.jump.t == null ? null : +c.jump.t.toFixed(3) };
+  table.jumps = Object.entries(c.jumps).sort((a, b) => b[1].d - a[1].d).slice(0, 8).map(([name, j]) => name + ' ' + j.d.toFixed(3) + ' m at ' + j.t.toFixed(2) + ' s');
   return table;
 })()`;
 
@@ -157,9 +172,10 @@ async function main() {
     const chunk = Math.max(1, Math.round(1 / o.step));
     const started = Date.now();
     for (let done = 0; done < total; done += chunk) {
-      const t = await evaluate(STEP(Math.min(chunk, total - done), o.step));
+      const t = await evaluate(STEP(Math.min(chunk, total - done), o.step, o.trace));
       if (Math.round(t) % 10 === 0) process.stdout.write(`  ${t.toFixed(1)} s (${((Date.now() - started) / 1000).toFixed(0)} s)\n`);
     }
+    if (o.trace) for (const row of await evaluate('window.__clip.trace || []')) console.log(JSON.stringify(row));
     const table = await evaluate(TABLE(o.step, o.clearance));
     if (errors.length) table.pageErrors = errors.slice(0, 5);
     console.log(`seconds with a centre inside a body: ${table.secondsInside}`);
@@ -167,6 +183,8 @@ async function main() {
     console.log(`passing through (all butterflies): ${JSON.stringify(table.through)}; of the swarm: ${JSON.stringify(table.swarmThrough)}`);
     console.log(`worst moment: ${table.worst.count} inside at ${table.worst.t} s`);
     console.log(`smallest wing clearance (not in contact): ${table.tightest.clearance} m, ${table.tightest.name} at ${table.tightest.t} s by ${table.tightest.body}; steps under ${o.clearance} m: ${table.closeSteps}`);
+    console.log(`largest move of a butterfly in one step: ${table.jump.metres} m, ${table.jump.name} at ${table.jump.t} s`);
+    console.log(`  the largest of each (top 8): ${table.jumps.join('; ')}`);
     for (const [k, v] of Object.entries(table.spans)) console.log(`  ${k}: ${v.join(', ')}`);
     if (o.json) await fsp.writeFile(path.resolve(o.json), JSON.stringify(table, null, 2));
     failed = table.secondsInside > 0 || table.closeSteps > 0;
