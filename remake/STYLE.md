@@ -202,6 +202,24 @@ Flugeðla flýgur 7 til 25 m/s og myndavélin fer með henni. Hún skráir brot 
 - **Rammi:** Egill og andlitið hennar eru ofan við neðstu 30 % og neðan við efstu 8 %, bæði á 16:10 og á uppréttri
   spjaldtölvu (0,625), og myndavélin er aldrei inni í henni.
 
+### Tónlistarmyndband (kafli 5)
+
+Sjötta sena kafla 5 er tónlistarmyndband við sett Flugeðlu (`chapters/kafli5-video.js`, `CAMERA`): myndavélin er klippt eftir
+slögum lagsins (125 á mínútu: slag er 0,48 s og taktur 1,92 s). Hún hefur eigin reglu um klippingar ofan á reglurnar hér að
+ofan; hraðamörkin standa óbreytt.
+
+- **Klippingar:** á slagi, og hvert skot stendur minnst einn takt (1,92 s) í stað 2,5 s. Styttri skot eru aðeins tvö:
+  þrjú nærskot af froskunum á „frosk- frosk- froskadjamm!“ (slag á milli) og niðurtalningin, hópur á tölu (tvö slög á milli).
+- **Hreyfing:** eftir klippingu má myndavélin hreyfast á meðan skotið stendur: hægur aðdráttur, hringsól um það sem hún horfir
+  á eða aðdráttur linsu, innan hraðamarkanna (1,2 m/s, 10°/s, 8° af linsu á sekúndu) og alltaf mjúk í byrjun og enda. Aldrei
+  hristingur. Ef beðið er um minni hreyfingu eru bara klippingarnar.
+- **Nær og fjær:** hver hópur á tvö skot, allan hópinn og nærmynd (`kafli5-pool.js`, `GROUP_SHOTS`), og hluti hans í laginu
+  byrjar á hópnum öllum og fer svo nær. Stóru kaflarnir eru séðir lágt yfir vatnið (`set_low_wide`, `set_water_low`).
+- **Sólin:** ekkert skot horfir nær sólinni en 35° (hún stendur í 215°), svo kórinn er myndaður úr norðaustri og flugdýrin
+  við sefið úr suðri.
+- **Spól og frost:** engin klipping fellur inn í spólið („Aftur!“) eða á „Stopp!“: myndin spólar til baka og frýs í skotinu
+  sem hún er í.
+
 ## 9. Motion
 
 - Always alive: breathing idle, blinks every 2 to 6 s (now and then two in a row, and one with each
