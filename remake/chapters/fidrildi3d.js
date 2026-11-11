@@ -37,8 +37,9 @@ const MOSI_U = 0.36;
 const GROUND_SHARE = 0.85;
 // Þórseðla: her root far behind, so that her lowered head (lowerHead held part way: the share found for the height below) comes to
 // THOR_HEAD in the frame. The two friends further back are depth layers.
-const THOR_HEAD = [0.54, 0.44, 0.6];
-const FRIENDS_BACK = { sloedla: { url: 'parasaurolophus.glb', at: [7.5, -9.5] }, kambedla: { url: 'stegosaurus.glb', at: [-8.5, -6] } };
+const THOR_HEAD = [0.6, 0.6, 0.6]; // her Head bone, which is low in her skull: the skull's top is about 1 m above it
+const THOR_SIDE = 38; // degrees her root stands to the right of straight behind her head
+const FRIENDS_BACK = { sloedla: { url: 'parasaurolophus.glb', at: [1.5, -12.5] }, kambedla: { url: 'stegosaurus.glb', at: [-8.5, -6] } };
 const SWARM = 25;
 const SWARM_SCALE = 1.25; // the swarm's butterflies against the clearing's pale ones
 const HERO_SCALE = 1.5; // the hero moth's model, scaled up so it reads at the middle of the frame
@@ -187,15 +188,12 @@ export const chapter = {
       if (Math.abs(thorHeadLocal(at).y - thorWant.y) < Math.abs(thorHeadLocal(thorAt).y - thorWant.y)) thorAt = at;
     }
     const thorLocal = thorHeadLocal(thorAt); // x ahead of her root, y up, z to the side
-    let tx = thorWant.x, tz = thorWant.z - thorLocal.x;
-    for (let i = 0; i < 6; i++) {
-      const heading = Math.atan2(camPos.z - tz, camPos.x - tx);
-      const c = Math.cos(heading), sn = Math.sin(heading);
-      // heading h turns +X to (cos h, sin h) and +Z to (-sin h, cos h)
-      tx = thorWant.x - (thorLocal.x * c - thorLocal.z * sn);
-      tz = thorWant.z - (thorLocal.x * sn + thorLocal.z * c);
-    }
-    const thorHeading = Math.atan2(camPos.z - tz, camPos.x - tx) * 180 / Math.PI;
+    // her root behind the head and THOR_SIDE degrees to the right, so her body stands off to the right behind Mosi, not over him;
+    // she faces so that her head comes to THOR_HEAD (the head's offset from her root, turned with her)
+    const reach = Math.hypot(thorLocal.x, thorLocal.z);
+    const side = rad(THOR_SIDE);
+    const tx = thorWant.x + reach * Math.sin(side), tz = thorWant.z - reach * Math.cos(side);
+    const thorHeading = (Math.atan2(thorWant.z - tz, thorWant.x - tx) - Math.atan2(thorLocal.z, thorLocal.x)) * 180 / Math.PI;
     thor.place(tx, tz, thorHeading);
     thor.play('idle', { fade: 0 });
     thor.mixer.update(0);
@@ -232,11 +230,6 @@ export const chapter = {
     s.after(0, () => keepPlane());
 
     const uvk2 = [];
-    // his look at the camera turns his head a little: the plane is his head where it rests
-    yield s.wait(0.8);
-    camera.updateMatrixWorld();
-    D0 = depthOf(camera, mosi.headPosition(head));
-    state.D0 = D0;
 
     // ---- start card ----
     const cardStyle = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw';
@@ -425,7 +418,7 @@ export const chapter = {
       const onHead = (b, out) => {
         thor.headPosition(thorHead);
         right.set(1, 0, 0).applyQuaternion(camera.quaternion);
-        return out.copy(thorHead).addScaledVector(right, [-0.35, 0.3, -0.1, 0.12][b.sit]).add(v.set(0, 0.42 + 0.06 * (b.sit % 2), 0));
+        return out.copy(thorHead).addScaledVector(right, [-0.45, 0.15, -0.15, 0.4][b.sit]).add(v.set(0, [0.85, 0.98, 1.0, 0.8][b.sit], 0));
       };
       const at = (b, t, out) => {
         if (t < b.birth) return out.copy(b.ground);
@@ -487,6 +480,7 @@ export const chapter = {
       rows.push(row('mosi head', mosi.headPosition(new THREE.Vector3())));
       rows.push(row('hero', state.hero?.()));
       rows.push(row('thorsedla head', thor.headPosition(new THREE.Vector3())));
+      if (state.pollen) rows.push(row('pollen farthest reach', state.pollen.to)); // the nearest a grain can come: full reach along the cone's axis
       if (state.swarm.length) {
         const pts = state.swarm.map(a => new THREE.Vector3(...a)).filter(q => frameOf(q)[2] > 0.05);
         pts.sort((a2, b2) => frameOf(a2)[2] - frameOf(b2)[2]);
@@ -497,7 +491,22 @@ export const chapter = {
       const dir = new THREE.Vector3(0, -1, 0.5).unproject(camera).sub(camera.position).normalize();
       const tg = (world.heightAt(camera.position.x, camera.position.z) - camera.position.y) / dir.y;
       rows.push(row('ground bottom edge', camera.position.clone().addScaledVector(dir, tg)));
-      return { t: state.time, D: plane(), rows };
+      // comfort: of each actor's bones, the nearest outside the middle 60 % of the frame and the nearest at or past an edge
+      const comfort = {};
+      for (const [n, a] of [['mosi', mosi], ['thorsedla', thor]]) {
+        let mid = Infinity, edge = Infinity;
+        a.model.traverse(o => {
+          if (!o.isBone) return;
+          const [u, vv, k] = frameOf(o.getWorldPosition(new THREE.Vector3()));
+          if (k <= 0) return;
+          const out60 = Math.abs(u - 0.5) > 0.3 || Math.abs(vv - 0.5) > 0.3;
+          const atEdge = u < 0.03 || u > 0.97 || vv < 0.03 || vv > 0.97;
+          if (out60 && !atEdge) mid = Math.min(mid, k);
+          if (atEdge && u > -0.3 && u < 1.3 && vv > -0.3 && vv < 1.3) edge = Math.min(edge, k);
+        });
+        comfort[n] = { outsideMiddle: +mid.toFixed(3), atEdge: +edge.toFixed(3) };
+      }
+      return { t: state.time, D: plane(), rows, comfort };
     }
   },
 };
