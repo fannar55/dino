@@ -544,6 +544,8 @@ function starRig({ withJournal = true } = {}) {
       addPlace(id, from) { places.push({ id, from }); return rig.journal.addPlace(id, from); },
       open: (tab, options) => rig.journal.open(tab, options),
       close: () => rig.journal.close(),
+      handToChild: () => rig.journal.handToChild(),
+      get isOpen() { return rig.journal.isOpen; },
     }
     : null;
   const pointer = fakePointer();
@@ -718,6 +720,22 @@ test('s.journal.open and close open and shut the book on its dinosaurs, as the s
   });
   step(1.2);
   assert.deepEqual(seen, [['open', true, 1], ['shut', false]], 'time moved while the book was open');
+
+  // s.journal.handToChild hands an open script book to the child and waits until the child closes it.
+  let handed = false;
+  book.handToChild = () => { handed = true; };
+  let resumed = false;
+  stage.start(function* handScript() {
+    s.journal.open('games');
+    yield s.journal.handToChild();
+    resumed = true;
+  });
+  step(0.5);
+  assert.equal(handed, true, 'book.handToChild was called');
+  assert.equal(resumed, false, 'the script waits while the book stays open');
+  book.close();
+  step(0.1);
+  assert.equal(resumed, true, 'the script resumes once the child closes the book');
 });
 
 test('s.star and s.found say so when the scene has no journal', () => {

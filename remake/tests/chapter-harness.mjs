@@ -191,22 +191,27 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
 /** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened (and which tile it was asked to nod), and no pictures to fly. */
 export function fakeBook() {
   return {
-    opened: [], nods: [], played: [], isOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null, lockedTutorial: null,
+    opened: [], nods: [], played: [], isOpen: false, isChildOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null, lockedTutorial: null,
     open(tab, by, options) {
       this.opened.push([tab, by]);
       this.nods.push(options?.nod ?? null);
       this.isOpen = true;
+      if (by === 'child') this.isChildOpen = true;
       this.tab = tab;
       this.beckoningTab = null;
     },
     close() {
       this.isOpen = false;
+      this.isChildOpen = false;
       this.beckoningClose = false;
       this.beckoningTab = null;
     },
     beckonClose(on = true) { this.beckoningClose = Boolean(on); },
     beckonTab(tab = null) { this.beckoningTab = tab; },
     lockTutorial(target = null) { this.lockedTutorial = target; },
+    handToChild() {
+      if (this.isOpen && this.lockedTutorial === null) this.isChildOpen = true;
+    },
     playGame(game, options) {
       this.played.push([game, options]);
       return null;
@@ -244,7 +249,7 @@ export function fakeBook() {
  * the game still as the child's book or a hidden tab does: the clock and every update get no time, and the sound is held meanwhile.
  * `aspect` is the screen's shape (width over height): 1.6 by default, 0.625 for a tablet held upright (800x1280).
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null, audio = null, pauses = [], aspect = 1.6 } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null, audio = null, pauses = [], aspect = 1.6, bookExploreSeconds = 1 } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
@@ -596,6 +601,12 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
           book.open(book.beckoningTab, 'script');
           bookBeckonSince = null;
         }
+      } else if (book.isChildOpen) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > bookExploreSeconds) {
+          book.close();
+          bookBeckonSince = null;
+        }
       } else {
         bookBeckonSince = null;
       }
@@ -746,7 +757,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       madeLater = true;
       await chapter.later.make(world);
     }
-    onFrame?.({ t, world, stage, director, pointer, sunFace, ui, shot: shotNow });
+    onFrame?.({ t, world, stage, director, pointer, sunFace, ui, book, seen, shot: shotNow });
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
       if (!actor.talking || !lastLine.has(name)) continue;

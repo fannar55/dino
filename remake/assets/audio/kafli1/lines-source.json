@@ -21,7 +21,7 @@
  { "id": "k1_mosi_book_videos", "speaker": "mosi", "text": "Smelltu nú á Myndbönd flipann! Þar eru skemmtileg myndbönd sem þú getur horft á." },
  { "id": "k1_mosi_book_map", "speaker": "mosi", "text": "Og smelltu á Kortið! Þar sjáum við skóginn og hvar vinir mínir eiga heima." },
  { "id": "k1_mosi_book_games", "speaker": "mosi", "text": "Smelltu svo á Leikir! Þar er Litla Yatzy leikurinn minn, og fleiri leikir bætast við á leiðinni." },
- { "id": "k1_mosi_book_done", "speaker": "mosi", "text": "Flott! Smelltu nú á krossinn til að loka bókinni, þá leggjum við af stað!" },
+ { "id": "k1_mosi_book_done", "speaker": "mosi", "text": "Flott! Þú getur skoðað þig um núna, eða komið aftur seinna." },
  { "id": "k1_mosi_map_ride", "speaker": "mosi", "text": "Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu." },
  { "id": "k1_mosi_hold", "speaker": "mosi", "text": "Haltu þér fast. Af stað!" },
  { "id": "k1_mosi_visit", "speaker": "mosi", "text": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!" },

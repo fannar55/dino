@@ -13,6 +13,7 @@ import {createJuice} from './juice.js';
 import {createFjolspil} from '../fjolspil/fjolspil.js';
 import {avatarOf} from '../fjolspil/seats.js';
 import {MOSI_AI,STORAGE_KEY,playersOf,phaseOf,yatzyView,actOf,keepFjolspil,readFjolspil,forgetFjolspil} from './fjolspil.js';
+import {keepScreenAwake} from '../wake-lock.js';
 
 const $=id=>document.getElementById(id),SAVE='mosi.yatzy.junior.save.v1',PREFS='mosi.yatzy.junior.prefs.v1';
 const read=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
@@ -74,6 +75,7 @@ let targetWidth=0,targetHeight=0;
 // phones see the new faces only once the dice lie). The five cards along the bottom are `owner`'s: the child's alone, in Fjölspil
 // the player on turn's, kept through the score's flight until the turn moves on.
 let fjolspil=null,multi=null,owner=0,seatsOff=null,lobbyUp=false;
+const wakeLock=keepScreenAwake();
 
 function miniDice(values){
   const fragment=document.createDocumentFragment();
@@ -160,7 +162,7 @@ function syncVoiceRecovery(){
 // (TABLE_SHOT.safe); it goes back to the table, Mosi in view, when the turn moves on. #game[data-view] tells the page which.
 function view(mode,snap=reduced){pendingDiceView=-1;$('game').dataset.view=mode;if(mode==='dice')world?.setDiceFocus(dice.getFramingPoints(),{snap});world?.setView(mode,{reduced:snap});}
 // The table holds still under a dialog, a hidden tab and the lobby; in Fjölspil every phone hears when it pauses and goes on.
-function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'))||lobbyUp;audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();sendViews();}
+function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'))||lobbyUp;wakeLock.setActive(!qaFrozen&&!$('pause-dialog')?.open);audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();sendViews();}
 function openDialog(id,line){if(!$(id).open)audio.cue('dialog',{id});if(line){voice?.stop();modalNarration=true;lessonAdvance=-1;}if(!$(id).open)$(id).showModal();syncPause();if(line)saySequence(Array.isArray(line)?line:[line]);}
 function closeDialogs(){modalNarration=false;for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();syncPause();}
 function say(id,onEnd){
@@ -517,7 +519,7 @@ document.addEventListener('click',event=>{const button=event.target.closest?.('b
 document.addEventListener('keydown',event=>{if(event.repeat||event.ctrlKey||event.altKey||event.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
   if(/^[1-5]$/.test(event.key)&&isHuman()){event.preventDefault();toggleHold(Number(event.key)-1);}else if(event.code==='Space'&&isHuman()&&document.activeElement?.tagName!=='BUTTON'){event.preventDefault();beginRoll();}else if(event.code==='Escape'&&started&&!paused){event.preventDefault();openDialog('pause-dialog');}});
 function cleanupScene(){pick?.dispose();effects?.dispose();dice?.dispose();opponent?.dispose();world?.dispose();}
-function dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);resizeObserver?.disconnect();voice?.dispose();audio.dispose();cleanupScene();}
+function dispose(){if(disposed)return;disposed=true;wakeLock.dispose();cancelAnimationFrame(frame);resizeObserver?.disconnect();voice?.dispose();audio.dispose();cleanupScene();}
 // The page goes (the book closes its frame, a reload): the phones wait for the next lobby, but the kept game stays, for "Halda áfram
 // (Fjölspil)" when the page is back; a wait for a guest that this ends ('closed') ends nothing more here.
 addEventListener('pagehide',()=>{if(multi){multi=null;fjolspil.closeGame();}});

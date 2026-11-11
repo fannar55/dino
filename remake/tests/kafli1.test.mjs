@@ -887,3 +887,32 @@ test('the hero butterfly on Mosi\'s horn pulses with finite scale while glitteri
   const rjodurHero = run.forests[0].butterflies.hero.group;
   assert.equal(rjodurHero.scale.x, 1, 'hero butterfly scale reset to 1 after being tapped');
 });
+
+test('at the end of the book tutorial the player is left free inside the open book without a forced X prompt, and closing it sets off', async () => {
+  const exploreFrames = [];
+  const run = await playUnattended(kafli1, {
+    seeking: false,
+    eager: true,
+    bookExploreSeconds: 22,
+    limit: 255,
+    onFrame({ stage, book, seen }) {
+      if (book.isChildOpen) {
+        exploreFrames.push({
+          t: stage.s.time,
+          tab: book.tab,
+          beckoningClose: book.beckoningClose,
+          lockedTutorial: book.lockedTutorial,
+          mapRideSaid: seen.spoken.has('k1_mosi_map_ride'),
+        });
+      }
+    },
+  });
+  assert.ok(exploreFrames.length > 600, `player remained freely in the open book for 22 s (${exploreFrames.length} frames)`);
+  assert.ok(exploreFrames.every(f => f.tab === 'games'), 'left on the Leikir tab');
+  assert.ok(exploreFrames.every(f => f.beckoningClose === false), 'X close button never pulses at the end of the tutorial');
+  assert.ok(exploreFrames.every(f => f.lockedTutorial === null), 'tutorial lock is released so every tab and game is unlocked');
+  assert.ok(exploreFrames.every(f => !f.mapRideSaid), 'the ride waits until the player closes the book');
+  const doneSaid = run.captions.filter(c => c.text === chapter.lines.k1_mosi_book_done.text);
+  assert.equal(doneSaid.length, 1, 'Mosi says k1_mosi_book_done once and never nags while the player looks around');
+  assert.ok(run.seen.spoken.has('k1_mosi_map_ride') && run.seen.spoken.has('k1_mosi_hold'), 'closing the book resumes into the map moment and ride');
+});

@@ -305,6 +305,7 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     /** The journal button in the top-right corner beckons the child to tap it and reopen the book. */
     beckonButton,
     lockTutorial,
+    handToChild: () => book?.handToChild?.(),
     playGame: (game, options) => book?.playGame?.(game, options) ?? null,
     get isOpen() { return book?.isOpen ?? false; },
     get tab() { return book?.tab ?? 'animals'; },

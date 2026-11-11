@@ -555,6 +555,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       beckonButton: on => { needJournal('s.journal.beckonButton'); journal.beckonButton?.(on); return DONE; },
       /** Locks or unlocks the book and corner button to a single allowed tutorial target (`'none'`, `'close'`, `'button'`, `'tab:<name>'`, or `null`). */
       lockTutorial: target => { needJournal('s.journal.lockTutorial'); journal.lockTutorial?.(target); return DONE; },
+      /** Hands an open script book to the child (`book.handToChild()`) and waits until the child closes it. */
+      handToChild: () => {
+        needJournal('s.journal.handToChild');
+        journal.handToChild?.();
+        return journal.isOpen ? until(() => !journal.isOpen) : DONE;
+      },
       /** Opens a minigame from the book (`'eitt'`, `'veiddu'`, `'hals'`, `'yatzy-junior'`, `'minnisspil'`) and waits until the child closes it. */
       playGame: (game, options) => {
         needJournal('s.journal.playGame');

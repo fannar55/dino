@@ -2537,6 +2537,22 @@ test('lockTutorial blocks stray clicks and prevents claiming the book during a t
   tap(closeEl);
   assert.equal(book.isOpen, false, 'close works when locked to close');
 
+  // Handing an unlocked script-opened book to the child claims it without pulsing X, pauses the game, and unpauses on close.
+  book.open('games', 'script');
+  book.lockTutorial('none');
+  book.handToChild();
+  assert.equal(book.isChildOpen, false, 'cannot hand to child while still tutorial-locked');
+  book.lockTutorial(null);
+  book.handToChild();
+  assert.equal(book.isChildOpen, true, 'unlocked script book becomes the child\'s');
+  assert.equal(closeEl.classList.contains('beckon'), false, 'X does not pulse when handed to the child');
+  assert.deepEqual(pauses, [true], 'the game pauses while the child explores');
+  tap(ribbon('videos'));
+  assert.equal(book.tab, 'videos', 'all tabs work freely');
+  tap(closeEl);
+  assert.equal(book.isOpen, false);
+  assert.deepEqual(pauses, [true, false], 'closing the book resumes the game');
+
   // Unlock and test playGame.
   const fen = fenRig({ fill: s => s.addStar('k1_kambedla') });
   fen.book.open('games', 'script');
