@@ -40,8 +40,8 @@ export const LAYERS = {
   music: { stems: ['music'] },
   far: { stems: ['drums', 'bass', 'music'], muffle: 420, gain: 3 },
 };
-/** The cues scene 6 is cut to: the kinds it shows something for (a sound alone is in the set's own mix). */
-const SHOWN = ['call', 'wings', 'horn', 'count', 'peak', 'rewind', 'freeze', 'moved', 'unfreeze', 'egill-turn', 'end-fake', 'end', 'record', 'clap', 'airhorn', 'roar'];
+/** The cues the music video is cut to: every cue of the render but her lines (they are `lines`), each without the name of its sound. */
+const NOT_SHOWN = ['dj'];
 
 const run = (command, args) => execFileSync(command, args, { maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'pipe'] });
 const md5 = file => crypto.createHash('md5').update(fs.readFileSync(file)).digest('hex');
@@ -72,7 +72,7 @@ export function songOf(render) {
       sections: render.sections.map(({ id, nameIs, feature, startBeat, beats, record }) => ({ id, nameIs, feature, startBeat, beats, record })),
       lines: render.dj.map(({ id, beat: at, text }) => ({ id, beat: at, text })),
       tune: render.tuneNotes,
-      cues: render.cues.filter(cue => SHOWN.includes(cue.kind)).map(({ sound, ...cue }) => cue),
+      cues: render.cues.filter(cue => !NOT_SHOWN.includes(cue.kind)).map(({ sound, ...cue }) => cue),
     },
   };
 }

@@ -610,6 +610,10 @@ export const SONG = {
         "group": "lizards"
       },
       {
+        "beat": 13,
+        "kind": "whoosh"
+      },
+      {
         "beat": 14,
         "kind": "wings"
       },
@@ -620,6 +624,10 @@ export const SONG = {
       {
         "beat": 15.5,
         "kind": "wings"
+      },
+      {
+        "beat": 16,
+        "kind": "hit"
       },
       {
         "beat": 24,
@@ -648,7 +656,15 @@ export const SONG = {
       },
       {
         "beat": 24,
+        "kind": "crowd"
+      },
+      {
+        "beat": 24,
         "kind": "roar"
+      },
+      {
+        "beat": 32,
+        "kind": "hit"
       },
       {
         "beat": 36.5,
@@ -686,6 +702,10 @@ export const SONG = {
         "beat": 47.5,
         "kind": "call",
         "group": "lizards"
+      },
+      {
+        "beat": 48,
+        "kind": "rise"
       },
       {
         "beat": 49,
@@ -746,9 +766,17 @@ export const SONG = {
         "kind": "clap"
       },
       {
+        "beat": 64,
+        "kind": "hit"
+      },
+      {
         "beat": 96,
         "kind": "call",
         "group": "lizards"
+      },
+      {
+        "beat": 96,
+        "kind": "hit"
       },
       {
         "beat": 97.5,
@@ -819,6 +847,10 @@ export const SONG = {
         "beat": 128,
         "kind": "call",
         "group": "grazers"
+      },
+      {
+        "beat": 128,
+        "kind": "hit"
       },
       {
         "beat": 128,
@@ -918,9 +950,25 @@ export const SONG = {
         "group": "grazers"
       },
       {
+        "beat": 142.5,
+        "kind": "scratch"
+      },
+      {
         "beat": 143,
         "kind": "call",
         "group": "grazers"
+      },
+      {
+        "beat": 143,
+        "kind": "scratch"
+      },
+      {
+        "beat": 143.5,
+        "kind": "scratch"
+      },
+      {
+        "beat": 144,
+        "kind": "hit"
       },
       {
         "beat": 144,
@@ -948,6 +996,10 @@ export const SONG = {
         "beat": 151,
         "kind": "call",
         "group": "turtles"
+      },
+      {
+        "beat": 152,
+        "kind": "hit"
       },
       {
         "beat": 152.25,
@@ -1033,6 +1085,10 @@ export const SONG = {
         "beat": 160,
         "kind": "call",
         "group": "frogs"
+      },
+      {
+        "beat": 160,
+        "kind": "hit"
       },
       {
         "beat": 160.75,
@@ -1158,6 +1214,10 @@ export const SONG = {
         "beat": 175.5,
         "kind": "call",
         "group": "frogs"
+      },
+      {
+        "beat": 176,
+        "kind": "hit"
       },
       {
         "beat": 176,
@@ -1342,6 +1402,10 @@ export const SONG = {
         "group": "flyers"
       },
       {
+        "beat": 192,
+        "kind": "hit"
+      },
+      {
         "beat": 194.5,
         "kind": "call",
         "group": "flyers"
@@ -1387,9 +1451,17 @@ export const SONG = {
         "group": "flyers"
       },
       {
+        "beat": 207.25,
+        "kind": "scratch"
+      },
+      {
         "beat": 208,
         "kind": "call",
         "group": "beetles"
+      },
+      {
+        "beat": 208,
+        "kind": "hit"
       },
       {
         "beat": 208,
@@ -1560,6 +1632,10 @@ export const SONG = {
       },
       {
         "beat": 224,
+        "kind": "hit"
+      },
+      {
+        "beat": 224,
         "kind": "record",
         "from": "slagverk",
         "to": "vamp",
@@ -1574,6 +1650,10 @@ export const SONG = {
         "beat": 228,
         "kind": "call",
         "group": "dragonflies"
+      },
+      {
+        "beat": 232,
+        "kind": "hit"
       },
       {
         "beat": 232,
@@ -1649,6 +1729,14 @@ export const SONG = {
         "from": "rolegt",
         "to": "vamp",
         "how": "reverse cymbal"
+      },
+      {
+        "beat": 264,
+        "kind": "reverse-cymbal"
+      },
+      {
+        "beat": 264,
+        "kind": "rise"
       },
       {
         "beat": 264,
@@ -1741,6 +1829,10 @@ export const SONG = {
         "beat": 276,
         "kind": "call",
         "group": "flyers"
+      },
+      {
+        "beat": 276,
+        "kind": "crowd"
       },
       {
         "beat": 276,
@@ -2112,6 +2204,10 @@ export const SONG = {
       },
       {
         "beat": 296,
+        "kind": "impact"
+      },
+      {
+        "beat": 296,
         "kind": "peak"
       },
       {
@@ -2119,14 +2215,26 @@ export const SONG = {
         "kind": "roar"
       },
       {
+        "beat": 296,
+        "kind": "sub"
+      },
+      {
         "beat": 296.5,
         "kind": "call",
         "group": "turtles"
       },
       {
+        "beat": 296.5,
+        "kind": "crowd"
+      },
+      {
         "beat": 296.75,
         "kind": "call",
         "group": "frogs"
+      },
+      {
+        "beat": 296.8,
+        "kind": "crowd"
       },
       {
         "beat": 297.5,
@@ -2278,6 +2386,10 @@ export const SONG = {
         "kind": "rewind"
       },
       {
+        "beat": 304,
+        "kind": "vinylRewind"
+      },
+      {
         "beat": 308,
         "kind": "airhorn"
       },
@@ -2313,16 +2425,36 @@ export const SONG = {
       },
       {
         "beat": 308,
+        "kind": "crowd"
+      },
+      {
+        "beat": 308,
+        "kind": "impact"
+      },
+      {
+        "beat": 308,
         "kind": "peak"
+      },
+      {
+        "beat": 308,
+        "kind": "reverse-cymbal"
       },
       {
         "beat": 308,
         "kind": "roar"
       },
       {
+        "beat": 308,
+        "kind": "sub"
+      },
+      {
         "beat": 308.5,
         "kind": "call",
         "group": "turtles"
+      },
+      {
+        "beat": 308.5,
+        "kind": "crowd"
       },
       {
         "beat": 308.75,
@@ -2765,6 +2897,10 @@ export const SONG = {
         "kind": "horn"
       },
       {
+        "beat": 356,
+        "kind": "hit"
+      },
+      {
         "beat": 356.75,
         "kind": "call",
         "group": "frogs"
@@ -2824,6 +2960,10 @@ export const SONG = {
         "kind": "freeze"
       },
       {
+        "beat": 362.9,
+        "kind": "needle"
+      },
+      {
         "beat": 363.25,
         "kind": "call",
         "group": "turtles"
@@ -2832,6 +2972,10 @@ export const SONG = {
         "beat": 363.25,
         "kind": "moved",
         "group": "turtles"
+      },
+      {
+        "beat": 369.6,
+        "kind": "crowd"
       },
       {
         "beat": 372,
@@ -2869,6 +3013,14 @@ export const SONG = {
       },
       {
         "beat": 372,
+        "kind": "crowd"
+      },
+      {
+        "beat": 372,
+        "kind": "impact"
+      },
+      {
+        "beat": 372,
         "kind": "record",
         "from": "vamp",
         "to": "song3",
@@ -2880,7 +3032,15 @@ export const SONG = {
       },
       {
         "beat": 372,
+        "kind": "sub"
+      },
+      {
+        "beat": 372,
         "kind": "unfreeze"
+      },
+      {
+        "beat": 372.3,
+        "kind": "crowd"
       },
       {
         "beat": 372.5,
@@ -2969,6 +3129,10 @@ export const SONG = {
         "beat": 380,
         "kind": "call",
         "group": "flyers"
+      },
+      {
+        "beat": 380,
+        "kind": "crowd"
       },
       {
         "beat": 380.5,
@@ -3160,6 +3324,10 @@ export const SONG = {
         "kind": "clap"
       },
       {
+        "beat": 391.5,
+        "kind": "crowd"
+      },
+      {
         "beat": 391.75,
         "kind": "call",
         "group": "lizards"
@@ -3291,6 +3459,10 @@ export const SONG = {
         "kind": "clap"
       },
       {
+        "beat": 399,
+        "kind": "crowd"
+      },
+      {
         "beat": 399.75,
         "kind": "call",
         "group": "lizards"
@@ -3351,6 +3523,10 @@ export const SONG = {
       },
       {
         "beat": 404,
+        "kind": "hit"
+      },
+      {
+        "beat": 404,
         "kind": "record",
         "from": "song3",
         "to": "slagverk",
@@ -3387,7 +3563,19 @@ export const SONG = {
       },
       {
         "beat": 412,
+        "kind": "crowd"
+      },
+      {
+        "beat": 412,
         "kind": "roar"
+      },
+      {
+        "beat": 412.2,
+        "kind": "crowd"
+      },
+      {
+        "beat": 415.7,
+        "kind": "crowd"
       },
       {
         "beat": 416,
@@ -3416,6 +3604,10 @@ export const SONG = {
       },
       {
         "beat": 416,
+        "kind": "crowd"
+      },
+      {
+        "beat": 416,
         "kind": "roar"
       },
       {
@@ -3435,6 +3627,10 @@ export const SONG = {
         "how": "last hit"
       },
       {
+        "beat": 420.2,
+        "kind": "crowd"
+      },
+      {
         "beat": 428,
         "kind": "airhorn"
       },
@@ -3442,6 +3638,14 @@ export const SONG = {
         "beat": 428,
         "kind": "call",
         "group": "lizards"
+      },
+      {
+        "beat": 428,
+        "kind": "crowd"
+      },
+      {
+        "beat": 428,
+        "kind": "impact"
       },
       {
         "beat": 428,
@@ -3453,6 +3657,14 @@ export const SONG = {
         "from": "vamp",
         "to": "vidlag",
         "how": "drum fill"
+      },
+      {
+        "beat": 428,
+        "kind": "reverse-cymbal"
+      },
+      {
+        "beat": 428,
+        "kind": "sub"
       },
       {
         "beat": 428.5,
@@ -3966,6 +4178,10 @@ export const SONG = {
       },
       {
         "beat": 460,
+        "kind": "hit"
+      },
+      {
+        "beat": 460,
         "kind": "horn"
       },
       {
@@ -4054,8 +4270,16 @@ export const SONG = {
         "kind": "wings"
       },
       {
+        "beat": 472.3,
+        "kind": "crowd"
+      },
+      {
         "beat": 473,
         "kind": "wings"
+      },
+      {
+        "beat": 473.5,
+        "kind": "whoosh"
       }
     ]
   }
