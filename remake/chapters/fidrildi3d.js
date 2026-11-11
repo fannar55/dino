@@ -88,6 +88,11 @@ const FOV = 46;
 const D_WANTED = 6.8; // metres to Mosi's head
 const MOSI_U = 0.36;
 const GROUND_SHARE = 0.85;
+// The stage (round 5, the coordinator's 4:3 check): every place of the show (Mosi's, Þórseðla's, every flight's (u, v, k)) is solved
+// in one fixed frame, 16:10 with FOV, not in the screen's own: a flight drawn in the screen's frame lands somewhere else beside the
+// animals on every shape of screen (the frame's width in metres changes and the bodies do not). The engine keeps the 16:10 width on
+// narrower screens and the height on wider ones (director.effectiveFov), so this frame is always inside the screen's.
+const STAGE_ASPECT = 16 / 10;
 // Þórseðla: her root far behind, so that her lowered head (lowerHead held part way: the share found for the height below) comes to
 // THOR_HEAD in the frame. The two friends further back are depth layers.
 const THOR_HEAD = [0.6, 0.6, 0.6]; // her Head bone, which is low in her skull: the skull's top is about 1 m above it
@@ -215,6 +220,7 @@ export const chapter = {
     const butterflies = world.forest?.butterflies;
     const v = new THREE.Vector3();
     const probeCam = new THREE.PerspectiveCamera();
+    const stageCam = new THREE.PerspectiveCamera(); // the stage's fixed frame (STAGE_ASPECT, FOV), from the camera's place
 
     // ---- the frame's geometry ----
     const depthOf = (cam, p) => -v.copy(p).applyMatrix4(cam.matrixWorldInverse).z;
@@ -225,9 +231,9 @@ export const chapter = {
       for (let i = 0; i < 3; i++) t = (world.heightAt(cam.position.x + dir.x * t, cam.position.z + dir.z * t) - cam.position.y) / dir.y;
       return t * dir.dot(new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion));
     }
-    function poseCam(cam, position, target, fov) {
-      cam.fov = director.effectiveFov(fov);
-      cam.aspect = camera.aspect;
+    function poseCam(cam, position, target, fov, stage = false) {
+      cam.fov = stage ? fov : director.effectiveFov(fov);
+      cam.aspect = stage ? STAGE_ASPECT : camera.aspect;
       cam.near = camera.near;
       cam.far = camera.far;
       cam.position.copy(position);
@@ -238,14 +244,14 @@ export const chapter = {
       return cam;
     }
     const plane = () => gler?.plane ?? D0;
-    /** The world point at (u, v) in the frame, k·D deep (view-space depth), from `cam` (the show's camera unless given). */
-    function framePoint(u, vv, k, out = new THREE.Vector3(), cam = camera, d = plane()) {
+    /** The world point at (u, v) in the stage's frame (stageCam unless `cam` is given), k·D deep (view-space depth). */
+    function framePoint(u, vv, k, out = new THREE.Vector3(), cam = stageCam, d = plane()) {
       const tanV = Math.tan(rad(cam.fov) / 2);
       const depth = k * d;
       out.set((2 * u - 1) * tanV * cam.aspect * depth, (1 - 2 * vv) * tanV * depth, -depth);
       return out.applyMatrix4(cam.matrixWorld);
     }
-    /** (u, v, k) of a world point. */
+    /** (u, v, k) of a world point, in the screen's own frame (the show's camera unless `cam` is given: stageCam for the stage's). */
     function frameOf(p, cam = camera, d = plane()) {
       const depth = depthOf(cam, p);
       const ndc = v.copy(p).project(cam);
@@ -262,6 +268,13 @@ export const chapter = {
     }
     const camTarget = camPos.clone().add(new THREE.Vector3(ahead[0] * 10, Math.tan(rad(pitch)) * 10, ahead[1] * 10));
     poseCam(probeCam, camPos, camTarget, FOV);
+    // the stage's frame: the same tilt solved at the stage's shape (the screen's camera tilts as its own shape needs for the ground)
+    let stagePitch = 0;
+    for (; stagePitch < 30; stagePitch += 0.25) {
+      const target = camPos.clone().add(new THREE.Vector3(ahead[0], Math.tan(rad(stagePitch)), ahead[1]));
+      if (groundEdgeDepth(poseCam(stageCam, camPos, target, FOV, true)) >= GROUND_SHARE * D_WANTED) break;
+    }
+    poseCam(stageCam, camPos, camPos.clone().add(new THREE.Vector3(ahead[0] * 10, Math.tan(rad(stagePitch)) * 10, ahead[1] * 10)), FOV, true);
     // Mosi: facing the camera, moved until his head is on the ray through MOSI_U at D_WANTED (his idle pose, measured)
     mosi.play('idle', { fade: 0 });
     const head = new THREE.Vector3();
@@ -272,12 +285,12 @@ export const chapter = {
       mosi.mixer.update(0);
       mosi.root.updateMatrixWorld(true);
       mosi.headPosition(head);
-      const want = framePoint(MOSI_U, frameOf(head, probeCam, D_WANTED)[1], 1, new THREE.Vector3(), probeCam, D_WANTED);
+      const want = framePoint(MOSI_U, frameOf(head, stageCam, D_WANTED)[1], 1, new THREE.Vector3(), stageCam, D_WANTED);
       mx += want.x - head.x;
       mz += want.z - head.z;
     }
     mosi.root.updateMatrixWorld(true);
-    let D0 = depthOf(probeCam, mosi.headPosition(head)); // the screen plane for the whole show (before the glasses' pop share)
+    let D0 = depthOf(stageCam, mosi.headPosition(head)); // the screen plane for the whole show (before the glasses' pop share)
     const horn = onBone(mosi, ...POINTS.mosiHorn);
     const sneezeAt = onBone(mosi, ...POINTS.mosiSneeze);
 
@@ -291,7 +304,7 @@ export const chapter = {
       thor.root.updateMatrixWorld(true);
       return thor.headPosition(new THREE.Vector3()); // heading 0: forward is +X
     }
-    const thorWant = framePoint(...THOR_HEAD, new THREE.Vector3(), probeCam, D0);
+    const thorWant = framePoint(...THOR_HEAD, new THREE.Vector3(), stageCam, D0);
     let thorAt = 0.62;
     for (let at = 0.3; at <= 1.0001; at += 0.02) {
       if (Math.abs(thorHeadLocal(at).y - thorWant.y) < Math.abs(thorHeadLocal(thorAt).y - thorWant.y)) thorAt = at;
@@ -390,7 +403,7 @@ export const chapter = {
     const cost = { ms: 0, frames: 0, pushes: 0 };
     function updateShells() {
       const t0 = performance.now();
-      camera.getWorldDirection(look).toArray(forward);
+      stageCam.getWorldDirection(look).toArray(forward); // the stage's: the same push on every shape of screen
       for (const shell of shells) shell.update();
       cost.frames++;
       cost.ms += performance.now() - t0;
@@ -661,7 +674,7 @@ export const chapter = {
 
     // The moth blown off the horn: up and back into the trees, then waiting there, small, until the end.
     function blowOff() {
-      const start = frameOf(horn(new THREE.Vector3()));
+      const start = frameOf(horn(new THREE.Vector3()), stageCam);
       const t0 = tau();
       const keys = track([[t0, ...start], [t0 + 2.4, start[0] + 0.12, 0.26, 1.7], [t0 + 6, 0.56, 0.14, 3.0, 'rest'], [52, 0.58, 0.15, 3.0], [55, 0.56, 0.16, 2.9]]);
       butterflies?.follow(HERO, out => {
@@ -725,7 +738,7 @@ export const chapter = {
         const turn = b.phase + (2 * Math.PI * (t - 30)) / 8;
         const k = Math.max(0.52, kc[2] + b.dk);
         const r = b.radius * (k < 1 ? 1 : 1 + 0.4 * (k - 1)) * (1 - ring[1]); // wider behind the screen (smaller once she is there)
-        const x = 0.06 + 2 * kc[0] + r * Math.cos(turn) / camera.aspect, y = 0.05 + r * Math.sin(turn);
+        const x = 0.06 + 2 * kc[0] + r * Math.cos(turn) / STAGE_ASPECT, y = 0.05 + r * Math.sin(turn);
         return framePoint(0.5 + 0.5 * x, 0.5 - 0.5 * y + ring[0] + 0.012 * Math.sin(3.1 * t + b.bob), k, out);
       };
       // A sitter (round 5): from the dance to the point SEAT_ABOVE over its seat (SIT_TO s), straight down onto the seat (SIT_DOWN s),

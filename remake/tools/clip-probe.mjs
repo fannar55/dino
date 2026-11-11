@@ -23,6 +23,9 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// the screen shapes the show must hold at: an iPad's 4:3, 16:10, 16:9 and a wide phone (about 19.5:9)
+const SHAPES = ['1024x768', '1280x800', '1280x720', '1170x540'];
+
 function parseArgs(argv) {
   const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, size: '960x600', quality: 'tablet', trace: null, eval: null, jump: 0.3, maxPush: 0.15, maxPushStep: 0.03 };
   for (let i = 0; i < argv.length; i++) {
@@ -36,7 +39,8 @@ function parseArgs(argv) {
     else if (a === '--bodies') o.bodies = next();
     else if (a === '--browser') o.browser = next();
     else if (a === '--quality') o.quality = next(); // the page's quality (none: the page's own choice)
-    else if (a === '--size') o.size = next(); // the page's size WxH: the frame's aspect moves the flights against the animals
+    else if (a === '--size') o.size = next(); // the page's size WxH (the screen's shape)
+    else if (a === '--sizes') o.size = next() === 'all' ? SHAPES.join(',') : argv[i]; // several, one after the other, each with its table ('all': SHAPES)
     else if (a === '--max-push') o.maxPush = Number(next()); // fail over this push (flown less drawn, metres) outside meant contact
     else if (a === '--max-push-step') o.maxPushStep = Number(next()); // fail over this change of the push in one step (metres)
     else if (a === '--jump') o.jump = Number(next()); // list every move of one butterfly in one step longer than this (metres)
@@ -176,6 +180,20 @@ const TABLE = (step, clearance) => `(async () => {
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
+  const sizes = o.size.split(',');
+  const results = [];
+  for (const size of sizes) {
+    if (sizes.length > 1) console.log(`
+=== ${size} ===`);
+    const json = o.json && sizes.length > 1 ? o.json.replace(/(.json)?$/, `-${size}.json`) : o.json;
+    results.push([size, await probe({ ...o, size, json })]);
+  }
+  if (sizes.length > 1) console.log(`
+${results.map(([sz, f]) => `${sz} ${f ? 'FAIL' : 'OK'}`).join('; ')}`);
+  process.exit(results.some(([, f]) => f) ? 1 : 0);
+}
+
+async function probe(o) {
   const server = await startServer();
   const base = `http://127.0.0.1:${server.address().port}/remake/index.html`;
   const [W, H] = o.size.split('x').map(Number);
@@ -248,7 +266,7 @@ async function main() {
     await stopBrowser(browser).catch(() => {});
     server.close();
   }
-  process.exit(failed ? 1 : 0);
+  return failed;
 }
 
 main().catch(e => { console.error(e); process.exit(2); });
