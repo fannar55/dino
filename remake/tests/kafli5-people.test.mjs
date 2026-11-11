@@ -330,7 +330,7 @@ const { chapterWorld } = await import('./chapter-harness.mjs');
 const { updateActors } = await import('../engine/actor.js');
 const { sloedlaLife, DANCE } = await import('../chapters/kafli5-sloedla.js');
 const { createPeople } = await import('../chapters/kafli5-people.js');
-const { SPOTS } = await import('../chapters/kafli5-pool.js');
+const { SPOTS, WEST } = await import('../chapters/kafli5-pool.js');
 const THREE = await import('three');
 const FRAME = 1 / 30;
 const HORNS = SET.cues.filter(event => event.kind === 'horn').map(event => event.beat);
@@ -500,9 +500,24 @@ test('on the models: "Egill, segðu já!" his hands are at his mouth; Stoppdans 
     const actor = world.actors.get(name);
     assert.equal(actor.controlled, false, `${name} is given back`);
     assert.ok(actor.root.position.distanceTo(stood[name].position) < 1e-6 && angle(actor.heading, stood[name].heading) < 1e-6, `${name} stands where it stood`);
+    // and its root is turned by its heading alone, as the engine's feet read it. (The dance writes a whole turn on the root; past a
+    // quarter turn that reads back as half turns about the two other axes, which a heading does not undo: Mosi's legs then stood
+    // one way and his body another when he turned to the roar, the owner's report of 2026-11-11.)
+    const { x, z } = actor.root.rotation;
+    assert.ok(Math.abs(x) < 1e-9 && Math.abs(z) < 1e-9, `${name}'s root is turned about the upright only (${x.toFixed(3)}, ${z.toFixed(3)})`);
+    const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(actor.root.quaternion);
+    assert.ok(angle((Math.atan2(ahead.z, ahead.x) * 180) / Math.PI, stood[name].heading) < 1e-6, `${name} faces its heading`);
   }
-  const her = world.actors.get('sloedla');
-  assert.ok(her.controlled && her.root.position.distanceTo(stood.sloedla.position) < 1e-3 && angle(her.heading, stood.sloedla.heading) < 0.1, 'Slóeðla stands as her life has her');
-  assert.ok(her.headPosition(new THREE.Vector3()).distanceTo(stood.sloedla.head) < 0.25, 'her head where it was');
+  // Mosi turns to the roar in the west (kafli5.js, scene 7): his feet step round with him and end under him
+  const mosi = world.actors.get('mosi');
+  mosi.turnTo(headingTo(SPOTS.mosi, WEST), { rate: 30 });
+  for (let i = 0; i < 60 * 12; i++) run.tick();
+  assert.ok(angle(mosi.heading, headingTo(SPOTS.mosi, WEST)) < 1.5, `he faces west (${mosi.heading.toFixed(1)})`);
+  const toWest = new THREE.Vector3(WEST[0] - SPOTS.mosi[0], 0, WEST[1] - SPOTS.mosi[1]).normalize();
+  const reach = name => worldOf(mosi, name).sub(mosi.root.position).dot(toWest);
+  const [fl, fr, bl, br, head] = ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR', 'Head'].map(reach);
+  const said = [fl, fr, bl, br, head].map(v => v.toFixed(2)).join(', ');
+  assert.ok(Math.min(fl, fr) - Math.max(bl, br) > 1, `his forefeet are well ahead of his hind feet (${said} m)`);
+  assert.ok(head > Math.max(fl, fr), `and his head is before them all (${said} m)`);
   run.people.dispose(); // twice is once
 });

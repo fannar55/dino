@@ -403,7 +403,7 @@ function* theWholeSong(s, c) {
     for (const stop of offs) stop();
     c.set.ended = s.time;
     c.dances.dispose();
-    c.show.dispose();
+    c.show.dispose({ dusk: true }); // it is dusk for the rest of the chapter (the owner's word of 2026-11-11); the day is given back at its end
     c.people.dispose();
   }
   c.her.idle();
@@ -853,6 +853,7 @@ export const chapter = {
       yield* story(s, c);
     } finally {
       c.ended = true;
+      c.show?.day(); // the afternoon, and the sun's cap off, for whatever is played next
       release?.();
       c.sounds.stop();
       c.band.stop(0.3);

@@ -7,7 +7,7 @@
 // tests/kafli5-show.test.mjs holds it.
 //
 //   fireflies   createFireflies: each one's place, size, light and colour at a beat
-//   dusk        duskAt: how deep the dusk is (the quiet part under her horn and the build after it), liftAt: the soft flashes,
+//   dusk        duskAt: how deep the dusk is (it falls under her horn and stays), liftAt: the soft flashes,
 //               capAt: the sun's nightcap, on while the dusk lasts
 //   splashes    SPLASHES, dropAt, splashRingAt: the crowns of drops on the drops, a ring where a frog lands and where the grazers stomp
 //   the count   COUNTS, countAt: the big number on the screen
@@ -70,28 +70,23 @@ export const PUFFS = PEAKS.filter(peak => !BURSTS.includes(peak.beat)).map(peak 
 // ---------------------------------------------------------------------------------------------
 // The dusk and the soft flashes
 
-export const DUSK = { sink: 8, back: 0.25 }; // beats it sinks over as her horn begins; beats before the drop the day comes back over
+export const DUSK = { sink: 8 }; // beats it sinks over as her horn begins
 /**
- * How deep the dusk is at `beat`, 0 (the afternoon) to 1: it sinks as her horn's part begins, holds through the build, and the day
- * is back as the drop lands. From the drop on it is 0, so the rewind (which never goes back past the drop) stays in the day.
+ * How deep the dusk is at `beat`, 0 (the afternoon) to 1: it sinks as her horn's part begins, and it is dusk from then on (the
+ * owner's word of 2026-11-11: the day does not come back on the drop). The party's second half is in the dusk, lit by its
+ * fireflies and soft flashes, and so is the chapter's last scene (kafli5.js keeps the dusk when the set is over).
  */
 export function duskAt(beat) {
-  const from = startOf('break');
-  const to = startOf('drop');
-  if (beat <= from || beat >= to) return 0;
-  return Math.min(smooth((beat - from) / DUSK.sink), smooth((to - beat) / DUSK.back));
+  return smooth((beat - startOf('break')) / DUSK.sink);
 }
 
 /**
  * The sun's nightcap (the owner's wish of 2026-11-11), 0 (off) to 1 (on its head): it comes down in the second bar of the sinking
- * dusk, as the camera looks at the sun (kafli5-video.js: set_sun), stays on while the dusk does, and is off as the day comes back.
+ * dusk, as the camera looks at the sun (kafli5-video.js: set_sun), and stays on, as the dusk does.
  */
 export const CAP = { from: 4, beats: 3 }; // down over beats 236 to 239 of the set, seen from the cut at 236
 export function capAt(beat) {
-  const from = startOf('break');
-  const to = startOf('drop');
-  if (beat <= from || beat >= to) return 0;
-  return Math.min(smooth((beat - from - CAP.from) / CAP.beats), smooth((to - beat) / DUSK.back));
+  return smooth((beat - startOf('break') - CAP.from) / CAP.beats);
 }
 
 export const LIFT = { beats: 2 }; // a flash fades over these; two are never nearer than this (so never two in a second)

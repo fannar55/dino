@@ -41,11 +41,14 @@ const put = (out, x, y, z) => { out[0] = x; out[1] = y; out[2] = z; return out; 
  * Returns { update({ beat, setBeat, frozen, rewinding, section }, dt), cue(event), dispose() }:
  *   update   every frame of the set: `beat` is the dance beat, `setBeat` the set's own, `section` the set's part now
  *   cue      every event of the set as it comes (kafli5.js onSet: sections, her lines, calls and the other cues)
- *   dispose  the set is over, or the chapter was left: the light, the sky and the screen as they were, nothing of the show left
+ *   dispose  the set is over, or the chapter was left: the light, the sky and the screen as they were, nothing of the show left.
+ *            `dispose({ dusk: true })` (the set is over and the chapter goes on) keeps the dusk and the sun's cap as they are, with
+ *            no flash on them, until `day()`
+ *   day      the afternoon back, and the cap off: the chapter is over or left (after either dispose; twice is once)
  */
 export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? null } = {}) {
   const { world } = c;
-  if (world.params?.get?.('syning') === '0') return { update() {}, cue() {}, dispose() {} };
+  if (world.params?.get?.('syning') === '0') return { update() {}, cue() {}, dispose() {}, day() {} };
   const reduced = Boolean(c.reduced);
   const fireflies = createFireflies({ count: reduced ? FIREFLIES.count / 2 : FIREFLIES.count, reduced });
   const lights = createLightPoints(world, { capacity: CAPACITY.lights, name: 'kafli5 show: lights' });
@@ -136,6 +139,11 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
     }
   }
 
+  function day() {
+    dusk.restore();
+    c.sun?.cap?.(0);
+  }
+
   function update(video) {
     if (disposed) return;
     const { beat, section = null } = video;
@@ -150,7 +158,7 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
     lights.end();
     rings.end();
     dusk.set(dark * (reduced ? 0.5 : 1), reduced ? 0 : liftAt(beat));
-    c.sun?.cap?.(capAt(beat)); // its nightcap comes down as the dusk falls, and is off the moment the day is back
+    c.sun?.cap?.(capAt(beat)); // its nightcap comes down as the dusk falls, and stays on
     const count = countAt(beat, { reduced });
     if (count) number.show(String(count.n), count);
     else number.hide();
@@ -165,15 +173,16 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
       const [x, z] = padOf(event.beat);
       world.forest?.rippleAt?.(x, z, reduced ? 0.3 : 0.6);
     },
-    dispose() {
+    dispose({ dusk: kept = false } = {}) {
       if (disposed) return;
       disposed = true;
-      dusk.restore();
-      c.sun?.cap?.(0);
+      if (kept) dusk.set(dusk.depth, 0);
+      else day();
       number.dispose();
       lights.dispose();
       rings.dispose();
     },
+    day,
     /** For tests and probes: the parts, as they are after the last update. */
     parts: { lights, rings, dusk, number, fireflies },
   };

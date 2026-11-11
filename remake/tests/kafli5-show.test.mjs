@@ -65,19 +65,17 @@ test('the countdown: each number on its beat, big and clear, and gone well befor
   }
 });
 
-test('the dusk sinks as her horn begins, holds through the build, and the day is back as the drop lands and ever after', () => {
-  const [from, to] = [part('break').startBeat, part('drop').startBeat];
+test('the dusk sinks as her horn begins and it is dusk from then on: through the build, the drop, the rewind and to the last hit', () => {
+  const from = part('break').startBeat;
   for (let beat = -4; beat <= from; beat += 0.5) assert.equal(duskAt(beat), 0);
   assert.ok(duskAt(from + DUSK.sink / 2) > 0.3 && duskAt(from + DUSK.sink / 2) < 0.7);
-  for (let beat = from + DUSK.sink; beat <= to - DUSK.back; beat += 0.25) assert.equal(duskAt(beat), 1, `deep at ${beat}`);
-  assert.equal(duskAt(to), 0, 'the day is back on the drop\'s first beat');
-  assert.ok(DUSK.back * BEAT_SECONDS < 0.15, '"at once"');
+  for (let beat = from + DUSK.sink; beat <= SET.endBeat + 8; beat += 0.25) assert.equal(duskAt(beat), 1, `deep at ${beat}`);
   let last = 0;
   for (const { beat, setBeat } of framesOfTheSet) {
     const dusk = duskAt(beat);
     assert.ok(dusk >= 0 && dusk <= 1);
-    if (setBeat >= to) assert.equal(dusk, 0, `no dusk after the drop (the set's beat ${setBeat.toFixed(2)}: the rewind and all)`);
-    if (setBeat < to - DUSK.back) assert.ok(Math.abs(dusk - last) < 0.03, 'it sinks slowly');
+    if (setBeat >= from + DUSK.sink) assert.equal(dusk, 1, `still dusk at the set's beat ${setBeat.toFixed(2)} (the drop, the rewind and all)`);
+    assert.ok(Math.abs(dusk - last) < 0.03, 'it sinks slowly, and never jumps');
     last = dusk;
   }
 });
@@ -435,7 +433,7 @@ test('the show in the set: the first fireflies, the notes, the frogs\' rings, th
   assert.equal(numbers().length, 0);
 });
 
-test('the dusk: darker and warmer in the quiet part, the day back on the drop, and everything exactly as it was after', () => {
+test('the dusk: darker and warmer from the quiet part on, kept after the set if asked, and everything exactly as it was when the day is back', () => {
   const { world, c, light } = smallWorld();
   const was = light();
   const show = createShow(c);
@@ -449,18 +447,34 @@ test('the dusk: darker and warmer in the quiet part, the day back on the drop, a
   assert.ok(sun.intensity < 2.87 * 0.6 && world.renderer.toneMappingExposure < 0.95 && world.scene.environmentIntensity < 0.77 * 0.75, 'darker');
   assert.ok(sun.color.b / sun.color.r < new THREE.Color('#ffce95').b / 1 - 0.1, 'warmer');
   assert.ok(hemi.intensity < 0.55 && world.sky.dome.material.uniforms.uZenith.value.b < new THREE.Color('#6c9bd3').b);
+  const deep = light();
   show.update(video(BURSTS[0] + LIFT.beats)); // the drop, its flash over
-  assert.equal(light(), was, 'the day is back');
+  assert.equal(light(), deep, 'it is still dusk after the drop');
+  const dim = world.renderer.toneMappingExposure;
   show.update(video(BURSTS[0]));
-  assert.ok(world.renderer.toneMappingExposure > 1 && world.renderer.toneMappingExposure <= 1.1 + 1e-9, 'a soft lift on the drop');
-  // left in the middle of the dusk, a number on the screen: everything back, to the last bit
-  show.update(video(COUNTS[2].beat + 0.5));
+  assert.ok(world.renderer.toneMappingExposure > dim && world.renderer.toneMappingExposure <= dim * 1.1 + 1e-9, 'a soft lift on the drop, in the dusk');
+  show.update(video(100)); // (a probe's step back to the afternoon)
+  show.update(video(SET.endBeat)); // the last hit's flash
+  assert.ok(world.renderer.toneMappingExposure > dim);
+  // the set is over and the chapter goes on: the show's lights go, the dusk stays as it is with no flash on it, until the day is asked for
+  show.dispose({ dusk: true });
+  assert.equal(light(), deep, 'the dusk stays for the last scene of the chapter');
+  assert.equal(world.scene.children.length, 0);
+  show.update(video(100)); // nor a frame after it
+  assert.equal(light(), deep);
+  show.day();
+  assert.equal(light(), was, 'the chapter is over: the afternoon it found');
+  show.day(); // twice does no harm
+  assert.equal(light(), was);
+  // another show, left in the middle of the dusk with a number on the screen: everything back, to the last bit
+  const left = createShow(c);
+  left.update(video(COUNTS[2].beat + 0.5));
   assert.notEqual(light(), was);
-  show.dispose();
+  left.dispose();
   assert.equal(light(), was);
   assert.equal(world.scene.children.length, 0);
-  show.dispose(); // twice does no harm
-  show.update(video(250)); // nor a frame after it
+  left.dispose(); // twice does no harm
+  left.update(video(250)); // nor a frame after it
   assert.equal(light(), was);
   // the dusk by itself: any order, the same light for the same numbers, and restore
   const dusk = createDusk(world);
@@ -485,8 +499,10 @@ test('with less motion: no beat, no flash, half the dusk, half the fireflies, th
   show.update(video(part('grazers').startBeat + 2.5));
   assert.ok(drawn(show).rings.every(ring => ring.shape[2] === 0), 'no light under a group');
   assert.ok(show.parts.lights.count <= FIREFLIES.count / 2);
-  show.update(video(BURSTS[0]));
-  assert.equal(world.renderer.toneMappingExposure, 1, 'no flash');
+  show.update(video(250));
+  const dim = world.renderer.toneMappingExposure;
+  show.update(video(BURSTS[0])); // the drop, in the dusk
+  assert.equal(world.renderer.toneMappingExposure, dim, 'no flash');
   show.update(video(250));
   assert.ok(Math.abs(show.parts.dusk.depth - 0.5) < 1e-9);
   show.update(video(COUNTS[0].beat + 0.6));
@@ -538,7 +554,33 @@ test('the chapter left in the middle of the build (dusk, a number on the screen)
   assert.deepEqual(seen.left, { light: seen.light, lights: 0, numbers: 0 });
 });
 
-test('the sun wears its nightcap in the dusk: on as it falls, off as the day comes back, and off when the show is left', () => {
+test('the set over, the last scene of the chapter is in the dusk (the roar, the lines), and the day is back when the chapter has ended', async () => {
+  const seen = { day: null, set: null, roar: null, last: null };
+  let light = null;
+  const run = await playUnattended(kafli5, {
+    seeking: true, limit: 900, shaped: true,
+    onFrame({ world }) {
+      if (!light) { // a page's light, before the set
+        world.lighting.sun = new THREE.DirectionalLight('#ffce95', 2.87);
+        world.lighting.hemi = new THREE.HemisphereLight('#cbdcef', '#676038', 0.55);
+        world.renderer.toneMappingExposure = 1;
+        light = () => JSON.stringify([world.lighting.sun.color.toArray(), world.lighting.sun.intensity, world.lighting.hemi.color.toArray(), world.lighting.hemi.intensity, world.renderer.toneMappingExposure]);
+        seen.day = light();
+      }
+      const c = world.chapterState;
+      if (!c) return;
+      if (c.video && !c.set?.ended && c.video.setBeat > 250 && c.video.setBeat < 251) seen.set = light(); // deep in the quiet part, no flash near
+      if (!c.ended && c.set?.ended && c.choirLog.some(entry => entry.type === 'roar')) { seen.roar ??= light(); seen.last = light(); }
+    },
+  });
+  assert.ok(run.world.chapterState.set.ended > 0 && seen.set && seen.roar);
+  assert.notEqual(seen.set, seen.day);
+  assert.equal(seen.roar, seen.set, 'the roar comes in the dusk the set left');
+  assert.equal(seen.last, seen.set, 'and it is dusk to the last frame of the script');
+  assert.equal(light(), seen.day, 'the chapter over: the afternoon it found');
+});
+
+test('the sun wears its nightcap in the dusk: on as it falls, on to the end of the set and after it, and off when the day is asked for', () => {
   const { c } = smallWorld();
   const worn = [];
   c.sun = { cap: amount => worn.push(amount) };
@@ -557,9 +599,16 @@ test('the sun wears its nightcap in the dusk: on as it falls, off as the day com
     assert.ok(now >= last && now - last < 0.05, `no jump at ${beat}`);
     last = now;
   }
-  assert.equal(at(part('drop').startBeat), 0, 'the day is back on the drop');
-  at(260);
-  show.dispose();
+  assert.equal(at(part('drop').startBeat), 1, 'still on at the drop');
+  assert.equal(at(SET.endBeat), 1, 'and at the last hit');
+  show.dispose({ dusk: true });
+  assert.equal(worn.at(-1), 1, 'the set is over, the dusk stays: so does the cap');
+  show.day();
+  assert.equal(worn.at(-1), 0, 'the chapter is over: the cap comes off');
+  const left = createShow(c);
+  left.update(video(260));
+  assert.equal(worn.at(-1), 1);
+  left.dispose();
   assert.equal(worn.at(-1), 0, 'left in the dusk: the cap comes off');
 });
 

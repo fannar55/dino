@@ -223,12 +223,33 @@ function reach(arm, goal, pole) {
 
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Where a dancer stood when its dance took it, and `back()`, which stands it there again. The dances write a whole turn on the
+ * root (its quaternion: a heading, a rear, a roll), and three reads that back into the root's angles; past a quarter turn the
+ * heading comes back as half turns about the two other axes. A heading alone does not undo those (actor.place sets one angle), and
+ * the engine's feet read that one angle: Mosi's legs then stood one way and his body another when he turned to the roar (the
+ * owner's report of 2026-11-11). So the root's own angles are kept and given back.
+ */
+function homeOf(actor) {
+  const { root } = actor;
+  const home = {
+    position: root.position.clone(),
+    heading: actor.heading,
+    rotation: root.rotation.clone(),
+    back() {
+      root.rotation.copy(home.rotation);
+      actor.place(home.position.x, home.position.z, home.heading);
+    },
+  };
+  return home;
+}
+
 function egillRig(c, clock, options) {
   const actor = c.egill?.raw;
   if (!actor?.control || !actor.model) return null;
   const { root, model } = actor;
   const bone = name => model.getObjectByName(name);
-  const home = { position: root.position.clone(), heading: actor.heading };
+  const home = homeOf(actor);
   const head = bone('Head');
   const neck = bone('Neck');
   const spine = bone('Spine');
@@ -289,7 +310,7 @@ function egillRig(c, clock, options) {
       layer.restore();
       clips.release();
       actor.control(null);
-      actor.place(home.position.x, home.position.z, home.heading);
+      home.back();
       actor.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 35 });
     },
   };
@@ -300,7 +321,7 @@ function mosiRig(c, clock, options) {
   if (!actor?.control || !actor.model) return null;
   const { root, model } = actor;
   const bone = name => model.getObjectByName(name);
-  const home = { position: root.position.clone(), heading: actor.heading };
+  const home = homeOf(actor);
   const head = bone('Head');
   const neck = bone('Neck');
   const tail = ['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5'].map(bone).filter(Boolean);
@@ -360,7 +381,7 @@ function mosiRig(c, clock, options) {
       layer.restore();
       clips.release();
       actor.control(null);
-      actor.place(home.position.x, home.position.z, home.heading);
+      home.back();
       actor.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 35 });
     },
   };
@@ -371,7 +392,7 @@ function flugedlaRig(c, clock, options) {
   if (!actor?.control || !actor.model) return null;
   const { root, model } = actor;
   const bone = name => model.getObjectByName(name);
-  const home = { position: root.position.clone(), heading: actor.heading };
+  const home = homeOf(actor);
   const head = bone('Head');
   const neck = bone('Neck3');
   const chain = NECK.map(([name, share]) => ({ bone: bone(name), share })).filter(link => link.bone);
@@ -443,7 +464,7 @@ function flugedlaRig(c, clock, options) {
       layer.restore();
       clips.release();
       actor.control(null);
-      actor.place(home.position.x, home.position.z, home.heading);
+      home.back();
       actor.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 80, maxPitch: 35 });
     },
   };

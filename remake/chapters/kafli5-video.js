@@ -155,5 +155,5 @@ export function shielded(name, part, say = message => console.error(message)) {
       return undefined;
     }
   };
-  return { update: guard('update'), cue: guard('cue'), dispose: guard('dispose') };
+  return { update: guard('update'), cue: guard('cue'), dispose: guard('dispose'), day: guard('day') }; // (day: the show's own)
 }
