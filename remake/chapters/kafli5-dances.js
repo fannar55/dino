@@ -11,6 +11,7 @@
 //                         its squash and what its model plays; x: { reduced, ground(x, z), her: [x, y, z], setBeat }
 //   memberOf(group, k, seats)  a member for danceOf: seat `k` of `seats` ([{ x, y, z, heading }])
 //   stageMembers()        every dancer on the pool's own seats, flat ground: for tests and tools
+//   audienceOf(group, k, seats)  one of those that came and stand on the far bank (not in the choir): it dances where it stands
 //   createDances(c)       the scene's: { update(video), cue(event), dispose() }
 //
 // A dance is built of a few moves a group has (its bob, its jump, its own number: the stomp, the spin on the shell, the leaps
@@ -81,6 +82,13 @@ const FILE = { order: [2, 0, 1], more: [5.2, 0, -5.2], lane: [33.4, 36, 36] };
 export function memberOf(group, k, seats) {
   const seat = seats[k];
   return { group, k, n: seats.length, x: seat.x, y: seat.y, z: seat.z, heading: seat.heading, seats, late: 0.05 * Math.sin(k * 2.7 + 1), size: 1 + 0.08 * Math.sin(k * 1.9 + 0.4) };
+}
+/**
+ * One of the rest of those that came (the lizards, grazers and flyers on the bank beyond Egill and Mosi, not in the choir): it
+ * dances as its kind does, where it stands (no line, no flight, no parade).
+ */
+export function audienceOf(group, k, seats) {
+  return { ...memberOf(group, k, seats), audience: true };
 }
 /** Every dancer on the pool's own seats (kafli5-pool.js, kafli5-stage.js) over flat ground at `level`: for tests and tools. */
 export function stageMembers(level = LEVEL) {
@@ -244,7 +252,7 @@ function strike(P, m, w, size = 1) {
     case 'grazers': P.pitch += 0.15 * w; P.dy += 0.42 * w; P.roll += 0.06 * side * w; P.turn += 14 * (1 - m.k) * w * size; break;
     case 'turtles': P.look = lerp(P.look, 1, w); P.pitch += 0.32 * w; P.roll += 0.28 * side * w; P.dy += 0.14 * w; break;
     case 'frogs': P.leap = lerp(P.leap, 1, w); P.pitch += 0.5 * w; P.dy += 0.3 * w; P.turn += 16 * (BOW.indexOf(m.k) - 2) * w * size; break;
-    case 'lizards': P.pitch += 0.42 * w; P.dy += 0.3 * w; P.turn += 12 * (LINE.indexOf(m.k) - 2.5) * w * size; P.peer = lerp(P.peer, 1, w); break;
+    case 'lizards': P.pitch += 0.42 * w; P.dy += 0.3 * w; P.turn += 12 * (LINE.indexOf(m.k % 6) - 2.5) * w * size; P.peer = lerp(P.peer, 1, w); break;
     case 'flyers': P.glide = lerp(P.glide, 1, w); P.flap *= 1 - w; P.pitch += 0.38 * w; P.dy += 0.5 * w; P.roll += 0.14 * side * w; break;
     case 'beetles': P.kickA = lerp(P.kickA, 1, w); P.pitch += 0.5 * w; P.dy += 0.12 * w; break;
     default: break;
@@ -701,11 +709,11 @@ const MOVES = {
   },
   lizards(P, m, u, x) {
     if (m.group !== 'lizards') { watch(P, m, u, x, 'lizards'); return; }
-    line(P, m, u, x, { still: x.reduced });
+    line(P, m, u, x, { still: x.stay });
   },
   flyers(P, m, u, x) {
     if (m.group !== 'flyers') { watch(P, m, u, x, null); if (m.group !== 'turtles') P.pitch += 0.1 * win(u, 2, 4) * (1 - win(u, 13, 15)); return; }
-    eight(P, m, u, { still: x.reduced });
+    eight(P, m, u, { still: x.stay });
   },
   // the percussion alone: the beetles drum, everyone else nearly still
   beetles(P, m, u, x) {
@@ -743,7 +751,7 @@ const MOVES = {
     if (m.group === 'lizards') { P.run = Math.max(P.run, 0.5 * a); P.runAt = roll; }
     if (m.group === 'grazers') { P.walk = Math.max(P.walk, 0.5 * a); P.walkAt = roll / 2; }
     // the countdown: the group that answers a number pops up
-    const count = { grazers: 23, turtles: 25, frogs: 27, lizards: 29 }[m.group];
+    const count = m.audience ? null : { grazers: 23, turtles: 25, frogs: 27, lizards: 29 }[m.group];
     if (count) jump(P, m, u, count, 0.75 * JUMP[m.group] * x.size, 1.0);
     squat(P, 0.3 * hold * (x.reduced ? 0.5 : 1));
     if (m.group === 'turtles') P.hide = Math.max(P.hide, 0.7 * hold);
@@ -752,7 +760,7 @@ const MOVES = {
   drop(P, m, u, x) {
     jump(P, m, u, 0, JUMP[m.group] * x.size, 1.7);
     const wild = win(u, 1.6, 2.4) * (1 - win(u, 15, 16));
-    if (x.reduced) { bob(P, m, u, wild); return; }
+    if (x.stay) { bob(P, m, u, wild * (x.reduced ? 1 : 1.3)); return; }
     switch (m.group) {
       case 'grazers': { const Q = blank(); stomp(Q, m, u, 1.45); Object.assign(P, blend(P, Q, wild)); break; }
       case 'turtles': shell(P, m, u, { beats: 16, fast: 2.2 }); break;
@@ -816,7 +824,7 @@ const MOVES = {
   carnival(P, m, u, x) {
     const hopps = HOPPS.map(b => b - partOf('carnival').from);
     for (const at of hopps) jump(P, m, u, at, 0.7 * JUMP[m.group] * x.size, 1.2);
-    if (x.reduced) { bob(P, m, u, 1); return; }
+    if (x.stay) { bob(P, m, u, 1); pop(P, m, x.beat, 0.15 * x.size); return; }
     const out = win(u, 2.5, 13.5), back = win(u, 18, 28);
     const far = out - back; // 0 at home, 1 at the far end of the parade
     const going = hop((u - 2.5) / 11) + hop((u - 18) / 10); // moving (1 in the middle of each way)
@@ -884,7 +892,7 @@ const MOVES = {
   fakeend(P, m, u, x) { strikeAt(P, m, u, 0, x.size); },
   // the last chorus: every dance at once, the biggest
   lastchorus(P, m, u, x) {
-    if (x.reduced) { tune(P, m, u, x, 1.2); return; }
+    if (x.reduced || (m.audience && m.group !== 'grazers')) { tune(P, m, u, x, 1.2); return; }
     const v = u >= 32 ? 16 : u % 16;
     switch (m.group) {
       case 'grazers': stomp(P, m, u, 1.3 * win(u, 0, 0.6) * (1 - win(u, 31, 32))); break;
@@ -929,7 +937,7 @@ function partPose(part, m, beat, x) {
  */
 export function danceOf(m, beat, x = {}) {
   const at = {
-    reduced: Boolean(x.reduced), size: x.reduced ? 0.5 : 1, beat, ground: x.ground ?? (() => m.y),
+    reduced: Boolean(x.reduced), stay: Boolean(x.reduced || m.audience), size: x.reduced ? 0.5 : 1, beat, ground: x.ground ?? (() => m.y),
     her: x.her ?? [WADE.at[0], LEVEL + 3.2, WADE.at[1]],
   };
   const part = partAt(beat);
@@ -991,10 +999,19 @@ export function createDances(c) {
   const ground = (x, z) => c.world?.heightAt?.(x, z) ?? LEVEL;
   // everyone as they stand when the set starts: these are the seats the dances are danced from
   const groups = { ...Object.fromEntries(GROUPS.map(group => [group, c.members?.[group] ?? []])), beetles: life?.pool?.beetles ?? [], dragonflies: life?.pool?.dragonflies ?? [] };
+  const seatsOfThese = things => things.map(b => ({ x: b.gather.at.x, y: b.gather.at.y, z: b.gather.at.z, heading: b.gather.heading }));
   const dancers = Object.entries(groups).flatMap(([group, things]) => {
-    const seats = things.map(b => ({ x: b.gather.at.x, y: b.gather.at.y, z: b.gather.at.z, heading: b.gather.heading }));
+    const seats = seatsOfThese(things);
     return things.map((b, k) => ({ b, m: memberOf(group, k, seats) }));
   });
+  // and the rest of those that came, on the bank beyond Egill and Mosi: the whole forest dances, each where it stands
+  const inChoir = new Set(dancers.map(({ b }) => b));
+  const KIND = { grasbitur: 'grazers', smaedla: 'lizards', salamander: 'lizards', flugdyr: 'flyers' };
+  for (const group of ['grazers', 'lizards', 'flyers']) {
+    const things = (life?.arrivals ?? []).filter(b => KIND[b.kind] === group && !inChoir.has(b) && b.gather);
+    const seats = seatsOfThese(things);
+    things.forEach((b, k) => dancers.push({ b, m: audienceOf(group, k, seats) }));
+  }
   // where the dragonflies circle: over her crest as she stands in the water now
   const head = c.sloedla?.raw?.headPosition?.(new c.world.THREE.Vector3()) ?? null;
   const her = head ? [head.x, Math.max(head.y, LEVEL + 2) + 0.2, head.z] : [WADE.at[0], LEVEL + 3.2, WADE.at[1]];

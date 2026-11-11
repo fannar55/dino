@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { PARTS, CALLS, TUNE, SLIP, JUMP, partAt, danceOf, stageMembers, createDances } from '../chapters/kafli5-dances.js';
+import { PARTS, CALLS, TUNE, SLIP, JUMP, partAt, danceOf, stageMembers, audienceOf, createDances } from '../chapters/kafli5-dances.js';
 import { RUN, EIGHT, eightPoint, stageLife, LOG } from '../chapters/kafli5-stage.js';
 import { BENDS, danceBeatAt } from '../chapters/kafli5-video.js';
 import { SONG } from '../chapters/kafli5-set.js';
@@ -530,7 +530,10 @@ test('the scene\'s dances: every dancer gets its pose each frame, a call\'s own 
   };
   step();
   const dances = createDances(c);
-  assert.equal(dances.dancers.length, 3 + 5 + 6 + 3);
+  // the pool's turtles, frogs, beetles and dragonflies, and those that came and are not in the choir (here: all of them)
+  const audience = dances.dancers.filter(({ m }) => m.audience);
+  assert.equal(dances.dancers.length - audience.length, 3 + 5 + 6 + 3);
+  assert.equal(audience.length, life.arrivals.length);
   dances.update({ beat: 163.2, setBeat: 163.2, frozen: false, rewinding: false, section: null });
   step();
   assert.ok(life.pool.frogs.some(b => b.position.distanceTo(b.gather.at) > 0.3), 'a frog is between its pads');
@@ -561,4 +564,27 @@ test('the crowds draw a roll: a critter rolled a quarter turn has its top to its
   assert.deepEqual(top(1), [0, 0, 1], 'heading 0 faces +X: its right is +Z');
   assert.deepEqual(top(2), [0, -1, 0]);
   crowds.dispose();
+});
+
+test('the rest of those that came dance too, each where it stands: no line, no flight, no parade, but every jump', () => {
+  const spots = FAR_POOL.gather.map(([x, z]) => ({ x, y: LEVEL + 1, z, heading: 200 }));
+  const crowd = ['grazers', 'lizards', 'flyers'].flatMap(group => spots.slice(0, 9).map((_, k) => audienceOf(group, k, spots)));
+  for (const m of crowd) {
+    let before = null, most = 0;
+    for (const f of frames) {
+      const d = danceOf(m, f.beat, { setBeat: f.setBeat });
+      assert.ok(away(d) <= 1, `${m.group} ${m.k} of the audience is ${away(d).toFixed(2)} m from its place at ${f.beat.toFixed(1)}`);
+      assert.ok(d.dy < JUMP[m.group] * 1.2 + 0.6);
+      if (before && !f.frozen && !before.f.frozen) {
+        const speed = f.rewinding || before.f.rewinding ? 2 : 1;
+        assert.ok(Math.hypot(d.dx - before.d.dx, d.dy - before.d.dy, d.dz - before.d.dz) * d.mix <= STEP[m.group][0] * speed, `${m.group} of the audience jumps at ${f.setBeat.toFixed(2)}`);
+      }
+      most = Math.max(most, d.dy);
+      before = { d, f };
+    }
+    assert.ok(most > 0.9 * JUMP[m.group], 'it jumps with everyone');
+    const floor = Array.from({ length: 16 }, (_, i) => danceOf(m, part('groove').from + 9 + i / 8).dy);
+    assert.ok(Math.max(...floor) - Math.min(...floor) > 0.1, 'it bobs on the dance floor');
+    assert.deepEqual(danceOf(m, danceBeatAt(BENDS.freeze.from + 4).beat, { setBeat: BENDS.freeze.from + 4 }), danceOf(m, danceBeatAt(BENDS.freeze.from).beat, { setBeat: BENDS.freeze.from }), 'and stands still in the freeze');
+  }
 });
