@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import * as kafli5 from '../chapters/kafli5.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
-import { MELODY, GROUPS, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from '../chapters/kafli5-song.js';
+import { MELODY, GROUPS, TEMPO, LAYER_LEVELS, PHRASE_LAYERS, CALM } from '../chapters/kafli5-song.js';
 import { SONG } from '../chapters/kafli5-set.js';
 import { CAMERA } from '../chapters/kafli5-video.js';
 import { HELP } from '../chapters/kafli5-choir.js';
@@ -268,6 +268,49 @@ test('each phrase brings in its part of the band, and the loop is blended into t
   assert.ok(blend.seconds >= 2 * BEAT * 2 && blend.seconds <= 16 * BEAT, `the loop's last part is out ${blend.seconds.toFixed(2)} s into the set`);
   for (const layer of ['drums', 'bass', 'music', 'far']) assert.equal(c.band.level(layer), 0, `${layer} is out by the end`);
   assert.equal(c.band.playing, false, 'the loop has left');
+});
+
+test('the chapter is never silent: the pool is heard and a calm music plays from the start, no music while her song is lost, and both again when the set is over', async () => {
+  const run = await quick();
+  ended(run, 'eager');
+  const c = run.world.chapterState;
+  const said = id => run.seen.spokenAt.get(id);
+  const sounds = logOf(run, 'sound');
+  const named = name => sounds.filter(entry => entry.name === name);
+  // the pool's bed (the owner, 2026-11-11: "núna er allt hljótt þangað til lag byrjar")
+  const beds = named('fen');
+  assert.equal(beds.length, 3);
+  assert.ok(beds[0].at < sceneAt(run, 1) + 0.5 && beds[0].calls !== false, 'the pool is heard from the first moment, frogs and all');
+  assert.ok(Math.abs(beds[1].at - sceneAt(run, 3)) < 0.5 && beds[1].calls === false, 'only its water while the choir is listened to (a frog of the bed is not a frog of the choir)');
+  assert.ok(beds[2].at >= c.set.ended && beds[2].at < sceneAt(run, 7) && beds[2].calls !== false, 'and its frogs again when the set is over');
+  // the calm music: the set's quiet record, a layer of the loop
+  const calm = logOf(run, 'calm');
+  assert.deepEqual(calm.map(entry => entry.on), [true, false, true]);
+  assert.ok(calm[0].at < sceneAt(run, 1) + 0.5, 'from the first moment');
+  assert.ok(calm[1].at >= said('k5_sloedla_forgot') && calm[1].at < sceneAt(run, 3), 'it goes when she has said her song is lost');
+  assert.ok(calm[1].at + CALM.out < sceneAt(run, 4), 'and is gone before the far band comes: the choir finds the music again');
+  const [roar] = logOf(run, 'roar');
+  assert.ok(calm[2].at > roar.at + 3, 'the roar is heard in the quiet, and the music comes after it');
+  assert.equal(c.band.level('calm'), CALM.level, 'it plays to the book');
+  for (const layer of ['drums', 'bass', 'music', 'far']) assert.equal(c.band.level(layer), 0, layer + ' stays out');
+  // what happens is heard
+  const [peek] = logOf(run, 'peek');
+  assert.ok(named('sailRise').some(entry => Math.abs(entry.at - peek.at) < 0.2), 'the reed rustles as she peeks');
+  const walk = named('step').filter(entry => entry.at > sceneAt(run, 2) && entry.at < sceneAt(run, 3));
+  assert.ok(walk.length >= 4, walk.length + ' of Mosi\'s steps down to the water');
+  walk.slice(1).forEach((step, k) => assert.ok(step.at - walk[k].at > 0.4, 'a walk, not a drum roll'));
+  const off = said('k5_mosi_animals');
+  const calls = sounds.filter(entry => entry.call && entry.at >= off - 0.5 && entry.at < sceneAt(run, 3));
+  assert.deepEqual(calls.map(entry => entry.call).sort(), [...GROUPS].sort(), 'each group answers as it sets off');
+  calls.forEach(entry => assert.ok(Math.abs(entry.pan) <= 0.8, 'from where it is'));
+  // her feet in the water: every step out of the reed, and the wade
+  const steps = logOf(run, 'step');
+  assert.equal(steps.length, MELODY.length - 1);
+  const strokes = named('swim');
+  for (const step of steps) assert.ok(strokes.some(entry => entry.at >= step.at && entry.at < step.at + 1), 'water as she steps out (step ' + step.step + ')');
+  assert.ok(strokes.some(entry => entry.at >= sceneAt(run, 6) && entry.at < run.world.chapterState.songStart), 'and as she wades out');
+  strokes.slice(1).forEach((stroke, k) => assert.ok(stroke.at - strokes[k].at > 1.5, 'one stroke under the last of the one before, never a pile'));
+  assert.ok(strokes.every(stroke => stroke.at < run.world.chapterState.songStart), 'none in the set');
 });
 
 test('scene 6 plays the whole set: every part of it in order, her words on the screen, the right shots, and then her thanks', async () => {

@@ -207,6 +207,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   let bed = null; // the one laid: { name, sources, fade, nodes }
   let wanted = null; // the one the scene asked for: it is laid as soon as sound is allowed (the context wakes a moment after the touch)
   let callIn = 0; // game seconds until the next small sound over the bed
+  let calls = true; // whether the bed has its small sounds: play('fen', { calls: false }) is the water alone (chapter 5's choir)
 
   /** Lays the bed called `name`, fading out the other one if it is laid. Whether it laid it (not when it was laid already). */
   function startBed(name) {
@@ -560,6 +561,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       if (typeof name !== 'string' || !Object.hasOwn(SOUNDS, name)) return false;
       if (BEDS.includes(name)) {
         wanted = name;
+        calls = detail?.calls !== false;
         return allowed() && startBed(name);
       }
       if (!allowed() || sounding >= MAX_SOUNDS) return false;
@@ -576,7 +578,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     update(dt) {
       if (!allowed()) return;
       if (wanted && bed?.name !== wanted) startBed(wanted);
-      if (!bed) return;
+      if (!bed || !calls) return;
       callIn -= dt;
       if (callIn > 0) return;
       if (bed.name === 'fen') {

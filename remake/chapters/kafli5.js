@@ -11,8 +11,7 @@
 // kafli5-sloedla.js and the tones in engine/audio/choir-sounds.js. The golden afternoon sun (engine/looks.js goldenAfternoon)
 // stands at heading 215, 14 degrees up.
 //
-// Chunks 1 and 2 (the plan's Tasks 4 and 5): the place, the animals and her model in their real look, made tones, captions only,
-// no music; her life in the reed and out of it (kafli5-sloedla.js: she hides, peeks, walks a step out after each phrase, shy to
+// Chunks 1 and 2 (the plan's Tasks 4 and 5): the place, the animals and her model in their real look; her life in the reed and out of it (kafli5-sloedla.js: she hides, peeks, walks a step out after each phrase, shy to
 // brave, and wades out for the whole song). The scenes:
 //   1 the map draws piece e; the false horn from the reed; "Þarna aftur!" "Hún er í sefinu."
 //   2 Egill and Mosi walk down to the water across from the reed, her crest over it; a tap on the reed (or 8 s) and she peeks out;
@@ -25,7 +24,7 @@
 import { createRoute, FAR_POOL } from './kafli4-route.js';
 import { lineQueue } from './kafli4-flight-play.js';
 import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
-import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from './kafli5-song.js';
+import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS, CALM } from './kafli5-song.js';
 import { SONG } from './kafli5-set.js';
 import { CAMERA, danceBeatAt, sectionAt, shielded } from './kafli5-video.js';
 import { createDances } from './kafli5-dances.js';
@@ -40,6 +39,7 @@ import { loadCritters } from '../world/ardalur/animals.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
 import { createChoirSounds, loadChoirRecordings } from '../engine/audio/choir-sounds.js';
 import { demoAsked, startDemoChild } from './kafli5-demo.js';
+import { SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 
 const ROUTE = createRoute({ wingspan: 7.5 }); // chapter 4's valley, the very same land (kafli4.js ROUTE)
 const LEVEL = FAR_POOL.level;
@@ -100,6 +100,17 @@ const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
 // The share is halved until every group and the reed are inside FRAMED of the frame from its middle (an upright screen turns less).
 const LEAN = { share: 0.15, seconds: 1.6, framed: 0.9, tries: 4 };
+// The sound outside the song (the owner, 2026-11-11: all was silent until the song began). The pool's own bed (sfx.js 'fen': water on
+// the bank, the reed, a frog or a drip now and then) from the first moment, the water alone while the choir is listened to (a frog
+// of the bed is not a frog of the choir) and under the set, and whole again after it. A calm music (kafli5-song.js CALM: the set's
+// quiet record, a layer of the loop) until she says her song is lost, and again after the roar: between them the only music is what
+// the choir finds. And what happens is heard, with the game's own sounds:
+const CALLS = { grazers: 'grazers', turtles: 'turtleCall', frogs: 'frog', lizards: 'lizards', flyers: 'flyers' }; // each group's own voice (sfx.js)
+const CALL = { first: 0.5, apart: 0.8, level: 0.7 }; // s: the groups answer one after another as they set off
+const ON_THE_WAY = [['flyers', 2], ['grazers', 4.5], ['lizards', 7]]; // those that walk or fly round the pool call once on the way (s into scene 3)
+const STEPS_DOWN = { every: 0.62, level: 0.55 }; // Mosi's footfalls as he walks down to the water (1 m/s)
+const TURN_STEPS = { at: [0.5, 1.2, 1.9, 2.6], level: 0.45 }; // and as he turns to the roar
+const END_FADE = 1.5; // s the calm music takes to go when the chapter has ended in the book
 const TO_THE_MAP = 1.2; // s the book shows its dinosaurs (Slóeðla nodding) before it turns to the map, as chapter 4's
 
 // ---------------------------------------------------------------------------------------------
@@ -118,6 +129,8 @@ function* story(s, c) {
 function* mapAndPool(s, c) {
   mark(c, 1);
   const { mosi, egill, flugedla, world } = c;
+  sound(s, c, 'fen'); // the pool, as chapter 4 left it
+  calm(c, true);
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
   yield s.wait(2.2); // the pool as chapter 4 left it, before the map
   yield* mapMoment(s, c, { pieces: ['e'], line: 'k5_mosi_map', speak: (speaker, id) => say(s, c, speaker, id) });
@@ -144,7 +157,10 @@ function* shyInTheReed(s, c) {
   yield egill.lookAt(null);
   const down = s.all(mosi.walkTo([SPOTS.mosi], { speed: 1, turnRate: 50 }), egill.walkTo([SPOTS.egill], { speed: 0.75, turnRate: 70 }));
   yield s.camera.cut('bank_talk');
+  let walking = true;
+  soundWhile(s, c, 'step', STEPS_DOWN.every, () => walking, { level: STEPS_DOWN.level });
   yield down;
+  walking = false;
   mosi.turnTo(headingTo(SPOTS.mosi, SPOTS.reed), { rate: 40 });
   egill.turnTo(headingTo(SPOTS.egill, SPOTS.reed), { rate: 60 });
   yield mosi.lookAt(REED_POINT, { weight: 0.7, maxAngle: 70, maxPitch: 30 });
@@ -158,16 +174,19 @@ function* shyInTheReed(s, c) {
   aim(s, c, 'reed', null);
   c.log({ type: 'peek', tapped: tapped === 'reed' });
   c.her.peek(true);
+  sound(s, c, 'sailRise'); // the reed rustles round her as she rises
   yield s.wait(PEEK_HOLD);
   yield s.camera.cut('bank_talk');
   yield* say(s, c, 'mosi', 'k5_mosi_invite');
   yield s.camera.cut('reed_close');
   yield s.wait(1.2); // shy: she does not answer at once
   yield* say(s, c, 'sloedla', 'k5_sloedla_forgot');
+  calm(c, false); // her song is lost: no music now, until the choir finds it
   c.her.peek(false);
   yield s.wait(1.4); // down again, sad
   yield s.camera.cut('bank_talk');
   sendTheChoir(c); // "they remember": the animals set off for their places
+  GROUPS.forEach((group, k) => s.after(CALL.first + k * CALL.apart, () => { call(s, c, group); return null; })); // and each answers
   yield* say(s, c, 'mosi', 'k5_mosi_animals');
   yield s.wait(0.4);
 }
@@ -175,6 +194,8 @@ function* shyInTheReed(s, c) {
 // 3. The five groups come to their places in a bow round the pool, and each sings its tone once, low to high.
 function* takeTheirPlaces(s, c) {
   mark(c, 3);
+  sound(s, c, 'fen', { calls: false }); // only the water from here: the choir is listened to
+  for (const [group, at] of ON_THE_WAY) s.after(at, () => { if (c.scene === 3) call(s, c, group); return null; });
   yield s.camera.cut('choir_wide');
   yield s.until(() => GROUPS.every(group => c.members[group].every(b => !b.trip)));
   yield s.wait(1);
@@ -291,6 +312,8 @@ function* phraseDone(s, c, phrase) {
     c.her.courage = COURAGE[phrase + 1];
     const out = c.her.stepOut(phrase + 1);
     c.log({ type: 'step', step: phrase + 1 });
+    if (phrase === 0) sound(s, c, 'sailRise'); // out of the reed
+    soundWhile(s, c, 'swim', SWIM_STROKE, () => c.her.moving); // her feet in the water
     if (phrase === 1) yield* say(s, c, 'mosi', 'k5_mosi_remember');
     else yield s.wait(2.6);
     yield s.camera.cut(phrase + 1 === STEPS.length - 1 ? 'sloedla_out' : 'reed_close'); // the last step comes out of the reed's shot, into the pool's
@@ -339,7 +362,9 @@ function* theWholeSong(s, c) {
   const { mosi, egill, flugedla } = c;
   yield s.camera.cut('sloedla_out');
   c.her.courage = COURAGE[STEPS.length];
-  yield c.her.wade();
+  const wading = c.her.wade();
+  soundWhile(s, c, 'swim', SWIM_STROKE, () => c.her.moving);
+  yield wading;
   c.her.happy();
   for (const who of [mosi, egill]) yield who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 35 });
   yield flugedla.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 80, maxPitch: 35 });
@@ -408,6 +433,7 @@ function* theWholeSong(s, c) {
   }
   c.her.idle();
   flugedla.raw.play('idle', { fade: 0.6 });
+  sound(s, c, 'fen'); // the set is over: the pool again, its frogs in the dusk
   yield s.camera.cut('sloedla_out');
   yield* say(s, c, 'sloedla', 'k5_sloedla_thanks');
   s.sfx('star');
@@ -477,10 +503,12 @@ function* answerFromAfar(s, c) {
   s.sfx('gramedlaRoar', { level: ROAR.level, pan: panOf(world, west) });
   c.log({ type: 'roar' });
   mosi.turnTo(headingTo(SPOTS.mosi, WEST), { rate: 30 });
+  for (const at of TURN_STEPS.at) s.after(at, () => { sound(s, c, 'step', { level: TURN_STEPS.level }); return null; });
   egill.turnTo(headingTo(SPOTS.egill, WEST), { rate: 50 });
   c.sloedla.turnTo(headingTo(WADE.at, WEST), { rate: 25 });
   for (const who of [mosi, egill, flugedla]) yield who.lookAt(west, { weight: 0.8, maxAngle: 80, maxPitch: 20 });
   yield s.wait(4.2);
+  calm(c, true); // the roar was heard in the quiet; the calm music again, to the book
   yield* say(s, c, 'mosi', 'k5_mosi_gramedla');
   yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 30 });
   yield* say(s, c, 'egill', 'k5_egill_next');
@@ -741,6 +769,36 @@ function* say(s, c, speaker, id, options) {
   }
 }
 
+/** A sound effect, noted in the chapter's log with its detail (the tests' ear: a seeking run plays none). */
+function sound(s, c, name, detail) {
+  c.log({ type: 'sound', name, ...(detail ?? {}) });
+  s.sfx(name, detail);
+}
+
+/** The sound `name` every `every` s while `going()`: her strokes through the water, Mosi's footfalls. */
+function soundWhile(s, c, name, every, going, detail) {
+  s.after(0, function* sounding() {
+    while (going() && !c.ended) {
+      sound(s, c, name, detail);
+      yield s.wait(every);
+    }
+  });
+}
+
+/** A group's own voice, from where it is. */
+function call(s, c, group) {
+  const { at } = CHOIR[group];
+  c.log({ type: 'sound', name: CALLS[group], call: group, pan: panOf(c.world, [at[0], LEVEL + 1, at[1]]) });
+  s.sfx(CALLS[group], { pan: panOf(c.world, [at[0], LEVEL + 1, at[1]]), level: CALL.level });
+}
+
+/** The calm music comes (the loop plays from then on, its band silent until the choir) or goes. */
+function calm(c, on) {
+  if (on) c.band.play();
+  c.band.layer('calm', on ? CALM.level : 0, on ? CALM.in : CALM.out);
+  c.log({ type: 'calm', on });
+}
+
 /** A tap target (`point` null: none), kept in `c.aims` by name for the videos' child (kafli5-demo.js). */
 function aim(s, c, name, point, radius) {
   s.target(name, point ? { point, radius } : null);
@@ -856,7 +914,7 @@ export const chapter = {
       c.show?.day(); // the afternoon, and the sun's cap off, for whatever is played next
       release?.();
       c.sounds.stop();
-      c.band.stop(0.3);
+      c.band.stop(c.scene === 'end' ? END_FADE : 0.3);
       c.song.stop(0.5);
       for (const off of releases) off?.();
     }

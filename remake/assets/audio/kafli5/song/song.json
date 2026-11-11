@@ -16,7 +16,8 @@
       "drums": "loop-drums.mp3",
       "bass": "loop-bass.mp3",
       "music": "loop-music.mp3",
-      "far": "loop-far.mp3"
+      "far": "loop-far.mp3",
+      "calm": "loop-calm.mp3"
     },
     "startSec": 1.92,
     "seconds": 15.36,

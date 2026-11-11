@@ -5,7 +5,9 @@
 //
 //   djamm.mp3        the whole set, as rendered (scene 6 streams it: engine/audio/song.js)
 //   loop-<layer>.mp3 the set's loop (its beats 64-96: the band alone, one whole chord cycle) a layer a file, for scenes 4-5
-//                    (engine/audio/stems.js): drums, bass, music, and far (the three together, muffled, as heard from far away).
+//                    (engine/audio/stems.js): drums, bass, music, and far (the three together, muffled, as heard from far away);
+//                    and calm, eight bars of the set's quiet record (the one under her horn: no drums, the song's key and
+//                    tempo), which plays low under the chapter's first scenes and its last (kafli5-song.js CALM).
 //                    Each file is the loop's last bar, the loop, and its first bar again, so the loop's two ends are in the file
 //                    with what comes round before and after them, and a decoder that starts a few milliseconds off still loops
 //                    cleanly; song.json says where the loop starts in the file and how long it is.
@@ -39,6 +41,10 @@ export const LAYERS = {
   bass: { stems: ['bass'] },
   music: { stems: ['music'] },
   far: { stems: ['drums', 'bass', 'music'], muffle: 420, gain: 3 },
+  // the quiet record itself (SOURCES.md says where it is kept): its bars 8 to 15, two turns of its four chords, so the loop is as
+  // long as the band's. It is a record of long notes, so its end is blended over `seam` s into what comes before its start in
+  // the record, and the loop comes round with no step in the sound.
+  calm: { record: 'remake/assets/audio/sloedla/v2/djamm-rolegt', fromBar: 8, seam: 0.1, gain: -6 },
 };
 /** The cues the music video is cut to: every cue of the render but her lines (they are `lines`), each without the name of its sound. */
 const NOT_SHOWN = ['dj'];
@@ -104,8 +110,28 @@ export function creditsOf(render) {
   ].join('\n');
 }
 
+/** A layer cut from a record of its own (LAYERS.calm): the loop's last bar, the loop, its first bar, the loop's end blended round. */
+function writeRecordLayer({ record, fromBar, seam, gain = 0 }, render, file) {
+  const beat = Math.round((60 / render.bpm) * RATE), bar = 4 * beat;
+  const { beatOffset, bpm } = JSON.parse(fs.readFileSync(path.join(ROOT, record, 'song.json'), 'utf8'));
+  if (Math.abs(bpm - render.bpm) > 0.01) throw new Error(`${record} is at ${bpm} beats a minute, the set at ${render.bpm}`);
+  const a = Math.round(beatOffset * RATE) + fromBar * bar, b = a + render.loop.beats * beat, x = Math.round(seam * RATE);
+  const cut = (from, to) => `atrim=start_sample=${from}:end_sample=${to},asetpts=PTS-STARTPTS`;
+  const graph = `[0:a]volume=${gain}dB,asplit=4[p][q][r][s];`
+    + `[p]${cut(a, b - x)}[body];`
+    + `[q]${cut(b - x, b)},afade=t=out:d=${seam}:curve=qsin[out];`
+    + `[r]${cut(a - x, a)},afade=t=in:d=${seam}:curve=qsin[in];`
+    + '[out][in]amix=inputs=2:normalize=0[end];'
+    + '[body][end]concat=n=2:v=0:a=1,asplit=2[loop][again];'
+    + `[again]${cut(render.loop.beats * beat - bar, render.loop.beats * beat)}[last];`
+    + `[s]${cut(a, a + bar)}[first];`
+    + '[last][loop][first]concat=n=3:v=0:a=1[file]';
+  run('ffmpeg', ['-v', 'error', '-y', '-i', path.join(ROOT, record, 'song.mp3'), '-filter_complex', graph, '-map', '[file]', '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', String(RATE), '-ac', '2', file]);
+}
+
 /** One layer's file: the loop's last bar, the loop, its first bar. */
-function writeLayer(layer, { stems, muffle, gain = 0 }, render, file) {
+function writeLayer(layer, { stems, muffle, gain = 0, ...other }, render, file) {
+  if (other.record) return writeRecordLayer({ ...other, gain }, render, file);
   const beat = Math.round((60 / render.bpm) * RATE), bar = 4 * beat; // 125 bpm: a beat is 21168 samples
   const a = render.loop.startBeat * beat, b = a + render.loop.beats * beat;
   const inputs = stems.flatMap(stem => ['-i', path.join(FROM, 'stems', `${stem}.mp3`)]);

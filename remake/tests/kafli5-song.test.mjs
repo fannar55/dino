@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { GROUPS, TONES, MELODY, TEMPO, KEY, PHRASE_LAYERS, LAYER_LEVELS, toneHz, nextBeat } from '../chapters/kafli5-song.js';
+import { GROUPS, TONES, MELODY, TEMPO, KEY, PHRASE_LAYERS, LAYER_LEVELS, CALM, toneHz, nextBeat } from '../chapters/kafli5-song.js';
 
 const SONG = JSON.parse(fs.readFileSync(new URL('../assets/audio/kafli5/song/song.json', import.meta.url), 'utf8'));
 const cents = (a, b) => 1200 * Math.log2(a / b);
@@ -58,6 +58,14 @@ test('a part of the band joins after each phrase, and every layer named is a fil
     assert.ok(Object.entries(step).some(([layer, level]) => level > (levels[layer] ?? 0)), `phrase ${p + 1} is heard`);
     levels = { ...levels, ...step };
   }
+});
+
+test('the calm layer: a file of the loop as long as the others, low, and not one of the parts of the band', () => {
+  assert.equal(SONG.loop.layers.calm, 'loop-calm.mp3');
+  const size = name => fs.statSync(new URL(`../assets/audio/kafli5/song/${name}`, import.meta.url)).size;
+  assert.ok(Math.abs(size('loop-calm.mp3') - size('loop-far.mp3')) < 2000, 'a bar, the loop and a bar, as the layers of the band are');
+  assert.ok(CALM.level > 0 && CALM.level <= 0.5 && CALM.in > 0 && CALM.out > 0);
+  assert.ok(!('calm' in LAYER_LEVELS) && PHRASE_LAYERS.every(step => !('calm' in step)), 'the band of the choir is the band alone');
 });
 
 test('nextBeat is the first beat at or after the time', () => {

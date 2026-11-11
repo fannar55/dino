@@ -36,6 +36,13 @@ export const KEY = { root: 'A', a4: 440 };
 export const LAYER_LEVELS = { far: 0.35 };
 export const PHRASE_LAYERS = [{ drums: 0.45 }, { bass: 0.45 }, { music: 0.45, far: 0 }, { drums: 0.7, bass: 0.7, music: 0.7 }];
 
+/**
+ * The calm layer (the set's quiet record, eight bars of it: tools/kafli5-song.mjs): low under the chapter's first scenes, until she
+ * says she has forgotten her song (then there is no music until the choir finds it), and again after the roar, to the book. `in`
+ * and `out`: the seconds it takes to come and to go.
+ */
+export const CALM = { level: 0.4, in: 3, out: 3.5 };
+
 // Semitones from A to each note in the octave of middle C (C4 to B4), sharps and flats too.
 const FROM_A = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
 function rootHz({ root, a4 }) {

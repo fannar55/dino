@@ -591,7 +591,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     /**
      * Play a sound effect by name and carry on: forest or fen (a quiet bed, laid once, the one taking over from the other), step,
      * frog, snail, beetle, birds, butterfly, flower, plate, star, journal, saddle or float (engine/audio/sfx.js), or chapter 2's
-     * (engine/audio/fen-sounds.js), some of which take a detail: s.sfx('countTone', { index: 3 }). An unknown name does nothing.
+     * (engine/audio/fen-sounds.js), some of which take a detail: s.sfx('countTone', { index: 3 }). An unknown name does nothing. A bed ('forest', 'fen') asked for
+     * with { calls: false } is laid, or goes on, without its small sounds (birds, frogs, drips).
      * Seeking (a capture's silent replay, critter reactions included) makes no sound.
      */
     sfx: (name, detail) => {
