@@ -14,3 +14,11 @@
 - Mosi says his own short line (`mosi`, 9.6 s, he mouths it) instead of the 32 s horns entry; no name line for him.
 - New knob "Út úr skjánum" (`pop`, `?ut=`, 0.6-2, default 1) scales D: at 1.8 in the overview Flugeðla sits at the screen (+0.002 W), Mosi +0.014, trees +0.017, the ground at the bottom edge -0.016.
 - Checked by projecting points through both eye cameras: 0 at D, +0.0199 at 1000 m, -0.02 at D/2 (strength 0.02). A tap on a friend starts its visit.
+
+## Fiðrildadansinn (`?chapter=fidrildi3d`, 2026-11-11)
+- A 60 s passive show: start card, the show, an end card with "Aftur" that plays it again. `t=` seeks show time exactly.
+- Depth is laid out in the frame: (u, v, k), k = depth / D, D = Mosi's head (6.80 m, constant, before the pop share). Flights are timed (u, v, k) keys, Hermite-smoothed, on the scene clock. `world.dans.measure()` prints the parallax table through both eye cameras.
+- Staging is solved once: camera at a child's eye (0.95 m), tilted up 14° so the ground at the bottom edge is 0.858 D; Mosi moved until his head sits at u 0.36 at 6.8 m, facing the camera; Þórseðla's lowerHead held at 0.70 so her Head bone (low in her skull) comes to (0.6, 0.6, 0.6), her root 38° to the right of straight behind it so her body stands to the right, not over Mosi. Slóeðla and Kambeðla stand far back as depth layers.
+- World side (chapter 1 unchanged, before/after kafli1 captures identical): `pollenBurst` takes `direction` and `cone` (default path untouched); `butterflies.follow(name, path)` flies a butterfly along a function until land/flutter takes it; `world/forest/swarm.js` is the pale butterflies again, as many as asked, every one placed by code, one draw call. Swarm scale 1.25, hero moth model 1.5.
+- Comfort: hero hover k 0.483 (+0.021 W), pollen reach k 0.40 (+0.030 W, cone 0.14 rad aimed at u 0.47), swarm nearest k 0.527 inside the middle 60 %, Þórseðla's head k 0.600, final moth k 1.003 (-0.0001 W). Þórseðla's raised neck crosses the top edge at k 0.98 (0.0004 W in front): negligible but not strictly behind.
+- Frame time, quality=tablet, Iris Xe: 24.1 ms GPU with glasses (113 calls), 6.9 ms without.
