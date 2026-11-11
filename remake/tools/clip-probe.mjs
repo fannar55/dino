@@ -24,7 +24,7 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, trace: null, eval: null, jump: 0.3 };
+  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, size: '960x600', quality: 'tablet', trace: null, eval: null, jump: 0.3, maxPush: 0.15, maxPushStep: 0.03 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--step') o.step = Number(next());
@@ -35,6 +35,10 @@ function parseArgs(argv) {
     else if (a === '--query') o.query = next();
     else if (a === '--bodies') o.bodies = next();
     else if (a === '--browser') o.browser = next();
+    else if (a === '--quality') o.quality = next(); // the page's quality (none: the page's own choice)
+    else if (a === '--size') o.size = next(); // the page's size WxH: the frame's aspect moves the flights against the animals
+    else if (a === '--max-push') o.maxPush = Number(next()); // fail over this push (flown less drawn, metres) outside meant contact
+    else if (a === '--max-push-step') o.maxPushStep = Number(next()); // fail over this change of the push in one step (metres)
     else if (a === '--jump') o.jump = Number(next()); // list every move of one butterfly in one step longer than this (metres)
     else if (a === '--eval') o.eval = next(); // an expression to run in the page at the end (to look into one moment), its value printed
     else if (a === '--trace') o.trace = next(); // print one butterfly's place and where it was drawn (state.drawn) every step
@@ -93,7 +97,7 @@ const SETUP = bodies => `(async () => {
       return out;
     };
   }
-  window.__clip = { probe, points, steps: [], names, last: {}, lastDrawn: {}, detour: {}, jump: { d: 0, name: null, t: null }, jumps: {}, big: [] };
+  window.__clip = { probe, points, steps: [], names, last: {}, lastDrawn: {}, detour: {}, jump: { d: 0, name: null, t: null }, jumps: {}, big: [], lastPush: {}, push: {}, pushStep: {}, moves: {} };
   return names;
 })()`;
 
@@ -116,6 +120,23 @@ const STEP = (n, step, trace, jump) => `(async () => {
         if (d > ${jump} && dr && lastDr) { const dr = st.drawn?.[q.name]; c.big.push([q.name, +st.time.toFixed(2), +d.toFixed(2), dr ? window.__world.dans.frameOf(new window.__world.THREE.Vector3(...dr)).map(x => +x.toFixed(2)) : null]); }
       }
       const drawnNow = st.drawn?.[q.name];
+      // the push (flown less drawn) and its change in one step, outside meant contact; and the plain move of each group
+      const group = q.name === 'hero' ? 'hero' : q.name.startsWith('moth') ? 'moths' : 'swarm';
+      if (last) {
+        const mv = Math.hypot(q.p[0] - last[0], q.p[1] - last[1], q.p[2] - last[2]);
+        if (mv > (c.moves[group]?.d ?? 0)) c.moves[group] = { d: mv, t: st.time, name: q.name };
+      }
+      const pv = drawnNow && !q.contact ? [q.p[0] - drawnNow[0], q.p[1] - drawnNow[1], q.p[2] - drawnNow[2]] : null;
+      if (pv) {
+        const m = Math.hypot(...pv);
+        if (m > (c.push[q.name]?.d ?? -1)) c.push[q.name] = { d: m, t: st.time };
+        const lp = c.lastPush[q.name];
+        if (lp) {
+          const dm = Math.hypot(pv[0] - lp[0], pv[1] - lp[1], pv[2] - lp[2]);
+          if (dm > (c.pushStep[q.name]?.d ?? -1)) c.pushStep[q.name] = { d: dm, t: st.time };
+        }
+      }
+      c.lastPush[q.name] = pv;
       if (drawnNow) {
         // how far the shells moved it from where it was drawn (the detour), at most
         const off = Math.hypot(q.p[0] - drawnNow[0], q.p[1] - drawnNow[1], q.p[2] - drawnNow[2]);
@@ -146,6 +167,9 @@ const TABLE = (step, clearance) => `(async () => {
   table.jump = { metres: +c.jump.d.toFixed(4), name: c.jump.name, t: c.jump.t == null ? null : +c.jump.t.toFixed(3) };
   table.big = c.big;
   table.detours = Object.entries(c.detour).sort((a, b) => b[1].d - a[1].d).map(([name, j]) => name + ' ' + j.d.toFixed(2) + ' m at ' + j.t.toFixed(2) + ' s');
+  table.pushes = Object.keys(c.push).map(name => ({ name, push: +c.push[name].d.toFixed(3), pushAt: +c.push[name].t.toFixed(2),
+    step: c.pushStep[name] ? +c.pushStep[name].d.toFixed(4) : 0, stepAt: c.pushStep[name] ? +c.pushStep[name].t.toFixed(2) : null }));
+  table.moves = Object.fromEntries(Object.entries(c.moves).map(([g, m]) => [g, { metres: +m.d.toFixed(3), name: m.name, t: +m.t.toFixed(2) }]));
   table.jumps = Object.entries(c.jumps).sort((a, b) => b[1].d - a[1].d).slice(0, 8).map(([name, j]) => name + ' ' + j.d.toFixed(3) + ' m at ' + j.t.toFixed(2) + ' s');
   return table;
 })()`;
@@ -154,7 +178,8 @@ async function main() {
   const o = parseArgs(process.argv.slice(2));
   const server = await startServer();
   const base = `http://127.0.0.1:${server.address().port}/remake/index.html`;
-  const browser = await launchBrowser({ browser: o.browser, width: 960, height: 600 });
+  const [W, H] = o.size.split('x').map(Number);
+  const browser = await launchBrowser({ browser: o.browser, width: W, height: H });
   const { cdp } = browser;
   let failed = true;
   try {
@@ -167,14 +192,14 @@ async function main() {
     });
     await send('Page.enable');
     await send('Runtime.enable');
-    await send('Emulation.setDeviceMetricsOverride', { width: 960, height: 600, deviceScaleFactor: 1, mobile: false });
+    await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     const evaluate = async expression => {
       const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       return r.result.value;
     };
     const from = Math.max(0.001, o.from);
-    await send('Page.navigate', { url: `${base}?chapter=fidrildi3d&quality=tablet&t=${from}${o.query ? '&' + o.query : ''}` });
+    await send('Page.navigate', { url: `${base}?chapter=fidrildi3d${o.quality && o.quality !== "none" ? "&quality=" + o.quality : ""}&t=${from}${o.query ? '&' + o.query : ''}` });
     const t0 = Date.now();
     for (;;) {
       let ready = false;
@@ -206,9 +231,18 @@ async function main() {
     console.log(`the largest detours (how far the shells took each from its drawn place): ${table.detours.slice(0, 12).join('; ')}`);
     console.log(`jumps longer than ${o.jump} m in one step: ${table.big.length}`);
     for (const b of table.big) console.log(`  ${b[0]} at ${b[1]} s: ${b[2]} m, drawn at (u, v, k) ${b[3]}`);
+    console.log(`the push (flown less drawn) per butterfly, outside meant contact (limits ${o.maxPush} m, ${o.maxPushStep} m a step):`);
+    const order = n => (n === 'hero' ? 0 : n.startsWith('moth') ? 1 : 2) * 100 + (parseInt(n.replace(/D/g, '')) || 0);
+    for (const r of table.pushes.sort((a, b) => order(a.name) - order(b.name))) {
+      const bad = (r.push > o.maxPush ? ' PUSH' : '') + (r.step > o.maxPushStep ? ' STEP' : '');
+      console.log(`  ${r.name.padEnd(7)} largest push ${r.push.toFixed(3)} m at ${r.pushAt} s; largest change in one step ${r.step.toFixed(4)} m at ${r.stepAt} s${bad}`);
+    }
+    for (const [g, m] of Object.entries(table.moves)) console.log(`largest plain move in one step, ${g}: ${m.metres} m (${m.name} at ${m.t} s)`);
+    table.pushFailures = table.pushes.filter(r => r.push > o.maxPush || r.step > o.maxPushStep).map(r => r.name);
     for (const [k, v] of Object.entries(table.spans)) console.log(`  ${k}: ${v.join(', ')}`);
     if (o.json) await fsp.writeFile(path.resolve(o.json), JSON.stringify(table, null, 2));
-    failed = table.secondsInside > 0 || table.closeSteps > 0;
+    failed = table.secondsInside > 0 || table.closeSteps > 0 || table.pushFailures.length > 0;
+    if (table.pushFailures.length) console.log(`pushed too far or too fast: ${table.pushFailures.join(', ')}`);
     console.log(failed ? 'FAIL' : 'OK: no butterfly inside, no wing nearer a body than the clearance');
   } finally {
     await stopBrowser(browser).catch(() => {});
