@@ -112,20 +112,26 @@ const THOR_SPEED = 1.3; // m/s asked; walkTo plays the clip faster or slower to 
 // three can be told apart. They fly lively loops between the viewer and the dinosaurs, k 0.55-0.95, off the hero's line, join the
 // swarm's ring and drift back into the forest before the hero settles.
 const MOTHS = [
-  { name: 'moth-a', tint: COLOURS[1], ring: Math.PI, wig: [0.04, 0.035, 1.9, 2.7, 0.4], keys: [
+  // round 5: each moth is in the swarm's ring from `ringFrom` to `ringTo` (it was 30.5-43.5 for both): moth-a crosses in front of
+  // Mosi's face (k 0.6, his beak is at 0.78) before it joins and both leave while the ring is out in front, not through him and her neck
+  { name: 'moth-a', tint: COLOURS[1], ring: Math.PI, ringFrom: 31.5, ringTo: 40.6, wig: [0.04, 0.035, 1.9, 2.7, 0.4], keys: [
     [0, 0.2, 0.3, 2.2], [5, 0.22, 0.55, 0.85], [9, 0.2, 0.62, 0.62], [13, 0.22, 0.68, 0.72], [17, 0.2, 0.66, 0.85], [21, 0.17, 0.6, 0.8],
-    [25, 0.2, 0.7, 0.9], [29, 0.22, 0.62, 0.7], [44.5, 0.22, 0.45, 0.8], [50, 0.25, 0.36, 0.62], [54, 0.22, 0.4, 0.78],
+    [25, 0.17, 0.62, 0.72], [29, 0.2, 0.6, 0.66], [31.5, 0.5, 0.66, 0.6], [42.6, 0.3, 0.55, 0.62], [44.5, 0.17, 0.48, 0.7], [50, 0.25, 0.36, 0.62], [54, 0.22, 0.4, 0.78],
     [58, 0.18, 0.2, 2.8, 'rest'], [60, 0.18, 0.2, 2.9]] },
-  { name: 'moth-b', tint: COLOURS[2], ring: 0, wig: [0.035, 0.04, 2.3, 1.7, 2.1], keys: [
+  { name: 'moth-b', tint: COLOURS[2], ring: 0, ringFrom: 30.5, ringTo: 40.6, wig: [0.035, 0.04, 2.3, 1.7, 2.1], keys: [
     [0, 0.85, 0.4, 2.5], [5, 0.78, 0.45, 0.9], [9, 0.8, 0.55, 0.62], [13, 0.82, 0.5, 0.7], [17, 0.78, 0.6, 0.8], [21, 0.8, 0.52, 0.66],
-    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [44.5, 0.8, 0.55, 0.85], [50, 0.8, 0.5, 0.62], [53, 0.76, 0.62, 0.6],
-    // round 5: down and out of the way of Þórseðla's head and neck as they go back up (53.2-55.5), and away to the left behind Mosi
-    [55.5, 0.68, 0.74, 0.8], [58, 0.3, 0.32, 2.8, 'rest'], [60, 0.3, 0.31, 2.9]] },
+    // round 5: from 42.6 high on the right, in front of Þórseðla's neck as it comes down and goes back up (not under her head), and
+    // away to the left behind Mosi
+    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [42.6, 0.8, 0.4, 0.66], [44.5, 0.83, 0.38, 0.64], [47, 0.84, 0.42, 0.6],
+    [50, 0.84, 0.36, 0.62], [53, 0.84, 0.32, 0.62], [55, 0.83, 0.32, 0.63], [56.6, 0.6, 0.3, 0.8], [58.6, 0.3, 0.32, 2.8, 'rest'], [60, 0.3, 0.31, 2.9]] },
 ];
 // the swarm's depth through its dance (as a share of D), which the moths' ring follows too; and (round 5) how far right of the
 // middle its ring turns: behind the screen and through it it turns right of Mosi, whose head and body are there (k 1-1.6), and in
 // the middle only out in front of him
-const KC = track([[30, 0.12, 0, 1.45], [33.5, 0.12, 0, 1.3], [36.5, 0.1, 0, 0.85], [38, 0, 0, 0.62, 'rest'], [40.5, 0, 0, 0.62, 'rest'], [42, 0.1, 0, 0.85], [44.5, 0.12, 0, 1.15], [50, 0.12, 0, 1.3]]);
+const KC = track([[30, 0.12, 0, 1.45], [33.5, 0.14, 0, 1.3], [36.5, 0.14, 0, 0.8], [37.3, 0.12, 0, 0.69], [38, 0.06, 0, 0.62, 'rest'], [40.5, 0.06, 0, 0.62, 'rest'], [41.7, 0.12, 0, 0.68], [43, 0.05, 0, 1.0], [44.5, 0.07, 0, 1.4], [50, 0.07, 0, 1.45]]);
+// and (round 5) how far up it turns and how much smaller: once Þórseðla has come (her neck from k 0.6 to 1.25 and her chest at 1.35,
+// right of the middle) the ring goes back behind the screen small and high, between Mosi's frill and her back, behind her neck
+const RING = track([[30, 0, 0, 0], [41, 0, 0, 0], [43, -0.2, 0.45, 0], [44.5, -0.23, 0.45, 0], [50, -0.23, 0.45, 0]]);
 /** A moth's (u, v, k) at show time t: its keys with a lively loop on top, and during the swarm a ring round its edge. */
 function mothAt(m, t, out = []) {
   m.track ??= track(m.keys);
@@ -134,12 +140,13 @@ function mothAt(m, t, out = []) {
   const live = smooth(t / 3) * (1 - smooth((t - 56) / 2));
   out[0] += au * live * Math.sin(wu * t + ph);
   out[1] += av * live * Math.sin(wv * t + ph * 1.7);
-  const w = smooth((t - 30.5) / 2) * (1 - smooth((t - 43.5) / 2));
+  const w = smooth((t - m.ringFrom) / 2) * (1 - smooth((t - m.ringTo) / 2));
   if (w > 0) {
     const turn = m.ring + (2 * Math.PI * (t - 30)) / 8;
     const [du, , kc] = KC(t, []);
-    out[0] = lerp(out[0], 0.53 + du + 0.3 * Math.cos(turn), w);
-    out[1] = lerp(out[1], 0.47 + 0.26 * Math.sin(turn), w);
+    const [dv, shrink] = RING(t, []);
+    out[0] = lerp(out[0], 0.53 + du + 0.2 * (1 - shrink) * Math.cos(turn), w); // round 5: 0.3 wide, which took them into Mosi and her
+    out[1] = lerp(out[1], 0.47 + dv + 0.2 * (1 - shrink) * Math.sin(turn), w);
     out[2] = lerp(out[2], Math.max(0.55, kc + 0.05), w);
   }
   return out;
@@ -572,6 +579,7 @@ export const chapter = {
       // back in, onto his horn
       butterflies?.land(horn, { name: HERO, duration: 3.2 });
       state.heroContact = true; // meant contact: onto the horn, sitting there, and the first second of being blown off it
+      state.drawn.hero = null; // the landing is the butterflies' own flight, not a drawn one
       yield s.until(() => tau() >= 21.2);
 
       // 18-30: tickle, sneeze, the pollen blows out at the viewer and the moth is blown off
@@ -610,6 +618,7 @@ export const chapter = {
       yield s.until(() => tau() >= 55.2);
       const centre = out => framePoint(0.5, 0.5, 1, out);
       butterflies?.land(centre, { name: HERO, duration: 3.4 });
+      state.drawn.hero = null;
       yield s.until(() => tau() >= 53.2 + down);
       thor.play('idle', { fade: 0.5 });
       yield s.until(() => tau() >= 57);
@@ -700,14 +709,15 @@ export const chapter = {
           from: new THREE.Vector3(), yaw: 0,
         });
       }
-      const kc = [];
+      const kc = [], ring = [];
       const spiral = (b, t, out) => {
         KC(t, kc);
+        RING(t, ring);
         const turn = b.phase + (2 * Math.PI * (t - 30)) / 8;
         const k = Math.max(0.52, kc[2] + b.dk);
-        const r = b.radius * (k < 1 ? 1 : 1 + 0.4 * (k - 1)); // wider behind the screen
+        const r = b.radius * (k < 1 ? 1 : 1 + 0.4 * (k - 1)) * (1 - ring[1]); // wider behind the screen (smaller once she is there)
         const x = 0.06 + 2 * kc[0] + r * Math.cos(turn) / camera.aspect, y = 0.05 + r * Math.sin(turn);
-        return framePoint(0.5 + 0.5 * x, 0.5 - 0.5 * y + 0.012 * Math.sin(3.1 * t + b.bob), k, out);
+        return framePoint(0.5 + 0.5 * x, 0.5 - 0.5 * y + ring[0] + 0.012 * Math.sin(3.1 * t + b.bob), k, out);
       };
       // A sitter (round 5): from the dance to the point SEAT_ABOVE over its seat (SIT_TO s), straight down onto the seat (SIT_DOWN s),
       // sitting there as her head comes up, straight back up (RISE s) and away into the trees. Its seat is in her Head bone's frame.
