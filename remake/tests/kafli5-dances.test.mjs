@@ -196,7 +196,7 @@ test('the turtles: a very slow sway with the head out and in, then over onto the
     for (let beat = from + 1; beat < from + 7; beat += 0.25) {
       const d = danceOf(m, beat);
       assert.ok(Math.abs(d.roll) < 0.4 && away(d) < 0.5, 'on its feet');
-      heads.push(d.morphs.look);
+      heads.push(d.morphs.stretch); // the owner's turtle: its neck
     }
     assert.ok(Math.max(...heads) > 0.9 && Math.min(...heads) < 0.1, 'the head right out and right in');
     const flips = heads.slice(1).filter((h, i) => (h - heads[i]) * (heads[i] - (heads[i - 1] ?? heads[i])) < 0).length;
@@ -240,6 +240,36 @@ test('the frogs leap from pad to pad as they croak, two at a time, and everyone 
   }
   assert.ok(leapt.every(n => n >= 3), `every frog leaps (${leapt})`);
   frogs.forEach((m, k) => assert.equal(onPad(placed(m, danceOf(m, to))), k, `frog ${k} is on its own pad at the end`));
+  // the owner's frog: down into its legs just before a leap and as it lands, legs out in the air, its throat going on the pad
+  const first = frogs.map(m => [m, danceOf(m, from + 0.3)]).find(([, d]) => d.dy > 0.3)[0]; // one that leaps on the first croak
+  const second = CALLS.frogs.find(call => call > from + 1 && danceOf(first, call + 0.3).dy > 0.3); // and its next leap
+  assert.ok(danceOf(first, second - 0.06).morphs.crouch > 0.8 && danceOf(first, second - 0.06).dy < 0.02, 'crouched on its pad before it leaps');
+  assert.ok(danceOf(first, second + 0.3).morphs.leap > 0.8 && danceOf(first, second + 0.3).morphs.crouch < 0.2, 'legs out in the air');
+  assert.ok(danceOf(first, second + 0.63).morphs.crouch > 0.5, 'and down into its legs as it lands');
+  const sitting = frogs.find(m => Array.from({ length: 9 }, (_, i) => danceOf(m, from + 4 + i / 8)).every(d => d.dy < 0.15 && away(d) < 4));
+  if (sitting) assert.ok(Math.max(...Array.from({ length: 9 }, (_, i) => danceOf(sitting, from + 4 + i / 8).morphs.breathe)) > 0.5, 'its throat goes as it sits');
+});
+
+test('each model gets what it has: the owner\'s turtle its neck and a look aside, the game\'s own turtle its one head morph', () => {
+  const turtles = of('turtles');
+  const { from } = part('turtles');
+  const old = turtles.map(m => ({ ...m, neck: false }));
+  for (const beat of [from + 2, from + 3.3, from + 11.25, part('break').from + 5]) {
+    turtles.forEach((m, k) => {
+      const mine = danceOf(m, beat).morphs, its = danceOf(old[k], beat).morphs;
+      assert.deepEqual(Object.keys(mine).sort(), ['hide', 'look', 'stretch']);
+      assert.deepEqual(Object.keys(its).sort(), ['hide', 'look']);
+      assert.equal(its.look, mine.stretch, 'the head out is the neck stretched');
+      assert.equal(its.hide, mine.hide);
+    });
+  }
+  for (const m of turtles) assert.ok(Math.max(...Array.from({ length: 24 }, (_, i) => danceOf(m, from + 1 + i / 4).morphs.look)) > 0.6, 'a look aside in the slow sway');
+  for (const m of of('frogs')) assert.deepEqual(Object.keys(danceOf(m, 70).morphs).sort(), ['breathe', 'crouch', 'leap']);
+  for (const m of of('beetles')) assert.deepEqual(Object.keys(danceOf(m, 70).morphs).sort(), ['kickA', 'kickB']);
+  // on the stone wherever the dance has it: a turtle that goes aside on a stone that falls away goes down with it
+  const onStone = { ...turtles[1], floor: (x, z) => turtles[1].y - 0.5 * Math.hypot(x - turtles[1].x, z - turtles[1].z) };
+  const flat = danceOf(turtles[1], from + 12), sloped = danceOf(onStone, from + 12);
+  assert.ok(away(flat) > 0.4 && sloped.dy < flat.dy - 0.15, `it lies ${(flat.dy - sloped.dy).toFixed(2)} m lower where the stone is lower`);
 });
 
 test('the lizards run in a line along the water\'s edge toward the log, stop and shake their tails, and are home by the twelfth beat and a half', () => {

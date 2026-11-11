@@ -70,6 +70,8 @@ export const SLIP = { turtle: 1, at: SET.cues.find(cue => cue.kind === 'moved').
 
 /** How high each can jump, metres (the big jumps: the drop, the roars, the last hit). */
 export const JUMP = { grazers: 1.2, turtles: 0.8, frogs: 2.1, lizards: 1.5, flyers: 2.6, beetles: 0.6, dragonflies: 0 };
+// How tall each stands when the scene does not say (the owner's models at the sizes life.js draws them), m.
+const TALL = { turtles: 0.7, frogs: 0.75, beetles: 0.43 };
 // The line's order: the lizards' seats by how far toward the log (their right) each sits, the leader first.
 const LINE = [5, 1, 3, 0, 4, 2];
 // The frogs' pads along the bow, toward the reed (seat numbers).
@@ -81,7 +83,12 @@ const FILE = { order: [2, 0, 1], more: [5.2, 0, -5.2], lane: [33.4, 36, 36] };
 /** A member for danceOf: seat `k` of its group's `seats` ([{ x, y, z, heading }]: where each stands as the set starts). */
 export function memberOf(group, k, seats) {
   const seat = seats[k];
-  return { group, k, n: seats.length, x: seat.x, y: seat.y, z: seat.z, heading: seat.heading, seats, late: 0.05 * Math.sin(k * 2.7 + 1), size: 1 + 0.08 * Math.sin(k * 1.9 + 0.4) };
+  return {
+    group, k, n: seats.length, x: seat.x, y: seat.y, z: seat.z, heading: seat.heading, seats, late: 0.05 * Math.sin(k * 2.7 + 1), size: 1 + 0.08 * Math.sin(k * 1.9 + 0.4),
+    // how tall it stands (m), what it stands on if not the land (`floor(x, z)`: the turtles' stone), and whether its model is the
+    // owner's (a turtle with a neck to stretch: `stretch` beside `look` and `hide`; the game's own turtle has `look` for both)
+    tall: seat.tall ?? TALL[group] ?? 1, floor: seat.floor ?? null, neck: seat.neck ?? true,
+  };
 }
 /**
  * One of the rest of those that came (the lizards, grazers, flyers and turtles on the bank beyond Egill and Mosi, not in the
@@ -106,7 +113,7 @@ export function stageMembers(level = LEVEL) {
 const blank = () => ({
   dx: 0, dy: 0, dz: 0, turn: 0, pitch: 0, roll: 0, sx: 1, sy: 1, sz: 1, mix: 1,
   walk: 0, walkAt: 0, trot: 0, trotAt: 0, graze: 0, standAt: 0.3, run: 0, runAt: 0, peer: 0, flap: 0, flapAt: 0, glide: 0,
-  look: 0, hide: 0, leap: 0, kickA: 0, kickB: 0, wing: 0,
+  look: 0, peek: 0, hide: 0, leap: 0, crouch: 0, breathe: 0, kickA: 0, kickB: 0, wing: 0,
 });
 const PICKED = new Set(['walkAt', 'trotAt', 'standAt', 'runAt', 'flapAt', 'wing']);
 /** Pose `a` blended toward `b` by `w` (the clips' places are taken from the heavier). */
@@ -175,6 +182,7 @@ function bob(P, m, u, a) {
       shift(P, m, 0.12 * a * s);
       P.dy += 0.08 * a * Math.sin(Math.PI * v) ** 2;
       P.look = Math.max(P.look, a * (0.5 + 0.5 * Math.sin(Math.PI * v - 1)));
+      P.peek = Math.max(P.peek, a * Math.max(0, Math.sin((Math.PI * v) / 2 + m.k)) ** 2); // a look aside every other bar
       break;
     }
     case 'frogs': { // a hop a beat, one after another along the pads
@@ -183,7 +191,10 @@ function bob(P, m, u, a) {
       P.dy += 0.5 * a * e;
       P.leap = Math.max(P.leap, a * e);
       P.turn += 20 * a * Math.sin((Math.PI * u) / 2);
-      if (x > 0.55) squat(P, 0.16 * a * Math.exp(-(x - 0.55) * 9));
+      // down into its legs as it lands and before it goes again, its throat full between
+      P.crouch = Math.max(P.crouch, x > 0.55 ? a * Math.max(Math.exp(-(x - 0.55) * 9), win(x, 0.82, 1)) : 0);
+      P.breathe = Math.max(P.breathe, x > 0.55 ? hop((x - 0.55) / 0.45) : 0);
+      if (x > 0.55) squat(P, 0.06 * a * Math.exp(-(x - 0.55) * 9));
       break;
     }
     case 'lizards': { // jogging on the spot, every other one up as its neighbour comes down, the tail swinging
@@ -223,6 +234,7 @@ function pop(P, m, beat, size, calls = CALLS[m.group]) {
   if (m.group === 'frogs') P.leap = Math.max(P.leap, e);
   if (m.group === 'flyers') P.flap = Math.max(P.flap, 0.8 * e);
   if (m.group === 'turtles') P.look = Math.max(P.look, e);
+  if (m.group === 'beetles') { P.kickA = Math.max(P.kickA, e); P.kickB = Math.max(P.kickB, 0.5 * e); }
 }
 
 /** A jump at part beat `at`: down first, up `height` m over `beats`, and a squash as it lands. */
@@ -237,7 +249,7 @@ function jump(P, m, u, at, height, beats = 1.5) {
   switch (m.group) {
     case 'grazers': P.pitch += 0.09 * e; break; // the front end up
     case 'turtles': P.look = Math.max(P.look, e); P.roll += 0.5 * e * Math.min(1, height / JUMP.turtles) * (m.k % 2 ? 1 : -1); break;
-    case 'frogs': P.leap = Math.max(P.leap, Math.sin(Math.PI * clamp01(x))); P.pitch += 0.3 * e; break;
+    case 'frogs': P.leap = Math.max(P.leap, Math.sin(Math.PI * clamp01(x))); P.pitch += 0.3 * e; P.crouch = Math.max(P.crouch, down, landed); break;
     case 'lizards': P.pitch += 0.25 * e; P.run = Math.max(P.run, e); P.runAt = u * 2; break;
     case 'flyers': P.flap = Math.max(P.flap, clamp01(1.4 * e + down)); P.flapAt = u * 2; break;
     case 'beetles': P.kickA = Math.max(P.kickA, e); P.kickB = Math.max(P.kickB, e); break;
@@ -292,11 +304,12 @@ function stomp(P, m, u, a) {
  * and spinning on it, a turn a beat, the legs and head waving; back onto the feet at the end. `slow`: no spin (less motion).
  */
 function shell(P, m, u, { beats = 16, fast = 8, a = 1, still = false } = {}) {
-  const h = 0.62 * m.size; // how tall it is: on its back the shell's top is on the stone
+  const h = 0.9 * m.tall; // on its back the shell's top is what it lies on
   if (still) { // less motion: a slow sway, then a quicker one
     const rate = u < fast ? 4 : 2;
     P.roll += 0.14 * Math.sin((TAU * u) / rate);
     P.look = Math.max(P.look, 0.5 - 0.5 * Math.cos((TAU * u) / rate));
+    P.peek = Math.max(P.peek, Math.max(0, Math.sin((TAU * u) / (2 * rate) + m.k)) ** 2);
     return;
   }
   const over = win(u, fast - 0.35 + 0.12 * m.k, fast + 0.45 + 0.12 * m.k) * (1 - win(u, beats - 1.2 + 0.1 * m.k, beats - 0.3 + 0.1 * m.k));
@@ -305,6 +318,7 @@ function shell(P, m, u, { beats = 16, fast = 8, a = 1, still = false } = {}) {
   P.roll += 0.24 * a * sway * Math.sin((TAU * u) / 4);
   shift(P, m, 0.28 * a * sway * Math.sin((TAU * u) / 4));
   P.look = Math.max(P.look, sway * (0.5 - 0.5 * Math.cos((TAU * u) / 4 + 0.6 * m.k)));
+  P.peek = Math.max(P.peek, sway * Math.max(0, Math.sin((TAU * u) / 4 + 1.3 * m.k - 1.2)) ** 2); // and a slow look aside as the neck comes out
   P.pitch += 0.12 * sway * Math.sin((TAU * u) / 8);
   if (over <= 0) return;
   // on its shell: rolled right over, lifted so the shell's top is what touches, a little toss as it goes over
@@ -320,6 +334,7 @@ function shell(P, m, u, { beats = 16, fast = 8, a = 1, still = false } = {}) {
   const wave = 0.5 + 0.5 * Math.sin(TAU * 2 * u + m.k); // the head and legs out and in, twice a beat
   P.look = Math.max(P.look, over * wave);
   P.hide = Math.max(P.hide, over * 0.5 * (1 - wave));
+  P.peek = Math.max(P.peek, over * (0.5 + 0.5 * Math.sin(TAU * u + 2 * m.k)));
   P.pitch += 0.12 * over * Math.sin(TAU * u + m.k); // wobbling like a coin
 }
 
@@ -390,14 +405,20 @@ function leaps(P, m, beat, plan, a = 1) {
   let e = null;
   for (let i = list.length - 1; i >= 0; i--) if (list[i].at <= beat) { e = list[i]; break; }
   const pad = k => m.seats[k];
-  if (!e) { P.dy += 0.12 * a * hop(frac(beat) / 0.4); return; }
+  // on a pad: its throat going to the beat, and down into its legs just before its next leap
+  const next = list.find(l => l.at > beat);
+  const ready = next ? win(beat, next.at - 0.3, next.at - 0.04) : 0;
+  const sit = () => { P.breathe = Math.max(P.breathe, dip(beat)); P.crouch = Math.max(P.crouch, ready, 0.4 * a * dip(beat + 0.5)); };
+  if (!e) { sit(); return; }
   const x = (beat - e.at) / e.beats;
   const to = pad(e.to);
   if (x >= 1) {
     P.dx += to.x - m.x;
     P.dz += to.z - m.z;
-    squat(P, 0.22 * Math.exp(-(x - 1) * e.beats * 7));
-    P.dy += 0.12 * a * hop(frac(beat) / 0.4) * win(x, 1.5, 2.5);
+    const landed = Math.exp(-(x - 1) * e.beats * 7);
+    squat(P, 0.08 * landed);
+    sit();
+    P.crouch = Math.max(P.crouch, landed);
     return;
   }
   const from = pad(e.from);
@@ -607,6 +628,8 @@ function dragonfly(P, m, beat, x) {
   P.wing = 0.12 + 0.6 * Math.sin(TAU * 4.3 * beat + ph);
 }
 
+// Which way each turtle of the stone goes up on its shell's rim (1: to its right): the two at the sides away from the middle one.
+const RIM = [1, -1, 1];
 /** The turtle that moves while everything is frozen: it was up on its shell's rim, and it tips over, slides and pulls its head in. */
 function slip(P, m, setBeat) {
   if (m.group !== 'turtles' || m.audience || m.k !== SLIP.turtle || !(setBeat >= SLIP.at) || setBeat >= SLIP.until) return;
@@ -617,8 +640,8 @@ function slip(P, m, setBeat) {
   P.roll = P.roll * (1 - down) + wobble;
   P.dy = P.dy * (1 - down) + 0.1 * thump;
   P.pitch *= 1 - down;
-  shift(P, m, 0.3 * down, 0.12 * down);
-  P.turn += 25 * down;
+  shift(P, m, 0.3 * down * RIM[m.k % 3], 0.12 * down); // out of the group, the way it leaned
+  P.turn += 25 * down * RIM[m.k % 3];
   const peek = win(t, 5.5, 6.5) * (1 - win(t, 7.2, 7.8)); // one look out, and in again
   P.look = P.look * (1 - win(t, 1.3, 1.9)) + 0.35 * peek;
   P.hide = Math.max(P.hide, win(t, 1.4, 2.1) * (1 - 0.6 * peek));
@@ -678,6 +701,7 @@ const MOVES = {
     bob(P, m, u, 0.3 * a);
     squat(P, 0.28 * low * (x.reduced ? 0.5 : 1));
     if (m.group === 'turtles') P.hide = Math.max(P.hide, 0.8 * low);
+    if (m.group === 'frogs') P.crouch = Math.max(P.crouch, low);
     if (m.group === 'grazers') P.graze = Math.max(P.graze, low);
   },
   // the dance floor: everyone up at once, and into each group's own dance
@@ -732,7 +756,8 @@ const MOVES = {
     shift(P, m, 0.22 * x.size * s * (m.group === 'grazers' ? 1.6 : 1));
     P.roll += 0.06 * x.size * s;
     squat(P, 0.07 + 0.03 * Math.sin((TAU * u) / 4));
-    if (m.group === 'turtles') P.look = Math.max(P.look, 0.5 + 0.4 * Math.sin((TAU * u) / 8 + m.k));
+    if (m.group === 'turtles') { P.look = Math.max(P.look, 0.5 + 0.4 * Math.sin((TAU * u) / 8 + m.k)); P.peek = Math.max(0, Math.sin((TAU * u) / 16 + 2 * m.k)) ** 2; }
+    if (m.group === 'frogs') { P.crouch = 0.35; P.breathe = 0.5 + 0.5 * Math.sin((TAU * u) / 4 + m.k); }
     if (m.group === 'grazers') P.standAt = 0.3 + u / 16;
   },
   // the build: they rise and lean in, the bob quicker and smaller as the roll speeds up; a group pops up on each number; on
@@ -755,6 +780,7 @@ const MOVES = {
     if (count) jump(P, m, u, count, 0.75 * JUMP[m.group] * x.size, 1.0);
     squat(P, 0.3 * hold * (x.reduced ? 0.5 : 1));
     if (m.group === 'turtles') P.hide = Math.max(P.hide, 0.7 * hold);
+    if (m.group === 'frogs') P.crouch = Math.max(P.crouch, hold);
   },
   // the drop (and again, after the rewind): everyone jumps at once, as high as each can, then the wildest of each dance
   drop(P, m, u, x) {
@@ -794,9 +820,11 @@ const MOVES = {
       }
       case 'turtles': {
         // up onto the rim of the shell and down again; the one that will slip is the one that stands highest
-        const way = m.k % 2 ? 1 : -1;
-        const tall = m.k === SLIP.turtle ? 1 : 0.6;
+        // each leans out of the group (the left one to its left, the right one to its right), and steps out a little as it does
+        const way = RIM[m.k % 3];
+        const tall = m.k === SLIP.turtle && !m.audience ? 1 : 0.6;
         P.roll += (Math.PI / 2) * 0.9 * tall * a * top * way * (x.reduced ? 0.5 : 1);
+        shift(P, m, 0.3 * way * tall * a * top);
         P.dy += 0.25 * tall * a * top;
         P.look = Math.max(P.look, top);
         break;
@@ -950,6 +978,7 @@ export function danceOf(m, beat, x = {}) {
   // out of its idle life over the first beat, and back into it once the last jump has landed
   P.mix = win(beat, 0, 1) * (1 - win(beat, LAST.from + 14.2, LAST.from + 15.8));
   if (x.setBeat !== undefined) slip(P, m, x.setBeat);
+  if (m.floor) P.dy += (m.floor(m.x + P.dx, m.z + P.dz) - m.y) * clamp01(1.5 * Math.hypot(P.dx, P.dz)); // on its stone wherever it is
   return finish(P, m);
 }
 
@@ -976,8 +1005,18 @@ function finish(P, m) {
       out.clips = [['flap', flap ? P.flapAt : 0, flap], ['glide', 0.2, glide], ['perch', 0.2, rest(flap, glide)]];
       break;
     }
-    case 'turtles': out.morphs = { look: clamp01(P.look) * (1 - clamp01(P.hide)), hide: clamp01(P.hide) }; break;
-    case 'frogs': out.morphs = { leap: clamp01(P.leap) }; break;
+    case 'turtles': {
+      // the owner's turtle stretches its neck (`stretch`) and turns its head aside (`look`); the game's own has `look` for its head out
+      const out01 = clamp01(P.look) * (1 - clamp01(P.hide));
+      out.morphs = m.neck ? { stretch: out01, look: clamp01(P.peek) * (1 - clamp01(P.hide)), hide: clamp01(P.hide) } : { look: out01, hide: clamp01(P.hide) };
+      break;
+    }
+    case 'frogs': {
+      // legs out in the air (`leap`), down into them (`crouch`), the throat (`breathe`): the last two are the owner's frog's only
+      const leap = clamp01(P.leap), crouch = clamp01(P.crouch) * (1 - leap);
+      out.morphs = { leap, crouch, breathe: clamp01(P.breathe) * (1 - leap) * (1 - 0.5 * crouch) };
+      break;
+    }
     case 'beetles': out.morphs = { kickA: clamp01(P.kickA), kickB: clamp01(P.kickB) }; break;
     case 'dragonflies': out.morphs = { hover: 1 }; out.wings = [P.wing, 1]; break;
     default: break;
@@ -1000,7 +1039,10 @@ export function createDances(c) {
   const ground = (x, z) => c.world?.heightAt?.(x, z) ?? LEVEL;
   // everyone as they stand when the set starts: these are the seats the dances are danced from
   const groups = { ...Object.fromEntries(GROUPS.map(group => [group, c.members?.[group] ?? []])), beetles: life?.pool?.beetles ?? [], dragonflies: life?.pool?.dragonflies ?? [] };
-  const seatsOfThese = things => things.map(b => ({ x: b.gather.at.x, y: b.gather.at.y, z: b.gather.at.z, heading: b.gather.heading }));
+  const seatsOfThese = things => things.map(b => ({
+    x: b.gather.at.x, y: b.gather.at.y, z: b.gather.at.z, heading: b.gather.heading,
+    tall: b.height, floor: b.surface ?? null, neck: 'stretch' in (b.morphs ?? {}),
+  }));
   const dancers = Object.entries(groups).flatMap(([group, things]) => {
     const seats = seatsOfThese(things);
     return things.map((b, k) => ({ b, m: memberOf(group, k, seats) }));

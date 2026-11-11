@@ -209,7 +209,12 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const LIZARD = baked ? 'smaedla' : 'salamander';
   const grazer = critters.grasbitur ?? null;
   const flyer = critters.flugdyr ?? null;
-  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer, bird: critters.fugl ?? null, turtle: critters.skjaldbaka ?? null }; // the owner's models, as tools/prep-crowd.mjs bakes them
+  // the owner's models, as tools/prep-crowd.mjs and prep-critter.mjs bake them (the frog and the beetle are chapter 5's: its pool's
+  // frogs and its log's beetles; a kind without its model is drawn from the game's own procedural one, world/critters/models.js)
+  const BAKED = {
+    smaedla: baked, grasbitur: grazer, flugdyr: flyer, bird: critters.fugl ?? null, turtle: critters.skjaldbaka ?? null,
+    frog: critters.froskur ?? null, beetle: critters.bjalla ?? null,
+  };
   const her = new THREE.Vector3();
   const herAt = (t, out = her) => route.pointAt(route.progressAt(Math.min(BEATS.END, Math.max(0, t))), out);
   /** Her way, seen from above, at flight second t: forward and to her right. */
@@ -525,7 +530,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       const model = library?.get?.('rock', rock.variant, 1, {}) ?? null;
       const surface = rockSurface(model, { x, y, z, rot, scale: rock.scale });
       choir.turtles.forEach(({ at: [tx, tz], heading }, k) => {
-        const turtle = add(`stone-turtle-${k}`, 'turtle', new THREE.Vector3(tx, surface(tx, tz), tz), heading, { stone: true });
+        const turtle = add(`stone-turtle-${k}`, 'turtle', new THREE.Vector3(tx, surface(tx, tz), tz), heading, { stone: true, surface });
         turtle.gather = { at: turtle.at.clone(), heading };
         pool.turtles.push(turtle);
       });
@@ -884,10 +889,12 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
         flyerPose(b, ft, clock);
         break;
       case 'frog':
+        // the pool's, on its pad: breathing (the owner's frog has a throat for it; the game's own swells a little)
         b.position.copy(b.gather.at);
         b.heading = b.gather.heading;
-        b.squash[1] = 1 + 0.03 * Math.sin(TAU * 0.7 * clock + p);
         b.morphs.leap = 0;
+        if ('breathe' in b.morphs) { b.morphs.crouch = 0; b.morphs.breathe = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(TAU * 0.8 * clock + p)); }
+        else b.squash[1] = 1 + 0.03 * Math.sin(TAU * 0.7 * clock + p);
         break;
       case 'turtle':
         // those that came (chapter 4's end) are out of sight until they have; the stone's three (chapter 5) are the pool's own
@@ -1089,7 +1096,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (u < 0) return;
     if (u >= 1) { b.hopped = null; return; }
     b.position.y += 4 * h.height * u * (1 - u);
-    if (b.kind === 'frog') b.morphs.leap = Math.sin(Math.PI * u);
+    if (b.kind === 'frog') { b.morphs.leap = Math.sin(Math.PI * u); if ('breathe' in b.morphs) b.morphs.breathe *= 1 - b.morphs.leap; }
     b.squash[1] *= 1 + 0.08 * Math.sin(Math.PI * u);
   }
 

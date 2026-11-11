@@ -50,20 +50,23 @@ export const FLUGDYR_MODEL = new URL('../../assets/critters/flugdyr.glb', import
 export const FROSKUR_MODEL = new URL('../../assets/critters/froskur.glb', import.meta.url).href;
 /** The owner's turtle (0.36 m long at scale 1), as tools/prep-critter.mjs bakes it: hide, look, stretch. */
 export const SKJALDBAKA_MODEL = new URL('../../assets/critters/skjaldbaka.glb', import.meta.url).href;
+/** The owner's beetle (0.13 m long at scale 1), as tools/prep-critter.mjs bakes it: kickA, kickB. Chapter 5's log has six (life.js). */
+export const BJALLA_MODEL = new URL('../../assets/critters/bjalla.glb', import.meta.url).href;
 /** The owner's songbird (0.30 m across its spread wings at scale 1), as tools/prep-critter.mjs bakes it with `_WING` tags. */
 export const FUGL_MODEL = new URL('../../assets/critters/fugl.glb', import.meta.url).href;
 const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
 /**
- * The valley's baked critters: { smaedla, grasbitur, flugdyr, froskur, skjaldbaka, fugl } as crowd models (world/critters/crowd-models.js),
+ * The valley's baked critters: { smaedla, grasbitur, flugdyr, froskur, skjaldbaka, fugl, bjalla } as crowd models (world/critters/crowd-models.js),
  * read through world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out
  * and the chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
- * flyers (life.js), and without the frog, turtle or bird their procedural meshes stand in.
+ * flyers (life.js), and without the frog, turtle, bird or beetle their procedural meshes stand in.
  */
 export async function loadCritters(world) {
   const files = [
     ['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd'],
     ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'], ['froskur', FROSKUR_MODEL, 'the procedural frog stands in'],
     ['skjaldbaka', SKJALDBAKA_MODEL, 'the procedural turtle stands in'], ['fugl', FUGL_MODEL, 'the procedural bird stands in'],
+    ['bjalla', BJALLA_MODEL, 'the procedural beetle stands in'],
   ];
   const loaded = await Promise.all(files.map(async ([name, url, without]) => {
     try {
