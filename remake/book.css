@@ -463,9 +463,9 @@
 /* "3D myndbönd" (videos.js BOOK_3D): the right page's last column, set apart by a dashed rule and a faint wash, headed in the
    book's hand with "3D" in the glasses' two colours (a red copy to the left, a cyan one to the right: plain letters, no drawing).
    The right page is then a grid: its four videos in two columns and two rows, the column on the third, with room for two tiles. */
-.video-tiles.with-3d {
+.video-tiles:has(> :nth-child(5)), .video-tiles.with-3d { /* a grid, so five (or four and the column) are three across and two down */
   display: grid; grid-template-columns: repeat(3, var(--tile-w)); grid-template-rows: auto auto;
-  justify-content: center; align-content: center; gap: var(--gap) calc(var(--gap) * 1.3);
+  justify-content: center; align-content: center; justify-items: center; gap: var(--gap) var(--gap);
 }
 .video-3d-column {
   grid-column: 3; grid-row: 1 / span 2; align-self: stretch;
