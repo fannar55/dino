@@ -25,8 +25,11 @@
 import { createRoute, FAR_POOL } from './kafli4-route.js';
 import { lineQueue } from './kafli4-flight-play.js';
 import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
-import { MELODY, TEMPO, nextBeat } from './kafli5-song.js';
+import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from './kafli5-song.js';
+import { SONG } from './kafli5-set.js';
 import { createChoir, ECHO, NOTE, WHOLE } from './kafli5-choir.js';
+import { createStems } from '../engine/audio/stems.js';
+import { createSong } from '../engine/audio/song.js';
 import { sloedlaLife, COURAGE } from './kafli5-sloedla.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
@@ -74,8 +77,21 @@ const GOING = { grazers: 1.6, lizards: 2.6, flyers: 6, turtles: 1, frogs: 1 };
 const GOING_SECONDS = [7, 17];
 const CHOIR_SIZE = { grazers: 3, lizards: 6, flyers: 4 }; // how many of those that came stand in the choir (the rest stay put)
 const BETWEEN = 0.8; // s from a phrase's step out to the next phrase (the choir's clock stands still meanwhile)
-const SONG_TIMES = 2; // she plays the whole song twice in scene 6
 const ROAR = { level: 0.3 };
+// The music (assets/audio/kafli5/song/, tools/kafli5-song.mjs). Scenes 4 and 5: the band's loop under the choir, a part of the band
+// joining after each phrase (kafli5-song.js LAYER_LEVELS, PHRASE_LAYERS). Scene 6: DJ Flugeðla's whole set, streamed, which the
+// scene is cut to by its sections, her lines and its cues (SONG.set, beats from the set's start).
+const SONG_BASE = new URL('../assets/audio/kafli5/song/', import.meta.url);
+const SET = SONG.set;
+const BEAT = 60 / TEMPO.bpm;
+const BAND = { in: 2, join: 1.5, out: 4 * BEAT }; // s: the far band fades in as the task starts, a part joins, the loop leaves for the set
+const SET_LEVEL = 1.4; // the set's level against the theme's place in the mix: a party is louder than a walk (chapter 4's flight song: 1.3)
+const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
+const HOP_APART = 0.45; // s: a group that sings quick notes in the set hops no oftener than this
+const CUT_APART = 2.6; // s a shot of the set is held at least (the director asks for 2.5 between cuts)
+// Whom each part of the set is about, as its sections name them (SONG.set.sections feature), and the shot that shows them: the first
+// cut of the music video. A group's part turns the choir's shot toward it.
+const SET_SHOT = { sloedla: 'sloedla_out', flugedla: 'pool_open' };
 // The choir's shot turns gently toward the group that sings: this share of the way from its own aim to the group, over `seconds`
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
 // The share is halved until every group and the reed are inside FRAMED of the frame from its middle (an upright screen turns less).
@@ -180,6 +196,10 @@ function* theChoir(s, c) {
     const { counted } = choir.tap(group, c.clock);
     c.log({ type: 'tap', group, counted });
   }));
+  // the band, heard from far away: every part of it plays from now on, and the phrases bring them up one by one
+  c.band.play();
+  for (const [layer, level] of Object.entries(LAYER_LEVELS)) c.band.layer(layer, level, BAND.in);
+  c.log({ type: 'band', layers: { ...LAYER_LEVELS } });
   try {
     choir.start(c.clock);
     while (!choir.state().done) {
@@ -206,9 +226,11 @@ function onChoir(s, c, event) {
       if (event.again) hop(c, event.group);
       break;
     case 'show':
-      // she plays the phrase first: her horn, and the note flies from her crest to the group
-      c.her.blow({ seconds: NOTE });
-      c.sounds.horn(event.group, { seconds: NOTE * 0.95, pan: panOf(c.world, REED_POINT) });
+      // she plays the phrase first: her horn, on the band's next half beat, and the note flies from her crest to the group
+      onTheBeat(s, c, () => {
+        c.her.blow({ seconds: NOTE * 0.5 });
+        c.sounds.horn(event.group, { seconds: NOTE * 0.5, pan: panOf(c.world, REED_POINT) });
+      });
       glow.fly(c, crestPoint(c), tapPoint(c, event.group), NOTE * 0.9, () => glow.flash(event.group));
       break;
     case 'sing':
@@ -220,8 +242,10 @@ function onChoir(s, c, event) {
       }
       break;
     case 'echo':
-      c.her.blow({ seconds: 0.9 });
-      c.sounds.horn(event.group, { seconds: 0.9, pan: panOf(c.world, REED_POINT) });
+      onTheBeat(s, c, () => {
+        c.her.blow({ seconds: 0.9 });
+        c.sounds.horn(event.group, { seconds: 0.9, pan: panOf(c.world, REED_POINT) });
+      });
       break;
     case 'help':
       if (event.level === 'glow') {
@@ -243,6 +267,10 @@ function onChoir(s, c, event) {
 /** A phrase is done: she plays it whole, and (but after the last) comes a step out of the reed while the choir's clock waits. */
 function* phraseDone(s, c, phrase) {
   const notes = MELODY[phrase];
+  // the band finds a player: the part of it this phrase brings in (the last phrase brings the whole band up)
+  for (const [layer, level] of Object.entries(PHRASE_LAYERS[phrase])) c.band.layer(layer, level, BAND.join);
+  c.log({ type: 'band', phrase, layers: { ...PHRASE_LAYERS[phrase] } });
+  yield s.wait(c.band.delayToBeat(1)); // she plays it on the beat, a note a beat
   c.her.blow({ seconds: notes.length * WHOLE });
   for (const group of notes) {
     c.sounds.horn(group, { seconds: WHOLE * 0.95, pan: panOf(c.world, REED_POINT) });
@@ -273,11 +301,37 @@ function* phraseDone(s, c, phrase) {
   }
 }
 
-// 6. Out in the pool she plays the whole song with her head up, the animals sing along, Egill taps along on the beat, and Flugeðla
-// beats the time with her wings in the water. Her thanks, and the fifth star.
+/** Runs `play` on the band's next half beat: her horn keeps the band's time (at once when that is now). */
+function onTheBeat(s, c, play) {
+  const wait = c.band.delayToBeat(0.5);
+  if (wait < 1e-3) play();
+  else s.after(wait, () => { play(); return null; });
+}
+
+// The set as the scene plays it: its sections, her lines and its cues in one list, by beat (a section before what happens on its
+// first beat), the events of a beat together.
+const SET_BEATS = (() => {
+  const events = [
+    ...SET.sections.map(section => ({ beat: section.startBeat, kind: 'section', section })),
+    ...SET.lines.map(line => ({ beat: line.beat, kind: 'line', line })),
+    ...SET.cues,
+  ].filter(event => event.beat <= SET.endBeat).sort((a, b) => a.beat - b.beat);
+  const beats = [];
+  for (const event of events) {
+    if (beats.at(-1)?.beat === event.beat) beats.at(-1).events.push(event);
+    else beats.push({ beat: event.beat, events: [event] });
+  }
+  return beats;
+})();
+
+// 6. The festival's first song. Out in the pool she has her song back, and Flugeðla plays it as the DJ of the forest: her whole set
+// (SONG.set, 3 min 50 s), each group's part of it, Slóeðla's horn over the quiet middle, the countdown and the drop. The scene is cut
+// to the set by its beats: a part of the set shows whom it is about, a group lights and hops as it sings, her crest sounds with her
+// horn, Flugeðla's words are on the screen as she calls them, and the child's taps sing on the next beat all the way through. Then
+// her thanks, and the fifth star.
 function* theWholeSong(s, c) {
   mark(c, 6);
-  const { mosi, egill, flugedla, world } = c;
+  const { mosi, egill, flugedla } = c;
   yield s.camera.cut('sloedla_out');
   c.her.courage = COURAGE[STEPS.length];
   yield c.her.wade();
@@ -285,43 +339,35 @@ function* theWholeSong(s, c) {
   for (const who of [mosi, egill]) yield who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 35 });
   yield flugedla.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 80, maxPitch: 35 });
   yield s.wait(0.8);
+  // the band under the choir leaves over a bar, and on a bar line the set starts: the band far away again, and Flugeðla's welcome
+  c.band.stop(BAND.out);
+  const toBar = c.band.delayToBeat(4);
+  yield s.wait(toBar < BAND.out - 1e-6 ? toBar + 4 * BEAT : toBar);
   yield s.camera.cut('choir_wide');
-  // the song on the beat: each phrase's notes a beat apart, a beat's rest between phrases, twice; the child's taps on the next beat
-  const beat = 60 / TEMPO.bpm;
-  const start = s.time + beat;
+  const start = s.time;
   c.songStart = start;
+  c.set = { start, section: null, shot: 'choir_wide', cutAt: start, hopped: {} };
+  c.song.setLevel(SET_LEVEL, 0);
+  c.song.play(0);
+  c.log({ type: 'set', start, beat: c.band.beatAt() });
+  c.her.idle(); // she stands calm in the water until her horn (her dance is the music video's: Task 7b)
+  // the child's taps: any group sings on the set's next beat
   const offs = GROUPS.map(group => s.onTap(`choir-${group}`, () => {
-    const at = start + nextBeat(s.time - start, TEMPO);
+    const at = start + Math.ceil((s.time - start) / BEAT - 1e-9) * BEAT;
     c.log({ type: 'freeTap', group, beat: at });
     s.after(Math.max(0, at - s.time), () => { sing(s, c, group, { counted: false, log: 'free' }); return null; });
   }));
-  const beats = [];
-  for (let time = 0; time < SONG_TIMES; time++) {
-    for (const notes of MELODY) {
-      for (const group of notes) beats.push(group);
-      beats.push(null);
-    }
-  }
   flugedla.raw.play('happy', { fade: 0.4 });
-  const [fx, fz] = FAR_POOL.landing;
   try {
-    for (let k = 0; k < beats.length; k++) {
-      yield s.until(() => s.time >= start + k * beat - 1e-9);
-      const group = beats[k];
-      if (k % 2 === 0) {
-        world.forest?.rippleAt?.(fx, fz, 0.6);
-        s.sfx('splash');
-      }
-      if (!group) continue;
-      c.her.blow({ seconds: beat });
-      c.sounds.horn(group, { seconds: beat * 0.95, pan: panOf(world, [WADE.at[0], LEVEL + 2.4, WADE.at[1]]) }); // her horn, out in the pool
-      sing(s, c, group, { counted: false, level: 0.12, log: 'song' });
-      c.glow.flash(group);
+    for (const { beat, events } of SET_BEATS) {
+      yield s.until(() => s.time >= start + beat * BEAT - 1e-9);
+      for (const event of events) onSet(s, c, event);
     }
-    yield s.wait(beat * 3); // the last note dies away
+    yield s.until(() => s.time >= start + SET.endBeat * BEAT + SET_TAIL); // the last hit rings
   } finally {
     for (const stop of offs) stop();
   }
+  c.set.ended = s.time;
   c.her.idle();
   flugedla.raw.play('idle', { fade: 0.6 });
   yield s.camera.cut('sloedla_out');
@@ -333,6 +379,49 @@ function* theWholeSong(s, c) {
   yield star;
   s.sfx('journal');
   yield s.wait(0.8);
+}
+
+/** One event of the set, as the child sees it (the sound is the set's own). */
+function onSet(s, c, event) {
+  switch (event.kind) {
+    case 'section': {
+      const { section } = event;
+      c.set.section = section;
+      c.log({ type: 'section', id: section.id, feature: section.feature });
+      // a part too short to hold a shot (the rewind: four beats) keeps the shot it came in on
+      const shot = SET_SHOT[section.feature] ?? 'choir_wide';
+      if (shot !== c.set.shot && section.beats * BEAT >= CUT_APART && s.time - c.set.cutAt >= CUT_APART) {
+        c.set.shot = shot;
+        c.set.cutAt = s.time;
+        s.camera.cut(shot);
+      }
+      if (GROUPS.includes(section.feature)) leanTo(s, c, section.feature);
+      break;
+    }
+    case 'line':
+      // her words on the screen as she calls them (her voice is in the set)
+      c.log({ type: 'djLine', id: event.line.id });
+      s.say('flugedla', { text: event.line.text }, { hold: 0.15 });
+      break;
+    case 'call':
+      if (!GROUPS.includes(event.group)) break; // the beetles and the dragonflies are heard, not yet seen
+      c.glow.flash(event.group);
+      if (s.time - (c.set.hopped[event.group] ?? -Infinity) >= HOP_APART) {
+        c.set.hopped[event.group] = s.time;
+        hop(c, event.group);
+      }
+      break;
+    case 'horn':
+      c.her.blow({ seconds: BEAT });
+      break;
+    case 'wings': {
+      const [fx, fz] = FAR_POOL.landing;
+      c.world.forest?.rippleAt?.(fx, fz, 0.6); // Flugeðla beats the time with her wings in the shallows
+      break;
+    }
+    default:
+      c.log({ type: 'cue', kind: event.kind, beat: event.beat });
+  }
 }
 
 // 7. A deep roar far in the west: Grameðla heard the song. Everyone turns there, the lines, and the chapter ends in the book, as
@@ -633,6 +722,9 @@ export const chapter = {
   title: 'Boð til Slóeðlu',
   next: null, // the last chapter so far
   look: 'goldenAfternoon',
+  // Her song's own tempo and key, and no file: the page plays no theme under this chapter (the band's loop and Flugeðla's set are
+  // its music, below), and the forest dances and the effects ring on the song's beat and notes (engine/audio/theme.js).
+  theme: 'kafli5/song/song.json',
   start: 'tjorn',
   locations: {
     // Árdalurinn round the far pool only, in its real look, with the choir's frogs and turtles; built before the start button shows
@@ -680,6 +772,17 @@ export const chapter = {
     const context = world.sound?.context ?? null;
     // the owner's picked recordings (Task 6), fetched in the background; until each has come its part is made
     c.sounds = createChoirSounds({ context, output: world.sound?.output ?? null, recordings: loadChoirRecordings(context) });
+    // the band's loop (scenes 4 and 5) and Flugeðla's set (scene 6), both on the game clock's beat, held with the game's sound and
+    // dipped under a line; their files are fetched from now, so they are there when their scenes are
+    const clock = world.clock ?? { get time() { return s.time; } };
+    const output = world.sound?.output ?? null;
+    c.band = createStems({ context, output, clock, song: SONG, base: SONG_BASE, speaking: () => Boolean(world.sound?.speaking) });
+    c.song = createSong({
+      context, output, clock, src: SET.src, base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}),
+    });
+    const music = [c.band, c.song];
+    const releases = s.seeking ? [] : music.map(part => world.sound?.hold?.(part) ?? null);
+    const ours = releases.some(off => !off); // nothing holds them (no page): the script gives them their frame itself
     c.glow = createGlow(world, { reduced: c.reduced });
     c.her = sloedlaLife(sloedla);
     world.chapterState = c; // what the scenes share, for captures, probes and tests
@@ -695,6 +798,7 @@ export const chapter = {
       while (!c.ended) {
         c.glow.update(s.time, s.time - last);
         last = s.time;
+        if (ours) for (const part of music) part.update();
         yield;
       }
     });
@@ -708,6 +812,9 @@ export const chapter = {
       c.ended = true;
       release?.();
       c.sounds.stop();
+      c.band.stop(0.3);
+      c.song.stop(0.5);
+      for (const off of releases) off?.();
     }
   },
 };

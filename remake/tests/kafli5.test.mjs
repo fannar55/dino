@@ -8,7 +8,8 @@ import * as THREE from 'three';
 import * as kafli5 from '../chapters/kafli5.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
-import { MELODY, GROUPS, TEMPO } from '../chapters/kafli5-song.js';
+import { MELODY, GROUPS, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from '../chapters/kafli5-song.js';
+import { SONG } from '../chapters/kafli5-set.js';
 import { HELP } from '../chapters/kafli5-choir.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
 import { SHOTS, STEPS, WADE, SPOTS } from '../chapters/kafli5-pool.js';
@@ -60,7 +61,7 @@ const toSegment = (p, a, b) => {
 function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null, audio = null } = {}) {
   const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [], turtleLift: Infinity, her: [] };
   return playUnattended(kafli5, {
-    seeking, limit: 720, shaped: true, aspect, reduced, eager, audio,
+    seeking, limit: 900, shaped: true, aspect, reduced, eager, audio,
     onFrame(frame) {
       const { world, ui, director, shot } = frame;
       if (!seen.wrapped) {
@@ -174,10 +175,11 @@ const ended = (run, what) => {
   return world.chapterTimeline.at(-1).at;
 };
 
-test('nobody touching: the chapter plays to its end in 5 to 7 minutes, the star given', async () => {
+test('nobody touching: the chapter plays to its end in 8 to 10 minutes, the star given', async () => {
   const run = await untouched();
   const end = ended(run, 'untouched');
-  assert.ok(end >= 300 && end <= 420, `the end at ${end.toFixed(1)} s (spec: about 6 minutes, never over 10)`);
+  // about five minutes of story and choir, and Flugeðla's set of 3 min 50 s (the owner's pick of 2026-11-11)
+  assert.ok(end >= 480 && end <= 600, `the end at ${end.toFixed(1)} s`);
   assert.deepEqual(run.save.get().stars.filter(id => id === 'k5_sloedla'), ['k5_sloedla'], 'her star, once');
   assert.deepEqual(run.director.warnings, [], 'the director');
   assert.deepEqual(run.watched.out, [], 'every held shot shows whom it is for');
@@ -212,10 +214,10 @@ test('a child who taps everything at once (eager) finishes the choir in under 90
   assert.ok(logOf(run, 'peek')[0].tapped, 'the reed was tapped');
 });
 
-test('a child who taps the wrong group every time still ends the chapter, under 10 minutes', async () => {
+test('a child who taps the wrong group every time still ends the chapter, under 12 minutes', async () => {
   const run = await wrong();
   const end = ended(run, 'always wrong');
-  assert.ok(end < 600, `the end at ${end.toFixed(1)} s`);
+  assert.ok(end < 720, `the end at ${end.toFixed(1)} s`);
   const taps = logOf(run, 'tap');
   assert.ok(taps.length >= NOTES * 3, `${taps.length} wrong taps`);
   assert.ok(taps.every(tap => !tap.counted), 'none counted');
@@ -240,6 +242,52 @@ test('in the free play a tap on any group sings on the next beat of TEMPO', asyn
     assert.equal(sang.group, tap.group);
     assert.ok(sang.at >= tap.beat - 1e-9 && sang.at - tap.beat <= FRAME + 1e-6, `tap ${k} sings on its beat (${(sang.at - tap.beat).toFixed(3)} s after)`);
   });
+});
+
+test('each phrase brings in its part of the band, and the loop leaves as the set starts on a bar', async () => {
+  const run = await quick();
+  const c = run.world.chapterState;
+  const band = logOf(run, 'band');
+  assert.deepEqual(band.map(entry => entry.phrase), [undefined, 0, 1, 2, 3], 'as the task starts, and after each phrase');
+  assert.deepEqual(band[0].layers, LAYER_LEVELS);
+  band.slice(1).forEach((entry, p) => assert.deepEqual(entry.layers, PHRASE_LAYERS[p], `phrase ${p + 1}`));
+  assert.ok(Math.abs(band[0].at - sceneAt(run, 4)) < 0.1, 'the far band from the task\'s first moment');
+  const phrases = logOf(run, 'phrase');
+  band.slice(1).forEach((entry, p) => assert.ok(Math.abs(entry.at - phrases[p].at) < 0.1, `the part of phrase ${p + 1} joins as the phrase is found`));
+  for (const layer of ['drums', 'bass', 'music']) assert.ok(c.band.level(layer) > 0, `${layer} plays by the end`);
+  assert.equal(c.band.level('far'), 0);
+  assert.equal(c.band.playing, false, 'the loop has left');
+  const [set] = logOf(run, 'set');
+  assert.ok(set.at > sceneAt(run, 6), 'the set starts in scene 6');
+  const bars = set.beat / 4;
+  assert.ok(Math.abs(bars - Math.round(bars)) < (FRAME / BEAT) / 4 + 1e-6, `on a bar line of the chapter's beat (bar ${bars.toFixed(3)})`);
+});
+
+test('scene 6 plays the whole set: every part of it in order, her words on the screen, the right shots, and then her thanks', async () => {
+  const run = await untouched();
+  const c = run.world.chapterState;
+  const SET = SONG.set;
+  assert.deepEqual(logOf(run, 'section').map(entry => entry.id), SET.sections.map(section => section.id), 'every part');
+  logOf(run, 'section').forEach((entry, k) => {
+    const due = c.songStart + SET.sections[k].startBeat * BEAT;
+    assert.ok(entry.at >= due - 1e-6 && entry.at - due <= FRAME + 1e-6, `${entry.id} on its beat (${(entry.at - due).toFixed(3)} s after)`);
+  });
+  assert.deepEqual(logOf(run, 'djLine').map(entry => entry.id), SET.lines.map(line => line.id), 'every line of hers');
+  const shown = run.captions.filter(entry => entry.who === 'Flugeðla').map(entry => entry.text);
+  for (const line of SET.lines) assert.ok(shown.includes(line.text), `"${line.text}" is on the screen`);
+  // the set takes its length, and she thanks Egill after its last hit has rung
+  assert.ok(Math.abs(c.set.ended - c.songStart - (SET.endBeat * BEAT + 2.4)) < 0.1, `the set took ${(c.set.ended - c.songStart).toFixed(1)} s`);
+  const thanks = run.seen.said.find(line => line.id === 'k5_sloedla_thanks');
+  assert.ok(thanks.at >= c.set.ended, 'her thanks after the set');
+  // her horn's part is hers, Flugeðla's parts are Flugeðla's, a group's part is the choir's
+  const shotAt = time => run.seen.cuts.findLast(cut => cut.at <= time + 1e-6)?.shot;
+  const part = id => SET.sections.find(section => section.id === id);
+  const middle = section => c.songStart + (section.startBeat + section.beats / 2) * BEAT;
+  assert.equal(shotAt(middle(part('break'))), 'sloedla_out');
+  assert.equal(shotAt(middle(part('welcome'))), 'pool_open');
+  assert.equal(shotAt(middle(part('grazers'))), 'choir_wide');
+  // the groups hop as they sing in the set (nobody touched the screen)
+  assert.ok(logOf(run, 'free').length === 0 && logOf(run, 'cue').some(entry => entry.kind === 'freeze'), 'the cues the video will be cut to are met');
 });
 
 test('reduced motion: the notes fade instead of flying and the choir shot holds still, to the end', async () => {
