@@ -88,6 +88,8 @@ const depthAt = ([x, z]) => (SHAPE.signedAt(x, z) < 0 ? Math.max(0, SHAPE.level 
 
 /** Mosi stops on the bank where the path goes under, his nose at the water, facing the way he came down. */
 export const MOSI_BANK = spot(0, 0, PATH_HEADING);
+/** Egill stands on the bank beside Mosi, right by the water's edge, while they fish. */
+export const EGILL_BANK = spot(2.5, -2.2, PATH_HEADING);
 // Uggeðla lies low across the channel, on the far bank's edge where the bank is straight (a 14 m body), her head to the north-east (the
 // way the ferry will go), in the shallows and the reed that hides all of her but her sail (the reed bed below). Her root is the
 // middle of her 14 m.
@@ -275,14 +277,9 @@ export const SIKI_SHOTS = {
   siki_flooded: { position: eye(10.5, -1.2, 1.6), target: eye(2.5, 0.0, 1.2), fov: 48 },
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
   siki_sail: { position: eye(-9, -7.5, 2.3), target: eye(14, 1.5, 3.6), fov: 48 },
-  // Still, from the bank behind Mosi and 7 m up, looking down on the stretch of channel the fish jump in (the open water in front of her, with
-  // the water behind a fish, not the reed): Mosi and Egill on the bank at the left, her in the reed beyond. The fish are 50 to 70 px to the
-  // metre on a 1280x800 screen, 32 to 44 on a tablet held upright (the director keeps the 16:10 width): a tap target is 2.2 m in radius.
-  // The lens is 46 degrees and the aim 3.5 degrees to the left and 0.3 m higher than it was (48 and 6.8, -1.2, 1.0). Þórseðla, 85 m off beyond the frame's
-  // right edge, had a bone in the view and was drawn (her 29k triangles, body and shadow, took the shot to 271k, over the tablet's 250k);
-  // all of her is out of it now (the right edge is 30.7 degrees off the aim, and she comes in at 33.3: 2.3 degrees to spare): 246k, and the
-  // whole of Uggeðla, her sail and her tail, still in the picture. Mosi, Egill and she are 5 % larger. Plants are the same as before.
-  siki_fishing: { position: eye(-4, -9, 7.0), target: eye(6.3, -0.6, 1.3), fov: 46 },
+  // Still, from the bank behind Mosi and down at Egill's height, looking across the stretch of channel the fish jump in (the open water in
+  // front of her, with the sky and water behind a leaping fish): Mosi and Egill on the bank by the water at the left, her in the reed beyond.
+  siki_fishing: { position: eye(-2, -9.5, 1.65), target: eye(6.3, -0.6, 1.4), fov: 46 },
   // Mosi and Uggeðla face to face across the water.
   siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 44 },
   // Low, looking up at her sail against the sky, where the star rises from its top.

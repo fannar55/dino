@@ -51,6 +51,10 @@ test('narration waits for camera and game clock, and queues behind current speec
   speech.queue('held', { delay: .1 }); speech.update(10); assert.equal(speech.getStats().current, 'lift');
   media.end(); speech.update(.2); assert.equal(speech.getStats().current, 'held');
   assert.equal(speech.queue('held'), false);
+  // a line said once counts as said when it begins: one dropped before it began (a tap stops him) is queued again when its moment comes back
+  media.end(); assert.equal(speech.queue('won', { delay: .5 }), true); speech.stop(); speech.update(1); assert.equal(speech.getStats().current, null);
+  assert.equal(speech.queue('won', { delay: .5 }), true, 'never begun: it may come again'); speech.update(.6); assert.equal(speech.getStats().current, 'won');
+  assert.equal(speech.queue('won'), false, 'begun: once in the round');
 });
 
 test('narration pause resumes the same playhead; restart and mute cancel stale instructions', async () => {
@@ -79,6 +83,45 @@ test('hidden-page suspension silences even help and resumes only when visible ag
   speech.pause(true, { force: true }); assert.equal(media.paused, true);
   assert.equal(speech.play('help', 0, true), false); speech.update(20); assert.equal(media.currentTime, .4);
   speech.pause(true, { force: false }); await flush(); assert.equal(media.paused, false); assert.equal(media.currentTime, .4);
+});
+
+test("a tap-along's counts: one may cut the count before it, none starts over a sentence or is queued", async () => {
+  const counts = { hals_mosi_1: { src: 'assets/audio/hals/hals_mosi_1.mp3', mouth: 'f000', duration: .97 }, hals_mosi_2: { src: 'assets/audio/hals/hals_mosi_2.mp3', mouth: '8000', duration: 1.29 } };
+  const media = new Media(), speech = createMemorySpeech({ makeAudio: () => media, fetcher: response(speechManifest), counts });
+  await speech.ready;
+  assert.equal(speech.count('hals_mosi_1'), false, 'not while the game is held'); speech.pause(false);
+  assert.equal(speech.count('welcome'), false, 'a sentence is not a count'); assert.equal(speech.count('nope'), false);
+  // a count through his own voice: his mouth moves with it, and the page sees him speaking (the duck)
+  assert.equal(speech.count('hals_mosi_1'), true); assert.equal(speech.getStats().current, 'hals_mosi_1');
+  assert.equal(speech.isPlaying(), true); assert.equal(speech.amplitude(), 1); assert.match(media.src, /assets\/audio\/hals\/hals_mosi_1\.mp3$/);
+  // fast taps: the next count cuts it
+  assert.equal(speech.count('hals_mosi_2'), true); assert.equal(speech.getStats().current, 'hals_mosi_2');
+  const [first, second] = speech.getStats().started;
+  assert.equal(first.src, 'assets/audio/hals/hals_mosi_1.mp3'); assert.ok(first.cut >= first.at, 'the cut count says when it was cut'); assert.equal(second.cut, undefined);
+  assert.equal(first.cutBy, 'hals_mosi_2', 'and by which line');
+  // a sentence cuts a count; a count never starts over a sentence that plays, nor over one that waits to play
+  assert.equal(speech.play('lift'), true); assert.equal(speech.getStats().current, 'lift');
+  assert.equal(speech.count('hals_mosi_1'), false, 'that beat is silent'); assert.equal(speech.getStats().current, 'lift');
+  media.end(); speech.queue('held', { delay: .3 });
+  assert.equal(speech.count('hals_mosi_1'), false, 'a sentence is queued: silent'); assert.equal(speech.getStats().pending, 'held');
+  speech.update(.4); assert.equal(speech.getStats().current, 'held');
+  // the dropped counts were never queued: after the sentence ends nothing follows
+  media.end(); speech.update(5); assert.equal(speech.getStats().current, null);
+  assert.deepEqual(speech.getStats().started.map(line => [line.id, line.cutBy ?? null]), [['hals_mosi_1', 'hals_mosi_2'], ['hals_mosi_2', 'lift'], ['lift', null], ['held', null]], 'no count ever cut a sentence');
+  // a sentence queued while a count plays waits for it to end (it does not cut it, and the count does not cut the sentence)
+  assert.equal(speech.count('hals_mosi_2'), true); speech.queue('won', { delay: .1 }); speech.update(.5);
+  assert.equal(speech.getStats().current, 'hals_mosi_2'); media.end(); speech.update(.2); assert.equal(speech.getStats().current, 'won');
+  // the tap-along's own lead-in (`cuts`, the owner's word of 2026-11-08): the child's counted tap cuts it, playing or waiting to play;
+  // any other sentence still keeps that beat silent
+  assert.equal(speech.count('hals_mosi_1', { cuts: 'lift' }), false, 'another sentence plays: silent');
+  assert.equal(speech.count('hals_mosi_1', { cuts: 'won' }), true, 'its lead-in plays: the tap cuts it');
+  const cutLead = speech.getStats().started.at(-2);
+  assert.deepEqual([speech.getStats().current, cutLead.id, cutLead.cutBy], ['hals_mosi_1', 'won', 'hals_mosi_1']); assert.ok(cutLead.cut >= cutLead.at);
+  media.end(); speech.queue('welcome', { delay: .3 });
+  assert.equal(speech.count('hals_mosi_2', { cuts: 'lift' }), false, 'another sentence waits to play: silent'); assert.equal(speech.getStats().pending, 'welcome');
+  assert.equal(speech.count('hals_mosi_2', { cuts: 'welcome' }), true, 'its lead-in waits to play: dropped'); assert.equal(speech.getStats().pending, null);
+  media.end(); speech.update(5); assert.equal(speech.getStats().current, null, 'and not said after the count');
+  speech.mute(true); assert.equal(speech.count('hals_mosi_1'), false, 'never when muted');
 });
 
 test('lastStarted names the last line that began, and a delayed line counts only when it begins', async () => {

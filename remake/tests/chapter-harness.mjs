@@ -134,6 +134,7 @@ export function groundOnly(layout, { shaped = false, world = null } = {}) {
     butterflies: {
       targets,
       landed,
+      hero: { name: 'butterfly-hero', group: new THREE.Group(), loaded: Promise.resolve(true) },
       flutter: () => new Handle('flutter').finish(),
       land(spec) {
         landed.push(spec);
@@ -190,9 +191,26 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
 /** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened (and which tile it was asked to nod), and no pictures to fly. */
 export function fakeBook() {
   return {
-    opened: [], nods: [], isOpen: false,
-    open(tab, by, options) { this.opened.push([tab, by]); this.nods.push(options?.nod ?? null); this.isOpen = true; },
-    close() { this.isOpen = false; },
+    opened: [], nods: [], played: [], isOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null, lockedTutorial: null,
+    open(tab, by, options) {
+      this.opened.push([tab, by]);
+      this.nods.push(options?.nod ?? null);
+      this.isOpen = true;
+      this.tab = tab;
+      this.beckoningTab = null;
+    },
+    close() {
+      this.isOpen = false;
+      this.beckoningClose = false;
+      this.beckoningTab = null;
+    },
+    beckonClose(on = true) { this.beckoningClose = Boolean(on); },
+    beckonTab(tab = null) { this.beckoningTab = tab; },
+    lockTutorial(target = null) { this.lockedTutorial = target; },
+    playGame(game, options) {
+      this.played.push([game, options]);
+      return null;
+    },
     refresh() {},
     pictureOf: () => null,
   };
@@ -554,9 +572,39 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   let trayUp = null;
   let lastDrop = -Infinity;
   const choicesEl = doc.getElementById('choices');
+  const journalBtn = doc.getElementById('journal-button');
   let choicesUp = null;
+  let bookBeckonSince = null;
   let asked = false;
+  function stepBookTutorial(t) {
+    if (!mosi.talking) {
+      if (book.beckoningClose) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          book.close();
+          bookBeckonSince = null;
+        }
+      } else if (journalBtn.classList.contains('beckon')) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          journalBtn.dispatchEvent(new Event('click'));
+          bookBeckonSince = null;
+        }
+      } else if (book.beckoningTab) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          book.open(book.beckoningTab, 'script');
+          bookBeckonSince = null;
+        }
+      } else {
+        bookBeckonSince = null;
+      }
+    } else {
+      bookBeckonSince = null;
+    }
+  }
   function eagerChild(t) {
+    stepBookTutorial(t);
     if (!choicesEl.hidden && choicesEl.children.length) {
       choicesUp ??= t;
       if (t - choicesUp > 1.2) {
@@ -574,7 +622,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       tapped.delete(name);
     }
     for (const [name, since] of appeared) {
-      if (/^(bird|butterfly|glade)-/.test(name)) continue;
+      if (/^(bird|butterfly-(?!hero)|glade)-/.test(name)) continue;
       const flower = ['stone', 'ferns', 'tree'].includes(name);
       const again = name === 'nose' && tapped.has(name) && t - tapped.get(name) > 3.5 && t - tapped.get(name) < 3.5 + dt;
       if ((!tapped.has(name) && t - since > 1.2 && (!flower || t - lastFlower > 4)) || again) {
@@ -630,6 +678,21 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     }
   }
 
+  // The butterfly on Mosi's horn and the book tutorial in scene 5 require clicks: in non-seeking, non-eager headless runs,
+  // tap the butterfly after Mosi's prompt and reminder (15 s after the target first appears) and step through the beckoning
+  // book controls so full-chapter simulations can continue past the mandatory tutorial gate.
+  let heroSince = null;
+  function mandatoryButterflyTap(t) {
+    stepBookTutorial(t);
+    if (pointer.targets.has('butterfly-hero')) {
+      heroSince ??= t;
+      if (t - heroSince >= 15 - 1e-9) {
+        pointer.tap('butterfly-hero');
+        heroSince = null;
+      }
+    }
+  }
+
   const dt = 1 / 30;
   for (let t = 0; t < limit && !task.done; t += dt) {
     runTime = t;
@@ -642,6 +705,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       build.resolve();
     }
     if (eager) eagerChild(t);
+    else if (!seeking) mandatoryButterflyTap(t);
     if (noseAt) noseChild(t);
     if (earlyTap) earlyChild(t);
     world.clock.step(step);
@@ -723,7 +787,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       }
     }
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
-    if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
+    if (stage.scheduler.pending > 0 || world.loading?.size > 0) await new Promise(resolve => setImmediate(resolve)); // as main.js's seek: loads settle
   }
   return { world, task, stage, director, journal, book, save, moments, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines, builds };
 }

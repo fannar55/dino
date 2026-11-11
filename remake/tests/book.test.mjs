@@ -47,11 +47,13 @@ test('a child\'s open holds the game and closing lets it go', () => {
   book.open('animals', 'child');
   assert.equal(book.isOpen, true);
   assert.equal(root.hidden, false);
+  assert.equal(root.classList.contains('child-open'), true, 'marked as child-open so scene captions hide');
   assert.equal(book.tab, 'animals');
   assert.deepEqual(pauses, [true], 'the game holds still');
   close();
   assert.equal(book.isOpen, false);
   assert.equal(root.hidden, true);
+  assert.equal(root.classList.contains('child-open'), false);
   assert.deepEqual(pauses, [true, false], 'and goes on when it is shut');
 
   // A pause that fails is said, and leaves no book half open.
@@ -74,6 +76,7 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   const { book, root, pauses, close } = rig();
   book.open('dinosaurs', 'script'); // the chapter's last scene, while Mosi speaks
   assert.equal(book.isOpen, true);
+  assert.equal(root.classList.contains('child-open'), false, 'script-opened book lets scene captions show');
   assert.deepEqual(pauses, [], 'the scene goes on under it');
   book.close();
   assert.deepEqual(pauses, [], 'and shutting it lets nothing go');
@@ -81,6 +84,7 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   book.open('dinosaurs', 'script');
   root.dispatchEvent(pointerEvent('pointerdown', { x: 400, y: 300 })); // the child touches the book
   assert.deepEqual(pauses, [true], 'it is the child\'s now');
+  assert.equal(root.classList.contains('child-open'), true, 'claiming marks it child-open');
   root.dispatchEvent(pointerEvent('pointerdown', { x: 420, y: 300 }));
   assert.deepEqual(pauses, [true], 'once');
   close();
@@ -89,6 +93,17 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   book.open('dinosaurs', 'script');
   close(); // a child who only shuts it
   assert.deepEqual(pauses, [true, false], 'resumes nothing that was not held');
+
+  // While a script guides the child through the book's tabs, tapping a beckoning ribbon switches pages without pausing the scene.
+  const guided = rig();
+  guided.book.open('animals', 'script');
+  guided.book.beckonTab('dinosaurs');
+  assert.equal(guided.ribbon('dinosaurs').classList.contains('beckon'), true, 'the requested ribbon beckons');
+  assert.equal(guided.ribbon('videos').classList.contains('beckon'), false);
+  guided.tap(guided.ribbon('dinosaurs'));
+  assert.equal(guided.book.tab, 'dinosaurs', 'tapping the beckoning ribbon turns to its tab');
+  assert.equal(guided.ribbon('dinosaurs').classList.contains('beckon'), false, 'and stops beckoning once tapped');
+  assert.deepEqual(guided.pauses, [], 'without pausing the scene');
 });
 
 test('ribbons switch pages with a turn sound', () => {
@@ -139,7 +154,7 @@ test('the book has a Kortið page with the found places', () => {
     save.addPlace('sloedla');
   });
   const ribbons = root.findAll(e => e.classList.contains('ribbon'));
-  assert.deepEqual(ribbons.map(r => r.getAttribute('data-tab')), ['dinosaurs', 'animals', 'games', 'map', 'fossils'], 'the map after the games');
+  assert.deepEqual(ribbons.map(r => r.getAttribute('data-tab')), ['dinosaurs', 'animals', 'games', 'map', 'fossils', 'videos'], 'the map after the games');
   const ribbon = ribbons.find(r => r.getAttribute('data-tab') === 'map');
   assert.match(ribbon.innerHTML, /<span class="ribbon-label">Kortið<\/span>/, 'its ribbon says Kortið');
   assert.match(ribbon.innerHTML, /class="book-icon"/, 'with a drawn icon');
@@ -1942,7 +1957,8 @@ function fenRig({ fill = () => {}, animate = false, cards = CARDS } = {}) {
     doc.createElement = tag => animated(create(tag));
     animated(doc.getElementById('book'));
   }
-  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {} });
+  const shows = []; // the "3D myndbönd" shows the book hands on (main.js goes to their chapter)
+  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {}, onOpenShow: entry => shows.push(entry) });
   const root = doc.getElementById('book');
   const tap = el => {
     el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
@@ -1954,7 +1970,7 @@ function fenRig({ fill = () => {}, animate = false, cards = CARDS } = {}) {
   const tilesOn = (n, side) => page(n, side).findAll(e => e.classList.contains('tile')).map(e => e.getAttribute('data-card'));
   const corner = (n, way) => leaf(n).findAll(e => e.classList.contains('spread-turn') && e.classList.contains(way))[0];
   const tile = id => root.findAll(e => e.classList.contains('tile') && e.getAttribute('data-card') === id)[0];
-  return { doc, save, book, root, narrated, sounds, animations, tap, leaves, leaf, page, tilesOn, corner, tile };
+  return { doc, save, book, root, narrated, sounds, animations, tap, leaves, leaf, page, tilesOn, corner, tile, shows };
 }
 
 test('the Dýrin page has a second spread for the Fen, turned at the page corner', () => {
@@ -2140,11 +2156,11 @@ test('the book opened after a find lands on the spread that holds the new animal
 // ---------------------------------------------------------------------------------------------
 // The new structure (Landkönnuðabók, stage 1): Risaeðlur first, no Stjörnur, the games that are open, the nod at the chapter's end
 
-test('the ribbons are Risaeðlur, Dýrin, Leikir, Kortið and Safnið, and there is no Stjörnur page', () => {
+test('the ribbons are Risaeðlur, Dýrin, Leikir, Kortið, Safnið and Myndbönd, and there is no Stjörnur page', () => {
   const { root, all, ribbon, book } = rig();
-  assert.deepEqual(all('ribbon').map(r => r.getAttribute('data-tab')), ['dinosaurs', 'animals', 'games', 'map', 'fossils']);
+  assert.deepEqual(all('ribbon').map(r => r.getAttribute('data-tab')), ['dinosaurs', 'animals', 'games', 'map', 'fossils', 'videos']);
   const labels = all('ribbon').map(r => /<span class="ribbon-label">([^<]*)<\/span>/.exec(r.innerHTML)?.[1]);
-  assert.deepEqual(labels, ['Risaeðlur', 'Dýrin', 'Leikir', 'Kortið', 'Safnið']);
+  assert.deepEqual(labels, ['Risaeðlur', 'Dýrin', 'Leikir', 'Kortið', 'Safnið', 'Myndbönd']);
   assert.match(ribbon('dinosaurs').innerHTML, /<img class="book-icon ribbon-pic"[^>]*mosi-render-thumb\.webp[^>]*alt=""/, 'Mosi\'s render, small, is the dinosaurs\' icon');
   assert.equal(root.findAll(e => e.getAttribute('data-tab') === 'stars').length, 0, 'no ribbon, leaf or panel of the stars');
   assert.equal(root.findAll(e => e.classList.contains('star-tile')).length, 0, 'and none of its star tiles');
@@ -2344,4 +2360,165 @@ test('with all eight fossils found, Safnið is celebrated the first time the chi
   quiet.book.open('fossils', 'script');
   assert.equal(quiet.narrated.length, 0, 'a book the child does not hold says nothing');
   assert.equal(quiet.save.get().seen.includes('fossils-all'), false, 'and keeps the celebration for the child');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Myndbönd (videos.js, video-player.js) and card video links (card-viewer.js)
+
+test('the Myndbönd page has nine videos, five on the left page and four on the right, unlocking progressively and opening the video player', () => {
+  const { save, book, root, narrated, sounds, tap } = fenRig();
+  const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
+  const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
+    .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
+  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek'], 'five on the left page');
+  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d'], 'and four on the right, then the 3D column');
+
+  const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
+  const videoRibbonDots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
+    .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
+
+  assert.ok(vtile('heimur').classList.contains('new'), 'Heimur risaeðlanna is unlocked from the start and new');
+  for (const id of ['grannar', 'thorsedla', 'gramedla', 'landrek', 'fuglar', 'raf', 'steinn', 'tennur']) {
+    assert.ok(vtile(id).classList.contains('unfound'), `${id} waits for its unlock`);
+  }
+  assert.deepEqual(videoRibbonDots(), [], 'the ribbon waits until a new video is unlocked');
+
+  // Unlocking Kambeðla's star and the amber fossil unlocks grannar and raf, and puts Nýtt! on the Myndbönd ribbon.
+  save.addStar('k1_kambedla');
+  save.addHalsFound('amber');
+  book.refresh();
+  assert.ok(vtile('grannar').classList.contains('new'));
+  assert.ok(vtile('raf').classList.contains('new'));
+  assert.deepEqual(videoRibbonDots(), ['Nýtt!']);
+
+  book.open('videos', 'child');
+  sounds.length = 0;
+  tap(vtile('thorsedla')); // still locked: wiggles and says Mosi's later line
+  assert.deepEqual(sounds, ['wiggle']);
+  assert.equal(narrated.at(-1), 'book_mosi_later');
+  assert.equal(book.videoPlayer.isOpen, false);
+
+  // Tapping an unlocked video opens the player, marks it seen, and starts playback.
+  tap(vtile('grannar'));
+  assert.equal(book.videoPlayer.isOpen, true);
+  assert.equal(book.videoPlayer.video.id, 'grannar');
+  assert.equal(book.videoPlayer.screen.src, '/myndbond/grannar.mp4');
+  assert.equal(book.videoPlayer.paused, false, 'playing on open');
+  assert.ok(save.get().seen.includes('video:grannar'));
+  assert.ok(vtile('grannar').classList.contains('found'));
+  assert.deepEqual(videoRibbonDots(), ['Nýtt!'], 'still Nýtt! while raf is unwatched');
+
+  // Pause, resume, seek and scrub inside the player.
+  const toggleBtn = root.findAll(e => e.classList.contains('video-toggle'))[0];
+  const centerBtn = root.findAll(e => e.classList.contains('video-center-play'))[0];
+  const timeEl = root.findAll(e => e.classList.contains('video-time'))[0];
+  const fillEl = root.findAll(e => e.classList.contains('video-fill'))[0];
+  assert.equal(centerBtn.hidden, true, 'center play button hidden while playing');
+  tap(toggleBtn);
+  assert.equal(book.videoPlayer.paused, true, 'paused after toggle');
+  assert.equal(centerBtn.hidden, false, 'center play button shown while paused');
+  tap(centerBtn);
+  assert.equal(book.videoPlayer.paused, false, 'playing again from center button');
+
+  book.videoPlayer.screen.duration = 80;
+  book.videoPlayer.seek(20);
+  assert.equal(timeEl.textContent, '0:20 / 1:20');
+  assert.equal(fillEl.style.getPropertyValue('width'), '25.00%');
+
+  const closeBtn = root.findAll(e => e.classList.contains('video-close'))[0];
+  tap(closeBtn);
+  assert.equal(book.videoPlayer.isOpen, false);
+  assert.equal(book.videoPlayer.screen.src, '', 'stream unloaded on close');
+});
+
+test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open from the start, which hands its chapter on instead of playing', () => {
+  const { save, book, root, tap, shows, sounds } = fenRig();
+  const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
+  const right = leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains('right'))[0];
+  const column = right.findAll(e => e.classList.contains('video-3d-column'))[0];
+  assert.ok(column, 'the right page has the 3D column');
+  const head = column.findAll(e => e.classList.contains('video-3d-head'))[0];
+  assert.equal(head.findAll(e => e.classList.contains('glasses-3d'))[0].textContent, '3D', 'headed "3D myndbönd", the 3D in the colours of the glasses');
+  const show = column.findAll(e => e.getAttribute('data-video') === 'fidrildi3d')[0];
+  assert.ok(show.classList.contains('video-tile-3d'));
+  assert.equal(show.findAll(e => e.classList.contains('video-3d-badge'))[0].textContent, '3D');
+  assert.ok(show.classList.contains('new'), 'open from the start, and new until watched');
+  assert.equal(show.getAttribute('aria-label'), 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum');
+  assert.equal(column.findAll(e => e.classList.contains('video-tile')).length, 1, 'one tile now, no empty placeholder');
+  const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
+    .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
+  assert.deepEqual(dots(), [], 'a show open from the start puts no Nýtt! on the ribbon');
+
+  book.open('videos', 'child');
+  sounds.length = 0;
+  tap(show);
+  assert.deepEqual(shows.map(entry => entry.chapter), ['fidrildi3d'], 'handed on with its chapter');
+  assert.equal(book.videoPlayer.isOpen, false, 'the video player stays closed');
+  assert.ok(save.get().seen.includes('video:fidrildi3d'), 'marked seen');
+  assert.ok(show.classList.contains('found'));
+  assert.deepEqual(sounds, ['tile']);
+});
+
+test('cards linked to an unlocked video show the card-video button and open the video player from the card', () => {
+  const { save, book, root, tap, tile } = fenRig({
+    fill: s => { s.addStar('k1_kambedla'); s.addFinding('butterfly'); s.addHalsFound('amber'); s.addHalsFound('tooth'); },
+  });
+  const videoBtn = () => root.findAll(e => e.classList.contains('card-video'))[0];
+
+  // Butterfly (kalligrammatid) has no video: card-video button stays hidden.
+  book.open('animals', 'child');
+  tap(tile('kalligrammatid'));
+  assert.equal(book.cardViewer.isOpen, true);
+  assert.equal(videoBtn().hidden, true, 'no video for kalligrammatid');
+  book.cardViewer.close(true);
+
+  // Kambeðla has the grannar video (unlocked via k1_kambedla): card-video button shows and opens the video.
+  book.open('dinosaurs', 'child');
+  tap(tile('kambedla'));
+  assert.equal(book.cardViewer.isOpen, true);
+  assert.equal(videoBtn().hidden, false, 'Kambeðla shows the video button');
+  tap(videoBtn());
+  assert.equal(book.videoPlayer.isOpen, true);
+  assert.equal(book.videoPlayer.video.id, 'grannar');
+  assert.ok(save.get().seen.includes('video:grannar'), 'watching from the card marks the video seen');
+});
+
+test('lockTutorial blocks stray clicks and prevents claiming the book during a tutorial, and playGame opens a game from the script', () => {
+  const { book, root, tap, ribbon, pauses, all } = rig();
+  const closeEl = all('book-close')[0];
+  book.open('animals', 'script');
+  assert.equal(book.isOpen, true);
+  assert.equal(book.isChildOpen, false);
+  assert.deepEqual(pauses, []);
+
+  // Lock everything ('none') while Mosi is speaking.
+  book.lockTutorial('none');
+  root.dispatchEvent(pointerEvent('pointerdown', { x: 100, y: 100 }));
+  tap(ribbon('dinosaurs'));
+  tap(closeEl);
+  assert.equal(book.isOpen, true, 'close is blocked while locked to none');
+  assert.equal(book.tab, 'animals', 'ribbon is blocked while locked to none');
+  assert.equal(book.isChildOpen, false, 'stray taps never claim the book while locked');
+  assert.deepEqual(pauses, []);
+
+  // Lock to 'tab:dinosaurs': only the dinosaurs ribbon responds.
+  book.lockTutorial('tab:dinosaurs');
+  tap(ribbon('videos'));
+  tap(closeEl);
+  assert.equal(book.tab, 'animals');
+  tap(ribbon('dinosaurs'));
+  assert.equal(book.tab, 'dinosaurs', 'the allowed ribbon turns the page');
+
+  // Lock to 'close': only X closes the book.
+  book.lockTutorial('close');
+  tap(ribbon('animals'));
+  assert.equal(book.tab, 'dinosaurs');
+  tap(closeEl);
+  assert.equal(book.isOpen, false, 'close works when locked to close');
+
+  // Unlock and test playGame.
+  const fen = fenRig({ fill: s => s.addStar('k1_kambedla') });
+  fen.book.open('games', 'script');
+  fen.book.playGame('eitt', { tutorial: true });
+  assert.ok(fen.save.get().seen.includes('eitt'), 'playGame marks the game seen');
 });

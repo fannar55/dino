@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { createCrowds } from '../world/critters/crowd.js';
 import { createModel } from '../world/critters/models.js';
 import { clipPose, crowdModelFrom } from '../world/critters/crowd-models.js';
+import { pickQuality } from '../engine/quality.js';
+import { createForestLife } from '../world/forest/life.js';
 import { loadGlb } from './glb.mjs';
 
 const world = () => ({ scene: new THREE.Scene() });
@@ -244,6 +246,62 @@ test('a crowd with two levels draws near critters fine and far ones coarse', () 
   crowds.dispose();
 });
 
+// The sun's shadow pass drew every critter drawn, the 28 m box or not (10-20k triangles at the far pool). Now only those whose
+// bounds touch its box are in it, first in the instances, with a soft shade under those out of it; and a critter keeps its finer level
+// 8 % past the switch, so it does not flicker.
+test('only the critters in the sun\'s shadow box cast, and a critter keeps its finer level a little past the switch', () => {
+  const sun = new THREE.DirectionalLight();
+  sun.castShadow = true;
+  Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 0.5, far: 112 });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.position.set(0.3, 0.9, 0.3).normalize().multiplyScalar(56);
+  sun.updateMatrixWorld();
+  sun.target.updateMatrixWorld();
+  const crowds = createCrowds({ scene: new THREE.Scene(), lighting: { sun } }, { groundAt: () => 0 });
+  crowds.reserve('frog', 4);
+  crowds.begin(camera());
+  crowds.place('frog', new THREE.Vector3(60, 0, 0), 0, 1); // out of the box: drawn, casts nothing
+  crowds.place('frog', new THREE.Vector3(2, 0, -3), 0, 1); // in it
+  crowds.end();
+  const frog = meshOf(crowds, 'frog');
+  assert.equal(frog.count, 2, 'both are drawn');
+  assert.ok(frog.castShadow);
+  frog.onBeforeShadow();
+  assert.equal(frog.count, 1, 'one is drawn in the shadow pass');
+  frog.onAfterShadow();
+  assert.equal(frog.count, 2);
+  const at = i => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(frog.instanceMatrix.array, i * 16));
+  assert.deepEqual(at(0).toArray(), [2, 0, -3], 'the one that casts comes first');
+  assert.deepEqual(at(1).toArray(), [60, 0, 0], 'the other right after it');
+  const { shades } = crowds;
+  assert.equal(shades.count, 1, 'a soft shade under the one out of the box only (in it, its real shadow)');
+  assert.ok(Math.abs(new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(shades.instanceMatrix.array, 0)).x - 60) < 1);
+  assert.ok(shades.geometry.getAttribute('aShade').getX(0) > 0.3);
+  assert.equal(crowds.calls(), 2, 'the shades are one call');
+  crowds.begin(camera());
+  crowds.place('frog', new THREE.Vector3(60, 0, 0), 0, 1);
+  crowds.end();
+  assert.equal(frog.castShadow, false, 'none in the box: the shadow pass skips the kind');
+  crowds.dispose();
+
+  const model = bakedModel(); // fine within 30 m
+  const lizards = createCrowds(world());
+  lizards.reserve('lizard', 1, model);
+  const [fine, coarse] = lizards.meshes.length ? lizards.meshes : (lizards.ready(), lizards.meshes);
+  const pose = {};
+  const levelAt = d => {
+    lizards.begin(camera());
+    lizards.place('lizard', new THREE.Vector3(d, 0, 0), 0, 1, pose);
+    lizards.end();
+    return fine.count ? 0 : coarse.count ? 1 : -1;
+  };
+  assert.equal(levelAt(20), 0);
+  assert.equal(levelAt(32), 0, 'going away: fine to 8 % past 30 m');
+  assert.equal(levelAt(33), 1);
+  assert.equal(levelAt(29.5), 0, 'coming near: fine again at the switch, never coarser than before');
+  lizards.dispose();
+});
+
 test('a baked crowd GLB\'s scene becomes levels in metres with named frames', () => {
   // As the GLTFLoader gives a quantized file: 16-bit positions and frames, the node scaling them back to metres.
   const scene = new THREE.Group();
@@ -387,4 +445,228 @@ test('the flyer is the owner\'s model baked within the budget, flapping, gliding
   assert.ok(lowest > -0.005 && highestFoot < 0.005, `perched on its toes (${lowest.toFixed(4)} to ${highestFoot.toFixed(4)} m)`);
   const [, widest] = range('perch', b => b.max.z - b.min.z);
   assert.ok(widest < 0.3, `wings folded (${widest.toFixed(3)} m wide)`);
+});
+
+test('the frog is baked within the budget, crouching, leaping and breathing with its feet on the ground', async () => {
+  const model = crowdModelFrom(await loadGlb(new URL('../assets/critters/froskur.glb', import.meta.url)));
+  const triangles = g => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  assert.ok(triangles(model.lods[0].geometry) <= 700, `near ${triangles(model.lods[0].geometry)} triangles`);
+  assert.ok(triangles(model.lods[1].geometry) <= 260, `far ${triangles(model.lods[1].geometry)} triangles`);
+  assert.equal(model.lods[0].until, 30);
+  for (const { geometry } of model.lods) {
+    const names = (geometry.morphAttributes.position ?? []).map(a => a.name);
+    assert.deepEqual(names, ['leap', 'crouch', 'breathe']);
+  }
+  const geometry = model.lods[0].geometry;
+  const rest = geometry.getAttribute('position');
+  const box = new THREE.Box3().setFromBufferAttribute(rest);
+  assert.ok(Math.abs(box.max.x - box.min.x - 0.22) < 0.015, `0.22 m nose to rump (${(box.max.x - box.min.x).toFixed(3)})`);
+  assert.ok(box.min.y >= -0.002 && box.min.y <= 0.005, `feet on y = 0 (${box.min.y.toFixed(4)})`);
+  const morphBox = name => {
+    const d = geometry.morphAttributes.position.find(a => a.name === name);
+    const out = new THREE.Box3(), p = new THREE.Vector3();
+    for (let i = 0; i < rest.count; i++) out.expandByPoint(p.set(rest.getX(i) + d.getX(i), rest.getY(i) + d.getY(i), rest.getZ(i) + d.getZ(i)));
+    return out;
+  };
+  const crouch = morphBox('crouch');
+  const leap = morphBox('leap');
+  assert.ok(crouch.min.y >= -0.002, `crouch keeps feet on y = 0 (${crouch.min.y.toFixed(4)})`);
+  assert.ok(crouch.max.y < box.max.y - 0.008, `crouch lowers the back (${crouch.max.y.toFixed(3)} < ${box.max.y.toFixed(3)})`);
+  assert.ok((leap.max.x - leap.min.x) > (box.max.x - box.min.x) * 1.25, `leap kicks the legs out (${(leap.max.x - leap.min.x).toFixed(3)} m)`);
+});
+
+test('the snail, beetle, turtle and songbird are baked within budget with morphs and GPU wing tags', async () => {
+  const triangles = g => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  const morphBox = (geometry, name) => {
+    const rest = geometry.getAttribute('position');
+    const d = geometry.morphAttributes.position.find(a => a.name === name);
+    const out = new THREE.Box3(), p = new THREE.Vector3();
+    for (let i = 0; i < rest.count; i++) out.expandByPoint(p.set(rest.getX(i) + d.getX(i), rest.getY(i) + d.getY(i), rest.getZ(i) + d.getZ(i)));
+    return out;
+  };
+
+  // 1. Snigill
+  const snail = crowdModelFrom(await loadGlb(new URL('../assets/critters/snigill.glb', import.meta.url)));
+  assert.ok(triangles(snail.lods[0].geometry) <= 700 && triangles(snail.lods[1].geometry) <= 260);
+  for (const { geometry } of snail.lods) {
+    assert.deepEqual((geometry.morphAttributes.position ?? []).map(a => a.name), ['hide', 'sway']);
+  }
+  const snailBox = new THREE.Box3().setFromBufferAttribute(snail.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(snailBox.max.x - snailBox.min.x - 0.22) < 0.02);
+  assert.ok(snailBox.min.y >= -0.002 && snailBox.min.y <= 0.005);
+  const snailHide = morphBox(snail.lods[0].geometry, 'hide');
+  assert.ok(snailHide.max.x < snailBox.max.x - 0.03, 'hide draws the head inside the shell');
+  assert.ok(snailHide.min.y >= -0.002, 'hide keeps the tucked foot on y = 0');
+
+  // 2. Bjalla
+  const beetle = crowdModelFrom(await loadGlb(new URL('../assets/critters/bjalla.glb', import.meta.url)));
+  assert.ok(triangles(beetle.lods[0].geometry) <= 700 && triangles(beetle.lods[1].geometry) <= 260);
+  assert.equal(beetle.pivot, 0.052);
+  for (const { geometry } of beetle.lods) {
+    assert.deepEqual((geometry.morphAttributes.position ?? []).map(a => a.name), ['kickA', 'kickB']);
+  }
+  const beetleBox = new THREE.Box3().setFromBufferAttribute(beetle.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(beetleBox.min.y + beetle.pivot) < 0.004, 'soles stand on ground when shifted by pivot');
+  const kickA = beetle.lods[0].geometry.morphAttributes.position[0];
+  const kickB = beetle.lods[0].geometry.morphAttributes.position[1];
+  let legDiff = 0;
+  for (let i = 0; i < kickA.count; i++) legDiff = Math.max(legDiff, Math.hypot(kickA.getX(i) - kickB.getX(i), kickA.getY(i) - kickB.getY(i), kickA.getZ(i) - kickB.getZ(i)));
+  assert.ok(legDiff > 0.015, `kickA and kickB alternate legs (${legDiff.toFixed(4)} m)`);
+
+  // 3. Skjaldbaka
+  const turtle = crowdModelFrom(await loadGlb(new URL('../assets/critters/skjaldbaka.glb', import.meta.url)));
+  assert.ok(triangles(turtle.lods[0].geometry) <= 700 && triangles(turtle.lods[1].geometry) <= 260);
+  for (const { geometry } of turtle.lods) {
+    assert.deepEqual((geometry.morphAttributes.position ?? []).map(a => a.name), ['hide', 'look', 'stretch']);
+  }
+  const turtleBox = new THREE.Box3().setFromBufferAttribute(turtle.lods[0].geometry.getAttribute('position'));
+  assert.ok(Math.abs(turtleBox.max.x - turtleBox.min.x - 0.36) < 0.025);
+  assert.ok(turtleBox.min.y >= -0.002 && turtleBox.min.y <= 0.005);
+  const turtleStretch = morphBox(turtle.lods[0].geometry, 'stretch');
+  const turtleHide = morphBox(turtle.lods[0].geometry, 'hide');
+  assert.ok(turtleStretch.min.y >= -0.002, 'stretch keeps all four feet planted');
+  const turtlePos = turtle.lods[0].geometry.getAttribute('position');
+  const stretchDelta = turtle.lods[0].geometry.morphAttributes.position.find(a => a.name === 'stretch');
+  let restHeadY = -Infinity, stretchHeadY = -Infinity;
+  for (let i = 0; i < turtlePos.count; i++) {
+    if (turtlePos.getX(i) > 0.11) {
+      restHeadY = Math.max(restHeadY, turtlePos.getY(i));
+      stretchHeadY = Math.max(stretchHeadY, turtlePos.getY(i) + stretchDelta.getY(i));
+    }
+  }
+  assert.ok(stretchHeadY > restHeadY + 0.015, `stretch raises the head (${restHeadY.toFixed(3)} -> ${stretchHeadY.toFixed(3)} m)`);
+  assert.ok(turtleHide.max.x < turtleBox.max.x - 0.025, 'hide retracts the head');
+
+  // 4. Smáfugl (`fugl.glb`)
+  const bird = crowdModelFrom(await loadGlb(new URL('../assets/critters/fugl.glb', import.meta.url)));
+  assert.ok(triangles(bird.lods[0].geometry) <= 500 && triangles(bird.lods[1].geometry) <= 190);
+  assert.ok(bird.wing?.shoulder && bird.wing?.fold, 'wing hinge and fold stored in extras');
+  for (const { geometry } of bird.lods) {
+    const tag = geometry.getAttribute('aWing');
+    assert.ok(tag && tag.count === geometry.getAttribute('position').count, 'both LODs carry aWing');
+    let left = 0, right = 0;
+    for (let i = 0; i < tag.count; i++) {
+      if (tag.getX(i) > 0.5) right++;
+      if (tag.getX(i) < -0.5) left++;
+    }
+    assert.ok(left > 5 && right > 5, `both wings tagged (${left} L, ${right} R)`);
+  }
+  const crowds = createCrowds(world());
+  crowds.reserve('bird', 3, bird);
+  crowds.begin(camera());
+  crowds.place('bird', new THREE.Vector3(8, 0, 0), 0, 1, { wings: [0.4, 1] });
+  crowds.place('bird', new THREE.Vector3(55, 0, 0), 0, 1, { wings: [0, 0] });
+  crowds.end();
+  const [fine, coarse] = crowds.meshes.filter(m => m.userData.kind === 'bird');
+  assert.equal(fine.count, 1);
+  assert.equal(coarse.count, 1);
+  assert.ok(fine.material.userData.wingShader, 'crowds wraps baked winged GLBs in birdMaterial');
+  assert.ok(fine.geometry.hasAttribute('aFlight') && coarse.geometry.hasAttribute('aFlight'), 'both LODs receive aFlight');
+  crowds.dispose();
+});
+
+test('Android quality auto-tuning caps pixel ratio at 1x and chooses low on <=3 GB tablets', () => {
+  const androidTablet = { userAgent: 'Mozilla/5.0 (Linux; Android 13; SM-X200)', deviceMemory: 4 };
+  const qTablet = pickQuality(new URLSearchParams(), androidTablet);
+  assert.equal(qTablet.name, 'tablet');
+  assert.equal(qTablet.maxScale, 1, 'Android caps resolution scale at 1x unless overridden');
+
+  const androidLowMem = { userAgent: 'Mozilla/5.0 (Linux; Android 12; Lenovo TB-X306F)', deviceMemory: 3 };
+  const qLow = pickQuality(new URLSearchParams(), androidLowMem);
+  assert.equal(qLow.name, 'low', 'Android with <=3 GB RAM selects low preset');
+  assert.equal(qLow.maxScale, 1);
+
+  const overridden = pickQuality(new URLSearchParams('quality=high&resolutionCap=1.5'), androidLowMem);
+  assert.equal(overridden.name, 'high');
+  assert.equal(overridden.maxScale, 1.5);
+});
+
+test('crowds skip shadow-map rendering when castShadow is false and only upload morphs when weights change', () => {
+  const crowds = createCrowds(world(), { castShadow: false, groundAt: () => 0 });
+  crowds.reserve('turtle', 4);
+  crowds.ready();
+  const mesh = meshOf(crowds, 'turtle');
+  assert.equal(mesh.castShadow, false, 'skips shadow pass');
+
+  const cam = camera();
+  crowds.begin(cam);
+  crowds.end();
+  assert.equal(mesh.visible, false, 'hidden while count is 0');
+  crowds.begin(cam);
+  crowds.place('turtle', new THREE.Vector3(0, 0, -6), 0, 1.5, { morphs: { hide: 0, look: 0.4 } });
+  crowds.end();
+  assert.equal(mesh.visible, true);
+  assert.equal(crowds.shades.visible, true, 'ground contact shadow replaces shadow-map pass');
+  const v1 = mesh.morphTexture.version;
+
+  // Identical frame: morphTexture version must NOT increment
+  crowds.begin(cam);
+  crowds.place('turtle', new THREE.Vector3(0, 0, -6), 0, 1.5, { morphs: { hide: 0, look: 0.4 } });
+  crowds.end();
+  assert.equal(mesh.morphTexture.version, v1, 'morphTexture skipped when weights are unchanged');
+
+  // Changed weight: morphTexture version MUST increment
+  crowds.begin(cam);
+  crowds.place('turtle', new THREE.Vector3(0, 0, -6), 0, 1.5, { morphs: { hide: 0.5, look: 0.1 } });
+  crowds.end();
+  assert.ok(mesh.morphTexture.version > v1, 'morphTexture uploads when a morph weight changes');
+  crowds.dispose();
+});
+
+test('forest life populates woodland clearings and wetlands with baked low-poly critters within budget', async () => {
+  const loaderWorld = () => ({
+    scene: new THREE.Scene(),
+    actors: new Map(),
+    camera: (() => {
+      const c = new THREE.PerspectiveCamera(46, 1.6, 0.1, 300);
+      c.position.set(0, 2, 12);
+      c.lookAt(0, 0.5, 0);
+      c.updateMatrixWorld();
+      return c;
+    })(),
+    loadModel: url => loadGlb(new URL(url)),
+  });
+
+  // 1. Woodland clearing
+  const wForest = loaderWorld();
+  const forestLife = createForestLife(wForest, {
+    seed: 11,
+    layout: { clearing: { center: [0, 0], radius: 11 } },
+    terrain: { heightAt: () => 0 },
+    placements: [
+      { name: 'broadleaf', x: -8, y: 0, z: -4, scale: 1 },
+      { name: 'rock', x: 5, y: 0, z: 2, scale: 1 },
+      { name: 'log', x: -4, y: 0, z: 3, scale: 1 },
+    ],
+  });
+  await forestLife.loaded;
+  forestLife.update(1 / 30, 2.5);
+  assert.ok(forestLife.counts.bird >= 6 && forestLife.counts.lizard >= 4, 'birds and lizards in woodland clearing');
+  assert.ok(forestLife.counts.beetle >= 2 && forestLife.counts.snail >= 2, 'beetles and snails near cover');
+  assert.ok(forestLife.crowds.calls() <= 6 && forestLife.crowds.triangles() <= 12000);
+  forestLife.dispose();
+
+  // 2. Wetland with water shape & lily pads
+  const wFen = loaderWorld();
+  const shape = { signedAt: (x, z) => Math.hypot(x, z + 2) - 10, pools: [{ at: [0, -2], rx: 10, rz: 10, rot: 0 }] };
+  let ripples = 0;
+  const fenLife = createForestLife(wFen, {
+    seed: 31,
+    layout: { biome: 'fen', clearing: { center: [0, 0], radius: 14 }, water: { level: 0, shape } },
+    terrain: { heightAt: (x, z) => (shape.signedAt(x, z) < 0 ? -0.35 : 0.22) },
+    water: { shape, level: 0, rippleAt: () => { ripples++; } },
+    placements: [
+      { name: 'waterLily', x: -1.5, y: 0.01, z: -1.5, scale: 1.2 },
+      { name: 'waterLily', x: 1.2, y: 0.01, z: -2.2, scale: 1.2 },
+      { name: 'swampConifer', x: -9, y: 0.22, z: -5, scale: 1 },
+      { name: 'rock', x: 6.5, y: 0.22, z: 1.5, scale: 1.1 },
+    ],
+  });
+  await fenLife.loaded;
+  for (let i = 0; i < 120; i++) fenLife.update(0.05, i * 0.05);
+  assert.ok(fenLife.counts.turtle >= 4 && fenLife.counts.frog >= 6, 'basking turtles and frogs in wetlands');
+  assert.ok(fenLife.counts.dragonfly >= 4 && fenLife.counts.flyer >= 1, 'dragonflies and overhead flyers in wetlands');
+  assert.ok(ripples >= 1, 'hopping wetland frogs ripple the water');
+  assert.ok(fenLife.crowds.calls() <= 8 && fenLife.crowds.triangles() <= 15000);
+  fenLife.dispose();
 });

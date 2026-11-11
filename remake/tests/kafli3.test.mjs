@@ -7,6 +7,7 @@ import * as kafli2 from '../chapters/kafli2.js';
 import { LOOKS } from '../engine/looks.js';
 import { shapeGround } from '../world/forest/forest.js';
 import { LIMITS } from '../engine/camera/director.js';
+import { SIT_DEPTH } from '../engine/riding.js';
 import { HUG_SECONDS, WINK_SECONDS } from '../engine/sun-face.js';
 import { createSfx } from '../engine/audio/sfx.js';
 import { CRITTER_SOUNDS, FEN_CRITTERS } from '../chapters/kafli3-fen.js';
@@ -170,8 +171,8 @@ test('every shot keeps the camera rules over its ground', () => {
 const V3 = THREE.Vector3;
 const UP = new V3(0, 1, 0);
 
-// How Egill's skin and hers meet, as both are posed now: how many of his vertices are inside her (and how deep the deepest is), and
-// how much air there is under the rest of him at the least. Her skin's triangles near him go on a grid of cells across the ground;
+// How Egill's skin and hers meet, as both are posed now: how many of his vertices are inside her (and how deep the deepest is),
+// how much air there is under the rest of him at the least, and under the seat of his trousers (riding.js SIT_DEPTH over his root). Her skin's triangles near him go on a grid of cells across the ground;
 // a vertical line through one of his vertices that crosses her skin an odd number of times above it starts inside her.
 const skinOf = actor => {
   let mesh = null;
@@ -208,9 +209,7 @@ function skinsMeet(her, egill) {
       }
     }
   }
-  let inside = 0, deepest = 0, air = Infinity;
-  for (let p = 0; p < his.length; p += 3) {
-    const [x, y, z] = [his[p], his[p + 1], his[p + 2]];
+  const crossingsAt = (x, z) => {
     const crossings = [];
     for (const k of cells.get(Math.floor(x / cell) * 100003 + Math.floor(z / cell)) ?? []) {
       const [a, b, d] = tris[k];
@@ -221,6 +220,12 @@ function skinsMeet(her, egill) {
       if (l1 < 0 || l2 < 0 || l1 + l2 > 1) continue;
       crossings.push(l1 * skin[a + 1] + l2 * skin[b + 1] + (1 - l1 - l2) * skin[d + 1]);
     }
+    return crossings;
+  };
+  let inside = 0, deepest = 0, air = Infinity;
+  for (let p = 0; p < his.length; p += 3) {
+    const [x, y, z] = [his[p], his[p + 1], his[p + 2]];
+    const crossings = crossingsAt(x, z);
     const above = crossings.filter(h => h > y);
     if (above.length % 2) {
       inside++;
@@ -230,7 +235,9 @@ function skinsMeet(her, egill) {
       if (below.length) air = Math.min(air, y - Math.max(...below));
     }
   }
-  return { inside, deepest, air };
+  const bottom = egill.root.position.clone().addScaledVector(UP, SIT_DEPTH);
+  const under = crossingsAt(bottom.x, bottom.z).filter(h => h <= bottom.y);
+  return { inside, deepest, air, seat: under.length ? bottom.y - Math.max(...under) : Infinity };
 }
 
 let played = null;
@@ -376,7 +383,8 @@ test('Egill sits on her skin and never in it: up onto her head, up the lift and 
     const meet = at(when);
     assert.ok(meet, `measured at ${when}`);
     assert.equal(meet.inside, 0, `at ${when} ${meet.inside} of his vertices are inside her, ${(meet.deepest * 100).toFixed(1)} cm at most`);
-    assert.ok(meet.air < 0.08, `at ${when} he sits ${(meet.air * 100).toFixed(1)} cm over her skin`);
+    assert.ok(meet.air < 0.03, `at ${when} the lowest of him is ${(meet.air * 100).toFixed(1)} cm over her skin`);
+    assert.ok(meet.seat < 0.03, `at ${when} the seat of his trousers is ${(meet.seat * 100).toFixed(1)} cm over her skin: he sits on it, not over it`);
   }
   const slide = seen.meet.filter(m => m.when.startsWith('the slide'));
   assert.ok(slide.length >= 10, `${slide.length} frames of the slide's first metre`);
@@ -537,6 +545,7 @@ test('the chapter plays to its end unattended with no director warnings', async 
   assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [3, 4, 5, 6, 7, 8]);
   assert.equal(world.location, 'fen');
   assert.deepEqual(journal.stars, ['k2_thorsedla'], 'Þórseðla\'s star is in the book');
+  assert.deepEqual(book.played, [['hals', { tutorial: true }]], 'and her game opens in tutorial mode once her star is in');
   assert.deepEqual([...journal.places].sort(), ['fen', 'flugedla', 'sloedla'], 'and the Fen and the two friends found are on its map (Uggeðla was on it already)');
   assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
   assert.deepEqual(book.nods.slice(-2), ['thorsedla', null], 'Þórseðla, new on the Risaeðlur page, nods as it opens');

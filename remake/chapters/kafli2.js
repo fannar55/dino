@@ -27,7 +27,7 @@
 // chapter 3's.
 import * as THREE from 'three';
 import { chapter as kafli1 } from './kafli1.js';
-import { createSaddle, ride, floatTo } from '../engine/riding.js';
+import { createSaddle, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up's throwaways)
 import { createCritters } from '../world/critters/critters.js';
 import {
@@ -35,7 +35,7 @@ import {
   printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import {
-  SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, arriveInSiki,
+  SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, EGILL_BANK, UGGEDLA_REED, THORSEDLA_FAR, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, arriveInSiki,
 } from './kafli2-siki.js';
 import { fishing } from './kafli2-fishing.js';
 import { riseSail, headUpWithFish, swimAlong, tailSplash, createBackSeat, SINK } from './kafli2-uggedla.js';
@@ -254,15 +254,19 @@ function screenOf(world, point) {
   return { x: box.left + ((p.x + 1) / 2) * box.width, y: box.top + ((1 - p.y) / 2) * box.height };
 }
 
-// 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. She
-// asks Egill to tap the big fish when they jump; he taps five, and she thanks him (kafli2-fishing.js). She got up in scene 3.
+// 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. Egill
+// floats down off Mosi to stand by the water's edge; she asks him to tap the big fish when they jump, he taps five, and she thanks him
+// (kafli2-fishing.js). She got up in scene 3.
 function* fishingScene(s, c) {
   mark(c, 4);
   const { mosi, egill } = c;
   yield s.camera.cut('siki_fishing');
   yield mosi.lookAt('uggedla.head', { weight: 0.7 });
-  yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
+  const down = floatDown(egill.raw, c.saddle, [EGILL_BANK.position[0], EGILL_BANK.position[2]], { duration: 1.8, heading: EGILL_BANK.heading });
+  c.riding = null;
   yield* say(s, c, 'uggedla', 'k2_uggedla_help');
+  yield down;
+  yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
   yield* fishing(s, c);
   yield* say(s, c, 'uggedla', 'k2_uggedla_thanks');
   yield mosi.lookAt(null);
@@ -289,16 +293,25 @@ function* theInvitation(s, c) {
   yield* say(s, c, 'mosi', 'k2_mosi_second');
   yield star;
   s.sfx('journal');
+  if (!s.seeking) {
+    s.journal.open('games');
+    yield s.journal.playGame('veiddu', { tutorial: true });
+    s.journal.close();
+  }
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
 }
 
 // 6. The ferry: "Up on my back, Egill!" He floats from Mosi's saddle onto her back, in front of her sail with his hands on its front edge
-// (her back seat: making it has her lower her neck for him), and she swims him along the channel to the hummocks while Mosi wades the shallow
-// edge beside them. The chat on the way is the owner's: the water is wet, why such a big sail, "boat", the tail splash, Þórseðla's head over
-// the trees. Three of the ferry's shots (kafli2-siki.js) cut in as it suits what is said; a ferry shot is never within 2.5 s of another.
+// (her back seat: making it has her lower her neck for him), and she swims him along the channel to the hummocks while Mosi sinks deep
+// into the water beside them and swims with only his head and frill above the surface (his back and saddle submerged). The chat on the
+// way is the owner's: the water is wet, why such a big sail, "boat", the tail splash, Þórseðla's head over the trees. Three of the ferry's
+// shots (kafli2-siki.js) cut in as it suits what is said; a ferry shot is never within 2.5 s of another.
 const FERRY_SPEED = 1.25; // m/s she swims
-const MOSI_WADE_SPEED = 1.55; // m/s Mosi wades: his line along the shallow edge is a third longer than hers
+const MOSI_WADE_SPEED = 1.55; // m/s Mosi swims along the channel edge: his line is a third longer than hers
+const MOSI_SWIM_SINK = 3.00; // m below the water surface Mosi's root sinks while swimming beside her (his back and saddle under water)
+const MOSI_SWIM_SHIFT = 0.55; // m to his right (into the channel, away from the near bank's edge)
+const MOSI_SWIM_TILT = 24; // degrees his body pitches up in the water so his head stays out while his back and saddle sink
 function* theFerry(s, c) {
   mark(c, 6);
   const { mosi, egill, uggedla } = c;
@@ -310,8 +323,38 @@ function* theFerry(s, c) {
   yield egill.lookAt(null);
   yield floatTo(egill.raw, seat, { duration: 3 });
   c.riding = ride(egill.raw, seat, { settle: 0 });
-  // off they go: she swims the channel to the pool at the hummocks, Mosi wades along the near edge
+  // off they go: she swims the channel to the pool at the hummocks, and Mosi plunges deep into the water to swim beside her
   const swim = s.after(0, () => swimAlong(s, c, FERRY_LINE, { speed: FERRY_SPEED }));
+  let lastRingAt = s.time + 1.2;
+  const ringPos = new THREE.Vector3();
+  c.mosiSink = 0;
+  mosi.raw.setOverlay((dt, { pitchNeck, pitchHead }) => {
+    const pos = mosi.raw.root.position;
+    const fromBank = Math.hypot(pos.x - MOSI_BANK.position[0], pos.z - MOSI_BANK.position[2]);
+    const toHummock = Math.hypot(pos.x - HUMMOCK.position[0], pos.z - HUMMOCK.position[2]);
+    const w = THREE.MathUtils.smoothstep(fromBank, 0.35, 3.8) * THREE.MathUtils.smoothstep(toHummock, 0.5, 4.4);
+    c.mosiSink = w * MOSI_SWIM_SINK;
+    if (w <= 0) return;
+    const level = c.world.forest?.water?.surfaceAt?.(pos.x, pos.z) ?? -0.18;
+    const bob = 0.05 * Math.sin(s.time * 3.0);
+    const targetY = level - MOSI_SWIM_SINK + bob;
+    mosi.raw.model.position.y = (targetY - pos.y) * w;
+    mosi.raw.model.position.z = MOSI_SWIM_SHIFT * w;
+    mosi.raw.model.rotation.z = THREE.MathUtils.degToRad(MOSI_SWIM_TILT * w);
+    mosi.raw.model.rotation.x = THREE.MathUtils.degToRad(1.5 * w * Math.sin(s.time * 2.2));
+    pitchNeck(10 * w);
+    pitchHead(-18 * w);
+    if (w > 0.6 && s.time - lastRingAt >= 2.6) {
+      lastRingAt = s.time;
+      mosi.raw.headPosition(ringPos);
+      c.ring?.([ringPos.x, 0, ringPos.z], 0.42);
+    }
+  });
+  s.after(1.4, () => {
+    s.sfx('splash');
+    mosi.raw.headPosition(ringPos);
+    c.world.forest?.water?.rippleAt?.([ringPos.x, 0, ringPos.z], 0.75);
+  });
   c.wade = mosi.walkTo([...MOSI_WADE_LINE, [HUMMOCK.position[0], HUMMOCK.position[2]]], { speed: MOSI_WADE_SPEED });
   yield* ferryChat(s, c);
   yield swim;
@@ -375,6 +418,8 @@ function* theHummocks(s, c) {
   const { mosi, egill, uggedla, world } = c;
   yield s.camera.cut('siki_hummocks');
   yield c.wade; // Mosi comes up out of the water onto the hummock
+  mosi.raw.setOverlay(null);
+  c.mosiSink = 0;
   mosi.turnTo(HUMMOCK.heading, { rate: 60 }); // to face her across the pool, as Egill floats to him and she speaks
   yield floatTo(egill.raw, c.saddle, { duration: 2.6 });
   c.riding = ride(egill.raw, c.saddle, { settle: 0 });
@@ -647,7 +692,7 @@ export const chapter = {
     world.chapterState = c; // what the scenes share, for captures and probes
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight.
     c.saddle = createSaddle(mosi.raw);
-    c.saddle.object.visible = true;
+    c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
     c.glow = world.effects.add(addPlateGlow(kambedla.raw));
     c.glow.setAll(1, { duration: 0 });

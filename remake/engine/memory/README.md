@@ -36,12 +36,17 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
   "Rólegri hreyfing" (`#motion`) and "Byrja upp á nýtt" (`#restart`). The sound has no button: the device's volume does it. The old
   sound button's saved state (`mosi.memory.muted.v1`) is removed at load (`coach.js` `forgetOldMute`).
 - **Bottom left, Mosi** (`#mosi-help`, "Spyrja Mosa", his face with a gold "?") and his bubble beside him (`#coach`: `#caption`, and
-  `#holding` while a pair holds something up). A tap says the line of the moment again, or the level's line for it, or else its help
-  line; never over a line he is saying, nor during a scene, the picker or a dialog (`coach.js` `askLine`). After 10 s without a tap he
-  says the moment's line once more, once for that moment, and only when no line has played for 3 s (`repeatDue`, `REPEAT_QUIET`).
-  `window.__memory.askMosi()` is the button's path, `window.__memory.lastLine()` the `{ id, key }` it would use.
+  `#holding` while a pair holds something up). A tap says what to do now, the instruction of the moment (`coach.js` `momentLine`): a
+  waiting moment's own line (the level's `voice`; the wait for the gifts says `giftsLeft`), `first` in a search, `who` at the picker;
+  never a reaction line (a match, a gift). A moment with none gets the help line. (Level 1's three waits have their lines since
+  2026-11-08: `lift_ready`, `roll_ready`, `lay_ready`, as level 2's five have theirs.)
+  Never over a line he is saying, nor during a scene, the picker or a dialog (`askLine`). After 10 s without a tap he says the
+  moment's instruction once more, once for that moment, and only when no line has played for 3 s (`repeatDue`, `REPEAT_QUIET`); a
+  moment with none stays quiet. `window.__memory.askMosi()` is the button's path, `window.__memory.lastLine()` the `{ id, key }` it
+  would use (`id` null when the moment has none).
 - **Over the world** (`#targets`): the leaves (44 px at least) and the obstacles (88 px, an 80 px badge with the level's picture). The
-  obstacle to tap next glows and pulses at once (`.is-next`), as does the tap-along ring. After 4 s without a tap (`coach.js`
+  next obstacle's badge shows at once, plain (`.is-ahead`: a tap asks about it), and glows and pulses (`.is-next`) only once a found
+  pair at home can do it (the story's `work` moment for it); the tap-along ring glows at once. After 4 s without a tap (`coach.js`
   `IDLE_HINT`) Litla Yatzy's tap hint (`.tap-hint`: a ring closing under a drawn finger) shows where the old gold arrow did: on a shut
   leaf while gifts are left before the crossing, on the obstacle that waits (`.is-guided`). It runs on the idle clock, which stands still
   while the picker asks, during a scene or a tap-along and while the camera moves.
@@ -51,6 +56,36 @@ the pills and the cards are copied from `yatzy-junior.css`; its header lists eve
 - **Cards**: the welcome (`#welcome`, Mosi on top, the title, two lines, the level cards and "Leikum saman"), the ending (`#ending`: the
   title, the sentence, the gifts in the basket, "Spila aftur", the next level, and the small "i" of the models' credits), `#loading`
   and `#error`.
+- **The page's juice** (the juice pass of 2026-11-07, package B; code-made shapes and sounds only). Every button taps as it is pressed
+  (Litla Yatzy's page sounds, `engine/yatzy-junior/sounds.js`, through `uiSound()`: `tap`, a locked level card's `oh`, "Aftur"'s
+  `close`, the pause card's `pause` and `resume`; the picker's `bubble` as it pops in); they dip under Mosi's voice (`duck`), each kind
+  waits its own gap (`JUNIOR_GAPS`), and the finger and the 10 s repeat make none. `hud-fx.js` draws the rest with Litla Yatzy's
+  `.yj-spark` stars: a found pair's star flies from the pair at home to its dot as Mosi claps (the match script's `star` sound), and
+  the dot fills as it lands (a pop, a few stars, `pip`; a dot owed with no script fills a moment later all the same); a gift pair
+  landing in the basket bursts stars from the chip, pops the count and plays `land` with the world's `ding`; the first time the
+  ending card shows in a round, paper confetti falls (`#confetti`, Eitt's, as DOM) with the fanfare (`win`). The ending card springs
+  up from below; «Nýtt!» (`.new-tag`) and a breathing gold glow mark the ending card's button to a level not played yet, and «Nýtt!»
+  that level's card on the welcome card (`levels/index.js` `isNewLevel`, `markPlayed` when a round of it starts, kept in
+  `minnisspil.played` next to `minnisspil.unlocked`). Mosi's bubble gives a light squeeze when its words change, and his face on
+  his button grows and tilts a little with his voice (`speech.amplitude()`). Under less motion nothing of this moves (a star lands at
+  once, no confetti, no squeeze, no tilt); the sounds stay. In the world, `world.js` `perform()` has an fx kind `done` for a task
+  done (a big gold `burst` and a short shake, `shake: false` where the moment shakes already), and a flying gift pair leaves a gold
+  `trail`; both pass `spare` to `world-fx.js`, so they never take the footstep dust's room in the shared pool of 192.
+  `window.__memory.audio().ui` is what the page's sounds did (`asked`: each kind asked for, with the game's and the page's time), and
+  `window.__memory.dots()` the dots filled.
+  Level 2's last picture keeps the lower part of the screen free for the ending card (a shot's `clear` in `camera-director.js`: .44 of
+  the height, .56 on a tall screen), so everyone on Sólarsyllan stands above it.
+- **Mosi counts the taps** (package C, audit #11): where a tap-along beat's big word is «Einn!», «Tveir!» or «Þrír!», he says it with
+  the beat, with Háls og hali's approved takes (`voice-lines.js` `COUNT_TAKES`: `hals_mosi_1..3`, played from `assets/audio/hals/`, the
+  owner's yes of 2026-11-08 in heard set `hals`; `coach.js` `countLine` matches by the word, so «Upp!», «ÝTA!», «BÚMM!», «TOGA!» and the
+  bark's «Ein!»/«Tvær!»/«Þrjár!» stay words only). Level 1 counts the log's beats 1 and 2; level 2 the rocks' 1 and 2, the ledge's and
+  the cliff's 1 to 3, the pull's 1 and 2. They go through his own voice (`presentation-audio.js` `count`), so his mouth moves and the page's
+  sounds dip under them. A count may cut the count before it and its step's lead-in (the step's `leadIn`, the line he says as the
+  tap-along begins: `push` «Einn, tveir, ÝTA!» at the log, `g2_reached` at the ledge, `g2_flown` at the cliff, `g2_pull` «Einn, tveir,
+  TOGA!» at the pull, playing or waiting to play). The child is already doing what it says, so a child who taps at once hears the count
+  too (the owner's word of 2026-11-08). It never starts over any other sentence of his that plays or waits to play (that beat is silent),
+  and is never queued: a count that cannot play now is dropped. The speech log (`audio().speech.started`) gives each line's file (`src`)
+  and, once cut off, when (`cut`) and by which line (`cutBy`); `window.__memory.beats()` names the lead-in each count cut (`cut`).
 
 Gone from the screen in that remake: the green box with the way's title, "0 / 4 pör" and the trail of steps (and the levels' `ribbon`, the steps' `journey` names, `aria.journey`), the camera
 button and its hint, the sound button, the help card (`copy.help`), the small eyebrow and fine print on the cards (`welcome.eyebrow`,
@@ -151,7 +186,8 @@ button and its hint, the sound button, the help card (`copy.help`), the small ey
   halfway home. Pause and camera focus hold automatic travel safely.
 
 - The ending (`levels/berjalundur/scenes/celebrate.js`, played by `scenes/finish.js` there once all six have arrived): about
-  seventeen seconds of cuts, never more than three apart. The friends eat berries (the Kambeðlur with their
+  seventeen seconds of cuts, never more than three apart. The friends cheer as they arrive (Söngur Slóeðlu's cheer, in level 1's own
+  folder `soundscape/grove/` with Mosi's claps, as level 2 has them in `gorge/`) and Mosi's `won` follows. The friends eat berries (the Kambeðlur with their
   own `eat` clip, the others with the `nibble` gesture), each pair does its trick (the Þríhyrnur hop, the
   Kambeðlur and the Þórseðlur play their `happy` clips), Mosi cheers and the three gifts rise from his basket
   (one at each side of his head, one high above it) while he says "Þú fannst allar þrjár gjafirnar!" (`gifts3`). The six
@@ -174,6 +210,12 @@ button and its hint, the sound button, the help card (`copy.help`), the small ey
   the frames are in `camtrack.json`).
 - Two small creature sounds, `giggle` (a wrong pair ducking, a wrong friend's go) and `strain` (each tap of a
   tap-along), made with `memory-sound-design.mjs`; both have synthesized fallbacks in `audio.js`.
+- At the end of each long walk (level 1's crossing, level 2's tunnel, ramp and trunk) each pair calls once as the last of it comes to its
+  place: the world raises `pair-arrived` { id, species } and the level's `eventSounds` play `arrivalCall` (queued up to 3.2 s, so four
+  calls in a row are all heard). A level's tables are read by an event's type, then by type and id (`pair-arrived:cross`) and by type, id
+  and index (`wing-beat:pull:0`, where level 2 says `g2_flown` again, `again: true`, as the second rope flies).
+- The Flugeðla baby's call is chapter 4's flyer cries (`kafli4/hljod/flyer-1`, `-2`, in the gorge's manifest), the two in turn, played
+  1.32 times as fast for a baby (`audio.js` `BABY_CALLS`); the old synth (`MOTIFS.pteranodon`) is the fallback.
 
 The new baby art and recorded speech remain subject to human visual/listening
 review. This milestone does not claim final AA quality or measured tablet FPS.

@@ -22,6 +22,9 @@ const ATTRIBUTE = '_platerow';
 export const MAX_ROWS = 8;
 const DURATION = 0.8; // seconds a row takes to light
 const GREY = 0.6; // an unlit plate heads for a grey this share of its own brightness
+const PULSE_BASE = 2.6; // emissive boost so lit plates shine brightly in daylight
+const PULSE_SWING = 0.75; // gentle breathing swing around PULSE_BASE
+const PULSE_HZ = 1.1; // pulses per second
 const KEY = 'plate-glow';
 
 const VERTEX_HEAD = `attribute float ${ATTRIBUTE};
@@ -30,6 +33,7 @@ flat varying float vPlateRow;
 const FRAGMENT_HEAD = `uniform float uRowLevel[ ${MAX_ROWS} ];
 uniform vec3 uPlateGlow;
 uniform float uPlateDull;
+uniform float uPlatePulse;
 flat varying float vPlateRow;
 `;
 // After the maps have made the colour and before the lights read it. Shader source stays ASCII.
@@ -39,7 +43,7 @@ const FRAGMENT_PLATES = `
 		float plateLevel = uRowLevel[ int( clamp( vPlateRow + 0.5, 1.0, ${MAX_ROWS}.0 ) ) - 1 ];
 		float plateGrey = ${GREY.toFixed(2)} * dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
 		diffuseColor.rgb = mix( diffuseColor.rgb, vec3( plateGrey ), uPlateDull * ( 1.0 - plateLevel ) );
-		totalEmissiveRadiance += uPlateGlow * plateLevel;
+		totalEmissiveRadiance += uPlateGlow * plateLevel * uPlatePulse;
 	}
 `;
 
@@ -114,10 +118,12 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
   if (rows > MAX_ROWS) throw new RangeError(`${actor.name} has ${rows} plate rows; at most ${MAX_ROWS} can glow`);
 
   const levels = new Float32Array(MAX_ROWS); // what the shader reads: one level per row
+  let pulseTime = 0;
   const uniforms = {
     uRowLevel: { value: levels },
     uPlateGlow: { value: new THREE.Color(colour) },
     uPlateDull: { value: unit('dullness', dull) },
+    uPlatePulse: { value: PULSE_BASE },
   };
   for (const skin of skins) {
     const earlier = skinsBefore.get(skin);
@@ -163,9 +169,11 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
       const to = unit('level', level);
       return move(Array.from({ length: rows }, (_, index) => [index, to]), seconds(duration), `${actor.name} plates`);
     },
-    /** Advance the eases by dt game seconds. Returns true, as an effect does that goes on while the actor does. */
+    /** Advance the eases and gentle glow pulse by dt game seconds. Returns true, as an effect does that goes on while the actor does. */
     update(dt) {
       if (!(dt > 0)) return true; // paused or frozen
+      pulseTime += dt;
+      uniforms.uPlatePulse.value = PULSE_BASE + PULSE_SWING * Math.sin(pulseTime * Math.PI * 2 * PULSE_HZ);
       for (const ease of [...eases]) {
         ease.time += dt;
         const x = Math.min(1, ease.time / ease.duration);

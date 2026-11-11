@@ -6,6 +6,8 @@ import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked, bookState } from './cards.js';
 import { renderMap } from './map-page.js';
 import { createMuseumPage } from './museum-page.js';
+import { BOOK_VIDEOS, BOOK_3D, createVideosPage, videoSeenId } from './videos.js';
+import { createVideoPlayer } from './video-player.js';
 import { validateGame } from '../hals/rules.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
@@ -63,8 +65,8 @@ import { validateGame } from '../hals/rules.js';
 // A fast second tap cuts the motion under way short and starts its own from there. Where the page has no animations, or the tablet
 // asks for less motion, the book opens and turns at once (it fades in and out).
 
-const TABS = ['dinosaurs', 'animals', 'games', 'map', 'fossils'];
-const LABELS = { dinosaurs: 'Risaeðlur', animals: 'Dýrin', games: 'Leikir', map: 'Kortið', fossils: 'Safnið' };
+const TABS = ['dinosaurs', 'animals', 'games', 'map', 'fossils', 'videos'];
+const LABELS = { dinosaurs: 'Risaeðlur', animals: 'Dýrin', games: 'Leikir', map: 'Kortið', fossils: 'Safnið', videos: 'Myndbönd' };
 const DINOSAUR_FIND_ME = 'book_mosi_later'; // Mosi, for a dinosaur not met yet: "Hana hittum við seinna!"
 const MOSI_RIBBON_PICTURE = new URL('../../assets/book/images/mosi-render-thumb.webp', import.meta.url).href; // the Risaeðlur ribbon's icon
 const EITT_STAR = 'k1_kambedla'; // the star that opens "Eitt!": Kambeðla's
@@ -115,7 +117,8 @@ export function halsOpen(save) {
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page; `onTab(tab)` is told
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page;
+ * `onOpenShow(entry)` plays a "3D myndbönd" show from the Myndbönd page (videos.js BOOK_3D: main.js goes to its chapter); `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
@@ -134,7 +137,7 @@ export function halsOpen(save) {
  *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onOpenShow = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -309,10 +312,13 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot, minnisSlot); // each shows once its game is open (renderGameSlots)
   gamesRight.append(sheet);
 
-  // The Safnið ribbon's own "Nýtt!", while a fossil is found and not tapped yet (renderRibbonNew).
+  // The Safnið and Myndbönd ribbons' own "Nýtt!", while a fossil or an unlocked video is not tapped yet (renderRibbonNew).
   const ribbonNew = make('span', 'ribbon-new');
   ribbonNew.textContent = 'Nýtt!';
   ribbonNew.setAttribute('aria-hidden', 'true');
+  const videosRibbonNew = make('span', 'ribbon-new');
+  videosRibbonNew.textContent = 'Nýtt!';
+  videosRibbonNew.setAttribute('aria-hidden', 'true');
 
   const spine = make('div', 'book-spine');
   spine.setAttribute('aria-hidden', 'true');
@@ -329,10 +335,30 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   root.replaceChildren(spread);
   root.hidden = true;
 
-  // The card and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
+  // The card, the video player and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
   const zoom = createZoom(doc, { audio, win, root });
-  const cardViewer = createCardViewer(doc, root, { media, models, audio, zoom, win, onClose: () => { animals.render(); dinosaurs.render(); } });
+  let videosPage = null;
+  let videoPlayer = null;
+  const onWatchVideo = (video, fromRect) => {
+    save.addSeen(videoSeenId(video.id));
+    videosPage?.render();
+    renderRibbonNew();
+    videoPlayer.close(true);
+    videoPlayer.open(video, fromRect);
+  };
+  const cardViewer = createCardViewer(doc, root, {
+    media,
+    models,
+    videos: BOOK_VIDEOS,
+    save,
+    audio,
+    zoom,
+    win,
+    onWatch: onWatchVideo,
+    onClose: () => { animals.render(); dinosaurs.render(); },
+  });
+  videoPlayer = createVideoPlayer(doc, root, { audio, win, onClose: () => { videosPage?.render(); renderRibbonNew(); } });
   const refound = new Set(); // the cards whose animals were found again in a new place, until each is next opened (foundAgain)
   const onOpenCard = (card, fromRect) => {
     const page = refound.has(card.id) ? card.refind : 0; // found again: its newest page, once
@@ -341,13 +367,27 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   };
   // The Safnið leaf: the fossil collection (museum-page.js), whose cards (group 'fossil', when the data has them) open as an animal's do.
   const museum = createMuseumPage(leaves.get('fossils'), { save, audio, win, cards, onOpenCard, onChange: () => renderRibbonNew() });
+  // The Myndbönd leaf: the nine educational videos (videos.js), five on the left page and four on the right, and the "3D myndbönd" column.
+  videosPage = createVideosPage(leaves.get('videos'), {
+    save,
+    audio,
+    win,
+    videos: BOOK_VIDEOS,
+    shows: BOOK_3D,
+    onOpenShow: entry => onOpenShow?.(entry),
+    onOpenVideo: (video, fromRect) => {
+      videoPlayer.close(true);
+      videoPlayer.open(video, fromRect);
+    },
+    onChange: () => renderRibbonNew(),
+  });
   const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), { cards: animalCards, media, save, audio, win, onOpenCard });
   // The Risaeðlur leaf: the same page over the dinosaur cards, whose friends not met yet have Mosi say he will meet them later.
   const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME });
   // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
   const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`), ...(liveMap ? { liveMap } : {}) });
 
-  /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils. */
+  /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils, the videos. */
   function render() {
     const state = bookState(save);
     dinosaurs.render();
@@ -361,6 +401,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     renderGameSlots(state);
     map.render();
     museum.render();
+    videosPage.render();
     renderRibbonNew();
   }
 
@@ -382,12 +423,16 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     });
   }
 
-  /** The Safnið ribbon wears its "Nýtt!" while a fossil is found and not tapped yet (the museum page says so). */
+  /** The Safnið and Myndbönd ribbons wear their "Nýtt!" while a fossil or unlocked video is not tapped yet. */
   function renderRibbonNew() {
     const ribbon = ribbons.get('fossils');
     const fresh = museum.hasNew();
     if (fresh && ribbonNew.parentNode !== ribbon) ribbon.append(ribbonNew);
     if (!fresh) ribbonNew.remove();
+    const videoRibbon = ribbons.get('videos');
+    const freshVideo = videosPage?.hasNew?.() ?? false;
+    if (freshVideo && videosRibbonNew.parentNode !== videoRibbon) videoRibbon?.append(videosRibbonNew);
+    if (!freshVideo) videosRibbonNew.remove();
   }
 
   /**
@@ -563,9 +608,33 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     onPlay?.('veiddu');
   }
 
-  /** The card and what is zoomed in it are put away at once, as the book is shut or turns to another page. */
+  /** Opens a minigame from a chapter script (`s.journal.playGame`), marking it seen in the book and returning the opened game. */
+  function playGame(game, options) {
+    const seen = game === 'hals' ? HALS_SEEN : game === 'yatzy-junior' ? JUNIOR_SEEN : game === 'minnisspil' ? MINNISSPIL_SEEN : game === 'veiddu' ? VEIDDU_SEEN : EITT_SEEN;
+    save.addSeen(seen);
+    render();
+    return onPlay?.(game, options) ?? null;
+  }
+
+  /**
+   * Locks or unlocks the book for a guided tutorial step (`target` is `'none'`, `'close'`, `'button'`, `'tab:<name>'`, `'game:<id>'`,
+   * or `null` to unlock). While locked, only the specified control responds to presses and stray taps inside the book never claim it.
+   */
+  let tutorialTarget = null;
+  function lockTutorial(target = null) {
+    tutorialTarget = target;
+    root._tutorialAllow = target === null ? null : el => {
+      if (target === 'close') return el === closeEl;
+      if (target.startsWith('tab:')) return el === ribbons.get(target.slice(4));
+      if (target.startsWith('game:')) return el.getAttribute?.('data-game') === target.slice(5);
+      return false;
+    };
+  }
+
+  /** The card, the video player and what is zoomed are put away at once, as the book is shut or turns to another page. */
   function putCardAway() {
     zoom.close(true);
+    videoPlayer.close(true);
     cardViewer.close(true);
   }
 
@@ -599,8 +668,9 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   /** The child touched a book a script opened: it is the child's now, and holds the game until it is shut. */
   function claim() {
-    if (!isOpen || holder !== 'script') return;
+    if (!isOpen || holder !== 'script' || tutorialTarget !== null) return;
     holder = 'child';
+    root.classList.add('child-open');
     pause(true);
   }
 
@@ -732,6 +802,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   // ---- What it does ------------------------------------------------------------------------------------------------------
 
   function turnTo(next) {
+    ribbons.get(next)?.classList.remove('beckon');
     if (next === tab) return;
     const from = tab;
     finishTurn(); // a turn still under way lands where it was going
@@ -804,6 +875,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     }
     isOpen = true;
     holder = by === 'child' ? 'child' : 'script';
+    root.classList.toggle('child-open', holder === 'child');
     tab = next;
     spreadIndex = found ? Math.max(0, spreadNumbers.indexOf(found.spread ?? 1)) : 0; // the Dýrin page remembers no spread
     render();
@@ -819,10 +891,12 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   function close() {
     closeEl.classList.remove('beckon');
+    for (const ribbon of ribbons.values()) ribbon.classList.remove('beckon');
     if (!isOpen) return;
     const was = holder;
     isOpen = false;
     holder = null;
+    root.classList.remove('child-open');
     audio?.stop?.(); // nothing reads on after the book is shut
     museum.stop();
     putCardAway();
@@ -859,6 +933,17 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     return cardViewer.open(card, null, page);
   }
 
+  /** Opens a video by id in the video player (used by the lab and tests). */
+  function openVideo(id) {
+    const video = BOOK_VIDEOS.find(v => v.id === id);
+    if (!video || !isOpen) return false;
+    videoPlayer.close(true);
+    save.addSeen(videoSeenId(video.id));
+    videosPage.render();
+    renderRibbonNew();
+    return videoPlayer.open(video, null);
+  }
+
   for (const [name, ribbon] of ribbons) {
     pressable(ribbon, { audio, sound: null, win, onTap: () => (name === tab ? audio?.sfx?.('tap') : turnTo(name)) });
   }
@@ -873,7 +958,9 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   pressable(minnisTile, { audio, sound: null, win, onTap: () => tapMinnisspil() });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
+    if (tutorialTarget !== null) return; // a locked book tutorial never pauses the scene or lets stray taps claim the book
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's
+    if ([...ribbons.values()].some(r => r.classList.contains('beckon') && (event.target === r || r.contains?.(event.target)))) return; // tapping a beckoning ribbon in a script's tutorial keeps the book the script's
     claim();
   }, true);
   root.addEventListener('contextmenu', event => event.preventDefault()); // a long press is a tap, never the browser's menu
@@ -885,13 +972,22 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     close,
     /** The close pulses to be tapped (on), as when a scene has opened the book and waits for the child to shut it. */
     beckonClose(on = true) { closeEl.classList.toggle('beckon', Boolean(on)); },
+    /** A ribbon pulses to be tapped (`name`, or null to clear), as when a scene tutorial guides the child through the book's tabs. */
+    beckonTab(name = null) {
+      for (const [key, ribbon] of ribbons) ribbon.classList.toggle('beckon', key === name);
+    },
+    lockTutorial,
+    playGame,
     refresh: render,
     pictureOf,
     openCard,
+    openVideo,
     foundAgain,
     cardViewer,
+    videoPlayer,
     zoom,
     get isOpen() { return isOpen; },
+    get isChildOpen() { return isOpen && holder === 'child'; },
     get tab() { return tab; },
     get spread() { return spreadNumbers[spreadIndex]; },
   };

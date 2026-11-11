@@ -194,6 +194,49 @@ test('each section stays within the forest budget', () => {
   place.dispose();
 });
 
+// The ground was one mesh a section, drawn whole whenever any of it showed. Now its 40 m tiles out of view are left out, and a smooth
+// tile far off is drawn in 5 m cells; still one call, and no crack: the coarse ground has the fine ground's open edges and no others.
+test('the ground draws only its tiles in view, far ones coarse, with no crack between them', () => {
+  const place = litValley();
+  const section = place.stats.sections.find(part => part?.children.some(o => /ground/.test(o.name)));
+  const ground = section.children.find(o => /ground/.test(o.name));
+  const { cull } = ground.userData;
+  const fine = cull.ranges.filter(r => r.lod === 0);
+  const coarse = cull.ranges.filter(r => r.lod === 1);
+  assert.ok(fine.length > 20, `${fine.length} tiles`);
+  assert.ok(coarse.length > 0, 'some tiles are smooth enough to be coarse');
+  const openEdges = ranges => {
+    const count = new Map();
+    for (const r of ranges) for (let k = r.start; k < r.start + r.count; k += 3) {
+      const t = [cull.master[k], cull.master[k + 1], cull.master[k + 2]];
+      for (let e = 0; e < 3; e++) {
+        const [a, b] = [t[e], t[(e + 1) % 3]].sort((x, y) => x - y);
+        count.set(`${a}:${b}`, (count.get(`${a}:${b}`) ?? 0) + 1);
+      }
+    }
+    return [...count].filter(([, n]) => n === 1).map(([edge]) => edge).sort();
+  };
+  // every tile coarse that can be: the same open edges as all fine (the section's own rim), so nothing opens between tiles or blocks
+  const mixed = fine.map(r => coarse.find(c => c.plant === r.plant) ?? r);
+  assert.deepEqual(openEdges(mixed), openEdges(fine));
+  // half coarse, half fine: still none
+  const half = fine.map((r, k) => (k % 2 ? coarse.find(c => c.plant === r.plant) ?? r : r));
+  assert.deepEqual(openEdges(half), openEdges(fine));
+  const fineTriangles = fine.reduce((n, r) => n + r.count / 3, 0);
+  const coarseTriangles = mixed.reduce((n, r) => n + r.count / 3, 0);
+  assert.ok(coarseTriangles < fineTriangles, `${coarseTriangles} of ${fineTriangles} triangles coarse`);
+  // a camera over one tile looking down at it: that tile in, a tile 400 m off out of the frustum, all in one call
+  const tile = fine[Math.floor(fine.length / 2)];
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200);
+  camera.position.copy(tile.sphere.center).add(new THREE.Vector3(0, 30, 0));
+  camera.lookAt(tile.sphere.center);
+  camera.updateMatrixWorld();
+  cullBatches([ground], camera, 2);
+  assert.ok(cull.kept.includes(tile), 'the tile under the camera is drawn');
+  assert.ok(cull.kept.length < fine.length, `${cull.kept.length} of ${fine.length} tiles drawn`);
+  assert.ok(ground.geometry.drawRange.count < fine.reduce((n, r) => n + r.count, 0));
+});
+
 test('the real valley: each section stays within the forest budget, its plants at the finest level they are drawn at', () => {
   const place = litValley();
   for (const part of place.stats.sections) {
@@ -979,7 +1022,7 @@ function animalWorld() {
   return world;
 }
 const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'lizards-2', 'dragonflies', 'lizards-3'];
-const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 3, dragonflies: 6 };
+const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 6, dragonflies: 6 };
 
 test('nine animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
   const world = animalWorld();

@@ -48,7 +48,7 @@ const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // `phone`: on a phone (under 600 px wide) the search view is far away and a gift is 25-30 px across, so it is drawn 1.75 times larger
 // at 390 px wide (682 / width, between 1.55 and 2.2) from the pop on its leaf until it has flown to the basket (about 45-70 px).
 const TAP = Object.freeze({ squash: .16, swing: .3 });
-const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: .8, duck: .2, target: 6, shrink: .12, apart: .55, phone: 682 });
+const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: .8, duck: .2, target: 6, shrink: .12, apart: .55, phone: 682, trail: .06 });
 // The leaf's squash and rebound: a damped spring round 0 (stiffness, damping), kicked by a tap or a landing.
 const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
@@ -94,6 +94,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   renderer.shadowMap.type = THREE.PCFShadowMap; renderer.info.autoReset = false;
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(SHOT.fov, 1.6, .1, 600);
   camera.name = 'Minnisspil · fast sjónarhorn';
+  canvas.__drawNow = () => { if (!disposed) renderer.render(scene, camera); };
   const lighting = createLighting(scene, look, q), depthShadow = installDepthShadows(renderer, lighting.sun);
   lighting.sun.shadow.radius = 1.65;
   installFog(scene, look, lighting.direction);
@@ -209,6 +210,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const act of [line.act ?? []].flat()) act();
     for (const effect of [line.fx ?? []].flat()) {
       if (effect.kind === 'shake') cameraDirector.shake(effect.strength, effect.seconds);
+      // A task done: a big gold burst (never into the footstep dust's room) and a short shake, unless the moment has its own shake (`shake: false`).
+      else if (effect.kind === 'done') { fx.emit('burst', call(effect.at), { count: effect.count ?? 30, spare: 48 }); if (effect.shake !== false) cameraDirector.shake(effect.strength ?? .1, effect.seconds ?? .3); }
       else fx.emit(effect.kind, call(effect.at), { count: effect.count, strength: effect.strength ?? 1 });
     }
     for (const sound of [line.sound ?? []].flat()) deferredEvents.push({ type: 'scene-sound', ...(typeof sound === 'string' ? { name: sound } : sound) });
@@ -650,6 +653,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       flightMid.lerpVectors(flightFrom, flightTo, .35); flightMid.y += 1;
       place.copy(flightFrom).multiplyScalar((1 - e) * (1 - e)).addScaledVector(flightMid, 2 * (1 - e) * e).addScaledVector(flightTo, e * e);
       scale = THREE.MathUtils.lerp(boost, GIFT.shrink, e);
+      // A gold star trail behind each animal as it flies (one small star each GIFT.trail seconds, none in the last of the way, where it is near the camera)
+      state.trailAge = (state.trailAge ?? 0) + dt;
+      if (state.trailAge >= GIFT.trail && e < .85) { state.trailAge = 0; fx.emit('trail', place, { count: 1, spare: 64 }); }
       if (state.t >= fly) {
         if (model) model.group.visible = false;
         state.phase = 'done'; state.pair.landed++;

@@ -77,14 +77,16 @@ export const STEINAGLJUFUR = freezeLevel({
   // (the friend the playthrough tool tries first at each obstacle: the ones the plan gives a wrong go there. The Kambeðlur hold the light until everyone is through, so the
   // bubbles at the rocks do not offer them: the Flugeðla's peck is the go there that the spec names)
   wrongFriends: { tunnel: 'triceratops', rocks: 'pteranodon', ledge: 'triceratops', cliff: 'brontosaurus' },
+  // (`leadIn`: the line Mosi says as a tap-along begins: eventSounds' 'reach-start' and 'fly-start', the pull scene's «Einn, tveir, TOGA!».
+  // A tap of the child's that he counts cuts it, so the child hears the count at once: game.js countBeat, the owner's word of 2026-11-08)
   steps: [
     { id: 'light', kind: 'task', target: 'tunnel', species: 'stegosaurus', holds: 'through' },
     { id: 'headbutt', kind: 'task', target: 'rocks', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'BÚMM!'] },
     { id: 'through', kind: 'travel', target: 'tunnelExit', needsAllFound: true, waitsForGifts: true, automatic: true },
-    { id: 'reach', kind: 'task', target: 'ledge', species: 'brontosaurus', beatWords: ['Einn!', 'Tveir!', 'Þrír!'] },
-    { id: 'fly', kind: 'task', target: 'cliff', species: 'pteranodon', beatWords: ['Einn!', 'Tveir!', 'Þrír!'] },
+    { id: 'reach', kind: 'task', target: 'ledge', species: 'brontosaurus', beatWords: ['Einn!', 'Tveir!', 'Þrír!'], leadIn: 'g2_reached' },
+    { id: 'fly', kind: 'task', target: 'cliff', species: 'pteranodon', beatWords: ['Einn!', 'Tveir!', 'Þrír!'], leadIn: 'g2_flown' },
     { id: 'climb', kind: 'travel', target: 'clifftop', automatic: true },
-    { id: 'pull', kind: 'together', target: 'trunk', beatWords: ['Einn!', 'Tveir!', 'TOGA!'] },
+    { id: 'pull', kind: 'together', target: 'trunk', beatWords: ['Einn!', 'Tveir!', 'TOGA!'], leadIn: 'g2_pull' },
     { id: 'walk', kind: 'travel', target: 'sunLedge', automatic: true },
   ],
   story: {
@@ -97,7 +99,8 @@ export const STEINAGLJUFUR = freezeLevel({
     },
     light: {
       doing: 'g2-doing-light', ready: 'g2-light-ready', arriving: 'g2-light-arriving', find: 'g2-find-glowers', seeks: true,
-      prompts: { doing: 'Plöturnar lýsa eins og ljósker!', ready: 'Göngin eru dimm. Hver getur lýst þau upp?', find: 'Finnum vin sem getur lýst! Kíktu undir lauf.' },
+      // (while the Kambeðlur walk to the tunnel his bubble says what happens now; "Plöturnar lýsa..." shows as he says it: tunnel-lit)
+      prompts: { doing: 'Kambeðlurnar koma að göngunum!', ready: 'Göngin eru dimm. Hver getur lýst þau upp?', find: 'Finnum vin sem getur lýst! Kíktu undir lauf.' },
     },
     headbutt: {
       doing: 'g2-doing-headbutt', ready: 'g2-headbutt-ready', arriving: 'g2-headbutt-arriving', find: 'g2-find-butters',
@@ -204,6 +207,11 @@ export const STEINAGLJUFUR = freezeLevel({
     'rope-lift': ['ropeWhoosh'],
     'rope-knots': ['ropeKnots'],
     'rope-taut': ['ropeTighten'],
+    // The second rope: as the Flugeðlur lift it for its long flight round the stone, Mosi says what they do (queued after any line he is saying; said
+    // at the cliff too, so `again`).
+    'wing-beat:pull:0': [{ say: 'g2_flown', delay: .5, again: true }],
+    // The end of each long walk (out of the tunnel, up the ramp, over the trunk): each pair calls as the last of it comes to its place.
+    'pair-arrived': [{ method: 'arrivalCall', arg: 'species' }],
     // The climb (its words are the step's line, said as it starts): the gravel under their feet, one stretch for each few seconds.
     'climb-step': ['gravelClimb'],
     // The wrong friends at the cliff: the rope thrown up falls on the Þórseðla's head (a whoosh, a bonk), the Kambeðla slides back down the path.
@@ -224,5 +232,6 @@ export const STEINAGLJUFUR = freezeLevel({
     'rocks-fall': { text: 'Búmm! Leiðin er opin!', hold: 3.2 },
     'reach-start': { text: 'Langir hálsar ná hátt!', hold: 3.2 },
     'fly-start': { text: 'Flugeðlurnar fljúga upp!', hold: 3.2 },
+    'wing-beat:pull:0': { text: 'Flugeðlurnar fljúga upp!', hold: 3.2 },
   },
 });

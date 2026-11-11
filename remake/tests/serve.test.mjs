@@ -89,6 +89,32 @@ async function servingWith(handler, run) {
   }
 }
 
+test('the dev server streams /myndbond/<id>.mp4 from videosDir with video/mp4 and byte ranges', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'videos-dir-'));
+  const clip = Buffer.from('00000018667479706d703432000000006d70343269736f6d', 'hex');
+  fs.writeFileSync(path.join(dir, 'gramedla-hljod.mp4'), clip);
+  try {
+    await servingWith((req, res) => handle(req, res, { videosDir: dir }), async base => {
+      const whole = await fetch(`${base}/myndbond/gramedla.mp4`);
+      assert.equal(whole.status, 200);
+      assert.equal(whole.headers.get('content-type'), 'video/mp4');
+      assert.equal(whole.headers.get('accept-ranges'), 'bytes');
+      assert.ok(Buffer.from(await whole.arrayBuffer()).equals(clip));
+
+      const slice = await fetch(`${base}/myndbond/gramedla.mp4`, { headers: { Range: 'bytes=4-7' } });
+      assert.equal(slice.status, 206);
+      assert.equal(slice.headers.get('content-range'), `bytes 4-7/${clip.length}`);
+      assert.ok(Buffer.from(await slice.arrayBuffer()).equals(clip.subarray(4, 8)));
+
+      const head = await fetch(`${base}/myndbond/gramedla.mp4`, { method: 'HEAD' });
+      assert.equal(head.status, 200);
+      assert.equal(head.headers.get('content-length'), String(clip.length));
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'); // one transparent pixel
 const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==', 'base64'); // one grey pixel
 

@@ -7,9 +7,9 @@
   },
   "first": {
     "src": "assets/audio/memory/first.mp3",
-    "duration": 4.57,
-    "mouth": "7eb0000cdceeffffd500000000000000509ffcddbd9efd0beddd804efd607dea9d3cffeec97a7000000000000000",
-    "key": "71a6f41d21f9c9648c0991d34e83801652e5cea1e11cdf70132c40336b7ca2d3"
+    "duration": 4.49,
+    "mouth": "af4006fffeeffc93000000000000748ded9e9cc7fff69bdee90008d30bee90da4effeee98dc800000000000000",
+    "key": "a0696cca2095569c9cb983ff0ea170d5fceffc00a960bfa83b22f4ac75d76fb3"
   },
   "match": {
     "src": "assets/audio/memory/match.mp3",
@@ -280,5 +280,23 @@
     "duration": 14.01,
     "mouth": "00dfe55f8009deedaccbacdddff90adda44ff8dcdeefaba963000000000087efee50edcbca0cc9aecdb700bda0000000000ccdcb6fc87eb0bb8400eedd58cda00000000009eda570cdcbca0cec9eedb957fe00000000008d900adeed9ddcbcc3aed000beec967750000000000000cfffdefdd46ffdeda00cdbed6038db9678ffdcffc70d96aa9850000000000",
     "key": "6839f15ac2b791d2f76f4430328fa4221084c1deb021e316e02ea0c1ad8d274f"
+  },
+  "lift_ready": {
+    "src": "assets/audio/memory/lift_ready.mp3",
+    "duration": 3.85,
+    "mouth": "0fefddefdeffa000def885000000000000000300dcba4006efeeccd000efcdd98700000000000",
+    "key": "4dce0a8241a29a71c0b17829499f1e620dc5830a38daec0c8674943797822e4d"
+  },
+  "roll_ready": {
+    "src": "assets/audio/memory/roll_ready.mp3",
+    "duration": 5.21,
+    "mouth": "0600ffedced00ceefefcbdeec53ed0f709fdc9ddafb00cedca62000000000000074bfddda3000afacc5ca0020dda7500000000000",
+    "key": "cc7b4c880e3f241a8507004ee50b9cdf99c369d411525d7ae452eead6593a6eb"
+  },
+  "lay_ready": {
+    "src": "assets/audio/memory/lay_ready.mp3",
+    "duration": 4.09,
+    "mouth": "dffeddaddb09fcffeed900030000000000000000ddb304d89d80cd5005cdefeb37dd86530000000000",
+    "key": "34dc450295a0f42e538ebfc74bdfd81b37ef87b163d1b19cba5041b22837e70e"
   }
 }

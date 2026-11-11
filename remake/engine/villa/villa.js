@@ -30,9 +30,10 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
   let shot = null; // { url, width, height, mayBeBlank }
   let boxes = []; // { x, y, w, h } in CSS px of the view
   let drag = null;
-  let draw = null, panel = null, textEl = null, statusEl = null;
+  let draw = null, panel = null, shotEl = null, textEl = null, statusEl = null;
   let holdTimer = null;
   let saving = false;
+  let pausedVideos = [];
 
   if (button) {
     const b = doc.createElement('button');
@@ -46,8 +47,10 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
 
   // F1 opens (and the browser's own help stays shut); Escape shuts without saving. While the tool is open no other part of the
   // page sees these keys. Letters typed in the text box are the text box's.
+  const isF1 = event => event.key === 'F1' || event.code === 'F1' || event.keyCode === 112;
+  win.addEventListener?.('help', event => { event.preventDefault(); }, true);
   doc.addEventListener('keydown', event => {
-    if (event.key === 'F1') {
+    if (isF1(event)) {
       event.preventDefault();
       event.stopImmediatePropagation();
       if (!isOpen) open(); else if (!saving) cancel();
@@ -82,6 +85,8 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
       console.warn('[villa] no screenshot:', error);
       shot = null;
     }
+    pausedVideos = [...doc.querySelectorAll('video')].filter(v => !v.paused);
+    for (const v of pausedVideos) try { v.pause(); } catch {}
     onPause?.(true);
     build();
     root.hidden = false;
@@ -96,7 +101,9 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     isOpen = false;
     root.hidden = true;
     root.replaceChildren();
-    draw = panel = textEl = statusEl = null;
+    draw = panel = shotEl = textEl = statusEl = null;
+    for (const v of pausedVideos) try { v.play()?.catch?.(() => {}); } catch {}
+    pausedVideos = [];
     onPause?.(false);
   }
 
@@ -109,10 +116,21 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     const hint = doc.createElement('div');
     hint.className = 'villa-hint';
     hint.textContent = 'Dragðu kassa yfir það sem er að (þeir fá númer) og skrifaðu hvað er að. Vista: hnappurinn eða Ctrl+Enter. Hætta við: Esc.';
+    const bodyRow = doc.createElement('div');
+    bodyRow.className = 'villa-body';
+    if (shot?.url) {
+      shotEl = doc.createElement('img');
+      shotEl.className = 'villa-shot';
+      shotEl.src = shot.url;
+      shotEl.alt = 'Skjáskot';
+      shotEl.title = 'Skjáskot sem fylgir skýrslunni';
+      bodyRow.append(shotEl);
+    }
     textEl = doc.createElement('textarea');
     textEl.className = 'villa-text';
     textEl.placeholder = 'Hvað er að? (1: …, 2: …)';
     textEl.rows = 3;
+    bodyRow.append(textEl);
     const buttons = doc.createElement('div');
     buttons.className = 'villa-buttons';
     const undo = doc.createElement('button'); undo.type = 'button'; undo.className = 'villa-undo'; undo.textContent = 'Afturkalla kassa';
@@ -125,7 +143,7 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     statusEl = doc.createElement('div');
     statusEl.className = 'villa-status';
     statusEl.hidden = true;
-    panel.append(hint, textEl, buttons, statusEl);
+    panel.append(hint, bodyRow, buttons, statusEl);
     root.append(draw, panel);
 
     draw.addEventListener('pointerdown', event => {
@@ -285,7 +303,9 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
       if (folder) {
         status(`Vistað: ${folder}`);
       } else {
-        const name = `mosi-villa-${fileStamp(new Date())}.json`;
+        const stamp = fileStamp(new Date());
+        const name = `mosi-villa-${stamp}.json`;
+        if (marked || raw) downloadUrl(`mosi-villa-${stamp}.jpg`, marked || raw);
         download(name, body);
         status(`Enginn þjónn svaraði: vafrinn hleður skýrslunni niður sem ${name}.`);
       }
@@ -304,6 +324,15 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     doc.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  function downloadUrl(name, href) {
+    const a = doc.createElement('a');
+    a.href = href;
+    a.download = name;
+    doc.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 1000);
   }
 
   function status(text) {

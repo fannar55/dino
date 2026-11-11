@@ -1,0 +1,42 @@
+{
+  "set": "minnisspil",
+  "date": "2026-11-08",
+  "source": "jano-minnisspil (5).json",
+  "verdicts": {
+    "minnisspil/lift_ready_nyja": {
+      "verdict": "ja",
+      "key": "4dce0a8241a29a71c0b17829499f1e620dc5830a38daec0c8674943797822e4d",
+      "mp3": "5513fda967c0808187ec0e6578b98560d3c904316c75db55aa2549ebde88ba0c",
+      "speaker": "mosi",
+      "text": "Greinin er fyrir. Hver nær upp að henni?"
+    },
+    "minnisspil/roll_ready_nyja": {
+      "verdict": "ja",
+      "key": "cc7b4c880e3f241a8507004ee50b9cdf99c369d411525d7ae452eead6593a6eb",
+      "mp3": "cac22110e921b4f4a3847197f6179fe0fa9419c867d26b73497ac3715172ecec",
+      "speaker": "mosi",
+      "text": "Stóri bolurinn getur orðið að brú. Hver getur ýtt honum?"
+    },
+    "minnisspil/lay_ready_nyja": {
+      "verdict": "ja",
+      "key": "34dc450295a0f42e538ebfc74bdfd81b37ef87b163d1b19cba5041b22837e70e",
+      "mp3": "d517f85a8667ebe0daa397d8611c4441f4253686c8952262656475d44f3d2be0",
+      "speaker": "mosi",
+      "text": "Mýrin er mjúk. Hver getur byggt leið yfir?"
+    },
+    "minnisspil/first_gamla": {
+      "verdict": "nei",
+      "key": "71a6f41d21f9c9648c0991d34e83801652e5cea1e11cdf70132c40336b7ca2d3",
+      "mp3": "c4a6357f79cb26a69f94185e4cc9e872f4cf7d2ffb8146eef946957ba47a7ed5",
+      "speaker": "mosi",
+      "text": "Ýttu á lauf. Skoðaðu ungann og finndu annan eins."
+    },
+    "minnisspil/first_nyja": {
+      "verdict": "ja",
+      "key": "a0696cca2095569c9cb983ff0ea170d5fceffc00a960bfa83b22f4ac75d76fb3",
+      "mp3": "352965e9e865b38783c638dd869329d1ac53e3575f3e854371dccc3a82327659",
+      "speaker": "mosi",
+      "text": "Ýttu á lauf. Skoðaðu ungann og finndu annan eins."
+    }
+  }
+}

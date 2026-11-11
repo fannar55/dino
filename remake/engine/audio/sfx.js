@@ -31,6 +31,7 @@ export const SAMPLES = {
   grazers: { urls: ['grazer-1.mp3', 'grazer-2.mp3', 'grazer-3.mp3', 'grazer-4.mp3'].map(kafli4), level: 0.5 },
   flyers: { urls: ['flyer-1.mp3', 'flyer-2.mp3'].map(kafli4), level: 0.4 },
 };
+const SAMPLE_VARY = 0.06; // a recorded sample plays up to 6 % higher or lower each time (a play's detail.rate sets it instead)
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
 const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
@@ -327,6 +328,18 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15 * level, pan });
       noise({ duration: 0.18, level: 0.34 * level, frequency: 850, end: 350, pan, attack: 0.008 });
     },
+    // A call heard (chapter 4: Egill taps a group of animals and she calls it): two soft, high bells of the key, mi and la an octave
+    // up, close together, from where the group is (`pan`). Quiet: her call and their answer come after it.
+    callChime({ pan = 0 } = {}) {
+      bell(key[2] * 2, { level: 0.03, pan, duration: 0.5 });
+      bell(key[4] * 2, { level: 0.026, pan, delay: 0.09, duration: 0.6 });
+    },
+    // A breath blown out (chapter 4's wind: Mosi and Egill blow along with a gust): a soft, long "fff" of warm noise, swelling and
+    // falling, from a little to one side (`pan`). No note in it.
+    blow({ pan = 0, level = 1 } = {}) {
+      noise({ kind: 'warm', type: 'bandpass', frequency: 1300, end: 700, q: 0.6, duration: 0.9, level: 0.045 * level, attack: 0.18, pan });
+      noise({ kind: 'white', type: 'highpass', frequency: 3200, end: 2600, q: 0.5, duration: 0.7, level: 0.012 * level, attack: 0.12, pan });
+    },
     // A ribbit: two throaty croaks, the second one rising; near the middle, or at `pan` (chapter 4's answers from all sides).
     frog({ pan: side } = {}) {
       const pitch = between(0.95, 1.05);
@@ -513,6 +526,8 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       lastTake.set(name, url);
       const source = context.createBufferSource();
       source.buffer = buffers.get(url);
+      // a little higher or lower each time (as the flight's one-shots vary), so the same take never sounds the same twice
+      source.playbackRate.value = Number.isFinite(detail.rate) && detail.rate > 0 ? detail.rate : between(1 - SAMPLE_VARY, 1 + SAMPLE_VARY);
       const volume = context.createGain();
       volume.gain.value = sample.level * (Number.isFinite(detail.level) ? detail.level : 1);
       source.connect(volume);

@@ -63,6 +63,7 @@ const MUSIC = asset('assets/audio/eitt/music.mp3');
 const TAP_PX = 88; // the least a card of the child's hand may show across to be tapped (eitt.css's --eitt-target): a bigger hand lies in rows
 const THINK_MS = 1200; // Kambeðla's pace: she thinks this long before each move
 const OWED_MS = 2600; // and this long while the child owes an "Eitt!", which she may notice at the end of it
+export const EITT_GRACE_MS = 2000; // 2 s after playing down to one card before opponents can catch ("Grípa!")
 const IDLE_MS = 6000; // the child's turn with nothing done this long: what goes lifts
 const QUICK_IDLE_MS = 3000; // and this long in the first round after the tutorial, while the child is still learning
 const NUDGE_MS = 7000; // the child's turn with nothing done this long: Kambeðla may say "Þín umferð!"
@@ -326,12 +327,20 @@ export function createEittGame(doc, {
   const adviceWords = make('p');
   adviceEl.append(mosiPicture, adviceWords);
   const handEl = make('div', 'eitt-hand');
-  const eittEl = make('button', 'eitt-eitt', '<span>Eitt!</span>');
+  const eittEl = make('button', 'eitt-eitt');
+  const eittLabel = make('span');
+  eittLabel.textContent = 'Eitt!';
+  eittEl.append(eittLabel);
   const quitEl = make('button', 'eitt-close eitt-quit', CROSS);
   quitEl.setAttribute('aria-label', 'Aftur í bókina');
   const teachEl = make('button', 'eitt-teach', `${CAP}<span>Kennsla</span>`); // the tutorial again
   const skipEl = make('button', 'eitt-skip', '<span>Sleppa</span>'); // the tutorial's way out
-  const captionEl = make('div', 'eitt-caption', '<span class="eitt-caption-speaker">Egill</span><p>Eitt!</p>');
+  const captionEl = make('div', 'eitt-caption');
+  const captionSpeaker = make('span', 'eitt-caption-speaker');
+  captionSpeaker.textContent = 'Egill';
+  const captionWords = make('p');
+  captionWords.textContent = 'Eitt!';
+  captionEl.append(captionSpeaker, captionWords);
   captionEl.setAttribute('aria-live', 'polite');
   table.append(windowEl, frameEl, theirsEl, centre, mosiEl, adviceEl, handEl, eittEl, captionEl, quitEl, teachEl, skipEl);
 
@@ -370,6 +379,7 @@ export function createEittGame(doc, {
 
   root.replaceChildren(table, winEl, setupEl);
   root.hidden = true;
+  eittEl.hidden = true;
   passEl.hidden = true;
   coloursEl.hidden = true;
   adviceEl.hidden = true;
@@ -506,6 +516,9 @@ export function createEittGame(doc, {
   let idleTimer = 0;
   let nudgeTimer = 0;
   let adviceTimer = 0;
+  let unsaidSeat = null; // which seat currently owes "Eitt!", or null
+  let unsaidReady = false; // true once EITT_GRACE_MS (2 s) have passed since unsaidSeat's card landed
+  let unsaidTimer = 0;
 
   function later(ms, fn) {
     const id = setTimeout(() => {
@@ -565,7 +578,7 @@ export function createEittGame(doc, {
   }
   const placeHand = el => placeOf(el, 3 * Number(el.dataset.i || 0));
   const placeTheirs = el => placeOf(el, -5 * Number(el.dataset.i || 0));
-  const placeDeck = () => placeOf(deckEl.firstElementChild, -3);
+  const placeDeck = () => placeOf(deckEl.firstElementChild ?? deckEl, -3);
   const placePile = el => placeOf(el, tiltOf(el.dataset.id).r);
 
   /** Moves cards that changed place from where they were, so a hand closes up and makes room smoothly (a FLIP). */
@@ -612,7 +625,11 @@ export function createEittGame(doc, {
    */
   function handBounds(upright) {
     const base = table.getBoundingClientRect();
-    return upright ? [base.left + 8, base.right - 8] : [mosiEl.getBoundingClientRect().right + 10, eittEl.getBoundingClientRect().left - 10];
+    if (upright) return [base.left + 8, base.right - 8];
+    const mosiBox = mosiEl.getBoundingClientRect();
+    const eittBox = eittEl.getBoundingClientRect();
+    const rightLimit = eittBox.width > 0 ? eittBox.left - 10 : base.right - (mosiBox.right - base.left) - 10;
+    return [mosiBox.right + 10, rightLimit];
   }
 
   /**
@@ -738,6 +755,37 @@ export function createEittGame(doc, {
     }
   }
 
+  /** Starts (or restarts) the 2-second grace window for whoever currently owes "Eitt!". */
+  function armUnsaid() {
+    cancelTimer(unsaidTimer);
+    unsaidTimer = 0;
+    const current = game && game.winner === null ? game.unsaid : null;
+    unsaidSeat = current;
+    unsaidReady = false;
+    if (current !== null) {
+      const token = round;
+      unsaidTimer = later(EITT_GRACE_MS, () => {
+        unsaidTimer = 0;
+        if (token !== round || !isOpen || !game || game.winner !== null || game.unsaid !== current) return;
+        unsaidReady = true;
+        sync({ animate: false });
+      });
+    }
+  }
+
+  /** Updates the "Eitt!" / "Grípa!" button: hidden unless the child owes "Eitt!" (shown at once) or an opponent may be caught (after 2 s). */
+  function syncUnsaid() {
+    const current = game && game.winner === null ? game.unsaid : null;
+    if (current !== unsaidSeat) armUnsaid();
+    const childOwes = current === CHILD;
+    const catchable = current !== null && current !== CHILD && unsaidReady;
+    const showButton = childOwes || catchable;
+    eittLabel.textContent = catchable ? 'Grípa!' : 'Eitt!';
+    eittEl.classList.toggle('catch', catchable);
+    eittEl.classList.toggle('needed', showButton);
+    eittEl.hidden = !showButton;
+  }
+
   /** Everything shown as the round is now. */
   function sync({ animate = true } = {}) {
     if (!game) return;
@@ -750,7 +798,7 @@ export function createEittGame(doc, {
     wayEl.hidden = !multi || game.hands.length < 3; // with two a reverse only skips: nothing turns
     if (!wayEl.hidden) setWay(wayEl, game.direction, { calm: calm() });
     passEl.hidden = !(game.drew && game.turn === CHILD && game.winner === null) || Boolean(tutorial);
-    eittEl.classList.toggle('needed', game.unsaid !== null && game.winner === null);
+    syncUnsaid();
     deckEl.classList.toggle('draw', childMoves() && canDraw(game, CHILD) && (tutorial ? tutorial.live === 'deck' : hinting || mosiPick === 'draw'));
     coloursEl.hidden = !pendingWild;
     for (const button of colourButtons) {
@@ -1029,8 +1077,8 @@ export function createEittGame(doc, {
     const said = showAdvice(REAL.id, REAL.text, { stay: true });
     await wait(Math.max(MIN_STEP_MS, said * 1000 + 900));
     if (token !== round || !isOpen) return;
-    if (fjolspil) showSetup(); // with the page's host session the child picks: this tablet, or "Fjölspil"
-    else run(deal());
+    leaveMulti();
+    run(deal());
   }
 
   /** The tutorial from the start: its first deal, and Mosi's first step. */
@@ -1039,10 +1087,11 @@ export function createEittGame(doc, {
     run(deal(tutorialGame(TUTORIAL_DEALS.cards)));
   }
 
-  /** Egill says "Eitt!" with the child, in a caption by the button (his voice only if no other is speaking, or soon after). */
-  function egillSays() {
+  /** Egill says "Eitt!" (or "Grípa!") with the child, in a caption by the button (his voice only if no other is speaking, or soon after). */
+  function egillSays(word = 'Eitt!') {
     say('eitt_egill_eitt', { within: 2500 });
     cancelTimer(captionTimer);
+    captionWords.textContent = word;
     captionEl.getAnimations?.().forEach(animation => animation.cancel());
     captionEl.hidden = true;
     void captionEl.offsetWidth;
@@ -1142,7 +1191,7 @@ export function createEittGame(doc, {
 
   function tapCard(id) {
     poke();
-    if (!childMoves()) return;
+    if (!childMoves() || (tutorial && talking)) return;
     if (tutorial?.live === 'check' && id !== tutorial.check) return wrongAnswer(id);
     if (tutorial && tutorial.live !== 'check' && tutorial.live !== id) return;
     const card = game.hands[CHILD].find(held => held.id === id);
@@ -1177,7 +1226,7 @@ export function createEittGame(doc, {
     game = quietEitt(play(game, CHILD, card.id));
     lastPlay = { seat: CHILD, cardId: card.id };
     renderHand(handCards());
-    eittEl.classList.toggle('needed', game.unsaid === CHILD);
+    syncUnsaid();
     await toPile(card, from);
     if (token !== round) return;
     await afterPlay(before, CHILD, card);
@@ -1201,7 +1250,7 @@ export function createEittGame(doc, {
 
   async function chooseColour(colour) {
     wake();
-    if (!pendingWild || flying || !isOpen) return;
+    if (!pendingWild || flying || !isOpen || (tutorial && talking)) return;
     const token = round;
     const card = pendingWild;
     pendingWild = null;
@@ -1222,7 +1271,7 @@ export function createEittGame(doc, {
 
   async function tapDeck() {
     poke();
-    if (!childMoves() || (tutorial && tutorial.live !== 'deck')) return;
+    if (!childMoves() || (tutorial && (talking || tutorial.live !== 'deck'))) return;
     if (!canDraw(game, CHILD)) {
       nope(deckEl);
       if (!game.drew && !hinting) {
@@ -1255,12 +1304,12 @@ export function createEittGame(doc, {
   async function tapEitt() {
     wake();
     if (!isOpen || !game || game.winner !== null || ending) return;
-    if (tutorial && tutorial.live !== 'eitt') return;
+    if (tutorial && (talking || tutorial.live !== 'eitt')) return;
     if (game.unsaid === CHILD) {
       game = callEitt(game, CHILD);
-      eittEl.classList.remove('needed');
+      syncUnsaid();
       sfx('horn');
-      egillSays();
+      egillSays('Eitt!');
       sparkle(eittEl, 10, win);
       view?.hop(); // well done!
       if (tutorial) { // the lesson goes on: her turn, when she forgets hers
@@ -1275,14 +1324,14 @@ export function createEittGame(doc, {
       if (childMoves()) armIdle();
       return;
     }
-    if (game.unsaid !== null && game.unsaid !== CHILD && !flying && !animating) { // she forgot hers (or, in Fjölspil, anyone did)
+    if (game.unsaid !== null && game.unsaid !== CHILD && unsaidReady && !flying && !animating) { // she forgot hers (or, in Fjölspil, anyone did)
       const token = round;
       const before = game;
       const forgot = game.unsaid;
       game = catchEitt(game, CHILD); // the child's cards wait while hers fly in (childMoves looks at `animating`)
-      eittEl.classList.remove('needed');
+      syncUnsaid();
       sfx('horn');
-      egillSays();
+      egillSays('Grípa!');
       sparkle(eittEl, 10, win);
       if (forgot === KAMBEDLA) view?.think(false);
       animating = (async () => {
@@ -1347,7 +1396,8 @@ export function createEittGame(doc, {
       } else await wait(600); // a guest's seat the computer covers: no word of hers
       if (token !== round) return;
     }
-    // If she forgot, game.unsaid is hers: "Eitt!" glows for the child to catch her (sync below).
+    // If she forgot, game.unsaid is hers: after EITT_GRACE_MS (2 s) "Grípa!" glows for the child to catch her.
+    if (game.unsaid !== null) armUnsaid();
     if (tutorial && game.unsaid === CHILD) { // the lesson (quietEitt): the tutorial waits for the child's "Eitt!"
       showStep(tutorial.step + 1);
       return;
@@ -1371,10 +1421,11 @@ export function createEittGame(doc, {
     if (nextStep()?.her) showStep(tutorial.step + 1);
     else if (tutorial && !TUTORIAL[tutorial.step]?.check) hideAdvice(); // her move needs no words (after a check, his "Rétt!" stays a while)
     const owed = () => game.unsaid !== null && game.unsaid !== KAMBEDLA; // the child (or, in Fjölspil, anyone) owes an "Eitt!"
-    await wait(tutorial ? THINK_MS + 1000 : owed() ? OWED_MS : THINK_MS);
+    const sheForgot = () => game.unsaid === KAMBEDLA; // she forgot her own "Eitt!" on a card that plays again: give the child time after "Grípa!" appears
+    await wait(tutorial ? THINK_MS + 1000 : sheForgot() ? EITT_GRACE_MS + OWED_MS : owed() ? OWED_MS : THINK_MS);
     while (animating) await animating; // the child is catching her
     if (token !== round || !isOpen) return;
-    if (!tutorial && owed() && willCatch(skillNow(), random)) {
+    if (!tutorial && owed() && unsaidReady && willCatch(skillNow(), random)) {
       // The child forgot "Eitt!": she noticed.
       const before = game;
       const forgot = game.unsaid;
@@ -1383,7 +1434,7 @@ export function createEittGame(doc, {
       sfx('horn');
       view?.glow('yellow', { hold: 1.2 });
       const said = say('eitt_eitt');
-      eittEl.classList.remove('needed');
+      syncUnsaid();
       await giveCards(before, forgot);
       await wait(Math.max(500, said * 1000 - 300));
       if (token !== round) return;
@@ -1542,7 +1593,7 @@ export function createEittGame(doc, {
   /** A guest's seat the computer plays while she is away: as a mild Kambeðla would, with no word, no glow and no window. */
   async function coveredTurn(seat) {
     const token = round;
-    await wait(THINK_MS);
+    await wait(game.unsaid === seat ? EITT_GRACE_MS + OWED_MS : THINK_MS);
     while (animating) await animating; // somebody is being caught
     if (token !== round || !isOpen || game.turn !== seat || game.winner !== null) return;
     let move = chooseMove(game, seat, COVER_SKILL, random);
@@ -1600,7 +1651,7 @@ export function createEittGame(doc, {
     const before = game;
     const forgot = game.unsaid;
     game = catchEitt(game, seat);
-    eittEl.classList.remove('needed');
+    syncUnsaid();
     sfx('horn');
     if (forgot === KAMBEDLA) view?.think(false);
     animating = (async () => {
@@ -1623,13 +1674,13 @@ export function createEittGame(doc, {
     if (type === 'eitt') { // whenever she owes it, her turn or not
       if (game.unsaid !== seat) return false;
       game = callEitt(game, seat);
-      eittEl.classList.remove('needed'); // only one seat ever owes one
+      syncUnsaid(); // only one seat ever owes one
       sfx('horn');
       shared();
       return true;
     }
-    if (type === 'catch') { // whenever another forgot hers, until the next one moves
-      if (game.unsaid === null || game.unsaid === seat || flying || animating || pendingWild) return false;
+    if (type === 'catch') { // whenever another forgot hers (after the 2 s grace window), until the next one moves
+      if (!unsaidReady || game.unsaid === null || game.unsaid === seat || flying || animating || pendingWild) return false;
       run(seatCatches(seat));
       return true;
     }
@@ -1681,7 +1732,7 @@ export function createEittGame(doc, {
       canPass: hers && game.drew,
       needsColour: null, // a guest's wild goes with its colour: her device asks her for it (guest-eitt.js)
       eittNeeded: !covered && game.unsaid === seat,
-      canCatch: !covered && game.unsaid !== null && game.unsaid !== seat ? game.unsaid : null,
+      canCatch: !covered && unsaidReady && game.unsaid !== null && game.unsaid !== seat ? game.unsaid : null,
       counts: game.hands.map((hand, i) => ({ seat: i, name: seats[i]?.name ?? '', avatar: seats[i]?.avatar ?? null, cards: hand.length })),
       winner: game.winner,
     };
@@ -1775,7 +1826,7 @@ export function createEittGame(doc, {
     passEl.hidden = true;
     coloursEl.hidden = true;
     deckEl.classList.remove('draw');
-    eittEl.classList.remove('needed');
+    syncUnsaid();
     root.classList.remove('teaching');
     teachEl.hidden = false;
     skipEl.hidden = true;
@@ -1929,7 +1980,7 @@ export function createEittGame(doc, {
     passEl.hidden = true;
     coloursEl.hidden = true;
     deckEl.classList.remove('draw');
-    eittEl.classList.remove('needed');
+    syncUnsaid();
     const mine = handCards();
     const others = multi ? [...seatRows.keys()] : [KAMBEDLA]; // Kambeðla, or every seat after Egill's in a round of Fjölspil
     renderHand(mine, { hidden: new Set(mine.map(card => card.id)), animate: false });

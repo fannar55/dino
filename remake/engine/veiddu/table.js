@@ -191,7 +191,8 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
  */
 export function createVeidduGame(doc, {
   save = null, audio = {}, onClose = null, onPause = null, win = globalThis.window, random = Math.random, fjolspil = null, auto: autoStart = false,
-  uggedlaLive = true, kinds = undefined,
+  uggedlaLive = true, kinds = undefined, setTimer = setTimeout, clearTimer = clearTimeout,
+  clock = () => globalThis.performance?.now?.() ?? Date.now(),
 } = {}) {
   const root = doc.getElementById('veiddu');
   if (!root) throw new Error('"Veiddu" needs #veiddu on the page (see veiddu-lab.html)');
@@ -281,9 +282,8 @@ export function createVeidduGame(doc, {
   let adviceTimer = 0;
   let autoTimer = 0;
 
-  const clock = () => globalThis.performance?.now?.() ?? Date.now();
   function later(ms, fn) {
-    const id = setTimeout(() => {
+    const id = setTimer(() => {
       timers.delete(id);
       fn();
     }, ms);
@@ -291,7 +291,7 @@ export function createVeidduGame(doc, {
     return id;
   }
   const cancel = id => {
-    clearTimeout(id);
+    clearTimer(id);
     timers.delete(id);
   };
   /** Resolves after `ms`; rejects (STALE) if the round was dropped meanwhile. */
@@ -512,11 +512,19 @@ export function createVeidduGame(doc, {
     return next;
   };
 
-  // ---- Seats: whose turn, thinking, out -------------------------------------------------------------------------------------
+  // ---- Seats: whose turn, who is asked, thinking, out -----------------------------------------------------------------------
 
   function markTurn(seat) {
     for (const s of [UGGEDLA, MOSI]) seatEls[s].classList.toggle('turn', s === seat);
     meEl.classList.toggle('turn', seat === CHILD);
+    if (seat === null || seat === undefined) table.removeAttribute('data-turn');
+    else table.setAttribute('data-turn', String(seat));
+  }
+  function markAsked(seat) {
+    for (const s of [UGGEDLA, MOSI]) seatEls[s].classList.toggle('asked', s === seat);
+    meEl.classList.toggle('asked', seat === CHILD);
+    if (seat === null || seat === undefined) table.removeAttribute('data-asked');
+    else table.setAttribute('data-asked', String(seat));
   }
   function thinking(seat, on) {
     seatEls[seat]?.classList.toggle('thinking', on);
@@ -850,7 +858,12 @@ export function createVeidduGame(doc, {
 
   /** The act has been shown: on to whoever's turn it is, or the end. */
   async function proceed() {
+    if (game.phase !== 'over' && game.turn === CHILD && game.phase === 'fish') {
+      markAsked(null);
+      return startChildTurn(); // the pond calls as soon as "Nei! Farðu að veiða!" begins, so a quick tap fishes at once
+    }
     await lineDone();
+    markAsked(null);
     if (game.phase === 'over') return run(endRound());
     if (game.turn === CHILD) return startChildTurn();
     return run(mindTurn(game.turn));
@@ -859,9 +872,10 @@ export function createVeidduGame(doc, {
   /** `seat` asks `target` for `kind`: the question, then (if the child is asked, when it has answered) the answer. */
   async function doAsk(seat, target, kind) {
     const result = ask(game, seat, target, kind);
+    markAsked(target);
     await speak(seat, target, asking(kind), askLine(seat, kind));
-    await lineDone();
     if (target === CHILD) await awaitChild(kind);
+    else await lineDone();
     game = result.game;
     feed(result.events);
     await playEvents(result.events.slice(1), seat);
@@ -944,7 +958,10 @@ export function createVeidduGame(doc, {
     cancel(nudgeTimer);
     hintKind = null;
     hintTarget = null;
-    if (tutorial) tutorial.live = null; // what the step asked for is done: its words stay, but nothing is lit
+    if (tutorial) {
+      tutorial.live = null; // what the step asked for is done: its words stay, but nothing is lit
+      speech.cut(priorityOf(HINT_LINE));
+    }
     hideAdvice();
     cutChatter();
   }
@@ -999,6 +1016,7 @@ export function createVeidduGame(doc, {
     const kind = picked;
     busy = true;
     settleChild();
+    if (speech.current?.id?.startsWith('veiddu_egill_name_')) speech.stop();
     marks();
     run(doAsk(CHILD, seat, kind));
   }
@@ -1010,6 +1028,7 @@ export function createVeidduGame(doc, {
     busy = true;
     settleChild();
     clearBubble();
+    speech.cut(priorityOf(EMPTY_LINE)); // a tap while "Nei! Farðu að veiða!" is still speaking cuts it and draws at once
     marks();
     run(doFish(CHILD));
   }
@@ -1025,13 +1044,14 @@ export function createVeidduGame(doc, {
       }
       marks();
       if (waiting.holds && !tutorial) {
+        const askLeft = Math.max(0, bubbleUntil - clock());
         giveTimers = [
-          later(GIVE_HINT_MS, () => {
+          later(GIVE_HINT_MS + askLeft, () => {
             if (!waiting) return;
             waiting.hinted = true;
             marks();
           }),
-          later(GIVE_ADVICE_MS, () => {
+          later(GIVE_ADVICE_MS + askLeft, () => {
             if (waiting) showAdvice(HINT_LINE, SAY.giveHelp);
           }),
         ];
@@ -1046,8 +1066,13 @@ export function createVeidduGame(doc, {
     busy = true;
     giveTimers.forEach(cancel);
     giveTimers = [];
-    if (tutorial) tutorial.live = null;
+    if (tutorial) {
+      tutorial.live = null;
+      speech.cut(priorityOf(HINT_LINE));
+    }
     hideAdvice();
+    speech.cut(priorityOf(EMPTY_LINE));
+    bubbleUntil = 0;
     marks();
     answer.resolve();
   }
@@ -1092,6 +1117,7 @@ export function createVeidduGame(doc, {
       const go = () => (tutorial && speech.talking ? (autoTimer = later(250, go)) : act());
       return go;
     };
+    const afterBubble = Math.max(after, bubbleUntil - clock() + 200);
     if (p === 'child-pick') {
       autoTimer = later(after, listening(() => {
         const best = tutorial ? { ...tutorial.live } : bestAsk(game, CHILD);
@@ -1099,9 +1125,9 @@ export function createVeidduGame(doc, {
         tapCard(idOfKind(best.kind));
         autoTimer = later(700, () => tapWindow(best.target));
       }));
-    } else if (p === 'child-fish') autoTimer = later(after, listening(tapPond));
-    else if (p === 'child-give') autoTimer = later(after, listening(() => tapCard(idOfKind(waiting?.kind))));
-    else if (p === 'child-no') autoTimer = later(AUTO_MS, tapFishButton);
+    } else if (p === 'child-fish') autoTimer = later(afterBubble, listening(tapPond));
+    else if (p === 'child-give') autoTimer = later(afterBubble, listening(() => tapCard(idOfKind(waiting?.kind))));
+    else if (p === 'child-no') autoTimer = later(Math.max(AUTO_MS, bubbleUntil - clock() + 200), tapFishButton);
   }
 
   // ---- The tutorial ---------------------------------------------------------------------------------------------------------
@@ -1173,8 +1199,8 @@ export function createVeidduGame(doc, {
     await wait(Math.max(MIN_STEP_MS, said > 0 ? said * 1000 + 900 : lineMs(REAL.text)));
     if (token !== round || !isOpen) return;
     hideAdvice(true);
-    if (fjolspil) showSetup(); // with the page's host session the child picks: a round on this tablet, or "Fjölspil"
-    else run(deal());
+    multi?.leave();
+    run(deal());
   }
 
   /** The tutorial from the start: its stacked deck is dealt, and Mosi says the first step. */
@@ -1188,7 +1214,7 @@ export function createVeidduGame(doc, {
 
   const multi = fjolspil
     ? createVeidduMulti(doc, {
-      root, fjolspil, save, win, random, calm, kinds,
+      root, fjolspil, save, win, random, calm, kinds, setTimer, clearTimer,
       uggedla: {
         windowEl: windowEls[UGGEDLA], frameEl: seatEls[UGGEDLA].querySelector('.veiddu-uggedla-frame'), home: seatEls[UGGEDLA],
         view: () => view, start: () => startView(), stop: () => view?.stop(),
@@ -1227,7 +1253,7 @@ export function createVeidduGame(doc, {
 
   /** Back to an empty table: the cards, the catches, the words, every timer. */
   function reset() {
-    for (const id of timers) clearTimeout(id);
+    for (const id of timers) clearTimer(id);
     timers.clear();
     waiting?.reject?.(STALE);
     waiting = null;
@@ -1251,9 +1277,11 @@ export function createVeidduGame(doc, {
       fanEls[seat].clear();
       fanDoms[seat].replaceChildren();
       countEls[seat].hidden = true;
-      seatEls[seat].classList.remove('turn', 'thinking', 'out');
+      seatEls[seat].classList.remove('turn', 'asked', 'thinking', 'out');
     }
-    meEl.classList.remove('turn', 'out', 'live');
+    meEl.classList.remove('turn', 'asked', 'out', 'live');
+    table.removeAttribute('data-turn');
+    table.removeAttribute('data-asked');
     for (const seat of [CHILD, UGGEDLA, MOSI]) {
       const empty = makeCatch(seat, [], 0);
       catchEls[seat].replaceWith(empty);
@@ -1322,7 +1350,8 @@ export function createVeidduGame(doc, {
     const childWon = childIn(winners); // a tie the child is in counts as a win
     if (!auto && save?.setVeiddu) save.setVeiddu(afterRoundSave({ ...save.getVeiddu?.(), skill: skillBase() }, winners));
     markTurn(null);
-    for (const box of [meEl, seatEls[UGGEDLA], seatEls[MOSI]]) box.classList.remove('out', 'thinking'); // the winners are all in sight
+    markAsked(null);
+    for (const box of [meEl, seatEls[UGGEDLA], seatEls[MOSI]]) box.classList.remove('asked', 'out', 'thinking'); // the winners are all in sight
     clearBubble();
     await wait(600);
     const words = winWords(winners);
@@ -1430,7 +1459,11 @@ export function createVeidduGame(doc, {
   pressable(multiButton, { win, sound: null, onTap: () => { wake(); if (isOpen && setupOpen) run(multi.openLobby()); } });
   pressable(continueEl, { win, sound: null, onTap: () => { wake(); if (isOpen && setupOpen) run(multi.resume()); } });
   pressable(pondEl, { win, sound: null, onTap: () => tapPond() });
-  for (const seat of [UGGEDLA, MOSI]) pressable(windowEls[seat], { win, sound: null, onTap: () => tapWindow(seat) });
+  pondEl.addEventListener('click', () => tapPond()); // a quick click that slid past TAP_SLOP_PX across the pond still fishes
+  for (const seat of [UGGEDLA, MOSI]) {
+    pressable(windowEls[seat], { win, sound: null, onTap: () => tapWindow(seat) });
+    windowEls[seat].addEventListener('click', () => tapWindow(seat));
+  }
   pressable(helpEl, { win, sound: null, onTap: () => askMosi() });
   pressable(quitEl, { win, sound: null, onTap: () => close() });
   pressable(teachEl, { win, sound: null, onTap: () => { wake(); if (isOpen && !tutorial) startTutorial(); } }); // from any moment of a round: it is dropped, with no penalty

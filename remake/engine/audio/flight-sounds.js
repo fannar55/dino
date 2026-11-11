@@ -9,10 +9,11 @@
 //   sounds.setSpeed(v);          // m/s along the route: the airflow's gain (0.3 at 8 m/s, 1 at 18) and its filter follow
 //   sounds.burst(seconds);       // a „Hraðar!“ burst: the airflow 1.4 times louder for its time
 //   sounds.setPan(p);            // -1..1: the airflow leans to one side in a bank, at most 0.6
-//   sounds.water(level); sounds.rapids(level); sounds.falls(level);   // 0..1: the river under her, its white water, the falls ahead
+//   sounds.water(level); sounds.rapids(level); sounds.falls(level, pan);   // 0..1: the river under her, its white water, the falls
+//                                                                          // ahead (pan -1..1: where they are across the speakers)
 //   sounds.gorge(level);         // 0..1: between the gorge's walls, everything echoes
 //   sounds.duck(on);             // while a line plays: the loops dip about 8 dB, and come back after it
-//   sounds.whoosh(side); sounds.wingbeat(); sounds.gust();
+//   sounds.whoosh(side); sounds.wingbeat(); sounds.flap(); sounds.gust({ rate });   // flap: one beat; rate: the gust's pitch
 //   sounds.setPaused(on);        // held with the game (engine/audio/hold.js): silent at once, and back; pause() and resume() too
 //   sounds.stop();               // fades out over 1 s and lets go of its loops
 //
@@ -33,6 +34,7 @@ export const FLIGHT_SOUND = {
   falls: 0.3,
   burst: 1.4, // the airflow in a burst, times its gain at her speed
   pan: 0.6, // the furthest the airflow leans to a side
+  fallsPan: 0.7, // and the falls' roar
   fadeIn: 1.5,
   fadeOut: 1,
   swap: 0.6, // s: a made loop fades out as its recording comes in
@@ -92,7 +94,7 @@ export function createFlightSounds({ context = null, output = null, recordings =
   if (!context) {
     const idle = () => {};
     return {
-      start: idle, setSpeed: idle, setPan: idle, burst: idle, whoosh: idle, wingbeat: idle, gust: idle,
+      start: idle, setSpeed: idle, setPan: idle, burst: idle, whoosh: idle, wingbeat: idle, flap: idle, gust: idle,
       water: idle, rapids: idle, falls: idle, gorge: idle, duck: idle, pause: idle, resume: idle, stop: idle,
       setPaused(value) { paused = Boolean(value); },
       get playing() { return false; },
@@ -240,14 +242,16 @@ export function createFlightSounds({ context = null, output = null, recordings =
       const volume = context.createGain(); // its level: her speed for the airflow, the river under her for the water
       volume.gain.value = name === 'bed' ? FLIGHT_SOUND.quiet : 0;
       const boost = name === 'bed' ? context.createGain() : null; // a burst
-      const chain = [input, filter, volume, boost].filter(Boolean);
+      // the falls' roar comes from where they are (the juice review's item 10): a panner of its own after its volume
+      const side = name === 'falls' && context.createStereoPanner ? context.createStereoPanner() : null;
+      const chain = [input, filter, volume, boost, side].filter(Boolean);
       for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
       if (name === 'bed' && pan) {
         boost.connect(pan);
         pan.connect(fade);
       } else chain.at(-1).connect(fade);
       nodes.push(...chain);
-      const channel = { name, input, filter, volume, boost, recorded: false, layers: [] };
+      const channel = { name, input, filter, volume, boost, side, recorded: false, layers: [] };
       if (has(FLIGHT_LOOPS[name])) record(channel, 0);
       else channel.layers = [madeLayer(channel, ...MADE[name])];
       if (filter) {
@@ -422,14 +426,27 @@ export function createFlightSounds({ context = null, output = null, recordings =
         if (!shot('wingbeat', { delay, rate: vary() })) puff({ kind: 'brown', type: 'lowpass', frequency: 300, end: 110, q: 0.7, duration: 0.22, level: 0.16, attack: 0.02, delay });
       }
     },
-    /** A gust (the wind task). */
-    gust() {
+    /** One beat of her wings, as a loop of her fly clip begins its downstroke (chapters/kafli4-flugedla.js wingFlaps). */
+    flap() {
       if (paused) return;
-      if (!shot('gust', { pan: (random() - 0.5) * 0.6 })) puff({ kind: 'brown', type: 'lowpass', frequency: 950, end: 300, q: 0.5, duration: 1.6, level: 0.1, attack: 0.5 });
+      if (!shot('wingbeat', { rate: vary() })) puff({ kind: 'brown', type: 'lowpass', frequency: 300, end: 110, q: 0.7, duration: 0.22, level: 0.16, attack: 0.02 });
+    },
+    /**
+     * A gust (the wind task), a little higher or lower each time; `rate` sets its pitch (the wind's six gusts climb a little:
+     * chapters/kafli4-wind.js).
+     */
+    gust({ rate = null } = {}) {
+      if (paused) return;
+      const pitch = Number.isFinite(rate) && rate > 0 ? rate : vary();
+      if (!shot('gust', { pan: (random() - 0.5) * 0.6, rate: pitch })) puff({ kind: 'brown', type: 'lowpass', frequency: 950 * pitch, end: 300 * pitch, q: 0.5, duration: 1.6, level: 0.1, attack: 0.5 });
     },
     water: value => level('water', value),
     rapids: value => level('rapids', value),
-    falls: value => level('falls', value),
+    falls(value, pan = null) {
+      level('falls', value);
+      const side = live?.channels.falls.side;
+      if (side && Number.isFinite(pan)) toward(side.pan, clamp(pan, -FLIGHT_SOUND.fallsPan, FLIGHT_SOUND.fallsPan), 0.3);
+    },
     gorge(value) { toward(echoIn.gain, FLIGHT_SOUND.echo.send * clamp(Number(value) || 0, 0, 1), 0.6); },
     /** While a line plays (on), the loops dip to `duck` of their gain, quickly; after it they come back, slowly. */
     duck(on) {

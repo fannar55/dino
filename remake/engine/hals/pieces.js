@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createActor } from '../actor.js';
-import { createSaddle, ride } from '../riding.js';
+import { createSaddle, ride, legsOn } from '../riding.js';
 import { BOARD } from './rules.js';
 import { createThorsedlaLod, PIECE_PX } from './thorsedla-lod.js';
 
@@ -130,13 +130,14 @@ async function createPiece(world, board, id, index, host) {
   if (rider) {
     actor.update(0);
     saddle = createSaddle(actor);
-    saddle.object.visible = true;
+    saddle.show();
     riding = ride(rider, saddle, { settle: 0 });
   }
 
   // Egill's own moves on Mosi's back. His ride sits him in the saddle with both hands on the handle (riding.js), so a wave or a
   // cheer is a clip made here of his sitting pose with the arms of his wave (and of his left-handed wave), played while he is held
-  // on the seat without the handle, turned with Mosi (who leans back on a slide); then he takes the handle again.
+  // on the seat without the handle, turned with Mosi (who leans back on a slide), his legs astride on the saddle as in the ride
+  // (legsOn: the sit clip's would hang into Mosi's broad back); then he takes the handle again.
   function seated(name, arms) {
     if (rider.clips.has(name)) return name;
     const sit = rider.clips.get('sit');
@@ -155,6 +156,7 @@ async function createPiece(world, board, id, index, host) {
     return name;
   }
   let gestures = 0; // counts them, so an older one ending does not cut a newer one short
+  let gestureLegs = null; // his legs on the saddle while he gestures (one for every gesture, so a newer one takes it on)
   async function gesture(clipName, arms, seconds) {
     if (!rider || !saddle) return;
     const name = seated(clipName, arms);
@@ -162,14 +164,17 @@ async function createPiece(world, board, id, index, host) {
     const mine = ++gestures;
     riding?.stop();
     riding = null;
+    gestureLegs ??= saddle.knees && saddle.ankles ? legsOn(rider, saddle.ankles, saddle.knees, { flatFeet: Boolean(saddle.flatFeet) }) : null;
     rider.control(() => {
+      gestureLegs?.restore();
       saddle.update();
       rider.root.position.copy(saddle.seat);
       rider.root.quaternion.copy(actor.root.quaternion);
-    });
+    }, () => gestureLegs?.apply(1));
     rider.play(name, { fade: 0.25 });
     await host.tween(seconds, () => {});
     if (mine !== gestures) return;
+    gestureLegs?.restore();
     rider.control(null);
     riding = ride(rider, saddle, { settle: 0 });
   }

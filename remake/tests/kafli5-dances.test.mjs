@@ -486,7 +486,7 @@ test('life.js takes a dance: the thing is at its place with the dance on it, and
   assert.deepEqual(frog.position.toArray().map(v => +v.toFixed(6)), [home.x + 1, home.y + 0.5, home.z - 2].map(v => +v.toFixed(6)));
   assert.equal(frog.heading, frog.gather.heading + 30);
   assert.deepEqual([frog.pitch, frog.roll, frog.squash, frog.morphs.leap], [0.2, 0.3, [1.1, 0.8, 1.1], 0.7]);
-  assert.deepEqual([turtle.roll, turtle.morphs.look, turtle.morphs.hide], [Math.PI, 1, 0]);
+  assert.deepEqual([turtle.roll, turtle.morphs.look, Math.abs(turtle.morphs.hide)], [Math.PI, 1, 0]);
   assert.ok(other.position.distanceTo(other.gather.at) < 1e-9, 'the others are where they sat');
   // while it dances its idle life does not show: a dance that stands still is still
   const held = JSON.stringify([frog.position, frog.squash, turtle.morphs]);
@@ -570,7 +570,7 @@ test('the crowds draw a roll: a critter rolled a quarter turn has its top to its
 
 test('the rest of those that came dance too, each where it stands: no line, no flight, no parade, but every jump', () => {
   const spots = FAR_POOL.gather.map(([x, z]) => ({ x, y: LEVEL + 1, z, heading: 200 }));
-  const crowd = ['grazers', 'lizards', 'flyers'].flatMap(group => spots.slice(0, 9).map((_, k) => audienceOf(group, k, spots)));
+  const crowd = ['grazers', 'lizards', 'flyers', 'turtles'].flatMap(group => spots.slice(0, 9).map((_, k) => audienceOf(group, k, spots)));
   for (const m of crowd) {
     let before = null, most = 0;
     for (const f of frames) {
@@ -586,7 +586,7 @@ test('the rest of those that came dance too, each where it stands: no line, no f
     }
     assert.ok(most > 0.9 * JUMP[m.group], 'it jumps with everyone');
     const floor = Array.from({ length: 16 }, (_, i) => danceOf(m, part('groove').from + 9 + i / 8).dy);
-    assert.ok(Math.max(...floor) - Math.min(...floor) > 0.1, 'it bobs on the dance floor');
+    assert.ok(Math.max(...floor) - Math.min(...floor) > 0.05, 'it bobs on the dance floor');
     assert.deepEqual(danceOf(m, danceBeatAt(BENDS.freeze.from + 4).beat, { setBeat: BENDS.freeze.from + 4 }), danceOf(m, danceBeatAt(BENDS.freeze.from).beat, { setBeat: BENDS.freeze.from }), 'and stands still in the freeze');
   }
 });

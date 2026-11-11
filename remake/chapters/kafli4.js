@@ -3,7 +3,13 @@
 // snag, where Flugeðla sits on the very top with her wings spread and cannot take off, for there is no wind. Egill makes the wind
 // (scene 3), she takes the invitation and the fourth star (4), takes Egill on her back (5) and flies him up the river and the falls
 // (6, chapters/kafli4-flight.js), and lands at the far pool (7), where Mosi comes running and a horn sounds, false, from the reed
-// across the pool: Slóeðla, whom chapter 5 meets there. The chapter ends as chapter 3 does, in the book.
+// across the pool: Slóeðla, whom chapter 5 meets there. The chapter ends as chapter 1 does: Flugeðla asks Egill to play, and the book
+// opens on its games, where her game waits.
+//
+// The juice review of 2026-11-07 (its sections 1 and 2) added lines where nobody spoke (Egill's and Þórseðla's goodbye, the white tree
+// seen, Egill on the circle and on her back, his thanks, the animals that came, Mosi's „Fjórar komnar“ and her ask to play), her
+// flights at the tree heard (kafli4-flugedla.js flyPath), and at the far pool a splash you can see, the lens closing in a little,
+// her happy hop, the animals that came hopping and calling, and the Fen's bed back.
 //
 // Two places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Þórseðla 22 m, Flugeðla
 // 7.5 m from wingtip to wingtip, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The early afternoon sun
@@ -23,12 +29,14 @@ import { chapter as kafli3 } from './kafli3.js';
 import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
 import { perch, holdHer, flyPath, watchHer, landingTime } from './kafli4-flugedla.js';
 import { theWind } from './kafli4-wind.js';
-import { lineQueue } from './kafli4-flight-play.js';
+import { lineQueue, panOf } from './kafli4-flight-play.js';
 import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
 import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
+import { splash as splashOf, splashWarm } from '../world/props/splash.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
+import { createFlierSaddle } from '../engine/flier-saddle.js';
 import { createFlightCamera } from '../engine/camera/flight-camera.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 import { createSaddle, ride, floatTo, floatDown, SIT_DEPTH } from '../engine/riding.js';
@@ -162,22 +170,38 @@ const WORDS = {
   k4_mosi_invite: 'Halló, Flugeðla! Viltu koma á Stjörnuhátíðina í kvöld?',
   k4_flugedla_calm: 'Hátíð! Ég skal kalla á allan skóginn! En það er logn… og án vinds kemst ég ekki á loft.',
   k4_egill_wind: 'Við getum búið til vind!',
+  // (the juice review of 2026-11-07, its section 1: the goodbye said, and the white tree seen as they come)
+  k4_egill_bye: 'Bless, Þórseðla!',
+  k4_thorsedla_bye: 'Sjáumst á hátíðinni, Egill!',
+  k4_egill_tree: 'Sjáðu! Hvíta tréð!',
+  k4_mosi_sits: 'Þarna situr Flugeðla, efst á trénu.',
   // 3. The wind (Mosi's "Svona! Fúúú!" is the plan's own)
   k4_mosi_swipe: 'Strjúktu upp, Egill!',
   k4_mosi_blow: 'Svona! Fúúú!',
   k4_flugedla_more: 'Meira! Ég finn hann!',
   k4_flugedla_now: 'Nú!',
+  k4_mosi_swipe2: 'Strjúktu fingrinum upp skjáinn!', // the juice review's: the hint said another way, and her cheers, and Egill's blow
+  k4_flugedla_breeze: 'Ó! Smá vindur!',
+  k4_flugedla_almost: 'Næstum því!',
+  k4_egill_blow: 'Fúúú!',
   // 4. The invitation taken, and the star
   k4_flugedla_thanks: 'Takk! Ég kem á hátíðina og kalla á alla!',
   k4_mosi_star: 'Fjórða stjarnan!',
+  k4_egill_circle: 'Sjáðu, Mosi! Flugeðla flýgur!', // the juice review's: as she circles the tree
   // 5. On her back
   k4_flugedla_comealong: 'Viltu koma með, Egill? Sestu á bakið á mér.',
   k4_egill_yes: 'Já!',
   k4_mosi_run: 'Fljúgið þið, ég hleyp!',
+  k4_egill_up: 'Ég er kominn upp!', // the juice review's: on her back
   // 7. At the far pool (chunk 8, Task 17), recorded with the rest now
   k4_mosi_arrived: 'Ég… er… kominn!',
   k4_egill_what: 'Hvað var þetta?',
   k4_mosi_horn: 'Lúðurinn hennar Slóeðlu… en lagið var eitthvað skrítið.',
+  // the juice review's: his thanks, the animals that came, and the ending as chapters 1 to 3 end
+  k4_egill_thanks: 'Takk fyrir flugið, Flugeðla!',
+  k4_flugedla_came: 'Sjáðu! Dýrin komu öll með okkur!',
+  k4_mosi_four: 'Fjórar komnar. Og nú vitum við hvert við förum næst!',
+  k4_flugedla_play: 'Viltu spila við mig, Egill?',
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -220,6 +244,10 @@ function* goodbyeAtThePool(s, c) {
   yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
   yield egill.lookAt(HER_HEAD, { weight: 0.9, maxPitch: 50 });
   c.bye = s.after(0, () => goodbye(s, c, 'leaving'));
+  // Egill says goodbye as her head comes down, and she answers (the juice review)
+  yield s.wait(0.6);
+  yield* say(s, c, 'egill', 'k4_egill_bye');
+  yield* say(s, c, 'thorsedla', 'k4_thorsedla_bye');
   yield c.bye;
   unhear();
   s.target('thorsedla', null);
@@ -274,11 +302,15 @@ function* atTheWhiteTree(s, c) {
   const coming = mosi.walkTo(TREE_IN, { speed: 1.3 });
   yield s.wait(3);
   yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.6, maxPitch: 45 });
+  yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.7, maxPitch: 45 });
+  yield* say(s, c, 'egill', 'k4_egill_tree'); // as they come (the juice review)
   yield coming;
   yield mosi.turnTo(MOSI_TREE.heading, { rate: 30 });
   // the tree from the ground: she sits on the top, the wings spread, and nothing stirs
   yield s.camera.cut('tre_ground');
-  yield s.wait(3.5);
+  yield s.wait(0.6);
+  yield* say(s, c, 'mosi', 'k4_mosi_sits');
+  yield s.wait(0.6);
   yield s.camera.cut('tre_above');
   yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.85, maxPitch: 50 });
   yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.9, maxPitch: 55 });
@@ -327,6 +359,7 @@ function* roundTheTree(s, c) {
   watchHer(c, 'tre_circle', { position: [x, c.world.heightAt(x, z) + over, z], fov: CIRCLE.fov, lag: 0.5, from: c.perch.top.toArray() });
   yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
   yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.9, maxAngle: 80, maxPitch: 55 });
+  s.after(CIRCLE_LINE, () => say(s, c, 'egill', 'k4_egill_circle')); // as she circles (the juice review)
   yield* flyPath(s, c, c.held, { points: circlePoints(c), ...CIRCLE, face: SNAG_HEADING });
   flugedla.raw.play('idle', { fade: 0.8 });
   yield s.wait(0.4);
@@ -341,11 +374,17 @@ function* roundTheTree(s, c) {
   yield* say(s, c, 'mosi', 'k4_mosi_star');
   yield star;
   s.sfx('journal');
+  if (!s.seeking) {
+    s.journal.open('games');
+    yield s.journal.playGame('minnisspil', { tutorial: true });
+    s.journal.close();
+  }
   yield s.wait(0.8);
 }
 
-// 5. On her back: she asks Egill along, comes down and sits low beside Mosi, and Egill floats from the saddle onto her back between
-// her wings, as onto the saddle in chapter 1 (engine/riding.js: floatTo). Mosi will run. She flies up to the top again with him.
+// 5. On her back: she asks Egill along, comes down and sits low beside Mosi, a saddle pops onto her back between her wings with a
+// burst of sparkles (engine/flier-saddle.js, as Mosi's in chapter 1), and Egill floats from Mosi's saddle onto hers (engine/riding.js:
+// floatTo). Mosi will run. She flies up to the top again with him.
 function* onHerBack(s, c) {
   mark(c, 5);
   const { mosi, egill, flugedla, world } = c;
@@ -369,12 +408,15 @@ function* onHerBack(s, c) {
   yield mosi.lookAt(FLUGEDLA_HEAD, { weight: 0.7, maxAngle: 70, maxPitch: 40 });
   yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 45 });
   yield egill.lookAt(null);
+  s.sfx('saddle');
+  yield c.herSaddle.appear();
   s.sfx('float');
   c.boarding = s.time; // from here he is on her, or on his way
   yield floatTo(egill.raw, backSeat(c), { duration: FLOAT });
   c.ridden = { actor: flugedla.raw, get root() { return c.flier?.root ?? c.held.root; } }; // the flight's root once it flies
-  c.riding = rideFlier(egill.raw, c.ridden, { settle: SETTLE }); // from upright under the seat onto her tipped back
+  c.riding = rideFlier(egill.raw, c.ridden, { settle: SETTLE, saddle: c.herSaddle }); // from upright under the seat onto her tipped back
   yield flugedla.lookAt(null);
+  yield* say(s, c, 'egill', 'k4_egill_up'); // on her back (the juice review)
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 45 });
   yield* say(s, c, 'mosi', 'k4_mosi_run');
   // up to the top again with him, and round on it to face the way she will leap
@@ -405,6 +447,7 @@ function* upAndAway(s, c) {
   flier.update(0);
   const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced: c.reduced });
   const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, song: c.song, reduced: c.reduced, flight: null, doc: c.doc };
+  f.beds = true; // the forest's bed from C, the Fen's again at the far pool (the review flight has none)
   f.say = c.lines.say;
   Object.defineProperty(f, 'speaking', { get: () => c.lines.speaking });
   f.mark = scene => {
@@ -426,6 +469,7 @@ function* atTheFarPool(s, c) {
   const her = flugedla.raw;
   // the animals that came to the festival stand idle on the far pool's bank, beyond Egill and Mosi (world/ardalur/life.js arrivals)
   world.forest?.life?.arrive?.();
+  s.sfx('fen'); // the Fen's bed again, by the far pool's reed
   // the flier gives her back where the flight left her, at its speed, and the scenes' root takes her on: Egill rides on it
   const speed = c.flier.speed;
   c.flier.stop();
@@ -434,15 +478,17 @@ function* atTheFarPool(s, c) {
   mosi.raw.stop();
   mosi.raw.root.visible = false; // in the reed, out of sight till the bank's shot
   const body = c.held.root.position.clone().setY(c.held.root.position.y + BODY_HEIGHT);
-  watchHer(c, 'pool_glide', { ...FAR_POOL.glide, from: body.toArray(), lag: 0.35 });
+  c.poolView = watchHer(c, 'pool_glide', { ...FAR_POOL.glide, from: body.toArray(), lag: 0.35 });
   c.landing = { touchAt: null, floatAt: null, downAt: null };
   yield* landInThePool(s, c, speed);
-  her.play('idle', { fade: 0.8 });
+  // she hops for joy in the shallows (her clip 'happy', 2.4 s), then stands
+  her.play('happy', { once: true, fade: 0.25 });
+  s.after(HAPPY, () => { her.play('idle', { fade: 0.8 }); return null; });
   // she stands in the shallows, close now, and Egill on her back laughs at the splash
   yield s.wait(0.3);
   yield s.camera.cut('pool_bank');
   yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 45 });
-  yield* say(s, c, 'egill', 'k4_egill_laugh');
+  yield* say(s, c, 'egill', 'k4_egill_laugh2');
   yield s.wait(1.6);
   // Egill floats down onto the bank by her, and looks up at her; then Mosi comes out of the reed, out of breath
   c.riding.stop();
@@ -452,6 +498,7 @@ function* atTheFarPool(s, c) {
   yield floatDown(egill.raw, backSeat(c), FAR_POOL.bank, { duration: FLOAT_DOWN, heading: headingTo([bx, bz], FAR_POOL.mosi) });
   c.landing.downAt = s.time;
   yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
+  yield* say(s, c, 'egill', 'k4_egill_thanks'); // the juice review
   yield s.wait(WHERE_IS_MOSI);
   const reed = FAR_POOL.reed;
   mosi.place(reed[0], reed[1], headingTo(reed, FAR_POOL.mosi));
@@ -464,6 +511,9 @@ function* atTheFarPool(s, c) {
   yield* say(s, c, 'mosi', 'k4_mosi_arrived');
   yield out;
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
+  // she sees those that came, standing on the bank beyond them (the juice review)
+  yield flugedla.lookAt(MOSI_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
+  yield* say(s, c, 'flugedla', 'k4_flugedla_came');
   yield s.wait(BREATH);
   // the horn, from the reed across the pool, in the quiet: the flight's song has all but ended (what is left of it goes), the picture
   // goes to the reed, and they all turn to look
@@ -486,16 +536,24 @@ function* atTheFarPool(s, c) {
   yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 30 });
   yield* say(s, c, 'mosi', 'k4_mosi_horn');
   yield s.wait(1.2);
-  // once more the far reed, still now, as the chapter's theme comes back (out since the take-off): where chapter 5 begins
+  // once more the far reed, still now, as the chapter's theme comes back (out since the take-off): where chapter 5 begins, and Mosi
+  // says where they stand, as chapters 2 and 3 end
   yield s.camera.cut('pool_reed');
   world.music?.setLevel?.(1, 3);
-  yield s.wait(LAST_LOOK);
-  // into the book, as chapter 3 ends: the dinosaurs, Flugeðla new and nodding, then the map
+  yield s.wait(LAST_LOOK.before);
+  yield* say(s, c, 'mosi', 'k4_mosi_four');
+  yield s.wait(LAST_LOOK.after);
+  // she asks Egill to play her game, as Kambeðla does at the end of chapter 1 (its star has opened it in the book)
+  yield s.camera.cut('pool_bank');
+  yield flugedla.lookAt(EGILL_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
+  yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
+  yield* say(s, c, 'flugedla', 'k4_flugedla_play');
+  // into the book, as chapter 1 ends: open on its games, and open her memory game
   mark(c, 'end');
   s.fade(0.45, 1.6);
-  s.journal.open('dinosaurs', { nod: 'flugedla' });
-  s.after(TO_THE_MAP, () => s.journal.open('map'));
-  yield s.wait(TO_THE_MAP + 0.4);
+  s.journal.open('games');
+  if (!s.seeking) yield s.journal.playGame('minnisspil', { tutorial: true });
+  yield s.wait(BOOK_HOLD);
 }
 const FLOAT_DOWN = 2.6; // seconds Egill floats from her back onto the bank
 const WHERE_IS_MOSI = 1.8; // seconds Egill stands on the bank, looking up at her, before Mosi comes out of the reed
@@ -504,8 +562,9 @@ const TIRED = 1.1; // m/s: Mosi walks out of the reed, out of breath (he walks a
 const LOW_AHEAD = { actor: 'mosi', part: 'feet', offset: [7, 0.3, 0], local: true }; // where he looks as he gets his breath: the ground ahead
 const BREATH = 2.4; // seconds Mosi gets his breath before the horn
 const HORN_HOLD = 4; // seconds the far reed's shot holds: the horn is 2.8 s and its echo
-const LAST_LOOK = 4; // seconds the last shot of the far reed holds before the book
-const TO_THE_MAP = 1.2; // seconds the book shows its dinosaurs (Flugeðla nodding) before it turns to the map, as chapter 3's
+const LAST_LOOK = { before: 0.8, after: 0.6 }; // seconds the last shot of the far reed holds before and after Mosi's „Fjórar komnar“
+const BOOK_HOLD = 1.6; // seconds the chapter waits once the book opens on its games
+const HAPPY = 2.2; // seconds into her happy hop (the clip is 2.4 s) that she goes back to standing
 
 /**
  * Her glide in, from where the flight left her, at its speed, slowing on over the water and round onto the shallows, and down onto the
@@ -526,32 +585,37 @@ function* landInThePool(s, c, speed) {
   function* splash() {
     while (gliding && c.held.root.position.y > level) yield;
     if (!gliding) return;
-    const at = c.held.root.position;
+    const at = c.held.root.position.clone();
     c.landing.touchAt = s.time;
     s.sfx('skim');
     for (const [delay, strength] of SPLASH) s.after(delay, () => { world.forest?.rippleAt?.(at.x, at.z, strength); return null; });
+    // seen (the juice review): the splash, a second smaller one as her body settles, and the lens closing in a little (not under
+    // reduced motion); those that came on the bank hop for joy and call
+    if (world.effects && world.scene && !s.seeking) {
+      splashOf(world, new world.THREE.Vector3(at.x, level, at.z), { size: 1, seed: 'far pool' });
+      s.after(0.35, () => { splashOf(world, new world.THREE.Vector3(at.x, level, at.z), { size: 0.6, seed: 'far pool 2' }); return null; });
+    }
+    if (!c.reduced) c.poolView?.pushIn?.(POOL_PUSH.degrees, POOL_PUSH.seconds);
+    world.forest?.life?.cheer?.(s.time + 0.3);
+    if (!s.seeking) for (const [after, name, pan] of CHEERS) s.after(after, () => { s.sfx(name, { pan }); return null; });
   }
   const watching = s.after(0, splash);
-  yield* flyPath(s, c, c.held, { points, speed, clips: [[0, 'glide', 0.6], [land, 'land', 0.5]], face: FAR_POOL.facing, turn: 0.3, turnIn: 0.1 });
+  yield* flyPath(s, c, c.held, { points, speed, clips: [[0, 'glide', 0.6], [land, 'land', 0.5]], face: FAR_POOL.facing, turn: 0.3, turnIn: 0.1, landing: 'water' });
   gliding = false;
   void watching;
 }
 const LAND_TOUCH = 2.1; // seconds into her land clip that its feet come down (pteranodon-source.json)
 const SPLASH = [[0, 1], [0.25, 0.7], [0.6, 0.45]]; // the rings in the water as she comes down: [seconds after the touch, strength]
+const POOL_PUSH = { degrees: 2.5, seconds: 1.2 }; // the lens closes in as she touches the water
+// those that came, calling as they hop: [seconds after the touch, sound, pan]
+const CHEERS = [[0.5, 'lizards', -0.35], [0.85, 'grazers', 0.3], [1.2, 'flyers', 0.5], [1.6, 'lizards', 0.15]];
 
 /** The way (degrees, 0 facing +X and 90 facing +Z) from [x, z] `a` to [x, z] `b`. */
 const headingTo = (a, b) => (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
 
-/** Where `point` is across the speakers from the camera now: -1 on the left to 1 on the right (a little short of the ends). */
-function panOf(world, point) {
-  const camera = world.camera;
-  camera.updateMatrixWorld();
-  const local = point.clone().applyMatrix4(camera.matrixWorldInverse);
-  const across = local.x / (Math.hypot(local.x, local.z) || 1);
-  return Math.max(-1, Math.min(1, across)) * 0.8;
-}
 const FLOAT = 2.6; // seconds Egill floats onto her back
 const SETTLE = 0.4; // seconds he then takes to settle into her seat, as his hands take to reach her neck
+const CIRCLE_LINE = 3; // seconds into her circle round the tree that Egill says so
 const LOOK_BACK = 2.6; // seconds into the flight her head turns forward again from Egill (she leaps at 3.5)
 const STAR_FROM = { actor: 'flugedla', part: 'head', offset: [0, 0.8, 0] }; // the star rises from over her head
 
@@ -601,7 +665,10 @@ function upPoints(c, board) {
   return [board.toArray(), at(6.6, -3.0, 2.2), at(11.8, -2.6, 6.4), before(5.5, 1.6), top.toArray()];
 }
 
-/** Where Egill floats to on her back: the seat on her Spine bone (engine/flier.js: SEAT), his root as far under it as he sits. */
+/**
+ * Where Egill floats to on her back: her saddle's seat (engine/flier-saddle.js) once it is on her, else the seat on her Spine bone
+ * (engine/flier.js: SEAT); his root as far under it as he sits.
+ */
 function backSeat(c) {
   const her = c.flugedla.raw;
   const bone = her.model.getObjectByName(SEAT.bone);
@@ -610,7 +677,9 @@ function backSeat(c) {
     host: her,
     update() {
       her.root.updateMatrixWorld(true);
-      bone.localToWorld(seat.set(...SEAT.local));
+      const on = c.herSaddle?.ready && c.herSaddle.shown ? c.herSaddle.update() : null;
+      if (on) seat.copy(on.seat);
+      else bone.localToWorld(seat.set(...SEAT.local));
       seat.y -= SIT_DEPTH;
       return seat;
     },
@@ -779,8 +848,10 @@ export const chapter = {
     const objects = [...world.actors.values()].map(actor => actor.root);
     const leaf = leafWarm(world);
     objects.push(leaf.object);
+    const drops = world.effects ? splashWarm(world) : null; // the splash's lit program (world/props/splash.js), for the far pool
+    if (drops) objects.push(drops.object);
     const shots = place === 'hvitatre' ? [] : ['fen_star_rise', ...FEN_WARM];
-    return { objects, shots, dispose() { leaf.dispose(); } };
+    return { objects, shots, dispose() { leaf.dispose(); drops?.dispose(); } };
   },
   shots: {}, // every shot belongs to a place: chapter.locations[name].shots
 
@@ -805,10 +876,11 @@ export const chapter = {
     world.chapterState = c; // what the scenes share, for captures and probes
     // As chapter 3 ended: Egill in the saddle on Mosi, on his hummock by Þórseðla's head; Flugeðla is at the white tree.
     flugedla.raw.root.visible = false;
+    c.herSaddle = createFlierSaddle(flugedla.raw); // on her model, hidden till it pops on in scene 5 (the warm-ups draw it with her)
     thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
     mosi.place(MOSI_FEN.position[0], MOSI_FEN.position[2], MOSI_FEN.heading);
     c.saddle = createSaddle(mosi.raw);
-    c.saddle.object.visible = true;
+    c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
     yield s.camera.cut('fen_star_rise');
     yield s.ready(); // the start button; immediate in captures

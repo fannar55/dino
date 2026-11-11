@@ -16,10 +16,10 @@ import { FEN } from '../world/forest/config.js';
 
 /**
  * Where Egill's head is at the top of the lift, on the back of her head (measured: kafli3.test holds it to 0.25 m), and where the
- * lookout's far friends are seen from. The layout's `lookout` is the origin of the sight lines tall plants keep out of, 1.5 m from
+ * lookout's far friends are seen from. The layout's `lookout` is the origin of the sight lines tall plants keep out of, 1.2 m from
  * it: its 14 m wide corridors hold the true lines (moving it would re-deal a third of the Fen's plants).
  */
-export const LOOKOUT_HEAD = [3.56, 9.75, -9.0];
+export const LOOKOUT_HEAD = [3.85, 9.68, -9.0];
 // The cameras that follow Egill (director.follow, which may rise above 7.5 m, as the lookout's must). Her face comes down over his
 // right shoulder from 2.8 m behind him, low (0.95 m above his feet), between the trunks of her two conifers (2.1 and 2.3 m from
 // him): it looks out under their crowns, not up into them, tilted up LOOK_UP degrees at most, so that her face comes down into the
@@ -53,12 +53,22 @@ const HOLD_SETTLE = 1.2; // seconds her look at him settles in before the scene 
 // of its resting hand; after it the camera, tilting down with her face, has taken the sun out of the top of the frame (kafli3.test
 // holds the whole wink on the screen with nobody in front).
 const WINK_AT = 3.35;
-// The seat on the back of her head (riding.js: createSeat), level however her head and neck turn: 0.15 m behind her Head bone,
-// his root 0.65 m above it, which keeps the lowest of him 1 to 3 cm over her skin with his legs out (neck-ride.js: legsOut) from
-// the bank to the top (kafli3.test asserts none of him inside her). His hands rest on his thighs.
-const SEAT = { bone: 'Head', offset: [0, 0.65, -0.15], grips: { left: [-0.12, 0.45, 0.08], right: [0.12, 0.45, 0.08] } };
+// The seat on the top of her head (riding.js: createSeat with `skin`): Egill sits astride it as a small boy sits on a big rock, the
+// seat of his trousers 1 cm over her skin just behind the middle of her skull's top, his knees up and out, his soles flat on her
+// skin to either side, his hands on his knees, leaning a little forward; he stays upright however her head pitches. The places are
+// points in her Head bone's own frame (measured at the top of the lift, where it lies level: [ahead, up, to her right] from the
+// bone; .tools/thorsedla-haus/places.mjs), so they turn with her skull and stay on it from the bank to the top. His hands do not
+// reach her skin from sitting (his shoulders are 0.37 m over his seat, his arms 0.27 m long), so they rest on his knees.
+export const SEAT = {
+  bone: 'Head', lean: 12, flatFeet: true,
+  skin: {
+    seat: [0.05, 0.9118, 0],
+    grips: { left: [0.17, 1.0454, -0.15], right: [0.17, 1.0408, 0.15] },
+    knees: { left: [0.17, 1.0087, -0.18], right: [0.17, 1.003, 0.18] },
+    ankles: { left: [0.22, 0.9971, -0.24], right: [0.22, 0.9918, 0.24] }, // 0.125 m over her skin: his soles, flat, clear its slope
+  },
+};
 const FLOAT = 2.2; // seconds he floats up onto it
-const LEGS_OUT = 0.9; // how far his legs go out on her head (1: straight): bent a little at the knee, so the near one is no kick (0.85 sinks a heel)
 const LOOK_UP = 14;
 const LOOK_DOWN = 32; // the lookout's look down at Mosi (STYLE.md 8: 35 at most)
 // Where in the rise the lift camera swings round from his right (LIFT_CAMERA) to his left (LOOKOUT_CAMERA) and begins to look down
@@ -244,14 +254,9 @@ export function* liftUp(s, c) {
   // looking between his head and her eyes, so that neither leaves the frame.
   s.camera.lookAt(betweenHimAndHer(c), { duration: 1 });
   s.sfx('float');
-  c.legs = legsOut(egill.raw);
-  // Halfway up he sits, his legs going out in front of him, so that he comes down onto her head as he will sit on it (the float
-  // itself would sit him only for its last 0.6 s, his legs hanging into her skull till then).
-  s.after(FLOAT * 0.4, () => {
-    egill.raw.play('sit', { fade: 0.5 });
-    c.legs?.to(LEGS_OUT, { duration: 0.5 });
-  });
-  yield floatTo(egill.raw, c.seat, { duration: FLOAT });
+  // Halfway up he sits, so that he comes down onto her head sitting; his legs open astride as he comes down, carried with him so they land with him (floatTo carryLegs).
+  s.after(FLOAT * 0.4, () => { egill.raw.play('sit', { fade: 0.5 }); }); // nothing back: after() waits on what its call returns
+  yield floatTo(egill.raw, c.seat, { duration: FLOAT, carryLegs: true });
   c.riding = ride(egill.raw, c.seat);
   c.phase = 'lifting';
   const held = c.held ?? her.raw.clips.get('lowerHead').duration;
@@ -295,6 +300,7 @@ export function* slideDown(s, c) {
   c.phase = 'sliding';
   s.say('egill', 'k2_egill_wuuu');
   s.sfx('slide');
+  c.legs = legsOut(egill.raw, { hold: true }); // the slide swings his legs out in front of him from astride (slideDown blends it up)
   c.slide = slideDownHerNeck(egill.raw, her.raw, c.saddle, { duration: 3.2, legs: c.legs, ring: c.ring });
   s.after(0, function* landing() { // the bump into the saddle as he lands in it, with its little bounce
     yield s.until(() => c.slide.phase === 'bounce' || c.slide.done);

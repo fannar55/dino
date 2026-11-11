@@ -2,7 +2,8 @@
 // groups about 5 s apart, frogs on lily pads, small lizards drinking at the edge, birds in a tree by the water, turtles on a stone
 // and a log, dragonflies over the water. When she calls, a group answers her, once: the frogs jump (and croak: the chapter's sound),
 // the small lizards squeak and run along the bank with her for 5 s, the birds fly up out of their tree and away, the turtles stretch
-// their necks, the dragonflies follow her in a swarm for 4 s.
+// their necks, the dragonflies follow her in a swarm for 4 s. Where a frog lands in the river, and where a turtle slides into it,
+// the water splashes (world/props/splash.js; the juice review of 2026-11-07).
 //
 // They are the game's own critters (world/critters/models.js: at most 400 triangles each), drawn larger than life (SCALE) so that
 // they read from the air, and drawn as crowds (world/critters/crowd.js): each kind in one draw call however many there are. The small
@@ -32,10 +33,11 @@ import { DONE, Handle } from '../../engine/handle.js';
 import { clipPose, crowdModelFrom } from '../critters/crowd-models.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
+import { splash } from '../props/splash.js';
 
 /** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s (and
  * on an upright tablet too, where the same view is 800 px wide, not 1280: kafli4's chase test). */
-export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 4.5, salamander: 4, smaedla: 1.5, bird: 7 };
+export const SCALE = { frog: 4.5, dragonfly: 5, turtle: 5.5, salamander: 4, smaedla: 1.5, bird: 7 };
 const MEMBER = { frogs: 'frog', birds: 'bird', dragonflies: 'dragonfly', turtle: 'turtle', lizards: 'salamander' };
 
 /** The owner's small lizard (his Tripo3D model, 0.8 m long at scale 1), as tools/prep-crowd.mjs bakes it. */
@@ -44,17 +46,24 @@ export const SMAEDLA_MODEL = new URL('../../assets/critters/smaedla.glb', import
 export const GRASBITUR_MODEL = new URL('../../assets/critters/grasbitur.glb', import.meta.url).href;
 /** The owner's flyer (his Tripo3D model, 0.77 m beak to tail and 1.19 m across its wings at scale 1): flap, glide, perch. */
 export const FLUGDYR_MODEL = new URL('../../assets/critters/flugdyr.glb', import.meta.url).href;
+/** The owner's frog (0.22 m long at scale 1), as tools/prep-frog.mjs bakes it: leap, crouch, breathe. */
+export const FROSKUR_MODEL = new URL('../../assets/critters/froskur.glb', import.meta.url).href;
+/** The owner's turtle (0.36 m long at scale 1), as tools/prep-critter.mjs bakes it: hide, look, stretch. */
+export const SKJALDBAKA_MODEL = new URL('../../assets/critters/skjaldbaka.glb', import.meta.url).href;
+/** The owner's songbird (0.30 m across its spread wings at scale 1), as tools/prep-critter.mjs bakes it with `_WING` tags. */
+export const FUGL_MODEL = new URL('../../assets/critters/fugl.glb', import.meta.url).href;
 const critterFiles = new Map(); // url -> the page's load of it, once however many valleys are built
 /**
- * The valley's baked critters: { smaedla, grasbitur, flugdyr } as crowd models (world/critters/crowd-models.js), read through
- * world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out and the
- * chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
- * flyers (life.js).
+ * The valley's baked critters: { smaedla, grasbitur, flugdyr, froskur, skjaldbaka, fugl } as crowd models (world/critters/crowd-models.js),
+ * read through world.loadModel (the tests read the file) or three's loader (the page), side by side. One that cannot be had is left out
+ * and the chapter goes on: without the small lizard the salamander stands in, without the grazer there is no herd, without the flyer no
+ * flyers (life.js), and without the frog, turtle or bird their procedural meshes stand in.
  */
 export async function loadCritters(world) {
   const files = [
     ['smaedla', SMAEDLA_MODEL, 'the salamander stands in'], ['grasbitur', GRASBITUR_MODEL, 'there is no herd'],
-    ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'],
+    ['flugdyr', FLUGDYR_MODEL, 'there are no flyers'], ['froskur', FROSKUR_MODEL, 'the procedural frog stands in'],
+    ['skjaldbaka', SKJALDBAKA_MODEL, 'the procedural turtle stands in'], ['fugl', FUGL_MODEL, 'the procedural bird stands in'],
   ];
   const loaded = await Promise.all(files.map(async ([name, url, without]) => {
     try {
@@ -77,7 +86,7 @@ export async function loadCritters(world) {
 // `near` + `fade`; its look clip from its first frame to `frame`, the head up.
 const LOOK = { near: 16, fade: 10, frame: 5 };
 /** How long each group's answer lasts, in seconds: then it is on its way to the festival, out of sight (the dragonflies home again). */
-export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 4, dragonflies: 10 };
+export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 7, dragonflies: 10 };
 /** The kinds whose answer's last pose is their rest from then on (gone): all but the dragonflies, which come home. */
 const STAY = new Set(['frogs', 'lizards', 'birds', 'turtle']);
 const RADIUS = 4; // metres: a group's tap target, wide (spec 6)
@@ -97,7 +106,14 @@ const LAYOUT = {
     { along: -3.8, e: 0.35 }, { along: -1.9, e: 0.3 }, { along: 0, e: 0.4 }, { along: 1.9, e: 0.3 }, { along: 3.8, e: 0.35 },
     { along: -3.0, e: 2.4 }, { along: -1.0, e: 3.0 }, { along: 1.0, e: 2.6 }, { along: 3.0, e: 3.2 }, { along: 0.1, e: 4.2 },
   ],
-  turtle: [{ along: -2.25, e: 1.1, on: 0 }, { along: 1.5, e: 1.6, on: 1 }, { along: 3.45, e: 1.6, on: 1 }],
+  turtle: [
+    { along: -3.2, e: 1.85, on: 0 },
+    { along: -1.4, e: 2.2, on: 1 },
+    { along: -0.05, e: 2.2, on: 1 },
+    { along: 1.8, e: 1.9, on: 2 },
+    { along: 2.85, e: 2.25, on: 3 },
+    { along: 4.15, e: 2.25, on: 3 },
+  ],
   dragonflies: [
     { along: -2.4, e: -3.2, up: 1.0 }, { along: -1.0, e: -2.4, up: 1.6 }, { along: 0.3, e: -3.6, up: 1.2 },
     { along: 1.4, e: -2.8, up: 0.9 }, { along: 2.6, e: -3.4, up: 1.5 }, { along: 3.8, e: -2.6, up: 1.3 },
@@ -110,7 +126,12 @@ const LAYOUT = {
 const PROPS = {
   // small pads hugging the bank, 3 m clear of her lane at its widest steer where the river is narrowest (d 470)
   frogs: LAYOUT.frogs.map((m, i) => ({ name: 'waterLily', variant: i % 6, along: m.along, e: m.e, scale: 2.2 })),
-  turtle: [{ name: 'rock', variant: 1, along: -2.25, e: 1.1, scale: 1.5 }, { name: 'log', variant: 0, along: 2.5, e: 1.6, scale: 1.4, lengthwise: true }],
+  turtle: [
+    { name: 'rock', variant: 1, along: -3.2, e: 1.85, scale: 1.55 },
+    { name: 'log', variant: 0, along: -0.6, e: 2.2, scale: 1.45, lengthwise: true },
+    { name: 'rock', variant: 0, along: 1.8, e: 1.9, scale: 1.45 },
+    { name: 'log', variant: 1, along: 3.5, e: 2.25, scale: 1.4, lengthwise: true },
+  ],
   birds: [{ name: 'broadleaf', along: 0, e: 7, scale: 0.65 }], // its variant: which of the groups of birds it is
 };
 const CLEAR = { log: 2.2, rock: 1.2, broadleaf: 2.0 }; // metres round a prop where nothing else grows (else 0.9)
@@ -130,11 +151,14 @@ const RUN = { turn: 0.3, metres: 24, seconds: 4, out: 1.4, ahead: 8, inland: 25,
 // The frogs: a crouch and a leap `out` metres off the pad into the river, then they swim upstream on the surface and dive at `dive`.
 const HOP = { crouch: 0.22, air: 0.62, height: 1.25, out: 1.5, stagger: 0.18 };
 const SWIM = { speed: 1.5, kick: 2.2, dive: 6.0 };
+// The splash as one goes in: a frog where it lands (at the end of its hop), a turtle partway down its slide (`at` of the way), each
+// `size` of a splash her size (splash.js); one a frame late (a seek past it) by more than `fresh` seconds is left out.
+export const IN = { frogs: { size: 0.4 }, turtle: { size: 0.55, at: 0.55 }, fresh: 0.3 };
 // The birds: up out of the crown and to her (`rise`), with her (`with`), at the dragonflies' places round her `spread` wider, then
 // off up and inland (`peel`), out of sight at `gone`.
 const FLY = { stagger: 0.08, hop: 2.5, rise: 1.2, with: 4.0, peel: 2.0, gone: 7.2, beat: 7, spread: 1.4, over: 1.5 };
-// The turtles: stretch their necks, then from `from` slide `seconds` off into the river, and are under at `gone`.
-const SLIDE = { from: 1.6, seconds: 1.5, to: -0.6, gone: 3.3, stagger: 0.2 };
+// The turtles: stretch their necks, slide `seconds` off into the river, swim upstream on the surface, and dive under at `gone`.
+const SLIDE = { from: 1.5, seconds: 1.3, to: -0.9, swim: 1.35, gone: 5.5, stagger: 0.16 };
 
 /**
  * A tree prop's crown where the plants' batcher puts it (world/forest/batch.js): its middle, half-width and half-height, from the
@@ -154,13 +178,19 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
   const own = !crowds;
   crowds ??= createCrowds(world);
   const baked = critters.smaedla ?? null;
+  const bakedKinds = {
+    smaedla: baked,
+    frog: critters.froskur ?? null,
+    turtle: critters.skjaldbaka ?? null,
+    bird: critters.fugl ?? null,
+  };
   const memberOf = kind => (kind === 'lizards' && baked ? 'smaedla' : MEMBER[kind]);
   const models = {};
   const modelOf = kind => (models[kind] ??= (() => {
-    if (kind === 'smaedla') {
-      // the frames' names, as the crowd draws them (the same in both levels), and its height standing
-      const morphs = (baked.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
-      return { morphs, height: baked.height, wings: false };
+    const bakedKind = bakedKinds[kind];
+    if (bakedKind) {
+      const morphs = (bakedKind.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name);
+      return { morphs, height: bakedKind.height, wings: Boolean(bakedKind.wing) };
     }
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
@@ -240,7 +270,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         along: g.kind === 'birds' ? 0 : m.along, e: g.kind === 'birds' ? PROPS.birds[0].e : m.e, d, side, phase: k * 1.37 + d * 0.01,
       };
     });
-    crowds.reserve(kind, members.length, kind === 'smaedla' ? baked : { model });
+    crowds.reserve(kind, members.length, bakedKinds[kind] ?? { model });
     const point = crown ? crown.middle.clone() : members.reduce((sum, m) => sum.add(m.home), new THREE.Vector3()).divideScalar(members.length);
     const entry = {
       id: g.id, kind: g.kind, point, radius: crown ? Math.max(RADIUS, crown.r) : RADIUS, members, answered: false, start: null, handle: null,
@@ -284,16 +314,29 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     const p = m.phase;
     switch (g.kind) {
       case 'frogs': {
-        squash(m, 1, 1 + 0.03 * Math.sin(TAU * 0.7 * t + p), 1);
+        const hasRig = 'crouch' in m.morphs;
         m.morphs.leap = 0;
+        if (hasRig) {
+          m.morphs.crouch = 0;
+          m.morphs.breathe = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(TAU * 0.8 * t + p));
+        } else {
+          squash(m, 1, 1 + 0.03 * Math.sin(TAU * 0.7 * t + p), 1);
+        }
         if (tau === null) break;
         const u = tau - k * HOP.stagger;
         if (u <= 0) break;
         if (u >= SWIM.dive) { m.visible = false; break; } // dived: on its way under the water
+        if (hasRig) m.morphs.breathe = 0;
         const water = spot(m.d, m.side, m.along, m.e - HOP.out); // where it lands, out from its pad
         const toRiver = headingOf(-water.out[0], -water.out[1]);
         if (u < HOP.crouch) {
-          squash(m, 1.06, 1 - 0.18 * Math.sin((Math.PI / 2) * (u / HOP.crouch)), 1.06);
+          const c = Math.sin((Math.PI / 2) * (u / HOP.crouch));
+          if (hasRig) {
+            m.morphs.crouch = c;
+            squash(m, 1 + 0.03 * c, 1 - 0.04 * c, 1 + 0.03 * c);
+          } else {
+            squash(m, 1.06, 1 - 0.18 * c, 1.06);
+          }
           m.heading = lerpAngle(m.rest, toRiver, smooth(u / HOP.crouch));
         } else if (u < HOP.crouch + HOP.air) {
           const a = (u - HOP.crouch) / HOP.air;
@@ -307,7 +350,9 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
           const at = spot(m.d, m.side, m.along + SWIM.speed * s, m.e - HOP.out);
           m.position.set(at.x, at.level, at.z);
           m.heading = lerpAngle(toRiver, headingOf(at.dir[0], at.dir[1]), smooth(s / 0.5));
-          m.morphs.leap = 0.5 + 0.5 * Math.sin(TAU * SWIM.kick * s);
+          const kick = 0.5 + 0.5 * Math.sin(TAU * SWIM.kick * s);
+          m.morphs.leap = kick;
+          if (hasRig) m.morphs.crouch = 0.35 * (1 - kick);
         }
         break;
       }
@@ -315,18 +360,38 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         const u = tau === null ? null : tau - k * SLIDE.stagger;
         const stretch = u === null ? 0 : envelope(u, 0.6, 0.6, 0.4);
         const look = Math.max(0, Math.sin((TAU * t) / 9 + p)) ** 2;
-        m.morphs.look = look * (1 - stretch) + 0.6 * stretch;
-        m.morphs.hide = -0.75 * stretch;
+        const hasStretch = 'stretch' in m.morphs;
+        m.morphs.look = look * (1 - stretch) + (hasStretch ? 0 : 0.6 * stretch);
+        if (hasStretch) {
+          m.morphs.stretch = stretch;
+          m.morphs.hide = 0;
+        } else {
+          m.morphs.hide = -0.75 * stretch;
+        }
         m.pitch = 0.12 * stretch;
         squash(m, 1, 1 + 0.012 * Math.sin((TAU * t) / 3.2 + p), 1);
         if (u === null || u <= SLIDE.from) break;
         if (u >= SLIDE.gone) { m.visible = false; break; } // under: on its way along the riverbed
-        // off its stone or log, nose down, into the river
-        const a = smooth((u - SLIDE.from) / SLIDE.seconds);
-        const at = spot(m.d, m.side, m.along, m.e + (SLIDE.to - m.e) * a);
-        m.position.set(at.x, Math.max(m.home.y + (at.level - m.home.y) * a, heightAt(at.x, at.z), at.level), at.z);
-        m.heading = lerpAngle(m.rest, headingOf(-at.out[0], -at.out[1]), smooth((u - SLIDE.from) / 0.4));
-        m.pitch = -0.3 * Math.sin(Math.PI * a);
+        if (u < SLIDE.from + SLIDE.seconds) {
+          // off its stone or log, nose down, into the river
+          const a = smooth((u - SLIDE.from) / SLIDE.seconds);
+          const at = spot(m.d, m.side, m.along, m.e + (SLIDE.to - m.e) * a);
+          m.position.set(at.x, Math.max(m.home.y + (at.level - m.home.y) * a, heightAt(at.x, at.z), at.level), at.z);
+          m.heading = lerpAngle(m.rest, headingOf(-at.out[0], -at.out[1]), smooth((u - SLIDE.from) / 0.4));
+          m.pitch = -0.3 * Math.sin(Math.PI * a);
+        } else {
+          // swimming upstream on the surface before diving
+          const s = u - SLIDE.from - SLIDE.seconds;
+          const at = spot(m.d, m.side, m.along + SLIDE.swim * s, SLIDE.to);
+          const toRiver = headingOf(-at.out[0], -at.out[1]);
+          m.position.set(at.x, Math.max(at.level, heightAt(at.x, at.z)), at.z);
+          m.heading = lerpAngle(toRiver, headingOf(at.dir[0], at.dir[1]), smooth(s / 0.5));
+          const paddle = 0.35 + 0.4 * (0.5 + 0.5 * Math.sin(TAU * 1.8 * s + p));
+          if (hasStretch) m.morphs.stretch = paddle;
+          else m.morphs.hide = -0.45 * paddle;
+          m.morphs.look = 0.25 * Math.sin(TAU * 0.9 * s + p) ** 2;
+          m.pitch = 0.06 * Math.sin(TAU * 1.8 * s);
+        }
         break;
       }
       case 'birds': {
@@ -464,6 +529,20 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     for (const m of g.members) { m.out = water.out; m.dir = water.dir; }
   }
 
+  // when (seconds into its answer) a member goes into the water, for its splash: null for those that do not
+  const inAt = (g, k) => (g.kind === 'frogs' ? k * HOP.stagger + HOP.crouch + HOP.air
+    : g.kind === 'turtle' ? k * SLIDE.stagger + SLIDE.from + IN.turtle.at * SLIDE.seconds : null);
+  const effects = Boolean(world.effects && world.scene);
+  function splashFrame(g, m, k, tau) {
+    const when = inAt(g, k);
+    if (when === null || m.splashed || tau === null || tau < when) return;
+    m.splashed = true;
+    if (!effects || tau - when > IN.fresh) return;
+    const water = spot(m.d, m.side, m.along, g.kind === 'frogs' ? m.e - HOP.out : SLIDE.to);
+    const point = new THREE.Vector3(g.kind === 'frogs' ? water.x : m.position.x, water.level, g.kind === 'frogs' ? water.z : m.position.z);
+    splash(world, point, { size: IN[g.kind].size, count: 18, seed: `${g.id} ${k} in` });
+  }
+
   function update(dt, t = now()) {
     last = t;
     if (own) crowds.begin(world.camera ?? null);
@@ -473,9 +552,10 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       const at = tau === null ? null : STAY.has(g.kind) ? Math.min(tau, ANSWER[g.kind]) : answering ? tau : null;
       g.members.forEach((m, k) => {
         pose(g, m, k, t, at);
+        splashFrame(g, m, k, tau);
         if (m.visible) crowds.place(m.kind, m.position, m.heading, m.scale, m); // a member is its own pose: morphs, wings, pitch, squash
       });
-      if (g.handle && !g.handle.done && tau >= ANSWER[g.kind]) g.handle.finish();
+      if (g.handle && !g.handle.done && tau >= ANSWER[g.kind] - 1e-6) g.handle.finish();
     }
     if (own) crowds.end();
   }

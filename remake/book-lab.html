@@ -98,7 +98,7 @@
 
   const params = new URLSearchParams(location.search);
   const asked = params.get('state');
-  const state = ['dinosaurs', 'animals', 'fossils', 'games', 'map', 'journey', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const state = ['dinosaurs', 'animals', 'fossils', 'videos', 'games', 'map', 'journey', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
   const leg = params.get('leg') === '2' ? 2 : 1; // the map in the journey: chapter 1's departure or chapter 2's
   const read = async path => (await fetch(path)).json();
   const [cardData, mediaData, theme, lines] = await Promise.all([
@@ -223,7 +223,7 @@
     };
     if (params.get('seen') === '1') for (const id of leg === 2 ? ['map-route-b', 'map-route-c'] : ['map-route-a']) save.addSeen(id);
     window.__journey();
-  } else book.open(state === 'fossils' ? 'fossils' : state === 'games' ? 'games' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
+  } else book.open(state === 'fossils' ? 'fossils' : state === 'videos' ? 'videos' : state === 'games' ? 'games' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
   if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at: the line's, and the dot's riding at its head
     for (const animation of document.getAnimations()) {
       const target = animation.effect?.target;
@@ -247,6 +247,10 @@
     }
     if (state === 'info') tap('.card-info');
     if (state === 'zoom') tap('.card-photo');
+    await settle();
+  }
+  if (params.has('video')) {
+    book.openVideo(params.get('video'));
     await settle();
   }
   window.__demoStats = measure();

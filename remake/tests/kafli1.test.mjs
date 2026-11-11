@@ -203,7 +203,15 @@ test('every required wait has an auto option for seeking: the chapter plays to i
   assert.equal(flowers.length, 3, 'three glow flowers in the glade');
   for (const flower of flowers) assert.equal(flower.visible, false, `${flower.name} was picked`);
   assert.deepEqual(journal.stars, ['k1_kambedla']);
-  assert.deepEqual(book.opened, [['animals', 'script'], ['games', 'script']], 'the chapter ends in the book, open on its games (where "Eitt!" waits) as the script\'s');
+  assert.deepEqual(book.opened, [
+    ['animals', 'script'],
+    ['animals', 'script'],
+    ['dinosaurs', 'script'],
+    ['videos', 'script'],
+    ['map', 'script'],
+    ['games', 'script'],
+    ['games', 'script'],
+  ], 'scene 5 guides the child through the book (animals, close, reopen animals, dinosaurs, videos, map, games) and scene 10 ends in games');
   assert.equal(journal.isOpen, true);
   assert.equal(winks.length, 2, 'the sun winks twice: "Sólin bíður ekki" and the star');
   assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'the three flowers stay in his hands until each goes into her mouth');
@@ -212,7 +220,7 @@ test('every required wait has an auto option for seeking: the chapter plays to i
 });
 
 test('no fail states: a child who never touches the screen is helped through every wait to the end', async () => {
-  const { task, stage, world, journal, captions, director, seen, added } = await ignoredByAChild();
+  const { task, stage, world, journal, book, captions, director, seen } = await ignoredByAChild();
   assert.equal(task.done, true, `the chapter was still waiting at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   const said = id => captions.filter(c => c.text === chapter.lines[id].text).length;
@@ -229,6 +237,7 @@ test('no fail states: a child who never touches the screen is helped through eve
   assert.equal(seen.trayRemoved.length, 3, 'each one left the tray by itself');
   assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'and each left his hands as she took it');
   assert.deepEqual(journal.stars, ['k1_kambedla'], 'the star flew to the book by itself');
+  assert.deepEqual(book.played, [['eitt', { tutorial: true }]], 'Kambeðla\'s invitation opens Eitt! in tutorial mode');
   assert.deepEqual(director.warnings, [], 'the hints and the waits keep the camera rules too');
   assert.ok(stage.s.time > (await unattended()).stage.s.time + 120, "and the waits were real ones, longer than a capture's");
 });
@@ -304,7 +313,14 @@ test('a child who plays the chapter again, with piece a seen already, sees the m
   assert.deepEqual(moment.states, { a: ['drawing'] }, 'drawing in the overlay');
   assert.deepEqual(run.save.get().seen, ['map-route-a'], 'seen once, as before');
   assert.ok(run.seen.spoken.has('k1_mosi_map_ride'), 'with Mosi saying where they go');
-  assert.deepEqual(run.book.opened, [['animals', 'script']], 'the book was opened by the story as before, and by the map not at all');
+  assert.deepEqual(run.book.opened, [
+    ['animals', 'script'],
+    ['animals', 'script'],
+    ['dinosaurs', 'script'],
+    ['videos', 'script'],
+    ['map', 'script'],
+    ['games', 'script'],
+  ], 'the book was opened by scene 5\'s tutorial as before, and by the map moment not at all');
   assert.equal(run.doc.body.children.filter(e => e.classList.contains('map-moment')).length, 0, 'nothing left behind');
 });
 
@@ -363,9 +379,9 @@ test('the chapter draws once, behind the black, everything that would build its 
 });
 
 test('a child who finds Mosi\'s nose late still has time to make him sneeze: the window grows after the tickle', async () => {
-  // The first tap comes at 4.2 s of the nose's 5, so the giggle ends past them; the second comes 2.5 s after the giggle.
+  // The first tap comes near the end of the nose's 1.6 s window, so the giggle ends past it; the second comes 2.5 s after the giggle.
   const giggle = RECORDED.k1_mosi_tickle.duration + 0.5; // the line and its hold
-  const { world, captions, added } = await playUnattended(kafli1, { seeking: false, limit: 100, noseAt: [4.2, 4.2 + giggle + 2.5] });
+  const { world, captions, added } = await playUnattended(kafli1, { seeking: false, limit: 100, noseAt: [1.3, 1.3 + giggle + 2.5] });
   const said = id => captions.filter(c => c.text === chapter.lines[id].text);
   assert.equal(said('k1_mosi_tickle').length, 1, 'the first tap tickles');
   assert.equal(said('k1_mosi_sneeze').length, 1, 'and the second, after the tickle, makes him sneeze');
@@ -472,7 +488,7 @@ test('a critter tapped in the ride\'s first second reacts at once, and Mosi rema
   const visit = chapter.lines.k1_mosi_visit;
   const critters = chapter.lines.k1_mosi_critters;
   const beetle = chapter.lines.k1_mosi_beetle;
-  const { captions, lines, seen, world, finds } = await playUnattended(kafli1, { limit: 240, earlyTap: { name: 'beetle', after: 0.3 } });
+  const { captions, lines, seen, world, finds } = await playUnattended(kafli1, { limit: 280, earlyTap: { name: 'beetle', after: 0.3 } });
   const ride = world.chapterTimeline.find(m => m.scene === 6).at;
   const tap = seen.earlyTap;
   assert.ok(tap, 'the beetle was tapped');
@@ -854,4 +870,20 @@ test('the points on the characters sit where they are named: Mosi\'s nose, sneez
   assert.ok(mouth.y > 1.5 && mouth.y < 2.1 && nearestSkin(kambedla, mouth) < 0.15, `and at the height of her snout, ${mouth.toArray().map(n => n.toFixed(2))}`);
   const plates = world.resolvePoint(POINTS.kambedlaPlates, new THREE.Vector3());
   assert.ok(plates.y > 3.7 && plates.y < 4.1, `the star rises from just above her tallest plates, at ${plates.y.toFixed(2)} m`);
+});
+
+test('the hero butterfly on Mosi\'s horn pulses with finite scale while glittering and returns to scale 1 when tapped', async () => {
+  const scales = [];
+  const run = await playUnattended(kafli1, {
+    limit: 190,
+    onFrame({ world }) {
+      const hero = world.forest?.butterflies?.hero?.group;
+      if (hero) scales.push(hero.scale.x);
+    },
+  });
+  assert.ok(scales.length > 100);
+  assert.ok(scales.every(s => Number.isFinite(s) && s >= 1 && s <= 1.25), `hero butterfly scale stayed finite in [1, 1.24], never NaN`);
+  assert.ok(scales.some(s => s > 1.15), 'hero butterfly pulsed above 1.15 while glittering on Mosi\'s horn');
+  const rjodurHero = run.forests[0].butterflies.hero.group;
+  assert.equal(rjodurHero.scale.x, 1, 'hero butterfly scale reset to 1 after being tapped');
 });

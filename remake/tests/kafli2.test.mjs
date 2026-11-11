@@ -17,7 +17,7 @@ import { SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 import { CRITTER_SOUNDS } from '../chapters/kafli3-fen.js';
 import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import {
-  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FISH_ARC, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR, arriveInSiki,
+  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, EGILL_BANK, UGGEDLA_REED, FISHING_SPOTS, FISH_ARC, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR, arriveInSiki,
 } from '../chapters/kafli2-siki.js';
 import { riseSail, headUpWithFish, catchFish, swimAlong, tailSplash, createBackSeat, BIG_FISH } from '../chapters/kafli2-uggedla.js';
 import { fishing, getUp, jumpOrder, jumpPath, FISH_SIZES, JUMP_SECONDS, HINT_AFTER, HELP_AFTER, FISH_COUNT, TAP_RADIUS } from '../chapters/kafli2-fishing.js';
@@ -383,7 +383,8 @@ function playIdle() {
           t: s.time, scene, shot, sink: c.uggedlaRig?.v.sink, tuck: c.uggedlaRig?.v.tuck, visible: her.root.visible, her: her.root.position.clone(),
           heading: her.heading, mosi: mosi.root.position.clone(), mosiHeading: mosi.heading, depth: water?.depthAt(mosi.root.position.x, mosi.root.position.z),
           egill: egill.root.position.clone(), egillControlled: egill.controlled, sailTarget: pointer.targets.has('sail'),
-          seat: c.backSeat ? c.backSeat.seat.clone() : null, saddle: scene === 7 ? c.saddle.update().clone() : null,
+          seat: c.backSeat ? c.backSeat.seat.clone() : null, saddle: scene >= 6 ? c.saddle.update().clone() : null,
+          mosiSink: c.mosiSink ?? 0, mosiHeadY: scene >= 6 ? mosi.headPosition(new V3()).y : null,
         };
         if (scene >= 6) {
           her.root.updateMatrixWorld(true);
@@ -1050,7 +1051,7 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
       c.ring = ringsFor(world, { most: 3 });
       world.chapterState = c;
       c.saddle = createSaddle(mosi.raw);
-      c.saddle.object.visible = true;
+      c.saddle.show();
       c.riding = ride(egill.raw, c.saddle, { settle: 0 });
       arriveInSiki(s, c);
       mosi.raw.place(MOSI_BANK.position[0], MOSI_BANK.position[2], MOSI_BANK.heading);
@@ -1433,7 +1434,7 @@ test('a child who taps the big fish in the air: each is caught within about 3 s 
   const run = await fished(({ fish, now, pointer, seen }) => {
     if (fish?.phase === 'held' || fish?.phase === 'caught') tapFish(pointer); // more taps while she catches it
     // (as it leaves the water, as it comes down and in the middle: where it is, she reaches it)
-    if (fish?.kind === 'big' && fish.phase === 'air' && now - fish.launched >= [0.6, 0.05, 1.3, 0.05, 1.35][seen.taps.length % 5] && !done.has(fish)) {
+    if (fish?.kind === 'big' && fish.phase === 'air' && now - fish.launched >= [0.5, 0.05, 1.0, 0.05, 1.05][seen.taps.length % 5] && !done.has(fish)) {
       done.add(fish);
       tapFish(pointer);
       tapFish(pointer); // two taps in one frame
@@ -1519,15 +1520,15 @@ test('the jumps: about one in three is small and never two in a row, no spot twi
     }
   });
   const smalls = order.filter(jump => jump.kind === 'small').length;
-  assert.ok(smalls >= 10 && smalls <= 16, `${smalls} of 40 are small`);
+  assert.ok(smalls >= 15 && smalls <= 20, `${smalls} of 40 are small`);
   assert.deepEqual(jumpOrder(40), order, 'deterministic');
   assert.deepEqual(FISH_SIZES, { big: 1.5, small: 0.6 }, 'a metre and a half and sixty centimetres');
   assert.equal(BIG_FISH, FISH_SIZES.big, 'the fish she holds as her head first comes up is a big one');
-  assert.equal(JUMP_SECONDS, 1.5);
+  assert.equal(JUMP_SECONDS, 1.2);
   assert.deepEqual([HINT_AFTER, HELP_AFTER, FISH_COUNT], [8, 16, 5]);
 });
 
-test('a fish in the air is a tap target that moves with it, and a jump takes 1.5 s from the water to the water', async () => {
+test('a fish in the air is a tap target that moves with it, and a jump takes 1.2 s from the water to the water', async () => {
   const rows = [];
   const run = await fished(({ fish, now, pointer }) => {
     if (fish?.phase === 'air') {
@@ -1546,7 +1547,7 @@ test('a fish in the air is a tap target that moves with it, and a jump takes 1.5
   const first = run.seen.jumps[0];
   assert.ok(Math.abs(first.gone - first.at - JUMP_SECONDS) < 0.1, `the first jump takes ${(first.gone - first.at).toFixed(2)} s`);
   const apex = Math.max(...rows.filter(row => row.kind === 'big').map(row => row.fish.y - level));
-  assert.ok(apex > 1.2 && apex < 2.4, `a big fish rises ${apex.toFixed(1)} m over the water`);
+  assert.ok(apex > 2.0 && apex < 3.0, `a big fish rises ${apex.toFixed(1)} m over the water`);
   assert.ok(run.soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'out').length >= 2, 'the plip as it leaves the water');
   assert.ok(run.soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'in').length >= 2, 'and the splash as it falls back');
 });
@@ -1610,13 +1611,17 @@ test('a fish in the air reads as a fish on the screen: a small one at least abou
 });
 
 test('scene 4 as the chapter plays it for an idle child: she asks, the five are counted by Mosi and she thanks him, from the fishing shot', async () => {
-  const { captions, world, seen, soundLog, stage } = await playIdle();
+  const { captions, world, seen, soundLog, stage, probes } = await playIdle();
   const start = sceneStart(world, 4);
   const texts = captions.filter(caption => caption.at >= start).map(caption => caption.text);
   const mine = [chapter.lines.k2_uggedla_help.text, ...COUNT_TEXTS, chapter.lines.k2_uggedla_thanks.text];
   assert.deepEqual(texts.filter(text => mine.includes(text)), mine, 'her ask, one to five, her thanks, in that order');
   assert.equal(captions.find(caption => caption.text === mine[0]).who, 'Uggeðla', 'her name over her words');
   assert.ok(seen.cuts.some(cut => cut.shot === 'siki_fishing' && cut.at >= start - 0.1), 'from the fishing shot');
+  assert.ok(SIKI_SHOTS.siki_fishing.position[1] <= 2.2, 'with the camera down near Egill\'s height');
+  const fishingFrames = probes.frames.filter(frame => frame.scene === 4 && frame.t >= start + 3);
+  const [ex, ez] = xz(EGILL_BANK);
+  assert.ok(fishingFrames.length > 60 && fishingFrames.every(frame => !frame.egillControlled && Math.hypot(frame.egill.x - ex, frame.egill.z - ez) < 0.4), 'and Egill has floated down off Mosi to stand by the water');
   assert.equal(soundLog.filter(e => e.name === 'countTone' && e.at >= start).length, FISH_COUNT);
   assert.ok(soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'out').length >= FISH_COUNT, 'a plip for each fish that leaves the water');
   assert.ok(stage.s.time <= IDLE_LIMIT, 'and the chapter is over inside the idle limit');
@@ -1713,6 +1718,7 @@ test('scene 5: Mosi invites her, she says yes, her star rises from the top of he
   assert.ok(star.point.distanceTo(star.top) < 0.6, `from the top of her sail (${star.point.distanceTo(star.top).toFixed(2)} m from its highest point)`);
   // nobody taps: it flies in by itself after the wait for a tap
   assert.deepEqual(journal.stars, ['k2_uggedla'], 'and it is in the book');
+  assert.deepEqual(run.book.played, [['veiddu', { tutorial: true }]], 'her game opens in tutorial mode once her star is in');
   assert.ok(run.soundLog.some(e => e.name === 'star' && e.at >= start && e.at < ferry), 'with the star\'s sound');
   assert.ok(ferry - star.at > 7.5 && ferry - star.at < 14, `the star waits for the tap at most 8 s (the ferry begins ${(ferry - star.at).toFixed(1)} s after it rose)`);
 });
@@ -1757,10 +1763,14 @@ test('scene 6: she swims along the ferry line and Mosi wades the shallow edge be
   for (const frame of frames) farthest = Math.max(farthest, lineOf(frame.her));
   assert.ok(farthest < 3.5, `she keeps to the ferry line (${farthest.toFixed(1)} m at the furthest)`);
   assert.ok(frames.every(frame => water.depthAt(frame.her.x, frame.her.z) >= 0.8), 'in water deeper than 0.8 m');
-  // Mosi wades: his feet in water 0.3 to 0.6 m deep from the time he is in it until they are across
+  // Mosi wades: his feet in water 0.3 to 0.6 m deep from the time he is in it until they are across, and his body sinks deep under the surface
   const wading = frames.filter(frame => frame.t > brrr + 2.5); // (he steps into the water at "brrr")
   const depths = wading.map(frame => frame.depth);
   assert.ok(Math.min(...depths) >= 0.28 && Math.max(...depths) <= 0.62, `his feet are in ${Math.min(...depths).toFixed(2)} to ${Math.max(...depths).toFixed(2)} m of water`);
+  const level = WATER_LEVEL();
+  assert.ok(wading.every(frame => frame.mosiSink > 2.8), 'Mosi sinks deep into the water as he swims beside her');
+  assert.ok(wading.every(frame => frame.saddle.y < level + 0.35), 'his saddle is down at the water, so Egill needed her ferry');
+  assert.ok(wading.every(frame => frame.mosiHeadY > level + 0.25), 'while his head and frill stay above the water');
   // beside her: within 3 to 9 m of her middle through the chat
   const apart = wading.map(frame => Math.hypot(frame.mosi.x - frame.her.x, frame.mosi.z - frame.her.z));
   assert.ok(Math.min(...apart) > 2.5 && Math.max(...apart) < 10, `Mosi is ${Math.min(...apart).toFixed(1)} to ${Math.max(...apart).toFixed(1)} m from her middle`);

@@ -84,8 +84,8 @@ export function memberOf(group, k, seats) {
   return { group, k, n: seats.length, x: seat.x, y: seat.y, z: seat.z, heading: seat.heading, seats, late: 0.05 * Math.sin(k * 2.7 + 1), size: 1 + 0.08 * Math.sin(k * 1.9 + 0.4) };
 }
 /**
- * One of the rest of those that came (the lizards, grazers and flyers on the bank beyond Egill and Mosi, not in the choir): it
- * dances as its kind does, where it stands (no line, no flight, no parade).
+ * One of the rest of those that came (the lizards, grazers, flyers and turtles on the bank beyond Egill and Mosi, not in the
+ * choir): it dances as its kind does, where it stands (no line, no flight, no parade; the turtles do go over onto their shells).
  */
 export function audienceOf(group, k, seats) {
   return { ...memberOf(group, k, seats), audience: true };
@@ -609,7 +609,7 @@ function dragonfly(P, m, beat, x) {
 
 /** The turtle that moves while everything is frozen: it was up on its shell's rim, and it tips over, slides and pulls its head in. */
 function slip(P, m, setBeat) {
-  if (m.group !== 'turtles' || m.k !== SLIP.turtle || !(setBeat >= SLIP.at) || setBeat >= SLIP.until) return;
+  if (m.group !== 'turtles' || m.audience || m.k !== SLIP.turtle || !(setBeat >= SLIP.at) || setBeat >= SLIP.until) return;
   const t = setBeat - SLIP.at;
   const wobble = win(t, 0, 0.6) * (1 - win(t, 0.9, 1.3)) * Math.sin(TAU * 2.5 * t) * 0.12; // it cannot hold it...
   const down = win(t, 0.85, 1.5); // ...and over it goes (the camera is on it by then)
@@ -1007,8 +1007,8 @@ export function createDances(c) {
   });
   // and the rest of those that came, on the bank beyond Egill and Mosi: the whole forest dances, each where it stands
   const inChoir = new Set(dancers.map(({ b }) => b));
-  const KIND = { grasbitur: 'grazers', smaedla: 'lizards', salamander: 'lizards', flugdyr: 'flyers' };
-  for (const group of ['grazers', 'lizards', 'flyers']) {
+  const KIND = { grasbitur: 'grazers', smaedla: 'lizards', salamander: 'lizards', flugdyr: 'flyers', turtle: 'turtles' };
+  for (const group of ['grazers', 'lizards', 'flyers', 'turtles']) {
     const things = (life?.arrivals ?? []).filter(b => KIND[b.kind] === group && !inChoir.has(b) && b.gather);
     const seats = seatsOfThese(things);
     things.forEach((b, k) => dancers.push({ b, m: audienceOf(group, k, seats) }));

@@ -1,6 +1,6 @@
 // The book's drawn icons, one stroke weight each, coloured by the control they sit in (book.css: .book-icon and .book-arrow).
-// They are markup for a button's innerHTML; the shell (book.js), the card (card-viewer.js) and the zoom (zoom.js) share them. The Risaeðlur
-// ribbon has no drawn icon: it shows Mosi's render (book.js).
+// They are markup for a button's innerHTML; the shell (book.js), the card (card-viewer.js), the video player (video-player.js) and the
+// zoom (zoom.js) share them. The Risaeðlur ribbon has no drawn icon: it shows Mosi's render (book.js).
 
 export const ICONS = {
   animals: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse class="icon-fill" cx="24" cy="34" rx="10.5" ry="9.5"/><ellipse class="icon-fill" cx="24" cy="11" rx="5.4" ry="7.2"/><ellipse class="icon-fill" cx="11.6" cy="16.6" rx="5.2" ry="7" transform="rotate(-30 11.6 16.6)"/><ellipse class="icon-fill" cx="36.4" cy="16.6" rx="5.2" ry="7" transform="rotate(30 36.4 16.6)"/></svg>',
@@ -8,6 +8,10 @@ export const ICONS = {
   // A compass rose: the map's ribbon, Kortið; its north point in the journal's orange.
   map: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><circle class="icon-fill" cx="24" cy="24" r="17.5"/><path class="icon-fill" d="M24 5l4 15 15 4-15 4-4 15-4-15-15-4 15-4z"/><path d="M24 6.5l3.2 13.2h-6.4z" fill="#e07a3f" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round"/><circle cx="24" cy="24" r="2.6" fill="#3b2f25" stroke="none"/></svg>',
   fossils: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><circle class="icon-fill" cx="24" cy="25" r="17"/><path d="M24 25a3 3 0 0 1 6 0a6 6 0 0 1-12 0a9 9 0 0 1 18 0a12 12 0 0 1-24 0" style="stroke:#3b2f25" stroke-width="3"/></svg>',
+  // A film frame with a play triangle in the journal's gold: the Myndbönd ribbon and the video button on a card.
+  videos: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><rect class="icon-fill" x="6" y="10" width="36" height="28" rx="6"/><path d="M20 17.5l12 6.5-12 6.5z" fill="#f2b630" stroke="#3b2f25" stroke-width="2.4" stroke-linejoin="round"/></svg>',
+  play: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M16 11.5c0-2 2.2-3.2 3.9-2.2l19.5 12.5c1.6 1 1.6 3.4 0 4.4L19.9 38.7c-1.7 1-3.9-.2-3.9-2.2z"/></svg>',
+  pause: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><rect class="icon-fill" x="12" y="11" width="9" height="26" rx="3.5"/><rect class="icon-fill" x="27" y="11" width="9" height="26" rx="3.5"/></svg>',
   close: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 13.5C19 20 28 28.5 35 35M35 13C28.5 20 20 28 13 35" stroke-width="6.5"/></svg>',
   back: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M36 38V26c0-8.5-6-13.5-14-13.5H11" stroke-width="6"/><path d="M19 4.5l-8.5 8 8.5 8" stroke-width="6"/></svg>',
   speaker: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M6.5 18H14l9.6-8.2c1.3-1.1 3.4-.2 3.4 1.5v25.4c0 1.7-2.1 2.6-3.4 1.5L14 30H6.5C5.1 30 4 28.9 4 27.5v-7C4 19.1 5.1 18 6.5 18z"/><path d="M32.5 18.5c2.6 3.3 2.6 7.7 0 11" stroke-width="4.5"/><path d="M37.5 13c5.4 6.3 5.4 15.7 0 22" stroke-width="4.5"/></svg>',

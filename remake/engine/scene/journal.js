@@ -29,11 +29,11 @@ const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px acro
  */
 export const FRIENDS = [
   { key: 'kambedla', name: 'Kambeðla', colour: '#8f6aa3' },
-  { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
-  { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
   { key: 'uggedla', name: 'Uggeðla', colour: '#47908a' },
-  { key: 'sloedla', name: 'Slóeðla', colour: '#6793d0' },
+  { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
   { key: 'flugedla', name: 'Flugeðla', colour: '#dc8090' },
+  { key: 'sloedla', name: 'Slóeðla', colour: '#6793d0' },
+  { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
 ];
 
 const STAR_PATH = 'M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z';
@@ -124,8 +124,15 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     button.hidden = !on;
   }
 
+  let buttonBeckons = false;
+  function beckonButton(on = true) {
+    buttonBeckons = Boolean(on);
+    button.classList.toggle('beckon', buttonBeckons);
+  }
+
   /** Opening the book takes the badge off: the child has seen what is new in it. On its animals, it opens for the newest find. */
   function openBook(tab, by, { nod = null } = {}) {
+    beckonButton(false);
     badgeEl.hidden = true;
     const find = newest;
     newest = null;
@@ -266,7 +273,16 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     }
   }
 
-  button.addEventListener('click', () => openBook('animals', 'child'));
+  let tutorialTarget = null;
+  function lockTutorial(target = null) {
+    tutorialTarget = target;
+    book?.lockTutorial?.(target);
+  }
+
+  button.addEventListener('click', () => {
+    if (tutorialTarget !== null && tutorialTarget !== 'button') return;
+    openBook('animals', buttonBeckons || tutorialTarget === 'button' ? 'script' : 'child');
+  });
 
   render();
   badgeEl.hidden = true;
@@ -284,7 +300,14 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     close: () => book?.close(),
     /** The book's close beckons the child (book.js beckonClose): a scene that opened the book and waits for them to shut it. */
     beckonClose: on => book?.beckonClose?.(on),
+    /** A ribbon in the open book beckons the child (book.js beckonTab): a scene tutorial guiding them through the tabs. */
+    beckonTab: tab => book?.beckonTab?.(tab),
+    /** The journal button in the top-right corner beckons the child to tap it and reopen the book. */
+    beckonButton,
+    lockTutorial,
+    playGame: (game, options) => book?.playGame?.(game, options) ?? null,
     get isOpen() { return book?.isOpen ?? false; },
+    get tab() { return book?.tab ?? 'animals'; },
     get stars() { return save.get().stars; },
     get findings() { return save.get().findings; },
     get places() { return save.get().places ?? []; },

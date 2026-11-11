@@ -65,7 +65,7 @@ export function pullScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: .55, wait: { until: () => phase() === 'cheer' || ended(), timeout: 10 } },
     // The bridge: the trunk lies over the gap, its top on Sólarsyllan; everyone cheers.
     { at: .6, shot: { kind: 'wide', subjects: () => [...everyone(), trunk().base, trunk().top, trunk().near, trunk().far, at(47, 9, 4)], front: view([-.2, -1]), elevation: 24, cut: true, floor: 'auto' },
-      act: all(() => stage.mosi.gesture('clap'), () => stage.mosi.look(trunk().top)) },
+      act: all(() => stage.mosi.gesture('clap'), () => stage.mosi.look(trunk().top)), fx: { kind: 'done', at: () => up(trunk().middle, .6), shake: false } },
     { at: .65, wait: { until: ended, timeout: 5 } },
     { at: .7, shot: { release: true, duration: .9 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];

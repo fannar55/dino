@@ -86,11 +86,20 @@ export function cardElement(doc, card, { back = false, tag = 'div', mini = false
 
 /** Where the child's cards may lie across the table: between Egill's place and Mosi's button (the table's edges when it is upright). */
 function handBounds(handEl) {
-  const table = handEl.closest('.veiddu-table');
+  const upright = Boolean(handEl.ownerDocument.defaultView?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
+  const multi = handEl.closest('.veiddu-multi');
+  if (multi) {
+    const box = handEl.getBoundingClientRect();
+    const base = multi.getBoundingClientRect();
+    const me = multi.querySelector('.veiddu-place.me');
+    const left = !upright && me ? Math.max(box.left + 8, me.getBoundingClientRect().right + 12) : (box.width ? box.left : base.left) + 8;
+    const right = Math.max(left + 160, (box.width ? box.right : base.right) - 8);
+    return [left, right];
+  }
+  const table = handEl.closest('.veiddu-table') ?? handEl.parentElement ?? handEl;
   const base = table.getBoundingClientRect();
   const me = table.querySelector('.veiddu-me-catch');
   const help = table.querySelector('.veiddu-mosi-help');
-  const upright = Boolean(handEl.ownerDocument.defaultView?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
   if (upright || !me || !help) return [base.left + 8, base.right - 8];
   return [me.getBoundingClientRect().right + 10, help.getBoundingClientRect().left - 10];
 }
@@ -227,6 +236,7 @@ export function seatElement(doc, seat, { held, laid, target = false }) {
   window.append(picture);
   el.append(window);
   if (seat === SEATS.uggedla) el.append(make(doc, 'div', 'veiddu-uggedla-frame', { 'aria-hidden': 'true' }));
+  el.append(make(doc, 'span', 'veiddu-seat-tag', { 'aria-hidden': 'true' }, person.name));
   const fan = make(doc, 'div', 'veiddu-their-hand', { role: 'img', 'aria-label': `${person.name} á ${held} spil` });
   for (let k = 0; k < held; k++) fan.append(cardElement(doc, null));
   el.append(fan, make(doc, 'span', 'veiddu-count', { 'aria-hidden': 'true' }, String(held)), catchElement(doc, laid, person.name));
@@ -319,7 +329,19 @@ export function tableElement(doc, round) {
     hand.append(card);
   }
   table.append(hand, make(doc, 'button', 'veiddu-mosi-help', { 'aria-label': 'Spyrja Mosa' }));
-  if (round.bubble) table.append(bubbleElement(doc, ...round.bubble));
+  if (round.bubble) {
+    const [from, to] = round.bubble;
+    const seatFor = s => (s === SEATS.child ? table.querySelector('.veiddu-me-catch') : [...table.querySelectorAll('.veiddu-seat')].find(el => String(el.getAttribute('data-seat')) === String(s)));
+    if (from !== null && from !== undefined) {
+      seatFor(from)?.classList.add('turn');
+      table.setAttribute('data-turn', String(from));
+    }
+    if (to !== null && to !== undefined) {
+      seatFor(to)?.classList.add('asked');
+      table.setAttribute('data-asked', String(to));
+    }
+    table.append(bubbleElement(doc, ...round.bubble));
+  }
   if (round.advice) {
     const advice = make(doc, 'div', 'veiddu-advice');
     advice.append(make(doc, 'img', '', { src: asset('assets/book/images/mosi-render.webp'), alt: '' }), make(doc, 'p', '', {}, round.advice));

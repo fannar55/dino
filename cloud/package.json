@@ -6,6 +6,7 @@
     "stage": "node stage.mjs",
     "dev": "node stage.mjs && wrangler dev --ip 0.0.0.0 --port 8787",
     "deploy": "node stage.mjs && wrangler deploy",
+    "upload-videos": "node upload-videos.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {

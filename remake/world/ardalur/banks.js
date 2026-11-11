@@ -477,9 +477,16 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
   }
   const batcher = createBatcher();
   for (const p of placements) batcher.add(p);
+  // each merged mesh draws its plants near to far as the flight sees them (on down the river, then out from it), so early depth
+  // testing rejects the foliage behind; the ground draws after the plants (index.js), under the crowns only where it shows
+  const nearToFar = new Map();
+  placements.forEach((p, k) => {
+    nearToFar.set(p, p.d + Math.max(0, terrain.where(p.x, p.z).e));
+  });
+  yield 'order';
   const { meshes } = yield* batcher.buildSteps(bucket => ({
     material: bucket.kind === 'thin' ? materials.thin : materials.solid, receiveShadow: true, renderOrder: 3,
-  }), { cards: cards ? { material: cards, renderOrder: 3 } : null });
+  }), { order: p => nearToFar.get(p), cards: cards ? { material: cards, renderOrder: 3 } : null });
   const group = new THREE.Group();
   group.name = 'Árdalur plants';
   for (const mesh of meshes) {

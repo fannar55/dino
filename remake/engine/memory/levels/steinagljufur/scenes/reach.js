@@ -30,7 +30,8 @@ export function reachScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
     { at: .2, wait: { until: () => ['down', 'cheer', 'ascend'].includes(phase()) || !stage.task.busy(), timeout: 9 } },
     // The slab lies down the ledge: the ramp, the dust at its foot.
-    { at: .25, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), slab().edge, slab().hinge, up(slab().hinge, 1.5)], front: view([-.5, -1]), elevation: 16, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
+    { at: .25, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), slab().edge, slab().hinge, up(slab().hinge, 1.5)], front: view([-.5, -1]), elevation: 16, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap'),
+      fx: { kind: 'done', at: () => up(slab().edge, .6), shake: false } },
     { at: .3, wait: { until: () => ['cheer', 'ascend'].includes(phase()) || !stage.task.busy(), timeout: 4 } },
     { at: .35, shot: { kind: 'face', subjects: () => [...pair().map(actor => actor.getNosePosition()), ...pair().map(actor => up(actor.getNosePosition(), .6))], front: view([-.8, -1]), elevation: 12, cut: true, floor: 'auto' }, sound: { name: 'call', species: 'brontosaurus' } },
     { at: .4, wait: { until: () => phase() === 'ascend' || !stage.task.busy(), timeout: 3 } },

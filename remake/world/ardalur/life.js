@@ -47,6 +47,7 @@
 //                        model (weights adding up to 1), `wings` [angle, flying] of a winged one, `mix` how much of all that
 //                        is the dance's (1 if not given; less as it comes out of its idle life or goes back to it). null: its
 //                        idle life again, where it stood.
+//   life.cheer(at)       she has landed in the far pool: the arrivals hop for joy from game second `at` (CHEER), one after another
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
@@ -70,7 +71,7 @@ import { stageLife } from '../../chapters/kafli5-stage.js';
  * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06). The flyer is 2.4 m across its
  * wings: a third of hers, seen 5 to 12 m off.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, frog: 4.5, turtle: 4.5, beetle: 4 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, turtle: 4, frog: 4.5, beetle: 4 };
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clamp01 = k => Math.min(1, Math.max(0, k));
@@ -86,7 +87,7 @@ const FEN_BIRDS = { at: [5.5, 7.5, 9.5, 11.5, 13.5], off: [9, 8, 10, 7, 11, 6, 1
 const FEN_FLIES = { at: [7, 10.5, 14, 17], off: [8, 10, 7, 12], up: 1.4 };
 // The fish: one every `every` metres up the river from `from`, `off` metres beside her path, jumping `height` m in `seconds` when
 // she is `ahead` metres before it, `across` metres out from her path.
-const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
+export const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
 // The bank trees: in the gaps between the groups (but those just after a group of birds; the third on the far bank from the second
 // water-level shot, which stands by the near one), `e` m from the water, `scale` as the birds' trees in animals.js; four birds in
 // the crown's river side ([turn from facing the river, height in the crown]).
@@ -169,6 +170,8 @@ const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low
 // banks, and a move turns its way over TURN of it at each end; a flyer flies over at most FLY_UP m; a hop is HOP's.
 const POOL_LIFE = { lily: 0.03, pad: 2.2, padUp: 0.012, turn: 0.15, flyUp: 5, rockTop: 0.55, rockTurn: 0.6, logTop: 0.8 };
 const HOP_DEFAULT = { height: 0.6, seconds: 0.45 };
+// Scene 7: as she lands (life.cheer), each that came hops twice for joy, one after another over `spread` seconds; metres high by kind.
+export const CHEER = { hops: 2, seconds: 0.45, spread: 0.9, height: { smaedla: 0.5, salamander: 0.4, grasbitur: 0.3, flugdyr: 0.7, turtle: 0.35 } };
 
 /**
  * Chapter 5's stone: how high its drawn surface is over (x, z), so a turtle sits on it and not in it (the stone is lumpy). The stone
@@ -206,7 +209,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const LIZARD = baked ? 'smaedla' : 'salamander';
   const grazer = critters.grasbitur ?? null;
   const flyer = critters.flugdyr ?? null;
-  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer }; // the owner's models, as tools/prep-crowd.mjs bakes them
+  const BAKED = { smaedla: baked, grasbitur: grazer, flugdyr: flyer, bird: critters.fugl ?? null, turtle: critters.skjaldbaka ?? null }; // the owner's models, as tools/prep-crowd.mjs bakes them
   const her = new THREE.Vector3();
   const herAt = (t, out = her) => route.pointAt(route.progressAt(Math.min(BEATS.END, Math.max(0, t))), out);
   /** Her way, seen from above, at flight second t: forward and to her right. */
@@ -244,7 +247,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const modelOf = kind => (models[kind] ??= (() => {
     // the owner's small lizard and grazer: their frames' names, as the crowd draws them, and their height standing
     const own = BAKED[kind];
-    if (own) return { morphs: (own.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name), height: own.height, wings: false };
+    if (own) return { morphs: (own.lods[0].geometry.morphAttributes.position ?? []).map(a => a.name), height: own.height, wings: Boolean(own.wing) };
     const model = createModel(kind);
     model.geometry.computeBoundingBox();
     model.height = model.geometry.boundingBox.max.y - model.geometry.boundingBox.min.y;
@@ -491,6 +494,15 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   toTheirSpots(rows.filter(r => r.where === GATHER.rows).flatMap(r => r.members), 'lizard', GATHER.lane[0]);
   toTheirSpots(herd.find(g => g.id === GATHER.herd)?.members ?? [], 'grazer', GATHER.lane[1]);
   for (const b of flyers) { b.gather = { at: b.land.spot, heading: b.land.heading }; arrivals.push(b); }
+  spotsOf('turtle').forEach(([x, z], k) => {
+    const heading = headingOf(lx - x, lz - z) + GATHER.turn * Math.sin(k * 1.9 + 0.7);
+    const t = add(`pool-turtle-${k}`, 'turtle', new THREE.Vector3(x, heightAt(x, z), z), heading);
+    t.gather = { at: t.at.clone(), heading };
+    arrivals.push(t);
+    clear.push({ x, z, r: GATHER.lane[0], over: GATHER.low });
+  });
+  arrivals.forEach((b, k) => { b.cheerDelay = ((k * 0.618034) % 1) * CHEER.spread; }); // not in rows: here and there along the bank
+  let cheerAt = null; // the game second they cheer from (life.cheer)
 
   // Chapter 5: the far pool's frogs, each on a lily pad, and its turtles on their stone, there from the build
   const pool = { frogs: [], turtles: [], beetles: [], dragonflies: [] };
@@ -513,7 +525,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       const model = library?.get?.('rock', rock.variant, 1, {}) ?? null;
       const surface = rockSurface(model, { x, y, z, rot, scale: rock.scale });
       choir.turtles.forEach(({ at: [tx, tz], heading }, k) => {
-        const turtle = add(`pool-turtle-${k}`, 'turtle', new THREE.Vector3(tx, surface(tx, tz), tz), heading);
+        const turtle = add(`stone-turtle-${k}`, 'turtle', new THREE.Vector3(tx, surface(tx, tz), tz), heading, { stone: true });
         turtle.gather = { at: turtle.at.clone(), heading };
         pool.turtles.push(turtle);
       });
@@ -559,6 +571,15 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   let last = 0;
   const now = () => world.clock?.time ?? last;
 
+  /** One that came, hopping for joy at the game second `t` if they cheer (CHEER): up and down twice, after its own delay. */
+  function cheering(b, t) {
+    if (cheerAt === null) return;
+    const u = t - cheerAt - (b.cheerDelay ?? 0);
+    if (!(u > 0 && u < CHEER.hops * CHEER.seconds)) return;
+    const a = (u % CHEER.seconds) / CHEER.seconds;
+    b.position.y += (CHEER.height[b.kind] ?? 0.4) * 4 * a * (1 - a);
+  }
+
   /** A flier perched at `at` until `s` = 0 (its trigger), then up and away, gone at FLUSH.gone. */
   function flier(b, s, clock) {
     b.wings[0] = 0;
@@ -592,6 +613,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   function standing(b, clock) {
     b.position.copy(b.gather.at);
     b.heading = b.gather.heading;
+    cheering(b, clock);
     for (const name in b.morphs) b.morphs[name] = 0;
     const model = BAKED[b.kind];
     const blend = (clip, time, w) => {
@@ -600,6 +622,18 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       for (const name in frames) b.morphs[name] += frames[name] * w;
     };
     const up = period => smooth(1.5 * Math.sin((TAU * clock) / period + b.phase) - 0.3); // head up some of the time
+    if (b.kind === 'turtle') {
+      const stretch = smooth(1.4 * Math.sin((TAU * clock) / 8.5 + b.phase) - 0.35);
+      const look = Math.max(0, Math.sin((TAU * clock) / 6.2 + 1.7 * b.phase)) ** 2;
+      if ('stretch' in b.morphs) {
+        b.morphs.stretch = 0.75 * stretch;
+        b.morphs.look = look * (1 - 0.5 * stretch);
+      } else {
+        b.morphs.hide = -0.6 * stretch;
+        b.morphs.look = look * (1 - stretch) + 0.5 * stretch;
+      }
+      return;
+    }
     if (b.kind === 'grasbitur') {
       const w = up(GATHER.graze);
       blend('graze', clock, 1 - w);
@@ -790,6 +824,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     if (ft === null && arrived) {
       b.position.copy(b.gather.at);
       b.heading = b.gather.heading;
+      cheering(b, clock);
       blend('perch', clock, 1);
       return;
     }
@@ -855,10 +890,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
         b.morphs.leap = 0;
         break;
       case 'turtle':
-        b.position.copy(b.gather.at);
-        b.heading = b.gather.heading;
-        b.morphs.look = Math.max(0, Math.sin((TAU * clock) / 9 + p)) ** 2;
-        b.morphs.hide = 0;
+        // those that came (chapter 4's end) are out of sight until they have; the stone's three (chapter 5) are the pool's own
+        if (!b.stone && (ft !== null || !arrived)) { b.visible = false; break; }
+        standing(b, clock);
         break;
       case 'beetle':
         // the dance floor's, on their log: a leg stirs now and then
@@ -1059,13 +1093,18 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.squash[1] *= 1 + 0.08 * Math.sin(Math.PI * u);
   }
 
+  /** Scene 7: she has landed (chapters/kafli4.js), and those that came hop for joy from the game second `at` (CHEER). */
+  function cheer(at = now()) {
+    if (Number.isFinite(at)) cheerAt = at;
+  }
+
   /** Scene 7 has begun (chapters/kafli4.js): outside the flight from now on, those that came stand at the far pool. */
   function arrive() {
     arrived = true;
   }
 
   return {
-    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive, pool, moveTo, hop,
+    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive, cheer, pool, moveTo, hop,
     dispose() { if (own) crowds.dispose(); },
   };
 }

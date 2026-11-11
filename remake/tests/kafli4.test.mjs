@@ -89,7 +89,7 @@ test('the chapter as data: the Fen first, then the white tree, in the early afte
   assert.deepEqual(chapter.cast.flugedla, { name: 'Flugeðla', colour: '#955055' }, 'her crest\'s raspberry, as in the flight');
   assert.deepEqual(chapter.cast.thorsedla, { name: 'Þórseðla', colour: '#89682e' });
   for (const [id, text] of Object.entries(SCENE_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
-  for (const id of Object.keys(chapter.lines)) assert.match(id, /^k4_(mosi|egill|flugedla)_[a-z0-9_]+$/, `${id}: k4_<speaker>_<name>`);
+  for (const id of Object.keys(chapter.lines)) assert.match(id, /^k4_(mosi|egill|flugedla|thorsedla)_[a-z0-9_]+$/, `${id}: k4_<speaker>_<name>`);
   // A name in two places would overwrite the other silently (main.js).
   const names = [...Object.keys(chapter.shots), ...Object.values(chapter.locations).flatMap(location => Object.keys(location.shots))];
   assert.equal(new Set(names).size, names.length, 'every shot has a name of its own');
@@ -553,7 +553,8 @@ test('untouched, the wind fills by itself and the scene ends within 60 s of its 
   const wind = world.chapterState.wind;
   const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
   assert.ok(wind.hints.length >= 1 && Math.abs(wind.hints[0] - three - 6) < 0.5, `the hint at 6 s: ${wind.hints.map(h => (h - three).toFixed(1))}`);
-  assert.ok(seen.spokenAt.get('k4_mosi_swipe') >= wind.hints[0], 'Mosi: "Strjúktu upp, Egill!"');
+  assert.ok(Math.abs(seen.spokenAt.get('k4_mosi_swipe') - three) < 1, 'Mosi as the scene opens: "Strjúktu upp, Egill!"');
+  assert.ok(seen.spokenAt.get('k4_mosi_swipe2') >= wind.hints[0], 'and at the hint: "Strjúktu fingrinum upp skjáinn!"');
   assert.ok(Math.abs(wind.showedAt - three - 12) < 0.5, `Mosi shows how at 12 s: ${(wind.showedAt - three).toFixed(1)}`);
   assert.ok(seen.spokenAt.get('k4_mosi_blow') >= wind.showedAt, 'Mosi: "Svona! Fúúú!"');
   const autos = wind.gusts.filter(g => g.by === 'auto').map(g => g.at - three);
@@ -871,19 +872,24 @@ test('an untouched child finishes in about 6.5 to 7.5 minutes and never over 10'
   assert.ok(end.at >= 370 && end.at <= 540, `end=${end.at.toFixed(1)}`);
 });
 
-test('the star k4_flugedla is saved once and map piece d is drawn; the book opens on Flugeðla, nodding, then on the map', async () => {
+test('the star k4_flugedla is saved once and map piece d is drawn; she asks Egill to play and the book opens on its games', async () => {
   const { save, moments, book, world, seen } = await playWide();
   assert.equal(save.get().stars.filter(id => id === 'k4_flugedla').length, 1);
   assert.deepEqual(moments.flatMap(moment => moment.ids), ['d'], 'piece d, once: by her star, it ends at her place (engine/book/map-page.js)');
-  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
-  assert.deepEqual(book.nods.slice(-2), ['flugedla', null], 'Flugeðla, new on the Risaeðlur page, nods as it opens');
+  // as chapter 1 ends (the juice review of 2026-11-07): Mosi's „Fjórar komnar“, her ask to play, and the book on its games
+  assert.equal(book.opened.map(([tab]) => tab).at(-1), 'games', 'the book opens on its games, where her game waits');
+  const untouchedRun = await playUntouched();
+  assert.ok(untouchedRun.book.played.some(([id, opts]) => id === 'minnisspil' && opts?.tutorial === true), 'her game opens in tutorial mode');
+  const four = seen.spokenAt.get('k4_mosi_four');
+  const play = seen.spokenAt.get('k4_flugedla_play');
+  assert.ok(seen.spokenAt.get('k4_mosi_horn') < four && four < play, 'Mosi says where they stand after the horn, then she asks Egill to play');
   // her tile shows by her place (cards.json: flugedla unlocks with the place), which chapter 3's lookout marks; an old chapter 2 save
   // comes here without chapter 3 (save.js defaultChapter), so meeting her marks it too, and the tile that nods is hers, not a shadow
   assert.ok(save.get().places.includes('flugedla'), `her place is on the map: ${save.get().places}`);
   const fromChapter3 = await playIt({ savedWith: s => { ['k1_kambedla', 'k2_thorsedla'].forEach(id => s.addStar(id)); s.addPlace('flugedla'); } });
   assert.equal(fromChapter3.save.get().places.filter(id => id === 'flugedla').length, 1, 'once, if chapter 3 marked it');
   const end = world.chapterTimeline.at(-1).at;
-  assert.ok(seen.spokenAt.get('k4_mosi_horn') < end, 'after the last line');
+  assert.ok(play < end, 'after the last line');
   // Her Leikir tile is the memory game, Saman getum við það! (2026-11-07, the owner's choice): the book names her star for it
   assert.equal(fs.readFileSync(new URL('../engine/book/book.js', import.meta.url), 'utf8').includes('k4_flugedla'), true);
 });
@@ -967,9 +973,14 @@ test('the animals that came stand at the far pool, never in front of Mosi, the r
       assert.ok(Math.hypot(at.x - FAR_POOL[spot][0], at.z - FAR_POOL[spot][1]) > 8, `${id} 8 m off ${spot}`);
     }
   }
-  let moved = 0;
-  for (const f of pool) for (const b of f.arrivals) moved = Math.max(moved, b.at.distanceTo(first.get(b.id)));
-  assert.ok(moved < 0.05, `they stand: at most ${moved.toFixed(3)} m from where they stood`);
+  let moved = 0, hopped = 0;
+  for (const f of pool) for (const b of f.arrivals) {
+    const start = first.get(b.id);
+    moved = Math.max(moved, Math.hypot(b.at.x - start.x, b.at.z - start.z));
+    hopped = Math.max(hopped, b.at.y - start.y);
+  }
+  assert.ok(moved < 0.05, `they stay on their spots: at most ${moved.toFixed(3)} m aside`);
+  assert.ok(hopped > 0.3 && hopped <= 0.75, `and hop for joy as she lands: ${hopped.toFixed(2)} m`);
   // never between the camera and Mosi's head (once he is out of the reed), the reed he comes out of, or Slóeðla's bed across the pool
   const middle = ([x, z]) => new THREE.Vector3(x, world.heightAt(x, z) + 1, z);
   const reed = middle(FAR_POOL.reeds[0].at), bed = middle(FAR_POOL.reeds[1].at);
