@@ -24,7 +24,7 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, trace: null };
+  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, trace: null, eval: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--step') o.step = Number(next());
@@ -35,7 +35,8 @@ function parseArgs(argv) {
     else if (a === '--query') o.query = next();
     else if (a === '--bodies') o.bodies = next();
     else if (a === '--browser') o.browser = next();
-    else if (a === '--trace') o.trace = next(); // print one butterfly's place (and, for the swarm, where it was drawn) every step
+    else if (a === '--eval') o.eval = next(); // an expression to run in the page at the end (to look into one moment), its value printed
+    else if (a === '--trace') o.trace = next(); // print one butterfly's place and where it was drawn (state.drawn) every step
     else throw new Error(`unknown argument ${a}`);
   }
   return o;
@@ -110,7 +111,7 @@ const STEP = (n, step, trace) => `(async () => {
       c.last[q.name] = q.p.slice();
     }
     const tr = pts.find(q => q.name === ${JSON.stringify(trace)});
-    if (tr) { const i = /^s(\\d+)$/.exec(tr.name); (c.trace ??= []).push([+st.time.toFixed(3), tr.p.map(x => +x.toFixed(3)), i ? st.swarmDrawn[+i[1]]?.map(x => +x.toFixed(3)) : null]); }
+    if (tr) { (c.trace ??= []).push([+st.time.toFixed(3), tr.p.map(x => +x.toFixed(3)), st.drawn?.[tr.name]?.map(x => +x.toFixed(3)) ?? null]); }
     const found = c.probe.look(pts).filter(f => f.inside || f.clearance < 0.3);
     c.steps.push({ t: +st.time.toFixed(3), found });
   }
@@ -176,6 +177,7 @@ async function main() {
       if (Math.round(t) % 10 === 0) process.stdout.write(`  ${t.toFixed(1)} s (${((Date.now() - started) / 1000).toFixed(0)} s)\n`);
     }
     if (o.trace) for (const row of await evaluate('window.__clip.trace || []')) console.log(JSON.stringify(row));
+    if (o.eval) console.log(JSON.stringify(await evaluate(o.eval), null, 1));
     const table = await evaluate(TABLE(o.step, o.clearance));
     if (errors.length) table.pageErrors = errors.slice(0, 5);
     console.log(`seconds with a centre inside a body: ${table.secondsInside}`);

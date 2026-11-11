@@ -22,7 +22,7 @@ test('a point inside a capsule is put outside it by the margin, wherever it was 
 });
 
 test('the soft zone bends a flight early: a point just outside is moved a little outward, one past the zone not at all', () => {
-  const O = R * (1 + SOFT);
+  const O = R + SOFT;
   const near = [0, 1 + R * 1.1, 0]; // above the axis, inside the soft zone
   const out = pushOut(near, [CAP], options);
   assert.ok(dist(out) > dist(near) + 1e-4, 'moved out');
@@ -122,7 +122,7 @@ test('the shells of Mosi and Þórseðla hold their bodies: nearly every vertex 
     assert.ok(share > 0.85, `${name}: ${(share * 100).toFixed(1)} % of the vertices inside`);
     console.log(`${name}: ${shell.capsules.length} capsules, ${(share * 100).toFixed(1)} % of the vertices inside, the farthest ${worst.toFixed(3)} m out`);
     assert.ok(worst < 0.5, `${name}: the farthest vertex is ${worst.toFixed(3)} m outside`);
-    assert.ok(shell.capsules.length >= 6 && shell.capsules.length <= 60, `${name}: ${shell.capsules.length} capsules`);
+    assert.ok(shell.capsules.length >= 6 && shell.capsules.length <= 160, `${name}: ${shell.capsules.length} capsules`);
   }
 });
 

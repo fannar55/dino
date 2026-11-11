@@ -118,12 +118,14 @@ const MOTHS = [
     [58, 0.18, 0.2, 2.8, 'rest'], [60, 0.18, 0.2, 2.9]] },
   { name: 'moth-b', tint: COLOURS[2], ring: 0, wig: [0.035, 0.04, 2.3, 1.7, 2.1], keys: [
     [0, 0.85, 0.4, 2.5], [5, 0.78, 0.45, 0.9], [9, 0.8, 0.55, 0.62], [13, 0.82, 0.5, 0.7], [17, 0.78, 0.6, 0.8], [21, 0.8, 0.52, 0.66],
-    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [44.5, 0.8, 0.55, 0.85], [50, 0.8, 0.5, 0.62], [54, 0.78, 0.45, 0.76],
-    [58, 0.84, 0.15, 2.8, 'rest'], [60, 0.84, 0.15, 2.9]] },
+    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [44.5, 0.8, 0.55, 0.85], [50, 0.8, 0.5, 0.62], [53, 0.76, 0.62, 0.6],
+    // round 5: down and out of the way of Þórseðla's head and neck as they go back up (53.2-55.5), and away to the left behind Mosi
+    [55.5, 0.68, 0.74, 0.8], [58, 0.3, 0.32, 2.8, 'rest'], [60, 0.3, 0.31, 2.9]] },
 ];
 // the swarm's depth through its dance (as a share of D), which the moths' ring follows too; and (round 5) how far right of the
-// middle its ring turns: behind the screen it turns right of Mosi, whose body is there (k 1-1.6), and in the middle out in front
-const KC = track([[30, 0.1, 0, 1.45], [33.5, 0.1, 0, 1.3], [38, 0, 0, 0.62, 'rest'], [40.5, 0, 0, 0.62, 'rest'], [44.5, 0.1, 0, 1.15], [50, 0.1, 0, 1.3]]);
+// middle its ring turns: behind the screen and through it it turns right of Mosi, whose head and body are there (k 1-1.6), and in
+// the middle only out in front of him
+const KC = track([[30, 0.12, 0, 1.45], [33.5, 0.12, 0, 1.3], [36.5, 0.1, 0, 0.85], [38, 0, 0, 0.62, 'rest'], [40.5, 0, 0, 0.62, 'rest'], [42, 0.1, 0, 0.85], [44.5, 0.12, 0, 1.15], [50, 0.12, 0, 1.3]]);
 /** A moth's (u, v, k) at show time t: its keys with a lively loop on top, and during the swarm a ring round its edge. */
 function mothAt(m, t, out = []) {
   m.track ??= track(m.keys);
@@ -383,8 +385,9 @@ export const chapter = {
     }
     updateShells();
     world.effects.add({ label: 'dans shells', update() { updateShells(); if (state.showing) flownCheck(); return true; } });
-    /** A butterfly drawn at `p` (moved in place): out of every animal by `margin`, `weight` (0..1) of the way. */
-    function keepOut(p, margin, weight = 1) {
+    /** A butterfly drawn at `p` (moved in place): out of every animal by `margin`, `weight` (0..1) of the way; `name` keeps where it was drawn (state.drawn, for the probe). */
+    function keepOut(p, margin, weight = 1, name = null) {
+      if (name) state.drawn[name] = [p.x, p.y, p.z];
       if (weight <= 0) return p;
       let q = [p.x, p.y, p.z];
       for (const shell of shells) q = shell.push(q, { margin, forward });
@@ -405,7 +408,7 @@ export const chapter = {
     // ---- the swarm (one draw call), the state for probes ----
     const swarm = createSwarm({ count: SWARM, scale: SWARM_SCALE, seed: 'fidrildadans', uWindTime: world.wind?.uniforms?.uWindTime, antialias: true });
     world.scene.add(swarm.mesh);
-    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], swarmDrawn: [], swarmContact: [], time: 0, heroContact: false, flown: {} };
+    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], drawn: {}, swarmContact: [], time: 0, heroContact: false, flown: {} };
     world.dans = { state, framePoint, frameOf, measure, butterflies: points, clipProbe: (names = SHELLED) => createClipProbe(world, names), shells };
 
     /** Every butterfly of the show as it is drawn now, for the clip probe: [{ name, p, wing, contact }]. */
@@ -529,7 +532,7 @@ export const chapter = {
       state.walking = false;
       for (const m of MOTHS) {
         const at = [];
-        butterflies?.follow(m.name, out => { mothAt(m, tau(), at); return keepOut(framePoint(at[0], at[1], at[2], out), heroWing() + SAFE); }, { snap: true });
+        butterflies?.follow(m.name, out => { mothAt(m, tau(), at); return keepOut(framePoint(at[0], at[1], at[2], out), heroWing() + SAFE, 1, m.name); }, { snap: true });
       }
       const walkAt = ARRIVE - thorLength / THOR_SPEED;
       state.walkAt = +walkAt.toFixed(2);
@@ -546,7 +549,7 @@ export const chapter = {
         const t = tau();
         heroKeys(t, uvk);
         const [du, dv] = hover(t);
-        return keepOut(framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out), heroWing() + SAFE);
+        return keepOut(framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out), heroWing() + SAFE, 1, 'hero');
       };
       butterflies?.follow(HERO, heroPath, { snap: true }); // round 5: on its path at once, under the opening black (not eased in from its loop, through Mosi)
       state.hero = () => butterflies?.hero?.group.getWorldPosition(new THREE.Vector3());
@@ -650,7 +653,7 @@ export const chapter = {
         const w = t > t0 + 6 ? 0.025 : 0;
         state.heroContact = t < t0 + 1;
         // off the horn it is in the shell's margin: the push comes in over its first second, as it leaves the head
-        return keepOut(framePoint(uvk2[0] + w * Math.sin(0.9 * t), uvk2[1] + w * 0.6 * Math.sin(1.7 * t), uvk2[2], out), heroWing() + SAFE, smooth(t - t0));
+        return keepOut(framePoint(uvk2[0] + w * Math.sin(0.9 * t), uvk2[1] + w * 0.6 * Math.sin(1.7 * t), uvk2[2], out), heroWing() + SAFE, smooth(t - t0), 'hero');
       });
     }
 
@@ -753,8 +756,7 @@ export const chapter = {
         for (let i = 0; i < SWARM; i++) {
           const b = each[i];
           const push = pushOf(b, t);
-          state.swarmDrawn[i] = at(b, t, a).toArray();
-          keepOut(a, SWARM_WING + SAFE, push);
+          keepOut(at(b, t, a), SWARM_WING + SAFE, push, 's' + i);
           keepOut(at(b, t + 0.05, c), SWARM_WING + SAFE, push);
           const dx = c.x - a.x, dz = c.z - a.z;
           if (Math.hypot(dx, dz) > 2e-4) b.yaw = Math.atan2(dz, dx);
