@@ -10,6 +10,7 @@ import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { MELODY, GROUPS, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from '../chapters/kafli5-song.js';
 import { SONG } from '../chapters/kafli5-set.js';
+import { CAMERA } from '../chapters/kafli5-video.js';
 import { HELP } from '../chapters/kafli5-choir.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
 import { SHOTS, STEPS, WADE, SPOTS } from '../chapters/kafli5-pool.js';
@@ -283,9 +284,11 @@ test('scene 6 plays the whole set: every part of it in order, her words on the s
   const shotAt = time => run.seen.cuts.findLast(cut => cut.at <= time + 1e-6)?.shot;
   const part = id => SET.sections.find(section => section.id === id);
   const middle = section => c.songStart + (section.startBeat + section.beats / 2) * BEAT;
-  assert.equal(shotAt(middle(part('break'))), 'sloedla_out');
-  assert.equal(shotAt(middle(part('welcome'))), 'pool_open');
-  assert.equal(shotAt(middle(part('grazers'))), 'choir_wide');
+  assert.equal(shotAt(middle(part('break')) - 4 * BEAT), 'set_her_close');
+  assert.equal(shotAt(c.songStart + (part('welcome').startBeat + 2) * BEAT), 'set_flugedla');
+  assert.equal(shotAt(c.songStart + (part('grazers').startBeat + 2) * BEAT), 'set_grazers');
+  assert.equal(shotAt(middle(part('grazers')) + 2 * BEAT), 'set_grazers_close');
+  assert.deepEqual(logOf(run, 'cut').map(entry => entry.shot), CAMERA.map(entry => entry.cut), 'every cut of the camera, in order');
   // the groups hop as they sing in the set (nobody touched the screen)
   assert.ok(logOf(run, 'free').length === 0 && logOf(run, 'cue').some(entry => entry.kind === 'freeze'), 'the cues the video will be cut to are met');
 });

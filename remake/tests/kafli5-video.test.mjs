@@ -1,7 +1,8 @@
 // The music video's clock (chapters/kafli5-video.js): the dance beat that everything moving to the set reads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BENDS, danceBeatAt, sectionAt } from '../chapters/kafli5-video.js';
+import { BENDS, CAMERA, danceBeatAt, sectionAt } from '../chapters/kafli5-video.js';
+import { SHOTS, GROUP_SHOTS } from '../chapters/kafli5-pool.js';
 import { SONG } from '../chapters/kafli5-set.js';
 
 test('the bends are the set\'s own cues: the rewind into the second drop, and the freeze of Stoppdans', () => {
@@ -42,4 +43,64 @@ test('sectionAt names the set\'s part at a beat', () => {
   assert.equal(sectionAt(150).id, 'turtles');
   assert.equal(sectionAt(SONG.set.endBeat).id, 'end');
   assert.equal(sectionAt(-1), null);
+});
+
+// The camera (CAMERA): what the set is cut to. The style's own speeds hold (STYLE.md section 8); its 2.5 s between cuts does not,
+// as the flight has its own rule: in the set a shot lasts a bar at least, but for the few marked quick.
+const BEAT = 60 / SONG.bpm;
+const PEAK = Math.PI / 2; // a move eased in and out is this much faster in its middle than on average
+
+test('the camera is cut to the set: every part has its shot, on the bar, a bar apart at least but for the quick ones', () => {
+  assert.ok(CAMERA.length >= 45, `${CAMERA.length} cuts`);
+  for (const [k, entry] of CAMERA.entries()) {
+    assert.ok(SHOTS[entry.cut], `cut ${k} at ${entry.beat}: "${entry.cut}" is a shot`);
+    assert.ok(Number.isInteger(entry.beat), `cut ${k} on a beat (${entry.beat})`);
+    if (k === 0) continue;
+    const apart = entry.beat - CAMERA[k - 1].beat;
+    assert.ok(apart > 0, `cut ${k} after the one before`);
+    if (!entry.quick && !CAMERA[k - 1].quick) assert.ok(apart >= 4, `the shot before the cut at ${entry.beat} lasts a bar (${apart} beats)`);
+    assert.notEqual(entry.cut, CAMERA[k - 1].cut, `the cut at ${entry.beat} is to another shot`);
+  }
+  // nothing bends the picture's clock with a cut inside it: the rewind spools one shot back, and the freeze begins in the shot it is in
+  assert.ok(!CAMERA.some(entry => entry.beat > BENDS.rewind.from && entry.beat < BENDS.rewind.to), 'no cut in the rewind');
+  assert.ok(!CAMERA.some(entry => entry.beat === BENDS.freeze.from), 'no cut on "Stopp!"');
+  // quick cuts are few: the three looks at the frogs and the countdown
+  const quick = CAMERA.filter(entry => entry.quick).map(entry => entry.beat);
+  assert.ok(quick.length <= 9 && quick.every(at => (at >= 160 && at <= 162) || (at >= 286 && at <= 296)), `quick: ${quick}`);
+  // every part of the set is seen in a shot of its own choosing, and each group's part in the group's own shots
+  for (const section of SONG.set.sections) {
+    const cuts = CAMERA.filter(entry => entry.beat >= section.startBeat && entry.beat < section.startBeat + section.beats);
+    if (section.id !== 'rewind') assert.ok(cuts.length >= 1, `${section.id} has a cut`);
+    if (GROUP_SHOTS[section.feature] && section.id !== 'freeze') {
+      const own = Object.values(GROUP_SHOTS[section.feature]);
+      assert.ok(cuts.some(entry => own.includes(entry.cut)) || cuts.some(entry => entry.cut.startsWith(`set_${section.feature}`)), `${section.id} shows the ${section.feature}`);
+    }
+  }
+  // close and far: many different shots, the groups' close ones among them
+  const used = new Set(CAMERA.map(entry => entry.cut));
+  assert.ok(used.size >= 14, `${used.size} different shots`);
+  for (const group of Object.keys(GROUP_SHOTS)) assert.ok(used.has(GROUP_SHOTS[group].close) && used.has(GROUP_SHOTS[group].all), `${group} close and whole`);
+});
+
+test('every move of the camera in the set is slow enough for the style and over before the next cut', () => {
+  const far = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  for (const [k, entry] of CAMERA.entries()) {
+    if (!entry.then) continue;
+    const { then } = entry;
+    const next = CAMERA[k + 1]?.beat ?? SONG.set.endBeat + 4;
+    assert.ok(then.beats > 0 && entry.beat + then.beats <= next, `the move at ${entry.beat} ends by the cut at ${next}`);
+    const seconds = then.beats * BEAT;
+    assert.ok(seconds >= 1.5, `the move at ${entry.beat} takes ${seconds.toFixed(2)} s (1.5 at least)`);
+    const shot = SHOTS[entry.cut];
+    const reach = far(shot.position, shot.target);
+    if (then.push !== undefined) assert.ok((Math.abs(then.push) / seconds) * PEAK <= 1.2, `the push at ${entry.beat}: ${((Math.abs(then.push) / seconds) * PEAK).toFixed(2)} m/s`);
+    else if (then.orbit !== undefined) {
+      assert.ok((Math.abs(then.orbit) / seconds) * PEAK <= 10, `the orbit at ${entry.beat}: ${((Math.abs(then.orbit) / seconds) * PEAK).toFixed(1)} deg/s`);
+      const arc = (reach * Math.abs(then.orbit) * Math.PI) / 180;
+      assert.ok((arc / seconds) * PEAK <= 1.2, `the orbit at ${entry.beat} carries the camera ${((arc / seconds) * PEAK).toFixed(2)} m/s`);
+    } else if (then.zoom !== undefined) {
+      assert.ok(then.zoom >= 24 && then.zoom <= 60 && (Math.abs(then.zoom - shot.fov) / seconds) * PEAK <= 8, `the zoom at ${entry.beat}`);
+    } else assert.fail(`the move at ${entry.beat} is a push, an orbit or a zoom`);
+  }
+  assert.ok(CAMERA.filter(entry => entry.then).length >= 20, 'the camera moves in many of its shots');
 });

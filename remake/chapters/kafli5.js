@@ -27,7 +27,7 @@ import { lineQueue } from './kafli4-flight-play.js';
 import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
 import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from './kafli5-song.js';
 import { SONG } from './kafli5-set.js';
-import { danceBeatAt, sectionAt } from './kafli5-video.js';
+import { CAMERA, danceBeatAt, sectionAt } from './kafli5-video.js';
 import { createDances } from './kafli5-dances.js';
 import { createShow } from './kafli5-show.js';
 import { createChoir, ECHO, NOTE, WHOLE } from './kafli5-choir.js';
@@ -91,10 +91,6 @@ const BAND = { in: 2, join: 1.5, out: 4 * BEAT }; // s: the far band fades in as
 const SET_LEVEL = 1.4; // the set's level against the theme's place in the mix: a party is louder than a walk (chapter 4's flight song: 1.3)
 const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
 const HOP_APART = 0.45; // s: a group that sings quick notes in the set hops no oftener than this
-const CUT_APART = 2.6; // s a shot of the set is held at least (the director asks for 2.5 between cuts)
-// Whom each part of the set is about, as its sections name them (SONG.set.sections feature), and the shot that shows them: the first
-// cut of the music video. A group's part turns the choir's shot toward it.
-const SET_SHOT = { sloedla: 'sloedla_out', flugedla: 'pool_open' };
 // The choir's shot turns gently toward the group that sings: this share of the way from its own aim to the group, over `seconds`
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
 // The share is halved until every group and the reed are inside FRAMED of the frame from its middle (an upright screen turns less).
@@ -315,6 +311,7 @@ function onTheBeat(s, c, play) {
 // first beat), the events of a beat together.
 const SET_BEATS = (() => {
   const events = [
+    ...CAMERA.map(shot => ({ ...shot, kind: 'camera' })), // the cut first: what happens on its beat is seen in the new shot
     ...SET.sections.map(section => ({ beat: section.startBeat, kind: 'section', section })),
     ...SET.lines.map(line => ({ beat: line.beat, kind: 'line', line })),
     ...SET.cues,
@@ -413,14 +410,20 @@ function onSet(s, c, event) {
       const { section } = event;
       c.set.section = section;
       c.log({ type: 'section', id: section.id, feature: section.feature });
-      // a part too short to hold a shot (the rewind: four beats) keeps the shot it came in on
-      const shot = SET_SHOT[section.feature] ?? 'choir_wide';
-      if (shot !== c.set.shot && section.beats * BEAT >= CUT_APART && s.time - c.set.cutAt >= CUT_APART) {
-        c.set.shot = shot;
-        c.set.cutAt = s.time;
-        s.camera.cut(shot);
-      }
-      if (GROUPS.includes(section.feature)) leanTo(s, c, section.feature);
+      break;
+    }
+    case 'camera': {
+      // the music video's camera (kafli5-video.js CAMERA): a cut on the beat, and a slow move while the shot lasts. The set has its
+      // own rule for how long a shot lasts (a bar; STYLE.md section 8, "Tónlistarmyndband"), so the director's is not asked.
+      const { cut, then } = event;
+      c.set.shot = cut;
+      c.log({ type: 'cut', shot: cut, beat: event.beat });
+      s.camera.cut(cut, { check: false });
+      if (!then || c.reduced) break;
+      const duration = then.beats * BEAT;
+      if (then.push !== undefined) s.camera.push({ distance: then.push, duration });
+      else if (then.orbit !== undefined) s.camera.orbit({ degrees: then.orbit, duration });
+      else if (then.zoom !== undefined) s.camera.zoom(then.zoom, { duration });
       break;
     }
     case 'line':
