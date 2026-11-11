@@ -101,7 +101,7 @@ const HERO_SCALE = 1.5; // the hero moth's model, scaled up so it reads at the m
 const SWARM_WING = 0.21; // the swarm's wing reach at SWARM_SCALE
 const SAFE = 0.08;
 const SEAT_LIFT = 0.025; // a sitter's centre over the skull's surface
-const SEAT_ABOVE = 0.9; // and the point straight above its seat it comes down from and goes back up to
+const SEAT_ABOVE = 0.5; // and the point straight above its seat it comes down from
 // Þórseðla walks in (round 2, the owner: "láttu Þórseðlu ganga inn í myndina"): from deep in the forest off the right of the frame
 // to her spot, arriving ARRIVE seconds into the show at the walk clip's own speed (actor.walkTo matches the clip: no sliding).
 const THOR_FROM = [[30, -14], [19, -11]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
@@ -386,9 +386,14 @@ export const chapter = {
     const shells = SHELLED.map(n => createShell(THREE, s.actor(n).raw));
     const forward = [0, 0, -1];
     const look = new THREE.Vector3();
+    // what the shells cost, for the notes: milliseconds spent updating and pushing, and frames (state.shellCost)
+    const cost = { ms: 0, frames: 0, pushes: 0 };
     function updateShells() {
+      const t0 = performance.now();
       camera.getWorldDirection(look).toArray(forward);
       for (const shell of shells) shell.update();
+      cost.frames++;
+      cost.ms += performance.now() - t0;
     }
     updateShells();
     world.effects.add({ label: 'dans shells', update() { updateShells(); if (state.showing) flownCheck(); return true; } });
@@ -396,8 +401,11 @@ export const chapter = {
     function keepOut(p, margin, weight = 1, name = null) {
       if (name) state.drawn[name] = [p.x, p.y, p.z];
       if (weight <= 0) return p;
+      const t0 = performance.now();
       let q = [p.x, p.y, p.z];
       for (const shell of shells) q = shell.push(q, { margin, forward });
+      cost.pushes++;
+      cost.ms += performance.now() - t0;
       return p.set(lerp(p.x, q[0], weight), lerp(p.y, q[1], weight), lerp(p.z, q[2], weight));
     }
     // the hero model's wing reach at HERO_SCALE (its mesh's bounding sphere, scaled as drawn), once it has loaded
@@ -415,7 +423,7 @@ export const chapter = {
     // ---- the swarm (one draw call), the state for probes ----
     const swarm = createSwarm({ count: SWARM, scale: SWARM_SCALE, seed: 'fidrildadans', uWindTime: world.wind?.uniforms?.uWindTime, antialias: true });
     world.scene.add(swarm.mesh);
-    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], drawn: {}, swarmContact: [], time: 0, heroContact: false, flown: {} };
+    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], drawn: {}, swarmContact: [], shellCost: cost, time: 0, heroContact: false, flown: {} };
     world.dans = { state, framePoint, frameOf, measure, butterflies: points, clipProbe: (names = SHELLED) => createClipProbe(world, names), shells };
 
     /** Every butterfly of the show as it is drawn now, for the clip probe: [{ name, p, wing, contact }]. */
@@ -436,7 +444,7 @@ export const chapter = {
         const c = (state.flown[name] ??= { near: Infinity, far: 0, edgeSamples: 0, nearWide: 0, jump: 0, jumpAt: null, last: null });
         c.near = Math.min(c.near, +k.toFixed(3));
         c.far = Math.max(c.far, +k.toFixed(3));
-        if (k < 1 && (u < 0.12 || u > 0.88 || vv < 0.12 || vv > 0.88)) c.edgeSamples++;
+        if (k < 1 && (u < 0.12 || u > 0.88 || vv < 0.12 || vv > 0.88)) { c.edgeSamples++; c.edgeAt ??= +state.time.toFixed(2); c.edgeTo = +state.time.toFixed(2); }
         if (k < 0.6 && (Math.abs(u - 0.5) > 0.3 || Math.abs(vv - 0.5) > 0.3)) c.nearWide++;
         if (c.last && state.time > 0.3) { // (its first frames are under the opening black, as the three are put on their paths)
           const d = Math.hypot(at[0] - c.last[0], at[1] - c.last[1], at[2] - c.last[2]);
@@ -687,7 +695,8 @@ export const chapter = {
     }
 
     // The swarm: rising from the grass behind Mosi (30-33.5), a spiral round the view axis, one turn in 8 s, out of the screen to k
-    // 0.5 at the nearest (38-40.5) and back behind it; four sit on Þórseðla's head (48.5-55); all drift away into the trees (55-59.5).
+    // 0.5 at the nearest (38-40.5) and back behind it, small and high between Mosi and her; four sit on Þórseðla's head (48-53.5,
+    // round 5: off it before it goes up); all drift away into the trees (55-59.5).
     function dance() {
       const random = mulberry(25);
       const each = [];
@@ -720,7 +729,7 @@ export const chapter = {
         return framePoint(0.5 + 0.5 * x, 0.5 - 0.5 * y + ring[0] + 0.012 * Math.sin(3.1 * t + b.bob), k, out);
       };
       // A sitter (round 5): from the dance to the point SEAT_ABOVE over its seat (SIT_TO s), straight down onto the seat (SIT_DOWN s),
-      // sitting there as her head comes up, straight back up (RISE s) and away into the trees. Its seat is in her Head bone's frame.
+      // sitting there while her head rests, up off it and back (RISE s) and away into the trees. Its seat is in her Head bone's frame.
       const SIT_TO = 1.2, SIT_DOWN = 0.8, RISE = 1.0;
       // they sit while her head is still (it is down by 48.5 and goes up at 53.2) and are off it before it moves: riding it up took
       // them out of the top of the frame in front of the screen (the comfort rules), so they leave from where it rests
@@ -774,9 +783,11 @@ export const chapter = {
         for (let i = 0; i < SWARM; i++) {
           const b = each[i];
           const push = pushOf(b, t);
-          keepOut(at(b, t, a), SWARM_WING + SAFE, push, 's' + i);
-          keepOut(at(b, t + 0.05, c), SWARM_WING + SAFE, push);
+          // it faces the way it is drawn to fly (a push bends the path only a little, and costs a push)
+          at(b, t + 0.05, c);
+          at(b, t, a);
           const dx = c.x - a.x, dz = c.z - a.z;
+          keepOut(a, SWARM_WING + SAFE, push, 's' + i);
           if (Math.hypot(dx, dz) > 2e-4) b.yaw = Math.atan2(dz, dx);
           const sitting = t < b.birth || (b.sit >= 0 && t >= sitFrom(b) + SIT_TO + SIT_DOWN && t < leaveAt(b));
           const flap = t < b.birth ? 1.25 : sitting ? 0.7 + 0.45 * Math.sin(1.6 * t + b.bob) : -1;
@@ -835,7 +846,7 @@ export const chapter = {
       }
       const walk = { walkAt: state.walkAt, firstIn: state.firstIn, arrived: state.arrived, settled: state.settled, near: state.walkNear, edge: state.walkEdge, scale: state.thorWalkScale, length: +thorLength.toFixed(2), feet: state.thorFeet, at: thor.root.position.toArray().map(x => +x.toFixed(3)) };
       // the flights as drawn (mothCheck, over the whole show) and as flown, pushed out of the animals (this show so far: comfort, jumps)
-      const flown = Object.fromEntries(Object.entries(state.flown).map(([n, c]) => [n, { near: c.near, far: c.far, edgeSamples: c.edgeSamples, nearWide: c.nearWide, jump: c.jump, jumpAt: c.jumpAt }]));
+      const flown = Object.fromEntries(Object.entries(state.flown).map(([n, c]) => [n, { near: c.near, far: c.far, edgeSamples: c.edgeSamples, edgeAt: c.edgeAt, edgeTo: c.edgeTo, nearWide: c.nearWide, jump: c.jump, jumpAt: c.jumpAt }]));
       return { t: state.time, D: plane(), rows, comfort, walk, moths: mothCheck, flown };
     }
   },

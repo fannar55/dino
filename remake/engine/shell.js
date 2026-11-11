@@ -4,23 +4,27 @@
 // The capsules are fitted from the animal's own skinned body mesh (fitCapsules): each vertex goes to the bone that moves it most;
 // bones that move few vertices give theirs to their parent; each bone's vertices, in that bone's own frame, give a capsule along
 // their main axis (the segment between low and high percentiles of their spread along it) whose radius is a high percentile of their
-// distance from it. Nothing is placed by hand per animal. update() reads the bones as they are now; push(point) says where a thing
-// drawn at `point` may be (pushOut).
+// distance from it. A part too wide for one capsule (wider than SPLIT of the body: Mosi's head with its frill was one ball 1.4 m
+// across) gets spokes instead, a capsule from its middle out to each patch of its skin. Nothing is placed by hand per animal: Mosi
+// gets 97 capsules and Þórseðla 82, which hold 99.7 % and 99.5 % of their skin to within a centimetre (shell.test.mjs).
+// update() notes each frame that the bones may have moved; the capsules are placed again when a push first comes near.
 //
 // pushOut is stateless: the answer depends only on the drawn point, the capsules and the camera's forward direction, so a seek
-// lands on the same frame. Out of each capsule by `margin` (a wing's reach), with a soft zone (soft · radius further out) in which
-// a flight bends round early instead of hitting the shell and sliding. The way out leans toward `bias` (up and a little away from
-// the camera), so a flight drawn straight through the middle of a capsule goes over it, never flipping from one side to the other
-// as it crosses the axis. A push never brings a point nearer the camera: its component toward the camera is taken out, so it moves
-// across the view or deeper (going behind an animal is fine; going through it is not).
+// lands on the same frame. The capsules make one field, the distance outside them less a margin (a wing's reach), blended where two
+// meet; a point is moved out to the margin, with a soft zone SOFT further out in which a flight bends round early instead of hitting
+// the shell and sliding along it. It moves by flowing along the way out (the field's slope) leaning toward `bias` (up and a little
+// away from the camera), strongly deep inside and not at all at the soft zone's edge, so a flight drawn straight through the middle
+// of a body goes over it, never flipping from one side to the other as it crosses the axis. A push never brings a point nearer the
+// camera: the way out has its part toward the camera taken out, so it moves across the view or deeper (going behind an animal is
+// fine; going through it is not).
 //
 // No continuous push out of a solid can exist for every point (a ball cannot be mapped onto its outside continuously with its
 // far surroundings left alone: in any cross-section some drawn point must be torn between two ways round). So there is a seam,
-// and it is put where it costs least: on the shell's surface on the side away from the bias (under a lying capsule, from straight
-// below round to the front at the soft zone's edge, where the push fades to nothing; in front of a standing one, as its bias is
-// back). A flight drawn up into a body from straight below, or into a leg straight from the front, would jump there; a flight
-// through the axis, across the view or in depth, and anything entering from above or the sides, moves smoothly. The choreography
-// keeps flights from aiming at the seam, and the clip probe (tools/clip-probe.mjs) reports the largest jump of any butterfly.
+// and it is put where it costs least: at the shell's surface on the side away from the bias, underneath. A flight drawn up into a
+// body from below (or a body coming down onto a butterfly, or rising into one: a head that lifts) would jump there, through the body
+// to its top; a flight through the middle, across the view or in depth, and anything entering from above or the sides, moves
+// smoothly. The choreography keeps flights from the seam, and the clip probe (tools/clip-probe.mjs) reports the largest jump of any
+// butterfly, its move in one step less the move it was drawn to make.
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
@@ -91,11 +95,12 @@ export function pushOut(point, capsules, { margin = 0, soft = SOFT, forward = [0
 }
 
 /** The blended distance outside the capsules less the margin (negative inside), and its slope into `grad`. */
+let F = new Float64Array(64), U = new Float64Array(192); // the field's scratch: each capsule's distance and way out
 function field(p, capsules, margin, grad) {
   let m = Infinity;
-  const fs = [];
-  const us = [];
-  for (const cap of capsules) {
+  if (F.length < capsules.length) { F = new Float64Array(capsules.length * 2); U = new Float64Array(capsules.length * 6); }
+  for (let i = 0; i < capsules.length; i++) {
+    const cap = capsules[i];
     const ax = cap.b[0] - cap.a[0], ay = cap.b[1] - cap.a[1], az = cap.b[2] - cap.a[2];
     const l2 = ax * ax + ay * ay + az * az;
     let t = l2 > 1e-12 ? ((p[0] - cap.a[0]) * ax + (p[1] - cap.a[1]) * ay + (p[2] - cap.a[2]) * az) / l2 : 0;
@@ -103,19 +108,21 @@ function field(p, capsules, margin, grad) {
     const vx = p[0] - cap.a[0] - ax * t, vy = p[1] - cap.a[1] - ay * t, vz = p[2] - cap.a[2] - az * t;
     const d = Math.hypot(vx, vy, vz);
     const f = d - cap.r - margin;
-    fs.push(f);
+    F[i] = f;
     // the way out of it: straight out from its axis, fading to nothing at the axis itself (where straight out flips side), so deep
     // inside the bias alone leads out and the way changes smoothly through the middle
     const k = Math.min(1, d / Math.max(1e-6, 0.5 * (cap.r + margin))) / Math.max(d, 1e-9);
-    us.push([vx * k, vy * k, vz * k]);
+    U[3 * i] = vx * k; U[3 * i + 1] = vy * k; U[3 * i + 2] = vz * k;
     if (f < m) m = f;
   }
   let sum = 0;
   grad[0] = grad[1] = grad[2] = 0;
-  for (let i = 0; i < fs.length; i++) {
-    const e = Math.exp(-(fs[i] - m) / BLEND);
+  for (let i = 0; i < capsules.length; i++) {
+    const x = (F[i] - m) / BLEND;
+    if (x > 9) continue; // e^-9: nothing it could add would show
+    const e = Math.exp(-x);
     sum += e;
-    grad[0] += e * us[i][0]; grad[1] += e * us[i][1]; grad[2] += e * us[i][2];
+    grad[0] += e * U[3 * i]; grad[1] += e * U[3 * i + 1]; grad[2] += e * U[3 * i + 2];
   }
   grad[0] /= sum; grad[1] /= sum; grad[2] /= sum;
   return m - BLEND * Math.log(sum);
@@ -230,7 +237,7 @@ function patches(pts, k) {
 
 /**
  * A shell for an actor (engine/actor.js), fitted from its skinned body mesh (`mesh`, or the one named "..._body"). THREE is three.js.
- * Returns { capsules (world, after update), update(), push(point, options), fitted }.
+ * Returns { capsules (world, as last placed), update(), place(), push(point, options), fitted, body }.
  */
 export function createShell(THREE, actor, { mesh = null, minVertices = 60, ends = 0.02, radius = 0.99, split = SPLIT, grow = 1 } = {}) {
   let body = mesh;
@@ -267,8 +274,19 @@ export function createShell(THREE, actor, { mesh = null, minVertices = 60, ends 
   const capsules = fitted.map(f => ({ a: [0, 0, 0], b: [0, 0, 0], r: f.r * grow, bone: bones[f.bone].name }));
   const A = new THREE.Vector3(), B = new THREE.Vector3(), S = new THREE.Vector3();
   const sphere = { centre: [0, 0, 0], radius: 0, widest: 0 };
+  // update() is cheap: it notes that the bones may have moved and where the animal stands; the capsules are placed again only when a
+  // push comes within reach of it (an animal far from every butterfly costs nothing)
+  let stale = true;
+  let reachFromRoot = Infinity;
+  const root = [0, 0, 0];
+  const R0 = new THREE.Vector3();
   function update() {
+    stale = true;
     actor.root.updateMatrixWorld(true);
+    actor.root.getWorldPosition(R0).toArray(root);
+  }
+  function place() {
+    stale = false;
     let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     fitted.forEach((f, i) => {
       const m = bones[f.bone].matrixWorld;
@@ -284,12 +302,24 @@ export function createShell(THREE, actor, { mesh = null, minVertices = 60, ends 
     sphere.centre = scale(add(lo, hi), 0.5);
     sphere.radius = len(sub(hi, lo)) / 2;
     sphere.widest = Math.max(...capsules.map(c => c.r));
+    // how far from its root the shell can reach, as it stands now and with room for any pose (once)
+    if (reachFromRoot === Infinity) reachFromRoot = 1.5 * (len(sub(sphere.centre, root)) + sphere.radius) + 1;
   }
   /** Where a thing drawn at `point` ([x, y, z]) may be: pushOut over this shell, after a quick test of its bounds. */
   function push(point, options = {}) {
     const reach = (options.margin ?? 0) + (options.soft ?? SOFT) + 0.01;
+    if (reachFromRoot !== Infinity && len(sub(point, root)) > reachFromRoot + reach) return point;
+    if (stale) place();
     if (len(sub(point, sphere.centre)) > sphere.radius + reach) return point;
     return pushOut(point, capsules, options);
   }
-  return { capsules, update, push, fitted, body };
+  update();
+  place();
+  return {
+    capsules, push, fitted, body,
+    /** The bones may have moved: call once a frame, after the actors. */
+    update,
+    /** The capsules where the bones are now (update() leaves that to the first push near enough to need it). */
+    place() { place(); return capsules; },
+  };
 }

@@ -105,7 +105,7 @@ test('the shells of Mosi and Þórseðla hold their bodies: nearly every vertex 
     const model = gltf.scene;
     model.updateMatrixWorld(true);
     const shell = createShell(THREE, { model, root: model });
-    shell.update();
+    shell.place();
     let body = shell.body;
     const v = new THREE.Vector3();
     const pos = body.geometry.attributes.position;
