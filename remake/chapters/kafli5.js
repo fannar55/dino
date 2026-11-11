@@ -27,6 +27,9 @@ import { lineQueue } from './kafli4-flight-play.js';
 import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
 import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from './kafli5-song.js';
 import { SONG } from './kafli5-set.js';
+import { danceBeatAt, sectionAt } from './kafli5-video.js';
+import { createDances } from './kafli5-dances.js';
+import { createShow } from './kafli5-show.js';
 import { createChoir, ECHO, NOTE, WHOLE } from './kafli5-choir.js';
 import { createStems } from '../engine/audio/stems.js';
 import { createSong } from '../engine/audio/song.js';
@@ -358,16 +361,38 @@ function* theWholeSong(s, c) {
     s.after(Math.max(0, at - s.time), () => { sing(s, c, group, { counted: false, log: 'free' }); return null; });
   }));
   flugedla.raw.play('happy', { fade: 0.4 });
+  // the music video: the animals' dances and the show round them, each frame on the dance beat (kafli5-video.js: the set's beat,
+  // spooled back in the rewind and standing still in Stoppdans)
+  c.video = { beat: 0, setBeat: 0, frozen: false, rewinding: false, section: null };
+  c.dances = createDances(c);
+  c.show = createShow(c);
+  let frame = s.time;
+  s.after(0, function* video() {
+    while (!c.set.ended && !c.ended) {
+      const setBeat = (s.time - start) / BEAT;
+      Object.assign(c.video, danceBeatAt(setBeat), { setBeat, section: sectionAt(setBeat) });
+      c.dances.update(c.video);
+      c.show.update(c.video, s.time - frame);
+      frame = s.time;
+      yield;
+    }
+  });
   try {
     for (const { beat, events } of SET_BEATS) {
       yield s.until(() => s.time >= start + beat * BEAT - 1e-9);
-      for (const event of events) onSet(s, c, event);
+      for (const event of events) {
+        onSet(s, c, event);
+        c.dances.cue(event);
+        c.show.cue(event);
+      }
     }
     yield s.until(() => s.time >= start + SET.endBeat * BEAT + SET_TAIL); // the last hit rings
   } finally {
     for (const stop of offs) stop();
+    c.set.ended = s.time;
+    c.dances.dispose();
+    c.show.dispose();
   }
-  c.set.ended = s.time;
   c.her.idle();
   flugedla.raw.play('idle', { fade: 0.6 });
   yield s.camera.cut('sloedla_out');
