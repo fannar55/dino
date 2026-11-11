@@ -334,7 +334,9 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
       bus.gain.value = 1;
       bus.connect(master);
       buses.add(bus);
-      return createSfx({ context, output: bus }).play('sloedlaHorn', level === undefined ? { pan } : { pan, level });
+      // from the song's mi, low: its slip (126 cents down) holds between re and mi, 74 cents over the one and 126 under the other
+      const note = toneHz('frogs', key, -2);
+      return createSfx({ context, output: bus }).play('sloedlaHorn', level === undefined ? { pan, note } : { pan, level, note });
     },
     /** Silences every sound now, the ones waiting for their time too. */
     stop() {

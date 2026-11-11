@@ -2,9 +2,10 @@
 // choir each sing one tone of the song's major pentatonic, low to high (degrees 1, 2, 3, 5 and 6: do re mi sol la), and her song is
 // 14 notes of them in four phrases of 2, 3, 4 and 5 notes, ending on do.
 //
-// The melody is chunk 1's draft (the owner hears it in the chunk's video): sol mi / re mi do / la sol mi sol / la sol mi re do, a
-// call and its answer, a climb and the way home. The tempo and the key are placeholders until Task 7 measures her song's backing;
-// the tones are tuned just (the ratios 1, 9/8, 5/4, 3/2, 5/3 over the root), so the five sing clean together.
+// The melody: sol mi / re mi do / la sol mi sol / la sol mi re do, a call and its answer, a climb and the way home. The tempo and
+// the key are the song's (assets/audio/kafli5/song/song.json, the owner's pick of 2026-11-11: DJ Flugeðla's set on a disco-funk
+// band, 125 beats a minute, the animals on A B C# E F#). A recorded band is tuned in equal steps, so the tones are too (0, 2, 4, 7
+// and 9 semitones over the root): tuned just, mi and la would sit 14 and 16 cents under the band's.
 //
 // Pure data and small pure helpers; the choir (kafli5-choir.js) and the sounds (engine/audio/choir-sounds.js) read it.
 import { beatAt } from '../engine/beat.js';
@@ -13,7 +14,7 @@ import { beatAt } from '../engine/beat.js';
 export const GROUPS = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers'];
 /** Each group's degree of the major pentatonic. */
 export const TONES = { grazers: 1, turtles: 2, frogs: 3, lizards: 5, flyers: 6 };
-const RATIO = { 1: 1, 2: 9 / 8, 3: 5 / 4, 5: 3 / 2, 6: 5 / 3 };
+const RATIO = { 1: 1, 2: 2 ** (2 / 12), 3: 2 ** (4 / 12), 5: 2 ** (7 / 12), 6: 2 ** (9 / 12) };
 
 /** Her song: four phrases of group ids, 2, 3, 4 and 5 notes. No note is the one before it. */
 export const MELODY = [
@@ -23,12 +24,17 @@ export const MELODY = [
   ['flyers', 'lizards', 'frogs', 'turtles', 'grazers'], // la sol mi re do
 ];
 
-/** Beats a minute and where beat 0 falls (s), until Task 7 measures the song. */
-export const TEMPO = { bpm: 84, offset: 0 };
+/** Beats a minute and where beat 0 falls (s on the game clock): the song's (song.json). */
+export const TEMPO = { bpm: 125, offset: 0 };
 /** The song's key: its root's name and the tuning of the A over middle C. */
-export const KEY = { root: 'F', a4: 440 };
-/** The stem layers that join after phrases 1 to 4 (Task 7 names the real stems). */
-export const PHRASE_LAYERS = [['pad'], ['bass'], ['beat'], ['lead']];
+export const KEY = { root: 'A', a4: 440 };
+/**
+ * The band under the choir (engine/audio/stems.js, the loop's layers in song.json): the levels as the task starts, the band heard
+ * from far away, and what each finished phrase changes: the drums step out of the haze, then the bass, then the guitars and the
+ * far copy goes, and with the last phrase the whole band comes up. A level of 0.7 sits where the page's theme does in the mix.
+ */
+export const LAYER_LEVELS = { far: 0.35 };
+export const PHRASE_LAYERS = [{ drums: 0.45 }, { bass: 0.45 }, { music: 0.45, far: 0 }, { drums: 0.7, bass: 0.7, music: 0.7 }];
 
 // Semitones from A to each note in the octave of middle C (C4 to B4), sharps and flats too.
 const FROM_A = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };

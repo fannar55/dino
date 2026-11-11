@@ -400,9 +400,9 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     // Slóeðla's horn from the reed across the far pool (chapter 4's end; chapter 5 begins with it): she cannot remember her song, and
     // the one long note through her hollow crest will not hold. It comes in from a little under, holds, slips flat (less than a whole
     // tone: false, not another note) with a wobble that widens, and sinks away. Low and dull, far off, from the side `pan` says.
-    sloedlaHorn({ pan = 0, level = HORN.level } = {}) {
+    sloedlaHorn({ pan = 0, level = HORN.level, note = HORN.note } = {}) {
       const at = context.currentTime + 0.02;
-      const f = HORN.note;
+      const f = note; // chapter 5 names a note of its song's key, so the slip lands between two of its tones (choir-sounds.js)
       const end = at + HORN.seconds;
       const volume = context.createGain();
       const g = volume.gain;
