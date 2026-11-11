@@ -75,7 +75,7 @@ test('everyone stands as they were found when the set starts and when its last h
 // What may change in a sixtieth of a second: more is a pop, not a move. A clip's time counts only while the clip shows.
 const STEP = {
   default: 0.25, lift: 0.1, side: 0.05, yaw: 8, roll: 4, lean: 4, rear: 3, nod: 4, tail: 6, spin: 11, heading: 16, pitch: 12, bank: 16, bow: 4, turn: 4, tilt: 3,
-  'at.0': 0.7, 'at.1': 0.7, 'at.2': 0.7, 'raise.left': 8, 'raise.right': 8, 'look.0': 3, 'look.1': 3, 'look.2': 3, clock: 0.05,
+  'at.0': 0.7, 'at.1': 0.7, 'at.2': 0.7, 'raise.left': 11, 'raise.right': 11, 'look.0': 3, 'look.1': 3, 'look.2': 3, clock: 0.05,
 };
 const LOOPS = { 'wave.time': 2.4, 'clips.fly.time': 1.4, 'clips.happy.time': 2.4 };
 function pops(who, { fps = 60, skip = () => false } = {}) {
@@ -171,7 +171,7 @@ test('Mosi: a slow sway from foot to foot, a nod on the backbeat, a stomp with t
   const [right, left] = [at('mosi', 73), at('mosi', 75)];
   assert.ok(right.roll > 2 && right.side > 0.15 && right.feet.fl > 0.1 && right.feet.fr === 0, `to his right (${JSON.stringify(right.feet)})`);
   assert.ok(left.roll < -2 && left.side < -0.15 && left.feet.fr > 0.1 && left.feet.fl === 0, 'to his left');
-  assert.ok(at('mosi', 73).nod < -6 && at('mosi', 74).nod > -3, 'his head is down on the backbeat and up after');
+  assert.ok(at('mosi', 73).nod < -10 && at('mosi', 74).nod > -4, 'his head is down on the backbeat and up after');
   // slow and big: nothing of his sways faster than a bar
   for (const stomp of STOMPS) {
     const foot = STOMPS.indexOf(stomp) % 2 ? 'fl' : 'fr';
@@ -200,7 +200,9 @@ test('Flugeðla: she faces her dance floor, her wings go up on "Vængina upp!" a
   assert.ok(at('flugedla', 260).raise.left < 10, 'and not before');
   // she beats the time on the water with the band's wing beats
   const wings = SET.cues.filter(event => event.kind === 'wings').map(event => event.beat);
-  for (const beat of wings.filter(b => b >= 128 && b < 144)) assert.ok(at('flugedla', beat).raise.left < -15, `her wings are down on the water at ${beat}`);
+  for (const beat of wings.filter(b => b >= 128 && b < 144)) {
+    assert.ok(at('flugedla', beat).raise.left < -40 && at('flugedla', beat).spread > 0.8 && at('flugedla', beat - 0.45).raise.left > 10, `her wings lift and come down on the water at ${beat}`);
+  }
   // the ending that is not one: still, then a wing flicks on "Einu sinni enn!"
   assert.ok(Math.abs(at('flugedla', 423).lift) < 0.01 && at('flugedla', 425).raise.left > 30 && at('flugedla', 425).blink, 'still, and a flick');
   // "Takk fyrir djammið!": she bows
@@ -308,4 +310,167 @@ test('less motion: no flight, no jump, no spin, nobody off the ground; a gentle 
   }
   assert.ok(at('egill', 270, { reduced: true }).arms.right.up > 0.5 && at('flugedla', 270, { reduced: true }).raise.left > 10, 'hands and wings still go up');
   assert.ok(energy(300) > energy(100) && energy(100) > energy(20) && energy(245) < 0.1, 'the party grows, and hushes for her horn');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The score on the real models (kafli5-people.js, and her dance in kafli5-sloedla.js): the four at the pool as the set finds them,
+// played through the whole set a thirtieth of a second at a time, as the chapter's own test plays it.
+const { chapter } = await import('../chapters/kafli5.js');
+const { chapterWorld } = await import('./chapter-harness.mjs');
+const { updateActors } = await import('../engine/actor.js');
+const { sloedlaLife, DANCE } = await import('../chapters/kafli5-sloedla.js');
+const { createPeople } = await import('../chapters/kafli5-people.js');
+const { SPOTS } = await import('../chapters/kafli5-pool.js');
+const THREE = await import('three');
+const FRAME = 1 / 30;
+const HORNS = SET.cues.filter(event => event.kind === 'horn').map(event => event.beat);
+
+/** The four at the pool, she waded out, and the set ready to start: { world, c, start(), step(setBeat), play(from, to, each), people }. */
+async function atThePool({ reduced = false } = {}) {
+  const world = await chapterWorld(chapter);
+  const actor = name => ({ raw: world.actors.get(name) });
+  const c = { world, reduced, egill: actor('egill'), mosi: actor('mosi'), flugedla: actor('flugedla'), sloedla: actor('sloedla') };
+  c.mosi.raw.place(...SPOTS.mosi, headingTo(SPOTS.mosi, SPOTS.reed));
+  c.egill.raw.place(...SPOTS.egill, headingTo(SPOTS.egill, SPOTS.reed));
+  c.flugedla.raw.place(...FAR_POOL.landing, FAR_POOL.facing);
+  c.her = sloedlaLife(c.sloedla);
+  c.her.hide();
+  c.her.courage = 1;
+  c.her.wade();
+  const tick = () => updateActors(world.actors.values(), FRAME);
+  for (let i = 0; i < 3000 && c.her.moving; i++) tick();
+  for (let i = 0; i < 60; i++) tick();
+  c.her.idle();
+  c.flugedla.raw.play('happy', { fade: 0.4 }); // as the set starts (kafli5.js)
+  let horn = 0;
+  const run = {
+    world, c, tick, people: null,
+    start() { run.people = createPeople(c); return run; },
+    /** One frame at the set's beat `setBeat`: the video's clock, her horn on its cues, everyone's update. */
+    step(setBeat) {
+      while (horn < HORNS.length && HORNS[horn] <= setBeat) { c.her.blow({ seconds: BEAT }); horn++; }
+      run.people.update({ ...danceBeatAt(setBeat), setBeat });
+      tick();
+    },
+    /** Plays from the set's beat `from` to `to`, calling `each(setBeat)` after every frame. */
+    play(from, to, each = null) {
+      while (horn < HORNS.length && HORNS[horn] < from) horn++;
+      for (let b = from; b <= to + 1e-9; b += FRAME / BEAT) { run.step(b); each?.(b); }
+    },
+  };
+  return run;
+}
+const worldOf = (actor, name) => actor.model.getObjectByName(name).getWorldPosition(new THREE.Vector3());
+
+test('on her model: through the whole set, the rewind and "Dansa!", nothing of Slóeðla moves over 0.1 m or 8 degrees in a frame, and she keeps up with her dance', async t => {
+  const run = (await atThePool()).start();
+  const { c } = run;
+  const DEG = 180 / Math.PI;
+  let last = null;
+  const jumps = [];
+  const late = [];
+  let most = { moved: 0, looked: 0 };
+  run.play(0, OVER, setBeat => {
+    const p = c.her.points();
+    if (last) {
+      const moved = Math.max(...['root', 'head', 'eyes', 'crest'].map(k => p[k].distanceTo(last[k])));
+      const looked = p.facing.angleTo(last.facing) * DEG;
+      const turned = Math.abs(p.heading - last.heading);
+      if (moved > most.moved) most = { ...most, moved, movedAt: setBeat };
+      if (looked > most.looked) most = { ...most, looked, lookedAt: setBeat };
+      if (moved > 0.1 || looked > 8 || turned > 8) jumps.push(`${setBeat.toFixed(2)}: ${moved.toFixed(3)} m, head ${looked.toFixed(1)}, body ${turned.toFixed(1)} degrees`);
+    }
+    // behind her dance only where the clock races (the rewind) or leaps ("Dansa!"), and soon back with it
+    const bent = (setBeat >= BENDS.rewind.from && setBeat < BENDS.rewind.to + 3) || (setBeat >= BENDS.freeze.to && setBeat < BENDS.freeze.to + 3);
+    if (c.her.behind > 1e-6 && !bent) late.push(`${setBeat.toFixed(2)}: ${c.her.behind.toFixed(2)}`);
+    last = p;
+  });
+  t.diagnostic(`the most she moves in a frame: ${most.moved.toFixed(3)} m at ${most.movedAt.toFixed(1)}; her head turns ${most.looked.toFixed(1)} degrees at ${most.lookedAt.toFixed(1)}; behind her dance in ${late.length} frames outside the rewind and "Dansa!": ${late.slice(0, 12).join('; ')}`);
+  assert.deepEqual(jumps.slice(0, 5), [], `${jumps.length} jumps`);
+  assert.ok(most.moved <= DANCE.speed * FRAME * 1.25 + 1e-6, `the most she moves in a frame is ${most.moved.toFixed(3)} m (the set's beat ${most.movedAt.toFixed(1)}); her head turns ${most.looked.toFixed(1)} degrees (${most.lookedAt.toFixed(1)})`);
+  assert.ok(late.length < 40, `she is behind her dance in ${late.length} frames of a play as it comes: ${late.slice(0, 8).join('; ')}`);
+});
+
+test('on the models: Egill claps and his hands go up; Mosi sways from foot to foot and rears; Flugeðla\'s wings open, lift and beat the water, and she flies', async () => {
+  const run = (await atThePool()).start();
+  const { c } = run;
+  const [egill, mosi, flugedla] = [c.egill.raw, c.mosi.raw, c.flugedla.raw];
+  const span = () => worldOf(flugedla, 'LeftFinger3').distanceTo(worldOf(flugedla, 'RightFinger3'));
+  const hands = () => worldOf(egill, 'LeftHand').distanceTo(worldOf(egill, 'RightHand'));
+  const seen = {};
+  const marks = [
+    [10, () => { seen.folded = span(); }],
+    [18, () => { seen.welcome = span(); }],
+    [28, () => { seen.flying = flugedla.root.position.y - FAR_POOL.level; }],
+    [45, () => { seen.clap = hands(); }],
+    [46, () => { seen.open = hands(); }],
+    [73, () => { seen.right = { l: worldOf(mosi, 'FrontFootL').y, r: worldOf(mosi, 'FrontFootR').y, head: worldOf(mosi, 'Jaw').y }; }],
+    [74, () => { seen.between = { head: worldOf(mosi, 'Jaw').y }; }],
+    [75, () => { seen.left = { l: worldOf(mosi, 'FrontFootL').y, r: worldOf(mosi, 'FrontFootR').y }; }],
+    [129.55, () => { seen.unslap = worldOf(flugedla, 'LeftFinger3').y - flugedla.root.position.y - 0.65; }],
+    [130, () => { seen.slap = worldOf(flugedla, 'LeftFinger3').y - flugedla.root.position.y - 0.65; }], // she stands in 0.65 m of water
+    [270, () => {
+      seen.up = {
+        hands: Math.min(worldOf(egill, 'LeftHand').y, worldOf(egill, 'RightHand').y), head: worldOf(egill, 'Head').y,
+        tips: Math.min(worldOf(flugedla, 'LeftFinger3').y, worldOf(flugedla, 'RightFinger3').y), beak: worldOf(flugedla, 'Head').y, span: span(),
+      };
+    }],
+    [297.4, () => { seen.rear = { front: worldOf(mosi, 'FrontFootL').y, back: worldOf(mosi, 'BackFootL').y }; }],
+  ];
+  let next = 0;
+  const ground = mosi.root.position.y;
+  let sunk = 0;
+  run.play(0, 300, setBeat => {
+    while (next < marks.length && setBeat >= marks[next][0]) marks[next++][1]();
+    for (const foot of ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR']) sunk = Math.min(sunk, worldOf(mosi, foot).y - ground - 0.18);
+  });
+  assert.ok(seen.folded < 3 && seen.welcome > 5.5, `her wings: ${seen.folded.toFixed(1)} m tip to tip folded, ${seen.welcome.toFixed(1)} m spread for the welcome`);
+  assert.ok(seen.flying > 3, `she flies (${seen.flying.toFixed(1)} m over the water at 28)`);
+  assert.ok(seen.clap < 0.08 && seen.open > 0.2, `Egill claps: his hands ${seen.clap.toFixed(2)} m apart on the clap, ${seen.open.toFixed(2)} m between`);
+  assert.ok(seen.right.l > seen.right.r + 0.1 && seen.left.r > seen.left.l + 0.1, `Mosi's light feet come up (${JSON.stringify(seen.right)}, ${JSON.stringify(seen.left)})`);
+  assert.ok(seen.right.head < seen.between.head - 0.05, `and his head goes down on the backbeat (${seen.right.head.toFixed(2)} against ${seen.between.head.toFixed(2)} m)`);
+  assert.ok(sunk > -0.03, `his feet never go under the ground (${sunk.toFixed(3)} m)`);
+  assert.ok(seen.slap < 0.25 && seen.unslap > 2, `Flugeðla's wing tip comes down on the water on the band's wing beat (from ${seen.unslap.toFixed(2)} to ${seen.slap.toFixed(2)} m over it)`);
+  assert.ok(seen.up.hands > seen.up.head + 0.02, `Egill's hands are over his head (${seen.up.hands.toFixed(2)} against ${seen.up.head.toFixed(2)} m)`);
+  assert.ok(seen.up.tips > seen.up.beak + 0.5 && seen.up.span > 3, `Flugeðla's wing tips are over her head (${seen.up.tips.toFixed(2)} against ${seen.up.beak.toFixed(2)} m), ${seen.up.span.toFixed(1)} m apart`);
+  assert.ok(seen.rear.front > seen.rear.back + 0.25, `Mosi rears on the drop (${JSON.stringify(seen.rear)})`);
+});
+
+test('on the models: "Egill, segðu já!" his hands are at his mouth; Stoppdans holds everyone; and all are given back as they stood', async () => {
+  const run = await atThePool();
+  const { c, world } = run;
+  const stood = Object.fromEntries(['egill', 'mosi', 'flugedla', 'sloedla'].map(name => {
+    const actor = world.actors.get(name);
+    return [name, { position: actor.root.position.clone(), heading: actor.heading, head: actor.headPosition(new THREE.Vector3()) }];
+  }));
+  run.start();
+  assert.deepEqual(run.people.rigs, ['egill', 'mosi', 'flugedla']);
+  // Stoppdans: a frame deep in the freeze is the frame after "Stopp!"
+  const frozen = [];
+  const parts = () => ['egill', 'mosi', 'flugedla', 'sloedla'].flatMap(name => ['Head', name === 'egill' ? 'LeftHand' : 'Tail3'].map(b => worldOf(world.actors.get(name), b)));
+  let cup = null;
+  run.play(340, OVER, setBeat => {
+    if (setBeat >= 363 && setBeat < 371.5) frozen.push(parts());
+    if (!cup && setBeat >= 408) {
+      const egill = c.egill.raw;
+      const mouth = worldOf(egill, 'Head');
+      cup = ['LeftHand', 'RightHand'].map(hand => worldOf(egill, hand).distanceTo(mouth));
+    }
+  });
+  assert.ok(frozen.length > 100, `${frozen.length} frames of the freeze`);
+  const drift = Math.max(...frozen.flatMap(frame => frame.map((p, k) => p.distanceTo(frozen[0][k]))));
+  assert.ok(drift < 0.012, `nobody moves in Stoppdans (${drift.toFixed(4)} m at the most)`);
+  assert.ok(cup.every(d => d < 0.2), `his hands are at his mouth (${cup.map(d => d.toFixed(2))} m from his head bone)`);
+  // the set is over: everyone as they stood
+  run.people.dispose();
+  for (let i = 0; i < 90; i++) run.tick();
+  for (const name of ['egill', 'mosi', 'flugedla']) {
+    const actor = world.actors.get(name);
+    assert.equal(actor.controlled, false, `${name} is given back`);
+    assert.ok(actor.root.position.distanceTo(stood[name].position) < 1e-6 && angle(actor.heading, stood[name].heading) < 1e-6, `${name} stands where it stood`);
+  }
+  const her = world.actors.get('sloedla');
+  assert.ok(her.controlled && her.root.position.distanceTo(stood.sloedla.position) < 1e-3 && angle(her.heading, stood.sloedla.heading) < 0.1, 'Slóeðla stands as her life has her');
+  assert.ok(her.headPosition(new THREE.Vector3()).distanceTo(stood.sloedla.head) < 0.25, 'her head where it was');
+  run.people.dispose(); // twice is once
 });

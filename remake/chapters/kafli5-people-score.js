@@ -267,7 +267,7 @@ export function mosiAt(clock, { reduced = false } = {}) {
   out.feet.fr = out.feet.br = light * smooth(Math.max(0, -sway) * 1.3);
   out.tail = -14 * k * Math.sin((TAU * (d - 0.7)) / 4) + 5 * e * Math.sin(Math.PI * d);
   // the nod: down on the backbeat, a small one on every beat
-  out.nod = -e * (7 * (0.5 + 0.5 * Math.cos(Math.PI * (d - 1))) ** 2 + 2 * (0.5 + 0.5 * Math.cos(TAU * d)));
+  out.nod = -e * (12 * (0.5 + 0.5 * Math.cos(Math.PI * (d - 1))) ** 2 + 3 * (0.5 + 0.5 * Math.cos(TAU * d)));
   // the stomps: a forefoot up slowly, and down hard on the beat; his shoulders dip as it lands
   STOMPS.forEach((at, n) => {
     const foot = n % 2 ? 'fl' : 'fr';
@@ -335,6 +335,7 @@ export const FLIGHTS = [
 ];
 /** Her take-off and landing clips (pteranodon.glb): where in each her feet leave or meet the ground, and how fast they are played. */
 export const WING_CLIPS = { takeOff: { seconds: 3.2, off: 0.75, rate: 1.4 }, land: { seconds: 3.0, down: 1.95, rate: 1.25 }, fly: { seconds: 1.4, beats: 3 }, happy: { seconds: 2.4, beats: 4 } };
+const WING_SLAP = 46; // degrees down from her spread pose: her wing tips on the water where she stands
 const FLUGEDLA_LOOK = [
   [0, 'pool'], [32, 'egill'], [38, 'pool'], [226, 'her'], [262, 'pool'], [265.5, 'egill'], [268, 'pool'], [404, 'egill'], [409, 'pool'],
   [413.6, 'egill'], [416, 'pool'],
@@ -400,10 +401,13 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   out.clips.happy.weight = clamp(dance * 0.75) * (1 - wingsUp) * (1 - quiet);
   out.lift = 0.07 * dance * (0.5 - 0.5 * Math.cos(TAU * d)) - 0.12 * quiet;
   out.spread = clamp(0.3 * clamp(e * 2) + welcome + wingsUp + goodnight + 0.5 * still + flick + point);
-  // she beats the time on the water: both wings down on each of the band's wing beats
-  const slap = Math.max(...WINGS.map(at => hump(b, at - 0.45, at, at + 0.4))) * (1 - wingsUp) * on;
-  out.spread = clamp(out.spread + 0.5 * slap);
-  const beatWings = -26 * slap + 7 * dance * Math.sin(Math.PI * d);
+  // she beats the time on the water: on each of the band's wing beats her wings open and lift, and come down flat on the water
+  const beating = (1 - wingsUp) * (1 - welcome) * on;
+  const open = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.25, at + 0.75))) * beating;
+  const lifted = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.45, at - 0.05))) * beating;
+  const slap = Math.max(...WINGS.map(at => hump(b, at - 0.4, at, at + 0.6))) * beating;
+  out.spread = clamp(out.spread + open);
+  const beatWings = 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * Math.sin(Math.PI * d);
   out.raise.left = beatWings + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 38 * flick;
   out.raise.right = beatWings + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 20 * point;
   out.bow = 30 * goodnight * (0.75 + 0.25 * Math.sin((TAU * (b - 469)) / 4)) + 6 * quiet;
