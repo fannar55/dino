@@ -72,7 +72,10 @@
   {
     "id": "k5_mosi_grazers",
     "speaker": "mosi",
-    "text": "Grasbítarnir!"
+    "text": "Grasbítarnir!",
+    "context": "Nú eiga stóru grasbítarnir að syngja. Mosi bendir á þá og kallar glaður til Egils:",
+    "fixes": "grasbitur",
+    "note": "Own context: the book's recipe \"samhengi-kall\" of grasbitur, the owner's pick by ear of three on the book's page (2026-11-11), after he rejected the line sent alone. It is this line's first win, so the word's chosen stays as it was. Ný 3 adds the caption after it and sends seed 7."
   },
   {
     "id": "k5_mosi_turtles",
@@ -95,7 +98,10 @@
   {
     "id": "k5_mosi_flyers",
     "speaker": "mosi",
-    "text": "Flugdýrin!"
+    "text": "Flugdýrin!",
+    "context": "Sjáðu dýrin sem fljúga þarna uppi yfir tjörninni! Þetta eru flugdýrin.",
+    "fixes": "flugdyr",
+    "note": "Own context: the book's recipe \"samhengi\" of flugdyr, the owner's pick by ear of three on the book's page (2026-11-11), after he rejected the line sent alone. It is this line's first win, so the word's chosen stays as it was. Ný 3 adds the caption after it and sends seed 7."
   },
   {
     "id": "k5_dj_a_welcome",

@@ -1,0 +1,28 @@
+{
+  "set": "kafli5",
+  "date": "2026-11-11",
+  "source": "jano-kafli5 (1).json",
+  "verdicts": {
+    "kafli5/k5_sloedla_forgot": {
+      "verdict": "ja",
+      "key": "e70505c40235e1eeaa12fd9554f408eb8787aa6c8b7a888b9155e1195cc60ed5",
+      "mp3": "50e6a674dcddf7a72f434324e3fb38271c66343b3d476eeb69f93966b82da629",
+      "speaker": "sloedla",
+      "text": "Ég… ég man ekki lagið mitt. Og ég þori ekki að syngja."
+    },
+    "kafli5/k5_sloedla_mine": {
+      "verdict": "ja",
+      "key": "83a691ee2446f06662e1b3b85ebffa980c858d4b9edcb4bf20a9226ffc86e38b",
+      "mp3": "979ad92947ef2f5cc38ce891a75483576a78b7e975236f2f1a5a710ef0d5971f",
+      "speaker": "sloedla",
+      "text": "Þetta… þetta var lagið mitt!"
+    },
+    "kafli5/k5_sloedla_thanks": {
+      "verdict": "ja",
+      "key": "243549a2c6053aa80dfb64746c93145d218af4a9ac017771570f73dfd1648b1b",
+      "mp3": "011bfde84924d2f5393053938fbb66daf97ab770f7c68a722ee472b1b87f60e8",
+      "speaker": "sloedla",
+      "text": "Takk, Egill. Ég skal leiða sönginn á hátíðinni!"
+    }
+  }
+}
