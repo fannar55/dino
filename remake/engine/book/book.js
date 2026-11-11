@@ -977,6 +977,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
       for (const [key, ribbon] of ribbons) ribbon.classList.toggle('beckon', key === name);
     },
     lockTutorial,
+    handToChild: () => claim(),
     playGame,
     refresh: render,
     pictureOf,
