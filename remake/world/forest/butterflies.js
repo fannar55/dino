@@ -7,6 +7,8 @@
 //   flutter(name)       up and away for 3 s, then back to its loop (a child tapped it)
 //   land(spec, options) a flight to a point spec, resolved every frame, and a landing that stays on the moving point
 //                       until flutter(name) sends it away (world/forest/atmosphere.js: butterflyLand)
+//   fly(name, path)     a flight along a path the caller gives (a function that puts it somewhere each frame), until land
+//                       or flutter takes it (the 3D show, chapters/fidrildi3d.js, flies the hero out of the screen with it)
 //
 // Both return a Handle (engine/handle.js) and run on uWindTime, the clock the shader reads, so they pause with the game,
 // seek exactly and land on the same frame in a capture. update() runs every frame the forest is in view (the forest's
@@ -32,6 +34,10 @@ const BLEND = 0.35; // seconds over which a butterfly the code takes over turns 
 export const HERO = 'butterfly-hero';
 const HERO_MODEL = new URL('../../assets/critters/butterfly.glb', import.meta.url).href;
 const HERO_FEET = 0.0756; // metres its feet stand below its body axis, until its model says (the Body node's extras)
+/** One pale butterfly's wing, one side, in local space: x forward along the body, z out to the side (world/forest/swarm.js uses it too). */
+export const WING = [[0.0, 0.0], [0.05, 0.035], [0.075, 0.085], [0.03, 0.105], [-0.02, 0.085], [-0.06, 0.06], [-0.055, 0.02]];
+/** The pale butterflies' colours, in turn (sRGB). */
+export const COLOURS = ['#f6f1e4', '#f2dc94', '#f3b996', '#f6f1e4'];
 const heroModels = new Map(); // url -> promise of its GLTF: fetched once a page, however many forests have a hero
 
 const clamp01 = k => clamp(k, 0, 1);
@@ -180,11 +186,11 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   const B = FOREST.butterflies;
   const rng = createRng(seed, 'butterflies');
   const count = Math.min(MAX, q.name === 'low' ? 2 : B.count);
-  const colours = ['#f6f1e4', '#f2dc94', '#f3b996', '#f6f1e4'];
+  const colours = COLOURS;
   const pos = [], col = [], fly = [], idx = [];
   const flyers = []; // where each one loops: centre, loop (x radius, z radius, base height), speed and phase
   // one wing in local space: x forward along the body, z out to the side, y up
-  const wing = [[0.0, 0.0], [0.05, 0.035], [0.075, 0.085], [0.03, 0.105], [-0.02, 0.085], [-0.06, 0.06], [-0.055, 0.02]];
+  const wing = WING;
   for (let b = 0; b < count; b++) {
     const a = rng.angle(), r = rng.range(3.5, 7.5);
     const centre = [cx + Math.cos(a) * r, 0, cz + Math.sin(a) * r];
@@ -268,6 +274,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     away: new THREE.Vector2(), awayTurn: tune.angle(), wobble: tune.angle(), flutters: 0, // the flutter's way out
     to: new THREE.Vector3(), spec: null, duration: 0, reach: 0, side: new THREE.Vector2(), approachYaw: 0, // the landing
     perch: false, // a flutter that starts from a landing, not from the loop
+    path: null, // fly(): the function that puts it somewhere each frame
   });
   // the hero last: the tune's draws go to the pale ones first, as they did
   const list = [...flyers.map((flyer, index) => entry(flyer, `butterfly-${index + 1}`, false)), entry(heroFlyer, HERO, true)];
@@ -424,6 +431,16 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
         b.flap = lerp(b.flap0, wingAngle(b.flyer, time, L.excited * (time - b.t0), L.wings[0], L.wings[1]), into);
         return true;
       }
+      case 'path': {
+        const into = smooth((time - b.t0) / BLEND);
+        motion.ahead.copy(b.pos);
+        b.path(b.pos);
+        if (into < 1) b.pos.lerp(b.from, 1 - into); // from where it was into the path, without a jump
+        motion.ahead.subVectors(b.pos, motion.ahead);
+        if (Math.hypot(motion.ahead.x, motion.ahead.z) > 1e-4) b.yaw = lerpAngle(b.yaw, Math.atan2(motion.ahead.z, motion.ahead.x), 0.15);
+        b.flap = lerp(b.flap0, wingAngle(b.flyer, time), into);
+        return true;
+      }
       default: { // landed: on the point, wings folded up and slowly opening and closing
         const since = time - (b.t0 + b.duration);
         b.pos.copy(b.to);
@@ -510,6 +527,23 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     return b.handle;
   }
 
+  /**
+   * Fly butterfly `name` along `path`, a function that sets the Vector3 it is given to where the butterfly is now (called every
+   * update; the caller keeps its own clock), facing the way it moves. It eases into the path from where it was over a moment and
+   * stays on it until land() or flutter() takes it.
+   */
+  function fly(name, path) {
+    if (typeof path !== 'function') throw new TypeError('A butterfly flies along a function that sets a Vector3');
+    const b = named(name);
+    if (disposed) return;
+    release(b);
+    b.mode = 'path';
+    b.path = path;
+    b.t0 = now();
+    b.from.copy(b.pos);
+    b.flap0 = b.flap;
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -520,5 +554,5 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   }
 
   update(); // the points are right from the start
-  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, update, dispose };
+  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, fly, update, dispose };
 }
