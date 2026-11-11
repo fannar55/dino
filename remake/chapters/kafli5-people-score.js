@@ -305,16 +305,19 @@ export const DECKS = { at: [...FAR_POOL.landing], heading: 240, home: FAR_POOL.f
 const HOME = [FAR_POOL.landing[0] - FAR_POOL.center[0], FAR_POOL.landing[1] - FAR_POOL.center[1]];
 const GROUND = -0.65; // her feet under the water where she stands (kafli4-route.js: in 0.65 m of water)
 const SKIM = -1.3; // the path's height when her body skims 1.3 m over the water (her body flies 2.6 m over the path)
-// A flight: keys [score beat, east, south (m from the pool's middle), m over the water], flown through with the speed each key's
-// neighbours give it, at rest at both ends. `from` and `to`: the beats it is flown in (its keys may start before, for the speed she
-// comes in at). `off`: her feet leave the ground; `down`: they are back (null: she flies on).
-// The climb out of the pool: she comes in low from the east, goes up drifting on west (so the way she faces holds), tips over the top
-// `top` m up, dives over the frogs' side of the pool and pulls out north of Slóeðla, back east.
+// The climb out of the pool, as a flight's keys: she comes in low from the east, goes up drifting on west (so the way she faces
+// holds), tips over the top `top` m up, dives over the frogs' side of the pool and pulls out north of Slóeðla, back east.
 const rocket = (t, top) => [
   [t - 4.6, 1, 9.5, -0.6], [t - 2.4, -8.5, 5, SKIM], [t, ...SPOT, SKIM + 0.1], [t + 1.1, -14.6, 2.0, 3.2], [t + 2.4, -15.5, 1.5, 0.8 * top],
   [t + 3.5, -16.8, 0.8, top], [t + 4.5, -19, -0.6, 0.76 * top], [t + 5.6, -20, -5.5, 4], [t + 6.8, -14, -11, 3.6], [t + 8, -4, -10.5, 4],
   [t + 9.6, 9, -5, 4.5],
 ];
+/**
+ * Her flights. `keys`: [score beat, east, south (m from the pool's middle), m over the water], flown through with the speed each
+ * key's neighbours give it, at rest at the first and the last. `from` and `to`: the beats the flight has her (from her bending
+ * down to her wings folded again; its keys may start before or end after, for the speed she passes at). `off`: her feet leave the
+ * ground; `down`: they are back (null: the flight begins or ends in the air). `spin`: the beats she turns once about herself in.
+ */
 export const FLIGHTS = [
   { // the welcome: a round over the pool, out over the grazers and the turtles, round over Slóeðla, back past the north shallows
     from: 22.6, to: 36.4, off: 24, down: 32.6, spin: null,
@@ -335,6 +338,7 @@ export const FLIGHTS = [
 ];
 /** Her take-off and landing clips (pteranodon.glb): where in each her feet leave or meet the ground, and how fast they are played. */
 export const WING_CLIPS = { takeOff: { seconds: 3.2, off: 0.75, rate: 1.4 }, land: { seconds: 3.0, down: 1.95, rate: 1.25 }, fly: { seconds: 1.4, beats: 3 }, happy: { seconds: 2.4, beats: 4 } };
+const BOW_TURN = 30; // degrees she turns aside as she bows
 const WING_SLAP = 46; // degrees down from her spread pose: her wing tips on the water where she stands
 const FLUGEDLA_LOOK = [
   [0, 'pool'], [32, 'egill'], [38, 'pool'], [226, 'her'], [262, 'pool'], [265.5, 'egill'], [268, 'pool'], [404, 'egill'], [409, 'pool'],
@@ -383,13 +387,14 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
     lift: 0, spread: { left: 0, right: 0 }, raise: { left: 0, right: 0 }, bow: 0, look: lookAt(FLUGEDLA_LOOK, b, 2), looking: 0.7 * on, clock: d * BEAT, blink: false,
   };
   const quiet = hush(b);
-  // where she stands: a bob on the beat, her happy clip a bar long under it, her wings a little open
+  // where she stands: a bob on the beat, her happy clip a bar long under it
   const wingsUp = span(b, line('wings'), 287.4, 1.5, 1.2); // "Vængina upp!": up, and they stay up through the build
   const welcome = span(b, 13, 22.6, 1, 0.8); // her welcome: wide open
   const goodnight = span(b, line('goodnight') + 3.2, END - 0.4, 1.2, 0.8); // her bow
   const still = span(b, P.fakeend.from, 424.4, 0.5, 0.2); // the ending that is not one: she holds still
   const flick = hump(b, 424.4, 425, 426.6); // "Einu sinni enn!": a wing flicks up
   const point = Math.max(span(b, 404.4, 408.4, 0.8), span(b, 413.8, 416.4, 0.6)); // a wing out to Egill
+  out.heading += BOW_TURN * goodnight; // she bows a little aside of her shot's camera: head-on a bow is only a face coming nearer
   if (reduced) {
     out.spread.left = out.spread.right = clamp(0.6 * wingsUp + 0.5 * welcome + 0.6 * goodnight);
     out.raise.left = out.raise.right = 18 * wingsUp;
@@ -461,7 +466,7 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
     out.raise.right *= grounded;
     out.bow *= grounded;
     // she comes down with her wings spread, and they stay spread a moment
-    const landed = flight.down === null ? 0 : span(b, flight.down - 0.5, flight.down + 3.2, 0.5, 1.5);
+    const landed = flight.down === null ? 0 : span(b, flight.down - 0.5, flight.down + 2.8, 0.5, 0.9);
     out.spread.left = Math.max(out.spread.left * grounded, landed);
     out.spread.right = Math.max(out.spread.right * grounded, landed);
   }
@@ -469,8 +474,8 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Slóeðla: the star, shy and gentle. She sways over a bar and bobs with the band, more as the set grows; turns her head to the group
-// whose part it is; stands tall and still for her horn; lifts her head high with everyone's jump; and between her horn's answers in
+// Slóeðla: the star, shy and gentle. She sways over a bar and bobs with the band, more as the set grows; turns to the group whose
+// part it is, where she stands; stands tall and still for her horn; lifts her head high with everyone's jump; and between her horn's answers in
 // the last chorus she dances the most she ever does. Her horn itself (her head up, her 'call' clip) is her life's (kafli5-sloedla.js).
 
 const HER_ENERGY = [

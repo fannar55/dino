@@ -188,7 +188,7 @@ test('Mosi: a slow sway from foot to foot, a nod on the backbeat, a stomp with t
 });
 
 test('Flugeðla: she faces her dance floor, her wings go up on "Vængina upp!" and stay up, she bows at the end', () => {
-  for (const setBeat of [16, 20, 23.9, 264, 268, 424, 428, 465, 471.9]) {
+  for (const setBeat of [16, 20, 23.9, 264, 268, 424, 428, 465, 467.9]) {
     const pose = at('flugedla', setBeat);
     assert.ok(angle(pose.heading, DECKS.heading) < 20 && pose.air < 0.05 && Math.hypot(pose.at[0] - DECKS.at[0], pose.at[2] - DECKS.at[1]) < 0.9, `at her decks at ${setBeat}, where her shot holds on her`);
   }
