@@ -47,7 +47,7 @@ const HERO_SCALE = 1.5; // the hero moth's model, scaled up so it reads at the m
 // to her spot, arriving ARRIVE seconds into the show at the walk clip's own speed (actor.walkTo matches the clip: no sliding).
 const THOR_FROM = [[30, -14], [19, -11]]; // world x, z: out of the frame and deep, then the last stretch along her own heading
 const THOR_STRAIGHT = 7; // metres of the last stretch, straight along her heading at the spot
-const ARRIVE = 43.2;
+const ARRIVE = 42.6;
 const THOR_SPEED = 1.3; // m/s asked; walkTo plays the clip faster or slower to match it (state.thorWalkScale says by how much)
 // Two more moths of the hero's model (round 2, "bætum við 2 öðrum sem fljúga um"), tinted with the pale butterflies' colours so the
 // three can be told apart. They fly lively loops between the viewer and the dinosaurs, k 0.55-0.95, off the hero's line, join the
