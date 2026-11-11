@@ -106,6 +106,7 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
 
   const along = new THREE.Matrix4();
   const own = new THREE.Matrix4();
+  const rolled = new THREE.Matrix4();
   const turn = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
   const size = new THREE.Vector3();
@@ -132,9 +133,11 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
       return -1;
     }
     const i = level.n++;
-    // T(position)·R(heading)·S(scale) · T(0, pivot, 0)·R_z(pitch)·S(squash)
+    // T(position)·R(heading)·S(scale) · T(0, pivot, 0)·R_x(roll)·R_z(pitch)·S(squash): a roll leans it to its right (a dance's)
     along.compose(position, turn.setFromAxisAngle(up, -heading * DEG), size.setScalar(scale));
-    own.makeRotationZ(pose.pitch ?? 0).setPosition(0, k.model.pivot, 0);
+    own.makeRotationZ(pose.pitch ?? 0);
+    if (pose.roll) own.premultiply(rolled.makeRotationX(pose.roll));
+    own.setPosition(0, k.model.pivot, 0);
     if (pose.squash) own.scale(squashBy.fromArray(pose.squash));
     level.mesh.setMatrixAt(i, along.multiply(own));
     if (k.holder) {

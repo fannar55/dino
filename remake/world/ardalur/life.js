@@ -31,12 +31,20 @@
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
 //   life.bigCall(at)     the big call came at flight second `at` (chapters/kafli4-flight-play.js): the rows, the flocks and the herd set off
 //   life.arrive()        scene 7 has begun: from now on, outside the flight, the arrivals stand at the far pool
-//   life.pool            chapter 5's (`choir` given: chapters/kafli5-pool.js POOL_LIFE): { frogs, turtles }, the frogs on their
-//                        lily pads and the turtles on their stone at the far pool, there from the build (the crowds reserve them then)
+//   life.pool            chapter 5's (`choir` given: chapters/kafli5-pool.js POOL_LIFE): { frogs, turtles, beetles, dragonflies },
+//                        the frogs on their lily pads and the turtles on their stone at the far pool, and the dance floor's own
+//                        (chapters/kafli5-stage.js): beetles on a log and dragonflies over the shallows; there from the build
+//                        (the crowds reserve them then)
 //   life.moveTo(b, { at, via, heading, seconds })  one that stands at the pool (an arrival, or one of the pool's) walks there by
 //                        the points `via` ([x, z]s: round the pool), a flyer flies, in `seconds` of game time, and stands there
 //                        turned to `heading`
 //   life.hop(b, { height, seconds })  it hops once where it is (a frog leaps), as it sings its tone (chapter 5's choir)
+//   b.dance = pose | null  the scene's dance for one that stands at the pool (chapter 5's music video: chapters/kafli5-dances.js),
+//                        set each frame it dances: while it is there the thing's pose is its place with the dance on it, not its
+//                        idle life, so a dance that stands still is still. { dx, dy, dz } metres from its place, `turn` degrees
+//                        from its heading, `pitch` and `roll` radians, `squash` [x, y, z], `morphs` { frame: weight } (the frames
+//                        not named are 0), `clips` [[clip, seconds into it, weight]] of a baked model (weights adding up to 1),
+//                        `wings` [angle, flying] of a winged one. null: its idle life again, where it stood.
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
@@ -52,6 +60,7 @@ import { clipPose } from '../critters/crowd-models.js';
 import { crownOf } from './animals.js';
 import { groveAt } from './banks.js';
 import { fenShare } from './terrain.js';
+import { stageLife } from '../../chapters/kafli5-stage.js';
 
 /**
  * How much larger than life each is drawn, to read from her back (as animals.js SCALE). The rows' small lizards are seen from 20 to
@@ -59,7 +68,7 @@ import { fenShare } from './terrain.js';
  * The grazer is 7.5 m long, 2.9 m tall: the owner asked for the herd bigger and nearer (2026-11-06). The flyer is 2.4 m across its
  * wings: a third of hers, seen 5 to 12 m off.
  */
-export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, frog: 4.5, turtle: 4.5 };
+export const LIFE_SCALE = { earlyBird: 5, dragonfly: 5, fish: 6.5, bird: 7, waterStrider: 10, smaedla: 2.5, salamander: 6, grasbitur: 3, flugdyr: 2, frog: 4.5, turtle: 4.5, beetle: 4 };
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const clamp01 = k => Math.min(1, Math.max(0, k));
@@ -156,7 +165,7 @@ const SLOTS = {
 const GATHER = { rows: 'G', herd: 'stepNorth', turn: 25, look: 9, graze: 11, low: 0.4, lane: [1.6, 2.5] };
 // Chapter 5's pool (createLife's `choir`): a frog sits LILY m over the water on its pad, the pads and the stone are grown with the
 // banks, and a move turns its way over TURN of it at each end; a flyer flies over at most FLY_UP m; a hop is HOP's.
-const POOL_LIFE = { lily: 0.03, pad: 2.2, padUp: 0.012, turn: 0.15, flyUp: 5, rockTop: 0.55, rockTurn: 0.6 };
+const POOL_LIFE = { lily: 0.03, pad: 2.2, padUp: 0.012, turn: 0.15, flyUp: 5, rockTop: 0.55, rockTurn: 0.6, logTop: 0.8 };
 const HOP_DEFAULT = { height: 0.6, seconds: 0.45 };
 
 /**
@@ -164,8 +173,8 @@ const HOP_DEFAULT = { height: 0.6, seconds: 0.45 };
  * is placed as world/ardalur/banks.js places a prop (lod 1, sunk by its model's sink, turned by `rot`, scaled); without its model it
  * is a smooth top POOL_LIFE.rockTop of its scale high.
  */
-function rockSurface(model, { x, y, z, rot, scale }) {
-  const smooth = () => y + POOL_LIFE.rockTop * scale;
+function rockSurface(model, { x, y, z, rot, scale, top = POOL_LIFE.rockTop }) {
+  const smooth = () => y + top * scale;
   const pos = model?.solid?.pos;
   if (!pos?.length) return smooth;
   const geometry = new THREE.BufferGeometry();
@@ -248,7 +257,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     const thing = {
       id, kind, at, trigger: null, position: at.clone(), visible: true, heading, rest: heading, scale, pitch: 0, squash: [1, 1, 1],
       morphs: Object.fromEntries(model.morphs.map(name => [name, 0])), wings: model.wings ? [0, 0] : null, height: model.height * scale,
-      phase: things.length * 1.37, ...extra,
+      phase: things.length * 1.37, roll: 0, dance: null, ...extra,
     };
     things.push(thing);
     return thing;
@@ -482,7 +491,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   for (const b of flyers) { b.gather = { at: b.land.spot, heading: b.land.heading }; arrivals.push(b); }
 
   // Chapter 5: the far pool's frogs, each on a lily pad, and its turtles on their stone, there from the build
-  const pool = { frogs: [], turtles: [] };
+  const pool = { frogs: [], turtles: [], beetles: [], dragonflies: [] };
   if (choir) {
     const level = choir.level ?? FAR_POOL.level;
     choir.frogs.forEach(({ at: [x, z], heading }, k) => {
@@ -506,6 +515,36 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
         turtle.gather = { at: turtle.at.clone(), heading };
         pool.turtles.push(turtle);
       });
+    }
+    // the dance floor (chapters/kafli5-stage.js; `stage: null` for none): the beetles' log on the bank with the beetles on it, the
+    // dragonflies over the shallows by it, and the lanes the dancers go by, where nothing tall grows
+    const stage = choir.stage === undefined ? stageLife() : choir.stage;
+    if (stage) {
+      const { log } = stage;
+      const [x, z] = log.at;
+      const y = heightAt(x, z);
+      props.push({ name: 'log', variant: log.variant, x, y, z, rot: log.rot, scale: log.scale });
+      const model = library?.get?.('log', log.variant, 1, {}) ?? null;
+      const surface = rockSurface(model, { x, y, z, rot: log.rot, scale: log.scale, top: POOL_LIFE.logTop });
+      stage.beetles.forEach(({ at: [bx, bz], heading }, k) => {
+        // the log bends: the beetle sits on its ridge, the highest of it across where it lies
+        let best = [bx, surface(bx, bz), bz];
+        for (let across = -0.6; across <= 0.6 + 1e-9; across += 0.1) {
+          const px = bx - log.axis[1] * across, pz = bz + log.axis[0] * across;
+          const top = surface(px, pz);
+          if (model?.solid?.pos?.length && top > best[1] + 1e-6) best = [px, top, pz];
+        }
+        const beetle = add(`pool-beetle-${k}`, 'beetle', new THREE.Vector3(...best), heading, { reach: stage.beetlesSeen ?? null });
+        if (stage.beetleScale) { beetle.height *= stage.beetleScale / beetle.scale; beetle.scale = stage.beetleScale; }
+        beetle.gather = { at: beetle.at.clone(), heading };
+        pool.beetles.push(beetle);
+      });
+      stage.dragonflies.forEach(({ at: [dx, dz], up, heading }, k) => {
+        const fly = add(`pool-dragonfly-${k}`, 'dragonfly', new THREE.Vector3(dx, level + up, dz), heading, { reach: stage.dragonfliesSeen ?? null });
+        fly.gather = { at: fly.at.clone(), heading };
+        pool.dragonflies.push(fly);
+      });
+      clear.push(...stage.clear);
     }
   }
 
@@ -786,6 +825,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.heading = b.rest;
     b.visible = true;
     b.pitch = 0;
+    b.roll = 0;
     b.squash[0] = 1; b.squash[1] = 1; b.squash[2] = 1;
     const p = b.phase;
     const s = ft === null || b.trigger === null ? -Infinity : ft - b.trigger;
@@ -816,6 +856,11 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
         b.heading = b.gather.heading;
         b.morphs.look = Math.max(0, Math.sin((TAU * clock) / 9 + p)) ** 2;
         b.morphs.hide = 0;
+        break;
+      case 'beetle':
+        // the dance floor's, on their log: a leg stirs now and then
+        b.morphs.kickA = 0.5 * Math.max(0, Math.sin(clock * 1.3 + p)) ** 8;
+        b.morphs.kickB = 0.5 * Math.max(0, Math.sin(clock * 1.1 + 2 * p)) ** 8;
         break;
       case 'bird':
         if (b.flock) { flocking(b, ft, clock); break; }
@@ -870,10 +915,47 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     for (const b of things) {
       const going = flying ? 0 : moving(b, t);
       pose(b, flying ? ft : null, clock, t);
-      if (!flying) { walk(b, going, clock); hopping(b, t); }
-      if (b.visible) crowds.place(b.kind, b.position, b.heading, b.scale, b);
+      if (!flying) { walk(b, going, clock); dancing(b); hopping(b, t); }
+      if (b.visible && !tooFar(b)) crowds.place(b.kind, b.position, b.heading, b.scale, b);
     }
     if (own) crowds.end();
+  }
+
+  /** One drawn only near the camera (`reach` m: the dance floor's small ones) is too far to draw. */
+  const eyeAt = new THREE.Vector3();
+  function tooFar(b) {
+    if (!b.reach || !world.camera?.getWorldPosition) return false;
+    return world.camera.getWorldPosition(eyeAt).distanceToSquared(b.position) > b.reach * b.reach;
+  }
+
+  /**
+   * The scene's dance (`b.dance`, set by chapters/kafli5-dances.js each frame of the music video): the thing's place and heading with
+   * the dance's offsets, and its squash, frames and wings as the dance says, in place of its idle life (so nothing of it moves that
+   * the dance does not move: the video's freeze holds everything still).
+   */
+  function dancing(b) {
+    const d = b.dance;
+    if (!d) return;
+    const home = b.gather?.at ?? b.at;
+    b.position.set(home.x + (d.dx ?? 0), home.y + (d.dy ?? 0), home.z + (d.dz ?? 0));
+    b.heading = (b.gather?.heading ?? b.rest) + (d.turn ?? 0);
+    b.pitch = d.pitch ?? 0;
+    b.roll = d.roll ?? 0;
+    b.squash[0] = d.squash?.[0] ?? 1; b.squash[1] = d.squash?.[1] ?? 1; b.squash[2] = d.squash?.[2] ?? 1;
+    if (d.morphs || d.clips) {
+      for (const name in b.morphs) b.morphs[name] = 0;
+      if (d.morphs) for (const name in d.morphs) if (name in b.morphs) b.morphs[name] = d.morphs[name];
+      const model = BAKED[b.kind];
+      if (d.clips && model) {
+        for (const [clip, time, weight] of d.clips) {
+          if (!(weight > 0) || !model.clips?.[clip]) continue;
+          const frames = clipPose(model, clip, time, 0);
+          for (const name in frames) b.morphs[name] = (b.morphs[name] ?? 0) + frames[name] * weight;
+        }
+      }
+    }
+    if (d.wings && b.wings) { b.wings[0] = d.wings[0]; b.wings[1] = d.wings[1]; }
+    if (d.hidden) b.visible = false;
   }
 
   /** She skims the water at (x, z): the striders within reach that are not already off skate away from her and back. */
