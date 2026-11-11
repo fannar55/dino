@@ -261,7 +261,7 @@ export function splashRingAt(splash, age) {
 // ---------------------------------------------------------------------------------------------
 // The fireflies
 
-export const FIREFLIES = { count: 240, rise: [12, 24], size: 0.3 }; // how many (half with less motion), beats one takes up out of the reed (the first, the rest), m across
+export const FIREFLIES = { count: 240, rise: [12, 24], size: 0.36 }; // how many (half with less motion), beats one takes up out of the reed (the first, the rest), m across
 const WARM = ['#ffd56a', '#ffe9a8', '#ffb347', '#fff1cf'].map(srgb);
 const PARTY = ['#ff7fa6', '#7fe3d2', '#ffd56a', '#ff9d4a', '#b8f070'].map(srgb); // the confetti's colours on a burst
 const [BURST_ONE, BURST_TWO] = BURSTS;
@@ -271,7 +271,7 @@ const [BURST_ONE, BURST_TWO] = BURSTS;
  * of the set, all again from the second burst through the last chorus, and they sink away after the last hit.
  */
 const OUT = [
-  [startOf('arrival'), 0], [startOf('welcome'), 0.25], [startOf('tuneA'), 0.3], [startOf('dragonflies'), 0.4], [startOf('break') + 6, 1],
+  [startOf('arrival'), 0], [startOf('welcome'), 0.3], [startOf('tuneA'), 0.36], [startOf('dragonflies'), 0.4], [startOf('break') + 6, 1],
   [BURST_ONE + 4, 1], [startOf('anthem') + 4, 0.75], [startOf('freeze') + 6, 0.7], [startOf('carnival'), 0.7],
   [startOf('crowd'), 0.55], [startOf('fakeend'), 0.45], [BURST_TWO, 1], [END, 1], [END + 4.5, 0],
 ];
@@ -324,10 +324,10 @@ export function createFireflies({ count = FIREFLIES.count, reduced = false } = {
   };
   const flies = Array.from({ length: count }, (_, i) => {
     const h = k => hash(i + 1, k);
-    const reed = FAR_POOL.reeds[h(2) < 0.8 ? 1 : 0]; // most live in her reed, some in the small one by Mosi
+    const rank = (i * 0.61803398875 + 0.37) % 1; // each its turn, evenly
+    const reed = FAR_POOL.reeds[rank < 0.3 || h(2) < 0.75 ? 1 : 0]; // the first all rise out of her reed; of the rest some live in the small one by Mosi
     const [ra, rr] = [TAU * h(3), reed.radius * 0.85 * Math.sqrt(h(4))];
     const [wa, wr] = [TAU * h(6), POOL.radius * 1.08 * Math.sqrt(h(7))];
-    const rank = (i * 0.61803398875 + 0.37) % 1; // each its turn, evenly
     const f = {
       rank, first: firstOut(rank), rise: lerp(FIREFLIES.rise[0], FIREFLIES.rise[1], smooth(firstOut(rank) / startOf('warmup'))),
       home: [reed.at[0] + rr * Math.cos(ra), LEVEL + 0.5 + 1.3 * h(5), reed.at[1] + rr * Math.sin(ra)],
@@ -387,7 +387,7 @@ export function createFireflies({ count = FIREFLIES.count, reduced = false } = {
     const shown = clamp01((outAt(beat) * 1.06 - f.rank) / 0.06) * Math.min(1, risen * 4);
     out.level = shown * (0.62 + 0.38 * Math.sin(beat * f.twinkle + f.round * 5));
     const loud = beat >= BURST_TWO && beat < END ? 1.25 : 1; // the last chorus: the biggest
-    const fresh = 1 + 0.8 * (1 - risen); // bigger as it lifts out of the reed, so the eye finds it
+    const fresh = 1 + 1.2 * (1 - risen); // bigger as it lifts out of the reed, so the eye finds it
     out.size = f.size * fresh * (reduced ? 1 : (1 + 0.35 * pulseAt(beat) * energy) * (1 + 0.9 * swell) * loud);
     const festive = since >= 0 ? 0.3 + 0.7 * Math.exp(-since / 10) : 0;
     out.r = lerp(f.warm[0], f.party[0], festive);
