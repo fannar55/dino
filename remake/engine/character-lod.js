@@ -323,6 +323,12 @@ export function releaseCharacter(model) {
   }
 }
 
+/** A character mesh's full geometry, whatever level it draws now (the clip probe, engine/clip-probe.js, reads every triangle). */
+export function fullGeometry(mesh) {
+  for (const e of entries) if (e.mesh === mesh) return e.geometries[0];
+  return mesh.geometry;
+}
+
 /** Resolves when every character asked for so far has its levels. */
 export function whenReady() {
   return Promise.all([...pending]);

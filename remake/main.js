@@ -794,6 +794,21 @@ if (shotName || !chapter.script) {
         clock.setPaused(false);
       }, { once: true, capture: true });
     } else clock.freeze();
+    // A frozen capture can go on from t in the same fixed steps, silently: tools/clip-probe.mjs plays a whole show through this way.
+    if (!playing) {
+      window.__advance = async (seconds, step = 1 / 30) => {
+        stage.seeking = true;
+        for (let t = 0; t < seconds - 1e-9; t += step) {
+          const dt = Math.min(step, seconds - t);
+          clock.step(dt);
+          update(dt);
+          for (let tries = 0; (stage.scheduler.pending > 0 || world.loading?.size > 0) && tries < 500; tries++) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+        }
+        stage.seeking = false;
+      };
+    }
     forrit.started();
   } else if (params.get('play') === '1') {
     forrit.started();
