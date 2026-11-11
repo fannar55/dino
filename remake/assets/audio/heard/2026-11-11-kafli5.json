@@ -1,0 +1,279 @@
+{
+  "set": "kafli5",
+  "date": "2026-11-11",
+  "source": "jano-kafli5.json",
+  "verdicts": {
+    "kafli5/k5_dj_a_welcome": {
+      "verdict": "ja",
+      "key": "b45b8353921a185bd09696fdc39d05f3d0aa263d8c74dc5f86c9d0fdb0f1970c",
+      "mp3": "2580ce474e1130140da9630e47f34f723e9f2807cff7da365ef1989edddb51dc",
+      "speaker": "flugedla",
+      "text": "Halló, skógur! Velkomin á hátíðina!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_egill": {
+      "verdict": "ja",
+      "key": "f57ae038d5bf54e6347ca4f2519f361098bf238f57295061def06e667b326776",
+      "mp3": "429b715c67e8038990ffa709e426ef5fd04c14b37a8e0f7492a332da3844dee1",
+      "speaker": "flugedla",
+      "text": "Egill! Ertu tilbúinn?",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_clap": {
+      "verdict": "ja",
+      "key": "661c9c31a6967c7bb5fbbdd259833d6c35126e224ab665011e44363494df1e42",
+      "mp3": "abed930f9b9a6c69ae08663e023f492498b016b1319e0b4216cf818c35c4192d",
+      "speaker": "flugedla",
+      "text": "Klappið með!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_party_on": {
+      "verdict": "ja",
+      "key": "0751f88e1b3de611d5bc8c861276c3e046a883d5f18febeac0a44464146f1d6d",
+      "mp3": "838d002e32ee38a1441dde85cec7a758984a4c9a7e9a9ef92a36a21fc7878b98",
+      "speaker": "flugedla",
+      "text": "Nú byrjar djammið!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_grazers": {
+      "verdict": "ja",
+      "key": "a96e5f66125a76bef85d3009cb0b9feb8508f238011960bbc53d554e29308485",
+      "mp3": "2655e4323ea7eed2a950699254a2b6bdfc53c387178f16e0f9f6619df1025f6d",
+      "speaker": "flugedla",
+      "text": "Stóru grasbítarnir! Stappið!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_turtles_slow": {
+      "verdict": "ja",
+      "key": "f7f764545520f175ca1c6346c6a58b1a16e62d5ea79c60aa5db6f4dff1f7afa3",
+      "mp3": "035059af8724384462f1627a7efbe5f40b62109b414b5721a3c4351aa4c5d9d0",
+      "speaker": "flugedla",
+      "text": "Skjaldbökurnar... hææægt...",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_turtles_fast": {
+      "verdict": "ja",
+      "key": "c0e57295ee5b3e45832adbbd2b499a3ba84a7dc31abc09194998ac1c28eaa449",
+      "mp3": "0fe27d8866be80875f815c1453da80696ad6ab7defdc7ef9c9c7ba40b08379f4",
+      "speaker": "flugedla",
+      "text": "Og hratt!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_frogs": {
+      "verdict": "ja",
+      "key": "628ad57d1aea73aff1c58d62d8f51aeac9910ae772b98259820c5d2e96c92eaf",
+      "mp3": "14fcf8af6a4c5740143d78aff4964fcef7d177bb987f15ed478e98787d16680a",
+      "speaker": "flugedla",
+      "text": "Já, froskadjamm!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_lizards": {
+      "verdict": "ja",
+      "key": "e83e31f196cc5adde0dae45f5ea52cc2fc827bbdf4fc20feb49b1a9ac150b372",
+      "mp3": "ca5dbb25b45ef916357d08c5afd654c5340a3a7201a3b2780792e4e68ad9e588",
+      "speaker": "flugedla",
+      "text": "Litlu eðlurnar! Svo snöggar!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_flyers": {
+      "verdict": "ja",
+      "key": "fe40d4b2fd1a65dc0dd0164bc500e9fc089b65ddaed06a076608f32e52e403d7",
+      "mp3": "c93b1e909405f20f64f11b3558b171114eb597bcf1e5083b2ffecf76101566a2",
+      "speaker": "flugedla",
+      "text": "Og hátt uppi... litlu flugdýrin!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_b_beetles": {
+      "verdict": "ja",
+      "key": "c65c13acbb5e0448012397db8b4befdbee84cbf123776aedc34b85d934057cd3",
+      "mp3": "6b7da7673327b78ea44a7362d85cadf268dfd66fc0a07d51cbf3ee321575d946",
+      "speaker": "flugedla",
+      "text": "Bjöllur, smellið með!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_b_dragonflies": {
+      "verdict": "ja",
+      "key": "407091e332336f02c7ea6f4472d0869c8630d42e84121f99905b5e8d4e818ded",
+      "mp3": "b63c986f034c53bf50dde1e885339899a5b78341fa5918ffb4c19ba110e37a21",
+      "speaker": "flugedla",
+      "text": "Og drekaflugurnar!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_sloedla": {
+      "verdict": "ja",
+      "key": "341e7ab0eb00b8980c588380526d146ea5f180f6ec1a86e04b108c3f6e855ba9",
+      "mp3": "d8bc362d7bee228e6c5bdb50c364335e67b1c163daa5f295eccaf930f3f9fc79",
+      "speaker": "flugedla",
+      "text": "Og nú... Slóeðla!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_wings": {
+      "verdict": "ja",
+      "key": "028e61bc26dd5b18c89811ac48fad3664423f3bbb3ee746b92579c5256e3b9c0",
+      "mp3": "53a614ad89a64fda3e7363fa8d35cff763010d12232bd30c471eba84c40a06ce",
+      "speaker": "flugedla",
+      "text": "Vængina upp! Hendur upp, Egill!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_hear_you": {
+      "verdict": "ja",
+      "key": "cd35bf89feb28aa149d9ebfe1ebb9530990121d72ed84c9df0b741e73dd16fad",
+      "mp3": "41479f8ffa152a19d359602a2dab960b0f8211e877a4d37e69bf823d95ced111",
+      "speaker": "flugedla",
+      "text": "Látið heyra í ykkur!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_count_5": {
+      "verdict": "ja",
+      "key": "8d28c923621ffb6c7b8c955df4ad387dfac8199c0193987dfd030de54fc7c5ac",
+      "mp3": "74966c055fb715789b2b17b0718ff440175efb854b4d98369d0b99e072ad17eb",
+      "speaker": "flugedla",
+      "text": "Fimm!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_count_4": {
+      "verdict": "ja",
+      "key": "798b013cd7e4edf3e32efb93d569c15ba9ca731ada7f5b483a0f408946bad589",
+      "mp3": "7020c5dca8acb2e7cc17279b5d4c7287a24350a8972865d67113c4b57d5a8087",
+      "speaker": "flugedla",
+      "text": "Fjórir!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_count_3": {
+      "verdict": "ja",
+      "key": "35eb17291a753f961e88fc5118ef83c1623d01d1d8764b9bb0955846d4369148",
+      "mp3": "6725be55e60d431ba241634f622f55b0c49432e91b4b95ce82bba2df81389c63",
+      "speaker": "flugedla",
+      "text": "Þrír!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_count_2": {
+      "verdict": "ja",
+      "key": "43bcd38843799ae672999bbefa3d37e99f7c71b4dd638aa72caf4f0234488b93",
+      "mp3": "e5005fb59fad7fb6b559a7d084df510f58312f0870fd3c576f60c7070c291ef8",
+      "speaker": "flugedla",
+      "text": "Tveir!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_count_1": {
+      "verdict": "ja",
+      "key": "d4768727595701578b4bf6bdfff23dbbb071e73873a21b8ef4303168a90e865a",
+      "mp3": "a929af6623b7c4ff070d0ceaca976d0072b37a73aa4d209868db9efad88d794f",
+      "speaker": "flugedla",
+      "text": "Einn!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_now": {
+      "verdict": "ja",
+      "key": "6cef56c0be64176b2f5f4345c08d93b5511d012d7e853efef5eb79547d2d4174",
+      "mp3": "55794da3c66eb455b3191cb09e8309d113de52c74fd10b03ee0ef385a74f7bee",
+      "speaker": "flugedla",
+      "text": "Nú!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_b_aftur": {
+      "verdict": "ja",
+      "key": "cb7970aa0e1930e57edfba2cd831168611e8040dc707e2967c53cb87223ddb88",
+      "mp3": "0abec6f7c9545a5f25a491e8dd457dbcdd5c0e3f361448e411016f9ccdeed2fb",
+      "speaker": "flugedla",
+      "text": "Aftur!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_laugh": {
+      "verdict": "ja",
+      "key": "5c5b57f641a8956db1a60cf3fb70a972b14aedb50c67f211e743db1c2013d2fb",
+      "mp3": "62820437206cd81e1dd535c5f02d14c9895edca630a3ae9b3b1ae55f2593fbe6",
+      "speaker": "flugedla",
+      "text": "Ha ha! Jibbíí!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_all": {
+      "verdict": "ja",
+      "key": "e51506cbe4a3041dbd4a29ac5f8593b21b4aec765a9ab541d14c0e65158c6ffe",
+      "mp3": "4e621a052adb0544927f40a548d0caccea67cdd2a367d2263215ab603e0fd7e2",
+      "speaker": "flugedla",
+      "text": "Öll saman!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_c_freeze_in": {
+      "verdict": "ja",
+      "key": "3c2385d2666c3110a68c2563c034f44769ca67267273caccc3b1aa142a42bfd4",
+      "mp3": "53947afd97985d70f19eee1dcf97675f3b3fc2560f089d4f56b16e84fc2d721e",
+      "speaker": "flugedla",
+      "text": "Stoppdans! Allir dansa!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_c_stopp": {
+      "verdict": "ja",
+      "key": "7a1a9e25989d8a09a0ddf917e65f4b80803a337dcf950ee66f02c5623867d27e",
+      "mp3": "e0a40f1cbfcdf990d6e2c3d90d82f58f06609aecc76fc97a3fb1c1b9c1c77941",
+      "speaker": "flugedla",
+      "text": "Stopp!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_c_turtle_moved": {
+      "verdict": "ja",
+      "key": "dfda08a8e960104a6aec87da6acffa0bfed11535492b0fdbf129109461de7bdf",
+      "mp3": "5ad14b46143940ad482c812cd06c884c51506c04252f7710ccc7e356f8352042",
+      "speaker": "flugedla",
+      "text": "Ha ha! Skjaldbakan hreyfði sig!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_c_dansa": {
+      "verdict": "ja",
+      "key": "1ba042126d89d8f416aa881aa1e6bf184456a84ede670efbac453e14eb062fe2",
+      "mp3": "7dddb67e916b99126b503d5fe8bd5aff593c70be79c653063e79f88ff78ee6f8",
+      "speaker": "flugedla",
+      "text": "Dansa!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_c_allir_saman": {
+      "verdict": "ja",
+      "key": "a9e443607cf31d7448ffc16f3155df99d00545992273cf009d302e055c22267e",
+      "mp3": "d1841d12eb01f684c4efeed8a9d53ea0457e40879442844b6ddd50c3586aa481",
+      "speaker": "flugedla",
+      "text": "Allir saman! Jibbí!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_c_hopp": {
+      "verdict": "ja",
+      "key": "6eae8b62ff86796d2f7d82217a5b8ba3798aaac5a287593263ebebe665c6f54a",
+      "mp3": "d0d358cabfb6fc700558b1d4a53780ba533fc8a7c056065055b008494f9842f6",
+      "speaker": "flugedla",
+      "text": "Hopp!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_b_egill_yes": {
+      "verdict": "ja",
+      "key": "4f03e32a7a50e8b87f74954e46ed7dea121f350c54792e3377b28295859f7a3c",
+      "mp3": "854f5ce95bbe9b6412f6d8e1441496f281d69ff93cc45780f9c3e9e4ac121d03",
+      "speaker": "flugedla",
+      "text": "Egill, segðu já!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_b_louder": {
+      "verdict": "ja",
+      "key": "35bab10358d0e41405ede81d67f9f9710772a2d1b48cf0e51eeca4a7e329112f",
+      "mp3": "05e537983c0388ed3b0c282a8e20c76a999712cb2cac393932bf02ffe431ced8",
+      "speaker": "flugedla",
+      "text": "Hærra!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_one_more": {
+      "verdict": "ja",
+      "key": "492bff496f51122cfeb15c446be178576c92814e67ca7d67859017ecea8f028e",
+      "mp3": "643851a76203f58022d8e0478d950fc8ddf69d625b7d12c0621ce3f160fb87a2",
+      "speaker": "flugedla",
+      "text": "Einu sinni enn!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    },
+    "kafli5/k5_dj_a_goodnight": {
+      "verdict": "ja",
+      "key": "428a146505c05d1e6fdab3cecf849ce6e240a2789356a95d06186adefc7d4837",
+      "mp3": "41fcb1f9a8c0472b51a36e79cdc91f98a0407412b41b525d844a4e62851565c5",
+      "speaker": "flugedla",
+      "text": "Takk fyrir djammið! Góða nótt, skógur!",
+      "note": "Heard in the mix of the set \"Stóra sviðið\" (not alone on a yes/no page); his word in the chat 2026-11-11: \"þær eru góðar\"."
+    }
+  }
+}
