@@ -27,13 +27,14 @@ const HER_HEAD = { actor: 'sloedla', part: 'head' }; // whom they looked at when
 
 /** Where Egill's hands go, in his own frame ([ahead, up, to that hand's side], m): his arms are 0.27 m long. */
 export const HANDS = {
-  up: [0.03, 1.1, 0.2], // straight up, a little apart
+  up: [0.02, 1.2, 0.3], // up and apart, a V over his head
   pump: [0.17, 0.82, 0.13], // a fist in front of his shoulder
-  open: [0.18, 0.68, 0.15], // apart in front of him, between two claps
+  open: [0.16, 0.7, 0.21], // apart in front of him, between two claps
   clap: [0.2, 0.68, 0.012], // together
 };
 /** His hands cupped at his mouth: from his head bone, in his own frame ([ahead, up, to that hand's side], m). */
 export const CUP = [0.115, 0.015, 0.075];
+const SHRUG = 0.035; // m his shoulders come up as his hands go up (his arms are short: his hands just clear his head)
 const ELBOW = [-0.25, -0.55, 0.8]; // the way his elbows point as his arms bend (his own frame: back, down and out)
 /** Mosi's hind feet from his root, along him (m): he rears about them. */
 const HIND = -0.05;
@@ -262,6 +263,11 @@ function egillRig(c, clock, options) {
     for (const arm of arms) {
       const poses = p.arms[arm.key];
       let sum = 0;
+      if (poses.up > 0) {
+        arm.upper.getWorldPosition(to).y += SHRUG * poses.up;
+        arm.upper.position.copy(arm.upper.parent.worldToLocal(to));
+        arm.upper.updateMatrixWorld(true);
+      }
       arm.hand.getWorldPosition(H);
       goal.set(0, 0, 0);
       for (const [name, weight] of Object.entries(poses)) {
@@ -415,8 +421,9 @@ function flugedlaRig(c, clock, options) {
     if (!p) return;
     root.updateMatrixWorld(true);
     for (const wing of wings) {
-      if (p.spread > 0) {
-        for (const b of wing.bones) b.bone.quaternion.slerp(b.spread, p.spread);
+      const spread = p.spread[wing.key];
+      if (spread > 0) {
+        for (const b of wing.bones) b.bone.quaternion.slerp(b.spread, spread);
         wing.shoulder.updateMatrixWorld(true);
       }
       const lifted = p.raise[wing.key];

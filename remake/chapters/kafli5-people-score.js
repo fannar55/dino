@@ -319,8 +319,8 @@ export const FLIGHTS = [
   { // the welcome: a round over the pool, out over the grazers and the turtles, round over Slóeðla, back past the north shallows
     from: 22.6, to: 36.4, off: 24, down: 32.6, spin: null,
     keys: [
-      [23.8, ...HOME, GROUND], [24.8, 8.6, 15.6, 1.4], [26, 0.5, 8, 4.6], [27.4, -9.5, 3, 6.4], [28.5, -12.5, -5, 7], [29.6, -3, -10.5, 6.2],
-      [30.6, 9, -5.5, 5.4], [31.5, 18, 6, 4], [32.2, 16.5, 16.5, 1.6], [33, ...HOME, GROUND],
+      [23.8, ...HOME, GROUND], [24.8, 8.6, 15.6, 1], [26, 0.5, 8, 2.4], [27.4, -9.5, 3, 3], [28.5, -12.5, -5, 3.8], [29.6, -3, -10.5, 3.2],
+      [30.6, 9, -5.5, 3.8], [31.5, 18, 6, 3.4], [32.2, 16.5, 16.5, 1.4], [33, ...HOME, GROUND],
     ],
   },
   { // out to the middle through the countdown, low over the water, and straight up on "Nú!"
@@ -330,7 +330,7 @@ export const FLIGHTS = [
   { // the drop again: up out of the pool once more, spinning, a round over the choir and home
     from: P.redrop.from, to: 326.2, off: null, down: 322.4, spin: [P.redrop.from + 0.6, P.redrop.from + 3.2],
     // (lower: this one is seen from the middle of the pool, set_water_low, with less sky over her)
-    keys: [...rocket(P.redrop.from, 8.6), [319.4, 19, 6, 3.4], [321.2, 16.5, 16.5, 1.4], [322.8, ...HOME, GROUND]],
+    keys: [...rocket(P.redrop.from, 7), [319.4, 19, 6, 3.4], [321.2, 16.5, 16.5, 1.4], [322.8, ...HOME, GROUND]],
   },
 ];
 /** Her take-off and landing clips (pteranodon.glb): where in each her feet leave or meet the ground, and how fast they are played. */
@@ -365,8 +365,8 @@ const flightAt = b => FLIGHTS.find(flight => b >= flight.from && b <= flight.to)
  * Flugeðla at the clock: {
  *   at: [x, y, z] (where her feet would be were she level, the world's), heading, pitch (nose up), bank (to her right), degrees,
  *   air (0 on the ground .. 1 flying), clips: { takeOff, fly, land, happy: { weight, time } } (the rest of her is her idle clip),
- *   lift (m: her bob where she stands), spread (0 wings folded as her clip has them .. 1 spread wide), raise: { left, right }
- *   (degrees each wing is lifted about its shoulder; negative: down to the water), bow (degrees her neck and body bend down),
+ *   lift (m: her bob where she stands), spread: { left, right } (0 a wing folded as her clip has it .. 1 spread wide), raise:
+ *   { left, right } (degrees each wing is lifted about its shoulder; negative: down to the water), bow (degrees her neck and body bend down),
  *   look: [x, y, z], looking, clock (s: her idle clip's time), blink (true on the beat she winks)
  * }
  */
@@ -380,7 +380,7 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   const out = {
     at: [DECKS.at[0], LEVEL + GROUND, DECKS.at[1]], heading, pitch: 0, bank: 0, air: 0,
     clips: { takeOff: { weight: 0, time: 0 }, fly: { weight: 0, time: frac(d / WING_CLIPS.fly.beats) * WING_CLIPS.fly.seconds }, land: { weight: 0, time: 0 }, happy: { weight: 0, time: frac(d / WING_CLIPS.happy.beats) * WING_CLIPS.happy.seconds } },
-    lift: 0, spread: 0, raise: { left: 0, right: 0 }, bow: 0, look: lookAt(FLUGEDLA_LOOK, b, 2), looking: 0.7 * on, clock: d * BEAT, blink: false,
+    lift: 0, spread: { left: 0, right: 0 }, raise: { left: 0, right: 0 }, bow: 0, look: lookAt(FLUGEDLA_LOOK, b, 2), looking: 0.7 * on, clock: d * BEAT, blink: false,
   };
   const quiet = hush(b);
   // where she stands: a bob on the beat, her happy clip a bar long under it, her wings a little open
@@ -391,7 +391,7 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   const flick = hump(b, 424.4, 425, 426.6); // "Einu sinni enn!": a wing flicks up
   const point = Math.max(span(b, 404.4, 408.4, 0.8), span(b, 413.8, 416.4, 0.6)); // a wing out to Egill
   if (reduced) {
-    out.spread = clamp(0.25 * e + 0.6 * wingsUp + 0.5 * welcome);
+    out.spread.left = out.spread.right = clamp(0.6 * wingsUp + 0.5 * welcome + 0.6 * goodnight);
     out.raise.left = out.raise.right = 18 * wingsUp;
     out.bow = 14 * goodnight;
     out.lift = 0.02 * e * Math.sin((TAU * d) / 2);
@@ -400,17 +400,19 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   const dance = e * (1 - still) * (1 - goodnight);
   out.clips.happy.weight = clamp(dance * 0.75) * (1 - wingsUp) * (1 - quiet);
   out.lift = 0.07 * dance * (0.5 - 0.5 * Math.cos(TAU * d)) - 0.12 * quiet;
-  out.spread = clamp(0.3 * clamp(e * 2) + welcome + wingsUp + goodnight + 0.5 * still + flick + point);
+  // folded where she stands (halfway open a wing hangs like washing), and wide open for each thing she does with them
+  const both = welcome + wingsUp + goodnight;
   // she beats the time on the water: on each of the band's wing beats her wings open and lift, and come down flat on the water
   const beating = (1 - wingsUp) * (1 - welcome) * on;
   const open = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.25, at + 0.75))) * beating;
   const lifted = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.45, at - 0.05))) * beating;
   const slap = Math.max(...WINGS.map(at => hump(b, at - 0.4, at, at + 0.6))) * beating;
-  out.spread = clamp(out.spread + open);
+  out.spread.left = clamp(both + open + flick);
+  out.spread.right = clamp(both + open + point); // the wing on Egill's side, out to him
   const beatWings = 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * Math.sin(Math.PI * d);
-  out.raise.left = beatWings + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 38 * flick;
-  out.raise.right = beatWings + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 20 * point;
-  out.bow = 30 * goodnight * (0.75 + 0.25 * Math.sin((TAU * (b - 469)) / 4)) + 6 * quiet;
+  out.raise.left = beatWings + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick;
+  out.raise.right = beatWings + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point;
+  out.bow = 24 * goodnight * (0.75 + 0.25 * Math.sin((TAU * (b - 469)) / 4)) + 6 * quiet;
   out.blink = b >= 424.6 && b < 425.4;
   // her flights
   const flight = flightAt(b);
@@ -459,7 +461,9 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
     out.raise.right *= grounded;
     out.bow *= grounded;
     // she comes down with her wings spread, and they stay spread a moment
-    out.spread = Math.max(out.spread * grounded, flight.down === null ? 0 : span(b, flight.down - 0.5, flight.down + 3.2, 0.5, 1.5));
+    const landed = flight.down === null ? 0 : span(b, flight.down - 0.5, flight.down + 3.2, 0.5, 1.5);
+    out.spread.left = Math.max(out.spread.left * grounded, landed);
+    out.spread.right = Math.max(out.spread.right * grounded, landed);
   }
   return out;
 }
@@ -524,12 +528,13 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
     out.tail = -6 * e * Math.sin((TAU * (d - 0.6)) / 4);
     return out;
   }
-  out.side = 0.2 * e * sway;
-  out.yaw += 4 * e * Math.sin((TAU * (d - 0.5)) / 4);
-  out.tilt = 5 * e * sway;
-  out.lift += 0.07 * e * (0.5 - 0.5 * Math.cos(Math.PI * d));
-  out.nod += 3.5 * e * Math.cos(Math.PI * d);
-  out.tail = -16 * e * Math.sin((TAU * (d - 0.6)) / 4) + 5 * e * Math.sin(Math.PI * d);
+  out.side = 0.3 * e * sway;
+  out.yaw += 6 * e * Math.sin((TAU * (d - 0.5)) / 4);
+  out.tilt = 7.5 * e * sway;
+  out.lift += 0.1 * e * (0.5 - 0.5 * Math.cos(Math.PI * d));
+  out.nod += 5 * e * Math.cos(Math.PI * d);
+  out.turn += 9 * e * Math.sin((TAU * (d - 1)) / 8); // her head sweeps slowly from side to side, two bars a sweep
+  out.tail = -20 * e * Math.sin((TAU * (d - 0.6)) / 4) + 6 * e * Math.sin(Math.PI * d);
   out.lift += 0.22 * rise * on;
   out.nod += 11 * rise * on;
   out.lean += 3.5 * rise * on;

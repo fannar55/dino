@@ -11,6 +11,8 @@
 //                                    metres from it, metres over the water, for the camera and for what it looks at
 //     [--cam "x,y,z;tx,ty,tz;fov"]   the same in the world's metres
 //     [--no-horn]                    her horn is blown on the set's horn cues near a still's beat unless this is given
+//     [--view "name@shot@beats"] [--view "name@angle,distance,over;angle,distance,over;fov@beats"] ...
+//                                    several sheets from one load (the seek is the slow part): each in <out>/<name>
 //
 // --beats are the SET's beats (a range `a:b:step` works too). Writes <out>/b<beat>.png and <out>/montage.png.
 import http from 'node:http';
@@ -33,16 +35,22 @@ const out = path.resolve(ROOT, opt('out', 'qa/remake/kafli5/myndband/folk/latest
 const [width, height] = opt('size', '1280x800').split('x').map(Number);
 const cols = Number(opt('cols', 4));
 const tile = Number(opt('tile', 640));
-const beats = opt('beats', '64').split(',').flatMap(part => {
+const beatsOf = text => text.split(',').flatMap(part => {
   if (!part.includes(':')) return [Number(part)];
   const [a, b, step = 1] = part.split(':').map(Number);
   return Array.from({ length: Math.floor((b - a) / step + 1e-9) + 1 }, (_, i) => +(a + i * step).toFixed(3));
 });
 const polar = text => { const [angle, distance, over] = text.split(',').map(Number); const a = (angle * Math.PI) / 180; return [POOL.center[0] + distance * Math.cos(a), POOL.level + over, POOL.center[1] + distance * Math.sin(a)]; };
+const atOf = text => { const [p, t, fov] = text.split(';'); return { p: polar(p), t: polar(t), fov: Number(fov ?? 46) }; };
 let cam = null;
 if (opt('cam')) { const [p, t, fov] = opt('cam').split(';'); cam = { p: p.split(',').map(Number), t: t.split(',').map(Number), fov: Number(fov ?? 46) }; }
-if (opt('at')) { const [p, t, fov] = opt('at').split(';'); cam = { p: polar(p), t: polar(t), fov: Number(fov ?? 46) }; }
-const shot = opt('shot', cam ? null : 'pool_open');
+if (opt('at')) cam = atOf(opt('at'));
+// the sheets to make: [{ out, shot, cam, beats }]
+const views = args.flatMap((arg, i) => (arg === '--view' ? [args[i + 1]] : [])).map(text => {
+  const [name, where, list] = text.split('@');
+  return { out: path.join(out, name), shot: where.includes(';') ? null : where, cam: where.includes(';') ? atOf(where) : null, beats: beatsOf(list) };
+});
+if (!views.length) views.push({ out, shot: opt('shot', cam ? null : 'pool_open'), cam, beats: beatsOf(opt('beats', '64')) });
 
 const server = await new Promise(resolve => {
   const s = http.createServer(async (req, res) => {
@@ -56,9 +64,9 @@ const server = await new Promise(resolve => {
   });
   s.listen(0, '127.0.0.1', () => resolve(s));
 });
-await fsp.mkdir(out, { recursive: true });
+for (const view of views) await fsp.mkdir(view.out, { recursive: true });
 const browser = await launchBrowser({ browser: 'edge', width, height });
-const report = { shots: [] };
+const report = { errors: [] };
 try {
   const { cdp } = browser;
   const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
@@ -98,9 +106,10 @@ try {
     };
     return true;
   })()`);
-  if (shot) await evaluate(`window.__director.cut(${JSON.stringify(shot)}, { check: false })`);
-  if (cam) await evaluate(`window.__folk.cam = ${JSON.stringify(cam)}`);
-  for (const setBeat of beats) {
+  for (const view of views) {
+  await evaluate(`window.__folk.cam = ${JSON.stringify(view.cam)}`);
+  if (view.shot) await evaluate(`window.__director.cut(${JSON.stringify(view.shot)}, { check: false })`);
+  for (const setBeat of view.beats) {
     const video = { setBeat, ...danceBeatAt(setBeat), section: sectionAt(setBeat) };
     const horn = !args.includes('--no-horn') && HORNS.some(at => at <= setBeat && at > setBeat - 2.5);
     await evaluate(`(() => {
@@ -118,8 +127,8 @@ try {
     await evaluate('new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done))))', true);
     const name = `b${String(setBeat).replace('.', '_')}`;
     const data = await send('Page.captureScreenshot', { format: 'png' });
-    await fsp.writeFile(path.join(out, `${name}.png`), Buffer.from(data.data, 'base64'));
-    report.shots.push({ name });
+    await fsp.writeFile(path.join(view.out, `${name}.png`), Buffer.from(data.data, 'base64'));
+  }
   }
   if (errors.length) console.log(`page errors:\n  ${[...new Set(errors)].slice(0, 8).join('\n  ')}`);
   report.errors = [...new Set(errors)];
@@ -127,6 +136,7 @@ try {
   await stopBrowser(browser);
   server.close();
 }
-await fsp.writeFile(path.join(out, 'report.json'), JSON.stringify(report, null, 2));
-const made = spawnSync(process.execPath, [path.join(ROOT, 'remake/tools/world/montage.mjs'), out, String(cols), String(tile)], { encoding: 'utf8' });
-console.log((made.stdout || made.stderr).trim());
+for (const view of views) {
+  const made = spawnSync(process.execPath, [path.join(ROOT, 'remake/tools/world/montage.mjs'), view.out, String(cols), String(tile)], { encoding: 'utf8' });
+  console.log((made.stdout || made.stderr).trim());
+}

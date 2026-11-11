@@ -60,9 +60,9 @@ const TAIL = ['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
 /**
  * Her dance's bounds: the most her root, her head, her eyes and her crest's tip may move (m/s) and her heading and her head's facing
  * turn (degrees/s) while she dances; over that, less of what the score asks is taken this frame (halved up to `tries` times, then
- * none: her life's own moves alone). At the chapter's test's 30 frames a second: 0.08 m and 6 degrees a frame.
+ * none: her life's own moves alone). At the chapter's test's 30 frames a second: 0.09 m and 6 degrees a frame.
  */
-export const DANCE = { speed: 2.4, turn: 180, tries: 5 };
+export const DANCE = { speed: 2.7, turn: 180, tries: 5 };
 const MOVES = ['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail'];
 const UP = new THREE.Vector3(0, 1, 0);
 const SIDE = new THREE.Vector3(0, 0, 1);
@@ -328,7 +328,7 @@ export function sloedlaLife(actor) {
     const [far, round] = [DANCE.speed * dt, DANCE.turn * dt];
     const from = { ...moves };
     let share = 1;
-    for (let k = 0; k <= DANCE.tries; k++, share = k < DANCE.tries ? share / 2 : 0) {
+    for (let k = 0; k <= DANCE.tries; k++) {
       for (const key of MOVES) moves[key] = from[key] + ((want[key] ?? 0) - from[key]) * share;
       lay(moves);
       if (!last || share === 0) break;
@@ -336,6 +336,10 @@ export function sloedlaLife(actor) {
       const moved = Math.max(seen.root.distanceTo(last.root), seen.head.distanceTo(last.head), seen.eyes.distanceTo(last.eyes), seen.crest.distanceTo(last.crest));
       const turned = Math.max(deg(seen.facing.angleTo(last.facing)), Math.abs(state.heading + moves.yaw - last.heading));
       if (moved <= far && turned <= round) break;
+      // too far: the share of the way that would be just near enough were the move all the dance's (a little under it), however far
+      // the score has leapt ahead of her; then halves of that, for what her life moves of her by itself; then none
+      const over = Math.max(moved / Math.max(far, 1e-9), turned / Math.max(round, 1e-9));
+      share = k + 1 >= DANCE.tries ? 0 : k === 0 ? Math.min(0.5, 0.9 / over) : share / 2;
     }
     dance.behind = share < 1 ? Math.max(...MOVES.map(key => Math.abs((want[key] ?? 0) - moves[key]))) : 0;
     for (const key of MOVES) if (Math.abs(moves[key]) < 1e-6 && !asked) moves[key] = 0;
