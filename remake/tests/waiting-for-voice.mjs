@@ -5,3 +5,10 @@
 // (docs/superpowers/plans/2026-10-31-kafli-2-bod-til-uggedlu.md) recorded all 31 lines with tools/voice-lines.mjs, so the set is empty;
 // a later chapter that adds lines before it records them puts their ids here again.
 export const WAITING_FOR_VOICE = new Set([]);
+
+// Chapter 5's lines that wait for Slóeðla's voice (the plan's Task 8, docs/superpowers/plans/2026-11-07-kafli-5-sloedla.md): she has
+// no voice in assets/audio/voices.json until the owner has picked one of the six designed for her (qa/remake/kafli5/rodd), so her
+// three lines are in kafli5/lines-source.json with no recording and are shown as captions, timed by their words. The same two
+// tests let them wait (kafli5-lines.test.mjs, voice-lines.test.mjs); kafli5-lines.test.mjs fails the day she has a voice and one of
+// these still has no recording, and when one that has its recording is still named here.
+export const WAITING_FOR_HER_VOICE = new Set(['k5_sloedla_forgot', 'k5_sloedla_mine', 'k5_sloedla_thanks']);

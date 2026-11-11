@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { CANDIDATES, JUNIOR_LINES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches, yesNoHtml } from '../tools/voice-lines.mjs';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { VISIT, fixtureLexicon, fixtureWords } from './lexicon-fixture.mjs';
-import { WAITING_FOR_VOICE } from './waiting-for-voice.mjs';
+import { WAITING_FOR_VOICE, WAITING_FOR_HER_VOICE } from './waiting-for-voice.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind. The lines come in
@@ -1041,7 +1041,8 @@ test("the committed record accounts for every MP3 in the repo: --plan with an em
     // Fjölspil's optional lines are to make until the owner records them himself (his decision of 2026-10-24): listed, not a fault.
     const owners = found.make.filter(item => set === 'yatzy-junior' && item.optional && Object.hasOwn(MULTI_LINES, item.id) && item.reasons.join('; ') === 'no MP3 yet');
     // The lines of the kafli2 set that wait for their voice (tests/waiting-for-voice.mjs) are to make until the plan's seventh task records them.
-    const waiting = found.make.filter(item => set === 'kafli2' && WAITING_FOR_VOICE.has(item.id) && item.reasons.join('; ') === 'no MP3 yet');
+    // So are chapter 5's three of Slóeðla, until the owner has picked her voice (kafli5-lines.test.mjs holds them to that).
+    const waiting = found.make.filter(item => ((set === 'kafli2' && WAITING_FOR_VOICE.has(item.id)) || (set === 'kafli5' && WAITING_FOR_HER_VOICE.has(item.id))) && item.reasons.join('; ') === 'no MP3 yet');
     assert.deepEqual(found.make.filter(item => !owners.includes(item) && !waiting.includes(item)).map(item => `${item.id}: ${item.reasons.join('; ')}`), [], `${set}: ${hint}`);
     assert.deepEqual(found.unknown.map(item => item.id), [], `${set}: ${hint}`);
     assert.deepEqual(found.stale.map(item => item.id), [], `${set}: ${hint}`);
