@@ -109,7 +109,7 @@ const SET_SHOTS = {
   set_grazers: seen(CHOIR.grazers.at, 138, 17, 1.4, 2.4, 46),
   set_grazers_close: seen(CHOIR.grazers.at, 124, 10.5, 1.0, 2.8, 42), // low, looking up at them: they are big
   set_turtles: seen(CHOIR.turtles.at, 160, 8, 1.5, 1.7, 38), // they sit on top of their stone, 1.7 m over the water
-  set_turtles_close: seen(CHOIR.turtles.at, 148, 4.6, 2.1, 2.0, 32),
+  set_turtles_close: seen(CHOIR.turtles.at, 148, 5.6, 2.1, 2.0, 36), // on their backs they spin 0.6 m apart: 3.2 m across
   set_frogs: seen(CHOIR.frogs.at, 160, 8.5, 1.3, 0.5, 40),
   set_frogs_mid: seen(CHOIR.frogs.at, 160, 5.8, 1.15, 0.45, 36),
   set_frogs_close: seen(CHOIR.frogs.at, 160, 3.8, 1.0, 0.4, 32),

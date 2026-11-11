@@ -52,7 +52,8 @@ export const CAMERA = [
   { beat: 40, cut: 'set_water_low', then: { orbit: -4, beats: 7 } },
   { beat: 48, cut: 'choir_wide', then: { push: 5, beats: 15 } },
   // the dance floor: everyone, from low over the water
-  { beat: 64, cut: 'set_low_wide', then: { orbit: 8, beats: 15 } },
+  { beat: 64, cut: 'set_low_wide', then: { push: 2.5, beats: 7 } },
+  { beat: 72, cut: 'bank_talk', then: { push: 1, beats: 7 } }, // Mosi sways and Egill bounces
   { beat: 80, cut: 'set_water_low', then: { push: 4, beats: 15 } },
   // her tune: her, the choir that sings it, her
   { beat: 96, cut: 'sloedla_out', then: { push: 1.5, beats: 7 } },
@@ -61,7 +62,8 @@ export const CAMERA = [
   { beat: 120, cut: 'set_low_wide', then: { push: 2, beats: 7 } },
   // each group's part: all of it, then close
   { beat: 128, cut: 'set_grazers', then: { push: 2, beats: 7 } },
-  { beat: 136, cut: 'set_grazers_close', then: { zoom: 38, beats: 7 } },
+  { beat: 136, cut: 'set_grazers_close' },
+  { beat: 140, cut: 'bank_talk' }, // Mosi stomps with them, too big for it
   { beat: 144, cut: 'set_turtles', then: { push: 2, beats: 7 } }, // slow: a long push in
   { beat: 152, cut: 'set_turtles_close', then: { orbit: 14, beats: 7 } }, // "Og hratt!": they spin
   { beat: 160, cut: 'set_frogs' },
@@ -86,7 +88,7 @@ export const CAMERA = [
   { beat: 254, cut: 'set_her_low', then: { push: 2.5, beats: 9 } },
   // the build: her wings up, Egill's hands up, the whole pool closing in, and a group a number
   { beat: 264, cut: 'set_flugedla' },
-  { beat: 268, cut: 'set_egill_close' },
+  { beat: 268, cut: 'pool_open' }, // her wings up, his hands up, and Mosi, in one picture
   { beat: 272, cut: 'choir_wide', then: { push: 4.5, beats: 13 } },
   { beat: 287, cut: 'set_grazers_close', quick: true },
   { beat: 289, cut: 'set_turtles_close', quick: true },
@@ -98,7 +100,8 @@ export const CAMERA = [
   { beat: 308, cut: 'set_water_low', then: { orbit: 4, beats: 7 } },
   { beat: 316, cut: 'choir_wide', then: { push: 2.5, beats: 7 } },
   // everyone sings her tune
-  { beat: 324, cut: 'set_low_wide', then: { orbit: -8, beats: 15 } },
+  { beat: 324, cut: 'set_low_wide', then: { orbit: -3, beats: 7 } },
+  { beat: 332, cut: 'pool_open', then: { push: 1.2, beats: 7 } }, // the three on Egill's bank, dancing
   { beat: 340, cut: 'set_her_close', then: { orbit: -14, beats: 7 } },
   { beat: 348, cut: 'choir_wide', then: { push: 2.5, beats: 7 } },
   // Stoppdans: dancing, low over the water, the camera gliding on as everything freezes at 362 (through the fireflies that hang
@@ -110,10 +113,11 @@ export const CAMERA = [
   { beat: 372, cut: 'set_water_low', then: { orbit: 6, beats: 15 } },
   { beat: 388, cut: 'set_sky', then: { zoom: 46, beats: 7 } },
   { beat: 396, cut: 'choir_wide', then: { push: 2.5, beats: 7 } },
-  // "Egill, segðu já!": him, the forest's answer, him again
-  { beat: 404, cut: 'set_egill_close', then: { push: 0.6, beats: 7 } },
-  { beat: 412, cut: 'set_water_low' },
-  { beat: 416, cut: 'set_egill_close' },
+  // "Egill, segðu já!": Flugeðla's wing out to him, him (the gap is the child's), the forest's answer, and its bigger one
+  { beat: 404, cut: 'pool_open' }, // her wing out to him
+  { beat: 408, cut: 'set_egill_close' }, // his hands at his mouth: the child shouts
+  { beat: 412, cut: 'set_water_low' }, // the forest answers
+  { beat: 416, cut: 'set_low_wide' }, // and again, higher
   // the ending that is not one: pulling away, and her "Einu sinni enn!"
   { beat: 420, cut: 'choir_wide', then: { push: -1.4, beats: 4 } },
   { beat: 424, cut: 'set_flugedla' },
@@ -122,7 +126,7 @@ export const CAMERA = [
   { beat: 434, cut: 'set_her_close' },
   { beat: 438, cut: 'set_grazers' },
   { beat: 442, cut: 'sloedla_out' },
-  { beat: 446, cut: 'set_frogs' },
+  { beat: 446, cut: 'bank_talk' }, // Egill and Mosi in the last chorus
   { beat: 450, cut: 'set_her_low' },
   { beat: 454, cut: 'set_water_low', then: { push: 2, beats: 6 } },
   // good night: the band's stabs, her goodnight, the last hit

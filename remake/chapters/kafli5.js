@@ -438,8 +438,9 @@ function onSet(s, c, event) {
       s.say('flugedla', { text: event.line.text }, { hold: 0.15 });
       break;
     case 'call':
-      // a group that sings lights up; how it moves as it sings is its dance's (kafli5-dances.js marks every call on the dance beat)
-      if (GROUPS.includes(event.group)) c.glow.flash(event.group);
+      // a group that sings is seen in its dance (kafli5-dances.js marks every call on the dance beat) and in the show's light
+      // under it (kafli5-show.js). The tap ring's flash, which marks a note in scenes 4 and 5, is not used here: a group sings
+      // several notes a bar in its part, and the ring stood lit, a bright band round the group.
       break;
     case 'horn':
       c.her.blow({ seconds: BEAT });
