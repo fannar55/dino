@@ -27,16 +27,16 @@ const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px
 const CARD = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw;display:flex;flex-direction:column;align-items:center;gap:14px';
 
 // The start: a big picture of the red/cyan glasses in the middle, breathing about once a second (gently under less motion); a tap
-// on it starts the show, and is the touch that lets the sound begin (main.js chapter.startButton: what Byrja does). Until the
-// picture is there (remake/assets/book/gleraugu-3d.webp) the show starts as before: the Byrja pill, over a card that says to put
-// the glasses on.
-const GLASSES = new URL('../assets/book/gleraugu-3d.webp', import.meta.url).href;
+// on it starts the show, and is the touch that lets the sound begin (main.js chapter.startButton: what Byrja does). The picture is
+// Openclipart's "Anaglyph Glasses" (public domain, assets/book/CREDITS.md), shown as it is: red on the wearer's left, never mirrored.
+// Should it not load (offline before the app has it), main.js shows the Byrja pill instead, so the show never stands stuck.
+const GLASSES = new URL('../assets/book/gleraugu-3d.svg', import.meta.url).href;
 const GLASSES_STYLE = `
   .gler-start-wrap { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; align-content: center; gap: 2.4vmin; pointer-events: none; }
   .gler-start-wrap[hidden] { display: none; }
   .gler-start { pointer-events: auto; border: 0; padding: 0; margin: 0; background: none; cursor: pointer; border-radius: 6vmin;
     -webkit-tap-highlight-color: transparent; animation: gler-pulse 1s ease-in-out infinite; }
-  .gler-start img { display: block; width: min(60vmin, 92vw); min-height: 40vmin; height: auto; object-fit: contain; -webkit-user-drag: none; }
+  .gler-start img { display: block; width: min(60vmin, 92vw); height: auto; aspect-ratio: 1764 / 1335; -webkit-user-drag: none; }
   .gler-start-line { margin: 0; padding: 6px 16px; border-radius: 12px; background: rgba(255,255,255,.88); color: #2b2b2b;
     font: 700 clamp(17px, 2.2vw, 22px)/1.3 Nunito, sans-serif; text-align: center; }
   @keyframes gler-pulse {
@@ -48,8 +48,7 @@ const GLASSES_STYLE = `
     50% { filter: drop-shadow(0 0 2.6vmin rgba(255, 250, 215, .75)); }
   }
   @media (prefers-reduced-motion: reduce) { .gler-start { animation: gler-pulse-calm 2.4s ease-in-out infinite; } }`;
-let startCard = null; // the card over the Byrja pill, when the picture is not there
-/** The glasses start, laid on the page hidden, once its picture has loaded; null (and the card) when it cannot be. */
+/** The glasses start, laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */
 function glassesStart(doc) {
   return new Promise(resolve => {
     const wrap = doc.createElement('div');
@@ -72,16 +71,7 @@ function glassesStart(doc) {
       doc.body.append(wrap);
       resolve({ element: wrap, button });
     }, { once: true });
-    img.addEventListener('error', () => {
-      startCard = doc.createElement('div');
-      startCard.style.cssText = CARD;
-      const say = doc.createElement('p');
-      say.style.margin = '0';
-      say.textContent = 'Settu upp gleraugun! Rauða glerið á vinstra auga.';
-      startCard.append(say);
-      doc.body.append(startCard);
-      resolve(null);
-    }, { once: true });
+    img.addEventListener('error', () => resolve(null), { once: true });
     img.src = GLASSES;
   });
 }
@@ -400,13 +390,8 @@ export const chapter = {
       }
     }
 
-    // ---- the start (chapter.startButton below, which main.js shows), and the card over the Byrja pill without the picture ----
-    try {
-      yield s.ready();
-    } finally {
-      startCard?.remove();
-      startCard = null;
-    }
+    // ---- the start: the glasses (chapter.startButton below), which main.js shows and whose tap begins the show ----
+    yield s.ready();
 
     for (;;) {
       yield* show();

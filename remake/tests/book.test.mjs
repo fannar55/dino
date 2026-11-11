@@ -12,6 +12,7 @@ import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createZoom } from '../engine/book/zoom.js';
+import { createShowPlayer, showAddress, SHOW_CLOSE } from '../engine/book/show-player.js';
 import { rockYaw, ROCK_SWING } from '../engine/book/skeleton-view.js';
 import { createSave } from '../engine/save.js';
 import { createGame, applyTurn, FOSSIL_KINDS } from '../engine/hals/rules.js';
@@ -2541,4 +2542,28 @@ test('lockTutorial blocks stray clicks and prevents claiming the book during a t
   fen.book.open('games', 'script');
   fen.book.playGame('eitt', { tutorial: true });
   assert.ok(fen.save.get().seen.includes('eitt'), 'playGame marks the game seen');
+});
+
+test('a show frame keeps only quality and debug from the page, and Escape or the frame itself closes it', () => {
+  assert.equal(showAddress({ chapter: 'fidrildi3d' }, '?chapter=kafli3&quality=tablet&debug=1&t=40&gler=1'), '?chapter=fidrildi3d&syning=1&quality=tablet&debug=1');
+  assert.equal(showAddress({ chapter: 'fidrildi3d' }, ''), '?chapter=fidrildi3d&syning=1');
+  const doc = new FakeDocument(['book']);
+  const win = new EventTarget();
+  win.location = { search: '?quality=low' };
+  const told = [];
+  const player = createShowPlayer(doc, doc.getElementById('book'), { win, onOpen: () => told.push('open'), onClose: () => told.push('close') });
+  assert.equal(player.open({ id: 'x' }), false, 'a show needs its chapter');
+  player.open({ id: 'fidrildi3d', chapter: 'fidrildi3d' });
+  assert.equal(player.frame.src, '?chapter=fidrildi3d&syning=1&quality=low');
+  const key = new Event('keydown');
+  key.key = 'Escape';
+  win.dispatchEvent(key);
+  assert.equal(player.isOpen, false, 'Escape on the page closes it');
+  player.open({ id: 'fidrildi3d', chapter: 'fidrildi3d' });
+  const message = new Event('message');
+  message.data = SHOW_CLOSE;
+  message.source = player.frame.contentWindow;
+  win.dispatchEvent(message);
+  assert.equal(player.isOpen, false, 'as does Escape in the frame, which it sends up');
+  assert.deepEqual(told, ['open', 'close', 'open', 'close']);
 });
