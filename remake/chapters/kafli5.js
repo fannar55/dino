@@ -103,14 +103,16 @@ const LEAN = { share: 0.15, seconds: 1.6, framed: 0.9, tries: 4 };
 // The sound outside the song (the owner, 2026-11-11: all was silent until the song began). The pool's own bed (sfx.js 'fen': water on
 // the bank, the reed, a frog or a drip now and then) from the first moment, the water alone while the choir is listened to (a frog
 // of the bed is not a frog of the choir) and under the set, and whole again after it. A calm music (kafli5-song.js CALM: the set's
-// quiet record, a layer of the loop) until she says her song is lost, and again after the roar: between them the only music is what
-// the choir finds. And what happens is heard, with the game's own sounds:
+// quiet record, a layer of the loop) until she says her song is lost: a breath of no music, and it is back as Mosi says the animals
+// remember, until the choir's band takes its place (the first recording had ten seconds of next to nothing while they walked to
+// their places). And again after the roar, which is heard in the quiet, until the last line is said: it is gone when the book
+// opens (the book holds the game's sound, and a loop cut by it stutters). And what happens is heard, with the game's own sounds:
 const CALLS = { grazers: 'grazers', turtles: 'turtleCall', frogs: 'frog', lizards: 'lizards', flyers: 'flyers' }; // each group's own voice (sfx.js)
 const CALL = { first: 0.5, apart: 0.8, level: 0.7 }; // s: the groups answer one after another as they set off
 const ON_THE_WAY = [['flyers', 2], ['grazers', 4.5], ['lizards', 7]]; // those that walk or fly round the pool call once on the way (s into scene 3)
 const STEPS_DOWN = { every: 0.62, level: 0.55 }; // Mosi's footfalls as he walks down to the water (1 m/s)
 const TURN_STEPS = { at: [0.5, 1.2, 1.9, 2.6], level: 0.45 }; // and as he turns to the roar
-const END_FADE = 1.5; // s the calm music takes to go when the chapter has ended in the book
+const LAST_FADE = 2.2; // s the calm music takes to go after the last line, before the book opens
 const TO_THE_MAP = 1.2; // s the book shows its dinosaurs (Slóeðla nodding) before it turns to the map, as chapter 4's
 
 // ---------------------------------------------------------------------------------------------
@@ -186,6 +188,7 @@ function* shyInTheReed(s, c) {
   yield s.wait(1.4); // down again, sad
   yield s.camera.cut('bank_talk');
   sendTheChoir(c); // "they remember": the animals set off for their places
+  calm(c, true); // and the music is back
   GROUPS.forEach((group, k) => s.after(CALL.first + k * CALL.apart, () => { call(s, c, group); return null; })); // and each answers
   yield* say(s, c, 'mosi', 'k5_mosi_animals');
   yield s.wait(0.4);
@@ -223,6 +226,7 @@ function* theChoir(s, c) {
   }));
   // the band, heard from far away: every part of it plays from now on, and the phrases bring them up one by one
   c.band.play();
+  calm(c, false); // the calm music gives way to the band
   for (const [layer, level] of Object.entries(LAYER_LEVELS)) c.band.layer(layer, level, BAND.in);
   c.log({ type: 'band', layers: { ...LAYER_LEVELS } });
   try {
@@ -514,6 +518,7 @@ function* answerFromAfar(s, c) {
   yield* say(s, c, 'egill', 'k5_egill_next');
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
   yield* say(s, c, 'mosi', 'k5_mosi_longest');
+  calm(c, false, LAST_FADE); // gone before the book opens
   yield s.wait(2.4);
   mark(c, 'end');
   s.fade(0.45, 1.6);
@@ -793,9 +798,9 @@ function call(s, c, group) {
 }
 
 /** The calm music comes (the loop plays from then on, its band silent until the choir) or goes. */
-function calm(c, on) {
+function calm(c, on, seconds = on ? CALM.in : CALM.out) {
   if (on) c.band.play();
-  c.band.layer('calm', on ? CALM.level : 0, on ? CALM.in : CALM.out);
+  c.band.layer('calm', on ? CALM.level : 0, seconds);
   c.log({ type: 'calm', on });
 }
 
@@ -914,7 +919,7 @@ export const chapter = {
       c.show?.day(); // the afternoon, and the sun's cap off, for whatever is played next
       release?.();
       c.sounds.stop();
-      c.band.stop(c.scene === 'end' ? END_FADE : 0.3);
+      c.band.stop(0.3);
       c.song.stop(0.5);
       for (const off of releases) off?.();
     }

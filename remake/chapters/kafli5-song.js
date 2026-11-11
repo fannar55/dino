@@ -37,9 +37,9 @@ export const LAYER_LEVELS = { far: 0.35 };
 export const PHRASE_LAYERS = [{ drums: 0.45 }, { bass: 0.45 }, { music: 0.45, far: 0 }, { drums: 0.7, bass: 0.7, music: 0.7 }];
 
 /**
- * The calm layer (the set's quiet record, eight bars of it: tools/kafli5-song.mjs): low under the chapter's first scenes, until she
- * says she has forgotten her song (then there is no music until the choir finds it), and again after the roar, to the book. `in`
- * and `out`: the seconds it takes to come and to go.
+ * The calm layer (the set's quiet record, eight bars of it: tools/kafli5-song.mjs): low under the chapter's scenes before the choir
+ * (but for a breath when she says she has forgotten her song) and after the roar (kafli5.js). `in` and `out`: the seconds it takes
+ * to come and to go.
  */
 export const CALM = { level: 0.4, in: 3, out: 3.5 };
 

@@ -270,7 +270,7 @@ test('each phrase brings in its part of the band, and the loop is blended into t
   assert.equal(c.band.playing, false, 'the loop has left');
 });
 
-test('the chapter is never silent: the pool is heard and a calm music plays from the start, no music while her song is lost, and both again when the set is over', async () => {
+test('the chapter is never silent: the pool is heard and a calm music plays until the choir (but for a breath as her song is lost), and both again when the set is over', async () => {
   const run = await quick();
   ended(run, 'eager');
   const c = run.world.chapterState;
@@ -285,14 +285,17 @@ test('the chapter is never silent: the pool is heard and a calm music plays from
   assert.ok(beds[2].at >= c.set.ended && beds[2].at < sceneAt(run, 7) && beds[2].calls !== false, 'and its frogs again when the set is over');
   // the calm music: the set's quiet record, a layer of the loop
   const calm = logOf(run, 'calm');
-  assert.deepEqual(calm.map(entry => entry.on), [true, false, true]);
+  assert.deepEqual(calm.map(entry => entry.on), [true, false, true, false, true, false]);
   assert.ok(calm[0].at < sceneAt(run, 1) + 0.5, 'from the first moment');
-  assert.ok(calm[1].at >= said('k5_sloedla_forgot') && calm[1].at < sceneAt(run, 3), 'it goes when she has said her song is lost');
-  assert.ok(calm[1].at + CALM.out < sceneAt(run, 4), 'and is gone before the far band comes: the choir finds the music again');
+  assert.ok(calm[1].at >= said('k5_sloedla_forgot') && calm[1].at < said('k5_mosi_animals'), 'it goes when she has said her song is lost');
+  assert.ok(calm[2].at >= said('k5_mosi_animals') - 0.5 && calm[2].at < sceneAt(run, 3), 'and is back as Mosi says the animals remember');
+  assert.ok(calm[2].at - calm[1].at < 8, 'a breath of no music, not a silence');
+  const [band] = logOf(run, 'band');
+  assert.ok(Math.abs(calm[3].at - band.at) < 0.1, 'it gives way to the far band as the choir begins');
   const [roar] = logOf(run, 'roar');
-  assert.ok(calm[2].at > roar.at + 3, 'the roar is heard in the quiet, and the music comes after it');
-  assert.equal(c.band.level('calm'), CALM.level, 'it plays to the book');
-  for (const layer of ['drums', 'bass', 'music', 'far']) assert.equal(c.band.level(layer), 0, layer + ' stays out');
+  assert.ok(calm[4].at > roar.at + 3, 'the roar is heard in the quiet, and the music comes after it');
+  assert.ok(calm[5].at >= said('k5_mosi_longest') && calm[5].at + 2.2 <= run.world.chapterTimeline.find(mark => mark.scene === 'end').at + 1e-6, 'and it is gone when the book opens');
+  for (const layer of ['calm', 'drums', 'bass', 'music', 'far']) assert.equal(c.band.level(layer), 0, layer + ' is out at the end');
   // what happens is heard
   const [peek] = logOf(run, 'peek');
   assert.ok(named('sailRise').some(entry => Math.abs(entry.at - peek.at) < 0.2), 'the reed rustles as she peeks');
