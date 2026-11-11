@@ -783,11 +783,12 @@ const MOVES = {
     const top = hop(frac(u / 2 + 0.5)); // 1 on each second beat (2, 4, 6), 0 on the odd ones
     switch (m.group) {
       case 'grazers': {
-        const way = (Math.floor(u / 2 + 0.5) + m.k) % 2 ? 1 : -1; // each its own way: one up on its left, the next on its right
+        // reared up, the two at the back leaning out to their own sides and the front one the way of the beat: none into another
+        const way = [Math.floor(u / 2 + 0.5) % 2 ? 0.6 : -0.6, 1, -1][m.k % 3];
         shift(P, m, 0.5 * a * top * way);
         P.roll += 0.2 * a * top * way;
         P.dy += 0.9 * a * top;
-        P.pitch += 0.2 * a * top;
+        P.pitch += (m.k % 3 ? 0.2 : 0.28) * a * top;
         P.walk = 0.7; P.walkAt = u / 2;
         break;
       }
