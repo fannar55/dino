@@ -138,12 +138,17 @@ test('Egill: he bounces on the beat, jumps where the song jumps, and his hands a
   assert.ok(Math.sign(at('egill', 76.5).yaw) === -Math.sign(at('egill', 77.5).yaw), 'a twist one way, then the other');
   // every jump of the song: bent before it, off the ground on its beat, highest at the drop
   for (const jump of JUMPS) {
+    if (jump === BENDS.freeze.to) continue; // "Dansa!" finds him in the air (below)
     const [before, on, up] = [at('egill', jump - 0.3), at('egill', jump), at('egill', jump + 0.6)];
     // (the drop's second coming and "Dansa!" come out of the rewind and the freeze: no bending down before them)
-    if (jump !== BENDS.rewind.to && jump !== BENDS.freeze.to) assert.ok(before.hop.weight > 0.9 && before.hop.time < 0.42 && before.lift === 0, `bent down before ${jump}`);
+    if (jump !== BENDS.rewind.to) assert.ok(before.hop.weight > 0.9 && before.hop.time < 0.42 && before.lift === 0, `bent down before ${jump}`);
     assert.ok(Math.abs(on.hop.time - 0.42) < 0.02, `off the ground on ${jump} (${on.hop.time.toFixed(2)} s into the clip)`);
     assert.ok(up.lift > 0.12, `in the air after ${jump} (${up.lift.toFixed(2)} m over the clip's own)`);
   }
+  // "Dansa!": he comes down out of the jump "Stopp!" caught him in, with no leap between the two
+  const [caught, freed] = [at('egill', BENDS.freeze.to - 0.01), at('egill', BENDS.freeze.to)];
+  assert.ok(Math.abs(caught.hop.time - freed.hop.time) < 1e-6 && Math.abs(caught.lift - freed.lift) < 1e-6 && freed.lift > 0.1, `in the air on "Dansa!" as he was frozen (${freed.lift.toFixed(2)} m)`);
+  assert.ok(at('egill', BENDS.freeze.to + 1).lift === 0, 'and down a beat later');
   const highest = Math.max(...EGILL_JUMPS.map(([, more]) => more));
   assert.equal(EGILL_JUMPS.find(([beat]) => beat === part('drop').startBeat)[1], highest, 'the drop is his biggest jump');
   for (const [k, jump] of EGILL_JUMPS.entries()) {

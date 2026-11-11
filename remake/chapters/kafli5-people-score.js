@@ -124,14 +124,16 @@ function lookAt(keys, b, turn = 1.5) {
 export const HOP = { seconds: 1.15, off: 0.42, down: 0.94, rate: 0.85 };
 const HOP_AIR = (HOP.down - HOP.off) / (BEAT * HOP.rate); // beats in the air
 const phraseHops = (from, to) => { const out = []; for (let b = from + 6.75; b < to; b += 8) out.push(b); return out; };
+const FROZEN = 0.55; // beats into a jump "Stopp!" catches him
 /** His jumps: [the beat he leaves the ground, metres over the clip's own 0.29 m, beats of bending down first]. */
 export const EGILL_JUMPS = [
   [33.5, 0.08, 1], // "Egill! Ertu tilbúinn?"
   ...phraseHops(P.groove.from, P.groove.to).map(b => [b, 0.05, 1]),
   [P.groove.from, 0.18, 1.8], [P.drop.from, 0.3, 1.5], [P.redrop.from, 0.3, 1.5], [P.anthem.from, 0.2, 1],
   ...phraseHops(P.anthem.from, P.anthem.to).map(b => [b, 0.05, 1]),
-  [BENDS.freeze.from - 0.55, 0.2, 1], // in the air when "Stopp!" comes
-  [P.carnival.from, 0.2, 1], [378.75, 0.05, 1], [384.75, 0.05, 1], ...HOPP.map(b => [b, 0.15, 1]),
+  [BENDS.freeze.from - FROZEN, 0.2, 1], // in the air when "Stopp!" comes
+  [BENDS.freeze.to - FROZEN, 0.2, 1], // and on "Dansa!" he comes down out of that very jump
+  [378.75, 0.05, 1], [384.75, 0.05, 1], ...HOPP.map(b => [b, 0.15, 1]),
   [412, 0.12, 1], [416, 0.25, 1], // the forest answers him
   [P.lastchorus.from, 0.3, 1.4], ...phraseHops(P.lastchorus.from, P.lastchorus.to).map(b => [b, 0.08, 1]),
   [END, 0.3, 1.2],
