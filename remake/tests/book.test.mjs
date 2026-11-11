@@ -1957,7 +1957,8 @@ function fenRig({ fill = () => {}, animate = false, cards = CARDS } = {}) {
     doc.createElement = tag => animated(create(tag));
     animated(doc.getElementById('book'));
   }
-  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {} });
+  const shows = []; // the "3D myndbönd" shows the book hands on (main.js goes to their chapter)
+  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {}, onOpenShow: entry => shows.push(entry) });
   const root = doc.getElementById('book');
   const tap = el => {
     el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
@@ -1969,7 +1970,7 @@ function fenRig({ fill = () => {}, animate = false, cards = CARDS } = {}) {
   const tilesOn = (n, side) => page(n, side).findAll(e => e.classList.contains('tile')).map(e => e.getAttribute('data-card'));
   const corner = (n, way) => leaf(n).findAll(e => e.classList.contains('spread-turn') && e.classList.contains(way))[0];
   const tile = id => root.findAll(e => e.classList.contains('tile') && e.getAttribute('data-card') === id)[0];
-  return { doc, save, book, root, narrated, sounds, animations, tap, leaves, leaf, page, tilesOn, corner, tile };
+  return { doc, save, book, root, narrated, sounds, animations, tap, leaves, leaf, page, tilesOn, corner, tile, shows };
 }
 
 test('the Dýrin page has a second spread for the Fen, turned at the page corner', () => {
@@ -2364,13 +2365,13 @@ test('with all eight fossils found, Safnið is celebrated the first time the chi
 // ---------------------------------------------------------------------------------------------
 // Myndbönd (videos.js, video-player.js) and card video links (card-viewer.js)
 
-test('the Myndbönd page has nine videos, four on the left page and five on the right, unlocking progressively and opening the video player', () => {
+test('the Myndbönd page has nine videos, five on the left page and four on the right, unlocking progressively and opening the video player', () => {
   const { save, book, root, narrated, sounds, tap } = fenRig();
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
-  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla'], 'four on the left page');
-  assert.deepEqual(onPage('right'), ['landrek', 'fuglar', 'raf', 'steinn', 'tennur'], 'and five on the right');
+  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek'], 'five on the left page');
+  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d'], 'and four on the right, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
   const videoRibbonDots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
@@ -2428,6 +2429,34 @@ test('the Myndbönd page has nine videos, four on the left page and five on the 
   tap(closeBtn);
   assert.equal(book.videoPlayer.isOpen, false);
   assert.equal(book.videoPlayer.screen.src, '', 'stream unloaded on close');
+});
+
+test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open from the start, which hands its chapter on instead of playing', () => {
+  const { save, book, root, tap, shows, sounds } = fenRig();
+  const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
+  const right = leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains('right'))[0];
+  const column = right.findAll(e => e.classList.contains('video-3d-column'))[0];
+  assert.ok(column, 'the right page has the 3D column');
+  const head = column.findAll(e => e.classList.contains('video-3d-head'))[0];
+  assert.equal(head.findAll(e => e.classList.contains('glasses-3d'))[0].textContent, '3D', 'headed "3D myndbönd", the 3D in the colours of the glasses');
+  const show = column.findAll(e => e.getAttribute('data-video') === 'fidrildi3d')[0];
+  assert.ok(show.classList.contains('video-tile-3d'));
+  assert.equal(show.findAll(e => e.classList.contains('video-3d-badge'))[0].textContent, '3D');
+  assert.ok(show.classList.contains('new'), 'open from the start, and new until watched');
+  assert.equal(show.getAttribute('aria-label'), 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum');
+  assert.equal(column.findAll(e => e.classList.contains('video-tile')).length, 1, 'one tile now, no empty placeholder');
+  const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
+    .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
+  assert.deepEqual(dots(), [], 'a show open from the start puts no Nýtt! on the ribbon');
+
+  book.open('videos', 'child');
+  sounds.length = 0;
+  tap(show);
+  assert.deepEqual(shows.map(entry => entry.chapter), ['fidrildi3d'], 'handed on with its chapter');
+  assert.equal(book.videoPlayer.isOpen, false, 'the video player stays closed');
+  assert.ok(save.get().seen.includes('video:fidrildi3d'), 'marked seen');
+  assert.ok(show.classList.contains('found'));
+  assert.deepEqual(sounds, ['tile']);
 });
 
 test('cards linked to an unlocked video show the card-video button and open the video player from the card', () => {
