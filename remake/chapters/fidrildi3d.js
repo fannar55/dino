@@ -115,15 +115,15 @@ const MOTHS = [
   // round 5: each moth is in the swarm's ring from `ringFrom` to `ringTo` (it was 30.5-43.5 for both): moth-a crosses in front of
   // Mosi's face (k 0.6, his beak is at 0.78) before it joins and both leave while the ring is out in front, not through him and her neck
   { name: 'moth-a', tint: COLOURS[1], ring: Math.PI, ringFrom: 31.5, ringTo: 40.6, wig: [0.04, 0.035, 1.9, 2.7, 0.4], keys: [
-    [0, 0.2, 0.3, 2.2], [5, 0.22, 0.55, 0.85], [9, 0.2, 0.62, 0.62], [13, 0.22, 0.68, 0.72], [17, 0.2, 0.66, 0.85], [21, 0.17, 0.6, 0.8],
-    [25, 0.17, 0.62, 0.72], [29, 0.2, 0.6, 0.66], [31.5, 0.5, 0.66, 0.6], [42.6, 0.3, 0.55, 0.62], [44.5, 0.17, 0.48, 0.7], [50, 0.25, 0.36, 0.62], [54, 0.22, 0.4, 0.78],
-    [58, 0.18, 0.2, 2.8, 'rest'], [60, 0.18, 0.2, 2.9]] },
+    [0, 0.15, 0.3, 2.2], [5, 0.18, 0.55, 0.75], [9, 0.2, 0.62, 0.62], [13, 0.2, 0.66, 0.66], [17, 0.18, 0.64, 0.68], [21, 0.17, 0.6, 0.68],
+    [25, 0.17, 0.62, 0.72], [29, 0.2, 0.6, 0.66], [31.5, 0.5, 0.66, 0.6], [42.6, 0.3, 0.55, 0.62], [44.5, 0.17, 0.48, 0.7], [50, 0.25, 0.36, 0.62], [54, 0.2, 0.42, 0.66, 'rest'],
+    [58, 0.13, 0.22, 2.8, 'rest'], [60, 0.13, 0.22, 2.9]] }, // round 5: in front of his frill's left edge (k 0.78 was by it) and out wider
   { name: 'moth-b', tint: COLOURS[2], ring: 0, ringFrom: 30.5, ringTo: 40.6, wig: [0.035, 0.04, 2.3, 1.7, 2.1], keys: [
     [0, 0.85, 0.4, 2.5], [5, 0.78, 0.45, 0.9], [9, 0.8, 0.55, 0.62], [13, 0.82, 0.5, 0.7], [17, 0.78, 0.6, 0.8], [21, 0.8, 0.52, 0.66],
     // round 5: from 42.6 high on the right, in front of Þórseðla's neck as it comes down and goes back up (not under her head), and
     // away to the left behind Mosi
-    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [42.6, 0.8, 0.4, 0.66], [44.5, 0.83, 0.38, 0.64], [47, 0.84, 0.42, 0.6],
-    [50, 0.84, 0.36, 0.62], [53, 0.84, 0.32, 0.62], [55, 0.83, 0.32, 0.63], [56.6, 0.6, 0.3, 0.8], [58.6, 0.3, 0.32, 2.8, 'rest'], [60, 0.3, 0.31, 2.9]] },
+    [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [42.6, 0.8, 0.4, 0.66], [44.5, 0.83, 0.38, 0.64], [47, 0.83, 0.42, 0.6],
+    [50, 0.83, 0.36, 0.62], [53, 0.83, 0.32, 0.62], [55, 0.82, 0.32, 0.63], [56.6, 0.6, 0.3, 0.8], [58.6, 0.3, 0.32, 2.8, 'rest'], [60, 0.3, 0.31, 2.9]] },
 ];
 // the swarm's depth through its dance (as a share of D), which the moths' ring follows too; and (round 5) how far right of the
 // middle its ring turns: behind the screen and through it it turns right of Mosi, whose head and body are there (k 1-1.6), and in
@@ -438,7 +438,7 @@ export const chapter = {
         c.far = Math.max(c.far, +k.toFixed(3));
         if (k < 1 && (u < 0.12 || u > 0.88 || vv < 0.12 || vv > 0.88)) c.edgeSamples++;
         if (k < 0.6 && (Math.abs(u - 0.5) > 0.3 || Math.abs(vv - 0.5) > 0.3)) c.nearWide++;
-        if (c.last) {
+        if (c.last && state.time > 0.3) { // (its first frames are under the opening black, as the three are put on their paths)
           const d = Math.hypot(at[0] - c.last[0], at[1] - c.last[1], at[2] - c.last[2]);
           if (d > c.jump) { c.jump = +d.toFixed(4); c.jumpAt = +state.time.toFixed(2); }
         }
@@ -547,7 +547,7 @@ export const chapter = {
       for (let i = 0; i < SWARM; i++) swarm.set(i, v.set(0, -50, 0), 0, 0);
       const heroKeys = track([
         [0, 0.7, 0.36, 3.4], [6, 0.68, 0.38, 3.0, 'rest'],
-        [9.5, 0.47, 0.4, 1.15], // past Mosi's horn
+        [9.5, 0.56, 0.38, 1.15], // past Mosi's horn (round 5: just right of his frill, 0.47 went through his head)
         [12, 0.5, 0.46, 0.7], [14.5, 0.5, 0.47, 0.48, 'rest'], // slowly out of the screen to the middle
       ]);
       const uvk = [];
@@ -721,9 +721,12 @@ export const chapter = {
       };
       // A sitter (round 5): from the dance to the point SEAT_ABOVE over its seat (SIT_TO s), straight down onto the seat (SIT_DOWN s),
       // sitting there as her head comes up, straight back up (RISE s) and away into the trees. Its seat is in her Head bone's frame.
-      const SIT_TO = 1.6, SIT_DOWN = 1.0, RISE = 1.2;
-      const sitFrom = b => 48.5 + 0.5 * b.sit;
-      const leaveAt = b => 55 + 0.06 * (b.phase * 4);
+      const SIT_TO = 1.2, SIT_DOWN = 0.8, RISE = 1.0;
+      // they sit while her head is still (it is down by 48.5 and goes up at 53.2) and are off it before it moves: riding it up took
+      // them out of the top of the frame in front of the screen (the comfort rules), so they leave from where it rests
+      const sitFrom = b => 48 + 0.25 * b.sit;
+      const leaveAt = b => (b.sit >= 0 ? 52 + 0.15 * b.sit : 55 + 0.06 * (b.phase * 4));
+      const LEAVE_BACK = 1.8; // and they go up off it and back, deeper, out of the way her head will go up
       const seatOf = (b, out) => out.copy(seats[b.sit].local).applyMatrix4(seats[b.sit].bone.matrixWorld);
       const above = new THREE.Vector3(), seat = new THREE.Vector3();
       // how much of the shell's push a butterfly takes (1 but on the last stretch down onto its seat and the first up from it)
@@ -744,12 +747,17 @@ export const chapter = {
         }
         const t0 = leaveAt(b);
         if (b.sit >= 0 && t >= sitFrom(b)) {
-          seatOf(b, seat);
+          // its seat as her head is now, and from the moment it leaves, where the seat was then (it goes up from there)
+          if (t < t0) seatOf(b, seat);
+          else seat.copy((b.left ??= seatOf(b, new THREE.Vector3())));
           above.copy(seat).y += SEAT_ABOVE;
           const s0 = sitFrom(b);
           if (t < s0 + SIT_TO) out.lerp(above, smooth((t - s0) / SIT_TO));
           else if (t < t0) out.lerpVectors(above, seat, smooth((t - s0 - SIT_TO) / SIT_DOWN));
-          else out.lerpVectors(seat, above, smooth((t - t0) / RISE));
+          else {
+            above.copy(seat).addScaledVector(look, LEAVE_BACK).y += 0.5;
+            out.lerpVectors(seat, above, smooth((t - t0) / RISE));
+          }
         }
         if (t >= t0) {
           const go = b.sit >= 0 ? t0 + RISE : t0;
