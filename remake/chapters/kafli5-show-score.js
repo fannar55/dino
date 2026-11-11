@@ -207,10 +207,10 @@ export function notePoint(note, a, b, u, out) {
 // The splashes
 
 const PADS = seatsOf('frogs').map(seat => seat.at);
-/** The lily pad ([x, z]) of the frog that calls on the set's beat `setBeat`: each call the next frog's, by the beat alone. */
-export const padOf = setBeat => PADS[Math.round(setBeat * 4) % PADS.length];
+/** The lily pad ([x, z]) of the frog that calls on the set's beat `setBeat`: each call the next frog's, by its dance beat alone. */
+export const padOf = setBeat => PADS[Math.round(danceOf(setBeat) * 4) % PADS.length];
 
-export const SPLASH = { ring: 4, rim: 0.8, crowns: 12, height: 3.5, frogAfter: 0.8 }; // beats a ring lives; the crowns' place and height
+export const SPLASH = { ring: 4, rim: 0.8, crowns: 12, height: 4.5, frogAfter: 0.8 }; // beats a ring lives; the crowns' place and height
 /**
  * Every splash of the set: { beat, at: [x, z], drops, up (m a beat), spread (m a beat), ring (m a beat), seed }. On the bursts and
  * the last hit the water jumps up all round the pool (SPLASH.crowns crowns near its rim); a frog's call makes a small one at a lily
@@ -225,7 +225,7 @@ export const SPLASHES = (() => {
       const far = POOL.radius * (SPLASH.rim - 0.14 * hash(k, n + 50));
       out.push({
         beat: beat + 0.2 * hash(k, n + 60), at: [POOL.at[0] + far * Math.cos(angle), POOL.at[1] + far * Math.sin(angle)],
-        drops: 12, up: speedFor(SPLASH.height * (beat === END ? 0.7 : 1)), spread: 0.55, ring: 1.5, seed: 100 * (n + 1) + k,
+        drops: 16, up: speedFor(SPLASH.height * (beat === END ? 0.7 : 1)), spread: 0.75, ring: 1.6, seed: 100 * (n + 1) + k,
       });
     }
   });
@@ -248,7 +248,7 @@ export function dropAt(splash, j, age, out) {
   out.x = splash.at[0] + far * Math.cos(angle);
   out.z = splash.at[1] + far * Math.sin(angle);
   out.y = y;
-  out.size = (0.13 + 0.15 * h(4)) * (splash.drops > 6 ? 1 : 0.7);
+  out.size = splash.drops > 6 ? 0.28 + 0.3 * h(4) : 0.1 + 0.1 * h(4);
   out.level = Math.min(1, 0.35 + y * 3);
   return out;
 }
@@ -261,7 +261,7 @@ export function splashRingAt(splash, age) {
 // ---------------------------------------------------------------------------------------------
 // The fireflies
 
-export const FIREFLIES = { count: 240, rise: 10, size: 0.3 }; // how many (half with less motion), beats one takes up out of the reed, m across
+export const FIREFLIES = { count: 240, rise: 24, size: 0.3 }; // how many (half with less motion), beats one takes up out of the reed, m across
 const WARM = ['#ffd56a', '#ffe9a8', '#ffb347', '#fff1cf'].map(srgb);
 const PARTY = ['#ff7fa6', '#7fe3d2', '#ffd56a', '#ff9d4a', '#b8f070'].map(srgb); // the confetti's colours on a burst
 const [BURST_ONE, BURST_TWO] = BURSTS;
@@ -271,8 +271,8 @@ const [BURST_ONE, BURST_TWO] = BURSTS;
  * of the set, all again from the second burst through the last chorus, and they sink away after the last hit.
  */
 const OUT = [
-  [startOf('arrival'), 0], [startOf('welcome'), 0.18], [startOf('tuneA'), 0.28], [startOf('dragonflies'), 0.4], [startOf('break') + 8, 0.8],
-  [BURST_ONE - 6, 1], [BURST_ONE + 4, 1], [startOf('anthem') + 4, 0.75], [startOf('freeze') + 6, 0.7], [startOf('carnival'), 0.7],
+  [startOf('arrival'), 0], [startOf('welcome'), 0.18], [startOf('tuneA'), 0.28], [startOf('dragonflies'), 0.4], [startOf('break') + 6, 1],
+  [BURST_ONE + 4, 1], [startOf('anthem') + 4, 0.75], [startOf('freeze') + 6, 0.7], [startOf('carnival'), 0.7],
   [startOf('crowd'), 0.55], [startOf('fakeend'), 0.45], [BURST_TWO, 1], [END, 1], [END + 4.5, 0],
 ];
 export function outAt(beat) {
@@ -293,10 +293,11 @@ function firstOut(rank) {
   }
   return OUT.at(-1)[0];
 }
+const GATHER = 14; // beats they take to come to her from all over the pool
 /** How much the fireflies are gathered round her, 0 to 1: through the quiet part and the build, and again before the second burst. */
 export function gatherAt(beat) {
-  if (beat < BURST_ONE) return smooth((beat - (startOf('break') - 6)) / 10);
-  if (beat < BURST_TWO) return smooth((beat - (BURST_TWO - 12)) / 10);
+  if (beat < BURST_ONE) return smooth((beat - (startOf('break') - 8)) / GATHER);
+  if (beat < BURST_TWO) return smooth((beat - (BURST_TWO - GATHER - 2)) / GATHER);
   return 0;
 }
 /** How tight and how low the swarm round her is: wide and high under her horn, drawn in and down to the water through the build. */

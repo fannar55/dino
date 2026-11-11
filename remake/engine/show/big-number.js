@@ -15,7 +15,7 @@ const STYLE = [
   'user-select: none', '-webkit-user-select: none', 'overflow: hidden', 'contain: strict',
 ].join('; ');
 const DIGIT = [
-  'font-family: inherit', 'font-weight: 900', 'font-size: min(60vh, 88vw)', 'line-height: 1', 'font-variant-numeric: tabular-nums',
+  'font-family: inherit', 'font-weight: 900', 'font-size: min(52vh, 80vw)', 'line-height: 1', 'font-variant-numeric: tabular-nums',
   'color: #fffaf0', '-webkit-text-stroke: 0.07em #3b2f25', 'paint-order: stroke fill',
   'text-shadow: 0 0.045em 0 #b75e2e, 0 0.1em 0.14em rgb(40 24 10 / .35)', 'will-change: transform, opacity', 'transform: scale(0)', 'opacity: 0',
 ].join('; ');

@@ -12,12 +12,12 @@ import * as THREE from 'three';
 // written as a blend of what was remembered and DUSK, so set() is a function of its two numbers only and has no memory. A world
 // without one of them (a test's, a capture's) is left alone there.
 export const DUSK = {
-  sun: { color: '#ff9a62', intensity: 0.42 }, // of the look's strength
-  hemi: { sky: '#8e9fd6', ground: '#4a4036', intensity: 0.8 },
+  sun: { color: '#ff9a62', intensity: 0.55 }, // of the look's strength
+  hemi: { sky: '#8e9fd6', ground: '#4a4036', intensity: 0.95 },
   sky: { zenith: '#26356e', horizon: '#e9976f', glow: '#ffae78', cloud: '#e0a798', cloudShade: '#5c5784' },
   fog: { color: '#8f7f98', sunColor: '#f2a078' },
   water: { horizon: '#d98c74', zenith: '#2a3a72' },
-  exposure: 0.8, envIntensity: 0.5, // of the look's
+  exposure: 0.9, envIntensity: 0.7, // of the look's
 };
 export const LIFT = { exposure: 0.1, sun: 0.15 }; // how much brighter a whole flash is
 
