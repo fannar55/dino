@@ -109,6 +109,8 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     // or an XR target (WebGLPrograms: toneMapping, outputColorSpace), so these targets say they are one; internalFormat RGBA8
     // keeps the storage plain 8-bit, so no hardware sRGB conversion happens. The composite decodes to linear light, mixes the
     // channels, clamps and encodes sRGB again. (A linear float target blended the mist in linear light: darks came out hazy.)
+    // The mark is three's own and may go (three #23278): tests/gler.test.mjs reads the vendored three and fails when it no longer
+    // means this, so an upgrade cannot quietly change the picture behind the glasses.
     const options = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, depthBuffer: true, samples: SAMPLES, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
     targets = [0, 1].map(() => {
       const t = new THREE.WebGLRenderTarget(w, h, options);
