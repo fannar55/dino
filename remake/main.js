@@ -43,6 +43,7 @@ import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
 import { createForrit } from './engine/offline/forrit.js';
 import { createGler } from './engine/gler.js';
+import { keepScreenAwake } from './engine/wake-lock.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
@@ -226,6 +227,7 @@ const dance = theme && danceGrid(theme);
 // gets one, which the browser keeps asleep until the first touch (the start button), so nothing sounds before it.
 const playing = (params.get('t') === null || params.get('play') === '1') && params.get('shot') === null && Boolean(chapter.script);
 const audio = playing ? createAudioContext() : null;
+const wakeLock = playing ? keepScreenAwake() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
 const sfx = createSfx({ context: audio, theme, output, recorded: true }); // recorded: Grameðla's roar and breath (sfx.js SAMPLES)
@@ -387,6 +389,7 @@ villaContext = () => ({
       return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
     },
     audio: () => ({ context: audio?.state ?? 'none', musicPosition: music.position, theme: theme?.name ?? (themeUrl ? String(themeUrl).split('/').slice(-2).join('/') : null), playing }),
+    wakeLock: () => (wakeLock ? { wanted: wakeLock.wanted, active: wakeLock.active } : null),
     fjolspil: () => ({ active: fjolspil.active, code: fjolspil.code ?? null, seats: fjolspil.seats.list().map(({ seat, kind, name, avatar, present, covered }) => ({ seat, kind, name, avatar, present, covered })) }), // never a guest's id, her secret
     memory: () => (performance.memory ? { usedMB: Math.round(performance.memory.usedJSHeapSize / 1048576), limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576) } : null),
     consoleLog: () => consoleLog.entries(),
@@ -914,4 +917,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __timeline: () => world.chapterTimeline ?? null, __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __minnisspil: minnisspil, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __timeline: () => world.chapterTimeline ?? null, __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __minnisspil: minnisspil, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output }, __wakeLock: wakeLock });

@@ -54,6 +54,7 @@ import { createBest } from './best.js';
 import { createBrot } from './brot.js';
 import { createFlatStage } from './stage-flat.js';
 import { BACKDROP, FRIENDS } from './friends.js';
+import { keepScreenAwake } from '../wake-lock.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
 
@@ -85,6 +86,8 @@ const options = {
   guest: guestOf(params.get('gestur')),
   extra: readSeinkun(),
 };
+
+if (!options.self && !options.record && options.endNow === null) keepScreenAwake();
 
 /** ?gestur=c:fullordinn → { role: 'c', level: 'fullordinn' }; null for anything else. */
 function guestOf(text) {

@@ -58,7 +58,7 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     frame.className = 'junior-frame-page';
     frame.src = tutorial ? `${src}${src.includes('?') ? '&' : '?'}play=1&tutorial=1` : src;
     frame.title = label;
-    frame.setAttribute('allow', 'autoplay');
+    frame.setAttribute('allow', 'autoplay; screen-wake-lock');
     frame.addEventListener('load', onFrameLoad);
     const closeEl = doc.createElement('button');
     closeEl.type = 'button';
@@ -71,7 +71,7 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     win.addEventListener('message', onMessage);
     doc.addEventListener('keydown', onKey);
     onPause?.(true);
-    closeEl.focus({ preventScroll: true });
+    closeEl.focus?.({ preventScroll: true });
   }
 
   function close() {

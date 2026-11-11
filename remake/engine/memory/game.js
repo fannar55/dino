@@ -12,6 +12,7 @@ import { BASKET_ICON } from '../scene/ui.js';
 import { createJuniorAudio } from '../yatzy-junior/sounds.js';
 import { createJuice } from '../yatzy-junior/juice.js';
 import { createHudFx } from './hud-fx.js';
+import { keepScreenAwake } from '../wake-lock.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -78,10 +79,11 @@ let repeatedKey = null, voiceQuiet = 0;
 // There is no sound button any more: a tablet muted by the old one would stay silent, so its saved key is forgotten (the sound is never muted).
 try { forgetOldMute(localStorage); } catch {}
 const dialogs = [$('welcome'), $('pause-dialog')];
+const wakeLock = keepScreenAwake();
 const busyDialog = () => dialogs.some(dialog => dialog.open);
 const held = () => !started || userPaused || document.hidden || busyDialog();
 function syncPause() {
-  const paused = held(); game.pause(paused); audio.pause(paused); $('game').dataset.paused = String(paused);
+  const paused = held(); game.pause(paused); wakeLock.setActive(!userPaused && !$('pause-dialog')?.open); audio.pause(paused); $('game').dataset.paused = String(paused);
   speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused); ui.pause(paused);
   refreshControls();
 }
