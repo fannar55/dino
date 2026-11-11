@@ -211,11 +211,11 @@ test('the fireflies: out of the reed, round her in the quiet part, out over the 
   assert.deepEqual(all(301.3), once);
   // none before the set; the first rise out of the reeds as it starts
   assert.equal(lit(all(0)).length, 0);
-  const first = lit(all(5));
-  assert.ok(first.length >= 5 && first.length < flies.count / 4, `${first.length} at beat 5`);
+  const first = lit(all(3));
+  assert.ok(first.length >= 3 && first.length < flies.count / 4, `${first.length} at beat 3`);
   for (const fly of first) {
     const near = Math.min(...FAR_POOL.reeds.map(reed => Math.hypot(fly.x - reed.at[0], fly.z - reed.at[1]) - reed.radius));
-    assert.ok(near < 8 && fly.y < FAR_POOL.level + 4.5, 'still by its reed, low');
+    assert.ok(near < 10 && fly.y < FAR_POOL.level + 4.5, 'still by its reed, low');
   }
   assert.ok(lit(all(16)).length > first.length, 'more as the set goes on');
   assert.ok(outAt(60) < outAt(236) && outAt(250) === 1 && outAt(296) === 1, 'all of them out for her horn');
@@ -286,7 +286,7 @@ test('the fireflies with less motion: half of them, half the size, drifting wher
   const full = createFireflies();
   assert.equal(calm.count, full.count / 2);
   const all = beat => Array.from({ length: calm.count }, (_, i) => calm.at(i, beat, 1, {}));
-  assert.ok(Math.max(...all(300).map(fly => fly.size)) <= FIREFLIES.size * 1.25 / 2 + 1e-9);
+  assert.ok(Math.max(...all(300).map(fly => fly.size)) <= FIREFLIES.size * 1.25 / 2 + 1e-9, 'half the size');
   const mean = swarm => swarm.reduce((sum, fly) => sum + fromHer(fly), 0) / swarm.length;
   assert.ok(Math.abs(mean(all(275)) - mean(all(300))) < 2 && mean(all(275)) > 12, 'no swarm and no burst');
   assert.deepEqual(all(300).map(fly => fly.size), all(301).map(fly => fly.size), 'no beat in their light');
@@ -386,7 +386,7 @@ test('the show in the set: the first fireflies, the notes, the frogs\' rings, th
   const note = SET.tune[0];
   show.update(video(note.beat + NOTE.fly / 2));
   const from = c.aims[`choir-${note.group}`];
-  const head = drawn(show).lights.filter(light => light.shape[0] > 0.8);
+  const head = drawn(show).lights.filter(light => light.shape[0] > 1.5);
   assert.equal(head.length, 1);
   assert.ok(Math.abs(head[0].position[0] - (from[0] + HER[0]) / 2) < 0.5 && head[0].position[1] > FAR_POOL.level + 3.5, 'half way, on its arc');
   // in the quiet part notes rise from her crest
@@ -421,7 +421,7 @@ test('the show in the set: the first fireflies, the notes, the frogs\' rings, th
   show.update(video(BURSTS[0] + 0.5));
   assert.equal(number.shown, null);
   assert.ok(rings.count >= SPLASH.crowns, 'the crowns\' rings on the drop');
-  assert.ok(drawn(show).lights.filter(light => light.shape[1] > 0.8).length > SPLASH.crowns * 6, 'and their drops in the air');
+  assert.ok(drawn(show).lights.filter(light => light.shape[1] > 0.7).length > SPLASH.crowns * 6, 'and their drops in the air');
   show.dispose();
   assert.equal(numbers().length, 0);
 });

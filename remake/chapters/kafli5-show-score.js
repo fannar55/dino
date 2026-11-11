@@ -225,7 +225,7 @@ export const SPLASHES = (() => {
       const far = POOL.radius * (SPLASH.rim - 0.14 * hash(k, n + 50));
       out.push({
         beat: beat + 0.2 * hash(k, n + 60), at: [POOL.at[0] + far * Math.cos(angle), POOL.at[1] + far * Math.sin(angle)],
-        drops: 16, up: speedFor(SPLASH.height * (beat === END ? 0.7 : 1)), spread: 0.75, ring: 1.6, seed: 100 * (n + 1) + k,
+        drops: 20, up: speedFor(SPLASH.height * (beat === END ? 0.7 : 1)), spread: 0.75, ring: 1.6, seed: 100 * (n + 1) + k,
       });
     }
   });
@@ -248,7 +248,7 @@ export function dropAt(splash, j, age, out) {
   out.x = splash.at[0] + far * Math.cos(angle);
   out.z = splash.at[1] + far * Math.sin(angle);
   out.y = y;
-  out.size = splash.drops > 6 ? 0.28 + 0.3 * h(4) : 0.1 + 0.1 * h(4);
+  out.size = splash.drops > 6 ? 0.22 + 0.26 * h(4) : 0.1 + 0.1 * h(4);
   out.level = Math.min(1, 0.35 + y * 3);
   return out;
 }
@@ -261,7 +261,7 @@ export function splashRingAt(splash, age) {
 // ---------------------------------------------------------------------------------------------
 // The fireflies
 
-export const FIREFLIES = { count: 240, rise: 24, size: 0.3 }; // how many (half with less motion), beats one takes up out of the reed, m across
+export const FIREFLIES = { count: 240, rise: [12, 24], size: 0.3 }; // how many (half with less motion), beats one takes up out of the reed (the first, the rest), m across
 const WARM = ['#ffd56a', '#ffe9a8', '#ffb347', '#fff1cf'].map(srgb);
 const PARTY = ['#ff7fa6', '#7fe3d2', '#ffd56a', '#ff9d4a', '#b8f070'].map(srgb); // the confetti's colours on a burst
 const [BURST_ONE, BURST_TWO] = BURSTS;
@@ -271,7 +271,7 @@ const [BURST_ONE, BURST_TWO] = BURSTS;
  * of the set, all again from the second burst through the last chorus, and they sink away after the last hit.
  */
 const OUT = [
-  [startOf('arrival'), 0], [startOf('welcome'), 0.18], [startOf('tuneA'), 0.28], [startOf('dragonflies'), 0.4], [startOf('break') + 6, 1],
+  [startOf('arrival'), 0], [startOf('welcome'), 0.25], [startOf('tuneA'), 0.3], [startOf('dragonflies'), 0.4], [startOf('break') + 6, 1],
   [BURST_ONE + 4, 1], [startOf('anthem') + 4, 0.75], [startOf('freeze') + 6, 0.7], [startOf('carnival'), 0.7],
   [startOf('crowd'), 0.55], [startOf('fakeend'), 0.45], [BURST_TWO, 1], [END, 1], [END + 4.5, 0],
 ];
@@ -329,7 +329,7 @@ export function createFireflies({ count = FIREFLIES.count, reduced = false } = {
     const [wa, wr] = [TAU * h(6), POOL.radius * 1.08 * Math.sqrt(h(7))];
     const rank = (i * 0.61803398875 + 0.37) % 1; // each its turn, evenly
     const f = {
-      rank, first: firstOut(rank),
+      rank, first: firstOut(rank), rise: lerp(FIREFLIES.rise[0], FIREFLIES.rise[1], smooth(firstOut(rank) / startOf('warmup'))),
       home: [reed.at[0] + rr * Math.cos(ra), LEVEL + 0.5 + 1.3 * h(5), reed.at[1] + rr * Math.sin(ra)],
       place: [POOL.at[0] + wr * Math.cos(wa), LEVEL + 1 + 5.5 * h(8) ** 2, POOL.at[1] + wr * Math.sin(wa)],
       sway: [1.2 + 1.3 * h(9), 0.3 + 0.4 * h(10), 1.2 + 1.3 * h(11)],
@@ -380,14 +380,15 @@ export function createFireflies({ count = FIREFLIES.count, reduced = false } = {
       }
     }
     // up out of the reed, the first time it comes out
-    const risen = smooth((beat - f.first) / FIREFLIES.rise);
+    const risen = smooth((beat - f.first) / f.rise);
     out.x = lerp(f.home[0], p[0], risen);
     out.y = lerp(f.home[1], p[1], risen) + 1.2 * Math.sin(Math.PI * risen);
     out.z = lerp(f.home[2], p[2], risen);
     const shown = clamp01((outAt(beat) * 1.06 - f.rank) / 0.06) * Math.min(1, risen * 4);
     out.level = shown * (0.62 + 0.38 * Math.sin(beat * f.twinkle + f.round * 5));
     const loud = beat >= BURST_TWO && beat < END ? 1.25 : 1; // the last chorus: the biggest
-    out.size = f.size * (reduced ? 1 : (1 + 0.35 * pulseAt(beat) * energy) * (1 + 0.9 * swell) * loud);
+    const fresh = 1 + 0.8 * (1 - risen); // bigger as it lifts out of the reed, so the eye finds it
+    out.size = f.size * fresh * (reduced ? 1 : (1 + 0.35 * pulseAt(beat) * energy) * (1 + 0.9 * swell) * loud);
     const festive = since >= 0 ? 0.3 + 0.7 * Math.exp(-since / 10) : 0;
     out.r = lerp(f.warm[0], f.party[0], festive);
     out.g = lerp(f.warm[1], f.party[1], festive);

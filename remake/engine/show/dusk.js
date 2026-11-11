@@ -8,7 +8,7 @@ import * as THREE from 'three';
 //   dusk.restore();                   // the light as it was when createDusk was called, to the last bit
 //
 // It dims and warms what the look set and nothing else: the sun's colour and strength (never its place: the shadows stay), the
-// sky's fill, the haze's colour, the sky dome's colours, the sky in the water, the exposure and the sky's light on things. Each is
+// sky's fill, the haze's colour, the sky dome's colours, the sky in the water, Mosi's cloud, the exposure and the sky's light on things. Each is
 // written as a blend of what was remembered and DUSK, so set() is a function of its two numbers only and has no memory. A world
 // without one of them (a test's, a capture's) is left alone there.
 export const DUSK = {
@@ -17,6 +17,7 @@ export const DUSK = {
   sky: { zenith: '#26356e', horizon: '#e9976f', glow: '#ffae78', cloud: '#e0a798', cloudShade: '#5c5784' },
   fog: { color: '#8f7f98', sunColor: '#f2a078' },
   water: { horizon: '#d98c74', zenith: '#2a3a72' },
+  mosiCloud: '#e2a69c', // the cloud shaped like Mosi (engine/sun-face.js), which no light falls on: tinted as the sky's clouds are
   exposure: 0.9, envIntensity: 0.7, // of the look's
 };
 export const LIFT = { exposure: 0.1, sun: 0.15 }; // how much brighter a whole flash is
@@ -41,6 +42,7 @@ export function createDusk(world) {
   colour(sky?.uFogSun?.value, DUSK.fog.sunColor);
   colour(water?.uHorizon?.value, DUSK.water.horizon);
   colour(water?.uZenith?.value, DUSK.water.zenith);
+  colour(world.scene?.getObjectByName?.('MosiCloud')?.material?.color, DUSK.mosiCloud);
   const numbers = [];
   const number = (object, key, share, lift = 0) => { if (object && Number.isFinite(object[key])) numbers.push({ object, key, was: object[key], share, lift }); };
   number(sun, 'intensity', DUSK.sun.intensity, LIFT.sun);

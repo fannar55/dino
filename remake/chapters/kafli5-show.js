@@ -27,9 +27,9 @@ const LEVEL = FAR_POOL.level;
 const srgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
 const GOLD = srgb('#ffd56a'); // a group's note (the chapter's glow: kafli5.js GLOW)
 const HERS = srgb('#ffeeb8'); // a note of her horn: paler
-const WATER = srgb('#eef7ff'); // a drop in the sun, a splash's ring
+const WATER = srgb('#e4f3ff'); // a drop in the sun, a splash's ring
 const WARM = srgb('#ffdc8a'); // the beat's rings on the water, the light under a group
-const SOLID = { fly: [0.6, 0.22], note: 0.45, drop: 0.9 }; // how much a light covers what is behind it (a firefly: by day, at dusk)
+const SOLID = { fly: [0.6, 0.22], note: 0.45, drop: 0.75 }; // how much a light covers what is behind it (a firefly: by day, at dusk)
 const CAPACITY = { lights: 640, rings: 48 };
 const ON_WATER = 0.05; // m over the water a ring lies
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -93,11 +93,11 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
       else pointOf(note.to, b);
       if (reduced) { // no flight: it fades out where it starts and in where it ends
         const at = now.u < 0.5 ? a : b;
-        lights.add(at[0], at[1], at[2], 0.45, ...colour, now.glow > 0 ? now.glow : Math.abs(1 - 2 * now.u), SOLID.note);
+        lights.add(at[0], at[1], at[2], 1, ...colour, now.glow > 0 ? now.glow : Math.abs(1 - 2 * now.u), SOLID.note);
         continue;
       }
       if (now.glow > 0) { // landed: a light where it went in
-        lights.add(b[0], b[1], b[2], 0.9 + 1.2 * now.glow, ...colour, now.glow, SOLID.note);
+        lights.add(b[0], b[1], b[2], 1.6 + 1.8 * now.glow, ...colour, now.glow, SOLID.note);
         continue;
       }
       const fade = note.to === 'sky' ? 1 - now.u ** 2 : Math.min(1, 0.4 + 4 * Math.min(now.u, 1 - now.u));
@@ -106,7 +106,7 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
         if (u < 0) continue;
         notePoint(note, a, b, u, p);
         const thin = 1 - k / (NOTE.tail + 1);
-        lights.add(p[0], p[1], p[2], (k ? 0.5 : 0.9) * (0.5 + 0.5 * thin) * (note.to === 'sky' ? 1 - 0.3 * now.u : 1), ...colour, fade * thin * (k ? 0.7 : 1), SOLID.note);
+        lights.add(p[0], p[1], p[2], (k ? 1.1 : 2) * (0.5 + 0.5 * thin) * (note.to === 'sky' ? 1 - 0.3 * now.u : 1), ...colour, fade * thin * (k ? 0.7 : 1), SOLID.note);
       }
     }
   }
