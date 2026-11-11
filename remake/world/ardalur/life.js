@@ -43,8 +43,10 @@
 //                        set each frame it dances: while it is there the thing's pose is its place with the dance on it, not its
 //                        idle life, so a dance that stands still is still. { dx, dy, dz } metres from its place, `turn` degrees
 //                        from its heading, `pitch` and `roll` radians, `squash` [x, y, z], `morphs` { frame: weight } (the frames
-//                        not named are 0), `clips` [[clip, seconds into it, weight]] of a baked model (weights adding up to 1),
-//                        `wings` [angle, flying] of a winged one. null: its idle life again, where it stood.
+//                        not named are 0), `clips` [[clip, how far through it (in rounds of it: it loops), weight]] of a baked
+//                        model (weights adding up to 1), `wings` [angle, flying] of a winged one, `mix` how much of all that
+//                        is the dance's (1 if not given; less as it comes out of its idle life or goes back to it). null: its
+//                        idle life again, where it stood.
 //   life.dispose()
 //
 // Every trigger is a flight time worked out at build from the schedule (route.progressAt), and the big call's is given as a flight
@@ -936,26 +938,30 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   function dancing(b) {
     const d = b.dance;
     if (!d) return;
+    const w = d.mix ?? 1;
+    if (w <= 0) return;
     const home = b.gather?.at ?? b.at;
-    b.position.set(home.x + (d.dx ?? 0), home.y + (d.dy ?? 0), home.z + (d.dz ?? 0));
-    b.heading = (b.gather?.heading ?? b.rest) + (d.turn ?? 0);
-    b.pitch = d.pitch ?? 0;
-    b.roll = d.roll ?? 0;
-    b.squash[0] = d.squash?.[0] ?? 1; b.squash[1] = d.squash?.[1] ?? 1; b.squash[2] = d.squash?.[2] ?? 1;
+    const mixed = (idle, danced) => idle + (danced - idle) * w;
+    b.position.set(
+      mixed(b.position.x, home.x + (d.dx ?? 0)), mixed(b.position.y, home.y + (d.dy ?? 0)), mixed(b.position.z, home.z + (d.dz ?? 0)),
+    );
+    b.heading = lerpAngle(b.heading, (b.gather?.heading ?? b.rest) + (d.turn ?? 0), w);
+    b.pitch = mixed(b.pitch, d.pitch ?? 0);
+    b.roll = mixed(0, d.roll ?? 0);
+    for (let i = 0; i < 3; i++) b.squash[i] = mixed(b.squash[i], d.squash?.[i] ?? 1);
     if (d.morphs || d.clips) {
-      for (const name in b.morphs) b.morphs[name] = 0;
-      if (d.morphs) for (const name in d.morphs) if (name in b.morphs) b.morphs[name] = d.morphs[name];
+      for (const name in b.morphs) b.morphs[name] *= 1 - w;
+      if (d.morphs) for (const name in d.morphs) if (name in b.morphs) b.morphs[name] += d.morphs[name] * w;
       const model = BAKED[b.kind];
       if (d.clips && model) {
-        for (const [clip, time, weight] of d.clips) {
+        for (const [clip, rounds, weight] of d.clips) {
           if (!(weight > 0) || !model.clips?.[clip]) continue;
-          const frames = clipPose(model, clip, time, 0);
-          for (const name in frames) b.morphs[name] = (b.morphs[name] ?? 0) + frames[name] * weight;
+          const frames = clipPose(model, clip, 0, rounds);
+          for (const name in frames) b.morphs[name] = (b.morphs[name] ?? 0) + frames[name] * weight * w;
         }
       }
     }
-    if (d.wings && b.wings) { b.wings[0] = d.wings[0]; b.wings[1] = d.wings[1]; }
-    if (d.hidden) b.visible = false;
+    if (d.wings && b.wings) { b.wings[0] = mixed(b.wings[0], d.wings[0]); b.wings[1] = mixed(b.wings[1], d.wings[1]); }
   }
 
   /** She skims the water at (x, z): the striders within reach that are not already off skate away from her and back. */

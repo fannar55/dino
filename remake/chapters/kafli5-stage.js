@@ -52,7 +52,7 @@ export function paradePoint(group, s) {
  * The flyers' figure of eight: its crossing over the pool's middle, its long axis from `axis` + 180 to `axis` degrees, `reach` m
  * to each tip and half as wide; `high` m over the water at the far tip, `low` at the near one (the dive, at `axis`), halfway between at the crossing.
  */
-export const EIGHT = { axis: 310, reach: 13, high: 9, low: 2.2 };
+export const EIGHT = { axis: 310, reach: 12, high: 9, low: 2.2 };
 /** The eight at `theta` (radians; a round is 2 pi; the dive's tip is at pi / 2, the high tip at 3 pi / 2): [x, y, z]. */
 export function eightPoint(theta, { reach = EIGHT.reach } = {}) {
   const a = EIGHT.axis * DEG;
