@@ -425,9 +425,15 @@ export const WALK = ${JSON.stringify(body)};
     const r = await evaluate(`(() => { const c = window.__trees; return { steps: c.steps.length, bad: c.steps.filter(s => s.n > 0).length, hits: Object.entries(c.hits).map(([i, h]) => ({ plant: +i, ...h })) }; })()`);
     console.log(`steps with her inside a plant: ${r.bad} of ${r.steps} (${(r.bad * o.step).toFixed(2)} s)`);
     for (const h of r.hits.sort((a, b) => a.from - b.from)) console.log(`  plant ${h.plant} ${h.name} at (${h.x}, ${h.z}): ${h.from.toFixed(2)}-${h.to.toFixed(2)} s, ${h.steps} steps, deepest ${h.depth.toFixed(2)} m at ${h.at.toFixed(2)} s (${h.bone}, ${h.y} m up at x, z ${h.where})`);
-    r.leftOut = await evaluate('window.__world.dans.state.leftOut ?? []');
+    // and whether each could be seen in this screen's frame: any of its box's corners or face middles inside the picture
+    r.leftOut = await evaluate(`(() => { const w = window.__world, V = new w.THREE.Vector3(); return (w.dans.state.leftOut ?? []).map(p => {
+      const [x0, y0, z0, x1, y1, z1] = p.box; let seen = null;
+      for (const x of [x0, (x0 + x1) / 2, x1]) for (const y of [y0, (y0 + y1) / 2, y1]) for (const z of [z0, (z0 + z1) / 2, z1]) {
+        const [u, v, k] = w.dans.frameOf(V.set(x, y, z)); if (k > 0 && u >= 0 && u <= 1 && v >= 0 && v <= 1) seen = seen ? [Math.min(seen[0], u), Math.max(seen[1], u)] : [u, u];
+      }
+      return { ...p, seen: seen && seen.map(u => +u.toFixed(2)) }; }); })()`);
     console.log(`plants this place grows without for her walk (layout.leaveOut): ${r.leftOut.length}`);
-    for (const p of r.leftOut) console.log(`  ${p.name} at (${p.x}, ${p.z}), ${p.height} m tall, her shell ${p.depth > 0 ? p.depth + ' m into it' : -p.depth + ' m from it'}`);
+    for (const p of r.leftOut) console.log(`  ${p.name} at (${p.x}, ${p.z}), ${p.height} m tall, her shell ${p.depth > 0 ? p.depth + ' m into it' : -p.depth + ' m from it'}; ${p.seen ? 'IN THE FRAME at u ' + p.seen.join('-') : 'out of the frame'}`);
     if (o.json) await fsp.writeFile(path.resolve(o.json), JSON.stringify(r, null, 2));
     failed = r.bad > 0;
     console.log(failed ? 'FAIL' : 'OK: she passes through no plant');

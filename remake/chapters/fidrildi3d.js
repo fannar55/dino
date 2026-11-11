@@ -153,8 +153,10 @@ export const THOR_FROM = [[35, -12.5], [28, -8.6], [21, -7.0], [16, -6.1]]; // w
 const LEAVE_LOW = 1.2;
 const LEAVE_MARGIN = 0.15;
 export const leftOut = []; // what it took, for the notes and the probe (world.dans.state.leftOut)
+// ?skog=heill grows the place whole (for before/after pictures of what the leave-out takes)
+const WHOLE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('skog') === 'heill';
 export function leaveOut(info, placement) {
-  if (!WALK || !placement?.model || info.height < LEAVE_LOW) return false;
+  if (WHOLE || !WALK || !placement?.model || info.height < LEAVE_LOW) return false;
   const reach = 14 + info.radius; // her root to her nose or tail tip is under 13 m
   const near = WALK.poses.filter(([x, , z]) => Math.hypot(x - info.x, z - info.z) < reach);
   if (!near.length) return false;
@@ -166,7 +168,7 @@ export function leaveOut(info, placement) {
     for (const k of WALK.capsules) caps.push({ a: at(k[0], k[1], k[2]), b: at(k[3], k[4], k[5]), r: k[6] });
   }
   const hit = reachInto(plant, caps, LEAVE_MARGIN);
-  if (hit) leftOut.push({ name: info.name, x: +info.x.toFixed(2), z: +info.z.toFixed(2), height: +info.height.toFixed(1), depth: +(hit.depth - LEAVE_MARGIN).toFixed(2) });
+  if (hit) leftOut.push({ name: info.name, x: +info.x.toFixed(2), z: +info.z.toFixed(2), height: +info.height.toFixed(1), depth: +(hit.depth - LEAVE_MARGIN).toFixed(2), box: plant.box.map(x => +x.toFixed(2)) });
   return Boolean(hit);
 }
 const THOR_STRAIGHT = 7; // metres of the last stretch, straight along her heading at the spot
