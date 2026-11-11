@@ -91,7 +91,6 @@ const BEAT = 60 / TEMPO.bpm;
 const BAND = { in: 2, join: 1.5, out: 4 * BEAT }; // s: the far band fades in as the task starts, a part joins, the loop leaves for the set
 const SET_LEVEL = 1.4; // the set's level against the theme's place in the mix: a party is louder than a walk (chapter 4's flight song: 1.3)
 const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
-const HOP_APART = 0.45; // s: a group that sings quick notes in the set hops no oftener than this
 // The choir's shot turns gently toward the group that sings: this share of the way from its own aim to the group, over `seconds`
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
 // The share is halved until every group and the reed are inside FRAMED of the frame from its middle (an upright screen turns less).
@@ -347,7 +346,7 @@ function* theWholeSong(s, c) {
   yield s.camera.cut('choir_wide');
   const start = s.time;
   c.songStart = start;
-  c.set = { start, section: null, shot: 'choir_wide', cutAt: start, hopped: {} };
+  c.set = { start, section: null, shot: 'choir_wide' };
   c.song.setLevel(SET_LEVEL, 0);
   c.song.play(0);
   c.log({ type: 'set', start, beat: c.band.beatAt() });
@@ -439,12 +438,8 @@ function onSet(s, c, event) {
       s.say('flugedla', { text: event.line.text }, { hold: 0.15 });
       break;
     case 'call':
-      if (!GROUPS.includes(event.group)) break; // the beetles and the dragonflies are heard, not yet seen
-      c.glow.flash(event.group);
-      if (s.time - (c.set.hopped[event.group] ?? -Infinity) >= HOP_APART) {
-        c.set.hopped[event.group] = s.time;
-        hop(c, event.group);
-      }
+      // a group that sings lights up; how it moves as it sings is its dance's (kafli5-dances.js marks every call on the dance beat)
+      if (GROUPS.includes(event.group)) c.glow.flash(event.group);
       break;
     case 'horn':
       c.her.blow({ seconds: BEAT });
