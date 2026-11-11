@@ -120,15 +120,15 @@ const SET_SHOTS = {
   set_flyers: seen(CHOIR.flyers.at, 262, 7.8, 1.5, 1.4, 40),
   set_flyers_close: seen(CHOIR.flyers.at, 256, 4.8, 1.6, 1.3, 32),
   // her, out in the pool: close from the north-east (the choir's banks behind her), and low from the east with the sky over her
-  set_her_close: seen(WADE.at, 140, 9, 1.8, 3.0, 34),
-  set_her_low: seen(WADE.at, 112, 13, 1.0, 3.3, 44),
+  set_her_close: seen(WADE.at, 140, 9, 1.5, 1.7, 34), // she wades deep: her head is a metre and a half over the water, three when she blows her horn
+  set_her_low: seen(WADE.at, 112, 13, 1.0, 2.4, 44),
   // the whole dance floor: low over the water from the north-east, wide; and lower still, from the pool's middle
   set_low_wide: { position: up(around(335, 15), LEVEL + 1.2), target: up(around(188, 24), LEVEL + 1.7), fov: 56 },
   set_water_low: { position: up(around(285, 9), LEVEL + 1.0), target: up(around(176, 26), LEVEL + 1.9), fov: 50 },
   // the sky over the pool, for the flyers: from the north bank's shallows, looking up
   set_sky: { position: up(around(300, 21), LEVEL + 1.2), target: up(around(170, 3), LEVEL + 10), fov: 50 },
   // the audience: Egill close, and Flugeðla at her decks in the shallows
-  set_egill_close: { position: up(around(47, 21), LEVEL + 1.25), target: up(around(47.5, 25.6), LEVEL + 1.15), fov: 34 },
+  set_egill_close: { position: up(around(47, 21), LEVEL + 1.1), target: up(around(47.5, 25.6), LEVEL + 0.65), fov: 34 }, // he stands ankle-deep: his face is 0.8 m over the water
   set_flugedla: { position: up(around(60, 15), LEVEL + 1.7), target: up(FAR_POOL.landing, LEVEL + 2.3), fov: 36 },
 };
 

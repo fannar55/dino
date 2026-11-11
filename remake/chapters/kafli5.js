@@ -30,6 +30,7 @@ import { SONG } from './kafli5-set.js';
 import { CAMERA, danceBeatAt, sectionAt } from './kafli5-video.js';
 import { createDances } from './kafli5-dances.js';
 import { createShow } from './kafli5-show.js';
+import { createPeople } from './kafli5-people.js';
 import { createChoir, ECHO, NOTE, WHOLE } from './kafli5-choir.js';
 import { createStems } from '../engine/audio/stems.js';
 import { createSong } from '../engine/audio/song.js';
@@ -363,6 +364,7 @@ function* theWholeSong(s, c) {
   c.video = { beat: 0, setBeat: 0, frozen: false, rewinding: false, section: null };
   c.dances = createDances(c);
   c.show = createShow(c);
+  c.people = createPeople(c);
   let frame = s.time;
   s.after(0, function* video() {
     while (!c.set.ended && !c.ended) {
@@ -370,6 +372,7 @@ function* theWholeSong(s, c) {
       Object.assign(c.video, danceBeatAt(setBeat), { setBeat, section: sectionAt(setBeat) });
       c.dances.update(c.video);
       c.show.update(c.video, s.time - frame);
+      c.people.update(c.video);
       frame = s.time;
       yield;
     }
@@ -381,6 +384,7 @@ function* theWholeSong(s, c) {
         onSet(s, c, event);
         c.dances.cue(event);
         c.show.cue(event);
+        c.people.cue(event);
       }
     }
     yield s.until(() => s.time >= start + SET.endBeat * BEAT + SET_TAIL); // the last hit rings
@@ -389,6 +393,7 @@ function* theWholeSong(s, c) {
     c.set.ended = s.time;
     c.dances.dispose();
     c.show.dispose();
+    c.people.dispose();
   }
   c.her.idle();
   flugedla.raw.play('idle', { fade: 0.6 });
