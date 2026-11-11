@@ -269,6 +269,7 @@ test('scene 6 plays the whole set: every part of it in order, her words on the s
   const c = run.world.chapterState;
   const SET = SONG.set;
   assert.deepEqual(logOf(run, 'section').map(entry => entry.id), SET.sections.map(section => section.id), 'every part');
+  assert.deepEqual(logOf(run, 'videoError').map(entry => entry.message), [], 'no part of the video threw (the dances, the show, the people)');
   logOf(run, 'section').forEach((entry, k) => {
     const due = c.songStart + SET.sections[k].startBeat * BEAT;
     assert.ok(entry.at >= due - 1e-6 && entry.at - due <= FRAME + 1e-6, `${entry.id} on its beat (${(entry.at - due).toFixed(3)} s after)`);

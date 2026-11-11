@@ -130,3 +130,24 @@ export const CAMERA = [
   { beat: 465, cut: 'set_flugedla', then: { push: 1, beats: 6 } },
   { beat: 472, cut: 'set_low_wide' },
 ];
+
+/**
+ * A part of the video (the dances, the show, the people: { update, cue, dispose }) that cannot stop the others: what one of its
+ * calls throws is said once (`say`: the console by default), with the part's name and the call's, and that call returns undefined.
+ * It is called again every time, so a part that recovers comes back by itself. (As engine/guard.js guards the parts of a frame.)
+ */
+export function shielded(name, part, say = message => console.error(message)) {
+  const told = new Set();
+  const guard = call => (...args) => {
+    try {
+      return part[call]?.(...args);
+    } catch (error) {
+      if (!told.has(call)) {
+        told.add(call);
+        say(`[kafli5 video: ${name}] ${call} failed, and the video goes on without it: ${error?.stack ?? error}`);
+      }
+      return undefined;
+    }
+  };
+  return { update: guard('update'), cue: guard('cue'), dispose: guard('dispose') };
+}

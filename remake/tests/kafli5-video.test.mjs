@@ -1,7 +1,7 @@
 // The music video's clock (chapters/kafli5-video.js): the dance beat that everything moving to the set reads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BENDS, CAMERA, danceBeatAt, sectionAt } from '../chapters/kafli5-video.js';
+import { BENDS, CAMERA, danceBeatAt, sectionAt, shielded } from '../chapters/kafli5-video.js';
 import { SHOTS, GROUP_SHOTS } from '../chapters/kafli5-pool.js';
 import { SONG } from '../chapters/kafli5-set.js';
 
@@ -103,4 +103,16 @@ test('every move of the camera in the set is slow enough for the style and over 
     } else assert.fail(`the move at ${entry.beat} is a push, an orbit or a zoom`);
   }
   assert.ok(CAMERA.filter(entry => entry.then).length >= 20, 'the camera moves in many of its shots');
+});
+
+test('a part of the video that throws is told of once and left out of that call; the others go on', () => {
+  const said = [];
+  const calls = [];
+  const bad = shielded('dances', { update() { calls.push('update'); throw new Error('half built'); }, cue() { calls.push('cue'); }, dispose() { throw new Error('again'); } }, message => said.push(message));
+  assert.doesNotThrow(() => { bad.update({ beat: 1 }); bad.update({ beat: 2 }); bad.cue({ kind: 'call' }); bad.dispose(); });
+  assert.deepEqual(calls, ['update', 'update', 'cue'], 'it is still called every time');
+  assert.equal(said.length, 2, 'said once for each of its calls that throws');
+  assert.ok(/dances/.test(said[0]) && /update/.test(said[0]) && /half built/.test(said[0]), said[0]);
+  const good = shielded('show', { update: v => v.beat * 2, cue() {}, dispose() {} }, () => assert.fail('nothing to say'));
+  assert.equal(good.update({ beat: 4 }), 8, 'what a part returns comes through');
 });

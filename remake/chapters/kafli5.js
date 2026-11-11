@@ -27,7 +27,7 @@ import { lineQueue } from './kafli4-flight-play.js';
 import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
 import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS } from './kafli5-song.js';
 import { SONG } from './kafli5-set.js';
-import { CAMERA, danceBeatAt, sectionAt } from './kafli5-video.js';
+import { CAMERA, danceBeatAt, sectionAt, shielded } from './kafli5-video.js';
 import { createDances } from './kafli5-dances.js';
 import { createShow } from './kafli5-show.js';
 import { createPeople } from './kafli5-people.js';
@@ -362,9 +362,11 @@ function* theWholeSong(s, c) {
   // the music video: the animals' dances and the show round them, each frame on the dance beat (kafli5-video.js: the set's beat,
   // spooled back in the rewind and standing still in Stoppdans)
   c.video = { beat: 0, setBeat: 0, frozen: false, rewinding: false, section: null };
-  c.dances = createDances(c);
-  c.show = createShow(c);
-  c.people = createPeople(c);
+  // each part is shielded from the others: one that throws is said once (and logged, for the tests) and the video goes on
+  const failed = message => { c.log({ type: 'videoError', message }); console.error(message); };
+  c.dances = shielded('dances', createDances(c), failed);
+  c.show = shielded('show', createShow(c), failed);
+  c.people = shielded('people', createPeople(c), failed);
   let frame = s.time;
   s.after(0, function* video() {
     while (!c.set.ended && !c.ended) {

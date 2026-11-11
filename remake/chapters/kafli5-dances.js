@@ -270,7 +270,7 @@ function stomp(P, m, u, a) {
   const lift = Math.sin(Math.PI * q ** 1.7); // up slowly, down fast
   const hit = Math.exp(-x * 7); // just after it lands
   shift(P, m, 0.55 * Math.min(a, 1.15) * over);
-  P.roll += 0.1 * a * over;
+  P.roll += 0.13 * a * over;
   P.dy += 0.42 * a * lift;
   P.pitch += 0.05 * a * lift - 0.05 * a * hit;
   squat(P, 0.1 * Math.min(1.4, a) * hit);
@@ -302,6 +302,7 @@ function shell(P, m, u, { beats = 16, fast = 8, a = 1, still = false } = {}) {
   const way = m.k % 2 ? -1 : 1;
   P.roll += Math.PI * over * way;
   P.dy += h * Math.sin((Math.PI * over) / 2) ** 2 + 0.3 * hop(over);
+  shift(P, m, [0, -0.6, 0.6][m.k % 3] * over, [0.35, -0.1, -0.1][m.k % 3] * over); // apart a little: room to spin
   const from = fast + 0.3 + 0.12 * m.k, to = beats - 1.1 + 0.1 * m.k;
   const turns = Math.max(1, Math.round((to - from) * 0.9));
   const t = clamp01((u - from) / (to - from));
