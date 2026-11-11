@@ -29,3 +29,10 @@
 - The blown-off hero now waits at the top middle (k 3.0), not on the right where she walks in.
 - Comfort exception: in the last ~4 s of her walk her raised neck crosses the top edge at k 0.89 (+0.0025 W, ~3 px at 1280); standing at her spot it is k 0.97-0.98 (+0.0004 W).
 - Frame time, quality=tablet, glasses on: 19.8-20.2 ms GPU (125 calls).
+
+## Round 3: "3D myndbönd" in the book (2026-11-11)
+- `videos.js` exports `BOOK_3D` (entries with `chapter` instead of `src`; one with `src` would play in the normal player): Fiðrildadansinn, open from the start, seen id `video:fidrildi3d`, no card links. `BOOK_VIDEOS` keeps its nine mp4 entries untouched.
+- Myndbönd leaf: both pages are 3 x 2 grids. Left: heimur, grannar, thorsedla, gramedla, landrek (unlock order kept: landrek moved left). Right: fuglar, raf, steinn, tennur in two columns, then the "3D myndbönd" column (dashed rule, faint green wash, room for two tiles). "3D" in the heading and the tile's badge is plain text with red and cyan offset copies (text-shadow).
+- A tap on the 3D tile marks it seen and calls `onOpenShow(entry)`; book.js passes it to main.js, which goes to `?chapter=fidrildi3d&fra=<chapter>` keeping quality and debug. With `fra` the show's start and end cards get "Til baka" (to `?chapter=<fra>`).
+- Coming back restarts that chapter from its beginning (Byrja first): the save keeps stars, finds, places and seen, but no chapter keeps a point inside itself. The book does not reopen on Myndbönd (no existing way; a `book.open('videos', 'child')` at load would fight the Byrja screen).
+- Poster `fidrildi3d-thumb.webp`: 640x360 webp from a gler=0 capture at 36.5 s.
