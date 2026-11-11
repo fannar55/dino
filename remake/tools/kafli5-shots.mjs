@@ -5,7 +5,8 @@
 //
 //   node --import ./remake/tests/setup.mjs remake/tools/kafli5-shots.mjs [shot ...]
 import { CHOIR, SHOTS, SPOTS, STEPS, WADE } from '../chapters/kafli5-pool.js';
-import { FAR_POOL } from '../chapters/kafli4-route.js';
+import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
+import { createTerrain } from '../world/ardalur/terrain.js';
 import { LOOKS } from '../engine/looks.js';
 
 const polar = ([x, z]) => {
@@ -13,8 +14,11 @@ const polar = ([x, z]) => {
   return `${((Math.atan2(dz, dx) * 180) / Math.PI + 360) % 360 | 0} deg, ${Math.hypot(dx, dz).toFixed(1)} m`;
 };
 const f = v => v.toFixed(1);
+const terrain = createTerrain(createRoute(), { seed: 4 }); // the land as the chapter builds it (tests/kafli5-pool.test.mjs)
+const wet = ([x, z]) => Math.hypot(x - FAR_POOL.center[0], z - FAR_POOL.center[1]) < FAR_POOL.radius;
+const surface = at => (wet(at) ? FAR_POOL.level : terrain.heightAt(...at)); // what stands there stands on this
 console.log(`pool: centre ${FAR_POOL.center.map(f)}, water ${FAR_POOL.level} m, radius ${FAR_POOL.radius ?? '?'}; sun azimuth ${LOOKS.goldenAfternoon.sun.azimuth}, ${LOOKS.goldenAfternoon.sun.elevation} up`);
-for (const [group, spot] of Object.entries(CHOIR)) console.log(`  ${group.padEnd(8)} at ${spot.at.map(f)} (${polar(spot.at)}), faces ${spot.heading.toFixed(0)}, tap radius ${spot.radius}, on ${spot.on}`);
+for (const [group, spot] of Object.entries(CHOIR)) console.log(`  ${group.padEnd(8)} at ${spot.at.map(f)} (${polar(spot.at)}), faces ${spot.heading.toFixed(0)}, tap radius ${spot.radius}, on ${spot.on}, its ground ${f(terrain.heightAt(...spot.at) - FAR_POOL.level)} m over the water`);
 console.log(`  her wade at ${WADE.at.map(f)} (${polar(WADE.at)}), faces ${WADE.heading.toFixed(0)}; her last step ${STEPS.at(-1).at.map(f)}`);
 for (const [who, at] of Object.entries(SPOTS)) console.log(`  ${who.padEnd(8)} at ${at.map(f)} (${polar(at)})`);
 console.log(`  far reed ${FAR_POOL.farReed.map(f)} (${polar(FAR_POOL.farReed)}); Flugeðla lands ${FAR_POOL.landing.map(f)} (${polar(FAR_POOL.landing)})`);
@@ -25,5 +29,5 @@ for (const [name, shot] of Object.entries(SHOTS)) {
   const flat = Math.hypot(tx - x, tz - z);
   const heading = ((Math.atan2(tz - z, tx - x) * 180) / Math.PI + 360) % 360;
   const off = Math.abs(((heading - LOOKS.goldenAfternoon.sun.azimuth + 540) % 360) - 180);
-  console.log(`${name.padEnd(16)} from (${polar([x, z])}, ${f(y - FAR_POOL.level)} m over the water) to (${polar([tx, tz])}): ${f(flat)} m away, heading ${heading.toFixed(0)}, ${((Math.atan2(y - ty, flat) * 180) / Math.PI).toFixed(0)} down, lens ${shot.fov}, sun ${off.toFixed(0)} off`);
+  console.log(`${name.padEnd(16)} from (${polar([x, z])}, ${f(y - FAR_POOL.level)} m over the water, ${f(y - surface([x, z]))} over what is under it) to (${polar([tx, tz])}): ${f(flat)} m away, heading ${heading.toFixed(0)}, ${((Math.atan2(y - ty, flat) * 180) / Math.PI).toFixed(0)} down, lens ${shot.fov}, sun ${off.toFixed(0)} off`);
 }

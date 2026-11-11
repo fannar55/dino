@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { CHOIR, GROUPS, STEPS, SPOTS, WADE, SHOTS, SHOWS, around } from '../chapters/kafli5-pool.js';
+import { CHOIR, GROUPS, STEPS, SPOTS, WADE, SHOTS, SHOWS, GROUP_SHOTS, seatsOf, around } from '../chapters/kafli5-pool.js';
 import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
 import { LOOKS } from '../engine/looks.js';
 import { LIMITS, createDirector } from '../engine/camera/director.js';
@@ -119,7 +119,37 @@ const WHERE = {
   choir_wide: { sloedla: STEPS[0].at },
   sloedla_out: { sloedla: WADE.at },
   west_listen: { egill: SPOTS.egill, mosi: SPOTS.mosi },
+  // the set (scene 6): she wades, Egill is at the water's edge, Flugeðla in the shallows where she landed
+  set_her_close: { sloedla: WADE.at },
+  set_her_low: { sloedla: WADE.at },
+  set_egill_close: { egill: SPOTS.egill },
+  set_flugedla: { flugedla: SPOTS.flugedla },
 };
+
+test('the set\'s shots of a group show the group: every seat in its wide shot, its middle in its close one, at 16:10 and upright', () => {
+  const HIGH = { grazers: 2.6, turtles: 0.6, frogs: 0.3, lizards: 0.5, flyers: 0.9 }; // m: about where a member's head is over what it stands on
+  const BASE = { grazers: 0, turtles: 0.9, frogs: 0, lizards: 0, flyers: 0 }; // m: the turtles sit on their stone (kafli5.test.mjs: over 0.8 m up)
+  for (const group of GROUPS) {
+    const { all, close } = GROUP_SHOTS[group];
+    assert.ok(SHOTS[all] && SHOTS[close], `${group} has its two shots`);
+    for (const aspect of [1.6, 0.625]) {
+      const wide = cameraOn(all, aspect).camera;
+      for (const [k, seat] of seatsOf(group).entries()) {
+        for (const lift of [BASE[group], BASE[group] + HIGH[group]]) {
+          const s = onScreen(wide, aspect, new THREE.Vector3(seat.at[0], surface(seat.at) + lift, seat.at[1]));
+          assert.ok(s.front && s.x >= 0.03 * s.w && s.x <= 0.97 * s.w && s.y >= 0.06 * s.h && s.y <= 0.9 * s.h,
+            `${group} ${k} (${lift} m up) in ${all} at ${aspect}: ${s.x.toFixed(0)}, ${s.y.toFixed(0)} of ${s.w} x ${s.h}`);
+        }
+      }
+      const near = cameraOn(close, aspect).camera;
+      const s = onScreen(near, aspect, spotPoint(group).add(new THREE.Vector3(0, BASE[group] + HIGH[group] / 2, 0)));
+      assert.ok(s.front && s.x >= 0.25 * s.w && s.x <= 0.75 * s.w && s.y >= 0.2 * s.h && s.y <= 0.75 * s.h, `${group}'s middle in ${close} at ${aspect}: ${s.x.toFixed(0)}, ${s.y.toFixed(0)}`);
+      // close is closer: the group's spot is at least half again as big on the screen
+      const size = camera => onScreen(camera, aspect, spotPoint(group), 1).r;
+      assert.ok(size(near) >= size(wide) * 1.4, `${close} is a closer look than ${all} at ${aspect}: ${size(near).toFixed(0)} against ${size(wide).toFixed(0)} px a metre`);
+    }
+  }
+});
 
 test('every chapter 5 shot keeps the director quiet (LIMITS) and shows who SHOWS names', () => {
   for (const name of ['pool_open', 'reed_close', 'choir_wide', 'sloedla_out', 'west_listen']) assert.ok(SHOTS[name], `${name} is a shot`);

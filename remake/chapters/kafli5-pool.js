@@ -95,6 +95,43 @@ export const WADE = { at: around(222, 12), heading: toEgill(around(222, 12)) };
 /** Grameðla's ridge, far in the west beyond the falls (world/ardalur/far-land.js GRAMEDLA.from): where the roar comes from (scene 7). */
 export const WEST = [-2578, 120];
 
+// The music video's shots (scene 6, the set: chapters/kafli5-video.js cuts between them). Every one stands over the water and
+// looks out at the banks or along the pool, a metre or more over the surface, and none looks toward the afternoon sun (it stands
+// at 215 degrees: the camera's way is never within 35 degrees of it, so the choir is shot from the north-east, looking south-west
+// and west). `seen(at, heading, away, over, lift, fov)`: the camera looks the way `heading` at `at` from `away` metres, `over` m
+// over the water, at a point `lift` m over the water.
+const seen = (at, heading, away, over, lift, fov) => {
+  const h = (heading * Math.PI) / 180;
+  return { position: [at[0] - away * Math.cos(h), LEVEL + over, at[1] - away * Math.sin(h)], target: [at[0], LEVEL + lift, at[1]], fov };
+};
+const SET_SHOTS = {
+  // each group in its part: all of it, and close
+  set_grazers: seen(CHOIR.grazers.at, 138, 17, 1.4, 2.4, 46),
+  set_grazers_close: seen(CHOIR.grazers.at, 124, 10.5, 1.0, 2.8, 42), // low, looking up at them: they are big
+  set_turtles: seen(CHOIR.turtles.at, 160, 8, 1.3, 1.5, 38),
+  set_turtles_close: seen(CHOIR.turtles.at, 148, 4.6, 1.1, 1.4, 32),
+  set_frogs: seen(CHOIR.frogs.at, 160, 8.5, 1.3, 0.5, 40),
+  set_frogs_mid: seen(CHOIR.frogs.at, 160, 5.8, 1.15, 0.45, 36),
+  set_frogs_close: seen(CHOIR.frogs.at, 160, 3.8, 1.0, 0.4, 32),
+  set_lizards: seen(CHOIR.lizards.at, 170, 8, 1.2, 1.0, 40),
+  set_lizards_close: seen(CHOIR.lizards.at, 158, 4.6, 1.0, 0.9, 32),
+  // the flyers stand by her reed, north-west: from the pool they are under the sun and from the north the reed is in the way, so
+  // they are seen from the south, from the water's edge in front of the lizards' place
+  set_flyers: seen(CHOIR.flyers.at, 262, 7.8, 1.5, 1.4, 40),
+  set_flyers_close: seen(CHOIR.flyers.at, 256, 4.8, 1.6, 1.3, 32),
+  // her, out in the pool: close from the north-east (the choir's banks behind her), and low from the east with the sky over her
+  set_her_close: seen(WADE.at, 140, 9, 1.8, 3.0, 34),
+  set_her_low: seen(WADE.at, 112, 13, 1.0, 3.3, 44),
+  // the whole dance floor: low over the water from the north-east, wide; and lower still, from the pool's middle
+  set_low_wide: { position: up(around(335, 15), LEVEL + 1.2), target: up(around(188, 24), LEVEL + 1.7), fov: 56 },
+  set_water_low: { position: up(around(285, 9), LEVEL + 1.0), target: up(around(176, 26), LEVEL + 1.9), fov: 50 },
+  // the sky over the pool, for the flyers: from the north bank's shallows, looking up
+  set_sky: { position: up(around(300, 21), LEVEL + 1.2), target: up(around(170, 3), LEVEL + 10), fov: 50 },
+  // the audience: Egill close, and Flugeðla at her decks in the shallows
+  set_egill_close: { position: up(around(47, 21), LEVEL + 1.25), target: up(around(47.5, 25.6), LEVEL + 1.15), fov: 34 },
+  set_flugedla: { position: up(around(60, 15), LEVEL + 1.7), target: up(FAR_POOL.landing, LEVEL + 2.3), fov: 36 },
+};
+
 /**
  * The shots, each a position and a target in metres ([x, y, z]) and a lens. Heights are over the ground under them (the pool's bed
  * under the water is 1.4 m under its surface).
@@ -116,7 +153,10 @@ export const SHOTS = {
   sloedla_out: { position: up(around(159, 17), LEVEL + 2.2), target: up(WADE.at, LEVEL + 2.4), fov: 46 },
   // Scene 7: they turn to the west, where the roar comes from: from in front of them, west of them, looking back east at their faces.
   west_listen: { position: up(around(66, 14), LEVEL + 1.8), target: up(around(42, 26.6), LEVEL + 2.2), fov: 46 },
+  ...SET_SHOTS,
 };
+/** The set's shots of a group: all of it (every seat in frame) and close (its middle). */
+export const GROUP_SHOTS = Object.fromEntries(Object.keys(CHOIR).map(group => [group, { all: `set_${group}`, close: `set_${group}_close` }]));
 /** Who each shot is for: in its frame while the camera holds it (kafli5.test.mjs). The choir's groups are checked by CHOIR. */
 export const SHOWS = {
   pool_open: ['flugedla', 'egill', 'mosi'],
@@ -125,4 +165,10 @@ export const SHOWS = {
   choir_wide: ['sloedla'],
   sloedla_out: ['sloedla'],
   west_listen: ['egill', 'mosi'],
+  // the set's shots: a group's shots show the group (tests/kafli5-pool.test.mjs checks its seats), the rest whom they name
+  ...Object.fromEntries(Object.keys(SET_SHOTS).map(name => [name, []])),
+  set_her_close: ['sloedla'],
+  set_her_low: ['sloedla'],
+  set_egill_close: ['egill'],
+  set_flugedla: ['flugedla'],
 };
