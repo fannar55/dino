@@ -46,7 +46,7 @@ import { createGler } from './engine/gler.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
-//                         until Kambeðla's star, then kafli2 until Uggeðla's, then kafli3 until Þórseðla's, then kafli4; grunnur
+//                         until Kambeðla's star, then kafli2 until Uggeðla's, then kafli3 until Þórseðla's, then kafli4 until Flugeðla's, then kafli5; grunnur
 //                         is the foundation test scene)
 //   quality=low|tablet|high
 //   look=morning|lateMorning|golden|evening   override the chapter's light
@@ -714,7 +714,7 @@ function startScene() {
   scriptTask = stage.start(chapter.script);
 }
 
-// The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2, kafli2's kafli3, kafli3's kafli4) puts
+// The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2, kafli2's kafli3, kafli3's kafli4, kafli4's kafli5) puts
 // a raised "Áfram" pill over the open book, in the book's style (book.css .next-chapter), and a tap on it goes on to that chapter's
 // page. It stands under a game the book opens (it comes before them on the page), and stays if the child shuts the book.
 let handedOver = false;

@@ -792,7 +792,7 @@ function mark(c, scene) {
 export const chapter = {
   id: 'kafli4',
   title: 'Boð til Flugeðlu',
-  next: null, // the last chapter so far
+  next: 'kafli5', // Boð til Slóeðlu: the far pool, as this chapter leaves it (kafli5.js)
   look: 'earlyAfternoon',
   // Chapter 2's song, out from the take-off till the last look at the far reed: the flight has its own (kafli4-flight.js SONG)
   theme: 'kafli2/theme.json',

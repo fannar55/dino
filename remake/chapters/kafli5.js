@@ -177,6 +177,9 @@ function* shyInTheReed(s, c) {
   c.log({ type: 'peek', tapped: tapped === 'reed' });
   c.her.peek(true);
   sound(s, c, 'sailRise'); // the reed rustles round her as she rises
+  // her place on the book's map, which her tile shows by: chapter 3's lookout marks it, so for a child who comes the whole way
+  // nothing flies; one who comes without it (an address that names this chapter) gets it here, where she is first seen
+  s.place('sloedla');
   yield s.wait(PEEK_HOLD);
   yield s.camera.cut('bank_talk');
   yield* say(s, c, 'mosi', 'k5_mosi_invite');
@@ -509,7 +512,7 @@ function* answerFromAfar(s, c) {
   mosi.turnTo(headingTo(SPOTS.mosi, WEST), { rate: 30 });
   for (const at of TURN_STEPS.at) s.after(at, () => { sound(s, c, 'step', { level: TURN_STEPS.level }); return null; });
   egill.turnTo(headingTo(SPOTS.egill, WEST), { rate: 50 });
-  c.sloedla.turnTo(headingTo(WADE.at, WEST), { rate: 25 });
+  c.her.face(headingTo(WADE.at, WEST)); // her life holds her (kafli5-sloedla.js): the turn is asked of it, not of the actor
   for (const who of [mosi, egill, flugedla]) yield who.lookAt(west, { weight: 0.8, maxAngle: 80, maxPitch: 20 });
   yield s.wait(4.2);
   calm(c, true); // the roar was heard in the quiet; the calm music again, to the book

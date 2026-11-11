@@ -57,14 +57,14 @@ const saveWith = stars => {
 test('defaultChapter opens chapter 4 after Þórseðla and keeps every earlier answer', () => {
   const cases = [[[], 'kafli1'], [['k1_kambedla'], 'kafli2'], [['k1_kambedla', 'k2_uggedla'], 'kafli3'],
     [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'], 'kafli4'],
-    [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla'], 'kafli4'],
+    [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla'], 'kafli5'], // and her star takes the child on (chapter 5's own cases: kafli5.test.mjs)
     [['k1_kambedla', 'k2_thorsedla'], 'kafli2']]; // an old chapter 2 save (Þórseðla's star, no Uggeðla's) still meets Uggeðla
   for (const [stars, want] of cases) assert.equal(defaultChapter(saveWith(stars)), want, `stars ${stars.join(', ') || 'none'}`);
 });
 
-test('kafli3 hands over to kafli4, and kafli4 to none yet', () => {
+test('kafli3 hands over to kafli4, and kafli4 to kafli5', () => {
   assert.equal(kafli3.chapter.next, 'kafli4');
-  assert.equal(chapter.next, null, 'chapter 5 is not made yet');
+  assert.equal(chapter.next, 'kafli5');
 });
 
 // ---------------------------------------------------------------------------------------------

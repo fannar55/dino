@@ -11,6 +11,7 @@
 //   her.blow({ seconds })       her horn: head up, the 'call' clip, for `seconds`, then back to what she was doing
 //   yield her.wade()            out into the pool for the whole song
 //   her.idle(), her.happy()     the clip she rests in
+//   her.face(heading)           she turns where she stands to face that way (degrees), as gently as every turn of hers
 //   her.dance(score)            her dance in the music video (scene 6): score() gives what it asks of her each frame, null ends it
 //   her.points()                where her parts are now (the tests watch her with it)
 //
@@ -410,6 +411,10 @@ export function sloedlaLife(actor) {
     blow({ seconds = 1 } = {}) {
       if (state.blowing <= 0 && !state.walk) fadeTo('call', { fade: BLOW.in });
       state.blowing = Math.max(state.blowing, seconds + BLOW.hold);
+    },
+    /** She turns where she stands to face `heading` (degrees), at her own pace (TURN); a walk begun later faces where it says. */
+    face(heading) {
+      state.face = heading;
     },
     idle() {
       state.rest = 'idle';

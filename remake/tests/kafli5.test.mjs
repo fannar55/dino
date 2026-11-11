@@ -13,7 +13,11 @@ import { SONG } from '../chapters/kafli5-set.js';
 import { CAMERA } from '../chapters/kafli5-video.js';
 import { HELP } from '../chapters/kafli5-choir.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
-import { SHOTS, STEPS, WADE, SPOTS } from '../chapters/kafli5-pool.js';
+import { SHOTS, STEPS, WADE, SPOTS, WEST, headingTo } from '../chapters/kafli5-pool.js';
+import * as kafli4 from '../chapters/kafli4.js';
+import { createSave, defaultChapter } from '../engine/save.js';
+import { renderMap } from '../engine/book/map-page.js';
+import { FakeDocument } from './fake-dom.mjs';
 import { FRIENDS } from '../engine/sloedla/friends.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { FOREST } from '../world/forest/config.js';
@@ -59,10 +63,10 @@ const toSegment = (p, a, b) => {
  * frame's pointer), with what the run sees on the way: the caption colours, every held shot's subjects out of frame, and the choir
  * shot's frames (the groups and the reed out of frame, the camera).
  */
-function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null, audio = null } = {}) {
-  const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [], turtleLift: Infinity, her: [] };
+function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, child = null, audio = null, savedWith = null } = {}) {
+  const seen = { colours: [], out: [], choirFrames: [], wanted: null, taps: [], turtleLift: Infinity, her: [], west: [] };
   return playUnattended(kafli5, {
-    seeking, limit: 900, shaped: true, aspect, reduced, eager, audio,
+    seeking, limit: 900, shaped: true, aspect, reduced, eager, audio, savedWith,
     onFrame(frame) {
       const { world, ui, director, shot } = frame;
       if (!seen.wrapped) {
@@ -99,6 +103,12 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, 
           if (d < near.d) near = { d, who };
         }
         seen.her.push({ t: c.s.time, scene: c.scene, shot, hold: director.mode === 'hold', step: c.her.step, moving: c.her.moving, peeking: c.her.peeking, near, ...p });
+      }
+      // scene 7: which way each of them faces (the roar comes from the west). Hers is her life's own heading: the actor reads its
+      // back from the root's turn, which past a quarter turn is not the heading she was given
+      if (c.scene === 7) {
+        const facing = who => world.actors.get(who).heading;
+        seen.west.push({ t: c.s.time, mosi: facing('mosi'), egill: facing('egill'), sloedla: c.her.points().heading });
       }
       // the note the choir wants now, and since when (scene time)
       const st = c.choir?.state();
@@ -466,5 +476,115 @@ test('nothing of her jumps more than 8 degrees or 0.1 m in a frame from scene 2 
       }
     }
     assert.deepEqual(jumps.slice(0, 5), [], `${kind}: ${jumps.length} jumps`);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// The start, the end and the save (the plan's Task 9): the chapter a save opens, the map's piece and her star, a second play, the
+// roar from the west, and the book the chapter ends in.
+
+const EARLIER = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla'];
+const saveWith = stars => {
+  const save = createSave(null);
+  for (const star of stars) save.addStar(star);
+  return save;
+};
+/** How far apart two headings are, in degrees (0 to 180). */
+const apart = (a, b) => Math.abs((((a - b) % 360) + 540) % 360 - 180);
+// a child who comes from chapter 4 with the four stars and the places chapter 3's lookout gives, and one who has played this
+// chapter to its end before
+const fromFour = () => play('fromFour', { savedWith: s => { EARLIER.forEach(id => s.addStar(id)); ['fen', 'sloedla', 'flugedla', 'uggedla'].forEach(id => s.addPlace(id)); } });
+const again = () => play('again', { savedWith: s => { [...EARLIER, 'k5_sloedla'].forEach(id => s.addStar(id)); ['fen', 'sloedla', 'flugedla', 'uggedla'].forEach(id => s.addPlace(id)); } });
+
+test('defaultChapter opens chapter 5 after Flugeðla and keeps every earlier answer', () => {
+  const cases = [[[], 'kafli1'], [['k1_kambedla'], 'kafli2'], [['k1_kambedla', 'k2_uggedla'], 'kafli3'],
+    [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'], 'kafli4'],
+    [EARLIER, 'kafli5'],
+    [[...EARLIER, 'k5_sloedla'], 'kafli5'],
+    [['k1_kambedla', 'k2_thorsedla'], 'kafli2'], // an old chapter 2 save still meets Uggeðla
+    [['k1_kambedla', 'k2_thorsedla', 'k4_flugedla'], 'kafli2'], // and so does one that flew with Flugeðla before it met her
+    [['k1_kambedla', 'k2_uggedla', 'k4_flugedla'], 'kafli3']]; // Flugeðla's star alone does not skip Þórseðla
+  for (const [stars, want] of cases) assert.equal(defaultChapter(saveWith(stars)), want, `stars ${stars.join(', ') || 'none'}`);
+});
+
+test('kafli4 hands over to kafli5, and kafli5 to none yet', () => {
+  assert.equal(kafli4.chapter.next, 'kafli5');
+  assert.equal(chapter.next, null, 'chapter 6 is not made yet');
+});
+
+test('scene 1 draws map piece e, and her star stars it', async () => {
+  const run = await fromFour();
+  ended(run, 'from chapter 4');
+  assert.deepEqual(run.moments.flatMap(moment => moment.ids), ['e'], 'piece e, once: from her tree to the far pool');
+  const [moment] = run.moments;
+  assert.ok(moment.at >= sceneAt(run, 1) && moment.closeAt < sceneAt(run, 2), `in scene 1 (${moment.at.toFixed(1)} to ${moment.closeAt?.toFixed(1)} s)`);
+  const said = run.seen.spokenAt.get('k5_mosi_map');
+  assert.ok(said >= moment.at && said < moment.closeAt, 'Mosi says where they are going while it is up');
+  // the book's map with the save the chapter leaves: her slot starred, the piece to her reached, and Grameðla's the one ahead
+  const mapOf = save => {
+    const doc = new FakeDocument();
+    const leaf = { el: doc.createElement('div'), tiles: [doc.createElement('div'), doc.createElement('div')] };
+    leaf.el.append(...leaf.tiles);
+    return renderMap(leaf, { save, win: { matchMedia: () => ({ matches: false }) } });
+  };
+  const map = mapOf(run.save);
+  assert.equal(map.stateOf('sloedla'), 'done', 'her slot has its star');
+  assert.ok(['pending', 'drawn'].includes(map.routeOf('e')), `piece e is reached: ${map.routeOf('e')}`);
+  assert.equal(map.next(), 'f', 'the way ahead is to Grameðla');
+  // and before her star it was the way ahead
+  const before = mapOf(saveWith(EARLIER));
+  assert.equal(before.next(), 'e');
+  assert.equal(before.stateOf('sloedla'), 'empty');
+});
+
+test('played again with k5_sloedla already in the save: no second star, the book shows her once', async () => {
+  const run = await again();
+  ended(run, 'played again');
+  const { stars, places } = run.save.get();
+  assert.deepEqual([...stars].sort(), [...EARLIER, 'k5_sloedla'].sort(), `no second star: ${stars}`);
+  assert.equal(places.filter(id => id === 'sloedla').length, 1, `her place once: ${places}`);
+  assert.ok(run.seen.spokenAt.has('k5_sloedla_thanks') && run.seen.spokenAt.has('k5_mosi_star'), 'the lines are said all the same');
+  // and a child who comes with nothing (the page's address names the chapter) has her tile in the book all the same: it shows by
+  // her place (cards.json), which chapter 3's lookout gives
+  const fresh = await untouched();
+  assert.equal(fresh.save.get().places.filter(id => id === 'sloedla').length, 1, `her place is on the map: ${fresh.save.get().places}`);
+  assert.equal(fresh.save.get().stars.filter(id => id === 'k5_sloedla').length, 1);
+});
+
+test('the roar comes from the west and everyone turns toward it within 2 s', async () => {
+  const run = await untouched();
+  const [roar] = logOf(run, 'roar');
+  assert.ok(roar && roar.at > sceneAt(run, 7), 'the roar, in scene 7');
+  const heard = run.soundLog.filter(entry => entry.name === 'gramedlaRoar');
+  assert.equal(heard.length, 1, 'heard once');
+  // the camera stands west of them and looks back east at their faces (kafli5-pool.js west_listen), so the west is behind it: the
+  // roar is not from a side, and it is far off (quiet)
+  assert.ok(Math.abs(heard[0].detail.pan) < 0.5 && heard[0].detail.level <= 0.4, `pan ${heard[0].detail.pan}, level ${heard[0].detail.level}`);
+  assert.ok(WEST[0] < SPOTS.mosi[0] - 1000, 'the ridge is far in the west');
+  const want = { mosi: headingTo(SPOTS.mosi, WEST), egill: headingTo(SPOTS.egill, WEST), sloedla: headingTo(WADE.at, WEST) };
+  const frames = run.watched.west;
+  const at = t => frames.findLast(frame => frame.t <= t);
+  const [before, soon, last] = [at(roar.at), at(roar.at + 2), frames.at(-1)];
+  for (const who of ['mosi', 'egill', 'sloedla']) {
+    const [was, then, end] = [before, soon, last].map(frame => apart(frame[who], want[who]));
+    assert.ok(was > 20, `${who} was not facing the west before it (${was.toFixed(0)} degrees off)`);
+    assert.ok(then < was - 20 || then < 5, `${who} is turning to it within 2 s: ${was.toFixed(0)} then ${then.toFixed(0)} degrees off`);
+    assert.ok(end < 5, `${who} faces the west when the lines are said: ${end.toFixed(1)} degrees off`);
+  }
+  // nobody says a word until they have turned
+  const first = run.seen.spokenAt.get('k5_mosi_gramedla');
+  assert.ok(first > roar.at + 3, `Mosi names her ${(first - roar.at).toFixed(1)} s after the roar`);
+  for (const who of ['mosi', 'egill', 'sloedla']) assert.ok(apart(at(first)[who], want[who]) < 5, `${who} has turned by then`);
+});
+
+test('the chapter ends in the book on the dinosaurs with Slóeðla nodding, then the map', async () => {
+  for (const [kind, playKind] of [['untouched', untouched], ['played again', again]]) {
+    const run = await playKind();
+    const end = ended(run, kind);
+    const said = ['k5_mosi_gramedla', 'k5_egill_next', 'k5_mosi_longest'].map(id => run.seen.spokenAt.get(id));
+    assert.ok(said[0] < said[1] && said[1] < said[2] && said[2] < end, `${kind}: the three lines, then the book`);
+    assert.deepEqual(run.book.opened.map(([tab]) => tab), ['dinosaurs', 'map'], `${kind}: the book, twice`);
+    assert.deepEqual(run.book.nods, ['sloedla', null], `${kind}: her tile nods`);
+    assert.equal(run.book.isOpen, true, `${kind}: and it stays open`);
   }
 });
