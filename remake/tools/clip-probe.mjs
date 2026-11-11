@@ -6,6 +6,11 @@
 //
 //   node remake/tools/clip-probe.mjs [--step 0.0333] [--from 0] [--to 60] [--clearance 0.02] [--json out.json] [--query "gler=0"]
 //                                    [--bodies mosi,thorsedla,sloedla,kambedla] [--browser edge|chrome]
+//   node remake/tools/clip-probe.mjs --trees [--from 20] [--to 44] [--tolerance 0.02] [--size WxH] [--json out.json]
+//
+// --trees (round 6) asks instead whether Þórseðla passes through a tree as she walks in: her shell's capsules against the plants
+// near her path, each fitted from its model's geometry as stacked discs (engine/tree-probe.js); it exits with 1 if any capsule
+// reaches more than --tolerance into a plant at any step, and lists each plant she touches (where, when, how deep, which bone).
 //
 // The page is opened at ?chapter=fidrildi3d&t=<from> (a silent seek that freezes), then main.js's window.__advance steps it on.
 // A chapter that says which butterflies it has (world.dans.butterflies(): [{ name, p, wing, contact }]) is asked; an older one is
@@ -27,10 +32,13 @@ const MIME = {
 const SHAPES = ['1024x768', '1280x800', '1280x720', '1170x540'];
 
 function parseArgs(argv) {
-  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, size: '960x600', quality: 'tablet', trace: null, eval: null, jump: 0.3, maxPush: 0.15, maxPushStep: 0.03 };
+  const given = new Set(argv);
+  const o = { step: 1 / 30, from: 0, to: 60, clearance: 0.02, json: null, query: 'gler=0', bodies: 'mosi,thorsedla,sloedla,kambedla', browser: 'edge', timeout: 180, size: '960x600', quality: 'tablet', trace: null, eval: null, jump: 0.3, maxPush: 0.15, maxPushStep: 0.03, trees: false, tolerance: 0.02 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--step') o.step = Number(next());
+    else if (a === '--trees') o.trees = true; // Þórseðla's walk against the trees (engine/tree-probe.js), not the butterflies
+    else if (a === '--tolerance') o.tolerance = Number(next()); // --trees: how far a capsule may reach into a plant's discs (metres)
     else if (a === '--from') o.from = Number(next());
     else if (a === '--to') o.to = Number(next());
     else if (a === '--clearance') o.clearance = Number(next());
@@ -48,6 +56,8 @@ function parseArgs(argv) {
     else if (a === '--trace') o.trace = next(); // print one butterfly's place and where it was drawn (state.drawn) every step
     else throw new Error(`unknown argument ${a}`);
   }
+  if (o.trees && !given.has('--from')) o.from = 20;
+  if (o.trees && !given.has('--to')) o.to = 44;
   return o;
 }
 
@@ -103,6 +113,39 @@ const SETUP = bodies => `(async () => {
   }
   window.__clip = { probe, points, steps: [], names, last: {}, lastDrawn: {}, detour: {}, jump: { d: 0, name: null, t: null }, jumps: {}, big: [], lastPush: {}, push: {}, pushStep: {}, moves: {} };
   return names;
+})()`;
+
+// --trees: the plants within 9 m of her path, fitted once; her shell's capsules against them every step
+const TREE_SETUP = `(async () => {
+  const { createTreeProbe } = await import('/remake/engine/tree-probe.js');
+  const w = window.__world, st = w.dans.state;
+  const path = st.thorPath;
+  const near = (x, z) => {
+    for (let i = 0; i + 1 < path.length; i++) {
+      const [ax, az] = path[i], [bx, bz] = path[i + 1];
+      const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+      if (Math.hypot(x - ax - dx * t, z - az - dz * t) < 9) return true;
+    }
+    return false;
+  };
+  const probe = createTreeProbe(w.forest.placements, { near });
+  window.__trees = { probe, shell: w.dans.shellOf('thorsedla'), steps: [], hits: {} };
+  return probe.plants.length;
+})()`;
+const TREE_STEP = (n, step, tolerance) => `(async () => {
+  const c = window.__trees, st = window.__world.dans.state;
+  for (let i = 0; i < ${n}; i++) {
+    await window.__advance(${step}, ${step});
+    const found = c.probe.look(c.shell.place()).filter(f => f.depth > ${tolerance});
+    c.steps.push({ t: +st.time.toFixed(3), n: found.length });
+    for (const f of found) {
+      const h = (c.hits[f.plant] ??= { name: f.name, x: f.x, z: f.z, from: st.time, to: st.time, depth: 0, steps: 0 });
+      h.to = st.time; h.steps++;
+      if (f.depth > h.depth) Object.assign(h, { depth: f.depth, at: st.time, y: f.y, bone: f.bone });
+    }
+  }
+  return st.time;
 })()`;
 
 const STEP = (n, step, trace, jump) => `(async () => {
@@ -194,6 +237,7 @@ ${results.map(([sz, f]) => `${sz} ${f ? 'FAIL' : 'OK'}`).join('; ')}`);
 }
 
 async function probe(o) {
+  if (o.trees) return treeProbe(o);
   const server = await startServer();
   const base = `http://127.0.0.1:${server.address().port}/remake/index.html`;
   const [W, H] = o.size.split('x').map(Number);
@@ -262,6 +306,53 @@ async function probe(o) {
     failed = table.secondsInside > 0 || table.closeSteps > 0 || table.pushFailures.length > 0;
     if (table.pushFailures.length) console.log(`pushed too far or too fast: ${table.pushFailures.join(', ')}`);
     console.log(failed ? 'FAIL' : 'OK: no butterfly inside, no wing nearer a body than the clearance');
+  } finally {
+    await stopBrowser(browser).catch(() => {});
+    server.close();
+  }
+  return failed;
+}
+
+// --trees: her walk against the trees
+async function treeProbe(o) {
+  const server = await startServer();
+  const base = `http://127.0.0.1:${server.address().port}/remake/index.html`;
+  const [W, H] = o.size.split('x').map(Number);
+  const browser = await launchBrowser({ browser: o.browser, width: W, height: H });
+  const { cdp } = browser;
+  let failed = true;
+  try {
+    const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    const send = (m, p) => cdp.send(m, p, sessionId);
+    await send('Page.enable');
+    await send('Runtime.enable');
+    await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+    const evaluate = async expression => {
+      const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    await send('Page.navigate', { url: `${base}?chapter=fidrildi3d${o.quality && o.quality !== 'none' ? '&quality=' + o.quality : ''}&t=${Math.max(0.001, o.from)}${o.query ? '&' + o.query : ''}` });
+    const t0 = Date.now();
+    for (;;) {
+      let ready = false;
+      try { ready = await evaluate('Boolean(window.__demoReady && window.__advance && window.__world?.dans && window.__world.forest?.placements)'); } catch { /* loading */ }
+      if (ready) break;
+      if (Date.now() - t0 > o.timeout * 1000) throw new Error('the page did not get ready');
+      await sleep(250);
+    }
+    const plants = await evaluate(TREE_SETUP);
+    console.log(`tree probe: Þórseðla's shell against ${plants} plants within 9 m of her path; ${o.from}-${o.to} s in steps of ${o.step.toFixed(4)} s, tolerance ${o.tolerance} m`);
+    const total = Math.round((o.to - Math.max(0.001, o.from)) / o.step);
+    const chunk = Math.max(1, Math.round(1 / o.step));
+    for (let done = 0; done < total; done += chunk) await evaluate(TREE_STEP(Math.min(chunk, total - done), o.step, o.tolerance));
+    const r = await evaluate(`(() => { const c = window.__trees; return { steps: c.steps.length, bad: c.steps.filter(s => s.n > 0).length, hits: Object.entries(c.hits).map(([i, h]) => ({ plant: +i, ...h })) }; })()`);
+    console.log(`steps with her inside a plant: ${r.bad} of ${r.steps} (${(r.bad * o.step).toFixed(2)} s)`);
+    for (const h of r.hits.sort((a, b) => a.from - b.from)) console.log(`  plant ${h.plant} ${h.name} at (${h.x}, ${h.z}): ${h.from.toFixed(2)}-${h.to.toFixed(2)} s, ${h.steps} steps, deepest ${h.depth.toFixed(2)} m at ${h.at.toFixed(2)} s (${h.bone}, ${h.y} m up)`);
+    if (o.json) await fsp.writeFile(path.resolve(o.json), JSON.stringify(r, null, 2));
+    failed = r.bad > 0;
+    console.log(failed ? 'FAIL' : 'OK: she passes through no plant');
   } finally {
     await stopBrowser(browser).catch(() => {});
     server.close();

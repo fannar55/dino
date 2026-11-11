@@ -423,6 +423,8 @@ function* forestSteps(world, layout) {
   return {
     group,
     info,
+    /** The plants as planned, each with its model (a probe fits trunks and crowns from their geometry: engine/tree-probe.js). */
+    placements: plan.placements,
     update,
     get stats() { return { submitted, casterTris }; },
     /** Strength of the warm light round characters (tools compare frames with it off). */

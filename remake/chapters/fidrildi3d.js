@@ -436,8 +436,8 @@ export const chapter = {
     // ---- the swarm (one draw call), the state for probes ----
     const swarm = createSwarm({ count: SWARM, scale: SWARM_SCALE, seed: 'fidrildadans', uWindTime: world.wind?.uniforms?.uWindTime, antialias: true });
     world.scene.add(swarm.mesh);
-    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, mothCheck, swarm: [], drawn: {}, swarmContact: [], shellCost: cost, time: 0, heroContact: false, flown: {} };
-    world.dans = { state, framePoint, frameOf, measure, butterflies: points, clipProbe: (names = SHELLED) => createClipProbe(world, names), shells };
+    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], thorLength, thorPath, mothCheck, swarm: [], drawn: {}, swarmContact: [], shellCost: cost, time: 0, heroContact: false, flown: {} };
+    world.dans = { state, framePoint, frameOf, measure, butterflies: points, clipProbe: (names = SHELLED) => createClipProbe(world, names), shells, shellOf: n => shells[SHELLED.indexOf(n)] };
 
     /** Every butterfly of the show as it is drawn now, for the clip probe: [{ name, p, wing, contact }]. */
     function points() {
