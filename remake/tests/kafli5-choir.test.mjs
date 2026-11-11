@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createChoir, HELP, HANDS_OFF, NOTE, ECHO, WHOLE, BETWEEN } from '../chapters/kafli5-choir.js';
-import { MELODY, GROUPS } from '../chapters/kafli5-song.js';
+import { MELODY, GROUPS, TEMPO } from '../chapters/kafli5-song.js';
 
 const STEP = 0.1;
 /** Runs `choir` from `from` to `to` in steps, calling `each(t)` before each update; every event, in order. */
@@ -21,11 +21,13 @@ const wrongFor = group => GROUPS.find(g => g !== group);
 const near = (a, b, what) => assert.ok(Math.abs(a - b) < 1e-6, `${what}: ${a} is not ${b}`);
 const sorted = log => log.every((e, i) => i === 0 || e.time >= log[i - 1].time - 1e-9);
 
-test('the help constants are the spec\'s, and the timing ones the plan\'s', () => {
+test('the help constants are the spec\'s, and the timing ones whole beats of the song', () => {
   assert.deepEqual(HELP, { glow: 5, point: 10, auto: 18 });
-  assert.equal(NOTE, 0.6);
-  assert.equal(ECHO, 0.5);
-  assert.equal(WHOLE, 0.6);
+  // 125 beats a minute: she shows a note every two beats, echoes a beat after a tap, and plays a found phrase a note a beat
+  const beat = 60 / TEMPO.bpm;
+  near(NOTE, 2 * beat, 'a shown note');
+  near(ECHO, beat, 'her echo');
+  near(WHOLE, beat, 'a note of the whole phrase');
   assert.ok(HANDS_OFF.auto < HELP.glow && BETWEEN > 0);
 });
 

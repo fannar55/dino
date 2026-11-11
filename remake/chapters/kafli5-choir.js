@@ -17,15 +17,18 @@
 // each phrase's first note waits the whole help again, so a child who looked away is asked again, and any tap brings it back.
 //
 // Time is the game's (the scene's clock): a paused game (the book open, a hidden tab) gives no time, so no help comes meanwhile.
-import { MELODY } from './kafli5-song.js';
+import { MELODY, TEMPO } from './kafli5-song.js';
 
 /** Seconds without a right tap before each help. */
 export const HELP = { glow: 5, point: 10, auto: 18 };
 /** The help for the rest of a phrase once a note sang by itself and nothing has been touched since. */
 export const HANDS_OFF = { glow: 1.5, auto: 4 };
-export const NOTE = 0.6; // s between the notes she shows
-export const ECHO = 0.5; // s from a counted note to her echo
-export const WHOLE = 0.6; // s a note when she plays a finished phrase
+// Her horn keeps the band's time (the band plays under the choir from scene 4: engine/audio/stems.js), so its timings are whole
+// beats of the song, and the scene puts each of her notes on the next half beat.
+const BEAT = 60 / TEMPO.bpm;
+export const NOTE = 2 * BEAT; // s between the notes she shows: two beats (0.96 s), slow enough to follow and remember
+export const ECHO = BEAT; // s from a counted note to her echo
+export const WHOLE = BEAT; // s a note when she plays a finished phrase
 export const BETWEEN = 3.5; // s from her whole phrase's end to the next phrase (her step out, a line)
 const LEVELS = ['glow', 'point', 'auto'];
 const EPS = 1e-9;

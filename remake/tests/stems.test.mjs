@@ -117,7 +117,7 @@ test('a stop fades them out and they do not come back; without an audio context 
   await game.stems.ready;
   game.stems.update();
   game.stems.stop(1);
-  const bus = game.context.lastGains[0].gain;
+  const bus = game.context.of('gain').find(node => node.bus).gain;
   assert.ok(bus.valueAt(game.context.currentTime + 1.01) < 1e-6);
   for (let i = 0; i < 120; i++) frame(game);
   assert.equal(game.context.bufferSources.length, 3);
@@ -131,4 +131,25 @@ test('a stop fades them out and they do not come back; without an audio context 
   silent.stop();
   assert.equal(await silent.ready, false);
   assert.ok(silent.delayToBeat() >= 0);
+});
+
+test('under a spoken line the whole loop dips, and comes back after it', async () => {
+  const context = createFakeContext({ state: 'running' });
+  const clock = { time: 0 };
+  let line = false;
+  const stems = createStems({ context, output: context.destination, clock, song: SONG, base: BASE, fetch, speaking: () => line });
+  stems.play();
+  await stems.ready;
+  stems.update();
+  const game = { context, clock, stems };
+  for (let i = 0; i < 60; i++) frame(game);
+  const out = context.lastGains[0].gain; // the last gain before the page's output
+  assert.ok(Math.abs(out.valueAt(context.currentTime) - 1) < 1e-6, 'full with nobody speaking');
+  line = true;
+  for (let i = 0; i < 60; i++) frame(game);
+  const dipped = out.valueAt(context.currentTime);
+  assert.ok(dipped > 0.3 && dipped < 0.5, `about 8 dB down: ${dipped}`);
+  line = false;
+  for (let i = 0; i < 120; i++) frame(game);
+  assert.ok(out.valueAt(context.currentTime) > 0.95, 'and back');
 });

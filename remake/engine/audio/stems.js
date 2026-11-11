@@ -16,17 +16,20 @@ const LEAD = 0.06; // s from asking to sounding: all the layers are scheduled on
 const FADE = 0.04; // s the bus takes in and out around a start and a halt
 const APART = 0.07; // s the sound may be off the clock before the layers start again
 const SETTLE = 0.5; // s after a start before the two are compared
+const DIP = 10 ** (-8 / 20); // under a spoken line, as the theme and chapter 4's song dip (engine/audio/music.js)
+const DIP_TAU = 0.12; // s: how fast the dip closes in on its level
 
 const fold = (value, length) => ((value % length) + length) % length;
 
 /**
  * The loop of `song` (song.json: { bpm, beatOffset, loop: { layers: { id: file }, startSec, seconds } }, files read against `base`)
  * on `context` (an AudioContext, or null: a beat and nothing else) through `output`, following the game `clock` ({ time }).
+ * `speaking()` says whether a recorded line sounds now: the whole loop dips under it.
  *
  * Returns { ready, play, layer, level, update, setPaused, stop, delayToBeat, beatAt, playing, position }. Every layer starts
  * silent: layer(id, level, seconds) brings one in. update() is called every frame, the game held or not.
  */
-export function createStems({ context = null, output = null, clock, song, base, fetch = globalThis.fetch } = {}) {
+export function createStems({ context = null, output = null, clock, song, base, fetch = globalThis.fetch, speaking = () => false } = {}) {
   const beat = 60 / song.bpm;
   const offset = song.beatOffset ?? 0;
   const { layers, startSec, seconds } = song.loop;
@@ -60,9 +63,13 @@ export function createStems({ context = null, output = null, clock, song, base, 
     };
   }
 
-  const bus = context.createGain();
+  const dip = context.createGain(); // the dip under a line, after everything else
+  dip.connect(output ?? context.destination);
+  let dipped = false;
+  const bus = context.createGain(); // in and out around a start, a halt and a stop
+  bus.bus = true;
   bus.gain.value = 0;
-  bus.connect(output ?? context.destination);
+  bus.connect(dip);
   const gains = Object.fromEntries(ids.map(id => {
     const gain = context.createGain();
     gain.layer = id;
@@ -137,6 +144,11 @@ export function createStems({ context = null, output = null, clock, song, base, 
     level: id => levels[id],
     /** Each frame: starts what waits for its files, the context or the hold, and keeps the sound on the clock. */
     update() {
+      const line = Boolean(speaking());
+      if (line !== dipped) {
+        dipped = line;
+        dip.gain.setTargetAtTime(line ? DIP : 1, context.currentTime, DIP_TAU);
+      }
       if (!playing || held) return;
       if (!sources.length) { start(); return; }
       if (context.currentTime < startedAt + SETTLE) return;

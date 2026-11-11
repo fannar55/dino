@@ -12,6 +12,9 @@
 //   song.json        the tempo and the key (as theme.json has them: five notes of the major pentatonic, root first), the loop, and
 //                    the set's sections, her lines and its cues by beat, which scene 6 is cut to
 //   CREDITS.md       every sound in the set that is not the game's own, with its licence
+// and remake/chapters/kafli5-set.js, the same song.json as a module, which the chapter's script and its tests read without a fetch.
+// song.json is the chapter's theme too (chapters/kafli5.js theme): it names no file, so the page plays no theme of its own, and the
+// forest dances and the effects ring on this song's tempo and key.
 //
 //   node remake/tools/kafli5-song.mjs          writes all of it
 //   node remake/tools/kafli5-song.mjs --check  writes nothing: says whether the files are what the render would give
@@ -24,6 +27,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FROM = path.join(ROOT, 'qa/remake/kafli5/lag/djamm/1');
 const TO = path.join(ROOT, 'remake/assets/audio/kafli5/song');
+const MODULE = path.join(ROOT, 'remake/chapters/kafli5-set.js');
+const moduleOf = song => `// Chapter 5's song as the script reads it: assets/audio/kafli5/song/song.json as a module. Written by tools/kafli5-song.mjs: do not
+// edit it by hand.
+export const SONG = ${song.trimEnd()};
+`;
 const RATE = 44100;
 /** The loop's layers and the stems of the render each is made of; `muffle` is a low-pass (Hz) and `gain` a level (dB). */
 export const LAYERS = {
@@ -48,6 +56,7 @@ export function songOf(render) {
     name: render.name,
     bpm: render.bpm,
     beatOffset: 0,
+    danceBeats: 2, // the forest dances every second beat, as it does to Dino Trail (engine/beat.js danceGrid)
     key,
     loop: {
       layers: Object.fromEntries(Object.keys(LAYERS).map(layer => [layer, `loop-${layer}.mp3`])),
@@ -117,7 +126,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const credits = creditsOf(render);
   if (check) {
     const same = (file, text) => fs.existsSync(file) && fs.readFileSync(file, 'utf8') === text;
-    const ok = same(path.join(TO, 'song.json'), song) && same(path.join(TO, 'CREDITS.md'), credits) && md5(path.join(TO, 'djamm.mp3')) === md5(path.join(FROM, 'mix.mp3'));
+    const ok = same(path.join(TO, 'song.json'), song) && same(MODULE, moduleOf(song)) && same(path.join(TO, 'CREDITS.md'), credits) && md5(path.join(TO, 'djamm.mp3')) === md5(path.join(FROM, 'mix.mp3'));
     console.log(ok ? 'the song in the game is the render\'s' : 'the song in the game is NOT the render\'s: run without --check');
     process.exit(ok ? 0 : 1);
   }
@@ -125,6 +134,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   fs.copyFileSync(path.join(FROM, 'mix.mp3'), path.join(TO, 'djamm.mp3'));
   for (const [layer, how] of Object.entries(LAYERS)) writeLayer(layer, how, render, path.join(TO, `loop-${layer}.mp3`));
   fs.writeFileSync(path.join(TO, 'song.json'), song);
+  fs.writeFileSync(MODULE, moduleOf(song));
   fs.writeFileSync(path.join(TO, 'CREDITS.md'), credits);
   for (const name of fs.readdirSync(TO)) console.log(`${name}  ${fs.statSync(path.join(TO, name)).size} bytes`);
 }
