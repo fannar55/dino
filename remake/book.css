@@ -942,6 +942,11 @@
   background: rgb(24 17 11 / .68);
 }
 .video-player.closing { pointer-events: none; }
+/* A "3D myndbönd" show (show-player.js): its chapter in a frame over the whole book, the video player's close button over it. */
+.show-player { position: absolute; z-index: 16; inset: 0; background: #000; }
+.show-player[hidden] { display: none; }
+.show-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.show-close { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); }
 .video-frame {
   --pad: clamp(18px, 2.4cqmin, 28px);
   position: relative;

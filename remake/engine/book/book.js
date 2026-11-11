@@ -8,6 +8,7 @@ import { renderMap } from './map-page.js';
 import { createMuseumPage } from './museum-page.js';
 import { BOOK_VIDEOS, BOOK_3D, createVideosPage, videoSeenId } from './videos.js';
 import { createVideoPlayer } from './video-player.js';
+import { createShowPlayer } from './show-player.js';
 import { validateGame } from '../hals/rules.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
@@ -118,7 +119,8 @@ export function halsOpen(save) {
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
  * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page;
- * `onOpenShow(entry)` plays a "3D myndbönd" show from the Myndbönd page (videos.js BOOK_3D: main.js goes to its chapter); `onTab(tab)` is told
+ * `onShow(open)` is told when a "3D myndbönd" show (videos.js BOOK_3D) opens over the book in its show player (show-player.js) and when it
+ * closes (main.js draws nothing meanwhile); `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
@@ -137,7 +139,7 @@ export function halsOpen(save) {
  *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onOpenShow = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onShow = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -359,6 +361,13 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     onClose: () => { animals.render(); dinosaurs.render(); },
   });
   videoPlayer = createVideoPlayer(doc, root, { audio, win, onClose: () => { videosPage?.render(); renderRibbonNew(); } });
+  // A "3D myndbönd" show plays in a frame of its own chapter over the open book (show-player.js); closing it is the Myndbönd page again.
+  const showPlayer = createShowPlayer(doc, root, {
+    audio,
+    win,
+    onOpen: () => onShow?.(true),
+    onClose: () => { videosPage?.render(); renderRibbonNew(); onShow?.(false); },
+  });
   const refound = new Set(); // the cards whose animals were found again in a new place, until each is next opened (foundAgain)
   const onOpenCard = (card, fromRect) => {
     const page = refound.has(card.id) ? card.refind : 0; // found again: its newest page, once
@@ -374,7 +383,10 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     win,
     videos: BOOK_VIDEOS,
     shows: BOOK_3D,
-    onOpenShow: entry => onOpenShow?.(entry),
+    onOpenShow: entry => {
+      videoPlayer.close(true);
+      showPlayer.open(entry);
+    },
     onOpenVideo: (video, fromRect) => {
       videoPlayer.close(true);
       videoPlayer.open(video, fromRect);
@@ -635,6 +647,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   function putCardAway() {
     zoom.close(true);
     videoPlayer.close(true);
+    showPlayer.close();
     cardViewer.close(true);
   }
 
@@ -985,6 +998,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     foundAgain,
     cardViewer,
     videoPlayer,
+    showPlayer,
     zoom,
     get isOpen() { return isOpen; },
     get isChildOpen() { return isOpen && holder === 'child'; },

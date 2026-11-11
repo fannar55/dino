@@ -1957,8 +1957,8 @@ function fenRig({ fill = () => {}, animate = false, cards = CARDS } = {}) {
     doc.createElement = tag => animated(create(tag));
     animated(doc.getElementById('book'));
   }
-  const shows = []; // the "3D myndbönd" shows the book hands on (main.js goes to their chapter)
-  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {}, onOpenShow: entry => shows.push(entry) });
+  const shows = []; // the show player's opening and closing, as main.js hears it (onShow)
+  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {}, onShow: open => shows.push(open) });
   const root = doc.getElementById('book');
   const tap = el => {
     el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
@@ -2431,7 +2431,7 @@ test('the Myndbönd page has nine videos, five on the left page and four on the 
   assert.equal(book.videoPlayer.screen.src, '', 'stream unloaded on close');
 });
 
-test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open from the start, which hands its chapter on instead of playing', () => {
+test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open from the start, which plays its chapter in a frame over the book', () => {
   const { save, book, root, tap, shows, sounds } = fenRig();
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
   const right = leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains('right'))[0];
@@ -2452,11 +2452,31 @@ test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open
   book.open('videos', 'child');
   sounds.length = 0;
   tap(show);
-  assert.deepEqual(shows.map(entry => entry.chapter), ['fidrildi3d'], 'handed on with its chapter');
-  assert.equal(book.videoPlayer.isOpen, false, 'the video player stays closed');
+  assert.equal(book.showPlayer.isOpen, true, 'the show player opens');
+  assert.equal(book.videoPlayer.isOpen, false, 'not the video player');
+  assert.deepEqual(shows, [true], 'main.js is told (it stops drawing)');
+  const frame = book.showPlayer.frame;
+  assert.equal(frame.tagName, 'IFRAME');
+  const address = new URLSearchParams(frame.src.slice(frame.src.indexOf('?')));
+  assert.equal(address.get('chapter'), 'fidrildi3d', 'the frame plays the chapter of the show');
+  assert.equal(address.get('syning'), '1', 'as a show only');
+  assert.equal(address.get('fra'), null, 'and goes nowhere: the page stays');
+  const player = root.findAll(e => e.classList.contains('show-player'))[0];
+  assert.equal(player.hidden, false);
+  assert.ok(player.findAll(e => e.classList.contains('show-close'))[0], 'with the close button of the video player');
   assert.ok(save.get().seen.includes('video:fidrildi3d'), 'marked seen');
   assert.ok(show.classList.contains('found'));
   assert.deepEqual(sounds, ['tile']);
+
+  tap(player.findAll(e => e.classList.contains('show-close'))[0]);
+  assert.equal(book.showPlayer.isOpen, false, 'the close button takes the frame away');
+  assert.equal(player.hidden, true);
+  assert.equal(player.findAll(e => e.classList.contains('show-frame')).length, 0, 'the frame is gone, its drawing and sound with it');
+  assert.deepEqual(shows, [true, false]);
+  assert.equal(book.isOpen, true, 'the book is there again');
+  assert.equal(book.tab, 'videos', 'on Myndbönd');
+  const again = root.findAll(e => e.getAttribute('data-video') === 'fidrildi3d')[0];
+  assert.equal(again.classList.contains('new'), false, 'and the tile is no longer new');
 });
 
 test('cards linked to an unlocked video show the card-video button and open the video player from the card', () => {

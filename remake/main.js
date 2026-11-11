@@ -43,6 +43,7 @@ import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
 import { createForrit } from './engine/offline/forrit.js';
 import { createGler } from './engine/gler.js';
+import { SHOW_CLOSE } from './engine/book/show-player.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
@@ -56,6 +57,8 @@ import { createGler } from './engine/gler.js';
 //                         play on from there with sound (a review from a time; the child's save is still left alone)
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
+//   syning=1              a "3D myndbönd" show in the book's frame (engine/book/show-player.js): only the show, with no book button,
+//                         no app line or download under the start; Escape asks the book to close the frame
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
 //   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
 //                         reload does not forget again)
@@ -64,7 +67,10 @@ import { createGler } from './engine/gler.js';
 const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
 if (!params.get('shot')) document.getElementById('fade')?.style.setProperty('opacity', '1');
-const forrit = createForrit(); // the installed app keeps the whole game in the device and says how far under Byrja
+// A show in the book's frame (?syning=1, engine/book/show-player.js): the page round it is the app, so the frame is only the show.
+const syning = params.get('syning') === '1';
+// the installed app keeps the whole game in the device and says how far under Byrja (not in a show's frame: the page round it does)
+const forrit = syning ? { startScreen() {}, started() {} } : createForrit();
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q); // keep the object: resolutionScale is a live getter
@@ -182,7 +188,9 @@ const shots = shotsOf(chapter);
 const director = createDirector({ camera, world, shots });
 world.director = director;
 // The glasses (engine/gler.js): ?gler=1, or a chapter that asks for them (chapter.gler), draws the scene once an eye as red/cyan.
-const gler = params.get('gler') !== null || chapter.gler ? createGler({ renderer, display, scene, camera, director, q, params }) : null;
+// A chapter's `gler: { panel: false }` leaves out the "3D" settings button (the show for the child); ?gler=1 brings it back.
+const glerPanel = params.get('gler') !== null || chapter.gler?.panel !== false;
+const gler = params.get('gler') !== null || chapter.gler ? createGler({ renderer, display, scene, camera, director, q, params, panel: glerPanel }) : null;
 if (gler && chapter.gler) gler.enable(params.get('gler') !== '0');
 world.gler = gler;
 
@@ -272,14 +280,12 @@ const book = createBook(document, {
     target.open(options);
     return target;
   }, // the Leikir page's games
-  // A "3D myndbönd" show on the Myndbönd page (videos.js BOOK_3D) is a chapter of its own: the page goes there, as "Áfram" does, and
-  // says where it came from (fra), so the show's cards can offer "Til baka".
-  onOpenShow: entry => {
-    const next = new URLSearchParams();
-    for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
-    next.set('chapter', entry.chapter);
-    next.set('fra', chapterId);
-    location.search = `?${next}`;
+  // A "3D myndbönd" show on the Myndbönd page (videos.js BOOK_3D) plays in a frame of its own chapter over the open book
+  // (engine/book/show-player.js), and the child's place here is kept. Meanwhile this page draws nothing and its sound sleeps.
+  onShow: open => {
+    showOpen = open;
+    if (open) audio?.suspend?.().catch(() => {});
+    else audio?.resume?.().catch(() => {});
   },
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
@@ -353,6 +359,11 @@ const hals = createHalsGame(document, {
   },
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
+if (syning) {
+  journal.show(false); // the book is the page round the frame
+  // Escape in the frame closes it, as Escape on the book's page does (show-player.js)
+  addEventListener('keydown', event => { if (event.key === 'Escape') parent?.postMessage(SHOW_CLOSE, location.origin); });
+}
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
 // The bug report tool (engine/villa/villa.js): F1, three fingers held or the ?villa=1 button holds the game as the book does, and
 // the owner draws boxes over the screen and writes what is wrong; the report goes to the dev server's qa/villur/ (tools/serve.mjs),
@@ -792,22 +803,36 @@ if (shotName || !chapter.script) {
     const loading = document.getElementById('loading');
     loading.hidden = false;
     const button = document.getElementById('start');
-    // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
-    button.addEventListener('pointerdown', () => button.classList.add('pressed'));
-    button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
-    button.addEventListener('click', () => {
+    // A chapter may have a start of its own (chapter.startButton(document) resolves to { element, button }, laid on the page hidden,
+    // or to null for Byrja): fidrildi3d's glasses. Its button's tap is Byrja's, the one tap, and the touch that lets sound begin.
+    const ownStart = Promise.resolve().then(() => chapter.startButton?.(document) ?? null).catch(error => {
+      console.error('[start]', error);
+      return null;
+    });
+    let begun = false;
+    const begin = () => {
+      if (begun) return;
+      begun = true;
       button.hidden = true;
       forrit.started();
       ui.setFade(1); // the scene opens from black, the same as in captures
       stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
-    }, { once: true });
-    getReady().catch(error => console.error('[warm-up]', error)).finally(() => {
+    };
+    // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
+    button.addEventListener('pointerdown', () => button.classList.add('pressed'));
+    button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
+    button.addEventListener('click', begin, { once: true });
+    getReady().catch(error => console.error('[warm-up]', error)).finally(async () => {
+      const own = await ownStart;
       warmedPlace = world.location; // from now on a place the scene comes to is drawn once before it shows
       loading.classList.add('done');
       setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
-      button.hidden = false;
+      if (own) {
+        own.element.hidden = false;
+        own.button.addEventListener('click', () => { own.element.remove(); begin(); }, { once: true });
+      } else button.hidden = false;
       forrit.startScreen();
       startReady = true;
       prepareLater().catch(error => console.error('[warm-up]', error));
@@ -835,6 +860,7 @@ function drawNow() {
 // A book a script opened holds nothing, so the scene goes on under it. `drew` says whether this frame was drawn.
 let canvasCleared = false;
 let drew = true;
+let showOpen = false; // a "3D myndbönd" show is open over the book (onShow above): nothing here runs, nor draws
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
 function render() {
   if (hals.isOpen) { // the game draws its board on this canvas: the chapter waits
@@ -882,6 +908,7 @@ let failures = 0;
 renderer.setAnimationLoop(now => {
   const real = (now - last) / 1000;
   last = now;
+  if (showOpen) return; // the show's frame covers the screen and the clock is held: the frame is the only thing drawing
   try {
     update(clock.tick(real));
   } catch (error) {
