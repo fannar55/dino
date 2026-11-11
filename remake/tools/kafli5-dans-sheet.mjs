@@ -103,7 +103,8 @@ try {
   for (const setBeat of beats) {
     const video = { setBeat, ...danceBeatAt(setBeat), section: null };
     await evaluate(`window.__dans.video = ${JSON.stringify(video)}`);
-    await evaluate('new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done))))', true);
+    // six frames: one that comes into view gets its pose a frame late (kafli5-dances.js UNSEEN_EVERY), and the crowd its level
+    await evaluate('new Promise(done => { let n = 6; const f = () => (--n ? requestAnimationFrame(f) : done()); requestAnimationFrame(f); })', true);
     const name = `b${String(setBeat).replace('.', '_')}`;
     const data = await send('Page.captureScreenshot', { format: 'png' });
     await fsp.writeFile(path.join(out, `${name}.png`), Buffer.from(data.data, 'base64'));

@@ -1026,6 +1026,7 @@ function finish(P, m) {
 
 // --- the scene's --------------------------------------------------------------------------------
 
+const UNSEEN_EVERY = 4; // frames between the poses of a dancer that is not drawn
 /**
  * The dances for the chapter's state `c` (c.world, c.members: the choir's members by group, c.reduced: less motion asked for).
  * Returns { update({ beat, setBeat, frozen, rewinding, section }), cue(event), dispose() }:
@@ -1058,10 +1059,18 @@ export function createDances(c) {
   // where the dragonflies circle: over her crest as she stands in the water now
   const head = c.sloedla?.raw?.headPosition?.(new c.world.THREE.Vector3()) ?? null;
   const her = head ? [head.x, Math.max(head.y, LEVEL + 2) + 0.2, head.z] : [WADE.at[0], LEVEL + 3.2, WADE.at[1]];
+  let frame = 0;
   return {
     dancers,
     update({ beat, setBeat }) {
-      for (const { b, m } of dancers) b.dance = danceOf(m, beat, { reduced, ground, her, setBeat });
+      frame++;
+      for (let i = 0; i < dancers.length; i++) {
+        const { b, m } = dancers[i];
+        // one the camera does not see (life.js `shown`) gets its pose every fourth frame only: it is where it should be, to a
+        // twentieth of a second, when a shot finds it, and most of the sixty are out of every close shot
+        if (b.shown === false && b.dance && (i + frame) % UNSEEN_EVERY) continue;
+        b.dance = danceOf(m, beat, { reduced, ground, her, setBeat });
+      }
     },
     // nothing here waits for a cue: every call, count, roar and "Hopp!" of the set is in the dances by its beat (so the rewind and
     // the freeze hold them too), and a child's tap hops a group on top of its dance (kafli5.js sing: life.js hop)

@@ -960,7 +960,8 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       const going = flying ? 0 : moving(b, t);
       pose(b, flying ? ft : null, clock, t);
       if (!flying) { walk(b, going, clock); dancing(b); hopping(b, t); }
-      if (b.visible && !tooFar(b)) crowds.place(b.kind, b.position, b.heading, b.scale, b);
+      // `shown`: drawn this frame (in the camera's view, near enough): a dance need not be worked out every frame for one that is not
+      b.shown = b.visible && !tooFar(b) && crowds.place(b.kind, b.position, b.heading, b.scale, b) >= 0;
     }
     if (own) crowds.end();
   }

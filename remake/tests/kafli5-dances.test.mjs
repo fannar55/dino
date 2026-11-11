@@ -576,6 +576,20 @@ test('the scene\'s dances: every dancer gets its pose each frame, a tap\'s hop c
   dances.update({ beat: 163.2, setBeat: 163.2, frozen: false, rewinding: false, section: null });
   step(world.clock.time + 0.2);
   assert.ok(turtle.position.y > danced + 0.4, 'a tap\'s hop is on top of the dance');
+  // one the camera does not see gets its pose every fourth frame, one it sees every frame
+  const [seen, unseen] = life.pool.frogs;
+  seen.shown = true;
+  unseen.shown = false;
+  let fresh = [0, 0];
+  for (let i = 0; i < 12; i++) {
+    const before = [seen.dance, unseen.dance];
+    dances.update({ beat: 164 + i / 30, setBeat: 164 + i / 30, frozen: false, rewinding: false, section: null });
+    if (seen.dance !== before[0]) fresh[0]++;
+    if (unseen.dance !== before[1]) fresh[1]++;
+  }
+  assert.deepEqual(fresh, [12, 3]);
+  step();
+  assert.equal(seen.shown, true, 'life.js says what it drew (no camera here: everything)');
   dances.dispose();
   step(world.clock.time + 5); // the tap's hop is over
   for (const b of [...life.pool.frogs, ...life.pool.turtles, ...life.pool.beetles]) assert.ok(b.dance === null && b.position.distanceTo(b.gather.at) < 1e-9);
