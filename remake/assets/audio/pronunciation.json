@@ -2461,6 +2461,52 @@
         }
       },
       "chosen": "hratt"
+    },
+    "grasbitur": {
+      "word": "Grasbítur",
+      "stem": "[Gg]rasbít",
+      "forms": [
+        "Grasbítarnir",
+        "grasbítarnir",
+        "grasbítar",
+        "Grasbítar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        }
+      },
+      "chosen": null
+    },
+    "smaedla": {
+      "word": "Smáeðla",
+      "stem": "[Ss]máeðl",
+      "forms": [
+        "Smáeðlurnar",
+        "Smáeðlur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        }
+      },
+      "chosen": null
+    },
+    "flugdyr": {
+      "word": "Flugdýr",
+      "stem": "[Ff]lugdýr",
+      "forms": [
+        "Flugdýrin",
+        "flugdýrin",
+        "flugdýr",
+        "Flugdýr"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {

@@ -1,5 +1,103 @@
 [
   {
+    "id": "k5_mosi_again",
+    "speaker": "mosi",
+    "text": "Þarna aftur!"
+  },
+  {
+    "id": "k5_flugedla_reed",
+    "speaker": "flugedla",
+    "text": "Hún er í sefinu."
+  },
+  {
+    "id": "k5_mosi_map",
+    "speaker": "mosi",
+    "text": "Að tjörninni hennar Slóeðlu."
+  },
+  {
+    "id": "k5_mosi_invite",
+    "speaker": "mosi",
+    "text": "Halló, Slóeðla! Viltu koma á Stjörnuhátíðina í kvöld?"
+  },
+  {
+    "id": "k5_sloedla_forgot",
+    "speaker": "sloedla",
+    "text": "Ég… ég man ekki lagið mitt. Og ég þori ekki að syngja."
+  },
+  {
+    "id": "k5_mosi_animals",
+    "speaker": "mosi",
+    "text": "Dýrin sungu alltaf með þér. Þau muna það!"
+  },
+  {
+    "id": "k5_mosi_help",
+    "speaker": "mosi",
+    "text": "Hjálpaðu þeim, Egill. Pikkaðu á dýrið sem lýsist upp."
+  },
+  {
+    "id": "k5_sloedla_mine",
+    "speaker": "sloedla",
+    "text": "Þetta… þetta var lagið mitt!"
+  },
+  {
+    "id": "k5_mosi_remember",
+    "speaker": "mosi",
+    "text": "Nú manst þú röðina, Egill!"
+  },
+  {
+    "id": "k5_sloedla_thanks",
+    "speaker": "sloedla",
+    "text": "Takk, Egill. Ég skal leiða sönginn á hátíðinni!"
+  },
+  {
+    "id": "k5_mosi_star",
+    "speaker": "mosi",
+    "text": "Fimmta stjarnan!"
+  },
+  {
+    "id": "k5_mosi_gramedla",
+    "speaker": "mosi",
+    "text": "Grameðla… hún heyrði lagið."
+  },
+  {
+    "id": "k5_egill_next",
+    "speaker": "egill",
+    "text": "Förum við þangað næst?"
+  },
+  {
+    "id": "k5_mosi_longest",
+    "speaker": "mosi",
+    "text": "Lengsta ferðin. Yfir ána við fossinn."
+  },
+  {
+    "id": "k5_mosi_grazers",
+    "speaker": "mosi",
+    "text": "Grasbítarnir!"
+  },
+  {
+    "id": "k5_mosi_turtles",
+    "speaker": "mosi",
+    "text": "Skjaldbökurnar!",
+    "context": "Sjáðu spilið mitt! Á því er mynd af skjaldböku.",
+    "fixes": "skjaldbaka",
+    "note": "Own context: the sentence that won Skjaldbaka on a line of its own (veiddu_egill_name_skjaldbaka, the owner's ear), tried first here because the line is the one word alone. Ný 3 adds the caption after it and sends seed 7. Not heard by the owner yet (2026-11-11)."
+  },
+  {
+    "id": "k5_mosi_frogs",
+    "speaker": "mosi",
+    "text": "Froskarnir!"
+  },
+  {
+    "id": "k5_mosi_lizards",
+    "speaker": "mosi",
+    "text": "Smáeðlurnar!"
+  },
+  {
+    "id": "k5_mosi_flyers",
+    "speaker": "mosi",
+    "text": "Flugdýrin!"
+  },
+  {
     "id": "k5_dj_a_welcome",
     "speaker": "flugedla",
     "text": "Halló, skógur! Velkomin á hátíðina!",
