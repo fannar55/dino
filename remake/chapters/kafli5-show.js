@@ -15,7 +15,7 @@
 import { CHOIR, GROUPS, WADE } from './kafli5-pool.js';
 import { FAR_POOL } from './kafli4-route.js';
 import {
-  createFireflies, FIREFLIES, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR, dropAt, splashRingAt, countAt, duskAt, liftAt,
+  createFireflies, FIREFLIES, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR, dropAt, splashRingAt, countAt, duskAt, liftAt, capAt,
   energyOf, pulseAt, beatRingsAt, padOf,
 } from './kafli5-show-score.js';
 import { createLightPoints } from '../engine/show/lights.js';
@@ -36,7 +36,8 @@ const lerp = (a, b, k) => a + (b - a) * k;
 const put = (out, x, y, z) => { out[0] = x; out[1] = y; out[2] = z; return out; };
 
 /**
- * The show for the chapter's state `c` (c.world, c.reduced: less motion asked for, c.aims: the groups' tap points, c.sloedla).
+ * The show for the chapter's state `c` (c.world, c.reduced: less motion asked for, c.aims: the groups' tap points, c.sloedla, and
+ * c.sun: the scene's sun, which wears its nightcap while the dusk lasts; the owner's wish of 2026-11-11).
  * Returns { update({ beat, setBeat, frozen, rewinding, section }, dt), cue(event), dispose() }:
  *   update   every frame of the set: `beat` is the dance beat, `setBeat` the set's own, `section` the set's part now
  *   cue      every event of the set as it comes (kafli5.js onSet: sections, her lines, calls and the other cues)
@@ -149,6 +150,7 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
     lights.end();
     rings.end();
     dusk.set(dark * (reduced ? 0.5 : 1), reduced ? 0 : liftAt(beat));
+    c.sun?.cap?.(capAt(beat)); // its nightcap comes down as the dusk falls, and is off the moment the day is back
     const count = countAt(beat, { reduced });
     if (count) number.show(String(count.n), count);
     else number.hide();
@@ -167,6 +169,7 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
       if (disposed) return;
       disposed = true;
       dusk.restore();
+      c.sun?.cap?.(0);
       number.dispose();
       lights.dispose();
       rings.dispose();

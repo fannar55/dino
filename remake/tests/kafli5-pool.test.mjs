@@ -123,6 +123,7 @@ const WHERE = {
   set_her_close: { sloedla: WADE.at },
   set_her_low: { sloedla: WADE.at },
   set_her_reed: { sloedla: WADE.at },
+  set_sun: { sloedla: WADE.at },
   set_egill_close: { egill: SPOTS.egill },
   set_flugedla: { flugedla: SPOTS.flugedla },
 };
@@ -167,7 +168,9 @@ test('every chapter 5 shot keeps the director quiet (LIMITS) and shows who SHOWS
     // the sun 35 to 150 degrees off the camera's axis (STYLE.md 5), seen from above
     const heading = (Math.atan2(tz - z, tx - x) * 180) / Math.PI;
     const off = Math.abs(((heading - LOOKS.goldenAfternoon.sun.azimuth + 540) % 360) - 180);
-    assert.ok(off >= 35 && off <= 180, `${name}: the sun ${off.toFixed(0)} degrees off its axis`);
+    // (but for the dusk's own look at the sun in its nightcap, when its light is dimmed: it looks straight at it)
+    if (name === 'set_sun') assert.ok(off <= 5, `${name} looks at the sun: ${off.toFixed(0)} degrees off its axis`);
+    else assert.ok(off >= 35 && off <= 180, `${name}: the sun ${off.toFixed(0)} degrees off its axis`);
     for (const aspect of [1.6, 0.625]) {
       const { camera, director } = cameraOn(name, aspect);
       assert.deepEqual(director.warnings, [], `${name} at ${aspect}`);

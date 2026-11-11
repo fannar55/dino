@@ -80,9 +80,11 @@ export const CAMERA = [
   { beat: 208, cut: 'set_beetles', then: { push: 0.8, beats: 7 } }, // the beetles drum on their log
   { beat: 216, cut: 'set_low_wide', then: { push: 2, beats: 7 } },
   { beat: 224, cut: 'set_her_low', then: { push: 1.5, beats: 7 } }, // the dragonflies dart to her
-  // her horn, in the dusk: low, the dark reed behind her and the air over her crest for her notes to rise in; slowly round her;
-  // Egill and Mosi listen; her again, low, the sky over her
-  { beat: 232, cut: 'set_her_reed', then: { push: 1.5, beats: 7 } },
+  // her horn, in the dusk: low, the dark reed behind her and the air over her crest for her notes to rise in; the sun over her,
+  // pulling its nightcap on as the dusk falls (her notes rise toward it); slowly round her; Egill and Mosi listen; her again, low,
+  // the sky over her
+  { beat: 232, cut: 'set_her_reed', then: { push: 0.8, beats: 3.5 } },
+  { beat: 236, cut: 'set_sun', then: { zoom: 30, beats: 3.5 } },
   { beat: 240, cut: 'set_her_close', then: { orbit: 15, beats: 7 } },
   { beat: 248, cut: 'bank_talk', then: { push: 0.8, beats: 5 } },
   { beat: 254, cut: 'set_her_low', then: { push: 2.5, beats: 9 } },

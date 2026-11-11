@@ -245,23 +245,29 @@ test('in the free play a tap on any group sings on the next beat of TEMPO', asyn
   });
 });
 
-test('each phrase brings in its part of the band, and the loop leaves as the set starts on a bar', async () => {
+test('each phrase brings in its part of the band, and the loop is blended into the set with no silence between them', async () => {
   const run = await quick();
   const c = run.world.chapterState;
-  const band = logOf(run, 'band');
+  const band = logOf(run, 'band').filter(entry => !entry.blend);
   assert.deepEqual(band.map(entry => entry.phrase), [undefined, 0, 1, 2, 3], 'as the task starts, and after each phrase');
   assert.deepEqual(band[0].layers, LAYER_LEVELS);
   band.slice(1).forEach((entry, p) => assert.deepEqual(entry.layers, PHRASE_LAYERS[p], `phrase ${p + 1}`));
   assert.ok(Math.abs(band[0].at - sceneAt(run, 4)) < 0.1, 'the far band from the task\'s first moment');
   const phrases = logOf(run, 'phrase');
   band.slice(1).forEach((entry, p) => assert.ok(Math.abs(entry.at - phrases[p].at) < 0.1, `the part of phrase ${p + 1} joins as the phrase is found`));
-  for (const layer of ['drums', 'bass', 'music']) assert.ok(c.band.level(layer) > 0, `${layer} plays by the end`);
-  assert.equal(c.band.level('far'), 0);
-  assert.equal(c.band.playing, false, 'the loop has left');
+  // the set starts where the loop's chords are the set's first (every sixteenth beat of the chapter's grid), with the whole band
+  // of the loop still playing, and the loop's parts fade out under the set's first bars: the owner heard three seconds of
+  // silence there (2026-11-11), the loop faded out and the set not yet begun
   const [set] = logOf(run, 'set');
   assert.ok(set.at > sceneAt(run, 6), 'the set starts in scene 6');
-  const bars = set.beat / 4;
-  assert.ok(Math.abs(bars - Math.round(bars)) < (FRAME / BEAT) / 4 + 1e-6, `on a bar line of the chapter's beat (bar ${bars.toFixed(3)})`);
+  const turns = set.beat / 16;
+  assert.ok(Math.abs(turns - Math.round(turns)) < (FRAME / BEAT) / 16 + 1e-6, `on a sixteenth beat of the chapter's grid (${turns.toFixed(3)})`);
+  const [blend] = logOf(run, 'band').filter(entry => entry.blend);
+  assert.ok(blend && Math.abs(blend.at - set.at) < FRAME + 1e-6, 'the blend begins as the set does');
+  for (const layer of ['drums', 'bass', 'music']) assert.ok(blend.from[layer] > 0, `${layer} still plays as the set starts`);
+  assert.ok(blend.seconds >= 2 * BEAT * 2 && blend.seconds <= 16 * BEAT, `the loop's last part is out ${blend.seconds.toFixed(2)} s into the set`);
+  for (const layer of ['drums', 'bass', 'music', 'far']) assert.equal(c.band.level(layer), 0, `${layer} is out by the end`);
+  assert.equal(c.band.playing, false, 'the loop has left');
 });
 
 test('scene 6 plays the whole set: every part of it in order, her words on the screen, the right shots, and then her thanks', async () => {

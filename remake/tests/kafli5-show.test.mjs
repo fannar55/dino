@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
-  BURSTS, PUFFS, COUNTS, COUNT, countAt, DUSK, duskAt, FLASHES, LIFT, liftAt, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR,
+  BURSTS, PUFFS, COUNTS, COUNT, countAt, DUSK, duskAt, CAP, capAt, FLASHES, LIFT, liftAt, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR,
   dropAt, splashRingAt, createFireflies, FIREFLIES, outAt, gatherAt, pulseAt, energyOf, beatRingsAt, BEAT_RING, padOf, BEAT_SECONDS,
 } from '../chapters/kafli5-show-score.js';
 import { createShow } from '../chapters/kafli5-show.js';
@@ -536,4 +536,42 @@ test('the chapter left in the middle of the build (dusk, a number on the screen)
   });
   assert.ok(run.world.chapterState.songStart > 0);
   assert.deepEqual(seen.left, { light: seen.light, lights: 0, numbers: 0 });
+});
+
+test('the sun wears its nightcap in the dusk: on as it falls, off as the day comes back, and off when the show is left', () => {
+  const { c } = smallWorld();
+  const worn = [];
+  c.sun = { cap: amount => worn.push(amount) };
+  const show = createShow(c);
+  const at = beat => { show.update(video(beat)); return worn.at(-1); };
+  assert.equal(at(100), 0, 'by day: no cap');
+  assert.equal(at(250), 1, 'in the quiet part: on its head');
+  assert.equal(at(250), capAt(250));
+  const from = part('break').startBeat;
+  assert.equal(at(from + CAP.from), 0, 'the dusk sinks for a bar first');
+  const falling = at(from + CAP.from + CAP.beats / 2);
+  assert.ok(falling > 0.3 && falling < 0.7, `coming down as the dusk falls: ${falling}`);
+  assert.equal(at(from + DUSK.sink), 1, 'on its head when the dusk is deep');
+  for (let beat = from, last = 0; beat <= from + DUSK.sink; beat += FRAME) {
+    const now = capAt(beat);
+    assert.ok(now >= last && now - last < 0.05, `no jump at ${beat}`);
+    last = now;
+  }
+  assert.equal(at(part('drop').startBeat), 0, 'the day is back on the drop');
+  at(260);
+  show.dispose();
+  assert.equal(worn.at(-1), 0, 'left in the dusk: the cap comes off');
+});
+
+test('with less motion the dusk is half as deep, but the cap is whole; and a chapter state with no sun plays on', () => {
+  const { c } = smallWorld({ reduced: true });
+  const worn = [];
+  c.sun = { cap: amount => worn.push(amount) };
+  const show = createShow(c);
+  show.update(video(250));
+  assert.equal(worn.at(-1), 1);
+  show.dispose();
+  const bare = createShow(smallWorld().c);
+  bare.update(video(250));
+  bare.dispose();
 });

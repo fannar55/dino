@@ -9,7 +9,7 @@ import { createScene } from '../engine/scene/scene.js';
 import { DONE } from '../engine/handle.js';
 import {
   createSunFace, addMosiCloud, SUN_RADIUS_DEG, WINK_SECONDS, BLINK_SECONDS, BLINK_EVERY, MOUTH_BETWEEN, MOUTH_SECONDS,
-  WAVE_SECONDS, HUG_SECONDS, HAND_SIZE,
+  WAVE_SECONDS, HUG_SECONDS, HAND_SIZE, CAP,
 } from '../engine/sun-face.js';
 
 const deg = THREE.MathUtils.radToDeg;
@@ -967,4 +967,109 @@ test('s.sun.wave, s.sun.hug and s.sun.mouth say so when the scene has no sun', (
   assert.throws(() => s.sun.wave(), /s\.sun\.wave needs the sun.*createSunFace/);
   assert.throws(() => s.sun.hug(), /s\.sun\.hug needs the sun.*createSunFace/);
   assert.throws(() => s.sun.mouth('grin'), /s\.sun\.mouth needs the sun.*createSunFace/);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The nightcap (chapter 5's dusk)
+
+test('the nightcap: nothing of it by day, on its head at dusk with sleepy eyes under it, and gone again with the day', () => {
+  const { scene, lighting, camera } = stage();
+  const face = createSunFace({ scene, lighting });
+  face.update(10, camera);
+  assert.equal(face.capSprite, null, 'a chapter with no dusk never makes it');
+  assert.equal(face.capOn, 0);
+  assert.deepEqual(scene.children, [face.sprite, face.overlay]);
+
+  face.cap(1);
+  face.update(10.1, camera);
+  const cap = face.capSprite;
+  assert.deepEqual(scene.children, [face.sprite, face.overlay, cap], 'one more draw while it is worn');
+  assert.equal(cap.isSprite, true);
+  assert.equal(cap.material.opacity, 1);
+  assert.equal(cap.material.fog, false);
+  assert.equal(cap.material.toneMapped, false, 'drawn as painted, like the face');
+  assert.equal(cap.material.depthWrite, false);
+  assert.ok(cap.renderOrder > face.overlay.renderOrder, 'over the face and its hands');
+  assert.equal(face.eyes, 'half', 'sleepy under its cap');
+  // it sits on the head: its middle up and a little to the right of the face's, as the camera sees it, 600 m out
+  const R = 600 * Math.tan(THREE.MathUtils.degToRad(SUN_RADIUS_DEG));
+  const off = cap.position.clone().sub(face.sprite.position);
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+  assert.ok(Math.abs(off.dot(right) - CAP.at[0] * R) < 1e-6 && Math.abs(off.dot(up) - CAP.at[1] * R) < 1e-6, `${off.dot(right) / R}, ${off.dot(up) / R} radii`);
+  assert.ok(Math.abs(cap.scale.x - CAP.size * R) < 1e-9 && cap.scale.x === cap.scale.y);
+
+  face.cap(0);
+  face.update(10.2, camera);
+  assert.deepEqual(scene.children, [face.sprite, face.overlay], 'off, it is out of the scene');
+  assert.equal(face.eyes, 'open');
+});
+
+test('the nightcap comes down onto the head as the dusk falls: the same amount is the same picture, and it never pops', () => {
+  const { scene, lighting, camera } = stage();
+  const face = createSunFace({ scene, lighting });
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+  const R = 600 * Math.tan(THREE.MathUtils.degToRad(SUN_RADIUS_DEG));
+  const seen = amount => {
+    face.cap(amount);
+    face.update(20, camera);
+    return { lift: face.capSprite.position.clone().sub(face.sprite.position).dot(up) / R, opacity: face.capSprite.material.opacity, eyes: face.eyes };
+  };
+  let last = seen(0.02);
+  assert.ok(last.opacity < 0.1 && last.lift > CAP.at[1] + CAP.drop * 0.9, 'it starts faint, over the head');
+  for (let amount = 0.04; amount <= 1 + 1e-9; amount += 0.02) {
+    const now = seen(amount);
+    assert.ok(now.lift <= last.lift + 1e-9 && last.lift - now.lift < 0.06, `down a little at ${amount.toFixed(2)}`);
+    assert.ok(now.opacity >= last.opacity && now.opacity - last.opacity < 0.06);
+    assert.equal(now.eyes, amount >= CAP.sleepy - 1e-9 ? 'half' : 'open');
+    last = now;
+  }
+  assert.deepEqual(seen(0.5), seen(0.5));
+  assert.equal(seen(7).lift, seen(1).lift, 'amounts outside 0 to 1 are held to it');
+  face.cap(-3);
+  assert.equal(face.capOn, 0);
+});
+
+test('a wink and a blink still shut the eyes under the cap', () => {
+  const { scene, lighting, camera } = stage();
+  const face = createSunFace({ scene, lighting });
+  face.cap(1);
+  face.update(10, camera);
+  face.wink();
+  face.update(10.1, camera);
+  face.update(10.1 + WINK_SECONDS / 2, camera);
+  assert.equal(face.eyes, 'shut');
+});
+
+test('the cap is one small square picture, painted only when it is first worn', () => {
+  const { scene, lighting, camera } = stage();
+  const { canvases, made } = onAPage(() => {
+    const face = createSunFace({ scene, lighting });
+    face.update(1, camera);
+    return { face };
+  });
+  assert.equal(canvases.length, 2, 'the face and its sheet: no cap yet');
+  const worn = onAPage(() => {
+    made.face.cap(1);
+    made.face.update(2, camera);
+    made.face.update(3, camera);
+    return made.face.capSprite;
+  });
+  assert.equal(worn.canvases.length, 1, 'painted once');
+  const [picture] = worn.canvases;
+  assert.equal(picture.width, picture.height);
+  assert.ok(picture.width <= 256, `${picture.width} px`);
+  assert.equal(worn.made.material.map.colorSpace, THREE.SRGBColorSpace);
+});
+
+test('s.sun.cap puts the nightcap on, returns DONE, and a scene with no sun (or a sun with no cap) goes on without it', () => {
+  const { scene, lighting, camera } = stage();
+  const face = createSunFace({ scene, lighting });
+  const sunScene = sun => createScene({ world: {}, director: {}, ui: {}, voice: {}, sun }).s;
+  const s = sunScene(face);
+  assert.equal(s.sun.cap(0.75), DONE);
+  face.update(1, camera);
+  assert.equal(face.capOn, 0.75);
+  assert.equal(sunScene(null).sun.cap(1), DONE, 'a decoration: a place without the sun has no cap to wear');
+  assert.equal(sunScene({}).sun.cap(1), DONE);
 });

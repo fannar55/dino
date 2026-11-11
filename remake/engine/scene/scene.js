@@ -572,13 +572,16 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      * on over it. `wave()` (one hand up, four swings, down: 2.3 s), `hug()` (both hands across the front, two squeezes, a grin:
      * 2.4 s) and `mouth('smile' | 'grin' | 'oh', seconds)` (the smile again after `seconds`, 1.5 by default) start at once too and
      * return a handle, done when the gesture is over or the smile is back: yield it to wait. A gesture asked for while another
-     * goes on begins when that one is over. Between the calls the sun smiles and blinks by itself.
+     * goes on begins when that one is over. Between the calls the sun smiles and blinks by itself. `cap(amount)` shows its nightcap,
+     * 0 (off) to 1 (on its head, its eyes sleepy): a number to show each frame, as a dusk hands it its depth. It is a decoration, so a
+     * scene with no sun goes on without it.
      */
     sun: {
       wink: () => { needSun('s.sun.wink'); sun.wink(); return DONE; },
       wave: () => { needSun('s.sun.wave'); return sun.wave(); },
       hug: () => { needSun('s.sun.hug'); return sun.hug(); },
       mouth: (shape, seconds) => { needSun('s.sun.mouth'); return seconds === undefined ? sun.mouth(shape) : sun.mouth(shape, seconds); },
+      cap: amount => { sun?.cap?.(amount); return DONE; },
     },
     /** The tray along the edge of the screen: `show([{ id, icon }])` fills it, `hide()` puts it away. */
     tray: {

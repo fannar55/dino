@@ -7,7 +7,8 @@
 // tests/kafli5-show.test.mjs holds it.
 //
 //   fireflies   createFireflies: each one's place, size, light and colour at a beat
-//   dusk        duskAt: how deep the dusk is (the quiet part under her horn and the build after it), liftAt: the soft flashes
+//   dusk        duskAt: how deep the dusk is (the quiet part under her horn and the build after it), liftAt: the soft flashes,
+//               capAt: the sun's nightcap, on while the dusk lasts
 //   splashes    SPLASHES, dropAt, splashRingAt: the crowns of drops on the drops, a ring where a frog lands and where the grazers stomp
 //   the count   COUNTS, countAt: the big number on the screen
 //   notes       NOTES, noteAt, notePoint: the glowing notes between the groups, her crest and the sky
@@ -79,6 +80,18 @@ export function duskAt(beat) {
   const to = startOf('drop');
   if (beat <= from || beat >= to) return 0;
   return Math.min(smooth((beat - from) / DUSK.sink), smooth((to - beat) / DUSK.back));
+}
+
+/**
+ * The sun's nightcap (the owner's wish of 2026-11-11), 0 (off) to 1 (on its head): it comes down over the last bar of the sinking
+ * dusk, as the camera looks at the sun (kafli5-video.js: set_sun), stays on while the dusk does, and is off as the day comes back.
+ */
+export const CAP = { from: DUSK.sink / 2, beats: DUSK.sink / 2 };
+export function capAt(beat) {
+  const from = startOf('break');
+  const to = startOf('drop');
+  if (beat <= from || beat >= to) return 0;
+  return Math.min(smooth((beat - from - CAP.from) / CAP.beats), smooth((to - beat) / DUSK.back));
 }
 
 export const LIFT = { beats: 2 }; // a flash fades over these; two are never nearer than this (so never two in a second)

@@ -235,8 +235,106 @@ function paintHand(g, x, y, size) {
   softDisc(g, x + 0.63 * S, y + 0.33 * S, 0.045 * S, PAINT.glint, 0.85, 1.5);
 }
 
+// The nightcap (the owner asked for it, 2026-11-11: "þegar rökkvar þá fær sól nátthúfu með dúsk"): when dusk falls in chapter 5's
+// music video the sun pulls on a stocking cap with a pom-pom, and its eyes go sleepy. It is a sprite of its own over the face: a
+// square CAP.size disc radii across, its middle CAP.at from the face's centre (right, up), painted in the face's ink with the dusk's
+// blue for its cloth. cap(amount) shows it: it comes down onto the head from CAP.drop radii over it as the amount goes from 0 to 1.
+export const CAP = { size: 2.6, at: [0.25, 0.55], drop: 0.7, sleepy: 0.5 };
+const CAP_PX = 256;
+const CAP_PAINT = { cloth: '#6a7fc4', deep: '#4c5ea6', stripe: '#fff3cd', pom: '#fff7de' };
+
+/** The cap in a square of CAP_PX px: a brim along the top of the disc, a cone that flops over to the right, a pom-pom at its tip. */
+function paintCap(g) {
+  const S = CAP_PX;
+  const R = S / CAP.size; // px to the disc's radius
+  const cx = S / 2 - CAP.at[0] * R; // the face's centre in the square (y down)
+  const cy = S / 2 + CAP.at[1] * R;
+  const line = 0.05 * R; // as heavy as the face's strokes
+  const [from, to] = [-152, -28]; // where the brim meets the disc, degrees (-90 is the top)
+  const on = (degrees, k = 1) => [cx + k * R * Math.cos(rad(degrees)), cy + k * R * Math.sin(rad(degrees))];
+  const [lx, ly] = on(from);
+  const [rx, ry] = on(to);
+  const peak = [cx + 0.5 * R, cy - 1.7 * R];
+  const tip = [cx + 1.28 * R, cy - 0.52 * R];
+  const cone = () => {
+    g.beginPath();
+    g.moveTo(lx, ly);
+    g.bezierCurveTo(cx - 0.92 * R, cy - 1.3 * R, cx - 0.1 * R, cy - 1.82 * R, peak[0], peak[1]); // its left side, up to the top
+    g.bezierCurveTo(cx + 1.0 * R, cy - 1.6 * R, cx + 1.36 * R, cy - 1.1 * R, tip[0], tip[1]); // over, and down to the tip
+    g.bezierCurveTo(cx + 1.14 * R, cy - 0.96 * R, cx + 0.98 * R, cy - 1.16 * R, cx + 0.78 * R, cy - 1.08 * R); // the underside, back
+    g.bezierCurveTo(cx + 0.82 * R, cy - 0.9 * R, cx + 0.88 * R, cy - 0.7 * R, rx, ry); // and down to the brim's right end
+    g.arc(cx, cy, R, rad(to), rad(from), true); // along the top of the disc
+    g.closePath();
+  };
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  // the cone: the ink round it, then its cloth, lighter where the low sun's own light would fall
+  g.strokeStyle = PAINT.ink;
+  g.lineWidth = 2 * line;
+  cone();
+  g.stroke();
+  const cloth = g.createLinearGradient(cx - 0.6 * R, cy - 1.6 * R, cx + 1.2 * R, cy - 0.5 * R);
+  cloth.addColorStop(0, CAP_PAINT.cloth);
+  cloth.addColorStop(1, CAP_PAINT.deep);
+  g.fillStyle = cloth;
+  cone();
+  g.fill();
+  // its stripes: rings round the face's centre, kept inside the cone
+  g.save();
+  cone();
+  g.clip();
+  g.strokeStyle = CAP_PAINT.stripe;
+  g.globalAlpha = 0.85;
+  g.lineWidth = 0.1 * R;
+  for (const k of [1.3, 1.56]) {
+    g.beginPath();
+    g.arc(cx, cy, k * R, rad(-175), rad(-5));
+    g.stroke();
+  }
+  g.restore();
+  // the brim: a soft band pulled down over the top of the face
+  const brim = width => {
+    g.lineWidth = width;
+    g.beginPath();
+    g.arc(cx, cy, 1.01 * R, rad(from - 4), rad(to + 4));
+    g.stroke();
+  };
+  g.strokeStyle = PAINT.ink;
+  brim(0.27 * R + 2 * line);
+  g.strokeStyle = CAP_PAINT.stripe;
+  brim(0.27 * R);
+  // the pom-pom at the tip: fluffy, of a few soft balls
+  const [px, py] = [tip[0] + 0.03 * R, tip[1] + 0.16 * R];
+  const balls = [[0, 0, 0.2], [-0.11, -0.07, 0.11], [0.11, -0.06, 0.11], [-0.1, 0.09, 0.11], [0.1, 0.1, 0.11], [0, -0.14, 0.1], [0, 0.15, 0.1]];
+  g.strokeStyle = PAINT.ink;
+  g.lineWidth = 2 * line;
+  for (const [x, y, r] of balls) {
+    g.beginPath();
+    g.arc(px + x * R, py + y * R, r * R, 0, TAU);
+    g.stroke();
+  }
+  g.fillStyle = CAP_PAINT.pom;
+  for (const [x, y, r] of balls) {
+    g.beginPath();
+    g.arc(px + x * R, py + y * R, r * R, 0, TAU);
+    g.fill();
+  }
+}
+
+/** The cap's picture. Null where there is no page. */
+export function drawSunCap() {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = CAP_PX;
+  canvas.height = CAP_PX;
+  paintCap(canvas.getContext('2d'));
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** The face as a strip of frames, from the left: open eyes, half shut, shut. Null where there is no page. */
-function drawSunFrames() {
+export function drawSunFrames() {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = FRAME * FRAMES;
@@ -378,7 +476,7 @@ function blinkSchedule(seed = 'sun') {
  *   radiusDeg    the painted disc's angular radius at rest, as seen from the camera
  * `texture` is the strip of FRAMES frames and `sheet` the overlay's; the page paints them, a test can pass its own (or null).
  */
-export function createSunFace({ scene, lighting, texture = drawSunFrames(), sheet = drawSunSheet() }) {
+export function createSunFace({ scene, lighting, texture = drawSunFrames(), sheet = drawSunSheet(), capTexture }) {
   const direction = lighting.direction.clone().normalize();
   const material = new THREE.SpriteMaterial({
     map: texture, transparent: true, depthWrite: false, fog: false, toneMapped: false,
@@ -420,6 +518,20 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
   setCell(1, handCell, true);
   setCell(2, handCell);
 
+  // The nightcap: a sprite over the face and its hands. It is painted and hung the first time cap() asks for it, so a chapter with
+  // no dusk pays nothing for it, and it leaves the scene again when it is off.
+  let cap = null;
+  const capSprite = () => {
+    if (cap) return cap;
+    cap = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: capTexture === undefined ? drawSunCap() : capTexture, transparent: true, depthWrite: false, fog: false, toneMapped: false,
+    }));
+    cap.name = 'SunNightcap';
+    cap.renderOrder = -1.4; // over the face, its mouth and its hands, under the cloud
+    cap.scale.setScalar(CAP.size * R);
+    return cap;
+  };
+
   const hang = origin => {
     sprite.position.copy(origin).addScaledVector(direction, SUN_DISTANCE);
     overlay.position.copy(sprite.position);
@@ -440,7 +552,7 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
   let shownMouth = null;
 
   const state = {
-    eyes: 'open', mouth: 'smile', squash: { x: 1, y: 1 },
+    eyes: 'open', mouth: 'smile', squash: { x: 1, y: 1 }, cap: 0,
     hands: [{ x: 0, y: 0, angle: 0 }, { x: 0, y: 0, angle: 0 }],
     points: [new THREE.Vector3(), new THREE.Vector3()],
   };
@@ -638,12 +750,22 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       if (!Number.isFinite(seconds) || seconds < 0) throw new TypeError(`the sun's mouth holds for a number of seconds of 0 or more, not ${seconds}`);
       return ask('mouth', { shape, seconds });
     },
+    /**
+     * The nightcap: `amount` from 0 (none) to 1 (on its head), as the dusk falls and lifts; from CAP.sleepy up its eyes are half shut.
+     * It is a number to show, not a thing that happens: the same amount is the same picture (the dusk hands it its depth each frame).
+     */
+    cap(amount = 1) {
+      state.cap = Math.min(1, Math.max(0, Number(amount) || 0));
+    },
+    get capOn() { return state.cap; },
+    get capSprite() { return cap; },
     update(t, camera) {
       hang(camera.position);
       if (t < lastT - 1e-9) rewind(t);
       lastT = t;
       for (const call of pending.splice(0)) begin(call, t);
       state.eyes = eyesAt(t);
+      if (state.cap >= CAP.sleepy && state.eyes === 'open') state.eyes = 'half'; // sleepy under its cap
       if (texture) texture.offset.x = FRAME_OF[state.eyes] / FRAMES;
       state.mouth = mouthAt(t);
       if (state.mouth !== shownMouth) {
@@ -653,6 +775,17 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       handsAt(t);
       sprite.scale.set(size * state.squash.x, size * state.squash.y, 1);
       lay(camera);
+      // the cap, along the camera's right and up as the overlay is laid: down onto the head as it comes
+      if (state.cap > 0) {
+        const worn = capSprite();
+        if (!worn.parent) scene.add(worn);
+        worn.material.opacity = Math.min(1, state.cap * 2.5);
+        worn.position.copy(sprite.position)
+          .addScaledVector(right, CAP.at[0] * R)
+          .addScaledVector(up, (CAP.at[1] + CAP.drop * (1 - smoother(state.cap))) * R);
+      } else if (cap?.parent) {
+        scene.remove(cap);
+      }
       for (const g of gestures) if (g.end <= t && !g.handle.done) g.handle.finish();
       for (const [h, m] of [...mouthHandles]) {
         if (m.doneAt > t) continue;

@@ -216,7 +216,8 @@ ofan; hraðamörkin standa óbreytt.
 - **Nær og fjær:** hver hópur á tvö skot, allan hópinn og nærmynd (`kafli5-pool.js`, `GROUP_SHOTS`), og hluti hans í laginu
   byrjar á hópnum öllum og fer svo nær. Stóru kaflarnir eru séðir lágt yfir vatnið (`set_low_wide`, `set_water_low`).
 - **Sólin:** ekkert skot horfir nær sólinni en 35° (hún stendur í 215°), svo kórinn er myndaður úr norðaustri og flugdýrin
-  við sefið úr suðri.
+  við sefið úr suðri. Ein undantekning: í rökkrinu horfir `set_sun` beint á sólina, sem dregur þá á sig nátthúfu með dúsk
+  og verður syfjuð (ósk eigandans 2026-11-11); ljósið er dempað þá, svo hún blindar ekki.
 - **Spól og frost:** engin klipping fellur inn í spólið („Aftur!“) eða á „Stopp!“: myndin spólar til baka og frýs í skotinu
   sem hún er í.
 

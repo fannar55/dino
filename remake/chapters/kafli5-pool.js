@@ -125,6 +125,10 @@ const SET_SHOTS = {
   // her horn in the dusk: from the pool's middle, low, her dark reed and the trees behind her and the air over her crest in frame
   // (the notes of her horn rise eight metres there: kafli5-show.js), the low sun just off the frame's left
   set_her_reed: seen(WADE.at, 252, 11, 1.0, 3.8, 46),
+  // the sun in its nightcap, in the dusk only (the owner's wish of 2026-11-11): the one shot that looks at the sun on purpose, when
+  // the dusk has dimmed its light. From the north-east, low over the water, straight toward it (215 degrees, 22 up): her head and
+  // crest dark at the foot of the frame, the sleepy sun over them
+  set_sun: seen(WADE.at, 215, 16, 1.1, 4.8, 34),
   // the lizards' run along the water's edge, from their place (204 degrees) past the frogs (181) and back: from the water west of her
   set_lizards_run: { position: up(around(211.3, 16.4), LEVEL + 1.3), target: up(around(192, 27.5), LEVEL + 0.9), fov: 44 },
   // the beetles' log on the bank between the turtles and the frogs (173 degrees, 29.6 m: kafli5-dances.js), from the water's edge
@@ -177,6 +181,7 @@ export const SHOWS = {
   set_her_close: ['sloedla'],
   set_her_low: ['sloedla'],
   set_her_reed: ['sloedla'],
+  set_sun: ['sloedla'],
   set_egill_close: ['egill'],
   set_flugedla: ['flugedla'],
 };

@@ -88,8 +88,13 @@ const ROAR = { level: 0.3 };
 const SONG_BASE = new URL('../assets/audio/kafli5/song/', import.meta.url);
 const SET = SONG.set;
 const BEAT = 60 / TEMPO.bpm;
-const BAND = { in: 2, join: 1.5, out: 4 * BEAT }; // s: the far band fades in as the task starts, a part joins, the loop leaves for the set
-const SET_LEVEL = 1.4; // the set's level against the theme's place in the mix: a party is louder than a walk (chapter 4's flight song: 1.3)
+// s: the far band fades in as the task starts, and a part joins. The loop is blended into the set as a DJ blends two records: the
+// set starts on a sixteenth beat of the loop (its bars 1 and 5, where its chords are the set's first: Em7, A7), the loop's drums and
+// bass leave over `rhythm` (the set brings its own, muffled, and two kicks a hair apart would flam) and its guitars over `out`.
+const BAND = { in: 2, join: 1.5, turn: 16, rhythm: 2 * BEAT, out: 8 * BEAT };
+// The set's level against the theme's place in the mix: a party is louder than a walk (chapter 4's flight song: 1.3), and the owner
+// asked for it a little louder than its first 1.4 (2026-11-11): 2 dB up.
+const SET_LEVEL = 1.75;
 const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
 // The choir's shot turns gently toward the group that sings: this share of the way from its own aim to the group, over `seconds`
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
@@ -339,10 +344,8 @@ function* theWholeSong(s, c) {
   for (const who of [mosi, egill]) yield who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 35 });
   yield flugedla.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 80, maxPitch: 35 });
   yield s.wait(0.8);
-  // the band under the choir leaves over a bar, and on a bar line the set starts: the band far away again, and Flugeðla's welcome
-  c.band.stop(BAND.out);
-  const toBar = c.band.delayToBeat(4);
-  yield s.wait(toBar < BAND.out - 1e-6 ? toBar + 4 * BEAT : toBar);
+  // the band under the choir plays on, whole, until the set starts on the loop's next turn of chords: no silence between the two
+  yield s.wait(c.band.delayToBeat(BAND.turn));
   yield s.camera.cut('choir_wide');
   const start = s.time;
   c.songStart = start;
@@ -350,6 +353,12 @@ function* theWholeSong(s, c) {
   c.song.setLevel(SET_LEVEL, 0);
   c.song.play(0);
   c.log({ type: 'set', start, beat: c.band.beatAt() });
+  // the blend: the set comes in as the band far away (its own first bars), and the loop's parts go out under it
+  const from = Object.fromEntries(['drums', 'bass', 'music'].map(layer => [layer, c.band.level(layer)]));
+  c.log({ type: 'band', blend: true, from, seconds: BAND.out });
+  for (const layer of ['drums', 'bass']) c.band.layer(layer, 0, BAND.rhythm);
+  for (const layer of ['music', 'far']) c.band.layer(layer, 0, BAND.out);
+  s.after(BAND.out, () => { c.band.stop(0.1); return null; });
   c.her.idle(); // she stands calm in the water until her horn (her dance is the music video's: Task 7b)
   // the child's taps: any group sings on the set's next beat
   const offs = GROUPS.map(group => s.onTap(`choir-${group}`, () => {
@@ -364,6 +373,7 @@ function* theWholeSong(s, c) {
   // each part is shielded from the others: one that throws is said once (and logged, for the tests) and the video goes on
   const failed = message => { c.log({ type: 'videoError', message }); console.error(message); };
   c.dances = shielded('dances', createDances(c), failed);
+  c.sun = s.sun; // the show puts its nightcap on in the dusk
   c.show = shielded('show', createShow(c), failed);
   c.people = shielded('people', createPeople(c), failed);
   let frame = s.time;
