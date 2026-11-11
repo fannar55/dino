@@ -42,6 +42,7 @@ import { warmUp, warmParts } from './engine/warm-up.js';
 import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
 import { createForrit } from './engine/offline/forrit.js';
+import { createGler } from './engine/gler.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
@@ -180,6 +181,10 @@ applySize(camera);
 const shots = shotsOf(chapter);
 const director = createDirector({ camera, world, shots });
 world.director = director;
+// The glasses (engine/gler.js): ?gler=1, or a chapter that asks for them (chapter.gler), draws the scene once an eye as red/cyan.
+const gler = params.get('gler') !== null || chapter.gler ? createGler({ renderer, display, scene, camera, director, q, params }) : null;
+if (gler && chapter.gler) gler.enable(params.get('gler') !== '0');
+world.gler = gler;
 
 let lines = {};
 try {
@@ -348,7 +353,7 @@ holdFn = hold;
 juniorRef = junior;
 minnisspilRef = minnisspil;
 halsRef = hals;
-drawNowFn = () => { renderer.info.reset(); renderer.render(scene, camera); };
+drawNowFn = () => drawNow();
 villaContext = () => ({
     chapterId,
     params: Object.fromEntries(params),
@@ -813,7 +818,8 @@ debugEl.hidden = params.get('debug') !== '1';
 
 function drawNow() {
   renderer.info.reset(); // one count per frame, shadow pass included (autoReset is off)
-  renderer.render(scene, camera);
+  if (gler?.on) gler.draw();
+  else renderer.render(scene, camera);
 }
 // While the child's book covers the screen the game stands still behind it (the clock is held), and the canvas keeps the last frame it
 // was given: nothing is drawn again, not the same frozen scene every frame for nothing. A resize clears the canvas, so that draws once.
