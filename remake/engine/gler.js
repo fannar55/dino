@@ -72,6 +72,8 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   const fromAddress = ['gler', 'styrkur', 'adferd', 'gleraugu', 'vixla'].some(k => params.get(k) !== null);
 
   let targets = null;
+  // MSAA in the eye targets when the preset has antialias; ?glersamples=0 (or 2) to compare the cost
+  const SAMPLES = params.get('glersamples') !== null ? Math.max(0, Math.min(8, Number(params.get('glersamples')) || 0)) : q.antialias ? 4 : 0;
   const size = new THREE.Vector2();
   const eyes = [new THREE.PerspectiveCamera(), new THREE.PerspectiveCamera()];
   const material = new THREE.ShaderMaterial({
@@ -104,7 +106,7 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     // or an XR target (WebGLPrograms: toneMapping, outputColorSpace), so these targets say they are one; internalFormat RGBA8
     // keeps the storage plain 8-bit, so no hardware sRGB conversion happens. The composite decodes to linear light, mixes the
     // channels, clamps and encodes sRGB again. (A linear float target blended the mist in linear light: darks came out hazy.)
-    const options = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, depthBuffer: true, samples: q.antialias ? 4 : 0, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
+    const options = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, depthBuffer: true, samples: SAMPLES, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
     targets = [0, 1].map(() => {
       const t = new THREE.WebGLRenderTarget(w, h, options);
       t.texture.internalFormat = 'RGBA8';
