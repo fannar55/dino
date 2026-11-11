@@ -7,7 +7,7 @@
 //   flutter(name)       up and away for 3 s, then back to its loop (a child tapped it)
 //   land(spec, options) a flight to a point spec, resolved every frame, and a landing that stays on the moving point
 //                       until flutter(name) sends it away (world/forest/atmosphere.js: butterflyLand)
-//   fly(name, path)     a flight along a path the caller gives (a function that puts it somewhere each frame), until land
+//   follow(name, path)  a flight along a path the caller gives (a function that puts it somewhere each frame), until land
 //                       or flutter takes it (the 3D show, chapters/fidrildi3d.js, flies the hero out of the screen with it)
 //
 // Both return a Handle (engine/handle.js) and run on uWindTime, the clock the shader reads, so they pause with the game,
@@ -274,7 +274,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     away: new THREE.Vector2(), awayTurn: tune.angle(), wobble: tune.angle(), flutters: 0, // the flutter's way out
     to: new THREE.Vector3(), spec: null, duration: 0, reach: 0, side: new THREE.Vector2(), approachYaw: 0, // the landing
     perch: false, // a flutter that starts from a landing, not from the loop
-    path: null, // fly(): the function that puts it somewhere each frame
+    path: null, // follow(): the function that puts it somewhere each frame
   });
   // the hero last: the tune's draws go to the pale ones first, as they did
   const list = [...flyers.map((flyer, index) => entry(flyer, `butterfly-${index + 1}`, false)), entry(heroFlyer, HERO, true)];
@@ -532,7 +532,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
    * update; the caller keeps its own clock), facing the way it moves. It eases into the path from where it was over a moment and
    * stays on it until land() or flutter() takes it.
    */
-  function fly(name, path) {
+  function follow(name, path) {
     if (typeof path !== 'function') throw new TypeError('A butterfly flies along a function that sets a Vector3');
     const b = named(name);
     if (disposed) return;
@@ -554,5 +554,5 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   }
 
   update(); // the points are right from the start
-  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, fly, update, dispose };
+  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, follow, update, dispose };
 }

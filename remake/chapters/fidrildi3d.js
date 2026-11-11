@@ -1,0 +1,515 @@
+// Fiðrildadansinn (?chapter=fidrildi3d): a one-minute show for red/cyan glasses (engine/gler.js). Egill only watches. Mosi stands
+// in the morning clearing, a little left of the middle, his head at the screen plane; the hero moth comes out of the forest and
+// out of the screen, lands on his horn, he sneezes it off in a puff of pollen that blows at the viewer, a swarm of pale butterflies
+// rises from the grass and dances in a spiral round the view axis, out of the screen and back, Þórseðla's head comes down through
+// them and out, a few sit on it, and at the end the moth settles in the exact middle of the frame at the screen plane. "Aftur"
+// plays it again.
+//
+// Depth is laid out in the frame, not in the world: a point is (u, v, k), u and v its place in the frame (0..1 from the top left)
+// and k its depth as a share of D, the zero-parallax distance (Mosi's head). Flights are timed keys of (u, v, k), smoothed
+// (Hermite, Catmull-Rom tangents, still at the ends and at the keys marked so), on the scene clock: a seek lands on the frame.
+// The parallax at depth k·D is strength·(1/k − 1) of the screen's width (near positive): k 0.5 is one strength.
+//
+// Comfort (from the owner's glasses test, 2026-11-11, and the museum): one thing comes out at a time, slowly, with a rest at the
+// screen plane between; nothing nearer than k 0.6 leaves the middle 60 % of the frame; nothing in front of the screen touches an
+// edge; the ground at the bottom edge is no nearer than 0.8 D; the last picture rests at k 1. Pale and green-yellow in front.
+//
+// Captures: ?chapter=fidrildi3d&t=<s> (seconds of the show). world.dans.measure() gives the parallax table (both eye cameras).
+import * as THREE from 'three';
+import { chapter as grunnur } from './grunnur.js';
+import { onBone, POINTS, atsjuOf } from './kafli1.js';
+import { HERO } from '../world/forest/butterflies.js';
+import { createSwarm } from '../world/forest/swarm.js';
+import { pollenBurst } from '../world/props/pollen.js';
+import { glints, run, sparkleTrail, sparkleBurst, SPARKLE_LOOK } from '../world/props/sparkles.js';
+
+const params = new URLSearchParams(globalThis.location?.search ?? '');
+const CHARS = '../assets/characters/';
+const LENGTH = 60; // seconds of the show
+
+// Staging. The camera: a child's eye, still, looking north over the clearing; it tilts up as little as keeps the ground at the
+// bottom edge at GROUND_SHARE of D or further. Mosi: his head at D on the ray through MOSI_U, facing the camera.
+const CAMERA = [0.4, 0.95, 10.5];
+const LOOK = -90; // degrees: the camera looks along -Z
+const FOV = 46;
+const D_WANTED = 6.8; // metres to Mosi's head
+const MOSI_U = 0.36;
+const GROUND_SHARE = 0.85;
+// Þórseðla: her root far behind, so that her lowered head (lowerHead held part way: the share found for the height below) comes to
+// THOR_HEAD in the frame. The two friends further back are depth layers.
+const THOR_HEAD = [0.54, 0.44, 0.6];
+const FRIENDS_BACK = { sloedla: { url: 'parasaurolophus.glb', at: [7.5, -9.5] }, kambedla: { url: 'stegosaurus.glb', at: [-8.5, -6] } };
+const SWARM = 25;
+const SWARM_SCALE = 1.25; // the swarm's butterflies against the clearing's pale ones
+const HERO_SCALE = 1.5; // the hero moth's model, scaled up so it reads at the middle of the frame
+
+const TEXT = {
+  k1_mosi_hum: 'Mm, mm-mm-mm, mm-mm-mmm… mm-mm-mm, mmm.',
+  k1_mosi_tickle: 'Hí, hí, það kitlar!',
+  k1_mosi_sneeze: 'A… a… atsjú!',
+};
+
+const clamp01 = x => Math.min(1, Math.max(0, x));
+const smooth = x => { const k = clamp01(x); return k * k * (3 - 2 * k); };
+const lerp = (a, b, k) => a + (b - a) * k;
+const rad = d => (d * Math.PI) / 180;
+
+/**
+ * A smoothed flight through timed keys [t, u, v, k] (or [t, u, v, k, 'rest'] for a key it stops at). Returns (t, out = [])
+ * → [u, v, k]: before the first key the first, after the last the last.
+ */
+export function track(keys) {
+  const n = keys.length;
+  const tangent = i => {
+    if (i === 0 || i === n - 1 || keys[i][4] === 'rest') return [0, 0, 0];
+    const a = keys[i - 1], b = keys[i + 1];
+    return [1, 2, 3].map(j => (b[j] - a[j]) / (b[0] - a[0]));
+  };
+  const tangents = keys.map((_, i) => tangent(i));
+  return (t, out = []) => {
+    if (t <= keys[0][0]) { out[0] = keys[0][1]; out[1] = keys[0][2]; out[2] = keys[0][3]; return out; }
+    if (t >= keys[n - 1][0]) { out[0] = keys[n - 1][1]; out[1] = keys[n - 1][2]; out[2] = keys[n - 1][3]; return out; }
+    let i = 0;
+    while (keys[i + 1][0] < t) i++;
+    const a = keys[i], b = keys[i + 1], h = b[0] - a[0], s = (t - a[0]) / h;
+    const h00 = 2 * s ** 3 - 3 * s * s + 1, h10 = s ** 3 - 2 * s * s + s, h01 = -2 * s ** 3 + 3 * s * s, h11 = s ** 3 - s * s;
+    for (let j = 0; j < 3; j++) out[j] = h00 * a[j + 1] + h10 * h * tangents[i][j] + h01 * b[j + 1] + h11 * h * tangents[i + 1][j];
+    return out;
+  };
+}
+
+export const chapter = {
+  id: 'fidrildi3d',
+  title: 'Fiðrildadansinn',
+  look: 'morning',
+  gler: true, // main.js turns the glasses on
+  layout: { ...grunnur.layout, leafShadows: true, glade: { shafts: 3 } },
+  actors: {
+    mosi: { url: CHARS + 'mosi.glb', position: [-1.5, 0, 3], heading: 90 },
+    thorsedla: { url: CHARS + 'brontosaurus.glb', position: [0, 0, -6], heading: 90 },
+    ...Object.fromEntries(Object.entries(FRIENDS_BACK).map(([n, f]) => [n, { url: CHARS + f.url, position: [f.at[0], 0, f.at[1]], heading: 90 }])),
+  },
+  cast: { mosi: { name: 'Mosi', colour: '#4f5433' } },
+  lines: Object.fromEntries(Object.entries(TEXT).map(([id, text]) => [id, { text, audio: id }])),
+  startShot: 'show',
+  shots: {
+    show: { position: CAMERA, target: [CAMERA[0], CAMERA[1] + 1.2, CAMERA[2] - 10], fov: FOV },
+  },
+
+  *script(s) {
+    const mosiActor = s.actor('mosi');
+    const world = mosiActor.raw.world;
+    const { camera, gler, director } = world;
+    const mosi = mosiActor.raw;
+    const thor = s.actor('thorsedla').raw;
+    const butterflies = world.forest?.butterflies;
+    const v = new THREE.Vector3();
+    const probeCam = new THREE.PerspectiveCamera();
+
+    // ---- the frame's geometry ----
+    const depthOf = (cam, p) => -v.copy(p).applyMatrix4(cam.matrixWorldInverse).z;
+    function groundEdgeDepth(cam) {
+      const dir = new THREE.Vector3(0, -1, 0.5).unproject(cam).sub(cam.position).normalize();
+      if (dir.y > -0.01) return Infinity;
+      let t = (0 - cam.position.y) / dir.y;
+      for (let i = 0; i < 3; i++) t = (world.heightAt(cam.position.x + dir.x * t, cam.position.z + dir.z * t) - cam.position.y) / dir.y;
+      return t * dir.dot(new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion));
+    }
+    function poseCam(cam, position, target, fov) {
+      cam.fov = director.effectiveFov(fov);
+      cam.aspect = camera.aspect;
+      cam.near = camera.near;
+      cam.far = camera.far;
+      cam.position.copy(position);
+      cam.up.set(0, 1, 0);
+      cam.lookAt(target);
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld();
+      return cam;
+    }
+    const plane = () => gler?.plane ?? D0;
+    /** The world point at (u, v) in the frame, k·D deep (view-space depth), from `cam` (the show's camera unless given). */
+    function framePoint(u, vv, k, out = new THREE.Vector3(), cam = camera, d = plane()) {
+      const tanV = Math.tan(rad(cam.fov) / 2);
+      const depth = k * d;
+      out.set((2 * u - 1) * tanV * cam.aspect * depth, (1 - 2 * vv) * tanV * depth, -depth);
+      return out.applyMatrix4(cam.matrixWorld);
+    }
+    /** (u, v, k) of a world point. */
+    function frameOf(p, cam = camera, d = plane()) {
+      const depth = depthOf(cam, p);
+      const ndc = v.copy(p).project(cam);
+      return [0.5 + 0.5 * ndc.x, 0.5 - 0.5 * ndc.y, depth / d];
+    }
+
+    // ---- the camera's tilt and Mosi's place, solved once ----
+    const camPos = new THREE.Vector3(...CAMERA);
+    const ahead = [Math.cos(rad(LOOK)), Math.sin(rad(LOOK))];
+    let pitch = 0;
+    for (; pitch < 30; pitch += 0.25) {
+      const target = camPos.clone().add(new THREE.Vector3(ahead[0], Math.tan(rad(pitch)), ahead[1]));
+      if (groundEdgeDepth(poseCam(probeCam, camPos, target, FOV)) >= GROUND_SHARE * D_WANTED) break;
+    }
+    const camTarget = camPos.clone().add(new THREE.Vector3(ahead[0] * 10, Math.tan(rad(pitch)) * 10, ahead[1] * 10));
+    poseCam(probeCam, camPos, camTarget, FOV);
+    // Mosi: facing the camera, moved until his head is on the ray through MOSI_U at D_WANTED (his idle pose, measured)
+    mosi.play('idle', { fade: 0 });
+    const head = new THREE.Vector3();
+    let mx = -1.5, mz = camPos.z - D_WANTED - 1;
+    for (let i = 0; i < 6; i++) {
+      const heading = Math.atan2(camPos.z - mz, camPos.x - mx) * 180 / Math.PI;
+      mosi.place(mx, mz, heading);
+      mosi.mixer.update(0);
+      mosi.root.updateMatrixWorld(true);
+      mosi.headPosition(head);
+      const want = framePoint(MOSI_U, frameOf(head, probeCam, D_WANTED)[1], 1, new THREE.Vector3(), probeCam, D_WANTED);
+      mx += want.x - head.x;
+      mz += want.z - head.z;
+    }
+    mosi.root.updateMatrixWorld(true);
+    let D0 = depthOf(probeCam, mosi.headPosition(head)); // the screen plane for the whole show (before the glasses' pop share)
+    const horn = onBone(mosi, ...POINTS.mosiHorn);
+    const sneezeAt = onBone(mosi, ...POINTS.mosiSneeze);
+
+    // Þórseðla: the share of lowerHead that brings her head to THOR_HEAD's height, and her root placed so it comes to THOR_HEAD
+    const thorClip = thor.clips.get('lowerHead');
+    function thorHeadLocal(at) {
+      thor.place(0, 0, 0);
+      const action = thor.play('lowerHead', { fade: 0, timeScale: 0 });
+      action.time = thorClip.duration * at;
+      thor.mixer.update(0);
+      thor.root.updateMatrixWorld(true);
+      return thor.headPosition(new THREE.Vector3()); // heading 0: forward is +X
+    }
+    const thorWant = framePoint(...THOR_HEAD, new THREE.Vector3(), probeCam, D0);
+    let thorAt = 0.62;
+    for (let at = 0.3; at <= 1.0001; at += 0.02) {
+      if (Math.abs(thorHeadLocal(at).y - thorWant.y) < Math.abs(thorHeadLocal(thorAt).y - thorWant.y)) thorAt = at;
+    }
+    const thorLocal = thorHeadLocal(thorAt); // x ahead of her root, y up, z to the side
+    let tx = thorWant.x, tz = thorWant.z - thorLocal.x;
+    for (let i = 0; i < 6; i++) {
+      const heading = Math.atan2(camPos.z - tz, camPos.x - tx);
+      const c = Math.cos(heading), sn = Math.sin(heading);
+      // heading h turns +X to (cos h, sin h) and +Z to (-sin h, cos h)
+      tx = thorWant.x - (thorLocal.x * c - thorLocal.z * sn);
+      tz = thorWant.z - (thorLocal.x * sn + thorLocal.z * c);
+    }
+    const thorHeading = Math.atan2(camPos.z - tz, camPos.x - tx) * 180 / Math.PI;
+    thor.place(tx, tz, thorHeading);
+    thor.play('idle', { fade: 0 });
+    thor.mixer.update(0);
+
+    for (const [n, f] of Object.entries(FRIENDS_BACK)) {
+      const a = s.actor(n).raw;
+      a.place(f.at[0], f.at[1], Math.atan2(camPos.z - f.at[1], camPos.x - f.at[0]) * 180 / Math.PI + (n === 'sloedla' ? 25 : -25));
+      a.play('idle', { fade: 0 });
+      a.lookAt('camera', { weight: 0.35 });
+    }
+    mosi.lookAt('camera', { weight: 0.6 });
+
+    const shot = { position: camPos.toArray(), target: camTarget.toArray(), fov: FOV, label: 'fidrildadans' };
+    yield s.camera.cut(shot, { check: false });
+    if (butterflies?.hero?.group) butterflies.hero.group.scale.setScalar(HERO_SCALE);
+
+    // ---- the swarm (one draw call), the state for probes ----
+    const swarm = createSwarm({ count: SWARM, scale: SWARM_SCALE, seed: 'fidrildadans', uWindTime: world.wind?.uniforms?.uWindTime, antialias: true });
+    world.scene.add(swarm.mesh);
+    const state = { D0, pitch, thorAt, mosi: [mx, mz], thor: [tx, tz, thorHeading], swarm: [], time: 0 };
+    world.dans = { state, framePoint, frameOf, measure };
+
+    // ---- the zero-parallax plane, every frame (jumped: a seek lands exactly) ----
+    let T0 = null;
+    const tau = () => (T0 == null ? 0 : s.time - T0);
+    function* keepPlane() {
+      for (;;) {
+        gler?.setPlane(D0, { jump: true });
+        camera.updateMatrixWorld();
+        state.time = tau();
+        yield;
+      }
+    }
+    s.after(0, () => keepPlane());
+
+    const uvk2 = [];
+    // his look at the camera turns his head a little: the plane is his head where it rests
+    yield s.wait(0.8);
+    camera.updateMatrixWorld();
+    D0 = depthOf(camera, mosi.headPosition(head));
+    state.D0 = D0;
+
+    // ---- start card ----
+    const cardStyle = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw';
+    const card = document.createElement('p');
+    card.textContent = 'Settu upp gleraugun! Rauða glerið á vinstra auga.';
+    card.style.cssText = cardStyle;
+    document.body.append(card);
+    try {
+      yield s.ready();
+    } finally {
+      card.remove();
+    }
+
+    for (;;) {
+      yield* show();
+      // the end card: one button, which plays it again
+      const end = document.createElement('div');
+      end.style.cssText = cardStyle + ';display:flex;flex-direction:column;align-items:center;gap:14px';
+      const button = document.createElement('button');
+      button.textContent = 'Aftur';
+      button.style.cssText = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;background:#6f8f3a;color:#fff;cursor:pointer';
+      let again = false;
+      button.addEventListener('click', () => { again = true; });
+      end.append(button);
+      document.body.append(end);
+      try {
+        yield s.until(() => again || s.seeking);
+      } finally {
+        end.remove();
+      }
+      if (s.seeking) return; // a capture past the end: nothing more to do
+    }
+
+    // ================================================================================================================
+    function* show() {
+      T0 = s.time;
+      const handles = [];
+      // reset: Þórseðla upright, the moth far off in the forest, the swarm hidden
+      thor.play('idle', { fade: 0 });
+      for (let i = 0; i < SWARM; i++) swarm.set(i, v.set(0, -50, 0), 0, 0);
+      const heroKeys = track([
+        [0, 0.7, 0.36, 3.4], [6, 0.68, 0.38, 3.0, 'rest'],
+        [9.5, 0.47, 0.4, 1.15], // past Mosi's horn
+        [12, 0.5, 0.46, 0.7], [14.5, 0.5, 0.47, 0.48, 'rest'], // slowly out of the screen to the middle
+      ]);
+      const uvk = [];
+      const hover = t => { const e = smooth((t - 14) / 0.8) * (1 - smooth((t - 17.2) / 0.6)); return [0.02 * Math.sin(2.2 * (t - 14)) * e, 0.012 * Math.sin(4.4 * (t - 14)) * e]; };
+      const heroPath = out => {
+        const t = tau();
+        heroKeys(t, uvk);
+        const [du, dv] = hover(t);
+        return framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out);
+      };
+      butterflies?.follow(HERO, heroPath);
+      state.hero = () => butterflies?.hero?.group.getWorldPosition(new THREE.Vector3());
+
+      // the motes: pale specks at many depths, in front of the screen only within the middle of the frame
+      const motes = moteCloud();
+      handles.push(motes);
+
+      yield s.fade(1, 0);
+      s.after(0.2, () => s.fade(0, 2.5));
+      s.after(0.8, () => s.say('mosi', 'k1_mosi_hum', { hold: 0 }));
+      yield s.until(() => tau() >= 6);
+
+      // 6-18: the moth comes out
+      s.sfx('butterfly');
+      yield s.until(() => tau() >= 14);
+      s.sfx('star');
+      handles.push(sparkleTrail(world, () => butterflies.hero.group.getWorldPosition(new THREE.Vector3()), { duration: 3.4, count: 46, life: 0.9, colour: '#fff0b8', size: 0.07, seed: 'dans trail' }));
+      yield s.until(() => tau() >= 17.4);
+      // back in, onto his horn
+      butterflies?.land(horn, { name: HERO, duration: 3.2 });
+      yield s.until(() => tau() >= 21.2);
+
+      // 18-30: tickle, sneeze, the pollen blows out at the viewer and the moth is blown off
+      yield s.say('mosi', 'k1_mosi_tickle', { hold: 0.2 });
+      const atsju = atsjuOf(s.lineMouth('k1_mosi_sneeze'));
+      s.after(atsju, () => {
+        const from = sneezeAt(new THREE.Vector3());
+        const to = framePoint(0.47, 0.5, 0.4, new THREE.Vector3());
+        state.pollen = { from: from.clone(), to: to.clone() };
+        s.sfx('blow');
+        blowOff();
+        return pollenBurst(world, from, { count: 46, duration: 2.6, size: 0.16, spread: from.distanceTo(to), direction: to.clone().sub(from), cone: 0.14, colour: '#e9e27a', seed: 'dans pollen' });
+      });
+      yield s.say('mosi', 'k1_mosi_sneeze', { hold: 0.2 });
+      yield s.until(() => tau() >= 29.5);
+
+      // 30-45: the swarm rises from the grass and dances
+      s.sfx('butterfly');
+      const swarmRun = dance();
+      yield s.until(() => tau() >= 45);
+
+      // 45-55: Þórseðla's head comes down through them and out
+      s.sfx('float');
+      const lower = thor.play('lowerHead', { fade: 0.6 });
+      const down = thorClip.duration * thorAt;
+      yield s.until(() => tau() >= 45 + down);
+      lower.setEffectiveTimeScale(0);
+      state.thorHeld = tau();
+      yield s.until(() => tau() >= 53.2);
+      lower.setEffectiveTimeScale(-1); // and back up the way it came
+      state.thorUp = tau();
+
+      // 55-60: the butterflies drift away; the moth comes to the exact middle at the screen plane and settles
+      yield s.until(() => tau() >= 55.2);
+      const centre = out => framePoint(0.5, 0.5, 1, out);
+      butterflies?.land(centre, { name: HERO, duration: 3.4 });
+      yield s.until(() => tau() >= 53.2 + down);
+      thor.play('idle', { fade: 0.5 });
+      yield s.until(() => tau() >= 57);
+      s.sun.wave();
+      yield s.until(() => tau() >= 58.8);
+      s.sfx('star');
+      sparkleBurst(world, centre(new THREE.Vector3()), { count: 18, duration: 1.2, size: 0.12, spread: 0.35, colour: '#fff3c0', seed: 'dans end' });
+      yield s.until(() => tau() >= LENGTH - 0.6);
+      yield s.fade(1, 1.2);
+      swarmRun.cancel?.();
+      for (const h of handles) h?.cancel?.();
+    }
+
+    // The moth blown off the horn: up and back into the trees, then waiting there, small, until the end.
+    function blowOff() {
+      const start = frameOf(horn(new THREE.Vector3()));
+      const t0 = tau();
+      const keys = track([[t0, ...start], [t0 + 2.4, start[0] + 0.12, 0.26, 1.7], [t0 + 6, 0.74, 0.3, 2.8, 'rest'], [52, 0.72, 0.33, 2.9], [55, 0.7, 0.3, 2.8]]);
+      butterflies?.follow(HERO, out => {
+        const t = tau();
+        keys(t, uvk2);
+        const w = t > t0 + 6 ? 0.025 : 0;
+        return framePoint(uvk2[0] + w * Math.sin(0.9 * t), uvk2[1] + w * 0.6 * Math.sin(1.7 * t), uvk2[2], out);
+      });
+    }
+
+    // The motes: one set of glints that lives through the show, fading in over the first seconds.
+    function moteCloud() {
+      const count = 90;
+      const set = glints(world, {
+        count, life: 85, spread: 0.6, fall: 0, size: 0.045, colour: '#fff6d6', seed: 'dans motes',
+        look: { ...SPARKLE_LOOK, star: 0, glow: 0.8, falloff: 3, twinkle: 1, rise: 0.5, drift: [0.25, -0.15] },
+      });
+      const random = mulberry(91);
+      const p = new THREE.Vector3();
+      for (let i = 0; i < count; i++) {
+        const k = 0.7 + 3.3 * random() ** 1.4; // more of them nearer
+        const edge = k < 1 ? 0.3 : 0.05; // in front of the screen only in the middle of the frame
+        framePoint(edge + (1 - 2 * edge) * random(), edge + (1 - 2 * edge) * random(), k, p);
+        set.position.set([p.x, p.y, p.z], i * 3);
+        set.birth[i] = 0;
+      }
+      state.motes = set;
+      return run(world, set, LENGTH + 2, 'dans motes');
+    }
+
+    // The swarm: rising from the grass behind Mosi (30-33.5), a spiral round the view axis, one turn in 8 s, out of the screen to k
+    // 0.5 at the nearest (38-40.5) and back behind it; four sit on Þórseðla's head (48.5-55); all drift away into the trees (55-59.5).
+    function dance() {
+      const random = mulberry(25);
+      const each = [];
+      const p = new THREE.Vector3();
+      for (let i = 0; i < SWARM; i++) {
+        const kg = 1.15 + 0.5 * random();
+        framePoint(0.25 + 0.55 * random(), 0.5, kg, p);
+        p.y = world.heightAt(p.x, p.z) + 0.06;
+        each.push({
+          ground: p.clone(), birth: 30 + 0.14 * i, phase: (i / SWARM) * Math.PI * 2 + 0.3 * random(),
+          radius: 0.26 + 0.22 * random(), dk: (random() - 0.5) * 0.2, bob: random() * 6.28,
+          sit: [0, 6, 12, 18].indexOf(i), // which of the four sits on Þórseðla's head, or -1
+          far: [0.15 + 0.7 * random(), 0.15 + 0.35 * random(), 3 + 0.8 * random()],
+          from: new THREE.Vector3(), yaw: 0,
+        });
+      }
+      const KC = track([[30, 0, 0, 1.45], [33.5, 0, 0, 1.3], [38, 0, 0, 0.62, 'rest'], [40.5, 0, 0, 0.62, 'rest'], [44.5, 0, 0, 1.15], [50, 0, 0, 1.3]]);
+      const kc = [];
+      const thorHead = new THREE.Vector3();
+      const right = new THREE.Vector3();
+      const spiral = (b, t, out) => {
+        KC(t, kc);
+        const turn = b.phase + (2 * Math.PI * (t - 30)) / 8;
+        const k = Math.max(0.52, kc[2] + b.dk);
+        const r = b.radius * (k < 1 ? 1 : 1 + 0.4 * (k - 1)); // wider behind the screen
+        const x = 0.06 + r * Math.cos(turn) / camera.aspect, y = 0.05 + r * Math.sin(turn);
+        return framePoint(0.5 + 0.5 * x, 0.5 - 0.5 * y + 0.012 * Math.sin(3.1 * t + b.bob), k, out);
+      };
+      const onHead = (b, out) => {
+        thor.headPosition(thorHead);
+        right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+        return out.copy(thorHead).addScaledVector(right, [-0.35, 0.3, -0.1, 0.12][b.sit]).add(v.set(0, 0.42 + 0.06 * (b.sit % 2), 0));
+      };
+      const at = (b, t, out) => {
+        if (t < b.birth) return out.copy(b.ground);
+        spiral(b, t, out);
+        if (t < b.birth + 3) {
+          const k = smooth((t - b.birth) / 3);
+          const lift = Math.sin(Math.PI * k) * 0.5;
+          out.lerpVectors(b.ground, out, k);
+          out.y += lift;
+        }
+        if (b.sit >= 0 && t >= 48.5 + 0.5 * b.sit) {
+          const k = smooth((t - 48.5 - 0.5 * b.sit) / 2.4);
+          out.lerp(onHead(b, p), k);
+        }
+        if (t >= 55 + 0.06 * (b.phase * 4)) {
+          const t0 = 55 + 0.06 * (b.phase * 4);
+          if (b.leaveAt !== t0) { b.leaveAt = t0; }
+          const k = smooth((t - t0) / 4.2);
+          const away = framePoint(b.far[0], b.far[1], b.far[2], p);
+          out.lerp(away, k);
+        }
+        return out;
+      };
+      const a = new THREE.Vector3(), c = new THREE.Vector3();
+      function* fly() {
+        for (;;) {
+          const t = tau();
+          state.swarm.length = 0;
+          for (let i = 0; i < SWARM; i++) {
+            const b = each[i];
+            at(b, t, a);
+            at(b, t + 0.05, c);
+            const dx = c.x - a.x, dz = c.z - a.z;
+            if (Math.hypot(dx, dz) > 2e-4) b.yaw = Math.atan2(dz, dx);
+            const sitting = t < b.birth || (b.sit >= 0 && t >= 48.5 + 0.5 * b.sit + 2.4 && t < 55 + 0.06 * (b.phase * 4));
+            const flap = t < b.birth ? 1.25 : sitting ? 0.7 + 0.45 * Math.sin(1.6 * t + b.bob) : -1;
+            const size = smooth((t - 27) / 1.5) * (1 - smooth((t - 57.6) / 1.8));
+            swarm.set(i, a, b.yaw, size, flap);
+            state.swarm.push(a.toArray());
+          }
+          yield;
+        }
+      }
+      return s.after(0, () => fly());
+    }
+
+    // ---- the parallax table: world points through both eye cameras (share of the screen's width; near is positive) ----
+    function measure() {
+      const eyes = gler?.eyes;
+      if (!eyes) return null;
+      const strength = gler.settings.strength;
+      const row = (name, p) => {
+        if (!p) return { name, missing: true };
+        const l = p.clone().project(eyes[0]).x, r = p.clone().project(eyes[1]).x;
+        const [u, vv, k] = frameOf(p);
+        return { name, u: +u.toFixed(3), v: +vv.toFixed(3), k: +k.toFixed(3), parallax: +((l - r) / 2).toFixed(4), formula: +(strength * (1 / k - 1)).toFixed(4) };
+      };
+      const rows = [];
+      rows.push(row('mosi head', mosi.headPosition(new THREE.Vector3())));
+      rows.push(row('hero', state.hero?.()));
+      rows.push(row('thorsedla head', thor.headPosition(new THREE.Vector3())));
+      if (state.swarm.length) {
+        const pts = state.swarm.map(a => new THREE.Vector3(...a)).filter(q => frameOf(q)[2] > 0.05);
+        pts.sort((a2, b2) => frameOf(a2)[2] - frameOf(b2)[2]);
+        rows.push(row('swarm nearest', pts[0]));
+        rows.push(row('swarm farthest', pts[pts.length - 1]));
+      }
+      // the ground at the bottom edge, in the middle
+      const dir = new THREE.Vector3(0, -1, 0.5).unproject(camera).sub(camera.position).normalize();
+      const tg = (world.heightAt(camera.position.x, camera.position.z) - camera.position.y) / dir.y;
+      rows.push(row('ground bottom edge', camera.position.clone().addScaledVector(dir, tg)));
+      return { t: state.time, D: plane(), rows };
+    }
+  },
+};
+
+// A small seeded stream (mulberry32), so every run of the show is the same.
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
