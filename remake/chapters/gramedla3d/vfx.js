@@ -7,14 +7,14 @@
 // specks are the game's glints (world/props/sparkles.js), placed here each frame and faded by the shader over their life. No new art:
 // the print is a soft dark patch made in code, like a blob shadow.
 //
-// The screen's rules: dust and specks stay behind the screen plane (k 1 and further: pushed back along the line of sight if a
+// The screen's rules: dust and specks stay behind the screen plane (k 1.05 and further, so on every shape's camera: pushed back along the line of sight if a
 // burst would come nearer); the breath may come out, never nearer than k 0.334 (4 %), and stays inside the middle of the frame.
 import * as THREE from 'three';
 import { glints, SPARKLE_LOOK } from '../../world/props/sparkles.js';
 import { seededRandom } from '../../engine/random.js';
 
-export const DUST = { per: 12, life: 1.9, reach: 1.5, rise: 0.75, size: 0.95, colour: '#d6c6a2', kMin: 1.0 };
-export const FLECKS = { per: 4, life: 2.6, reach: 1.9, rise: 1.5, size: 0.11, colour: '#dfe08a', kMin: 1.0 };
+export const DUST = { per: 12, life: 1.9, reach: 1.5, rise: 0.75, size: 0.95, colour: '#d6c6a2', kMin: 1.05 };
+export const FLECKS = { per: 4, life: 2.6, reach: 1.9, rise: 1.5, size: 0.11, colour: '#dfe08a', kMin: 1.05 };
 export const PRINT = { length: 1.25, width: 0.85, grow: 0.18, opacity: 0.42 };
 export const BREATH = { per: 10, life: 0.9, size: 0.17, kMin: 0.336, colour: '#f4f8f2' };
 

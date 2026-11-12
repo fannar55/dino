@@ -13,6 +13,7 @@ export const SWEEP = { per: 40, life: 2.6, size: 0.12, colour: '#d9de86', depth:
 export const FALL = { leaves: 34, dust: 30, life: 5.0, colour: '#a9c45c', dustColour: '#e6dcc0', area: { x: 4.6, depth: [9, 17], y: [4.2, 6.6] } };
 
 const NORMAL = { blending: THREE.NormalBlending };
+const BEHIND = 1.05; // k: the air stays behind the screen plane on every shape's camera (the stage's is 16:10)
 
 /**
  * `herAt(t)`: her place on the ground at second t ({ x, z }, or null when she is not on the stage); `brake`: the second Flugeðla's
@@ -73,14 +74,14 @@ export function createAir(world, { herAt, brake, roar, groundAt, clampK, camZ = 
       if (a < 0 || a > CURLS.life) return HIDE(curl, i);
       const turn = c.a + c.turn * a, r = c.r + 0.45 * a;
       p.set(c.x + Math.cos(turn) * r, groundAt(c.x, c.z) + c.h + 0.18 * a, c.z + Math.sin(turn) * r * 0.7);
-      put(curl, i, clampK(p, 1));
+      put(curl, i, clampK(p, BEHIND));
     });
     sweeps.forEach((s, i) => {
       const a = t - s.t;
       if (a < 0 || a > SWEEP.life) return HIDE(sweep, i);
       const e = 1 - Math.exp(-a / 0.45);
       p.set(s.x + s.out * e, s.y + 0.05 + Math.max(0, s.up * e - 0.35 * a * a) + 0.06 * Math.sin(5 * a + s.w), s.z + 0.3 * Math.sin(2 * a + s.w));
-      put(sweep, i, clampK(p, 1));
+      put(sweep, i, clampK(p, BEHIND));
     });
     for (const [list, set] of [[leafList, leaves], [dustList, motes]]) {
       list.forEach((s, i) => {
@@ -88,7 +89,7 @@ export function createAir(world, { herAt, brake, roar, groundAt, clampK, camZ = 
         const y = s.y - s.speed * a;
         if (a < 0 || a > FALL.life || y < groundAt(s.x, s.z)) return HIDE(set, i);
         p.set(s.x + s.sway * Math.sin(1.7 * a + s.w), y, s.z + 0.5 * s.sway * Math.cos(1.3 * a + s.w));
-        put(set, i, clampK(p, 1));
+        put(set, i, clampK(p, BEHIND));
       });
     }
     for (const s of sets) {
