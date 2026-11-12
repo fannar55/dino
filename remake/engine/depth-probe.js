@@ -1,4 +1,4 @@
-// The depth probe (Gljúfraflugið, chapters/gljufur3d.js): how near the scene comes to the centre camera along the frame's border and
+// The depth probe (the 3D shows: chapters/gramedla3d.js): how near the scene comes to the centre camera along the frame's border and
 // in its middle, as a share of the screen plane's distance D (engine/gler.js), for the comfort rules of a moving 3D show.
 //
 //   const probe = createDepthProbe(world, { width: 240 });

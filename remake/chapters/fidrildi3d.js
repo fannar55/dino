@@ -28,6 +28,7 @@ import { leaveShow } from '../engine/book/show-player.js';
 import { endCard, glassesStart } from '../engine/book/show-cards.js';
 import { plantVolumes, reachInto } from '../engine/tree-probe.js';
 import { WALK } from './fidrildi3d-walk.js';
+import { createStage, STAGE_ASPECT } from '../engine/stage3d.js';
 
 // the start (the glasses picture) and the end card ("Aftur", "Hætta") are every show's: engine/book/show-cards.js
 export { endCard };
@@ -46,7 +47,6 @@ const GROUND_SHARE = 0.85;
 // in one fixed frame, 16:10 with FOV, not in the screen's own: a flight drawn in the screen's frame lands somewhere else beside the
 // animals on every shape of screen (the frame's width in metres changes and the bodies do not). The engine keeps the 16:10 width on
 // narrower screens and the height on wider ones (director.effectiveFov), so this frame is always inside the screen's.
-const STAGE_ASPECT = 16 / 10;
 // Þórseðla: her root far behind, so that her lowered head (lowerHead held part way: the share found for the height below) comes to
 // THOR_HEAD in the frame. The two friends further back are depth layers.
 const THOR_HEAD = [0.6, 0.6, 0.6]; // her Head bone, which is low in her skull: the skull's top is about 1 m above it
@@ -200,67 +200,15 @@ export const chapter = {
   *script(s) {
     const mosiActor = s.actor('mosi');
     const world = mosiActor.raw.world;
-    const { camera, gler, director } = world;
+    const { camera, gler } = world;
     const mosi = mosiActor.raw;
     const thor = s.actor('thorsedla').raw;
     const butterflies = world.forest?.butterflies;
     const v = new THREE.Vector3();
-    const probeCam = new THREE.PerspectiveCamera();
-    const stageCam = new THREE.PerspectiveCamera(); // the stage's fixed frame (STAGE_ASPECT, FOV), from the camera's place
 
-    // ---- the frame's geometry ----
-    const depthOf = (cam, p) => -v.copy(p).applyMatrix4(cam.matrixWorldInverse).z;
-    function groundEdgeDepth(cam) {
-      const dir = new THREE.Vector3(0, -1, 0.5).unproject(cam).sub(cam.position).normalize();
-      if (dir.y > -0.01) return Infinity;
-      let t = (0 - cam.position.y) / dir.y;
-      for (let i = 0; i < 3; i++) t = (world.heightAt(cam.position.x + dir.x * t, cam.position.z + dir.z * t) - cam.position.y) / dir.y;
-      return t * dir.dot(new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion));
-    }
-    function poseCam(cam, position, target, fov, stage = false) {
-      cam.fov = stage ? fov : director.effectiveFov(fov);
-      cam.aspect = stage ? STAGE_ASPECT : camera.aspect;
-      cam.near = camera.near;
-      cam.far = camera.far;
-      cam.position.copy(position);
-      cam.up.set(0, 1, 0);
-      cam.lookAt(target);
-      cam.updateProjectionMatrix();
-      cam.updateMatrixWorld();
-      return cam;
-    }
+    // ---- the stage: the camera's tilt, solved once, and the frame's geometry (engine/stage3d.js) ----
     const plane = () => gler?.plane ?? D0;
-    /** The world point at (u, v) in the stage's frame (stageCam unless `cam` is given), k·D deep (view-space depth). */
-    function framePoint(u, vv, k, out = new THREE.Vector3(), cam = stageCam, d = plane()) {
-      const tanV = Math.tan(rad(cam.fov) / 2);
-      const depth = k * d;
-      out.set((2 * u - 1) * tanV * cam.aspect * depth, (1 - 2 * vv) * tanV * depth, -depth);
-      return out.applyMatrix4(cam.matrixWorld);
-    }
-    /** (u, v, k) of a world point, in the screen's own frame (the show's camera unless `cam` is given: stageCam for the stage's). */
-    function frameOf(p, cam = camera, d = plane()) {
-      const depth = depthOf(cam, p);
-      const ndc = v.copy(p).project(cam);
-      return [0.5 + 0.5 * ndc.x, 0.5 - 0.5 * ndc.y, depth / d];
-    }
-
-    // ---- the camera's tilt and Mosi's place, solved once ----
-    const camPos = new THREE.Vector3(...CAMERA);
-    const ahead = [Math.cos(rad(LOOK)), Math.sin(rad(LOOK))];
-    let pitch = 0;
-    for (; pitch < 30; pitch += 0.25) {
-      const target = camPos.clone().add(new THREE.Vector3(ahead[0], Math.tan(rad(pitch)), ahead[1]));
-      if (groundEdgeDepth(poseCam(probeCam, camPos, target, FOV)) >= GROUND_SHARE * D_WANTED) break;
-    }
-    const camTarget = camPos.clone().add(new THREE.Vector3(ahead[0] * 10, Math.tan(rad(pitch)) * 10, ahead[1] * 10));
-    poseCam(probeCam, camPos, camTarget, FOV);
-    // the stage's frame: the same tilt solved at the stage's shape (the screen's camera tilts as its own shape needs for the ground)
-    let stagePitch = 0;
-    for (; stagePitch < 30; stagePitch += 0.25) {
-      const target = camPos.clone().add(new THREE.Vector3(ahead[0], Math.tan(rad(stagePitch)), ahead[1]));
-      if (groundEdgeDepth(poseCam(stageCam, camPos, target, FOV, true)) >= GROUND_SHARE * D_WANTED) break;
-    }
-    poseCam(stageCam, camPos, camPos.clone().add(new THREE.Vector3(ahead[0] * 10, Math.tan(rad(stagePitch)) * 10, ahead[1] * 10)), FOV, true);
+    const { camPos, camTarget, pitch, stageCam, depthOf, framePoint, frameOf } = createStage(world, { position: CAMERA, look: LOOK, fov: FOV, groundShare: GROUND_SHARE, depth: D_WANTED, plane });
     // Mosi: facing the camera, moved until his head is on the ray through MOSI_U at D_WANTED (his idle pose, measured)
     mosi.play('idle', { fade: 0 });
     const head = new THREE.Vector3();

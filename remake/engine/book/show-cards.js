@@ -1,4 +1,4 @@
-// The 3D shows' start and end (chapters/fidrildi3d.js, chapters/gljufur3d.js): the glasses picture that starts a show with one tap,
+// The 3D shows' start and end (chapters/fidrildi3d.js, chapters/gramedla3d.js): the glasses picture that starts a show with one tap,
 // and the end card with "Aftur" and "Hætta". Shared by every show; moved here from fidrildi3d.js (which still exports endCard).
 
 const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;cursor:pointer;pointer-events:auto';
