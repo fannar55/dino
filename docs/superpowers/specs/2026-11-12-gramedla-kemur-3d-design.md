@@ -134,3 +134,13 @@ Eigandinn samþykkti planið 12. nóvember 2026: „já byrja með tali, og ekke
 3. Morgunþokan stendur; hann gerði enga athugasemd við hana og dæmir hana á lykilrömmunum.
 4. **Kvörðunin (skref 0):** eigandinn skoðaði stillingarnar sex með gleraugunum og valdi „4% 0,02“: trýnið 4 % út, dýptarstyrkur
    0,02. Regla 4 og kafli 3 eru uppfærð eftir því.
+5. **Lykilrammarnir (skref 1):** eigandinn skoðaði rammana sjö og aukarammana 4a og 7b og sagði: „myndir líta fínt út … bara
+   best að smíða svona, ekkert major að sem ekki er hægt að laga“. Rammarnir standa eins og þeir eru í töflunni
+   (`remake/chapters/gramedla3d/keys.js`) og hreyfingin er smíðuð á milli þeirra. Hann svaraði ekki spurningunum þremur
+   sérstaklega, svo þetta er lestur Claude á svarinu:
+   - Rammi 7 og 7b eru báðir í sögunni: fiðrildið sest á trýnið (7), fnæsið lyftir því og það svífur milli trýnisins og okkar
+     (7b).
+   - Öskrið stendur: hausinn 1,8 % út og blásturinn ber það sem kemur lengra út (allt að 3,5 %).
+   - Hausinn á henni má ná út fyrir miðju myndarinnar þegar hann er framan við skjáinn (rammar 5 og 7). Rammareglan í reglu 5
+     gildir óbreytt: ekkert framan við skjáinn snertir brún.
+   - Lagað í skrefi 2: Egill á að sjást í ramma 3; hann var falinn bak við hausinn á Flugeðlu.
