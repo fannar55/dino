@@ -62,22 +62,36 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
   function plantsAgainst(actor) {
     const shell = shellOf(actor);
     shell.update();
+    // the capsules where her bones are this frame (update() alone leaves them where they were last placed)
+    const capsules = shell.place();
     let worst = null;
     for (const pl of nearLane) {
-      const hit = reachInto(plantVolumes(pl), shell.capsules, 0);
+      const hit = reachInto(plantVolumes(pl), capsules, 0);
       if (hit && (!worst || hit.depth > worst.depth)) worst = { name: pl.name, x: r3(pl.x), z: r3(pl.z), depth: r3(hit.depth) };
     }
     if (worst) return { into: worst };
-    // no contact: the clearance from her root's place to the nearest plant's trunk, less her reach
+    // no contact: the nearest any capsule comes to a plant's trunk, across the ground
     let clear = Infinity;
-    const at = actor.root.position;
-    for (const pl of nearLane) clear = Math.min(clear, Math.hypot(pl.x - at.x, pl.z - at.z));
+    for (const pl of nearLane) {
+      const tr = (pl.model?.trunk?.r ?? 0.3) * (pl.scale ?? 1);
+      for (const c of capsules) for (const p of [c.a, c.b]) clear = Math.min(clear, Math.hypot(pl.x - p[0], pl.z - p[2]) - c.r - tr);
+    }
     return { clear: r3(clear) };
   }
-  const nearestPlant = pt => {
-    let best = Infinity;
-    for (const pl of nearLane) best = Math.min(best, Math.hypot(pl.x - pt.x, pl.z - pt.z) - (pl.model?.trunk?.r ?? 0.3) * (pl.scale ?? 1));
-    return r3(best);
+  // a small thing (a bird, the butterfly: a ball of radius r at pt) against the plants' own volumes, height and all: the depth into
+  // one (negative) or the clearance, found by growing the ball until it touches (to 1 cm, up to 2 m)
+  const volumes = new Map();
+  const volumesOf = pl => { if (!volumes.has(pl)) volumes.set(pl, plantVolumes(pl)); return volumes.get(pl); };
+  const nearestPlant = (pt, r = 0.1) => {
+    const ball = [{ a: [pt.x, pt.y, pt.z], b: [pt.x, pt.y, pt.z], r }];
+    let into = 0;
+    for (const pl of nearLane) { const hit = reachInto(volumesOf(pl), ball, 0); if (hit) into = Math.max(into, hit.depth); }
+    if (into > 0) return r3(-into);
+    const touches = g => nearLane.some(pl => reachInto(volumesOf(pl), ball, g));
+    if (!touches(2)) return 2;
+    let lo = 0, hi = 2;
+    while (hi - lo > 0.01) { const m = (lo + hi) / 2; if (touches(m)) hi = m; else lo = m; }
+    return r3(lo);
   };
 
   function measure(key) {
@@ -195,13 +209,13 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
         const list = cast.birds.filter(m => m.visible);
         let apart = Infinity, plant = Infinity;
         for (let i = 0; i < list.length; i++) {
-          plant = Math.min(plant, nearestPlant(list[i].position));
+          plant = Math.min(plant, nearestPlant(list[i].position, 0.24));
           for (let j = i + 1; j < list.length; j++) apart = Math.min(apart, list[i].position.distanceTo(list[j].position));
         }
         row.clear.birds = { apart: r3(apart), plant: r3(plant) };
       }
       if (bpos) {
-        row.clear.butterflyPlant = nearestPlant(bpos);
+        row.clear.butterflyPlant = nearestPlant(bpos, 0.08);
         if (n.gram) {
           // the butterfly to her skin (her head's, where it would meet her): sitting on her snout is meant
           body.skeleton.update();

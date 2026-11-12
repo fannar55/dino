@@ -114,7 +114,12 @@ const RING_MID = [0.5, 0.42];
 const WHEEL = 0.45; // rad/s
 const WING_HZ = 2.6;
 export const FLOCK = { from: 10.5, arrive: 12.4, leave: 14.6, back: 15.5, up: [15.3, 16.6] };
-const FLOCK_FROM = RING.map((_, i) => [0.3 + (0.4 * i) / 6, 0.1 + 0.04 * (i % 3), 4.6]);
+// each bird starts from the crowns in the same order round the middle as its place in the ring, so no two paths cross
+let FLOCK_FROM = null;
+const flockFrom = i => {
+  FLOCK_FROM ??= RING.map((_, j) => { const [u, v] = ringAt(j, FLOCK.arrive).at; return [0.5 + (u - RING_MID[0]) * 0.6, 0.12 + (v - RING_MID[1]) * 0.3, 4.6]; });
+  return FLOCK_FROM[i];
+};
 function ringAt(i, t) {
   const [u, v, k, yaw] = RING[i];
   const a = WHEEL * (t - key('2').time);
@@ -128,7 +133,9 @@ export function birdsAt(t) {
     let at, yaw;
     const start = FLOCK.from + 0.08 * i;
     if (t < FLOCK.arrive) {
-      at = between(FLOCK_FROM[i], ringAt(i, FLOCK.arrive).at, span(t, start, FLOCK.arrive));
+      // they burst off the tree and ease into the ring: well over a second from the screen plane to the ring
+      const x = Math.min(1, Math.max(0, (t - start) / (FLOCK.arrive - start)));
+      at = between(flockFrom(i), ringAt(i, FLOCK.arrive).at, 1 - (1 - x) ** 2);
       yaw = lerpAngle(90, ringAt(i, FLOCK.arrive).yaw, span(t, FLOCK.arrive - 0.5, FLOCK.arrive));
     } else if (t <= FLOCK.leave) {
       ({ at, yaw } = ringAt(i, t));
@@ -172,7 +179,8 @@ export function flugedlaAt(t) {
   return {
     beak, clip: F3.clip, at: flyTime(t),
     pitch: lerp(lerp(0, F3.pitch, brake), 35, leave),
-    yaw: lerp(lerp(0, F3.yaw, span(t, b0 - 0.2, b1)), 0, span(t, FLIGHT.hold + 0.3, FLIGHT.hold + 1.3)),
+    // she turns before her wings open wide in the brake, so their tips stay off the screen's edges
+    yaw: lerp(lerp(0, F3.yaw, span(t, b0 - 1.8, b1)), 0, span(t, FLIGHT.hold + 0.3, FLIGHT.hold + 1.3)),
     neck: lerp(F3.neck, 0, span(t, FLIGHT.hold, FLIGHT.hold + 0.9)) * brake,
     egill: { point: w > 0, weight: w, lean: F3.egill.lean, aim: F3.egill.aim },
   };
@@ -187,9 +195,10 @@ export const WALK_IN = { from: 26.3, to: 37.3, ramp: 1.2 };
 export function gramPoses(rig) {
   const p = { ...rig };
   const lean = (base, over) => ({ x: base.x, z: base.z, theta: 0, turn: 0, roll: 0, pitch: 0, ...over });
-  p.back = lean(rig['6'], { theta: 0.3, turn: rig['6'].turn, pitch: 0.1 });
-  p.back2 = lean(rig['6'], { theta: 0.35, turn: rig['6'].turn });
-  p.up = lean(rig['7b'], { theta: 0.42 });
+  // drawn back a little (less leaning in than frame 6, head lifted no higher than keeps it off the top edge)
+  p.back = lean(rig['6'], { theta: 0.46, turn: rig['6'].turn, pitch: -0.02 });
+  p.back2 = lean(rig['6'], { theta: 0.48, turn: rig['6'].turn, pitch: -0.05 });
+  p.up = lean(rig['7b'], { theta: 0.62, pitch: -0.05 });
   p.exit = lean({ x: 0.1, z: -9.6 }, { theta: 0.3 });
   return p;
 }
@@ -282,7 +291,9 @@ export function gramAt(t, rig) {
 // carry her between them; between 7 and 7b one breath at twice the pace (the huff)
 function idleTime(t) {
   if (t < 42.6) return mod(t - key('4').time, IDLE);
-  if (t < 59.2) return mod(t - key('5').time, IDLE);
+  // around frame 5 (her snout at 4 %, the limit) the breath swings to and fro about the frame's moment of it, never into the
+  // part of the clip (its second 0.8–1.8) that pushes the snout 0.02 % further out
+  if (t < 59.2) return mod(0.6 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
   if (t < key('7').time) return mod(t - key('7').time, IDLE);
   if (t < key('7b').time) return mod(2 * (t - key('7').time), IDLE);
   return mod(t - key('7b').time, IDLE);
