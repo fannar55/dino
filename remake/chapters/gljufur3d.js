@@ -63,7 +63,7 @@ const GF = [Math.cos(rad(GRAMEDLA.heading)), Math.sin(rad(GRAMEDLA.heading))]; /
 // up the river into the golden light ('end').
 const OWN_POINTS = [
   [null, -1376, 63.5, 115],
-  ['pass', -1389.5, 61.5, 103],
+  ['pass', -1387.4, 60.2, 100.9], // over her head, a little behind it as the roar camera sees it
   [null, -1397, 62.5, 91],
   [null, -1388, 63.5, 80.5],
   [null, -1371, 64, 85],
@@ -89,7 +89,7 @@ export const SHOW_KEYS = [...KEYS.filter(([t]) => t <= KEYS.find(k => k[1] === '
 const SKIM = { lane: [23.5, 30.2], down: 24.2, up: 28.6, splash: [24.9, 28.9, 0.22] };
 // Slow motion (the game clock's scale, as chapter 4's slow second): [from τ, to τ, scale]; it eases in and out over EASE_SLOW of τ.
 // The first lets her come out of the screen over the water at a pace the eyes follow; the second is the roar and her pass.
-export const SLOWS = [[22.9, 23.8, 0.5], [47.0, 48.4, 0.35]];
+export const SLOWS = [[23.2, 23.8, 0.45], [47.0, 48.4, 0.35]];
 const EASE_SLOW = 0.25;
 // The roar: Grameðla's roar clip (3.6 s) from `at`, her neck lowered `neck` degrees and her body a `lunge` of metres toward the lens
 // (in from `at` over `in` s of τ, held, out over `out` s from `back`); the huff (gramedlaExhale) at `huff`, with a nod.
@@ -100,19 +100,29 @@ const ROAR = { at: 46.7, neck: 20, lunge: 1.6, in: 0.9, back: 49.3, out: 1.2, wa
 // the end), 'head' (Grameðla's head as the shot begins, held).
 export const SHOTS = [
   [0, 'chase'], [7.5, 'side'], [13, 'chase'], [20.5, 'front'], [23.8, 'skim'], [30, 'chase'],
-  [35, 'fallsSide'], [38.4, 'fallsTop'], [42.6, 'reveal'], [46, 'roar'], [51.5, 'circle'], [59, 'away'],
+  [35, 'climb'], [39.8, 'burst'], [43.8, 'reveal'], [46, 'roar'], [51.5, 'circle'], [59, 'away'],
 ];
 const BOUND = {
-  chase: { origin: 'egill', offset: [-6.5, 2.4, 0], look: { origin: 'egill', at: [12, -2.6, 0] }, fov: 50 },
-  away: { origin: 'egill', offset: [-6.5, 2.4, 0], look: { origin: 'egill', at: [12, -2.6, 0] }, fov: 50 },
+  // chapter 4's chase, looking a little further down so her dangling feet and tail stay inside the frame (in chapter 4 the bottom edge
+  // cuts them: in front of the screen there)
+  chase: { origin: 'egill', offset: [-6.5, 2.4, 0], look: { origin: 'egill', at: [12, -4.6, 0] }, fov: 50 },
+  away: { origin: 'egill', offset: [-6.5, 2.4, 0], look: { origin: 'egill', at: [12, -4.6, 0] }, fov: 50 },
   side: { origin: 'body', offset: [0, 0.8, 7], look: { origin: 'body', at: [0.6, 0.6, 0] }, fov: 46 },
-  skim: { origin: 'body', offset: [2, 0.4, -6.5], look: { origin: 'body', at: [1.5, -0.4, 0] }, fov: 48 },
+  skim: { origin: 'body', offset: [2, 0.6, -9.5], look: { origin: 'body', at: [1.5, -0.4, 0] }, fov: 48 },
+  // behind and under her over the plunge pool as she climbs, looking up at her and the falling water (the cliff behind her)
+  climb: { origin: 'body', offset: [-8, -1.5, 1.5], look: { origin: 'body', at: [4, 3, 0] }, fov: 50 },
   circle: { origin: 'body', offset: [-1, 1.5, -9], look: { origin: 'body', at: [1.5, 0, 0] }, fov: 50 },
   // over her shoulder as she comes out of the spray, looking between her and Grameðla on the bank ahead
-  reveal: { origin: 'body', offset: [-8, 2.5, 2.5], look: { origin: 'gramedla', share: 0.45 }, fov: 52 },
+  reveal: { origin: 'body', offset: [-9, 3.5, 0], look: { origin: 'gramedla', share: 0.45 }, fov: 52 },
 };
-const FRONT = { lead: 24.6, across: 3.5, above: 1.0, fov: 46, floor: 18 }; // τ she passes the camera's place; m aside; m over the water
-const ROAR_CAM = { ahead: 10, up: 1, fov: 46 }; // m in front of her head, along her facing, and above it
+// Low over the water in the middle of the gorge, ahead of her: she comes straight at us. The camera stands where she will be at τ
+// `lead`, `above` m over the water, looking back along her way `pitch` degrees up (so the water at the bottom edge and the walls at
+// the sides are about D away); D is `plane` m all through the shot: she comes from far behind the screen, through it, and the cut
+// comes when she is about half way out.
+const FRONT = { lead: 24.35, above: 3.5, pitch: 3, fov: 40, plane: 11 };
+// Over the upper river, west of the lip: she bursts up out of the spray toward us (D her depth, never under `floor`).
+const BURST_CAM = { position: [-1376, 62, 128], fov: 46, floor: 16 };
+const ROAR_CAM = { ahead: 10, up: 0, lookUp: 1.6, fov: 46 }; // m in front of her head, along her facing, and above it
 const CLEAR = 1.2; // m a camera keeps over the ground and the water
 const LINES = [
   [1.0, 'flugedla', 'k4_flugedla_hold'],
@@ -263,16 +273,26 @@ export const chapter = {
         const u = route.progressAt(OFFSET + FRONT.lead);
         const p = route.pointAt(u);
         const t = route.tangentAt(u);
-        const side = new V3(-t.z, 0, t.x).normalize();
-        const x = p.x + side.x * FRONT.across;
-        const z = p.z + side.z * FRONT.across;
-        return { position: new V3(x, (route.waterAt(x, z, 2) ?? world.heightAt(x, z)) + FRONT.above, z), fov: FRONT.fov, plane: { floor: FRONT.floor } };
+        const r = route.river.at(route.river.nearest(p.x, p.z).d); // the middle of the river there
+        const position = new V3(r.x, r.level + FRONT.above, r.z);
+        const back = new V3(-t.x, 0, -t.z).normalize();
+        const at = position.clone().addScaledVector(back, 10).add(new V3(0, 10 * Math.tan(rad(FRONT.pitch)), 0));
+        return { position, fov: FRONT.fov, plane: { fixed: FRONT.plane }, look: out => out.copy(at) };
       }
-      if (name === 'fallsSide') return { position: new V3(FALLS.face + 22, 26, FALLS.z + 13), fov: 52, plane: 'her' };
-      if (name === 'fallsTop') return { position: new V3(FALLS.face - 7, FALLS.top + 18, FALLS.z - 22), fov: 38, plane: { floor: 34 } };
-      if (name === 'roar') return { position: roarCam.clone(), fov: ROAR_CAM.fov, plane: 'head', look: out => out.copy(headRest).lerp(gram.headPosition(headV), 0.5) };
+      if (name === 'burst') return { position: new V3(...BURST_CAM.position), fov: BURST_CAM.fov, plane: { floor: BURST_CAM.floor } };
+      if (name === 'roar') return { position: roarCam.clone(), fov: ROAR_CAM.fov, plane: 'head', look: out => out.copy(headRest).lerp(gram.headPosition(headV), 0.5).add(tmp.set(0, ROAR_CAM.lookUp, 0)) };
       return null;
     };
+    // The nearest of her and Egill to the camera: the depth of the nearest of their bones (her tail's tip and her feet hang nearest
+    // the chase camera), so none of them is in front of the screen plane in a shot that puts them on it.
+    const theirBones = [];
+    for (const actor of [her, egill]) actor.model.traverse(o => { if (o.isBone) theirBones.push(o); });
+    const boneAt = new V3();
+    function nearestOfThem(position, target) {
+      let best = depthFrom(position, target, flier.pose.position);
+      for (const bone of theirBones) best = Math.min(best, depthFrom(position, target, bone.getWorldPosition(boneAt)));
+      return best;
+    }
     let fixed = null;
     function step(rig) {
       const bound = BOUND[camState.name];
@@ -288,18 +308,19 @@ export const chapter = {
         const facing = tmp.copy(rig.target).sub(rig.position).setY(0).normalize().dot(hFrame.f);
         camState.roll = clamp((flier.bank / 3) * facing * (reduced ? 0.5 : 1), -8, 8);
         rig.roll = camState.roll;
-        camState.D = depthFrom(rig.position, rig.target, flier.pose.position);
+        camState.D = nearestOfThem(rig.position, rig.target);
       } else if (fixed) {
         rig.fov = fixed.fov;
         rig.position.copy(fixed.position);
         if (fixed.look) fixed.look(rig.target);
         else rig.target.copy(flier.pose.position).add(tmp.set(0, 0.6, 0));
         rig.roll = camState.roll = 0;
-        const d = depthFrom(rig.position, rig.target, flier.pose.position);
+        const d = nearestOfThem(rig.position, rig.target);
         if (fixed.plane === 'head') {
           camState.headD ??= depthFrom(rig.position, rig.target, gram.headPosition(headV));
           camState.D = camState.headD;
-        } else if (fixed.plane?.floor) camState.D = Math.max(fixed.plane.floor, d);
+        } else if (fixed.plane?.fixed) camState.D = fixed.plane.fixed;
+        else if (fixed.plane?.floor) camState.D = Math.max(fixed.plane.floor, d);
         else camState.D = d;
       }
       gler?.setPlane(camState.D, { jump: true });
