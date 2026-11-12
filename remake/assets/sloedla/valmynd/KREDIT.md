@@ -10,3 +10,6 @@ Eigandinn valdi þær 30. október 2026; sóttar sem SVG og gerðar að 512 px w
 | `boogie.webp` | Basic Jukebox | j4p4n | https://openclipart.org/detail/322745 |
 | `fonk.webp` | Disco Party | j4p4n | https://openclipart.org/detail/337390 |
 | `stattu-upp.webp` | Happy Rock Singer | j4p4n | https://openclipart.org/detail/333530 |
+
+Ein mynd er ekki af Openclipart: `sloedla.webp` (Lag Slóeðlu, 12. nóvember 2026) er mynd leiksins sjálfs af Slóeðlu
+(`remake/assets/eitt/parasaurolophus.webp`, sama mynd og á reit Söngs Slóeðlu í bókinni), sett á 512 px gegnsæjan ferning.

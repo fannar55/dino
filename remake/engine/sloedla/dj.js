@@ -49,6 +49,8 @@ export const DJ_LINES = Object.freeze({
   'lag-boogie': ['Rokkhopp! Hoppum og skoppum!', 'Rokkhopp, rokk og ról!', 'Rokkhopp! Upp með hendurnar!'],
   'lag-fonk': ['Fönkhopp! Dillum okkur!', 'Fönkhopp, nú verður fönkí!', 'Fönkhopp! Allir að dilla sér!'],
   'lag-stattu-upp': ['Blár ópal! Stattu upp, svo gott að það ætti að vera bannað!', 'Stattu upp, lagið hans pabba!', 'Stattu upp! Nú standa allir upp og dansa!'],
+  // chapter 5's song (v2/songs/sloedla.js): the tune the animals found for her
+  'lag-sloedla': ['Lag Slóeðlu! Lagið sem dýrin fundu!', 'Lag Slóeðlu, beint úr sefinu!', 'Lag Slóeðlu! Nú syngur allur skógurinn með!'],
 });
 
 /** The recordings, one a way of saying a line: [{ id: 'r10-2', key: 'r10', text }]. */
