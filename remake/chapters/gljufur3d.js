@@ -123,7 +123,7 @@ const FRONT = { lead: 24.35, above: 3.5, pitch: 3, fov: 40, plane: 11 };
 // Over the upper river, west of the lip: she bursts up out of the spray toward us (D her depth, never under `floor`).
 // D is held at `plane`: the bank at the bottom edge is about that far (when D followed her it was 0.43 D there).
 const BURST_CAM = { position: [-1376, 62, 129], fov: 46, plane: 14 };
-const ROAR_CAM = { ahead: 11, up: -1, lookUp: 0.3, fov: 46 }; // m in front of her head, along her facing, and above it
+const ROAR_CAM = { ahead: 11, up: 0, lookUp: 0.3, fov: 46, share: 0.82 }; // m in front of her head, along her facing, and above it; D = share of the head's depth (her jaw and neck cross the bottom edge at about 0.82 of it)
 const CLEAR = 1.2; // m a camera keeps over the ground and the water
 // In a bound shot the ground, the water and the gorge's walls along the frame's border may come no nearer than BORDER_GROUND of D:
 // D is pulled in to keep them there (the water under her in the skim, the bank under the camera), and she goes a little behind the
@@ -141,7 +141,7 @@ const LINES = [
 ];
 // The gorge's flyers peel away from her as she climbs out of the spray, and are gone before Grameðla (they flew round the roar
 // camera and the reveal's edges, in front of the screen): world/ardalur/life.js flyersAway, in the flight's seconds.
-const FLYERS_AWAY = { at: OFFSET + 41.2, seconds: 2.6, stagger: 0.12, out: 40, up: 18 };
+const FLYERS_AWAY = { at: OFFSET + 40.2, seconds: 2.4, stagger: 0.12, out: 40, up: 18 };
 // Plants kept off her path round Grameðla and away (banks.js clear spots), and round Grameðla's feet.
 const PATH_KEEP = 7;
 const GRAM_KEEP = 11;
@@ -351,8 +351,9 @@ export const chapter = {
         rig.roll = camState.roll;
         // the ground's limit eases (it flickers as the rays meet the river's edge): down within a few frames, up slowly; at once on a cut
         const limit = borderGround(rig) / BORDER_GROUND;
-        if (camState.limit === null || !(dt > 0)) camState.limit = limit;
-        else if (Number.isFinite(limit) || Number.isFinite(camState.limit)) {
+        // (a frame of no time, as a frozen capture draws between steps, keeps it as it is)
+        if (camState.limit === null) camState.limit = limit;
+        else if (dt > 0 && (Number.isFinite(limit) || Number.isFinite(camState.limit))) {
           const from = Number.isFinite(camState.limit) ? camState.limit : 120;
           const to = Number.isFinite(limit) ? limit : 120;
           camState.limit = from + (to - from) * (1 - Math.exp(-dt / (to < from ? LIMIT_EASE[0] : LIMIT_EASE[1])));
@@ -366,7 +367,7 @@ export const chapter = {
         rig.roll = camState.roll = 0;
         const d = nearestOfThem(rig.position, rig.target);
         if (fixed.plane === 'head') {
-          camState.headD ??= depthFrom(rig.position, rig.target, gram.headPosition(headV));
+          camState.headD ??= ROAR_CAM.share * depthFrom(rig.position, rig.target, gram.headPosition(headV));
           camState.D = camState.headD;
         } else if (fixed.plane?.fixed) camState.D = fixed.plane.fixed;
         else if (fixed.plane?.floor) camState.D = Math.max(fixed.plane.floor, d);
