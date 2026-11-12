@@ -540,9 +540,10 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   /**
    * Fly butterfly `name` along `path`, a function that sets the Vector3 it is given to where the butterfly is now (called every
    * update; the caller keeps its own clock), facing the way it moves. It eases into the path from where it was over a moment and
-   * stays on it until land() or flutter() takes it.
+   * stays on it until land() or flutter() takes it; with `snap` it starts on the path at once (where nobody sees it: a show's first
+   * frame under its opening black, Fiðrildadansinn).
    */
-  function follow(name, path) {
+  function follow(name, path, { snap = false } = {}) {
     if (typeof path !== 'function') throw new TypeError('A butterfly flies along a function that sets a Vector3');
     const b = named(name);
     if (disposed) return;
@@ -550,6 +551,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     b.mode = 'path';
     b.path = path;
     b.t0 = now();
+    if (snap) path(b.pos);
     b.from.copy(b.pos);
     b.flap0 = b.flap;
   }

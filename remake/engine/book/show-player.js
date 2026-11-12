@@ -20,6 +20,24 @@ export function showAddress(entry, search = '') {
   return `?${next}`;
 }
 
+/**
+ * "Hætta" on a show's end card (round 6): in the book's frame (syning=1, with a page round it) it closes the show as the frame's
+ * close button does (SHOW_CLOSE up to the book, which takes the frame away and shows Myndbönd again); opened on its own it goes to
+ * the game's own start, this page without the show (quality and debug kept). Returns 'closed' or 'start'.
+ */
+export function leaveShow(win = globalThis.window) {
+  const params = new URLSearchParams(win.location.search);
+  if (params.get('syning') === '1' && win.parent && win.parent !== win) {
+    win.parent.postMessage(SHOW_CLOSE, win.location.origin);
+    return 'closed';
+  }
+  const next = new URLSearchParams();
+  for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
+  const query = next.toString();
+  win.location.assign(`${win.location.pathname}${query ? '?' + query : ''}`);
+  return 'start';
+}
+
 export function createShowPlayer(doc, root, { audio = null, win = globalThis.window, onOpen = null, onClose = null } = {}) {
   const player = doc.createElement('section');
   player.className = 'show-player';

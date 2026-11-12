@@ -12,7 +12,8 @@ import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createZoom } from '../engine/book/zoom.js';
-import { createShowPlayer, showAddress, SHOW_CLOSE } from '../engine/book/show-player.js';
+import { createShowPlayer, showAddress, leaveShow, SHOW_CLOSE } from '../engine/book/show-player.js';
+import { endCard } from '../chapters/fidrildi3d.js';
 import { createJuniorFrame } from '../engine/yatzy-junior/frame.js';
 import { rockYaw, ROCK_SWING } from '../engine/book/skeleton-view.js';
 import { createSave } from '../engine/save.js';
@@ -2585,6 +2586,53 @@ test('a show frame keeps only quality and debug from the page, and Escape or the
   win.dispatchEvent(message);
   assert.equal(player.isOpen, false, 'as does Escape in the frame, which it sends up');
   assert.deepEqual(told, ['open', 'close', 'open', 'close']);
+});
+
+test('the show ends with "Aftur" and "Hætta": in the book\'s frame Hætta closes it as the close button does, on its own it goes to the game\'s start', () => {
+  // the card: "Aftur" first and bigger, "Hætta" beside it, both stretched to one height in their row
+  const doc = new FakeDocument([]);
+  const did = [];
+  const card = endCard(doc, { onAgain: () => did.push('again'), onQuit: () => did.push('quit') });
+  const row = card.element.children[0];
+  assert.deepEqual(row.children.map(b => b.textContent), ['Aftur', 'Hætta'], 'Aftur first, Hætta beside it');
+  assert.match(row.style.cssText, /align-items:stretch/, 'the row makes Hætta as tall as Aftur');
+  const size = b => Number(/clamp\((\d+)px/.exec(b.style.cssText)[1]);
+  assert.ok(size(card.again) > size(card.quit), 'Aftur is the bigger choice');
+  card.quit.dispatchEvent(new Event('click'));
+  card.again.dispatchEvent(new Event('click'));
+  assert.deepEqual(did, ['quit', 'again']);
+
+  // in the book's frame: Hætta sends the close up, and the book's player closes the frame (Myndbönd shows again)
+  const page = new FakeDocument(['book']);
+  const top = new EventTarget();
+  top.location = { search: '?chapter=kafli2&quality=low' };
+  const told = [];
+  const player = createShowPlayer(page, page.getElementById('book'), { win: top, onClose: entry => told.push(entry.id) });
+  player.open({ id: 'fidrildi3d', chapter: 'fidrildi3d' });
+  const frameWin = { location: { search: player.frame.src, origin: 'http://localhost:4300', pathname: '/remake/', assign: () => assert.fail('the frame must not navigate') } };
+  frameWin.parent = { postMessage(data, origin) {
+    assert.equal(origin, 'http://localhost:4300', 'to its own origin only');
+    const message = new Event('message');
+    message.data = data;
+    message.source = player.frame.contentWindow;
+    top.dispatchEvent(message);
+  } };
+  assert.equal(leaveShow(frameWin), 'closed');
+  assert.equal(player.isOpen, false, 'the frame is gone');
+  assert.deepEqual(told, ['fidrildi3d']);
+
+  // opened on its own (no page round it, even with syning=1 in its address): the game's start, quality and debug kept
+  for (const search of ['?chapter=fidrildi3d&quality=high&debug=1&t=59', '?chapter=fidrildi3d&syning=1&quality=high&debug=1']) {
+    const gone = [];
+    const alone = { location: { search, origin: 'http://localhost:4300', pathname: '/remake/', assign: url => gone.push(url) } };
+    alone.parent = alone;
+    assert.equal(leaveShow(alone), 'start');
+    assert.deepEqual(gone, ['/remake/?quality=high&debug=1'], search);
+  }
+  const plain = { location: { search: '?chapter=fidrildi3d', origin: 'http://localhost:4300', pathname: '/remake/index.html', assign: url => plain.went = url } };
+  plain.parent = plain;
+  leaveShow(plain);
+  assert.equal(plain.went, '/remake/index.html', 'nothing kept: the page itself');
 });
 
 test('Þrívíddarsafnið and Söngur Slóeðlu are open from the start, unfound tiles keep their name as "?", ribbons show Nýtt! for newly earned items, and Grameðla honours k6_gramedla', () => {
