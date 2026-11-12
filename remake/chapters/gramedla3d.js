@@ -8,7 +8,6 @@
 // One job a file, in gramedla3d/: stage.js (the camera, the screen plane, the lane and the forest), pose.js (her lean, solved to a
 // snout place), keys.js (the key frames as data), cast.js (the butterfly, the flock, Flugeðla with Egill, the specks, the trees'
 // bend), measure.js (the numbers), review.js (the review pages' controls) and calibration.js (step 0).
-import * as THREE from 'three';
 import { createStage } from '../engine/stage3d.js';
 import { endCard, glassesStart } from '../engine/book/show-cards.js';
 import { leaveShow } from '../engine/book/show-player.js';

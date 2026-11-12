@@ -232,3 +232,72 @@ looking at us. It does not read as a broken toy. At 8 % her face fills the frame
 - Her toes at the bottom edge on 4:3 are counted with the floor (within 0.35 m of the ground). Strictly they are her skin at k 0.85.
 - The motes are faint in the stills. The mist lies at the lane's far end; its cards fade beyond 40 m.
 - The frame cost with the glasses is not yet within budget.
+
+### Step 1: seven key-frame stills (2026-11-12)
+
+The review page is `?chapter=gramedla3d&lykill=1` (or `4a`, `7b`). The arrows or the two corner buttons step through it, and it
+wraps. The label is in Icelandic and carries the measured number. `kvordun=1` works as before. Strength is 0.02, D 6.5, pop 1,
+and nothing is saved.
+
+**Code.** The code is split into `remake/chapters/gramedla3d/`:
+- `stage.js`: camera, lane and mist.
+- `keys.js`: the key-frame table. The page is set from its rows alone.
+- `pose.js`: her lean, the held clip, `solveNearest` (her nearest skin, not only the snout tip, held to the row's k) and `standAt`.
+- `cast.js`:
+  - the butterfly and the birds (fugl.glb);
+  - Flugeðla with Egill in the saddle (her beak held each frame);
+  - the specks (glints and leaf ovals);
+  - the trees' bend.
+- `measure.js`: the numbers.
+- `review.js`: the review controls.
+- `calibration.js`: step 0.
+
+The probe is `tools/gramedla-probe.mjs --lykill all`. The test is `tests/gramedla3d-keys.test.mjs` (6 tests).
+
+**Results at 1280×800.** All four sizes are in `qa/thrividd/gramedla/lyklar/maelingar.txt`.
+
+| Frame | What leads | Other measures |
+|---|---|---|
+| 1 | Butterfly 2.0 % out | 26 motes at 1–2 % |
+| 2 | Seven birds at 2.0–2.5 % | Trees bent at 22–50 m |
+| 3 | Beak 1.5 % | Wingtips 5.6 % from the right edge |
+| 4 | Snout at k 1.0 | — |
+| 4a | Her shape 31 m in | — |
+| 5 | Nearest skin 4.0 % | Puffs at 3.6 / 3.0 / 2.3 % |
+| 6 | Roar head 1.77 % | Blast nearest at 3.45 % |
+| 7 | Snout 3.0 % | Butterfly on the snout tip |
+| 7b | Butterfly 3.7 % | Snout 2.5 % |
+
+These hold in all frames at all sizes:
+- The edge rule.
+- The ground at the bottom edge, k 0.859–0.86.
+- The far background at +1.8 %.
+- Nothing passes through anything.
+
+**The middle-60 % rule is broken** in frames 5 and 7 at all sizes, and in 7b on 4:3:
+- A head at 3–4 % is taller than 60 % of the frame. In 5 the chin reaches v 0.80 at k ~0.38; in 7 the skull top reaches v 0.17 at k 0.57.
+- The approved calibration pose broke it the same way.
+
+**Roar.** The nearest roar pose that keeps the edges at all four sizes is k 0.53, so 1.77 % out, well under 4 %.
+
+**Colours.** The birds are rust brown with a cream belly, average rgb(147, 96, 57): warm, with some ghost risk. The butterfly hero
+is orange, not pale.
+
+**Cost.** GPU median with the glasses, quality tablet:
+
+| Frame | GPU median | Wall time per frame |
+|---|---|---|
+| 5 (heaviest) | 19.3 ms | 29.0 ms |
+| 6 | 18.7 ms | 28 ms |
+| 6, plain | 8.5 ms | — |
+
+**Fiðrildadansinn** is unchanged: the stills at 20 s and 47 s are identical, byte for byte.
+
+**Weak spots:**
+- Egill is small and partly hidden. His pointing arm is short.
+- The mist band is bright.
+- The trees bend as a whole lean.
+- The roar mouth is pink inside.
+- Frame 4's front share is floor only.
+- The mouth-corner seam (a pale patch on her left cheek) shows at every head turn tried. The model is not edited.
+- A turn of −0.25 shows both eyes but needs u 0.44 to stay central.
