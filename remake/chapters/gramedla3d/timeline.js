@@ -202,9 +202,11 @@ export const WALK_IN = { from: 19.0, to: 47.3, ramp: 2.5 };
 // her depth from the lens (m): at `far` and beyond she is all mist colour (haze 1), at `gone` not drawn at all (seen 0), fully drawn
 // from `seen` in, and in her own colours from `clear` in (frame 4a, 31 m, is clear of it)
 export const HAZE = { gone: 54, seen: 43, far: 50, clear: 32 };
-// beside the cycad at z −10 her right foot brushed its leaves: her line runs CYCAD.shift m to her left (+x) round it (none at 4a or
-// at 4), over `along`: metres from frame 4's spot it comes in from, is full from and to, and is gone by
-const CYCAD = { shift: 0.5, along: [14, 10, 4, 0.5] };
+// at z −10 the lane runs between a cycad on her right and a broadleaf on her left, nearer together than her feet are wide: on her
+// straight line her right foot went 0.7 m into the cycad's widest fronds, and 0.5 m to her left (+x) her left foot went as deep into
+// the broadleaf's, so her line runs CYCAD.shift m to her left, between them (none at 4a or at 4), and both brush the tips of the
+// fronds as she passes (they shudder at her steps). `along`: metres from frame 4's spot it comes in from, is full from and to, and is gone by
+const CYCAD = { shift: 0.25, along: [14, 10, 4, 0.5] };
 const CAMERA_Z = 8; // stage.js CAMERA's z: her depth is from it
 // her other poses: her head straightening as she leaves, and where she stops at the end, short of the plants by the lane
 // (between frames 5, 6 and 7 she steps back to frame 4's own pose and spot)
