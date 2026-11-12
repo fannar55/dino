@@ -109,14 +109,16 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
   // It sits on the top of her snout (the ridge between her nostrils and her eyes, pose.snoutTop), its feet just above her skin and
   // its wings up over it; it comes down onto it from above and in front (a hover over her snout, nearer us), and lifts off the same
   // way: straight up and toward us first, then on to 7b. Never through her (measure.js counts its pieces inside her).
-  const LANDED = 0.012; // m its feet over her skin
-  const HOVER = { up: 0.3, near: 0.3 }; // m above the landing point and toward the camera: where it comes down from and lifts to
-  const w1 = new THREE.Vector3(), w2 = new THREE.Vector3();
+  const LANDED = 0.075; // m its feet point over her skin: its legs reach 0.038 m below that point at the hero's 1.5 scale (butterflies.js puts the point an unscaled 0.0756 under its body), so they stand on her with a little to spare
+  const HOVER = { up: 0.28, near: 0.1, across: 0.32 }; // m above the landing point, toward the camera and across her snout (to our right): where it comes down from and lifts to; it comes in across her snout, so it sits facing across the ridge, where the skin falls away under its ends
+  const w1 = new THREE.Vector3(), w2 = new THREE.Vector3(), w3 = new THREE.Vector3();
   const onTop = out => pose.snoutTop(out).addScaledVector(UP, LANDED);
   const hover = out => {
     onTop(out);
     w2.copy(stageCam.position).sub(out).setY(0).normalize();
-    return out.addScaledVector(UP, HOVER.up).addScaledVector(w2, HOVER.near);
+    w3.set(0, 0, 1).transformDirection(pose.bones.Head.matrixWorld).setY(0).normalize();
+    if (w3.x < 0) w3.negate();
+    return out.addScaledVector(UP, HOVER.up).addScaledVector(w2, HOVER.near).addScaledVector(w3, HOVER.across);
   };
   const DOWN_FROM = 0.7; // share of the approach spent flying to the hover; the rest coming down onto her snout
   const UP_TO = 0.4; // share of the lift spent rising to the hover; the rest flying on to 7b

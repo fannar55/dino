@@ -185,16 +185,16 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     return list;
   }
   const ray = new THREE.Raycaster();
-  const UP = new THREE.Vector3(0, 1, 0);
-  /** Whether a point is inside her body: a ray straight up crosses her skin an odd number of times. */
+  const UP = new THREE.Vector3(0, 1, 0), ACROSS = new THREE.Vector3(1, 0, 0);
+  /** Whether a point is inside her body: rays straight up and across both cross her skin an odd number of times. */
   function insideHer(q) {
     const materials = [].concat(body.material), sides = materials.map(m => m.side);
     materials.forEach(m => { m.side = THREE.DoubleSide; }); // her skin from inside too
-    ray.set(q, UP);
-    const hits = [];
-    body.raycast(ray, hits);
+    // her mesh is open underneath (a ray down meets her an odd number of times from outside), so up and across must both say inside
+    const odd = dir => { ray.set(q, dir); const hits = []; body.raycast(ray, hits); return hits.length % 2 === 1; };
+    const inside = odd(UP) && odd(ACROSS);
     materials.forEach((m, i) => { m.side = sides[i]; });
-    return hits.length % 2 === 1;
+    return inside;
   }
   const atEdge = (u, v) => u < EDGE || u > 1 - EDGE || v < EDGE || v > 1 - EDGE;
   const point = (q, extra = {}) => { const [u, v, k] = frameOf(q, camera); return { k: r3(k), u: r3(u), v: r3(v), edge: k < 1 && atEdge(u, v), ...extra }; };
@@ -212,6 +212,21 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
       const list = cast.birds.filter(m => m.visible).map(m => point(m.getWorldPosition(new THREE.Vector3())));
       const near = list.reduce((a, b) => (b.k < a.k ? b : a), { k: Infinity });
       row.things.birds = { near, edge: list.find(b => b.edge) ?? null, wide: list.filter(b => b.k < EDGE_K && !(b.u >= MIDDLE[0] && b.u <= MIDDLE[1] && b.v >= MIDDLE[0] && b.v <= MIDDLE[1])).length };
+    }
+    // the footfalls' dust and flecks, her breath and the air (vfx.js, air.js): each set's nearest k, and any of it in front of the
+    // screen at an edge or near and outside the middle
+    row.vfx = {};
+    const sets = { ...(director.vfx?.points() ?? {}), ...(director.air?.points() ?? {}) };
+    for (const [name, list] of Object.entries(sets)) {
+      if (!list.length) continue;
+      let nearK = Infinity, edge = 0, wide = 0;
+      for (const q of list) {
+        const pt = point(q);
+        nearK = Math.min(nearK, pt.k);
+        if (pt.edge) edge++;
+        if (pt.k < EDGE_K && !(pt.u >= MIDDLE[0] && pt.u <= MIDDLE[1] && pt.v >= MIDDLE[0] && pt.v <= MIDDLE[1])) wide++;
+      }
+      row.vfx[name] = { n: list.length, k: r3(nearK), edge, wide };
     }
     row.specks = particles().map(g => ({ group: g.group, front: g.front, k: g.nearest.k, out: g.out, wideNear: g.wideNear, atEdge: g.atEdge }));
     let ground = Infinity;
@@ -245,8 +260,8 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
         row.clear.butterflyPlant = nearestPlant(bpos, 0.08);
         if (n.gram) {
           // the butterfly to her skin (her head's, where it would meet her), with its wings' reach: every piece of it (a spread of its
-          // vertices, wing tips and all) against her head's skin; any piece within 15 cm is tested for being inside her (a ray up
-          // through her skin crosses it an odd number of times). Sitting on her snout is meant: its feet a little above the skin.
+          // vertices, wing tips and all) against her head's skin; any piece within 15 cm is tested for being inside her (rays up
+          // and across both cross her skin an odd number of times). Sitting on her snout is meant: its feet a little above the skin.
           body.skeleton.update();
           const skinNow = [];
           for (let i = 0; i < headVerts.length; i += 2) skinNow.push(body.getVertexPosition(headVerts[i], new THREE.Vector3()).applyMatrix4(body.matrixWorld));
