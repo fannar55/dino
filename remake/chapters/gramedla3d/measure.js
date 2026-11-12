@@ -66,17 +66,16 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     const capsules = shell.place();
     let worst = null;
     for (const pl of nearLane) {
-      const hit = reachInto(plantVolumes(pl), capsules, 0);
+      const hit = reachInto(volumesOf(pl), capsules, 0);
       if (hit && (!worst || hit.depth > worst.depth)) worst = { name: pl.name, x: r3(pl.x), z: r3(pl.z), depth: r3(hit.depth), bone: hit.bone, y: r3(hit.y) };
     }
     if (worst) return { into: worst };
-    // no contact: the nearest any capsule comes to a plant's trunk, across the ground
-    let clear = Infinity;
-    for (const pl of nearLane) {
-      const tr = (pl.model?.trunk?.r ?? 0.3) * (pl.scale ?? 1);
-      for (const c of capsules) for (const p of [c.a, c.b]) clear = Math.min(clear, Math.hypot(pl.x - p[0], pl.z - p[2]) - c.r - tr);
-    }
-    return { clear: r3(clear) };
+    // no contact: how far her capsules could grow before one touches a plant (to 1 cm, up to 2 m)
+    const touches = g => nearLane.some(pl => reachInto(volumesOf(pl), capsules, g));
+    if (!touches(2)) return { clear: 2 };
+    let lo = 0, hi = 2;
+    while (hi - lo > 0.01) { const m = (lo + hi) / 2; if (touches(m)) hi = m; else lo = m; }
+    return { clear: r3(lo) };
   }
   // a small thing (a bird, the butterfly: a ball of radius r at pt) against the plants' own volumes, height and all: the depth into
   // one (negative) or the clearance, found by growing the ball until it touches (to 1 cm, up to 2 m)

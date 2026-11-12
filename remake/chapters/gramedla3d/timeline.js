@@ -85,8 +85,8 @@ function hover(t, c, a, b, size = 1) {
 // (sitting on it) | lift (from her snout to a place).
 const B1 = key('1').butterfly.at;
 const B7b = key('7b').butterfly.at;
-const BUTTERFLY_IN = track([[0, 0.64, 0.4, 3.6], [3.4, ...B1], [6.4, ...B1], [9.2, 0.74, -0.14, 3.2]]);
-const BUTTERFLY_OUT = track([[63.6, ...B7b], [66.0, ...B7b], [67.4, 0.79, 0.36, 0.8], [69.4, 0.64, 0.36, 4.0], [70.6, 0.6, -0.12, 5]]);
+const BUTTERFLY_IN = track([[0, 0.64, 0.4, 3.6], [3.4, ...B1], [6.4, ...B1], [9.2, 0.56, 0.42, 3.8]]); // back into the light it came from
+const BUTTERFLY_OUT = track([[63.6, ...B7b], [66.0, ...B7b], [67.4, 0.79, 0.36, 0.8], [69.4, 0.56, 0.4, 3.0], [70.6, 0.53, 0.42, 5]]); // up the lane into the light, clear of the crowns
 export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [59.4, 61.6], lift: [62.6, 63.6] };
 export function butterflyAt(t) {
   if (t < 9.2) {
@@ -157,8 +157,8 @@ export function birdsAt(t) {
 // 1.5 % out), Egill points back; then back in and up and away. Her flapping clip slows to its first frame (wings up) as she
 // brakes and starts again as she lifts.
 const F3 = key('3').flugedla;
-export const FLIGHT = { from: [0.5, 0.42, 6.5], start: 15.6, brake: [18.8, 19.6], hold: 22.3, gone: 25.4 };
-const FLUG_OUT = track([[FLIGHT.hold, ...F3.beak], [23.6, 0.46, 0.46, 1.7], [FLIGHT.gone, 0.5, -0.75, 2.4]]);
+export const FLIGHT = { from: [0.47, 0.5, 6.0], start: 15.6, brake: [18.8, 19.6], hold: 22.3, gone: 25.4 };
+const FLUG_OUT = track([[FLIGHT.hold, ...F3.beak], [23.6, 0.45, 0.36, 1.4], [FLIGHT.gone, 0.34, -0.75, 1.4]]);
 function flyTime(t) {
   const [b0, b1] = FLIGHT.brake;
   if (t <= b1) {
@@ -176,7 +176,7 @@ export function flugedlaAt(t) {
   const beak = t <= b1 ? between(FLIGHT.from, F3.beak, span(t, FLIGHT.start, b1) ** 0.85) : FLUG_OUT(t);
   // while her wings spread widest in the brake she keeps to the middle (their span is nine tenths of the picture), and only then
   // slides to frame 3's place as they close
-  if (t <= b1) beak[0] = lerp(beak[0], lerp(0.49, F3.beak[0], span(t, 18.95, b1)), span(t, 16.6, 17.6));
+  if (t <= b1) beak[0] = lerp(beak[0], lerp(0.49, F3.beak[0], span(t, 18.65, b1)), span(t, 16.6, 17.6));
   const brake = span(t, b0, b1), leave = span(t, FLIGHT.hold, FLIGHT.hold + 1.1);
   const w = bump(t, 19.8, 20.3, 22.0, 22.5); // Egill's point
   return {
@@ -282,7 +282,7 @@ export function gramAt(t, rig) {
   if (t < 40) lean.roll = poses['4'].roll * bump(t, 37.0, 37.7, 38.6, 39.6);
   // the roar's first breath rears her head up: held down a little then, so it stays off the top edge (none left by frame 6)
   // her last stride into frame 5 would carry the snout a hair past 4 %: a hair less lean then
-  lean.theta -= 0.004 * bump(t, 43.2, 44.0, 45.0, 45.8);
+  lean.theta -= 0.015 * bump(t, 43.0, 44.2, 46.2, 47.4);
   const rear = bump(t, 53.95, 54.25, 54.6, 54.95);
   if (rear > 0) { lean.pitch -= 0.25 * rear; lean.theta += 0.08 * rear; }
   // ---- her clips ----
