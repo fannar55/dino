@@ -29,7 +29,7 @@ export const GROUPS = {
   leavesFar: { kind: 'leaves', count: 80, u: [0.08, 0.92], v: [0.05, 0.7], k: [1.15, 4], size: 0.3, seed: 'far leaves' },
   pollenFar: { kind: 'pollen', count: 70, u: [0.1, 0.9], v: [0.05, 0.65], k: [1.1, 4], size: 0.14, seed: 'far pollen' },
   // Þefið: two or three pale puffs of her breath between her nostrils and us, never nearer than her snout (k 0.334)
-  puffs: { kind: 'puffs', points: [[0.47, 0.6, 0.36], [0.53, 0.63, 0.4], [0.5, 0.66, 0.46]], size: 0.32, seed: 'puffs' },
+  puffs: { kind: 'puffs', points: [[0.41, 0.6, 0.36], [0.47, 0.63, 0.4], [0.44, 0.67, 0.46]], size: 0.32, seed: 'puffs' },
   // Öskrið: leaves, pollen and motes streaming out of her open mouth at the lens, the nearest 3.5 % out, inside the middle
   blastMotes: { kind: 'motes', count: 46, stream: { from: [0.5, 0.62, 0.6], to: [0.5, 0.5, kOf(0.035)], spread: 0.15 }, size: 0.04, seed: 'blast motes' },
   blastPollen: { kind: 'pollen', count: 34, stream: { from: [0.5, 0.62, 0.6], to: [0.5, 0.48, kOf(0.033)], spread: 0.16 }, size: 0.05, seed: 'blast pollen' },
@@ -71,7 +71,7 @@ export const KEYS = [
     id: '3', n: 3, name: 'Flugeðla', time: 21,
     lead: 'flugedla', leadText: 'goggurinn',
     gram: null,
-    flugedla: { beak: [0.5, 0.5, kOf(0.015)], clip: 'fly', at: 0, pitch: 15, yaw: 10, egill: { point: true, lean: 24 } },
+    flugedla: { beak: [0.5, 0.56, kOf(0.015)], clip: 'fly', at: 0, pitch: 15, yaw: 6, egill: { point: true, lean: 28 } },
     particles: ['motesFar'],
   },
   {
@@ -89,7 +89,7 @@ export const KEYS = [
   {
     id: '5', n: 5, name: 'Þefið', time: 48,
     lead: 'gram', leadText: 'trýnið',
-    gram: { k: kOf(0.04), u: 0.5, v: 0.56, turn: -0.25, pitch: 0 },
+    gram: { k: kOf(0.04), u: 0.44, v: 0.56, turn: -0.25, pitch: 0 },
     particles: ['motesFar', 'puffs'],
   },
   {
@@ -102,15 +102,15 @@ export const KEYS = [
   {
     id: '7', n: 7, name: 'Fiðrildið', time: 62,
     lead: 'gram', leadText: 'trýnið',
-    gram: { k: kOf(0.03), u: 0.5, v: 0.62, turn: -0.25, pitch: -0.12 },
+    gram: { k: kOf(0.03), u: 0.44, v: 0.62, turn: -0.25, pitch: -0.12 },
     butterfly: { on: 'snout' },
     particles: ['motesFar'],
   },
   {
     id: '7b', n: 7, variant: 'b', name: 'Fiðrildið', time: 64,
     lead: 'butterfly', leadText: 'fiðrildið',
-    gram: { k: kOf(0.025), u: 0.5, v: 0.6, turn: -0.25, pitch: -0.05 },
-    butterfly: { at: [0.5, 0.47, kOf(0.037)], yaw: 250 },
+    gram: { k: kOf(0.025), u: 0.44, v: 0.6, turn: -0.25, pitch: -0.05 },
+    butterfly: { at: [0.46, 0.47, kOf(0.037)], yaw: 250 },
     particles: ['motesFar'],
   },
 ];
