@@ -150,3 +150,85 @@ Weak, or not measured:
 - Only 1280×800 was measured; the other three shapes were not. There is no node test of the show yet.
 - Not checked: Aftur's replay, playback in real time with sound, how it looks through real glasses, and how long the start's
   `forest.buildAll()` takes. Reduced motion (reduced=1) only loads without errors.
+
+## Grameðla kemur!, step 0: the stage and the calibration (2026-11-12)
+
+The plan is `docs/superpowers/specs/2026-11-12-gramedla-kemur-3d-design.md`.
+
+**Gljúfraflugið removed.** The owner set it aside. `chapters/gljufur3d.js` and `tools/gljufur-probe.mjs` are gone. Chapter 4's
+files are back as on 43df2db (kafli4-flight.js, kafli4-route.js, world/ardalur/index.js and life.js; only the flight show's commits
+had touched them). What the new show uses stays: `engine/book/show-cards.js` and `engine/depth-probe.js`. The depth probe now also
+gives the shares of the picture in front of the screen, at it, behind it and in the sky, the farthest depth, and, with
+`isGround`, the floor along the border apart from the rest.
+
+**The shared stage.** `engine/stage3d.js` holds the still stage of Fiðrildadansinn: the camera's tilt solved for the ground,
+`framePoint`, `frameOf`, `groundEdgeDepth` (now at any point across the bottom edge) and the fixed 16:10 frame. fidrildi3d.js imports
+it. Its stills at 20 and 47 s (glasses and plain) are byte for byte what they were, and its tests pass untouched.
+
+**The stage of the new show** (`chapters/gramedla3d.js`, seed 37):
+- A clearing (radius 8 at [0, 2]) with a footpath that runs straight up -Z from the camera through the forest.
+- `layout.keepOut` clears two areas: a lane 2 × 3.4 m wide to z -48, and, nearer than 14 m, the whole view of the widest screen.
+- `layout.lifeKeepOut` keeps the critters off the same ground. It is a new, show-only option of `world/forest/life.js`; other
+  chapters do not set it, so nothing changes for them.
+- Morning mist at [0, -32] (radius 9, 4.5 m high), four glade shafts and 70 motes of its own. The motes come in front of the screen
+  only in the middle half of the frame.
+- The clearing's own butterflies are hidden for now.
+- Camera: [0, 1.7, 8], looking -Z, fov 46. It tilts up 6.75° (11.25° on 4:3) to keep the ground at the bottom edge at 0.86 D.
+- **D = 6.5 m**, not the plan's 9.5. This model is a chibi standing upright: her toes reach about 3.5 m nearer than her snout's
+  depth would suggest. With D 9.5 her toes crossed the bottom edge in front of the screen above about 2 %, and the measurements
+  ruled that out. At 6.5 they stay at the floor's depth (k ≥ 0.85) up to 4.7 %.
+
+**The lean.** It is a pure function of `out` (k = 1 / (1 + out / 0.02)) and is solved once at the start (`world.gramedla.state.solved`):
+- She is held at the idle's first pose; the mixer is stopped. Each frame starts again from that pose.
+- Spine, chest and neck bend by 0.22 / 0.30 / 0.48 of one angle. The head's standing pitch is given back, then it tilts half the
+  angle down to the lens and turns a little so its outline is centred on the snout.
+- The angle (bisected) and where she stands put the snout tip, the forward-most vertex of the upper jaw within 12 cm of the head's
+  middle, at (0.5, 0.56) of the stage frame at k·D.
+- She breathes by tilting her chest 0.8° every 4.2 s, and blinks on her own. Her snout's k moves by at most 0.002.
+
+| Out | Lean | Stands at z | Snout depth |
+|---|---|---|---|
+| 2 % | 78° | -0.38 | 3.25 m |
+| 3 % | 79° | 0.28 | 2.60 m |
+| 4 % | 78° | 0.71 | 2.17 m |
+| 4.7 % | 76° | 0.91 | 1.94 m |
+| 6 % | 69° | 1.16 | 1.62 m |
+| 8 % | 46° | 1.47 | 1.30 m |
+
+Her body passes back through the screen plane inside the frame (u about 0.46): at 4.7 % chest k 0.93, spine 1.02, hips 1.12.
+
+**The calibration**, `?chapter=gramedla3d&kvordun=1` (`&stilling=1..6&styrkur=0.03` for one at once):
+- Arrows or three buttons: ‹ and › in the bottom corners, "styrkur" in the top right.
+- The label in the top left gives the real parallax, e.g. „Trýnið 7,0 % út · styrkur 0,03 · 4 af 6“.
+- The strength is set from the label, pop is held at 1, and nothing is saved. There is no 3D panel.
+- Without `kvordun` the chapter shows the stage at 4.7 % for 20 s and then the end card. It is a placeholder until step 2.
+
+**Measured** with `tools/gramedla-probe.mjs --sizes all` at 1280×800, 1024×768, 1280×720 and 1170×540. Files:
+qa/thrividd/gramedla/kvordun/maelingar*.
+
+| Out | Snout k | Parallax 0.02 / 0.03 | In front / at / behind / sky (1280×800) | Head share, high × wide | Edge rule | Floor at bottom edge |
+|---|---|---|---|---|---|---|
+| 2 % | 0.499 | 2.0 / 3.0 % | 18 / 2 / 79 / 0.6 % | 59 × 34 % | holds, all four shapes | 0.866 |
+| 3 % | 0.399 | 3.0 / 4.5 % | 24 / 3 / 73 / 0.6 % | 67 × 40 % | holds, all four | 0.866 |
+| 4 % | 0.334 | 4.0 / 6.0 % | 30 / 4 / 66 / 0.6 % | 73 × 46 % | holds, all four | 0.866 |
+| 4.7 % | 0.299 | 4.7 / 7.0 % | 35 / 3 / 61 / 0.6 % | 78 × 50 % | holds, all four | 0.866; **0.852 on 4:3** (her toes) |
+| 6 % | 0.249 | 6.0 / 9.0 % | 44 / 3 / 53 / 0.1 % | 89 × 56 % | **broken**: skull top at the top edge, k 0.41 (holds on 4:3) | 0.851; **0.822 on 4:3** (toes) |
+| 8 % | 0.200 | 8.0 / 12.0 % | 55 / 2 / 43 / 0 % | 115 × 67 % | **broken** everywhere: the head is taller than the frame, k 0.20–0.33 | **0.79–0.80** |
+
+- The ground along the bottom edge (rays): 0.859–0.86 D everywhere.
+- The far background: +1.8 % at 0.02, +2.7 % at 0.03 (the lane's end, about 10 D). The sky is +2 / +3 %.
+- No plant: her capsules reach into none of the plants near the lane.
+- Stills: qa/thrividd/gramedla/kvordun/, g1- (glasses) and g0- (plain), 1280×800, `<n>-trynid<out>-styrkur<s>`.
+- Frame cost (Iris Xe, quality tablet, 1280×800), GPU median: 13.6 ms with the glasses at 4.7 % (26.6 ms a frame on the wall),
+  14.9 ms at 8 %; 4.9 ms plain. Over a 60 Hz budget with the glasses on.
+
+**Looking at the plain stills.** From 2 to 6 % she reads as an animal leaning down to sniff: a deep bow, her head held level,
+looking at us. It does not read as a broken toy. At 8 % her face fills the frame and her skull is cut at the top.
+
+**Weak:**
+- One eye shows and the other hides behind the snout's ridge, so the face reads turned a little to her right, even after the
+  outline turn.
+- The bow is very deep (76–79°), with the chest folded under the head. A dedicated lean-and-sniff animation would do it better.
+- Her toes at the bottom edge on 4:3 are counted with the floor (within 0.35 m of the ground). Strictly they are her skin at k 0.85.
+- The motes are faint in the stills. The mist lies at the lane's far end; its cards fade beyond 40 m.
+- The frame cost with the glasses is not yet within budget.

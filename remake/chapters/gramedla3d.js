@@ -66,6 +66,8 @@ const BREATH_S = 4.2;
 // her lean: spine, chest and neck bend down by these shares of one angle; the head turns the snout to the lens
 const LEAN = { Spine: 0.22, Chest: 0.3, Neck: 0.48 };
 const SNOUT_MID = 0.12; // m
+const TURN_GAIN = 2.3; // radians of head turn per share of the frame's width the head's outline is off its snout
+const TURN_MAX = 0.08; // radians: a head larger than the frame (8 %) has no outline to centre
 const AIM = 0.5; // how much of the angle down to the lens the head turns
 const LEAN_RANGE = [0, 1.5]; // radians
 
@@ -150,11 +152,11 @@ export const chapter = {
 
     // ---- the lean: spine, chest and neck down by shares of `theta` (radians), the head turned so the snout points at the lens ----
     const right = new THREE.Vector3(), sp = new THREE.Vector3(), hp = new THREE.Vector3();
-    const UP = new THREE.Vector3(0, 1, 0);
+    const UP = new THREE.Vector3(0, 1, 0), hv = new THREE.Vector3();
     // Every lean starts from the idle's first pose, which she is held at (the mixer is stopped): neither the mixer nor the actor's
     // own layers (look, talk) can be trusted to pose these bones again before the next lean, so they are set back here.
     const rest = ['Spine', 'Chest', 'Neck', 'Head'].map(n => [bones[n], bones[n].quaternion.clone()]);
-    function lean(theta) {
+    function lean(theta, turn = 0) {
       for (const [o, r] of rest) o.quaternion.copy(r);
       gram.root.updateMatrixWorld(true);
       right.set(0, 0, 1).applyQuaternion(gram.root.quaternion);
@@ -168,15 +170,15 @@ export const chapter = {
       bones.Head.getWorldPosition(hp);
       snout(sp);
       const yaw = Math.atan2(camera.position.x - hp.x, camera.position.z - hp.z) - Math.atan2(sp.x - hp.x, sp.z - hp.z);
-      rotateBoneWorld(bones.Head, q.setFromAxisAngle(UP, yaw));
+      rotateBoneWorld(bones.Head, q.setFromAxisAngle(UP, yaw + turn));
     }
     // the aim is at the screen's camera: it stands where the stage's does
     camera.position.copy(camPos);
 
     /** Her pose with the idle at its start, standing at (x, z) facing the lens and leaning by theta: the snout tip (moved in place). */
-    function poseAt(x, z, theta, p = new THREE.Vector3()) {
+    function poseAt(x, z, theta, p = new THREE.Vector3(), turn = 0) {
       at(x, z);
-      lean(theta);
+      lean(theta, turn);
       return snout(p);
     }
     /**
@@ -210,7 +212,30 @@ export const chapter = {
         theta = (lo + hi) / 2;
       }
       place(theta);
-      return { x: +x.toFixed(3), z: +z.toFixed(3), theta: +theta.toFixed(4), lean: +(theta * 180 / Math.PI).toFixed(1), error: +p.distanceTo(want).toFixed(4), k };
+      // the head's outline centred on the snout in the frame (the idle holds it a little turned, and the snout tip alone does not
+      // say which way the face looks): a small turn about the upright, its root moved again after each
+      let turn = 0;
+      const centre = () => {
+        body.skeleton.update();
+        let u0 = Infinity, u1 = -Infinity;
+        for (let i = 0; i < headVerts.length; i += 3) {
+          const u = frameOf(body.getVertexPosition(headVerts[i], hv).applyMatrix4(body.matrixWorld), stageCam, D)[0];
+          u0 = Math.min(u0, u); u1 = Math.max(u1, u);
+        }
+        return (u0 + u1) / 2 - frameOf(snout(hv), stageCam, D)[0];
+      };
+      for (let i = 0; i < 4; i++) {
+        poseAt(x, z, theta, p, turn);
+        turn = Math.max(-TURN_MAX, Math.min(TURN_MAX, turn + TURN_GAIN * centre()));
+        for (let j = 0; j < 8; j++) {
+          poseAt(x, z, theta, p, turn);
+          x += want.x - p.x;
+          z += want.z - p.z;
+        }
+      }
+      poseAt(x, z, theta, p, turn);
+      const off = centre();
+      return { x: +x.toFixed(3), z: +z.toFixed(3), theta: +theta.toFixed(4), turn: +turn.toFixed(4), off: +off.toFixed(4), lean: +(theta * 180 / Math.PI).toFixed(1), error: +p.distanceTo(want).toFixed(4), k };
     }
     const solved = OUT.map(o => solve(kOf(o)));
 
@@ -222,12 +247,12 @@ export const chapter = {
       const sol = solved[index];
       at(sol.x, sol.z);
       gram.mixer.update(0);
-      lean(sol.theta); // leaning at once, whether or not a frame comes before the next look
+      lean(sol.theta, sol.turn); // leaning at once, whether or not a frame comes before the next look
     }
     show(view.index);
     let breathT = 0;
     gram.setOverlay(dt => {
-      lean(solved[view.index].theta);
+      lean(solved[view.index].theta, solved[view.index].turn);
       breathT += dt;
       rotateBoneWorld(bones.Chest, q.setFromAxisAngle(right, rad(BREATH) * Math.sin((2 * Math.PI * breathT) / BREATH_S)));
     });
