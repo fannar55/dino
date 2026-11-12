@@ -89,7 +89,7 @@ export const SHOW_KEYS = [...KEYS.filter(([t]) => t <= KEYS.find(k => k[1] === '
 const SKIM = { lane: [23.5, 30.2], down: 24.2, up: 28.6, splash: [24.9, 28.9, 0.22] };
 // Slow motion (the game clock's scale, as chapter 4's slow second): [from τ, to τ, scale]; it eases in and out over EASE_SLOW of τ.
 // The first lets her come out of the screen over the water at a pace the eyes follow; the second is the roar and her pass.
-export const SLOWS = [[23.2, 23.8, 0.45], [47.0, 48.4, 0.35]];
+export const SLOWS = [[23.0, 23.55, 0.45], [47.0, 48.4, 0.35]];
 const EASE_SLOW = 0.25;
 // The roar: Grameðla's roar clip (3.6 s) from `at`, her neck lowered `neck` degrees and her body a `lunge` of metres toward the lens
 // (in from `at` over `in` s of τ, held, out over `out` s from `back`); the huff (gramedlaExhale) at `huff`, with a nod.
@@ -99,8 +99,8 @@ const ROAR = { at: 46.7, neck: 20, lunge: 1.6, in: 0.9, back: 49.3, out: 1.2, wa
 // her body) or fixed; `plane` says how D is set: 'her' (her body's depth), { floor } (hers, never under the floor: she comes out at
 // the end), 'head' (Grameðla's head as the shot begins, held).
 export const SHOTS = [
-  [0, 'chase'], [7.5, 'side'], [13, 'chase'], [20.5, 'front'], [23.8, 'skim'], [30, 'chase'],
-  [35, 'climb'], [39.8, 'burst'], [43.8, 'reveal'], [46, 'roar'], [51.5, 'circle'], [59, 'away'],
+  [0, 'chase'], [7.5, 'side'], [13, 'chase'], [20.5, 'front'], [23.55, 'skim'], [30, 'chase'],
+  [35, 'climb'], [39.8, 'burst'], [44.0, 'reveal'], [46, 'roar'], [51.5, 'circle'], [59, 'away'],
 ];
 const BOUND = {
   // chapter 4's chase, looking a little further down so her dangling feet and tail stay inside the frame (in chapter 4 the bottom edge
@@ -108,12 +108,12 @@ const BOUND = {
   chase: { origin: 'egill', offset: [-6.5, 2.4, 0], look: { origin: 'egill', at: [12, -4.6, 0] }, fov: 50 },
   away: { origin: 'egill', offset: [-6.5, 2.4, 0], look: { origin: 'egill', at: [12, -4.6, 0] }, fov: 50 },
   side: { origin: 'body', offset: [0, 0.8, 7], look: { origin: 'body', at: [0.6, 0.6, 0] }, fov: 46 },
-  skim: { origin: 'body', offset: [2, 0.6, -9.5], look: { origin: 'body', at: [1.5, -0.4, 0] }, fov: 48 },
+  skim: { origin: 'body', offset: [2, 1.4, -11], look: { origin: 'body', at: [1.5, -0.2, 0] }, fov: 48 },
   // behind and under her over the plunge pool as she climbs, looking up at her and the falling water (the cliff behind her)
   climb: { origin: 'body', offset: [-8, -1.5, 1.5], look: { origin: 'body', at: [4, 3, 0] }, fov: 50 },
   circle: { origin: 'body', offset: [-1, 1.5, -9], look: { origin: 'body', at: [1.5, 0, 0] }, fov: 50 },
   // over her shoulder as she comes out of the spray, looking between her and Grameðla on the bank ahead
-  reveal: { origin: 'body', offset: [-9, 3.5, 0], look: { origin: 'gramedla', share: 0.45 }, fov: 52 },
+  reveal: { origin: 'egill', offset: [-10, 2.4, 0], look: { origin: 'gramedla', share: 0.45 }, fov: 50 },
 };
 // Low over the water in the middle of the gorge, ahead of her: she comes straight at us. The camera stands where she will be at τ
 // `lead`, `above` m over the water, looking back along her way `pitch` degrees up (so the water at the bottom edge and the walls at
@@ -121,9 +121,15 @@ const BOUND = {
 // comes when she is about half way out.
 const FRONT = { lead: 24.35, above: 3.5, pitch: 3, fov: 40, plane: 11 };
 // Over the upper river, west of the lip: she bursts up out of the spray toward us (D her depth, never under `floor`).
-const BURST_CAM = { position: [-1376, 62, 128], fov: 46, floor: 16 };
-const ROAR_CAM = { ahead: 10, up: 0, lookUp: 1.6, fov: 46 }; // m in front of her head, along her facing, and above it
+// D is held at `plane`: the bank at the bottom edge is about that far (when D followed her it was 0.43 D there).
+const BURST_CAM = { position: [-1376, 62, 129], fov: 46, plane: 14 };
+const ROAR_CAM = { ahead: 11, up: -1, lookUp: 0.3, fov: 46 }; // m in front of her head, along her facing, and above it
 const CLEAR = 1.2; // m a camera keeps over the ground and the water
+// In a bound shot the ground, the water and the gorge's walls along the frame's border may come no nearer than BORDER_GROUND of D:
+// D is pulled in to keep them there (the water under her in the skim, the bank under the camera), and she goes a little behind the
+// screen instead. 0.9 of D is about 3 px of parallax at 1280 wide (fidrildi3d.js keeps its ground at the bottom edge at 0.85 D).
+const BORDER_GROUND = 0.9;
+const BORDER_RAYS = [[0, 1], [0.25, 1], [0.5, 1], [0.75, 1], [1, 1], [0, 0.5], [1, 0.5], [0, 0], [1, 0], [0.5, 0]];
 const LINES = [
   [1.0, 'flugedla', 'k4_flugedla_hold'],
   [10.0, 'egill', 'k4_egill_flyers'],
@@ -145,6 +151,7 @@ for (let t = OFFSET + 42; t <= OFFSET + LENGTH; t += 0.4) {
 }
 // her head as it stands (measured in the page: the roar camera is placed from the real one; this is for the plants only)
 const HEAD_GUESS = new V3(GRAMEDLA.at[0] + GF[0] * 5.5, 56, GRAMEDLA.at[1] + GF[1] * 5.5);
+keep.push({ x: HEAD_GUESS.x + GF[0] * 11, z: HEAD_GUESS.z + GF[1] * 11, r: 10 });
 const views = [{ position: HEAD_GUESS.clone().add(new V3(GF[0] * ROAR_CAM.ahead, ROAR_CAM.up, GF[1] * ROAR_CAM.ahead)), looks: [HEAD_GUESS] }];
 
 /** Less motion: the page's ask (prefers-reduced-motion), ?reduced=1, or what a test's world says. */
@@ -279,7 +286,7 @@ export const chapter = {
         const at = position.clone().addScaledVector(back, 10).add(new V3(0, 10 * Math.tan(rad(FRONT.pitch)), 0));
         return { position, fov: FRONT.fov, plane: { fixed: FRONT.plane }, look: out => out.copy(at) };
       }
-      if (name === 'burst') return { position: new V3(...BURST_CAM.position), fov: BURST_CAM.fov, plane: { floor: BURST_CAM.floor } };
+      if (name === 'burst') return { position: new V3(...BURST_CAM.position), fov: BURST_CAM.fov, plane: { fixed: BURST_CAM.plane } };
       if (name === 'roar') return { position: roarCam.clone(), fov: ROAR_CAM.fov, plane: 'head', look: out => out.copy(headRest).lerp(gram.headPosition(headV), 0.5).add(tmp.set(0, ROAR_CAM.lookUp, 0)) };
       return null;
     };
@@ -291,6 +298,36 @@ export const chapter = {
     function nearestOfThem(position, target) {
       let best = depthFrom(position, target, flier.pose.position);
       for (const bone of theirBones) best = Math.min(best, depthFrom(position, target, bone.getWorldPosition(boneAt)));
+      return best;
+    }
+    // The nearest the ground, the water or a wall comes along the frame's border, seen from the rig (marched rays through BORDER_RAYS,
+    // the camera's own lens and shape): view-space depth, Infinity where the ray meets nothing within 120 m.
+    const rayCam = new THREE.PerspectiveCamera();
+    const rayDir = new V3(), rayAt = new V3(), forward = new V3();
+    function borderGround(rig) {
+      const cam = world.camera;
+      rayCam.fov = director.effectiveFov(rig.fov);
+      rayCam.aspect = cam.aspect;
+      rayCam.near = cam.near; rayCam.far = cam.far;
+      rayCam.position.copy(rig.position);
+      rayCam.up.set(0, 1, 0);
+      rayCam.lookAt(rig.target);
+      if (rig.roll) rayCam.rotateZ(-rad(rig.roll));
+      rayCam.updateProjectionMatrix();
+      rayCam.updateMatrixWorld();
+      forward.set(0, 0, -1).applyQuaternion(rayCam.quaternion);
+      let best = Infinity;
+      for (const [u, v] of BORDER_RAYS) {
+        rayDir.set(2 * u - 1, 1 - 2 * v, 0.5).unproject(rayCam).sub(rayCam.position).normalize();
+        let t = 0.5;
+        let hit = null;
+        while (t < 120) {
+          rayAt.copy(rayCam.position).addScaledVector(rayDir, t);
+          if (rayAt.y < groundAt(rayAt.x, rayAt.z)) { hit = t; break; }
+          t += Math.max(0.25, t * 0.04);
+        }
+        if (hit !== null) best = Math.min(best, hit * rayDir.dot(forward));
+      }
       return best;
     }
     let fixed = null;
@@ -308,7 +345,7 @@ export const chapter = {
         const facing = tmp.copy(rig.target).sub(rig.position).setY(0).normalize().dot(hFrame.f);
         camState.roll = clamp((flier.bank / 3) * facing * (reduced ? 0.5 : 1), -8, 8);
         rig.roll = camState.roll;
-        camState.D = nearestOfThem(rig.position, rig.target);
+        camState.D = Math.min(nearestOfThem(rig.position, rig.target), borderGround(rig) / BORDER_GROUND);
       } else if (fixed) {
         rig.fov = fixed.fov;
         rig.position.copy(fixed.position);
@@ -442,7 +479,9 @@ export const chapter = {
       cues.push([ROAR.watch, () => gram.lookAt(flier.pose.position, { maxAngle: 70, maxPitch: 35 })]);
       cues.push([ROAR.at - 0.3, () => gram.lookAt(() => world.camera.position, { maxAngle: 70, maxPitch: 35 })]);
       cues.push([ROAR.at, () => { gram.play('roar', { fade: 0.3, once: true }); s.sfx('gramedlaRoar'); }]);
-      cues.push([ROAR.back + 0.4, () => { gram.play('idle', { fade: 0.8 }); gram.lookAt(flier.pose.position, { maxAngle: 70, maxPitch: 35 }); }]);
+      cues.push([ROAR.back, () => gram.play('idle', { fade: 0.8 })]);
+      // she looks for Flugeðla again once her head is back (looking up with it still forward took her snout out of the top edge)
+      cues.push([ROAR.back + ROAR.out, () => gram.lookAt(flier.pose.position, { maxAngle: 70, maxPitch: 35 })]);
       cues.push([ROAR.huff, () => s.sfx('gramedlaExhale')]);
       for (const [from, to, scale] of SLOWS) {
         // the song plays on through the slow motion: a lenient window lets its playhead follow the sound (as chapter 4's slow second)
