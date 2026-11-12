@@ -87,7 +87,7 @@ const B1 = key('1').butterfly.at;
 const B7b = key('7b').butterfly.at;
 const BUTTERFLY_IN = track([[0, 0.64, 0.4, 3.6], [3.4, ...B1], [6.4, ...B1], [9.2, 0.74, -0.14, 3.2]]);
 const BUTTERFLY_OUT = track([[63.6, ...B7b], [66.0, ...B7b], [67.4, 0.79, 0.36, 0.8], [69.4, 0.64, 0.36, 4.0], [70.6, 0.6, -0.12, 5]]);
-export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [58.2, 60.6], lift: [62.6, 63.6] };
+export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [59.4, 61.6], lift: [62.6, 63.6] };
 export function butterflyAt(t) {
   if (t < 9.2) {
     const at = BUTTERFLY_IN(t);
@@ -174,13 +174,15 @@ export function flugedlaAt(t) {
   if (t < FLIGHT.start || t > FLIGHT.gone) return null;
   const [b0, b1] = FLIGHT.brake;
   const beak = t <= b1 ? between(FLIGHT.from, F3.beak, span(t, FLIGHT.start, b1) ** 0.85) : FLUG_OUT(t);
+  // while her wings spread widest in the brake she keeps to the middle (their span is nine tenths of the picture), and only then
+  // slides to frame 3's place as they close
+  if (t <= b1) beak[0] = lerp(beak[0], lerp(0.49, F3.beak[0], span(t, 18.95, b1)), span(t, 16.6, 17.6));
   const brake = span(t, b0, b1), leave = span(t, FLIGHT.hold, FLIGHT.hold + 1.1);
   const w = bump(t, 19.8, 20.3, 22.0, 22.5); // Egill's point
   return {
     beak, clip: F3.clip, at: flyTime(t),
     pitch: lerp(lerp(0, F3.pitch, brake), 35, leave),
-    // she turns before her wings open wide in the brake, so their tips stay off the screen's edges
-    yaw: lerp(lerp(0, F3.yaw, span(t, b0 - 1.8, b1)), 0, span(t, FLIGHT.hold + 0.3, FLIGHT.hold + 1.3)),
+    yaw: lerp(lerp(0, F3.yaw, span(t, b0 - 0.2, b1)), 0, span(t, FLIGHT.hold + 0.3, FLIGHT.hold + 1.3)),
     neck: lerp(F3.neck, 0, span(t, FLIGHT.hold, FLIGHT.hold + 0.9)) * brake,
     egill: { point: w > 0, weight: w, lean: F3.egill.lean, aim: F3.egill.aim },
   };
@@ -190,16 +192,14 @@ export function flugedlaAt(t) {
 // Grameðla. Her root's place and how she leans (theta, turn, roll, pitch: pose.js's lean) apart, and the clips she is in:
 // idle (breathing), walk (its second from the metres walked) and roar, each with a weight.
 export const WALK_IN = { from: 26.3, to: 37.3, ramp: 1.2 };
-// her other poses: drawn back with her head up for a breath before the roar, settled after it, straightening as she leaves, and
-// where she stops at the end (in the mist)
+// her other poses: her head straightening as she leaves, and where she stops at the end, short of the plants by the lane
+// (between frames 5, 6 and 7 she steps back to frame 4's own pose and spot)
 export function gramPoses(rig) {
   const p = { ...rig };
   const lean = (base, over) => ({ x: base.x, z: base.z, theta: 0, turn: 0, roll: 0, pitch: 0, ...over });
-  // drawn back a little (less leaning in than frame 6, head lifted no higher than keeps it off the top edge)
-  p.back = lean(rig['6'], { theta: 0.46, turn: rig['6'].turn, pitch: -0.02 });
-  p.back2 = lean(rig['6'], { theta: 0.48, turn: rig['6'].turn, pitch: -0.05 });
+  p['4s'] = { ...rig['4'], roll: 0 }; // frame 4 without its head tilt (that comes and goes round its second alone)
   p.up = lean(rig['7b'], { theta: 0.62, pitch: -0.05 });
-  p.exit = lean({ x: 0.1, z: -9.6 }, { theta: 0.3 });
+  p.exit = lean({ x: 0.1, z: -7.0 }, { theta: 0.3 }); // short of the cycad and the broadleaf that flank the lane at z −10
   return p;
 }
 const dist = (a, b) => Math.hypot(b.x - a.x, b.z - a.z);
@@ -214,25 +214,28 @@ function walkProfile(t) {
 }
 // root moves: [t0, t1, from, to, walk second at t0 (null: no stepping), +1 forward or -1 backing]
 const STEPS = [
-  [40.6, 44.6, '4', '5', 0.6, 1],
-  [49.0, 52.6, '5', 'back', 0.7, -1],
-  [58.0, 60.4, 'back2', '7', 0.7, 1],
+  [40.6, 44.6, '4s', '5', 0.6, 1],
+  // between the things that come out she steps back to frame 4's spot (her snout at the screen plane) and rests there
+  [49.0, 51.8, '5', '4s', 0.7, -1],
+  [52.9, 55.0, '4s', '6', 0.7, 1],
+  [56.6, 58.8, '6', '4s', 0.7, -1],
+  [59.2, 61.4, '4s', '7', 0.7, 1],
   [62.6, 63.6, '7', '7b', null, 0],
   [66.6, 73.8, '7b', 'exit', 0.7, -1],
 ];
 // and her lean between poses: [t0, t1, from, to]
 const LEANS = [
-  [40.6, 44.6, '4', '5'],
-  [49.0, 52.6, '5', 'back'],
-  [53.9, 55.0, 'back', '6'],
-  [55.6, 57.4, '6', 'back2'],
-  [58.0, 60.4, 'back2', '7'],
+  [40.6, 44.6, '4s', '5'],
+  [49.0, 51.8, '5', '4s'],
+  [52.9, 55.0, '4s', '6'],
+  [56.6, 58.8, '6', '4s'],
+  [59.2, 61.4, '4s', '7'],
   [62.6, 63.6, '7', '7b'],
   [65.8, 67.6, '7b', 'up'],
   [67.6, 73.8, 'up', 'exit'],
 ];
 // the roar: its clip from 0 so its widest jaw is at frame 6's second; [in, in, out, out] its weight
-export const ROARING = { at: key('6').time - ROAR.widest, weight: [53.9, 54.25, 56.15, 56.55] };
+export const ROARING = { at: key('6').time - ROAR.widest, weight: [54.2, 54.7, 56.15, 56.55] };
 
 function walkIn(t, poses) {
   const a = poses['4a'], b = poses['4'];
@@ -277,6 +280,11 @@ export function gramAt(t, rig) {
   for (const [t0, t1, from, to] of LEANS) if (t >= t0) lean = lerpPose(poses[from], poses[to], span(t, t0, t1));
   // frame 4's head tilt, on its own: up and down again round its second
   if (t < 40) lean.roll = poses['4'].roll * bump(t, 37.0, 37.7, 38.6, 39.6);
+  // the roar's first breath rears her head up: held down a little then, so it stays off the top edge (none left by frame 6)
+  // her last stride into frame 5 would carry the snout a hair past 4 %: a hair less lean then
+  lean.theta -= 0.004 * bump(t, 43.2, 44.0, 45.0, 45.8);
+  const rear = bump(t, 53.95, 54.25, 54.6, 54.95);
+  if (rear > 0) { lean.pitch -= 0.25 * rear; lean.theta += 0.08 * rear; }
   // ---- her clips ----
   const roarW = bump(t, ...ROARING.weight);
   const walkW = walk ? walk.weight : 0;
@@ -293,7 +301,7 @@ function idleTime(t) {
   if (t < 42.6) return mod(t - key('4').time, IDLE);
   // around frame 5 (her snout at 4 %, the limit) the breath swings to and fro about the frame's moment of it, never into the
   // part of the clip (its second 0.8–1.8) that pushes the snout 0.02 % further out
-  if (t < 59.2) return mod(0.6 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
+  if (t < 60.0) return mod(0.6 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
   if (t < key('7').time) return mod(t - key('7').time, IDLE);
   if (t < key('7b').time) return mod(2 * (t - key('7').time), IDLE);
   return mod(t - key('7b').time, IDLE);

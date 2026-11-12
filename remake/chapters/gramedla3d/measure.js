@@ -67,7 +67,7 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     let worst = null;
     for (const pl of nearLane) {
       const hit = reachInto(plantVolumes(pl), capsules, 0);
-      if (hit && (!worst || hit.depth > worst.depth)) worst = { name: pl.name, x: r3(pl.x), z: r3(pl.z), depth: r3(hit.depth) };
+      if (hit && (!worst || hit.depth > worst.depth)) worst = { name: pl.name, x: r3(pl.x), z: r3(pl.z), depth: r3(hit.depth), bone: hit.bone, y: r3(hit.y) };
     }
     if (worst) return { into: worst };
     // no contact: the nearest any capsule comes to a plant's trunk, across the ground
