@@ -44,6 +44,7 @@ function parseArgs(argv) {
     else if (a === '--bench') o.bench = next().split(',').map(Number);
     else if (a === '--depth') o.depth = next() !== '0';
     else if (a === '--until') o.until = Number(next());
+    else if (a === '--hide') o.hide = next();
   }
   return o;
 }
@@ -191,6 +192,7 @@ async function motion(o, size, evaluate, errors, send) {
   let nextShot = every, shots = 0, n = 0;
   const started = Date.now();
   if (o.shots) await fsp.mkdir(path.resolve(o.shots), { recursive: true });
+  if (o.hide) await evaluate(`document.querySelectorAll(${JSON.stringify(o.hide)}).forEach(e => { e.style.display = 'none'; })`); // --hide <selector>: out of the stills (the 3D button, for a poster)
   const shoot = async name => {
     await evaluate('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
