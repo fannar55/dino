@@ -7,6 +7,8 @@ import { KEYS, GROUPS } from './keys.js';
 import { gramAt, butterflyAt, birdsAt, flugedlaAt, specksAt, treesAt, mistAt, cues, between, WALK_IN } from './timeline.js';
 
 const CLIPS = ['idle', 'walk', 'roar'];
+// the morning mist far up the lane as it looks on the screen (sampled from a plain capture at 20 s, where she starts)
+const MIST_COLOUR = new THREE.Color('#bccbc6');
 
 /**
  * Her poses for the keys she is in, solved on the stage (pose.js): frame 4a standing up the lane, the others leaning so her nearest
@@ -40,13 +42,40 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
   }));
   let her = null; // the timeline's Grameðla this frame
   gram.setOverlay(null);
+  // far up the lane she is in the morning haze: her own colours fade toward the mist's (her albedo down, the mist's colour as her
+  // emissive), and at the very start she is drawn faint as well (timeline.js HAZE). Her materials are hers alone (one trex).
+  const hazed = [];
+  gram.model.traverse(o => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) {
+      if (!m || hazed.some(h => h.m === m) || !m.color) continue;
+      hazed.push({ m, colour: m.color.clone(), emissive: m.emissive?.clone() ?? null, transparent: m.transparent, opacity: m.opacity });
+    }
+  });
+  const meshes = [];
+  gram.model.traverse(o => { if (o.isMesh) meshes.push({ o, cast: o.castShadow }); });
+  let hazeNow = -1, seenNow = -1;
+  function poseHaze(haze, seen) {
+    if (Math.abs(haze - hazeNow) < 1e-4 && Math.abs(seen - seenNow) < 1e-4) return;
+    hazeNow = haze; seenNow = seen;
+    for (const h of hazed) {
+      h.m.color.copy(h.colour).multiplyScalar(1 - haze);
+      if (h.emissive) h.m.emissive.copy(h.emissive).lerp(MIST_COLOUR, haze);
+      const faint = seen < 0.999;
+      if (h.m.transparent !== (faint || h.transparent)) { h.m.transparent = faint || h.transparent; h.m.needsUpdate = true; }
+      h.m.opacity = h.opacity * seen;
+    }
+    // no shadow from her while she is still mostly haze (it would lie on the lane before she is there)
+    for (const { o, cast } of meshes) o.castShadow = cast && haze < 0.5;
+  }
   gram.control(() => {
     if (!her) {
       gram.place(away[0], away[1]);
       gram.root.visible = false;
       return;
     }
-    gram.root.visible = true;
+    gram.root.visible = her.seen > 0.003;
+    poseHaze(her.haze ?? 0, her.seen ?? 1);
     for (const name of CLIPS) {
       const a = actions[name];
       const layer = her.layers.find(l => l.clip === name);

@@ -11,16 +11,16 @@
 // clip's second follows the metres walked (GAIT.speed metres for each second of the clip, measured on the model).
 import { KEYS, GROUPS, kOf } from './keys.js';
 
-export const LENGTH = 74.8; // s: then the end card
-export const FADE = { in: [0, 1.5], out: [73.6, 74.8] };
+export const LENGTH = 84.8; // s: then the end card
+export const FADE = { in: [0, 1.5], out: [83.6, 84.8] };
 export const BEATS = [
   { n: 1, name: 'Kyrrð', from: 0, to: 8 },
   { n: 2, name: 'Dynkur', from: 8, to: 16 },
   { n: 3, name: 'Flugeðla', from: 16, to: 26 },
-  { n: 4, name: 'Hún kemur', from: 26, to: 40 },
-  { n: 5, name: 'Þefið', from: 40, to: 52 },
-  { n: 6, name: 'Öskrið', from: 52, to: 58 },
-  { n: 7, name: 'Fiðrildið', from: 58, to: LENGTH },
+  { n: 4, name: 'Hún kemur', from: 26, to: 50 },
+  { n: 5, name: 'Þefið', from: 50, to: 62 },
+  { n: 6, name: 'Öskrið', from: 62, to: 68 },
+  { n: 7, name: 'Fiðrildið', from: 68, to: LENGTH },
 ];
 
 // Measured on the models (tools/gramedla-probe.mjs): her walk covers GAIT.speed m for each second of its clip with the feet planted
@@ -37,13 +37,13 @@ export const CUES = {
   birdsUp: 10.5, // the flock bursts from the crowns
   hunKemur: 20.3, // Egill: "Hún kemur!"
   flugedlaUp: 22.3, // she lifts off and leaves
-  mistStirs: 25.6,
-  blink: 38.9,
-  sniff: [45.3, 46.8, 48.3], // her breath (the puffs)
-  breathIn: 52.6,
-  roar: 53.97,
-  huff: 62.6, // the soft huff that lifts the butterfly
-  bless: 69.2, // Egill: "Bless, Grameðla!"
+  mistStirs: 27.0, // as she walks through its thickest patch (z −32)
+  blink: 48.9,
+  sniff: [55.3, 56.8, 58.3], // her breath (the puffs)
+  breathIn: 62.6,
+  roar: 63.97,
+  huff: 72.6, // the soft huff that lifts the butterfly
+  bless: 79.2, // Egill: "Bless, Grameðla!"
   end: FADE.out[0],
 };
 
@@ -86,8 +86,8 @@ function hover(t, c, a, b, size = 1) {
 const B1 = key('1').butterfly.at;
 const B7b = key('7b').butterfly.at;
 const BUTTERFLY_IN = track([[0, 0.64, 0.4, 3.6], [3.4, ...B1], [6.4, ...B1], [9.2, 0.56, 0.42, 3.8]]); // back into the light it came from
-const BUTTERFLY_OUT = track([[63.6, ...B7b], [66.0, ...B7b], [67.4, 0.82, 0.36, 0.8], [69.4, 0.56, 0.4, 3.0], [70.6, 0.53, 0.42, 5]]); // up the lane into the light, clear of the crowns
-export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [59.4, 61.6], lift: [62.6, 63.6] };
+const BUTTERFLY_OUT = track([[73.6, ...B7b], [76.0, ...B7b], [77.4, 0.82, 0.36, 0.8], [79.4, 0.56, 0.4, 3.0], [80.6, 0.53, 0.42, 5]]); // up the lane into the light, clear of the crowns
+export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [69.4, 71.6], lift: [72.6, 73.6] };
 export function butterflyAt(t) {
   if (t < 9.2) {
     const at = BUTTERFLY_IN(t);
@@ -98,9 +98,9 @@ export function butterflyAt(t) {
   if (t < BUTTERFLY.approach[1]) return { mode: 'approach', from: BUTTERFLY.approachFrom, e: span(t, ...BUTTERFLY.approach) };
   if (t < BUTTERFLY.lift[0]) return { mode: 'snout' };
   if (t < BUTTERFLY.lift[1]) return { mode: 'lift', to: B7b, e: span(t, ...BUTTERFLY.lift) };
-  if (t < 70.6) {
+  if (t < 80.6) {
     const at = BUTTERFLY_OUT(t);
-    const [du, dv] = hover(t, key('7b').time, 63.6, 66.0);
+    const [du, dv] = hover(t, key('7b').time, 73.6, 76.0);
     return { mode: 'at', at: [at[0] + du, at[1] + dv, at[2]] };
   }
   return { mode: 'hidden' };
@@ -191,7 +191,18 @@ export function flugedlaAt(t) {
 // ================================================================================================================================
 // Grameðla. Her root's place and how she leans (theta, turn, roll, pitch: pose.js's lean) apart, and the clips she is in:
 // idle (breathing), walk (its second from the metres walked) and roar, each with a weight.
-export const WALK_IN = { from: 26.3, to: 37.3, ramp: 1.2 };
+// Her walk in (the owner, 2026-11-12: she popped in; she must come small out of the far distance): from the lane's far end (her
+// root 54 m from the lens, z −46), inside the morning mist, all the way to frame 4's spot, at 1.64 m/s (her walk clip at 1.46 times
+// its pace; it was 2.2 and read as brisk), easing in and out over `ramp` s. She sets off while Flugeðla is still in front ("Hún
+// kemur!" is said of her), hidden in the haze: HAZE says how she firms up out of it by her distance.
+export const WALK_IN = { from: 19.0, to: 47.3, ramp: 2.5 };
+// her depth from the lens (m): at `far` and beyond she is all mist colour (haze 1), at `gone` not drawn at all (seen 0), fully drawn
+// from `seen` in, and in her own colours from `clear` in (frame 4a, 31 m, is clear of it)
+export const HAZE = { gone: 54, seen: 43, far: 50, clear: 32 };
+// beside the cycad at z −10 her right foot brushed its leaves: her line runs CYCAD.shift m to her left (+x) round it (none at 4a or
+// at 4), over `along`: metres from frame 4's spot it comes in from, is full from and to, and is gone by
+const CYCAD = { shift: 0.5, along: [14, 10, 4, 0.5] };
+const CAMERA_Z = 8; // stage.js CAMERA's z: her depth is from it
 // her other poses: her head straightening as she leaves, and where she stops at the end, short of the plants by the lane
 // (between frames 5, 6 and 7 she steps back to frame 4's own pose and spot)
 export function gramPoses(rig) {
@@ -214,28 +225,28 @@ function walkProfile(t) {
 }
 // root moves: [t0, t1, from, to, walk second at t0 (null: no stepping), +1 forward or -1 backing]
 const STEPS = [
-  [40.6, 44.6, '4s', '5', 0.6, 1],
+  [50.6, 54.6, '4s', '5', 0.6, 1],
   // between the things that come out she steps back to frame 4's spot (her snout at the screen plane) and rests there
-  [49.0, 51.8, '5', '4s', 0.7, -1],
-  [52.9, 55.0, '4s', '6', 0.7, 1],
-  [56.4, 58.4, '6', '4s', 0.7, -1],
-  [59.4, 61.4, '4s', '7', 0.7, 1],
-  [62.6, 63.6, '7', '7b', null, 0],
-  [66.6, 73.8, '7b', 'exit', 0.7, -1],
+  [59.0, 61.8, '5', '4s', 0.7, -1],
+  [62.9, 65.0, '4s', '6', 0.7, 1],
+  [66.4, 68.4, '6', '4s', 0.7, -1],
+  [69.4, 71.4, '4s', '7', 0.7, 1],
+  [72.6, 73.6, '7', '7b', null, 0],
+  [76.6, 83.8, '7b', 'exit', 0.7, -1],
 ];
 // and her lean between poses: [t0, t1, from, to]
 const LEANS = [
-  [40.6, 44.6, '4s', '5'],
-  [49.0, 51.8, '5', '4s'],
-  [52.9, 55.0, '4s', '6'],
-  [56.4, 58.4, '6', '4s'],
-  [59.4, 61.4, '4s', '7'],
-  [62.6, 63.6, '7', '7b'],
-  [67.2, 68.8, '7b', 'up'], // once the butterfly is past her head
-  [68.8, 73.8, 'up', 'exit'],
+  [50.6, 54.6, '4s', '5'],
+  [59.0, 61.8, '5', '4s'],
+  [62.9, 65.0, '4s', '6'],
+  [66.4, 68.4, '6', '4s'],
+  [69.4, 71.4, '4s', '7'],
+  [72.6, 73.6, '7', '7b'],
+  [77.2, 78.8, '7b', 'up'], // once the butterfly is past her head
+  [78.8, 83.8, 'up', 'exit'],
 ];
 // the roar: its clip from 0 so its widest jaw is at frame 6's second; [in, in, out, out] its weight
-export const ROARING = { at: key('6').time - ROAR.widest, weight: [54.2, 54.7, 56.15, 56.55] };
+export const ROARING = { at: key('6').time - ROAR.widest, weight: [64.2, 64.7, 66.15, 66.55] };
 
 function walkIn(t, poses) {
   const a = poses['4a'], b = poses['4'];
@@ -246,7 +257,9 @@ function walkIn(t, poses) {
   // the line from frame 4's spot through 4a's, that far beyond it where she starts
   const ux = (a.x - b.x) / L1, uz = (a.z - b.z) / L1;
   const along = L1 + sAt4a - s; // metres from frame 4's spot
-  return { x: b.x + ux * along, z: b.z + uz * along, walkTime: mod(key('4a').gram.at + (s - sAt4a) / GAIT.speed, GAIT.cycle), speed: speed * Math.max(0, walkProfile(t + 0.01) - walkProfile(t - 0.01)) / 0.02, start: { x: b.x + ux * (L1 + sAt4a), z: b.z + uz * (L1 + sAt4a) } };
+  const [c0, c1, c2, c3] = CYCAD.along;
+  const aside = CYCAD.shift * Math.min(smooth((c0 - along) / (c0 - c1)), smooth((along - c3) / (c2 - c3)));
+  return { x: b.x + ux * along + aside, z: b.z + uz * along, walkTime: mod(key('4a').gram.at + (s - sAt4a) / GAIT.speed, GAIT.cycle), speed: speed * Math.max(0, walkProfile(t + 0.01) - walkProfile(t - 0.01)) / 0.02, start: { x: b.x + ux * (L1 + sAt4a), z: b.z + uz * (L1 + sAt4a) } };
 }
 
 /** Grameðla at second t: null before she is on the stage; else { x, z, theta, turn, roll, pitch, layers: [{ clip, time, weight }], speed }. */
@@ -254,11 +267,14 @@ export function gramAt(t, rig) {
   if (t < WALK_IN.from) return null;
   const poses = gramPoses(rig);
   // ---- her root ----
-  let x, z, walk = null, speed = 0;
+  let x, z, walk = null, speed = 0, seen = 1, haze = 0;
   if (t <= WALK_IN.to) {
     const w = walkIn(t, poses);
     ({ x, z } = w);
     speed = w.speed;
+    const depth = CAMERA_Z - z;
+    seen = smooth((HAZE.gone - depth) / (HAZE.gone - HAZE.seen));
+    haze = smooth((depth - HAZE.clear) / (HAZE.far - HAZE.clear));
     walk = { time: w.walkTime, weight: 1 - span(t, WALK_IN.to - 0.7, WALK_IN.to + 0.1) };
   } else {
     let at = poses['4'];
@@ -275,15 +291,15 @@ export function gramAt(t, rig) {
   }
   // ---- her lean ----
   let lean = t <= WALK_IN.to
-    ? lerpPose({ theta: 0, turn: 0, roll: 0, pitch: 0 }, { ...poses['4'], roll: 0 }, span(t, 34.4, WALK_IN.to))
+    ? lerpPose({ theta: 0, turn: 0, roll: 0, pitch: 0 }, { ...poses['4'], roll: 0 }, span(t, 44.4, WALK_IN.to))
     : { ...poses['4'], roll: 0 };
   for (const [t0, t1, from, to] of LEANS) if (t >= t0) lean = lerpPose(poses[from], poses[to], span(t, t0, t1));
   // frame 4's head tilt, on its own: up and down again round its second
-  if (t < 40) lean.roll = poses['4'].roll * bump(t, 37.0, 37.7, 38.6, 39.6);
+  if (t < 50) lean.roll = poses['4'].roll * bump(t, 47.0, 47.7, 48.6, 49.6);
   // the roar's first breath rears her head up: held down a little then, so it stays off the top edge (none left by frame 6)
   // her last stride into frame 5 would carry the snout a hair past 4 %: a hair less lean then
-  lean.theta += 0.015 * bump(t, 43.0, 44.2, 46.2, 47.4);
-  const rear = bump(t, 53.95, 54.25, 54.6, 54.95);
+  lean.theta += 0.015 * bump(t, 53.0, 54.2, 56.2, 57.4);
+  const rear = bump(t, 63.95, 64.25, 64.6, 64.95);
   if (rear > 0) { lean.pitch -= 0.25 * rear; lean.theta += 0.08 * rear; }
   // ---- her clips ----
   const roarW = bump(t, ...ROARING.weight);
@@ -293,15 +309,15 @@ export function gramAt(t, rig) {
   if (idleW > 0) layers.push({ clip: 'idle', time: idleTime(t), weight: idleW });
   if (walkW > 0) layers.push({ clip: 'walk', time: walk.time, weight: walkW });
   if (roarW > 0) layers.push({ clip: 'roar', time: Math.min(ROAR.length, Math.max(0, t - ROARING.at)), weight: roarW });
-  return { x, z, ...lean, layers, speed };
+  return { x, z, ...lean, layers, speed, seen, haze };
 }
 // her idle's second: 0 at each of frames 4, 5, 7 and 7b (they were solved there), each held to its frame while her other clips
 // carry her between them; between 7 and 7b one breath at twice the pace (the huff)
 function idleTime(t) {
-  if (t < 42.6) return mod(t - key('4').time, IDLE);
+  if (t < 52.6) return mod(t - key('4').time, IDLE);
   // around frame 5 (her snout at 4 %, the limit) the breath swings to and fro about the frame's moment of it, never into the
   // part of the clip (its second 0.8–1.8) that pushes the snout 0.02 % further out
-  if (t < 60.0) return mod(0.3 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
+  if (t < 70.0) return mod(0.3 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
   if (t < key('7').time) return mod(t - key('7').time, IDLE);
   if (t < key('7b').time) return mod(2 * (t - key('7').time), IDLE);
   return mod(t - key('7b').time, IDLE);
@@ -322,7 +338,7 @@ export function drift(t) {
   }
   return Math.sin((Math.PI * (t - a)) / (b - a)) ** 2;
 }
-export const PUFF = { cycle: 1.5, ages: [0.25, 0.75, 1.25], on: [45.0, 49.2] };
+export const PUFF = { cycle: 1.5, ages: [0.25, 0.75, 1.25], on: [55.0, 59.2] };
 // the blast: out of her mouth and slowing, reach × (1 − e^(−(t − from)/tau)) of the way to the table's places, which it is at frame 6's second
 export const BLAST = { from: ROARING.at, reach: 1.08 };
 BLAST.tau = (key('6').time - BLAST.from) / Math.log(BLAST.reach / (BLAST.reach - 1));
@@ -337,8 +353,8 @@ export function specksAt(t) {
   const fall = bump(t, 8.4, 9.0, 15.4, 16.4);
   if (fall > 0) on.leavesFar = on.pollenFar = { alpha: fall };
   if (t > PUFF.on[0] && t < PUFF.on[1]) on.puffs = { alpha: bump(t, PUFF.on[0], PUFF.on[0] + 0.3, PUFF.on[1] - 0.3, PUFF.on[1]) };
-  if (t > BLAST.from && t < 57.6) {
-    const a = bump(t, BLAST.from, BLAST.from + 0.2, 56.4, 57.6);
+  if (t > BLAST.from && t < 67.6) {
+    const a = bump(t, BLAST.from, BLAST.from + 0.2, 66.4, 67.6);
     on.blastMotes = on.blastPollen = on.blastLeaves = { alpha: a };
   }
   return on;
@@ -387,13 +403,13 @@ export function treesAt(t, steps = []) {
   const still4a = smooth(Math.abs(t - key('4a').time) / 0.5);
   for (const s of steps) {
     const x = (t - s.t) / 0.7;
-    if (x <= 0 || x >= 1 || !still4a) continue;
+    if (x <= 0 || x >= 1 || !still4a || s.depth > 42) continue; // (far up the lane the near trees do not feel her)
     const amp = (1 - x) ** 2 * Math.sin(2 * Math.PI * 2.2 * (t - s.t)) * still4a;
     out.push({ name: s.depth < 26 ? 'step0' : 'step1', amp });
   }
   // the blast: bent away as her jaw opens, held, and swinging back to rest
   const k6 = key('6').time;
-  const a6 = t < k6 ? span(t, 54.2, k6) : t <= 55.7 ? 1 : (1 - span(t, 55.7, 58.0)) * osc(t, 55.7, 0.8);
+  const a6 = t < k6 ? span(t, 64.2, k6) : t <= 65.7 ? 1 : (1 - span(t, 65.7, 68.0)) * osc(t, 65.7, 0.8);
   if (a6) out.push({ name: 'blast', amp: a6 });
   return out.filter(o => Math.abs(o.amp) > 1e-6);
 }
@@ -401,7 +417,7 @@ export function treesAt(t, steps = []) {
 // ================================================================================================================================
 // The mist stirs as she comes (its cards' level and a slow sway): 1 and still but for that.
 export function mistAt(t) {
-  const e = bump(t, CUES.mistStirs, CUES.mistStirs + 1.2, 29.5, 33);
+  const e = bump(t, CUES.mistStirs, CUES.mistStirs + 1.5, 34.5, 38.5);
   return { level: 1 + 0.25 * e, sway: 0.8 * e * Math.sin(0.9 * (t - CUES.mistStirs)) };
 }
 

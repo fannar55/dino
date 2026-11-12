@@ -2,7 +2,7 @@
 // docs/superpowers/specs/2026-11-12-gramedla-kemur-3d-design.md). A new clearing in the forest with a lane running straight away from
 // the still camera into the morning mist, and Grameðla coming up it until her head is out of the screen.
 //
-//   ?chapter=gramedla3d                the show: the glasses start, about 75 seconds, the end card ("Aftur" plays it again)
+//   ?chapter=gramedla3d                the show: the glasses start, about 85 seconds, the end card ("Aftur" plays it again)
 //   ?chapter=gramedla3d&kvordun=1      step 0, the calibration (gramedla3d/calibration.js): the owner chose "4% 0,02"
 //   ?chapter=gramedla3d&lykill=3       step 1, the key frames (gramedla3d/keys.js): the show stopped at each key's second; arrows
 //                                      (or the buttons) step through them

@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { KEYS, GROUPS, MAX_OUT, EDGE_K, MIDDLE, STRENGTH, kOf, outOf, groupPoints, keyIndex } from '../chapters/gramedla3d/keys.js';
 import {
-  LENGTH, BEATS, CUES, ROAR, butterflyAt, birdsAt, flugedlaAt, gramAt, specksAt, speckAt, treesAt, cues, TREE_SPECS, BUTTERFLY,
+  LENGTH, BEATS, CUES, ROAR, WALK_IN, butterflyAt, birdsAt, flugedlaAt, gramAt, specksAt, speckAt, treesAt, cues, TREE_SPECS, BUTTERFLY,
 } from '../chapters/gramedla3d/timeline.js';
 
 const nearestOut = kOf(MAX_OUT) - 1e-9; // k no nearer than this
@@ -22,7 +22,7 @@ test('the owner\'s calibration: 4 % out at strength 0.02, k and out the inverse 
 test('every frame names its time, its beat (1 to 7) and what leads it; the seven beats are all there, in the show\'s order', () => {
   const ids = new Set();
   for (const key of KEYS) {
-    assert.ok(Number.isFinite(key.time) && key.time >= 0 && key.time <= 72, `${key.id} has a time in the show`);
+    assert.ok(Number.isFinite(key.time) && key.time >= 0 && key.time <= LENGTH - 2, `${key.id} has a time in the show`);
     assert.ok(key.n >= 1 && key.n <= 7, `${key.id} is one of the seven`);
     assert.ok(key.name && key.leadText && key.lead, `${key.id} says what it is and what leads it`);
     assert.ok(!ids.has(key.id), `${key.id} once`);
@@ -142,13 +142,13 @@ test('at each key\'s second the show is that key\'s row: the stills he approved 
       assert.equal(g.layers[0].clip, key.gram.clip ?? 'idle', what);
       near(g.layers[0].weight, 1, `${what} weight`);
       near(g.layers[0].time, key.gram.at === 'widest' ? ROAR.widest : key.gram.at ?? 0, `${what} clip second`, 1e-6);
-    } else assert.equal(g, null, `${what}: not on the stage`);
+    } else assert.ok(g === null || g.seen < 0.05, `${what}: not on the stage (or not yet seen in the haze)`);
     // the specks: the row's groups, at the table's places
     const on = specksAt(t);
     assert.deepEqual(Object.keys(on).sort(), [...key.particles].sort(), `${what} specks`);
     for (const name of key.particles) groupPoints(GROUPS[name]).forEach((p, i) => { const s = speckAt(name, i, p, t); nearAll(s.at, p, `${what} ${name} ${i}`); near(s.dx ?? 0, 0, what); near(s.dy ?? 0, 0, what); });
     // the trees
-    const trees = treesAt(t, cues(RIG).steps.filter(s => s.t < 37.4));
+    const trees = treesAt(t, cues(RIG).steps.filter(s => s.t < WALK_IN.to + 0.1));
     if (key.trees) {
       assert.equal(trees.length, 1, `${what}: one bend`);
       assert.deepEqual(TREE_SPECS[trees[0].name], key.trees, what);

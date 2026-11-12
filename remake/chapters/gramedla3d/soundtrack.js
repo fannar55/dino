@@ -14,7 +14,7 @@
 //   { t, bed, seconds, what }                                                    the forest's level (1 as the game lays it), reached
 //                                                                                over `seconds`
 //   { t, line, what }                                                            Egill says a line (LINES), no caption
-import { CUES, FLOCK, FLIGHT, LENGTH, FADE, cues, gramAt, flugedlaAt } from './timeline.js';
+import { CUES, FLOCK, FLIGHT, LENGTH, FADE, BEATS, cues, gramAt, flugedlaAt } from './timeline.js';
 
 /** Egill's two lines (line set gramedla3d in lines.json, made with the voice tool): id → its text. */
 export const LINES = { g3_egill_kemur: 'Hún kemur!', g3_egill_bless: 'Bless, Grameðla!' };
@@ -69,7 +69,7 @@ export function soundEvents(rig) {
   add({ t: 0, bed: 1, seconds: 0.5, what: 'the forest: wind and birds' });
   add({ t: all.thump[0] - 0.5, bed: SOUND.bed.thumps, seconds: 0.5, what: 'the forest drops away for the thumps' });
   add({ t: FLOCK.arrive - 0.6, bed: 1, seconds: 2.5, what: 'the forest comes back with the birds' });
-  add({ t: 58, bed: SOUND.bed.still, seconds: 2, what: 'the forest drops away: beat 7, the stillness' });
+  add({ t: BEATS[6].from, bed: SOUND.bed.still, seconds: 2, what: 'the forest drops away: beat 7, the stillness' });
   add({ t: FADE.out[0], bed: 0, seconds: FADE.out[1] - FADE.out[0], what: 'the forest goes with the fade' });
 
   // ---- beat 1: a bird or two over the forest's wind ----
