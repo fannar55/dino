@@ -1,7 +1,7 @@
 // The child's save (engine/save.js): forgetting it (the address ?nyr=1) and surviving a storage that fails.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSave, defaultChapter, forgetSave } from '../engine/save.js';
+import { awardSticker, createSave, defaultChapter, forgetSave } from '../engine/save.js';
 
 /** A storage of the test's own, as the browser's localStorage behaves. */
 function memoryStorage(initial = {}) {
@@ -40,4 +40,29 @@ test('an old chapter 2 save (Þórseðla\'s star, no Uggeðla\'s) opens chapter 
 test('forgetSave never throws: no storage, or one that fails', () => {
   assert.doesNotThrow(() => forgetSave(null));
   assert.doesNotThrow(() => forgetSave({ removeItem() { throw new Error('blocked'); } }));
+});
+
+test('minigame stickers persist cleanly, omit empty sticker objects, and awardSticker posts to the book frame', () => {
+  const storage = memoryStorage();
+  const save = createSave(storage);
+  assert.deepEqual(save.getStickers(), { hals: 0, junior: 0, sloedla: 0, minnisspil: 0 });
+  save.addStar('k1_kambedla');
+  assert.equal('stickers' in JSON.parse(storage.getItem('mosi-remake-v1')), false, 'no stickers key stored until won');
+
+  save.addSticker('junior');
+  save.addSticker('sloedla');
+  save.addSticker('sloedla');
+  save.addSticker('hals');
+  save.addSticker('minnisspil');
+  const reloaded = createSave(storage);
+  assert.deepEqual(reloaded.getStickers(), { hals: 1, junior: 1, sloedla: 2, minnisspil: 1 });
+  assert.deepEqual(reloaded.get().stars, ['k1_kambedla']);
+
+  const posted = [];
+  const subWin = {
+    location: { origin: 'https://mosi.fannar55.workers.dev' },
+    parent: { postMessage: (msg, origin) => posted.push([msg, origin]) },
+  };
+  awardSticker('sloedla', subWin);
+  assert.deepEqual(posted, [[{ type: 'mosi:sticker', game: 'sloedla' }, 'https://mosi.fannar55.workers.dev']]);
 });
