@@ -24,7 +24,7 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
   function skinOf(actor, step = 3, body = bodyMesh(actor)) {
     body.skeleton.update();
     const pos = body.geometry.attributes.position;
-    let near = { k: Infinity }, edge = { k: Infinity };
+    let near = { k: Infinity }, edge = { k: Infinity }, floorEdge = null;
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (let i = 0; i < pos.count; i += step) {
       body.getVertexPosition(i, p).applyMatrix4(body.matrixWorld);
@@ -34,9 +34,13 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
         if (k < near.k) near = { k: r3(k), u: r3(u), v: r3(v) };
         if (k < 1) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
       }
-      if ((u < EDGE || u > 1 - EDGE || v < EDGE || v > 1 - EDGE) && k < edge.k) edge = { k: r3(k), u: r3(u), v: r3(v) };
+      if ((u < EDGE || u > 1 - EDGE || v < EDGE || v > 1 - EDGE) && k < edge.k) {
+        // toes on the floor at the bottom edge count with the floor (the ground rule's, as at step 1), noted apart
+        if (v > 1 - EDGE && u >= EDGE && u <= 1 - EDGE && p.y - world.heightAt(p.x, p.z) < GRASS) { if (k < (floorEdge?.k ?? Infinity)) floorEdge = { k: r3(k), u: r3(u), v: r3(v) }; }
+        else edge = { k: r3(k), u: r3(u), v: r3(v) };
+      }
     }
-    return { near, edge, frontBox: u0 < Infinity ? [u0, v0, u1, v1].map(r3) : null };
+    return { near, edge, floorEdge, frontBox: u0 < Infinity ? [u0, v0, u1, v1].map(r3) : null };
   }
 
   /** The specks of the groups showing, in the screen's frame now (where the timeline put them: worked out, not seen). */
@@ -175,7 +179,7 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     const n = director.now;
     camera.updateMatrixWorld();
     const row = { t: +n.t.toFixed(3), things: {}, specks: [], clear: {} };
-    const skin = (actor, step, mesh) => { const s = skinOf(actor, step, mesh); return { near: s.near, edge: s.edge.k < 1 ? s.edge : null, box: s.frontBox }; };
+    const skin = (actor, step, mesh) => { const s = skinOf(actor, step, mesh); return { near: s.near, edge: s.edge.k < 1 ? s.edge : null, toes: s.floorEdge?.k < 1 ? s.floorEdge : null, box: s.frontBox }; };
     if (n.gram) row.things.gram = skin(gram, 4);
     if (n.flugedla) { row.things.flugedla = skin(cast.her, 4, cast.herBody()); row.things.egill = skin(cast.boy, 4); }
     const bpos = n.butterfly && n.butterfly.mode !== 'hidden' ? cast.butterflyAt(new THREE.Vector3()) : null;

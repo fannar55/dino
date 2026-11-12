@@ -176,7 +176,7 @@ export function flugedlaAt(t) {
   const beak = t <= b1 ? between(FLIGHT.from, F3.beak, span(t, FLIGHT.start, b1) ** 0.85) : FLUG_OUT(t);
   // while her wings spread widest in the brake she keeps to the middle (their span is nine tenths of the picture), and only then
   // slides to frame 3's place as they close
-  if (t <= b1) beak[0] = lerp(beak[0], lerp(0.49, F3.beak[0], span(t, 18.65, b1)), span(t, 16.6, 17.6));
+  if (t <= b1) beak[0] = lerp(beak[0], lerp(0.497, F3.beak[0], span(t, 18.65, b1)), span(t, 16.6, 17.6));
   const brake = span(t, b0, b1), leave = span(t, FLIGHT.hold, FLIGHT.hold + 1.1);
   const w = bump(t, 19.8, 20.3, 22.0, 22.5); // Egill's point
   return {

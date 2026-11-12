@@ -37,7 +37,7 @@ function parseArgs(argv) {
     else if (a === '--t') o.t = Number(next());
     else if (a === '--hreyfing') o.hreyfing = true;
     else if (a === '--step') o.step = Number(next());
-    else if (a === '--shots') o.shots = next();
+    else if (a === '--shots') { o.shots = next(); if (o.shots === 'none') o.shots = null; }
     else if (a === '--every') o.every = Number(next());
     else if (a === '--plain') o.plain = true;
     else if (a === '--measure') o.measure = next() !== '0';
