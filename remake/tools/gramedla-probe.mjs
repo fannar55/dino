@@ -34,6 +34,7 @@ function parseArgs(argv) {
     else if (a === '--breathe') o.breathe = Number(next());
     else if (a === '--eval') o.eval = next();
     else if (a === '--lykill') o.lykill = next();
+    else if (a === '--t') o.t = Number(next());
   }
   return o;
 }
@@ -95,7 +96,7 @@ async function probe(o, size) {
       return r.result.value;
     };
     const mode = o.lykill ? `lykill=${o.lykill.split(',')[0]}` : 'kvordun=1';
-    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=1.5` });
+    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.t ?? 1.5}` });
     const t0 = Date.now();
     for (;;) {
       let ready = false;

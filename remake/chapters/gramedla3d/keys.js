@@ -42,7 +42,7 @@ export const GROUPS = {
 // second of it ('widest': the roar's widest jaw). turn: extra head turn about the upright (+ to her left, our right), roll: head
 // tilted about its length, pitch: head turned up (+) or down past looking at the lens. null: not on the stage.
 // flugedla: Flugeðla with Egill in her saddle: her beak tip at (u, v, k), held in clip at second `at`, facing us; egill.point: his
-// right arm points back over his shoulder.
+// left arm points back over his shoulder (he leans out `lean` degrees to show beside her neck).
 // butterfly: the pale hero butterfly at (u, v, k), or on: 'snout' (sitting on her snout tip).
 // birds: the flock, each [u, v, k, yaw (degrees: 0 flies across to the right, 90 toward us), wings (0 up .. 1 down)].
 // trees: { shake: m the crowns of the far lane's trees are thrown sideways, depth: [m, m] where }, or { away: m they bend away
@@ -71,7 +71,7 @@ export const KEYS = [
     id: '3', n: 3, name: 'Flugeðla', time: 21,
     lead: 'flugedla', leadText: 'goggurinn',
     gram: null,
-    flugedla: { beak: [0.5, 0.5, kOf(0.015)], clip: 'fly', at: 0, pitch: 15, yaw: 14, egill: { point: true } },
+    flugedla: { beak: [0.5, 0.5, kOf(0.015)], clip: 'fly', at: 0, pitch: 15, yaw: 10, egill: { point: true, lean: 24 } },
     particles: ['motesFar'],
   },
   {

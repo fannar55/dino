@@ -21,8 +21,7 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
   const r3 = n => +n.toFixed(3);
 
   /** The nearest of an actor's skin (every `step`th vertex) in the screen's frame now, and any of it in front of the screen at an edge. */
-  function skinOf(actor, step = 3) {
-    const body = bodyMesh(actor);
+  function skinOf(actor, step = 3, body = bodyMesh(actor)) {
     body.skeleton.update();
     const pos = body.geometry.attributes.position;
     let near = { k: Infinity }, edge = { k: Infinity };
@@ -117,7 +116,7 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     if (key.flugedla) {
       const b = cast.beak();
       const [u, v, k] = frameOf(b, camera);
-      row.actors.flugedla = { beak: { u: r3(u), v: r3(v), k: r3(k), out: r3(outOf(k) * 100) }, skin: skinOf(cast.her), egill: skinOf(cast.boy, 2) };
+      row.actors.flugedla = { beak: { u: r3(u), v: r3(v), k: r3(k), out: r3(outOf(k) * 100) }, skin: skinOf(cast.her, 3, cast.herBody()), egill: skinOf(cast.boy, 2) };
       row.clear.flugedlaPlants = plantsAgainst(cast.her);
     }
     if (key.butterfly) {

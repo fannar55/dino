@@ -13,7 +13,6 @@ import { rideFlier } from '../../engine/flier.js';
 import { createFlierSaddle } from '../../engine/flier-saddle.js';
 import { reachTwoBones } from '../../engine/ik.js';
 import { rotateBoneWorld } from '../../engine/actor.js';
-import { bodyMesh } from '../../engine/clip-probe.js';
 import { BODY_HEIGHT } from '../kafli4-route.js';
 import { GROUPS, groupPoints } from './keys.js';
 
@@ -102,9 +101,15 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
   // her beak tip: the forward-most vertex of her body skinned to her Head or Jaw (in the Head bone's frame, from her first pose)
   let beakLocal = null;
   const herHead = her.model.getObjectByName('Head');
+  // her body: her largest skinned mesh but the saddle (which is skinned to her bones too, and at some qualities has more vertices)
+  const herBody = () => {
+    let best = null;
+    her.model.traverse(o => { if (o.isSkinnedMesh && o !== saddle.mesh && (!best || o.geometry.attributes.position.count > best.geometry.attributes.position.count)) best = o; });
+    return best;
+  };
   function findBeak() {
     her.root.updateMatrixWorld(true);
-    const mesh = bodyMesh(her);
+    const mesh = herBody();
     mesh.skeleton.update();
     const list = mesh.skeleton.bones;
     const ofHead = new Set();
@@ -124,20 +129,26 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
   }
   const beak = (out = new THREE.Vector3()) => out.copy(beakLocal).applyMatrix4(herHead.matrixWorld);
   let pointing = false;
+  let leanOut = 0;
   const pointer = (() => {
     const find = n => { let b = null; boy.model.traverse(o => { if (!b && o.isBone && o.name.endsWith(n)) b = o; }); return b; };
-    const upper = find('RightUpperArm'), lower = find('RightLowerArm'), hand = find('RightHand'), head = find('Head'), neck = find('Neck');
+    const upper = find('LeftUpperArm'), lower = find('LeftLowerArm'), hand = find('LeftHand'), head = find('Head'), neck = find('Neck'), spine = find('Spine');
     const shoulder = new THREE.Vector3(), target = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
     return () => {
       if (!pointing || !upper) return;
       boy.root.updateMatrixWorld(true);
-      // back over his right shoulder: up the lane (away from us), up, and out to his right (our left)
+      // leaning out to the side, so he shows beside her neck (about the line from her to us)
+      if (spine && leanOut) {
+        rotateBoneWorld(spine, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -rad(leanOut)));
+        boy.root.updateMatrixWorld(true);
+      }
+      // back over his left shoulder: up the lane (away from us), up, and out to his left (our right: the side he leans out to)
       upper.getWorldPosition(shoulder);
-      target.copy(shoulder).add(new THREE.Vector3(-0.35, 0.55, -1).normalize().multiplyScalar(1.2));
+      target.copy(shoulder).add(new THREE.Vector3(0.5, 0.6, -1).normalize().multiplyScalar(1.2));
       reachTwoBones(upper, lower, hand, target);
       // and he looks a little that way, still mostly at us
-      if (neck) rotateBoneWorld(neck, new THREE.Quaternion().setFromAxisAngle(UP, rad(-22)));
-      if (head) rotateBoneWorld(head, new THREE.Quaternion().setFromAxisAngle(UP, rad(-18)));
+      if (neck) rotateBoneWorld(neck, new THREE.Quaternion().setFromAxisAngle(UP, rad(22)));
+      if (head) rotateBoneWorld(head, new THREE.Quaternion().setFromAxisAngle(UP, rad(18)));
     };
   })();
   boy.setOverlay(() => pointer());
@@ -155,7 +166,21 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     herRight.set(0, 0, 1).applyQuaternion(her.root.quaternion);
     for (const b of necks) rotateBoneWorld(b, nq.setFromAxisAngle(herRight, -rad(neckDown) / necks.length));
   };
-  her.setOverlay(bowNeck);
+  // each frame, once her clip and neck have posed her, her root moved so the beak tip is where its row puts it (a rigid move: in a
+  // capture the first placement can come before her clip has posed her)
+  let beakWant = null;
+  const dv = new THREE.Vector3();
+  her.setOverlay(() => {
+    bowNeck();
+    if (!beakWant || !beakLocal) return;
+    her.root.updateMatrixWorld(true);
+    dv.copy(beakWant).sub(beak());
+    if (dv.lengthSq() < 1e-8) return;
+    herRoot.position.add(dv);
+    her.root.position.copy(herRoot.position);
+    her.root.updateMatrixWorld(true);
+    body.copy(herRoot.position).add(new THREE.Vector3(0.06, BODY_HEIGHT, 0).applyQuaternion(herRoot.quaternion));
+  });
   async function setFlugedla(spec) {
     if (!spec) {
       herRoot.position.set(0, -50, 0);
@@ -163,6 +188,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
       boy.root.visible = false;
       pointing = false;
       neckDown = 0;
+      beakWant = null;
       return;
     }
     await ready;
@@ -179,6 +205,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     her.root.quaternion.copy(herRoot.quaternion);
     if (!beakLocal) { her.root.position.set(0, 3, -10); beakLocal = findBeak(); }
     const want = at(...spec.beak);
+    beakWant = want.clone();
     herRoot.position.set(want.x, want.y - 1, want.z - 3);
     neckDown = spec.neck ?? 0;
     for (let i = 0; i < 4; i++) {
@@ -190,6 +217,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     her.root.position.copy(herRoot.position);
     body.copy(herRoot.position).add(new THREE.Vector3(0.06, BODY_HEIGHT, 0).applyQuaternion(herRoot.quaternion));
     pointing = Boolean(spec.egill?.point);
+    leanOut = spec.egill?.lean ?? 0;
   }
 
   // ---- the specks: each group one set of glints (or one mesh of leaf flecks), placed once, switched on and off by the frames ----
@@ -297,5 +325,5 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     });
   }
 
-  return { setButterfly, butterflyAt, setBirds, flock, setFlugedla, beak: () => (beakLocal ? beak() : null), her, boy, get riding() { return riding; }, ready, setParticles, groups, bendTrees, get bentCount() { return bentCount; }, fly };
+  return { setButterfly, butterflyAt, setBirds, flock, setFlugedla, beak: () => (beakLocal ? beak() : null), her, herBody, boy, get riding() { return riding; }, ready, setParticles, groups, bendTrees, get bentCount() { return bentCount; }, fly };
 }
