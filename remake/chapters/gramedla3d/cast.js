@@ -349,10 +349,10 @@ export function createCast(world, { stage, D, flugedla, egill }) {
     if (keyNow === lastKey) return;
     lastKey = keyNow;
     // back as built where anything was bent
+    const dirty = new Set(touched);
     for (const geo of touched) {
       const pos = geo.attributes.position, saved = built.get(geo);
       for (const [i, [x, y, z]] of saved) pos.setXYZ(i, x, y, z);
-      pos.needsUpdate = true;
     }
     touched.clear();
     bentCount = 0;
@@ -367,10 +367,24 @@ export function createCast(world, { stage, D, flugedla, egill }) {
         }
         bentCount += b.index.length;
         touched.add(b.geometry);
-        pos.needsUpdate = true;
+        dirty.add(b.geometry);
       }
     }
+    // only the stretch of each buffer the bends reach goes to the GPU (the forest's batches hold every plant of a kind)
+    for (const geo of dirty) {
+      const pos = geo.attributes.position;
+      let range = ranges.get(geo);
+      if (!range) {
+        range = [Infinity, -Infinity];
+        for (const i of built.get(geo).keys()) { range[0] = Math.min(range[0], i); range[1] = Math.max(range[1], i); }
+        ranges.set(geo, range);
+      }
+      pos.clearUpdateRanges();
+      pos.addUpdateRange(range[0] * pos.itemSize, (range[1] - range[0] + 1) * pos.itemSize);
+      pos.needsUpdate = true;
+    }
   }
+  const ranges = new Map(); // geometry -> [first, last] vertex any bend moves
 
   return { butterflies, butterflyAt, birds, flock, poseBirds, birdsReady, poseFlugedla, beak: () => (beakLocal && her.root.visible ? beak() : null), her, herBody, boy, get riding() { return riding; }, ready, poseSpecks, groups, poseTrees, prepareTrees, get bentCount() { return bentCount; } };
 }
