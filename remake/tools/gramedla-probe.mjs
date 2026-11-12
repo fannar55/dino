@@ -33,6 +33,7 @@ function parseArgs(argv) {
     else if (a === '--timeout') o.timeout = Number(next());
     else if (a === '--breathe') o.breathe = Number(next());
     else if (a === '--eval') o.eval = next();
+    else if (a === '--lykill') o.lykill = next();
   }
   return o;
 }
@@ -93,7 +94,8 @@ async function probe(o, size) {
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       return r.result.value;
     };
-    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&kvordun=1&quality=${o.quality}&t=1.5` });
+    const mode = o.lykill ? `lykill=${o.lykill.split(',')[0]}` : 'kvordun=1';
+    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=1.5` });
     const t0 = Date.now();
     for (;;) {
       let ready = false;
@@ -102,6 +104,7 @@ async function probe(o, size) {
       if (Date.now() - t0 > o.timeout * 1000) throw new Error(`the page did not get ready${errors.length ? ': ' + errors[0] : ''}`);
       await sleep(250);
     }
+    if (o.lykill) return await keyFrames(o, size, evaluate, errors);
     if (o.eval) { console.log(JSON.stringify(await evaluate(o.eval), null, 1)); return []; }
     const rows = [];
     for (const strength of [0.02, 0.03]) {
@@ -126,6 +129,34 @@ async function probe(o, size) {
     await stopBrowser(browser).catch(() => {});
     server.close();
   }
+}
+
+// Step 1, the key frames (--lykill all | 1,4a,6): each frame set from the table, a few frames drawn, then measured. With --eval the
+// expression runs once the first frame named is up (its value printed) instead.
+async function keyFrames(o, size, evaluate, errors) {
+  const ids = await evaluate('window.__world.gramedla.keys.map(k => k.id)');
+  const want = o.lykill === 'all' ? ids : o.lykill.split(',');
+  const rows = [];
+  for (const id of want) {
+    await evaluate(`(async () => { const g = window.__world.gramedla; await g.show(g.keys.findIndex(k => k.id === '${id}')); await window.__advance(4 / 30); })()`);
+    if (o.eval) { console.log(JSON.stringify(await evaluate(o.eval), null, 1)); return []; }
+    rows.push(await evaluate('JSON.parse(JSON.stringify(window.__world.gramedla.measure()))'));
+  }
+  const f = x => (x * 100).toFixed(1);
+  console.log(`\n=== ${size} ===`);
+  for (const r of rows) {
+    console.log(`${r.key} ${r.name} (${r.time} s): lead ${r.lead.what} k ${r.lead.k} = ${r.lead.out}% out | picture front ${f(r.picture.front)}% at ${f(r.picture.at)}% behind ${f(r.picture.behind)}% sky ${f(r.picture.sky)}% | far k ${r.background.farthestK} (+${f(r.background.parallax)}%)`);
+    console.log(`   edge ${r.edge.ok ? 'ok' : 'BROKEN'} (border k ${r.edge.border} at ${JSON.stringify(r.edge.borderAt)}) | outside the middle ${r.edge.wideOk ? 'ok' : 'BROKEN'} (k ${r.edge.wide} at ${JSON.stringify(r.edge.wideAt)}) | middle k ${r.edge.middle} | ground ${r.ground.ok ? 'ok' : 'BROKEN'} (k ${r.ground.k}; floor at the border k ${r.edge.groundBorder})`);
+    for (const [name, a] of Object.entries(r.actors)) console.log(`   ${name}: ${JSON.stringify(a)}`);
+    for (const p of r.particles) console.log(`   specks ${p.group} (${p.kind}, ${p.count}): ${p.front} in front, nearest k ${p.nearest.k} (${p.out}%) at u ${p.nearest.u} v ${p.nearest.v}; nearer than k 0.6 outside the middle ${p.wideNear}; in front at an edge ${p.atEdge}`);
+    console.log(`   clear: ${JSON.stringify(r.clear)}`);
+  }
+  if (errors.length) console.log('page errors:', errors.slice(0, 5));
+  if (o.json) {
+    await fsp.mkdir(path.dirname(path.resolve(o.json)), { recursive: true });
+    await fsp.writeFile(path.resolve(`${o.json}-${size}.json`), JSON.stringify({ size, rows }, null, 1));
+  }
+  return rows;
 }
 
 const o = parseArgs(process.argv.slice(2));
