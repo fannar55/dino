@@ -1309,6 +1309,18 @@
    "duration": 1.69,
    "model": "eleven_v4"
   },
+  "gramedla3d/g3_egill_bless": {
+   "key": "983289639ca0ef37c4bf499b8596d1332fcfc872a35cc2debf664acd0517ebee",
+   "mp3": "dfb2d0e6cd2b3c5ea2fd83d8117880c51e974c4ae4b6718fd2804c83e6622256",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
+  "gramedla3d/g3_egill_kemur": {
+   "key": "bcd17112214a42cf662377309f3706d3923b64e54d423a84131e843208f5ff3e",
+   "mp3": "b78d1a4008c29d0225a93a895186cc6e3ccf9a22fbe0e6703c0f0c2f4a9462f8",
+   "duration": 1.61,
+   "model": "eleven_v4"
+  },
   "hals/hals_egill_yay": {
    "key": "847247abcc85321a017ca323d157adec3dc90c5ca99ba06c26614b8dc63ff0bc",
    "mp3": "ee53e0b3c1124f6bec4fe4278493b7bfff1841cda806ca02c4bbe4dd07a054b2",

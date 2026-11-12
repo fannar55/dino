@@ -4713,5 +4713,15 @@
   "src": "assets/audio/kafli5/k5_sloedla_thanks.mp3",
   "duration": 4.25,
   "mouth": "24dc00003000ca7420000000000000000dffe5000deedddcbb00cffd0089947c8ada00874550000000000"
+ },
+ "g3_egill_kemur": {
+  "src": "assets/audio/gramedla3d/g3_egill_kemur.mp3",
+  "duration": 1.61,
+  "mouth": "06db0002efff659950000000000000000"
+ },
+ "g3_egill_bless": {
+  "src": "assets/audio/gramedla3d/g3_egill_bless.mp3",
+  "duration": 1.69,
+  "mouth": "0acfb40000000bef969873450000000000"
  }
 }
