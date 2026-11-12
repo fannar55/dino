@@ -546,16 +546,34 @@ export function createEittGame(doc, {
 
   let view = null;
   let viewLoading = null;
+  function releaseView() {
+    view?.rest();
+    view?.dispose();
+    view = null;
+    viewLoading = null;
+    picture.hidden = false;
+  }
   function startView() {
     if (view) return view.start();
-    viewLoading ??= import('./kambedla-view.js')
-      .then(module => module.createKambedlaView(windowEl, { win }))
+    const loading = viewLoading ??= import('./kambedla-view.js')
+      .then(module => module.createKambedlaView(windowEl, {
+        win,
+        onLost: () => { if (view) releaseView(); },
+      }))
       .then(made => {
+        if (!isOpen || viewLoading !== loading) {
+          made.dispose();
+          return;
+        }
         view = made;
         picture.hidden = true;
-        if (isOpen) view.start();
+        view.start();
       })
-      .catch(error => console.warn('[eitt] Kambeðla stays a picture: her live view could not start.', error));
+      .catch(error => {
+        if (viewLoading === loading) viewLoading = null;
+        console.warn('[eitt] Kambeðla stays a picture: her live view could not start.', error);
+      });
+    return loading;
   }
 
   // ---- Laying out the cards -------------------------------------------------------------------------------------------------
@@ -2102,8 +2120,7 @@ export function createEittGame(doc, {
     hush();
     voice.stop();
     music.stop();
-    view?.rest();
-    view?.stop();
+    releaseView();
     if (multi) fjolspil.closeGame(); // the phones wait for the next lobby, and a wait for a guest ends (the round stays kept)
     leaveMulti();
     setupOpen = false;

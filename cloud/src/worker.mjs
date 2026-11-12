@@ -87,12 +87,27 @@ function keep(response) {
   return kept;
 }
 
+function decodeBase64(b64) {
+  if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(b64);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 /** Files a bug report from the game (engine/villa/villa.js) into R2 under `villur/<time>-<chapter>/` when `env.VIDEOS` is bound. */
 async function villa(request, env) {
   if (request.method === 'GET' || request.method === 'HEAD') {
     return new Response(null, { status: 204, headers: { 'X-Villa': '1', 'Cache-Control': 'no-store' } });
   }
   if (request.method !== 'POST') return new Response('not found', { status: 404 });
+  const reqOrigin = request.headers.get('origin');
+  const fetchSite = request.headers.get('sec-fetch-site');
+  if ((reqOrigin && reqOrigin !== new URL(request.url).origin) || fetchSite === 'cross-site') {
+    return new Response('forbidden', { status: 403 });
+  }
+  const declaredLength = Number(request.headers.get('content-length'));
+  if (declaredLength > REPORT_LIMIT) return new Response(`the report is over ${REPORT_LIMIT} bytes`, { status: 413 });
   const rawBody = await request.text();
   if (rawBody.length > REPORT_LIMIT) return new Response(`the report is over ${REPORT_LIMIT} bytes`, { status: 413 });
   let sent;
@@ -108,7 +123,13 @@ async function villa(request, env) {
   const baseName = folderName(now, sent.report.chapter?.id);
   let folder = `villur/${baseName}`;
   if (env.VIDEOS?.head) {
-    for (let n = 2; await env.VIDEOS.head(`${folder}/skyrsla.json`); n++) folder = `villur/${baseName}-${n}`;
+    let n = 2;
+    while (n <= 25 && await env.VIDEOS.head(`${folder}/skyrsla.json`)) {
+      folder = `villur/${baseName}-${n++}`;
+    }
+    if (n > 25 && await env.VIDEOS.head(`${folder}/skyrsla.json`)) {
+      folder = `villur/${baseName}-${crypto.randomUUID().slice(0, 8)}`;
+    }
   }
   const report = { ...sent.report, saved: { folder, at: now.toISOString() } };
   if (env.VIDEOS?.put) {
@@ -117,11 +138,16 @@ async function villa(request, env) {
       const value = sent.files[file];
       if (typeof value !== 'string') continue;
       if (spec.kind === 'text') {
-        await env.VIDEOS.put(`${folder}/${file}`, value, { httpMetadata: { contentType: spec.type } });
+        const httpMetadata = { contentType: spec.type };
+        if (spec.type.startsWith('text/html')) httpMetadata.contentDisposition = 'attachment';
+        await env.VIDEOS.put(`${folder}/${file}`, value, { httpMetadata });
       } else if (value.startsWith(spec.prefix)) {
-        const bin = atob(value.slice(spec.prefix.length));
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        let bytes;
+        try {
+          bytes = decodeBase64(value.slice(spec.prefix.length));
+        } catch {
+          continue;
+        }
         await env.VIDEOS.put(`${folder}/${file}`, bytes, { httpMetadata: { contentType: spec.type } });
       }
     }

@@ -254,6 +254,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     const leaving = imgs[index];
     audio?.sfx?.('turn');
     text.style.removeProperty('translate'); // the text starts over from the side; the picture leaving keeps its drag until it is gone
+    zoom?.close?.(true);
     hideModel();
     show(to);
     fitText();
@@ -336,6 +337,14 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
   };
   card.addEventListener('pointerup', lift);
   card.addEventListener('pointercancel', lift);
+  card.addEventListener('lostpointercapture', lift);
+  win?.addEventListener?.('blur', () => {
+    fingers.clear();
+    if (drag) {
+      drag = null;
+      unfollow();
+    }
+  });
 
   // ---- Opening and closing -------------------------------------------------------------------------------------------
 
@@ -445,10 +454,10 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     settleFlip();
     fingers.clear();
     drag = null;
+    zoom?.close?.(true);
     hideModel();
     closeCredit();
     audio?.stop?.(); // nothing reads on after the card is shut
-    zoom?.close?.(true);
     if (instant) finishClose();
     else shrink();
     onClose?.(shut);

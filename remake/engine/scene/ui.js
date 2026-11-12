@@ -60,15 +60,16 @@ export function createTray(doc = document) {
   /** Let go of the finger without a drop. */
   function release(entry) {
     if (carried?.entry !== entry) return;
+    const { pointerId } = carried;
+    carried = null;
     doc.removeEventListener('pointermove', onMove, true);
     doc.removeEventListener('pointerup', onUp, true);
     doc.removeEventListener('pointercancel', onCancel, true);
     try {
-      entry.itemEl.releasePointerCapture?.(carried.pointerId);
+      entry.itemEl.releasePointerCapture?.(pointerId);
     } catch {
       // the pointer is already gone
     }
-    carried = null;
   }
 
   function putBack(id) {
@@ -188,10 +189,18 @@ export function createTray(doc = document) {
       const entry = { id, slotEl, itemEl, state: 'home' };
       entries.set(id, entry);
       itemEl.addEventListener('pointerdown', event => onDown(entry, event));
+      itemEl.addEventListener('lostpointercapture', onCancel);
       itemEl.addEventListener('contextmenu', event => event.preventDefault()); // a long press must not end the touch
       return slotEl;
     }));
   }
+
+  doc.addEventListener?.('visibilitychange', () => {
+    if (doc.hidden && carried) putBack(carried.entry.id);
+  });
+  doc.defaultView?.addEventListener?.('blur', () => {
+    if (carried) putBack(carried.entry.id);
+  });
 
   function show(items) {
     build(items);

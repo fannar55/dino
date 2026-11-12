@@ -296,6 +296,7 @@ function* goodbye(s, c, by) {
 // whole forest, but she cannot take off without wind; Egill can make wind.
 function* atTheWhiteTree(s, c) {
   yield* goTo(s, c, 'hvitatre', () => arriveAtTheTree(s, c));
+  s.releaseLocation?.('fen');
   mark(c, 2);
   const { mosi, egill, flugedla } = c;
   // they come in from the south-west, the white tree ahead, and stop below it (tre_arrive: cut to under the black)
@@ -374,11 +375,6 @@ function* roundTheTree(s, c) {
   yield* say(s, c, 'mosi', 'k4_mosi_star');
   yield star;
   s.sfx('journal');
-  if (!s.seeking) {
-    s.journal.open('games');
-    yield s.journal.playGame('minnisspil', { tutorial: true });
-    s.journal.close();
-  }
   yield s.wait(0.8);
 }
 
@@ -441,6 +437,7 @@ function* upAndAway(s, c) {
   void closeUp; // not stopped: the flight's camera takes the shot on as its own, one shot of 1.6 s here and 3 s there
   s.goTo('ardalur', { fade: 0 });
   yield s.until(() => world.location === 'ardalur');
+  s.releaseLocation?.('hvitatre');
   // in the same frame: the flier takes her over on the valley's snag, and Egill rides on it as he did on her here
   mosi.raw.stop();
   const flier = (c.flier = createFlier(flugedla.raw, ROUTE, { world, reduced: c.reduced }));

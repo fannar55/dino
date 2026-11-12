@@ -103,15 +103,18 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   // the notes the child taps, past her chain: a composed note struck hard, or a stem's copy through a brighter edge
   const hits = {};
   const edges = {};
+  const edgeNodes = [];
   for (const role of ROLES) {
     hits[role] = gain(loud, out);
     const clip = context.createWaveShaper();
     clip.curve = CLIP;
     clip.oversample = '2x';
     const high = filter('highpass', EDGE_HZ, { Q: 0.7 });
+    const trim = gain(EDGE_TRIM, hits[role]);
     clip.connect(high);
-    high.connect(gain(EDGE_TRIM, hits[role]));
+    high.connect(trim);
     edges[role] = clip;
+    edgeNodes.push(clip, high, trim);
   }
   const loose = gain(0.5 * loud, out); // a miss's bloop and a tap at no note, outside her chain
   // each layer's own level, into her chain, a tier, or the song bus
@@ -122,13 +125,18 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   }
 
   const sources = new Set(); // every buffer source playing: the stems, the hits' copies, the strays
-  const play = (buffer, { at, from, to, length: seconds }) => {
+  let cleanupTimer = null;
+  const play = (buffer, { at, from, to, length: seconds, after = null }) => {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(to);
     source.start(at, from);
     if (seconds !== undefined) source.stop(at + seconds);
-    source.onended = () => sources.delete(source);
+    source.onended = () => {
+      sources.delete(source);
+      source.disconnect?.();
+      after?.();
+    };
     sources.add(source);
     return source;
   };
@@ -244,11 +252,17 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     body.gain.setValueAtTime(0, when);
     body.gain.linearRampToValueAtTime(ACCENT_GAIN * level, when + ACCENT_ATTACK);
     body.gain.setTargetAtTime(0, when + ACCENT_ATTACK, seconds / 3);
-    const source = play(layer.buffer, { at: when, from: offset + note.t + (when - at), to: body, length: seconds });
     const edge = gain(0, edges[note.role]);
     edge.gain.setValueAtTime(0, when);
     edge.gain.linearRampToValueAtTime(EDGE_GAIN * level, when + ACCENT_ATTACK);
     edge.gain.setTargetAtTime(0, when + ACCENT_ATTACK, EDGE_TAU);
+    const source = play(layer.buffer, {
+      at: when,
+      from: offset + note.t + (when - at),
+      to: body,
+      length: seconds,
+      after: () => { body.disconnect?.(); edge.disconnect?.(); },
+    });
     source.connect(edge);
   }
 
@@ -283,6 +297,22 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
       bus.gain.setTargetAtTime(0, now, 0.015);
       for (const source of sources) try { source.stop(now + 0.3); } catch { /* not started */ }
       sources.clear();
+      clearTimeout(cleanupTimer);
+      cleanupTimer = setTimeout(() => {
+        cleanupTimer = null;
+        if (started) return;
+        for (const node of [
+          bus, shelf, mood, loose,
+          ...tiers,
+          ...Object.values(chains).flatMap(c => [c.filter, c.gate]),
+          ...Object.values(hits),
+          ...edgeNodes,
+          ...Object.values(layers),
+        ]) {
+          try { node.disconnect?.(); } catch {}
+        }
+      }, 360);
+      cleanupTimer?.unref?.();
     },
     pump,
     /**
@@ -326,7 +356,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
       envelope.gain.setValueAtTime(0, now);
       envelope.gain.linearRampToValueAtTime(STRAY_GAIN * (layer.gain ?? 1), now + ACCENT_ATTACK);
       envelope.gain.setTargetAtTime(0, now + ACCENT_ATTACK, STRAY_LENGTH / 3);
-      play(layer.buffer, { at: now, from, to: envelope, length: STRAY_LENGTH });
+      play(layer.buffer, { at: now, from, to: envelope, length: STRAY_LENGTH, after: () => envelope.disconnect?.() });
     },
     setTier(next) {
       if (next === tier) return;

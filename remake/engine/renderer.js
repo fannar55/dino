@@ -79,6 +79,13 @@ export function createRenderer(canvas, q) {
   }
 
   addEventListener('resize', () => applySize());
+  canvas.addEventListener?.('webglcontextlost', event => {
+    event.preventDefault();
+    console.warn('[renderer] main WebGL context lost; awaiting restoration');
+  });
+  canvas.addEventListener?.('webglcontextrestored', () => {
+    sizePending = true;
+  });
   // a resize the next render would apply, applied now (engine/gler.js sizes its eye targets from the canvas first)
   const flushSize = () => { if (sizePending) applySize(camera.current); };
   return { renderer, applySize, adapt, flushSize, get resolutionScale() { return dynamic; } };
