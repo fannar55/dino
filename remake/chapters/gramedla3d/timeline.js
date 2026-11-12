@@ -87,7 +87,7 @@ const B1 = key('1').butterfly.at;
 const B7b = key('7b').butterfly.at;
 const BUTTERFLY_IN = track([[0, 0.64, 0.4, 3.6], [3.4, ...B1], [6.4, ...B1], [9.2, 0.56, 0.42, 3.8]]); // back into the light it came from
 const BUTTERFLY_OUT = track([[73.6, ...B7b], [76.0, ...B7b], [77.4, 0.82, 0.36, 0.8], [79.4, 0.56, 0.4, 3.0], [80.6, 0.53, 0.42, 5]]); // up the lane into the light, clear of the crowns
-export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [69.4, 71.6], lift: [72.6, 73.6] };
+export const BUTTERFLY = { approachFrom: [0.6, -0.1, 1.02], approach: [69.4, 71.6], lift: [72.6, 73.6] };
 export function butterflyAt(t) {
   if (t < 9.2) {
     const at = BUTTERFLY_IN(t);

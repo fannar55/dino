@@ -6,9 +6,11 @@ import { HERO } from '../../world/forest/butterflies.js';
 import { KEYS, GROUPS } from './keys.js';
 import { createHaze } from './haze.js';
 import { createVfx } from './vfx.js';
-import { gramAt, butterflyAt, birdsAt, flugedlaAt, specksAt, treesAt, mistAt, cues, between, WALK_IN, CUES } from './timeline.js';
+import { createAir } from './air.js';
+import { gramAt, butterflyAt, birdsAt, flugedlaAt, specksAt, treesAt, mistAt, cues, between, WALK_IN, CUES, FLIGHT } from './timeline.js';
 
 const CLIPS = ['idle', 'walk', 'roar'];
+const smoothstep = x => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
 
 /**
  * Her poses for the keys she is in, solved on the stage (pose.js): frame 4a standing up the lane, the others leaning so her nearest
@@ -79,6 +81,11 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
     return k < kMin ? framePoint(u, vv, kMin, q, stageCam, D) : q;
   };
   const UP = new THREE.Vector3(0, 1, 0);
+  // the air (air.js): mist curling round her as she comes out, the lane swept by Flugeðla's brake, the crowns shaken by the roar
+  const air = createAir(world, {
+    herAt: t => { const g = gramAt(t, rig); return g && g.seen > 0.05 ? { x: g.x, z: g.z } : null; },
+    brake: FLIGHT.brake[0], roar: [CUES.roar + 0.4, CUES.roar + 3.2], groundAt: (x, z) => world.heightAt(x, z), clampK,
+  });
   const vfx = createVfx(world, { steps: footfalls, breaths, nostril: (i, out) => pose.nostril(i, out), headUp: out => out.copy(UP), headAhead: out => out.set(1, 0, 0).transformDirection(pose.bones.Head.matrixWorld), clampK });
 
   gram.control(() => {
@@ -93,24 +100,38 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
     pose.at(her.x, her.z);
   }, () => {
     if (her) { pose.leanNow(her); gram.root.updateMatrixWorld(true); }
-    if (now.t !== null) vfx.pose(now.t); // after her head is posed: the breath leaves her nostrils as they are this frame
+    if (now.t !== null) { vfx.pose(now.t); air.pose(now.t); } // after her head is posed: the breath leaves her nostrils as they are this frame
   });
 
   // ---- the butterfly: its mode changes start a flight (butterflies.js follow or land); the flight reads this frame's place ----
   const bf = cast.butterflies;
   let flyMode = null, fly = null;
-  const snoutFrame = () => frameOf(pose.snout(v), stageCam, D);
-  const onSnout = out => pose.snout(out).add(new THREE.Vector3(0, 0.02, 0));
+  // It sits on the top of her snout (the ridge between her nostrils and her eyes, pose.snoutTop), its feet just above her skin and
+  // its wings up over it; it comes down onto it from above and in front (a hover over her snout, nearer us), and lifts off the same
+  // way: straight up and toward us first, then on to 7b. Never through her (measure.js counts its pieces inside her).
+  const LANDED = 0.012; // m its feet over her skin
+  const HOVER = { up: 0.3, near: 0.3 }; // m above the landing point and toward the camera: where it comes down from and lifts to
+  const w1 = new THREE.Vector3(), w2 = new THREE.Vector3();
+  const onTop = out => pose.snoutTop(out).addScaledVector(UP, LANDED);
+  const hover = out => {
+    onTop(out);
+    w2.copy(stageCam.position).sub(out).setY(0).normalize();
+    return out.addScaledVector(UP, HOVER.up).addScaledVector(w2, HOVER.near);
+  };
+  const DOWN_FROM = 0.7; // share of the approach spent flying to the hover; the rest coming down onto her snout
+  const UP_TO = 0.4; // share of the lift spent rising to the hover; the rest flying on to 7b
   function flyPath(out) {
     if (!fly) return out.set(0, -200, 0);
     if (fly.mode === 'at') return framePoint(...fly.at, out, stageCam, D);
     if (fly.mode === 'approach') {
-      const s = snoutFrame();
-      return framePoint(...between(fly.from, [s[0], s[1] - 0.01, s[2]], fly.e), out, stageCam, D);
+      hover(w1);
+      if (fly.e < DOWN_FROM) return framePoint(...between(fly.from, frameOf(w1, stageCam, D), smoothstep(fly.e / DOWN_FROM)), out, stageCam, D);
+      return out.lerpVectors(w1, onTop(w2), smoothstep((fly.e - DOWN_FROM) / (1 - DOWN_FROM)));
     }
     if (fly.mode === 'lift') {
-      const s = snoutFrame();
-      return framePoint(...between([s[0], s[1] - 0.01, s[2]], fly.to, fly.e), out, stageCam, D);
+      hover(w1);
+      if (fly.e < UP_TO) return out.lerpVectors(onTop(w2), w1, smoothstep(fly.e / UP_TO));
+      return framePoint(...between(frameOf(w1, stageCam, D), fly.to, smoothstep((fly.e - UP_TO) / (1 - UP_TO))), out, stageCam, D);
     }
     return out.set(0, -200, 0);
   }
@@ -119,9 +140,9 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
     if (!bf || state.mode === flyMode) return;
     flyMode = state.mode;
     if (state.mode === 'snout') {
-      // sitting on her snout tip: on it at once, then settled there (its wings closed: butterflies.js's landing)
-      bf.follow(HERO, onSnout, { snap: true });
-      bf.land(() => pose.snout(new THREE.Vector3()), { name: HERO, duration: 0.25 });
+      // sitting on the top of her snout: on it at once, then settled there (its wings closed: butterflies.js's landing)
+      bf.follow(HERO, onTop, { snap: true });
+      bf.land(() => onTop(new THREE.Vector3()), { name: HERO, duration: 0.25 });
     } else bf.follow(HERO, flyPath, { snap: true });
   }
 
@@ -149,5 +170,5 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
   /** Start again from the top (the end card's "Aftur"): the butterfly's flight is begun again by its next mode. */
   function reset() { flyMode = null; }
 
-  return { apply, reset, now, cues: all, rig, vfx, footfalls };
+  return { apply, reset, now, cues: all, rig, vfx, air, footfalls };
 }

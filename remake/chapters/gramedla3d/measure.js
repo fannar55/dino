@@ -172,6 +172,30 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
   // ---- the motion (tools/gramedla-probe.mjs --hreyfing): each step of the show, what is out and where, the rules and clearances ----
   const headVerts = pose.headVerts;
   const body = bodyMesh(gram);
+  /** The butterfly's pieces in the world now: about 60 of its vertices per mesh (its wings' reach as they are this frame). */
+  function butterflyPieces() {
+    const list = [];
+    cast.butterflies?.hero.group.updateMatrixWorld(true);
+    cast.butterflies?.hero.group.traverse(o => {
+      if (!o.isMesh || !o.visible) return;
+      const count = o.geometry.attributes.position.count;
+      const stride = Math.max(1, Math.floor(count / 60));
+      for (let i = 0; i < count; i += stride) list.push(o.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(o.matrixWorld));
+    });
+    return list;
+  }
+  const ray = new THREE.Raycaster();
+  const UP = new THREE.Vector3(0, 1, 0);
+  /** Whether a point is inside her body: a ray straight up crosses her skin an odd number of times. */
+  function insideHer(q) {
+    const materials = [].concat(body.material), sides = materials.map(m => m.side);
+    materials.forEach(m => { m.side = THREE.DoubleSide; }); // her skin from inside too
+    ray.set(q, UP);
+    const hits = [];
+    body.raycast(ray, hits);
+    materials.forEach((m, i) => { m.side = sides[i]; });
+    return hits.length % 2 === 1;
+  }
   const atEdge = (u, v) => u < EDGE || u > 1 - EDGE || v < EDGE || v > 1 - EDGE;
   const point = (q, extra = {}) => { const [u, v, k] = frameOf(q, camera); return { k: r3(k), u: r3(u), v: r3(v), edge: k < 1 && atEdge(u, v), ...extra }; };
   /** One step: { t, things: { name: { near: {k,u,v}, edge (k of any of it in front at an edge, or null) } }, specks, ground, depth, clear }. */
@@ -220,11 +244,25 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
       if (bpos) {
         row.clear.butterflyPlant = nearestPlant(bpos, 0.08);
         if (n.gram) {
-          // the butterfly to her skin (her head's, where it would meet her): sitting on her snout is meant
+          // the butterfly to her skin (her head's, where it would meet her), with its wings' reach: every piece of it (a spread of its
+          // vertices, wing tips and all) against her head's skin; any piece within 15 cm is tested for being inside her (a ray up
+          // through her skin crosses it an odd number of times). Sitting on her snout is meant: its feet a little above the skin.
           body.skeleton.update();
-          let near = Infinity;
-          for (let i = 0; i < headVerts.length; i += 2) near = Math.min(near, body.getVertexPosition(headVerts[i], p).applyMatrix4(body.matrixWorld).distanceTo(bpos));
+          const skinNow = [];
+          for (let i = 0; i < headVerts.length; i += 2) skinNow.push(body.getVertexPosition(headVerts[i], new THREE.Vector3()).applyMatrix4(body.matrixWorld));
+          let near = Infinity, inside = 0, feet = Infinity;
+          body.computeBoundingSphere(); // as she is posed now, for the rays
+          for (const q of butterflyPieces()) {
+            let d = Infinity;
+            for (const s of skinNow) d = Math.min(d, s.distanceToSquared(q));
+            d = Math.sqrt(d);
+            near = Math.min(near, d);
+            if (d < 0.15 && insideHer(q)) inside++;
+          }
+          for (const s of skinNow) feet = Math.min(feet, s.distanceTo(bpos));
           row.clear.butterflyGram = r3(near);
+          row.clear.butterflyFeet = r3(feet);
+          row.clear.butterflyInside = inside;
         }
       }
     }

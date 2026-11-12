@@ -216,3 +216,19 @@ test('the beats run end to end, the cues are in order within the show, and her f
   // each cue of beat 4's walk has the depth of her footfall
   for (const s of all.steps) assert.ok(s.depth > 0 && (s.foot === 'left' || s.foot === 'right'));
 });
+
+test('her entrance does not pop: she is first seen far up the lane in the mist, faint, and firms up over seconds at a walk', () => {
+  const step = 1 / 30;
+  let first = null, firm = null;
+  for (let t = WALK_IN.from; t <= WALK_IN.to; t += step) {
+    const g = gramAt(t, RIG);
+    if (!g) continue;
+    if (!first && g.seen > 0.003) first = { t, depth: 8 - g.z, seen: g.seen, haze: g.haze };
+    if (first && !firm && g.seen > 0.99) firm = t;
+  }
+  assert.ok(first && first.depth >= 45, `first seen ${first?.depth.toFixed(1)} m up the lane`);
+  assert.ok(first.seen < 0.05 && first.haze > 0.9, 'first seen faint and in the haze');
+  assert.ok(firm - first.t >= 6, `firms up over ${(firm - first.t).toFixed(1)} s`);
+  // a walk, not a hurry: her speed up the lane under 2 m/s throughout
+  for (let t = WALK_IN.from; t <= WALK_IN.to; t += 0.5) assert.ok(gramAt(t, RIG).speed < 2, `at ${t.toFixed(1)} s`);
+});
