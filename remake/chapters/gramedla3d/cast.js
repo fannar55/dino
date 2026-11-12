@@ -141,29 +141,49 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     };
   })();
   boy.setOverlay(() => pointer());
+  // her neck stretched forward and down by its spec.neck degrees in all, shared by its three bones (so her head comes down in front of
+  // Egill, who sits behind it), about her own right
+  let neckDown = 0;
+  const necks = ['Neck', 'Neck2', 'Neck3'].map(n => her.model.getObjectByName(n)).filter(Boolean);
+  const herRight = new THREE.Vector3(), nq = new THREE.Quaternion();
+  // the clip's own neck, put back before each bend (a held clip does not set a bone again when its value does not change)
+  const neckRest = necks.map(b => b.quaternion.clone());
+  const bowNeck = () => {
+    if (!neckDown) return;
+    necks.forEach((b, i) => b.quaternion.copy(neckRest[i]));
+    her.root.updateMatrixWorld(true);
+    herRight.set(0, 0, 1).applyQuaternion(her.root.quaternion);
+    for (const b of necks) rotateBoneWorld(b, nq.setFromAxisAngle(herRight, -rad(neckDown) / necks.length));
+  };
+  her.setOverlay(bowNeck);
   async function setFlugedla(spec) {
     if (!spec) {
       herRoot.position.set(0, -50, 0);
       her.root.visible = false;
       boy.root.visible = false;
       pointing = false;
+      neckDown = 0;
       return;
     }
     await ready;
     her.root.visible = true;
     boy.root.visible = true;
+    if (neckDown) necks.forEach((b, i) => b.quaternion.copy(neckRest[i])); // unbent, so the clip's pose below is the clip's
     const clip = her.clips.get(spec.clip) ?? her.clips.get('glide');
     const action = her.play(clip.name, { fade: 0, timeScale: 0 });
     action.time = spec.at * (spec.of ? clip.duration : 1);
     her.mixer.update(0);
+    necks.forEach((b, i) => neckRest[i].copy(b.quaternion));
     // facing us (her +X toward +Z), her nose up `pitch` degrees about her own right (+Z)
-    herRoot.quaternion.setFromEuler(new THREE.Euler(0, -rad(90), 0)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rad(spec.pitch ?? 0)));
+    herRoot.quaternion.setFromEuler(new THREE.Euler(0, -rad(90 + (spec.yaw ?? 0)), 0)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rad(spec.pitch ?? 0)));
     her.root.quaternion.copy(herRoot.quaternion);
     if (!beakLocal) { her.root.position.set(0, 3, -10); beakLocal = findBeak(); }
     const want = at(...spec.beak);
     herRoot.position.set(want.x, want.y - 1, want.z - 3);
+    neckDown = spec.neck ?? 0;
     for (let i = 0; i < 4; i++) {
       her.root.position.copy(herRoot.position);
+      bowNeck(); // the neck as the overlay bends it
       her.root.updateMatrixWorld(true);
       herRoot.position.add(want.clone().sub(beak()));
     }
@@ -223,6 +243,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
   // ---- the trees' bend: the far lane's crowns thrown sideways (a shake), or bent away from the lane's middle (the blast) ----
   const bent = new Map(); // geometry -> Map(vertex -> [x, y, z] as built)
   const plants = [];
+  let bentCount = 0;
   function bendTrees(spec, placements) {
     // back as built
     for (const [geo, saved] of bent) {
@@ -230,6 +251,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
       for (const [i, [x, y, z]] of saved) pos.setXYZ(i, x, y, z);
       pos.needsUpdate = true;
     }
+    bentCount = 0;
     if (!spec) return;
     if (!plants.length) for (const p of placements) if (p.height > 2.5) plants.push(p);
     const amount = spec.shake ?? spec.away ?? 0;
@@ -266,7 +288,8 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
           done.add(vi);
           if (!saved.has(vi)) saved.set(vi, [pos.getX(vi), pos.getY(vi), pos.getZ(vi)]);
           const [x, y, z] = saved.get(vi);
-          const f = Math.min(1, Math.max(0, (y - base) / h)) ** 2;
+          const f = Math.min(1, Math.max(0, (y - base) / h)) ** 1.6;
+          bentCount++;
           pos.setXYZ(vi, x + side * strength * f, y - 0.25 * strength * f * f, z);
         }
       }
@@ -274,5 +297,5 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     });
   }
 
-  return { setButterfly, butterflyAt, setBirds, flock, setFlugedla, beak: () => (beakLocal ? beak() : null), her, boy, get riding() { return riding; }, ready, setParticles, groups, bendTrees, fly };
+  return { setButterfly, butterflyAt, setBirds, flock, setFlugedla, beak: () => (beakLocal ? beak() : null), her, boy, get riding() { return riding; }, ready, setParticles, groups, bendTrees, get bentCount() { return bentCount; }, fly };
 }

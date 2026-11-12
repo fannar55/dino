@@ -73,7 +73,7 @@ export const chapter = {
     yield s.camera.cut(shot, { check: false });
 
     const cast = createCast(world, { stage, D, flugedla: s.actor('flugedla').raw, egill: s.actor('egill').raw, gram, snout: out => pose.snout(out) });
-    const { measure } = createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast, nearLane, gram });
+    const { measure, skinOf, lead } = createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast, nearLane, gram });
     cast.setButterfly(null);
     cast.setFlugedla(null);
 
@@ -111,14 +111,19 @@ export const chapter = {
     const view = { index: keyIndex(params.get('lykill')), busy: null };
     let current = null;
     gram.setOverlay(() => { if (current) pose.apply(current); });
+    // her place for a row: standing, or solved so her nearest skin (not only the snout tip) is no nearer than the row's k
+    function placeGram(g) {
+      pose.hold(g.clip ?? 'idle', g.at ?? 0);
+      return g.stand ? pose.standAt(g.stand) : pose.solveNearest(g);
+    }
     async function show(index) {
       view.index = index;
       const key = KEYS[index];
       state.key = key.id;
       const g = key.gram;
       if (g) {
-        pose.hold(g.clip ?? 'idle', g.at ?? 0);
-        if (!solutions.has(index)) solutions.set(index, g.stand ? pose.standAt(g.stand) : pose.solve(g));
+        if (!solutions.has(index)) solutions.set(index, placeGram(g));
+        else pose.hold(g.clip ?? 'idle', g.at ?? 0);
         current = solutions.get(index);
         pose.apply(current);
         gram.root.visible = true;
@@ -149,16 +154,18 @@ export const chapter = {
     }
     function label() {
       const key = KEYS[view.index];
-      const out = measure(key).lead.out;
+      const out = lead(key).out;
       const said = out == null ? '' : out >= 0.05 ? ` · ${key.leadText} ${pct(out)} út` : out > -0.05 ? ` · ${key.leadText} við skjáinn` : ` · ${key.leadText} ${pct(-out)} inn`;
       ui.label.textContent = `Lykilrammi ${key.n}${key.variant ?? ''} af 7 · ${key.name}${said}`;
     }
-    s.after(0, function* labels() { for (;;) { if (labelIn > 0 && --labelIn === 0 && !view.busy) label(); yield; } });
+    s.after(0, function* labels() { for (let n = 0; ; n++) { if (ui && !view.busy && ((labelIn > 0 && --labelIn === 0) || n % 15 === 0)) label(); yield; } });
     Object.assign(world.gramedla, {
       view,
       show: async i => { await view.busy; await show(i); sync(); return KEYS[i].id; },
       measure: () => measure(KEYS[view.index]),
       outOf,
+      skinOf,
+      tryGram: g => { current = placeGram(g); pose.apply(current); gram.root.visible = true; return current; },
     });
     go(view.index);
     yield s.until(() => !view.busy);

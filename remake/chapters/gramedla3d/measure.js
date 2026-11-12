@@ -142,5 +142,16 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     row.lead = { what: key.lead, k: leadK, out: leadK ? r3(outOf(leadK) * 100 * strength / 0.02) : null };
     return row;
   }
-  return { measure };
+  /** Only the lead, as the label says it (no depth probe: cheap enough for the review page to ask now and then). */
+  function lead(key) {
+    camera.updateMatrixWorld();
+    const strength = gler?.settings.strength ?? 0.02;
+    const kOfPoint = pt => frameOf(pt, camera)[2];
+    const k = key.lead === 'gram' ? skinOf(gram, 3).near.k
+      : key.lead === 'butterfly' ? kOfPoint(cast.butterflyAt(p))
+      : key.lead === 'birds' ? Math.min(...cast.flock.children.map(m => kOfPoint(m.getWorldPosition(p))))
+      : cast.beak() ? kOfPoint(cast.beak()) : null;
+    return { what: key.lead, k, out: Number.isFinite(k) ? r3(strength * (1 / k - 1) * 100) : null };
+  }
+  return { measure, skinOf, lead };
 }

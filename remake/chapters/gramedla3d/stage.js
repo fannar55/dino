@@ -34,9 +34,9 @@ export function leaveOut(info, placement) {
 // The morning mist (world/props/mist.js cards, additive and light): it fills the lane from some 16 m in to its far end, thicker
 // further in. Step 0 had one patch 40 m in, where the cards fade (MIST_FADE.far 40-55 m), so it hardly showed; these stand nearer.
 export const MIST = [
-  { center: [0, -10], radius: 6, height: 3.2, level: 1 },
-  { center: [0, -20], radius: 8, height: 4.5, level: 1.4 },
-  { center: [0, -30], radius: 9, height: 5.5, level: 1.6 },
+  { center: [0, -12], radius: 6, height: 3, level: 0.55 },
+  { center: [0, -22], radius: 8, height: 4.5, level: 0.8 },
+  { center: [0, -32], radius: 9, height: 5.5, level: 1 },
 ];
 
 export const LAYOUT = {

@@ -200,10 +200,31 @@ export function createGramPose(gram, stage, camera) {
     return { x: +p.x.toFixed(3), z: +p.z.toFixed(3), theta: 0, turn: 0, roll: 0, pitch: 0, standing: true };
   }
 
+  /** The nearest of her head's skin in the stage's frame, as a share of D. */
+  function nearestK() {
+    body.skeleton.update();
+    let k = Infinity;
+    for (const i of headVerts) k = Math.min(k, frameOf(body.getVertexPosition(i, hv).applyMatrix4(body.matrixWorld), stageCam, D)[2]);
+    return k;
+  }
+  /** As solve(), but the snout's k moved until the nearest of her head (a cheek, a lip, the lower jaw) is at the row's k. */
+  function solveNearest(spec) {
+    let k = spec.k, sol = solve(spec);
+    for (let i = 0; i < 4; i++) {
+      const near = nearestK();
+      if (Math.abs(near - spec.k) < 0.002) break;
+      k *= spec.k / near;
+      sol = solve({ ...spec, k });
+    }
+    sol.nearest = +nearestK().toFixed(4);
+    sol.k = +k.toFixed(4);
+    return sol;
+  }
+
   function apply(sol) {
     at(sol.x, sol.z);
     lean(sol.theta, sol);
   }
 
-  return { bones, body, headVerts, jawVerts, snout, snoutLocal, hold, get held() { return held; }, lean, poseAt, solve, standAt, apply, at, centre, right };
+  return { bones, body, headVerts, jawVerts, snout, snoutLocal, hold, get held() { return held; }, lean, poseAt, solve, solveNearest, nearestK, standAt, apply, at, centre, right };
 }
