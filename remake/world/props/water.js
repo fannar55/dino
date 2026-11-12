@@ -317,9 +317,10 @@ void main() {
   vec3 v = normalize( cameraPosition - vWorld );
   float facing = max( dot( n, v ), 0.0 );
   float fresnel = 0.02 + 0.98 * pow( 1.0 - facing, 5.0 ); // Schlick
-  // the body: deep teal, the olive silt of the bed only in the shallows at the edge
+  // the body: deep teal, a warm amber-sand transition in the shallows, and the olive silt of the bed at the very edge
   float deep = smoothstep( 0.03, 0.25, vWater.y );
-  vec3 body = mix( uBed, uDeep, deep );
+  float shallowBand = smoothstep( 0.01, 0.09, vWater.y ) * ( 1.0 - smoothstep( 0.10, 0.28, vWater.y ) );
+  vec3 body = mix( uBed, uDeep, deep ) + vec3( 0.035, 0.028, 0.008 ) * shallowBand;
   // the sky it reflects: the look's sky from just over its hazy horizon to its zenith, the far treeline along the bottom of it;
   // a pond in reeds reflects less than open water, so the teal shows through
   vec3 rr = reflect( -v, n );
@@ -341,6 +342,12 @@ void main() {
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
   col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
+  #ifndef PRINT_WATER
+  // gentle living shore meniscus lapping along the bank
+  float shoreLap = smoothstep( 0.42, 0.14, -vWater.x ) * smoothstep( 0.02, 0.11, -vWater.x )
+    * smoothstep( 0.52, 0.76, h0 + 0.09 * sin( uTime * 1.35 - vWater.x * 13.0 ) ) * detail;
+  col = mix( col, mix( uHorizon, vec3( 1.0 ), 0.45 ), shoreLap * 0.28 );
+  #endif
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
   float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );

@@ -968,3 +968,15 @@ test('s.sun.wave, s.sun.hug and s.sun.mouth say so when the scene has no sun', (
   assert.throws(() => s.sun.hug(), /s\.sun\.hug needs the sun.*createSunFace/);
   assert.throws(() => s.sun.mouth('grin'), /s\.sun\.mouth needs the sun.*createSunFace/);
 });
+
+test('the sun face, its overlay and the Mosi cloud project onto the far plane so distant mountains occlude them', () => {
+  const { scene, lighting, look } = stage();
+  const face = createSunFace({ scene, lighting });
+  const cloud = addMosiCloud({ scene, lighting, look });
+  for (const [label, mat] of [['SunFace', face.sprite.material], ['SunHandsAndMouth', face.overlay.material], ['MosiCloud', cloud.sprite.material]]) {
+    assert.equal(mat.depthFunc, THREE.LessEqualDepth, `${label} passes at far-plane depth 1.0`);
+    const shader = { vertexShader: 'void main() {\n  gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n}' };
+    mat.onBeforeCompile(shader);
+    assert.match(shader.vertexShader, /gl_Position\.z = gl_Position\.w;/, `${label} clamps depth to far plane`);
+  }
+});

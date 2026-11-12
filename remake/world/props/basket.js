@@ -126,6 +126,7 @@ export function createBasket(world) {
   berries.name = 'Basket berries';
   berries.count = 0;
   berries.castShadow = false;
+  berries.frustumCulled = false;
   group.add(berries);
   const glow = glowMesh(); // in the basket's group: drawn when it is (the chapter's warm-up compiles it with the basket)
   group.add(glow);

@@ -378,11 +378,21 @@ function blinkSchedule(seed = 'sun') {
  *   radiusDeg    the painted disc's angular radius at rest, as seen from the camera
  * `texture` is the strip of FRAMES frames and `sheet` the overlay's; the page paints them, a test can pass its own (or null).
  */
+/** Projects the sky's sun and Mosi cloud onto the far plane (depth 1.0) so distant mountains (> 600 m) occlude them while keeping their 600 m world position. */
+function farPlaneDepth(material, key) {
+  material.depthFunc = THREE.LessEqualDepth;
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader.replace(/}\s*$/, '  gl_Position.z = gl_Position.w;\n}');
+  };
+  material.customProgramCacheKey = () => key;
+  return material;
+}
+
 export function createSunFace({ scene, lighting, texture = drawSunFrames(), sheet = drawSunSheet() }) {
   const direction = lighting.direction.clone().normalize();
-  const material = new THREE.SpriteMaterial({
+  const material = farPlaneDepth(new THREE.SpriteMaterial({
     map: texture, transparent: true, depthWrite: false, fog: false, toneMapped: false,
-  });
+  }), 'sun-face-far');
   const sprite = new THREE.Sprite(material);
   sprite.name = 'SunFace';
   sprite.renderOrder = -2; // the farthest thing there is: before everything else that blends
@@ -401,9 +411,9 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
   geometry.setAttribute('uv', uvs);
   geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11]);
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2.4 * R); // wherever the hands go
-  const overlay = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+  const overlay = new THREE.Mesh(geometry, farPlaneDepth(new THREE.MeshBasicMaterial({
     map: sheet, transparent: true, depthWrite: false, fog: false, toneMapped: false,
-  }));
+  }), 'sun-overlay-far'));
   overlay.name = 'SunHandsAndMouth';
   overlay.renderOrder = -1.5; // over the face, under the cloud
   scene.add(overlay);
@@ -767,9 +777,9 @@ export function addMosiCloud({ scene, lighting, look = pickLook('morning'), text
   const sun = lighting.direction.clone().normalize();
   const azimuth = Math.atan2(sun.z, sun.x); // from +X toward +Z, which is to the right of anyone facing the sun
   const elevation = Math.asin(sun.y);
-  const material = new THREE.SpriteMaterial({
+  const material = farPlaneDepth(new THREE.SpriteMaterial({
     map: texture, transparent: true, opacity: 0.92, depthWrite: false, fog: false, toneMapped: false,
-  });
+  }), 'mosi-cloud-far');
   const sprite = new THREE.Sprite(material);
   sprite.name = 'MosiCloud';
   sprite.renderOrder = -1; // in front of the sun, should it ever drift over it

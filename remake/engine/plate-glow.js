@@ -186,5 +186,16 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
       }
       return true;
     },
+    dispose() {
+      for (const ease of [...eases]) ease.handle.cancel();
+      for (const skin of skins) {
+        const own = skinsBefore.get(skin);
+        if (own && skin.material !== own) {
+          skin.material.dispose();
+          skin.material = own;
+        }
+        skinsBefore.delete(skin);
+      }
+    },
   };
 }

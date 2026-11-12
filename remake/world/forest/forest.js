@@ -356,17 +356,27 @@ function* forestSteps(world, layout) {
   // and update() hides them all again in case a shadow pass was cut short.
   const sun = world.lighting.sun;
   const shadow = sun?.shadow;
-  const updateShadowMatrices = shadow ? shadow.updateMatrices.bind(shadow) : null;
+  let disposed = false;
   function showCasters() {
-    if (!castersOn || !group.visible) return;
+    if (disposed || !castersOn || !group.visible) return;
     for (const m of casterMeshes) m.visible = m.userData.cull.submitted > 0;
   }
   function hideCasters() { for (const m of casterMeshes) m.visible = false; }
+  let shadowHooks = null;
+  let onShadowPass = null;
   if (shadow && casterMeshes.length) {
-    shadow.updateMatrices = function forestShadowPass(light, viewport) {
-      updateShadowMatrices(light, viewport);
-      if (light === sun) showCasters();
-    };
+    shadowHooks = shadow._forestShadowHooks;
+    if (!shadowHooks) {
+      shadowHooks = new Set();
+      shadow._forestShadowHooks = shadowHooks;
+      const before = shadow.updateMatrices;
+      shadow.updateMatrices = function forestShadowPass(light, viewport) {
+        before.call(this, light, viewport);
+        for (const fn of shadowHooks) fn(light);
+      };
+    }
+    onShadowPass = light => { if (light === sun) showCasters(); };
+    shadowHooks.add(onShadowPass);
     for (const m of casterMeshes) {
       m.frustumCulled = false;
       m.onAfterShadow = (renderer, object) => { object.visible = false; };
@@ -437,6 +447,9 @@ function* forestSteps(world, layout) {
     /** The place's low mists (world/props/mist.js: setLevel), in the layout's order. */
     mists,
     dispose() {
+      disposed = true;
+      hideCasters();
+      if (shadowHooks && onShadowPass) shadowHooks.delete(onShadowPass);
       scene.remove(group);
       groundMesh.geometry.dispose();
       floor.material.dispose();
@@ -448,7 +461,6 @@ function* forestSteps(world, layout) {
       for (const mist of mists) mist.dispose();
       for (const m of meshes) m.geometry.dispose();
       for (const m of casterMeshes) m.geometry.dispose();
-      if (shadow && updateShadowMatrices) shadow.updateMatrices = updateShadowMatrices;
       solid.dispose(); thin.dispose(); solidDepth.dispose(); thinDepth.dispose();
       grass.dispose();
       far.dispose();

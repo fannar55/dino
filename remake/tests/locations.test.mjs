@@ -294,3 +294,25 @@ test('main.js takes the director\'s shots and the first place from shotsOf and s
   assert.match(main, /const shots = shotsOf\(chapter\);/);
   assert.match(main, /setLocation\(startOf\(chapter\)\)/);
 });
+
+test('release disposes an inactive location and never the one in view', async () => {
+  let aDisposed = 0;
+  let aRemoved = 0;
+  const a = { group: { visible: true, removeFromParent() { aRemoved++; } }, heightAt: () => 1, dispose() { aDisposed++; } };
+  const b = fakeForest(2);
+  let builds = 0;
+  const locations = createLocations({
+    world: {},
+    locations: { a: { layout: { id: 'a' } }, b: { layout: { id: 'b' } } },
+    build: async layout => { builds++; return layout.id === 'a' ? a : b; },
+  });
+  await locations.setLocation('a');
+  assert.equal(locations.release('a'), false, 'active location is kept');
+  assert.equal(aDisposed, 0);
+  await locations.setLocation('b');
+  assert.equal(locations.release('a'), true, 'inactive location is released');
+  assert.equal(aDisposed, 1);
+  assert.equal(aRemoved, 1);
+  await locations.setLocation('a');
+  assert.equal(builds, 3, 'revisiting a released location builds it fresh');
+});
