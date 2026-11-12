@@ -101,7 +101,7 @@ function toeOf(model, foot) {
 // Turn a bone by a world-space rotation about its own pivot.
 const parentQ = new THREE.Quaternion();
 const localQ = new THREE.Quaternion();
-function rotateBoneWorld(bone, q) {
+export function rotateBoneWorld(bone, q) {
   bone.parent.getWorldQuaternion(parentQ);
   localQ.copy(parentQ).invert().multiply(q).multiply(parentQ);
   bone.quaternion.premultiply(localQ);

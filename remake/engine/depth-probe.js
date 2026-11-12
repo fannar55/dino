@@ -2,7 +2,9 @@
 // in its middle, as a share of the screen plane's distance D (engine/gler.js), for the comfort rules of a moving 3D show.
 //
 //   const probe = createDepthProbe(world, { width: 240 });
-//   probe.sample(D)   -> { D, border, borderAt, middle, middleAt, wide, wideAt }   (each a share of D; *At: [u, v] in the frame)
+//   probe.sample(D)   -> { D, border, borderAt, middle, middleAt, wide, wideAt,   (each a share of D; *At: [u, v] in the frame)
+//                          front, at, behind, sky, farthest }   (shares of the frame's pixels: in front of the screen (k < 1 − AT),
+//                          at it (within AT), behind it, the sky (nothing drawn); and the farthest drawn depth as a share of D)
 //
 // It draws the scene once from world.camera into a small target with a depth texture (the real materials, so the plants' sway and
 // the skinned bodies are where they are drawn), turns the depth buffer into view-space depth (distance along the camera's forward,
@@ -15,6 +17,7 @@ import * as THREE from 'three';
 
 const BORDER = 0.01;
 const MIDDLE = [0.2, 0.8];
+const AT = 0.03; // within 3 % of D counts as at the screen
 
 export function createDepthProbe(world, { width = 240 } = {}) {
   const { renderer, scene } = world;
@@ -73,14 +76,17 @@ export function createDepthProbe(world, { width = 240 } = {}) {
     const bx = Math.max(1, Math.round(BORDER * w));
     const by = Math.max(1, Math.round(BORDER * h));
     const out = { D, border: Infinity, borderAt: null, middle: Infinity, middleAt: null, wide: Infinity, wideAt: null, size: [w, h] };
+    let front = 0, at = 0, behind = 0, sky = 0, farthest = 0;
     for (let y = 0; y < h; y++) {
       const v = 1 - (y + 0.5) / h; // the read back's rows run from the bottom
       for (let x = 0; x < w; x++) {
         const i = 4 * (y * w + x);
-        if (pixels[i + 1] >= 1) continue; // nothing drawn there (the clear): the sky beyond the far plane
+        if (pixels[i + 1] >= 1) { sky++; continue; } // nothing drawn there (the clear): the sky beyond the far plane
         const depth = pixels[i];
-        if (!(depth > 0)) continue;
+        if (!(depth > 0)) { sky++; continue; }
         const k = depth / D;
+        if (k < 1 - AT) front++; else if (k <= 1 + AT) at++; else behind++;
+        if (k > farthest) farthest = k;
         const u = (x + 0.5) / w;
         if (x < bx || x >= w - bx || y < by || y >= h - by) {
           if (k < out.border) { out.border = k; out.borderAt = [+u.toFixed(3), +v.toFixed(3)]; }
@@ -90,6 +96,8 @@ export function createDepthProbe(world, { width = 240 } = {}) {
         } else if (k < out.wide) { out.wide = k; out.wideAt = [+u.toFixed(3), +v.toFixed(3)]; }
       }
     }
+    const n = w * h;
+    Object.assign(out, { front: +(front / n).toFixed(4), at: +(at / n).toFixed(4), behind: +(behind / n).toFixed(4), sky: +(sky / n).toFixed(4), farthest: +farthest.toFixed(3) });
     return out;
   }
 
