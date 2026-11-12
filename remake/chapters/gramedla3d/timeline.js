@@ -86,7 +86,7 @@ function hover(t, c, a, b, size = 1) {
 const B1 = key('1').butterfly.at;
 const B7b = key('7b').butterfly.at;
 const BUTTERFLY_IN = track([[0, 0.64, 0.4, 3.6], [3.4, ...B1], [6.4, ...B1], [9.2, 0.56, 0.42, 3.8]]); // back into the light it came from
-const BUTTERFLY_OUT = track([[63.6, ...B7b], [66.0, ...B7b], [67.4, 0.79, 0.36, 0.8], [69.4, 0.56, 0.4, 3.0], [70.6, 0.53, 0.42, 5]]); // up the lane into the light, clear of the crowns
+const BUTTERFLY_OUT = track([[63.6, ...B7b], [66.0, ...B7b], [67.4, 0.82, 0.36, 0.8], [69.4, 0.56, 0.4, 3.0], [70.6, 0.53, 0.42, 5]]); // up the lane into the light, clear of the crowns
 export const BUTTERFLY = { approachFrom: [0.3, -0.1, 3.0], approach: [59.4, 61.6], lift: [62.6, 63.6] };
 export function butterflyAt(t) {
   if (t < 9.2) {
@@ -231,8 +231,8 @@ const LEANS = [
   [56.4, 58.4, '6', '4s'],
   [59.4, 61.4, '4s', '7'],
   [62.6, 63.6, '7', '7b'],
-  [65.8, 67.6, '7b', 'up'],
-  [67.6, 73.8, 'up', 'exit'],
+  [67.2, 68.8, '7b', 'up'], // once the butterfly is past her head
+  [68.8, 73.8, 'up', 'exit'],
 ];
 // the roar: its clip from 0 so its widest jaw is at frame 6's second; [in, in, out, out] its weight
 export const ROARING = { at: key('6').time - ROAR.widest, weight: [54.2, 54.7, 56.15, 56.55] };
@@ -282,7 +282,7 @@ export function gramAt(t, rig) {
   if (t < 40) lean.roll = poses['4'].roll * bump(t, 37.0, 37.7, 38.6, 39.6);
   // the roar's first breath rears her head up: held down a little then, so it stays off the top edge (none left by frame 6)
   // her last stride into frame 5 would carry the snout a hair past 4 %: a hair less lean then
-  lean.theta -= 0.015 * bump(t, 43.0, 44.2, 46.2, 47.4);
+  lean.theta += 0.015 * bump(t, 43.0, 44.2, 46.2, 47.4);
   const rear = bump(t, 53.95, 54.25, 54.6, 54.95);
   if (rear > 0) { lean.pitch -= 0.25 * rear; lean.theta += 0.08 * rear; }
   // ---- her clips ----
@@ -301,7 +301,7 @@ function idleTime(t) {
   if (t < 42.6) return mod(t - key('4').time, IDLE);
   // around frame 5 (her snout at 4 %, the limit) the breath swings to and fro about the frame's moment of it, never into the
   // part of the clip (its second 0.8–1.8) that pushes the snout 0.02 % further out
-  if (t < 60.0) return mod(0.6 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
+  if (t < 60.0) return mod(0.3 * Math.sin((2 * Math.PI * (t - key('5').time)) / IDLE), IDLE);
   if (t < key('7').time) return mod(t - key('7').time, IDLE);
   if (t < key('7b').time) return mod(2 * (t - key('7').time), IDLE);
   return mod(t - key('7b').time, IDLE);
