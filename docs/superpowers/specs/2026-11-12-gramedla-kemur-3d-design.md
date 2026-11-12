@@ -33,8 +33,8 @@ Mínus er framan við skjáinn, plús fyrir aftan.
    aftan hann (+2 % lengst í burtu).
 3. **Það sem kemur út kemur hægt og staldrar við.** Að minnsta kosti sekúnda á leiðinni út og tvær til þrjár sekúndur kyrrt
    þar. Hreyfingin er eftir sjónlínunni, beint að okkur, ekki þvert yfir myndina.
-4. **Dýptarfjárhagur.** Smáhlutir (fiðrildi, fuglar, agnir) koma 2 til 3 % út. Hausinn á Grameðlu kemur 4 til 6 % út; nákvæm
-   tala ræðst af kvörðuninni í skrefi 0 (kafli 6).
+4. **Dýptarfjárhagur.** Smáhlutir (fiðrildi, fuglar, agnir) koma 2 til 3 % út. Hausinn á Grameðlu kemur mest 4 % út, við
+   dýptarstyrk 0,02. Það er kvörðun eigandans úr skrefi 0, 12. nóvember: „4% 0,02“. Ekkert í myndbandinu fer lengra út en það.
 5. **Rammareglan.** Ekkert sem er framan við skjáinn snertir brún myndarinnar. Jörðin við neðri brún er ekki nær en 0,85 af
    fjarlægðinni að skjáfletinum. Þetta er úr gleraugnaprófum eigandans 11. nóvember og gildir áfram.
 6. **Eitt í einu.** Eitt atriði kemur út í senn, með hvíld við skjáinn á milli. Síðasta myndin hvílir við skjáinn.
@@ -56,10 +56,12 @@ við skjáinn. Allt þetta á skógurinn til (ljósgeislar, agnir, þoka, burkna
 Í öskrinu fer hausinn 0,5 m fram og 0,6 m niður. Hún á göngu, kyrrstöðu og öskur, og vélin getur snúið hausnum að punkti, opnað
 ginið og látið hana depla augunum.
 
-**Hvernig hausinn kemst út úr skjánum án þess að snerta brún.** Skjáflöturinn er um 9,5 m frá vélinni. Trýnið kemur í tæpa 3 m
-fjarlægð (um 4,7 % út). Breiðasti hluti haussins er þá um 5 m frá vélinni og fyllir þrjá fjórðu af hæð myndarinnar og þriðjung
-af breiddinni. Hálsinn og búkurinn liggja aftur í gegnum skjáflötinn inni í miðri mynd, og fæturnir standa rétt við hann.
-Hún lýtur fram með göngu og með því að vélin sveigir hrygg, háls og haus; ekkert nýtt er teiknað.
+**Hvernig hausinn kemst út úr skjánum án þess að snerta brún** (mælt í skrefi 0). Skjáflöturinn er 6,5 m frá vélinni; planið
+giskaði fyrst á 9,5 m, en módelið er stuttvaxið og tærnar ná langt fram, svo þær fóru þá fram fyrir skjáinn við neðri brún.
+Vélin stendur í 1,7 m hæð og hallar 6,75° upp. Þegar trýnið er 4 % út er það 2,2 m frá vélinni; hausinn fyllir þá 73 % af hæð
+myndarinnar og 46 % af breiddinni, og 30 % af myndinni er framan við skjáinn. Hálsinn og búkurinn liggja aftur í gegnum
+skjáflötinn inni í miðri mynd. Hún lýtur fram með því að vélin sveigir hrygg, háls og haus; ekkert nýtt er teiknað. Við 6 % og
+8 % nær hauskúpan upp í efri brún framan við skjáinn, svo þær stillingar eru ekki notaðar.
 
 ## 4. Söguborðið
 
@@ -71,8 +73,8 @@ Tímarnir eru markmið. „Út“ er hve langt atriðið kemur fram fyrir skjái
 | 8–16 s | **Dynkur.** Trén innst í tröðinni hristast, lauf og frjókorn falla úr krónunum á mörgum dýptum. Annar dynkur, nær. Fuglahópur rýkur upp úr trjánum, flýgur að okkur, hringsólar í miðri mynd og hverfur upp yfir krónurnar. | Fuglarnir 2–2,5 %, í um tvær sekúndur |
 | 16–26 s | **Flugeðla.** Hún kemur með Egil innan úr tröðinni beint á móti okkur, bremsar með útbreidda vængi við skjáinn og teygir hálsinn fram. Egill bendir aftur fyrir sig: „Hún kemur!“ Svo lyftir hún sér upp og burt. | Goggurinn 1,5 %, í tvær sekúndur |
 | 26–40 s | **Hún kemur.** Þokan hreyfist. Skuggamynd langt inni. Skref, dynkur, skref. Hún gengur 35 m eftir tröðinni að okkur og nemur staðar með trýnið við skjáinn. Hallar undir flatt, deplar augunum. | Ekkert: allt atriðið er dýpt inn á við |
-| 40–52 s | **Þefið.** Hún lýtur hægt fram, fjórar sekúndur á leiðinni, þar til trýnið er við nefið á okkur. Þar er hún kyrr í þrjár sekúndur og þefar; andardrátturinn sést sem ljósir gufuhnoðrar sem líða að okkur og dofna. | Trýnið 4–6 % (kvarðað), gufan aðeins lengra |
-| 52–58 s | **Öskrið.** Hún dregur sig aðeins til baka, dregur andann og öskrar: ginið opnast, tennurnar blasa við, og blásturinn feykir ögnum og laufi út úr skjánum. Trén hristast; myndavélin ekki. | Hausinn 4–5 %, agnirnar lengra |
+| 40–52 s | **Þefið.** Hún lýtur hægt fram, fjórar sekúndur á leiðinni, þar til trýnið er við nefið á okkur. Þar er hún kyrr í þrjár sekúndur og þefar; andardrátturinn sést sem ljósir gufuhnoðrar sem líða að okkur og dofna. | Trýnið 4 % (kvarðað), gufan ekki lengra |
+| 52–58 s | **Öskrið.** Hún dregur sig aðeins til baka, dregur andann og öskrar: ginið opnast, tennurnar blasa við, og blásturinn feykir ögnum og laufi út úr skjánum. Trén hristast; myndavélin ekki. | Hausinn allt að 4 % með opið gin, agnirnar álíka |
 | 58–72 s | **Fiðrildið.** Þögn. Ljósa fiðrildið sest á trýnið á henni. Hún stirðnar og horfir á það. Mjúkt fnæs lyftir því; það flögrar fram til okkar og svo inn eftir tröðinni. Hún bakkar, snýr sér og gengur á eftir því inn í þokuna. „Bless, Grameðla!“ | Fiðrildið 3–4 %, svo ekkert: síðasta myndin hvílir við skjáinn |
 
 Á eftir kemur lokaspjaldið með „Aftur“ og „Hætta“, eins og í Fiðrildadansinum.
@@ -130,3 +132,5 @@ Eigandinn samþykkti planið 12. nóvember 2026: „já byrja með tali, og ekke
 1. **Með tali:** setningarnar tvær í kafla 5 verða gerðar (í skrefi 3).
 2. **Ekkert textabox** í myndbandinu, eins og regla 8 segir.
 3. Morgunþokan stendur; hann gerði enga athugasemd við hana og dæmir hana á lykilrömmunum.
+4. **Kvörðunin (skref 0):** eigandinn skoðaði stillingarnar sex með gleraugunum og valdi „4% 0,02“: trýnið 4 % út, dýptarstyrkur
+   0,02. Regla 4 og kafli 3 eru uppfærð eftir því.
