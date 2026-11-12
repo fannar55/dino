@@ -18,6 +18,7 @@ import { BODY_HEIGHT } from '../kafli4-route.js';
 import { GROUPS, groupPoints } from './keys.js';
 import { speckAt, PUFF, TREE_SPECS } from './timeline.js';
 import { guardBones } from './pose.js';
+import { createHaze } from './haze.js';
 
 const rad = d => (d * Math.PI) / 180;
 const HERO_SCALE = 1.5; // as in Fiðrildadansinn: it reads at the middle of the frame
@@ -181,6 +182,7 @@ export function createCast(world, { stage, D, flugedla, egill }) {
     body.copy(herRoot.position).add(new THREE.Vector3(0.06, BODY_HEIGHT, 0).applyQuaternion(herRoot.quaternion));
   });
   let herAction = null;
+  let flugHaze = null;
   const herEuler = new THREE.Euler(), herPitch = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
   /**
    * Flugeðla this frame: { beak: [u, v, k], clip, at (its second), pitch, yaw (degrees: 0 facing us), neck (degrees), egill: { weight,
@@ -199,6 +201,8 @@ export function createCast(world, { stage, D, flugedla, egill }) {
     const shown = her.root.visible;
     her.root.visible = true;
     boy.root.visible = true;
+    flugHaze ??= createHaze(her.model, boy.model); // (her saddle is in by now: she is not posed before it)
+    flugHaze.set(spec.haze ?? 0, spec.seen ?? 1);
     const clip = her.clips.get(spec.clip) ?? her.clips.get('glide');
     if (!herAction || herAction.getClip() !== clip) herAction = her.play(clip.name, { fade: 0, timeScale: 0 });
     herAction.time = spec.at;

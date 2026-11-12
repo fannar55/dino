@@ -105,7 +105,7 @@ async function probe(o, size) {
       return r.result.value;
     };
     const mode = o.hreyfing ? `${o.plain ? 'gler=0&' : ''}show=1` : o.lykill ? `lykill=${o.lykill.split(',')[0]}` : 'kvordun=1';
-    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.hreyfing ? 0 : o.t ?? 1.5}` });
+    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.hreyfing ? o.t ?? 0 : o.t ?? 1.5}` });
     const t0 = Date.now();
     for (;;) {
       let ready = false;
@@ -182,6 +182,7 @@ async function motion(o, size, evaluate, errors, send) {
     if (await evaluate('Boolean(window.__world?.gramedla?.sample && window.__world.gramedla.state.showing)')) break;
     await evaluate('window.__advance(1 / 30)');
   }
+  if (o.eval) { await evaluate('window.__advance(2 / 30)'); console.log(JSON.stringify(await evaluate(o.eval))); return []; } // --hreyfing --t <s> --eval: one look at a second of the show
   const length = await evaluate('window.__world.gramedla.length');
   const until = Math.min(length, o.until ?? length);
   const cues = await evaluate('JSON.parse(JSON.stringify(window.__world.gramedla.cues))');

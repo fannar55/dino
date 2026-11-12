@@ -185,6 +185,9 @@ export function flugedlaAt(t) {
     yaw: lerp(lerp(0, F3.yaw, span(t, b0 - 0.2, b1)), 0, span(t, FLIGHT.hold + 0.3, FLIGHT.hold + 1.3)),
     neck: lerp(F3.neck, 0, span(t, FLIGHT.hold, FLIGHT.hold + 0.9)) * brake,
     egill: { point: w > 0, weight: w, lean: F3.egill.lean, aim: F3.egill.aim },
+    // out of the far mist, not out of nothing: faint for her first moments and in the haze's colours while far (k 6 is 39 m)
+    seen: span(t, FLIGHT.start, FLIGHT.start + 0.9),
+    haze: t <= b1 ? smooth((beak[2] - 2.2) / (FLIGHT.from[2] - 2.2)) : 0,
   };
 }
 
@@ -352,7 +355,7 @@ export function specksAt(t) {
   if (near > 0) on.motesNear = { alpha: near };
   const fall = bump(t, 8.4, 9.0, 15.4, 16.4);
   if (fall > 0) on.leavesFar = on.pollenFar = { alpha: fall };
-  if (t > PUFF.on[0] && t < PUFF.on[1]) on.puffs = { alpha: bump(t, PUFF.on[0], PUFF.on[0] + 0.3, PUFF.on[1] - 0.3, PUFF.on[1]) };
+  // (her breath is no longer the table's puffs: vfx.js puffs it out of her nostrils at each sniff)
   if (t > BLAST.from && t < 67.6) {
     const a = bump(t, BLAST.from, BLAST.from + 0.2, 66.4, 67.6);
     on.blastMotes = on.blastPollen = on.blastLeaves = { alpha: a };
@@ -400,7 +403,8 @@ export function treesAt(t, steps = []) {
   const a2 = bump(t, 10.3, 10.6, 13.4, 15.4) * osc(t, key('2').time, 0.9);
   if (a2) out.push({ name: 'thump', amp: a2 });
   // (held still round frame 4a's second, which has the trees as built)
-  const still4a = smooth(Math.abs(t - key('4a').time) / 0.5);
+  // (held still round every key's second, which has the trees as built or as its row bends them)
+  const still4a = Math.min(...KEY_TIMES.map(k => smooth(Math.abs(t - k) / 0.5)));
   for (const s of steps) {
     const x = (t - s.t) / 0.7;
     if (x <= 0 || x >= 1 || !still4a || s.depth > 42) continue; // (far up the lane the near trees do not feel her)

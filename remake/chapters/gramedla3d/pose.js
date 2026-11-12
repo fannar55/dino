@@ -40,6 +40,7 @@ export function guardBones(bones) {
 // her lean: spine, chest and neck bend down by these shares of one angle; the head turns the snout to the lens
 const LEAN = { Spine: 0.22, Chest: 0.3, Neck: 0.48 };
 const SNOUT_MID = 0.12; // m: the snout tip is the forward-most upper-jaw vertex within this of the head's middle
+const NOSTRIL_VERTICES = [22403, 22073]; // the trex model's skin in her left and right nostril (found from a still, 2026-11-12)
 const TURN_GAIN = 2.3; // radians of head turn per share of the frame's width the head's outline is off its snout
 const TURN_MAX = 0.08; // radians
 const AIM = 0.5; // how much of the angle down to the lens the head turns
@@ -100,7 +101,7 @@ export function createGramPose(gram, stage, camera) {
   const body = bodyMesh(gram);
   const headVerts = [];
   const jawVerts = [];
-  let snoutLocal;
+  let snoutLocal, topLocal, nostrilsLocal;
   {
     body.skeleton.update();
     const list = body.skeleton.bones;
@@ -124,8 +125,21 @@ export function createGramPose(gram, stage, camera) {
     const mid = (lo + hi) / 2;
     for (const u of upper) if (Math.abs(u.dot(side) - mid) < SNOUT_MID && u.dot(facing) > best) { best = u.dot(facing); tip = u; }
     snoutLocal = bones.Head.worldToLocal(tip.clone());
+    // the top of her snout, where the butterfly sits: the highest skin over the middle a little behind the tip
+    let top = null;
+    for (const u of upper) {
+      const back = best - u.dot(facing);
+      if (back > 0.12 && back < 0.42 && Math.abs(u.dot(side) - mid) < 0.08 && (!top || u.y > top.y)) top = u;
+    }
+    topLocal = bones.Head.worldToLocal((top ?? tip).clone());
+    // her nostrils: the skin in the middle of each nostril's dip, picked on the screen from a still of her sniffing (the model's
+    // vertices 22403, her left, and 22073, her right; the snout tip if the model ever changes under them)
+    nostrilsLocal = NOSTRIL_VERTICES.map(i => bones.Head.worldToLocal(i < si.count ? body.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(body.matrixWorld) : tip.clone()));
   }
   const snout = (out = new THREE.Vector3()) => out.copy(snoutLocal).applyMatrix4(bones.Head.matrixWorld);
+  /** The top of her snout (where the butterfly sits) and her two nostrils (0 her left, 1 her right), in the world now. */
+  const snoutTop = (out = new THREE.Vector3()) => out.copy(topLocal).applyMatrix4(bones.Head.matrixWorld);
+  const nostril = (i, out = new THREE.Vector3()) => out.copy(nostrilsLocal[i]).applyMatrix4(bones.Head.matrixWorld);
   hold('idle', 0);
 
   // ---- the lean ----
@@ -260,5 +274,5 @@ export function createGramPose(gram, stage, camera) {
     lean(sol.theta, sol);
   }
 
-  return { bones, body, headVerts, jawVerts, snout, snoutLocal, hold, leanNow, get held() { return held; }, lean, poseAt, solve, solveNearest, nearestK, standAt, apply, at, centre, right };
+  return { bones, body, headVerts, jawVerts, snout, snoutLocal, snoutTop, nostril, hold, leanNow, get held() { return held; }, lean, poseAt, solve, solveNearest, nearestK, standAt, apply, at, centre, right };
 }

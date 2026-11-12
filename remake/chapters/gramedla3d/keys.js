@@ -92,7 +92,7 @@ export const KEYS = [
     id: '5', n: 5, name: 'Þefið', time: 58,
     lead: 'gram', leadText: 'trýnið',
     gram: { k: kOf(0.04), u: 0.44, v: 0.56, turn: -0.25, pitch: 0 },
-    particles: ['motesFar', 'puffs'],
+    particles: ['motesFar'], // her breath: vfx.js, out of her nostrils at each sniff
   },
   {
     id: '6', n: 6, name: 'Öskrið', time: 65,
