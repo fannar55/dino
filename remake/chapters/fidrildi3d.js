@@ -191,7 +191,7 @@ const MOTHS = [
     // round 6: from 44.5 low on the right in front of her chest, out of the way her head and neck come down (at 47.9 her neck came
     // down into it, high on the right), and away low in front of Mosi and up his left side into the trees
     [25, 0.82, 0.6, 0.85], [29, 0.76, 0.5, 0.7], [42.6, 0.8, 0.6, 0.66], [44.5, 0.81, 0.75, 0.64], [47, 0.8, 0.82, 0.63],
-    [50, 0.8, 0.83, 0.64], [53, 0.81, 0.82, 0.64], [55.2, 0.8, 0.8, 0.64], [56.6, 0.52, 0.82, 0.63], [57.8, 0.2, 0.6, 0.7], [59.2, 0.17, 0.35, 2.4, 'rest'], [60, 0.17, 0.35, 2.5]] },
+    [50, 0.8, 0.83, 0.64], [53, 0.81, 0.82, 0.64], [55.2, 0.8, 0.8, 0.64], [56.6, 0.52, 0.82, 0.63], [57.8, 0.16, 0.62, 0.66], [58.4, 0.13, 0.52, 1.05], [59.5, 0.17, 0.35, 2.1, 'rest'], [60, 0.17, 0.35, 2.15]] },
 ];
 // the swarm's depth through its dance (as a share of D), which the moths' ring follows too; and (round 5) how far right of the
 // middle its ring turns: behind the screen and through it it turns right of Mosi, whose head and body are there (k 1-1.6), and in
