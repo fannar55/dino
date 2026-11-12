@@ -549,6 +549,19 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   const lastPlayed = new Map();
   const allowed = () => !muted && !paused && context.state === 'running';
   const applyLevel = () => master.gain.setTargetAtTime(muted || paused ? 0 : 1, context.currentTime, 0.015);
+  const AMBIENCE = 0.8; // the ambience's gain as the game lays it
+  /** The beds' bus to `level` of AMBIENCE, in a straight line over `seconds` from where it is now. */
+  function bedLevel(level, seconds) {
+    const now = context.currentTime, gain = ambience.gain;
+    if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+    else {
+      const was = gain.value;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(was, now);
+    }
+    if (seconds > 0) gain.linearRampToValueAtTime(AMBIENCE * level, now + seconds);
+    else gain.setValueAtTime(AMBIENCE * level, now);
+  }
 
   return {
     /**
@@ -562,6 +575,9 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       if (BEDS.includes(name)) {
         wanted = name;
         calls = detail?.calls !== false;
+        // { level, seconds }: the bed (and its small sounds) to `level` of where the game lays it, over `seconds` (Grameðla kemur!
+        // drops the forest away for her thumps and for its stillness)
+        if (Number.isFinite(detail?.level)) bedLevel(Math.max(0, detail.level), Number.isFinite(detail.seconds) ? Math.max(0, detail.seconds) : 0);
         return allowed() && startBed(name);
       }
       if (!allowed() || sounding >= MAX_SOUNDS) return false;

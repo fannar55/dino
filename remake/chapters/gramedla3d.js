@@ -23,6 +23,8 @@ import { createDirector, solveRig } from './gramedla3d/director.js';
 import { createMeasure } from './gramedla3d/measure.js';
 import { runCalibration } from './gramedla3d/calibration.js';
 import { reviewUi, pct } from './gramedla3d/review.js';
+import { soundEvents, LINES } from './gramedla3d/soundtrack.js';
+import { createShowSounds } from './gramedla3d/sounds.js';
 
 export { CAMERA, D, LANE, keepOut, leaveOut } from './gramedla3d/stage.js';
 
@@ -44,8 +46,9 @@ export const chapter = {
     flugedla: { url: CHARS + 'pteranodon.glb', position: [AWAY[0] + 6, 0, AWAY[1]], heading: 90 },
     egill: { url: CHARS + 'egill.glb', position: [AWAY[0] - 6, 0, AWAY[1]], heading: 90 },
   },
-  cast: {},
-  lines: {},
+  cast: { egill: { name: 'Egill' } },
+  // Egill's two lines (soundtrack.js LINES), heard only: the show keeps text off the screen (spec rule 8)
+  lines: Object.fromEntries(Object.entries(LINES).map(([id, text]) => [id, { text, audio: id }])),
   startShot: 'show',
   shots: {
     show: { position: CAMERA, target: [CAMERA[0], CAMERA[1] + 1.2, CAMERA[2] - 10], fov: FOV },
@@ -99,11 +102,14 @@ export const chapter = {
 
     // the second of the show the stage is at: the show's own clock, or the review page's key
     const clock = { t: 0, from: null };
+    // the sound (the show only): soundtrack.js's events, each handed out as the show's second passes it
+    const track = { events: [], next: 0, fire: null };
     s.after(0, function* run() {
       for (;;) {
         const t = clock.from === null ? clock.t : Math.min(LENGTH, s.time - clock.from);
         state.t = t;
         director.apply(t);
+        if (clock.from !== null && track.fire) while (track.next < track.events.length && track.events[track.next].t <= t) track.fire(track.events[track.next++]);
         yield;
       }
     });
@@ -143,11 +149,27 @@ export const chapter = {
     }
 
     // ---- the show: the glasses' start (chapter.startButton), then the timeline from the top, then the end card ----
+    // Its sound: no music (the theme held at nothing), the game's forest under everything, the recordings (gramedla3d/sounds.js) on
+    // the page's output held with the game, Egill's lines heard only. The glasses' tap is the touch that lets sound begin; a capture
+    // has no sound at all, and its seek hands out only the lines (his mouth) and the forest's wishes, which sound nowhere.
+    const sounds = createShowSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
+    if (!s.seeking) world.sound?.hold?.(sounds);
+    world.music?.setLevel?.(0, 0);
+    track.events = soundEvents(rig);
+    track.fire = e => {
+      if (e.line) s.say('egill', e.line, { hold: 0, caption: false, listen: false });
+      else if (e.bed !== undefined) s.sfx('forest', { level: e.bed, seconds: e.seconds });
+      else if (e.sfx) s.sfx(e.sfx, e.detail);
+      else if (!s.seeking) sounds.play(e);
+    };
+    world.gramedla.sound = { events: track.events, sounds };
     clock.t = 0;
     director.apply(0);
     yield s.ready();
     for (;;) {
       director.reset();
+      sounds.stop(); // "Aftur" starts clean
+      track.next = 0;
       clock.from = s.time;
       state.showing = true;
       yield s.fade(1, 0);
@@ -158,7 +180,7 @@ export const chapter = {
       state.showing = false;
       // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
       let again = false;
-      const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => leaveShow(window) });
+      const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => { sounds.stop(); s.sfx('forest', { level: 0 }); leaveShow(window); } });
       document.body.append(end);
       try {
         yield s.until(() => again);

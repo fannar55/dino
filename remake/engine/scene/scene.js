@@ -49,14 +49,16 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
 
   // A speaker who is an actor talks: the mouth follows the recording's loudness (lines.json), or the
   // text when there is no recording, and the head moves with it (engine/talk.js).
-  function* sayTask(speaker, line, { hold = 0.5, keep = false } = {}) {
+  // `caption: false`: the line is heard only, with no caption (a 3D show, whose rules keep text off the screen); `listen: false`: the
+  // others do not turn their heads to the speaker (a show whose every move is timed).
+  function* sayTask(speaker, line, { hold = 0.5, keep = false, caption: captioned = true, listen = true } = {}) {
     const who = cast[speaker] ?? { name: speaker };
     const entry = resolveLine(line);
     const recording = entry.audio ? lines[entry.audio] : null;
-    const caption = ui.caption(who.name, entry.text, who.colour);
+    const caption = captioned ? ui.caption(who.name, entry.text, who.colour) : null;
     const sound = recording && !seeking ? voice.play(recording.src) : null;
     const actor = world.actors?.get(speaker);
-    const listenTarget = actor ? `${speaker}.head` : null;
+    const listenTarget = actor && listen ? `${speaker}.head` : null;
     const listeners = [];
     if (listenTarget && world.actors) {
       for (const [id, other] of world.actors) {
@@ -89,7 +91,7 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       for (const other of listeners) {
         if (other.listening === listenTarget) other.listenAt(null);
       }
-      if (!keep) ui.clearCaption(caption);
+      if (!keep && caption !== null) ui.clearCaption(caption);
     }
   }
 
