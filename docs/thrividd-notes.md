@@ -301,3 +301,41 @@ is orange, not pale.
 - Frame 4's front share is floor only.
 - The mouth-corner seam (a pale patch on her left cheek) shows at every head turn tried. The model is not edited.
 - A turn of −0.25 shows both eyes but needs u 0.44 to stay central.
+
+## Grameðla kemur!: step 2, the motion (2026-11-12)
+
+The show runs at `http://localhost:4300/remake/?chapter=gramedla3d` for 74.8 s from the glasses start, then shows the end card
+("Aftur" replays, "Hætta" leaves). `&t=` seeks and stays paused (`window.__advance` steps on); `lykill=N` and `kvordun=1` still work.
+No sound, no speech, no book tile. The cue times are kept in one place as named data: `CUES` and `cues(rig)` in
+`remake/chapters/gramedla3d/timeline.js`.
+
+**Files.**
+- `timeline.js` is pure: what everything is doing at second t.
+- `director.js` applies the timeline to the world.
+- `cast.js` poses the cast.
+- `pose.js` holds `guardBones` and `leanNow`.
+- `measure.js` has a `sample()` per step.
+- The probe is `remake/tools/gramedla-probe.mjs --hreyfing`.
+
+The keys test now also checks that at each key's second the timeline is that key's row.
+
+**Frame 3.** Egill is seen: yaw 20, neck 12, beak at u 0.42, flap clip at 0. The beak is 1.5 % out and the wings clear the edges.
+
+**Key times moved.** 4a is at 29 s (walk second 1.29, so she reaches frame 4's spot at the walk phase nearest her idle stance) and 4 at
+38 s. The other key times are unchanged.
+
+**Her feet.** The walk clip's second follows the metres walked. In the walk-in that is about 2.5 m/s at timeScale about 2.2.
+
+**Rest at the screen plane.** Between the sniff, the roar and the butterfly she steps back (backing walk) to frame 4's own spot and pose,
+where her snout is at the screen plane:
+- rest 51.8–52.9 s;
+- rest 58.4–59.4 s.
+
+**Exit.** She backs out, still facing us, to z −7 behind the screen. She cannot turn round: a 12 m animal in the 6.8 m lane would sweep
+the trees. She stops short of the cycad and the broadleaf that flank the lane at z −10, and the fade covers her.
+
+**Measures.**
+- The clearances now place the actors' shells each frame. Before this they were stale.
+- Small things are tested against the plants' own volumes, height and all.
+
+The full numbers are in `qa/thrividd/gramedla/hreyfing/maelingar.txt`.
