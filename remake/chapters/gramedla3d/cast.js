@@ -20,10 +20,12 @@ const rad = d => (d * Math.PI) / 180;
 const HERO_SCALE = 1.5; // as in Fiðrildadansinn: it reads at the middle of the frame
 const BIRD_REACH = 0.24; // m: a bird's model scaled so its bounding sphere is this big (a songbird's wings spread)
 // The colours: pale or yellow-green in front of the screen (spec rule 7); behind it the forest's own leaf colours.
+// rim: 1 on each: with these gentle falloffs the glow has not died out at the point's edge, and a big speck (a puff of her breath
+// is a third of a metre across, two metres from the lens) would show as a square.
 const LOOKS = {
-  motes: { colour: '#fff6d6', look: { ...SPARKLE_LOOK, star: 0, glow: 0.95, falloff: 2.4, twinkle: 1 } },
-  pollen: { colour: '#e9ec7a', look: { ...SPARKLE_LOOK, star: 0, glow: 0.8, falloff: 2.2, twinkle: 0 } },
-  puffs: { colour: '#eef2ea', look: { ...SPARKLE_LOOK, star: 0, glow: 0.42, falloff: 1.25, twinkle: 0 } },
+  motes: { colour: '#fff6d6', look: { ...SPARKLE_LOOK, star: 0, glow: 0.95, falloff: 2.4, twinkle: 1, rim: 1 } },
+  pollen: { colour: '#e9ec7a', look: { ...SPARKLE_LOOK, star: 0, glow: 0.8, falloff: 2.2, twinkle: 0, rim: 1 } },
+  puffs: { colour: '#eef2ea', look: { ...SPARKLE_LOOK, star: 0, glow: 0.42, falloff: 1.25, twinkle: 0, rim: 1 } },
 };
 const LEAF_BEHIND = ['#8fbf4e', '#c9c24a', '#e8a33a', '#a8c95a', '#7fae45'];
 const LEAF_FRONT = ['#cfdc7e', '#dfe39a', '#bcd46e'];
