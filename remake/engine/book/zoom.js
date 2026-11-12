@@ -190,6 +190,11 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
   };
   layer.addEventListener('pointerup', lift);
   layer.addEventListener('pointercancel', lift);
+  layer.addEventListener('lostpointercapture', lift);
+  win?.addEventListener?.('blur', () => {
+    fingers.clear();
+    gesture = null;
+  });
   layer.addEventListener('wheel', event => {
     if (!isOpen || motion || closing || held) return; // a model's canvas zooms the model with the wheel itself
     event.preventDefault?.();
@@ -282,11 +287,12 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
   }
 
   function close(instant = false) {
-    if (!isOpen || closing) return false;
+    if (!isOpen) return false;
     if (instant || !canAnimate() || !win?.getComputedStyle) {
       finish();
       return true;
     }
+    if (closing) return false;
     closing = true;
     audio?.sfx?.('zoomOut');
     const at = win.getComputedStyle(frame).transform; // wherever the way in, or the pinch and drag, has it now

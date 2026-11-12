@@ -1219,6 +1219,7 @@ export function createHalsGame(doc, {
     renderDock();
     const winner = pieces.list[game.winner];
     const computer = game.players[game.winner].isComputer;
+    if (!thorPlays(game.winner)) save?.addSticker?.('hals');
     renderPlayers();
     sendViews(); // who won, on every phone
     let said = 0;

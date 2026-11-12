@@ -63,7 +63,7 @@ export function createShowPlayer(doc, root, { audio = null, win = globalThis.win
     frame = doc.createElement('iframe');
     frame.className = 'show-frame';
     frame.setAttribute('title', entry.title ?? entry.name ?? 'Myndband');
-    frame.setAttribute('allow', 'autoplay; fullscreen');
+    frame.setAttribute('allow', 'autoplay; fullscreen; screen-wake-lock');
     frame.src = showAddress(entry, win?.location?.search ?? '');
     player.insertBefore(frame, closeButton);
     player.hidden = false;
@@ -76,7 +76,10 @@ export function createShowPlayer(doc, root, { audio = null, win = globalThis.win
     if (!current) return false;
     const shut = current;
     current = null;
-    frame?.remove(); // its WebGL, its sound and its clock go with it
+    if (frame) {
+      try { frame.src = 'about:blank'; } catch {}
+      frame.remove(); // its WebGL, its sound and its clock go with it
+    }
     frame = null;
     player.hidden = true;
     onClose?.(shut);

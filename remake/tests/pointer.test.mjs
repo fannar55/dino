@@ -345,6 +345,28 @@ test('a cancelled touch ends its drag, is never a tap, and leaves the pointer re
   assert.equal(taps.length, 1, 'the next touch works');
 });
 
+test('sub-2px capacitive jitter from a resting grip thumb does not hijack a drag, and lostpointercapture ends a drag cleanly', () => {
+  const { pointer, send, tapOn } = pointerRig();
+  const { taps, drags } = watch(pointer);
+  send('pointerdown', 100, 100, 0, 1);
+  send('pointermove', 135, 100, 10, 1); // finger 1 drags
+  send('pointerdown', 20, 400, 20, 2); // grip thumb lands on bezel
+  send('pointermove', 34, 400, 30, 2); // slips 14 px while settling into grip
+  send('pointerup', 135, 100, 40, 1); // finger 1 lifts
+  send('pointermove', 35, 400.5, 50, 2); // 1.12 px capacitive jitter on grip thumb
+  assert.deepEqual(drags.map(d => d.phase), ['start', 'end'], 'sub-2px jitter does not claim a new drag');
+  send('pointerup', 35, 400.5, 60, 2);
+  assert.deepEqual(taps, []);
+
+  // lostpointercapture cleans up a stuck finger without firing a tap
+  send('pointerdown', 200, 200, 100, 3);
+  send('pointermove', 240, 200, 120, 3);
+  send('lostpointercapture', 0, 0, 140, 3);
+  assert.deepEqual(drags.slice(2).map(d => d.phase), ['start', 'end'], 'lost capture ends the drag cleanly');
+  tapOn(EGILL);
+  assert.equal(taps.length, 1);
+});
+
 test('a tap finds a moving target where it is now, and the press is what is picked', () => {
   const { pointer, world, tapOn, screenOf, send } = pointerRig();
   const { taps } = watch(pointer);

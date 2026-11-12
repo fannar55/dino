@@ -203,4 +203,18 @@ test('the Worker preserves query strings on / and files bug reports at /villa in
   assert.equal(savedReport.text, 'Villuprófun í skýi');
   assert.equal(env.files[`${folder}/spjold.html`].toString('utf8'), '<!doctype html>');
   assert.ok(env.files[`${folder}/skjaskot.jpg`].length > 0);
+
+  const crossOrigin = await worker.fetch(new Request('https://mosi.example/villa', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+    body: '{}',
+  }), env);
+  assert.equal(crossOrigin.status, 403, 'cross-origin POST is rejected');
+
+  const oversized = await worker.fetch(new Request('https://mosi.example/villa', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'content-length': String(30 * 1024 * 1024) },
+    body: '{}',
+  }), env);
+  assert.equal(oversized.status, 413, 'oversized Content-Length is rejected before buffering');
 });

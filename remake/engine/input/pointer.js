@@ -160,6 +160,10 @@ export function createPointer({ canvas, camera, world }) {
     if (!finger.moved && Math.hypot(x - finger.startX, y - finger.startY) >= SLOP_PX) finger.moved = true;
     if (!finger.moved) return;
     if (dragger === null) {
+      // A finger that already moved while another was dragging needs purposeful movement (>= 2 px) to take over,
+      // so capacitive jitter from a resting grip thumb never hijacks the camera on release.
+      if (finger.reclaim && Math.hypot(x - finger.lastX, y - finger.lastY) < 2) return;
+      finger.reclaim = false;
       dragger = finger;
       finger.dragging = true;
       emitDrag(finger, 'start', x, y);
@@ -176,6 +180,7 @@ export function createPointer({ canvas, camera, world }) {
     for (const other of fingers.values()) {
       other.lastX = other.x;
       other.lastY = other.y;
+      if (other.moved) other.reclaim = true;
     }
   }
 
@@ -193,6 +198,7 @@ export function createPointer({ canvas, camera, world }) {
       x, y, // where it is now
       lastX: x, lastY: y, // where the last drag event left the finger
       moved: false, // 12 px or more from where it landed: no tap
+      reclaim: false,
       dragging: false,
       hit: pick(x, y), // what it landed on
     });
@@ -232,10 +238,22 @@ export function createPointer({ canvas, camera, world }) {
     if (finger.dragging) emitDrag(finger, 'end', finger.lastX, finger.lastY);
   }
 
+  function cancelAll() {
+    for (const finger of [...fingers.values()]) {
+      lift(finger);
+      if (finger.dragging) emitDrag(finger, 'end', finger.lastX, finger.lastY);
+    }
+  }
+
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onCancel);
+  canvas.addEventListener('lostpointercapture', onCancel);
+  canvas.ownerDocument?.addEventListener?.('visibilitychange', () => {
+    if (canvas.ownerDocument?.hidden) cancelAll();
+  });
+  canvas.ownerDocument?.defaultView?.addEventListener?.('blur', cancelAll);
   // A long press can open the browser's context menu, which on Android takes the touch over and ends
   // it with a cancel: a slow tap would be lost.
   canvas.addEventListener('contextmenu', event => event.preventDefault());

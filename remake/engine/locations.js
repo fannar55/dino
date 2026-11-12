@@ -105,5 +105,17 @@ export function createLocations({ world, locations, build }) {
       }
       show(name, forest);
     },
+    /** Dispose a previously built location that is no longer in view so multi-stage chapters can free GPU memory. */
+    release(name) {
+      if (!names.includes(name) || name === current) return false;
+      const forest = built.get(name);
+      built.delete(name);
+      forests.delete(name);
+      if (forest) {
+        forest.group?.removeFromParent?.();
+        forest.dispose?.();
+      }
+      return Boolean(forest);
+    },
   };
 }

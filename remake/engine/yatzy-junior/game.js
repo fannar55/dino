@@ -14,6 +14,7 @@ import {createFjolspil} from '../fjolspil/fjolspil.js';
 import {avatarOf} from '../fjolspil/seats.js';
 import {MOSI_AI,STORAGE_KEY,playersOf,phaseOf,yatzyView,actOf,keepFjolspil,readFjolspil,forgetFjolspil} from './fjolspil.js';
 import {keepScreenAwake} from '../wake-lock.js';
+import {awardSticker} from '../save.js';
 
 const $=id=>document.getElementById(id),SAVE='mosi.yatzy.junior.save.v1',PREFS='mosi.yatzy.junior.prefs.v1';
 const read=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
@@ -54,7 +55,7 @@ const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3
 const LINES=Object.freeze({...VOICE_LINES,...MULTI_LINES});
 // Full Icelandic speech is separate from its brief reading support.
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
-let muted=prefs.muted===true,reduced=typeof prefs.reduced==='boolean'?prefs.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches;
+let muted=prefs.muted===true||new URLSearchParams(location.search).get('hljod')==='0',reduced=typeof prefs.reduced==='boolean'?prefs.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches;
 const audio=createJuniorAudio();audio.mute(muted);
 let world,opponent,dice,effects,pick,voice,voiceManifest={},state=createGame(),saved=soloSave(read(SAVE));
 let phase='intro',timer=0,elapsed=0,last=performance.now(),frame=0,started=false,paused=true,disposed=false,qaFrozen=false,resizeObserver;
@@ -366,7 +367,7 @@ function resultCopy(){
   if(multi){$('win-title').textContent=state.winner==='tie'?'Jafntefli!':`${players[Number(state.winner)].name} vann!`;$('win-copy').textContent=players.map(({name},i)=>`${name} ${totals(state.players[i].scores).total}`).join(' · ');return;}
   const a=totals(state.players[0].scores).total,b=totals(state.players[1].scores).total;$('win-title').textContent=state.winner==='tie'?'Jafntefli!':state.winner==='you'?'Þú vannst!':'Mosi vann!';$('win-copy').textContent=`Þú ${a} · Mosi ${b}`;}
 function advanceTurn(){
-  if(state.status==='finished'){phase='finished';resultCopy();opponent.react('win');audio.cue('win',{winner:!multi||state.winner==='tie'?state.winner:mosiPlays(Number(state.winner))?'mosi':'you'});
+  if(state.status==='finished'){phase='finished';resultCopy();opponent.react('win');const outcome=!multi||state.winner==='tie'?state.winner:mosiPlays(Number(state.winner))?'mosi':'you';audio.cue('win',{winner:outcome});if(outcome!=='mosi')awardSticker('junior');
     // Confetti, two volleys of fireworks over the table and Mosi's celebration play out before the result card comes up.
     const open=()=>{if(phase==='finished'&&state.status==='finished')openDialog('win-dialog',resultSpeech());};if(reduced)open();else{effects.celebrate();later={t:2.7,fn:open};}renderUI();sendViews();return;}
   // The turn moves on to the next seat round the ring, played as its seat is (turnPhase); the cards are its player's now.

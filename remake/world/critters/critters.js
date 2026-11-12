@@ -157,8 +157,9 @@ const vec3 BIRD_SHOULDER = vec3( ${sx.toFixed(4)}, ${sy.toFixed(4)}, ${sz.toFixe
   };
   const wingKey = wing ? `-${shoulder.map(v => v.toFixed(4)).join(',')}` : '';
   const colorKey = vertexColors ? '' : '-uv';
+  const flightKey = flight ? '-u' : '';
   const baseKey = kind === 'bird' ? 'critter-birds' : `critter-wings-${kind}`;
-  material.customProgramCacheKey = () => `${baseKey}${colorKey}${wingKey}`;
+  material.customProgramCacheKey = () => `${baseKey}${colorKey}${wingKey}${flightKey}`;
   return material;
 }
 

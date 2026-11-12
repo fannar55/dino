@@ -56,6 +56,16 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     const caption = ui.caption(who.name, entry.text, who.colour);
     const sound = recording && !seeking ? voice.play(recording.src) : null;
     const actor = world.actors?.get(speaker);
+    const listenTarget = actor ? `${speaker}.head` : null;
+    const listeners = [];
+    if (listenTarget && world.actors) {
+      for (const [id, other] of world.actors) {
+        if (id !== speaker && other?.listenAt) {
+          other.listenAt(listenTarget);
+          listeners.push(other);
+        }
+      }
+    }
     let talking = null;
     try {
       // The mouth and the line's time start when the sound is heard, not when it was asked for: over the network a recording
@@ -76,6 +86,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       // Only this line's own sound, mouth and caption: a newer line may already be showing.
       if (sound) voice.stop(sound);
       if (talking) actor.stopTalking(talking);
+      for (const other of listeners) {
+        if (other.listening === listenTarget) other.listenAt(null);
+      }
       if (!keep) ui.clearCaption(caption);
     }
   }
@@ -481,6 +494,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     prepare(name) {
       if (!locations) throw new Error('s.prepare needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
       return locations.prepare(name);
+    },
+    /** Dispose a previously visited location that is no longer needed so GPU buffers and textures are freed. */
+    releaseLocation(name) {
+      locations?.release?.(name);
+      return DONE;
     },
     /** Add or replace a tap target: `{ point, radius }`, a point spec and metres. `s.target(name, null)` removes it. */
     target,

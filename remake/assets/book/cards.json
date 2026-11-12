@@ -305,6 +305,9 @@
       "unlock": {
         "star": "k3_gramedla"
       },
+      "altUnlock": {
+        "star": "k6_gramedla"
+      },
       "picture": "render-gramedla",
       "pages": [
         {

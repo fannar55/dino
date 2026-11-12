@@ -115,7 +115,7 @@ async function answer(request, clientId) {
 /** Makes `version` active, unless another window of the app is open: nothing changes under a child playing there. */
 async function takeOver(version) {
   const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (windows.filter(client => client.frameType === 'top-level').length > 1) return false;
+  if (windows.filter(client => client.frameType === 'top-level' && (!client.url || isMosi(client.url))).length > 1) return false;
   const lists = await caches.open(LISTS);
   const list = await lists.match(listKey(version));
   if (!list) return false;

@@ -86,7 +86,7 @@ void main() {
   col = mix(col, fogTint, smoothstep(0.09, 0.0, h));
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
-  gl_FragColor.rgb += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+  gl_FragColor.rgb += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
 }`;
 
 export function createSky({ renderer, scene, look, sunDir }) {
@@ -146,7 +146,7 @@ export function createSky({ renderer, scene, look, sunDir }) {
       dome.geometry.dispose();
       material.dispose();
       noise.dispose();
-      env.texture.dispose();
+      env.dispose();
     },
   };
 }

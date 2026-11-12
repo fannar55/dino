@@ -75,7 +75,31 @@ const EITT_SEEN = 'eitt'; // kept in the save's seen list once the game has been
 export const VEIDDU_STAR = 'k2_uggedla'; // the star that opens "Veiddu": Uggeðla's (chapter 2's friend; the chapter adds it)
 const VEIDDU_SEEN = 'veiddu'; // kept in the save's seen list once the game has been opened, so its tile is new no more
 const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has won more sees the count
-const STICKERS_EACH = 5; // and when it is full, a game that has won keeps at least this many of its stickers on it
+const STICKERS_EACH = 5; // and when it is full, a game that has won keeps up to this many of its stickers on it
+const STICKER_KINDS = [
+  { cls: 'book-sticker', one: 'kambeðlulímmiði', many: 'kambeðlulímmiðar', read: save => save.getEitt?.().wins ?? 0 },
+  { cls: 'book-sticker uggedla', one: 'uggeðlulímmiði', many: 'uggeðlulímmiðar', read: save => save.getVeiddu?.().wins ?? 0 },
+  { cls: 'book-sticker thorsedla', one: 'þórseðlulímmiði', many: 'þórseðlulímmiðar', read: save => save.getStickers?.().hals ?? 0 },
+  { cls: 'book-sticker mosi', one: 'mosalímmiði', many: 'mosalímmiðar', read: save => save.getStickers?.().junior ?? 0 },
+  { cls: 'book-sticker sloedla', one: 'slóeðlulímmiði', many: 'slóeðlulímmiðar', read: save => save.getStickers?.().sloedla ?? 0 },
+  { cls: 'book-sticker flugedla', one: 'flugeðlulímmiði', many: 'flugeðlulímmiðar', read: save => save.getStickers?.().minnisspil ?? 0 },
+];
+
+function stickersShown(counts, max = STICKERS_SHOWN, each = STICKERS_EACH) {
+  const total = counts.reduce((sum, n) => sum + n, 0);
+  if (total <= max) return counts.slice();
+  const active = counts.filter(n => n > 0).length;
+  const floor = Math.min(each, Math.floor(max / active));
+  let remaining = max;
+  return counts.map((n, i) => {
+    if (!n) return 0;
+    let reserved = 0;
+    for (let j = i + 1; j < counts.length; j++) reserved += Math.min(counts[j], floor);
+    const take = Math.min(n, Math.max(0, remaining - reserved));
+    remaining -= take;
+    return take;
+  });
+}
 const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
 const UGGEDLA_PICTURE = new URL('../../assets/book/images/uggedla-render.webp', import.meta.url).href;
 const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
@@ -86,10 +110,13 @@ const FLUGEDLA_PICTURE = new URL('../../assets/eitt/pteranodon.webp', import.met
 export const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
 const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
 const JUNIOR_SEEN = 'yatzy-junior'; // kept in the save's seen list once Litla Yatzy has been opened, so its tile is new no more
+const SLOEDLA_SEEN = 'sloedla'; // kept in the save's seen list once Söngur Slóeðlu has been opened, so its tile is new no more
+const SLOEDLA_PICTURE = new URL('../../assets/eitt/parasaurolophus.webp', import.meta.url).href;
 const OPEN_MS = 460;
 const CLOSE_MS = 340;
 const FADE_MS = 160; // the open and close with less motion
 const TURN_MS = 560; // both halves of a page turn
+const SAFETY_MS = 120; // fallback when a throttled Android tab drops WAAPI onfinish
 const OPEN_EASE = 'cubic-bezier(.2, .9, .3, 1.12)'; // out of the button, a little past full size and back, like a game's window
 const CLOSE_EASE = 'cubic-bezier(.55, 0, .8, .25)';
 const PERSPECTIVE = 'perspective(2400px)';
@@ -289,6 +316,26 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   juniorTile.append(juniorPicture, juniorName);
   const juniorSlot = make('div', 'game-slot');
   juniorSlot.append(juniorTile);
+  // "Söngur Slóeðlu": a taped picture of Slóeðla beside "Litla Yatzy".
+  const sloedlaTile = make('button', 'tile game-tile');
+  sloedlaTile.setAttribute('type', 'button');
+  sloedlaTile.setAttribute('data-game', 'sloedla');
+  sloedlaTile.setAttribute('aria-label', 'Söngur Slóeðlu, tónlistarleikur');
+  sloedlaTile.style.setProperty('--hue', '#6793d0'); // Slóeðla's blue, as on her card (book.css [data-card="sloedla"])
+  const sloedlaPicture = make('span', 'tile-picture');
+  const sloedlaImage = doc.createElement('img');
+  sloedlaImage.src = SLOEDLA_PICTURE;
+  sloedlaImage.alt = '';
+  sloedlaImage.draggable = false;
+  sloedlaPicture.append(sloedlaImage);
+  const sloedlaName = make('span', 'tile-name');
+  sloedlaName.textContent = 'Söngur Slóeðlu';
+  const sloedlaBadge = make('span', 'badge-new');
+  sloedlaBadge.textContent = 'Nýtt!';
+  sloedlaBadge.setAttribute('aria-hidden', 'true');
+  sloedlaTile.append(sloedlaPicture, sloedlaName);
+  const sloedlaSlot = make('div', 'game-slot');
+  sloedlaSlot.append(sloedlaTile);
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
   // "Saman getum við það!": a taped picture of Flugeðla, last on the page, once her star is in.
   const minnisTile = make('button', 'tile game-tile');
@@ -311,16 +358,16 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   const minnisSlot = make('div', 'game-slot');
   minnisSlot.append(minnisTile);
 
-  gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot, minnisSlot); // each shows once its game is open (renderGameSlots)
+  gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot, sloedlaSlot, minnisSlot); // each shows once its game is open (renderGameSlots)
   gamesRight.append(sheet);
 
-  // The Safnið and Myndbönd ribbons' own "Nýtt!", while a fossil or an unlocked video is not tapped yet (renderRibbonNew).
-  const ribbonNew = make('span', 'ribbon-new');
-  ribbonNew.textContent = 'Nýtt!';
-  ribbonNew.setAttribute('aria-hidden', 'true');
-  const videosRibbonNew = make('span', 'ribbon-new');
-  videosRibbonNew.textContent = 'Nýtt!';
-  videosRibbonNew.setAttribute('aria-hidden', 'true');
+  // Each content ribbon's own "Nýtt!", while a newly unlocked card, game, fossil or video has not been tapped yet (renderRibbonNew).
+  const ribbonBadges = new Map(['dinosaurs', 'animals', 'games', 'fossils', 'videos'].map(name => {
+    const badge = make('span', 'ribbon-new');
+    badge.textContent = 'Nýtt!';
+    badge.setAttribute('aria-hidden', 'true');
+    return [name, badge];
+  }));
 
   const spine = make('div', 'book-spine');
   spine.setAttribute('aria-hidden', 'true');
@@ -358,7 +405,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     zoom,
     win,
     onWatch: onWatchVideo,
-    onClose: () => { animals.render(); dinosaurs.render(); },
+    onClose: () => { animals.render(); dinosaurs.render(); renderRibbonNew(); },
   });
   videoPlayer = createVideoPlayer(doc, root, { audio, win, onClose: () => { videosPage?.render(); renderRibbonNew(); } });
   // A "3D myndbönd" show plays in a frame of its own chapter over the open book (show-player.js); closing it is the Myndbönd page again.
@@ -393,11 +440,14 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     },
     onChange: () => renderRibbonNew(),
   });
-  const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), { cards: animalCards, media, save, audio, win, onOpenCard });
+  const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), { cards: animalCards, media, save, audio, win, onOpenCard, onChange: () => renderRibbonNew() });
   // The Risaeðlur leaf: the same page over the dinosaur cards, whose friends not met yet have Mosi say he will meet them later.
-  const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME });
+  const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME, onChange: () => renderRibbonNew() });
   // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
-  const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`), ...(liveMap ? { liveMap } : {}) });
+  const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(id === 'gramedla' ? DINOSAUR_FIND_ME : `k2_mosi_map_${id}`), ...(liveMap ? { liveMap } : {}) });
+
+  const stateKey = () => JSON.stringify([save.get(), STICKER_KINDS.map(kind => kind.read(save)), halsOpen(save)]);
+  let renderedKey = null;
 
   /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils, the videos. */
   function render() {
@@ -409,12 +459,18 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     renderVeiddu(state);
     renderHals(state);
     renderJunior(state);
+    renderSloedla(state);
     renderMinnisspil(state);
     renderGameSlots(state);
     map.render();
     museum.render();
     videosPage.render();
-    renderRibbonNew();
+    renderRibbonNew(state);
+    renderedKey = stateKey();
+  }
+
+  function renderIfNeeded() {
+    if (renderedKey !== stateKey()) render();
   }
 
   /** A spread the child can turn to: the first always, and a later one once an animal on it is found. */
@@ -435,16 +491,25 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     });
   }
 
-  /** The Safnið and Myndbönd ribbons wear their "Nýtt!" while a fossil or unlocked video is not tapped yet. */
-  function renderRibbonNew() {
-    const ribbon = ribbons.get('fossils');
-    const fresh = museum.hasNew();
-    if (fresh && ribbonNew.parentNode !== ribbon) ribbon.append(ribbonNew);
-    if (!fresh) ribbonNew.remove();
-    const videoRibbon = ribbons.get('videos');
-    const freshVideo = videosPage?.hasNew?.() ?? false;
-    if (freshVideo && videosRibbonNew.parentNode !== videoRibbon) videoRibbon?.append(videosRibbonNew);
-    if (!freshVideo) videosRibbonNew.remove();
+  /** Ribbons wear their "Nýtt!" while a newly earned card, game, fossil or video has not been tapped yet (never for items open from the start). */
+  function renderRibbonNew(state = bookState(save)) {
+    const freshGames = (state.stars.includes(EITT_STAR) && !state.seen.includes(EITT_SEEN))
+      || (state.stars.includes(VEIDDU_STAR) && !state.seen.includes(VEIDDU_SEEN))
+      || (halsOpen(save) && !state.seen.includes(HALS_SEEN))
+      || (state.stars.includes(MINNISSPIL_STAR) && !state.seen.includes(MINNISSPIL_SEEN));
+    const status = [
+      ['dinosaurs', dinosaurs.hasNew()],
+      ['animals', animals.hasNew()],
+      ['games', freshGames],
+      ['fossils', museum.hasNew()],
+      ['videos', videosPage?.hasNew?.() ?? false],
+    ];
+    for (const [name, fresh] of status) {
+      const ribbon = ribbons.get(name);
+      const badge = ribbonBadges.get(name);
+      if (fresh && badge.parentNode !== ribbon) ribbon?.append(badge);
+      if (!fresh) badge.remove();
+    }
   }
 
   /**
@@ -469,19 +534,13 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     eittTile.setAttribute('aria-label', open ? 'Eitt!, spil við Kambeðlu' : 'Eitt! (opnast með stjörnu Kambeðlu)');
     if (fresh && eittBadge.parentNode !== eittTile) eittTile.append(eittBadge);
     if (!fresh) eittBadge.remove();
-    const wins = save.getEitt?.().wins ?? 0;
-    const veidduWins = save.getVeiddu?.().wins ?? 0;
-    const veiddu = state.stars.includes(VEIDDU_STAR);
-    const key = `${wins}/${veidduWins}/${open}/${veiddu}`;
+    const counts = STICKER_KINDS.map(kind => kind.read(save));
+    const key = counts.join('/');
     if (sheet.getAttribute('data-wins') === key) return; // nothing new for the sticker sheet
     sheet.setAttribute('data-wins', key);
-    const total = wins + veidduWins;
-    const veidduShown = total <= STICKERS_SHOWN ? veidduWins : Math.min(veidduWins, Math.max(STICKERS_SHOWN - wins, STICKERS_EACH));
-    const eittShown = Math.min(wins, STICKERS_SHOWN - veidduShown);
-    const stickers = [
-      ...Array.from({ length: eittShown }, () => make('span', 'book-sticker')),
-      ...Array.from({ length: veidduShown }, () => make('span', 'book-sticker uggedla')),
-    ];
+    const total = counts.reduce((sum, n) => sum + n, 0);
+    const shown = stickersShown(counts);
+    const stickers = STICKER_KINDS.flatMap((kind, i) => Array.from({ length: shown[i] }, () => make('span', kind.cls)));
     if (!total) stickers.push(make('span', 'book-sticker empty')); // where the first one will go
     if (total > STICKERS_SHOWN) {
       const count = make('span', 'sticker-count');
@@ -489,12 +548,11 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
       stickers.push(count);
     }
     sheet.replaceChildren(...stickers);
-    const said = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
-    const parts = [];
-    if (wins) parts.push(said(wins, 'Einn kambeðlulímmiði', 'kambeðlulímmiðar'));
-    if (veidduWins) parts.push(said(veidduWins, 'Einn uggeðlulímmiði', 'uggeðlulímmiðar'));
-    if (!parts.length) parts.push(veiddu && !open ? '0 uggeðlulímmiðar' : '0 kambeðlulímmiðar'); // Kambeðla's, unless only Veiddu is open
-    sheet.setAttribute('aria-label', parts.join(' og '));
+    const parts = STICKER_KINDS.flatMap((kind, i) => (counts[i] ? [counts[i] === 1 ? `einn ${kind.one}` : `${counts[i]} ${kind.many}`] : []));
+    const label = !parts.length
+      ? 'Engir límmiðar enn'
+      : parts.length <= 2 ? parts.join(' og ') : `${parts.slice(0, -1).join(', ')} og ${parts.at(-1)}`;
+    sheet.setAttribute('aria-label', label[0].toUpperCase() + label.slice(1));
   }
 
   /** "Veiddu" opens with Uggeðla's star and is new until it is first played. */
@@ -532,11 +590,11 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     const hals = halsOpen(save);
     let places = 0;
     const minnisspil = state.stars.includes(MINNISSPIL_STAR);
-    for (const [slot, open] of [[eittSlot, eitt], [veidduSlot, veiddu], [halsSlot, hals], [juniorSlot, true], [minnisSlot, minnisspil]]) {
+    for (const [slot, open] of [[eittSlot, eitt], [veidduSlot, veiddu], [halsSlot, hals], [juniorSlot, true], [sloedlaSlot, true], [minnisSlot, minnisspil]]) {
       slot.hidden = !open;
       slot.setAttribute('data-place', String(open ? ++places : 0));
     }
-    sheet.hidden = !(eitt || veiddu);
+    sheet.hidden = false; // Litla Yatzy and Söngur Slóeðlu are open from the start, and every minigame awards stickers
     gamesLeft.setAttribute('data-open', String(places));
   }
 
@@ -547,6 +605,15 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     juniorTile.classList.toggle('new', fresh);
     if (fresh && juniorBadge.parentNode !== juniorTile) juniorTile.append(juniorBadge);
     if (!fresh) juniorBadge.remove();
+  }
+
+  /** "Söngur Slóeðlu" is always open, and new until it is first played. */
+  function renderSloedla(state) {
+    const fresh = !state.seen.includes(SLOEDLA_SEEN);
+    sloedlaTile.classList.toggle('found', !fresh);
+    sloedlaTile.classList.toggle('new', fresh);
+    if (fresh && sloedlaBadge.parentNode !== sloedlaTile) sloedlaTile.append(sloedlaBadge);
+    if (!fresh) sloedlaBadge.remove();
   }
 
   /** "Saman getum við það!" shows with Flugeðla's star (renderGameSlots hides its slot before), and is new until it is first played. */
@@ -588,6 +655,14 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     onPlay?.('yatzy-junior');
   }
 
+  /** A tap on the "Söngur Slóeðlu" tile: Slóeðla's song game opens in a frame over the book (main.js). */
+  function tapSloedla() {
+    audio?.sfx?.('tile');
+    save.addSeen(SLOEDLA_SEEN);
+    render();
+    onPlay?.('sloedla');
+  }
+
   /** A tap on the "Saman getum við það!" tile: the memory page opens in a frame over the book (main.js). */
   function tapMinnisspil() {
     audio?.sfx?.('tile');
@@ -622,7 +697,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   /** Opens a minigame from a chapter script (`s.journal.playGame`), marking it seen in the book and returning the opened game. */
   function playGame(game, options) {
-    const seen = game === 'hals' ? HALS_SEEN : game === 'yatzy-junior' ? JUNIOR_SEEN : game === 'minnisspil' ? MINNISSPIL_SEEN : game === 'veiddu' ? VEIDDU_SEEN : EITT_SEEN;
+    const seen = game === 'hals' ? HALS_SEEN : game === 'yatzy-junior' ? JUNIOR_SEEN : game === 'sloedla' ? SLOEDLA_SEEN : game === 'minnisspil' ? MINNISSPIL_SEEN : game === 'veiddu' ? VEIDDU_SEEN : EITT_SEEN;
     save.addSeen(seen);
     render();
     return onPlay?.(game, options) ?? null;
@@ -663,11 +738,21 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     }
   }
 
-  function showTab() {
+  function showTab(keep = null) {
     root.setAttribute('data-tab', tab);
     for (const [name, ribbon] of ribbons) ribbon.setAttribute('aria-selected', String(name === tab));
     const shown = leafOf(tab);
-    for (const leaf of allLeaves) leaf.el.hidden = leaf !== shown;
+    for (const leaf of allLeaves) leaf.el.hidden = leaf !== shown && leaf !== keep;
+  }
+
+  /** Pre-decodes hidden pages' images off the main thread once the open animation settles, so turning to Kortið or Dýrin never stalls. */
+  function predecodeImages() {
+    if (!canAnimate()) return;
+    const timer = setTimeout(() => {
+      if (!isOpen) return;
+      for (const img of root.querySelectorAll?.('img') ?? []) img.decode?.().catch(() => {});
+    }, reducedMotion(win) ? FADE_MS + 40 : OPEN_MS + 40);
+    timer?.unref?.();
   }
 
   /** The game holds still for the child's book. A callback that fails must not leave the book half open. */
@@ -700,6 +785,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   /** Stops the open or close under way where it is, and says where that was. */
   function halt() {
     const at = here();
+    clearTimeout(moving?.timer);
     for (const animation of moving?.animations ?? []) animation.cancel();
     moving = null;
     return at;
@@ -728,13 +814,21 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     root.classList.remove('closing');
     root.hidden = false;
     if (!canAnimate()) return;
+    const calm = reducedMotion(win);
     const fadeIn = duration => root.animate([{ opacity: at?.opacity ?? 0 }, { opacity: 1 }], { duration, easing: 'ease-out' });
-    const animations = reducedMotion(win)
+    const animations = calm
       ? [fadeIn(FADE_MS)]
       : [spread.animate([{ transform: at?.transform ?? over(origin()) }, { transform: 'none' }], { duration: OPEN_MS, easing: OPEN_EASE }), fadeIn(OPEN_MS * 0.4)];
-    const mine = { animations };
+    const mine = { animations, timer: null };
     moving = mine;
-    animations[0].onfinish = () => { if (moving === mine) moving = null; };
+    const settle = () => {
+      if (moving !== mine) return;
+      clearTimeout(mine.timer);
+      moving = null;
+    };
+    animations[0].onfinish = settle;
+    mine.timer = setTimeout(settle, (calm ? FADE_MS : OPEN_MS) + SAFETY_MS);
+    mine.timer?.unref?.();
   }
 
   /** The book shrinks back into the button and is put away; taps go through it to the game meanwhile. */
@@ -746,21 +840,26 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     }
     root.classList.add('closing');
     const from = at?.opacity ?? 1;
-    const animations = reducedMotion(win)
+    const calm = reducedMotion(win);
+    const animations = calm
       ? [root.animate([{ opacity: from }, { opacity: 0 }], { duration: FADE_MS, fill: 'forwards' })]
       : [
         spread.animate([{ transform: at?.transform ?? 'none' }, { transform: over(origin()) }], { duration: CLOSE_MS, easing: CLOSE_EASE, fill: 'forwards' }),
         root.animate([{ opacity: from }, { opacity: from, offset: 0.6 }, { opacity: 0 }], { duration: CLOSE_MS, fill: 'forwards' }), // solid until it is small
       ];
-    const mine = { animations };
+    const mine = { animations, timer: null };
     moving = mine;
-    animations[0].onfinish = () => {
+    const settle = () => {
       if (moving !== mine) return; // opened again meanwhile
+      clearTimeout(mine.timer);
       moving = null;
       for (const animation of animations) animation.cancel();
       root.hidden = true;
       root.classList.remove('closing');
     };
+    animations[0].onfinish = settle;
+    mine.timer = setTimeout(settle, (calm ? FADE_MS : CLOSE_MS) + SAFETY_MS);
+    mine.timer?.unref?.();
   }
 
   /** How a page turns over the spine: round which edge, and the angle at which it stands edge-on (it lies flat at 0). */
@@ -792,15 +891,19 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
       out.animate([{ transform: lift.at(0) }, { transform: lift.at(lift.edge) }], { duration: half, easing: 'cubic-bezier(.45, 0, .9, .5)', fill: 'forwards' }),
       into.animate([{ transform: land.at(land.edge) }, { transform: land.at(0) }], { duration: half, delay: half, easing: 'cubic-bezier(.1, .5, .55, 1)', fill: 'backwards' }),
     ];
-    const mine = { animations, pages: [out, into] };
+    const mine = { animations, pages: [out, into], timer: null };
     turning = mine;
-    animations[1].onfinish = () => { if (turning === mine) finishTurn(); };
+    const settle = () => { if (turning === mine) finishTurn(); };
+    animations[1].onfinish = settle;
+    mine.timer = setTimeout(settle, TURN_MS + SAFETY_MS);
+    mine.timer?.unref?.();
   }
 
   /** Ends the page turn under way where it was going. */
   function finishTurn() {
     const done = turning;
     if (!done) return;
+    clearTimeout(done.timer);
     turning = null;
     for (const animation of done.animations) animation.cancel();
     for (const page of done.pages) {
@@ -823,10 +926,12 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     museum.stop(); // a celebration's sparkles still to come do not follow the child to another page
     const old = leafOf(from);
     tab = next;
-    render();
-    showTab();
+    const nextLeaf = leafOf(next);
+    const willTurn = isOpen && canAnimate() && !reducedMotion(win) && old !== nextLeaf;
+    renderIfNeeded();
+    showTab(willTurn ? old : null);
     audio?.sfx?.('turn');
-    if (isOpen) pageTurn(old, leafOf(next), TABS.indexOf(next) > TABS.indexOf(from));
+    if (willTurn) pageTurn(old, nextLeaf, TABS.indexOf(next) > TABS.indexOf(from));
     if (isOpen) tellTab();
     celebrateIfShown(canAnimate() && !reducedMotion(win) ? TURN_MS : 0); // once the page has landed
   }
@@ -847,10 +952,12 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     const old = leafOf('animals');
     const forward = i > spreadIndex;
     spreadIndex = i;
-    render();
-    showTab();
+    const nextLeaf = leafOf('animals');
+    const willTurn = isOpen && canAnimate() && !reducedMotion(win) && old !== nextLeaf;
+    renderIfNeeded();
+    showTab(willTurn ? old : null);
     audio?.sfx?.('turn');
-    if (isOpen) pageTurn(old, leafOf('animals'), forward);
+    if (willTurn) pageTurn(old, nextLeaf, forward);
   }
 
   /** The card a find unlocks, if the book has it. */
@@ -896,6 +1003,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     if (holder === 'child') pause(true);
     audio?.sfx?.('open');
     grow();
+    predecodeImages();
     if (found) animals.nod(found.id, reducedMotion(win) ? FADE_MS : OPEN_MS); // once the book has grown
     else if (nod) nodTile(nod, reducedMotion(win) ? FADE_MS : OPEN_MS);
     celebrateIfShown(canAnimate() ? (reducedMotion(win) ? FADE_MS : OPEN_MS) : 0); // once the book has grown
@@ -943,6 +1051,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     }
     save.addSeen(card.id);
     (dinosaur ? dinosaurs : animals).render();
+    renderRibbonNew();
     return cardViewer.open(card, null, page);
   }
 
@@ -968,6 +1077,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   pressable(veidduTile, { audio, sound: null, win, onTap: () => tapVeiddu() }); // the tile plays its own sound
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
   pressable(juniorTile, { audio, sound: null, win, onTap: () => tapJunior() });
+  pressable(sloedlaTile, { audio, sound: null, win, onTap: () => tapSloedla() });
   pressable(minnisTile, { audio, sound: null, win, onTap: () => tapMinnisspil() });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {

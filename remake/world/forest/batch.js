@@ -38,8 +38,18 @@ const HYSTERESIS = 0.08;
 // A camera that moved more than CUT m since the last view has cut to another shot: what was drawn before says nothing, and each plant
 // takes its switches as they are again (so a still at a time looks as it did before the hysteresis, whatever was drawn before it).
 const CUT = 12;
+const _batchStates = new WeakMap();
 let _epoch = 0;
-const _lastEye = new THREE.Vector3(Infinity, 0, 0);
+function epochFor(meshes, cam) {
+  let state = _batchStates.get(meshes);
+  if (!state) {
+    state = { epoch: 0, lastEye: new THREE.Vector3(Infinity, 0, 0) };
+    _batchStates.set(meshes, state);
+  }
+  if (cam.distanceTo(state.lastEye) > CUT) state.epoch++;
+  state.lastEye.copy(cam);
+  return state.epoch;
+}
 
 /** One record per tree: crown centre and half-extent, and the level chosen for this view. */
 function crownLod(placement, first) {
@@ -403,8 +413,7 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
   _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_m4);
   _cam.setFromMatrixPosition(camera.matrixWorld);
-  if (_cam.distanceTo(_lastEye) > CUT) _epoch++;
-  _lastEye.copy(_cam);
+  _epoch = epochFor(meshes, _cam);
   // crowns in view, largest on screen first (one that was fine a little ahead of the others, so two of a size do not take turns)
   _view++;
   _crowns.length = 0;

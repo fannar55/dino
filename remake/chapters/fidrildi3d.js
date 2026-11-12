@@ -43,17 +43,18 @@ const GLASSES_STYLE = `
   .gler-start-wrap { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; align-content: center; gap: 2.4vmin; pointer-events: none; }
   .gler-start-wrap[hidden] { display: none; }
   .gler-start { pointer-events: auto; border: 0; padding: 0; margin: 0; background: none; cursor: pointer; border-radius: 6vmin;
-    -webkit-tap-highlight-color: transparent; animation: gler-pulse 1s ease-in-out infinite; }
-  .gler-start img { display: block; width: min(60vmin, 92vw); height: auto; aspect-ratio: 1764 / 1335; -webkit-user-drag: none; }
+    -webkit-tap-highlight-color: transparent; will-change: transform, opacity; animation: gler-pulse 1s ease-in-out infinite; }
+  .gler-start img { display: block; width: min(60vmin, 92vw); height: auto; aspect-ratio: 1764 / 1335; -webkit-user-drag: none;
+    filter: drop-shadow(0 0 2.4vmin rgba(255, 250, 215, .82)); }
   .gler-start-line { margin: 0; padding: 6px 16px; border-radius: 12px; background: rgba(255,255,255,.88); color: #2b2b2b;
     font: 700 clamp(17px, 2.2vw, 22px)/1.3 Nunito, sans-serif; text-align: center; }
   @keyframes gler-pulse {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 1.2vmin rgba(255, 250, 215, .45)); }
-    50% { transform: scale(1.06); filter: drop-shadow(0 0 4vmin rgba(255, 250, 215, .95)); }
+    0%, 100% { transform: scale(1); opacity: .94; }
+    50% { transform: scale(1.06); opacity: 1; }
   }
   @keyframes gler-pulse-calm {
-    0%, 100% { filter: drop-shadow(0 0 1.2vmin rgba(255, 250, 215, .45)); }
-    50% { filter: drop-shadow(0 0 2.6vmin rgba(255, 250, 215, .75)); }
+    0%, 100% { opacity: .88; }
+    50% { opacity: 1; }
   }
   @media (prefers-reduced-motion: reduce) { .gler-start { animation: gler-pulse-calm 2.4s ease-in-out infinite; } }`;
 /** The glasses start, laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */

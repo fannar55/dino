@@ -466,6 +466,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   function frame(now) {
     if (!going) return;
     frameId = win.requestAnimationFrame(frame);
+    if (canvas.closest?.('.page-turning')) return;
     if (!textures || now - last < 1000 / LIFE_FPS - 2) return; // 30 a second: a frame that comes sooner than that waits for the next
     if (!usable() || !draw(lifeClock(now - CLOCK_ZERO), 1)) return;
     last = now;
@@ -516,6 +517,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     return win.createImageBitmap(await response.blob(), left, top, width, height);
   };
   const pause = () => new Promise(ok => setTimeout(ok, 0));
+  const waitTurn = () => new Promise(ok => setTimeout(ok, 32));
   let pictures = [];
   (async () => {
     pictures = await Promise.all([PAINTING_SRC, WATER_SRC, MIST_SRC].map(bitmapOf));
@@ -532,6 +534,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     ];
     for (const step of steps) {
       await pause();
+      while (!gone && canvas.closest?.('.page-turning')) await waitTurn();
       if (gone) return; // let go while it waited
       step();
     }
