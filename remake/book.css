@@ -492,6 +492,18 @@
 .video-3d-column:has(> .video-tile-3d:nth-of-type(2)) .video-tile-3d {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.35 - 30px) / 2.38);
 }
+/* Three (Grameðla kemur! the third): smaller again, closer together, the names a size down, so heading + three tiles fit the page's
+   height without stretching the videos' rows beside them. */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(3)) { gap: calc(var(--gap) * .3); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d {
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.2 - 30px) / 3.25);
+}
+.video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d .tile-name { font-size: clamp(14px, var(--tile-w) * .12, 24px); min-height: 1.3em; }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d .badge-new { font-size: clamp(16px, var(--tile-w) * .13, 26px); } /* clear of the 3D mark */
+/* the column may stand taller than the two rows of videos beside it: they keep their own size and stay together in the middle (the
+   first two at the foot of the first row, the other two at the top of the second), level with the left page's */
+.video-tiles.with-3d:has(.video-tile-3d:nth-of-type(3)) > .video-tile:nth-child(-n + 2) { align-self: end; }
+.video-tiles.with-3d:has(.video-tile-3d:nth-of-type(3)) > .video-tile:nth-child(n + 3) { align-self: start; }
 .video-3d-head {
   margin: 0; font: inherit; font-weight: 800; color: var(--book-ink); text-align: center; white-space: nowrap;
   font-size: clamp(16px, var(--tile-w) * .13, 28px); line-height: 1.1;

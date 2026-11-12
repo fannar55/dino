@@ -140,6 +140,16 @@ export const BOOK_3D = [
     unlock: { start: true },
     label: 'Þrívíddarsafnið, þrívíddarsýning, með rauðum og bláum gleraugum',
   },
+  {
+    id: 'gramedla3d',
+    name: 'Grameðla kemur!',
+    title: 'Grameðla kemur!',
+    chapter: 'gramedla3d',
+    poster: videoUrl('gramedla3d-thumb.webp'), // a still of the show (gler=0, 44 s: her head out of the screen)
+    hue: '#c27a3e',
+    unlock: { start: true },
+    label: 'Grameðla kemur!, þrívíddarmyndband, með rauðum og bláum gleraugum',
+  },
 ];
 
 export const videoSeenId = id => `video:${id}`;
@@ -215,7 +225,7 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   left.append(...regular.slice(0, leftCount).map(item => item.tile));
   right.append(...regular.slice(leftCount).map(item => item.tile));
   if (threeDs.length) {
-    // the 3D column: its own heading, set apart from the videos, room for two tiles
+    // the 3D column: its own heading, set apart from the videos, room for three tiles
     right.classList.add('with-3d');
     const column = make('div', 'video-3d-column');
     const head = make('h3', 'video-3d-head');
