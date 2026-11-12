@@ -182,7 +182,7 @@ const MOTHS = [
   // Mosi's face (k 0.6, his beak is at 0.78) before it joins and both leave while the ring is out in front, not through him and her neck
   { name: 'moth-a', tint: COLOURS[1], ring: Math.PI, ringFrom: 31.5, ringTo: 40.6, wig: [0.04, 0.035, 1.9, 2.7, 0.4], keys: [
     [0, 0.15, 0.3, 2.2], [5, 0.18, 0.55, 0.75], [9, 0.2, 0.62, 0.62], [13, 0.2, 0.66, 0.66], [17, 0.18, 0.64, 0.68], [21, 0.17, 0.6, 0.68],
-    [25, 0.17, 0.62, 0.72], [29, 0.2, 0.6, 0.66], [31.5, 0.5, 0.66, 0.6], [42.6, 0.3, 0.55, 0.62], [44.5, 0.17, 0.48, 0.7], [50, 0.25, 0.36, 0.62], [54, 0.2, 0.42, 0.66, 'rest'],
+    [25, 0.17, 0.62, 0.72], [29, 0.2, 0.6, 0.66], [31.5, 0.5, 0.66, 0.6], [42.6, 0.3, 0.55, 0.62], [44.5, 0.17, 0.48, 0.7], [50, 0.25, 0.36, 0.62], [54, 0.2, 0.42, 0.66, 'rest'], [55.4, 0.15, 0.3, 0.64],
     [58, 0.13, 0.22, 2.8, 'rest'], [60, 0.13, 0.22, 2.9]] }, // round 5: in front of his frill's left edge (k 0.78 was by it) and out wider
   { name: 'moth-b', tint: COLOURS[2], ring: 0, ringFrom: 30.5, ringTo: 40.6, wig: [0.035, 0.04, 2.3, 1.7, 2.1], keys: [
     [0, 0.85, 0.4, 2.5], [5, 0.78, 0.45, 0.9], [9, 0.8, 0.55, 0.62], [13, 0.82, 0.5, 0.7], [17, 0.78, 0.6, 0.8], [21, 0.8, 0.52, 0.66],
@@ -808,7 +808,7 @@ export const chapter = {
       // than they may come, from u 0.4)
       const mosiRing = (b, t, o) => {
         const ang = (b.j / 8) * TAU + (TAU * (t - 41)) / 14, sc = 0.8 + 0.2 * ((b.j * 0.37) % 1);
-        o[0] = 0.27 + 0.09 * sc * Math.cos(ang); o[1] = 0.42 + 0.2 * sc * Math.sin(ang); o[2] = 0.65 + 0.03 * Math.sin(0.7 * t + b.bob);
+        o[0] = 0.25 + 0.065 * sc * Math.cos(ang); o[1] = 0.42 + 0.2 * sc * Math.sin(ang); o[2] = 0.63 + 0.02 * Math.sin(0.7 * t + b.bob);
         return o;
       };
       // hers: while her head comes down, high over Mosi's frill (k 0.9) left of the way it comes, one turn in 16 s. Not under it (her
@@ -816,7 +816,7 @@ export const chapter = {
       // seam), nor up her right side (her bent neck's shell reaches k 0.64 there, so near the edge of the frame).
       const lowRing = (b, t, o) => {
         const ang = (b.j / 8) * TAU + (TAU * (t - 41)) / 16;
-        o[0] = 0.32 + 0.07 * Math.cos(ang); o[1] = 0.155 + 0.02 * Math.sin(ang); o[2] = 0.65 + 0.012 * Math.sin(0.8 * t + b.bob);
+        o[0] = 0.26 + 0.05 * Math.cos(ang); o[1] = 0.155 + 0.02 * Math.sin(ang); o[2] = 0.65 + 0.012 * Math.sin(0.8 * t + b.bob);
         return o;
       };
       // and once her head is down, a small loose ring over it, in front of her neck (k 1) and a wing and the shell's soft zone clear
