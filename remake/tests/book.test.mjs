@@ -13,6 +13,7 @@ import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createZoom } from '../engine/book/zoom.js';
 import { createShowPlayer, showAddress, SHOW_CLOSE } from '../engine/book/show-player.js';
+import { createJuniorFrame } from '../engine/yatzy-junior/frame.js';
 import { rockYaw, ROCK_SWING } from '../engine/book/skeleton-view.js';
 import { createSave } from '../engine/save.js';
 import { createGame, applyTurn, FOSSIL_KINDS } from '../engine/hals/rules.js';
@@ -2242,12 +2243,12 @@ test("Flugeðla's game, Saman getum við það!, is the last tile, with her star
   book.open('games', 'child');
   assert.equal(MINNISSPIL_STAR, 'k4_flugedla');
   assert.equal(tile().parentNode.hidden, true, 'hidden without her star');
-  assert.equal(grid().getAttribute('data-open'), '4');
+  assert.equal(grid().getAttribute('data-open'), '5');
   save.addStar(MINNISSPIL_STAR);
   book.refresh();
   assert.equal(tile().parentNode.hidden, false, 'shown with k4_flugedla');
-  assert.equal(grid().getAttribute('data-open'), '5');
-  assert.equal(tile().parentNode.getAttribute('data-place'), '5', 'last');
+  assert.equal(grid().getAttribute('data-open'), '6');
+  assert.equal(tile().parentNode.getAttribute('data-place'), '6', 'last');
   assert.ok(tile().classList.contains('new') && !tile().classList.contains('found'), 'new until opened');
   tap(tile());
   assert.deepEqual(played, ['minnisspil']);
@@ -2372,7 +2373,7 @@ test('the Myndbönd page has nine videos, five on the left page and four on the 
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
   assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek'], 'five on the left page');
-  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d'], 'and four on the right, then the 3D column');
+  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d', 'safn3d'], 'and four on the right, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
   const videoRibbonDots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
@@ -2445,7 +2446,9 @@ test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open
   assert.equal(show.findAll(e => e.classList.contains('video-3d-badge'))[0].textContent, '3D');
   assert.ok(show.classList.contains('new'), 'open from the start, and new until watched');
   assert.equal(show.getAttribute('aria-label'), 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum');
-  assert.equal(column.findAll(e => e.classList.contains('video-tile')).length, 1, 'one tile now, no empty placeholder');
+  const museum3d = column.findAll(e => e.getAttribute('data-video') === 'safn3d')[0];
+  assert.ok(museum3d?.classList.contains('video-tile-3d') && museum3d.classList.contains('new'), 'Þrívíddarsafnið is open from the start beside Fiðrildadansinn');
+  assert.equal(column.findAll(e => e.classList.contains('video-tile')).length, 2, 'two 3D tiles: Fiðrildadansinn and Þrívíddarsafnið');
   const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
     .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
   assert.deepEqual(dots(), [], 'a show open from the start puts no Nýtt! on the ribbon');
@@ -2582,4 +2585,173 @@ test('a show frame keeps only quality and debug from the page, and Escape or the
   win.dispatchEvent(message);
   assert.equal(player.isOpen, false, 'as does Escape in the frame, which it sends up');
   assert.deepEqual(told, ['open', 'close', 'open', 'close']);
+});
+
+test('Þrívíddarsafnið and Söngur Slóeðlu are open from the start, unfound tiles keep their name as "?", ribbons show Nýtt! for newly earned items, and Grameðla honours k6_gramedla', () => {
+  const { save, book, root, narrated, tap, tile } = fenRig();
+  const gameRig = savedRig();
+  const ribbonDots = tab => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === tab)[0]
+    .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
+
+  // Open-from-start items (Mosi, Litla Yatzy, Söngur Slóeðlu, Heimur, Fiðrildadansinn, Þrívíddarsafnið) never put Nýtt! on ribbons.
+  for (const tab of ['dinosaurs', 'animals', 'games', 'fossils', 'videos']) {
+    assert.deepEqual(ribbonDots(tab), [], `${tab} ribbon starts without Nýtt!`);
+  }
+
+  // Unfound tiles show "?" in .tile-name; unlocked tiles show their real name.
+  assert.equal(tile('mosi').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Mosi');
+  assert.equal(tile('kambedla').findAll(e => e.classList.contains('tile-name'))[0].textContent, '?');
+  assert.equal(tile('frog').findAll(e => e.classList.contains('tile-name'))[0].textContent, '?');
+
+  // Earning Kambeðla's star and finding frog puts Nýtt! on Risaeðlur, Dýrin, Leikir and Myndbönd, and reveals their names.
+  save.addStar('k1_kambedla');
+  save.addFinding('frog');
+  book.refresh();
+  assert.equal(tile('kambedla').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Kambeðla');
+  assert.equal(tile('frog').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Froskur');
+  assert.deepEqual(ribbonDots('dinosaurs'), ['Nýtt!']);
+  assert.deepEqual(ribbonDots('animals'), ['Nýtt!']);
+  assert.deepEqual(ribbonDots('games'), ['Nýtt!']);
+
+  // Opening Söngur Slóeðlu works from the start, marks 'sloedla' seen, and hands 'sloedla' to onPlay.
+  const sloedla = gameRig.root.findAll(e => e.getAttribute('data-game') === 'sloedla')[0];
+  assert.ok(sloedla.classList.contains('new') && !sloedla.parentNode.hidden);
+  gameRig.book.open('games', 'child');
+  gameRig.tap(sloedla);
+  assert.deepEqual(gameRig.played, ['sloedla']);
+  assert.ok(gameRig.save.get().seen.includes('sloedla') && sloedla.classList.contains('found'));
+
+  // Opening Þrívíddarsafnið opens ?chapter=safn3d&syning=1 in the show player.
+  book.open('videos', 'child');
+  const safnTile = root.findAll(e => e.getAttribute('data-video') === 'safn3d')[0];
+  tap(safnTile);
+  assert.equal(book.showPlayer.isOpen, true);
+  assert.match(book.showPlayer.frame.src, /chapter=safn3d&syning=1/);
+  assert.ok(save.get().seen.includes('video:safn3d'));
+  book.showPlayer.close();
+
+  // Grameðla unlocks with k6_gramedla (altUnlock) too, and tapping her marker on Kortið uses book_mosi_later fallback.
+  assert.ok(tile('gramedla').classList.contains('unfound'));
+  save.addStar('k6_gramedla');
+  book.refresh();
+  assert.ok(tile('gramedla').classList.contains('new'));
+  book.open('map', 'child');
+  const gramedlaMarker = root.findAll(e => e.classList.contains('map-marker') && e.getAttribute('data-place') === 'gramedla')[0];
+  if (gramedlaMarker) {
+    narrated.length = 0;
+    tap(gramedlaMarker);
+    assert.equal(narrated.at(-1), 'book_mosi_later');
+  }
+});
+
+test('all six minigames award their friend\'s round sticker on the Leikir sticker sheet, keep every earned friend visible past 20, and createJuniorFrame forwards mosi:sticker', () => {
+  const { save, book, root } = fenRig();
+  const sheet = () => root.findAll(e => e.classList.contains('sticker-sheet'))[0];
+  const stickers = () => sheet().findAll(e => e.classList.contains('book-sticker'));
+  book.open('games', 'child');
+  assert.equal(sheet().hidden, false);
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty']);
+  assert.equal(sheet().getAttribute('aria-label'), 'Engir límmiðar enn');
+
+  save.setEitt({ wins: 1 });
+  save.setVeiddu({ wins: 1 });
+  save.addSticker('hals');
+  save.addSticker('junior');
+  save.addSticker('sloedla');
+  save.addSticker('minnisspil');
+  book.refresh();
+  assert.deepEqual(stickers().map(s => s.className), [
+    'book-sticker',
+    'book-sticker uggedla',
+    'book-sticker thorsedla',
+    'book-sticker mosi',
+    'book-sticker sloedla',
+    'book-sticker flugedla',
+  ]);
+  assert.equal(
+    sheet().getAttribute('aria-label'),
+    'Einn kambeðlulímmiði, einn uggeðlulímmiði, einn þórseðlulímmiði, einn mosalímmiði, einn slóeðlulímmiði og einn flugeðlulímmiði',
+  );
+
+  // Overflow past 20 with all 6 games earned: 20 stickers fit, every friend keeps at least 3, and .sticker-count says 60.
+  save.setEitt({ wins: 10 });
+  save.setVeiddu({ wins: 10 });
+  save.setStickers({ hals: 10, junior: 10, sloedla: 10, minnisspil: 10 });
+  book.refresh();
+  assert.equal(stickers().length, 20);
+  for (const cls of ['uggedla', 'thorsedla', 'mosi', 'sloedla', 'flugedla']) {
+    assert.ok(stickers().filter(s => s.classList.contains(cls)).length >= 3, `${cls} keeps at least 3 stickers on a full sheet`);
+  }
+  assert.deepEqual(sheet().findAll(e => e.classList.contains('sticker-count')).map(e => e.textContent), ['60']);
+
+  // createJuniorFrame forwards mosi:sticker from its iframe to onWin.
+  const frameDoc = new FakeDocument(['villa']);
+  frameDoc.getElementById('villa').hidden = true;
+  const win = new EventTarget();
+  win.location = { origin: 'https://mosi.fannar55.workers.dev' };
+  const won = [];
+  const frame = createJuniorFrame(frameDoc, { win, onWin: game => won.push(game) });
+  frame.open();
+  const iframe = frameDoc.body.querySelector('iframe');
+  iframe.contentWindow = {};
+  const msg = new Event('message');
+  msg.origin = 'https://mosi.fannar55.workers.dev';
+  msg.source = iframe.contentWindow;
+  msg.data = { type: 'mosi:sticker', game: 'junior' };
+  win.dispatchEvent(msg);
+  assert.deepEqual(won, ['junior']);
+  frame.close();
+});
+
+test('animated ribbon turns never toggle the outgoing leaf hidden before finishTurn, and CSS grain uses pre-baked WebP tiles instead of SVG feTurbulence', () => {
+  const { book, root } = fenRig();
+  const animations = [];
+  const fakeAnimate = () => {
+    const anim = { onfinish: null, cancel() {} };
+    animations.push(anim);
+    return anim;
+  };
+  const spread = root.findAll(e => e.classList.contains('book-spread'))[0];
+  root.animate = fakeAnimate;
+  spread.animate = fakeAnimate;
+  for (const page of root.findAll(e => e.classList.contains('book-page'))) page.animate = fakeAnimate;
+
+  book.open('dinosaurs', 'child');
+  animations.length = 0;
+  const dinoLeaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'dinosaurs')[0];
+  assert.equal(dinoLeaf.hidden, false);
+
+  const writes = [];
+  let hiddenVal = dinoLeaf.hidden;
+  Object.defineProperty(dinoLeaf, 'hidden', {
+    configurable: true,
+    get() { return hiddenVal; },
+    set(v) {
+      writes.push(Boolean(v));
+      hiddenVal = Boolean(v);
+    },
+  });
+
+  const animalsRibbon = root.findAll(e => e.classList.contains('ribbon')).find(r => r.getAttribute('data-tab') === 'animals');
+  animalsRibbon.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+  animalsRibbon.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+
+  assert.equal(book.tab, 'animals');
+  assert.equal(spread.classList.contains('page-turning'), true);
+  assert.ok(!writes.includes(true), `outgoing leaf must stay visible throughout turn setup, got writes: ${JSON.stringify(writes)}`);
+  assert.equal(animations.length, 2, 'two half-turn animations scheduled');
+
+  animations[1].onfinish();
+  assert.equal(spread.classList.contains('page-turning'), false);
+  assert.equal(dinoLeaf.hidden, true, 'outgoing leaf hides cleanly once finishTurn settles');
+
+  const bookCss = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
+  const eittCss = fs.readFileSync(new URL('../eitt.css', import.meta.url), 'utf8');
+  assert.ok(!bookCss.includes('feTurbulence'), 'book.css uses baked paper-grain.webp rather than live SVG feTurbulence');
+  assert.ok(!eittCss.includes('feTurbulence'), 'eitt.css uses baked wood-grain.webp rather than live SVG feTurbulence');
+  for (const rel of ['../assets/book/paper-grain.webp', '../assets/eitt/wood-grain.webp']) {
+    const bytes = fs.readFileSync(new URL(rel, import.meta.url));
+    assert.equal(bytes.subarray(0, 4).toString('ascii'), 'RIFF');
+    assert.equal(bytes.subarray(8, 12).toString('ascii'), 'WEBP');
+  }
 });

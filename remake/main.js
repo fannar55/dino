@@ -77,7 +77,7 @@ const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q); // keep the object: resolutionScale is a live getter
 const { renderer, applySize, adapt } = display;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.25, 1200);
 const clock = createClock();
 
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory. An address that names no
@@ -92,7 +92,7 @@ const save = createSave(params.get('t') === null ? undefined : null);
 const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
 // The bug report tool (engine/villa/villa.js) is registered before the first await so F1 works from the first moment, even
 // while the chapter and its models are still downloading.
-let villaHeldClock = false, holdFn = null, drawNowFn = null, juniorRef = null, minnisspilRef = null, halsRef = null;
+let villaHeldClock = false, holdFn = null, drawNowFn = null, juniorRef = null, sloedlaRef = null, minnisspilRef = null, halsRef = null;
 let villaContext = () => ({
   chapterId,
   params: Object.fromEntries(params),
@@ -104,7 +104,7 @@ let villaContext = () => ({
 const villa = createVilla(document, {
   button: params.get('villa') === '1',
   shoot: () => {
-    const sub = juniorRef?.shoot?.() ?? minnisspilRef?.shoot?.();
+    const sub = juniorRef?.shoot?.() ?? sloedlaRef?.shoot?.() ?? minnisspilRef?.shoot?.();
     if (sub) return sub;
     if (halsRef?.isOpen) halsRef.world?.render?.();
     else drawNowFn?.();
@@ -280,7 +280,7 @@ let showOpen = false; // a "3D myndbönd" show is open over the book (onShow bel
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
   onPlay: (game, options) => {
-    const target = game === 'hals' ? hals : game === 'yatzy-junior' ? junior : game === 'minnisspil' ? minnisspil : game === 'veiddu' ? veiddu : eitt;
+    const target = game === 'hals' ? hals : game === 'yatzy-junior' ? junior : game === 'sloedla' ? sloedla : game === 'minnisspil' ? minnisspil : game === 'veiddu' ? veiddu : eitt;
     target.open(options);
     return target;
   }, // the Leikir page's games
@@ -289,7 +289,7 @@ const book = createBook(document, {
   onShow: open => {
     showOpen = open;
     if (open) audio?.suspend?.().catch(() => {});
-    else audio?.resume?.().catch(() => {});
+    else if (!document.hidden) audio?.resume?.().catch(() => {});
   },
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
@@ -332,9 +332,24 @@ const veiddu = createVeidduGame(document, {
 // "Litla Yatzy við Mosa" (remake/yatzy-junior.html, a page of its own) in a frame over the book (engine/yatzy-junior/frame.js),
 // the chapter held meanwhile as for the other games.
 const junior = createJuniorFrame(document, {
+  isMuted: () => !playing,
+  onWin: () => { save.addSticker('junior'); book.refresh(); },
   onPause: paused => {
     clock.setPaused(paused || book.isChildOpen);
     hold('yatzy-junior', paused);
+  },
+  onClose: () => book.refresh(),
+});
+// "Söngur Slóeðlu" (remake/sloedla-lab.html, Slóeðla's song game) in a frame over the book, open from the start.
+const sloedla = createJuniorFrame(document, {
+  src: './sloedla-lab.html?inbook=1',
+  label: 'Söngur Slóeðlu',
+  closeType: 'sloedla:close',
+  isMuted: () => !playing,
+  onWin: () => { save.addSticker('sloedla'); book.refresh(); },
+  onPause: paused => {
+    clock.setPaused(paused || book.isChildOpen);
+    hold('sloedla', paused);
   },
   onClose: () => book.refresh(),
 });
@@ -342,6 +357,8 @@ const junior = createJuniorFrame(document, {
 const minnisspil = createJuniorFrame(document, {
   src: './minnisspil.html?inbook=1',
   label: 'Saman getum við það!',
+  isMuted: () => !playing,
+  onWin: () => { save.addSticker('minnisspil'); book.refresh(); },
   onPause: paused => {
     clock.setPaused(paused || book.isChildOpen);
     hold('minnisspil', paused);
@@ -375,6 +392,7 @@ const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cas
 // one that throws is reported as such instead of stopping the report (engine/villa/skyrsla.js).
 holdFn = hold;
 juniorRef = junior;
+sloedlaRef = sloedla;
 minnisspilRef = minnisspil;
 halsRef = hals;
 drawNowFn = () => drawNow();
@@ -385,7 +403,7 @@ villaContext = () => ({
     clock: () => ({ time: clock.time, paused: clock.paused }),
     stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
     location: () => world.location ?? null,
-    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, minnisspil: minnisspil.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, sloedla: sloedla.isOpen, minnisspil: minnisspil.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
     caption: () => {
       const el = document.getElementById('caption');
       return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
@@ -415,14 +433,20 @@ slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 80 : 8);
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
 document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
+document.addEventListener('visibilitychange', () => { if (document.hidden) bookAudio.stop(); });
 hold('hidden', document.hidden);
 // The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked), and
 // starts a chapter's own song a browser would start only from a touch (engine/audio/song.js: chapter 4's flight song).
+window.addEventListener('pointerdown', () => {
+  if (!stage.started || showOpen || document.hidden) return;
+  music.start();
+  chapterSound.touch();
+}, { passive: true });
 window.addEventListener('pointerup', () => {
   if (!stage.started || showOpen) return; // not under a show: its opening touch would wake the sound onShow just put to sleep
   music.start();
   chapterSound.touch();
-}, { passive: true });
+});
 
 const shotName = params.get('shot');
 let startReady = true; // false while the start button waits for the warm-up (captures and review shots have none)
@@ -866,12 +890,13 @@ function drawNow() {
 let canvasCleared = false;
 let drew = true;
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
+const sceneCovered = () => clock.paused && (book.isOpen || eitt.isOpen || veiddu.isOpen || junior.isOpen || sloedla.isOpen || minnisspil.isOpen) && !canvasCleared;
 function render() {
   if (hals.isOpen) { // the game draws its board on this canvas: the chapter waits
     drew = false;
     return;
   }
-  drew = !(clock.paused && (book.isOpen || eitt.isOpen || veiddu.isOpen) && !canvasCleared);
+  drew = !sceneCovered();
   if (!drew) return;
   canvasCleared = false;
   drawNow();
@@ -914,7 +939,14 @@ renderer.setAnimationLoop(now => {
   last = now;
   if (showOpen) return; // the show's frame covers the screen and the clock is held: the frame is the only thing drawing
   try {
-    update(clock.tick(real));
+    const dt = clock.tick(real);
+    if (clock.paused && (sceneCovered() || hals.isOpen)) {
+      journal.update(0);
+      updateMusic();
+      updateChapterSound();
+    } else {
+      update(dt);
+    }
   } catch (error) {
     // Keep drawing: a broken scene object must not freeze the picture. Report the first few.
     if (failures++ < 5) console.error('[frame]', error);
