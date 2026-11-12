@@ -129,7 +129,7 @@ export function goldenAt(t) {
 }
 
 /** The world's light `k` of the way from the chapter's look to golden: the sun's colour and strength, the fill, the haze, the sky. */
-function lightAt(world, look, k, scratch) {
+export function lightAt(world, look, k, scratch) {
   const gold = LOOKS.golden;
   const colour = (out, from, to) => out.set(from).lerp(scratch.set(to), k);
   const { sun, hemi } = world.lighting ?? {};

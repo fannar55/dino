@@ -357,11 +357,13 @@ function makeRiver() {
 
 /**
  * The flight's route. `wingspan` is her size (7.5 m or the 10 m the owner may pick): her body rides higher over her feet at the larger
- * size, which the flier takes care of; the path of her body is the same.
+ * size, which the flier takes care of; the path of her body is the same. `points` and `keys` are a path and a schedule of their own
+ * in POINTS' and KEYS' form: only a show sets them (chapters/gljufur3d.js: chapter 4's path to the burst out of the spray, then its
+ * own); chapter 4 never does.
  */
-export function createRoute({ wingspan = 7.5 } = {}) {
+export function createRoute({ wingspan = 7.5, points = POINTS, keys: schedule = KEYS } = {}) {
   const river = makeRiver();
-  const controls = POINTS.map(([, x, y, z]) => new V3(x, y, z));
+  const controls = points.map(([, x, y, z]) => new V3(x, y, z));
   const curve = new THREE.CatmullRomCurve3(controls, false, 'centripetal');
   // Arc lengths at each control point: lengths at t = i / (n - 1) of the curve's own (not arc-length) parameter.
   const PER = 40;
@@ -369,14 +371,14 @@ export function createRoute({ wingspan = 7.5 } = {}) {
   curve.arcLengthDivisions = divisions;
   const lengths = curve.getLengths(divisions);
   const length = lengths[divisions];
-  const named = new Map(POINTS.map(([name], i) => [name, i]).filter(([name]) => name));
+  const named = new Map(points.map(([name], i) => [name, i]).filter(([name]) => name));
   const sOf = name => {
     if (!named.has(name)) throw new Error(`No route point named "${name}"`);
     return lengths[named.get(name) * PER];
   };
 
   // The schedule: distance flown at each key, and a cubic Hermite in time between keys.
-  const keys = KEYS.map(([t, name, v]) => ({ t, s: sOf(name), v }));
+  const keys = schedule.map(([t, name, v]) => ({ t, s: sOf(name), v }));
   function distanceAt(t) {
     if (t <= keys[0].t) return keys[0].s;
     if (t >= keys.at(-1).t) return keys.at(-1).s;
