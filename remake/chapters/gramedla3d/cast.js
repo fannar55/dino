@@ -131,11 +131,12 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
   }
   const beak = (out = new THREE.Vector3()) => out.copy(beakLocal).applyMatrix4(herHead.matrixWorld);
   let pointing = false;
+  let pointAim = [0.5, 0.6, -1]; // the way his arm points (world: +x our right, +y up, -z up the lane)
   let leanOut = 0;
   const pointer = (() => {
     const find = n => { let b = null; boy.model.traverse(o => { if (!b && o.isBone && o.name.endsWith(n)) b = o; }); return b; };
     const upper = find('LeftUpperArm'), lower = find('LeftLowerArm'), hand = find('LeftHand'), head = find('Head'), neck = find('Neck'), spine = find('Spine');
-    const shoulder = new THREE.Vector3(), target = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+    const shoulder = new THREE.Vector3(), target = new THREE.Vector3(), aim = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
     return () => {
       if (!pointing || !upper) return;
       boy.root.updateMatrixWorld(true);
@@ -146,7 +147,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
       }
       // back over his left shoulder: up the lane (away from us), up, and out to his left (our right: the side he leans out to)
       upper.getWorldPosition(shoulder);
-      target.copy(shoulder).add(new THREE.Vector3(0.5, 0.6, -1).normalize().multiplyScalar(1.2));
+      target.copy(shoulder).add(aim.set(...pointAim).normalize().multiplyScalar(1.2));
       reachTwoBones(upper, lower, hand, target);
       // and he looks a little that way, still mostly at us
       if (neck) rotateBoneWorld(neck, new THREE.Quaternion().setFromAxisAngle(UP, rad(22)));
@@ -220,6 +221,7 @@ export function createCast(world, { stage, D, flugedla, egill, gram, snout }) {
     body.copy(herRoot.position).add(new THREE.Vector3(0.06, BODY_HEIGHT, 0).applyQuaternion(herRoot.quaternion));
     pointing = Boolean(spec.egill?.point);
     leanOut = spec.egill?.lean ?? 0;
+    pointAim = spec.egill?.aim ?? [0.5, 0.6, -1];
   }
 
   // ---- the specks: each group one set of glints (or one mesh of leaf flecks), placed once, switched on and off by the frames ----

@@ -77,7 +77,7 @@ export const chapter = {
     cast.setFlugedla(null);
 
     const state = { pitch: stage.pitch, stagePitch: stage.stagePitch, snoutLocal: pose.snoutLocal.toArray(), solution: null, key: null };
-    world.gramedla = { state, stage, pose, cast, keys: KEYS };
+    world.gramedla = { state, stage, pose, cast, keys: KEYS, gram };
 
     if (KVORDUN || !LYKILL) {
       cast.setParticles(['motesFar']);

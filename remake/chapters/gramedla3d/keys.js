@@ -71,19 +71,21 @@ export const KEYS = [
     id: '3', n: 3, name: 'Flugeðla', time: 21,
     lead: 'flugedla', leadText: 'goggurinn',
     gram: null,
-    flugedla: { beak: [0.5, 0.56, kOf(0.015)], clip: 'fly', at: 0, pitch: 15, yaw: 6, egill: { point: true, lean: 28 } },
+    // step 2: turned 20 degrees and her beak a little left of the middle, so Egill shows beside her neck (he was hidden behind her head)
+    flugedla: { beak: [0.42, 0.56, kOf(0.015)], clip: 'fly', at: 0, pitch: 15, yaw: 20, neck: 12, egill: { point: true, lean: 28, aim: [0.9, 0.8, -0.5] } },
     particles: ['motesFar'],
   },
   {
-    id: '4', n: 4, name: 'Hún kemur', time: 37,
+    id: '4', n: 4, name: 'Hún kemur', time: 38,
     lead: 'gram', leadText: 'trýnið',
     gram: { k: 1, u: 0.5, v: 0.42, roll: 0.22, turn: 0, pitch: 0 },
     particles: ['motesFar'],
   },
   {
-    id: '4a', n: 4, variant: 'a', name: 'Hún kemur', time: 30,
+    id: '4a', n: 4, variant: 'a', name: 'Hún kemur', time: 29,
     lead: 'gram', leadText: 'hún',
-    gram: { stand: { depth: 31, u: 0.5 }, clip: 'walk', at: 0.45 },
+    // step 2: her walk's second here is the one that brings her to frame 4's spot with her feet nearest her idle stance (timeline.js)
+    gram: { stand: { depth: 31, u: 0.5 }, clip: 'walk', at: 1.29 },
     particles: ['motesFar'],
   },
   {
