@@ -339,3 +339,21 @@ the trees. She stops short of the cycad and the broadleaf that flank the lane at
 - Small things are tested against the plants' own volumes, height and all.
 
 The full numbers are in `qa/thrividd/gramedla/hreyfing/maelingar.txt`.
+
+## Grameðla kemur!, step 3 first half: sound, Egill's lines, the book tile (2026-11-12)
+
+**Sound as data.** `remake/chapters/gramedla3d/soundtrack.js` lists what plays at each second, built from `CUES` and `cues(rig)`, so it
+moves with the motion. `gramedla3d/sounds.js` plays the recordings on the page's output, held with the game. The show's loop hands each
+event out as its second passes; "Aftur" stops everything and starts the list again.
+- No music: the theme is held at nothing.
+- The game's forest (sfx.js) under everything. `s.sfx('forest', { level, seconds })` is new: it ramps the beds' bus. Down to 0.3 for
+  the thumps, back with the birds, 0.25 for beat 7, out with the fade.
+- Her footfall: `thump.mp3`, made by `remake/tools/gramedla-sounds.mjs` (candidate C; `CHOICE` is the one line to change). By distance:
+  −18 dB with a 260 Hz low-pass at 31 m, −3 dB and open at 7.5 m.
+- Chapter 2's roar and breath, chapter 4's wing takes, flutter and whoosh. The breath in is the exhale played backwards.
+
+**Egill's lines** are heard only: `s.say(..., { caption: false, listen: false })`, both new options in scene.js. His model has no jaw
+bone, so his mouth does not move; the engine's talk only nods his head a little.
+
+**Book.** "Grameðla kemur!" is the third 3D tile (poster `gramedla3d-thumb.webp`: 640x360 from a gler=0 capture at 44 s). Three tiles get
+their own size in book.css; the videos beside the column keep their size. Stills in `qa/thrividd/gramedla/bok/`.
