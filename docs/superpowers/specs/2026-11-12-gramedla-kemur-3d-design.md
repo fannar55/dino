@@ -144,3 +144,11 @@ Eigandinn samþykkti planið 12. nóvember 2026: „já byrja með tali, og ekke
    - Hausinn á henni má ná út fyrir miðju myndarinnar þegar hann er framan við skjáinn (rammar 5 og 7). Rammareglan í reglu 5
      gildir óbreytt: ekkert framan við skjáinn snertir brún.
    - Lagað í skrefi 2: Egill á að sjást í ramma 3; hann var falinn bak við hausinn á Flugeðlu.
+6. **Hreyfingin (skref 2):** eigandinn horfði á allt myndbandið með gleraugunum og sagði: „fínt með nokkrum lagfæringum og
+   meira vfx“. Lagfæringarnar, í hans orðum:
+   - „Grameðla poppar inn á skjá, þarf að vera meira lítil í fjarska og koma, má ekki bara poppa inn.“ Hún á að sjást fyrst
+     sem lítil, dauf vera lengst inni í þokunni og ganga alla tröðina. Ekkert í myndbandinu má birtast úr engu.
+   - „Bæta við VFX fótspor þegar hún labbar.“ Ryk og lauf undan fætinum við hvert skref, og far eftir á stígnum.
+   - „VFX þegar hún er að þefa, smá hvít loft úr nösum.“ Hvítur gufustrókur úr hvorri nös við hvert þef.
+   - „Fiðrildi fer smá inn í Grameðlu þegar það kemur að nefi.“ Enginn hluti fiðrildisins má fara inn í hana.
+   - Meira VFX almennt þar sem það þjónar dýptinni.
