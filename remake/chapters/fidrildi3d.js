@@ -791,12 +791,13 @@ export const chapter = {
       }
       // Round 6 (the owner: "þegar þórseðla kemur fram í mynd með haus niður fara öll hvítu fiðrildi í bakgrunn, væri flott að mörg
       // þeir færi frekar forgrunn fyrir framan þórseðlu og mosa"): from FRONT_FROM, while the spiral is out in front, two thirds of
-      // the swarm stay in front of the screen instead of going back with it. FRONT_MOSI circle Mosi's face slowly, in front of his
-      // beak (k 0.78) and left of where her snout comes (it comes to k 0.44 at u 0.45-0.55, v 0.5-0.6: nothing can be in front of
-      // it, the comfort floor is 0.52); FRONT_HER wait low in front of her chest under where her head comes down, go up round the
-      // right of her throat once it is down (48.3-50) to a ring in front of her neck beside her face, come back down before it lifts
-      // (53.2), and rise between the two of them into the trees once it is up (56.7). The rest, with the four sitters, keep to the
-      // spiral behind the screen. Every station is in the stage's frame round where the bodies are (measured at 50 s), loose and slow.
+      // the swarm stay in front of the screen instead of going back with it. FRONT_MOSI circle the left of Mosi's face slowly, in
+      // front of his beak (k 0.78) and left of where her head comes (her snout comes to k 0.44 at u 0.45-0.55, v 0.5-0.6, and her
+      // head's shell, a ball a metre round, reaches u 0.33 at k 0.6 as it comes down: nothing can be in front of it, the comfort
+      // floor is 0.52); FRONT_HER wait high over Mosi's frill while her head comes down, go along the top of the frame (VIA) to a
+      // small ring over her lowered head once it is down (48.3-50), come back before it lifts (51.4-53.2), and leave up between the
+      // two of them into the trees once it is up (55.6). The rest, with the four sitters, keep to the spiral behind the screen. Every
+      // station is in the stage's frame round where the bodies are (measured at 50 s), loose and slow.
       const FRONT_MOSI = [1, 4, 7, 10, 13, 16, 19, 22], FRONT_HER = [2, 5, 8, 11, 14, 17, 20, 23];
       const FRONT_FROM = 41.4, FRONT_IN = 3;
       each.forEach((b, i) => {
@@ -804,14 +805,14 @@ export const chapter = {
         b.j = b.group === 1 ? FRONT_MOSI.indexOf(i) : FRONT_HER.indexOf(i);
       });
       const TAU = 2 * Math.PI;
-      // Mosi's: a ring round the left of his face and frill, one turn in 14 s (his face u 0.2-0.5, v 0.2-0.65; her snout, nearer
-      // than they may come, from u 0.4)
+      // Mosi's: a ring round the left of his face and frill, one turn in 14 s (his face u 0.2-0.5, v 0.2-0.65; her head's shell,
+      // nearer than they may come, from u 0.33)
       const mosiRing = (b, t, o) => {
         const ang = (b.j / 8) * TAU + (TAU * (t - 41)) / 14, sc = 0.8 + 0.2 * ((b.j * 0.37) % 1);
         o[0] = 0.25 + 0.065 * sc * Math.cos(ang); o[1] = 0.42 + 0.2 * sc * Math.sin(ang); o[2] = 0.63 + 0.02 * Math.sin(0.7 * t + b.bob);
         return o;
       };
-      // hers: while her head comes down, high over Mosi's frill (k 0.9) left of the way it comes, one turn in 16 s. Not under it (her
+      // hers: while her head comes down, high over Mosi's frill (k 0.9) left of the way it comes (u 0.21-0.31), one turn in 16 s. Not under it (her
       // head's shell, a ball a metre round, reaches down to v 0.8, and a butterfly under a body is pushed up over it: the shell's
       // seam), nor up her right side (her bent neck's shell reaches k 0.64 there, so near the edge of the frame).
       const lowRing = (b, t, o) => {
