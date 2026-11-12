@@ -129,6 +129,7 @@ const CLEAR = 1.2; // m a camera keeps over the ground and the water
 // D is pulled in to keep them there (the water under her in the skim, the bank under the camera), and she goes a little behind the
 // screen instead. 0.9 of D is about 3 px of parallax at 1280 wide (fidrildi3d.js keeps its ground at the bottom edge at 0.85 D).
 const BORDER_GROUND = 0.9;
+const LIMIT_EASE = [0.06, 0.4]; // s: the ground's limit on D eases down and up with these time constants
 const BORDER_RAYS = [[0, 1], [0.25, 1], [0.5, 1], [0.75, 1], [1, 1], [0, 0.5], [1, 0.5], [0, 0], [1, 0], [0.5, 0]];
 const LINES = [
   [1.0, 'flugedla', 'k4_flugedla_hold'],
@@ -138,6 +139,9 @@ const LINES = [
   [47.4, 'egill', 'k4_egill_wow'],
   [54.5, 'flugedla', 'k4_flugedla_holdon2'],
 ];
+// The gorge's flyers peel away from her as she climbs out of the spray, and are gone before Grameðla (they flew round the roar
+// camera and the reveal's edges, in front of the screen): world/ardalur/life.js flyersAway, in the flight's seconds.
+const FLYERS_AWAY = { at: OFFSET + 41.2, seconds: 2.6, stagger: 0.12, out: 40, up: 18 };
 // Plants kept off her path round Grameðla and away (banks.js clear spots), and round Grameðla's feet.
 const PATH_KEEP = 7;
 const GRAM_KEEP = 11;
@@ -188,10 +192,10 @@ export const chapter = {
   start: 'ardalur',
   locations: {
     ardalur: {
-      build: async world => createArdalur(world, { route, critters: await loadCritters(world), keep, views }),
+      build: async world => createArdalur(world, { route, critters: await loadCritters(world), keep, views, flyersAway: FLYERS_AWAY }),
       shots: {
         // behind the start: the rapids, the gorge's mouth ahead
-        gljufur_start: { position: [-900, 15, 137], target: [-960, 11, 146], fov: 50 },
+        gljufur_start: { position: [-900, 10, 137], target: [-960, 9, 146], fov: 50 },
       },
     },
   },
@@ -262,7 +266,7 @@ export const chapter = {
     const roarCam = headRest.clone().add(new V3(GF[0] * ROAR_CAM.ahead, ROAR_CAM.up, GF[1] * ROAR_CAM.ahead));
 
     // ---- the camera: the shots, and D every frame ----
-    const camState = { index: -1, name: null, from: 0, D: 10, headD: null, roll: 0 };
+    const camState = { index: -1, name: null, from: 0, D: 10, headD: null, roll: 0, limit: null };
     const hFrame = { f: new V3(), r: new V3() };
     const tmp = new V3(), tmp2 = new V3(), originV = new V3(), headV = new V3();
     const groundAt = (x, z) => Math.max(world.heightAt?.(x, z) ?? -Infinity, route.waterAt(x, z, 1) ?? -Infinity);
@@ -331,7 +335,7 @@ export const chapter = {
       return best;
     }
     let fixed = null;
-    function step(rig) {
+    function step(rig, dt = 0) {
       const bound = BOUND[camState.name];
       herFrame();
       if (bound) {
@@ -345,7 +349,15 @@ export const chapter = {
         const facing = tmp.copy(rig.target).sub(rig.position).setY(0).normalize().dot(hFrame.f);
         camState.roll = clamp((flier.bank / 3) * facing * (reduced ? 0.5 : 1), -8, 8);
         rig.roll = camState.roll;
-        camState.D = Math.min(nearestOfThem(rig.position, rig.target), borderGround(rig) / BORDER_GROUND);
+        // the ground's limit eases (it flickers as the rays meet the river's edge): down within a few frames, up slowly; at once on a cut
+        const limit = borderGround(rig) / BORDER_GROUND;
+        if (camState.limit === null || !(dt > 0)) camState.limit = limit;
+        else if (Number.isFinite(limit) || Number.isFinite(camState.limit)) {
+          const from = Number.isFinite(camState.limit) ? camState.limit : 120;
+          const to = Number.isFinite(limit) ? limit : 120;
+          camState.limit = from + (to - from) * (1 - Math.exp(-dt / (to < from ? LIMIT_EASE[0] : LIMIT_EASE[1])));
+        }
+        camState.D = Math.min(nearestOfThem(rig.position, rig.target), camState.limit);
       } else if (fixed) {
         rig.fov = fixed.fov;
         rig.position.copy(fixed.position);
@@ -369,7 +381,8 @@ export const chapter = {
       camState.from = from;
       camState.headD = null;
       fixed = BOUND[name] ? null : fixedOf(name);
-      director.drive(`gljufur ${name}`, rig => step(rig));
+      camState.limit = null;
+      director.drive(`gljufur ${name}`, (rig, dt) => step(rig, dt));
       step(director.rig);
       director.apply();
       world.chapterTimeline.push({ shot: name, at: +tauNow.toFixed(3) });

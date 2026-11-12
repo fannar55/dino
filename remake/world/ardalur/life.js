@@ -201,7 +201,10 @@ function rockSurface(model, { x, y, z, rot, scale, top = POOL_LIFE.rockTop }) {
   };
 }
 
-export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {}, choir = null } = {}) {
+// `flyersAway` (only a show sets it: chapters/gljufur3d.js): { at, seconds, stagger, out, up }: from the flight's second `at` (the k-th
+// flyer `stagger` s after the one before) each gorge flyer peels off its place round her over `seconds`, `out` m away from her and
+// `up` m up, and is gone; chapter 4 never sets it, and its flyers go on to the far pool.
+export function createLife(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {}, choir = null, flyersAway = null } = {}) {
   const { river } = route;
   const own = !crowds;
   crowds ??= createCrowds(world);
@@ -454,7 +457,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   // D to G: the gorge's flyers, each on its ledge until she comes, its place round her on its own wall's side of her
   const flyers = !flyer ? [] : NESTS.map(([x, y, z, heading], k) => {
     const nest = new THREE.Vector3(x, y, z);
-    const b = add(`flyer-${k}`, 'flugdyr', nest, heading, { nest, look: [Math.cos(heading * DEG), Math.sin(heading * DEG)] });
+    const b = add(`flyer-${k}`, 'flugdyr', nest, heading, { nest, look: [Math.cos(heading * DEG), Math.sin(heading * DEG)], order: k });
     b.trigger = firstWithin(nest, FLY.within);
     const p = herAt(b.trigger, new THREE.Vector3());
     const way = wayAt(b.trigger);
@@ -811,8 +814,19 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       out.lerp(b.land.spot, w);
       out.y += FLY.land.arc * 4 * w * (1 - w);
     }
+    const away = awayOf(b, t);
+    if (away > 0) {
+      const { p } = herFrame(t);
+      const dx = out.x - p.x, dz = out.z - p.z;
+      const l = Math.hypot(dx, dz) || 1;
+      out.x += (dx / l) * flyersAway.out * away;
+      out.z += (dz / l) * flyersAway.out * away;
+      out.y += flyersAway.up * away;
+    }
     return out;
   }
+  /** How far a flyer has peeled away from her (flyersAway): 0 in its place, 1 gone. */
+  const awayOf = (b, t) => (flyersAway ? smooth((t - flyersAway.at - b.order * flyersAway.stagger) / flyersAway.seconds) : 0);
   const window01 = (t, [from, to]) => smooth((t - from) / 0.5) * (1 - smooth((t - to) / 0.5));
   const was = new THREE.Vector3(), will = new THREE.Vector3();
   /**
@@ -842,6 +856,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       blend('perch', clock, 1);
       return;
     }
+    if (awayOf(b, ft) >= 1) { b.visible = false; return; }
     flyerAt(b, ft, b.position);
     flyerAt(b, ft - 0.05, was);
     flyerAt(b, ft + 0.05, will);
@@ -855,6 +870,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       window01(ft, FLY.climb), // up the falls
       smooth(beatAt / 0.2) * (1 - smooth((beatAt - FLY.beat[0] + 0.2) / 0.2)), // a few beats now and then
       smooth((tau - (FLY.land.seconds - FLY.land.flare)) / 0.3), // the last of the way down
+      awayOf(b, ft) > 0 ? 1 : 0, // peeling away (flyersAway)
     );
     const perched = Math.max(1 - smooth(s / 0.25), smooth((tau - (FLY.land.seconds - 0.3)) / 0.3));
     blend('perch', clock, perched);
