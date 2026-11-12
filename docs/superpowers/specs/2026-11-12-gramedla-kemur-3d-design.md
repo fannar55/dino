@@ -123,7 +123,10 @@ Smiðurinn skilar tölum með hverri kyrrmynd og hverri gerð:
 - Ný hreyfing fyrir Grameðlu frá eigandanum (lúta og þefa) myndi bæta atriðið, en planið gerir ráð fyrir að hún sé ekki til.
 - Hasarsýningin (leið C: Mosi með hornið, Kambeðla með halagaddana) getur orðið þriðja myndbandið.
 
-## 10. Það sem eigandinn ákveður við yfirlestur
+## 10. Ákveðið við yfirlestur
 
-1. Með tveimur setningum Egils eða orðlaust.
-2. Morgunþoka, eins og hér er lýst, eða önnur birta.
+Eigandinn samþykkti planið 12. nóvember 2026: „já byrja með tali, og ekkert textabox“.
+
+1. **Með tali:** setningarnar tvær í kafla 5 verða gerðar (í skrefi 3).
+2. **Ekkert textabox** í myndbandinu, eins og regla 8 segir.
+3. Morgunþokan stendur; hann gerði enga athugasemd við hana og dæmir hana á lykilrömmunum.
