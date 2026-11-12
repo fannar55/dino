@@ -5,6 +5,9 @@
 //   probe.sample(D)   -> { D, border, borderAt, middle, middleAt, wide, wideAt,   (each a share of D; *At: [u, v] in the frame)
 //                          front, at, behind, sky, farthest }   (shares of the frame's pixels: in front of the screen (k < 1 − AT),
 //                          at it (within AT), behind it, the sky (nothing drawn); and the farthest drawn depth as a share of D)
+//   probe.sample(D, { isGround(u, v, depth) })   the border's ground apart: border and borderAt leave out what isGround says is
+//                          the ground (by the rules a 3D show keeps, the floor may come nearer at the bottom edge), groundBorder and
+//                          groundBorderAt are its nearest
 //
 // It draws the scene once from world.camera into a small target with a depth texture (the real materials, so the plants' sway and
 // the skinned bodies are where they are drawn), turns the depth buffer into view-space depth (distance along the camera's forward,
@@ -50,7 +53,7 @@ export function createDepthProbe(world, { width = 240 } = {}) {
     size = [w, h];
   }
 
-  function sample(D) {
+  function sample(D, { isGround = null } = {}) {
     const camera = world.camera;
     const w = width;
     const h = Math.max(8, Math.round(width / camera.aspect));
@@ -75,7 +78,7 @@ export function createDepthProbe(world, { width = 240 } = {}) {
     }
     const bx = Math.max(1, Math.round(BORDER * w));
     const by = Math.max(1, Math.round(BORDER * h));
-    const out = { D, border: Infinity, borderAt: null, middle: Infinity, middleAt: null, wide: Infinity, wideAt: null, size: [w, h] };
+    const out = { D, border: Infinity, borderAt: null, groundBorder: Infinity, groundBorderAt: null, middle: Infinity, middleAt: null, wide: Infinity, wideAt: null, size: [w, h] };
     let front = 0, at = 0, behind = 0, sky = 0, farthest = 0;
     for (let y = 0; y < h; y++) {
       const v = 1 - (y + 0.5) / h; // the read back's rows run from the bottom
@@ -89,7 +92,9 @@ export function createDepthProbe(world, { width = 240 } = {}) {
         if (k > farthest) farthest = k;
         const u = (x + 0.5) / w;
         if (x < bx || x >= w - bx || y < by || y >= h - by) {
-          if (k < out.border) { out.border = k; out.borderAt = [+u.toFixed(3), +v.toFixed(3)]; }
+          if (isGround?.(u, v, depth)) {
+            if (k < out.groundBorder) { out.groundBorder = k; out.groundBorderAt = [+u.toFixed(3), +v.toFixed(3)]; }
+          } else if (k < out.border) { out.border = k; out.borderAt = [+u.toFixed(3), +v.toFixed(3)]; }
         }
         if (u >= MIDDLE[0] && u <= MIDDLE[1] && v >= MIDDLE[0] && v <= MIDDLE[1]) {
           if (k < out.middle) { out.middle = k; out.middleAt = [+u.toFixed(3), +v.toFixed(3)]; }

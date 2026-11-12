@@ -137,7 +137,9 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
   for (const shot of Object.values(layout.shots ?? {})) {
     if (Array.isArray(shot?.position)) keepClear.push([shot.position[0], shot.position[2], 2.5]);
   }
+  // a layout's own ground the critters keep off (layout.lifeKeepOut(x, z) > 0.5: a 3D show's view in front of its screen plane)
   const isClear = (x, z, extra = 0) => {
+    if (layout.lifeKeepOut?.(x, z) > 0.5) return false;
     for (const [kx, kz, r] of keepClear) if (Math.hypot(x - kx, z - kz) < r + extra) return false;
     return true;
   };

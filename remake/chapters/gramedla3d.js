@@ -34,6 +34,7 @@ const LOOK = -90; // degrees: the camera looks along -Z, up the lane
 const FOV = 46;
 export const D = 6.5; // m: the screen plane
 const GROUND_SHARE = 0.85;
+const GRASS = 0.35; // m over the terrain that the measurements count as the floor (its grass)
 // The lane: straight up -Z from the camera, LANE.half m each side of its middle kept clear of every plant the forest would grow
 // there (layout.keepOut), and nearer than NEAR m the whole of the widest screen's view as well (1170x540: 42.6 degrees each side of
 // the axis, and a metre more), so nothing growing comes in front of the screen at an edge. The footpath runs up its middle.
@@ -64,6 +65,7 @@ const BREATH = 0.8;
 const BREATH_S = 4.2;
 // her lean: spine, chest and neck bend down by these shares of one angle; the head turns the snout to the lens
 const LEAN = { Spine: 0.22, Chest: 0.3, Neck: 0.48 };
+const SNOUT_MID = 0.12; // m
 const AIM = 0.5; // how much of the angle down to the lens the head turns
 const LEAN_RANGE = [0, 1.5]; // radians
 
@@ -83,6 +85,7 @@ export const chapter = {
     glade: { shafts: 4 },
     leafShadows: true,
     keepOut,
+    lifeKeepOut: keepOut, // the forest's critters too (world/forest/life.js)
     leaveOut,
     mist: [{ center: [0, -32], radius: 9, height: 4.5 }],
   },
@@ -125,24 +128,29 @@ export const chapter = {
       const ofHead = new Set();
       bones.Head.traverse(o => { const j = list.indexOf(o); if (j >= 0) ofHead.add(j); });
       const si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight;
-      const p = new THREE.Vector3();
       let tip = null, best = -Infinity;
       const facing = new THREE.Vector3(1, 0, 0).applyQuaternion(gram.root.quaternion).setY(0).normalize();
+      const side = new THREE.Vector3(0, 0, 1).applyQuaternion(gram.root.quaternion);
+      const upper = [];
       for (let i = 0; i < si.count; i++) {
         let top = 0, w = -1;
         for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
         if (!ofHead.has(top)) continue;
         headVerts.push(i);
-        if (top !== head) continue;
-        body.getVertexPosition(i, p).applyMatrix4(body.matrixWorld);
-        if (p.dot(facing) > best) { best = p.dot(facing); tip = p.clone(); }
+        if (top === head) upper.push(body.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(body.matrixWorld));
       }
+      // the snout tip: the forward-most vertex of the upper jaw within SNOUT_MID m of the head's middle (the idle holds the head a
+      // little turned, so the forward-most of all is beside the nose)
+      const lo = Math.min(...upper.map(u => u.dot(side))), hi = Math.max(...upper.map(u => u.dot(side)));
+      const mid = (lo + hi) / 2;
+      for (const u of upper) if (Math.abs(u.dot(side) - mid) < SNOUT_MID && u.dot(facing) > best) { best = u.dot(facing); tip = u; }
       snoutLocal = bones.Head.worldToLocal(tip.clone());
     }
     const snout = (out = new THREE.Vector3()) => out.copy(snoutLocal).applyMatrix4(bones.Head.matrixWorld);
 
     // ---- the lean: spine, chest and neck down by shares of `theta` (radians), the head turned so the snout points at the lens ----
-    const right = new THREE.Vector3(), sp = new THREE.Vector3();
+    const right = new THREE.Vector3(), sp = new THREE.Vector3(), hp = new THREE.Vector3();
+    const UP = new THREE.Vector3(0, 1, 0);
     // Every lean starts from the idle's first pose, which she is held at (the mixer is stopped): neither the mixer nor the actor's
     // own layers (look, talk) can be trusted to pose these bones again before the next lean, so they are set back here.
     const rest = ['Spine', 'Chest', 'Neck', 'Head'].map(n => [bones[n], bones[n].quaternion.clone()]);
@@ -156,6 +164,11 @@ export const chapter = {
       snout(sp);
       const drop = Math.atan2(sp.y - camera.position.y, Math.hypot(sp.x - camera.position.x, sp.z - camera.position.z));
       rotateBoneWorld(bones.Head, q.setFromAxisAngle(right, -drop * AIM));
+      // and about the upright, so the snout points at the lens from the side too
+      bones.Head.getWorldPosition(hp);
+      snout(sp);
+      const yaw = Math.atan2(camera.position.x - hp.x, camera.position.z - hp.z) - Math.atan2(sp.x - hp.x, sp.z - hp.z);
+      rotateBoneWorld(bones.Head, q.setFromAxisAngle(UP, yaw));
     }
     // the aim is at the screen's camera: it stands where the stage's does
     camera.position.copy(camPos);
@@ -230,6 +243,9 @@ export const chapter = {
     hold();
     s.after(0, function* keep() { for (;;) { hold(); camera.updateMatrixWorld(); yield; } });
 
+    // the clearing's own pale butterflies loop over it and come in front of the screen at its edges: not on this stage (the show's
+    // butterfly is its own, step 2)
+    if (world.forest?.butterflies?.mesh) world.forest.butterflies.mesh.visible = false;
     const shot = { position: camPos.toArray(), target: camTarget.toArray(), fov: FOV, label: 'gramedla' };
     yield s.camera.cut(shot, { check: false });
 
@@ -268,7 +284,16 @@ export const chapter = {
         const l = tip.clone().project(gler.eyes[0]).x, r = tip.clone().project(gler.eyes[1]).x;
         eyes = +((l - r) / 2).toFixed(4);
       }
-      const depth = probe.sample(Dn);
+      // a pixel of the border is the ground when the point it shows is within GRASS m over the terrain (the floor and its grass)
+      const ray = new THREE.Vector3(), fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd);
+      const isGround = (u, vv, dep) => {
+        ray.set(2 * u - 1, 1 - 2 * vv, 0.5).unproject(camera).sub(camera.position).normalize();
+        const t = dep / ray.dot(fwd);
+        const x = camera.position.x + ray.x * t, y = camera.position.y + ray.y * t, z = camera.position.z + ray.z * t;
+        return y - world.heightAt(x, z) < GRASS;
+      };
+      const depth = probe.sample(Dn, { isGround });
       // the head: its skin's box in the frame
       body.skeleton.update();
       let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
@@ -312,7 +337,7 @@ export const chapter = {
         picture: { front: depth.front, at: depth.at, behind: depth.behind, sky: depth.sky },
         background: { farthestK: far, parallax: +(strength * (1 - 1 / far)).toFixed(4), sky: strength },
         head: { height: +(v1 - v0).toFixed(3), width: +(u1 - u0).toFixed(3), box: [u0, v0, u1, v1].map(x => +x.toFixed(3)) },
-        edge: { border: +depth.border.toFixed(3), borderAt: depth.borderAt, ok: depth.border >= 1, her: skinEdge },
+        edge: { border: +depth.border.toFixed(3), borderAt: depth.borderAt, ok: depth.border >= 1, her: skinEdge, ground: +depth.groundBorder.toFixed(3), groundAt: depth.groundBorderAt },
         ground: { k: +(ground / Dn).toFixed(3), ok: ground / Dn >= GROUND_SHARE },
         body: { chain, behindInFrame: behind.length, frontAtEdge: frontOut },
         plant, nearLane: nearLane.length,
