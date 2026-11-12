@@ -357,3 +357,39 @@ bone, so his mouth does not move; the engine's talk only nods his head a little.
 
 **Book.** "Grameðla kemur!" is the third 3D tile (poster `gramedla3d-thumb.webp`: 640x360 from a gler=0 capture at 44 s). Three tiles get
 their own size in book.css; the videos beside the column keep their size. Stills in `qa/thrividd/gramedla/bok/`.
+
+## Grameðla kemur!, the fix round after his look with the glasses (2026-11-12)
+
+His words: "fínt með nokkrum lagfæringum og meira vfx". Five points; the show is now 84.8 s (everything after the walk 10 s later).
+
+**1. She walks out of the far mist.** `timeline.js` `WALK_IN` (19.0 → 47.3 s) and `HAZE`; `haze.js` fades a model's colours to the
+mist's (`#bccbc6`) and draws it faint far up the lane.
+- She starts at z −46.1 (54 m up the lane). Her first visible frame is at 20.2 s, 53.6 m away, 12 % of the frame's height, opacity
+  0.3 %; she is fully drawn by 26.7 s (43.6 m) and clear of the haze by 34 s (32 m, 21 % of the height).
+- The walk: 28.3 s, 46 m at 1.64 m/s (the clip at about 1.46×, was 2.2×), 48 footfalls from 20.7 s. 4a is at 34.5 s, 4 at 48 s.
+- Between the cycad (her right) and the broadleaf (her left) at z −10 the lane is narrower than her stance: her line runs 0.25 m to
+  her left there, and each foot goes about 0.5–0.6 m into that plant's widest-frond disc, low (0.25–0.6 m up), for about a second
+  each. Both plants shudder at her steps. Not fully fixed: see the rough list in `qa/thrividd/gramedla/lagfaering/maelingar.txt`.
+- Flugeðla also comes out of the mist (hazed over her first second, from k 6).
+
+**2. Her footfalls** (`vfx.js`, placed from her pose at each step's second in `director.js`): a low burst of pale earth dust (12
+soft specks, spreading 1.5 m and settling in 1.9 s), 4 pollen specks knocked up, and a soft dark print (a canvas gradient, like a
+blob shadow; 1.25 × 0.85 m) that stays to the end. Dust and specks are held at k ≥ 1.05.
+
+**3. Her breath**: at each sniff (55.3, 56.8, 58.3 s) and the huff (72.6 s), soft white air out of both nostrils (the model's vertices
+22403 and 22073), ahead of her snout and a little down and out, gone in 0.9 s; the huff billows further. Nearest k 0.343 (3.8 %),
+never at an edge.
+
+**4. The butterfly is never in her.** It comes in from above, to a hover 0.28 m over her snout's ridge, 0.1 m nearer us and 0.32 m to
+our right, then down onto the ridge 0.12 m behind her nostrils, its feet point 7.5 cm over her skin (its legs reach 3.8 cm below it at
+the 1.5 scale) and its wings up. It lifts straight back to the hover and on to 7b, then goes round her head on our right and up the
+lane. `measure.js` takes the clearance from its vertices (wings and all) to her head's skin, and counts any piece inside her (rays up
+and across).
+
+**5. More air** (`air.js`), all behind the screen plane: wisps of mist curling round her as she walks out (24.5–40.7 s), Flugeðla's
+downdraft sweeping 40 specks off the lane to both sides at the brake (18.8 s), leaves and dust drifting down from the crowns after the
+roar (64.4–72.1 s).
+
+**Tools.** The probe: `--t s --eval` takes one look at a second of the show; `--hide <selector>` keeps the 3D button out of stills;
+`--query vfx=0` (the page leaves the effects out). The tile's poster is retaken at 54 s, the moment it showed before.
+Measurements, stills every 3 s and contact sheets: `qa/thrividd/gramedla/lagfaering/`.
