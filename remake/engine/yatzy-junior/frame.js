@@ -13,12 +13,13 @@
 //     closeType        the message type with which the page asks to close ('yatzy-junior:close' by default)
 const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>';
 
-export function createJuniorFrame(doc, { onPause = null, onClose = null, src = './yatzy-junior.html?inbook=1', label = 'Litla Yatzy við Mosa', closeType = 'yatzy-junior:close', win = doc.defaultView } = {}) {
+export function createJuniorFrame(doc, { onPause = null, onClose = null, onWin = null, src = './yatzy-junior.html?inbook=1', label = 'Litla Yatzy við Mosa', closeType = 'yatzy-junior:close', isMuted = null, win = doc.defaultView } = {}) {
   let root = null;
   let frame = null;
 
   function onMessage(event) {
     if (event.origin !== win.location.origin || event.source !== frame?.contentWindow) return;
+    if (event.data?.type === 'mosi:sticker') onWin?.(event.data.game);
     if (event.data?.type === closeType) close();
   }
   function onKey(event) {
@@ -56,9 +57,11 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     root.setAttribute('aria-label', label);
     frame = doc.createElement('iframe');
     frame.className = 'junior-frame-page';
-    frame.src = tutorial ? `${src}${src.includes('?') ? '&' : '?'}play=1&tutorial=1` : src;
+    let url = tutorial ? `${src}${src.includes('?') ? '&' : '?'}play=1&tutorial=1` : src;
+    if (isMuted?.()) url += `${url.includes('?') ? '&' : '?'}hljod=0`;
+    frame.src = url;
     frame.title = label;
-    frame.setAttribute('allow', 'autoplay');
+    frame.setAttribute('allow', 'autoplay; screen-wake-lock');
     frame.addEventListener('load', onFrameLoad);
     const closeEl = doc.createElement('button');
     closeEl.type = 'button';
@@ -71,13 +74,16 @@ export function createJuniorFrame(doc, { onPause = null, onClose = null, src = '
     win.addEventListener('message', onMessage);
     doc.addEventListener('keydown', onKey);
     onPause?.(true);
-    closeEl.focus({ preventScroll: true });
+    closeEl.focus?.({ preventScroll: true });
   }
 
   function close() {
     if (!root) return;
     win.removeEventListener('message', onMessage);
     doc.removeEventListener('keydown', onKey);
+    if (frame) {
+      try { frame.src = 'about:blank'; } catch {}
+    }
     root.remove(); // the page unloads with it: its sound stops and its WebGL context is freed
     root = null;
     frame = null;

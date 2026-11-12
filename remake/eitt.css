@@ -141,7 +141,7 @@
     radial-gradient(ellipse 50% 50% at 50% 50%, transparent 97.4%, var(--bark) 97.6%, var(--bark-deep) 99.2%, transparent 99.4%),
     radial-gradient(ellipse 60% 26% at 42% 14%, rgb(255 236 200 / .4), transparent 70%),
     repeating-radial-gradient(ellipse 50% 50% at 50% 50%, transparent 0 2.6%, rgb(140 90 50 / .2) 2.75%, transparent 3% 4.4%, rgb(140 90 50 / .12) 4.55%, transparent 4.8%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .5' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .27 0 0 0 0 .14 0 0 0 .5 -.16'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    url("./assets/eitt/wood-grain.webp"),
     radial-gradient(ellipse 50% 50% at 50% 50%, var(--wood-light), var(--wood) 60%, #b98250 96%);
   box-shadow: 0 -6px 0 #8a6a4e, 0 -14px 30px rgb(40 28 10 / .35);
 }

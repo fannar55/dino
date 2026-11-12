@@ -1073,3 +1073,15 @@ test('s.sun.cap puts the nightcap on, returns DONE, and a scene with no sun (or 
   assert.equal(sunScene(null).sun.cap(1), DONE, 'a decoration: a place without the sun has no cap to wear');
   assert.equal(sunScene({}).sun.cap(1), DONE);
 });
+
+test('the sun face, its overlay and the Mosi cloud project onto the far plane so distant mountains occlude them', () => {
+  const { scene, lighting, look } = stage();
+  const face = createSunFace({ scene, lighting });
+  const cloud = addMosiCloud({ scene, lighting, look });
+  for (const [label, mat] of [['SunFace', face.sprite.material], ['SunHandsAndMouth', face.overlay.material], ['MosiCloud', cloud.sprite.material]]) {
+    assert.equal(mat.depthFunc, THREE.LessEqualDepth, `${label} passes at far-plane depth 1.0`);
+    const shader = { vertexShader: 'void main() {\n  gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n}' };
+    mat.onBeforeCompile(shader);
+    assert.match(shader.vertexShader, /gl_Position\.z = gl_Position\.w;/, `${label} clamps depth to far plane`);
+  }
+});

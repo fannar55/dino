@@ -1029,8 +1029,8 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   const { save, book, played, sounds, tap, tile, slot, slots } = bookRig(s => s.addStar('k1_kambedla'));
   book.open('games', 'child');
   assert.equal(slot('veiddu').hidden, true, 'no Veiddu without Uggeðla\'s star');
-  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior', 'minnisspil'], 'five slots: the two card games side by side, then the board, the dice and the memory game (hidden here)');
-  assert.equal(tile('veiddu').parentNode.parentNode.getAttribute('data-open'), '2', 'Eitt! and Litla Yatzy are the two open');
+  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior', 'sloedla', 'minnisspil'], 'six slots: the two card games side by side, then the board, the dice, Slóeðla\'s song and the memory game (hidden here)');
+  assert.equal(tile('veiddu').parentNode.parentNode.getAttribute('data-open'), '3', 'Eitt!, Litla Yatzy and Söngur Slóeðlu are the three open');
   assert.ok(tile('veiddu').classList.contains('unfound'));
   sounds.length = 0;
   tap(tile('veiddu'));
@@ -1041,7 +1041,7 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   save.addStar(VEIDDU_STAR);
   book.refresh();
   assert.equal(slot('veiddu').hidden, false, 'Veiddu appears with k2_uggedla');
-  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '3', 'and is counted in data-open');
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '4', 'and is counted in data-open');
   const t = tile('veiddu');
   assert.ok(t.classList.contains('new') && !t.classList.contains('found') && !t.classList.contains('unfound'), 'new until opened');
   assert.deepEqual(t.findAll(e => e.classList.contains('badge-new')).map(e => e.textContent), ['Nýtt!']);
@@ -1059,26 +1059,26 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   assert.equal(save.get().seen.includes('eitt'), false, 'Eitt! is not touched');
 });
 
-test('with Uggeðla\'s star alone the Leikir page shows Veiddu and Litla Yatzy; all four of a full book are counted', () => {
+test('with Uggeðla\'s star alone the Leikir page shows Veiddu, Litla Yatzy and Söngur Slóeðlu; all five before chapter 4 are counted', () => {
   const { save, book, slot } = bookRig(s => s.addStar(VEIDDU_STAR));
   book.open('games', 'child');
-  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior'].map(game => slot(game).hidden), [true, true, false, false]);
-  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '2');
+  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior', 'sloedla'].map(game => slot(game).hidden), [true, true, false, false, false]);
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '3');
   save.addStar('k1_kambedla');
   save.addStar('k2_thorsedla');
   book.refresh();
-  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior'].map(game => slot(game).hidden), [false, false, false, false]);
-  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '4');
+  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior', 'sloedla'].map(game => slot(game).hidden), [false, false, false, false, false]);
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '5');
 });
 
-test('Uggeðla\'s stickers follow Kambeðla\'s on the sheet, one for each win, and the sheet shows when either game is open', () => {
+test('Uggeðla\'s stickers follow Kambeðla\'s on the sheet, one for each win, and the sheet is ready from the start', () => {
   const { save, book, sheet, stickers } = bookRig();
   book.open('games', 'child');
-  assert.equal(sheet().hidden, true, 'no game open, no sheet');
+  assert.equal(sheet().hidden, false, 'Litla Yatzy and Söngur Slóeðlu are open from the start, so the sticker sheet is ready');
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty'], 'one dashed place where the first will go');
   save.addStar(VEIDDU_STAR);
   book.refresh();
-  assert.equal(sheet().hidden, false, 'Uggeðla\'s game alone opens it');
-  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty'], 'one dashed place where the first will go');
+  assert.equal(sheet().hidden, false);
 
   save.setVeiddu({ wins: 2 });
   book.refresh();

@@ -61,7 +61,9 @@ const FRAG = /* glsl */`
     gl_FragColor = vec4(srgb(clamp(o, 0.0, 1.0)), 1.0);
   }`;
 
-export function createGler({ renderer, display, scene, camera, director, q, params, doc = document }) {
+// `panel: false` leaves out the "3D" settings button and its panel (a show for the child: chapters/fidrildi3d.js); the saved
+// settings and the address still hold.
+export function createGler({ renderer, display, scene, camera, director, q, params, doc = document, panel: withPanel = true }) {
   const saved = { ...DEFAULTS, ...readSaved() };
   const settings = { ...saved };
   // the address wins over what is saved, and is not saved (captures)
@@ -178,7 +180,7 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   }
 
   // ---- the parent's panel ----
-  const ui = buildPanel();
+  const ui = withPanel ? buildPanel() : { sync() {} };
   function save() {
     if (!fromAddress) writeSaved(settings);
     ui.sync();

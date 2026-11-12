@@ -66,9 +66,10 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
   const friends = {}; // id -> the friend on the stage, once her model is in
   const cheers = []; // { at, id } cheers still to come
 
-  function lose() {
-    if (lost) return;
+  function freeStage() {
+    if (lost) return false;
     lost = true;
+    canvas.removeEventListener?.('webglcontextlost', onContextLost);
     for (const friend of Object.values(friends)) friend.mixer.stopAllAction();
     renderer.clear();
     scene.traverse(node => {
@@ -77,8 +78,18 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
     });
     shade.dispose();
     renderer.dispose();
-    onLost();
+    return true;
   }
+
+  function lose() {
+    if (freeStage()) onLost();
+  }
+
+  function onContextLost(event) {
+    event?.preventDefault?.();
+    lose();
+  }
+  canvas.addEventListener?.('webglcontextlost', onContextLost, false);
 
   const restOf = friend => (friend.out ? friend.conf.away : friend.conf.rest);
   function play(friend, name, { once = false } = {}) {
@@ -264,5 +275,9 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
       });
     },
     resize,
+    dispose() {
+      freeStage();
+      renderer.forceContextLoss?.();
+    },
   };
 }

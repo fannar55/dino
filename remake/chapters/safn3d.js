@@ -54,11 +54,59 @@ const TEXT = {
 const rad = d => (d * Math.PI) / 180;
 const forwardOf = heading => [Math.cos(rad(heading)), Math.sin(rad(heading))];
 
+const GLASSES = new URL('../assets/book/gleraugu-3d.svg', import.meta.url).href;
+const GLASSES_STYLE = `
+  .gler-start-wrap { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; align-content: center; gap: 2.4vmin; pointer-events: none; }
+  .gler-start-wrap[hidden] { display: none; }
+  .gler-start { pointer-events: auto; border: 0; padding: 0; margin: 0; background: none; cursor: pointer; border-radius: 6vmin;
+    -webkit-tap-highlight-color: transparent; will-change: transform, opacity; animation: gler-pulse 1s ease-in-out infinite; }
+  .gler-start img { display: block; width: min(60vmin, 92vw); height: auto; aspect-ratio: 1764 / 1335; -webkit-user-drag: none;
+    filter: drop-shadow(0 0 2.4vmin rgba(255, 250, 215, .82)); }
+  .gler-start-line { margin: 0; padding: 6px 16px; border-radius: 12px; background: rgba(255,255,255,.88); color: #2b2b2b;
+    font: 700 clamp(17px, 2.2vw, 22px)/1.3 Nunito, sans-serif; text-align: center; }
+  @keyframes gler-pulse {
+    0%, 100% { transform: scale(1); opacity: .94; }
+    50% { transform: scale(1.06); opacity: 1; }
+  }
+  @keyframes gler-pulse-calm {
+    0%, 100% { opacity: .88; }
+    50% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .gler-start { animation: gler-pulse-calm 2.4s ease-in-out infinite; } }`;
+/** The glasses start, laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */
+function glassesStart(doc) {
+  return new Promise(resolve => {
+    const wrap = doc.createElement('div');
+    wrap.className = 'gler-start-wrap';
+    wrap.hidden = true;
+    const style = doc.createElement('style');
+    style.textContent = GLASSES_STYLE;
+    const button = doc.createElement('button');
+    button.type = 'button';
+    button.className = 'gler-start';
+    const img = doc.createElement('img');
+    img.alt = 'Settu upp 3D gleraugun og ýttu hér';
+    img.draggable = false;
+    button.append(img);
+    const line = doc.createElement('p');
+    line.className = 'gler-start-line';
+    line.textContent = 'Rauða glerið á vinstra auga.';
+    wrap.append(style, button, line);
+    img.addEventListener('load', () => {
+      doc.body.append(wrap);
+      resolve({ element: wrap, button });
+    }, { once: true });
+    img.addEventListener('error', () => resolve(null), { once: true });
+    img.src = GLASSES;
+  });
+}
+
 export const chapter = {
   id: 'safn3d',
   title: 'Þrívíddarsafnið',
   look: 'morning',
-  gler: true, // main.js turns the glasses on
+  gler: { panel: false }, // main.js turns the glasses on, without the "3D" settings button (saved settings and ?ut= still hold)
+  startButton: glassesStart, // main.js: the glasses picture is the start, one tap, instead of Byrja
   layout: grunnur.layout,
   actors: Object.fromEntries(NAMES.map(n => [n, { url: CHARS + FRIENDS[n].url, position: [FRIENDS[n].home[0], 0, FRIENDS[n].home[1]], heading: FRIENDS[n].heading }])),
   cast: {
@@ -226,15 +274,7 @@ export const chapter = {
     }
     yield s.camera.cut('overview', { check: false });
     s.after(0, () => keepPlane());
-    const card = document.createElement('p');
-    card.textContent = 'Settu upp gleraugun! Rauða glerið á vinstra auga.';
-    card.style.cssText = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:5;margin:0;padding:14px 22px;border-radius:16px;background:rgba(255,255,255,.92);color:#2b2b2b;font:700 clamp(22px,3vw,30px)/1.3 Nunito,sans-serif;text-align:center;max-width:80vw';
-    document.body.append(card);
-    try {
-      yield s.ready();
-    } finally {
-      card.remove();
-    }
+    yield s.ready();
     yield s.fade(0, 1.5);
 
     // ---- the museum ----

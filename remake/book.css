@@ -69,8 +69,8 @@
   --book-card-deep: #e3d4b5;
   --book-cloth-edge: #a8501f;
 
-  /* Paper: a fine grain and a soft unevenness, drawn once and tiled. */
-  --book-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .24 0 0 0 0 .19 0 0 0 0 .15 0 0 0 .6 -.24'/%3E%3C/filter%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.011' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .62 0 0 0 0 .48 0 0 0 0 .3 0 0 0 .5 -.18'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  /* Paper: a fine grain and a soft unevenness, baked into a tiny seamless WebP tile so 3D page turns never run SVG filters on the CPU. */
+  --book-grain: url("./assets/book/paper-grain.webp");
   /* A hand-drawn frame line: a wobbly rounded box whose line keeps its width at any size. Both lines keep within the
      outer 2.2 % of the box it is drawn in, so whatever sits inside that box clears them. */
   --book-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M7 3C110 1.6 290 4.4 393 2.6C396.4 2.8 397.6 4.6 397.4 8C396 110 398.4 200 397.2 292C396.9 295.8 395 297.3 391 297.2C280 298.6 120 296.2 9 297.6C5.2 297.6 3 295.8 3 292C3.8 190 1.8 100 2.8 8C3 4.6 4.4 3.1 7 3Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M10.5 6.6C120 5.4 280 7.6 389.5 6.2C392 6.4 393.2 8 393.1 10.6C392 110 394.2 200 393.1 288.6C392.8 291.6 391.2 292.8 388.4 292.7C280 294 120 291.8 12.2 293.2C9.2 293.2 7.4 291.7 7.4 288.6C8.1 190 6.3 100 7 10.8C7.2 8 8.4 6.7 10.5 6.6Z' fill='none' stroke='%233b2f25' stroke-opacity='.13' stroke-width='1.6' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
@@ -192,7 +192,10 @@
 /* ---- The shell (engine/book/book.js): each ribbon's leaf of two pages, the page turn, and the closing book ----------- */
 
 .book-leaf { display: contents; } /* its two pages lie on the spread; only the open ribbon's show, and both leaves while a page turns */
-.book-page.turning { z-index: 1; backface-visibility: hidden; } /* the turning page lies over the others; the spine and ribbons stay on top */
+.book-page.turning { z-index: 1; backface-visibility: hidden; will-change: transform; contain: layout style paint; } /* the turning page lies over the others as a static GPU layer; the spine and ribbons stay on top */
+.book-spread.page-turning .book-page *,
+.book-spread.page-turning .book-page *::before,
+.book-spread.page-turning .book-page *::after { animation-play-state: paused !important; } /* tiles and badges hold still for the half-second turn so the browser never re-rasterises the 3D-warped page */
 .book.closing { pointer-events: none; } /* as it shrinks into its button, a tap goes through it to the game */
 /* Until the animals page fills it (Task 7), each Dýrin page shows a faint paw print where its tiles will be. */
 .book-leaf[data-tab="animals"] .book-tiles:empty {
@@ -391,6 +394,9 @@
 .game-slot .game-tile[data-game="veiddu"] { --tilt: 2.4deg; --lag: -0.8s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
 .game-slot .game-tile[data-game="hals"] { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
 .game-slot .game-tile[data-game="yatzy-junior"] { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); } /* Litla Yatzy: Mosi's green tape (the owner's choice, 2026-10-25) */
+/* Söngur Slóeðlu: Slóeðla's blue tape; its name may wrap to two lines */
+.game-slot .game-tile[data-game="sloedla"] { --tilt: -2.1deg; --lag: -2.2s; --tape: color-mix(in srgb, #6793d0 60%, transparent); }
+.game-tile[data-game="sloedla"] .tile-name { white-space: normal; text-wrap: balance; font-size: clamp(20px, var(--tile-w) * .108, 38px); }
 /* Saman getum við það!: Flugeðla's pink tape; its name may wrap to two lines */
 .game-slot .game-tile[data-game="minnisspil"] { --tilt: 2deg; --lag: -3.7s; --tape: color-mix(in srgb, #dc8090 62%, transparent); }
 .game-tile[data-game="minnisspil"] .tile-name { white-space: normal; text-wrap: balance; font-size: clamp(20px, var(--tile-w) * .1, 38px); }
@@ -399,6 +405,7 @@
 }
 .game-tile[data-game="hals"] .tile-picture img,
 .game-tile[data-game="yatzy-junior"] .tile-picture img,
+.game-tile[data-game="sloedla"] .tile-picture img,
 .game-tile[data-game="minnisspil"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
 .game-tile[data-game="veiddu"] .tile-picture img { inset: 2% 4% 0; width: 92%; height: 98%; object-position: 50% 80%; } /* Uggeðla's render: her head and sail fill the photo */
 /* Only the games that are open show (a slot is hidden until its game is: book.js renderGameSlots, which counts the slots left in
@@ -408,19 +415,26 @@
 .book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="2"] { grid-column: 2; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="3"] { grid-column: 1; grid-row: 2; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="4"] .game-slot[data-place="4"] { grid-column: 2; grid-row: 2; }
-/* Five (Flugeðla's tile comes last): three on top and two centred below, six half-columns, every tile the same size. */
+/* Five: three on top and two centred below, six half-columns; six (all games open, Flugeðla's tile last): two rows of three, every tile the same size. */
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] { grid-template-columns: repeat(6, auto); }
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-slot[data-place="1"] { grid-column: 1 / span 2; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-slot[data-place="2"] { grid-column: 3 / span 2; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-slot[data-place="3"] { grid-column: 5 / span 2; grid-row: 1; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-slot[data-place="4"] { grid-column: 2 / span 2; grid-row: 2; }
 .book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-slot[data-place="5"] { grid-column: 4 / span 2; grid-row: 2; }
-.book-leaf[data-tab="games"] .book-tiles[data-open="5"] .game-tile {
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] { grid-template-columns: repeat(3, auto); }
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] .game-slot[data-place="1"] { grid-column: 1; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] .game-slot[data-place="2"] { grid-column: 2; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] .game-slot[data-place="3"] { grid-column: 3; grid-row: 1; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] .game-slot[data-place="4"] { grid-column: 1; grid-row: 2; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] .game-slot[data-place="5"] { grid-column: 2; grid-row: 2; }
+.book-leaf[data-tab="games"] .book-tiles[data-open="6"] .game-slot[data-place="6"] { grid-column: 3; grid-row: 2; }
+.book-leaf[data-tab="games"] .book-tiles:is([data-open="5"], [data-open="6"]) .game-tile {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.5) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.6);
 }
-/* The five tiles are small on a tablet (about 125-160 px wide): the names shrink with the tile, not below 15 px, and each name has
-   room for two lines, centred, so a name never spills out and the five stay the same height. */
-.book-leaf[data-tab="games"] .book-tiles[data-open="5"] .tile-name {
+/* Five or six tiles are small on a tablet (about 125-160 px wide): the names shrink with the tile, not below 15 px, and each name has
+   room for two lines, centred, so a name never spills out and the row stays the same height. */
+.book-leaf[data-tab="games"] .book-tiles:is([data-open="5"], [data-open="6"]) .tile-name {
   display: flex; align-items: center; justify-content: center; min-height: 2.28em;
   white-space: normal; text-wrap: balance; font-size: clamp(15px, var(--tile-w) * .135, 30px);
 }
@@ -469,10 +483,14 @@
 }
 .video-3d-column {
   grid-column: 3; grid-row: 1 / span 2; align-self: stretch;
-  display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .45);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--gap) * .45);
   margin: calc(var(--gap) * -.35) calc(var(--gap) * -.5); padding: calc(var(--gap) * .35) calc(var(--gap) * .5);
   border-left: 3px dashed rgb(59 47 37 / .32); border-radius: 0 12px 12px 0;
   background: rgb(156 178 74 / .1);
+}
+/* Two 3D shows share the column under its heading: shrink their tiles slightly so heading + two tiles sit cleanly inside the page. */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(2)) .video-tile-3d {
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.35 - 30px) / 2.38);
 }
 .video-3d-head {
   margin: 0; font: inherit; font-weight: 800; color: var(--book-ink); text-align: center; white-space: nowrap;
@@ -532,6 +550,26 @@
   background:
     url("./assets/book/images/uggedla-render.webp") 46% 70% / 118% auto no-repeat,
     radial-gradient(circle at 50% 36%, #f3fbf6, #bfe6dd 70%, #8ccdc4);
+}
+.book-sticker.thorsedla { /* Þórseðla's: Háls og hali */
+  background:
+    url("./assets/eitt/brontosaurus.webp") 50% 56% / 112% auto no-repeat,
+    radial-gradient(circle at 50% 36%, #fff7e6, #f6d8a2 70%, #e9b14d);
+}
+.book-sticker.mosi { /* Mosi's: Litla Yatzy */
+  background:
+    url("./assets/eitt/mosi.webp") 50% 52% / 108% auto no-repeat,
+    radial-gradient(circle at 50% 36%, #f6faec, #cde0a8 70%, #8eb45d);
+}
+.book-sticker.sloedla { /* Slóeðla's: Söngur Slóeðlu */
+  background:
+    url("./assets/eitt/parasaurolophus.webp") 50% 56% / 112% auto no-repeat,
+    radial-gradient(circle at 50% 36%, #f1f7fe, #bdd5f4 70%, #6793d0);
+}
+.book-sticker.flugedla { /* Flugeðla's: Saman getum við það! */
+  background:
+    url("./assets/eitt/pteranodon.webp") 52% 52% / 96% auto no-repeat,
+    radial-gradient(circle at 50% 36%, #fef3f6, #f3c2cd 70%, #dc8090);
 }
 .book-sticker:nth-child(3n + 2) { rotate: 6deg; }
 .book-sticker:nth-child(3n) { rotate: -1deg; }
@@ -820,15 +858,22 @@
   background: var(--book-frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat, var(--book-grain), var(--book-card);
   box-shadow: inset 0 0 0 3px rgb(59 47 37 / .16), 0 30px 60px rgb(14 8 3 / .45), 0 8px 18px rgb(14 8 3 / .3);
 }
-/* While a card or video player is open, the spread behind it holds still and offers nothing to tap: its close and ribbons step out. */
+/* While a card, video player or 3D show player is open, the spread behind it holds still and offers nothing to tap: its close and ribbons step out. */
 .book:has(.card:not([hidden])) :is(.book-close, .book-ribbons),
-.book:has(.video-player:not([hidden])) :is(.book-close, .book-ribbons, .card) { visibility: hidden; }
+.book:has(.video-player:not([hidden])) :is(.book-close, .book-ribbons, .card),
+.book:has(.show-player:not([hidden])) :is(.book-close, .book-ribbons, .card) { visibility: hidden; }
 .book:has(.card:not([hidden])) .book-spread *,
 .book:has(.card:not([hidden])) .book-spread *::before,
 .book:has(.card:not([hidden])) .book-spread *::after,
 .book:has(.video-player:not([hidden])) .book-spread *,
 .book:has(.video-player:not([hidden])) .book-spread *::before,
-.book:has(.video-player:not([hidden])) .book-spread *::after { animation-play-state: paused; }
+.book:has(.video-player:not([hidden])) .book-spread *::after,
+.book:has(.show-player:not([hidden])) .book-spread *,
+.book:has(.show-player:not([hidden])) .book-spread *::before,
+.book:has(.show-player:not([hidden])) .book-spread *::after,
+body:has(:is(.eitt, .veiddu, .hals, .junior-frame):not([hidden])) #book *,
+body:has(:is(.eitt, .veiddu, .hals, .junior-frame):not([hidden])) #book *::before,
+body:has(:is(.eitt, .veiddu, .hals, .junior-frame):not([hidden])) #book *::after { animation-play-state: paused; }
 
 .card-image { /* the page's picture, a photo taped on the card; a tap on it zooms it */
   --photo-pad: clamp(10px, 1.7cqmin, 20px);
@@ -942,6 +987,11 @@
   background: rgb(24 17 11 / .68);
 }
 .video-player.closing { pointer-events: none; }
+/* A "3D myndbönd" show (show-player.js): its chapter in a frame over the whole book, the video player's close button over it. */
+.show-player { position: absolute; z-index: 16; inset: 0; background: #000; }
+.show-player[hidden] { display: none; }
+.show-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.show-close { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); }
 .video-frame {
   --pad: clamp(18px, 2.4cqmin, 28px);
   position: relative;

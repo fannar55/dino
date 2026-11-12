@@ -80,7 +80,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
         - Mosi: „Smelltu nú á Myndbönd flipann! Þar eru skemmtileg myndbönd sem þú getur horft á.“
         - Mosi: „Og smelltu á Kortið! Þar sjáum við skóginn og hvar vinir mínir eiga heima.“
         - Mosi: „Smelltu svo á Leikir! Þar er Litla Yatzy leikurinn minn, og fleiri leikir bætast við á leiðinni.“
-        - Mosi: „Flott! Smelltu nú á krossinn til að loka bókinni, þá leggjum við af stað!“
+        - Mosi: „Flott! Þú getur skoðað þig um núna, eða komið aftur seinna.“ Kennslulæsingin losnar og barnið er skilið eftir frjálst í bókinni og ræður sjálft hvenær það lokar henni til að leggja af stað.
     - Kortið rennur upp yfir leikinn (bætt við 28. október; sjá `2026-10-28-kortid-lifandi-og-i-ferdalaginu-design.md`, 3. kafla): rauða línan teiknast frá rjóðrinu að burknalautinni á meðan Mosi segir þetta, kortið stendur kyrrt í 0,8 s og rennur burt, og ekkert er klippt. Mosi: „Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.“
     - Mosi: „Haltu þér fast. Af stað!“
 - **Barnið:** pikkar á Egil og hann svífur upp í hnakkinn. Geri barnið ekkert svífur hann sjálfur eftir smá stund. Pikkar svo á fiðrildið á horninu og lokar bókinni.

@@ -12,6 +12,8 @@ import { BASKET_ICON } from '../scene/ui.js';
 import { createJuniorAudio } from '../yatzy-junior/sounds.js';
 import { createJuice } from '../yatzy-junior/juice.js';
 import { createHudFx } from './hud-fx.js';
+import { keepScreenAwake } from '../wake-lock.js';
+import { awardSticker } from '../save.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -78,10 +80,11 @@ let repeatedKey = null, voiceQuiet = 0;
 // There is no sound button any more: a tablet muted by the old one would stay silent, so its saved key is forgotten (the sound is never muted).
 try { forgetOldMute(localStorage); } catch {}
 const dialogs = [$('welcome'), $('pause-dialog')];
+const wakeLock = keepScreenAwake();
 const busyDialog = () => dialogs.some(dialog => dialog.open);
 const held = () => !started || userPaused || document.hidden || busyDialog();
 function syncPause() {
-  const paused = held(); game.pause(paused); audio.pause(paused); $('game').dataset.paused = String(paused);
+  const paused = held(); game.pause(paused); wakeLock.setActive(!userPaused && !$('pause-dialog')?.open); audio.pause(paused); $('game').dataset.paused = String(paused);
   speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused); ui.pause(paused);
   refreshControls();
 }
@@ -485,7 +488,7 @@ function reflectEnding() {
   const state = bridge.getState();
   const won = game.getState().phase === 'won' && levelDone();
   if (won && !celebrated && !state.active) {
-    celebrated = true; world.celebrate(); audio.win(); unlockNext();
+    celebrated = true; world.celebrate(); audio.win(); unlockNext(); awardSticker('minnisspil');
   }
   const showEnding = endingDue();
   if (showEnding && $('ending').hidden) reflectGifts();
@@ -619,17 +622,23 @@ function refreshControls() {
       if (target.type !== 'nest') button.insertAdjacentHTML('beforeend', TAP_HINT);
       $('targets').append(button); buttons.set(key, button);
     }
-    button.style.left = `${target.x}px`; button.style.top = `${target.y}px`;
     // (an obstacle is an 88 px button, as the small games' are; a leaf keeps 44 px at least, the world sizes it)
     const least = target.type === 'task' ? 88 : 44;
-    button.style.width = `${Math.max(least, target.width)}px`; button.style.height = `${Math.max(least, target.height)}px`;
+    const w = Math.max(least, target.width), h = Math.max(least, target.height);
+    const boxKey = `${target.x}|${target.y}|${w}|${h}`;
+    if (button._boxKey !== boxKey) {
+      button._boxKey = boxKey;
+      button.style.left = `${target.x}px`; button.style.top = `${target.y}px`;
+      button.style.width = `${w}px`; button.style.height = `${h}px`;
+    }
     // (the finger never points at an obstacle whose scene is not built yet, the world says `unbuilt`: level 2's tunnel in Task 3)
     button.classList.toggle('is-guided', target.type === 'leaf' ? target.id === guidedLeaf : target.type === 'task' && target.id === story.target && !target.unbuilt && (hesitating || retrying));
+    let label = '';
     if (target.type === 'leaf') {
       const card = state.cards.find(card => card.id === target.id);
       button.disabled = !mayPick || card?.status !== 'hidden' || target.enabled === false;
       // Hidden species and gifts must never leak through accessible names.
-      button.setAttribute('aria-label', `Lauf ${target.id + 1}${card?.status === 'open' ? `, ${card.item ? GIFT_ITEMS[card.item]?.name : roster[card.species]}` : card?.status === 'matched' ? ', tómt' : card?.status === 'found' ? ', fundið' : ', lokað'}`);
+      label = `Lauf ${target.id + 1}${card?.status === 'open' ? `, ${card.item ? GIFT_ITEMS[card.item]?.name : roster[card.species]}` : card?.status === 'matched' ? ', tómt' : card?.status === 'found' ? ', fundið' : ', lokað'}`;
     } else if (target.type === 'task') {
       // Obstacles can always be asked about (Mosi answers); staging and grove only retry a blocked crossing.
       const obstacle = Object.hasOwn(OBSTACLES, target.id), available = obstacle || mayTask(target.id);
@@ -643,12 +652,16 @@ function refreshControls() {
       const next = Boolean(target.next) && mayExplore && target.enabled !== false, doable = story.kind === 'work' && story.target === target.id;
       button.classList.toggle('is-next', next && doable); button.classList.toggle('is-ahead', next && !doable);
       button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false && !(travelAt(target.id)?.waitsForGifts && giftsToLand() > 0) || target.id === story.target && !target.unbuilt && (hesitating || retrying));
-      button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : level.targets[target.id]?.label);
+      label = tapAlong ? 'Ýttu til að hjálpa!' : (level.targets[target.id]?.label ?? '');
     } else {
       const species = nestSpecies[target.index];
       button.disabled = !mayExplore || !species || target.enabled === false;
       button.classList.remove('pair-ready', 'pair-selected');
-      button.setAttribute('aria-label', species ? `Leika við vinaparið: ${roster[species]}` : `Hreiður ${target.index + 1}, tómt`);
+      label = species ? `Leika við vinaparið: ${roster[species]}` : `Hreiður ${target.index + 1}, tómt`;
+    }
+    if (button._label !== label) {
+      button._label = label;
+      button.setAttribute('aria-label', label);
     }
   }
   for (const [key, button] of buttons) if (!visibleKeys.has(key)) {
@@ -794,6 +807,7 @@ function frame(timestamp) {
 
 const speech = createMemorySpeech({ clock: () => time, counts: COUNT_TAKES });
 const music = createMemoryMusic();
+if (params.get('hljod') === '0') { audio.mute?.(true); speech.mute(true); music.mute(true); ui.mute(true); }
 applyLevelDom();
 // (the motion the world and the tap hint use: calm when the tablet asks for it, until "Rólegri hreyfing" says otherwise; Mosi's button waits for the round)
 $('game').dataset.motion = reducedMotion ? 'reduced' : 'full'; $('mosi-help').hidden = true;
@@ -824,7 +838,17 @@ for (const dialog of dialogs) {
 document.addEventListener('visibilitychange', syncPause);
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !busyDialog()) cancelChoice(); });
 window.addEventListener('resize', () => { world?.resize($('world').clientWidth, $('world').clientHeight); refreshControls(); });
-window.addEventListener('pagehide', () => { userPaused = true; syncPause(); });
+window.addEventListener('pagehide', event => {
+  userPaused = true; syncPause();
+  if (!event.persisted && !disposed) {
+    disposed = true;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    wakeLock.dispose?.();
+    speech.stop(); audio.cancel();
+    music.dispose?.(); audio.dispose?.(); ui.dispose?.();
+    world?.dispose(); world = null;
+  }
+});
 window.addEventListener('pageshow', event => { if (event.persisted) { userPaused = false; syncPause(); } });
 
 // QA reads window.__demoStats (the playthrough and the check tools). The world's debug object walks every friend and copies the idle log, so it is built

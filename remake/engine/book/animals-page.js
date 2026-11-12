@@ -30,7 +30,7 @@ const MISSING = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' vi
  *   nod(id, delay)    the card's tile nods, after `delay` ms (a new animal, where the book has opened for it)
  *   dispose()         takes the page away
  */
-export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), save, audio = null, onOpenCard = null, findMe = null, win = globalThis.window } = {}) {
+export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), save, audio = null, onOpenCard = null, onChange = null, findMe = null, win = globalThis.window } = {}) {
   const leaves = (Array.isArray(roots) ? roots : [roots]).map(root => [...root.querySelectorAll('.book-tiles')]);
   const spreads = [...new Set(cards.map(card => card.spread ?? 1))].sort((a, b) => a - b); // leaves[i] is spreads[i]'s
   const make = (tag, className) => {
@@ -38,7 +38,7 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
     element.className = className;
     return element;
   };
-  const tiles = new Map(); // card id -> { card, el, picture, badge, undo }
+  const tiles = new Map(); // card id -> { card, el, picture, name, badge, undo }
   let lastOpen = -Infinity;
   let findLine = null; // the narrator saying where an animal is, or Mosi saying his line of a teaser, so a second tap does not start it over
 
@@ -50,6 +50,7 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
     const picture = make('span', 'tile-picture');
     const image = media.get(card.picture);
     const img = doc.createElement('img');
+    img.decoding = 'async';
     img.src = image?.thumb ?? image?.src ?? MISSING;
     img.alt = '';
     img.draggable = false;
@@ -60,7 +61,7 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
     const badge = make('span', 'badge-new');
     badge.textContent = 'Nýtt!';
     badge.setAttribute('aria-hidden', 'true');
-    const tile = { card, el, picture, badge, undo: null };
+    const tile = { card, el, picture, name, badge, undo: null };
     tile.undo = pressable(el, { audio, sound: null, win, onTap: () => tap(tile) }); // the tile plays its own sound
     return tile;
   }
@@ -74,10 +75,11 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
   /** A teaser found (a dinosaur whose card is not written yet): it is seen, nods, and Mosi says what the card says. No card opens. */
   function say(tile) {
     audio?.sfx?.('tile');
-    save.addSeen(tile.card.id);
+    const wasNew = save.addSeen(tile.card.id);
     if (!findLine || findLine.done) findLine = audio?.narrate?.(tile.card.say) ?? null;
     nod(tile.card.id);
     render(); // "Nýtt!" is gone
+    if (wasNew) onChange?.();
   }
 
   function openCard(tile) {
@@ -85,9 +87,10 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
     if (now - lastOpen < SAME_TAP_MS) return; // a double tap opens one card
     lastOpen = now;
     audio?.sfx?.('tile');
-    save.addSeen(tile.card.id);
+    const wasNew = save.addSeen(tile.card.id);
     onOpenCard?.(tile.card, tile.picture.getBoundingClientRect());
     render(); // "Nýtt!" is gone behind the card
+    if (wasNew) onChange?.();
   }
 
   /** An animal not found yet: it wiggles, the narrator says where it is, and the card stays shut. */
@@ -126,6 +129,7 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
       tile.el.classList.toggle('found', found && !fresh);
       tile.el.classList.toggle('new', fresh);
       tile.el.classList.toggle('unfound', !found);
+      tile.name.textContent = found ? card.name : '?';
       tile.el.setAttribute('aria-label', found ? card.name : `${card.name} (ófundið)`);
       if (fresh && tile.badge.parentNode !== tile.el) tile.el.append(tile.badge);
       if (!fresh) tile.badge.remove();
@@ -133,6 +137,11 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
       const box = boxes[i < PER_PAGE ? 0 : Math.min(1, boxes.length - 1)];
       if (box && tile.el.parentNode !== box) box.append(tile.el); // placed once: a tile that moves would start its idle life over
     });
+  }
+
+  function hasNew() {
+    const state = bookState(save);
+    return cards.some(card => !card.unlock.start && isNew(card, state));
   }
 
   function dispose() {
@@ -144,5 +153,5 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
   }
 
   render();
-  return { render, nod, dispose };
+  return { render, hasNew, nod, dispose };
 }

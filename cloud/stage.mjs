@@ -25,26 +25,33 @@ const repo = path.dirname(cloud);
 const site = path.join(cloud, 'site');
 const MAX_BYTES = 25 * 1024 * 1024;
 
+const linesJson = JSON.parse(fs.readFileSync(path.join(repo, 'remake/assets/audio/lines.json'), 'utf8'));
+const usedDistAudio = new Set(
+  Object.values(linesJson)
+    .map(entry => /^\.\.\/\.\.\/dist\/assets\/audio\/(.+)$/.exec(entry?.src ?? '')?.[1])
+    .filter(Boolean),
+);
+
 const SOURCES = [
   { from: 'remake', to: 'remake', skip: ['tests', 'tools', 'prompts', 'assets/characters/source'] },
   { from: 'dist/vendor', to: 'dist/vendor', skip: [] },
-  { from: 'dist/assets/audio', to: 'dist/assets/audio', skip: [] },
+  { from: 'dist/assets/audio', to: 'dist/assets/audio', skip: [], keep: rel => usedDistAudio.has(rel) || /\.txt$/i.test(rel) },
 ];
 
 /** A name never published: a dotfile or dot-folder, or a key or certificate. */
 const isPrivate = name => name.startsWith('.') || /\.(?:pem|key)$/i.test(name);
 
 /** Every file under `dir`, as paths relative to it with forward slashes, leaving out `skip`, any node_modules/ and the private names. */
-function filesOf(dir, skip, prefix = '') {
+function filesOf(dir, skip, prefix = '', keep = null) {
   return fs.readdirSync(path.join(dir, prefix), { withFileTypes: true }).flatMap(entry => {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (isPrivate(entry.name)) return [];
-    if (entry.isDirectory()) return entry.name === 'node_modules' || skip.includes(rel) ? [] : filesOf(dir, skip, rel);
-    return entry.isFile() ? [rel] : [];
+    if (entry.isDirectory()) return entry.name === 'node_modules' || skip.includes(rel) ? [] : filesOf(dir, skip, rel, keep);
+    return entry.isFile() && (!keep || keep(rel)) ? [rel] : [];
   });
 }
 
-const copies = SOURCES.flatMap(({ from, to, skip }) => filesOf(path.join(repo, from), skip).map(rel => ({
+const copies = SOURCES.flatMap(({ from, to, skip, keep }) => filesOf(path.join(repo, from), skip, '', keep).map(rel => ({
   source: path.join(repo, from, rel),
   target: path.join(site, to, rel),
   size: fs.statSync(path.join(repo, from, rel)).size,

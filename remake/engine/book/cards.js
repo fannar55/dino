@@ -100,6 +100,11 @@ export function parseCards(data) {
     if (!unlock) {
       fail(`has an unknown unlock ${JSON.stringify(raw.unlock)}: it is { start: true }, { found: '<id>' }, { star: '<id>' }, { place: '<id>' } or { fossil: '<kind>' }`);
     }
+    let altUnlock = null;
+    if (raw.altUnlock !== undefined) {
+      altUnlock = unlockOf(raw.altUnlock);
+      if (!altUnlock) fail(`has an unknown altUnlock ${JSON.stringify(raw.altUnlock)}`);
+    }
     const spread = raw.spread ?? 1;
     if (!Number.isInteger(spread) || spread < 1) fail(`has a spread ${JSON.stringify(raw.spread)}: it is a whole number from 1, or none for the first`);
     if (!Array.isArray(raw.pages)) fail('has no pages');
@@ -124,7 +129,7 @@ export function parseCards(data) {
     const refind = raw.refind ?? Math.max(pages.length, 1);
     if (!Number.isInteger(refind) || refind < 1 || refind > Math.max(pages.length, 1)) fail(`has a refind ${JSON.stringify(raw.refind)}: it is one of its pages, from 1`);
     return {
-      id: raw.id, name: raw.name, order: raw.order, group, unlock, spread, refind: refind - 1, findMe: findMe.get(spread) ?? FIND_ME,
+      id: raw.id, name: raw.name, order: raw.order, group, unlock, ...(altUnlock ? { altUnlock } : {}), spread, refind: refind - 1, findMe: findMe.get(spread) ?? FIND_ME,
       say: raw.say ?? null, picture: raw.picture ?? pages[0].image, pages,
     };
   });
@@ -156,13 +161,17 @@ export function bookState(save) {
 }
 
 /** Can the child open this card yet? `state` is bookState(save): { stars, findings, seen, places, fossils }. */
-export function isUnlocked(card, state) {
-  const { unlock } = card;
+function matchesUnlock(unlock, state) {
+  if (!unlock) return false;
   if (unlock.start) return true;
   if ('found' in unlock) return (state?.findings ?? []).includes(unlock.found);
   if ('place' in unlock) return (state?.places ?? []).includes(unlock.place);
   if ('fossil' in unlock) return (state?.fossils ?? []).includes(unlock.fossil);
   return (state?.stars ?? []).includes(unlock.star);
+}
+
+export function isUnlocked(card, state) {
+  return matchesUnlock(card.unlock, state) || matchesUnlock(card.altUnlock, state);
 }
 
 /** Unlocked, and not opened yet: the tile wears its "Nýtt!". */

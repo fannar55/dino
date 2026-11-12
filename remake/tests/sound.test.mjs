@@ -255,7 +255,8 @@ test('main.js lets the beat read the music\'s playhead, and ducks the music unde
 
 test('main.js starts the sound on the first touch and holds it with the book and the tab', () => {
   assert.match(MAIN, /button\.addEventListener\('click', \(\) => \{[^}]*music\.start\(\)/, 'the start button is the first touch');
-  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{\s*if \(!stage\.started\) return;\s*music\.start\(\);\s*chapterSound\.touch\(\);/, 'any later touch wakes sound the system put to sleep, and a chapter\'s own song');
+  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{\s*if \(!stage\.started \|\| showOpen\) return;[^\n]*\s*music\.start\(\);\s*chapterSound\.touch\(\);/, 'any later touch wakes sound the system put to sleep, and a chapter\'s own song; not under a 3D show, whose opening touch would wake the sound just put to sleep');
+  assert.match(MAIN, /onShow: open => \{\s*showOpen = open;\s*if \(open\) audio\?\.suspend\?\.\(\)/, 'a show over the book puts this page\'s sound to sleep');
   assert.match(MAIN, /document\.addEventListener\('visibilitychange', \(\) => hold\('hidden', document\.hidden\)\)/, 'a hidden tab holds the sound with the clock that stops');
   assert.match(MAIN, /\nhold\('hidden', document\.hidden\);/, 'also one that opens hidden');
   assert.match(MAIN, /createHold\(\[voice, music, sfx, chapterSound\]\)/, 'the voice, the music, the effects and the chapter\'s own sound follow the same hold');

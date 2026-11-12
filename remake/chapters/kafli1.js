@@ -502,9 +502,10 @@ const BUTTERFLY_CLOSE = { position: { actor: 'egill', part: 'head', offset: [-0.
  * it is in his way and asks Egill to tap it, repeating his prompt every BUTTERFLY_REMIND_WAIT seconds until the child taps the
  * butterfly (or after 2 s in a capture's seeking mode). The tap sends it fluttering up and away and its picture into the book,
  * revealing the book button. Then the book opens on Dýrin, Mosi explains it and asks the child to tap X to close it, then tap the
- * book button in the corner to reopen it, and step through Risaeðlur, Myndbönd, Kortið and Leikir (where Mosi's Litla Yatzy awaits)
- * before closing the book with X to set off. Throughout the tutorial, Mosi's speech finishes before each target becomes clickable,
- * and every other control in the book is locked so the child is guided step by step without stray clicks pausing or leaving the flow.
+ * book button in the corner to reopen it, and step through Risaeðlur, Myndbönd, Kortið and Leikir (where Mosi's Litla Yatzy awaits).
+ * Once on Leikir, Mosi invites the child to look around now or come back later, the tutorial lock releases, and the child is left
+ * free in the open book to explore or close it whenever they choose to set off. Throughout the guided steps, Mosi's speech finishes
+ * before each target becomes clickable, and every other control in the book is locked so stray clicks never leave the flow.
  */
 function* butterflyIntoTheBook(s, c) {
   const { world, mosi } = c;
@@ -624,19 +625,20 @@ function* butterflyIntoTheBook(s, c) {
       });
     }
 
-    // Close the book with X to set off on the ride.
-    yield* waitForStep({
-      line: 'k1_mosi_book_done',
-      target: 'close',
-      beckon: on => s.journal.beckonClose(on),
-      done: () => !s.journal.isOpen,
-      seekAct: () => s.journal.close(),
-    });
+    // Finish the tutorial on Leikir and leave the player free in the open book to look around now or close it and come back later.
+    s.journal.lockTutorial('none');
+    yield s.say('mosi', 'k1_mosi_book_done');
   } finally {
     s.journal.beckonClose(false);
     s.journal.beckonButton(false);
     s.journal.beckonTab(null);
     s.journal.lockTutorial(null);
+  }
+  if (s.seeking) {
+    yield s.wait(1.5);
+    s.journal.close();
+  } else {
+    yield s.journal.handToChild();
   }
   yield s.wait(0.6);
 }
@@ -1221,7 +1223,7 @@ export const chapter = {
     k1_mosi_book_videos: { text: 'Smelltu nú á Myndbönd flipann! Þar eru skemmtileg myndbönd sem þú getur horft á.', audio: 'k1_mosi_book_videos' },
     k1_mosi_book_map: { text: 'Og smelltu á Kortið! Þar sjáum við skóginn og hvar vinir mínir eiga heima.', audio: 'k1_mosi_book_map' },
     k1_mosi_book_games: { text: 'Smelltu svo á Leikir! Þar er Litla Yatzy leikurinn minn, og fleiri leikir bætast við á leiðinni.', audio: 'k1_mosi_book_games' },
-    k1_mosi_book_done: { text: 'Flott! Smelltu nú á krossinn til að loka bókinni, þá leggjum við af stað!', audio: 'k1_mosi_book_done' },
+    k1_mosi_book_done: { text: 'Flott! Þú getur skoðað þig um núna, eða komið aftur seinna.', audio: 'k1_mosi_book_done' },
     k1_mosi_map_ride: { text: 'Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.', audio: 'k1_mosi_map_ride' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },

@@ -310,9 +310,13 @@ html, body {
 }
 .sl-saman-ask { margin: 0; font-weight: 900; font-size: clamp(13px, 1.9vmin, 18px); line-height: 1.15; text-align: center; }
 .sl-saman-lan { margin: 0; font-weight: 800; font-size: 12px; color: #a33b2a; text-align: center; }
-/* the DJ's words end before the card */
+/* the DJ's words end before the card, and before the book's close ("X") when opened from Leikir (?inbook=1) */
+.sl[data-inbook="1"] .sl-dj { max-width: calc(100% - 126px); }
+.sl[data-inbook="1"] .sl-saman { right: 112px; }
 .sl:has(.sl-saman:not([hidden])) .sl-dj { max-width: calc(100% - var(--saman) - 60px); }
+.sl[data-inbook="1"]:has(.sl-saman:not([hidden])) .sl-dj { max-width: calc(100% - var(--saman) - 148px); }
 .sl:has(.sl-saman:not([hidden])) .sl-dj-say { max-width: min(420px, calc(100vw - var(--saman) - 150px)); }
+.sl[data-inbook="1"]:has(.sl-saman:not([hidden])) .sl-dj-say { max-width: min(420px, calc(100vw - var(--saman) - 238px)); }
 
 /* who plays each friend, at her feet: Egill gold, a guest cream on dark glass, "Laus" faint, "…" while a guest is away */
 .sl-tags { position: absolute; inset: 0; pointer-events: none; }
@@ -330,6 +334,7 @@ html, body {
 /* an upright screen: the stage closes up */
 @media (orientation: portrait) {
   .sl-bg { background-image: url("./assets/sloedla/kvold-fen-upright.webp"); }
+  .sl[data-inbook="1"] .sl-saman { right: 14px; top: 110px; }
   .sl[data-screen="lag"] :is(.sl-world, .sl-lights, .sl-cast) { transform: translateY(-15vh); }
   .sl[data-screen="hlada"] :is(.sl-world, .sl-lights, .sl-cast) { transform: translateY(24vh) scale(1.02); }
   .sl-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; width: min(420px, calc(100% - 24px)); padding: 0; }

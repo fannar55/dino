@@ -492,17 +492,35 @@ export function createVeidduGame(doc, {
 
   let view = null;
   let viewLoading = null;
+  function releaseView() {
+    view?.rest();
+    view?.dispose();
+    view = null;
+    viewLoading = null;
+    windowEls[UGGEDLA].querySelector('img')?.removeAttribute('hidden');
+  }
   function startView() {
     if (!uggedlaLive) return;
     if (view) return view.start();
-    viewLoading ??= import('./uggedla-view.js')
-      .then(module => module.createUggedlaView(windowEls[UGGEDLA], { win }))
+    const loading = viewLoading ??= import('./uggedla-view.js')
+      .then(module => module.createUggedlaView(windowEls[UGGEDLA], {
+        win,
+        onLost: () => { if (view) releaseView(); },
+      }))
       .then(made => {
+        if (!isOpen || viewLoading !== loading) {
+          made.dispose();
+          return;
+        }
         view = made;
         windowEls[UGGEDLA].querySelector('img')?.setAttribute('hidden', '');
-        if (isOpen) view.start();
+        view.start();
       })
-      .catch(error => console.warn('[veiddu] Uggeðla stays a picture: her live view could not start.', error));
+      .catch(error => {
+        if (viewLoading === loading) viewLoading = null;
+        console.warn('[veiddu] Uggeðla stays a picture: her live view could not start.', error);
+      });
+    return loading;
   }
 
   /** `seat`'s catch shows `laid` (the kinds in it) and `shownCount` pairs in its tag. Returns the new element, not yet in the page. */
@@ -1435,7 +1453,7 @@ export function createVeidduGame(doc, {
     table.hidden = false;
     reset();
     music.stop();
-    view?.stop();
+    releaseView();
     root.hidden = true;
     pause(false);
     try {
@@ -1443,6 +1461,25 @@ export function createVeidduGame(doc, {
     } catch (error) {
       console.error('[veiddu]', error);
     }
+  }
+
+  function bindTapAndClick(el, fn) {
+    let tappedUntil = 0;
+    pressable(el, {
+      win,
+      sound: null,
+      onTap: () => {
+        tappedUntil = Date.now() + 400;
+        fn();
+      },
+    });
+    el.addEventListener('click', () => {
+      if (Date.now() < tappedUntil) {
+        tappedUntil = 0;
+        return;
+      }
+      fn();
+    });
   }
 
   pressable(setupClose, { win, sound: null, onTap: () => close() });
@@ -1458,11 +1495,9 @@ export function createVeidduGame(doc, {
   });
   pressable(multiButton, { win, sound: null, onTap: () => { wake(); if (isOpen && setupOpen) run(multi.openLobby()); } });
   pressable(continueEl, { win, sound: null, onTap: () => { wake(); if (isOpen && setupOpen) run(multi.resume()); } });
-  pressable(pondEl, { win, sound: null, onTap: () => tapPond() });
-  pondEl.addEventListener('click', () => tapPond()); // a quick click that slid past TAP_SLOP_PX across the pond still fishes
+  bindTapAndClick(pondEl, () => tapPond()); // a quick click that slid past TAP_SLOP_PX across the pond still fishes, without double-firing after a clean tap
   for (const seat of [UGGEDLA, MOSI]) {
-    pressable(windowEls[seat], { win, sound: null, onTap: () => tapWindow(seat) });
-    windowEls[seat].addEventListener('click', () => tapWindow(seat));
+    bindTapAndClick(windowEls[seat], () => tapWindow(seat));
   }
   pressable(helpEl, { win, sound: null, onTap: () => askMosi() });
   pressable(quitEl, { win, sound: null, onTap: () => close() });

@@ -180,7 +180,10 @@ export function createForrit({
       setPhase({ phase: failure.name === 'QuotaExceededError' ? 'full' : 'needNet', percent: percentOf(list, stored) });
       return;
     }
-    if (missingOf(list, stored).length) return; // a file did not match: the next start fetches it
+    if (missingOf(list, stored).length) { // a file did not match: the next start fetches it
+      setPhase({ phase: virk ? 'ready' : 'needNet', percent: percentOf(list, stored) });
+      return;
+    }
 
     // 6. Complete: it takes over now on the start screen, or at the next start.
     await lists.put(listKey('tilbuin'), asJson({ version: list.version }));

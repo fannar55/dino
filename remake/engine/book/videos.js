@@ -130,6 +130,16 @@ export const BOOK_3D = [
     unlock: { start: true },
     label: 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum',
   },
+  {
+    id: 'safn3d',
+    name: 'Þrívíddarsafnið',
+    title: 'Þrívíddarsafnið',
+    chapter: 'safn3d',
+    poster: videoUrl('safn3d-thumb.webp'),
+    hue: '#47908a',
+    unlock: { start: true },
+    label: 'Þrívíddarsafnið, þrívíddarsýning, með rauðum og bláum gleraugum',
+  },
 ];
 
 export const videoSeenId = id => `video:${id}`;
@@ -172,6 +182,7 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
     tile.style.setProperty('--hue', video.hue);
     const picture = make('span', 'tile-picture');
     const img = doc.createElement('img');
+    img.decoding = 'async';
     img.src = video.poster;
     img.alt = '';
     img.draggable = false;

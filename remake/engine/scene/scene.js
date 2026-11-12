@@ -56,6 +56,16 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     const caption = ui.caption(who.name, entry.text, who.colour);
     const sound = recording && !seeking ? voice.play(recording.src) : null;
     const actor = world.actors?.get(speaker);
+    const listenTarget = actor ? `${speaker}.head` : null;
+    const listeners = [];
+    if (listenTarget && world.actors) {
+      for (const [id, other] of world.actors) {
+        if (id !== speaker && other?.listenAt) {
+          other.listenAt(listenTarget);
+          listeners.push(other);
+        }
+      }
+    }
     let talking = null;
     try {
       // The mouth and the line's time start when the sound is heard, not when it was asked for: over the network a recording
@@ -76,6 +86,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       // Only this line's own sound, mouth and caption: a newer line may already be showing.
       if (sound) voice.stop(sound);
       if (talking) actor.stopTalking(talking);
+      for (const other of listeners) {
+        if (other.listening === listenTarget) other.listenAt(null);
+      }
       if (!keep) ui.clearCaption(caption);
     }
   }
@@ -482,6 +495,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       if (!locations) throw new Error('s.prepare needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
       return locations.prepare(name);
     },
+    /** Dispose a previously visited location that is no longer needed so GPU buffers and textures are freed. */
+    releaseLocation(name) {
+      locations?.release?.(name);
+      return DONE;
+    },
     /** Add or replace a tap target: `{ point, radius }`, a point spec and metres. `s.target(name, null)` removes it. */
     target,
     /** Wait for the player to tap one of the targets (a name or a list); resolves with the name tapped. Seeking: `auto` (the first name) after 2 s. */
@@ -555,6 +573,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       beckonButton: on => { needJournal('s.journal.beckonButton'); journal.beckonButton?.(on); return DONE; },
       /** Locks or unlocks the book and corner button to a single allowed tutorial target (`'none'`, `'close'`, `'button'`, `'tab:<name>'`, or `null`). */
       lockTutorial: target => { needJournal('s.journal.lockTutorial'); journal.lockTutorial?.(target); return DONE; },
+      /** Hands an open script book to the child (`book.handToChild()`) and waits until the child closes it. */
+      handToChild: () => {
+        needJournal('s.journal.handToChild');
+        journal.handToChild?.();
+        return journal.isOpen ? until(() => !journal.isOpen) : DONE;
+      },
       /** Opens a minigame from the book (`'eitt'`, `'veiddu'`, `'hals'`, `'yatzy-junior'`, `'minnisspil'`) and waits until the child closes it. */
       playGame: (game, options) => {
         needJournal('s.journal.playGame');

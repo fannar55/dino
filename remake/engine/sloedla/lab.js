@@ -54,6 +54,8 @@ import { createBest } from './best.js';
 import { createBrot } from './brot.js';
 import { createFlatStage } from './stage-flat.js';
 import { BACKDROP, FRIENDS } from './friends.js';
+import { keepScreenAwake } from '../wake-lock.js';
+import { awardSticker } from '../save.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
 
@@ -85,6 +87,8 @@ const options = {
   guest: guestOf(params.get('gestur')),
   extra: readSeinkun(),
 };
+
+if (!options.self && !options.record && options.endNow === null) keepScreenAwake();
 
 /** ?gestur=c:fullordinn → { role: 'c', level: 'fullordinn' }; null for anything else. */
 function guestOf(text) {
@@ -184,8 +188,11 @@ backdropLoading.then(([image, upright]) => { backdrop = image ? { image, upright
 const hands = options.hands ? createClapHands({ src: id => asset(`sloedla/hendur/${id}.svg`) }) : null;
 hands?.load();
 // the stars in 3D (star-view.js, three.js over the field): loaded while the menu waits; null (no WebGL, no star): flat stars
+let activeStarView = null;
 const starView = options.stars3d && context
-  ? import('./star-view.js').then(m => m.createStarView({ canvas: $('stars3d'), url: asset('sloedla/stjarna/stjarna.glb'), facing: STAR_FACING, keep: options.record })).catch(() => null)
+  ? import('./star-view.js')
+    .then(m => m.createStarView({ canvas: $('stars3d'), url: asset('sloedla/stjarna/stjarna.glb'), facing: STAR_FACING, keep: options.record }))
+    .then(v => (activeStarView = v), () => null)
   : Promise.resolve(null);
 
 let round = null; // { game, clock, conductor, bot }
@@ -302,6 +309,7 @@ function finish(result) {
   // a look at the end (?lokaskjar=) is no record
   // the band's stars are Egill's record too, under his song and level (spec §9)
   const rose = options.endNow === null && best.record(options.song, options.level, { stars: result.stars, points: result.points });
+  if (options.endNow === null && !options.self && result.stars >= 1) awardSticker('sloedla');
   if (options.together) band.endRound(result); // each phone: the band's stars and her own line
   view.showEnd(result, rose);
   window.__sloedlaResult = result;
@@ -343,7 +351,9 @@ function startRecording(stars3d) {
   recorder.start(1000);
 }
 
+let disposed = false;
 function frame(perf) {
+  if (disposed) return;
   requestAnimationFrame(frame);
   if (!round) return;
   if (round.bot) for (const { lane, at } of round.bot.due(round.clock.time())) round.game.tap(lane, at);
@@ -432,12 +442,17 @@ const view = createMenuView({
 
 // The menu's stage: the cast in 3D (stage.js, loaded with import() so the game never needs three.js), or in pictures
 // (stage-flat.js) with ?3d=0, without WebGL, or when a model cannot be loaded
+let activeStage = null;
 const flatStage = () => createFlatStage({ root: document.querySelector('[data-flat]'), asset });
 if (!options.stars3d) view.useStage(flatStage());
 else {
   import('./stage.js')
-    .then(m => m.createStage({ canvas: document.querySelector('[data-stage]'), asset, reduced, onLost: () => view.useStage(flatStage()) }))
-    .then(stage => view.useStage(stage ?? flatStage()), () => view.useStage(flatStage()));
+    .then(m => m.createStage({ canvas: document.querySelector('[data-stage]'), asset, reduced, onLost: () => { activeStage = null; view.useStage(flatStage()); } }))
+    .then(stage => {
+      if (disposed) { stage?.dispose?.(); return; }
+      activeStage = stage;
+      view.useStage(stage ?? flatStage());
+    }, () => { if (!disposed) view.useStage(flatStage()); });
 }
 
 // "Spilum saman": the room for the guests' phones (Fjölspil), kept apart from the book's, its lobby the QR card on the stage
@@ -492,5 +507,26 @@ Promise.all([loading, backdropLoading]).then(([loaded]) => {
   window.__sloedlaReady = true;
 }).catch(error => {
   console.error('Slóeðla: the pictures could not be loaded', error);
+});
+if (params.get('inbook') === '1') {
+  addEventListener('keydown', event => {
+    if (event.key === 'Escape') parent?.postMessage({ type: 'sloedla:close' }, location.origin);
+  });
+}
+addEventListener('pagehide', () => {
+  if (disposed) return;
+  disposed = true;
+  round?.conductor.stop();
+  round = null;
+  view.stop?.();
+  brot?.stop?.();
+  dj?.hush?.();
+  try { band.close(); } catch {}
+  try { bandRoom.close?.(); } catch {}
+  activeStage?.dispose?.();
+  activeStage = null;
+  activeStarView?.dispose?.();
+  activeStarView = null;
+  context?.close?.().catch(() => {});
 });
 requestAnimationFrame(frame);

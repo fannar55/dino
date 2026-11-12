@@ -59,9 +59,13 @@ function skyLight(renderer) {
     scene.add(box);
   }
   const generator = new THREE.PMREMGenerator(renderer);
-  const env = generator.fromScene(scene, 0.04).texture;
+  const envTarget = generator.fromScene(scene, 0.04);
   generator.dispose();
-  return env;
+  scene.traverse(obj => {
+    obj.geometry?.dispose();
+    obj.material?.dispose?.();
+  });
+  return envTarget;
 }
 
 /** Points of her skin as she stands now, every `step`th vertex, in world space: what the camera frames. */
@@ -149,7 +153,7 @@ function neutralMouth(duration) {
  * WebGL or no model (the table keeps her picture then). `win` is the window, asked about less motion: with it she still breathes,
  * blinks, talks and thinks, but dips her head a little instead of her whole kink.
  */
-export async function createUggedlaView(container, { win = globalThis.window } = {}) {
+export async function createUggedlaView(container, { win = globalThis.window, onLost = null } = {}) {
   const calm = () => Boolean(win?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
   const canvas = document.createElement('canvas');
   canvas.className = 'veiddu-uggedla-view';
@@ -168,6 +172,7 @@ export async function createUggedlaView(container, { win = globalThis.window } =
     actor = await createActor(world, { name: 'uggedla-veiddu', url: MODEL, position: [0, 0, 0], heading: 0 });
   } catch (error) {
     renderer.dispose();
+    renderer.forceContextLoss?.();
     throw error;
   }
 
@@ -186,8 +191,13 @@ export async function createUggedlaView(container, { win = globalThis.window } =
   fill.position.copy(at(LIGHT.fill.az, LIGHT.fill.el, radius * 3));
   fill.target.position.copy(target);
   scene.add(key, key.target, fill, fill.target, new THREE.HemisphereLight(LIGHT.hemi.sky, LIGHT.hemi.ground, LIGHT.hemi.i));
-  scene.environment = skyLight(renderer);
+  const envTarget = skyLight(renderer);
+  scene.environment = envTarget.texture;
   scene.environmentIntensity = LIGHT.env;
+  canvas.addEventListener?.('webglcontextlost', event => {
+    event.preventDefault?.();
+    onLost?.();
+  });
 
   // She looks at the child (just in front of the camera) unless she is thinking over her cards, which lie below her window.
   const child = camera.position.clone().lerp(target, 0.35);
@@ -350,7 +360,10 @@ export async function createUggedlaView(container, { win = globalThis.window } =
       this.stop();
       watcher?.disconnect();
       canvas.remove();
+      actor.dispose();
+      envTarget.dispose();
       renderer.dispose();
+      renderer.forceContextLoss?.();
     },
   };
 }
