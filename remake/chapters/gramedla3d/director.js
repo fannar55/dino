@@ -86,8 +86,12 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
     herAt: t => { const g = gramAt(t, rig); return g && g.seen > 0.05 ? { x: g.x, z: g.z } : null; },
     brake: FLIGHT.brake[0], roar: [CUES.roar + 0.4, CUES.roar + 3.2], groundAt: (x, z) => world.heightAt(x, z), clampK,
   });
+  // ?vfx=0 leaves the effects out (to weigh what they cost on the GPU)
+  const fxOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('vfx') === '0';
   const vfx = createVfx(world, { steps: footfalls, breaths, nostril: (i, out) => pose.nostril(i, out), headUp: out => out.copy(UP), headAhead: out => out.set(1, 0, 0).transformDirection(pose.bones.Head.matrixWorld), clampK });
 
+  if (fxOff) for (const o of [vfx.dust, vfx.flecks, vfx.breath, ...air.sets]) o.points.visible = false;
+  if (fxOff) vfx.prints.visible = false;
   gram.control(() => {
     if (!her) {
       gram.place(away[0], away[1]);
@@ -100,7 +104,7 @@ export function createDirector(world, { stage, D, pose, cast, gram, rig, away, n
     pose.at(her.x, her.z);
   }, () => {
     if (her) { pose.leanNow(her); gram.root.updateMatrixWorld(true); }
-    if (now.t !== null) { vfx.pose(now.t); air.pose(now.t); } // after her head is posed: the breath leaves her nostrils as they are this frame
+    if (now.t !== null && !fxOff) { vfx.pose(now.t); air.pose(now.t); } // after her head is posed: the breath leaves her nostrils as they are this frame
   });
 
   // ---- the butterfly: its mode changes start a flight (butterflies.js follow or land); the flight reads this frame's place ----

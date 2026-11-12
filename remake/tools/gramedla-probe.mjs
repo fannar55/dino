@@ -45,6 +45,7 @@ function parseArgs(argv) {
     else if (a === '--depth') o.depth = next() !== '0';
     else if (a === '--until') o.until = Number(next());
     else if (a === '--hide') o.hide = next();
+    else if (a === '--query') o.query = next(); // more of the page's address, e.g. vfx=0
   }
   return o;
 }
@@ -106,7 +107,7 @@ async function probe(o, size) {
       return r.result.value;
     };
     const mode = o.hreyfing ? `${o.plain ? 'gler=0&' : ''}show=1` : o.lykill ? `lykill=${o.lykill.split(',')[0]}` : 'kvordun=1';
-    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.hreyfing ? o.t ?? 0 : o.t ?? 1.5}` });
+    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.hreyfing ? o.t ?? 0 : o.t ?? 1.5}${o.query ? '&' + o.query : ''}` });
     const t0 = Date.now();
     for (;;) {
       let ready = false;
