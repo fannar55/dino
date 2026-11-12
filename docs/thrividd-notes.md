@@ -85,3 +85,68 @@
 - "Hætta": `endCard(doc, { onAgain, onQuit })` in the chapter, "Aftur" first (green, bigger type), "Hætta" beside it (white, green border, the same height: 62 px at 1024 and 1280); `leaveShow(win)` in engine/book/show-player.js: in the book's frame (syning=1 with a parent) it posts SHOW_CLOSE up and the book closes the frame and shows Myndbönd; on its own it goes to this page with only quality and debug. tests/book.test.mjs. Tried in a browser: in the frame over kafli1 (headless Edge: card, then Hætta, then the book on Myndbönd: qa/thrividd/umferd6/haetta/, haetta2/) and on the direct link in the app's browser pane (?chapter=fidrildi3d&t=59.6&quality=high&debug=1 → Hætta → index.html?quality=high&debug=1, the start page with Byrja).
 - Cost with the glasses (capture --bench 90, 1280x800, tablet): GPU 15.3-16.0 ms median, 17.4-19.3 ms a frame at 33, 47, 52 s; without glasses 5.3 / 7.2 ms at 52 s. Round 5's run said 23-24 / 26-27 ms on the same laptop; the laptop's state differs between runs, so read these as no worse, not as faster.
 - Suite: `npm run test:remake` 2008/2008. Captures: qa/thrividd/umferd6/1280/ (g0-, g1- at 28, 31, 34, 38, 44.5, 47.9, 50, 53.8, 55, 59.5 s), 1024/ (g0-), endir-1280.png (the card in the book's frame), skogur/ (fyrir = ?skog=heill, eftir), k1-after/ and k2-before/ (chapters 1 and 2).
+
+## Gljúfraflugið (chapter gljufur3d), chunk 1: rough cut (2026-11-12)
+
+What is built: `?chapter=gljufur3d` (chapters/gljufur3d.js) plays the whole show with the glasses on from the start (glasses picture, no
+3D button) and ends on the end card (Aftur, Hætta). The end card and the glasses picture moved to engine/book/show-cards.js, which
+fidrildi3d also uses now. `t=` seeks and `__advance` step it, and the timeline is a pure function of τ: the slow motion goes through
+`clock.setScale`, which seeks ignore. Up to the burst (τ 44) the path is chapter 4's own, at flight time τ + 75. After that the show
+sets its own points and keys through new options that only it passes: `createRoute({ points, keys })`, the `flyersAway` option of
+createArdalur/createLife (the gorge flyers peel away before the reveal), and `lightAt` exported from kafli4-flight.js.
+
+Beats as built (τ, room seconds):
+
+| τ | Beat |
+|---|---|
+| 0–7.5 | Chase over the rapids. "Haltu þér fast!" at 1.0 |
+| 7.5–20.5 | Side, then chase through the gorge. "Sjáðu, þau fljúga með okkur!" at 10 |
+| 20.5–23.55 | Front shot from the river's middle: she comes straight at us. Small slow moment at 23.0–23.55 (0.45) |
+| 23.55–30 | Skim with splashes |
+| 30–39.8 | Chase, then climb up the falls. "Sjáðu fossinn!" at 31, "Upp með honum!" at 33.3 |
+| 39.8–44 | Burst out of the spray. The orchestra hit lands about τ 41.5; golden light follows |
+| 44–46 | Reveal of Grameðla |
+| 46–51.5 | Roar shot. Roar at 46.7, slow motion 47.0–48.4 at 0.35 (about 4 s of room time), "Vááá!" at 47.4, the pass at τ 48 |
+| 51.5–59 | Circle. "Vúhú! Hér förum við!" at 54.5, her huff and nod at 57.4 |
+| 59–70 | Golden glide away in chase. Fade 70–71.5, then the card |
+
+Grameðla stands at (-1385, 100), ground 51.0, by the lip on the north bank, facing 135° (south-west, across the river). That is
+where the climb's line comes over the lip, so the burst can lead straight into the reveal. The far land's own Grameðla is never
+loaded, so there are not two of her. Plants are cleared around her (r 11), along the show's path from τ 42 (r 7) and at the roar
+camera (r 10).
+
+Comfort, measured at 1280×800 with tools/gljufur-probe.mjs (every 1/30 s, 0–71.5 s, depth probe from engine/depth-probe.js):
+
+| Shot | D (m) | Middle nearest k | Note |
+|---|---|---|---|
+| chase | 5.3–5.7 | 0.97 | |
+| side | 3.9–4.0 | 0.865 | wing |
+| front | 11 | 0.585 | 2 steps under 0.6 D outside the middle: her head at v 0.16, the cut's last frame |
+| skim | 5.07–10.1 | 0.93 | largest D step 0.51 m at 28.8 (the eased ground limit) |
+| climb | 6.5 | 0.92 | |
+| burst | 14 | 0.56 | |
+| reveal | 8.3 | 0.94 | |
+| roar | 9.23, held | 0.69 | Grameðla's snout in the lunge; her head reaches k 0.99 |
+| circle | 6.2–7.6 | 0.91 | |
+| away | 5.4 | 0.975 | |
+
+- Edge violations (something nearer than D along the 1 % border): 0 in every shot after the last two fixes (the roar's D is 0.82
+  of her head's depth, because her jaw and neck cross the bottom edge; the flyers leave a second earlier). The reveal was measured
+  again from 39.7 to 46.1 s and the roar from 45.9 to 51.6 s; the full run before those fixes had them as the only violations.
+- Clip (--clip, subsampled: every 12th vertex against the ground, every 48th against Grameðla): no skin under the ground or in a
+  wall (smallest 2.18 m, skim), none under the water (smallest 0.60 m, skim), nothing inside Grameðla.
+- Frame cost (capture.mjs --bench, Iris Xe, quality tablet, 1280×800), GPU median with the glasses: 10.7 ms in the gorge
+  (τ 17), 10.7 ms in the roar (47.8), 13.6 ms in the circle (55). The roar without the glasses is 5.3 ms.
+- Captures: qa/thrividd/gljufur/final/ (g1- with the glasses, g0- with gler=0, at 4, 12, 17, 23.4, 26.5, 33, 37, 43.6, 45.2, 47.8,
+  55 and 70 s). The probes' JSON is in qa/thrividd/gljufur/.
+
+Weak, or not measured:
+- The roar shot frames Grameðla well, but Flugeðla passes cut off at the top edge (she is behind the screen there, k ≥ 1.07). The
+  pop is weaker than planned: 0.69 at the nearest.
+- In the circle (τ 55) Egill is hard to see: the camera is under her wing. The side shot's wing comes to k 0.865.
+- The burst's hit is at τ ≈ 41.5, not at 44.
+- The flyers' peel-away is quick and plain. The flyers under her in the skim are not checked against the water. Plants are not
+  probed for clipping. The spray, splashes and mist write no depth, so the probe does not see them.
+- Only 1280×800 was measured; the other three shapes were not. There is no node test of the show yet.
+- Not checked: Aftur's replay, playback in real time with sound, how it looks through real glasses, and how long the start's
+  `forest.buildAll()` takes. Reduced motion (reduced=1) only loads without errors.
