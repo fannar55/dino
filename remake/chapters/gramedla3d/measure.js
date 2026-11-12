@@ -11,7 +11,7 @@ import { EDGE_K, MIDDLE, outOf } from './keys.js';
 
 const EDGE = 0.02; // a speck this near a frame edge (share of the frame) counts as at it
 
-export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast, nearLane, gram }) {
+export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast, nearLane, gram, director }) {
   const { camera, gler } = world;
   const { frameOf, groundEdgeDepth } = stage;
   const probe = createDepthProbe(world, { width: 320 });
@@ -39,15 +39,14 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     return { near, edge, frontBox: u0 < Infinity ? [u0, v0, u1, v1].map(r3) : null };
   }
 
-  /** The specks of the groups showing, in the screen's frame now (their places are the table's: worked out, not seen). */
+  /** The specks of the groups showing, in the screen's frame now (where the timeline put them: worked out, not seen). */
   function particles() {
     const out = [];
     for (const g of cast.groups.values()) {
       if (!g.object.visible) continue;
       let nearest = { k: Infinity }, front = 0, wideNear = 0, atEdge = 0;
-      for (const q of g.points) {
-        stage.framePoint(q[0], q[1], q[2], p, stage.stageCam, D);
-        const [u, v, k] = frameOf(p, camera);
+      for (const q of g.now) {
+        const [u, v, k] = frameOf(q, camera);
         if (k < nearest.k) nearest = { k: r3(k), u: r3(u), v: r3(v) };
         if (k < 1) front++;
         const inMiddle = u >= MIDDLE[0] && u <= MIDDLE[1] && v >= MIDDLE[0] && v <= MIDDLE[1];
@@ -110,7 +109,8 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
     };
     if (key.gram) {
       const [u, v, k] = frameOf(pose.snout(p), camera);
-      row.actors.gram = { snout: { u: r3(u), v: r3(v), k: r3(k), out: r3(outOf(k) * 100) }, skin: skinOf(gram), solved: world.gramedla.state.solution };
+      const { layers, ...solved } = director.now.gram ?? {};
+      row.actors.gram = { snout: { u: r3(u), v: r3(v), k: r3(k), out: r3(outOf(k) * 100) }, skin: skinOf(gram), solved, layers };
       row.clear.gramPlants = plantsAgainst(gram);
     }
     if (key.flugedla) {
@@ -152,5 +152,66 @@ export function createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast
       : cast.beak() ? kOfPoint(cast.beak()) : null;
     return { what: key.lead, k, out: Number.isFinite(k) ? r3(strength * (1 / k - 1) * 100) : null };
   }
-  return { measure, skinOf, lead };
+  // ---- the motion (tools/gramedla-probe.mjs --hreyfing): each step of the show, what is out and where, the rules and clearances ----
+  const headVerts = pose.headVerts;
+  const body = bodyMesh(gram);
+  const atEdge = (u, v) => u < EDGE || u > 1 - EDGE || v < EDGE || v > 1 - EDGE;
+  const point = (q, extra = {}) => { const [u, v, k] = frameOf(q, camera); return { k: r3(k), u: r3(u), v: r3(v), edge: k < 1 && atEdge(u, v), ...extra }; };
+  /** One step: { t, things: { name: { near: {k,u,v}, edge (k of any of it in front at an edge, or null) } }, specks, ground, depth, clear }. */
+  function sample({ depth = true, clear = true } = {}) {
+    const n = director.now;
+    camera.updateMatrixWorld();
+    const row = { t: +n.t.toFixed(3), things: {}, specks: [], clear: {} };
+    const skin = (actor, step, mesh) => { const s = skinOf(actor, step, mesh); return { near: s.near, edge: s.edge.k < 1 ? s.edge : null, box: s.frontBox }; };
+    if (n.gram) row.things.gram = skin(gram, 4);
+    if (n.flugedla) { row.things.flugedla = skin(cast.her, 4, cast.herBody()); row.things.egill = skin(cast.boy, 4); }
+    const bpos = n.butterfly && n.butterfly.mode !== 'hidden' ? cast.butterflyAt(new THREE.Vector3()) : null;
+    if (bpos) row.things.butterfly = { near: point(bpos), edge: point(bpos).edge ? point(bpos) : null };
+    if (n.birds) {
+      const list = cast.birds.filter(m => m.visible).map(m => point(m.getWorldPosition(new THREE.Vector3())));
+      const near = list.reduce((a, b) => (b.k < a.k ? b : a), { k: Infinity });
+      row.things.birds = { near, edge: list.find(b => b.edge) ?? null, wide: list.filter(b => b.k < EDGE_K && !(b.u >= MIDDLE[0] && b.u <= MIDDLE[1] && b.v >= MIDDLE[0] && b.v <= MIDDLE[1])).length };
+    }
+    row.specks = particles().map(g => ({ group: g.group, front: g.front, k: g.nearest.k, out: g.out, wideNear: g.wideNear, atEdge: g.atEdge }));
+    let ground = Infinity;
+    for (let x = -1; x <= 1.0001; x += 0.25) ground = Math.min(ground, groundEdgeDepth(camera, x));
+    row.ground = r3(ground / (gler?.plane ?? D));
+    if (depth) {
+      const Dn = gler?.plane ?? D;
+      const ray = new THREE.Vector3(), fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd);
+      const isGround = (u, vv, dep) => {
+        ray.set(2 * u - 1, 1 - 2 * vv, 0.5).unproject(camera).sub(camera.position).normalize();
+        const tt = dep / ray.dot(fwd);
+        return camera.position.y + ray.y * tt - world.heightAt(camera.position.x + ray.x * tt, camera.position.z + ray.z * tt) < GRASS;
+      };
+      const d = probe.sample(Dn, { isGround });
+      row.depth = { border: r3(d.border), borderAt: d.borderAt, groundBorder: r3(d.groundBorder), front: d.front, at: d.at, farthest: d.farthest };
+    }
+    if (clear) {
+      if (n.gram) row.clear.gramPlants = plantsAgainst(gram);
+      if (n.flugedla) row.clear.flugedlaPlants = plantsAgainst(cast.her);
+      if (n.birds) {
+        const list = cast.birds.filter(m => m.visible);
+        let apart = Infinity, plant = Infinity;
+        for (let i = 0; i < list.length; i++) {
+          plant = Math.min(plant, nearestPlant(list[i].position));
+          for (let j = i + 1; j < list.length; j++) apart = Math.min(apart, list[i].position.distanceTo(list[j].position));
+        }
+        row.clear.birds = { apart: r3(apart), plant: r3(plant) };
+      }
+      if (bpos) {
+        row.clear.butterflyPlant = nearestPlant(bpos);
+        if (n.gram) {
+          // the butterfly to her skin (her head's, where it would meet her): sitting on her snout is meant
+          body.skeleton.update();
+          let near = Infinity;
+          for (let i = 0; i < headVerts.length; i += 2) near = Math.min(near, body.getVertexPosition(headVerts[i], p).applyMatrix4(body.matrixWorld).distanceTo(bpos));
+          row.clear.butterflyGram = r3(near);
+        }
+      }
+    }
+    return row;
+  }
+  return { measure, skinOf, lead, sample };
 }

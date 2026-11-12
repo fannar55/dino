@@ -9,9 +9,33 @@
 //   pose.apply(solution)                stands and leans as solved (each frame, from the held pose: the overlay calls it)
 //   pose.stand(x, z, extra)             stands at (x, z) facing the lens, not leaning
 //   pose.snout(out)                     the snout tip in the world now
+//   pose.leanNow({ theta, turn, roll, pitch })   leans from the pose her clips have given her this frame (the show: director.js)
 import * as THREE from 'three';
 import { rotateBoneWorld } from '../../engine/actor.js';
 import { bodyMesh } from '../../engine/clip-probe.js';
+
+/**
+ * For bones a pose turns after the clips: the mixer leaves a bone alone when its value has not changed since it last set it, so a
+ * turn laid on it would be laid on again the next frame. begin() puts back what the bone was before the last turn where the mixer
+ * has not set it since (it is still what the turn left); end() remembers what the turn left.
+ */
+export function guardBones(bones) {
+  const before = bones.map(b => b.quaternion.clone());
+  const after = bones.map(b => b.quaternion.clone());
+  let armed = false;
+  return {
+    begin() {
+      bones.forEach((b, i) => {
+        if (armed && b.quaternion.equals(after[i])) b.quaternion.copy(before[i]);
+        before[i].copy(b.quaternion);
+      });
+    },
+    end() {
+      bones.forEach((b, i) => after[i].copy(b.quaternion));
+      armed = true;
+    },
+  };
+}
 
 // her lean: spine, chest and neck bend down by these shares of one angle; the head turns the snout to the lens
 const LEAN = { Spine: 0.22, Chest: 0.3, Neck: 0.48 };
@@ -221,10 +245,20 @@ export function createGramPose(gram, stage, camera) {
     return sol;
   }
 
+  /** Leans from her pose as her clips have set it this frame (not from a held clip's): the show's every frame. */
+  const leanGuard = guardBones(restNames.map(n => bones[n]));
+  function leanNow(p) {
+    leanGuard.begin();
+    rest = restNames.map(n => [bones[n], bones[n].quaternion.clone()]);
+    gram.root.updateMatrixWorld(true);
+    lean(p.theta, p);
+    leanGuard.end();
+  }
+
   function apply(sol) {
     at(sol.x, sol.z);
     lean(sol.theta, sol);
   }
 
-  return { bones, body, headVerts, jawVerts, snout, snoutLocal, hold, get held() { return held; }, lean, poseAt, solve, solveNearest, nearestK, standAt, apply, at, centre, right };
+  return { bones, body, headVerts, jawVerts, snout, snoutLocal, hold, leanNow, get held() { return held; }, lean, poseAt, solve, solveNearest, nearestK, standAt, apply, at, centre, right };
 }

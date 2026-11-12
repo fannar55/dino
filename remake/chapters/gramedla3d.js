@@ -2,12 +2,15 @@
 // docs/superpowers/specs/2026-11-12-gramedla-kemur-3d-design.md). A new clearing in the forest with a lane running straight away from
 // the still camera into the morning mist, and Grameðla coming up it until her head is out of the screen.
 //
+//   ?chapter=gramedla3d                the show: the glasses start, about 75 seconds, the end card ("Aftur" plays it again)
 //   ?chapter=gramedla3d&kvordun=1      step 0, the calibration (gramedla3d/calibration.js): the owner chose "4% 0,02"
-//   ?chapter=gramedla3d&lykill=3       step 1, the key frames (gramedla3d/keys.js): arrows (or the buttons) step through them
+//   ?chapter=gramedla3d&lykill=3       step 1, the key frames (gramedla3d/keys.js): the show stopped at each key's second; arrows
+//                                      (or the buttons) step through them
 //
-// One job a file, in gramedla3d/: stage.js (the camera, the screen plane, the lane and the forest), pose.js (her lean, solved to a
-// snout place), keys.js (the key frames as data), cast.js (the butterfly, the flock, Flugeðla with Egill, the specks, the trees'
-// bend), measure.js (the numbers), review.js (the review pages' controls) and calibration.js (step 0).
+// One job a file, in gramedla3d/: stage.js (the camera, the screen plane, the lane and the forest), keys.js (the key frames as data),
+// timeline.js (the motion between them, and the sound's cues), director.js (puts everything where the timeline says), pose.js (her
+// lean, solved to a snout place), cast.js (the butterfly, the flock, Flugeðla with Egill, the specks, the trees' bend), measure.js
+// (the numbers), review.js (the review page's controls) and calibration.js (step 0).
 import { createStage } from '../engine/stage3d.js';
 import { endCard, glassesStart } from '../engine/book/show-cards.js';
 import { leaveShow } from '../engine/book/show-player.js';
@@ -15,6 +18,8 @@ import { CAMERA, LOOK, FOV, D, GROUND_SHARE, GRASS, LAYOUT, nearLane, nearInfo }
 import { createGramPose } from './gramedla3d/pose.js';
 import { createCast } from './gramedla3d/cast.js';
 import { KEYS, keyIndex, outOf } from './gramedla3d/keys.js';
+import { LENGTH, FADE, BEATS } from './gramedla3d/timeline.js';
+import { createDirector, solveRig } from './gramedla3d/director.js';
 import { createMeasure } from './gramedla3d/measure.js';
 import { runCalibration } from './gramedla3d/calibration.js';
 import { reviewUi, pct } from './gramedla3d/review.js';
@@ -25,7 +30,7 @@ const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
 const KVORDUN = params.get('kvordun') === '1';
 const LYKILL = params.has('lykill');
-const AWAY = [0, -400]; // where an actor not in a frame stands (and is hidden)
+const AWAY = [0, -400]; // where an actor not on the stage stands (and is hidden)
 
 export const chapter = {
   id: 'gramedla3d',
@@ -56,14 +61,12 @@ export const chapter = {
     camera.position.copy(stage.camPos); // her head aims at the screen's camera: it stands where the stage's does
     const pose = createGramPose(gram, stage, camera);
 
-    // the review pages hold the glasses' own settings: the strength (the calibration's, else the owner's 0.02), the screen plane
+    // the glasses' own settings held: the show's strength is the owner's 0.02 (the calibration's own on its page), the screen plane
     // where it is (pop 1); nothing is saved
     const hold = () => {
       if (!gler) return;
-      if (KVORDUN || LYKILL) {
-        gler.settings.strength = hold.strength?.() ?? 0.02;
-        gler.settings.pop = 1;
-      }
+      gler.settings.strength = hold.strength?.() ?? 0.02;
+      gler.settings.pop = 1;
       gler.setPlane(D, { jump: true });
     };
     hold();
@@ -71,106 +74,99 @@ export const chapter = {
     const shot = { position: stage.camPos.toArray(), target: stage.camTarget.toArray(), fov: FOV, label: 'gramedla' };
     yield s.camera.cut(shot, { check: false });
 
-    const cast = createCast(world, { stage, D, flugedla: s.actor('flugedla').raw, egill: s.actor('egill').raw, gram, snout: out => pose.snout(out) });
-    const { measure, skinOf, lead } = createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast, nearLane, gram });
-    cast.setButterfly(null);
-    cast.setFlugedla(null);
-
     const state = { pitch: stage.pitch, stagePitch: stage.stagePitch, snoutLocal: pose.snoutLocal.toArray(), solution: null, key: null };
-    world.gramedla = { state, stage, pose, cast, keys: KEYS, gram };
+    world.gramedla = { state, stage, pose, keys: KEYS, gram };
+    const cast = createCast(world, { stage, D, flugedla: s.actor('flugedla').raw, egill: s.actor('egill').raw });
 
-    if (KVORDUN || !LYKILL) {
-      cast.setParticles(['motesFar']);
-      if (KVORDUN) {
-        const cal = runCalibration(world, { gram, pose, stage, D, GRASS, GROUND_SHARE, nearLane, params, hold });
-        Object.assign(world.gramedla, { view: cal.view, measure: cal.measure, show: cal.show });
-        Object.assign(state, { solved: cal.solved, view: cal.view });
-        yield s.ready();
-        yield s.fade(0, 1);
-        for (;;) yield;
-      }
-      const sol = pose.solve({ k: 0.334 });
-      pose.apply(sol);
-      gram.setOverlay(() => pose.apply(sol));
-      // the show itself comes in step 2; until then the stage, the end card after a while
+    if (KVORDUN) {
+      cast.poseSpecks({ motesFar: { alpha: 1 } }, 0);
+      const cal = runCalibration(world, { gram, pose, stage, D, GRASS, GROUND_SHARE, nearLane, params, hold });
+      Object.assign(world.gramedla, { view: cal.view, measure: cal.measure, show: cal.show });
+      Object.assign(state, { solved: cal.solved, view: cal.view });
       yield s.ready();
-      yield s.fade(0, 1.5);
-      yield s.wait(20);
-      yield s.fade(1, 1);
+      yield s.fade(0, 1);
+      for (;;) yield;
+    }
+
+    // ---- the show and its key frames: one timeline (gramedla3d/timeline.js), her poses for the keys solved first ----
+    const rig = solveRig(pose);
+    const director = createDirector(world, { stage, D, pose, cast, gram, rig, away: AWAY, nearInfo });
+    let birdsIn = false;
+    cast.birdsReady.then(() => { birdsIn = true; });
+    yield s.until(() => cast.riding !== null && birdsIn);
+    const { measure, skinOf, lead, sample } = createMeasure(world, { stage, D, GRASS, GROUND_SHARE, pose, cast, nearLane, gram, director });
+    Object.assign(world.gramedla, { cast, rig, director, measure, sample, skinOf, outOf, cues: director.cues, length: LENGTH, beats: BEATS });
+
+    // the second of the show the stage is at: the show's own clock, or the review page's key
+    const clock = { t: 0, from: null };
+    s.after(0, function* run() {
+      for (;;) {
+        const t = clock.from === null ? clock.t : Math.min(LENGTH, s.time - clock.from);
+        state.t = t;
+        director.apply(t);
+        yield;
+      }
+    });
+
+    if (LYKILL) {
+      const view = { index: keyIndex(params.get('lykill')) };
+      const show = index => {
+        view.index = index;
+        state.key = KEYS[index].id;
+        clock.t = KEYS[index].time;
+        sync();
+        return KEYS[index].id;
+      };
+      let labelIn = -1; // frames until the label measures its frame (once everything is drawn where it is)
+      const ui = typeof document !== 'undefined' ? reviewUi(document, { step: d => show((view.index + d + KEYS.length) % KEYS.length) }) : null;
+      // the label: which frame, and how far its lead is out as measured (a frame later, once everything is drawn where it is)
+      function sync() {
+        if (!ui) return;
+        const key = KEYS[view.index];
+        ui.label.textContent = `Lykilrammi ${key.n}${key.variant ?? ''} af 7 · ${key.name}`;
+        labelIn = 3;
+      }
+      function label() {
+        const key = KEYS[view.index];
+        const out = lead(key).out;
+        const said = out == null ? '' : out >= 0.05 ? ` · ${key.leadText} ${pct(out)} út` : out > -0.05 ? ` · ${key.leadText} við skjáinn` : ` · ${key.leadText} ${pct(-out)} inn`;
+        ui.label.textContent = `Lykilrammi ${key.n}${key.variant ?? ''} af 7 · ${key.name}${said}`;
+      }
+      s.after(0, function* labels() { for (let n = 0; ; n++) { if (ui && ((labelIn > 0 && --labelIn === 0) || n % 15 === 0)) label(); yield; } });
+      Object.assign(world.gramedla, { view, show: async i => show(i), measure: () => measure(KEYS[view.index]) });
+      show(view.index);
+      yield s.wait(0.1);
+      if (ui) document.body.append(ui.element);
+      yield s.ready();
+      yield s.fade(0, 1);
+      for (;;) yield;
+    }
+
+    // ---- the show: the glasses' start (chapter.startButton), then the timeline from the top, then the end card ----
+    clock.t = 0;
+    director.apply(0);
+    yield s.ready();
+    for (;;) {
+      director.reset();
+      clock.from = s.time;
+      state.showing = true;
+      yield s.fade(1, 0);
+      s.after(FADE.in[0], () => s.fade(0, FADE.in[1] - FADE.in[0]));
+      yield s.until(() => s.time - clock.from >= FADE.out[0]);
+      yield s.fade(1, FADE.out[1] - FADE.out[0]);
+      yield s.until(() => s.time - clock.from >= LENGTH);
+      state.showing = false;
+      // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
       let again = false;
       const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => leaveShow(window) });
       document.body.append(end);
-      yield s.until(() => again);
-      end.remove();
-      return;
-    }
-
-    // ---- the key frames: each set from its row of the table alone ----
-    const solutions = new Map();
-    const view = { index: keyIndex(params.get('lykill')), busy: null };
-    let current = null;
-    gram.setOverlay(() => { if (current) pose.apply(current); });
-    // her place for a row: standing, or solved so her nearest skin (not only the snout tip) is no nearer than the row's k
-    function placeGram(g) {
-      pose.hold(g.clip ?? 'idle', g.at ?? 0);
-      return g.stand ? pose.standAt(g.stand) : pose.solveNearest(g);
-    }
-    async function show(index) {
-      view.index = index;
-      const key = KEYS[index];
-      state.key = key.id;
-      const g = key.gram;
-      if (g) {
-        if (!solutions.has(index)) solutions.set(index, placeGram(g));
-        else pose.hold(g.clip ?? 'idle', g.at ?? 0);
-        current = solutions.get(index);
-        pose.apply(current);
-        gram.root.visible = true;
-      } else {
-        current = { x: AWAY[0], z: AWAY[1], theta: 0, turn: 0 };
-        pose.hold('idle', 0);
-        pose.apply(current);
-        gram.root.visible = false;
+      try {
+        yield s.until(() => again);
+      } finally {
+        end.remove();
       }
-      state.solution = current;
-      cast.bendTrees(key.trees ?? null, nearInfo);
-      cast.setParticles(key.particles ?? []);
-      cast.setButterfly(key.butterfly ?? null);
-      await cast.setBirds(key.birds ?? null);
-      await cast.setFlugedla(key.flugedla ?? null);
-      hold();
-      return key;
+      clock.from = null;
+      clock.t = 0;
     }
-    const go = index => (view.busy = show(index).then(() => { view.busy = null; sync(); }));
-    let labelIn = -1; // frames until the label measures its frame (once everything is drawn where it is)
-    const ui = typeof document !== 'undefined' ? reviewUi(document, { step: d => go((view.index + d + KEYS.length) % KEYS.length) }) : null;
-    // the label: which frame, and how far its lead is out as measured (a frame later, once everything is drawn where it is)
-    function sync() {
-      if (!ui) return;
-      const key = KEYS[view.index];
-      ui.label.textContent = `Lykilrammi ${key.n}${key.variant ?? ''} af 7 · ${key.name}`;
-      labelIn = 3;
-    }
-    function label() {
-      const key = KEYS[view.index];
-      const out = lead(key).out;
-      const said = out == null ? '' : out >= 0.05 ? ` · ${key.leadText} ${pct(out)} út` : out > -0.05 ? ` · ${key.leadText} við skjáinn` : ` · ${key.leadText} ${pct(-out)} inn`;
-      ui.label.textContent = `Lykilrammi ${key.n}${key.variant ?? ''} af 7 · ${key.name}${said}`;
-    }
-    s.after(0, function* labels() { for (let n = 0; ; n++) { if (ui && !view.busy && ((labelIn > 0 && --labelIn === 0) || n % 15 === 0)) label(); yield; } });
-    Object.assign(world.gramedla, {
-      view,
-      show: async i => { await view.busy; await show(i); sync(); return KEYS[i].id; },
-      measure: () => measure(KEYS[view.index]),
-      outOf,
-      skinOf,
-      tryGram: g => { current = placeGram(g); pose.apply(current); gram.root.visible = true; return current; },
-    });
-    go(view.index);
-    yield s.until(() => !view.busy);
-    if (ui) document.body.append(ui.element);
-    yield s.ready();
-    yield s.fade(0, 1);
-    for (;;) yield;
   },
 };
