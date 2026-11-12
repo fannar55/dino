@@ -364,10 +364,12 @@ export function treesAt(t, steps = []) {
   if (a1) out.push({ name: 'far', amp: a1 });
   const a2 = bump(t, 10.3, 10.6, 13.4, 15.4) * osc(t, key('2').time, 0.9);
   if (a2) out.push({ name: 'thump', amp: a2 });
+  // (held still round frame 4a's second, which has the trees as built)
+  const still4a = smooth(Math.abs(t - key('4a').time) / 0.5);
   for (const s of steps) {
     const x = (t - s.t) / 0.7;
-    if (x <= 0 || x >= 1) continue;
-    const amp = (1 - x) ** 2 * Math.sin(2 * Math.PI * 2.2 * (t - s.t));
+    if (x <= 0 || x >= 1 || !still4a) continue;
+    const amp = (1 - x) ** 2 * Math.sin(2 * Math.PI * 2.2 * (t - s.t)) * still4a;
     out.push({ name: s.depth < 26 ? 'step0' : 'step1', amp });
   }
   // the blast: bent away as her jaw opens, held, and swinging back to rest

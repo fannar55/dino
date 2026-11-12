@@ -35,6 +35,15 @@ function parseArgs(argv) {
     else if (a === '--eval') o.eval = next();
     else if (a === '--lykill') o.lykill = next();
     else if (a === '--t') o.t = Number(next());
+    else if (a === '--hreyfing') o.hreyfing = true;
+    else if (a === '--step') o.step = Number(next());
+    else if (a === '--shots') o.shots = next();
+    else if (a === '--every') o.every = Number(next());
+    else if (a === '--plain') o.plain = true;
+    else if (a === '--measure') o.measure = next() !== '0';
+    else if (a === '--bench') o.bench = next().split(',').map(Number);
+    else if (a === '--depth') o.depth = next() !== '0';
+    else if (a === '--until') o.until = Number(next());
   }
   return o;
 }
@@ -95,16 +104,18 @@ async function probe(o, size) {
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       return r.result.value;
     };
-    const mode = o.lykill ? `lykill=${o.lykill.split(',')[0]}` : 'kvordun=1';
-    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.t ?? 1.5}` });
+    const mode = o.hreyfing ? `${o.plain ? 'gler=0&' : ''}show=1` : o.lykill ? `lykill=${o.lykill.split(',')[0]}` : 'kvordun=1';
+    await send('Page.navigate', { url: `${base}?chapter=gramedla3d&${mode}&quality=${o.quality}&t=${o.hreyfing ? 0 : o.t ?? 1.5}` });
     const t0 = Date.now();
     for (;;) {
       let ready = false;
-      try { ready = await evaluate('Boolean(window.__demoReady && window.__advance && window.__world?.gramedla)'); } catch { /* loading */ }
+      // (the show is frozen at its first frame, before its script has set world.gramedla: motion() steps it on)
+      try { ready = await evaluate(`Boolean(window.__demoReady && window.__advance${o.hreyfing ? '' : ' && window.__world?.gramedla'})`); } catch { /* loading */ }
       if (ready) break;
       if (Date.now() - t0 > o.timeout * 1000) throw new Error(`the page did not get ready${errors.length ? ': ' + errors[0] : ''}`);
       await sleep(250);
     }
+    if (o.hreyfing) return await motion(o, size, evaluate, errors, send);
     if (o.lykill) return await keyFrames(o, size, evaluate, errors);
     if (o.eval) { console.log(JSON.stringify(await evaluate(o.eval), null, 1)); return []; }
     const rows = [];
@@ -156,6 +167,68 @@ async function keyFrames(o, size, evaluate, errors) {
   if (o.json) {
     await fsp.mkdir(path.dirname(path.resolve(o.json)), { recursive: true });
     await fsp.writeFile(path.resolve(`${o.json}-${size}.json`), JSON.stringify({ size, rows }, null, 1));
+  }
+  return rows;
+}
+
+// Step 2, the motion (--hreyfing): the show stepped from its first frame to its end card, sampled at each step.
+async function motion(o, size, evaluate, errors, send) {
+  const step = o.step ?? 1 / 30;
+  const every = o.every ?? 3;
+  const measure = o.measure ?? true;
+  const depth = o.depth ?? true;
+  // the page is frozen at 0: stepped on until the show has begun (its models in, her poses solved)
+  for (let i = 0; i < 900; i++) {
+    if (await evaluate('Boolean(window.__world?.gramedla?.sample && window.__world.gramedla.state.showing)')) break;
+    await evaluate('window.__advance(1 / 30)');
+  }
+  const length = await evaluate('window.__world.gramedla.length');
+  const until = Math.min(length, o.until ?? length);
+  const cues = await evaluate('JSON.parse(JSON.stringify(window.__world.gramedla.cues))');
+  const rows = [], bench = [];
+  const benchAt = [...(o.bench ?? [])].sort((a, b) => a - b);
+  let nextShot = every, shots = 0, n = 0;
+  const started = Date.now();
+  if (o.shots) await fsp.mkdir(path.resolve(o.shots), { recursive: true });
+  const shoot = async name => {
+    await evaluate('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
+    const { data } = await send('Page.captureScreenshot', { format: 'png' });
+    await fsp.writeFile(path.resolve(o.shots, name), Buffer.from(data, 'base64'));
+    shots++;
+  };
+  for (;;) {
+    const t = await evaluate('window.__world.gramedla.state.t');
+    if (measure) rows.push(await evaluate(`JSON.parse(JSON.stringify(window.__world.gramedla.sample({ depth: ${depth}, clear: ${n % 3 === 0} })))`));
+    if (o.shots && t >= nextShot - 1e-6 && t < length) {
+      await shoot(`${o.plain ? 'g0' : 'g1'}-${String(Math.round(t)).padStart(2, '0')}s.png`);
+      nextShot += every;
+    }
+    while (benchAt.length && t >= benchAt[0] - 1e-6) {
+      const at = benchAt.shift();
+      bench.push({ t: +t.toFixed(2), at, ...(await evaluate('window.__benchmark(60)')) });
+    }
+    if (t >= until - 1e-6) break;
+    await evaluate(`window.__advance(${step}, ${step})`);
+    n++;
+    if (n % 300 === 0) console.log(`  ${size}: ${t.toFixed(1)} s (${((Date.now() - started) / 1000).toFixed(0)} s)`);
+  }
+  // the end card, and "Aftur": the show again from the top
+  let card = null, again = null;
+  if (until >= length) {
+    await evaluate('window.__advance(0.5)');
+    card = await evaluate('Boolean([...document.querySelectorAll("button")].find(b => /Aftur/.test(b.textContent)))');
+    await evaluate('[...document.querySelectorAll("button")].find(b => /Aftur/.test(b.textContent))?.click()');
+    await evaluate('window.__advance(4)');
+    again = await evaluate('({ t: window.__world.gramedla.state.t, showing: window.__world.gramedla.state.showing, card: Boolean([...document.querySelectorAll("button")].find(b => /Aftur/.test(b.textContent))) })');
+    if (o.shots) await shoot(`${o.plain ? 'g0' : 'g1'}-aftur-4s.png`);
+  }
+  const out = { size, step, length, cues, card, again, bench, errors: errors.slice(0, 20), seconds: (Date.now() - started) / 1000, rows };
+  console.log(`${size}: ${rows.length} steps, ${shots} stills, end card ${card}, again ${JSON.stringify(again)}, errors ${errors.length}, ${out.seconds.toFixed(0)} s`);
+  if (errors.length) console.log('page errors:', errors.slice(0, 5));
+  if (bench.length) for (const b of bench) console.log(`  bench ${b.at} s: gpu ${JSON.stringify(b.gpuMs)} ms/frame ${b.msPerFrame?.toFixed(1)}`);
+  if (o.json) {
+    await fsp.mkdir(path.dirname(path.resolve(o.json)), { recursive: true });
+    await fsp.writeFile(path.resolve(`${o.json}-${size}.json`), JSON.stringify(out));
   }
   return rows;
 }
