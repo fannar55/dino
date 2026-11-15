@@ -61,6 +61,13 @@ function callRow(id) {
 }
 /** Where she is at flight second t, unsteered (the route's schedule). */
 const herAt = (route, t) => route.pointAt(route.progressAt(t));
+/** Her heading (radians, from +X toward +Z) seen from above at flight second t, unsteered: the route 3 m either side (as the flier). */
+function headingAt(route, t) {
+  const s = route.distanceAt(t);
+  const a = route.pointAt(clamp((s - 3) / route.length, 0, 1));
+  const b = route.pointAt(clamp((s + 3) / route.length, 0, 1));
+  return Math.atan2(b.z - a.z, b.x - a.x);
+}
 /**
  * The run-along's stand: from a to b (seen from above) between flight seconds t0 and t1 at a steady speed, eased over its first and
  * last EASE seconds (its speed rises and falls in a straight line), `above` the ground. Returns at(t, out) and its top speed.
@@ -181,13 +188,15 @@ const FIXED = {
   // sun, the bow at 41). Close in, so the falls, the spray and the bow fill the frame.
   fallsTop: () => ({ position: new V3(FALLS.face - 7, FALLS.top + 18, FALLS.z - 22), fov: 38 }),
   // F: behind and a little above her as she comes out over the land above the falls, looking over her (4 m above her body), so the
-  // land runs to the mountains in the upper third and Grameðla's shadow on their ridge is in the frame (world/ardalur/far-land.js)
-  vista: (c) => {
-    const h = rad(c.flier.heading);
+  // land runs to the mountains in the upper third and Grameðla's shadow on their ridge is in the frame (world/ardalur/far-land.js).
+  // With `at` (a flight second) it stands where it would have stood cut to then (her place and heading on the schedule then)
+  vista: (c, { at = null } = {}) => {
+    const h = at === null ? rad(c.flier.heading) : headingAt(c.route, at);
+    const her = at === null ? c.flier.pose.position : herAt(c.route, at);
     const f = new V3(Math.cos(h), 0, Math.sin(h));
     const right = new V3(-Math.sin(h), 0, Math.cos(h));
     return {
-      position: c.flier.pose.position.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 7, 0)), fov: 55,
+      position: her.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 7, 0)), fov: 55,
       look: out => out.copy(c.flier.pose.position).add(new V3(0, 4, 0)),
     };
   },
@@ -349,7 +358,11 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     endShot();
     if (quick && ++state.quicks > FLIGHT_RULES.quick.max) warn(`shot "${name}" is quick shot number ${state.quicks} (at most ${FLIGHT_RULES.quick.max})`);
     let chosen = name;
-    if (reduced && name === 'orbit') chosen = 'vista'; // reduced motion: no circling (Review Focus 5)
+    if (reduced && name === 'orbit') {
+      chosen = 'vista'; // reduced motion: no circling (Review Focus 5)
+      // the circle's last part: the same still vista as the whole circle's, where it would have stood (a shot cut into it)
+      if (seconds !== null) options.at = (flier.t ?? 0) - (BOUND.orbit.seconds - clamp(seconds, 0, BOUND.orbit.seconds));
+    }
     state.name = name;
     state.started = director.time;
     state.quick = quick;

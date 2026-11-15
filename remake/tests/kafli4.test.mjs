@@ -889,7 +889,8 @@ test('the ledge shot sees its flyer on its nest, then leave as she comes', async
 test('the herd shot sees heads come up at the big call, and her high over them', async (t) => {
   const row = CALL_SHOTS.find(r => r.shot === 'herd');
   for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
-    const { watched } = await play();
+    const { watched, world } = await play();
+    assert.deepEqual(world.forest.life.herd.find(g => g.id === 'stepNorth').at, row.at, "the row stands by the herd's stepNorth group (life.js HERD)");
     const frames = watched.herdHeads;
     assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
     assert.ok(frames[0].look.every(w => w < 0.1), `${shape}: grazing as it begins (${frames[0].look.map(w => w.toFixed(2))})`);
@@ -929,7 +930,9 @@ test('seek mid call shot finds heads up: a capture or review link a second befor
 // F and G (the life spec 2F, 2G; world/ardalur/life.js): after the big call the rows of small lizards stream toward the far pool where
 // the flight's shots see them, the slow circle round her (the fixed vista under reduced motion) and the chase down the glide to 162 s
 test('after the big call ten small lizards or more, 8 px tall, run toward the far pool in the slow circle and down the glide', async (t) => {
-  const plays = [['16:10', playWide, { orbit: 0.5, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
+  // (the slow circle is its last part since the herd's call shot: 8.4 s from 141.6, the lizards further off; 16:10 sees ten of them
+  // 48 % of it, the whole circle 55 %)
+  const plays = [['16:10', playWide, { orbit: 0.45, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
   const failed = [];
   for (const [shape, play, wants] of plays) {
     const { watched } = await play();

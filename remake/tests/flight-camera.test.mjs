@@ -336,6 +336,18 @@ test('the orbit\'s last part: a shorter circle at its own pace, ending where the
   assert.deepEqual(part.warnings, [], 'within 1.2 m/s and 15 deg/s of her');
   assert.ok(part.last.distanceTo(whole.last) < 0.3, `it ends where the whole one ends (${part.last.distanceTo(whole.last).toFixed(2)} m)`);
   assert.ok(part.first.distanceTo(whole.first) > 2, 'it begins part of the way round');
+  // under reduced motion the circle is the still vista, and its last part the same still vista: where the whole one would stand (the
+  // herd's shot cuts into it)
+  const still = seconds => {
+    const calm = setUp({ reduced: true });
+    calm.at(seconds === null ? 134 : BEATS.G - seconds);
+    calm.camera.shot('orbit', seconds === null ? {} : { seconds });
+    const where = calm.director.rig.position.clone();
+    calm.done();
+    return where;
+  };
+  const calm = still(BEATS.G - herd.to);
+  assert.ok(calm.distanceTo(still(null)) < 0.5, `reduced motion: the vista where the whole circle's stands (${calm.distanceTo(still(null)).toFixed(2)} m off)`);
 });
 
 test('call shots stand clear: from CLEAR to 1.5 m over the ground or the water down on a bank (CLEAR at least on the ledge), never inside her', () => {
