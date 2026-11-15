@@ -15,7 +15,7 @@ import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
 import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
-import { createTreeProbe } from '../engine/tree-probe.js';
+import { createTreeProbe, plantVolumes, reachInto } from '../engine/tree-probe.js';
 import { createShell } from '../engine/shell.js';
 import fs from 'node:fs';
 
@@ -222,7 +222,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 } };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -386,6 +386,10 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           outside: (world.forest?.animals?.crowds?.placed() ?? []).filter(r => !inFrame(r)).length,
         });
       }
+      // the flight's first half minute, while the white tree's trees (the valley's now too) are near: the camera, and Egill's head
+      if (started !== null && c.flight.flight.ended === null && world.flightTime <= SIGHT_SECONDS) {
+        seen.sight.push({ t: world.flightTime, shot: c.flight.camera.current, camera: world.camera.position.toArray(), egill: egill.headPosition(new V3()).toArray() });
+      }
       // Mosi and Flugeðla among the trees of the Fen and the white tree's patch: how far the body of each (its shell, engine/shell.js)
       // reaches into a tree (engine/tree-probe.js), frame by frame. The white snag is hers to sit on: it is not asked about while
       // she is on its top or within PERCH_AIR of it, leaving and landing.
@@ -415,6 +419,7 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
 // The trees of the Fen and of the white tree's patch as the tree probe's volumes: the planner's tall plants (a tree's trunk, limbs and
 // crown; reed, fern and bush they may brush through)
 const TREES = { fen: true, hvitatre: true };
+const SIGHT_SECONDS = 30; // of the flight: she is 290 m from the snag by then
 const PERCH_AIR = 3; // m from the snag's top within which she is leaving it or landing on it
 const probes = new Map();
 function treesOf(place) {
@@ -499,6 +504,24 @@ test('the white tree\'s trees stand round the valley\'s snag as they stood round
   const reach = Math.max(...theirs.map(p => Math.hypot(p.x - tx, p.z - tz)));
   const own = grown.filter(g => !g.own && Math.hypot(g.x - sx, g.z - sz) < reach);
   assert.deepEqual(own.map(g => `${g.name} at ${g.x.toFixed(0)}, ${g.z.toFixed(0)}`), []);
+});
+
+test('none of the white tree\'s trees in the valley stands at the flight\'s camera or between it and Egill, in the flight\'s first half minute', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { world, watched } = await play();
+    const theirs = world.forest.stats.sections.filter(Boolean).flatMap(part => part.userData.placements).filter(p => p.own).map(plantVolumes);
+    assert.ok(theirs.length > 50 && watched.sight.length > 800,`${theirs.length} trees, ${watched.sight.length} frames (${shape})`);
+    const blocked = new Map();
+    for (const f of watched.sight) {
+      // the line of sight as a thin capsule, and the camera itself with half a metre round it
+      const line = [{ a: f.camera, b: f.egill, r: 0.1, bone: 'the line to Egill' }, { a: f.camera, b: f.camera, r: 0.5, bone: 'the camera' }];
+      for (const tree of theirs) {
+        const hit = reachInto(tree, line);
+        if (hit && !blocked.has(`${tree.name} at ${tree.x.toFixed(0)}, ${tree.z.toFixed(0)}`)) blocked.set(`${tree.name} at ${tree.x.toFixed(0)}, ${tree.z.toFixed(0)}`, `${hit.bone} at ${f.t.toFixed(1)} s (${f.shot})`);
+      }
+    }
+    assert.deepEqual([...blocked].map(([tree, how]) => `${tree}: ${how}`), [], `at ${shape}`);
+  }
 });
 
 test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {

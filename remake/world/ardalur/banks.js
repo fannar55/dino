@@ -220,6 +220,7 @@ const ONE_LEVEL = new Set(['rock', 'rockSmall', 'mossHummock']); // their middle
 const LANE = 4; // m she may be steered aside (route.lanes)
 export const CLEAR_OF_HER = 3.5; // m between a plant (its crown counted) and her path at any steer: a little more than the 3 m the test asks
 const SNAG_CLEAR = 4; // m round the white snag's foot
+const PERCHED = 8; // m round the snag within which her path is hers on its top and as she leaps from it (she is under HIGH from 5 m out)
 // High over the land (F and G: her path HIGH m or more over the ground under it) no tree's crown may come within UNDER m under her
 // path within ASIDE m of it seen from above: the chase camera, above and behind her, would see a crown, not the land.
 export const HIGH = 12;
@@ -468,8 +469,11 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky: 0.9, d,
     });
   }
-  // a chapter's own trees, those that stand in this section's own cells: each as it is given, where the valley lets a tree stand
+  // a chapter's own trees, those that stand in this section's own cells: each as it is given, where the valley lets a tree stand.
+  // Her path is high over the land where she sits on the snag too (13 m), and no chase camera looks down on her there: round the
+  // snag they stand under her as they stood (the take-off's still shot and her way out keep their own room: inView, inHerWay).
   const left = [];
+  const highAway = trees.length ? high.filter(q => Math.hypot(q.x - route.tree[0], q.z - route.tree[2]) > PERCHED) : high;
   for (const tree of trees) {
     const i = Math.floor(tree.x / GRID) - gx0;
     const j = Math.floor(tree.z / GRID) - gz0;
@@ -483,7 +487,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       : Math.hypot(x - route.tree[0], z - route.tree[2]) < SNAG_CLEAR ? 'the snag'
         : inHerWay(index, x, y, z, body.r, body.h, near) ? 'her way'
           : clear.some(c => (c.over === undefined || body.h > c.over) && Math.hypot(x - c.x, z - c.z) < c.r + body.r) ? 'kept clear'
-            : underHer(high, x, z, y + body.h, body.r) ? 'under her'
+            : underHer(highAway, x, z, y + body.h, body.r) ? 'under her'
               : inView(views, lines, x, y - (model.sink ?? 0) * scale, z, body.r, body.h) ? 'a still shot' : null;
     if (why) {
       left.push({ name, x, z, why });
