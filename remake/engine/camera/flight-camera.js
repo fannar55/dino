@@ -12,14 +12,14 @@
 // than 15 deg/s relative to her; a fixed one when it pans faster than 40 deg/s; any shot shorter than 2.5 s, except three quick ones
 // of 1.5 s in the gorge. Shots change by cuts.
 import * as THREE from 'three';
-import { BEATS, FALLS, STILLS } from '../../chapters/kafli4-route.js';
+import { BEATS, FALLS, STILLS, CALL_SHOTS } from '../../chapters/kafli4-route.js';
 
 export const FLIGHT_RULES = { roll: 8, minShot: 2.5, quick: { minShot: 1.5, max: 3 }, bound: { dolly: 1.2, pan: 15 }, fixed: { pan: 40 } };
 const SLACK = 1.05; // a rule is broken past 5 % over, as the director's are
 // The lens with her speed (the juice review's item 14): in the chase, wider by up to `degrees` as she goes from `from` to `to` m/s,
 // the lens moving `rate` degrees a second at most (the zoom rule is 8); none under reduced motion.
 const SPEED_LENS = { degrees: 2.5, from: 16, to: 22, rate: 3 };
-const CLEAR = 1.2; // metres the camera keeps over the ground and the water
+export const CLEAR = 1.2; // metres the camera keeps over the ground and the water
 
 const V3 = THREE.Vector3;
 const deg = THREE.MathUtils.radToDeg;
@@ -37,18 +37,24 @@ const BOUND = {
   orbit: { origin: 'body', radius: 6.8, height: 1.6, from: 160, to: 60, seconds: 16, look: { origin: 'body', at: [0, 0.8, 0] }, fov: 48 },
 };
 
-// The shadow shot: `back` metres behind the group's middle (away from the river), `above` metres over the ground, looking at a point
-// `group` of the way from her body to the group's middle.
-const SHADOW = { back: 8, above: 1.6, group: 0.6 };
 const MOSI_HEAD = 1.5; // metres over the water his head is as he runs in the shallows (the lines of sight of mosiBank)
 
-/** An animal group of the route by id or kind (the first if none): its middle on the bank, 0.3 m over the ground. */
+/**
+ * An animal group of the route by id or kind (the first if none), and its middle: 0.3 m over the ground or the water, or where the
+ * group is when that is higher (the birds in their tree's crown, the dragonflies over the water).
+ */
 function groupOf(route, group) {
   return route.groups.find(x => x.id === group || x.kind === group) ?? route.groups[0];
 }
 function groupMiddle(route, group, groundAt) {
   const g = groupOf(route, group);
-  return new V3(g.at[0], groundAt(g.at[0], g.at[2]) + 0.3, g.at[2]);
+  return new V3(g.at[0], Math.max(groundAt(g.at[0], g.at[2]) + 0.3, g.at[1]), g.at[2]);
+}
+/** A call shot's row (the route's CALL_SHOTS) by its id. */
+function callRow(id) {
+  const row = CALL_SHOTS.find(r => r.id === id);
+  if (!row) throw new Error(`No call shot named "${id}" (there are ${CALL_SHOTS.map(r => r.id).join(', ')})`);
+  return row;
 }
 /** Away from the river, on the group's side, seen from above. */
 function groupOut(route, group) {
@@ -63,13 +69,20 @@ const FIXED = {
   belowTakeOff: (c) => c.ground(c.route.tree[0] + 9, c.route.tree[2] - 9, 1.7, 55),
   // B, C: low over the water ahead of her, off to one side, as she comes up the river
   waterLevel: (c, { side = 1, lead = 4.5, across = 11 } = {}) => c.overWater(lead, across * side, 0.6, 44),
-  // C: on the bank close behind an animal group as her shadow goes over it, low, looking at the group and a little toward her, so
-  // the group fills the lower frame and she passes over it (spec 6: the group at least 8 % of the frame's height)
-  bankShadow: (c, { group = 'lizards-2' } = {}) => {
-    const middle = groupMiddle(c.route, group, c.groundAt);
-    const out = groupOut(c.route, group); // away from the river, on the group's side
-    const made = c.ground(middle.x + out[0] * SHADOW.back, middle.z + out[1] * SHADOW.back, SHADOW.above, 46);
-    return { ...made, look: target => target.copy(middle).multiplyScalar(SHADOW.group).addScaledVector(c.flier.pose.position, 1 - SHADOW.group) };
+  // C: a call shot (the route's CALL_SHOTS, by `callShot`): down with an animal group, `back` metres behind its middle away from the
+  // river, `above` over the ground or the water (never under CLEAR) and `aside` along the bank up the river, so the group fills the
+  // near frame and the way she comes is behind it. It aims at a point `look` of the way from the group's middle to where she passes
+  // (its `pass`) and holds it: she sweeps through a still frame (the Flugmynd spec: the group at least 8 % of the frame's height).
+  call: (c, { callShot = null, group = null, pass = null, back = 6, above = CLEAR, aside = 0, fov = 44, look = 0.5 } = {}) => {
+    const row = callShot ? callRow(callShot) : null;
+    const id = group ?? row?.group;
+    const middle = groupMiddle(c.route, id, c.groundAt);
+    const out = groupOut(c.route, id); // away from the river, on the group's side
+    const g = groupOf(c.route, id);
+    const r = c.route.river.at(c.route.river.nearest(g.at[0], g.at[2]).d);
+    const made = c.ground(middle.x + out[0] * back + r.dir[0] * aside, middle.z + out[1] * back + r.dir[1] * aside, Math.max(above, CLEAR), fov);
+    const aim = middle.clone().lerp(c.route.pointAt(c.route.progressAt(pass ?? row?.pass ?? c.t)), look);
+    return { ...made, middle, group: g.id, look: target => target.copy(aim) };
   },
   // C: across the river from Mosi running in the shallows (route.cameos.bank)
   mosiBank: (c) => {
@@ -137,8 +150,8 @@ function fixedContext(route, flier, groundAt) {
 /**
  * Each still shot of the flight (the route's STILLS) as the unattended flight has it: where its camera stands (the FIXED builder at the
  * shot's first second, her unsteered) and what it looks at: her body every 0.5 s of the shot, Mosi's head along his path for mosiBank,
- * the group's middle for bankShadow. The valley keeps its plants out of these views (world/ardalur/banks.js).
- * Returns [{ shot, from, to, position, looks }].
+ * the group's middle for a call shot. The valley keeps its plants out of these views (world/ardalur/banks.js).
+ * Returns [{ shot, from, to, position, looks, group }] (group: a call shot's group id, else null).
  */
 export function stillViews(route, { heightAt = () => 0 } = {}) {
   const groundAt = (x, z) => Math.max(heightAt(x, z), route.waterAt(x, z, 1) ?? -Infinity);
@@ -146,12 +159,12 @@ export function stillViews(route, { heightAt = () => 0 } = {}) {
     const u = route.progressAt(from);
     const tan = route.tangentAt(u);
     const flier = { t: from, heading: deg(Math.atan2(tan.z, tan.x)), pose: { position: route.pointAt(u) } };
-    const { position } = FIXED[shot](fixedContext(route, flier, groundAt), options);
+    const made = FIXED[shot](fixedContext(route, flier, groundAt), options);
     const looks = [];
     for (let t = from; t <= to + 1e-9; t += 0.5) looks.push(route.pointAt(route.progressAt(t)));
     if (shot === 'mosiBank') for (const [x, z] of route.cameos.bank.path) looks.push(new V3(x, (route.waterAt(x, z, 2) ?? heightAt(x, z)) + MOSI_HEAD, z));
-    if (shot === 'bankShadow') looks.push(groupMiddle(route, options.group, groundAt));
-    return { shot, from, to, position, looks };
+    if (made.middle) looks.push(made.middle.clone());
+    return { shot, from, to, position: made.position, looks, group: made.group ?? null };
   });
 }
 
@@ -251,10 +264,14 @@ export function createFlightCamera(director, flier, { world = null, egill = null
 
   /**
    * Cut to a named shot. Options: quick (one of the three 1.5 s shots of the gorge), look (a point spec function out => out for a fixed
-   * shot to keep in view instead of her), and the shot's own: a fixed shot's (side, lead, group), or for a bound one `raise` (metres the
-   * camera and its look go up together: she holds her head high perched on the snag) and `fov`. Returns the director's handle.
+   * shot to keep in view instead of her), and the shot's own: a fixed shot's (side, lead; a call shot's callShot, back, above, aside,
+   * its `fov` and its `look` as a share), or for a bound one `raise` (metres the camera and its look go up together: she holds her head
+   * high perched on the snag) and `fov`. Returns the director's handle.
    */
   function shot(name, { quick = false, look = null, raise = 0, fov = null, ...options } = {}) {
+    // a number for `look`, and a `fov`, are a fixed shot's own (the call shot's): they go to its builder
+    if (typeof look === 'number') { options.look = look; look = null; }
+    if (fov !== null && FIXED[name]) options.fov = fov;
     if (!BOUND[name] && !FIXED[name]) throw new Error(`No flight shot named "${name}" (there are ${shots.join(', ')})`);
     endShot();
     if (quick && ++state.quicks > FLIGHT_RULES.quick.max) warn(`shot "${name}" is quick shot number ${state.quicks} (at most ${FLIGHT_RULES.quick.max})`);

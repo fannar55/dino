@@ -25,7 +25,7 @@
 // splashes you can see where Mosi runs in the shallows, Egill's „Sjáðu, þau fljúga með okkur!“ as the gorge's flyers join her (D),
 // his „Vááá!“ again as they burst out of the spray into the gold (E), and her „Nú lendum við! Haltu þér!“ before the far pool (G).
 import * as THREE from 'three';
-import { BEATS, LEAP, FALLS, GORGE, STILLS } from './kafli4-route.js';
+import { BEATS, LEAP, FALLS, GORGE, STILLS, CALL_SHOTS } from './kafli4-route.js';
 import { whiteAt } from '../world/ardalur/river.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import { createSong } from '../engine/audio/song.js';
@@ -258,9 +258,8 @@ function* beats(s, c) {
     return { from, to, cut: (extra = {}) => camera.shot(name, { ...options, ...extra }) };
   };
   const takeOff = still('belowTakeOff');
-  const water = [still('waterLevel', 0), still('waterLevel', 1)];
+  const water = still('waterLevel');
   const bank = still('mosiBank');
-  const shadow = still('bankShadow');
   const gorge = still('gorgeHigh');
   const rim = still('mosiRim');
   const fallsSide = still('fallsSide');
@@ -290,22 +289,20 @@ function* beats(s, c) {
   yield* at(BEATS.B);
   mark('B');
   camera.shot('chase');
-  yield* at(water[0].from);
-  water[0].cut(); // ended a second before she shoots past it: a still shot pans 40 deg/s at most
-  yield* at(water[0].to);
+  yield* at(water.from);
+  water.cut(); // ended a second before she shoots past it: a still shot pans 40 deg/s at most
+  yield* at(water.to);
   camera.shot('chase');
 
-  // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it, and it
-  // answers (kafli4-flight-play.js); between the chases, beside her, low over the water, Mosi in the shallows (his first cameo) and the
-  // bank where her shadow passes the turtle.
+  // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it, and it answers
+  // (kafli4-flight-play.js). Between the chases on her back, the call shots (the route's CALL_SHOTS): a still camera down with a
+  // group as she calls and sweeps past it, and Mosi in the shallows (his first cameo).
   yield* at(BEATS.C);
   mark('C');
   play.enable('call', true);
   if (c.beds) s.sfx('forest'); // out of the Fen: the forest's bed, till the far pool (kafli4.js)
+  const calls = CALL_SHOTS.filter(row => row.from >= BEATS.C && row.from < BEATS.D);
   const cues = [
-    { t: 44.5, act: () => camera.shot('side') },
-    { t: water[1].from, act: () => water[1].cut() },
-    { t: water[1].to, act: () => camera.shot('chase') },
     // Mosi's first cameo: placed out of sight, he runs up the shallows splashing, seen from across the river as she passes him
     { t: bank.from, act: () => { run(route.cameos.bank.path, headingAlong(route.cameos.bank.path)); bank.cut(); } },
     { t: 58.2, act: () => sfx('splash') },
@@ -313,10 +310,12 @@ function* beats(s, c) {
     { t: 59.8, act: () => say('mosi', 'k4_mosi_wait') },
     { t: 60.2, act: () => whoosh(-1) },
     { t: 61, act: () => sfx('splash') },
-    { t: shadow.from, act: () => { hideMosi(); shadow.cut(); } },
-    { t: 65.7, act: () => whoosh(1) },
-    { t: shadow.to, act: () => camera.shot('chase') },
-    { t: 75, act: () => camera.shot('side') },
+    { t: bank.to, act: hideMosi },
+    // each call shot, and back on her back after it (the gorge's first shot is D's own)
+    ...calls.flatMap(row => [
+      { t: row.from, act: () => camera.shot(row.shot, { ...row.options, callShot: row.id }) },
+      ...(row.to < BEATS.D ? [{ t: row.to, act: () => camera.shot('chase') }] : []),
+    ]),
   ].sort((a, b) => a.t - b.t);
   for (const cue of cues) {
     yield* at(cue.t);

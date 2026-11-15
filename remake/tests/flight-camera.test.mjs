@@ -8,8 +8,8 @@ import { chapterWorld } from './chapter-harness.mjs';
 import { updateActors } from '../engine/actor.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createFlier, rideFlier } from '../engine/flier.js';
-import { createFlightCamera, FLIGHT_RULES } from '../engine/camera/flight-camera.js';
-import { createRoute, BEATS } from '../chapters/kafli4-route.js';
+import { createFlightCamera, FLIGHT_RULES, CLEAR, stillViews } from '../engine/camera/flight-camera.js';
+import { createRoute, BEATS, CALL_SHOTS, STILLS } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { rainbowLevel } from '../world/props/waterfall.js';
 import { pickLook } from '../engine/looks.js';
@@ -131,12 +131,100 @@ test('the orbit circles slowly, and under reduced motion it is the vista instead
   assert.ok(from.length() > 5);
 });
 
-// When each shot is used in the flight (spec 5, chapters/kafli4-flight.js), and when to look.
+// When each shot is used in the flight (spec 5, chapters/kafli4-flight.js), when to look, and the shot's options. A call shot is
+// looked at as she passes its group: before that she is still coming, out of its still frame (the Flugmynd spec).
+const FIRST_CALL = CALL_SHOTS.find(row => row.shot === 'call');
 const WHEN = {
   chase: [20, 40], face: [83, 86], side: [47, 50], orbit: [134, 141],
-  belowTakeOff: [3, 5.5], waterLevel: [25, 27.5], bankShadow: [63, 66], mosiBank: [57.5, 60],
+  belowTakeOff: [3, 5.5], waterLevel: [25, 27.5], mosiBank: [57.5, 60],
+  call: [FIRST_CALL.from, FIRST_CALL.pass, { ...FIRST_CALL.options, callShot: FIRST_CALL.id }],
   gorgeHigh: [90.5, 93], mosiRim: [96, 97.5], fallsSide: [110, 113], fallsTop: [113.4, 115.5], vista: [125, 128],
 };
+
+// ---- the call shots (the Flugmynd spec, 2026-11-15): a still camera down with a group, as she calls and sweeps past ------------
+// Which beat each row of the owner's list lies in (spec: "The list").
+const CALL_BEATS = { 'kall-edlur': 'C', 'kall-froskar': 'C', 'kall-fuglar': 'C', 'kall-hlaup': 'C', 'kall-sylla': 'D', 'kall-hjord': 'F' };
+const beatOf = t => Object.entries(BEATS).filter(([name]) => name !== 'END').findLast(([, at]) => t >= at - 1e-9)[0];
+const herAt = t => route.pointAt(route.progressAt(t));
+/** A route group's middle as the call camera sees it: 0.3 m over the ground or the water, or in the crown (the birds). */
+function middleOf(id) {
+  const g = route.groups.find(x => x.id === id);
+  const ground = Math.max(world.heightAt(g.at[0], g.at[2]), route.waterAt(g.at[0], g.at[2], 1) ?? -Infinity);
+  return new THREE.Vector3(g.at[0], Math.max(ground + 0.3, g.at[1]), g.at[2]);
+}
+
+test('CALL_SHOTS rows are ordered, inside their beats and at least 2.5 s', () => {
+  assert.deepEqual(CALL_SHOTS.slice(0, 4).map(row => row.id), ['kall-edlur', 'kall-froskar', 'kall-fuglar', 'kall-hlaup']);
+  const stills = STILLS.map(([shot, from, to, options]) => ({ shot, from, to, options })).sort((a, b) => a.from - b.from);
+  for (const row of CALL_SHOTS) {
+    assert.ok(row.from < row.call && row.call < row.pass && row.pass < row.to, `${row.id}: ${row.from} < ${row.call} < ${row.pass} < ${row.to}`);
+    assert.ok(row.pass - row.from >= 3.5 - 1e-9, `${row.id}: ${(row.pass - row.from).toFixed(2)} s from the cut to her pass (at least 3.5)`);
+    assert.ok(row.to - row.pass >= 2 - 1e-9, `${row.id}: ${(row.to - row.pass).toFixed(2)} s after her pass (at least 2)`);
+    assert.ok(row.to - row.from >= FLIGHT_RULES.minShot, `${row.id}: ${(row.to - row.from).toFixed(2)} s long`);
+    assert.equal(beatOf(row.from), CALL_BEATS[row.id], `${row.id} begins in ${beatOf(row.from)}`);
+    assert.ok(row.to <= BEATS[String.fromCharCode(CALL_BEATS[row.id].charCodeAt(0) + 1)] + 1e-9, `${row.id} ends in its beat (${row.to})`);
+    if (row.shot === 'call') assert.ok(route.groups.some(g => g.id === row.group), `${row.id}: a group named ${row.group}`);
+    // its still: the plants keep out of its view (stillViews)
+    assert.equal(stills.filter(s => s.options.callShot === row.id && s.shot === row.shot && s.from === row.from && s.to === row.to).length, 1, `${row.id} in STILLS`);
+  }
+  for (let i = 1; i < CALL_SHOTS.length; i++) assert.ok(CALL_SHOTS[i].from >= CALL_SHOTS[i - 1].to, `${CALL_SHOTS[i].id} after ${CALL_SHOTS[i - 1].id}`);
+  // no still overlaps another, and between two of them the shot on her back (a chase, beside her) lasts 2.5 s, or none comes between
+  assert.deepEqual(stills.filter(s => s.shot === 'bankShadow' || s.shot === 'waterLevel' && s.from > BEATS.C), [], 'the shots the call shots take the place of');
+  for (let i = 1; i < stills.length; i++) {
+    const gap = stills[i].from - stills[i - 1].to;
+    assert.ok(Math.abs(gap) < 1e-9 || gap >= FLIGHT_RULES.minShot, `${stills[i - 1].shot} (to ${stills[i - 1].to}) then ${stills[i].shot} (from ${stills[i].from}): ${gap.toFixed(2)} s between`);
+  }
+  // in C, no call shot takes the time of Mosi's cameo
+  const bank = stills.find(s => s.shot === 'mosiBank');
+  for (const row of CALL_SHOTS) assert.ok(row.to <= bank.from || row.from >= bank.to, `${row.id} and Mosi's cameo`);
+});
+
+test('call shots frame the group and her pass at both sizes, and stand still', () => {
+  const head = flugedla.model.getObjectByName('Head');
+  for (const row of CALL_SHOTS.filter(r => r.shot === 'call')) {
+    const { camera, director, to, at, done, flight } = setUp();
+    at(row.from);
+    camera.shot('call', { ...row.options, callShot: row.id });
+    const position = director.rig.position.clone();
+    const target = director.rig.target.clone();
+    const middle = middleOf(row.group);
+    to(row.pass);
+    for (const aspect of [1.6, 0.69]) {
+      world.camera.aspect = aspect;
+      world.camera.updateProjectionMatrix();
+      director.apply();
+      world.scene.updateMatrixWorld(true);
+      for (const [who, p] of [['the group', middle], ['her pass', herAt(row.pass)], ['her head', head.getWorldPosition(new THREE.Vector3())]]) {
+        const q = p.clone().project(world.camera);
+        assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}: ${who} at ${q.x.toFixed(2)}, ${q.y.toFixed(2)}`);
+      }
+    }
+    world.camera.aspect = 1.6;
+    world.camera.updateProjectionMatrix();
+    to(row.to - 0.05);
+    assert.ok(director.rig.position.distanceTo(position) < 1e-9 && director.rig.target.distanceTo(target) < 1e-9, `${row.id}: a still frame`);
+    assert.deepEqual(flight(), [], `${row.id} keeps the rules`);
+    done();
+  }
+});
+
+test('call shots stand clear: from CLEAR to 1.5 m over the ground or the water, never inside her', () => {
+  assert.equal(CLEAR, 1.2);
+  const views = stillViews(route, { heightAt: world.heightAt });
+  for (const row of CALL_SHOTS.filter(r => r.shot === 'call')) {
+    const view = views.find(v => v.shot === 'call' && v.from === row.from);
+    assert.ok(view, `${row.id}: a still view`);
+    assert.equal(view.group, row.group, `${row.id}: the view knows its group`);
+    const p = view.position;
+    const over = p.y - Math.max(world.heightAt(p.x, p.z), route.waterAt(p.x, p.z, 1) ?? -Infinity);
+    assert.ok(over >= CLEAR - 1e-9 && over <= 1.5 + 1e-9, `${row.id}: the camera ${over.toFixed(2)} m over the ground or the water`);
+    // what it sees: her all through it, and the group's middle
+    assert.ok(view.looks.some(l => l.distanceTo(middleOf(row.group)) < 1e-6), `${row.id}: the group's middle is in its view`);
+    let nearest = Infinity;
+    for (let t = row.from; t <= row.to; t += 0.05) nearest = Math.min(nearest, herAt(t).distanceTo(p));
+    assert.ok(nearest > 3, `${row.id}: she passes ${nearest.toFixed(1)} m from the camera`);
+  }
+});
 
 test('every named shot frames her and Egill at 16:10 and at an upright 0.625, and is never inside her', () => {
   const head = flugedla.model.getObjectByName('Head');
@@ -144,9 +232,9 @@ test('every named shot frames her and Egill at 16:10 and at an upright 0.625, an
   const hips = flugedla.model.getObjectByName('Hips');
   const { camera, director, to, at, done } = setUp();
   assert.deepEqual([...camera.shots].sort(), Object.keys(WHEN).sort());
-  for (const [name, [start, look]] of Object.entries(WHEN)) {
+  for (const [name, [start, look, options = {}]] of Object.entries(WHEN)) {
     at(start);
-    camera.shot(name);
+    camera.shot(name, options);
     to(look);
     for (const aspect of [1.6, 0.625]) {
       world.camera.aspect = aspect;
