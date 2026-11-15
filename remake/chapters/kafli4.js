@@ -452,7 +452,7 @@ function* upAndAway(s, c) {
   const flier = (c.flier = createFlier(flugedla.raw, ROUTE, { world, reduced: c.reduced }));
   flier.update(0);
   const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced: c.reduced });
-  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, song: c.song, reduced: c.reduced, flight: null, doc: c.doc };
+  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, song: c.song, reduced: c.reduced, flight: null };
   f.beds = true; // the forest's bed from C, the Fen's again at the far pool (the review flight has none)
   f.say = c.lines.say;
   Object.defineProperty(f, 'speaking', { get: () => c.lines.speaking });

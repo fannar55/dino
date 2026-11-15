@@ -1,7 +1,7 @@
 // Chapter 4's flight on Flugeðla's back (spec 5): beats A to G in 170 s, as a film for a child who touches nothing.
 //
-//   yield* theFlight(s, c);   // c: { world, flugedla, egill, mosi, route, flier, camera, sounds, say, speaking, doc, mark }
-//                             // c.say and c.speaking: kafli4-flight-play.js lineQueue; c.doc: the page for the „Hraðar!“ button, or null
+//   yield* theFlight(s, c);   // c: { world, flugedla, egill, mosi, route, flier, camera, sounds, say, speaking, mark }
+//                             // c.say and c.speaking: kafli4-flight-play.js lineQueue
 //
 // Two things run side by side. The frames put her where the flight is at its own time (the flier: engine/flier.js) with Egill on her
 // back, and let the wind bed follow her speed, bank and the water under her. The beats cut the shots (engine/camera/flight-camera.js),
@@ -13,8 +13,9 @@
 // the mountains, Grameðla's shadow in the mist and Kambeðla's plates blinking as the land answers), and from the burst out of the
 // spray the light goes golden (spec 2: "Gullna ljósið yfir fossinum er hámark hennar") and back as she glides down in G.
 //
-// What Egill may do (spec 6: steer, call the animals, „Hraðar!“) is kafli4-flight-play.js, switched on and off here beat by beat; the
-// animals' answers are the game's sounds and the owner's recordings (Task 16), as are the wind and the water.
+// Egill watches it and touches nothing in it (the owner, 2026-11-15: the steering, „Hraðar!“, the skim and the taps on the animals went).
+// Her calls to the animals are kafli4-flight-play.js, switched on and off here beat by beat; the animals' answers are the game's sounds
+// and the owner's recordings (Task 16), as are the wind and the water.
 //
 // The flight has a song of its own (c.song, made by createFlightSong): it starts with the flight, half a second in, whatever came
 // before, and the page's theme goes out under it (the full chapter brings the theme back at the far pool: kafli4.js).
@@ -53,28 +54,15 @@ export const FLIGHT_WORDS = {
   k4_flugedla_wind: 'Takk fyrir vindinn, Egill.',
   k4_flugedla_pool: 'Sjáðu, fjarlæga tjörnin. Þar býr Slóeðla.',
   k4_egill_mosi: 'Ég sé Mosa!',
-  k4_egill_laugh: 'Hí hí hí!', // * (what Egill may do: Task 11)
-  k4_egill_faster1: 'Hraðar!',
-  k4_egill_faster2: 'Hraðar!',
-  k4_flugedla_holdon: 'Haltu þér!',
-  // the juice review of 2026-11-07 (its section 1): what she tells him he may do, each left out once he has done it (B, C)
-  k4_flugedla_steer: 'Strjúktu til hliðar, þá beygi ég!',
-  k4_flugedla_faster: 'Ýttu á takkann, þá flýg ég hraðar!',
-  k4_flugedla_skim: 'Strjúktu niður, þá snerti ég vatnið!',
-  k4_flugedla_animals: 'Sjáðu dýrin! Bankaðu á þau, þá kalla ég.',
-  // Egill, once a kind, when a tap on a group has called it
+  // Egill, once a kind, at a group she has called
   k4_egill_frogs: 'Froskarnir svara!',
   k4_egill_birds: 'Fuglarnir fljúga!',
   k4_egill_turtles: 'Skjaldbökurnar heyrðu!',
   k4_egill_lizards: 'Eðlurnar hlaupa með!',
   k4_egill_dragonflies: 'Drekaflugurnar elta okkur!',
-  // D's flyers round her, G's landing, and the takes that take turns with „Haltu þér!“ and the laugh
+  // D's flyers round her, and G's landing
   k4_egill_flyers: 'Sjáðu, þau fljúga með okkur!',
   k4_flugedla_landing: 'Nú lendum við! Haltu þér!',
-  k4_flugedla_holdon2: 'Vúhú! Hér förum við!',
-  k4_flugedla_holdon3: 'Hraðar og hraðar!',
-  k4_egill_splash: 'Skvamp!',
-  k4_egill_laugh2: 'Hí hí hí!',
 };
 
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
@@ -297,19 +285,16 @@ function* beats(s, c) {
   yield* at(takeOff.to);
   camera.shot('side');
 
-  // B. Down to the river (0:15–0:35): the Fen rushes by, then low over the water ahead of her as she levels out over it. From here
-  // Egill may steer her and press „Hraðar!“ in the chase shots (spec 6).
+  // B. Down to the river (0:15–0:35): the Fen rushes by, then low over the water ahead of her as she levels out over it.
   yield* at(BEATS.B);
   mark('B');
   camera.shot('chase');
-  play.enable('steer', true);
-  play.enable('faster', true);
   yield* at(water[0].from);
   water[0].cut(); // ended a second before she shoots past it: a still shot pans 40 deg/s at most
   yield* at(water[0].to);
   camera.shot('chase');
 
-  // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it, or as Egill taps it, and it
+  // C. Up the river and the call (0:35–1:20): she calls to each group on the banks as she comes to it, and it
   // answers (kafli4-flight-play.js); between the chases, beside her, low over the water, Mosi in the shallows (his first cameo) and the
   // bank where her shadow passes the turtle.
   yield* at(BEATS.C);
@@ -361,8 +346,6 @@ function* beats(s, c) {
   whoosh(1);
   yield* at(gorge.from);
   gorge.cut();
-  yield* at(PLAY.steerLast);
-  play.enable('steer', false);
   yield* at(rim.from - 0.5);
   run(route.cameos.rim.path, headingAlong(route.cameos.rim.path)); // up on the rim, out of sight from down in the gorge
   yield* at(rim.from);
@@ -378,7 +361,6 @@ function* beats(s, c) {
   // at the crest one slow second with only the wind, and then they burst out of the spray.
   yield* at(BEATS.E);
   mark('E');
-  play.enable('faster', false);
   yield* at(106);
   say('egill', 'k4_egill_falls');
   yield* at(108.3);
@@ -408,12 +390,11 @@ function* beats(s, c) {
   say('egill', 'k4_egill_wow', { ifQuiet: true }); // out of the spray into the gold
 
   // F. Up into the golden light (2:05–2:30): the whole land wide; Grameðla beyond the mountains; her biggest call over the land and
-  // the answers from everywhere; a slow circle round them as the music peaks (the still vista under reduced motion). A tap on the land
-  // brings the call early; her lines wait for each other, so none is cut.
+  // the answers from everywhere; a slow circle round them as the music peaks (the still vista under reduced motion). Her lines wait
+  // for each other, so none is cut.
   yield* at(BEATS.F);
   mark('F');
   camera.shot('vista');
-  play.enable('call', true);
   yield* at(126.5);
   say('flugedla', 'k4_flugedla_gramedla');
   yield* at(ROAR.at);
@@ -429,7 +410,7 @@ function* beats(s, c) {
   yield* at(134);
   camera.shot('orbit');
   yield* at(PLAY.bigCall);
-  play.bigCall(); // the biggest call (Task 15: louder, with an echo), unless a tap on the land asked for it already
+  play.bigCall(); // the biggest call (Task 15: louder, with an echo)
   yield s.until(() => play.big.at !== null); // it waits for a line playing
   yield* at(Math.max(141, play.big.at + 6)); // after the answers from everywhere
   say('egill', 'k4_egill_all');

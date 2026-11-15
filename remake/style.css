@@ -228,57 +228,12 @@ body:has(#book.child-open) .caption { display: none; }
 .flying-place path { fill: var(--card); stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; }
 .flying-place circle { fill: var(--hue, var(--teal)); stroke: var(--ink); stroke-width: 1.2; }
 
-/* ---- Chapter 4's flight: what Egill may do (chapters/kafli4-flight-play.js) ------------------------------------------------------ */
+/* ---- Chapter 4 ---------------------------------------------------------------------------------------------------------------- */
 
-/* „Hraðar!“: a big round button in the journal's orange in the lower right corner, raised as the book's "Áfram" pill is (book.css
-   .next-chapter), shown only while a burst can start. It pops up when it comes back, so the child sees it is ready again. The word
-   stands until the wing icon comes (with the owner's yes). Upright, it stands over the captions, which then span the screen. */
-.flight-faster {
-  position: fixed; right: max(28px, env(safe-area-inset-right) + 20px); bottom: max(28px, env(safe-area-inset-bottom) + 20px); z-index: 3;
-  width: 96px; height: 96px; padding: 0; margin: 0; border: 3px solid var(--book-ink); border-radius: 50%; cursor: pointer;
-  display: grid; place-items: center;
-  font-family: var(--book-font); font-size: 21px; font-weight: 900; line-height: 1; color: var(--book-card);
-  -webkit-text-stroke: .1em var(--book-ink); paint-order: stroke fill;
-  background: radial-gradient(circle at 32% 24%, rgb(255 255 255 / .42), transparent 55%), var(--book-orange);
-  box-shadow: 0 6px 0 var(--book-orange-deep), 0 6px 0 3px var(--book-ink), 0 12px 16px 2px rgb(40 24 10 / .35);
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation; pointer-events: auto;
-  animation: faster-ready .35s cubic-bezier(.3, 1.6, .5, 1) both;
-}
-.flight-faster:active { scale: .92; }
-/* pressed: it squashes for the moment it shows before it goes (kafli4-flight-play.js PLAY.pressShow), the book's sparks round it */
-.flight-faster.is-pressed { scale: .84; transition: scale .08s ease-out; }
-.flight-faster:focus-visible { outline: 4px solid var(--book-teal); outline-offset: 5px; }
-@keyframes faster-ready {
-  from { opacity: 0; transform: scale(.6); }
-  to { opacity: 1; transform: none; }
-}
-@media (max-aspect-ratio: 1/1) {
-  .flight-faster { bottom: max(150px, env(safe-area-inset-bottom) + 140px); }
-}
-
-/* The steering hint: a glowing gold dot, the journal's star gold round a white heart, that glides side to side the way a finger would
-   draw her, in the first chase shot only. It stands over the land above her head (her body and Egill fill the middle below), and takes
-   no taps. Under reduced motion it stays put and only breathes. */
-.flight-hint {
-  position: fixed; left: 50%; top: 40%; z-index: 1; width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, #fffdf6 0 20%, rgb(255 226 140 / .95) 30%, rgb(242 182 48 / .7) 46%, rgb(242 182 48 / 0) 70%);
-  box-shadow: 0 0 26px 10px rgb(255 214 110 / .45);
-  animation: hint-glide 2.4s ease-in-out infinite;
-}
-@keyframes hint-glide {
-  0%, 100% { transform: translateX(-120px); opacity: .65; }
-  50% { transform: translateX(120px); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .flight-faster { animation: none; }
-  .flight-faster.is-pressed { scale: none; opacity: .65; transition: opacity .08s ease-out; }
-  .flight-hint { animation: hint-breathe 2.4s ease-in-out infinite; }
-  @keyframes hint-breathe { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
-}
-
-/* The wind's hint (chapters/kafli4-wind.js): the steering hint's glowing gold dot, drawing a stroke up the screen the way a finger
-   would, a fading tail below it, again and again until the child strokes. Right of the middle, over the open fen and the sky, clear of
-   Mosi and Egill; upright, in the middle. It takes no taps. Under reduced motion it stays put and only breathes. */
+/* The wind's hint (chapters/kafli4-wind.js): a glowing gold dot, the journal's star gold round a white heart, drawing a stroke up the
+   screen the way a finger would, a fading tail below it, again and again until the child strokes. Right of the middle, over the open
+   fen and the sky, clear of Mosi and Egill; upright, in the middle. It takes no taps. Under reduced motion it stays put and only
+   breathes. */
 .wind-hint {
   position: fixed; left: 64%; top: 74%; z-index: 1; width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle, #fffdf6 0 20%, rgb(255 226 140 / .95) 30%, rgb(242 182 48 / .7) 46%, rgb(242 182 48 / 0) 70%);
@@ -306,4 +261,5 @@ body:has(#book.child-open) .caption { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .wind-hint, .wind-hint::after { animation: hint-breathe 2.4s ease-in-out infinite; }
+  @keyframes hint-breathe { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 }
