@@ -2027,10 +2027,6 @@
           "say": "Váá",
           "note": "Tvö á: lengir sérhljóðið (eigandinn 2026-11-15: „Vá“ hljómaði eins og „va“, vill meira „Váá“)."
         },
-        "vaaa": {
-          "say": "Vááá",
-          "note": "Þrjú á, eins og „Vááá!“ í flugtakinu."
-        },
         "ipa": {
           "say": "/vauː/",
           "note": "Íslenska á-ið í IPA, langt: [vauː]."
@@ -2038,7 +2034,7 @@
         "samhengi": {
           "context": "Vááá, sjáðu! Þetta er svo flott!",
           "seed": 3,
-          "note": "Langt íslenskt vá sent á undan sem samhengi, ekki talað."
+          "note": "Langt íslenskt vá sent á undan sem samhengi, ekki talað. Vann hjá eigandanum 2026-11-15 á k4_egill_vaa (af fimm), sem ber það sem sína lausn."
         }
       },
       "chosen": "hratt"

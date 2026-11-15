@@ -21,7 +21,7 @@
  { "id": "k4_flugedla_call2", "speaker": "flugedla", "text": "Komið á Stjörnuhátíðina!" },
  { "id": "k4_flugedla_call3", "speaker": "flugedla", "text": "Allir á hátíðina í kvöld!" },
  { "id": "k4_mosi_wait", "speaker": "mosi", "text": "Bíðið eftir mér!", "context": "Bíðið eftir mér!", "seed": 7, "fixes": "line", "note": "Own context (the book's contexts for its words, then the line itself) and seed 7: the owner's pick by ear of four takes on 2026-11-04 (Ný 3), after he heard many of Mosi's chapter 4 lines said wrong. It fixes the whole line." },
- { "id": "k4_egill_vaa", "speaker": "egill", "text": "Vá!" },
+ { "id": "k4_egill_vaa", "speaker": "egill", "text": "Vá!", "context": "Vááá, sjáðu! Þetta er svo flott!", "seed": 3, "fixes": "va", "note": "Own context and seed 3 (the book's va recipe samhengi): the owner heard the plain take as a short \"va\" and picked this one by ear of five on 2026-11-15, for the long Icelandic á." },
  { "id": "k4_mosi_shortcut", "speaker": "mosi", "text": "Ég fer styttri leiðina!", "context": "Ég fer styttri leiðina!", "seed": 7, "fixes": "line", "note": "Own context (the book's contexts for its words, then the line itself) and seed 7: the owner's pick by ear of four takes on 2026-11-04 (Ný 3), after he heard many of Mosi's chapter 4 lines said wrong. It fixes the whole line." },
  { "id": "k4_egill_falls", "speaker": "egill", "text": "Sjáðu fossinn!" },
  { "id": "k4_flugedla_up", "speaker": "flugedla", "text": "Upp með honum!" },
