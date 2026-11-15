@@ -338,7 +338,14 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         } else {
           const group = (world.forest.life.herd ?? []).find(g => g.id === 'stepNorth');
           const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
-          if (group) seen.herdHeads.push({ t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(c.flight.flier.pose.position) });
+          const crowds = world.forest.life.crowds ?? world.forest.animals.crowds;
+          if (group) {
+            seen.herdHeads.push({
+              t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(c.flight.flier.pose.position),
+              // each grazer's box in the frame, and where it is (the herd shot frames all five, over the caption's band)
+              boxes: group.members.map(m => projectedBox(m, world.camera, crowds)), at: group.members.map(m => m.position.clone()),
+            });
+          }
         }
       }
       // a call shot down on a bank (the route's CALL_SHOTS: a call or the run-along): how large the group it is about looks, as she
