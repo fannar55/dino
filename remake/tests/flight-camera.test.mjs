@@ -214,10 +214,11 @@ test('call shots frame what they are about and her at both sizes, and stand stil
     const middle = aboutOf(row);
     // the ledge's nest is in the frame as it begins
     if (row.shot === 'ledge') {
-      director.apply();
       for (const aspect of [1.6, 0.69]) {
         world.camera.aspect = aspect;
         world.camera.updateProjectionMatrix();
+        director.apply();
+        world.scene.updateMatrixWorld(true);
         const q = middle.clone().project(world.camera);
         assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}: the nest at ${q.x.toFixed(2)}, ${q.y.toFixed(2)} as it begins`);
       }

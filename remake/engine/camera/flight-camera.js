@@ -118,11 +118,12 @@ const FIXED = {
     const t0 = from ?? row?.from ?? c.t;
     const t1 = to ?? row?.to ?? t0 + 5;
     const track = standAlong(a, b, move ?? t0, t1, Math.max(above, CLEAR), c.groundAt); // still till `move`, when the lizards run
-    const middle = groupMiddle(c.route, group ?? row?.group, c.groundAt);
+    const aimFrom = groupMiddle(c.route, group ?? row?.group, c.groundAt); // the group it aims from
     const position = track.at(t0);
-    const ahead = middle.clone().lerp(herAt(c.route, pass ?? row?.pass ?? c.t), look).sub(position);
+    const ahead = aimFrom.clone().lerp(herAt(c.route, pass ?? row?.pass ?? c.t), look).sub(position);
+    const ids = row ? [row.group, ...(row.also ?? [])] : [group];
     return {
-      position, fov, middle, group: groupOf(c.route, row?.group ?? group).id, ahead,
+      position, fov, middle: groupMiddle(c.route, ids[0], c.groundAt), seen: ids.map(id => groupMiddle(c.route, id, c.groundAt)), group: groupOf(c.route, ids[0]).id, ahead,
       track: { ...track, middle: ((move ?? t0) + t1) / 2, from: t0, to: t1 },
     };
   },
@@ -227,7 +228,7 @@ export function stillViews(route, { heightAt = () => 0 } = {}) {
     const looks = [];
     for (let t = from; t <= to + 1e-9; t += 0.5) looks.push(route.pointAt(route.progressAt(t)));
     if (shot === 'mosiBank') for (const [x, z] of route.cameos.bank.path) looks.push(new V3(x, (route.waterAt(x, z, 2) ?? heightAt(x, z)) + MOSI_HEAD, z));
-    if (made.middle) looks.push(made.middle.clone());
+    for (const m of made.seen ?? (made.middle ? [made.middle] : [])) looks.push(m.clone());
     const places = made.track ? [...Array.from({ length: Math.floor(to - from + 1e-9) + 1 }, (_, k) => made.track.at(from + k)), made.track.at(to)] : [made.position];
     return places.map(position => ({ shot, from, to, position, looks, group: made.group ?? null }));
   });

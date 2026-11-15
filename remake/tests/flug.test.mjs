@@ -8,10 +8,11 @@ import * as THREE from 'three';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
-import { BEATS, LEAP } from '../chapters/kafli4-route.js';
+import { BEATS, LEAP, CALL_SHOTS } from '../chapters/kafli4-route.js';
 import { SLOW, MUSIC, GOLDEN, ROAR, SONG } from '../chapters/kafli4-flight.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import * as flugModule from '../chapters/flug.js';
+const CALL_KINDS = new Set(CALL_SHOTS.map(row => row.shot)); // the call shots' kinds of camera (the call, the run-along, the ledge, the herd)
 
 
 // What a run sees: Mosi on the screen in each beat, her place and the camera at flight times, the clock's scale.
@@ -65,9 +66,9 @@ function watcher({ at = [] } = {}) {
     seen.u.push({ t, u: c.flier.u, beat: c.flight.beat });
     seen.camera.push({ t, shot: c.camera.current, position: director.rig.position.clone(), her: c.flier.pose.position.clone() });
     // twice a second: her and Egill whole in the frame, their heads above the bottom 30 %, on 16:10 and on an upright tablet. Not in a
-    // call shot: its still frame is the group's, which she comes into and sweeps through (tests/flight-camera.test.mjs frames the
-    // group and her pass in it at both sizes, with no land between)
-    if (Math.floor(t * 2) !== lastLook && c.camera.current && c.camera.current !== 'call') {
+    // call shot (the call, the run-along, the ledge, the herd): its frame is the group's, which she comes into and sweeps through
+    // (tests/flight-camera.test.mjs frames what it is about and her in it at both sizes, with no land between)
+    if (Math.floor(t * 2) !== lastLook && c.camera.current && !CALL_KINDS.has(c.camera.current)) {
       lastLook = Math.floor(t * 2);
       seen.looked++;
       for (const problem of framing(world, director)) seen.framing.push(`t=${t.toFixed(1)} ${c.camera.current}: ${problem}`);
@@ -152,8 +153,8 @@ test('every shot of spec 5 is used, in its beat', () => {
   const shots = new Map(); // shot -> the beats it is used in
   for (const { t, shot } of full.seen.camera) if (shot) (shots.get(shot) ?? shots.set(shot, new Set()).get(shot)).add(run.world.chapterState.route.beatAt(t));
   const want = {
-    face: ['A', 'D'], belowTakeOff: ['A'], chase: ['B', 'C', 'D', 'E', 'G'], waterLevel: ['B'], call: ['C'], mosiBank: ['C'],
-    gorgeHigh: ['D'], mosiRim: ['D'], fallsSide: ['E'], fallsTop: ['E'], vista: ['F'], orbit: ['F'],
+    face: ['A', 'D'], belowTakeOff: ['A'], chase: ['B', 'C', 'D', 'E', 'G'], waterLevel: ['B'], call: ['C'], runAlong: ['C'], mosiBank: ['C'],
+    ledge: ['D'], herd: ['F'], mosiRim: ['D'], fallsSide: ['E'], fallsTop: ['E'], vista: ['F'], orbit: ['F'],
   };
   for (const [shot, beats] of Object.entries(want)) {
     for (const beat of beats) assert.ok(shots.get(shot)?.has(beat), `${shot} in ${beat} (used in ${[...(shots.get(shot) ?? [])]})`);

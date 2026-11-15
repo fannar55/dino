@@ -223,7 +223,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -325,8 +325,25 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
         seen.heads.push({ id: near.id, t: world.flightTime, look: lizards.members.map(m => weight(m, 'look')), drink: lizards.members.filter(m => m.e < 1).map(m => weight(m, 'drink')) });
       }
-      // a call shot (the route's CALL_SHOTS): how large the group it is about looks, as she passes it
-      const calling = c?.flight?.camera?.current === 'call' ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      // the ledge's call shot (the route's CALL_SHOTS, life.js flyers): its flyer, how far from its nest and where in the frame; the
+      // herd's: how far up the stepNorth group's heads are (the look clip's share of each pose) and where she is in the frame
+      const kind = c?.flight?.camera?.current ?? null;
+      const kindRow = kind === 'ledge' || kind === 'herd' ? CALL_SHOTS.find(row => row.shot === kind && world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      if (kindRow && world.forest?.life) {
+        world.camera.updateMatrixWorld();
+        const ndc = p => p.clone().project(world.camera);
+        if (kind === 'ledge') {
+          const flyer = world.forest.life.flyers.find(b => b.id === `flyer-${kindRow.nest}`);
+          if (flyer) seen.ledge.push({ t: world.flightTime, away: flyer.position.distanceTo(flyer.nest), at: ndc(flyer.position), visible: flyer.visible });
+        } else {
+          const group = (world.forest.life.herd ?? []).find(g => g.id === 'stepNorth');
+          const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+          if (group) seen.herdHeads.push({ t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(c.flight.flier.pose.position) });
+        }
+      }
+      // a call shot down on a bank (the route's CALL_SHOTS: a call or the run-along): how large the group it is about looks, as she
+      // passes it
+      const calling = kind === 'call' || kind === 'runAlong' ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
       if (calling && world.forest?.animals) {
         const group = world.forest.animals.groups.find(g => g.id === calling.group);
         world.camera.updateMatrixWorld();
@@ -795,10 +812,10 @@ test('the lizards of C are the owner\'s small lizard, loaded before the valley i
   assert.ok(lizards.every(g => g.members.every(m => m.kind === 'smaedla')), lizards.map(g => `${g.id}: ${g.members[0].kind}`).join(', '));
 });
 
-test('each call shot frames the group it is about: the group at least 8 % of the frame\'s height as she passes', async (t) => {
+test('each call shot down on a bank frames the group it is about: the group at least 8 % of the frame\'s height as she passes', async (t) => {
   for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
     const { watched } = await play();
-    for (const row of CALL_SHOTS.filter(r => r.shot === 'call')) {
+    for (const row of CALL_SHOTS.filter(r => r.group)) {
       const frames = watched.calls.filter(f => f.id === row.id);
       assert.ok(frames.length > 30, `${shape}: ${row.id} is seen (${frames.length} frames)`);
       const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
@@ -814,11 +831,12 @@ test('each call shot frames the group it is about: the group at least 8 % of the
 // passes (chapters/kafli4-flight-play.js, world/ardalur/animals.js hear)
 const groupsOf = row => [row.group, ...(row.also ?? [])];
 const LIZARD_ROWS = ['kall-edlur', 'kall-hlaup'];
+const ON_BANKS = CALL_SHOTS.filter(row => row.group); // the rows of C, each about groups of the route (the ledge's and the herd's are life's)
 
 test('call shot groups are called at their second', async () => {
   const { world } = await playWide();
   const { calls } = world.chapterState.flight.play;
-  for (const row of CALL_SHOTS) {
+  for (const row of ON_BANKS) {
     for (const id of groupsOf(row)) {
       const call = calls.find(x => x.id === id);
       assert.ok(call && call.how === 'shot' && Math.abs(call.t - row.call) <= 0.05, `${row.id}: ${id} is called at ${call?.t.toFixed(2)} s, ${call?.how} (at ${row.call})`);
@@ -829,18 +847,57 @@ test('call shot groups are called at their second', async () => {
 test('every call shot\'s call is heard', async () => {
   const { world } = await playWide();
   const shots = world.chapterState.flight.play.calls.filter(x => x.how === 'shot');
-  assert.equal(shots.length, CALL_SHOTS.flatMap(groupsOf).length, 'a call to each of their groups');
+  assert.equal(shots.length, ON_BANKS.flatMap(groupsOf).length, 'a call to each of their groups');
   assert.deepEqual(shots.filter(x => !x.voiced).map(x => x.id), [], 'her call is heard: no line plays over it');
 });
 
-test('they run after she passes', async () => {
+test('they run after she passes, and the run-along\'s first runners at her call: already running as she comes', async () => {
   const { world } = await playWide();
   const { answers } = world.chapterState.flight.play;
-  for (const row of CALL_SHOTS) {
+  for (const row of ON_BANKS) {
     for (const id of groupsOf(row)) {
       const answer = answers.find(x => x.id === id);
-      assert.ok(answer && Math.abs(answer.t - (row.pass + PLAY.runAfter)) <= 0.05, `${row.id}: ${id} answers at ${answer?.t.toFixed(2)} s (at ${(row.pass + PLAY.runAfter).toFixed(2)})`);
+      const want = row.early?.[id] ? row.call + PLAY.answerAfter : row.pass + PLAY.runAfter;
+      assert.ok(answer && Math.abs(answer.t - want) <= 0.05, `${row.id}: ${id} answers at ${answer?.t.toFixed(2)} s (at ${want.toFixed(2)})`);
     }
+  }
+  // the run-along's: running from before she passes them to the cut, the first runners up the bank 33 m in 5.5 s
+  const row = CALL_SHOTS.find(r => r.shot === 'runAlong');
+  const early = Object.keys(row.early)[0];
+  const group = world.forest.animals.groups.find(g => g.id === early);
+  assert.deepEqual(group.run, row.early[early]);
+  assert.ok(row.call + PLAY.answerAfter < CALL_SHOTS.find(r => r.shot === 'runAlong').pass - 1, 'running before she passes');
+});
+
+test('the ledge shot sees its flyer on its nest, then leave as she comes', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'ledge');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const frames = watched.ledge;
+    assert.ok(frames.length > 100, `${shape}: ${frames.length} frames of the ledge`);
+    const [first] = frames;
+    const inFrame = q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+    assert.ok(first.t <= row.from + 0.1 && first.away < 0.3 && inFrame(first.at), `${shape}: on its nest and in the frame as it begins (${first.away.toFixed(2)} m off, ${first.at.x.toFixed(2)}, ${first.at.y.toFixed(2)})`);
+    const leaving = frames.find(f => f.away > 0.5);
+    assert.ok(leaving && leaving.t >= row.call - 0.1 && leaving.t <= row.call + 1, `${shape}: it leaves at ${leaving?.t.toFixed(2)} s (the call: ${row.call})`);
+    assert.ok(inFrame(leaving.at), `${shape}: seen as it leaves (${leaving.at.x.toFixed(2)}, ${leaving.at.y.toFixed(2)})`);
+    t.diagnostic(`${shape}: the flyer of nest ${row.nest} leaves at ${leaving.t.toFixed(2)} s, ${frames.at(-1).away.toFixed(1)} m off at the cut`);
+    assert.ok(frames.at(-1).away > 2, `${shape}: off its ledge by the cut`);
+  }
+});
+
+test('the herd shot sees heads come up at the big call, and her high over them', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'herd');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const frames = watched.herdHeads;
+    assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
+    assert.ok(frames[0].look.every(w => w < 0.1), `${shape}: grazing as it begins (${frames[0].look.map(w => w.toFixed(2))})`);
+    const most = Math.max(...frames.map(f => f.look.filter(w => w >= 0.8).length));
+    assert.ok(most >= 4, `${shape}: ${most} of the 5 lift their heads in the shot`);
+    const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
+    t.diagnostic(`${shape}: at ${pass.t.toFixed(2)} s she is at ${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)}; ${most} heads up`);
+    assert.ok(pass.her.z < 1 && Math.abs(pass.her.x) <= 1 && pass.her.y > 0 && pass.her.y <= 1, `${shape}: she is high in the frame as she passes (${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)})`);
   }
 });
 
@@ -894,9 +951,9 @@ test('after the big call ten small lizards or more, 8 px tall, run toward the fa
 
 test('the herd grazes big in the wide shot, and the slow circle sees it near as it answers the big call', async (t) => {
   // [group, when, how many, px tall, share of those frames that show that many of the group that tall]: the dale's group in the wide
-  // shot (the vista, before the call); the step's corner group in the slow circle as it lifts its heads (`call`: from the call to 7 s
-  // after it); the step's south group in the slow circle from 2 s after it (`orbit`); under reduced motion (where the circle is a fixed
-  // vista over the step's north side) the corner group there. The owner asked for the herd bigger and nearer (2026-11-06).
+  // shot (the vista, before the call); the step's corner group (stepNorth) down among it as it lifts its heads (`call`: the herd's call
+  // shot, the Flugmynd spec's row 6); the step's south group in the slow circle's last part (`orbit`); under reduced motion (where the
+  // circle is a fixed vista) the corner group there. The owner asked for the herd bigger and nearer (2026-11-06).
   const plays = [
     ['16:10', playWide, [['dale', 'vista', 5, 18, 0.8], ['stepNorth', 'call', 3, 30, 0.35], ['step', 'orbit', 5, 15, 0.3]]],
     ['upright', playUpright, [['dale', 'vista', 5, 10, 0.8], ['stepNorth', 'call', 3, 20, 0.5], ['step', 'orbit', 5, 10, 0.3]]],
@@ -904,7 +961,7 @@ test('the herd grazes big in the wide shot, and the slow circle sees it near as 
   ];
   const within = {
     vista: f => f.shot === 'vista' && (f.call === null || f.t < f.call),
-    call: f => f.shot === 'orbit' && f.call !== null && f.t >= f.call && f.t <= f.call + 7,
+    call: f => f.shot === 'herd' && f.call !== null && f.t >= f.call,
     orbit: f => f.shot === 'orbit' && f.call !== null && f.t > f.call + 2,
   };
   for (const [shape, play, wants] of plays) {

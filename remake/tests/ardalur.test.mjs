@@ -660,10 +660,10 @@ test('the still shots see what they show: nothing tall by the camera, nothing on
   const place = litValley();
   const near = placementsNear(place);
   const views = stillViews(route, { heightAt: place.heightAt });
-  for (const shot of ['belowTakeOff', 'waterLevel', 'mosiBank', 'call', 'gorgeHigh', 'mosiRim', 'fallsSide', 'fallsTop']) {
+  for (const shot of ['belowTakeOff', 'waterLevel', 'mosiBank', 'call', 'runAlong', 'ledge', 'herd', 'mosiRim', 'fallsSide', 'fallsTop']) {
     assert.ok(views.some(v => v.shot === shot), `a view of ${shot}`);
   }
-  assert.ok(views.every(v => v.shot !== 'bankShadow'), 'the shadow shot went (the call shots)');
+  assert.ok(views.every(v => v.shot !== 'bankShadow' && v.shot !== 'gorgeHigh'), 'the shadow shot and the high gorge shot went (the call shots)');
   const own = groupProps(place);
   const wrong = [];
   for (const view of views) {
@@ -713,23 +713,28 @@ function groupProps(place) {
   };
 }
 
-test('the call shots see the group and her pass: no tree between the camera and them (engine/tree-probe.js)', () => {
+test('the call shots see what they are about and her as she comes: no tree between the camera and them (engine/tree-probe.js)', () => {
   const place = litValley();
   const own = groupProps(place);
-  const views = stillViews(route, { heightAt: place.heightAt }).filter(v => v.shot === 'call');
-  assert.ok(views.length >= 4, `${views.length} call shots`);
+  const kinds = new Set(CALL_SHOTS.map(r => r.shot));
+  const views = stillViews(route, { heightAt: place.heightAt }).filter(v => kinds.has(v.shot));
+  assert.ok(views.length >= CALL_SHOTS.length, `${views.length} call shot views`);
   const placements = place.stats.sections.flatMap(part => part.userData.placements);
   const wrong = [];
   for (const view of views) {
-    const row = CALL_SHOTS.find(r => r.shot === 'call' && r.from === view.from);
+    const row = CALL_SHOTS.find(r => r.shot === view.shot && r.from === view.from);
     const p = view.position;
     const mine = own(view.group);
     const reach = 60;
     const probe = createTreeProbe(placements.filter(q => !mine.has(q)), { near: (x, z) => Math.hypot(x - p.x, z - p.z) < reach });
     assert.ok(probe.plants.length > 5, `${row.id}: ${probe.plants.length} tall plants within ${reach} m to ask about`);
     const sight = (b, what) => ({ a: p.toArray(), b: b.toArray(), r: 0.1, bone: what });
-    const lines = [sight(view.looks.at(-1), 'the group')];
-    for (let t = row.call; t <= row.pass + 1 + 1e-9; t += 0.25) lines.push(sight(route.pointAt(route.progressAt(t)), `her at ${t.toFixed(2)} s`));
+    // what it is about (the last of its looks: its groups' middles, the nest, the herd's middle), and her from her call to a second
+    // after she passes (the ledge: from the cut till the flyer leaves and a second on, as she comes up the gorge)
+    const about = (row.also?.length ?? 0) + 1;
+    const lines = view.looks.slice(-about).map(l => sight(l, 'what it is about'));
+    const seen = row.shot === 'ledge' ? [row.from, row.call + 1] : [row.call, Math.min(row.pass + 1, row.to)];
+    for (let t = seen[0]; t <= seen[1] + 1e-9; t += 0.25) lines.push(sight(route.pointAt(route.progressAt(t)), `her at ${t.toFixed(2)} s`));
     for (const hit of probe.look(lines)) wrong.push(`${row.id}: a ${hit.name} at ${hit.x}, ${hit.z} between the camera and ${hit.bone} (${hit.depth.toFixed(2)} m in)`);
   }
   assert.deepEqual(wrong, []);
