@@ -19,6 +19,7 @@ import { herAt, egillAt, wingAt, butterflyAt, BUTTERFLY_COUNT, cameraZ as zAt, b
 import { createRider } from './samflug3d/rider.js';
 import { createAir } from './samflug3d/air.js';
 import { createMeasure } from './samflug3d/measure.js';
+import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -114,11 +115,18 @@ export const chapter = {
     /** For the probe: hold the show at second t (the next frame draws it). */
     const seek = t => { clock.hold = t; apply(t); };
     world.samflug = { state, apply, seek, measure, stage, rider, swarm, air, length: LENGTH, flyLength };
+    // sound when it plays (a capture is silent): kafli 4's airflow and a wingbeat at each downstroke of her fly clip
+    const context = capture ? null : world.sound?.context ?? null;
+    const sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: context ? loadFlightRecordings(context) : null });
+    let beat = null;
     s.after(0, function* run() {
       for (;;) {
         hold();
         const t = clock.hold ?? ((s.time - clock.from) % LENGTH);
         apply(t);
+        const n = Math.floor(wingAt(t, flyLength) / flyLength);
+        if (state.started && beat !== null && n !== beat && blackAt(t) < 0.5) sounds.flap();
+        beat = n;
         yield;
       }
     });
@@ -126,6 +134,8 @@ export const chapter = {
     yield s.ready();
     clock.from = s.time - t0;
     state.started = true;
+    sounds.start();
+    sounds.setSpeed(8 + speed); // her airflow as she flies with us (quiet at 8 m/s, a little more with the forest's speed)
     for (;;) yield;
   },
 };
