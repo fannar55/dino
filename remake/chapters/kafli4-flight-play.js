@@ -10,13 +10,15 @@
 //   play.stop();                      // lets go of the lines
 //
 // The calls (C): a group 25 m ahead of her she calls by herself. Her call is one of three lines in turn, left out (not the call) while a
-// line plays; the group answers 0.6 s after the call, once, from its side. F: the big call comes by itself at 135 s, waiting for the
+// line plays; the group answers 0.6 s after the call, once, from its side. A call shot's groups (the route's CALL_SHOTS) she calls at
+// the row's own second, earlier: they hear her at once (animals.js hear: heads up, turned to her) and answer as she passes them
+// (PLAY.runAfter after the row's pass); every second of it is the flight's, so a seek finds them where playing would have. F: the big call comes by itself at 135 s, waiting for the
 // line playing; the answers come from everywhere after it, and Kambeðla's plates blink.
 //
 // The juice review of 2026-11-07 (its sections 1 and 2) added what is kept of it here: the life along the way heard (the fish, the early
 // birds, the birds in the bank trees), from its side, and the gorge's flyers' cry as the first leaves its nest.
 import * as THREE from 'three';
-import { BEATS } from './kafli4-route.js';
+import { BEATS, CALL_SHOTS } from './kafli4-route.js';
 import { splash, splashWarm } from '../world/props/splash.js';
 import { glints } from '../world/props/sparkles.js';
 import { FISH } from '../world/ardalur/life.js';
@@ -24,6 +26,7 @@ import { FISH } from '../world/ardalur/life.js';
 export const PLAY = {
   callAhead: 25, // metres ahead of her at which she calls a group by herself
   answerAfter: 0.6, // seconds from her call to the group's answer
+  runAfter: 0.3, // a call shot's groups answer this long after she passes them (the row's pass)
   bigCall: 135, // F: seconds into the flight at which the big call comes by itself
   // seconds after the big call: answers from everywhere, [after, sound, pan] (plan Task 16: frogs, birds and lizards, 0.4 to 0.9 aside;
   // the life plan's Task 17: the herd below her and the flyers round her)
@@ -88,7 +91,7 @@ export function flightPlay(s, c) {
   const { world, flier, route } = c;
   const on = { call: false };
   const flightTime = () => s.time - c.flight.started;
-  const calls = []; // { id (a group's, or 'land'), how ('auto'), t, voiced }
+  const calls = []; // { id (a group's, or 'land'), how ('auto', or 'shot': a call shot's), t, voiced }
   const answers = []; // { id, t }
   let last = null; // the flight's time at the last update
   const effects = Boolean(world.effects && world.scene); // the splashes need them (none in a test's bare world)
@@ -115,17 +118,37 @@ export function flightPlay(s, c) {
     const voiced = c.say('flugedla', CALLS[nextCall % CALLS.length], { ifQuiet: true }) !== null;
     if (voiced) nextCall++;
     calls.push({ id: g.id, how, t: flightTime(), voiced });
-    s.after(PLAY.answerAfter, () => {
-      const animal = animalOf(g.id);
-      if (animal && !animal.answered) animal.answer();
-      if (ANSWER[g.kind]) s.sfx(ANSWER[g.kind], { pan: panOfPoint(pointOf(g)) });
-      answers.push({ id: g.id, t: flightTime() });
-    });
+    s.after(PLAY.answerAfter, () => answer(g));
+  }
+  function answer(g) {
+    const animal = animalOf(g.id);
+    if (animal && !animal.answered) animal.answer();
+    if (ANSWER[g.kind]) s.sfx(ANSWER[g.kind], { pan: panOfPoint(pointOf(g)) });
+    answers.push({ id: g.id, t: flightTime() });
+  }
+  // A call shot's row: her one call to its groups at its second, heard by them from that second (on the game clock: the call's
+  // second, not the frame's), and their answers after she passes
+  const shotRows = CALL_SHOTS.map(row => ({ row, groups: groups.filter(g => [row.group, ...(row.also ?? [])].includes(g.id)), done: false }))
+    .filter(r => r.groups.length);
+  const inRow = new Set(shotRows.flatMap(r => r.groups.map(g => g.id)));
+  function callRow(r) {
+    r.done = true;
+    const late = flightTime() - r.row.call;
+    const voiced = c.say('flugedla', CALLS[nextCall % CALLS.length], { ifQuiet: true }) !== null;
+    if (voiced) nextCall++;
+    for (const g of r.groups) {
+      if (g.called) continue;
+      g.called = true;
+      calls.push({ id: g.id, how: 'shot', t: flightTime(), voiced });
+      animalOf(g.id)?.hear?.((world.clock?.time ?? s.time) - late);
+      s.after(Math.max(0, r.row.pass + PLAY.runAfter - flightTime()), () => answer(g));
+    }
   }
   function groupsFrame() {
     if (!on.call || flightTime() >= BEATS.D) return;
+    for (const r of shotRows) if (!r.done && flightTime() >= r.row.call - 1e-6) callRow(r);
     for (const g of groups) {
-      if (g.called) continue;
+      if (g.called || inRow.has(g.id)) continue; // a call shot's group waits for its row's second
       const ahead = (g.u - flier.u) * route.length;
       if (ahead <= PLAY.callAhead) callGroup(g, 'auto');
     }

@@ -12,6 +12,7 @@ import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
+import { PLAY } from '../chapters/kafli4-flight-play.js';
 import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
@@ -222,7 +223,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -315,6 +316,14 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
             ran: lizards.reduce((sum, m) => sum + Math.hypot(m.position.x - m.at.x, m.position.z - m.at.z), 0) / lizards.length,
           });
         }
+      }
+      // the call shots' lizards (the route's CALL_SHOTS): how far each looks up (its look clip's share of its pose) and how much the
+      // drinkers at the edge drink, from half a second before the shot to its end
+      const near = world.forest?.animals ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.5 && world.flightTime <= row.to) : null;
+      const lizards = near ? world.forest.animals.groups.find(g => g.id === near.group && g.kind === 'lizards') : null;
+      if (lizards) {
+        const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+        seen.heads.push({ id: near.id, t: world.flightTime, look: lizards.members.map(m => weight(m, 'look')), drink: lizards.members.filter(m => m.e < 1).map(m => weight(m, 'drink')) });
       }
       // a call shot (the route's CALL_SHOTS): how large the group it is about looks, as she passes it
       const calling = c?.flight?.camera?.current === 'call' ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
@@ -798,6 +807,65 @@ test('each call shot frames the group it is about: the group at least 8 % of the
       assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `${shape}: ${row.id}'s group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
       assert.ok(closest.size >= 0.08, `${shape}: ${row.id}'s group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
     }
+  }
+});
+
+// ---- the call shots' groups (the Flugmynd spec, 2026-11-15): called at the row's second, they hear her, look up, and run as she
+// passes (chapters/kafli4-flight-play.js, world/ardalur/animals.js hear)
+const groupsOf = row => [row.group, ...(row.also ?? [])];
+const LIZARD_ROWS = ['kall-edlur', 'kall-hlaup'];
+
+test('call shot groups are called at their second', async () => {
+  const { world } = await playWide();
+  const { calls } = world.chapterState.flight.play;
+  for (const row of CALL_SHOTS) {
+    for (const id of groupsOf(row)) {
+      const call = calls.find(x => x.id === id);
+      assert.ok(call && call.how === 'shot' && Math.abs(call.t - row.call) <= 0.05, `${row.id}: ${id} is called at ${call?.t.toFixed(2)} s, ${call?.how} (at ${row.call})`);
+    }
+  }
+});
+
+test('every call shot\'s call is heard', async () => {
+  const { world } = await playWide();
+  const shots = world.chapterState.flight.play.calls.filter(x => x.how === 'shot');
+  assert.equal(shots.length, CALL_SHOTS.flatMap(groupsOf).length, 'a call to each of their groups');
+  assert.deepEqual(shots.filter(x => !x.voiced).map(x => x.id), [], 'her call is heard: no line plays over it');
+});
+
+test('they run after she passes', async () => {
+  const { world } = await playWide();
+  const { answers } = world.chapterState.flight.play;
+  for (const row of CALL_SHOTS) {
+    for (const id of groupsOf(row)) {
+      const answer = answers.find(x => x.id === id);
+      assert.ok(answer && Math.abs(answer.t - (row.pass + PLAY.runAfter)) <= 0.05, `${row.id}: ${id} answers at ${answer?.t.toFixed(2)} s (at ${(row.pass + PLAY.runAfter).toFixed(2)})`);
+    }
+  }
+});
+
+test('heads are up before she passes: the lizards of the call shots look up from her call, and drink till then', async () => {
+  const { watched } = await playWide();
+  for (const id of LIZARD_ROWS) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const frames = watched.heads.filter(f => f.id === id);
+    const before = frames.filter(f => f.t < row.call - 1e-6);
+    const up = frames.filter(f => f.t >= row.pass - 0.8 && f.t <= row.pass);
+    assert.ok(before.length > 10 && up.length > 20, `${id}: ${before.length} frames before her call, ${up.length} as she comes`);
+    for (const f of before) assert.ok(f.drink.every(w => w > 0.95), `${id} at ${f.t.toFixed(2)} s: the drinkers drink (${f.drink.map(w => w.toFixed(2))})`);
+    for (const f of up) assert.ok(f.look.every(w => w >= 0.8), `${id} at ${f.t.toFixed(2)} s: heads up (${f.look.map(w => w.toFixed(2))})`);
+  }
+});
+
+test('seek mid call shot finds heads up: a capture or review link a second before her pass', async () => {
+  // the harness plays as a seek does (main.js ?t=: stage.seeking, fixed 1/30 s steps from the start), so the first frame a seek to
+  // `pass − 1` shows is this run's frame there
+  const { watched } = await playWide();
+  for (const id of LIZARD_ROWS) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const frame = watched.heads.find(f => f.id === id && f.t >= row.pass - 1 - 1e-6);
+    assert.ok(frame, `${id}: a frame at ${row.pass - 1} s`);
+    assert.ok(frame.look.every(w => w >= 0.5), `${id} at ${frame.t.toFixed(2)} s: heads up (${frame.look.map(w => w.toFixed(2))})`);
   }
 });
 

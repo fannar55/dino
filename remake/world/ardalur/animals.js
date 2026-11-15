@@ -17,7 +17,8 @@
 //   animals.group                          the crowds' group (in world.scene unless the crowds were given)
 //   animals.props                          what they sit on: [{ name, variant, x, y, z, rot, scale }] for the plants to grow (banks.js)
 //   animals.clear                          [{ x, z, r }]: round each critter and prop, where no other plant may grow
-//   animals.groups                         [{ id, kind, point, radius, members, answered, answer() -> Handle }], in the order she meets them
+//   animals.groups                         [{ id, kind, point, radius, members, answered, answer() -> Handle, heard, hear(at) }], in the
+//                                          order she meets them; hear(at): from game second at they turn to her and look up (HEAR)
 //   animals.update(dt, t)                  each frame, on the game clock (t): their life and their answers, placed in the crowds
 //   animals.dispose()
 //
@@ -26,7 +27,8 @@
 //
 // An answer is a function of the game clock: a capture or a seek that jumps to a time finds them where playing would have. The
 // dragonflies follow her where she is now (world.flightPoint, or route.pointAt(world.flightU)); once they let her go they are out of
-// sight until they are home again. answer() a second time is a finished Handle: a group answers once.
+// sight until they are home again. answer() a second time is a finished Handle: a group answers once. Hearing is the same: a pose
+// from the second it heard her.
 import * as THREE from 'three';
 import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { DONE, Handle } from '../../engine/handle.js';
@@ -88,6 +90,12 @@ export async function loadCritters(world) {
 // The small lizard looks up at her as she passes over: fully within `near` metres of her (seen from above), not at all beyond
 // `near` + `fade`; its look clip from its first frame to `frame`, the head up.
 const LOOK = { near: 16, fade: 10, frame: 5 };
+/**
+ * A group that hears her (hear(at): a call shot's call, chapters/kafli4-flight-play.js) turns toward her and looks up from that game
+ * second, however far off she is: the small lizard's look clip eases in over `ease` seconds; every member turns toward her, at most
+ * `turn` degrees from its own way, until it answers (the turn eases out over `out` seconds of the answer).
+ */
+export const HEAR = { ease: 0.4, turn: 50, out: 0.5 };
 /** How long each group's answer lasts, in seconds: then it is on its way to the festival, out of sight (the dragonflies home again). */
 export const ANSWER = { frogs: 7, lizards: 9, birds: 8, turtle: 7, dragonflies: 10 };
 /** The kinds whose answer's last pose is their rest from then on (gone): all but the dragonflies, which come home. */
@@ -277,6 +285,11 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     const point = crown ? crown.middle.clone() : members.reduce((sum, m) => sum.add(m.home), new THREE.Vector3()).divideScalar(members.length);
     const entry = {
       id: g.id, kind: g.kind, point, radius: crown ? Math.max(RADIUS, crown.r) : RADIUS, members, answered: false, start: null, handle: null,
+      heard: null,
+      /** It hears her call at game second `at` (once): it turns to her and looks up from then (HEAR). */
+      hear(at) {
+        if (entry.heard === null) entry.heard = at;
+      },
       answer() {
         if (entry.answered) return DONE;
         entry.answered = true;
@@ -460,7 +473,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       }
       case 'lizards': {
         if (m.kind === 'smaedla') {
-          smaedla(m, t, tau === null ? null : Math.max(0, tau - k * RUN.stagger));
+          smaedla(m, t, tau === null ? null : Math.max(0, tau - k * RUN.stagger), hearing(g, t));
           break;
         }
         const curl = 0.45 * (0.5 + 0.5 * Math.sin((TAU * t) / 7 + p));
@@ -496,9 +509,9 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
   /**
    * The small lizard (the owner's model) at game time t, `u` seconds into its run (null before its answer): the same way up the bank
    * and inland as the salamander's, its pose from its clips (clipPose): drinking at the edge or standing about behind, looking up
-   * at her as she passes over, running. The weights of its frames add up to 1.
+   * at her as she passes over or from when it hears her (`heard`, 0 to 1: HEAR), running. The weights of its frames add up to 1.
    */
-  function smaedla(m, t, u) {
+  function smaedla(m, t, u, heard = 0) {
     for (const name in m.morphs) m.morphs[name] = 0;
     const add = (pose, w) => { if (w > 0) for (const name in pose) m.morphs[name] += pose[name] * w; };
     let running = 0;
@@ -517,7 +530,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       travelled = RUN.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland;
     }
     const body = herNow();
-    const look = body ? 1 - smooth((Math.hypot(body.x - m.home.x, body.z - m.home.z) - LOOK.near) / LOOK.fade) : 0;
+    const look = Math.max(heard, body ? 1 - smooth((Math.hypot(body.x - m.home.x, body.z - m.home.z) - LOOK.near) / LOOK.fade) : 0);
     const still = 1 - running;
     const { clips } = baked;
     add(clipPose(baked, m.e < 1 ? 'drink' : 'idle', t, m.phase), still * (1 - look));
@@ -525,6 +538,16 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     add(clipPose(baked, 'run', (travelled / RUN.stride) * clips.run.seconds, m.phase), running);
   }
   const lerpAngle = (a, b, k) => a + (((b - a + 540) % 360) - 180) * k;
+  /** How far a group has turned to her and looked up at game time t since it heard her: 0 to 1 over HEAR.ease (0 if it has not). */
+  const hearing = (g, t) => (g.heard === null || t < g.heard ? 0 : smooth((t - g.heard) / HEAR.ease));
+  /** A member that has heard her turns toward her, HEAR.turn degrees at most, and back to its answer's way over HEAR.out of it. */
+  function turnToHer(g, m, t, tau) {
+    const w = hearing(g, t) * (tau === null ? 1 : 1 - smooth(tau / HEAR.out));
+    const body = w > 0 ? herNow() : null;
+    if (!body) return;
+    const off = ((headingOf(body.x - m.position.x, body.z - m.position.z) - m.heading + 540) % 360) - 180;
+    m.heading += Math.max(-HEAR.turn, Math.min(HEAR.turn, off)) * w;
+  }
   // the birds' way out of their tree: inland (away from the river) and upstream, from where they sit
   for (const g of groups) {
     if (g.kind !== 'birds') continue;
@@ -555,6 +578,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       const at = tau === null ? null : STAY.has(g.kind) ? Math.min(tau, ANSWER[g.kind]) : answering ? tau : null;
       g.members.forEach((m, k) => {
         pose(g, m, k, t, at);
+        turnToHer(g, m, t, tau);
         splashFrame(g, m, k, tau);
         if (m.visible) crowds.place(m.kind, m.position, m.heading, m.scale, m); // a member is its own pose: morphs, wings, pitch, squash
       });

@@ -22,7 +22,7 @@ export const FASTER_LAST = 98;
 export const LEAP = 3.5;
 /**
  * The call shots (the Flugmynd spec, 2026-11-15: the owner's list): a still camera down with an animal group, heads down, as her call
- * comes, heads up, she sweeps through the frame, and they answer. { id, shot, group, from, call, pass, to, options }, in flight
+ * comes, heads up, she sweeps through the frame, and they answer. { id, shot, group, also, from, call, pass, to, options }, in flight
  * seconds: the cut to it (`from`), her call (`call`), when she is nearest the group (`pass`), the cut back (`to`). `shot` is the
  * flight camera's (engine/camera/flight-camera.js FIXED), `group` a group of GROUPS, `options` where the camera stands: `back` metres
  * behind the group's middle away from the river, `above` over the ground or the water, `aside` along the bank (up the river), its
@@ -36,8 +36,9 @@ export const CALL_SHOTS = [
   { id: 'kall-froskar', shot: 'call', group: 'frogs-2', from: 48.05, call: 49.45, pass: 51.85, to: 54.35, options: { back: 3, above: 1.2, aside: 6, look: 0.25, fov: 50 } },
   // under their tree, looking up into the crown (in place of the shadow shot)
   { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: 6, above: 1.2, aside: 4, look: 0.35, fov: 56 } },
-  // the run-along (in place of the chase and the side shot of 72-80): a plain call shot till it has its moving stand
-  { id: 'kall-hlaup', shot: 'call', group: 'lizards-3', from: 72.2, call: 73.6, pass: 76.01, to: 80, options: { back: 5, above: 1.2, aside: 7, look: 0.25, fov: 50 } },
+  // the run-along (in place of the chase and the side shot of 72-80): a plain call shot till it has its moving stand; her call is to
+  // lizards-2 too (`also`: groups that hear the row's call), just down the bank
+  { id: 'kall-hlaup', shot: 'call', group: 'lizards-3', also: ['lizards-2'], from: 72.2, call: 73.6, pass: 76.01, to: 80, options: { back: 5, above: 1.2, aside: 7, look: 0.25, fov: 50 } },
 ];
 
 /**
@@ -318,8 +319,8 @@ const GROUPS = [
   ['frogs-2', 'frogs', 470, -1, 2], // lilies float only on the calm reach, below the rapids (river.js RAPIDS.from, d 509)
   ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after the frogs' call shot and before Mosi's run (d 585 to 617)
   ['birds-2', 'birds', 705, -1, 6], // after Mosi's cameo: she passes 66.7 s, 3.7 s into their call shot (CALL_SHOTS kall-fuglar)
-  ['lizards-2', 'lizards', 724, 1, 3],
-  ['dragonflies', 'dragonflies', 785, -1, -3], // over the water
+  ['dragonflies', 'dragonflies', 775, -1, -3], // over the water; down from 785, so her call to them plays out before the run-along's
+  ['lizards-2', 'lizards', 826, 1, 3], // just below lizards-3 (from 724): the run-along's call is to both (CALL_SHOTS kall-hlaup)
   ['lizards-3', 'lizards', 840, 1, 3], // her calls about 4 s apart: each line plays out (its length and the pause after it) before the next
 ];
 /** How high over the river each kind's group is (its tap target): the dragonflies over the water, the birds in their tree's crown. */

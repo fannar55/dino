@@ -11,7 +11,7 @@ import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain, CORRIDOR } from '../world/ardalur/terrain.js';
-import { createAnimals, ANSWER, SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
+import { createAnimals, ANSWER, HEAR, SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -1066,7 +1066,7 @@ function animalWorld() {
   };
   return world;
 }
-const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'lizards-2', 'dragonflies', 'lizards-3'];
+const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'dragonflies', 'lizards-2', 'lizards-3'];
 const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 6, dragonflies: 6 };
 
 test('nine animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
@@ -1220,6 +1220,73 @@ test('the lizards are the owner\'s small lizard: drinking or idle at rest, looki
   }
   // drawn from the model's two levels: near and far, two draw calls at most for the kind
   assert.equal(animals.crowds.meshes.filter(mesh => mesh.userData.kind === 'smaedla').length, 2);
+  animals.dispose();
+});
+
+test('a group that hears her looks up at once: the small lizards\' look eases in over 0.4 s, whatever her distance, until they answer', async () => {
+  const smaedla = crowdModelFrom(await loadGlb(new URL(SMAEDLA_MODEL)));
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt, critters: { smaedla } });
+  const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+  const g = animals.groups.find(x => x.id === 'lizards-1');
+  const at = passes(route.groups.find(r => r.id === g.id).u) - 2.4; // a call shot's call: she is some 36 m off
+  const pose = t => { world.at(t); animals.update(DT, t); };
+  assert.equal(typeof g.hear, 'function', 'a group can hear her');
+  g.hear(at);
+  pose(at - 0.05);
+  g.members.forEach((m, k) => {
+    const clip = m.e < 1 ? 'drink' : 'idle';
+    assert.ok(weight(m, clip) > 0.95, `${k}: ${clip} before it hears her (${weight(m, clip).toFixed(2)})`);
+  });
+  pose(at + 0.2);
+  g.members.forEach((m, k) => assert.ok(weight(m, 'look') > 0.3 && weight(m, 'look') < 0.7, `${k}: half up 0.2 s after (${weight(m, 'look').toFixed(2)})`));
+  for (const t of [at + 0.4, at + 1.2, at + 2.4]) {
+    pose(t);
+    g.members.forEach((m, k) => assert.ok(weight(m, 'look') > 0.99, `${k}: looking up ${(t - at).toFixed(1)} s after (${weight(m, 'look').toFixed(2)})`));
+  }
+  // they turn toward her a little, each from its own way, and never more than HEAR.turn
+  const turned = g.members.map(m => Math.abs(((m.heading - m.rest + 540) % 360) - 180));
+  assert.ok(turned.some(a => a > 5) && turned.every(a => a <= HEAR.turn + 1e-6), `turned ${turned.map(a => a.toFixed(0)).join(', ')} degrees`);
+  // jumping to a time lands where hearing and playing up to it does
+  const other = animalWorld();
+  const again = createAnimals(other, route, { heightAt: animalTerrain.heightAt, critters: { smaedla } });
+  again.groups.find(x => x.id === 'lizards-1').hear(at);
+  other.at(at + 1.2);
+  again.update(0, at + 1.2);
+  pose(at + 1.2);
+  samePoses(animals, again);
+  // a group that has not heard her looks up only as she comes near, as before
+  const far = animals.groups.find(x => x.id === 'lizards-3');
+  const farAt = passes(route.groups.find(r => r.id === far.id).u) - 2.4;
+  pose(farAt);
+  assert.ok(far.members.every(m => weight(m, 'look') < 0.05), 'lizards-3 has not heard her: heads down while she is still far');
+  // the answer takes over: they run
+  g.answer();
+  pose(at + 4);
+  g.members.forEach((m, k) => assert.ok(!m.visible || Math.abs(weight(m, 'run') - 1) < 1e-6, `${k}: runs (${weight(m, 'run').toFixed(2)})`));
+  animals.dispose();
+  again.dispose();
+});
+
+test('a kind without a look clip turns toward her when it hears: the frogs and the birds of the call shots', () => {
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
+  for (const id of ['frogs-2', 'birds-2']) {
+    const g = animals.groups.find(x => x.id === id);
+    const at = passes(route.groups.find(r => r.id === id).u) - 2.4;
+    world.at(at - 0.05);
+    animals.update(DT, at - 0.05);
+    const before = g.members.map(m => m.heading);
+    g.hear(at);
+    world.at(at + 1);
+    animals.update(DT, at + 1);
+    const her = route.pointAt(route.progressAt(at + 1));
+    g.members.forEach((m, k) => {
+      const toHer = THREE.MathUtils.radToDeg(Math.atan2(her.z - m.position.z, her.x - m.position.x));
+      const off = h => Math.abs(((h - toHer + 540) % 360) - 180);
+      assert.ok(off(m.heading) < off(before[k]) - 1 || off(before[k]) < 2, `${id} ${k}: turns toward her (${off(before[k]).toFixed(0)} to ${off(m.heading).toFixed(0)} degrees off)`);
+    });
+  }
   animals.dispose();
 });
 
