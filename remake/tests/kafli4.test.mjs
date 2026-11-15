@@ -340,10 +340,16 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
           const crowds = world.forest.life.crowds ?? world.forest.animals.crowds;
           if (group) {
+            // the horizon's height in the frame (a point far off the way the camera looks, flat), and how much of the frame's height
+            // her wings (5.2 m across) span from where it stands
+            const flat = world.camera.getWorldDirection(new V3()).setY(0).normalize();
+            const her = c.flight.flier.pose.position;
+            const tall = 2 * Math.tan(THREE.MathUtils.degToRad(world.camera.fov) / 2) * her.distanceTo(world.camera.position);
             seen.herdHeads.push({
-              t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(c.flight.flier.pose.position),
+              t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(her), span: 5.2 / tall,
               // each grazer's box in the frame, and where it is (the herd shot frames all five, over the caption's band)
               boxes: group.members.map(m => projectedBox(m, world.camera, crowds)), at: group.members.map(m => m.position.clone()),
+              horizon: ndc(world.camera.position.clone().addScaledVector(flat, 2000)).y,
             });
           }
         }
@@ -906,6 +912,33 @@ test('the herd shot sees heads come up at the big call, and her high over them',
     const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
     t.diagnostic(`${shape}: at ${pass.t.toFixed(2)} s she is at ${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)}; ${most} heads up`);
     assert.ok(pass.her.z < 1 && Math.abs(pass.her.x) <= 1 && pass.her.y > 0 && pass.her.y <= 1, `${shape}: she is high in the frame as she passes (${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)})`);
+  }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): the herd shot had three quarters sky and cut grazers at the frame's edge
+test('the herd shot frames all five grazers whole, near its middle and over the caption, with little sky, and her big as she passes', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'herd');
+  // the caption's top (style.css .caption: 24 px up, two lines about 124 px tall) on 800 and 1180 rows
+  for (const [shape, play, band] of [['16:10', playWide, -0.63], ['upright', playUpright, -0.75]]) {
+    const { watched } = await play();
+    const frames = watched.herdHeads.filter(f => f.t >= row.from + 0.05);
+    assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
+    const cut = frames.filter(f => f.boxes.some(b => b.x0 < -0.98 || b.x1 > 0.98 || b.y1 > 0.98 || b.y0 < band));
+    const worst = f => `${f.t.toFixed(2)} s: ${f.boxes.map(b => `${b.x0.toFixed(2)}..${b.x1.toFixed(2)}/${b.y0.toFixed(2)}..${b.y1.toFixed(2)}`).join(' ')}`;
+    assert.deepEqual(cut.map(worst), [], `${shape}: every grazer whole in the frame and over the caption's band (${band})`);
+    const middle = Math.max(...frames.map(f => Math.abs(f.boxes.reduce((sum, b) => sum + (b.x0 + b.x1) / 2, 0) / f.boxes.length)));
+    assert.ok(middle < 0.25, `${shape}: the group near the frame's middle (its middle at most ${middle.toFixed(2)} off)`);
+    // the sky over them while they graze, before the aim comes up (the horizon's height: (1 - y) / 2 of the frame is sky)
+    const grazing = frames.filter(f => f.t < row.options.ease[0]);
+    const sky = Math.max(...grazing.map(f => (1 - f.horizon) / 2));
+    const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
+    t.diagnostic(`${shape}: sky ${(100 * sky).toFixed(0)} % while they graze, ${(100 * (1 - pass.horizon) / 2).toFixed(0)} % as she passes; she spans ${(100 * pass.span).toFixed(1)} % of the height at ${pass.her.y.toFixed(2)}; the group's middle at most ${middle.toFixed(2)} off`);
+    if (shape === '16:10') {
+      assert.ok(sky <= 0.35, `${shape}: about a third sky or less while they graze (${(100 * sky).toFixed(0)} %)`);
+      assert.ok(pass.her.y <= 0.8, `${shape}: she is in the frame, not on its top edge, as she passes (${pass.her.y.toFixed(2)})`);
+      // the shot she was in before had her wings 12.6 % of the frame's height across (50 degrees, 44 m off)
+      assert.ok(pass.span >= 0.14, `${shape}: her wings ${(100 * pass.span).toFixed(1)} % of the frame's height across as she passes`);
+    }
   }
 });
 

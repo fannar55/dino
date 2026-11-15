@@ -35,9 +35,10 @@ export const LEAP = 3.5;
  * do) with their own run up the bank, `{ metres, seconds }`, so they are already running as it begins. 'ledge' (row 5) stands beside
  * a flyer's nest (NESTS[`nest`]) in the gorge, `along` metres up the river from it, `out` toward the river's middle and `above` over
  * it, looking down the gorge the way she comes (`look` of the way from the nest to her at the call); its `call` is the second the
- * flyer leaves (world/ardalur/life.js: she comes within 25 m) and its `pass` when she passes the nest. 'herd' (row 6) stands among a
- * group of the herd (life.js HERD, at `at`), `back` metres from its middle away from her pass and `side` to its right, looking up
- * toward her; its `call` is the big call's (chapters/kafli4-flight-play.js PLAY.bigCall).
+ * flyer leaves (world/ardalur/life.js: she comes within 25 m) and its `pass` when she passes the nest. 'herd' (row 6) stands low
+ * before a group of the herd (life.js HERD, at `at`), `distance` metres from its middle at `bearing` degrees from the way the group
+ * runs to the far pool, aiming `drop` m under its middle and easing its aim, over the flight seconds `ease`, `look` of the way up
+ * toward her at the pass; its `call` is the big call's (chapters/kafli4-flight-play.js PLAY.bigCall).
  */
 export const CALL_SHOTS = [
   // low on the bank among the lizards drinking at the edge (in place of the chase and the side shot of 39-45)
@@ -60,10 +61,16 @@ export const CALL_SHOTS = [
   // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends.
   // It stands 2.5 m out from the wall, so the flyer leaving her way keeps 2 m off the line to Egill as it goes by (2.5 m at 95.8 s)
   { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 9, out: 2.5, above: 2, look: 0.3, fov: 46 } },
-  // down among the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
-  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands 10 m to the left (seen from her pass), so
-  // she comes into its frame after the flyer of nest 4, wheeling round her, has crossed the line to Egill (137.2 s)
-  { id: 'kall-hjord', shot: 'herd', at: [-1367, 31], from: 135, call: 135, pass: 139.58, to: 141.6, options: { back: 14, side: -10, above: 1.2, look: 0.45, fov: 50 } },
+  // low before the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
+  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands on the higher ground 64 m to the south (100
+  // degrees right of their way to the far pool), so the five stand whole in the middle of a long lens (22 degrees) facing it and her
+  // way, little sky over them (a quarter) while they graze; from 136.5 to 139.5 s its aim comes up a quarter of the way to her pass,
+  // so she flies in over them (at 0.7 of the frame's height, 118 px across at 16:10). She comes into its frame after the flyer of
+  // nest 4, wheeling round her, has crossed the line to Egill (138 s)
+  {
+    id: 'kall-hjord', shot: 'herd', at: [-1367, 31], from: 135, call: 135, pass: 139.58, to: 141.6,
+    options: { bearing: -100, distance: 64, above: 1.2, drop: 1, look: 0.25, ease: [136.5, 139.5], fov: 22 },
+  },
 ];
 
 /**

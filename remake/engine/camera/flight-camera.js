@@ -13,7 +13,7 @@
 // of 1.5 s in the gorge. Shots change by cuts. One fixed shot moves, the run-along (C): it stands on a moving stand, a still camera's
 // rules but for its speed (FLIGHT_RULES.track: 7 m/s at most, and its pan 40 deg/s), and under reduced motion it stands still.
 import * as THREE from 'three';
-import { BEATS, FALLS, STILLS, CALL_SHOTS, NESTS } from '../../chapters/kafli4-route.js';
+import { BEATS, FALLS, STILLS, CALL_SHOTS, NESTS, FAR_POOL } from '../../chapters/kafli4-route.js';
 
 export const FLIGHT_RULES = { roll: 8, minShot: 2.5, quick: { minShot: 1.5, max: 3 }, bound: { dolly: 1.2, pan: 15 }, fixed: { pan: 40 }, track: { speed: 7, pan: 40 } };
 const EASE = 0.5; // seconds the run-along's stand takes to come up to its speed, and to come to a stop
@@ -166,18 +166,23 @@ const FIXED = {
     const aim = middle.clone().lerp(herAt(c.route, row?.call ?? c.t), look);
     return { position, fov, middle, group: null, look: target => target.copy(aim) };
   },
-  // F: down among a group of the herd (the route's CALL_SHOTS row 6, at `at`: life.js HERD) as the big call comes, `back` metres from
-  // its middle away from where she passes it (seen from above) and `side` to the right of that, `above` the ground; it looks up at a
-  // point `look` of the way from the group's middle (HERD_MIDDLE over the ground) to her at the row's pass
-  herd: (c, { callShot = null, at = null, pass = null, back = 16, side = 0, above = CLEAR, look = 0.45, fov = 50 } = {}) => {
+  // F: down among a group of the herd (the route's CALL_SHOTS row 6, at `at`: life.js HERD) as the big call comes, low (`above` the
+  // ground), `distance` metres from its middle at `bearing` degrees from the way it runs to the far pool (+ to its left, seen from
+  // above). It aims `drop` m under the group's middle (HERD_MIDDLE over the ground) and, over the flight seconds `ease` [from, to],
+  // eases its aim up to a point `look` of the way from the middle to her at the row's pass, so the grazers fill the frame low with
+  // little sky and she comes over them; without `ease` it holds that last aim.
+  herd: (c, { callShot = null, at = null, pass = null, bearing = 180, distance = 16, above = CLEAR, drop = 0, look = 0.45, ease = null, fov = 50 } = {}) => {
     const row = callShot ? callRow(callShot) : null;
     const [hx, hz] = at ?? row.at;
     const her = herAt(c.route, pass ?? row?.pass ?? c.t);
-    const away = new THREE.Vector2(hx - her.x, hz - her.z).normalize();
-    const made = c.ground(hx + away.x * back - away.y * side, hz + away.y * back + away.x * side, Math.max(above, CLEAR), fov);
+    const way = Math.atan2(FAR_POOL.center[1] - hz, FAR_POOL.center[0] - hx) + rad(bearing);
+    const made = c.ground(hx + Math.cos(way) * distance, hz + Math.sin(way) * distance, Math.max(above, CLEAR), fov);
     const middle = new V3(hx, c.groundAt(hx, hz) + HERD_MIDDLE, hz);
-    const aim = middle.clone().lerp(her, look);
-    return { ...made, middle, group: null, look: target => target.copy(aim) };
+    const last = middle.clone().lerp(her, look);
+    if (!ease) return { ...made, middle, group: null, look: target => target.copy(last) };
+    const first = middle.clone().add(new V3(0, -drop, 0));
+    const [from, to] = ease;
+    return { ...made, middle, group: null, look: target => target.copy(first).lerp(last, smooth(((c.flier.t ?? 0) - from) / (to - from))) };
   },
   // E: out over the plunge pool beside the cliff (inside the bowl's walls), the climb seen from the side, 21 m from it; under the
   // chapter's sun (earlyAfternoon, 215/22, over the cliff) it looks toward the sun through the spray

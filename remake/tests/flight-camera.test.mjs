@@ -255,6 +255,10 @@ test('call shots frame what they are about and her at both sizes, and stand stil
     if (row.shot === 'runAlong') {
       assert.ok(director.rig.position.distanceTo(position) > 20, `${row.id}: the stand goes along with them (${director.rig.position.distanceTo(position).toFixed(1)} m)`);
       assert.ok(director.rig.target.clone().sub(director.rig.position).distanceTo(way) < 1e-6, `${row.id}: it looks the one way`);
+    } else if (row.options.ease) {
+      // the herd: a still camera whose aim comes slowly up toward her over its `ease` seconds (the fixed rule's pan: flight() below)
+      assert.ok(director.rig.position.distanceTo(position) < 1e-9, `${row.id}: it stands still`);
+      assert.ok(director.rig.target.y > target.y + 1, `${row.id}: its aim comes up (${target.y.toFixed(1)} to ${director.rig.target.y.toFixed(1)})`);
     } else assert.ok(director.rig.position.distanceTo(position) < 1e-9 && director.rig.target.distanceTo(target) < 1e-9, `${row.id}: a still frame`);
     assert.deepEqual(flight(), [], `${row.id} keeps the rules`);
     done();
