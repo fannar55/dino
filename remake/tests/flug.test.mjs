@@ -167,7 +167,7 @@ test('Mosi is seen in C and in D', () => {
   // the lines of spec 5 are all said, Egill's, hers and Mosi's
   const texts = run.captions.map(c => c.text);
   for (const text of ['Haltu þér fast!', 'Vááá!', 'Hátíð í kvöld! Komið öll!', 'Vá!', 'Sjáðu fossinn!', 'Upp með honum!', 'Þarna, handan fjallanna, býr Grameðla.',
-    'Er hún stór?', 'Stærst af öllum!', 'Ég sé allt!', 'Takk fyrir vindinn, Egill.', 'Sjáðu, fjarlæga tjörnin. Þar býr Slóeðla.', 'Ég sé Mosa!']) {
+    'Er hún stór?', 'Stærsta rándýrið!', 'Ég sé allt!', 'Takk fyrir vindinn, Egill.', 'Sjáðu, fjarlæga tjörnin. Þar býr Slóeðla.', 'Ég sé Mosa!']) {
     assert.ok(texts.includes(text), `"${text}" is said`);
   }
   // no two captions at once: each line is over before the next begins

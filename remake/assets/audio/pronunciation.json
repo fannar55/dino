@@ -2531,6 +2531,20 @@
         }
       },
       "chosen": null
+    },
+    "randyr": {
+      "word": "Rándýr",
+      "stem": "[Rr]ándýr",
+      "forms": [
+        "rándýrið",
+        "rándýr"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Flugeðla segir „Stærsta rándýrið!“ í kafla 4, sögumaður „svöng rándýr“ í bókinni). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {

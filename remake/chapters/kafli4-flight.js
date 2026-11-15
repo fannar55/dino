@@ -48,7 +48,7 @@ export const FLIGHT_WORDS = {
   k4_flugedla_up: 'Upp með honum!',
   k4_flugedla_gramedla: 'Þarna, handan fjallanna, býr Grameðla.',
   k4_egill_big: 'Er hún stór?',
-  k4_flugedla_biggest: 'Stærst af öllum!',
+  k4_flugedla_biggest: 'Stærsta rándýrið!',
   k4_egill_all: 'Ég sé allt!',
   k4_flugedla_wind: 'Takk fyrir vindinn, Egill.',
   k4_flugedla_pool: 'Sjáðu, fjarlæga tjörnin. Þar býr Slóeðla.',
