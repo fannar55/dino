@@ -87,7 +87,8 @@ const POOL_SPOTS = {
   landing: around(62, 23.5), // her feet in the shallows, in 0.65 m of water
   bank: around(50, 27.2), // where Egill floats down to, on the bank 6.5 m from her
   mosi: around(45, 30), // where Mosi stops, by Egill, to look across the pool
-  reed: around(46.4, 35.4), // the reed behind them he comes out of, out of breath, walking straight on to his spot
+  reed: around(46.4, 35.4), // the reed behind them he comes through, out of breath, walking straight on to his spot
+  far: around(46.4, 48), // where he is first seen, far up the bank behind them, as the picture cuts to the bank: he is seen coming
   farReed: around(240, 31), // the reed across the pool, where the horn sounds (Slóeðla, unseen)
 };
 export const FAR_POOL = {
@@ -107,6 +108,9 @@ export const FAR_POOL = {
     { at: around(130, 30), r: 3.5 },
     { at: around(44.6, 16.5), r: 2 },
   ],
+  // chapter 4's own: Mosi's way in from far up the bank to the reed, where nothing grows (createArdalur's `keep`: { x, z, r }), so he
+  // walks through no bush; chapter 5 begins with him on his spot and keeps its bank as it grew
+  wayIn: [40.5, 42.5, 44.5, 46.5, 48.5, 50.5].map(d => { const [x, z] = around(46.4, d); return { x, z, r: 2.7 }; }),
   // The glide in (scene 7): a camera on the north-west bank turns to follow her as she comes in over the water, left to right
   glide: { position: up(around(130, 30), 7.4), fov: 40 },
   shots: {

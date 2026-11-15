@@ -6,7 +6,7 @@ import * as kafli3 from '../chapters/kafli3.js';
 import { LOOKS } from '../engine/looks.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { createSave, defaultChapter } from '../engine/save.js';
-import { shapeGround } from '../world/forest/forest.js';
+import { shapeGround, placementInfo } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
@@ -15,6 +15,8 @@ import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
 import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
+import { createTreeProbe } from '../engine/tree-probe.js';
+import { createShell } from '../engine/shell.js';
 import fs from 'node:fs';
 
 // Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
@@ -220,8 +222,9 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 } };
   let where = null;
+  const shells = new Map();
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith, reduced,
     onFrame({ world, director, pointer, ui, shot: label }) {
@@ -383,9 +386,40 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           outside: (world.forest?.animals?.crowds?.placed() ?? []).filter(r => !inFrame(r)).length,
         });
       }
+      // Mosi and Flugeðla among the trees of the Fen and the white tree's patch: how far the body of each (its shell, engine/shell.js)
+      // reaches into a tree (engine/tree-probe.js), frame by frame. The white snag is hers to sit on: it is not asked about while
+      // she is on its top or within PERCH_AIR of it, leaving and landing.
+      if (TREES[world.location] && ui.fadeLevel < 1) {
+        const place = world.location;
+        seen.probed[place]++;
+        for (const who of ['mosi', 'flugedla']) {
+          const actor = world.actors.get(who);
+          if (!actor?.root.visible) continue;
+          if (!shells.has(who)) shells.set(who, createShell(THREE, actor));
+          const shell = shells.get(who);
+          shell.update();
+          const onTop = who === 'flugedla' && c?.perch && actor.root.position.distanceTo(c.perch.top) < PERCH_AIR;
+          for (const hit of treesOf(place).look(shell.place())) {
+            if (hit.name === 'deadSnag' && who === 'flugedla' && (onTop || !c?.perch)) continue;
+            const key = `${who} in ${hit.name} at ${hit.x}, ${hit.z} (${place})`;
+            const was = seen.clips.get(key);
+            if (!was || hit.depth > was.depth) seen.clips.set(key, { depth: hit.depth, t: world.clock.time, bone: hit.bone, shot: label, from: was?.from ?? world.clock.time, to: world.clock.time });
+            else was.to = world.clock.time;
+          }
+        }
+      }
       where = world.location;
     },
   }).then(run => ({ ...run, watched: seen }));
+}
+// The trees of the Fen and of the white tree's patch as the tree probe's volumes: the planner's tall plants (a tree's trunk, limbs and
+// crown; reed, fern and bush they may brush through)
+const TREES = { fen: true, hvitatre: true };
+const PERCH_AIR = 3; // m from the snag's top within which she is leaving it or landing on it
+const probes = new Map();
+function treesOf(place) {
+  if (!probes.has(place)) probes.set(place, createTreeProbe(planOf(chapter, chapter.locations[place]).placements.filter(p => SPECIES[p.name]?.tall)));
+  return probes.get(place);
 }
 /**
  * A critter's model box at its pose, projected: its least and most x and y on the screen (-1 to 1 across the frame). The box is its
@@ -429,6 +463,42 @@ test('scenes 1 to 7 play in order, from the Fen to the white tree, up into the f
   assert.ok(three - two >= 20 && three - two <= 70, `scene 2 takes ${(three - two).toFixed(1)} s (spec: about 45)`);
   assert.ok(five - four >= 18 && five - four <= 50, `scene 4 takes ${(five - four).toFixed(1)} s (spec: about 30)`);
   assert.ok(six - five >= 18 && six - five <= 50, `scene 5 takes ${(six - five).toFixed(1)} s (spec: about 30)`);
+});
+
+test('neither Mosi nor Flugeðla passes through a tree, in the Fen or at the white tree (the owner\'s bug reports of 2026-11-15)', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    assert.ok(watched.probed.fen > 300 && watched.probed.hvitatre > 3000, `watched: ${JSON.stringify(watched.probed)} frames`);
+    // a brush of 0.25 m (a wing tip or the tail's end through a crown's outer needles) is let be; a body through a trunk or crown is not
+    const through = [...watched.clips].filter(([, hit]) => hit.depth > 0.25)
+      .map(([what, hit]) => `${what}: ${hit.depth.toFixed(2)} m in (${hit.bone}) at ${hit.t.toFixed(1)} s, ${hit.from.toFixed(1)} to ${hit.to.toFixed(1)} s, ${hit.shot}`);
+    assert.deepEqual(through, [], `at ${shape}`);
+  }
+});
+
+test('the white tree\'s trees stand round the valley\'s snag as they stood round their own: they stay as the place changes under her (the owner\'s bug reports of 2026-11-15)', async () => {
+  const { world } = await playWide();
+  const valley = world.forest;
+  const [sx, , sz] = valley.route.tree;
+  const plan = planOf(chapter, chapter.locations.hvitatre);
+  const snag = plan.placements.find(p => p.name === 'deadSnag' && Math.hypot(p.x - kafli4.SNAG[0], p.z - kafli4.SNAG[1]) < 0.01);
+  const [tx, tz] = placementInfo(snag).tip; // she sits on its top, and on the valley's snag as the place changes
+  const theirs = plan.placements.filter(p => SPECIES[p.name]?.tall && p !== snag);
+  assert.ok(theirs.length >= 60, `the white tree's patch has ${theirs.length} trees`);
+  const grown = valley.stats.sections.filter(Boolean).flatMap(part => part.userData.placements).filter(p => SPECIES[p.name]?.tall);
+  const same = (p, g) => g.name === p.name && g.variant === p.variant && Math.hypot(g.x - (p.x - tx + sx), g.z - (p.z - tz + sz)) < 0.01
+    && Math.abs(g.scale - p.scale) < 1e-9 && Math.abs(g.rot - p.rot) < 1e-9 && p.models.some(l => l.model.height === g.model.height);
+  const kept = theirs.filter(p => grown.some(g => same(p, g)));
+  const left = valley.stats.left;
+  const told = `${kept.length} of ${theirs.length} stand; left out: ${left.map(l => `${l.name} at ${l.x.toFixed(0)}, ${l.z.toFixed(0)} (${l.why})`).join(', ')}`;
+  assert.equal(kept.length + left.length, theirs.length, `each stands there, the same tree, or a rule of the valley's leaves it out: ${told}`);
+  // those left out are the flight's: she would fly through them as she leaps, or the camera behind her would see their crowns
+  assert.deepEqual(left.filter(l => !['her way', 'under her', 'a still shot'].includes(l.why)), [], told);
+  assert.ok(kept.length >= theirs.length * 0.75, told);
+  // and no tree of the valley's own among them: the patch is as it was
+  const reach = Math.max(...theirs.map(p => Math.hypot(p.x - tx, p.z - tz)));
+  const own = grown.filter(g => !g.own && Math.hypot(g.x - sx, g.z - sz) < reach);
+  assert.deepEqual(own.map(g => `${g.name} at ${g.x.toFixed(0)}, ${g.z.toFixed(0)}`), []);
 });
 
 test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {
@@ -947,11 +1017,40 @@ test('Mosi comes out of the reed, out of breath, to stand by Egill: "Ég… er�
   const shown = watched.pool.filter(f => f.mosiShown);
   assert.ok(shown.length > 0, 'Mosi is there');
   const from = shown[0].mosi, to = shown.at(-1).mosi;
-  assert.ok(Math.hypot(from.x - FAR_POOL.reed[0], from.z - FAR_POOL.reed[1]) < 1, `out of the reed: from ${from.x.toFixed(1)}, ${from.z.toFixed(1)}`);
+  assert.ok(Math.hypot(from.x - FAR_POOL.far[0], from.z - FAR_POOL.far[1]) < 1, `from far up the bank: from ${from.x.toFixed(1)}, ${from.z.toFixed(1)}`);
+  const throughReed = Math.min(...shown.map(f => Math.hypot(f.mosi.x - FAR_POOL.reed[0], f.mosi.z - FAR_POOL.reed[1])));
+  assert.ok(throughReed < 1, `through the reed: ${throughReed.toFixed(1)} m from its way`);
   assert.ok(Math.hypot(to.x - FAR_POOL.mosi[0], to.z - FAR_POOL.mosi[1]) < 1, `to Egill's side: ${to.x.toFixed(1)}, ${to.z.toFixed(1)}`);
   const seven = world.chapterTimeline.find(m => m.scene === 7).at;
   const arrived = seen.spokenAt.get('k4_mosi_arrived');
   assert.ok(arrived > seven && arrived >= c.landing.downAt, 'once Egill is down');
+});
+
+// The owner's bug report of 2026-11-15 ("hérna poppar Mosi inn, sést ekki koma labbandi"): he was put down by the reed, in the open,
+// in the middle of the bank's shot. A triceratops does not hide in a bed of reed: he is seen coming.
+test('Mosi is seen coming at a walk: there from the first frame of the bank\'s shot, far up the bank, and he never appears within a shot', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const first = watched.pool.findIndex(f => f.mosiShown);
+    assert.ok(first > 0, `Mosi is there (${shape})`);
+    const f = watched.pool[first], before = watched.pool[first - 1];
+    assert.equal(f.shot, 'pool_bank', `he shows in the bank's shot (${shape})`);
+    assert.notEqual(before.shot, 'pool_bank', `as the picture cuts to it, not within it (${shape}): he showed at ${f.t.toFixed(2)} s`);
+    const far = Math.hypot(f.mosi.x - FAR_POOL.mosi[0], f.mosi.z - FAR_POOL.mosi[1]);
+    assert.ok(far >= 15, `far up the bank, where his coming is a walk and not a step: ${far.toFixed(1)} m from his spot (${shape})`);
+    // in the frame from that first frame on, so the child sees him come (his head, over the reed)
+    const camera = new THREE.PerspectiveCamera(chapter.locations.ardalur.shots.pool_bank.fov, shape === 'upright' ? 0.625 : 1.6, 0.1, 1200);
+    camera.position.copy(f.camera);
+    camera.lookAt(new V3().fromArray(chapter.locations.ardalur.shots.pool_bank.target));
+    camera.updateMatrixWorld();
+    const p = f.mosiHead.clone().project(camera);
+    assert.ok(p.z < 1 && Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.9, `in the picture as it cuts: ${p.x.toFixed(2)}, ${p.y.toFixed(2)} (${shape})`);
+    // and every step from there to his spot is a walking step
+    const shown = watched.pool.slice(first).filter(g => g.mosiShown);
+    let longest = 0;
+    for (let i = 1; i < shown.length; i++) longest = Math.max(longest, Math.hypot(shown[i].mosi.x - shown[i - 1].mosi.x, shown[i].mosi.z - shown[i - 1].mosi.z));
+    assert.ok(longest < 0.12, `no jump on his way: his longest step in a frame is ${longest.toFixed(2)} m (${shape})`);
+  }
 });
 
 // Scene 7 (the life spec 2, scene 7; world/ardalur/life.js arrivals, kafli4-route.js FAR_POOL.gather): the small lizards, the grazers

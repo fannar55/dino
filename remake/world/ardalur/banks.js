@@ -290,10 +290,15 @@ export function outcropProps(route, heightAt) {
  * with `over` keeps out only plants taller than that, as life.js's herd's ways), `low`
  * the animal groups ({ x, z, side }) round which only low plants grow (LOW), `views` the still shots' (VIEW), `atlas` and `cards`
  * the far trees' pictures and their material (world/forest/cards.js: a tree that has one is drawn as it far off), `grove` the
- * valley's seed for its groves (groveAt: the trees of the near and far zones grow thick in them, thin in the glades). Returns { group,
- * placements, meshes }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time.
+ * valley's seed for its groves (groveAt: the trees of the near and far zones grow thick in them, thin in the glades). `trees` are a
+ * chapter's own trees ([{ name, variant, x, z, rot, scale, models }], the models its own, finest first as a placement's: chapter 4 has the white tree's patch
+ * stand round the valley's snag as it stands round its own, so the trees behind her stay as the place changes): each stands as it
+ * is given where the valley lets a tree stand (not in water or on a steep, not in her way or under her, not in a still shot's view
+ * or where something is kept clear), and no tree of the valley's own grows within a `treeless` circle ({ x, z, r }). Returns { group,
+ * placements, meshes, left }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time, and
+ * the `trees` of this section that may not stand ({ name, x, z, why }).
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null, grove = null }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null, grove = null, trees = [], treeless = [] }) {
   const lines = linesOf(views);
   const meadow = route.land?.meadow ?? null;
   const { own, grid: { gx0, gz0, W } } = ground;
@@ -335,6 +340,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     } else {
       if (terrain.where(px, pz).e < 0.3 || steep(px, pz)) return;
       if (Math.hypot(px - route.tree[0], pz - route.tree[2]) < SNAG_CLEAR) return;
+      if (TREES.has(name) && treeless.some(c => Math.hypot(px - c.x, pz - c.z) < c.r)) return; // a chapter's own trees stand there
       y = terrain.heightAt(px, pz);
     }
     const coarse = yield* library.getSteps(name, variant, 2, {});
@@ -462,10 +468,38 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky: 0.9, d,
     });
   }
+  // a chapter's own trees, those that stand in this section's own cells: each as it is given, where the valley lets a tree stand
+  const left = [];
+  for (const tree of trees) {
+    const i = Math.floor(tree.x / GRID) - gx0;
+    const j = Math.floor(tree.z / GRID) - gz0;
+    if (i < 0 || j < 0 || i >= cellsAcross || j >= rows || !own[j * cellsAcross + i]) continue;
+    const { name, models, scale, x, z } = tree;
+    const { model } = models[0];
+    const y = terrain.heightAt(x, z);
+    const body = bodyOf(model, scale);
+    const w = terrain.where(x, z);
+    const why = w.e < 0.3 ? 'water' : steep(x, z) ? 'steep'
+      : Math.hypot(x - route.tree[0], z - route.tree[2]) < SNAG_CLEAR ? 'the snag'
+        : inHerWay(index, x, y, z, body.r, body.h, near) ? 'her way'
+          : clear.some(c => (c.over === undefined || body.h > c.over) && Math.hypot(x - c.x, z - c.z) < c.r + body.r) ? 'kept clear'
+            : underHer(high, x, z, y + body.h, body.r) ? 'under her'
+              : inView(views, lines, x, y - (model.sink ?? 0) * scale, z, body.r, body.h) ? 'a still shot' : null;
+    if (why) {
+      left.push({ name, x, z, why });
+      continue;
+    }
+    placements.push({
+      name, model, models, variant: tree.variant, lod: models[0].level, x, y: y - (model.sink ?? 0) * scale, z,
+      rot: tree.rot, scale, phase: tree.phase ?? 0.5, band: 'near', sector: aboveTheFalls(route, w.d) ? ABOVE_SECTOR : 0, sky: tree.sky ?? FEN.sky, d: w.d,
+      card: null, own: true,
+    });
+  }
   // the budget: the grove plants where the grove is thinnest go first while the section would draw more than GROVE.budget
   const finest = p => { const m = p.models[0].model; return (m.solid ? m.solid.triangles : 0) + (m.thin ? m.thin.triangles : 0); };
   const groundIndex = ground.mesh?.geometry?.index;
-  let cost = (groundIndex ? groundIndex.count / 3 : 0) + placements.reduce((sum, p) => sum + finest(p), 0);
+  // (a chapter's own trees are not the groves' to pay for: the valley keeps its groves as they are without them)
+  let cost = (groundIndex ? groundIndex.count / 3 : 0) + placements.reduce((sum, p) => sum + (p.own ? 0 : finest(p)), 0);
   if (cost > GROVE.budget) {
     const drop = new Set();
     for (const p of placements.filter(q => q.grove !== undefined).sort((a, b) => a.grove - b.grove)) {
@@ -493,5 +527,5 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     mesh.name = mesh.name.replace('Forest', 'Árdalur');
     group.add(mesh);
   }
-  return { group, placements, meshes };
+  return { group, placements, meshes, left };
 }

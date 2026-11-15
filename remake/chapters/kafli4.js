@@ -34,6 +34,10 @@ import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong } from './kafl
 import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
 import { splash as splashOf, splashWarm } from '../world/props/splash.js';
 import { createArdalur } from '../world/ardalur/index.js';
+import { shapeGround, placementInfo } from '../world/forest/forest.js';
+import { planForest } from '../world/forest/plan.js';
+import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
+import { PRESETS } from '../engine/quality.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
 import { createFlierSaddle } from '../engine/flier-saddle.js';
@@ -56,15 +60,19 @@ const MOSI_FEN = FEN.layout.actors.mosi; // [8, 0, -3.5], facing her head
 const onHer = ([x, y, z]) => ({ actor: 'thorsedla', part: 'feet', offset: [x - THORSEDLA.position[0], y, z - THORSEDLA.position[2]], local: true });
 
 // Scene 1's way out of the Fen: east of her two conifers, north over the channel (Mosi wades it), toward the white snag far off
-// (chapter 3's FEN_FAR.flugedla, 102 m north-west). The picture fades to the white tree on the way.
-const FEN_WAY = [[11.6, -5.6], [13, -12], [12.2, -19], [8.5, -26]];
+// (chapter 3's FEN_FAR.flugedla, 102 m north-west). The picture fades to the white tree on the way. The nearer conifer (at 9, -7)
+// reaches 4.1 m from its trunk at his height and he is 3.3 m wide, and from his hummock (3.6 m from the trunk) there is no way to
+// turn north that does not sweep his head or his tail through it (the owner's bug report of 2026-11-15: 2 m into it). So the
+// walk's shot comes up on him already under way (FEN_OFF), over the two dry hummocks east of the tree, 6 m and more from its trunk.
+const FEN_OFF = [15.2, -3.2]; // where the walk's shot finds him, a few steps on from his hummock, round the conifer
+const FEN_WAY = [[15.6, -9], [14.6, -15], [12.2, -20.5], [8.5, -26]];
 const FEN_SHOTS = {
   // Scene 1: the pond as they leave. From the bank north of her pool, low, with the sun from the side: Þórseðla at the left, her
   // neck reaching across to Mosi with Egill in the saddle at the right, her two conifers behind them, nothing in front.
   fen_farewell: { position: onHer([-3, 2.4, 8]), target: onHer([4, 4, -6]), fov: 46 },
-  // Scene 1: the walk across the Fen. From the hummock behind them, looking north along their way: they go off into the open Fen,
-  // past her neck, toward the white snag on the far side.
-  fen_crossing: { position: onHer([12.5, 1.9, 3.5]), target: onHer([9, 3.2, -24]), fov: 46 },
+  // Scene 1: the walk across the Fen. From behind them, looking north along their way: they go off into the open Fen, her nearer
+  // conifer at the left, toward the white snag on the far side.
+  fen_crossing: { position: onHer([16.5, 1.9, 5]), target: onHer([13.5, 3.2, -24]), fov: 46 },
 };
 
 const FEN_WARM = ['fen_farewell', 'fen_crossing']; // the Fen's views the warm-up draws from, besides the start shot
@@ -254,8 +262,9 @@ function* goodbyeAtThePool(s, c) {
   // and they go, north out of the Fen toward the white snag, while the picture fades to it
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
-  yield s.camera.cut('fen_crossing');
+  mosi.place(FEN_OFF[0], FEN_OFF[1], headingTo(FEN_OFF, FEN_WAY[0])); // under way as the shot comes up, clear of her conifer
   c.fenWalk = mosi.walkTo(FEN_WAY, { speed: 1.25, turnRate: 50 });
+  yield s.camera.cut('fen_crossing');
   yield s.wait(7.5);
 }
 
@@ -483,6 +492,13 @@ function* atTheFarPool(s, c) {
   s.after(HAPPY, () => { her.play('idle', { fade: 0.8 }); return null; });
   // she stands in the shallows, close now, and Egill on her back laughs at the splash
   yield s.wait(0.3);
+  // Mosi, who ran all the way: far up the bank behind them from the first frame of the bank's shot, coming at a walk, out of breath.
+  // He is seen coming the whole way (the owner's bug report of 2026-11-15: he was put down by the reed in the middle of the shot,
+  // and a triceratops does not hide in a bed of reed).
+  mosi.place(FAR_POOL.far[0], FAR_POOL.far[1], headingTo(FAR_POOL.far, FAR_POOL.reed));
+  mosi.raw.root.visible = true;
+  const out = mosi.walkTo([FAR_POOL.reed, FAR_POOL.mosi], { speed: TIRED, turnRate: 40 });
+  mosi.lookAt(LOW_AHEAD, { weight: 0.5, maxPitch: 30 }); // his head low: out of breath
   yield s.camera.cut('pool_bank');
   yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 45 });
   yield* say(s, c, 'egill', 'k4_egill_laugh2');
@@ -496,15 +512,11 @@ function* atTheFarPool(s, c) {
   c.landing.downAt = s.time;
   yield egill.lookAt(FLUGEDLA_HEAD, { weight: 0.8, maxAngle: 70, maxPitch: 50 });
   yield* say(s, c, 'egill', 'k4_egill_thanks'); // the juice review
-  yield s.wait(WHERE_IS_MOSI);
-  const reed = FAR_POOL.reed;
-  mosi.place(reed[0], reed[1], headingTo(reed, FAR_POOL.mosi));
-  mosi.raw.root.visible = true;
-  const out = mosi.walkTo([FAR_POOL.mosi], { speed: TIRED, turnRate: 40 });
-  yield mosi.lookAt(LOW_AHEAD, { weight: 0.5, maxPitch: 30 }); // his head low: out of breath
-  yield s.wait(0.5);
+  // Mosi comes on through the reed behind him: Egill turns to him as he comes out of it, and he says he is here
+  const toHisSpot = () => Math.hypot(mosi.raw.root.position.x - FAR_POOL.mosi[0], mosi.raw.root.position.z - FAR_POOL.mosi[1]);
+  yield s.until(() => toHisSpot() <= OUT_OF_THE_REED);
   yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 30 });
-  yield s.wait(OUT_OF_THE_REED);
+  yield s.wait(0.5);
   yield* say(s, c, 'mosi', 'k4_mosi_arrived');
   yield out;
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
@@ -553,8 +565,7 @@ function* atTheFarPool(s, c) {
   yield s.wait(BOOK_HOLD);
 }
 const FLOAT_DOWN = 2.6; // seconds Egill floats from her back onto the bank
-const WHERE_IS_MOSI = 1.8; // seconds Egill stands on the bank, looking up at her, before Mosi comes out of the reed
-const OUT_OF_THE_REED = 1.2; // seconds Mosi walks before he says he is here
+const OUT_OF_THE_REED = 4.2; // m from his spot, coming out of the reed (its bed ends about there), where Egill turns to him and he says he is here
 const TIRED = 1.1; // m/s: Mosi walks out of the reed, out of breath (he walks at 1.3)
 const LOW_AHEAD = { actor: 'mosi', part: 'feet', offset: [7, 0.3, 0], local: true }; // where he looks as he gets his breath: the ground ahead
 const BREATH = 2.4; // seconds Mosi gets his breath before the horn
@@ -644,22 +655,33 @@ function circlePoints(c) {
   return points;
 }
 
-/** From the top out east, away from the camera behind Mosi, round south of them, and in onto the ground at Mosi's left, facing as he does. */
+/**
+ * From the top the way she faces, out over Mosi and Egill, round behind them in the open air south-west of him, and in onto the
+ * ground at Mosi's left, facing as he does. The patch's conifers stand east and south of them (the nearest at 12.1, -6.7, its
+ * boughs 4.5 m out from its trunk, and her wings 7.5 m across): the way round east of Mosi went through three of them (the owner's
+ * bug report of 2026-11-15). This way keeps her wings a metre and more from every tree (kafli4.test.mjs), 6 m from the camera
+ * behind Mosi and 4 m over his back.
+ */
 function downPoints(c, board) {
   const top = c.perch.top;
   const ground = c.world.heightAt.bind(c.world);
   const at = (x, z, over) => [x, ground(x, z) + over, z];
-  return [top.toArray(), at(14, 1, 8), at(12, -7, 5.5), at(5, -10.5, 3.2), at(0.2, -8.2, 1.6), board.toArray()];
+  return [top.toArray(), at(4.5, 1, 8.2), at(-4.2, -4, 5.6), at(-4.8, -8, 4.2), at(-2.4, -11, 3), at(1, -10.2, 1.9), at(2.8, -7.4, 1), board.toArray()];
 }
 
-/** From her place by Mosi up beside the tree and round onto its top from the south-east, along the way she will leap. */
+/**
+ * From her place by Mosi straight up to the top of the tree, steeply, and down onto it from a little over it; she turns on it to
+ * face the way she will leap as she lands (flyPath's `face`). The straight way is the one her wings have room on: the nearest
+ * conifer's boughs (at 12.1, -6.7, 4.5 m out from its trunk) are 8.5 m and more from it all the way up. The way round onto the top
+ * from the south-east went through that conifer (the owner's bug report of 2026-11-15).
+ */
 function upPoints(c, board) {
   const top = c.perch.top;
   const ground = c.world.heightAt.bind(c.world);
   const at = (x, z, over) => [x, ground(x, z) + over, z];
-  const away = rad(c.leapHeading); // she comes onto the top along this heading
-  const before = (metres, over) => [top.x - metres * Math.cos(away), top.y + over, top.z - metres * Math.sin(away)];
-  return [board.toArray(), at(6.6, -3.0, 2.2), at(11.8, -2.6, 6.4), before(5.5, 1.6), top.toArray()];
+  const way = Math.atan2(top.z - board.z, top.x - board.x);
+  const short = (metres, over) => [top.x - metres * Math.cos(way), top.y + over, top.z - metres * Math.sin(way)]; // short of the top, over it
+  return [board.toArray(), at(4.3, -2.9, 3.4), at(5.6, -0.6, 7.2), short(2.4, 1.5), top.toArray()];
 }
 
 /**
@@ -749,6 +771,34 @@ async function readyTheValley(s, c) {
 const CALM = 0.08; // the wind's strength at the white tree before Egill makes some (engine/wind.js: 1 is the forest's)
 const ROUTE = createRoute({ wingspan: 7.5 }); // the flight's way through Árdalurinn (kafli4-route.js), at her size
 
+/**
+ * The white tree's trees, for the valley to stand round its own snag (world/ardalur: `trees` and `treeless`). The place changes to
+ * the valley under the close-up of Egill on her back, and the valley had nine trees of its own where the white tree's patch has
+ * seventy: nearly all the trees behind them vanished in a frame, and stayed gone as she flew off (the owner's bug reports of
+ * 2026-11-15). The patch is planned here as its own place plans it (world/forest/forest.js forestSteps: the same ground, seed and
+ * quality, so the same plants in the same places and shapes), and each of its trees is moved as she is: the top of the white snag
+ * there is the valley's snag. The valley leaves out those in her way or in a still shot's view (stats.left) and grows no tree of
+ * its own among them.
+ */
+export function whiteTreesFor(world) {
+  const place = chapter.locations.hvitatre;
+  const seed = place.layout.seed >>> 0;
+  const of = { chapter };
+  const { layout, terrain } = shapeGround(of, { ...place.layout, shots: place.shots }, seed);
+  const plan = planForest({ world: of, layout, seed, terrain, library: createSpeciesLibrary(seed), q: world.q ?? PRESETS.tablet }); // (a test's world has no quality: the tablet's, as its forests)
+  const snag = plan.placements.find(p => p.name === 'deadSnag' && Math.hypot(p.x - SNAG[0], p.z - SNAG[1]) < 1.5);
+  const [tx, tz] = placementInfo(snag).tip ?? [snag.x, snag.z];
+  const [sx, , sz] = ROUTE.tree;
+  // each with its levels of detail from the middle one on, as the valley draws its own trees: the finest is for a camera within
+  // 10 m (world/forest/config.js FOREST.lod), and none comes that near them here
+  const trees = plan.placements.filter(p => SPECIES[p.name]?.tall && p !== snag).map(p => {
+    const models = p.models.some(l => l.level >= 1) ? p.models.filter(l => l.level >= 1) : p.models;
+    return { name: p.name, variant: p.variant, x: p.x - tx + sx, z: p.z - tz + sz, rot: p.rot, scale: p.scale, models, phase: p.phase, sky: p.sky };
+  });
+  const reach = Math.max(...trees.map(t => Math.hypot(t.x - sx, t.z - sz)));
+  return { trees, treeless: [{ x: sx, z: sz, r: reach + 0.01 }] };
+}
+
 /** Less motion: the page's ask (prefers-reduced-motion), ?reduced=1, or what a test's world says. */
 function reducedMotion(world) {
   if (typeof world.reduced === 'boolean') return world.reduced;
@@ -805,7 +855,9 @@ export const chapter = {
     // the wait for the start button).
     ardalur: {
       // the owner's small lizard first (world/ardalur/animals.js: loadCritters), so C's lizards are his from their first frame
-      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world) }), shots: FAR_POOL.shots, warmUp: [],
+      // and the white tree's trees round its snag (whiteTreesFor), and Mosi's way in to the far pool clear (FAR_POOL.wayIn)
+      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world), keep: FAR_POOL.wayIn, ...whiteTreesFor(world) }),
+      shots: FAR_POOL.shots, warmUp: [],
       async ready(world, valley) {
         valley.farLand?.prefetch();
         await valley.farLand?.load();

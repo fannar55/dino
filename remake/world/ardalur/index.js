@@ -42,8 +42,11 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
  * null: none wanted round the snag). `views` ({ position, looks }: Vector3s) are a still camera's lines of sight more, kept clear of
  * plants as the flight's are (banks.js VIEW), and `keep` ({ x, z, r }) spots where nothing grows: that chapter's own shots and spots.
  * `choir` is chapter 5's life at the pool (chapters/kafli5-pool.js POOL_LIFE: life.js createLife's `choir`), made with the valley.
+ * `trees` are a chapter's own trees, standing in the valley as given where its rules let a tree stand, and `treeless` circles
+ * ({ x, z, r }) where no tree of the valley's own grows (banks.js plantSteps; chapter 4: the white tree's patch round the snag);
+ * stats.left lists those of `trees` that may not stand.
  */
-export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [], choir = null } = {}) {
+export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [], choir = null, trees = [], treeless = [] } = {}) {
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
@@ -167,7 +170,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const haze = real ? createHazeSight(world) : null;
   const hideHazed = (range, mesh) => mesh.userData.band === 'far' && haze.hidden(world.camera.position, range.sphere);
   const hideBoth = (range, mesh) => hideHazed(range, mesh) || hideAbove(range, mesh);
-  const stats = { late: [], built: [], sections: parts };
+  const stats = { late: [], built: [], sections: parts, left: [] };
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
     const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
@@ -175,7 +178,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
         terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
-        atlas: real.atlas, cards: real.cards, grove: seed,
+        atlas: real.atlas, cards: real.cards, grove: seed, trees, treeless,
       });
     return { ground, banks };
   }
@@ -184,6 +187,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     part.name = `Árdalur section ${i}`;
     part.add(ground.mesh, banks.group);
     part.userData.placements = banks.placements ?? [];
+    stats.left.push(...(banks.left ?? []));
     plantMeshes[i] = banks.meshes ?? [];
     groundMeshes[i] = ground.mesh;
     // after the plants (3): from above, the crowns cover much of it, and early depth testing then skips the ground under them
