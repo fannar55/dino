@@ -38,7 +38,7 @@ export const CALL_SHOTS = [
   { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: 6, above: 1.2, aside: 4, look: 0.35, fov: 56 } },
   // the run-along (in place of the chase and the side shot of 72-80): a plain call shot till it has its moving stand; her call is to
   // lizards-2 too (`also`: groups that hear the row's call), just down the bank
-  { id: 'kall-hlaup', shot: 'call', group: 'lizards-3', also: ['lizards-2'], from: 72.2, call: 73.6, pass: 76.01, to: 80, options: { back: 5, above: 1.2, aside: 7, look: 0.25, fov: 50 } },
+  { id: 'kall-hlaup', shot: 'call', group: 'lizards-3', also: ['lizards-2'], from: 72.2, call: 73.6, pass: 76.01, to: 80, options: { back: 5, above: 1.2, aside: 7, look: 0.25, fov: 46 } },
 ];
 
 /**

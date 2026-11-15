@@ -108,7 +108,7 @@ test('fish jump ahead of her in her lane, once each', () => {
 test('birds fly up from the bank trees as she passes', () => {
   const { life, step } = made();
   const trees = life.props.filter(p => p.name === 'broadleaf');
-  assert.equal(trees.length, 6);
+  assert.equal(trees.length, 5); // none in the 14 m between lizards-2 and lizards-3 (life.js PERCHES)
   const groupsAt = route.groups.map(g => route.river.nearest(g.at[0], g.at[2]).d);
   for (const p of trees) {
     const w = terrain.where(p.x, p.z);
@@ -116,7 +116,7 @@ test('birds fly up from the bank trees as she passes', () => {
     assert.ok(w.d > groupsAt[0] && w.d < groupsAt.at(-1) && groupsAt.every(d => Math.abs(d - w.d) >= 15), `a tree between the groups (d ${w.d.toFixed(0)})`);
   }
   const birds = life.things.filter(t => t.kind === 'bird' && t.id.startsWith('tree-'));
-  assert.equal(birds.length, 24);
+  assert.equal(birds.length, 20);
   for (const b of birds) {
     assert.ok(b.trigger > BEATS.C && b.trigger < BEATS.D, `${b.id} flies up in C (${b.trigger.toFixed(2)} s)`);
     assert.ok(herAt(b.trigger).distanceTo(b.at) <= 20 + 1e-3, `${b.id}: she is within 20 m when it flies up`);

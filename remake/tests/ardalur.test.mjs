@@ -1260,7 +1260,8 @@ test('a group that hears her looks up at once: the small lizards\' look eases in
   const farAt = passes(route.groups.find(r => r.id === far.id).u) - 2.4;
   pose(farAt);
   assert.ok(far.members.every(m => weight(m, 'look') < 0.05), 'lizards-3 has not heard her: heads down while she is still far');
-  // the answer takes over: they run
+  // the answer takes over: they run (answered at at + 2.4: answer() starts at the world's clock)
+  pose(at + 2.4);
   g.answer();
   pose(at + 4);
   g.members.forEach((m, k) => assert.ok(!m.visible || Math.abs(weight(m, 'run') - 1) < 1e-6, `${k}: runs (${weight(m, 'run').toFixed(2)})`));
