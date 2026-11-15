@@ -201,6 +201,17 @@ test('call shots frame the group and her pass at both sizes, and stand still', (
     }
     world.camera.aspect = 1.6;
     world.camera.updateProjectionMatrix();
+    // no land between the camera and the group, nor between it and her from her call to a second after her pass
+    const lands = (a, b) => {
+      const d = a.distanceTo(b);
+      for (let s = 0.5; s < d - 0.5; s += 0.25) {
+        const p = a.clone().lerp(b, s / d);
+        if (p.y < world.heightAt(p.x, p.z) + 0.1) return true;
+      }
+      return false;
+    };
+    assert.ok(!lands(position, middle), `${row.id}: land between the camera and the group`);
+    for (let t = row.call; t <= row.pass + 1; t += 0.25) assert.ok(!lands(position, herAt(t)), `${row.id}: land between the camera and her at ${t.toFixed(2)} s`);
     to(row.to - 0.05);
     assert.ok(director.rig.position.distanceTo(position) < 1e-9 && director.rig.target.distanceTo(target) < 1e-9, `${row.id}: a still frame`);
     assert.deepEqual(flight(), [], `${row.id} keeps the rules`);

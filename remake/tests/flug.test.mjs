@@ -64,8 +64,10 @@ function watcher({ at = [] } = {}) {
     seen.banks.push(c.flier.bank);
     seen.u.push({ t, u: c.flier.u, beat: c.flight.beat });
     seen.camera.push({ t, shot: c.camera.current, position: director.rig.position.clone(), her: c.flier.pose.position.clone() });
-    // twice a second: her and Egill whole in the frame, their heads above the bottom 30 %, on 16:10 and on an upright tablet
-    if (Math.floor(t * 2) !== lastLook && c.camera.current) {
+    // twice a second: her and Egill whole in the frame, their heads above the bottom 30 %, on 16:10 and on an upright tablet. Not in a
+    // call shot: its still frame is the group's, which she comes into and sweeps through (tests/flight-camera.test.mjs frames the
+    // group and her pass in it at both sizes, with no land between)
+    if (Math.floor(t * 2) !== lastLook && c.camera.current && c.camera.current !== 'call') {
       lastLook = Math.floor(t * 2);
       seen.looked++;
       for (const problem of framing(world, director)) seen.framing.push(`t=${t.toFixed(1)} ${c.camera.current}: ${problem}`);
@@ -136,7 +138,7 @@ test('the flight plays unattended to the end with no warnings', () => {
 });
 
 test('every frame of the flight shows her and Egill, on 16:10 and on an upright tablet', () => {
-  assert.ok(full.seen.looked > 300, `looked at ${full.seen.looked} frames`);
+  assert.ok(full.seen.looked > 250, `looked at ${full.seen.looked} frames`); // twice a second, a call shot only as she passes
   assert.deepEqual(full.seen.framing, []);
 });
 
@@ -150,7 +152,7 @@ test('every shot of spec 5 is used, in its beat', () => {
   const shots = new Map(); // shot -> the beats it is used in
   for (const { t, shot } of full.seen.camera) if (shot) (shots.get(shot) ?? shots.set(shot, new Set()).get(shot)).add(run.world.chapterState.route.beatAt(t));
   const want = {
-    face: ['A', 'D'], belowTakeOff: ['A'], chase: ['B', 'C', 'D', 'E', 'G'], waterLevel: ['B', 'C'], bankShadow: ['C'], mosiBank: ['C'],
+    face: ['A', 'D'], belowTakeOff: ['A'], chase: ['B', 'C', 'D', 'E', 'G'], waterLevel: ['B'], call: ['C'], mosiBank: ['C'],
     gorgeHigh: ['D'], mosiRim: ['D'], fallsSide: ['E'], fallsTop: ['E'], vista: ['F'], orbit: ['F'],
   };
   for (const [shot, beats] of Object.entries(want)) {

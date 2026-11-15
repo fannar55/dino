@@ -12,7 +12,7 @@ import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
-import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js';
+import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
 import { createTreeProbe, plantVolumes, reachInto } from '../engine/tree-probe.js';
@@ -222,7 +222,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -316,9 +316,10 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           });
         }
       }
-      // the shadow shot (the flight camera's bankShadow): how large the lizards it is about look, as she passes them
-      if (c?.flight?.camera?.current === 'bankShadow' && world.forest?.animals) {
-        const group = world.forest.animals.groups.find(g => g.id === 'lizards-2');
+      // a call shot (the route's CALL_SHOTS): how large the group it is about looks, as she passes it
+      const calling = c?.flight?.camera?.current === 'call' ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      if (calling && world.forest?.animals) {
+        const group = world.forest.animals.groups.find(g => g.id === calling.group);
         world.camera.updateMatrixWorld();
         // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame
         let low = Infinity, high = -Infinity;
@@ -331,7 +332,7 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         }
         const size = high > low ? (Math.min(high, 1) - Math.max(low, -1)) / 2 : 0;
         const at = her.root.position;
-        seen.shadow.push({ t: world.clock.time, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera) });
+        seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera) });
       }
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
@@ -785,13 +786,19 @@ test('the lizards of C are the owner\'s small lizard, loaded before the valley i
   assert.ok(lizards.every(g => g.members.every(m => m.kind === 'smaedla')), lizards.map(g => `${g.id}: ${g.members[0].kind}`).join(', '));
 });
 
-test('the shadow shot frames the lizards it is about: the group at least 8 % of the frame\'s height as she passes', async () => {
-  const { watched } = await playWide();
-  assert.ok(watched.shadow.length > 30, `the shadow shot is seen (${watched.shadow.length} frames)`);
-  const closest = watched.shadow.reduce((a, b) => (b.near < a.near ? b : a));
-  const { middle } = closest;
-  assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `the group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
-  assert.ok(closest.size >= 0.08, `the group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+test('each call shot frames the group it is about: the group at least 8 % of the frame\'s height as she passes', async (t) => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    for (const row of CALL_SHOTS.filter(r => r.shot === 'call')) {
+      const frames = watched.calls.filter(f => f.id === row.id);
+      assert.ok(frames.length > 30, `${shape}: ${row.id} is seen (${frames.length} frames)`);
+      const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
+      const { middle } = closest;
+      t.diagnostic(`${shape} ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${middle.x.toFixed(2)}, ${middle.y.toFixed(2)}`);
+      assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `${shape}: ${row.id}'s group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
+      assert.ok(closest.size >= 0.08, `${shape}: ${row.id}'s group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+    }
+  }
 });
 
 // F and G (the life spec 2F, 2G; world/ardalur/life.js): after the big call the rows of small lizards stream toward the far pool where
