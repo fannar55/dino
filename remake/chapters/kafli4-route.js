@@ -57,8 +57,9 @@ export const CALL_SHOTS = [
     options: { path: [[-928.4, 124.0], [-957.9, 128.9]], move: 74.2, above: 1.2, group: 'lizards-2', look: 0.3, fov: 44 },
   },
   // on the ledge beside a flyer (in place of gorgeHigh): nest 5, the south wall 17 m over the river; she is far down the gorge as it
-  // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends
-  { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 8, out: 1.5, above: 2, look: 0.3, fov: 46 } },
+  // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends.
+  // It stands 2.5 m out from the wall, so the flyer leaving her way keeps 2 m off the line to Egill as it goes by (2.5 m at 95.8 s)
+  { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 9, out: 2.5, above: 2, look: 0.3, fov: 46 } },
   // down among the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
   // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands 10 m to the left (seen from her pass), so
   // she comes into its frame after the flyer of nest 4, wheeling round her, has crossed the line to Egill (137.2 s)
