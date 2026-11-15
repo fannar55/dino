@@ -49,12 +49,12 @@ export const CALL_SHOTS = [
   // the run-along (in place of the chase and the side shot of 72-80): her call is to lizards-2 too (`also`: groups that hear the
   // row's call), just down the bank. The stand waits with them, heads down, till they run at once (0.6 s after the call: `move`),
   // 33 m up the bank in 5.5 s (to d 859, short of the steep rise at 864), and goes with them on the bank behind them (river metres
-  // 820 to 850, 9.5 m from the water), 30 m in 5.8 s; she comes over them, lizards-3 join as she passes them and the first runners
+  // 828 to 858, 8.5 m from the water), 30 m in 5.8 s; she comes over them, lizards-3 join as she passes them and the first runners
   // come by, and she flies on ahead
   {
     id: 'kall-hlaup', shot: 'runAlong', group: 'lizards-3', also: ['lizards-2'], early: { 'lizards-2': { metres: 33, seconds: 5.5 } },
     from: 72.2, call: 73.6, pass: 76.01, to: 80,
-    options: { path: [[-920.6, 121.7], [-950.2, 126.6]], move: 74.2, above: 1.2, group: 'lizards-2', look: 0.3, fov: 48 },
+    options: { path: [[-928.4, 124.0], [-957.9, 128.9]], move: 74.2, above: 1.2, group: 'lizards-2', look: 0.3, fov: 44 },
   },
   // on the ledge beside a flyer (in place of gorgeHigh): nest 5, the south wall 17 m over the river; she is far down the gorge as it
   // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends

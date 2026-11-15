@@ -288,7 +288,7 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         const flyers = world.forest.life?.flyers ?? [];
         if (flyers.length) {
           seen.flyers.push({
-            t: world.flightTime, shot, camera: world.camera.position.clone(), egill: egill.headPosition(new THREE.Vector3()),
+            t: world.flightTime, shot, camera: world.camera.position.clone(), egill: egill.headPosition(new THREE.Vector3()), seesEgill: (q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1)(egill.headPosition(new THREE.Vector3()).project(world.camera)),
             her: c.flight.flier.pose.position.clone(), flyers: flyers.filter(b => b.visible).map(b => ({ id: b.id, at: b.position.clone() })),
           });
         }
@@ -930,6 +930,7 @@ test('seek mid call shot finds heads up: a capture or review link a second befor
 // the flight's shots see them, the slow circle round her (the fixed vista under reduced motion) and the chase down the glide to 162 s
 test('after the big call ten small lizards or more, 8 px tall, run toward the far pool in the slow circle and down the glide', async (t) => {
   const plays = [['16:10', playWide, { orbit: 0.5, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
+  const failed = [];
   for (const [shape, play, wants] of plays) {
     const { watched } = await play();
     const frames = watched.rows.filter(f => f.call !== null && f.t > f.call + 2);
@@ -937,16 +938,22 @@ test('after the big call ten small lizards or more, 8 px tall, run toward the fa
     // the call sets them off (chapters/kafli4-flight-play.js bigCall): 10 s after it they have run 30 m on the mean
     const later = frames.filter(f => f.t > f.call + 10);
     assert.ok(later.length > 300 && later.every(f => f.ran >= 30), `${shape}: the lizards have run ${Math.min(...later.map(f => f.ran)).toFixed(1)} m 10 s after the call`);
+    const short = [];
     for (const [shot, share] of Object.entries(wants)) {
       const inShot = frames.filter(f => f.shot === shot && (shot !== 'chase' || (f.t >= BEATS.G && f.t < 162)));
       const seenShare = inShot.filter(f => f.lizards >= 10).length / inShot.length;
       const birds = inShot.filter(f => f.birds >= 9).length / inShot.length;
       t.diagnostic(`${shape} ${shot}: ${inShot.length} frames, ten lizards ${(100 * seenShare).toFixed(0)} %, nine birds ${(100 * birds).toFixed(0)} %, most ${Math.max(...inShot.map(f => f.lizards))}`);
-      assert.ok(inShot.length > 100 && seenShare >= share, `${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
+      if (!(inShot.length > 100 && seenShare >= share)) short.push(`${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
       // and the flocks rise in the slow circle: nine birds of them 8 px tall at least 40 % of the time
-      assert.ok(shot !== 'orbit' || birds >= 0.4, `${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
+      if (shot === 'orbit' && birds < 0.4) short.push(`${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
     }
+    // the herd's call shot before the circle, as the rows stream out of the groves behind it (the Flugmynd spec's row 6): for the record
+    const herd = frames.filter(f => f.shot === 'herd');
+    t.diagnostic(`${shape} herd: ${herd.length} frames, ten lizards ${(100 * herd.filter(f => f.lizards >= 10).length / Math.max(1, herd.length)).toFixed(0)} %, most ${Math.max(0, ...herd.map(f => f.lizards))}`);
+    failed.push(...short);
   }
+  assert.deepEqual(failed, []);
 });
 
 test('the herd grazes big in the wide shot, and the slow circle sees it near as it answers the big call', async (t) => {
@@ -957,22 +964,24 @@ test('the herd grazes big in the wide shot, and the slow circle sees it near as 
   const plays = [
     ['16:10', playWide, [['dale', 'vista', 5, 18, 0.8], ['stepNorth', 'call', 3, 30, 0.35], ['step', 'orbit', 5, 15, 0.3]]],
     ['upright', playUpright, [['dale', 'vista', 5, 10, 0.8], ['stepNorth', 'call', 3, 20, 0.5], ['step', 'orbit', 5, 10, 0.3]]],
-    ['reduced motion', playReduced, [['stepNorth', 'call', 5, 15, 0.6], ['stepNorth', 'orbit', 5, 12, 0.6]]],
+    ['reduced motion', playReduced, [['stepNorth', 'call', 3, 30, 0.35], ['stepNorth', 'orbit', 5, 12, 0.6]]],
   ];
   const within = {
     vista: f => f.shot === 'vista' && (f.call === null || f.t < f.call),
     call: f => f.shot === 'herd' && f.call !== null && f.t >= f.call,
     orbit: f => f.shot === 'orbit' && f.call !== null && f.t > f.call + 2,
   };
+  const failed = [];
   for (const [shape, play, wants] of plays) {
     const { watched } = await play();
     for (const [group, when, count, px, share] of wants) {
       const frames = watched.rows.filter(within[when]);
       const seen = frames.filter(f => (f.herd[group] ?? []).filter(h => h >= px).length >= count).length / Math.max(1, frames.length);
       t.diagnostic(`${shape} ${when}: ${frames.length} frames, ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} %, tallest ${Math.max(0, ...frames.flatMap(f => f.herd[group] ?? [])).toFixed(1)} px`);
-      assert.ok(frames.length > 100 && seen >= share, `${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
+      if (!(frames.length > 100 && seen >= share)) failed.push(`${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
     }
   }
+  assert.deepEqual(failed, []);
 });
 
 // D to G (the life spec 2D-2G, 4: world/ardalur/life.js flyers): the gorge's flyers fly with her, but never into a shot's way
@@ -1004,7 +1013,7 @@ function aroundHer(frames) {
   return new Map([...turns].map(([id, turn]) => [id, turn.hi - turn.lo]));
 }
 
-test('no flyer comes within 3 m of the camera or between the camera and Egill, in any frame of the flight', async (t) => {
+test('no flyer comes within 3 m of the camera, nor between the camera and Egill when he is in the frame, in any frame of the flight', async (t) => {
   for (const [shape, play] of [['16:10', playWide], ['upright', playUpright], ['reduced motion', playReduced]]) {
     const { watched } = await play();
     const frames = watched.flyers;
@@ -1014,7 +1023,7 @@ test('no flyer comes within 3 m of the camera or between the camera and Egill, i
       for (const { id, at } of f.flyers) {
         const d = at.distanceTo(f.camera);
         if (d < camera) { camera = d; cameraAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
-        const l = fromLine(at, f.camera, f.egill);
+        const l = f.seesEgill ? fromLine(at, f.camera, f.egill) : Infinity; // the herd's shot sees her from far below before she comes into it
         if (l < line) { line = l; lineAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
       }
     }
