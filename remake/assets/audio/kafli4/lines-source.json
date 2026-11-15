@@ -52,6 +52,7 @@
  { "id": "k4_egill_dragonflies", "speaker": "egill", "text": "Drekaflugurnar elta okkur!" },
  { "id": "k4_egill_flyers", "speaker": "egill", "text": "Sjáðu, þau fljúga með okkur!" },
  { "id": "k4_flugedla_landing", "speaker": "flugedla", "text": "Nú lendum við! Haltu þér!" },
+ { "id": "k4_egill_laugh2", "speaker": "egill", "text": "Hí hí hí!", "seed": 3, "note": "A second take of k4_egill_laugh (its own seed), so the skim and the far pool do not always laugh the same." },
  { "id": "k4_egill_thanks", "speaker": "egill", "text": "Takk fyrir flugið, Flugeðla!" },
  { "id": "k4_flugedla_came", "speaker": "flugedla", "text": "Sjáðu! Dýrin komu öll með okkur!" },
  { "id": "k4_mosi_four", "speaker": "mosi", "text": "Fjórar komnar. Og nú vitum við hvert við förum næst!" },

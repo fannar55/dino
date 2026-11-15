@@ -60,9 +60,10 @@ export const FLIGHT_WORDS = {
   k4_egill_turtles: 'Skjaldbökurnar heyrðu!',
   k4_egill_lizards: 'Eðlurnar hlaupa með!',
   k4_egill_dragonflies: 'Drekaflugurnar elta okkur!',
-  // D's flyers round her, and G's landing
+  // D's flyers round her, G's landing, and Egill's laugh at the splash as she lands in the far pool (scene 7: kafli4.js)
   k4_egill_flyers: 'Sjáðu, þau fljúga með okkur!',
   k4_flugedla_landing: 'Nú lendum við! Haltu þér!',
+  k4_egill_laugh2: 'Hí hí hí!',
 };
 
 const MOSI_RUN = 4; // m/s: Mosi runs (the walk at about twice its own pace)
