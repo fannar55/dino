@@ -105,7 +105,7 @@ export const chapter = {
       air.update(t);
       if (state.started) { const b = +blackAt(t).toFixed(3); if (b !== state.black) { state.black = b; s.fade(b, 0); } }
     }
-    const measure = createMeasure(world, { stage, D, rider, state, air, apply, at });
+    const measure = createMeasure(world, { stage, D, rider, state, air, apply, at, swarm });
 
     // the clock: a capture holds its second (?t=, stepped by the engine), the trial loops
     const capture = params.get('t') !== null && params.get('play') !== '1';

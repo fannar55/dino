@@ -16,7 +16,7 @@ export const BEATS = [
   { id: 'aftur', name: 'Til baka', from: 13.5, to: 15 },
 ];
 export const FAR = { u: 0.5, v: 0.47, k: 6 }; // where she first shows, far down the lane
-export const CRUISE = { u: 0.5, v: 0.56, k: 0.75 };
+export const CRUISE = { u: 0.5, v: 0.56, k: 0.78 };
 // the hero moment: nearer, rearing up (nose up 40 degrees) with her neck stretched forward and down toward us, her wings held at the
 // start of the fly clip's beat, where they are narrowest. Measured (tools/samflug-probe.mjs, D 13): body k 0.56, neck 35, pitch 40
 // puts the beak's tip at about +3.85 % with her wing tips at u 0.21-0.79 (rule 3: anything nearer than k 0.6 inside 20-80 %); body
@@ -40,11 +40,11 @@ export function heroShare(t) {
   return t < a ? 0 : t < b ? smooth((t - a) / (b - a)) : t < c ? 1 : smooth(1 - (t - c) / (d - c));
 }
 
-// The wings' clock: the clip's second runs at WING_RATE times (1 − the hero share), so the beat slows to a stop as she comes near
+// The wings' clock: the clip's second runs at WING_RATE times (1 − the hero share)², so the beat slows to a stop as she comes near
 // and starts again as she goes back (no jump: it is an integral); a constant offset makes the stop fall on HERO.hold of a beat.
 const STEP = 0.01;
 const wingTable = [0];
-for (let i = 1; i * STEP <= 16; i++) wingTable.push(wingTable[i - 1] + WING_RATE * STEP * (1 - heroShare((i - 0.5) * STEP)));
+for (let i = 1; i * STEP <= 16; i++) wingTable.push(wingTable[i - 1] + WING_RATE * STEP * (1 - heroShare((i - 0.5) * STEP)) ** 2);
 const wingRaw = t => { const x = Math.min(wingTable.length - 1.001, Math.max(0, t / STEP)); const i = Math.floor(x); return wingTable[i] + (wingTable[i + 1] - wingTable[i]) * (x - i); };
 /** The fly clip's second at show second t (held still while she lingers near). */
 export function wingAt(t, clipLength) {
@@ -70,7 +70,7 @@ export function herAt(t) {
   // the cruise's drift and bob: in from second 3.5, out again for the hero moment
   const live = smooth((t - 3.5) / 1.5) * (1 - heroShare(t));
   const c = t - 4;
-  u += live * 0.035 * Math.sin((TAU * c) / 7);
+  u += live * 0.025 * Math.sin((TAU * c) / 7);
   v += live * 0.012 * Math.sin(TAU * t * WING_RATE) + live * 0.012 * Math.sin((TAU * c) / 5);
   k += live * 0.03 * Math.sin((TAU * c) / 5.5);
   const bank = live * BANK * Math.sin((TAU * c) / 6);
@@ -92,14 +92,15 @@ export function egillAt(t) {
   return { weight: w, swing: Math.sin(TAU * 1.6 * t), lean: 8 };
 }
 
-// The three butterflies: each comes over her from behind (high, k 1.6 to 0.85), circles between us and her (k 0.5-0.62, u 0.37-0.63),
+// The three butterflies: each comes over her from behind (high, k 1.6 down to the ring), circles above her head between us and her
+// (k 0.45-0.55, u 0.37-0.63, v 0.21-0.31: clear of her crest and of Egill by 0.8 m or more),
 // and leaves back over her and far down the lane before her beak comes out. Rows [u, v, k, size] (size 0: not shown).
 const BUTTERFLIES = [
   { phase: 0, start: 5.0, side: -1 },
   { phase: TAU / 3, start: 5.4, side: 1 },
   { phase: (2 * TAU) / 3, start: 5.8, side: -0.3 },
 ];
-export const CIRCLE = { u: 0.5, v: 0.42, k: 0.56, ru: 0.12, rv: 0.06, rk: 0.055, turn: 3.2, until: 9.3 };
+export const CIRCLE = { u: 0.5, v: 0.26, k: 0.5, ru: 0.13, rv: 0.05, rk: 0.05, turn: 3.2, until: 9.0 };
 export function butterflyAt(i, t) {
   const b = BUTTERFLIES[i];
   const c = CIRCLE;

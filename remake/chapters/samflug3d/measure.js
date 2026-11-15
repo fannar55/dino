@@ -12,7 +12,7 @@ import { CLEAR } from './stage.js';
 
 const NEAR_LIMIT = 0.334, MIDDLE = [0.2, 0.8], NEAR_MIDDLE = 0.6;
 
-export function createMeasure(world, { D, rider, state, air }) {
+export function createMeasure(world, { D, rider, state, air, swarm = null }) {
   const { camera } = world;
   const strength = () => world.gler?.settings?.strength ?? 0.02;
   const out = k => +(100 * strength() * (1 / k - 1)).toFixed(2); // % of the screen's width
@@ -78,11 +78,13 @@ export function createMeasure(world, { D, rider, state, air }) {
     let forestOnly = null;
     if (forest) {
       // the forest alone: her, Egill and the butterflies hidden for one probe draw
-      const shown = [rider.her.root.visible, rider.boy.root.visible];
+      const shown = [rider.her.root.visible, rider.boy.root.visible, swarm?.mesh.visible];
       rider.her.root.visible = rider.boy.root.visible = false;
+      if (swarm) swarm.mesh.visible = false;
       const f = probe.sample(D);
       rider.her.root.visible = shown[0];
       rider.boy.root.visible = shown[1];
+      if (swarm) swarm.mesh.visible = shown[2];
       const nearest = Math.min(f.border, f.middle, f.wide);
       forestOnly = { nearest: +nearest.toFixed(3), outNear: out(nearest), border: +f.border.toFixed(3), borderAt: f.borderAt, farthest: f.farthest, outFar: out(f.farthest), sky: f.sky };
     }

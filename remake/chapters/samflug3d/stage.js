@@ -30,7 +30,8 @@ export const entersAt = (w, h = tanH) => w / h;
 
 // The lane's walls: the clear half width the rule asks for (13 · 0.679 + 1 = 9.8 m), then crowns reach in: trunks stand further out.
 export const CLEAR = laneHalf(); // nothing of a plant inside this (|x| < CLEAR): crowns included
-export const TRUNKS = [13.8, 17.2, 21.5, 27]; // m: the rows of trunks each side (the first row's crowns reach in to about CLEAR)
+export const TRUNKS = [15.0, 18.2, 22, 27]; // m: the rows of trunks each side (the first row's crowns reach in to about CLEAR)
+export const NEAR_SCALE = [0.95, 1.08]; // the first two rows' broadleaves (a broadleaf's crown reaches about 6.5 m from its trunk at scale 1)
 export const LANE = { from: 130, to: -190 }; // z: the lane's planted length (the camera goes from START_Z to START_Z + 15 · max speed)
 
 let seed = 23;
@@ -45,7 +46,11 @@ export function lanePlants() {
       const step = row === 0 ? 7.5 : 6.5;
       for (let z = LANE.from; z > LANE.to; z -= step * (0.8 + 0.4 * rnd())) {
         const araucaria = rnd() < 0.25 + 0.1 * row;
-        out.push({ name: araucaria ? 'araucaria' : 'broadleaf', position: [side * (x0 + rnd() * 1.6), z + rnd() * 2], variant: Math.floor(rnd() * 8), scale: 0.95 + 0.3 * rnd() });
+        // the near rows' broadleaf crowns lean out of the lane (their crown sits off the trunk toward +x at rot 0) and stay smaller
+        const near = row < 2 && !araucaria;
+        const rot = near ? (side > 0 ? 0 : Math.PI) + (rnd() - 0.5) * 0.6 : rnd() * Math.PI * 2;
+        const scale = near ? NEAR_SCALE[0] + (NEAR_SCALE[1] - NEAR_SCALE[0]) * rnd() : 0.95 + 0.3 * rnd();
+        out.push({ name: araucaria ? 'araucaria' : 'broadleaf', position: [side * (x0 + rnd() * 1.6), z + rnd() * 2], variant: Math.floor(rnd() * 8), scale, rot });
       }
     });
     // a tree fern or a bush now and then between the first row and the clear half width
@@ -62,6 +67,18 @@ export function keepOut(x) {
   return Math.abs(x) < CLEAR + 5 ? 1 : 0;
 }
 
+/**
+ * The last word on the lane (layout.leaveOut, after the plan): a tree whose crown (the species model's crown sphere, placed as the
+ * batcher places it) still reaches inside the lane rule's half width is left out, so no crown is ever cut by a side edge before D.
+ */
+export function crownInLane(p, half = D * tanH) {
+  const cr = p?.model?.crown;
+  if (!cr || !(p.name === 'broadleaf' || p.name === 'araucaria' || p.name === 'treeFern')) return false;
+  const c = Math.cos(p.rot), s = Math.sin(p.rot), sc = p.scale;
+  const cx = p.x + (cr.c[0] * c - cr.c[2] * s) * sc;
+  return Math.abs(cx) - cr.r * sc < half;
+}
+
 export const LAYOUT = {
   seed: 41,
   clearing: { center: [0, -30], radius: 8 },
@@ -75,5 +92,6 @@ export const LAYOUT = {
   ],
   keepOut,
   lifeKeepOut: keepOut,
+  leaveOut: (info, p) => crownInLane(p),
   plants: lanePlants(),
 };
