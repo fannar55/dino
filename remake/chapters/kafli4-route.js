@@ -28,6 +28,16 @@ export const LEAP = 3.5;
  * behind the group's middle away from the river, `above` over the ground or the water, `aside` along the bank (up the river), its
  * lens (`fov`), and `look`, how far from the group's middle toward her pass it aims. Each first second is from where she passes the
  * group: from ≈ pass − 3.8, call ≈ pass − 2.4, to ≈ pass + 2.5.
+ *
+ * Three rows are kinds of their own. 'runAlong' (row 4) is a still camera's rules on a moving stand: it goes along `path` ([x, z] to
+ * [x, z], `above` the ground) from `move` (or `from`) to `to` at a steady speed, eased over its first and last 0.5 s, always looking the one way
+ * (`look` of the way from `group`'s middle to her pass, from where it starts); `early` groups answer at the call (as an auto call's
+ * do) with their own run up the bank, `{ metres, seconds }`, so they are already running as it begins. 'ledge' (row 5) stands beside
+ * a flyer's nest (NESTS[`nest`]) in the gorge, `along` metres up the river from it, `out` toward the river's middle and `above` over
+ * it, looking down the gorge the way she comes (`look` of the way from the nest to her at the call); its `call` is the second the
+ * flyer leaves (world/ardalur/life.js: she comes within 25 m) and its `pass` when she passes the nest. 'herd' (row 6) stands among a
+ * group of the herd (life.js HERD, at `at`), `back` metres from its middle away from her pass and `side` to its right, looking up
+ * toward her; its `call` is the big call's (chapters/kafli4-flight-play.js PLAY.bigCall).
  */
 export const CALL_SHOTS = [
   // low on the bank among the lizards drinking at the edge (in place of the chase and the side shot of 39-45)
@@ -36,9 +46,22 @@ export const CALL_SHOTS = [
   { id: 'kall-froskar', shot: 'call', group: 'frogs-2', from: 48.05, call: 49.45, pass: 51.85, to: 54.35, options: { back: 3, above: 1.2, aside: 6, look: 0.25, fov: 50 } },
   // under their tree, looking up into the crown (in place of the shadow shot)
   { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: 6, above: 1.2, aside: 4, look: 0.35, fov: 56 } },
-  // the run-along (in place of the chase and the side shot of 72-80): a plain call shot till it has its moving stand; her call is to
-  // lizards-2 too (`also`: groups that hear the row's call), just down the bank
-  { id: 'kall-hlaup', shot: 'call', group: 'lizards-3', also: ['lizards-2'], from: 72.2, call: 73.6, pass: 76.01, to: 80, options: { back: 5, above: 1.2, aside: 7, look: 0.25, fov: 46 } },
+  // the run-along (in place of the chase and the side shot of 72-80): her call is to lizards-2 too (`also`: groups that hear the
+  // row's call), just down the bank. The stand waits with them, heads down, till they run at once (0.6 s after the call: `move`),
+  // 33 m up the bank in 5.5 s (to d 859, short of the steep rise at 864), and goes with them on the bank behind them (river metres
+  // 820 to 850, 9.5 m from the water), 30 m in 5.8 s; she comes over them, lizards-3 join as she passes them and the first runners
+  // come by, and she flies on ahead
+  {
+    id: 'kall-hlaup', shot: 'runAlong', group: 'lizards-3', also: ['lizards-2'], early: { 'lizards-2': { metres: 33, seconds: 5.5 } },
+    from: 72.2, call: 73.6, pass: 76.01, to: 80,
+    options: { path: [[-920.6, 121.7], [-950.2, 126.6]], move: 74.2, above: 1.2, group: 'lizards-2', look: 0.3, fov: 48 },
+  },
+  // on the ledge beside a flyer (in place of gorgeHigh): nest 5, the south wall 17 m over the river; she is far down the gorge as it
+  // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends
+  { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 8, out: 1.5, above: 2, look: 0.3, fov: 46 } },
+  // down among the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
+  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part
+  { id: 'kall-hjord', shot: 'herd', at: [-1367, 31], from: 135, call: 135, pass: 139.58, to: 141.6, options: { back: 16, side: -3, above: 1.2, look: 0.45, fov: 50 } },
 ];
 
 /**
@@ -50,7 +73,6 @@ export const STILLS = [
   ['belowTakeOff', 3, 8, {}],
   ['waterLevel', 25, 28.3, {}],
   ['mosiBank', 57.5, 63, {}],
-  ['gorgeHigh', 90.5, 96, {}],
   ['mosiRim', 96, 99.5, {}],
   ['fallsSide', 110, 113.4, {}],
   ['fallsTop', 113.4, 116, {}],

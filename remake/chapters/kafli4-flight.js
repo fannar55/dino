@@ -260,10 +260,16 @@ function* beats(s, c) {
   const takeOff = still('belowTakeOff');
   const water = still('waterLevel');
   const bank = still('mosiBank');
-  const gorge = still('gorgeHigh');
   const rim = still('mosiRim');
   const fallsSide = still('fallsSide');
   const fallsTop = still('fallsTop');
+  // the call shots of D and F (the route's CALL_SHOTS): the ledge in the gorge, the herd as the big call comes
+  const callShot = kind => {
+    const row = CALL_SHOTS.find(r => r.shot === kind);
+    return { ...row, cut: () => camera.shot(row.shot, { ...row.options, callShot: row.id }) };
+  };
+  const ledge = callShot('ledge');
+  const herd = callShot('herd');
 
   // A. The take-off (0:00–0:15): close in front of Egill as she turns to him, then from below as she leaps and drops and her wings
   // snap open, and beside her as she climbs away.
@@ -322,8 +328,9 @@ function* beats(s, c) {
     cue.act();
   }
 
-  // D. The gorge (1:20–1:45): walls close in; Egill's face in the wind, three quick shots between the rocks, them small from high in
-  // the gorge, and Mosi up on the rim (his second cameo) taking the shorter way.
+  // D. The gorge (1:20–1:45): walls close in; Egill's face in the wind, three quick shots between the rocks, then on a ledge beside one
+  // of the gorge's flyers as she comes up the gorge and it leaves (a call shot), and Mosi up on the rim (his second cameo) taking the
+  // shorter way.
   yield* at(BEATS.D);
   mark('D');
   play.enable('call', false);
@@ -344,8 +351,8 @@ function* beats(s, c) {
   yield* at(89);
   camera.shot('chase', { quick: true });
   whoosh(1);
-  yield* at(gorge.from);
-  gorge.cut();
+  yield* at(ledge.from);
+  ledge.cut();
   yield* at(rim.from - 0.5);
   run(route.cameos.rim.path, headingAlong(route.cameos.rim.path)); // up on the rim, out of sight from down in the gorge
   yield* at(rim.from);
@@ -389,9 +396,9 @@ function* beats(s, c) {
   yield* at(JUICE.wow);
   say('egill', 'k4_egill_wow', { ifQuiet: true }); // out of the spray into the gold
 
-  // F. Up into the golden light (2:05–2:30): the whole land wide; Grameðla beyond the mountains; her biggest call over the land and
-  // the answers from everywhere; a slow circle round them as the music peaks (the still vista under reduced motion). Her lines wait
-  // for each other, so none is cut.
+  // F. Up into the golden light (2:05–2:30): the whole land wide; Grameðla beyond the mountains; her biggest call over the land, seen
+  // from down among the herd (a call shot), and the answers from everywhere; then the last part of a slow circle round them as the
+  // music peaks (the still vista under reduced motion). Her lines wait for each other, so none is cut.
   yield* at(BEATS.F);
   mark('F');
   camera.shot('vista');
@@ -407,12 +414,14 @@ function* beats(s, c) {
   camera.shot('side');
   yield* at(132.3);
   say('flugedla', 'k4_flugedla_biggest');
-  yield* at(134);
-  camera.shot('orbit');
+  yield* at(herd.from);
+  herd.cut();
   yield* at(PLAY.bigCall);
   play.bigCall(); // the biggest call (Task 15: louder, with an echo)
   yield s.until(() => play.big.at !== null); // it waits for a line playing
-  yield* at(Math.max(141, play.big.at + 6)); // after the answers from everywhere
+  yield* at(herd.to);
+  camera.shot('orbit', { seconds: BEATS.G - herd.to }); // the circle's last part, at its own pace, ending as it did
+  yield* at(Math.max(141, play.big.at + 6, herd.to)); // after the answers from everywhere
   say('egill', 'k4_egill_all');
 
   // G. Gliding down (2:30–2:50): calmer, the music quieter; her thanks, the far pool ahead, and Mosi tiny below on his way there.

@@ -17,7 +17,7 @@
 //   animals.group                          the crowds' group (in world.scene unless the crowds were given)
 //   animals.props                          what they sit on: [{ name, variant, x, y, z, rot, scale }] for the plants to grow (banks.js)
 //   animals.clear                          [{ x, z, r }]: round each critter and prop, where no other plant may grow
-//   animals.groups                         [{ id, kind, point, radius, members, answered, answer() -> Handle, heard, hear(at) }], in the
+//   animals.groups                         [{ id, kind, point, radius, members, answered, answer(run?) -> Handle, heard, hear(at) }], in the
 //                                          order she meets them; hear(at): from game second at they turn to her and look up (HEAR)
 //   animals.update(dt, t)                  each frame, on the game clock (t): their life and their answers, placed in the crowds
 //   animals.dispose()
@@ -290,9 +290,15 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       hear(at) {
         if (entry.heard === null) entry.heard = at;
       },
-      answer() {
+      run: { metres: RUN.metres, seconds: RUN.seconds },
+      /**
+       * It answers (once), from the game's clock now. Small lizards and salamanders may be given their own run up the bank,
+       * `{ metres, seconds }` (a call shot's that lasts longer: chapters/kafli4-route.js CALL_SHOTS early); RUN's otherwise.
+       */
+      answer({ metres = RUN.metres, seconds = RUN.seconds } = {}) {
         if (entry.answered) return DONE;
         entry.answered = true;
+        entry.run = { metres, seconds };
         entry.start = now();
         entry.handle = new Handle(`${g.id} answer`);
         return entry.handle;
@@ -473,7 +479,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       }
       case 'lizards': {
         if (m.kind === 'smaedla') {
-          smaedla(m, t, tau === null ? null : Math.max(0, tau - k * RUN.stagger), hearing(g, t));
+          smaedla(m, t, tau === null ? null : Math.max(0, tau - k * RUN.stagger), hearing(g, t), g.run);
           break;
         }
         const curl = 0.45 * (0.5 + 0.5 * Math.sin((TAU * t) / 7 + p));
@@ -484,19 +490,19 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         if (tau === null) break;
         // up the bank with her, then off inland into the trees, out of sight as they reach them
         const u = Math.max(0, tau - k * RUN.stagger);
-        const run = smooth((u - RUN.turn) / RUN.seconds);
-        const inland = smooth((u - RUN.turn - RUN.seconds) / RUN.into);
+        const run = smooth((u - RUN.turn) / g.run.seconds);
+        const inland = smooth((u - RUN.turn - g.run.seconds) / RUN.into);
         if (inland >= RUN.hide) { m.visible = false; break; }
-        const along = RUN.metres * run + RUN.ahead * inland;
+        const along = g.run.metres * run + RUN.ahead * inland;
         const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) + RUN.inland * inland;
         const at = spot(m.d, m.side, m.along + along, e);
         m.position.set(at.x, heightAt(at.x, at.z), at.z);
         const upstream = headingOf(at.dir[0], at.dir[1]);
         const into = headingOf(at.dir[0] * RUN.ahead + at.out[0] * RUN.inland, at.dir[1] * RUN.ahead + at.out[1] * RUN.inland);
-        m.heading = lerpAngle(lerpAngle(m.rest, upstream, smooth(u / RUN.turn)), into, smooth((u - RUN.turn - RUN.seconds) / 0.6));
+        m.heading = lerpAngle(lerpAngle(m.rest, upstream, smooth(u / RUN.turn)), into, smooth((u - RUN.turn - g.run.seconds) / 0.6));
         const running = smooth(u / RUN.turn);
         if (running > 0) {
-          const step = Math.sin((TAU * (RUN.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland)) / RUN.stride);
+          const step = Math.sin((TAU * (g.run.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland)) / RUN.stride);
           m.morphs.curl = curl * (1 - running);
           m.morphs.walkA = running * Math.max(0, step);
           m.morphs.walkB = running * Math.max(0, -step);
@@ -511,23 +517,23 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
    * and inland as the salamander's, its pose from its clips (clipPose): drinking at the edge or standing about behind, looking up
    * at her as she passes over or from when it hears her (`heard`, 0 to 1: HEAR), running. The weights of its frames add up to 1.
    */
-  function smaedla(m, t, u, heard = 0) {
+  function smaedla(m, t, u, heard = 0, own = RUN) {
     for (const name in m.morphs) m.morphs[name] = 0;
     const add = (pose, w) => { if (w > 0) for (const name in pose) m.morphs[name] += pose[name] * w; };
     let running = 0;
     let travelled = 0;
     if (u !== null) {
-      const run = smooth((u - RUN.turn) / RUN.seconds);
-      const inland = smooth((u - RUN.turn - RUN.seconds) / RUN.into);
+      const run = smooth((u - RUN.turn) / own.seconds);
+      const inland = smooth((u - RUN.turn - own.seconds) / RUN.into);
       if (inland >= RUN.hide) { m.visible = false; return; }
       const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) + RUN.inland * inland;
-      const at = spot(m.d, m.side, m.along + RUN.metres * run + RUN.ahead * inland, e);
+      const at = spot(m.d, m.side, m.along + own.metres * run + RUN.ahead * inland, e);
       m.position.set(at.x, heightAt(at.x, at.z), at.z);
       const upstream = headingOf(at.dir[0], at.dir[1]);
       const into = headingOf(at.dir[0] * RUN.ahead + at.out[0] * RUN.inland, at.dir[1] * RUN.ahead + at.out[1] * RUN.inland);
-      m.heading = lerpAngle(lerpAngle(m.rest, upstream, smooth(u / RUN.turn)), into, smooth((u - RUN.turn - RUN.seconds) / 0.6));
+      m.heading = lerpAngle(lerpAngle(m.rest, upstream, smooth(u / RUN.turn)), into, smooth((u - RUN.turn - own.seconds) / 0.6));
       running = smooth(u / RUN.turn);
-      travelled = RUN.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland;
+      travelled = own.metres * run + Math.hypot(RUN.ahead, RUN.inland) * inland;
     }
     const body = herNow();
     const look = Math.max(heard, body ? 1 - smooth((Math.hypot(body.x - m.home.x, body.z - m.home.z) - LOOK.near) / LOOK.fade) : 0);
@@ -569,20 +575,23 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     splash(world, point, { size: IN[g.kind].size, count: 18, seed: `${g.id} ${k} in` });
   }
 
+  /** How long a group's answer lasts: ANSWER's, and a run up the bank longer than RUN's by as much more (the lizards). */
+  const lasts = g => ANSWER[g.kind] + (g.kind === 'lizards' ? Math.max(0, g.run.seconds - RUN.seconds) : 0);
   function update(dt, t = now()) {
     last = t;
     if (own) crowds.begin(world.camera ?? null);
     for (const g of groups) {
       const tau = g.start === null ? null : t - g.start;
-      const answering = tau !== null && tau < ANSWER[g.kind];
-      const at = tau === null ? null : STAY.has(g.kind) ? Math.min(tau, ANSWER[g.kind]) : answering ? tau : null;
+      const length = lasts(g);
+      const answering = tau !== null && tau < length;
+      const at = tau === null ? null : STAY.has(g.kind) ? Math.min(tau, length) : answering ? tau : null;
       g.members.forEach((m, k) => {
         pose(g, m, k, t, at);
         turnToHer(g, m, t, tau);
         splashFrame(g, m, k, tau);
         if (m.visible) crowds.place(m.kind, m.position, m.heading, m.scale, m); // a member is its own pose: morphs, wings, pitch, squash
       });
-      if (g.handle && !g.handle.done && tau >= ANSWER[g.kind] - 1e-6) g.handle.finish();
+      if (g.handle && !g.handle.done && tau >= length - 1e-6) g.handle.finish();
     }
     if (own) crowds.end();
   }

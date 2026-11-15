@@ -9,7 +9,7 @@ import { updateActors } from '../engine/actor.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createFlier, rideFlier } from '../engine/flier.js';
 import { createFlightCamera, FLIGHT_RULES, CLEAR, stillViews } from '../engine/camera/flight-camera.js';
-import { createRoute, BEATS, CALL_SHOTS, STILLS } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, CALL_SHOTS, STILLS, NESTS } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { rainbowLevel } from '../world/props/waterfall.js';
 import { pickLook } from '../engine/looks.js';
@@ -133,12 +133,16 @@ test('the orbit circles slowly, and under reduced motion it is the vista instead
 
 // When each shot is used in the flight (spec 5, chapters/kafli4-flight.js), when to look, and the shot's options. A call shot is
 // looked at as she passes its group: before that she is still coming, out of its still frame (the Flugmynd spec).
-const FIRST_CALL = CALL_SHOTS.find(row => row.shot === 'call');
+const rowOf = kind => CALL_SHOTS.find(row => row.shot === kind);
+const FIRST_CALL = rowOf('call');
+/** A call shot's options for camera.shot, and when she is the one it frames: her pass, or the ledge's call (the flyer leaves). */
+const optionsOf = row => ({ ...row.options, callShot: row.id });
+const framedAt = row => (row.shot === 'ledge' ? row.call : row.pass);
 const WHEN = {
   chase: [20, 40], face: [83, 86], side: [47, 50], orbit: [134, 141],
   belowTakeOff: [3, 5.5], waterLevel: [25, 27.5], mosiBank: [57.5, 60],
-  call: [FIRST_CALL.from, FIRST_CALL.pass, { ...FIRST_CALL.options, callShot: FIRST_CALL.id }],
-  gorgeHigh: [90.5, 93], mosiRim: [96, 97.5], fallsSide: [110, 113], fallsTop: [113.4, 115.5], vista: [125, 128],
+  ...Object.fromEntries(['call', 'runAlong', 'ledge', 'herd'].map(kind => [kind, [rowOf(kind).from, framedAt(rowOf(kind)), optionsOf(rowOf(kind))]])),
+  mosiRim: [96, 97.5], fallsSide: [110, 113], fallsTop: [113.4, 115.5], vista: [125, 128],
 };
 
 // ---- the call shots (the Flugmynd spec, 2026-11-15): a still camera down with a group, as she calls and sweeps past ------------
@@ -152,24 +156,44 @@ function middleOf(id) {
   const ground = Math.max(world.heightAt(g.at[0], g.at[2]), route.waterAt(g.at[0], g.at[2], 1) ?? -Infinity);
   return new THREE.Vector3(g.at[0], Math.max(ground + 0.3, g.at[1]), g.at[2]);
 }
+/** What a call shot is about: its group's middle, the ledge's nest, the herd's middle (1.5 m over the ground: a grazer's). */
+function aboutOf(row) {
+  if (row.shot === 'ledge') return new THREE.Vector3(...NESTS[row.nest].slice(0, 3));
+  if (row.shot === 'herd') return new THREE.Vector3(row.at[0], world.heightAt(...row.at) + 1.5, row.at[1]);
+  return middleOf(row.group);
+}
+const ON_THE_GROUND = new Set(['call', 'runAlong']); // the kinds that stand low on a bank, from CLEAR to 1.5 m over it
 
 test('CALL_SHOTS rows are ordered, inside their beats and at least 2.5 s', () => {
-  assert.deepEqual(CALL_SHOTS.slice(0, 4).map(row => row.id), ['kall-edlur', 'kall-froskar', 'kall-fuglar', 'kall-hlaup']);
+  assert.deepEqual(CALL_SHOTS.map(row => [row.id, row.shot]), [
+    ['kall-edlur', 'call'], ['kall-froskar', 'call'], ['kall-fuglar', 'call'], ['kall-hlaup', 'runAlong'], ['kall-sylla', 'ledge'], ['kall-hjord', 'herd'],
+  ]);
   const stills = STILLS.map(([shot, from, to, options]) => ({ shot, from, to, options })).sort((a, b) => a.from - b.from);
   for (const row of CALL_SHOTS) {
-    assert.ok(row.from < row.call && row.call < row.pass && row.pass < row.to, `${row.id}: ${row.from} < ${row.call} < ${row.pass} < ${row.to}`);
-    assert.ok(row.pass - row.from >= 3.5 - 1e-9, `${row.id}: ${(row.pass - row.from).toFixed(2)} s from the cut to her pass (at least 3.5)`);
-    assert.ok(row.to - row.pass >= 2 - 1e-9, `${row.id}: ${(row.to - row.pass).toFixed(2)} s after her pass (at least 2)`);
+    if (row.shot === 'ledge') {
+      // the flyer leaves 3.5 s or more into it, and she comes under its nest as it ends (she passes the nest just after the cut)
+      assert.ok(row.from < row.call && row.call < row.to && row.to <= row.pass, `${row.id}: ${row.from} < ${row.call} < ${row.to} ≤ ${row.pass}`);
+      assert.ok(row.call - row.from >= 3.5 - 1e-9, `${row.id}: ${(row.call - row.from).toFixed(2)} s from the cut till the flyer leaves (at least 3.5)`);
+      assert.ok(row.nest >= 0 && row.nest < NESTS.length, `${row.id}: a nest`);
+    } else {
+      // the herd's call is the big call, at the cut
+      assert.ok(row.from <= row.call && row.call < row.pass && row.pass < row.to, `${row.id}: ${row.from} ≤ ${row.call} < ${row.pass} < ${row.to}`);
+      assert.ok(row.pass - row.from >= 3.5 - 1e-9, `${row.id}: ${(row.pass - row.from).toFixed(2)} s from the cut to her pass (at least 3.5)`);
+      assert.ok(row.to - row.pass >= 2 - 1e-9, `${row.id}: ${(row.to - row.pass).toFixed(2)} s after her pass (at least 2)`);
+    }
     assert.ok(row.to - row.from >= FLIGHT_RULES.minShot, `${row.id}: ${(row.to - row.from).toFixed(2)} s long`);
     assert.equal(beatOf(row.from), CALL_BEATS[row.id], `${row.id} begins in ${beatOf(row.from)}`);
     assert.ok(row.to <= BEATS[String.fromCharCode(CALL_BEATS[row.id].charCodeAt(0) + 1)] + 1e-9, `${row.id} ends in its beat (${row.to})`);
-    if (row.shot === 'call') assert.ok(route.groups.some(g => g.id === row.group), `${row.id}: a group named ${row.group}`);
+    if (ON_THE_GROUND.has(row.shot)) {
+      for (const id of [row.group, ...(row.also ?? []), ...Object.keys(row.early ?? {})]) assert.ok(route.groups.some(g => g.id === id), `${row.id}: a group named ${id}`);
+    }
+    if (row.shot === 'herd') assert.equal(row.call, 135, `${row.id}: the big call's second (kafli4-flight-play.js PLAY.bigCall)`);
     // its still: the plants keep out of its view (stillViews)
     assert.equal(stills.filter(s => s.options.callShot === row.id && s.shot === row.shot && s.from === row.from && s.to === row.to).length, 1, `${row.id} in STILLS`);
   }
   for (let i = 1; i < CALL_SHOTS.length; i++) assert.ok(CALL_SHOTS[i].from >= CALL_SHOTS[i - 1].to, `${CALL_SHOTS[i].id} after ${CALL_SHOTS[i - 1].id}`);
   // no still overlaps another, and between two of them the shot on her back (a chase, beside her) lasts 2.5 s, or none comes between
-  assert.deepEqual(stills.filter(s => s.shot === 'bankShadow' || s.shot === 'waterLevel' && s.from > BEATS.C), [], 'the shots the call shots take the place of');
+  assert.deepEqual(stills.filter(s => s.shot === 'bankShadow' || s.shot === 'gorgeHigh' || s.shot === 'waterLevel' && s.from > BEATS.C), [], 'the shots the call shots take the place of');
   for (let i = 1; i < stills.length; i++) {
     const gap = stills[i].from - stills[i - 1].to;
     assert.ok(Math.abs(gap) < 1e-9 || gap >= FLIGHT_RULES.minShot, `${stills[i - 1].shot} (to ${stills[i - 1].to}) then ${stills[i].shot} (from ${stills[i].from}): ${gap.toFixed(2)} s between`);
@@ -179,24 +203,37 @@ test('CALL_SHOTS rows are ordered, inside their beats and at least 2.5 s', () =>
   for (const row of CALL_SHOTS) assert.ok(row.to <= bank.from || row.from >= bank.to, `${row.id} and Mosi's cameo`);
 });
 
-test('call shots frame the group and her pass at both sizes, and stand still', () => {
+test('call shots frame what they are about and her at both sizes, and stand still (the run-along looks its one way)', () => {
   const head = flugedla.model.getObjectByName('Head');
-  for (const row of CALL_SHOTS.filter(r => r.shot === 'call')) {
+  for (const row of CALL_SHOTS) {
     const { camera, director, to, at, done, flight } = setUp();
     at(row.from);
-    camera.shot('call', { ...row.options, callShot: row.id });
+    camera.shot(row.shot, optionsOf(row));
     const position = director.rig.position.clone();
     const target = director.rig.target.clone();
-    const middle = middleOf(row.group);
-    to(row.pass);
+    const middle = aboutOf(row);
+    // the ledge's nest is in the frame as it begins
+    if (row.shot === 'ledge') {
+      director.apply();
+      for (const aspect of [1.6, 0.69]) {
+        world.camera.aspect = aspect;
+        world.camera.updateProjectionMatrix();
+        const q = middle.clone().project(world.camera);
+        assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}: the nest at ${q.x.toFixed(2)}, ${q.y.toFixed(2)} as it begins`);
+      }
+      world.camera.aspect = 1.6;
+      world.camera.updateProjectionMatrix();
+    }
+    const seen = framedAt(row);
+    to(seen);
     for (const aspect of [1.6, 0.69]) {
       world.camera.aspect = aspect;
       world.camera.updateProjectionMatrix();
       director.apply();
       world.scene.updateMatrixWorld(true);
-      for (const [who, p] of [['the group', middle], ['her pass', herAt(row.pass)], ['her head', head.getWorldPosition(new THREE.Vector3())]]) {
+      for (const [who, p] of [['what it is about', middle], ['her', herAt(seen)], ['her head', head.getWorldPosition(new THREE.Vector3())]]) {
         const q = p.clone().project(world.camera);
-        assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}: ${who} at ${q.x.toFixed(2)}, ${q.y.toFixed(2)}`);
+        assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}, ${seen} s: ${who} at ${q.x.toFixed(2)}, ${q.y.toFixed(2)}`);
       }
     }
     world.camera.aspect = 1.6;
@@ -210,29 +247,115 @@ test('call shots frame the group and her pass at both sizes, and stand still', (
       }
       return false;
     };
-    assert.ok(!lands(position, middle), `${row.id}: land between the camera and the group`);
-    for (let t = row.call; t <= row.pass + 1; t += 0.25) assert.ok(!lands(position, herAt(t)), `${row.id}: land between the camera and her at ${t.toFixed(2)} s`);
+    assert.ok(!lands(position, middle), `${row.id}: land between the camera and what it is about`);
+    for (let t = Math.min(row.call, seen); t <= Math.min(seen + 1, row.to); t += 0.25) assert.ok(!lands(position, herAt(t)), `${row.id}: land between the camera and her at ${t.toFixed(2)} s`);
+    const way = target.clone().sub(position);
     to(row.to - 0.05);
-    assert.ok(director.rig.position.distanceTo(position) < 1e-9 && director.rig.target.distanceTo(target) < 1e-9, `${row.id}: a still frame`);
+    if (row.shot === 'runAlong') {
+      assert.ok(director.rig.position.distanceTo(position) > 20, `${row.id}: the stand goes along with them (${director.rig.position.distanceTo(position).toFixed(1)} m)`);
+      assert.ok(director.rig.target.clone().sub(director.rig.position).distanceTo(way) < 1e-6, `${row.id}: it looks the one way`);
+    } else assert.ok(director.rig.position.distanceTo(position) < 1e-9 && director.rig.target.distanceTo(target) < 1e-9, `${row.id}: a still frame`);
     assert.deepEqual(flight(), [], `${row.id} keeps the rules`);
     done();
   }
 });
 
-test('call shots stand clear: from CLEAR to 1.5 m over the ground or the water, never inside her', () => {
+test('the run-along keeps the track rules: 7 m/s at most, its pan 40 deg/s, no roll, clear of her and of the ground', () => {
+  const row = rowOf('runAlong');
+  const { camera, director, to, at, done, flight } = setUp();
+  at(row.from);
+  camera.shot('runAlong', optionsOf(row));
+  const start = director.rig.position.clone();
+  const last = director.rig.position.clone();
+  const lastWay = director.rig.target.clone().sub(director.rig.position).normalize();
+  let fastest = 0;
+  let turns = 0;
+  let nearest = Infinity;
+  to(row.to - 0.05, t => {
+    director.apply();
+    const p = director.rig.position;
+    if (t < row.options.move - 1e-6) assert.ok(p.distanceTo(start) < 1e-9, `still till they run (${t.toFixed(2)} s)`);
+    fastest = Math.max(fastest, p.distanceTo(last) / DT);
+    const way = director.rig.target.clone().sub(p).normalize();
+    turns = Math.max(turns, deg(way.angleTo(lastWay)) / DT);
+    last.copy(p);
+    lastWay.copy(way);
+    assert.equal(camera.roll, 0);
+    nearest = Math.min(nearest, p.distanceTo(herAt(t)));
+    const over = p.y - Math.max(world.heightAt(p.x, p.z), route.waterAt(p.x, p.z, 1) ?? -Infinity);
+    assert.ok(over >= CLEAR - 1e-6 && over <= 1.5, `${t.toFixed(2)} s: the stand ${over.toFixed(2)} m over the ground`);
+  });
+  assert.equal(FLIGHT_RULES.track.speed, 7);
+  assert.equal(FLIGHT_RULES.track.pan, 40);
+  assert.ok(fastest <= FLIGHT_RULES.track.speed && fastest > 3, `at most ${fastest.toFixed(2)} m/s`);
+  assert.ok(turns <= FLIGHT_RULES.track.pan, `it turns ${turns.toFixed(1)} deg/s at most`);
+  assert.ok(nearest > 3, `she passes ${nearest.toFixed(1)} m from it`);
+  assert.deepEqual(flight(), []);
+  camera.stop();
+  done();
+  // a stand too fast for its rule is linted
+  const quick = setUp();
+  quick.at(row.from);
+  quick.camera.shot('runAlong', { ...optionsOf(row), move: row.to - 2 });
+  quick.to(row.to - 0.05);
+  assert.ok(quick.flight().some(w => /moving shot "runAlong" goes \d+\.\d\d m\/s \(max 7\)/.test(w.message)), JSON.stringify(quick.flight()));
+  quick.done();
+});
+
+test('reduced motion: the run-along stands still, at its path\'s middle', () => {
+  const row = rowOf('runAlong');
+  const calm = setUp({ reduced: true });
+  calm.at(row.from);
+  calm.camera.shot('runAlong', optionsOf(row));
+  const start = calm.director.rig.position.clone();
+  calm.to(row.to - 0.05, () => assert.ok(calm.director.rig.position.distanceTo(start) < 1e-9, 'a still camera'));
+  const [[ax, az], [bx, bz]] = row.options.path;
+  assert.ok(Math.hypot(start.x - (ax + bx) / 2, start.z - (az + bz) / 2) < 0.5, `at ${start.x.toFixed(1)}, ${start.z.toFixed(1)}`);
+  assert.deepEqual(calm.flight(), []);
+  calm.done();
+});
+
+test('the orbit\'s last part: a shorter circle at its own pace, ending where the whole one ends', () => {
+  const herd = rowOf('herd');
+  const ends = seconds => {
+    const { director, camera, to, at, done, flight } = setUp();
+    const from = seconds === null ? 134 : BEATS.G - seconds;
+    at(from);
+    camera.shot('orbit', seconds === null ? {} : { seconds });
+    const first = director.rig.position.clone().sub(herAt(from));
+    to(BEATS.G - 0.05);
+    const last = director.rig.position.clone().sub(herAt(BEATS.G - 0.05));
+    camera.stop();
+    const warnings = flight();
+    done();
+    return { first, last, warnings };
+  };
+  const whole = ends(null);
+  const part = ends(BEATS.G - herd.to);
+  assert.deepEqual(part.warnings, [], 'within 1.2 m/s and 15 deg/s of her');
+  assert.ok(part.last.distanceTo(whole.last) < 0.3, `it ends where the whole one ends (${part.last.distanceTo(whole.last).toFixed(2)} m)`);
+  assert.ok(part.first.distanceTo(whole.first) > 2, 'it begins part of the way round');
+});
+
+test('call shots stand clear: from CLEAR to 1.5 m over the ground or the water down on a bank (CLEAR at least on the ledge), never inside her', () => {
   assert.equal(CLEAR, 1.2);
   const views = stillViews(route, { heightAt: world.heightAt });
-  for (const row of CALL_SHOTS.filter(r => r.shot === 'call')) {
-    const view = views.find(v => v.shot === 'call' && v.from === row.from);
-    assert.ok(view, `${row.id}: a still view`);
-    assert.equal(view.group, row.group, `${row.id}: the view knows its group`);
-    const p = view.position;
-    const over = p.y - Math.max(world.heightAt(p.x, p.z), route.waterAt(p.x, p.z, 1) ?? -Infinity);
-    assert.ok(over >= CLEAR - 1e-9 && over <= 1.5 + 1e-9, `${row.id}: the camera ${over.toFixed(2)} m over the ground or the water`);
-    // what it sees: her all through it, and the group's middle
-    assert.ok(view.looks.some(l => l.distanceTo(middleOf(row.group)) < 1e-6), `${row.id}: the group's middle is in its view`);
+  for (const row of CALL_SHOTS) {
+    const own = views.filter(v => v.shot === row.shot && v.from === row.from);
+    assert.ok(own.length >= 1, `${row.id}: a still view`);
+    if (row.shot === 'runAlong') assert.ok(own.length >= Math.floor(row.to - row.from), `${row.id}: a view from each second of its stand's way (${own.length})`);
+    for (const view of own) {
+      if (ON_THE_GROUND.has(row.shot)) assert.equal(view.group, row.group, `${row.id}: the view knows its group`);
+      const p = view.position;
+      const over = p.y - Math.max(world.heightAt(p.x, p.z), route.waterAt(p.x, p.z, 1) ?? -Infinity);
+      const most = row.shot === 'ledge' ? Infinity : 1.5;
+      assert.ok(over >= CLEAR - 1e-9 && over <= most + 1e-9, `${row.id}: the camera ${over.toFixed(2)} m over the ground or the water`);
+      // what it sees: her all through it, and what it is about
+      assert.ok(view.looks.some(l => l.distanceTo(aboutOf(row)) < 1e-6), `${row.id}: what it is about is in its view`);
+    }
+    if (row.shot === 'runAlong') continue; // its stand moves: the track rules' test keeps her off it
     let nearest = Infinity;
-    for (let t = row.from; t <= row.to; t += 0.05) nearest = Math.min(nearest, herAt(t).distanceTo(p));
+    for (let t = row.from; t <= row.to; t += 0.05) nearest = Math.min(nearest, herAt(t).distanceTo(own[0].position));
     assert.ok(nearest > 3, `${row.id}: she passes ${nearest.toFixed(1)} m from the camera`);
   }
 });

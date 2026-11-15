@@ -120,14 +120,15 @@ export function flightPlay(s, c) {
     calls.push({ id: g.id, how, t: flightTime(), voiced });
     s.after(PLAY.answerAfter, () => answer(g));
   }
-  function answer(g) {
+  function answer(g, run = undefined) {
     const animal = animalOf(g.id);
-    if (animal && !animal.answered) animal.answer();
+    if (animal && !animal.answered) animal.answer(run);
     if (ANSWER[g.kind]) s.sfx(ANSWER[g.kind], { pan: panOfPoint(pointOf(g)) });
     answers.push({ id: g.id, t: flightTime() });
   }
   // A call shot's row: her one call to its groups at its second, heard by them from that second (on the game clock: the call's
-  // second, not the frame's), and their answers after she passes
+  // second, not the frame's), and their answers after she passes; a row's early groups answer as an auto call's do, PLAY.answerAfter
+  // after it, with their own run up the bank (the run-along's lizards-2: already running as the shot begins)
   const shotRows = CALL_SHOTS.map(row => ({ row, groups: groups.filter(g => [row.group, ...(row.also ?? [])].includes(g.id)), done: false }))
     .filter(r => r.groups.length);
   const inRow = new Set(shotRows.flatMap(r => r.groups.map(g => g.id)));
@@ -141,7 +142,9 @@ export function flightPlay(s, c) {
       g.called = true;
       calls.push({ id: g.id, how: 'shot', t: flightTime(), voiced });
       animalOf(g.id)?.hear?.((world.clock?.time ?? s.time) - late);
-      s.after(Math.max(0, r.row.pass + PLAY.runAfter - flightTime()), () => answer(g));
+      const early = r.row.early?.[g.id] ?? null;
+      const at = early ? r.row.call + PLAY.answerAfter : r.row.pass + PLAY.runAfter;
+      s.after(Math.max(0, at - flightTime()), () => answer(g, early ?? undefined));
     }
   }
   function groupsFrame() {
