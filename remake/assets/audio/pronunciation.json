@@ -2022,6 +2022,23 @@
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        },
+        "vaa": {
+          "say": "Váá",
+          "note": "Tvö á: lengir sérhljóðið (eigandinn 2026-11-15: „Vá“ hljómaði eins og „va“, vill meira „Váá“)."
+        },
+        "vaaa": {
+          "say": "Vááá",
+          "note": "Þrjú á, eins og „Vááá!“ í flugtakinu."
+        },
+        "ipa": {
+          "say": "/vauː/",
+          "note": "Íslenska á-ið í IPA, langt: [vauː]."
+        },
+        "samhengi": {
+          "context": "Vááá, sjáðu! Þetta er svo flott!",
+          "seed": 3,
+          "note": "Langt íslenskt vá sent á undan sem samhengi, ekki talað."
         }
       },
       "chosen": "hratt"
