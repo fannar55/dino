@@ -31,7 +31,7 @@ export const LEAP = 3.5;
  */
 export const CALL_SHOTS = [
   // low on the bank among the lizards drinking at the edge (in place of the chase and the side shot of 39-45)
-  { id: 'kall-edlur', shot: 'call', group: 'lizards-1', from: 39.34, call: 40.74, pass: 43.14, to: 45.4, options: { back: 5, above: 1.2, aside: 7, look: 0.25, fov: 50 } },
+  { id: 'kall-edlur', shot: 'call', group: 'lizards-1', from: 39.34, call: 40.74, pass: 43.14, to: 45.4, options: { back: 4.5, above: 1.2, aside: 5.5, look: 0.25, fov: 46 } },
   // at the water by the lily pads (in place of waterLevel's second)
   { id: 'kall-froskar', shot: 'call', group: 'frogs-2', from: 48.05, call: 49.45, pass: 51.85, to: 54.35, options: { back: 3, above: 1.2, aside: 6, look: 0.25, fov: 50 } },
   // under their tree, looking up into the crown (in place of the shadow shot)
@@ -316,7 +316,7 @@ const GROUPS = [
   ['lizards-1', 'lizards', 330, -1, 3], // drinking at the edge
   ['birds-1', 'birds', 400, 1, 6], // in a tree by the water
   ['frogs-2', 'frogs', 470, -1, 2], // lilies float only on the calm reach, below the rapids (river.js RAPIDS.from, d 509)
-  ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after waterLevel[1] and before Mosi's run (d 585 to 617)
+  ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after the frogs' call shot and before Mosi's run (d 585 to 617)
   ['birds-2', 'birds', 705, -1, 6], // after Mosi's cameo: she passes 66.7 s, 3.7 s into their call shot (CALL_SHOTS kall-fuglar)
   ['lizards-2', 'lizards', 724, 1, 3],
   ['dragonflies', 'dragonflies', 785, -1, -3], // over the water
