@@ -16,10 +16,12 @@ export const BEATS = [
   { id: 'aftur', name: 'Til baka', from: 13.5, to: 15 },
 ];
 export const FAR = { u: 0.5, v: 0.47, k: 6 }; // where she first shows, far down the lane
-export const CRUISE = { u: 0.5, v: 0.56, k: 0.72 };
-// the hero moment: nearer, her neck stretched toward us, her nose a little up, her wings held at the top of their beat (the tips up
-// and in: rule 3 keeps anything nearer than k 0.6 inside the middle 20-80 % of the width). Measured: tools/samflug-probe.mjs.
-export const HERO = { u: 0.5, v: 0.6, k: 0.6, neck: -14, pitch: 8, hold: 0.52 };
+export const CRUISE = { u: 0.5, v: 0.56, k: 0.75 };
+// the hero moment: nearer, rearing up (nose up 40 degrees) with her neck stretched forward and down toward us, her wings held at the
+// start of the fly clip's beat, where they are narrowest. Measured (tools/samflug-probe.mjs, D 13): body k 0.56, neck 35, pitch 40
+// puts the beak's tip at about +3.85 % with her wing tips at u 0.21-0.79 (rule 3: anything nearer than k 0.6 inside 20-80 %); body
+// k 0.6 keeps the tips in easily but the beak only reaches +3.4 %; pitch 30 brings the tips out to u 0.19.
+export const HERO = { u: 0.5, v: 0.6, k: 0.56, neck: 35, pitch: 40, hold: 0 };
 export const HERO_TIMES = { in: [10, 11], out: [13.1, 14.3] }; // eased in, lingered, eased back
 export const FADE = 0.4; // s through black at the loop's join (the end's last and the start's first)
 export const BANK = 8; // degrees at most
@@ -38,13 +40,17 @@ export function heroShare(t) {
   return t < a ? 0 : t < b ? smooth((t - a) / (b - a)) : t < c ? 1 : smooth(1 - (t - c) / (d - c));
 }
 
-/** The fly clip's second at show second t: beating in the cruise, slowing to its held phase in the hero moment and back. */
+// The wings' clock: the clip's second runs at WING_RATE times (1 − the hero share), so the beat slows to a stop as she comes near
+// and starts again as she goes back (no jump: it is an integral); a constant offset makes the stop fall on HERO.hold of a beat.
+const STEP = 0.01;
+const wingTable = [0];
+for (let i = 1; i * STEP <= 16; i++) wingTable.push(wingTable[i - 1] + WING_RATE * STEP * (1 - heroShare((i - 0.5) * STEP)));
+const wingRaw = t => { const x = Math.min(wingTable.length - 1.001, Math.max(0, t / STEP)); const i = Math.floor(x); return wingTable[i] + (wingTable[i + 1] - wingTable[i]) * (x - i); };
+/** The fly clip's second at show second t (held still while she lingers near). */
 export function wingAt(t, clipLength) {
-  const h = heroShare(t);
-  const beat = t * WING_RATE;
-  // in the hero moment the wings ease to the held phase of the beat nearest the one they are in, and hold it there
-  const held = (Math.floor(beat / clipLength) + HERO.hold) * clipLength;
-  return lerp(beat, held, h);
+  const stop = wingRaw(HERO_TIMES.in[1]);
+  const offset = ((((HERO.hold * clipLength - stop) % clipLength) + clipLength) % clipLength);
+  return wingRaw(t) + offset;
 }
 
 /** Her place and pose at second t: { u, v, k, yaw, pitch, bank, neck, haze, seen }. */

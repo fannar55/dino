@@ -7,8 +7,8 @@
 
 export const FOV = 46; // vertical, degrees, of the stage's 16:10 frame (its width at depth z is 1.358 z)
 export const ASPECT = 16 / 10;
-export const D = 11; // m: the screen plane
-export const CAM_H = 5.2; // m over the highest ground under the lane's near part (the ground at the bottom edge is then beyond D)
+export const D = 13; // m: the screen plane (her body at k 0.75 is 9.75 m away: her wings span about 70 % of the frame there)
+export const CAM_H = 5.8; // m over the highest ground under the lane's near part (the ground at the bottom edge is then beyond D)
 export const LENGTH = 15; // s: the trial loops
 export const SPEED = { default: 4, max: 8 };
 export const START_Z = -24; // where the camera is at second 0
@@ -28,9 +28,9 @@ export const groundClear = (d = D, v = tanV) => d * v;
 /** How far down the lane (depth, m) a thing standing `w` m from its middle first shows at the side edge. */
 export const entersAt = (w, h = tanH) => w / h;
 
-// The lane's walls: the clear half width the rule asks for (11 · 0.679 + 1 = 8.5 m), then crowns reach in: trunks stand further out.
+// The lane's walls: the clear half width the rule asks for (13 · 0.679 + 1 = 9.8 m), then crowns reach in: trunks stand further out.
 export const CLEAR = laneHalf(); // nothing of a plant inside this (|x| < CLEAR): crowns included
-export const TRUNKS = [12.2, 15.5, 20, 26]; // m: the rows of trunks each side (the first row's crowns reach in to about CLEAR)
+export const TRUNKS = [13.8, 17.2, 21.5, 27]; // m: the rows of trunks each side (the first row's crowns reach in to about CLEAR)
 export const LANE = { from: 130, to: -190 }; // z: the lane's planted length (the camera goes from START_Z to START_Z + 15 · max speed)
 
 let seed = 23;
@@ -59,14 +59,20 @@ export function lanePlants() {
 
 /** The generator grows nothing in the lane (its own trees, ferns, bushes and critters keep out). */
 export function keepOut(x) {
-  return Math.abs(x) < CLEAR + 2.4 ? 1 : 0;
+  return Math.abs(x) < CLEAR + 5 ? 1 : 0;
 }
 
 export const LAYOUT = {
   seed: 41,
-  clearing: { center: [0, -60], radius: 8 },
+  clearing: { center: [0, -30], radius: 8 },
   forestEdge: 11,
+  path: [[0, LANE.from], [0, -60], [0, LANE.to]], // a faint track down the lane's middle (the generator needs a path)
   leafShadows: false,
+  // the far forest's misty rings (world/forest/far.js) well beyond where the camera flies: the lane's far end dissolves into them
+  farRings: [
+    { radius: 200, rows: 2, spacing: 5, height: [12, 17], crown: [6, 9.5], strip: [2.6, 4.4], color: ['#2f4d45', '#4f6f66'], haze: '#bccfca', topHaze: 0.45, araucaria: 0.1 },
+    { radius: 235, rows: 1, spacing: 6, height: [12, 16], crown: [6, 9], strip: [2.6, 4.2], color: ['#4b6a5e', '#6d8b7d'], haze: '#d0dfd8', topHaze: 0.6, araucaria: 0.1 },
+  ],
   keepOut,
   lifeKeepOut: keepOut,
   plants: lanePlants(),
