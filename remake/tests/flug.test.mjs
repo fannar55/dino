@@ -9,7 +9,7 @@ import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
 import { BEATS, LEAP, CALL_SHOTS } from '../chapters/kafli4-route.js';
-import { SLOW, MUSIC, GOLDEN, ROAR, SONG } from '../chapters/kafli4-flight.js';
+import { SLOW, MUSIC, GOLDEN, ROAR, SONG, EGILL_ANSWERS } from '../chapters/kafli4-flight.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import * as flugModule from '../chapters/flug.js';
 const CALL_KINDS = new Set(CALL_SHOTS.map(row => row.shot)); // the call shots' kinds of camera (the call, the run-along, the ledge, the herd)
@@ -430,7 +430,14 @@ test('nothing touched: every group is still called once and the flight ends at 1
   assert.ok(Math.abs(c.flight.ended - c.flight.started - BEATS.END) < 0.05, 'the flight ends at 170 s');
   const groups = c.play.calls.filter(call => call.id !== 'land');
   assert.deepEqual(groups.map(call => call.id), groupIds, 'each group once, in the order she meets them');
-  assert.ok(groups.every(call => call.how !== 'tap' && call.voiced), `she calls each herself, aloud (not: ${JSON.stringify(groups.filter(call => !call.voiced).map(call => [call.id, +call.t.toFixed(1), log.lines.filter(l => l.from <= call.t && (l.to ?? Infinity) > call.t).map(l => l.id)]))})`);
+  // she calls each herself, aloud, but where Egill answers a call shot as the camera cuts back to her (EGILL_ANSWERS): her call to the
+  // next group is left out under his line (the group is still called, and answers)
+  const over = call => log.lines.filter(l => l.from <= call.t && (l.to ?? Infinity) > call.t).map(l => l.id);
+  const answering = new Set(Object.values(EGILL_ANSWERS));
+  const silent = groups.filter(call => !call.voiced && !over(call).some(id => answering.has(id)));
+  assert.ok(groups.every(call => call.how !== 'tap'), 'by herself');
+  assert.deepEqual(silent.map(call => [call.id, +call.t.toFixed(1), over(call)]), [], "she calls each herself, aloud, but under Egill's answers");
+  assert.ok(groups.filter(call => !call.voiced).length <= Object.keys(EGILL_ANSWERS).length, 'one at most under each of his answers');
   assert.deepEqual(c.play.answers.map(a => a.id), groupIds, 'and each answers');
   const big = c.play.calls.filter(call => call.id === 'land');
   assert.equal(big.length, 1, 'the big call over the land, once');

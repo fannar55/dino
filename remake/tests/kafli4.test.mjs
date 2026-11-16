@@ -963,8 +963,8 @@ test('they run after she passes, and the run-along\'s first runners at her call:
 // The Flugmynd's sound (plan Task 6): down on the ground the wind in Egill's ears goes down; her call comes from her side; a whoosh
 // and a wingbeat as she passes; and Egill answers each call shot once, on the shot after it
 test('ground shots dip the wind: down as each call shot begins, back as it cuts back', async () => {
-  const { seen } = await playWide();
-  const flight = seen.ground.filter(g => Number.isFinite(g.t));
+  const { watched } = await playWide();
+  const flight = watched.ground.filter(g => Number.isFinite(g.t));
   for (const row of CALL_SHOTS) {
     const down = flight.find(g => g.on && Math.abs(g.t - row.from) <= 0.05);
     assert.ok(down, `${row.id}: down as it begins (${row.from} s)`);
