@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRoute, filmRoute, FILM_CHANGES, TURN, BEND, LANE_H, CLOUD, whiteAt, TRIALS } from '../chapters/flugedla3d/route.js';
-import { D, NEAR, CLEAR, tanH, tanV43, sweptHit, SLALOM, GATE, POSES, plants, cloudBalls } from '../chapters/flugedla3d/stage.js';
+import { D, NEAR, CLEAR, tanH, tanV43, sweptHit, SLALOM, GATE, POSES, POSES_FINE, plants, cloudBalls } from '../chapters/flugedla3d/stage.js';
 import { KEYS, keyIndex, kOf, outOf, MAX_OUT } from '../chapters/flugedla3d/keys.js';
 import { trialAt } from '../chapters/flugedla3d/motion.js';
 
@@ -96,7 +96,7 @@ test('no planted trunk and no cloud ball is ever in the near part of the picture
     if (p.slim) continue;
     assert.equal(sweptHit([p.position[0], 1, p.position[1]], 0.6), null, `${p.name} at ${p.position}`);
   }
-  for (const b of cloudBalls()) assert.equal(sweptHit(b, b[3]), null);
+  for (const b of cloudBalls()) assert.equal(sweptHit(b, b[3], { list: POSES_FINE }), null);
 });
 
 test('the key frames: each a second of the film, the butterfly 2 to 3.9 % out in the middle while it leads', () => {

@@ -28,6 +28,16 @@ for (let t = 0; t <= ROUTE.length + 1e-9; t += SWEEP_STEP) {
   poses.push({ t, x: p.x, y: p.y, z: p.z, s: Math.sin(psi), c: Math.cos(psi) });
 }
 export const POSES = poses;
+// the clouds are passed at up to 12 m/s (1.2 m between POSES): they are kept out from places 1/40 s apart
+const posesAt = step => {
+  const out = [];
+  for (let t = 0; t <= ROUTE.length + 1e-9; t += step) {
+    const p = ROUTE.at(t), psi = rad(p.yaw);
+    out.push({ t, x: p.x, y: p.y, z: p.z, s: Math.sin(psi), c: Math.cos(psi) });
+  }
+  return out;
+};
+export const POSES_FINE = posesAt(1 / 40);
 
 /**
  * Is a ball (centre [x, y, z], heights over the lane's ground; radius r) ever inside the picture's near part, from any of the
@@ -197,7 +207,7 @@ export function cloudBalls() {
     const tx = centre[0] + (rnd() - 0.5) * 120, tz = -10 - rnd() * 140;
     balls.push([tx, CLOUD.base - 4 - rnd() * 14, tz, 3 + rnd() * 4, 2]);
   }
-  return balls.filter(([x, y, z, r]) => sweptHit([x, y, z], r) === null);
+  return balls.filter(([x, y, z, r]) => sweptHit([x, y, z], r, { list: POSES_FINE }) === null);
 }
 
 export { MOUTH, LANE_H, CLOUD };
