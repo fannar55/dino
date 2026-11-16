@@ -54,7 +54,7 @@ export function createFjorFx(world) {
         if (!at) continue;
         const [x, y, z, yaw] = at;
         const side = (hash(j, 1) - 0.5) * 12, lift = -2.8 + hash(j, 2) * 5.5;
-        if (Math.abs(side) < 0.9 && Math.abs(lift) < 0.9) continue; // never in the camera's own face
+        if (Math.hypot(side, lift) < 2.6) continue; // never close by the camera's line (they would come too far out)
         const psi = (yaw * Math.PI) / 180;
         p.set(x + Math.cos(psi) * side, y + lift, z + Math.sin(psi) * side);
         const spin = t * (1 + hash(j, 4) * 2) + j;

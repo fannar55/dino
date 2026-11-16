@@ -74,9 +74,12 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
 
     // her: on the line behind us, or in the picture
     const her = herAt(t, { turnBefore: -route.rates.turn(t - 0.3) });
-    const tH = path.timeAt(path.sAt(t) - her.path.d);
+    // (before the line's start, at the take's first seconds, the line runs on straight ahead of the camera's first place)
+    const sH = path.sAt(t) - her.path.d;
+    const tH = path.timeAt(sH);
     const ph = route.at(tH), hpsi = rad(ph.yaw);
-    herPos.set(ph.x + Math.cos(hpsi) * her.path.side, worldY(tH) + her.path.lift, ph.z + Math.sin(hpsi) * her.path.side);
+    const ahead = Math.max(0, -sH);
+    herPos.set(ph.x + Math.cos(hpsi) * her.path.side + Math.sin(hpsi) * ahead, worldY(tH) + her.path.lift, ph.z + Math.sin(hpsi) * her.path.side - Math.cos(hpsi) * ahead);
     stage.framePoint(...her.air, airPos, stageCam, D);
     herPos.lerp(airPos, her.blend);
     const heading = ph.yaw + (c.yaw - ph.yaw) * her.blend;

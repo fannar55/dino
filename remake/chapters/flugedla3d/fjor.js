@@ -147,17 +147,17 @@ const TAU = 2 * Math.PI;
 // rocket up at us, a lunge at the butterfly; the barrel roll out of the second snap turn. Each change lands on its beat.
 const land = (beat, over, v) => ({ t: at(beat) - over, over, v });
 const D_HER = channel([
-  land(6, 0.45, 6.5), land(7.4, 0.6, 9.5), // swoosh 1 (beat 6)
-  land(9.6, 0.6, 16), land(12, 0.55, 6.6), land(13.6, 0.6, 9.5), // back behind the screen, then a rocket up at us (beat 12)
-  land(17, 0.4, 6.5), land(18.4, 0.6, 9.5), // the lunge at the butterfly (beat 17)
+  land(6, 0.45, 7), land(7.4, 0.6, 9.5), // swoosh 1 (beat 6)
+  land(9.6, 0.6, 16), land(12, 0.55, 7), land(13.6, 0.6, 9.5), // back behind the screen, then a rocket up at us (beat 12)
+  land(17, 0.4, 7), land(18.4, 0.6, 9.5), // the lunge at the butterfly (beat 17)
   land(26, 0.4, 10), land(28.4, 0.6, 9.5),
 ], 9.5);
 const ROLL_HER = channel([{ t: at(26), over: at(2), v: 360 }]); // the barrel roll (beats 26-28)
 // open air: where she is in the picture (blend 1) from the climb to the end (the take ends over open ground)
-const AIR = channel([{ t: at(29.4), over: 0.8, v: 1 }]);
+const AIR = channel([{ t: 14.9, over: 0.7, v: 1 }]);
 const AIR_BODY = [
   // [second, u, v, k, over]: rocketing up from under the picture after the butterfly, beside us over the cloud, ahead in the dive
-  [at(29.4), 0.5, 1.3, 0.9, 0.01], [at(31), 0.5, 0.62, 0.66, 1.4], [17.0, 0.42, 0.58, 0.6, 1.2], [18.6, 0.55, 0.5, 0.72, 1.0],
+  [14.9, 0.5, 0.75, 0.9, 0.01], [16.0, 0.5, 0.62, 0.66, 1.0], [17.0, 0.42, 0.58, 0.6, 1.2], [18.6, 0.55, 0.5, 0.72, 1.0],
   [LEVEL + 0.4, 0.38, 0.58, 0.66, 1.0], [TIP, 0.6, 0.55, 0.8, 1.2], [22.9, 0.5, 0.6, 0.75, 1.2],
   // the peak as the white clears: her beak about 4 % out, the butterfly at our nose, held about 1.5 s into the pull-out
   [23.4, 0.5, 0.6, 0.56, 0.5], [24.7, 0.5, 0.58, 0.56, 0.1],
@@ -184,7 +184,7 @@ export function herAt(t, cam) {
   // the weave: side to side on the path, banked hard into it (a 4-beat cycle)
   const ph = TAU * t / (4 * BEAT);
   const weave = t < at(20) ? 1 : t < at(26) ? 0.35 : 0.6;
-  const side = weave * 1.0 * Math.sin(ph);
+  const side = weave * 0.6 * Math.sin(ph);
   const bankWeave = -weave * 72 * Math.cos(ph);
   const blend = AIR(t);
   const roll = ROLL_HER(t);
@@ -207,9 +207,11 @@ export function herAt(t, cam) {
 // ---- the butterfly: darting all over the picture ----
 // [second, u, v, k, over]: its darts on top of a restless wander; to our nose (k 0.27-0.3: 5-5.4 % out) and back toward her beak
 const DARTS = channel([
-  { t: at(3.4), over: 0.3, v: 1 }, { t: at(4.4), over: 0.4, v: 0 }, // to our nose
-  { t: at(9.4), over: 0.3, v: 1 }, { t: at(10.4), over: 0.4, v: 0 },
-  { t: at(18.6), over: 0.3, v: 1 }, { t: at(19.6), over: 0.4, v: 0 },
+  // to our nose, a little ahead of each swoosh of hers (beats 6, 12, 17), and once on its own (beat 19)
+  { t: at(5.2), over: 0.3, v: 1 }, { t: at(6.6), over: 0.4, v: 0 },
+  { t: at(11.2), over: 0.3, v: 1 }, { t: at(12.6), over: 0.4, v: 0 },
+  { t: at(16.2), over: 0.3, v: 1 }, { t: at(17.6), over: 0.4, v: 0 },
+  { t: at(18.8), over: 0.3, v: 1 }, { t: at(20), over: 0.4, v: 0 },
   { t: 22.6, over: 0.5, v: 1 }, { t: 24.6, over: 0.4, v: 0 }, // the peak, held about 1.5 s
 ]);
 const SHOOT = channel([{ t: at(29.6), over: 0.5, v: 1 }, { t: at(31.5), over: 0.8, v: 0 }]); // it shoots straight up (beat 30)
@@ -223,11 +225,10 @@ export function butterflyAt(t, her) {
   const shoot = SHOOT(t);
   const near = her && her.blend < 0.5 ? (her.path.d - 4) / 13 : her ? her.air[2] - 0.3 : 0.6;
   let uu = u, vv = v - 0.3 * shoot;
-  if (near < 0.32) uu = u < 0.5 ? Math.min(u, 0.3) : Math.max(u, 0.7); // she is close: it dodges to a side
-  else k = Math.min(k, near);
+  k = Math.max(0.3, Math.min(k, near));
   k = lerp(k, 0.285, dart);
   uu = lerp(uu, 0.5 + 0.04 * Math.sin(TAU * t / 0.9), dart);
-  vv = lerp(vv, 0.5, dart);
+  vv = lerp(vv, her && her.blend < 0.5 ? 0.36 : 0.42, dart); // above her face
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
 }
@@ -247,7 +248,7 @@ export function fjorPlants(path) {
     const p = lowAt(s);
     if (!p) continue;
     side = -side;
-    const off = 3.3 + rnd() * 1.5;
+    const off = 3.6 + rnd() * 1.4;
     const psi = (p.yaw * Math.PI) / 180, c = Math.cos(psi), sn = Math.sin(psi);
     const x = p.x + side * c * off, z = p.z + side * sn * off;
     if (!clear(x, z, 3.2)) continue;

@@ -8,7 +8,7 @@ import { LAYOUT, cloudBalls, sweptHit } from './stage.js';
 
 export const FJOR_ROUTE = fjorRoute();
 export const FJOR_PATH = pathOf(FJOR_ROUTE);
-export const CROWN_GAP = 2.2;
+export const CROWN_GAP = 2.8;
 // the low line, every metre or so (for the leaveOut's distances)
 const LINE = (() => {
   const out = [];
@@ -41,7 +41,7 @@ function leaveOut(info, p) {
     if (lineGap(cx, cr.c[1] * sc, cz).d3 - Math.max(cr.r, cr.ry ?? cr.r) * sc < CROWN_GAP) return true;
   }
   const r = (m.trunk?.r ?? 0.4) * sc;
-  if (lineGap(p.x, 1, p.z).d2 - r < 2.6) return true;
+  if (lineGap(p.x, 1, p.z).d2 - r < 2.9) return true;
   return false;
 }
 

@@ -254,6 +254,73 @@ async function fjorTrial(o, server, { say, report }) {
     say(`  stretches longer than 0.4 s: ${longer.map(x => `${x.a.toFixed(2)}-${x.b.toFixed(2)}`).join(', ') || 'none'}`);
     const floor = rows.filter(r => r.background.groundBorder != null && r.white < 0.99).reduce((w, r) => (!w || r.background.groundBorder < w.background.groundBorder ? r : w), null);
     say(`the floor at the bottom edge: nearest k ${floor?.background.groundBorder ?? '-'} at ${floor?.t ?? '-'} s`);
+    // each plant on its own (the depth probe sees the border's nearest, not which thing it is): how long each trunk or crown is cut
+    // by an edge in front of the screen, and how fast the nearest things cross the picture (degrees a second)
+    const plantsList = await evaluate(`(() => { const f = window.__world.flugedla3d; const pts = f.fjor.path.pts.filter(q => q.y < 30); const out = []; for (const pl of (window.__world.forest?.placements ?? [])) { if (!pl.model) continue; let near = Infinity; for (let i = 0; i < pts.length; i += 6) near = Math.min(near, Math.hypot(pl.x - pts[i].x, pl.z - pts[i].z)); if (near > 30) continue; const m = pl.model, sc = pl.scale ?? 1, cs = Math.cos(pl.rot ?? 0), sn = Math.sin(pl.rot ?? 0); const cr = m.crown; out.push({ name: pl.name, x: pl.x, y: pl.y, z: pl.z, top: (m.trunk?.top ?? m.height ?? 2) * sc, r: (m.trunk?.r ?? 0.3) * sc, crown: cr ? [pl.x + (cr.c[0] * cs - cr.c[2] * sn) * sc, pl.y + cr.c[1] * sc, pl.z + (cr.c[0] * sn + cr.c[2] * cs) * sc, Math.max(cr.r, cr.ry ?? cr.r) * sc] : null }); } return out; })()`);
+    const tanV = Math.tan((23 * Math.PI) / 180), tanH = tanV * 1.6;
+    const basis = c => {
+      const y = (c.yaw * Math.PI) / 180, p = ((c.pitch ?? 0) * Math.PI) / 180, a = -((c.roll ?? 0) * Math.PI) / 180;
+      const f = [Math.sin(y) * Math.cos(p), Math.sin(p), -Math.cos(y) * Math.cos(p)];
+      const r0 = [Math.cos(y), 0, Math.sin(y)];
+      const u0 = [r0[1] * f[2] - r0[2] * f[1], r0[2] * f[0] - r0[0] * f[2], r0[0] * f[1] - r0[1] * f[0]];
+      const right = r0.map((v, i) => v * Math.cos(a) + u0[i] * Math.sin(a)), up = u0.map((v, i) => -r0[i] * Math.sin(a) + v * Math.cos(a));
+      return { f, right, up, p: [c.x, c.y, c.z] };
+    };
+    const view = (b, q) => { const d = [q[0] - b.p[0], q[1] - b.p[1], q[2] - b.p[2]]; const dot = v => d[0] * v[0] + d[1] * v[1] + d[2] * v[2]; return [dot(b.right), dot(b.up), dot(b.f)]; };
+    const ballsOf = pl => { const out = []; for (let h = pl.y + 0.5; h < pl.y + pl.top; h += 1.2) out.push([pl.x, h, pl.z, pl.r]); if (pl.crown) out.push(pl.crown); return out; };
+    const dwell = new Map(); // plant index -> current run { a, b, k }
+    const runsOf = [];
+    let fastest = { w: 0 };
+    const angular = [];
+    let prevDir = new Map();
+    for (const r of rows) {
+      const b = basis(r.cam);
+      const nowDir = new Map();
+      let frameMax = 0, frameWho = null;
+      for (const [i, pl] of plantsList.entries()) {
+        let cutK = Infinity, seen = false;
+        for (const [x, y, z, R] of ballsOf(pl)) {
+          const [vx, vy, vz] = view(b, [x, y, z]);
+          if (vz + R <= 0) continue;
+          const dz = Math.max(vz, 0.01);
+          const inside = Math.abs(vx) - R < tanH * dz && Math.abs(vy) - R < tanV * dz;
+          if (!inside) continue;
+          seen = true;
+          const cut = Math.abs(vx) + R > tanH * dz || Math.abs(vy) + R > tanV * dz;
+          const k = Math.max(0.01, vz - R) / D;
+          if (cut && k < 1 && r.white < 0.99) cutK = Math.min(cutK, k);
+        }
+        // its trunk at the camera's height (or its crown): the direction in the camera's frame, for the angular speed
+        if (seen) {
+          const q = [pl.x, Math.min(pl.y + pl.top, Math.max(pl.y, r.cam.y)), pl.z];
+          const [vx, vy, vz] = view(b, q);
+          const n = Math.hypot(vx, vy, vz);
+          if (vz > 0 && n < 40) {
+            const dir = [vx / n, vy / n, vz / n];
+            nowDir.set(i, dir);
+            const last = prevDir.get(i);
+            if (last) {
+              const w = (Math.acos(Math.min(1, dir[0] * last[0] + dir[1] * last[1] + dir[2] * last[2])) * 180) / Math.PI / o.step;
+              if (w > frameMax) { frameMax = w; frameWho = { name: pl.name, dist: +n.toFixed(1) }; }
+            }
+          }
+        }
+        const run = dwell.get(i);
+        if (cutK < 1) {
+          if (run && r.t - run.b < o.step * 1.5) { run.b = r.t; run.k = Math.min(run.k, cutK); } else { if (run) runsOf.push({ ...run, name: pl.name }); dwell.set(i, { a: r.t, b: r.t, k: cutK }); }
+        } else if (run) { runsOf.push({ ...run, name: pl.name }); dwell.delete(i); }
+      }
+      prevDir = nowDir;
+      angular.push({ t: r.t, w: frameMax, who: frameWho });
+      if (frameMax > fastest.w) fastest = { t: r.t, w: frameMax, who: frameWho };
+    }
+    for (const [i, run] of dwell) runsOf.push({ ...run, name: plantsList[i].name });
+    runsOf.sort((x, y) => (y.b - y.a) - (x.b - x.a));
+    const longest = runsOf[0];
+    say(`each plant cut by an edge in front of the screen (${plantsList.length} plants near the line): ${runsOf.length} times; the longest ${longest ? `${(longest.b - longest.a + o.step).toFixed(2)} s (${longest.name}, ${longest.a.toFixed(2)}-${longest.b.toFixed(2)} s, nearest k ${longest.k.toFixed(2)} = ${fx(outOf(longest.k))} %)` : '-'}; over 0.4 s: ${runsOf.filter(x => x.b - x.a + o.step > 0.4 + 1e-6).length}; the nearest such: ${(() => { const n = runsOf.reduce((w, x) => (!w || x.k < w.k ? x : w), null); return n ? `k ${n.k.toFixed(2)} = ${fx(outOf(n.k))} % (${n.name} at ${n.a.toFixed(2)} s, for ${(n.b - n.a + o.step).toFixed(2)} s)` : '-'; })()}`);
+    say(`  the 5 longest: ${runsOf.slice(0, 5).map(x => `${x.name} ${x.a.toFixed(2)}-${x.b.toFixed(2)} s (${(x.b - x.a + o.step).toFixed(2)} s, k ${x.k.toFixed(2)})`).join('; ')}`);
+    const sorted = angular.map(a => a.w).filter(w => w > 0).sort((x, y) => x - y);
+    say(`the nearest plants' angular speed across the picture: fastest ${fastest.w.toFixed(0)} deg/s at ${fastest.t} s (${fastest.who?.name}, ${fastest.who?.dist} m); per frame's fastest: median ${sorted[Math.floor(sorted.length / 2)]?.toFixed(0)} deg/s; at ${[2.5, 6, 10.6, 12.5, 25.5].map(t => { const a = angular.reduce((w, x) => (Math.abs(x.t - t) < Math.abs(w.t - t) ? x : w), angular[0]); return `${t} s ${a.w.toFixed(0)}`; }).join(', ')} deg/s`);
     // rule 9
     const gaps = rows.filter(r => r.gap != null), plantRows = rows.filter(r => r.plants);
     const gap = gaps.reduce((w, r) => (r.gap < w.gap ? r : w), gaps[0]), plant = plantRows.reduce((w, r) => (r.plants.gap < w.plants.gap ? r : w), plantRows[0]);
