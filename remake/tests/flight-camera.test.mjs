@@ -14,6 +14,7 @@ import { createTerrain } from '../world/ardalur/terrain.js';
 import { rainbowLevel } from '../world/props/waterfall.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
+import { addMosiCloud } from '../engine/sun-face.js';
 
 const deg = THREE.MathUtils.radToDeg;
 const world = await chapterWorld({
@@ -298,6 +299,45 @@ test('on a tablet held upright (0.69) the call shots keep a closer frame, and sh
   }
   world.camera.aspect = 1.6;
   world.camera.updateProjectionMatrix();
+});
+
+test("no call shot cuts the cloud shaped like Mosi at its frame's edge: it is all in the frame or out of it", () => {
+  // the chapter's sky (chapters/flug.js and kafli4.js: early afternoon), the cloud as main.js hangs it (engine/sun-face.js), on the
+  // game clock of the review (the flight from its start) and of the chapter (minutes later: it drifts toward the sun)
+  const look = pickLook('earlyAfternoon');
+  const cloud = addMosiCloud({ scene: new THREE.Scene(), lighting: { direction: sunDirection(look) }, look, texture: null });
+  const wrong = [];
+  for (const [aspect, shape] of [[1.6, '16:10'], [0.69, 'upright']]) {
+    for (const row of CALL_SHOTS) {
+      const { camera, to, at, done } = setUp();
+      world.camera.aspect = aspect;
+      world.camera.updateProjectionMatrix();
+      at(row.from);
+      camera.shot(row.shot, optionsOf(row));
+      to(row.to, time => {
+        world.camera.updateMatrixWorld();
+        const right = new THREE.Vector3().setFromMatrixColumn(world.camera.matrixWorld, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(world.camera.matrixWorld, 1);
+        for (const later of [0, 300, 600]) {
+          cloud.update(time + later, world.camera);
+          const { position, scale } = cloud.sprite;
+          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, behind = false;
+          for (const sx of [-0.5, 0.5]) for (const sy of [-0.5, 0.5]) {
+            const q = position.clone().addScaledVector(right, sx * scale.x).addScaledVector(up, sy * scale.y).project(world.camera);
+            if (q.z >= 1) behind = true;
+            x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+          }
+          const touches = !behind && x1 > -1 && x0 < 1 && y1 > -1 && y0 < 1;
+          const whole = !behind && x0 >= -1 && x1 <= 1 && y0 >= -1 && y1 <= 1;
+          if (touches && !whole) wrong.push(`${shape} ${row.id} at ${time.toFixed(2)} s (+${later} s): ${x0.toFixed(2)}..${x1.toFixed(2)}, ${y0.toFixed(2)}..${y1.toFixed(2)}`);
+        }
+      });
+      done();
+    }
+  }
+  world.camera.aspect = 1.6;
+  world.camera.updateProjectionMatrix();
+  assert.deepEqual(wrong.slice(0, 6), [], "the cloud is never cut by a call shot's frame");
 });
 
 test('the run-along keeps the track rules: 7 m/s at most, its pan 40 deg/s, no roll, clear of her and of the ground', () => {

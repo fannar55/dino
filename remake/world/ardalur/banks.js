@@ -460,9 +460,9 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     const i = Math.floor(prop.x / GRID) - gx0;
     const j = Math.floor(prop.z / GRID) - gz0;
     if (i < 0 || j < 0 || i >= cellsAcross || j >= rows || !own[j * cellsAcross + i]) continue;
-    const middle = yield* library.getSteps(prop.name, prop.variant, 1, {});
+    const middle = yield* library.getSteps(prop.name, prop.variant, 1, prop.shape ?? {}); // a prop's `shape`: its species' own options
     const models = ONE_LEVEL.has(prop.name) ? [{ level: 1, model: middle }]
-      : [{ level: 1, model: middle }, { level: 2, model: yield* library.getSteps(prop.name, prop.variant, 2, {}) }];
+      : [{ level: 1, model: middle }, { level: 2, model: yield* library.getSteps(prop.name, prop.variant, 2, prop.shape ?? {}) }];
     const d = terrain.where(prop.x, prop.z).d;
     placements.push({
       name: prop.name, model: middle, models, variant: prop.variant, lod: 1, x: prop.x, y: prop.y - (middle.sink ?? 0) * prop.scale, z: prop.z,

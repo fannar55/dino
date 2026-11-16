@@ -484,11 +484,11 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   const flyersOff = first ? { at: first.trigger, side: first.side } : null;
   // the rocks some of them stand on (NEST_ROCKS: where a shot sees the ledge), grown with the banks, each as high as puts its drawn
   // top NEST_FEET under the flyer's feet (its top over the nest: rockSurface)
-  for (const { nest, at: [x, z], variant, rot, scale } of NEST_ROCKS) {
+  for (const { nest, at: [x, z], variant, rot, scale, shape = {} } of NEST_ROCKS) {
     const [nx, ny, nz] = NESTS[nest];
-    const model = library?.get?.('rock', variant, 1, {}) ?? null;
+    const model = library?.get?.('rock', variant, 1, shape) ?? null;
     const y = ny - NEST_FEET - rockSurface(model, { x, y: 0, z, rot, scale })(nx, nz);
-    props.push({ name: 'rock', variant, x, y, z, rot, scale });
+    props.push({ name: 'rock', variant, x, y, z, rot, scale, shape });
     clear.push({ x, z, r: 1.2 * scale });
   }
 

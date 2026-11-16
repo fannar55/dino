@@ -26,7 +26,7 @@ export const LEAP = 3.5;
  * seconds: the cut to it (`from`), her call (`call`), when she is nearest the group (`pass`), the cut back (`to`). `shot` is the
  * flight camera's (engine/camera/flight-camera.js FIXED), `group` a group of GROUPS, `options` where the camera stands: `back` metres
  * behind the group's middle away from the river, `above` over the ground or the water, `aside` along the bank (up the river), its
- * lens (`fov`), and `look`, how far from the group's middle toward her pass it aims; `tall`: on a screen taller than 16:10 its frame
+ * lens (`fov`), and `look`, how far from the group's middle toward her pass it aims (`drop` metres under that); `tall`: on a screen taller than 16:10 its frame
  * grows at most that many times its height (the flight camera's lensFor: on a tablet held upright the group twice as tall as with
  * the 16:10 width kept). Each first second is from where she passes the group: from ≈ pass − 3.8, call ≈ pass − 2.4, to ≈ pass + 2.5.
  *
@@ -48,8 +48,9 @@ export const CALL_SHOTS = [
   { id: 'kall-froskar', shot: 'call', group: 'frogs-2', from: 48.05, call: 49.45, pass: 51.85, to: 54.35, options: { back: 3, above: 1.2, aside: 6, look: 0.25, fov: 50, tall: 1.3 } },
   // across the river from their tree, low on the far bank downstream of it (in place of the shadow shot): the ten birds sit on the
   // top of its leaves on the river side, facing the camera 36 m off; she comes past the camera's left, sweeps by the tree, and they
-  // burst up as she passes (pass + 0.3) and fly with her up the river into the frame's depth
-  { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: -28, above: 1.2, aside: -20, look: 0.5, fov: 40, tall: 1.3 } },
+  // burst up as she passes (pass + 0.3) and fly with her up the river into the frame's depth. It aims 4.5 m low, so the sky's cloud
+  // shaped like Mosi (engine/sun-face.js), 35 degrees left of the sun, is above the frame and not cut by its top right corner
+  { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: -28, above: 1.2, aside: -20, look: 0.5, drop: 4.5, fov: 40, tall: 1.3 } },
   // the run-along (in place of the chase and the side shot of 72-80): her call is to lizards-2 too (`also`: groups that hear the
   // row's call), just down the bank. The stand waits with them, heads down, till they run at once (0.6 s after the call: `move`),
   // 33 m up the bank in 5.5 s (to d 859, short of the steep rise at 864), and goes with them on the bank behind them (river metres
@@ -214,10 +215,12 @@ export const NESTS = [
 /**
  * The rocks the flyers stand on, where a shot comes near enough to see what a flyer stands on (kall-sylla: nest 5): the valley's own
  * rock (world/forest/species.js, as the banks place it), `at` [x, z] with its back a quarter of its width in the wall, turned `rot`
- * and scaled; world/ardalur/life.js sets its height so its top is just under the flyer's feet. The wall there is 83° steep, so it
- * juts out of it like a shelf, 1.1 m out past the flyer's feet and its top within 0.12 m of level round them.
+ * and scaled, its `shape` the species' own options (`mossy`: how much moss grows on its top; the forest's rocks have 0.7 to 1.4,
+ * this one is grey rock with a little moss, as a ledge in a bare wall is); world/ardalur/life.js sets its height so its top is just
+ * under the flyer's feet. The wall there is 83° steep, so it juts out of it like a shelf, 0.95 m out past the flyer's feet and its top
+ * within 0.16 m of level round them.
  */
-export const NEST_ROCKS = [{ nest: 5, at: [-1181.78, 163.58], variant: 0, rot: 0, scale: 1.6 }];
+export const NEST_ROCKS = [{ nest: 5, at: [-1181.78, 163.59], variant: 0, rot: 1.047, scale: 1.6, shape: { mossy: 0.25 } }];
 
 // ---------------------------------------------------------------------------------------------
 // The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small

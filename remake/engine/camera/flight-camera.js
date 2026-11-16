@@ -103,8 +103,9 @@ const FIXED = {
   // C: a call shot (the route's CALL_SHOTS, by `callShot`): down with an animal group, `back` metres behind its middle away from the
   // river, `above` over the ground or the water (never under CLEAR) and `aside` along the bank up the river, so the group fills the
   // near frame and the way she comes is behind it. It aims at a point `look` of the way from the group's middle to where she passes
-  // (its `pass`) and holds it: she sweeps through a still frame (the Flugmynd spec: the group at least 8 % of the frame's height).
-  call: (c, { callShot = null, group = null, pass = null, back = 6, above = CLEAR, aside = 0, fov = 44, look = 0.5 } = {}) => {
+  // (its `pass`), `drop` metres under it, and holds it: she sweeps through a still frame (the Flugmynd spec: the group at least 8 %
+  // of the frame's height).
+  call: (c, { callShot = null, group = null, pass = null, back = 6, above = CLEAR, aside = 0, fov = 44, look = 0.5, drop = 0 } = {}) => {
     const row = callShot ? callRow(callShot) : null;
     const id = group ?? row?.group;
     const middle = groupMiddle(c.route, id, c.groundAt);
@@ -113,6 +114,7 @@ const FIXED = {
     const r = c.route.river.at(c.route.river.nearest(g.at[0], g.at[2]).d);
     const made = c.ground(middle.x + out[0] * back + r.dir[0] * aside, middle.z + out[1] * back + r.dir[1] * aside, Math.max(above, CLEAR), fov);
     const aim = middle.clone().lerp(c.route.pointAt(c.route.progressAt(pass ?? row?.pass ?? c.t)), look);
+    aim.y -= drop;
     return { ...made, middle, group: g.id, look: target => target.copy(aim) };
   },
   // C: the run-along (the route's CALL_SHOTS row 4): on a stand moving along `path` ([x, z] to [x, z]) from the row's `from` to its

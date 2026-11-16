@@ -364,14 +364,15 @@ test("the ledge's flyer stands on a rock of the valley's own, set in the wall, c
   assert.ok(NEST_ROCKS.some(r => CALL_SHOTS.some(row => row.shot === 'ledge' && row.nest === r.nest)), "a rock under the ledge shot's nest");
   const ray = new THREE.Raycaster();
   const down = new THREE.Vector3(0, -1, 0);
-  for (const { nest, variant, scale } of NEST_ROCKS) {
+  for (const { nest, variant, scale, shape = {} } of NEST_ROCKS) {
     const [x, y, z] = NESTS[nest];
     const rocks = life.props.filter(p => p.name === 'rock' && Math.hypot(p.x - x, p.z - z) < 3);
     assert.equal(rocks.length, 1, `one rock under nest ${nest}`);
     const [rock] = rocks;
-    assert.ok(rock.variant === variant && rock.scale === scale && rock.variant < 5, `the forest's own rock ${rock.variant} (scale ${rock.scale})`);
+    assert.ok(rock.variant === variant && rock.scale === scale && rock.variant < 5 && rock.shape === shape, `the forest's own rock ${rock.variant} (scale ${rock.scale})`);
+    assert.ok((shape.mossy ?? 1) <= 0.5, `grey rock, little moss (mossy ${shape.mossy})`);
     // as the banks place it (banks.js plantSteps: lod 1, sunk by its model's sink, turned by its rot, scaled)
-    const model = library.get('rock', variant, 1, {});
+    const model = library.get('rock', variant, 1, shape);
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(model.solid.pos, 3));
     geometry.setIndex(model.solid.idx);
