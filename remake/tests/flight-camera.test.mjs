@@ -234,7 +234,9 @@ test('call shots frame what they are about and her at both sizes, and stand stil
       world.scene.updateMatrixWorld(true);
       const grows = Math.tan(THREE.MathUtils.degToRad(world.camera.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(row.options.fov) / 2);
       if (row.options.tall) assert.ok(grows <= row.options.tall + 1e-6 && (aspect >= 1.6 || grows > row.options.tall - 1e-6), `${row.id} at ${aspect}: the frame ${grows.toFixed(2)} times its height`);
-      for (const [who, p] of [['what it is about', middle], ['her', herAt(seen)], ['her head', head.getWorldPosition(new THREE.Vector3())]]) {
+      // a frame narrowed by `tall` holds what it is about; she sweeps through it ('on a tablet held upright, ...' below)
+      const whom = aspect < 1.6 && row.options.tall ? [['what it is about', middle]] : [['what it is about', middle], ['her', herAt(seen)], ['her head', head.getWorldPosition(new THREE.Vector3())]];
+      for (const [who, p] of whom) {
         const q = p.clone().project(world.camera);
         assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}, ${seen} s: ${who} at ${q.x.toFixed(2)}, ${q.y.toFixed(2)}`);
       }
@@ -265,6 +267,37 @@ test('call shots frame what they are about and her at both sizes, and stand stil
     assert.deepEqual(flight(), [], `${row.id} keeps the rules`);
     done();
   }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): on a tablet held upright the groups were 10-11 % of the frame's height,
+// over empty ground. A call row's `tall` keeps its frame at most that many times the authored height there (the flight camera's
+// lensFor), so it is narrower than 16:10's: she sweeps through it as she passes, in it a third of the time from her call to half a
+// second after her pass at least.
+test('on a tablet held upright (0.69) the call shots keep a closer frame, and she sweeps through it', t => {
+  for (const row of CALL_SHOTS.filter(r => r.options.tall)) {
+    const { camera, to, at, done, flight } = setUp();
+    world.camera.aspect = 0.69;
+    world.camera.updateProjectionMatrix();
+    at(row.from);
+    camera.shot(row.shot, optionsOf(row));
+    let inside = 0, frames = 0;
+    to(row.pass + 0.5, time => {
+      if (time < row.call) return;
+      world.scene.updateMatrixWorld(true);
+      world.camera.updateMatrixWorld();
+      const q = herAt(time).project(world.camera);
+      frames++;
+      if (q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95) inside++;
+    });
+    const grows = Math.tan(THREE.MathUtils.degToRad(world.camera.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(row.options.fov) / 2);
+    t.diagnostic(`${row.id}: the frame ${grows.toFixed(2)} times its 16:10 height (2.32 with the 16:10 width kept); she is in it ${(100 * inside / frames).toFixed(0)} % of her call to her pass + 0.5 s`);
+    assert.ok(Math.abs(grows - row.options.tall) < 1e-6, `${row.id}: the frame ${grows.toFixed(2)} times its height`);
+    assert.ok(inside / frames >= 1 / 3, `${row.id}: she is in the frame ${(100 * inside / frames).toFixed(0)} % of the time from her call to her pass + 0.5 s`);
+    assert.deepEqual(flight(), [], `${row.id} keeps the rules`);
+    done();
+  }
+  world.camera.aspect = 1.6;
+  world.camera.updateProjectionMatrix();
 });
 
 test('the run-along keeps the track rules: 7 m/s at most, its pan 40 deg/s, no roll, clear of her and of the ground', () => {
