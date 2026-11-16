@@ -360,18 +360,22 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
       if (calling && world.forest?.animals) {
         const group = world.forest.animals.groups.find(g => g.id === calling.group);
         world.camera.updateMatrixWorld();
-        // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame
-        let low = Infinity, high = -Infinity;
+        // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame; of a group of
+        // birds, those a ray from the camera reaches past their tree's leaves (the owner's look at kall-fuglar: only feet showed)
+        const tree = group.kind === 'birds' ? birdsTree(world.forest, group) : null;
+        let low = Infinity, high = -Infinity, birds = 0;
         for (const m of group.members) {
           const p = m.position.clone().project(world.camera);
           if (!m.visible || p.z >= 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
+          if (tree && !birdSeen(tree, world.camera.position, m)) continue;
+          if (tree) birds++;
           const box = projectedBox(m, world.camera, world.forest.animals.crowds);
           low = Math.min(low, box.y0);
           high = Math.max(high, box.y1);
         }
         const size = high > low ? (Math.min(high, 1) - Math.max(low, -1)) / 2 : 0;
         const at = her.root.position;
-        seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera) });
+        seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera), birds: group.kind === 'birds' ? (tree ? birds : -1) : null });
       }
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
@@ -486,9 +490,46 @@ function projectedBox(m, camera, crowds) {
   }
   return { x0, x1, y0, y1 };
 }
-let wide = null, upright = null, tapped = null;
+/**
+ * A group of birds' tree (animals.js PROPS: their broadleaf, where the plants' batcher placed it) as a mesh of its own model's
+ * triangles, once its section is built (else null), to ask which birds a ray from the camera reaches.
+ */
+const trees = new Map();
+function birdsTree(forest, group) {
+  if (trees.has(group.id)) return trees.get(group.id);
+  const prop = forest.animals.props.find(p => p.name === 'broadleaf' && Math.hypot(p.x - group.point.x, p.z - group.point.z) < 12);
+  const tree = forest.stats.sections.flatMap(part => part.userData.placements ?? []).find(q => q.name === prop.name && Math.hypot(q.x - prop.x, q.z - prop.z) < 0.01);
+  if (!tree) return null;
+  const mesh = new THREE.Group();
+  for (const part of [tree.model.solid, tree.model.thin]) {
+    if (!part?.pos?.length) continue;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(Array.from(part.pos), 3));
+    geometry.setIndex(Array.from(part.idx));
+    mesh.add(new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })));
+  }
+  mesh.position.set(tree.x, tree.y, tree.z);
+  mesh.rotation.y = -tree.rot;
+  mesh.scale.setScalar(tree.scale);
+  mesh.updateMatrixWorld(true);
+  trees.set(group.id, mesh);
+  return mesh;
+}
+const sight = new THREE.Raycaster();
+/** Whether a ray from `from` reaches a bird's body or its head past its tree's leaves. */
+function birdSeen(mesh, from, m) {
+  return [0.4, 0.75].some(k => {
+    const to = m.position.clone().setY(m.position.y + m.height * k);
+    const d = to.distanceTo(from);
+    sight.set(from, to.sub(from).normalize());
+    sight.far = d - 0.05;
+    return sight.intersectObject(mesh, true).length === 0;
+  });
+}
+let wide = null, upright = null, tapped = null, tablet = null;
 const playWide = () => (wide ??= playIt());
 const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
+const playTablet = () => (tablet ??= playIt({ aspect: 0.69 })); // a tablet held upright (820 by 1180)
 const playTapped = () => (tapped ??= playIt({ tap: true }));
 let calm = null;
 const playReduced = () => (calm ??= playIt({ reduced: true }));
@@ -836,8 +877,30 @@ test('each call shot down on a bank frames the group it is about: the group at l
       t.diagnostic(`${shape} ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${middle.x.toFixed(2)}, ${middle.y.toFixed(2)}`);
       assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `${shape}: ${row.id}'s group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
       assert.ok(closest.size >= 0.08, `${shape}: ${row.id}'s group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+      // the birds as they sit in their tree: those a ray from the camera reaches past its leaves are the ones counted above
+      if (closest.birds !== null) {
+        const sitting = frames.filter(f => f.t < row.pass + 0.3);
+        t.diagnostic(`${shape} ${row.id}: ${Math.min(...sitting.map(f => f.birds))} to ${Math.max(...sitting.map(f => f.birds))} of the ten birds seen as they sit`);
+        assert.ok(sitting.every(f => f.birds >= 9), `${shape}: ${row.id}: ${Math.min(...sitting.map(f => f.birds))} birds seen past their tree's leaves as they sit (at least 9 of 10; -1: no tree)`);
+      }
     }
   }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): on a tablet held upright the groups were 10-11 % of the frame's height,
+// over empty ground; the call rows' `tall` lens (flight-camera.js lensFor) makes them about twice that. The birds' shot stands
+// across the river from their tree now (they were hidden under its leaves), so its group is smaller in any frame.
+test('on a tablet held upright (820 by 1180) each call shot\'s group is about twice as tall as with the 16:10 width kept', async (t) => {
+  const { watched } = await playTablet();
+  const failed = [];
+  for (const row of CALL_SHOTS.filter(r => r.group)) {
+    const frames = watched.calls.filter(f => f.id === row.id);
+    const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
+    const least = row.group.startsWith('birds') ? 0.08 : 0.16;
+    t.diagnostic(`0.69 ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${closest.middle.x.toFixed(2)}, ${closest.middle.y.toFixed(2)}`);
+    if (!(frames.length > 30 && closest.size >= least)) failed.push(`${row.id}: the group ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least ${100 * least} %)`);
+  }
+  assert.deepEqual(failed, []);
 });
 
 // ---- the call shots' groups (the Flugmynd spec, 2026-11-15): called at the row's second, they hear her, look up, and run as she
