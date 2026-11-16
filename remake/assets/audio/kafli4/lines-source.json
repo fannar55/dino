@@ -16,7 +16,7 @@
  { "id": "k4_egill_yes", "speaker": "egill", "text": "Já!" },
  { "id": "k4_mosi_run", "speaker": "mosi", "text": "Fljúgið þið, ég hleyp!" },
  { "id": "k4_flugedla_hold", "speaker": "flugedla", "text": "Haltu þér fast!" },
- { "id": "k4_egill_wow", "speaker": "egill", "text": "Vááá!" },
+ { "id": "k4_egill_wow", "speaker": "egill", "text": "Vááá!", "context": "Vááá, sjáðu! Þetta er svo flott!", "seed": 3, "fixes": "line", "note": "Own context and seed 3, as won k4_egill_vaa („Vá!“, the book's va recipe samhengi): the owner said no to the plain take on 2026-11-16 and picked this one by ear of four the same day (\"Nota númer 1\"). It fixes the whole line." },
  { "id": "k4_flugedla_call1", "speaker": "flugedla", "text": "Hátíð í kvöld! Komið öll!" },
  { "id": "k4_flugedla_call2", "speaker": "flugedla", "text": "Komið á Stjörnuhátíðina!" },
  { "id": "k4_flugedla_call3", "speaker": "flugedla", "text": "Allir á hátíðina í kvöld!" },
