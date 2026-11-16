@@ -185,3 +185,29 @@ og hvort setningarnar þrjár í kafla 6 ættu að vera með eða myndbandið or
 1. **Með tali:** setningarnar þrjár í kafla 6 verða gerðar (í skrefi 3).
 2. **Sagan stendur.** Hann gerði enga athugasemd við atriðin átta; þetta er lestur Claude á svarinu. Hann dæmir þau á
    lykilrömmunum í skrefi 1.
+
+## 12. Dómur eigandans á skrefi 1
+
+Eigandinn skoðaði lykilrammana og hreyfiprufurnar tvær 16. nóvember 2026 og sagði:
+
+> við vorum að hugsa meiri hraða, gegnum tré, núna er þetta frekar dull, myndavél má alveg heyfast smá með, fiðrildi er alltaf á
+> sama stað, það er ekkert sense of spees eða turn. flugeðla má koma meira út og fiðrildi.
+>
+> er að hugsa meira DJ eðla sem er hennar persónuleiki, hún er hress, flýgur hratt, svo swoosh, beygja, uppí ský hratt, meira 3D
+> effect á öllu.
+
+Skref 1 er því ekki samþykkt eins og það var smíðað. Sagan (eltingaleikurinn við fiðrildið) stendur, en þessar reglur voru of
+varfærnar og víkja í nýrri hreyfiprufu, `&profa=fjor`:
+
+- **Regla 2 (myndavélin):** hún má halla sér inn í beygjur, líta upp og niður í klifri og dýfu og dragast aðeins aftur úr, svo
+  fiðrildið og Flugeðla færist til í myndinni. Beygjur mega vera snöggar.
+- **Regla 4 (ramminn):** tré mega þjóta fram hjá nálægt myndavélinni, líka framan við skjáinn við brún, ef þau eru þar aðeins
+  augnablik. Hægir hlutir við brún framan við skjáinn eru áfram bannaðir.
+- **Regla 5 (4 % þakið):** Flugeðla og fiðrildið mega koma lengra út, allt að 6 % í stuttum sprettum. Eigandinn dæmir töluna á
+  prufunni.
+- **Regla 7 (hægt út og staldrað við):** snöggir sprettir að okkur eru leyfðir innan um hægu augnablikin.
+- **Hraðarnir í kafla 3:** um þrefalt meiri í skóginum, og enn meiri upp í skýið og niður.
+- **Persónan:** Flugeðla er DJ Flugeðla úr kafla 5: hress, hröð, með veltur og snöggar beygjur. Tónlist úr settinu hennar má
+  liggja undir.
+
+Planið er endurskrifað eftir dóm hans á nýju prufunni. Lykilrammarnir og prufurnar `beygja` og `upp` standa óbreytt á meðan.
