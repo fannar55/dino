@@ -63,14 +63,14 @@ export const KEYS = [
     butterfly: { at: [0.62, 0.33, kOf(0.022)], yaw: 15, flap: 0.35 },
   },
   {
-    id: '7', n: 7, name: 'Dýfan', time: 60.5,
-    // the peak: the butterfly 3.65 % out at its middle (its nearest point 3.9 %), her beak 0.7 m behind it (2.9 %, not the plan's 3.3:
+    id: '7', n: 7, name: 'Dýfan', time: 66,
+    // the peak, under the cloud (the forest far below, the cloud's base above), the camera going down at 12 m/s: the butterfly 3.65 % out at its middle (its nearest point 3.9 %), her beak 0.7 m behind it (2.9 %, not the plan's 3.3:
     // the butterfly is 0.56 m wide now and rule 9 keeps it 0.5 m from her), her wings tucked (her standing pose's)
     her: { beak: [0.5, 0.66, (13 * kOf(0.0365) + 0.7) / 13], yaw: 0, pitch: -15, neck: 18, clip: 'glide', at: 0, tuck: 1 },
     butterfly: { at: [0.5, 0.63, kOf(0.0365)], yaw: 0, pitch: 0, flap: 0.3 },
   },
   {
-    id: '7b', n: 7, variant: 'b', name: 'Dýfan (varaleið)', time: 60.5,
+    id: '7b', n: 7, variant: 'b', name: 'Dýfan (varaleið)', time: 66,
     // the fallback: her glide with the wings swept back
     her: { beak: [0.5, 0.66, (13 * kOf(0.0365) + 0.7) / 13], yaw: 0, pitch: -15, neck: 18, clip: 'glide', at: 0, sweep: 70 },
     butterfly: { at: [0.5, 0.63, kOf(0.0365)], yaw: 0, pitch: 0, flap: 0.3 },

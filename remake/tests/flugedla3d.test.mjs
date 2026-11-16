@@ -11,7 +11,7 @@ import { trialAt } from '../chapters/flugedla3d/motion.js';
 test('the camera: level, its one turn under 10 degrees a second, every change of a rate eased over a second or more', () => {
   const r = filmRoute();
   assert.ok(r.stats.maxTurn <= 10, `turn ${r.stats.maxTurn}`);
-  for (const c of FILM_CHANGES) assert.ok(c.over >= 1, `a change at ${c.t} s over ${c.over} s`);
+  for (const c of FILM_CHANGES) if (c.jump === undefined) assert.ok(c.over >= 1, `a change at ${c.t} s over ${c.over} s`);
   let worst = 0;
   for (let t = 0; t < r.length; t += 0.01) worst = Math.max(worst, Math.abs(r.rates.turn(t)));
   assert.ok(worst <= 10 + 1e-9, `the turn rate reaches ${worst}`);
@@ -40,9 +40,34 @@ test('the heights: the lane at LANE_H (the ground beyond D at a 4:3 bottom edge)
 test('the white: whole wherever the cloud would come within 7 m of the camera, none far from it', () => {
   for (let y = CLOUD.base - CLOUD.clear; y <= CLOUD.top + CLOUD.clear; y += 0.5) assert.equal(whiteAt(y), 1, `at ${y} m`);
   assert.equal(whiteAt(LANE_H), 0);
-  assert.equal(whiteAt(105), 0);
+  assert.equal(whiteAt(CLOUD.top + CLOUD.clear + CLOUD.ease[1]), 0);
+  assert.equal(whiteAt(CLOUD.base - CLOUD.clear - CLOUD.ease[0]), 0);
   // it never jumps: under 0.03 of white per 10 cm of height
-  for (let y = 0; y < 120; y += 0.1) assert.ok(Math.abs(whiteAt(y + 0.1) - whiteAt(y)) < 0.03, `at ${y.toFixed(1)} m`);
+  for (let y = 0; y < 130; y += 0.1) assert.ok(Math.abs(whiteAt(y + 0.1) - whiteAt(y)) < 0.03, `at ${y.toFixed(1)} m`);
+});
+
+test('the dive: the camera\'s height skips only inside the full white, each white a second or so; 12 m/s through her approach and hold', () => {
+  const r = filmRoute();
+  const jumps = FILM_CHANGES.filter(c => c.jump !== undefined);
+  assert.equal(jumps.length, 2);
+  for (const j of jumps) {
+    assert.equal(whiteAt(r.at(j.t - 0.05).y), 1, `before the jump at ${j.t.toFixed(2)} s`);
+    assert.equal(whiteAt(r.at(j.t + 0.05).y), 1, `after the jump at ${j.t.toFixed(2)} s`);
+  }
+  // each full white lasts 1 to 1.5 s
+  let start = null;
+  const whites = [];
+  for (let t = 40; t < 72; t += 0.01) {
+    const full = whiteAt(r.at(t).y) >= 1;
+    if (full && start === null) start = t;
+    if (!full && start !== null) { whites.push(t - start); start = null; }
+  }
+  assert.equal(whites.length, 2);
+  for (const w of whites) assert.ok(w >= 0.9 && w <= 1.5, `a white of ${w.toFixed(2)} s`);
+  // out of the white by the approach (63.75), then 12 m/s down through the hold to the brake
+  assert.ok(whiteAt(r.at(63.75).y) < 0.2);
+  for (let t = 63.75; t <= 67; t += 0.05) assert.ok(Math.abs(r.at(t).up + 12) < 1e-9, `down at ${-r.at(t).up} m/s at ${t.toFixed(2)} s`);
+  assert.equal(whiteAt(r.at(65).y), 0);
 });
 
 test('the swept frame rule: a thing in the still picture nearer than NEAR is hit, one beyond it or beside the lane is not', () => {
