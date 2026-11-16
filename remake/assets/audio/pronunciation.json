@@ -2554,10 +2554,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Flugeðla segir „Stærsta rándýrið!“ í kafla 4, sögumaður „svöng rándýr“ í bókinni). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+          "note": "Sent eins og það er skrifað (Flugeðla segir „Stærsta rándýrið!“ í kafla 4, sögumaður „svöng rándýr“ í bókinni). Eigandinn sagði já við „Stærsta rándýrið!“ á já/nei-síðunni 2026-11-16."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     }
   },
   "lines": {
