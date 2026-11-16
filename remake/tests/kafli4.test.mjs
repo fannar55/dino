@@ -350,6 +350,11 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
               // each grazer's box in the frame, and where it is (the herd shot frames all five, over the caption's band)
               boxes: group.members.map(m => projectedBox(m, world.camera, crowds)), at: group.members.map(m => m.position.clone()),
               horizon: ndc(world.camera.position.clone().addScaledVector(flat, 2000)).y,
+              // the grazers of the other groups: how far each is from the camera, and its box in the frame when it is before it
+              others: (world.forest.life.herd ?? []).filter(g => g !== group).flatMap(g => g.members).filter(m => m.visible).map(m => ({
+                id: m.id, d: m.position.distanceTo(world.camera.position),
+                box: m.position.clone().applyMatrix4(world.camera.matrixWorldInverse).z < 0 ? projectedBox(m, world.camera, crowds) : null,
+              })),
             });
           }
         }
@@ -991,6 +996,10 @@ test('the herd shot frames all five grazers whole, near its middle and over the 
     assert.deepEqual(cut.map(worst), [], `${shape}: every grazer whole in the frame and over the caption's band (${band})`);
     const middle = Math.max(...frames.map(f => Math.abs(f.boxes.reduce((sum, b) => sum + (b.x0 + b.x1) / 2, 0) / f.boxes.length)));
     assert.ok(middle < 0.25, `${shape}: the group near the frame's middle (its middle at most ${middle.toFixed(2)} off)`);
+    // none of the other groups walks into it (the step's south group grazed round its first place and walked through its frame)
+    const strays = frames.flatMap(f => f.others.filter(o => o.d < 3 || (o.box && o.box.x1 > -1 && o.box.x0 < 1 && o.box.y1 > -1 && o.box.y0 < 1))
+      .map(o => `${f.t.toFixed(2)} s: ${o.id} ${o.d.toFixed(1)} m off`));
+    assert.deepEqual(strays.slice(0, 6), [], `${shape}: no grazer of the other groups in the frame, nor within 3 m of the camera`);
     // the sky over them while they graze, before the aim comes up (the horizon's height: (1 - y) / 2 of the frame is sky)
     const grazing = frames.filter(f => f.t < row.options.ease[0]);
     const sky = Math.max(...grazing.map(f => (1 - f.horizon) / 2));
@@ -1000,7 +1009,7 @@ test('the herd shot frames all five grazers whole, near its middle and over the 
       assert.ok(sky <= 0.35, `${shape}: about a third sky or less while they graze (${(100 * sky).toFixed(0)} %)`);
       assert.ok(pass.her.y <= 0.8, `${shape}: she is in the frame, not on its top edge, as she passes (${pass.her.y.toFixed(2)})`);
       // the shot she was in before had her wings 12.6 % of the frame's height across (50 degrees, 44 m off)
-      assert.ok(pass.span >= 0.14, `${shape}: her wings ${(100 * pass.span).toFixed(1)} % of the frame's height across as she passes`);
+      assert.ok(pass.span >= 0.13, `${shape}: her wings ${(100 * pass.span).toFixed(1)} % of the frame's height across as she passes`);
     }
   }
 });

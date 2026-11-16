@@ -65,14 +65,15 @@ export const CALL_SHOTS = [
   // It stands 2.5 m out from the wall, so the flyer leaving her way keeps 2 m off the line to Egill as it goes by (2.5 m at 95.8 s)
   { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 9, out: 2.5, above: 2, look: 0.3, fov: 46 } },
   // low before the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
-  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands on the higher ground 64 m to the south (100
-  // degrees right of their way to the far pool), so the five stand whole in the middle of a long lens (22 degrees) facing it and her
-  // way, little sky over them (a quarter) while they graze; from 136.5 to 139.5 s its aim comes up a quarter of the way to her pass,
-  // so she flies in over them (at 0.7 of the frame's height, 118 px across at 16:10). She comes into its frame after the flyer of
-  // nest 4, wheeling round her, has crossed the line to Egill (138 s)
+  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands on the higher ground 52 m to the south (110
+  // degrees right of their way to the far pool), so the five stand whole in the middle of a long lens (28 degrees) facing it and her
+  // way, little sky over them (a quarter) while they graze; from 136.5 to 139.5 s its aim comes up a fifth of the way to her pass, so
+  // she flies in over them (at 0.73 of the frame's height, 106 px across at 16:10). It stands short of the step's south group (HERD
+  // 'step'), which walks off past it out of its frame. She comes into its frame after the flyer of nest 4, wheeling round her, has
+  // crossed the line to Egill (138 s)
   {
     id: 'kall-hjord', shot: 'herd', at: [-1367, 31], from: 135, call: 135, pass: 139.58, to: 141.6,
-    options: { bearing: -100, distance: 64, above: 1.2, drop: 1, look: 0.25, ease: [136.5, 139.5], fov: 22 },
+    options: { bearing: -110, distance: 52, above: 1.2, drop: 1, look: 0.2, ease: [136.5, 139.5], fov: 28 },
   },
 ];
 
