@@ -12,7 +12,7 @@ import { createHaze } from '../gramedla3d/haze.js';
 
 const rad = d => (d * Math.PI) / 180;
 export const BODY_LOCAL = [0.06, BODY_HEIGHT, 0]; // her body's middle in her root's frame (kafli4-route.js)
-export const BUTTERFLY_SPAN = 0.46; // m tip to tip with its wings flat (chosen on the key frames: 5 % of the frame's width at 2 % out)
+export const BUTTERFLY_SPAN = 0.56; // m tip to tip with its wings flat (chosen on the key frames: 5 % of the frame's width or more wherever it leads, 2 to 3.9 % out)
 const BUTTERFLY_MODEL = new URL('../../assets/critters/butterfly.glb', import.meta.url).href;
 // the wing chain, each side: the bones the tuck lays her standing pose over, and the sweep turns back
 const WING = ['UpperArm', 'Forearm', 'Wrist', 'Finger1', 'Finger2', 'Finger3'];
@@ -20,7 +20,7 @@ const WING = ['UpperArm', 'Forearm', 'Wrist', 'Finger1', 'Finger2', 'Finger3'];
 let loader = null;
 const loadModel = (world, url) => (world.loadModel ? world.loadModel(url) : (loader ??= new GLTFLoader()).loadAsync(url));
 
-export function createCast(world, { her, at, camera }) {
+export function createCast(world, { her, at }) {
   const scene = world.scene;
   // ---- Flugeðla ----
   const herRoot = { position: new THREE.Vector3(0, -50, 0), quaternion: new THREE.Quaternion() };
@@ -151,7 +151,7 @@ export function createCast(world, { her, at, camera }) {
     model.scale.setScalar(BUTTERFLY_SPAN / span);
     bfly.add(model);
   }).catch(error => console.warn('[flugedla3d] no butterfly:', error?.message ?? error));
-  const bq = new THREE.Quaternion(), bp = new THREE.Quaternion();
+  const bp = new THREE.Quaternion();
   /** The butterfly: { at: [u, v, k] } or { on: 'beak', lift }, yaw (degrees: 0 facing the camera), pitch (nose up), flap (radians). */
   function poseButterfly(spec, heading) {
     if (!spec) { bfly.visible = false; return; }
@@ -159,7 +159,6 @@ export function createCast(world, { her, at, camera }) {
     if (spec.on === 'beak' && beakLocal) beak(bfly.position).add(new THREE.Vector3(0, spec.lift ?? 0.07, 0));
     else at(...spec.at, bfly.position);
     bfly.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -rad(90 + (spec.yaw ?? 0) + heading)).multiply(bp.setFromAxisAngle(Z, rad(spec.pitch ?? 0)));
-    void bq;
     const flap = spec.flap ?? 0.5;
     if (bwings.L) bwings.L.rotation.x = flap;
     if (bwings.R) bwings.R.rotation.x = -flap;
@@ -207,7 +206,6 @@ export function createCast(world, { her, at, camera }) {
     const h = 2 * D * tanHalfV * 1.6; // taller than any screen's picture there
     sheet.scale.set(h * 2.4, h, 1);
   }
-  void camera;
 
   return { poseHer, poseButterfly, poseLeaves, poseWhite, herBody, beak: () => (beakLocal && her.root.visible ? beak() : null), butterflyReady, butterfly: bfly, get butterflySpan() { return span; }, her, herRoot, leaves, sheet };
 }

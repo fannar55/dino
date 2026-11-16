@@ -36,10 +36,10 @@ export function beygja(t, route) {
 // ---- up, over and down ----
 const UPP = [
   { t: 39.5, state: { ...CRUISE } },
-  { t: 42, over: 1.5, state: { beak: [0.5, 0.5, 0.6], pitch: 48, yaw: 0, bank: 0, neck: 0, clip: 'fly' } }, // the climb, steep
+  { t: 42, over: 1.5, state: { beak: [0.5, 0.5, 0.68], pitch: 40, yaw: 0, bank: 0, neck: 0, clip: 'fly' } }, // the climb, steep
   { t: 54, over: 2, state: { beak: [0.5, 0.52, 0.62], pitch: 4, clip: 'glide' } }, // over the cloud: gliding
-  { t: 58.5, over: 1, state: { beak: [0.5, 0.52, 0.55], pitch: -38, neck: 18, tuck: 1 } }, // she tucks and dives
-  { t: 59.5, over: 1, state: { beak: [0.5, 0.53, (13 * kOf(0.039) + 0.5) / 13] } }, // nearer: the peak (held to 61.5)
+  { t: 58.5, over: 1, state: { beak: [0.5, 0.6, 0.55], pitch: -15, neck: 18, tuck: 1 } }, // she tucks and dives
+  { t: 59.5, over: 1, state: { beak: [0.5, 0.66, (13 * kOf(0.038) + 0.6) / 13], pitch: -15 } }, // nearer: the peak, key 7 (held to 61.5)
   { t: 62.5, over: 1, state: { beak: [0.5, 0.53, 0.62] } }, // back, into the white
   { t: 66.5, over: 2, state: { beak: [0.5, 0.52, 0.64], pitch: 28, neck: 10, tuck: 0, clip: 'fly' } }, // out under the cloud, braking
   { t: 69, over: 1.5, state: { beak: [0.5, 0.5, kOf(0.028)] } }, // nearer over the lane, the butterfly on her beak (key 8a)
@@ -48,8 +48,8 @@ const UPP_BFLY = [
   { t: 39.5, state: { at: FLEE, yaw: 0, pitch: 0 } },
   { t: 42, over: 1.5, state: { at: [0.5, 0.3, kOf(0.022)], pitch: 40 } },
   { t: 54, over: 2, state: { at: [0.53, 0.42, kOf(0.022)], pitch: 0 } },
-  { t: 58.5, over: 1, state: { at: [0.5, 0.44, kOf(0.026)], pitch: -30 } },
-  { t: 59.5, over: 1, state: { at: [0.5, 0.48, kOf(0.039)] } },
+  { t: 58.5, over: 1, state: { at: [0.5, 0.55, kOf(0.026)], pitch: -10 } },
+  { t: 59.5, over: 1, state: { at: [0.5, 0.63, kOf(0.038)], pitch: 0 } },
   { t: 62.5, over: 1, state: { at: [0.5, 0.42, kOf(0.024)] } },
   { t: 66.5, over: 2, state: { at: FLEE, pitch: 0 } },
   { t: 69.5, over: 1.5, state: { at: [0.5, 0.485, kOf(0.0285)] } }, // down onto her beak

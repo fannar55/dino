@@ -1,0 +1,110 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { makeRoute, filmRoute, FILM_CHANGES, TURN, BEND, LANE_H, CLOUD, whiteAt, TRIALS } from '../chapters/flugedla3d/route.js';
+import { D, NEAR, CLEAR, tanH, tanV43, sweptHit, SLALOM, GATE, POSES, plants, cloudBalls } from '../chapters/flugedla3d/stage.js';
+import { KEYS, keyIndex, kOf, outOf, MAX_OUT } from '../chapters/flugedla3d/keys.js';
+import { trialAt } from '../chapters/flugedla3d/motion.js';
+
+// Flugeðla og fiðrildið (chapters/flugedla3d/): the camera's route, the swept frame rule, the stage's places, the key frames' table
+// and the trials' players.
+
+test('the camera: level, its one turn under 10 degrees a second, every change of a rate eased over a second or more', () => {
+  const r = filmRoute();
+  assert.ok(r.stats.maxTurn <= 10, `turn ${r.stats.maxTurn}`);
+  for (const c of FILM_CHANGES) assert.ok(c.over >= 1, `a change at ${c.t} s over ${c.over} s`);
+  let worst = 0;
+  for (let t = 0; t < r.length; t += 0.01) worst = Math.max(worst, Math.abs(r.rates.turn(t)));
+  assert.ok(worst <= 10 + 1e-9, `the turn rate reaches ${worst}`);
+});
+
+test('the S-bend: two arcs of 40 degrees (about 35 m radius), the heading back to straight after them', () => {
+  const r = filmRoute();
+  let most = 0;
+  for (let t = 29; t < 42; t += 0.01) most = Math.max(most, r.at(t).yaw);
+  assert.ok(Math.abs(most - 40) < 0.3, `the first arc turns ${most.toFixed(2)} degrees`);
+  assert.ok(Math.abs(r.at(42).yaw) < 0.05, `heading after the bend ${r.at(42).yaw}`);
+  const radius = 6 / ((TURN * Math.PI) / 180);
+  assert.ok(radius > 33 && radius < 38, `radius ${radius.toFixed(1)} m`);
+  assert.ok(BEND.hold > 0);
+});
+
+test('the heights: the lane at LANE_H (the ground beyond D at a 4:3 bottom edge), the climb above the cloud, the stop on the lane', () => {
+  const r = filmRoute();
+  assert.ok(LANE_H >= D * tanV43, `${LANE_H} m against ${(D * tanV43).toFixed(2)} m`);
+  assert.equal(r.at(10).y, LANE_H);
+  assert.ok(r.at(56).y > CLOUD.top + CLOUD.clear + 20, `over the cloud at ${r.at(56).y.toFixed(1)} m`);
+  assert.ok(Math.abs(r.at(75).y - LANE_H) < 0.05, `back on the lane at ${r.at(75).y.toFixed(2)} m`);
+  assert.ok(r.at(75).back < 1e-6, 'the camera has stopped');
+});
+
+test('the white: whole wherever the cloud would come within 7 m of the camera, none far from it', () => {
+  for (let y = CLOUD.base - CLOUD.clear; y <= CLOUD.top + CLOUD.clear; y += 0.5) assert.equal(whiteAt(y), 1, `at ${y} m`);
+  assert.equal(whiteAt(LANE_H), 0);
+  assert.equal(whiteAt(105), 0);
+  // it never jumps: under 0.03 of white per 10 cm of height
+  for (let y = 0; y < 120; y += 0.1) assert.ok(Math.abs(whiteAt(y + 0.1) - whiteAt(y)) < 0.03, `at ${y.toFixed(1)} m`);
+});
+
+test('the swept frame rule: a thing in the still picture nearer than NEAR is hit, one beyond it or beside the lane is not', () => {
+  const still = makeRoute([], { start: { x: 0, y: 7, z: 0, yaw: 0 }, length: 1 });
+  const list = [];
+  for (let t = 0; t <= 1; t += 0.1) { const p = still.at(t); list.push({ t, x: p.x, y: p.y, z: p.z, s: 0, c: 1 }); }
+  assert.notEqual(sweptHit([0, 7, -10], 0.2, { list }), null);
+  assert.equal(sweptHit([0, 7, -20], 0.2, { list }), null);
+  assert.equal(sweptHit([CLEAR, 7, -12], 0, { list, margin: 0 }), null, 'at the lane rule\'s width the side edge meets it beyond D');
+  assert.ok(CLEAR >= D * tanH, 'the lane rule');
+  assert.ok(NEAR > D);
+  assert.ok(POSES.length > 700);
+});
+
+test('the wood\'s mouth: five slalom trunks at the plan\'s depths, alternating sides; the gate 11 m wide just behind the screen plane', () => {
+  assert.deepEqual(SLALOM.map(s => s[1]), [60, 48, 37, 27, 19]);
+  for (let i = 1; i < SLALOM.length; i++) assert.ok(Math.sign(SLALOM[i][0]) !== Math.sign(SLALOM[i - 1][0]));
+  assert.equal(GATE[1][0] - GATE[0][0], 11);
+  assert.ok(GATE[0][1] > D && GATE[0][1] < D + 2);
+  // their trunks never come into the near part of the picture
+  for (const [x, z] of [...SLALOM, ...GATE].map(([a, d]) => [a, -90 - d])) for (let h = 0.5; h < 20; h += 1) assert.equal(sweptHit([x, h, z], 0.5), null);
+});
+
+test('no planted trunk and no cloud ball is ever in the near part of the picture', () => {
+  for (const p of plants()) {
+    if (p.slim) continue;
+    assert.equal(sweptHit([p.position[0], 1, p.position[1]], 0.6), null, `${p.name} at ${p.position}`);
+  }
+  for (const b of cloudBalls()) assert.equal(sweptHit(b, b[3]), null);
+});
+
+test('the key frames: each a second of the film, the butterfly 2 to 3.9 % out in the middle while it leads', () => {
+  for (const key of KEYS) {
+    assert.ok(key.time >= 0 && key.time <= 76, key.id);
+    assert.equal(KEYS[keyIndex(key.id)], key);
+    const b = key.butterfly;
+    if (b?.at) {
+      const out = outOf(b.at[2]);
+      assert.ok(out >= 0.02 - 1e-9 && out <= MAX_OUT - 0.001, `${key.id}: the butterfly ${(out * 100).toFixed(2)} % out`);
+      assert.ok(b.at[0] > 0.3 && b.at[0] < 0.7, `${key.id}: the butterfly at u ${b.at[0]}`);
+    }
+  }
+  assert.ok(Math.abs(outOf(kOf(0.03)) - 0.03) < 1e-12);
+  assert.equal(keyIndex('7b'), KEYS.findIndex(k => k.id === '7b'));
+  assert.equal(keyIndex('8'), KEYS.findIndex(k => k.id === '8a'));
+});
+
+test('the trials: their players move without a jump (no pop), and the white follows the camera\'s height', () => {
+  const r = filmRoute();
+  for (const [name, { from, to }] of Object.entries(TRIALS)) {
+    let last = null;
+    for (let t = from; t <= to; t += 1 / 30) {
+      const s = trialAt(name, t, r);
+      if (last && s.her.beak && last.her.beak) {
+        const d = Math.max(...s.her.beak.map((v, i) => Math.abs(v - last.her.beak[i])));
+        assert.ok(d < 0.02, `${name} at ${t.toFixed(2)} s: her beak moves ${d.toFixed(3)} in a frame`);
+      }
+      if (last && s.butterfly.at && last.butterfly.at) {
+        const d = Math.max(...s.butterfly.at.map((v, i) => Math.abs(v - last.butterfly.at[i])));
+        assert.ok(d < 0.03, `${name} at ${t.toFixed(2)} s: the butterfly moves ${d.toFixed(3)} in a frame`);
+      }
+      last = s;
+    }
+  }
+});
