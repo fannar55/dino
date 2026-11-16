@@ -15,6 +15,11 @@
 // (PLAY.runAfter after the row's pass); every second of it is the flight's, so a seek finds them where playing would have. F: the big call comes by itself at 135 s, waiting for the
 // line playing; the answers come from everywhere after it, and Kambeðla's plates blink.
 //
+// The call shots' sound (the Flugmynd spec): her call in a call shot is heard from her side as its camera sees her (the line queue's
+// `pan`, engine/scene/voice.js), the big call in the herd's too; at each one's pass a whoosh from her side (PLAY.whooshBefore before
+// the row's `pass`, or before its cut where she passes after it: the ledge's) and a wingbeat as she is nearest its camera (its
+// distance to her stops falling, from the call on). They are in `passes`, a seek's too (only the sounds are left out).
+//
 // The juice review of 2026-11-07 (its sections 1 and 2) added what is kept of it here: the life along the way heard (the fish, the early
 // birds, the birds in the bank trees), from its side, and the gorge's flyers' cry as the first leaves its nest.
 import * as THREE from 'three';
@@ -27,6 +32,7 @@ export const PLAY = {
   callAhead: 25, // metres ahead of her at which she calls a group by herself
   answerAfter: 0.6, // seconds from her call to the group's answer
   runAfter: 0.3, // a call shot's groups answer this long after she passes them (the row's pass)
+  whooshBefore: 0.15, // a call shot's whoosh from her side, this long before she passes (the row's pass)
   bigCall: 135, // F: seconds into the flight at which the big call comes by itself
   // seconds after the big call: answers from everywhere, [after, sound, pan] (plan Task 16: frogs, birds and lizards, 0.4 to 0.9 aside;
   // the life plan's Task 17: the herd below her and the flyers round her)
@@ -44,8 +50,9 @@ export const ANSWER = { frogs: 'frog', birds: 'birds', dragonflies: 'dragonfly',
 
 /**
  * The flight's voices, one at a time: a line asked for while another plays (or waits) waits its turn, so no line is cut or talked over.
- * `say(speaker, id, { ifQuiet, ifFree, onStart })` returns the line's entry ({ task, started }), or null when `ifQuiet` and a line
- * plays, or `ifFree` and a line already waits its turn (it waits for the one playing, but not behind others).
+ * `say(speaker, id, { ifQuiet, ifFree, onStart, pan })` returns the line's entry ({ task, started }), or null when `ifQuiet` and a
+ * line plays, or `ifFree` and a line already waits its turn (it waits for the one playing, but not behind others). `pan` (-1..1, or
+ * a function giving it as the line begins): heard from that side.
  */
 export function lineQueue(s) {
   let current = null; // the task of the line playing
@@ -53,7 +60,8 @@ export function lineQueue(s) {
   let pumping = false;
   const playing = () => current !== null && !current.done;
   function begin(entry) {
-    current = s.say(entry.speaker, entry.id);
+    const pan = typeof entry.pan === 'function' ? entry.pan() : entry.pan;
+    current = Number.isFinite(pan) && pan !== 0 ? s.say(entry.speaker, entry.id, { pan }) : s.say(entry.speaker, entry.id);
     entry.task = current;
     entry.started = s.time;
     entry.onStart?.(entry);
@@ -70,8 +78,8 @@ export function lineQueue(s) {
   }
   return {
     get speaking() { return playing() || waiting.length > 0; },
-    say(speaker, id, { ifQuiet = false, ifFree = false, onStart = null } = {}) {
-      const entry = { speaker, id, onStart, task: null, started: null };
+    say(speaker, id, { ifQuiet = false, ifFree = false, onStart = null, pan = null } = {}) {
+      const entry = { speaker, id, onStart, pan, task: null, started: null };
       if (playing() || waiting.length) {
         if (ifQuiet || (ifFree && waiting.length)) return null;
         waiting.push(entry);
@@ -97,6 +105,7 @@ export function flightPlay(s, c) {
   const effects = Boolean(world.effects && world.scene); // the splashes need them (none in a test's bare world)
   const life = world.forest?.life ?? null;
   const panOfPoint = point => (world.camera?.updateMatrixWorld ? panOf(world, point) : 0);
+  const herSide = () => panOfPoint(flier.pose.position); // where she is across the speakers, as the camera sees her now
 
   // a splash and a set of plain glints nobody sees (the splash's lit program, the sparkles'), drawn once now as the flight starts in
   // the black, so their first draw is not mid-flight (a stall of some 0.1 s: main.js), for the review flight, which has no falls built
@@ -135,7 +144,7 @@ export function flightPlay(s, c) {
   function callRow(r) {
     r.done = true;
     const late = flightTime() - r.row.call;
-    const voiced = c.say('flugedla', CALLS[nextCall % CALLS.length], { ifQuiet: true }) !== null;
+    const voiced = c.say('flugedla', CALLS[nextCall % CALLS.length], { ifQuiet: true, pan: herSide }) !== null;
     if (voiced) nextCall++;
     for (const g of r.groups) {
       if (g.called) continue;
@@ -163,6 +172,7 @@ export function flightPlay(s, c) {
     if (big.how) return;
     big.how = how;
     c.say('flugedla', 'k4_flugedla_call1', {
+      pan: herSide, // from the herd's call shot, as its camera sees her
       onStart: () => {
         big.at = flightTime();
         calls.push({ id: 'land', how, t: big.at, voiced: true });
@@ -171,6 +181,33 @@ export function flightPlay(s, c) {
         for (const [after, name, pan] of PLAY.bigAnswers) s.after(after, () => { s.sfx(name, { pan }); });
       },
     });
+  }
+
+  // Each call shot's pass: a whoosh from her side PLAY.whooshBefore before the row's pass (or its cut, where she passes after it),
+  // and a wingbeat as she is nearest its camera: the first frame its distance to her grows after falling, from the call on (none
+  // where she is still coming at the cut). Only while the camera is on the row's shot; logged even while seeking.
+  const passes = CALL_SHOTS.map(row => ({ id: row.id, row, whoosh: null, side: null, wingbeat: null, last: null, falling: false }));
+  function passFrame(t) {
+    const eye = world.camera?.position;
+    if (!eye) return;
+    for (const p of passes) {
+      const { row } = p;
+      if (t < row.from || t > row.to || c.camera?.current !== row.shot) continue;
+      const her = flier.pose.position;
+      if (p.whoosh === null && t >= Math.min(row.pass, row.to) - PLAY.whooshBefore) {
+        p.whoosh = t;
+        p.side = herSide() / 0.8; // panOf keeps a little short of the ends: her side, -1..1
+        if (!s.seeking) c.sounds?.whoosh?.(p.side);
+      }
+      const d = her.distanceTo(eye);
+      const rising = p.last !== null && d > p.last + 1e-4;
+      if (p.wingbeat === null && rising && p.falling && t >= row.call) {
+        p.wingbeat = t;
+        if (!s.seeking) c.sounds?.wingbeat?.();
+      }
+      if (p.last !== null) p.falling = d < p.last - 1e-4 ? true : rising ? false : p.falling;
+      p.last = d;
+    }
   }
 
   // D: the gorge's flyers cry as the first of them leaves its nest (world/ardalur/life.js flyersOff), once, from its side of her; not
@@ -212,7 +249,7 @@ export function flightPlay(s, c) {
   }
 
   return {
-    calls, answers, big,
+    calls, answers, big, passes,
     enable(kind, value) {
       if (!(kind in on)) throw new Error(`Unknown flight play "${kind}" (use call)`);
       on[kind] = Boolean(value);
@@ -224,6 +261,7 @@ export function flightPlay(s, c) {
       const before = last;
       last = t;
       groupsFrame();
+      passFrame(t);
       cryFrame(before, t);
       lifeFrame(before, t);
     },

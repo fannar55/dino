@@ -479,13 +479,13 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   });
   stage.seeking = seeking;
   const spoken = new Set(); // every line the script has said, by id
-  const said = []; // and each time it says one: { id, at } (the scene's seconds)
+  const said = []; // and each time it says one: { id, at, options } (the scene's seconds; what it was asked with)
   const spokenAt = new Map(); // id -> when it was first said
   const lastLine = new Map(); // speaker -> the line they began last
   const say = stage.s.say;
   stage.s.say = (speaker, line, options) => {
     spoken.add(line);
-    said.push({ id: line, at: stage.s.time });
+    said.push({ id: line, at: stage.s.time, options: options ?? null });
     if (!spokenAt.has(line)) spokenAt.set(line, stage.s.time);
     lastLine.set(speaker, line);
     return say(speaker, line, options);

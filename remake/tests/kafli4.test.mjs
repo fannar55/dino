@@ -11,7 +11,7 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
-import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
+import { FLIGHT_WORDS, SONG, EGILL_ANSWERS } from '../chapters/kafli4-flight.js';
 import { PLAY } from '../chapters/kafli4-flight-play.js';
 import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
@@ -223,13 +223,23 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith, reduced,
     onFrame({ world, director, pointer, ui, shot: label }) {
       const c = world.chapterState;
+      // what the flight asks of its sound (the harness has no audio, so c.sounds is the silent one): the ground shots' dip, in flight
+      // seconds
+      if (c?.sounds && !seen.ground.wrapped) {
+        seen.ground.wrapped = true;
+        const ground = c.sounds.ground;
+        c.sounds.ground = on => {
+          seen.ground.push({ on: Boolean(on), t: world.clock.time - (c.flight?.flight?.started ?? NaN) });
+          return ground(on);
+        };
+      }
       // the page's theme, which the harness's world has none of: what the chapter asks of it, and when
       if (!seen.theme) {
         seen.theme = [];
@@ -948,6 +958,60 @@ test('they run after she passes, and the run-along\'s first runners at her call:
   const group = world.forest.animals.groups.find(g => g.id === early);
   assert.deepEqual(group.run, row.early[early]);
   assert.ok(row.call + PLAY.answerAfter < CALL_SHOTS.find(r => r.shot === 'runAlong').pass - 1, 'running before she passes');
+});
+
+// The Flugmynd's sound (plan Task 6): down on the ground the wind in Egill's ears goes down; her call comes from her side; a whoosh
+// and a wingbeat as she passes; and Egill answers each call shot once, on the shot after it
+test('ground shots dip the wind: down as each call shot begins, back as it cuts back', async () => {
+  const { seen } = await playWide();
+  const flight = seen.ground.filter(g => Number.isFinite(g.t));
+  for (const row of CALL_SHOTS) {
+    const down = flight.find(g => g.on && Math.abs(g.t - row.from) <= 0.05);
+    assert.ok(down, `${row.id}: down as it begins (${row.from} s)`);
+    const back = flight.find(g => !g.on && g.t > down.t);
+    assert.ok(back && Math.abs(back.t - row.to) <= 0.05, `${row.id}: back as it ends (${row.to} s): ${back?.t.toFixed(2)}`);
+  }
+  const downs = flight.filter(g => g.on);
+  assert.equal(downs.length, CALL_SHOTS.length, `down only in the call shots: ${downs.map(g => g.t.toFixed(2))}`);
+});
+
+test('Egill answers each call shot once, on the shot after it, and is done before her next call', async () => {
+  const { seen, world } = await playWide();
+  const started = world.chapterState.flight.flight.started;
+  const recorded = readJson('../assets/audio/lines.json');
+  assert.deepEqual(Object.keys(EGILL_ANSWERS).sort(), ['kall-edlur', 'kall-froskar', 'kall-fuglar', 'kall-sylla'].sort(), 'rows 1, 2, 3 and 5');
+  for (const [id, line] of Object.entries(EGILL_ANSWERS)) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const times = seen.said.filter(x => x.id === line).map(x => x.at - started);
+    assert.equal(times.length, 1, `${line} once (at ${times.map(t => t.toFixed(2))})`);
+    const [at] = times;
+    assert.ok(at >= row.to - 1e-6 && at <= row.to + 4, `${line} after ${row.id} cuts back (${row.to} s): at ${at.toFixed(2)}`);
+    const next = CALL_SHOTS[CALL_SHOTS.indexOf(row) + 1];
+    if (next) assert.ok(at + recorded[line].duration <= next.call, `${line} ends before her call in ${next.id}`);
+  }
+});
+
+test('in a call shot her call comes from her side, and a whoosh and a wingbeat as she passes', async () => {
+  const { seen, world } = await playWide();
+  const play = world.chapterState.flight.play;
+  const started = world.chapterState.flight.flight.started;
+  const calls = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
+  for (const row of CALL_SHOTS) {
+    // her call in the shot (the big call in the herd's): said with a pan, her side as the camera sees her
+    const call = seen.said.find(x => calls.includes(x.id) && x.at - started >= row.from - 1e-6 && x.at - started <= row.to);
+    if (row.shot !== 'ledge') {
+      assert.ok(call, `${row.id}: her call in it`);
+      const pan = call.options?.pan;
+      assert.ok(Number.isFinite(pan) && Math.abs(pan) <= 0.8, `${row.id}: her call panned (${pan})`);
+    }
+    const pass = play.passes.find(p => p.id === row.id);
+    assert.ok(pass, `${row.id}: its pass`);
+    const whoosh = Math.min(row.pass, row.to) - 0.15;
+    assert.ok(Math.abs(pass.whoosh - whoosh) <= 0.05, `${row.id}: the whoosh at ${pass.whoosh?.toFixed(2)} (${whoosh.toFixed(2)})`);
+    assert.ok(Number.isFinite(pass.side) && Math.abs(pass.side) <= 1 && Math.abs(pass.side) > 0.02, `${row.id}: on her side (${pass.side})`);
+    if (pass.wingbeat !== null) assert.ok(pass.wingbeat >= row.call - 1e-6 && pass.wingbeat <= row.to, `${row.id}: the wingbeat in the shot (${pass.wingbeat})`);
+    else assert.ok(row.shot === 'ledge', `${row.id}: a wingbeat as she is nearest`);
+  }
 });
 
 test('the ledge shot sees its flyer on its nest, then leave as she comes', async (t) => {

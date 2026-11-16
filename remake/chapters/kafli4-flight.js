@@ -22,8 +22,8 @@
 //
 // The juice review of 2026-11-07 added: a wingbeat on each downstroke of her fly clip (kafli4-flugedla.js wingFlaps), the falls'
 // roar from where they are, the snag's leaves and seeds puffed off as she leaps, the forest's bed from C (the full chapter's: c.beds),
-// splashes you can see where Mosi runs in the shallows, Egill's „Sjáðu, þau fljúga með okkur!“ as the gorge's flyers join her (D),
-// his „Vááá!“ again as they burst out of the spray into the gold (E), and her „Nú lendum við! Haltu þér!“ before the far pool (G).
+// splashes you can see where Mosi runs in the shallows, Egill's „Sjáðu, þau fljúga með okkur!“ as the gorge's flyers join her (D:
+// now his answer to the ledge's call shot, EGILL_ANSWERS), his „Vááá!“ again as they burst out of the spray into the gold (E), and her „Nú lendum við! Haltu þér!“ before the far pool (G).
 import * as THREE from 'three';
 import { BEATS, LEAP, FALLS, GORGE, STILLS, CALL_SHOTS } from './kafli4-route.js';
 import { whiteAt } from '../world/ardalur/river.js';
@@ -86,10 +86,18 @@ export const SLOW = { at: 116.2, scale: 0.25, seconds: 1 }; // the crest of the 
 export const GOLDEN = { at: SLOW.at + SLOW.seconds * SLOW.scale, rise: 2, back: 4 };
 // Grameðla's roar (spec 5F: "lágt, fjarlægt öskur"): the recorded one of chapter 2, at a quarter of its level, once her name is said.
 export const ROAR = { at: 129.4, level: 0.25 };
-// The juice review's lines and splashes, at the flight's seconds: the flyers' line from `after` s past the first leaving its nest (life.js
-// flyersOff) till `by` (it ends before Mosi's on the rim), the „Vááá!“ out of the spray, the landing line; Mosi's splashes every
-// `every` s while he runs in the shallows (`from`, `to`), each `size` (splash.js).
-export const JUICE = { flyers: { after: 1.2, by: 93.6 }, wow: 119.4, landing: 166.5, shallows: { from: 57.8, to: 62.6, every: 0.42, size: 0.6 } };
+// The juice review's lines and splashes, at the flight's seconds: the „Vááá!“ out of the spray, the landing line; Mosi's splashes every
+// `every` s while he runs in the shallows (`from`, `to`), each `size` (splash.js). (Its flyers' line is Egill's answer to the
+// ledge's call shot now: EGILL_ANSWERS.)
+export const JUICE = { wow: 119.4, landing: 166.5, shallows: { from: 57.8, to: 62.6, every: 0.42, size: 0.6 } };
+/**
+ * Egill's answer to a call shot (the route's CALL_SHOTS, by id; the Flugmynd spec's list), said once as the camera cuts back to her
+ * after it, when no other line waits its turn (`ifFree`): rows 1, 2, 3 and 5. The ledge's (5) comes on the chase after Mosi's rim
+ * cameo, which follows the ledge at once: said at the ledge's cut it would push Mosi's line past his shot.
+ */
+export const EGILL_ANSWERS = { 'kall-edlur': 'k4_egill_lizards', 'kall-froskar': 'k4_egill_frogs', 'kall-fuglar': 'k4_egill_birds', 'kall-sylla': 'k4_egill_flyers' };
+// the call shots' cameras stand down on the ground (or a ledge) with the group, not on her back: the wind in Egill's ears goes down
+const GROUND_SHOTS = new Set(CALL_SHOTS.map(row => row.shot));
 const clamp = THREE.MathUtils.clamp;
 
 /**
@@ -178,9 +186,13 @@ export function* theFlight(s, c) {
   }
   const far = world.forest?.farLand ?? null;
   far?.show(true);
+  // down on the ground with a group (a call shot) the wind in Egill's ears dips, and comes back as the camera cuts back to her
+  const offCut = camera.onCut?.(name => sounds.ground(GROUND_SHOTS.has(name))) ?? null;
   try {
     yield s.all(frames(s, c), beats(s, c));
   } finally {
+    offCut?.();
+    sounds.ground(false);
     c.flight.ended ??= s.time;
     play.stop();
     world.clock?.setScale?.(1);
@@ -317,10 +329,11 @@ function* beats(s, c) {
     { t: 60.2, act: () => whoosh(-1) },
     { t: 61, act: () => sfx('splash') },
     { t: bank.to, act: hideMosi },
-    // each call shot, and back on her back after it (the gorge's first shot is D's own)
+    // each call shot, and back on her back after it (the gorge's first shot is D's own), with Egill's answer to it
     ...calls.flatMap(row => [
       { t: row.from, act: () => camera.shot(row.shot, { ...row.options, callShot: row.id }) },
       ...(row.to < BEATS.D ? [{ t: row.to, act: () => camera.shot('chase') }] : []),
+      ...(EGILL_ANSWERS[row.id] ? [{ t: row.to, act: () => say('egill', EGILL_ANSWERS[row.id], { ifFree: true }) }] : []),
     ]),
   ].sort((a, b) => a.t - b.t);
   for (const cue of cues) {
@@ -334,9 +347,6 @@ function* beats(s, c) {
   yield* at(BEATS.D);
   mark('D');
   play.enable('call', false);
-  // Egill as the gorge's flyers join her (life.js flyersOff), when no line plays, ending before Mosi's line on the rim
-  const off = world.forest?.life?.flyersOff ?? null;
-  if (off) s.after(0, () => lateLine(s, c, 'egill', 'k4_egill_flyers', off.at + JUICE.flyers.after, JUICE.flyers.by));
   camera.shot('chase');
   yield* at(83);
   camera.shot('face');
@@ -363,6 +373,7 @@ function* beats(s, c) {
   yield* at(rim.to);
   hideMosi();
   camera.shot('chase');
+  say('egill', EGILL_ANSWERS['kall-sylla'], { ifFree: true }); // the ledge's answer: the gorge's flyers with her (after Mosi's cameo)
 
   // E. The falls (1:45–2:05): the roar grows; she flies at the falls and up with the falling water, seen from the side by the cliff;
   // at the crest one slow second with only the wind, and then they burst out of the spray.
@@ -460,19 +471,6 @@ function placeMosiBelow(c) {
   c.mosi.place(x, z, THREE.MathUtils.radToDeg(Math.atan2(toPool.y, toPool.x)));
   c.mosi.raw.root.visible = true;
   if (run > 1) c.mosi.walkTo([[x + toPool.x * run, z + toPool.y * run]], { speed: MOSI_RUN });
-}
-
-/**
- * A line said once, when no line plays, between the flight's seconds `from` and `by` (from `by` minus its length on, it would run
- * into what comes after, so it is left out).
- */
-function* lateLine(s, c, speaker, id, from, by) {
-  const time = () => s.time - c.flight.started;
-  const length = s.lineDuration?.(id) ?? 0;
-  while (c.flight.ended === null && time() < by - length) {
-    if (time() >= from && c.say(speaker, id, { ifQuiet: true })) return;
-    yield;
-  }
 }
 
 /** Mosi's splashes as he runs up the shallows: one at his feet every so often, where there is water under him. */

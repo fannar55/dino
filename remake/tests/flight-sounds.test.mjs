@@ -167,6 +167,56 @@ test('the wind and the water dip under a line and come back after it; the one-sh
   assert.ok(whoosh && !whoosh.reaches(dip), 'a whoosh does not');
 });
 
+// The Flugmynd (2026-11-15 spec, plan Task 6): in a call shot the camera is down on the ground, not on her back, so the wind in
+// Egill's ears goes down and the water and the bank's own sound come up
+test('ground shots dip the wind: the airflow 12 dB down over 0.3 s, and back over 0.3 s; the water and the one-shots do not dip', () => {
+  for (const recorded of [false, true]) {
+    const context = createFakeContext({ state: 'running' });
+    const sounds = createFlightSounds({ context, output: context.destination, recordings: recorded ? fakeStore(context) : null });
+    sounds.start();
+    sounds.setSpeed(14);
+    sounds.water(1);
+    context.advance(3);
+    const flying = sounds.bed.gain * sounds.grounded;
+    assert.equal(sounds.grounded, 1, 'on her back: the wind as it is');
+    sounds.ground(true);
+    context.advance(0.15);
+    assert.ok(sounds.grounded < 0.8 && sounds.grounded > FLIGHT_SOUND.ground + 0.05, `going down over 0.3 s, not at once: ${sounds.grounded}`);
+    context.advance(0.17);
+    assert.ok(Math.abs(sounds.grounded - FLIGHT_SOUND.ground) < 0.01, `down by 0.3 s: ${sounds.grounded}`);
+    assert.ok(20 * Math.log10(FLIGHT_SOUND.ground) <= -11 && 20 * Math.log10(FLIGHT_SOUND.ground) >= -13, 'about 12 dB');
+    assert.ok(sounds.bed.gain * sounds.grounded < flying * 0.3, `the airflow down: ${sounds.bed.gain * sounds.grounded} against ${flying}`);
+    sounds.ground(true); // asked again: nothing new is scheduled
+    context.advance(1);
+    assert.ok(Math.abs(sounds.grounded - FLIGHT_SOUND.ground) < 0.01);
+    // the dip is the airflow's own: the water's channel and a whoosh do not go through it
+    const dip = context.nodes.find(node => node.kind === 'gain' && node.gain.events.some(e => e.value === FLIGHT_SOUND.ground));
+    assert.ok(dip, 'a gain of its own');
+    const loops = context.bufferSources.filter(s => s.loop);
+    const through = loops.filter(s => s.reaches(dip));
+    assert.ok(through.length >= 1 && through.length < loops.length, `only the airflow's layers dip (${through.length} of ${loops.length})`);
+    const before = context.bufferSources.length;
+    sounds.whoosh(1);
+    const [whoosh] = context.bufferSources.slice(before);
+    assert.ok(whoosh && !whoosh.reaches(dip), 'a whoosh does not');
+    sounds.ground(false);
+    context.advance(0.32);
+    assert.ok(sounds.grounded > 0.99, `back by 0.3 s: ${sounds.grounded}`);
+    sounds.stop();
+  }
+  // asked before the loops start (a seek that lands in a call shot), they start down
+  const context = createFakeContext({ state: 'running' });
+  const sounds = createFlightSounds({ context, output: context.destination });
+  sounds.ground(true);
+  sounds.start();
+  context.advance(0.5);
+  assert.ok(Math.abs(sounds.grounded - FLIGHT_SOUND.ground) < 0.01, `started down: ${sounds.grounded}`);
+  // and with no audio it does nothing
+  const silent = createFlightSounds({ context: null });
+  silent.ground(true);
+  assert.equal(silent.grounded, 1);
+});
+
 test('the bed leans with her bank, no further than 0.6 to a side', () => {
   const context = createFakeContext({ state: 'running' });
   const sounds = createFlightSounds({ context, output: context.destination, recordings: fakeStore(context) });

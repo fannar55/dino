@@ -50,13 +50,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   // A speaker who is an actor talks: the mouth follows the recording's loudness (lines.json), or the
   // text when there is no recording, and the head moves with it (engine/talk.js).
   // `caption: false`: the line is heard only, with no caption (a 3D show, whose rules keep text off the screen); `listen: false`: the
-  // others do not turn their heads to the speaker (a show whose every move is timed).
-  function* sayTask(speaker, line, { hold = 0.5, keep = false, caption: captioned = true, listen = true } = {}) {
+  // others do not turn their heads to the speaker (a show whose every move is timed); `pan` (-1 left to 1 right): heard from that side
+  // (engine/scene/voice.js; chapter 4's flight film: her call in a call shot from her side as the camera sees her).
+  function* sayTask(speaker, line, { hold = 0.5, keep = false, caption: captioned = true, listen = true, pan = 0 } = {}) {
     const who = cast[speaker] ?? { name: speaker };
     const entry = resolveLine(line);
     const recording = entry.audio ? lines[entry.audio] : null;
     const caption = captioned ? ui.caption(who.name, entry.text, who.colour) : null;
-    const sound = recording && !seeking ? voice.play(recording.src) : null;
+    const sound = recording && !seeking ? voice.play(recording.src, ...(pan ? [{ pan }] : [])) : null;
     const actor = world.actors?.get(speaker);
     const listenTarget = actor && listen ? `${speaker}.head` : null;
     const listeners = [];

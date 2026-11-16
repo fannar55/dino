@@ -13,6 +13,8 @@
 //                                                                          // ahead (pan -1..1: where they are across the speakers)
 //   sounds.gorge(level);         // 0..1: between the gorge's walls, everything echoes
 //   sounds.duck(on);             // while a line plays: the loops dip about 8 dB, and come back after it
+//   sounds.ground(on);           // while the camera is down on the ground (a call shot): the airflow dips 12 dB over 0.3 s, and
+//                                // comes back over 0.3 s; the water, the falls and the one-shots stay
 //   sounds.whoosh(side); sounds.wingbeat(); sounds.flap(); sounds.gust({ rate });   // flap: one beat; rate: the gust's pitch
 //   sounds.setPaused(on);        // held with the game (engine/audio/hold.js): silent at once, and back; pause() and resume() too
 //   sounds.stop();               // fades out over 1 s and lets go of its loops
@@ -42,6 +44,10 @@ export const FLIGHT_SOUND = {
   // level, the airflow's filter, and each one-shot's gain
   recorded: { bed: 0.45, water: 0.7, rapids: 0.9, falls: 1.4, cutoff: [2600, 16000], wingbeat: 0.5, whoosh: 0.35, gust: 0.42 },
   duck: 0.4, // the loops' gain while a line plays (about -8 dB), so every word is heard over the wind and the water
+  // the airflow while the camera is down on the ground with an animal group (a call shot, chapters/kafli4-route.js CALL_SHOTS): the
+  // wind in Egill's ears goes down (-12 dB) and the water and the bank's own sound come up; it goes and comes back over `groundRamp` s
+  ground: 0.25,
+  groundRamp: 0.3,
   // the gorge: a few echoes off its walls, duller each time, of everything sent to it
   echo: { send: 0.35, taps: [[0.13, 0.5], [0.24, 0.32], [0.39, 0.18]], cutoff: 2200 },
 };
@@ -95,12 +101,13 @@ export function createFlightSounds({ context = null, output = null, recordings =
     const idle = () => {};
     return {
       start: idle, setSpeed: idle, setPan: idle, burst: idle, whoosh: idle, wingbeat: idle, flap: idle, gust: idle,
-      water: idle, rapids: idle, falls: idle, gorge: idle, duck: idle, pause: idle, resume: idle, stop: idle,
+      water: idle, rapids: idle, falls: idle, gorge: idle, duck: idle, ground: idle, pause: idle, resume: idle, stop: idle,
       setPaused(value) { paused = Boolean(value); },
       get playing() { return false; },
       get level() { return 0; },
       get bed() { return null; },
       get echo() { return 0; },
+      get grounded() { return 1; },
     };
   }
 
@@ -134,6 +141,7 @@ export function createFlightSounds({ context = null, output = null, recordings =
   under.connect(master);
   under.connect(echoIn);
   let ducking = false;
+  let grounded = false; // the camera down on the ground: the airflow dips (ground)
   if (context.createDelay) {
     const dull = context.createBiquadFilter();
     dull.type = 'lowpass';
@@ -242,16 +250,18 @@ export function createFlightSounds({ context = null, output = null, recordings =
       const volume = context.createGain(); // its level: her speed for the airflow, the river under her for the water
       volume.gain.value = name === 'bed' ? FLIGHT_SOUND.quiet : 0;
       const boost = name === 'bed' ? context.createGain() : null; // a burst
+      const low = name === 'bed' ? context.createGain() : null; // the camera on the ground (ground)
+      if (low) low.gain.value = grounded ? FLIGHT_SOUND.ground : 1;
       // the falls' roar comes from where they are (the juice review's item 10): a panner of its own after its volume
       const side = name === 'falls' && context.createStereoPanner ? context.createStereoPanner() : null;
-      const chain = [input, filter, volume, boost, side].filter(Boolean);
+      const chain = [input, filter, volume, boost, low, side].filter(Boolean);
       for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
       if (name === 'bed' && pan) {
-        boost.connect(pan);
+        low.connect(pan);
         pan.connect(fade);
       } else chain.at(-1).connect(fade);
       nodes.push(...chain);
-      const channel = { name, input, filter, volume, boost, side, recorded: false, layers: [] };
+      const channel = { name, input, filter, volume, boost, low, side, recorded: false, layers: [] };
       if (has(FLIGHT_LOOPS[name])) record(channel, 0);
       else channel.layers = [madeLayer(channel, ...MADE[name])];
       if (filter) {
@@ -454,6 +464,19 @@ export function createFlightSounds({ context = null, output = null, recordings =
       ducking = Boolean(on);
       toward(under.gain, ducking ? FLIGHT_SOUND.duck : 1, ducking ? 0.1 : 0.5);
     },
+    /** While the camera is down on the ground (on): the airflow dips to `ground` of its gain over `groundRamp` s, and back after. */
+    ground(on) {
+      if (Boolean(on) === grounded) return; // asked at every cut: only a change is scheduled
+      grounded = Boolean(on);
+      const gain = live?.channels.bed.low?.gain;
+      if (!gain) return; // not playing: the loops start where it is
+      const now = context.currentTime;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(gain.value, now);
+      gain.linearRampToValueAtTime(grounded ? FLIGHT_SOUND.ground : 1, now + FLIGHT_SOUND.groundRamp);
+    },
+    /** The airflow's ground dip now: 1 on her back, `ground` with the camera down on the ground. */
+    get grounded() { return live?.channels.bed.low?.gain.value ?? (grounded ? FLIGHT_SOUND.ground : 1); },
     /** The loops' dip now: 1, or `duck` under a line. */
     get dip() { return under.gain.value; },
     /** Whether the loops are playing (started and not stopped). */
