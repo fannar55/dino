@@ -31,6 +31,8 @@ function parseArgs(argv) {
     else if (a === '--step') o.step = Number(next());
     else if (a === '--only') o.only = next().split(',');
     else if (a === '--size') o.size = next();
+    else if (a === '--plane') o.plane = next();
+    else if (a === '--talur') o.talur = next();
   }
   return o;
 }
@@ -157,6 +159,7 @@ async function run(o) {
       });
     }
     for (const trial of o.trials) {
+      if (trial === 'fjor') { await fjorTrial(o, server, { say, report }); continue; }
       await page(o, server, `profa=${trial}`, async ({ evaluate, shoot, errors }) => {
         const length = await evaluate('window.__world.flugedla3d.length');
         const rows = [];
@@ -194,11 +197,87 @@ async function run(o) {
     }
     if (!o.eval && !o.only) {
       await fsp.writeFile(path.resolve(o.out, 'maelingar.json'), JSON.stringify(report, null, 1));
-      await fsp.writeFile(path.resolve(o.out, 'talur.txt'), lines.join('\n') + '\n');
+      await fsp.writeFile(path.resolve(o.out, o.talur ?? 'talur.txt'), lines.join('\n') + '\n');
     }
   } finally {
     server.close();
   }
+}
+
+// ---- the fast take (?profa=fjor): the loosened rules of 2026-11-16 (the plan's section 12) ----
+// 6 % budget; past 3 % out in u 0.2-0.8 unless in a fast pass; a thing an edge cuts in front of the screen only for a moment
+// (dwell: consecutive frames with the border's nearest non-floor depth in front, k < 1); the floor at the bottom edge to about k 0.6.
+const FJOR_STILLS = [2.5, 5.3, 7.9, 10.6, 13.0, 15.6, 20.0, 22.7, 25.5];
+async function fjorTrial(o, server, { say, report }) {
+  await page(o, server, `profa=fjor${o.plane ? '&d=' + o.plane : ''}`, async ({ evaluate, shoot, errors }) => {
+    const length = await evaluate('window.__world.flugedla3d.length');
+    const D = await evaluate('window.__world.flugedla3d.state.D');
+    const rows = [];
+    for (let i = 0; i * o.step <= length + 1e-9; i++) {
+      const t = +(i * o.step).toFixed(4);
+      await evaluate(`window.__world.flugedla3d.seek(${t})`);
+      await evaluate('window.__advance(1 / 60)');
+      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white }; })()`);
+      r.t = t;
+      rows.push(r);
+    }
+    const s = 0.02 * 100;
+    const outOf = k => s * (1 / k - 1);
+    const fx = x => (x >= 0 ? '+' : '') + x.toFixed(2);
+    say(`\n=== trial fjor (${rows.length} frames, 1/${Math.round(1 / o.step)} s, ${length.toFixed(2)} s, D ${D} m) ===`);
+    // her and the butterfly's parallax through the take
+    const her = rows.filter(r => r.her), bf = rows.filter(r => r.butterfly);
+    const herFar = Math.min(...her.map(r => r.her.outFar)), herNear = Math.max(...her.map(r => r.her.outNear));
+    const bfNear = Math.max(...bf.map(r => r.butterfly.outNear)), bfFar = Math.min(...bf.map(r => r.butterfly.outFar));
+    const herSpan = her.filter(r => r.her.near[2] < 1).map(r => r.her.span);
+    say(`her: ${fx(herFar)}..${fx(herNear)} % over the take (span in front ${Math.min(...herSpan).toFixed(2)}-${Math.max(...herSpan).toFixed(2)} %); the butterfly ${fx(bfFar)}..${fx(bfNear)} %`);
+    // the greatest out, and how long each stretch past 4 % lasts
+    const runs = (pred) => { const out = []; for (const r of rows) { const l = out.at(-1); if (pred(r)) { if (l && r.t - l.b < o.step * 1.5) { l.b = r.t; l.rows.push(r); } else out.push({ a: r.t, b: r.t, rows: [r] }); } } return out; };
+    const nearestOut = r => outOf(Math.min(r.her?.near[2] ?? Infinity, r.butterfly?.near[2] ?? Infinity, r.background.nearest ?? Infinity));
+    const most = rows.reduce((w, r) => (nearestOut(r) > nearestOut(w) ? r : w), rows[0]);
+    say(`the greatest out: ${fx(nearestOut(most))} % at ${most.t} s (budget 6 %)`);
+    for (const lim of [4, 5]) {
+      const list = runs(r => nearestOut(r) >= lim);
+      say(`  past ${lim} %: ${list.map(x => `${x.a.toFixed(2)}-${x.b.toFixed(2)} s (${(x.b - x.a + o.step).toFixed(2)} s, to ${fx(Math.max(...x.rows.map(nearestOut)))} %)`).join(', ') || 'never'}`);
+    }
+    const over6 = rows.filter(r => nearestOut(r) > 6.02);
+    say(`  past 6 %: ${over6.length} frames${over6.length ? ` (first ${over6[0].t} s)` : ''}`);
+    // past 3 % out outside u 0.2-0.8
+    const wide = rows.filter(r => [r.her, r.butterfly].some(x => x && ((outOf(x.left[2]) > 3 && x.left[0] < 0.2) || (outOf(x.right[2]) > 3 && x.right[0] > 0.8))));
+    say(`past 3 % out outside u 0.2-0.8 (her or the butterfly): ${wide.length} frames${wide.length ? ' at ' + runs(r => wide.includes(r)).map(x => `${x.a.toFixed(2)}-${x.b.toFixed(2)}`).join(', ') : ''}`);
+    // the edge: a non-floor thing cut by an edge in front of the screen, and how long it dwells
+    const cut = runs(r => r.white < 0.99 && r.background.border < 1);
+    const worstDwell = cut.reduce((w, x) => (!w || x.b - x.a > w.b - w.a ? x : w), null);
+    const worstEdge = rows.filter(r => r.white < 0.99).reduce((w, r) => (r.background.border < w.background.border ? r : w), rows[0]);
+    say(`the edge (not the floor): in front at an edge in ${cut.length} stretches; the longest ${worstDwell ? `${worstDwell.a.toFixed(2)}-${worstDwell.b.toFixed(2)} s (${(worstDwell.b - worstDwell.a + o.step).toFixed(2)} s, to ${fx(outOf(Math.min(...worstDwell.rows.map(r => r.background.border))))} %)` : '-'}; the nearest at an edge k ${worstEdge.background.border} (${fx(outOf(worstEdge.background.border))} %) at ${worstEdge.t} s, at ${JSON.stringify(worstEdge.background.borderAt)}`);
+    const longer = cut.filter(x => x.b - x.a + o.step > 0.4 + 1e-6);
+    say(`  stretches longer than 0.4 s: ${longer.map(x => `${x.a.toFixed(2)}-${x.b.toFixed(2)}`).join(', ') || 'none'}`);
+    const floor = rows.filter(r => r.background.groundBorder != null && r.white < 0.99).reduce((w, r) => (!w || r.background.groundBorder < w.background.groundBorder ? r : w), null);
+    say(`the floor at the bottom edge: nearest k ${floor?.background.groundBorder ?? '-'} at ${floor?.t ?? '-'} s`);
+    // rule 9
+    const gaps = rows.filter(r => r.gap != null), plantRows = rows.filter(r => r.plants);
+    const gap = gaps.reduce((w, r) => (r.gap < w.gap ? r : w), gaps[0]), plant = plantRows.reduce((w, r) => (r.plants.gap < w.plants.gap ? r : w), plantRows[0]);
+    say(`rule 9: the butterfly to her at least ${gap?.gap ?? '-'} m (at ${gap?.t} s); her to the plants at least ${plant?.plants.gap ?? '-'} m (${plant?.plants.what}, at ${plant?.t} s); under 0.5 m: ${gaps.filter(r => r.gap < 0.5).length} frames${gaps.filter(r => r.gap < 0.5).length ? ' at ' + runs(r => r.gap != null && r.gap < 0.5).map(x => `${x.a.toFixed(2)}-${x.b.toFixed(2)}`).join(', ') : ''}; her into a plant (gap < 0): ${plantRows.filter(r => r.plants.gap < 0).length} frames${plantRows.filter(r => r.plants.gap < 0).length ? ' at ' + runs(r => r.plants && r.plants.gap < 0).map(x => `${x.a.toFixed(2)}-${x.b.toFixed(2)}`).join(', ') : ''}`);
+    // the butterfly's travels in the picture
+    const us = bf.map(r => r.bfly?.[0]).filter(Number.isFinite), vs = bf.map(r => r.bfly?.[1]).filter(Number.isFinite);
+    say(`the butterfly in the picture: u ${Math.min(...us).toFixed(2)}-${Math.max(...us).toFixed(2)}, v ${Math.min(...vs).toFixed(2)}-${Math.max(...vs).toFixed(2)}`);
+    report.trials.fjor = rows.map(r => ({ t: r.t, cam: r.cam, white: r.white, her: r.her && { outNear: r.her.outNear, outFar: r.her.outFar, span: r.her.span, left: r.her.left, right: r.her.right }, butterfly: r.butterfly && { outNear: r.butterfly.outNear, at: r.bfly }, border: r.background.border, borderAt: r.background.borderAt, floor: r.background.groundBorder, gap: r.gap, plants: r.plants, herInfo: r.herInfo }));
+    if (o.stills) for (const t of FJOR_STILLS) {
+      await evaluate(`window.__world.flugedla3d.seek(${t})`);
+      await evaluate('window.__advance(1 / 30)');
+      await shoot(path.resolve(o.out, `fjor-g1-${t}s.png`));
+    }
+    if (o.bench) {
+      for (const t of [5.3, 13.0, 22.7]) {
+        await evaluate(`window.__world.flugedla3d.seek(${t})`);
+        await evaluate('window.__advance(1 / 30)');
+        const on = await evaluate('window.__benchmark(90)');
+        report.bench['fjor-' + t] = on;
+        say(`GPU with the glasses at ${t} s: ${on.gpuMs?.median} ms median (${on.msPerFrame.toFixed(1)} ms/frame, ${on.triangles} triangles, ${on.drawCalls} draw calls)`);
+      }
+    }
+    if (errors.length) { report.errors.push(...errors); say(`page errors: ${errors.slice(0, 4).join(' | ')}`); }
+  });
 }
 
 run(parseArgs(process.argv.slice(2))).catch(error => { console.error(error); process.exitCode = 1; });

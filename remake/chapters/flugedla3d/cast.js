@@ -127,7 +127,8 @@ export function createCast(world, { her, at }) {
     } else {
       now.beak = null;
       body.set(...BODY_LOCAL).applyQuaternion(herRoot.quaternion);
-      herRoot.position.copy(at(...spec.body, want)).sub(body);
+      // spec.world: her body's middle at a world point (the fast trial, fjor-play.js), else at [u, v, k] in the camera's frame
+      herRoot.position.copy(spec.world ?? at(...spec.body, want)).sub(body);
     }
     her.root.position.copy(herRoot.position);
   }

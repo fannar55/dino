@@ -6,6 +6,9 @@
 //   ?chapter=flugedla3d&profa=beygja    the bend, the film's seconds 28.5-41.5, looped through black
 //   ?chapter=flugedla3d&profa=upp       up through the cloud, over it and down again, the film's seconds 39.5-71, looped
 //   &t=<s>                              a trial held at that second of it (from its start)
+//   ?chapter=flugedla3d&profa=fjor      the fast take (2026-11-16: through the trees at speed, a living camera, DJ Flugeðla):
+//                                       flugedla3d/fjor.js, fjor-stage.js (its own world), fjor-play.js, fjor-fx.js; &d=<m> its
+//                                       screen plane (13 unless given), &hljod=0 silent
 //   &gler=0, &styrkur=<s>               the engine's: plain, or another strength (the owner's is 0.02)
 //
 // One job a file, in flugedla3d/: route.js (the camera: the film's rates and their integral), stage.js (the lens, the swept frame
@@ -21,11 +24,16 @@ import { trialAt } from './flugedla3d/motion.js';
 import { createCast } from './flugedla3d/cast.js';
 import { createClouds } from './flugedla3d/clouds.js';
 import { createMeasure } from './flugedla3d/measure.js';
+import { FJOR_LAYOUT, fjorCloudBalls } from './flugedla3d/fjor-stage.js';
+import { createFjorPlayer } from './flugedla3d/fjor-play.js';
 import { reviewUi, pct } from './gramedla3d/review.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
-const PROFA = ['beygja', 'upp'].includes(params.get('profa')) ? params.get('profa') : null;
+const PROFA = ['beygja', 'upp', 'fjor'].includes(params.get('profa')) ? params.get('profa') : null;
+const FJOR = PROFA === 'fjor';
+// the screen plane: D, or the fast take's own (&d=)
+const PLANE = FJOR && Number(params.get('d')) > 0 ? Number(params.get('d')) : D;
 const rad = d => (d * Math.PI) / 180;
 
 export const chapter = {
@@ -34,7 +42,7 @@ export const chapter = {
   look: 'morning',
   gler: { panel: false },
   startButton: glassesStart,
-  layout: LAYOUT,
+  layout: FJOR ? FJOR_LAYOUT : LAYOUT,
   actors: { flugedla: { url: CHARS + 'pteranodon.glb', position: [6, 0, -400], heading: 90 } },
   cast: {},
   lines: {},
@@ -50,30 +58,31 @@ export const chapter = {
     // the lane's ground level: the highest ground under the camera's low path (its heights are over it)
     let base = -Infinity;
     for (const q of LANE_PATH) base = Math.max(base, world.heightAt(q.x, q.z));
-    const stage = createStage(world, { position: [MOUTH.x, base + LANE_H, MOUTH.z], look: -90, fov: FOV, groundShare: 0, depth: D, plane: () => D });
+    const stage = createStage(world, { position: [MOUTH.x, base + LANE_H, MOUTH.z], look: -90, fov: FOV, groundShare: 0, depth: PLANE, plane: () => PLANE });
     const { stageCam } = stage;
-    const at = (u, v, k, out = new THREE.Vector3()) => stage.framePoint(u, v, k, out, stageCam, D);
-    const hold = () => { if (gler) { gler.settings.pop = 1; gler.setPlane(D, { jump: true }); } };
+    const at = (u, v, k, out = new THREE.Vector3()) => stage.framePoint(u, v, k, out, stageCam, PLANE);
+    const hold = () => { if (gler) { gler.settings.pop = 1; gler.setPlane(PLANE, { jump: true }); } };
     hold();
 
     // the camera: driven each frame to the route's place (the script runs before the director in a frame: same second)
-    const cam = { x: MOUTH.x, y: base + LANE_H, z: MOUTH.z, yaw: 0 };
+    const cam = { x: MOUTH.x, y: base + LANE_H, z: MOUTH.z, yaw: 0, pitch: 0, roll: 0 };
     yield s.camera.cut('show', { check: false });
     director.drive('flugedla3d', rig => {
-      const psi = rad(cam.yaw);
+      const psi = rad(cam.yaw), pt = rad(cam.pitch ?? 0);
       rig.position.set(cam.x, cam.y, cam.z);
-      rig.target.set(cam.x + Math.sin(psi) * 10, cam.y, cam.z - Math.cos(psi) * 10);
+      rig.target.set(cam.x + Math.sin(psi) * Math.cos(pt) * 10, cam.y + Math.sin(pt) * 10, cam.z - Math.cos(psi) * Math.cos(pt) * 10);
       rig.fov = FOV;
+      rig.roll = cam.roll ?? 0;
     });
 
     // the forest's own butterflies go under the ground (only ours flies)
     const fb = world.forest?.butterflies;
     if (fb) for (const target of fb.targets) fb.follow(target.name, out => out.set(0, -200, 0), { snap: true });
     const cast = createCast(world, { her, at });
-    const clouds = createClouds(world, cloudBalls(), { base });
+    const clouds = createClouds(world, FJOR ? fjorCloudBalls() : cloudBalls(), { base });
     yield cast.butterflyReady;
 
-    const state = { t: 0, base, D, key: null, trial: PROFA, her: null, butterfly: null, white: 0, cam };
+    const state = { t: 0, base, D: PLANE, key: null, trial: PROFA, her: null, butterfly: null, white: 0, cam };
     const pos = new THREE.Vector3();
     /** Everything where it is: the camera at film second t, the players as `play` says ({ her, butterfly, leaves, white }). */
     function apply(t, play) {
@@ -108,9 +117,44 @@ export const chapter = {
     };
     const keyPlay = key => ({ her: key.her, butterfly: key.butterfly, leaves: leavesOf(key), white: whiteAt(ROUTE.at(key.time).y) });
 
-    const measure = createMeasure(world, { stage, D, cast, state, clouds, base });
+    const measure = createMeasure(world, { stage, D: PLANE, cast, state, clouds, base });
     world.flugedla3d = { state, apply, measure, keys: KEYS, cast, clouds, route: ROUTE, trials: TRIALS, outOf, keyPlay };
     yield cast.butterflyReady;
+
+    if (FJOR) {
+      // the fast take, looped through black at the join; t= holds a second of it
+      const capture = params.get('t') !== null && params.get('play') !== '1';
+      const player = createFjorPlayer({ s, world, stageCam, cam, cast, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0' });
+      player.setStage(stage);
+      const length = player.length;
+      const heldAt = capture ? Math.min(length, Math.max(0, Number(params.get('t')) || 0)) : null;
+      const clock = { hold: heldAt, from: s.time };
+      let black = -1, loop = -1;
+      const seek = t => { clock.hold = t; player.apply(t); };
+      Object.assign(world.flugedla3d, { seek, length, from: 0, fjor: player, route: player.route });
+      s.after(0, function* run() {
+        for (;;) {
+          hold();
+          const t = clock.hold ?? ((s.time - clock.from) % length);
+          player.apply(t);
+          if (state.started && clock.hold === null) {
+            const n = Math.floor((s.time - clock.from) / length);
+            if (n !== loop) { loop = n; player.soundLoop(); }
+            player.soundFrame(t);
+          }
+          const b = clock.hold !== null ? 0 : +Math.min(1, Math.max(0, 1 - t / 0.35, (t - (length - 0.35)) / 0.35)).toFixed(3);
+          if (state.started && b !== black) { black = b; s.fade(b, 0); }
+          yield;
+        }
+      });
+      seek(heldAt ?? 0);
+      if (heldAt === null) clock.hold = null;
+      yield s.ready();
+      clock.from = s.time;
+      state.started = true;
+      player.soundStart();
+      for (;;) yield;
+    }
 
     if (PROFA) {
       // a trial: its stretch of the film looped, through black at the join; t= holds a second of it

@@ -120,7 +120,19 @@ export function createMeasure(world, { D, cast, state, clouds, base }) {
   }
 
   /** The numbers of the frame as drawn now (call it a frame after the frame's pose: the skins are posed then). */
-  function sample() {
+  // the floor apart from the rest at the border (the fast take: the floor may come nearer at the bottom edge): a border pixel whose
+  // depth is the floor's along its ray
+  const ray = new THREE.Vector3();
+  function isGround(u, vv, depth) {
+    ray.set(2 * u - 1, 1 - 2 * vv, 0.5).unproject(camera).sub(camera.position).normalize();
+    if (ray.y > -0.01) return false;
+    let t = (camera.position.y - (world.heightAt?.(camera.position.x, camera.position.z) ?? 0)) / -ray.y;
+    for (let i = 0; i < 4; i++) t = (camera.position.y - world.heightAt(camera.position.x + ray.x * t, camera.position.z + ray.z * t)) / -ray.y;
+    const along = t * ray.dot(w.set(0, 0, -1).applyQuaternion(camera.quaternion));
+    return Math.abs(depth - along) < 0.1 * along + 0.3;
+  }
+  /** groundApart: the border's floor apart (background.groundBorder), the rest in background.border. */
+  function sample({ groundApart = false } = {}) {
     camera.updateMatrixWorld();
     const herShown = cast.her.root.visible, bShown = cast.butterfly.visible;
     const herPts = herShown ? skinnedPoints(cast.herBody(), 6) : [];
@@ -131,13 +143,13 @@ export function createMeasure(world, { D, cast, state, clouds, base }) {
     // the background alone: her and the butterfly hidden for one probe draw
     cast.her.root.visible = false;
     cast.butterfly.visible = false;
-    const bg = probe.sample(D);
+    const bg = probe.sample(D, groundApart ? { isGround } : undefined);
     cast.her.root.visible = herShown;
     cast.butterfly.visible = bShown;
     const cl = clouds ? cloudNumbers() : null;
     const bgNear = Math.min(bg.border, bg.middle, bg.wide, cl?.nearest ?? Infinity);
     const bgFar = Math.max(bg.farthest ?? 0, cl?.farthest ?? 0);
-    const background = { nearest: +bgNear.toFixed(3), outNear: out(bgNear), farthest: +bgFar.toFixed(2), outFar: out(bgFar), sky: +(bg.sky ?? 0).toFixed(3), border: +bg.border.toFixed(3), clouds: cl };
+    const background = { nearest: +bgNear.toFixed(3), outNear: out(bgNear), farthest: +bgFar.toFixed(2), outFar: out(bgFar), sky: +(bg.sky ?? 0).toFixed(3), border: +bg.border.toFixed(3), borderAt: bg.borderAt, groundBorder: Number.isFinite(bg.groundBorder) ? +bg.groundBorder.toFixed(3) : null, clouds: cl };
 
     // the butterfly's gap to her (unless it sits on her beak), and her wings' to the plants
     let gap = Infinity;
