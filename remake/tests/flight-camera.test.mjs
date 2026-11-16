@@ -217,7 +217,7 @@ test('call shots frame what they are about and her at both sizes, and stand stil
       for (const aspect of [1.6, 0.69]) {
         world.camera.aspect = aspect;
         world.camera.updateProjectionMatrix();
-        director.apply();
+        camera.update(0); // the lens for this screen (a call shot's `tall`)
         world.scene.updateMatrixWorld(true);
         const q = middle.clone().project(world.camera);
         assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}: the nest at ${q.x.toFixed(2)}, ${q.y.toFixed(2)} as it begins`);
@@ -230,8 +230,10 @@ test('call shots frame what they are about and her at both sizes, and stand stil
     for (const aspect of [1.6, 0.69]) {
       world.camera.aspect = aspect;
       world.camera.updateProjectionMatrix();
-      director.apply();
+      camera.update(0); // the lens for this screen: a row's `tall` keeps its frame at most that many times the authored height
       world.scene.updateMatrixWorld(true);
+      const grows = Math.tan(THREE.MathUtils.degToRad(world.camera.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(row.options.fov) / 2);
+      if (row.options.tall) assert.ok(grows <= row.options.tall + 1e-6 && (aspect >= 1.6 || grows > row.options.tall - 1e-6), `${row.id} at ${aspect}: the frame ${grows.toFixed(2)} times its height`);
       for (const [who, p] of [['what it is about', middle], ['her', herAt(seen)], ['her head', head.getWorldPosition(new THREE.Vector3())]]) {
         const q = p.clone().project(world.camera);
         assert.ok(q.z < 1 && Math.abs(q.x) <= 0.95 && Math.abs(q.y) <= 0.95, `${row.id} at ${aspect}, ${seen} s: ${who} at ${q.x.toFixed(2)}, ${q.y.toFixed(2)}`);

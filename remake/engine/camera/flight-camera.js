@@ -284,6 +284,14 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   const toFrame = (v, out) => out.set(v.dot(heading), v.y, v.dot(right));
 
   const context = () => fixedContext(route, flier, groundAt);
+  // On a screen taller than 16:10 the director keeps the 16:10 width (director.effectiveFov), so its frame grows taller and what it
+  // frames smaller: on a tablet held upright (0.69) 2.3 times. A fixed shot given `tall` keeps its frame at most `tall` times the
+  // authored height there instead (the call shots: their group twice as tall as it was, the frame narrower than 16:10's).
+  function lensFor(fov, tall) {
+    if (!tall) return fov;
+    const widen = Math.tan(rad(director.effectiveFov(fov)) / 2) / Math.tan(rad(fov) / 2);
+    return widen <= tall ? fov : deg(2 * Math.atan(Math.tan(rad(fov) / 2) * tall / widen));
+  }
 
   function step(rig, dt) {
     frame();
@@ -291,7 +299,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     // the chase a little wider the faster she goes, easing at the lens's own pace (at once on a cut: a new shot's lens)
     const fast = !reduced && state.name === 'chase' ? SPEED_LENS.degrees * smooth((flier.speed - SPEED_LENS.from) / (SPEED_LENS.to - SPEED_LENS.from)) : 0;
     state.fast = dt > 0 ? state.fast + clamp(fast - state.fast, -SPEED_LENS.rate * dt, SPEED_LENS.rate * dt) : fast;
-    rig.fov = base + state.fast;
+    rig.fov = lensFor(base + state.fast, bound ? null : fixed?.tall);
     if (bound) {
       let offset;
       if (bound.radius) {
@@ -353,9 +361,10 @@ export function createFlightCamera(director, flier, { world = null, egill = null
    * shot to keep in view instead of her), and the shot's own: a fixed shot's (side, lead; a call shot's callShot, back, above, aside,
    * its `fov` and its `look` as a share), or for a bound one `raise` (metres the camera and its look go up together: she holds her head
    * high perched on the snag) and `fov`, and for the orbit `seconds`: a shorter circle at its own pace that ends where the whole one
-   * ends (its last part). Returns the director's handle.
+   * ends (its last part); and for a fixed one `tall`, the most its frame grows in height on a tall screen (lensFor). Returns the
+   * director's handle.
    */
-  function shot(name, { quick = false, look = null, raise = 0, fov = null, seconds = null, ...options } = {}) {
+  function shot(name, { quick = false, look = null, raise = 0, fov = null, seconds = null, tall = null, ...options } = {}) {
     // a number for `look`, and a `fov`, are a fixed shot's own (the call shot's): they go to its builder
     if (typeof look === 'number') { options.look = look; look = null; }
     if (fov !== null && FIXED[name]) options.fov = fov;
@@ -393,7 +402,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
       const position = made.track && reduced ? made.track.at(made.track.middle) : made.position.clone();
       const ahead = made.ahead ?? null;
       const lookAt = look ?? made.look ?? (ahead ? out => out.copy(fixed.position).add(ahead) : out => out.copy(flier.pose.position).add(new V3(0, 0.6, 0)));
-      fixed = { position, fov: made.fov, look: lookAt, track };
+      fixed = { position, fov: made.fov, look: lookAt, track, tall };
     }
     const handle = director.drive(`flight ${name}`, step);
     step(director.rig, 0);
