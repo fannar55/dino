@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, FAR_POOL, MEADOW, NESTS } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, FAR_POOL, MEADOW, NESTS, NEST_ROCKS, CALL_SHOTS } from '../chapters/kafli4-route.js';
 import { createTerrain, groundDrawnAt } from '../world/ardalur/terrain.js';
 import { RAPIDS } from '../world/ardalur/river.js';
 import { createLife } from '../world/ardalur/life.js';
@@ -13,6 +13,8 @@ import { groveAt } from '../world/ardalur/banks.js';
 import { SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
+import { createSpeciesLibrary } from '../world/forest/species.js';
+import { stillViews } from '../engine/camera/flight-camera.js';
 
 const route = createRoute();
 const terrain = createTerrain(route, { seed: 4 });
@@ -355,6 +357,67 @@ function turned(b, step, from, to) {
   }
   return hi - lo;
 }
+
+test("the ledge's flyer stands on a rock of the valley's own, set in the wall, clear of her and of its way off (NEST_ROCKS)", async () => {
+  const library = createSpeciesLibrary(4);
+  const { life, step } = made({ critters: await allModels(), library });
+  assert.ok(NEST_ROCKS.some(r => CALL_SHOTS.some(row => row.shot === 'ledge' && row.nest === r.nest)), "a rock under the ledge shot's nest");
+  const ray = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  for (const { nest, variant, scale } of NEST_ROCKS) {
+    const [x, y, z] = NESTS[nest];
+    const rocks = life.props.filter(p => p.name === 'rock' && Math.hypot(p.x - x, p.z - z) < 3);
+    assert.equal(rocks.length, 1, `one rock under nest ${nest}`);
+    const [rock] = rocks;
+    assert.ok(rock.variant === variant && rock.scale === scale && rock.variant < 5, `the forest's own rock ${rock.variant} (scale ${rock.scale})`);
+    // as the banks place it (banks.js plantSteps: lod 1, sunk by its model's sink, turned by its rot, scaled)
+    const model = library.get('rock', variant, 1, {});
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(model.solid.pos, 3));
+    geometry.setIndex(model.solid.idx);
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+    mesh.position.set(rock.x, rock.y - model.sink * rock.scale, rock.z);
+    mesh.rotation.y = -rock.rot;
+    mesh.scale.setScalar(rock.scale);
+    mesh.updateMatrixWorld(true);
+    const top = (px, pz) => { ray.set(new THREE.Vector3(px, y + 10, pz), down); return ray.intersectObject(mesh, false)[0]?.point.y ?? null; };
+    // its top just under the flyer's feet, and near level round them (0.3 m round)
+    assert.ok(Math.abs(top(x, z) - (y - 0.02)) < 0.01, `its top ${(y - top(x, z)).toFixed(3)} m under the feet`);
+    for (let a = 0; a < 8; a++) {
+      const h = top(x + 0.3 * Math.cos(a * Math.PI / 4), z + 0.3 * Math.sin(a * Math.PI / 4));
+      assert.ok(h !== null && Math.abs(h - y) < 0.2, `its top round the feet ${h === null ? 'missing' : (h - y).toFixed(2)} m from them`);
+    }
+    // set in the wall: at least half of it in the ground as drawn, and at least a sixth of it out where it is seen
+    const pos = geometry.attributes.position;
+    const v = new THREE.Vector3();
+    let out = 0;
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld); if (v.y > groundDrawnAt(heightAt, v.x, v.z)) out++; }
+    assert.ok(out / pos.count <= 0.5 && out / pos.count >= 1 / 6, `${(100 * out / pos.count).toFixed(0)} % of it out of the wall`);
+    // the flyer on it until it sets off; as it flies off, its feet stay over the rock
+    const b = life.flyers[nest];
+    step(b.trigger - 0.1);
+    assert.ok(b.position.distanceTo(new THREE.Vector3(x, y, z)) < 1e-6, 'the flyer on its nest');
+    let lowest = Infinity;
+    for (let t = b.trigger; t <= b.trigger + 1.5; t += 0.02) {
+      step(t);
+      const h = top(b.position.x, b.position.z);
+      if (h !== null) lowest = Math.min(lowest, b.position.y - h);
+    }
+    assert.ok(lowest > -0.03, `its feet ${lowest.toFixed(2)} m over the rock as it flies off`);
+    // the ledge shot sees her past it, from its cut to its end
+    const row = CALL_SHOTS.find(r => r.shot === 'ledge' && r.nest === nest);
+    if (!row) continue;
+    const view = stillViews(route, { heightAt }).find(w => w.shot === 'ledge' && w.from === row.from);
+    for (let t = row.from; t <= row.to + 1e-9; t += 0.1) {
+      const her = herAt(t);
+      const d = her.clone().sub(view.position);
+      ray.set(view.position, d.clone().normalize());
+      ray.far = d.length();
+      assert.equal(ray.intersectObject(mesh, false).length, 0, `her at ${t.toFixed(1)} s seen past the rock`);
+      ray.far = Infinity;
+    }
+  }
+});
 
 test('the flyers leave their nests as she passes and fly with her to the far pool', async () => {
   const { life, step } = made({ critters: await allModels() });

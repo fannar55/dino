@@ -210,6 +210,13 @@ export const NESTS = [
   [-1202.21, 21.76, 135.91, 72], // 1110 m, north, 14 m: 97.0 s
   [-1231.53, 28.03, 153.77, -48], // 1135 m, south, 20 m: 99.7 s
 ];
+/**
+ * The rocks the flyers stand on, where a shot comes near enough to see what a flyer stands on (kall-sylla: nest 5): the valley's own
+ * rock (world/forest/species.js, as the banks place it), `at` [x, z] with its back a quarter of its width in the wall, turned `rot`
+ * and scaled; world/ardalur/life.js sets its height so its top is just under the flyer's feet. The wall there is 83° steep, so it
+ * juts out of it like a shelf, 1.1 m out past the flyer's feet and its top within 0.12 m of level round them.
+ */
+export const NEST_ROCKS = [{ nest: 5, at: [-1181.78, 163.58], variant: 0, rot: 0, scale: 1.6 }];
 
 // ---------------------------------------------------------------------------------------------
 // The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small

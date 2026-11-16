@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS, NEST_ROCKS } from '../chapters/kafli4-route.js';
 import { createTreeProbe } from '../engine/tree-probe.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
@@ -668,7 +668,7 @@ test('the still shots see what they show: nothing tall by the camera, nothing on
   const wrong = [];
   for (const view of views) {
     const p = view.position;
-    const mine = own(view.group); // a call shot's own group's props (the birds' tree, the lily pads) are what it shows
+    const mine = own(view.group, view.shot === 'ledge' ? CALL_SHOTS.find(r => r.shot === 'ledge' && r.from === view.from) : null); // a call shot's own group's props (the birds' tree, the lily pads) or its nest's rock are what it shows
     for (const q of near(p.x, p.z, 6)) {
       if (mine.has(q)) continue;
       const h = q.model.height * q.scale;
@@ -697,12 +697,16 @@ test('the still shots see what they show: nothing tall by the camera, nothing on
 
 /**
  * The placements that are an animal group's own props (animals.js PROPS: the birds' tree, the lily pads, the stones and logs), by
- * group id: own(id) → a Set of placements (empty for null).
+ * group id: own(id) → a Set of placements (empty for null); own(null, ledgeRow) the rock under that ledge shot's nest (NEST_ROCKS).
  */
 function groupProps(place) {
   const placements = place.stats.sections.flatMap(part => part.userData.placements);
   const sets = new Map();
-  return id => {
+  return (id, ledge = null) => {
+    if (ledge) {
+      const rock = NEST_ROCKS.find(r => r.nest === ledge.nest);
+      return new Set(rock ? placements.filter(q => q.name === 'rock' && Math.hypot(q.x - rock.at[0], q.z - rock.at[1]) < 0.01) : []);
+    }
     if (!id) return new Set();
     if (!sets.has(id)) {
       const g = place.animals.groups.find(x => x.id === id);
@@ -724,7 +728,8 @@ test('the call shots see what they are about and her as she comes: no tree betwe
   for (const view of views) {
     const row = CALL_SHOTS.find(r => r.shot === view.shot && r.from === view.from);
     const p = view.position;
-    const mine = own(view.group);
+    const mine = own(view.group, row.shot === 'ledge' ? row : null);
+    if (row.shot === 'ledge') assert.equal(mine.size, 1, `${row.id}: the rock under its nest grows with the valley`);
     const reach = 60;
     const probe = createTreeProbe(placements.filter(q => !mine.has(q)), { near: (x, z) => Math.hypot(x - p.x, z - p.z) < reach });
     assert.ok(probe.plants.length > 5, `${row.id}: ${probe.plants.length} tall plants within ${reach} m to ask about`);
