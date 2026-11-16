@@ -242,14 +242,14 @@ export function fjorPlants(path) {
   const out = [];
   const lowAt = s => { const t = path.timeAt(s); const p = path.pts[Math.min(path.pts.length - 1, Math.round(t * 60))]; return p.y < 12 ? p : null; };
   // (where the camera climbs or comes down through the canopy, a glade: 9 m more)
-  const clear = (x, z, r) => !path.pts.some(q => q.y < 30 && Math.hypot(x - q.x, z - q.z) < r + (q.y > 6 ? 9 : 0));
+  const clear = (x, z, r) => !path.pts.some(q => q.y < 30 && Math.hypot(x - q.x, z - q.z) < r + (q.t > 13.4 ? 9 : 0));
   let side = 1;
   // whip trunks: every 5 to 7 m along the low path, alternating sides, 3.3 to 4.8 m off the line
   for (let s = 6; s < path.length; s += 5 + rnd() * 2) {
     const p = lowAt(s);
     if (!p) continue;
     side = -side;
-    const off = 3.6 + rnd() * 1.4;
+    const off = 3.9 + rnd() * 1.3;
     const psi = (p.yaw * Math.PI) / 180, c = Math.cos(psi), sn = Math.sin(psi);
     const x = p.x + side * c * off, z = p.z + side * sn * off;
     if (!clear(x, z, 3.2)) continue;

@@ -20,7 +20,8 @@ const LINE = (() => {
   }
   return out;
 })();
-const GLADE = FJOR_PATH.pts.filter((q, i) => i % 6 === 0 && q.y > 6 && q.y < 30);
+// (from a second before the climb, when the camera looks up under the canopy, and all through the dive and the pull-out)
+const GLADE = FJOR_PATH.pts.filter((q, i) => i % 6 === 0 && q.y < 30 && q.t > 13.4);
 /** The nearest the low line comes to (x, y, z) (y over the floor), and to (x, z) alone. */
 export function lineGap(x, y, z) {
   let d3 = Infinity, d2 = Infinity;
