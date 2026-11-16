@@ -184,7 +184,7 @@ async function run(o) {
         const spans = list => { const out = []; for (const r of list) { const l = out.at(-1); if (l && r.trialT - l[1] < o.step * 1.5) l[1] = r.trialT; else out.push([r.trialT, r.trialT]); } return out.map(([a, b]) => `${a.toFixed(2)}-${b.toFixed(2)}`).join(', '); };
         for (const k of ['r4', 'r5', 'r6', 'r9', 'r10']) if (broken(k).length) say(`   ${k} broken at (trial s) ${spans(broken(k))}`);
         for (const k of ['r4', 'r5', 'r6', 'r9', 'r10']) for (const r of broken(k).slice(0, 2)) say(`   ${k} at ${r.trialT} s (film ${r.t}): ${JSON.stringify(r.rules[k])}`);
-        if (o.stills) for (const t of trial === 'beygja' ? [3, 6.5, 9] : [5, 15, 21, 30]) {
+        if (o.stills) for (const t of trial === 'beygja' ? [3, 6.5, 9] : [5, 15, 21.5, 26.5, 30]) {
           await evaluate(`window.__world.flugedla3d.seek(${t})`);
           await evaluate('window.__advance(1 / 30)');
           await shoot(path.resolve(o.out, `${trial}-g1-${t}s.png`));
