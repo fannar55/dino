@@ -102,7 +102,7 @@ export const chapter = {
       const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
       for (const { trunk, count, spread } of key.leaves) {
         const [x, z] = SLALOM_AT[trunk];
-        for (let i = 0; i < count; i++) out.push([x - rnd() * spread[0], base + 1.5 + rnd() * spread[1], z + (rnd() - 0.5) * spread[2], 0.16 + rnd() * 0.1, rnd() * 6]);
+        for (let i = 0; i < count; i++) out.push([x - rnd() * spread[0], base + 1.5 + rnd() * spread[1], z + (rnd() - 0.5) * spread[2], 0.4 + rnd() * 0.25, rnd() * 6]);
       }
       return out;
     };

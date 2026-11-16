@@ -174,14 +174,16 @@ async function run(o) {
         const edge = rows.reduce((w, r) => (r.rules.r4.border < w.rules.r4.border && r.white < 0.99 ? r : w), rows[0]);
         const gap = rows.filter(r => r.rules.r9.butterflyGap != null).reduce((w, r) => Math.min(w, r.rules.r9.butterflyGap), Infinity);
         const plant = rows.filter(r => r.rules.r9.plants).reduce((w, r) => Math.min(w, r.rules.r9.plants.gap), Infinity);
-        const spans = rows.filter(r => r.her && r.her.near[2] < 1).map(r => r.her.span);
+        const herSpans = rows.filter(r => r.her && r.her.near[2] < 1).map(r => r.her.span);
         say(`\n=== trial ${trial} (${rows.length} frames, 1/${Math.round(1 / o.step)} s, film ${rows[0].t}-${rows.at(-1).t} s) ===`);
         say(`r4 ${broken('r4').length} broken (nearest at the border k ${edge.rules.r4.border} at ${edge.trialT} s, clouds in front at an edge ${rows.reduce((n, r) => n + r.rules.r4.cloudsAtEdge, 0)})` +
           ` | r5 ${broken('r5').length} broken (nearest ${nearest.rules.r5.out} % at ${nearest.trialT} s)` +
           ` | r6 ${broken('r6').length} broken${broken('r6').length ? ` (first ${broken('r6')[0].trialT} s ${JSON.stringify(broken('r6')[0].rules.r6.worst)})` : ''}` +
           ` | r9 ${broken('r9').length} broken (butterfly to her ${Number.isFinite(gap) ? gap.toFixed(2) : '-'} m, her to plants ${Number.isFinite(plant) ? plant.toFixed(2) : '-'} m)` +
-          ` | r10 ${broken('r10').length} broken (her span in front ${spans.length ? Math.min(...spans).toFixed(2) + '-' + Math.max(...spans).toFixed(2) : '-'} %)`);
-        for (const k of ['r4', 'r5', 'r6', 'r9', 'r10']) for (const r of broken(k).slice(0, 3)) say(`   ${k} at ${r.trialT} s (film ${r.t}): ${JSON.stringify(r.rules[k])}`);
+          ` | r10 ${broken('r10').length} broken (her span in front ${herSpans.length ? Math.min(...herSpans).toFixed(2) + '-' + Math.max(...herSpans).toFixed(2) : '-'} %)`);
+        const spans = list => { const out = []; for (const r of list) { const l = out.at(-1); if (l && r.trialT - l[1] < o.step * 1.5) l[1] = r.trialT; else out.push([r.trialT, r.trialT]); } return out.map(([a, b]) => `${a.toFixed(2)}-${b.toFixed(2)}`).join(', '); };
+        for (const k of ['r4', 'r5', 'r6', 'r9', 'r10']) if (broken(k).length) say(`   ${k} broken at (trial s) ${spans(broken(k))}`);
+        for (const k of ['r4', 'r5', 'r6', 'r9', 'r10']) for (const r of broken(k).slice(0, 2)) say(`   ${k} at ${r.trialT} s (film ${r.t}): ${JSON.stringify(r.rules[k])}`);
         if (o.stills) for (const t of trial === 'beygja' ? [3, 6.5, 9] : [5, 15, 21, 30]) {
           await evaluate(`window.__world.flugedla3d.seek(${t})`);
           await evaluate('window.__advance(1 / 30)');

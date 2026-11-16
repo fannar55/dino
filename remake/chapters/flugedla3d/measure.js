@@ -4,7 +4,7 @@
 //   4 the frame rule: nothing in front of the screen at an edge   (the depth probe's border ring; the clouds' balls, which it cannot see)
 //   5 the depth budget: nothing further out than 4 %                (the probe, her points, the butterfly's)
 //   6 what is more than 1.3 % out stays in u 0.2-0.8                 (her points, the butterfly's)
-//   9 nothing passes into anything: the butterfly 0.5 m from her    (unless it sits on her beak), her wings 1 m from trunks and crowns
+//   9 nothing passes into anything: the butterfly 0.5 m from her    (unless it sits on her beak or is landing there), her wings 1 m from trunks and crowns
 //  10 where she is in front of the screen she spans 1 % or more, and the background reaches 1.5 % in or deeper
 // And the ground rule alone on a 4:3 picture (groundOn43): the ground at the bottom edge no nearer than D.
 import * as THREE from 'three';
@@ -141,7 +141,7 @@ export function createMeasure(world, { D, cast, state, clouds, base }) {
 
     // the butterfly's gap to her (unless it sits on her beak), and her wings' to the plants
     let gap = Infinity;
-    if (state.butterfly?.on !== 'beak') for (const b of bPts) for (const p of herPts) gap = Math.min(gap, b.distanceTo(p));
+    if (state.butterfly?.on !== 'beak' && !state.butterfly?.landing) for (const b of bPts) for (const p of herPts) gap = Math.min(gap, b.distanceTo(p));
     const plants = plantGap(herPts);
     const nearest = Math.min(all.border, all.middle, all.wide, her?.near[2] ?? Infinity, butterfly?.near[2] ?? Infinity);
     const bad6 = [...outsideMiddle(herPts, 'her'), ...outsideMiddle(bPts, 'butterfly')];

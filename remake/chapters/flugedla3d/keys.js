@@ -30,7 +30,7 @@ export const KEYS = [
     // round the third trunk (3 m to our right, 37 m in): she passes 4.6 m left of it, banked hard into the turn
     her: { body: fromMetres([-2.7, -1.4, 36.5]), yaw: -18, pitch: 2, bank: -40, clip: 'fly', at: 0.2, haze: 0.12 },
     butterfly: { at: [0.47, 0.45, kOf(0.025)], yaw: -15, flap: 0.4 },
-    leaves: [{ trunk: 2, count: 28, spread: [3.5, 6, 3] }],
+    leaves: [{ trunk: 2, count: 40, spread: [4, 7, 3] }],
   },
   {
     id: '2b', n: 2, variant: 'b', name: 'Svigið', time: 18.5,
@@ -49,36 +49,36 @@ export const KEYS = [
     id: '4', n: 4, name: 'Beygjurnar', time: 35,
     // mid-bend: the camera turning to its right; she banked 30 degrees into the turn, the butterfly a little ahead of her on it
     her: { body: [0.46, 0.56, 0.8], yaw: -12, pitch: 3, bank: 30, clip: 'glide', at: 0 },
-    butterfly: { at: [0.42, 0.42, kOf(0.024)], yaw: -20, flap: 0.4 },
+    butterfly: { at: [0.36, 0.34, kOf(0.024)], yaw: -20, flap: 0.4 },
   },
   {
     id: '5', n: 5, name: 'Upp', time: 44.5,
     // climbing steeply with beating wings; the butterfly above her, going up
     her: { body: [0.5, 0.62, 0.72], yaw: 0, pitch: 38, clip: 'fly', at: 0.2 },
-    butterfly: { at: [0.5, 0.3, kOf(0.022)], yaw: 0, pitch: 25, flap: 0.4 },
+    butterfly: { at: [0.6, 0.26, kOf(0.022)], yaw: -15, pitch: 25, flap: 0.4 },
   },
   {
     id: '6', n: 6, name: 'Ofan skýja', time: 55.5,
     her: { body: [0.5, 0.55, 0.82], yaw: 0, pitch: 4, clip: 'glide', at: 0 },
-    butterfly: { at: [0.58, 0.4, kOf(0.022)], yaw: 15, flap: 0.35 },
+    butterfly: { at: [0.62, 0.33, kOf(0.022)], yaw: 15, flap: 0.35 },
   },
   {
     id: '7', n: 7, name: 'Dýfan', time: 60.5,
-    // the peak: the butterfly 3.8 % out (its nearest point 3.9 %), her beak 0.6 m behind it (3.1 %: its wings reach 0.28 m and rule 9
-    // keeps it 0.5 m from her), her wings tucked (her standing pose's)
-    her: { beak: [0.5, 0.66, (13 * kOf(0.038) + 0.6) / 13], yaw: 0, pitch: -15, neck: 18, clip: 'glide', at: 0, tuck: 1 },
-    butterfly: { at: [0.5, 0.63, kOf(0.038)], yaw: 0, pitch: 0, flap: 0.3 },
+    // the peak: the butterfly 3.65 % out at its middle (its nearest point 3.9 %), her beak 0.7 m behind it (2.9 %, not the plan's 3.3:
+    // the butterfly is 0.56 m wide now and rule 9 keeps it 0.5 m from her), her wings tucked (her standing pose's)
+    her: { beak: [0.5, 0.66, (13 * kOf(0.0365) + 0.7) / 13], yaw: 0, pitch: -15, neck: 18, clip: 'glide', at: 0, tuck: 1 },
+    butterfly: { at: [0.5, 0.63, kOf(0.0365)], yaw: 0, pitch: 0, flap: 0.3 },
   },
   {
     id: '7b', n: 7, variant: 'b', name: 'Dýfan (varaleið)', time: 60.5,
     // the fallback: her glide with the wings swept back
-    her: { beak: [0.5, 0.66, (13 * kOf(0.038) + 0.6) / 13], yaw: 0, pitch: -15, neck: 18, clip: 'glide', at: 0, sweep: 70 },
-    butterfly: { at: [0.5, 0.63, kOf(0.038)], yaw: 0, pitch: 0, flap: 0.3 },
+    her: { beak: [0.5, 0.66, (13 * kOf(0.0365) + 0.7) / 13], yaw: 0, pitch: -15, neck: 18, clip: 'glide', at: 0, sweep: 70 },
+    butterfly: { at: [0.5, 0.63, kOf(0.0365)], yaw: 0, pitch: 0, flap: 0.3 },
   },
   {
     id: '8a', n: 8, variant: 'a', name: 'Kveðjan', time: 69.5,
     // braking on slow wingbeats over the lane, the butterfly sitting on her beak (about 2.8 % out)
-    her: { beak: [0.5, 0.5, kOf(0.028)], yaw: 0, pitch: 28, neck: 10, clip: 'fly', at: 0.1 },
+    her: { beak: [0.5, 0.5, kOf(0.028)], yaw: 0, pitch: 28, neck: 10, clip: 'fly', at: 0.1, sweep: 20 },
     butterfly: { on: 'beak', yaw: 70, flap: 0.15 },
   },
   {
