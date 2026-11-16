@@ -142,24 +142,27 @@ export function pathOf(route, dt = 1 / 60) {
 
 // ---- her ----
 const TAU = 2 * Math.PI;
-// her distance behind us along the path (m) in the forest: weaving at 8, three swooshes at us on the beat, a drop back behind the
-// screen and a rocket up at us, a lunge at the butterfly; the barrel roll out of the second snap turn
+// her distance behind us along the path (m, her body's middle; her nearest point is about 3 m nearer us) in the forest: weaving at
+// 9.5, three swooshes at us landing on the beat (to 6.5: her nearest point about 5.4 % out), a drop back behind the screen and a
+// rocket up at us, a lunge at the butterfly; the barrel roll out of the second snap turn. Each change lands on its beat.
+const land = (beat, over, v) => ({ t: at(beat) - over, over, v });
 const D_HER = channel([
-  { t: at(5.2), over: 0.45, v: 5.2 }, { t: at(6.6), over: 0.6, v: 8 }, // swoosh 1, lands on beat 6
-  { t: 4.2, over: 0.7, v: 15 }, { t: at(11), over: 0.6, v: 4.9 }, { t: at(12.6), over: 0.6, v: 8 }, // back behind the screen, then rocket at us (beat 12)
-  { t: at(16.2), over: 0.4, v: 5.0 }, { t: at(17.4), over: 0.6, v: 8.5 }, // the lunge at the butterfly (beat 17)
-  { t: at(25.6), over: 0.5, v: 7 },
-  { t: 24.0, over: 0.8, v: 9 }, { t: at(53.2), over: 0.45, v: 5.4 }, { t: at(54.6), over: 0.6, v: 8 }, // the last swoosh (beat 54)
-], 8);
+  land(6, 0.45, 6.5), land(7.4, 0.6, 9.5), // swoosh 1 (beat 6)
+  land(9.6, 0.6, 16), land(12, 0.55, 6.6), land(13.6, 0.6, 9.5), // back behind the screen, then a rocket up at us (beat 12)
+  land(17, 0.4, 6.5), land(18.4, 0.6, 9.5), // the lunge at the butterfly (beat 17)
+  land(26, 0.4, 10), land(28.4, 0.6, 9.5),
+], 9.5);
 const ROLL_HER = channel([{ t: at(26), over: at(2), v: 360 }]); // the barrel roll (beats 26-28)
-// open air: where she is in the picture (blend 1) from the climb to the pull-out
-const AIR = channel([{ t: at(29.4), over: 0.8, v: 1 }, { t: PULL + 0.4, over: 1.0, v: 0 }]);
+// open air: where she is in the picture (blend 1) from the climb to the end (the take ends over open ground)
+const AIR = channel([{ t: at(29.4), over: 0.8, v: 1 }]);
 const AIR_BODY = [
   // [second, u, v, k, over]: rocketing up from under the picture after the butterfly, beside us over the cloud, ahead in the dive
-  [at(29.4), 0.5, 1.25, 0.9, 0.01], [at(31), 0.5, 0.62, 0.55, 1.4], [17.0, 0.42, 0.56, 0.48, 1.2], [18.6, 0.55, 0.5, 0.7, 1.0],
-  [LEVEL + 0.4, 0.38, 0.58, 0.62, 1.0], [TIP, 0.6, 0.55, 0.75, 1.2], [TIP + 0.9, 0.5, 0.62, 0.62, 0.8],
-  // the peak: her beak 4.1 % out, the butterfly at our nose, held about 1.5 s
-  [TIP + 1.5, 0.5, 0.6, 0.47, 0.6], [PULL - 0.1, 0.5, 0.6, 0.47, 0.1], [PULL + 0.6, 0.7, 0.55, 0.7, 0.7],
+  [at(29.4), 0.5, 1.3, 0.9, 0.01], [at(31), 0.5, 0.62, 0.66, 1.4], [17.0, 0.42, 0.58, 0.6, 1.2], [18.6, 0.55, 0.5, 0.72, 1.0],
+  [LEVEL + 0.4, 0.38, 0.58, 0.66, 1.0], [TIP, 0.6, 0.55, 0.8, 1.2], [22.9, 0.5, 0.6, 0.75, 1.2],
+  // the peak as the white clears: her beak about 4 % out, the butterfly at our nose, held about 1.5 s into the pull-out
+  [23.4, 0.5, 0.6, 0.56, 0.5], [24.7, 0.5, 0.58, 0.56, 0.1],
+  // peeling away to the side, then weaving over the open ground
+  [25.4, 0.7, 0.52, 0.8, 0.7], [26.2, 0.45, 0.55, 0.68, 0.8],
 ];
 const track3 = list => t => {
   let s = list[0].slice(1, 4);
@@ -180,7 +183,7 @@ export function herAt(t, cam) {
   const d = D_HER(t);
   // the weave: side to side on the path, banked hard into it (a 4-beat cycle)
   const ph = TAU * t / (4 * BEAT);
-  const weave = t < at(20) || t > PULL + 0.4 ? 1 : t < at(26) ? 0.35 : 0.6;
+  const weave = t < at(20) ? 1 : t < at(26) ? 0.35 : 0.6;
   const side = weave * 1.0 * Math.sin(ph);
   const bankWeave = -weave * 72 * Math.cos(ph);
   const blend = AIR(t);
@@ -190,11 +193,12 @@ export function herAt(t, cam) {
   let pose = { yaw: 0, pitch: 4, bank: bankWeave + turnBank + roll, sweep: 0, neck: 0, clip: 'fly', at: t * 1.7 };
   if (blend > 0) {
     // open air: climbing hard after the butterfly, gliding above the cloud, diving swept back (key 7b), braking out of it
-    const climb = t < LEVEL ? 1 : 0, dive = t >= TIP - 0.3 && t < PULL ? 1 : 0;
-    const air = climb ? { pitch: 62, bank: 0, sweep: 25, clip: 'fly', at: t * 2.1 }
-      : dive ? { pitch: -62, bank: 0, sweep: 70, neck: 18, clip: 'glide', at: 0 }
-        : t < TIP ? { pitch: 6, bank: 35 * Math.sin(TAU * t / 3.84), sweep: 0, clip: 'glide', at: 0 }
-          : { pitch: 30, bank: -50, sweep: 30, clip: 'fly', at: t * 1.6 };
+    // (her pitch is the world's: the camera looks up 22 degrees in the climb and down 25 in the dive, and she faces it)
+    const climb = t < LEVEL ? 1 : 0, dive = t >= TIP - 0.3 && t < 24.7 ? 1 : 0;
+    const air = climb ? { pitch: 62, bank: 0, sweep: 55, clip: 'fly', at: t * 2.1 }
+      : dive ? { pitch: 8, bank: 0, sweep: 70, neck: 18, clip: 'glide', at: 0 }
+        : t < TIP ? { pitch: 6, bank: 35 * Math.sin(TAU * t / 3.84), sweep: 20, clip: 'glide', at: 0 }
+          : { pitch: 14, bank: -60 * Math.sin(TAU * (t - 24.7) / 3.84), sweep: 20, clip: 'fly', at: t * 1.8 };
     pose = blend >= 0.5 ? { ...pose, ...air } : pose;
   }
   return { path: { d, side, lift: -0.6 + 0.5 * Math.sin(ph * 0.5) }, air: airBody(t), blend, pose };
@@ -206,7 +210,7 @@ const DARTS = channel([
   { t: at(3.4), over: 0.3, v: 1 }, { t: at(4.4), over: 0.4, v: 0 }, // to our nose
   { t: at(9.4), over: 0.3, v: 1 }, { t: at(10.4), over: 0.4, v: 0 },
   { t: at(18.6), over: 0.3, v: 1 }, { t: at(19.6), over: 0.4, v: 0 },
-  { t: TIP + 1.3, over: 0.5, v: 1 }, { t: PULL - 0.2, over: 0.4, v: 0 }, // the peak, held 1.5 s
+  { t: 22.6, over: 0.5, v: 1 }, { t: 24.6, over: 0.4, v: 0 }, // the peak, held about 1.5 s
 ]);
 const SHOOT = channel([{ t: at(29.6), over: 0.5, v: 1 }, { t: at(31.5), over: 0.8, v: 0 }]); // it shoots straight up (beat 30)
 /** The butterfly at trial second t: { at: [u, v, k], yaw, pitch, flap }. */
@@ -217,7 +221,7 @@ export function butterflyAt(t, her) {
   // in the forest it keeps ahead of her (nearer us than her beak by 1.5 m or more), or darts aside when she swooshes in
   const dart = DARTS(t);
   const shoot = SHOOT(t);
-  const near = her && her.blend < 0.5 ? (her.path.d - 3.5) / 13 : 0.6;
+  const near = her && her.blend < 0.5 ? (her.path.d - 4) / 13 : her ? her.air[2] - 0.3 : 0.6;
   let uu = u, vv = v - 0.3 * shoot;
   if (near < 0.32) uu = u < 0.5 ? Math.min(u, 0.3) : Math.max(u, 0.7); // she is close: it dodges to a side
   else k = Math.min(k, near);
@@ -252,7 +256,7 @@ export function fjorPlants(path) {
   }
   // the wood round the line: a jittered grid out to 40 m from it
   for (let s = 0; s < path.length; s += 6.5) {
-    const p = lowAt(s);
+    const p = path.pts[Math.min(path.pts.length - 1, Math.round(path.timeAt(s) * 60))]; // under the climb and the dive too
     if (!p) continue;
     const psi = (p.yaw * Math.PI) / 180, c = Math.cos(psi), sn = Math.sin(psi);
     for (let off = 8; off < 40; off += 6 + rnd() * 2) {

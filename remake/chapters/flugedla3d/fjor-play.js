@@ -15,7 +15,7 @@ const SONG_BASE = new URL('../../assets/audio/kafli5/song/', import.meta.url);
 // the take's big moves, each a whoosh from its side (on the beat where they land)
 const WHOOSH = [[2.5, 1], [5.28, -1], [7.78, 1], [10.0, -1], [11.6, 1], [12.6, -1], [14.4, 0], [21.2, 0], [24.4, 1], [25.5, -1]];
 
-export function createFjorPlayer({ s, world, stageCam, cam, cast, base, state, D, sound }) {
+export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D, sound }) {
   const route = FJOR_ROUTE, path = FJOR_PATH;
   // the floor under the line, smoothed over a second of flight (the camera rides LOW over it, not over every hummock)
   const STEP = 0.05;
@@ -70,6 +70,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, base, state, D
     if (c.roll) stageCam.rotateZ(-rad(c.roll));
     stageCam.updateMatrixWorld(true);
     state.cam = cam;
+    clouds.update(cam);
 
     // her: on the line behind us, or in the picture
     const her = herAt(t, { turnBefore: -route.rates.turn(t - 0.3) });

@@ -124,7 +124,7 @@ export const chapter = {
     if (FJOR) {
       // the fast take, looped through black at the join; t= holds a second of it
       const capture = params.get('t') !== null && params.get('play') !== '1';
-      const player = createFjorPlayer({ s, world, stageCam, cam, cast, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0' });
+      const player = createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0' });
       player.setStage(stage);
       const length = player.length;
       const heldAt = capture ? Math.min(length, Math.max(0, Number(params.get('t')) || 0)) : null;
