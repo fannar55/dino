@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS } from '../chapters/kafli4-route.js';
-import { createTreeProbe } from '../engine/tree-probe.js';
+import { createTreeProbe, plantVolumes } from '../engine/tree-probe.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
@@ -1126,6 +1126,17 @@ test('a tap on the birds\' tree calls the birds: the group is the tree\'s crown,
     assert.ok(g.point.distanceTo(crown) < 2, `${g.id}: the tap target is the crown (${g.point.distanceTo(crown).toFixed(2)} m off)`);
     assert.ok(g.radius >= 3, `${g.id}: as wide as a crown (${g.radius} m)`);
     for (const m of g.members) assert.ok(m.position.distanceTo(crown) < model.crown.r * sc + 0.5, `${g.id}: a bird in its crown`);
+    // each sits on the top of the leaves under it, its body out of them, so it is seen from outside the crown (the owner's look at
+    // kall-fuglar, 2026-11-15: only their feet showed under the leaves) and none sits in the air: its tree's volumes (engine/tree-probe.js,
+    // slices 0.35 m thick) round its feet
+    const leaves = plantVolumes({ name: 'broadleaf', model, x: tree.x, y, z: tree.z, rot: tree.rot, scale: sc }).discs.filter(d => d.r > 0.3);
+    const inLeaves = p => leaves.some(d => p.y >= d.y0 && p.y < d.y1 && Math.hypot(p.x - d.cx, p.z - d.cz) < d.r);
+    for (const m of g.members) {
+      const p = m.position;
+      const under = leaves.filter(d => Math.hypot(p.x - d.cx, p.z - d.cz) < d.r && d.y0 <= p.y + 0.5).reduce((top, d) => Math.max(top, d.y1), -Infinity);
+      assert.ok(Math.abs(p.y - under) < 0.4, `${g.id}: a bird ${(p.y - under).toFixed(2)} m over the top of the leaves under it`);
+      assert.ok(!inLeaves(p.clone().add(new THREE.Vector3(0, 0.6, 0))), `${g.id}: a bird's body out of the leaves`);
+    }
   }
   animals.dispose();
 });

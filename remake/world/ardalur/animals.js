@@ -151,6 +151,7 @@ const DEFAULT_TOP = { log: 0.45, rock: 0.55 }; // a prop's top when there is no 
 /** A broadleaf's crown at scale 1 when there is no species library: its middle, half-width and half-height (world/forest/species.js). */
 const DEFAULT_CROWN = { c: [0.5, 8.7, 0], r: 5.6, ry: 3.8 };
 const PERCH = 0.85; // how far out in its crown a bird sits, as a share of the crown's half-width
+const ON_LEAVES = 0.05; // metres a bird's feet sink into the top of the leaves it sits on (its tree's model, leafTop)
 // The dragonflies' swarm round her: forward, across (right), up, in metres from her body; just beyond her wingtips (3.75 m), so the
 // chase camera behind her sees them flank her.
 const SWARM = [[1.5, -4.8, 0.6], [-0.5, 5.2, 1.4], [0.8, 6.0, -0.2], [-1.5, -5.8, 1.8], [2.5, 4.2, 2.2], [0.2, -6.6, 1.0]];
@@ -182,6 +183,33 @@ export function crownOf(prop, library = null) {
   const y = prop.y - (model?.sink ?? 0) * sc;
   const middle = new THREE.Vector3(prop.x + (cr.c[0] * c - cr.c[2] * s) * sc, y + cr.c[1] * sc, prop.z + (cr.c[0] * s + cr.c[2] * c) * sc);
   return { middle, r: cr.r * sc, ry: (cr.ry ?? cr.r) * sc };
+}
+
+/**
+ * The top of a tree prop's leaves (its model's triangles, placed as the plants' batcher places it: sunk by its sink, turned, scaled)
+ * straight over (x, z), or null where the tree has none there. A bird sits on it, so it is seen from outside the crown.
+ */
+export function leafTop(prop, model, x, z) {
+  const c = Math.cos(prop.rot), s = Math.sin(prop.rot), sc = prop.scale;
+  const dx = (x - prop.x) / sc, dz = (z - prop.z) / sc;
+  const px = dx * c + dz * s, pz = -dx * s + dz * c; // (x, z) in the model's own frame
+  let top = null;
+  for (const m of [model.solid, model.thin]) {
+    if (!m || !m.pos?.length) continue;
+    for (let k = 0; k < m.idx.length; k += 3) {
+      const a = m.idx[k] * 3, b = m.idx[k + 1] * 3, e = m.idx[k + 2] * 3;
+      const ax = m.pos[a], az = m.pos[a + 2], bx = m.pos[b], bz = m.pos[b + 2], ex = m.pos[e], ez = m.pos[e + 2];
+      const area = (bx - ax) * (ez - az) - (ex - ax) * (bz - az);
+      if (Math.abs(area) < 1e-9) continue;
+      const u = ((bx - px) * (ez - pz) - (ex - px) * (bz - pz)) / area;
+      const v = ((ex - px) * (az - pz) - (ax - px) * (ez - pz)) / area;
+      const w = 1 - u - v;
+      if (u < 0 || v < 0 || w < 0) continue;
+      const y = u * m.pos[a + 1] + v * m.pos[b + 1] + w * m.pos[e + 1];
+      if (top === null || y > top) top = y;
+    }
+  }
+  return top === null ? null : prop.y - (model.sink ?? 0) * sc + top * sc;
 }
 
 export function createAnimals(world, route, { heightAt = () => 0, library = null, crowds = null, critters = {} } = {}) {
@@ -260,9 +288,16 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         const tx = -water.out[0], tz = -water.out[1];
         const ox = tx * Math.cos(turn) - tz * Math.sin(turn);
         const oz = tx * Math.sin(turn) + tz * Math.cos(turn);
-        const ring = Math.sqrt(1 - up * up) * crown.r * PERCH;
-        at = { x: crown.middle.x + ox * ring, z: crown.middle.z + oz * ring, dir: water.dir, out: water.out };
+        let ring = Math.sqrt(1 - up * up) * crown.r * PERCH;
         y = crown.middle.y + up * crown.ry;
+        // on the top of the leaves there (in from the ring to the first leaves under it), its body out of them; the crown's middle
+        // as it was without a library
+        const tree = libraryModel(placed[0].name, placed[0].variant);
+        for (let top = null; tree && ring > 0; ring -= 0.1) {
+          top = leafTop(placed[0], tree, crown.middle.x + ox * ring, crown.middle.z + oz * ring);
+          if (top !== null) { y = top - ON_LEAVES; break; }
+        }
+        at = { x: crown.middle.x + ox * ring, z: crown.middle.z + oz * ring, dir: water.dir, out: water.out };
         heading = headingOf(ox, oz);
       } else {
         at = spot(d, side, m.along, m.e);
