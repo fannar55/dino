@@ -8,7 +8,7 @@ import { LAYOUT, cloudBalls, sweptHit } from './stage.js';
 
 export const FJOR_ROUTE = fjorRoute();
 export const FJOR_PATH = pathOf(FJOR_ROUTE);
-export const CROWN_GAP = 2.8;
+export const CROWN_GAP = 4.5;
 // the low line, every metre or so (for the leaveOut's distances)
 const LINE = (() => {
   const out = [];
@@ -20,6 +20,7 @@ const LINE = (() => {
   }
   return out;
 })();
+const GLADE = FJOR_PATH.pts.filter((q, i) => i % 6 === 0 && q.y > 6 && q.y < 30);
 /** The nearest the low line comes to (x, y, z) (y over the floor), and to (x, z) alone. */
 export function lineGap(x, y, z) {
   let d3 = Infinity, d2 = Infinity;
@@ -42,6 +43,8 @@ function leaveOut(info, p) {
   }
   const r = (m.trunk?.r ?? 0.4) * sc;
   if (lineGap(p.x, 1, p.z).d2 - r < 2.9) return true;
+  // the glade where the camera climbs or comes down through the canopy
+  if (GLADE.some(q => Math.hypot(p.x - q.x, p.z - q.z) < 12)) return true;
   return false;
 }
 

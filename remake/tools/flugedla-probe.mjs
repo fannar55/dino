@@ -267,7 +267,7 @@ async function fjorTrial(o, server, { say, report }) {
       return { f, right, up, p: [c.x, c.y, c.z] };
     };
     const view = (b, q) => { const d = [q[0] - b.p[0], q[1] - b.p[1], q[2] - b.p[2]]; const dot = v => d[0] * v[0] + d[1] * v[1] + d[2] * v[2]; return [dot(b.right), dot(b.up), dot(b.f)]; };
-    const ballsOf = pl => { const out = []; for (let h = pl.y + 0.5; h < pl.y + pl.top; h += 1.2) out.push([pl.x, h, pl.z, pl.r]); if (pl.crown) out.push(pl.crown); return out; };
+    const partsOf = pl => { const trunk = []; for (let h = pl.y + 0.5; h < pl.y + pl.top; h += 1.2) trunk.push([pl.x, h, pl.z, pl.r]); return pl.crown ? [['trunk', trunk], ['crown', [pl.crown]]] : [['trunk', trunk]]; };
     const dwell = new Map(); // plant index -> current run { a, b, k }
     const runsOf = [];
     let fastest = { w: 0 };
@@ -278,8 +278,10 @@ async function fjorTrial(o, server, { say, report }) {
       const nowDir = new Map();
       let frameMax = 0, frameWho = null;
       for (const [i, pl] of plantsList.entries()) {
-        let cutK = Infinity, seen = false;
-        for (const [x, y, z, R] of ballsOf(pl)) {
+       let seen = false;
+       for (const [part, balls] of partsOf(pl)) {
+        let cutK = Infinity;
+        for (const [x, y, z, R] of balls) {
           const [vx, vy, vz] = view(b, [x, y, z]);
           if (vz + R <= 0) continue;
           const dz = Math.max(vz, 0.01);
@@ -290,6 +292,12 @@ async function fjorTrial(o, server, { say, report }) {
           const k = Math.max(0.01, vz - R) / D;
           if (cut && k < 1 && r.white < 0.99) cutK = Math.min(cutK, k);
         }
+        const key = i + part;
+        const run = dwell.get(key);
+        if (cutK < 1) {
+          if (run && r.t - run.b < o.step * 1.5) { run.b = r.t; run.k = Math.min(run.k, cutK); } else { if (run) runsOf.push(run); dwell.set(key, { a: r.t, b: r.t, k: cutK, name: pl.name + ' ' + part, part }); }
+        } else if (run) { runsOf.push(run); dwell.delete(key); }
+       }
         // its trunk at the camera's height (or its crown): the direction in the camera's frame, for the angular speed
         if (seen) {
           const q = [pl.x, Math.min(pl.y + pl.top, Math.max(pl.y, r.cam.y)), pl.z];
@@ -305,19 +313,16 @@ async function fjorTrial(o, server, { say, report }) {
             }
           }
         }
-        const run = dwell.get(i);
-        if (cutK < 1) {
-          if (run && r.t - run.b < o.step * 1.5) { run.b = r.t; run.k = Math.min(run.k, cutK); } else { if (run) runsOf.push({ ...run, name: pl.name }); dwell.set(i, { a: r.t, b: r.t, k: cutK }); }
-        } else if (run) { runsOf.push({ ...run, name: pl.name }); dwell.delete(i); }
       }
       prevDir = nowDir;
       angular.push({ t: r.t, w: frameMax, who: frameWho });
       if (frameMax > fastest.w) fastest = { t: r.t, w: frameMax, who: frameWho };
     }
-    for (const [i, run] of dwell) runsOf.push({ ...run, name: plantsList[i].name });
+    for (const run of dwell.values()) runsOf.push(run);
     runsOf.sort((x, y) => (y.b - y.a) - (x.b - x.a));
     const longest = runsOf[0];
     say(`each plant cut by an edge in front of the screen (${plantsList.length} plants near the line): ${runsOf.length} times; the longest ${longest ? `${(longest.b - longest.a + o.step).toFixed(2)} s (${longest.name}, ${longest.a.toFixed(2)}-${longest.b.toFixed(2)} s, nearest k ${longest.k.toFixed(2)} = ${fx(outOf(longest.k))} %)` : '-'}; over 0.4 s: ${runsOf.filter(x => x.b - x.a + o.step > 0.4 + 1e-6).length}; the nearest such: ${(() => { const n = runsOf.reduce((w, x) => (!w || x.k < w.k ? x : w), null); return n ? `k ${n.k.toFixed(2)} = ${fx(outOf(n.k))} % (${n.name} at ${n.a.toFixed(2)} s, for ${(n.b - n.a + o.step).toFixed(2)} s)` : '-'; })()}`);
+    for (const part of ['trunk', 'crown']) { const list = runsOf.filter(x => x.part === part); const n = list.reduce((w, x) => (!w || x.k < w.k ? x : w), null); say(`  ${part}s: ${list.length} times, the longest ${list[0] ? (list[0].b - list[0].a + o.step).toFixed(2) + ' s (k ' + list[0].k.toFixed(2) + ', at ' + list[0].a.toFixed(2) + ' s)' : '-'}, over 0.4 s: ${list.filter(x => x.b - x.a + o.step > 0.4 + 1e-6).length}, the nearest k ${n ? n.k.toFixed(2) + ' (' + fx(outOf(n.k)) + ' %, ' + (n.b - n.a + o.step).toFixed(2) + ' s)' : '-'}`); }
     say(`  the 5 longest: ${runsOf.slice(0, 5).map(x => `${x.name} ${x.a.toFixed(2)}-${x.b.toFixed(2)} s (${(x.b - x.a + o.step).toFixed(2)} s, k ${x.k.toFixed(2)})`).join('; ')}`);
     const sorted = angular.map(a => a.w).filter(w => w > 0).sort((x, y) => x - y);
     say(`the nearest plants' angular speed across the picture: fastest ${fastest.w.toFixed(0)} deg/s at ${fastest.t} s (${fastest.who?.name}, ${fastest.who?.dist} m); per frame's fastest: median ${sorted[Math.floor(sorted.length / 2)]?.toFixed(0)} deg/s; at ${[2.5, 6, 10.6, 12.5, 25.5].map(t => { const a = angular.reduce((w, x) => (Math.abs(x.t - t) < Math.abs(w.t - t) ? x : w), angular[0]); return `${t} s ${a.w.toFixed(0)}`; }).join(', ')} deg/s`);

@@ -149,7 +149,7 @@ const land = (beat, over, v) => ({ t: at(beat) - over, over, v });
 const D_HER = channel([
   land(6, 0.45, 7), land(7.4, 0.6, 9.5), // swoosh 1 (beat 6)
   land(9.6, 0.6, 16), land(12, 0.55, 7), land(13.6, 0.6, 9.5), // back behind the screen, then a rocket up at us (beat 12)
-  land(17, 0.4, 7), land(18.4, 0.6, 9.5), // the lunge at the butterfly (beat 17)
+  land(17, 0.4, 7.6), land(18.4, 0.6, 9.5), // the lunge at the butterfly (beat 17)
   land(26, 0.4, 10), land(28.4, 0.6, 9.5),
 ], 9.5);
 const ROLL_HER = channel([{ t: at(26), over: at(2), v: 360 }]); // the barrel roll (beats 26-28)
@@ -185,7 +185,7 @@ export function herAt(t, cam) {
   const ph = TAU * t / (4 * BEAT);
   const weave = t < at(20) ? 1 : t < at(26) ? 0.35 : 0.6;
   const side = weave * 0.6 * Math.sin(ph);
-  const bankWeave = -weave * 72 * Math.cos(ph);
+  const bankWeave = -weave * 62 * Math.cos(ph);
   const blend = AIR(t);
   const roll = ROLL_HER(t);
   // in a snap turn she banks with it (the camera's turn rate a little before)
@@ -241,7 +241,8 @@ export function fjorPlants(path) {
   seed = 5;
   const out = [];
   const lowAt = s => { const t = path.timeAt(s); const p = path.pts[Math.min(path.pts.length - 1, Math.round(t * 60))]; return p.y < 12 ? p : null; };
-  const clear = (x, z, r) => !path.pts.some(q => q.y < 30 && Math.hypot(x - q.x, z - q.z) < r);
+  // (where the camera climbs or comes down through the canopy, a glade: 9 m more)
+  const clear = (x, z, r) => !path.pts.some(q => q.y < 30 && Math.hypot(x - q.x, z - q.z) < r + (q.y > 6 ? 9 : 0));
   let side = 1;
   // whip trunks: every 5 to 7 m along the low path, alternating sides, 3.3 to 4.8 m off the line
   for (let s = 6; s < path.length; s += 5 + rnd() * 2) {
@@ -275,5 +276,5 @@ export function fjorPlants(path) {
 
 /** Nothing grows on the line itself (3 m to each side) where the camera is low. */
 export function fjorKeepOut(path) {
-  return (x, z) => (path.pts.some(q => q.y < 30 && Math.hypot(x - q.x, z - q.z) < 3) ? 1 : 0);
+  return (x, z) => (path.pts.some(q => q.y < 30 && Math.hypot(x - q.x, z - q.z) < 3 + (q.y > 6 ? 12 : 0)) ? 1 : 0);
 }
