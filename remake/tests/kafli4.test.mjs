@@ -11,7 +11,7 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
-import { FLIGHT_WORDS, SONG, EGILL_ANSWERS } from '../chapters/kafli4-flight.js';
+import { FLIGHT_WORDS, SONG, EGILL_ANSWERS, EGILL_ANSWER_AT } from '../chapters/kafli4-flight.js';
 import { PLAY } from '../chapters/kafli4-flight-play.js';
 import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
@@ -975,7 +975,7 @@ test('ground shots dip the wind: down as each call shot begins, back as it cuts 
   assert.equal(downs.length, CALL_SHOTS.length, `down only in the call shots: ${downs.map(g => g.t.toFixed(2))}`);
 });
 
-test('Egill answers each call shot once, on the shot after it, and is done before her next call', async () => {
+test("Egill answers each call shot once, as it cuts back to her (the ledge's in its own shot, done by Mosi's line), before her next call", async () => {
   const { seen, world } = await playWide();
   const started = world.chapterState.flight.flight.started;
   const recorded = readJson('../assets/audio/lines.json');
@@ -985,7 +985,14 @@ test('Egill answers each call shot once, on the shot after it, and is done befor
     const times = seen.said.filter(x => x.id === line).map(x => x.at - started);
     assert.equal(times.length, 1, `${line} once (at ${times.map(t => t.toFixed(2))})`);
     const [at] = times;
-    assert.ok(at >= row.to - 1e-6 && at <= row.to + 4, `${line} after ${row.id} cuts back (${row.to} s): at ${at.toFixed(2)}`);
+    const want = EGILL_ANSWER_AT[id] ?? row.to;
+    assert.ok(at >= want - 1e-6 && at <= want + 1, `${line} at ${want} s (${row.id}): at ${at.toFixed(2)}`);
+    if (EGILL_ANSWER_AT[id]) {
+      // in the row's own shot, and done with its hold by the next line asked for (Mosi's on the rim), which is not put off
+      assert.ok(at >= row.from && at + recorded[line].duration + 0.5 <= row.to + 0.5 + 1e-6, `${line} in ${row.id}'s shot`);
+      const mosi = seen.said.find(x => x.id === 'k4_mosi_shortcut').at - started;
+      assert.ok(Math.abs(mosi - 96.5) <= 0.05, `Mosi's line on the rim on time (at ${mosi.toFixed(2)})`);
+    }
     const next = CALL_SHOTS[CALL_SHOTS.indexOf(row) + 1];
     if (next) assert.ok(at + recorded[line].duration <= next.call, `${line} ends before her call in ${next.id}`);
   }

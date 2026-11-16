@@ -92,10 +92,15 @@ export const ROAR = { at: 129.4, level: 0.25 };
 export const JUICE = { wow: 119.4, landing: 166.5, shallows: { from: 57.8, to: 62.6, every: 0.42, size: 0.6 } };
 /**
  * Egill's answer to a call shot (the route's CALL_SHOTS, by id; the Flugmynd spec's list), said once as the camera cuts back to her
- * after it, when no other line waits its turn (`ifFree`): rows 1, 2, 3 and 5. The ledge's (5) comes on the chase after Mosi's rim
- * cameo, which follows the ledge at once: said at the ledge's cut it would push Mosi's line past his shot.
+ * after it, when no other line waits its turn (`ifFree`): rows 1, 2, 3 and 5; or at its own second (EGILL_ANSWER_AT).
  */
 export const EGILL_ANSWERS = { 'kall-edlur': 'k4_egill_lizards', 'kall-froskar': 'k4_egill_frogs', 'kall-fuglar': 'k4_egill_birds', 'kall-sylla': 'k4_egill_flyers' };
+/**
+ * The answers said at a second of their own instead of at the cut back. The ledge's: Mosi's rim cameo follows the ledge at once
+ * (his line at 96.5 s), and on the gorge's chase after it no flyer is in the frame; so it comes in the ledge's own shot, as the
+ * flyers of nests 3 and 4 fly with her (93.2 s), and is done, with its half second's hold, by his line (as the juice review had it).
+ */
+export const EGILL_ANSWER_AT = { 'kall-sylla': 93.2 };
 // the call shots' cameras stand down on the ground (or a ledge) with the group, not on her back: the wind in Egill's ears goes down
 const GROUND_SHOTS = new Set(CALL_SHOTS.map(row => row.shot));
 const clamp = THREE.MathUtils.clamp;
@@ -333,7 +338,7 @@ function* beats(s, c) {
     ...calls.flatMap(row => [
       { t: row.from, act: () => camera.shot(row.shot, { ...row.options, callShot: row.id }) },
       ...(row.to < BEATS.D ? [{ t: row.to, act: () => camera.shot('chase') }] : []),
-      ...(EGILL_ANSWERS[row.id] ? [{ t: row.to, act: () => say('egill', EGILL_ANSWERS[row.id], { ifFree: true }) }] : []),
+      ...(EGILL_ANSWERS[row.id] ? [{ t: EGILL_ANSWER_AT[row.id] ?? row.to, act: () => say('egill', EGILL_ANSWERS[row.id], { ifFree: true }) }] : []),
     ]),
   ].sort((a, b) => a.t - b.t);
   for (const cue of cues) {
@@ -363,6 +368,8 @@ function* beats(s, c) {
   whoosh(1);
   yield* at(ledge.from);
   ledge.cut();
+  yield* at(EGILL_ANSWER_AT[ledge.id]);
+  say('egill', EGILL_ANSWERS[ledge.id], { ifFree: true }); // the ledge's answer, as the flyers fly with her, done by Mosi's line
   yield* at(rim.from - 0.5);
   run(route.cameos.rim.path, headingAlong(route.cameos.rim.path)); // up on the rim, out of sight from down in the gorge
   yield* at(rim.from);
@@ -373,7 +380,6 @@ function* beats(s, c) {
   yield* at(rim.to);
   hideMosi();
   camera.shot('chase');
-  say('egill', EGILL_ANSWERS['kall-sylla'], { ifFree: true }); // the ledge's answer: the gorge's flyers with her (after Mosi's cameo)
 
   // E. The falls (1:45–2:05): the roar grows; she flies at the falls and up with the falling water, seen from the side by the cliff;
   // at the crest one slow second with only the wind, and then they burst out of the spray.
