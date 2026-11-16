@@ -41,7 +41,7 @@ const UPP = [
   { t: 58.5, over: 1, state: { beak: [0.5, 0.6, 0.55], pitch: -15, neck: 18, tuck: 1 } }, // she tucks and dives
   { t: 59.5, over: 1, state: { beak: [0.5, 0.66, (13 * kOf(0.0365) + 0.7) / 13], pitch: -15 } }, // nearer: the peak, key 7 (held to 61.5)
   { t: 62.5, over: 1, state: { beak: [0.5, 0.53, 0.62] } }, // back, into the white
-  { t: 66.5, over: 2, state: { beak: [0.5, 0.52, 0.64], pitch: 28, neck: 10, tuck: 0, sweep: 32, clip: 'fly' } }, // out under the cloud, braking
+  { t: 66.5, over: 2, state: { beak: [0.5, 0.52, 0.64], pitch: 28, neck: 10, tuck: 0, sweep: 40, clip: 'fly' } }, // out under the cloud, braking
   { t: 69, over: 1.5, state: { beak: [0.5, 0.5, kOf(0.028)] } }, // nearer over the lane, the butterfly on her beak (key 8a)
 ];
 const UPP_BFLY = [
@@ -60,8 +60,8 @@ export function upp(t) {
   her.at = her.clip === 'glide' ? 0 : t * (t < 50 ? 1.25 : 0.7);
   const bf = track(UPP_BFLY, t);
   // over the lane, braking: it lands on her beak (69.5) and sits
-  // (coming down onto it, 68.5-69.5, it is landing: rule 9's half metre is not kept then, as it is not while it sits)
-  const butterfly = t >= 69.5 ? { on: 'beak', yaw: 70, flap: 0.15 } : { ...bf, flap: 0.3 + 0.9 * Math.abs(Math.sin(TAU * 4 * t)), landing: t >= 68.5 };
+  // (coming down onto it, 68.3-69.5, it is landing: rule 9's half metre is not kept then, as it is not while it sits)
+  const butterfly = t >= 69.5 ? { on: 'beak', yaw: 70, flap: 0.15 } : { ...bf, flap: 0.3 + 0.9 * Math.abs(Math.sin(TAU * 4 * t)), landing: t >= 68.3 };
   return { her, butterfly };
 }
 
