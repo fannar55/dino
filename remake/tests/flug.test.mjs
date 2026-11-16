@@ -6,10 +6,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { playUnattended } from './chapter-harness.mjs';
-import { createFakeContext } from './fake-audio.mjs';
+import { createFakeContext, FakeMediaElement } from './fake-audio.mjs';
+import { createClock } from '../engine/clock.js';
 import { createFlightSounds } from '../engine/audio/flight-sounds.js';
 import { BEATS, LEAP, CALL_SHOTS } from '../chapters/kafli4-route.js';
-import { SLOW, MUSIC, GOLDEN, ROAR, SONG, EGILL_ANSWERS } from '../chapters/kafli4-flight.js';
+import { SLOW, MUSIC, GOLDEN, ROAR, SONG, EGILL_ANSWERS, createFlightSong } from '../chapters/kafli4-flight.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import * as flugModule from '../chapters/flug.js';
 const CALL_KINDS = new Set(CALL_SHOTS.map(row => row.shot)); // the call shots' kinds of camera (the call, the run-along, the ledge, the herd)
@@ -195,6 +196,32 @@ test('the flight has its own song (the owner\'s pick of 2026-11-05): it begins w
   const file = fs.statSync(new URL(`../assets/audio/kafli4/${SONG.src}`, import.meta.url));
   assert.ok(file.size > 1.5e6 && file.size < 3e6, `${SONG.src} is ${file.size} bytes`);
   assert.ok(SONG.seconds > BEATS.END + SONG.at + 10, 'it plays on past the flight, into her landing');
+});
+
+test('the flight\'s song keeps its level while a line is said: no dip under talk in the flight (the owner\'s word of 2026-11-16)', async () => {
+  const context = createFakeContext({ state: 'running' });
+  const element = new FakeMediaElement({ duration: 200 });
+  const clock = createClock();
+  const sound = { context, output: null, hold: () => () => {}, speaking: false, createElement: () => element };
+  const song = createFlightSong({ clock, sound });
+  await song.ready;
+  const volume = context.lastGains[0];
+  const run = seconds => {
+    for (let left = seconds; left > 1e-9; left -= 1 / 60) {
+      const dt = Math.min(1 / 60, left);
+      clock.tick(dt);
+      context.advance(dt);
+      song.update();
+    }
+  };
+  song.play(SONG.at);
+  run(0.5);
+  const normal = volume.gain.valueAt(context.currentTime);
+  assert.ok(normal > 0, 'it sounds');
+  sound.speaking = true;
+  run(0.5);
+  const under = volume.gain.valueAt(context.currentTime);
+  assert.ok(Math.abs(under - normal) < 1e-9, `the same under a line: ${(20 * Math.log10(under / normal)).toFixed(2)} dB`);
 });
 
 test('the page\'s theme is silent through the review flight, and the flight\'s levels are its song\'s: up as she leaps, down as she glides', () => {

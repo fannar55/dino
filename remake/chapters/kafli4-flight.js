@@ -158,16 +158,17 @@ function lightAt(world, look, k, scratch) {
 
 /**
  * The flight's song (SONG) on the page's sound (world.sound: none in a capture, where it is a playhead only), held with the game's
- * sound and dipped under every line; the page updates it every frame with the chapter's other sounds (main.js: chapterSound), the
- * game held or not, through the flight and on to its end. Made as the chapter starts, so its file is there when the flight is;
- * theFlight plays it.
+ * sound; the page updates it every frame with the chapter's other sounds (main.js: chapterSound), the game held or not, through the
+ * flight and on to its end. It does not dip under the lines (the owner's word of 2026-11-16: in the flight the music is not lowered
+ * when someone talks); the wind and the water still do (flight-sounds.js duck). Made as the chapter starts, so its file is there
+ * when the flight is; theFlight plays it.
  */
 export function createFlightSong(world) {
   if (!world.clock) return null;
   const sound = world.sound ?? null;
   const song = createSong({
     context: sound?.context ?? null, output: sound?.output ?? null, clock: world.clock, src: SONG.src,
-    base: new URL('../assets/audio/kafli4/', import.meta.url), speaking: () => Boolean(world.sound?.speaking),
+    base: new URL('../assets/audio/kafli4/', import.meta.url),
     ...(sound?.createElement ? { createElement: sound.createElement } : {}),
   });
   sound?.hold?.(song);

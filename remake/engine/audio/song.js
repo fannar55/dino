@@ -1,7 +1,8 @@
 // A song of a chapter's own, beside the page's theme (engine/audio/music.js): chapter 4's flight song, which plays with the flight
 // wherever in the chapter the flight starts. It is a music of its own that plays once (loop: false), so it is everything the theme
 // is: streamed, on the game clock (a seek lands on the same note every run, and a lenient window lets it ride the slow second at the
-// falls), dipped 8 dB under every recorded line and held with the rest of the game's sound (engine/audio/hold.js). It is silent until
+// falls), dipped 8 dB under every recorded line when the chapter says who speaks (`speaking`: chapter 4's flight song does not, the
+// owner's word of 2026-11-16) and held with the rest of the game's sound (engine/audio/hold.js). It is silent until
 // the scene plays it: play(at) puts it `at` seconds in now and lets it sound. At its end it is done, and nothing starts it again.
 //
 // A browser lets an element start from a touch only, or once the page has had one; the song is played after the start button, so it
