@@ -177,9 +177,11 @@ Smiðurinn skilar tölum með hverri kyrrmynd og hverri gerð:
 - Ný hreyfing fyrir dýfuna frá eigandanum myndi bæta atriði 7, en planið gerir ráð fyrir að hún sé ekki til.
 - Lengra flug ofan skýja getur orðið annað myndband.
 
-## 11. Spurningar við yfirlestur
+## 11. Ákveðið við yfirlestur
 
-Svör eigandans eru skráð hér þegar hann hefur lesið planið.
+Eigandinn samþykkti planið 16. nóvember 2026: „Já, með tali“. Hann var spurður tveggja spurninga: hvort atriðin átta væru rétt,
+og hvort setningarnar þrjár í kafla 6 ættu að vera með eða myndbandið orðlaust.
 
-1. **Sagan:** eru atriðin átta rétt, eða á eitthvað að fara út, bætast við eða breytast?
-2. **Tal:** setningarnar þrjár í kafla 6, eða orðlaust myndband?
+1. **Með tali:** setningarnar þrjár í kafla 6 verða gerðar (í skrefi 3).
+2. **Sagan stendur.** Hann gerði enga athugasemd við atriðin átta; þetta er lestur Claude á svarinu. Hann dæmir þau á
+   lykilrömmunum í skrefi 1.
