@@ -221,7 +221,7 @@ async function fjorTrial(o, server, { say, report }) {
       const t = +(i * o.step).toFixed(4);
       await evaluate(`window.__world.flugedla3d.seek(${t})`);
       await evaluate('window.__advance(1 / 60)');
-      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white, story: st.story, rate: st.rate, thor: null, place: st.place, flock: st.flock ? st.flock.map(x => ({ ...x })) : [], birds: st.birds ? st.birds.map(x => ({ k: x.k, u: x.u, dart: x.dart })) : [], camPitch: st.cam.pitch }; })()`);
+      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white, story: st.story, rate: st.rate, thor: null, place: st.place, flock: st.flock ? st.flock.map(x => ({ ...x })) : [], birds: st.birds ? st.birds.map(x => ({ k: x.k, u: x.u, dart: x.dart })) : [], camPitch: st.cam.pitch, gaps: (() => { const T = window.__world.THREE, v = new T.Vector3(); const hb = []; f.cast.her.model.traverse(o => { if (o.isBone) hb.push(o.getWorldPosition(new T.Vector3())); }); let flock = Infinity, birds = Infinity, bf = Infinity; for (const m of f.fjor.life.flock) { if (!m || !m.actor.root.visible) continue; m.actor.model.traverse(o => { if (o.isBone) { o.getWorldPosition(v); for (const h of hb) flock = Math.min(flock, h.distanceTo(v)); bf = Math.min(bf, f.cast.butterfly.position.distanceTo(v)); } }); } for (const b of st.birds ?? []) { v.fromArray(b.world); for (const h of hb) birds = Math.min(birds, h.distanceTo(v)); } return { flock: +flock.toFixed(2), birds: +birds.toFixed(2), bfFlock: +bf.toFixed(2) }; })() }; })()`);
       r.t = t;
       rows.push(r);
     }
@@ -245,6 +245,38 @@ async function fjorTrial(o, server, { say, report }) {
     say(`her chest: median ${fx(med(chest))} % over the take, past +2 % ${(100 * share(chest, 2)).toFixed(0)} % of the time; the forest part (story 0-13.44 s): median ${fx(med(forest))} %, past +2 % ${(100 * share(forest, 2)).toFixed(0)} %, past +3.5 % ${(100 * share(forest, 3.5)).toFixed(0)} %; range ${fx(Math.min(...chest.map(x => x.out)))}..${fx(Math.max(...chest.map(x => x.out)))} %`);
     const herNearOut = r => outOf(r.her.near[2]);
     say(`her nearest point: median ${fx(med(her.map(r => ({ out: herNearOut(r) }))))} %, past +4.5 % ${(100 * share(her.map(r => ({ out: herNearOut(r) })), 4.5)).toFixed(0)} % of the time`);
+    // round 3: each part of the take (story seconds): her chest and nearest point, the camera's pitch, her pitch, the edges (walls)
+    const VT = await evaluate('window.__world.flugedla3d.fjor.warp && 32.21');
+    const PARTS = [['forest', 0, 13.44], ['climb', 13.44, 19.68], ['flock', 19.68, 30.24], ['nose-over and dive', 30.24, VT + 2.7], ['gorge', VT + 2.7, VT + 12.2], ['up the falls', VT + 12.2, VT + 16.4], ['crest', VT + 16.4, 99]];
+    for (const [name, a, b] of PARTS) {
+      const pr = rows.filter(r => (r.story ?? r.t) >= a && (r.story ?? r.t) < b && r.her && r.white < 0.99);
+      if (!pr.length) continue;
+      const ch = pr.filter(r => r.herInfo?.chestK > 0).map(r => outOf(r.herInfo.chestK));
+      const nr = pr.map(herNearOut);
+      const edge = pr.filter(r => r.background.border != null).map(r => outOf(r.background.border));
+      const pitches = pr.map(r => r.camPitch ?? 0), hp = pr.map(r => r.herInfo?.pitch ?? 0);
+      say(`  ${name} (story ${a.toFixed(2)}-${Math.min(b, rows.at(-1).story ?? b).toFixed(2)} s): chest ${fx(Math.min(...ch))}..${fx(Math.max(...ch))} % (median ${fx(med(ch.map(out => ({ out }))))}), nearest point ${fx(Math.min(...nr))}..${fx(Math.max(...nr))} %; camera pitch ${Math.min(...pitches).toFixed(0)}..${Math.max(...pitches).toFixed(0)} deg, her pitch ${Math.min(...hp).toFixed(0)}..${Math.max(...hp).toFixed(0)} deg; the nearest thing at an edge to ${edge.length ? fx(Math.max(...edge)) : '-'} % (median ${edge.length ? fx(med(edge.map(out => ({ out })))) : '-'})`);
+    }
+    // the flock: each member's parallax range (its body's middle), the layers; the birds
+    const fr = rows.filter(r => r.flock?.length);
+    if (fr.length) {
+      const n = Math.max(...fr.map(r => r.flock.length));
+      for (let i = 0; i < n; i++) {
+        const ks = fr.map(r => r.flock[i]).filter(Boolean).filter(x => x.u > -0.05 && x.u < 1.05 && x.v < 1.0);
+        if (!ks.length) continue;
+        say(`  flock ${i} (${ks[0].layer}): body ${fx(Math.min(...ks.map(x => outOf(x.k))))}..${fx(Math.max(...ks.map(x => outOf(x.k))))} % while in the picture`);
+      }
+      const g = rows.filter(r => r.gaps && Number.isFinite(r.gaps.flock)).reduce((w, r) => (!w || r.gaps.flock < w.gaps.flock ? r : w), null);
+      const gb = rows.filter(r => r.gaps && Number.isFinite(r.gaps.bfFlock)).reduce((w, r) => (!w || r.gaps.bfFlock < w.gaps.bfFlock ? r : w), null);
+      say(`  the smallest gap, her bones to a flock member's bones: ${g ? g.gaps.flock + ' m at ' + g.t + ' s' : '-'}; the butterfly to a flock member's bones ${gb ? gb.gaps.bfFlock + ' m at ' + gb.t + ' s' : '-'}`);
+    }
+    const br = rows.filter(r => r.birds?.length);
+    if (br.length) {
+      const all = br.flatMap(r => r.birds.filter(x => x.u > 0 && x.u < 1));
+      const darts = all.filter(x => x.dart);
+      const gb = rows.filter(r => r.gaps && Number.isFinite(r.gaps.birds)).reduce((w, r) => (!w || r.gaps.birds < w.gaps.birds ? r : w), null);
+      say(`  the birds: ${fx(Math.min(...all.map(x => outOf(x.k))))}..${fx(Math.max(...all.map(x => outOf(x.k))))} % (the darting ones ${darts.length ? fx(Math.min(...darts.map(x => outOf(x.k)))) + '..' + fx(Math.max(...darts.map(x => outOf(x.k)))) : '-'} %); the nearest to her bones ${gb ? gb.gaps.birds + ' m at ' + gb.t + ' s' : '-'}`);
+    }
     // the holds (from the page's take): how far out and where in the picture
     for (const [a, b] of (await evaluate('window.__world.flugedla3d.fjor.holds')) ?? []) {
       const hr = rows.filter(r => r.t >= a && r.t <= b && r.her);
