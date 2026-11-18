@@ -81,6 +81,33 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     state.thor = { heading: best.h, miss: +best.miss.toFixed(2), root: THOR.root, head: THOR.head, lateral: THOR.lateral };
   }
   let blinked = false;
+  // Flugeðla's orbit round Þórseðla's head through the linger (round 2 fix): a tilted ellipse in the camera's frame round her head,
+  // across IN FRONT of it (1.4 m nearer us than her head, wings banked steep: her chest about +3.4 %), up round the side, over and
+  // behind it high (seen above it, never hidden), down the other side and across in front again: one and a half turns, crossing in
+  // front at the second slow stretch (story 19.92 s) and again as the linger ends.
+  const ORBIT = { A: 3.2, B: 1.4, low: -0.4, high: 3.0, mid: 19.92, rate: (3 * Math.PI) / 2.58 };
+  const headY = thor ? world.heightAt(THOR.head[0], THOR.head[1]) + THOR_HEAD.up : 0;
+  const op = new THREE.Vector3(), od = new THREE.Vector3();
+  function orbitAt(t) {
+    const e = Math.min(1, Math.max(0, (t - (LINGER[0] - 0.6)) / 0.6)) * (1 - Math.min(1, Math.max(0, (t - LINGER[1]) / 0.3)));
+    const c = cameraAt(route, LINGER[0]), psi = rad(c.yaw);
+    const f = [Math.sin(psi), -Math.cos(psi)], sr = [Math.cos(psi), Math.sin(psi)];
+    const place = phi => {
+      const lat = ORBIT.A * Math.sin(phi), dep = -ORBIT.B * Math.cos(phi);
+      const up = (ORBIT.low + ORBIT.high) / 2 - ((ORBIT.high - ORBIT.low) / 2) * Math.cos(phi);
+      return [THOR.head[0] + sr[0] * lat + f[0] * dep, headY + up, THOR.head[1] + sr[1] * lat + f[1] * dep];
+    };
+    const phi = ORBIT.rate * (t - ORBIT.mid);
+    const a = place(phi), b = place(phi + 0.01);
+    op.set(a[0], a[1], a[2]);
+    od.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize();
+    // she faces her way round (heading: the camera's convention, her yaw 0 faces the way (-sin h, cos h)); banked into the turn,
+    // steepest across the front (her wings upright there: nothing reaches toward us)
+    const heading = (Math.atan2(-od.x, od.z) * 180) / Math.PI;
+    const pitch = (Math.asin(Math.max(-1, Math.min(1, od.y))) * 180) / Math.PI;
+    const bank = -(45 + 30 * Math.cos(phi));
+    return { p: op, e, heading, pitch, bank, phi };
+  }
   /** Everything at the take's real second r (the story's second through the warp). */
   function apply(r) {
     const t = WARP.story(r), rate = WARP.rate(r);
@@ -95,14 +122,14 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     stageCam.updateMatrixWorld(true);
     state.cam = cam;
     clouds.update(cam);
-    if (fog0 !== null) world.scene.fog.density = fog0 * (0.5 - 0.3 * Math.min(1, Math.max(0, (c.y - 12) / 30)));
+    if (fog0 !== null) world.scene.fog.density = fog0 * (0.62 - 0.4 * Math.min(1, Math.max(0, (c.y - 12) / 30)));
 
     // Þórseðla: her clip at the take's speed; from the camera's turn toward her she looks at it (her head turns to follow); a blink
     // as they whizz past
     if (thor) {
       if (thor.mixer) thor.mixer.timeScale = rate;
-      if (t > GLADE_T.turn && t < LINGER[1] + 1.5) { thorLook.set(cam.x, cam.y, cam.z); thor.lookAt(thorLook, { weight: 1, maxAngle: 70, maxPitch: 35 }); }
-      else thor.lookAt(null);
+      if (t > LINGER[0] - 0.6 && t < LINGER[1] + 0.3) thorLook.copy(orbitAt(t).p); else if (t > GLADE_T.turn) thorLook.set(cam.x, cam.y, cam.z); else thorLook.set(THOR.head[0] - THOR.face[0] * 20, cam.y, THOR.head[1] - THOR.face[1] * 20);
+      thor.lookAt(thorLook, { weight: t > LINGER[0] - 0.6 && t < LINGER[1] + 0.3 ? 0.6 : 1, maxAngle: 70, maxPitch: 35 });
       if (!blinked && t > GLADE_T.pass && t < GLADE_T.pass + 1) { blinked = true; thor.blink?.(); }
       if (t < GLADE_T.pass - 1) blinked = false;
     }
@@ -117,10 +144,15 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     herPos.set(ph.x + Math.cos(hpsi) * her.path.side + Math.sin(hpsi) * ahead, worldY(tH) + her.path.lift, ph.z + Math.sin(hpsi) * her.path.side - Math.cos(hpsi) * ahead);
     stage.framePoint(her.air[0], her.air[1], (her.air[2] * FJOR_D) / D, airPos, stageCam, D); // (its k is at FJOR_D: metres kept on a &d= plane)
     herPos.lerp(airPos, her.blend);
-    const heading = ph.yaw + (c.yaw - ph.yaw) * her.blend;
+    // at her head: Flugeðla's orbit (round 2 fix), blended in from the approach
+    const ob = thor ? orbitAt(t) : null;
+    if (ob && ob.e > 0) herPos.lerp(ob.p, ob.e);
+    let heading = ph.yaw + (c.yaw - ph.yaw) * her.blend;
+    let pose = her.pose;
+    if (ob && ob.e > 0.5) { heading = ob.heading; pose = { ...pose, yaw: 0, pitch: ob.pitch, bank: ob.bank, sweep: 20, neck: -10, clip: 'fly', at: t * 1.9 }; }
     const white = whiteAt(cam.y - base);
     state.white = white;
-    state.her = { ...her.pose, world: herPos.clone(), haze: 0.85 * white };
+    state.her = { ...pose, world: herPos.clone(), haze: 0.85 * white };
     cast.poseHer(state.her, heading);
     // her chest's depth in the picture (k: the depth along the view over the plane)
     fwd.set(0, 0, -1).applyQuaternion(stageCam.quaternion);

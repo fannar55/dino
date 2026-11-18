@@ -188,7 +188,7 @@ const AIR_BODY = [
   // [second, u, v, k, over] (k at FJOR_D): the first hold, the second
   [3.4, 0.5, 0.56, HOLD_K, 0.01], [10.45, 0.5, 0.56, HOLD_K, 0.01],
   // the glade: past Þórseðla in front of us, then up over her head as we come to it (her corkscrew there: herAt)
-  [17.0, 0.5, 0.25, 0.62, 1.6], // (over and beyond her head: her neck runs off to the side, down)
+  [17.0, 0.22, 0.38, 0.62, 1.6], // (off to the left of her head on the approach; the orbit round it: fjor-play.js) // (over and beyond her head: her neck runs off to the side, down)
   // rocketing up after the butterfly, beside us over the cloud, ahead in the dive
   [sh(15.0), 0.5, 0.62, 0.62, 0.9], [sh(16.0), 0.5, 0.62, 0.5, 0.9], [sh(17.0), 0.42, 0.58, 0.47, 1.0], [sh(18.6), 0.55, 0.5, 0.56, 1.0],
   [LEVEL + 0.4, 0.38, 0.58, 0.5, 1.0], [TIP, 0.6, 0.55, 0.6, 1.2], [sh(22.85), 0.5, 0.58, 0.5, 1.2],
@@ -280,8 +280,8 @@ export function butterflyAt(t, her, D = FJOR_D) {
   k = Math.max(0.28, Math.min(k, near));
   k = lerp(k, 0.285, dart);
   // (to our nose beside her face, a little to her right of it and above it)
-  uu = lerp(uu, 0.56 + 0.04 * Math.sin(TAU * t / 0.9), dart);
-  vv = lerp(vv, 0.22, dart);
+  uu = lerp(uu, 0.62 + 0.03 * Math.sin(TAU * t / 0.9), dart);
+  vv = lerp(vv, 0.12, dart);
   // when she swooshes in on the path (nearer than her usual 8.4 m), it gets out of her way: up and to the side away from her lead wing
   const away = her && her.blend < 0.5 ? Math.min(1, Math.max(0, (8.4 - her.path.d) / 1.0)) : 0;
   uu = lerp(uu, (her?.pose?.yaw ?? 0) >= 0 ? 0.27 : 0.73, away);
@@ -291,9 +291,9 @@ export function butterflyAt(t, her, D = FJOR_D) {
   if (inLinger(t)) {
     const e = smooth((t - (LINGER[0] - 0.6)) / 0.6) * (1 - smooth((t - LINGER[1]) / 0.3));
     const w = TAU * (t - LINGER[0]) / 1.4;
-    uu = lerp(uu, 0.5 + 0.14 * Math.cos(w), e);
-    vv = lerp(vv, 0.44 + 0.1 * Math.sin(w) - 0.3 * shoot, e);
-    k = lerp(k, (5.0 + 0.3 * Math.sin(w)) / D, e);
+    uu = lerp(uu, 0.53 + 0.04 * Math.cos(w), e);
+    vv = lerp(vv, 0.44 + 0.03 * Math.sin(w) - 0.3 * shoot, e);
+    k = lerp(k, (5.0 + 0.15 * Math.sin(w)) / D, e);
   }
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
@@ -322,14 +322,17 @@ export function fjorPlants(path, thor = null) {
     if (!clear(x, z, 3.2)) continue;
     // (round 2: only tall slim trunks along the line, their crowns high over the camera: stage.js's SLIM)
     rnd();
-    out.push({ name: 'araucaria', position: [x, z], variant: Math.floor(rnd() * 8), scale: 1.2 + 0.2 * rnd(), rot: rnd() * 6.28, whip: true });
+    const pl = { name: 'araucaria', position: [x, z], variant: Math.floor(rnd() * 8), scale: 1.2 + 0.2 * rnd(), rot: rnd() * 6.28, whip: true };
+    const tc = path.timeAt(s);
+    if ((tc > 0.7 && tc < 1.3) || (tc > 10.4 && tc < 10.95)) continue; // (her wing clipped these: round 2 fix)
+    out.push(pl);
   }
   // the wood round the line: a jittered grid out to 40 m from it
   for (let s = 0; s < path.length; s += 6.5) {
     const p = path.pts[Math.min(path.pts.length - 1, Math.round(path.timeAt(s) * 60))]; // under the climb and the dive too
     if (!p) continue;
     const psi = (p.yaw * Math.PI) / 180, c = Math.cos(psi), sn = Math.sin(psi);
-    for (let off = 8; off < 32; off += 6 + rnd() * 2) {
+    for (let off = 8; off < 27; off += 6 + rnd() * 2) {
       for (const sd of [-1, 1]) {
         const o = off + rnd() * 3, along = (rnd() - 0.5) * 5;
         const x = p.x + sd * c * o - sn * along, z = p.z + sd * sn * o + c * along;
@@ -355,7 +358,7 @@ export const THOR_HEAD = { forward: 7.12, up: 7.76 }; // her Head bone from her 
 export const HEAD_AT = 7.6; // m: her head from the camera at the linger (it comes about 1 m nearer as she looks at us): about +4 %
 export function thorAt(route) {
   const p = route.at((LINGER[0] + LINGER[1]) / 2), psi = (p.yaw * Math.PI) / 180;
-  const head = [p.x + Math.sin(psi) * HEAD_AT, p.z - Math.cos(psi) * HEAD_AT];
+  const head = [p.x + Math.sin(psi) * HEAD_AT - Math.cos(psi) * 0.7, p.z - Math.cos(psi) * HEAD_AT - Math.sin(psi) * 0.7];
   const q = route.at(GLADE_T.pass), q0 = (q.yaw * Math.PI) / 180;
   // the line's right (its heading's right) and which side of it her head is
   const right = [Math.cos(q0), Math.sin(q0)];
