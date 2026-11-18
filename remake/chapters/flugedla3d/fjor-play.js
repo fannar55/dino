@@ -67,6 +67,8 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     // from the crown's side that faces the line
     bursts.push({ id: id++, t: bt + 0.45, x: cx - dx * r * 0.8, y: Math.min(cy, groundAt(bt) + bp.y + 2.5), z: cz - dz * r * 0.8, dx, dz });
   }
+  // (polish: a cloud ball coming within 4.4 m of the camera, 6 % out, fades away first: one did inside the climb's white at 18.8 s)
+  clouds.setNear?.(4.4, 9);
   const fx = createFjorFx(world);
   const life = createFjorLife(world, { url: herUrl });
   const placeOnPath = sM => {

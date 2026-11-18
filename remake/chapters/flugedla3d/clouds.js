@@ -11,6 +11,7 @@ varying vec2 vUv;
 varying float vHeight;
 varying float vDist;
 varying float vSeed;
+varying float vNear;
 void main() {
   vec3 centre = aBall.xyz + uBase;
   vec4 mv = viewMatrix * vec4( centre, 1.0 );
@@ -18,6 +19,7 @@ void main() {
   vUv = position.xy * 2.0;
   vHeight = position.y * 2.0;
   vDist = -mv.z;
+  vNear = -mv.z - aBall.w; // its nearest surface's depth
   vSeed = fract( sin( dot( aBall.xz, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
   gl_Position = projectionMatrix * mv;
 }`;
@@ -27,16 +29,18 @@ uniform vec3 uTop;
 uniform vec3 uUnder;
 uniform vec3 uHaze;
 uniform vec2 uFar;
+uniform vec2 uNear;
 varying vec2 vUv;
 varying float vHeight;
 varying float vDist;
 varying float vSeed;
+varying float vNear;
 void main() {
   float r = length( vUv );
   float a = atan( vUv.y, vUv.x );
   // a lumpy rim: a few slow waves round it, different for each ball
   float rim = 0.78 + 0.1 * sin( a * 3.0 + vSeed * 6.28 ) + 0.06 * sin( a * 7.0 + vSeed * 19.0 );
-  float alpha = 1.0 - smoothstep( rim * 0.55, rim, r );
+  float alpha = ( 1.0 - smoothstep( rim * 0.55, rim, r ) ) * smoothstep( uNear.x, uNear.y, vNear );
   if ( alpha < 0.01 ) discard;
   vec3 colour = mix( uUnder, uTop, smoothstep( -0.7, 0.6, vHeight ) );
   float haze = smoothstep( uFar.x, uFar.y, vDist );
@@ -65,6 +69,7 @@ export function createClouds(world, balls, { base = 0 } = {}) {
       uUnder: { value: new THREE.Color('#b9c6d3') },
       uHaze: { value: new THREE.Color('#d9e4ee') },
       uFar: { value: new THREE.Vector2(120, 320) },
+      uNear: { value: new THREE.Vector2(-1e5, -0.9e5) }, // (off unless set) // (setNear: a ball whose near side is nearer than x m is gone, whole from y)
     },
     transparent: true,
     depthWrite: false,
@@ -89,5 +94,10 @@ export function createClouds(world, balls, { base = 0 } = {}) {
     aBall.needsUpdate = true;
     aKind.needsUpdate = true;
   }
-  return { mesh, update, setBase(y) { material.uniforms.uBase.value.y = y; base = y; }, count: n };
+  return {
+    mesh, update, setBase(y) { material.uniforms.uBase.value.y = y; base = y; }, count: n,
+    /** Fade the balls that come near the camera: gone when their near side is nearer than `gone` m, whole from `whole` m. */
+    setNear(gone, whole) { material.uniforms.uNear.value.set(gone, whole); this.near = [gone, whole]; },
+    near: null,
+  };
 }

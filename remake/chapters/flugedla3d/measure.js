@@ -108,6 +108,7 @@ export function createMeasure(world, { D, cast, state, clouds, base }) {
       view.copy(ball).applyMatrix4(camera.matrixWorldInverse);
       const depth = -view.z;
       if (depth + r <= 0) continue;
+      if (clouds.near && depth - r < clouds.near[0]) continue; // (faded out wholly near the camera: clouds.js setNear)
       const inside = Math.abs(view.x) - r < tanHh * Math.max(depth, 0) && Math.abs(view.y) - r < tanV * Math.max(depth, 0);
       if (!inside) continue;
       const kNear = Math.max(0.01, depth - r) / D;
