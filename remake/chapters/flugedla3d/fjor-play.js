@@ -5,7 +5,7 @@
 // open air; the flock, the birds, the spray; the butterfly darting; the leaves she tears off the crowns she clips; the white; and her
 // set under it all with chapter 4's airflow, whooshes, river and falls (&hljod=0: silent).
 import * as THREE from 'three';
-import { BEAT, LOW, FJOR_D, HOLDS, VALLEY, SWITCH, TIP, FLOCK, FALLS_CLIMB, CREST, CLOUD_Y, warp, herAt, butterflyAt, cameraAt, cameraStats } from './fjor.js';
+import { BEAT, LOW, FJOR_D, HOLDS, VALLEY, SWITCH, TIP, FLOCK, FALLS_CLIMB, CREST, END, CLOUD_Y, warp, herAt, butterflyAt, cameraAt, cameraStats } from './fjor.js';
 import { FJOR_ROUTE, FJOR_PATH } from './fjor-stage.js';
 import { whiteAt } from './route.js';
 import { createFjorFx } from './fjor-fx.js';
@@ -22,7 +22,7 @@ const SONG_BASE = new URL('../../assets/audio/kafli5/song/', import.meta.url);
 const WHOOSH = [[2.6, 1], [7.4, -1], [8.9, 1], [9.6, -1], [10.4, 1], [11.0, -1], [13.4, 1], [FLOCK.beat(11.5), 1], [TIP + 0.3, 0], [VALLEY.t + 2.3, 0],
   [VALLEY.t + 4.9, -1], [VALLEY.t + 7.1, 1], [VALLEY.t + 9.6, -1], [FALLS_CLIMB.from - 0.4, 0]];
 // the flyers' cries (chapter 4's): as the flock rises, and as they peel away
-const CRIES = [[FLOCK.beat(3.5), -0.5], [FLOCK.beat(19.5), 0.5]];
+const CRIES = [[FLOCK.beat(3.5), -0.5], [FLOCK.beat(19.5), 0.5], [END.beat(-1.5), 0.2]]; // (the last: the flock coming back up at the crest)
 
 export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D, sound, slow = true, herUrl }) {
   const route = FJOR_ROUTE, path = FJOR_PATH;
@@ -133,7 +133,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
 
     // the flock, the birds, the spray
     const ctx = { stage, stageCam, D, yaw: c.yaw, camPitch: c.pitch, height: world.renderer?.domElement?.height ?? 800 };
-    state.flock = t > FLOCK.from - 1 && t < TIP + 2 ? life.poseFlock(t, ctx) : (life.hideFlock(), []);
+    state.flock = (t > FLOCK.from - 1 && t < TIP + 2) || t > END.beat(-3.6) ? life.poseFlock(t, ctx) : (life.hideFlock(), []);
     state.birds = life.poseBirds(t, ctx);
     state.spray = life.poseSpray(t, ctx);
     thinFallsSpray(t);

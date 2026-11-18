@@ -101,8 +101,12 @@ export function channel(list, start = 0) {
 // her, and over the top. In the valley's own coordinates (world/ardalur: chapter 4's), its heights the world's.
 const RIVER = createRoute({ wingspan: 7.5 }).river;
 const VT = SWITCH.down; // the valley path's first second (in the white)
-const V_BEATS = 41; // the valley's part of the take: 19.68 s
+const END_BEATS = 12; // the ending "Hópurinn kemur aftur" after the crest (his pick, 2026-11-18): 12 beats, so the take ends on the set's
+// beat 388 (Kjötkveðjuhátíð 372-404, its first 16-beat phrase's end); the flock gathers from the end of the crest's turn, 3.4 beats before
+const V_BEATS = 41 + END_BEATS; // the valley's part of the take: 25.44 s
 export const LENGTH = Math.round((VT + V_BEATS * BEAT) / BEAT) * BEAT; // the story's length, on a whole beat
+/** The ending: its beats (b) counted from where the take ended before it (story beat 108). */
+export const END = { from: LENGTH - END_BEATS * BEAT, beats: END_BEATS, beat: b => LENGTH - END_BEATS * BEAT + b * BEAT };
 const vt = x => VT + x; // a second of the valley's part
 const D_BREAK = 1066; // m along the river where we come out of the cloud over the gorge (x about -1161)
 const ABOVE = 12; // (round 3 polish: higher between the walls, so they stay milder at the side edges) // m over the river through the gorge
@@ -270,8 +274,8 @@ const YAW_HER = channel([
   { t: at(20.5) - 0.6, over: 0.5, v: 40 }, { t: at(20.5) + 0.15, over: 0.5, v: 0 },
 ]);
 // in the picture (hanging steady, bobbing): the first hold, the second (after the snap turns), with the flock, the dive's peak as we
-// come out of the cloud over the gorge, two down the gorge, the crest
-export const HOLDS = [[3.85, 6.9], [10.9, FOREST_END], [FLOCK.beat(6), FLOCK.beat(14)], [vt(0.3), vt(2.6)], [vt(3.4), vt(6.0)], [vt(7.6), vt(10.6)], [CREST.from + 0.4, LENGTH - 0.4]];
+// come out of the cloud over the gorge, two down the gorge, the crest with the flock round her, and the last (the flock gone past us)
+export const HOLDS = [[3.85, 6.9], [10.9, FOREST_END], [FLOCK.beat(6), FLOCK.beat(14)], [vt(0.3), vt(2.6)], [vt(3.4), vt(6.0)], [vt(7.6), vt(10.6)], [CREST.from + 0.4, END.beat(4)], [END.beat(6.5), LENGTH - 0.4]];
 const AIR = channel([{ t: 3.4, over: 0.45, v: 1 }, { t: 6.9, over: 0.5, v: 0 }, { t: 10.45, over: 0.45, v: 1 }]);
 const HOLD_K = 0.46; // her chest at the holds: 8 m (+2.35 %; her beak about 5 %)
 const PEAK_K = 0.435; // the dive's peak: 7.6 m (+2.6 %; her beak under 6 %)
@@ -327,7 +331,7 @@ export function herAt(t, cam) {
   const camPitch = cam?.pitch ?? 0;
   let pose = { yaw, pitch: 4, bank: bankWeave + turnBank + roll, sweep: 0, neck: -8, clip: 'fly', at: t * 1.7 };
   if (blend > 0) {
-    const hold = HOLDS.some(([a, b]) => t >= a - 0.5 && t < b + 0.3) || (t >= FOREST_END && t < at(30));
+    const hold = HOLDS.some(([a, b]) => t >= a - 0.5 && t < b + 0.3) || (t >= FOREST_END && t < at(30)) || t >= CREST.from; // (the crest and the ending: she hangs there)
     const climb = t >= at(30) && t < LEVEL ? 1 : 0;
     // facing the camera: her pitch the camera's taken off (looking up at her, she points down at us)
     const face = -camPitch;
@@ -371,10 +375,40 @@ export const FLOCK_MEMBERS = [
   // on out and down into the cloud: it does not come back (the F1 report of 2026-11-18 23:19: it came back into the left near one)
   { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.9, 0.7, 0.6, -25], [11.4, 1.2, 0.92, 0.4, 0], [11.5, 1.2, 1.05, 0.38, 0], [13.2, -0.24, 1.05, 0.38, 0], [13.3, -0.26, 1.02, 0.5, -30], [16, -0.45, 1.15, 0.9, -50]] },
 ];
+// ---- the ending, "Hópurinn kemur aftur" (keys in END beats): the flock comes back up out of the gorge behind her at the crest ----
+// From the bottom edge, deep (small), rising into three layers round her as above the cloud: far (73-105 m), middle (17-20 m), near
+// (14-15 m, high beside her); she in the middle, nearest (8 m). The formation move: a wave from far to near (each layer dips and banks
+// on its half beat, beats 1-2.5), then all bank as one (beat 3, held to 4). On beat 4 (the set's beat 380, its half phrase) they
+// break: the far and middle ones away to the sides and up, deep; the near ones past us on both sides, quick. Then she holds alone.
+// Each: [settled u, v, k], the side it breaks to (-1 left, 1 right), when it starts up from the edge, its k there, when it is in place.
+const ENDING = [
+  { at: [0.3, 0.3, 5.0], side: -1, start: -3.4, k0: 6.0, set: 0.0 },
+  { at: [0.7, 0.28, 6.0], side: 1, start: -3.2, k0: 7.0, set: 0.0 },
+  { at: [0.5, 0.2, 4.4], side: 1, start: -3.0, k0: 5.4, set: 0.0 },
+  { at: [0.27, 0.4, 1.15], side: -1, start: -2.8, k0: 3.2, set: 0.5 },
+  { at: [0.73, 0.38, 1.0], side: 1, start: -2.6, k0: 3.0, set: 0.5 },
+  { at: [0.25, 0.24, 0.8], side: -1, start: -2.4, k0: 2.4, set: 1.0 },
+  { at: [0.75, 0.22, 0.85], side: 1, start: -2.2, k0: 2.4, set: 1.0 },
+];
+const WAVE = { far: 1.0, mid: 1.5, near: 2.0 }; // each layer's dip, on its half beat
+FLOCK_MEMBERS.forEach((m, i) => {
+  const e = ENDING[i], [u, v, k] = e.at, s = e.side, w = WAVE[m.layer];
+  const still = b => [b, u, v, k, 0];
+  const keys = [[e.start, u + 0.04 * s, 1.12, e.k0, 0], still(e.set)];
+  if (e.set < w - 0.5) keys.push(still(w - 0.5));
+  keys.push([w, u, v + 0.06, k, -30 * s], still(w + 0.5));
+  if (w + 0.5 < 2.5) keys.push(still(2.5));
+  keys.push([3.0, u + 0.03, v - 0.02, k, -45], [4.0, u + 0.03, v - 0.02, k, -45]);
+  if (m.layer === 'near') keys.push([5.0, s < 0 ? -0.35 : 1.35, 0.35, 0.32, 60 * s]); // past us, quick (one beat)
+  else if (m.layer === 'mid') keys.push([6.0, u + 0.75 * s, 0.0, k * 1.6, 55 * s]); // away to the side and up
+  else keys.push([6.5, u + 0.6 * s, -0.14, k * 1.5, 55 * s]); // away to the side and up, deep
+  m.end = keys;
+});
 /** A flock member at story second t: { at: [u, v, k], bank, heading (degrees off the camera's), scale, flap } or null before it is up. */
 export function flockAt(m, t) {
-  const b = (t - FLOCK.from) / BEAT;
-  const keys = m.keys;
+  const ending = m.end && t >= END.beat(m.end[0][0] - 0.02);
+  const b = ending ? (t - END.from) / BEAT : (t - FLOCK.from) / BEAT;
+  const keys = ending ? m.end : m.keys;
   if (b < keys[0][0] - 0.01 || b > keys.at(-1)[0] + 0.01) return null;
   let i = 0;
   while (i < keys.length - 2 && keys[i + 1][0] < b) i++;
@@ -408,6 +442,8 @@ const SHOOT = channel([{ t: at(29.6), over: 0.5, v: 1 }, { t: at(31.5), over: 0.
 // the drop at the dive (it leads her down, between her and us) and its shot up the falls (toward the camera above it)
 const DROP_B = channel([{ t: TIP - 0.2, over: 0.4, v: 1 }, { t: vt(2.4), over: 0.8, v: 0 }]);
 const UP_FALLS = channel([{ t: vt(11.4), over: 0.5, v: 1 }, { t: vt(13.2), over: 0.8, v: 0 }]);
+// the ending's last hold: it hovers by her beak (beside it, a little above: 4.5 % out, under the hold's 5 %)
+const BEAK = channel([{ t: END.beat(5.5), over: 0.8, v: 1 }]);
 /** The butterfly at story second t: { at: [u, v, k], yaw, pitch, flap }. */
 export function butterflyAt(t, her, D = FJOR_D) {
   const u = 0.5 + 0.2 * Math.sin(TAU * t / 2.3) + 0.06 * Math.sin(TAU * t / 0.77);
@@ -438,6 +474,10 @@ export function butterflyAt(t, her, D = FJOR_D) {
   uu = lerp(uu, 0.7 + 0.05 * Math.sin(TAU * t / 0.9), upf);
   vv = lerp(vv, 0.2 + 0.04 * Math.sin(TAU * t / 0.7), upf);
   k = lerp(k, 0.3, upf);
+  const bk = BEAK(t);
+  uu = lerp(uu, 0.6 + 0.035 * Math.sin(TAU * t / 1.1), bk); // (hovering, never parked)
+  vv = lerp(vv, 0.42 + 0.03 * Math.sin(TAU * t / 0.8), bk);
+  k = lerp(k, 0.31, bk);
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
 }
