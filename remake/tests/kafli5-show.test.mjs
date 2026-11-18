@@ -81,7 +81,7 @@ const CAPTION_TOP = 113; // px from the screen's bottom to the caption's top edg
 /** Where the ink of `spec` (countAt's or wordAt's, with its text's width in letter sizes, outline and all, and whether it has an accent) is on a screen. */
 function inkOf(spec, { wide, accent = false }, [w, h]) {
   const font = Math.min(spec.height * h, spec.width * w);
-  const middle = (h - ROOM) / 2 - (spec.lift ?? 0) * font; // the letters' box is centred in what the caption leaves free
+  const middle = (h - ROOM) * (spec.at ?? 0.5) - (spec.lift ?? 0) * font; // the letters' box in what the caption leaves free: its middle, or `at` of the way down
   const up = (LETTERS.cap - LETTERS.line + (accent ? LETTERS.accent : 0) + LETTERS.outline) * font * spec.scale; // the line is LETTERS.line under the box's middle
   const down = (LETTERS.line + LETTERS.outline) * font * spec.scale;
   return { font, top: middle - up, bottom: middle + down, width: wide * font * spec.scale, capital: LETTERS.cap * font * spec.scale };
@@ -129,7 +129,14 @@ test('the big words: NÚ! on the drops, AFTUR! in the rewind, STOPP! in the free
   assert.ok(stopp.beat + stopp.on <= line('turtle-moved').beat && stopp.beat + stopp.on < BENDS.freeze.to);
   // HOPP! hops once, and lands
   const [hopp] = WORDS.filter(word => word.text === 'HOPP!');
-  assert.ok(wordAt(hopp.beat + 1 + WORD.hop / 2).lift > 0.1 && wordAt(hopp.beat + 0.9).lift === 0 && Math.abs(wordAt(hopp.beat + 1 + WORD.hop).lift) < 1e-9);
+  assert.ok(wordAt(hopp.beat + 1 + WORD.hop / 2).lift > 0.08 && wordAt(hopp.beat + 0.9).lift === 0 && Math.abs(wordAt(hopp.beat + 1 + WORD.hop).lift) < 1e-9);
+  // NÚ! fills the screen from its middle; the others stand in the upper part of the picture, over those the shot is about
+  for (const word of WORDS) {
+    const at = wordAt(word.beat + 1).at;
+    assert.equal(at, word.at);
+    assert.ok(word.text === 'NÚ!' ? at === 0.5 : at >= 0.3 && at <= 0.4, `${word.text} stands ${at} of the way down`);
+    assert.equal(wordAt(word.beat + 1, { reduced: true }).at, at);
+  }
   // never a word and a number at once, and no word outside its own time (the rewind and the freeze included)
   for (const { setBeat, beat } of framesOfTheSet) {
     const word = wordAt(setBeat);

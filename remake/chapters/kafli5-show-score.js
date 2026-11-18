@@ -187,40 +187,43 @@ export function countAt(beat, { reduced = false } = {}) {
 /**
  * How a word comes and goes (beats) and how big it is: `across` of the screen's width at most (a long word on a tablet held
  * upright), its letters `height` of the screen's height at most (a short word on one held flat). It comes in fast, a little past
- * its size and back, stands, and bursts away: `burst` bigger as it fades.
+ * its size and back, stands, and bursts away: `burst` bigger as it fades. A word that leaves room over and under it stands `at`
+ * that share of the way down what the caption leaves free: in the upper part of the picture, so those the shot is about (Egill
+ * hopping, the frogs frozen in the air) are seen under it. "NÚ!" fills the screen and stands in its middle.
  */
-export const WORD = { pop: 0.28, out: 0.35, across: 0.88, height: 0.7, burst: 0.1, hop: 0.8 }; // (hop: the beats a hop takes)
+export const WORD = { pop: 0.28, out: 0.35, across: 0.88, height: 0.7, burst: 0.1, hop: 0.8, at: 0.34 }; // (hop: the beats a hop takes)
 /**
  * Each word: the line of the set it is (SONG.set.lines), how many beats it is on, how wide it is in letter sizes, its outline counted (measured in the
  * page: Nunito at weight 900), and
+ *   middle it stands in the middle of the screen, not in its upper part: "NÚ!", which fills it
  *   lift   it stands this much lower (in letter sizes, negative: down): "NÚ!" has an accent over it, which wants room at the top
  *   still  it stands dead still and only fades: "STOPP!", through the first beats of the freeze, as the music does
  *   hop    it hops this high (letter sizes) on its second beat: "HOPP!"
  *   again  the set's part on whose first beat it shows once more: the drop after the rewind is the drop again, word and all
  */
 const SHOUTS = [
-  { line: 'now', on: 2.3, wide: 1.85, lift: -0.15, again: 'redrop' },
+  { line: 'now', on: 2.3, wide: 1.85, middle: true, lift: -0.15, again: 'redrop' },
   { line: 'aftur', on: 2, wide: 3.8 }, // to the drop it calls back, where "NÚ!" takes its place
   { line: 'stopp', on: 2, wide: 3.76, still: true }, // gone as the camera finds the turtle that moved
-  { line: 'hopp', on: 2.3, wide: 3.3, hop: 0.16 },
-  { line: 'hopp-2', on: 2.3, wide: 3.3, hop: 0.16 },
+  { line: 'hopp', on: 2.3, wide: 3.3, hop: 0.1 },
+  { line: 'hopp-2', on: 2.3, wide: 3.3, hop: 0.1 },
 ];
-/** The words on the screen, each at the set's beat it is shouted on: [{ beat, text, on, wide, lift, still, hop }]. */
-export const WORDS = SHOUTS.flatMap(({ line, again = null, lift = 0, still = false, hop = 0, ...word }) => {
+/** The words on the screen, each at the set's beat it is shouted on: [{ beat, text, on, wide, at, lift, still, hop }]. */
+export const WORDS = SHOUTS.flatMap(({ line, again = null, middle = false, lift = 0, still = false, hop = 0, ...word }) => {
   const said = SET.lines.find(entry => entry.id === line);
   if (!said) return []; // a set cut again without that shout plays on without the word
-  const one = { ...word, lift, still, hop, text: said.text.toLocaleUpperCase('is') };
+  const one = { ...word, at: middle ? 0.5 : WORD.at, lift, still, hop, text: said.text.toLocaleUpperCase('is') };
   return [{ ...one, beat: said.beat }, ...(again && part(again) ? [{ ...one, beat: part(again).startBeat }] : [])];
 }).sort((a, b) => a.beat - b.beat);
 /**
- * The word on the screen at the set's beat `setBeat`: null, or { text, scale, opacity, height, width, lift } (as countAt's, for
+ * The word on the screen at the set's beat `setBeat`: null, or { text, scale, opacity, height, width, at, lift } (as countAt's, for
  * engine/show/big-number.js). With less motion it is half the size and only fades.
  */
 export function wordAt(setBeat, { reduced = false } = {}) {
   for (const word of WORDS) {
     const age = setBeat - word.beat;
     if (age < 0 || age >= word.on) continue;
-    const size = { height: WORD.height, width: WORD.across / word.wide };
+    const size = { height: WORD.height, width: WORD.across / word.wide, at: word.at };
     const out = clamp01((age - (word.on - WORD.out)) / WORD.out);
     const opacity = Math.min(clamp01(age / 0.1), 1 - out);
     if (reduced) return { text: word.text, scale: 0.5, opacity: Math.min(clamp01(age / WORD.pop), 1 - out), ...size, lift: word.lift };

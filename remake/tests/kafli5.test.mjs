@@ -288,11 +288,29 @@ test('the chapter is never silent: the pool is heard and a calm music plays unti
   const sounds = logOf(run, 'sound');
   const named = name => sounds.filter(entry => entry.name === name);
   // the pool's bed (the owner, 2026-11-11: "núna er allt hljótt þangað til lag byrjar")
+  const [roar] = logOf(run, 'roar');
   const beds = named('fen');
-  assert.equal(beds.length, 3);
+  assert.equal(beds.length, 5);
   assert.ok(beds[0].at < sceneAt(run, 1) + 0.5 && beds[0].calls !== false, 'the pool is heard from the first moment, frogs and all');
   assert.ok(Math.abs(beds[1].at - sceneAt(run, 3)) < 0.5 && beds[1].calls === false, 'only its water while the choir is listened to (a frog of the bed is not a frog of the choir)');
   assert.ok(beds[2].at >= c.set.ended && beds[2].at < sceneAt(run, 7) && beds[2].calls !== false, 'and its frogs again when the set is over');
+  assert.ok(beds[3].at > roar.at && beds[3].at < roar.at + 0.6 && beds[3].calls === false, 'the roar hushes them: only the water');
+  assert.ok(Math.abs(beds[4].at - said('k5_mosi_gramedla')) < 0.1 && beds[4].calls !== false, 'and they dare again as Mosi speaks');
+  // the party far away (the owner's yes of 2026-11-18): the band's loop again from the set's last hit, low, under her thanks and the
+  // star, until the roar stops it dead; then real quiet for a breath before Mosi's line
+  const party = logOf(run, 'party');
+  assert.deepEqual(party.map(entry => entry.on), [true, false]);
+  assert.ok(Math.abs(party[0].at - (c.songStart + SONG.set.endBeat * BEAT)) < FRAME + 1e-6, 'it comes on the set\'s last hit: no hole after "Góða nótt"');
+  assert.ok(party[0].at + kafli5.PARTY.in < said('k5_sloedla_thanks') + 1.5, 'and is there when she thanks Egill');
+  assert.ok(party[1].at > roar.at && party[1].at - roar.at < 0.6 && kafli5.PARTY.cut <= 0.1, `the roar stops it dead (${(party[1].at - roar.at).toFixed(2)} s into the roar, gone in ${kafli5.PARTY.cut} s)`);
+  assert.ok(party[1].at - party[0].at > 10, `it played ${(party[1].at - party[0].at).toFixed(1)} s`);
+  for (const [layer, level] of Object.entries(kafli5.PARTY.layers)) {
+    assert.ok(Object.hasOwn(SONG.loop.layers, layer) && layer !== 'calm', `${layer} is a part of the band's loop`);
+    assert.ok(level > 0 && level <= 0.5, `${layer} is low (${level}): far away, under the lines`);
+  }
+  const breath = said('k5_mosi_gramedla') - (roar.at + 2.6); // the roar's own 2.4 s and Mosi's last step as he turns (2.6 s) are over
+  assert.ok(breath >= 1.8 && breath <= 3, `a breath of real quiet before Mosi's line (${breath.toFixed(1)} s)`);
+  assert.equal(sounds.filter(entry => entry.at > roar.at + 2.7 && entry.at < said('k5_mosi_gramedla') - 0.05).length, 0, 'nothing sounds in it');
   // the calm music: the set's quiet record, a layer of the loop
   const calm = logOf(run, 'calm');
   assert.deepEqual(calm.map(entry => entry.on), [true, false, true, false, true, false]);
@@ -302,8 +320,7 @@ test('the chapter is never silent: the pool is heard and a calm music plays unti
   assert.ok(calm[2].at - calm[1].at < 8, 'a breath of no music, not a silence');
   const [band] = logOf(run, 'band');
   assert.ok(Math.abs(calm[3].at - band.at) < 0.1, 'it gives way to the far band as the choir begins');
-  const [roar] = logOf(run, 'roar');
-  assert.ok(calm[4].at > roar.at + 3, 'the roar is heard in the quiet, and the music comes after it');
+  assert.ok(calm[4].at > roar.at + 3 && calm[4].at > party[1].at + 3, 'the roar rolls out over nothing, and the music comes after it');
   assert.ok(calm[5].at >= said('k5_mosi_longest') && calm[5].at + 2.2 <= run.world.chapterTimeline.find(mark => mark.scene === 'end').at + 1e-6, 'and it is gone when the book opens');
   for (const layer of ['calm', 'drums', 'bass', 'music', 'far']) assert.equal(c.band.level(layer), 0, layer + ' is out at the end');
   // what happens is heard
@@ -354,6 +371,59 @@ test('scene 6 plays the whole set: every part of it in order, her words on the s
   assert.deepEqual(logOf(run, 'cut').map(entry => entry.shot), CAMERA.map(entry => entry.cut), 'every cut of the camera, in order');
   // the groups hop as they sing in the set (nobody touched the screen)
   assert.ok(logOf(run, 'free').length === 0 && logOf(run, 'cue').some(entry => entry.kind === 'freeze'), 'the cues the video will be cut to are met');
+});
+
+test('a hand on the fader: the set\'s level is ridden slowly, back before the drop and in the ending that is not one, and the last chorus is the highest of the night', async () => {
+  const { RIDE, SET_LEVEL, FINALE } = kafli5;
+  const SET = SONG.set;
+  const part = id => SET.sections.find(section => section.id === id);
+  const dB = ratio => 20 * Math.log10(ratio);
+  // the moves, one after another: none starts before the one before it is done
+  const moves = RIDE.map((move, k) => ({ ...move, from: k ? RIDE[k - 1].level : SET_LEVEL, beats: move.seconds / BEAT }));
+  moves.forEach((move, k) => {
+    assert.ok(move.beat >= 0 && move.beat + move.beats <= (moves[k + 1]?.beat ?? SET.endBeat), `the move at ${move.beat} is done before the next`);
+    // slow: a bar at least, and no faster than a DJ's hand that nobody notices (a compressor that pumps moves 5 dB in a fifth of a second)
+    const rate = Math.abs(dB(move.level / move.from)) / move.seconds;
+    assert.ok(move.seconds >= 4 * BEAT - 1e-9, `the move at ${move.beat} takes ${move.seconds.toFixed(2)} s`);
+    assert.ok(rate <= 1.6, `the move at ${move.beat}: ${rate.toFixed(2)} dB a second`);
+    assert.ok(Math.abs(dB(move.level / move.from)) <= 3, `the move at ${move.beat}: ${dB(move.level / move.from).toFixed(1)} dB`);
+  });
+  /** The set's level at one of its beats: straight lines from move to move (engine/audio/music.js's fader). */
+  const levelAt = beat => {
+    let level = SET_LEVEL;
+    for (const move of moves) if (beat > move.beat) level = move.from + (move.level - move.from) * Math.min(1, (beat - move.beat) / move.beats);
+    return level;
+  };
+  // the owner's own level (2026-11-11) from the set's start to the build, and on the drop, the rewind, the drop again and on to the false ending
+  for (let beat = 0; beat <= part('rise').startBeat; beat += 0.5) assert.equal(levelAt(beat), SET_LEVEL, `beat ${beat}`);
+  for (let beat = part('drop').startBeat; beat <= part('fakeend').startBeat; beat += 0.5) assert.equal(levelAt(beat), SET_LEVEL, `beat ${beat}`);
+  // back a little through the build, and up again over the count's last bar: the drop comes out of less
+  const build = levelAt(part('drop').startBeat - 8);
+  assert.ok(dB(build / SET_LEVEL) <= -1 && dB(build / SET_LEVEL) >= -2, `the build is ${dB(build / SET_LEVEL).toFixed(1)} dB back`);
+  assert.ok(levelAt(part('rise').startBeat + 4) > build && levelAt(part('drop').startBeat - 2) > build, 'slowly down, slowly up');
+  // back as the record stops in the ending that is not one, and up under "Einu sinni enn!"
+  const fake = levelAt(part('lastchorus').startBeat - 4);
+  assert.ok(dB(fake / SET_LEVEL) <= -1 && dB(fake / SET_LEVEL) >= -2, `the false ending is ${dB(fake / SET_LEVEL).toFixed(1)} dB back`);
+  // the last chorus, to the last hit: the highest of the whole set
+  for (let beat = part('lastchorus').startBeat; beat <= SET.endBeat; beat += 0.5) assert.equal(levelAt(beat), FINALE, `beat ${beat}`);
+  for (let beat = 0; beat < part('lastchorus').startBeat; beat += 0.25) assert.ok(levelAt(beat) < FINALE, `beat ${beat} is under the finale`);
+  assert.ok(Math.max(...Array.from({ length: part('fakeend').startBeat * 4 }, (_, i) => levelAt(i / 4))) <= SET_LEVEL, 'nothing before the false ending is over the level it had');
+  assert.equal(Math.max(...RIDE.map(move => move.level), SET_LEVEL), FINALE);
+  // by the file the last chorus is 0.85 LU under the first drop at one level (-13.49 against -12.64 LUFS, BS.1770, measured from
+  // djamm.mp3); the finale's level puts it 0.5 to 1 LU over. And it stays under 2.2: at 2.3 the set's peaks reach full scale
+  // going into the page's limiter (engine/audio/output.js; a model of it fed the file)
+  const over = dB(FINALE / SET_LEVEL) - 0.85;
+  assert.ok(over >= 0.5 && over <= 1, `the last chorus sits ${over.toFixed(2)} LU over the first drop`);
+  assert.ok(FINALE < 2.2);
+  // as it is played: each move on its beat, in order
+  const run = await untouched();
+  const c = run.world.chapterState;
+  const rides = logOf(run, 'ride');
+  assert.deepEqual(rides.map(({ beat, level, seconds }) => ({ beat, level, seconds })), RIDE);
+  rides.forEach(ride => {
+    const due = c.songStart + ride.beat * BEAT;
+    assert.ok(ride.at >= due - 1e-6 && ride.at - due <= FRAME + 1e-6, `the move at ${ride.beat} on its beat`);
+  });
 });
 
 test('reduced motion: the notes fade instead of flying and the choir shot holds still, to the end', async () => {
@@ -558,8 +628,9 @@ test('the roar comes from the west and everyone turns toward it within 2 s', asy
   const heard = run.soundLog.filter(entry => entry.name === 'gramedlaRoar');
   assert.equal(heard.length, 1, 'heard once');
   // the camera stands west of them and looks back east at their faces (kafli5-pool.js west_listen), so the west is behind it: the
-  // roar is not from a side, and it is far off (quiet)
-  assert.ok(Math.abs(heard[0].detail.pan) < 0.5 && heard[0].detail.level <= 0.4, `pan ${heard[0].detail.pan}, level ${heard[0].detail.level}`);
+  // roar is not from a side. It is far off but big (the owner's yes of 2026-11-18: it was 0.3, under Mosi's lines): over
+  // everything said in the scene, and under the roar the child knows from chapter 3's lookout (level 1)
+  assert.ok(Math.abs(heard[0].detail.pan) < 0.5 && heard[0].detail.level >= 0.7 && heard[0].detail.level <= 0.9, `pan ${heard[0].detail.pan}, level ${heard[0].detail.level}`);
   assert.ok(WEST[0] < SPOTS.mosi[0] - 1000, 'the ridge is far in the west');
   const want = { mosi: headingTo(SPOTS.mosi, WEST), egill: headingTo(SPOTS.egill, WEST), sloedla: headingTo(WADE.at, WEST) };
   const frames = run.watched.west;

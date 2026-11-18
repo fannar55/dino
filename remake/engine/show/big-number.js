@@ -6,13 +6,15 @@
 //   const number = createBigNumber(doc);      // doc: the page (world.page); nothing is put on it until a number shows
 //   number.show('5', { scale, opacity });     // every frame it is on: scale 1 is its full size
 //   number.show('NÚ!', { scale, opacity, height: 0.7, width: 0.49, lift: -0.15 });
+//   number.show('HOPP!', { scale, opacity, height: 0.7, width: 0.27, at: 0.34 });
 //   number.hide();
 //   number.dispose();                         // off the page
 //
 // Its full size is `height` of the screen's height (the letters' own size: a capital stands LETTERS.cap of that), but never more
 // than `width` of the screen's width, so a long word fits a tablet held upright; `lift` moves it up (in letter sizes; down if
-// negative), for a word with an accent over it or one that hops. It stands in the middle of what the caption leaves free (ROOM
-// px at the bottom are the caption's), so a word and Flugeðla's line under it never sit on each other.
+// negative), for a word with an accent over it or one that hops. It stands in what the caption leaves free (ROOM px at the bottom
+// are the caption's), so a word and Flugeðla's line under it never sit on each other: in the middle of it, or with its middle
+// `at` that share of the way down it (0.34: in the upper part of the picture, over the heads of those the shot is about).
 //
 // It has no clock and no animation of its own: whoever owns it says every frame what it shows, how big and how clear, as a
 // function of the game's time (kafli5-show.js: of the set's beat). So it stands still while the game is held behind the book, and a
@@ -40,7 +42,7 @@ const DIGIT = [
 export function createBigNumber(doc) {
   let el = null;
   let digit = null;
-  let shown = null; // what is on the screen: { text, scale, opacity, height, width, lift }
+  let shown = null; // what is on the screen: { text, scale, opacity, height, width, lift, at }
   let size = null; // the font size it has now, as it is written in its style
 
   /** The overlay goes in the page right after the canvas, so over the game and under all the rest (as the map moment's does). */
@@ -58,19 +60,20 @@ export function createBigNumber(doc) {
   }
 
   return {
-    /** What is on the screen now: null, or { text, scale, opacity, height, width, lift }. */
+    /** What is on the screen now: null, or { text, scale, opacity, height, width, lift, at }. */
     get shown() { return shown; },
     get element() { return el; },
-    show(text, { scale = 1, opacity = 1, height = 0.52, width = 0.8, lift = 0 } = {}) {
+    show(text, { scale = 1, opacity = 1, height = 0.52, width = 0.8, lift = 0, at = 0.5 } = {}) {
       if (!doc) return;
       if (!el) put();
       if (shown?.text !== text) digit.textContent = text;
       const fontSize = `min(${+(height * 100).toFixed(2)}vh, ${+(width * 100).toFixed(2)}vw)`;
       if (fontSize !== size) digit.style.fontSize = size = fontSize;
-      digit.style.transform = `translateY(${(-lift).toFixed(3)}em) scale(${scale.toFixed(3)})`;
+      const place = at === 0.5 ? '' : `translateY(calc((100vh - ${ROOM}px) * ${(at - 0.5).toFixed(3)})) `;
+      digit.style.transform = `${place}translateY(${(-lift).toFixed(3)}em) scale(${scale.toFixed(3)})`;
       digit.style.opacity = opacity.toFixed(3);
       el.style.display = 'flex';
-      shown = { text, scale, opacity, height, width, lift };
+      shown = { text, scale, opacity, height, width, lift, at };
     },
     hide() {
       if (!shown) return;

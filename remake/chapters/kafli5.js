@@ -81,7 +81,12 @@ const GOING = { grazers: 1.6, lizards: 2.6, flyers: 6, turtles: 1, frogs: 1 };
 const GOING_SECONDS = [7, 17];
 const CHOIR_SIZE = { grazers: 3, lizards: 6, flyers: 4 }; // how many of those that came stand in the choir (the rest stay put)
 const BETWEEN = 0.8; // s from a phrase's step out to the next phrase (the choir's clock stands still meanwhile)
-const ROAR = { level: 0.3 };
+// Grameðla's roar (scene 7), the cliffhanger of the game so far: it stands over everything said in the scene (its loudest second
+// about -15 LUFS by the file and the gains, where Mosi's and Egill's lines round it have -17 to -18), still 2 dB under the roar the
+// child knows from chapter 3's lookout: far off, deep and big, and it comes in a swell of half a second, not a bang. It was 0.3
+// until 2026-11-18, 3 LU under Mosi's lines. `cuts`: s into it the far party stops dead (as the roar swells, so it is the roar that
+// stops it); `quiet`: s from the roar to Mosi's line, the turn and then a breath of real quiet.
+const ROAR = { level: 0.8, cuts: 0.35, quiet: 4.8 };
 // The music (assets/audio/kafli5/song/, tools/kafli5-song.mjs). Scenes 4 and 5: the band's loop under the choir, a part of the band
 // joining after each phrase (kafli5-song.js LAYER_LEVELS, PHRASE_LAYERS). Scene 6: DJ Flugeðla's whole set, streamed, which the
 // scene is cut to by its sections, her lines and its cues (SONG.set, beats from the set's start).
@@ -94,8 +99,31 @@ const BEAT = 60 / TEMPO.bpm;
 const BAND = { in: 2, join: 1.5, turn: 16, rhythm: 2 * BEAT, out: 8 * BEAT };
 // The set's level against the theme's place in the mix: a party is louder than a walk (chapter 4's flight song: 1.3), and the owner
 // asked for it a little louder than its first 1.4 (2026-11-11): 2 dB up.
-const SET_LEVEL = 1.75;
+export const SET_LEVEL = 1.75;
 const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
+// A hand on the fader (the owner's yes of 2026-11-18): the set's level is ridden through the scene as a DJ's hand would, in slow
+// moves a child does not hear as the volume being touched. By the file the last chorus plays 0.8 LU under the first drop at one
+// level, so the show's end did not top its middle: it is pulled back a little through the build and brought up again over the
+// count's last bar, so the drop comes out of less; pulled back as the record stops in the ending that is not one, and pushed up
+// under "Einu sinni enn!" to FINALE, where the last chorus sits about 0.7 LU over the first drop, the loudest music of the night,
+// and stays to the last hit. Each { beat, level, seconds }: from the set's beat `beat` the level goes to `level` over `seconds`.
+// (The page's limiter, engine/audio/output.js, takes 0.2 dB off the highest peaks at SET_LEVEL and 0.5 dB at FINALE, by a model
+// of it fed the file: the ride is neither flattened nor clipped. At 2.3 the peaks reach full scale: FINALE stays under 2.2.)
+export const FINALE = 2.1;
+const PULLED_BACK = 1.5;
+const partBeat = id => SET.sections.find(section => section.id === id).startBeat;
+export const RIDE = [
+  { beat: partBeat('rise'), level: PULLED_BACK, seconds: 8 * BEAT }, // "Vængina upp!": back a little, through the build
+  { beat: partBeat('drop') - 4, level: SET_LEVEL, seconds: 4 * BEAT }, // "Tveir! Einn!": up again, into the drop
+  { beat: partBeat('fakeend'), level: PULLED_BACK, seconds: 4 * BEAT }, // the record stops: back with it
+  { beat: partBeat('lastchorus') - 4, level: FINALE, seconds: 4 * BEAT }, // "Einu sinni enn!": up, into the last chorus
+];
+// After "Góða nótt" the party goes on, far away in the forest (the owner's yes of 2026-11-18: the pool fell to near silence after
+// the loudest four minutes of the game): the band's loop again, on the same beat, from the set's last hit, its far copy and a
+// little of its drums and guitars (the far copy alone is all low end, which a tablet's speaker does not play): about -26 LUFS by
+// the files and the gains, 6 LU under a spoken line, and 8 dB lower still while a line is said (stems.js dips it). It plays under
+// her thanks and the star, until Grameðla's roar stops it dead. `in`: s it takes to come; `cut`: s to go.
+export const PARTY = { layers: { far: 0.35, drums: 0.3, music: 0.45 }, in: 3, cut: 0.08 };
 // The choir's shot turns gently toward the group that sings: this share of the way from its own aim to the group, over `seconds`
 // (all five groups and the reed stay in frame, at 16:10 and upright); with less motion it holds still.
 // The share is halved until every group and the reed are inside FRAMED of the frame from its middle (an upright screen turns less).
@@ -105,8 +133,10 @@ const LEAN = { share: 0.15, seconds: 1.6, framed: 0.9, tries: 4 };
 // of the bed is not a frog of the choir) and under the set, and whole again after it. A calm music (kafli5-song.js CALM: the set's
 // quiet record, a layer of the loop) until she says her song is lost: a breath of no music, and it is back as Mosi says the animals
 // remember, until the choir's band takes its place (the first recording had ten seconds of next to nothing while they walked to
-// their places). And again after the roar, which is heard in the quiet, until the last line is said: it is gone when the book
-// opens (the book holds the game's sound, and a loop cut by it stutters). And what happens is heard, with the game's own sounds:
+// their places). After the set the party is heard on from far away (PARTY) until the roar stops it dead, and the pool's small
+// sounds stop with it: the roar rolls out over nothing, and then it is really quiet for a breath. The calm music comes again
+// with Mosi's line after that, and the pool's frogs, until the last line is said: it is gone when the book opens (the book holds
+// the game's sound, and a loop cut by it stutters). And what happens is heard, with the game's own sounds:
 const CALLS = { grazers: 'grazers', turtles: 'turtleCall', frogs: 'frog', lizards: 'lizards', flyers: 'flyers' }; // each group's own voice (sfx.js)
 const CALL = { first: 0.5, apart: 0.8, level: 0.7 }; // s: the groups answer one after another as they set off
 const ON_THE_WAY = [['flyers', 2], ['grazers', 4.5], ['lizards', 7]]; // those that walk or fly round the pool call once on the way (s into scene 3)
@@ -350,6 +380,7 @@ const SET_BEATS = (() => {
     ...SET.sections.map(section => ({ beat: section.startBeat, kind: 'section', section })),
     ...SET.lines.map(line => ({ beat: line.beat, kind: 'line', line })),
     ...SET.cues,
+    ...RIDE.map(move => ({ ...move, kind: 'ride' })), // the hand on the fader
   ].filter(event => event.beat <= SET.endBeat).sort((a, b) => a.beat - b.beat);
   const beats = [];
   for (const event of events) {
@@ -430,6 +461,7 @@ function* theWholeSong(s, c) {
         c.people.cue(event);
       }
     }
+    farParty(c, true); // the last hit: the set is over, and the party goes on far away
     yield s.until(() => s.time >= start + SET.endBeat * BEAT + SET_TAIL); // the last hit rings
   } finally {
     for (const stop of offs) stop();
@@ -440,7 +472,7 @@ function* theWholeSong(s, c) {
   }
   c.her.idle();
   flugedla.raw.play('idle', { fade: 0.6 });
-  sound(s, c, 'fen'); // the set is over: the pool again, its frogs in the dusk
+  sound(s, c, 'fen'); // the set is over: the pool again, its frogs in the dusk, under the party far away
   yield s.camera.cut('sloedla_out');
   yield* say(s, c, 'sloedla', 'k5_sloedla_thanks');
   s.sfx('star');
@@ -452,7 +484,7 @@ function* theWholeSong(s, c) {
   yield s.wait(0.8);
 }
 
-/** One event of the set, as the child sees it (the sound is the set's own). */
+/** One event of the set, as the child sees it (the sound is the set's own, but for its level: RIDE). */
 function onSet(s, c, event) {
   switch (event.kind) {
     case 'section': {
@@ -488,6 +520,11 @@ function onSet(s, c, event) {
     case 'horn':
       c.her.blow({ seconds: BEAT });
       break;
+    case 'ride':
+      // the hand on the fader (RIDE): the set's level, slowly
+      c.song.setLevel(event.level, event.seconds);
+      c.log({ type: 'ride', beat: event.beat, level: event.level, seconds: event.seconds });
+      break;
     case 'wings': {
       const [fx, fz] = FAR_POOL.landing;
       c.world.forest?.rippleAt?.(fx, fz, 0.6); // Flugeðla beats the time with her wings in the shallows
@@ -498,8 +535,8 @@ function onSet(s, c, event) {
   }
 }
 
-// 7. A deep roar far in the west: Grameðla heard the song. Everyone turns there, the lines, and the chapter ends in the book, as
-// chapter 4's.
+// 7. A deep roar far in the west: Grameðla heard the song. It stops the party that was still heard from far away, and the pool's
+// frogs with it; everyone turns there; a breath of real quiet; the lines, and the chapter ends in the book, as chapter 4's.
 function* answerFromAfar(s, c) {
   mark(c, 7);
   const { mosi, egill, flugedla, world } = c;
@@ -509,13 +546,19 @@ function* answerFromAfar(s, c) {
   const west = [WEST[0], LEVEL + 40, WEST[1]];
   s.sfx('gramedlaRoar', { level: ROAR.level, pan: panOf(world, west) });
   c.log({ type: 'roar' });
+  s.after(ROAR.cuts, () => {
+    farParty(c, false); // the far band stops dead
+    sound(s, c, 'fen', { calls: false }); // and the pool holds its breath: only its water
+    return null;
+  });
   mosi.turnTo(headingTo(SPOTS.mosi, WEST), { rate: 30 });
   for (const at of TURN_STEPS.at) s.after(at, () => { sound(s, c, 'step', { level: TURN_STEPS.level }); return null; });
   egill.turnTo(headingTo(SPOTS.egill, WEST), { rate: 50 });
   c.her.face(headingTo(WADE.at, WEST)); // her life holds her (kafli5-sloedla.js): the turn is asked of it, not of the actor
   for (const who of [mosi, egill, flugedla]) yield who.lookAt(west, { weight: 0.8, maxAngle: 80, maxPitch: 20 });
-  yield s.wait(4.2);
-  calm(c, true); // the roar was heard in the quiet; the calm music again, to the book
+  yield s.wait(ROAR.quiet); // they turn (Mosi's last step at 2.6 s, the roar's own 2.4 s), and then nothing but the water
+  sound(s, c, 'fen'); // the pool dares again
+  calm(c, true); // the calm music again, to the book
   yield* say(s, c, 'mosi', 'k5_mosi_gramedla');
   yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 30 });
   yield* say(s, c, 'egill', 'k5_egill_next');
@@ -798,6 +841,13 @@ function call(s, c, group) {
   const { at } = CHOIR[group];
   c.log({ type: 'sound', name: CALLS[group], call: group, pan: panOf(c.world, [at[0], LEVEL + 1, at[1]]) });
   s.sfx(CALLS[group], { pan: panOf(c.world, [at[0], LEVEL + 1, at[1]]), level: CALL.level });
+}
+
+/** The party far away after the set (PARTY): the band's loop comes again, low, or stops dead. */
+function farParty(c, on) {
+  if (on) c.band.play();
+  for (const [layer, level] of Object.entries(PARTY.layers)) c.band.layer(layer, on ? level : 0, on ? PARTY.in : PARTY.cut);
+  c.log({ type: 'party', on });
 }
 
 /** The calm music comes (the loop plays from then on, its band silent until the choir) or goes. */
