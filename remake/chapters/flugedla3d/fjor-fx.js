@@ -44,9 +44,11 @@ export function createFjorFx(world) {
    * frame: { t, cam: {x, y, z, up, back}, low (the camera near the floor), white, sAt(t) the path's metres flown, placeAt(s) the
    * low line's place [x, y, z, yaw] at s metres (null where it is high), bursts: [{ t, x, y, z, dx, dz }] }.
    */
-  function update({ t, cam, low, white, sCam, placeAt, bursts }) {
+  function update({ t, cam, low, white, sCam, placeAt, bursts, view: viewCam = null }) {
     // flecks: index j hangs at s = j · spacing along the line, a little to its side and above the floor
     let n = 0;
+    // (polish: a fleck shrinks away before it comes nearer than 4.5 m along the view, 6 % out: one did at 15.65 s, 7.6 %)
+    const view = viewCam ?? world.camera, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(view.quaternion);
     if (low) {
       const j0 = Math.ceil((sCam - FLECK.behind) / FLECK.spacing), j1 = Math.floor((sCam + FLECK.ahead) / FLECK.spacing);
       for (let j = j0; j <= j1 && n < FLECK.count; j++) {
@@ -59,7 +61,10 @@ export function createFjorFx(world) {
         p.set(x + Math.cos(psi) * side, y + lift, z + Math.sin(psi) * side);
         const spin = t * (1 + hash(j, 4) * 2) + j;
         q.setFromEuler(e.set(spin * 1.3, spin * 2.1, spin * 0.7));
-        flecks.setMatrixAt(n++, m4.compose(p, q, sc.setScalar(0.08 + 0.08 * hash(j, 5))));
+        const depth = (p.x - view.position.x) * fwd.x + (p.y - view.position.y) * fwd.y + (p.z - view.position.z) * fwd.z;
+        const fade = depth <= 0 ? 1 : Math.min(1, Math.max(0, (depth - 4.5) / 1.5));
+        if (fade <= 0) continue;
+        flecks.setMatrixAt(n++, m4.compose(p, q, sc.setScalar((0.08 + 0.08 * hash(j, 5)) * fade * fade * (3 - 2 * fade))));
       }
     }
     flecks.count = n;

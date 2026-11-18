@@ -150,7 +150,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     cast.sheet.position.copy(stageCam.position).addScaledVector(fwd, D);
     cast.sheet.quaternion.copy(stageCam.quaternion);
 
-    fx.update({ t, cam: { x: cam.x, y: cam.y, z: cam.z, up: c.up, back: c.back }, low: !valley && c.y < 14, white, sCam: path.sAt(Math.min(t, route.length)), placeAt: placeOnPath, bursts });
+    fx.update({ t, cam: { x: cam.x, y: cam.y, z: cam.z, up: c.up, back: c.back }, low: !valley && c.y < 14, white, sCam: path.sAt(Math.min(t, route.length)), placeAt: placeOnPath, bursts, view: stageCam });
   }
   // polish: chapter 4's falls' own spray (world/props/waterfall.js) veiled the falling water's streaks and was most of the falls' frame
   // time: from the climb on its glints shrink away (the foot's wholly, our own mist is over the pool; the face's to 40 %), never popping

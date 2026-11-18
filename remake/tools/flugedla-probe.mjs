@@ -27,6 +27,7 @@ function parseArgs(argv) {
     else if (a === '--bench') o.bench = next() !== '0';
     else if (a === '--out') o.out = next();
     else if (a === '--eval') o.eval = next();
+    else if (a === '--eval-fjor') o.evalFjor = next();
     else if (a === '--query') o.query = next();
     else if (a === '--step') o.step = Number(next());
     else if (a === '--only') o.only = next().split(',');
@@ -217,6 +218,7 @@ async function run(o) {
 const FJOR_STILLS = [5.0, 23.96, 27.52, 32.52, 34.58, 35.13, 39.13, 43.13, 47.93, 52.13];
 async function fjorTrial(o, server, { say, report }) {
   await page(o, server, `profa=fjor${o.plane ? '&d=' + o.plane : ''}`, async ({ evaluate, shoot, errors }) => {
+    if (o.evalFjor) { console.log(JSON.stringify(await evaluate(o.evalFjor), null, 1)); return; } // (--eval-fjor "<js>": on the fast take's page)
     const length = await evaluate('window.__world.flugedla3d.length');
     const D = await evaluate('window.__world.flugedla3d.state.D');
     const rows = [];
