@@ -53,8 +53,8 @@ export function createFjorFx(world) {
         const at = placeAt(j * FLECK.spacing);
         if (!at) continue;
         const [x, y, z, yaw] = at;
-        const side = (hash(j, 1) - 0.5) * 12, lift = -2.8 + hash(j, 2) * 5.5;
-        if (Math.hypot(side, lift) < 2.6) continue; // never close by the camera's line (they would come too far out)
+        const side = (hash(j, 1) - 0.5) * 14, lift = -2.8 + hash(j, 2) * 5.5;
+        if (Math.hypot(side, lift) < 3.4) continue; // never close by the camera's line (they would come too far out)
         const psi = (yaw * Math.PI) / 180;
         p.set(x + Math.cos(psi) * side, y + lift, z + Math.sin(psi) * side);
         const spin = t * (1 + hash(j, 4) * 2) + j;
@@ -92,7 +92,7 @@ export function createFjorFx(world) {
     streaks.visible = fast > 0.01;
     if (streaks.visible) {
       for (let i = 0; i < STREAK.count; i++) {
-        const r = 2.5 + 9 * hash(i, 11), a = hash(i, 12) * Math.PI * 2;
+        const r = 5 + 8 * hash(i, 11), a = hash(i, 12) * Math.PI * 2;
         const span = STREAK.window;
         // its height: fixed in the world, wrapped into the window round the camera
         const base = hash(i, 13) * span;

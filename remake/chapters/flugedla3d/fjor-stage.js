@@ -47,7 +47,7 @@ function leaveOut(info, p) {
   const r = (m.trunk?.r ?? 0.4) * sc;
   if (lineGap(p.x, 1, p.z).d2 - r < 2.9) return true;
   // the glade where the camera climbs or comes down through the canopy
-  if (GLADE.some(q => Math.hypot(p.x - q.x, p.z - q.z) < 12)) return true;
+  if (GLADE.some(q => Math.hypot(p.x - q.x, p.z - q.z) < ((info?.name ?? p.name) === 'broadleaf' ? 22 : 12))) return true;
   return false;
 }
 

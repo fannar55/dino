@@ -150,8 +150,8 @@ export const FJOR_D = 17.5;
 // her distance behind us along the path (m, her chest) in the forest. Each change lands on its beat.
 const land = (beat, over, v) => ({ t: at(beat) - over, over, v });
 const D_HER = channel([
-  land(6, 0.45, 7.2), land(7.2, 0.5, 8.4), // swoosh 1 (beat 6), on a diagonal; then the first hold (in the picture)
-  land(16, 0.45, 7.2), land(17, 0.45, 8.4), // swoosh 2 (beat 16), the other diagonal
+  land(6, 0.45, 7.7), land(7.2, 0.5, 8.4), // swoosh 1 (beat 6), on a diagonal; then the first hold (in the picture)
+  land(16, 0.45, 7.7), land(17, 0.45, 8.4), // swoosh 2 (beat 16), the other diagonal
   land(18.5, 0.5, 19), land(20.5, 0.55, 7.6), land(21.6, 0.5, 8.4), // back behind the screen, then a rocket at us (beat 20.5)
 ], 8.4);
 const ROLL_HER = channel([{ t: at(21.6), over: at(2), v: 360 }]); // the barrel roll (beats 21.6-23.6), out of the rocket
@@ -250,8 +250,13 @@ export function butterflyAt(t, her, D = FJOR_D) {
   k = Math.max(0.28, Math.min(k, near));
   k = lerp(k, 0.285, dart);
   // (to our nose beside her face, a little to her right of it and above it)
-  uu = lerp(uu, 0.6 + 0.04 * Math.sin(TAU * t / 0.9), dart);
-  vv = lerp(vv, her && her.blend < 0.5 ? 0.36 : 0.36, dart);
+  uu = lerp(uu, 0.56 + 0.04 * Math.sin(TAU * t / 0.9), dart);
+  vv = lerp(vv, 0.22, dart);
+  // when she swooshes in on the path (nearer than her usual 8.4 m), it gets out of her way: up and to the side away from her lead wing
+  const away = her && her.blend < 0.5 ? Math.min(1, Math.max(0, (8.4 - her.path.d) / 1.0)) : 0;
+  uu = lerp(uu, (her?.pose?.yaw ?? 0) >= 0 ? 0.27 : 0.73, away);
+  vv = lerp(vv, 0.3, away);
+  k = lerp(k, 0.33, away);
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
 }
