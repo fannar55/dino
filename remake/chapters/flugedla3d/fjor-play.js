@@ -92,9 +92,11 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     const e = Math.min(1, Math.max(0, (t - (LINGER[0] - 0.6)) / 0.6)) * (1 - Math.min(1, Math.max(0, (t - LINGER[1]) / 0.3)));
     const c = cameraAt(route, LINGER[0]), psi = rad(c.yaw);
     const f = [Math.sin(psi), -Math.cos(psi)], sr = [Math.cos(psi), Math.sin(psi)];
+    // (the second crossing in front, as the linger ends, wider and higher: by then her head has turned toward Flugeðla)
+    const grow = Math.min(1, Math.max(0, (t - 20.6) / 0.8)), B = ORBIT.B + 0.7 * grow * grow * (3 - 2 * grow), low = ORBIT.low + 1.2 * grow * grow * (3 - 2 * grow);
     const place = phi => {
-      const lat = ORBIT.A * Math.sin(phi), dep = -ORBIT.B * Math.cos(phi);
-      const up = (ORBIT.low + ORBIT.high) / 2 - ((ORBIT.high - ORBIT.low) / 2) * Math.cos(phi);
+      const lat = ORBIT.A * Math.sin(phi), dep = -B * Math.cos(phi);
+      const up = (low + ORBIT.high) / 2 - ((ORBIT.high - low) / 2) * Math.cos(phi);
       return [THOR.head[0] + sr[0] * lat + f[0] * dep, headY + up, THOR.head[1] + sr[1] * lat + f[1] * dep];
     };
     const phi = ORBIT.rate * (t - ORBIT.mid);
