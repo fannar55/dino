@@ -33,6 +33,8 @@ function parseArgs(argv) {
     else if (a === '--size') o.size = next();
     else if (a === '--plane') o.plane = next();
     else if (a === '--talur') o.talur = next();
+    else if (a === '--prefix') o.prefix = next(); // the fast take's stills: <prefix>-<s>s.png (fjor-g1 by default)
+    else if (a === '--fjor-stills') o.fjorStills = next().split(',').map(Number);
   }
   return o;
 }
@@ -231,8 +233,28 @@ async function fjorTrial(o, server, { say, report }) {
     const bfNear = Math.max(...bf.map(r => r.butterfly.outNear)), bfFar = Math.min(...bf.map(r => r.butterfly.outFar));
     const herSpan = her.filter(r => r.her.near[2] < 1).map(r => r.her.span);
     say(`her: ${fx(herFar)}..${fx(herNear)} % over the take (span in front ${Math.min(...herSpan).toFixed(2)}-${Math.max(...herSpan).toFixed(2)} %); the butterfly ${fx(bfFar)}..${fx(bfNear)} %`);
-    // the greatest out, and how long each stretch past 4 % lasts
     const runs = (pred) => { const out = []; for (const r of rows) { const l = out.at(-1); if (pred(r)) { if (l && r.t - l.b < o.step * 1.5) { l.b = r.t; l.rows.push(r); } else out.push({ a: r.t, b: r.t, rows: [r] }); } } return out; };
+    // round 2: her chest (her body's middle, the page's herInfo.chestK) through the take, the forest part (to 14.4 s) on its own
+    const chest = rows.filter(r => r.herInfo?.chestK > 0 && r.white < 0.99).map(r => ({ t: r.t, out: outOf(r.herInfo.chestK) }));
+    const med = list => { const s2 = list.map(x => x.out).sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)]; };
+    const share = (list, lim) => list.filter(x => x.out >= lim).length / Math.max(1, list.length);
+    const forest = chest.filter(x => x.t < 14.4);
+    say(`her chest: median ${fx(med(chest))} % over the take, past +2 % ${(100 * share(chest, 2)).toFixed(0)} % of the time; the forest part (0-14.4 s): median ${fx(med(forest))} %, past +2 % ${(100 * share(forest, 2)).toFixed(0)} %, past +3.5 % ${(100 * share(forest, 3.5)).toFixed(0)} %; range ${fx(Math.min(...chest.map(x => x.out)))}..${fx(Math.max(...chest.map(x => x.out)))} %`);
+    const herNearOut = r => outOf(r.her.near[2]);
+    say(`her nearest point: median ${fx(med(her.map(r => ({ out: herNearOut(r) }))))} %, past +4.5 % ${(100 * share(her.map(r => ({ out: herNearOut(r) })), 4.5)).toFixed(0)} % of the time`);
+    // the holds (from the page's take): how far out and where in the picture
+    for (const [a, b] of (await evaluate('window.__world.flugedla3d.fjor.holds')) ?? []) {
+      const hr = rows.filter(r => r.t >= a && r.t <= b && r.her);
+      if (!hr.length) continue;
+      const ch = hr.filter(r => r.herInfo?.chestK > 0).map(r => outOf(r.herInfo.chestK));
+      const us = hr.map(r => (r.her.left[0] + r.her.right[0]) / 2);
+      say(`  hold ${a}-${b} s (${(b - a).toFixed(2)} s): chest ${fx(Math.min(...ch))}..${fx(Math.max(...ch))} %, nearest point to ${fx(Math.max(...hr.map(herNearOut)))} %, her middle at u ${Math.min(...us).toFixed(2)}-${Math.max(...us).toFixed(2)}, wings u ${Math.min(...hr.map(r => r.her.left[0])).toFixed(2)}-${Math.max(...hr.map(r => r.her.right[0])).toFixed(2)}`);
+    }
+    // her wing cut by a side edge while in front of the screen: how long
+    const wingCut = runs(r => r.her && r.white < 0.99 && ((r.her.left[0] <= 0.005 && r.her.left[2] < 1) || (r.her.right[0] >= 0.995 && r.her.right[2] < 1)));
+    const wl = wingCut.reduce((w, x) => (!w || x.b - x.a > w.b - w.a ? x : w), null);
+    say(`her wing at a side edge in front of the screen: ${wingCut.length} times, ${wingCut.reduce((n, x) => n + x.rows.length, 0)} frames; the longest ${wl ? `${wl.a.toFixed(2)}-${wl.b.toFixed(2)} s (${(wl.b - wl.a + o.step).toFixed(2)} s)` : '-'}`);
+    // the greatest out, and how long each stretch past 4 % lasts
     const nearestOut = r => outOf(Math.min(r.her?.near[2] ?? Infinity, r.butterfly?.near[2] ?? Infinity, r.background.nearest ?? Infinity));
     const most = rows.reduce((w, r) => (nearestOut(r) > nearestOut(w) ? r : w), rows[0]);
     say(`the greatest out: ${fx(nearestOut(most))} % at ${most.t} s (budget 6 %)`);
@@ -334,10 +356,10 @@ async function fjorTrial(o, server, { say, report }) {
     const us = bf.map(r => r.bfly?.[0]).filter(Number.isFinite), vs = bf.map(r => r.bfly?.[1]).filter(Number.isFinite);
     say(`the butterfly in the picture: u ${Math.min(...us).toFixed(2)}-${Math.max(...us).toFixed(2)}, v ${Math.min(...vs).toFixed(2)}-${Math.max(...vs).toFixed(2)}`);
     report.trials.fjor = rows.map(r => ({ t: r.t, cam: r.cam, white: r.white, her: r.her && { outNear: r.her.outNear, outFar: r.her.outFar, span: r.her.span, left: r.her.left, right: r.her.right }, butterfly: r.butterfly && { outNear: r.butterfly.outNear, at: r.bfly }, border: r.background.border, borderAt: r.background.borderAt, floor: r.background.groundBorder, gap: r.gap, plants: r.plants, herInfo: r.herInfo }));
-    if (o.stills) for (const t of FJOR_STILLS) {
+    if (o.stills) for (const t of o.fjorStills ?? FJOR_STILLS) {
       await evaluate(`window.__world.flugedla3d.seek(${t})`);
       await evaluate('window.__advance(1 / 30)');
-      await shoot(path.resolve(o.out, `fjor-g1-${t}s.png`));
+      await shoot(path.resolve(o.out, `${o.prefix ?? "fjor-g1"}-${t}s.png`));
     }
     if (o.bench) {
       for (const t of [5.3, 13.0, 22.7]) {

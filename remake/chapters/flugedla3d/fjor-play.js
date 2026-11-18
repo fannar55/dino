@@ -3,7 +3,7 @@
 // her on the line behind us in the forest and in the picture in the open air; the butterfly darting; the leaves she tears off the
 // crowns she clips; the white; and her set under it all with chapter 4's airflow and whooshes (&hljod=0: silent).
 import * as THREE from 'three';
-import { LENGTH, BEAT, SET_BEAT, LOW, herAt, butterflyAt, cameraAt, cameraStats } from './fjor.js';
+import { LENGTH, BEAT, SET_BEAT, LOW, FJOR_D, HOLDS, herAt, butterflyAt, cameraAt, cameraStats } from './fjor.js';
 import { FJOR_ROUTE, FJOR_PATH } from './fjor-stage.js';
 import { whiteAt } from './route.js';
 import { createFjorFx } from './fjor-fx.js';
@@ -13,7 +13,7 @@ import { createFlightSounds, loadFlightRecordings } from '../../engine/audio/fli
 const rad = d => (d * Math.PI) / 180;
 const SONG_BASE = new URL('../../assets/audio/kafli5/song/', import.meta.url);
 // the take's big moves, each a whoosh from its side (on the beat where they land)
-const WHOOSH = [[2.5, 1], [5.28, -1], [7.78, 1], [10.0, -1], [11.6, 1], [12.6, -1], [14.4, 0], [21.2, 0], [24.4, 1], [25.5, -1]];
+const WHOOSH = [[2.6, 1], [7.4, -1], [8.9, 1], [9.6, -1], [10.4, 1], [11.0, -1], [14.4, 0], [21.2, 0], [23.3, 0], [26.2, 1]];
 
 export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D, sound }) {
   const route = FJOR_ROUTE, path = FJOR_PATH;
@@ -56,6 +56,8 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     return p.y > 12 ? null : [p.x, groundAt(t) + p.y, p.z, p.yaw];
   };
 
+  // round 2: less haze (a darker, deeper forest behind her pale body, crisp edges), and less again high up (the dive's peak)
+  const fog0 = world.scene.fog?.density ?? null;
   const v = new THREE.Vector3(), herPos = new THREE.Vector3(), airPos = new THREE.Vector3(), fwd = new THREE.Vector3();
   const tanHalfV = Math.tan(rad(stageCam.fov) / 2);
   /** Everything at trial second t. */
@@ -71,6 +73,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     stageCam.updateMatrixWorld(true);
     state.cam = cam;
     clouds.update(cam);
+    if (fog0 !== null) world.scene.fog.density = fog0 * (0.5 - 0.3 * Math.min(1, Math.max(0, (c.y - 12) / 30)));
 
     // her: on the line behind us, or in the picture
     const her = herAt(t, { turnBefore: -route.rates.turn(t - 0.3) });
@@ -80,17 +83,20 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     const ph = route.at(tH), hpsi = rad(ph.yaw);
     const ahead = Math.max(0, -sH);
     herPos.set(ph.x + Math.cos(hpsi) * her.path.side + Math.sin(hpsi) * ahead, worldY(tH) + her.path.lift, ph.z + Math.sin(hpsi) * her.path.side - Math.cos(hpsi) * ahead);
-    stage.framePoint(...her.air, airPos, stageCam, D);
+    stage.framePoint(her.air[0], her.air[1], (her.air[2] * FJOR_D) / D, airPos, stageCam, D); // (its k is at FJOR_D: metres kept on a &d= plane)
     herPos.lerp(airPos, her.blend);
     const heading = ph.yaw + (c.yaw - ph.yaw) * her.blend;
     const white = whiteAt(cam.y - base);
     state.white = white;
     state.her = { ...her.pose, world: herPos.clone(), haze: 0.85 * white };
     cast.poseHer(state.her, heading);
-    state.herInfo = { d: her.path.d, blend: her.blend };
+    // her chest's depth in the picture (k: the depth along the view over the plane)
+    fwd.set(0, 0, -1).applyQuaternion(stageCam.quaternion);
+    const chestK = v.copy(herPos).sub(stageCam.position).dot(fwd) / D;
+    state.herInfo = { d: her.path.d, blend: her.blend, chestK: +chestK.toFixed(4), u: her.air[0] };
 
     // the butterfly, darting
-    state.butterfly = butterflyAt(t, her);
+    state.butterfly = butterflyAt(t, her, D);
     cast.poseButterfly(state.butterfly, c.yaw);
     cast.poseLeaves(null);
 
@@ -130,5 +136,5 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     flight?.setSpeed?.(Math.hypot(c.back, c.up) * 0.9);
     for (const [i, [wt, side]] of WHOOSH.entries()) if (i > lastWhoosh && t >= wt) { lastWhoosh = i; if (t - wt < 0.2) flight?.whoosh?.(side); }
   }
-  return { apply, setStage, length: LENGTH, bursts, stats: () => cameraStats(route), soundStart, soundLoop, soundFrame, route, path, groundAt, low: LOW };
+  return { apply, setStage, length: LENGTH, holds: HOLDS, bursts, stats: () => cameraStats(route), soundStart, soundLoop, soundFrame, route, path, groundAt, low: LOW };
 }

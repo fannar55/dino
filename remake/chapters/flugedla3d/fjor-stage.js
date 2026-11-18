@@ -42,6 +42,8 @@ function leaveOut(info, p) {
     const cx = p.x + (cr.c[0] * c - cr.c[2] * s) * sc, cz = p.z + (cr.c[0] * s + cr.c[2] * c) * sc;
     if (lineGap(cx, cr.c[1] * sc, cz).d3 - Math.max(cr.r, cr.ry ?? cr.r) * sc < CROWN_GAP) return true;
   }
+  // (round 2: no broadleaf within 14 m of the line: its low crown hangs at the top edge over the camera; tall slim trees only)
+  if ((info?.name ?? p.name) === 'broadleaf' && lineGap(p.x, 1, p.z).d2 < 14) return true;
   const r = (m.trunk?.r ?? 0.4) * sc;
   if (lineGap(p.x, 1, p.z).d2 - r < 2.9) return true;
   // the glade where the camera climbs or comes down through the canopy

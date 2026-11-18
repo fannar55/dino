@@ -25,6 +25,7 @@ import { createCast } from './flugedla3d/cast.js';
 import { createClouds } from './flugedla3d/clouds.js';
 import { createMeasure } from './flugedla3d/measure.js';
 import { FJOR_LAYOUT, fjorCloudBalls } from './flugedla3d/fjor-stage.js';
+import { FJOR_D } from './flugedla3d/fjor.js';
 import { createFjorPlayer } from './flugedla3d/fjor-play.js';
 import { reviewUi, pct } from './gramedla3d/review.js';
 
@@ -33,7 +34,7 @@ const params = typeof location !== 'undefined' ? new URLSearchParams(location.se
 const PROFA = ['beygja', 'upp', 'fjor'].includes(params.get('profa')) ? params.get('profa') : null;
 const FJOR = PROFA === 'fjor';
 // the screen plane: D, or the fast take's own (&d=)
-const PLANE = FJOR && Number(params.get('d')) > 0 ? Number(params.get('d')) : D;
+const PLANE = FJOR ? (Number(params.get('d')) > 0 ? Number(params.get('d')) : FJOR_D) : D; // (the fast take's plane: 17.5 m since round 2)
 const rad = d => (d * Math.PI) / 180;
 
 export const chapter = {
