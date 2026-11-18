@@ -8,8 +8,8 @@
 //   &t=<s>                              a trial held at that second of it (from its start)
 //   ?chapter=flugedla3d&profa=fjor      the fast take (2026-11-16: through the trees at speed, a living camera, DJ Flugeðla):
 //                                       flugedla3d/fjor.js, fjor-stage.js (its own world), fjor-play.js, fjor-fx.js; &d=<m> its
-//                                       screen plane (17.5 unless given, since round 2), &hljod=0 silent; round 2b: Þórseðla's
-//                                       glade and two slow stretches (&haegt=0 plays it straight through)
+//                                       screen plane (17.5 unless given, since round 2), &hljod=0 silent, &haegt=0 no slow
+//                                       stretches; round 3: the flock over the cloud, the dive into chapter 4's gorge, the falls
 //   &gler=0, &styrkur=<s>               the engine's: plain, or another strength (the owner's is 0.02)
 //
 // One job a file, in flugedla3d/: route.js (the camera: the film's rates and their integral), stage.js (the lens, the swept frame
@@ -28,6 +28,8 @@ import { createMeasure } from './flugedla3d/measure.js';
 import { FJOR_LAYOUT, fjorCloudBalls } from './flugedla3d/fjor-stage.js';
 import { FJOR_D } from './flugedla3d/fjor.js';
 import { createFjorPlayer } from './flugedla3d/fjor-play.js';
+import { createArdalur } from '../world/ardalur/index.js';
+import { createRoute } from './kafli4-route.js';
 import { reviewUi, pct } from './gramedla3d/review.js';
 
 const CHARS = '../assets/characters/';
@@ -44,8 +46,20 @@ export const chapter = {
   look: 'morning',
   gler: { panel: false },
   startButton: glassesStart,
-  layout: FJOR ? FJOR_LAYOUT : LAYOUT,
-  actors: { flugedla: { url: CHARS + 'pteranodon.glb', position: [6, 0, -400], heading: 90 }, ...(FJOR ? { thorsedla: { url: CHARS + 'brontosaurus.glb', position: [0, 0, -420], heading: 90 } } : {}) },
+  ...(FJOR ? {
+    // round 3: the forest, then chapter 4's valley (its gorge and falls), changed to in the climb's white (fjor-play.js placeAt)
+    locations: {
+      skogur: { layout: FJOR_LAYOUT },
+      ardalur: {
+        build: async world => createArdalur(world, { grey: false, route: createRoute({ wingspan: 7.5 }), at: [-1240, 140] }),
+        shots: {}, warmUp: [],
+        async ready(world, valley) { valley.farLand?.prefetch?.(); await valley.farLand?.load?.(); },
+      },
+    },
+    start: 'skogur',
+    readyFirst: ['ardalur'],
+  } : { layout: LAYOUT }),
+  actors: { flugedla: { url: CHARS + 'pteranodon.glb', position: [6, 0, -400], heading: 90 } },
   cast: {},
   lines: {},
   startShot: 'show',
@@ -126,12 +140,12 @@ export const chapter = {
     if (FJOR) {
       // the fast take, looped through black at the join; t= holds a second of it
       const capture = params.get('t') !== null && params.get('play') !== '1';
-      const player = createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0', slow: params.get('haegt') !== '0', thor: s.actor('thorsedla')?.raw ?? null });
+      const player = createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0', slow: params.get('haegt') !== '0', herUrl: new URL(CHARS + 'pteranodon.glb', import.meta.url).href });
       player.setStage(stage);
       const length = player.length;
       const heldAt = capture ? Math.min(length, Math.max(0, Number(params.get('t')) || 0)) : null;
       const clock = { hold: heldAt, from: s.time };
-      let black = -1, loop = -1;
+      let black = -1, loop = -1, changing = false;
       const seek = t => { clock.hold = t; player.apply(t); };
       Object.assign(world.flugedla3d, { seek, length, from: 0, fjor: player, route: player.route });
       s.after(0, function* run() {
@@ -139,6 +153,10 @@ export const chapter = {
           hold();
           const t = clock.hold ?? ((s.time - clock.from) % length);
           player.apply(t);
+          // the place the take is in (a cut with no black: the valley is built before the start)
+          const want = player.placeAt(state.story);
+          if (want !== world.location && !changing) { changing = true; s.goTo(want, { fade: 0 }); }
+          if (want === world.location) changing = false;
           if (state.started && clock.hold === null) {
             const n = Math.floor((s.time - clock.from) / length);
             if (n !== loop) { loop = n; player.soundLoop(); }

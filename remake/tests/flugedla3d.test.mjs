@@ -135,13 +135,14 @@ test('the trials: their players move without a jump (no pop), and the white foll
 });
 
 test('the fast take (fjor.js): its camera within the brief, its white short, the butterfly never parked', async () => {
-  const { fjorRoute, cameraAt, LENGTH, LOW, FJOR_CHANGES, CLOUD_Y, herAt, butterflyAt } = await import('../chapters/flugedla3d/fjor.js');
+  const { fjorRoute, cameraAt, LENGTH, FJOR_CHANGES, CLOUD_Y, herAt, butterflyAt, VALLEY } = await import('../chapters/flugedla3d/fjor.js');
   const r = fjorRoute();
   let last = cameraAt(r, 0), yawRate = 0;
   for (let t = 0.01; t <= LENGTH; t += 0.01) {
     const c = cameraAt(r, t);
-    assert.ok(Math.abs(c.roll) <= 20 + 1e-9 && Math.abs(c.pitch) <= 25 + 1e-9, `roll ${c.roll} pitch ${c.pitch} at ${t.toFixed(2)} s`);
-    yawRate = Math.max(yawRate, Math.abs(c.yaw - last.yaw) / 0.01);
+    // (round 3: up to 55 degrees up at her in the head-first dive, 58 down at her up the falls)
+    assert.ok(Math.abs(c.roll) <= 20 + 1e-9 && Math.abs(c.pitch) <= 60 + 1e-9, `roll ${c.roll} pitch ${c.pitch} at ${t.toFixed(2)} s`);
+    if (Math.abs(t - VALLEY.t) > 0.02) yawRate = Math.max(yawRate, Math.abs(c.yaw - last.yaw) / 0.01); // (the valley's path begins in the white)
     last = c;
   }
   assert.ok(yawRate <= 60.5, `yaw ${yawRate.toFixed(1)} deg/s`);
@@ -149,7 +150,6 @@ test('the fast take (fjor.js): its camera within the brief, its white short, the
   for (const j of FJOR_CHANGES.filter(c => c.jump !== undefined)) {
     for (const dt of [-0.05, 0.05]) { const y = r.at(j.t + dt).y; assert.ok(y >= CLOUD_Y.lo && y <= CLOUD_Y.hi, `the skip at ${j.t.toFixed(2)} s is in the full white (${y.toFixed(1)} m)`); }
   }
-  assert.ok(Math.abs(r.at(LENGTH).y - LOW) < 0.3, `back low at the end: ${r.at(LENGTH).y.toFixed(2)} m`);
   // the butterfly: in u 0.25-0.75, no further out than k 0.27, and it moves at least 0.05 of the frame every second
   let anchor = null;
   for (let t = 0; t <= LENGTH; t += 0.05) {
