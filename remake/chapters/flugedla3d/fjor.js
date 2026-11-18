@@ -188,7 +188,7 @@ const AIR_BODY = [
   // [second, u, v, k, over] (k at FJOR_D): the first hold, the second
   [3.4, 0.5, 0.56, HOLD_K, 0.01], [10.45, 0.5, 0.56, HOLD_K, 0.01],
   // the glade: past Þórseðla in front of us, then up over her head as we come to it (her corkscrew there: herAt)
-  [16.4, 0.5, 0.45, 0.5, 1.2], [18.6, 0.5, 0.25, 0.62, 1.4], // (over and beyond her head: her neck runs off to the side, down)
+  [17.0, 0.5, 0.25, 0.62, 1.6], // (over and beyond her head: her neck runs off to the side, down)
   // rocketing up after the butterfly, beside us over the cloud, ahead in the dive
   [sh(15.0), 0.5, 0.62, 0.62, 0.9], [sh(16.0), 0.5, 0.62, 0.5, 0.9], [sh(17.0), 0.42, 0.58, 0.47, 1.0], [sh(18.6), 0.55, 0.5, 0.56, 1.0],
   [LEVEL + 0.4, 0.38, 0.58, 0.5, 1.0], [TIP, 0.6, 0.55, 0.6, 1.2], [sh(22.85), 0.5, 0.58, 0.5, 1.2],
@@ -293,7 +293,7 @@ export function butterflyAt(t, her, D = FJOR_D) {
     const w = TAU * (t - LINGER[0]) / 1.4;
     uu = lerp(uu, 0.5 + 0.14 * Math.cos(w), e);
     vv = lerp(vv, 0.44 + 0.1 * Math.sin(w) - 0.3 * shoot, e);
-    k = lerp(k, (6.1 + 0.3 * Math.sin(w)) / D, e);
+    k = lerp(k, (5.0 + 0.3 * Math.sin(w)) / D, e);
   }
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
