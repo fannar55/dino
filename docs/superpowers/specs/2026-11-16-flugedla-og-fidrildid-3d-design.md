@@ -211,3 +211,33 @@ varfærnar og víkja í nýrri hreyfiprufu, `&profa=fjor`:
   liggja undir.
 
 Planið er endurskrifað eftir dóm hans á nýju prufunni. Lykilrammarnir og prufurnar `beygja` og `upp` standa óbreytt á meðan.
+
+## 13. Dómar eigandans á hröðu prufunni og ný leið
+
+Allt hér á við `&profa=fjor`. Söguborðið í kafla 4 gildir ekki lengur; þessi kafli tekur við þar til planið er endurskrifað.
+
+**Umferð 1 (18. nóvember 2026):** „þetta er nálægt, er alveg í átt að það sem við viljum, lofar góðu. en það er gallar, 3D effect
+er mest á fiðrildi, flueðla kemur hér og þár út. en þetta er rétt átt og er flott flug“. Hraðinn, stofnarnir sem þjóta fram
+hjá, lifandi myndavélin og takturinn standa. Flugeðla sjálf þarf að vera út úr skjánum: búkurinn, ekki bara goggurinn.
+
+**Viðbætur sem hann valdi:** „Hægmynd og stórt dýr“. Hægmynd á taktinum stendur. Stóra dýrið (Þórseðla) var smíðað og fellt
+niður í næsta dómi.
+
+**Umferð 2 (18. nóvember 2026):** „betra, sleppum þórseðlu senu, hvað með þegar við fljúgum í skýin þá koma fleiri flugeður, og
+getum haft nýr og fjær, hafa það svona 10 sec atriði, svo þegar við komum aftur niður, og passa að laga þegar við förum niður
+þá er það haus niður fyrst. þá erum við að koma í kjúfrið þar sem fossinn er, fjúgjum þar með little fuglum svo upp foss“.
+
+**Leiðin eftir þetta (umferð 3):**
+
+1. **Skógarspretturinn** eins og í umferð 2: Flugeðla nálægt (búkurinn 2–2,6 % út), hún hangir hjá okkur og kinkar kolli í
+   takt, hægmynd í fyrsta sprettinum.
+2. **Upp í skýið** á eftir fiðrildinu.
+3. **Ofan skýja, um 10 s:** fleiri flugeðlur koma, sumar fjær (djúpt inni), sumar við skjáinn og sumar nær (framan við
+   skjáinn). Þær fljúga saman eina hreyfingu á taktinum og sveigja frá þegar fiðrildið lætur sig falla.
+4. **Dýfan, með hausinn á undan.** Lestur Claude: í umferð 2 fór hún niður með stélið á undan. Nú steypir hún sér með hausinn
+   fyrst og myndavélin er fyrir neðan hana og horfir upp til hennar.
+5. **Gljúfrið með fossinum** (gljúfrið og fossinn úr kafla 4): flogið lágt yfir ánni milli veggjanna, með litlum fuglum nær
+   og fjær.
+6. **Upp fossinn.**
+
+Endirinn eftir fossbrúnina og síðasta atriði fiðrildisins eru óákveðin.
