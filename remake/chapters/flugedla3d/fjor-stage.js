@@ -3,11 +3,12 @@
 // whipping past 3.3-4.8 m from the camera's line, the wood beyond, the generator's forest round its clearing in the middle of it.
 // The leaveOut keeps every crown at least CROWN_GAP from the line (her wings, banked in the weave, reach about 2.5 m from it) and
 // every trunk that is not a whip trunk 3 m from it.
-import { fjorRoute, pathOf, fjorPlants, fjorKeepOut } from './fjor.js';
+import { fjorRoute, pathOf, fjorPlants, fjorKeepOut, thorAt } from './fjor.js';
 import { LAYOUT, cloudBalls, sweptHit } from './stage.js';
 
 export const FJOR_ROUTE = fjorRoute();
 export const FJOR_PATH = pathOf(FJOR_ROUTE);
+export const THOR = thorAt(FJOR_ROUTE);
 export const CROWN_GAP = 4.5;
 // the low line, every metre or so (for the leaveOut's distances)
 const LINE = (() => {
@@ -21,7 +22,7 @@ const LINE = (() => {
   return out;
 })();
 // (from a second before the climb, when the camera looks up under the canopy, and all through the dive and the pull-out)
-const GLADE = FJOR_PATH.pts.filter((q, i) => i % 6 === 0 && q.y < 30 && q.t > 13.4);
+const GLADE = FJOR_PATH.pts.filter((q, i) => i % 6 === 0 && q.y < 30 && q.t > 21.1);
 /** The nearest the low line comes to (x, y, z) (y over the floor), and to (x, z) alone. */
 export function lineGap(x, y, z) {
   let d3 = Infinity, d2 = Infinity;
@@ -47,6 +48,8 @@ function leaveOut(info, p) {
   const r = (m.trunk?.r ?? 0.4) * sc;
   if (lineGap(p.x, 1, p.z).d2 - r < 2.9) return true;
   // the glade where the camera climbs or comes down through the canopy
+  // Þórseðla's glade
+  if (Math.hypot(p.x - THOR.root[0], p.z - THOR.root[1]) < 15 || Math.hypot(p.x - THOR.head[0], p.z - THOR.head[1]) < 10) return true;
   if (GLADE.some(q => Math.hypot(p.x - q.x, p.z - q.z) < ((info?.name ?? p.name) === 'broadleaf' ? 22 : 12))) return true;
   return false;
 }
@@ -64,7 +67,7 @@ export const FJOR_LAYOUT = {
   keepOut,
   lifeKeepOut: keepOut,
   leaveOut,
-  plants: fjorPlants(FJOR_PATH),
+  plants: fjorPlants(FJOR_PATH, THOR),
 };
 
 // the cloud's balls, kept out of the near picture from this take's places too (1/40 s apart: it climbs at 24 m/s, dives at 29)

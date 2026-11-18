@@ -8,7 +8,8 @@
 //   &t=<s>                              a trial held at that second of it (from its start)
 //   ?chapter=flugedla3d&profa=fjor      the fast take (2026-11-16: through the trees at speed, a living camera, DJ Flugeðla):
 //                                       flugedla3d/fjor.js, fjor-stage.js (its own world), fjor-play.js, fjor-fx.js; &d=<m> its
-//                                       screen plane (13 unless given), &hljod=0 silent
+//                                       screen plane (17.5 unless given, since round 2), &hljod=0 silent; round 2b: Þórseðla's
+//                                       glade and two slow stretches (&haegt=0 plays it straight through)
 //   &gler=0, &styrkur=<s>               the engine's: plain, or another strength (the owner's is 0.02)
 //
 // One job a file, in flugedla3d/: route.js (the camera: the film's rates and their integral), stage.js (the lens, the swept frame
@@ -44,7 +45,7 @@ export const chapter = {
   gler: { panel: false },
   startButton: glassesStart,
   layout: FJOR ? FJOR_LAYOUT : LAYOUT,
-  actors: { flugedla: { url: CHARS + 'pteranodon.glb', position: [6, 0, -400], heading: 90 } },
+  actors: { flugedla: { url: CHARS + 'pteranodon.glb', position: [6, 0, -400], heading: 90 }, ...(FJOR ? { thorsedla: { url: CHARS + 'brontosaurus.glb', position: [0, 0, -420], heading: 90 } } : {}) },
   cast: {},
   lines: {},
   startShot: 'show',
@@ -125,7 +126,7 @@ export const chapter = {
     if (FJOR) {
       // the fast take, looped through black at the join; t= holds a second of it
       const capture = params.get('t') !== null && params.get('play') !== '1';
-      const player = createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0' });
+      const player = createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D: PLANE, sound: !capture && params.get('hljod') !== '0', slow: params.get('haegt') !== '0', thor: s.actor('thorsedla')?.raw ?? null });
       player.setStage(stage);
       const length = player.length;
       const heldAt = capture ? Math.min(length, Math.max(0, Number(params.get('t')) || 0)) : null;
