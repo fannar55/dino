@@ -50,6 +50,8 @@ export function sectionAt(setBeat) {
 // When Flugeðla asks the room to clap, lift its hands or hop, Egill is in the picture doing it, long enough to copy.
 // No cut falls inside the rewind (the picture spools back in one shot: the turtles', who spin on their shells) or on "Stopp!" (it
 // freezes in the shot it is in: the frogs', two of them in the air), and none on the beat everything moves again.
+// The words she shouts stand big in the upper part of the screen (kafli5-show-score.js WORDS): a shot a word stands over has
+// those it is shouted at low in its frame, under the word (the frogs under "STOPP!", Egill hopping under "HOPP!").
 export const CAMERA = [
   // the band from far away, and her welcome
   { beat: 0, cut: 'choir_wide', then: { push: 3.5, beats: 15 } },

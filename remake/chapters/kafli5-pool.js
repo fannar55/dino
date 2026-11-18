@@ -132,8 +132,10 @@ const SET_SHOTS = {
   set_flyers: seen(CHOIR.flyers.at, 256, 13.8, 1.2, 3.0, 46),
   set_flyers_close: seen(beside('flyers', 0.34, 0), 256, 6.0, 1.6, 1.3, 32), // all four whole, wings and all
   // their wheel when the drop comes back (a ring 5.5 m over the shallows in front of their place: kafli5-dances.js MOVES.drop),
-  // from the north of it, looking south: the wheel over the lizards' bank, where the lizards run their own ring under it
-  set_wheel: { position: up(around(255, 18.4), LEVEL + 1.2), target: up(around(221, 24), LEVEL + 4.2), fov: 48 },
+  // from the north of it, looking south: the wheel over the lizards' bank, where the lizards run their own ring under it. The
+  // camera stands out in the pool, clear of the flyers' reed: with the reed's blades close to the lens the shot cost 6.8 ms of
+  // GPU time (the budget is 6), from here 3.4
+  set_wheel: { position: up(around(264, 17), LEVEL + 1.2), target: up(around(221, 24), LEVEL + 4.4), fov: 46 },
   // her, out in the pool: close from the north-east (the choir's banks behind her), and low from the east with the sky over her
   set_her_close: seen(WADE.at, 140, 9, 1.5, 1.7, 34), // she wades deep: her head is a metre and a half over the water, three when she blows her horn
   set_her_low: seen(WADE.at, 112, 13, 1.0, 2.4, 44),
