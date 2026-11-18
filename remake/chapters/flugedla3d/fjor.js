@@ -509,7 +509,7 @@ export const BIRDS = (() => {
     } });
   }
   // three that dart past in front of the screen (k 0.35-0.5), across from one edge to the other in about 0.7 s
-  for (const [t0, from_, to_, v, k] of [[vt(4.9), -0.15, 1.15, 0.2, 0.42], [vt(7.1), 1.15, -0.15, 0.84, 0.38], [vt(9.6), -0.15, 1.15, 0.14, 0.72]]) {
+  for (const [t0, from_, to_, v, k] of [[vt(4.9), -0.15, 1.15, 0.16, 0.3], [vt(7.1), 1.15, -0.15, 0.84, 0.38], [vt(9.6), -0.15, 1.15, 0.14, 0.72]]) {
     out.push({ scale: 1.6, beat: 14, phase: t0, dart: true, at: t => (t < t0 || t > t0 + 0.75 ? null : [lerp(from_, to_, (t - t0) / 0.75), v + 0.05 * Math.sin((t - t0) * 9), k]) });
   }
   return out;
