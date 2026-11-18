@@ -173,8 +173,8 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     stage.framePoint(b.at[0], b.at[1], (b.at[2] * FJOR_D) / D, bp, stageCam, D);
     let best = Infinity, near = null;
     skin.skeleton?.update();
-    const n = skin.geometry.attributes.position.count;
-    for (let i = 0; i < n; i += 24) { skin.getVertexPosition(i, w).applyMatrix4(skin.matrixWorld); const d = w.distanceTo(bp); if (d < best) { best = d; near = w.clone(); } }
+    const count = skin.geometry.attributes.position.count;
+    for (let i = 0; i < count; i += 24) { skin.getVertexPosition(i, w).applyMatrix4(skin.matrixWorld); const d = w.distanceTo(bp); if (d < best) { best = d; near = w.clone(); } }
     if (!near || best >= CLEAR) return b;
     right.set(1, 0, 0).applyQuaternion(stageCam.quaternion);
     upv.set(0, 1, 0).applyQuaternion(stageCam.quaternion);

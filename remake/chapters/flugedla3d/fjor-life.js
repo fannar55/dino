@@ -46,6 +46,8 @@ export function createFjorLife(world, { url }) {
       const s = flockAt(f.m, t);
       if (!s) { f.actor.root.visible = false; continue; }
       f.actor.root.visible = true;
+      // (frame time: the flock casts no shadow; the engine's low-poly casters come a little after the actor, so looked for until found)
+      if (!f.shadowOff) f.actor.model.traverse(o => { if (o.isSkinnedMesh && o.name.endsWith(' shadow')) { o.castShadow = false; f.shadowOff = true; } });
       const clipName = Math.abs(s.bank) > 30 || f.m.layer === 'far' ? 'glide' : 'fly';
       if (f.clip !== clipName) { f.action = f.actor.play(clipName, { fade: 0, timeScale: 0 }); f.clip = clipName; }
       const clip = f.action.getClip();
