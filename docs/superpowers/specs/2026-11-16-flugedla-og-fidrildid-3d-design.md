@@ -240,4 +240,11 @@ getum haft nýr og fjær, hafa það svona 10 sec atriði, svo þegar við komum
    og fjær.
 6. **Upp fossinn.**
 
-Endirinn eftir fossbrúnina og síðasta atriði fiðrildisins eru óákveðin.
+7. **Endirinn: hópurinn kemur aftur.** Valið af eigandanum 18. nóvember 2026 („Hópurinn kemur aftur“). Á fossbrúninni koma
+   flugeðlurnar upp úr gljúfrinu, safnast kringum hana í sömu lögum og ofan skýja og taka síðustu hreyfinguna saman á taktinum.
+   Svo þjóta þær fram hjá okkur og hún situr eftir: síðasta myndin er hún stór í miðri mynd, framan við skjáinn, með fiðrildið
+   við gogginn. Að fiðrildið svífi við gogginn í lokin er tillaga Claude; eigandinn valdi aðeins hópinn.
+
+**Umferð 3 (18. nóvember 2026):** „flest mjög gott, en kíktu á F1 bug report, tvær eðlur fara inní hvor aðra“. Leiðin stendur.
+Villan: tvær næstu flugeðlurnar í hópnum fóru hvor gegnum aðra. Reglan um að ekkert fari inn í annað gildir nú líka milli
+allra í hópnum (minnst 1,5 m á milli og minnst 1 m að Flugeðlu okkar), og mælt er á skjástærð eigandans (1490×740) auk 16:10.
