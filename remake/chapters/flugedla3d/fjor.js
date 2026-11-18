@@ -380,27 +380,28 @@ export const FLOCK_MEMBERS = [
 // (14-15 m, high beside her); she in the middle, nearest (8 m). The formation move: a wave from far to near (each layer dips and banks
 // on its half beat, beats 1-2.5), then all bank as one (beat 3, held to 4). On beat 4 (the set's beat 380, its half phrase) they
 // break: the far and middle ones away to the sides and up, deep; the near ones past us on both sides, quick. Then she holds alone.
-// Each: [settled u, v, k], the side it breaks to (-1 left, 1 right), when it starts up from the edge, its k there, when it is in place.
+// Each: [settled u, v, k], the side it breaks to (-1 left, 1 right), when it starts in from the edge and where ([u, v, k]), when it is in place.
 const ENDING = [
-  { at: [0.3, 0.3, 5.0], side: -1, start: -3.4, k0: 6.0, set: 0.0 },
-  { at: [0.7, 0.28, 6.0], side: 1, start: -3.2, k0: 7.0, set: 0.0 },
-  { at: [0.5, 0.2, 4.4], side: 1, start: -3.0, k0: 5.4, set: 0.0 },
-  { at: [0.27, 0.4, 1.15], side: -1, start: -2.8, k0: 3.2, set: 0.5 },
-  { at: [0.73, 0.38, 1.0], side: 1, start: -2.6, k0: 3.0, set: 0.5 },
-  { at: [0.25, 0.24, 0.8], side: -1, start: -2.4, k0: 2.4, set: 1.0 },
-  { at: [0.75, 0.22, 0.85], side: 1, start: -2.2, k0: 2.4, set: 1.0 },
+  { at: [0.14, 0.36, 5.0], side: -1, start: -3.4, from: [0.18, 1.12, 6.0], set: 0.0 },
+  { at: [0.86, 0.34, 6.0], side: 1, start: -3.2, from: [0.82, 1.12, 7.0], set: 0.0 },
+  { at: [0.5, 0.16, 4.4], side: 1, start: -3.0, from: [0.54, 1.12, 5.4], set: 0.0 },
+  { at: [0.36, 0.36, 1.35], side: -1, start: -2.8, from: [0.4, 1.12, 3.4], set: 0.5 },
+  { at: [0.64, 0.35, 1.25], side: 1, start: -2.6, from: [0.6, 1.12, 3.2], set: 0.5 },
+  // (the near ones in from the side edges, behind the screen, and round to high beside her: apart from the middle ones' way up)
+  { at: [0.25, 0.22, 0.8], side: -1, start: -2.4, from: [-0.2, 0.5, 1.6], set: 1.0 },
+  { at: [0.75, 0.24, 0.78], side: 1, start: -2.2, from: [1.2, 0.48, 1.6], set: 1.0 },
 ];
 const WAVE = { far: 1.0, mid: 1.5, near: 2.0 }; // each layer's dip, on its half beat
 FLOCK_MEMBERS.forEach((m, i) => {
   const e = ENDING[i], [u, v, k] = e.at, s = e.side, w = WAVE[m.layer];
   const still = b => [b, u, v, k, 0];
-  const keys = [[e.start, u + 0.04 * s, 1.12, e.k0, 0], still(e.set)];
+  const keys = [[e.start, ...e.from, 0], still(e.set)];
   if (e.set < w - 0.5) keys.push(still(w - 0.5));
   keys.push([w, u, v + 0.06, k, -30 * s], still(w + 0.5));
   if (w + 0.5 < 2.5) keys.push(still(2.5));
-  keys.push([3.0, u + 0.03, v - 0.02, k, -45], [4.0, u + 0.03, v - 0.02, k, -45]);
+  keys.push([3.0, u + 0.02, v - 0.02, k, -30], [4.0, u + 0.02, v - 0.02, k, -30]); // all bank as one (beat 3, held to the break)
   if (m.layer === 'near') keys.push([5.0, s < 0 ? -0.35 : 1.35, 0.35, 0.32, 60 * s]); // past us, quick (one beat)
-  else if (m.layer === 'mid') keys.push([6.0, u + 0.75 * s, 0.0, k * 1.6, 55 * s]); // away to the side and up
+  else if (m.layer === 'mid') keys.push([6.0, u + 0.85 * s, 0.0, k * 1.6, 55 * s]); // away to the side and up
   else keys.push([6.5, u + 0.6 * s, -0.14, k * 1.5, 55 * s]); // away to the side and up, deep
   m.end = keys;
 });
@@ -475,8 +476,8 @@ export function butterflyAt(t, her, D = FJOR_D) {
   vv = lerp(vv, 0.2 + 0.04 * Math.sin(TAU * t / 0.7), upf);
   k = lerp(k, 0.3, upf);
   const bk = BEAK(t);
-  uu = lerp(uu, 0.6 + 0.035 * Math.sin(TAU * t / 1.1), bk); // (hovering, never parked)
-  vv = lerp(vv, 0.42 + 0.03 * Math.sin(TAU * t / 0.8), bk);
+  uu = lerp(uu, 0.65 + 0.05 * Math.sin(TAU * t / 1.3), bk); // (hovering, never parked)
+  vv = lerp(vv, 0.38 + 0.045 * Math.sin(TAU * t / 0.9), bk);
   k = lerp(k, 0.31, bk);
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
