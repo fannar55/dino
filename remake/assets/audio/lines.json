@@ -5388,5 +5388,340 @@
   "src": "assets/audio/book/book_myndband_landrek_71.mp3",
   "duration": 4.49,
   "mouth": "0df90fff9000cc0009d008dfd0bfc87970000000000dc7c9000ceb0008e008da7800589000b500000000000000"
+ },
+ "book_myndband_loftsteinn_1": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_1.mp3",
+  "duration": 4.89,
+  "mouth": "00fffa00bf00000cd9009c3000dffdceec0aa9679a940009ca9afea6de90000e00000089689dc505677604400000000000"
+ },
+ "book_myndband_loftsteinn_2": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_2.mp3",
+  "duration": 4.97,
+  "mouth": "0fcffefffdecec00d9300cf7005feca99886000009500cdcc0ac60ec69ba00004d90000680004c85acbb9530000000000000"
+ },
+ "book_myndband_loftsteinn_3": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_3.mp3",
+  "duration": 6.17,
+  "mouth": "7cfff80cfefdbc08ba7300bb6ccbbffbcdbedefc90aa999600acdddefe9ed6bc500bfec00acc33583000a000000bfeddfccabaa638600000000000000000"
+ },
+ "book_myndband_loftsteinn_4": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_4.mp3",
+  "duration": 3.45,
+  "mouth": "0ff700eff3dfebbc08730000000000ada00ef70dc00009b706babddb8650000000000"
+ },
+ "book_myndband_loftsteinn_5": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_5.mp3",
+  "duration": 2.33,
+  "mouth": "000fffdbafdc07effceeb009a9a95804400000000000000"
+ },
+ "book_myndband_loftsteinn_6": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_6.mp3",
+  "duration": 5.05,
+  "mouth": "4bdfffa00ceaf900ab0a75bdb00053000000000000008d70d9ebcc60000ba00000bc99eee8069009589308704330000000000"
+ },
+ "book_myndband_loftsteinn_7": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_7.mp3",
+  "duration": 3.21,
+  "mouth": "008fa000dfbfe400ec0bc60cddb40adefe70cb0000b00dc830004000000000000"
+ },
+ "book_myndband_loftsteinn_8": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_8.mp3",
+  "duration": 5.85,
+  "mouth": "00ffed700000dfea0006a009babb925420000000000005feb000cdefdceeb8cdeeda9870000000005808ec0bed900008950783000000000000000"
+ },
+ "book_myndband_loftsteinn_9": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_9.mp3",
+  "duration": 6.57,
+  "mouth": "7deeefdcbdccedaa999aa6004bca200956cdc00396874500300000000000000ad49fffa6bb600bd604a80000ba000089400000000059cffa20003000000000000000"
+ },
+ "book_myndband_loftsteinn_10": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_10.mp3",
+  "duration": 6.49,
+  "mouth": "00fffffff008e70000bdb9ccb7bab95047caabeda00bddec0ddeeb36bc4006d85ccd788566300000890000dfdb8006b5000a77720000ac8bb00764443000000000"
+ },
+ "book_myndband_loftsteinn_11": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_11.mp3",
+  "duration": 7.29,
+  "mouth": "08ffff70ed0ffda09dbbbaa9984000bc8ab8000afa00000000000cd5000000007ccda675430000000000000009fefdd7309c00e90008b8a950bb0000eff508b7875000300000000000"
+ },
+ "book_myndband_loftsteinn_12": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_12.mp3",
+  "duration": 7.61,
+  "mouth": "00dfedffffddffcccca59996209800bd9002b00000a5000000a004a60000a999a700097423000000000000000009eda7befcdd7577970027abddb3009a0086000480067000000000000000000"
+ },
+ "book_myndband_loftsteinn_13": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_13.mp3",
+  "duration": 4.73,
+  "mouth": "0c80befffffd500cb07a6c008b8500000007b99acccbaba694000873000000000000000069000086500000000000000"
+ },
+ "book_myndband_loftsteinn_14": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_14.mp3",
+  "duration": 6.33,
+  "mouth": "39ff500bf000dfc0e00b900b70bdeeeeeed776500000000000000ef00ea98ab000000acfddb9700000009e7000dfeeb7ec60cdc8a0005764300000000000000"
+ },
+ "book_myndband_loftsteinn_15": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_15.mp3",
+  "duration": 6.81,
+  "mouth": "009ffd0dbef50efbbc00008eee9cec09e979a889800accbcdde00bdddced600bbaa705960009da8003dd8efffeeecb97520003cb8bb00aa0000cdfcc30676000000000000"
+ },
+ "book_myndband_loftsteinn_16": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_16.mp3",
+  "duration": 6.41,
+  "mouth": "0dfedffcb8ffeed8adcfffeeffcbbbdd400aa000a80ac8a00653300000000000adc7000cdfefffc9c80bdb09eddb8899500099bcce80000988850000000000000"
+ },
+ "book_myndband_loftsteinn_17": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_17.mp3",
+  "duration": 2.17,
+  "mouth": "08bcca500077e800bf0be0fb0aff4009500000000000"
+ },
+ "book_myndband_loftsteinn_18": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_18.mp3",
+  "duration": 5.05,
+  "mouth": "aeffffe900cdcdc78c4000bdefc8008eb0ceedeeeeddd8cb0decaa006898007cfd00fcb000a9abb033dca5000000000000000"
+ },
+ "book_myndband_loftsteinn_19": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_19.mp3",
+  "duration": 8.01,
+  "mouth": "5efdfffc00eff400deff07fe80b4cdb60bbb8bd90006cdddb3007a775003000000000000000049acfed507c00cd340000ed0000046ec0bed800ddca99a9006a9cd5bed60360089bc85543300000000000"
+ },
+ "book_myndband_loftsteinn_20": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_20.mp3",
+  "duration": 6.33,
+  "mouth": "000dfff90005fd00000008d70d500bec0000b60440000000000000fdef70ef00da0aecddb977a900000000bd08eedecede9009cd90000000754000000000000"
+ },
+ "book_myndband_loftsteinn_21": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_21.mp3",
+  "duration": 4.09,
+  "mouth": "cffdfefffec09ecce76dcc8b8050b00489996000007eed9e00aaa0006bb4abab850503200000000000"
+ },
+ "book_myndband_loftsteinn_22": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_22.mp3",
+  "duration": 3.05,
+  "mouth": "0dffeffd00cccbed00ec5aba89a500008cba8a059a6900000300000000000"
+ },
+ "book_myndband_loftsteinn_23": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_23.mp3",
+  "duration": 5.45,
+  "mouth": "0009ffff600ddb83bca50ac9bfeb00cbcca983a8703a5ba00bddbab98000864a5866becb0079008ba7ba06ba400036000300000000000"
+ },
+ "book_myndband_loftsteinn_24": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_24.mp3",
+  "duration": 5.29,
+  "mouth": "9edefffce8005c72560000000000003e62003eeffc400beca0000bc000000a76730000000000bbbd70da00cff8aa33300000000000"
+ },
+ "book_myndband_loftsteinn_25": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_25.mp3",
+  "duration": 2.73,
+  "mouth": "0bffffc09e000009bdc9700003ba400c00008a60475300000000000"
+ },
+ "book_myndband_loftsteinn_26": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_26.mp3",
+  "duration": 9.21,
+  "mouth": "000bcdffa00dfffcacda48887870000a79c99b900b00dc50800b00cccdb4000300000003500008aa9abcc900003cdc94bcccdcd94066333000000000000000009cdefff900aca0007980bfa000c70000ceecffa98a520000000000000"
+ },
+ "book_myndband_loftsteinn_27": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_27.mp3",
+  "duration": 6.73,
+  "mouth": "4efb06ffe00ff8ca00ae90ca0008cefecc800b400ccefa00069660000000000bc706fdb9000ce80cc9b7b70bbcccdddc5000a000c930009800caa700000000000000000"
+ },
+ "book_myndband_loftsteinn_28": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_28.mp3",
+  "duration": 4.651,
+  "mouth": "0c007effffefcffd0000d009a8509ddccd009947766000000000006d600bc0000aa796039979987320000000000000"
+ },
+ "book_myndband_loftsteinn_29": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_29.mp3",
+  "duration": 2.89,
+  "mouth": "03cdd8ecee5000dfffb00db9deddda0797b00380046300000000000000"
+ },
+ "book_myndband_loftsteinn_30": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_30.mp3",
+  "duration": 2.81,
+  "mouth": "5a304fffc8dda56640000000000006dedb80000776343000000000000"
+ },
+ "book_myndband_loftsteinn_31": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_31.mp3",
+  "duration": 8.01,
+  "mouth": "00bfffcffeddca00beeffe04e9dec79eedbbccb6cdca000670088640006b7c700dc998dec904b00cbcd9002dfc80009a03d600aca60076430000000000afa00000000ce84b8bd9b308545332000000000"
+ },
+ "book_myndband_loftsteinn_32": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_32.mp3",
+  "duration": 2.65,
+  "mouth": "0dffefedd80000cdffb009b800a70008674786003000000000000"
+ },
+ "book_myndband_loftsteinn_33": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_33.mp3",
+  "duration": 5.77,
+  "mouth": "0aeffd08ffacedee408b006a98850009d7009a3dfd30caaceb0ad78897748830000009bbaceb0bd709846760000000a647fc0075000000000000"
+ },
+ "book_myndband_loftsteinn_34": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_34.mp3",
+  "duration": 7.45,
+  "mouth": "00fe70ce500bb00dfffffd00cd53004ccba749722ec30564000000000000000edd00cddc8059995595c709cddeeedcc800ab00add40003a7000a000adaccc0a7360000830000000000000"
+ },
+ "book_myndband_loftsteinn_35": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_35.mp3",
+  "duration": 5.77,
+  "mouth": "0aefcaedffbd800afe9008530000000000df8000bfbcf9cdc8589840580098900bdd70a65c9000acb8b709b36cccca5003654200000000000000"
+ },
+ "book_myndband_loftsteinn_36": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_36.mp3",
+  "duration": 7.69,
+  "mouth": "09dfffeda00000000000ab00fcde0000a8000000007a407a40ba8555300000000000000003dfcef6000f80bb079000ba98750860c000addc009c25b8a868000abb300008430003000000000000"
+ },
+ "book_myndband_loftsteinn_37": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_37.mp3",
+  "duration": 4.25,
+  "mouth": "00efbff50ee70000c80752ffc99000000000008800e6beb007d00d83000ab84a008cec036540000000000"
+ },
+ "book_myndband_loftsteinn_38": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_38.mp3",
+  "duration": 8.73,
+  "mouth": "05ffffdfe72dff309ed00cc8d9000c706cb00adbac9305860385089500000000000000000009ffdaceedcb00ddb07abdd9000000000003bcb300bcdcc059958bc00a9aa0000ba85cc700494003ceee70005000000000000"
+ },
+ "book_myndband_loftsteinn_39": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_39.mp3",
+  "duration": 5.77,
+  "mouth": "0ffff00febdbe500aec77750000000000babec603ccdefabfe9cb6a000dd0009d0be97003a84000a522ceed66a65980499300ab8500000000000"
+ },
+ "book_myndband_loftsteinn_40": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_40.mp3",
+  "duration": 7.13,
+  "mouth": "0cfffffffe00eeffe70c824cdeb6007ba8009bb96330000000000000000000adc88ceedb9da000bcaa400dbb7c600000a9688000000b9840000abb9999a40087400200000000000"
+ },
+ "book_myndband_loftsteinn_41": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_41.mp3",
+  "duration": 5.53,
+  "mouth": "8ffff9ffb0cec8cb80000cb00efc7d8004cdcc0897530000000005c75000c8040005bca074000a70000aceedcbbaa349853530000000000"
+ },
+ "book_myndband_loftsteinn_42": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_42.mp3",
+  "duration": 10.17,
+  "mouth": "000dfc5007f900dcb5004dcdfefcc9bd5000acbdc800bdcccb90269600a808a60000000000000000000000fdfc765efba7ccb6ca337b00009b00bc0034a53acba542000000000ff4ce0000bddcfe8dc30000b9000000fffd85cfe8bcbbadfea6330000000000"
+ },
+ "book_myndband_loftsteinn_43": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_43.mp3",
+  "duration": 5.931,
+  "mouth": "ab0aff07fd700affdf000cdba987098000000000000009fd00cddfe9ffd0000d8000ddc009dcdbda34797397004d88800bb05830000000000000000"
+ },
+ "book_myndband_loftsteinn_44": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_44.mp3",
+  "duration": 5.45,
+  "mouth": "0fe08fffa30cedd9e706bb7008b945cc0000eec3000dd03a606850004900dfee34ab8ade905dacb0000cb4bfc309a9734000000000000"
+ },
+ "book_myndband_loftsteinn_45": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_45.mp3",
+  "duration": 4.41,
+  "mouth": "00d800bfb000ffffe8cc7aa00feefeecd8000bca88620000007b07dedc70009600970588ba950000000000000"
+ },
+ "book_myndband_loftsteinn_46": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_46.mp3",
+  "duration": 4.57,
+  "mouth": "07fe5afa000de7749fe900dc8b89deed00bc00cfa000ddd86b90000aa500da4000adcbcdcdc96004300000000000"
+ },
+ "book_myndband_loftsteinn_47": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_47.mp3",
+  "duration": 4.57,
+  "mouth": "09fffe9ff70000cca9800000009ba69efed00ab00cecea0ceb9000c93009b400009a69a6a0388405000000000000"
+ },
+ "book_myndband_loftsteinn_48": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_48.mp3",
+  "duration": 5.13,
+  "mouth": "00ffffeffe0d300eeea00b709bbb699affea03eeecc72970000008b639baca0cc3000d0007b978000bb88550003000000000000"
+ },
+ "book_myndband_loftsteinn_49": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_49.mp3",
+  "duration": 7.85,
+  "mouth": "0ff0df9cf930005ecce8a700005000000000000000009ceffe6004c90000dc95000000eea008ddc400230d90009909ddc50006900004b00beea000dd0004a8a400aa0005ababa5556540000000000"
+ },
+ "book_myndband_loftsteinn_50": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_50.mp3",
+  "duration": 8.57,
+  "mouth": "8deffd00fb00000debdb3db9b800dcb986540000000000000008c8da70000fc000000000d4034a50000000000000004deeefdd00bfffffeb70240000000000008d00ba5cb004a00000bde90a9a600000000000000000"
+ },
+ "book_myndband_loftsteinn_51": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_51.mp3",
+  "duration": 5.05,
+  "mouth": "00bfc0000ce8009fd9c500cedccc5887400039979900000000000000000000aeffd804b500077099683940000000000000000"
+ },
+ "book_myndband_loftsteinn_52": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_52.mp3",
+  "duration": 4.41,
+  "mouth": "00bff90cfd6c00cc000acc80867a88000005a60830acd99a0098740000005effd0079aab85000000000000000"
+ },
+ "book_myndband_loftsteinn_53": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_53.mp3",
+  "duration": 7.05,
+  "mouth": "0b40ffefe000fb000adbdb0b6bda03fea729b930000000efb0d0006deb06aa30806683000005ca0a80dddddb8658970000000009fffe706eeedca990004970003000000000000"
+ },
+ "book_myndband_loftsteinn_54": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_54.mp3",
+  "duration": 4.73,
+  "mouth": "00ff005be0dfd00efeddffbffb00aab997ab73b860000000000006aa382000dedc7c90000eecba50003000000000000"
+ },
+ "book_myndband_loftsteinn_55": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_55.mp3",
+  "duration": 8.57,
+  "mouth": "6dd78def9dfffea58effece50007cbb93000cca64985000000000000000000000000000059ffeeeeecfb0aca000000009cffb00cdadcc9d70bb900087006bdec7ba87900884000000ea848a689000020000000000000"
+ },
+ "book_myndband_loftsteinn_56": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_56.mp3",
+  "duration": 5.69,
+  "mouth": "000dfffffba0d000cdef900bffdcefe00addee99ee00baab08a96a9008c40008a875007bcbca8099987000000cdd98a7586000000000000000"
+ },
+ "book_myndband_loftsteinn_57": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_57.mp3",
+  "duration": 2.73,
+  "mouth": "0acb0000eeffa0000bdcbb740008cdf8a7ecba79730000000000000"
+ },
+ "book_myndband_loftsteinn_58": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_58.mp3",
+  "duration": 8.97,
+  "mouth": "7ceff00fc009ecbb843008fcdfdbdd00accda600000000000000003facf0a506deedf50ccba403bdeccdddb49bb90970000bcc80000000e30ffdb90005bdeccc900000000deb2009a800000bbcdfd9600a974000000000000000"
+ },
+ "book_myndband_loftsteinn_59": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_59.mp3",
+  "duration": 4.57,
+  "mouth": "009ee4000cebdef988b7a96300000000000000004feb000fc0bd90009bb900bfd0cb0987938cd500400000000000"
+ },
+ "book_myndband_loftsteinn_60": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_60.mp3",
+  "duration": 5.45,
+  "mouth": "5bcde400dc0000000acdfffddfc000def7009960003a7000aeec78ddedda870000000acbad4000008500059c753938850000000000000"
+ },
+ "book_myndband_loftsteinn_61": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_61.mp3",
+  "duration": 4.49,
+  "mouth": "9ffffb0008ee6ccc3000bd69ff607a99758a3309bc468b6997400000000000000000f00ac70640000000000000"
+ },
+ "book_myndband_loftsteinn_62": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_62.mp3",
+  "duration": 7.77,
+  "mouth": "00dfffcffe00ea005c6000a9000000005b6000dddccddb4a00008bcb9809aba840000000000000000af7306d00dc00b72aa9000dc5d90428d9c500009700000049cb708c50006500000000000000"
+ },
+ "book_myndband_loftsteinn_63": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_63.mp3",
+  "duration": 5.77,
+  "mouth": "000bfffff00cdddbaa506f000aa009feaa5bc94a6a8acc6db7bcdcc9630000000000beeeecb300c90b000cdd5099796000a40000000000000000"
+ },
+ "book_myndband_loftsteinn_64": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_64.mp3",
+  "duration": 6.73,
+  "mouth": "5abfefe500beeb00008bcdeffe00c70a90058750000ccc805abbba70030000000000000000cefffbbe500008b900886000affddda0ac00895069006aa90000000000000"
+ },
+ "book_myndband_loftsteinn_65": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_65.mp3",
+  "duration": 3.85,
+  "mouth": "02dced7bcfff08eeecf0fd6000000000000000bef30cfee79feddb06dcadda665000000000000"
+ },
+ "book_myndband_loftsteinn_66": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_66.mp3",
+  "duration": 6.81,
+  "mouth": "dffc000000eed07c50ce60009b00004bb00dda09d9833885000000cffb0a509750000000000000000cf850ffdad7cabab07cabaedb009b9a95897a405bb30000000000000"
+ },
+ "book_myndband_loftsteinn_67": {
+  "src": "assets/audio/book/book_myndband_loftsteinn_67.mp3",
+  "duration": 1.69,
+  "mouth": "04fa020bfdced5dc936400000000000000"
  }
 }

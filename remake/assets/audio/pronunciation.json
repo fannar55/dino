@@ -345,7 +345,8 @@
         "Flugeðlurnar",
         "flugeðla",
         "flugeðlunum",
-        "flugeðlur"
+        "flugeðlur",
+        "flugeðlurnar"
       ],
       "recipes": {
         "hratt": {
@@ -360,7 +361,8 @@
             "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\"",
             "flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
             "flugeðlunum": "\"/ˈflʏːɣˌɛðlʏnʏm/\"",
-            "flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\""
+            "flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
+            "flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -379,7 +381,8 @@
             "Flugeðlurnar": "Flug-eðlurnar",
             "flugeðla": "flug-eðla",
             "flugeðlunum": "flug-eðlunum",
-            "flugeðlur": "flug-eðlur"
+            "flugeðlur": "flug-eðlur",
+            "flugeðlurnar": "flug-eðlurnar"
           },
           "note": "Bandstrik milli orðhlutanna, „flug-eðlur“. Hjá sögumanninum heyrði talgreining fyrstu töku línu 62 í heimsmyndbandinu („Yfir lóninu fljúga flugeðlur“) sem „flug eðlur“ eða „flugæðlur“, fræ 1 sem „flugæðlur“ og fræ 7 sem „flugeldur“, en þessa sem „flugeðlur“ í öll þrjú skiptin; lína 62 sendir þetta sjálf, með samhengi bókarinnar (óheyrt, 2026-11-09)."
         }
@@ -2357,7 +2360,8 @@
       "stem": "[Kk]lettavegg",
       "forms": [
         "Klettaveggurinn",
-        "klettaveggjanna"
+        "klettaveggjanna",
+        "klettavegg"
       ],
       "recipes": {
         "hratt": {
@@ -2366,7 +2370,8 @@
         "ipa": {
           "say": {
             "Klettaveggurinn": "\"/ˈkʰlɛhtaˌvɛkːʏrɪn/\"",
-            "klettaveggjanna": "\"/ˈkʰlɛhtaˌvɛcːanːa/\""
+            "klettaveggjanna": "\"/ˈkʰlɛhtaˌvɛcːanːa/\"",
+            "klettavegg": "\"/ˈkʰlɛhtaˌvɛkː/\""
           },
           "note": "IPA /ˈkʰlɛhtaˌvɛkːʏrɪn/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready, með „reipið“ líka í IPA)."
         },
@@ -2486,7 +2491,8 @@
       "stem": "[Ss]vaneðl",
       "forms": [
         "svaneðla",
-        "svaneðlurnar"
+        "svaneðlurnar",
+        "Svaneðlurnar"
       ],
       "recipes": {
         "hratt": {
@@ -2500,7 +2506,8 @@
         "ipa": {
           "say": {
             "svaneðla": "\"/ˈsvaːnˌɛðla/\"",
-            "svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\""
+            "svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\"",
+            "Svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\""
           },
           "seed": 42,
           "note": "IPA eftir sömu reglu og Flugeðla /ˈflʏːɣˌɛðla/, fræ 42 (óheyrt)."
@@ -2893,6 +2900,32 @@
           },
           "seed": 42,
           "note": "Þýskur framburður í IPA: v og hart g, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "chicxulub": {
+      "word": "Chicxulub",
+      "stem": "Chicxulub",
+      "forms": [
+        "Chicxulub"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Chicxulub": "Tsjiksjúlúb"
+          },
+          "note": "Eins og íslenskur sögumaður segir nafnið á gígnum: Tsjiksjúlúb (lína 37 í loftsteinsmyndbandinu, óheyrt). Á máli heimamanna er áherslan á síðasta atkvæðinu."
+        },
+        "ipa": {
+          "say": {
+            "Chicxulub": "\"/tʃikʃuˈlub/\""
+          },
+          "seed": 42,
+          "note": "IPA með áherslu á síðasta atkvæði, fræ 42 (óheyrt)."
         }
       },
       "chosen": null
