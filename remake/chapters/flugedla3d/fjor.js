@@ -105,7 +105,7 @@ const V_BEATS = 41; // the valley's part of the take: 19.68 s
 export const LENGTH = Math.round((VT + V_BEATS * BEAT) / BEAT) * BEAT; // the story's length, on a whole beat
 const vt = x => VT + x; // a second of the valley's part
 const D_BREAK = 1066; // m along the river where we come out of the cloud over the gorge (x about -1161)
-const ABOVE = 5.6; // m over the river through the gorge
+const ABOVE = 8; // m over the river through the gorge
 // how fast it goes up the river (m/s, along it): slow in the dive, 15 m/s down the gorge, slowing at the pool
 const V_SPEED = channel([
   { t: vt(1.6), over: 1.2, v: 15 }, { t: vt(10.4), over: 1.4, v: 4 }, { t: vt(12.6), over: 1.0, v: 0 },
@@ -129,8 +129,9 @@ const downYaw = d => { const a = riverAt(d - 12), b = riverAt(d + 12); return (M
 // the falls (kafli4-route.js FALLS: its face at x -1345, the water 16 m wide round z 126, from 50 m down to the pool at 10 m): she
 // climbs up beside the water's south edge, the camera ahead of her and above, out over the pool, looking along the face (north, +z)
 // and down at her
-export const FALLS_CLIMB = { her: [FALLS.face + 7, FALLS.z - 10], cam: [FALLS.face + 9, FALLS.z - 16], yaw: 180, from: vt(12.2), to: vt(16.4) };
-export const CREST = { from: vt(16.4), y: FALLS.top + 9 };
+export const FALLS_CLIMB = { her: [FALLS.face + 8, FALLS.z - 6], cam: [FALLS.face + 12, FALLS.z - 10], yaw: 180, from: vt(12.2), to: vt(16.4) };
+export const CREST = { from: vt(16.4), y: FALLS.top + 9, yaw: 96, at: [FALLS.face + 22, FALLS.z + 1] };
+const CREST_TURN = t => smooth((t - vt(15.2)) / 2.8);
 // the camera's height and its place off the river's line (blended to the falls' places from the pool on)
 const V_H = t => {
   const d = V_D(t);
@@ -173,9 +174,14 @@ export function valleyCamera(t, base = 0) {
   y = lerp(y, climbY, smooth((t - vt(11.6)) / 1.2));
   let yaw = downYaw(d);
   yaw = lerp(yaw, FALLS_CLIMB.yaw, sw);
+  // over the top: round to look back down the gorge from over the pool (the land falling away under her)
+  const cr = CREST_TURN(t);
+  yaw = lerp(yaw, CREST.yaw, cr);
+  px = lerp(px, CREST.at[0], cr);
+  pz = lerp(pz, CREST.at[1], cr);
   const pitch = V_PITCH(t);
   // roll: into the swing round at the pool (the yaw's rate), and a lean in the gorge's bends
-  const yawRate = (lerp(downYaw(V_D(t + 0.05)), FALLS_CLIMB.yaw, SWING(t + 0.05)) - yaw) / 0.05;
+  const yawRate = (lerp(lerp(downYaw(V_D(t + 0.05)), FALLS_CLIMB.yaw, SWING(t + 0.05)), CREST.yaw, CREST_TURN(t + 0.05)) - yaw) / 0.05;
   const roll = clamp(yawRate / 3, -20, 20);
   const speed = V_SPEED(t);
   const up = x < DROP.t1 ? -29 : 0;
@@ -334,7 +340,7 @@ export function herAt(t, cam) {
       // up the falls: climbing hard at the camera above her, head first
       air = { yaw: 0, pitch: face + 6, bank: 10 * Math.sin(TAU * t / (4 * BEAT)), sweep: 45, neck: 4, clip: 'fly', at: t * 2.2 };
     } else if (hold) {
-      air = { yaw: 0, pitch: face + (t > 20 ? 10 : 4), bank: 12 * Math.sin(TAU * t / (4 * BEAT)) + roll, sweep: 40, neck: bob, clip: 'fly', at: t * 1.5 };
+      air = { yaw: 0, pitch: face + (t > 20 && t < FLOCK.from ? 10 : 2), bank: 12 * Math.sin(TAU * t / (4 * BEAT)) + roll, sweep: 40, neck: bob, clip: 'fly', at: t * 1.5 };
     } else if (climb) {
       air = { yaw: 0, pitch: 62, bank: 0, sweep: 55, neck: 0, clip: 'fly', at: t * 2.1 };
     } else if (t >= VT) {
@@ -362,7 +368,7 @@ export const FLOCK_MEMBERS = [
   { layer: 'mid', scale: 0.92, tint: 0.9, phase: 0.6, keys: [[3, 0.66, 0.4, 9.5, 0], [9, 0.72, 0.4, 0.95, -20], [10, 0.62, 0.36, 0.95, -45], [12, 0.64, 0.38, 0.95, 0], [19, 0.7, 0.4, 1.0, 0], [23, 1.1, 0.92, 1.5, 60]] },
   { layer: 'near', scale: 0.95, tint: 1.0, phase: 0.85, keys: [[3, 0.2, 0.98, 2.6, 0], [9, 0.16, 0.66, 0.56, 25], [10, 0.24, 0.62, 0.56, -45], [12, 0.22, 0.64, 0.56, 0], [19, 0.18, 0.66, 0.56, 0], [22.5, -0.25, 0.95, 0.8, -60]] },
   // the near one on the right, then the sweep across under her (in front of the screen, from the right edge out at the left)
-  { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.86, 0.68, 0.56, -25], [11.4, 1.18, 0.8, 0.36, -60], [11.5, 1.18, 0.86, 0.32, -70], [13.2, -0.2, 0.86, 0.32, -70], [13.3, -0.2, 0.8, 0.5, -30], [15.5, 0.12, 0.62, 0.62, 10], [19, 0.15, 0.64, 0.62, 0], [22.5, -0.2, 0.95, 0.9, -60]] },
+  { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.86, 0.68, 0.56, -25], [11.4, 1.2, 0.86, 0.4, -15], [11.5, 1.2, 0.93, 0.36, -15], [13.2, -0.22, 0.93, 0.36, -15], [13.3, -0.22, 0.86, 0.5, -15], [15.5, 0.12, 0.62, 0.62, 10], [19, 0.15, 0.64, 0.62, 0], [22.5, -0.2, 0.95, 0.9, -60]] },
 ];
 /** A flock member at story second t: { at: [u, v, k], bank, heading (degrees off the camera's), scale, flap } or null before it is up. */
 export function flockAt(m, t) {
@@ -379,7 +385,8 @@ export function flockAt(m, t) {
   const u = lerp(a[1], c[1], f), v = lerp(a[2], c[2], f), k = lerp(a[3], c[3], f), bank = lerp(a[4], c[4], f);
   // a little bob of their own, and their heading turned into their sideways motion
   const du = (c[1] - a[1]) / Math.max(0.2, c[0] - a[0]);
-  return { at: [u + 0.01 * Math.sin(TAU * (t / 2.1 + m.phase)), v + 0.012 * Math.sin(TAU * (t / 1.7 + m.phase)), k], bank, heading: clamp(-du * 60, -40, 40), scale: m.scale };
+  const sweep = a[3] < 0.4 && c[3] < 0.4; // (side-on across the picture)
+  return { at: [u + 0.01 * Math.sin(TAU * (t / 2.1 + m.phase)), v + 0.012 * Math.sin(TAU * (t / 1.7 + m.phase)), k], bank, heading: sweep ? Math.sign(-du) * 80 : clamp(-du * 60, -40, 40), scale: m.scale };
 }
 
 // ---- the butterfly: darting all over the picture ----
@@ -422,8 +429,8 @@ export function butterflyAt(t, her, D = FJOR_D) {
   k = lerp(k, 0.33, away);
   // the dive: it leads her down, just above the middle (between her beak and us)
   const drop = DROP_B(t);
-  uu = lerp(uu, 0.56 + 0.07 * Math.sin(TAU * t / 0.9), drop);
-  vv = lerp(vv, 0.66 + 0.04 * Math.sin(TAU * t / 0.7), drop);
+  uu = lerp(uu, 0.66 + 0.06 * Math.sin(TAU * t / 0.9), drop);
+  vv = lerp(vv, 0.6 + 0.04 * Math.sin(TAU * t / 0.7), drop);
   k = lerp(k, 0.29, drop);
   // up the falls: it shoots up at the camera, out over the top of the picture
   const upf = UP_FALLS(t);

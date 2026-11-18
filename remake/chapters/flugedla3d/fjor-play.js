@@ -16,6 +16,7 @@ import { createFlightSounds, loadFlightRecordings } from '../../engine/audio/fli
 
 const rad = d => (d * Math.PI) / 180;
 const clamp01 = x => Math.min(1, Math.max(0, x));
+const DBG = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('dbg') ?? '' : ''; // (a probe's look without the fog or the clouds)
 const SONG_BASE = new URL('../../assets/audio/kafli5/song/', import.meta.url);
 // the take's big moves, each a whoosh from its side (on the beat where they land), in the story's seconds
 const WHOOSH = [[2.6, 1], [7.4, -1], [8.9, 1], [9.6, -1], [10.4, 1], [11.0, -1], [13.4, 1], [FLOCK.beat(11.5), 1], [TIP + 0.3, 0], [VALLEY.t + 2.3, 0],
@@ -100,8 +101,9 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     clouds.mesh.material.uniforms.uBase.value.set(off.x, base, off.z);
     Object.assign(cloudCam, { x: cam.x - off.x, y: cam.y, z: cam.z - off.z });
     clouds.update(cloudCam);
+    if (DBG.includes('noclouds')) clouds.mesh.visible = false;
     const overFloor = valley ? cam.y - (world.heightAt?.(cam.x, cam.z) ?? 0) : c.y;
-    if (fog0 !== null) world.scene.fog.density = fog0 * (0.62 - 0.4 * clamp01((overFloor - 12) / 30));
+    if (fog0 !== null) world.scene.fog.density = DBG.includes('nofog') ? 0 : fog0 * (0.62 - 0.4 * clamp01((overFloor - 12) / 30));
     // the valley is not drawn while the camera is over the cloud (the cloud sea hides it)
     const above = cam.y - base > CLOUD_Y.lo - 6;
     if (world.location === 'ardalur' && world.forest?.group) world.forest.group.visible = !above;

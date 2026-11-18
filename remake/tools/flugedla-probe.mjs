@@ -209,9 +209,9 @@ async function run(o) {
 // ---- the fast take (?profa=fjor): the loosened rules of 2026-11-16 (the plan's section 12) ----
 // 6 % budget; past 3 % out in u 0.2-0.8 unless in a fast pass; a thing an edge cuts in front of the screen only for a moment
 // (dwell: consecutive frames with the border's nearest non-floor depth in front, k < 1); the floor at the bottom edge to about k 0.6.
-// (round 2b, real seconds: slow 1, hold 1, swoosh 2, the rocket, hold 2, past Þórseðla, coming to her head, the slow corkscrew at it,
-// the butterfly shooting up from it, the dive's hold)
-const FJOR_STILLS = [3.6, 6.3, 8.6, 10.8, 13.0, 14.5, 18.5, 21.4, 23.9, 33.6];
+// (round 3, real seconds: the forest's hold 1, the flock's layers, the near sweep under her, the nose-over, out of the cloud over the
+// gorge, the dive's peak, the gorge with birds twice, up the falls, the crest's hold)
+const FJOR_STILLS = [5.0, 23.96, 27.52, 32.52, 34.58, 35.13, 39.13, 43.13, 47.93, 52.13];
 async function fjorTrial(o, server, { say, report }) {
   await page(o, server, `profa=fjor${o.plane ? '&d=' + o.plane : ''}`, async ({ evaluate, shoot, errors }) => {
     const length = await evaluate('window.__world.flugedla3d.length');
@@ -221,7 +221,7 @@ async function fjorTrial(o, server, { say, report }) {
       const t = +(i * o.step).toFixed(4);
       await evaluate(`window.__world.flugedla3d.seek(${t})`);
       await evaluate('window.__advance(1 / 60)');
-      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white, story: st.story, rate: st.rate, thor: f.fjor.thorProbe ? f.fjor.thorProbe() : null }; })()`);
+      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white, story: st.story, rate: st.rate, thor: null, place: st.place, flock: st.flock ? st.flock.map(x => ({ ...x })) : [], birds: st.birds ? st.birds.map(x => ({ k: x.k, u: x.u, dart: x.dart })) : [], camPitch: st.cam.pitch }; })()`);
       r.t = t;
       rows.push(r);
     }
@@ -385,11 +385,11 @@ async function fjorTrial(o, server, { say, report }) {
     report.trials.fjor = rows.map(r => ({ t: r.t, cam: r.cam, white: r.white, her: r.her && { outNear: r.her.outNear, outFar: r.her.outFar, span: r.her.span, left: r.her.left, right: r.her.right }, butterfly: r.butterfly && { outNear: r.butterfly.outNear, at: r.bfly }, border: r.background.border, borderAt: r.background.borderAt, floor: r.background.groundBorder, gap: r.gap, plants: r.plants, herInfo: r.herInfo }));
     if (o.stills) for (const t of o.fjorStills ?? FJOR_STILLS) {
       await evaluate(`window.__world.flugedla3d.seek(${t})`);
-      await evaluate('window.__advance(1 / 30)');
+      for (let i = 0; i < 3; i++) await evaluate('window.__advance(1 / 30)'); // (the valley shows its sections from the frame after a jump)
       await shoot(path.resolve(o.out, `${o.prefix ?? "fjor-g1"}-${t}s.png`));
     }
     if (o.bench) {
-      for (const t of [5.3, 13.0, 21.4, 33.6]) {
+      for (const t of [5.3, 12.0, 23.96, 27.52, 33.0, 35.13, 39.13, 43.13, 47.93, 52.13]) {
         await evaluate(`window.__world.flugedla3d.seek(${t})`);
         await evaluate('window.__advance(1 / 30)');
         const on = await evaluate('window.__benchmark(90)');

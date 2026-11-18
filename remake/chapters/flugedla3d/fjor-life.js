@@ -66,7 +66,7 @@ export function createFjorLife(world, { url }) {
   const hideFlock = () => { for (const f of flock) if (f) f.actor.root.visible = false; };
 
   // ---- the little birds ----
-  let birds = null;
+  let birds = null, birdsError = null;
   const birdsReady = (async () => {
     const gltf = await new GLTFLoader().loadAsync(BIRD_MODEL);
     const model = crowdModelFrom(gltf);
@@ -75,14 +75,14 @@ export function createFjorLife(world, { url }) {
     const flight = new THREE.InstancedBufferAttribute(new Float32Array(BIRDS.length * 2), 2);
     flight.setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute('aFlight', flight);
-    const mesh = new THREE.InstancedMesh(geometry, birdMaterial('bird', { wing: model.wing ?? null }), BIRDS.length);
+    const mesh = new THREE.InstancedMesh(geometry, birdMaterial('bird', { wing: model.wing ?? null, map: model.material?.map ?? null }), BIRDS.length);
     mesh.name = 'flugedla3d birds';
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.visible = false;
     scene.add(mesh);
     birds = { mesh, flight };
-  })().catch(error => console.warn('[flugedla3d] the birds could not be loaded:', error?.message ?? error));
+  })().catch(error => { console.warn('[flugedla3d] the birds could not be loaded:', error?.message ?? error); birdsError = String(error?.stack ?? error); });
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), fwd = new THREE.Vector3(), dir = new THREE.Vector3();
   const birdInfo = [];
   /** The birds at story second t, in the picture; they face the way the camera flies (as she does), the darting ones across it. */
@@ -154,7 +154,7 @@ export function createFjorLife(world, { url }) {
       const y = FALLS.base + 0.5 + age * (8 + 10 * hash(i, 5));
       pos.set([x, y, z], i * 3);
       size[i] = 1.6 + 2.4 * age;
-      alpha[i] = 0.32 * Math.sin(Math.PI * age) * fade;
+      alpha[i] = 0.16 * Math.sin(Math.PI * age) * fade;
     }
     // the drops: from beside her (k 0.8) up at the camera (k 0.3), in front of the screen, on the climb
     const climb = Math.max(0, Math.min(1, (t - FALLS_CLIMB.from) / 0.6)) * Math.max(0, Math.min(1, (FALLS_CLIMB.to + 0.6 - t) / 0.6));
@@ -174,5 +174,5 @@ export function createFjorLife(world, { url }) {
     return climb;
   }
 
-  return { ready: Promise.all([flockReady, birdsReady]), poseFlock, hideFlock, poseBirds, poseSpray, flock, get birds() { return birds; }, spray };
+  return { ready: Promise.all([flockReady, birdsReady]), poseFlock, hideFlock, poseBirds, poseSpray, flock, get birds() { return birds; }, get birdsError() { return birdsError; }, spray };
 }
