@@ -2,15 +2,16 @@
 // read off the set itself (kafli5-set.js: its sections, its tune and its cues), so a set cut again moves the show with it.
 //
 // Everything here is a pure function of the DANCE beat (kafli5-video.js): the set's beat, spooled back in the rewind and standing
-// still in Stoppdans. An event of the set is kept at the dance beat it is heard on, and two that fall on the same dance beat (the
-// drop, and the drop again after the rewind) are one. Nothing here knows a clock, a frame or three.js: kafli5-show.js draws it,
-// tests/kafli5-show.test.mjs holds it.
+// still in Stoppdans (but the big words, which are a function of the set's own beat: wordAt). An event of the set is kept at the
+// dance beat it is heard on, and two that fall on the same dance beat (the drop, and the drop again after the rewind) are one.
+// Nothing here knows a clock, a frame or three.js: kafli5-show.js draws it, tests/kafli5-show.test.mjs holds it.
 //
 //   fireflies   createFireflies: each one's place, size, light and colour at a beat
 //   dusk        duskAt: how deep the dusk is (it falls under her horn and stays), liftAt: the soft flashes,
 //               capAt: the sun's nightcap, on while the dusk lasts
 //   splashes    SPLASHES, dropAt, splashRingAt: the crowns of drops on the drops, a ring where a frog lands and where the grazers stomp
-//   the count   COUNTS, countAt: the big number on the screen
+//   the count   COUNTS, countAt: the big number on the screen, bigger with every number
+//   the words   WORDS, wordAt: the big word on the screen as she shouts it (by the SET's beat)
 //   notes       NOTES, noteAt, notePoint: the glowing notes between the groups, her crest and the sky
 //   the beat    pulseAt, energyOf, beatRingsAt: the backbeat in the lights, rings of light on the water
 import { SONG } from './kafli5-set.js';
@@ -149,22 +150,83 @@ export function beatRingsAt(beat, energy, emit) {
 // ---------------------------------------------------------------------------------------------
 // The countdown's big numbers
 
-export const COUNT = { on: 1.3, pop: 0.3, out: 0.35 }; // beats a number is on, pops in over and goes over
+// beats a number is on, pops in over and goes over; and how big each is, the letters' size as a share of the screen's height: the
+// count grows with every number (the owner's yes of 2026-11-18), so "NÚ!" tops them. On a screen held upright a number's size is
+// held to `upright` of that share of the screen's width instead, so the word after it, which the width holds, still tops it.
+export const COUNT = { on: 1.3, pop: 0.3, out: 0.35, sizes: { 5: 0.4, 4: 0.5, 3: 0.6, 2: 0.72, 1: 0.85 }, upright: 0.68 };
 /** The numbers she counts, each at its dance beat: [{ beat, n }]. */
 export const COUNTS = heard(cues('count'), event => event.n).map(({ beat, n }) => ({ beat, n }));
 const backOut = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2; // past its size and back
 /**
- * The number on the screen at `beat`: null, or { n, scale, opacity } (scale 1 is its full size). It pops in on its beat and is gone
- * well before the next. With less motion it is half the size and only fades.
+ * The number on the screen at `beat`: null, or { n, scale, opacity, height, width } (scale 1 is its full size, which is `height`
+ * of the screen's height and at most `width` of its width: engine/show/big-number.js). It pops in on its beat and is gone well
+ * before the next. With less motion it is half the size and only fades.
  */
 export function countAt(beat, { reduced = false } = {}) {
   for (const { beat: from, n } of COUNTS) {
     const age = beat - from;
     if (age < 0 || age >= COUNT.on) continue;
+    const height = COUNT.sizes[n] ?? COUNT.sizes[5];
+    const size = { height, width: height * COUNT.upright };
     const out = clamp01((age - (COUNT.on - COUNT.out)) / COUNT.out);
-    if (reduced) return { n, scale: 0.5, opacity: Math.min(clamp01(age / COUNT.pop), 1 - out) };
+    if (reduced) return { n, scale: 0.5, opacity: Math.min(clamp01(age / COUNT.pop), 1 - out), ...size };
     const pop = age < COUNT.pop ? backOut(age / COUNT.pop) : 1;
-    return { n, scale: (0.4 + 0.6 * pop) * (1 + 0.22 * out), opacity: Math.min(clamp01(age / 0.1), 1 - out) };
+    return { n, scale: (0.4 + 0.6 * pop) * (1 + 0.22 * out), opacity: Math.min(clamp01(age / 0.1), 1 - out), ...size };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The big words: what Flugeðla shouts, slammed onto the screen (the owner's yes of 2026-11-18: "NÚ!", "AFTUR!", "STOPP!" and
+// "HOPP!", and no others: the gap after "segðu já!" is the child's own).
+//
+// A word is kept at the SET's beat, not the dance beat: "Aftur!" is shouted inside the rewind, where the dance beat runs
+// backwards, and "Stopp!" stands while the dance beat stands still. It is still a pure function of the game's time, so a held game
+// and a capture find it as it is at that moment.
+
+/**
+ * How a word comes and goes (beats) and how big it is: `across` of the screen's width at most (a long word on a tablet held
+ * upright), its letters `height` of the screen's height at most (a short word on one held flat). It comes in fast, a little past
+ * its size and back, stands, and bursts away: `burst` bigger as it fades.
+ */
+export const WORD = { pop: 0.28, out: 0.35, across: 0.88, height: 0.7, burst: 0.1, hop: 0.8 }; // (hop: the beats a hop takes)
+/**
+ * Each word: the line of the set it is (SONG.set.lines), how many beats it is on, how wide it is in letter sizes, its outline counted (measured in the
+ * page: Nunito at weight 900), and
+ *   lift   it stands this much lower (in letter sizes, negative: down): "NÚ!" has an accent over it, which wants room at the top
+ *   still  it stands dead still and only fades: "STOPP!", through the first beats of the freeze, as the music does
+ *   hop    it hops this high (letter sizes) on its second beat: "HOPP!"
+ *   again  the set's part on whose first beat it shows once more: the drop after the rewind is the drop again, word and all
+ */
+const SHOUTS = [
+  { line: 'now', on: 2.3, wide: 1.85, lift: -0.15, again: 'redrop' },
+  { line: 'aftur', on: 2, wide: 3.8 }, // to the drop it calls back, where "NÚ!" takes its place
+  { line: 'stopp', on: 2, wide: 3.76, still: true }, // gone as the camera finds the turtle that moved
+  { line: 'hopp', on: 2.3, wide: 3.3, hop: 0.16 },
+  { line: 'hopp-2', on: 2.3, wide: 3.3, hop: 0.16 },
+];
+/** The words on the screen, each at the set's beat it is shouted on: [{ beat, text, on, wide, lift, still, hop }]. */
+export const WORDS = SHOUTS.flatMap(({ line, again = null, lift = 0, still = false, hop = 0, ...word }) => {
+  const said = SET.lines.find(entry => entry.id === line);
+  if (!said) return []; // a set cut again without that shout plays on without the word
+  const one = { ...word, lift, still, hop, text: said.text.toLocaleUpperCase('is') };
+  return [{ ...one, beat: said.beat }, ...(again && part(again) ? [{ ...one, beat: part(again).startBeat }] : [])];
+}).sort((a, b) => a.beat - b.beat);
+/**
+ * The word on the screen at the set's beat `setBeat`: null, or { text, scale, opacity, height, width, lift } (as countAt's, for
+ * engine/show/big-number.js). With less motion it is half the size and only fades.
+ */
+export function wordAt(setBeat, { reduced = false } = {}) {
+  for (const word of WORDS) {
+    const age = setBeat - word.beat;
+    if (age < 0 || age >= word.on) continue;
+    const size = { height: WORD.height, width: WORD.across / word.wide };
+    const out = clamp01((age - (word.on - WORD.out)) / WORD.out);
+    const opacity = Math.min(clamp01(age / 0.1), 1 - out);
+    if (reduced) return { text: word.text, scale: 0.5, opacity: Math.min(clamp01(age / WORD.pop), 1 - out), ...size, lift: word.lift };
+    const pop = age < WORD.pop ? backOut(age / WORD.pop) : 1;
+    const hop = word.hop * Math.sin(Math.PI * clamp01((age - 1) / WORD.hop)); // up and down again, from its second beat
+    return { text: word.text, scale: (0.4 + 0.6 * pop) * (word.still ? 1 : 1 + WORD.burst * out), opacity, ...size, lift: word.lift + hop };
   }
   return null;
 }

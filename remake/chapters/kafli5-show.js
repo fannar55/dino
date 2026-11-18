@@ -1,7 +1,8 @@
 // The show round the music video (chapter 5, scene 6): the fireflies, the dusk in the quiet part, the splashes, the big numbers of
-// the countdown, the glowing notes and the beat in the light. kafli5.js makes one of these as the set starts and gives it every
-// frame of the set; everything here is a pure function of the dance beat (kafli5-video.js), so the rewind spools it back and
-// Stoppdans freezes it.
+// the countdown (bigger with every number) and the big words Flugeðla shouts ("NÚ!", "AFTUR!", "STOPP!", "HOPP!"), the glowing
+// notes and the beat in the light. kafli5.js makes one of these as the set starts and gives it every frame of the set; everything
+// here is a pure function of the dance beat (kafli5-video.js), so the rewind spools it back and Stoppdans freezes it (but the
+// words, which are a function of the set's own beat: she shouts "Aftur!" inside the rewind and "Stopp!" stands in the freeze).
 //
 // What happens when is the score's (kafli5-show-score.js: read off the set's own sections, tune and cues); this file draws it,
 // every frame anew from the beat, with the engine's small tools (engine/show/): the lights in the air are one draw call of points
@@ -10,12 +11,13 @@
 // no time and no state of its own: update() with the same beat draws the same picture, whatever came before.
 //
 // With less motion (c.reduced): half the fireflies at half the size, drifting only (no swarm, no burst), no beat in the light, no
-// flash, the dusk half as deep, the numbers half the size and fading, the notes fading out at one end and in at the other.
+// flash, the dusk half as deep, the numbers and the words half the size and fading, the notes fading out at one end and in at the
+// other.
 // The address's `syning=0` leaves the show out (to measure what it costs).
 import { CHOIR, GROUPS, WADE } from './kafli5-pool.js';
 import { FAR_POOL } from './kafli4-route.js';
 import {
-  createFireflies, FIREFLIES, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR, dropAt, splashRingAt, countAt, duskAt, liftAt, capAt,
+  createFireflies, FIREFLIES, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR, dropAt, splashRingAt, countAt, wordAt, duskAt, liftAt, capAt,
   energyOf, pulseAt, beatRingsAt, padOf,
 } from './kafli5-show-score.js';
 import { createLightPoints } from '../engine/show/lights.js';
@@ -159,8 +161,11 @@ export function createShow(c, { doc = c.world?.page ?? globalThis.document ?? nu
     rings.end();
     dusk.set(dark * (reduced ? 0.5 : 1), reduced ? 0 : liftAt(beat));
     c.sun?.cap?.(capAt(beat)); // its nightcap comes down as the dusk falls, and stays on
+    // the countdown's number, or the word she shouts (by the set's own beat: "AFTUR!" stands in the rewind, "STOPP!" in the freeze)
     const count = countAt(beat, { reduced });
+    const word = count ? null : wordAt(video.setBeat ?? beat, { reduced });
     if (count) number.show(String(count.n), count);
+    else if (word) number.show(word.text, word);
     else number.hide();
   }
 

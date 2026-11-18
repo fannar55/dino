@@ -6,12 +6,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
-  BURSTS, PUFFS, COUNTS, COUNT, countAt, DUSK, duskAt, CAP, capAt, FLASHES, LIFT, liftAt, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR,
+  BURSTS, PUFFS, COUNTS, COUNT, countAt, WORDS, WORD, wordAt, DUSK, duskAt, CAP, capAt, FLASHES, LIFT, liftAt, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR,
   dropAt, splashRingAt, createFireflies, FIREFLIES, outAt, gatherAt, pulseAt, energyOf, beatRingsAt, BEAT_RING, padOf, BEAT_SECONDS,
 } from '../chapters/kafli5-show-score.js';
 import { createShow } from '../chapters/kafli5-show.js';
 import { createDusk } from '../engine/show/dusk.js';
-import { createBigNumber } from '../engine/show/big-number.js';
+import { createBigNumber, LETTERS, ROOM } from '../engine/show/big-number.js';
 import { BENDS, danceBeatAt, sectionAt } from '../chapters/kafli5-video.js';
 import { SONG } from '../chapters/kafli5-set.js';
 import { CHOIR, GROUPS, WADE, seatsOf } from '../chapters/kafli5-pool.js';
@@ -63,6 +63,113 @@ test('the countdown: each number on its beat, big and clear, and gone well befor
     assert.equal(scale, 0.5);
     assert.ok(opacity >= 0 && opacity <= 1);
   }
+  // the count grows with every number (the owner's yes of 2026-11-18): from about 40 % of the screen's height to about 85 %
+  const sizes = COUNTS.map(({ beat }) => countAt(beat + 0.6).height);
+  sizes.slice(1).forEach((size, k) => assert.ok(size >= sizes[k] * 1.15, `${COUNTS[k + 1].n} is clearly bigger than ${COUNTS[k].n} (${sizes[k]} to ${size})`));
+  assert.ok(Math.abs(sizes[0] - 0.4) < 0.05 && Math.abs(sizes.at(-1) - 0.85) < 0.06, `from ${sizes[0]} to ${sizes.at(-1)} of the screen's height`);
+  for (const { beat } of COUNTS) {
+    const { height, width } = countAt(beat + 0.6);
+    assert.ok(width > 0 && width <= height, 'and held by the width on a screen held upright');
+    assert.deepEqual([countAt(beat + 0.1).height, countAt(beat + 1.2).height], [height, height], 'a number is one size all its time: only its scale moves');
+  }
+});
+
+// The screens a word and a number must fit: a tablet held flat and one held upright (CSS px).
+const SCREENS = [[1280, 800], [820, 1180]];
+const DIGIT_WIDE = LETTERS.digit + 2 * LETTERS.outline;
+const CAPTION_TOP = 113; // px from the screen's bottom to the caption's top edge (style.css .caption, one line of text)
+/** Where the ink of `spec` (countAt's or wordAt's, with its text's width in letter sizes, outline and all, and whether it has an accent) is on a screen. */
+function inkOf(spec, { wide, accent = false }, [w, h]) {
+  const font = Math.min(spec.height * h, spec.width * w);
+  const middle = (h - ROOM) / 2 - (spec.lift ?? 0) * font; // the letters' box is centred in what the caption leaves free
+  const up = (LETTERS.cap - LETTERS.line + (accent ? LETTERS.accent : 0) + LETTERS.outline) * font * spec.scale; // the line is LETTERS.line under the box's middle
+  const down = (LETTERS.line + LETTERS.outline) * font * spec.scale;
+  return { font, top: middle - up, bottom: middle + down, width: wide * font * spec.scale, capital: LETTERS.cap * font * spec.scale };
+}
+
+test('the big words: NÚ! on the drops, AFTUR! in the rewind, STOPP! in the freeze and HOPP! twice, each as she shouts it and for about a second', () => {
+  const line = id => SET.lines.find(entry => entry.id === id);
+  assert.deepEqual(WORDS.map(word => [word.text, word.beat]), [
+    ['NÚ!', line('now').beat], ['AFTUR!', line('aftur').beat], ['NÚ!', part('redrop').startBeat], ['STOPP!', line('stopp').beat],
+    ['HOPP!', line('hopp').beat], ['HOPP!', line('hopp-2').beat],
+  ], 'these and no others: no JÁ! (the gap is the child\'s), no DANSA!, no HÆRRA!');
+  assert.deepEqual([line('now').beat, part('redrop').startBeat], [part('drop').startBeat, BENDS.rewind.to], 'the two drops');
+  WORDS.forEach((word, k) => {
+    const { beat, text, on } = word;
+    assert.equal(wordAt(beat - 0.01)?.text ?? null, k && WORDS[k - 1].beat + WORDS[k - 1].on > beat - 0.01 ? WORDS[k - 1].text : null, `${text} is not there before it is shouted`);
+    // in fast, a little past its size and back
+    assert.ok(wordAt(beat).scale < 0.5 && wordAt(beat).opacity === 0, `${text} pops in from small`);
+    const peak = Math.max(...Array.from({ length: 40 }, (_, i) => wordAt(beat + (i / 40) * WORD.pop).scale));
+    assert.ok(peak > 1.02 && peak < 1.12, `${text}: a small overshoot (${peak.toFixed(3)})`);
+    assert.ok(WORD.pop * BEAT_SECONDS < 0.2, 'in under a fifth of a second');
+    // it stands whole, long enough for an early reader, and is gone soon after
+    const whole = [];
+    for (let age = 0; age < on; age += FRAME / 4) { const now = wordAt(beat + age); if (now.opacity === 1 && Math.abs(now.scale - 1) < 0.07) whole.push(age); }
+    const stands = (whole.at(-1) - whole[0]) * BEAT_SECONDS;
+    assert.ok(stands >= 0.7 && on * BEAT_SECONDS >= 0.9 && on * BEAT_SECONDS <= 1.25, `${text} stands ${stands.toFixed(2)} s of its ${(on * BEAT_SECONDS).toFixed(2)} s`);
+    const after = wordAt(beat + on);
+    assert.ok(!after || (WORDS[k + 1].beat === beat + on && after.scale < 0.5), `${text} is gone after its time (or the next word pops in)`);
+    const last = wordAt(beat + on - 0.02);
+    assert.ok(last.opacity < 0.1, `${text} fades out`);
+    // one size all its time, held by the screen's width (a long word on a tablet held upright)
+    assert.deepEqual([wordAt(beat + 0.1).height, wordAt(beat + 0.1).width], [wordAt(beat + 1).height, wordAt(beat + 1).width]);
+    // with less motion: half the size, and only a fade
+    for (let age = 0; age < on; age += 0.05) {
+      const calm = wordAt(beat + age, { reduced: true });
+      assert.ok(calm.scale === 0.5 && calm.opacity >= 0 && calm.opacity <= 1 && calm.lift === word.lift);
+    }
+  });
+  // AFTUR! stands inside the rewind, by the set's own beat, and gives way to the drop it calls back
+  const [aftur] = WORDS.filter(word => word.text === 'AFTUR!');
+  assert.ok(aftur.beat > BENDS.rewind.from && aftur.beat + aftur.on <= BENDS.rewind.to, 'in the rewind');
+  // STOPP! stands dead still through the first beats of the freeze, as the music does, and is gone when the turtle that moved is shown
+  const [stopp] = WORDS.filter(word => word.text === 'STOPP!');
+  assert.equal(stopp.beat, BENDS.freeze.from);
+  for (let age = WORD.pop; age < stopp.on; age += 0.05) assert.deepEqual([wordAt(stopp.beat + age).scale, wordAt(stopp.beat + age).lift], [1, 0], 'STOPP! does not move');
+  assert.ok(stopp.beat + stopp.on <= line('turtle-moved').beat && stopp.beat + stopp.on < BENDS.freeze.to);
+  // HOPP! hops once, and lands
+  const [hopp] = WORDS.filter(word => word.text === 'HOPP!');
+  assert.ok(wordAt(hopp.beat + 1 + WORD.hop / 2).lift > 0.1 && wordAt(hopp.beat + 0.9).lift === 0 && Math.abs(wordAt(hopp.beat + 1 + WORD.hop).lift) < 1e-9);
+  // never a word and a number at once, and no word outside its own time (the rewind and the freeze included)
+  for (const { setBeat, beat } of framesOfTheSet) {
+    const word = wordAt(setBeat);
+    assert.ok(!(word && countAt(beat)), `a word and a number at ${setBeat.toFixed(2)}`);
+    assert.ok(!word || WORDS.some(w => setBeat >= w.beat && setBeat < w.beat + w.on));
+  }
+  const shown = framesOfTheSet.filter(({ setBeat }) => wordAt(setBeat)).length * FRAME * BEAT_SECONDS;
+  assert.ok(shown < 8, `a word is on the screen ${shown.toFixed(1)} s of the set's 230`);
+});
+
+test('every number and every word fits a tablet held flat and one held upright, clear of the caption, and NÚ! tops the count', () => {
+  const widths = Object.fromEntries(WORDS.map(word => [word.text, word.wide]));
+  for (const screen of SCREENS) {
+    const [w, h] = screen;
+    const name = `${w}x${h}`;
+    let widest = 0;
+    for (const { setBeat, beat } of framesOfTheSet) {
+      const count = countAt(beat);
+      const spec = count ?? wordAt(setBeat);
+      if (!spec) continue;
+      const text = count ? String(count.n) : spec.text;
+      const ink = inkOf(spec, { wide: count ? DIGIT_WIDE : widths[text], accent: /[ÁÉÍÓÚÝÖ]/.test(text) }, screen);
+      widest = Math.max(widest, ink.width / w);
+      assert.ok(ink.width <= w - 16, `${text} at ${setBeat.toFixed(2)} on ${name}: ${ink.width.toFixed(0)} px wide`);
+      if (spec.opacity < 0.5) continue; // (bursting away, nearly gone)
+      assert.ok(ink.top >= 0, `${text} at ${setBeat.toFixed(2)} on ${name}: its top at ${ink.top.toFixed(0)} px`);
+      assert.ok(ink.bottom <= h - CAPTION_TOP, `${text} at ${setBeat.toFixed(2)} on ${name}: its foot at ${ink.bottom.toFixed(0)} px, the caption's top at ${h - CAPTION_TOP}`);
+    }
+    assert.ok(widest > 0.8, `the widest word fills the width on ${name} (${widest.toFixed(2)})`);
+    // the count's last number against the word that follows it
+    const one = inkOf(countAt(COUNTS.at(-1).beat + 0.6), { wide: DIGIT_WIDE }, screen);
+    const five = inkOf(countAt(COUNTS[0].beat + 0.6), { wide: DIGIT_WIDE }, screen);
+    const now = inkOf(wordAt(WORDS[0].beat + 1), { wide: widths['NÚ!'], accent: true }, screen);
+    assert.ok(five.capital >= 100, `"5" is ${five.capital.toFixed(0)} px high on ${name}: big enough to read at a glance`);
+    assert.ok(one.capital >= five.capital * 1.9, `the count has doubled by "1" on ${name}`);
+    assert.ok(now.width >= one.width * 2 && now.bottom - now.top >= one.bottom - one.top - 2 && now.capital >= one.capital * 0.8,
+      `NÚ! tops "1" on ${name}: ${now.width.toFixed(0)} px wide and ${(now.bottom - now.top).toFixed(0)} high against ${one.width.toFixed(0)} and ${(one.bottom - one.top).toFixed(0)}`);
+    assert.ok(now.width > w * 0.75, `NÚ! is ${(now.width / w * 100).toFixed(0)} % of the width on ${name}`);
+  }
+  assert.ok(ROOM >= CAPTION_TOP, 'the letters stand in the middle of what the caption leaves free');
 });
 
 test('the dusk sinks as her horn begins and it is dusk from then on: through the build, the drop, the rewind and to the last hit', () => {
@@ -425,10 +532,30 @@ test('the show in the set: the first fireflies, the notes, the frogs\' rings, th
     assert.equal(number.shown, null);
     assert.equal(el.style.display, 'none', 'gone before the next');
   }
+  // the drop: "NÚ!" in the same piece of the page, at its own size, and gone before the drop's first bar is out
   show.update(video(BURSTS[0] + 0.5));
-  assert.equal(number.shown, null);
+  assert.equal(number.shown.text, 'NÚ!');
+  assert.equal(numbers().length, 1);
+  const [el] = numbers();
+  assert.equal(el.children[0].textContent, 'NÚ!');
+  assert.match(el.children[0].style.fontSize, /^min\(70vh, [\d.]+vw\)$/, 'held by the height on a screen held flat, by the width on one held upright');
+  assert.ok(el.style.cssText.includes(`padding-bottom: ${ROOM}px`), 'in the middle of what the caption leaves free');
   assert.ok(rings.count >= SPLASH.crowns, 'the crowns\' rings on the drop');
   assert.ok(drawn(show).lights.filter(light => light.shape[1] > 0.7).length > SPLASH.crowns * 6, 'and their drops in the air');
+  show.update(video(BURSTS[0] + 3));
+  assert.equal(number.shown, null);
+  // the words are the set's own beat's: AFTUR! in the rewind, NÚ! again on the drop after it, STOPP! in the freeze, HOPP! twice
+  for (const { beat, text } of WORDS) {
+    show.update(video(beat + 0.8));
+    assert.equal(number.shown.text, text, `${text} at the set's beat ${beat}`);
+    assert.equal(el.children[0].textContent, text);
+    assert.equal(el.style.display, 'flex');
+    show.update(video(beat + 2.4));
+    assert.ok(!number.shown || number.shown.text !== text, `${text} is gone (the drop's NÚ! follows AFTUR!)`);
+  }
+  // a number after a word takes its own size back
+  show.update(video(COUNTS[0].beat + 0.5));
+  assert.equal(el.children[0].style.fontSize, 'min(40vh, 27.2vw)');
   show.dispose();
   assert.equal(numbers().length, 0);
 });
@@ -507,6 +634,8 @@ test('with less motion: no beat, no flash, half the dusk, half the fireflies, th
   assert.ok(Math.abs(show.parts.dusk.depth - 0.5) < 1e-9);
   show.update(video(COUNTS[0].beat + 0.6));
   assert.equal(show.parts.number.shown.scale, 0.5);
+  show.update(video(WORDS[0].beat + 0.6));
+  assert.deepEqual([show.parts.number.shown.text, show.parts.number.shown.scale], ['NÚ!', 0.5], 'and the word');
   show.dispose();
 });
 
