@@ -136,6 +136,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     state.flock = t > FLOCK.from - 1 && t < TIP + 2 ? life.poseFlock(t, ctx) : (life.hideFlock(), []);
     state.birds = life.poseBirds(t, ctx);
     state.spray = life.poseSpray(t, ctx);
+    thinFallsSpray(t);
 
     // the butterfly, darting
     state.butterfly = keepClear(butterflyAt(t, her, D));
@@ -148,6 +149,19 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     cast.sheet.quaternion.copy(stageCam.quaternion);
 
     fx.update({ t, cam: { x: cam.x, y: cam.y, z: cam.z, up: c.up, back: c.back }, low: !valley && c.y < 14, white, sCam: path.sAt(Math.min(t, route.length)), placeAt: placeOnPath, bursts });
+  }
+  // polish: chapter 4's falls' own spray (world/props/waterfall.js) veiled the falling water's streaks and was most of the falls' frame
+  // time: from the climb on its glints shrink away (the foot's wholly, our own mist is over the pool; the face's to 40 %), never popping
+  let fallsSpray = null;
+  function thinFallsSpray(t) {
+    if (world.location !== 'ardalur') return;
+    if (!fallsSpray) { fallsSpray = []; world.scene.traverse(o => { if (o.isPoints && /^Falls spray \((foot|face)\)/.test(o.name)) fallsSpray.push({ o, size: o.material.uniforms.uSize.value, foot: o.name.includes('foot') }); }); }
+    const e = clamp01((t - (FALLS_CLIMB.from - 0.8)) / 1.0), k = e * e * (3 - 2 * e);
+    for (const s of fallsSpray) {
+      const f = s.foot ? 1 - k : 1 - 0.6 * k;
+      s.o.material.uniforms.uSize.value = s.size * f;
+      s.o.visible = f > 0.01;
+    }
   }
   // rule 9 for the butterfly: never within CLEAR m of her bones (as they were drawn last frame); pushed aside in the picture, at its
   // own depth, away from the nearest bone

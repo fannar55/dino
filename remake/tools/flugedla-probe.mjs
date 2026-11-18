@@ -31,6 +31,8 @@ function parseArgs(argv) {
     else if (a === '--step') o.step = Number(next());
     else if (a === '--only') o.only = next().split(',');
     else if (a === '--size') o.size = next();
+    else if (a === '--from') o.from = Number(next());
+    else if (a === '--to') o.to = Number(next());
     else if (a === '--plane') o.plane = next();
     else if (a === '--talur') o.talur = next();
     else if (a === '--prefix') o.prefix = next(); // the fast take's stills: <prefix>-<s>s.png (fjor-g1 by default)
@@ -217,8 +219,9 @@ async function fjorTrial(o, server, { say, report }) {
     const length = await evaluate('window.__world.flugedla3d.length');
     const D = await evaluate('window.__world.flugedla3d.state.D');
     const rows = [];
-    for (let i = 0; i * o.step <= length + 1e-9; i++) {
-      const t = +(i * o.step).toFixed(4);
+    const t0 = o.from ?? 0, t1 = Math.min(length, o.to ?? length); // --from/--to: sweep one part of the take (real seconds)
+    for (let i = 0; t0 + i * o.step <= t1 + 1e-9; i++) {
+      const t = +(t0 + i * o.step).toFixed(4);
       await evaluate(`window.__world.flugedla3d.seek(${t})`);
       await evaluate('window.__advance(1 / 60)');
       const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white, story: st.story, rate: st.rate, thor: null, place: st.place, flock: st.flock ? st.flock.map(x => ({ ...x })) : [], birds: st.birds ? st.birds.map(x => ({ k: x.k, u: x.u, dart: x.dart })) : [], camPitch: st.cam.pitch, gaps: (() => { const T = window.__world.THREE, v = new T.Vector3(); const hb = []; f.cast.her.model.traverse(o => { if (o.isBone) hb.push(o.getWorldPosition(new T.Vector3())); }); let flock = Infinity, birds = Infinity, bf = Infinity; for (const m of f.fjor.life.flock) { if (!m || !m.actor.root.visible) continue; m.actor.model.traverse(o => { if (o.isBone) { o.getWorldPosition(v); for (const h of hb) flock = Math.min(flock, h.distanceTo(v)); bf = Math.min(bf, f.cast.butterfly.position.distanceTo(v)); } }); } for (const b of st.birds ?? []) { v.fromArray(b.world); for (const h of hb) birds = Math.min(birds, h.distanceTo(v)); } const mem = []; f.fjor.life.flock.forEach((m, i) => { if (!m || !m.actor.root.visible) return; const bs = []; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; m.actor.model.traverse(o => { if (o.isBone) { const p = o.getWorldPosition(new T.Vector3()); bs.push(p); const q = p.clone().project(window.__world.camera); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); } }); mem.push({ i, bs, box: [x0, x1, y0, y1] }); }); const pairs = []; for (let a = 0; a < mem.length; a++) for (let b = a + 1; b < mem.length; b++) { let g = Infinity; for (const p of mem[a].bs) for (const q of mem[b].bs) g = Math.min(g, p.distanceTo(q)); const A = mem[a].box, B = mem[b].box; const ov = Math.max(0, Math.min(A[1], B[1]) - Math.max(A[0], B[0])) * Math.max(0, Math.min(A[3], B[3]) - Math.max(A[2], B[2])); const area = Math.min((A[1] - A[0]) * (A[3] - A[2]), (B[1] - B[0]) * (B[3] - B[2])); pairs.push([mem[a].i, mem[b].i, +g.toFixed(2), area > 0 ? +(ov / area).toFixed(2) : 0]); } const herEach = mem.map(m => { let g = Infinity; for (const p of m.bs) for (const h of hb) g = Math.min(g, p.distanceTo(h)); return [m.i, +g.toFixed(2)]; }); return { flock: +flock.toFixed(2), birds: +birds.toFixed(2), bfFlock: +bf.toFixed(2), pairs, herEach }; })() }; })()`);
@@ -227,7 +230,7 @@ async function fjorTrial(o, server, { say, report }) {
     }
     const s = 0.02 * 100;
     const outOf = k => s * (1 / k - 1);
-    const fx = x => (x >= 0 ? '+' : '') + x.toFixed(2);
+    const fx = x => (x == null || !Number.isFinite(x) ? '-' : (x >= 0 ? '+' : '') + x.toFixed(2)); // ('-': none in a --from/--to part)
     say(`\n=== trial fjor (${rows.length} frames, 1/${Math.round(1 / o.step)} s, ${length.toFixed(2)} s, D ${D} m) ===`);
     // her and the butterfly's parallax through the take
     const her = rows.filter(r => r.her), bf = rows.filter(r => r.butterfly);

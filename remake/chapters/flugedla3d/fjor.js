@@ -150,7 +150,7 @@ function dropY(x, y0, yLow) {
 }
 const V_PITCH = channel([
   { t: vt(2.0), over: 1.0, v: 2 }, // pulled out: level, over the river
-  { t: vt(11.8), over: 1.0, v: -58 }, // at the pool: down at her as she climbs
+  { t: vt(11.8), over: 1.0, v: -34 }, // at the pool: down at her as she climbs (polish: -58 showed the pool, not the water's face)
   { t: vt(15.9), over: 1.1, v: -8 }, // over the top
 ], 55);
 // her climb up the falls and the camera ahead of her: 0 at the pool, 1 over the top

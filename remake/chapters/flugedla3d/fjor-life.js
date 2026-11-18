@@ -118,7 +118,7 @@ export function createFjorLife(world, { url }) {
   }
 
   // ---- the spray: a mist over the plunge pool (the world's), drops up at us on the climb (the picture's) ----
-  const MIST = 40, DROPS = 40; // (fill rate: the mist was most of the falls' frame time, and hid the falling water)
+  const MIST = 40, DROPS = 56; // (fill rate: the mist was most of the falls' frame time, and hid the falling water)
   const sprayGeo = new THREE.BufferGeometry();
   const pos = new Float32Array((MIST + DROPS) * 3), size = new Float32Array(MIST + DROPS), alpha = new Float32Array(MIST + DROPS);
   sprayGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -165,7 +165,7 @@ export function createFjorLife(world, { url }) {
       const k = 0.85 - 0.55 * age;
       stage.framePoint(u, v, (k * FJOR_D) / D, p, stageCam, D);
       pos.set([p.x, p.y, p.z], i * 3);
-      size[i] = 0.05 + 0.05 * hash(j, 11);
+      size[i] = 0.08 + 0.08 * hash(j, 11); // (polish: big enough to read as drops coming at us)
       alpha[i] = 0.7 * Math.sin(Math.PI * age) * climb;
     }
     sprayGeo.attributes.position.needsUpdate = true;
