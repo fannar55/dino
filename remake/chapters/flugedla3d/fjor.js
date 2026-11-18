@@ -129,7 +129,7 @@ const downYaw = d => { const a = riverAt(d - 12), b = riverAt(d + 12); return (M
 // the falls (kafli4-route.js FALLS: its face at x -1345, the water 16 m wide round z 126, from 50 m down to the pool at 10 m): she
 // climbs up beside the water's south edge, the camera ahead of her and above, out over the pool, looking along the face (north, +z)
 // and down at her
-export const FALLS_CLIMB = { her: [FALLS.face + 8, FALLS.z - 6], cam: [FALLS.face + 12, FALLS.z - 10], yaw: 180, from: vt(12.2), to: vt(16.4) };
+export const FALLS_CLIMB = { her: [FALLS.face + 8, FALLS.z - 6], cam: [FALLS.face + 12, FALLS.z - 10], yaw: 202, from: vt(12.2), to: vt(16.4) };
 export const CREST = { from: vt(16.4), y: FALLS.top + 9, yaw: 96, at: [FALLS.face + 22, FALLS.z + 1] };
 const CREST_TURN = t => smooth((t - vt(15.2)) / 2.8);
 // the camera's height and its place off the river's line (blended to the falls' places from the pool on)
@@ -155,7 +155,7 @@ const V_PITCH = channel([
 ], 55);
 // her climb up the falls and the camera ahead of her: 0 at the pool, 1 over the top
 const CLIMB = t => smooth((t - FALLS_CLIMB.from) / (FALLS_CLIMB.to - FALLS_CLIMB.from));
-const SWING = t => smooth((t - vt(10.8)) / 2.6); // the camera's swing from down the river to along the face
+const SWING = t => smooth((t - vt(10.8)) / 2.9); // the camera's swing from down the river to along the face
 /** The valley's camera at story second t (t >= VALLEY.t): world x, y, z, yaw, pitch, roll and its speeds. `base`: the clouds' level. */
 export function valleyCamera(t, base = 0) {
   const x = t - VT;
@@ -468,7 +468,7 @@ export const BIRDS = (() => {
     } });
   }
   // three that dart past in front of the screen (k 0.35-0.5), across from one edge to the other in about 0.7 s
-  for (const [t0, from_, to_, v, k] of [[vt(4.9), -0.15, 1.15, 0.2, 0.42], [vt(7.1), 1.15, -0.15, 0.84, 0.38], [vt(9.6), -0.15, 1.15, 0.18, 0.48]]) {
+  for (const [t0, from_, to_, v, k] of [[vt(4.9), -0.15, 1.15, 0.2, 0.42], [vt(7.1), 1.15, -0.15, 0.84, 0.38], [vt(9.6), -0.15, 1.15, 0.14, 0.72]]) {
     out.push({ scale: 1.6, beat: 14, phase: t0, dart: true, at: t => (t < t0 || t > t0 + 0.75 ? null : [lerp(from_, to_, (t - t0) / 0.75), v + 0.05 * Math.sin((t - t0) * 9), k]) });
   }
   return out;

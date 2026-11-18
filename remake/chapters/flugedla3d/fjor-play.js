@@ -165,12 +165,16 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   }
   // rule 9 for the butterfly: never within CLEAR m of her bones (as they were drawn last frame); pushed aside in the picture, at its
   // own depth, away from the nearest bone
-  const CLEAR = 0.9, bones = [], bp = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), w = new THREE.Vector3();
+  // (her skin, not her bones: the wings' membranes reach a metre and more behind their bones; every 24th vertex, as last drawn)
+  const CLEAR = 0.75, bp = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), w = new THREE.Vector3();
   function keepClear(b) {
-    if (!bones.length) cast.her.model.traverse(o => { if (o.isBone) bones.push(o); });
+    const skin = cast.herBody?.();
+    if (!skin) return b;
     stage.framePoint(b.at[0], b.at[1], (b.at[2] * FJOR_D) / D, bp, stageCam, D);
     let best = Infinity, near = null;
-    for (const bone of bones) { const d = bone.getWorldPosition(w).distanceTo(bp); if (d < best) { best = d; near = w.clone(); } }
+    skin.skeleton?.update();
+    const n = skin.geometry.attributes.position.count;
+    for (let i = 0; i < n; i += 24) { skin.getVertexPosition(i, w).applyMatrix4(skin.matrixWorld); const d = w.distanceTo(bp); if (d < best) { best = d; near = w.clone(); } }
     if (!near || best >= CLEAR) return b;
     right.set(1, 0, 0).applyQuaternion(stageCam.quaternion);
     upv.set(0, 1, 0).applyQuaternion(stageCam.quaternion);

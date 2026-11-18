@@ -161,7 +161,7 @@ export function createFjorLife(world, { url }) {
     for (let j = 0; j < DROPS; j++) {
       const i = MIST + j;
       const life = 0.7 + 0.5 * hash(j, 6), age = ((t + hash(j, 7) * life) % life) / life;
-      const u = 0.12 + 0.3 * hash(j, 8) + (hash(j, 9) - 0.5) * 0.25 * age, v = 0.55 + 0.3 * hash(j, 10) - 0.5 * age;
+      const u = 0.6 + 0.32 * hash(j, 8) + (hash(j, 9) - 0.5) * 0.25 * age, v = 0.55 + 0.3 * hash(j, 10) - 0.5 * age;
       const k = 0.85 - 0.55 * age;
       stage.framePoint(u, v, (k * FJOR_D) / D, p, stageCam, D);
       pos.set([p.x, p.y, p.z], i * 3);
