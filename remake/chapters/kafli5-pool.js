@@ -104,6 +104,12 @@ const seen = (at, heading, away, over, lift, fov) => {
   const h = (heading * Math.PI) / 180;
   return { position: [at[0] - away * Math.cos(h), LEVEL + over, at[1] - away * Math.sin(h)], target: [at[0], LEVEL + lift, at[1]], fov };
 };
+/** [x, z] `side` metres to `group`'s right and `back` metres behind its spot, as its seats are counted (SEATS). */
+const beside = (group, side, back) => {
+  const { at, heading } = CHOIR[group];
+  const h = (heading * Math.PI) / 180;
+  return [at[0] - Math.sin(h) * side - Math.cos(h) * back, at[1] + Math.cos(h) * side - Math.sin(h) * back];
+};
 const SET_SHOTS = {
   // each group in its part: all of it, and close
   set_grazers: seen(CHOIR.grazers.at, 138, 17, 1.4, 2.4, 46),
@@ -111,14 +117,21 @@ const SET_SHOTS = {
   set_turtles: seen(CHOIR.turtles.at, 160, 7, 1.8, 2.1, 38), // they sit on top of their stone, their middles 2.4 m over the water
   set_turtles_close: seen(CHOIR.turtles.at, 148, 4.6, 2.4, 2.4, 36), // level with them; on their backs they spin 3.2 m across
   set_frogs: seen(CHOIR.frogs.at, 160, 8.5, 1.3, 0.5, 40),
-  set_frogs_mid: seen(CHOIR.frogs.at, 160, 5.8, 1.15, 0.45, 36),
+  set_frogs_mid: seen(beside('frogs', -0.5, 0.2), 160, 6.8, 1.15, 0.9, 36), // all five pads, and the air a frog pops up into on its number (1.6 m)
   set_frogs_close: seen(CHOIR.frogs.at, 160, 3.8, 1.0, 0.4, 32),
   set_lizards: seen(CHOIR.lizards.at, 170, 8, 1.2, 1.0, 40),
-  set_lizards_close: seen(CHOIR.lizards.at, 158, 4.6, 1.0, 0.9, 32),
+  set_lizards_close: seen(CHOIR.lizards.at, 158, 5.2, 1.0, 1.3, 34), // aimed over their heads: they pop up 1.1 m on their number
+  // the frogs as "Stopp!" catches them (Stoppdans): the two pairs of pads the last leaps before it are between, the middle one's
+  // and the two at the group's right, with the air over them that the leaps go up into; the camera goes on round them while they hang
+  set_frogs_air: seen(beside('frogs', 0.75, 0.6), 160, 6.3, 1.15, 0.9, 35),
   // the flyers stand by her reed, north-west: from the pool they are under the sun and from the north the reed is in the way, so
-  // they are seen from the south, from the water's edge in front of the lizards' place
-  set_flyers: seen(CHOIR.flyers.at, 262, 7.8, 1.5, 1.4, 40),
+  // they are seen from the south, from the water in front of the lizards' place. The whole group from under the way they take off
+  // (toward the pool's middle, over the shallows): they come at the camera and go over it two beats after they leave the ground
+  set_flyers: seen(CHOIR.flyers.at, 256, 13.8, 1.2, 3.0, 46),
   set_flyers_close: seen(CHOIR.flyers.at, 256, 4.8, 1.6, 1.3, 32),
+  // their wheel when the drop comes back (a ring 5.5 m over the shallows in front of their place: kafli5-dances.js MOVES.drop),
+  // from the north of it, looking south: the wheel over the lizards' bank, where the lizards run their own ring under it
+  set_wheel: { position: up(around(255, 18.4), LEVEL + 1.2), target: up(around(221, 24), LEVEL + 4.2), fov: 48 },
   // her, out in the pool: close from the north-east (the choir's banks behind her), and low from the east with the sky over her
   set_her_close: seen(WADE.at, 140, 9, 1.5, 1.7, 34), // she wades deep: her head is a metre and a half over the water, three when she blows her horn
   set_her_low: seen(WADE.at, 112, 13, 1.0, 2.4, 44),
@@ -129,6 +142,11 @@ const SET_SHOTS = {
   // the dusk has dimmed its light. From the north-east, low over the water, straight toward it (215 degrees, 22 up): her head and
   // crest dark at the foot of the frame, the sleepy sun over them
   set_sun: seen(WADE.at, 215, 16, 1.1, 4.8, 34),
+  // the drop ("Nú!"), in the dusk: low over the water, on the line from the sun through the place Flugeðla shoots up out of the
+  // pool from (kafli5-people-score.js SPOT: she is 11 m away), so she climbs straight up across the sleepy sun in its nightcap,
+  // 14 m up the frame; the turtles, the beetles, the frogs, the lizards and the flyers jump on the far bank behind her. The second
+  // shot that has the sun in its frame (10 degrees off its axis), and as set_sun only when the dusk has dimmed its light
+  set_drop: { position: up(around(119, 9.9), LEVEL + 1.0), target: up(around(165, 15.3), LEVEL + 4.6), fov: 56 },
   // the lizards' run along the water's edge, from their place (204 degrees) past the frogs (181) and back: from the water west of her
   set_lizards_run: { position: up(around(211.3, 16.4), LEVEL + 1.3), target: up(around(192, 27.5), LEVEL + 0.9), fov: 44 },
   // the beetles' log on the bank between the turtles and the frogs (173 degrees, 29.6 m: kafli5-dances.js), from the water's edge
