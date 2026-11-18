@@ -85,7 +85,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   // across IN FRONT of it (1.4 m nearer us than her head, wings banked steep: her chest about +3.4 %), up round the side, over and
   // behind it high (seen above it, never hidden), down the other side and across in front again: one and a half turns, crossing in
   // front at the second slow stretch (story 19.92 s) and again as the linger ends.
-  const ORBIT = { A: 3.2, B: 1.4, low: -0.4, high: 3.0, mid: 19.92, rate: (3 * Math.PI) / 2.58 };
+  const ORBIT = { A: 2.3, B: 1.8, low: -0.4, high: 3.0, mid: 19.92, rate: (3 * Math.PI) / 2.58 };
   const headY = thor ? world.heightAt(THOR.head[0], THOR.head[1]) + THOR_HEAD.up : 0;
   const op = new THREE.Vector3(), od = new THREE.Vector3();
   function orbitAt(t) {
@@ -105,7 +105,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     // steepest across the front (her wings upright there: nothing reaches toward us)
     const heading = (Math.atan2(-od.x, od.z) * 180) / Math.PI;
     const pitch = (Math.asin(Math.max(-1, Math.min(1, od.y))) * 180) / Math.PI;
-    const bank = -(45 + 30 * Math.cos(phi));
+    const bank = -(57 + 28 * Math.cos(phi)); // 85 across the front: her wings upright, nothing reaching toward us or into her head
     return { p: op, e, heading, pitch, bank, phi };
   }
   /** Everything at the take's real second r (the story's second through the warp). */
@@ -129,7 +129,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     if (thor) {
       if (thor.mixer) thor.mixer.timeScale = rate;
       if (t > LINGER[0] - 0.6 && t < LINGER[1] + 0.3) thorLook.copy(orbitAt(t).p); else if (t > GLADE_T.turn) thorLook.set(cam.x, cam.y, cam.z); else thorLook.set(THOR.head[0] - THOR.face[0] * 20, cam.y, THOR.head[1] - THOR.face[1] * 20);
-      thor.lookAt(thorLook, { weight: t > LINGER[0] - 0.6 && t < LINGER[1] + 0.3 ? 0.6 : 1, maxAngle: 70, maxPitch: 35 });
+      thor.lookAt(thorLook, { weight: t > LINGER[0] - 0.6 && t < LINGER[1] + 0.3 ? 0.35 : 1, maxAngle: 70, maxPitch: 35 });
       if (!blinked && t > GLADE_T.pass && t < GLADE_T.pass + 1) { blinked = true; thor.blink?.(); }
       if (t < GLADE_T.pass - 1) blinked = false;
     }
