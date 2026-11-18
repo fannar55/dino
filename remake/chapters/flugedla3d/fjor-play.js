@@ -138,7 +138,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     state.spray = life.poseSpray(t, ctx);
 
     // the butterfly, darting
-    state.butterfly = butterflyAt(t, her, D);
+    state.butterfly = keepClear(butterflyAt(t, her, D));
     cast.poseButterfly(state.butterfly, c.yaw);
     cast.poseLeaves(null);
 
@@ -148,6 +148,25 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     cast.sheet.quaternion.copy(stageCam.quaternion);
 
     fx.update({ t, cam: { x: cam.x, y: cam.y, z: cam.z, up: c.up, back: c.back }, low: !valley && c.y < 14, white, sCam: path.sAt(Math.min(t, route.length)), placeAt: placeOnPath, bursts });
+  }
+  // rule 9 for the butterfly: never within CLEAR m of her bones (as they were drawn last frame); pushed aside in the picture, at its
+  // own depth, away from the nearest bone
+  const CLEAR = 0.9, bones = [], bp = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), w = new THREE.Vector3();
+  function keepClear(b) {
+    if (!bones.length) cast.her.model.traverse(o => { if (o.isBone) bones.push(o); });
+    stage.framePoint(b.at[0], b.at[1], (b.at[2] * FJOR_D) / D, bp, stageCam, D);
+    let best = Infinity, near = null;
+    for (const bone of bones) { const d = bone.getWorldPosition(w).distanceTo(bp); if (d < best) { best = d; near = w.clone(); } }
+    if (!near || best >= CLEAR) return b;
+    right.set(1, 0, 0).applyQuaternion(stageCam.quaternion);
+    upv.set(0, 1, 0).applyQuaternion(stageCam.quaternion);
+    const away = bp.clone().sub(near);
+    let x = away.dot(right), y = away.dot(upv);
+    const n = Math.hypot(x, y) || 1;
+    if (n < 1e-3) { x = 0; y = 1; } else { x /= n; y /= n; }
+    const dep = (b.at[2] * FJOR_D), push = CLEAR - best + 0.05;
+    const tanV = Math.tan(rad(stageCam.fov) / 2), tanH = tanV * stageCam.aspect;
+    return { ...b, at: [b.at[0] + (push * x) / (2 * tanH * dep), b.at[1] - (push * y) / (2 * tanV * dep), b.at[2]], pushed: +push.toFixed(2) };
   }
   let stage = null;
   const setStage = st => { stage = st; };

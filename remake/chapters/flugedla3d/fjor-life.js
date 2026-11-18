@@ -118,7 +118,7 @@ export function createFjorLife(world, { url }) {
   }
 
   // ---- the spray: a mist over the plunge pool (the world's), drops up at us on the climb (the picture's) ----
-  const MIST = 160, DROPS = 70;
+  const MIST = 40, DROPS = 40; // (fill rate: the mist was most of the falls' frame time, and hid the falling water)
   const sprayGeo = new THREE.BufferGeometry();
   const pos = new Float32Array((MIST + DROPS) * 3), size = new Float32Array(MIST + DROPS), alpha = new Float32Array(MIST + DROPS);
   sprayGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -151,10 +151,10 @@ export function createFjorLife(world, { url }) {
     for (let i = 0; i < MIST; i++) {
       const life = 3 + 2 * hash(i, 1), age = ((t + hash(i, 2) * life) % life) / life;
       const x = FALLS.face + 1 + age * (5 + 6 * hash(i, 3)), z = FALLS.z + (hash(i, 4) - 0.5) * (FALLS.width + 6);
-      const y = FALLS.base + 0.5 + age * (8 + 10 * hash(i, 5));
+      const y = FALLS.base + 0.5 + age * (3 + 4 * hash(i, 5));
       pos.set([x, y, z], i * 3);
-      size[i] = 1.6 + 2.4 * age;
-      alpha[i] = 0.16 * Math.sin(Math.PI * age) * fade;
+      size[i] = 0.8 + 1.2 * age;
+      alpha[i] = 0.14 * Math.sin(Math.PI * age) * fade;
     }
     // the drops: from beside her (k 0.8) up at the camera (k 0.3), in front of the screen, on the climb
     const climb = Math.max(0, Math.min(1, (t - FALLS_CLIMB.from) / 0.6)) * Math.max(0, Math.min(1, (FALLS_CLIMB.to + 0.6 - t) / 0.6));

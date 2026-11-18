@@ -105,7 +105,7 @@ const V_BEATS = 41; // the valley's part of the take: 19.68 s
 export const LENGTH = Math.round((VT + V_BEATS * BEAT) / BEAT) * BEAT; // the story's length, on a whole beat
 const vt = x => VT + x; // a second of the valley's part
 const D_BREAK = 1066; // m along the river where we come out of the cloud over the gorge (x about -1161)
-const ABOVE = 8; // m over the river through the gorge
+const ABOVE = 12; // (round 3 polish: higher between the walls, so they stay milder at the side edges) // m over the river through the gorge
 // how fast it goes up the river (m/s, along it): slow in the dive, 15 m/s down the gorge, slowing at the pool
 const V_SPEED = channel([
   { t: vt(1.6), over: 1.2, v: 15 }, { t: vt(10.4), over: 1.4, v: 4 }, { t: vt(12.6), over: 1.0, v: 0 },
@@ -453,8 +453,8 @@ export const BIRDS = (() => {
   // the loose flock: from far down the gorge (small) up to their places round her, near and far
   for (let i = 0; i < 18; i++) {
     const far = i < 10;
-    const u0 = 0.35 + r() * 0.3, v0 = far ? 0.42 + r() * 0.18 : 0.3 + r() * 0.5;
-    const k0 = far ? 1.6 + r() * 2.4 : 0.75 + r() * 0.5;
+    const side = r() < 0.5 ? -1 : 1, u0 = far ? 0.35 + r() * 0.3 : 0.5 + side * (0.2 + r() * 0.12), v0 = far ? 0.42 + r() * 0.18 : 0.3 + r() * 0.5;
+    const k0 = far ? 1.6 + r() * 2.4 : 1.0 + r() * 0.5; // (the near ones out beside her and behind her wings)
     const ph = r() * TAU, come = from + r() * 2.5, sc = (far ? 2.2 : 1.6) + r() * 0.6, beat = 9 + r() * 4;
     const out0 = r() < 0.5 ? -1 : 1;
     out.push({ scale: sc, beat, phase: ph, at: t => {
@@ -468,7 +468,7 @@ export const BIRDS = (() => {
     } });
   }
   // three that dart past in front of the screen (k 0.35-0.5), across from one edge to the other in about 0.7 s
-  for (const [t0, from_, to_, v, k] of [[vt(4.9), -0.15, 1.15, 0.36, 0.42], [vt(7.1), 1.15, -0.15, 0.62, 0.36], [vt(9.6), -0.15, 1.15, 0.3, 0.48]]) {
+  for (const [t0, from_, to_, v, k] of [[vt(4.9), -0.15, 1.15, 0.2, 0.42], [vt(7.1), 1.15, -0.15, 0.84, 0.38], [vt(9.6), -0.15, 1.15, 0.18, 0.48]]) {
     out.push({ scale: 1.6, beat: 14, phase: t0, dart: true, at: t => (t < t0 || t > t0 + 0.75 ? null : [lerp(from_, to_, (t - t0) / 0.75), v + 0.05 * Math.sin((t - t0) * 9), k]) });
   }
   return out;
