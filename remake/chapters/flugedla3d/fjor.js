@@ -382,14 +382,14 @@ export const FLOCK_MEMBERS = [
 // break: the far and middle ones away to the sides and up, deep; the near ones past us on both sides, quick. Then she holds alone.
 // Each: [settled u, v, k], the side it breaks to (-1 left, 1 right), when it starts in from the edge and where ([u, v, k]), when it is in place.
 const ENDING = [
-  { at: [0.1, 0.24, 5.0], side: -1, start: -3.4, from: [0.14, 1.12, 6.0], set: 0.0 },
-  { at: [0.9, 0.26, 6.0], side: 1, start: -3.2, from: [0.86, 1.12, 7.0], set: 0.0 },
+  { at: [0.08, 0.13, 5.0], side: -1, start: -3.4, from: [0.12, 1.12, 6.0], set: 0.0 },
+  { at: [0.92, 0.15, 6.0], side: 1, start: -3.2, from: [0.88, 1.12, 7.0], set: 0.0 },
   { at: [0.5, 0.1, 4.4], side: 1, start: -3.0, from: [0.54, 1.12, 5.4], set: 0.0 },
   { at: [0.38, 0.2, 1.5], side: -1, start: -2.8, from: [0.42, 1.12, 3.6], set: 0.5 },
   { at: [0.62, 0.21, 1.4], side: 1, start: -2.6, from: [0.58, 1.12, 3.4], set: 0.5 },
   // (the near ones in from the side edges, behind the screen, round to beside her wings: apart from the middle ones' way up)
-  { at: [0.2, 0.36, 0.9], side: -1, start: -2.4, from: [-0.2, 0.5, 1.6], set: 1.0 },
-  { at: [0.8, 0.37, 0.88], side: 1, start: -2.2, from: [1.2, 0.48, 1.6], set: 1.0 },
+  { at: [0.23, 0.36, 0.9], side: -1, start: -2.4, from: [-0.2, 0.5, 1.6], set: 1.0 },
+  { at: [0.77, 0.37, 0.88], side: 1, start: -2.2, from: [1.2, 0.48, 1.6], set: 1.0 },
 ];
 const WAVE = { far: 1.0, mid: 1.5, near: 2.0 }; // each layer's dip, on its half beat
 FLOCK_MEMBERS.forEach((m, i) => {
