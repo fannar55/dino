@@ -188,7 +188,7 @@ const AIR_BODY = [
   // [second, u, v, k, over] (k at FJOR_D): the first hold, the second
   [3.4, 0.5, 0.56, HOLD_K, 0.01], [10.45, 0.5, 0.56, HOLD_K, 0.01],
   // the glade: past Þórseðla in front of us, then up over her head as we come to it (her corkscrew there: herAt)
-  [16.4, 0.5, 0.45, 0.5, 1.2], [18.6, 0.5, 0.3, 0.5, 1.4],
+  [16.4, 0.5, 0.45, 0.5, 1.2], [18.6, 0.5, 0.25, 0.62, 1.4], // (over and beyond her head: her neck runs off to the side, down)
   // rocketing up after the butterfly, beside us over the cloud, ahead in the dive
   [sh(15.0), 0.5, 0.62, 0.62, 0.9], [sh(16.0), 0.5, 0.62, 0.5, 0.9], [sh(17.0), 0.42, 0.58, 0.47, 1.0], [sh(18.6), 0.55, 0.5, 0.56, 1.0],
   [LEVEL + 0.4, 0.38, 0.58, 0.5, 1.0], [TIP, 0.6, 0.55, 0.6, 1.2], [sh(22.85), 0.5, 0.58, 0.5, 1.2],
@@ -287,13 +287,13 @@ export function butterflyAt(t, her, D = FJOR_D) {
   uu = lerp(uu, (her?.pose?.yaw ?? 0) >= 0 ? 0.27 : 0.73, away);
   vv = lerp(vv, 0.3, away);
   k = lerp(k, 0.33, away);
-  // at Þórseðla's head: spiralling round it, just in front of it (her head 6 m from us: k 0.34)
+  // at Þórseðla's head: spiralling round it, just in front of it (her head about 7 m from us)
   if (inLinger(t)) {
     const e = smooth((t - (LINGER[0] - 0.6)) / 0.6) * (1 - smooth((t - LINGER[1]) / 0.3));
     const w = TAU * (t - LINGER[0]) / 1.4;
     uu = lerp(uu, 0.5 + 0.14 * Math.cos(w), e);
     vv = lerp(vv, 0.44 + 0.1 * Math.sin(w) - 0.3 * shoot, e);
-    k = lerp(k, (5.2 + 0.4 * Math.sin(w)) / D, e);
+    k = lerp(k, (6.1 + 0.3 * Math.sin(w)) / D, e);
   }
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
   return { at: [uu, vv, Math.max(0.27, k)], yaw: 25 * Math.sin(TAU * t / 1.3), pitch: -15 * shoot + 30 * shoot, flap };
@@ -349,12 +349,13 @@ export function fjorKeepOut(path) {
 }
 
 // ---- Þórseðla in the glade (round 2b) ----
-// Where she stands: her head 6 m in front of the camera at its linger (in the middle of the picture, at the camera's height over the
+// Where she stands: her head HEAD_AT in front of the camera at its linger (in the middle of the picture, at the camera's height over the
 // floor; her idle head is 7.76 m over her feet), her body out to the side of the line the camera came along (she faces the line).
 export const THOR_HEAD = { forward: 7.12, up: 7.76 }; // her Head bone from her root (brontosaurus.glb, as placed)
+export const HEAD_AT = 7.6; // m: her head from the camera at the linger (it comes about 1 m nearer as she looks at us): about +4 %
 export function thorAt(route) {
   const p = route.at((LINGER[0] + LINGER[1]) / 2), psi = (p.yaw * Math.PI) / 180;
-  const head = [p.x + Math.sin(psi) * 6, p.z - Math.cos(psi) * 6];
+  const head = [p.x + Math.sin(psi) * HEAD_AT, p.z - Math.cos(psi) * HEAD_AT];
   const q = route.at(GLADE_T.pass), q0 = (q.yaw * Math.PI) / 180;
   // the line's right (its heading's right) and which side of it her head is
   const right = [Math.cos(q0), Math.sin(q0)];

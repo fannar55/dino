@@ -209,7 +209,9 @@ async function run(o) {
 // ---- the fast take (?profa=fjor): the loosened rules of 2026-11-16 (the plan's section 12) ----
 // 6 % budget; past 3 % out in u 0.2-0.8 unless in a fast pass; a thing an edge cuts in front of the screen only for a moment
 // (dwell: consecutive frames with the border's nearest non-floor depth in front, k < 1); the floor at the bottom edge to about k 0.6.
-const FJOR_STILLS = [2.5, 5.3, 7.9, 10.6, 13.0, 15.6, 20.0, 22.7, 25.5];
+// (round 2b, real seconds: slow 1, hold 1, swoosh 2, the rocket, hold 2, past Þórseðla, coming to her head, the slow corkscrew at it,
+// the butterfly shooting up from it, the dive's hold)
+const FJOR_STILLS = [3.6, 6.3, 8.6, 10.8, 13.0, 14.5, 18.5, 21.4, 23.9, 33.6];
 async function fjorTrial(o, server, { say, report }) {
   await page(o, server, `profa=fjor${o.plane ? '&d=' + o.plane : ''}`, async ({ evaluate, shoot, errors }) => {
     const length = await evaluate('window.__world.flugedla3d.length');
@@ -219,7 +221,7 @@ async function fjorTrial(o, server, { say, report }) {
       const t = +(i * o.step).toFixed(4);
       await evaluate(`window.__world.flugedla3d.seek(${t})`);
       await evaluate('window.__advance(1 / 60)');
-      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white }; })()`);
+      const r = await evaluate(`(() => { const f = window.__world.flugedla3d; const r = f.measure.sample({ groundApart: true }); const st = f.state; return { her: r.her, butterfly: r.butterfly, background: r.background, gap: r.rules.r9.butterflyGap, plants: r.rules.r9.plants, nearest: r.rules.r5.nearest, cam: { ...st.cam }, herInfo: st.herInfo, bfly: st.butterfly && st.butterfly.at, white: st.white, story: st.story, rate: st.rate, thor: f.fjor.thorProbe ? f.fjor.thorProbe() : null }; })()`);
       r.t = t;
       rows.push(r);
     }
@@ -238,8 +240,9 @@ async function fjorTrial(o, server, { say, report }) {
     const chest = rows.filter(r => r.herInfo?.chestK > 0 && r.white < 0.99).map(r => ({ t: r.t, out: outOf(r.herInfo.chestK) }));
     const med = list => { const s2 = list.map(x => x.out).sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)]; };
     const share = (list, lim) => list.filter(x => x.out >= lim).length / Math.max(1, list.length);
-    const forest = chest.filter(x => x.t < 14.4);
-    say(`her chest: median ${fx(med(chest))} % over the take, past +2 % ${(100 * share(chest, 2)).toFixed(0)} % of the time; the forest part (0-14.4 s): median ${fx(med(forest))} %, past +2 % ${(100 * share(forest, 2)).toFixed(0)} %, past +3.5 % ${(100 * share(forest, 3.5)).toFixed(0)} %; range ${fx(Math.min(...chest.map(x => x.out)))}..${fx(Math.max(...chest.map(x => x.out)))} %`);
+    const storyOf = new Map(rows.map(r => [r.t, r.story ?? r.t]));
+    const forest = chest.filter(x => storyOf.get(x.t) < 13.44);
+    say(`her chest: median ${fx(med(chest))} % over the take, past +2 % ${(100 * share(chest, 2)).toFixed(0)} % of the time; the forest part (story 0-13.44 s): median ${fx(med(forest))} %, past +2 % ${(100 * share(forest, 2)).toFixed(0)} %, past +3.5 % ${(100 * share(forest, 3.5)).toFixed(0)} %; range ${fx(Math.min(...chest.map(x => x.out)))}..${fx(Math.max(...chest.map(x => x.out)))} %`);
     const herNearOut = r => outOf(r.her.near[2]);
     say(`her nearest point: median ${fx(med(her.map(r => ({ out: herNearOut(r) }))))} %, past +4.5 % ${(100 * share(her.map(r => ({ out: herNearOut(r) })), 4.5)).toFixed(0)} % of the time`);
     // the holds (from the page's take): how far out and where in the picture
@@ -249,6 +252,30 @@ async function fjorTrial(o, server, { say, report }) {
       const ch = hr.filter(r => r.herInfo?.chestK > 0).map(r => outOf(r.herInfo.chestK));
       const us = hr.map(r => (r.her.left[0] + r.her.right[0]) / 2);
       say(`  hold ${a}-${b} s (${(b - a).toFixed(2)} s): chest ${fx(Math.min(...ch))}..${fx(Math.max(...ch))} %, nearest point to ${fx(Math.max(...hr.map(herNearOut)))} %, her middle at u ${Math.min(...us).toFixed(2)}-${Math.max(...us).toFixed(2)}, wings u ${Math.min(...hr.map(r => r.her.left[0])).toFixed(2)}-${Math.max(...hr.map(r => r.her.right[0])).toFixed(2)}`);
+    }
+    // the slow stretches (round 2b): what is how far out in each
+    for (const [a, b] of (await evaluate('window.__world.flugedla3d.fjor.slows')) ?? []) {
+      const sr = rows.filter(r => r.t >= a && r.t <= b && r.her);
+      if (!sr.length) continue;
+      const ch = sr.filter(r => r.herInfo?.chestK > 0).map(r => outOf(r.herInfo.chestK));
+      const us = sr.map(r => (r.her.left[0] + r.her.right[0]) / 2);
+      const th = sr.map(r => r.thor?.head).filter(h => h && h.inView);
+      const bfs = sr.filter(r => r.butterfly).map(r => r.butterfly.outNear);
+      say(`  slow ${a.toFixed(2)}-${b.toFixed(2)} s (${(b - a).toFixed(2)} s real, story ${(sr[0].story ?? 0).toFixed(2)}-${(sr.at(-1).story ?? 0).toFixed(2)} s, speed down to ${Math.min(...sr.map(r => r.rate ?? 1)).toFixed(2)}): her chest ${fx(Math.min(...ch))}..${fx(Math.max(...ch))} %, her nearest point ${fx(Math.min(...sr.map(herNearOut)))}..${fx(Math.max(...sr.map(herNearOut)))} %, her middle at u ${Math.min(...us).toFixed(2)}-${Math.max(...us).toFixed(2)}; the butterfly to ${bfs.length ? fx(Math.max(...bfs)) : '-'} %${th.length ? '; the head of Þórseðla ' + fx(Math.min(...th.map(h => outOf(h.k)))) + '..' + fx(Math.max(...th.map(h => outOf(h.k)))) + ' %' : ''}`);
+    }
+    // Þórseðla (round 2b)
+    const tr = rows.filter(r => r.thor && r.thor.seen > 0);
+    if (tr.length) {
+      const hs = rows.filter(r => r.thor?.head?.inView).map(r => ({ t: r.t, out: outOf(r.thor.head.k), u: r.thor.head.u, v: r.thor.head.v }));
+      const top = hs.reduce((w, x) => (!w || x.out > w.out ? x : w), null);
+      const linger = runs(r => r.thor?.head?.inView && outOf(r.thor.head.k) >= 3.5);
+      const near = tr.reduce((w, r) => (!w || r.thor.near.k < w.thor.near.k ? r : w), null);
+      say(`Þórseðla: in the picture ${tr[0].t.toFixed(2)}-${tr.at(-1).t.toFixed(2)} s (${tr.length} frames); her nearest point to ${fx(outOf(near.thor.near.k))} % (${near.thor.near.name}, ${near.t} s), the farthest of her nearest ${fx(Math.min(...tr.map(r => outOf(r.thor.near.k))))} %`);
+      say(`  her head: the peak ${top ? fx(top.out) + ' % at ' + top.t + ' s (u ' + top.u + ', v ' + top.v + ')' : '-'}; past +3.5 %: ${linger.map(x => x.a.toFixed(2) + '-' + x.b.toFixed(2) + ' s (' + (x.b - x.a + o.step).toFixed(2) + ' s real, u ' + Math.min(...x.rows.map(r => r.thor.head.u)).toFixed(2) + '-' + Math.max(...x.rows.map(r => r.thor.head.u)).toFixed(2) + ')').join(', ') || 'never'}`);
+      const all = rows.filter(r => r.thor);
+      const g = key => all.reduce((w, r) => { const x = r.thor[key]; const v = typeof x === 'object' ? x.gap : x; return !w || v < w.v ? { v, t: r.t, what: x?.name } : w; }, null);
+      const gh = g('gapHer'), gb = g('gapBf'), gc = g('gapCam');
+      say(`  the smallest gaps to her body (her bones as balls): Flugeðla's bones ${gh.v} m (${gh.what}, ${gh.t} s), the butterfly ${gb.v} m (${gb.t} s), the camera ${gc.v} m (${gc.t} s)`);
     }
     // her wing cut by a side edge while in front of the screen: how long
     const wingCut = runs(r => r.her && r.white < 0.99 && ((r.her.left[0] <= 0.005 && r.her.left[2] < 1) || (r.her.right[0] >= 0.995 && r.her.right[2] < 1)));
@@ -362,7 +389,7 @@ async function fjorTrial(o, server, { say, report }) {
       await shoot(path.resolve(o.out, `${o.prefix ?? "fjor-g1"}-${t}s.png`));
     }
     if (o.bench) {
-      for (const t of [5.3, 13.0, 22.7]) {
+      for (const t of [5.3, 13.0, 21.4, 33.6]) {
         await evaluate(`window.__world.flugedla3d.seek(${t})`);
         await evaluate('window.__advance(1 / 30)');
         const on = await evaluate('window.__benchmark(90)');

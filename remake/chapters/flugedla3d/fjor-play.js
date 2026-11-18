@@ -178,5 +178,30 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     if (filter) filter.frequency.setTargetAtTime(rate > 0.99 ? 20000 : 400 + 19600 * Math.pow((rate - 0.2) / 0.8, 3), filter.context.currentTime, 0.04);
     for (const [i, [wt, side]] of WHOOSH.entries()) if (i > lastWhoosh && t >= wt) { lastWhoosh = i; if (t - wt < 0.2) flight?.whoosh?.(side); }
   }
-  return { apply, setStage, length: WARP.length, warp: WARP, slows: WARP.slows, holds: HOLDS.map(([a, b]) => [+WARP.real(a).toFixed(2), +WARP.real(b).toFixed(2)]), linger: LINGER.map(x => +WARP.real(x).toFixed(2)), thor: state.thor ?? null, bursts, stats: () => cameraStats(route), soundStart, soundLoop, soundFrame, route, path, groundAt, low: LOW };
+  // the probe's numbers on Þórseðla: her head's and her nearest point's depth in the picture (k), and the smallest gaps from her
+  // (her bones as balls) to Flugeðla's bones, the butterfly and the camera
+  const THOR_R = { Head: 0.7, Jaw: 0.5, Neck: 0.8, Neck2: 0.7, Neck3: 0.6, Neck4: 0.55, Neck5: 0.5, Chest: 1.6, Spine: 1.7, Hips: 1.6, Tail1: 1.1, Tail2: 0.9, Tail3: 0.7, Tail4: 0.55, Tail5: 0.45, Tail6: 0.35, Tail7: 0.3, Tail8: 0.25, BackLegL: 0.7, BackLegR: 0.7, FrontLegL: 0.6, FrontLegR: 0.6, BackFootL: 0.45, BackFootR: 0.45, FrontFootL: 0.4, FrontFootR: 0.4 };
+  const pv = new THREE.Vector3(), qv = new THREE.Vector3(), ndc = new THREE.Vector3();
+  function thorProbe() {
+    if (!thor) return null;
+    thor.root.updateMatrixWorld(true);
+    fwd.set(0, 0, -1).applyQuaternion(stageCam.quaternion);
+    const balls = [];
+    thor.model.traverse(o => { if (o.isBone && THOR_R[o.name]) { o.getWorldPosition(pv); balls.push([pv.clone(), THOR_R[o.name], o.name]); } });
+    const herBones = [];
+    cast.her.model.traverse(o => { if (o.isBone) { o.getWorldPosition(qv); herBones.push(qv.clone()); } });
+    let head = null, near = null, gapHer = { gap: Infinity }, gapBf = Infinity, gapCam = Infinity, seen = 0;
+    for (const [p, R, name] of balls) {
+      const k = (p.clone().sub(stageCam.position).dot(fwd) - R) / D;
+      ndc.copy(p).project(stageCam);
+      const inView = ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1;
+      if (inView) { seen++; if (!near || k < near.k) near = { k, name }; }
+      if (name === 'Head') head = { k: +k.toFixed(3), u: +((ndc.x + 1) / 2).toFixed(2), v: +((1 - ndc.y) / 2).toFixed(2), inView };
+      for (const h of herBones) { const g = h.distanceTo(p) - R; if (g < gapHer.gap) gapHer = { gap: g, name }; }
+      gapBf = Math.min(gapBf, cast.butterfly.position.distanceTo(p) - R);
+      gapCam = Math.min(gapCam, stageCam.position.distanceTo(p) - R);
+    }
+    return { head, near: near && { k: +near.k.toFixed(3), name: near.name }, seen, gapHer: { gap: +gapHer.gap.toFixed(2), name: gapHer.name }, gapBf: +gapBf.toFixed(2), gapCam: +gapCam.toFixed(2) };
+  }
+  return { thorProbe, apply, setStage, length: WARP.length, warp: WARP, slows: WARP.slows, holds: HOLDS.map(([a, b]) => [+WARP.real(a).toFixed(2), +WARP.real(b).toFixed(2)]), linger: LINGER.map(x => +WARP.real(x).toFixed(2)), thor: state.thor ?? null, bursts, stats: () => cameraStats(route), soundStart, soundLoop, soundFrame, route, path, groundAt, low: LOW };
 }
