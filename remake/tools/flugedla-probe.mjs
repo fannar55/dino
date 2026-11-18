@@ -32,6 +32,7 @@ function parseArgs(argv) {
     else if (a === '--only') o.only = next().split(',');
     else if (a === '--size') o.size = next();
     else if (a === '--from') o.from = Number(next());
+    else if (a === '--bench-at') o.benchAt = next().split(',').map(Number);
     else if (a === '--to') o.to = Number(next());
     else if (a === '--plane') o.plane = next();
     else if (a === '--talur') o.talur = next();
@@ -440,7 +441,7 @@ async function fjorTrial(o, server, { say, report }) {
       await shoot(path.resolve(o.out, `${o.prefix ?? "fjor-g1"}-${t}s.png`));
     }
     if (o.bench) {
-      for (const t of [5.3, 12.0, 23.96, 27.52, 33.0, 35.13, 39.13, 43.13, 47.93, 52.13]) {
+      for (const t of o.benchAt ?? [5.3, 12.0, 23.96, 27.52, 33.0, 35.13, 39.13, 43.13, 47.93, 52.13]) {
         await evaluate(`window.__world.flugedla3d.seek(${t})`);
         await evaluate('window.__advance(1 / 30)');
         const on = await evaluate('window.__benchmark(90)');

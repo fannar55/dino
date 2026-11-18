@@ -376,20 +376,20 @@ export const FLOCK_MEMBERS = [
   { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.9, 0.7, 0.6, -25], [11.4, 1.2, 0.92, 0.4, 0], [11.5, 1.2, 1.05, 0.38, 0], [13.2, -0.24, 1.05, 0.38, 0], [13.3, -0.26, 1.02, 0.5, -30], [16, -0.45, 1.15, 0.9, -50]] },
 ];
 // ---- the ending, "Hópurinn kemur aftur" (keys in END beats): the flock comes back up out of the gorge behind her at the crest ----
-// From the bottom edge, deep (small), rising into three layers round her as above the cloud: far (73-105 m), middle (17-20 m), near
-// (14-15 m, high beside her); she in the middle, nearest (8 m). The formation move: a wave from far to near (each layer dips and banks
+// From the bottom edge, deep (small), rising into three layers round her as above the cloud: far (73-105 m), middle (25-26 m, over her head), near
+// (15-16 m, beside her wings); she in the middle, nearest (8 m). The formation move: a wave from far to near (each layer dips and banks
 // on its half beat, beats 1-2.5), then all bank as one (beat 3, held to 4). On beat 4 (the set's beat 380, its half phrase) they
 // break: the far and middle ones away to the sides and up, deep; the near ones past us on both sides, quick. Then she holds alone.
 // Each: [settled u, v, k], the side it breaks to (-1 left, 1 right), when it starts in from the edge and where ([u, v, k]), when it is in place.
 const ENDING = [
-  { at: [0.14, 0.36, 5.0], side: -1, start: -3.4, from: [0.18, 1.12, 6.0], set: 0.0 },
-  { at: [0.86, 0.34, 6.0], side: 1, start: -3.2, from: [0.82, 1.12, 7.0], set: 0.0 },
-  { at: [0.5, 0.16, 4.4], side: 1, start: -3.0, from: [0.54, 1.12, 5.4], set: 0.0 },
-  { at: [0.36, 0.36, 1.35], side: -1, start: -2.8, from: [0.4, 1.12, 3.4], set: 0.5 },
-  { at: [0.64, 0.35, 1.25], side: 1, start: -2.6, from: [0.6, 1.12, 3.2], set: 0.5 },
-  // (the near ones in from the side edges, behind the screen, and round to high beside her: apart from the middle ones' way up)
-  { at: [0.25, 0.22, 0.8], side: -1, start: -2.4, from: [-0.2, 0.5, 1.6], set: 1.0 },
-  { at: [0.75, 0.24, 0.78], side: 1, start: -2.2, from: [1.2, 0.48, 1.6], set: 1.0 },
+  { at: [0.1, 0.24, 5.0], side: -1, start: -3.4, from: [0.14, 1.12, 6.0], set: 0.0 },
+  { at: [0.9, 0.26, 6.0], side: 1, start: -3.2, from: [0.86, 1.12, 7.0], set: 0.0 },
+  { at: [0.5, 0.1, 4.4], side: 1, start: -3.0, from: [0.54, 1.12, 5.4], set: 0.0 },
+  { at: [0.38, 0.2, 1.5], side: -1, start: -2.8, from: [0.42, 1.12, 3.6], set: 0.5 },
+  { at: [0.62, 0.21, 1.4], side: 1, start: -2.6, from: [0.58, 1.12, 3.4], set: 0.5 },
+  // (the near ones in from the side edges, behind the screen, round to beside her wings: apart from the middle ones' way up)
+  { at: [0.2, 0.36, 0.9], side: -1, start: -2.4, from: [-0.2, 0.5, 1.6], set: 1.0 },
+  { at: [0.8, 0.37, 0.88], side: 1, start: -2.2, from: [1.2, 0.48, 1.6], set: 1.0 },
 ];
 const WAVE = { far: 1.0, mid: 1.5, near: 2.0 }; // each layer's dip, on its half beat
 FLOCK_MEMBERS.forEach((m, i) => {
