@@ -288,8 +288,8 @@ export function butterflyAt(t, her, D = FJOR_D) {
   vv = lerp(vv, 0.3, away);
   k = lerp(k, 0.33, away);
   // at Þórseðla's head: spiralling round it, just in front of it (her head about 7 m from us)
-  if (t >= LINGER[0] - 0.6 && t < at(31.6) + 0.6) {
-    const e = smooth((t - (LINGER[0] - 0.6)) / 0.6) * (1 - smooth((t - at(31.6)) / 0.6));
+  if (t >= GLADE_T.ahead + 1 && t < at(31.6) + 0.6) {
+    const e = smooth((t - (GLADE_T.ahead + 1)) / 0.8) * (1 - smooth((t - at(31.6)) / 0.6));
     const w = TAU * (t - LINGER[0]) / 1.4;
     uu = lerp(uu, 0.53 + 0.04 * Math.cos(w), e);
     vv = lerp(vv, 0.44 + 0.03 * Math.sin(w) - 0.3 * shoot, e);
