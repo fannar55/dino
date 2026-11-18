@@ -208,18 +208,44 @@ Sjötta sena kafla 5 er tónlistarmyndband við sett Flugeðlu (`chapters/kafli5
 slögum lagsins (125 á mínútu: slag er 0,48 s og taktur 1,92 s). Hún hefur eigin reglu um klippingar ofan á reglurnar hér að
 ofan; hraðamörkin standa óbreytt.
 
-- **Klippingar:** á slagi, og hvert skot stendur minnst einn takt (1,92 s) í stað 2,5 s. Styttri skot eru aðeins tvö:
-  þrjú nærskot af froskunum á „frosk- frosk- froskadjamm!“ (slag á milli) og niðurtalningin, hópur á tölu (tvö slög á milli).
+- **Klippingar:** á slagi, og hvert skot stendur minnst einn takt (1,92 s) í stað 2,5 s. Styttri skot (`quick` í `CAMERA`) eru
+  aðeins í rununum sem prófið telur upp (`tests/kafli5-video.test.mjs`, `QUICK_RUNS`): niðurtalningin (hópur á tölu), seinna
+  droppið og lokaviðlagið (hópur á hálfum takti), flugtak flugdýranna og „Vængina upp!“. Þau standa tvö slög (0,96 s), og það
+  er gólfið: nóg til að sex ára barn sjái hver þetta er og eina hreyfingu, og það sem niðurtalningin hefur haft frá byrjun.
+  Eitt slag (0,48 s) er aðeins í tveimur runum, þar sem hver mynd er sömu gerðar og sú á undan og hljóðið segir hvað hún er:
+  þrjú skot af froskunum, hvert nær en hitt, á „frosk- frosk- froskadjamm!“, og fimm síðustu höggin, hópur á höggi um leið og
+  hann syngur tóninn sinn. Stutt skot stendur kyrrt, mest fimm koma í röð og á eftir þeim kemur skot sem stendur takt eða lengur.
 - **Hreyfing:** eftir klippingu má myndavélin hreyfast á meðan skotið stendur: hægur aðdráttur, hringsól um það sem hún horfir
   á eða aðdráttur linsu, innan hraðamarkanna (1,2 m/s, 10°/s, 8° af linsu á sekúndu) og alltaf mjúk í byrjun og enda. Aldrei
   hristingur. Ef beðið er um minni hreyfingu eru bara klippingarnar.
 - **Nær og fjær:** hver hópur á tvö skot, allan hópinn og nærmynd (`kafli5-pool.js`, `GROUP_SHOTS`), og hluti hans í laginu
-  byrjar á hópnum öllum og fer svo nær. Stóru kaflarnir eru séðir lágt yfir vatnið (`set_low_wide`, `set_water_low`).
+  byrjar á hópnum öllum og fer svo nær. Stóru kaflarnir eru dýranna, í nærmynd (eigandinn, 2026-11-18): seinna droppið og
+  lokaviðlagið fara hóp úr hópi þegar hver dansar villtast, og fimm síðustu höggin eru hópur á höggi. Víðu skotin þrjú
+  (`choir_wide`, `set_low_wide`, `set_water_low`) eru þar sem lagið vill loft (fyrsta högg dropps, svar skógarins, síðasta
+  höggið) og halda mest 36 % af settinu og af því sem kemur eftir droppið (prófið telur). Eftir droppið á hver hópur, bjöllurnar
+  líka, minnst eina nærmynd.
+- **Ramminn heldur dansinum:** nærskot er miðað þannig að það sem hópurinn gerir í því sést allt: stökkið upp á tölunni sinni,
+  hringurinn, stökkin milli laufblaða. Prófið spilar dansana í hverju stuttu skoti og spyr hvort dýrin séu í rammanum, bæði á
+  16:10 og á uppréttri spjaldtölvu.
+- **Egill sýnir:** þegar Flugeðla biður salinn að klappa („Klappið með!“), lyfta höndum („Hendur upp, Egill!“) eða hoppa
+  („Hopp!“) er Egill í mynd að gera það, í nærmynd (`set_egill_close`) eða með Mosa á bakkanum á bak við sig (`set_bank_hop`,
+  bæði „Hopp!“), takt eða lengur: nógu lengi til að herma eftir.
+- **Stóru orðin fela engan:** orðin sem Flugeðla hrópar („AFTUR!“, „STOPP!“, „HOPP!“) standa í efri hluta skjásins
+  (`kafli5-show-score.js`, `WORD.at`). Skot sem orð stendur yfir hefur þá sem það er hrópað á neðarlega í rammanum, undir
+  orðinu og yfir textaboxinu: höfuð þeirra neðar en fótur orðsins (um miðjan 16:10 skjá; ofar á uppréttri spjaldtölvu, þar
+  sem orðið er minna) og fæturnir ofar en 86 % af hæð rammans. Þannig hanga froskarnir undir „STOPP!“ og Egill hoppar undir
+  „HOPP!“; prófið reiknar fót orðsins úr `WORDS` og mælir hvort tveggja, svo að orð sem er fært kallar á að skotið sé miðað
+  upp á nýtt. „NÚ!“ fyllir skjáinn og má það: Flugeðla sést koma upp undan því efst í rammanum.
+- **Niðurtalningin:** klippt er á töluna sjálfa, hópur á tölu, lágt til hátt; hópurinn stekkur upp slagi síðar, inni í skotinu.
 - **Sólin:** ekkert skot horfir nær sólinni en 35° (hún stendur í 215°), svo kórinn er myndaður úr norðaustri og flugdýrin
-  við sefið úr suðri. Ein undantekning: í rökkrinu horfir `set_sun` beint á sólina, sem dregur þá á sig nátthúfu með dúsk
-  og verður syfjuð (ósk eigandans 2026-11-11); ljósið er dempað þá, svo hún blindar ekki.
-- **Spól og frost:** engin klipping fellur inn í spólið („Aftur!“) eða á „Stopp!“: myndin spólar til baka og frýs í skotinu
-  sem hún er í.
+  við sefið úr suðri. Tvær undantekningar, báðar í rökkrinu þegar ljósið er dempað svo hún blindar ekki: `set_sun` horfir beint
+  á sólina, sem dregur þá á sig nátthúfu með dúsk og verður syfjuð (ósk eigandans 2026-11-11), og `set_drop`, skot droppsins
+  („Nú!“), hefur hana í rammanum (10° frá ásnum): Flugeðla skýst beint upp úr tjörninni þvert yfir hana.
+- **Spól og frost:** engin klipping fellur inn í spólið („Aftur!“), á „Stopp!“ eða á slagið þegar allt fer aftur af stað
+  („Dansa!“). Spólið er haldið á skjaldbökunum, sem snúast þá á skelinni eins og plötur og snúast aftur á bak í spólinu.
+  „Stopp!“ er haldið á froskunum (`set_frogs_air`, öll fimm laufblöðin neðarlega í rammanum): klippt er á stökk, tveir hanga
+  í loftinu undir orðinu þegar allt frýs og myndavélin heldur áfram hægu hringsóli um þá, því að hreyfing myndavélar í kyrrum
+  heimi er það sem segir „frosið“. Egill er svo sýndur frosinn í miðju stökki, og í sama skoti lendir hann þegar allt fer af stað.
 
 ## 9. Motion
 

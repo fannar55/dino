@@ -3,10 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BENDS, CAMERA, danceBeatAt, sectionAt, shielded } from '../chapters/kafli5-video.js';
-import { SHOTS, SHOWS, GROUPS, GROUP_SHOTS, seatsOf } from '../chapters/kafli5-pool.js';
+import { SHOTS, SHOWS, SPOTS, GROUPS, GROUP_SHOTS, seatsOf } from '../chapters/kafli5-pool.js';
 import { SONG } from '../chapters/kafli5-set.js';
+import { WORD, WORDS } from '../chapters/kafli5-show-score.js';
+import { LETTERS, ROOM } from '../engine/show/big-number.js';
 import { danceOf, memberOf } from '../chapters/kafli5-dances.js';
-import { flugedlaAt, clockAt } from '../chapters/kafli5-people-score.js';
+import { egillAt, flugedlaAt, clockAt } from '../chapters/kafli5-people-score.js';
 import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createPointResolver } from '../engine/points.js';
@@ -193,12 +195,14 @@ test('Egill shows what the room is asked to do: the claps, his hands up and both
   const up = line('wings') + 2.2; // kafli5-people-score.js: his hands start up two beats into her line
   close(up, 'his hands going up');
   close(up + 4, 'his hands up');
-  // the carnival: two claps running and the first "Hopp!" close on him; he is in the picture for the second
+  // the carnival: two claps running before the first "Hopp!", one close on him and one in the picture he hops in; both
+  // "Hopp!" in that picture (set_bank_hop: him low in it, under the word, Mosi behind him), from the shout to his landing
   const [first, second] = [line('hopp'), line('hopp-2')];
-  claps.filter(beat => beat > first - 4 && beat < first).forEach(beat => close(beat, 'a clap of the carnival'));
-  close(first, 'the first "Hopp!"');
-  close(first + 1, 'and its landing');
-  for (const beat of [second, second + 1]) assert.ok(SHOWS[shotAt(beat)].includes('egill'), `Egill is in ${shotAt(beat)} for the second "Hopp!" (${beat})`);
+  const before = claps.filter(beat => beat > first - 4 && beat < first);
+  assert.ok(before.length >= 2, 'two claps before the first "Hopp!"');
+  close(before[0], 'a clap of the carnival');
+  before.forEach(beat => assert.ok(SHOWS[shotAt(beat)].includes('egill'), `Egill is in ${shotAt(beat)} for the clap on ${beat}`));
+  for (const beat of [first, first + 1, second, second + 1]) assert.equal(shotAt(beat), 'set_bank_hop', `"Hopp!" and its landing (${beat})`);
 });
 
 // What is inside a shot's frame: the dances and the people's scores at a beat, seen by the real director's camera on a 16:10
@@ -235,7 +239,8 @@ function frameAt(setBeat, aspect) {
   for (let t = 0; t < (setBeat - CAMERA[k].beat) * BEAT - 1e-9; t += 1 / 30) director.update(1 / 30);
   camera.updateMatrixWorld();
   const holds = (point, edge = 0) => { const p = point.clone().project(camera); return p.z < 1 && Math.abs(p.x) <= 1 - edge && Math.abs(p.y) <= 1 - edge; };
-  return { shot: CAMERA[k].cut, holds, whole: dancer => holds(dancer.feet) && holds(dancer.top) };
+  const down = point => (1 - point.clone().project(camera).y) / 2; // how far down the frame a point is: 0 its top, 1 its foot
+  return { shot: CAMERA[k].cut, holds, down, whole: dancer => holds(dancer.feet) && holds(dancer.top) };
 }
 const ASPECTS = [1.6, 0.625];
 
@@ -267,6 +272,42 @@ test('"Stopp!" catches two frogs in the air inside the frame, and they hang ther
     const first = CAMERA.findLast(entry => entry.beat <= stopp).beat;
     const frame = frameAt(first + 0.05, aspect);
     assert.ok(dancersAt('frogs', first + 0.05).some(frog => frog.up > 0.3 && frame.whole(frog)), `a frog is in the air as the shot begins (${aspect})`);
+  }
+});
+
+// The big words stand in the upper part of the screen (kafli5-show-score.js WORDS, engine/show/big-number.js). Those a word is
+// shouted at are seen under it and over the caption (the lowest 14 % of a 16:10 screen). How far down the screen a word's foot
+// is, its outline and the shadow under it counted, on a screen `aspect` wide (800 px the short way), at its full size:
+function footOf(text, aspect) {
+  const [w, h] = aspect > 1 ? [800 * aspect, 800] : [800, 800 / aspect];
+  const word = WORDS.find(one => one.text === text);
+  const size = Math.min(WORD.height * h, (WORD.across / word.wide) * w);
+  return (word.at * (h - ROOM) + (LETTERS.line + LETTERS.outline + 0.045 - word.lift) * size) / h;
+}
+test('a big word does not hide those it is shouted at: the frogs hang under "STOPP!" and Egill hops under "HOPP!"', () => {
+  const { from: stopp } = BENDS.freeze;
+  const UNDER = Object.fromEntries(ASPECTS.map(aspect => [aspect, footOf('STOPP!', aspect)]));
+  const HOPP = Object.fromEntries(ASPECTS.map(aspect => [aspect, footOf('HOPP!', aspect)]));
+  for (const aspect of ASPECTS) {
+    for (const beat of [stopp, stopp + 1, stopp + 1.9]) {
+      const frame = frameAt(beat, aspect);
+      for (const frog of dancersAt('frogs', beat).filter(one => one.up > 0.3)) {
+        const head = frog.feet.clone().add(new THREE.Vector3(0, 0.9, 0)); // stretched out in its leap
+        assert.ok(frame.down(head) >= UNDER[aspect], `a hanging frog's head is ${(100 * frame.down(head)).toFixed(0)} % down ${frame.shot} at ${beat} (${aspect}), the word's foot ${(100 * UNDER[aspect]).toFixed(0)} %`);
+      }
+      if (aspect > 1) for (const frog of dancersAt('frogs', beat)) assert.ok(frame.down(frog.feet) <= 0.86, 'the frogs are over the caption');
+    }
+    // Egill: his feet are 0.15 m under the water, and at the top of a hop his head is 1.35 m over them (measured in a still)
+    for (const hopp of [line('hopp'), line('hopp-2')]) {
+      for (let beat = hopp; beat < hopp + 2; beat += 0.1) {
+        const frame = frameAt(beat, aspect);
+        const feet = new THREE.Vector3(SPOTS.egill[0], FAR_POOL.level - 0.15 + egillAt(clockAt(beat)).lift, SPOTS.egill[1]);
+        const head = feet.clone().add(new THREE.Vector3(0, 1.35, 0));
+        assert.ok(frame.down(head) >= HOPP[aspect], `Egill's head is ${(100 * frame.down(head)).toFixed(0)} % down ${frame.shot} at ${beat.toFixed(1)} (${aspect}), the word's foot ${(100 * HOPP[aspect]).toFixed(0)} %`);
+        assert.ok(frame.holds(feet) && frame.holds(head), `Egill is in ${frame.shot} at ${beat.toFixed(1)} (${aspect})`);
+        if (aspect > 1) assert.ok(frame.down(feet.clone().add(new THREE.Vector3(0, 0.15, 0))) <= 0.87, 'the water round his ankles is over the caption');
+      }
+    }
   }
 });
 

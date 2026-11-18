@@ -125,6 +125,7 @@ const WHERE = {
   set_her_reed: { sloedla: WADE.at },
   set_sun: { sloedla: WADE.at },
   set_egill_close: { egill: SPOTS.egill },
+  set_bank_hop: { egill: SPOTS.egill, mosi: SPOTS.mosi },
   set_flugedla: { flugedla: SPOTS.flugedla },
 };
 

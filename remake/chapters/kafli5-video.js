@@ -112,11 +112,11 @@ export const CAMERA = [
   // the water as she goes up once more; and from group to group at its wildest, high to low along the bank: the flyers' wheel,
   // the lizards' ring, the frogs' leaps, the beetles on their log, and the grazers' stomp from low
   { beat: 296, cut: 'set_drop' },
-  { beat: 300, cut: 'set_turtles_close', then: { orbit: -12, beats: 7 } },
+  { beat: 300, cut: 'set_turtles_close', then: { orbit: 12, beats: 7 } }, // (round to the side the grazers are not on)
   { beat: 308, cut: 'set_water_low', then: { orbit: 2, beats: 3.5 } },
   { beat: 312, cut: 'set_wheel', quick: true },
   { beat: 314, cut: 'set_lizards', quick: true },
-  { beat: 316, cut: 'set_frogs', quick: true },
+  { beat: 316, cut: 'set_frogs_mid', quick: true },
   { beat: 318, cut: 'set_beetles', quick: true },
   { beat: 320, cut: 'set_grazers_close', then: { push: 1, beats: 3.5 } },
   // everyone sings her tune
@@ -131,14 +131,16 @@ export const CAMERA = [
   { beat: 360, cut: 'set_frogs_air', then: { orbit: 8, beats: 4 } },
   { beat: 364, cut: 'set_turtles_close' },
   { beat: 368, cut: 'set_egill_close', then: { push: 0.8, beats: 7 } },
-  // the carnival: the parade sets out; the frogs' round of their pads, a leap on each clap; Egill clapping (387, 389) and hopping
-  // on "Hopp!" (390); the turtles marching round on their stone as the grazers file past behind it; the second "Hopp!" (398)
-  // with Egill, Mosi and the bank behind them; and the parade home
+  // the carnival: the parade sets out; the frogs' round of their pads, a leap on each clap; Egill clapping, close (387), and
+  // then low in the picture with Mosi behind him, a clap (389) and his hop on "Hopp!" (390) under the word, which stands in
+  // the upper part of the screen (kafli5-show-score.js WORD.at); the turtles marching round on their stone as the grazers file
+  // past behind it; the second "Hopp!" (398) in the same picture as the first; and the parade home
   { beat: 376, cut: 'set_water_low', then: { orbit: -2, beats: 3.5 } },
   { beat: 380, cut: 'set_frogs', then: { push: 1.2, beats: 3.5 } },
-  { beat: 384, cut: 'set_egill_close', then: { push: 0.6, beats: 7 } },
+  { beat: 384, cut: 'set_egill_close', then: { push: 0.5, beats: 3.5 } },
+  { beat: 388, cut: 'set_bank_hop' },
   { beat: 392, cut: 'set_turtles', then: { push: 1.2, beats: 3.5 } },
-  { beat: 396, cut: 'bank_talk' },
+  { beat: 396, cut: 'set_bank_hop' },
   { beat: 400, cut: 'choir_wide', then: { push: 1.2, beats: 3.5 } },
   // "Egill, segðu já!": Flugeðla's wing out to him, him (the gap is the child's), the forest's answer, and its bigger one
   { beat: 404, cut: 'pool_open' }, // her wing out to him

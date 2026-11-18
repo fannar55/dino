@@ -118,17 +118,19 @@ const SET_SHOTS = {
   set_turtles_close: seen(CHOIR.turtles.at, 148, 4.6, 2.4, 2.4, 36), // level with them; on their backs they spin 3.2 m across
   set_frogs: seen(CHOIR.frogs.at, 160, 8.5, 1.3, 0.5, 40),
   set_frogs_mid: seen(beside('frogs', -0.5, 0.2), 160, 6.8, 1.15, 0.9, 36), // all five pads, and the air a frog pops up into on its number (1.6 m)
-  set_frogs_close: seen(CHOIR.frogs.at, 160, 3.8, 1.0, 0.4, 32),
+  // four of the five, and the air over them: on their hit they hop into their last pose, standing 1.2 m tall
+  set_frogs_close: seen(beside('frogs', -0.2, 0), 160, 5.4, 1.0, 0.78, 32),
   set_lizards: seen(CHOIR.lizards.at, 170, 8, 1.2, 1.0, 40),
-  set_lizards_close: seen(CHOIR.lizards.at, 158, 5.2, 1.0, 1.3, 34), // aimed over their heads: they pop up 1.1 m on their number
-  // the frogs as "Stopp!" catches them (Stoppdans): the two pairs of pads the last leaps before it are between, the middle one's
-  // and the two at the group's right, with the air over them that the leaps go up into; the camera goes on round them while they hang
-  set_frogs_air: seen(beside('frogs', 0.75, 0.6), 160, 6.3, 1.15, 0.9, 35),
+  set_lizards_close: seen(CHOIR.lizards.at, 158, 6.6, 1.0, 1.53, 34), // aimed over their heads: they pop up 1.1 m on their number, and the nearest is a long one
+  // the frogs as "Stopp!" catches them (Stoppdans): all five pads, low in the picture, with the air over them that the leaps go
+  // up into and the word stands in ("STOPP!" is in the upper part of the screen, kafli5-show-score.js WORD.at: the two that hang
+  // in the air hang under its foot, kafli5-video.test.mjs measures it); the camera goes on round them while they hang
+  set_frogs_air: seen(beside('frogs', -0.3, 0.6), 160, 7.2, 1.15, 1.62, 38),
   // the flyers stand by her reed, north-west: from the pool they are under the sun and from the north the reed is in the way, so
   // they are seen from the south, from the water in front of the lizards' place. The whole group from under the way they take off
   // (toward the pool's middle, over the shallows): they come at the camera and go over it two beats after they leave the ground
   set_flyers: seen(CHOIR.flyers.at, 256, 13.8, 1.2, 3.0, 46),
-  set_flyers_close: seen(CHOIR.flyers.at, 256, 4.8, 1.6, 1.3, 32),
+  set_flyers_close: seen(beside('flyers', 0.34, 0), 256, 6.0, 1.6, 1.3, 32), // all four whole, wings and all
   // their wheel when the drop comes back (a ring 5.5 m over the shallows in front of their place: kafli5-dances.js MOVES.drop),
   // from the north of it, looking south: the wheel over the lizards' bank, where the lizards run their own ring under it
   set_wheel: { position: up(around(255, 18.4), LEVEL + 1.2), target: up(around(221, 24), LEVEL + 4.2), fov: 48 },
@@ -146,7 +148,7 @@ const SET_SHOTS = {
   // pool from (kafli5-people-score.js SPOT: she is 11 m away), so she climbs straight up across the sleepy sun in its nightcap,
   // 14 m up the frame; the turtles, the beetles, the frogs, the lizards and the flyers jump on the far bank behind her. The second
   // shot that has the sun in its frame (10 degrees off its axis), and as set_sun only when the dusk has dimmed its light
-  set_drop: { position: up(around(119, 9.9), LEVEL + 1.0), target: up(around(165, 15.3), LEVEL + 4.6), fov: 56 },
+  set_drop: { position: up(around(119, 9.9), LEVEL + 1.0), target: up(around(165, 15.3), LEVEL + 5.2), fov: 56 },
   // the lizards' run along the water's edge, from their place (204 degrees) past the frogs (181) and back: from the water west of her
   set_lizards_run: { position: up(around(211.3, 16.4), LEVEL + 1.3), target: up(around(192, 27.5), LEVEL + 0.9), fov: 44 },
   // the beetles' log on the bank between the turtles and the frogs (173 degrees, 29.6 m: kafli5-dances.js), from the water's edge
@@ -159,6 +161,10 @@ const SET_SHOTS = {
   // the audience: Egill close, and Flugeðla at her decks in the shallows
   set_egill_close: { position: up(around(47, 21), LEVEL + 1.1), target: up(around(47.5, 25.6), LEVEL + 0.65), fov: 34 }, // he stands ankle-deep: his face is 0.8 m over the water
   set_flugedla: { position: up(around(60, 15), LEVEL + 1.7), target: up(FAR_POOL.landing, LEVEL + 2.3), fov: 36 },
+  // "Hopp!": Egill low in the picture, in its right third, Mosi on the bank behind him on the left. The word stands in the upper
+  // part of the screen (kafli5-show-score.js WORDS), so he hops under it: at the top of his hop his head stays under the word's
+  // foot (halfway down a 16:10 screen), and the water round his ankles over the caption (kafli5-video.test.mjs measures both)
+  set_bank_hop: { position: up(around(55.74, 19.61), LEVEL + 1.1), target: up(around(44.49, 24.86), LEVEL + 1.47), fov: 34 },
 };
 
 /**
@@ -201,5 +207,6 @@ export const SHOWS = {
   set_her_reed: ['sloedla'],
   set_sun: ['sloedla'],
   set_egill_close: ['egill'],
+  set_bank_hop: ['egill', 'mosi'],
   set_flugedla: ['flugedla'],
 };
