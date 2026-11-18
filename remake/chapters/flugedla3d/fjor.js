@@ -366,9 +366,9 @@ export const FLOCK_MEMBERS = [
   { layer: 'far', scale: 0.95, tint: 0.95, phase: 0.7, keys: [[1, 0.86, 0.99, 4.2, 0], [5, 0.85, 0.66, 4.2, 15], [10, 0.8, 0.64, 4.2, -40], [12, 0.82, 0.65, 4.2, 0], [19, 0.84, 0.66, 4.2, 0], [22.5, 1.0, 1.05, 4.6, 50]] },
   { layer: 'mid', scale: 1.0, tint: 0.97, phase: 0.25, keys: [[2, 0.36, 0.44, 9.0, 0], [8, 0.3, 0.42, 1.1, 20], [10, 0.4, 0.38, 1.1, -45], [12, 0.38, 0.4, 1.1, 0], [19, 0.32, 0.42, 1.15, 0], [23, -0.1, 0.9, 1.6, -60]] },
   { layer: 'mid', scale: 0.92, tint: 0.9, phase: 0.6, keys: [[3, 0.66, 0.4, 9.5, 0], [9, 0.72, 0.4, 0.95, -20], [10, 0.62, 0.36, 0.95, -45], [12, 0.64, 0.38, 0.95, 0], [19, 0.7, 0.4, 1.0, 0], [23, 1.1, 0.92, 1.5, 60]] },
-  { layer: 'near', scale: 0.95, tint: 1.0, phase: 0.85, keys: [[3, 0.2, 0.98, 2.6, 0], [9, 0.16, 0.66, 0.56, 25], [10, 0.24, 0.62, 0.56, -45], [12, 0.22, 0.64, 0.56, 0], [19, 0.18, 0.66, 0.56, 0], [22.5, -0.25, 0.95, 0.8, -60]] },
+  { layer: 'near', scale: 0.95, tint: 1.0, phase: 0.85, keys: [[3, 0.14, 0.98, 2.6, 0], [9, 0.1, 0.68, 0.6, 25], [10, 0.14, 0.66, 0.6, -45], [12, 0.12, 0.67, 0.6, 0], [19, 0.1, 0.68, 0.6, 0], [22.5, -0.25, 0.95, 0.8, -60]] },
   // the near one on the right, then the sweep across under her (in front of the screen, from the right edge out at the left)
-  { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.86, 0.68, 0.56, -25], [11.4, 1.2, 0.86, 0.4, -15], [11.5, 1.2, 0.93, 0.36, -15], [13.2, -0.22, 0.93, 0.36, -15], [13.3, -0.22, 0.86, 0.5, -15], [15.5, 0.12, 0.62, 0.62, 10], [19, 0.15, 0.64, 0.62, 0], [22.5, -0.2, 0.95, 0.9, -60]] },
+  { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.9, 0.7, 0.6, -25], [11.4, 1.2, 0.86, 0.4, -15], [11.5, 1.2, 0.93, 0.36, -15], [13.2, -0.22, 0.93, 0.36, -15], [13.3, -0.22, 0.86, 0.5, -15], [15.5, 0.12, 0.62, 0.62, 10], [19, 0.15, 0.64, 0.62, 0], [22.5, -0.2, 0.95, 0.9, -60]] },
 ];
 /** A flock member at story second t: { at: [u, v, k], bank, heading (degrees off the camera's), scale, flap } or null before it is up. */
 export function flockAt(m, t) {
@@ -434,7 +434,7 @@ export function butterflyAt(t, her, D = FJOR_D) {
   k = lerp(k, 0.29, drop);
   // up the falls: it shoots up at the camera, out over the top of the picture
   const upf = UP_FALLS(t);
-  uu = lerp(uu, 0.58 + 0.07 * Math.sin(TAU * t / 0.9), upf);
+  uu = lerp(uu, 0.7 + 0.05 * Math.sin(TAU * t / 0.9), upf);
   vv = lerp(vv, 0.2 + 0.04 * Math.sin(TAU * t / 0.7), upf);
   k = lerp(k, 0.3, upf);
   const flap = 0.3 + 0.9 * Math.abs(Math.sin(TAU * 5 * t));
@@ -453,7 +453,7 @@ export const BIRDS = (() => {
   for (let i = 0; i < 18; i++) {
     const far = i < 10;
     const u0 = 0.35 + r() * 0.3, v0 = far ? 0.42 + r() * 0.18 : 0.3 + r() * 0.5;
-    const k0 = far ? 1.6 + r() * 2.4 : 0.55 + r() * 0.5;
+    const k0 = far ? 1.6 + r() * 2.4 : 0.75 + r() * 0.5;
     const ph = r() * TAU, come = from + r() * 2.5, sc = (far ? 2.2 : 1.6) + r() * 0.6, beat = 9 + r() * 4;
     const out0 = r() < 0.5 ? -1 : 1;
     out.push({ scale: sc, beat, phase: ph, at: t => {
