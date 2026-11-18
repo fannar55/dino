@@ -195,24 +195,25 @@ export const WORD = { pop: 0.28, out: 0.35, across: 0.88, height: 0.7, burst: 0.
 /**
  * Each word: the line of the set it is (SONG.set.lines), how many beats it is on, how wide it is in letter sizes, its outline counted (measured in the
  * page: Nunito at weight 900), and
- *   middle it stands in the middle of the screen, not in its upper part: "NÚ!", which fills it
+ *   at     where its middle stands, if not WORD.at: "NÚ!" fills the screen from its middle, and "HOPP!" stands a little lower
+ *          than the others, so its hop stays under the stars in the screen's corner
  *   lift   it stands this much lower (in letter sizes, negative: down): "NÚ!" has an accent over it, which wants room at the top
  *   still  it stands dead still and only fades: "STOPP!", through the first beats of the freeze, as the music does
  *   hop    it hops this high (letter sizes) on its second beat: "HOPP!"
  *   again  the set's part on whose first beat it shows once more: the drop after the rewind is the drop again, word and all
  */
 const SHOUTS = [
-  { line: 'now', on: 2.3, wide: 1.85, middle: true, lift: -0.15, again: 'redrop' },
+  { line: 'now', on: 2.3, wide: 1.85, at: 0.5, lift: -0.15, again: 'redrop' },
   { line: 'aftur', on: 2, wide: 3.8 }, // to the drop it calls back, where "NÚ!" takes its place
   { line: 'stopp', on: 2, wide: 3.76, still: true }, // gone as the camera finds the turtle that moved
-  { line: 'hopp', on: 2.3, wide: 3.3, hop: 0.1 },
-  { line: 'hopp-2', on: 2.3, wide: 3.3, hop: 0.1 },
+  { line: 'hopp', on: 2.3, wide: 3.3, at: 0.4, hop: 0.12 },
+  { line: 'hopp-2', on: 2.3, wide: 3.3, at: 0.4, hop: 0.12 },
 ];
 /** The words on the screen, each at the set's beat it is shouted on: [{ beat, text, on, wide, at, lift, still, hop }]. */
-export const WORDS = SHOUTS.flatMap(({ line, again = null, middle = false, lift = 0, still = false, hop = 0, ...word }) => {
+export const WORDS = SHOUTS.flatMap(({ line, again = null, at = WORD.at, lift = 0, still = false, hop = 0, ...word }) => {
   const said = SET.lines.find(entry => entry.id === line);
   if (!said) return []; // a set cut again without that shout plays on without the word
-  const one = { ...word, at: middle ? 0.5 : WORD.at, lift, still, hop, text: said.text.toLocaleUpperCase('is') };
+  const one = { ...word, at, lift, still, hop, text: said.text.toLocaleUpperCase('is') };
   return [{ ...one, beat: said.beat }, ...(again && part(again) ? [{ ...one, beat: part(again).startBeat }] : [])];
 }).sort((a, b) => a.beat - b.beat);
 /**

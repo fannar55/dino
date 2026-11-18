@@ -78,13 +78,15 @@ test('the countdown: each number on its beat, big and clear, and gone well befor
 const SCREENS = [[1280, 800], [820, 1180]];
 const DIGIT_WIDE = LETTERS.digit + 2 * LETTERS.outline;
 const CAPTION_TOP = 113; // px from the screen's bottom to the caption's top edge (style.css .caption, one line of text)
+const HUD = { wide: 320, high: 76 }; // px: the book and the stars in the screen's top right corner (seen in the stills at both sizes)
 /** Where the ink of `spec` (countAt's or wordAt's, with its text's width in letter sizes, outline and all, and whether it has an accent) is on a screen. */
 function inkOf(spec, { wide, accent = false }, [w, h]) {
   const font = Math.min(spec.height * h, spec.width * w);
   const middle = (h - ROOM) * (spec.at ?? 0.5) - (spec.lift ?? 0) * font; // the letters' box in what the caption leaves free: its middle, or `at` of the way down
   const up = (LETTERS.cap - LETTERS.line + (accent ? LETTERS.accent : 0) + LETTERS.outline) * font * spec.scale; // the line is LETTERS.line under the box's middle
   const down = (LETTERS.line + LETTERS.outline) * font * spec.scale;
-  return { font, top: middle - up, bottom: middle + down, width: wide * font * spec.scale, capital: LETTERS.cap * font * spec.scale };
+  const shoulder = middle - (LETTERS.cap - LETTERS.line + LETTERS.outline) * font * spec.scale; // the capitals' top: an accent stands over a letter inside the word, not at its end
+  return { font, top: middle - up, shoulder, bottom: middle + down, width: wide * font * spec.scale, capital: LETTERS.cap * font * spec.scale };
 }
 
 test('the big words: NÚ! on the drops, AFTUR! in the rewind, STOPP! in the freeze and HOPP! twice, each as she shouts it and for about a second', () => {
@@ -164,6 +166,8 @@ test('every number and every word fits a tablet held flat and one held upright, 
       if (spec.opacity < 0.5) continue; // (bursting away, nearly gone)
       assert.ok(ink.top >= 0, `${text} at ${setBeat.toFixed(2)} on ${name}: its top at ${ink.top.toFixed(0)} px`);
       assert.ok(ink.bottom <= h - CAPTION_TOP, `${text} at ${setBeat.toFixed(2)} on ${name}: its foot at ${ink.bottom.toFixed(0)} px, the caption's top at ${h - CAPTION_TOP}`);
+      // and not into the stars in the corner: what reaches that far right stands under them
+      if (ink.width / 2 > w / 2 - HUD.wide) assert.ok(ink.shoulder >= HUD.high, `${text} at ${setBeat.toFixed(2)} on ${name}: its right end's top at ${ink.shoulder.toFixed(0)} px, the stars' foot at ${HUD.high}`);
     }
     assert.ok(widest > 0.8, `the widest word fills the width on ${name} (${widest.toFixed(2)})`);
     // the count's last number against the word that follows it
