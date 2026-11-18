@@ -282,7 +282,7 @@ const AIR_BODY = [
   [15.0, 0.3, 0.55, 0.42, 0.9], [16.0, 0.5, 0.62, 0.5, 0.9], [17.0, 0.42, 0.58, 0.47, 1.0], [18.6, 0.55, 0.5, 0.56, 1.0],
   [LEVEL + 0.4, 0.38, 0.58, 0.5, 1.0],
   // with the flock: in the middle, in front of them all, a hold, then a little aside as the near one sweeps under
-  [FLOCK.beat(6), 0.5, 0.52, HOLD_K, 1.2], [FLOCK.beat(14), 0.5, 0.52, HOLD_K, 0.01], [FLOCK.beat(18), 0.46, 0.5, 0.48, 1.2],
+  [FLOCK.beat(6), 0.5, 0.47, HOLD_K, 1.2], [FLOCK.beat(14), 0.5, 0.47, HOLD_K, 0.01], [FLOCK.beat(18), 0.46, 0.5, 0.48, 1.2],
   // the nose-over and the dive: in the middle of the picture as the camera drops ahead of her (she comes at us head first)
   [TIP + 0.4, 0.5, 0.5, 0.5, 0.5], [vt(0.2), 0.5, 0.48, PEAK_K, 0.8],
   // the peak held through the pull-out, then the gorge: holds and a weave between them
@@ -361,14 +361,15 @@ export function herAt(t, cam) {
 // her; on flock beat 10 they all wheel together (banked, swung across on the beat); one sweeps across under her (beats 11.5-13.2);
 // from beat 19 they peel away, banking out and down into the cloud as the butterfly drops. scale: size against hers.
 export const FLOCK_MEMBERS = [
-  { layer: 'far', scale: 0.9, tint: 0.92, phase: 0.1, keys: [[-1, 0.24, 0.98, 5.0, 0], [3, 0.24, 0.62, 5.0, 10], [10, 0.3, 0.6, 5.0, -40], [12, 0.28, 0.6, 5.0, 0], [19, 0.26, 0.62, 5.0, 0], [23, 0.1, 1.05, 5.5, -50]] },
+  { layer: 'far', scale: 0.9, tint: 0.92, phase: 0.1, keys: [[-1, 0.34, 0.98, 5.0, 0], [3, 0.34, 0.64, 5.0, 10], [10, 0.38, 0.62, 5.0, -40], [12, 0.37, 0.62, 5.0, 0], [19, 0.36, 0.64, 5.0, 0], [23, 0.2, 1.05, 5.5, -50]] },
   { layer: 'far', scale: 0.85, tint: 0.88, phase: 0.45, keys: [[0, 0.7, 1.0, 6.0, 0], [4, 0.7, 0.58, 6.0, -10], [10, 0.64, 0.56, 6.0, -40], [12, 0.66, 0.57, 6.0, 0], [19, 0.68, 0.58, 6.0, 0], [23, 0.9, 1.05, 6.5, 50]] },
   { layer: 'far', scale: 0.95, tint: 0.95, phase: 0.7, keys: [[1, 0.86, 0.99, 4.2, 0], [5, 0.85, 0.66, 4.2, 15], [10, 0.8, 0.64, 4.2, -40], [12, 0.82, 0.65, 4.2, 0], [19, 0.84, 0.66, 4.2, 0], [22.5, 1.0, 1.05, 4.6, 50]] },
   { layer: 'mid', scale: 1.0, tint: 0.97, phase: 0.25, keys: [[2, 0.36, 0.44, 9.0, 0], [8, 0.3, 0.42, 1.1, 20], [10, 0.4, 0.38, 1.1, -45], [12, 0.38, 0.4, 1.1, 0], [19, 0.32, 0.42, 1.15, 0], [23, -0.1, 0.9, 1.6, -60]] },
   { layer: 'mid', scale: 0.92, tint: 0.9, phase: 0.6, keys: [[3, 0.66, 0.4, 9.5, 0], [9, 0.72, 0.4, 0.95, -20], [10, 0.62, 0.36, 0.95, -45], [12, 0.64, 0.38, 0.95, 0], [19, 0.7, 0.4, 1.0, 0], [23, 1.1, 0.92, 1.5, 60]] },
-  { layer: 'near', scale: 0.95, tint: 1.0, phase: 0.85, keys: [[3, 0.14, 0.98, 2.6, 0], [9, 0.1, 0.68, 0.6, 25], [10, 0.14, 0.66, 0.6, -45], [12, 0.12, 0.67, 0.6, 0], [19, 0.1, 0.68, 0.6, 0], [22.5, -0.25, 0.95, 0.8, -60]] },
-  // the near one on the right, then the sweep across under her (in front of the screen, from the right edge out at the left)
-  { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.9, 0.7, 0.6, -25], [11.4, 1.2, 0.86, 0.4, -15], [11.5, 1.2, 0.93, 0.36, -15], [13.2, -0.22, 0.93, 0.36, -15], [13.3, -0.22, 0.86, 0.5, -15], [15.5, 0.12, 0.62, 0.62, 10], [19, 0.15, 0.64, 0.62, 0], [22.5, -0.2, 0.95, 0.9, -60]] },
+  { layer: 'near', scale: 0.95, tint: 1.0, phase: 0.85, keys: [[3, 0.16, 0.98, 2.6, 0], [9, 0.15, 0.66, 0.8, 25], [10, 0.18, 0.64, 0.8, -35], [12, 0.16, 0.65, 0.8, 0], [19, 0.15, 0.66, 0.8, 0], [22.5, -0.25, 0.95, 0.8, -60]] },
+  // the near one on the right, then the sweep across under her (in front of the screen, from the right edge out at the left), and
+  // on out and down into the cloud: it does not come back (the F1 report of 2026-11-18 23:19: it came back into the left near one)
+  { layer: 'near', scale: 0.9, tint: 0.94, phase: 0.35, keys: [[4, 0.84, 0.98, 2.8, 0], [9.5, 0.9, 0.7, 0.6, -25], [11.4, 1.2, 0.92, 0.4, 0], [11.5, 1.2, 1.05, 0.38, 0], [13.2, -0.24, 1.05, 0.38, 0], [13.3, -0.26, 1.02, 0.5, -30], [16, -0.45, 1.15, 0.9, -50]] },
 ];
 /** A flock member at story second t: { at: [u, v, k], bank, heading (degrees off the camera's), scale, flap } or null before it is up. */
 export function flockAt(m, t) {
@@ -385,8 +386,8 @@ export function flockAt(m, t) {
   const u = lerp(a[1], c[1], f), v = lerp(a[2], c[2], f), k = lerp(a[3], c[3], f), bank = lerp(a[4], c[4], f);
   // a little bob of their own, and their heading turned into their sideways motion
   const du = (c[1] - a[1]) / Math.max(0.2, c[0] - a[0]);
-  const sweep = a[3] < 0.4 && c[3] < 0.4; // (side-on across the picture)
-  return { at: [u + 0.01 * Math.sin(TAU * (t / 2.1 + m.phase)), v + 0.012 * Math.sin(TAU * (t / 1.7 + m.phase)), k], bank, heading: sweep ? Math.sign(-du) * 80 : clamp(-du * 60, -40, 40), scale: m.scale };
+  const sweep = a[3] < 0.4 && c[3] < 0.4; // (across the picture on a diagonal: side-on, its far wing reached back to her)
+  return { at: [u + 0.01 * Math.sin(TAU * (t / 2.1 + m.phase)), v + 0.012 * Math.sin(TAU * (t / 1.7 + m.phase)), k], bank, heading: sweep ? Math.sign(-du) * 35 : clamp(-du * 60, -40, 40), scale: m.scale };
 }
 
 // ---- the butterfly: darting all over the picture ----

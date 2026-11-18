@@ -154,7 +154,17 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
 
   // the sound: her set from its beat, made again each loop (a song plays once); the airflow at the camera's speed; in the valley the
   // river under us, the gorge's echo and the falls' roar
-  let song = null, release = null, flight = null, lastWhoosh = -1, lastCry = -1, filter = null;
+  // Each loop's song is made a few seconds before it plays (and the first at the start), and played only once its file's length and
+  // byte ranges are known: an element cued before that cannot be moved and plays from the set's start, the beat following it
+  // (engine/audio/music.js follow: "The theme cannot be moved ..."). Played late, it is played that much further in, on the beat.
+  let song = null, next = null, release = null, flight = null, lastWhoosh = -1, lastCry = -1, filter = null, pending = false;
+  const makeSong = () => {
+    const clock = world.clock ?? { get time() { return s.time; } };
+    const made = createSong({ context: world.sound?.context ?? null, output: filter ?? world.sound?.output ?? null, clock, src: 'djamm.mp3', base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}) });
+    const entry = { song: made, ready: false };
+    Promise.resolve(made.ready).then(() => { entry.ready = true; }, () => { entry.ready = true; });
+    return entry;
+  };
   function soundStart() {
     if (!sound) return;
     const context = world.sound?.context ?? null;
@@ -168,20 +178,30 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     }
     flight = createFlightSounds({ context, output: filter ?? world.sound?.output ?? null, recordings: context ? loadFlightRecordings(context) : null });
     flight.start();
+    next = makeSong();
   }
   function soundLoop() {
     if (!sound) return;
     song?.stop?.();
     release?.();
-    const clock = world.clock ?? { get time() { return s.time; } };
-    song = createSong({ context: world.sound?.context ?? null, output: filter ?? world.sound?.output ?? null, clock, src: 'djamm.mp3', base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}) });
-    release = world.sound?.hold?.(song) ?? null;
-    song.play(WARP.setBeat * BEAT);
+    release = null;
+    const entry = next ?? makeSong();
+    next = null;
+    song = entry.song;
+    songEntry = entry;
+    pending = true; // played in soundFrame once its file is known
     lastWhoosh = -1;
     lastCry = -1;
   }
+  let songEntry = null;
   function soundFrame(r) {
     if (!sound) return;
+    if (pending && songEntry?.ready) {
+      pending = false;
+      release = world.sound?.hold?.(song) ?? null;
+      song.play(WARP.setBeat * BEAT + r);
+    }
+    if (!next && r > WARP.length - 6) next = makeSong(); // the next loop's, made ahead
     if (!release) song?.update?.();
     const t = WARP.story(r), rate = WARP.rate(r);
     const c = cameraAt(route, t, base);
