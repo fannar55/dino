@@ -30,7 +30,7 @@ import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
 import { perch, holdHer, flyPath, watchHer, landingTime } from './kafli4-flugedla.js';
 import { theWind } from './kafli4-wind.js';
 import { lineQueue, panOf } from './kafli4-flight-play.js';
-import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
+import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong, lushValley } from './kafli4-flight.js';
 import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
 import { splash as splashOf, splashWarm } from '../world/props/splash.js';
 import { createArdalur } from '../world/ardalur/index.js';
@@ -855,8 +855,10 @@ export const chapter = {
     // the wait for the start button).
     ardalur: {
       // the owner's small lizard first (world/ardalur/animals.js: loadCritters), so C's lizards are his from their first frame
-      // and the white tree's trees round its snag (whiteTreesFor), and Mosi's way in to the far pool clear (FAR_POOL.wayIn)
-      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world), keep: FAR_POOL.wayIn, ...whiteTreesFor(world) }),
+      // and the white tree's trees round its snag (whiteTreesFor), and Mosi's way in to the far pool clear (FAR_POOL.wayIn); the lush
+      // valley (world/ardalur/banks.js LUSH: groves of forest, thick understory, forest on the horizon and round the snag; the owner's
+      // word of 2026-11-19), ?skogur=0 the valley as it was
+      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world), keep: FAR_POOL.wayIn, ...whiteTreesFor(world), lush: lushValley(world) }),
       shots: FAR_POOL.shots, warmUp: [],
       async ready(world, valley) {
         valley.farLand?.prefetch();

@@ -137,6 +137,41 @@ const REAL = {
   rim: [['bush', 0.4], ['cycad', 0.15], ['araucaria', 0.04], ['rock', 0.3], ['rockSmall', 0.3]],
   water: [['waterLily', 1.2]],
 };
+// The lush valley (chapter 4's flight, the owner's word of 2026-11-19: "miklu meira lush skóg"): a forest with glades, not grass with
+// trees. createArdalur's `lush` turns it on (chapters/kafli4.js and the review chapter flug.js); without it the valley grows REAL as
+// before (chapter 5 at the far pool, the 3D show flugedla3d).
+//   REAL_LUSH   the zones' mixes: about 2.5 times the near and far zones' big trees, the understory twice as thick near the river
+//               and some under the far trees too, and the Fen's own groves of swamp conifers (with a few broadleaves and tree ferns)
+//               among its reed. Round an animal group (GROVE.view, on its side) and in the herd's meadow each zone keeps REAL's mix,
+//               so the call shots' glades are as they were.
+//   LUSH.takeOff  thick forest round the white snag: within `reach` m of it every Fen and valley cell has at least `thick` times its
+//               mix's grove plants (fading out over `fade` m); her way out and up (CLEAR_OF_HER, HIGH), the take-off still's view
+//               (VIEW) and the white tree's own patch (`treeless`) keep their room as everywhere.
+//   LUSH.budget   a section's triangles at the finest level its plants are drawn at (GROVE.budget's measure), raised as far as the
+//               measured frame allows (the trial's bench: qa/remake/kafli4/skogur).
+//   LUSH.belt     the forest on the horizon: beyond the corridor (terrain.js CORRIDOR), from `inner` to `outer` m from her path, below
+//               the falls, a strip of ground (`cell` m, the valley's own paint, `sink` m under the land's height) and on it trees as
+//               their cards (world/forest/cards.js), always cards, one a `spacing` m square at `chance` (less in a glade), of the
+//               valley's species (the Fen's swamp conifers in the Fen). Each section builds its own and shows it with its land;
+//               hidden while the far land (far-land.js) shows, which stands in for it from the crest of E.
+const REAL_LUSH = {
+  ...REAL,
+  fen: [['horsetailReed', 1.0], ['horsetailTall', 0.4], ['mossHummock', 0.3], ['swampConifer', 0.22], ['broadleaf', 0.05], ['treeFern', 0.08], ['bush', 0.22], ['cycad', 0.06], ['fern', 0.3], ['deadSnag', 0.01]],
+  near: [['broadleaf', 0.3], ['araucaria', 0.1], ['treeFern', 0.4], ['cycad', 0.4], ['bush', 0.7], ['fern', 1.0], ['flowers', 0.45], ['rock', 0.08]],
+  far: [['broadleaf', 0.4], ['araucaria', 0.17], ['treeFern', 0.16], ['bush', 0.3], ['cycad', 0.12]],
+  rim: [['bush', 0.6], ['cycad', 0.25], ['araucaria', 0.07], ['rock', 0.3], ['rockSmall', 0.3]],
+};
+export const LUSH = {
+  real: REAL_LUSH,
+  takeOff: { reach: 130, fade: 40, thick: 2.2 },
+  budget: 145000,
+  belt: {
+    inner: 148, outer: 300, cell: 10, sink: 0.35, spacing: 7.5, chance: 0.85, glade: 0.5,
+    mix: [['broadleaf', 0.5], ['araucaria', 0.3], ['treeFern', 0.2]], fen: [['swampConifer', 0.7], ['broadleaf', 0.3]],
+  },
+};
+/** The zones' mixes as REAL has them, to compare (tests). */
+export const REAL_MIX = REAL;
 const SCALE = {
   broadleaf: [0.9, 1.2], araucaria: [0.75, 1.0], swampConifer: [0.9, 1.15], deadSnag: [0.7, 1.0], treeFern: [0.9, 1.4], cycad: [0.9, 1.3],
   bush: [0.9, 1.4], fern: [1.0, 1.6], horsetailReed: [0.9, 1.3], horsetailTall: [0.9, 1.2], rock: [0.8, 2.2], rockSmall: [0.8, 1.6],
@@ -180,6 +215,11 @@ function inView(views, lines, x, y, z, r, h) {
     }
   }
   return false;
+}
+/** inView for `views`, as one test: (x, y, z, r, h) -> true when a plant there would stand in a still shot's view (belt.js). */
+export function viewKeeper(views) {
+  const lines = linesOf(views);
+  return (x, y, z, r, h) => inView(views, lines, x, y, z, r, h);
 }
 const UNDERSTORY_REACH = 60; // m from the water's edge beyond which only trees grow
 
@@ -299,7 +339,8 @@ export function outcropProps(route, heightAt) {
  * placements, meshes, left }: the placements as the forest's (world/forest/plan.js), the meshes merged a section at a time, and
  * the `trees` of this section that may not stand ({ name, x, z, why }).
  */
-export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null, grove = null, trees = [], treeless = [] }) {
+export function* plantSteps({ terrain, index, route, ground, seed, library, materials, props = [], clear = [], low = [], views = [], atlas = null, cards = null, grove = null, trees = [], treeless = [], lush = null }) {
+  const MIX = lush ? lush.real : REAL;
   const lines = linesOf(views);
   const meadow = route.land?.meadow ?? null;
   const { own, grid: { gx0, gz0, W } } = ground;
@@ -393,31 +434,47 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
       else if (w.gorge > 0.5 && w.e < 32) zone = 'rim';
       else zone = w.e < UNDERSTORY_REACH ? 'near' : 'far';
       if (!zone || nearCameo(x, z)) continue;
-      const g = grove !== null && (zone === 'near' || zone === 'far') ? thickAt(groveAt(x, z, grove)) : null;
+      // the lush valley's mixes, but where the call shots' glades and the herd's meadow are: there each zone keeps REAL's
+      const mix = lush && !openAt(x, z) && !(meadow && Math.hypot(x - meadow[0], z - meadow[1]) < meadow[2] + GROVE.view) ? MIX : REAL;
+      const grown = grove !== null && (zone === 'near' || zone === 'far' || (lush && zone === 'fen'));
+      const g = grown ? thickAt(groveAt(x, z, grove)) : null;
       if (g !== null) {
-        const base = REAL[zone].reduce((sum, [name, chance]) => sum + (GROVE_PLANTS.has(name) ? chance : 0), 0);
+        const base = mix[zone].reduce((sum, [name, chance]) => sum + (GROVE_PLANTS.has(name) ? chance : 0), 0);
         groveSum += g * base;
         groveBase += base;
       }
-      cells.push({ x, z, w, zone, g, j });
+      cells.push({ x, z, w, zone, g, j, mix });
     }
     yield 'plants';
   }
   const groveScale = groveSum > 0 ? Math.min(GROVE.most, groveBase / groveSum) : 1;
+  // the lush valley's thick forest round the white snag (LUSH.takeOff): at least `thick` times the mix's grove plants there
+  const takeOff = (x, z) => {
+    if (!lush?.takeOff) return 0;
+    const { reach, fade, thick } = lush.takeOff;
+    const d = Math.hypot(x - route.tree[0], z - route.tree[2]);
+    if (d >= reach + fade || treeless.some(c => Math.hypot(x - c.x, z - c.z) < c.r)) return 0; // the white tree's patch is as it was
+    return thick * (1 - Math.min(1, Math.max(0, (d - reach) / fade)));
+  };
   let row = cells[0]?.j;
-  for (const { x, z, w, zone, g, j } of cells) {
+  for (const { x, z, w, zone, g, j, mix } of cells) {
     if (j !== row) {
       row = j;
       yield 'plants';
     }
     // the Fen's far reed is sparser (as chapter 2's Fen has it): a few pixels a blade, it reads by the gold of the ground under it
+    // (the lush Fen's groves are not: far off they are cards)
     const thin = zone === 'fen' && index.nearest(x, z, FEN_FULL, near) < 0 ? FEN_FAR : 1;
     // the trees of the valley's sides grow in groves (GROVE): thick in them, nearly none in the glades between
-    const thick = g === null ? 1 : groveScale * g;
-    for (const [name, base] of REAL[zone]) {
-      const chance = base * thin * (GROVE_PLANTS.has(name) ? thick : 1);
+    const round = mix === REAL ? 0 : takeOff(x, z);
+    const thick = Math.max(g === null ? 1 : groveScale * g, round);
+    // (a plant of the take-off's forest counts as a grove's heart for the budget: the thinnest groves go first, not it)
+    const heart = round > 0 ? Math.max(g ?? 0, (thickAt(1) * round) / lush.takeOff.thick) : g;
+    for (const [name, base] of mix[zone]) {
+      const grovePlant = GROVE_PLANTS.has(name);
+      const chance = base * (lush && grovePlant ? 1 : thin) * (grovePlant ? thick : 1);
       const count = Math.floor(chance) + (rng() < chance % 1 ? 1 : 0);
-      const gathered = g !== null && GROVE_PLANTS.has(name) ? g : null;
+      const gathered = heart !== null && GROVE_PLANTS.has(name) ? heart : null;
       for (let c = 0; c < count; c++) yield* grow(name, x + (rng() - 0.5) * 6, z + (rng() - 0.5) * 6, zone === 'fen' ? FEN.sky : 0.9, w.d, gathered);
     }
   }
@@ -504,10 +561,11 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
   const groundIndex = ground.mesh?.geometry?.index;
   // (a chapter's own trees are not the groves' to pay for: the valley keeps its groves as they are without them)
   let cost = (groundIndex ? groundIndex.count / 3 : 0) + placements.reduce((sum, p) => sum + (p.own ? 0 : finest(p)), 0);
-  if (cost > GROVE.budget) {
+  const budget = lush ? lush.budget : GROVE.budget;
+  if (cost > budget) {
     const drop = new Set();
     for (const p of placements.filter(q => q.grove !== undefined).sort((a, b) => a.grove - b.grove)) {
-      if (cost <= GROVE.budget) break;
+      if (cost <= budget) break;
       drop.add(p);
       cost -= finest(p);
     }

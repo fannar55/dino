@@ -101,6 +101,15 @@ export const EGILL_ANSWERS = { 'kall-edlur': 'k4_egill_lizards', 'kall-froskar':
  * flyers of nests 3 and 4 fly with her (93.2 s), and is done, with its half second's hold, by his line (as the juice review had it).
  */
 export const EGILL_ANSWER_AT = { 'kall-sylla': 93.2 };
+/**
+ * Whether the flight's valley is the lush one (world/ardalur/banks.js LUSH: groves of forest, thick understory, forest on the horizon
+ * and round the snag; the owner's word of 2026-11-19): yes, but with ?skogur=0 (the valley as it was, to compare) or a test's
+ * world.lush false. The full chapter (kafli4.js) and the review chapter (flug.js, lit) both ask.
+ */
+export function lushValley(world) {
+  if (typeof world.lush === 'boolean') return world.lush;
+  return new URLSearchParams(globalThis.location?.search ?? '').get('skogur') !== '0';
+}
 // the call shots' cameras stand down on the ground (or a ledge) with the group, not on her back: the wind in Egill's ears goes down
 const GROUND_SHOTS = new Set(CALL_SHOTS.map(row => row.shot));
 const clamp = THREE.MathUtils.clamp;

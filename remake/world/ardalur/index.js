@@ -13,7 +13,8 @@ import { createRoute, BEATS } from '../../chapters/kafli4-route.js';
 import { createSections, createBuildQueue, finish } from './sections.js';
 import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './terrain.js';
 import { createRiverSurface, createFallsSlot, createPoolSurface, poolPlants, landPlants, createLandWaters } from './river.js';
-import { bankSteps, plantSteps, outcropProps } from './banks.js';
+import { bankSteps, plantSteps, outcropProps, LUSH, viewKeeper } from './banks.js';
+import { beltSteps } from './belt.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
 import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
 import { createAnimals } from './animals.js';
@@ -25,7 +26,7 @@ import { cullBatches } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
 import { createWaterMaterial, ringsUntil } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
-import { createFarLand } from './far-land.js';
+import { createFarLand, FAR } from './far-land.js';
 import { FEN, FOREST } from '../forest/config.js';
 import { CARDED, createCardAtlas, createCardMaterial } from '../forest/cards.js';
 
@@ -46,7 +47,9 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
  * ({ x, z, r }) where no tree of the valley's own grows (banks.js plantSteps; chapter 4: the white tree's patch round the snag);
  * stats.left lists those of `trees` that may not stand.
  */
-export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [], choir = null, trees = [], treeless = [] } = {}) {
+export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [], choir = null, trees = [], treeless = [], lush = false } = {}) {
+  // the lush valley (banks.js LUSH): chapter 4's flight; an object is LUSH with some of its parts changed (a probe's, a test's)
+  const thick = lush && !grey ? (lush === true ? LUSH : { ...LUSH, ...lush }) : null;
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
@@ -96,6 +99,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const low = real ? animals.groups.map(g => ({ x: g.point.x, z: g.point.z, side: terrain.where(g.point.x, g.point.z).side })) : [];
   // the still shots' views, where nothing stands by the camera or on its line of sight (banks.js VIEW, spec 6)
   const views = real ? [...stillViews(route, { heightAt: (x, z) => terrain.heightAt(x, z) }), ...moreViews] : [];
+  const keeper = thick?.belt ? viewKeeper(views) : null; // the belt's trees keep off the still shots' lines of sight too
+  const crest = Math.floor(route.progressAt(FAR.from) * index.count); // her path's sample at the crest of E, where the far land shows
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
@@ -163,6 +168,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const parts = sections.list.map(() => null); // each section's group once built
   const plantMeshes = sections.list.map(() => []); // each section's merged plant meshes (the real look), culled as the camera moves
   const groundMeshes = sections.list.map(() => null); // and its ground, culled by its 40 m tiles (terrain.js TILE)
+  const belts = sections.list.map(() => null); // the lush valley's forest on the horizon (belt.js), each section's piece
   // from down in the gorge the ground hides most plants above the falls: the cull leaves those out (sight.js)
   const sight = real ? createGorgeSight(route, terrain, index) : null;
   const hideAbove = (range, mesh) => (range.sector ?? mesh.userData.sector) === ABOVE_SECTOR && sight.hidden(world.camera.position, range.sphere);
@@ -170,7 +176,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const haze = real ? createHazeSight(world) : null;
   const hideHazed = (range, mesh) => mesh.userData.band === 'far' && haze.hidden(world.camera.position, range.sphere);
   const hideBoth = (range, mesh) => hideHazed(range, mesh) || hideAbove(range, mesh);
-  const stats = { late: [], built: [], sections: parts, left: [] };
+  const stats = { late: [], built: [], sections: parts, left: [], belts };
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
     const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
@@ -178,17 +184,29 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
       : yield* plantSteps({
         terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
-        atlas: real.atlas, cards: real.cards, grove: seed, trees, treeless,
+        atlas: real.atlas, cards: real.cards, grove: seed, trees, treeless, lush: thick,
       });
-    return { ground, banks };
+    // (a section the flight first comes to after the crest of E has none: the far land is the horizon by then)
+    const belt = thick?.belt && ground.samples[0] < crest
+      ? yield* beltSteps({
+        terrain, index, route, samples: ground.samples, seed: seed * 1000 + i + 500, paint: real.paint, groundMaterial: materials.ground,
+        atlas: real.atlas, cardMaterial: real.cards, inView: keeper, belt: thick.belt, grove: seed,
+      })
+      : null;
+    return { ground, banks, belt };
   }
-  const done = i => ({ ground, banks }) => {
+  const done = i => ({ ground, banks, belt }) => {
     const part = new THREE.Group();
     part.name = `Árdalur section ${i}`;
     part.add(ground.mesh, banks.group);
     part.userData.placements = banks.placements ?? [];
     stats.left.push(...(banks.left ?? []));
     plantMeshes[i] = banks.meshes ?? [];
+    if (belt?.group) {
+      part.add(belt.group);
+      if (belt.cards) plantMeshes[i] = [...plantMeshes[i], belt.cards]; // culled with the plants (the frustum, the haze)
+      belts[i] = belt;
+    }
     groundMeshes[i] = ground.mesh;
     // after the plants (3): from above, the crowns cover much of it, and early depth testing then skips the ground under them
     ground.mesh.renderOrder = 4;
@@ -225,6 +243,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       // downwash; the water's clock
       world.camera.updateMatrixWorld();
       const hide = sight.active(camera) ? hideBoth : hideHazed;
+      // the belt is the horizon below the falls until the far land shows (from the crest of E), which stands in for it then
+      const t = world.flightTime ?? -1;
+      const farOn = farLand.shown && t >= FAR.from && t < FAR.to;
+      for (const i of lastVisible) if (belts[i]) belts[i].group.visible = !farOn;
       for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
       // the ground's tiles in view (only the frustum: the ground is what hides the rest)
       cullBatches(lastVisible.map(i => groundMeshes[i]).filter(Boolean), world.camera, 2);
