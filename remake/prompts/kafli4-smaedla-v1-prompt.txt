@@ -1,0 +1,17 @@
+Purpose: the small lizard (smáeðla) of chapter 4's flight: one image that is both the look (the mock) and the image Tripo3D turns into the 3D model.
+Template: egill-tpose-v2-prompt.txt. Colours: a proposal; they go into remake/STYLE.md section 3 once the owner has picked them.
+
+Use case: stylized-concept.
+Asset type: single isolated image-to-3D source image of a small background animal in an Icelandic children's dinosaur adventure game. It is seen in groups of 8 to 12, small on screen, running along a river bank, so its shape and colours must read from far away.
+Subject: ONE small friendly two-legged dinosaur of the Compsognathus family, about 0.8 m long from nose to tail tip, the size of a chicken: a round head with big kind eyes, a short rounded snout with a closed gentle smile and no teeth, a slim neck, a plump little body, two strong running legs with three rounded toes each, two tiny arms, and a long tapering tail.
+Colours: bright tangerine orange body (#e8893a) that stands out against green grass, cream belly and throat (#f3dcb4), three or four broad chocolate-brown stripes across the back (#6e4328), amber eyes, beige claws.
+Style: the same soft chunky storybook 3D look as the game's other dinosaurs: rounded forms, painted matte skin, big simple areas of colour. No scales, no fine pattern, no feathers, no sharp points.
+POSE IS THE HIGHEST PRIORITY: neutral rest pose, bilaterally symmetrical. Standing on both feet flat on the ground, legs a little apart, body level, spine and tail straight and level behind, head up and looking forward, arms tucked close to the chest, mouth closed. Clear gaps between the legs and between the arms and the body.
+CAMERA: side three-quarter view, about 60 degrees from the front, at the height of the body, near-orthographic / very long lens. The whole animal inside the frame with 10 percent margins, the tail tip included.
+BACKGROUND AND LIGHT: uniform plain light grey background, soft even diffuse studio lighting, minimal contact shadow, no rim glow, no depth-of-field blur.
+Constraints: ONE animal, ONE view. No turnaround panels, no labels, no text, no logo, no watermark, no environment, no plants, no props, no other animals.
+
+Tripo settings for this image:
+- Image to 3D with texture. About 10 thousand faces is plenty, 1K or 2K textures: the game cuts it to 800 triangles near, 250 far, and a 256 to 512 px texture.
+- Rig it (two legs and a tail) and add these animations if Tripo has them: run, idle (standing still), drink (head down to the water), look up. Tell Claude which are missing: the game can make those in code.
+- Export GLB with the skeleton and the animations.

@@ -6,6 +6,7 @@ import { createFooting, stopCost, QUADRUPED, BIPED } from './footing.js';
 import { createEyelids } from './eyelids.js';
 import { createTalk } from './talk.js';
 import { prepareCharacter, releaseCharacter } from './character-lod.js';
+import { emitFootstepDust } from './footstep-dust.js';
 
 // A character in a scene: a rigged GLB with its clips, standing on the ground. Clips cross-fade;
 // walking follows a smooth path at a speed matched to the walk cycle, and footing (footing.js) keeps
@@ -31,6 +32,47 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 function loadTemplate(url) {
   if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
   return cache.get(url);
+}
+
+// Soft storybook character lighting: a warm half-Lambert terminator roll-off and a subtle sunlit
+// silhouette rim on MeshStandardMaterial skins, added only when a renderer is present so unit tests
+// against raw glTF templates see untouched materials.
+const STORYBOOK_SKIN_GLSL = `
+	#if NUM_DIR_LIGHTS > 0
+	{
+		float skinNdotL = dot( geometryNormal, directionalLights[ 0 ].direction );
+		float skinWrap = clamp( ( skinNdotL + 0.35 ) / 1.35, 0.0, 1.0 ) - clamp( skinNdotL, 0.0, 1.0 );
+		float skinRim = pow( 1.0 - clamp( dot( geometryNormal, geometryViewDir ), 0.0, 1.0 ), 3.0 ) * clamp( skinNdotL * 0.5 + 0.5, 0.0, 1.0 );
+		reflectedLight.directDiffuse += directionalLights[ 0 ].color * (
+			material.diffuseColor * vec3( 1.14, 0.90, 0.74 ) * ( skinWrap * 0.14 ) +
+			mix( vec3( 1.0, 0.94, 0.82 ), material.diffuseColor, 0.35 ) * ( skinRim * 0.075 )
+		);
+	}
+	#endif
+`;
+const storybookMaterials = new WeakMap();
+function storybookSkinOf(source) {
+  if (!source?.isMeshStandardMaterial) return source;
+  let copy = storybookMaterials.get(source);
+  if (copy) return copy;
+  copy = source.clone();
+  copy.onBeforeCompile = shader => {
+    if (!shader.fragmentShader.includes('#include <lights_fragment_end>')) return;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <lights_fragment_end>',
+      chunk => `${chunk}${STORYBOOK_SKIN_GLSL}`,
+    );
+  };
+  copy.customProgramCacheKey = () => 'storybook-skin';
+  storybookMaterials.set(source, copy);
+  storybookMaterials.set(copy, copy);
+  return copy;
+}
+function applyStorybookSkin(model) {
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    o.material = Array.isArray(o.material) ? o.material.map(storybookSkinOf) : storybookSkinOf(o.material);
+  });
 }
 
 // GLTFLoader strips reserved characters from node names ('FrontFoot.L' becomes 'FrontFootL').
@@ -59,7 +101,7 @@ function toeOf(model, foot) {
 // Turn a bone by a world-space rotation about its own pivot.
 const parentQ = new THREE.Quaternion();
 const localQ = new THREE.Quaternion();
-function rotateBoneWorld(bone, q) {
+export function rotateBoneWorld(bone, q) {
   bone.parent.getWorldQuaternion(parentQ);
   localQ.copy(parentQ).invert().multiply(q).multiply(parentQ);
   bone.quaternion.premultiply(localQ);
@@ -114,12 +156,17 @@ function measureGait(model, root, clip, feet, rest, tuning) {
   return naturalSpeed > 0.01 ? { naturalSpeed, cycle: clip.duration, stopPhase, duty, feet: tracks } : null;
 }
 
-/** Load (or reuse) a character. `gltf` may be passed in instead of `url` (tests, preloaded assets). */
-export async function createActor(world, { name, url, gltf: given, position = [0, 0, 0], heading = 0 }) {
+/**
+ * Load (or reuse) a character. `gltf` may be passed in instead of `url` (tests, preloaded assets). `scale` sizes the model uniformly
+ * inside its root (chapter 4's size test: Flugeðla at 7.5 or 10 m), so the root's frame stays in metres and everything measured
+ * from the model (its size, its gait, its feet) is at the new size.
+ */
+export async function createActor(world, { name, url, gltf: given, position = [0, 0, 0], heading = 0, scale = 1 }) {
   const gltf = given ?? await loadTemplate(url);
   const model = cloneSkinned(gltf.scene);
   const root = new THREE.Group();
   root.name = `Actor ${name}`;
+  model.scale.multiplyScalar(scale);
   root.add(model);
   model.traverse(o => {
     if (!o.isMesh) return;
@@ -129,8 +176,11 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     // Single-sided skins would cast shadows with their back faces, letting light leak into creases.
     o.material.shadowSide = THREE.FrontSide;
   });
-  // Simpler levels for far away and a low-poly sun shadow, once they are ready (character-lod.js).
-  if (world.renderer) prepareCharacter(model, world.lighting?.sun);
+  // Soft storybook skin lighting and simpler levels for far away + low-poly sun shadow (character-lod.js).
+  if (world.renderer) {
+    applyStorybookSkin(model);
+    prepareCharacter(model, world.lighting?.sun);
+  }
 
   // Bind-pose size in metres, for framing and the body-centre point.
   const bounds = new THREE.Box3();
@@ -160,7 +210,16 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let legs = [];
   if (quadruped) legs = feet.map(foot => ({ foot, girdle: foot.name.startsWith('Front') ? 0 : 1 }));
   else if (biped) legs = feet.map(foot => ({ foot, girdle: 0, jointed: true, toe: toeOf(model, foot) }));
-  const footing = createFooting({ root, legs, pivotHeight: centreLocal.y, tuning });
+  const onStep = pos => {
+    if (!world.renderer || !root.visible) return;
+    const water = world.forest?.water;
+    if ((water?.depthAt?.(pos.x, pos.z) ?? 0) >= 0.03) {
+      water.rippleAt([pos.x, 0, pos.z], clamp(size.y * 0.28, 0.35, 1.1));
+    } else {
+      emitFootstepDust(world, pos, size.y);
+    }
+  };
+  const footing = createFooting({ root, legs, pivotHeight: centreLocal.y, tuning, onStep });
   // A clip moves the legs when it turns or moves a leg bone away from its rest pose (a biped's clips
   // key every bone, most of them leaving the legs at rest).
   const legBones = new Map(legs.flatMap(({ foot, jointed }) => (jointed ? [foot, foot.parent, foot.parent.parent] : [foot, foot.parent]))
@@ -386,6 +445,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let controlled = false;
   let drive = null; // while controlled, called first in each update to put the root
   let pose = null; // and this after the clips, to lay something over their pose (hands on a grip)
+  let overlay = null; // laid over the walk and footing before look and talk (a swim sink and tilt)
   function setControlled(value) {
     if (controlled && !value) footing.reset(); // the feet start over from where the actor was left
     controlled = value;
@@ -399,7 +459,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const layerBones = [neck, head, jaw].filter(Boolean);
   const animatedPose = layerBones.map(b => b.quaternion.clone());
   let layered = false;
-  const look = { spec: null, goal: 0, weight: 0, maxYaw: 55, maxPitch: 30, point: new THREE.Vector3(), smooth: new THREE.Vector3(), primed: false };
+  const look = { spec: null, goal: 0, weight: 0, maxYaw: 55, maxPitch: 30, point: new THREE.Vector3(), smooth: new THREE.Vector3(), primed: false, head: new THREE.Vector3(), headKnown: false, side: 0, limits: null };
   // Caps in degrees on how far any look turns the head aside and tilts it up, whatever lookAt asks:
   // riding.js sets them while a rider sits where a head turned far round, or raised, would swing the
   // frill back onto him. Looking down is not capped.
@@ -412,19 +472,24 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const v2 = new THREE.Vector3();
   const v3 = new THREE.Vector3();
 
+  const LOOK_JUMP = 5; // metres in a frame: a head that moves further has jumped (the place changed under it), not moved
+  const LOOK_BEHIND = rad(30); // a target this near straight behind keeps the side the head is turned to
+  const LOOK_LIMIT_EASE = 0.3; // seconds: how fast the limits on a look ease to new ones
   /** Turn the head toward a point spec (null to look ahead again). Neck and head share the turn. */
   function lookAt(spec, { weight = 1, maxAngle = 55, maxPitch = 30 } = {}) {
     // A new thing to look at comes with a blink, as a glance does.
     if ((spec ?? null) !== look.spec) lids?.blink.blink();
     look.spec = spec ?? null;
     look.goal = spec ? weight : 0;
+    // letting go keeps the look's limits, so the head eases back from where it is instead of stepping to the default ones first
+    if (!spec) return;
     look.maxYaw = maxAngle;
     look.maxPitch = maxPitch;
   }
 
   function applyLook(dt) {
     look.weight += (look.goal - look.weight) * (1 - Math.exp(-dt / 0.4));
-    if (!head || look.weight < 0.002) return false;
+    if (!head || look.weight < 0.002) { look.side = 0; look.limits = null; look.headKnown = false; return false; }
     if (look.spec) {
       try {
         world.resolvePoint(look.spec, look.point);
@@ -434,20 +499,98 @@ export async function createActor(world, { name, url, gltf: given, position = [0
         look.goal = 0;
       }
     }
-    if (!look.primed) { look.smooth.copy(look.point); look.primed = true; }
-    look.smooth.lerp(look.point, 1 - Math.exp(-dt / 0.25));
+    // The look follows its target a little behind. When the place changes under the actor (chapter 4's cut into the flight) its head
+    // is somewhere else at once, and the point it was turning to goes along with it, or the head would swing after where it was.
     root.updateMatrixWorld(true);
+    const headPos = head.getWorldPosition(v1);
+    if (!look.primed) { look.smooth.copy(look.point); look.primed = true; }
+    else if (look.headKnown && headPos.distanceToSquared(look.head) > LOOK_JUMP * LOOK_JUMP) look.smooth.add(v3.copy(headPos).sub(look.head));
+    look.head.copy(headPos);
+    look.headKnown = true;
+    look.smooth.lerp(look.point, 1 - Math.exp(-dt / 0.25));
     // The wanted direction in the actor's own frame, limited in turn and tilt: a target behind
     // turns the head to its limit sideways instead of tipping it over.
-    const headPos = head.getWorldPosition(v1);
     const local = v2.copy(look.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
-    const maxYaw = rad(Math.min(look.maxYaw, lookYawLimit));
-    const yaw = clamp(Math.atan2(local.z, local.x), -maxYaw, maxYaw);
-    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -rad(look.maxPitch), rad(Math.min(look.maxPitch, lookUpLimit)));
+    // The limits ease to new ones (a cap put on or taken off as a rider floats, another look's own), or the head would step with them.
+    const limits = (look.limits ??= { yaw: 0, up: 0, down: 0, primed: false });
+    const ease = limits.primed ? 1 - Math.exp(-dt / LOOK_LIMIT_EASE) : 1;
+    limits.yaw += (rad(Math.min(look.maxYaw, lookYawLimit)) - limits.yaw) * ease;
+    limits.up += (rad(Math.min(look.maxPitch, lookUpLimit)) - limits.up) * ease;
+    limits.down += (rad(look.maxPitch) - limits.down) * ease;
+    limits.primed = true;
+    const maxYaw = limits.yaw;
+    // A target right behind can be turned to over either shoulder: the head keeps the side it is turned to, and goes over to the
+    // other only once the target is well round that way, or it would swing across each time the target slips over the line
+    // behind (chapter 4: Egill on her back, and the cut into the flight).
+    let yaw = Math.atan2(local.z, local.x);
+    if (look.side && Math.sign(yaw) === -look.side && Math.abs(yaw) > Math.PI - LOOK_BEHIND) yaw = look.side * maxYaw;
+    yaw = clamp(yaw, -maxYaw, maxYaw);
+    if (yaw) look.side = Math.sign(yaw);
+    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -limits.down, limits.up);
     const want = v2.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), Math.cos(pitch) * Math.sin(yaw)).applyQuaternion(root.quaternion);
     const have = v3.copy(headForward).applyQuaternion(head.getWorldQuaternion(qa));
     qb.setFromUnitVectors(have, want);
     qc.identity().slerp(qb, look.weight);
+    if (neck) rotateBoneWorld(neck, qa.identity().slerp(qc, 0.4));
+    rotateBoneWorld(head, qa.identity().slerp(qc, 0.6));
+    return true;
+  }
+
+  const listen = { spec: null, weight: 0, point: new THREE.Vector3(), smooth: new THREE.Vector3(), primed: false };
+  const LISTEN_REACH = 14;
+  /** Gentle automatic head turn toward a nearby speaker while idle; yields to any scripted look, walk, turn or closed eyes. */
+  function listenAt(spec = null) {
+    listen.spec = spec ?? null;
+  }
+
+  function applyListen(dt, suppressed = false) {
+    const inSpecialPose = current?.getClip().name !== 'idle' || Boolean(overlay) || lookYawLimit < Infinity || lookUpLimit < Infinity;
+    if (inSpecialPose) {
+      listen.weight = 0;
+      listen.primed = false;
+      return false;
+    }
+    let active = !suppressed && Boolean(head && listen.spec && root.visible && !walk && !turn && !controlled && !look.spec && look.weight < 0.01 && (lids?.shut ?? 0) <= 0.25);
+    let headPos = null;
+    if (active) {
+      try {
+        world.resolvePoint(listen.spec, listen.point);
+        root.updateMatrixWorld(true);
+        headPos = head.getWorldPosition(v1);
+        const distSq = headPos.distanceToSquared(listen.point);
+        if (distSq > LISTEN_REACH * LISTEN_REACH || distSq < 0.09) active = false;
+      } catch {
+        listen.spec = null;
+        active = false;
+      }
+    }
+    let local = null;
+    if (active) {
+      if (!listen.primed) { listen.smooth.copy(listen.point); listen.primed = true; }
+      else listen.smooth.lerp(listen.point, 1 - Math.exp(-dt / 0.35));
+      local = v2.copy(listen.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
+      if (Math.abs(Math.atan2(local.z, local.x)) > rad(125)) active = false;
+    }
+    const goal = active ? 0.38 : 0;
+    listen.weight += (goal - listen.weight) * (1 - Math.exp(-dt / 0.45));
+    if (!head || suppressed || listen.weight < 0.002) {
+      if (listen.weight < 0.002) listen.primed = false;
+      return false;
+    }
+    if (!local) {
+      if (!listen.primed) return false;
+      root.updateMatrixWorld(true);
+      headPos = head.getWorldPosition(v1);
+      local = v2.copy(listen.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
+    }
+    const maxYaw = rad(Math.min(35, lookYawLimit));
+    const maxUp = rad(Math.min(18, lookUpLimit));
+    const yaw = clamp(Math.atan2(local.z, local.x), -maxYaw, maxYaw);
+    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -rad(18), maxUp);
+    const want = v2.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), Math.cos(pitch) * Math.sin(yaw)).applyQuaternion(root.quaternion);
+    const have = v3.copy(headForward).applyQuaternion(head.getWorldQuaternion(qa));
+    qb.setFromUnitVectors(have, want);
+    qc.identity().slerp(qb, listen.weight);
     if (neck) rotateBoneWorld(neck, qa.identity().slerp(qc, 0.4));
     rotateBoneWorld(head, qa.identity().slerp(qc, 0.6));
     return true;
@@ -485,7 +628,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   world.scene.add(root);
 
   return {
-    name, root, model, mixer, clips, size, world,
+    name, root, model, mixer, clips, size, world, scale,
     get heading() { return getHeading(); },
     get walking() { return Boolean(walk); },
     get turning() { return Boolean(turn); },
@@ -506,6 +649,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       drive = driveFn ?? null;
       pose = driveFn ? poseFn : null;
     },
+    /**
+     * Lay a pose adjustment (such as sinking and tilting while swimming) over the walk and footing
+     * each frame, before look and talk run. `setOverlay(null)` clears it and restores the model frame.
+     */
+    setOverlay(fn = null) {
+      overlay = fn;
+      if (!fn) {
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+      }
+    },
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
     /**
@@ -518,7 +672,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       if (action && movesLegs(action.getClip())) footing.free(options.fade ?? 0.4);
       return action;
     },
-    place, walkTo, turnTo, lookAt,
+    place, walkTo, turnTo, lookAt, listenAt,
+    get listening() { return listen.spec; },
     /** Degrees a look may turn the head aside at most, whatever lookAt asks (Infinity, the default: no cap). */
     get lookYawLimit() { return lookYawLimit; },
     set lookYawLimit(value) { lookYawLimit = Math.max(0, Number(value)); },
@@ -553,6 +708,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     },
     update(dt) {
       if (layered) layerBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
+      if (overlay) {
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+      }
       footing.restore();
       if (controlled) drive?.(dt);
       else {
@@ -563,9 +722,29 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       if (controlled) pose?.(dt);
       else footing.update(dt);
       layerBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
+      if (overlay) {
+        root.updateMatrixWorld(true);
+        const right = v1.set(0, 0, 1).applyQuaternion(root.quaternion);
+        overlay(dt, {
+          neck,
+          head,
+          pitchNeck(degAngle) {
+            if (!neck) return;
+            model.updateMatrixWorld(true);
+            rotateBoneWorld(neck, qa.setFromAxisAngle(right, rad(degAngle)));
+          },
+          pitchHead(degAngle) {
+            if (!head) return;
+            model.updateMatrixWorld(true);
+            rotateBoneWorld(head, qa.setFromAxisAngle(right, rad(degAngle)));
+          },
+        });
+        model.updateMatrixWorld(true);
+      }
       const looked = applyLook(dt);
+      const listened = applyListen(dt, looked);
       const talked = applyTalk(dt);
-      layered = looked || talked;
+      layered = Boolean(overlay) || looked || listened || talked;
       lids?.update(dt);
     },
     /** Stop walking, turning, looking and talking, open the eyes; settle into idle. */
@@ -573,6 +752,9 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       if (walk) endWalk(true);
       if (turn) endTurn(true);
       lookAt(null);
+      listenAt(null);
+      listen.weight = 0;
+      listen.primed = false;
       talk.stop();
       lids?.blink.rest(0);
     },

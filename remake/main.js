@@ -32,27 +32,34 @@ import { createVeidduGame } from './engine/veiddu/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createFjolspil } from './engine/fjolspil/fjolspil.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
-import { createAudioContext, createOutput } from './engine/audio/output.js';
+import { createAudioContext, createOutput, panElement } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
 import { loadTheme } from './engine/audio/theme.js';
-import { createHold } from './engine/audio/hold.js';
+import { createHold, holdLater } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
-import { warmUp } from './engine/warm-up.js';
+import { warmUp, warmParts } from './engine/warm-up.js';
 import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
 import { createForrit } from './engine/offline/forrit.js';
+import { createGler } from './engine/gler.js';
+import { SHOW_CLOSE } from './engine/book/show-player.js';
+import { keepScreenAwake } from './engine/wake-lock.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
-//                         until Kambeðla's star, then kafli2 until Uggeðla's, then kafli3; grunnur is the foundation test scene)
+//                         until Kambeðla's star, then kafli2 until Uggeðla's, then kafli3 until Þórseðla's, then kafli4 until Flugeðla's, then kafli5; grunnur
+//                         is the foundation test scene)
 //   quality=low|tablet|high
 //   look=morning|lateMorning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
 //   t=<seconds>           seek to that time and freeze it (the scene, or a review shot's animation); silent
-//   play=1                start the scene at once, without the start button
+//   play=1                start the scene at once, without the start button; with t: seek there, hold it until a tap, then
+//                         play on from there with sound (a review from a time; the child's save is still left alone)
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
+//   syning=1              a "3D myndbönd" show in the book's frame (engine/book/show-player.js): only the show, with no book button,
+//                         no app line or download under the start; Escape asks the book to close the frame
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
 //   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
 //                         reload does not forget again)
@@ -60,13 +67,17 @@ import { createForrit } from './engine/offline/forrit.js';
 //                         app does (engine/offline/forrit.js; in the cloud the worker is always registered)
 const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
-const forrit = createForrit(); // the installed app keeps the whole game in the device and says how far under Byrja
+if (!params.get('shot')) document.getElementById('fade')?.style.setProperty('opacity', '1');
+// A show in the book's frame (?syning=1, engine/book/show-player.js): the page round it is the app, so the frame is only the show.
+const syning = params.get('syning') === '1';
+// the installed app keeps the whole game in the device and says how far under Byrja (not in a show's frame: the page round it does)
+const forrit = syning ? { startScreen() {}, started() {} } : createForrit();
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q); // keep the object: resolutionScale is a live getter
 const { renderer, applySize, adapt } = display;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.25, 1200);
 const clock = createClock();
 
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory. An address that names no
@@ -79,6 +90,33 @@ if (params.get('nyr') === '1') {
 }
 const save = createSave(params.get('t') === null ? undefined : null);
 const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
+// The bug report tool (engine/villa/villa.js) is registered before the first await so F1 works from the first moment, even
+// while the chapter and its models are still downloading.
+let villaHeldClock = false, holdFn = null, drawNowFn = null, juniorRef = null, sloedlaRef = null, minnisspilRef = null, halsRef = null;
+let villaContext = () => ({
+  chapterId,
+  params: Object.fromEntries(params),
+  canvas: () => ({ width: canvas.width, height: canvas.height }),
+  clock: () => ({ time: clock.time, paused: clock.paused }),
+  save: () => ({ ...save.get(), chapterAt: defaultChapter(save) }),
+  consoleLog: () => consoleLog.entries(),
+});
+const villa = createVilla(document, {
+  button: params.get('villa') === '1',
+  shoot: () => {
+    const sub = juniorRef?.shoot?.() ?? sloedlaRef?.shoot?.() ?? minnisspilRef?.shoot?.();
+    if (sub) return sub;
+    if (halsRef?.isOpen) halsRef.world?.render?.();
+    else drawNowFn?.();
+    return canvas.toDataURL('image/png');
+  },
+  onPause: paused => {
+    if (paused) { villaHeldClock = clock.paused; clock.setPaused(true); } else clock.setPaused(villaHeldClock);
+    holdFn?.('villa', paused);
+  },
+  context: () => villaContext(),
+});
+window.__villa = villa;
 const { chapter } = await import(`./chapters/${chapterId}.js`);
 const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
@@ -92,7 +130,7 @@ const mosiCloud = addMosiCloud({ scene, lighting, look }); // and one cloud shap
 const wind = createWind();
 
 const world = {
-  THREE, renderer, scene, camera, clock, q, params, look, lighting, wind, chapter,
+  THREE, renderer, scene, camera, clock, q, params, look, lighting, sky, wind, chapter,
   heightAt: () => 0,
   actors: new Map(),
   effects: createEffects(), // sparkles and the like, on the game clock (engine/effects.js)
@@ -150,6 +188,12 @@ applySize(camera);
 const shots = shotsOf(chapter);
 const director = createDirector({ camera, world, shots });
 world.director = director;
+// The glasses (engine/gler.js): ?gler=1, or a chapter that asks for them (chapter.gler), draws the scene once an eye as red/cyan.
+// A chapter's `gler: { panel: false }` leaves out the "3D" settings button (the show for the child); ?gler=1 brings it back.
+const glerPanel = params.get('gler') !== null || chapter.gler?.panel !== false;
+const gler = params.get('gler') !== null || chapter.gler ? createGler({ renderer, display, scene, camera, director, q, params, panel: glerPanel }) : null;
+if (gler && chapter.gler) gler.enable(params.get('gler') !== '0');
+world.gler = gler;
 
 let lines = {};
 try {
@@ -162,7 +206,8 @@ try {
 let cards = [];
 let media = new Map();
 let models = new Map(); // the 3D pages' models, from the same manifest
-try {
+// A show's frame never opens its book: it reads none of the book's cards, and draws none of their pictures.
+if (!syning) try {
   const read = async path => {
     const response = await fetch(new URL(path, import.meta.url));
     if (!response.ok) throw new Error(`${path}: ${response.status}`);
@@ -189,8 +234,9 @@ const { theme, url: themeUrl } = await loadTheme(chapter, new URL('./assets/audi
 const dance = theme && danceGrid(theme);
 // Sound. A capture (?t=) and a review shot (?shot=) are silent and make no audio context at all; a scene somebody plays
 // gets one, which the browser keeps asleep until the first touch (the start button), so nothing sounds before it.
-const playing = params.get('t') === null && params.get('shot') === null && Boolean(chapter.script);
+const playing = (params.get('t') === null || params.get('play') === '1') && params.get('shot') === null && Boolean(chapter.script);
 const audio = playing ? createAudioContext() : null;
+const wakeLock = playing ? keepScreenAwake() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
 const sfx = createSfx({ context: audio, theme, output, recorded: true }); // recorded: Grameðla's roar and breath (sfx.js SAMPLES)
@@ -206,31 +252,53 @@ const musicTime = () => music.position;
 // Without a theme there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
 let followed = null;
 const ui = createStageUI(document);
-const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
+// the music lowers itself under a recorded line, and a chapter's own song (world.sound.speaking: chapter 4's flight song) with it
+let lineSounding = false;
+// a line can come from one side (chapter 4's flight film: her call in a call shot): through a panner on the page's audio context
+const voice = createVoice({ onSpeaking: on => { lineSounding = on; music.duck(on); }, pan: audio ? (element, value) => panElement(audio, element, value) : null });
 // The chapter's recordings are fetched ahead, in the background, so a line starts the moment the scene asks for it: over the
 // network a recording asked for at its cue starts late, and the mouth ran ahead of the voice (the owner's reports of 2026-10-25).
 // The scene keeps time with the sound either way (scene.js sayTask); this makes the wait a few milliseconds instead of seconds.
 if (playing) voice.preload(Object.values(chapter.lines ?? {}).map(line => lines[line.audio]?.src).filter(Boolean));
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
 // hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
-const hold = createHold([voice, music, sfx]);
+// A chapter's own sound (chapter 4's wind bed, engine/audio/flight-sounds.js) is made on the page's output and held with the rest,
+// and the chapter may raise the theme (music.setLevel: the flight plays it louder). A capture has no audio context: neither sounds.
+const chapterSound = holdLater();
+const hold = createHold([voice, music, sfx, chapterSound]);
+world.sound = { context: audio, output, hold: chapterSound.add, get speaking() { return lineSounding; } };
+world.music = music;
 // Seconds of game time round a change of place in which a long frame moves the music's playhead to the sound instead of seeking
 // the sound back (engine/audio/music.js: lenient): the build, the warm-up draw and the fade back in, all under the black.
 const PLACE_CHANGE = 4;
 beforeBuild = () => music.lenient(PLACE_CHANGE);
 // The sound runs before the actors, the effects, the camera and the forest: one that throws is said once and the frame goes on.
 const updateMusic = guard('music', () => music.update());
+const updateChapterSound = guard('chapter sound', () => chapterSound.update()); // a chapter's own song (chapter 4's flight)
 const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
+let showOpen = false; // a "3D myndbönd" show is open over the book (onShow below): nothing here runs, draws or sounds
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : game === 'veiddu' ? veiddu.open(options) : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => {
+    const target = game === 'hals' ? hals : game === 'yatzy-junior' ? junior : game === 'sloedla' ? sloedla : game === 'minnisspil' ? minnisspil : game === 'veiddu' ? veiddu : eitt;
+    target.open(options);
+    return target;
+  }, // the Leikir page's games
+  // A "3D myndbönd" show on the Myndbönd page (videos.js BOOK_3D) plays in a frame of its own chapter over the open book
+  // (engine/book/show-player.js), and the child's place here is kept. Meanwhile this page draws nothing and its sound sleeps.
+  onShow: open => {
+    showOpen = open;
+    if (open) audio?.suspend?.().catch(() => {});
+    else if (!document.hidden) audio?.resume?.().catch(() => {});
+  },
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
+    if (paused) ui.clearCaption();
     clock.setPaused(paused);
     hold('book', paused);
   },
@@ -246,7 +314,7 @@ const fjolspil = createFjolspil(document, { audio: bookAudio });
 const eitt = createEittGame(document, {
   save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('eitt', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
@@ -257,7 +325,7 @@ const eitt = createEittGame(document, {
 const veiddu = createVeidduGame(document, {
   save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('veiddu', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
@@ -265,9 +333,36 @@ const veiddu = createVeidduGame(document, {
 // "Litla Yatzy við Mosa" (remake/yatzy-junior.html, a page of its own) in a frame over the book (engine/yatzy-junior/frame.js),
 // the chapter held meanwhile as for the other games.
 const junior = createJuniorFrame(document, {
+  isMuted: () => !playing,
+  onWin: () => { save.addSticker('junior'); book.refresh(); },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('yatzy-junior', paused);
+  },
+  onClose: () => book.refresh(),
+});
+// "Söngur Slóeðlu" (remake/sloedla-lab.html, Slóeðla's song game) in a frame over the book, open from the start.
+const sloedla = createJuniorFrame(document, {
+  src: './sloedla-lab.html?inbook=1',
+  label: 'Söngur Slóeðlu',
+  closeType: 'sloedla:close',
+  isMuted: () => !playing,
+  onWin: () => { save.addSticker('sloedla'); book.refresh(); },
+  onPause: paused => {
+    clock.setPaused(paused || book.isChildOpen);
+    hold('sloedla', paused);
+  },
+  onClose: () => book.refresh(),
+});
+// "Saman getum við það!", the memory game (remake/minnisspil.html), Flugeðla's game in the book: the same kind of frame, its own page and label.
+const minnisspil = createJuniorFrame(document, {
+  src: './minnisspil.html?inbook=1',
+  label: 'Saman getum við það!',
+  isMuted: () => !playing,
+  onWin: () => { save.addSticker('minnisspil'); book.refresh(); },
+  onPause: paused => {
+    clock.setPaused(paused || book.isChildOpen);
+    hold('minnisspil', paused);
   },
   onClose: () => book.refresh(),
 });
@@ -277,7 +372,7 @@ const junior = createJuniorFrame(document, {
 const hals = createHalsGame(document, {
   save, renderer, q, params, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
+    clock.setPaused(paused || book.isChildOpen);
     hold('hals', paused);
   },
   onClose: () => {
@@ -286,27 +381,30 @@ const hals = createHalsGame(document, {
   },
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
+if (syning) {
+  journal.show(false); // the book is the page round the frame
+  // Escape in the frame closes it, as Escape on the book's page does (show-player.js)
+  addEventListener('keydown', event => { if (event.key === 'Escape') parent?.postMessage(SHOW_CLOSE, location.origin); });
+}
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
 // The bug report tool (engine/villa/villa.js): F1, three fingers held or the ?villa=1 button holds the game as the book does, and
 // the owner draws boxes over the screen and writes what is wrong; the report goes to the dev server's qa/villur/ (tools/serve.mjs),
 // or downloads where no server answers. Each part of the game is handed as a thunk: it is read at the moment of the report, and
 // one that throws is reported as such instead of stopping the report (engine/villa/skyrsla.js).
-let villaHeldClock = false;
-const villa = createVilla(document, {
-  button: params.get('villa') === '1',
-  shoot: () => { if (!hals.isOpen) drawNow(); return canvas.toDataURL('image/png'); }, // the frame as it stands (the board game draws its own)
-  onPause: paused => {
-    if (paused) { villaHeldClock = clock.paused; clock.setPaused(true); } else clock.setPaused(villaHeldClock);
-    hold('villa', paused);
-  },
-  context: () => ({
+holdFn = hold;
+juniorRef = junior;
+sloedlaRef = sloedla;
+minnisspilRef = minnisspil;
+halsRef = hals;
+drawNowFn = () => drawNow();
+villaContext = () => ({
     chapterId,
     params: Object.fromEntries(params),
     canvas: () => ({ width: canvas.width, height: canvas.height }),
     clock: () => ({ time: clock.time, paused: clock.paused }),
     stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
     location: () => world.location ?? null,
-    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, veiddu: veiddu.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, sloedla: sloedla.isOpen, minnisspil: minnisspil.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
     caption: () => {
       const el = document.getElementById('caption');
       return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
@@ -323,10 +421,11 @@ const villa = createVilla(document, {
       return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
     },
     audio: () => ({ context: audio?.state ?? 'none', musicPosition: music.position, theme: theme?.name ?? (themeUrl ? String(themeUrl).split('/').slice(-2).join('/') : null), playing }),
+    wakeLock: () => (wakeLock ? { wanted: wakeLock.wanted, active: wakeLock.active } : null),
     fjolspil: () => ({ active: fjolspil.active, code: fjolspil.code ?? null, seats: fjolspil.seats.list().map(({ seat, kind, name, avatar, present, covered }) => ({ seat, kind, name, avatar, present, covered })) }), // never a guest's id, her secret
     memory: () => (performance.memory ? { usedMB: Math.round(performance.memory.usedJSHeapSize / 1048576), limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576) } : null),
     consoleLog: () => consoleLog.entries(),
-  }),
+    timeline: () => world.chapterTimeline ?? null, // when each scene began (a chapter that marks them), for the video tool too
 });
 // A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
 // while the scene plays (the frame keeps room to draw), and 80 under the black, where no frame is seen (no more: the game clock
@@ -335,9 +434,20 @@ slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 80 : 8);
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
 document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
+document.addEventListener('visibilitychange', () => { if (document.hidden) bookAudio.stop(); });
 hold('hidden', document.hidden);
-// The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked).
-window.addEventListener('pointerup', () => { if (stage.started) music.start(); }, { passive: true });
+// The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked), and
+// starts a chapter's own song a browser would start only from a touch (engine/audio/song.js: chapter 4's flight song).
+window.addEventListener('pointerdown', () => {
+  if (!stage.started || showOpen || document.hidden) return;
+  music.start();
+  chapterSound.touch();
+}, { passive: true });
+window.addEventListener('pointerup', () => {
+  if (!stage.started || showOpen) return; // not under a show: its opening touch would wake the sound onShow just put to sleep
+  music.start();
+  chapterSound.touch();
+});
 
 const shotName = params.get('shot');
 let startReady = true; // false while the start button waits for the warm-up (captures and review shots have none)
@@ -366,6 +476,7 @@ const nextFrames = count => new Promise(resolve => {
 
 /** One warm-up draw from each of `views` (shot names), with `warm`'s objects, and this frame's own view put back after. */
 function warmViews(views, warm) {
+  slicedInFrame = true;
   const result = warmUp(renderer, scene, camera, {
     objects: warm.objects,
     shots: views.map(name => director.poseOf(name)).map(pose => cam => {
@@ -467,23 +578,6 @@ function withPlace(forest, fn) {
 // the materials they draw with, each group building its own shaders. A group's frame draws only it, on a layer of its own (the
 // lights too, so the shaders are the ones the whole scene builds).
 const WARM_LAYER = 31;
-function byMaterial(roots) {
-  const groups = new Map();
-  for (const root of roots) {
-    root.traverse(o => {
-      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
-      const key = [...[o.material].flat(), o.customDepthMaterial, o.customDistanceMaterial].filter(Boolean).map(m => m.uuid).join()
-        + (o.isSkinnedMesh ? ' skinned' : '') + (o.isInstancedMesh ? ' instanced' : '');
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(o);
-    });
-  }
-  // and a group of many meshes a few at a time: the first draw of a mesh uploads it (a skinned one most of all)
-  return [...groups.values()].flatMap(meshes => {
-    const most = meshes[0].isSkinnedMesh ? 1 : 4;
-    return Array.from({ length: Math.ceil(meshes.length / most) }, (_, i) => meshes.slice(i * most, (i + 1) * most));
-  });
-}
 function warmPart(views, meshes) {
   const lights = [];
   scene.traverse(o => { if (o.isLight) lights.push(o); });
@@ -508,7 +602,7 @@ async function canvasFree() {
  */
 async function warmInParts(views, roots, around = fn => fn()) {
   const sum = { draws: 0, programs: 0, ms: 0, frames: 0, longestPart: 0 };
-  for (const meshes of byMaterial(roots)) {
+  for (const meshes of warmParts(roots)) {
     await canvasFree();
     if (stage.started && ui.fadeLevel < 0.999) break;
     const part = around(() => warmPart(views, meshes));
@@ -543,9 +637,15 @@ function warmPrepared(name, forest) {
 }
 
 /** Everything that is done behind the black before the start button shows: the start place and the chapter, drawn once. */
+/** Until every load in `loading` (world.loading: a set each load leaves as it settles) has settled, those added meanwhile too. */
+async function settled(loading) {
+  while (loading?.size > 0) await Promise.allSettled([...loading]);
+}
+
 async function getReady() {
   await characterLodsReady(); // the shadow casters the levels bring are drawn too
   await nextFrames(2); // the script's setup has run and the start shot holds
+  await settled(world.loading); // and the files its setup asked for are in (Mosi's saddle), so they are drawn here too
   const warmed = [];
   const warm = chapter.warmUp?.(world, { place: world.location }) ?? { objects: [], shots: [], dispose() {} };
   try {
@@ -560,6 +660,25 @@ async function getReady() {
     await nextFrames(2);
     ui.tray.hide();
   }
+  // The places the chapter cuts to later with no black to hide their first draw (chapter.readyFirst: chapter 4's Árdalurinn), built,
+  // made ready (the place's own ready(): what it loads) and drawn here, in parts, before the button shows. A quick tap would leave
+  // them to the scene, in view or under a long black.
+  for (const name of locations ? chapter.readyFirst ?? [] : []) {
+    const began = performance.now();
+    slicing.stats = { slices: 0, longest: 0 };
+    let forest;
+    try {
+      forest = await locations.prepare(name, { sliced: true });
+      await chapter.locations[name].ready?.(world, forest);
+    } catch (error) {
+      // said once, here; the scene builds it at once as it goes there (locations.js drops a failed build)
+      console.warn(`[warm-up] ${name} could not be readied before the start; the scene builds it as it goes there:`, error?.message ?? error);
+      continue;
+    }
+    const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
+    warmed.push(Object.assign(entry, await warmPrepared(name, forest)));
+  }
+  if (!hals.isOpen) drawNow();
   world.warmUps = warmed; // for a probe: { label, draws, ms, programs } of each warm-up (prepareLater adds the places')
   console.info('[warm-up]', warmed.map(describeWarm).join('; '));
 }
@@ -609,6 +728,7 @@ function update(dt) {
   stage.update(dt);
   wind.update(clock.time);
   updateMusic(); // if the clock lost time (a long frame) the sound is brought back to the playhead
+  updateChapterSound(); // and a chapter's own song, the game held or not, as the theme
   updateSfx(dt); // the forest's birds and rustles
   if (dance) {
     followed = followBeat(followed, beatsAt(musicTime(), dance), dt, dance, stage.seeking || clock.frozen);
@@ -635,7 +755,7 @@ function startScene() {
   scriptTask = stage.start(chapter.script);
 }
 
-// The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2, kafli2's kafli3) puts
+// The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2, kafli2's kafli3, kafli3's kafli4, kafli4's kafli5) puts
 // a raised "Áfram" pill over the open book, in the book's style (book.css .next-chapter), and a tap on it goes on to that chapter's
 // page. It stands under a game the book opens (it comes before them on the page), and stays if the child shuts the book.
 let handedOver = false;
@@ -684,13 +804,36 @@ if (shotName || !chapter.script) {
       const dt = Math.min(step, seekTo - t);
       clock.step(dt);
       update(dt);
-      // A script waiting on a promise (loading, say) gets the chance to see it settle.
-      for (let tries = 0; stage.scheduler.pending > 0 && tries < 500; tries++) {
+      // A script waiting on a promise (loading, say) gets the chance to see it settle, as do the files the scene is loading.
+      for (let tries = 0; (stage.scheduler.pending > 0 || world.loading?.size > 0) && tries < 500; tries++) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
     stage.seeking = false;
-    clock.freeze();
+    if (playing) {
+      // ?play=1 too: it stands at t until a tap, the touch the browser wants before it lets sound begin, and plays on from there
+      clock.setPaused(true);
+      addEventListener('pointerdown', () => {
+        voice.muted = music.muted = sfx.muted = bookAudio.muted = false;
+        music.start();
+        clock.setPaused(false);
+      }, { once: true, capture: true });
+    } else clock.freeze();
+    // A frozen capture can go on from t in the same fixed steps, silently: tools/clip-probe.mjs plays a whole show through this way.
+    if (!playing) {
+      window.__advance = async (seconds, step = 1 / 30) => {
+        stage.seeking = true;
+        for (let t = 0; t < seconds - 1e-9; t += step) {
+          const dt = Math.min(step, seconds - t);
+          clock.step(dt);
+          update(dt);
+          for (let tries = 0; (stage.scheduler.pending > 0 || world.loading?.size > 0) && tries < 500; tries++) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+        }
+        stage.seeking = false;
+      };
+    }
     forrit.started();
   } else if (params.get('play') === '1') {
     forrit.started();
@@ -705,6 +848,13 @@ if (shotName || !chapter.script) {
     const loading = document.getElementById('loading');
     loading.hidden = false;
     const button = document.getElementById('start');
+    // A chapter may have a start of its own (chapter.startButton(document) resolves to { element, button }, laid on the page hidden,
+    // or to null for Byrja): fidrildi3d's glasses. Its button's tap is Byrja's (it clicks Byrja), the one tap, and the touch that lets
+    // sound begin.
+    const ownStart = Promise.resolve().then(() => chapter.startButton?.(document) ?? null).catch(error => {
+      console.error('[start]', error);
+      return null;
+    });
     // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
     button.addEventListener('pointerdown', () => button.classList.add('pressed'));
     button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
@@ -720,7 +870,14 @@ if (shotName || !chapter.script) {
       loading.classList.add('done');
       setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
-      button.hidden = false;
+      ownStart.then(own => {
+        if (!own) {
+          button.hidden = false;
+          return;
+        }
+        own.element.hidden = false;
+        own.button.addEventListener('click', () => { own.element.remove(); button.click(); }, { once: true });
+      });
       forrit.startScreen();
       startReady = true;
       prepareLater().catch(error => console.error('[warm-up]', error));
@@ -740,7 +897,8 @@ debugEl.hidden = params.get('debug') !== '1';
 
 function drawNow() {
   renderer.info.reset(); // one count per frame, shadow pass included (autoReset is off)
-  renderer.render(scene, camera);
+  if (gler?.on) gler.draw();
+  else renderer.render(scene, camera);
 }
 // While the child's book covers the screen the game stands still behind it (the clock is held), and the canvas keeps the last frame it
 // was given: nothing is drawn again, not the same frozen scene every frame for nothing. A resize clears the canvas, so that draws once.
@@ -748,12 +906,13 @@ function drawNow() {
 let canvasCleared = false;
 let drew = true;
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
+const sceneCovered = () => clock.paused && (book.isOpen || eitt.isOpen || veiddu.isOpen || junior.isOpen || sloedla.isOpen || minnisspil.isOpen) && !canvasCleared;
 function render() {
   if (hals.isOpen) { // the game draws its board on this canvas: the chapter waits
     drew = false;
     return;
   }
-  drew = !(clock.paused && (book.isOpen || eitt.isOpen || veiddu.isOpen) && !canvasCleared);
+  drew = !sceneCovered();
   if (!drew) return;
   canvasCleared = false;
   drawNow();
@@ -794,21 +953,32 @@ let failures = 0;
 renderer.setAnimationLoop(now => {
   const real = (now - last) / 1000;
   last = now;
+  if (showOpen) return; // the show's frame covers the screen and the clock is held: the frame is the only thing drawing
   try {
-    update(clock.tick(real));
+    const dt = clock.tick(real);
+    if (clock.paused && (sceneCovered() || hals.isOpen)) {
+      journal.update(0);
+      updateMusic();
+      updateChapterSound();
+    } else {
+      update(dt);
+    }
   } catch (error) {
     // Keep drawing: a broken scene object must not freeze the picture. Report the first few.
     if (failures++ < 5) console.error('[frame]', error);
   }
   handOver(); // the script may have ended in this frame
+  if (scriptTask?.done && !window.__chapterEnd) window.__chapterEnd = true; // for the video tool (tools/chapter-video.mjs): the script is over
   if (warmedPlace !== null) starInTheBlack(now);
   if (warmedPlace !== null && stage.started && ui.fadeLevel >= 0.999) warmDrawing();
   if (warmedPlace !== null && world.location !== warmedPlace) {
-    // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows.
+    // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows. A place
+    // cut to with no black (s.goTo with fade 0) is not drawn here, in view, where the draw would be a long frame: the chapter has
+    // drawn it under an earlier black (world.warmObjects; chapter 4's Árdalurinn under the white tree's).
     warmedPlace = world.location;
     music.lenient(PLACE_CHANGE);
     try {
-      warmPlace(chapter.locations?.[world.location]?.warmUp ?? []);
+      if (ui.fadeLevel >= 0.999) warmPlace(chapter.locations?.[world.location]?.warmUp ?? []);
     } catch (error) {
       console.error('[warm-up]', error);
     }
@@ -823,4 +993,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __timeline: () => world.chapterTimeline ?? null, __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __minnisspil: minnisspil, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output }, __wakeLock: wakeLock });

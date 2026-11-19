@@ -82,8 +82,16 @@ export function pressable(el, { audio = null, sound = 'tap', onTap = null, win =
 
   const moved = (press, event) => Math.hypot(event.clientX - press.x, event.clientY - press.y) >= TAP_SLOP_PX;
 
+  function allowedInBook(el) {
+    const bookEl = el?.ownerDocument?.getElementById?.('book');
+    if (!bookEl || typeof bookEl._tutorialAllow !== 'function') return true;
+    let node = el;
+    while (node && node !== bookEl) node = node.parentNode;
+    return node === bookEl ? Boolean(bookEl._tutorialAllow(el)) : true;
+  }
+
   function onDown(event) {
-    if (event.button > 0) return; // only the main button counts
+    if (event.button > 0 || !allowedInBook(el)) return; // only the main button counts, and only what a locked book tutorial allows
     presses.set(event.pointerId, { x: event.clientX, y: event.clientY, look: reducedMotion(win) ? 'pressed-fade' : 'pressed' });
     show();
     try {
@@ -100,7 +108,7 @@ export function pressable(el, { audio = null, sound = 'tap', onTap = null, win =
 
   function onUp(event) {
     const press = drop(event.pointerId);
-    if (!press || moved(press, event)) return;
+    if (!press || moved(press, event) || !allowedInBook(el)) return;
     sparkle(el, SPARKS, win);
     if (sound) audio?.sfx?.(sound);
     onTap?.(event);

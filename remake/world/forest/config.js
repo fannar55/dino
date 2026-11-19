@@ -216,7 +216,8 @@ export const FOREST = {
   // crowns in view above crownSize[0] get the fine level, others the middle one above crownSize[1].
   // The cap keeps the fine crowns' cost bounded in every frame, wherever the camera is.
   actorWarm: 0.5, // strength of the lighter, warmer ground and grass round characters (STYLE.md 5.1); halved, it read as a spotlight following Mosi in the tracking shot
-  lod: { switch: [10, 32], switchSmall: [8, 22], crownSize: [0.3, 0.19], crownFine: 3 },
+  // cardFrom: metres to a tree's mid-height past which a tree that has a card (cards.js) is drawn as it (chapter 4's land only)
+  lod: { switch: [10, 32], switchSmall: [8, 22], crownSize: [0.3, 0.19], crownFine: 3, cardFrom: 150 },
 };
 
 // The Fen (layout.biome 'fen', chapter 2): a wetland with its own look, the spec's palette (docs/superpowers/specs/

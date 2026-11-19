@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { createActor } from '../engine/actor.js';
 import { createPointResolver } from '../engine/points.js';
+import { createEffects } from '../engine/effects.js';
+import { cullBatches } from '../world/forest/batch.js';
 
 // The real Mosi, with its textures removed so GLTFLoader can parse it without a DOM.
 function loadMosi() {
@@ -63,6 +65,15 @@ async function stage() {
 const headOf = mosi => mosi.model.getObjectByName('Head');
 const headQuat = mosi => headOf(mosi).getWorldQuaternion(new THREE.Quaternion());
 const angleDeg = (a, b) => THREE.MathUtils.radToDeg(a.angleTo(b));
+// How far the head turns in each of the two frames after `change`.
+function stepsAfter(actor, change) {
+  const a = headQuat(actor);
+  change();
+  actor.update(1 / 30);
+  const b = headQuat(actor);
+  actor.update(1 / 30);
+  return [angleDeg(a, b), angleDeg(b, headQuat(actor))];
+}
 
 // Follows the feet frame by frame from start(): the most a foot moved along the ground between two
 // frames in which it was down (within 1 mm of its bind-pose height), how often a foot lifted, and
@@ -112,6 +123,26 @@ test('frozen frames do not pile the head look up on itself', async () => {
   assert.ok(angleDeg(before, headQuat(mosi)) < 0.01, `head drifted ${angleDeg(before, headQuat(mosi)).toFixed(2)} degrees`);
 });
 
+test('a look whose target jumps with him to another place (a cut, chapter 4) holds, not swung back after where it was', async () => {
+  const { mosi } = await stage();
+  const target = [1.5, 1.6, 4]; // well to his right
+  mosi.lookAt(target, { weight: 0.7 });
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const before = headQuat(mosi);
+  // he and what he looks at are somewhere else at once, as when a scene changes place under the shot
+  mosi.place(mosi.root.position.x + 200, mosi.root.position.z - 150, mosi.heading);
+  target[0] += 200;
+  target[2] -= 150;
+  mosi.update(1 / 30);
+  assert.ok(angleDeg(before, headQuat(mosi)) < 1.5, `the head turned ${angleDeg(before, headQuat(mosi)).toFixed(1)} degrees at the cut`);
+  // and a target that moves in the ordinary way is still followed smoothly
+  target[2] -= 3;
+  mosi.update(1 / 30);
+  const step = angleDeg(before, headQuat(mosi));
+  for (let i = 0; i < 60; i++) mosi.update(1 / 30);
+  assert.ok(step < angleDeg(before, headQuat(mosi)) / 2, `a step of 3 m is turned to over time: ${step.toFixed(1)} degrees in the first frame`);
+});
+
 test('a target behind him turns the head sideways without tipping it', async () => {
   const { mosi } = await stage();
   const rest = new THREE.Vector3();
@@ -124,6 +155,44 @@ test('a target behind him turns the head sideways without tipping it', async () 
   const now = forwardAt();
   const pitchChange = Math.abs(THREE.MathUtils.radToDeg(Math.asin(now.y) - Math.asin(rest.y)));
   assert.ok(pitchChange < 32, `head tipped ${pitchChange.toFixed(1)} degrees`);
+});
+
+test('a target right behind him keeps the head on the side it turned to; it swaps only when the target is well round the other way', async () => {
+  const { mosi } = await stage();
+  const target = [-6, 1.9, 0.6]; // behind him, a little to his right
+  mosi.lookAt(target, { weight: 1, maxAngle: 70 });
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const turned = headQuat(mosi);
+  // the target slips across the line behind him (chapter 4: Egill on her back, the cut into the flight): the head stays put
+  target[2] = -0.6;
+  for (let i = 0; i < 60; i++) mosi.update(1 / 30);
+  assert.ok(angleDeg(turned, headQuat(mosi)) < 10, `the head swung ${angleDeg(turned, headQuat(mosi)).toFixed(1)} degrees to the other side`);
+  // well round to his left, the head goes over to that side
+  target[2] = -6;
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  assert.ok(angleDeg(turned, headQuat(mosi)) > 40, `the head stayed on his right: ${angleDeg(turned, headQuat(mosi)).toFixed(1)} degrees`);
+});
+
+test('letting go of a wide look eases the head back from where it is, with no step as the limits go back', async () => {
+  const { mosi } = await stage();
+  mosi.lookAt([-6, 1.9, 0.6], { weight: 0.8, maxAngle: 70, maxPitch: 45 }); // behind him: the head at its 70 degree limit
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const before = headQuat(mosi);
+  const [first, next] = stepsAfter(mosi, () => mosi.lookAt(null));
+  assert.ok(first < 8 && first < next * 1.5, `the head stepped ${first.toFixed(1)} degrees in the first frame, then ${next.toFixed(1)}`);
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  assert.ok(angleDeg(before, headQuat(mosi)) > 30, 'and it does go back');
+});
+
+test('a cap on his looks put on or taken off (a rider floating up, chapter 4) eases the head to it, with no step', async () => {
+  const { mosi } = await stage();
+  mosi.lookAt([-6, 1.9, 0.6], { weight: 0.8, maxAngle: 70, maxPitch: 45 }); // behind him: the head at its 70 degree limit
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  let [first, next] = stepsAfter(mosi, () => { mosi.lookYawLimit = 40; });
+  assert.ok(first < 8 && first < next * 1.5, `capped: the head stepped ${first.toFixed(1)} degrees in the first frame, then ${next.toFixed(1)}`);
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  [first, next] = stepsAfter(mosi, () => { mosi.lookYawLimit = Infinity; });
+  assert.ok(first < 8 && first < next * 1.5, `uncapped: the head stepped ${first.toFixed(1)} degrees in the first frame, then ${next.toFixed(1)}`);
 });
 
 test('turning during a walk ends the walk, and the turn finishes', async () => {
@@ -376,4 +445,156 @@ test('frozen frames leave a stepping foot where it is', async () => {
   for (let i = 0; i < 60; i++) mosi.update(0);
   mosi.root.updateMatrixWorld(true);
   assert.ok(foot.getWorldPosition(new THREE.Vector3()).distanceTo(before) < 1e-6);
+});
+
+test('storybook skin shader applies warm wrap and rim only when world.renderer is present, stays ASCII, and leaves glTF template materials untouched', async () => {
+  const gltf = await gltfPromise;
+  gltf.scene.scale.setScalar(1 / REAL);
+  let templateMat = null;
+  gltf.scene.traverse(o => { if (o.isMesh && !templateMat) templateMat = o.material; });
+
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.25, 1000);
+  const world = { scene: new THREE.Scene(), camera, renderer: {}, heightAt: () => 0, actors: new Map(), effects: createEffects() };
+  world.resolvePoint = createPointResolver(world);
+  const mosi = await createActor(world, { name: 'mosi', gltf });
+
+  let actorMat = null;
+  mosi.model.traverse(o => { if (o.isMesh && o.material?.isMeshStandardMaterial && !actorMat) actorMat = o.material; });
+  assert.ok(actorMat && actorMat !== templateMat, 'actor receives a cloned material so raw glTF template stays pristine');
+  assert.equal(actorMat.customProgramCacheKey(), 'storybook-skin');
+
+  const shader = {
+    uniforms: THREE.UniformsUtils.clone(THREE.ShaderLib.standard.uniforms),
+    vertexShader: THREE.ShaderLib.standard.vertexShader,
+    fragmentShader: THREE.ShaderLib.standard.fragmentShader,
+  };
+  actorMat.onBeforeCompile(shader);
+  assert.match(shader.fragmentShader, /skinWrap/);
+  assert.match(shader.fragmentShader, /skinRim/);
+  assert.match(shader.fragmentShader, /^[\x00-\x7f]*$/, 'patched shader stays pure ASCII');
+  mosi.dispose();
+});
+
+test('listenAt gently turns an idle listener toward a nearby speaker without blinking, and yields to lookAt, non-idle clips, or closed eyes', async () => {
+  const { mosi } = await stage();
+  const head = headOf(mosi);
+  const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert());
+  const aside = () => {
+    const f = forward.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+    return THREE.MathUtils.radToDeg(Math.atan2(f.z, f.x));
+  };
+
+  mosi.listenAt([2.5, 1.2, 2.5]);
+  assert.equal(mosi.listening, mosi.listening);
+  assert.ok((mosi.eyelids?.shut ?? 0) < 0.05, 'listenAt does not force an immediate glance blink');
+  for (let i = 0; i < 60; i++) mosi.update(1 / 30);
+  const listeningAngle = aside();
+  assert.ok(listeningAngle > 4 && listeningAngle < 22, `gentle listener turn (${listeningAngle.toFixed(1)} deg)`);
+
+  // Non-idle posed clips immediately suppress auto-listening so physical contact poses stay exact.
+  mosi.play('walk', { once: true });
+  mosi.update(1 / 30);
+  mosi.play('idle', { fade: 0 });
+  mosi.closeEyes(1, { duration: 0 });
+  for (let i = 0; i < 10; i++) mosi.update(1 / 30);
+  assert.ok(Math.abs(aside()) < 2, 'sleeping character does not turn its head to listen');
+
+  mosi.openEyes({ duration: 0 });
+  mosi.lookAt([2.5, 1.2, -3], { weight: 1 });
+  for (let i = 0; i < 45; i++) mosi.update(1 / 30);
+  assert.ok(aside() < -20, 'explicit lookAt overrides listenAt');
+});
+
+test('walking with a renderer emits pooled footstep dust that cleans itself up after stopping, and ripples in shallow water', async () => {
+  const gltf = await gltfPromise;
+  gltf.scene.scale.setScalar(1 / REAL);
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.25, 1000);
+  const world = { scene: new THREE.Scene(), camera, renderer: {}, heightAt: () => 0, actors: new Map(), effects: createEffects() };
+  world.resolvePoint = createPointResolver(world);
+  const mosi = await createActor(world, { name: 'mosi', gltf });
+
+  const walk = mosi.walkTo([[4, 0]]);
+  let sawDust = false;
+  for (let i = 0; i < 150 && !walk.done; i++) {
+    mosi.update(1 / 30);
+    world.effects.update(1 / 30);
+    if (world.scene.children.some(o => o.name === 'FootstepDust' && o.count > 0)) sawDust = true;
+  }
+  assert.equal(sawDust, true, 'dry footsteps emit warm dust puffs');
+  mosi.stop();
+  for (let i = 0; i < 60 && mosi.stepping; i++) {
+    mosi.update(1 / 30);
+    world.effects.update(1 / 30);
+  }
+  for (let i = 0; i < 30; i++) {
+    mosi.update(1 / 30);
+    world.effects.update(1 / 30);
+  }
+  assert.equal(world.scene.children.some(o => o.name === 'FootstepDust'), false, 'dust mesh removes itself once puffs fade');
+  assert.equal(world.effects.size, 0, 'effect removes itself when idle');
+
+  const ripples = [];
+  world.forest = {
+    water: {
+      depthAt: () => 0.12,
+      rippleAt: (pt, strength) => ripples.push({ pt, strength }),
+    },
+  };
+  const wade = mosi.walkTo([[8, 0]]);
+  for (let i = 0; i < 150 && !wade.done; i++) {
+    mosi.update(1 / 30);
+    world.effects.update(1 / 30);
+  }
+  assert.ok(ripples.length > 0, 'stepping in shallow water triggers water ripples instead of dust');
+  mosi.dispose();
+});
+
+test('cullBatches tracks camera-cut epochs per batch group so background batches never miss a cut', () => {
+  const makeCullMesh = z => {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3));
+    const master = new Uint16Array([0, 1, 2]);
+    geom.setIndex(new THREE.BufferAttribute(new Uint16Array(3), 1));
+    const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+    mesh.userData.cull = {
+      master,
+      signature: -1,
+      submitted: 0,
+      ranges: [{
+        start: 0,
+        count: 3,
+        minD: 0,
+        maxD: Infinity,
+        cull: 30,
+        ref: new THREE.Vector3(0, 0, z),
+        sphere: new THREE.Sphere(new THREE.Vector3(0, 0, z), 0.5),
+      }],
+    };
+    return mesh;
+  };
+
+  const batchA = [makeCullMesh(-31.5)];
+  const batchB = [makeCullMesh(-31.5)];
+  const camera = new THREE.PerspectiveCamera(60, 1.6, 0.25, 500);
+  const moveCam = z => {
+    camera.position.set(0, 0, z);
+    camera.lookAt(0, 0, z - 50);
+    camera.updateMatrixWorld(true);
+    camera.updateProjectionMatrix();
+  };
+
+  // Both batches first see their plant at 17.5 m (<= 30 m -> near = true).
+  moveCam(-14);
+  assert.equal(cullBatches(batchA, camera), 1);
+  assert.equal(cullBatches(batchB, camera), 1);
+
+  // batchA steps smoothly back to z = 0 in 5 m increments (<= 12 m cut threshold), keeping hysteresis (31 m <= 30 * 1.08).
+  for (const z of [-9, -4, 0]) {
+    moveCam(z);
+    cullBatches(batchA, camera);
+  }
+  assert.equal(cullBatches(batchA, camera), 1, 'smooth camera motion keeps hysteresis on batchA');
+
+  // batchB has not been culled since z = -14: jumping straight to z = 0 is a 14 m cut (> 12 m), so hysteresis resets and 31 m > 30 m culls out.
+  assert.equal(cullBatches(batchB, camera), 0, 'batchB independently detects its 14 m camera cut');
 });

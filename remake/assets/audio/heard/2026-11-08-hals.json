@@ -1,0 +1,28 @@
+{
+  "set": "hals",
+  "date": "2026-11-08",
+  "source": "jano-hals.json",
+  "verdicts": {
+    "hals/hals_mosi_1": {
+      "verdict": "ja",
+      "key": "f1b32f8ed9103f12628183cbf3e2fd541e0fa756561a122e002fc90e21500c17",
+      "mp3": "bcc38068aa46daf3bbcb406efe809f357db2c5cf79c89611dbcbef55e3090f95",
+      "speaker": "mosi",
+      "text": "Einn!"
+    },
+    "hals/hals_mosi_2": {
+      "verdict": "ja",
+      "key": "84fca240dca10cf202358c6c05e073716f27b445a7cb647e2f8e4e7536d179e0",
+      "mp3": "ef67f03e63f9c2d5e232e4420c05df21a6ca3e7632e44d7e77cacbb80d3f92bb",
+      "speaker": "mosi",
+      "text": "Tveir!"
+    },
+    "hals/hals_mosi_3": {
+      "verdict": "ja",
+      "key": "13a25ecf0a049bf282e07cbae19ed47a6339814e5bce1301465d221d66da5654",
+      "mp3": "836293c8882095a359c4b7414f86b3a41d498862a704b448f0b3b7483314cc87",
+      "speaker": "mosi",
+      "text": "Þrír!"
+    }
+  }
+}

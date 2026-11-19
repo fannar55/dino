@@ -7,7 +7,7 @@ import { DONE } from '../engine/handle.js';
 import { centsFromKey, createFakeContext, peakThrough, pitchesOf } from './fake-audio.mjs';
 
 const THEME = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
-const NAMES = ['forest', 'step', 'frog', 'snail', 'beetle', 'birds', 'butterfly', 'flower', 'plate', 'star', 'journal', 'saddle', 'float', 'mapOpen', 'mapPen'];
+const NAMES = ['forest', 'step', 'frog', 'snail', 'beetle', 'birds', 'butterfly', 'flower', 'plate', 'star', 'journal', 'saddle', 'float', 'mapOpen', 'mapPen', 'sloedlaHorn'];
 const ONE_SHOTS = NAMES.filter(name => name !== 'forest');
 const MELODIC = ['plate', 'star', 'flower', 'journal', 'saddle', 'float']; // the sounds made of bells
 
@@ -315,4 +315,28 @@ test('stopping the scene stops the forest loop it started', () => {
   assert.equal(stopped, 1);
   assert.doesNotThrow(() => stageWith({}).stop(), 'a scene without effects stops as before');
   assert.doesNotThrow(() => stageWith({ sfx: { play: () => true } }).stop(), 'and effects without a stop');
+});
+
+// Chapter 4's end (spec 4.7) and chapter 5's beginning: Slóeðla, unseen in the reed across the far pool, blows her horn, and the song
+// will not come. One long note through her hollow crest that slips flat as it goes, wavers and sinks away: false and sad.
+test('Slóeðla\'s horn from the far reed: one low, hollow note that will not hold, slipping flat and sinking away', () => {
+  const { context, sfx } = setup();
+  assert.equal(sfx.play('sloedlaHorn', { pan: -0.4 }), true);
+  const voices = context.oscillators.filter(note => pitchesOf(note).some(hz => hz > 30));
+  const wobble = context.oscillators.filter(note => pitchesOf(note).every(hz => hz < 12));
+  assert.ok(voices.length >= 2, 'her note and its hollow under it');
+  assert.ok(voices.every(note => pitchesOf(note).every(hz => hz < 400)), 'a big animal\'s horn: low');
+  const [note] = voices.sort((a, b) => b.frequency.valueAt(0.5) - a.frequency.valueAt(0.5));
+  const held = note.frequency.valueAt(0.5);
+  const wrong = note.frequency.valueAt(1.8) / held;
+  assert.ok(wrong < 0.97 && wrong > 0.88, `it slips flat, less than a whole tone, not a new note: ${wrong.toFixed(3)} of where it held`);
+  assert.ok(note.frequency.valueAt(2.6) / held < 0.9, `and sinks away: ${(note.frequency.valueAt(2.6) / held).toFixed(3)}`);
+  assert.ok(wobble.length >= 1 && wobble[0].outputs.some(out => out.outputs?.includes(note.frequency)), 'and wavers: a slow wobble on its pitch');
+  const ends = voices.map(source => source.stopTime);
+  assert.ok(ends.every(end => end >= 2.4 && end <= 3.6), `about three seconds long: ${ends}`);
+  assert.ok(context.of('filter').some(filter => filter.type === 'lowpass'), 'through her crest: dull, hollow');
+  assert.ok(context.of('panner').some(panner => panner.pan.valueAt(1) === -0.4), 'from the side it is asked to come from');
+  assert.ok(voices.every(source => source.reaches(context.destination)));
+  const loudest = Math.max(...voices.map(source => peakThrough(source, context.destination)));
+  assert.ok(loudest > 0.04 && loudest <= 0.2, `far off, under the voices: ${loudest.toFixed(3)}`);
 });

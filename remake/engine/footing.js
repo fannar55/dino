@@ -126,7 +126,7 @@ export function stopCost(feet, tuning) {
  * pivot legs' swing pivots in the root's frame. tuning: QUADRUPED (the default) or BIPED, or
  * overrides of it, scaled to these legs. Create it in the bind pose, with the root at the origin.
  */
-export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFrame = false }) {
+export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFrame = false, onStep = null }) {
   root.updateMatrixWorld(true);
   const height = bone => root.worldToLocal(bone.getWorldPosition(new THREE.Vector3())).y;
   const size = specs.length
@@ -214,6 +214,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   let time = 0;
   let lastLift = -Infinity;
   let applied = false;
+  let ready = false;
 
   const v1 = new THREE.Vector3();
   const v2 = new THREE.Vector3();
@@ -261,12 +262,13 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     L.clipUp = L.clip.y - L.ground > LIFT;
   }
 
-  function plant(L, position, turn) {
+  function plant(L, position, turn, stepped = false) {
     L.state = 'down';
     L.at.copy(position).setY(surfaceY(L, position));
     L.turn.copy(turn);
     L.step = null;
     L.join = null;
+    if (stepped && ready) onStep?.(L.at, L);
   }
 
   // Follow the clip's foot from where the foot is now: at once if it is already there, else over a
@@ -365,7 +367,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       // The landing spot follows the turn until the foot starts down, so it sets down straight.
       if (s.t < 0.5 * s.duration) stepTarget(L, s, yaw);
       s.t += dt;
-      if (s.t >= s.duration) plant(L, s.to, s.turnTo);
+      if (s.t >= s.duration) plant(L, s.to, s.turnTo, true);
     }
     if (dt > 0) pickStep(); // a frozen frame starts nothing
   }
@@ -397,7 +399,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
         L.join.t += dt;
         if (L.join.t >= L.join.duration) { L.state = 'clip'; L.join = null; }
       }
-      if (L.state === 'clip' && !L.clipUp && mode === 'walk') plant(L, L.clip, L.clipTurn);
+      if (L.state === 'clip' && !L.clipUp && mode === 'walk') plant(L, L.clip, L.clipTurn, L.airTime > 0.04);
     }
   }
 
@@ -593,5 +595,6 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     },
   };
   footing.reset();
+  ready = true;
   return footing;
 }

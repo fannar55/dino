@@ -1,0 +1,40 @@
+{
+  "about": "The skeleton of the owner's Tripo grasbítur (geymsla/tripo/grasbitur-tripo-v1.glb) for remake/tools/blender-crowd.py: joints in the file's own glTF space (metres as delivered, +Y up, the beak toward -X, its left side +Z), placed from its slices (each leg's cross-section by height, the body's line) and a side render. Its legs stand upright under the body; the right forefoot stands a little ahead of the left, the beak is turned a little to its left and the tail curves gently that way: the rig keeps them so, but each pair of shoulders and hips stands at one x (a body is even), so the gaits are even. The head joint is behind the frill, so the frill turns with the head. rigidFeet: each foot below its ankle moves as one piece (planted soles stay put). headShare: the head's share of each level's triangles, at most (his head is detailed and would take most of them; the legs need the triangles to bend).",
+  "kind": "quadruped",
+  "nose": "-x",
+  "rigidFeet": true,
+  "headShare": { "near": 0.2, "far": 0.2 },
+  "joints": {
+    "hips": [0.060, 0.235, 0.0],
+    "spine": [-0.020, 0.235, 0.0],
+    "chest": [-0.100, 0.240, 0.0],
+    "neck": [-0.170, 0.250, 0.0],
+    "head": [-0.215, 0.262, 0.0],
+    "nose": [-0.487, 0.236, 0.033],
+    "tail": [
+      [0.100, 0.234, 0.0],
+      [0.165, 0.233, 0.005],
+      [0.230, 0.231, 0.012],
+      [0.295, 0.228, 0.027],
+      [0.360, 0.230, 0.042],
+      [0.425, 0.232, 0.058],
+      [0.489, 0.233, 0.074]
+    ],
+    "shoulder.L": [-0.2225, 0.205, 0.085],
+    "elbow.L": [-0.190, 0.120, 0.095],
+    "wrist.L": [-0.213, 0.045, 0.101],
+    "hand.L": [-0.255, 0.004, 0.103],
+    "shoulder.R": [-0.2225, 0.205, -0.088],
+    "elbow.R": [-0.236, 0.120, -0.100],
+    "wrist.R": [-0.262, 0.045, -0.102],
+    "hand.R": [-0.303, 0.004, -0.099],
+    "hip.L": [0.0375, 0.225, 0.100],
+    "knee.L": [0.038, 0.135, 0.108],
+    "ankle.L": [0.062, 0.050, 0.119],
+    "toe.L": [0.012, 0.004, 0.124],
+    "hip.R": [0.0375, 0.225, -0.100],
+    "knee.R": [0.013, 0.135, -0.110],
+    "ankle.R": [0.034, 0.050, -0.121],
+    "toe.R": [-0.014, 0.004, -0.124]
+  }
+}

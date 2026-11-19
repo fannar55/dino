@@ -1,6 +1,8 @@
 import { pressable, reducedMotion, sparkle, TAP_SLOP_PX } from './fx.js';
 import { ICONS } from './icons.js';
 import { createSkeletonView } from './skeleton-view.js';
+import { bookState } from './cards.js';
+import { videoForCard, isVideoUnlocked } from './videos.js';
 
 // The card viewer (spec section 3.3): an animal's pages over the spread, one big picture and a sentence at a time.
 //
@@ -55,7 +57,7 @@ function siteOf(source) {
  *   next(), prev()                          flip a page; false at the ends and while a flip is still going on
  *   page, card, isOpen                      the page's number (the first is 0), the card shown, and whether one is open
  */
-export function createCardViewer(doc, root, { media = new Map(), models: modelInfo = new Map(), audio = null, zoom = null, onClose = null, win = globalThis.window, skeleton = null } = {}) {
+export function createCardViewer(doc, root, { media = new Map(), models: modelInfo = new Map(), videos = [], save = null, audio = null, zoom = null, onClose = null, onWatch = null, win = globalThis.window, skeleton = null } = {}) {
   const make = (tag, className) => {
     const element = doc.createElement(tag);
     element.className = className;
@@ -71,6 +73,8 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
 
   // The card: the parts book.css lays out in a grid, with the picture, ⓘ and its window together in the photo.
   const back = control('card-back chunky', 'Aftur á dýrasíðuna', ICONS.back);
+  const videoButton = control('card-video chunky', 'Horfa á myndband', ICONS.videos);
+  videoButton.hidden = true;
   const photo = control('card-photo', 'Stækka myndina');
   const info = control('card-info', 'Um myndina', ICONS.info);
   info.setAttribute('aria-expanded', 'false');
@@ -95,10 +99,11 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
   dots.setAttribute('role', 'img');
   const card = make('article', 'card');
   card.hidden = true;
-  card.append(back, figure, prevButton, nextButton, done, words, dots);
+  card.append(back, videoButton, figure, prevButton, nextButton, done, words, dots);
   root.append(card);
 
   let current = null; // the card shown
+  let currentVideo = null; // the video linked to the card shown, when unlocked
   let pages = [];
   let index = 0;
   let imgs = []; // one picture per page, all in the photo, one showing
@@ -249,6 +254,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     const leaving = imgs[index];
     audio?.sfx?.('turn');
     text.style.removeProperty('translate'); // the text starts over from the side; the picture leaving keeps its drag until it is gone
+    zoom?.close?.(true);
     hideModel();
     show(to);
     fitText();
@@ -331,6 +337,14 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
   };
   card.addEventListener('pointerup', lift);
   card.addEventListener('pointercancel', lift);
+  card.addEventListener('lostpointercapture', lift);
+  win?.addEventListener?.('blur', () => {
+    fingers.clear();
+    if (drag) {
+      drag = null;
+      unfollow();
+    }
+  });
 
   // ---- Opening and closing -------------------------------------------------------------------------------------------
 
@@ -413,6 +427,10 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     fingers.clear();
     drag = null;
     current = shown;
+    const matched = videoForCard(current.id, videos);
+    currentVideo = matched && (!save || isVideoUnlocked(matched, bookState(save))) ? matched : null;
+    videoButton.hidden = !currentVideo;
+    if (currentVideo) videoButton.setAttribute('aria-label', `Horfa á myndband: ${currentVideo.name}`);
     pages = shown.pages;
     origin = fromRect;
     isOpen = true;
@@ -436,10 +454,10 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     settleFlip();
     fingers.clear();
     drag = null;
+    zoom?.close?.(true);
     hideModel();
     closeCredit();
     audio?.stop?.(); // nothing reads on after the card is shut
-    zoom?.close?.(true);
     if (instant) finishClose();
     else shrink();
     onClose?.(shut);
@@ -448,6 +466,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
 
   win?.addEventListener?.('resize', () => { if (isOpen) fitText(); });
   pressable(back, { audio, win, onTap: () => close() });
+  pressable(videoButton, { audio, sound: 'tile', win, onTap: () => { if (isOpen && currentVideo) onWatch?.(currentVideo, videoButton.getBoundingClientRect()); } });
   pressable(done, { audio, win, onTap: () => close() });
   pressable(prevButton, { audio, sound: null, win, onTap: () => prev() }); // a flip sounds `turn` itself
   pressable(nextButton, { audio, sound: null, win, onTap: () => next() });

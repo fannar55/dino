@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createHold } from '../engine/audio/hold.js';
+import { createHold, holdLater } from '../engine/audio/hold.js';
 import { createAudioContext, createOutput } from '../engine/audio/output.js';
 import { createVoice } from '../engine/scene/voice.js';
 import { createFakeContext, FakeContext } from './fake-audio.mjs';
@@ -160,6 +160,48 @@ test('the book and a hidden tab each hold the sound, which goes on only when bot
   assert.deepEqual(log.slice(6), ['voice:false', 'music:false']);
 });
 
+test('a chapter\'s own sound is held with the rest, and one added while held starts held (chapter 4\'s wind bed)', () => {
+  const log = [];
+  const part = name => ({ setPaused: paused => log.push(`${name}:${paused}`) });
+  const later = holdLater();
+  const hold = createHold([part('music'), later]);
+  const letGo = later.add(part('wind'));
+  hold('book', true);
+  assert.deepEqual(log, ['music:true', 'wind:true']);
+  later.add(part('falls')); // made while the book is open
+  assert.deepEqual(log.slice(2), ['falls:true']);
+  hold('book', false);
+  assert.deepEqual(log.slice(3), ['music:false', 'wind:false', 'falls:false']);
+  letGo(); // the flight is over
+  hold('hidden', true);
+  assert.deepEqual(log.slice(6), ['music:true', 'falls:true']);
+});
+
+test('a touch reaches the chapter\'s own sounds that ask for one (chapter 4\'s flight song, which a browser may start only from a touch)', () => {
+  const touched = [];
+  const later = holdLater();
+  later.add({ setPaused() {}, touch: () => touched.push('song') });
+  const letGo = later.add({ setPaused() {}, touch: () => touched.push('other') });
+  later.add({ setPaused() {} }); // the wind bed has no touch
+  later.touch();
+  assert.deepEqual(touched, ['song', 'other']);
+  letGo();
+  later.touch();
+  assert.deepEqual(touched, ['song', 'other', 'song']);
+});
+
+test('the page updates the chapter\'s own sounds that ask for it every frame, held or not (a song stops its element once its fade is out)', () => {
+  const updated = [];
+  const later = holdLater();
+  const hold = createHold([later]);
+  later.add({ setPaused() {}, update: () => updated.push('song') });
+  later.add({ setPaused() {} }); // the wind bed has no update
+  later.update();
+  hold('book', true);
+  later.update();
+  assert.deepEqual(updated, ['song', 'song'], 'held too');
+});
+
 // ---------------------------------------------------------------------------------------------
 // The audio context and its output
 
@@ -203,23 +245,56 @@ const MAIN = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').rep
 
 test('main.js lets the beat read the music\'s playhead, and ducks the music under the voice', () => {
   assert.match(MAIN, /const musicTime = \(\) => music\.position;/, 'one source for the beat: the music\'s playhead on the game clock');
-  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => music\.duck\(on\) \}\)/, 'a line ducks the theme');
+  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => \{ lineSounding = on; music\.duck\(on\); \}[,} ]/, 'a line ducks the theme');
+  assert.match(MAIN, /get speaking\(\) \{ return lineSounding; \}/, 'and the chapter\'s own song hears of it (world.sound.speaking)');
   assert.match(MAIN, /music\.update\(\)/, 'and the sound is kept on the playhead each frame');
+  assert.match(MAIN, /updateMusic\(\);[^\n]*\n\s*updateChapterSound\(\);/, 'with the chapter\'s own song after it');
+  assert.match(MAIN, /guard\('chapter sound', \(\) => chapterSound\.update\(\)\)/);
   assert.match(MAIN, /sfx\.update\(dt\)/, 'the forest\'s birds are scheduled on the game clock');
 });
 
 test('main.js starts the sound on the first touch and holds it with the book and the tab', () => {
   assert.match(MAIN, /button\.addEventListener\('click', \(\) => \{[^}]*music\.start\(\)/, 'the start button is the first touch');
-  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{ if \(stage\.started\) music\.start\(\); \}/, 'any later touch wakes sound the system put to sleep');
+  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{\s*if \(!stage\.started \|\| showOpen\) return;[^\n]*\s*music\.start\(\);\s*chapterSound\.touch\(\);/, 'any later touch wakes sound the system put to sleep, and a chapter\'s own song; not under a 3D show, whose opening touch would wake the sound just put to sleep');
+  assert.match(MAIN, /onShow: open => \{\s*showOpen = open;\s*if \(open\) audio\?\.suspend\?\.\(\)/, 'a show over the book puts this page\'s sound to sleep');
   assert.match(MAIN, /document\.addEventListener\('visibilitychange', \(\) => hold\('hidden', document\.hidden\)\)/, 'a hidden tab holds the sound with the clock that stops');
   assert.match(MAIN, /\nhold\('hidden', document\.hidden\);/, 'also one that opens hidden');
-  assert.match(MAIN, /createHold\(\[voice, music, sfx\]\)/, 'the voice, the music and the effects follow the same hold');
+  assert.match(MAIN, /createHold\(\[voice, music, sfx, chapterSound\]\)/, 'the voice, the music, the effects and the chapter\'s own sound follow the same hold');
+  assert.match(MAIN, /world\.sound = \{ context: audio, output, hold: chapterSound\.add, get speaking\(\) \{ return lineSounding; \} \};/, 'a chapter makes its own sound on the page\'s output, held with the rest');
+  assert.match(MAIN, /world\.music = music;/, 'and may raise the theme (chapter 4\'s flight)');
 });
 
 test('main.js keeps captures and review shots silent and gives the scene its effects', () => {
   assert.match(MAIN, /voice\.muted = true;\s*music\.muted = true;\s*sfx\.muted = true;/, 'the seek replay is silent');
-  assert.match(MAIN, /const playing = params\.get\('t'\) === null && params\.get\('shot'\) === null && Boolean\(chapter\.script\);/);
+  assert.match(MAIN, /const playing = \(params\.get\('t'\) === null \|\| params\.get\('play'\) === '1'\) && params\.get\('shot'\) === null && Boolean\(chapter\.script\);/, 'a capture (t without play=1) and a review shot are not played');
+  assert.match(MAIN, /if \(playing\) \{[^}]*clock\.setPaused\(true\);\s*addEventListener\('pointerdown', \(\) => \{\s*voice\.muted = music\.muted = sfx\.muted = bookAudio\.muted = false;\s*music\.start\(\);\s*clock\.setPaused\(false\);/, 'a review from a time (t with play=1) holds at t and plays on, with sound, from the first touch');
+  assert.match(MAIN, /\} else clock\.freeze\(\);/, 'a capture freezes at t');
   assert.match(MAIN, /const audio = playing \? createAudioContext\(\) : null;/, 'a capture or a review shot makes no audio context at all');
   assert.match(MAIN, /createScene\(\{[^}]*\bsfx\b[^}]*\}\)/, 'the scene can play effects');
   assert.match(MAIN, /theme, clock, base: themeUrl/, 'the music reads its file against theme.json\'s own URL');
+});
+
+// Chapter 4's flight film: her call in a call shot from her side (engine/scene/voice.js `pan`). The page's panner routes a line's
+// <audio> through a stereo panner straight to the speakers (not the output's limiter: a line sounds as loud as before), and lets go.
+test('panElement sends an <audio> through a stereo panner to the speakers, and lets go of it', async () => {
+  const { panElement } = await import('../engine/audio/output.js');
+  const context = createFakeContext({ state: 'running' });
+  const element = { src: 'a.mp3' };
+  const release = panElement(context, element, 0.5);
+  const [source] = context.mediaSources;
+  const panner = context.nodes.find(node => node.kind === 'panner');
+  assert.ok(source && source.element === element, 'from the element');
+  assert.equal(panner.pan.value, 0.5);
+  assert.ok(source.reaches(panner) && panner.outputs.includes(context.destination), 'through the panner to the speakers');
+  release();
+  assert.equal(source.outputs.length + panner.outputs.length, 0, 'let go');
+  assert.doesNotThrow(() => release(), 'twice is fine');
+  assert.equal(panElement(context, { src: 'b.mp3' }, 7) !== null, true);
+  assert.equal(context.nodes.filter(node => node.kind === 'panner').at(-1).pan.value, 1, 'no further than a side');
+  assert.equal(panElement(null, element, 0.5), null, 'no audio: nothing');
+});
+
+test('main.js gives the voice the page\'s panner', () => {
+  const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(main, /createVoice\(\{ onSpeaking: .*, pan: audio \? \(element, value\) => panElement\(audio, element, value\) : null \}\)/);
 });

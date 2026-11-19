@@ -56,9 +56,13 @@ function skyLight(renderer) {
     scene.add(box);
   }
   const generator = new THREE.PMREMGenerator(renderer);
-  const env = generator.fromScene(scene, 0.04).texture;
+  const envTarget = generator.fromScene(scene, 0.04);
   generator.dispose();
-  return env;
+  scene.traverse(obj => {
+    obj.geometry?.dispose();
+    obj.material?.dispose?.();
+  });
+  return envTarget;
 }
 
 /** A soft round shadow on the ground under her, in the style guide's shade colour (never black). */
@@ -152,7 +156,7 @@ const smooth = x => x * x * (3 - 2 * x);
  * WebGL or no model (the table keeps her picture then). `win` is the window, asked about less motion: with it she still breathes,
  * blinks, talks and glows, but neither hops nor swishes.
  */
-export async function createKambedlaView(container, { win = globalThis.window } = {}) {
+export async function createKambedlaView(container, { win = globalThis.window, onLost = null } = {}) {
   const calm = () => Boolean(win?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
   const canvas = document.createElement('canvas');
   canvas.className = 'eitt-kambedla-view';
@@ -171,6 +175,7 @@ export async function createKambedlaView(container, { win = globalThis.window } 
     actor = await createActor(world, { name: 'kambedla-eitt', url: MODEL, position: [0, 0, 0], heading: 0 });
   } catch (error) {
     renderer.dispose();
+    renderer.forceContextLoss?.();
     throw error;
   }
   const glow = addPlateGlow(actor, { colour: RESTING, dull: 0 }); // her plates keep their own colour until they glow
@@ -190,9 +195,15 @@ export async function createKambedlaView(container, { win = globalThis.window } 
   fill.position.copy(at(LIGHT.fill.az, LIGHT.fill.el, radius * 3));
   fill.target.position.copy(target);
   scene.add(key, key.target, fill, fill.target, new THREE.HemisphereLight(LIGHT.hemi.sky, LIGHT.hemi.ground, LIGHT.hemi.i));
-  scene.environment = skyLight(renderer);
+  const envTarget = skyLight(renderer);
+  scene.environment = envTarget.texture;
   scene.environmentIntensity = LIGHT.env;
-  scene.add(groundShadow(actor.size.x * 1.15, actor.size.z * 1.9));
+  const shadowMesh = groundShadow(actor.size.x * 1.15, actor.size.z * 1.9);
+  scene.add(shadowMesh);
+  canvas.addEventListener?.('webglcontextlost', event => {
+    event.preventDefault?.();
+    onLost?.();
+  });
 
   // She looks at the child (just in front of the camera) unless she is thinking over her cards.
   const child = camera.position.clone().lerp(target, 0.35);
@@ -379,7 +390,14 @@ export async function createKambedlaView(container, { win = globalThis.window } 
       this.stop();
       watcher?.disconnect();
       canvas.remove();
+      glow.dispose?.();
+      actor.dispose();
+      shadowMesh.geometry.dispose();
+      shadowMesh.material.map?.dispose();
+      shadowMesh.material.dispose();
+      envTarget.dispose();
       renderer.dispose();
+      renderer.forceContextLoss?.();
     },
   };
 }

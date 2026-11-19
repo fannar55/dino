@@ -1576,6 +1576,39 @@
       "share": 1,
       "seconds": 1.96,
       "made": "2026-10-31T19:26:16.702Z"
+    },
+    "lag-sloedla-1": {
+      "text": "Lag Slóeðlu! Lagið sem dýrin fundu!",
+      "sent": "Lag Slóeðlu! Lagið sem dýrin fundu!",
+      "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu.",
+      "file": "lag-sloedla-1.mp3",
+      "seed": 1,
+      "heard": "Lag sló eðlu. Lagið sem dýrin fundu",
+      "share": 0.83,
+      "seconds": 3.63,
+      "made": "2026-11-12T01:24:06.374Z"
+    },
+    "lag-sloedla-2": {
+      "text": "Lag Slóeðlu, beint úr sefinu!",
+      "sent": "Lag Slóeðlu, beint úr sefinu!",
+      "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu.",
+      "file": "lag-sloedla-2.mp3",
+      "seed": 42,
+      "heard": "Lag sló eðlu, beint úr sefinu",
+      "share": 0.8,
+      "seconds": 2.69,
+      "made": "2026-11-12T01:24:14.881Z"
+    },
+    "lag-sloedla-3": {
+      "text": "Lag Slóeðlu! Nú syngur allur skógurinn með!",
+      "sent": "Lag Slóeðlu! Nú syngur allur skógurinn með!",
+      "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu.",
+      "file": "lag-sloedla-3.mp3",
+      "seed": 42,
+      "heard": "Lag sló eðlu. Nú syngur allur skógurinn með",
+      "share": 0.86,
+      "seconds": 4.3,
+      "made": "2026-11-12T01:24:24.891Z"
     }
   }
 }

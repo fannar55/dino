@@ -21,17 +21,20 @@
 //     solo round's rule: wins and the minds' skill follow only a round Egill or she won), and "Spilum aftur?" for the same seats.
 // No hand, no Mosi, no tutorial here: those are the table of one device's. The look is veiddu.css's "Fjölspil" part.
 
-import { KINDS, makeDeck } from './cards.js';
-import { newGame, ask, fish, holds } from './rules.js';
+import { KINDS, kindOf, makeDeck } from './cards.js';
+import { newGame, ask, fish, holds, legalTargets } from './rules.js';
 import { SEAT, createMind, VEIDDU_SKILL_START } from './minds.js';
-import { askLine, answerLine, EMPTY_LINE, endLine } from './speech.js';
-import { cardElement, catchElement, layTheirs, make, pondCard, winElement, POND_SHOWN } from './look.js';
+import { nameLine, askLine, answerLine, EMPTY_LINE, endLine } from './speech.js';
+import { cardElement, layoutHand, catchElement, layTheirs, make, pondCard, winElement, POND_SHOWN } from './look.js';
 import { COVER_SKILL, actOf, afterRoundSave, childWon, keptGameOf, publicEvent, viewFor, winnersWords } from './remote.js';
 import { avatarOf } from '../fjolspil/seats.js';
 import { pressable, sparkle } from '../book/fx.js';
 
 const REMAKE = new URL('../../', import.meta.url);
 const asset = path => new URL(path, REMAKE).href;
+const ORDER = KINDS.map(kind => kind.id);
+const cardOf = id => ({ id, kind: kindOf(id) });
+const byKind = (a, b) => ORDER.indexOf(a.dataset.kind) - ORDER.indexOf(b.dataset.kind) || a.dataset.id.localeCompare(b.dataset.id);
 
 const THINK_MS = 1200; // a mind thinks this long before it asks
 const FISH_BEAT_MS = 500; // and this long before it fishes after a no
@@ -70,9 +73,32 @@ const POINTER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h9V3.5
  *   isOn, game, phase what a probe asks: whether a round is on, the rules' game, and what the table waits for ('shut', 'busy', 'over', or
  *                     '<seat> <ask|fish|give|no>' while it waits for that seat's phone, 'away <seat>' while it waits for a phone that is gone)
  */
-export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Math.random, calm = () => false, kinds = KINDS.length, uggedla, sound, words, onShow = () => {}, onHide = () => {}, onQuit = () => {} }) {
+export function createVeidduMulti(doc, {
+  root, fjolspil, save, win, random = Math.random, calm = () => false, kinds = KINDS.length, uggedla, sound, words,
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = id => clearTimeout(id),
+  onShow = () => {}, onHide = () => {}, onQuit = () => {},
+}) {
   const { sfx, splashes, say, speech, clock, lineMs } = sound;
   const el = (tag, className, attributes, html) => make(doc, tag, className, attributes, html);
+
+  function bindTap(target, fn) {
+    let fromPointer = false;
+    pressable(target, {
+      win,
+      sound: null,
+      onTap: event => {
+        fromPointer = true;
+        fn(event);
+      },
+    });
+    target.addEventListener('click', event => {
+      if (fromPointer) {
+        fromPointer = false;
+        return;
+      }
+      fn(event);
+    });
+  }
 
   // ---- The page -------------------------------------------------------------------------------------------------------------
 
@@ -80,11 +106,12 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   multiEl.hidden = true;
   const pondEl = el('div', 'veiddu-pond', { role: 'img', 'aria-label': 'Tjörnin' });
   for (let k = 0; k < 3; k++) pondEl.append(el('i', 'veiddu-ripple', { style: `--d:${(-k * 2.2).toFixed(1)}s` }));
+  const handEl = el('div', 'veiddu-hand', { role: 'group', 'aria-label': 'Spilin þín' });
   const quitEl = el('button', 'veiddu-close veiddu-quit', { 'aria-label': 'Hætta' }, '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>');
   const winEl = winElement(doc);
   winEl.hidden = true;
   const winCard = winEl.querySelector('.veiddu-win-card');
-  multiEl.append(pondEl, quitEl);
+  multiEl.append(pondEl, handEl, quitEl);
   root.append(multiEl, winEl);
 
   // ---- State ----------------------------------------------------------------------------------------------------------------
@@ -99,7 +126,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   let uggedlaSeat = null; // the seat the game's own Uggeðla plays, or null
   let dealt = 0;
   let minds = [];
-  let awaiting = null; // what the table waits for from a phone: { seat, need, kind, resolve, reject }
+  let awaiting = null; // what the table waits for from a phone or the big screen: { seat, need, kind, resolve, reject }
   let waitingFor = null; // the seat whose gone phone the table waits for over the board
   let pending = null; // a question asked and not yet answered: { from, to, kind }
   let lastEvent = null; // the last public thing, for the phones' line
@@ -112,6 +139,9 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   let bubbleUntil = 0;
   let seatsOff = null;
   let flying = 0;
+  let picked = null; // the kind Egill lifted on the big screen
+  let fishButton = null; // "Farðu að veiða!" button when Egill is asked for a kind he lacks on the big screen
+  const handEls = new Map(); // card id -> button in handEl
   const outSeen = new Set();
   const timers = new Set();
   const refused = []; // the last acts the table did not take, { seat, act, waitingFor }: for a probe
@@ -120,7 +150,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   const entryOf = seat => fjolspil.seats.bySeat(seat);
   const nameOf = seat => entryOf(seat)?.name ?? '';
   const later = (ms, fn) => {
-    const id = setTimeout(() => {
+    const id = setTimer(() => {
       timers.delete(id);
       fn();
     }, ms);
@@ -140,18 +170,27 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** A seat that has a phone: a guest's, or Egill's when his is bound. */
   const hasPhone = entry => entry?.kind === 'remote' || (entry?.kind === 'host' && entry.guestId != null);
+  /** Egill at the big screen (when no phone is bound to seat 0). */
+  const onScreen = entry => entry?.kind === 'host' && entry.guestId == null && !entry.covered;
+  /** Any human seat (at the big screen or on a phone), not covered by the computer. */
+  const isHuman = entry => Boolean(entry && !entry.covered && (entry.kind === 'remote' || entry.kind === 'host'));
   /** The game's own Uggeðla (not a covered guest's seat). */
   const isHer = seat => seat === uggedlaSeat && entryOf(seat)?.kind === 'ai' && !entryOf(seat).covered;
-  /** Egill, on his phone, with his own voice (not when the computer covers him). */
-  const isEgill = seat => seat === 0 && hasPhone(entryOf(0)) && !entryOf(0).covered;
+  /** Egill, at the big screen or on his phone, with his own voice (not when the computer covers him). */
+  const isEgill = seat => seat === 0 && entryOf(0)?.kind === 'host' && !entryOf(0).covered;
   const skillBase = () => save?.getVeiddu?.()?.skill ?? VEIDDU_SKILL_START;
 
   // ---- Laying out the table ------------------------------------------------------------------------------------------------
 
   function buildPlaces(list) {
     for (const place of places) place.el.remove();
+    const screenHost = onScreen(list[0]);
+    const slots = screenHost && list.length === 2 ? ['bl', 'top'] : SLOTS[list.length];
+    multiEl.dataset.host = screenHost ? 'screen' : 'phone';
+    handEl.hidden = !screenHost;
     places = list.map((entry, seat) => {
-      const placeEl = el('section', 'veiddu-place', { 'data-seat': seat, 'data-slot': SLOTS[list.length][seat] });
+      const me = seat === 0 && screenHost;
+      const placeEl = el('section', `veiddu-place${me ? ' me' : ''}`, { 'data-seat': seat, 'data-slot': slots[seat] });
       const tag = el('div', 'veiddu-tag');
       const face = el('img', 'veiddu-face', { alt: '' });
       const name = el('span');
@@ -164,12 +203,18 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
       const low = el('div', 'veiddu-place-low');
       low.append(fan, caught);
       placeEl.append(top, low);
+      if (me) {
+        fan.hidden = true;
+        count.hidden = true;
+      } else {
+        bindTap(placeEl, () => tapPlace(seat));
+      }
       multiEl.append(placeEl);
       return { el: placeEl, tag, face, name, fan, count, catchEl: caught, top, low };
     });
     n = list.length;
     multiEl.dataset.seats = String(n);
-    multiEl.append(pondEl, quitEl);
+    multiEl.append(pondEl, handEl, quitEl);
     // Uggeðla's live window comes over her place when she plays, and goes home when she does not
     if (uggedlaSeat !== null) {
       const place = places[uggedlaSeat];
@@ -205,15 +250,121 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   /** A seat's cards face down, up to FAN_MAX of them, and how many there are. */
   function renderFan(seat) {
     const place = places[seat];
+    if (!place || (seat === 0 && onScreen(entryOf(0)))) return;
     const want = Math.min(shownCount[seat] ?? 0, FAN_MAX);
-    while (place.fan.children.length > want) place.fan.lastElementChild.remove();
+    while (place.fan.children.length > want) (place.fan.lastElementChild ?? place.fan.children.at(-1))?.remove();
     while (place.fan.children.length < want) place.fan.append(cardElement(doc, null, { back: true }));
     layTheirs(place.fan, place.el);
     place.count.textContent = String(shownCount[seat] ?? 0);
     place.count.hidden = !shownCount[seat];
     place.fan.setAttribute('aria-label', `${nameOf(seat)} á ${shownCount[seat] ?? 0} spil`);
   }
-  const renderFans = () => places.forEach((_, seat) => renderFan(seat));
+  const renderFans = () => {
+    places.forEach((_, seat) => renderFan(seat));
+    if (onScreen(entryOf(0))) renderHand();
+  };
+
+  /** Egill's own card at the big screen, in its place in handEl. */
+  function addToHand(card, hidden = false) {
+    const button = cardElement(doc, card, { tag: 'button' });
+    if (hidden) button.style.visibility = 'hidden';
+    bindTap(button, () => tapCard(card.id));
+    handEls.set(card.id, button);
+    return button;
+  }
+
+  function renderHand() {
+    const ordered = [...handEls.values()].sort(byKind);
+    const now = [...handEl.children];
+    if (now.length !== ordered.length || now.some((card, k) => card !== ordered[k])) handEl.append(...ordered);
+    layoutHand(handEl);
+    marks();
+  }
+
+  function marks() {
+    const screenTurn = on && awaiting?.seat === 0 && onScreen(entryOf(0));
+    const need = screenTurn ? awaiting.need : null;
+    const targets = need === 'ask' && picked ? legalTargets(game, 0) : [];
+    for (const card of handEls.values()) {
+      const kind = card.dataset.kind;
+      card.classList.toggle('picked', need === 'ask' && kind === picked);
+      const give = need === 'give' && kind === awaiting.kind;
+      card.classList.toggle('hint', give);
+      card.classList.toggle('is-give', give);
+    }
+    places.forEach((place, seat) => {
+      const isTarget = seat > 0 && targets.includes(seat);
+      place.el.classList.toggle('is-target', isTarget);
+      if (seat === uggedlaSeat) uggedla.windowEl?.classList.toggle('veiddu-target', isTarget);
+    });
+    pondEl.classList.toggle('calls', Boolean(awaiting && awaiting.need === 'fish'));
+  }
+
+  function nope(box) {
+    if (!box) return;
+    sfx('wiggle');
+    box.classList.remove('nope');
+    void box.offsetWidth;
+    box.classList.add('nope');
+  }
+
+  function showFishButton() {
+    fishButton?.remove();
+    fishButton = el('button', 'veiddu-fish-button', {}, `<span>${words.SAY.childNo}</span>`);
+    multiEl.append(fishButton);
+    bindTap(fishButton, () => {
+      if (awaiting?.seat === 0 && awaiting?.need === 'no') heard(0, { type: 'no' });
+    });
+  }
+  function removeFishButton() {
+    fishButton?.remove();
+    fishButton = null;
+  }
+
+  function tapCard(id) {
+    if (!on || awaiting?.seat !== 0 || !onScreen(entryOf(0))) return;
+    const card = handEls.get(id);
+    if (!card) return;
+    if (awaiting.need === 'ask') {
+      const kind = card.dataset.kind;
+      const targets = legalTargets(game, 0);
+      if (picked === kind && targets.length === 1) {
+        tapPlace(targets[0]);
+        return;
+      }
+      sfx('flick', { soft: true });
+      picked = kind;
+      clearBubble();
+      say(nameLine(picked));
+      marks();
+      return;
+    }
+    if (awaiting.need === 'give') {
+      if (card.dataset.kind !== awaiting.kind) return nope(card);
+      heard(0, { type: 'give', cardId: id });
+      return;
+    }
+    nope(card);
+  }
+
+  function tapPlace(seat) {
+    if (!on || seat === 0 || awaiting?.seat !== 0 || !onScreen(entryOf(0))) return;
+    if (awaiting.need !== 'ask') return;
+    if (!picked) return nope(places[seat]?.el);
+    if (!legalTargets(game, 0).includes(seat)) return nope(places[seat]?.el);
+    const kind = picked;
+    picked = null;
+    if (speech.current?.id?.startsWith('veiddu_egill_name_')) speech.stop();
+    marks();
+    heard(0, { type: 'ask', target: seat, kind });
+  }
+
+  function tapPond() {
+    if (!on || awaiting?.seat !== 0 || !onScreen(entryOf(0))) return;
+    if (awaiting.need === 'ask') return nope(pondEl);
+    if (awaiting.need !== 'fish') return;
+    heard(0, { type: 'fish' });
+  }
 
   /** `seat`'s catch shows `laid` (the kinds in it). Returns the new element, not yet in the page. */
   function makeCatch(seat, laid, shownPairsCount) {
@@ -224,6 +375,9 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   function markTurn(seat) {
     places.forEach((place, s) => place.el.classList.toggle('turn', s === seat));
+  }
+  function markAsked(seat) {
+    places.forEach((place, s) => place.el.classList.toggle('asked', s === seat));
   }
   function thinking(seat, value) {
     places[seat]?.el.classList.toggle('thinking', value);
@@ -265,11 +419,19 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const base = multiEl.getBoundingClientRect();
     return { x: at.left + at.width / 2 - base.left, y: at.top + at.height / 2 - base.top, w: w ?? (box.offsetWidth || at.width), r };
   }
-  const backWidth = () => places[0]?.fan.querySelector('.veiddu-card')?.offsetWidth || 48;
+  const backWidth = () => places.find(p => !p.fan.hidden)?.fan.querySelector('.veiddu-card')?.offsetWidth || 48;
   const pondTop = () => placeOf(pondShown.at(-1) ?? pondEl, pondShown.length ? Number.parseFloat(pondShown.at(-1).style.getPropertyValue('--r')) : 0);
   const pondMiddle = () => ({ ...placeOf(pondEl), w: backWidth() });
-  /** Where a seat's cards are: the middle of its fan (of its place, while it holds none). */
+  const placeHand = card => {
+    const r = 3 * Number(card.style.getPropertyValue('--i') || 0);
+    return placeOf(card, r, card.offsetWidth || 96);
+  };
+  /** Where a seat's cards are: the middle of its fan (of its place, while it holds none), or handEl for Egill at the big screen. */
   const fanOf = seat => {
+    if (seat === 0 && onScreen(entryOf(0))) {
+      const box = handEl.lastElementChild ?? handEl;
+      return { ...placeOf(handEl, 0), w: box.offsetWidth || 96 };
+    }
     const place = places[seat];
     const box = place.fan.lastElementChild ?? place.fan;
     return { ...placeOf(place.fan.children.length ? place.fan : place.low, 0), w: box.offsetWidth || backWidth() };
@@ -335,14 +497,30 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     mark.remove();
   }
 
-  /** Two cards of a kind snap together, sparkle and fly to `seat`'s catch from its fan (they turn over on the way). */
-  async function pairUp(seat, kind) {
+  /** Two cards of a kind snap together, sparkle and fly to `seat`'s catch from its fan or Egill's hand. */
+  async function pairUp(seat, kind, cardIds = []) {
     const place = places[seat];
     const laid = [...shownPairs[seat], kind];
     const old = place.catchEl;
-    const from = fanOf(seat);
-    shownCount[seat] = Math.max(0, shownCount[seat] - 2);
-    renderFan(seat);
+    const screenMe = seat === 0 && onScreen(entryOf(0));
+    let from = fanOf(seat);
+    let starts = [from, from];
+    if (screenMe) {
+      const btns = cardIds.map(id => handEls.get(id)).filter(Boolean);
+      if (btns.length === 2) starts = btns.map(placeHand);
+      for (const id of cardIds) {
+        const btn = handEls.get(id);
+        if (btn) {
+          handEls.delete(id);
+          btn.remove();
+        }
+      }
+      renderHand();
+      shownCount[0] = handEls.size;
+    } else {
+      shownCount[seat] = Math.max(0, shownCount[seat] - 2);
+      renderFan(seat);
+    }
     // Where the pair will lie: measured on the new catch, put in the old one's place for a moment (no frame is drawn).
     const next = makeCatch(seat, laid, shownPairs[seat].length);
     next.querySelector('.veiddu-pair').style.visibility = 'hidden';
@@ -351,9 +529,9 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     next.replaceWith(old);
     const wide = Math.max(slots[0].w * 1.7, 72);
     const meet = { x: (from.x + slots[0].x) / 2, y: (from.y + slots[0].y) / 2 - 8 };
-    const width = Math.max(from.w, wide);
-    const fliers = [0, 1].map(() => flyer({ id: `${kind}-1`, kind }, from, { width, up: true }));
-    await Promise.all(fliers.map((flight, k) => flight.move({ x: meet.x + (k ? 1 : -1) * wide * 0.3, y: meet.y, r: k ? 5 : -7, w: wide }, { turn: true, duration: GATHER_MS })));
+    const width = Math.max(...starts.map(s => s.w), wide);
+    const fliers = [0, 1].map(k => flyer({ id: cardIds[k] ?? `${kind}-1`, kind }, starts[k], { width, up: !screenMe }));
+    await Promise.all(fliers.map((flight, k) => flight.move({ x: meet.x + (k ? 1 : -1) * wide * 0.3, y: meet.y, r: k ? 5 : -7, w: wide }, { turn: !screenMe, duration: GATHER_MS })));
     if (!calm()) for (const flight of fliers) flight.el.animate?.([{ scale: 1 }, { scale: 1.12 }, { scale: 1 }], { duration: 240, easing: 'ease-out' });
     sparkleAt(meet, wide);
     sfx('pair');
@@ -371,7 +549,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   }
 
   /** A card drawn from the pond flies into `seat`'s cards, and the water splashes. */
-  async function drawCard(seat) {
+  async function drawCard(seat, cardId = null) {
     const from = pondTop();
     pondCount = Math.max(0, pondCount - 1);
     setPond(pondCount);
@@ -379,6 +557,18 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     uggedla.view()?.splash();
     sfx('draw');
     splashes.play(entryOf(seat)?.kind === 'ai' ? SEAT.uggedla : SEAT.child); // a human's fish with the full splash, the computer's with the soft one
+    if (seat === 0 && onScreen(entryOf(0)) && cardId) {
+      const card = cardOf(cardId);
+      const hidden = addToHand(card, true);
+      renderHand();
+      const to = placeHand(hidden);
+      const flight = flyer(card, from, { width: Math.max(to.w, from.w), up: true });
+      await flight.move(to, { turn: true, duration: FLY_MS + 100 });
+      hidden.style.visibility = '';
+      flight.drop();
+      shownCount[0] = handEls.size;
+      return;
+    }
     const flight = flyer(null, from, { width: Math.max(backWidth(), from.w) });
     await flight.move(fanOf(seat), { duration: FLY_MS + 100 });
     flight.drop();
@@ -386,12 +576,58 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     renderFan(seat);
   }
 
-  /** A card given from `from` to `to`: it flies from one fan to the other. */
-  async function giveCard(from, to) {
-    const start = fanOf(from);
-    shownCount[from] = Math.max(0, shownCount[from] - 1);
-    renderFan(from);
+  /** Ensures Egill's hand on the big screen matches `game.hands[0]` after an act's animations finish. */
+  function syncHand() {
+    if (!game || !onScreen(entryOf(0))) return;
+    const heldIds = new Set(game.hands[0].map(card => card.id));
+    let changed = false;
+    for (const [id, btn] of handEls) {
+      if (!heldIds.has(id)) {
+        handEls.delete(id);
+        btn.remove();
+        changed = true;
+      }
+    }
+    for (const card of game.hands[0]) {
+      if (!handEls.has(card.id)) {
+        addToHand(card, false);
+        changed = true;
+      } else {
+        handEls.get(card.id).style.visibility = '';
+      }
+    }
+    if (changed) renderHand();
+    shownCount[0] = handEls.size;
+  }
+
+  /** A card given from `from` to `to`: it flies from one hand/fan to the other. */
+  async function giveCard(from, to, cardId = null) {
+    if (Array.isArray(cardId)) cardId = cardId[0] ?? null;
+    let start = fanOf(from);
+    if (from === 0 && onScreen(entryOf(0)) && cardId && handEls.has(cardId)) {
+      const btn = handEls.get(cardId);
+      start = placeHand(btn);
+      handEls.delete(cardId);
+      btn.remove();
+      renderHand();
+      shownCount[0] = handEls.size;
+    } else {
+      shownCount[from] = Math.max(0, shownCount[from] - 1);
+      renderFan(from);
+    }
     sfx('flick');
+    if (to === 0 && onScreen(entryOf(0)) && cardId) {
+      const card = cardOf(cardId);
+      const hidden = addToHand(card, true);
+      renderHand();
+      const end = placeHand(hidden);
+      const flight = flyer(card, start, { width: Math.max(end.w, start.w), up: true });
+      await flight.move(end, { turn: true, duration: FLY_MS });
+      hidden.style.visibility = '';
+      flight.drop();
+      shownCount[0] = handEls.size;
+      return;
+    }
     const flight = flyer(null, start, { width: Math.max(backWidth(), start.w) });
     await flight.move(fanOf(to), { duration: FLY_MS });
     flight.drop();
@@ -432,6 +668,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
       face.style.setProperty('--c', avatar?.colour ?? '#79c7a1');
       textEl.append(face);
       bubble.style.setProperty('--c', avatar?.colour ?? 'var(--ink)');
+      if (to !== null && places[to]) textEl.dataset.who = `${nameOf(from)} ➔ ${nameOf(to)}`;
     }
     textEl.append(doc.createTextNode(text));
     bubble.append(textEl);
@@ -535,25 +772,32 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const seats = kept?.seats;
     if (!state || !seats || typeof seats !== 'object' || !Array.isArray(seats.seats) || seats.seats.length !== state.hands.length) return null;
     const head = seats.seats[0];
-    if (!head || head.kind !== 'host' && !(head.seat === 0 && head.covered) || typeof head.guestId !== 'string' || head.guestId === '') return null; // Egill's phone is in it
+    if (!head || (head.kind !== 'host' && !(head.seat === 0 && head.covered))) return null;
+    if (head.guestId !== null && (typeof head.guestId !== 'string' || head.guestId === '')) return null;
     return { game: state, seats };
   }
 
-  // ---- Waiting for a phone --------------------------------------------------------------------------------------------------
+  // ---- Waiting for a phone or the big screen ---------------------------------------------------------------------------------
 
-  /** Waits for the act of seat `seat`'s phone (`need`: 'ask', 'fish', 'give' or 'no'; `kind` the animal asked for), which the rules allow. */
+  /** Waits for the act of seat `seat` (`need`: 'ask', 'fish', 'give' or 'no'; `kind` the animal asked for), which the rules allow. */
   function waitAct(seat, need, kind = null) {
     return new Promise((resolve, reject) => {
+      picked = null;
       awaiting = { seat, need, kind, resolve, reject };
       if (need === 'fish') {
         pondEl.classList.add('calls'); // the pond calls the one who must fish
         sfx('pond-call');
       }
+      if (seat === 0 && onScreen(entryOf(0))) {
+        if (need === 'no') showFishButton();
+        if (need === 'ask' || need === 'give') sfx('turn-chime');
+      }
+      marks();
       sendViews();
     });
   }
 
-  /** A guest's act, heard by the host session: played if it is the one the table waits for and the rules allow it, else her phone is sent its view again. */
+  /** An act from a guest's phone or Egill at the big screen: played if it is the one the table waits for and the rules allow it. */
   function heard(seat, body) {
     if (!on || !game || ended || !Number.isInteger(seat) || seat >= n) return;
     const act = awaiting ? actOf(game, seat, body, { seat: awaiting.seat, need: awaiting.need, kind: awaiting.kind }) : null;
@@ -565,22 +809,25 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     }
     const taken = awaiting;
     awaiting = null;
+    picked = null;
+    removeFishButton();
     pondEl.classList.remove('calls');
+    marks();
     taken.resolve(act);
     sendViews(); // she has answered: nothing more is hers to do, and the others see the table go on
   }
 
   /**
-   * The act of seat `seat`: from its phone, if it has one that is there and not covered; from the computer (`computer(entry)`) if it is the
-   * computer's; and while the guest is away (or has come back to a seat the computer plays) a wait over the table (fjolspil.waitFor): "Bíðum
-   * eftir …", then "Halda áfram án …", which makes the computer play it.
+   * The act of seat `seat`: from Egill at the big screen or its phone, if it has one that is there and not covered; from the computer
+   * (`computer(entry)`) if it is the computer's; and while a guest is away (or has come back to a seat the computer plays) a wait over the
+   * table (fjolspil.waitFor): "Bíðum eftir …", then "Halda áfram án …", which makes the computer play it.
    */
   async function decide(seat, need, kind, computer) {
     const token = round;
     for (;;) {
       if (stale(token)) throw STALE;
       const entry = entryOf(seat);
-      if (hasPhone(entry) && entry.present && !entry.covered) {
+      if ((onScreen(entry) || (hasPhone(entry) && entry.present)) && !entry.covered) {
         try {
           return await waitAct(seat, need, kind);
         } catch (error) {
@@ -610,10 +857,13 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     renderTags();
     if (!awaiting) return;
     const entry = entryOf(awaiting.seat);
-    if (hasPhone(entry) && entry.present && !entry.covered) return;
+    if ((onScreen(entry) || (hasPhone(entry) && entry.present)) && !entry.covered) return;
     const gone = awaiting;
     awaiting = null;
+    picked = null;
+    removeFishButton();
     pondEl.classList.remove('calls');
+    marks();
     later(0, () => { // out of the seats' own change, which is still under way
       gone.reject(AWAY);
       sendViews();
@@ -634,23 +884,23 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
         case 'give':
           await speak(event.from, asker, yesText(event.from), lineFor(event.from, 'yes'));
           await wait(ANSWER_BEAT_MS * 0.6);
-          await giveCard(event.from, event.to);
+          await giveCard(event.from, event.to, event.cardId);
           break;
         case 'no':
           await speak(event.seat, asker, noText(event.seat), lineFor(event.seat, 'no'));
           break;
         case 'pair':
-          await pairUp(event.seat, event.kind);
+          await pairUp(event.seat, event.kind, event.cardIds);
           break;
         case 'fish':
-          await drawCard(event.seat);
+          await drawCard(event.seat, event.cardId);
           if (event.lucky) {
             await speak(event.seat, null, words.SAY.lucky, lineFor(event.seat, 'lucky'));
             await wait(ANSWER_BEAT_MS);
           }
           break;
         case 'refill':
-          await drawCard(event.seat);
+          await drawCard(event.seat, event.cardId);
           break;
         case 'pond-empty':
           await speak(isHer(uggedlaSeat ?? -1) ? uggedlaSeat : null, null, words.SAY.empty, isHer(uggedlaSeat ?? -1) ? EMPTY_LINE : null);
@@ -672,7 +922,10 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** The act has been shown: on to whoever's turn it is, or the end. */
   async function proceed() {
-    await lineDone();
+    syncHand();
+    const humanTurn = game.phase !== 'over' && isHuman(entryOf(game.turn)) && entryOf(game.turn).present;
+    if (!humanTurn) await lineDone();
+    markAsked(null);
     if (game.phase === 'over') return endRound();
     return turn(game.turn);
   }
@@ -693,11 +946,13 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   async function turn(seat) {
     const token = round;
     busy = true;
-    clearBubble();
+    if (game.phase !== 'fish' && clock() >= bubbleUntil) clearBubble();
     markTurn(seat);
     renderTags();
     if (game.phase === 'fish') return doFish(seat);
     const act = await decide(seat, 'ask', null, async () => {
+      await lineDone();
+      clearBubble();
       thinking(seat, true);
       await wait(THINK_MS);
       thinking(seat, false);
@@ -714,15 +969,25 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const result = ask(game, seat, target, kind);
     pending = { from: seat, to: target, kind };
     lastEvent = publicEvent(result.events[0]);
-    sendViews();
+    markAsked(target);
+    const humanTarget = isHuman(entryOf(target)) && entryOf(target).present;
+    speech.stop();
+    bubbleUntil = 0;
     await speak(seat, target, words.asking(kind), lineFor(seat, 'ask', kind));
-    await lineDone();
+    if (!humanTarget) {
+      sendViews();
+      await lineDone();
+    }
     const need = holds(game, target, kind) ? 'give' : 'no';
     await decide(target, need, kind, async () => {
       await wait(ANSWER_BEAT_MS);
       return { type: need };
     });
     if (stale(token)) return undefined;
+    if (humanTarget) {
+      speech.stop();
+      bubbleUntil = 0;
+    }
     commit(result);
     await playEvents(result.events.slice(1), seat);
     return proceed();
@@ -732,10 +997,13 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   async function doFish(seat) {
     const token = round;
     await decide(seat, 'fish', null, async () => {
+      await lineDone();
       await wait(FISH_BEAT_MS);
       return { type: 'fish' };
     });
     if (stale(token)) return undefined;
+    clearBubble();
+    speech.stop();
     const result = fish(game, seat);
     commit(result);
     await playEvents(result.events);
@@ -744,12 +1012,14 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** Back to an empty table: the cards, the catches, the words, every timer. */
   function reset() {
-    for (const id of timers) clearTimeout(id);
+    for (const id of timers) clearTimer(id);
     timers.clear();
     awaiting?.reject?.(STALE);
     awaiting = null;
+    picked = null;
     pending = null;
     lastEvent = null;
+    removeFishButton();
     for (const flight of multiEl.querySelectorAll('.veiddu-flyer, .veiddu-splash')) flight.remove();
     flying = 0;
     busy = true;
@@ -758,10 +1028,12 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     speech.stop(); // nothing more is said of the round that was, and the line sounding is cut
     pondEl.classList.remove('calls');
     outSeen.clear();
+    handEls.clear();
+    handEl.replaceChildren();
     shownCount = places.map(() => 0);
     shownPairs = places.map(() => []);
     places.forEach((place, seat) => {
-      place.el.classList.remove('turn', 'thinking', 'out');
+      place.el.classList.remove('turn', 'asked', 'is-target', 'thinking', 'out');
       place.fan.replaceChildren();
       const empty = makeCatch(seat, [], 0);
       place.catchEl.replaceWith(empty);
@@ -792,24 +1064,45 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     lastEvent = null;
     keep();
     sendViews(); // the phones deal it too, as the table does
+    const dealtCards = start.events.filter(event => event.type === 'deal');
+    const screenHost = onScreen(entryOf(0));
+    if (screenHost) {
+      for (const { seat, cardId } of dealtCards) {
+        if (seat === 0) addToHand(cardOf(cardId), true);
+      }
+      renderHand();
+    }
     await wait(700);
     const flights = [];
     const from = pondMiddle();
-    const dealtCards = start.events.filter(event => event.type === 'deal');
-    for (const { seat } of dealtCards) {
-      const flight = flyer(null, from, { width: Math.max(backWidth(), from.w) });
-      flights.push(flight.move(fanOf(seat), { duration: DEAL_MS }).then(() => {
-        flight.drop();
-        shownCount[seat]++;
-        renderFan(seat);
-        sfx('flick', { soft: true });
-      }));
+    for (const { seat, cardId } of dealtCards) {
+      if (seat === 0 && screenHost) {
+        const card = cardOf(cardId);
+        const target = handEls.get(cardId);
+        const to = target ? placeHand(target) : fanOf(0);
+        const flight = flyer(card, from, { width: Math.max(to.w, from.w), up: true });
+        flights.push(flight.move(to, { turn: true, duration: DEAL_MS }).then(() => {
+          if (target) target.style.visibility = '';
+          flight.drop();
+          shownCount[0]++;
+          sfx('flick', { soft: true });
+        }));
+      } else {
+        const flight = flyer(null, from, { width: Math.max(backWidth(), from.w) });
+        flights.push(flight.move(fanOf(seat), { duration: DEAL_MS }).then(() => {
+          flight.drop();
+          shownCount[seat]++;
+          renderFan(seat);
+          sfx('flick', { soft: true });
+        }));
+      }
       await wait(DEAL_GAP);
     }
     await Promise.all(flights);
+    for (const btn of handEls.values()) btn.style.visibility = '';
     await wait(250);
     for (const event of start.events) {
-      if (event.type === 'pair') await pairUp(event.seat, event.kind);
+      if (event.type === 'pair') await pairUp(event.seat, event.kind, event.cardIds);
     }
     if (stale(token)) return undefined;
     dealt++;
@@ -828,6 +1121,10 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     shownPairs = state.pairs.map(laid => [...laid]);
     pondCount = state.pond.length;
     setPond(pondCount);
+    if (onScreen(entryOf(0))) {
+      for (const card of state.hands[0]) addToHand(card, false);
+      renderHand();
+    }
     places.forEach((place, seat) => {
       const next = makeCatch(seat, shownPairs[seat], shownPairs[seat].length);
       place.catchEl.replaceWith(next);
@@ -849,7 +1146,8 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     busy = true;
     pondEl.classList.remove('calls');
     markTurn(null);
-    for (const place of places) place.el.classList.remove('out', 'thinking');
+    markAsked(null);
+    for (const place of places) place.el.classList.remove('asked', 'is-target', 'out', 'thinking');
     clearBubble();
     const winners = game.winners;
     const herRound = uggedlaSeat !== null && isHer(uggedlaSeat);
@@ -868,7 +1166,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     const sticker = egillWon && herRound;
     winCard.querySelector('.veiddu-sticker').hidden = !sticker;
     winCard.querySelector('.veiddu-win-words').hidden = !sticker;
-    const human = winners.some(seat => hasPhone(entryOf(seat)) && !entryOf(seat).covered);
+    const human = winners.some(seat => isHuman(entryOf(seat)));
     winEl.querySelector('.veiddu-confetti').hidden = !human;
     winEl.hidden = false;
     ended = true;
@@ -884,7 +1182,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   /** A round for these seats (Egill's first), or the kept one: false when there is nobody to play with. */
   function show(list, kept = null) {
-    if (list.length < 2 || list.length > 4 || !list[0] || list[0].guestId == null || (kept && kept.hands.length !== list.length)) return false;
+    if (list.length < 2 || list.length > 4 || !list[0] || (kept && kept.hands.length !== list.length)) return false;
     ended = false;
     on = true;
     onShow();
@@ -905,7 +1203,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   const dealSeats = () => { if (!show(seatList())) onQuit(); };
 
   async function openLobby() {
-    const opened = await fjolspil.openLobby({ game: 'veiddu', ai: AI, hostOnPhone: true });
+    const opened = await fjolspil.openLobby({ game: 'veiddu', ai: AI });
     return Boolean(opened) && show(opened.seats);
   }
 
@@ -935,6 +1233,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
 
   // ---- Touch ---------------------------------------------------------------------------------------------------------------
 
+  bindTap(pondEl, () => tapPond());
   pressable(quitEl, { win, sound: null, onTap: () => onQuit() });
   pressable(winCard.querySelector('.veiddu-close'), { win, sound: null, onTap: () => onQuit() });
   pressable(winCard.querySelector('.veiddu-again'), { win, sound: null, onTap: () => { if (on && ended) dealSeats(); } });

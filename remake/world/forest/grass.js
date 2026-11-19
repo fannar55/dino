@@ -148,7 +148,7 @@ uniform vec4 uGrassLod;
 uniform float uGrassLean;
 uniform float uFootprintSoft;
 varying float vT;
-varying vec3 vInfo;
+varying vec4 vInfo;
 varying vec3 vGrassBase;
 #ifdef FOREST_FEN
 varying float vFen;
@@ -162,14 +162,15 @@ ${ACTOR_GLSL}`,
   float gT = gVid < 2 ? 0.0 : ( gVid < 4 ? 0.5 : 1.0 );
   float gWidthK = gVid < 2 ? 1.0 : ( gVid < 4 ? 0.7 : 0.0 );
   vec3 gBase = position;
-  float gH = aBlade.y;
-  float gW = aBlade.z;
+  float gYaw = aBlade.x * 6.2831853;
+  float gH = aBlade.y * 4.0;
+  float gW = aBlade.z * 0.5;
   vec3 gToCam = cameraPosition - gBase;
   float gDist = length( gToCam );
   float gDens = mix( 1.0, uGrassLod.z, smoothstep( uGrassLod.x, uGrassLod.y, gDist ) );
   float gKeep = 1.0 - smoothstep( gDens - 0.06, gDens, aBlade.w );
   gH *= gKeep * smoothstep( uGrassLod.w * 0.3, uGrassLod.w, gDist );
-  gW *= mix( 1.0, 1.0 / sqrt( max( gDens, 0.2 ) ), 0.6 );
+  gW *= mix( 1.0, 1.0 / sqrt( max( gDens, 0.2 ) ), 0.6 ) * step( 0.001, gH );
   // actors flatten and part the grass
   float gFlat = 1.0;
   vec2 gPush = vec2( 0.0 );
@@ -183,7 +184,7 @@ ${ACTOR_GLSL}`,
   }
   gH *= gFlat;
   // facing: a random yaw turned part-way toward the camera
-  vec2 gFace = normalize( mix( vec2( sin( aBlade.x ), cos( aBlade.x ) ), normalize( gToCam.xz + 1e-4 ), 0.45 ) );
+  vec2 gFace = normalize( mix( vec2( sin( gYaw ), cos( gYaw ) ), normalize( gToCam.xz + 1e-4 ), 0.45 ) );
   vec2 gAcross = vec2( gFace.y, -gFace.x );
   // lean, wind waves and gusts
   vec2 gLeanDir = vec2( sin( aInfo.x * 37.7 ), cos( aInfo.x * 37.7 ) );
@@ -203,7 +204,7 @@ ${ACTOR_GLSL}`,
   grassPos.xz += gAcross * gSide * gW * 0.5 * gWidthK;
   vec3 grassNormal = normalize( mix( vec3( gFace.x, 0.0, gFace.y ), vec3( 0.0, 1.0, 0.0 ), 0.62 ) );
   vT = gT;
-  vInfo = aInfo.xyz;
+  vInfo = vec4( aInfo.xyz, clamp( gWave * gGust * uWindStrength, 0.0, 1.0 ) );
   vGrassBase = gBase;
   #ifdef FOREST_FEN
   vFen = fenShare( gBase.xz );
@@ -217,7 +218,7 @@ uniform float uDapple;
 uniform float uWindTime;
 uniform vec3 uGrassBase, uGrassMid, uGrassTip, uGrassShade;
 varying float vT;
-varying vec3 vInfo;
+varying vec4 vInfo;
 varying vec3 vGrassBase;
 #ifdef FOREST_FEN
 varying float vFen;
@@ -244,6 +245,7 @@ ${LEAF_SHADOW_GLSL}`,
   gc *= mix( vec3( 1.0 ), vec3( 1.06, 1.0, 0.78 ), vInfo.y * 0.4 );
   gc *= 0.82 + 0.3 * vInfo.x;
   gc *= mix( 0.7, 1.0, smoothstep( 0.0, 0.45, vT ) );
+  gc *= 1.0 + vec3( 0.11, 0.09, 0.02 ) * vInfo.w * vT;
   // near a character the grass is lighter and more golden (STYLE.md 5.1)
   float gNear = forestActorNear( vGrassBase );
   gc = mix( gc, gc * vec3( 1.16, 1.1, 0.8 ) + vec3( 0.02, 0.016, 0.0 ), gNear * 0.7 * uActorWarm );
@@ -275,8 +277,9 @@ ${LEAF_SHADOW_GLSL}`,
   }
   const cells = [...cellMap.values()].sort((a, b) => (a.j - b.j) || (a.i - b.i));
   const n = blades.length;
+  const TAU = Math.PI * 2;
   const pos = new Float32Array(n * VERTS * 3);
-  const blade = new Float32Array(n * VERTS * 4);
+  const blade = new Uint16Array(n * VERTS * 4);
   const info = new Uint8Array(n * VERTS * 4);
   const master = new Uint32Array(n * 9);
   const cellData = [];
@@ -292,10 +295,14 @@ ${LEAF_SHADOW_GLSL}`,
     const start = at;
     list.forEach((b, idx) => {
       const rank = (idx + 0.5) / list.length;
+      const yawU16 = Math.round(((((b.yaw % TAU) + TAU) % TAU) / TAU) * 65535);
+      const hU16 = Math.round(clamp(b.h / 4, 0, 1) * 65535);
+      const wU16 = Math.round(clamp(b.w / 0.5, 0, 1) * 65535);
+      const rankU16 = Math.round(clamp(rank, 0, 1) * 65535);
       for (let k = 0; k < VERTS; k++) {
         const v = at * VERTS + k;
         pos[v * 3] = b.x; pos[v * 3 + 1] = b.y; pos[v * 3 + 2] = b.z;
-        blade[v * 4] = b.yaw; blade[v * 4 + 1] = b.h; blade[v * 4 + 2] = b.w; blade[v * 4 + 3] = rank;
+        blade[v * 4] = yawU16; blade[v * 4 + 1] = hU16; blade[v * 4 + 2] = wU16; blade[v * 4 + 3] = rankU16;
         info[v * 4] = Math.round(b.rand * 255);
         info[v * 4 + 1] = Math.round(b.dry * 255);
         info[v * 4 + 2] = Math.round(b.sun * 255);
@@ -314,7 +321,7 @@ ${LEAF_SHADOW_GLSL}`,
 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('aBlade', new THREE.BufferAttribute(blade, 4));
+  g.setAttribute('aBlade', new THREE.BufferAttribute(blade, 4, true));
   g.setAttribute('aInfo', new THREE.BufferAttribute(info, 4, true));
   const dynamic = new THREE.BufferAttribute(new Uint32Array(n * 9), 1);
   dynamic.setUsage(THREE.DynamicDrawUsage);
@@ -327,7 +334,7 @@ ${LEAF_SHADOW_GLSL}`,
   mesh.name = 'Grass';
   mesh.receiveShadow = true;
   mesh.castShadow = false;
-  mesh.renderOrder = 1;
+  mesh.renderOrder = 5.5; // after actors (0) and near/mid trees (2..5) for mobile Early-Z occlusion, before far trees (6) and ground (7)
   const group = new THREE.Group();
   group.name = 'Grass';
   group.add(mesh);

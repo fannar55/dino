@@ -9,6 +9,8 @@ export const SONGS_V2 = [
   { id: 'boogie', name: 'Rokkhopp', card: 'boogie.webp', hue: '#f0a830', bpm: 150, brot: 25.6, file: 'boogie.js', load: () => import('./boogie.js') },
   { id: 'fonk', name: 'Fönkhopp', card: 'fonk.webp', hue: '#ff5fb0', bpm: 95, brot: 25.26, file: 'fonk.js', load: () => import('./fonk.js') },
   { id: 'stattu-upp', name: 'Stattu upp', by: 'Lag eftir pabba', card: 'stattu-upp.webp', hue: '#ffd76a', bpm: 130, brot: 81.23, file: 'stattu-upp.js', load: () => import('./stattu-upp.js') },
+  // chapter 5's song: its preview is her tune's first round (bar 25 of the record)
+  { id: 'sloedla', name: 'Lag Slóeðlu', by: 'Lagið sem dýrin fundu', card: 'sloedla.webp', hue: '#6793d0', bpm: 125, brot: 46.08, file: 'sloedla.js', load: () => import('./sloedla.js') },
 ];
 
 /** The v2 song called `id`, or null. */

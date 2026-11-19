@@ -27,6 +27,8 @@ import { sparkleBurst } from './sparkles.js';
 //                where the model has no wading clip of its own)
 //     find       false for one who is only seen, not found (Grameðla): no target for the search; the chapter moves her itself
 //                (far.actorOf(name): her clips and walks, on the ground there)
+//     heightAt   (x, z) -> the ground she stands on, where it is not the place's (chapter 4's far land: world/ardalur/far-land.js)
+//     tint       her light level's own material from the shared one (engine/hals/thorsedla-lod.js: lod.add's tint), e.g. darker
 //   far.targets                     [{ name, point, radius: 2.5 }] for s.search: each point is the friend's middle, kept up to date
 //   far.show(on)                    puts them out (in the place they belong to, grounded on its ground), or away
 //   far.glimmer(name, on)           gold glints round her now and then, while she waits to be found
@@ -135,6 +137,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
       const snag = world.forest?.info?.placementList?.find(p => p.name === 'deadSnag' && Math.hypot(p.x - x, p.z - z) < 1.5);
       if (snag) return snag.y + (snag.height ?? 0);
     }
+    if (entry.spec.heightAt) return entry.spec.heightAt(x, z);
     return world.heightAt(x, z) - (entry.spec.sink ?? 0);
   }
 
@@ -144,7 +147,8 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
       if (!entry.actor) continue;
       const [x, y = 0, z] = entry.spec.position;
       const base = groundOf(entry) + y;
-      entry.own.heightAt = entry.spec.perch === 'snag' ? () => base : (px, pz) => world.heightAt(px, pz) - (entry.spec.sink ?? 0) + y;
+      const own = entry.spec.heightAt ?? ((px, pz) => world.heightAt(px, pz) - (entry.spec.sink ?? 0));
+      entry.own.heightAt = entry.spec.perch === 'snag' ? () => base : (px, pz) => own(px, pz) + y;
       entry.actor.place(x, z, entry.spec.heading ?? 0);
       entry.home = entry.actor.root.position.clone();
       entry.actor.centre(entry.target.point);
@@ -182,7 +186,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     actor.model.traverse(o => { if (o.isMesh) entry.skins.push({ mesh: o, geometry: o.geometry, material: o.material }); });
     entry.actor = actor;
     play(entry, entry.spec.clip === 'wade' && !actor.clips.has('wade') ? 'idle' : entry.spec.clip ?? 'idle');
-    await lod.add(actor, { levels: LIGHT_ONLY });
+    await lod.add(actor, { levels: LIGHT_ONLY, ...(entry.spec.tint ? { tint: entry.spec.tint } : {}) });
   }
 
   function play(entry, clip, options = {}) {

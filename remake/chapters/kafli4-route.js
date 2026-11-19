@@ -1,0 +1,553 @@
+// Chapter 4's flight route (docs/superpowers/specs/2026-11-01-kafli-4-bod-til-flugedlu-design.md, sections 3 and 5): where Flugeðla flies
+// with Egill on her back, and when. Árdalurinn, the river valley, has its own coordinates, in metres at real size: the white snag stands
+// at the origin with its top 10.5 m up, north is -Z and east +X, as in the Fen. From the snag she leaps toward the south-south-west, glides
+// over the Fen and joins the river, flies west up it, low over the water, through the gorge, up the 40 m waterfall at its end, turns
+// in a wide arc over the land above it and glides east and down to the far pool, which lies north of the river below the gorge.
+//
+//   const route = createRoute();
+//   route.pointAt(route.progressAt(t))   where her body (her hips) is t seconds into the flight
+//
+// The curve is a centripetal Catmull–Rom through the hand-placed points of POINTS (her body's path, not her feet's: the flier puts her
+// root under it, engine/flier.js). The schedule says when she is where: KEYS pins named points to times, and between them the distance
+// flown follows a cubic Hermite in time with the speed given at each key, so the big moments (the beats of the spec, A to G) come on
+// their second whatever the curve's exact length, and the speed changes smoothly. Everything is a pure function of the flight's own
+// time, so the game clock can pause it, seek it and test it.
+import * as THREE from 'three';
+
+/** When each beat begins, in seconds from the flight's start (spec section 5), and when the flight ends over the far pool. */
+export const BEATS = { A: 0, B: 15, C: 35, D: 80, E: 105, F: 125, G: 150, END: 170 };
+/** The last second a „Hraðar!“ burst may start (engine/flier.js): the time it borrows is paid back before the falls (E). */
+export const FASTER_LAST = 98;
+/** When she leaps off the snag: the close-up of Egill holding on comes first (spec 5A), she sits still till then. */
+export const LEAP = 3.5;
+/**
+ * The call shots (the Flugmynd spec, 2026-11-15: the owner's list): a still camera down with an animal group, heads down, as her call
+ * comes, heads up, she sweeps through the frame, and they answer. { id, shot, group, also, from, call, pass, to, options }, in flight
+ * seconds: the cut to it (`from`), her call (`call`), when she is nearest the group (`pass`), the cut back (`to`). `shot` is the
+ * flight camera's (engine/camera/flight-camera.js FIXED), `group` a group of GROUPS, `options` where the camera stands: `back` metres
+ * behind the group's middle away from the river, `above` over the ground or the water, `aside` along the bank (up the river), its
+ * lens (`fov`), and `look`, how far from the group's middle toward her pass it aims (`drop` metres under that); `tall`: on a screen taller than 16:10 its frame
+ * grows at most that many times its height (the flight camera's lensFor: on a tablet held upright the group twice as tall as with
+ * the 16:10 width kept). Each first second is from where she passes the group: from ≈ pass − 3.8, call ≈ pass − 2.4, to ≈ pass + 2.5.
+ *
+ * Three rows are kinds of their own. 'runAlong' (row 4) is a still camera's rules on a moving stand: it goes along `path` ([x, z] to
+ * [x, z], `above` the ground) from `move` (or `from`) to `to` at a steady speed, eased over its first and last 0.5 s, always looking the one way
+ * (`look` of the way from `group`'s middle to her pass, from where it starts); `early` groups answer at the call (as an auto call's
+ * do) with their own run up the bank, `{ metres, seconds }`, so they are already running as it begins. 'ledge' (row 5) stands beside
+ * a flyer's nest (NESTS[`nest`]) in the gorge, `along` metres up the river from it, `out` toward the river's middle and `above` over
+ * it, looking down the gorge the way she comes (`look` of the way from the nest to her at the call); its `call` is the second the
+ * flyer leaves (world/ardalur/life.js: she comes within 25 m) and its `pass` when she passes the nest. 'herd' (row 6) stands low
+ * before a group of the herd (life.js HERD, at `at`), `distance` metres from its middle at `bearing` degrees from the way the group
+ * runs to the far pool, aiming `drop` m under its middle and easing its aim, over the flight seconds `ease`, `look` of the way up
+ * toward her at the pass; its `call` is the big call's (chapters/kafli4-flight-play.js PLAY.bigCall).
+ */
+export const CALL_SHOTS = [
+  // low on the bank among the lizards drinking at the edge (in place of the chase and the side shot of 39-45)
+  { id: 'kall-edlur', shot: 'call', group: 'lizards-1', from: 39.34, call: 40.74, pass: 43.14, to: 45.4, options: { back: 4.5, above: 1.2, aside: 5.5, look: 0.25, fov: 46, tall: 1.3 } },
+  // at the water by the lily pads (in place of waterLevel's second)
+  { id: 'kall-froskar', shot: 'call', group: 'frogs-2', from: 48.05, call: 49.45, pass: 51.85, to: 54.35, options: { back: 3, above: 1.2, aside: 6, look: 0.25, fov: 50, tall: 1.3 } },
+  // across the river from their tree, low on the far bank downstream of it (in place of the shadow shot): the ten birds sit on the
+  // top of its leaves on the river side, facing the camera 36 m off; she comes past the camera's left, sweeps by the tree, and they
+  // burst up as she passes (pass + 0.3) and fly with her up the river into the frame's depth. It aims 4.5 m low, so the sky's cloud
+  // shaped like Mosi (engine/sun-face.js), 35 degrees left of the sun, is above the frame and not cut by its top right corner
+  { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: -28, above: 1.2, aside: -20, look: 0.5, drop: 4.5, fov: 40, tall: 1.3 } },
+  // the run-along (in place of the chase and the side shot of 72-80): her call is to lizards-2 too (`also`: groups that hear the
+  // row's call), just down the bank. The stand waits with them, heads down, till they run at once (0.6 s after the call: `move`),
+  // 33 m up the bank in 5.5 s (to d 859, short of the steep rise at 864), and goes with them on the bank behind them (river metres
+  // 828 to 858, 8.5 m from the water), 30 m in 5.8 s; she comes over them, lizards-3 join as she passes them and the first runners
+  // come by, and she flies on ahead
+  {
+    id: 'kall-hlaup', shot: 'runAlong', group: 'lizards-3', also: ['lizards-2'], early: { 'lizards-2': { metres: 33, seconds: 5.5 } },
+    from: 72.2, call: 73.6, pass: 76.01, to: 80,
+    options: { path: [[-928.4, 124.0], [-957.9, 128.9]], move: 74.2, above: 1.2, group: 'lizards-2', look: 0.3, fov: 44, tall: 1.3 },
+  },
+  // on the ledge beside a flyer (in place of gorgeHigh): nest 5, the south wall 17 m over the river; she is far down the gorge as it
+  // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends.
+  // It stands 2.5 m out from the wall, so the flyer leaving her way keeps 2 m off the line to Egill as it goes by (2.5 m at 95.8 s)
+  { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 9, out: 2.5, above: 2, look: 0.3, fov: 46 } },
+  // low before the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
+  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands on the higher ground 52 m to the south (110
+  // degrees right of their way to the far pool), so the five stand whole in the middle of a long lens (28 degrees) facing it and her
+  // way, little sky over them (a quarter) while they graze; from 136.5 to 139.5 s its aim comes up a fifth of the way to her pass, so
+  // she flies in over them (at 0.73 of the frame's height, 106 px across at 16:10). It stands short of the step's south group (HERD
+  // 'step'), which walks off past it out of its frame. She comes into its frame after the flyer of nest 4, wheeling round her, has
+  // crossed the line to Egill (138 s)
+  {
+    id: 'kall-hjord', shot: 'herd', at: [-1367, 31], from: 135, call: 135, pass: 139.58, to: 141.6,
+    options: { bearing: -110, distance: 52, above: 1.2, drop: 1, look: 0.2, ease: [136.5, 139.5], fov: 28 },
+  },
+];
+
+/**
+ * The still shots of the flight (engine/camera/flight-camera.js FIXED), in the order the flight cuts to them (chapters/kafli4-flight.js):
+ * [shot, from, to, options], in flight seconds, the call shots among them (options.callShot: the row's id). The plants keep out of
+ * their views (world/ardalur/banks.js, flight-camera.js stillViews).
+ */
+export const STILLS = [
+  ['belowTakeOff', 3, 8, {}],
+  ['waterLevel', 25, 28.3, {}],
+  ['mosiBank', 57.5, 63, {}],
+  ['mosiRim', 96, 99.5, {}],
+  ['fallsSide', 110, 113.4, {}],
+  ['fallsTop', 113.4, 116, {}],
+  ...CALL_SHOTS.map(row => [row.shot, row.from, row.to, { ...row.options, callShot: row.id }]),
+].sort((a, b) => a[1] - b[1]);
+/** The white snag: its foot at the origin, its top (where she perches) 10.5 m up. */
+export const TREE = [0, 10.5, 0];
+/** How high her body (hips) rides over her feet when she flies, at the 7.5 m size (pteranodon.glb's fly and glide clips). */
+export const BODY_HEIGHT = 2.6;
+
+// ---------------------------------------------------------------------------------------------
+// The river, downstream (east, near the Fen) to upstream (west, above the falls): [x, z, water level, half width]. The levels climb
+// gently through the lazy reach and faster through the rapids and the gorge; the falls drop 40 m from their lip to the plunge pool.
+export const RIVER = [
+  [60, 196, 0, 13],
+  [-20, 178, 0, 13],
+  [-110, 160, 0.2, 12], // where she joins it, coming over the Fen
+  [-210, 176, 0.5, 12],
+  [-310, 160, 0.9, 11],
+  [-410, 136, 1.3, 11],
+  [-510, 146, 1.8, 10],
+  [-610, 170, 2.4, 9], // the rapids begin
+  [-710, 165, 3.1, 9],
+  [-810, 141, 3.9, 8],
+  [-900, 136, 4.7, 8],
+  [-990, 150, 5.6, 7], // the gorge begins
+  [-1090, 165, 6.6, 7],
+  [-1190, 150, 7.6, 7],
+  [-1280, 131, 8.6, 8],
+  [-1322, 127, 10, 16], // the plunge pool at the foot of the falls
+  [-1347, 126, 50, 9], // the lip of the falls
+  [-1430, 122, 50.4, 9],
+  [-1530, 104, 50.8, 10],
+  [-1680, 80, 51.5, 11],
+];
+/** The falls: the cliff's face stands at `face` (x), the water falls from `top` to `base` over `width` metres. */
+export const FALLS = { x: -1345, z: 126, face: -1345, top: 50, base: 10, width: 16 };
+/** Where the gorge's walls rise and end, as distances along the river from where she joins it (RIVER[2]). */
+export const GORGE = { from: 890, to: 1225, wall: [30, 45] };
+/** The far pool, north of the river below the gorge, where she lands (scene 7) and chapter 5 begins. */
+export const POOL = { center: [-952, 70], radius: 26, level: 5.4 };
+
+// ---------------------------------------------------------------------------------------------
+// The far pool as a place: scene 7 (kafli4.js) lands her there, and chapter 5 begins there. Its spots are [x, z], each a way round the
+// pool's middle (degrees from +X toward +Z) and a distance from it. The early afternoon sun (heading 215) shines from the north-west,
+// so they gather on the south-east bank and look across the pool, the sun on their faces, to the reed the horn comes from; each shot
+// has the sun behind it. Its shallows are 0.2 to 1.2 m deep (world/ardalur/terrain.js: the basin), a ring of reed grows round it, and
+// two beds of reed of its own (world/ardalur/river.js: poolPlants): the one Mosi comes out of, and the far one Slóeðla blows from.
+const around = (angle, distance) => [
+  POOL.center[0] + distance * Math.cos((angle * Math.PI) / 180),
+  POOL.center[1] + distance * Math.sin((angle * Math.PI) / 180),
+];
+const up = ([x, z], y) => [x, y, z];
+const POOL_SPOTS = {
+  landing: around(62, 23.5), // her feet in the shallows, in 0.65 m of water
+  bank: around(50, 27.2), // where Egill floats down to, on the bank 6.5 m from her
+  mosi: around(45, 30), // where Mosi stops, by Egill, to look across the pool
+  reed: around(46.4, 35.4), // the reed behind them he comes through, out of breath, walking straight on to his spot
+  far: around(46.4, 48), // where he is first seen, far up the bank behind them, as the picture cuts to the bank: he is seen coming
+  farReed: around(240, 31), // the reed across the pool, where the horn sounds (Slóeðla, unseen)
+};
+export const FAR_POOL = {
+  center: [...POOL.center], radius: POOL.radius, level: POOL.level,
+  ...POOL_SPOTS,
+  facing: 5, // the way she faces in the shallows (degrees): along the bank, toward Egill's spot
+  // the beds of reed: `count` plants within `radius` of `at`, a tall horsetail in every `tallEvery` (3 if not given); Mosi's has his way
+  // out of it (`lane`: from, to, half its width) clear. The far one is thick and tall: something could hide in it.
+  reeds: [
+    { at: around(47, 36.2), radius: 4.2, count: 16, lane: { from: around(46.6, 39.6), to: POOL_SPOTS.mosi, wide: 1.8 } },
+    { at: POOL_SPOTS.farReed, radius: 7, count: 64, tallEvery: 2 },
+  ],
+  // where no other plant grows: Mosi's way out (from behind the reed to his spot), Egill's spot, and where the cameras stand
+  keep: [
+    { from: around(46.6, 39.6), to: POOL_SPOTS.mosi, r: 2.4 },
+    { at: POOL_SPOTS.bank, r: 2.2 },
+    { at: around(130, 30), r: 3.5 },
+    { at: around(44.6, 16.5), r: 2 },
+  ],
+  // chapter 4's own: Mosi's way in from far up the bank to the reed, where nothing grows (createArdalur's `keep`: { x, z, r }), so he
+  // walks through no bush; chapter 5 begins with him on his spot and keeps its bank as it grew
+  wayIn: [40.5, 42.5, 44.5, 46.5, 48.5, 50.5].map(d => { const [x, z] = around(46.4, d); return { x, z, r: 2.7 }; }),
+  // The glide in (scene 7): a camera on the north-west bank turns to follow her as she comes in over the water, left to right
+  glide: { position: up(around(130, 30), 7.4), fov: 40 },
+  shots: {
+    // She stands in the shallows at the right, Egill floats down onto the bank in the middle, and Mosi comes out of the reed behind
+    // him: from low over the water, 11 m out from the pool's middle.
+    pool_bank: { position: up(around(52, 11.4), 7.0), target: up(around(49, 27.2), 6.5), fov: 46 },
+    // The reed across the pool, where the horn comes from: from over the water on the pool's west side, the sun off to the right.
+    pool_reed: { position: up(around(186.3, 18.1), 6.9), target: up(POOL_SPOTS.farReed, 6.8), fov: 36 },
+    // Egill and Mosi, from in front of them over the shallows, as they look across the pool past us: the horn, and their lines. Far
+    // enough out that Mosi's head, reaching toward us, stays in the picture.
+    pool_horn: { position: up(around(44.6, 16.5), 6.8), target: up(around(46.8, 26.6), 7.4), fov: 44 },
+  },
+  // Scene 7 (the life spec 2): where the animals that came to the festival stand, [x, z, who] (world/ardalur/life.js arrivals).
+  // The flyers on the north-east bank, where they come down at the flight's end: the four that flew on her left (north of her)
+  // first. The grazers and the small lizards on the bank beyond Egill and Mosi, either side of his reed: the bank's and the glide's
+  // shots see them over the water, the horn's behind the two of them. Every spot dry, flat and open (nothing over 0.5 m within 3 m
+  // as the banks grow), 9 m or more from her, Egill's, Mosi's and the reed's spots, out of the reed and the kept ground by 3 m, and
+  // 9 m or more off every scene 7 camera's line to Mosi's head, his reed and Slóeðla's (measured on the lit valley, 2026-11-07).
+  gather: [
+    ...[[-80, 31], [-70, 33.5], [-60, 31], [-50, 33.5], [-41, 31], [-31, 33.5], [-21, 31], [-11, 33.5]].map(([a, d]) => [...around(a, d), 'flyer']),
+    ...[[56, 50], [33, 50], [27, 58], [27, 67], [57, 59]].map(([a, d]) => [...around(a, d), 'grazer']),
+    ...[
+      [56, 43], [31, 37], [32, 40], [30, 42], [34, 42], [37, 43], [32, 44], [29, 45], [33, 58], [27, 36],
+      [64, 40], [66, 42], [25, 43], [62, 43], [59, 44], [27, 52], [15, 36], [19, 36], [23, 36], [15, 39],
+    ].map(([a, d]) => [...around(a, d), 'lizard']),
+    ...[[61, 34.5], [63, 36.5], [32, 35.5], [30, 37.5]].map(([a, d]) => [...around(a, d), 'turtle']),
+  ],
+};
+
+/**
+ * The flyers' nests (the life spec 2D): ledges in the gorge's walls, [x, y, z, heading], on the walls as the ground draws them
+ * (world/ardalur/terrain.js groundDrawnAt), the north and the south wall by turns, 960 to 1135 m up the river and 12 to 21 m over it.
+ * Each flyer looks out across the river and a little down it, the way she comes (heading: degrees, 0 faces +X, 90 faces +Z).
+ */
+export const NESTS = [
+  [-1058.06, 19.26, 148.56, 51], // 960 m up the river, the north wall, 13 m over the river: she is 25 m off at 83.8 s
+  [-1079.25, 24.51, 175.79, -68], // 985 m, the south wall, 18 m: 86.1 s
+  [-1104.07, 21.76, 151.12, 68], // 1010 m, north, 15 m: 88.0 s
+  [-1132.37, 28.01, 171.23, -51], // 1035 m, south, 21 m: 90.6 s
+  [-1153.6, 19.25, 144.28, 68], // 1060 m, north, 12 m: 92.4 s
+  [-1181.7, 24.5, 163.07, -51], // 1085 m, south, 17 m: 94.8 s
+  [-1202.21, 21.76, 135.91, 72], // 1110 m, north, 14 m: 97.0 s
+  [-1231.53, 28.03, 153.77, -48], // 1135 m, south, 20 m: 99.7 s
+];
+/**
+ * The rocks the flyers stand on, where a shot comes near enough to see what a flyer stands on (kall-sylla: nest 5): the valley's own
+ * rock (world/forest/species.js, as the banks place it), `at` [x, z] with its back a quarter of its width in the wall, turned `rot`
+ * and scaled, its `shape` the species' own options (`mossy`: how much moss grows on its top; the forest's rocks have 0.7 to 1.4,
+ * this one is grey rock with a little moss, as a ledge in a bare wall is); world/ardalur/life.js sets its height so its top is just
+ * under the flyer's feet. The wall there is 83° steep, so it juts out of it like a shelf, 0.95 m out past the flyer's feet and its top
+ * within 0.16 m of level round them.
+ */
+export const NEST_ROCKS = [{ nest: 5, at: [-1181.78, 163.59], variant: 0, rot: 1.047, scale: 1.6, shape: { mossy: 0.25 } }];
+
+// ---------------------------------------------------------------------------------------------
+// The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small
+// ponds with lilies and reed, and an open meadow between the groves and the hills where the herd grazes (chunk 4). All of it lies
+// within the valley's corridor (world/ardalur/terrain.js: 160 m round her path), north and south of the upper river, where the wide
+// shot (the vista, F: 125 to 131 s) looks as it swings from the west round to the north-east; the meadow is in its middle at 128 s.
+// terrain.js shapes the ground (hills, the streams' beds, the ponds' basins), river.js draws their water and the ponds' plants, and
+// banks.js grows no tree in the meadow nor anything in the water.
+/** Hills: [x, z, height (m), radius (m)], a smooth bump each, faded out toward the river's edge. */
+export const HILLS = [
+  [-1505, -10, 7, 50], // north, behind the meadow's right in the wide shot; the long stream rises on its flank
+  [-1570, 60, 4, 42], // between the meadow and the river
+  [-1500, 185, 6, 50], // south of the river, on the left as the wide shot begins
+  [-1430, -35, 5, 45], // north, as she turns east
+];
+/** Outcrops: [x, z, scale], big rocks (the forest's rock) standing out of the hills and the grass. */
+export const OUTCROPS = [
+  [-1520, -5, 3.5],
+  [-1575, 52, 2.5],
+  [-1488, 178, 3],
+  [-1540, 50, 2.2],
+  [-1438, -22, 3],
+  [-1470, 20, 2],
+];
+/** Streams: { half (half the water's width, m), path: [[x, z], ...] } from a hill's flank down into the upper river (its last point at the edge). */
+export const STREAMS = [
+  { half: 1.2, path: [[-1508, 5], [-1515, 35], [-1520, 65], [-1522, 95.5]] },
+  { half: 0.85, path: [[-1505, 150], [-1509, 135], [-1512, 117.5]] },
+];
+/** Ponds: [x, z, radius]: a basin each, its water a little under its lowest rim, lilies on it and a bed of reed by it. */
+export const PONDS = [
+  [-1490, 45, 10],
+  [-1455, 158, 9],
+];
+/** The meadow: [x, z, radius], open grass with no tree, the herd's place (chunk 4), in the middle of the wide shot at 128 s. */
+export const MEADOW = [-1555, 15, 28];
+
+// ---------------------------------------------------------------------------------------------
+// Her path: [name, x, y, z]. A name marks a point the schedule (KEYS) pins to a time, or that a shot or a test refers to.
+const body = (x, level, alt, z) => [x, level + alt, z];
+export const POINTS = [
+  // A: perched on the snag, facing south-south-west; the leap, the moment's fall, the wings out, the glide over the Fen
+  ['perch', 0, TREE[1] + BODY_HEIGHT, 0],
+  [null, -1.6, 12.6, 3.2],
+  ['fall', -5, 10.2, 10.5],
+  [null, -10.5, 7.6, 21],
+  [null, -18, 6.4, 36],
+  [null, -28, 5.8, 56],
+  [null, -40, 5.2, 80],
+  // B: low over the Fen's reeds, curving west onto the river, levelling just over the water
+  ['B', -54, 4.2, 104],
+  [null, -72, 3.4, 128],
+  ['onRiver', ...body(-104, 0.2, 2.6, 156)],
+  [null, ...body(-160, 0.35, 2.5, 170)],
+  [null, ...body(-210, 0.5, 2.5, 175)],
+  [null, ...body(-260, 0.7, 2.5, 169)],
+  ['C', ...body(-310, 0.9, 2.5, 160)],
+  // C: up the river, past the animals on the banks
+  [null, ...body(-360, 1.1, 2.5, 148)],
+  [null, ...body(-410, 1.3, 2.5, 137)],
+  [null, ...body(-460, 1.55, 2.5, 140)],
+  [null, ...body(-510, 1.8, 2.5, 146)],
+  [null, ...body(-560, 2.1, 2.5, 158)],
+  [null, ...body(-610, 2.4, 2.5, 169)],
+  [null, ...body(-660, 2.75, 2.6, 168)],
+  [null, ...body(-710, 3.1, 2.6, 165)],
+  [null, ...body(-760, 3.5, 2.7, 153)],
+  [null, ...body(-810, 3.9, 2.8, 141)],
+  [null, ...body(-855, 4.3, 2.8, 138)],
+  [null, ...body(-900, 4.7, 2.9, 137)],
+  [null, ...body(-945, 5.15, 3.3, 142)],
+  ['D', ...body(-990, 5.6, 4.0, 150)],
+  // D: the gorge, its walls rising on both sides, 4 to 6 m over the rapids
+  [null, ...body(-1040, 6.1, 4.6, 158)],
+  [null, ...body(-1090, 6.6, 5.0, 165)],
+  [null, ...body(-1140, 7.1, 5.0, 159)],
+  [null, ...body(-1190, 7.6, 5.0, 150)],
+  [null, ...body(-1235, 8.1, 5.0, 140)],
+  ['E', ...body(-1270, 8.5, 5.0, 132)],
+  // E: across the plunge pool, straight at the falls, up along the falling water 3 m clear of it, over the lip and out of the spray
+  [null, -1296, 14.6, 128.5],
+  ['climb', -1318, 16, 127],
+  [null, -1332, 22, 126.5],
+  [null, -1338.5, 32, 126.2],
+  [null, -1340.5, 43, 126],
+  ['lip', -1342, 54.5, 126],
+  [null, -1350, 61, 125.6],
+  ['burst', -1366, 65.5, 124.8],
+  [null, -1388, 69, 124],
+  [null, -1414, 72, 123],
+  ['F', -1440, 74, 122],
+  // F: an arc to the right (30 m round) over the land above the falls, from heading west round through north to east, then east
+  [null, -1461, 74.6, 113.2],
+  [null, -1470, 75, 92],
+  [null, -1461, 75, 70.8],
+  [null, -1440, 74.6, 62],
+  [null, -1412, 74.2, 59],
+  [null, -1380, 73.8, 57.5],
+  [null, -1346, 73.4, 57],
+  [null, -1310, 73, 57],
+  [null, -1272, 72.6, 57.5],
+  ['G', -1236, 72, 58],
+  // G: east, gliding down past the gorge's north rim to the far pool
+  [null, -1196, 64.5, 59.5],
+  [null, -1154, 54, 61.5],
+  [null, -1112, 42.5, 63.5],
+  [null, -1072, 31, 65.5],
+  [null, -1036, 21, 67.5],
+  [null, -1004, 13.5, 69],
+  [null, -980, 9.6, 70],
+  ['end', -962, POOL.level + 3.0, 70],
+];
+
+// The schedule: [time, point name, speed in m/s there]. Speeds follow the plan: 14 in B, 16 in C, 14 in D, about 10 for the climb
+// in E, slower in the arc of F, 10 to 16 in G (it glides fast while it is high and slows over the pool).
+export const KEYS = [
+  [0, 'perch', 0],
+  [LEAP, 'perch', 6],
+  [5.2, 'fall', 9.5],
+  [BEATS.B, 'B', 13.5],
+  [20.4, 'onRiver', 14],
+  [BEATS.C, 'C', 15.2],
+  [BEATS.D, 'D', 12.8],
+  [BEATS.E, 'E', 11],
+  [109.6, 'climb', 8],
+  [115.6, 'lip', 7.5],
+  [119.0, 'burst', 9],
+  [BEATS.F, 'F', 11.5],
+  [BEATS.G, 'G', 13.5],
+  [BEATS.END, 'end', 9],
+];
+
+/**
+ * The animal groups along C, in the order she meets them (the life spec, 2026-11-05, section 3: nine, about 5 s apart), each on its
+ * bank: [id, kind, river distance, side (+1 north), out].
+ */
+const GROUPS = [
+  ['frogs-1', 'frogs', 245, 1, 2], // on the lilies
+  ['lizards-1', 'lizards', 330, -1, 3], // drinking at the edge
+  ['birds-1', 'birds', 400, 1, 6], // in a tree by the water
+  ['frogs-2', 'frogs', 470, -1, 2], // lilies float only on the calm reach, below the rapids (river.js RAPIDS.from, d 509)
+  ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after the frogs' call shot and before Mosi's run (d 585 to 617)
+  ['birds-2', 'birds', 705, -1, 6], // after Mosi's cameo: she passes 66.7 s, 3.7 s into their call shot (CALL_SHOTS kall-fuglar)
+  ['dragonflies', 'dragonflies', 775, -1, -3], // over the water; down from 785, so her call to them plays out before the run-along's
+  ['lizards-2', 'lizards', 826, 1, 3], // just below lizards-3 (from 724): the run-along's call is to both (CALL_SHOTS kall-hlaup)
+  ['lizards-3', 'lizards', 840, 1, 3], // her calls about 4 s apart: each line plays out (its length and the pause after it) before the next
+];
+/** How high over the river each kind's group is (its tap target): the dragonflies over the water, the birds in their tree's crown. */
+const GROUP_UP = { dragonflies: 1.2, birds: 7.5 };
+
+// ---------------------------------------------------------------------------------------------
+
+const V3 = THREE.Vector3;
+const lerp = (a, b, k) => a + (b - a) * k;
+
+/** The river as a polyline with its distances (from where she joins it, RIVER[2]): { points, at(d), nearest(x, z) }. */
+function makeRiver() {
+  const pts = RIVER.map(([x, z, level, half]) => ({ x, z, level, half }));
+  let d = 0;
+  pts.forEach((p, i) => {
+    if (i > 0) d += Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z);
+    p.d = d;
+  });
+  const zero = pts[2].d;
+  for (const p of pts) p.d -= zero;
+  const falls = pts.findIndex(p => p.level >= FALLS.top - 1e-6);
+  /** Where the river is `d` metres up from where she joins it: { x, z, level, half, dir: [dx, dz] }. */
+  function at(d) {
+    let i = 0;
+    while (i < pts.length - 2 && pts[i + 1].d < d) i++;
+    const a = pts[i];
+    const b = pts[i + 1];
+    const k = Math.max(0, Math.min(1, (d - a.d) / (b.d - a.d || 1)));
+    // the falls are a step, not a slope: below the lip the pool's level, above it the upper river's
+    const level = i + 1 === falls ? (k < 1 ? a.level : b.level) : lerp(a.level, b.level, k);
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    return { x: lerp(a.x, b.x, k), z: lerp(a.z, b.z, k), level, half: lerp(a.half, b.half, k), dir: [(b.x - a.x) / len, (b.z - a.z) / len], d };
+  }
+  /** The river's point nearest (x, z): its distance along the river, and how far off to the side (+ north of it, to its right going upstream). */
+  function nearest(x, z) {
+    let best = { dist: Infinity, d: 0, side: 0 };
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      const ex = b.x - a.x;
+      const ez = b.z - a.z;
+      const len2 = ex * ex + ez * ez || 1;
+      const k = Math.max(0, Math.min(1, ((x - a.x) * ex + (z - a.z) * ez) / len2));
+      const px = a.x + ex * k;
+      const pz = a.z + ez * k;
+      const dist = Math.hypot(x - px, z - pz);
+      if (dist < best.dist) {
+        const len = Math.sqrt(len2);
+        // going upstream (west) the right hand is north; seen from above with east to the right and south down, a point on the right
+        // of the way upstream has a positive cross product
+        const cross = (ex * (z - a.z) - ez * (x - a.x)) / len;
+        best = { dist, d: a.d + k * len, side: Math.sign(cross) || 1, along: k };
+      }
+    }
+    return best;
+  }
+  return { points: pts, at, nearest, length: pts.at(-1).d, falls: pts[falls].d };
+}
+
+/**
+ * The flight's route. `wingspan` is her size (7.5 m or the 10 m the owner may pick): her body rides higher over her feet at the larger
+ * size, which the flier takes care of; the path of her body is the same.
+ */
+export function createRoute({ wingspan = 7.5 } = {}) {
+  const river = makeRiver();
+  const controls = POINTS.map(([, x, y, z]) => new V3(x, y, z));
+  const curve = new THREE.CatmullRomCurve3(controls, false, 'centripetal');
+  // Arc lengths at each control point: lengths at t = i / (n - 1) of the curve's own (not arc-length) parameter.
+  const PER = 40;
+  const divisions = (controls.length - 1) * PER;
+  curve.arcLengthDivisions = divisions;
+  const lengths = curve.getLengths(divisions);
+  const length = lengths[divisions];
+  const named = new Map(POINTS.map(([name], i) => [name, i]).filter(([name]) => name));
+  const sOf = name => {
+    if (!named.has(name)) throw new Error(`No route point named "${name}"`);
+    return lengths[named.get(name) * PER];
+  };
+
+  // The schedule: distance flown at each key, and a cubic Hermite in time between keys.
+  const keys = KEYS.map(([t, name, v]) => ({ t, s: sOf(name), v }));
+  function distanceAt(t) {
+    if (t <= keys[0].t) return keys[0].s;
+    if (t >= keys.at(-1).t) return keys.at(-1).s;
+    let i = 0;
+    while (keys[i + 1].t < t) i++;
+    const a = keys[i];
+    const b = keys[i + 1];
+    const h = b.t - a.t;
+    const x = (t - a.t) / h;
+    const x2 = x * x;
+    const x3 = x2 * x;
+    return (2 * x3 - 3 * x2 + 1) * a.s + (x3 - 2 * x2 + x) * h * a.v + (-2 * x3 + 3 * x2) * b.s + (x3 - x2) * h * b.v;
+  }
+  /** Her speed along the route at flight time t (m/s), from the schedule. */
+  function speedAt(t) {
+    const e = 1e-3;
+    return (distanceAt(Math.min(BEATS.END, t + e)) - distanceAt(Math.max(0, t - e))) / (Math.min(BEATS.END, t + e) - Math.max(0, t - e));
+  }
+  const progressAt = t => Math.min(1, Math.max(0, distanceAt(t) / length));
+  const pointAt = (u, out = new V3()) => out.copy(curve.getPointAt(Math.min(1, Math.max(0, u))));
+  const tangentAt = (u, out = new V3()) => out.copy(curve.getTangentAt(Math.min(1, Math.max(0, u))));
+  const uOf = name => sOf(name) / length;
+
+  // Samples for nearestU and riverLevelAt: every metre or so along the curve.
+  const SAMPLES = Math.ceil(length);
+  const samples = curve.getSpacedPoints(SAMPLES);
+  /** The progress (0..1) of the route point nearest `point` (a Vector3, or [x, y, z]). */
+  function nearestU(point) {
+    const p = Array.isArray(point) ? new V3(...point) : point;
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < samples.length; i++) {
+      const d = samples[i].distanceToSquared(p);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best / SAMPLES;
+  }
+  /**
+   * The water under the route `s` metres along it: the river's level where the route is over it (within its half width plus `margin`),
+   * the far pool's over the pool, else null (over the Fen, the land, the climb up the falls).
+   */
+  function riverLevelAt(s, margin = 0) {
+    const p = pointAt(s / length);
+    return waterAt(p.x, p.z, margin);
+  }
+  function waterAt(x, z, margin = 0) {
+    if (Math.hypot(x - POOL.center[0], z - POOL.center[1]) < POOL.radius + margin) return POOL.level;
+    const near = river.nearest(x, z);
+    const here = river.at(near.d);
+    if (near.dist > here.half + margin) return null;
+    return here.level;
+  }
+  /** Which beat flight time t is in: 'A' .. 'G'. */
+  function beatAt(t) {
+    let beat = 'A';
+    for (const [name, at] of Object.entries(BEATS)) if (name !== 'END' && t >= at) beat = name;
+    return beat;
+  }
+
+  // Steering lanes (spec 6): where a finger may move her up to 4 m aside, as progress: B and C, and the first half of D.
+  const lanes = [{ from: progressAt(BEATS.B + 1), to: progressAt((BEATS.D + BEATS.E) / 2 - 0.5), half: 4 }];
+  // The animal groups on the banks of C.
+  const groups = GROUPS.map(([id, kind, d, side, out]) => {
+    const r = river.at(d);
+    const nx = -r.dir[1] * side; // across the river, toward `side`
+    const nz = r.dir[0] * side;
+    const off = r.half + out;
+    const at = [r.x + nx * off, r.level + (GROUP_UP[kind] ?? 0.1), r.z + nz * off];
+    return { id, kind, at, u: nearestU(at), side };
+  });
+  // Mosi's two cameos (spec 5C and 5D): running along the bank in the shallows, and up on the gorge's north rim.
+  const bank = (() => {
+    const d0 = 585;
+    const path = [0, 8, 16, 24, 32].map(k => {
+      const r = river.at(d0 + k);
+      const off = r.half - 1.5; // in the shallows on the south side, splashing
+      return [r.x + r.dir[1] * off, r.z - r.dir[0] * off];
+    });
+    const r = river.at(d0);
+    return { at: [path[0][0], r.level, path[0][1]], path };
+  })();
+  const rim = (() => {
+    const d0 = 1100;
+    const r = river.at(d0);
+    const off = r.half + 16; // on the north rim, back from the edge
+    const path = [0, 6, 12, 18].map(k => {
+      const q = river.at(d0 - k); // he runs downstream: back toward the pool, the shorter way
+      return [q.x - q.dir[1] * off, q.z + q.dir[0] * off];
+    });
+    return { at: [path[0][0], r.level + GORGE.wall[0] + 4, path[0][1]], path };
+  })();
+
+  return {
+    curve, length, wingspan, river, falls: FALLS, gorge: GORGE,
+    keys, lengths, controls, named: Object.fromEntries([...named].map(([name, i]) => [name, { index: i, s: lengths[i * PER], u: lengths[i * PER] / length }])),
+    distanceAt, speedAt, progressAt, pointAt, tangentAt, nearestU, riverLevelAt, waterAt, beatAt, uOf,
+    lanes, groups, cameos: { bank, rim },
+    tree: [...TREE],
+    // the far pool, with what grows in it and round it (world/ardalur/river.js: poolPlants)
+    pool: { center: [...POOL.center], radius: POOL.radius, level: POOL.level, reeds: FAR_POOL.reeds, keep: FAR_POOL.keep },
+    // the land above the falls (terrain.js, river.js, banks.js)
+    land: { hills: HILLS, outcrops: OUTCROPS, streams: STREAMS, ponds: PONDS, meadow: MEADOW },
+  };
+}

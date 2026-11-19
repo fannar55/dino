@@ -14,9 +14,13 @@ const browserStorage = {
   setItem(key, value) { localStorage.setItem(key, value); },
 };
 
-function savedIds(storage) {
+// The levels the child has started a round of, next to it: a level that is open and not played yet is new («Nýtt!» on its card and on the
+// ending card's button to it). Level 1 is never new.
+const PLAYED_KEY = 'minnisspil.played';
+
+function savedIds(storage, key = UNLOCKED_KEY) {
   try {
-    const ids = JSON.parse(storage.getItem(UNLOCKED_KEY));
+    const ids = JSON.parse(storage.getItem(key));
     return Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [];
   } catch { return []; }
 }
@@ -34,6 +38,20 @@ export function unlockLevel(id, storage = browserStorage) {
   try {
     const ids = new Set(savedIds(storage)).add(id);
     storage.setItem(UNLOCKED_KEY, JSON.stringify([...ids]));
+    return true;
+  } catch { return false; }
+}
+
+/** Whether a level is new to the child: open (not in `locked`), not level 1, and no round of it started yet. */
+export function isNewLevel(level, locked, storage = browserStorage) {
+  return Boolean(level) && level !== LEVELS[0] && !locked.has(level.id) && !savedIds(storage, PLAYED_KEY).includes(level.id);
+}
+
+/** A round of the level started: it is not new any more (false when storage does not take it). */
+export function markPlayed(level, storage = browserStorage) {
+  try {
+    const ids = new Set(savedIds(storage, PLAYED_KEY)).add(level.id);
+    storage.setItem(PLAYED_KEY, JSON.stringify([...ids]));
     return true;
   } catch { return false; }
 }

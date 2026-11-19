@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { glints, run, needEffects } from './sparkles.js';
+import { seededRandom } from '../../engine/random.js';
 
 // Pollen: the cloud that swirls up when Mosi sneezes ("A... a... atsju!", scene 3). It is the sparkles' machinery with another look
 // (sparkles.js): a set of specks is one THREE.Points, so one draw call, each posed in the vertex shader from its age on the game
@@ -21,16 +22,40 @@ const SOFT = {
 /**
  * A puff of `count` pollen specks from `point` (a THREE.Vector3, or a point spec world.resolvePoint knows): they come out in the
  * first sixth of `duration` seconds, wind up and drift for the rest of it, and have faded by its end. Returns a Handle.
+ * With `direction` (a THREE.Vector3, or [x, y, z]) the puff is blown that way instead: each speck flies out within `cone` radians
+ * of it, `spread` metres at most, barely winding or rising, so a sneeze can blow its cloud at someone (the 3D show,
+ * chapters/fidrildi3d.js). Without it the puff is the clearing's, exactly as before.
  */
-export function pollenBurst(world, point, { count = 40, duration = 1.5, size = 0.38, spread = 0.9, colour = YELLOW, seed = 'pollen' } = {}) {
+export function pollenBurst(world, point, { count = 40, duration = 1.5, size = 0.38, spread = 0.9, colour = YELLOW, seed = 'pollen', direction = null, cone = 0.45 } = {}) {
   needEffects(world, 'pollenBurst');
   const at = point?.isVector3 ? point : world.resolvePoint(point, new THREE.Vector3());
   const wind = world.wind?.uniforms?.uWindDirection?.value ?? { x: 0.8, y: 0.6 };
-  const look = { ...SOFT, drift: [wind.x * DRIFT, wind.y * DRIFT] };
+  const look = direction ? { ...SOFT, swirl: 0.5, rise: 0.25, drift: [wind.x * DRIFT * 0.3, wind.y * DRIFT * 0.3] } : { ...SOFT, drift: [wind.x * DRIFT, wind.y * DRIFT] };
   const set = glints(world, { count, life: 0.85 * duration, spread, fall: 0, size, colour, seed, look });
+  if (direction) aim(set, direction, cone, seed);
   for (let i = 0; i < count; i++) {
     set.position.set([at.x, at.y, at.z], i * 3);
     set.birth[i] = (i / count) * 0.15 * duration;
   }
   return run(world, set, duration, 'pollen burst');
+}
+
+// Points every speck's way out of a set within `cone` radians of `direction`: a cosine-even draw over the cap, from a stream of its
+// own (the set's own draws stay as they were), each with its own reach.
+function aim(set, direction, cone, seed) {
+  const random = seededRandom(`${seed} aim`);
+  const d = (direction.isVector3 ? direction.clone() : new THREE.Vector3(...direction)).normalize();
+  const side = new THREE.Vector3(0, 1, 0).cross(d);
+  if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+  side.normalize();
+  const up = new THREE.Vector3().crossVectors(d, side);
+  const seeds = set.points.geometry.attributes.seed;
+  const way = new THREE.Vector3();
+  for (let i = 0; i < seeds.count; i++) {
+    const c = 1 - random() * (1 - Math.cos(cone)), s = Math.sqrt(Math.max(0, 1 - c * c)), turn = random() * Math.PI * 2;
+    const reach = 0.45 + 0.55 * random();
+    way.copy(d).multiplyScalar(c).addScaledVector(side, s * Math.cos(turn)).addScaledVector(up, s * Math.sin(turn)).multiplyScalar(reach);
+    seeds.array[i * 4] = way.x; seeds.array[i * 4 + 1] = way.y; seeds.array[i * 4 + 2] = way.z;
+  }
+  seeds.needsUpdate = true;
 }

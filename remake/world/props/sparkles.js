@@ -32,6 +32,15 @@ uniform vec2 uDrift; // metres it drifts along the ground by the end of its life
 uniform float uTwinkle; // 1 for the twinkle, 0 for a steady light
 uniform float uVary; // 1 for sizes between half and one and a half times uSize, 0 for all alike
 varying float vLight;
+#ifdef LIT
+uniform vec4 uShade; // the shadow's edge as a plane (world space): a glint on its far side (dot < 0) is in shade
+uniform float uShadeSoft; // metres over which it goes from shade to sun
+uniform float uDim; // a glint in shade gives this much of its light
+uniform float uGain; // and one in the sun this much (the glow of the sun through it, set from the camera by its owner)
+uniform vec2 uNear; // metres from the camera over which a glint fades in, so the camera can pass through a cloud of them
+uniform float uMaxSize; // pixels a glint may span at most, so a cloud near the camera does not fill the screen many times over
+varying float vLit;
+#endif
 #include <common>
 #include <fog_pars_vertex>
 void main() {
@@ -47,8 +56,16 @@ void main() {
   float alive = step( 0.0, age ) * step( age, uLife );
   float twinkle = uTwinkle > 0.5 ? 0.62 + 0.38 * sin( 6.2831853 * ( seed.w + age * 2.6 ) ) : 1.0;
   vLight = alive * min( 1.0, t * 10.0 ) * ( 1.0 - t * t ) * twinkle;
+  #ifdef LIT
+  vec3 glintWorld = ( modelMatrix * vec4( p, 1.0 ) ).xyz;
+  vLit = smoothstep( -uShadeSoft, uShadeSoft, dot( uShade.xyz, glintWorld ) + uShade.w );
+  vLight *= mix( uDim, uGain, vLit ) * smoothstep( uNear.x, uNear.y, -mvPosition.z );
+  #endif
   float grain = mix( 1.0, 0.5 + fract( seed.w * 7.31 ), uVary );
   gl_PointSize = alive * uSize * grain * uPixelScale / max( 0.2, -mvPosition.z ) * ( 0.45 + 0.55 * vLight );
+  #ifdef LIT
+  gl_PointSize = min( gl_PointSize, uMaxSize ) * step( 0.002, vLight ); // none at all once faded
+  #endif
   #include <fog_vertex>
 }`;
 
@@ -60,6 +77,10 @@ uniform float uFalloff; // how fast the glow fades outward: the bigger, the tigh
 uniform float uStar; // 1 for the little four-pointed star, 0 for none
 uniform float uRim; // 1 fades the glow out before the edge of the point, for a speck that is round to its rim
 varying float vLight;
+#ifdef LIT
+uniform vec3 uShadeColour; // a glint's colour in shade (uColour in the sun)
+varying float vLit;
+#endif
 #include <common>
 #include <fog_pars_fragment>
 void main() {
@@ -70,7 +91,11 @@ void main() {
   float rim = 1.0 - uRim * smoothstep( 0.45, 1.0, r2 );
   float a = clamp( uGlow * exp( -r2 * uFalloff ) * rim + 0.9 * rays, 0.0, 1.0 ) * vLight;
   if ( a < 0.004 ) discard;
-  gl_FragColor = vec4( mix( uColour, uCore, clamp( exp( -r2 * 14.0 ) + 0.5 * rays, 0.0, 1.0 ) ), a );
+  vec3 colour = uColour;
+  #ifdef LIT
+  colour = mix( uShadeColour, uColour, vLit );
+  #endif
+  gl_FragColor = vec4( mix( colour, uCore, clamp( exp( -r2 * 14.0 ) + 0.5 * rays, 0.0, 1.0 ) ), a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
   #include <fog_fragment>
@@ -131,8 +156,24 @@ export function glints(world, { count, life, spread, fall, size, colour, seed, l
     uRise: { value: how.rise },
     uDrift: { value: new THREE.Vector2(how.drift[0], how.drift[1]) },
   };
+  // A look with `light` ({ dim, shadeColour, soft, near, maxSize }) puts the glints in the sun or in a shadow: those on the far side of
+  // the plane in uniforms.uShade (world space, which its owner keeps up with the sun) give `dim` of their light in `shadeColour`, those
+  // in the sun uniforms.uGain of it (1 unless the owner sets it); they fade in over `near` ([from, to] m) from the camera and span at
+  // most `maxSize` pixels. Without one the shader is the sparkles' own, unchanged.
+  const lit = how.light ?? null;
+  if (lit) {
+    Object.assign(uniforms, {
+      uShade: { value: new THREE.Vector4(0, 1, 0, 1e6) }, // all in the sun until the owner sets the plane
+      uShadeSoft: { value: lit.soft ?? 1 },
+      uDim: { value: lit.dim ?? 0.4 },
+      uGain: { value: 1 },
+      uShadeColour: { value: new THREE.Color(lit.shadeColour ?? colour) },
+      uNear: { value: new THREE.Vector2(...(lit.near ?? [0, 0])) },
+      uMaxSize: { value: lit.maxSize ?? 1e4 },
+    });
+  }
   const material = new THREE.ShaderMaterial({
-    vertexShader: VERT, fragmentShader: FRAG, uniforms,
+    vertexShader: VERT, fragmentShader: FRAG, uniforms, defines: lit ? { LIT: '' } : {},
     fog: true, transparent: true, depthWrite: false, blending: how.blending,
   });
   material.name = 'sparkles';

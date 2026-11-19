@@ -64,3 +64,14 @@ test('repeated same cue does not restart travel and a new cue replaces the old d
   director.setMode('overview'); director.update(.2); director.reset();
   const reset = director.getDebug(); assert.equal(reset.mode, 'auto'); assert.equal(reset.intent, 'glade'); assert.equal(reset.moving, false);
 });
+
+test('a shot with `clear` keeps that share of the picture free at the bottom (level 2: the last picture over the ending card)', () => {
+  for (const [width, height] of [[1280, 800], [390, 844]]) {
+    const { camera, director } = fixture(width, height), subjects = [[0, 9, 0], [4, 9, 1], [2, 13, 0]];
+    director.shot({ kind: 'wide', subjects: () => subjects.map(p => new THREE.Vector3(...p)), floor: 'auto', clear: .44 }); director.update(1 / 60);
+    for (const point of subjects) {
+      const y = (1 - new THREE.Vector3(...point).project(camera).y) * height / 2;
+      assert.ok(y <= height * (1 - .44) + 1, `${width}x${height}: a subject at ${point} stands above the cleared band (y ${y.toFixed(0)})`);
+    }
+  }
+});

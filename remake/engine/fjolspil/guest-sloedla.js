@@ -28,6 +28,7 @@ import { createRemoteRound } from '../sloedla/remote-round.js';
 import { FOLLOW, MEASURE, createClockSync } from '../sloedla/clock-sync.js';
 import { laneRules } from '../sloedla/lineup.js';
 import { pointsText } from '../sloedla/text.js';
+import { keepScreenAwake } from '../wake-lock.js';
 
 const WORDS = {
   ready: 'Tilbúin!',
@@ -268,10 +269,7 @@ function createScreen(root, { send, doc, post, listen }) {
     });
     canvas.addEventListener('pointerdown', onPointer);
     win?.addEventListener('resize', onResize);
-    win?.navigator?.wakeLock?.request?.('screen').then(lock => {
-      if (at.game) at.lock = lock;
-      else lock.release?.().catch?.(() => {});
-    }).catch(() => {});
+    at.lock = keepScreenAwake({ doc, win });
   }
 
   const onResize = () => at.game?.resize();
@@ -300,7 +298,7 @@ function createScreen(root, { send, doc, post, listen }) {
     at.raf = null;
     at.canvas?.removeEventListener('pointerdown', onPointer);
     win?.removeEventListener('resize', onResize);
-    at.lock?.release?.().catch?.(() => {});
+    at.lock?.dispose?.();
     Object.assign(at, { remote: null, start: null, game: null, canvas: null, lane: -1, lock: null });
   }
 

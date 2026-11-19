@@ -1,0 +1,24 @@
+{
+  "thump.mp3": {
+    "what": "her footfall, and beat 2's far thumps (played at her distance: quieter and duller far off)",
+    "candidate": "C",
+    "seconds": 0.76,
+    "level": -3,
+    "layers": [
+      {
+        "id": "531725",
+        "from": 1.31,
+        "to": 2.07,
+        "seconds": 0.76,
+        "gain": 0,
+        "source": {
+          "id": 531725,
+          "name": "giant footsteps.mp3",
+          "author": "Beefmaster69",
+          "licence": "CC0 1.0",
+          "page": "https://freesound.org/s/531725/"
+        }
+      }
+    ]
+  }
+}

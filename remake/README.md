@@ -104,7 +104,7 @@ The minds (`engine/veiddu/minds.js`) are fair: they remember only what was said 
   `--sound`; `node remake/tools/veiddu-fjolspil-check.mjs` plays Fjölspil headless in Edge over the DevTools protocol (no
   Playwright) with the dev server on port 4256; `node remake/tools/veiddu-sim.mjs` estimates how often Egill wins.
 
-## Hvar er vinur minn?
+## Saman getum við það!
 
 The memory game: `minnisspil.html` on the server above (`/remake/minnisspil.html`), its engine in `engine/memory/` (the long notes are
 `engine/memory/README.md`). It has two levels, each a data file in `engine/memory/levels/` with its own 3D world; the page plays one of them.

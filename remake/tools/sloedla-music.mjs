@@ -143,7 +143,266 @@ export const PRESETS = {
     ],
     negative: [...NEGATIVE, 'piano', 'keys', 'guitar', 'synth lead', 'strings', 'melody', 'pads', 'brass'],
   },
+  // Dýr skógarins, Slóeðla's song (chapter 5, docs/superpowers/plans/2026-11-07-kafli-5-sloedla.md Task 7). The owner turned down
+  // four calm backings on 2026-11-08 (preset `sloedla` in 6ea1020) and asked for a lively, cinematic song with a clear form and a
+  // middle section that a fun video can be cut to, with the animals of the forest taking part. The four versions are the
+  // candidates he picks from by ear. The animals and her horn sing their pentatonic tune on top (kafli5-song.js), so the verses
+  // stay light. The song keeps one tempo and one key, so their tones always fit, and it is played by instrument families the
+  // stem separator can keep apart (drums, bass, the rest), so the chapter can still bring its parts in one at a time.
+  skogur: {
+    name: 'Dýr skógarins',
+    style: 'lively, joyful cinematic adventure song for children',
+    bpm: 112,
+    key: 'F major',
+    keyWords: 'F major',
+    folder: 'v2/skogur',
+    chords: { roman: 'I-V-vi-IV', names: ['F', 'C', 'Dm', 'Bb'], words: 'F, C, D minor, B flat', perBar: 1 },
+    bridgeChords: { roman: 'vi-IV-I-V', names: ['Dm', 'Bb', 'F', 'C'], words: 'D minor, B flat, F, C', perBar: 1 },
+    form: [
+      ['Intro', 'intro', 4, ['a cinematic opening, the forest waking up: a soft shimmering string tremolo and one bright French horn call for two bars', 'the drums and the whole orchestra swell in over the last two bars']],
+      ['Verse 1', 'verse', 8],
+      ['Chorus 1', 'chorus', 8],
+      ['Verse 2', 'verse', 8, ['a little fuller than the first verse, with extra percussion']],
+      ['Chorus 2', 'chorus', 8],
+      ['Middle', 'bridge', 8, ['a clearly different middle section: the big drums drop out to a soft light pulse', 'pizzicato strings and woodwinds tiptoe playfully, like small animals sneaking through the forest', 'a little mysterious but still happy']],
+      ['Build', 'build', 4, ['a big build back to the final chorus: a timpani roll, rising strings and horns, a snare roll in the last bar']],
+      ['Final Chorus', 'final', 8],
+      ['Outro', 'outro', 4],
+    ],
+    kinds: {
+      intro: ['intro', 'builds up over four bars'],
+      verse: ['verse', 'light and bouncy, medium energy', 'the orchestra plays short playful figures', 'leaves open space for a melody on top'],
+      chorus: ['chorus', 'the full orchestra plays the big, catchy main theme', 'high energy, bright and soaring'],
+      bridge: ['middle section', 'drums keep exactly the same steady tempo'],
+      build: ['build-up', 'rising energy and tension', 'drums keep exactly the same steady tempo'],
+      final: ['final chorus', 'the biggest and most triumphant section: the main theme with the whole orchestra and extra percussion'],
+      outro: ['outro', 'a short joyful ending on the same tempo', 'ends with one big final orchestral hit on an F major chord, no fade out'],
+    },
+    core: [
+      'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+      'a full film orchestra: strings, French horns, trumpets, woodwinds, timpani and orchestral percussion',
+      'bouncy pizzicato strings and playful woodwinds in the verses', 'a big soaring theme on strings and French horns in the choruses',
+      'a driving orchestral groove with timpani, snare drum and cymbals keeping a clear steady beat',
+      'bright, warm and triumphant, like the finale of an animated family film',
+    ],
+    negative: [
+      ...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)), 'electronic', 'synthesizer', 'dubstep', 'trailer braams',
+      'electric guitar', 'marimba', 'xylophone', 'glockenspiel', 'bells', 'sad', 'dark', 'scary', 'horror', 'slow', 'lullaby', 'ambient', 'minor key',
+    ],
+    revisions: {
+      2: {
+        core: [
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'big cinematic drums: taiko, toms and deep frame drums, with bouncy hand percussion, congas and shakers',
+          'a driving low string ostinato', 'bold French horns and strings playing a big catchy theme in the choruses',
+          'rhythmic, earthy and wild, like a parade of animals through the jungle', 'bright and triumphant, never dark',
+        ],
+        revision: 'big cinematic drums and hand percussion carry it: taiko, toms, congas, a low string ostinato and bold horns',
+      },
+      3: {
+        core: [
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'a fiddle and a tin whistle playing a lively dancing folk theme', 'a strummed acoustic guitar and a bouncy bodhran drum',
+          'orchestral strings and French horns swelling in the choruses', 'Celtic adventure film music, joyful and dancing',
+        ],
+        revision: 'Celtic folk adventure: a fiddle, a tin whistle, an acoustic guitar and a bodhran with the orchestra',
+      },
+      4: {
+        core: [
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'a cheeky, bouncy cartoon parade march', 'an oompah tuba and a bassoon on the bass',
+          'clarinets, a piccolo and trumpets playing a playful catchy theme', 'snare drum, bass drum and cymbals marching on a steady beat',
+          'pizzicato strings', 'funny and joyful, like the animals marching in a parade in an animated film',
+        ],
+        revision: 'a cheeky cartoon parade march: tuba, bassoon, clarinets, piccolo, trumpets, snare drum and pizzicato',
+      },
+      // Versions 1-4 came back with every section from verse 1 on the same (drum onsets in the middle as in the choruses): the
+      // whole song's words reached every section and won. Version 5 is the film orchestra again with each section's own words first
+      // and its own forbidden styles.
+      5: {
+        sectionFirst: true,
+        core: [
+          'a lively, joyful cinematic adventure song for children: the animals of the forest gather and celebrate together', 'in 4/4 time',
+          'film orchestra: strings, French horns, trumpets, woodwinds, timpani and orchestral percussion',
+          'bright, warm and triumphant, like an animated family film', 'a clear dynamic arc: every section sounds clearly different from the one before',
+        ],
+        kinds: {
+          intro: ['intro', 'a soft cinematic opening that grows', 'quiet at first'],
+          verse: ['verse', 'light and bouncy, medium-low energy: only pizzicato strings, woodwinds and a light snare drum', 'leaves open space for a melody on top'],
+          chorus: ['chorus', 'loud and full: the whole orchestra with big drums, timpani and cymbals', 'the big catchy main theme on strings and French horns', 'high energy'],
+          bridge: ['breakdown', 'a sudden quiet, sparse breakdown with no drums at all', 'only pizzicato strings and a clarinet tiptoeing softly, like small animals sneaking through the forest', 'low energy, soft and a little mysterious but still happy'],
+          build: ['build-up', 'a big crescendo: a timpani roll and a snare drum roll growing louder and louder', 'strings and horns rising', 'tension rising into the final chorus'],
+          final: ['final chorus', 'the loudest, biggest and most triumphant section: the whole orchestra with big drums and crashing cymbals', 'the main theme'],
+          outro: ['outro', 'a short joyful ending on the same tempo', 'ends with one big final orchestral hit on an F major chord, no fade out'],
+        },
+        kindNegative: {
+          verse: ['loud drums', 'timpani', 'cymbal crashes', 'full orchestra', 'brass'],
+          bridge: ['drums', 'drum kit', 'percussion', 'timpani', 'snare drum', 'cymbals', 'brass', 'loud', 'full orchestra'],
+        },
+        revision: 'the film orchestra again, each section with its own words first and its own forbidden styles: a light verse, a loud chorus, a breakdown with no drums, a crescendo, the biggest final chorus',
+      },
+    },
+  },
+  // Djamm: the music under DJ Flugeðla's party set (chapter 5, scene 6). The owner liked the DJ and the idea of the code-made
+  // remixes (2026-11-09) but found their music fake and without energy, so the music is a real-sounding party track and the DJ,
+  // the animals and her horn are laid on top in code. The form is the DJ set "Stóra sviðið" (tools/kafli5-lag/remix-a) bar for
+  // bar at its 125 bpm in G major, so that set's own dj and animals stems land on these sections: 100 bars, 192 s. The three
+  // versions are three kinds of party band; every section has its own words first (see skogur's version 5).
+  djamm: {
+    name: 'Djamm skógarins',
+    style: 'explosive, joyful disco-funk party track played by a live band',
+    bpm: 125,
+    key: 'G major',
+    keyWords: 'G major',
+    folder: 'v2/djamm',
+    sectionFirst: true,
+    chords: { roman: 'I-V-vi-IV', names: ['G', 'D', 'Em', 'C'], words: 'G, D, E minor, C', perBar: 1 },
+    form: [
+      ['Intro', 'intro', 4],
+      ['Welcome', 'welcome', 4],
+      ['Warm-up', 'warmup', 8],
+      ['Dance floor', 'chorus', 8],
+      ['Her tune', 'tune', 8],
+      ['Big animals', 'low', 8],
+      ['Hopping animals', 'bouncy', 8],
+      ['Flying animals', 'high', 8],
+      ['Horn', 'breakdown', 8],
+      ['Build', 'build', 8],
+      ['Drop', 'drop', 4],
+      ['All together', 'final', 8],
+      ['Clap along', 'claps', 4],
+      ['One more time', 'final', 8],
+      ['Outro', 'outro', 4],
+    ],
+    kinds: {
+      intro: ['intro', 'the groove heard muffled and filtered, as if from far away, opening up brighter and brighter over four bars', 'quiet at first'],
+      welcome: ['second half of the intro', 'only the drums and the bass play the groove, punchy and clear', 'no chords and no melody yet', 'a drum fill in the last bar'],
+      warmup: ['verse', 'the groove with drums, bass and a rhythm part, medium energy', 'grows a little every two bars', 'the main hook is not played yet', 'a rising fill into the next section'],
+      chorus: ['chorus', 'loud and full: the whole band at high energy plays the big, catchy main hook', 'extra percussion and hand claps'],
+      tune: ['verse', 'the drums and the bass keep the groove strong while everything else pulls back', 'light chords only: leaves open space for a melody on top', 'medium energy'],
+      low: ['verse', 'a heavy, low, stomping version of the groove: big low drums and deep bass notes, like big animals stamping their feet', 'leaves open space for a melody on top', 'the second half feels lazier and heavier, a half-time feel at exactly the same tempo'],
+      bouncy: ['verse', 'a bouncy, springy, playful version of the groove with short staccato notes, like frogs hopping', 'the second half gets busier, with fast and light sixteenth-note percussion', 'leaves open space for a melody on top'],
+      high: ['verse', 'a light, airy version of the groove: the bass thins out, high sparkling instruments and light percussion', 'the last two bars are only clicking percussion and a rising whoosh into the breakdown', 'leaves open space for a melody on top'],
+      breakdown: ['breakdown', 'a sudden quiet, sparse breakdown with no drums at all', 'only soft, warm sustained chords', 'low energy, calm and magical: leaves open space for a solo on top'],
+      build: ['build-up', 'the kick drum returns softly and the music grows louder and louder for eight bars', 'rising tension: a riser, and a snare roll that speeds up through the last two bars'],
+      drop: ['the drop', 'the loudest and biggest moment of the song: the whole band slams back in at full power with the main hook', 'crash cymbals and huge drums'],
+      final: ['final chorus', 'the biggest and most triumphant section: the main hook with the whole band, extra percussion and hand claps', 'very high energy'],
+      claps: ['clap-along break', 'only the drums and loud hand claps on every beat, like a crowd clapping along', 'the bass and every other instrument drop out', 'a drum fill and a rise in the last bar'],
+      outro: ['outro', 'the main hook one last time at the same tempo', 'ends with one big final hit on a G major chord, no fade out'],
+    },
+    kindNegative: {
+      tune: ['prominent lead melody', 'lead solo'],
+      low: ['prominent lead melody', 'lead solo'],
+      bouncy: ['prominent lead melody', 'lead solo'],
+      high: ['prominent lead melody', 'lead solo', 'heavy bass'],
+      breakdown: ['drums', 'drum kit', 'percussion', 'kick drum', 'snare drum', 'cymbals', 'hi-hats', 'bass line', 'loud', 'full band', 'lead melody'],
+      claps: ['bass', 'chords', 'melody', 'brass', 'strings', 'synth lead'],
+    },
+    core: [
+      'an explosive, joyful disco-funk party track for a children\'s dance party', 'in 4/4 time',
+      'a real live band recorded in a studio: a punchy live drum kit playing four-on-the-floor with open hi-hats on the off-beats, a slapped funky electric bass guitar, a chicken-scratch wah rhythm guitar, a tight brass section of trumpets and saxophones, lush disco strings, a clavinet, congas and a cowbell',
+      'loud, punchy, wide and polished modern production with a huge low end', 'irresistibly danceable', 'every section sounds clearly different from the one before',
+    ],
+    negative: [
+      ...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)),
+      'sad', 'dark', 'scary', 'slow', 'lullaby', 'ambient', 'lo-fi', 'chiptune', '8-bit', 'toy instruments', 'thin sound', 'cheap MIDI sound', 'minor key',
+    ],
+    revision: 'a live disco-funk band: four-on-the-floor drum kit, slapped bass, wah guitar, brass section, disco strings',
+    revisions: {
+      2: {
+        style: 'explosive, joyful festival dance-pop anthem',
+        core: [
+          'an explosive, joyful festival dance-pop EDM anthem for a children\'s dance party', 'in 4/4 time',
+          'a huge punchy electronic kick drum on every beat, pumping sidechained supersaw chords, a bouncy plucked synth hook, a deep sub bass, big claps and snares, white-noise risers, snare rolls and impacts',
+          'loud, wide and polished modern festival production with a huge low end', 'irresistibly danceable', 'every section sounds clearly different from the one before',
+        ],
+        revision: 'a festival dance-pop anthem: big electronic kick, pumping supersaw chords, a plucked synth hook, risers and a huge drop',
+      },
+      3: {
+        style: 'explosive, joyful Brazilian carnival samba party with a big brass band',
+        core: [
+          'an explosive, joyful Brazilian carnival samba party for a children\'s dance party', 'in 4/4 time',
+          'a real live samba drum school: deep surdo drums, snare drums, tamborims, agogo bells, shakers and a carnival whistle, with a big brass section of trumpets, trombones and saxophones playing catchy riffs, a piano montuno and an electric bass guitar',
+          'a street carnival parade recorded live: loud, punchy and exciting, with a huge low end', 'irresistibly danceable', 'every section sounds clearly different from the one before',
+        ],
+        revision: 'a carnival samba party: a live samba drum school, a big brass section, piano and bass',
+      },
+    },
+  },
 };
+
+// More records for DJ Flugeðla's crate (2026-11-09). The owner picked djamm's disco-funk band, and agreed that its one eight-bar
+// vamp for three minutes is the weak spot. The model plays one thing for a whole song whatever its sections ask, but every request
+// gets a character of its own, so each new part is a short song of its own by the same band at the same 125 bpm: four bars in,
+// sixteen bars of the part, four bars out (the DJ cuts the sixteen). The animals sing A B C# E F# over them (the vamp came back
+// as Em7-A7), so the parts ask for A major; whatever key comes back is measured.
+const DJAMM_PART = {
+  bpm: 125, key: 'A major', keyWords: 'A major', sectionFirst: true,
+  form: [['Lead-in', 'in', 4], ['Part', 'part', 16], ['Lead-out', 'out', 4]],
+  negative: [...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)), 'sad', 'dark', 'scary', 'slow', 'lullaby', 'ambient', 'lo-fi', 'chiptune', '8-bit', 'toy instruments', 'thin sound', 'cheap MIDI sound', 'fade in', 'fade out'],
+};
+const DJAMM_BAND = 'a real live disco-funk band recorded in a studio: a punchy live drum kit, a slapped funky electric bass guitar, a chicken-scratch wah rhythm guitar, a tight brass section of trumpets and saxophones, lush disco strings, a clavinet, congas and a cowbell';
+const DJAMM_SOUND = 'loud, punchy, wide and polished modern production with a huge low end';
+Object.assign(PRESETS, {
+  // the chorus the vamp never had: other chords and a hook to sing along to
+  'djamm-vidlag': {
+    ...DJAMM_PART,
+    name: 'Djamm: viðlag',
+    style: 'the big, catchy chorus of a joyful disco-funk party song',
+    folder: 'v2/djamm-vidlag',
+    chords: { roman: 'I-IV-vi-V', names: ['A', 'D', 'F#m', 'E'], words: 'A, D, F sharp minor, E', perBar: 1 },
+    kinds: {
+      in: ['the chorus starts at once at full power, no intro'],
+      part: ['the chorus', 'the brass section plays a big, bright, catchy hook that a child could sing back, answered by the strings', 'four-on-the-floor kick with open hi-hats on the off-beats and hand claps on two and four', 'the loudest, happiest part of the song, very high energy'],
+      out: ['the chorus hook one more time at the same tempo', 'ends with one big hit on an A major chord'],
+    },
+    core: ['the big chorus of an explosive, joyful disco-funk party song for a children\'s dance party', 'in 4/4 time', DJAMM_BAND, DJAMM_SOUND, 'irresistibly danceable'],
+  },
+  // a heavy half-time funk part for the big, slow animals
+  'djamm-fonk': {
+    ...DJAMM_PART,
+    name: 'Djamm: þungt fönk',
+    style: 'a heavy, slow-feeling half-time funk groove',
+    folder: 'v2/djamm-fonk',
+    chords: { roman: 'I7', names: ['A7'], words: 'one chord only, A7, a one-chord funk vamp', perBar: 1 },
+    kinds: {
+      in: ['the groove starts at once, no intro'],
+      part: ['a heavy half-time funk groove: the snare drum hits only on beat three, so it feels half as fast at exactly the same tempo', 'a deep, fat, growling bass guitar riff and a funky clavinet riff', 'low brass stabs from trombones and a baritone saxophone', 'big, heavy and swaggering, like huge animals stomping', 'leaves open space on top'],
+      out: ['the same heavy groove', 'ends with one big hit'],
+    },
+    core: ['a heavy, swaggering half-time funk groove from a joyful party song for a children\'s dance party', 'in 4/4 time', DJAMM_BAND, DJAMM_SOUND],
+  },
+  // a percussion break: nothing pitched, so it fits under anything
+  'djamm-slagverk': {
+    ...DJAMM_PART,
+    name: 'Djamm: slagverk',
+    style: 'a live percussion break',
+    folder: 'v2/djamm-slagverk',
+    chords: { roman: 'none', names: [], words: 'no chords at all: only drums and percussion', perBar: 1 },
+    kinds: {
+      in: ['the percussion starts at once, no intro'],
+      part: ['a percussion break: only drums and hand percussion, no bass, no chords and no melody', 'a four-on-the-floor kick drum, congas, bongos, timbales, a cowbell, shakers, a tambourine and loud hand claps', 'the players trade exciting fills', 'a crowd-pleasing drum break at high energy'],
+      out: ['the percussion keeps going', 'ends with a timbales fill and one big hit'],
+    },
+    core: ['a live percussion break from an explosive, joyful disco-funk party song for a children\'s dance party', 'in 4/4 time', 'real live drummers and percussionists recorded in a studio', DJAMM_SOUND],
+    negative: [...DJAMM_PART.negative, 'bass guitar', 'bass line', 'guitar', 'piano', 'keys', 'brass', 'strings', 'synthesizer', 'chords', 'melody'],
+  },
+  // a quiet bed under Slóeðla's horn: no drums at all
+  'djamm-rolegt': {
+    ...DJAMM_PART,
+    name: 'Djamm: rólegt',
+    style: 'a quiet, warm breakdown with no drums',
+    folder: 'v2/djamm-rolegt',
+    chords: { roman: 'IV-V-vi-I', names: ['D', 'E', 'F#m', 'A'], words: 'D, E, F sharp minor, A', perBar: 1 },
+    kinds: {
+      in: ['the quiet part starts at once, no intro'],
+      part: ['a quiet breakdown with no drums and no percussion at all', 'only a warm electric piano playing soft chords on the beat and slow, lush disco strings', 'calm, magical and full of wonder, like fireflies over a pond at night', 'leaves open space for a solo on top', 'the strings rise a little over the last four bars'],
+      out: ['the same quiet chords', 'ends on a soft held A major chord'],
+    },
+    core: ['the quiet breakdown of a joyful disco-funk party song for a children\'s dance party', 'in 4/4 time', 'a warm electric piano and lush disco strings recorded in a studio', 'warm, wide and polished modern production'],
+    negative: [...DJAMM_PART.negative.filter(style => !['slow', 'ambient'].includes(style)), 'drums', 'drum kit', 'percussion', 'kick drum', 'snare drum', 'cymbals', 'hi-hats', 'bass guitar', 'brass', 'loud'],
+  },
+});
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
 /** A preset by name (or a preset itself) as it is for a version. */
@@ -176,15 +435,19 @@ export function planOf(preset, version = 1) {
   const kinds = { ...KINDS, ...(p.kinds ?? {}) };
   const chunks = sectionsOf(preset).map(section => {
     const chords = section.kind === 'bridge' ? p.bridgeChords ?? p.chords : p.chords;
+    const grid = [
+      `${p.bpm} BPM`, `steady tempo, never speeds up or slows down`, `in ${p.keyWords}`,
+      `simple chord progression ${chords.roman} in ${p.keyWords}: ${chords.words}, one chord per bar, repeating`,
+    ];
+    const whole = [...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals'];
+    const own = [...kinds[section.kind], ...section.styles];
     return {
       text: `[${section.name}]`,
       duration_ms: section.durationMs,
-      positive_styles: [
-        `${p.bpm} BPM`, `steady tempo, never speeds up or slows down`, `in ${p.keyWords}`,
-        `simple chord progression ${chords.roman} in ${p.keyWords}: ${chords.words}, one chord per bar, repeating`,
-        ...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals', ...kinds[section.kind], ...section.styles,
-      ],
-      negative_styles: p.negative ?? NEGATIVE,
+      // sectionFirst: the section's own words before the whole song's, so the model does not play every section the same way
+      positive_styles: p.sectionFirst ? [...grid, ...own, ...whole] : [...grid, ...whole, ...own],
+      // kindNegative: styles one kind of section may not have (a middle section with no drums)
+      negative_styles: [...(p.negative ?? NEGATIVE), ...(p.kindNegative?.[section.kind] ?? [])],
     };
   });
   return { chunks };

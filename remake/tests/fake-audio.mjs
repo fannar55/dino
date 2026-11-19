@@ -16,6 +16,10 @@ export class FakeParam {
   set value(value) { this.setValueAtTime(value, this.context.currentTime); }
 
   insert(event) {
+    // as a browser does: a value or time that is not a finite number throws (a NaN pan stopped chapter 5's song on the page)
+    for (const key of ['value', 'time', 'tau']) {
+      if (key in event && !Number.isFinite(event[key])) throw new TypeError(`Failed to set the AudioParam: the provided ${key} (${event[key]}) is non-finite.`);
+    }
     let i = this.events.length;
     while (i > 0 && this.events[i - 1].time > event.time) i--;
     this.events.splice(i, 0, event);
@@ -188,6 +192,9 @@ export class FakeMediaElement extends EventTarget {
     return { length: 1, start: () => 0, end: () => end };
   }
 
+  /** What the browser says once a file that does not loop has played to its end. */
+  get ended() { return !this.loop && Number.isFinite(this.duration) && this.time >= this.duration; }
+
   get currentTime() { return this.time; }
   set currentTime(value) {
     this.seeks.push(value);
@@ -336,7 +343,7 @@ export class FakeContext extends EventTarget {
   }
 
   createBufferSource() {
-    const source = new FakeSource(this, 'bufferSource', { playbackRate: 1 });
+    const source = new FakeSource(this, 'bufferSource', { playbackRate: 1, detune: 0 });
     source.buffer = null;
     source.loop = false;
     return source;

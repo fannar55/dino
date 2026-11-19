@@ -2009,7 +2009,9 @@
         "skjaldböku",
         "skjaldbökuna",
         "Skjaldbökur",
-        "skjaldbökur"
+        "skjaldbökur",
+        "Skjaldbökurnar",
+        "Skjaldbakan"
       ],
       "recipes": {
         "hratt": {
@@ -2057,6 +2059,19 @@
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
+        },
+        "vaa": {
+          "say": "Váá",
+          "note": "Tvö á: lengir sérhljóðið (eigandinn 2026-11-15: „Vá“ hljómaði eins og „va“, vill meira „Váá“)."
+        },
+        "ipa": {
+          "say": "/vauː/",
+          "note": "Íslenska á-ið í IPA, langt: [vauː]."
+        },
+        "samhengi": {
+          "context": "Vááá, sjáðu! Þetta er svo flott!",
+          "seed": 3,
+          "note": "Langt íslenskt vá sent á undan sem samhengi, ekki talað. Vann hjá eigandanum 2026-11-15 á k4_egill_vaa (af fimm), sem ber það sem sína lausn."
         }
       },
       "chosen": "hratt"
@@ -2129,6 +2144,46 @@
         }
       },
       "chosen": "hratt"
+    },
+    "fljugid": {
+      "word": "Fljúgið",
+      "stem": "[Ff]ljúgi",
+      "forms": [
+        "Fljúgið"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eigandinn heyrði „Fljúgið“ rangt í öllum fjórum tökum (2026-11-04): óbreytt, fræ 1, línurnar á undan sem samhengi, línan sjálf sem samhengi."
+        },
+        "ipa": {
+          "say": {
+            "Fljúgið": "\"/ˈfljuːjɪθ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfljuːjɪθ/: g milli sérhljóða á undan i er borið fram j, ð í lok orðs óraddað."
+        },
+        "stafsetning": {
+          "say": {
+            "Fljúgið": "Fljújið"
+          },
+          "seed": 42,
+          "note": "„Fljújið“: g-ið skrifað eins og það heyrist (j)."
+        },
+        "samhengi": {
+          "context": "Fuglarnir fljúga hátt yfir skóginum. Fljúgið þið líka, vinir mínir!",
+          "seed": 7,
+          "note": "Sent eins og það er skrifað, með setningu um að fljúga sem samhengi (ekki talað)."
+        },
+        "samhengi-ipa": {
+          "say": {
+            "Fljúgið": "\"/ˈfljuːjɪθ/\""
+          },
+          "context": "Fuglarnir fljúga hátt yfir skóginum. Fljúgið þið líka, vinir mínir!",
+          "seed": 7,
+          "note": "IPA /ˈfljuːjɪθ/ og setningin um að fljúga sem samhengi saman."
+        }
+      },
+      "chosen": "samhengi"
     },
     "hver": {
       "word": "Hver",
@@ -2970,6 +3025,90 @@
         }
       },
       "chosen": "stafsetning"
+    },
+    "grasbitur": {
+      "word": "Grasbítur",
+      "stem": "[Gg]rasbít",
+      "forms": [
+        "Grasbítarnir",
+        "grasbítarnir",
+        "grasbítar",
+        "Grasbítar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        },
+        "samhengi": {
+          "context": "Sjáðu stóru dýrin sem bíta gras á bakkanum! Þetta eru grasbítarnir.",
+          "note": "Bent á dýrin. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-kall": {
+          "context": "Nú eiga stóru grasbítarnir að syngja. Mosi bendir á þá og kallar glaður til Egils:",
+          "note": "Glatt kall. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-rolegt": {
+          "context": "Mosi kennir Agli nöfnin á dýrunum við tjörnina, rólega og skýrt. Þetta eru grasbítarnir.",
+          "note": "Rólegt og skýrt. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        }
+      },
+      "chosen": null
+    },
+    "smaedla": {
+      "word": "Smáeðla",
+      "stem": "[Ss]máeðl",
+      "forms": [
+        "Smáeðlurnar",
+        "Smáeðlur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        }
+      },
+      "chosen": null
+    },
+    "flugdyr": {
+      "word": "Flugdýr",
+      "stem": "[Ff]lugdýr",
+      "forms": [
+        "Flugdýrin",
+        "flugdýrin",
+        "flugdýr",
+        "Flugdýr"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar í kafla 5 gerðar). Þú hefur ekki dæmt orðið á já/nei-síðu enn."
+        },
+        "samhengi": {
+          "context": "Sjáðu dýrin sem fljúga þarna uppi yfir tjörninni! Þetta eru flugdýrin.",
+          "note": "Bent á dýrin. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-kall": {
+          "context": "Nú eiga litlu flugdýrin að syngja. Mosi bendir á þau og kallar glaður til Egils:",
+          "note": "Glatt kall. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-rolegt": {
+          "context": "Mosi kennir Agli nöfnin á dýrunum við tjörnina, rólega og skýrt. Þetta eru flugdýrin.",
+          "note": "Rólegt og skýrt. Línan fékk nei hjá þér 2026-11-11 þegar hún var send ein. Samhengið er sent á undan en ekki talað."
+        }
+      },
+      "chosen": null
+    },
+    "randyr": {
+      "word": "Rándýr",
+      "stem": "[Rr]ándýr",
+      "forms": [
+        "rándýrið",
+        "rándýr"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Flugeðla segir „Stærsta rándýrið!“ í kafla 4, sögumaður „svöng rándýr“ í bókinni). Eigandinn sagði já við „Stærsta rándýrið!“ á já/nei-síðunni 2026-11-16."
+        }
+      },
+      "chosen": "hratt"
     }
   },
   "lines": {

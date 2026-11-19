@@ -345,6 +345,28 @@ test('a cancelled touch ends its drag, is never a tap, and leaves the pointer re
   assert.equal(taps.length, 1, 'the next touch works');
 });
 
+test('sub-2px capacitive jitter from a resting grip thumb does not hijack a drag, and lostpointercapture ends a drag cleanly', () => {
+  const { pointer, send, tapOn } = pointerRig();
+  const { taps, drags } = watch(pointer);
+  send('pointerdown', 100, 100, 0, 1);
+  send('pointermove', 135, 100, 10, 1); // finger 1 drags
+  send('pointerdown', 20, 400, 20, 2); // grip thumb lands on bezel
+  send('pointermove', 34, 400, 30, 2); // slips 14 px while settling into grip
+  send('pointerup', 135, 100, 40, 1); // finger 1 lifts
+  send('pointermove', 35, 400.5, 50, 2); // 1.12 px capacitive jitter on grip thumb
+  assert.deepEqual(drags.map(d => d.phase), ['start', 'end'], 'sub-2px jitter does not claim a new drag');
+  send('pointerup', 35, 400.5, 60, 2);
+  assert.deepEqual(taps, []);
+
+  // lostpointercapture cleans up a stuck finger without firing a tap
+  send('pointerdown', 200, 200, 100, 3);
+  send('pointermove', 240, 200, 120, 3);
+  send('lostpointercapture', 0, 0, 140, 3);
+  assert.deepEqual(drags.slice(2).map(d => d.phase), ['start', 'end'], 'lost capture ends the drag cleanly');
+  tapOn(EGILL);
+  assert.equal(taps.length, 1);
+});
+
 test('a tap finds a moving target where it is now, and the press is what is picked', () => {
   const { pointer, world, tapOn, screenOf, send } = pointerRig();
   const { taps } = watch(pointer);
@@ -641,6 +663,55 @@ test('onTap hears every tap on its target, with or without a wait, until it is s
   tapOn(EGILL);
   assert.deepEqual(heard, [['b', 'egill'], ['c', 400, 250]]);
   stopA(); // twice is fine
+});
+
+test('onDrag hears every drag, start to end, until it is stopped, and the scene stopping stops it', () => {
+  const { stage, s, send } = rig();
+  const heard = [];
+  const stop = s.onDrag(event => heard.push([event.phase, Math.round(event.dx), Math.round(event.dy)]));
+  send('pointerdown', 100, 100, 0);
+  send('pointermove', 130, 100, 50); // past the 12 px slop: the drag starts
+  send('pointermove', 150, 120, 100);
+  send('pointerup', 150, 120, 150);
+  assert.deepEqual(heard.map(h => h[0]), ['start', 'move', 'end']);
+  assert.deepEqual(heard.slice(0, 2).map(h => [h[1], h[2]]), [[30, 0], [20, 20]], 'the finger travel, piece by piece');
+  stop();
+  heard.length = 0;
+  send('pointerdown', 100, 100, 1000);
+  send('pointermove', 140, 100, 1050);
+  send('pointerup', 140, 100, 1100);
+  assert.deepEqual(heard, [], 'stopped');
+  stop(); // twice is fine
+  s.onDrag(event => heard.push(event.phase));
+  stage.stop();
+  send('pointerdown', 100, 100, 2000);
+  send('pointermove', 140, 100, 2050);
+  send('pointerup', 140, 100, 2100);
+  assert.deepEqual(heard, [], 'the scene stopping stops it too');
+});
+
+test('the scene listens to the pointer\'s drags only while an onDrag handler wants them (a search counts its own)', () => {
+  const base = pointerRig();
+  const listening = [];
+  const on = base.pointer.on;
+  base.pointer.on = (event, fn) => {
+    const off = on(event, fn);
+    if (event !== 'drag') return off;
+    listening.push(fn);
+    return () => { listening.splice(listening.indexOf(fn), 1); off(); };
+  };
+  const stage = createScene({ world: base.world, director: { stop() {}, handheld() {} }, ui: { reset() {} }, voice: { stop() {} }, pointer: base.pointer });
+  assert.equal(listening.length, 0, 'none at first');
+  const a = stage.s.onDrag(() => {});
+  const b = stage.s.onDrag(() => {});
+  assert.equal(listening.length, 1, 'one for all the handlers');
+  a();
+  assert.equal(listening.length, 1);
+  b();
+  assert.equal(listening.length, 0, 'none once the last handler stops');
+  stage.s.onDrag(() => {});
+  stage.stop();
+  assert.equal(listening.length, 0, 'none once the scene stops');
 });
 
 test('s.target adds, replaces and removes a target', () => {

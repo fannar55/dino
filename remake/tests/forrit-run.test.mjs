@@ -142,7 +142,7 @@ test('a file whose fingerprint is wrong is not kept, and the next start fetches 
   const list = site.list();
   assert.equal((await storedHashes(dev.caches)).has(list.files['/remake/assets/a.mp3'].hash), false);
   assert.equal(await markOf(dev.caches, 'tilbuin'), null);
-  assert.notEqual(first.texts.at(-1), 'Tilbúinn án nets ✓');
+  assert.match(first.texts.at(-1) ?? '', /^Vantar net til að klára \(/, 'settles to needNet instead of freezing on downloading');
 
   delete site.served['/remake/assets/a.mp3'];
   const second = dev.start(site);

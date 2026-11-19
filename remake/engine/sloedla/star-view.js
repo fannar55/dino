@@ -72,8 +72,14 @@ export async function createStarView({ canvas, url, facing = [0, 0, 0], keep = f
     return star;
   }
 
-  let width = 1, height = 1, drawn = false;
+  let width = 1, height = 1, drawn = false, lost = false, disposed = false;
+  function onContextLost(event) {
+    event?.preventDefault?.();
+    lost = true;
+  }
+  canvas.addEventListener?.('webglcontextlost', onContextLost, false);
   function resize(w, h) {
+    if (lost) return;
     width = Math.max(1, w);
     height = Math.max(1, h);
     renderer.setPixelRatio(Math.min(MAX_RATIO, win.devicePixelRatio || 1));
@@ -90,6 +96,7 @@ export async function createStarView({ canvas, url, facing = [0, 0, 0], keep = f
   return {
     /** Draws `list` (star states with ids); with none, clears once and then does nothing. */
     draw(list) {
+      if (lost) return;
       if (!list.length) {
         if (!drawn) return;
         for (const star of stars.values()) star.holder.visible = false;
@@ -120,9 +127,24 @@ export async function createStarView({ canvas, url, facing = [0, 0, 0], keep = f
     },
     resize,
     clear() {
+      if (lost) return;
       for (const star of stars.values()) star.holder.visible = false;
       renderer.render(scene, camera);
       drawn = false;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      lost = true;
+      canvas.removeEventListener?.('webglcontextlost', onContextLost);
+      shape.traverse(node => {
+        node.geometry?.dispose();
+        for (const material of [].concat(node.material ?? [])) material.dispose?.();
+      });
+      for (const star of stars.values()) star.material.dispose();
+      stars.clear();
+      renderer.dispose();
+      renderer.forceContextLoss?.();
     },
   };
 }

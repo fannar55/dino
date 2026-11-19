@@ -24,6 +24,10 @@
 //   farFriends, lookout  where the friends far out in the Fen are and the point they are seen from: tall plants keep out of
 //           the lines between them
 //   mossClear [{ center: [x, z], radius }]: no hanging moss from inside these discs (moss.js), the plan unchanged
+//   leaveOut  (info, placement) => true for a plant (placementInfo: name, x, z, height, radius, ...; and the placement with its
+//           model) the place grows without: the plan is
+//           made as it would be and those plants are taken out of it before anything is built (a walk through the trees in one
+//           chapter, Fiðrildadansinn), so every other plant stays where it was
 //   sectors   { clearing, edge, inner, deep }: how many sector meshes each band is cut into (config.js: bands.sectors); fewer, bigger ones draw in fewer calls
 //   farRings  the far treeline's rings (far.js) instead of the biome's own: [{ radius, rows, spacing, height, crown, strip, color, haze, topHaze, araucaria }]
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
@@ -43,6 +47,7 @@ import { createBatcher, cullBatches, cullCasters } from './batch.js';
 import { createGrassSteps } from './grass.js';
 import { createFarForestSteps } from './far.js';
 import { createAtmosphere } from './atmosphere.js';
+import { createForestLife } from './life.js';
 import { createHangingMoss } from './moss.js';
 import { smoothstep, clamp } from './random.js';
 import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
@@ -168,7 +173,8 @@ function mistPoints(water, [cx, cz], radius, actors = {}) {
 /**
  * What the forest tells of one plant it grew (info.placementList): its kind, detail level, place and scale, the triangles
  * it costs, and its size in metres: how far it reaches round (radius), how tall it is, and for a plant with a trunk where
- * the trunk ends (top) and how thick it is there (trunk). A chapter places things by plants with it (kafli1's flowers).
+ * the trunk ends (top) and how thick it is there (trunk); for a dead snag also where its broken top is ([x, z], tip) and how thick
+ * it is there (tipR). A chapter places things by plants with it (kafli1's flowers).
  */
 export function placementInfo(p) {
   const { model, scale } = p;
@@ -177,7 +183,14 @@ export function placementInfo(p) {
     tris: (model.solid ? model.solid.triangles : 0) + (model.thin ? model.thin.triangles : 0),
     radius: model.radius * scale, height: model.height * scale,
     top: model.trunk ? model.trunk.top * scale : null, trunk: model.trunk ? model.trunk.r * scale : null,
+    ...(model.trunk?.tip ? { tip: tipOf(p), tipR: model.trunk.tipR * scale } : {}),
   };
+}
+
+/** Where a plant's trunk ends, in the world ([x, z]): its own `tip`, turned and scaled as the plant is placed (batch.js). */
+function tipOf({ model, x, z, rot, scale }) {
+  const [lx, lz] = model.trunk.tip, c = Math.cos(rot), s = Math.sin(rot);
+  return [x + (lx * c - lz * s) * scale, z + (lx * s + lz * c) * scale];
 }
 
 /**
@@ -215,6 +228,12 @@ function* forestSteps(world, layout) {
   const { terrain } = ground;
   const library = createSpeciesLibrary(seed);
   const plan = yield* planForestSteps({ world, layout, seed, terrain, library, q });
+  // a chapter's own few plants left out of the place as planned (layout.leaveOut), before anything is built from the plan
+  if (layout.leaveOut) {
+    const before = plan.placements.length;
+    plan.placements = plan.placements.filter(p => !layout.leaveOut(placementInfo(p), p));
+    plan.stats.leftOut = before - plan.placements.length;
+  }
   yield 'planned';
 
   // canopy shade from the crowns round the clearing (their ground shadows along the sun)
@@ -280,6 +299,9 @@ function* forestSteps(world, layout) {
     : null;
   if (water) group.add(water.group);
   yield 'water';
+  const life = createForestLife(world, { layout, seed, terrain, placements: plan.placements, water, q });
+  group.add(life.group);
+  yield 'life';
   // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing (some 25 ms: a slice of its own)
   yield FRESH;
   const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, {
@@ -306,6 +328,7 @@ function* forestSteps(world, layout) {
   const info = {
     buildMs: Math.round(performance.now() - t0),
     placements: plan.stats.counts,
+    leftOut: plan.stats.leftOut ?? 0,
     rejected: plan.stats.rejected,
     framing: plan.stats.framing,
     accents: plan.stats.accents,
@@ -330,6 +353,7 @@ function* forestSteps(world, layout) {
   if (off.has('ground')) groundMesh.visible = false;
   if (off.has('far')) far.mesh.visible = false;
   if (off.has('air')) air.group.visible = false;
+  if (off.has('life')) life.group.visible = false;
   const castersOn = !off.has('shadows') && !off.has('trees');
   for (const band of ['clearing', 'edge', 'inner', 'deep']) {
     if (off.has(band)) for (const m of meshes) if (m.userData.band === band) m.userData.hidden = true;
@@ -343,17 +367,27 @@ function* forestSteps(world, layout) {
   // and update() hides them all again in case a shadow pass was cut short.
   const sun = world.lighting.sun;
   const shadow = sun?.shadow;
-  const updateShadowMatrices = shadow ? shadow.updateMatrices.bind(shadow) : null;
+  let disposed = false;
   function showCasters() {
-    if (!castersOn || !group.visible) return;
+    if (disposed || !castersOn || !group.visible) return;
     for (const m of casterMeshes) m.visible = m.userData.cull.submitted > 0;
   }
   function hideCasters() { for (const m of casterMeshes) m.visible = false; }
+  let shadowHooks = null;
+  let onShadowPass = null;
   if (shadow && casterMeshes.length) {
-    shadow.updateMatrices = function forestShadowPass(light, viewport) {
-      updateShadowMatrices(light, viewport);
-      if (light === sun) showCasters();
-    };
+    shadowHooks = shadow._forestShadowHooks;
+    if (!shadowHooks) {
+      shadowHooks = new Set();
+      shadow._forestShadowHooks = shadowHooks;
+      const before = shadow.updateMatrices;
+      shadow.updateMatrices = function forestShadowPass(light, viewport) {
+        before.call(this, light, viewport);
+        for (const fn of shadowHooks) fn(light);
+      };
+    }
+    onShadowPass = light => { if (light === sun) showCasters(); };
+    shadowHooks.add(onShadowPass);
     for (const m of casterMeshes) {
       m.frustumCulled = false;
       m.onAfterShadow = (renderer, object) => { object.visible = false; };
@@ -401,6 +435,7 @@ function* forestSteps(world, layout) {
     cullIfMoved();
     grass.update(world.camera);
     air.update(world.camera);
+    life.update(dt, time ?? 0);
     water?.update(time ?? 0);
     water?.wade(world.actors.values()); // rings round the feet of whoever stands in the water
     for (const mist of mists) mist.update(time ?? 0);
@@ -409,6 +444,8 @@ function* forestSteps(world, layout) {
   return {
     group,
     info,
+    /** The plants as planned, each with its model (a probe fits trunks and crowns from their geometry: engine/tree-probe.js). */
+    placements: plan.placements,
     update,
     get stats() { return { submitted, casterTris }; },
     /** Strength of the warm light round characters (tools compare frames with it off). */
@@ -418,20 +455,25 @@ function* forestSteps(world, layout) {
     butterflies: air.butterflies,
     /** The Fen's water (world/props/water.js: surfaceAt, depthAt, rippleAt, bubblesAt), or null where there is none. */
     water,
+    /** Ambient wildlife (world/forest/life.js: songbirds, lizards, turtles, frogs, dragonflies, flyers). */
+    life,
     /** The place's low mists (world/props/mist.js: setLevel), in the layout's order. */
     mists,
     dispose() {
+      disposed = true;
+      hideCasters();
+      if (shadowHooks && onShadowPass) shadowHooks.delete(onShadowPass);
       scene.remove(group);
       groundMesh.geometry.dispose();
       floor.material.dispose();
       floor.mask.tex.dispose();
       floor.mask.shade?.dispose();
+      life.dispose();
       water?.dispose();
       moss?.dispose();
       for (const mist of mists) mist.dispose();
       for (const m of meshes) m.geometry.dispose();
       for (const m of casterMeshes) m.geometry.dispose();
-      if (shadow && updateShadowMatrices) shadow.updateMatrices = updateShadowMatrices;
       solid.dispose(); thin.dispose(); solidDepth.dispose(); thinDepth.dispose();
       grass.dispose();
       far.dispose();

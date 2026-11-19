@@ -77,6 +77,40 @@ function halsOf(value) {
   return { found: idsOf(value.found), ...(game && { game }), ...(value.intro === true && { intro: true }), ...(value.hello === true && { hello: true }), ...(value.played === true && { played: true }) };
 }
 
+const STICKER_GAMES = ['hals', 'junior', 'sloedla', 'minnisspil'];
+
+/** Stickers won in the other minigames (Eitt! and Veiddu keep theirs in eitt.wins and veiddu.wins); or null when none yet. */
+function stickersOf(value) {
+  if (!value || typeof value !== 'object') return null;
+  const kept = {};
+  for (const game of STICKER_GAMES) {
+    const n = count(value[game]);
+    if (n) kept[game] = n;
+  }
+  return Object.keys(kept).length ? kept : null;
+}
+
+/**
+ * Tells the book over an iframe game ({ type: 'mosi:sticker', game }) that a round was won, or records it directly in
+ * localStorage when the game is played on its own tab. Never throws.
+ */
+export function awardSticker(game, win = globalThis.window) {
+  if (!STICKER_GAMES.includes(game)) return;
+  try {
+    if (win && win.parent && win.parent !== win) {
+      win.parent.postMessage({ type: 'mosi:sticker', game }, win.location.origin);
+      return;
+    }
+  } catch {
+    // fall back to localStorage
+  }
+  try {
+    createSave().addSticker(game);
+  } catch {
+    // storage blocked
+  }
+}
+
 /**
  * `get()` is a copy of { stars, findings, seen, places }, each a list of ids in the order they came. `addStar(id)`,
  * `addFinding(id)`, `addSeen(id)` and `addPlace(id)` keep an id once however often they are called, and say whether it was new.
@@ -97,6 +131,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   let eitt = null; // the card game's, once a round has been played
   let veiddu = null; // Uggeðla's card game's, once a round has been played
   let hals = null; // the fossil collection, once the first fossil has been found
+  let stickers = null; // stickers won in Háls og hali, Litla Yatzy, Söngur Slóeðlu and Saman getum við það!
 
   try {
     const stored = JSON.parse(storage?.getItem(key) ?? 'null');
@@ -108,6 +143,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       eitt = eittOf(stored.eitt); // none in a save from before the game
       veiddu = veidduOf(stored.veiddu); // none in a save from before Veiddu
       hals = halsOf(stored.hals); // none in a save from before the fossils
+      stickers = stickersOf(stored.stickers);
     }
   } catch {
     // nothing stored, or nothing that can be read: start empty
@@ -115,7 +151,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
 
   function write() {
     try {
-      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(veiddu && { veiddu }), ...(hals && { hals }) }));
+      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(veiddu && { veiddu }), ...(hals && { hals }), ...(stickers && { stickers }) }));
     } catch {
       // not kept for next time; still kept for now
     }
@@ -188,17 +224,35 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       hals = halsOf(next);
       write();
     },
+    getStickers: () => ({
+      hals: stickers?.hals ?? 0,
+      junior: stickers?.junior ?? 0,
+      sloedla: stickers?.sloedla ?? 0,
+      minnisspil: stickers?.minnisspil ?? 0,
+    }),
+    setStickers(changes = {}) {
+      stickers = stickersOf({ ...stickers, ...changes });
+      write();
+    },
+    addSticker(game) {
+      if (!STICKER_GAMES.includes(game)) throw new TypeError(`Unknown sticker game ${String(game)}`);
+      stickers = stickersOf({ ...stickers, [game]: (stickers?.[game] ?? 0) + 1 });
+      write();
+    },
   };
 }
 
 /**
  * The chapter a page plays when its address names none (main.js), from the stars the child has: chapter 1 until Kambeðla's star
- * (k1_kambedla) is won, then chapter 2 until Uggeðla's (k2_uggedla), then chapter 3, also once its own star (k2_thorsedla) is
- * there, so the child can play it again. A save from the old chapter 2, which has Þórseðla's star but not Uggeðla's, plays the
- * new chapter 2 and meets Uggeðla; nothing in it is lost.
+ * (k1_kambedla) is won, then chapter 2 until Uggeðla's (k2_uggedla), then chapter 3 until Þórseðla's (k2_thorsedla), then
+ * chapter 4 until Flugeðla's (k4_flugedla), then chapter 5, which stays the answer once Slóeðla's star (k5_sloedla) is won too: it is
+ * the last chapter so far. A save from the old chapter 2, which has Þórseðla's star but not Uggeðla's, plays the new chapter 2 and meets
+ * Uggeðla; nothing in it is lost.
  */
 export function defaultChapter(save) {
   const stars = save.get().stars;
   if (!stars.includes('k1_kambedla')) return 'kafli1';
-  return stars.includes('k2_uggedla') ? 'kafli3' : 'kafli2';
+  if (!stars.includes('k2_uggedla')) return 'kafli2';
+  if (!stars.includes('k2_thorsedla')) return 'kafli3';
+  return stars.includes('k4_flugedla') ? 'kafli5' : 'kafli4';
 }

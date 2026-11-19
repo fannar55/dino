@@ -428,6 +428,11 @@ function* theStar(s, c) {
   yield* say(s, c, 'mosi', 'k3_mosi_third');
   yield star;
   s.sfx('journal');
+  if (!s.seeking) {
+    s.journal.open('games');
+    yield s.journal.playGame('hals', { tutorial: true });
+    s.journal.close();
+  }
   // The sun, seen over her back from the far side of her pool (her conifers hide it from every shot with her head in it), hugs itself
   // with a big grin and winks.
   yield s.camera.cut('fen_sun_hug');
@@ -455,7 +460,7 @@ function mark(c, scene) {
 export const chapter = {
   id: 'kafli3',
   title: 'Boð til Þórseðlu',
-  next: null, // the last chapter so far: its script ends in the book (main.js shows no hand-over)
+  next: 'kafli4', // Boð til Flugeðlu: main.js puts an "Áfram" over the book when the script ends
   look: 'lateMorning',
   // The song of chapter 2, "Dino Trail" (assets/audio/kafli2/theme.json, read by main.js as the page loads: engine/audio/theme.js);
   // its effects are tuned to its key, and the forest dances on every second of its 133.3 beats a minute
@@ -592,7 +597,7 @@ export const chapter = {
     thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
     mosi.place(FEN_ENTRY.position[0], FEN_ENTRY.position[2], FEN_ENTRY.heading);
     c.saddle = createSaddle(mosi.raw);
-    c.saddle.object.visible = true;
+    c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
     yield s.camera.cut('fen_reveal');
     yield s.ready(); // the start button; immediate in captures

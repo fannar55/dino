@@ -483,3 +483,19 @@ test('a three whose standard shader has lost an anchor the patch needs says so, 
     console.warn = original;
   }
 });
+
+test('lit plates glow brighter and pulse gently as game time advances', async () => {
+  const { actor, skin } = await stage();
+  const glow = addPlateGlow(actor);
+  const { uniforms, fragmentShader } = compile(skin.material);
+  assert.ok(uniforms.uPlatePulse.value > 2, 'brighter base emissive in daylight');
+  assert.match(plateGate(fragmentShader).block, /uPlateGlow\s*\*\s*plateLevel\s*\*\s*uPlatePulse/);
+  const base = uniforms.uPlatePulse.value;
+  const seen = [base];
+  for (let i = 0; i < 30; i++) {
+    glow.update(1 / 30);
+    seen.push(uniforms.uPlatePulse.value);
+  }
+  assert.ok(Math.max(...seen) > base + 0.5, 'swells brighter at the peak of the pulse');
+  assert.ok(Math.min(...seen) < base - 0.5, 'and breathes softer in the trough');
+});

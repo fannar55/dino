@@ -34,7 +34,8 @@ export function lightScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
     { at: 1.55, wait: { until: () => stage.task.lit() || !stage.task.busy(), timeout: 9 } },
     // Lit: a cut into the tunnel, and the pile of rocks that shuts it stands there in the light (the pair cheers at the sides, Mosi claps).
-    { at: 1.6, shot: { kind: 'hero', subjects: () => [pile().centre, pile().top, mouth(), up(mouth(), 1.6)], front: front(.6), elevation: 12, cut: true }, act: all(() => stage.mosi.gesture('clap'), () => stage.mosi.look(pile().centre)) },
+    { at: 1.6, shot: { kind: 'hero', subjects: () => [pile().centre, pile().top, mouth(), up(mouth(), 1.6)], front: front(.6), elevation: 12, cut: true }, act: all(() => stage.mosi.gesture('clap'), () => stage.mosi.look(pile().centre)),
+      fx: { kind: 'done', at: () => up(mouth(), 1.2) } },
     { at: 3.9, shot: { kind: 'wide', subjects: () => [...bodies(pair()), mouth(), up(mouth(), 2.6), pile().top], front: front(.45), elevation: 14, cut: true } },
     { at: 3.95, wait: { until: () => !stage.task.busy(), timeout: 4 } },
     { at: 4, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },

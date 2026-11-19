@@ -62,6 +62,7 @@ import { bookSounds, BOOK_GAPS } from '../book/book-sounds.js';
 import { createAudioContext, createOutput } from '../audio/output.js';
 import { createGameSfx } from '../audio/game-music.js';
 import { makeDeck } from '../eitt/rules.js';
+import { keepScreenAwake } from '../wake-lock.js';
 
 export const STORAGE_KEY = 'mosi-fjolspil-guest';
 
@@ -746,6 +747,8 @@ export function createGuestPage(doc, {
   }
 
   const screens = { code: codeEl, join: joinEl, lobby: lobbyEl, wait: wait.el, closed: closed.el, over: over.el };
+  const wakeLock = keepScreenAwake({ doc, win, active: false });
+  const syncWake = () => wakeLock.setActive(['join', 'lobby', 'wait', 'game'].includes(at.screen) && !(at.screen === 'game' && at.state?.phase === 'bless'));
   let gameEl = null;
 
   function show(screen) {
@@ -753,6 +756,7 @@ export function createGuestPage(doc, {
     at.screen = screen;
     root.setAttribute('data-screen', screen);
     if (mainEl.children[0] !== el) mainEl.replaceChildren(el);
+    syncWake();
     if (screen === 'code') firstEmpty().focus?.();
   }
 

@@ -28,9 +28,12 @@ test('audio remains uninitialized until gesture and notes match the shipped them
   const limiter = contexts[0].of('compressor')[0];
   assert.ok(contexts[0].started.every(source => source.reaches(limiter)));
   assert.equal(audio.getStats().log.filter(entry => entry.kind === 'call').length, 1);
+  // (without her real cries the Flugeðla baby's call is the old synth)
+  contexts[0].advance(3); audio.reveal('pteranodon', 1);
+  assert.equal(audio.getStats().log.find(entry => entry.kind === 'call' && entry.species === 'pteranodon')?.source, 'synth');
 }));
 
-const recordedIds = ['triceratops', 'stegosaurus', 'brontosaurus', 'leaf', 'straw', 'foot', 'branch-lift', 'branch-lower', 'log-roll', 'bridge-land', 'bark-pickup', 'bark-place', 'match-chime', 'win', 'river'];
+const recordedIds = ['triceratops', 'stegosaurus', 'brontosaurus', 'leaf', 'straw', 'foot', 'branch-lift', 'branch-lower', 'log-roll', 'bridge-land', 'bark-pickup', 'bark-place', 'match-chime', 'win', 'river', 'flyer-1', 'flyer-2'];
 function recordedFixture({ failed = null, delay = null } = {}) {
   const requested = [];
   return { requested, options: {
@@ -51,9 +54,9 @@ test('recorded preload is silent, caches files, uses actual cue lengths and play
   await fixture(async ({ audio, contexts }) => {
     await audio.preload(); await audio.preload();
     assert.equal(contexts.length, 0, 'network preload neither creates nor wakes audio');
-    assert.equal(bank.requested.length, 16, 'manifest plus15cues are fetched once');
+    assert.equal(bank.requested.length, 18, 'manifest plus 17 cues are fetched once');
     await audio.unlock(); await audio.preload(); const context = contexts[0];
-    assert.equal(audio.getStats().recordedLoaded, 15);
+    assert.equal(audio.getStats().recordedLoaded, 17);
     audio.reveal('brontosaurus', 0); audio.reveal('brontosaurus', 1);
     const calls = audio.getStats().log.filter(entry => entry.kind === 'call');
     assert.equal(calls.length, 2); assert.ok(calls.every(entry => entry.source === 'recorded'));
@@ -61,6 +64,10 @@ test('recorded preload is silent, caches files, uses actual cue lengths and play
     assert.ok(calls[1].start > calls[0].end);
     const sources = context.started.filter(source => source.buffer.duration === .3);
     assert.equal(sources[0].buffer, sources[1].buffer, 'same species reuses identical recorded motif');
+    // The Flugeðla baby's call: chapter 4's two flyer cries in turn, played higher.
+    context.advance(3); audio.reveal('pteranodon', 2); context.advance(3); audio.reveal('pteranodon', 2);
+    const cries = audio.getStats().log.filter(entry => entry.kind === 'call' && entry.species === 'pteranodon');
+    assert.deepEqual(cries.map(entry => entry.asset), ['flyer-1', 'flyer-2']); assert.ok(cries.every(entry => entry.source === 'recorded' && entry.rate > 1.2));
     context.advance(3); audio.match('triceratops'); audio.win();
     for (const [method, argument] of journeyCues) { context.advance(3); audio[method](argument); }
     context.advance(3); audio.footstep('wood', -.2); assert.equal(audio.footstep('wood', .2), false, 'crowded footsteps remain throttled');
@@ -80,11 +87,11 @@ test('a missing recorded cue falls back locally while other generated cues remai
   const bank = recordedFixture({ failed: 'branch-lower' });
   await fixture(async ({ audio, contexts }) => {
     await audio.unlock(); await audio.preload();
-    assert.equal(audio.getStats().recordedLoaded, 14); assert.deepEqual(audio.getStats().recordedFailed, ['branch-lower']);
+    assert.equal(audio.getStats().recordedLoaded, 16); assert.deepEqual(audio.getStats().recordedFailed, ['branch-lower']);
     audio.branchLift(); contexts[0].advance(3); audio.branchLower();
     assert.equal(audio.getStats().log.find(entry => entry.kind === 'branch-lift').source, 'recorded');
     assert.equal(audio.getStats().log.find(entry => entry.kind === 'branch-lower').source, 'synth');
-    await audio.preload(); assert.equal(bank.requested.length, 16, 'failed local assets are not fetched repeatedly on every event');
+    await audio.preload(); assert.equal(bank.requested.length, 18, 'failed local assets are not fetched repeatedly on every event');
   }, bank.options);
 });
 
@@ -94,7 +101,7 @@ test('late asset loading cannot start sound during pause or resurrect cancelled 
   await fixture(async ({ audio, contexts }) => {
     await audio.unlock(); const context = contexts[0]; audio.reveal('triceratops', 0); audio.pause(true);
     const count = context.started.length; release(); await audio.preload();
-    assert.equal(audio.getStats().recordedLoaded, 15); assert.equal(context.started.length, count);
+    assert.equal(audio.getStats().recordedLoaded, 17); assert.equal(context.started.length, count);
     assert.equal(audio.getStats().voices, 0); assert.equal(context.state, 'suspended');
     audio.pause(false); context.advance(3); assert.equal(context.started.length, count);
     audio.reveal('triceratops', 0); assert.equal(audio.getStats().log.at(-1).source, 'recorded');
@@ -364,8 +371,9 @@ test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its
   const who = VOICE_LINES.who, whoKey = tool.fingerprintOf(tool.ownRequest(who));
   for (const heard of [none, verdicts([[whoKey, 'nei']])]) assert.equal(tool.fingerprintOf(tool.memoryRequest(who, lexicon, { heard })), whoKey);
   assert.throws(() => tool.memoryRequest(match, lexicon), /needs the owner's verdicts/);
-  // in the repo now (2026-11-06): 11 kept, 17 sent as the book has them because he approved that take, 9 under Ný 3 whose new
-  // take he picked, and level 1's 10 under Ný 3 waiting for his ear. When a verdict moves a line, move it here.
+  // in the repo now (2026-11-08): 11 kept, 17 sent as the book has them because he approved that take, 13 under Ný 3 whose new
+  // take he picked (first and package C's three waiting lines on 2026-11-08), and level 1's 9 under Ný 3 waiting for his ear.
+  // When a verdict moves a line, move it here.
   const heardNow = readHeard(tool.ROOT), split = { kept: [], approved: [], ny3Picked: [], ny3Waiting: [] };
   for (const item of tool.statesOf(lexicon, tool.recordOf(tool.readManifest(), {}), tool.LINES, heardNow)) {
     if (item.line.kept !== undefined) split.kept.push(item.id);
@@ -376,8 +384,8 @@ test('Ný 3 (kafli4 a86be9b): a line the owner has not approved is sent with its
   assert.deepEqual(split, {
     kept: ['help', 'won', 'held', 'roll', 'cross', 'find_stego', 'who', 'push', 'findFirst', 'gift_shrew', 'g2_ledge_ready'],
     approved: ['match', 'find_bronto', 'build', 'other', 'g2_welcome', 'gifts4', 'gift_ammonite', 'gift_trilobite', 'gift_fern', 'gift_footprint', 'g2_cliff_ready', 'g2_climb', 'g2_pull_ready', 'g2_pull', 'g2_bridge', 'g2_won', 'g2_help'],
-    ny3Picked: ['together', 'g2_left', 'g2_light_ready', 'g2_lit', 'g2_rocks_ready', 'g2_rocks_done', 'g2_through', 'g2_reached', 'g2_flown'],
-    ny3Waiting: ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab'],
+    ny3Picked: ['first', 'together', 'lift_ready', 'roll_ready', 'lay_ready', 'g2_left', 'g2_light_ready', 'g2_lit', 'g2_rocks_ready', 'g2_rocks_done', 'g2_through', 'g2_reached', 'g2_flown'],
+    ny3Waiting: ['welcome', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab'],
   });
   // the A/B page: the new take picked when it opens, "Báðar rangar" for both wrong
   const html = tool.janoPage({ title: 't', intro: 'i', none: { label: 'Báðar rangar', how: 'h' }, sections: [{ title: 's', rows: [{ id: 'match', text: 'x', takes: [{ id: 'match_gamla', label: 'Gamla', src: 'a.mp3' }, { id: 'match_nyja', label: 'Nýja', src: 'b.mp3', checked: true }] }] }] });
@@ -437,10 +445,11 @@ test('the record of which request made each MP3 is tracked in the manifest (a ke
   const tracked = tool.statesOf(lexicon, tool.recordOf(manifest, {}), tool.LINES, heard);
   assert.deepEqual(tool.statesOf(lexicon, tool.recordOf(manifest, tool.readIndex()), tool.LINES, heard), tracked, 'the local index adds nothing');
   for (const item of tracked) if (item.line.kept !== undefined) assert.equal(manifest[item.id].key, item.ownKey, `${item.id}: kept, recorded as its kept request`);
-  // what --verify reads from it: no issue from the record, none rejected, level 1's ten waiting for his ear; --plan lists those ten
+  // what --verify reads from it: no issue from the record, none rejected, level 1's nine waiting for his ear (first went in on
+  // 2026-11-08, his pick of its Ný 3 take); --plan lists those nine
   const { issues, waitingForOwner, rejectedByOwner } = tool.verdictIssues(tracked, heard);
   assert.deepEqual(issues, []); assert.deepEqual(rejectedByOwner, []);
-  assert.deepEqual(waitingForOwner, ['welcome', 'first', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab']);
+  assert.deepEqual(waitingForOwner, ['welcome', 'lift', 'walkway', 'finish', 'notYet', 'giftsLeft', 'gifts3', 'gift_hermitCrab', 'gift_crab']);
   assert.deepEqual(tool.planOf(lexicon, tool.recordOf(manifest, {}), heard).make.map(item => item.id), waitingForOwner);
   // the manifest's key wins; the index (before 2026-11-06) only fills a line the manifest has none for
   assert.deepEqual(tool.recordOf({ a: { key: 'k1' }, b: { src: 'b.mp3' } }, { a: 'old', b: 'k2', c: 'k3' }), { a: 'k1', b: 'k2', c: 'k3' });

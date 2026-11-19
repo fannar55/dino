@@ -47,6 +47,7 @@ async function stage({ egillFirst = false } = {}) {
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
   const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map(), effects: createEffects() };
   world.resolvePoint = createPointResolver(world);
+  world.loadModel = url => loadGlb(new URL(url)); // Mosi's saddle's file, as the chapters' worlds load it
   const make = {
     mosi: async () => createActor(world, { name: 'mosi', gltf: await mosiGltf, position: [0, 0, 0], heading: 0 }),
     egill: async () => createActor(world, { name: 'egill', gltf: await egillGltf, position: [1.2, 0, 3.2], heading: 250 }),
@@ -69,22 +70,23 @@ const handsFrom = (egill, saddle) => ['Left', 'Right'].map(side => {
 test('the saddle starts hidden and appears: it pops in with sparkles and ends visible at full size', async () => {
   const { world, mosi, frame } = await stage();
   const saddle = createSaddle(mosi);
+  assert.equal(await saddle.loaded, true, 'its file loads onto him');
   assert.equal(saddle.object.visible, false, 'hidden until it appears');
   const shown = saddle.appear();
   assert.equal(saddle.object.visible, true);
-  assert.ok(saddle.object.getWorldScale(new THREE.Vector3()).x < 0.01, 'it starts from nothing');
+  assert.ok(saddle.size < 0.01, 'it starts from nothing');
   const sparkles = world.scene.children.filter(o => o.isPoints);
   assert.equal(sparkles.length, 1, 'one burst of sparkles, one draw call');
   let biggest = 0;
   let frames = 0;
   for (; frames < 60 && !shown.done; frames++) {
     frame();
-    biggest = Math.max(biggest, saddle.object.getWorldScale(new THREE.Vector3()).x);
+    biggest = Math.max(biggest, saddle.size);
   }
   assert.equal(shown.done, true);
   assert.ok(Math.abs(frames / 30 - 0.8) < 0.05, `it took ${(frames / 30).toFixed(2)} s`);
   assert.ok(biggest > 1.04, `it overshoots a little before it settles (${biggest.toFixed(2)})`);
-  assert.ok(saddle.object.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'it ends at its full size, in metres');
+  assert.equal(saddle.size, 1, 'it ends at its full size');
   assert.equal(saddle.object.visible, true);
   for (let i = 0; i < 10; i++) frame();
   assert.equal(world.scene.children.filter(o => o.isPoints).length, 0, 'the sparkles are gone');
@@ -257,11 +259,10 @@ test('the rider never inherits the host\'s scale', async () => {
   for (let i = 0; i < 45; i++) frame();
   assert.ok(egill.root.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'Egill keeps his own size');
   assert.ok(egill.model.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'and so does his model');
-  assert.ok(saddle.object.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'the saddle is in metres, not in Mosi\'s units');
   assert.equal(egill.root.parent, world.scene, 'Egill is not hung on Mosi\'s skeleton');
-  // Big and generous for a 1.1 m rider, on an 8.5 m Triceratops.
-  const size = new THREE.Box3().setFromObject(saddle.object).getSize(new THREE.Vector3());
-  assert.ok(size.x > 0.6 && size.x < 1.2 && size.z > 0.6 && size.z < 1.2, `the saddle is ${size.x.toFixed(2)} by ${size.z.toFixed(2)} m`);
+  // the saddle is skinned on Mosi's own bones: it moves with his back, its places in metres in the world (tests/mosi-saddle.test.mjs)
+  assert.equal(await saddle.loaded, true);
+  assert.ok(saddle.object.isSkinnedMesh);
 });
 
 test('a rider listed before his host still follows the seat in the same frame', async () => {

@@ -82,7 +82,8 @@ export const SHADOW_RADIUS = 14;
 
 export function createDirector({ camera, world, shots = {}, lint = true }) {
   const resolve = world.resolvePoint;
-  const rig = { position: camera.position.clone(), target: new THREE.Vector3(0, 1, 0), fov: camera.fov };
+  // roll: degrees the view leans about its own axis (a flight shot leans with her, engine/camera/flight-camera.js); 0 for every other mode
+  const rig = { position: camera.position.clone(), target: new THREE.Vector3(0, 1, 0), fov: camera.fov, roll: 0 };
   const warnings = [];
   let mode = null; // { kind, label, step(mode) -> finished, handle, continuous, elapsed, dt, then, free }
   let held = null; // the shot being held, or the one a move is heading to: push and zoom build on it
@@ -212,6 +213,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   // handle is done at once and there is nothing to wait for; `open` keeps it open instead, for a
   // mode its owner cancels (explore).
   function begin(kind, label, step, { continuous = false, open = false } = {}) {
+    if (kind !== 'drive') rig.roll = 0;
     if (mode && !mode.handle.done) {
       endHint();
       const old = mode.handle;
@@ -406,6 +408,16 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   }
 
   /**
+   * Drive the camera from outside while this is its mode: step(rig, dt, elapsed) sets rig.position, rig.target, rig.fov and rig.roll
+   * each frame (chapter 4's flight camera, engine/camera/flight-camera.js, which keeps and lints its own rules). Continuous: the
+   * handle is done at once, and the next cut, move or drive ends it.
+   */
+  function drive(label, step) {
+    held = null;
+    return begin('drive', label, m => { step(rig, m.dt, m.elapsed); return false; }, { continuous: true });
+  }
+
+  /**
    * Hand the camera to the child's finger. It stays where it is, and look(dx, dy) turns the view within
    * `yaw` and `pitch`: [min, max] degrees either side of the view it has now. `speed` is degrees per
    * pixel. The handle stays open until it is cancelled, which holds the view where it is.
@@ -507,6 +519,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
     camera.position.copy(rig.position);
     camera.up.copy(UP);
     camera.lookAt(rig.target);
+    if (rig.roll) camera.rotateZ(-rad(rig.roll)); // positive leans the view right, as she banks right with the camera behind her
     if (hand.level > 0.001) {
       const k = hand.level;
       camera.rotateY(rad(HAND.yaw) * k * wobble(time, 0));
@@ -591,7 +604,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
     get mode() { return mode?.kind ?? 'still'; },
     get busy() { return Boolean(mode && !mode.continuous); },
     get handheldLevel() { return hand.level; },
-    cut, move, orbit, push, lookAt, zoom, follow, explore, look, hint, handheld, stop, update, apply,
+    cut, move, orbit, push, lookAt, zoom, follow, drive, explore, look, hint, handheld, stop, update, apply,
     shadowFocus, effectiveFov, poseOf,
   };
 }

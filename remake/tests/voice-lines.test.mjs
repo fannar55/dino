@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { CANDIDATES, JUNIOR_LINES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches, yesNoHtml } from '../tools/voice-lines.mjs';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { VISIT, fixtureLexicon, fixtureWords } from './lexicon-fixture.mjs';
-import { WAITING_FOR_VOICE } from './waiting-for-voice.mjs';
+import { WAITING_FOR_VOICE, WAITING_FOR_HER_VOICE } from './waiting-for-voice.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind. The lines come in
@@ -117,7 +117,7 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   const lines = readJson(REAL.source);
   const voices = readJson(REAL.voices);
   const recorded = readJson(REAL.lines);
-  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla) and chapter 2's Uggeðla (picked by the owner 2026-10-31) are not chapter 1's
+  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla', 'flugedla', 'sloedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla), chapter 2's Uggeðla (picked by the owner 2026-10-31) and chapter 4's Flugeðla (the song game's DJ voice, the owner's choice 2026-11-02) and chapter 5's Slóeðla (designed, his pick 2026-11-11) are not chapter 1's
   const ids = new Set();
   const takes = new Map();
   for (const line of lines) {
@@ -482,10 +482,11 @@ const BOOK_LINES = [
   { id: 'book_wait', speaker: 'narrator', text: 'Bíddu aðeins!' },
 ];
 
-test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's and Veiddu's, each in a folder of its own", () => {
+test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's, Veiddu's, chapter 4's, chapter 5's and the 3D show Grameðla kemur!'s, each in a folder of its own", () => {
   assert.deepEqual(SETS, {
     kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
-    kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu',
+    kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
+    kafli5: 'remake/assets/audio/kafli5', gramedla3d: 'remake/assets/audio/gramedla3d',
   });
   assert.equal(REMAKE_AUDIO, SETS.kafli1, 'the chapter stays the default');
 });
@@ -1040,7 +1041,8 @@ test("the committed record accounts for every MP3 in the repo: --plan with an em
     // Fjölspil's optional lines are to make until the owner records them himself (his decision of 2026-10-24): listed, not a fault.
     const owners = found.make.filter(item => set === 'yatzy-junior' && item.optional && Object.hasOwn(MULTI_LINES, item.id) && item.reasons.join('; ') === 'no MP3 yet');
     // The lines of the kafli2 set that wait for their voice (tests/waiting-for-voice.mjs) are to make until the plan's seventh task records them.
-    const waiting = found.make.filter(item => set === 'kafli2' && WAITING_FOR_VOICE.has(item.id) && item.reasons.join('; ') === 'no MP3 yet');
+    // So are chapter 5's three of Slóeðla, until the owner has picked her voice (kafli5-lines.test.mjs holds them to that).
+    const waiting = found.make.filter(item => ((set === 'kafli2' && WAITING_FOR_VOICE.has(item.id)) || (set === 'kafli5' && WAITING_FOR_HER_VOICE.has(item.id))) && item.reasons.join('; ') === 'no MP3 yet');
     assert.deepEqual(found.make.filter(item => !owners.includes(item) && !waiting.includes(item)).map(item => `${item.id}: ${item.reasons.join('; ')}`), [], `${set}: ${hint}`);
     assert.deepEqual(found.unknown.map(item => item.id), [], `${set}: ${hint}`);
     assert.deepEqual(found.stale.map(item => item.id), [], `${set}: ${hint}`);

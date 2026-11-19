@@ -4,7 +4,7 @@
  * of how a step looks.
  *
  * A step is one of
- *   { id, kind: 'task', target, species, beatWords?, holds?, journey? }      a pair does it: the child taps the obstacle (`target`),
+ *   { id, kind: 'task', target, species, beatWords?, holds? }                a pair does it: the child taps the obstacle (`target`),
  *                                                                           picks the pair from the bubbles, and the pair's own species is the right answer
  *   { id, kind: 'travel', target, needsAllFound?, waitsForGifts?, automatic: true }   everyone goes; it starts by itself once it can
  *   { id, kind: 'together', target, beatWords }                             everyone does it at once: a tap on the obstacle starts it, no bubbles

@@ -115,6 +115,19 @@ test('a drop right on the target counts, and the radius is each call\'s own', ()
   assert.deepEqual(rig.tray.calls('putBack'), [['putBack', 'b']], 'the radius is the call\'s own');
 });
 
+test('a target may be a list of world points (an entire dinosaur), and dropping near any of them counts', () => {
+  const rig = dragRig();
+  const bodyPoints = [MOUTH, [-2, 1.6, 0], [2, 2.2, 0]];
+  const tailScreen = rig.screenOf([-2, 1.6, 0]);
+  const outcome = runDrag(rig, 'flower1', bodyPoints, { radius: 90 });
+  rig.step(0.2);
+  rig.tray.drop('flower1', 10, 10); // far from all points
+  assert.equal(rig.tray.calls('putBack').length, 1);
+  rig.tray.drop('flower1', tailScreen.x, tailScreen.y); // on the tail point, far from MOUTH
+  rig.step(0.1);
+  assert.equal(outcome.value, 'dropped');
+});
+
 test('a drop outside the canvas is a miss, even within the radius of the target', () => {
   // A target 12 px inside a corner of the canvas, so the finger can be let go within 90 px of it and off the canvas.
   const corners = [

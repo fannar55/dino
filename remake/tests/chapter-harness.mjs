@@ -13,6 +13,8 @@ import { createPointResolver } from '../engine/points.js';
 import { createLocations } from '../engine/locations.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createScene } from '../engine/scene/scene.js';
+import { createHold, holdLater } from '../engine/audio/hold.js';
+import { FakeMediaElement } from './fake-audio.mjs';
 import { createStageUI, DRAG_LIFT } from '../engine/scene/ui.js';
 import { createJournal } from '../engine/scene/journal.js';
 import { createSave } from '../engine/save.js';
@@ -25,6 +27,7 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
+import { createWind } from '../engine/wind.js';
 
 const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
@@ -65,23 +68,23 @@ const modelOf = url => {
 };
 
 /**
- * A chapter's world: its actors, a camera at 16:10, the effects and the clock main.js has, and a sun and a fog in the chapter's look
+ * A chapter's world: its actors, a camera at 16:10 (or `aspect`: 0.625 is a tablet held upright), the effects and the clock main.js has, and a sun and a fog in the chapter's look
  * (the fog as engine/fog.js lays it, without its shader patch: a chapter thickens it, as chapter 2's lookout does).
  */
-export async function chapterWorld(chapter) {
-  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200);
+export async function chapterWorld(chapter, { aspect = 1.6 } = {}) {
+  const camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 1200);
   const look = pickLook(chapter.look);
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(look.fog.color, look.fog.density);
   const world = {
     THREE, scene, camera, clock: createClock(), chapter, heightAt: () => 0, actors: new Map(), effects: createEffects(),
-    lighting: { direction: sunDirection(look) },
+    lighting: { direction: sunDirection(look) }, wind: createWind(), // the shared wind main.js has (a chapter may still it: chapter 4's white tree)
   };
   world.resolvePoint = createPointResolver(world);
   // A model a chapter's props load for themselves (chapter 2's far friends), read as the actors' are: the page has no fetch of files.
   world.loadModel = url => modelOf(url);
   for (const [name, spec] of Object.entries(chapter.actors)) {
-    world.actors.set(name, await createActor(world, { name, gltf: await modelOf(spec.url), position: spec.position, heading: spec.heading }));
+    world.actors.set(name, await createActor(world, { name, gltf: await modelOf(spec.url), position: spec.position, heading: spec.heading, scale: spec.scale }));
   }
   return world;
 }
@@ -131,6 +134,7 @@ export function groundOnly(layout, { shaped = false, world = null } = {}) {
     butterflies: {
       targets,
       landed,
+      hero: { name: 'butterfly-hero', group: new THREE.Group(), loaded: Promise.resolve(true) },
       flutter: () => new Handle('flutter').finish(),
       land(spec) {
         landed.push(spec);
@@ -151,13 +155,27 @@ function snagsOf(world, layout, ground) {
   return snagLists.get(layout);
 }
 
-/** A pointer that remembers the targets the scene puts on it and the drags it listens to, and taps one when told. */
+/**
+ * A pointer that remembers the targets the scene puts on it and the drags it listens to, and taps one when told. `drag(x, y, dx, dy)`
+ * draws a finger from (x, y) by (dx, dy) in four moves, as the pointer reports one; its canvas is 1280 by 800 px.
+ */
 export function fakePointer() {
   const targets = new Map();
   const listeners = { tap: [], drag: [] };
   return {
     targets,
     listeners,
+    size: () => ({ width: 1280, height: 800 }),
+    drag(x, y, dx, dy, steps = 4) {
+      let px = x, py = y;
+      for (let i = 1; i <= steps; i++) {
+        const nx = x + (dx * i) / steps, ny = y + (dy * i) / steps;
+        for (const fn of [...listeners.drag]) fn({ dx: nx - px, dy: ny - py, phase: i === 1 ? 'start' : 'move', x: nx, y: ny });
+        px = nx;
+        py = ny;
+      }
+      for (const fn of [...listeners.drag]) fn({ dx: 0, dy: 0, phase: 'end', x: px, y: py });
+    },
     addTarget: (name, spec) => targets.set(name, spec),
     removeTarget: name => targets.delete(name),
     on(event, fn) {
@@ -173,9 +191,31 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
 /** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened (and which tile it was asked to nod), and no pictures to fly. */
 export function fakeBook() {
   return {
-    opened: [], nods: [], isOpen: false,
-    open(tab, by, options) { this.opened.push([tab, by]); this.nods.push(options?.nod ?? null); this.isOpen = true; },
-    close() { this.isOpen = false; },
+    opened: [], nods: [], played: [], isOpen: false, isChildOpen: false, tab: 'animals', beckoningClose: false, beckoningTab: null, lockedTutorial: null,
+    open(tab, by, options) {
+      this.opened.push([tab, by]);
+      this.nods.push(options?.nod ?? null);
+      this.isOpen = true;
+      if (by === 'child') this.isChildOpen = true;
+      this.tab = tab;
+      this.beckoningTab = null;
+    },
+    close() {
+      this.isOpen = false;
+      this.isChildOpen = false;
+      this.beckoningClose = false;
+      this.beckoningTab = null;
+    },
+    beckonClose(on = true) { this.beckoningClose = Boolean(on); },
+    beckonTab(tab = null) { this.beckoningTab = tab; },
+    lockTutorial(target = null) { this.lockedTutorial = target; },
+    handToChild() {
+      if (this.isOpen && this.lockedTutorial === null) this.isChildOpen = true;
+    },
+    playGame(game, options) {
+      this.played.push([game, options]);
+      return null;
+    },
     refresh() {},
     pictureOf: () => null,
   };
@@ -202,13 +242,40 @@ export function fakeBook() {
  * `animate` that only takes the call, and the moment slides, draws and closes on the game clock as it does in the game. `reduced`
  * is a tablet that asks for less motion (prefers-reduced-motion: reduce): the moment then comes and goes without sliding or drawing.
  * Every moment the script plays is in `moments`. `seenBefore` are the ids the child's save has seen already (the map's pieces, such as
- * 'map-route-a', from an earlier play of the chapter).
+ * 'map-route-a', from an earlier play of the chapter). `reduced` is also world.reduced, which a chapter may read (chapter 4's flight).
+ *
+ * `audio` is an audio context (tests/fake-audio.mjs, running) for a chapter's own sound: world.sound is { context, output, hold }, as
+ * main.js gives it, and the context's clock moves on with every frame of the run. `pauses` ([{ at, seconds }], the run's seconds) stand
+ * the game still as the child's book or a hidden tab does: the clock and every update get no time, and the sound is held meanwhile.
+ * `aspect` is the screen's shape (width over height): 1.6 by default, 0.625 for a tablet held upright (800x1280).
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null, audio = null, pauses = [], aspect = 1.6, bookExploreSeconds = 1 } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
-  const world = await chapterWorld(chapter);
+  const world = await chapterWorld(chapter, { aspect });
+  world.reduced = reduced;
+  // A chapter's own sound, held with the game as main.js holds it (engine/audio/hold.js: holdLater)
+  const chapterSound = holdLater();
+  const holdSound = createHold([chapterSound]);
+  // and its own song's <audio> elements (chapter 4's flight song, engine/audio/song.js), fakes that the audio context plays, kept in
+  // world.sound.elements for a test to look at
+  const elements = [];
+  // loaded as its file is set: the run's loop gives a promise no turn while the scene waits on nothing
+  class LoadedElement extends FakeMediaElement {
+    get src() { return super.src; }
+    set src(value) {
+      super.src = value;
+      this.load();
+    }
+  }
+  if (audio) {
+    world.sound = {
+      context: audio, output: audio.destination, hold: chapterSound.add, elements,
+      createElement: () => { const element = new LoadedElement({ duration: 200 }); elements.push(element); return element; },
+    };
+  }
+  let wasPaused = false;
   // The real sun, as main.js has it, updated each frame once the camera has moved: its calls start its gestures and finish their
   // handles. (Made before world.scene.add is watched below: its sprite and overlay are there from the start.)
   const sunFace = createSunFace({ scene: world.scene, lighting: world.lighting });
@@ -281,6 +348,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     part.className = name;
     doc.getElementById('caption').append(part);
   }
+  world.page = doc; // the page a chapter may put its own controls on (chapter 4's „Hraðar!“), as main.js's world has `document`
   const computed = globalThis.getComputedStyle;
   globalThis.getComputedStyle = () => ({ opacity: '1' });
   const ui = createStageUI(doc);
@@ -411,10 +479,14 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   });
   stage.seeking = seeking;
   const spoken = new Set(); // every line the script has said, by id
+  const said = []; // and each time it says one: { id, at, options } (the scene's seconds; what it was asked with)
+  const spokenAt = new Map(); // id -> when it was first said
   const lastLine = new Map(); // speaker -> the line they began last
   const say = stage.s.say;
   stage.s.say = (speaker, line, options) => {
     spoken.add(line);
+    said.push({ id: line, at: stage.s.time, options: options ?? null });
+    if (!spokenAt.has(line)) spokenAt.set(line, stage.s.time);
     lastLine.set(speaker, line);
     return say(speaker, line, options);
   };
@@ -429,7 +501,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   // What the run sees on the way, for the tests to look at afterwards.
   const seen = {
     kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
-    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows, cuts,
+    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, said, spokenAt, rows, cuts,
     // The early tap, once made: { name, appeared, at } in scene time, the journal's findings right after it, and when the target first
     // moved (the critter's reaction: its live point follows it).
     earlyTap: null,
@@ -505,9 +577,45 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   let trayUp = null;
   let lastDrop = -Infinity;
   const choicesEl = doc.getElementById('choices');
+  const journalBtn = doc.getElementById('journal-button');
   let choicesUp = null;
+  let bookBeckonSince = null;
   let asked = false;
+  function stepBookTutorial(t) {
+    if (!mosi.talking) {
+      if (book.beckoningClose) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          book.close();
+          bookBeckonSince = null;
+        }
+      } else if (journalBtn.classList.contains('beckon')) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          journalBtn.dispatchEvent(new Event('click'));
+          bookBeckonSince = null;
+        }
+      } else if (book.beckoningTab) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > 0.4) {
+          book.open(book.beckoningTab, 'script');
+          bookBeckonSince = null;
+        }
+      } else if (book.isChildOpen) {
+        bookBeckonSince ??= t;
+        if (t - bookBeckonSince > bookExploreSeconds) {
+          book.close();
+          bookBeckonSince = null;
+        }
+      } else {
+        bookBeckonSince = null;
+      }
+    } else {
+      bookBeckonSince = null;
+    }
+  }
   function eagerChild(t) {
+    stepBookTutorial(t);
     if (!choicesEl.hidden && choicesEl.children.length) {
       choicesUp ??= t;
       if (t - choicesUp > 1.2) {
@@ -525,7 +633,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       tapped.delete(name);
     }
     for (const [name, since] of appeared) {
-      if (/^(bird|butterfly|glade)-/.test(name)) continue;
+      if (/^(bird|butterfly-(?!hero)|glade)-/.test(name)) continue;
       const flower = ['stone', 'ferns', 'tree'].includes(name);
       const again = name === 'nose' && tapped.has(name) && t - tapped.get(name) > 3.5 && t - tapped.get(name) < 3.5 + dt;
       if ((!tapped.has(name) && t - since > 1.2 && (!flower || t - lastFlower > 4)) || again) {
@@ -581,23 +689,45 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     }
   }
 
+  // The butterfly on Mosi's horn and the book tutorial in scene 5 require clicks: in non-seeking, non-eager headless runs,
+  // tap the butterfly after Mosi's prompt and reminder (15 s after the target first appears) and step through the beckoning
+  // book controls so full-chapter simulations can continue past the mandatory tutorial gate.
+  let heroSince = null;
+  function mandatoryButterflyTap(t) {
+    stepBookTutorial(t);
+    if (pointer.targets.has('butterfly-hero')) {
+      heroSince ??= t;
+      if (t - heroSince >= 15 - 1e-9) {
+        pointer.tap('butterfly-hero');
+        heroSince = null;
+      }
+    }
+  }
+
   const dt = 1 / 30;
   for (let t = 0; t < limit && !task.done; t += dt) {
     runTime = t;
+    const paused = pauses.some(p => t >= p.at - 1e-9 && t < p.at + p.seconds - 1e-9);
+    if (paused !== wasPaused) holdSound('pause', (wasPaused = paused));
+    const step = paused ? 0 : dt; // the game's time this frame: none while it stands still
+    audio?.advance(dt); // the sound's clock is the room's: it goes on through a pause
     for (const build of due.filter(d => d.at <= t + 1e-9)) {
       due.splice(due.indexOf(build), 1);
       build.resolve();
     }
     if (eager) eagerChild(t);
+    else if (!seeking) mandatoryButterflyTap(t);
     if (noseAt) noseChild(t);
     if (earlyTap) earlyChild(t);
-    world.clock.step(dt);
-    journal.update(dt);
+    world.clock.step(step);
+    journal.update(step);
     for (const moment of moments) if (moment.closeAt !== null && moment.goneAt === null && !overlayUp()) moment.goneAt = stage.s.time;
-    stage.update(dt);
-    updateActors(world.actors.values(), dt);
-    world.effects.update(dt);
-    director.update(dt);
+    stage.update(step);
+    chapterSound.update(); // the chapter's own song, every frame, held or not, as main.js does
+    updateActors(world.actors.values(), step);
+    world.effects.update(step);
+    director.update(step);
+    world.forest?.update?.(step, world.clock.time); // after the camera, as main.js does (a place that builds as it goes: chapter 4's valley)
     sunFace.update(world.clock.time, world.camera); // after the camera, as main.js does
     {
       const scene = world.chapterTimeline.at(-1)?.scene;
@@ -627,7 +757,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       madeLater = true;
       await chapter.later.make(world);
     }
-    onFrame?.({ t, world, stage, director, pointer, sunFace, ui, shot: shotNow });
+    onFrame?.({ t, world, stage, director, pointer, sunFace, ui, book, seen, shot: shotNow });
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
       if (!actor.talking || !lastLine.has(name)) continue;
@@ -668,7 +798,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       }
     }
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
-    if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
+    if (stage.scheduler.pending > 0 || world.loading?.size > 0) await new Promise(resolve => setImmediate(resolve)); // as main.js's seek: loads settle
   }
   return { world, task, stage, director, journal, book, save, moments, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines, builds };
 }

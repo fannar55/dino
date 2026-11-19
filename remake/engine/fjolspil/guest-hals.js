@@ -127,6 +127,13 @@ function update(at, view) {
   const nameOf = seat => String(playerOf(seat)?.name ?? '');
   const over = view.winner !== null && view.winner !== undefined;
   const mine = view.turn === view.you;
+  if (mine && at.wasMine === false && !over) {
+    try {
+      const phone = globalThis.navigator;
+      if (phone?.userActivation?.hasBeenActive !== false) phone?.vibrate?.(35);
+    } catch { /* vibration is optional */ }
+  }
+  at.wasMine = over ? undefined : mine;
 
   at.turnEl.hidden = over;
   at.turnEl.textContent = mine ? WORDS.mine : WORDS.theirs(nameOf(view.turn));

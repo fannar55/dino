@@ -8,11 +8,15 @@
 // so the scene keeps time with the sound itself: `started(sound)` says when it is heard and `done(sound)` when it is over
 // (scene.js sayTask), and `preload(srcs)` fetches a chapter's recordings ahead, in the background, so a line starts the moment it
 // is asked for (the owner's bug reports of 2026-10-25: mouths ahead of voices, lines cut short by the next).
-export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args), makeUrl = blob => URL.createObjectURL(blob) } = {}) {
+//
+// A line can come from one side: `play(src, { pan })` (-1 left to 1 right; chapter 4's flight film: her call in a call shot from
+// her side as the camera sees her) sends its <audio> through `pan(element, value)`, the page's panner (main.js: output.js
+// panElement), which returns its letting go, called when the line is over. With no panner, or a pan of 0, it plays straight out.
+export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args), makeUrl = blob => URL.createObjectURL(blob), pan = null } = {}) {
   let current = null;
   let muted = false;
   let speaking = false;
-  const states = new WeakMap(); // audio -> { started, done }
+  const states = new WeakMap(); // audio -> { started, done, release }
   const ready = new Map(); // src -> an object URL of its bytes, fetched ahead
   const fetching = new Set();
 
@@ -22,10 +26,18 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
     onSpeaking?.(on);
   }
 
+  /** A line's sound is over: its panner let go of (`pan`). */
+  function over(state) {
+    if (!state) return;
+    state.done = true;
+    const release = state.release;
+    state.release = null;
+    release?.();
+  }
+
   /** The line is over, one way or another: it ended, it was stopped, or it could not be played. */
   function finish(audio) {
-    const state = states.get(audio);
-    if (state) state.done = true;
+    over(states.get(audio));
     if (current !== audio) return;
     current = null;
     speak(false);
@@ -37,8 +49,7 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
     const audio = current;
     audio.pause();
     current = null;
-    const state = states.get(audio);
-    if (state) state.done = true;
+    over(states.get(audio));
     speak(false);
   }
 
@@ -50,14 +61,13 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
       muted = Boolean(value);
       if (muted) stop();
     },
-    /** Play a recording; returns a token for stop(), or null when muted. */
-    play(src) {
+    /** Play a recording, from one side with `pan` (-1..1); returns a token for stop(), or null when muted. */
+    play(src, { pan: side = 0 } = {}) {
       if (current) {
         // The newer line replaces it; the music stays down between them instead of swelling and ducking again.
         const older = current;
         older.pause();
-        const state = states.get(older);
-        if (state) state.done = true;
+        over(states.get(older));
         current = null;
       }
       if (muted || !src) {
@@ -66,8 +76,15 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
       }
       const audio = new Audio(ready.get(src) ?? src);
       audio.preload = 'auto';
-      const state = { started: false, done: false };
+      const state = { started: false, done: false, release: null };
       states.set(audio, state);
+      if (pan && Number.isFinite(side) && side !== 0) {
+        try {
+          state.release = pan(audio, side) ?? null;
+        } catch {
+          // a panner that cannot take it: the line plays straight out
+        }
+      }
       audio.addEventListener('playing', () => { state.started = true; }, { once: true });
       audio.addEventListener('ended', () => finish(audio));
       audio.addEventListener('error', () => finish(audio));
@@ -109,9 +126,15 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
     get preloaded() { return ready.size; },
     /** Follow the game clock's pause; a line that has ended is not replayed. */
     setPaused(paused) {
-      if (!current || current.ended) return;
+      if (!current) return;
+      if (current.ended) {
+        finish(current);
+        return;
+      }
       if (paused) current.pause();
-      else current.play().catch(() => {});
+      else current.play().catch(error => {
+        if (error?.name !== 'AbortError') finish(current);
+      });
     },
   };
 }

@@ -5,7 +5,8 @@ import { KINDS, COPIES, makeDeck, kindOf } from '../engine/veiddu/cards.js';
 import { newGame, ask, fish, legalTargets, holds, isOver, winners } from '../engine/veiddu/rules.js';
 import { createMind, bestAsk, inRoundSkill, recallChance, VEIDDU_SKILL_START, SEAT } from '../engine/veiddu/minds.js';
 import { createSpeech, GUARD_MS, LATE_START_MS, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from '../engine/veiddu/speech.js';
-import { SAY, WHY, asking } from '../engine/veiddu/table.js';
+import { SAY, WHY, asking, createVeidduGame } from '../engine/veiddu/table.js';
+import { tableElement } from '../engine/veiddu/look.js';
 import { veidduSounds, VEIDDU_SFX, VEIDDU_GAPS, SPLASHES, splashFor, createSplash } from '../engine/veiddu/veiddu-sounds.js';
 import { EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
 import { createSfx } from '../engine/audio/sfx.js';
@@ -1028,8 +1029,8 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   const { save, book, played, sounds, tap, tile, slot, slots } = bookRig(s => s.addStar('k1_kambedla'));
   book.open('games', 'child');
   assert.equal(slot('veiddu').hidden, true, 'no Veiddu without Uggeðla\'s star');
-  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior'], 'four slots: the two card games side by side, then the board and the dice');
-  assert.equal(tile('veiddu').parentNode.parentNode.getAttribute('data-open'), '2', 'Eitt! and Litla Yatzy are the two open');
+  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior', 'sloedla', 'minnisspil'], 'six slots: the two card games side by side, then the board, the dice, Slóeðla\'s song and the memory game (hidden here)');
+  assert.equal(tile('veiddu').parentNode.parentNode.getAttribute('data-open'), '3', 'Eitt!, Litla Yatzy and Söngur Slóeðlu are the three open');
   assert.ok(tile('veiddu').classList.contains('unfound'));
   sounds.length = 0;
   tap(tile('veiddu'));
@@ -1040,7 +1041,7 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   save.addStar(VEIDDU_STAR);
   book.refresh();
   assert.equal(slot('veiddu').hidden, false, 'Veiddu appears with k2_uggedla');
-  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '3', 'and is counted in data-open');
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '4', 'and is counted in data-open');
   const t = tile('veiddu');
   assert.ok(t.classList.contains('new') && !t.classList.contains('found') && !t.classList.contains('unfound'), 'new until opened');
   assert.deepEqual(t.findAll(e => e.classList.contains('badge-new')).map(e => e.textContent), ['Nýtt!']);
@@ -1058,26 +1059,26 @@ test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, a
   assert.equal(save.get().seen.includes('eitt'), false, 'Eitt! is not touched');
 });
 
-test('with Uggeðla\'s star alone the Leikir page shows Veiddu and Litla Yatzy; all four of a full book are counted', () => {
+test('with Uggeðla\'s star alone the Leikir page shows Veiddu, Litla Yatzy and Söngur Slóeðlu; all five before chapter 4 are counted', () => {
   const { save, book, slot } = bookRig(s => s.addStar(VEIDDU_STAR));
   book.open('games', 'child');
-  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior'].map(game => slot(game).hidden), [true, true, false, false]);
-  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '2');
+  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior', 'sloedla'].map(game => slot(game).hidden), [true, true, false, false, false]);
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '3');
   save.addStar('k1_kambedla');
   save.addStar('k2_thorsedla');
   book.refresh();
-  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior'].map(game => slot(game).hidden), [false, false, false, false]);
-  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '4');
+  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior', 'sloedla'].map(game => slot(game).hidden), [false, false, false, false, false]);
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '5');
 });
 
-test('Uggeðla\'s stickers follow Kambeðla\'s on the sheet, one for each win, and the sheet shows when either game is open', () => {
+test('Uggeðla\'s stickers follow Kambeðla\'s on the sheet, one for each win, and the sheet is ready from the start', () => {
   const { save, book, sheet, stickers } = bookRig();
   book.open('games', 'child');
-  assert.equal(sheet().hidden, true, 'no game open, no sheet');
+  assert.equal(sheet().hidden, false, 'Litla Yatzy and Söngur Slóeðlu are open from the start, so the sticker sheet is ready');
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty'], 'one dashed place where the first will go');
   save.addStar(VEIDDU_STAR);
   book.refresh();
-  assert.equal(sheet().hidden, false, 'Uggeðla\'s game alone opens it');
-  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty'], 'one dashed place where the first will go');
+  assert.equal(sheet().hidden, false);
 
   save.setVeiddu({ wins: 2 });
   book.refresh();
@@ -1115,4 +1116,58 @@ test('a win in Veiddu is a sticker in the book that was open, the next time the 
   save.setVeiddu({ skill: 0.25, losses: 0, wins: 1 }); // as table.js endRound does
   book.refresh(); // and as main.js does when the game shuts
   assert.equal(stickers().filter(s => s.classList.contains('uggedla')).length, 1);
+});
+
+test('seats show their name tags, and a bubble marks both the speaker (.turn) and the seat asked (.asked)', () => {
+  const doc = new FakeDocument(['veiddu']);
+  const tableEl = tableElement(doc, {
+    mine: ['froskur', 'skjaldbaka'],
+    theirs: [5, 4],
+    pairs: [[], [], []],
+    pond: 30,
+    bubble: [SEAT.mosi, SEAT.child, 'Áttu frosk?'],
+  });
+  const seats = tableEl.querySelectorAll('.veiddu-seat');
+  assert.deepEqual([...seats].map(s => s.querySelector('.veiddu-seat-tag')?.innerHTML), ['Uggeðla', 'Mosi']);
+  assert.equal(tableEl.getAttribute('data-turn'), '2', 'Mosi is asking');
+  assert.equal(tableEl.getAttribute('data-asked'), '0', 'Egill is being asked');
+  assert.equal(seats[1].classList.contains('turn'), true);
+  assert.equal(tableEl.querySelector('.veiddu-me-catch').classList.contains('asked'), true);
+});
+
+test('when told "Nei! Farðu að veiða!", the pond calls at once so a quick tap fishes while the bubble is still up', async () => {
+  const doc = new FakeDocument(['veiddu']);
+  const win = { matchMedia: () => ({ matches: true }), addEventListener() {} };
+  const root = doc.getElementById('veiddu');
+  const noBubbleUp = () => (root.querySelector('.veiddu-bubble')?.findAll(e => e.innerHTML?.includes('Farðu að veiða!')).length ?? 0) > 0;
+  let now = 0;
+  const veiddu = createVeidduGame(doc, {
+    win, uggedlaLive: false, audio: { muted: true },
+    clock: () => now,
+    setTimer: (fn, ms) => setTimeout(() => { now += ms; fn(); }, noBubbleUp() || ms >= 6000 ? ms : 1),
+  });
+  const tap = el => {
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  veiddu.open({ tutorial: true });
+  const waitPhase = async target => {
+    for (let i = 0; i < 200 && veiddu.phase !== target; i++) await new Promise(r => setTimeout(r, 5));
+    assert.equal(veiddu.phase, target);
+  };
+  await waitPhase('tutorial ask pick');
+  tap(root.findAll(e => e.dataset?.kind === 'skjaldbaka')[0]);
+  assert.equal(veiddu.phase, 'tutorial ask target');
+  tap(root.querySelector('.veiddu-uggedla'));
+  await waitPhase('tutorial fish pick');
+  tap(root.findAll(e => e.dataset?.kind === 'drekafluga')[0]);
+  tap(root.querySelector('.veiddu-mosi'));
+  await waitPhase('tutorial fish fish');
+  assert.equal(noBubbleUp(), true, 'the "Nei! Farðu að veiða!" bubble is still showing');
+  const pond = root.querySelector('.veiddu-pond');
+  assert.equal(pond.classList.contains('calls'), true, 'the pond calls immediately while the bubble is still up');
+  const before = veiddu.game.pond.length;
+  tap(pond);
+  assert.equal(veiddu.game.pond.length, before - 1, 'the very first tap on the pond fishes the card immediately');
+  veiddu.close();
 });

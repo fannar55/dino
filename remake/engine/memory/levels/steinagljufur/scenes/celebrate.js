@@ -28,6 +28,10 @@ const CIRCLE = { centre: [53.6, 6.8], radius: 3.6, rise: 4, speed: 6.5, points: 
 // looks down by its elevation, so its sky reaches 17.5 minus that above the horizon, and the HUD hides the top of it: at 7-9 (14-15 on a tall
 // screen) only a strip under the HUD showed, with one to four stars in it. (Task 7 fix round 1)
 const SKY_TILT = { wide: 4, tall: 8 };
+// (the juice pass's #17) The last picture keeps the lower part of the screen free for the ending card that comes up over it (the camera
+// director's `clear`: the share of the picture's height), so that everyone on Sólarsyllan stands above the card; its sky point is lower than
+// the sunset's, so they are not small in the band left (metres over the ledge).
+const LAST = { clear: { wide: .44, tall: .56 }, sky: { wide: 3.2, tall: 5 } };
 // Sólarsyllan's top in the upper gorge's frame (upper.js SUN).
 const SUN_Y = 8.9;
 
@@ -88,7 +92,7 @@ export function celebrateScene(stage) {
     { at: T.mosi, shot: { kind: 'hero', subjects: () => [mosi.head(), up(mosi.head(), .5), ...rowPoints(), ...bodies(bronto().slice(0, 1))], front: view([.06, -1], [-.5, -.85]), elevation: tall ? 40 : 36, cut: true, floor: 'auto' },
       act: all(beat('mosi-cheer'), () => mosi.look(stage.camera()), () => mosi.gesture('cheer')), fx: { kind: 'stars', at: () => up(mosi.body(), .8), count: 14 } },
     // The last picture: everyone on Sólarsyllan under the stars, wide and low; the fossils fly to the basket. The card comes up over it.
-    { at: T.last, shot: { kind: 'wide', subjects: () => [...everyone(), ...rowPoints(), sky(53.5, 6.6, tall ? 9.5 : 7.5)], front: view([-.22, -1], [-.8, -.6]), elevation: tall ? SKY_TILT.tall + .5 : SKY_TILT.wide + .5, cut: true, floor: 'auto' },
+    { at: T.last, shot: { kind: 'wide', subjects: () => [...everyone(), ...rowPoints(), sky(53.5, 6.6, tall ? LAST.sky.tall : LAST.sky.wide)], front: view([-.22, -1], [-.8, -.6]), elevation: tall ? SKY_TILT.tall + .5 : SKY_TILT.wide + .5, cut: true, floor: 'auto', clear: tall ? LAST.clear.tall : LAST.clear.wide },
       act: all(beat('final-wide'), () => { stage.gifts.end(); task.rowShown(false); }, () => stage.friends().forEach(actor => actor.gesture('settle')), () => mosi.look(stage.camera())) },
     { at: T.last + 1.6, act: beat('end', false) },
   ];

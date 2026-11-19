@@ -195,6 +195,29 @@ test('the Fen\'s bed takes over from the forest\'s wind: one quiet loop of water
   assert.equal(context.started.length, after, 'and nothing more is scheduled');
 });
 
+test('a bed can be asked for without its small sounds (chapter 5: the choir is listened to), and with them again', () => {
+  const { context, sfx } = setup();
+  assert.equal(sfx.play('fen'), true);
+  const water = context.bufferSources.filter(source => source.loop);
+  const run = seconds => { const from = context.started.length; for (let t = 0; t < seconds; t += 0.1) { sfx.update(0.1); context.advance(0.1); } return context.started.length - from; };
+  assert.ok(run(30) > 5, 'frogs and drips over the water');
+  assert.equal(sfx.play('fen', { calls: false }), false, 'the same bed: nothing new is laid');
+  assert.equal(run(60), 0, 'only the water now');
+  assert.ok(water.every(loop => loop.stopTime === undefined), 'which plays on');
+  sfx.play('fen');
+  assert.ok(run(30) > 5, 'and they are back when the bed is asked for as it is');
+  // a bed laid quiet from the start, and the forest after it with its birds
+  const other = setup();
+  assert.equal(other.sfx.play('fen', { calls: false }), true);
+  const quiet = other.context.started.length;
+  for (let t = 0; t < 30; t += 0.1) { other.sfx.update(0.1); other.context.advance(0.1); }
+  assert.equal(other.context.started.length, quiet);
+  other.sfx.play('forest');
+  const wind = other.context.started.length;
+  for (let t = 0; t < 60; t += 0.1) { other.sfx.update(0.1); other.context.advance(0.1); }
+  assert.ok(other.context.started.length > wind, 'a new bed has its own small sounds');
+});
+
 test('a bed let go halfway through its fade-in fades from where it is, also where the browser cannot hold a ramp (Firefox)', () => {
   const { context, sfx } = setup();
   sfx.play('fen');

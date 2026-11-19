@@ -54,7 +54,7 @@ export function rollScene(stage, { taps = 3, timeout = 4 } = {}) {
     // We did it! Face to face: both cheer and call, Mosi claps.
     { at: 5.3, shot: { kind: 'face', subjects: () => [...heads(), ...heads().map(p => up(p, .5)), ...tris().map(actor => actor.root.position.clone())], front: CHEER_FRONT, elevation: 10, cut: true },
       act: all(() => stage.pairGesture('triceratops', 'cheer'), () => stage.mosi.gesture('clap')),
-      fx: { kind: 'stars', at: () => up(centre(heads()), .5), count: 12 }, sound: { name: 'call', species: 'triceratops' } },
+      fx: { kind: 'done', at: () => up(centre(heads()), .5), shake: false }, sound: { name: 'call', species: 'triceratops' } },
     { at: 6.5, wait: { until: () => !stage.task.busy(), timeout: 3 } },
     // The bridge is there: the Þórseðlur let the branch go and go back to the others.
     { at: 6.6, shot: { kind: 'wide', scale: 'action', subjects: () => [...stage.task.branch(), ...stage.task.branch().map(p => up(p, 1.4)), ...bodies(brontos())], front: BRANCH_FRONT, elevation: 14, cut: true },

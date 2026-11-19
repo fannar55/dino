@@ -39,6 +39,24 @@ test('music tool: a preset\'s own form and words, or the standard eight sections
   assert.deepEqual(plan.chunks[0].negative_styles, ['x']);
 });
 
+test('music tool: a section can lead with its own words and forbid its own styles, so a middle section is truly different', () => {
+  const song = {
+    ...PRESETS.fonk, core: ['the whole song'], negative: ['x'], sectionFirst: true,
+    form: [['Chorus', 'chorus', 4], ['Middle', 'bridge', 4, ['tiptoeing strings']]],
+    kinds: { chorus: ['big drums'], bridge: ['no drums at all'] }, kindNegative: { bridge: ['drums', 'timpani'] },
+  };
+  const [chorus, middle] = planOf(song).chunks;
+  const at = (chunk, style) => chunk.positive_styles.indexOf(style);
+  assert.ok(at(middle, 'no drums at all') >= 0 && at(middle, 'tiptoeing strings') > at(middle, 'no drums at all'));
+  assert.ok(at(middle, 'tiptoeing strings') < at(middle, 'the whole song'), 'the section\'s own words come before the whole song\'s');
+  assert.ok(at(middle, '95 BPM') < at(middle, 'no drums at all'), 'the tempo still comes first');
+  assert.deepEqual(middle.negative_styles, ['x', 'drums', 'timpani']);
+  assert.deepEqual(chorus.negative_styles, ['x']);
+  // without sectionFirst the order stays as every song before it asked
+  const plain = planOf({ ...song, sectionFirst: undefined }).chunks[1];
+  assert.ok(at(plain, 'the whole song') < at(plain, 'no drums at all'));
+});
+
 test('stem chart: onsets on the beat from a click track; the child\'s notes two beats apart, shared fairly, never on top of a fixed note', () => {
   const rate = 22050;
   const samples = new Float32Array(rate * 60);

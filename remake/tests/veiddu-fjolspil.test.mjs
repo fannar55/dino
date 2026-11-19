@@ -9,6 +9,7 @@ import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createFjolspil } from '../engine/fjolspil/fjolspil.js';
 import { createSeats, playsFromPhone, HOST_AVATAR } from '../engine/fjolspil/seats.js';
 import { COVER_AFTER_MS } from '../engine/fjolspil/protocol.js';
+import { createVeidduMulti } from '../engine/veiddu/multi.js';
 
 globalThis.qrcode = createRequire(import.meta.url)('../vendor/qrcode-generator/qrcode.js');
 
@@ -408,4 +409,251 @@ test('Egill\'s phone remembered after a reload: it goes back to its seat, and a 
   r.net.statusFn('connected');
   assert.deepEqual(hellos(r.net).at(-1).body, { name: 'Egill', avatar: 'egill' }, 'the reconnect is Egill\'s hello, not a guest\'s');
   assert.equal(g$(r.root, '.spil-avatar[aria-pressed="true"]'), null, 'and Egill\'s portrait is not one of the six friends');
+});
+
+test('Veiddu Fjölspil starts with Egill at the big screen: connecting one phone enables "Byrjum!" immediately and Egill plays on the host screen', async () => {
+  const doc = new FakeDocument(['fjolspil', 'veiddu']);
+  const win = { location: new URL(`${LAN}/remake/?play=1`), addEventListener() {} };
+  const nets = fakeNets();
+  const timers = fakeTimers();
+  const fjolspil = createFjolspil(doc, { win, storage: fakeStorage(), random: () => 0.5, timers, net: nets.create, audio: { sfx() {} } });
+  const uggHome = doc.createElement('div');
+  const veidduRoot = doc.getElementById('veiddu');
+  const multi = createVeidduMulti(doc, {
+    root: veidduRoot, fjolspil, save: null, win, calm: () => true,
+    setTimer: (fn, ms) => timers.setTimeout(fn, ms),
+    clearTimer: id => timers.clearTimeout(id),
+    uggedla: { windowEl: doc.createElement('div'), frameEl: doc.createElement('div'), home: uggHome, view: () => null, start() {}, stop() {} },
+    sound: { sfx() {}, splashes: { play() {} }, say: () => 0, speech: { stop() {}, cut() {}, talking: false }, clock: () => 0, lineMs: () => 10 },
+    words: { SAY: { yes: 'Já', give: 'Gjörðu', no: 'Nei', childNo: 'Farðu að veiða!', lucky: 'Heppilegt', empty: 'Tóm' }, asking: k => `Áttu ${k}?` },
+  });
+  const lobbyRoot = doc.getElementById('fjolspil');
+  const openPromise = multi.openLobby();
+  const net = nets.made.at(-1);
+  net.welcome();
+  assert.deepEqual(states(lobbyRoot), ['host', 'empty', 'empty', 'empty'], 'Egill is already seated at the big screen');
+  assert.equal($(lobbyRoot, '.fjolspil-start').disabled, true, 'waiting for at least one opponent');
+
+  net.joined('anna-phone');
+  net.hello('anna-phone', 'Anna', 'kambedla');
+  assert.deepEqual(states(lobbyRoot), ['host', 'taken', 'empty', 'empty']);
+  assert.equal($(lobbyRoot, '.fjolspil-start').disabled, false, 'connecting one phone enables "Byrjum!" immediately');
+
+  tap($(lobbyRoot, '.fjolspil-start'));
+  assert.equal(await openPromise, true, 'the round begins');
+  assert.equal(multi.isOn, true);
+  const multiEl = veidduRoot.querySelector('.veiddu-multi');
+  assert.equal(multiEl.dataset.host, 'screen');
+
+  // Advance timers through deal() and initial pair animations
+  for (let step = 0; step < 30 && multi.dealt < 1; step++) {
+    timers.advance(500);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(multi.dealt, 1, 'deal() completed without crashing');
+  assert.equal(multi.phase, '0 ask', 'Egill is on turn to ask on the big screen');
+
+  const handCards = $$(multiEl, '.veiddu-hand .veiddu-card');
+  assert.equal(handCards.length, multi.game.hands[0].length, 'all of Egill\'s cards are in the host hand');
+  assert.ok(handCards.length > 0);
+  for (const cardEl of handCards) {
+    assert.equal(cardEl.style.visibility, '', 'each card in Egill\'s hand is visible after the deal');
+  }
+
+  // Pick a kind that Anna does NOT hold so we test asking -> "Nei!" -> fishing on the host screen
+  const annaKinds = new Set(multi.game.hands[1].map(c => c.kind));
+  const askCardEl = handCards.find(c => !annaKinds.has(c.dataset.kind)) ?? handCards[0];
+  const askKind = askCardEl.dataset.kind;
+  tap(askCardEl);
+  assert.equal(askCardEl.classList.contains('picked'), true, 'tapping a card lifts it on the host screen');
+  const annaPlace = $$(multiEl, '.veiddu-place').find(el => el.dataset.seat === '1');
+  assert.equal(annaPlace.classList.contains('is-target'), true, 'opponent place lights up as target');
+
+  // Tap opponent place to ask
+  tap(annaPlace);
+  for (let step = 0; step < 10 && !multi.phase.startsWith('1 '); step++) {
+    timers.advance(200);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  const annaView = net.lastOf('anna-phone', 'view').body;
+  assert.equal(annaView.asked.kind, askKind, 'Anna\'s phone immediately sees what Egill asked for');
+
+  if (multi.phase === '1 no') {
+    net.act('anna-phone', { type: 'no' });
+    for (let step = 0; step < 10 && multi.phase !== '0 fish'; step++) {
+      timers.advance(200);
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(multi.phase, '0 fish', 'Egill must now fish on the host screen');
+    const pondEl = $(multiEl, '.veiddu-pond');
+    assert.equal(pondEl.classList.contains('calls'), true, 'pond glows for Egill');
+    tap(pondEl);
+    for (let step = 0; step < 20 && multi.phase === 'busy'; step++) {
+      timers.advance(300);
+      await new Promise(resolve => setImmediate(resolve));
+    }
+  }
+
+  // Now when it is Anna's turn on her phone ('1 ask'), test Anna asking Egill for a card Egill holds ('0 give')
+  if (multi.phase === '1 ask') {
+    const egillKinds = new Set(multi.game.hands[0].map(c => c.kind));
+    const shared = multi.game.hands[1].find(c => egillKinds.has(c.kind));
+    const unshared = multi.game.hands[1].find(c => !egillKinds.has(c.kind));
+    if (shared) {
+      net.act('anna-phone', { type: 'ask', target: 0, kind: shared.kind });
+      for (let step = 0; step < 10 && multi.phase !== '0 give'; step++) {
+        timers.advance(200);
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      assert.equal(multi.phase, '0 give', 'host screen waits for Egill to give the matching card');
+      const giveBtn = $$(multiEl, '.veiddu-hand .veiddu-card').find(c => c.dataset.kind === shared.kind);
+      const givenCardId = giveBtn.dataset.id;
+      assert.equal(giveBtn.classList.contains('hint'), true, 'matching card in Egill\'s hand lights up');
+      tap(giveBtn);
+      for (let step = 0; step < 20 && multi.phase === 'busy'; step++) {
+        timers.advance(300);
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      const afterGiveCards = $$(multiEl, '.veiddu-hand .veiddu-card');
+      assert.equal(
+        afterGiveCards.some(c => c.dataset.id === givenCardId),
+        false,
+        'given card is removed from Egill\'s DOM hand on the host screen',
+      );
+      assert.deepEqual(
+        afterGiveCards.map(c => c.dataset.id).sort(),
+        multi.game.hands[0].map(c => c.id).sort(),
+        'DOM hand on host screen matches game.hands[0] after giving a card',
+      );
+    } else if (unshared) {
+      net.act('anna-phone', { type: 'ask', target: 0, kind: unshared.kind });
+      for (let step = 0; step < 10 && multi.phase !== '0 no'; step++) {
+        timers.advance(200);
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      assert.equal(multi.phase, '0 no', 'host screen waits for Egill to tap Farðu að veiða!');
+      const fishBtn = $(multiEl, '.veiddu-fish-button');
+      assert.ok(fishBtn, 'Farðu að veiða! button appears on the host screen');
+      tap(fishBtn);
+      for (let step = 0; step < 10 && multi.phase !== '1 fish'; step++) {
+        timers.advance(200);
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      assert.equal(multi.phase, '1 fish', 'Anna\'s phone is told to fish');
+    }
+  }
+
+  multi.leave({ close: true });
+});
+
+test('host screen removes a card from Egill\'s hand when he gives it away and pairs up cleanly when he receives one', async () => {
+  const doc = new FakeDocument(['fjolspil', 'veiddu']);
+  const win = { location: new URL(`${LAN}/remake/?play=1`), addEventListener() {} };
+  const nets = fakeNets();
+  const timers = fakeTimers();
+  const fjolspil = createFjolspil(doc, { win, storage: fakeStorage(), random: () => 0.5, timers, net: nets.create, audio: { sfx() {} } });
+  const uggHome = doc.createElement('div');
+  const veidduRoot = doc.getElementById('veiddu');
+  const multi = createVeidduMulti(doc, {
+    root: veidduRoot, fjolspil, save: null, win, calm: () => true,
+    setTimer: (fn, ms) => timers.setTimeout(fn, ms),
+    clearTimer: id => timers.clearTimeout(id),
+    uggedla: { windowEl: doc.createElement('div'), frameEl: doc.createElement('div'), home: uggHome, view: () => null, start() {}, stop() {} },
+    sound: { sfx() {}, splashes: { play() {} }, say: () => 0, speech: { stop() {}, cut() {}, talking: false }, clock: () => 0, lineMs: () => 10 },
+    words: { SAY: { yes: 'Já', give: 'Gjörðu', no: 'Nei', childNo: 'Farðu að veiða!', lucky: 'Heppilegt', empty: 'Tóm' }, asking: k => `Áttu ${k}?` },
+  });
+  const lobbyRoot = doc.getElementById('fjolspil');
+  const openPromise = multi.openLobby();
+  const net = nets.made.at(-1);
+  net.welcome();
+  net.joined('fannar-phone');
+  net.hello('fannar-phone', 'Fannar', 'flugedla');
+  tap($(lobbyRoot, '.fjolspil-start'));
+  await openPromise;
+  multi.leave({ close: false });
+
+  // Resume with a known state: seat 1 (Fannar) is on turn to ask; both hold snigill and fiskur-gulur
+  const kept = {
+    hands: [
+      [{ id: 'snigill-1', kind: 'snigill' }, { id: 'fiskur-gulur-1', kind: 'fiskur-gulur' }, { id: 'fiskur-blar-1', kind: 'fiskur-blar' }],
+      [{ id: 'snigill-2', kind: 'snigill' }, { id: 'fiskur-gulur-2', kind: 'fiskur-gulur' }, { id: 'froskur-1', kind: 'froskur' }],
+    ],
+    pairs: [[], []],
+    pond: [{ id: 'snigill-3', kind: 'snigill' }, { id: 'snigill-4', kind: 'snigill' }],
+    turn: 1,
+    phase: 'ask',
+    winners: [],
+    log: [],
+  };
+  assert.equal(multi.show(fjolspil.seats.list(), kept), true);
+  for (let step = 0; step < 10 && multi.phase === 'busy'; step++) {
+    timers.advance(200);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(multi.phase, '1 ask');
+  const multiEl = veidduRoot.querySelector('.veiddu-multi');
+  assert.deepEqual(
+    $$(multiEl, '.veiddu-hand .veiddu-card').map(c => c.dataset.id),
+    ['snigill-1', 'fiskur-gulur-1', 'fiskur-blar-1'],
+  );
+
+  // 1) Fannar asks Egill for snigill -> Egill gives snigill-1 -> snigill-1 MUST leave Egill's DOM hand
+  net.act('fannar-phone', { type: 'ask', target: 0, kind: 'snigill' });
+  for (let step = 0; step < 10 && multi.phase !== '0 give'; step++) {
+    timers.advance(200);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(multi.phase, '0 give');
+  const snigillBtn = $$(multiEl, '.veiddu-hand .veiddu-card').find(c => c.dataset.kind === 'snigill');
+  tap(snigillBtn);
+  for (let step = 0; step < 20 && multi.phase === 'busy'; step++) {
+    timers.advance(300);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(multi.phase, '1 ask', 'Fannar gets another turn after pairing snigill');
+  assert.deepEqual(
+    $$(multiEl, '.veiddu-hand .veiddu-card').map(c => c.dataset.id),
+    ['fiskur-gulur-1', 'fiskur-blar-1'],
+    'snigill-1 was removed from Egill\'s visible hand on the host screen',
+  );
+
+  // 2) Fannar asks for froskur (which Egill does not hold) -> Egill taps Farðu að veiða! -> Fannar fishes -> Egill's turn
+  net.act('fannar-phone', { type: 'ask', target: 0, kind: 'froskur' });
+  for (let step = 0; step < 10 && multi.phase !== '0 no'; step++) {
+    timers.advance(200);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  tap($(multiEl, '.veiddu-fish-button'));
+  for (let step = 0; step < 10 && multi.phase !== '1 fish'; step++) {
+    timers.advance(200);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  net.act('fannar-phone', { type: 'fish' });
+  for (let step = 0; step < 20 && multi.phase === 'busy'; step++) {
+    timers.advance(300);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(multi.phase, '0 ask', 'Egill is now on turn');
+
+  // 3) Egill asks Fannar for fiskur-gulur -> Fannar gives fiskur-gulur-2 -> Egill pairs fiskur-gulur -> both removed from Egill's hand
+  const gulurBtn = $$(multiEl, '.veiddu-hand .veiddu-card').find(c => c.dataset.kind === 'fiskur-gulur');
+  tap(gulurBtn);
+  const fannarPlace = $$(multiEl, '.veiddu-place').find(el => el.dataset.seat === '1');
+  tap(fannarPlace);
+  for (let step = 0; step < 10 && multi.phase !== '1 give'; step++) {
+    timers.advance(200);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  net.act('fannar-phone', { type: 'give', cardId: 'fiskur-gulur-2' });
+  for (let step = 0; step < 20 && multi.phase === 'busy'; step++) {
+    timers.advance(300);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.deepEqual(
+    $$(multiEl, '.veiddu-hand .veiddu-card').map(c => c.dataset.id),
+    ['fiskur-blar-1'],
+    'after receiving and pairing fiskur-gulur, only fiskur-blar-1 remains in Egill\'s visible hand',
+  );
+
+  multi.leave({ close: true });
 });

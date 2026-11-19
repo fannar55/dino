@@ -17,16 +17,29 @@ const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot 
 // Recorded sounds, by name, beside the made ones: Grameðla's roar and breath, far off from chapter 2's lookout. Both from
 // tunetank.com, free for non-commercial use with credit (the owner, 2026-10-27): "Sound Effect: Dinosaur creature moan" and
 // "Sound Effect: T-rex exhale", download from https://tunetank.com (assets/audio/kafli2/CREDITS.md). `level` is the gain into the
-// effects' master.
-const SAMPLES = {
+// effects' master; a play's detail may scale it: s.sfx('gramedlaRoar', { level: 0.25 }), further off (chapter 4's flight), and put
+// it to a side: { pan: -0.6 }. Chapter 4's (assets/audio/kafli4/CREDITS.md, the owner's picks of 2026-11-02) have takes (`urls`):
+// one of them each time, not the one played last; until they have decoded, the made sound `instead` plays in their place.
+const kafli4 = file => new URL(`../../assets/audio/kafli4/hljod/${file}`, import.meta.url).href;
+export const SAMPLES = {
   gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
   gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 1.0 },
+  skim: { urls: [kafli4('skim-1.mp3'), kafli4('skim-2.mp3')], level: 0.55, instead: 'splash' }, // her feet on the river
+  turtleCall: { urls: [kafli4('turtle-1.mp3'), kafli4('turtle-2.mp3')], level: 0.5, instead: 'turtle' }, // the turtle answering her
+  lizards: { urls: ['smalldino-1.mp3', 'smalldino-2.mp3', 'smalldino-3.mp3', 'smalldino-4.mp3'].map(kafli4), level: 0.45 }, // the small ones
+  // the owner's picks of 2026-11-07: the herd answering her big call, and the gorge's flyers (as they leave their nests, and answering)
+  grazers: { urls: ['grazer-1.mp3', 'grazer-2.mp3', 'grazer-3.mp3', 'grazer-4.mp3'].map(kafli4), level: 0.5 },
+  flyers: { urls: ['flyer-1.mp3', 'flyer-2.mp3'].map(kafli4), level: 0.4 },
 };
+const SAMPLE_VARY = 0.06; // a recorded sample plays up to 6 % higher or lower each time (a play's detail.rate sets it instead)
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
 const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
 const BEDS = ['forest', 'fen'];
 const CROSS_FADE = 0.8; // the time constant (s) of a bed fading out as the other comes in: about three seconds
+// Slóeðla's horn (the horn sound): its note (D3, Hz), how long it lasts, where it slips to (of the note: flatter than a semitone, short
+// of a whole tone) and sinks to, its peak gain, and its echo off the far bank ([seconds, gain]).
+const HORN = { note: 146.83, seconds: 2.8, wrong: 0.93, sinks: 0.84, level: 0.14, echo: [0.32, 0.25] };
 const FEN_IN = 2.5; // seconds the Fen's water takes to come in
 
 /**
@@ -194,6 +207,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   let bed = null; // the one laid: { name, sources, fade, nodes }
   let wanted = null; // the one the scene asked for: it is laid as soon as sound is allowed (the context wakes a moment after the touch)
   let callIn = 0; // game seconds until the next small sound over the bed
+  let calls = true; // whether the bed has its small sounds: play('fen', { calls: false }) is the water alone (chapter 5's choir)
 
   /** Lays the bed called `name`, fading out the other one if it is laid. Whether it laid it (not when it was laid already). */
   function startBed(name) {
@@ -315,10 +329,22 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15 * level, pan });
       noise({ duration: 0.18, level: 0.34 * level, frequency: 850, end: 350, pan, attack: 0.008 });
     },
-    // A ribbit: two throaty croaks, the second one rising.
-    frog() {
+    // A call heard (chapter 4: Egill taps a group of animals and she calls it): two soft, high bells of the key, mi and la an octave
+    // up, close together, from where the group is (`pan`). Quiet: her call and their answer come after it.
+    callChime({ pan = 0 } = {}) {
+      bell(key[2] * 2, { level: 0.03, pan, duration: 0.5 });
+      bell(key[4] * 2, { level: 0.026, pan, delay: 0.09, duration: 0.6 });
+    },
+    // A breath blown out (chapter 4's wind: Mosi and Egill blow along with a gust): a soft, long "fff" of warm noise, swelling and
+    // falling, from a little to one side (`pan`). No note in it.
+    blow({ pan = 0, level = 1 } = {}) {
+      noise({ kind: 'warm', type: 'bandpass', frequency: 1300, end: 700, q: 0.6, duration: 0.9, level: 0.045 * level, attack: 0.18, pan });
+      noise({ kind: 'white', type: 'highpass', frequency: 3200, end: 2600, q: 0.5, duration: 0.7, level: 0.012 * level, attack: 0.12, pan });
+    },
+    // A ribbit: two throaty croaks, the second one rising; near the middle, or at `pan` (chapter 4's answers from all sides).
+    frog({ pan: side } = {}) {
       const pitch = between(0.95, 1.05);
-      const pan = between(-0.3, 0.3);
+      const pan = Number.isFinite(side) ? side : between(-0.3, 0.3);
       for (const [at, from, to, length] of [[0, 190, 140, 0.1], [0.14, 150, 235, 0.13]]) {
         tone({ frequency: from * pitch, end: to * pitch, duration: length, level: 0.11, delay: at, pan, type: 'triangle', attack: 0.015 });
         tone({ frequency: from * pitch * 2, end: to * pitch * 2, duration: length, level: 0.045, delay: at, pan, type: 'triangle', attack: 0.015 });
@@ -338,10 +364,11 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       for (let i = 0; i < 6; i++) tone({ frequency: between(135, 150), end: 120, duration: 0.04, level: 0.1, delay: i * 0.045, pan, type: 'sawtooth', attack: 0.005 });
       noise({ type: 'bandpass', frequency: 2600, end: 1900, q: 1.5, duration: 0.3, level: 0.12, pan, attack: 0.03 });
     },
-    // Two birds, one answering the other.
-    birds() {
-      chirps({ pitch: between(1350, 1700), count: 3, level: 0.1, pan: -0.35 });
-      chirps({ pitch: between(1750, 2100), count: 2, level: 0.08, pan: 0.4, delay: 0.5 });
+    // Two birds, one answering the other: one on each side, or both at `pan`.
+    birds({ pan } = {}) {
+      const side = Number.isFinite(pan);
+      chirps({ pitch: between(1350, 1700), count: 3, level: 0.1, pan: side ? pan : -0.35 });
+      chirps({ pitch: between(1750, 2100), count: 2, level: 0.08, pan: side ? pan * 0.8 : 0.4, delay: 0.5 });
     },
     // A flutter of tiny high pings and a breath of air.
     butterfly() {
@@ -384,6 +411,74 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       tone({ frequency: key[0] * 2, end: key[0] * 4, duration: 1.8, level: 0.025, attack: 0.5, body: 0.6, sustain: 0.8 });
       bell(key[0] * 2, { delay: 1.7, level: 0.05, duration: 1.2 });
     },
+    // Slóeðla's horn from the reed across the far pool (chapter 4's end; chapter 5 begins with it): she cannot remember her song, and
+    // the one long note through her hollow crest will not hold. It comes in from a little under, holds, slips flat (less than a whole
+    // tone: false, not another note) with a wobble that widens, and sinks away. Low and dull, far off, from the side `pan` says.
+    sloedlaHorn({ pan = 0, level = HORN.level, note = HORN.note } = {}) {
+      const at = context.currentTime + 0.02;
+      const f = note; // chapter 5 names a note of its song's key, so the slip lands between two of its tones (choir-sounds.js)
+      const end = at + HORN.seconds;
+      const volume = context.createGain();
+      const g = volume.gain;
+      g.setValueAtTime(0, at);
+      g.linearRampToValueAtTime(level, at + 0.18);
+      g.linearRampToValueAtTime(level * 0.9, at + 1.0);
+      g.linearRampToValueAtTime(level * 0.75, at + 2.0);
+      g.exponentialRampToValueAtTime(0.0001, end);
+      const crest = context.createBiquadFilter(); // her crest: a closed, ringing lowpass that opens with her breath and closes as it sinks
+      crest.type = 'lowpass';
+      crest.Q.value = 3;
+      crest.frequency.setValueAtTime(380, at);
+      crest.frequency.linearRampToValueAtTime(900, at + 0.25);
+      crest.frequency.linearRampToValueAtTime(700, at + 1.6);
+      crest.frequency.linearRampToValueAtTime(300, end);
+      crest.connect(volume);
+      const wobble = context.createOscillator();
+      wobble.frequency.setValueAtTime(5.2, at);
+      const depth = context.createGain();
+      depth.gain.setValueAtTime(0, at);
+      depth.gain.linearRampToValueAtTime(0, at + 0.5);
+      depth.gain.linearRampToValueAtTime(f * 0.012, at + 1.0);
+      depth.gain.linearRampToValueAtTime(f * 0.03, at + 1.8);
+      wobble.connect(depth);
+      // the note, and the hollow an octave under it
+      const voices = [['sawtooth', 1, 1], ['sine', 0.5, 0.7]].map(([type, share, gain]) => {
+        const voice = context.createOscillator();
+        voice.type = type;
+        const hz = voice.frequency;
+        hz.setValueAtTime(f * share * 0.94, at);
+        hz.linearRampToValueAtTime(f * share, at + 0.12);
+        hz.setValueAtTime(f * share, at + 0.9);
+        hz.linearRampToValueAtTime(f * share * HORN.wrong, at + 1.6);
+        hz.setValueAtTime(f * share * HORN.wrong, at + 2.1);
+        hz.linearRampToValueAtTime(f * share * HORN.sinks, end);
+        depth.connect(hz);
+        const mix = context.createGain();
+        mix.gain.value = gain;
+        voice.connect(mix);
+        mix.connect(crest);
+        return [voice, mix];
+      });
+      const out = [crest, volume, ...outlet(volume, pan, master)];
+      // and an echo off the far bank, when the page can make one
+      if (context.createDelay) {
+        const delay = context.createDelay(1);
+        delay.delayTime.value = HORN.echo[0];
+        const back = context.createGain();
+        back.gain.value = HORN.echo[1];
+        volume.connect(delay);
+        delay.connect(back);
+        out.push(delay, back, ...outlet(back, pan * 0.5, master));
+      }
+      track(wobble, [depth]);
+      voices.forEach(([voice, mix], i) => track(voice, i === 0 ? [mix, ...out] : [mix]));
+      for (const source of [wobble, ...voices.map(([voice]) => voice)]) {
+        source.start(at);
+        source.stop(end + HORN.echo[0] + 0.2); // with the echo's tail
+      }
+      // her breath into the crest as the note begins
+      noise({ kind: 'white', type: 'bandpass', frequency: 1100, end: 700, q: 1, duration: 0.45, level: level * 0.25, attack: 0.05, pan });
+    },
     // The map is laid out over the game (the map in the journey, engine/book/map-moment.js, which asks the journal's audio for it as
     // the map slides up in 0.6 s): a soft paper unroll, a band of noise that swells and climbs for half a second, and the last rustle
     // of the edge settling. Quiet, and with no note in it: it comes under Mosi's line.
@@ -416,32 +511,57 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   // The recorded ones, for the chapter's page only (`recorded`: main.js; the games make effects of their own and have no use for
   // them): each file fetched and decoded once, in the background, as the effects are made, and played through the master like the
   // rest, so it mutes and holds with them. One asked for before its file has decoded is not played.
-  const buffers = new Map();
+  const buffers = new Map(); // url → its decoded buffer
+  const lastTake = new Map(); // name → the url it played last
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
-    SOUNDS[name] = () => {
-      const buffer = buffers.get(name);
-      if (!buffer) return;
+    const urls = sample.urls ?? [sample.url];
+    SOUNDS[name] = (detail = {}) => {
+      const ready = urls.filter(url => buffers.has(url));
+      const fresh = ready.length > 1 ? ready.filter(url => url !== lastTake.get(name)) : ready;
+      if (!fresh.length) {
+        if (sample.instead) SOUNDS[sample.instead](detail);
+        return;
+      }
+      const url = fresh[Math.floor(random() * fresh.length) % fresh.length];
+      lastTake.set(name, url);
       const source = context.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = buffers.get(url);
+      // a little higher or lower each time (as the flight's one-shots vary), so the same take never sounds the same twice
+      source.playbackRate.value = Number.isFinite(detail.rate) && detail.rate > 0 ? detail.rate : between(1 - SAMPLE_VARY, 1 + SAMPLE_VARY);
       const volume = context.createGain();
-      volume.gain.value = sample.level;
+      volume.gain.value = sample.level * (Number.isFinite(detail.level) ? detail.level : 1);
       source.connect(volume);
-      track(source, [volume, ...outlet(volume, 0, master)]);
+      track(source, [volume, ...outlet(volume, Number.isFinite(detail.pan) ? detail.pan : 0, master)]);
       source.start(context.currentTime);
     };
-    Promise.resolve()
-      .then(() => globalThis.fetch(sample.url))
-      .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
-      .then(bytes => context.decodeAudioData(bytes))
-      .then(buffer => buffers.set(name, buffer))
-      .catch(() => {}); // a sound that cannot be had is simply not heard
+    for (const url of urls) {
+      Promise.resolve()
+        .then(() => globalThis.fetch(url))
+        .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
+        .then(bytes => context.decodeAudioData(bytes))
+        .then(buffer => buffers.set(url, buffer))
+        .catch(() => {}); // a sound that cannot be had is simply not heard (or its made one is, in its place)
+    }
   }
   const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
   const lastPlayed = new Map();
   const allowed = () => !muted && !paused && context.state === 'running';
   const applyLevel = () => master.gain.setTargetAtTime(muted || paused ? 0 : 1, context.currentTime, 0.015);
+  const AMBIENCE = 0.8; // the ambience's gain as the game lays it
+  /** The beds' bus to `level` of AMBIENCE, in a straight line over `seconds` from where it is now. */
+  function bedLevel(level, seconds) {
+    const now = context.currentTime, gain = ambience.gain;
+    if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+    else {
+      const was = gain.value;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(was, now);
+    }
+    if (seconds > 0) gain.linearRampToValueAtTime(AMBIENCE * level, now + seconds);
+    else gain.setValueAtTime(AMBIENCE * level, now);
+  }
 
   return {
     /**
@@ -454,6 +574,10 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       if (typeof name !== 'string' || !Object.hasOwn(SOUNDS, name)) return false;
       if (BEDS.includes(name)) {
         wanted = name;
+        calls = detail?.calls !== false;
+        // { level, seconds }: the bed (and its small sounds) to `level` of where the game lays it, over `seconds` (Grameðla kemur!
+        // drops the forest away for her thumps and for its stillness)
+        if (Number.isFinite(detail?.level)) bedLevel(Math.max(0, detail.level), Number.isFinite(detail.seconds) ? Math.max(0, detail.seconds) : 0);
         return allowed() && startBed(name);
       }
       if (!allowed() || sounding >= MAX_SOUNDS) return false;
@@ -470,7 +594,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     update(dt) {
       if (!allowed()) return;
       if (wanted && bed?.name !== wanted) startBed(wanted);
-      if (!bed) return;
+      if (!bed || !calls) return;
       callIn -= dt;
       if (callIn > 0) return;
       if (bed.name === 'fen') {

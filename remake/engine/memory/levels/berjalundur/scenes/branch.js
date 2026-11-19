@@ -57,7 +57,7 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
     // A new angle on the same moment: the raised branch over the two of them, both whole.
     { at: 1.65, shot: { kind: 'hero', subjects: () => [...crowns().map(p => up(p, .8)), ...heads(), ...brontos().map(actor => actor.root.position.clone())], front: CHEER_FRONT, elevation: 10, cut: true },
       act: all(() => stage.pairGesture('brontosaurus', 'cheer'), () => stage.mosi.gesture('clap')),
-      fx: { kind: 'stars', at: () => up(centre(crowns()), .4), count: 12 }, sound: { name: 'call', species: 'brontosaurus' } },
+      fx: { kind: 'done', at: () => up(centre(crowns()), .4) }, sound: { name: 'call', species: 'brontosaurus' } },
     { at: 3.05, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];
 }

@@ -51,7 +51,9 @@ export const LINES_FILE = 'remake/assets/audio/lines.json';
 /** The remake's own line sets, each with the folder it is in (beside its lines-source.json); relative to the repo root. */
 export const SETS = {
   kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
-  kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu',
+  kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
+  kafli5: 'remake/assets/audio/kafli5',
+  gramedla3d: 'remake/assets/audio/gramedla3d', // the 3D show "Grameðla kemur!" (chapters/gramedla3d.js): Egill's two lines, ids g3_<speaker>_<short>
 };
 /** Where the chapter's lines are: the set a tool works on unless it is told another. */
 export const REMAKE_AUDIO = SETS.kafli1;

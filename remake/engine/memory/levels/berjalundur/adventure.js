@@ -273,7 +273,9 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,planSpen
       t.age=Math.min(t.duration,t.age+dt);follow(t.actor,t.route,Math.min(1,t.age/Math.max(.01,t.duration-.3)),dt,t.finalYaw);
       if(t.age>=t.duration){
         t.finished=true;t.finishedAt=action.age;t.actor.walk?.(false);t.actor.root.rotation.y=t.finalYaw;
-        if(crossing){action.crossed.push(t.member);(action.id==='cross'?riverArrivals:finalArrivals).add(t.member);}
+        if(crossing){action.crossed.push(t.member);const arrived=action.id==='cross'?riverArrivals:finalArrivals;arrived.add(t.member);
+          // (the last of a pair over: 'pair-arrived' once, its call; the audit's #16)
+          const species=t.actor.species;if(!(action.called??=new Set()).has(species)&&action.crossOrder.filter(member=>allActors()[member].species===species).every(member=>arrived.has(member))){action.called.add(species);events.push({type:'pair-arrived',id:action.id,species});}}
       }
     }
     if(action.abortReason){if(action.routes.every(t=>t.finished))routeFailed(action.abortReason);return;}

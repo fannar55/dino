@@ -521,9 +521,25 @@ export function rigWinged(sources, { span = 7.5, yaw = 90, name = 'Flugeðla', n
   const shares = SIDES.flatMap(side => [limbShare(side, 'arm'), limbShare(side, 'leg')]);
   // Along the middle of her back the body keeps its own weights: a strip as wide as her shoulders are
   // apart follows the spine alone, so a saddle on it stays put while the wings beat (winged-clips.js
-  // finds the seat there). The limbs' share fades in beside it.
+  // finds the seat there). The limbs' share fades in beside it. Behind the shoulders, where the saddle's
+  // pad lies (engine/flier-saddle.js: from over the hips to just behind the shoulders, 38 cm out to each
+  // side), the strip widens to her whole back, so the skin under the pad does not rise and fall with the
+  // wings; it narrows to the shoulders' width again at the shoulders, which bend with the arms, and over
+  // the hips, which bend with the legs. Under the pad it also reaches down her flanks for the arms' share
+  // (not the legs'), fading out from 12 to 30 cm under her torso's axis: there the folded wing would lift
+  // her flank 20 cm, up over the pad's edges, as she stands.
   const torsoUp = V(-torsoDir.y, torsoDir.x, 0); // across the torso, toward her back
-  const backStrip = p => (p.clone().sub(J.Hips).dot(torsoUp) > 0 ? ss(0.6, 1.0, Math.abs(p.z) / armInfo.Right.shoulder.z) : 1);
+  const torsoLength = J.Chest.distanceTo(J.Hips);
+  const underSaddle = s => ss(-0.25, -0.05, s) * (1 - ss(0.8, 0.97, s)); // s: 0 at the hips, 1 at the chest
+  const backStrip = (p, arm) => {
+    const d = p.clone().sub(J.Hips);
+    const over = d.dot(torsoUp);
+    const wide = underSaddle(d.dot(torsoDir) / torsoLength);
+    const strip = ss(0.6 + 0.9 * wide, 1.0 + 1.0 * wide, Math.abs(p.z) / armInfo.Right.shoulder.z);
+    if (over > 0) return strip;
+    if (!arm) return 1;
+    return 1 - (1 - strip) * wide * (1 - ss(0.12, 0.3, -over));
+  };
   report.spread = Object.fromEntries(shares.map(s => [s.bone, +s.reachD.toFixed(3)]));
 
   // --- weights per cluster -----------------------------------------------------------------------------
@@ -554,9 +570,8 @@ export function rigWinged(sources, { span = 7.5, yaw = 90, name = 'Flugeðla', n
       bodyChain(at3, w);
       let taken = 0;
       const extra = [];
-      const strip = backStrip(at3);
       for (const s of shares) {
-        const v = clamp(s.field.get(r) ?? 0, 0, 1) * strip;
+        const v = clamp(s.field.get(r) ?? 0, 0, 1) * backStrip(at3, s.bone.endsWith('UpperArm'));
         if (v > 0) { extra.push([s.bone, v]); taken += v; }
       }
       const k = taken > 1 ? 1 / taken : 1;

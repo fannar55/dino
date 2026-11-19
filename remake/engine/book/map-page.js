@@ -212,6 +212,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
   };
   const layer = (className, src) => {
     const image = make('img', className);
+    image.decoding = 'async';
     image.src = src;
     image.alt = '';
     image.draggable = false;

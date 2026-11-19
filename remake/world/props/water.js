@@ -169,6 +169,9 @@ attribute vec2 aFlow; // m/s the water drifts
 varying vec3 vWorld;
 varying vec2 vWater;
 varying vec2 vFlow;
+#ifdef RIVER_WATER
+varying float vWhite;
+#endif
 #ifdef PRINT_WATER
 attribute vec2 aState; // a footprint's water: x 0 to 1 still and gold (counted), y 0 to 1 glimmering (the next to count)
 attribute vec2 aLocal; // where in the print's own frame (metres along it, to its right): its shore is drawn from its shape
@@ -182,6 +185,9 @@ void main() {
   vWorld = world.xyz;
   vWater = aWater.xy;
   vFlow = aFlow;
+  #ifdef RIVER_WATER
+  vWhite = aWater.z;
+  #endif
   #ifdef PRINT_WATER
   vState = aState;
   vLocal = aLocal;
@@ -206,6 +212,9 @@ uniform float uFade;
 varying vec3 vWorld;
 varying vec2 vWater;
 varying vec2 vFlow;
+#ifdef RIVER_WATER
+uniform vec3 uFoam;
+#endif
 #ifdef PRINT_WATER
 uniform vec3 uGold;
 uniform vec4 uBlobs[ PRINT_BLOBS ]; // the print's shape, its ellipses: x, z, radius along, radius across (mud-prints.js)
@@ -233,27 +242,61 @@ float printDistance( vec2 p ) {
 #endif
 #include <common>
 #include <fog_pars_fragment>
-float waterHeight( vec2 p ) {
-  // two layers of soft noise drifting against each other, and with the channel's flow
-  vec2 drift = vFlow * uTime;
-  float a = texture2D( uNoise, ( p - drift ) * 0.19 + vec2( uTime * 0.012, uTime * 0.008 ) ).g;
-  float b = texture2D( uNoise, ( p - drift * 1.4 ) * 0.43 - vec2( uTime * 0.019, -uTime * 0.014 ) ).b;
+// The taps below are made only where they count (the waves within 35 m or on white water, the sparks toward the sun), inside a
+// branch, so they are read with the gradients the plain reads would have had, taken outside it (a GPU may not branch round a read
+// that takes its own; and a branch's edge gets no wrong mip level): the world's (gP) and the flow's (gF), x and y.
+vec2 gPx, gPy, gFx, gFy;
+float waterLayers( vec2 p, vec2 drift, float driftBy ) {
+  // two layers of soft noise drifting against each other, and with the flow (drift is the flow times driftBy)
+  vec2 ua = ( p - drift ) * 0.19 + vec2( uTime * 0.012, uTime * 0.008 );
+  vec2 ub = ( p - drift * 1.4 ) * 0.43 - vec2( uTime * 0.019, -uTime * 0.014 );
+  float a = textureGrad( uNoise, ua, ( gPx - gFx * driftBy ) * 0.19, ( gPy - gFy * driftBy ) * 0.19 ).g;
+  float b = textureGrad( uNoise, ub, ( gPx - gFx * ( driftBy * 1.4 ) ) * 0.43, ( gPy - gFy * ( driftBy * 1.4 ) ) * 0.43 ).b;
   return a * 0.6 + b * 0.4;
 }
+#ifdef RIVER_WATER
+// A river's flow changes along it (lazy, then rapids), so its pattern cannot simply drift by flow times the clock: where the flow
+// changes it would stretch more every second. Instead it drifts for RIVER_PERIOD seconds and starts again, in two phases half a
+// period apart, each faded out as it jumps back, so the water runs at its own speed everywhere and never stretches.
+uniform float uRiverPeriod;
+varying float vWhite;
+float waterHeight( vec2 p ) {
+  float k0 = fract( uTime / uRiverPeriod );
+  float k1 = fract( uTime / uRiverPeriod + 0.5 );
+  float w = 1.0 - abs( 1.0 - 2.0 * k0 );
+  return mix( waterLayers( p + vec2( 3.7, 1.9 ), vFlow * ( k1 * uRiverPeriod ), k1 * uRiverPeriod ), waterLayers( p, vFlow * ( k0 * uRiverPeriod ), k0 * uRiverPeriod ), w );
+}
+#else
+float waterHeight( vec2 p ) {
+  return waterLayers( p, vFlow * uTime, uTime );
+}
+#endif
+uniform float uRingsUntil; // the clock's time the last ring dies (rings are skipped after it)
 void main() {
   vec2 p = vWorld.xz;
+  gPx = dFdx( p ); gPy = dFdy( p ); gFx = dFdx( vFlow ); gFy = dFdy( vFlow );
   // the small waves fade out with distance, so far water lies smooth and reflects the sky
   float detail = 1.0 - smoothstep( 12.0, 35.0, length( cameraPosition - vWorld ) );
   #ifdef PRINT_WATER
   detail *= 1.0 - 0.85 * vState.x; // a counted print's water lies still
   #endif
+  #ifdef RIVER_WATER
+  float bump = 0.07 * detail + 0.22 * vWhite; // white water is rough, near or far
+  #else
+  float bump = 0.07 * detail;
+  #endif
+  // the waves' slope (and h0, which only white water's foam reads): none where they would be scaled by nothing
   float e = 0.12;
-  float h0 = waterHeight( p );
-  vec2 grad = vec2( waterHeight( p + vec2( e, 0.0 ) ) - h0, waterHeight( p + vec2( 0.0, e ) ) - h0 ) / e;
+  float h0 = 0.0;
+  vec2 grad = vec2( 0.0 );
+  if ( bump > 0.0 ) {
+    h0 = waterHeight( p );
+    grad = vec2( waterHeight( p + vec2( e, 0.0 ) ) - h0, waterHeight( p + vec2( 0.0, e ) ) - h0 ) / e;
+  }
   // rings: a crest spreading from where something touched the water, and a fainter one inside it
   vec2 tilt = vec2( 0.0 );
   float crest = 0.0;
-  for ( int i = 0; i < ${RIPPLES}; i ++ ) {
+  if ( uTime <= uRingsUntil ) for ( int i = 0; i < ${RIPPLES}; i ++ ) {
     vec4 r = uRipples[ i ];
     float age = uTime - r.z;
     if ( r.w <= 0.0 || age < 0.0 || age > ${RIPPLE.life.toFixed(2)} ) continue;
@@ -270,13 +313,14 @@ void main() {
       tilt += ( d / max( dist, 1e-3 ) ) * ( -x * w );
     }
   }
-  vec3 n = normalize( vec3( -grad.x * 0.07 * detail - tilt.x * 0.35, 1.0, -grad.y * 0.07 * detail - tilt.y * 0.35 ) );
+  vec3 n = normalize( vec3( -grad.x * bump - tilt.x * 0.35, 1.0, -grad.y * bump - tilt.y * 0.35 ) );
   vec3 v = normalize( cameraPosition - vWorld );
   float facing = max( dot( n, v ), 0.0 );
   float fresnel = 0.02 + 0.98 * pow( 1.0 - facing, 5.0 ); // Schlick
-  // the body: deep teal, the olive silt of the bed only in the shallows at the edge
+  // the body: deep teal, a warm amber-sand transition in the shallows, and the olive silt of the bed at the very edge
   float deep = smoothstep( 0.03, 0.25, vWater.y );
-  vec3 body = mix( uBed, uDeep, deep );
+  float shallowBand = smoothstep( 0.01, 0.09, vWater.y ) * ( 1.0 - smoothstep( 0.10, 0.28, vWater.y ) );
+  vec3 body = mix( uBed, uDeep, deep ) + vec3( 0.035, 0.028, 0.008 ) * shallowBand;
   // the sky it reflects: the look's sky from just over its hazy horizon to its zenith, the far treeline along the bottom of it;
   // a pond in reeds reflects less than open water, so the teal shows through
   vec3 rr = reflect( -v, n );
@@ -287,14 +331,33 @@ void main() {
   float sun = max( dot( rr, uSunDir ), 0.0 );
   float sheen = pow( sun, 10.0 ) * 0.16;
   float glint = pow( sun, 420.0 ) * 1.8;
-  float sparks = smoothstep( 0.7, 0.92, texture2D( uNoise, p * 2.1 + vec2( uTime * 0.07, -uTime * 0.05 ) ).a )
-    * smoothstep( 0.62, 0.9, texture2D( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ) ).r );
+  float sparks = 0.0;
+  #ifndef PRINT_WATER
+  if ( sun > 0.6 ) // turned less to the sun the glitter is under a millionth (0.6 to the 28th, 4 times): its two taps are left out
+  #endif
+  {
+    sparks = smoothstep( 0.7, 0.92, textureGrad( uNoise, p * 2.1 + vec2( uTime * 0.07, -uTime * 0.05 ), gPx * 2.1, gPy * 2.1 ).a )
+      * smoothstep( 0.62, 0.9, textureGrad( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ), gPx * 2.9, gPy * 2.9 ).r );
+  }
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
   col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
+  #ifndef PRINT_WATER
+  // gentle living shore meniscus lapping along the bank
+  float shoreLap = smoothstep( 0.42, 0.14, -vWater.x ) * smoothstep( 0.02, 0.11, -vWater.x )
+    * smoothstep( 0.52, 0.76, h0 + 0.09 * sin( uTime * 1.35 - vWater.x * 13.0 ) ) * detail;
+  col = mix( col, mix( uHorizon, vec3( 1.0 ), 0.45 ), shoreLap * 0.28 );
+  #endif
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
   float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );
+  #ifdef RIVER_WATER
+  // white water: foam on the crests of the running pattern, more of it the whiter the river, and a pale churn under it
+  float foam = vWhite * smoothstep( 0.68 - 0.3 * vWhite, 0.8 - 0.14 * vWhite, h0 );
+  col = mix( col, mix( col, uFoam, 0.35 ), vWhite * 0.6 );
+  col = mix( col, uFoam, foam * 0.9 );
+  alpha = max( alpha, shore * foam );
+  #endif
   #ifdef PRINT_WATER
   // A footprint's water: a few centimetres over a mud floor. Its shore is the print's own shape, per pixel. Looking down it is
   // clear (the dark floor, lit or in shade as the mud is, shows through it); looking along it, it shows the sky. Counted, it lies
@@ -592,15 +655,20 @@ export function* createWaterSteps(world, spec, heightAt, { spots = [], seed = 12
   };
 }
 
+const RIVER_PERIOD = 4; // s a river's pattern drifts before it starts again (createWaterMaterial: river)
+const FOAM = '#eef3ec'; // a river's white water
+
 /**
  * The surface's material: teal in the deep, the bed through the shallows, the look's sky by a fresnel, the sun's sheen and glitter,
  * and RIPPLES rings in `uniforms.uRipples` ([x, z, the time it began, strength]; strength 0 is none), on the clock `uniforms.uTime`.
  * A geometry drawn with it carries aWater ([distance to the shore, negative inside, depth, 0]) and aFlow ([m/s, m/s]), and with
  * `prints` aState ([still and gold, glimmer], 0 to 1) and aLocal (the point in the print's frame): a footprint's water, its shore
  * the print's shape (`blobs` ellipses in `uniforms.uBlobs`, turned by `uBlobTurn`, fused over `uBlend` m), clear over its mud floor
- * (`bed`). `fade` is the metres it fades out over inside its shore.
+ * (`bed`). `fade` is the metres it fades out over inside its shore. With `river` it is a river's water (chapter 4's Árdalur): its
+ * pattern runs with aFlow in two phases RIVER_PERIOD seconds long, so a flow that changes along it never stretches it, and aWater's
+ * third value is how white it is (0 to 1): rougher, paler, foam on its crests.
  */
-export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed, noise: given = null } = {}) {
+export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed, noise: given = null, river = false } = {}) {
   const noise = given ?? createNoiseTexture((seed ^ 0x77a7e) >>> 0); // `noise`: the same texture, made already
   const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
   const uniforms = {
@@ -615,6 +683,8 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
     uSunDir: { value: sunDir },
     uNoise: { value: noise },
     uRipples: { value: Array.from({ length: RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0)) },
+    // the clock's time the last ring dies, after which the shader skips the rings: always on unless its owner keeps it (ringsUntil)
+    uRingsUntil: { value: 1e9 },
     uFade: { value: fade },
     ...(prints ? {
       uGold: { value: new THREE.Color(PRINT_GOLD) },
@@ -622,13 +692,15 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
       uBlobTurn: { value: Array.from({ length: blobs }, () => new THREE.Vector2(1, 0)) },
       uBlend: { value: 0.001 },
     } : {}),
+    ...(river ? { uRiverPeriod: { value: RIVER_PERIOD }, uFoam: { value: new THREE.Color(FOAM) } } : {}),
   };
   const material = new THREE.ShaderMaterial({
     vertexShader: SURFACE_VERT, fragmentShader: SURFACE_FRAG, uniforms,
     fog: true, transparent: true, depthWrite: false,
   });
-  material.name = prints ? 'fen-water prints' : 'fen-water';
+  material.name = prints ? 'fen-water prints' : river ? 'river-water' : 'fen-water';
   if (prints) material.defines = { PRINT_WATER: '', PRINT_BLOBS: blobs };
+  if (river) material.defines = { RIVER_WATER: '' };
   return {
     material, uniforms,
     dispose() { material.dispose(); noise.dispose(); },
@@ -636,3 +708,10 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
 }
 export const RIPPLE_SLOTS = RIPPLES;
 export const RIPPLE_LIFE = RIPPLE.life;
+
+/** When the last of `rings` (uRipples' values) dies on the water's clock, for uRingsUntil: -1 when none is set. */
+export function ringsUntil(rings) {
+  let until = -1;
+  for (const r of rings) if (r.w > 0) until = Math.max(until, r.z + RIPPLE.life);
+  return until;
+}

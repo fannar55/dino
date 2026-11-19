@@ -216,6 +216,37 @@ test('a character casts its sun shadow with its quarter level, only in the shado
   assert.equal(caster.visible, false, 'hidden again once drawn');
 });
 
+test('a character outside the sun shadow box is left out of the shadow pass, and comes back as soon as any of it is in', async () => {
+  const gltf = await gltfPromise;
+  const model = cloneSkinned(gltf.scene);
+  const root = new THREE.Group();
+  root.add(model);
+  const sun = new THREE.DirectionalLight();
+  sun.castShadow = true;
+  sun.position.set(0, 50, 0);
+  sun.updateMatrixWorld();
+  let mesh = null;
+  model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+  mesh.castShadow = true;
+  await prepareCharacter(model, sun);
+  await whenReady();
+  const caster = mesh.parent.children.find(o => o.isSkinnedMesh && o !== mesh);
+  const pass = x => {
+    root.position.set(x, 0, 0);
+    root.updateMatrixWorld(true);
+    sun.shadow.updateMatrices(sun);
+    const casting = caster.visible;
+    caster.onAfterShadow();
+    return casting;
+  };
+  // the box is 10 m across round the light's target (three's default); far off to the side the caster is not drawn
+  assert.equal(pass(0), true, 'in the box: it casts');
+  assert.equal(pass(60), false, '60 m off: left out');
+  assert.equal(pass(-60), false, '60 m off the other way: left out');
+  assert.equal(pass(0), true, 'back in: it casts again');
+  releaseCharacter(model);
+});
+
 test('the sun shadow map is read as a depth texture with four hardware compares', () => {
   const chunk = depthShadowChunk();
   assert.ok(chunk, 'three\'s shadow chunk still has the declaration and anchor this patches');

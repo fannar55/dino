@@ -86,7 +86,7 @@ void main() {
   col = mix(col, fogTint, smoothstep(0.09, 0.0, h));
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
-  gl_FragColor.rgb += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+  gl_FragColor.rgb += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
 }`;
 
 export function createSky({ renderer, scene, look, sunDir }) {
@@ -125,19 +125,28 @@ export function createSky({ renderer, scene, look, sunDir }) {
   scene.environment = env.texture;
   scene.environmentIntensity = look.envIntensity;
 
+  // The clouds drift on their own clock, which runs `cloudSpeed` times the game's (chapter 4's wind sets them going)
+  let cloudTime = null;
+  let lastTime = 0;
+  let cloudSpeed = 1;
   return {
     dome,
     environment: env.texture,
     update(time, camera) {
-      uniforms.uTime.value = time;
+      cloudTime = cloudTime === null || time < lastTime ? time : cloudTime + (time - lastTime) * cloudSpeed;
+      lastTime = time;
+      uniforms.uTime.value = cloudTime;
       dome.position.copy(camera.position);
     },
+    /** The clouds drift `speed` times as fast as they do (1: their own pace). */
+    setCloudSpeed(speed) { cloudSpeed = Math.max(0, speed); },
+    get cloudSpeed() { return cloudSpeed; },
     dispose() {
       scene.remove(dome);
       dome.geometry.dispose();
       material.dispose();
       noise.dispose();
-      env.texture.dispose();
+      env.dispose();
     },
   };
 }

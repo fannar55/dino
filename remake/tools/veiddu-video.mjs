@@ -463,8 +463,9 @@ function muxSound({ silent, out, recordings, voices, seconds, workDir, video }) 
     const k = inputs.length + 1;
     inputs.push(rec.file);
     const offsetMs = rec.startedAt - video.t0;
-    // the calibration click is cut out to the sample (aeval knows each sample's time; the volume filter's enable works by whole frames)
-    const click = rec.clickAt === null ? [] : [`aeval='val(0)*not(between(t,${(rec.clickAt - 0.003).toFixed(4)},${(rec.clickAt + 0.02).toFixed(4)}))':c=same`];
+    // the calibration click is cut out to the sample (aeval knows each sample's time; the volume filter's enable works by whole frames);
+    // each channel its own (val(ch)): one expression for all with val(0) put the left channel in both, and the video lost its stereo
+    const click = rec.clickAt === null ? [] : [`aeval='val(ch)*not(between(t,${(rec.clickAt - 0.003).toFixed(4)},${(rec.clickAt + 0.02).toFixed(4)}))':c=same`];
     filters.push(`[${k}:a]${[WHOLE, ...click, stereo, ...place(offsetMs)].join(',')}[a${k}]`);
     mixed.push({ kind: 'context', file: path.basename(rec.file), offsetMs: Math.round(offsetMs), calibrated: rec.clickAt !== null, clickAt: rec.clickAt });
   }

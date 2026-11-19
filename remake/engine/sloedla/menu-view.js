@@ -44,6 +44,10 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   const sky = $('[data-sky]');
   const wordsCanvas = $('[data-words]');
   const beams = Object.fromEntries(all('[data-beam]').map(beam => [beam.dataset.beam, beam]));
+  const beamHalf = {};
+  const measureBeams = () => {
+    for (const [id, beam] of Object.entries(beams)) beamHalf[id] = (beam.offsetWidth || 0) / 2;
+  };
   let stage = null; // stage.js or stage-flat.js, once the page has one
   let screenName = stageRoot?.dataset.screen ?? 'hver';
   let words = []; // [{ text, style, y(), size(), wave, at }] drawn in the game's letters
@@ -115,7 +119,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       const foot = feet.find(f => f.id === id);
       beam.classList.toggle('on', Boolean(foot && !foot.out));
       if (!foot) continue;
-      beam.style.left = `${foot.x - beam.offsetWidth / 2}px`;
+      const half = beamHalf[id] || (beamHalf[id] = (beam.offsetWidth || 0) / 2);
+      beam.style.left = `${foot.x - half}px`;
       beam.style.height = `${foot.y + win.innerHeight * 0.06}px`;
       beam.style.filter = `blur(6px) brightness(${(1 + 0.9 * (foot.out ? 0 : hop)).toFixed(3)})`;
     }
@@ -231,10 +236,12 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   fit(sky);
   fit(wordsCanvas);
   fit(endCanvas);
+  measureBeams();
   win.addEventListener('resize', () => {
     fit(sky);
     fit(wordsCanvas);
     fit(endCanvas);
+    measureBeams();
     stage?.resize();
   });
   const start = $('#start');
@@ -619,6 +626,13 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       if (start.hidden) return;
       if (menu.state().step === 'hver') $('[data-to-songs]')?.click();
       else go();
+    },
+    stop() {
+      if (raf) win.cancelAnimationFrame?.(raf);
+      raf = 0;
+      if (endRaf) win.cancelAnimationFrame?.(endRaf);
+      endRaf = 0;
+      win.clearTimeout?.(talkTimer);
     },
   };
 }

@@ -1,0 +1,1503 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import * as kafli4 from '../chapters/kafli4.js';
+import * as kafli3 from '../chapters/kafli3.js';
+import { LOOKS } from '../engine/looks.js';
+import { LIMITS } from '../engine/camera/director.js';
+import { createSave, defaultChapter } from '../engine/save.js';
+import { shapeGround, placementInfo } from '../world/forest/forest.js';
+import { planForest } from '../world/forest/plan.js';
+import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
+import { PRESETS } from '../engine/quality.js';
+import { playUnattended } from './chapter-harness.mjs';
+import { FLIGHT_WORDS, SONG, EGILL_ANSWERS, EGILL_ANSWER_AT } from '../chapters/kafli4-flight.js';
+import { PLAY } from '../chapters/kafli4-flight-play.js';
+import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
+import { createTerrain } from '../world/ardalur/terrain.js';
+import { poolPlants } from '../world/ardalur/river.js';
+import { createTreeProbe, plantVolumes, reachInto } from '../engine/tree-probe.js';
+import { createShell } from '../engine/shell.js';
+import fs from 'node:fs';
+
+// Chapter 4 (remake/chapters/kafli4.js), "Boð til Flugeðlu": the save and the order of the chapters, its places as data (chapter 3's Fen
+// as it was, the white tree's own patch of fen, and the far pool), the camera rules of its shots, and the whole chapter played through
+// by nobody (tests/chapter-harness.mjs). The flight has its own tests (flug.test.mjs and the rest).
+
+const { chapter } = kafli4;
+const V3 = THREE.Vector3;
+const deg = THREE.MathUtils.radToDeg;
+
+// The words of the first five scenes, as spec section 4 has them (the plan's WORDS; Mosi's "Svona! Fúúú!" is the plan's own).
+const SCENE_WORDS = {
+  k4_mosi_next: 'Næst er það Flugeðla! Hann á heima uppi á hvíta trénu.',
+  k4_egill_fly: 'Getur hann flogið?',
+  k4_mosi_higher: 'Hærra en skýin!',
+  k4_mosi_map_tree: 'Yfir Fenið, að hvíta trénu.',
+  k4_mosi_invite: 'Halló, Flugeðla! Viltu koma á Stjörnuhátíðina í kvöld?',
+  k4_flugedla_calm: 'Hátíð! Ég skal kalla á allan skóginn! En það er logn… og án vinds kemst ég ekki á loft.',
+  k4_egill_wind: 'Við getum búið til vind!',
+  k4_mosi_swipe: 'Strjúktu upp, Egill!',
+  k4_mosi_blow: 'Svona! Fúúú!',
+  k4_flugedla_more: 'Meira! Ég finn hann!',
+  k4_flugedla_now: 'Nú!',
+  k4_flugedla_thanks: 'Takk! Ég kem á hátíðina og kalla á alla!',
+  k4_mosi_star: 'Fjórða stjarnan!',
+  k4_flugedla_comealong: 'Viltu koma með, Egill? Sestu á bakið á mér.',
+  k4_egill_yes: 'Já!',
+  k4_mosi_run: 'Fljúgið þið, ég hleyp!',
+};
+
+// ---------------------------------------------------------------------------------------------
+// The save and the order
+
+const saveWith = stars => {
+  const save = createSave(null);
+  for (const star of stars) save.addStar(star);
+  return save;
+};
+
+test('defaultChapter opens chapter 4 after Þórseðla and keeps every earlier answer', () => {
+  const cases = [[[], 'kafli1'], [['k1_kambedla'], 'kafli2'], [['k1_kambedla', 'k2_uggedla'], 'kafli3'],
+    [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'], 'kafli4'],
+    [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla'], 'kafli5'], // and her star takes the child on (chapter 5's own cases: kafli5.test.mjs)
+    [['k1_kambedla', 'k2_thorsedla'], 'kafli2']]; // an old chapter 2 save (Þórseðla's star, no Uggeðla's) still meets Uggeðla
+  for (const [stars, want] of cases) assert.equal(defaultChapter(saveWith(stars)), want, `stars ${stars.join(', ') || 'none'}`);
+});
+
+test('kafli3 hands over to kafli4, and kafli4 to kafli5', () => {
+  assert.equal(kafli3.chapter.next, 'kafli4');
+  assert.equal(chapter.next, 'kafli5');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The chapter and its places as data
+
+test('the chapter as data: the Fen first, then the white tree, in the early afternoon, with Flugeðla in the cast', () => {
+  assert.equal(chapter.id, 'kafli4');
+  assert.equal(chapter.title, 'Boð til Flugeðlu');
+  assert.equal(chapter.look, 'earlyAfternoon');
+  assert.ok(LOOKS[chapter.look], 'a look engine/looks.js has');
+  assert.equal(chapter.theme, 'kafli2/theme.json', 'chapter 2\'s song until the owner\'s flight theme');
+  assert.equal(chapter.start, 'fen');
+  assert.deepEqual(Object.keys(chapter.locations), ['fen', 'hvitatre', 'ardalur']);
+  assert.deepEqual(chapter.prepare, ['hvitatre'], 'the white tree is built while the start button waits');
+  // the valley is cut to in view, with no black to hide its first draw: it is built, its far land loaded and drawn before the button shows
+  assert.deepEqual(chapter.readyFirst, ['ardalur'], 'Árdalurinn is ready before the start button shows (main.js getReady)');
+  assert.equal(typeof chapter.locations.ardalur.ready, 'function', 'and loads what it shows later (the far land) as it is readied');
+  assert.equal(typeof chapter.locations.ardalur.build, 'function', 'Árdalurinn is a place of its own make (world/ardalur)');
+  assert.ok(chapter.locations.fen.shots[chapter.startShot], 'the start shot is in the Fen');
+  assert.match(chapter.actors.flugedla.url, /\/pteranodon\.glb$/);
+  assert.match(chapter.actors.thorsedla.url, /\/brontosaurus\.glb$/);
+  assert.deepEqual(chapter.cast.flugedla, { name: 'Flugeðla', colour: '#955055' }, 'her crest\'s raspberry, as in the flight');
+  assert.deepEqual(chapter.cast.thorsedla, { name: 'Þórseðla', colour: '#89682e' });
+  for (const [id, text] of Object.entries(SCENE_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
+  for (const id of Object.keys(chapter.lines)) assert.match(id, /^k4_(mosi|egill|flugedla|thorsedla)_[a-z0-9_]+$/, `${id}: k4_<speaker>_<name>`);
+  // A name in two places would overwrite the other silently (main.js).
+  const names = [...Object.keys(chapter.shots), ...Object.values(chapter.locations).flatMap(location => Object.keys(location.shots))];
+  assert.equal(new Set(names).size, names.length, 'every shot has a name of its own');
+  for (const [name, location] of Object.entries(chapter.locations)) {
+    for (const shot of location.warmUp ?? []) assert.ok(location.shots[shot], `the warm-up view ${shot} is one of ${name}'s shots`);
+  }
+});
+
+// The lines: the kafli4 set (assets/audio/kafli4/lines-source.json, made by tools/voice-lines.mjs --set kafli4), one recording each.
+const readJson = relative => JSON.parse(fs.readFileSync(new URL(relative, import.meta.url), 'utf8'));
+const CHAPTER_TEXT = ['kafli4', 'kafli4-wind', 'kafli4-flight', 'kafli4-flight-play'].map(name => fs.readFileSync(new URL(`../chapters/${name}.js`, import.meta.url), 'utf8')).join('');
+
+test('every chapter line is a line of the kafli4 set, said by its speaker from its own recording', () => {
+  const source = new Map(readJson('../assets/audio/kafli4/lines-source.json').map(line => [line.id, line]));
+  const recorded = readJson('../assets/audio/lines.json');
+  assert.deepEqual(Object.keys(chapter.lines).sort(), [...source.keys()].sort(), 'the set is the chapter\'s lines, no more and no fewer');
+  const unrecorded = [];
+  for (const [id, line] of Object.entries(chapter.lines)) {
+    const entry = source.get(id);
+    assert.match(id, new RegExp(`^k4_${entry.speaker}_[a-z0-9_]+$`), `${id} names its speaker, ${entry.speaker}`);
+    assert.ok(chapter.cast[entry.speaker], `${entry.speaker} speaks ${id} but has no caption name`);
+    assert.deepEqual(line, { text: entry.text, audio: id }, `${id} says what the source says, from its own recording`);
+    if (recorded[id]?.src !== `assets/audio/kafli4/${id}.mp3`) unrecorded.push(id);
+  }
+  // Whatever the script names as a line is one of them.
+  for (const [, id] of CHAPTER_TEXT.matchAll(/'(k4_(?:mosi|egill|flugedla)_[a-z0-9_]+)'/g)) assert.ok(chapter.lines[id], `the script names '${id}', which is not one of its lines`);
+  assert.deepEqual(unrecorded, [], 'every line has its recording in lines.json (node remake/tools/voice-lines.mjs --set kafli4)');
+});
+
+const placed = plan => plan.placements.map(p => [p.name, p.variant, p.x.toFixed(3), p.z.toFixed(3), p.scale.toFixed(3), p.rot.toFixed(4)].join());
+const planOf = (chapterOf, place) => {
+  const world = { chapter: chapterOf };
+  const { layout, terrain } = shapeGround(world, { ...place.layout, shots: place.shots }, place.layout.seed);
+  return planForest({ world, layout, seed: place.layout.seed, terrain, library: createSpeciesLibrary(place.layout.seed), q: PRESETS.tablet });
+};
+
+test('the Fen is chapter 3\'s, plant for plant: its new shots are set on Þórseðla, which the planner leaves alone', () => {
+  const fen = chapter.locations.fen, before = kafli3.chapter.locations.fen;
+  for (const [key, value] of Object.entries(before.layout)) assert.equal(fen.layout[key], value, `chapter 3's layout: its ${key}`);
+  assert.equal(fen.layout.plantedFor, kafli3.chapter.look, 'planted for chapter 3\'s sun, not this chapter\'s');
+  for (const [name, shot] of Object.entries(before.shots)) assert.equal(fen.shots[name], shot, `chapter 3's ${name} is kept`);
+  const added = Object.entries(fen.shots).filter(([name]) => !before.shots[name]);
+  assert.ok(added.length >= 2, 'the pond as they leave and the walk across the Fen');
+  for (const [name, shot] of added) {
+    for (const point of [shot.position, shot.target]) assert.ok(point?.actor && point.local === true, `${name} is set on an actor, in its own frame`);
+  }
+  assert.deepEqual(placed(planOf(chapter, fen)), placed(planOf(kafli3.chapter, before)), 'the same plants in the same places');
+});
+
+test('the white tree stands in a patch of fen of its own: the Fen\'s snag, its kinds of plants, and its shots kept clear on a tall screen', () => {
+  const { layout, shots } = chapter.locations.hvitatre;
+  assert.equal(layout.biome, 'fen');
+  assert.equal(layout.seed, kafli3.chapter.locations.fen.layout.seed, 'the Fen\'s seed: its plants are the Fen\'s own kinds and shapes');
+  const fenSnag = kafli3.chapter.locations.fen.layout.plants.find(p => p.name === 'deadSnag');
+  const snag = layout.plants.find(p => p.name === 'deadSnag');
+  assert.deepEqual([snag.variant, snag.scale], [fenSnag.variant, fenSnag.scale], 'the very snag Flugeðla sits on in chapter 3');
+  assert.deepEqual(snag.position, kafli4.SNAG, 'where the chapter says it is');
+  assert.equal(layout.tall, 0.625, 'its shots are kept clear for a tablet held upright');
+  assert.ok(Object.keys(shots).length >= 5, 'the arrival, the tree from the ground, from above and at her height, and the talk');
+  const plan = planOf(chapter, chapter.locations.hvitatre);
+  const tree = plan.placements.filter(p => p.name === 'deadSnag' && Math.hypot(p.x - kafli4.SNAG[0], p.z - kafli4.SNAG[1]) < 0.01);
+  assert.equal(tree.length, 1, 'the planner grows it where it is put');
+  // nothing tall within 9 m of it: her wings (7.5 m across) have room on the top, and she has the air round it to circle in
+  const near = plan.placements.filter(p => SPECIES[p.name]?.tall && p !== tree[0] && Math.hypot(p.x - kafli4.SNAG[0], p.z - kafli4.SNAG[1]) < 9);
+  assert.deepEqual(near.map(p => `${p.name} at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`), []);
+  // A tall screen keeps the 16:10 frame's width and shows more above and below it: no plant within 3 m of a camera, and none big in the
+  // upright view within 8 m of it (as Síkið's test has it).
+  const own = new Set(layout.plants.map(p => p.position.join()));
+  for (const [name, shot] of Object.entries(shots)) {
+    if (!Array.isArray(shot.position) || !Array.isArray(shot.target)) continue;
+    const tanH = Math.tan(THREE.MathUtils.degToRad(shot.fov / 2)) * 1.6;
+    const camera = new THREE.PerspectiveCamera(THREE.MathUtils.radToDeg(2 * Math.atan(tanH / 0.625)), 0.625, 0.1, 100);
+    camera.position.fromArray(shot.position);
+    camera.lookAt(new V3().fromArray(shot.target));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const view = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    for (const p of plan.placements) {
+      const crown = p.model.crown;
+      if (!crown || own.has([p.x, p.z].join())) continue;
+      const tall = Boolean(SPECIES[p.name]?.tall);
+      const radius = (tall ? Math.min(crown.r, crown.ry * 1.2) * 0.95 : Math.max(crown.r, crown.ry)) * p.scale;
+      const centre = new V3(p.x + crown.c[0] * p.scale, p.y + crown.c[1] * p.scale, p.z + crown.c[2] * p.scale);
+      assert.ok(centre.distanceTo(camera.position) >= radius + 3, `a ${p.name} at ${p.x.toFixed(1)}, ${p.z.toFixed(1)} stands within 3 m of ${name}'s camera`);
+      const depth = -centre.clone().applyMatrix4(camera.matrixWorldInverse).z;
+      if (radius >= 0.6 && depth < 8) assert.ok(!view.containsPoint(centre), `a ${p.name} of ${radius.toFixed(1)} m in ${name}'s upright view, ${depth.toFixed(1)} m in front`);
+    }
+  }
+});
+
+test('every fixed shot keeps the camera rules over its ground', () => {
+  for (const [name, place] of Object.entries(chapter.locations)) {
+    if (!place.layout) continue; // Árdalurinn: the flight camera's shots, linted as it flies (engine/camera/flight-camera.js)
+    const ground = shapeGround({ chapter }, { ...place.layout, shots: place.shots }, place.layout.seed).terrain;
+    for (const [label, shot] of Object.entries(place.shots)) {
+      assert.ok(shot.fov >= LIMITS.lens[0] && shot.fov <= LIMITS.lens[1], `${label}: a ${shot.fov} degree lens`);
+      if (!Array.isArray(shot.position)) continue; // set on an actor: the runs check it (no director warnings)
+      const [x, y, z] = shot.position;
+      const height = y - ground.heightAt(x, z);
+      assert.ok(height >= 0.3 && height <= LIMITS.maxHeight, `${label}: the camera ${height.toFixed(2)} m above ${name}'s ground`);
+      if (Array.isArray(shot.target)) {
+        const [tx, ty, tz] = shot.target;
+        const down = (Math.atan2(y - ty, Math.hypot(tx - x, tz - z)) * 180) / Math.PI;
+        assert.ok(down <= LIMITS.maxDown, `${label} looks ${down.toFixed(0)} degrees down`);
+      }
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Played through by nobody: on a wide screen, on a tablet held upright, and with a tap on Þórseðla
+
+const NEW_SHOTS = new Set([
+  ...Object.keys(chapter.locations.fen.shots).filter(name => !kafli3.chapter.locations.fen.shots[name]),
+  ...Object.keys(chapter.locations.hvitatre.shots),
+  ...Object.keys(chapter.locations.ardalur.shots), // the far pool's (scene 7): the flight's own are the flight camera's
+]);
+// Who each new shot must show whole enough to read: a point of each, in the frame.
+const SUBJECTS = {
+  mosi: world => world.actors.get('mosi').headPosition(new V3()),
+  egill: world => world.actors.get('egill').headPosition(new V3()),
+  flugedla: world => world.actors.get('flugedla').headPosition(new V3()),
+  thorsedla: world => world.actors.get('thorsedla').headPosition(new V3()),
+};
+
+/**
+ * The chapter played by nobody, or with a tap on Þórseðla (`tap`), or with a child's hands in the wind task (`hands`: 'up' strokes
+ * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
+ */
+function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [] };
+  let where = null;
+  const shells = new Map();
+  return playUnattended(kafli4, {
+    limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith, reduced,
+    onFrame({ world, director, pointer, ui, shot: label }) {
+      const c = world.chapterState;
+      // what the flight asks of its sound (the harness has no audio, so c.sounds is the silent one): the ground shots' dip, in flight
+      // seconds
+      if (c?.sounds && !seen.ground.wrapped) {
+        seen.ground.wrapped = true;
+        const ground = c.sounds.ground;
+        c.sounds.ground = on => {
+          seen.ground.push({ on: Boolean(on), t: world.clock.time - (c.flight?.flight?.started ?? NaN) });
+          return ground(on);
+        };
+      }
+      // the page's theme, which the harness's world has none of: what the chapter asks of it, and when
+      if (!seen.theme) {
+        seen.theme = [];
+        world.music = { setLevel: (level, seconds) => seen.theme.push({ level, seconds, t: world.clock.time }), lenient() {} };
+      }
+      // the flight's own song: where it is as the flight starts, and as the horn sounds
+      const off = c?.flight?.flight?.started ?? null;
+      if (c?.song && off !== null && seen.songCue === null) seen.songCue = c.song.position - (world.clock.time - off);
+      if (c?.horn && seen.songAtHorn === null) seen.songAtHorn = c.song?.position ?? null;
+      if (label && NEW_SHOTS.has(label) && director.mode === 'hold') { // held on the shot (a move or a follow from it frames others)
+        seen.shots.set(label, (seen.shots.get(label) ?? 0) + 1);
+        world.camera.updateMatrixWorld();
+        for (const who of kafli4.SHOWS[label] ?? []) {
+          const p = SUBJECTS[who](world).project(world.camera);
+          if (!(p.z < 1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1)) seen.out.push(`${who} out of ${label} at ${world.clock.time.toFixed(1)} s`);
+        }
+      }
+      if (world.chapterTimeline?.at(-1)?.scene === 2 && c?.perch) {
+        const her = world.actors.get('flugedla');
+        seen.perch.push({ root: her.root.position.clone(), top: c.perch.top.clone(), tips: c.perch.wingTips() });
+        seen.wind.push(world.wind?.uniforms.uWindStrength.value ?? null);
+      }
+      const three = world.chapterTimeline?.find(mark => mark.scene === 3);
+      if (three && c?.wind && !c.wind.fullAt) {
+        const t = world.clock.time - three.at;
+        seen.gusty.push({ t, strength: world.wind.uniforms.uWindStrength.value });
+        seen.stirred.push({ t, tips: c.perch.wingTips(), root: world.actors.get('flugedla').root.position.clone(), top: c.perch.top.clone() });
+        // the child's hands: from a second in, one every `every` seconds, in the middle of the screen
+        if (hands && seen.hands.length < hands.count && t >= 1 + seen.hands.length * hands.every) {
+          if (hands.kind === 'up') pointer.drag(640, 620, 10, -240);
+          else pointer.tap(null, { x: 640, y: 500 });
+          seen.hands.push(world.clock.time);
+        }
+      }
+      const scene = world.chapterTimeline?.filter(mark => typeof mark.scene === 'number').at(-1)?.scene;
+      const her = world.actors.get('flugedla'), egill = world.actors.get('egill');
+      // the critters in the crowds (world/critters/crowd.js) through the flight: the cut it is in, the tallest in the frame (in pixels of
+      // a 1280 by 800 frame, or 800 by 1280 upright), and their budget
+      const crowds = world.forest?.animals?.crowds;
+      const started = c?.flight?.flight?.started ?? null;
+      if (crowds && started !== null && c.flight.flight.ended === null) {
+        const shot = c.flight.camera.current;
+        if (shot !== seen.lastShot) { seen.cuts++; seen.lastShot = shot; }
+        world.camera.updateMatrixWorld();
+        const tall = world.camera.aspect >= 1 ? 800 : 1280;
+        let tallest = 0;
+        for (const r of crowds.placed()) {
+          const middle = r.position.clone().setY(r.position.y + r.height / 2).project(world.camera);
+          if (middle.z >= 1 || Math.abs(middle.x) > 1 || Math.abs(middle.y) > 1) continue;
+          const foot = r.position.clone().project(world.camera);
+          const top = r.position.clone().setY(r.position.y + r.height).project(world.camera);
+          tallest = Math.max(tallest, ((top.y - foot.y) / 2) * tall);
+        }
+        seen.critters.push({ t: world.clock.time - started, shot, cut: seen.cuts, tallest, triangles: crowds.triangles(), calls: crowds.calls() });
+        // D to G (world/ardalur/life.js): the gorge's flyers in the air or on their ledges, the camera, Egill's head and where she is
+        const flyers = world.forest.life?.flyers ?? [];
+        if (flyers.length) {
+          seen.flyers.push({
+            t: world.flightTime, shot, camera: world.camera.position.clone(), egill: egill.headPosition(new THREE.Vector3()), seesEgill: (q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1)(egill.headPosition(new THREE.Vector3()).project(world.camera)),
+            her: c.flight.flier.pose.position.clone(), flyers: flyers.filter(b => b.visible).map(b => ({ id: b.id, at: b.position.clone() })),
+          });
+        }
+        // F and G (world/ardalur/life.js): how many of the rows' small lizards and the flocks' birds the frame shows 8 px tall or more
+        const life = world.forest.life;
+        if (life?.rows && world.flightTime >= BEATS.F) {
+          const large = members => members.filter(m => {
+            const foot = m.position.clone().project(world.camera);
+            if (!m.visible || foot.z >= 1 || Math.abs(foot.x) > 1 || Math.abs(foot.y) > 1) return false;
+            const box = projectedBox(m, world.camera, crowds);
+            return ((box.y1 - box.y0) / 2) * tall >= 8;
+          }).length;
+          const lizards = life.rows.flatMap(r => r.members);
+          // the herd's groups (life.herd): how many of each the frame shows `px` tall or more, foot to the top of its standing height
+          const tallOf = m => {
+            const foot = m.position.clone().project(world.camera);
+            if (!m.visible || foot.z >= 1 || Math.abs(foot.x) > 1 || Math.abs(foot.y) > 1) return 0;
+            const top = m.position.clone().setY(m.position.y + m.height).project(world.camera);
+            return ((top.y - foot.y) / 2) * tall;
+          };
+          seen.rows.push({
+            t: world.flightTime, shot, call: c.flight.play?.big?.at ?? null,
+            lizards: large(lizards), birds: large(life.flocks.flatMap(f => f.members)),
+            herd: Object.fromEntries((life.herd ?? []).map(g => [g.id, g.members.map(tallOf)])),
+            ran: lizards.reduce((sum, m) => sum + Math.hypot(m.position.x - m.at.x, m.position.z - m.at.z), 0) / lizards.length,
+          });
+        }
+      }
+      // the call shots' lizards (the route's CALL_SHOTS): how far each looks up (its look clip's share of its pose) and how much the
+      // drinkers at the edge drink, from half a second before the shot to its end
+      const near = world.forest?.animals ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.5 && world.flightTime <= row.to) : null;
+      const lizards = near ? world.forest.animals.groups.find(g => g.id === near.group && g.kind === 'lizards') : null;
+      if (lizards) {
+        const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+        seen.heads.push({ id: near.id, t: world.flightTime, look: lizards.members.map(m => weight(m, 'look')), drink: lizards.members.filter(m => m.e < 1).map(m => weight(m, 'drink')) });
+      }
+      // the ledge's call shot (the route's CALL_SHOTS, life.js flyers): its flyer, how far from its nest and where in the frame; the
+      // herd's: how far up the stepNorth group's heads are (the look clip's share of each pose) and where she is in the frame
+      const kind = c?.flight?.camera?.current ?? null;
+      const kindRow = kind === 'ledge' || kind === 'herd' ? CALL_SHOTS.find(row => row.shot === kind && world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      if (kindRow && world.forest?.life) {
+        world.camera.updateMatrixWorld();
+        const ndc = p => p.clone().project(world.camera);
+        if (kind === 'ledge') {
+          const flyer = world.forest.life.flyers.find(b => b.id === `flyer-${kindRow.nest}`);
+          if (flyer) seen.ledge.push({ t: world.flightTime, away: flyer.position.distanceTo(flyer.nest), at: ndc(flyer.position), visible: flyer.visible });
+        } else {
+          const group = (world.forest.life.herd ?? []).find(g => g.id === 'stepNorth');
+          const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+          const crowds = world.forest.life.crowds ?? world.forest.animals.crowds;
+          if (group) {
+            // the horizon's height in the frame (a point far off the way the camera looks, flat), and how much of the frame's height
+            // her wings (5.2 m across) span from where it stands
+            const flat = world.camera.getWorldDirection(new V3()).setY(0).normalize();
+            const her = c.flight.flier.pose.position;
+            const tall = 2 * Math.tan(THREE.MathUtils.degToRad(world.camera.fov) / 2) * her.distanceTo(world.camera.position);
+            seen.herdHeads.push({
+              t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(her), span: 5.2 / tall,
+              // each grazer's box in the frame, and where it is (the herd shot frames all five, over the caption's band)
+              boxes: group.members.map(m => projectedBox(m, world.camera, crowds)), at: group.members.map(m => m.position.clone()),
+              horizon: ndc(world.camera.position.clone().addScaledVector(flat, 2000)).y,
+              // the grazers of the other groups: how far each is from the camera, and its box in the frame when it is before it
+              others: (world.forest.life.herd ?? []).filter(g => g !== group).flatMap(g => g.members).filter(m => m.visible).map(m => ({
+                id: m.id, d: m.position.distanceTo(world.camera.position),
+                box: m.position.clone().applyMatrix4(world.camera.matrixWorldInverse).z < 0 ? projectedBox(m, world.camera, crowds) : null,
+              })),
+            });
+          }
+        }
+      }
+      // a call shot down on a bank (the route's CALL_SHOTS: a call or the run-along): how large the group it is about looks, as she
+      // passes it
+      const calling = kind === 'call' || kind === 'runAlong' ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      if (calling && world.forest?.animals) {
+        const group = world.forest.animals.groups.find(g => g.id === calling.group);
+        world.camera.updateMatrixWorld();
+        // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame; of a group of
+        // birds, those a ray from the camera reaches past their tree's leaves (the owner's look at kall-fuglar: only feet showed)
+        const tree = group.kind === 'birds' ? birdsTree(world.forest, group) : null;
+        let low = Infinity, high = -Infinity, birds = 0;
+        for (const m of group.members) {
+          const p = m.position.clone().project(world.camera);
+          if (!m.visible || p.z >= 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
+          if (tree && !birdSeen(tree, world.camera.position, m)) continue;
+          if (tree) birds++;
+          const box = projectedBox(m, world.camera, world.forest.animals.crowds);
+          low = Math.min(low, box.y0);
+          high = Math.max(high, box.y1);
+        }
+        const size = high > low ? (Math.min(high, 1) - Math.max(low, -1)) / 2 : 0;
+        const at = her.root.position;
+        seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera), birds: group.kind === 'birds' ? (tree ? birds : -1) : null });
+      }
+      // scene 4: where she is round the snag
+      if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
+      // scene 5: how low she comes, and the black from it till two seconds into the flight
+      if (scene === 5 && world.location === 'hvitatre') {
+        const low = her.root.position.y - world.heightAt(her.root.position.x, her.root.position.z);
+        if (!seen.low || low < seen.low.over) seen.low = { over: low, t: world.clock.time, egill: egill.root.position.clone(), her: her.root.position.clone() };
+      }
+      const flying = c?.flight?.flight?.started ?? null;
+      if (scene >= 5 && (flying === null || world.clock.time - flying <= 2)) seen.fades.push({ t: world.clock.time, level: ui.fadeLevel, where: world.location });
+      // her body, and her head on it, frame to frame from scene 4 till four seconds into the flight: how far each turns in a frame
+      if (scene >= 4 && (flying === null || world.clock.time - flying <= 4)) {
+        const body = her.root.quaternion.clone();
+        const head = body.clone().invert().multiply(her.model.getObjectByName('Head').getWorldQuaternion(new THREE.Quaternion()));
+        // Egill while he floats onto her and rides her: where he is on her (in her root's frame), and his turn
+        const on = c?.boarding != null && egill.controlled ? { at: egill.root.position.clone().sub(her.root.position).applyQuaternion(body.clone().invert()), turn: egill.root.quaternion.clone() } : null;
+        const was = seen.posed;
+        if (was) {
+          seen.turns.push({
+            t: world.clock.time, scene, where: world.location, body: deg(was.body.angleTo(body)), head: deg(was.head.angleTo(head)),
+            move: on && was.on ? on.at.clone().sub(was.on.at) : null, egill: on && was.on ? deg(on.turn.angleTo(was.on.turn)) : 0,
+          });
+          // how much Egill's step on her changed from the frame before: a jump is a step unlike the ones round it, as fast as he floats
+          const [a, b] = seen.turns.slice(-2);
+          seen.turns.at(-1).seat = a !== b && a?.move && b.move ? b.move.distanceTo(a.move) : 0;
+        }
+        seen.posed = { body, head, on };
+      }
+      // the switch to Árdalurinn: Egill on her back as the place changes, and the camera where it was round his head
+      const round = () => ({ camera: world.camera.position.clone().sub(egill.headPosition(new V3())), fov: world.camera.fov, heading: her.heading });
+      if (where === 'hvitatre' && world.location === 'ardalur' && !seen.switched) {
+        const spine = her.model.getObjectByName('Spine').getWorldPosition(new V3());
+        seen.switched = { t: world.clock.time, controlled: egill.controlled, fromSeat: egill.root.position.distanceTo(spine), shot: director.mode, before: seen.lastRound, after: round() };
+      }
+      if (world.location === 'hvitatre' && scene >= 5) seen.lastRound = round();
+      // the flight's last frame, and scene 7 at the far pool: where she, Egill and Mosi are, frame by frame
+      if (scene === 6 && world.location === 'ardalur') seen.flown = her.root.position.clone();
+      if (scene === 7) {
+        const mosi = world.actors.get('mosi');
+        // and the animals that came (world/ardalur/life.js arrivals): where each stands, and whether the frame shows its middle
+        world.camera.updateMatrixWorld();
+        const inFrame = b => {
+          const p = b.position.clone().setY(b.position.y + b.height / 2).project(world.camera);
+          return p.z < 1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
+        };
+        seen.pool.push({
+          t: world.clock.time, her: her.root.position.clone(), egill: egill.root.position.clone(), riding: egill.controlled,
+          mosi: mosi.root.position.clone(), mosiShown: mosi.root.visible, fade: ui.fadeLevel,
+          shot: director.mode === 'drive' ? 'pool_glide' : label, camera: world.camera.position.clone(), mosiHead: mosi.headPosition(new THREE.Vector3()),
+          arrivals: (world.forest?.life?.arrivals ?? []).filter(b => b.visible).map(b => ({ id: b.id, kind: b.kind, at: b.position.clone(), height: b.height, inFrame: inFrame(b) })),
+          // what the crowds draw outside the frame (world/critters/crowd.js: inView)
+          outside: (world.forest?.animals?.crowds?.placed() ?? []).filter(r => !inFrame(r)).length,
+        });
+      }
+      // the flight's first half minute, while the white tree's trees (the valley's now too) are near: the camera, and Egill's head
+      if (started !== null && c.flight.flight.ended === null && world.flightTime <= SIGHT_SECONDS) {
+        seen.sight.push({ t: world.flightTime, shot: c.flight.camera.current, camera: world.camera.position.toArray(), egill: egill.headPosition(new V3()).toArray() });
+      }
+      // Mosi and Flugeðla among the trees of the Fen and the white tree's patch: how far the body of each (its shell, engine/shell.js)
+      // reaches into a tree (engine/tree-probe.js), frame by frame. The white snag is hers to sit on: it is not asked about while
+      // she is on its top or within PERCH_AIR of it, leaving and landing.
+      if (TREES[world.location] && ui.fadeLevel < 1) {
+        const place = world.location;
+        seen.probed[place]++;
+        for (const who of ['mosi', 'flugedla']) {
+          const actor = world.actors.get(who);
+          if (!actor?.root.visible) continue;
+          if (!shells.has(who)) shells.set(who, createShell(THREE, actor));
+          const shell = shells.get(who);
+          shell.update();
+          const onTop = who === 'flugedla' && c?.perch && actor.root.position.distanceTo(c.perch.top) < PERCH_AIR;
+          for (const hit of treesOf(place).look(shell.place())) {
+            if (hit.name === 'deadSnag' && who === 'flugedla' && (onTop || !c?.perch)) continue;
+            const key = `${who} in ${hit.name} at ${hit.x}, ${hit.z} (${place})`;
+            const was = seen.clips.get(key);
+            if (!was || hit.depth > was.depth) seen.clips.set(key, { depth: hit.depth, t: world.clock.time, bone: hit.bone, shot: label, from: was?.from ?? world.clock.time, to: world.clock.time });
+            else was.to = world.clock.time;
+          }
+        }
+      }
+      where = world.location;
+    },
+  }).then(run => ({ ...run, watched: seen }));
+}
+// The trees of the Fen and of the white tree's patch as the tree probe's volumes: the planner's tall plants (a tree's trunk, limbs and
+// crown; reed, fern and bush they may brush through)
+const TREES = { fen: true, hvitatre: true };
+const SIGHT_SECONDS = 30; // of the flight: she is 290 m from the snag by then
+const PERCH_AIR = 3; // m from the snag's top within which she is leaving it or landing on it
+const probes = new Map();
+function treesOf(place) {
+  if (!probes.has(place)) probes.set(place, createTreeProbe(planOf(chapter, chapter.locations[place]).placements.filter(p => SPECIES[p.name]?.tall)));
+  return probes.get(place);
+}
+/**
+ * A critter's model box at its pose, projected: its least and most x and y on the screen (-1 to 1 across the frame). The box is its
+ * kind's shape at rest, as the crowds draw it (the fine level of a baked critter, such as the small lizard).
+ */
+const boxes = new Map();
+function projectedBox(m, camera, crowds) {
+  if (!boxes.has(m.kind)) {
+    const mesh = crowds.meshes.find(x => x.userData.kind === m.kind && !x.userData.level);
+    boxes.set(m.kind, new THREE.Box3().setFromBufferAttribute(mesh.geometry.getAttribute('position')));
+  }
+  const box = boxes.get(m.kind);
+  const h = THREE.MathUtils.degToRad(m.heading);
+  const c = Math.cos(h), s = Math.sin(h);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const lx of [box.min.x, box.max.x]) for (const ly of [box.min.y, box.max.y]) for (const lz of [box.min.z, box.max.z]) {
+    const p = new V3((lx * c - lz * s) * m.scale, ly * m.scale, (lx * s + lz * c) * m.scale).add(m.position).project(camera);
+    x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+  }
+  return { x0, x1, y0, y1 };
+}
+/**
+ * A group of birds' tree (animals.js PROPS: their broadleaf, where the plants' batcher placed it) as a mesh of its own model's
+ * triangles, once its section is built (else null), to ask which birds a ray from the camera reaches.
+ */
+const trees = new Map();
+function birdsTree(forest, group) {
+  if (trees.has(group.id)) return trees.get(group.id);
+  const prop = forest.animals.props.find(p => p.name === 'broadleaf' && Math.hypot(p.x - group.point.x, p.z - group.point.z) < 12);
+  const tree = forest.stats.sections.flatMap(part => part.userData.placements ?? []).find(q => q.name === prop.name && Math.hypot(q.x - prop.x, q.z - prop.z) < 0.01);
+  if (!tree) return null;
+  const mesh = new THREE.Group();
+  for (const part of [tree.model.solid, tree.model.thin]) {
+    if (!part?.pos?.length) continue;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(Array.from(part.pos), 3));
+    geometry.setIndex(Array.from(part.idx));
+    mesh.add(new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })));
+  }
+  mesh.position.set(tree.x, tree.y, tree.z);
+  mesh.rotation.y = -tree.rot;
+  mesh.scale.setScalar(tree.scale);
+  mesh.updateMatrixWorld(true);
+  trees.set(group.id, mesh);
+  return mesh;
+}
+const sight = new THREE.Raycaster();
+/** Whether a ray from `from` reaches a bird's body or its head past its tree's leaves. */
+function birdSeen(mesh, from, m) {
+  return [0.4, 0.75].some(k => {
+    const to = m.position.clone().setY(m.position.y + m.height * k);
+    const d = to.distanceTo(from);
+    sight.set(from, to.sub(from).normalize());
+    sight.far = d - 0.05;
+    return sight.intersectObject(mesh, true).length === 0;
+  });
+}
+let wide = null, upright = null, tapped = null, tablet = null;
+const playWide = () => (wide ??= playIt());
+const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
+const playTablet = () => (tablet ??= playIt({ aspect: 0.69 })); // a tablet held upright (820 by 1180)
+const playTapped = () => (tapped ??= playIt({ tap: true }));
+let calm = null;
+const playReduced = () => (calm ??= playIt({ reduced: true }));
+
+test('scenes 1 to 7 play in order, from the Fen to the white tree, up into the flight over Árdalurinn and down at the far pool', async () => {
+  const { task, stage, world } = await playWide();
+  assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  const scenes = world.chapterTimeline.filter(mark => typeof mark.scene === 'number');
+  assert.deepEqual(scenes.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(world.chapterTimeline.filter(mark => typeof mark.scene === 'string').map(mark => mark.scene), ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'end'], 'the flight\'s beats after scene 6, and the end');
+  assert.equal(world.location, 'ardalur');
+  const [one, two, three, four, five, six, seven] = scenes.map(mark => mark.at);
+  const end = world.chapterTimeline.at(-1).at;
+  assert.ok(end - seven >= 25 && end - seven <= 60, `scene 7 takes ${(end - seven).toFixed(1)} s (spec: about 45)`);
+  assert.ok(two - one >= 30 && two - one <= 70, `scene 1 takes ${(two - one).toFixed(1)} s (spec: about 45)`);
+  assert.ok(three - two >= 20 && three - two <= 70, `scene 2 takes ${(three - two).toFixed(1)} s (spec: about 45)`);
+  assert.ok(five - four >= 18 && five - four <= 50, `scene 4 takes ${(five - four).toFixed(1)} s (spec: about 30)`);
+  assert.ok(six - five >= 18 && six - five <= 50, `scene 5 takes ${(six - five).toFixed(1)} s (spec: about 30)`);
+});
+
+test('neither Mosi nor Flugeðla passes through a tree, in the Fen or at the white tree (the owner\'s bug reports of 2026-11-15)', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    assert.ok(watched.probed.fen > 300 && watched.probed.hvitatre > 3000, `watched: ${JSON.stringify(watched.probed)} frames`);
+    // a brush of 0.25 m (a wing tip or the tail's end through a crown's outer needles) is let be; a body through a trunk or crown is not
+    const through = [...watched.clips].filter(([, hit]) => hit.depth > 0.25)
+      .map(([what, hit]) => `${what}: ${hit.depth.toFixed(2)} m in (${hit.bone}) at ${hit.t.toFixed(1)} s, ${hit.from.toFixed(1)} to ${hit.to.toFixed(1)} s, ${hit.shot}`);
+    assert.deepEqual(through, [], `at ${shape}`);
+  }
+});
+
+test('the white tree\'s trees stand round the valley\'s snag as they stood round their own: they stay as the place changes under her (the owner\'s bug reports of 2026-11-15)', async () => {
+  const { world } = await playWide();
+  const valley = world.forest;
+  const [sx, , sz] = valley.route.tree;
+  const plan = planOf(chapter, chapter.locations.hvitatre);
+  const snag = plan.placements.find(p => p.name === 'deadSnag' && Math.hypot(p.x - kafli4.SNAG[0], p.z - kafli4.SNAG[1]) < 0.01);
+  const [tx, tz] = placementInfo(snag).tip; // she sits on its top, and on the valley's snag as the place changes
+  const theirs = plan.placements.filter(p => SPECIES[p.name]?.tall && p !== snag);
+  assert.ok(theirs.length >= 60, `the white tree's patch has ${theirs.length} trees`);
+  const grown = valley.stats.sections.filter(Boolean).flatMap(part => part.userData.placements).filter(p => SPECIES[p.name]?.tall);
+  const same = (p, g) => g.name === p.name && g.variant === p.variant && Math.hypot(g.x - (p.x - tx + sx), g.z - (p.z - tz + sz)) < 0.01
+    && Math.abs(g.scale - p.scale) < 1e-9 && Math.abs(g.rot - p.rot) < 1e-9 && p.models.some(l => l.model.height === g.model.height);
+  const kept = theirs.filter(p => grown.some(g => same(p, g)));
+  const left = valley.stats.left;
+  const told = `${kept.length} of ${theirs.length} stand; left out: ${left.map(l => `${l.name} at ${l.x.toFixed(0)}, ${l.z.toFixed(0)} (${l.why})`).join(', ')}`;
+  assert.equal(kept.length + left.length, theirs.length, `each stands there, the same tree, or a rule of the valley's leaves it out: ${told}`);
+  // those left out are the flight's: she would fly through them as she leaps, or the camera behind her would see their crowns
+  assert.deepEqual(left.filter(l => !['her way', 'under her', 'a still shot'].includes(l.why)), [], told);
+  assert.ok(kept.length >= theirs.length * 0.75, told);
+  // and no tree of the valley's own among them: the patch is as it was
+  const reach = Math.max(...theirs.map(p => Math.hypot(p.x - tx, p.z - tz)));
+  const own = grown.filter(g => !g.own && Math.hypot(g.x - sx, g.z - sz) < reach);
+  assert.deepEqual(own.map(g => `${g.name} at ${g.x.toFixed(0)}, ${g.z.toFixed(0)}`), []);
+});
+
+test('none of the white tree\'s trees in the valley stands at the flight\'s camera or between it and Egill, in the flight\'s first half minute', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { world, watched } = await play();
+    const theirs = world.forest.stats.sections.filter(Boolean).flatMap(part => part.userData.placements).filter(p => p.own).map(plantVolumes);
+    assert.ok(theirs.length > 50 && watched.sight.length > 800,`${theirs.length} trees, ${watched.sight.length} frames (${shape})`);
+    const blocked = new Map();
+    for (const f of watched.sight) {
+      // the line of sight as a thin capsule, and the camera itself with half a metre round it
+      const line = [{ a: f.camera, b: f.egill, r: 0.1, bone: 'the line to Egill' }, { a: f.camera, b: f.camera, r: 0.5, bone: 'the camera' }];
+      for (const tree of theirs) {
+        const hit = reachInto(tree, line);
+        if (hit && !blocked.has(`${tree.name} at ${tree.x.toFixed(0)}, ${tree.z.toFixed(0)}`)) blocked.set(`${tree.name} at ${tree.x.toFixed(0)}, ${tree.z.toFixed(0)}`, `${hit.bone} at ${f.t.toFixed(1)} s (${f.shot})`);
+      }
+    }
+    assert.deepEqual([...blocked].map(([tree, how]) => `${tree}: ${how}`), [], `at ${shape}`);
+  }
+});
+
+test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {
+  for (const [id, text] of Object.entries(FLIGHT_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
+  const { captions } = await playWide();
+  const flight = Object.values(FLIGHT_WORDS);
+  assert.ok(captions.some(c => flight.includes(c.text)), 'the flight says its lines in the chapter');
+  assert.deepEqual(captions.filter(c => /^k\d_[a-z]+_/.test(c.text)).map(c => c.text), [], 'no caption shows an id');
+});
+
+test('every new shot, the Fen\'s, the white tree\'s and the far pool\'s, keeps the director quiet at 16:10 and upright, and shows whom it is for', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { director, watched, task } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    assert.deepEqual(director.warnings, [], `the director at ${shape}`);
+    for (const name of NEW_SHOTS) assert.ok(watched.shots.get(name) > 0, `${name} is used (${shape})`);
+    assert.deepEqual(watched.out, [], `at ${shape}`);
+  }
+});
+
+test('scene 1 draws map piece d and Þórseðla says goodbye on a tap', async () => {
+  const { moments, world, watched } = await playTapped();
+  const one = world.chapterTimeline.find(mark => mark.scene === 1).at, two = world.chapterTimeline.find(mark => mark.scene === 2).at;
+  assert.equal(moments.length, 1, 'one map moment');
+  assert.deepEqual(moments[0].ids, ['d'], 'piece d: from Þórseðla\'s pool to Flugeðla\'s circle');
+  assert.ok(moments[0].at >= one && moments[0].at < two, 'in scene 1');
+  assert.ok(moments[0].goneAt !== null && moments[0].goneAt < two, 'and off the screen before the white tree');
+  const byes = world.chapterState.goodbyes;
+  assert.ok(byes.some(bye => bye.by === 'tap' && bye.at >= one && bye.at < two), `a goodbye from the tap: ${JSON.stringify(byes)}`);
+  assert.ok(byes.some(bye => bye.by === 'leaving'), 'and her own as they go');
+  assert.equal(watched.out.length, 0);
+  // without a tap she still says goodbye as they go, and only then
+  const { world: alone } = await playWide();
+  assert.deepEqual(alone.chapterState.goodbyes.map(bye => bye.by), ['leaving']);
+});
+
+test('scene 2 ends with her calm line and Egill\'s answer', async () => {
+  const { seen, world } = await playWide();
+  const said = [...seen.spoken];
+  const end = said.indexOf('k4_egill_wind');
+  assert.deepEqual(said.slice(end - 2, end + 1), ['k4_mosi_invite', 'k4_flugedla_calm', 'k4_egill_wind']);
+  assert.deepEqual(said.slice(0, 4), ['k4_mosi_next', 'k4_egill_fly', 'k4_mosi_higher', 'k4_mosi_map_tree'], 'scene 1\'s in order');
+  const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
+  assert.ok(seen.spokenAt.get('k4_egill_wind') < three, 'Egill\'s answer ends scene 2');
+});
+
+test('she sits on the very top of the white snag with her wings spread, and nothing stirs: not she, nor the wind', async () => {
+  const { watched } = await playWide();
+  assert.ok(watched.perch.length > 300, `scene 2 watched for ${watched.perch.length} frames`);
+  for (const { root, top, tips } of watched.perch) {
+    assert.ok(Math.hypot(root.x - top.x, root.z - top.z) < 0.05 && Math.abs(root.y - top.y) < 0.05, `her feet on the top: ${root.toArray().map(v => v.toFixed(2))} and ${top.toArray().map(v => v.toFixed(2))}`);
+    // spread, her own pose's 6.4 m; folded (her idle clip) the tips are 0.7 m apart
+    assert.ok(tips[0].distanceTo(tips[1]) > 5, `her wings spread: ${tips[0].distanceTo(tips[1]).toFixed(2)} m from tip to tip`);
+  }
+  const first = watched.perch[0].tips, moved = Math.max(...watched.perch.map(({ tips }) => Math.max(tips[0].distanceTo(first[0]), tips[1].distanceTo(first[1]))));
+  assert.ok(moved < 0.02, `her wing tips still: they move ${moved.toFixed(3)} m`);
+  assert.ok(watched.wind.every(w => w !== null && w <= 0.15), `calm: the wind's strength at most ${Math.max(...watched.wind)}`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 3: the wind (spec 4.3). A stroke up the screen is a gust, a tap half of one; six fill the wind. A child who does nothing gets
+// a hint at 6 s, Mosi's showing at 12 s and a gust every 4 s from 20 s on, so the wind always fills.
+
+let stroked = null, tapping = null;
+const strokes = () => (stroked ??= playIt({ hands: { kind: 'up', every: 1.5, count: 6 } }));
+const taps = () => (tapping ??= playIt({ hands: { kind: 'tap', every: 0.8, count: 12 } }));
+
+test('six up strokes fill the wind; twelve taps do too', async () => {
+  for (const [kind, play, count] of [['up', strokes, 6], ['tap', taps, 12]]) {
+    const { world, task, watched } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    const wind = world.chapterState.wind;
+    assert.equal(watched.hands.length, count, `${count} ${kind}s given`);
+    assert.deepEqual(wind.gusts.map(g => g.by), Array(count).fill(kind), `every gust is the child's (${kind}): no help was needed`);
+    assert.equal(wind.filled, 6);
+    const last = watched.hands.at(-1);
+    assert.ok(wind.fullAt >= last && wind.fullAt <= last + 0.1, `full on the last ${kind}: at ${wind.fullAt.toFixed(2)}, the last at ${last.toFixed(2)}`);
+    assert.deepEqual(wind.hints, [], 'no hint for a child who strokes');
+    assert.equal(wind.showedAt, null, 'nor Mosi\'s showing');
+  }
+});
+
+test('each gust blows: the wind rises to 2.2 and eases back, her wings stir, and Egill and Mosi blow along', async () => {
+  const { world, watched } = await strokes();
+  const wind = world.chapterState.wind;
+  const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
+  wind.gusts.slice(0, -1).forEach((gust, i) => { // the last fills the wind, and the big gust takes over from it
+    const t = gust.at - three;
+    const near = watched.gusty.filter(w => w.t >= t && w.t <= t + 0.3);
+    assert.ok(near.some(w => Math.abs(w.strength - 2.2) < 0.05), `strength 2.2 at the gust at ${t.toFixed(1)} s: ${near.map(w => w.strength.toFixed(2))}`);
+    const next = wind.gusts[i + 1] ? wind.gusts[i + 1].at - three : Infinity;
+    const later = watched.gusty.find(w => w.t >= t + 1.25 && w.t < next);
+    if (later) assert.ok(later.strength < 1.2, `eased back within 1.2 s: ${later.strength.toFixed(2)} at ${later.t.toFixed(1)} s`);
+  });
+  const before = watched.gusty.filter(w => w.t < wind.gusts[0].at - three);
+  assert.ok(before.length > 10 && before.every(w => w.strength <= 0.15), 'calm before the first gust');
+  // her wings stir with a gust, and she stays on the top till the wind is full
+  const first = wind.gusts[0].at - three;
+  const still = watched.stirred.filter(f => f.t < first).at(-1).tips;
+  const moved = Math.max(...watched.stirred.filter(f => f.t >= first && f.t <= first + 1.2).map(f => Math.max(f.tips[0].distanceTo(still[0]), f.tips[1].distanceTo(still[1]))));
+  assert.ok(moved > 0.15, `her wing tips move ${moved.toFixed(2)} m in the gust`);
+  for (const f of watched.stirred) assert.ok(f.root.distanceTo(f.top) < 0.05, `on the top at ${f.t.toFixed(1)} s`);
+  // Egill on every second gust, Mosi on every third
+  assert.deepEqual(wind.blows.filter(b => b.who === 'egill').map(b => b.gust), [2, 4, 6]);
+  assert.deepEqual(wind.blows.filter(b => b.who === 'mosi').map(b => b.gust), [3, 6]);
+});
+
+test('she cheers after the third gust, and with the wind full a big gust lifts her: "Nú!"', async () => {
+  const { world, seen } = await strokes();
+  const wind = world.chapterState.wind;
+  assert.equal(seen.said.filter(line => line.id === 'k4_flugedla_more').length, 1, 'her cheer, once');
+  assert.ok(seen.spokenAt.get('k4_flugedla_more') >= wind.gusts[2].at, 'after the third gust');
+  assert.ok(seen.spokenAt.get('k4_flugedla_now') >= wind.fullAt, '"Nú!" once it is full');
+  assert.ok(wind.bigAt >= wind.fullAt, 'the big gust');
+  assert.ok(wind.cloudSpeed > 1, `the clouds go faster: ${wind.cloudSpeed}`);
+  assert.ok(wind.lifted > 0.2, `she lifts off the top: ${wind.lifted.toFixed(2)} m`);
+});
+
+test('untouched, the wind fills by itself and the scene ends within 60 s of its start', async () => {
+  const { world, seen, stage, task } = await playWide();
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  const wind = world.chapterState.wind;
+  const three = world.chapterTimeline.find(mark => mark.scene === 3).at;
+  assert.ok(wind.hints.length >= 1 && Math.abs(wind.hints[0] - three - 6) < 0.5, `the hint at 6 s: ${wind.hints.map(h => (h - three).toFixed(1))}`);
+  assert.ok(Math.abs(seen.spokenAt.get('k4_mosi_swipe') - three) < 1, 'Mosi as the scene opens: "Strjúktu upp, Egill!"');
+  assert.ok(seen.spokenAt.get('k4_mosi_swipe2') >= wind.hints[0], 'and at the hint: "Strjúktu fingrinum upp skjáinn!"');
+  assert.ok(Math.abs(wind.showedAt - three - 12) < 0.5, `Mosi shows how at 12 s: ${(wind.showedAt - three).toFixed(1)}`);
+  assert.ok(seen.spokenAt.get('k4_mosi_blow') >= wind.showedAt, 'Mosi: "Svona! Fúúú!"');
+  const autos = wind.gusts.filter(g => g.by === 'auto').map(g => g.at - three);
+  assert.ok(autos.length >= 1 && Math.abs(autos[0] - 20) < 0.5, `the first gust by itself at 20 s: ${autos.map(a => a.toFixed(1))}`);
+  for (let i = 1; i < autos.length; i++) assert.ok(Math.abs(autos[i] - autos[i - 1] - 4) < 0.3, `then every 4 s: ${autos.map(a => a.toFixed(1))}`);
+  assert.equal(wind.filled, 6);
+  assert.ok(wind.fullAt - three <= 60, `full at ${(wind.fullAt - three).toFixed(1)} s`);
+  assert.ok(wind.endedAt - three <= 60, `the scene ends at ${(wind.endedAt - three).toFixed(1)} s`);
+  assert.ok(stage.s.time >= wind.endedAt);
+  assert.equal(world.page.body.querySelectorAll('.wind-hint').length, 0, 'the hint is taken off the page');
+});
+
+test('the wind\'s shot keeps the director quiet, shows them all and holds still for the child\'s hands', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { director, watched, task } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    assert.ok(watched.shots.get('tre_wind') > 0, `tre_wind is used (${shape})`);
+    assert.deepEqual(director.warnings, [], `the director at ${shape}`);
+    assert.deepEqual(watched.out, [], `at ${shape}`);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scenes 4 and 5 (spec 4.4-4.5): she circles the tree and sits again, the fourth star, and she takes Egill on her back; then the flight,
+// into which the picture goes with no black: the place changes under the close-up of Egill as she turns to him.
+
+test('she circles the white tree once and sits on its top again, and thanks them', async () => {
+  const { world, seen, watched } = await playWide();
+  const centre = new V3(kafli4.SNAG[0], 0, kafli4.SNAG[1]);
+  let swept = 0, last = null;
+  for (const { at } of watched.circle) {
+    const angle = Math.atan2(at.z - centre.z, at.x - centre.x);
+    if (last !== null && Math.hypot(at.x - centre.x, at.z - centre.z) > 2) {
+      let d = angle - last;
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      swept += d;
+    }
+    last = angle;
+  }
+  assert.ok(Math.abs(swept) >= 1.8 * Math.PI, `once round the tree: ${(Math.abs(swept) * 180 / Math.PI).toFixed(0)} degrees`);
+  const far = Math.max(...watched.circle.map(({ at }) => Math.hypot(at.x - centre.x, at.z - centre.z)));
+  assert.ok(far >= 6 && far <= 16, `wide of the tree, not far off: ${far.toFixed(1)} m`);
+  const end = watched.circle.at(-1);
+  assert.ok(end.top && end.at.distanceTo(end.top) < 0.15, `back on the top: ${end.at.toArray().map(v => v.toFixed(2))}`);
+  const four = world.chapterTimeline.find(mark => mark.scene === 4).at;
+  assert.ok(seen.spokenAt.get('k4_flugedla_thanks') > four, 'then her thanks');
+});
+
+test('the fourth star rises from her and goes in the book once: playing again adds no second', async () => {
+  const { save, seen, world } = await playWide();
+  const stars = save.get().stars;
+  assert.equal(stars.filter(id => id === 'k4_flugedla').length, 1, `her star: ${stars}`);
+  const four = world.chapterTimeline.find(mark => mark.scene === 4).at, five = world.chapterTimeline.find(mark => mark.scene === 5).at;
+  assert.ok(seen.spokenAt.get('k4_mosi_star') > four && seen.spokenAt.get('k4_mosi_star') < five, 'Mosi: "Fjórða stjarnan!" in scene 4');
+  const again = await (playIt.again ??= playIt({ savedWith: s => ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla'].forEach(id => s.addStar(id)) }));
+  assert.equal(again.task.failed, false, String(again.task.error?.stack ?? again.task.error));
+  const after = again.save.get().stars;
+  assert.deepEqual([...after].sort(), ['k1_kambedla', 'k2_thorsedla', 'k2_uggedla', 'k4_flugedla'], `no second star: ${after}`);
+});
+
+test('she sits low by Mosi and Egill floats onto her back; Mosi will run', async () => {
+  const { world, seen, watched } = await playWide();
+  assert.ok(watched.low && watched.low.over < 0.6, `she comes down to the ground: ${watched.low?.over.toFixed(2)} m over it`);
+  const mosi = world.actors.get('mosi');
+  const five = world.chapterTimeline.find(mark => mark.scene === 5).at;
+  const said = seen.said.filter(line => line.at >= five).map(line => line.id);
+  for (const id of ['k4_flugedla_comealong', 'k4_egill_yes', 'k4_mosi_run']) assert.ok(said.includes(id), `${id} in scene 5: ${said}`);
+  assert.ok(said.indexOf('k4_flugedla_comealong') < said.indexOf('k4_egill_yes'), 'her asking, then his yes');
+  assert.ok(mosi, 'Mosi is there');
+});
+
+test('from the circle to the flight nothing turns or moves in a jump: not her body, her head on it, nor Egill on her, in any frame', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    assert.ok(watched.turns.length > 1500, `watched from scene 4 into the flight: ${watched.turns.length} frames`);
+    assert.ok(watched.turns.filter(f => f.seat > 0).length > 300, 'and Egill on her, from his float on');
+    const jumps = watched.turns.filter(f => f.body > 8 || f.head > 8 || f.seat > 0.08 || f.egill > 8);
+    const say = f => `${f.t.toFixed(2)} s, scene ${f.scene} in ${f.where}: her body ${f.body.toFixed(1)}, her head ${f.head.toFixed(1)} degrees; Egill's step changed ${f.seat.toFixed(3)} m, he turned ${f.egill.toFixed(1)} degrees`;
+    assert.deepEqual(jumps.map(say), [], `no jumps (${shape})`);
+  }
+});
+
+test('Egill is on her back before the place changes, and nothing goes black between the boarding and the flight', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched, task } = await play();
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    const { switched, fades } = watched;
+    assert.ok(switched, `the place changed to Árdalurinn (${shape})`);
+    assert.equal(switched.controlled, true, 'Egill rides her as it changes');
+    assert.ok(switched.fromSeat < 1.6, `on her back, by her spine: ${switched.fromSeat.toFixed(2)} m`);
+    const { before, after } = switched;
+    assert.ok(before.camera.distanceTo(after.camera) < 0.1, `the camera stays round Egill's head across the cut: ${before.camera.toArray().map(v => v.toFixed(2))} then ${after.camera.toArray().map(v => v.toFixed(2))}`);
+    assert.ok(Math.abs(before.fov - after.fov) < 0.5, `and its lens: ${before.fov} then ${after.fov}`);
+    assert.ok(Math.abs(((before.heading - after.heading + 540) % 360) - 180) < 1, `she faces the same way: ${before.heading.toFixed(1)} then ${after.heading.toFixed(1)}`);
+    const dark = fades.filter(f => f.level > 0.01);
+    assert.deepEqual(dark.map(f => `${f.t.toFixed(2)} s ${f.level.toFixed(2)} in ${f.where}`), [], `no black from scene 5 to the flight (${shape})`);
+    assert.ok(fades.some(f => f.where === 'ardalur'), 'watched into the flight');
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 7 (spec 4.7): she lands in the far pool with a splash and Egill floats down onto its bank; Mosi comes out of the reed, out of
+// breath; Slóeðla's horn sounds from the reed across the pool, false; and the chapter ends as chapter 3 does, in the book.
+
+const toPool = p => Math.hypot((p.x ?? p[0]) - FAR_POOL.center[0], (p.z ?? p[1]) - FAR_POOL.center[1]);
+
+test('in every chase shot of C a group of animals is in view, large enough to see', async () => {
+  for (const [shape, play, share] of [['16:10', playWide, 0.5], ['upright', playUpright, 0.33]]) {
+    const { watched } = await play();
+    const frames = watched.critters.filter(f => f.shot === 'chase' && f.t >= BEATS.C && f.t < BEATS.D);
+    // a chase that starts at D (its first frame a hair under 80 s on this clock) is D's, not C's
+    const cuts = [...new Set(frames.map(f => f.cut))].filter(cut => frames.filter(f => f.cut === cut).length > 15);
+    assert.ok(cuts.length >= 3, `${shape}: ${cuts.length} chase shots in C`);
+    for (const cut of cuts) {
+      const shot = frames.filter(f => f.cut === cut);
+      const seenShare = shot.filter(f => f.tallest >= 16).length / shot.length;
+      assert.ok(seenShare >= share, `${shape}: the chase from ${shot[0].t.toFixed(1)} to ${shot.at(-1).t.toFixed(1)} s shows an animal 16 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
+    }
+  }
+});
+
+test('the animals stay in their budget: 40 000 triangles and 12 draw calls in every frame of the flight', async () => {
+  const { watched } = await playWide();
+  assert.ok(watched.critters.length > 1000, `${watched.critters.length} frames of the flight`);
+  const triangles = Math.max(...watched.critters.map(f => f.triangles));
+  const calls = Math.max(...watched.critters.map(f => f.calls));
+  assert.ok(triangles <= 40000 && calls <= 12, `at most ${triangles} triangles and ${calls} draw calls in a frame`);
+});
+
+test('the lizards of C are the owner\'s small lizard, loaded before the valley is built', async () => {
+  const { world } = await playWide();
+  const lizards = world.forest.animals.groups.filter(g => g.kind === 'lizards');
+  assert.equal(lizards.length, 3);
+  assert.ok(lizards.every(g => g.members.every(m => m.kind === 'smaedla')), lizards.map(g => `${g.id}: ${g.members[0].kind}`).join(', '));
+});
+
+test('each call shot down on a bank frames the group it is about: the group at least 8 % of the frame\'s height as she passes', async (t) => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    for (const row of CALL_SHOTS.filter(r => r.group)) {
+      const frames = watched.calls.filter(f => f.id === row.id);
+      assert.ok(frames.length > 30, `${shape}: ${row.id} is seen (${frames.length} frames)`);
+      const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
+      const { middle } = closest;
+      t.diagnostic(`${shape} ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${middle.x.toFixed(2)}, ${middle.y.toFixed(2)}`);
+      assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `${shape}: ${row.id}'s group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
+      assert.ok(closest.size >= 0.08, `${shape}: ${row.id}'s group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+      // the birds as they sit in their tree: those a ray from the camera reaches past its leaves are the ones counted above
+      if (closest.birds !== null) {
+        const sitting = frames.filter(f => f.t < row.pass + 0.3);
+        t.diagnostic(`${shape} ${row.id}: ${Math.min(...sitting.map(f => f.birds))} to ${Math.max(...sitting.map(f => f.birds))} of the ten birds seen as they sit`);
+        assert.ok(sitting.every(f => f.birds >= 9), `${shape}: ${row.id}: ${Math.min(...sitting.map(f => f.birds))} birds seen past their tree's leaves as they sit (at least 9 of 10; -1: no tree)`);
+      }
+    }
+  }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): on a tablet held upright the groups were 10-11 % of the frame's height,
+// over empty ground; the call rows' `tall` lens (flight-camera.js lensFor) makes them about twice that. The birds' shot stands
+// across the river from their tree now (they were hidden under its leaves), so its group is smaller in any frame.
+test('on a tablet held upright (820 by 1180) each call shot\'s group is about twice as tall as with the 16:10 width kept', async (t) => {
+  const { watched } = await playTablet();
+  const failed = [];
+  for (const row of CALL_SHOTS.filter(r => r.group)) {
+    const frames = watched.calls.filter(f => f.id === row.id);
+    const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
+    const least = row.group.startsWith('birds') ? 0.08 : 0.16;
+    t.diagnostic(`0.69 ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${closest.middle.x.toFixed(2)}, ${closest.middle.y.toFixed(2)}`);
+    if (!(frames.length > 30 && closest.size >= least)) failed.push(`${row.id}: the group ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least ${100 * least} %)`);
+  }
+  assert.deepEqual(failed, []);
+});
+
+// ---- the call shots' groups (the Flugmynd spec, 2026-11-15): called at the row's second, they hear her, look up, and run as she
+// passes (chapters/kafli4-flight-play.js, world/ardalur/animals.js hear)
+const groupsOf = row => [row.group, ...(row.also ?? [])];
+const LIZARD_ROWS = ['kall-edlur', 'kall-hlaup'];
+const ON_BANKS = CALL_SHOTS.filter(row => row.group); // the rows of C, each about groups of the route (the ledge's and the herd's are life's)
+
+test('call shot groups are called at their second', async () => {
+  const { world } = await playWide();
+  const { calls } = world.chapterState.flight.play;
+  for (const row of ON_BANKS) {
+    for (const id of groupsOf(row)) {
+      const call = calls.find(x => x.id === id);
+      assert.ok(call && call.how === 'shot' && Math.abs(call.t - row.call) <= 0.05, `${row.id}: ${id} is called at ${call?.t.toFixed(2)} s, ${call?.how} (at ${row.call})`);
+    }
+  }
+});
+
+test('every call shot\'s call is heard', async () => {
+  const { world } = await playWide();
+  const shots = world.chapterState.flight.play.calls.filter(x => x.how === 'shot');
+  assert.equal(shots.length, ON_BANKS.flatMap(groupsOf).length, 'a call to each of their groups');
+  assert.deepEqual(shots.filter(x => !x.voiced).map(x => x.id), [], 'her call is heard: no line plays over it');
+});
+
+test('they run after she passes, and the run-along\'s first runners at her call: already running as she comes', async () => {
+  const { world } = await playWide();
+  const { answers } = world.chapterState.flight.play;
+  for (const row of ON_BANKS) {
+    for (const id of groupsOf(row)) {
+      const answer = answers.find(x => x.id === id);
+      const want = row.early?.[id] ? row.call + PLAY.answerAfter : row.pass + PLAY.runAfter;
+      assert.ok(answer && Math.abs(answer.t - want) <= 0.05, `${row.id}: ${id} answers at ${answer?.t.toFixed(2)} s (at ${want.toFixed(2)})`);
+    }
+  }
+  // the run-along's: running from before she passes them to the cut, the first runners up the bank 33 m in 5.5 s
+  const row = CALL_SHOTS.find(r => r.shot === 'runAlong');
+  const early = Object.keys(row.early)[0];
+  const group = world.forest.animals.groups.find(g => g.id === early);
+  assert.deepEqual(group.run, row.early[early]);
+  assert.ok(row.call + PLAY.answerAfter < CALL_SHOTS.find(r => r.shot === 'runAlong').pass - 1, 'running before she passes');
+});
+
+// The Flugmynd's sound (plan Task 6): down on the ground the wind in Egill's ears goes down; her call comes from her side; a whoosh
+// and a wingbeat as she passes; and Egill answers each call shot once, on the shot after it
+test('ground shots dip the wind: down as each call shot begins, back as it cuts back', async () => {
+  const { watched } = await playWide();
+  const flight = watched.ground.filter(g => Number.isFinite(g.t));
+  for (const row of CALL_SHOTS) {
+    const down = flight.find(g => g.on && Math.abs(g.t - row.from) <= 0.05);
+    assert.ok(down, `${row.id}: down as it begins (${row.from} s)`);
+    const back = flight.find(g => !g.on && g.t > down.t);
+    assert.ok(back && Math.abs(back.t - row.to) <= 0.05, `${row.id}: back as it ends (${row.to} s): ${back?.t.toFixed(2)}`);
+  }
+  const downs = flight.filter(g => g.on);
+  assert.equal(downs.length, CALL_SHOTS.length, `down only in the call shots: ${downs.map(g => g.t.toFixed(2))}`);
+});
+
+test("Egill answers each call shot once, as it cuts back to her (the ledge's in its own shot, done by Mosi's line), before her next call", async () => {
+  const { seen, world } = await playWide();
+  const started = world.chapterState.flight.flight.started;
+  const recorded = readJson('../assets/audio/lines.json');
+  assert.deepEqual(Object.keys(EGILL_ANSWERS).sort(), ['kall-edlur', 'kall-froskar', 'kall-fuglar', 'kall-sylla'].sort(), 'rows 1, 2, 3 and 5');
+  for (const [id, line] of Object.entries(EGILL_ANSWERS)) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const times = seen.said.filter(x => x.id === line).map(x => x.at - started);
+    assert.equal(times.length, 1, `${line} once (at ${times.map(t => t.toFixed(2))})`);
+    const [at] = times;
+    const want = EGILL_ANSWER_AT[id] ?? row.to;
+    assert.ok(at >= want - 1e-6 && at <= want + 1, `${line} at ${want} s (${row.id}): at ${at.toFixed(2)}`);
+    if (EGILL_ANSWER_AT[id]) {
+      // in the row's own shot, and done with its hold by the next line asked for (Mosi's on the rim), which is not put off
+      assert.ok(at >= row.from && at + recorded[line].duration + 0.5 <= row.to + 0.5 + 1e-6, `${line} in ${row.id}'s shot`);
+      const mosi = seen.said.find(x => x.id === 'k4_mosi_shortcut').at - started;
+      assert.ok(Math.abs(mosi - 96.5) <= 0.05, `Mosi's line on the rim on time (at ${mosi.toFixed(2)})`);
+    }
+    const next = CALL_SHOTS[CALL_SHOTS.indexOf(row) + 1];
+    if (next) assert.ok(at + recorded[line].duration <= next.call, `${line} ends before her call in ${next.id}`);
+  }
+});
+
+test('in a call shot her call comes from her side, and a whoosh and a wingbeat as she passes', async () => {
+  const { seen, world } = await playWide();
+  const play = world.chapterState.flight.play;
+  const started = world.chapterState.flight.flight.started;
+  const calls = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
+  for (const row of CALL_SHOTS) {
+    // her call in the shot (the big call in the herd's): said with a pan, her side as the camera sees her
+    const call = seen.said.find(x => calls.includes(x.id) && x.at - started >= row.from - 1e-6 && x.at - started <= row.to);
+    if (row.shot !== 'ledge') {
+      assert.ok(call, `${row.id}: her call in it`);
+      const pan = call.options?.pan;
+      assert.ok(Number.isFinite(pan) && Math.abs(pan) <= 0.8, `${row.id}: her call panned (${pan})`);
+    }
+    const pass = play.passes.find(p => p.id === row.id);
+    assert.ok(pass, `${row.id}: its pass`);
+    const whoosh = Math.min(row.pass, row.to) - 0.15;
+    assert.ok(Math.abs(pass.whoosh - whoosh) <= 0.05, `${row.id}: the whoosh at ${pass.whoosh?.toFixed(2)} (${whoosh.toFixed(2)})`);
+    assert.ok(Number.isFinite(pass.side) && Math.abs(pass.side) <= 1 && Math.abs(pass.side) > 0.02, `${row.id}: on her side (${pass.side})`);
+    if (pass.wingbeat !== null) assert.ok(pass.wingbeat >= row.call - 1e-6 && pass.wingbeat <= row.to, `${row.id}: the wingbeat in the shot (${pass.wingbeat})`);
+    else assert.ok(row.shot === 'ledge', `${row.id}: a wingbeat as she is nearest`);
+  }
+});
+
+test('the ledge shot sees its flyer on its nest, then leave as she comes', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'ledge');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const frames = watched.ledge;
+    assert.ok(frames.length > 100, `${shape}: ${frames.length} frames of the ledge`);
+    const [first] = frames;
+    const inFrame = q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+    assert.ok(first.t <= row.from + 0.1 && first.away < 0.3 && inFrame(first.at), `${shape}: on its nest and in the frame as it begins (${first.away.toFixed(2)} m off, ${first.at.x.toFixed(2)}, ${first.at.y.toFixed(2)})`);
+    const leaving = frames.find(f => f.away > 0.5);
+    assert.ok(leaving && leaving.t >= row.call - 0.1 && leaving.t <= row.call + 1, `${shape}: it leaves at ${leaving?.t.toFixed(2)} s (the call: ${row.call})`);
+    assert.ok(inFrame(leaving.at), `${shape}: seen as it leaves (${leaving.at.x.toFixed(2)}, ${leaving.at.y.toFixed(2)})`);
+    t.diagnostic(`${shape}: the flyer of nest ${row.nest} leaves at ${leaving.t.toFixed(2)} s, ${frames.at(-1).away.toFixed(1)} m off at the cut`);
+    assert.ok(frames.at(-1).away > 2, `${shape}: off its ledge by the cut`);
+  }
+});
+
+test('the herd shot sees heads come up at the big call, and her high over them', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'herd');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched, world } = await play();
+    assert.deepEqual(world.forest.life.herd.find(g => g.id === 'stepNorth').at, row.at, "the row stands by the herd's stepNorth group (life.js HERD)");
+    const frames = watched.herdHeads;
+    assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
+    assert.ok(frames[0].look.every(w => w < 0.1), `${shape}: grazing as it begins (${frames[0].look.map(w => w.toFixed(2))})`);
+    const most = Math.max(...frames.map(f => f.look.filter(w => w >= 0.8).length));
+    assert.ok(most >= 4, `${shape}: ${most} of the 5 lift their heads in the shot`);
+    const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
+    t.diagnostic(`${shape}: at ${pass.t.toFixed(2)} s she is at ${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)}; ${most} heads up`);
+    assert.ok(pass.her.z < 1 && Math.abs(pass.her.x) <= 1 && pass.her.y > 0 && pass.her.y <= 1, `${shape}: she is high in the frame as she passes (${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)})`);
+  }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): the herd shot had three quarters sky and cut grazers at the frame's edge
+test('the herd shot frames all five grazers whole, near its middle and over the caption, with little sky, and her big as she passes', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'herd');
+  // the caption's top (style.css .caption: 24 px up, two lines about 124 px tall) on 800 and 1180 rows
+  for (const [shape, play, band] of [['16:10', playWide, -0.63], ['upright', playUpright, -0.75]]) {
+    const { watched } = await play();
+    const frames = watched.herdHeads.filter(f => f.t >= row.from + 0.05);
+    assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
+    const cut = frames.filter(f => f.boxes.some(b => b.x0 < -0.98 || b.x1 > 0.98 || b.y1 > 0.98 || b.y0 < band));
+    const worst = f => `${f.t.toFixed(2)} s: ${f.boxes.map(b => `${b.x0.toFixed(2)}..${b.x1.toFixed(2)}/${b.y0.toFixed(2)}..${b.y1.toFixed(2)}`).join(' ')}`;
+    assert.deepEqual(cut.map(worst), [], `${shape}: every grazer whole in the frame and over the caption's band (${band})`);
+    const middle = Math.max(...frames.map(f => Math.abs(f.boxes.reduce((sum, b) => sum + (b.x0 + b.x1) / 2, 0) / f.boxes.length)));
+    assert.ok(middle < 0.25, `${shape}: the group near the frame's middle (its middle at most ${middle.toFixed(2)} off)`);
+    // none of the other groups walks into it (the step's south group grazed round its first place and walked through its frame)
+    const strays = frames.flatMap(f => f.others.filter(o => o.d < 3 || (o.box && o.box.x1 > -1 && o.box.x0 < 1 && o.box.y1 > -1 && o.box.y0 < 1))
+      .map(o => `${f.t.toFixed(2)} s: ${o.id} ${o.d.toFixed(1)} m off`));
+    assert.deepEqual(strays.slice(0, 6), [], `${shape}: no grazer of the other groups in the frame, nor within 3 m of the camera`);
+    // the sky over them while they graze, before the aim comes up (the horizon's height: (1 - y) / 2 of the frame is sky)
+    const grazing = frames.filter(f => f.t < row.options.ease[0]);
+    const sky = Math.max(...grazing.map(f => (1 - f.horizon) / 2));
+    const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
+    t.diagnostic(`${shape}: sky ${(100 * sky).toFixed(0)} % while they graze, ${(100 * (1 - pass.horizon) / 2).toFixed(0)} % as she passes; she spans ${(100 * pass.span).toFixed(1)} % of the height at ${pass.her.y.toFixed(2)}; the group's middle at most ${middle.toFixed(2)} off`);
+    if (shape === '16:10') {
+      assert.ok(sky <= 0.35, `${shape}: about a third sky or less while they graze (${(100 * sky).toFixed(0)} %)`);
+      assert.ok(pass.her.y <= 0.8, `${shape}: she is in the frame, not on its top edge, as she passes (${pass.her.y.toFixed(2)})`);
+      // the shot she was in before had her wings 12.6 % of the frame's height across (50 degrees, 44 m off)
+      assert.ok(pass.span >= 0.13, `${shape}: her wings ${(100 * pass.span).toFixed(1)} % of the frame's height across as she passes`);
+    }
+  }
+});
+
+test('heads are up before she passes: the lizards of the call shots look up from her call, and drink till then', async () => {
+  const { watched } = await playWide();
+  for (const id of LIZARD_ROWS) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const frames = watched.heads.filter(f => f.id === id);
+    const before = frames.filter(f => f.t < row.call - 1e-6);
+    const up = frames.filter(f => f.t >= row.pass - 0.8 && f.t <= row.pass);
+    assert.ok(before.length > 10 && up.length > 20, `${id}: ${before.length} frames before her call, ${up.length} as she comes`);
+    for (const f of before) assert.ok(f.drink.every(w => w > 0.95), `${id} at ${f.t.toFixed(2)} s: the drinkers drink (${f.drink.map(w => w.toFixed(2))})`);
+    for (const f of up) assert.ok(f.look.every(w => w >= 0.8), `${id} at ${f.t.toFixed(2)} s: heads up (${f.look.map(w => w.toFixed(2))})`);
+  }
+});
+
+test('seek mid call shot finds heads up: a capture or review link a second before her pass', async () => {
+  // the harness plays as a seek does (main.js ?t=: stage.seeking, fixed 1/30 s steps from the start), so the first frame a seek to
+  // `pass − 1` shows is this run's frame there
+  const { watched } = await playWide();
+  for (const id of LIZARD_ROWS) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const frame = watched.heads.find(f => f.id === id && f.t >= row.pass - 1 - 1e-6);
+    assert.ok(frame, `${id}: a frame at ${row.pass - 1} s`);
+    assert.ok(frame.look.every(w => w >= 0.5), `${id} at ${frame.t.toFixed(2)} s: heads up (${frame.look.map(w => w.toFixed(2))})`);
+  }
+});
+
+// F and G (the life spec 2F, 2G; world/ardalur/life.js): after the big call the rows of small lizards stream toward the far pool where
+// the flight's shots see them, the slow circle round her (the fixed vista under reduced motion) and the chase down the glide to 162 s
+test('after the big call ten small lizards or more, 8 px tall, run toward the far pool in the slow circle and down the glide', async (t) => {
+  // (the slow circle is its last part since the herd's call shot: 8.4 s from 141.6, the lizards further off; 16:10 sees ten of them
+  // 48 % of it, the whole circle 55 %)
+  const plays = [['16:10', playWide, { orbit: 0.45, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
+  const failed = [];
+  for (const [shape, play, wants] of plays) {
+    const { watched } = await play();
+    const frames = watched.rows.filter(f => f.call !== null && f.t > f.call + 2);
+    assert.ok(frames.length > 600, `${shape}: ${frames.length} frames after the big call`);
+    // the call sets them off (chapters/kafli4-flight-play.js bigCall): 10 s after it they have run 30 m on the mean
+    const later = frames.filter(f => f.t > f.call + 10);
+    assert.ok(later.length > 300 && later.every(f => f.ran >= 30), `${shape}: the lizards have run ${Math.min(...later.map(f => f.ran)).toFixed(1)} m 10 s after the call`);
+    const short = [];
+    for (const [shot, share] of Object.entries(wants)) {
+      const inShot = frames.filter(f => f.shot === shot && (shot !== 'chase' || (f.t >= BEATS.G && f.t < 162)));
+      const seenShare = inShot.filter(f => f.lizards >= 10).length / inShot.length;
+      const birds = inShot.filter(f => f.birds >= 9).length / inShot.length;
+      t.diagnostic(`${shape} ${shot}: ${inShot.length} frames, ten lizards ${(100 * seenShare).toFixed(0)} %, nine birds ${(100 * birds).toFixed(0)} %, most ${Math.max(...inShot.map(f => f.lizards))}`);
+      if (!(inShot.length > 100 && seenShare >= share)) short.push(`${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
+      // and the flocks rise in the slow circle: nine birds of them 8 px tall at least 40 % of the time
+      if (shot === 'orbit' && birds < 0.4) short.push(`${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
+    }
+    // the herd's call shot before the circle, as the rows stream out of the groves behind it (the Flugmynd spec's row 6): for the record
+    const herd = frames.filter(f => f.shot === 'herd');
+    t.diagnostic(`${shape} herd: ${herd.length} frames, ten lizards ${(100 * herd.filter(f => f.lizards >= 10).length / Math.max(1, herd.length)).toFixed(0)} %, most ${Math.max(0, ...herd.map(f => f.lizards))}`);
+    failed.push(...short);
+  }
+  assert.deepEqual(failed, []);
+});
+
+test('the herd grazes big in the wide shot, and the slow circle sees it near as it answers the big call', async (t) => {
+  // [group, when, how many, px tall, share of those frames that show that many of the group that tall]: the dale's group in the wide
+  // shot (the vista, before the call); the step's corner group (stepNorth) down among it as it lifts its heads (`call`: the herd's call
+  // shot, the Flugmynd spec's row 6); the step's south group in the slow circle's last part (`orbit`); under reduced motion (where the
+  // circle is a fixed vista) the corner group there. The owner asked for the herd bigger and nearer (2026-11-06).
+  const plays = [
+    ['16:10', playWide, [['dale', 'vista', 5, 18, 0.8], ['stepNorth', 'call', 3, 30, 0.35], ['step', 'orbit', 5, 15, 0.3]]],
+    ['upright', playUpright, [['dale', 'vista', 5, 10, 0.8], ['stepNorth', 'call', 3, 20, 0.5], ['step', 'orbit', 5, 10, 0.3]]],
+    ['reduced motion', playReduced, [['stepNorth', 'call', 3, 30, 0.35], ['stepNorth', 'orbit', 5, 12, 0.6]]],
+  ];
+  const within = {
+    vista: f => f.shot === 'vista' && (f.call === null || f.t < f.call),
+    call: f => f.shot === 'herd' && f.call !== null && f.t >= f.call,
+    orbit: f => f.shot === 'orbit' && f.call !== null && f.t > f.call + 2,
+  };
+  const failed = [];
+  for (const [shape, play, wants] of plays) {
+    const { watched } = await play();
+    for (const [group, when, count, px, share] of wants) {
+      const frames = watched.rows.filter(within[when]);
+      const seen = frames.filter(f => (f.herd[group] ?? []).filter(h => h >= px).length >= count).length / Math.max(1, frames.length);
+      t.diagnostic(`${shape} ${when}: ${frames.length} frames, ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} %, tallest ${Math.max(0, ...frames.flatMap(f => f.herd[group] ?? [])).toFixed(1)} px`);
+      if (!(frames.length > 100 && seen >= share)) failed.push(`${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
+    }
+  }
+  assert.deepEqual(failed, []);
+});
+
+// D to G (the life spec 2D-2G, 4: world/ardalur/life.js flyers): the gorge's flyers fly with her, but never into a shot's way
+/** How far p is from the line from a to b. */
+function fromLine(p, a, b) {
+  const ab = b.clone().sub(a);
+  const k = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+  return p.distanceTo(a.clone().addScaledVector(ab, k));
+}
+/** How far round her each flyer goes in F, seen from above: the span of its bearing from her heading, its steps added up. */
+function aroundHer(frames) {
+  const inF = frames.filter(f => f.t >= BEATS.F && f.t <= BEATS.G);
+  const turns = new Map();
+  inF.forEach((f, i) => {
+    const a = inF[Math.max(0, i - 1)].her, b = inF[Math.min(inF.length - 1, i + 1)].her;
+    const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const fx = (b.x - a.x) / l, fz = (b.z - a.z) / l;
+    for (const { id, at } of f.flyers) {
+      const dx = at.x - f.her.x, dz = at.z - f.her.z;
+      const deg = THREE.MathUtils.radToDeg(Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz));
+      const turn = turns.get(id) ?? { last: deg, sum: 0, lo: 0, hi: 0 };
+      turn.sum += ((deg - turn.last + 540) % 360) - 180;
+      turn.lo = Math.min(turn.lo, turn.sum);
+      turn.hi = Math.max(turn.hi, turn.sum);
+      turn.last = deg;
+      turns.set(id, turn);
+    }
+  });
+  return new Map([...turns].map(([id, turn]) => [id, turn.hi - turn.lo]));
+}
+
+test('no flyer comes within 3 m of the camera, nor between the camera and Egill when he is in the frame, in any frame of the flight', async (t) => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright], ['reduced motion', playReduced]]) {
+    const { watched } = await play();
+    const frames = watched.flyers;
+    const most = Math.max(0, ...frames.map(f => f.flyers.length));
+    let camera = Infinity, line = Infinity, cameraAt = '', lineAt = '';
+    for (const f of frames) {
+      for (const { id, at } of f.flyers) {
+        const d = at.distanceTo(f.camera);
+        if (d < camera) { camera = d; cameraAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
+        const l = f.seesEgill ? fromLine(at, f.camera, f.egill) : Infinity; // the herd's shot sees her from far below before she comes into it
+        if (l < line) { line = l; lineAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
+      }
+    }
+    t.diagnostic(`${shape}: ${frames.length} frames, ${most} flyers, nearest the camera ${camera.toFixed(1)} m (${cameraAt}), nearest the line to Egill ${line.toFixed(1)} m (${lineAt})`);
+    assert.ok(frames.length > 1000 && most >= 6, `${shape}: the flyers are in the flight (${frames.length} frames, ${most} of them)`);
+    assert.ok(camera >= 3, `${shape}: ${cameraAt} ${camera.toFixed(2)} m from the camera`);
+    assert.ok(line >= 2, `${shape}: ${lineAt} ${line.toFixed(2)} m from the line between the camera and Egill`);
+  }
+});
+
+test('the flyers circle her in the slow circle, and never under reduced motion', async () => {
+  const wide = aroundHer((await playWide()).watched.flyers);
+  const calm = aroundHer((await playReduced()).watched.flyers);
+  assert.ok(wide.size >= 6 && calm.size === wide.size, `${wide.size} flyers in F`);
+  for (const [id, turn] of wide) assert.ok(turn >= 180, `${id} goes ${turn.toFixed(0)} degrees round her in F`);
+  for (const [id, turn] of calm) assert.ok(turn < 10, `reduced motion: ${id} goes ${turn.toFixed(0)} degrees round her in F`);
+});
+
+test('the far pool is a place of its own (chapter 5 begins there): the route\'s pool, its spots, and the shots scene 7 uses', () => {
+  assert.deepEqual(FAR_POOL.center, POOL.center);
+  assert.equal(FAR_POOL.radius, POOL.radius);
+  assert.equal(FAR_POOL.level, POOL.level);
+  assert.ok(Object.keys(FAR_POOL.shots).length >= 3, 'its shots');
+  assert.deepEqual(chapter.locations.ardalur.shots, FAR_POOL.shots, 'the valley\'s fixed shots are the pool\'s');
+  for (const name of Object.keys(FAR_POOL.shots)) assert.ok(Array.isArray(kafli4.SHOWS[name]), `${name} says whom it shows (the far reed: nobody)`);
+  const terrain = createTerrain(createRoute({ wingspan: 7.5 }));
+  const depth = ([x, z]) => FAR_POOL.level - terrain.heightAt(x, z);
+  assert.ok(toPool(FAR_POOL.landing) < FAR_POOL.radius && depth(FAR_POOL.landing) > 0.2 && depth(FAR_POOL.landing) < 0.9, `she lands in the shallows: ${depth(FAR_POOL.landing).toFixed(2)} m of water`);
+  for (const spot of ['bank', 'mosi', 'reed', 'farReed']) assert.ok(toPool(FAR_POOL[spot]) > FAR_POOL.radius + 0.5 && depth(FAR_POOL[spot]) < 0, `${spot} is on dry land by the water`);
+  const way = ([x, z]) => Math.atan2(z - FAR_POOL.center[1], x - FAR_POOL.center[0]);
+  const apart = Math.abs((((way(FAR_POOL.farReed) - way(FAR_POOL.bank)) * 180) / Math.PI + 540) % 360 - 180);
+  assert.ok(apart > 120, `the far reed is across the pool from them: ${apart.toFixed(0)} degrees round it`);
+  for (const spot of ['reed', 'farReed']) assert.ok(FAR_POOL.reeds.some(bed => Math.hypot(bed.at[0] - FAR_POOL[spot][0], bed.at[1] - FAR_POOL[spot][1]) < bed.radius), `a bed of reed at ${spot}`);
+});
+
+test('the far pool\'s reed: thick and tall across the pool, none in Mosi\'s way out nor on Egill\'s spot, and nothing else grows in it', () => {
+  const ground = (x, z) => 5 + x * 0.001 + z * 0.002;
+  const { props, clear } = poolPlants(FAR_POOL, ground);
+  const near = (p, [x, z], r) => Math.hypot(p.x - x, p.z - z) < r;
+  const far = props.filter(p => near(p, FAR_POOL.farReed, 8));
+  assert.ok(far.length >= 50, `the far bed: ${far.length} plants`);
+  assert.ok(far.filter(p => p.name === 'horsetailTall').length >= far.length * 0.45, 'half of it tall horsetail');
+  for (const p of props) {
+    assert.ok(['horsetailReed', 'horsetailTall'].includes(p.name) && Number.isInteger(p.variant) && p.variant >= 0, `a known plant: ${p.name} ${p.variant}`);
+    assert.equal(p.y, ground(p.x, p.z), 'on the ground');
+    assert.ok(!near(p, FAR_POOL.mosi, 1.8) && !near(p, FAR_POOL.bank, 2.2), 'not where Mosi and Egill stand');
+  }
+  const [bed] = FAR_POOL.reeds;
+  const [ax, az] = bed.lane.from, [bx, bz] = bed.lane.to;
+  for (let k = 0; k <= 1; k += 0.05) {
+    const at = [ax + (bx - ax) * k, az + (bz - az) * k];
+    assert.ok(!props.some(p => near(p, at, bed.lane.wide - 0.05)), `Mosi's way out is clear ${k.toFixed(2)} along it`);
+    assert.ok(clear.some(c => Math.hypot(c.x - at[0], c.z - at[1]) <= c.r), 'and kept clear of the banks\' own plants');
+  }
+  for (const b of FAR_POOL.reeds) assert.ok(clear.some(c => c.x === b.at[0] && c.z === b.at[1] && c.r > b.radius), 'no other plant inside a bed');
+});
+
+test('the whole chapter plays unattended in order with no warnings, at 16:10 and upright', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { task, world, director } = await play();
+    assert.equal(task.done, true, `it ends (${shape})`);
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    assert.deepEqual(world.chapterTimeline.map(mark => mark.scene).filter(n => typeof n === 'number'), [1, 2, 3, 4, 5, 6, 7]);
+    assert.deepEqual(director.warnings, [], `the director at ${shape}`);
+  }
+});
+
+// The chapter as it plays for a child who touches nothing, in time (not seeking, as a capture does): the sounds play only so.
+let untouched = null;
+const playUntouched = () => (untouched ??= playUnattended(kafli4, { seeking: false, limit: 720, shaped: true }));
+// The spec (section 1) asks about 7.5 minutes, never over 10, for a child who touches nothing. As built and approved, scenes 1 and 2 run
+// 31 and 38 s (the spec says about 45 each), the wind fills by itself in 38 s (its help, Task 13), the flight is 170 s and the pool
+// 43 s: some 6.3 minutes. Whether scenes 1 and 2 grow toward the spec's 45 s is the owner's (the ledger's ruling of Task 17).
+test('an untouched child finishes in about 6.5 to 7.5 minutes and never over 10', async () => {
+  const { world, task, stage } = await playUntouched();
+  assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  const end = world.chapterTimeline.at(-1);
+  assert.equal(end.scene, 'end');
+  assert.ok(end.at >= 370 && end.at <= 540, `end=${end.at.toFixed(1)}`);
+});
+
+test('the star k4_flugedla is saved once and map piece d is drawn; she asks Egill to play and the book opens on its games', async () => {
+  const { save, moments, book, world, seen } = await playWide();
+  assert.equal(save.get().stars.filter(id => id === 'k4_flugedla').length, 1);
+  assert.deepEqual(moments.flatMap(moment => moment.ids), ['d'], 'piece d, once: by her star, it ends at her place (engine/book/map-page.js)');
+  // as chapter 1 ends (the juice review of 2026-11-07): Mosi's „Fjórar komnar“, her ask to play, and the book on its games
+  assert.equal(book.opened.map(([tab]) => tab).at(-1), 'games', 'the book opens on its games, where her game waits');
+  const untouchedRun = await playUntouched();
+  assert.ok(untouchedRun.book.played.some(([id, opts]) => id === 'minnisspil' && opts?.tutorial === true), 'her game opens in tutorial mode');
+  const four = seen.spokenAt.get('k4_mosi_four');
+  const play = seen.spokenAt.get('k4_flugedla_play');
+  assert.ok(seen.spokenAt.get('k4_mosi_horn') < four && four < play, 'Mosi says where they stand after the horn, then she asks Egill to play');
+  // her tile shows by her place (cards.json: flugedla unlocks with the place), which chapter 3's lookout marks; an old chapter 2 save
+  // comes here without chapter 3 (save.js defaultChapter), so meeting her marks it too, and the tile that nods is hers, not a shadow
+  assert.ok(save.get().places.includes('flugedla'), `her place is on the map: ${save.get().places}`);
+  const fromChapter3 = await playIt({ savedWith: s => { ['k1_kambedla', 'k2_thorsedla'].forEach(id => s.addStar(id)); s.addPlace('flugedla'); } });
+  assert.equal(fromChapter3.save.get().places.filter(id => id === 'flugedla').length, 1, 'once, if chapter 3 marked it');
+  const end = world.chapterTimeline.at(-1).at;
+  assert.ok(play < end, 'after the last line');
+  // Her Leikir tile is the memory game, Saman getum við það! (2026-11-07, the owner's choice): the book names her star for it
+  assert.equal(fs.readFileSync(new URL('../engine/book/book.js', import.meta.url), 'utf8').includes('k4_flugedla'), true);
+});
+
+test('the flight inside the chapter meets every beat within 0.5 s, and scene 7 takes over as it ends', async () => {
+  const { world } = await playWide();
+  const flight = world.chapterState.flight.flight;
+  for (const [name, at] of Object.entries(BEATS)) {
+    if (name === 'END') continue;
+    const mark = world.chapterTimeline.find(m => m.scene === name);
+    assert.ok(mark && Math.abs(mark.at - flight.started - at) <= 0.5, `${name} at ${mark ? (mark.at - flight.started).toFixed(2) : 'never'} s (beat ${at})`);
+  }
+  assert.ok(Math.abs(flight.ended - flight.started - BEATS.END) <= 0.5, `the flight ends at ${(flight.ended - flight.started).toFixed(2)} s`);
+  const seven = world.chapterTimeline.find(m => m.scene === 7).at;
+  assert.ok(seven >= flight.ended - 1e-6 && seven - flight.ended < 0.1, 'scene 7 at once');
+});
+
+test('she lands in the far pool with a splash, gliding down from the flight with no jump, and Egill floats down onto its bank', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { world, watched } = await play();
+    const c = world.chapterState;
+    const pool = watched.pool;
+    assert.ok(pool.length > 600, `scene 7 watched for ${pool.length} frames`);
+    // from the flight's last frame into the glide: no jump, and no stop short (she is still going some 9 m/s)
+    const [first, second] = pool;
+    assert.ok(first.her.distanceTo(watched.flown) < 0.6, `from the flight's last frame: ${first.her.distanceTo(watched.flown).toFixed(2)} m`);
+    assert.ok(second.her.distanceTo(first.her) * 30 > 6, `still gliding: ${(second.her.distanceTo(first.her) * 30).toFixed(1)} m/s`);
+    let worst = 0;
+    for (let i = 2; i < pool.length; i++) worst = Math.max(worst, Math.abs(pool[i].her.distanceTo(pool[i - 1].her) - pool[i - 1].her.distanceTo(pool[i - 2].her)) * 30);
+    assert.ok(worst < 0.8, `her speed never jumps: at most ${worst.toFixed(2)} m/s from one frame to the next (${shape})`);
+    // she stands in the shallows, her feet on the bed under the water
+    const last = pool.at(-1);
+    const bed = world.heightAt(last.her.x, last.her.z);
+    assert.ok(toPool(last.her) < FAR_POOL.radius - 1 && bed < FAR_POOL.level - 0.2, `in the pool: ${toPool(last.her).toFixed(1)} m from its middle, ${(FAR_POOL.level - bed).toFixed(2)} m deep`);
+    assert.ok(Math.abs(last.her.y - bed) < 0.12, `her feet on the bed: ${(last.her.y - bed).toFixed(2)} m over it`);
+    // Egill rides her down, then floats onto the bank and stands there
+    assert.equal(first.riding, true, 'on her back as she glides in');
+    assert.ok(c.landing.touchAt > 0 && c.landing.floatAt > c.landing.touchAt, 'he floats down once she is down');
+    assert.equal(last.riding, false, 'on his own feet at the end');
+    assert.ok(toPool(last.egill) > FAR_POOL.radius && Math.abs(last.egill.y - world.heightAt(last.egill.x, last.egill.z)) < 0.1, 'on the bank');
+    assert.ok(Math.hypot(last.egill.x - FAR_POOL.bank[0], last.egill.z - FAR_POOL.bank[1]) < 0.5, 'where the pool has him stand');
+  }
+  // the splash as her feet touch the water, and the float's chime (heard only in time: a capture's seeking play is silent)
+  const { world, soundLog } = await playUntouched();
+  const c = world.chapterState;
+  const splash = soundLog.filter(e => e.scene === 7 && e.name === 'skim');
+  assert.equal(splash.length, 1, 'one splash');
+  assert.ok(Math.abs(splash[0].at - c.landing.touchAt) < 0.05, 'as she touches the water');
+  assert.ok(soundLog.some(e => e.scene === 7 && e.name === 'float' && Math.abs(e.at - c.landing.floatAt) < 0.05), 'with the float\'s chime');
+});
+
+test('Mosi comes out of the reed, out of breath, to stand by Egill: "Ég… er… kominn!"', async () => {
+  const { world, seen, watched } = await playWide();
+  const c = world.chapterState;
+  const shown = watched.pool.filter(f => f.mosiShown);
+  assert.ok(shown.length > 0, 'Mosi is there');
+  const from = shown[0].mosi, to = shown.at(-1).mosi;
+  assert.ok(Math.hypot(from.x - FAR_POOL.far[0], from.z - FAR_POOL.far[1]) < 1, `from far up the bank: from ${from.x.toFixed(1)}, ${from.z.toFixed(1)}`);
+  const throughReed = Math.min(...shown.map(f => Math.hypot(f.mosi.x - FAR_POOL.reed[0], f.mosi.z - FAR_POOL.reed[1])));
+  assert.ok(throughReed < 1, `through the reed: ${throughReed.toFixed(1)} m from its way`);
+  assert.ok(Math.hypot(to.x - FAR_POOL.mosi[0], to.z - FAR_POOL.mosi[1]) < 1, `to Egill's side: ${to.x.toFixed(1)}, ${to.z.toFixed(1)}`);
+  const seven = world.chapterTimeline.find(m => m.scene === 7).at;
+  const arrived = seen.spokenAt.get('k4_mosi_arrived');
+  assert.ok(arrived > seven && arrived >= c.landing.downAt, 'once Egill is down');
+});
+
+// The owner's bug report of 2026-11-15 ("hérna poppar Mosi inn, sést ekki koma labbandi"): he was put down by the reed, in the open,
+// in the middle of the bank's shot. A triceratops does not hide in a bed of reed: he is seen coming.
+test('Mosi is seen coming at a walk: there from the first frame of the bank\'s shot, far up the bank, and he never appears within a shot', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const first = watched.pool.findIndex(f => f.mosiShown);
+    assert.ok(first > 0, `Mosi is there (${shape})`);
+    const f = watched.pool[first], before = watched.pool[first - 1];
+    assert.equal(f.shot, 'pool_bank', `he shows in the bank's shot (${shape})`);
+    assert.notEqual(before.shot, 'pool_bank', `as the picture cuts to it, not within it (${shape}): he showed at ${f.t.toFixed(2)} s`);
+    const far = Math.hypot(f.mosi.x - FAR_POOL.mosi[0], f.mosi.z - FAR_POOL.mosi[1]);
+    assert.ok(far >= 15, `far up the bank, where his coming is a walk and not a step: ${far.toFixed(1)} m from his spot (${shape})`);
+    // in the frame from that first frame on, so the child sees him come (his head, over the reed)
+    const camera = new THREE.PerspectiveCamera(chapter.locations.ardalur.shots.pool_bank.fov, shape === 'upright' ? 0.625 : 1.6, 0.1, 1200);
+    camera.position.copy(f.camera);
+    camera.lookAt(new V3().fromArray(chapter.locations.ardalur.shots.pool_bank.target));
+    camera.updateMatrixWorld();
+    const p = f.mosiHead.clone().project(camera);
+    assert.ok(p.z < 1 && Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.9, `in the picture as it cuts: ${p.x.toFixed(2)}, ${p.y.toFixed(2)} (${shape})`);
+    // and every step from there to his spot is a walking step
+    const shown = watched.pool.slice(first).filter(g => g.mosiShown);
+    let longest = 0;
+    for (let i = 1; i < shown.length; i++) longest = Math.max(longest, Math.hypot(shown[i].mosi.x - shown[i - 1].mosi.x, shown[i].mosi.z - shown[i - 1].mosi.z));
+    assert.ok(longest < 0.12, `no jump on his way: his longest step in a frame is ${longest.toFixed(2)} m (${shape})`);
+  }
+});
+
+// Scene 7 (the life spec 2, scene 7; world/ardalur/life.js arrivals, kafli4-route.js FAR_POOL.gather): the small lizards, the grazers
+// and the flyers that came stand idle on the far pool's bank, seen in the wide shots, and never in the way of what the scene shows
+test('the animals that came stand at the far pool, never in front of Mosi, the reed or the horn', async (t) => {
+  const { world, watched } = await playWide();
+  const c = world.chapterState;
+  const pool = watched.pool;
+  const life = world.forest.life;
+  assert.ok(life.arrivals.length >= 15, `${life.arrivals.length} came to the far pool`);
+  for (const kind of ['smaedla', 'grasbitur', 'flugdyr']) assert.ok(life.arrivals.some(b => b.kind === kind), `a ${kind} among them`);
+  // each stands on the bank, out of the water and off the pool's people, and stays where it stands through the scene
+  const first = new Map(pool[0].arrivals.map(b => [b.id, b.at]));
+  assert.equal(first.size, life.arrivals.length, 'all of them there from the scene\'s first frame');
+  for (const [id, at] of first) {
+    const ground = world.heightAt(at.x, at.z);
+    assert.ok(toPool(at) > FAR_POOL.radius + 1 && ground > FAR_POOL.level + 0.1 && Math.abs(at.y - ground) < 0.05, `${id} on the bank: ${toPool(at).toFixed(1)} m from the middle`);
+    for (const spot of ['landing', 'bank', 'mosi', 'reed']) {
+      assert.ok(Math.hypot(at.x - FAR_POOL[spot][0], at.z - FAR_POOL[spot][1]) > 8, `${id} 8 m off ${spot}`);
+    }
+  }
+  let moved = 0, hopped = 0;
+  for (const f of pool) for (const b of f.arrivals) {
+    const start = first.get(b.id);
+    moved = Math.max(moved, Math.hypot(b.at.x - start.x, b.at.z - start.z));
+    hopped = Math.max(hopped, b.at.y - start.y);
+  }
+  assert.ok(moved < 0.05, `they stay on their spots: at most ${moved.toFixed(3)} m aside`);
+  assert.ok(hopped > 0.3 && hopped <= 0.75, `and hop for joy as she lands: ${hopped.toFixed(2)} m`);
+  // never between the camera and Mosi's head (once he is out of the reed), the reed he comes out of, or Slóeðla's bed across the pool
+  const middle = ([x, z]) => new THREE.Vector3(x, world.heightAt(x, z) + 1, z);
+  const reed = middle(FAR_POOL.reeds[0].at), bed = middle(FAR_POOL.reeds[1].at);
+  const wrong = [];
+  let nearest = Infinity;
+  for (const f of pool) {
+    const targets = [['the reed', reed], ['Slóeðla\'s bed', bed], ...(f.mosiShown ? [['Mosi\'s head', f.mosiHead]] : [])];
+    for (const b of f.arrivals) {
+      const body = b.at.clone().setY(b.at.y + b.height / 2);
+      for (const [name, target] of targets) {
+        const off = fromLine(body, f.camera, target);
+        nearest = Math.min(nearest, off);
+        if (off < 2) wrong.push(`${b.id} ${off.toFixed(1)} m from the line to ${name} in ${f.shot} at ${f.t.toFixed(1)} s`);
+      }
+    }
+  }
+  assert.deepEqual(wrong.slice(0, 6), [], `${wrong.length} frames with one in the way`);
+  // fifteen or more in the frame of the wide shots: the bank's, and the glide's once she is down in the water
+  const wide = pool.filter(f => f.shot === 'pool_bank' || (f.shot === 'pool_glide' && f.t >= c.landing.touchAt));
+  assert.ok(wide.some(f => f.shot === 'pool_bank') && wide.some(f => f.shot === 'pool_glide'), `the wide shots: ${[...new Set(pool.map(f => f.shot))].join(', ')}`);
+  const fewest = Math.min(...wide.map(f => f.arrivals.filter(b => b.inFrame).length));
+  assert.ok(fewest >= 15, `at least 15 in the frame of every wide frame: ${fewest}`);
+  // and the crowds draw only what the frame can show, or a shadow into it: the horn shot drew all of them, the ones behind the camera
+  // too, and went over the frame's 250k triangles (STYLE.md 11; world/critters/crowd.js inView)
+  const horn = pool.filter(f => f.shot === 'pool_horn');
+  assert.ok(horn.length > 0, 'the horn shot');
+  const outside = Math.max(...horn.map(f => f.outside));
+  assert.ok(outside <= 6, `at most 6 drawn outside the horn shot's frame: ${outside}`);
+  t.diagnostic(`${life.arrivals.length} at the pool, at least ${fewest} in a wide frame, nearest a line ${nearest.toFixed(1)} m, ${outside} drawn outside the horn shot`);
+});
+
+test('the flight plays its own song from the take-off: the chapter\'s theme goes out under it, the horn sounds in the quiet, and the theme comes back with the last look at the reed', async () => {
+  const { world, watched } = await playWide();
+  const c = world.chapterState;
+  const started = c.flight.flight.started;
+  assert.ok(c.song, 'the chapter has the flight\'s song');
+  assert.ok(Math.abs(watched.songCue - SONG.at) < 0.05, `${SONG.at} s into it as the flight starts: ${watched.songCue}`);
+  const [out, ...rest] = watched.theme;
+  assert.ok(out && out.level === 0 && Math.abs(out.t - started) < 0.05 && out.seconds === SONG.themeOut, `the theme goes out as she takes off: ${JSON.stringify(watched.theme)}`);
+  assert.deepEqual(rest.map(m => m.level), [1], 'and comes back once, in full');
+  assert.ok(rest[0].t > c.horn.at, 'after the horn: with the last look at the reed');
+  assert.ok(watched.songAtHorn >= SONG.seconds - 1, `the song has all but ended by the horn: ${watched.songAtHorn?.toFixed(1)} of ${SONG.seconds} s`);
+});
+
+test('the horn sounds from the reed across the pool, once, between Mosi\'s coming and their two lines', async () => {
+  const { world, seen, soundLog } = await playUntouched(); // heard only in time: a capture's seeking play is silent
+  const c = world.chapterState;
+  const horns = soundLog.filter(e => e.name === 'sloedlaHorn');
+  assert.equal(horns.length, 1, 'once');
+  assert.equal(horns[0].scene, 7);
+  const at = horns[0].at;
+  const said = id => seen.spokenAt.get(id);
+  assert.ok(said('k4_mosi_arrived') < at, 'after Mosi has come');
+  assert.ok(said('k4_egill_what') >= at + 2.4, `Egill asks once it has sounded: ${(said('k4_egill_what') - at).toFixed(1)} s after`);
+  assert.ok(said('k4_mosi_horn') > said('k4_egill_what'), 'and Mosi knows it');
+  assert.deepEqual(c.horn.from, FAR_POOL.farReed, 'from the far reed');
+  assert.ok(Number.isFinite(horns[0].detail?.pan) && Math.abs(horns[0].detail.pan) <= 1, 'from its side');
+});
+
+test('the flyers cry as they leave their nests, once, from the side the first one leaves', async () => {
+  const { world, soundLog } = await playUntouched(); // heard only in time: a capture's seeking play is silent
+  const f = world.chapterState.flight;
+  const off = world.forest.life.flyersOff;
+  assert.ok(off && Number.isFinite(off.at) && off.at > 0, 'life says when the first flyer leaves its nest');
+  // before the big call, which they answer too (kafli4-flight-play.js PLAY.bigAnswers)
+  const cries = soundLog.filter(e => e.name === 'flyers' && e.at - f.flight.started < f.play.big.at);
+  assert.equal(cries.length, 1, `once: at ${cries.map(e => (e.at - f.flight.started).toFixed(2))} s`);
+  const at = cries[0].at - f.flight.started;
+  assert.ok(at >= off.at - 1e-6 && at < off.at + 0.1, `as the first leaves: ${at.toFixed(2)} s, it leaves at ${off.at.toFixed(2)} s`);
+  assert.equal(Math.sign(cries[0].detail?.pan ?? 0), off.side === 'right' ? 1 : -1, `from its side (${off.side})`);
+});

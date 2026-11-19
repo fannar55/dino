@@ -2,8 +2,10 @@
 // Packs a GLB's vertices small with KHR_mesh_quantization, which three's GLTFLoader reads as it is (no
 // decoder to fetch, unlike Draco): positions as 16-bit integers over the model's extent (each mesh's node
 // scales them back), normals as 8-bit, texture coordinates as 16-bit where they lie in 0..1, indices as
-// 16-bit where they fit. Images, materials, nodes and extras are kept as they are. Step 2 of preparing
-// the hero butterfly (remake/tools/blender-butterfly.py is step 1).
+// 16-bit where they fit. Morph targets are packed the same way: position deltas as 16-bit integers on the positions' own scale,
+// normal deltas as 8-bit (clamped to -1..1 a component, which a turn of up to about 60 degrees stays within). Images, materials,
+// nodes and extras are kept as they are. Step 2 of preparing the hero butterfly (remake/tools/blender-butterfly.py is step 1),
+// and the last step of a crowd model (remake/tools/prep-crowd.mjs).
 //   node remake/tools/quantize-glb.mjs <in.glb> <out.glb>
 import fs from 'node:fs';
 
@@ -83,13 +85,16 @@ for (const image of json.images ?? []) {
   image.bufferView = imageViews.get(image.bufferView);
 }
 
-// Every position in the file shares one extent, so every mesh's node gets the same scale.
+// Every position in the file shares one extent (the morph targets' deltas too), so every mesh's node gets the same scale.
 let extent = 0;
 for (const mesh of json.meshes) for (const p of mesh.primitives) {
-  const a = json.accessors[p.attributes.POSITION];
-  extent = Math.max(extent, ...a.min.map(Math.abs), ...a.max.map(Math.abs));
+  for (const index of [p.attributes.POSITION, ...(p.targets ?? []).map(t => t.POSITION).filter(i => i != null)]) {
+    const a = json.accessors[index];
+    const values = a.min && a.max ? [...a.min, ...a.max] : read(index);
+    extent = Math.max(extent, ...values.map(Math.abs));
+  }
 }
-const quantize = (values, scale) => values.map(v => Math.round(v * scale));
+const quantize = (values, scale, limit = Infinity) => values.map(v => Math.max(-limit, Math.min(limit, Math.round(v * scale))));
 const stats = { positions: 0, triangles: 0 };
 const converted = new Map(); // old accessor -> new, where two primitives share one
 function convert(index, attribute) {
@@ -101,8 +106,10 @@ function convert(index, attribute) {
   if (attribute === 'POSITION') {
     result = addAccessor(quantize(values, 32767 / extent), { type: 'VEC3', componentType: 5122, normalized: true, target: 34962 });
     stats.positions += a.count;
-  } else if (attribute === 'NORMAL') {
-    result = addAccessor(quantize(values, 127), { type: 'VEC3', componentType: 5120, normalized: true, target: 34962, stride: 4 });
+  } else if (attribute === 'TARGET_POSITION') {
+    result = addAccessor(quantize(values, 32767 / extent, 32767), { type: 'VEC3', componentType: 5122, normalized: true, target: 34962 });
+  } else if (attribute === 'NORMAL' || attribute === 'TARGET_NORMAL') {
+    result = addAccessor(quantize(values, 127, 127), { type: 'VEC3', componentType: 5120, normalized: true, target: 34962, stride: 4 });
   } else if (attribute.startsWith('TEXCOORD') && values.every(v => v >= 0 && v <= 1)) {
     result = addAccessor(quantize(values, 65535), { type: 'VEC2', componentType: 5123, normalized: true, target: 34962 });
   } else if (attribute === 'INDICES') {
@@ -121,7 +128,12 @@ for (const mesh of json.meshes) {
   for (const p of mesh.primitives) {
     for (const [attribute, index] of Object.entries(p.attributes)) p.attributes[attribute] = convert(index, attribute);
     if (p.indices != null) p.indices = convert(p.indices, 'INDICES');
-    if (p.targets) throw new Error('morph targets are not packed here');
+    for (const target of p.targets ?? []) {
+      for (const [attribute, index] of Object.entries(target)) {
+        if (attribute !== 'POSITION' && attribute !== 'NORMAL') throw new Error(`a morph target's ${attribute} is not packed here`);
+        target[attribute] = convert(index, `TARGET_${attribute}`);
+      }
+    }
   }
 }
 for (const node of json.nodes) {

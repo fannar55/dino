@@ -41,7 +41,8 @@ export function flyScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: .35, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), tree().middle, up(tree().base, 3.4)], front: view([.15, -1]), elevation: 22, cut: true, floor: 'auto' }, act: () => stage.mosi.look(tree().middle) },
     { at: .4, wait: { until: () => ['tie', 'cheer'].includes(phase()) || !stage.task.busy(), timeout: 8 } },
     // The rope draws taut from the foot of the path to the tree.
-    { at: .45, shot: { kind: 'wide', scale: 'wide', subjects: () => [foot(), tree().middle, up(tree().base, 3.4), stage.task.up(16.4, 6.4, 3.6)], front: view([.45, -1]), elevation: 20, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap') },
+    { at: .45, shot: { kind: 'wide', scale: 'wide', subjects: () => [foot(), tree().middle, up(tree().base, 3.4), stage.task.up(16.4, 6.4, 3.6)], front: view([.45, -1]), elevation: 20, cut: true, floor: 'auto' }, act: () => stage.mosi.gesture('clap'),
+      fx: { kind: 'done', at: () => tree().middle } },
     { at: .5, wait: { until: () => !stage.task.busy(), timeout: 8 } },
     { at: .55, shot: { release: true, duration: .9 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];

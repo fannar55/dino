@@ -5,19 +5,23 @@ import { freezeLevel } from '../step-rules.js';
  * the crossing, the bark over the marsh, the walk). Everything the rules, the story and game.js need to know about the level is here;
  * its 3D world (the terrain, the props, the scenes of its steps) is levels/berjalundur/world.js (see levels/worlds.js).
  *
- * steps        the ladder, in order (step-rules.js says what each kind means). `journey` is the step's name in the ribbon.
+ * steps        the ladder, in order (step-rules.js says what each kind means)
  * story        the words of the story, by step (playful-flow.js says which moment uses which): `doing`, `ready`, `arriving`, `find`,
  *              `open`, `gather`, `gifts`, `landing` are the story keys, `prompts` has the same names with Mosi's hint; `common` is
  *              what belongs to no step. `seeks`: with one leaf open the search names the other half.
+ * voice        the line Mosi says when the story reaches a moment, by story key (game.js: once as it begins, again on his 10 s repeat and
+ *              on his button); its words are the moment's prompt
  * flags        the fields the rules add to their state, from the Set of finished steps
  * doneFrom     the ladder read back from those fields (the story is also asked with a state written by hand)
  * onCancel     what a cancelled step changes besides stopping
  * roster       the friends' names; pairs: the names the "who" bubbles show
  * grid, nests, mosiSpot, gladeView   where the leaves, the pairs' rests and Mosi stand, and how the search view looks (world.js)
  * targets      each obstacle's badge (icon) and its accessible name
- * copy         the words on the welcome card, the ending card, the help card and the loading card (the markup has the same words)
+ * copy         the words on the welcome card, the ending card and the loading card, and the accessible name of the targets (the markup has the
+ *              same words); `holding` (level 2's) is the line under Mosi's words while a pair holds something up
  * wrongFriends  the friend the playthrough tool tries first at each obstacle, on purpose (a friend that cannot do it)
  * music        the music stage for a state; eventSounds, eventCaptions: what the world's events sound and say
+ * soundscape   the folder of the level's own sounds beside the shared ones (audio.js soundscapeUrl); credits: its rows behind the ending card's "i"
  */
 const TIGHT = 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.';
 const WAIT = 'Vinirnir bíða. Veldu verkefnið aftur þegar leiðin er laus.';
@@ -34,7 +38,11 @@ export const BERJALUNDUR = freezeLevel({
   id: 'berjalundur',
   number: 1,
   title: 'Berjalundurinn',
-  ribbon: 'Leiðin að berjalundinum',
+  // (Mosi's claps and the friends' cheer at the grove: Söngur Slóeðlu's, as level 2 has them, soundscape/grove/)
+  soundscape: 'grove',
+  credits: [
+    { sound: true, title: 'Single handclap, 4 people (alternatives 1-4)', author: 'gregswinford', license: 'CC BY 4.0', source: 'freesound.org/people/gregswinford/sounds/487275-487278' },
+  ],
   friends: ['triceratops', 'stegosaurus', 'brontosaurus'],
   gifts: ['shrew', 'hermitCrab', 'crab'],
   roster: { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla' },
@@ -55,11 +63,13 @@ export const BERJALUNDUR = freezeLevel({
   mosiSpot: { x: 3, z: 2.8, heading: 90 },
   gladeView: { landscape: [.464, .375, .803], portrait: [.52, .8, -.3] },
   wrongFriends: { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' },
+  // (`leadIn`: the line Mosi says as a tap-along begins, here the roll scene's «Einn, tveir, ÝTA!». A tap of the child's that he counts cuts it,
+  // so the child hears the count at once: game.js countBeat, the owner's word of 2026-11-08)
   steps: [
-    { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll', journey: 'Lyfta grein' },
-    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], journey: 'Gera trjábrú' },
+    { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll' },
+    { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], leadIn: 'push' },
     { id: 'cross', kind: 'travel', target: 'staging', needsAllFound: true, waitsForGifts: true, automatic: true },
-    { id: 'lay', kind: 'task', target: 'bark', species: 'stegosaurus', beatWords: ['Ein!', 'Tvær!', 'Þrjár!'], journey: 'Leggja gönguleið' },
+    { id: 'lay', kind: 'task', target: 'bark', species: 'stegosaurus', beatWords: ['Ein!', 'Tvær!', 'Þrjár!'] },
     { id: 'finish', kind: 'travel', target: 'grove', automatic: true },
   ],
   story: {
@@ -94,6 +104,8 @@ export const BERJALUNDUR = freezeLevel({
       prompts: { doing: 'Nú komast allir yfir. Berin bíða okkar!', open: 'Leiðin er opin. Förum saman!' },
     },
   },
+  // The three waits for the child (the branch, the log, the marsh): Mosi says the prompt's words (the juice pass, package C; the owner's yes of 2026-11-08).
+  voice: { 'lift-ready': 'lift_ready', 'roll-ready': 'roll_ready', 'lay-ready': 'lay_ready' },
   // The branch is held from the lift until the roll lets it go; the bridge, the staging spot, the boardwalk and the grove follow their steps.
   flags: done => ({
     branch: done.has('lift') && !done.has('roll') ? 'held' : 'down',
@@ -136,28 +148,16 @@ export const BERJALUNDUR = freezeLevel({
   },
   copy: {
     welcome: {
-      eyebrow: 'ÆVINTÝRI MEÐ MOSA', title: 'Hvar er vinur minn?',
+      title: 'Saman getum við það!',
       lines: ['Finndu tvo eins vini.', 'Saman opnum við leiðina í berjalundinn!'],
-      start: 'Leikum saman', fine: 'Finna vini · hjálpast að · halda saman',
+      start: 'Leikum saman',
     },
     ending: {
-      eyebrow: 'SEX VINIR · EIN LEIÐ', title: 'Öll komumst við!',
+      title: 'Öll komumst við!',
       text: 'Þið lyftuð, ýttuð og byggðuð. Nú njóta allir vinirnir berjalundarins.', again: 'Spila aftur',
     },
-    help: {
-      eyebrow: 'HJÁLPUMST AÐ', title: 'Opnum leiðina saman.',
-      items: [
-        'Opnaðu lauf. Finndu tvo eins vini!',
-        'Undir sumum laufum eru gjafir. Finndu tvær eins, þá fara þær í körfuna!',
-        'Ýttu á það sem glóir. Hver getur þetta? Veldu vin!',
-        'Þríhyrnurnar ýta bolnum. Þegar brúin er tilbúin fara vinirnir saman yfir.',
-        'Kambeðlurnar byggja yfir mýrina. Þá ganga allir í berjalundinn!',
-      ],
-      note: 'Gullna örin bendir á næsta verkefni. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.',
-      resume: 'Aftur í feluleikinn',
-    },
     loading: { title: 'Hreiðurlundurinn vaknar…', copy: 'Mosi finnur ungana.' },
-    aria: { targets: 'Lauf, vinapör og leiðin að berjalundinum', journey: 'Þrjú verkefni á leiðinni' },
+    aria: { targets: 'Lauf, vinapör og leiðin að berjalundinum' },
   },
   music: state => (state.visited ? 'grove' : state.atStaging ? 'marsh' : 'glade'),
   // The world's events, by type ('beat' by 'beat:<step>'): each entry is an audio method of game.js's audio, { method, arg } (the
@@ -172,6 +172,8 @@ export const BERJALUNDUR = freezeLevel({
     'log-roll': ['logRoll', { say: 'roll', delay: 0.12 }],
     'bridge-land': ['bridgeLand'],
     'staging-arrival': ['stagingArrival'],
+    // (each pair calls as the last of it comes over the bridge; the walk to the grove ends in the friends' cheer instead)
+    'pair-arrived:cross': [{ method: 'arrivalCall', arg: 'species' }],
     'bark-pickup': ['barkPickup'],
     'bark-place': [{ method: 'barkPlace', arg: 'panel' }],
     'boardwalk-complete': ['boardwalkComplete'],

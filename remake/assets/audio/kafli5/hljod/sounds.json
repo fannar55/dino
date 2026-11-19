@@ -1,0 +1,409 @@
+{
+  "about": "Chapter 5's recorded tones (tools/kafli5-sounds.mjs): the owner's picks of 2026-11-08, each with its role in the choir (engine/audio/choir-sounds.js), its measured pitch and its source.",
+  "levels": {
+    "animal": 1,
+    "instrument": 0.6,
+    "horn": 1,
+    "hornFalse": 1
+  },
+  "madeToo": {
+    "hornFalse": true
+  },
+  "files": {
+    "grazers-1.mp3": {
+      "role": "animal",
+      "group": "grazers",
+      "what": "a grazer sings do",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "grazer-3",
+        "note": "chapter 4's hljod/grazer-3.mp3"
+      },
+      "hz": 1198.02,
+      "clarity": 0.99,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 1.064
+    },
+    "grazers-2.mp3": {
+      "role": "animal",
+      "group": "grazers",
+      "what": "a grazer sings do",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "grazer-sing-1",
+        "prompt": "qa/remake/kafli5/hljod/eleven/grazer-sing-1.json"
+      },
+      "hz": 184.89,
+      "clarity": 0.665,
+      "voiced": 0.328,
+      "clear": true,
+      "seconds": 1.556
+    },
+    "grazers-3.mp3": {
+      "role": "animal",
+      "group": "grazers",
+      "what": "a grazer sings do (a cow's moo)",
+      "source": {
+        "kind": "Freesound",
+        "id": 59245,
+        "name": "z-moo01.wav",
+        "author": "Zozzy",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/Zozzy/sounds/59245/",
+        "preview": "https://cdn.freesound.org/previews/59/59245_91975-hq.mp3"
+      },
+      "hz": 182.63,
+      "clarity": 0.859,
+      "voiced": 0.573,
+      "clear": true,
+      "seconds": 1.5,
+      "cut": [
+        0.2,
+        1.7
+      ]
+    },
+    "turtles-1.mp3": {
+      "role": "animal",
+      "group": "turtles",
+      "what": "a turtle sings re (a low hiss)",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "turtle-hiss-1",
+        "prompt": "qa/remake/kafli5/hljod/eleven/turtle-hiss-1.json"
+      },
+      "hz": 78.05,
+      "clarity": 0.993,
+      "voiced": 0.942,
+      "clear": true,
+      "seconds": 0.856
+    },
+    "turtles-2.mp3": {
+      "role": "animal",
+      "group": "turtles",
+      "what": "a turtle sings re",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "turtle-sing-1",
+        "prompt": "qa/remake/kafli5/hljod/eleven/turtle-sing-1.json"
+      },
+      "hz": 253.02,
+      "clarity": 0.922,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 1.36
+    },
+    "turtles-3.mp3": {
+      "role": "animal",
+      "group": "turtles",
+      "what": "a turtle sings re (a low groan)",
+      "source": {
+        "kind": "Freesound",
+        "id": 721978,
+        "name": "Low Toad Groan",
+        "author": "Metris",
+        "licence": "CC BY 4.0",
+        "page": "https://freesound.org/people/Metris/sounds/721978/",
+        "preview": "https://cdn.freesound.org/previews/721/721978_14696146-hq.mp3"
+      },
+      "hz": null,
+      "clarity": 0.393,
+      "voiced": 0,
+      "clear": false,
+      "seconds": 0.5,
+      "cut": [
+        0,
+        0.5
+      ]
+    },
+    "frogs-1.mp3": {
+      "role": "animal",
+      "group": "frogs",
+      "what": "a frog sings mi",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "frog-1",
+        "prompt": "qa/remake/kafli5/hljod/eleven/frog-1.json"
+      },
+      "hz": 1139.92,
+      "clarity": 0.884,
+      "voiced": 0.93,
+      "clear": true,
+      "seconds": 0.6
+    },
+    "frogs-2.mp3": {
+      "role": "animal",
+      "group": "frogs",
+      "what": "a frog sings mi",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "frog-2",
+        "prompt": "qa/remake/kafli5/hljod/eleven/frog-2.json"
+      },
+      "hz": 2262.93,
+      "clarity": 0.974,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 0.447
+    },
+    "frogs-3.mp3": {
+      "role": "animal",
+      "group": "frogs",
+      "what": "a frog sings mi",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "frog-3",
+        "prompt": "qa/remake/kafli5/hljod/eleven/frog-3.json"
+      },
+      "hz": 1185.06,
+      "clarity": 0.9,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 0.319
+    },
+    "frogs-4.mp3": {
+      "role": "animal",
+      "group": "frogs",
+      "what": "a frog sings mi (a coqui tree frog)",
+      "source": {
+        "kind": "Freesound",
+        "id": 191524,
+        "name": "Coqui.aif",
+        "author": "dashatron",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/dashatron/sounds/191524/",
+        "preview": "https://cdn.freesound.org/previews/191/191524_3565052-hq.mp3"
+      },
+      "hz": 2799.18,
+      "clarity": 0.985,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 0.65,
+      "cut": [
+        0.35,
+        1
+      ]
+    },
+    "frogs-5.mp3": {
+      "role": "animal",
+      "group": "frogs",
+      "what": "a frog sings mi (a ribbit)",
+      "source": {
+        "kind": "Freesound",
+        "id": 536759,
+        "name": "Frog.ogg",
+        "author": "egomassive",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/egomassive/sounds/536759/",
+        "preview": "https://cdn.freesound.org/previews/536/536759_1415754-hq.mp3"
+      },
+      "hz": 1930.25,
+      "clarity": 0.851,
+      "voiced": 0.957,
+      "clear": true,
+      "seconds": 0.42,
+      "cut": [
+        0.08,
+        0.5
+      ]
+    },
+    "lizards-1.mp3": {
+      "role": "animal",
+      "group": "lizards",
+      "what": "a small lizard sings sol",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "smalldino-2",
+        "note": "chapter 4's hljod/smalldino-2.mp3"
+      },
+      "hz": 1013.39,
+      "clarity": 0.964,
+      "voiced": 0.922,
+      "clear": true,
+      "seconds": 0.898
+    },
+    "lizards-2.mp3": {
+      "role": "animal",
+      "group": "lizards",
+      "what": "a small lizard sings sol",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "lizard-sing-1",
+        "prompt": "qa/remake/kafli5/hljod/eleven/lizard-sing-1.json"
+      },
+      "hz": 2222.1,
+      "clarity": 0.876,
+      "voiced": 0.868,
+      "clear": true,
+      "seconds": 0.595
+    },
+    "lizards-3.mp3": {
+      "role": "animal",
+      "group": "lizards",
+      "what": "a small lizard sings sol (one gecko chirp)",
+      "source": {
+        "kind": "Freesound",
+        "id": 400573,
+        "name": "ThằngLằng.wav",
+        "author": "SieuAmThanh",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/SieuAmThanh/sounds/400573/",
+        "preview": "https://cdn.freesound.org/previews/400/400573_7554526-hq.mp3"
+      },
+      "hz": null,
+      "clarity": 0.657,
+      "voiced": 0,
+      "clear": false,
+      "seconds": 0.27,
+      "cut": [
+        0.3,
+        0.57
+      ]
+    },
+    "flyers-1.mp3": {
+      "role": "animal",
+      "group": "flyers",
+      "what": "the small flyers sing la",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "flyer-sing-2",
+        "prompt": "qa/remake/kafli5/hljod/eleven/flyer-sing-2.json"
+      },
+      "hz": 2013.76,
+      "clarity": 0.967,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 0.954
+    },
+    "flyers-2.mp3": {
+      "role": "animal",
+      "group": "flyers",
+      "what": "a small flyer sings la (a buzzard's mew)",
+      "source": {
+        "kind": "Freesound",
+        "id": 69357,
+        "name": "Common Buzzard .wav",
+        "author": "Benboncan",
+        "licence": "CC BY 4.0",
+        "page": "https://freesound.org/people/Benboncan/sounds/69357/",
+        "preview": "https://cdn.freesound.org/previews/69/69357_634166-hq.mp3"
+      },
+      "hz": 2375.41,
+      "clarity": 0.962,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 1.15,
+      "cut": [
+        0.4,
+        1.55
+      ]
+    },
+    "flyers-3.mp3": {
+      "role": "animal",
+      "group": "flyers",
+      "what": "a small flyer sings la (a curlew's whistle)",
+      "source": {
+        "kind": "Freesound",
+        "id": 72892,
+        "name": "Curlew .wav",
+        "author": "Benboncan",
+        "licence": "CC BY 4.0",
+        "page": "https://freesound.org/people/Benboncan/sounds/72892/",
+        "preview": "https://cdn.freesound.org/previews/72/72892_634166-hq.mp3"
+      },
+      "hz": 1404.67,
+      "clarity": 0.993,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 0.75,
+      "cut": [
+        0.35,
+        1.1
+      ]
+    },
+    "marimba.mp3": {
+      "role": "instrument",
+      "what": "the marimba note under every animal, moved to its tone",
+      "source": {
+        "kind": "Freesound",
+        "id": 373580,
+        "name": "Marimba - C5 (Marimba_hit_Outrigger_C4_loud_01.wav)",
+        "author": "sgossner",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/sgossner/sounds/373580/",
+        "preview": "https://cdn.freesound.org/previews/373/373580_2475994-hq.mp3"
+      },
+      "hz": 525.46,
+      "clarity": 1,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 2.5,
+      "cut": [
+        0,
+        2.5
+      ]
+    },
+    "horn-1.mp3": {
+      "roles": [
+        "horn",
+        "hornFalse"
+      ],
+      "wobble": true,
+      "what": "her horn (an alphorn-like pipe), true at each tone, and made false",
+      "source": {
+        "kind": "Freesound",
+        "id": 507468,
+        "name": "Alpenhorn.aiff",
+        "author": "Danjocross",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/Danjocross/sounds/507468/",
+        "preview": "https://cdn.freesound.org/previews/507/507468_2977885-hq.mp3"
+      },
+      "hz": 273.02,
+      "clarity": 0.999,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 2.75,
+      "cut": [
+        0.15,
+        2.9
+      ]
+    },
+    "horn-2.mp3": {
+      "roles": [
+        "horn",
+        "hornFalse"
+      ],
+      "wobble": true,
+      "what": "her horn (a didgeridoo drone), true at each tone, and made false",
+      "source": {
+        "kind": "Freesound",
+        "id": 726861,
+        "name": "Didgeridoo Long Drone",
+        "author": "Robo9418",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/Robo9418/sounds/726861/",
+        "preview": "https://cdn.freesound.org/previews/726/726861_15176424-hq.mp3"
+      },
+      "hz": 69.27,
+      "clarity": 1,
+      "voiced": 1,
+      "clear": true,
+      "seconds": 3,
+      "cut": [
+        1,
+        4
+      ]
+    }
+  }
+}

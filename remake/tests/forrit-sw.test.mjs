@@ -143,8 +143,8 @@ test('a version takes over only when it is the only window', async () => {
   assert.deepEqual(await active(), { version: 'v1' });
   assert.equal(await (await get('/remake/')).text(), '<html>v1');
 
-  windows.splice(1, 1, { frameType: 'nested' }); // the other one closed; an iframe of this one does not count
-  assert.deepEqual({ ...(await ask()) }, { ok: true });
+  windows.splice(1, 1, { frameType: 'top-level', url: `${ORIGIN}/remake/spil.html?r=GULL` }); // a guest tab is not Mosi: does not block
+  assert.deepEqual({ ...(await ask()) }, { ok: true }, 'a non-Mosi tab does not hold Mosi back');
   assert.deepEqual(await active(), { version: 'v2' });
   assert.equal(await (await get('/remake/')).text(), '<html>v2');
 });

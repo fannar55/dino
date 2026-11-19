@@ -131,7 +131,7 @@ test('places survive a round trip', () => {
 // The journal
 
 const PAGE = ['journal-button', 'star-slots', 'journal-flights', 'journal-badge'];
-const FRIENDS = ['Kambeðla', 'Þórseðla', 'Grameðla', 'Uggeðla', 'Slóeðla', 'Flugeðla'];
+const FRIENDS = ['Kambeðla', 'Uggeðla', 'Þórseðla', 'Flugeðla', 'Slóeðla', 'Grameðla'];
 
 /** A stand-in for the book (engine/book/book.js): what it was asked to do, and a picture for each find in `pictures`. */
 function fakeBook(pictures = {}) {
@@ -359,10 +359,10 @@ test('a star lands in its friend\'s slot, whatever the chapter number', () => {
   journal.addStar('k2_thorsedla', { x: 0, y: 0 });
   journal.addStar('k5_flugedla', { x: 0, y: 0 });
   journal.update(FLIGHT_SECONDS + 0.01);
-  assert.deepEqual(earned(), [false, true, false, false, false, true]);
+  assert.deepEqual(earned(), [false, false, true, true, false, false]);
   journal.addStar('k9_nobody', { x: 0, y: 0 });
   journal.update(FLIGHT_SECONDS + 0.01);
-  assert.deepEqual(earned(), [false, true, false, false, false, true], 'a star with no friend slot lights none');
+  assert.deepEqual(earned(), [false, false, true, true, false, false], 'a star with no friend slot lights none');
   assert.deepEqual(save.get().stars, ['k2_thorsedla', 'k5_flugedla', 'k9_nobody'], 'but it is kept');
 });
 
@@ -459,7 +459,7 @@ test('the two sounds of the map moment exist, in the effects of the game and in 
 test('main.js ties the book the child holds to the clock and the sound', () => {
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   // The sound (the voice, the music and the effects: engine/audio/hold.js) is held with the clock, and let go with it.
-  const wiring = /createBook\(document, \{[\s\S]*?onPause: paused => \{\s*clock\.setPaused\(paused\);\s*hold\('book', paused\);\s*\},?\s*\}\)/;
+  const wiring = /createBook\(document, \{[\s\S]*?onPause: paused => \{\s*(?:if \(paused\) ui\.clearCaption\(\);\s*)?clock\.setPaused\(paused\);\s*hold\('book', paused\);\s*\},?\s*\}\)/;
   assert.match(main, wiring, 'createBook gets an onPause that sets the clock and then holds the sound');
 });
 
@@ -544,6 +544,8 @@ function starRig({ withJournal = true } = {}) {
       addPlace(id, from) { places.push({ id, from }); return rig.journal.addPlace(id, from); },
       open: (tab, options) => rig.journal.open(tab, options),
       close: () => rig.journal.close(),
+      handToChild: () => rig.journal.handToChild(),
+      get isOpen() { return rig.journal.isOpen; },
     }
     : null;
   const pointer = fakePointer();
@@ -718,6 +720,22 @@ test('s.journal.open and close open and shut the book on its dinosaurs, as the s
   });
   step(1.2);
   assert.deepEqual(seen, [['open', true, 1], ['shut', false]], 'time moved while the book was open');
+
+  // s.journal.handToChild hands an open script book to the child and waits until the child closes it.
+  let handed = false;
+  book.handToChild = () => { handed = true; };
+  let resumed = false;
+  stage.start(function* handScript() {
+    s.journal.open('games');
+    yield s.journal.handToChild();
+    resumed = true;
+  });
+  step(0.5);
+  assert.equal(handed, true, 'book.handToChild was called');
+  assert.equal(resumed, false, 'the script waits while the book stays open');
+  book.close();
+  step(0.1);
+  assert.equal(resumed, true, 'the script resumes once the child closes the book');
 });
 
 test('s.star and s.found say so when the scene has no journal', () => {

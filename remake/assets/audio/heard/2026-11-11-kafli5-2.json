@@ -1,0 +1,119 @@
+{
+  "set": "kafli5",
+  "date": "2026-11-11",
+  "source": "jano-kafli5.json",
+  "verdicts": {
+    "kafli5/k5_mosi_again": {
+      "verdict": "ja",
+      "key": "08cff972a56495fd41a88256b7bbdb547a87b15d0b3d0d5bc11acf7cbfe4b219",
+      "mp3": "449f8b95c3c52f4b8b78c0da6c2644e8acdb0891e4541edf17d145a485cd25bb",
+      "speaker": "mosi",
+      "text": "Þarna aftur!"
+    },
+    "kafli5/k5_flugedla_reed": {
+      "verdict": "ja",
+      "key": "b1ee6c95b2008958669f5b6a5a9b4f9609e1d3820dc447c72a9d60087791b896",
+      "mp3": "8c91a2a1ec957b337cdc37c5412be3e97047f57ffdb2bfabed3cf27d11583cc3",
+      "speaker": "flugedla",
+      "text": "Hún er í sefinu."
+    },
+    "kafli5/k5_mosi_map": {
+      "verdict": "ja",
+      "key": "d89f6482aae2f82a1923487ef0661a5dff43b3b0052979dd55e4a47fec5be070",
+      "mp3": "a62abcfba44ddfa54058c54c46ac67c930dc47110583ad0d5709197ee9e3bf6f",
+      "speaker": "mosi",
+      "text": "Að tjörninni hennar Slóeðlu."
+    },
+    "kafli5/k5_mosi_invite": {
+      "verdict": "ja",
+      "key": "3132d993d589da3495fe0cf482a07274cff5cdd06fd694b00207a9b30f66ee3c",
+      "mp3": "37547c8ff135c6e81aaa54c95234f9e30add5ea976385476069d0f0cee0271e4",
+      "speaker": "mosi",
+      "text": "Halló, Slóeðla! Viltu koma á Stjörnuhátíðina í kvöld?"
+    },
+    "kafli5/k5_mosi_animals": {
+      "verdict": "ja",
+      "key": "a2863a9f62214546d6ff90d6c4b364396513e4cbe4659250b27ec31da4dc7aad",
+      "mp3": "8eaa5d7d5aeae3591491abd2aff607d13a99f75b8ff4e7b4ffa63b8e89b43290",
+      "speaker": "mosi",
+      "text": "Dýrin sungu alltaf með þér. Þau muna það!"
+    },
+    "kafli5/k5_mosi_help": {
+      "verdict": "ja",
+      "key": "982aaed7de766c2e515ce23bb8fba5a7c72746ec236fb464013719ca20d99c1d",
+      "mp3": "48b0578a1427c139c2db89defdd8e8e6a89bfe8c746c97de9765347e6459a9af",
+      "speaker": "mosi",
+      "text": "Hjálpaðu þeim, Egill. Pikkaðu á dýrið sem lýsist upp."
+    },
+    "kafli5/k5_mosi_remember": {
+      "verdict": "ja",
+      "key": "4ed1ff52859b93030e96a65f2a8e7c5ff20002ff5a84b4636838b1f45081667f",
+      "mp3": "850709cb6067f8fcc430f87627efb056292a466874285ab4f81432a3bfbd8e7b",
+      "speaker": "mosi",
+      "text": "Nú manst þú röðina, Egill!"
+    },
+    "kafli5/k5_mosi_star": {
+      "verdict": "ja",
+      "key": "ce47907822e29a225d40bb62985f926e31b0bd7205f643130ffcedb9e04287ec",
+      "mp3": "28691d5a144e52c22036952027221d93899fe98d4fcdf670ec294cbbd3509977",
+      "speaker": "mosi",
+      "text": "Fimmta stjarnan!"
+    },
+    "kafli5/k5_mosi_gramedla": {
+      "verdict": "ja",
+      "key": "0cf6b9a98cb706db9c72442e6bb59f8befc7e96c2292e4214a2d450837b9fa2c",
+      "mp3": "01d7960c5164d94a7053cda0d68a2b1513ff46579c21e5e4e3500a89ab797cc9",
+      "speaker": "mosi",
+      "text": "Grameðla… hún heyrði lagið."
+    },
+    "kafli5/k5_egill_next": {
+      "verdict": "ja",
+      "key": "c39b76bedea2f32900a8e183b8a91d34f589152c81b0ba70a3041ced479f8d1a",
+      "mp3": "d9d3f5f388007725c648f1103e8fe9984aa0b77f032f0ac6f261f545f5b7a4bd",
+      "speaker": "egill",
+      "text": "Förum við þangað næst?"
+    },
+    "kafli5/k5_mosi_longest": {
+      "verdict": "ja",
+      "key": "aa3d95a593127332c24cacdecdcfa6802fa6dc8336a5571b7697cf5835bd941a",
+      "mp3": "88818710d65e407a5f437a32a1fc72bfe3bfcf4001bab8af825cc56f40d6b6ff",
+      "speaker": "mosi",
+      "text": "Lengsta ferðin. Yfir ána við fossinn."
+    },
+    "kafli5/k5_mosi_grazers": {
+      "verdict": "nei",
+      "key": "b894992875ef3d2a8ca86a3b1085e8f75d8bfb4ef151a6dd9d9a541004b8864d",
+      "mp3": "24777e77237436666093f3d4819662bb0b3fa422e8bc996b9c02c76d5701f4c4",
+      "speaker": "mosi",
+      "text": "Grasbítarnir!"
+    },
+    "kafli5/k5_mosi_turtles": {
+      "verdict": "ja",
+      "key": "26edd3653a086438bebcaf4723036de3007dcefd3b0cfadfb7dbff301a5f7053",
+      "mp3": "abdb7f3760771ecabed9aba4dc9e9fc0213650c562f1325c2f7f7193179a1a36",
+      "speaker": "mosi",
+      "text": "Skjaldbökurnar!"
+    },
+    "kafli5/k5_mosi_frogs": {
+      "verdict": "ja",
+      "key": "cf4504a62aa9ef98ee040f74e0e93436f0d83e87aa414e438b5c79dc8f3d165d",
+      "mp3": "f86542e24ef4b8152f34490316d384c0c9ceda2478b0ba49dc7694816a584d61",
+      "speaker": "mosi",
+      "text": "Froskarnir!"
+    },
+    "kafli5/k5_mosi_lizards": {
+      "verdict": "ja",
+      "key": "15c464088517d7fc727183315a649dbf3becb1533f12c400e2db10529324bcc0",
+      "mp3": "a5bdb31a8bd52c4171ebcee9260bad12e6e23c3269a7db561ab5b006c547eb61",
+      "speaker": "mosi",
+      "text": "Smáeðlurnar!"
+    },
+    "kafli5/k5_mosi_flyers": {
+      "verdict": "nei",
+      "key": "a45437532617ac486f9c4b200ebf224c0d06c94d423558866e365234ee720ff5",
+      "mp3": "5c22bde5392ad790aeac699cf009d540461b9c23f2b07f1a516222b007d2c80a",
+      "speaker": "mosi",
+      "text": "Flugdýrin!"
+    }
+  }
+}

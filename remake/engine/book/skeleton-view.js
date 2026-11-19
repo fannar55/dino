@@ -65,14 +65,12 @@ function release(root) {
  *   canvas, onTap      the canvas (the zoom carries it to the whole screen and back), and who is told of a tap on the model
  */
 export function createSkeletonView(doc, { win = globalThis.window, loadModel = null } = {}) {
-  const canvas = doc.createElement('canvas');
-  canvas.className = 'card-model';
-  canvas.setAttribute('aria-hidden', 'true');
-  canvas.hidden = true;
+  let containerEl = null;
+  let canvas = null;
 
-  const models = new Map(); // src -> the promise of its { holder, radius }, kept once it is loaded
+  const models = new Map(); // src -> the promise of its { holder, radius }, kept while shown
   let loader = null;
-  let stage = null; // { renderer, camera, pivot }, made at the first show
+  let stage = null; // { renderer, camera, pivot }, made when shown and freed on hide so WebGL contexts never pile up
   let broken = false; // the renderer could not be made: it is not tried again
   let token = 0; // each show and hide takes the next: an answer that comes late finds it is no longer its turn
   let shown = null; // the model on the canvas: { radius }
@@ -88,6 +86,89 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   let rockTime = 0;
   const fingers = new Map(); // pointerId -> { x0, y0, x, y, moved, disturbed }
   let pinch = null; // the two fingers that pinch, and how far apart they were and how big the model was when they began
+
+  function bindCanvas(el) {
+    el.addEventListener?.('webglcontextlost', event => {
+      event.preventDefault?.();
+      token++;
+      stop(); // hides the canvas so the 2D fallback photo underneath shows immediately
+    });
+    el.addEventListener('pointerdown', event => {
+      if (!shown || event.button > 0) return;
+      fingers.set(event.pointerId, { x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY, moved: false, disturbed: false });
+      try {
+        el.setPointerCapture?.(event.pointerId); // so the finger goes on turning wherever it slides
+      } catch {
+        // the pointer is already gone
+      }
+    });
+    el.addEventListener('pointermove', event => {
+      const finger = fingers.get(event.pointerId);
+      if (!finger || !shown) return;
+      const dx = event.clientX - finger.x;
+      const dy = event.clientY - finger.y;
+      finger.x = event.clientX;
+      finger.y = event.clientY;
+      if (!finger.moved) {
+        if (Math.hypot(finger.x - finger.x0, finger.y - finger.y0) < TAP_SLOP_PX) return; // a finger at rest moves nothing
+        finger.moved = true; // it moves the model from here on, from where it is
+        touched = true;
+        pinch = null;
+        for (const other of fingers.values()) other.disturbed = true; // none of the fingers down is a tap now
+        return;
+      }
+      const movers = [...fingers.entries()].filter(([, other]) => other.moved).slice(0, 2); // a still finger is not one of them
+      if (movers.length < 2) {
+        yaw += dx * DRAG_TURN;
+        tilt = clamp(tilt + dy * DRAG_TURN, -TILT_MAX, TILT_MAX);
+        return;
+      }
+      const [a, b] = movers.map(([, other]) => other);
+      const apart = Math.hypot(a.x - b.x, a.y - b.y);
+      const key = movers.map(([id]) => id).join();
+      if (pinch?.key !== key) pinch = { key, apart, zoom }; // a fresh start when these are not the two before
+      if (pinch.apart > 1) zoom = clamp(pinch.zoom * (apart / pinch.apart), MIN_ZOOM, MAX_ZOOM);
+    });
+    const lift = event => {
+      const finger = fingers.get(event.pointerId);
+      fingers.delete(event.pointerId);
+      pinch = null; // the finger that is left turns the model from where it is
+      if (event.type === 'pointerup' && finger && !finger.moved && !finger.disturbed && shown) view.onTap?.();
+    };
+    el.addEventListener('pointerup', lift);
+    el.addEventListener('pointercancel', lift);
+    el.addEventListener('lostpointercapture', lift);
+    el.addEventListener('wheel', event => {
+      if (!shown) return;
+      event.preventDefault?.();
+      touched = true;
+      zoom = clamp(zoom * (event.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP), MIN_ZOOM, MAX_ZOOM);
+    }, { passive: false });
+  }
+
+  function freshCanvas() {
+    const next = doc.createElement('canvas');
+    next.className = 'card-model';
+    next.setAttribute('aria-hidden', 'true');
+    next.hidden = true;
+    bindCanvas(next);
+    if (canvas?.parentNode) canvas.parentNode.replaceChild(next, canvas);
+    else if (containerEl) containerEl.append(next);
+    canvas = next;
+  }
+  freshCanvas();
+
+  function releaseStage() {
+    watcher?.disconnect();
+    watcher = null;
+    for (const loading of models.values()) loading.then(({ holder }) => release(holder), () => {});
+    models.clear();
+    if (!stage) return;
+    stage.renderer.dispose();
+    stage.renderer.forceContextLoss?.();
+    stage = null;
+    freshCanvas();
+  }
 
   /** The renderer, the camera and the lights, made once; null when this page cannot draw (no canvas to draw on, no WebGL). */
   function makeStage() {
@@ -182,63 +263,11 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     stage?.pivot.clear();
   }
 
-  // ---- Fingers -------------------------------------------------------------------------------------------------------
-
-  canvas.addEventListener('pointerdown', event => {
-    if (!shown || event.button > 0) return;
-    fingers.set(event.pointerId, { x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY, moved: false, disturbed: false });
-    try {
-      canvas.setPointerCapture?.(event.pointerId); // so the finger goes on turning wherever it slides
-    } catch {
-      // the pointer is already gone
-    }
-  });
-  canvas.addEventListener('pointermove', event => {
-    const finger = fingers.get(event.pointerId);
-    if (!finger || !shown) return;
-    const dx = event.clientX - finger.x;
-    const dy = event.clientY - finger.y;
-    finger.x = event.clientX;
-    finger.y = event.clientY;
-    if (!finger.moved) {
-      if (Math.hypot(finger.x - finger.x0, finger.y - finger.y0) < TAP_SLOP_PX) return; // a finger at rest moves nothing
-      finger.moved = true; // it moves the model from here on, from where it is
-      touched = true;
-      pinch = null;
-      for (const other of fingers.values()) other.disturbed = true; // none of the fingers down is a tap now
-      return;
-    }
-    const movers = [...fingers.entries()].filter(([, other]) => other.moved).slice(0, 2); // a still finger is not one of them
-    if (movers.length < 2) {
-      yaw += dx * DRAG_TURN;
-      tilt = clamp(tilt + dy * DRAG_TURN, -TILT_MAX, TILT_MAX);
-      return;
-    }
-    const [a, b] = movers.map(([, other]) => other);
-    const apart = Math.hypot(a.x - b.x, a.y - b.y);
-    const key = movers.map(([id]) => id).join();
-    if (pinch?.key !== key) pinch = { key, apart, zoom }; // a fresh start when these are not the two before
-    if (pinch.apart > 1) zoom = clamp(pinch.zoom * (apart / pinch.apart), MIN_ZOOM, MAX_ZOOM);
-  });
-  const lift = event => {
-    const finger = fingers.get(event.pointerId);
-    fingers.delete(event.pointerId);
-    pinch = null; // the finger that is left turns the model from where it is
-    if (event.type === 'pointerup' && finger && !finger.moved && !finger.disturbed && shown) view.onTap?.();
-  };
-  canvas.addEventListener('pointerup', lift);
-  canvas.addEventListener('pointercancel', lift);
-  canvas.addEventListener('wheel', event => {
-    if (!shown) return;
-    event.preventDefault?.();
-    touched = true;
-    zoom = clamp(zoom * (event.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP), MIN_ZOOM, MAX_ZOOM);
-  }, { passive: false });
-
   const view = {
-    canvas,
+    get canvas() { return canvas; },
     onTap: null, // told of a tap on the model (the card viewer sets it)
     mount(container) {
+      containerEl = container;
       container.append(canvas);
     },
     async show(src, { rock = false } = {}) {
@@ -272,17 +301,14 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     hide() {
       token++;
       stop();
+      releaseStage();
     },
     dispose() {
       token++;
       stop();
-      watcher?.disconnect();
+      releaseStage();
       canvas.remove();
-      for (const loading of models.values()) loading.then(({ holder }) => release(holder), () => {});
-      models.clear();
-      stage?.renderer.dispose();
-      stage?.renderer.forceContextLoss?.();
-      stage = null;
+      containerEl = null;
       broken = true; // a view that is disposed shows nothing more
     },
   };

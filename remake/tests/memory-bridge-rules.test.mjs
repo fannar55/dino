@@ -346,6 +346,8 @@ test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff 
   assert.equal(level.voice['g2-reach-ready'], 'g2_ledge_ready'); assert.equal(level.voice['g2-fly-ready'], 'g2_cliff_ready');
   assert.equal(level.story.reach.prompts.ready, TEXT.g2_ledge_ready); assert.equal(level.story.fly.prompts.ready, TEXT.g2_cliff_ready); assert.equal(level.story.through.prompts.open, TEXT.g2_through); assert.equal(level.story.climb.prompts.doing, TEXT.g2_climb);
   assert.deepEqual(level.eventSounds['reach-start'], [{ say: 'g2_reached', delay: .9 }]); assert.deepEqual(level.eventSounds['fly-start'], [{ say: 'g2_flown', delay: .9 }]);
+  // (the second rope's long flight: the same line again, queued; each pair calls at the end of a long walk)
+  assert.deepEqual(level.eventSounds['wing-beat:pull:0'], [{ say: 'g2_flown', delay: .5, again: true }]); assert.deepEqual(level.eventSounds['pair-arrived'], [{ method: 'arrivalCall', arg: 'species' }]);
   assert.equal(level.eventCaptions['reach-start'].text, TEXT.g2_reached); assert.equal(level.eventCaptions['fly-start'].text, TEXT.g2_flown);
   // What the world raises while it works is heard: each name is an audio method that exists, and each recorded cue is in the gorge's manifest.
   const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null }), manifest = JSON.parse(fs.readFileSync(new URL('../assets/audio/memory/soundscape/gorge/manifest.json', import.meta.url), 'utf8'));
@@ -358,6 +360,10 @@ test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff 
   const manifests = [new URL('manifest.json', soundscape), ...fs.readdirSync(soundscape, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => new URL(`${entry.name}/manifest.json`, soundscape)).filter(url => fs.existsSync(url))];
   assert.ok(manifests.length >= 2, 'the shared soundscape and the gorge');
   for (const url of manifests) { const count = Object.keys(JSON.parse(fs.readFileSync(url, 'utf8')).sfx ?? {}).length; assert.ok(count <= MANIFEST_SOUNDS, `${url.pathname.split('/soundscape/')[1]}: ${count} sounds, the cap is ${MANIFEST_SOUNDS}`); }
+  // Level 1 hears Mosi's claps and the cheer too, from its own folder: the same Söngur Slóeðlu files as the gorge's.
+  const { BERJALUNDUR } = await import('../engine/memory/levels/berjalundur.js'), grove = JSON.parse(fs.readFileSync(new URL(`${BERJALUNDUR.soundscape}/manifest.json`, soundscape), 'utf8')).sfx;
+  for (const id of ['clap-1', 'clap-2', 'clap-3', 'clap-4', 'cheer-1', 'cheer-2']) assert.equal(grove[id]?.file, manifest.sfx[id].file, `level 1's ${id}`);
+  assert.ok(BERJALUNDUR.credits.some(row => row.author === 'gregswinford' && row.license === 'CC BY 4.0'), 'the claps are credited on level 1');
   // The two CC BY sounds the step adds, and the three models, are named behind the ending card's "i".
   const credited = level.credits.map(row => `${row.author} ${row.license} ${row.source}`).join(' | ');
   for (const needle of ['Tdude9000 CC BY 3.0', 'jorickhoofd CC BY 4.0', 'F.M.Audio CC BY 4.0', 'Kenney CC0', 'ambientCG CC0']) assert.ok(credited.includes(needle), `${needle} is credited`);

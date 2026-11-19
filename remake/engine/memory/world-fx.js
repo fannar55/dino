@@ -14,7 +14,12 @@ const STYLES = {
   stars: { shape: 2, colours: [gold, cream, gold], spread: [.3, .55], rise: [.9, .8], life: [.95, .45], size: [.15, .15], fall: .55, alpha: .96, spin: 3.2 },
   // Water thrown up from a landing: big drops that arc high and drop back (the size is a radius in metres), easy to see from the search view.
   splash: { shape: 3, colours: [water, spray], spread: [.5, .8], rise: [1.8, 1.4], life: [.8, .4], size: [.11, .08], fall: 5, alpha: 1, grow: 1, fade: .5 },
+  // A task done (the branch up, the light, the rocks...): a big burst of gold stars, thrown wide and high, falling slowly.
+  burst: { shape: 2, colours: [gold, cream, gold], spread: [.7, 1.1], rise: [1.5, 1.3], life: [1.15, .5], size: [.2, .2], fall: .8, alpha: 1, spin: 3.4 },
+  // The trail behind a gift pair flying to the basket: small gold stars left hanging, short-lived.
+  trail: { shape: 2, colours: [gold, cream], spread: [.02, .06], rise: [-.1, .2], life: [.45, .2], size: [.07, .05], fall: .3, alpha: .95, spin: 4 },
 };
+// (a trail or a burst passes `spare`: it never takes the last `spare` places of the pool, so the footstep dust always has room)
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
 /** One transparent draw for grounded dust and soft leaf fragments. All motion
@@ -51,9 +56,10 @@ export function createWorldFx({ scene, heightAt, wet = () => false, wood = () =>
   });
   const mesh = new THREE.Points(geometry, material); mesh.name = 'Fótaryk, lauf og vinaglampi'; mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 10; scene.add(mesh);
   let sequence = 0, reduced = false, clock = 0, lastStep = -1, emitted = 0, footPuffs = 0, tracking = new WeakMap();
-  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0, colours: palette = null } = {}) {
+  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0, colours: palette = null, spare = 0 } = {}) {
     if (reduced) return;
     const style = STYLES[kind];
+    if (spare > 0) { count = Math.min(count, MAX - spare - particles.length); if (count <= 0) return; }
     if (style) {
       for (let i = 0; i < count; i++) {
         // `ring` starts them evenly round a circle that wide, e.g. a puff from under the rim of a leaf.

@@ -43,16 +43,16 @@ const TAU = Math.PI * 2;
  * and 60 cm: on a 1280x800 screen a small one is 27 to 40 px long and a big one 2.5 times that.
  */
 export const FISH_SIZES = { big: 1.5, small: 0.6 };
-export const JUMP_SECONDS = 1.5; // in the air, from the water to the water
+export const JUMP_SECONDS = 1.2; // in the air, from the water to the water
 export const HINT_AFTER = 8; // seconds without a big catch before Mosi's hint
 export const HELP_AFTER = 16; // and before she catches the next big fish herself
 export const FISH_COUNT = 5; // big fish to catch
 /** How far a tap may be from a fish's middle, in metres: the finger's, not the fish's (a big one is a metre and a half long). */
 export const TAP_RADIUS = { big: 2.2, small: 1.3 };
-const APEX = { big: 1.8, small: 1.0 }; // m over the water at the top of a jump
-const ARC = { big: 2.0, small: 1.2 }; // m along FISH_ARC from the water to the water
+const APEX = { big: 2.6, small: 1.6 }; // m over the water at the top of a jump
+const ARC = { big: 2.4, small: 1.5 }; // m along FISH_ARC from the water to the water
 const FIRST_AFTER = 1.2; // s before the first jump
-const GAP = [0.9, 1.7]; // s between one fish gone and the next jump
+const GAP = [0.65, 1.25]; // s between one fish gone and the next jump
 const SWIM_OFF = 0.7; // s a small fish swims on at the water's top before it is gone
 const COUNT_LINES = ['k2_mosi_einn', 'k2_mosi_tveir', 'k2_mosi_thrir', 'k2_mosi_fjorir', 'k2_mosi_5'];
 const LEVEL = waterShape(SIKI_LAYOUT.water).level;
@@ -70,12 +70,12 @@ const SMALL_LIGHT = '#a8d4e6', SMALL_GLOW = 0.55; // a small fish's silver
 export function jumpOrder(count, seed = 'kafli2 fishing') {
   const random = seededRandom(seed);
   const order = [];
-  let small = 2 + Math.floor(random() * 2); // the third or the fourth fish is the first small one
+  let small = 1; // the second fish is the first small one
   let spot = Math.floor(random() * FISHING_SPOTS.length);
   for (let i = 0; i < count; i++) {
     if (i) spot = (spot + 1 + Math.floor(random() * (FISHING_SPOTS.length - 1))) % FISHING_SPOTS.length;
     const kind = i === small ? 'small' : 'big';
-    if (kind === 'small') small = i + [2, 3, 3, 4][Math.floor(random() * 4)];
+    if (kind === 'small') small = i + [2, 2, 2, 3][Math.floor(random() * 4)];
     order.push({ kind, spot });
   }
   return order;
