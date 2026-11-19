@@ -11,7 +11,7 @@
 //   ?chapter=bord3d                        the glasses start, then Mosi 6 cm tall; ‹ › (or the arrow keys): 4, 6, 8, 10 cm
 //   &haed=8  &skjar=10.5                   Mosi's height in cm, the screen's diagonal in inches
 //   &fjarlaegd=45  &horn=45  &augu=5.8     the seat: cm from the screen's centre, degrees up from the table, cm between the eyes
-//   &snu=40                                how far Mosi is turned from facing the viewer, degrees (to the viewer's left, toward the sun)
+//   &snu=45                                how far Mosi is turned from facing the viewer, degrees (to the viewer's left, toward the sun)
 //   &gler=0                                no glasses: the same table picture from the point between the eyes (the stretched picture)
 //   &sjon=1                                what the viewer sees: an ordinary camera at the point between the eyes looking at the screen's
 //                                          centre, the screen's rectangle outlined on the ground, no glasses
@@ -32,7 +32,7 @@ export const HEIGHTS = [4, 6, 8, 10]; // cm: Mosi's height on the table at each 
 const HEIGHT = knob('haed', 6, 2, 20);
 export const SCREEN = { min: 7, max: 17, step: 0.5, inches: 10.5 }; // the screen's diagonal
 export const SEAT = { R: knob('fjarlaegd', 45, 20, 90), a: knob('horn', 45, 20, 80), ipd: knob('augu', 5.8, 4, 8) }; // cm, degrees, cm
-const TURN = knob('snu', 40, -90, 90); // degrees from facing the viewer, to the viewer's left
+const TURN = knob('snu', 45, -90, 90); // degrees from facing the viewer, to the viewer's left: a quarter to one side
 export const MARGIN = 0.04; // his picture's least distance to each edge of the page, as a share of the page that way
 const SJON = params.get('sjon') === '1';
 const MONO = SJON || params.get('gler') === '0';
@@ -116,10 +116,17 @@ export const chapter = {
       origin: [0, 0], scale: 0.7, eyes: null, box: null, margins: null, fits: false,
     };
     const near = camera.near, far = camera.far;
-    /** The page as the table sees it: its size in cm from the screen's diagonal and its size in CSS pixels. */
+    /**
+     * The page as the table sees it: its size in cm, from the screen's diagonal in inches and in CSS pixels. A screen said to be
+     * smaller than the page on it (a headless capture's is 800 x 600 whatever the page) is taken to be the page's size; the long
+     * and the short side are compared, not width and height, since some tablets do not turn the screen's numbers with the screen.
+     */
     function page() {
-      const cm = cmPerPixel(view.inches, win?.screen?.width || win?.innerWidth || 1280, win?.screen?.height || win?.innerHeight || 800);
-      return { cm, W: (win?.innerWidth || 1280) * cm, Hs: (win?.innerHeight || 800) * cm };
+      const w = win?.innerWidth || 1280, h = win?.innerHeight || 800;
+      const sw = win?.screen?.width || w, sh = win?.screen?.height || h;
+      const long = Math.max(sw, sh, w, h), short = Math.max(Math.min(sw, sh), Math.min(w, h));
+      const cm = cmPerPixel(view.inches, long, short);
+      return { cm, W: w * cm, Hs: h * cm, screenPx: [long, short] };
     }
     const eyesFor = (pg, scale) => tableEyes({ W: pg.W, Hs: pg.Hs, R: view.R, a: view.a, ipd: view.ipd, near, far, scale });
     /**
@@ -153,8 +160,9 @@ export const chapter = {
       const leastCm = Math.min(margins.left * pg.W, margins.right * pg.W, margins.top * pg.Hs, margins.bottom * pg.Hs);
       Object.assign(view, { ...pg, height: N, metres: N * scale, scale, origin, eyes, box, margins, least, leastCm, fits: least >= MARGIN - 1e-9, dirty: false, solves: view.solves + 1 });
       // the director's camera, which picks his level of detail and aims the sun's shadow: straight above the page, as high as the
-      // eyes, seeing the page and a third more each way (director.effectiveFov widens a lens on a screen narrower than 16:10)
-      const half = (0.7 * pg.Hs) / eyes.height;
+      // eyes, seeing the page and a twentieth more (so he is as big to it as to the eyes, which see exactly the page, and his level
+      // of detail is the one they need; director.effectiveFov widens a lens on a screen narrower than 16:10)
+      const half = (0.525 * pg.Hs) / eyes.height;
       const aspect = pg.W / pg.Hs;
       view.centreFov = deg(2 * Math.atan(aspect >= 1.6 ? half : (half * aspect) / 1.6));
       // the seat's own view (sjon=1): from between the eyes at the screen's centre, the whole rectangle inside the frame
@@ -291,7 +299,7 @@ export const chapter = {
       const r3 = x => Math.round(x * 1000) / 1000;
       return {
         mode: view.mode, through: !MONO && gler ? 'the glasses\' eye cameras' : 'eye cameras made for the measure',
-        page: { px: [win?.innerWidth, win?.innerHeight], screenPx: [win?.screen?.width, win?.screen?.height], inches: view.inches, cmPerPx: view.cm, W: r3(W), Hs: r3(Hs) },
+        page: { px: [win?.innerWidth, win?.innerHeight], screenPx: view.screenPx, screenSaid: [win?.screen?.width, win?.screen?.height], inches: view.inches, cmPerPx: view.cm, W: r3(W), Hs: r3(Hs) },
         seat: { R: view.R, a: view.a, ipd: view.ipd, eyeHeight: r3(eyes.height) },
         mosi: { step: view.index + 1, of: view.steps.length, cm: view.height, metres: r3(view.metres), metresPerCm: r3(scale), turn: view.turn, vertices: c.length / 3, origin: view.origin.map(r3) },
         top: { cm: r3(h), parallaxCm: r3(xs[0] - xs[1]), formulaCm: r3(parallaxAt(h, eyes.height, view.ipd)), share: r3((xs[0] - xs[1]) / W) },
