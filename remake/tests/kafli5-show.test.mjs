@@ -1,20 +1,21 @@
 // The show round chapter 5's music video (chapters/kafli5-show.js and its score, kafli5-show-score.js; the tools in engine/show/):
-// the fireflies, the dusk, the splashes, the countdown's numbers, the glowing notes and the beat in the light. All of it is a
-// function of the dance beat (kafli5-video.js), so most of this is plain arithmetic; the last tests draw it into a small world
-// and play the chapter into the middle of the set and leave.
+// the fireflies, the dusk and the records' looks, the splashes, the countdown's numbers, the glowing notes, the beat in the light
+// and the firefly fireworks. All of it is a function of the dance beat (kafli5-video.js) or of the set's own, so most of this is
+// plain arithmetic; the last tests draw it into a small world and play the chapter into the middle of the set and leave.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   BURSTS, PUFFS, COUNTS, COUNT, countAt, WORDS, WORD, wordAt, DUSK, duskAt, CAP, capAt, FLASHES, LIFT, liftAt, NOTES, NOTE, noteAt, notePoint, SPLASHES, SPLASH, SPLASH_AIR,
   dropAt, splashRingAt, createFireflies, FIREFLIES, outAt, gatherAt, pulseAt, energyOf, beatRingsAt, BEAT_RING, padOf, BEAT_SECONDS,
+  LOOK, LOOKS, LOOK_CUES, lookAt, lookMixAt, FIREWORK, FIREWORKS, GROUP_COLOURS, sparkAt, inShot,
 } from '../chapters/kafli5-show-score.js';
 import { createShow } from '../chapters/kafli5-show.js';
-import { createDusk } from '../engine/show/dusk.js';
+import { createDusk, DUSK as ENGINE_DUSK } from '../engine/show/dusk.js';
 import { createBigNumber, LETTERS, ROOM } from '../engine/show/big-number.js';
-import { BENDS, danceBeatAt, sectionAt } from '../chapters/kafli5-video.js';
+import { BENDS, CAMERA, danceBeatAt, sectionAt } from '../chapters/kafli5-video.js';
 import { SONG } from '../chapters/kafli5-set.js';
-import { CHOIR, GROUPS, WADE, seatsOf } from '../chapters/kafli5-pool.js';
+import { CHOIR, GROUPS, GROUP_SHOTS, SHOTS, WADE, seatsOf } from '../chapters/kafli5-pool.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
 import * as kafli5 from '../chapters/kafli5.js';
 import { playUnattended } from './chapter-harness.mjs';
@@ -434,7 +435,7 @@ function smallWorld({ reduced = false, params = null } = {}) {
     THREE, scene, camera: new THREE.PerspectiveCamera(50, 1.6, 0.1, 1200), params,
     lighting: { sun: new THREE.DirectionalLight('#ffce95', 2.87), hemi: new THREE.HemisphereLight('#cbdcef', '#676038', 0.55) },
     sky: { dome: { material: { uniforms: { uZenith: colour('#6c9bd3'), uHorizon: colour('#f4d9af'), uGlow: colour('#ffdca8'), uCloud: colour('#fff6e9'), uCloudShade: colour('#d7c4b6'), uFogColor: colour('#e0dacb'), uFogSun: colour('#f7cf9b'), uFogSunStrength: { value: 0.94 } } } } },
-    forest: { materials: { water: { uniforms: { uHorizon: colour('#f4d9af'), uZenith: colour('#6c9bd3') } } }, ripples: [], rippleAt(x, z, strength) { this.ripples.push([x, z, strength]); } },
+    forest: { materials: { water: { uniforms: { uHorizon: colour('#f4d9af'), uZenith: colour('#6c9bd3'), uDeep: colour('#3f7a6e'), uGlint: colour('#fff0c6') } } }, ripples: [], rippleAt(x, z, strength) { this.ripples.push([x, z, strength]); } },
     renderer: { toneMappingExposure: 1, getDrawingBufferSize: v => v.set(1280, 800) },
     heightAt: () => FAR_POOL.level + 0.4,
   };
@@ -576,7 +577,7 @@ test('the dusk: darker and warmer from the quiet part on, kept after the set if 
   const was = light();
   const show = createShow(c);
   assert.equal(light(), was, 'making the show changes nothing');
-  assert.deepEqual(show.parts.dusk.held, { colours: 13, numbers: 4 }, 'the sun, the fill, the haze, the sky, the water, the exposure');
+  assert.deepEqual(show.parts.dusk.held, { colours: 15, numbers: 4 }, 'the sun, the fill, the haze, the sky, the water (its sky, its own colour and its glitter), the exposure');
   show.update(video(100));
   assert.equal(light(), was, 'the afternoon, between two flashes');
   show.update(video(250));
@@ -586,20 +587,30 @@ test('the dusk: darker and warmer from the quiet part on, kept after the set if 
   assert.ok(sun.color.b / sun.color.r < new THREE.Color('#ffce95').b / 1 - 0.1, 'warmer');
   assert.ok(hemi.intensity < 0.55 && world.sky.dome.material.uniforms.uZenith.value.b < new THREE.Color('#6c9bd3').b);
   const deep = light();
+  show.update(video(part('rise').startBeat - 0.5)); // her horn's record to its last beat
+  assert.equal(light(), deep, 'the dusk as it fell, all through her horn');
+  // after the drop it is night still (the basic record's night: changed on purpose 2026-11-19, it was the same dusk to the end)
   show.update(video(BURSTS[0] + LIFT.beats)); // the drop, its flash over
-  assert.equal(light(), deep, 'it is still dusk after the drop');
+  const night = light();
+  assert.notEqual(night, deep, 'another record, another colour');
+  assert.ok(sun.intensity < 2.87 * 0.6 && world.renderer.toneMappingExposure < 0.95 && world.sky.dome.material.uniforms.uZenith.value.b < new THREE.Color('#6c9bd3').b / 2, 'it is night after the drop: the day does not come back');
   const dim = world.renderer.toneMappingExposure;
   show.update(video(BURSTS[0]));
-  assert.ok(world.renderer.toneMappingExposure > dim && world.renderer.toneMappingExposure <= dim * 1.1 + 1e-9, 'a soft lift on the drop, in the dusk');
+  assert.ok(world.renderer.toneMappingExposure > dim && world.renderer.toneMappingExposure <= dim * 1.1 + 1e-9, 'a soft lift on the drop, in the night');
   show.update(video(100)); // (a probe's step back to the afternoon)
+  assert.equal(light(), was);
+  show.update(video(SET.endBeat + LIFT.beats)); // the last hit's flash over: the calm night
+  const calm = light();
+  const still = world.renderer.toneMappingExposure;
   show.update(video(SET.endBeat)); // the last hit's flash
-  assert.ok(world.renderer.toneMappingExposure > dim);
-  // the set is over and the chapter goes on: the show's lights go, the dusk stays as it is with no flash on it, until the day is asked for
+  assert.ok(world.renderer.toneMappingExposure > still);
+  // the set is over and the chapter goes on: the show's lights go, the night stays as it is with no flash on it, until the day is asked for
   show.dispose({ dusk: true });
-  assert.equal(light(), deep, 'the dusk stays for the last scene of the chapter');
+  assert.equal(light(), calm, 'the calm night stays for the last scene of the chapter');
+  assert.ok(sun.intensity < 2.87 * 0.5, 'and it is night');
   assert.equal(world.scene.children.length, 0);
   show.update(video(100)); // nor a frame after it
-  assert.equal(light(), deep);
+  assert.equal(light(), calm);
   show.day();
   assert.equal(light(), was, 'the chapter is over: the afternoon it found');
   show.day(); // twice does no harm
@@ -622,6 +633,27 @@ test('the dusk: darker and warmer from the quiet part on, kept after the set if 
   dusk.set(0.2, 1);
   dusk.set(0.7, 0.3);
   assert.equal(light(), some);
+  dusk.restore();
+  assert.equal(light(), was);
+  // and with any looks: a mix of two is in between them, in any order, the weights never more than 1 together, and still() takes the flash off
+  const zenith = world.sky.dome.material.uniforms.uZenith.value;
+  dusk.mix([[LOOKS.violet, 1]]);
+  const violet = zenith.clone();
+  dusk.mix([[LOOKS.gold, 1]]);
+  const gold = zenith.clone();
+  dusk.mix([[LOOKS.violet, 0.25], [LOOKS.gold, 0.75]], 0.5);
+  const between = JSON.parse(light()).flat(3);
+  assert.ok(Math.abs(zenith.r - (0.25 * violet.r + 0.75 * gold.r)) < 1e-9 && Math.abs(zenith.b - (0.25 * violet.b + 0.75 * gold.b)) < 1e-9);
+  assert.ok(Math.abs(dusk.depth - 1) < 1e-9 && dusk.lift === 0.5);
+  dusk.mix([[LOOKS.gold, 0.75], [LOOKS.violet, 0.25]], 0.5);
+  JSON.parse(light()).flat(3).forEach((value, k) => assert.ok(Math.abs(value - between[k]) < 1e-9, 'the same mix in the other order'));
+  dusk.mix([[LOOKS.gold, 0.75], [LOOKS.violet, 0.75]]);
+  assert.ok(Math.abs(dusk.depth - 1) < 1e-9, 'never past the looks: what is over 1 is left out');
+  dusk.mix([[LOOKS.violet, 0.4]], 1);
+  const flashed = world.renderer.toneMappingExposure;
+  dusk.still();
+  assert.ok(world.renderer.toneMappingExposure < flashed && Math.abs(dusk.depth - 0.4) < 1e-9 && dusk.lift === 0, 'the same mix with no flash on it');
+  dusk.mix([[LOOKS.honey, 1]]);
   dusk.restore();
   assert.equal(light(), was);
   // a world with no light of its own (a test's, a capture's) is left alone
@@ -695,7 +727,7 @@ test('the chapter left in the middle of the build (dusk, a number on the screen)
 });
 
 test('the set over, the last scene of the chapter is in the dusk (the roar, the lines), and the day is back when the chapter has ended', async () => {
-  const seen = { day: null, set: null, roar: null, last: null };
+  const seen = { day: null, set: null, calm: null, roar: null, last: null };
   let light = null;
   const run = await playUnattended(kafli5, {
     seeking: true, limit: 900, shaped: true,
@@ -710,13 +742,18 @@ test('the set over, the last scene of the chapter is in the dusk (the roar, the 
       const c = world.chapterState;
       if (!c) return;
       if (c.video && !c.set?.ended && c.video.setBeat > 250 && c.video.setBeat < 251) seen.set = light(); // deep in the quiet part, no flash near
+      if (c.video && !c.set?.ended && c.video.setBeat > SET.endBeat + LIFT.beats) seen.calm = light(); // the set's last frames, the last flash over
       if (!c.ended && c.set?.ended && c.choirLog.some(entry => entry.type === 'roar')) { seen.roar ??= light(); seen.last = light(); }
     },
   });
   assert.ok(run.world.chapterState.set.ended > 0 && seen.set && seen.roar);
   assert.notEqual(seen.set, seen.day);
-  assert.equal(seen.roar, seen.set, 'the roar comes in the dusk the set left');
-  assert.equal(seen.last, seen.set, 'and it is dusk to the last frame of the script');
+  // (changed on purpose 2026-11-19: the set's records each have a colour of the night now, and it ends in the calm night; it was the one dusk)
+  assert.equal(seen.roar, seen.calm, 'the roar comes in the calm night the set left');
+  assert.equal(seen.last, seen.calm, 'and it is night to the last frame of the script');
+  const [, sunNow, , fillNow, exposureNow] = JSON.parse(seen.roar);
+  assert.ok(Math.abs(sunNow - 2.87 * LOOKS.night.sun.intensity) < 1e-6 && Math.abs(exposureNow - LOOKS.night.exposure) < 1e-6 && Math.abs(fillNow - 0.55 * LOOKS.night.hemi.intensity) < 1e-6, 'the look after the set, whole');
+  assert.ok(sunNow < JSON.parse(seen.set)[1], 'darker than the dusk fell: never back toward the day');
   assert.equal(light(), seen.day, 'the chapter over: the afternoon it found');
 });
 
@@ -763,4 +800,378 @@ test('with less motion the dusk is half as deep, but the cap is whole; and a cha
   const bare = createShow(smallWorld().c);
   bare.update(video(250));
   bare.dispose();
+});
+
+// ---------------------------------------------------------------------------------------------
+// A colour for each record, with footlights (round 2, 2026-11-19: "every record of the set gets its own colour of sky and water")
+
+const RECORDS = SET.cues.filter(cue => cue.kind === 'record');
+const DUSK_FROM = part('break').startBeat; // her horn's record: the dusk falls
+const TAIL = 2.4 / BEAT_SECONDS; // beats the show lives after the last hit (kafli5.js SET_TAIL)
+const DAY = { sun: 2.87, fill: 0.55, zenith: '#6c9bd3', horizon: '#f4d9af' }; // the golden afternoon, as the small world below has it
+const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+/** How bright a colour is as the light counts it (0 to 1). */
+const luma = hex => { const c = new THREE.Color(hex); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; };
+const apart = (a, b) => Math.hypot(...rgb(a).map((v, k) => v - rgb(b)[k]));
+const LOOK_IDS = Object.keys(LOOKS);
+const idOf = look => LOOK_IDS.find(id => LOOKS[id] === look);
+/** The looks' weights at a beat of the set, by their keys. */
+const weightsAt = (setBeat, options) => Object.fromEntries(lookMixAt(setBeat, options).map(([look, weight]) => [idOf(look), weight]));
+/**
+ * The fill light on a side that faces the camera (neither up nor down), against the afternoon's sun on a side that faces it: what
+ * an animal seen from the pool is lit by, since the sun stands behind the choir. (three.js counts both lights the same way.)
+ */
+const footlit = look => (DAY.fill * look.hemi.intensity * (luma(look.hemi.ground) + luma(look.hemi.sky))) / 2 / DAY.sun;
+const turnOf = (cue, reduced = false) => (reduced ? Math.max(cue.turn, LOOK.calm) : cue.turn);
+
+test('a colour for each record: the stage turns on every change of record, a record has one look by day and one in the night, and no two records share one', () => {
+  const turns = LOOK_CUES.slice(0, -1);
+  assert.deepEqual(turns.map(cue => [cue.beat, cue.record]), RECORDS.map(cue => [cue.beat, cue.to]), 'one turn for each record she puts on, on its beat');
+  assert.ok(RECORDS.length >= 6 && new Set(RECORDS.map(cue => cue.to)).size >= 5, 'a set of several records');
+  const pairs = new Map();
+  for (const cue of turns) {
+    const night = cue.beat >= DUSK_FROM;
+    const key = `${cue.record} ${night ? 'in the night' : 'by day'}`;
+    if (cue.look === null) assert.ok(!night && cue.record === 'vamp', `${key} at ${cue.beat}: only the basic record by day is the afternoon as it is`);
+    else assert.deepEqual([LOOKS[cue.look].record, LOOKS[cue.look].night], [cue.record, night], `${key} at ${cue.beat} has its own look (${cue.look})`);
+    if (pairs.has(key)) assert.equal(cue.look, pairs.get(key), `${key}: the same look every time it is put on`);
+    pairs.set(key, cue.look);
+  }
+  assert.equal(new Set(pairs.values()).size, pairs.size, 'no two records share a look');
+  turns.slice(1).forEach((cue, k) => assert.notEqual(cue.look, turns[k].look, `the change of record at ${cue.beat} is seen`));
+  // the calm night as she says good night: after the five last hits, there before the very last one, kept for the chapter's last scene
+  const after = LOOK_CUES.at(-1);
+  assert.deepEqual([after.beat, after.look, LOOKS[after.look].after], [SET.lines.find(line => line.id === 'goodnight').beat, 'night', true]);
+  assert.ok(after.beat > part('end').startBeat + 4 && after.beat + after.turn <= SET.endBeat, 'after the five hits, and night by the last hit');
+  assert.deepEqual(LOOK_IDS.filter(id => !LOOK_CUES.some(cue => cue.look === id)), [], 'every look is some record\'s');
+  // its own colour of sky and of water: any two looks of the night are plainly apart in both
+  const nights = LOOK_IDS.filter(id => LOOKS[id].night);
+  for (const a of nights) {
+    for (const b of nights.filter(id => id > a)) {
+      assert.ok(apart(LOOKS[a].sky.zenith, LOOKS[b].sky.zenith) + apart(LOOKS[a].sky.horizon, LOOKS[b].sky.horizon) > 0.3, `${a} and ${b}: the sky`);
+      assert.ok(apart(LOOKS[a].water.zenith, LOOKS[b].water.zenith) + apart(LOOKS[a].water.horizon, LOOKS[b].water.horizon) > 0.25, `${a} and ${b}: the water`);
+    }
+  }
+  // the turn itself: from the look before to the record's, slowly in and slowly out
+  assert.deepEqual(lookAt(turns[0].beat - 0.01), { from: null, to: null, turned: 1 }, 'the afternoon until the first change of record');
+  LOOK_CUES.forEach((cue, k) => {
+    const from = k ? LOOK_CUES[k - 1].look : null;
+    assert.deepEqual(lookAt(cue.beat), { from, to: cue.look, turned: 0 }, `it starts on the beat (${cue.beat})`);
+    assert.equal(lookAt(cue.beat + cue.turn / 2).turned, 0.5);
+    assert.equal(lookAt(cue.beat + cue.turn).turned, 1);
+    assert.ok(lookAt(cue.beat + cue.turn * 0.1).turned < 0.05 && lookAt(cue.beat + cue.turn * 0.9).turned > 0.95, 'eased at both ends');
+    assert.deepEqual(weightsAt(cue.beat + cue.turn + 0.01), cue.look ? { [cue.look]: LOOKS[cue.look].amount } : {}, `whole after its turn (${cue.beat})`);
+  });
+});
+
+test('the dusk stands: tints of the golden afternoon before her horn, colours of the night from it to the end, never the day again', () => {
+  // by day: a tint, part of the way, with the afternoon's own strength of light
+  for (const cue of LOOK_CUES.filter(cue => cue.beat < DUSK_FROM && cue.look)) {
+    const look = LOOKS[cue.look];
+    assert.ok(!look.night && look.amount > 0.2 && look.amount <= 0.6, `${cue.look}: a tint (${look.amount} of the way)`);
+    assert.ok(look.sun.intensity === 1 && look.exposure === 1 && look.envIntensity === 1 && Math.abs(look.hemi.intensity - 1) <= 0.1, `${cue.look}: as bright as the afternoon`);
+    assert.ok(luma(look.sky.zenith) > luma(DAY.zenith) * 0.75 && luma(look.sky.horizon) > luma(DAY.horizon) * 0.75, `${cue.look}: a day sky`);
+  }
+  // from her horn on: the night, all the way
+  for (const cue of LOOK_CUES.filter(cue => cue.beat >= DUSK_FROM)) {
+    const look = LOOKS[cue.look];
+    assert.ok(look && look.night && look.amount === 1, `the record at ${cue.beat} has a colour of the night`);
+    assert.ok(look.sun.intensity <= 0.7 && look.exposure <= 1 && look.envIntensity <= 0.7, `${cue.look}: the sun is dim`);
+    assert.ok(luma(look.sky.zenith) < luma(DAY.zenith) * 0.6 && luma(look.sky.horizon) < luma(DAY.horizon), `${cue.look}: its sky is darker than the afternoon's`);
+  }
+  // her horn's record is the dusk as it fell from the start, to the letter, and it sinks as slowly
+  for (const key of Object.keys(ENGINE_DUSK)) assert.deepEqual(LOOKS.rose[key], ENGINE_DUSK[key], `rose.${key} is the dusk's`);
+  const dusk = LOOK_CUES.find(cue => cue.beat === DUSK_FROM);
+  assert.deepEqual([dusk.look, dusk.turn], ['rose', DUSK.sink]);
+  // every frame of the set: the night's looks weigh together exactly what the dusk is deep, and no tint of the day is left in it
+  for (const { setBeat, beat } of framesOfTheSet) {
+    const weights = weightsAt(setBeat);
+    const [day, night] = [false, true].map(isNight => Object.entries(weights).filter(([id]) => LOOKS[id].night === isNight).reduce((sum, [, weight]) => sum + weight, 0));
+    assert.ok(Math.abs(night - duskAt(beat)) < 1e-9, `at ${setBeat.toFixed(2)} the night is ${night}, the dusk ${duskAt(beat)}`);
+    assert.ok(setBeat < DUSK_FROM || day === 0, `no day tint at ${setBeat.toFixed(2)}`);
+    assert.ok(Object.keys(weights).length <= 2 && day + night <= 1 + 1e-9);
+  }
+  assert.deepEqual(weightsAt(SET.endBeat + TAIL), { night: 1 }, 'the show ends in the calm night, whole');
+  assert.deepEqual(weightsAt(SET.endBeat + 60), { night: 1 });
+});
+
+test('the footlights: in every look of the night but the dusk itself the animals are lit from below, pale, against a darker ground and sky', () => {
+  for (const id of LOOK_IDS.filter(id => LOOKS[id].night && id !== 'rose')) {
+    const { hemi, sky } = LOOKS[id];
+    // a side that faces the camera gets at least a third of what the afternoon's sun gives a side that faces it (the dusk gave 4 %)
+    assert.ok(footlit(LOOKS[id]) >= 0.33, `${id}: the footlights give ${(footlit(LOOKS[id]) * 100).toFixed(0)} % of the afternoon's sun`);
+    const ground = rgb(hemi.ground);
+    assert.ok(Math.min(...ground) >= 0.65 && Math.max(...ground) >= 0.94, `${id}: the footlights are pale, so what they fall on keeps its own colours (${hemi.ground})`);
+    assert.ok(luma(hemi.sky) < luma(hemi.ground) * 0.3, `${id}: what faces up (the ground) is much darker than what is lit from below`);
+    assert.ok(luma(sky.zenith) < 0.2, `${id}: a dark sky`);
+  }
+  assert.ok(footlit(LOOKS.rose) < 0.05, 'her horn\'s dusk is as it was: no footlights');
+  // so no group is cut to, close, while the dusk's own dim light is all there is (a cut list that does it wants footlights in `rose`)
+  const next = LOOK_CUES.find(cue => cue.beat > DUSK_FROM);
+  const closes = Object.values(GROUP_SHOTS).flatMap(shots => Object.values(shots));
+  for (const cut of CAMERA.filter(cut => cut.beat >= DUSK_FROM + DUSK.sink / 2 && cut.beat < next.beat)) {
+    assert.ok(!closes.includes(cut.cut), `${cut.cut} at ${cut.beat} would show a group in the dusk's dim light`);
+  }
+  // and every close shot of a group after it stands in a look with footlights
+  for (const cut of CAMERA.filter(cut => cut.beat >= next.beat && closes.includes(cut.cut))) {
+    const { to, turned } = lookAt(cut.beat + 0.5);
+    assert.ok(footlit(LOOKS[to]) >= 0.33 && (turned === 1 || footlit(LOOKS[lookAt(cut.beat + 0.5).from]) >= 0.33), `${cut.cut} at ${cut.beat} is footlit (${to})`);
+  }
+});
+
+test('no strobing: a look turns over a second or more, never two turns at once, nothing in the light follows the beat, and slower with less motion', () => {
+  for (const cue of LOOK_CUES) {
+    assert.ok(cue.turn * BEAT_SECONDS >= 1, `the turn at ${cue.beat} takes ${(cue.turn * BEAT_SECONDS).toFixed(2)} s`);
+    assert.ok(turnOf(cue, true) * BEAT_SECONDS >= 3.5, `and ${(turnOf(cue, true) * BEAT_SECONDS).toFixed(2)} s with less motion`);
+  }
+  assert.ok(LOOK.turn >= 2 && LOOK.turn <= 3, 'about two beats');
+  LOOK_CUES.slice(1).forEach((cue, k) => assert.ok(cue.beat - LOOK_CUES[k].beat >= turnOf(LOOK_CUES[k], true), `the turn at ${LOOK_CUES[k].beat} is over before the next (${cue.beat}), with less motion too`));
+  assert.ok(LOOK_CUES.at(-1).beat + turnOf(LOOK_CUES.at(-1), true) <= SET.endBeat + TAIL, 'the last turn is done when the show is put away, so the look it leaves is whole');
+  // no record is changed inside the rewind or Stoppdans: the light stands through both (it goes by the set's beat, as the words)
+  for (const bend of [BENDS.rewind, BENDS.freeze]) assert.ok(!LOOK_CUES.some(cue => cue.beat + cue.turn > bend.from && cue.beat < bend.to), 'no turn inside a bend of the clock');
+  // frame by frame, at 30 frames a second
+  for (const reduced of [false, true]) {
+    let before = null;
+    let fastest = 0;
+    for (const { setBeat } of framesOfTheSet) {
+      const now = weightsAt(setBeat, { reduced });
+      const turning = LOOK_CUES.some(cue => setBeat >= cue.beat && setBeat - FRAME < cue.beat + turnOf(cue, reduced));
+      if (before) {
+        for (const id of new Set([...Object.keys(now), ...Object.keys(before)])) {
+          const step = Math.abs((now[id] ?? 0) - (before[id] ?? 0));
+          fastest = Math.max(fastest, step);
+          if (!turning) assert.equal(step, 0, `the light stands between two records (${id} at ${setBeat.toFixed(2)}): nothing follows the beat`);
+        }
+      }
+      before = now;
+    }
+    // a whole turn at this speed would take over 0.75 s (the ease's fastest moment), with less motion over 5 s
+    assert.ok(fastest * 30 < (reduced ? 0.2 : 1.3), `the fastest a look turns${reduced ? ' with less motion' : ''}: ${(fastest * 30).toFixed(2)} of its way a second`);
+  }
+  // with less motion every look is half as deep, as the dusk was from the start
+  assert.deepEqual(weightsAt(300, { reduced: true }), { violet: 0.5 });
+  assert.deepEqual(weightsAt(250, { reduced: true }), { rose: 0.5 });
+  assert.ok(Math.abs(weightsAt(DUSK_FROM + 4, { reduced: true }).rose - 0.25) < 1e-9, 'and the dusk sinks as it did');
+});
+
+test('the last chorus has the brightest and the warmest look, and the night after the set is the calmest', () => {
+  const finale = LOOKS[LOOK_CUES.find(cue => cue.beat === part('lastchorus').startBeat).look];
+  const calm = LOOKS[LOOK_CUES.at(-1).look];
+  const warmth = look => [look.sky.zenith, look.sky.horizon, look.water.zenith, look.water.horizon, look.hemi.ground, look.sun.color].reduce((sum, hex) => sum + rgb(hex)[0] - rgb(hex)[2], 0);
+  for (const id of LOOK_IDS.filter(id => LOOKS[id].night && LOOKS[id] !== finale)) {
+    const look = LOOKS[id];
+    assert.ok(finale.exposure >= look.exposure + (look === calm ? 0.05 : 0) && finale.sun.intensity > look.sun.intensity, `the last chorus is brighter than ${id}: exposure and sun`);
+    assert.ok(footlit(finale) > footlit(look) * 1.1, `and its footlights are the strongest (${footlit(finale).toFixed(2)} against ${id}'s ${footlit(look).toFixed(2)})`);
+    assert.ok(luma(finale.sky.horizon) > luma(look.sky.horizon) && luma(finale.sky.zenith) > luma(look.sky.zenith), `and its sky the lightest (${id})`);
+    assert.ok(warmth(finale) > warmth(look) + 0.5, `and it is the warmest (${warmth(finale).toFixed(2)} against ${id}'s ${warmth(look).toFixed(2)})`);
+    if (look === calm || id === 'rose') continue;
+    assert.ok(calm.sun.intensity <= look.sun.intensity && calm.exposure <= look.exposure && footlit(calm) < footlit(look), `the night after the set is calmer than ${id}`);
+  }
+  for (const hex of [finale.sky.zenith, finale.sky.horizon, finale.water.deep, finale.water.horizon, finale.hemi.ground, finale.sun.color]) assert.ok(rgb(hex)[0] > rgb(hex)[1] && rgb(hex)[1] > rgb(hex)[2], `${hex} is a warm colour`);
+  assert.ok(footlit(calm) >= 0.33, 'and the last scene\'s faces are still lit');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The firefly fireworks (round 2, 2026-11-19)
+
+const FLOWERS = FIREWORKS.filter(firework => firework.kind === 'flower');
+const WILLOW = FIREWORKS.find(firework => firework.kind === 'willow');
+const cutAt = setBeat => CAMERA.findLast(cut => cut.beat <= setBeat);
+/** The camera of `shot` on a screen: the lens widens on a screen held upright, so the 16:10 frame's width is kept (engine/camera/director.js). */
+function cameraOf(shot, [w, h]) {
+  const aspect = w / h;
+  const half = Math.tan((shot.fov * Math.PI) / 360);
+  const camera = new THREE.PerspectiveCamera(aspect >= 1.6 ? shot.fov : (2 * Math.atan((half * 1.6) / aspect) * 180) / Math.PI, aspect, 0.1, 1200);
+  camera.position.set(...shot.position);
+  camera.lookAt(...shot.target);
+  camera.updateMatrixWorld();
+  camera.updateProjectionMatrix();
+  return camera;
+}
+const sparksOf = (firework, age, options) => Array.from({ length: firework.points }, (_, j) => sparkAt(firework, j, age, {}, options)).filter(Boolean);
+
+test('the fireworks: a flower over each group on the band\'s five last hits, in the group\'s colour, and a gold willow on the very last hit', () => {
+  const hits = SET.cues.filter(cue => cue.kind === 'horn' && sectionAt(cue.beat).id === 'end').map(cue => cue.beat);
+  assert.deepEqual(FLOWERS.map(flower => flower.beat), hits.slice(0, 5), 'the end\'s five hits');
+  assert.deepEqual(hits.slice(0, 5), [0, 1, 2, 3, 4].map(k => part('end').startBeat + k), 'a beat apart');
+  assert.deepEqual(FLOWERS.map(flower => flower.group).sort(), [...GROUPS].sort(), 'one for each group');
+  FLOWERS.forEach((flower, k) => {
+    const { group, beat } = flower;
+    assert.ok(SET.cues.some(cue => cue.kind === 'call' && cue.beat === beat && cue.group === group), `${group} sings on ${beat}`);
+    assert.equal(cutAt(beat).cut, GROUP_SHOTS[group].close, `the camera is close on ${group} at ${beat}`);
+    assert.deepEqual(flower.colour, rgb(GROUP_COLOURS[group]), `${group}'s colour`);
+    assert.ok(Math.hypot(flower.at[0] - CHOIR[group].at[0], flower.at[2] - CHOIR[group].at[1]) < CHOIR[group].radius, `over ${group}`);
+    assert.ok(flower.at[1] - flower.radius > FAR_POOL.level, 'and over the water\'s level');
+    for (const other of FLOWERS.slice(k + 1)) assert.ok(apart(GROUP_COLOURS[group], GROUP_COLOURS[other.group]) > 0.4, `${group} and ${other.group}: two colours`);
+  });
+  assert.deepEqual(GROUPS.map(group => FLOWERS.find(flower => flower.group === group).beat), [...hits.slice(0, 5)].reverse(), 'high to low, as the set sings them and the camera cuts them');
+  assert.deepEqual([WILLOW.beat, WILLOW.group], [SET.endBeat, null], 'the willow on the last hit of all');
+  assert.ok(WILLOW.colour[0] > WILLOW.colour[1] && WILLOW.colour[1] > WILLOW.colour[2] + 0.3, 'gold');
+  for (const flower of FLOWERS) assert.ok(apart(GROUP_COLOURS[flower.group], '#ffc94a') > 0.3, `${flower.group}'s colour is not the willow's gold`);
+  assert.ok(WILLOW.radius > 4 * Math.max(...FLOWERS.map(flower => flower.radius)), 'and much the biggest');
+  // the budget: about 400 points more, all in the lights' own draw call
+  const points = FIREWORKS.reduce((sum, firework) => sum + firework.points, 0);
+  assert.ok(points <= FIREWORK.budget && points >= 300, `${points} points of ${FIREWORK.budget}`);
+  assert.equal(FIREWORKS.length, 6);
+});
+
+test('a firework is a function of the beat: it opens fast out of its middle, hangs and sinks as it fades, and is gone before the show is put away', () => {
+  const out = {};
+  for (const firework of FIREWORKS) {
+    const spec = FIREWORK[firework.kind];
+    for (let j = 0; j < firework.points; j++) {
+      assert.equal(sparkAt(firework, j, -0.01, out), false);
+      assert.equal(sparkAt(firework, j, spec.life, out), false);
+      const last = sparkAt(firework, j, spec.life - 0.02, {});
+      assert.ok(!last || last.level < 0.01, 'faded out, not put out');
+      const first = sparkAt(firework, j, 0, {});
+      assert.ok(!first || Math.hypot(first.x - firework.at[0], first.y - firework.at[1], first.z - firework.at[2]) < 1e-9, 'it starts in its middle');
+    }
+    assert.deepEqual(sparksOf(firework, 1.3), sparksOf(firework, 1.3), 'the same beat is the same picture');
+    assert.ok(spec.life <= TAIL, `gone ${(spec.life * BEAT_SECONDS).toFixed(1)} s after its hit: before the show ends, ${(TAIL * BEAT_SECONDS).toFixed(1)} s after the last`);
+    const spread = age => Math.max(...sparksOf(firework, age).map(spark => Math.hypot(spark.x - firework.at[0], spark.y - firework.at[1], spark.z - firework.at[2])));
+    assert.ok(spread(firework.kind === 'flower' ? 0.5 : 1) > firework.radius * 0.8, 'open within its first beat');
+    // no jump from frame to frame, and its light only fades (but for the twinkle)
+    let before = null;
+    for (let age = 0; age < spec.life; age += FRAME) {
+      const now = Array.from({ length: firework.points }, (_, j) => sparkAt(firework, j, age, {}));
+      if (before) now.forEach((spark, j) => { if (spark && before[j]) assert.ok(Math.hypot(spark.x - before[j].x, spark.y - before[j].y, spark.z - before[j].z) < firework.radius * 0.45, 'no jump'); });
+      before = now;
+    }
+  }
+  // a flower: a flash in its middle for a third of a beat, small beside the screen; a round ball of sparks with a tail each
+  for (const flower of FLOWERS) {
+    const flash = sparkAt(flower, 0, 0.1, {});
+    assert.ok(flash && flash.size <= flower.radius && sparkAt(flower, 0, 0.4, {}) === false, 'the flash is no bigger than the flower, and short');
+    const open = sparksOf(flower, 1);
+    assert.equal(open.length, FIREWORK.flower.rays * (FIREWORK.flower.tail + 1));
+    const [right, top] = flower.axes;
+    const side = spark => (spark.x - flower.at[0]) * right[0] + (spark.z - flower.at[2]) * right[2];
+    const height = spark => (spark.x - flower.at[0]) * top[0] + (spark.y - flower.at[1]) * top[1] + (spark.z - flower.at[2]) * top[2];
+    assert.ok(open.some(spark => side(spark) > flower.radius * 0.5) && open.some(spark => side(spark) < -flower.radius * 0.5) && open.some(spark => height(spark) > flower.radius * 0.5) && open.some(spark => height(spark) < -flower.radius * 0.5), 'round');
+    const mean = sparks => sparks.reduce((sum, spark) => sum + spark.y, 0) / sparks.length;
+    assert.ok(mean(sparksOf(flower, 4)) < mean(open) - flower.radius * 0.3, 'it sinks as it fades');
+  }
+  // the willow: its arms go up and out, then hang and fall, each with its tail hanging over it
+  const links = FIREWORK.willow.tail + 1;
+  const heads = age => sparksOf(WILLOW, age).filter((_, j) => j % links === 0);
+  const meanY = sparks => sparks.reduce((sum, spark) => sum + spark.y, 0) / sparks.length;
+  assert.equal(sparksOf(WILLOW, 2).length, FIREWORK.willow.arms * links);
+  assert.ok(meanY(heads(1)) > WILLOW.at[1] + 1.5, 'up and out of its middle');
+  assert.ok(meanY(heads(4.4)) < meanY(heads(1)) - 5, `it falls: ${(meanY(heads(1)) - meanY(heads(4.4))).toFixed(1)} m in its life`);
+  assert.ok(meanY(heads(2.4)) > meanY(heads(4.4)) + 3 && meanY(heads(2.4)) > WILLOW.at[1] - 1, 'and hangs in the air half way through it');
+  const late = sparksOf(WILLOW, 4);
+  let hanging = 0;
+  for (let arm = 0; arm < FIREWORK.willow.arms; arm++) if (late[arm * links + links - 1].y > late[arm * links].y + 1) hanging++;
+  assert.ok(hanging >= FIREWORK.willow.arms * 0.9, `${hanging} of ${FIREWORK.willow.arms} tails hang over their sparks`);
+  // with less motion nothing flies: it fades in where it would stand open, half the size, and fades out
+  for (const firework of FIREWORKS) {
+    const [early, later] = [1, 2].map(age => sparksOf(firework, age, { reduced: true }));
+    early.forEach((spark, j) => assert.deepEqual([spark.x, spark.y, spark.z], [later[j].x, later[j].y, later[j].z], 'it stands still'));
+    assert.ok(Math.max(...early.map(spark => spark.size)) <= firework.size * 0.75 && sparksOf(firework, 0.05, { reduced: true }).every(spark => spark.level < 0.1), 'small, and faded in');
+    assert.ok(firework.kind === 'willow' || sparkAt(firework, 0, 0.1, {}, { reduced: true }) === false, 'no flash');
+  }
+});
+
+test('each firework is inside the picture of the shot it is seen in, on a tablet held flat and on one held upright', () => {
+  for (const screen of SCREENS) {
+    for (const firework of FIREWORKS) {
+      const cut = cutAt(firework.beat);
+      const until = CAMERA.find(other => other.beat > cut.beat)?.beat ?? Infinity; // the shot's last beat on the screen
+      const seen = Math.min(FIREWORK[firework.kind].life, until - firework.beat);
+      const name = `${firework.group ?? 'the willow'} in ${cut.cut} on ${screen.join('x')}`;
+      assert.ok(seen >= 1, `${name}: its shot holds it a beat at least`);
+      assert.ok(cut.beat === firework.beat && !cut.then, `${name}: the shot is cut to on its hit and stands still`);
+      const camera = cameraOf(SHOTS[cut.cut], screen);
+      const middle = new THREE.Vector3(...firework.at).project(camera);
+      assert.ok(Math.abs(middle.x) < 0.3 && middle.y > 0.05 && middle.y < 0.6 && middle.z < 1, `${name}: its middle stands in the upper half of the picture (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
+      let [lit, inside] = [0, 0];
+      const p = new THREE.Vector3();
+      for (let age = 0.05; age < seen; age += 0.1) {
+        for (const spark of sparksOf(firework, age).filter(spark => spark.level > 0.05)) {
+          p.set(spark.x, spark.y, spark.z).project(camera);
+          lit++;
+          if (Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && p.z < 1) inside++;
+        }
+      }
+      assert.ok(lit > 0 && inside / lit >= 0.92, `${name}: ${inside} of ${lit} lit sparks are in the picture`);
+      // and big in it: it spans a good part of the picture's width
+      const [right] = firework.axes;
+      const edge = new THREE.Vector3(...firework.at.map((v, n) => v + right[n] * firework.radius)).project(camera);
+      assert.ok(edge.x - middle.x > (firework.kind === 'willow' ? 0.25 : 0.12), `${name}: ${(edge.x - middle.x).toFixed(2)} of half the picture's width to a side`);
+    }
+  }
+  // inShot: the middle of the picture, its edge, and a point up in it
+  const shot = SHOTS[cutAt(SET.endBeat).cut];
+  const camera = cameraOf(shot, [1280, 800]);
+  const at = (...where) => new THREE.Vector3(...inShot(shot, ...where).at).project(camera);
+  assert.ok(Math.abs(at(20).x) < 1e-9 && Math.abs(at(20).y) < 1e-9);
+  assert.ok(Math.abs(at(20, 1, 0).x - 1) < 1e-9 && Math.abs(at(20, 0, 0.5).y - 0.5) < 1e-9 && Math.abs(at(7, -0.5, -1).x + 0.5) < 1e-9);
+});
+
+test('the show draws the record\'s look and the fireworks: by the set\'s beat, in its two draw calls, and with no light added', () => {
+  const { world, c, light } = smallWorld();
+  const was = light();
+  const lightsIn = () => { let n = 0; world.scene.traverse(object => { if (object.isLight) n++; }); return n; };
+  const lamps = lightsIn();
+  const show = createShow(c);
+  const { sun, hemi } = world.lighting;
+  const water = world.forest.materials.water.uniforms;
+  const quiet = setBeat => liftAt(danceBeatAt(setBeat).beat) === 0;
+  // by day: a tint
+  const honey = LOOK_CUES.find(cue => cue.look === 'honey').beat + LOOK.turn + 1;
+  assert.ok(quiet(honey));
+  show.update(video(honey));
+  assert.notEqual(light(), was, 'the turtles\' record tints the afternoon');
+  assert.ok(Math.abs(sun.intensity - DAY.sun) < 1e-9 && world.renderer.toneMappingExposure === 1, 'as bright as it was');
+  const back = LOOK_CUES.find(cue => cue.beat > honey).beat + LOOK.turn + 1;
+  show.update(video(back));
+  assert.ok(quiet(back));
+  assert.equal(light(), was, 'the basic record again: the afternoon as it is');
+  // in the night: the record's colours, the same at any beat of it, footlights and water and all
+  const [a, b] = [330, 345];
+  assert.ok(quiet(a) && quiet(b) && lookAt(a).to === 'violet' && lookAt(b).to === 'violet');
+  show.update(video(a));
+  const violet = light();
+  show.update(video(b));
+  assert.equal(light(), violet, 'one look through a record, whatever the beat');
+  assert.equal(`#${hemi.groundColor.getHexString()}`, LOOKS.violet.hemi.ground, 'the footlights: the fill light\'s colour from below');
+  assert.ok(Math.abs(hemi.intensity - DAY.fill * LOOKS.violet.hemi.intensity) < 1e-9);
+  assert.deepEqual([`#${water.uDeep.value.getHexString()}`, `#${water.uGlint.value.getHexString()}`], [LOOKS.violet.water.deep, LOOKS.violet.water.glint], 'the water takes the colour');
+  // the rewind and Stoppdans do not move the light
+  for (const bend of [BENDS.rewind, BENDS.freeze]) {
+    show.update(video(bend.from + (bend.to - bend.from) / 2));
+    assert.equal(`#${hemi.groundColor.getHexString()}`, LOOKS.violet.hemi.ground);
+    assert.equal(`#${world.sky.dome.material.uniforms.uZenith.value.getHexString()}`, LOOKS.violet.sky.zenith);
+  }
+  const carnival = part('carnival').startBeat + LOOK.turn + 1;
+  show.update(video(carnival));
+  assert.equal(`#${world.sky.dome.material.uniforms.uZenith.value.getHexString()}`, LOOKS.teal.sky.zenith, 'a new record: a new sky');
+  assert.equal(lightsIn(), lamps, 'no light is added: the two the place has, and uniforms');
+  // the fireworks: sparks among the lights, in the group's colour, where the score has them; a held beat is one picture
+  const frogs = FLOWERS.find(flower => flower.group === 'frogs');
+  show.update(video(frogs.beat + 0.5));
+  const near = (light, firework) => Math.hypot(...light.position.map((v, n) => v - firework.at[n])) <= firework.radius * 1.05;
+  const sparks = drawn(show).lights.filter(light => near(light, frogs) && Math.abs(light.colour[1] - Math.fround(frogs.colour[1])) < 1e-6);
+  assert.equal(sparks.length, FIREWORK.flower.rays * (FIREWORK.flower.tail + 1), 'the frogs\' flower, half a beat after their hit');
+  const held = drawn(show);
+  show.update(video(100));
+  show.update(video(frogs.beat + 0.5));
+  assert.deepEqual(drawn(show), held);
+  show.update(video(SET.endBeat + 1.5));
+  assert.equal(drawn(show).lights.filter(light => near(light, WILLOW) && light.colour[0] > 0.99 && light.colour[2] < 0.5).length, WILLOW.points, 'the willow, all of it');
+  assert.equal(world.scene.children.length, 2, 'still two draw calls');
+  show.update(video(SET.endBeat + TAIL));
+  assert.equal(drawn(show).lights.filter(light => near(light, WILLOW) && light.colour[0] > 0.99 && light.colour[2] < 0.5).length, 0, 'gone as the show ends');
+  show.dispose();
+  assert.equal(light(), was);
+  // with less motion: every look half as deep, and the sparks half the size
+  const calm = smallWorld({ reduced: true });
+  const less = createShow(calm.c);
+  less.update(video(a));
+  assert.ok(Math.abs(less.parts.dusk.depth - 0.5) < 1e-9);
+  less.update(video(frogs.beat + 1));
+  const small = drawn(less).lights.filter(light => near(light, frogs) && Math.abs(light.colour[1] - Math.fround(frogs.colour[1])) < 1e-6);
+  assert.ok(small.length > 20 && small.every(light => light.shape[0] <= frogs.size * 0.75 + 1e-6), 'small sparks, standing');
+  less.dispose();
 });
