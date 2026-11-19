@@ -177,18 +177,18 @@ export const LOOKS = {
   },
   teal: { // the carnival: a turquoise night over a coral edge
     record: 'song3', night: true, amount: 1,
-    sun: { color: '#ffa07a', intensity: 0.5 }, hemi: { sky: '#17525c', ground: '#fff0d8', intensity: 6 },
-    sky: { zenith: '#0e5560', horizon: '#f08868', glow: '#ffb088', cloud: '#e08a70', cloudShade: '#14404e' },
-    fog: { color: '#2a6068', sunColor: '#e88a66' },
-    water: { horizon: '#e08866', zenith: '#0c4a58', deep: '#0e6a70', glint: '#b8fff0' },
-    mosiCloud: '#e09078', exposure: 0.92, envIntensity: 0.6,
+    sun: { color: '#ffa884', intensity: 0.5 }, hemi: { sky: '#17525c', ground: '#fff0d8', intensity: 6 },
+    sky: { zenith: '#0a4654', horizon: '#3a9c90', glow: '#a8f0d8', cloud: '#5cbcaa', cloudShade: '#145058' },
+    fog: { color: '#2a6a70', sunColor: '#58b4a2' },
+    water: { horizon: '#48b0a0', zenith: '#0c4a58', deep: '#0e6a70', glint: '#c8fff4' },
+    mosiCloud: '#6cc4b4', exposure: 0.92, envIntensity: 0.6,
   },
   blue: { // the drums alone, "Egill, segðu já!": deep blue, nearly night
     record: 'slagverk', night: true, amount: 1,
     sun: { color: '#a8b8ff', intensity: 0.4 }, hemi: { sky: '#4a6ad0', ground: '#eaf0ff', intensity: 5.5 },
-    sky: { zenith: '#0a1244', horizon: '#3c62b8', glow: '#ffc8a0', cloud: '#5a78c4', cloudShade: '#141c58' },
-    fog: { color: '#2c4488', sunColor: '#6a8ad8' },
-    water: { horizon: '#3c62b8', zenith: '#0c1650', deep: '#122a78', glint: '#c8dcff' },
+    sky: { zenith: '#08206a', horizon: '#3a7ee0', glow: '#ffc8a0', cloud: '#5a8ad8', cloudShade: '#122468' },
+    fog: { color: '#2a4c9a', sunColor: '#6a96e8' },
+    water: { horizon: '#3a7ee0', zenith: '#0a1c60', deep: '#123488', glint: '#c8dcff' },
     mosiCloud: '#6a86cc', exposure: 0.9, envIntensity: 0.55,
   },
   gold: { // the last chorus: the brightest and the warmest, a gold edge under a plum sky
@@ -202,10 +202,10 @@ export const LOOKS = {
   night: { // after the set: the calm night the party is heard far away in, and the roar
     record: null, night: true, after: true, amount: 1,
     sun: { color: '#c0b4e8', intensity: 0.35 }, hemi: { sky: '#4a5cae', ground: '#f0e4d0', intensity: 4.5 },
-    sky: { zenith: '#0c143c', horizon: '#4a5a9c', glow: '#ffc8a0', cloud: '#6a74b0', cloudShade: '#181e50' },
-    fog: { color: '#36427c', sunColor: '#7480c0' },
-    water: { horizon: '#4a5a9c', zenith: '#0e1848', deep: '#16286a', glint: '#d8e0ff' },
-    mosiCloud: '#747eb8', exposure: 0.88, envIntensity: 0.55,
+    sky: { zenith: '#0a0c2c', horizon: '#5a4a8c', glow: '#ffc8a0', cloud: '#6a5ea0', cloudShade: '#181840' },
+    fog: { color: '#3a3470', sunColor: '#7a6ab4' },
+    water: { horizon: '#5a4a8c', zenith: '#0a0e34', deep: '#1a2058', glint: '#e0d8ff' },
+    mosiCloud: '#7468a8', exposure: 0.88, envIntensity: 0.55,
   },
 };
 /**
@@ -637,11 +637,11 @@ export const FIREWORK = {
   // height over its middle) and how big it is there (`radius`: the same share), how much thinner it is along the camera's way
   // (it faces the camera: none of it sinks into the hill behind the group), how far it sinks in its life (radii), and its
   // sparks' size (radii)
-  flower: { rays: 23, tail: 1, life: 5, hold: 0.45, open: 0.2, up: 0.34, radius: 0.62, flat: 0.5, sink: 1.1, size: 0.2 },
+  flower: { rays: 23, tail: 1, life: 5, hold: 0.45, open: 0.2, up: 0.42, radius: 0.55, flat: 0.5, sink: 1.1, size: 0.2 },
   // the willow: its arms and the points of each arm's tail (they hang on the way the arm flew, back to `trail` of its age), the
   // beats it lives (gone as the show ends), how fast its arms fly out, where it stands in its shot (m ahead of the camera; `up`
-  // as a flower's), how far its arms reach out and up (m), how far they fall in its life (m), and its sparks' size (m)
-  willow: { arms: 32, tail: 4, trail: 0.5, life: 4.8, hold: 0.6, open: 0.5, ahead: 23, up: 0.42, reach: 11, rise: 6, fall: 9, size: 0.9 },
+  // as a flower's), how far its arms reach out and up (m), how far they fall in its life (m), its sparks' size (m), and its gold
+  willow: { arms: 32, tail: 4, trail: 0.65, life: 4.8, hold: 0.6, open: 0.5, ahead: 23, up: 0.42, reach: 11, rise: 6, fall: 9, size: 1, colour: '#ffae28' },
 };
 const AUTHORED_ASPECT = 16 / 10; // the shape the shots are written for (engine/camera/director.js)
 const shotAt = setBeat => SHOTS[CAMERA.findLast(cut => cut.beat <= setBeat)?.cut] ?? null;
@@ -686,7 +686,7 @@ export const FIREWORKS = (() => {
   const last = shotAt(SET.endBeat);
   if (last) {
     const { at, right, top, toward } = inShot(last, FIREWORK.willow.ahead, 0, FIREWORK.willow.up);
-    out.push({ beat: END, kind: 'willow', group: null, colour: srgb('#ffc94a'), at, radius: FIREWORK.willow.reach, size: FIREWORK.willow.size, points: FIREWORK.willow.arms * (FIREWORK.willow.tail + 1), axes: [right, top, toward], seed: 4000 });
+    out.push({ beat: END, kind: 'willow', group: null, colour: srgb(FIREWORK.willow.colour), at, radius: FIREWORK.willow.reach, size: FIREWORK.willow.size, points: FIREWORK.willow.arms * (FIREWORK.willow.tail + 1), axes: [right, top, toward], seed: 4000 });
   }
   return out;
 })();
@@ -730,7 +730,7 @@ export function sparkAt(firework, j, age, out, { reduced = false } = {}) {
       u = Math.sin(tilt) * spec.rise * far - spec.fall * (then / spec.life) ** 2;
       size *= (1 - 0.14 * link) * (1 + 0.5 * Math.exp(-age / 0.3));
       level *= (1 - 0.17 * link) * twinkle;
-      pale = link ? 0 : 0.2;
+      pale = link ? 0 : 0.08;
     } else {
       const [z, turn] = [1 - (2 * (ray + 0.5)) / spec.rays, TAU * ray * 0.61803398875 + 0.5 * h(2)]; // evenly over a ball
       const ring = Math.sqrt(Math.max(0, 1 - z * z));

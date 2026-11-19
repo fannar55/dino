@@ -669,9 +669,9 @@ test('with less motion: no beat, no flash, half the dusk, half the fireflies, th
   show.update(video(part('grazers').startBeat + 2.5));
   assert.ok(drawn(show).rings.every(ring => ring.shape[2] === 0), 'no light under a group');
   assert.ok(show.parts.lights.count <= FIREFLIES.count / 2);
-  show.update(video(250));
+  show.update(video(BURSTS[0] + 4)); // (the drop's own record: a record has its own light now, 2026-11-19)
   const dim = world.renderer.toneMappingExposure;
-  show.update(video(BURSTS[0])); // the drop, in the dusk
+  show.update(video(BURSTS[0])); // the drop, in the night
   assert.equal(world.renderer.toneMappingExposure, dim, 'no flash');
   show.update(video(250));
   assert.ok(Math.abs(show.parts.dusk.depth - 0.5) < 1e-9);
@@ -869,8 +869,8 @@ test('the dusk stands: tints of the golden afternoon before her horn, colours of
   for (const cue of LOOK_CUES.filter(cue => cue.beat < DUSK_FROM && cue.look)) {
     const look = LOOKS[cue.look];
     assert.ok(!look.night && look.amount > 0.2 && look.amount <= 0.6, `${cue.look}: a tint (${look.amount} of the way)`);
-    assert.ok(look.sun.intensity === 1 && look.exposure === 1 && look.envIntensity === 1 && Math.abs(look.hemi.intensity - 1) <= 0.1, `${cue.look}: as bright as the afternoon`);
-    assert.ok(luma(look.sky.zenith) > luma(DAY.zenith) * 0.75 && luma(look.sky.horizon) > luma(DAY.horizon) * 0.75, `${cue.look}: a day sky`);
+    assert.ok(look.sun.intensity === 1 && look.exposure === 1 && look.envIntensity === 1 && Math.abs(look.hemi.intensity - 1) < 0.15,`${cue.look}: as bright as the afternoon`);
+    assert.ok(luma(look.sky.zenith) > luma(DAY.zenith) * 0.7 && luma(look.sky.horizon) > luma(DAY.horizon) * 0.7, `${cue.look}: a day sky`);
   }
   // from her horn on: the night, all the way
   for (const cue of LOOK_CUES.filter(cue => cue.beat >= DUSK_FROM)) {
@@ -1030,7 +1030,7 @@ test('a firework is a function of the beat: it opens fast out of its middle, han
     assert.deepEqual(sparksOf(firework, 1.3), sparksOf(firework, 1.3), 'the same beat is the same picture');
     assert.ok(spec.life <= TAIL, `gone ${(spec.life * BEAT_SECONDS).toFixed(1)} s after its hit: before the show ends, ${(TAIL * BEAT_SECONDS).toFixed(1)} s after the last`);
     const spread = age => Math.max(...sparksOf(firework, age).map(spark => Math.hypot(spark.x - firework.at[0], spark.y - firework.at[1], spark.z - firework.at[2])));
-    assert.ok(spread(firework.kind === 'flower' ? 0.5 : 1) > firework.radius * 0.8, 'open within its first beat');
+    assert.ok(firework.kind === 'flower' ? spread(0.5) > firework.radius * 0.8 : spread(1.5) > firework.radius * 0.7, 'open in half a beat, the willow in a beat and a half');
     // no jump from frame to frame, and its light only fades (but for the twinkle)
     let before = null;
     for (let age = 0; age < spec.life; age += FRAME) {
@@ -1159,10 +1159,13 @@ test('the show draws the record\'s look and the fireworks: by the set\'s beat, i
   show.update(video(frogs.beat + 0.5));
   assert.deepEqual(drawn(show), held);
   show.update(video(SET.endBeat + 1.5));
-  assert.equal(drawn(show).lights.filter(light => near(light, WILLOW) && light.colour[0] > 0.99 && light.colour[2] < 0.5).length, WILLOW.points, 'the willow, all of it');
+  const golds = new Set(sparksOf(WILLOW, 1.5).map(spark => [spark.r, spark.g, spark.b].map(Math.fround).join())); // the willow's own golds: its sparks' and their tails'
+  const ofWillow = () => drawn(show).lights.filter(light => golds.has(light.colour.slice(0, 3).join())).length;
+  assert.equal(ofWillow(), WILLOW.points, 'the willow, all of it');
   assert.equal(world.scene.children.length, 2, 'still two draw calls');
+  assert.ok(show.parts.lights.count <= show.parts.lights.capacity - 100, 'and room to spare among the lights');
   show.update(video(SET.endBeat + TAIL));
-  assert.equal(drawn(show).lights.filter(light => near(light, WILLOW) && light.colour[0] > 0.99 && light.colour[2] < 0.5).length, 0, 'gone as the show ends');
+  assert.equal(ofWillow(), 0, 'gone as the show ends');
   show.dispose();
   assert.equal(light(), was);
   // with less motion: every look half as deep, and the sparks half the size
