@@ -1,9 +1,11 @@
 // Stages the site for the cloud (spec §9.2): remake/ into cloud/site/remake/, dist/vendor/ (three.js) into
 // cloud/site/dist/vendor/ and dist/assets/audio/ (the old game's voice lines, which remake/assets/audio/lines.json points at)
 // into cloud/site/dist/assets/audio/, so the paths are the ones tools/serve.mjs serves at home. What the game never loads
-// stays behind: remake/tests/, remake/tools/, remake/prompts/, the Tripo sources in remake/assets/characters/source/ and any
-// node_modules/. Nothing that may be a secret is published: no file or folder whose name starts with a dot (.env, .git,
-// .wrangler and the like) and no *.pem or *.key, even when git ignores it and it sits in the working tree.
+// stays behind: remake/tests/, remake/tools/, remake/prompts/, the Tripo sources in remake/assets/characters/source/, the
+// narration takes of the book's educational videos (remake/assets/audio/book/book_myndband_*.mp3: each video carries its own
+// sound and comes from R2, so the game plays none of them) and any node_modules/. Nothing that may be a secret is published:
+// no file or folder whose name starts with a dot (.env, .git, .wrangler and the like) and no *.pem or *.key, even when git
+// ignores it and it sits in the working tree.
 // Workers Static Assets take no file over 25 MiB, so one is refused here, by name, before anything is copied. Run it again
 // whenever the game changes: cloud/site/ is emptied first (npm run dev and npm run deploy run it first). A name that an address
 // would have to encode (a space, an Icelandic letter) is refused the same way, so the app's list and the cloud name every file
@@ -32,8 +34,11 @@ const usedDistAudio = new Set(
     .filter(Boolean),
 );
 
+/** A narration take of one of the book's educational videos: kept in the repo for the voice tools, never loaded by the game. */
+const isVideoNarration = rel => /^assets\/audio\/book\/book_myndband_[a-z0-9_]+\.mp3$/.test(rel);
+
 const SOURCES = [
-  { from: 'remake', to: 'remake', skip: ['tests', 'tools', 'prompts', 'assets/characters/source'] },
+  { from: 'remake', to: 'remake', skip: ['tests', 'tools', 'prompts', 'assets/characters/source'], keep: rel => !isVideoNarration(rel) },
   { from: 'dist/vendor', to: 'dist/vendor', skip: [] },
   { from: 'dist/assets/audio', to: 'dist/assets/audio', skip: [], keep: rel => usedDistAudio.has(rel) || /\.txt$/i.test(rel) },
 ];

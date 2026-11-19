@@ -2,12 +2,13 @@ import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { isUnlocked, bookState, FIND_ME } from './cards.js';
 
-// The Myndbönd page: nine short educational videos, five on the left page of the Myndbönd leaf and four on the right, as taped video
+// The Myndbönd page: ten short educational videos, six on the left page of the Myndbönd leaf and four on the right, as taped video
 // tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan glasses, open from the
 // start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one with a `src` would play
 // in the video player as the others do.
 // Each video shares the unlock rules of the dinosaur, animal or fossil it belongs to (cards.js isUnlocked), so the child unlocks
-// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly.
+// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Two
+// belong to no card and are open from the start: Heimur risaeðlanna and Hvað varð um risaeðlurnar?
 
 const WIGGLE_MS = 560;
 const NOD_MS = 620;
@@ -70,6 +71,17 @@ export const BOOK_VIDEOS = [
     unlock: { place: 'uggedla' },
     altUnlock: { star: 'k2_uggedla' },
     cards: ['uggedla'],
+    findMe: 'book_mosi_later',
+  },
+  {
+    id: 'loftsteinn', // the asteroid: the story's end, belonging to no card, so open from the start as Heimur risaeðlanna is
+    name: 'Hvað varð um risaeðlurnar?',
+    title: 'Hvað varð um risaeðlurnar?',
+    src: '/myndbond/loftsteinn.mp4',
+    poster: videoUrl('loftsteinn-thumb.webp'),
+    hue: '#4a6fa5',
+    unlock: { start: true },
+    cards: [],
     findMe: 'book_mosi_later',
   },
   {
@@ -221,7 +233,8 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   const [left, right] = leaf.tiles;
   left.classList.add('video-tiles');
   right.classList.add('video-tiles');
-  const leftCount = threeDs.length ? Math.ceil(regular.length / 2) : 4; // with a 3D column: five and four
+  // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across (six now)
+  const leftCount = threeDs.length ? Math.max(regular.length - 4, Math.ceil(regular.length / 2)) : 4;
   left.append(...regular.slice(0, leftCount).map(item => item.tile));
   right.append(...regular.slice(leftCount).map(item => item.tile));
   if (threeDs.length) {

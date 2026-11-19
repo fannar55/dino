@@ -2368,12 +2368,12 @@ test('with all eight fossils found, Safnið is celebrated the first time the chi
 // ---------------------------------------------------------------------------------------------
 // Myndbönd (videos.js, video-player.js) and card video links (card-viewer.js)
 
-test('the Myndbönd page has nine videos, five on the left page and four on the right, unlocking progressively and opening the video player', () => {
+test('the Myndbönd page has ten videos, six on the left page and four on the right, unlocking progressively and opening the video player', () => {
   const { save, book, root, narrated, sounds, tap } = fenRig();
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
-  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek'], 'five on the left page');
+  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek', 'loftsteinn'], 'six on the left page, three across');
   assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d', 'safn3d', 'gramedla3d'], 'and four on the right, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
@@ -2381,6 +2381,8 @@ test('the Myndbönd page has nine videos, five on the left page and four on the 
     .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
 
   assert.ok(vtile('heimur').classList.contains('new'), 'Heimur risaeðlanna is unlocked from the start and new');
+  assert.ok(vtile('loftsteinn').classList.contains('new'), 'and so is Hvað varð um risaeðlurnar?, which belongs to no card');
+  assert.equal(vtile('loftsteinn').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Hvað varð um risaeðlurnar?');
   for (const id of ['grannar', 'thorsedla', 'gramedla', 'landrek', 'fuglar', 'raf', 'steinn', 'tennur']) {
     assert.ok(vtile(id).classList.contains('unfound'), `${id} waits for its unlock`);
   }
