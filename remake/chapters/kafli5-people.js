@@ -382,7 +382,8 @@ function mosiRig(c, clock, options) {
       foot.bone.getWorldPosition(at);
       const planted = ground + foot.rest + p.feet[foot.key];
       const stood = foot.front ? planted + (at.y + p.feet[foot.key] - planted) * rearing : planted;
-      at.y = stood + (at.y + p.feet[foot.key] - stood) * marching;
+      // (and never under his ground: the walk clip's feet are its own, and a rear or a dip of his body would push them into it)
+      at.y = Math.max(ground + foot.rest, stood + (at.y + p.feet[foot.key] - stood) * marching);
       if (p.round > 0 && p.round < 1) {
         // his turn: the foot stands where his body will have it in the middle of its stance (round his root as it is then), and
         // swings there while the other pair of feet stands

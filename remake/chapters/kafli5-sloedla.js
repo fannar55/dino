@@ -65,6 +65,8 @@ const TAIL = ['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
  * none: her life's own moves alone). At the chapter's test's 30 frames a second: 0.09 m and 6 degrees a frame.
  */
 export const DANCE = { speed: 2.7, turn: 180, tries: 5 };
+/** Her 'happy' clip under her dance: the least seconds its share of her takes to come or go whole, and the most its time may run against a clock's (gladden, below). */
+export const GLAD = { fade: 0.6, rate: 1.2 };
 const MOVES = ['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail', 'step', 'spin'];
 /** Degrees between two headings, the short way round. */
 const apart = (a, b) => Math.abs(((((a - b) % 360) + 540) % 360) - 180);
@@ -190,29 +192,40 @@ export function sloedlaLife(actor) {
   const call = her.clips.has('call') ? her.mixer.clipAction(her.clips.get('call')) : null;
   // her 'happy' clip under her dance (the score's `happy`: a share of her and a time in the clip): laid beside the clip she rests
   // in, never among `actions` (her life's fades do not know of it), and gone when the dance is
-  const glad = { action: her.clips.has('happy') ? her.mixer.clipAction(her.clips.get('happy')) : null, on: false };
-  function gladden(want) {
+  // The clip is as gentle as her dance (DANCE): its share of her comes and goes over GLAD.fade s at the least, and its time runs at
+  // most GLAD.rate times as fast as a clock, either way round its loop, so when the score's clock runs back twice as fast (the
+  // rewind) or leaps ("Dansa!") the clip falls behind and catches up rather than whipping her head round.
+  const glad = { action: her.clips.has('happy') ? her.mixer.clipAction(her.clips.get('happy')) : null, on: false, share: 0, time: 0 };
+  function gladden(want, dt) {
     const { action } = glad;
     if (!action) return;
     // (where her life has her in that clip itself, or walking, it is her life's)
-    const share = want && state.rest !== 'happy' && !state.walk ? Math.min(0.9, Math.max(0, want.weight ?? 0)) * (1 - Math.min(1, call?.getEffectiveWeight() ?? 0)) : 0;
-    if (share < 1e-4) {
+    const goal = want && state.rest !== 'happy' && !state.walk ? Math.min(0.9, Math.max(0, want.weight ?? 0)) * (1 - Math.min(1, call?.getEffectiveWeight() ?? 0)) : 0;
+    glad.share += Math.max(-dt / GLAD.fade, Math.min(dt / GLAD.fade, goal - glad.share));
+    if (glad.share < 1e-4) {
       if (glad.on && state.rest !== 'happy') action.stop();
       glad.on = false;
+      glad.share = 0;
       return;
     }
+    const length = action.getClip().duration;
+    const time = Math.min(length, Math.max(0, want?.time ?? glad.time));
     if (!glad.on) {
       action.reset();
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
       action.play();
       glad.on = true;
+      glad.time = time;
+    } else {
+      const ahead = ((((time - glad.time) % length) + length * 1.5) % length) - length / 2; // the short way round the loop
+      glad.time = (((glad.time + Math.max(-GLAD.rate * dt, Math.min(GLAD.rate * dt, ahead))) % length) + length) % length;
     }
     action.stopFading();
     action.enabled = true;
     action.timeScale = 0;
-    action.time = Math.min(action.getClip().duration, Math.max(0, want.time ?? 0));
-    action.weight = share / (1 - share); // beside her resting clip at 1, the mixer gives it that share of her
+    action.time = glad.time;
+    action.weight = glad.share / (1 - glad.share); // beside her resting clip at 1, the mixer gives it that share of her
   }
   function fadeTo(name, { fade = 0.5, timeScale = 1 } = {}) {
     const clip = her.clips.get(name);
@@ -299,7 +312,7 @@ export function sloedlaLife(actor) {
       if (was) her.mixer.clipAction(was).timeScale = SPEED[dance.clock.rest] ?? 1;
       dance.clock = null;
     }
-    gladden(dance.score ? dance.next.happy : null);
+    gladden(dance.score ? dance.next?.happy : null, dt);
   }
 
   // Her root and her neck with `m` of her dance on them (and her head's own lean: her courage, her peek, her horn), from where her

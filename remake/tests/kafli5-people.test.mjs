@@ -70,7 +70,7 @@ test('everyone stands as they were found when the set starts and when its last h
     assert.ok(Object.values(flugedla.clips).every(clip => clip.weight === 0), `Flugeðla's clips at ${setBeat}`);
     const her = at('sloedla', setBeat);
     assert.ok(['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail', 'step'].every(k => Math.abs(her[k]) < 1e-9) && her.happy.weight === 0, `Slóeðla at ${setBeat}: ${JSON.stringify(her)}`);
-    assert.equal(her.spin % 360, 0, 'her turn is a whole one');
+    assert.ok(Math.abs(her.spin % 360) < 1e-9, 'her turn is a whole one');
   }
 });
 
@@ -176,10 +176,11 @@ test('Egill: he bounces on the beat, jumps where the song jumps, and his hands a
 
 test('Mosi: a slow sway from foot to foot, a nod on the backbeat, a stomp with the grazers, a little rear on the drops', () => {
   // a bar a sway: to his right, then to his left, the light side's feet off the ground
-  const [right, left] = [at('mosi', 73), at('mosi', 75)];
+  // (69 and 71: the bar before he marches)
+  const [right, left] = [at('mosi', 69), at('mosi', 71)];
   assert.ok(right.roll > 2 && right.side > 0.15 && right.feet.fl > 0.1 && right.feet.fr === 0, `to his right (${JSON.stringify(right.feet)})`);
   assert.ok(left.roll < -2 && left.side < -0.15 && left.feet.fr > 0.1 && left.feet.fl === 0, 'to his left');
-  assert.ok(at('mosi', 73).nod < -10 && at('mosi', 74).nod > -4, 'his head is down on the backbeat and up after');
+  assert.ok(at('mosi', 69).nod < -10 && at('mosi', 70).nod > -4, 'his head is down on the backbeat and up after');
   // slow and big: nothing of his sways faster than a bar
   for (const stomp of STOMPS) {
     const foot = STOMPS.indexOf(stomp) % 2 ? 'fl' : 'fr';
@@ -209,9 +210,12 @@ test('Flugeðla: she faces her dance floor, her wings go up on "Vængina upp!" a
   assert.ok(at('flugedla', 260).raise.left < 10, 'and not before');
   // she beats the time on the water with the band's wing beats
   const wings = SET.cues.filter(event => event.kind === 'wings').map(event => event.beat);
+  // (the wing on her left is out to the group she calls for some of them: then the wing on her right keeps the time alone)
   for (const beat of wings.filter(b => b >= 128 && b < 144)) {
-    assert.ok(at('flugedla', beat).raise.left < -40 && at('flugedla', beat).spread.left > 0.8 && at('flugedla', beat - 0.45).raise.left > 10, `her wings lift and come down on the water at ${beat}`);
+    const side = POINTS.some(point => beat > point.from - 1 && beat < point.to + 1.2) ? 'right' : 'left';
+    assert.ok(at('flugedla', beat).raise[side] < -40 && at('flugedla', beat).spread[side] > 0.8 && at('flugedla', beat - 0.45).raise[side] > 10, `her ${side} wing lifts and comes down on the water at ${beat}`);
   }
+  assert.ok(wings.filter(b => b >= 128 && b < 144).some(beat => !POINTS.some(point => beat > point.from - 1 && beat < point.to + 1.2)), 'both wings beat the time somewhere');
   // the ending that is not one: still, then a wing flicks on "Einu sinni enn!"
   const flick = at('flugedla', 425);
   assert.ok(Math.abs(at('flugedla', 423).lift) < 0.01 && flick.raise.left > 25 && flick.spread.left > 0.95 && flick.spread.right < 0.05 && flick.blink, 'still, and one wing flicks');
@@ -251,13 +255,11 @@ test('Flugeðla flies: a round over the pool for her welcome, straight up on "N�
   // home again for "Öll saman!", and on her feet for the rest of the set
   assert.ok(at('flugedla', 323).air === 0 && Math.hypot(at('flugedla', 323).at[0] - DECKS.at[0], at('flugedla', 323).at[2] - DECKS.at[1]) < 0.05, 'home');
   for (const flight of FLIGHTS) assert.ok(flight.keys.every((key, k) => k === 0 || key[0] > flight.keys[k - 1][0]), 'a flight\'s keys in time');
-  for (let b = 324; b <= OVER; b += 0.5) assert.equal(at('flugedla', b).air, 0, `on her feet at ${b}`);
+  const lap = FLIGHTS.at(-1);
+  for (let b = 324; b <= OVER; b += 0.5) if (b < lap.from || b > lap.to) assert.equal(at('flugedla', b).air, 0, `on her feet at ${b}, but for her lap`);
 });
 
-test('Slóeðla: she sways more as the set grows, turns to the group whose part it is, stands tall for her horn', () => {
-  const swing = (from, to) => { let most = 0; for (let b = from; b < to; b += 0.05) most = Math.max(most, Math.abs(at('sloedla', b).side)); return most; };
-  const [arrival, groove, last] = [swing(8, 16), swing(70, 90), swing(436, 441)];
-  assert.ok(arrival < groove && groove < last && last > 0.18, `her sway grows (${arrival.toFixed(2)}, ${groove.toFixed(2)}, ${last.toFixed(2)} m)`);
+test('Slóeðla: she turns to the group whose part it is, stands tall for her horn', () => {
   // each group's part: she has turned to it by its second bar (her body and her head between them), and holds it to the part's end
   for (const group of ['grazers', 'turtles', 'frogs', 'lizards']) {
     const bearing = headingTo(WADE.at, CHOIR[group].at);
@@ -283,6 +285,104 @@ test('Slóeðla: she sways more as the set grows, turns to the group whose part 
   // her horn's answers in the last chorus: she stands to blow, and dances between them
   const horns = SET.cues.filter(event => event.kind === 'horn' && event.beat >= 428 && event.beat < 460).map(event => event.beat);
   for (const horn of horns) assert.ok(Math.abs(at('sloedla', horn).side) < 0.08, `she stands to blow at ${horn}`);
+});
+
+test('Mosi marches in time: his walk clip on the spot, back up the bank and forward again, his feet never sliding; one slow turn right round; calm in the calm middle', () => {
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
+  // a figure: home on its first beat, the furthest back halfway, home again at its end; and the clip's time and his place are one number
+  for (const [from, , beats] of MARCHES) {
+    if (from > BENDS.freeze.from && from < BENDS.freeze.to) continue; // (the figure the freeze cuts in two)
+    const [start, mid] = [at('mosi', from + 0.001), at('mosi', from + beats / 2)];
+    assert.ok(Math.abs(start.step) < 0.01, `home as a figure begins (${from}: ${start.step.toFixed(3)} m)`);
+    assert.ok(near(mid.step, -MOSI_WALK.stride * MARCH.reach, 1e-3), `back up the bank halfway through it (${from + beats / 2}: ${mid.step.toFixed(2)} m)`);
+  }
+  for (let b = 72; b < 470; b += 0.37) {
+    const pose = at('mosi', b);
+    if (pose.march.weight < 0.01 || (b > MOSI_TURN.from - 1 && b < MOSI_TURN.to + 1)) continue;
+    const cycle = pose.march.time / MOSI_WALK.seconds - pose.step / MOSI_WALK.stride; // where his clip has him, less where it carried him
+    const off = Math.abs(cycle - MOSI_WALK.stand - Math.round(cycle - MOSI_WALK.stand));
+    assert.ok(off < 1e-6, `his feet do not slide at ${b.toFixed(2)} (${off})`);
+  }
+  // marching through the big parts, and still for her horn
+  for (const b of [76, 150, 284, 316, 352, 380, 444]) assert.ok(at('mosi', b).march.weight > 0.99, `he marches at ${b}`);
+  for (let b = 236; b < 262; b += 0.5) assert.ok(at('mosi', b).march.weight === 0 && at('mosi', b).step === 0, `still for her horn at ${b}`);
+  // the turn: right round where he stands, and back as he was
+  const turn = b => at('mosi', b);
+  assert.ok(turn(MOSI_TURN.from - 0.5).spin === 0 && near(turn((MOSI_TURN.from + MOSI_TURN.to) / 2).spin, 180, 1) && turn(MOSI_TURN.to + 0.5).spin === 0, 'a whole turn');
+  assert.ok(turn((MOSI_TURN.from + MOSI_TURN.to) / 2).aside > 1, 'aside of Egill as he turns');
+  let fastest = 0;
+  for (let b = MOSI_TURN.from; b < MOSI_TURN.to; b += 0.05) fastest = Math.max(fastest, (turn(b + 0.05).spin - turn(b).spin) / (0.05 * BEAT));
+  assert.ok(fastest < 60 && MOSI_TURN.to - MOSI_TURN.from >= 12, `slow: ${fastest.toFixed(0)} degrees a second at the most`);
+  assert.ok(!MARCHES.some(([from, to]) => from < MOSI_TURN.to && to > MOSI_TURN.from), 'he does not march while he turns');
+});
+
+test('the DJ plays: a wing scratches on the scratch cues, sweeps out to each group she calls, she bangs her head through the big parts', () => {
+  // the scratch: her left wing forward, open, down to the record, sawing to and fro
+  for (const [from, to] of SCRATCHES) {
+    const mid = (from + to) / 2;
+    const pose = at('flugedla', mid);
+    assert.ok(pose.spread.left > 0.9 && pose.sweep.left > SCRATCH.ahead - SCRATCH.saw - 1 && pose.raise.left < -10, `a wing on the record at ${mid} (${JSON.stringify([pose.spread.left, pose.sweep.left, pose.raise.left])})`);
+    const saws = [0, 0.125, 0.25, 0.375].map(k => at('flugedla', mid + k).sweep.left);
+    assert.ok(Math.max(...saws) - Math.min(...saws) > SCRATCH.saw, `and sawing (${saws.map(v => v.toFixed(0))})`);
+  }
+  assert.deepEqual(SCRATCHES.map(([from, to]) => [from + SCRATCH.lead, to - SCRATCH.tail]), [[142.5, 143.5], [207.25, 207.25]], 'on the set\'s scratch cues');
+  // the call: a wing out to each group as she calls it, her head after it
+  for (const point of POINTS) {
+    const pose = at('flugedla', point.from + point.rise + 0.1);
+    const wing = point.both ? 'right' : 'left';
+    assert.ok(pose.spread[wing] > 0.9 && (point.both || Math.abs(pose.sweep.left - point.sweep) < 2), `a wing out to the ${point.id} as she calls them`);
+  }
+  assert.ok(POINTS.length >= 7, 'every group of the choir');
+  // the headbang: down on the backbeat, up on the beat, in the big parts only
+  for (const [from, to] of BANG.parts) {
+    const b = Math.ceil(from + 2) + (Math.ceil(from + 2) % 2 ? 0 : 1); // a backbeat (an odd beat) well into the part
+    if (b + 1 > to) continue;
+    assert.ok(at('flugedla', b).bang > 15 && at('flugedla', b + 1).bang < 3, `she bangs her head at ${b} (${at('flugedla', b).bang.toFixed(0)} degrees)`);
+  }
+  for (const b of [101, 241, 425]) assert.ok(at('flugedla', b).bang < 1, `but not at ${b}`);
+});
+
+test('the DJ\'s lap: in the last chorus she flies low round Slóeðla in the middle of the pool, and is home for her own shot', () => {
+  const lap = FLIGHTS.at(-1);
+  const round = [];
+  for (let b = LAP.at; b <= LAP.at + LAP.beats * (LAP.round.length - 1); b += 0.1) {
+    const pose = at('flugedla', b);
+    const far = Math.hypot(pose.at[0] - HER_MIDDLE[0], pose.at[2] - HER_MIDDLE[1]);
+    round.push((Math.atan2(pose.at[2] - HER_MIDDLE[1], pose.at[0] - HER_MIDDLE[0]) * 180) / Math.PI);
+    assert.ok(pose.air === 1 && far > LAP.r - 2 && far < LAP.r + 2, `on her ring at ${b.toFixed(1)} (${far.toFixed(1)} m from her)`);
+    assert.ok(pose.at[1] - LEVEL < 4.5 && Math.abs(pose.bank) <= 50, `low over the water at ${b.toFixed(1)} (${(pose.at[1] - LEVEL).toFixed(1)} m)`);
+  }
+  let swept = 0;
+  for (let k = 1; k < round.length; k++) swept += ((((round[k] - round[k - 1]) % 360) + 540) % 360) - 180;
+  assert.ok(Math.abs(swept) > 200, `round her (${swept.toFixed(0)} degrees)`);
+  assert.ok(lap.off > 443 && lap.down < 459 && lap.from > BANG.parts.at(-1)[1] - 1, 'up after the last chorus\'s first phrase, down before its last bar');
+  const home = at('flugedla', 462);
+  assert.ok(home.air === 0 && Math.hypot(home.at[0] - DECKS.at[0], home.at[2] - DECKS.at[1]) < 0.05, 'home at her decks for the last hits');
+  // and the drop's climb past the sun is as round 1's shot has it
+  assert.ok(at('flugedla', 299.5).at[1] - LEVEL > 10, 'Nú! still shoots her up');
+});
+
+test('Slóeðla in three stances: shy (her head and her tail alone), her whole body with her happy clip and a duck and a surge on the drops, then big and proud, turning slowly in the middle of the pool', () => {
+  const most = (from, to, f) => { let m = 0; for (let b = from; b < to; b += 0.05) m = Math.max(m, Math.abs(f(at('sloedla', b)))); return m; };
+  // ONE: shy, to her horn
+  for (const [from, to] of [[70, 90], [180, 200]]) {
+    assert.ok(most(from, to, p => p.side) < 0.01 && most(from, to, p => p.happy.weight) === 0 && most(from, to, p => p.lean) < 1.5, `only her head and her tail at ${from}..${to}`);
+    assert.ok(most(from, to, p => p.tail) > 2 && most(from, to, p => p.tilt) > 1, `but they dance (${from}..${to})`);
+  }
+  const mean = (from, to, f) => { let sum = 0; let n = 0; for (let b = from; b < to; b += 0.05, n++) sum += f(at('sloedla', b)); return sum / n; };
+  assert.ok(most(8, 16, p => p.side) < 0.01 && mean(140, 148, p => p.nod) < mean(312, 320, p => p.nod) - 4, 'her head low');
+  // TWO: her whole body, from the first drop
+  assert.ok(most(310, 322, p => p.side) > 0.15 && most(310, 322, p => p.happy.weight) > 0.4, `her whole body (${most(310, 322, p => p.side).toFixed(2)} m)`);
+  for (const drop of HER_DUCK.drops) {
+    if (drop === BENDS.rewind.to) continue; // (it comes out of the rewind: she is already up)
+    assert.ok(at('sloedla', drop - 0.3).lift < -0.4, `down in the water before ${drop}`);
+    assert.ok(at('sloedla', drop + 2).lift > at('sloedla', drop - 0.3).lift + 0.5 && at('sloedla', drop + 2).lean > 2, `and up out of it on ${drop}`);
+  }
+  // THREE: the last chorus: out toward the middle, a slow turn right round there, proud; back after the last hit
+  const [out, half, round, back] = [at('sloedla', 438.5), at('sloedla', (HER_WADE.turn[0] + HER_WADE.turn[1]) / 2), at('sloedla', HER_WADE.turn[1]), at('sloedla', OVER)];
+  assert.ok(Math.abs(out.step - HER_WADE.far) < 0.05 && Math.abs(Math.abs(half.spin) - 180) < 3 && Math.abs(Math.abs(round.spin) - 360) < 1e-6 && back.step === 0, `out, round and back (${out.step}, ${half.spin}, ${round.spin}, ${back.step})`);
+  assert.ok(HER_WADE.turn[1] - HER_WADE.turn[0] >= 23, 'a slow turn: two dozen beats');
+  assert.ok(mean(444, 452, p => p.nod) > mean(312, 320, p => p.nod) + 4 && mean(444, 452, p => p.lift) > 0.1, 'her head high');
 });
 
 // What her dance may move her crest in a frame of the chapter's test (a thirtieth of a second), at the worst: sideways by her
@@ -418,11 +518,12 @@ test('on the models: Egill claps and his hands go up; Mosi sways from foot to fo
     [28, () => { seen.flying = flugedla.root.position.y - ground; }],
     [45, () => { seen.clap = hands(); }],
     [46, () => { seen.open = hands(); }],
-    [73, () => { seen.right = { l: worldOf(mosi, 'FrontFootL').y, r: worldOf(mosi, 'FrontFootR').y, head: worldOf(mosi, 'Jaw').y }; }],
-    [74, () => { seen.between = { head: worldOf(mosi, 'Jaw').y }; }],
-    [75, () => { seen.left = { l: worldOf(mosi, 'FrontFootL').y, r: worldOf(mosi, 'FrontFootR').y }; }],
-    [129.55, () => { seen.unslap = worldOf(flugedla, 'LeftFinger3').y - flugedla.root.position.y - 0.65; }],
-    [130, () => { seen.slap = worldOf(flugedla, 'LeftFinger3').y - flugedla.root.position.y - 0.65; }], // she stands in 0.65 m of water
+    [69, () => { seen.right = { l: worldOf(mosi, 'FrontFootL').y, r: worldOf(mosi, 'FrontFootR').y, head: worldOf(mosi, 'Jaw').y }; }],
+    [70, () => { seen.between = { head: worldOf(mosi, 'Jaw').y }; }],
+    [71, () => { seen.left = { l: worldOf(mosi, 'FrontFootL').y, r: worldOf(mosi, 'FrontFootR').y }; }],
+    // (her left wing is out to the grazers then: the right one keeps the time)
+    [129.55, () => { seen.unslap = worldOf(flugedla, 'RightFinger3').y - flugedla.root.position.y - 0.65; }],
+    [130, () => { seen.slap = worldOf(flugedla, 'RightFinger3').y - flugedla.root.position.y - 0.65; }], // she stands in 0.65 m of water
     [270, () => {
       seen.up = {
         hands: Math.min(worldOf(egill, 'LeftHand').y, worldOf(egill, 'RightHand').y), head: worldOf(egill, 'Head').y,

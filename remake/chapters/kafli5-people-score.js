@@ -364,7 +364,7 @@ export function mosiAt(clock, { reduced = false } = {}) {
     out.round = pace((b - MOSI_TURN.from) / (MOSI_TURN.to - MOSI_TURN.from), MOSI_TURN.ease);
     Object.assign(out, mosiTurn(out.round));
     lean = Math.sin(TAU * MOSI_TURN.steps * out.round); // onto the pair of feet that stands
-  }
+  } else if (b >= MOSI_TURN.to) out.round = 1; // (round, and his feet his own again)
   out.looking *= 1 - turning; // his head goes round with him
   const stomping = span(b, P.grazers.from - 1.5, P.grazers.to, 1);
   const k = e * (1 - 0.6 * stomping) * (1 - Math.min(1, marching + turning)); // the sway is where he does not walk
@@ -507,7 +507,8 @@ export const POINTS = (() => {
 export const BANG = { deep: 24, parts: [[327, BENDS.freeze.from + 0.5], [BENDS.freeze.to, 402.5], [429, 442.6]] };
 const FLUGEDLA_LOOK = [
   [0, 'pool'], [32, 'egill'], [38, 'pool'],
-  ...POINTS.filter(point => !point.both).flatMap(point => [[point.from, point.id === 'dragonflies' ? 'frogs' : point.id], [point.to, 'pool']]),
+  // (from the dragonflies she looks straight on to Slóeðla, whose line comes next)
+  ...POINTS.filter(point => !point.both).flatMap(point => [[point.from, point.id === 'dragonflies' ? 'frogs' : point.id], ...(point.id === 'dragonflies' ? [] : [[point.to, 'pool']])]),
   [226.6, 'her'], [262, 'pool'], [265.5, 'egill'], [268, 'pool'], [404, 'egill'], [409, 'pool'], [413.6, 'egill'], [416, 'pool'],
 ];
 
@@ -588,16 +589,21 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   // folded where she stands (halfway open a wing hangs like washing), and wide open for each thing she does with them
   const both = welcome + wingsUp + goodnight + (called?.both ? calling : 0);
   // she beats the time on the water: on each of the band's wing beats her wings open and lift, and come down flat on the water
-  const beating = (1 - wingsUp) * (1 - welcome) * (1 - busy) * on;
-  const open = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.25, at + 0.75))) * beating;
-  const lifted = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.45, at - 0.05))) * beating;
-  const slap = Math.max(...WINGS.map(at => hump(b, at - 0.4, at, at + 0.6))) * beating;
-  out.spread.left = clamp(both + open + flick + calling + scratch); // the wing on the choir's side: out to the group, or at the record
-  out.spread.right = clamp(both + open + point); // the wing on Egill's side, out to him
-  const beatWings = 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * (1 - busy) * Math.sin(Math.PI * d);
-  out.raise.left = beatWings + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick
+  // (a wing that is out to a group or at the record leaves the time to the other: the grazers are called on the band's first wing beat)
+  const free = (1 - wingsUp) * (1 - welcome) * on;
+  const beats = busyHere => {
+    const beating = free * (1 - busyHere);
+    const open = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.25, at + 0.75))) * beating;
+    const lifted = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.45, at - 0.05))) * beating;
+    const slap = Math.max(...WINGS.map(at => hump(b, at - 0.4, at, at + 0.6))) * beating;
+    return { open, raise: 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * (1 - busyHere) * Math.sin(Math.PI * d) };
+  };
+  const [left, right] = [beats(busy), beats(Math.max(called?.both ? calling : 0, point))];
+  out.spread.left = clamp(both + left.open + flick + calling + scratch); // the wing on the choir's side: out to the group, or at the record
+  out.spread.right = clamp(both + right.open + point); // the wing on Egill's side, out to him
+  out.raise.left = left.raise + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick
     + (called?.both ? 12 : 5) * calling - SCRATCH.down * scratch;
-  out.raise.right = beatWings + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point
+  out.raise.right = right.raise + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point
     + (called?.both ? 12 * calling : 0);
   // the scratch: the wing forward and down to the water, sawing to and fro twice a beat; the call: the wing swung forward to
   // where the group is, her body turned after it
@@ -699,9 +705,9 @@ export const HER_TURN = { head: 50, body: 0.7, most: 115, beats: 6 };
  * proud over (the last chorus's first), `low` the degrees her head hangs while she is shy and `high` the degrees it is up when
  * she is proud; `happy`: her 'happy' clip (parasaurolophus.glb, 2.4 s), a loop `beats` long, and the most it has of her.
  */
-export const HER_STANCES = { whole: [266, 292], proud: [427.8, 430.6], low: 8, high: 8, happy: { seconds: 2.4, beats: 4, most: 0.7 } };
-/** Her duck and surge: `deep` m down into the water over the hush before each of `drops`, and up out of it over `up` beats from the drop. */
-export const HER_DUCK = { deep: 0.6, up: 1.1, drops: [P.drop.from, P.redrop.from, P.lastchorus.from] };
+export const HER_STANCES = { whole: [266, 292], proud: [429.4, 434], low: 8, high: 8, happy: { seconds: 2.4, beats: 4, most: 0.5 } };
+/** Her duck and surge: `deep` m down into the water over the `down` beats before each of `drops`, and up out of it over `up` beats from the drop. */
+export const HER_DUCK = { deep: 0.6, down: [1.9, 0.2], up: 3.2, drops: [P.drop.from, P.redrop.from, P.lastchorus.from] };
 
 /**
  * Slóeðla at the clock: {
@@ -737,21 +743,32 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
   const tall = (span(b, 229, 264, 3, 2) + span(b, P.fakeend.from, 427, 1.5, 1.5) * 0.6) * on;
   out.lift = 0.14 * tall;
   out.nod = 7 * tall;
+  // her three stances: how much of her body dances (0 shy: her head and her tail alone .. 1), and how proud she stands
+  const whole = ramp(b, ...HER_STANCES.whole);
   if (reduced) {
-    out.side = 0.08 * e * sway;
+    out.side = 0.05 * e * whole * sway;
     out.tilt = 2 * e * sway;
     out.tail = -6 * e * Math.sin((TAU * (d - 0.6)) / 4);
     return out;
   }
-  // her three stances: how much of her body dances (0 shy: her head and her tail alone .. 1), and how proud she stands
-  const whole = ramp(b, ...HER_STANCES.whole);
   const proud = ramp(b, ...HER_STANCES.proud) * on;
   out.nod -= HER_STANCES.low * (1 - whole) * (1 - clamp(tall)) * on; // shy: her head hangs
   out.nod += HER_STANCES.high * proud;
   out.lift += 0.16 * proud;
-  out.side = 0.3 * e * whole * sway;
-  out.yaw += 6 * e * whole * Math.sin((TAU * (d - 0.5)) / 4);
-  out.tilt = (4.5 + 3 * whole) * e * sway;
+  // and before a drop she ducks down into the water, and surges up out of it on the drop, her front first
+  let duck = 0;
+  let surge = 0;
+  for (const at of HER_DUCK.drops) {
+    duck = Math.max(duck, ramp(b, at - HER_DUCK.down[0], at - HER_DUCK.down[1]) * (1 - ramp(b, at, at + HER_DUCK.up)));
+    surge = Math.max(surge, hump(b, at, at + 2, at + 4.6));
+  }
+  // (she sways less as she goes down and comes up, the surge is the move; and as she turns round, the turn is: her crest is 3.5 m
+  // out from where she turns, and the two together would be more than her speed allows)
+  const turning = span(b, HER_WADE.turn[0], HER_WADE.turn[1], 2, 2);
+  const swaying = 1 - 0.6 * Math.max(duck, surge, turning);
+  out.side = 0.3 * e * whole * sway * swaying;
+  out.yaw += 6 * e * whole * Math.sin((TAU * (d - 0.5)) / 4) * swaying;
+  out.tilt = (4.5 + 3 * whole) * e * sway * swaying;
   out.lift += 0.1 * e * whole * (0.5 - 0.5 * Math.cos(Math.PI * d));
   out.nod += (3 + 2 * whole) * e * Math.cos(Math.PI * d);
   out.turn += 9 * e * Math.sin((TAU * (d - 1)) / 8); // her head sweeps slowly from side to side, two bars a sweep
@@ -764,15 +781,8 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
   const quiet = hush(b, 1.5);
   out.nod -= 5 * quiet * on;
   out.lift -= 0.05 * quiet * on;
-  // and before a drop she ducks down into the water, and surges up out of it on the drop, her front first
-  let duck = 0;
-  let surge = 0;
-  for (const at of HER_DUCK.drops) {
-    duck = Math.max(duck, ramp(b, at - 1.5, at - 0.3) * (1 - ramp(b, at, at + HER_DUCK.up)));
-    surge = Math.max(surge, hump(b, at, at + 1.2, at + 3.4));
-  }
   out.lift -= HER_DUCK.deep * duck * on;
-  out.lean += (5 * surge - 3 * duck) * on;
+  out.lean += (3.5 * surge - 2.5 * duck) * on;
   // her happy clip under the dance of her whole body
   out.happy.weight = happy.most * whole * clamp(e / 0.8) * (1 - duck) * (1 - 0.4 * proud);
   // the last chorus: she wades out toward the middle and turns slowly right round there; and back when the set is over
