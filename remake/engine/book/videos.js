@@ -150,6 +150,16 @@ export const BOOK_3D = [
     unlock: { start: true },
     label: 'Grameðla kemur!, þrívíddarmyndband, með rauðum og bláum gleraugum',
   },
+  {
+    id: 'flugedla3d',
+    name: 'Flugeðla og fiðrildið',
+    title: 'Flugeðla og fiðrildið',
+    chapter: 'flugedla3d',
+    poster: videoUrl('flugedla3d-thumb.webp'), // a still of the show (gler=0, 23.96 s: she leads her flock over the cloud, the butterfly at her chest)
+    hue: '#d97a8c',
+    unlock: { start: true },
+    label: 'Flugeðla og fiðrildið, þrívíddarmyndband, með rauðum og bláum gleraugum',
+  },
 ];
 
 export const videoSeenId = id => `video:${id}`;

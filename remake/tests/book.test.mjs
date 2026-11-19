@@ -2374,7 +2374,7 @@ test('the Myndbönd page has nine videos, five on the left page and four on the 
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
   assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek'], 'five on the left page');
-  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d', 'safn3d', 'gramedla3d'], 'and four on the right, then the 3D column');
+  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d'], 'and four on the right, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
   const videoRibbonDots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
@@ -2451,7 +2451,10 @@ test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open
   assert.ok(museum3d?.classList.contains('video-tile-3d') && museum3d.classList.contains('new'), 'Þrívíddarsafnið is open from the start beside Fiðrildadansinn');
   const gram3d = column.findAll(e => e.getAttribute('data-video') === 'gramedla3d')[0];
   assert.ok(gram3d?.classList.contains('video-tile-3d') && gram3d.classList.contains('new'), 'Grameðla kemur! is open from the start, the third');
-  assert.equal(column.findAll(e => e.classList.contains('video-tile')).length, 3, 'three 3D tiles: Fiðrildadansinn, Þrívíddarsafnið and Grameðla kemur!');
+  const flug3d = column.findAll(e => e.getAttribute('data-video') === 'flugedla3d')[0];
+  assert.ok(flug3d?.classList.contains('video-tile-3d') && flug3d.classList.contains('new'), 'Flugeðla og fiðrildið is open from the start, the fourth');
+  assert.equal(flug3d.getAttribute('aria-label'), 'Flugeðla og fiðrildið, þrívíddarmyndband, með rauðum og bláum gleraugum');
+  assert.equal(column.findAll(e => e.classList.contains('video-tile')).length, 4, 'four 3D tiles: Fiðrildadansinn, Þrívíddarsafnið, Grameðla kemur! and Flugeðla og fiðrildið');
   const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
     .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
   assert.deepEqual(dots(), [], 'a show open from the start puts no Nýtt! on the ribbon');
@@ -2688,6 +2691,15 @@ test('Þrívíddarsafnið and Söngur Slóeðlu are open from the start, unfound
   assert.equal(book.showPlayer.isOpen, true);
   assert.match(book.showPlayer.frame.src, /chapter=gramedla3d&syning=1/);
   assert.ok(save.get().seen.includes('video:gramedla3d'));
+  book.showPlayer.close();
+  // and Flugeðla og fiðrildið opens ?chapter=flugedla3d&syning=1 the same way
+  book.open('videos', 'child');
+  const later2 = realNow() + 2000;
+  Date.now = () => later2;
+  try { tap(root.findAll(e => e.getAttribute('data-video') === 'flugedla3d')[0]); } finally { Date.now = realNow; }
+  assert.equal(book.showPlayer.isOpen, true);
+  assert.match(book.showPlayer.frame.src, /chapter=flugedla3d&syning=1/);
+  assert.ok(save.get().seen.includes('video:flugedla3d'));
   book.showPlayer.close();
 
   // Grameðla unlocks with k6_gramedla (altUnlock) too, and tapping her marker on Kortið uses book_mosi_later fallback.
