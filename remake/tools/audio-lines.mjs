@@ -54,6 +54,7 @@ export const SETS = {
   kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
   kafli5: 'remake/assets/audio/kafli5',
   gramedla3d: 'remake/assets/audio/gramedla3d', // the 3D show "Grameðla kemur!" (chapters/gramedla3d.js): Egill's two lines, ids g3_<speaker>_<short>
+  flugedla3d: 'remake/assets/audio/flugedla3d', // the 3D show "Flugeðla og fiðrildið" (chapters/flugedla3d.js): Flugeðla's three lines, ids f3_<speaker>_<short>
 };
 /** Where the chapter's lines are: the set a tool works on unless it is told another. */
 export const REMAKE_AUDIO = SETS.kafli1;

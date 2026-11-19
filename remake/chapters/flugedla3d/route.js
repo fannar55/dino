@@ -145,7 +145,3 @@ export function whiteAt(y, c = CLOUD) {
   return smooth(1 - (y - hi) / c.ease[1]);
 }
 
-// ---- the two motion trials (step 1): stretches of the film's own camera, looped (so the lane and the clouds are the film's) ----
-// beygja: the run into the S at 6 m/s, both arcs and out (13 s); upp: the climb at 8 m/s through the cloud, the seconds above it, the
-// dive at 12 m/s through the cloud again, her peak under it and the brake over the lane
-export const TRIALS = { beygja: { from: 28.5, to: 41.5 }, upp: { from: 39.5, to: 71 } };

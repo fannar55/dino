@@ -4723,5 +4723,20 @@
   "src": "assets/audio/gramedla3d/g3_egill_bless.mp3",
   "duration": 1.69,
   "mouth": "0acfb40000000bef969873450000000000"
+ },
+ "f3_flugedla_fidrildi": {
+  "src": "assets/audio/flugedla3d/f3_flugedla_fidrildi.mp3",
+  "duration": 1.53,
+  "mouth": "000efd09dcfd808c960000000000000"
+ },
+ "f3_flugedla_jibbi": {
+  "src": "assets/audio/flugedla3d/f3_flugedla_jibbi.mp3",
+  "duration": 1.21,
+  "mouth": "5bcff0000fddc700000000000"
+ },
+ "f3_flugedla_tharna": {
+  "src": "assets/audio/flugedla3d/f3_flugedla_tharna.mp3",
+  "duration": 1.45,
+  "mouth": "00dffd400efeec703952000000000"
  }
 }

@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeRoute, filmRoute, FILM_CHANGES, TURN, BEND, LANE_H, CLOUD, whiteAt, TRIALS } from '../chapters/flugedla3d/route.js';
+import { makeRoute, filmRoute, FILM_CHANGES, TURN, BEND, LANE_H, CLOUD, whiteAt } from '../chapters/flugedla3d/route.js';
 import { D, NEAR, CLEAR, tanH, tanV43, sweptHit, SLALOM, GATE, POSES, POSES_FINE, plants, cloudBalls } from '../chapters/flugedla3d/stage.js';
-import { KEYS, keyIndex, kOf, outOf, MAX_OUT } from '../chapters/flugedla3d/keys.js';
-import { trialAt } from '../chapters/flugedla3d/motion.js';
 
 // Flugeðla og fiðrildið (chapters/flugedla3d/): the camera's route, the swept frame rule, the stage's places, the key frames' table
 // and the trials' players.
@@ -97,41 +95,6 @@ test('no planted trunk and no cloud ball is ever in the near part of the picture
     assert.equal(sweptHit([p.position[0], 1, p.position[1]], 0.6), null, `${p.name} at ${p.position}`);
   }
   for (const b of cloudBalls()) assert.equal(sweptHit(b, b[3], { list: POSES_FINE }), null);
-});
-
-test('the key frames: each a second of the film, the butterfly 2 to 3.9 % out in the middle while it leads', () => {
-  for (const key of KEYS) {
-    assert.ok(key.time >= 0 && key.time <= 76, key.id);
-    assert.equal(KEYS[keyIndex(key.id)], key);
-    const b = key.butterfly;
-    if (b?.at) {
-      const out = outOf(b.at[2]);
-      assert.ok(out >= 0.02 - 1e-9 && out <= MAX_OUT - 0.001, `${key.id}: the butterfly ${(out * 100).toFixed(2)} % out`);
-      assert.ok(b.at[0] > 0.3 && b.at[0] < 0.7, `${key.id}: the butterfly at u ${b.at[0]}`);
-    }
-  }
-  assert.ok(Math.abs(outOf(kOf(0.03)) - 0.03) < 1e-12);
-  assert.equal(keyIndex('7b'), KEYS.findIndex(k => k.id === '7b'));
-  assert.equal(keyIndex('8'), KEYS.findIndex(k => k.id === '8a'));
-});
-
-test('the trials: their players move without a jump (no pop), and the white follows the camera\'s height', () => {
-  const r = filmRoute();
-  for (const [name, { from, to }] of Object.entries(TRIALS)) {
-    let last = null;
-    for (let t = from; t <= to; t += 1 / 30) {
-      const s = trialAt(name, t, r);
-      if (last && s.her.beak && last.her.beak) {
-        const d = Math.max(...s.her.beak.map((v, i) => Math.abs(v - last.her.beak[i])));
-        assert.ok(d < 0.02, `${name} at ${t.toFixed(2)} s: her beak moves ${d.toFixed(3)} in a frame`);
-      }
-      if (last && s.butterfly.at && last.butterfly.at) {
-        const d = Math.max(...s.butterfly.at.map((v, i) => Math.abs(v - last.butterfly.at[i])));
-        assert.ok(d < 0.03, `${name} at ${t.toFixed(2)} s: the butterfly moves ${d.toFixed(3)} in a frame`);
-      }
-      last = s;
-    }
-  }
 });
 
 test('the fast take (fjor.js): its camera within the brief, its white short, the butterfly never parked', async () => {

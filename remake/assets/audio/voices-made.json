@@ -1309,6 +1309,24 @@
    "duration": 1.69,
    "model": "eleven_v4"
   },
+  "flugedla3d/f3_flugedla_fidrildi": {
+   "key": "37eb375342438a4e02d956825003f28f73a07d9352720e53231faa83f7dec98e",
+   "mp3": "40b162ff24a242524ff0394b9c1967ef2e8339460be3208ecab919d67a317dc4",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "flugedla3d/f3_flugedla_jibbi": {
+   "key": "b90361809697d0f6d4ecf50bcf5b5932ea53b8b7d72dcb8d876de8067ca9a3d9",
+   "mp3": "89284c5b9d38f61a98416684a460155d302e36f7df3518fc842d6a61012fab2c",
+   "duration": 1.21,
+   "model": "eleven_v4"
+  },
+  "flugedla3d/f3_flugedla_tharna": {
+   "key": "aa757fbcfda13f3a49b31dda6ca2de1baab7bb70efba34c5072fc9c31e1f6513",
+   "mp3": "e5c2939d7160acaf85ba218fee944e81374bb368215f4ef51c30127e655e1cbf",
+   "duration": 1.45,
+   "model": "eleven_v4"
+  },
   "gramedla3d/g3_egill_bless": {
    "key": "983289639ca0ef37c4bf499b8596d1332fcfc872a35cc2debf664acd0517ebee",
    "mp3": "dfb2d0e6cd2b3c5ea2fd83d8117880c51e974c4ae4b6718fd2804c83e6622256",

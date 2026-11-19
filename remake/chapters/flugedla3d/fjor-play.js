@@ -23,8 +23,13 @@ const WHOOSH = [[2.6, 1], [7.4, -1], [8.9, 1], [9.6, -1], [10.4, 1], [11.0, -1],
   [VALLEY.t + 4.9, -1], [VALLEY.t + 7.1, 1], [VALLEY.t + 9.6, -1], [FALLS_CLIMB.from - 0.4, 0]];
 // the flyers' cries (chapter 4's): as the flock rises, and as they peel away
 const CRIES = [[FLOCK.beat(3.5), -0.5], [FLOCK.beat(19.5), 0.5], [END.beat(-1.5), 0.2]]; // (the last: the flock coming back up at the crest)
+// Flugeðla's three lines (assets/audio/flugedla3d, set flugedla3d), at the take's real seconds, each on a beat (0.48 s): as the sprint
+// begins, as she noses over into the dive (TIP, story 30.24 s: real 32.16), soft in the last hold with the butterfly at her beak
+export const LINES = [[0.48, 'f3_flugedla_fidrildi'], [32.16, 'f3_flugedla_jibbi'], [57.12, 'f3_flugedla_tharna']];
+export const LINE_TEXT = { f3_flugedla_fidrildi: 'Fiðrildi!', f3_flugedla_jibbi: 'Jibbí!', f3_flugedla_tharna: 'Þarna ertu.' };
+const END_FADE = 1.6; // s the set fades out over from the dip before the end card
 
-export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D, sound, slow = true, herUrl }) {
+export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, state, D, sound, slow = true, herUrl, say = null }) {
   const route = FJOR_ROUTE, path = FJOR_PATH;
   // the time warp (its slow stretches; &haegt=0 none): the page's seconds are real, the take is authored in the story's
   const WARP = warp(slow);
@@ -191,12 +196,15 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   let stage = null;
   const setStage = st => { stage = st; };
 
-  // the sound: her set from its beat, made again each loop (a song plays once); the airflow at the camera's speed; in the valley the
+  // the sound: her set from its beat, made again each play (a song plays once); the airflow at the camera's speed; in the valley the
   // river under us, the gorge's echo and the falls' roar
-  // Each loop's song is made a few seconds before it plays (and the first at the start), and played only once its file's length and
-  // byte ranges are known: an element cued before that cannot be moved and plays from the set's start, the beat following it
-  // (engine/audio/music.js follow: "The theme cannot be moved ..."). Played late, it is played that much further in, on the beat.
-  let song = null, next = null, release = null, flight = null, lastWhoosh = -1, lastCry = -1, filter = null, pending = false;
+  // The show plays once (chapters/flugedla3d.js): soundStart at the glasses' tap and at "Aftur" (clean: the last play's sounds
+  // stopped), soundFrame each frame, soundEnd as it dips to black before the end card (the set fades out over END_FADE s, the air
+  // and the water with it, so the card is quiet; the next play's song is made then, ready for "Aftur").
+  // The song is made ahead and played only once its file's length and byte ranges are known: an element cued before that cannot be
+  // moved and plays from the set's start, the beat following it (engine/audio/music.js follow: "The theme cannot be moved ...").
+  // Played late, it is played that much further in, on the beat.
+  let song = null, next = null, release = null, flight = null, lastWhoosh = -1, lastCry = -1, lastLine = -1, filter = null, pending = false;
   const makeSong = () => {
     const clock = world.clock ?? { get time() { return s.time; } };
     const made = createSong({ context: world.sound?.context ?? null, output: filter ?? world.sound?.output ?? null, clock, src: 'djamm.mp3', base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}) });
@@ -204,11 +212,18 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     Promise.resolve(made.ready).then(() => { entry.ready = true; }, () => { entry.ready = true; });
     return entry;
   };
+  if (sound) next = makeSong(); // the first play's, made as the show loads
   function soundStart() {
+    lastLine = -1;
+    state.said = [];
     if (!sound) return;
+    song?.stop?.(0.1);
+    release?.();
+    release = null;
+    flight?.stop?.();
     const context = world.sound?.context ?? null;
     // a low-pass over her set and the airflow, swept down in the slow stretches (the DJ's filter), open the rest of the time
-    if (context && world.sound?.output) {
+    if (!filter && context && world.sound?.output) {
       filter = context.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 20000;
@@ -217,13 +232,6 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     }
     flight = createFlightSounds({ context, output: filter ?? world.sound?.output ?? null, recordings: context ? loadFlightRecordings(context) : null });
     flight.start();
-    next = makeSong();
-  }
-  function soundLoop() {
-    if (!sound) return;
-    song?.stop?.();
-    release?.();
-    release = null;
     const entry = next ?? makeSong();
     next = null;
     song = entry.song;
@@ -231,16 +239,26 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     pending = true; // played in soundFrame once its file is known
     lastWhoosh = -1;
     lastCry = -1;
+    lastLine = -1;
+  }
+  function soundEnd() {
+    if (!sound) return;
+    pending = false;
+    song?.stop?.(END_FADE);
+    flight?.stop?.();
+    if (!next) next = makeSong(); // "Aftur"'s
   }
   let songEntry = null;
   function soundFrame(r) {
+    // her three lines (real seconds, each on a beat): heard only, no caption; the set does not dip under them (chapter 4's flight).
+    // Said in a silent take too (her beak moves with them; state.said keeps when, for the probe)
+    for (const [i, [lt, id]] of LINES.entries()) if (i > lastLine && r >= lt) { lastLine = i; if (r - lt < 0.3) { say?.(id); (state.said ??= []).push([+r.toFixed(3), id]); } }
     if (!sound) return;
     if (pending && songEntry?.ready) {
       pending = false;
       release = world.sound?.hold?.(song) ?? null;
       song.play(WARP.setBeat * BEAT + r);
     }
-    if (!next && r > WARP.length - 6) next = makeSong(); // the next loop's, made ahead
     if (!release) song?.update?.();
     const t = WARP.story(r), rate = WARP.rate(r);
     const c = cameraAt(route, t, base);
@@ -259,6 +277,6 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   return {
     apply, setStage, placeAt, life, length: WARP.length, warp: WARP, slows: WARP.slows, off: OFF,
     holds: HOLDS.map(([a, b]) => [+WARP.real(a).toFixed(2), +WARP.real(b).toFixed(2)]),
-    bursts, stats: () => cameraStats(route), soundStart, soundLoop, soundFrame, route, path, groundAt, low: LOW,
+    bursts, stats: () => cameraStats(route), soundStart, soundEnd, soundFrame, lines: LINES, route, path, groundAt, low: LOW,
   };
 }

@@ -3,7 +3,7 @@
 // camera's height, inside the 16:10 frame, nearer than 40 m), the take's fastest and the median of the frames' fastest.
 //
 //   node remake/tools/flugedla-speed.mjs
-import { filmRoute, TRIALS } from '../chapters/flugedla3d/route.js';
+import { filmRoute } from '../chapters/flugedla3d/route.js';
 import { plants } from '../chapters/flugedla3d/stage.js';
 import { LENGTH, cameraAt } from '../chapters/flugedla3d/fjor.js';
 import { FJOR_ROUTE, FJOR_LAYOUT } from '../chapters/flugedla3d/fjor-stage.js';
@@ -41,6 +41,6 @@ function sweep(name, camAt, from, to, trunks, dt = 1 / 30) {
   const sorted = frames.filter(w => w > 0).sort((a, b) => a - b);
   console.log(`${name}: fastest ${best.w.toFixed(0)} deg/s (at ${best.t.toFixed(2)} s); the frames' fastest: median ${sorted[Math.floor(sorted.length / 2)].toFixed(0)} deg/s, 90th percentile ${sorted[Math.floor(sorted.length * 0.9)].toFixed(0)} deg/s`);
 }
-const film = filmRoute();
-sweep('the bend trial (step 1, 6 m/s, lane walls from 15.5 m)', t => film.at(t), TRIALS.beygja.from, TRIALS.beygja.to, plants().map(p => p.position));
+const film = filmRoute(); // (the bend trial was the film's seconds 28.5-41.5; the trial itself is gone)
+sweep('the bend trial (step 1, 6 m/s, lane walls from 15.5 m)', t => film.at(t), 28.5, 41.5, plants().map(p => p.position));
 sweep('the fast take (17-19 m/s in the forest)', t => cameraAt(FJOR_ROUTE, t), 0, LENGTH, FJOR_LAYOUT.plants.map(p => p.position));

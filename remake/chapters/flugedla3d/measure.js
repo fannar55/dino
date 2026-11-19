@@ -9,8 +9,12 @@
 // And the ground rule alone on a 4:3 picture (groundOn43): the ground at the bottom edge no nearer than D.
 import * as THREE from 'three';
 import { createDepthProbe } from '../../engine/depth-probe.js';
-import { MIDDLE, MIDDLE_OUT, MAX_OUT } from './keys.js';
 import { tanH, tanV43 } from './stage.js';
+
+// the plan's numbers (section 2, from step 1's key frames): the budget, the middle, what must stay in it
+export const MAX_OUT = 0.04;
+export const MIDDLE = [0.2, 0.8];
+export const MIDDLE_OUT = 0.013; // rule 6: what is more than 1.3 % out stays in the middle
 
 export function createMeasure(world, { D, cast, state, clouds, base }) {
   const { camera } = world;
