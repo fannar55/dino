@@ -2929,6 +2929,47 @@
         }
       },
       "chosen": null
+    },
+    "esja": {
+      "word": "Esja",
+      "stem": "Esj",
+      "forms": [
+        "Esja",
+        "Esju",
+        "Esjur",
+        "Esjan",
+        "Esjuna"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú hafnaðir henni 2026-11-19 (Hvað varð um risaeðlurnar?, lína 42: „Esjur“ sagt vitlaust)."
+        },
+        "samhengi": {
+          "context": "Esjan er fjallið fyrir ofan Reykjavík. Ein Esja, tvær Esjur, þrjár Esjur.",
+          "note": "Setning um fjallið og fleirtöluna send á undan sem samhengi, ekki töluð. Þú heyrðir hana 2026-11-19 (Esja-A) og valdir aðra."
+        },
+        "ipa": {
+          "say": {
+            "Esja": "\"/ˈɛːsja/\"",
+            "Esju": "\"/ˈɛːsjʏ/\"",
+            "Esjur": "\"/ˈɛːsjʏr/\"",
+            "Esjan": "\"/ˈɛːsjan/\"",
+            "Esjuna": "\"/ˈɛːsjʏna/\""
+          },
+          "note": "IPA /ˈɛːsja/: langt e, svo s og j. Þú heyrðir hana 2026-11-19 (Esja-B) og valdir aðra."
+        },
+        "stafsetning": {
+          "say": {
+            "Esja": "Es-ja",
+            "Esju": "Es-ju",
+            "Esjur": "Es-jur",
+            "Esjan": "Es-jan",
+            "Esjuna": "Es-juna"
+          },
+          "note": "„Es-jur“: bandstrik svo s og j séu borin fram hvort í sínu lagi. Þú valdir hana 2026-11-19 (Esja-C; Hvað varð um risaeðlurnar?, lína 42)."
+        }
+      },
+      "chosen": "stafsetning"
     }
   },
   "lines": {
