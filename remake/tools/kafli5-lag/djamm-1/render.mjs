@@ -25,7 +25,9 @@ const ROOT = join(here, '../../../..');
 const HLJOD = join(ROOT, 'remake/assets/audio/kafli5/hljod');
 // --prufa: the trial with the mix review's three fixes (lib/prufa.mjs), into its own folder; without it, the shipped set
 const TRIAL = process.argv.includes('--prufa');
-const OUT = join(ROOT, TRIAL ? PRUFA.out : 'qa/remake/kafli5/lag/djamm/1');
+// --out=<dir under the repo>: write somewhere else (to check that the shipped render is still made byte for byte)
+const OUT_ARG = process.argv.find(a => a.startsWith('--out='))?.slice(6);
+const OUT = join(ROOT, OUT_ARG ?? (TRIAL ? PRUFA.out : 'qa/remake/kafli5/lag/djamm/1'));
 const WORK = join(OUT, 'work/render');
 const QUICK = process.argv.includes('--quick');
 const t0 = Date.now();
