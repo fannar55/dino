@@ -122,3 +122,55 @@ test('the fast take (fjor.js): its camera within the brief, its white short, the
     assert.ok(t - anchor.t <= 1.0 + 1e-9, `the butterfly parked from ${anchor.t.toFixed(2)} s`);
   }
 });
+
+// ---- the show (step 3): the take played once from the glasses' start to the end card, Flugeðla's three lines, the book's tile ----
+test('the show: it starts from the glasses picture and ends in the end card ("Aftur" plays it again, "Hætta" leaves), no loop', async () => {
+  const fs = await import('node:fs');
+  const { chapter } = await import('../chapters/flugedla3d.js');
+  const { glassesStart } = await import('../engine/book/show-cards.js');
+  assert.equal(chapter.startButton, glassesStart, 'the glasses picture starts it');
+  assert.equal(chapter.start, 'skogur');
+  const src = fs.readFileSync(new URL('../chapters/flugedla3d.js', import.meta.url), 'utf8');
+  assert.match(src, /endCard\(document, \{ onAgain: [^}]*\}, onQuit: \(\) => \{ player\.soundEnd\(\); leaveShow\(window\); \} \}\)/, 'the end card: Aftur again, Hætta stops the sound and leaves');
+  assert.doesNotMatch(src, /% length/, 'the take is not looped');
+  assert.doesNotMatch(src, /lykill|trialAt|keys\.js/, "step 1's key frames and trials are gone");
+});
+
+test("the show: Flugeðla's three lines are in lines.json and cued inside the take, on beats, clear of the slow stretches and the dip", async () => {
+  const fs = await import('node:fs');
+  const { chapter } = await import('../chapters/flugedla3d.js');
+  const { LINES, LINE_TEXT } = await import('../chapters/flugedla3d/fjor-play.js');
+  const { warp, BEAT, TIP } = await import('../chapters/flugedla3d/fjor.js');
+  const lines = JSON.parse(fs.readFileSync(new URL('../assets/audio/lines.json', import.meta.url), 'utf8'));
+  const source = JSON.parse(fs.readFileSync(new URL('../assets/audio/flugedla3d/lines-source.json', import.meta.url), 'utf8'));
+  assert.deepEqual(source.map(l => [l.id, l.speaker, l.text]), [
+    ['f3_flugedla_fidrildi', 'flugedla', 'Fiðrildi!'], ['f3_flugedla_jibbi', 'flugedla', 'Jibbí!'], ['f3_flugedla_tharna', 'flugedla', 'Þarna ertu.'],
+  ]);
+  assert.deepEqual(Object.keys(chapter.cast), ['flugedla']);
+  const W = warp(true);
+  assert.equal(LINES.length, 3);
+  for (const [at, id] of LINES) {
+    const entry = lines[id];
+    assert.ok(entry, `${id} in lines.json`);
+    assert.equal(entry.src, `assets/audio/flugedla3d/${id}.mp3`);
+    assert.ok(fs.existsSync(new URL(`../${entry.src}`, import.meta.url)), `${id}'s recording`);
+    assert.ok(entry.duration > 0.5 && entry.duration < 3, `${id}: ${entry.duration} s`);
+    assert.equal(chapter.lines[id].text, LINE_TEXT[id]);
+    assert.equal(chapter.lines[id].audio, id);
+    assert.ok(Math.abs(at / BEAT - Math.round(at / BEAT)) < 1e-9, `${id} on a beat`);
+    assert.ok(at >= 0.35 && at + entry.duration <= W.length - 0.35, `${id} inside the take, before the dip`);
+    for (const [a, b] of W.slows) assert.ok(at + entry.duration <= a || at >= b, `${id} clear of the slow stretch ${a}-${b}`);
+  }
+  assert.ok(Math.abs(LINES[1][0] - W.real(TIP)) < 0.25, '"Jibbí!" as she noses over into the dive');
+});
+
+test('the show: its tile in the book, the fourth under "3D myndbönd", with a poster of its own', async () => {
+  const fs = await import('node:fs');
+  const { BOOK_3D } = await import('../engine/book/videos.js');
+  assert.deepEqual(BOOK_3D.map(v => v.id), ['fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d']);
+  const tile = BOOK_3D.at(-1);
+  assert.equal(tile.title, 'Flugeðla og fiðrildið');
+  assert.equal(tile.chapter, 'flugedla3d');
+  assert.match(tile.poster, /flugedla3d-thumb\.webp$/);
+  assert.ok(fs.existsSync(new URL('../assets/book/videos/flugedla3d-thumb.webp', import.meta.url)));
+});

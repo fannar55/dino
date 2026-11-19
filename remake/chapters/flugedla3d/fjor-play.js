@@ -263,6 +263,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     const t = WARP.story(r), rate = WARP.rate(r);
     const c = cameraAt(route, t, base);
     flight?.setSpeed?.(Math.hypot(c.back, c.up) * 0.9 * rate);
+    flight?.duck?.(Boolean(cast.her?.talking)); // the air and the water dip under her lines, the set does not (chapter 4's flight)
     if (filter) filter.frequency.setTargetAtTime(rate > 0.99 ? 20000 : 400 + 19600 * Math.pow((rate - 0.2) / 0.8, 3), filter.context.currentTime, 0.04);
     for (const [i, [wt, side]] of WHOOSH.entries()) if (i > lastWhoosh && t >= wt) { lastWhoosh = i; if (t - wt < 0.2) flight?.whoosh?.(side); }
     for (const [i, [ct, pan]] of CRIES.entries()) if (i > lastCry && t >= ct) { lastCry = i; if (t - ct < 0.3) try { s.sfx?.('flyers', { pan }); } catch { /* no cry in this chapter's sounds */ } }
