@@ -193,10 +193,10 @@ export const LOOKS = {
   },
   gold: { // the last chorus: the brightest and the warmest, a gold edge under a plum sky
     record: 'vidlag', night: true, amount: 1,
-    sun: { color: '#ffc070', intensity: 0.65 }, hemi: { sky: '#8a5c38', ground: '#ffe8b4', intensity: 7.5 },
+    sun: { color: '#ffc070', intensity: 0.65 }, hemi: { sky: '#6a3c2c', ground: '#ffe8b4', intensity: 7.5 },
     sky: { zenith: '#b0643a', horizon: '#ffd070', glow: '#ffe09a', cloud: '#ffe0a0', cloudShade: '#a8603c' },
     fog: { color: '#c88a50', sunColor: '#ffc860' },
-    water: { horizon: '#ffc860', zenith: '#b06a38', deep: '#8a5a2c', glint: '#fff4c0' },
+    water: { horizon: '#ffc860', zenith: '#8a3a2a', deep: '#5a2418', glint: '#fff4c0' },
     mosiCloud: '#ffe0a8', exposure: 1, envIntensity: 0.7,
   },
   night: { // after the set: the calm night the party is heard far away in, and the roar
