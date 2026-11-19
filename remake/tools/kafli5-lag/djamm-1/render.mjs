@@ -18,7 +18,7 @@ import { TAKES, loadTake, resample } from './lib/takes.mjs';
 import { sectionStats, callCheck, barRms, mono, lowpassed, biggestJump, fft } from './lib/analyze.mjs';
 import { steady, cents } from './lib/pitch.mjs';
 import { renderDj, readLines, SLOT } from './lib/dj.mjs';
-import { PRUFA, dropLayers, highpass4, deEss } from './lib/prufa.mjs';
+import { PRUFA, dropLayers, highpass4, deEss, limitFx } from './lib/prufa.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '../../../..');
@@ -99,7 +99,7 @@ let animalsShipped = null;
 if (TRIAL) {
   animalsShipped = { L: Float32Array.from(animals.L), R: Float32Array.from(animals.R) };
   limit(animalsShipped.L, animalsShipped.R, 10 ** (-7.5 / 20));
-  highpass4([animals.L, animals.R], PRUFA.animalsHp); // fix 2: the 11-16 Hz rumble out before their limiter
+  for (let k = 0; k < PRUFA.animalsHpOrder / 4; k++) highpass4([animals.L, animals.R], PRUFA.animalsHp); // fix 2: the 11-16 Hz rumble out before their limiter
 }
 // their peaks (the forest's roars, every group at once) held under the band's own: a look-ahead limiter on the animals alone
 const animalsLim = limit(animals.L, animals.R, 10 ** (-7.5 / 20));
@@ -112,7 +112,7 @@ stems.horn = horn;
 // with the band's gain, so the crowd keeps its place against the band
 const fxOut = renderFx(TRIAL ? dropLayers(score.fx) : score.fx, n, ROOT); // fix 1: the drops' layers
 scale(fxOut.stem, gBand * 10 ** (FX_DB / 20));
-const fxLim = limit(fxOut.stem.L, fxOut.stem.R, 10 ** (-6 / 20));
+const fxLim = TRIAL ? limitFx(fxOut.stem.L, fxOut.stem.R, score.fx.filter(e => e.snd === 'sub').map(e => e.beat)) : limit(fxOut.stem.L, fxOut.stem.R, 10 ** (-6 / 20));
 stems.fx = fxOut.stem;
 let fxShipped = null;
 if (TRIAL) {
@@ -133,11 +133,12 @@ for (const st of Object.values(stems)) for (let i = 0; i < n; i++) {
   st.L[i] *= dj.duck[i];
   st.R[i] *= dj.duck[i];
 }
-// fix 3 (the trial): a gentle de-esser on her stem, before her limiter
-const deEssed = TRIAL ? deEss(dj.stem) : null;
-if (deEssed) say(`prufa de-esser: at most ${deEssed.mostDb.toFixed(1)} dB, ${deEssed.secondsOver05Db.toFixed(2)} s over 0.5 dB`);
 // her shouts' peaks held under the band's: a look-ahead limiter on her stem alone (her level is set by loudness, not by peak)
 const djLim = limit(dj.stem.L, dj.stem.R, 10 ** (-4 / 20));
+// fix 3 (the trial): a gentle de-esser on her stem, after her limiter (before it, it only eased the limiter, which then let the
+// whole word, s and all, up again: the first trial run measured her s 1 dB louder)
+const deEssed = TRIAL ? deEss(dj.stem) : null;
+if (deEssed) say(`prufa de-esser: at most ${deEssed.mostDb.toFixed(1)} dB, ${deEssed.secondsOver05Db.toFixed(2)} s over 0.5 dB`);
 stems.dj = dj.stem;
 // the very end: the last hit rings for TAIL_SEC; only its last 0.3 s is eased to zero
 const easeN = Math.round(0.3 * SR);
