@@ -4,6 +4,9 @@
 Flugeðla eltir það: í svigi milli trjánna, eftir tröð sem sveigir, upp í skýin og hratt niður aftur. Egill horfir bara; enginn
 spilar. Hvorki Egill né hnakkurinn eru í myndinni.
 
+**Myndin breyttist mikið eftir dóma eigandans (kaflar 12 og 13). Kafli 14 er planið eins og það stendur núna:** um 60 sekúndur,
+hratt flug á takti, með flugeðluhóp ofan skýja, dýfu, gljúfri og fossi. Kaflar 3 til 8 lýsa fyrstu gerðinni.
+
 Þetta skjal er planið. Ekkert er smíðað fyrr en eigandinn hefur lesið það og sagt já, og eftir það heldur hvert skref ekki áfram
 nema hann hafi skoðað með gleraugunum og sagt já (kafli 7).
 
@@ -248,3 +251,72 @@ getum haft nýr og fjær, hafa það svona 10 sec atriði, svo þegar við komum
 **Umferð 3 (18. nóvember 2026):** „flest mjög gott, en kíktu á F1 bug report, tvær eðlur fara inní hvor aðra“. Leiðin stendur.
 Villan: tvær næstu flugeðlurnar í hópnum fóru hvor gegnum aðra. Reglan um að ekkert fari inn í annað gildir nú líka milli
 allra í hópnum (minnst 1,5 m á milli og minnst 1 m að Flugeðlu okkar), og mælt er á skjástærð eigandans (1490×740) auk 16:10.
+
+**Endirinn (19. nóvember 2026):** „Já, endirinn er góður“. Hann svaraði einni spurningu, hvort endirinn væri eins og hann sá
+hann fyrir sér. Hann gerði enga athugasemd við fossinn, hraðann né hljóðið; það er lestur Claude að þau standi.
+
+## 14. Myndin eins og hún stendur, og frágangurinn
+
+Þessi kafli er planið núna. Kaflar 3 til 8 lýsa fyrstu gerðinni (hægri og varfærinni) og gilda aðeins þar sem hér er vísað í
+þá. Myndin er 59,5 sekúndur, ekki 76.
+
+### Leiðin
+
+Tímarnir eru rauntími í sekúndum, mældir á smíðinni (`samflug3d` 7ad5d52).
+
+| Tími | Atriði | Hvað gerist |
+|---|---|---|
+| 0–14,4 | **1. Skógarspretturinn** | Flogið aftur á bak á 17–19 m/s, 3,8 m yfir jörð. Stofnar þjóta fram hjá 4–5 m frá okkur. Flugeðla hangir hjá okkur og kinkar kolli í takt (4,8–7,9 og 11,9–14,4). Hægmynd 2,9–4,3. |
+| 14,4–20,6 | **2. Upp í skýið** | Klifur á 24 m/s á eftir fiðrildinu. Inni í hvítunni skiptir sviðið úr skóginum yfir í árdalinn úr kafla 4. |
+| 20,6–31,2 | **3. Hópurinn ofan skýja** | Sjö flugeðlur í þremur lögum: þrjár fjær (um −1,6 %), tvær í miðju og tvær nær (allt að +1,3 %). Ein sveipar undir hana. Þær taka hjól á taktinum, í hægmynd 25,4–26,9, og sveigja frá þegar fiðrildið lætur sig falla. |
+| 31,2–36,7 | **4. Dýfan** | Hún steypir sér með hausinn á undan (hallar 75° niður). Myndavélin er fyrir neðan hana, fellur á 29 m/s og horfir upp til hennar. Hápunkturinn er 34,4–36,7, komin niður úr skýinu yfir gljúfrinu: búkurinn +2,6 % og goggurinn +5,7 %. |
+| 36,7–45 | **5. Gljúfrið** | Aftur á bak á 15 m/s, 12 m yfir ánni milli veggjanna, með þrjú stöldur. Átján litlir fuglar nær og fjær; þrír skjótast framan við skjáinn. |
+| 45–50 | **6. Upp fossinn** | Myndavélin stígur á undan henni, horfir 34° niður og snýr að fallandi vatninu. Úði og dropar koma að okkur frá vatninu. |
+| 50–59,5 | **7. Fossbrúnin og endirinn** | Hún staldrar við á brúninni. Hópurinn kemur upp úr gljúfrinu, lítill og djúpt inni (frá 52,1), og flugeðla kallar (53,0). Hann raðar sér í lögin þrjú (53,8–54,2), bylgja fer frá fjær til nær (54,2–54,7), allar halla sér 30° sem ein (55,2–55,7) og þjóta fram hjá okkur (55,7). Síðasta myndin (56,9–59,1): hún ein í miðri mynd, búkurinn +2,35 % og goggurinn +5 %, með fiðrildið við gogginn. |
+
+Flugeðla nær fiðrildinu aldrei. Fiðrildið ræður ferðinni allan tímann.
+
+### Reglurnar eins og þær standa
+
+Þar sem þessar víkja frá kafla 2 gilda þessar.
+
+- **Skjáflöturinn er 17,5 m frá myndavélinni** og Flugeðla flýgur 8,4 m frá henni. Búkurinn er +2 % eða meira út nær allan
+  tímann (miðgildi +2,35 %), með 2–3 sekúndna stöldrum þar sem hún er kyrr í myndinni og heimurinn streymir.
+- **Þakið er 6 %.** Ekkert fer lengra út (mest mælt +5,91 %).
+- **Ramminn.** Það sem brún sker má vera framan við skjáinn aðeins augnablik (stefnt undir 0,4 s). Gljúfurveggirnir liggja við
+  skjáinn þar sem hliðarbrúnirnar skera þá (mest +0,5 % á 16:10 og +1,0 % á 1490×740).
+- **Ekkert fer inn í annað.** Í hópnum eru minnst 1,5 m á milli og minnst 1 m að henni. Fiðrildið er minnst 0,67 m frá húð
+  hennar og fuglarnir minnst 1,65 m.
+- **Ekkert birtist skyndilega.** Hópurinn og fuglarnir koma litlir og djúpt inni eða inn frá brún fyrir aftan skjáinn.
+- **Myndavélin lifir.** Hún hallar sér mest 20°, lítur upp og niður allt að 60° og snýst snöggt mest 60° á sekúndu, með mjúkum
+  endum.
+- **Takturinn.** 125 slög á mínútu (slagið 0,48 s). Hreyfingar lenda á slögum. Í hægmynd fer myndin niður í fimmtung hraðans í
+  um eina sekúndu; tónlistin heldur taktinum. Myndin endar á enda sextán slaga hendingar í laginu.
+- **Þyngd.** Stefnt er að 15 ms eða minna á ramma með gleraugun. Mælt: 11–15,6 ms.
+
+### Hljóð
+
+Settið hennar DJ Flugeðlu úr kafla 5 liggur undir allri myndinni; kafli 6 („engin tónlist í fyrstu gerð“) gildir ekki lengur.
+Loftstraumur, hvinur og fossniður koma úr kafla 4, og flugeðlukall þegar hópurinn kemur aftur. Lagið lækkar ekki undir tali,
+eins og í flugmyndinni í kafla 4.
+
+### Frágangur (skref 3)
+
+1. **Myndin verður sýningin sjálf.** `?chapter=flugedla3d` spilar hana án `profa=fjor`: gleraugnamyndin ræsir hana, og á eftir
+   síðustu myndinni kemur lokaspjaldið með „Aftur“ og „Hætta“, eins og í „Grameðla kemur!“. Hún fer ekki í hring.
+2. **Tal.** Setningarnar þrjár úr kafla 6, með rödd Flugeðlu úr kafla 4, gerðar með raddtólum leiksins (nýtt sett,
+   `flugedla3d`) og samþykktar eftir eyranu á já/nei síðu: „Fiðrildi!“ í byrjun sprettsins, „Jibbí!“ þegar hún steypir sér, og
+   „Þarna ertu.“ mjúkt í síðustu myndinni, þegar fiðrildið svífur við gogginn.
+3. **Spjald í „3D myndbönd“** í bókinni, með kyrrmynd úr myndinni sjálfri.
+4. **Skjástærðir.** Reglurnar mældar á 1280×800, 1024×768, 1280×720, 1170×540 og 1490×740.
+5. **Tiltekt.** Prufukaflinn `samflug3d` er fjarlægður, og lykilrammasíðurnar og prufurnar `beygja` og `upp` úr skrefi 1 með
+   því sem myndin notar ekki. Mælitólin standa.
+6. **Próf** sýningarinnar, og öll prófasvíta endurgerðarinnar einu sinni í lokin.
+
+Eigandinn horfir og hlustar, og ákveður svo sameiningu.
+
+### Ekki smíðað
+
+Þriðja hægmyndin, vængbroddur sem strýkst við ána og gljúfrið séð gegnum gat í skýjunum fyrir dýfuna. Léttari gerð af fjarlægu
+flugeðlunum þarf breytingu á vélinni. Fossinn er enn fölur flötur á kyrrmynd (vatnið í kafla 4 hvítnar þegar það fellur); honum
+er ekki breytt nema eigandinn biðji um það.
