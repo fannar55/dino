@@ -46,7 +46,7 @@ export function sectionAt(setBeat) {
 // (to a lens), over so many beats, always inside the style's speeds (STYLE.md section 8: tests/kafli5-video.test.mjs holds
 // them). With less motion asked for, only the cuts.
 // Round 2 (the owner's list of 2026-11-19): the people's new acting is in the cut: the DJ's two scratches and two of her calls
-// (140, 205), Mosi's turn (328 and 332) and his march (72, 136, 388, 442), and Slóeðla's three stances (shy: 112, 224; whole: 308,
+// (140, 205), Mosi's turn (328 and 332) and his march (72, 132, 388, 442), and Slóeðla's three stances (shy: 112, 224; whole: 308,
 // 340, her surge on 428; proud: 434, and her turn with the DJ's lap round her, 446).
 // The big parts are the animals', close (the owner, 2026-11-18): the three shots of the whole pool (choir_wide, set_low_wide,
 // set_water_low) are for where the music wants air: a drop's first hit, the forest's answers, the last hit of all.
@@ -75,8 +75,8 @@ export const CAMERA = [
   { beat: 120, cut: 'set_low_wide', then: { push: 2, beats: 7 } },
   // each group's part: all of it, then close
   { beat: 128, cut: 'set_grazers', then: { push: 1, beats: 3.5 } },
-  { beat: 132, cut: 'set_grazers_close' },
-  { beat: 136, cut: 'bank_talk' }, // Mosi stomps with them, too big for it
+  { beat: 132, cut: 'bank_talk' }, // Mosi stomps with them, too big for it
+  { beat: 136, cut: 'set_grazers_close' },
   { beat: 140, cut: 'set_flugedla', then: { push: 0.6, beats: 5 } }, // the DJ scratches the record (142.5 to 143.5) and calls the turtles, a wing out to them
   { beat: 146, cut: 'set_turtles', then: { push: 1.5, beats: 5 } }, // slow: a long push in
   { beat: 152, cut: 'set_turtles_close', then: { orbit: 14, beats: 7 } }, // "Og hratt!": they spin
