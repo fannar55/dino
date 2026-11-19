@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { CHOIR, GROUPS, STEPS, SPOTS, WADE, SHOTS, SHOWS, GROUP_SHOTS, seatsOf, around } from '../chapters/kafli5-pool.js';
+import { CHOIR, GROUPS, STEPS, SPOTS, WADE, SHOTS, SHOWS, GROUP_SHOTS, seatsOf, around, HER_TURN_AT } from '../chapters/kafli5-pool.js';
 import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
 import { LOOKS } from '../engine/looks.js';
 import { LIMITS, createDirector } from '../engine/camera/director.js';
@@ -123,6 +123,7 @@ const WHERE = {
   set_her_close: { sloedla: WADE.at },
   set_her_low: { sloedla: WADE.at },
   set_her_reed: { sloedla: WADE.at },
+  set_her_lap: { sloedla: HER_TURN_AT.at }, // (where she turns in the last chorus)
   set_sun: { sloedla: WADE.at },
   set_egill_close: { egill: SPOTS.egill },
   set_bank_hop: { egill: SPOTS.egill, mosi: SPOTS.mosi },

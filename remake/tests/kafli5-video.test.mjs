@@ -3,12 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BENDS, CAMERA, danceBeatAt, sectionAt, shielded } from '../chapters/kafli5-video.js';
-import { SHOTS, SHOWS, SPOTS, GROUPS, GROUP_SHOTS, seatsOf } from '../chapters/kafli5-pool.js';
+import { SHOTS, SHOWS, SPOTS, WADE, GROUPS, GROUP_SHOTS, seatsOf } from '../chapters/kafli5-pool.js';
 import { SONG } from '../chapters/kafli5-set.js';
 import { WORD, WORDS } from '../chapters/kafli5-show-score.js';
 import { LETTERS, ROOM } from '../engine/show/big-number.js';
 import { danceOf, memberOf } from '../chapters/kafli5-dances.js';
-import { egillAt, flugedlaAt, clockAt } from '../chapters/kafli5-people-score.js';
+import { egillAt, flugedlaAt, mosiAt, sloedlaAt, clockAt, SCRATCHES, POINTS, LAP, MOSI_TURN } from '../chapters/kafli5-people-score.js';
 import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createPointResolver } from '../engine/points.js';
@@ -358,6 +358,38 @@ test('the second drop\'s shots hold the wildest of each dance: the lizards\' rin
       }
     }
   }
+});
+
+test('the people\'s new acting is seen (round 2): the DJ\'s scratches and two of her calls, her lap, Mosi\'s march and his turn, and each of Slóeðla\'s three stances', () => {
+  const her = (beat, aspect) => {
+    const pose = sloedlaAt(clockAt(beat));
+    const h = (WADE.heading * Math.PI) / 180;
+    const at = [WADE.at[0] + Math.cos(h) * pose.step, WADE.at[1] + Math.sin(h) * pose.step];
+    return frameAt(beat, aspect).holds(new THREE.Vector3(at[0], FAR_POOL.level + 2, at[1]), 0.05);
+  };
+  const flugedla = (beat, aspect) => { const p = flugedlaAt(clockAt(beat)); return frameAt(beat, aspect).holds(new THREE.Vector3(p.at[0], p.at[1] + 2.6, p.at[2])); };
+  for (const aspect of ASPECTS) {
+    // the scratches, and the calls that come out of them (to the turtles at 144, to the beetles at 208)
+    for (const [from, to] of SCRATCHES) for (let b = from + 0.3; b < to - 0.3; b += 0.25) assert.ok(flugedla(b, aspect) && shotAt(b) === 'set_flugedla', `the scratch at ${b} (${aspect})`);
+    // (her wing going out to them as she says their name)
+    const called = POINTS.filter(point => [point.from + 0.5, point.at, point.at + 0.5].every(b => shotAt(b) === 'set_flugedla' && flugedla(b, aspect)));
+    assert.ok(called.length >= 2, `${called.map(point => point.id)} called in her own shot (${aspect})`);
+    // her lap round Slóeðla: both in the frame for most of it
+    let seen = 0;
+    let all = 0;
+    for (let b = LAP.at; b <= LAP.at + LAP.beats * (LAP.round.length - 1); b += 0.25, all++) if (flugedla(b, aspect) && her(b, aspect)) seen++;
+    assert.ok(seen / all > 0.7, `the lap: both in the frame ${seen} of ${all} times (${aspect})`);
+    // Slóeðla in each stance, in a shot of her own
+    for (const [beat, stance] of [[116, 'shy'], [228, 'shy'], [310, 'whole'], [344, 'whole'], [429, 'the surge'], [436, 'proud'], [450, 'proud, turning']]) {
+      assert.ok(her(beat, aspect) && (SHOWS[shotAt(beat)].includes('sloedla') || ['set_water_low'].includes(shotAt(beat))), `${stance} at ${beat} in ${shotAt(beat)} (${aspect})`);
+    }
+  }
+  // Mosi: his march and his turn, each in two shots of him
+  const his = beat => SHOWS[shotAt(beat)].includes('mosi');
+  const marching = CAMERA.filter((entry, k) => his(entry.beat) && [0.5, 1.5, 2.5].some(t => mosiAt(clockAt(entry.beat + t)).march.weight > 0.99 && entry.beat + t < (CAMERA[k + 1]?.beat ?? END)));
+  assert.ok(marching.length >= 2, `he marches in ${marching.map(entry => `${entry.cut} at ${entry.beat}`)}`);
+  const turning = CAMERA.filter((entry, k) => his(entry.beat) && entry.beat < MOSI_TURN.to && (CAMERA[k + 1]?.beat ?? END) > MOSI_TURN.from);
+  assert.ok(turning.length >= 2, `he turns in ${turning.map(entry => `${entry.cut} at ${entry.beat}`)}`);
 });
 
 test('every move of the camera in the set is slow enough for the style and over before the next cut', () => {

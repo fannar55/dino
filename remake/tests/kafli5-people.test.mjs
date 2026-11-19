@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { SONG } from '../chapters/kafli5-set.js';
 import { BENDS, danceBeatAt } from '../chapters/kafli5-video.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
-import { CHOIR, WADE, headingTo } from '../chapters/kafli5-pool.js';
+import { CHOIR, WADE, HER_TURN_AT, headingTo } from '../chapters/kafli5-pool.js';
 import {
   BEAT, scoreBeat, clockAt, energy, egillAt, mosiAt, flugedlaAt, sloedlaAt, JUMPS, EGILL_JUMPS, STOMPS, SHOUTS, FLIGHTS, DECKS, HER_TURN, HER_TURNS,
   MOSI_WALK, MARCH, MARCHES, MOSI_TURN, SCRATCH, SCRATCHES, POINTS, BANG, LAP, HER_WADE, HER_MIDDLE, HER_STANCES, HER_DUCK,
@@ -382,6 +382,7 @@ test('Slóeðla in three stances: shy (her head and her tail alone), her whole b
   const [out, half, round, back] = [at('sloedla', 438.5), at('sloedla', (HER_WADE.turn[0] + HER_WADE.turn[1]) / 2), at('sloedla', HER_WADE.turn[1]), at('sloedla', OVER)];
   assert.ok(Math.abs(out.step - HER_WADE.far) < 0.05 && Math.abs(Math.abs(half.spin) - 180) < 3 && Math.abs(Math.abs(round.spin) - 360) < 1e-6 && back.step === 0, `out, round and back (${out.step}, ${half.spin}, ${round.spin}, ${back.step})`);
   assert.ok(HER_WADE.turn[1] - HER_WADE.turn[0] >= 23, 'a slow turn: two dozen beats');
+  assert.ok(Math.hypot(HER_TURN_AT.at[0] - HER_MIDDLE[0], HER_TURN_AT.at[1] - HER_MIDDLE[1]) < 1e-9 && HER_TURN_AT.far === HER_WADE.far, 'the lap shot looks where she turns (kafli5-pool.js HER_TURN_AT)');
   assert.ok(mean(444, 452, p => p.nod) > mean(312, 320, p => p.nod) + 4 && mean(444, 452, p => p.lift) > 0.1, 'her head high');
 });
 

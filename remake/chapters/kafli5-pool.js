@@ -91,6 +91,11 @@ export const STEPS = [
 ];
 /** Where she wades to for the whole song (scene 6): out in the pool, nearer Egill, in front of the choir. */
 export const WADE = { at: around(222, 12), heading: toEgill(around(222, 12)) };
+/**
+ * Where she turns in the last chorus (kafli5-people-score.js HER_WADE, HER_MIDDLE: the people's test holds the two the same):
+ * `far` m on from WADE, the way she faces there.
+ */
+export const HER_TURN_AT = { far: 4, at: [WADE.at[0] + 4 * Math.cos((WADE.heading * Math.PI) / 180), WADE.at[1] + 4 * Math.sin((WADE.heading * Math.PI) / 180)] };
 
 /** Grameðla's ridge, far in the west beyond the falls (world/ardalur/far-land.js GRAMEDLA.from): where the roar comes from (scene 7). */
 export const WEST = [-2578, 120];
@@ -142,6 +147,10 @@ const SET_SHOTS = {
   // her horn in the dusk: from the pool's middle, low, her dark reed and the trees behind her and the air over her crest in frame
   // (the notes of her horn rise eight metres there: kafli5-show.js), the low sun just off the frame's left
   set_her_reed: seen(WADE.at, 252, 11, 1.0, 3.8, 46),
+  // the last chorus: her slow turn in the middle of the pool and the DJ's low lap round her (kafli5-people-score.js LAP: a ring 8.5
+  // m round her, flown round the far side of her from the south-east to the east), from the water south of her, looking north (55
+  // degrees off the sun): she is a third of the frame's width, the whole ring is in it and the north bank behind
+  set_her_lap: seen(HER_TURN_AT.at, 270, 20, 1.6, 2.6, 44),
   // the sun in its nightcap, in the dusk only (the owner's wish of 2026-11-11): the one shot that looks at the sun on purpose, when
   // the dusk has dimmed its light. From the north-east, low over the water, straight toward it (215 degrees, 22 up): her head and
   // crest dark at the foot of the frame, the sleepy sun over them
@@ -207,6 +216,7 @@ export const SHOWS = {
   set_her_close: ['sloedla'],
   set_her_low: ['sloedla'],
   set_her_reed: ['sloedla'],
+  set_her_lap: ['sloedla'],
   set_sun: ['sloedla'],
   set_egill_close: ['egill'],
   set_bank_hop: ['egill', 'mosi'],

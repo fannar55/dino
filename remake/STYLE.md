@@ -230,6 +230,11 @@ ofan; hraðamörkin standa óbreytt.
 - **Egill sýnir:** þegar Flugeðla biður salinn að klappa („Klappið með!“), lyfta höndum („Hendur upp, Egill!“) eða hoppa
   („Hopp!“) er Egill í mynd að gera það, í nærmynd (`set_egill_close`) eða með Mosa á bakkanum á bak við sig (`set_bank_hop`,
   bæði „Hopp!“), takt eða lengur: nógu lengi til að herma eftir.
+- **Nýr leikur sést:** það sem fólkið gerir nýtt er í mynd (eigandinn, 2026-11-19, lota 2), og prófið spyr hvort það sé í
+  rammanum á 16:10 og uppréttri spjaldtölvu: plötuskröp Flugeðlu og tvö af köllum hennar til hópanna í hennar eigin skoti
+  (`set_flugedla`, 140 og 205), hringflug hennar um Slóeðlu í lokaviðlaginu (`set_her_lap`: þær báðar í rammanum mestallan
+  hringinn), gangur Mosa og snúningur hans í tveimur skotum hvort, og Slóeðla í skoti af sér á hverju af þremur stigum sínum
+  (feimin, allur líkaminn, stolt og snýr sér úti í miðri tjörn).
 - **Stóru orðin fela engan:** orðin sem Flugeðla hrópar („AFTUR!“, „STOPP!“, „HOPP!“) standa í efri hluta skjásins
   (`kafli5-show-score.js`, `WORD.at`). Skot sem orð stendur yfir hefur þá sem það er hrópað á neðarlega í rammanum, undir
   orðinu og yfir textaboxinu: höfuð þeirra neðar en fótur orðsins (um miðjan 16:10 skjá; ofar á uppréttri spjaldtölvu, þar

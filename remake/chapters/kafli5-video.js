@@ -45,6 +45,9 @@ export function sectionAt(setBeat) {
 // move while the shot lasts (`then`): a push in (metres; negative pulls back), an orbit round what it looks at (degrees) or a zoom
 // (to a lens), over so many beats, always inside the style's speeds (STYLE.md section 8: tests/kafli5-video.test.mjs holds
 // them). With less motion asked for, only the cuts.
+// Round 2 (the owner's list of 2026-11-19): the people's new acting is in the cut: the DJ's two scratches and two of her calls
+// (140, 205), Mosi's turn (328 and 332) and his march (72, 136, 388, 442), and Slóeðla's three stances (shy: 112, 224; whole: 308,
+// 340, her surge on 428; proud: 434, and her turn with the DJ's lap round her, 446).
 // The big parts are the animals', close (the owner, 2026-11-18): the three shots of the whole pool (choir_wide, set_low_wide,
 // set_water_low) are for where the music wants air: a drop's first hit, the forest's answers, the last hit of all.
 // When Flugeðla asks the room to clap, lift its hands or hop, Egill is in the picture doing it, long enough to copy.
@@ -71,10 +74,11 @@ export const CAMERA = [
   { beat: 112, cut: 'set_her_close', then: { orbit: 14, beats: 7 } },
   { beat: 120, cut: 'set_low_wide', then: { push: 2, beats: 7 } },
   // each group's part: all of it, then close
-  { beat: 128, cut: 'set_grazers', then: { push: 2, beats: 7 } },
-  { beat: 136, cut: 'set_grazers_close' },
-  { beat: 140, cut: 'bank_talk' }, // Mosi stomps with them, too big for it
-  { beat: 144, cut: 'set_turtles', then: { push: 2, beats: 7 } }, // slow: a long push in
+  { beat: 128, cut: 'set_grazers', then: { push: 1, beats: 3.5 } },
+  { beat: 132, cut: 'set_grazers_close' },
+  { beat: 136, cut: 'bank_talk' }, // Mosi stomps with them, too big for it
+  { beat: 140, cut: 'set_flugedla', then: { push: 0.6, beats: 5 } }, // the DJ scratches the record (142.5 to 143.5) and calls the turtles, a wing out to them
+  { beat: 146, cut: 'set_turtles', then: { push: 1.5, beats: 5 } }, // slow: a long push in
   { beat: 152, cut: 'set_turtles_close', then: { orbit: 14, beats: 7 } }, // "Og hratt!": they spin
   { beat: 160, cut: 'set_frogs', quick: true }, // "frosk-
   { beat: 161, cut: 'set_frogs_mid', quick: true }, // frosk-
@@ -86,8 +90,9 @@ export const CAMERA = [
   { beat: 180, cut: 'set_lizards_run', then: { push: 1.2, beats: 7 } },
   { beat: 188, cut: 'set_lizards_close' },
   { beat: 192, cut: 'set_flyers', quick: true }, // they take off, at the camera and over it
-  { beat: 194, cut: 'set_sky', then: { zoom: 44, beats: 11 } }, // and fly their eight over the pool, diving past the camera
-  { beat: 208, cut: 'set_beetles', then: { push: 0.8, beats: 7 } }, // the beetles drum on their log
+  { beat: 194, cut: 'set_sky', then: { zoom: 44, beats: 10 } }, // and fly their eight over the pool, diving past the camera
+  { beat: 205, cut: 'set_flugedla' }, // the DJ scratches (207.25) and calls the beetles, a wing out to them
+  { beat: 209, cut: 'set_beetles', then: { push: 0.8, beats: 6 } }, // the beetles drum on their log
   { beat: 216, cut: 'set_low_wide', then: { push: 2, beats: 7 } },
   { beat: 224, cut: 'set_her_low', then: { push: 1.5, beats: 7 } }, // the dragonflies dart to her
   // her horn, in the dusk: low, the dark reed behind her and the air over her crest for her notes to rise in; the sun over her,
@@ -122,8 +127,9 @@ export const CAMERA = [
   { beat: 318, cut: 'set_beetles', quick: true },
   { beat: 320, cut: 'set_grazers_close', then: { push: 1, beats: 3.5 } },
   // everyone sings her tune
-  { beat: 324, cut: 'set_low_wide', then: { orbit: -3, beats: 7 } },
-  { beat: 332, cut: 'pool_open', then: { push: 1.2, beats: 7 } }, // the three on Egill's bank, dancing
+  { beat: 324, cut: 'set_low_wide', then: { push: 1, beats: 3.5 } },
+  { beat: 328, cut: 'set_bank_hop' }, // Mosi turns right round where he stands, Egill beside him
+  { beat: 332, cut: 'pool_open', then: { push: 1.2, beats: 7 } }, // the three on Egill's bank, dancing: Mosi comes round again
   { beat: 340, cut: 'set_her_close', then: { orbit: -14, beats: 7 } },
   { beat: 348, cut: 'choir_wide', then: { push: 2.5, beats: 7 } },
   // Stoppdans: everyone dancing big; close on the frogs, the cut on a leap, and the camera going on round them as "Stopp!" (362)
@@ -154,14 +160,13 @@ export const CAMERA = [
   { beat: 424, cut: 'set_flugedla' },
   // the last chorus: everyone as it bursts in; then the band's phrases to the groups, each dance at its biggest, and her horn's
   // three answers to her; everyone again for her last note
-  { beat: 428, cut: 'set_low_wide', then: { push: 1.2, beats: 3.5 } },
+  { beat: 428, cut: 'set_water_low', then: { push: 1.2, beats: 3.5 } }, // she surges up out of the water in the middle of it all
   { beat: 432, cut: 'set_frogs_mid', quick: true },
-  { beat: 434, cut: 'set_her_close' },
+  { beat: 434, cut: 'sloedla_out' }, // she wades out toward the middle, proud
   { beat: 438, cut: 'set_grazers_close', quick: true },
   { beat: 440, cut: 'set_turtles_close', quick: true }, // spinning on their shells
-  { beat: 442, cut: 'sloedla_out' },
-  { beat: 446, cut: 'bank_talk' }, // Egill and Mosi in the last chorus
-  { beat: 450, cut: 'set_her_low' },
+  { beat: 442, cut: 'bank_talk' }, // Egill and Mosi in the last chorus: he marches
+  { beat: 446, cut: 'set_her_lap' }, // she turns slowly right round in the middle, and the DJ flies her lap round her
   { beat: 454, cut: 'set_beetles', quick: true }, // the drum run down the log
   { beat: 456, cut: 'set_water_low', then: { push: 1.2, beats: 3.5 } },
   // good night: the band's five hits, each group in its close shot as it sings its note and strikes its pose, high to low; her
