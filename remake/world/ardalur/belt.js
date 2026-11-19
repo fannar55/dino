@@ -114,7 +114,9 @@ export function* beltSteps({ terrain, index, route, samples, seed, paint, ground
       const x = (si + jx) * S, z = (sj + jz) * S;
       const k = index.nearest(x, z, reach + C, out);
       if (k < 0 || !beltLand(terrain, route, belt, samples, k, out.dist, x, z, belt.inner)) continue;
+      // its edge toward the river is ragged: in a glade of the groves it begins up to `ragged` m further out
       const g = groveAt(x, z, grove);
+      if (out.dist < belt.inner + belt.ragged * (1 - smooth(g / 0.6))) continue;
       if (roll >= belt.chance * (belt.glade + (1 - belt.glade) * smooth(g / 0.5))) continue;
       const w = terrain.where(x, z);
       if (w.e < 2 || w.toPool < route.pool.radius + 5) continue;

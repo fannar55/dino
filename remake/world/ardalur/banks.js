@@ -148,10 +148,13 @@ const REAL = {
 //               mix's grove plants (fading out over `fade` m); her way out and up (CLEAR_OF_HER, HIGH), the take-off still's view
 //               (VIEW) and the white tree's own patch (`treeless`) keep their room as everywhere.
 //   LUSH.budget   a section's triangles at the finest level its plants are drawn at (GROVE.budget's measure), raised as far as the
-//               measured frame allows (the trial's bench: qa/remake/kafli4/skogur).
+//               measured frame allows (the trial's bench, 2026-11-19: uncapped, every frame of the flight was inside the tablet's
+//               budget; a section's far plants are cards, so the measure overstates what it draws). It trims only the take-off's
+//               section, its thinnest groves first (the take-off's forest counts as a grove's heart); the others cost 80k to 290k.
 //   LUSH.belt     the forest on the horizon: beyond the corridor (terrain.js CORRIDOR), from `inner` to `outer` m from her path, below
 //               the falls, a strip of ground (`cell` m, the valley's own paint, `sink` m under the land's height) and on it trees as
-//               their cards (world/forest/cards.js), always cards, one a `spacing` m square at `chance` (less in a glade), of the
+//               their cards (world/forest/cards.js), always cards, one a `spacing` m square at `chance` (`glade` of it in a glade of
+//               the groves, where its edge also begins up to `ragged` m further out, so it is no straight wall), of the
 //               valley's species (the Fen's swamp conifers in the Fen). Each section builds its own and shows it with its land;
 //               hidden while the far land (far-land.js) shows, which stands in for it from the crest of E.
 const REAL_LUSH = {
@@ -164,9 +167,9 @@ const REAL_LUSH = {
 export const LUSH = {
   real: REAL_LUSH,
   takeOff: { reach: 130, fade: 40, thick: 2.2 },
-  budget: 145000,
+  budget: 400000,
   belt: {
-    inner: 148, outer: 300, cell: 10, sink: 0.35, spacing: 7.5, chance: 0.85, glade: 0.5,
+    inner: 152, ragged: 45, outer: 300, cell: 10, sink: 0.35, spacing: 7.5, chance: 0.85, glade: 0.45,
     mix: [['broadleaf', 0.5], ['araucaria', 0.3], ['treeFern', 0.2]], fen: [['swampConifer', 0.7], ['broadleaf', 0.3]],
   },
 };

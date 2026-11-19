@@ -620,6 +620,27 @@ test('none of the white tree\'s trees in the valley stands at the flight\'s came
   }
 });
 
+test('nor any tree of the lush valley\'s thick forest round the snag (chapter 4 grows it, kafli4-flight.js lushValley), in that half minute', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { world, watched } = await play();
+    assert.ok(world.forest.stats.belts.some(Boolean), 'the chapter flies through the lush valley');
+    const trees = world.forest.stats.sections.filter(Boolean).flatMap(part => part.userData.placements)
+      .filter(p => !p.own && SPECIES[p.name]?.tall && Math.hypot(p.x - world.forest.route.tree[0], p.z - world.forest.route.tree[2]) < 600).map(plantVolumes);
+    assert.ok(trees.length > 400, `${trees.length} trees (${shape})`);
+    const blocked = new Map();
+    for (const f of watched.sight) {
+      const line = [{ a: f.camera, b: f.egill, r: 0.1, bone: 'the line to Egill' }, { a: f.camera, b: f.camera, r: 0.5, bone: 'the camera' }];
+      for (const tree of trees) {
+        const key = `${tree.name} at ${tree.x.toFixed(0)}, ${tree.z.toFixed(0)}`;
+        if (blocked.has(key)) continue;
+        const hit = reachInto(tree, line);
+        if (hit) blocked.set(key, `${hit.bone} at ${f.t.toFixed(1)} s (${f.shot})`);
+      }
+    }
+    assert.deepEqual([...blocked].map(([tree, how]) => `${tree}: ${how}`), [], `at ${shape}`);
+  }
+});
+
 test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {
   for (const [id, text] of Object.entries(FLIGHT_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
   const { captions } = await playWide();

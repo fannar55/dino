@@ -3,6 +3,7 @@
 // cliff of the falls stands behind the falling water; each section is cheap enough to draw; and a chapter's location may build such
 // a place instead of a forest.
 import test from 'node:test';
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS, NEST_ROCKS } from '../chapters/kafli4-route.js';
@@ -15,7 +16,7 @@ import { createAnimals, ANSWER, HEAR, SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MO
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
-import { HIGH, bodyOf, groveAt } from '../world/ardalur/banks.js';
+import { HIGH, bodyOf, groveAt, LUSH } from '../world/ardalur/banks.js';
 import { stillViews } from '../engine/camera/flight-camera.js';
 import { createFarLand, FAR } from '../world/ardalur/far-land.js';
 import { cullBatches } from '../world/forest/batch.js';
@@ -39,18 +40,23 @@ function litWorld() {
     lighting: { direction: sunDirection(look), focusRadius: 10 }, wind: createWind(), actors: new Map(), params: new URLSearchParams(''),
   };
 }
-let lit = null;
+const lits = new Map();
 let litWorldOf = null;
-/** The real valley, built once for the tests that only look at it (litWorldOf: its world, for the tests that move its camera). */
+/**
+ * The real valley, built once for the tests that only look at it (litWorldOf: its world, for the tests that move its camera); with
+ * `lush` the lush valley (banks.js LUSH: chapter 4's flight), each built once. The tests of the valley's rules run on both.
+ */
 // the owner's grazer, as the chapter loads it (animals.js loadCritters), so the lit valley has its herd (life.js)
 const grazer = crowdModelFrom(await loadGlb(new URL(GRASBITUR_MODEL)));
-function litValley() {
-  if (!lit) {
-    litWorldOf = litWorld();
-    lit = createArdalur(litWorldOf, { grey: false, route, critters: { grasbitur: grazer } });
-    lit.buildAll();
+function litValley(lush = false) {
+  if (!lits.has(lush)) {
+    const world = litWorld();
+    const place = createArdalur(world, { grey: false, route, critters: { grasbitur: grazer }, lush });
+    place.buildAll();
+    lits.set(lush, { place, world });
   }
-  return lit;
+  litWorldOf = lits.get(lush).world;
+  return lits.get(lush).place;
 }
 const trianglesOf = model => (model.solid ? model.solid.triangles : 0) + (model.thin ? model.thin.triangles : 0);
 
@@ -441,8 +447,8 @@ test('streams run down into the river and ponds hold their water', () => {
   }
 });
 
-test('each pond has its lilies and reed, the streams and ponds are drawn at their levels, and nothing else grows in them', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`each pond has its lilies and reed, the streams and ponds are drawn at their levels, and nothing else grows in them${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const { streams, ponds } = place.terrain.waters;
   const all = place.stats.sections.flatMap(part => part.userData.placements);
   for (const [i, pond] of ponds.entries()) {
@@ -480,8 +486,8 @@ test('outcrops of rock stand on the land above the falls', () => {
   }
 });
 
-test('the meadow is open and in the middle of the wide shot', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the meadow is open and in the middle of the wide shot${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const [mx, mz, radius] = MEADOW;
   assert.ok(place.terrain.where(mx, mz).d >= place.terrain.fallsD, 'the meadow is above the falls');
   const all = place.stats.sections.flatMap(part => part.userData.placements);
@@ -511,8 +517,8 @@ function treeLand(terrain) {
   return land;
 }
 
-test('trees grow in groves with glades between', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`trees grow in groves with glades between${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const land = treeLand(place.terrain);
   // the groves: blobs 60 to 120 m across, about 45 % of the land
   const grove = land.filter(([x, z]) => groveAt(x, z, 4) >= 0.5).length / land.length;
@@ -551,8 +557,8 @@ test('trees grow in groves with glades between', () => {
   assert.ok(dense >= 3 * open, `${dense.toFixed(1)} trees a hectare in the groves, ${open.toFixed(1)} in the glades`);
 });
 
-test('each group is seen from the river: no tree behind it within 25 m', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`each group is seen from the river: no tree behind it within 25 m${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const props = new Set(place.animals.props.map(p => `${p.x}:${p.z}`));
   const all = place.stats.sections.flatMap(part => part.userData.placements);
   for (const g of place.animals.groups) {
@@ -560,6 +566,185 @@ test('each group is seen from the river: no tree behind it within 25 m', () => {
     const behind = all.filter(p => TREE_NAMES.has(p.name) && !props.has(`${p.x}:${p.z}`) && Math.hypot(p.x - g.point.x, p.z - g.point.z) < 25
       && place.terrain.where(p.x, p.z).side === side);
     assert.equal(behind.length, 0, `${g.id}: ${behind.map(p => `a ${p.name} ${Math.hypot(p.x - g.point.x, p.z - g.point.z).toFixed(0)} m off`).join(', ')}`);
+  }
+});
+
+// ---- the lush valley (banks.js LUSH, belt.js): chapter 4's flight, the owner's word of 2026-11-19 --------------------------------
+
+test('the lush valley is an option: off by default (chapter 5 at the far pool, the 3D show flugedla3d), on for chapter 4\'s flight', async () => {
+  const plain = litValley();
+  assert.ok(plain.stats.belts.every(b => b === null), 'no forest on the horizon by default');
+  const { lushValley } = await import('../chapters/kafli4-flight.js');
+  assert.equal(lushValley({}), true, 'the flight asks for it');
+  assert.equal(lushValley({ lush: false }), false, 'a test may ask for the valley as it was');
+  const source = name => fs.readFileSync(new URL(`../chapters/${name}`, import.meta.url), 'utf8');
+  for (const name of ['kafli4.js', 'flug.js']) assert.match(source(name), /createArdalur\(world, \{.*lush: lushValley\(world\)/, `${name} passes it`);
+  for (const name of ['kafli5.js', 'flugedla3d.js']) assert.doesNotMatch(source(name), /lush/i, `${name} builds the valley as it was`);
+});
+
+/** Trees and understory (bush, cycad, fern) a hectare where trees may grow (treeLand), near the river (within 60 m of its edge) and far. */
+function densityOf(place) {
+  const area = { near: 0, far: 0 };
+  for (const [x, z] of treeLand(place.terrain)) area[place.terrain.where(x, z).e < 60 ? 'near' : 'far'] += 0.01;
+  const trees = { near: 0, far: 0 };
+  const under = { near: 0, far: 0 };
+  const props = new Set([...place.animals.props, ...place.life.props].map(p => `${p.x}:${p.z}`));
+  for (const p of place.stats.sections.flatMap(part => part.userData.placements)) {
+    if (props.has(`${p.x}:${p.z}`)) continue;
+    const w = place.terrain.where(p.x, p.z);
+    if (w.e < 6 || w.fen > 0.6 || w.gorge > 0.5 || w.toPool < route.pool.radius + 5) continue;
+    const zone = w.e < 60 ? 'near' : 'far';
+    if (TREE_NAMES.has(p.name)) trees[zone]++;
+    else if (['bush', 'cycad', 'fern'].includes(p.name)) under[zone]++;
+  }
+  return { trees: { near: trees.near / area.near, far: trees.far / area.far }, under: { near: under.near / area.near, far: under.far / area.far } };
+}
+
+test('the lush valley: two to three times the big trees a hectare near the river and far from it, and the understory thicker', () => {
+  const plain = densityOf(litValley());
+  const lush = densityOf(litValley(true));
+  const f = x => x.toFixed(1);
+  const told = `trees a hectare near ${f(plain.trees.near)} -> ${f(lush.trees.near)}, far ${f(plain.trees.far)} -> ${f(lush.trees.far)}; understory near ${f(plain.under.near)} -> ${f(lush.under.near)}, far ${f(plain.under.far)} -> ${f(lush.under.far)}`;
+  for (const zone of ['near', 'far']) {
+    const k = lush.trees[zone] / plain.trees[zone];
+    assert.ok(k >= 2 && k <= 3.2, `${zone}: ${k.toFixed(2)} times (${told})`);
+  }
+  assert.ok(lush.under.near >= 1.6 * plain.under.near, told);
+  assert.ok(lush.under.far >= 1.3 * plain.under.far, told);
+});
+
+test('the lush valley: thick forest round the white snag, the Fen\'s own swamp conifers among it', () => {
+  const ring = place => {
+    const trees = place.stats.sections.flatMap(part => part.userData.placements).filter(p => TREE_NAMES.has(p.name) && p.name !== 'deadSnag');
+    const inRing = trees.filter(p => { const d = Math.hypot(p.x - route.tree[0], p.z - route.tree[2]); return d >= 30 && d < 130; });
+    return { count: inRing.length, perHectare: inRing.length / ((Math.PI * (130 * 130 - 30 * 30)) / 10000), conifers: inRing.filter(p => p.name === 'swampConifer').length };
+  };
+  const plain = ring(litValley());
+  const lush = ring(litValley(true));
+  const told = `round the snag (30 to 130 m): ${plain.perHectare.toFixed(1)} -> ${lush.perHectare.toFixed(1)} trees a hectare, ${lush.conifers} of ${lush.count} swamp conifers`;
+  assert.ok(lush.perHectare >= 4 * plain.perHectare && lush.perHectare >= 40, told);
+  assert.ok(lush.conifers >= lush.count * 0.4, told);
+  // her way out and up keeps its room (the lane and HIGH tests), and the take-off still sees her (the still shots' test): both valleys
+});
+
+test('the lush valley keeps the call shots\' glades as they were: no tree within 25 m of a group on its side, and no more plants than before', () => {
+  const near = place => {
+    const props = new Set([...place.animals.props, ...place.life.props].map(p => `${p.x}:${p.z}`));
+    const all = place.stats.sections.flatMap(part => part.userData.placements).filter(p => !props.has(`${p.x}:${p.z}`));
+    return place.animals.groups.map(g => {
+      const side = place.terrain.where(g.point.x, g.point.z).side;
+      return all.filter(p => Math.hypot(p.x - g.point.x, p.z - g.point.z) < 25 && place.terrain.where(p.x, p.z).side === side);
+    });
+  };
+  const plain = near(litValley());
+  const lush = near(litValley(true));
+  litValley(true).animals.groups.forEach((g, i) => {
+    assert.equal(lush[i].filter(p => TREE_NAMES.has(p.name)).length, 0, `${g.id}: a tree in its glade`);
+    assert.ok(lush[i].length <= plain[i].length * 1.35 + 4, `${g.id}: ${plain[i].length} plants round it before, ${lush[i].length} now`);
+  });
+});
+
+test('the lush valley\'s horizon is forest: a belt of tree cards on its own ground beyond the corridor, below the falls, clear of the water and the still shots', () => {
+  const place = litValley(true);
+  const { belt } = LUSH;
+  const index = createRouteIndex(route);
+  const out = {};
+  const pieces = place.stats.belts.map((b, i) => ({ b, i })).filter(({ b }) => b?.group);
+  assert.ok(pieces.length >= 6 && pieces[0].i === 0, `sections ${pieces.map(({ i }) => i).join(', ')} have a piece of it, from the take-off's`);
+  for (const { b, i } of pieces) {
+    assert.ok(b.trees >= 50, `section ${i}: ${b.trees} trees`);
+    assert.ok(b.ground.userData.triangles > 50 && b.cards.userData.triangles === 2 * b.trees, `section ${i}: its ground and one card a tree`);
+    assert.ok(b.ground.userData.triangles + b.cards.userData.triangles < 8000, `section ${i}: ${b.ground.userData.triangles + b.cards.userData.triangles} triangles`);
+    for (const p of b.placements) {
+      index.nearest(p.x, p.z, Infinity, out);
+      const w = place.terrain.where(p.x, p.z);
+      assert.ok(out.dist >= belt.inner && out.dist <= belt.outer + 10, `a belt tree ${out.dist.toFixed(0)} m from her path`);
+      assert.ok(w.e >= 2 && w.d <= route.river.falls, `a belt tree in the water or above the falls (e ${w.e.toFixed(1)}, d ${w.d.toFixed(0)})`);
+    }
+  }
+  // most of it is beyond the corridor: the land's edge is forest
+  const trees = pieces.flatMap(({ b }) => b.placements);
+  const beyond = trees.filter(p => (index.nearest(p.x, p.z, Infinity, out), out.dist > CORRIDOR)).length;
+  assert.ok(beyond >= trees.length * 0.85, `${beyond} of ${trees.length} beyond the corridor`);
+  // nothing of it on a still shot's line of sight, nor by its camera
+  const views = stillViews(route, { heightAt: place.heightAt });
+  const wrong = [];
+  for (const view of views) {
+    const p = view.position;
+    for (const q of trees) {
+      const r = (q.card.width * q.scale) / 2, h = q.card.height * q.scale;
+      for (const look of view.looks) {
+        const length = p.distanceTo(look);
+        let hit = false;
+        for (let k = 0; k <= length && !hit; k += 0.5) {
+          const s = p.clone().lerp(look, k / length);
+          if (Math.abs(s.x - q.x) > r + 2 || Math.abs(s.z - q.z) > r + 2) continue;
+          const across = Math.hypot(q.x - s.x, q.z - s.z) - r;
+          const up = Math.max(0, q.y - s.y, s.y - (q.y + h));
+          hit = Math.hypot(Math.max(0, across), up) < 1;
+        }
+        if (hit) { wrong.push(`${view.shot} (${view.from} s): a belt ${q.name} at ${q.x.toFixed(0)}, ${q.z.toFixed(0)}`); break; }
+      }
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+test('the lush valley\'s belt is shown from the take-off with the sections near her, its cards drawn through the haze; hidden while the far land shows', () => {
+  const place = litValley(true);
+  const world = litWorldOf;
+  const { camera, look } = world;
+  world.scene.fog = new THREE.FogExp2(look.fog.color, look.fog.density); // as engine/fog.js installs it
+  // a chase camera's view (flight-camera.js BOUND chase): 7 m behind her and 2.5 m up, looking level along her way; `clock` the
+  // flight's time the frame is drawn at (the far land's)
+  const at = (t, clock = t) => {
+    const her = route.pointAt(route.progressAt(t));
+    const ahead = route.pointAt(route.progressAt(t + 2));
+    const way = new THREE.Vector3(ahead.x - her.x, 0, ahead.z - her.z).normalize();
+    world.flightU = route.progressAt(t);
+    world.flightPoint = null;
+    world.flightTime = clock;
+    camera.position.set(her.x - way.x * 7, her.y + 2.5, her.z - way.z * 7);
+    camera.lookAt(her.x + way.x * 40, her.y, her.z + way.z * 40);
+    camera.updateMatrixWorld();
+    place.update(DT, t);
+    return place.visible.filter(i => place.stats.belts[i]?.group);
+  };
+  // (at 1 s the shot is on Egill and her, down at the snag's foot: no horizon in it, but the belt is there)
+  for (const t of [1, 5, 10, 13, 40, 70]) {
+    const shown = at(t);
+    assert.ok(shown.length >= 1, `t ${t}: a section with a belt is shown`);
+    for (const i of shown) assert.ok(place.stats.belts[i].group.visible, `t ${t}: section ${i}'s belt is shown`);
+    if (t < 5) continue;
+    const drawn = shown.reduce((n, i) => n + (place.stats.belts[i].cards.visible ? place.stats.belts[i].cards.userData.cull.kept.reduce((m, r) => m + r.count / 6, 0) : 0), 0);
+    assert.ok(drawn >= 50, `t ${t}: ${drawn} belt trees drawn`);
+  }
+  // from the crest of E the far land is the horizon: the belt is hidden while it shows, and only then
+  place.farLand.show(true);
+  for (const [clock, on] of [[FAR.from - 2, true], [FAR.from + 0.5, false], [FAR.to + 1, true]]) {
+    const shown = at(70, clock);
+    assert.ok(shown.length >= 1);
+    for (const i of shown) assert.equal(place.stats.belts[i].group.visible, on, `at ${clock} s: section ${i}'s belt`);
+  }
+  place.farLand.show(false);
+  world.flightTime = undefined;
+  at(0);
+  world.flightU = null;
+  world.scene.fog = null;
+});
+
+test('the lush valley: each section stays within its budget (LUSH.budget), its plants at the finest level they are drawn at', () => {
+  const place = litValley(true);
+  for (const part of place.stats.sections) {
+    let calls = 0;
+    let triangles = 0;
+    part.traverse(o => {
+      if (!o.isMesh) return;
+      calls++;
+      if (!o.userData.cull && !o.userData.belt) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+    });
+    for (const p of part.userData.placements) triangles += trianglesOf(p.models[0].model);
+    assert.ok(triangles <= LUSH.budget + 1000 && calls <= 64, `${part.name}: ${Math.round(triangles)} triangles, ${calls} calls`);
   }
 });
 
@@ -584,8 +769,8 @@ function placementsNear(place) {
   };
 }
 
-test('the banks of A to C are green: a plant at least every 4 m of bank, low by the animals', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the banks of A to C are green: a plant at least every 4 m of bank, low by the animals${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const near = placementsNear(place);
   const props = [...place.animals.props, ...place.life.props];
   const isProp = q => props.some(p => Math.hypot(p.x - q.x, p.z - q.z) < 0.01);
@@ -620,8 +805,8 @@ test('the banks of A to C are green: a plant at least every 4 m of bank, low by 
   }
 });
 
-test('the big call\'s rows of small lizards run where nothing grows: no plant over 0.5 m within 2 m of the line a row runs (life.js)', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the big call's rows of small lizards run where nothing grows: no plant over 0.5 m within 2 m of the line a row runs (life.js)${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const near = placementsNear(place);
   const wrong = [];
   for (const row of place.life.rows) {
@@ -637,8 +822,8 @@ test('the big call\'s rows of small lizards run where nothing grows: no plant ov
   assert.deepEqual(wrong.slice(0, 8), [], `${wrong.length} plants in the rows' way`);
 });
 
-test('the herd grazes and goes where nothing grows: no plant over 0.5 m within 2.5 m of where a grazer stands or the line it goes (life.js)', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the herd grazes and goes where nothing grows: no plant over 0.5 m within 2.5 m of where a grazer stands or the line it goes (life.js)${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const near = placementsNear(place);
   const wrong = [];
   assert.equal(place.life.herd.length, 3, 'the herd, in its three groups');
@@ -656,8 +841,8 @@ test('the herd grazes and goes where nothing grows: no plant over 0.5 m within 2
   assert.deepEqual(wrong.slice(0, 8), [], `${wrong.length} plants in the herd's way`);
 });
 
-test('the still shots see what they show: nothing tall by the camera, nothing on the line of sight', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the still shots see what they show: nothing tall by the camera, nothing on the line of sight${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const near = placementsNear(place);
   const views = stillViews(route, { heightAt: place.heightAt });
   for (const shot of ['belowTakeOff', 'waterLevel', 'mosiBank', 'call', 'runAlong', 'ledge', 'herd', 'mosiRim', 'fallsSide', 'fallsTop']) {
@@ -717,8 +902,8 @@ function groupProps(place) {
   };
 }
 
-test('the call shots see what they are about and her as she comes: no tree between the camera and them (engine/tree-probe.js)', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the call shots see what they are about and her as she comes: no tree between the camera and them (engine/tree-probe.js)${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const own = groupProps(place);
   const kinds = new Set(CALL_SHOTS.map(r => r.shot));
   const views = stillViews(route, { heightAt: place.heightAt }).filter(v => kinds.has(v.shot));
@@ -795,8 +980,8 @@ test('the river runs: lazy below the rapids, white water only from where they be
   }
 });
 
-test('the plants keep out of her flight lane: none within 3 m of her path, at any steer', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the plants keep out of her flight lane: none within 3 m of her path, at any steer${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const plants = place.stats.sections.flatMap(part => part.userData.placements);
   // each plant as an upright cylinder: its crown's reach round its foot, from its foot to its top
   const bodies = plants.map(p => {
@@ -826,8 +1011,8 @@ test('the plants keep out of her flight lane: none within 3 m of her path, at an
   assert.ok(bodies.length > 1000, `${bodies.length} plants`);
 });
 
-test('high over dry land no tree crown rises within 9 m under her, so the chase camera sees the land, not a crown', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`high over dry land no tree crown rises within 9 m under her, so the chase camera sees the land, not a crown${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const { terrain } = place;
   const trees = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'deadSnag']);
   const crowns = place.stats.sections.flatMap(part => part.userData.placements).filter(p => trees.has(p.name)).map(p => {
@@ -1385,8 +1570,8 @@ test('a pause holds an answer: the animals stand still while the game clock does
   straight.animals.dispose();
 });
 
-test('the real valley: the animals have their lily pads, log and stone, and no plant grows on them', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the real valley: the animals have their lily pads, log and stone, and no plant grows on them${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const animals = place.animals;
   assert.ok(animals, 'the real valley has the animals');
   assert.ok(animals.props.length >= 5, `${animals.props.length} props`);
@@ -1407,8 +1592,8 @@ test('the real valley: the animals have their lily pads, log and stone, and no p
   assert.equal(marks, 0);
 });
 
-test('the real valley has the life in the flight (life.js): its trees grown, drawn with the animals, no plant on a critter', () => {
-  const place = litValley();
+for (const lush of [false, true]) test(`the real valley has the life in the flight (life.js): its trees grown, drawn with the animals, no plant on a critter${lush ? ' (the lush valley)' : ''}`, () => {
+  const place = litValley(lush);
   const { life } = place;
   assert.ok(life, 'the real valley has the life in the flight');
   assert.equal(life.crowds, place.animals.crowds, 'one set of crowds for all the critters');
