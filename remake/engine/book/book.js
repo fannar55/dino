@@ -6,7 +6,7 @@ import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked, bookState } from './cards.js';
 import { renderMap } from './map-page.js';
 import { createMuseumPage } from './museum-page.js';
-import { BOOK_VIDEOS, BOOK_3D, createVideosPage, videoSeenId } from './videos.js';
+import { BOOK_VIDEOS, BOOK_3D, BOOK_SHOWS, createVideosPage, videoSeenId } from './videos.js';
 import { createVideoPlayer } from './video-player.js';
 import { createShowPlayer } from './show-player.js';
 import { validateGame } from '../hals/rules.js';
@@ -423,13 +423,15 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   };
   // The Safnið leaf: the fossil collection (museum-page.js), whose cards (group 'fossil', when the data has them) open as an animal's do.
   const museum = createMuseumPage(leaves.get('fossils'), { save, audio, win, cards, onOpenCard, onChange: () => renderRibbonNew() });
-  // The Myndbönd leaf: the nine educational videos (videos.js), five on the left page and four on the right, and the "3D myndbönd" column.
+  // The Myndbönd leaf: the nine educational videos (videos.js), five on the left page and four on the right, the game's own show
+  // (chapter 5's music show) in the left page's sixth place, and the "3D myndbönd" column.
   videosPage = createVideosPage(leaves.get('videos'), {
     save,
     audio,
     win,
     videos: BOOK_VIDEOS,
     shows: BOOK_3D,
+    own: BOOK_SHOWS,
     onOpenShow: entry => {
       videoPlayer.close(true);
       showPlayer.open(entry);

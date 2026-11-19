@@ -59,6 +59,36 @@ const toSegment = (p, a, b) => {
 };
 
 /**
+ * The stage as it stands in a frame (the one the set starts in): where Egill, Mosi and Flugeðla are, which way they face and
+ * whether they show; her, her courage and her step; every animal at the pool (the choir's members in their groups, and all the
+ * rest, where each stands); the groups' tap points and the targets on the screen; the camera; and the light (the haze's colour,
+ * which a dusk tints, and the sun's nightcap).
+ */
+function stageOf({ world, sunFace, pointer }) {
+  const c = world.chapterState;
+  const at = v => [v.x, v.y, v.z];
+  const life = world.forest.life;
+  const where = b => ({ at: at(b.gather?.at ?? b.position), heading: b.gather?.heading ?? null });
+  const her = c.her.points();
+  return {
+    time: c.s.time,
+    actors: Object.fromEntries(['mosi', 'egill', 'flugedla'].map(who => {
+      const actor = world.actors.get(who);
+      return [who, { at: at(actor.root.position), heading: actor.heading, shown: actor.root.visible }];
+    })),
+    her: { at: at(her.root), heading: her.heading, head: at(her.head), shown: world.actors.get('sloedla').root.visible, courage: c.her.courage, step: c.her.step, moving: c.her.moving },
+    members: Object.fromEntries(GROUPS.map(group => [group, c.members[group].map(b => ({ id: b.id, ...where(b) }))])),
+    arrivals: life.arrivals.map(where),
+    pool: Object.fromEntries(Object.entries(life.pool).filter(([, things]) => Array.isArray(things)).map(([kind, things]) => [kind, things.map(where)])),
+    aims: Object.fromEntries(Object.entries(c.aims).map(([name, point]) => [name, [...point]])),
+    targets: [...pointer.targets.keys()].sort(),
+    shot: c.set?.shot ?? null,
+    camera: at(world.camera.position),
+    light: { haze: world.scene.fog.color.getHexString(), density: world.scene.fog.density, cap: sunFace.capOn },
+  };
+}
+
+/**
  * The chapter played by `child` (a function of the chapter's state, the frame and what the run has seen, that taps with the
  * frame's pointer), with what the run sees on the way: the caption colours, every held shot's subjects out of frame, and the choir
  * shot's frames (the groups and the reed out of frame, the camera).
@@ -80,6 +110,7 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, eager = false, 
       const c = world.chapterState;
       if (!c) return;
       world.camera.updateMatrixWorld();
+      if (c.set && !seen.atSet) seen.atSet = stageOf(frame); // everyone and the light as the set starts (the show alone is held to it)
       if (shot && SHOWS[shot] && director.mode === 'hold') {
         for (const who of SHOWS[shot]) if (!inFrame(SUBJECTS[who](world), world.camera)) seen.out.push(`${who} out of ${shot} at ${c.s.time.toFixed(1)} s`);
       }
@@ -163,8 +194,8 @@ function alongChild(c, frame, seen) {
 }
 
 const once = new Map();
-const play = (name, options) => {
-  if (!once.has(name)) once.set(name, playIt(options));
+const play = (name, options, how = playIt) => {
+  if (!once.has(name)) once.set(name, how(options));
   return once.get(name);
 };
 // in time, with the chapter's own sound playing (a fake context that throws on a non-finite value, as a browser does)
@@ -658,4 +689,202 @@ test('the chapter ends in the book on the dinosaurs with Slóeðla nodding, then
     assert.deepEqual(run.book.nods, ['sloedla', null], `${kind}: her tile nods`);
     assert.equal(run.book.isOpen, true, `${kind}: and it stays open`);
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// The show alone (kafli5.js `show`, ?chapter=djamm: the book's tile "Djamm skógarins"): scene 6's set and nothing else of the
+// chapter. Held against the chapter's own untouched play, frame for frame where the two must be one.
+
+const { show, ALONE } = kafli5;
+const SET = SONG.set;
+const EARNED = { stars: ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla'], places: ['fen', 'sloedla', 'flugedla', 'uggedla'] };
+const BOOK_HELD = { at: 60, seconds: 5 }; // the run's seconds the game stands still, as when a book is opened over the show
+const cardOf = doc => doc.body.children.find(element => element.classList.contains('dans-end')) ?? null;
+const click = element => element.dispatchEvent(new Event('click'));
+
+/**
+ * The show played with nobody touching it, in time and with its sound, the game held for five seconds on the way (a book opened
+ * over it); on the end card "Hætta" is pressed (the page it would leave is a stand-in, so the show stands there still), and then
+ * "Aftur", and the second showing plays its first bars.
+ */
+function playShow() {
+  const seen = { atSet: [], held: [], card: null, quit: null, again: null, posted: [], elements: null };
+  return playUnattended({ ...kafli5, chapter: show }, {
+    seeking: false, limit: 256, shaped: true, audio: createFakeContext({ state: 'running' }), pauses: [BOOK_HELD],
+    savedWith: s => { EARNED.stars.forEach(id => s.addStar(id)); EARNED.places.forEach(id => s.addPlace(id)); seen.saved = JSON.stringify(s.get()); },
+    onFrame(frame) {
+      const { t, world } = frame;
+      const c = world.chapterState;
+      if (!c) return;
+      world.camera.updateMatrixWorld();
+      const [record] = world.sound.elements;
+      // each showing's first frame of the set
+      if (c.set && seen.atSet.at(-1)?.start !== c.set.start) seen.atSet.push({ start: c.set.start, stage: stageOf(frame), record: world.sound.elements.at(-1), band: c.band.playing });
+      // while the game is held: its record stands still, and after it the record is where the set is
+      if (t >= BOOK_HELD.at + 1 && t < BOOK_HELD.at + BOOK_HELD.seconds - 1) seen.held.push({ paused: record.paused, time: record.currentTime });
+      if (!seen.after && t >= BOOK_HELD.at + BOOK_HELD.seconds + 3) seen.after = { paused: record.paused, time: record.currentTime, set: c.s.time - c.set.start };
+      // the end card: what stands under it, then "Hætta", then "Aftur"
+      const card = cardOf(world.page);
+      if (card && !seen.card) {
+        const buttons = card.findAll(element => element.tagName === 'BUTTON');
+        seen.card = { t, at: c.s.time, words: buttons.map(button => button.textContent), stage: stageOf(frame), band: c.band.playing, party: c.band.level('far') };
+      }
+      if (seen.card && !seen.quit && t >= seen.card.t + 1) {
+        const [, quit] = card.findAll(element => element.tagName === 'BUTTON');
+        globalThis.window = { location: { search: '?chapter=djamm&syning=1', origin: 'http://localhost:4280' }, parent: { postMessage: message => seen.posted.push(message) } };
+        try { click(quit); } finally { delete globalThis.window; }
+        seen.quit = { t, band: c.band.playing, song: c.song.playing };
+      }
+      if (seen.quit && !seen.again && t >= seen.quit.t + 1) {
+        seen.quit.record = { paused: record.paused };
+        click(card.findAll(element => element.tagName === 'BUTTON')[0]);
+        seen.again = { t, at: c.s.time };
+      }
+    },
+  }).then(run => ({ ...run, watched: seen }));
+}
+const alone = () => play('alone', null, playShow);
+
+// What the set did and on which of its beats (as the log has it: the frame it fell in): its parts, its cuts, her words, the fader's
+// moves, its cues and the party at its end.
+const setLog = (run, start, end = Infinity) => run.world.chapterState.choirLog
+  .filter(entry => ['section', 'cut', 'djLine', 'ride', 'cue', 'party', 'videoError'].includes(entry.type) && entry.at >= start - 1e-6 && entry.at <= end)
+  .map(entry => ({ beat: (entry.at - start) / BEAT, what: [entry.type, entry.id ?? entry.shot ?? entry.kind ?? entry.level ?? entry.on ?? entry.message].join(' ') }));
+/** Two logs of the set are one: the same things in the same order, each within a frame of the same beat. */
+function sameSet(mine, theirs, what) {
+  assert.deepEqual(mine.map(entry => entry.what), theirs.map(entry => entry.what), what);
+  const late = mine.map((entry, k) => ({ ...entry, off: Math.abs(entry.beat - theirs[k].beat) })).filter(entry => entry.off > FRAME / BEAT + 1e-6);
+  assert.deepEqual(late, [], `${what}: each on its beat, to the frame`);
+}
+const near = (a, b, most, what) => {
+  const far = Math.hypot(...a.map((v, i) => v - b[i]));
+  assert.ok(far <= most, `${what}: ${far.toFixed(3)} m apart (${a.map(v => v.toFixed(2))} and ${b.map(v => v.toFixed(2))})`);
+};
+/** Two stages are one: everyone in the same place facing the same way, the same ones showing, the same tap points and the same light. */
+function sameStage(a, b, what, { light = true } = {}) {
+  for (const who of ['mosi', 'egill', 'flugedla']) {
+    near(a.actors[who].at, b.actors[who].at, 0.1, `${what}: ${who}`);
+    assert.ok(apart(a.actors[who].heading, b.actors[who].heading) < 3, `${what}: ${who} faces ${a.actors[who].heading.toFixed(1)}, not ${b.actors[who].heading.toFixed(1)}`);
+    assert.equal(a.actors[who].shown, b.actors[who].shown, `${what}: ${who} shows`);
+  }
+  near(a.her.at, b.her.at, 0.1, `${what}: Slóeðla`);
+  near(a.her.head, b.her.head, 1.2, `${what}: her head`); // loosely: it bobs in the clip she rests in, and where that clip is, is no state
+  assert.ok(apart(a.her.heading, b.her.heading) < 3, `${what}: she faces ${a.her.heading.toFixed(1)}, not ${b.her.heading.toFixed(1)}`);
+  assert.deepEqual([a.her.shown, a.her.courage, a.her.step, a.her.moving], [b.her.shown, b.her.courage, b.her.step, b.her.moving], `${what}: she shows, brave, out in the pool, standing`);
+  for (const group of GROUPS) {
+    assert.deepEqual(a.members[group].map(b2 => b2.id), b.members[group].map(b2 => b2.id), `${what}: the same ${group} in the choir`);
+    a.members[group].forEach((member, k) => {
+      near(member.at, b.members[group][k].at, 0.02, `${what}: ${group} ${k} in its seat`);
+      assert.ok(apart(member.heading, b.members[group][k].heading) < 1, `${what}: ${group} ${k} faces as in its seat`);
+    });
+  }
+  assert.equal(a.arrivals.length, b.arrivals.length, `${what}: as many came along`);
+  a.arrivals.forEach((one, k) => near(one.at, b.arrivals[k].at, 0.02, `${what}: arrival ${k}`));
+  assert.deepEqual(Object.keys(a.pool), Object.keys(b.pool), `${what}: the pool's own`);
+  for (const kind of Object.keys(a.pool)) a.pool[kind].forEach((one, k) => near(one.at, b.pool[kind][k].at, 0.02, `${what}: the pool's ${kind} ${k}`));
+  assert.deepEqual(a.targets, b.targets, `${what}: the same things to tap`);
+  assert.deepEqual(Object.keys(a.aims).sort(), Object.keys(b.aims).sort(), `${what}: the same tap points`);
+  for (const name of Object.keys(a.aims)) near(a.aims[name], b.aims[name], 0.001, `${what}: ${name}`);
+  assert.equal(a.shot, b.shot, `${what}: the shot`);
+  near(a.camera, b.camera, 0.01, `${what}: the camera`);
+  if (light) assert.deepEqual(a.light, b.light, `${what}: the light`);
+}
+
+test('the show alone starts on the set: a bar of the band, then the set\'s first beat, under three seconds from its start', async () => {
+  const run = await alone();
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  const c = run.world.chapterState;
+  const [first] = logOf(run, 'set');
+  const began = run.world.chapterTimeline[0];
+  assert.equal(began.scene, 6, 'it begins in the set\'s scene');
+  const wait = first.start - began.at;
+  assert.ok(Math.abs(wait - ALONE.lead * BEAT) <= FRAME + 1e-6, `the set comes in ${wait.toFixed(2)} s after the start: ${ALONE.lead} beats of the band`);
+  assert.ok(wait <= 3, 'within three seconds');
+  // on the band's turn of chords, the band whole as the choir left it, and blended out under the set as in the chapter
+  assert.ok(Math.abs(first.beat / 16 - Math.round(first.beat / 16)) < 0.01, `the set starts on the loop's beat ${first.beat.toFixed(2)}`);
+  const blend = logOf(run, 'band').find(entry => entry.blend);
+  const theirs = logOf(await untouched(), 'band').find(entry => entry.blend);
+  assert.deepEqual(blend.from, theirs.from, 'the band is as loud as the chapter has it when the set comes in');
+  assert.equal(blend.seconds, theirs.seconds);
+  assert.ok(c.set && run.watched.atSet.length >= 1);
+  assert.equal(run.watched.atSet[0].band, true, 'the band plays as the set comes in');
+});
+
+test('the show alone starts with everyone where the chapter has them at the set\'s first beat, in the same light', async () => {
+  const [run, chapterRun] = [await alone(), await untouched()];
+  sameStage(run.watched.atSet[0].stage, chapterRun.watched.atSet, 'the show against the chapter');
+  // and that is: all four showing, she out in the pool, the choir of five groups aimed, the afternoon
+  const stage = run.watched.atSet[0].stage;
+  assert.ok(stage.her.shown && Object.values(stage.actors).every(actor => actor.shown), 'all four show');
+  near([stage.her.at[0], stage.her.at[2]], WADE.at, 0.1, 'she stands out in the pool');
+  assert.deepEqual(stage.targets, GROUPS.map(group => `choir-${group}`).sort(), 'the five groups can be tapped, and nothing else');
+  assert.equal(stage.light.cap, 0, 'the sun wears no cap yet');
+  assert.equal(stage.shot, 'choir_wide');
+});
+
+test('the show alone plays the set as the chapter plays it: every part, cut, word, cue and move of the fader on the same beat', async () => {
+  const [run, chapterRun] = [await alone(), await untouched()];
+  const mine = setLog(run, run.watched.atSet[0].start, run.watched.card.at);
+  const c = chapterRun.world.chapterState;
+  const theirs = setLog(chapterRun, c.songStart, c.set.ended);
+  assert.ok(theirs.length > 250, `${theirs.length} things happen in the chapter's set`);
+  sameSet(mine, theirs, 'the set alone against the chapter\'s');
+  assert.deepEqual(logOf(run, 'videoError'), [], 'and no part of the video failed');
+  // through the game held for five seconds on the way (a book opened over the show, a hidden tab): the record stood still, and
+  // is where the set is afterwards
+  const { held, after } = run.watched;
+  assert.ok(held.length > 60 && held.every(frame => frame.paused), 'the record stands still while the game is held');
+  assert.equal(after.paused, false, 'and plays on');
+  assert.ok(Math.abs(after.time - after.set) < 0.15, `the record is ${after.time.toFixed(2)} s in where the set is ${after.set.toFixed(2)} s in`);
+});
+
+test('the show alone says none of the story\'s lines and leaves the save as it was: no star, no map piece, no book', async () => {
+  const run = await alone();
+  for (const id of Object.keys(chapter.lines)) assert.equal(run.seen.spoken.has(id), false, `${id} is not said`);
+  assert.ok(run.seen.said.length >= SET.lines.length && run.seen.said.every(line => typeof line.id === 'object'), 'only Flugeðla\'s words on the screen');
+  assert.deepEqual(show.lines, {}, 'and none is fetched');
+  assert.equal(JSON.stringify(run.save.get()), run.watched.saved, 'the save is untouched');
+  assert.deepEqual(run.finds, [], 'nothing found');
+  assert.deepEqual(run.moments, [], 'no map');
+  assert.deepEqual(run.book.opened, [], 'no book');
+  for (const name of ['star', 'journal', 'gramedlaRoar', 'falseHorn']) assert.equal(run.sounds.includes(name), false, `no ${name} is heard`);
+  assert.equal(show.next ?? null, null, 'and no chapter follows it');
+  assert.equal(show.startsItself, true, 'it starts as a video does');
+});
+
+test('the show alone ends on a card with Aftur and Hætta, over the pool in its dusk with the party far away', async () => {
+  const run = await alone();
+  const { card, atSet, quit, posted } = run.watched;
+  assert.ok(card, 'the card comes');
+  assert.deepEqual(card.words, ['Aftur', 'Hætta']);
+  const length = card.at - atSet[0].start;
+  assert.ok(Math.abs(length - (SET.endBeat * BEAT + 2.4)) < 0.2, `${length.toFixed(1)} s after the set's first beat: its last hit and its ring`);
+  assert.deepEqual(run.world.chapterTimeline.slice(0, 2).map(mark => mark.scene), [6, 'end']);
+  assert.ok(card.stage.light.cap > 0.9 && card.stage.light.haze !== atSet[0].stage.light.haze, 'it is dusk, the sun in its cap');
+  assert.ok(card.band && card.party > 0, 'the party is heard on from far away');
+  // "Hætta": silent at once, and the frame asks the book to close it
+  assert.deepEqual(posted, ['mosi-syning-loka']);
+  assert.deepEqual([quit.band, quit.song], [false, false], 'the band and the record stop');
+  assert.equal(quit.record.paused, true);
+  assert.equal(logOf(run, 'hush').length, 1);
+});
+
+test('the show alone plays again from the card: the afternoon back, everyone in place, the record from its top', async () => {
+  const run = await alone();
+  const { atSet, again } = run.watched;
+  assert.ok(again && atSet.length === 2, 'a second showing begins');
+  assert.equal(cardOf(run.doc), null, 'the card is gone');
+  const wait = atSet[1].start - again.at;
+  assert.ok(wait < 4, `its first beat ${wait.toFixed(1)} s after the tap`);
+  sameStage(atSet[1].stage, atSet[0].stage, 'the second showing against the first');
+  assert.notEqual(atSet[1].record, atSet[0].record, 'a new record');
+  assert.equal(atSet[1].record.paused, false, 'playing');
+  assert.equal(atSet[0].record.paused, true, 'and the first is silent');
+  assert.equal(atSet[1].band, true, 'the band leads in again');
+  const c = run.world.chapterState;
+  const mine = setLog(run, atSet[1].start);
+  const first = setLog(run, atSet[0].start, atSet[0].start + c.s.time - atSet[1].start);
+  assert.ok(mine.length >= 3, 'the second showing is under way');
+  sameSet(mine, first.slice(0, mine.length), 'the second showing as the first began');
+  assert.equal(JSON.stringify(run.save.get()), run.watched.saved, 'and the save is still untouched');
 });

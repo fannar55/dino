@@ -636,6 +636,19 @@ function warmPrepared(name, forest) {
   return warmChapterInParts(chapter.locations[name].warmUp ?? [], name, forest);
 }
 
+/**
+ * Whether sound may begin now with no touch in this page: the audio context runs, or wakes when asked (a browser that wants a touch
+ * first leaves it asleep, or never answers: half a second is waited for, no more). A page with no sound at all may begin.
+ */
+async function soundAwake(context) {
+  if (!context) return true;
+  if (context.state === 'running') return true;
+  try {
+    await Promise.race([context.resume(), new Promise(resolve => setTimeout(resolve, 500))]);
+  } catch { /* refused: it waits for a touch */ }
+  return context.state === 'running';
+}
+
 /** Everything that is done behind the black before the start button shows: the start place and the chapter, drawn once. */
 /** Until every load in `loading` (world.loading: a set each load leaves as it settles) has settled, those added meanwhile too. */
 async function settled(loading) {
@@ -865,8 +878,20 @@ if (shotName || !chapter.script) {
       stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
     }, { once: true });
-    getReady().catch(error => console.error('[warm-up]', error)).finally(() => {
+    getReady().catch(error => console.error('[warm-up]', error)).finally(async () => {
       warmedPlace = world.location; // from now on a place the scene comes to is drawn once before it shows
+      // A show that starts itself (chapter.startsItself: chapter 5's music show from the book's tile, chapters/kafli5.js `show`)
+      // begins here, as a video does when its tile is tapped, if the browser lets sound begin with no touch in this page (the tap
+      // on the tile, in the page round the frame, was the touch). Where it does not, the show's own start waits for one, below.
+      if (chapter.startsItself && await soundAwake(audio)) {
+        loading.classList.add('done');
+        setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
+        startReady = true;
+        ownStart.then(own => own?.element.remove());
+        button.click(); // what Byrja does: the scene begins from black
+        prepareLater().catch(error => console.error('[warm-up]', error));
+        return;
+      }
       loading.classList.add('done');
       setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
