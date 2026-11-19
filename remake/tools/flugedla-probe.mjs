@@ -131,6 +131,8 @@ async function fjorTrial(o, server, { say, report }) {
     if (o.evalFjor) { console.log(JSON.stringify(await evaluate(o.evalFjor), null, 1)); return; } // (--eval-fjor "<js>": on the fast take's page)
     const length = await evaluate('window.__world.flugedla3d.length');
     const D = await evaluate('window.__world.flugedla3d.state.D');
+    // the forest's plants near the path, read while the page is in the forest (a part that ends in the valley has none left)
+    const plantsList = await evaluate(`(() => { const f = window.__world.flugedla3d; const pts = f.fjor.path.pts.filter(q => q.y < 30); const out = []; for (const pl of (window.__world.forest?.placements ?? [])) { if (!pl.model) continue; let near = Infinity; for (let i = 0; i < pts.length; i += 6) near = Math.min(near, Math.hypot(pl.x - pts[i].x, pl.z - pts[i].z)); if (near > 30) continue; const m = pl.model, sc = pl.scale ?? 1, cs = Math.cos(pl.rot ?? 0), sn = Math.sin(pl.rot ?? 0); const cr = m.crown; out.push({ name: pl.name, x: pl.x, y: pl.y, z: pl.z, top: (m.trunk?.top ?? m.height ?? 2) * sc, r: (m.trunk?.r ?? 0.3) * sc, crown: cr ? [pl.x + (cr.c[0] * cs - cr.c[2] * sn) * sc, pl.y + cr.c[1] * sc, pl.z + (cr.c[0] * sn + cr.c[2] * cs) * sc, Math.max(cr.r, cr.ry ?? cr.r) * sc] : null }); } return out; })()`);
     const rows = [];
     const t0 = o.from ?? 0, t1 = Math.min(length, o.to ?? length); // --from/--to: sweep one part of the take (real seconds)
     for (let i = 0; t0 + i * o.step <= t1 + 1e-9; i++) {
@@ -269,7 +271,6 @@ async function fjorTrial(o, server, { say, report }) {
     say(`the floor at the bottom edge: nearest k ${floor?.background.groundBorder ?? '-'} at ${floor?.t ?? '-'} s`);
     // each plant on its own (the depth probe sees the border's nearest, not which thing it is): how long each trunk or crown is cut
     // by an edge in front of the screen, and how fast the nearest things cross the picture (degrees a second)
-    const plantsList = await evaluate(`(() => { const f = window.__world.flugedla3d; const pts = f.fjor.path.pts.filter(q => q.y < 30); const out = []; for (const pl of (window.__world.forest?.placements ?? [])) { if (!pl.model) continue; let near = Infinity; for (let i = 0; i < pts.length; i += 6) near = Math.min(near, Math.hypot(pl.x - pts[i].x, pl.z - pts[i].z)); if (near > 30) continue; const m = pl.model, sc = pl.scale ?? 1, cs = Math.cos(pl.rot ?? 0), sn = Math.sin(pl.rot ?? 0); const cr = m.crown; out.push({ name: pl.name, x: pl.x, y: pl.y, z: pl.z, top: (m.trunk?.top ?? m.height ?? 2) * sc, r: (m.trunk?.r ?? 0.3) * sc, crown: cr ? [pl.x + (cr.c[0] * cs - cr.c[2] * sn) * sc, pl.y + cr.c[1] * sc, pl.z + (cr.c[0] * sn + cr.c[2] * cs) * sc, Math.max(cr.r, cr.ry ?? cr.r) * sc] : null }); } return out; })()`);
     const tanV = Math.tan((23 * Math.PI) / 180), tanH = tanV * 1.6;
     const basis = c => {
       const y = (c.yaw * Math.PI) / 180, p = ((c.pitch ?? 0) * Math.PI) / 180, a = -((c.roll ?? 0) * Math.PI) / 180;
