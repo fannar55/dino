@@ -191,12 +191,12 @@ export const LOOKS = {
     water: { horizon: '#3a7ee0', zenith: '#0a1c60', deep: '#123488', glint: '#c8dcff' },
     mosiCloud: '#6a86cc', exposure: 0.9, envIntensity: 0.55,
   },
-  gold: { // the last chorus: the brightest and the warmest, a gold edge under a plum sky
+  gold: { // the last chorus: the brightest and the warmest, a gold sky over a plum pool (a gold pool read as sand in stills)
     record: 'vidlag', night: true, amount: 1,
     sun: { color: '#ffc070', intensity: 0.65 }, hemi: { sky: '#6a3c2c', ground: '#ffe8b4', intensity: 7.5 },
     sky: { zenith: '#b0643a', horizon: '#ffd070', glow: '#ffe09a', cloud: '#ffe0a0', cloudShade: '#a8603c' },
     fog: { color: '#c88a50', sunColor: '#ffc860' },
-    water: { horizon: '#ffc860', zenith: '#8a3a2a', deep: '#5a2418', glint: '#fff4c0' },
+    water: { horizon: '#ffc860', zenith: '#6a2c48', deep: '#3c1838', glint: '#fff4c0' },
     mosiCloud: '#ffe0a8', exposure: 1, envIntensity: 0.7,
   },
   night: { // after the set: the calm night the party is heard far away in, and the roar
@@ -637,7 +637,7 @@ export const FIREWORK = {
   // height over its middle) and how big it is there (`radius`: the same share), how much thinner it is along the camera's way
   // (it faces the camera: none of it sinks into the hill behind the group), how far it sinks in its life (radii), and its
   // sparks' size (radii)
-  flower: { rays: 23, tail: 1, life: 5, hold: 0.45, open: 0.2, up: 0.42, radius: 0.55, flat: 0.5, sink: 1.1, size: 0.2 },
+  flower: { rays: 23, tail: 1, life: 5, hold: 0.45, open: 0.2, up: 0.42, radius: 0.55, flat: 0.5, sink: 1.1, size: 0.3 },
   // the willow: its arms and the points of each arm's tail (they hang on the way the arm flew, back to `trail` of its age), the
   // beats it lives (gone as the show ends), how fast its arms fly out, where it stands in its shot (m ahead of the camera; `up`
   // as a flower's), how far its arms reach out and up (m), how far they fall in its life (m), its sparks' size (m), and its gold

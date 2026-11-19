@@ -967,7 +967,8 @@ test('the last chorus has the brightest and the warmest look, and the night afte
     if (look === calm || id === 'rose') continue;
     assert.ok(calm.sun.intensity <= look.sun.intensity && calm.exposure <= look.exposure && footlit(calm) < footlit(look), `the night after the set is calmer than ${id}`);
   }
-  for (const hex of [finale.sky.zenith, finale.sky.horizon, finale.water.deep, finale.water.horizon, finale.hemi.ground, finale.sun.color]) assert.ok(rgb(hex)[0] > rgb(hex)[1] && rgb(hex)[1] > rgb(hex)[2], `${hex} is a warm colour`);
+  // (its pool's deep is plum, not gold: a gold pool read as sand in the stills, 2026-11-19)
+  for (const hex of [finale.sky.zenith, finale.sky.horizon, finale.water.horizon, finale.hemi.ground, finale.sun.color]) assert.ok(rgb(hex)[0] > rgb(hex)[1] && rgb(hex)[1] > rgb(hex)[2], `${hex} is a warm colour`);
   assert.ok(footlit(calm) >= 0.33, 'and the last scene\'s faces are still lit');
 });
 
