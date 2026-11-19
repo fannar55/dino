@@ -124,3 +124,40 @@ test('a line without a sound (a capture, a muted voice) runs on its recorded len
   s.run(2.6);
   assert.ok(s.finished() !== null && Math.abs(s.finished() - 2.5) < 0.11, `2 s and the hold (at ${s.finished()})`);
 });
+
+// Chapter 4's flight film (the Flugmynd spec, 2026-11-15): in a call shot her call is heard from her side as the camera sees her.
+// The scene hands a line's `pan` to the voice, which sends it through the page's panner (main.js: engine/audio/output.js panElement)
+// and lets go of it when the line is over; a line with none, or with no panner, plays straight out as before.
+test('a line can come from one side: the scene hands its pan to the voice, which plays it through the page\'s panner', () => withFakeAudio(() => {
+  const asked = [];
+  let released = 0;
+  const voice = createVoice({ pan: (element, value) => { asked.push({ element, value }); return () => { released++; }; } });
+  const sound = voice.play('a.mp3', { pan: -0.5 });
+  assert.deepEqual(asked.map(a => a.value), [-0.5]);
+  assert.equal(asked[0].element, FakeAudio.made[0], 'its own <audio>');
+  FakeAudio.made[0].over();
+  assert.equal(voice.done(sound), true);
+  assert.equal(released, 1, 'let go as it ends');
+  voice.play('b.mp3');
+  voice.play('c.mp3', { pan: 0 });
+  assert.equal(asked.length, 1, 'none, or the middle: straight out');
+  const stopped = voice.play('d.mp3', { pan: 0.3 });
+  voice.stop(stopped);
+  assert.equal(released, 2, 'let go when stopped');
+  voice.play('e.mp3', { pan: 0.3 });
+  voice.play('f.mp3');
+  assert.equal(released, 3, 'and when a newer line replaces it');
+  assert.doesNotThrow(() => createVoice().play('g.mp3', { pan: 0.4 }), 'no panner: straight out');
+  // the scene: s.say(speaker, id, { pan }) asks the voice for that pan
+  const played = [];
+  const world = { actors: new Map(), effects: createEffects(), chapter: { lines: { hi: { text: 'Halló!', audio: 'hi' } } } };
+  const ui = { caption: () => 1, clearCaption() {}, reset() {}, setFade() {}, showChoices() {}, hideChoices() {}, tray: { hide() {} }, fadeLevel: 0 };
+  const stage = createScene({
+    world, director: { stop() {}, handheld() {}, cut() {} }, ui, lines: { hi: { src: 'hi.mp3', duration: 1 } }, cast: {},
+    voice: { play: (src, options) => { played.push({ src, options }); return null; }, stop() {}, started: () => true, done: () => true },
+  });
+  stage.start(function* (s) { yield s.say('flugedla', 'hi', { pan: 0.6 }); yield s.say('flugedla', 'hi'); });
+  stage.begin();
+  for (let t = 0; t < 4; t += 0.05) stage.update(0.05);
+  assert.deepEqual(played.map(p => p.options?.pan ?? null), [0.6, null]);
+}));

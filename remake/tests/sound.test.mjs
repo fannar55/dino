@@ -245,7 +245,7 @@ const MAIN = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').rep
 
 test('main.js lets the beat read the music\'s playhead, and ducks the music under the voice', () => {
   assert.match(MAIN, /const musicTime = \(\) => music\.position;/, 'one source for the beat: the music\'s playhead on the game clock');
-  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => \{ lineSounding = on; music\.duck\(on\); \} \}\)/, 'a line ducks the theme');
+  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => \{ lineSounding = on; music\.duck\(on\); \}[,} ]/, 'a line ducks the theme');
   assert.match(MAIN, /get speaking\(\) \{ return lineSounding; \}/, 'and the chapter\'s own song hears of it (world.sound.speaking)');
   assert.match(MAIN, /music\.update\(\)/, 'and the sound is kept on the playhead each frame');
   assert.match(MAIN, /updateMusic\(\);[^\n]*\n\s*updateChapterSound\(\);/, 'with the chapter\'s own song after it');
@@ -272,4 +272,29 @@ test('main.js keeps captures and review shots silent and gives the scene its eff
   assert.match(MAIN, /const audio = playing \? createAudioContext\(\) : null;/, 'a capture or a review shot makes no audio context at all');
   assert.match(MAIN, /createScene\(\{[^}]*\bsfx\b[^}]*\}\)/, 'the scene can play effects');
   assert.match(MAIN, /theme, clock, base: themeUrl/, 'the music reads its file against theme.json\'s own URL');
+});
+
+// Chapter 4's flight film: her call in a call shot from her side (engine/scene/voice.js `pan`). The page's panner routes a line's
+// <audio> through a stereo panner straight to the speakers (not the output's limiter: a line sounds as loud as before), and lets go.
+test('panElement sends an <audio> through a stereo panner to the speakers, and lets go of it', async () => {
+  const { panElement } = await import('../engine/audio/output.js');
+  const context = createFakeContext({ state: 'running' });
+  const element = { src: 'a.mp3' };
+  const release = panElement(context, element, 0.5);
+  const [source] = context.mediaSources;
+  const panner = context.nodes.find(node => node.kind === 'panner');
+  assert.ok(source && source.element === element, 'from the element');
+  assert.equal(panner.pan.value, 0.5);
+  assert.ok(source.reaches(panner) && panner.outputs.includes(context.destination), 'through the panner to the speakers');
+  release();
+  assert.equal(source.outputs.length + panner.outputs.length, 0, 'let go');
+  assert.doesNotThrow(() => release(), 'twice is fine');
+  assert.equal(panElement(context, { src: 'b.mp3' }, 7) !== null, true);
+  assert.equal(context.nodes.filter(node => node.kind === 'panner').at(-1).pan.value, 1, 'no further than a side');
+  assert.equal(panElement(null, element, 0.5), null, 'no audio: nothing');
+});
+
+test('main.js gives the voice the page\'s panner', () => {
+  const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(main, /createVoice\(\{ onSpeaking: .*, pan: audio \? \(element, value\) => panElement\(audio, element, value\) : null \}\)/);
 });

@@ -10,17 +10,19 @@
 // her in view. The director's own moves are linted against STYLE.md section 8; these are linted here, against FLIGHT_RULES, into
 // director.warnings as `flight: ...`. A bound shot breaks the rules when its offset moves faster than 1.2 m/s or its look turns faster
 // than 15 deg/s relative to her; a fixed one when it pans faster than 40 deg/s; any shot shorter than 2.5 s, except three quick ones
-// of 1.5 s in the gorge. Shots change by cuts.
+// of 1.5 s in the gorge. Shots change by cuts. One fixed shot moves, the run-along (C): it stands on a moving stand, a still camera's
+// rules but for its speed (FLIGHT_RULES.track: 7 m/s at most, and its pan 40 deg/s), and under reduced motion it stands still.
 import * as THREE from 'three';
-import { BEATS, FALLS, STILLS } from '../../chapters/kafli4-route.js';
+import { BEATS, FALLS, STILLS, CALL_SHOTS, NESTS, FAR_POOL } from '../../chapters/kafli4-route.js';
 
-export const FLIGHT_RULES = { roll: 8, minShot: 2.5, quick: { minShot: 1.5, max: 3 }, bound: { dolly: 1.2, pan: 15 }, fixed: { pan: 40 } };
+export const FLIGHT_RULES = { roll: 8, minShot: 2.5, quick: { minShot: 1.5, max: 3 }, bound: { dolly: 1.2, pan: 15 }, fixed: { pan: 40 }, track: { speed: 7, pan: 40 } };
+const EASE = 0.5; // seconds the run-along's stand takes to come up to its speed, and to come to a stop
+const HERD_MIDDLE = 1.5; // metres over the ground a grazer's middle is (the owner's grazer is 2.9 m tall: life.js)
 const SLACK = 1.05; // a rule is broken past 5 % over, as the director's are
-const BOOST = { degrees: 8, in: 0.4, out: 1, reduced: 0.5 }; // reduced: the share of the widening under reduced motion
 // The lens with her speed (the juice review's item 14): in the chase, wider by up to `degrees` as she goes from `from` to `to` m/s,
 // the lens moving `rate` degrees a second at most (the zoom rule is 8); none under reduced motion.
 const SPEED_LENS = { degrees: 2.5, from: 16, to: 22, rate: 3 };
-const CLEAR = 1.2; // metres the camera keeps over the ground and the water
+export const CLEAR = 1.2; // metres the camera keeps over the ground and the water
 
 const V3 = THREE.Vector3;
 const deg = THREE.MathUtils.radToDeg;
@@ -38,18 +40,52 @@ const BOUND = {
   orbit: { origin: 'body', radius: 6.8, height: 1.6, from: 160, to: 60, seconds: 16, look: { origin: 'body', at: [0, 0.8, 0] }, fov: 48 },
 };
 
-// The shadow shot: `back` metres behind the group's middle (away from the river), `above` metres over the ground, looking at a point
-// `group` of the way from her body to the group's middle.
-const SHADOW = { back: 8, above: 1.6, group: 0.6 };
 const MOSI_HEAD = 1.5; // metres over the water his head is as he runs in the shallows (the lines of sight of mosiBank)
 
-/** An animal group of the route by id or kind (the first if none): its middle on the bank, 0.3 m over the ground. */
+/**
+ * An animal group of the route by id or kind (the first if none), and its middle: 0.3 m over the ground or the water, or where the
+ * group is when that is higher (the birds in their tree's crown, the dragonflies over the water).
+ */
 function groupOf(route, group) {
   return route.groups.find(x => x.id === group || x.kind === group) ?? route.groups[0];
 }
 function groupMiddle(route, group, groundAt) {
   const g = groupOf(route, group);
-  return new V3(g.at[0], groundAt(g.at[0], g.at[2]) + 0.3, g.at[2]);
+  return new V3(g.at[0], Math.max(groundAt(g.at[0], g.at[2]) + 0.3, g.at[1]), g.at[2]);
+}
+/** A call shot's row (the route's CALL_SHOTS) by its id. */
+function callRow(id) {
+  const row = CALL_SHOTS.find(r => r.id === id);
+  if (!row) throw new Error(`No call shot named "${id}" (there are ${CALL_SHOTS.map(r => r.id).join(', ')})`);
+  return row;
+}
+/** Where she is at flight second t, unsteered (the route's schedule). */
+const herAt = (route, t) => route.pointAt(route.progressAt(t));
+/** Her heading (radians, from +X toward +Z) seen from above at flight second t, unsteered: the route 3 m either side (as the flier). */
+function headingAt(route, t) {
+  const s = route.distanceAt(t);
+  const a = route.pointAt(clamp((s - 3) / route.length, 0, 1));
+  const b = route.pointAt(clamp((s + 3) / route.length, 0, 1));
+  return Math.atan2(b.z - a.z, b.x - a.x);
+}
+/**
+ * The run-along's stand: from a to b (seen from above) between flight seconds t0 and t1 at a steady speed, eased over its first and
+ * last EASE seconds (its speed rises and falls in a straight line), `above` the ground. Returns at(t, out) and its top speed.
+ */
+function standAlong(a, b, t0, t1, above, groundAt) {
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const span = t1 - t0;
+  const speed = length / (span - EASE);
+  const gone = k => (k < EASE ? (speed * k * k) / (2 * EASE) : k > span - EASE ? length - (speed * (span - k) ** 2) / (2 * EASE) : speed * (k - EASE / 2));
+  return {
+    speed,
+    at(t, out = new V3()) {
+      const share = length > 0 ? gone(clamp(t - t0, 0, span)) / length : 0;
+      const x = a[0] + (b[0] - a[0]) * share;
+      const z = a[1] + (b[1] - a[1]) * share;
+      return out.set(x, groundAt(x, z) + above, z);
+    },
+  };
 }
 /** Away from the river, on the group's side, seen from above. */
 function groupOut(route, group) {
@@ -64,13 +100,41 @@ const FIXED = {
   belowTakeOff: (c) => c.ground(c.route.tree[0] + 9, c.route.tree[2] - 9, 1.7, 55),
   // B, C: low over the water ahead of her, off to one side, as she comes up the river
   waterLevel: (c, { side = 1, lead = 4.5, across = 11 } = {}) => c.overWater(lead, across * side, 0.6, 44),
-  // C: on the bank close behind an animal group as her shadow goes over it, low, looking at the group and a little toward her, so
-  // the group fills the lower frame and she passes over it (spec 6: the group at least 8 % of the frame's height)
-  bankShadow: (c, { group = 'lizards-2' } = {}) => {
-    const middle = groupMiddle(c.route, group, c.groundAt);
-    const out = groupOut(c.route, group); // away from the river, on the group's side
-    const made = c.ground(middle.x + out[0] * SHADOW.back, middle.z + out[1] * SHADOW.back, SHADOW.above, 46);
-    return { ...made, look: target => target.copy(middle).multiplyScalar(SHADOW.group).addScaledVector(c.flier.pose.position, 1 - SHADOW.group) };
+  // C: a call shot (the route's CALL_SHOTS, by `callShot`): down with an animal group, `back` metres behind its middle away from the
+  // river, `above` over the ground or the water (never under CLEAR) and `aside` along the bank up the river, so the group fills the
+  // near frame and the way she comes is behind it. It aims at a point `look` of the way from the group's middle to where she passes
+  // (its `pass`), `drop` metres under it, and holds it: she sweeps through a still frame (the Flugmynd spec: the group at least 8 %
+  // of the frame's height).
+  call: (c, { callShot = null, group = null, pass = null, back = 6, above = CLEAR, aside = 0, fov = 44, look = 0.5, drop = 0 } = {}) => {
+    const row = callShot ? callRow(callShot) : null;
+    const id = group ?? row?.group;
+    const middle = groupMiddle(c.route, id, c.groundAt);
+    const out = groupOut(c.route, id); // away from the river, on the group's side
+    const g = groupOf(c.route, id);
+    const r = c.route.river.at(c.route.river.nearest(g.at[0], g.at[2]).d);
+    const made = c.ground(middle.x + out[0] * back + r.dir[0] * aside, middle.z + out[1] * back + r.dir[1] * aside, Math.max(above, CLEAR), fov);
+    const aim = middle.clone().lerp(c.route.pointAt(c.route.progressAt(pass ?? row?.pass ?? c.t)), look);
+    aim.y -= drop;
+    return { ...made, middle, group: g.id, look: target => target.copy(aim) };
+  },
+  // C: the run-along (the route's CALL_SHOTS row 4): on a stand moving along `path` ([x, z] to [x, z]) from the row's `from` to its
+  // `to` (still till `move`), `above` the ground (never under CLEAR), beside lizards running up the bank; it looks the one way all through, as it
+  // looks from where it starts at a point `look` of the way from `group`'s middle to her pass, so its frame goes along with them and
+  // never pans. Under reduced motion it stands still at the path's middle (createFlightCamera).
+  runAlong: (c, { callShot = null, path = null, from = null, move = null, to = null, group = null, pass = null, above = CLEAR, fov = 48, look = 0.3 } = {}) => {
+    const row = callShot ? callRow(callShot) : null;
+    const [a, b] = path ?? row.options.path;
+    const t0 = from ?? row?.from ?? c.t;
+    const t1 = to ?? row?.to ?? t0 + 5;
+    const track = standAlong(a, b, move ?? t0, t1, Math.max(above, CLEAR), c.groundAt); // still till `move`, when the lizards run
+    const aimFrom = groupMiddle(c.route, group ?? row?.group, c.groundAt); // the group it aims from
+    const position = track.at(t0);
+    const ahead = aimFrom.clone().lerp(herAt(c.route, pass ?? row?.pass ?? c.t), look).sub(position);
+    const ids = row ? [row.group, ...(row.also ?? [])] : [group];
+    return {
+      position, fov, middle: groupMiddle(c.route, ids[0], c.groundAt), seen: ids.map(id => groupMiddle(c.route, id, c.groundAt)), group: groupOf(c.route, ids[0]).id, ahead,
+      track: { ...track, middle: ((move ?? t0) + t1) / 2, from: t0, to: t1 },
+    };
   },
   // C: across the river from Mosi running in the shallows (route.cameos.bank)
   mosiBank: (c) => {
@@ -89,12 +153,38 @@ const FIXED = {
     const out = r.half + 18; // 2 m further back from the edge than his path
     return c.ground(r.x - r.dir[1] * out, r.z + r.dir[0] * out, 30, 56);
   },
-  // D: high in the gorge ahead of her, looking down at them small below
-  gorgeHigh: (c, { lead = 6 } = {}) => {
-    const s = c.route.distanceAt(Math.min(BEATS.END, c.t + lead));
-    const p = c.route.pointAt(s / c.route.length);
-    const r = c.route.river.at(c.route.river.nearest(p.x, p.z).d);
-    return { position: new V3(r.x, r.level + 26, r.z), fov: 50 };
+  // D: on the ledge beside a flyer's nest (the route's CALL_SHOTS row 5, NESTS[`nest`]): `along` metres up the river from it, `out`
+  // toward the river's middle and `above` it (never under CLEAR over the ground there), looking down the gorge the way she comes, at a
+  // point `look` of the way from the nest to her at the row's call (the flyer leaves then: world/ardalur/life.js, she 25 m off)
+  ledge: (c, { callShot = null, nest = null, along = 8, out = 1.5, above = 2, look = 0.3, fov = 46 } = {}) => {
+    const row = callShot ? callRow(callShot) : null;
+    const [x, y, z] = NESTS[nest ?? row.nest];
+    const r = c.route.river.at(c.route.river.nearest(x, z).d);
+    const inward = new THREE.Vector2(r.x - x, r.z - z).normalize();
+    const px = x + r.dir[0] * along + inward.x * out;
+    const pz = z + r.dir[1] * along + inward.y * out;
+    const position = new V3(px, Math.max(y + above, c.groundAt(px, pz) + CLEAR), pz);
+    const middle = new V3(x, y, z);
+    const aim = middle.clone().lerp(herAt(c.route, row?.call ?? c.t), look);
+    return { position, fov, middle, group: null, look: target => target.copy(aim) };
+  },
+  // F: down among a group of the herd (the route's CALL_SHOTS row 6, at `at`: life.js HERD) as the big call comes, low (`above` the
+  // ground), `distance` metres from its middle at `bearing` degrees from the way it runs to the far pool (+ to its left, seen from
+  // above). It aims `drop` m under the group's middle (HERD_MIDDLE over the ground) and, over the flight seconds `ease` [from, to],
+  // eases its aim up to a point `look` of the way from the middle to her at the row's pass, so the grazers fill the frame low with
+  // little sky and she comes over them; without `ease` it holds that last aim.
+  herd: (c, { callShot = null, at = null, pass = null, bearing = 180, distance = 16, above = CLEAR, drop = 0, look = 0.45, ease = null, fov = 50 } = {}) => {
+    const row = callShot ? callRow(callShot) : null;
+    const [hx, hz] = at ?? row.at;
+    const her = herAt(c.route, pass ?? row?.pass ?? c.t);
+    const way = Math.atan2(FAR_POOL.center[1] - hz, FAR_POOL.center[0] - hx) + rad(bearing);
+    const made = c.ground(hx + Math.cos(way) * distance, hz + Math.sin(way) * distance, Math.max(above, CLEAR), fov);
+    const middle = new V3(hx, c.groundAt(hx, hz) + HERD_MIDDLE, hz);
+    const last = middle.clone().lerp(her, look);
+    if (!ease) return { ...made, middle, group: null, look: target => target.copy(last) };
+    const first = middle.clone().add(new V3(0, -drop, 0));
+    const [from, to] = ease;
+    return { ...made, middle, group: null, look: target => target.copy(first).lerp(last, smooth(((c.flier.t ?? 0) - from) / (to - from))) };
   },
   // E: out over the plunge pool beside the cliff (inside the bowl's walls), the climb seen from the side, 21 m from it; under the
   // chapter's sun (earlyAfternoon, 215/22, over the cliff) it looks toward the sun through the spray
@@ -105,13 +195,15 @@ const FIXED = {
   // sun, the bow at 41). Close in, so the falls, the spray and the bow fill the frame.
   fallsTop: () => ({ position: new V3(FALLS.face - 7, FALLS.top + 18, FALLS.z - 22), fov: 38 }),
   // F: behind and a little above her as she comes out over the land above the falls, looking over her (4 m above her body), so the
-  // land runs to the mountains in the upper third and Grameðla's shadow on their ridge is in the frame (world/ardalur/far-land.js)
-  vista: (c) => {
-    const h = rad(c.flier.heading);
+  // land runs to the mountains in the upper third and Grameðla's shadow on their ridge is in the frame (world/ardalur/far-land.js).
+  // With `at` (a flight second) it stands where it would have stood cut to then (her place and heading on the schedule then)
+  vista: (c, { at = null } = {}) => {
+    const h = at === null ? rad(c.flier.heading) : headingAt(c.route, at);
+    const her = at === null ? c.flier.pose.position : herAt(c.route, at);
     const f = new V3(Math.cos(h), 0, Math.sin(h));
     const right = new V3(-Math.sin(h), 0, Math.cos(h));
     return {
-      position: c.flier.pose.position.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 7, 0)), fov: 55,
+      position: her.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 7, 0)), fov: 55,
       look: out => out.copy(c.flier.pose.position).add(new V3(0, 4, 0)),
     };
   },
@@ -138,21 +230,23 @@ function fixedContext(route, flier, groundAt) {
 /**
  * Each still shot of the flight (the route's STILLS) as the unattended flight has it: where its camera stands (the FIXED builder at the
  * shot's first second, her unsteered) and what it looks at: her body every 0.5 s of the shot, Mosi's head along his path for mosiBank,
- * the group's middle for bankShadow. The valley keeps its plants out of these views (world/ardalur/banks.js).
- * Returns [{ shot, from, to, position, looks }].
+ * the group's middle for a call shot (the nest for the ledge, the herd's middle for the herd). The valley keeps its plants out of these
+ * views (world/ardalur/banks.js). The run-along is a view from each second of its stand's way, and from its end.
+ * Returns [{ shot, from, to, position, looks, group }] (group: a call shot's group id, else null), the run-along's first from its start.
  */
 export function stillViews(route, { heightAt = () => 0 } = {}) {
   const groundAt = (x, z) => Math.max(heightAt(x, z), route.waterAt(x, z, 1) ?? -Infinity);
-  return STILLS.map(([shot, from, to, options]) => {
+  return STILLS.flatMap(([shot, from, to, options]) => {
     const u = route.progressAt(from);
     const tan = route.tangentAt(u);
     const flier = { t: from, heading: deg(Math.atan2(tan.z, tan.x)), pose: { position: route.pointAt(u) } };
-    const { position } = FIXED[shot](fixedContext(route, flier, groundAt), options);
+    const made = FIXED[shot](fixedContext(route, flier, groundAt), options);
     const looks = [];
     for (let t = from; t <= to + 1e-9; t += 0.5) looks.push(route.pointAt(route.progressAt(t)));
     if (shot === 'mosiBank') for (const [x, z] of route.cameos.bank.path) looks.push(new V3(x, (route.waterAt(x, z, 2) ?? heightAt(x, z)) + MOSI_HEAD, z));
-    if (shot === 'bankShadow') looks.push(groupMiddle(route, options.group, groundAt));
-    return { shot, from, to, position, looks };
+    for (const m of made.seen ?? (made.middle ? [made.middle] : [])) looks.push(m.clone());
+    const places = made.track ? [...Array.from({ length: Math.floor(to - from + 1e-9) + 1 }, (_, k) => made.track.at(from + k)), made.track.at(to)] : [made.position];
+    return places.map(position => ({ shot, from, to, position, looks, group: made.group ?? null }));
   });
 }
 
@@ -160,7 +254,7 @@ export function stillViews(route, { heightAt = () => 0 } = {}) {
 export function createFlightCamera(director, flier, { world = null, egill = null, reduced = false } = {}) {
   const route = flier.route;
   const shots = Object.freeze([...Object.keys(BOUND), ...Object.keys(FIXED)]);
-  const state = { name: null, kind: null, started: null, quick: false, quicks: 0, broken: new Set(), roll: 0, boost: 0, boostTo: 0, last: null, fast: 0 };
+  const state = { name: null, kind: null, started: null, quick: false, quicks: 0, broken: new Set(), roll: 0, last: null, fast: 0 };
   const heading = new V3();
   const right = new V3();
   const up = new V3(0, 1, 0);
@@ -169,8 +263,9 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   const lookRel = new V3();
   const prevRel = new V3();
   const prevLook = new V3();
+  const prevPosition = new V3();
   const dir = new V3();
-  let fixed = null; // { position, fov, look }
+  let fixed = null; // { position, fov, look, track: the run-along's moving stand or null }
   let bound = null;
   let orbitAt = 0;
 
@@ -191,18 +286,22 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   const toFrame = (v, out) => out.set(v.dot(heading), v.y, v.dot(right));
 
   const context = () => fixedContext(route, flier, groundAt);
+  // On a screen taller than 16:10 the director keeps the 16:10 width (director.effectiveFov), so its frame grows taller and what it
+  // frames smaller: on a tablet held upright (0.69) 2.3 times. A fixed shot given `tall` keeps its frame at most `tall` times the
+  // authored height there instead (the call shots: their group twice as tall as it was, the frame narrower than 16:10's).
+  function lensFor(fov, tall) {
+    if (!tall) return fov;
+    const widen = Math.tan(rad(director.effectiveFov(fov)) / 2) / Math.tan(rad(fov) / 2);
+    return widen <= tall ? fov : deg(2 * Math.atan(Math.tan(rad(fov) / 2) * tall / widen));
+  }
 
   function step(rig, dt) {
     frame();
     const base = bound?.fov ?? fixed?.fov ?? rig.fov;
-    // the boost: wider by 8 degrees in 0.4 s, back in 1 s (half of it under reduced motion)
-    const rate = state.boostTo > state.boost ? 1 / BOOST.in : 1 / BOOST.out;
-    state.boost = state.boostTo > state.boost ? Math.min(state.boostTo, state.boost + rate * dt) : Math.max(state.boostTo, state.boost - rate * dt);
-    // and the chase a little wider the faster she goes, easing at the lens's own pace (at once on a cut: a new shot's lens)
+    // the chase a little wider the faster she goes, easing at the lens's own pace (at once on a cut: a new shot's lens)
     const fast = !reduced && state.name === 'chase' ? SPEED_LENS.degrees * smooth((flier.speed - SPEED_LENS.from) / (SPEED_LENS.to - SPEED_LENS.from)) : 0;
     state.fast = dt > 0 ? state.fast + clamp(fast - state.fast, -SPEED_LENS.rate * dt, SPEED_LENS.rate * dt) : fast;
-    // the two do not add up: a burst's widening already holds her speed's (so a burst's view, and what it draws, is as it was)
-    rig.fov = base + Math.max(BOOST.degrees * (reduced ? BOOST.reduced : 1) * smooth(state.boost), state.fast);
+    rig.fov = lensFor(base + state.fast, bound ? null : fixed?.tall);
     if (bound) {
       let offset;
       if (bound.radius) {
@@ -233,15 +332,20 @@ export function createFlightCamera(director, flier, { world = null, egill = null
       prevLook.copy(lookRel);
       state.last = 'bound';
     } else if (fixed) {
+      if (fixed.track) fixed.track.at(flier.t ?? 0, fixed.position); // the run-along's stand, where it is at this second of the flight
       rig.position.copy(fixed.position);
       fixed.look(rig.target);
       rig.roll = state.roll = 0;
       dir.copy(rig.target).sub(rig.position).normalize();
       if (dt > 0 && state.last === 'fixed') {
         const pan = deg(dir.angleTo(prevLook)) / dt;
-        if (pan > FLIGHT_RULES.fixed.pan * SLACK) once('fixed', `fixed shot "${state.name}" pans ${pan.toFixed(1)} deg/s (max ${FLIGHT_RULES.fixed.pan})`);
+        const most = fixed.track ? FLIGHT_RULES.track.pan : FLIGHT_RULES.fixed.pan;
+        if (pan > most * SLACK) once('fixed', `${fixed.track ? 'moving' : 'fixed'} shot "${state.name}" pans ${pan.toFixed(1)} deg/s (max ${most})`);
+        const speed = rig.position.distanceTo(prevPosition) / dt;
+        if (fixed.track && speed > FLIGHT_RULES.track.speed * SLACK) once('track', `moving shot "${state.name}" goes ${speed.toFixed(2)} m/s (max ${FLIGHT_RULES.track.speed})`);
       }
       prevLook.copy(dir);
+      prevPosition.copy(rig.position);
       state.last = 'fixed';
     }
   }
@@ -256,15 +360,25 @@ export function createFlightCamera(director, flier, { world = null, egill = null
 
   /**
    * Cut to a named shot. Options: quick (one of the three 1.5 s shots of the gorge), look (a point spec function out => out for a fixed
-   * shot to keep in view instead of her), and the shot's own: a fixed shot's (side, lead, group), or for a bound one `raise` (metres the
-   * camera and its look go up together: she holds her head high perched on the snag) and `fov`. Returns the director's handle.
+   * shot to keep in view instead of her), and the shot's own: a fixed shot's (side, lead; a call shot's callShot, back, above, aside,
+   * its `fov` and its `look` as a share), or for a bound one `raise` (metres the camera and its look go up together: she holds her head
+   * high perched on the snag) and `fov`, and for the orbit `seconds`: a shorter circle at its own pace that ends where the whole one
+   * ends (its last part); and for a fixed one `tall`, the most its frame grows in height on a tall screen (lensFor). Returns the
+   * director's handle.
    */
-  function shot(name, { quick = false, look = null, raise = 0, fov = null, ...options } = {}) {
+  function shot(name, { quick = false, look = null, raise = 0, fov = null, seconds = null, tall = null, ...options } = {}) {
+    // a number for `look`, and a `fov`, are a fixed shot's own (the call shot's): they go to its builder
+    if (typeof look === 'number') { options.look = look; look = null; }
+    if (fov !== null && FIXED[name]) options.fov = fov;
     if (!BOUND[name] && !FIXED[name]) throw new Error(`No flight shot named "${name}" (there are ${shots.join(', ')})`);
     endShot();
     if (quick && ++state.quicks > FLIGHT_RULES.quick.max) warn(`shot "${name}" is quick shot number ${state.quicks} (at most ${FLIGHT_RULES.quick.max})`);
     let chosen = name;
-    if (reduced && name === 'orbit') chosen = 'vista'; // reduced motion: no circling (Review Focus 5)
+    if (reduced && name === 'orbit') {
+      chosen = 'vista'; // reduced motion: no circling (Review Focus 5)
+      // the circle's last part: the same still vista as the whole circle's, where it would have stood (a shot cut into it)
+      if (seconds !== null) options.at = (flier.t ?? 0) - (BOUND.orbit.seconds - clamp(seconds, 0, BOUND.orbit.seconds));
+    }
     state.name = name;
     state.started = director.time;
     state.quick = quick;
@@ -276,13 +390,21 @@ export function createFlightCamera(director, flier, { world = null, egill = null
       const [lookAhead, lookUp, lookRight] = bound.look.at;
       bound = { ...bound, offset: [ahead, up + raise, right], look: { ...bound.look, at: [lookAhead, lookUp + raise, lookRight] }, fov: fov ?? bound.fov };
     }
+    if (bound?.radius && seconds !== null) {
+      const share = clamp(seconds / bound.seconds, 0, 1);
+      bound = { ...bound, from: bound.to + (bound.from - bound.to) * share, seconds: Math.max(1e-3, bound.seconds * share) };
+    }
     orbitAt = 0;
     fixed = null;
     if (!bound) {
       frame();
       const made = FIXED[chosen](context(), options);
-      const lookAt = look ?? made.look ?? (out => out.copy(flier.pose.position).add(new V3(0, 0.6, 0)));
-      fixed = { position: made.position, fov: made.fov, look: lookAt };
+      // the run-along: on its moving stand, looking its one way; under reduced motion still, at its path's middle
+      const track = made.track && !reduced ? made.track : null;
+      const position = made.track && reduced ? made.track.at(made.track.middle) : made.position.clone();
+      const ahead = made.ahead ?? null;
+      const lookAt = look ?? made.look ?? (ahead ? out => out.copy(fixed.position).add(ahead) : out => out.copy(flier.pose.position).add(new V3(0, 0.6, 0)));
+      fixed = { position, fov: made.fov, look: lookAt, track, tall };
     }
     const handle = director.drive(`flight ${name}`, step);
     step(director.rig, 0);
@@ -300,13 +422,11 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     /** Degrees the chase is wider now for her speed (SPEED_LENS). */
     get speedLens() { return state.fast; },
     shot,
-    /** Hear every cut, with the shot's name, as it is made (what Egill may do follows the shot: kafli4-flight-play.js). Returns the off. */
+    /** Hear every cut, with the shot's name, as it is made. Returns the off. */
     onCut(fn) {
       cutListeners.push(fn);
       return () => { const i = cutListeners.indexOf(fn); if (i >= 0) cutListeners.splice(i, 1); };
     },
-    /** „Hraðar!“: the lens widens 8 degrees over 0.4 s (4 under reduced motion), and back over 1 s. */
-    boost(on) { state.boostTo = on ? 1 : 0; },
     /** One frame without the director (a test); the director calls the same step each frame while a flight shot is its mode. */
     update(dt) { step(director.rig, dt); director.apply(); },
     /** The flight is over: the last shot's length is checked. */

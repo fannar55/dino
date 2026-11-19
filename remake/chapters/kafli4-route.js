@@ -21,20 +21,77 @@ export const FASTER_LAST = 98;
 /** When she leaps off the snag: the close-up of Egill holding on comes first (spec 5A), she sits still till then. */
 export const LEAP = 3.5;
 /**
+ * The call shots (the Flugmynd spec, 2026-11-15: the owner's list): a still camera down with an animal group, heads down, as her call
+ * comes, heads up, she sweeps through the frame, and they answer. { id, shot, group, also, from, call, pass, to, options }, in flight
+ * seconds: the cut to it (`from`), her call (`call`), when she is nearest the group (`pass`), the cut back (`to`). `shot` is the
+ * flight camera's (engine/camera/flight-camera.js FIXED), `group` a group of GROUPS, `options` where the camera stands: `back` metres
+ * behind the group's middle away from the river, `above` over the ground or the water, `aside` along the bank (up the river), its
+ * lens (`fov`), and `look`, how far from the group's middle toward her pass it aims (`drop` metres under that); `tall`: on a screen taller than 16:10 its frame
+ * grows at most that many times its height (the flight camera's lensFor: on a tablet held upright the group twice as tall as with
+ * the 16:10 width kept). Each first second is from where she passes the group: from ≈ pass − 3.8, call ≈ pass − 2.4, to ≈ pass + 2.5.
+ *
+ * Three rows are kinds of their own. 'runAlong' (row 4) is a still camera's rules on a moving stand: it goes along `path` ([x, z] to
+ * [x, z], `above` the ground) from `move` (or `from`) to `to` at a steady speed, eased over its first and last 0.5 s, always looking the one way
+ * (`look` of the way from `group`'s middle to her pass, from where it starts); `early` groups answer at the call (as an auto call's
+ * do) with their own run up the bank, `{ metres, seconds }`, so they are already running as it begins. 'ledge' (row 5) stands beside
+ * a flyer's nest (NESTS[`nest`]) in the gorge, `along` metres up the river from it, `out` toward the river's middle and `above` over
+ * it, looking down the gorge the way she comes (`look` of the way from the nest to her at the call); its `call` is the second the
+ * flyer leaves (world/ardalur/life.js: she comes within 25 m) and its `pass` when she passes the nest. 'herd' (row 6) stands low
+ * before a group of the herd (life.js HERD, at `at`), `distance` metres from its middle at `bearing` degrees from the way the group
+ * runs to the far pool, aiming `drop` m under its middle and easing its aim, over the flight seconds `ease`, `look` of the way up
+ * toward her at the pass; its `call` is the big call's (chapters/kafli4-flight-play.js PLAY.bigCall).
+ */
+export const CALL_SHOTS = [
+  // low on the bank among the lizards drinking at the edge (in place of the chase and the side shot of 39-45)
+  { id: 'kall-edlur', shot: 'call', group: 'lizards-1', from: 39.34, call: 40.74, pass: 43.14, to: 45.4, options: { back: 4.5, above: 1.2, aside: 5.5, look: 0.25, fov: 46, tall: 1.3 } },
+  // at the water by the lily pads (in place of waterLevel's second)
+  { id: 'kall-froskar', shot: 'call', group: 'frogs-2', from: 48.05, call: 49.45, pass: 51.85, to: 54.35, options: { back: 3, above: 1.2, aside: 6, look: 0.25, fov: 50, tall: 1.3 } },
+  // across the river from their tree, low on the far bank downstream of it (in place of the shadow shot): the ten birds sit on the
+  // top of its leaves on the river side, facing the camera 36 m off; she comes past the camera's left, sweeps by the tree, and they
+  // burst up as she passes (pass + 0.3) and fly with her up the river into the frame's depth. It aims 4.5 m low, so the sky's cloud
+  // shaped like Mosi (engine/sun-face.js), 35 degrees left of the sun, is above the frame and not cut by its top right corner
+  { id: 'kall-fuglar', shot: 'call', group: 'birds-2', from: 63, call: 64.33, pass: 66.73, to: 69.23, options: { back: -28, above: 1.2, aside: -20, look: 0.5, drop: 4.5, fov: 40, tall: 1.3 } },
+  // the run-along (in place of the chase and the side shot of 72-80): her call is to lizards-2 too (`also`: groups that hear the
+  // row's call), just down the bank. The stand waits with them, heads down, till they run at once (0.6 s after the call: `move`),
+  // 33 m up the bank in 5.5 s (to d 859, short of the steep rise at 864), and goes with them on the bank behind them (river metres
+  // 828 to 858, 8.5 m from the water), 30 m in 5.8 s; she comes over them, lizards-3 join as she passes them and the first runners
+  // come by, and she flies on ahead
+  {
+    id: 'kall-hlaup', shot: 'runAlong', group: 'lizards-3', also: ['lizards-2'], early: { 'lizards-2': { metres: 33, seconds: 5.5 } },
+    from: 72.2, call: 73.6, pass: 76.01, to: 80,
+    options: { path: [[-928.4, 124.0], [-957.9, 128.9]], move: 74.2, above: 1.2, group: 'lizards-2', look: 0.3, fov: 44, tall: 1.3 },
+  },
+  // on the ledge beside a flyer (in place of gorgeHigh): nest 5, the south wall 17 m over the river; she is far down the gorge as it
+  // begins, the flyers of nests 3 and 4 leave as she comes (90.6 and 92.4 s), this one at 94.8 s, and she comes under it as it ends.
+  // It stands 2.5 m out from the wall, so the flyer leaving her way keeps 2 m off the line to Egill as it goes by (2.5 m at 95.8 s)
+  { id: 'kall-sylla', shot: 'ledge', nest: 5, from: 90.5, call: 94.8, pass: 96.51, to: 96, options: { along: 9, out: 2.5, above: 2, look: 0.3, fov: 46 } },
+  // low before the herd's stepNorth group (life.js HERD) as the big call comes: heads up, and she glides high over them (26 m off,
+  // 18 m up, at 139.6 s) against the gold; then the slow circle's last part. It stands on the higher ground 52 m to the south (110
+  // degrees right of their way to the far pool), so the five stand whole in the middle of a long lens (28 degrees) facing it and her
+  // way, little sky over them (a quarter) while they graze; from 136.5 to 139.5 s its aim comes up a fifth of the way to her pass, so
+  // she flies in over them (at 0.73 of the frame's height, 106 px across at 16:10). It stands short of the step's south group (HERD
+  // 'step'), which walks off past it out of its frame. She comes into its frame after the flyer of nest 4, wheeling round her, has
+  // crossed the line to Egill (138 s)
+  {
+    id: 'kall-hjord', shot: 'herd', at: [-1367, 31], from: 135, call: 135, pass: 139.58, to: 141.6,
+    options: { bearing: -110, distance: 52, above: 1.2, drop: 1, look: 0.2, ease: [136.5, 139.5], fov: 28 },
+  },
+];
+
+/**
  * The still shots of the flight (engine/camera/flight-camera.js FIXED), in the order the flight cuts to them (chapters/kafli4-flight.js):
- * [shot, from, to, options], in flight seconds. The plants keep out of their views (world/ardalur/banks.js, flight-camera.js stillViews).
+ * [shot, from, to, options], in flight seconds, the call shots among them (options.callShot: the row's id). The plants keep out of
+ * their views (world/ardalur/banks.js, flight-camera.js stillViews).
  */
 export const STILLS = [
   ['belowTakeOff', 3, 8, {}],
   ['waterLevel', 25, 28.3, {}],
-  ['waterLevel', 51, 53.6, {}],
   ['mosiBank', 57.5, 63, {}],
-  ['bankShadow', 63, 68, { group: 'lizards-2' }],
-  ['gorgeHigh', 90.5, 96, {}],
   ['mosiRim', 96, 99.5, {}],
   ['fallsSide', 110, 113.4, {}],
   ['fallsTop', 113.4, 116, {}],
-];
+  ...CALL_SHOTS.map(row => [row.shot, row.from, row.to, { ...row.options, callShot: row.id }]),
+].sort((a, b) => a[1] - b[1]);
 /** The white snag: its foot at the origin, its top (where she perches) 10.5 m up. */
 export const TREE = [0, 10.5, 0];
 /** How high her body (hips) rides over her feet when she flies, at the 7.5 m size (pteranodon.glb's fly and glide clips). */
@@ -155,6 +212,15 @@ export const NESTS = [
   [-1202.21, 21.76, 135.91, 72], // 1110 m, north, 14 m: 97.0 s
   [-1231.53, 28.03, 153.77, -48], // 1135 m, south, 20 m: 99.7 s
 ];
+/**
+ * The rocks the flyers stand on, where a shot comes near enough to see what a flyer stands on (kall-sylla: nest 5): the valley's own
+ * rock (world/forest/species.js, as the banks place it), `at` [x, z] with its back a quarter of its width in the wall, turned `rot`
+ * and scaled, its `shape` the species' own options (`mossy`: how much moss grows on its top; the forest's rocks have 0.7 to 1.4,
+ * this one is grey rock with a little moss, as a ledge in a bare wall is); world/ardalur/life.js sets its height so its top is just
+ * under the flyer's feet. The wall there is 83° steep, so it juts out of it like a shelf, 0.95 m out past the flyer's feet and its top
+ * within 0.16 m of level round them.
+ */
+export const NEST_ROCKS = [{ nest: 5, at: [-1181.78, 163.59], variant: 0, rot: 1.047, scale: 1.6, shape: { mossy: 0.25 } }];
 
 // ---------------------------------------------------------------------------------------------
 // The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small
@@ -296,10 +362,10 @@ const GROUPS = [
   ['lizards-1', 'lizards', 330, -1, 3], // drinking at the edge
   ['birds-1', 'birds', 400, 1, 6], // in a tree by the water
   ['frogs-2', 'frogs', 470, -1, 2], // lilies float only on the calm reach, below the rapids (river.js RAPIDS.from, d 509)
-  ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after waterLevel[1] and before Mosi's run (d 585 to 617)
-  ['birds-2', 'birds', 665, -1, 6], // called just after his line; they fly up at the end of his shot
-  ['lizards-2', 'lizards', 724, 1, 3], // the shadow shot's (chapters/kafli4-flight.js)
-  ['dragonflies', 'dragonflies', 785, -1, -3], // over the water
+  ['turtles', 'turtle', 550, 1, 1.4], // on stones and logs, seen in the chase after the frogs' call shot and before Mosi's run (d 585 to 617)
+  ['birds-2', 'birds', 705, -1, 6], // after Mosi's cameo: she passes 66.7 s, 3.7 s into their call shot (CALL_SHOTS kall-fuglar)
+  ['dragonflies', 'dragonflies', 775, -1, -3], // over the water; down from 785, so her call to them plays out before the run-along's
+  ['lizards-2', 'lizards', 826, 1, 3], // just below lizards-3 (from 724): the run-along's call is to both (CALL_SHOTS kall-hlaup)
   ['lizards-3', 'lizards', 840, 1, 3], // her calls about 4 s apart: each line plays out (its length and the pause after it) before the next
 ];
 /** How high over the river each kind's group is (its tap target): the dragonflies over the water, the birds in their tree's crown. */

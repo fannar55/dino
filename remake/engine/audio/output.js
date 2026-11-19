@@ -19,6 +19,24 @@ export function createAudioContext() {
  * What the music and the effects are both heard through: a little headroom, then a limiter, so the two together never clip
  * (the old game's settings, dist/audio.js). Returns the node to connect them to.
  */
+/**
+ * A line's <audio> heard from one side (engine/scene/voice.js `pan`): the element through a stereo panner straight to the speakers,
+ * not through the output (a line sounds as loud as one played straight out, which the output's limiter does not touch). Returns
+ * its letting go (once is enough; twice is fine), or null with no audio context. -1 is left, 1 right.
+ */
+export function panElement(context, element, pan) {
+  if (!context?.createMediaElementSource || !context.createStereoPanner) return null;
+  const source = context.createMediaElementSource(element);
+  const panner = context.createStereoPanner();
+  panner.pan.value = Math.max(-1, Math.min(1, Number(pan) || 0));
+  source.connect(panner);
+  panner.connect(context.destination);
+  return () => {
+    source.disconnect();
+    panner.disconnect();
+  };
+}
+
 export function createOutput(context) {
   const master = context.createGain();
   master.gain.value = 0.9;

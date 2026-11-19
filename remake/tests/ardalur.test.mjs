@@ -5,12 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS, NEST_ROCKS } from '../chapters/kafli4-route.js';
+import { createTreeProbe } from '../engine/tree-probe.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain, CORRIDOR } from '../world/ardalur/terrain.js';
-import { createAnimals, ANSWER, SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
+import { createAnimals, ANSWER, HEAR, SMAEDLA_MODEL, GRASBITUR_MODEL, FLUGDYR_MODEL } from '../world/ardalur/animals.js';
 import { crowdModelFrom } from '../world/critters/crowd-models.js';
 import { loadGlb } from './glb.mjs';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -659,13 +660,17 @@ test('the still shots see what they show: nothing tall by the camera, nothing on
   const place = litValley();
   const near = placementsNear(place);
   const views = stillViews(route, { heightAt: place.heightAt });
-  for (const shot of ['belowTakeOff', 'waterLevel', 'mosiBank', 'bankShadow', 'gorgeHigh', 'mosiRim', 'fallsSide', 'fallsTop']) {
+  for (const shot of ['belowTakeOff', 'waterLevel', 'mosiBank', 'call', 'runAlong', 'ledge', 'herd', 'mosiRim', 'fallsSide', 'fallsTop']) {
     assert.ok(views.some(v => v.shot === shot), `a view of ${shot}`);
   }
+  assert.ok(views.every(v => v.shot !== 'bankShadow' && v.shot !== 'gorgeHigh'), 'the shadow shot and the high gorge shot went (the call shots)');
+  const own = groupProps(place);
   const wrong = [];
   for (const view of views) {
     const p = view.position;
+    const mine = own(view.group, view.shot === 'ledge' ? CALL_SHOTS.find(r => r.shot === 'ledge' && r.from === view.from) : null); // a call shot's own group's props (the birds' tree, the lily pads) or its nest's rock are what it shows
     for (const q of near(p.x, p.z, 6)) {
+      if (mine.has(q)) continue;
       const h = q.model.height * q.scale;
       if (h > 0.5) wrong.push(`${view.shot} (${view.from} s): a ${q.name} ${h.toFixed(2)} m tall ${Math.hypot(q.x - p.x, q.z - p.z).toFixed(1)} m from the camera`);
     }
@@ -675,7 +680,7 @@ test('the still shots see what they show: nothing tall by the camera, nothing on
       for (let k = 0; k <= length; k += 0.25) {
         const s = p.clone().lerp(look, k / length);
         for (const q of near(s.x, s.z, 9)) {
-          if (blocking.has(q)) continue;
+          if (blocking.has(q) || mine.has(q)) continue;
           const body = bodyOf(q.model, q.scale);
           const across = Math.hypot(q.x - s.x, q.z - s.z) - body.r;
           const up = Math.max(0, q.y - s.y, s.y - (q.y + body.h));
@@ -686,6 +691,56 @@ test('the still shots see what they show: nothing tall by the camera, nothing on
         }
       }
     }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+/**
+ * The placements that are an animal group's own props (animals.js PROPS: the birds' tree, the lily pads, the stones and logs), by
+ * group id: own(id) → a Set of placements (empty for null); own(null, ledgeRow) the rock under that ledge shot's nest (NEST_ROCKS).
+ */
+function groupProps(place) {
+  const placements = place.stats.sections.flatMap(part => part.userData.placements);
+  const sets = new Map();
+  return (id, ledge = null) => {
+    if (ledge) {
+      const rock = NEST_ROCKS.find(r => r.nest === ledge.nest);
+      return new Set(rock ? placements.filter(q => q.name === 'rock' && Math.hypot(q.x - rock.at[0], q.z - rock.at[1]) < 0.01) : []);
+    }
+    if (!id) return new Set();
+    if (!sets.has(id)) {
+      const g = place.animals.groups.find(x => x.id === id);
+      const props = place.animals.props.filter(p => Math.hypot(p.x - g.point.x, p.z - g.point.z) < 12);
+      sets.set(id, new Set(placements.filter(q => props.some(p => p.name === q.name && Math.hypot(p.x - q.x, p.z - q.z) < 0.01))));
+    }
+    return sets.get(id);
+  };
+}
+
+test('the call shots see what they are about and her as she comes: no tree between the camera and them (engine/tree-probe.js)', () => {
+  const place = litValley();
+  const own = groupProps(place);
+  const kinds = new Set(CALL_SHOTS.map(r => r.shot));
+  const views = stillViews(route, { heightAt: place.heightAt }).filter(v => kinds.has(v.shot));
+  assert.ok(views.length >= CALL_SHOTS.length, `${views.length} call shot views`);
+  const placements = place.stats.sections.flatMap(part => part.userData.placements);
+  const wrong = [];
+  for (const view of views) {
+    const row = CALL_SHOTS.find(r => r.shot === view.shot && r.from === view.from);
+    const p = view.position;
+    const mine = own(view.group, row.shot === 'ledge' ? row : null);
+    if (row.shot === 'ledge') assert.equal(mine.size, 1, `${row.id}: the rock under its nest grows with the valley`);
+    const reach = 60;
+    const probe = createTreeProbe(placements.filter(q => !mine.has(q)), { near: (x, z) => Math.hypot(x - p.x, z - p.z) < reach });
+    assert.ok(probe.plants.length > 5, `${row.id}: ${probe.plants.length} tall plants within ${reach} m to ask about`);
+    const sight = (b, what) => ({ a: p.toArray(), b: b.toArray(), r: 0.1, bone: what });
+    // what it is about (the last of its looks: its groups' middles, the nest, the herd's middle), and her from her call to a second
+    // after she passes (the ledge: from the cut till the flyer leaves and a second on, as she comes up the gorge)
+    const about = (row.also?.length ?? 0) + 1;
+    const lines = view.looks.slice(-about).map(l => sight(l, 'what it is about'));
+    const seen = row.shot === 'ledge' ? [row.from, row.call + 1] : [row.call, Math.min(row.pass + 1, row.to)];
+    for (let t = seen[0]; t <= seen[1] + 1e-9; t += 0.25) lines.push(sight(route.pointAt(route.progressAt(t)), `her at ${t.toFixed(2)} s`));
+    for (const hit of probe.look(lines)) wrong.push(`${row.id}: a ${hit.name} at ${hit.x}, ${hit.z} between the camera and ${hit.bone} (${hit.depth.toFixed(2)} m in)`);
   }
   assert.deepEqual(wrong, []);
 });
@@ -1021,7 +1076,7 @@ function animalWorld() {
   };
   return world;
 }
-const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'lizards-2', 'dragonflies', 'lizards-3'];
+const NINE = ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'dragonflies', 'lizards-2', 'lizards-3'];
 const MEMBERS = { frogs: 6, lizards: 10, birds: 10, turtle: 6, dragonflies: 6 };
 
 test('nine animal groups along C, in the order she meets them, each where the route puts it, each a wide tap target', () => {
@@ -1076,6 +1131,30 @@ test('a tap on the birds\' tree calls the birds: the group is the tree\'s crown,
     assert.ok(g.point.distanceTo(crown) < 2, `${g.id}: the tap target is the crown (${g.point.distanceTo(crown).toFixed(2)} m off)`);
     assert.ok(g.radius >= 3, `${g.id}: as wide as a crown (${g.radius} m)`);
     for (const m of g.members) assert.ok(m.position.distanceTo(crown) < model.crown.r * sc + 0.5, `${g.id}: a bird in its crown`);
+    // each sits on the top of the leaves under it, nothing of its tree over it, so it is seen from outside the crown (the owner's look
+    // at kall-fuglar, 2026-11-15: only their feet showed under the leaves) and none sits in the air: rays down and up through its
+    // feet against its tree's own triangles, placed as the batcher places them
+    const mesh = new THREE.Group();
+    for (const part of [model.solid, model.thin]) {
+      if (!part?.pos?.length) continue;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(Array.from(part.pos), 3));
+      geometry.setIndex(Array.from(part.idx));
+      mesh.add(new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })));
+    }
+    mesh.position.set(tree.x, y, tree.z);
+    mesh.rotation.y = -tree.rot;
+    mesh.scale.setScalar(sc);
+    mesh.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    for (const m of g.members) {
+      const p = m.position;
+      ray.set(p.clone().add(new THREE.Vector3(0, 20, 0)), new THREE.Vector3(0, -1, 0));
+      const top = ray.intersectObject(mesh, true)[0]?.point.y ?? -Infinity;
+      assert.ok(Math.abs(p.y - top) < 0.15, `${g.id}: a bird ${(p.y - top).toFixed(2)} m over the top of the leaves under it`);
+      ray.set(p.clone().add(new THREE.Vector3(0, 0.1, 0)), new THREE.Vector3(0, 1, 0));
+      assert.deepEqual(ray.intersectObject(mesh, true).map(h => h.point.y.toFixed(2)), [], `${g.id}: nothing of its tree over a bird`);
+    }
   }
   animals.dispose();
 });
@@ -1175,6 +1254,74 @@ test('the lizards are the owner\'s small lizard: drinking or idle at rest, looki
   }
   // drawn from the model's two levels: near and far, two draw calls at most for the kind
   assert.equal(animals.crowds.meshes.filter(mesh => mesh.userData.kind === 'smaedla').length, 2);
+  animals.dispose();
+});
+
+test('a group that hears her looks up at once: the small lizards\' look eases in over 0.4 s, whatever her distance, until they answer', async () => {
+  const smaedla = crowdModelFrom(await loadGlb(new URL(SMAEDLA_MODEL)));
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt, critters: { smaedla } });
+  const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+  const g = animals.groups.find(x => x.id === 'lizards-1');
+  const at = passes(route.groups.find(r => r.id === g.id).u) - 2.4; // a call shot's call: she is some 36 m off
+  const pose = t => { world.at(t); animals.update(DT, t); };
+  assert.equal(typeof g.hear, 'function', 'a group can hear her');
+  g.hear(at);
+  pose(at - 0.05);
+  g.members.forEach((m, k) => {
+    const clip = m.e < 1 ? 'drink' : 'idle';
+    assert.ok(weight(m, clip) > 0.95, `${k}: ${clip} before it hears her (${weight(m, clip).toFixed(2)})`);
+  });
+  pose(at + 0.2);
+  g.members.forEach((m, k) => assert.ok(weight(m, 'look') > 0.3 && weight(m, 'look') < 0.7, `${k}: half up 0.2 s after (${weight(m, 'look').toFixed(2)})`));
+  for (const t of [at + 0.4, at + 1.2, at + 2.4]) {
+    pose(t);
+    g.members.forEach((m, k) => assert.ok(weight(m, 'look') > 0.99, `${k}: looking up ${(t - at).toFixed(1)} s after (${weight(m, 'look').toFixed(2)})`));
+  }
+  // they turn toward her a little, each from its own way, and never more than HEAR.turn
+  const turned = g.members.map(m => Math.abs(((m.heading - m.rest + 540) % 360) - 180));
+  assert.ok(turned.some(a => a > 5) && turned.every(a => a <= HEAR.turn + 1e-6), `turned ${turned.map(a => a.toFixed(0)).join(', ')} degrees`);
+  // jumping to a time lands where hearing and playing up to it does
+  const other = animalWorld();
+  const again = createAnimals(other, route, { heightAt: animalTerrain.heightAt, critters: { smaedla } });
+  again.groups.find(x => x.id === 'lizards-1').hear(at);
+  other.at(at + 1.2);
+  again.update(0, at + 1.2);
+  pose(at + 1.2);
+  samePoses(animals, again);
+  // a group that has not heard her looks up only as she comes near, as before
+  const far = animals.groups.find(x => x.id === 'lizards-3');
+  const farAt = passes(route.groups.find(r => r.id === far.id).u) - 2.4;
+  pose(farAt);
+  assert.ok(far.members.every(m => weight(m, 'look') < 0.05), 'lizards-3 has not heard her: heads down while she is still far');
+  // the answer takes over: they run (answered at at + 2.4: answer() starts at the world's clock)
+  pose(at + 2.4);
+  g.answer();
+  pose(at + 4);
+  g.members.forEach((m, k) => assert.ok(!m.visible || Math.abs(weight(m, 'run') - 1) < 1e-6, `${k}: runs (${weight(m, 'run').toFixed(2)})`));
+  animals.dispose();
+  again.dispose();
+});
+
+test('a kind without a look clip turns toward her when it hears: the frogs and the birds of the call shots', () => {
+  const world = animalWorld();
+  const animals = createAnimals(world, route, { heightAt: animalTerrain.heightAt });
+  for (const id of ['frogs-2', 'birds-2']) {
+    const g = animals.groups.find(x => x.id === id);
+    const at = passes(route.groups.find(r => r.id === id).u) - 2.4;
+    world.at(at - 0.05);
+    animals.update(DT, at - 0.05);
+    const before = g.members.map(m => m.heading);
+    g.hear(at);
+    world.at(at + 1);
+    animals.update(DT, at + 1);
+    const her = route.pointAt(route.progressAt(at + 1));
+    g.members.forEach((m, k) => {
+      const toHer = THREE.MathUtils.radToDeg(Math.atan2(her.z - m.position.z, her.x - m.position.x));
+      const off = h => Math.abs(((h - toHer + 540) % 360) - 180);
+      assert.ok(off(m.heading) < off(before[k]) - 1 || off(before[k]) < 2, `${id} ${k}: turns toward her (${off(before[k]).toFixed(0)} to ${off(m.heading).toFixed(0)} degrees off)`);
+    });
+  }
   animals.dispose();
 });
 

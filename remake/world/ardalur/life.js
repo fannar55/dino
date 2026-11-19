@@ -25,7 +25,8 @@
 //   life.flyersOff       { at, side }: the flight second the first of them leaves its nest, and its side of her ('left' or 'right');
 //                        null without them (chapters/kafli4-flight-play.js: they cry then)
 //   life.arrivals        those that stand at the far pool in scene 7, each with its spot there (gather: { at, heading })
-//   life.props           the trees the birds sit in, for the plants to grow (banks.js); life.clear  where nothing else may grow
+//   life.props           the trees the birds sit in and the rocks under the nests of NEST_ROCKS, for the plants to grow
+//                        (banks.js); life.clear  where nothing else may grow
 //                        (the herd's ways: nothing taller than GRAZE.low)
 //   life.update(dt, t)   each frame, on the game clock t; the flight's own time is world.flightTime (null or < 0 outside the flight)
 //   life.skim(x, z)      she skims the water at (x, z): the striders within 10 m skate off and back
@@ -56,7 +57,7 @@
 // they are gone; and once scene 7 has begun (arrive), the arrivals stand at the far pool. They are drawn in the crowds
 // (world/critters/crowd.js), given or their own.
 import * as THREE from 'three';
-import { BEATS, FAR_POOL, MEADOW, NESTS } from '../../chapters/kafli4-route.js';
+import { BEATS, FAR_POOL, MEADOW, NESTS, NEST_ROCKS } from '../../chapters/kafli4-route.js';
 import { createModel } from '../critters/models.js';
 import { createCrowds } from '../critters/crowd.js';
 import { clipPose } from '../critters/crowd-models.js';
@@ -88,10 +89,11 @@ const FEN_FLIES = { at: [7, 10.5, 14, 17], off: [8, 10, 7, 12], up: 1.4 };
 // The fish: one every `every` metres up the river from `from`, `off` metres beside her path, jumping `height` m in `seconds` when
 // she is `ahead` metres before it, `across` metres out from her path.
 export const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
-// The bank trees: in the gaps between the groups (but those just after a group of birds; the third on the far bank from the second
-// water-level shot, which stands by the near one), `e` m from the water, `scale` as the birds' trees in animals.js; four birds in
-// the crown's river side ([turn from facing the river, height in the crown]).
-const PERCHES = { gaps: [0, 1, 3, 4, 6, 7], side: [-1, 1, -1, -1, -1, 1], e: 7, scale: 0.65, within: 20, out: 0.85, birds: [[-0.7, 0.3], [-0.25, -0.05], [0.25, 0.4], [0.7, 0.1]] };
+// The bank trees: in the gaps between the groups (but those just after a group of birds, and the 14 m between the two lizard groups
+// of the run-along call shot; the third on the far bank from the second water-level shot, which stands by the near one), `e` m from
+// the water, `scale` as the birds' trees in animals.js; four birds in the crown's river side ([turn from facing the river, height in
+// the crown]).
+const PERCHES = { gaps: [0, 1, 3, 4, 6], side: [-1, 1, -1, -1, -1], e: 7, scale: 0.65, within: 20, out: 0.85, birds: [[-0.7, 0.3], [-0.25, -0.05], [0.25, 0.4], [0.7, 0.1]] };
 // The water striders: one every `every` metres from `from`, on alternate banks, `e` from the water's edge; a skim within `reach`
 // sends them `out` metres off and back in `seconds`.
 const STRIDERS = { from: 40, every: 55, count: 8, e: [-2.0, -2.5, -3.0], reach: 10, out: 1.5, seconds: 2 };
@@ -155,6 +157,7 @@ const FLY = {
   within: 25, out: 3.5, drop: 1.5, off: 1.2, along: 6, wait: 0.3, join: 2.8, bob: 0.3, sway: 0.4, beat: [1.2, 4.5],
   climb: [105, 119.5], turns: 1, circle: [126, 149], land: { from: 162.5, every: 0.3, seconds: 4.5, ahead: 22, arc: 2.5, flare: 1.2 },
 };
+const NEST_FEET = 0.02; // metres a flyer's feet stand over the top of the rock under its nest (NEST_ROCKS)
 const SLOTS = {
   right: [[-3.5, 6, 5.2], [-6.5, 4.5, 6.4], [-5, 5.5, -2.4], [-8.5, 7.5, 5.6]],
   left: [[-7.5, -5.5, 6.2], [-4.5, -6, 7.4], [-9.5, -2.5, -2.4], [-9.5, -7.5, 5]],
@@ -479,6 +482,15 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   // the first to leave its nest, and its side of her: they cry then (chapters/kafli4-flight-play.js)
   const first = flyers.reduce((a, b) => (a && a.trigger <= b.trigger ? a : b), null);
   const flyersOff = first ? { at: first.trigger, side: first.side } : null;
+  // the rocks some of them stand on (NEST_ROCKS: where a shot sees the ledge), grown with the banks, each as high as puts its drawn
+  // top NEST_FEET under the flyer's feet (its top over the nest: rockSurface)
+  for (const { nest, at: [x, z], variant, rot, scale, shape = {} } of NEST_ROCKS) {
+    const [nx, ny, nz] = NESTS[nest];
+    const model = library?.get?.('rock', variant, 1, shape) ?? null;
+    const y = ny - NEST_FEET - rockSurface(model, { x, y: 0, z, rot, scale })(nx, nz);
+    props.push({ name: 'rock', variant, x, y, z, rot, scale, shape });
+    clear.push({ x, z, r: 1.2 * scale });
+  }
 
   // Scene 7: the arrivals, each given its spot at the far pool, turned toward her in the shallows; the flyers stand where they landed
   let arrived = false;

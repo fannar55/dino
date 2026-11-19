@@ -11,8 +11,9 @@ import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { playUnattended } from './chapter-harness.mjs';
-import { FLIGHT_WORDS, SONG } from '../chapters/kafli4-flight.js';
-import { FAR_POOL, POOL, BEATS, createRoute } from '../chapters/kafli4-route.js';
+import { FLIGHT_WORDS, SONG, EGILL_ANSWERS, EGILL_ANSWER_AT } from '../chapters/kafli4-flight.js';
+import { PLAY } from '../chapters/kafli4-flight-play.js';
+import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
 import { createTreeProbe, plantVolumes, reachInto } from '../engine/tree-probe.js';
@@ -222,13 +223,23 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, shadow: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
     limit: 720, shaped: true, aspect, earlyTap: tap ? { name: 'thorsedla', after: 1 } : null, savedWith, reduced,
     onFrame({ world, director, pointer, ui, shot: label }) {
       const c = world.chapterState;
+      // what the flight asks of its sound (the harness has no audio, so c.sounds is the silent one): the ground shots' dip, in flight
+      // seconds
+      if (c?.sounds && !seen.ground.wrapped) {
+        seen.ground.wrapped = true;
+        const ground = c.sounds.ground;
+        c.sounds.ground = on => {
+          seen.ground.push({ on: Boolean(on), t: world.clock.time - (c.flight?.flight?.started ?? NaN) });
+          return ground(on);
+        };
+      }
       // the page's theme, which the harness's world has none of: what the chapter asks of it, and when
       if (!seen.theme) {
         seen.theme = [];
@@ -287,7 +298,7 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         const flyers = world.forest.life?.flyers ?? [];
         if (flyers.length) {
           seen.flyers.push({
-            t: world.flightTime, shot, camera: world.camera.position.clone(), egill: egill.headPosition(new THREE.Vector3()),
+            t: world.flightTime, shot, camera: world.camera.position.clone(), egill: egill.headPosition(new THREE.Vector3()), seesEgill: (q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1)(egill.headPosition(new THREE.Vector3()).project(world.camera)),
             her: c.flight.flier.pose.position.clone(), flyers: flyers.filter(b => b.visible).map(b => ({ id: b.id, at: b.position.clone() })),
           });
         }
@@ -316,22 +327,70 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
           });
         }
       }
-      // the shadow shot (the flight camera's bankShadow): how large the lizards it is about look, as she passes them
-      if (c?.flight?.camera?.current === 'bankShadow' && world.forest?.animals) {
-        const group = world.forest.animals.groups.find(g => g.id === 'lizards-2');
+      // the call shots' lizards (the route's CALL_SHOTS): how far each looks up (its look clip's share of its pose) and how much the
+      // drinkers at the edge drink, from half a second before the shot to its end
+      const near = world.forest?.animals ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.5 && world.flightTime <= row.to) : null;
+      const lizards = near ? world.forest.animals.groups.find(g => g.id === near.group && g.kind === 'lizards') : null;
+      if (lizards) {
+        const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+        seen.heads.push({ id: near.id, t: world.flightTime, look: lizards.members.map(m => weight(m, 'look')), drink: lizards.members.filter(m => m.e < 1).map(m => weight(m, 'drink')) });
+      }
+      // the ledge's call shot (the route's CALL_SHOTS, life.js flyers): its flyer, how far from its nest and where in the frame; the
+      // herd's: how far up the stepNorth group's heads are (the look clip's share of each pose) and where she is in the frame
+      const kind = c?.flight?.camera?.current ?? null;
+      const kindRow = kind === 'ledge' || kind === 'herd' ? CALL_SHOTS.find(row => row.shot === kind && world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      if (kindRow && world.forest?.life) {
         world.camera.updateMatrixWorld();
-        // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame
-        let low = Infinity, high = -Infinity;
+        const ndc = p => p.clone().project(world.camera);
+        if (kind === 'ledge') {
+          const flyer = world.forest.life.flyers.find(b => b.id === `flyer-${kindRow.nest}`);
+          if (flyer) seen.ledge.push({ t: world.flightTime, away: flyer.position.distanceTo(flyer.nest), at: ndc(flyer.position), visible: flyer.visible });
+        } else {
+          const group = (world.forest.life.herd ?? []).find(g => g.id === 'stepNorth');
+          const weight = (m, clip) => Object.entries(m.morphs).filter(([name]) => name.startsWith(`${clip}.`)).reduce((sum, [, w]) => sum + w, 0);
+          const crowds = world.forest.life.crowds ?? world.forest.animals.crowds;
+          if (group) {
+            // the horizon's height in the frame (a point far off the way the camera looks, flat), and how much of the frame's height
+            // her wings (5.2 m across) span from where it stands
+            const flat = world.camera.getWorldDirection(new V3()).setY(0).normalize();
+            const her = c.flight.flier.pose.position;
+            const tall = 2 * Math.tan(THREE.MathUtils.degToRad(world.camera.fov) / 2) * her.distanceTo(world.camera.position);
+            seen.herdHeads.push({
+              t: world.flightTime, look: group.members.map(m => weight(m, 'look')), her: ndc(her), span: 5.2 / tall,
+              // each grazer's box in the frame, and where it is (the herd shot frames all five, over the caption's band)
+              boxes: group.members.map(m => projectedBox(m, world.camera, crowds)), at: group.members.map(m => m.position.clone()),
+              horizon: ndc(world.camera.position.clone().addScaledVector(flat, 2000)).y,
+              // the grazers of the other groups: how far each is from the camera, and its box in the frame when it is before it
+              others: (world.forest.life.herd ?? []).filter(g => g !== group).flatMap(g => g.members).filter(m => m.visible).map(m => ({
+                id: m.id, d: m.position.distanceTo(world.camera.position),
+                box: m.position.clone().applyMatrix4(world.camera.matrixWorldInverse).z < 0 ? projectedBox(m, world.camera, crowds) : null,
+              })),
+            });
+          }
+        }
+      }
+      // a call shot down on a bank (the route's CALL_SHOTS: a call or the run-along): how large the group it is about looks, as she
+      // passes it
+      const calling = kind === 'call' || kind === 'runAlong' ? CALL_SHOTS.find(row => world.flightTime >= row.from - 0.05 && world.flightTime < row.to) : null;
+      if (calling && world.forest?.animals) {
+        const group = world.forest.animals.groups.find(g => g.id === calling.group);
+        world.camera.updateMatrixWorld();
+        // the group's height in the frame: from the lowest to the highest point of the boxes of those of it in the frame; of a group of
+        // birds, those a ray from the camera reaches past their tree's leaves (the owner's look at kall-fuglar: only feet showed)
+        const tree = group.kind === 'birds' ? birdsTree(world.forest, group) : null;
+        let low = Infinity, high = -Infinity, birds = 0;
         for (const m of group.members) {
           const p = m.position.clone().project(world.camera);
           if (!m.visible || p.z >= 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
+          if (tree && !birdSeen(tree, world.camera.position, m)) continue;
+          if (tree) birds++;
           const box = projectedBox(m, world.camera, world.forest.animals.crowds);
           low = Math.min(low, box.y0);
           high = Math.max(high, box.y1);
         }
         const size = high > low ? (Math.min(high, 1) - Math.max(low, -1)) / 2 : 0;
         const at = her.root.position;
-        seen.shadow.push({ t: world.clock.time, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera) });
+        seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera), birds: group.kind === 'birds' ? (tree ? birds : -1) : null });
       }
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
@@ -446,9 +505,46 @@ function projectedBox(m, camera, crowds) {
   }
   return { x0, x1, y0, y1 };
 }
-let wide = null, upright = null, tapped = null;
+/**
+ * A group of birds' tree (animals.js PROPS: their broadleaf, where the plants' batcher placed it) as a mesh of its own model's
+ * triangles, once its section is built (else null), to ask which birds a ray from the camera reaches.
+ */
+const trees = new Map();
+function birdsTree(forest, group) {
+  if (trees.has(group.id)) return trees.get(group.id);
+  const prop = forest.animals.props.find(p => p.name === 'broadleaf' && Math.hypot(p.x - group.point.x, p.z - group.point.z) < 12);
+  const tree = forest.stats.sections.flatMap(part => part.userData.placements ?? []).find(q => q.name === prop.name && Math.hypot(q.x - prop.x, q.z - prop.z) < 0.01);
+  if (!tree) return null;
+  const mesh = new THREE.Group();
+  for (const part of [tree.model.solid, tree.model.thin]) {
+    if (!part?.pos?.length) continue;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(Array.from(part.pos), 3));
+    geometry.setIndex(Array.from(part.idx));
+    mesh.add(new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })));
+  }
+  mesh.position.set(tree.x, tree.y, tree.z);
+  mesh.rotation.y = -tree.rot;
+  mesh.scale.setScalar(tree.scale);
+  mesh.updateMatrixWorld(true);
+  trees.set(group.id, mesh);
+  return mesh;
+}
+const sight = new THREE.Raycaster();
+/** Whether a ray from `from` reaches a bird's body or its head past its tree's leaves. */
+function birdSeen(mesh, from, m) {
+  return [0.4, 0.75].some(k => {
+    const to = m.position.clone().setY(m.position.y + m.height * k);
+    const d = to.distanceTo(from);
+    sight.set(from, to.sub(from).normalize());
+    sight.far = d - 0.05;
+    return sight.intersectObject(mesh, true).length === 0;
+  });
+}
+let wide = null, upright = null, tapped = null, tablet = null;
 const playWide = () => (wide ??= playIt());
 const playUpright = () => (upright ??= playIt({ aspect: 0.625 }));
+const playTablet = () => (tablet ??= playIt({ aspect: 0.69 })); // a tablet held upright (820 by 1180)
 const playTapped = () => (tapped ??= playIt({ tap: true }));
 let calm = null;
 const playReduced = () => (calm ??= playIt({ reduced: true }));
@@ -785,19 +881,242 @@ test('the lizards of C are the owner\'s small lizard, loaded before the valley i
   assert.ok(lizards.every(g => g.members.every(m => m.kind === 'smaedla')), lizards.map(g => `${g.id}: ${g.members[0].kind}`).join(', '));
 });
 
-test('the shadow shot frames the lizards it is about: the group at least 8 % of the frame\'s height as she passes', async () => {
+test('each call shot down on a bank frames the group it is about: the group at least 8 % of the frame\'s height as she passes', async (t) => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    for (const row of CALL_SHOTS.filter(r => r.group)) {
+      const frames = watched.calls.filter(f => f.id === row.id);
+      assert.ok(frames.length > 30, `${shape}: ${row.id} is seen (${frames.length} frames)`);
+      const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
+      const { middle } = closest;
+      t.diagnostic(`${shape} ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${middle.x.toFixed(2)}, ${middle.y.toFixed(2)}`);
+      assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `${shape}: ${row.id}'s group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
+      assert.ok(closest.size >= 0.08, `${shape}: ${row.id}'s group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+      // the birds as they sit in their tree: those a ray from the camera reaches past its leaves are the ones counted above
+      if (closest.birds !== null) {
+        const sitting = frames.filter(f => f.t < row.pass + 0.3);
+        t.diagnostic(`${shape} ${row.id}: ${Math.min(...sitting.map(f => f.birds))} to ${Math.max(...sitting.map(f => f.birds))} of the ten birds seen as they sit`);
+        assert.ok(sitting.every(f => f.birds >= 9), `${shape}: ${row.id}: ${Math.min(...sitting.map(f => f.birds))} birds seen past their tree's leaves as they sit (at least 9 of 10; -1: no tree)`);
+      }
+    }
+  }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): on a tablet held upright the groups were 10-11 % of the frame's height,
+// over empty ground; the call rows' `tall` lens (flight-camera.js lensFor) makes them about twice that. The birds' shot stands
+// across the river from their tree now (they were hidden under its leaves), so its group is smaller in any frame.
+test('on a tablet held upright (820 by 1180) each call shot\'s group is about twice as tall as with the 16:10 width kept', async (t) => {
+  const { watched } = await playTablet();
+  const failed = [];
+  for (const row of CALL_SHOTS.filter(r => r.group)) {
+    const frames = watched.calls.filter(f => f.id === row.id);
+    const closest = frames.reduce((a, b) => (b.near < a.near ? b : a));
+    const least = row.group.startsWith('birds') ? 0.08 : 0.16;
+    t.diagnostic(`0.69 ${row.id}: nearest at ${closest.t.toFixed(2)} s, the group ${(100 * closest.size).toFixed(1)} % tall at ${closest.middle.x.toFixed(2)}, ${closest.middle.y.toFixed(2)}`);
+    if (!(frames.length > 30 && closest.size >= least)) failed.push(`${row.id}: the group ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least ${100 * least} %)`);
+  }
+  assert.deepEqual(failed, []);
+});
+
+// ---- the call shots' groups (the Flugmynd spec, 2026-11-15): called at the row's second, they hear her, look up, and run as she
+// passes (chapters/kafli4-flight-play.js, world/ardalur/animals.js hear)
+const groupsOf = row => [row.group, ...(row.also ?? [])];
+const LIZARD_ROWS = ['kall-edlur', 'kall-hlaup'];
+const ON_BANKS = CALL_SHOTS.filter(row => row.group); // the rows of C, each about groups of the route (the ledge's and the herd's are life's)
+
+test('call shot groups are called at their second', async () => {
+  const { world } = await playWide();
+  const { calls } = world.chapterState.flight.play;
+  for (const row of ON_BANKS) {
+    for (const id of groupsOf(row)) {
+      const call = calls.find(x => x.id === id);
+      assert.ok(call && call.how === 'shot' && Math.abs(call.t - row.call) <= 0.05, `${row.id}: ${id} is called at ${call?.t.toFixed(2)} s, ${call?.how} (at ${row.call})`);
+    }
+  }
+});
+
+test('every call shot\'s call is heard', async () => {
+  const { world } = await playWide();
+  const shots = world.chapterState.flight.play.calls.filter(x => x.how === 'shot');
+  assert.equal(shots.length, ON_BANKS.flatMap(groupsOf).length, 'a call to each of their groups');
+  assert.deepEqual(shots.filter(x => !x.voiced).map(x => x.id), [], 'her call is heard: no line plays over it');
+});
+
+test('they run after she passes, and the run-along\'s first runners at her call: already running as she comes', async () => {
+  const { world } = await playWide();
+  const { answers } = world.chapterState.flight.play;
+  for (const row of ON_BANKS) {
+    for (const id of groupsOf(row)) {
+      const answer = answers.find(x => x.id === id);
+      const want = row.early?.[id] ? row.call + PLAY.answerAfter : row.pass + PLAY.runAfter;
+      assert.ok(answer && Math.abs(answer.t - want) <= 0.05, `${row.id}: ${id} answers at ${answer?.t.toFixed(2)} s (at ${want.toFixed(2)})`);
+    }
+  }
+  // the run-along's: running from before she passes them to the cut, the first runners up the bank 33 m in 5.5 s
+  const row = CALL_SHOTS.find(r => r.shot === 'runAlong');
+  const early = Object.keys(row.early)[0];
+  const group = world.forest.animals.groups.find(g => g.id === early);
+  assert.deepEqual(group.run, row.early[early]);
+  assert.ok(row.call + PLAY.answerAfter < CALL_SHOTS.find(r => r.shot === 'runAlong').pass - 1, 'running before she passes');
+});
+
+// The Flugmynd's sound (plan Task 6): down on the ground the wind in Egill's ears goes down; her call comes from her side; a whoosh
+// and a wingbeat as she passes; and Egill answers each call shot once, on the shot after it
+test('ground shots dip the wind: down as each call shot begins, back as it cuts back', async () => {
   const { watched } = await playWide();
-  assert.ok(watched.shadow.length > 30, `the shadow shot is seen (${watched.shadow.length} frames)`);
-  const closest = watched.shadow.reduce((a, b) => (b.near < a.near ? b : a));
-  const { middle } = closest;
-  assert.ok(middle.z < 1 && Math.abs(middle.x) <= 1 && Math.abs(middle.y) <= 1, `the group in the frame as she passes it (${middle.x.toFixed(2)}, ${middle.y.toFixed(2)})`);
-  assert.ok(closest.size >= 0.08, `the group is ${(100 * closest.size).toFixed(1)} % of the frame's height as she passes (at least 8 %)`);
+  const flight = watched.ground.filter(g => Number.isFinite(g.t));
+  for (const row of CALL_SHOTS) {
+    const down = flight.find(g => g.on && Math.abs(g.t - row.from) <= 0.05);
+    assert.ok(down, `${row.id}: down as it begins (${row.from} s)`);
+    const back = flight.find(g => !g.on && g.t > down.t);
+    assert.ok(back && Math.abs(back.t - row.to) <= 0.05, `${row.id}: back as it ends (${row.to} s): ${back?.t.toFixed(2)}`);
+  }
+  const downs = flight.filter(g => g.on);
+  assert.equal(downs.length, CALL_SHOTS.length, `down only in the call shots: ${downs.map(g => g.t.toFixed(2))}`);
+});
+
+test("Egill answers each call shot once, as it cuts back to her (the ledge's in its own shot, done by Mosi's line), before her next call", async () => {
+  const { seen, world } = await playWide();
+  const started = world.chapterState.flight.flight.started;
+  const recorded = readJson('../assets/audio/lines.json');
+  assert.deepEqual(Object.keys(EGILL_ANSWERS).sort(), ['kall-edlur', 'kall-froskar', 'kall-fuglar', 'kall-sylla'].sort(), 'rows 1, 2, 3 and 5');
+  for (const [id, line] of Object.entries(EGILL_ANSWERS)) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const times = seen.said.filter(x => x.id === line).map(x => x.at - started);
+    assert.equal(times.length, 1, `${line} once (at ${times.map(t => t.toFixed(2))})`);
+    const [at] = times;
+    const want = EGILL_ANSWER_AT[id] ?? row.to;
+    assert.ok(at >= want - 1e-6 && at <= want + 1, `${line} at ${want} s (${row.id}): at ${at.toFixed(2)}`);
+    if (EGILL_ANSWER_AT[id]) {
+      // in the row's own shot, and done with its hold by the next line asked for (Mosi's on the rim), which is not put off
+      assert.ok(at >= row.from && at + recorded[line].duration + 0.5 <= row.to + 0.5 + 1e-6, `${line} in ${row.id}'s shot`);
+      const mosi = seen.said.find(x => x.id === 'k4_mosi_shortcut').at - started;
+      assert.ok(Math.abs(mosi - 96.5) <= 0.05, `Mosi's line on the rim on time (at ${mosi.toFixed(2)})`);
+    }
+    const next = CALL_SHOTS[CALL_SHOTS.indexOf(row) + 1];
+    if (next) assert.ok(at + recorded[line].duration <= next.call, `${line} ends before her call in ${next.id}`);
+  }
+});
+
+test('in a call shot her call comes from her side, and a whoosh and a wingbeat as she passes', async () => {
+  const { seen, world } = await playWide();
+  const play = world.chapterState.flight.play;
+  const started = world.chapterState.flight.flight.started;
+  const calls = ['k4_flugedla_call1', 'k4_flugedla_call2', 'k4_flugedla_call3'];
+  for (const row of CALL_SHOTS) {
+    // her call in the shot (the big call in the herd's): said with a pan, her side as the camera sees her
+    const call = seen.said.find(x => calls.includes(x.id) && x.at - started >= row.from - 1e-6 && x.at - started <= row.to);
+    if (row.shot !== 'ledge') {
+      assert.ok(call, `${row.id}: her call in it`);
+      const pan = call.options?.pan;
+      assert.ok(Number.isFinite(pan) && Math.abs(pan) <= 0.8, `${row.id}: her call panned (${pan})`);
+    }
+    const pass = play.passes.find(p => p.id === row.id);
+    assert.ok(pass, `${row.id}: its pass`);
+    const whoosh = Math.min(row.pass, row.to) - 0.15;
+    assert.ok(Math.abs(pass.whoosh - whoosh) <= 0.05, `${row.id}: the whoosh at ${pass.whoosh?.toFixed(2)} (${whoosh.toFixed(2)})`);
+    assert.ok(Number.isFinite(pass.side) && Math.abs(pass.side) <= 1 && Math.abs(pass.side) > 0.02, `${row.id}: on her side (${pass.side})`);
+    if (pass.wingbeat !== null) assert.ok(pass.wingbeat >= row.call - 1e-6 && pass.wingbeat <= row.to, `${row.id}: the wingbeat in the shot (${pass.wingbeat})`);
+    else assert.ok(row.shot === 'ledge', `${row.id}: a wingbeat as she is nearest`);
+  }
+});
+
+test('the ledge shot sees its flyer on its nest, then leave as she comes', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'ledge');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const frames = watched.ledge;
+    assert.ok(frames.length > 100, `${shape}: ${frames.length} frames of the ledge`);
+    const [first] = frames;
+    const inFrame = q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+    assert.ok(first.t <= row.from + 0.1 && first.away < 0.3 && inFrame(first.at), `${shape}: on its nest and in the frame as it begins (${first.away.toFixed(2)} m off, ${first.at.x.toFixed(2)}, ${first.at.y.toFixed(2)})`);
+    const leaving = frames.find(f => f.away > 0.5);
+    assert.ok(leaving && leaving.t >= row.call - 0.1 && leaving.t <= row.call + 1, `${shape}: it leaves at ${leaving?.t.toFixed(2)} s (the call: ${row.call})`);
+    assert.ok(inFrame(leaving.at), `${shape}: seen as it leaves (${leaving.at.x.toFixed(2)}, ${leaving.at.y.toFixed(2)})`);
+    t.diagnostic(`${shape}: the flyer of nest ${row.nest} leaves at ${leaving.t.toFixed(2)} s, ${frames.at(-1).away.toFixed(1)} m off at the cut`);
+    assert.ok(frames.at(-1).away > 2, `${shape}: off its ledge by the cut`);
+  }
+});
+
+test('the herd shot sees heads come up at the big call, and her high over them', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'herd');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched, world } = await play();
+    assert.deepEqual(world.forest.life.herd.find(g => g.id === 'stepNorth').at, row.at, "the row stands by the herd's stepNorth group (life.js HERD)");
+    const frames = watched.herdHeads;
+    assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
+    assert.ok(frames[0].look.every(w => w < 0.1), `${shape}: grazing as it begins (${frames[0].look.map(w => w.toFixed(2))})`);
+    const most = Math.max(...frames.map(f => f.look.filter(w => w >= 0.8).length));
+    assert.ok(most >= 4, `${shape}: ${most} of the 5 lift their heads in the shot`);
+    const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
+    t.diagnostic(`${shape}: at ${pass.t.toFixed(2)} s she is at ${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)}; ${most} heads up`);
+    assert.ok(pass.her.z < 1 && Math.abs(pass.her.x) <= 1 && pass.her.y > 0 && pass.her.y <= 1, `${shape}: she is high in the frame as she passes (${pass.her.x.toFixed(2)}, ${pass.her.y.toFixed(2)})`);
+  }
+});
+
+// The owner's look at the stills (2026-11-15, "Já, laga"): the herd shot had three quarters sky and cut grazers at the frame's edge
+test('the herd shot frames all five grazers whole, near its middle and over the caption, with little sky, and her big as she passes', async (t) => {
+  const row = CALL_SHOTS.find(r => r.shot === 'herd');
+  // the caption's top (style.css .caption: 24 px up, two lines about 124 px tall) on 800 and 1180 rows
+  for (const [shape, play, band] of [['16:10', playWide, -0.63], ['upright', playUpright, -0.75]]) {
+    const { watched } = await play();
+    const frames = watched.herdHeads.filter(f => f.t >= row.from + 0.05);
+    assert.ok(frames.length > 150, `${shape}: ${frames.length} frames of the herd`);
+    const cut = frames.filter(f => f.boxes.some(b => b.x0 < -0.98 || b.x1 > 0.98 || b.y1 > 0.98 || b.y0 < band));
+    const worst = f => `${f.t.toFixed(2)} s: ${f.boxes.map(b => `${b.x0.toFixed(2)}..${b.x1.toFixed(2)}/${b.y0.toFixed(2)}..${b.y1.toFixed(2)}`).join(' ')}`;
+    assert.deepEqual(cut.map(worst), [], `${shape}: every grazer whole in the frame and over the caption's band (${band})`);
+    const middle = Math.max(...frames.map(f => Math.abs(f.boxes.reduce((sum, b) => sum + (b.x0 + b.x1) / 2, 0) / f.boxes.length)));
+    assert.ok(middle < 0.25, `${shape}: the group near the frame's middle (its middle at most ${middle.toFixed(2)} off)`);
+    // none of the other groups walks into it (the step's south group grazed round its first place and walked through its frame)
+    const strays = frames.flatMap(f => f.others.filter(o => o.d < 3 || (o.box && o.box.x1 > -1 && o.box.x0 < 1 && o.box.y1 > -1 && o.box.y0 < 1))
+      .map(o => `${f.t.toFixed(2)} s: ${o.id} ${o.d.toFixed(1)} m off`));
+    assert.deepEqual(strays.slice(0, 6), [], `${shape}: no grazer of the other groups in the frame, nor within 3 m of the camera`);
+    // the sky over them while they graze, before the aim comes up (the horizon's height: (1 - y) / 2 of the frame is sky)
+    const grazing = frames.filter(f => f.t < row.options.ease[0]);
+    const sky = Math.max(...grazing.map(f => (1 - f.horizon) / 2));
+    const pass = frames.reduce((a, b) => (Math.abs(b.t - row.pass) < Math.abs(a.t - row.pass) ? b : a));
+    t.diagnostic(`${shape}: sky ${(100 * sky).toFixed(0)} % while they graze, ${(100 * (1 - pass.horizon) / 2).toFixed(0)} % as she passes; she spans ${(100 * pass.span).toFixed(1)} % of the height at ${pass.her.y.toFixed(2)}; the group's middle at most ${middle.toFixed(2)} off`);
+    if (shape === '16:10') {
+      assert.ok(sky <= 0.35, `${shape}: about a third sky or less while they graze (${(100 * sky).toFixed(0)} %)`);
+      assert.ok(pass.her.y <= 0.8, `${shape}: she is in the frame, not on its top edge, as she passes (${pass.her.y.toFixed(2)})`);
+      // the shot she was in before had her wings 12.6 % of the frame's height across (50 degrees, 44 m off)
+      assert.ok(pass.span >= 0.13, `${shape}: her wings ${(100 * pass.span).toFixed(1)} % of the frame's height across as she passes`);
+    }
+  }
+});
+
+test('heads are up before she passes: the lizards of the call shots look up from her call, and drink till then', async () => {
+  const { watched } = await playWide();
+  for (const id of LIZARD_ROWS) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const frames = watched.heads.filter(f => f.id === id);
+    const before = frames.filter(f => f.t < row.call - 1e-6);
+    const up = frames.filter(f => f.t >= row.pass - 0.8 && f.t <= row.pass);
+    assert.ok(before.length > 10 && up.length > 20, `${id}: ${before.length} frames before her call, ${up.length} as she comes`);
+    for (const f of before) assert.ok(f.drink.every(w => w > 0.95), `${id} at ${f.t.toFixed(2)} s: the drinkers drink (${f.drink.map(w => w.toFixed(2))})`);
+    for (const f of up) assert.ok(f.look.every(w => w >= 0.8), `${id} at ${f.t.toFixed(2)} s: heads up (${f.look.map(w => w.toFixed(2))})`);
+  }
+});
+
+test('seek mid call shot finds heads up: a capture or review link a second before her pass', async () => {
+  // the harness plays as a seek does (main.js ?t=: stage.seeking, fixed 1/30 s steps from the start), so the first frame a seek to
+  // `pass − 1` shows is this run's frame there
+  const { watched } = await playWide();
+  for (const id of LIZARD_ROWS) {
+    const row = CALL_SHOTS.find(r => r.id === id);
+    const frame = watched.heads.find(f => f.id === id && f.t >= row.pass - 1 - 1e-6);
+    assert.ok(frame, `${id}: a frame at ${row.pass - 1} s`);
+    assert.ok(frame.look.every(w => w >= 0.5), `${id} at ${frame.t.toFixed(2)} s: heads up (${frame.look.map(w => w.toFixed(2))})`);
+  }
 });
 
 // F and G (the life spec 2F, 2G; world/ardalur/life.js): after the big call the rows of small lizards stream toward the far pool where
 // the flight's shots see them, the slow circle round her (the fixed vista under reduced motion) and the chase down the glide to 162 s
 test('after the big call ten small lizards or more, 8 px tall, run toward the far pool in the slow circle and down the glide', async (t) => {
-  const plays = [['16:10', playWide, { orbit: 0.5, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
+  // (the slow circle is its last part since the herd's call shot: 8.4 s from 141.6, the lizards further off; 16:10 sees ten of them
+  // 48 % of it, the whole circle 55 %)
+  const plays = [['16:10', playWide, { orbit: 0.45, chase: 0.4 }], ['upright', playUpright, { orbit: 0.5, chase: 0.3 }], ['reduced motion', playReduced, { orbit: 0.5 }]];
+  const failed = [];
   for (const [shape, play, wants] of plays) {
     const { watched } = await play();
     const frames = watched.rows.filter(f => f.call !== null && f.t > f.call + 2);
@@ -805,42 +1124,50 @@ test('after the big call ten small lizards or more, 8 px tall, run toward the fa
     // the call sets them off (chapters/kafli4-flight-play.js bigCall): 10 s after it they have run 30 m on the mean
     const later = frames.filter(f => f.t > f.call + 10);
     assert.ok(later.length > 300 && later.every(f => f.ran >= 30), `${shape}: the lizards have run ${Math.min(...later.map(f => f.ran)).toFixed(1)} m 10 s after the call`);
+    const short = [];
     for (const [shot, share] of Object.entries(wants)) {
       const inShot = frames.filter(f => f.shot === shot && (shot !== 'chase' || (f.t >= BEATS.G && f.t < 162)));
       const seenShare = inShot.filter(f => f.lizards >= 10).length / inShot.length;
       const birds = inShot.filter(f => f.birds >= 9).length / inShot.length;
       t.diagnostic(`${shape} ${shot}: ${inShot.length} frames, ten lizards ${(100 * seenShare).toFixed(0)} %, nine birds ${(100 * birds).toFixed(0)} %, most ${Math.max(...inShot.map(f => f.lizards))}`);
-      assert.ok(inShot.length > 100 && seenShare >= share, `${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
+      if (!(inShot.length > 100 && seenShare >= share)) short.push(`${shape}: the ${shot} shows ten small lizards 8 px tall ${(100 * seenShare).toFixed(0)} % of the time (at least ${100 * share} %)`);
       // and the flocks rise in the slow circle: nine birds of them 8 px tall at least 40 % of the time
-      assert.ok(shot !== 'orbit' || birds >= 0.4, `${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
+      if (shot === 'orbit' && birds < 0.4) short.push(`${shape}: the ${shot} shows nine birds of the flocks 8 px tall ${(100 * birds).toFixed(0)} % of the time (at least 40 %)`);
     }
+    // the herd's call shot before the circle, as the rows stream out of the groves behind it (the Flugmynd spec's row 6): for the record
+    const herd = frames.filter(f => f.shot === 'herd');
+    t.diagnostic(`${shape} herd: ${herd.length} frames, ten lizards ${(100 * herd.filter(f => f.lizards >= 10).length / Math.max(1, herd.length)).toFixed(0)} %, most ${Math.max(0, ...herd.map(f => f.lizards))}`);
+    failed.push(...short);
   }
+  assert.deepEqual(failed, []);
 });
 
 test('the herd grazes big in the wide shot, and the slow circle sees it near as it answers the big call', async (t) => {
   // [group, when, how many, px tall, share of those frames that show that many of the group that tall]: the dale's group in the wide
-  // shot (the vista, before the call); the step's corner group in the slow circle as it lifts its heads (`call`: from the call to 7 s
-  // after it); the step's south group in the slow circle from 2 s after it (`orbit`); under reduced motion (where the circle is a fixed
-  // vista over the step's north side) the corner group there. The owner asked for the herd bigger and nearer (2026-11-06).
+  // shot (the vista, before the call); the step's corner group (stepNorth) down among it as it lifts its heads (`call`: the herd's call
+  // shot, the Flugmynd spec's row 6); the step's south group in the slow circle's last part (`orbit`); under reduced motion (where the
+  // circle is a fixed vista) the corner group there. The owner asked for the herd bigger and nearer (2026-11-06).
   const plays = [
     ['16:10', playWide, [['dale', 'vista', 5, 18, 0.8], ['stepNorth', 'call', 3, 30, 0.35], ['step', 'orbit', 5, 15, 0.3]]],
     ['upright', playUpright, [['dale', 'vista', 5, 10, 0.8], ['stepNorth', 'call', 3, 20, 0.5], ['step', 'orbit', 5, 10, 0.3]]],
-    ['reduced motion', playReduced, [['stepNorth', 'call', 5, 15, 0.6], ['stepNorth', 'orbit', 5, 12, 0.6]]],
+    ['reduced motion', playReduced, [['stepNorth', 'call', 3, 30, 0.35], ['stepNorth', 'orbit', 5, 12, 0.6]]],
   ];
   const within = {
     vista: f => f.shot === 'vista' && (f.call === null || f.t < f.call),
-    call: f => f.shot === 'orbit' && f.call !== null && f.t >= f.call && f.t <= f.call + 7,
+    call: f => f.shot === 'herd' && f.call !== null && f.t >= f.call,
     orbit: f => f.shot === 'orbit' && f.call !== null && f.t > f.call + 2,
   };
+  const failed = [];
   for (const [shape, play, wants] of plays) {
     const { watched } = await play();
     for (const [group, when, count, px, share] of wants) {
       const frames = watched.rows.filter(within[when]);
       const seen = frames.filter(f => (f.herd[group] ?? []).filter(h => h >= px).length >= count).length / Math.max(1, frames.length);
       t.diagnostic(`${shape} ${when}: ${frames.length} frames, ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} %, tallest ${Math.max(0, ...frames.flatMap(f => f.herd[group] ?? [])).toFixed(1)} px`);
-      assert.ok(frames.length > 100 && seen >= share, `${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
+      if (!(frames.length > 100 && seen >= share)) failed.push(`${shape}: the ${when} shows ${count} of the ${group} group ${px} px tall ${(100 * seen).toFixed(0)} % of the time (at least ${100 * share} %)`);
     }
   }
+  assert.deepEqual(failed, []);
 });
 
 // D to G (the life spec 2D-2G, 4: world/ardalur/life.js flyers): the gorge's flyers fly with her, but never into a shot's way
@@ -872,7 +1199,7 @@ function aroundHer(frames) {
   return new Map([...turns].map(([id, turn]) => [id, turn.hi - turn.lo]));
 }
 
-test('no flyer comes within 3 m of the camera or between the camera and Egill, in any frame of the flight', async (t) => {
+test('no flyer comes within 3 m of the camera, nor between the camera and Egill when he is in the frame, in any frame of the flight', async (t) => {
   for (const [shape, play] of [['16:10', playWide], ['upright', playUpright], ['reduced motion', playReduced]]) {
     const { watched } = await play();
     const frames = watched.flyers;
@@ -882,7 +1209,7 @@ test('no flyer comes within 3 m of the camera or between the camera and Egill, i
       for (const { id, at } of f.flyers) {
         const d = at.distanceTo(f.camera);
         if (d < camera) { camera = d; cameraAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
-        const l = fromLine(at, f.camera, f.egill);
+        const l = f.seesEgill ? fromLine(at, f.camera, f.egill) : Infinity; // the herd's shot sees her from far below before she comes into it
         if (l < line) { line = l; lineAt = `${id} at ${f.t.toFixed(2)} s (${f.shot})`; }
       }
     }

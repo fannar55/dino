@@ -1,0 +1,161 @@
+{
+  "set": "kafli4",
+  "date": "2026-11-16",
+  "source": "jano-kafli4.json",
+  "verdicts": {
+    "kafli4/k4_flugedla_hold": {
+      "verdict": "ja",
+      "key": "4c3f73b454424a3920734aef8c9a37886a571b6aba05c8ebf41471a3a91dd593",
+      "mp3": "ea30f4eff0176f61c5b63c42690a701d63f66acde0a278e0ed20334249e0f550",
+      "speaker": "flugedla",
+      "text": "Haltu þér fast!"
+    },
+    "kafli4/k4_egill_wow": {
+      "verdict": "nei",
+      "key": "08d470bac77b035bcb76e70d85eac29d1080795e1a54c05c6ec92bc5b1d8df23",
+      "mp3": "f7318f988ca06ee87f932661f40b3abf2658bc08dad235294ecefcae803a8e86",
+      "speaker": "egill",
+      "text": "Vááá!"
+    },
+    "kafli4/k4_flugedla_call1": {
+      "verdict": "ja",
+      "key": "8771225b80e20d8255138358fc65d8b148b03edbcf8574fb471d552094a72e08",
+      "mp3": "b2a97de7662f903508e175141968ef8ea50db35920f8c0182f88bb4a495bcb88",
+      "speaker": "flugedla",
+      "text": "Hátíð í kvöld! Komið öll!"
+    },
+    "kafli4/k4_flugedla_call2": {
+      "verdict": "ja",
+      "key": "b9387e773ede8098fd2c33cb5bd6a9181f501c50a92be21a5135dcda1beba4d5",
+      "mp3": "7c3caff52d922d8e28d2fd68f017688a3b5ce99f3378ff7d8cf8585c155e67cb",
+      "speaker": "flugedla",
+      "text": "Komið á Stjörnuhátíðina!"
+    },
+    "kafli4/k4_flugedla_call3": {
+      "verdict": "ja",
+      "key": "a8971c0c870a30ccdbb807b0c458ce00061d15b86ca7534fbb8470ee1b8da7cd",
+      "mp3": "acedf22026c37f653a14e91ba5893f6be61438a23b685607e71b4afa6b19875f",
+      "speaker": "flugedla",
+      "text": "Allir á hátíðina í kvöld!"
+    },
+    "kafli4/k4_mosi_wait": {
+      "verdict": "ja",
+      "key": "3f6079962c13912933b1c1c720cc6d5318d0290452976c131ea53cca049629ef",
+      "mp3": "1e4b89c9c139f5b5a35f708cf1f78c025494ea028e4e7a0fa0d8783befdfc03f",
+      "speaker": "mosi",
+      "text": "Bíðið eftir mér!"
+    },
+    "kafli4/k4_egill_vaa": {
+      "verdict": "ja",
+      "key": "b19a8ddd3ec5f040c3ad4280cb44e16fe5e56c52e8f19ec14de05e9c2d4fac74",
+      "mp3": "a2c719e8424e7b6eeade9b151a0c605cd75bb765b961769f8d681ea9cfee7b92",
+      "speaker": "egill",
+      "text": "Vá!"
+    },
+    "kafli4/k4_mosi_shortcut": {
+      "verdict": "ja",
+      "key": "865bde0f3a088612030f1d989dfc6f3f34afb9411e05bcf939ec008816fec32b",
+      "mp3": "d7f7d9cc7ba1d5f3336b6b1a57f25f53001a495f704455b90d8b4e2d7abe4c64",
+      "speaker": "mosi",
+      "text": "Ég fer styttri leiðina!"
+    },
+    "kafli4/k4_egill_falls": {
+      "verdict": "ja",
+      "key": "3fdb15304eb386e16590e8e10e73eab1999d6f6168ae5c664c25590232c09354",
+      "mp3": "2360b2570ecee5c2d06db50143ce7194b00ee45f4c1ae36107f50521d095540d",
+      "speaker": "egill",
+      "text": "Sjáðu fossinn!"
+    },
+    "kafli4/k4_flugedla_up": {
+      "verdict": "ja",
+      "key": "4f66ce86f07f8ac6176dfaf3de170f3ed19945775d431ed235051e665320ff10",
+      "mp3": "8985211ece33847e639f53fed906299d3c924a6763c648ccaf991bd5aa5231d1",
+      "speaker": "flugedla",
+      "text": "Upp með honum!"
+    },
+    "kafli4/k4_flugedla_gramedla": {
+      "verdict": "ja",
+      "key": "8c3adea35c6b9dcdd8e0ce98d14f0a14745f57fcc2491eae5d1235510a5fbf46",
+      "mp3": "ae628f2734892d46590694fdc2b229bb4636aa9f42cb13565577785025e9e853",
+      "speaker": "flugedla",
+      "text": "Þarna, handan fjallanna, býr Grameðla."
+    },
+    "kafli4/k4_egill_big": {
+      "verdict": "ja",
+      "key": "f2d05afffebd30ebe4e54d3c96944596eedb685439f0e5faced201b5accd8139",
+      "mp3": "637e54106287cb8bf1651cb44d66bd54465f62aa6515b35d980457497caac127",
+      "speaker": "egill",
+      "text": "Er hún stór?"
+    },
+    "kafli4/k4_flugedla_biggest": {
+      "verdict": "ja",
+      "key": "f5dd16573f66744937c29d209293054bb9fccf2a31b7927e676bcb3f0906909f",
+      "mp3": "fe8654df54460d9a291d06ac4fb0f1ef42166c7430cf202c7e04ac68da299101",
+      "speaker": "flugedla",
+      "text": "Stærsta rándýrið!"
+    },
+    "kafli4/k4_egill_all": {
+      "verdict": "ja",
+      "key": "9cb978d4b031ae0c2b5d6ecd7aef84809ced91f19301062d17968b860b49fd04",
+      "mp3": "cc8954215d0f5651a51e466bd434a89e204e095e93b2335bbca75dfcb12885cd",
+      "speaker": "egill",
+      "text": "Ég sé allt!"
+    },
+    "kafli4/k4_flugedla_wind": {
+      "verdict": "ja",
+      "key": "38b05940075eebdf17a34854c3008995611d7a4d490ba0335dfb34481695ebe0",
+      "mp3": "3dc87d9a9176565e1a8d701df67d67897169f17deb9448f2233488742e543afc",
+      "speaker": "flugedla",
+      "text": "Takk fyrir vindinn, Egill."
+    },
+    "kafli4/k4_flugedla_pool": {
+      "verdict": "ja",
+      "key": "7077c858ade0692060f6d86b1ab605a472e7b2cbc0909a847a89fe70f474b6d5",
+      "mp3": "efc78e9e8f1800f6849a17246eee18bc86a690de647cab328dd876384796d2df",
+      "speaker": "flugedla",
+      "text": "Sjáðu, fjarlæga tjörnin. Þar býr Slóeðla."
+    },
+    "kafli4/k4_egill_mosi": {
+      "verdict": "ja",
+      "key": "e5bc9133d13885de6cf4ee4e87fa185425979d00a8330e757e0810872f0ec9bc",
+      "mp3": "9d1180fde9dac4e2734f8d5034641cfe42ab00deb6246095dad20dd5a009fe79",
+      "speaker": "egill",
+      "text": "Ég sé Mosa!"
+    },
+    "kafli4/k4_egill_frogs": {
+      "verdict": "ja",
+      "key": "e2bd7ffe2cb3fc658fe5b7fb7ad2ccf2d69b5beceb94db4752767d9809f766cf",
+      "mp3": "ac9f88bcdd201959c1d9bd74da53b483788509bf302bd78d01942fd4ab9d42c7",
+      "speaker": "egill",
+      "text": "Froskarnir svara!"
+    },
+    "kafli4/k4_egill_birds": {
+      "verdict": "ja",
+      "key": "805726b783349059f6019934e4d261dde9879dd01b9bd15f9da0266d1ba35056",
+      "mp3": "d4a450b56f7956da92e1391a833623174edc248b16d249329bd1f10e14f89144",
+      "speaker": "egill",
+      "text": "Fuglarnir fljúga!"
+    },
+    "kafli4/k4_egill_lizards": {
+      "verdict": "ja",
+      "key": "465b83f8b8a4b438c7c3328cafc41e77fcd6d8a177e1cd59c7d4eeecfabf7e34",
+      "mp3": "ef0adf351c9db16df9c49bab9869f8788fce5e7a8faede4ffe85c6c5527c1e72",
+      "speaker": "egill",
+      "text": "Eðlurnar hlaupa með!"
+    },
+    "kafli4/k4_egill_flyers": {
+      "verdict": "ja",
+      "key": "b5c9168b99bc1ea1494b8a4473fa6fe1ccf50e4358d6b063a7a18716ba65e266",
+      "mp3": "2241f3d7df0882029ed5887b76913be114cd95214cb5cd118b43c92d5ce9951d",
+      "speaker": "egill",
+      "text": "Sjáðu, þau fljúga með okkur!"
+    },
+    "kafli4/k4_flugedla_landing": {
+      "verdict": "ja",
+      "key": "b3ed36e9df8f3e0f30d59cbf78bbbf59b01c0b0f8a87dd7009676ffbb9dc7845",
+      "mp3": "3ad39a1353e28ad10f254eec0f3bd5aa3a70951b74999447b188d4260fb68942",
+      "speaker": "flugedla",
+      "text": "Nú lendum við! Haltu þér!"
+    }
+  }
+}

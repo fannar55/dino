@@ -32,7 +32,7 @@ import { createVeidduGame } from './engine/veiddu/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createFjolspil } from './engine/fjolspil/fjolspil.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
-import { createAudioContext, createOutput } from './engine/audio/output.js';
+import { createAudioContext, createOutput, panElement } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
 import { loadTheme } from './engine/audio/theme.js';
@@ -254,7 +254,8 @@ let followed = null;
 const ui = createStageUI(document);
 // the music lowers itself under a recorded line, and a chapter's own song (world.sound.speaking: chapter 4's flight song) with it
 let lineSounding = false;
-const voice = createVoice({ onSpeaking: on => { lineSounding = on; music.duck(on); } });
+// a line can come from one side (chapter 4's flight film: her call in a call shot): through a panner on the page's audio context
+const voice = createVoice({ onSpeaking: on => { lineSounding = on; music.duck(on); }, pan: audio ? (element, value) => panElement(audio, element, value) : null });
 // The chapter's recordings are fetched ahead, in the background, so a line starts the moment the scene asks for it: over the
 // network a recording asked for at its cue starts late, and the mouth ran ahead of the voice (the owner's reports of 2026-10-25).
 // The scene keeps time with the sound either way (scene.js sayTask); this makes the wait a few milliseconds instead of seconds.

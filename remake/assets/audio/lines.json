@@ -3941,8 +3941,8 @@
  },
  "k4_egill_wow": {
   "src": "assets/audio/kafli4/k4_egill_wow.mp3",
-  "duration": 1.53,
-  "mouth": "000039cccceffdb8600000000000000"
+  "duration": 1.37,
+  "mouth": "0357cebdeeffec96852000000000"
  },
  "k4_mosi_wait": {
   "src": "assets/audio/kafli4/k4_mosi_wait.mp3",
@@ -3951,8 +3951,8 @@
  },
  "k4_egill_vaa": {
   "src": "assets/audio/kafli4/k4_egill_vaa.mp3",
-  "duration": 1.29,
-  "mouth": "000339dfefd400000000000000"
+  "duration": 1.37,
+  "mouth": "458dffddcba76400000000000000"
  },
  "k4_mosi_shortcut": {
   "src": "assets/audio/kafli4/k4_mosi_shortcut.mp3",
@@ -4066,8 +4066,8 @@
  },
  "k4_flugedla_biggest": {
   "src": "assets/audio/kafli4/k4_flugedla_biggest.mp3",
-  "duration": 2.17,
-  "mouth": "00000fffa4000005ded6000ef0039ec6300000000000"
+  "duration": 2.091,
+  "mouth": "0000bfeb6000efdfdbffdcd80eefaa600000000000"
  },
  "k4_flugedla_wind": {
   "src": "assets/audio/kafli4/k4_flugedla_wind.mp3",

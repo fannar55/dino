@@ -52,10 +52,11 @@ test('low over the water in B to D: 2 to 3 m up on the river, 4 to 6 m in the go
   }
 });
 
-test('nine animal groups along C in order: frogs, lizards, birds, frogs, turtles, birds, lizards, dragonflies, lizards', () => {
+// (lizards-2 is down the bank from lizards-3 since the Flugmynd's run-along, past the dragonflies: the order she meets them)
+test('nine animal groups along C in order: frogs, lizards, birds, frogs, turtles, birds, dragonflies, lizards, lizards', () => {
   const r = createRoute();
-  assert.deepEqual(r.groups.map(g => g.id), ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'lizards-2', 'dragonflies', 'lizards-3']);
-  assert.deepEqual(r.groups.map(g => g.kind), ['frogs', 'lizards', 'birds', 'frogs', 'turtle', 'birds', 'lizards', 'dragonflies', 'lizards']);
+  assert.deepEqual(r.groups.map(g => g.id), ['frogs-1', 'lizards-1', 'birds-1', 'frogs-2', 'turtles', 'birds-2', 'dragonflies', 'lizards-2', 'lizards-3']);
+  assert.deepEqual(r.groups.map(g => g.kind), ['frogs', 'lizards', 'birds', 'frogs', 'turtle', 'birds', 'dragonflies', 'lizards', 'lizards']);
   const uC = r.progressAt(BEATS.C);
   const uD = r.progressAt(BEATS.D);
   assert.ok(r.groups.every((g, i, a) => g.u > uC && g.u < uD && (i === 0 || g.u > a[i - 1].u)));
