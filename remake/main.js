@@ -929,7 +929,7 @@ const star = document.getElementById('loading');
 let blackSince = null;
 let starShows = 0; // each show of the star: a fade-out hides it only if it has not shown again meanwhile
 function starInTheBlack(now) {
-  if (stage.started && ui.fadeLevel >= 0.999) {
+  if (stage.started && ui.fadeLevel >= 0.999 && !document.querySelector('.dans-end')) { // (a 3D show's end card stands on black, and that black is no wait: no star under "Aftur" and "Hætta")
     blackSince ??= now;
     if (now - blackSince >= STAR_AFTER && (star.hidden || star.classList.contains('done'))) {
       starShows++;
