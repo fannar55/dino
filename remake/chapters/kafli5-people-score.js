@@ -233,38 +233,73 @@ export function egillAt(clock, { reduced = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Mosi: the size of a small house, and he dances anyway. He MARCHES: his walk clip, two steps back up the bank and two forward to
-// the water's edge again, a figure two bars long (four in the calmer parts), his head nodding down on the backbeat; and once, as
-// everyone sings her tune, the big one turns right round where he stands, step by step. Where he does not march he sways heavily
-// from his right feet to his left over a bar, the light side's feet coming off the ground; he stomps a forefoot with the grazers;
-// and on the jumps he rears a little and comes down with a thud. He stands and listens to her horn.
+// Mosi: the size of a small house, and he dances anyway. He MARCHES: his walk clip, back up the bank and forward to the water's
+// edge again, a figure two bars long: a forefoot is lifted high on each bar's first beat (his left where he stands, his right
+// at the far end) and comes down on its third, his head nodding down on the backbeat. In the big parts he marches bar after
+// bar; in the calmer ones a figure and then two bars of standing. Once, as everyone sings her tune, the big one turns right
+// round where he stands, a pair of feet down on every beat. Where he does not march he sways heavily from his right feet to his
+// left over a bar, the light side's feet coming off the ground; he stomps a forefoot with the grazers; and on the jumps he rears
+// a little and comes down with a thud. He stands and listens to her horn.
 //
 // His feet never slide: the place the score gives his root and the time it gives his walk clip are one number (how far through
 // the clip's cycle he is: the clip carries him MOSI_WALK.stride metres a cycle), so a step back is the clip run backwards. The
-// figure is on the dance beat, so the rewind walks him back through it and Stoppdans holds him in the middle of a step.
+// figure is on the score beat, so the rewind walks him back through it and Stoppdans holds him in the middle of a step.
 
-/** His walk clip (triceratops.glb 'walk'): seconds a cycle, the metres a cycle carries him, and where in it he stands best (0..1). */
-export const MOSI_WALK = { seconds: 2.92, stride: 3.59, stand: 0.042 };
 /**
- * His march: how far through the clip's cycle a figure takes him back and forward again (0.63: two footfalls each way, 2.26 m),
- * and the parts he marches in: [from, to, beats a figure], score beats, each a whole number of figures (he is home, standing,
- * at both ends). The freeze cuts one figure in two: "Stopp!" (362) holds him three quarters through it, and on "Dansa!" (372)
- * the next begins three quarters through, so he finishes the very step he was frozen in.
+ * His walk clip (triceratops.glb 'walk'): seconds a cycle, the metres a cycle carries him, where in it he stands best (0..1: his
+ * fore left foot is in the air there, a little past the top of its swing), and where in it his figure turns (`far`: his fore
+ * right foot at the top of its swing). In the clip a foot comes down every quarter cycle: fore left at 0.25, hind right at
+ * 0.5, fore right at 0.75, hind left at 1.
  */
-export const MARCH = { reach: 0.63, fade: 0.8 };
+export const MOSI_WALK = { seconds: 2.92, stride: 3.59, stand: 0.042, far: 0.475 };
+/**
+ * His march: how far through the clip's cycle a figure takes him back and forward again (`reach`: 0.567 of a cycle, 2.04 m: his
+ * fore left foot comes down behind him two beats into the figure and his fore right before him six beats into it), and the
+ * parts he marches in: [from, to, beats a figure, beats from one figure to the next (when he stands between them)], score
+ * beats: he is home, standing, where each figure begins and ends. The freeze cuts one figure in two: "Stopp!" (362) holds him
+ * three quarters through it, and on "Dansa!" (372) the next begins three quarters through, so he finishes the very step he
+ * was frozen in.
+ */
+export const MARCH = { reach: MOSI_WALK.stand + 1 - MOSI_WALK.far, fade: 0.8, ease: 0.2 };
 export const MARCHES = [
-  [72, 96, 8], [96, 128, 16], [144, 224, 16], [264, 280, 16], [280, 296, 8], [312, 320, 8], [340, 364, 8],
+  [72, 96, 8], [96, 128, 8, 16], [144, 224, 8, 16], [264, 280, 8, 16], [280, 296, 8], [312, 320, 8], [348, 364, 8],
   [BENDS.freeze.to - 6, 390, 8], [432, 456, 8],
 ];
-// the stretches he marches in: the parts that follow one another joined (and the two halves of the figure the freeze cuts)
-const MARCH_SPANS = MARCHES.reduce((spans, [from, to]) => {
+// the stretches he marches in: figures that follow one another joined (and the two halves of the figure the freeze cuts)
+const MARCH_SPANS = MARCHES.flatMap(([from, to, beats, every = beats]) => {
+  if (every === beats) return [[from, to]];
+  const figures = [];
+  for (let at = from; at < to; at += every) figures.push([at, at + beats]);
+  return figures;
+}).reduce((spans, [from, to]) => {
   const last = spans.at(-1);
   if (last && (last[1] === from || (last[1] > BENDS.freeze.from && from < BENDS.freeze.to))) last[1] = to;
   else spans.push([from, to]);
   return spans;
 }, []);
-/** His turn: right round to his right, walking a ring `cycles` of his clip long (2.3 m across), from `from` to `to` (score beats). */
-export const MOSI_TURN = { from: 328, to: 340, cycles: 2 };
+/**
+ * His turn: right round to his right where he stands, from `from` to `to` (score beats), in `steps` steps of each foot (his
+ * feet go in pairs, fore left with hind right and fore right with hind left: a pair down on every beat); as he turns he shifts
+ * `aside` m to his right and back, so that his head and his tail swing clear of Egill, who stands on his left.
+ */
+export const MOSI_TURN = { from: 326, to: 342, steps: 8, aside: 1.6, ease: 0.1 };
+/** Where his turn has him `round` of the way through it (0..1): { spin (degrees to his right), aside (m to his right) }. */
+export const mosiTurn = round => ({ spin: 360 * round, aside: MOSI_TURN.aside * (0.5 - 0.5 * Math.cos(TAU * round)) });
+/**
+ * A foot's own way through the turn when his body is `round` of the way (0..1): the foot stands where his body will have it in
+ * the middle of its stance, and swings there while the other pair stands. `second`: the pair that goes second (fore right, hind
+ * left). Returns { at (0..1: where on his body's way the foot is), swing (0 standing .. 1 in the middle of its swing) }.
+ */
+export function mosiTurnFoot(round, second) {
+  const N = MOSI_TURN.steps;
+  const late = second ? 0.5 : 0;
+  const u = N * clamp(round) - late;
+  if (u <= 0) return { at: 0, swing: 0 };
+  const j = Math.floor(u);
+  const stand = k => (k < 0 ? 0 : k >= N - 1 ? 1 : clamp((k + 0.75 + late) / N)); // where step k puts it
+  const f = Math.min(1, (u - j) / 0.5); // the first half of a step is the swing
+  return { at: stand(j - 1) + (stand(j) - stand(j - 1)) * smooth(f), swing: f < 1 ? Math.sin(Math.PI * f) : 0 };
+}
 /** 0 to 1 over 0 to 1 at an even pace, eased over the first and the last `ease` of the way. */
 const pace = (s, ease = 0.18) => {
   const k = clamp(s);
@@ -287,7 +322,7 @@ const MOSI_REARS = [...JUMPS, ...HOPP, 412, 416];
  *   side (m to his right), lift (m), yaw, roll (degrees, to his right), rear (degrees, his front up about his hind feet),
  *   nod (degrees, down negative), feet: { fl, fr, bl, br } (m off the ground), tail (degrees, to his right),
  *   march: { weight, time } (his walk clip, s into it), step (m ahead of where he stood, the way he faced), aside (m to the
- *   right of it), spin (degrees he has turned to his right),
+ *   right of it), spin (degrees he has turned to his right), round (0..1: how far through his turn he is: mosiTurnFoot),
  *   look: [x, y, z], looking, clock (s: his idle clip's time)
  * }
  */
@@ -299,7 +334,7 @@ export function mosiAt(clock, { reduced = false } = {}) {
   const sway = Math.sin((TAU * d) / 4); // to his right on the bar's second beat, to his left on its fourth
   const out = {
     side: 0, lift: 0, yaw: 0, roll: 0, rear: 0, nod: 0, feet: { fl: 0, fr: 0, bl: 0, br: 0 }, tail: 0,
-    march: { weight: 0, time: MOSI_WALK.stand * MOSI_WALK.seconds }, step: 0, aside: 0, spin: 0,
+    march: { weight: 0, time: MOSI_WALK.stand * MOSI_WALK.seconds }, step: 0, aside: 0, spin: 0, round: 0,
     look: lookAt(MOSI_LOOK, b, 3), looking: 0.6 * on, clock: d * BEAT,
   };
   if (reduced) {
@@ -311,8 +346,9 @@ export function mosiAt(clock, { reduced = false } = {}) {
   let cycle = MOSI_WALK.stand; // how far through his walk clip's cycle he is
   const figure = MARCHES.find(([from, to]) => b >= from && b < to);
   if (figure) {
-    const [from, , beats] = figure;
-    const back = MARCH.reach * (0.5 - 0.5 * Math.cos((TAU * (d - (from - (b - d)))) / beats)); // (the figure is on the dance beat)
+    const [from, , beats, every = beats] = figure;
+    const u = Math.min(1, (frac((b - from) / every) * every) / beats); // (the score beat is the dance beat's: the rewind walks him back, Stoppdans holds him)
+    const back = MARCH.reach * pace(u < 0.5 ? 2 * u : 2 - 2 * u, MARCH.ease);
     cycle -= back;
     out.step = -MOSI_WALK.stride * back;
   }
@@ -320,22 +356,19 @@ export function mosiAt(clock, { reduced = false } = {}) {
   let marching = 0;
   for (const [from, to] of MARCH_SPANS) marching = Math.max(marching, ramp(b, from - MARCH.fade, from + MARCH.fade) * (1 - ramp(b, to - MARCH.fade, to + MARCH.fade)));
   marching *= on;
-  // the turn: he walks a ring to his right, as long as `cycles` of his clip, and is back where he stood, facing as he did
-  const turning = span(b, MOSI_TURN.from - MARCH.fade, MOSI_TURN.to + MARCH.fade, 2 * MARCH.fade) * on;
-  if (b > MOSI_TURN.from && b < MOSI_TURN.to) {
-    const round = pace((b - MOSI_TURN.from) / (MOSI_TURN.to - MOSI_TURN.from));
-    const ring = (MOSI_TURN.cycles * MOSI_WALK.stride) / TAU; // its radius, m
-    cycle += MOSI_TURN.cycles * round;
-    out.spin = 360 * round;
-    out.step = ring * Math.sin(TAU * round);
-    out.aside = ring * (1 - Math.cos(TAU * round));
-  }
-  marching = Math.min(1, marching + turning);
   out.march = { weight: marching, time: frac(cycle) * MOSI_WALK.seconds };
+  // the turn: right round where he stands, step by step, and he is back where he stood, facing as he did
+  const turning = span(b, MOSI_TURN.from - 0.6, MOSI_TURN.to + 0.6, 1.2) * on;
+  let lean = 0;
+  if (b > MOSI_TURN.from && b < MOSI_TURN.to) {
+    out.round = pace((b - MOSI_TURN.from) / (MOSI_TURN.to - MOSI_TURN.from), MOSI_TURN.ease);
+    Object.assign(out, mosiTurn(out.round));
+    lean = Math.sin(TAU * MOSI_TURN.steps * out.round); // onto the pair of feet that stands
+  }
   out.looking *= 1 - turning; // his head goes round with him
   const stomping = span(b, P.grazers.from - 1.5, P.grazers.to, 1);
-  const k = e * (1 - 0.6 * stomping) * (1 - marching); // the sway is where he does not walk
-  out.roll = 3.2 * k * sway + 1.4 * e * marching * sway;
+  const k = e * (1 - 0.6 * stomping) * (1 - Math.min(1, marching + turning)); // the sway is where he does not walk
+  out.roll = 3.2 * k * sway + 1.4 * e * marching * sway + 1.6 * turning * lean;
   out.side = 0.22 * k * sway;
   out.yaw = 2.5 * k * Math.sin((TAU * (d - 0.5)) / 4);
   const light = 0.16 * k;
@@ -396,7 +429,7 @@ const rocket = (t, top) => [
  * north) through the angles `round` (degrees round that place, from +X toward +Z), `beats` from each to the next, her path
  * `over` m over the water (her body 2.6 m over that). She comes onto the ring at `in`: where the straight way from her decks touches it.
  */
-export const LAP = { r: 8.5, in: 130.5, round: [130.5, 185, 240, 295, 350], beats: 1.1, over: 0.7 };
+export const LAP = { r: 8.5, in: 130.5, round: [130.5, 185, 240, 295, 350], at: 447.7, beats: 1.25, over: 0.7 };
 const lapPoint = angle => [HER_MIDDLE[0] - FAR_POOL.center[0] + LAP.r * Math.cos((angle * Math.PI) / 180), HER_MIDDLE[1] - FAR_POOL.center[1] + LAP.r * Math.sin((angle * Math.PI) / 180)];
 /** The point `far` m from `a` on the way to `b` ([east, south]). */
 const toward = (a, b, far) => { const k = far / Math.hypot(b[0] - a[0], b[1] - a[1]); return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; };
@@ -426,11 +459,12 @@ export const FLIGHTS = [
   { // the last chorus: a low lap of the pool round Slóeðla, who turns in its middle (HER_WADE): out along the south of her, round
     // behind her and north of her, close past the camera that holds her (kafli5-pool.js set_her_lap), and home the way she
     // comes home from the other two
-    from: 443.2, to: 461, off: 444.4, down: 457.3, spin: null,
+    from: 442.4, to: 461.4, off: 443.6, down: 457.6, spin: null,
     keys: [
-      [443.8, ...HOME, GROUND], [445.2, ...toward(HOME, lapPoint(LAP.in), 3.5), 0.4], [446.5, ...toward(HOME, lapPoint(LAP.in), 16), 0.8],
-      ...LAP.round.map((angle, k) => [447.6 + LAP.beats * k, ...lapPoint(angle), LAP.over]),
-      [454.4, 19, 6, 2.6], [456.1, 16.5, 16.5, 1.4], [457.7, ...HOME, GROUND],
+      [443, ...HOME, GROUND], [444.4, ...toward(HOME, lapPoint(LAP.in), 3.5), 0.4], [445.5, ...toward(HOME, lapPoint(LAP.in), 11), 0.8],
+      [446.6, ...toward(HOME, lapPoint(LAP.in), 20), LAP.over],
+      ...LAP.round.map((angle, k) => [LAP.at + LAP.beats * k, ...lapPoint(angle), LAP.over]),
+      [454.7, 19, 6, 2.6], [456.4, 16.5, 16.5, 1.4], [458, ...HOME, GROUND],
     ],
   },
 ];
@@ -470,7 +504,7 @@ export const POINTS = (() => {
   ];
 })();
 /** The parts she bangs her head in (score beats): the backbeat, `deep` degrees down her neck. */
-export const BANG = { deep: 24, parts: [[327, BENDS.freeze.from + 0.5], [BENDS.freeze.to, 402.5], [429, 443.4]] };
+export const BANG = { deep: 24, parts: [[327, BENDS.freeze.from + 0.5], [BENDS.freeze.to, 402.5], [429, 442.6]] };
 const FLUGEDLA_LOOK = [
   [0, 'pool'], [32, 'egill'], [38, 'pool'],
   ...POINTS.filter(point => !point.both).flatMap(point => [[point.from, point.id === 'dragonflies' ? 'frogs' : point.id], [point.to, 'pool']]),
@@ -724,7 +758,7 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
   out.tail = -(13 + 7 * whole) * e * Math.sin((TAU * (d - 0.6)) / 4) + (3 + 3 * whole) * e * Math.sin(Math.PI * d);
   // everyone's jump: shy, she peeks up; bold, her head goes high and her front comes up with it
   out.lift += 0.22 * rise * whole * on;
-  out.nod += (6 + 5 * whole) * rise * on;
+  out.nod += (9 + 2 * whole) * rise * on;
   out.lean += 3.5 * rise * whole * on;
   // the hush before a jump: her head comes down a little, to rise from
   const quiet = hush(b, 1.5);

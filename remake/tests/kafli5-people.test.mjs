@@ -9,6 +9,7 @@ import { FAR_POOL } from '../chapters/kafli4-route.js';
 import { CHOIR, WADE, headingTo } from '../chapters/kafli5-pool.js';
 import {
   BEAT, scoreBeat, clockAt, energy, egillAt, mosiAt, flugedlaAt, sloedlaAt, JUMPS, EGILL_JUMPS, STOMPS, SHOUTS, FLIGHTS, DECKS, HER_TURN, HER_TURNS,
+  MOSI_WALK, MARCH, MARCHES, MOSI_TURN, SCRATCH, SCRATCHES, POINTS, BANG, LAP, HER_WADE, HER_MIDDLE, HER_STANCES, HER_DUCK,
 } from '../chapters/kafli5-people-score.js';
 
 const SET = SONG.set;
@@ -62,22 +63,24 @@ test('everyone stands as they were found when the set starts and when its last h
     assert.equal(egill.spin % 360, 0, 'his spins are whole turns');
     assert.ok(Object.values(numbers(egill.arms)).every(v => v === 0), `Egill's arms at ${setBeat}`);
     const mosi = at('mosi', setBeat);
-    assert.ok(['side', 'lift', 'yaw', 'roll', 'rear', 'nod', 'tail', 'looking', 'feet.fl', 'feet.fr', 'feet.bl', 'feet.br'].every(k => Math.abs(numbers(mosi)[k]) < 1e-9), `Mosi at ${setBeat}: ${JSON.stringify(mosi)}`);
+    assert.ok(['side', 'lift', 'yaw', 'roll', 'rear', 'nod', 'tail', 'looking', 'feet.fl', 'feet.fr', 'feet.bl', 'feet.br', 'step', 'aside', 'spin', 'march.weight'].every(k => Math.abs(numbers(mosi)[k]) < 1e-9), `Mosi at ${setBeat}: ${JSON.stringify(mosi)}`);
     const flugedla = at('flugedla', setBeat);
     assert.deepEqual([flugedla.at[0], flugedla.at[2], flugedla.heading, flugedla.pitch, flugedla.bank, flugedla.air], [...DECKS.at, DECKS.home, 0, 0, 0], `Flugeðla at ${setBeat}`);
-    assert.ok([flugedla.lift, flugedla.spread.left, flugedla.spread.right, flugedla.raise.left, flugedla.raise.right, flugedla.bow, flugedla.looking].every(v => Math.abs(v) < 1e-9), `Flugeðla's wings at ${setBeat}`);
+    assert.ok([flugedla.lift, flugedla.spread.left, flugedla.spread.right, flugedla.raise.left, flugedla.raise.right, flugedla.sweep.left, flugedla.sweep.right, flugedla.bang, flugedla.bow, flugedla.looking].every(v => Math.abs(v) < 1e-9), `Flugeðla's wings at ${setBeat}`);
     assert.ok(Object.values(flugedla.clips).every(clip => clip.weight === 0), `Flugeðla's clips at ${setBeat}`);
     const her = at('sloedla', setBeat);
-    assert.ok(['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail'].every(k => Math.abs(her[k]) < 1e-9), `Slóeðla at ${setBeat}: ${JSON.stringify(her)}`);
+    assert.ok(['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail', 'step'].every(k => Math.abs(her[k]) < 1e-9) && her.happy.weight === 0, `Slóeðla at ${setBeat}: ${JSON.stringify(her)}`);
+    assert.equal(her.spin % 360, 0, 'her turn is a whole one');
   }
 });
 
 // What may change in a sixtieth of a second: more is a pop, not a move. A clip's time counts only while the clip shows.
 const STEP = {
   default: 0.25, lift: 0.1, side: 0.05, yaw: 8, roll: 4, lean: 4, rear: 3, nod: 4, tail: 6, spin: 11, heading: 16, pitch: 12, bank: 16, bow: 4, turn: 4, tilt: 3,
-  'at.0': 0.7, 'at.1': 0.7, 'at.2': 0.7, 'raise.left': 11, 'raise.right': 11, 'look.0': 3, 'look.1': 3, 'look.2': 3, clock: 0.05,
+  'at.0': 0.7, 'at.1': 0.7, 'at.2': 0.7, 'raise.left': 11, 'raise.right': 11, 'sweep.left': 11, 'sweep.right': 11, bang: 4, step: 0.04, aside: 0.04,
+  'look.0': 3, 'look.1': 3, 'look.2': 3, clock: 0.05,
 };
-const LOOPS = { 'wave.time': 2.4, 'clips.fly.time': 1.4, 'clips.happy.time': 2.4 };
+const LOOPS = { 'wave.time': 2.4, 'clips.fly.time': 1.4, 'clips.happy.time': 2.4, 'happy.time': 2.4, 'march.time': MOSI_WALK.seconds };
 function pops(who, { fps = 60, skip = () => false } = {}) {
   const found = [];
   let last = null;

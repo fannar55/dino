@@ -22,7 +22,8 @@
 // and every turn she makes is eased from the last, so nothing of her jumps, not even where the camera does not look.
 //
 // Her dance (scene 6, the music video: kafli5-people-score.js sloedlaAt) is laid over all of that: a lift and a sway of her root, a
-// turn and a lean of her body, a nod, a turn and a tilt of her head down her neck, her tail. What the score asks is a pure function
+// turn and a lean of her body, a nod, a turn and a tilt of her head down her neck, her tail; in the last chorus her wade out toward
+// the pool's middle and her slow turn right round there; and her 'happy' clip under it all. What the score asks is a pure function
 // of the dance beat; what she does of it each frame is as much as moves nothing of her further than DANCE allows (the test's 0.1 m
 // and 8 degrees a frame, with room to spare), so when the clock leaps ("Dansa!" after Stoppdans) or runs back twice as fast (the
 // rewind) she catches up as fast as she gently can and never jumps.
@@ -64,7 +65,9 @@ const TAIL = ['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
  * none: her life's own moves alone). At the chapter's test's 30 frames a second: 0.09 m and 6 degrees a frame.
  */
 export const DANCE = { speed: 2.7, turn: 180, tries: 5 };
-const MOVES = ['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail'];
+const MOVES = ['lift', 'side', 'yaw', 'lean', 'nod', 'turn', 'tilt', 'tail', 'step', 'spin'];
+/** Degrees between two headings, the short way round. */
+const apart = (a, b) => Math.abs(((((a - b) % 360) + 540) % 360) - 180);
 const UP = new THREE.Vector3(0, 1, 0);
 const SIDE = new THREE.Vector3(0, 0, 1);
 
@@ -185,6 +188,32 @@ export function sloedlaLife(actor) {
   // another is still fading would put her back in the old pose for a frame.
   const actions = new Set([her.mixer.clipAction(her.clips.get('idle'))]);
   const call = her.clips.has('call') ? her.mixer.clipAction(her.clips.get('call')) : null;
+  // her 'happy' clip under her dance (the score's `happy`: a share of her and a time in the clip): laid beside the clip she rests
+  // in, never among `actions` (her life's fades do not know of it), and gone when the dance is
+  const glad = { action: her.clips.has('happy') ? her.mixer.clipAction(her.clips.get('happy')) : null, on: false };
+  function gladden(want) {
+    const { action } = glad;
+    if (!action) return;
+    // (where her life has her in that clip itself, or walking, it is her life's)
+    const share = want && state.rest !== 'happy' && !state.walk ? Math.min(0.9, Math.max(0, want.weight ?? 0)) * (1 - Math.min(1, call?.getEffectiveWeight() ?? 0)) : 0;
+    if (share < 1e-4) {
+      if (glad.on && state.rest !== 'happy') action.stop();
+      glad.on = false;
+      return;
+    }
+    if (!glad.on) {
+      action.reset();
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.play();
+      glad.on = true;
+    }
+    action.stopFading();
+    action.enabled = true;
+    action.timeScale = 0;
+    action.time = Math.min(action.getClip().duration, Math.max(0, want.time ?? 0));
+    action.weight = share / (1 - share); // beside her resting clip at 1, the mixer gives it that share of her
+  }
   function fadeTo(name, { fade = 0.5, timeScale = 1 } = {}) {
     const clip = her.clips.get(name);
     if (!clip) return null;
@@ -270,15 +299,18 @@ export function sloedlaLife(actor) {
       if (was) her.mixer.clipAction(was).timeScale = SPEED[dance.clock.rest] ?? 1;
       dance.clock = null;
     }
+    gladden(dance.score ? dance.next.happy : null);
   }
 
   // Her root and her neck with `m` of her dance on them (and her head's own lean: her courage, her peek, her horn), from where her
   // life put her root this frame and the clips left her neck.
   function lay(m) {
-    const h = rad(state.heading + m.yaw);
+    const h = rad(state.heading + m.yaw + (m.spin ?? 0));
+    const way = rad(state.heading); // she wades out the way her life has her facing, however her dance has turned her
+    const step = m.step ?? 0;
     axis.set(-Math.sin(h), 0, Math.cos(h)); // the line across her shoulders, to her right
     ahead.set(Math.cos(h), 0, Math.sin(h));
-    root.position.set(state.x + axis.x * m.side, dance.y + m.lift, state.z + axis.z * m.side);
+    root.position.set(state.x + axis.x * m.side + Math.cos(way) * step, dance.y + m.lift, state.z + axis.z * m.side + Math.sin(way) * step);
     root.quaternion.setFromAxisAngle(UP, -h);
     if (m.lean) root.quaternion.multiply(turn.setFromAxisAngle(SIDE, rad(m.lean)));
     for (const link of chain) link.bone.quaternion.copy(link.base);
@@ -328,6 +360,7 @@ export function sloedlaLife(actor) {
     // as much of the way to what the score asks as moves nothing of her too far in this frame
     const [far, round] = [DANCE.speed * dt, DANCE.turn * dt];
     const from = { ...moves };
+    from.spin += 360 * Math.round(((want.spin ?? 0) - from.spin) / 360); // a whole turn round is where she stood: the short way to it
     let share = 1;
     for (let k = 0; k <= DANCE.tries; k++) {
       for (const key of MOVES) moves[key] = from[key] + ((want[key] ?? 0) - from[key]) * share;
@@ -335,7 +368,7 @@ export function sloedlaLife(actor) {
       if (!last || share === 0) break;
       see(seen);
       const moved = Math.max(seen.root.distanceTo(last.root), seen.head.distanceTo(last.head), seen.eyes.distanceTo(last.eyes), seen.crest.distanceTo(last.crest));
-      const turned = Math.max(deg(seen.facing.angleTo(last.facing)), Math.abs(state.heading + moves.yaw - last.heading));
+      const turned = Math.max(deg(seen.facing.angleTo(last.facing)), apart(state.heading + moves.yaw + moves.spin, last.heading));
       if (moved <= far && turned <= round) break;
       // too far: the share of the way that would be just near enough were the move all the dance's (a little under it), however far
       // the score has leapt ahead of her; then halves of that, for what her life moves of her by itself; then none
@@ -345,7 +378,7 @@ export function sloedlaLife(actor) {
     dance.behind = share < 1 ? Math.max(...MOVES.map(key => Math.abs((want[key] ?? 0) - moves[key]))) : 0;
     for (const key of MOVES) if (Math.abs(moves[key]) < 1e-6 && !asked) moves[key] = 0;
     dance.last = see(last ?? { root: new THREE.Vector3(), head: new THREE.Vector3(), eyes: new THREE.Vector3(), crest: new THREE.Vector3(), facing: new THREE.Vector3(), heading: 0 });
-    dance.last.heading = state.heading + moves.yaw;
+    dance.last.heading = state.heading + moves.yaw + moves.spin;
     // her tail swings behind her (nothing watches it: it takes the score's swing as it is)
     for (const link of tail) {
       link.base.copy(link.bone.quaternion);
@@ -426,8 +459,10 @@ export function sloedlaLife(actor) {
     },
     /**
      * Her dance: `score(dt)` is asked each frame what the dance wants of her now ({ lift, side (m), yaw, lean, nod, turn, tilt, tail
-     * (degrees), clock (s: her resting clip's time) }: kafli5-people-score.js sloedlaAt) and she does as much of it as is gentle
-     * (DANCE); dance(null) ends it, and she eases back to how her life has her.
+     * (degrees), step (m waded on from where her life has her, the way it has her facing), spin (degrees turned round there), happy:
+     * { weight, time } (her 'happy' clip's share of her and the time in it), clock (s: her resting clip's time) }:
+     * kafli5-people-score.js sloedlaAt) and she does as much of it as is gentle (DANCE); dance(null) ends it, and she eases back
+     * to how her life has her.
      */
     dance(score) {
       dance.score = score ?? null;
@@ -449,7 +484,7 @@ export function sloedlaLife(actor) {
       const q = head.getWorldQuaternion(new THREE.Quaternion());
       return {
         root: root.position.clone(),
-        heading: state.heading + dance.moves.yaw,
+        heading: state.heading + dance.moves.yaw + dance.moves.spin,
         head: at(head),
         facing: parts.eyes.clone().normalize().applyQuaternion(q),
         eyes: head.localToWorld(parts.eyes.clone()),
