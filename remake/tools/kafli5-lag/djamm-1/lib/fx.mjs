@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SR, decode } from './io.mjs';
-import { stereo, panGains, rng, reverb, addStereo } from './dsp.mjs';
+import { stereo, panGains, rng, reverb, addStereo, Biquad } from './dsp.mjs';
 import { onsets } from './analyze.mjs';
 import { resample } from './takes.mjs';
 import { SPB } from './score.mjs';
@@ -148,6 +148,8 @@ export function renderFx(events, n, ROOT) {
       R = resample(R, e.rate);
       peakAt = Math.round(peakAt / e.rate);
     }
+    // the trial's transformations (prufa.mjs; never set in the shipped set): played backwards, driven, high-passed
+    if (e.reverse || e.drive || e.hp) ({ L, R, peakAt } = transform(L, R, peakAt, e));
     const len = Math.min(L.length, e.len ? Math.round(e.len * SR) : Infinity);
     const off = e.align === 'end' ? len : e.align === 'peak' ? peakAt : 0;
     const at = sampleOf(e.beat) - off;
@@ -171,6 +173,24 @@ export function renderFx(events, n, ROOT) {
   // the claps in a small room, so the crowd stands somewhere
   addStereo(out, reverb(room, { decay: 0.9, damp: 6000, predelay: 0.012, lowcut: 300, seed: 41, size: 0.7 }), 0, 0.6);
   return { stem: out, used: [...used] };
+}
+/** A copy of a cut, reversed (reverse), driven through tanh and brought back to its own peak (drive), 4th-order high-passed (hp, Hz). */
+function transform(L0, R0, peakAt, e) {
+  let L = Float32Array.from(L0), R = Float32Array.from(R0);
+  if (e.reverse) {
+    L.reverse();
+    R.reverse();
+    peakAt = L.length - 1 - peakAt;
+  }
+  if (e.drive) {
+    let p0 = 0, p1 = 0;
+    for (let i = 0; i < L.length; i++) p0 = Math.max(p0, Math.abs(L[i]), Math.abs(R[i]));
+    for (const ch of [L, R]) for (let i = 0; i < ch.length; i++) ch[i] = Math.tanh((e.drive * ch[i]) / (p0 || 1));
+    for (let i = 0; i < L.length; i++) p1 = Math.max(p1, Math.abs(L[i]), Math.abs(R[i]));
+    for (const ch of [L, R]) for (let i = 0; i < ch.length; i++) ch[i] *= p0 / (p1 || 1);
+  }
+  if (e.hp) for (const ch of [L, R]) for (const f of [new Biquad('hp', e.hp, 0.5412), new Biquad('hp', e.hp, 1.3066)]) f.run(ch);
+  return { L, R, peakAt };
 }
 function isMonoish(s) {
   let d = 0, t = 0;

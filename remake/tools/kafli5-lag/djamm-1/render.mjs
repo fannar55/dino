@@ -18,11 +18,14 @@ import { TAKES, loadTake, resample } from './lib/takes.mjs';
 import { sectionStats, callCheck, barRms, mono, lowpassed, biggestJump, fft } from './lib/analyze.mjs';
 import { steady, cents } from './lib/pitch.mjs';
 import { renderDj, readLines, SLOT } from './lib/dj.mjs';
+import { PRUFA, dropLayers, highpass4, deEss } from './lib/prufa.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '../../../..');
 const HLJOD = join(ROOT, 'remake/assets/audio/kafli5/hljod');
-const OUT = join(ROOT, 'qa/remake/kafli5/lag/djamm/1');
+// --prufa: the trial with the mix review's three fixes (lib/prufa.mjs), into its own folder; without it, the shipped set
+const TRIAL = process.argv.includes('--prufa');
+const OUT = join(ROOT, TRIAL ? PRUFA.out : 'qa/remake/kafli5/lag/djamm/1');
 const WORK = join(OUT, 'work/render');
 const QUICK = process.argv.includes('--quick');
 const t0 = Date.now();
@@ -91,6 +94,13 @@ for (const st of [stems.drums, stems.bass, stems.music, bandSum]) scale(st, gBan
 const kl = (st, a, b) => kLoud(st.L, st.R, ...span(a, b));
 const gAnimals = 10 ** ((kl(bandSum, 324, 356) - 0.5 - kl(animals, 324, 356)) / 20);
 scale(animals, gAnimals);
+// the trial keeps the animals as shipped too (limited the shipped way), only to set her level and duck as in the shipped set
+let animalsShipped = null;
+if (TRIAL) {
+  animalsShipped = { L: Float32Array.from(animals.L), R: Float32Array.from(animals.R) };
+  limit(animalsShipped.L, animalsShipped.R, 10 ** (-7.5 / 20));
+  highpass4([animals.L, animals.R], PRUFA.animalsHp); // fix 2: the 11-16 Hz rumble out before their limiter
+}
 // their peaks (the forest's roars, every group at once) held under the band's own: a look-ahead limiter on the animals alone
 const animalsLim = limit(animals.L, animals.R, 10 ** (-7.5 / 20));
 // her horn: in the break, 3 dB over the bed there
@@ -100,21 +110,32 @@ stems.animals = animals;
 stems.horn = horn;
 // the crowd and the DJ's sounds: each cut levelled to a -1 dBFS peak and placed at its own level (score.mjs); the whole stem moves
 // with the band's gain, so the crowd keeps its place against the band
-const fxOut = renderFx(score.fx, n, ROOT);
+const fxOut = renderFx(TRIAL ? dropLayers(score.fx) : score.fx, n, ROOT); // fix 1: the drops' layers
 scale(fxOut.stem, gBand * 10 ** (FX_DB / 20));
 const fxLim = limit(fxOut.stem.L, fxOut.stem.R, 10 ** (-6 / 20));
 stems.fx = fxOut.stem;
+let fxShipped = null;
+if (TRIAL) {
+  fxShipped = renderFx(score.fx, n, ROOT).stem;
+  scale(fxShipped, gBand * 10 ** (FX_DB / 20));
+  limit(fxShipped.L, fxShipped.R, 10 ** (-6 / 20));
+}
 say(`fx: ${score.fx.length} events, ${fxOut.used.length} sounds, limiter at most ${db(fxLim.most).toFixed(1)} dB`);
 say(`gains (dB): band ${db(gBand).toFixed(2)}, animals ${db(gAnimals).toFixed(2)} (limiter at most ${db(animalsLim.most).toFixed(1)} dB), horn ${db(gHorn).toFixed(2)}`);
 
 // ---------------------------------------------------------------- her voice, and the rest ducked under it
 const lines = readLines(join(here, 'lines.json'));
-const under = sumOf(Object.values(stems));
+// (the trial sets her levels and her duck against the music as shipped, so they stay exactly as they are)
+const under = sumOf(TRIAL ? [stems.drums, stems.bass, stems.music, animalsShipped, stems.horn, fxShipped] : Object.values(stems));
 const dj = renderDj(DJ, lines, ROOT, n, under);
+animalsShipped = fxShipped = null;
 for (const st of Object.values(stems)) for (let i = 0; i < n; i++) {
   st.L[i] *= dj.duck[i];
   st.R[i] *= dj.duck[i];
 }
+// fix 3 (the trial): a gentle de-esser on her stem, before her limiter
+const deEssed = TRIAL ? deEss(dj.stem) : null;
+if (deEssed) say(`prufa de-esser: at most ${deEssed.mostDb.toFixed(1)} dB, ${deEssed.secondsOver05Db.toFixed(2)} s over 0.5 dB`);
 // her shouts' peaks held under the band's: a look-ahead limiter on her stem alone (her level is set by loudness, not by peak)
 const djLim = limit(dj.stem.L, dj.stem.R, 10 ** (-4 / 20));
 stems.dj = dj.stem;
@@ -251,6 +272,7 @@ say('pictures');
 
 // ---------------------------------------------------------------- checks
 const checks = { takes: takeInfo, gainsDb: { band: +db(gBand).toFixed(2), animals: +db(gAnimals).toFixed(2), horn: +db(gHorn).toFixed(2), fx: +(db(gBand) + FX_DB).toFixed(2) }, fxSounds: fxOut.used, stemSamplePeakFloat: stemPeaks, mp3: { mix: loud, stems: stemLoud } };
+if (TRIAL) checks.prufa = { ...PRUFA, deEssed, animalsLimiterMostDb: +db(animalsLim.most).toFixed(2), fxLimiterMostDb: +db(fxLim.most).toFixed(2), masterLimiterMostDb: +db(mix.lim.most).toFixed(2) };
 const [dl, dr] = decode(join(OUT, 'mix.mp3'), 2);
 const dm = mono(dl, dr);
 const secList = SECTIONS.map(s => ({ id: s.id, startBeat: s.bar * 4, beats: s.bars * 4 }));
