@@ -104,6 +104,14 @@ const LOOKS = {
   grazers: up(CHOIR.grazers.at, 2), turtles: up(CHOIR.turtles.at, 1.7), frogs: up(CHOIR.frogs.at, 0.5), lizards: up(CHOIR.lizards.at, 0.8),
   flyers: up(CHOIR.flyers.at, 1.2), beetles: up(around(173, 29.6), 0.8), over: up(FAR_POOL.center, 7),
 };
+/**
+ * Slóeðla's last chorus (her third stance: big and proud): she wades `far` m out toward the pool's middle over the beats `out`,
+ * turns once right round there over `turn`, and wades back to her place over `back`, while the picture is Flugeðla's good night
+ * (the scenes after the set find her where the set did). Score beats.
+ */
+export const HER_WADE = { far: 4, out: [429.5, 438], turn: [436, 459.5], back: [465.2, 471.7] };
+/** The place she turns in: [x, z]. */
+export const HER_MIDDLE = [WADE.at[0] + HER_WADE.far * Math.cos((WADE.heading * Math.PI) / 180), WADE.at[1] + HER_WADE.far * Math.sin((WADE.heading * Math.PI) / 180)];
 const GROUP_PARTS = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers', 'beetles'].map(id => [P[id].from, id === 'flyers' ? 'over' : id]);
 /** A look: [score beat, whom] keys; the point looked at goes from one to the next over `turn` beats. */
 function lookAt(keys, b, turn = 1.5) {
@@ -225,9 +233,46 @@ export function egillAt(clock, { reduced = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Mosi: the size of a small house, and he dances anyway. A heavy sway from his right feet to his left over a bar, the light side's
-// feet coming off the ground; his head nods down on the backbeat; he stomps a forefoot with the grazers; and on the jumps he rears a
-// little and comes down with a thud.
+// Mosi: the size of a small house, and he dances anyway. He MARCHES: his walk clip, two steps back up the bank and two forward to
+// the water's edge again, a figure two bars long (four in the calmer parts), his head nodding down on the backbeat; and once, as
+// everyone sings her tune, the big one turns right round where he stands, step by step. Where he does not march he sways heavily
+// from his right feet to his left over a bar, the light side's feet coming off the ground; he stomps a forefoot with the grazers;
+// and on the jumps he rears a little and comes down with a thud. He stands and listens to her horn.
+//
+// His feet never slide: the place the score gives his root and the time it gives his walk clip are one number (how far through
+// the clip's cycle he is: the clip carries him MOSI_WALK.stride metres a cycle), so a step back is the clip run backwards. The
+// figure is on the dance beat, so the rewind walks him back through it and Stoppdans holds him in the middle of a step.
+
+/** His walk clip (triceratops.glb 'walk'): seconds a cycle, the metres a cycle carries him, and where in it he stands best (0..1). */
+export const MOSI_WALK = { seconds: 2.92, stride: 3.59, stand: 0.042 };
+/**
+ * His march: how far through the clip's cycle a figure takes him back and forward again (0.63: two footfalls each way, 2.26 m),
+ * and the parts he marches in: [from, to, beats a figure], score beats, each a whole number of figures (he is home, standing,
+ * at both ends). The freeze cuts one figure in two: "Stopp!" (362) holds him three quarters through it, and on "Dansa!" (372)
+ * the next begins three quarters through, so he finishes the very step he was frozen in.
+ */
+export const MARCH = { reach: 0.63, fade: 0.8 };
+export const MARCHES = [
+  [72, 96, 8], [96, 128, 16], [144, 224, 16], [264, 280, 16], [280, 296, 8], [312, 320, 8], [340, 364, 8],
+  [BENDS.freeze.to - 6, 390, 8], [432, 456, 8],
+];
+// the stretches he marches in: the parts that follow one another joined (and the two halves of the figure the freeze cuts)
+const MARCH_SPANS = MARCHES.reduce((spans, [from, to]) => {
+  const last = spans.at(-1);
+  if (last && (last[1] === from || (last[1] > BENDS.freeze.from && from < BENDS.freeze.to))) last[1] = to;
+  else spans.push([from, to]);
+  return spans;
+}, []);
+/** His turn: right round to his right, walking a ring `cycles` of his clip long (2.3 m across), from `from` to `to` (score beats). */
+export const MOSI_TURN = { from: 328, to: 340, cycles: 2 };
+/** 0 to 1 over 0 to 1 at an even pace, eased over the first and the last `ease` of the way. */
+const pace = (s, ease = 0.18) => {
+  const k = clamp(s);
+  const top = 1 / (1 - ease); // the pace in the middle
+  if (k < ease) return (top * k * k) / (2 * ease);
+  if (k > 1 - ease) return 1 - (top * (1 - k) * (1 - k)) / (2 * ease);
+  return top * (k - ease / 2);
+};
 
 const MOSI_LOOK = [
   [0, 'her'], [32, 'egill'], [40, 'pool'], [96, 'her'], ...GROUP_PARTS, [224, 'her'], [264, 'egill'], [272, 'pool'], [293, 'sky'], [301, 'pool'],
@@ -241,6 +286,8 @@ const MOSI_REARS = [...JUMPS, ...HOPP, 412, 416];
  * Mosi at the clock: {
  *   side (m to his right), lift (m), yaw, roll (degrees, to his right), rear (degrees, his front up about his hind feet),
  *   nod (degrees, down negative), feet: { fl, fr, bl, br } (m off the ground), tail (degrees, to his right),
+ *   march: { weight, time } (his walk clip, s into it), step (m ahead of where he stood, the way he faced), aside (m to the
+ *   right of it), spin (degrees he has turned to his right),
  *   look: [x, y, z], looking, clock (s: his idle clip's time)
  * }
  */
@@ -252,6 +299,7 @@ export function mosiAt(clock, { reduced = false } = {}) {
   const sway = Math.sin((TAU * d) / 4); // to his right on the bar's second beat, to his left on its fourth
   const out = {
     side: 0, lift: 0, yaw: 0, roll: 0, rear: 0, nod: 0, feet: { fl: 0, fr: 0, bl: 0, br: 0 }, tail: 0,
+    march: { weight: 0, time: MOSI_WALK.stand * MOSI_WALK.seconds }, step: 0, aside: 0, spin: 0,
     look: lookAt(MOSI_LOOK, b, 3), looking: 0.6 * on, clock: d * BEAT,
   };
   if (reduced) {
@@ -259,9 +307,35 @@ export function mosiAt(clock, { reduced = false } = {}) {
     out.nod = -2 * e * (0.5 + 0.5 * Math.cos(Math.PI * (d - 1)));
     return out;
   }
+  // the march: back up the bank and forward again, the clip run back and forward with him
+  let cycle = MOSI_WALK.stand; // how far through his walk clip's cycle he is
+  const figure = MARCHES.find(([from, to]) => b >= from && b < to);
+  if (figure) {
+    const [from, , beats] = figure;
+    const back = MARCH.reach * (0.5 - 0.5 * Math.cos((TAU * (d - (from - (b - d)))) / beats)); // (the figure is on the dance beat)
+    cycle -= back;
+    out.step = -MOSI_WALK.stride * back;
+  }
+  // where a stretch of marching begins and ends he is home, on his feet as his idle clip has them: the clip comes and goes there
+  let marching = 0;
+  for (const [from, to] of MARCH_SPANS) marching = Math.max(marching, ramp(b, from - MARCH.fade, from + MARCH.fade) * (1 - ramp(b, to - MARCH.fade, to + MARCH.fade)));
+  marching *= on;
+  // the turn: he walks a ring to his right, as long as `cycles` of his clip, and is back where he stood, facing as he did
+  const turning = span(b, MOSI_TURN.from - MARCH.fade, MOSI_TURN.to + MARCH.fade, 2 * MARCH.fade) * on;
+  if (b > MOSI_TURN.from && b < MOSI_TURN.to) {
+    const round = pace((b - MOSI_TURN.from) / (MOSI_TURN.to - MOSI_TURN.from));
+    const ring = (MOSI_TURN.cycles * MOSI_WALK.stride) / TAU; // its radius, m
+    cycle += MOSI_TURN.cycles * round;
+    out.spin = 360 * round;
+    out.step = ring * Math.sin(TAU * round);
+    out.aside = ring * (1 - Math.cos(TAU * round));
+  }
+  marching = Math.min(1, marching + turning);
+  out.march = { weight: marching, time: frac(cycle) * MOSI_WALK.seconds };
+  out.looking *= 1 - turning; // his head goes round with him
   const stomping = span(b, P.grazers.from - 1.5, P.grazers.to, 1);
-  const k = e * (1 - 0.6 * stomping);
-  out.roll = 3.2 * k * sway;
+  const k = e * (1 - 0.6 * stomping) * (1 - marching); // the sway is where he does not walk
+  out.roll = 3.2 * k * sway + 1.4 * e * marching * sway;
   out.side = 0.22 * k * sway;
   out.yaw = 2.5 * k * Math.sin((TAU * (d - 0.5)) / 4);
   const light = 0.16 * k;
@@ -301,6 +375,9 @@ export function mosiAt(clock, { reduced = false } = {}) {
 // Flugeðla: the DJ. She stands in the shallows facing her dance floor, bobs, beats the time on the water with her wings, spreads
 // them for her welcome, holds them up through the build, bows at the end, and flies: a round over the pool for her welcome, straight
 // up out of the pool on "Nú!", and up again, spinning, when the drop comes back.
+// And she PLAYS (the owner's list of 2026-11-19): a wing saws at the water in front of her on the record's scratches; a wing
+// sweeps out to each group as she calls it, her head and her body turning after it; she bangs her head on the backbeat through
+// the big parts; and in the last chorus she flies a low lap of the pool round Slóeðla, who has waded out to turn in its middle.
 
 /** Where she stands ([x, z]) and the way she faces while she plays: across the pool, to everyone. */
 export const DECKS = { at: [...FAR_POOL.landing], heading: 240, home: FAR_POOL.facing };
@@ -314,6 +391,15 @@ const rocket = (t, top) => [
   [t + 3.5, -16.8, 0.8, top], [t + 4.5, -19, -0.6, 0.76 * top], [t + 5.6, -20, -5.5, 4], [t + 6.8, -14, -11, 3.6], [t + 8, -4, -10.5, 4],
   [t + 9.6, 9, -5, 4.5],
 ];
+/**
+ * Her lap in the last chorus: a ring `r` m round the place Slóeðla turns in, flown clockwise from above (east, south, west,
+ * north) through the angles `round` (degrees round that place, from +X toward +Z), `beats` from each to the next, her path
+ * `over` m over the water (her body 2.6 m over that). She comes onto the ring at `in`: where the straight way from her decks touches it.
+ */
+export const LAP = { r: 8.5, in: 130.5, round: [130.5, 185, 240, 295, 350], beats: 1.1, over: 0.7 };
+const lapPoint = angle => [HER_MIDDLE[0] - FAR_POOL.center[0] + LAP.r * Math.cos((angle * Math.PI) / 180), HER_MIDDLE[1] - FAR_POOL.center[1] + LAP.r * Math.sin((angle * Math.PI) / 180)];
+/** The point `far` m from `a` on the way to `b` ([east, south]). */
+const toward = (a, b, far) => { const k = far / Math.hypot(b[0] - a[0], b[1] - a[1]); return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; };
 /**
  * Her flights. `keys`: [score beat, east, south (m from the pool's middle), m over the water], flown through with the speed each
  * key's neighbours give it, at rest at the first and the last. `from` and `to`: the beats the flight has her (from her bending
@@ -337,14 +423,58 @@ export const FLIGHTS = [
     // (lower: this one is seen from the middle of the pool, set_water_low, with less sky over her)
     keys: [...rocket(P.redrop.from, 7), [319.4, 19, 6, 3.4], [321.2, 16.5, 16.5, 1.4], [322.8, ...HOME, GROUND]],
   },
+  { // the last chorus: a low lap of the pool round Slóeðla, who turns in its middle (HER_WADE): out along the south of her, round
+    // behind her and north of her, close past the camera that holds her (kafli5-pool.js set_her_lap), and home the way she
+    // comes home from the other two
+    from: 443.2, to: 461, off: 444.4, down: 457.3, spin: null,
+    keys: [
+      [443.8, ...HOME, GROUND], [445.2, ...toward(HOME, lapPoint(LAP.in), 3.5), 0.4], [446.5, ...toward(HOME, lapPoint(LAP.in), 16), 0.8],
+      ...LAP.round.map((angle, k) => [447.6 + LAP.beats * k, ...lapPoint(angle), LAP.over]),
+      [454.4, 19, 6, 2.6], [456.1, 16.5, 16.5, 1.4], [457.7, ...HOME, GROUND],
+    ],
+  },
 ];
 /** Her take-off and landing clips (pteranodon.glb): where in each her feet leave or meet the ground, and how fast they are played. */
 export const WING_CLIPS = { takeOff: { seconds: 3.2, off: 0.75, rate: 1.4 }, land: { seconds: 3.0, down: 1.95, rate: 1.25 }, fly: { seconds: 1.4, beats: 3 }, happy: { seconds: 2.4, beats: 4 } };
 const BOW_TURN = 30; // degrees she turns aside as she bows
 const WING_SLAP = 46; // degrees down from her spread pose: her wing tips on the water where she stands
+/**
+ * Her scratches: the beats her left wing saws at the water in front of her, [from, to], round the set's scratch cues (those less
+ * than a beat apart are one scratch); the wing is `ahead` degrees forward of its spread pose and `down` degrees under it, and
+ * saws `saw` degrees each way, twice a beat.
+ */
+export const SCRATCH = { ahead: 40, down: 26, saw: 13, lead: 0.3, tail: 0.4 };
+export const SCRATCHES = cues('scratch').reduce((runs, beat) => {
+  if (runs.length && beat - runs.at(-1)[1] < 1) runs.at(-1)[1] = beat;
+  else runs.push([beat, beat]);
+  return runs;
+}, []).map(([first, last]) => [first - SCRATCH.lead, last + SCRATCH.tail]);
+/**
+ * The groups she calls, each with a wing swept out to it: { id, at (her line's beat), from, to (the beats the wing is out),
+ * rise (beats it takes going out), turn (degrees her body turns to her right, so that the wing on her left reaches the group),
+ * sweep (degrees that wing swings forward of its spread pose), both (Slóeðla: both wings, opened toward her) }.
+ */
+export const POINTS = (() => {
+  const from = [...FAR_POOL.landing];
+  const bearing = at => headingTo(from, at);
+  const point = (id, at, { lead = 0.7, hold = 3, rise = 0.8, to = id } = {}) => {
+    const where = to === 'her' ? WADE.at : to === 'beetles' ? around(173, 29.6) : to === 'dragonflies' ? around(176, 24.6) : CHOIR[to].at;
+    const left = wrap(bearing(where) - (DECKS.heading - 90)); // degrees forward of her left wing's spread pose, were she not to turn
+    const turn = clamp(left - 25, 0, 35);
+    return { id, at: line(at), from: line(at) - lead, to: line(at) + hold, rise, turn: to === 'her' ? 0 : turn, sweep: to === 'her' ? 32 : left - turn, both: to === 'her' };
+  };
+  return [
+    point('grazers', 'grazers', { hold: 2.7 }), point('turtles', 'turtles-slow', { lead: 0.2, hold: 5.6, rise: 2.4 }), point('frogs', 'frogs', { hold: 2.6 }),
+    point('lizards', 'lizards'), point('flyers', 'flyers', { hold: 3.4 }), point('beetles', 'beetles', { lead: 0.35 }),
+    point('dragonflies', 'dragonflies', { hold: 2.5 }), point('her', 'sloedla', { lead: 0.2, hold: 3.6, rise: 1.2 }),
+  ];
+})();
+/** The parts she bangs her head in (score beats): the backbeat, `deep` degrees down her neck. */
+export const BANG = { deep: 24, parts: [[327, BENDS.freeze.from + 0.5], [BENDS.freeze.to, 402.5], [429, 443.4]] };
 const FLUGEDLA_LOOK = [
-  [0, 'pool'], [32, 'egill'], [38, 'pool'], [226, 'her'], [262, 'pool'], [265.5, 'egill'], [268, 'pool'], [404, 'egill'], [409, 'pool'],
-  [413.6, 'egill'], [416, 'pool'],
+  [0, 'pool'], [32, 'egill'], [38, 'pool'],
+  ...POINTS.filter(point => !point.both).flatMap(point => [[point.from, point.id === 'dragonflies' ? 'frogs' : point.id], [point.to, 'pool']]),
+  [226.6, 'her'], [262, 'pool'], [265.5, 'egill'], [268, 'pool'], [404, 'egill'], [409, 'pool'], [413.6, 'egill'], [416, 'pool'],
 ];
 
 /** A flight's place at score beat `b`: [east, south, over the water], a Hermite curve through its keys in time. */
@@ -372,7 +502,9 @@ const flightAt = b => FLIGHTS.find(flight => b >= flight.from && b <= flight.to)
  *   at: [x, y, z] (where her feet would be were she level, the world's), heading, pitch (nose up), bank (to her right), degrees,
  *   air (0 on the ground .. 1 flying), clips: { takeOff, fly, land, happy: { weight, time } } (the rest of her is her idle clip),
  *   lift (m: her bob where she stands), spread: { left, right } (0 a wing folded as her clip has it .. 1 spread wide), raise:
- *   { left, right } (degrees each wing is lifted about its shoulder; negative: down to the water), bow (degrees her neck and body bend down),
+ *   { left, right } (degrees each wing is lifted about its shoulder; negative: down to the water), sweep: { left, right } (degrees
+ *   each wing swings forward about the upright at its shoulder), bow (degrees her neck and body bend down), bang (degrees her neck
+ *   nods down: the headbang),
  *   look: [x, y, z], looking, clock (s: her idle clip's time), blink (true on the beat she winks)
  * }
  */
@@ -386,7 +518,8 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   const out = {
     at: [DECKS.at[0], LEVEL + GROUND, DECKS.at[1]], heading, pitch: 0, bank: 0, air: 0,
     clips: { takeOff: { weight: 0, time: 0 }, fly: { weight: 0, time: frac(d / WING_CLIPS.fly.beats) * WING_CLIPS.fly.seconds }, land: { weight: 0, time: 0 }, happy: { weight: 0, time: frac(d / WING_CLIPS.happy.beats) * WING_CLIPS.happy.seconds } },
-    lift: 0, spread: { left: 0, right: 0 }, raise: { left: 0, right: 0 }, bow: 0, look: lookAt(FLUGEDLA_LOOK, b, 2), looking: 0.7 * on, clock: d * BEAT, blink: false,
+    lift: 0, spread: { left: 0, right: 0 }, raise: { left: 0, right: 0 }, sweep: { left: 0, right: 0 }, bow: 0, bang: 0,
+    look: lookAt(FLUGEDLA_LOOK, b, 2), looking: 0.7 * on, clock: d * BEAT, blink: false,
   };
   const quiet = hush(b);
   // where she stands: a bob on the beat, her happy clip a bar long under it
@@ -405,20 +538,40 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
     return out;
   }
   const dance = e * (1 - still) * (1 - goodnight);
-  out.clips.happy.weight = clamp(dance * 0.75) * (1 - wingsUp) * (1 - quiet);
+  // the DJ at her decks: the scratch, the wing out to the group she calls, the headbang
+  const scratch = Math.max(...SCRATCHES.map(([from, to]) => span(b, from, to, 0.3, 0.35))) * on;
+  let called = null; // the group her wing is out to now, and how far out it is (0..1)
+  let calling = 0;
+  for (const one of POINTS) {
+    const far = span(b, one.from, one.to, one.rise, 1.1);
+    if (far > calling) [called, calling] = [one, far];
+  }
+  calling *= on * (1 - scratch);
+  const banging = Math.max(...BANG.parts.map(([from, to]) => span(b, from, to, 1.5, 0.6))) * (1 - still) * on;
+  const busy = Math.max(scratch, calling); // a wing of hers has something to do: they stop beating the time
+  out.clips.happy.weight = clamp(dance * 0.75) * (1 - wingsUp) * (1 - quiet) * (1 - 0.5 * banging) * (1 - 0.6 * busy);
   out.lift = 0.07 * dance * (0.5 - 0.5 * Math.cos(TAU * d)) - 0.12 * quiet;
   // folded where she stands (halfway open a wing hangs like washing), and wide open for each thing she does with them
-  const both = welcome + wingsUp + goodnight;
+  const both = welcome + wingsUp + goodnight + (called?.both ? calling : 0);
   // she beats the time on the water: on each of the band's wing beats her wings open and lift, and come down flat on the water
-  const beating = (1 - wingsUp) * (1 - welcome) * on;
+  const beating = (1 - wingsUp) * (1 - welcome) * (1 - busy) * on;
   const open = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.25, at + 0.75))) * beating;
   const lifted = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.45, at - 0.05))) * beating;
   const slap = Math.max(...WINGS.map(at => hump(b, at - 0.4, at, at + 0.6))) * beating;
-  out.spread.left = clamp(both + open + flick);
+  out.spread.left = clamp(both + open + flick + calling + scratch); // the wing on the choir's side: out to the group, or at the record
   out.spread.right = clamp(both + open + point); // the wing on Egill's side, out to him
-  const beatWings = 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * Math.sin(Math.PI * d);
-  out.raise.left = beatWings + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick;
-  out.raise.right = beatWings + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point;
+  const beatWings = 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * (1 - busy) * Math.sin(Math.PI * d);
+  out.raise.left = beatWings + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick
+    + (called?.both ? 12 : 5) * calling - SCRATCH.down * scratch;
+  out.raise.right = beatWings + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point
+    + (called?.both ? 12 * calling : 0);
+  // the scratch: the wing forward and down to the water, sawing to and fro twice a beat; the call: the wing swung forward to
+  // where the group is, her body turned after it
+  out.sweep.left = (called?.sweep ?? 0) * calling + (SCRATCH.ahead + SCRATCH.saw * Math.sin(2 * TAU * d)) * scratch;
+  out.sweep.right = called?.both ? called.sweep * calling : 0;
+  out.heading += (called?.turn ?? 0) * calling;
+  // the headbang: down on the backbeat, sharp, and up again
+  out.bang = BANG.deep * banging * (0.5 + 0.5 * Math.cos(Math.PI * (d - 1))) ** 3 + 9 * scratch; // (she looks down at the record)
   out.bow = 24 * goodnight * (0.75 + 0.25 * Math.sin((TAU * (b - 469)) / 4)) + 6 * quiet;
   out.blink = b >= 424.6 && b < 425.4;
   // her flights
@@ -466,6 +619,9 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
     out.lift *= grounded;
     out.raise.left *= grounded;
     out.raise.right *= grounded;
+    out.sweep.left *= grounded;
+    out.sweep.right *= grounded;
+    out.bang *= grounded;
     out.bow *= grounded;
     // she comes down with her wings spread, and they stay spread a moment
     const landed = flight.down === null ? 0 : span(b, flight.down - 0.5, flight.down + 2.8, 0.5, 0.9);
@@ -476,9 +632,14 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Slóeðla: the star, shy and gentle. She sways over a bar and bobs with the band, more as the set grows; turns to the group whose
-// part it is, where she stands; stands tall and still for her horn; lifts her head high with everyone's jump; and between her horn's answers in
-// the last chorus she dances the most she ever does. Her horn itself (her head up, her 'call' clip) is her life's (kafli5-sloedla.js).
+// Slóeðla: the star, shy and gentle, and the set is her way from shy to bold, in three stances (the owner's list of 2026-11-19).
+// ONE, to her horn in the calm middle: shy. Her head is held low and only her head and her tail move, small; she turns to the
+// group whose part it is, where she stands, and peeks up when everyone jumps. Her horn is as it was: tall and still.
+// TWO, growing through the build and whole from the first drop: her whole body dances. She sways from side to side, bobs, her
+// 'happy' clip under it; she ducks down into the water in the hush before each drop and surges up out of it on the drop.
+// THREE, the last chorus: big and proud, leading. She surges, wades out toward the middle of the pool, and turns slowly right
+// round there, her head high, blowing her horn's answers as she goes; after the last hit she wades back to where she stood.
+// Her horn itself (her head up, her 'call' clip) is her life's (kafli5-sloedla.js).
 
 const HER_ENERGY = [
   [0, 0], [4, 0.15], [16, 0.22], [32, 0.3], [62, 0.45], [64.5, 0.65], [94, 0.65], [98, 0.8], [126, 0.8], [130, 0.5], [226, 0.5], [231, 0],
@@ -499,12 +660,21 @@ export const HER_TURNS = (() => {
 })();
 /** How far her head may turn (degrees), the share of a turn her body takes and how far it goes, and the beats a turn takes. */
 export const HER_TURN = { head: 50, body: 0.7, most: 115, beats: 6 };
+/**
+ * Her three stances: `whole` is the beats her whole body comes into the dance over (the build), `proud` the beats she grows
+ * proud over (the last chorus's first), `low` the degrees her head hangs while she is shy and `high` the degrees it is up when
+ * she is proud; `happy`: her 'happy' clip (parasaurolophus.glb, 2.4 s), a loop `beats` long, and the most it has of her.
+ */
+export const HER_STANCES = { whole: [266, 292], proud: [427.8, 430.6], low: 8, high: 8, happy: { seconds: 2.4, beats: 4, most: 0.7 } };
+/** Her duck and surge: `deep` m down into the water over the hush before each of `drops`, and up out of it over `up` beats from the drop. */
+export const HER_DUCK = { deep: 0.6, up: 1.1, drops: [P.drop.from, P.redrop.from, P.lastchorus.from] };
 
 /**
  * Slóeðla at the clock: {
  *   lift (m), side (m to her right), yaw (degrees her body turns where she stands, as a heading turns), lean (degrees her front
  *   comes up), nod (degrees her head up), turn (degrees her head turns on from her body), tilt (degrees her head leans to her right), tail (degrees),
- *   clock (s: her resting clip's time)
+ *   step (m she has waded out from her place, the way she faced there), spin (degrees she has turned round, as a heading turns),
+ *   happy: { weight, time } (her 'happy' clip, s into it), clock (s: her resting clip's time)
  * }
  */
 export function sloedlaAt(clock, { reduced = false } = {}) {
@@ -524,7 +694,11 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
   const facing = (turnFrom + (HER_TURNS[i][1] - turnFrom) * ramp(b, HER_TURNS[i][0], HER_TURNS[i][0] + HER_TURN.beats)) * on;
   const body = clamp(facing * HER_TURN.body, -HER_TURN.most, HER_TURN.most);
   const sway = Math.sin((TAU * d) / 4);
-  const out = { lift: 0, side: 0, yaw: body, lean: 0, nod: 0, turn: clamp(facing - body, -HER_TURN.head, HER_TURN.head), tilt: 0, tail: 0, clock: d * BEAT };
+  const { happy } = HER_STANCES;
+  const out = {
+    lift: 0, side: 0, yaw: body, lean: 0, nod: 0, turn: clamp(facing - body, -HER_TURN.head, HER_TURN.head), tilt: 0, tail: 0, step: 0, spin: 0,
+    happy: { weight: 0, time: frac(d / happy.beats) * happy.seconds }, clock: d * BEAT,
+  };
   // the quiet part is hers: tall and still, her head high
   const tall = (span(b, 229, 264, 3, 2) + span(b, P.fakeend.from, 427, 1.5, 1.5) * 0.6) * on;
   out.lift = 0.14 * tall;
@@ -535,19 +709,41 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
     out.tail = -6 * e * Math.sin((TAU * (d - 0.6)) / 4);
     return out;
   }
-  out.side = 0.3 * e * sway;
-  out.yaw += 6 * e * Math.sin((TAU * (d - 0.5)) / 4);
-  out.tilt = 7.5 * e * sway;
-  out.lift += 0.1 * e * (0.5 - 0.5 * Math.cos(Math.PI * d));
-  out.nod += 5 * e * Math.cos(Math.PI * d);
+  // her three stances: how much of her body dances (0 shy: her head and her tail alone .. 1), and how proud she stands
+  const whole = ramp(b, ...HER_STANCES.whole);
+  const proud = ramp(b, ...HER_STANCES.proud) * on;
+  out.nod -= HER_STANCES.low * (1 - whole) * (1 - clamp(tall)) * on; // shy: her head hangs
+  out.nod += HER_STANCES.high * proud;
+  out.lift += 0.16 * proud;
+  out.side = 0.3 * e * whole * sway;
+  out.yaw += 6 * e * whole * Math.sin((TAU * (d - 0.5)) / 4);
+  out.tilt = (4.5 + 3 * whole) * e * sway;
+  out.lift += 0.1 * e * whole * (0.5 - 0.5 * Math.cos(Math.PI * d));
+  out.nod += (3 + 2 * whole) * e * Math.cos(Math.PI * d);
   out.turn += 9 * e * Math.sin((TAU * (d - 1)) / 8); // her head sweeps slowly from side to side, two bars a sweep
-  out.tail = -20 * e * Math.sin((TAU * (d - 0.6)) / 4) + 6 * e * Math.sin(Math.PI * d);
-  out.lift += 0.22 * rise * on;
-  out.nod += 11 * rise * on;
-  out.lean += 3.5 * rise * on;
+  out.tail = -(13 + 7 * whole) * e * Math.sin((TAU * (d - 0.6)) / 4) + (3 + 3 * whole) * e * Math.sin(Math.PI * d);
+  // everyone's jump: shy, she peeks up; bold, her head goes high and her front comes up with it
+  out.lift += 0.22 * rise * whole * on;
+  out.nod += (6 + 5 * whole) * rise * on;
+  out.lean += 3.5 * rise * whole * on;
   // the hush before a jump: her head comes down a little, to rise from
   const quiet = hush(b, 1.5);
   out.nod -= 5 * quiet * on;
   out.lift -= 0.05 * quiet * on;
+  // and before a drop she ducks down into the water, and surges up out of it on the drop, her front first
+  let duck = 0;
+  let surge = 0;
+  for (const at of HER_DUCK.drops) {
+    duck = Math.max(duck, ramp(b, at - 1.5, at - 0.3) * (1 - ramp(b, at, at + HER_DUCK.up)));
+    surge = Math.max(surge, hump(b, at, at + 1.2, at + 3.4));
+  }
+  out.lift -= HER_DUCK.deep * duck * on;
+  out.lean += (5 * surge - 3 * duck) * on;
+  // her happy clip under the dance of her whole body
+  out.happy.weight = happy.most * whole * clamp(e / 0.8) * (1 - duck) * (1 - 0.4 * proud);
+  // the last chorus: she wades out toward the middle and turns slowly right round there; and back when the set is over
+  const through = ([from, to], ease) => pace((b - from) / (to - from), ease);
+  out.step = HER_WADE.far * (through(HER_WADE.out, 0.25) - through(HER_WADE.back, 0.25));
+  out.spin = -360 * through(HER_WADE.turn, 0.12); // to her left: against the way Flugeðla flies round her
   return out;
 }
