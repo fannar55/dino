@@ -58,7 +58,7 @@ import { keepScreenAwake } from './engine/wake-lock.js';
 //                         play on from there with sound (a review from a time; the child's save is still left alone)
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
-//   syning=1              a "3D myndbönd" show in the book's frame (engine/book/show-player.js): only the show, with no book button,
+//   syning=1              a show in the book's frame ("3D myndbönd" or the game's own, engine/book/show-player.js): only the show, with no book button,
 //                         no app line or download under the start; Escape asks the book to close the frame
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
 //   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
