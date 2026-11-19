@@ -1,9 +1,9 @@
-// The table picture's controls (chapters/bord3d.js), after Grameðla kemur!'s review pages (gramedla3d/review.js): big round buttons
-// in the bottom corners (‹ and ›, and the arrow keys) step through Mosi's heights, two small ones in the top right change the
-// screen's size, a small label in the top left says the real numbers, and a line in the middle of the bottom edge says where to sit.
-// Pale and quiet, and all of it on the screen's own plane: ordinary page elements, the same for both eyes.
+// The table pages' controls (chapters/bord3d.js, chapters/tjorn3d.js), after Grameðla kemur!'s review pages (gramedla3d/review.js):
+// big round buttons in the bottom corners (‹ and ›, and the arrow keys) step through the page's steps, two small ones in the top
+// right change the screen's size, a small label in the top left says the real numbers, and a line in the middle of the bottom edge
+// says where to sit. Pale and quiet, and all of it on the screen's own plane: ordinary page elements, the same for both eyes.
 
-export function tableUi(doc, { step, screen }) {
+export function tableUi(doc, { step, screen, prev = 'Fyrra', next = 'Næsta' }) {
   const element = doc.createElement('div');
   element.className = 'bord';
   element.innerHTML = `
@@ -26,9 +26,11 @@ export function tableUi(doc, { step, screen }) {
     <div class="label"></div>
     <button class="less" type="button" aria-label="Minni skjár">skjár −</button>
     <button class="more" type="button" aria-label="Stærri skjár">skjár +</button>
-    <button class="prev" type="button" aria-label="Minni Mosi">‹</button>
-    <button class="next" type="button" aria-label="Stærri Mosi">›</button>
+    <button class="prev" type="button">‹</button>
+    <button class="next" type="button">›</button>
     <div class="seat">Sittu við þessa brún.</div>`;
+  element.querySelector('.prev').setAttribute('aria-label', prev);
+  element.querySelector('.next').setAttribute('aria-label', next);
   const label = element.querySelector('.label');
   const on = (name, fn) => element.querySelector(name).addEventListener('click', fn);
   on('.prev', () => step(-1));

@@ -1,7 +1,7 @@
 // Borðmynd (?chapter=bord3d): a trial "phantogram" of Mosi, a 3D picture for a screen LYING FLAT on a table, watched through the
 // red/cyan glasses from one seat, looking down at it at about 45 degrees. Mosi stands on the screen, facing the viewer turned a
 // little to one side, and looks up at the viewer's eyes; he breathes and blinks. The ground is the screen and his shadow lies on it.
-// Nothing else: no forest, no sound, no speech, nothing saved, no end (the page stays).
+// Nothing else: no forest, no sound, no speech, no end (the page stays).
 //
 // The geometry is engine/table3d.js: the two eye cameras stand at the viewer's eyes, look straight down and see exactly the screen's
 // rectangle, so the ground has no parallax and Mosi stands out of the screen. The world is scaled to the table: Mosi, some 4 m tall
@@ -15,31 +15,24 @@
 //   &gler=0                                no glasses: the same table picture from the point between the eyes (the stretched picture)
 //   &sjon=1                                what the viewer sees: an ordinary camera at the point between the eyes looking at the screen's
 //                                          centre, the screen's rectangle outlined on the ground, no glasses
-// None of it is saved. world.bord.measure() gives the numbers (tools/bord3d-probe.mjs asks it).
+// Only the screen's size is saved, on the device, for every table page (engine/table-stage.js, which has what the table pages share).
+// world.bord.measure() gives the numbers (tools/bord3d-probe.mjs asks it).
 import * as THREE from 'three';
 import { glassesStart } from '../engine/book/show-cards.js';
-import { tableEyes, placeEye, onTable, parallaxAt, outlineBox, centreOnTable, marginsOf, cmPerPixel } from '../engine/table3d.js';
-import { tableUi, tala } from './bord3d/ui.js';
+import { onTable, parallaxAt, outlineBox, centreOnTable, marginsOf } from '../engine/table3d.js';
+import { SCREEN, MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
+import { tableUi, tala } from '../engine/table-ui.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
-const knob = (key, fallback, lo, hi) => {
-  const value = Number(params.get(key));
-  return params.get(key) !== null && params.get(key) !== '' && Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : fallback;
-};
+const { knob, seat: SEAT, sjon: SJON, mono: MONO, mode: MODE } = tableKnobs(params);
 
 export const HEIGHTS = [4, 6, 8, 10]; // cm: Mosi's height on the table at each step
 const HEIGHT = knob('haed', 6, 2, 20);
-export const SCREEN = { min: 7, max: 17, step: 0.5, inches: 10.5 }; // the screen's diagonal
-export const SEAT = { R: knob('fjarlaegd', 45, 20, 90), a: knob('horn', 45, 20, 80), ipd: knob('augu', 5.8, 4, 8) }; // cm, degrees, cm
+export { SCREEN, MARGIN, SEAT };
 const TURN = knob('snu', 45, -90, 90); // degrees from facing the viewer, to the viewer's left: a quarter to one side
-export const MARGIN = 0.04; // his picture's least distance to each edge of the page, as a share of the page that way
-const SJON = params.get('sjon') === '1';
-const MONO = SJON || params.get('gler') === '0';
 const SETTLE = 30; // steps of 0.1 s for his head to come to rest on a new look
 const PHASES = 6; // moments of his breathing his picture is bounded over
-const rad = d => (d * Math.PI) / 180;
-const deg = r => (r * 180) / Math.PI;
 
 export const chapter = {
   id: 'bord3d',
@@ -65,7 +58,7 @@ export const chapter = {
   *script(s) {
     const mosi = s.actor('mosi').raw;
     const world = mosi.world;
-    const { camera, gler, director, scene } = world;
+    const { camera, scene } = world;
     const win = typeof window !== 'undefined' ? window : null;
 
     // ---- the table: the forest's ground alone (no plants, grass, treeline, air, animals), no mist over it, no music ----
@@ -110,25 +103,17 @@ export const chapter = {
 
     // ---- the view: what is chosen (step, screen), and what follows from it (solve) ----
     const steps = HEIGHTS.includes(HEIGHT) ? HEIGHTS : [...HEIGHTS, HEIGHT].sort((x, y) => x - y);
+    const screen = screenSize(params);
     const view = {
-      steps, index: steps.indexOf(HEIGHT), inches: knob('skjar', SCREEN.inches, 5, 32), ...SEAT, turn: TURN,
-      mode: SJON ? 'sjon' : MONO ? 'mono' : 'gler', dirty: true, solves: 0,
+      steps, index: steps.indexOf(HEIGHT), inches: screen.inches, ...SEAT, turn: TURN,
+      mode: MODE, dirty: true, solves: 0,
       origin: [0, 0], scale: 0.7, eyes: null, box: null, margins: null, fits: false,
     };
     const near = camera.near, far = camera.far;
-    /**
-     * The page as the table sees it: its size in cm, from the screen's diagonal in inches and in CSS pixels. A screen said to be
-     * smaller than the page on it (a headless capture's is 800 x 600 whatever the page) is taken to be the page's size; the long
-     * and the short side are compared, not width and height, since some tablets do not turn the screen's numbers with the screen.
-     */
-    function page() {
-      const w = win?.innerWidth || 1280, h = win?.innerHeight || 800;
-      const sw = win?.screen?.width || w, sh = win?.screen?.height || h;
-      const long = Math.max(sw, sh, w, h), short = Math.max(Math.min(sw, sh), Math.min(w, h));
-      const cm = cmPerPixel(view.inches, long, short);
-      return { cm, W: w * cm, Hs: h * cm, screenPx: [long, short] };
-    }
-    const eyesFor = (pg, scale) => tableEyes({ W: pg.W, Hs: pg.Hs, R: view.R, a: view.a, ipd: view.ipd, near, far, scale });
+    // the cameras: the two eyes at the viewer's, the director's above the page (engine/table-stage.js)
+    const stage = createTableStage(world, { seat: SEAT, sjon: SJON, mono: MONO });
+    const page = () => tablePage(win, view.inches);
+    const eyesFor = stage.eyesFor;
     /**
      * Everything that follows from the step, the screen and the seat. His head looks at the viewer, so his pose depends a little on
      * where the eyes are, which depends on his height in that pose and on where he stands: three rounds settle it (the last moves
@@ -159,50 +144,19 @@ export const chapter = {
       // the least margin in cm, on the side it is on
       const leastCm = Math.min(margins.left * pg.W, margins.right * pg.W, margins.top * pg.Hs, margins.bottom * pg.Hs);
       Object.assign(view, { ...pg, height: N, metres: N * scale, scale, origin, eyes, box, margins, least, leastCm, fits: least >= MARGIN - 1e-9, dirty: false, solves: view.solves + 1 });
-      // the director's camera, which picks his level of detail and aims the sun's shadow: straight above the page, as high as the
-      // eyes, seeing the page and a twentieth more (so he is as big to it as to the eyes, which see exactly the page, and his level
-      // of detail is the one they need; director.effectiveFov widens a lens on a screen narrower than 16:10)
-      const half = (0.525 * pg.Hs) / eyes.height;
-      const aspect = pg.W / pg.Hs;
-      view.centreFov = deg(2 * Math.atan(aspect >= 1.6 ? half : (half * aspect) / 1.6));
-      // the seat's own view (sjon=1): from between the eyes at the screen's centre, the whole rectangle inside the frame
-      let tan = 0;
-      const seat = new THREE.PerspectiveCamera();
-      seat.position.set(0, eyes.height, eyes.height / Math.tan(rad(view.a)));
-      seat.lookAt(0, 0, 0);
-      seat.updateMatrixWorld(true);
-      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-        p.set((x * pg.W) / 2, 0, (z * pg.Hs) / 2).applyMatrix4(seat.matrixWorldInverse);
-        tan = Math.max(tan, Math.abs(p.y / p.z), Math.abs(p.x / p.z) / aspect);
-      }
-      view.seatFov = deg(2 * Math.atan(tan / 0.86));
-      frame.scale.set(pg.W * scale, 1, pg.Hs * scale);
-      frame.position.set(origin[0], 0, origin[1]);
+      // the picture is drawn with these from now on (the director's camera above the page picks his level of detail and aims the
+      // sun's shadow; the seat's view and the screen's rectangle are for sjon=1)
+      stage.use(pg, scale, origin, eyes);
+      view.centreFov = stage.centreFov;
+      view.seatFov = stage.seatFov;
       label();
     }
-
-    // ---- the screen's rectangle on the ground, for the seat's view only: four plain strips ----
-    const frame = new THREE.Group();
-    {
-      const material = new THREE.MeshBasicMaterial({ color: '#f6f1e4', fog: false, depthTest: false, transparent: true, opacity: 0.9 });
-      const strip = (w, d, x, z) => {
-        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), material);
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(x, 0.01, z);
-        mesh.renderOrder = 50;
-        mesh.frustumCulled = false;
-        frame.add(mesh);
-      };
-      const t = 0.006; // of the page each way
-      strip(1 + t, t, 0, -0.5); strip(1 + t, t, 0, 0.5); strip(t, 1 + t, -0.5, 0); strip(t, 1 + t, 0.5, 0);
-    }
-    frame.visible = SJON;
-    scene.add(frame);
 
     // ---- the page's own things ----
     const ui = typeof document !== 'undefined' ? tableUi(document, {
       step: d => { view.index = Math.min(view.steps.length - 1, Math.max(0, view.index + d)); view.dirty = true; },
-      screen: d => { view.inches = Math.min(SCREEN.max, Math.max(SCREEN.min, Math.round((view.inches + d * SCREEN.step) / SCREEN.step) * SCREEN.step)); view.dirty = true; },
+      screen: d => { view.inches = screen.step(d); view.dirty = true; }, // remembered on the device
+      prev: 'Minni Mosi', next: 'Stærri Mosi',
     }) : null;
     if (MONO) ui?.element.classList.add('bord-mono');
     if (MONO && typeof document !== 'undefined') document.body.classList.add('bord-mono');
@@ -213,47 +167,14 @@ export const chapter = {
     }
     win?.addEventListener('resize', () => { view.dirty = true; });
 
-    // ---- the cameras ----
-    // the director's: straight above the page (a hair toward the viewer, so its "up" is the screen's top)
-    director.drive('borð', rig => {
-      const h = view.eyes.mid.y;
-      rig.position.set(view.origin[0], h, view.origin[1] + h * 0.02);
-      rig.target.set(view.origin[0], 0, view.origin[1]);
-      rig.fov = view.centreFov;
-    });
-    // the two eyes, placed here at every draw (engine/gler.js setEyes). Without the glasses (gler=0, sjon=1) both are the one point
-    // between the eyes and the left one's picture is shown as it is (the glasses' own check, `pass`).
-    const at = [0, 0, 0];
-    function seatView(eye) {
-      eye.position.set(at[0], view.eyes.mid.y, at[2] + view.eyes.mid.z);
-      eye.up.set(0, 1, 0);
-      eye.lookAt(at[0], 0, at[2]);
-      eye.fov = view.seatFov; eye.aspect = camera.aspect; eye.near = near; eye.far = far;
-      eye.updateProjectionMatrix();
-      eye.updateMatrixWorld(true);
-    }
-    if (gler) {
-      gler.enable(true);
-      if (MONO) gler.settings.method = 'pass';
-      gler.setEyes((eyes, centre) => {
-        at[0] = view.origin[0]; at[2] = view.origin[1];
-        if (SJON) eyes.forEach(seatView);
-        else {
-          placeEye(eyes[0], MONO ? view.eyes.mid : view.eyes.left, at);
-          placeEye(eyes[1], MONO ? view.eyes.mid : view.eyes.right, at);
-        }
-        for (const eye of eyes) eye.layers.mask = centre.layers.mask;
-      });
-    }
-
     /**
      * The numbers, as he stands now: every vertex of his skin through the two eye cameras the picture is drawn with (the glasses'
      * own while they are on), read where it lands on the page. Lengths in cm, shares of the page's width or depth.
      */
     function measure() {
       const { W, Hs, scale, eyes } = view;
-      at[0] = view.origin[0]; at[2] = view.origin[1];
-      const through = !MONO && gler ? gler.eyes : [placeEye(new THREE.PerspectiveCamera(), eyes.left, at), placeEye(new THREE.PerspectiveCamera(), eyes.right, at)];
+      const at = stage.at();
+      const through = stage.through();
       const c = cloud();
       const ndc = new THREE.Vector3();
       const box = [[Infinity, -Infinity, Infinity, -Infinity], [Infinity, -Infinity, Infinity, -Infinity]];
@@ -298,7 +219,7 @@ export const chapter = {
       const seat = marginsOf(outlineBox([c], [eyes.mid], view.origin), W * scale, Hs * scale);
       const r3 = x => Math.round(x * 1000) / 1000;
       return {
-        mode: view.mode, through: !MONO && gler ? 'the glasses\' eye cameras' : 'eye cameras made for the measure',
+        mode: view.mode, through: !MONO && world.gler ? 'the glasses\' eye cameras' : 'eye cameras made for the measure',
         page: { px: [win?.innerWidth, win?.innerHeight], screenPx: view.screenPx, screenSaid: [win?.screen?.width, win?.screen?.height], inches: view.inches, cmPerPx: view.cm, W: r3(W), Hs: r3(Hs) },
         seat: { R: view.R, a: view.a, ipd: view.ipd, eyeHeight: r3(eyes.height) },
         mosi: { step: view.index + 1, of: view.steps.length, cm: view.height, metres: r3(view.metres), metresPerCm: r3(scale), turn: view.turn, vertices: c.length / 3, origin: view.origin.map(r3) },
