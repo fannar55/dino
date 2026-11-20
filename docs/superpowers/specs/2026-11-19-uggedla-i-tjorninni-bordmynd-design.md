@@ -45,7 +45,7 @@ gefur ekki: djúpið undir skjánum, flötinn sjálfan og loftið yfir honum.
 | 1. Kyrr tjörn | 0–8 | Vatnaliljublöð fljóta á fletinum, froskur situr á einu, fiskar synda á ýmsu dýpi | froskurinn, liljublómin, fiðrildið á blaði |
 | 2. Skugginn | 8–20 | Dökkur skuggi djúpt niðri stækkar; loftbólur stíga upp og gera hringi á fletinum; fiskarnir forða sér | ekkert nýtt |
 | 3. Seglið | 20–30 | Seglið brýtur flötinn og rennur yfir miðja tjörnina; búkurinn sést undir | seglið, 3–4 cm |
-| 4. Höfuðið | 30–42 | Háls og höfuð rísa, vatn rennur af, hún horfir á áhorfandann og dvelur | höfuðið: 5, 6,5 eða 8 cm (eigandinn velur) |
+| 4. Höfuðið | 30–42 | Háls og höfuð rísa, vatn rennur af, hún horfir á áhorfandann og dvelur | höfuðið, 6,5 cm (eigandinn valdi 20. nóvember) |
 | 5. Fiskurinn | 42–50 | Stór fiskur stekkur í boga yfir borðið, hún skýtur höfðinu að honum og grípur hann; skvetta | fiskurinn efst í boganum, um 5 cm |
 | 6. Fiðrildið | 50–60 | Fiðrildið flögrar upp af blaðinu og sest á trýnið á henni; hún sekkur hægt og hringir breiðast út | fiðrildið á trýninu |
 
@@ -54,14 +54,21 @@ Uggeðla er líkan eigandans (14 m löng, seglið 7,3 m upp). Hreyfingar hennar 
 
 ## 5. Skrefin
 
-1. **Lykilmyndir.** Kyrrar myndir af lyklunum sex á yfirlitssíðu (`?chapter=tjorn3d&lykill=1`), lykill 4 í þremur hæðum. Mælt:
+1. **Lykilmyndir (búið).** Kyrrar myndir af lyklunum sex á yfirlitssíðu (`?chapter=tjorn3d&lykill=1`), lykill 4 í þremur hæðum. Mælt:
    hæð og hliðrun þess sem hæst rís, bil að brúnum, dýpsta sýnilega hlut. Eigandinn skoðar á spjaldtölvunni og velur hæðina.
 2. **Hreyfingin.** Sýningin öll, hljóðlaus, frá gleraugnabyrjun að lokaspjaldi.
 3. **Frágangur.** Hljóð (vatn, skvetta, bólur), tal ef hann vill, spjald í bókinni, próf.
 
-## 6. Óákveðið
+## 6. Ákveðið
 
-- Hve hátt höfuðið rís (lykill 4).
+- **Höfuðið rís 6,5 cm** (lykill 4b). Eigandinn skoðaði lykilmyndirnar á spjaldtölvunni með gleraugunum 20. nóvember 2026 og valdi
+  milli 5, 6,5 og 8 cm.
+- **Síðan tekur allan skjáinn.** Stærð síðunnar er stærð gluggans, og vafrastika tekur einn til tvo sentimetra af dýptinni: á 10,5
+  tommu skjá með 128 punkta stiku komst 6,5 cm höfuð ekki fyrir. Snertingin sem byrjar sýninguna biður því um allan skjáinn
+  (`remake/engine/table-ui.js`).
+
+## 7. Óákveðið
+
 - Hvort Uggeðla segir eitthvað.
 - Nafn sýningarinnar og hvar hún fer í bókina.
 - Hvernig hún kemst á lifandi vefinn. Núna er hún skoðuð yfir heimanetið; sameining, ýting og sending á Cloudflare gerast aðeins
