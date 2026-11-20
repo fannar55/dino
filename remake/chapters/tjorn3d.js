@@ -8,14 +8,17 @@
 //   &lykill=4b                             that key at once
 //   &skjar=  &fjarlaegd=  &horn=  &augu=  &gler=0  &sjon=1    the table's own knobs (engine/table-stage.js); the screen's size is
 //                                          remembered on the device, for this page and Mosi's (chapters/bord3d.js)
-//   &grugg=0.115  &tint=0.34               the murk's density per metre under the water, and how much of the water's colour lies on its surface
+//   &grugg=0.16  &tint=0.34                the murk's density per metre under the water, and how much of the water's colour lies on its surface
 //
 // The stage (tjorn3d/keys.js has every number): the pond is the Fen's own water in a pool far wider than the page, 15 cm deep on
 // the table; one cm of the table is SCALE metres of the game. The water is the game's surface with most of its colour taken off, so
-// what is under it shows, and a murk under it (tjorn3d/murk.js) that dims things by how far the eye's ray runs under the water. She
-// is chapter 2's Uggeðla, on its rig (chapters/kafli2-uggedla.js: her sink, her neck, her strike, her jaw), with her whole body
-// tipped nose up where a key says so: at this size she is 23 cm long and her sail 12 cm tall, so she can only ever show a part of
-// herself over the table. world.tjorn.measure() gives the numbers (tools/tjorn3d-probe.mjs asks it).
+// what is under it shows, and a murk under it (tjorn3d/murk.js): a thing is dimmer the deeper it lies and fades into the water's
+// mid tone, so the deep is a place of dark shapes and the bed is never seen. Of the forest only the pool's bed, the water and the
+// lilies stay. She is chapter 2's Uggeðla, on its rig (chapters/kafli2-uggedla.js: her sink, her neck, her strike, her jaw), with
+// her whole body tipped nose up where a key says so: at this size she is 23 cm long and her sail 12 cm tall, so she can only ever
+// show a part of herself over the table, and her sail must stay under the water (or low) wherever her head is the tall thing: a
+// tall thing's picture stretches away from the viewer, and the sail is behind her head. What is under the water is put by where
+// its picture is to lie (keys.js: under). world.tjorn.measure() gives the numbers (tools/tjorn3d-probe.mjs asks it).
 import * as THREE from 'three';
 import { glassesStart } from '../engine/book/show-cards.js';
 import { onTable, parallaxAt, outlineBox, marginsOf, placeEye } from '../engine/table3d.js';
@@ -47,6 +50,7 @@ const SHOWS = 0.05; // a thing under the water counts as seen while the murk let
 // water, its flower's petals from 5 cm up. A triangle reaching over LILY_STANDS (times the lily's scale) is of a flower.
 const LILY_REACH = 1.1;
 const FISH_THICK = 0.14; // half the fish's width across its back and belly, as a share of its length
+const FLAP = { mid: 0.85, swing: 0.3, pace: 1.2 }; // the butterfly's wings: radians up from flat, and how fast they open and close
 const PERCH_OVER = 0.05; // cm: the butterfly's feet this far over her skin, so that no point of it is ever in her
 const LILY_STANDS = 0.04;
 const rad = d => (d * Math.PI) / 180;
@@ -290,6 +294,8 @@ export const chapter = {
       else cast.jumper.hide();
       if (cast.frog.loaded) cast.frog.show(frogSeat.point, FROG.heading, FROG.length * S);
 
+      if (cast.butterfly.loaded && key.butterfly !== 'snout') cast.butterfly.show(flowerTop(LILIES[BUTTERFLY.lily]), BUTTERFLY.heading, BUTTERFLY.span * S, FLAP.mid + FLAP.swing);
+
       const k = key.her;
       her.root.visible = Boolean(k);
       her.lookAt(k?.look === 'eye' ? out => out.copy(eyePoint) : null, { weight: 1, maxAngle: 60, maxPitch: 40 });
@@ -337,7 +343,7 @@ export const chapter = {
       for (let i = 0, v = 0; i < last.length; i += 3, v++) if (Math.abs(last[i + 1]) < 0.3) { cut[0] += last[i]; cut[1] += last[i + 2]; cut[2]++; }
       const neck = cut[2] ? [cut[0] / cut[2] / S, cut[1] / cut[2] / S] : [x / S + 4 * Math.cos(rad(k.heading)), z / S + 4 * Math.sin(rad(k.heading))];
       const tip = [rig.tip.x / S, (rig.tip.y - LEVEL) / S, rig.tip.z / S]; // the tip of her snout (cm)
-      if (key.butterfly === 'snout' && cast.butterfly.loaded) snout.place(0.85); // it is there when the label is worked out
+      if (key.butterfly === 'snout' && cast.butterfly.loaded) snout.place(FLAP.mid + FLAP.swing); // it is there, its wings at their highest, when the label is worked out
       view.her = { x, z, sink, neck, tip, top: Math.max(...clouds.map(points => topOf(points))), head: Math.max(...clouds.map(points => topOf(points, 1))), margins };
       label();
     }
@@ -362,7 +368,13 @@ export const chapter = {
     }
     function label() {
       const m = measure(false);
-      const { least, leastCm } = m.margins;
+      let { least, leastCm } = m.margins;
+      const hers = view.her?.margins; // over her whole breath
+      if (hers) {
+        for (const [edge, share] of Object.entries(hers)) {
+          if (least === null || share < least) { least = share; leastCm = share * (edge === 'left' || edge === 'right' ? m.page.W : m.page.Hs); }
+        }
+      }
       const tight = least === null || least >= MARGIN - 1e-9 ? '' : least < 0 ? ` · kemst ekki fyrir (${tala(-leastCm)} cm út fyrir)` : ` · þröngt (${tala(leastCm)} cm að brún)`;
       view.label = `${view.key.id} · ${says(view.key, m)} · skjár ${tala(view.inches)} tommur${tight}`;
       if (ui) ui.label.textContent = view.label;
@@ -576,7 +588,7 @@ export const chapter = {
       });
       if (key.jump) cast.jumper.show(V(...key.jump.at), key.jump.heading, key.jump.size * S, { pitch: key.jump.pitch, beat: t * 1.1 });
       if (cast.butterfly.loaded) {
-        const flap = 0.85 + 0.3 * Math.sin(t * 1.2);
+        const flap = FLAP.mid + FLAP.swing * Math.sin(t * FLAP.pace);
         if (key.butterfly === 'snout' && key.her) snout.place(flap);
         else cast.butterfly.show(flowerTop(LILIES[BUTTERFLY.lily]), BUTTERFLY.heading, BUTTERFLY.span * S, flap);
       }
