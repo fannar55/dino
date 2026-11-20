@@ -23,7 +23,7 @@ import * as THREE from 'three';
 import { glassesStart } from '../engine/book/show-cards.js';
 import { onTable, parallaxAt, outlineBox, marginsOf, placeEye } from '../engine/table3d.js';
 import { MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
-import { tableUi, tala } from '../engine/table-ui.js';
+import { tableUi, tableStart, tala } from '../engine/table-ui.js';
 import { FEN } from '../world/forest/config.js';
 import { lieLow } from './kafli2-uggedla.js';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from './tjorn3d/keys.js';
@@ -63,7 +63,7 @@ export const chapter = {
   title: 'Uggeðla í tjörninni',
   look: 'morning',
   gler: { panel: false },
-  startButton: doc => glassesStart(doc, { more: 'Leggðu skjáinn flatan á borð og horfðu skáhallt niður á hann.' }),
+  startButton: doc => tableStart(doc, glassesStart(doc, { more: 'Leggðu skjáinn flatan á borð og horfðu skáhallt niður á hann.' })),
   // one pool, far wider than the page at any size, its bank and the fen round it never in the window. The place's clearing is on
   // dry ground north of it, off the page: the ground's heights are counted from the clearing's middle (world/forest/terrain.js), so
   // it must not lie in the pool, or the water's one level would be under its bed. The path is farther off still.

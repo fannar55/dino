@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { onTable } from '../engine/table3d.js';
 import { SCREEN, SCREEN_KEY, screenSize, tablePage, tableKnobs } from '../engine/table-stage.js';
+import { wholeScreen, isWholeScreen, tableStart } from '../engine/table-ui.js';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from '../chapters/tjorn3d/keys.js';
 
 // Uggeðla í tjörninni, step 1 (chapters/tjorn3d.js): the key frames as data, and what the two table pages share that no page can
@@ -133,4 +134,39 @@ test('the page in centimetres, and the seat\'s knobs', () => {
   assert.equal(knobs.mode, 'sjon');
   assert.equal(tableKnobs(new URLSearchParams('gler=0')).mode, 'mono');
   assert.equal(tableKnobs(new URLSearchParams('')).mode, 'gler');
+});
+
+test('the tap that starts a table page asks for the whole screen: once, not when the page has it, and a refusal is no error', async () => {
+  const page = ({ can = true, whole = false, refuse = false, old = false } = {}) => {
+    const doc = { asked: [], fullscreenElement: whole ? {} : null, documentElement: {} };
+    const ask = options => { doc.asked.push(options); return refuse ? Promise.reject(new Error('no')) : Promise.resolve(); };
+    if (can) doc.documentElement[old ? 'webkitRequestFullscreen' : 'requestFullscreen'] = ask;
+    return doc;
+  };
+  let doc = page();
+  assert.equal(await wholeScreen(doc), true);
+  assert.deepEqual(doc.asked, [{ navigationUI: 'hide' }]);
+  doc = page({ whole: true });
+  assert.equal(isWholeScreen(doc), true);
+  assert.equal(await wholeScreen(doc), false);
+  assert.equal(doc.asked.length, 0, 'it has the whole screen: nothing is asked');
+  assert.equal(await wholeScreen(page({ can: false })), false, 'a browser without it');
+  assert.equal(await wholeScreen(page({ refuse: true })), false, 'a refusal is an answer, not an error');
+  assert.equal(await wholeScreen(page({ old: true })), true, 'the older name');
+  assert.equal(await wholeScreen(null), false);
+
+  // the glasses' button, or Byrja when the glasses' picture did not load
+  const button = () => ({ taps: [], addEventListener(type, fn, options) { this.taps.push([type, fn, options]); } });
+  const glasses = { element: {}, button: button() };
+  doc = page();
+  assert.equal(await tableStart(doc, Promise.resolve(glasses)), glasses, 'the start is handed on as it is');
+  assert.equal(glasses.button.taps.length, 1);
+  assert.equal(glasses.button.taps[0][0], 'click');
+  glasses.button.taps[0][1]();
+  assert.equal(doc.asked.length, 1, 'the tap asks');
+  const byrja = button();
+  doc = Object.assign(page(), { getElementById: id => (id === 'start' ? byrja : null) });
+  assert.equal(await tableStart(doc, Promise.resolve(null)), null);
+  byrja.taps[0][1]();
+  assert.equal(doc.asked.length, 1, 'Byrja asks as well');
 });

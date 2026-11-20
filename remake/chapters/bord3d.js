@@ -21,7 +21,7 @@ import * as THREE from 'three';
 import { glassesStart } from '../engine/book/show-cards.js';
 import { onTable, parallaxAt, outlineBox, centreOnTable, marginsOf } from '../engine/table3d.js';
 import { SCREEN, MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
-import { tableUi, tala } from '../engine/table-ui.js';
+import { tableUi, tableStart, tala } from '../engine/table-ui.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -40,7 +40,7 @@ export const chapter = {
   look: 'morning',
   gler: { panel: false },
   // the glasses start, as every show's, and one more line: how the screen must lie
-  startButton: doc => glassesStart(doc, { more: 'Leggðu skjáinn flatan á borð og horfðu skáhallt niður á hann.' }),
+  startButton: doc => tableStart(doc, glassesStart(doc, { more: 'Leggðu skjáinn flatan á borð og horfðu skáhallt niður á hann.' })),
   // a clearing wide enough to be the whole page at every size (a 17 inch screen with Mosi 4 cm tall is 38 m of it), the path far off
   layout: {
     seed: 11,

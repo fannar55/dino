@@ -3,6 +3,36 @@
 // right change the screen's size, a small label in the top left says the real numbers, and a line in the middle of the bottom edge
 // says where to sit. Pale and quiet, and all of it on the screen's own plane: ordinary page elements, the same for both eyes.
 
+/**
+ * The whole screen for the table. A table page's size is its window's (engine/table-stage.js tablePage), and a browser's bars take
+ * a centimetre or two off its depth, which is where the tallest things lie: on a 10,5 inch screen with 128 px of bars the page is
+ * 11,9 cm deep and not 14,1, and a 6,5 cm head no longer fits (tools/tjorn3d-probe.mjs --sizes 1280x672 --query skjar=10.057).
+ * So the page asks for the whole screen, which a browser gives only from a tap. Resolves to whether it asked; never throws.
+ */
+export function wholeScreen(doc) {
+  const root = doc?.documentElement;
+  const ask = root?.requestFullscreen ?? root?.webkitRequestFullscreen;
+  if (!ask || isWholeScreen(doc)) return Promise.resolve(false);
+  try {
+    return Promise.resolve(ask.call(root, { navigationUI: 'hide' })).then(() => true, () => false);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+export const isWholeScreen = doc => Boolean(doc?.fullscreenElement ?? doc?.webkitFullscreenElement);
+const canWholeScreen = doc => Boolean(doc?.documentElement?.requestFullscreen ?? doc?.documentElement?.webkitRequestFullscreen);
+
+/**
+ * A table page's start (chapter.startButton): the start it is given (the glasses, engine/book/show-cards.js glassesStart; null when
+ * their picture did not load, and main.js shows Byrja), whose tap also asks for the whole screen.
+ */
+export async function tableStart(doc, start) {
+  const own = await start;
+  const button = own?.button ?? doc.getElementById?.('start');
+  button?.addEventListener('click', () => { wholeScreen(doc); }, { once: true });
+  return own;
+}
+
 export function tableUi(doc, { step, screen, prev = 'Fyrra', next = 'Næsta' }) {
   const element = doc.createElement('div');
   element.className = 'bord';
@@ -12,11 +42,12 @@ export function tableUi(doc, { step, screen, prev = 'Fyrra', next = 'Næsta' }) 
         color: rgba(255,255,240,.85); font: 600 34px/1 system-ui, sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       .bord .prev, .bord .next { width: 84px; height: 84px; border-radius: 50%; bottom: 18px; }
       .bord .prev { left: 18px; } .bord .next { right: 18px; }
-      .bord .less, .bord .more { top: 14px; height: 44px; padding: 0 14px; border-radius: 22px; font-size: 16px; white-space: nowrap; }
-      .bord .more { right: 14px; } .bord .less { right: 112px; }
+      .bord .less, .bord .more, .bord .whole { top: 14px; height: 44px; padding: 0 14px; border-radius: 22px; font-size: 16px; white-space: nowrap; }
+      .bord .more { right: 14px; } .bord .less { right: 112px; } .bord .whole { right: 210px; }
+      .bord .whole[hidden] { display: none; }
       .bord .label, .bord .seat { position: fixed; z-index: 30; padding: 4px 9px; border-radius: 6px; background: rgba(30,32,24,.45);
         color: rgba(255,255,240,.9); font: 500 15px/1.3 system-ui, sans-serif; pointer-events: none; }
-      .bord .label { left: 14px; top: 12px; max-width: calc(100vw - 260px); }
+      .bord .label { left: 14px; top: 12px; max-width: calc(100vw - 370px); }
       .bord .seat { left: 50%; bottom: 8px; transform: translateX(-50%); white-space: nowrap; }
       /* the page is the table: no book button on it, and the glasses' own settings button (an address with gler=) clear of ‹ */
       #journal-button { display: none !important; }
@@ -24,6 +55,7 @@ export function tableUi(doc, { step, screen, prev = 'Fyrra', next = 'Næsta' }) 
       .bord-mono .gler-button, .bord-mono .gler-panel { display: none !important; }
     </style>
     <div class="label"></div>
+    <button class="whole" type="button" hidden>allur skjár</button>
     <button class="less" type="button" aria-label="Minni skjár">skjár −</button>
     <button class="more" type="button" aria-label="Stærri skjár">skjár +</button>
     <button class="prev" type="button">‹</button>
@@ -37,6 +69,12 @@ export function tableUi(doc, { step, screen, prev = 'Fyrra', next = 'Næsta' }) 
   on('.next', () => step(1));
   on('.less', () => screen(-1));
   on('.more', () => screen(1));
+  // "allur skjár" is there only while the page is not the whole screen (he left it, or the start's tap was not given it)
+  const whole = element.querySelector('.whole');
+  const showWhole = () => { whole.hidden = !canWholeScreen(doc) || isWholeScreen(doc); };
+  on('.whole', () => { wholeScreen(doc); });
+  for (const type of ['fullscreenchange', 'webkitfullscreenchange']) doc.addEventListener(type, showWhole);
+  showWhole();
   // the buttons' touches are not touches in the world
   for (const button of element.querySelectorAll('button')) for (const type of ['pointerdown', 'pointerup']) button.addEventListener(type, e => e.stopPropagation());
   doc.addEventListener('keydown', e => {
