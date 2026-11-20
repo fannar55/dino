@@ -67,12 +67,12 @@ const SINK = channel([
   [8, DEEP + 1], [19, 14.6, 'out'], [21.6, 12.4], [SAIL.up, 8.66], [SAIL.down, 8.66], [30.2, 12.6], [TURN, DEEP, 'in'],
   // the head: up through the murk, then out of the water more and more slowly
   [32.4, DEEP], [34.4, 11.5, 'lin'], [HOLD.from, HEAD.sink, 'out'], [43.5, HEAD.sink],
-  // the fish: she leans into the dart, comes down with it and bobs up again
-  [43.84, 5.3, 'in'], [44.1, 5.0, 'out'], [44.5, 8.6, 'in'], [45.3, 6.6, 'out'], [46.4, 7.0], [49, 7.5],
+  // the fish: she dips a little into the dart, comes down with it and bobs up again (never higher than her head stood: the page
+  // has no more room over it at the smallest screen)
+  [43.84, 5.3, 'in'], [44.1, 5.1, 'out'], [44.5, 8.6, 'in'], [45.3, 7.2, 'out'], [46.4, 7.4], [49, 7.5],
   // the butterfly: she holds still, then sinks, slowly at first
   [55.2, 7.5], [GONE, DEEP, 'in'],
 ]);
-const PITCH = channel([[43.5, HEAD.pitch], [43.84, 56, 'in'], [44.5, 60, 'out'], [45.3, 64], [46.4, HEAD.pitch]]);
 const SWIM = channel([[8, 0.5], [19, 0.6], [22, 1], [30, 1], [TURN, 0.4]]);
 const JAW = channel([[43.45, 0], [43.72, 24, 'out'], [43.84, 5, 'in'], [45.0, 5], [45.2, 18], [45.45, 0]]);
 const STRIKE = channel([[43.5, 0], [43.84, 1, 'in'], [44.0, 1], [44.6, 0]]);
@@ -90,13 +90,15 @@ export function herAt(t) {
     return { there: t >= 8, at: along(U(t)), sink, heading: LINE.heading, pitch: 0, tuck: 0, swim: SWIM(t), jaw: 0, strike: 0, toss: 0, look: null, lookWeight: 0 };
   }
   let look = null, lookWeight = 0;
+  // (her look is what holds her head down from her body's own way, 62 degrees up: it lets go only while her neck reaches for the
+  // fish and while she is low in the water after it)
   if (t >= 34.2 && t < 42.4) { look = 'eye'; lookWeight = 1; }
-  else if (t >= 42.4 && t < 43.5) { look = 'fish'; lookWeight = 1; }
-  else if (t >= 44.7 && t < 50.6) { look = 'eye'; lookWeight = 1; }
+  else if (t >= 42.4 && t < JUMP.take) { look = 'fish'; lookWeight = 1; }
+  else if (t >= 46.0 && t < 50.6) { look = 'eye'; lookWeight = 1; }
   else if (t >= 50.6 && t < BUTTERFLY_TIMES.off) { look = 'butterfly'; lookWeight = 1; } // (play.js: it turns into 'ahead' as the butterfly comes near)
   else if (t >= BUTTERFLY_TIMES.off && t < 57.4) { look = 'butterfly'; lookWeight = 0.6; }
   return {
-    there: t < GONE, at: HEAD.at, sink, heading: HEAD.heading, pitch: PITCH(t), tuck: 1, swim: 0,
+    there: t < GONE, at: HEAD.at, sink, heading: HEAD.heading, pitch: HEAD.pitch, tuck: 1, swim: 0,
     jaw: JAW(t), strike: STRIKE(t), toss: TOSS(t), look, lookWeight,
   };
 }

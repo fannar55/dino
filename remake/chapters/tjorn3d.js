@@ -20,7 +20,8 @@
 // tall thing's picture stretches away from the viewer, and the sail is behind her head. What is under the water is put by where
 // its picture is to lie (keys.js: under). world.tjorn.measure() gives the numbers (tools/tjorn3d-probe.mjs asks it).
 import * as THREE from 'three';
-import { glassesStart } from '../engine/book/show-cards.js';
+import { endCard, glassesStart } from '../engine/book/show-cards.js';
+import { leaveShow } from '../engine/book/show-player.js';
 import { onTable, parallaxAt, outlineBox, marginsOf, placeEye } from '../engine/table3d.js';
 import { MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
 import { tableUi, tableStart, tala } from '../engine/table-ui.js';
@@ -29,9 +30,12 @@ import { lieLow } from './kafli2-uggedla.js';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from './tjorn3d/keys.js';
 import { installMurk, through } from './tjorn3d/murk.js';
 import { createCast, verticesOf } from './tjorn3d/cast.js';
+import { createShow } from './tjorn3d/play.js';
+import { LENGTH, FADE, partAt } from './tjorn3d/show.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+const SHOW = params.get('lykill') === null; // the show itself (step 2); with lykill= the page of its key frames (step 1)
 const { knob, seat: SEAT, sjon: SJON, mono: MONO, mode: MODE } = tableKnobs(params);
 const LEVEL = FEN.waterLevel; // the surface's height in the place: the screen's plane
 const S = SCALE;
@@ -349,7 +353,7 @@ export const chapter = {
     }
 
     // ---- the page's own things ----
-    const ui = typeof document !== 'undefined' ? tableUi(document, {
+    const ui = !SHOW && typeof document !== 'undefined' ? tableUi(document, {
       step: d => { const to = Math.min(KEYS.length - 1, Math.max(0, view.index + d)); if (to !== view.index) { view.index = to; view.dirty = true; } },
       screen: d => { view.inches = screen.step(d); view.dirty = true; },
       prev: 'Fyrri lykill', next: 'Næsti lykill',
@@ -537,6 +541,12 @@ export const chapter = {
         up.copy(slope).applyQuaternion(head.getWorldQuaternion(q)).normalize();
       }
       return {
+        /** Where its feet stand (`out`) and her skin's way out there (`way`), in the world, as she is now. */
+        seat(out, way = null) {
+          stand();
+          way?.copy(up);
+          return out.copy(point).addScaledVector(up, PERCH_OVER * S);
+        },
         /** Puts the butterfly there, wings at `flap`. */
         place(flap) {
           stand();
@@ -625,6 +635,76 @@ export const chapter = {
       for (; b < MOST_BUBBLES; b++) aBubble.setXYZW(b, 1e9, 1, 0, 0);
       position.needsUpdate = true;
       aBubble.needsUpdate = true;
+    }
+
+    // ---- the show (step 2): the timeline (tjorn3d/show.js) played on this stage (tjorn3d/play.js), from the glasses to the end card ----
+    //   ?chapter=tjorn3d            the glasses' start, the show, the end card ("Aftur" plays it again, "Hætta" leaves)
+    //   &t=<s>                      a capture: the show is played up to that second in the scene's fixed steps (main.js) and stands
+    //                               there, with no black at its ends; window.__advance(seconds) steps it on (tools/tjorn3d-probe.mjs --show)
+    //   &t=<s>&play=1               stands at that second until a tap, then plays on from there to the end card
+    function* showScript() {
+      const doc = typeof document !== 'undefined' ? document : null;
+      if (doc) {
+        // the page is the table: nothing on it but the show (rule 8), so no book button either
+        const style = doc.createElement('style');
+        style.textContent = '#journal-button { display: none !important; }';
+        doc.head.append(style);
+      }
+      her.play('idle', { fade: 0 });
+      const fit = () => {
+        const pg = tablePage(win, view.inches);
+        stage.use(pg, S, [0, 0]);
+        eyePoint.set(stage.eyes.mid.x, LEVEL + stage.eyes.mid.y, stage.eyes.mid.z);
+        Object.assign(view, { ...pg, dirty: false, her: null });
+      };
+      fit();
+      const show = createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flowerTop, frogSeat, stage, ripples, clock, bubbles, mostBubbles: MOST_BUBBLES, eyePoint, strikePoint, skin, part, view });
+      // what rides on her is put when all of her is posed for the frame: after her look too (engine/actor.js update)
+      const update = her.update;
+      her.update = dt => { update.call(her, dt); show.late(); };
+      const still = params.get('t') !== null && params.get('play') !== '1';
+      const time = { from: null, started: false, showing: false, black: -1 };
+      const now = () => (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
+      const frame = () => {
+        if (view.dirty) fit();
+        const t = now();
+        show.apply(t);
+        view.t = t;
+        view.key = { id: 'syning', name: partAt(t)?.name ?? 'Kyrr tjörn', says: null, her: her.root.visible ? {} : null, jump: show.state.jumper ? {} : null, fish: view.fish, butterfly: show.state.onSnout ? 'snout' : null };
+        // black for the first moments and over the last (held through the end card); a capture has none
+        const b = still ? 0 : !time.showing && time.from !== null ? 1 : +Math.min(1, Math.max(0, 1 - t / FADE.in, (t - (LENGTH - FADE.out)) / FADE.out)).toFixed(3);
+        if (time.started && b !== time.black) { time.black = b; s.fade(b, 0); }
+      };
+      world.tjorn.show = show;
+      world.tjorn.time = time;
+      frame();
+      s.after(0, function* run() {
+        for (;;) {
+          frame();
+          yield;
+        }
+      });
+      yield s.ready();
+      for (;;) {
+        time.started = true;
+        time.from = s.time;
+        time.showing = true;
+        if (still) for (;;) yield;
+        yield s.until(() => s.time - time.from >= LENGTH);
+        time.showing = false;
+        let again = false;
+        const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => leaveShow(win) });
+        doc.body.append(end);
+        try {
+          yield s.until(() => again);
+        } finally {
+          end.remove();
+        }
+      }
+    }
+    if (SHOW) {
+      yield* showScript();
+      return;
     }
 
     cast.ready.then(() => { view.dirty = true; }); // the frog and the butterfly are measured and counted in the label once they are here
