@@ -125,7 +125,8 @@ try {
       console.log(`      label: ${r.label}`);
       if (r.her) console.log(`      her: head ${f(r.her.headCm)} cm, highest ${f(r.her.topCm)} cm, lowest ${f(r.her.lowCm)} cm, root ${f(r.her.sinkCm)} cm under at [${r.her.at.join(', ')}], tipped ${r.her.pitch} degrees`);
       console.log(`      tops (cm): ${Object.entries(r.tops).map(([n, v]) => `${n} ${v === null ? '-' : f(v)}`).join(', ')}; the bed ${f(r.deepest.bed.cm, 1)} cm under shows ${f(r.deepest.bed.shows * 100, 0)} % (parallax ${f(r.deepest.bed.parallaxCm, 3)} cm)`);
-      if (r.butterfly) console.log(`      butterfly: its lowest point ${f(r.butterfly.feetOverSkinCm, 3)} cm over her skin where it stands, its nearest point to her skin ${f(r.butterfly.leastToSkinCm, 3)} cm (wings ${r.butterfly.spanCm} cm across)`);
+      if (r.butterfly) console.log(`      butterfly (wings ${r.butterfly.spanCm} cm across): the least height of any point of it over the skin under it ${f(r.butterfly.leastOverSkinCm, 3)} cm, its nearest point to her skin ${f(r.butterfly.leastToSkinCm, 3)} cm, its lowest point ${f(r.butterfly.feetOverPerchCm, 3)} cm over the place it stands on`);
+      if (r.clear) console.log(`      nothing through another: the nearest fish under the water is ${f(r.clear.fishCm)} cm from her skin${r.clear.jumperCm === null ? '' : `, the fish in the air ${f(r.clear.jumperCm)} cm`}`);
       if (o.evalJs) console.log(`      eval: ${JSON.stringify(r.evaluated)}`);
       if (r.errors.length) { bad++; console.log(`      ERRORS: ${r.errors.join(' | ')}`); }
       if (surface > 1e-4 || r.seenErrorPx > 0.05 || (r.top && Math.abs(r.top.parallaxCm - r.top.formulaCm) > 1e-3)) { bad++; console.log('      GEOMETRY: the surface has parallax, or an eye does not see her where she is'); }

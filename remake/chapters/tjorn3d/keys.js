@@ -60,8 +60,8 @@ const FLED_FISH = [
  * The keys, in order. `her`: where her root is ([x, z]), her way, how far her root is under the surface (`sink`, cm) or what is
  * to stand how high (`rise`: { of: 'head' | 'all', cm }, which settles the sink), `pitch` (degrees her whole body is tipped nose
  * up), `tuck` (1: her neck at ease, 0: folded down, lying low), `clip`, `swim` (the tail's wave), `look` ('eye': her head turned to
- * the viewer's eyes), `strike` ('fish': her snout reaches for the fish in the air, `gap` cm short of it; she is put where it gets
- * there), `jaw` (degrees open), and `centre`: her picture over the surface is centred on the page between top and bottom. `says`
+ * the viewer's eyes), `strike` ('fish': her snout reaches for the fish in the air and stops `gap` cm short of its side; she is put
+ * where it gets there), `jaw` (degrees open), and `centre`: her picture over the surface is centred on the page between top and bottom. `says`
  * names the number the label gives. `rings` are [x, z, strength, every s, first at s] (cm on the page; a ring lives 2.6 s, so none
  * comes oftener), `neckRings` the same from where her neck cuts the surface, `snoutBubbles` are bursts of bubbles from the
  * tip of her snout, each with a ring where it comes up: [x, z from the tip, every s, first at s]. All go by the water's clock alone.
@@ -92,16 +92,16 @@ export const KEYS = [
   })),
   {
     id: '5', name: 'Fiskurinn', says: 'fish',
-    her: { at: [-1.0, 0.5], heading: 66, rise: { of: 'head', cm: 4.3 }, pitch: 56, clip: 'idle', strike: 'fish', gap: 0.5, jaw: 6 },
+    her: { at: [-3.0, 0.5], heading: 48, rise: { of: 'head', cm: 5.0 }, pitch: 54, clip: 'idle', strike: 'fish', gap: 0.6, jaw: 6 },
     fish: FLED_FISH, butterfly: 'lily',
-    jump: { at: [2.8, 4.6, 3.4], heading: 186, size: 2.5, pitch: 4 }, // the big fish at the top of its arc, crossing in front of her
-    rings: [[5.8, 3.6, 1.2, 2.6, 1.5], [5.8, 3.6, 0.7, 2.6, 0.9]], // where it left the water
+    jump: { at: [2.7, 4.5, 5.0], heading: 138, size: 2.5, pitch: 4 }, // the big fish at the top of its arc, crossing right in front of her (crosswise to her way)
+    rings: [[4.2, 1.0, 1.2, 2.6, 1.5], [4.2, 1.0, 0.7, 2.6, 0.9]], // where it left the water
     neckRings: [[-1.9, 0.2, 0.9, 3.0, 1.2], [0.2, 1.7, 0.8, 2.8, 0.5]],
   },
   {
     id: '6', name: 'Fiðrildið', says: 'butterfly',
     her: { at: [0, 4], heading: 90, rise: { of: 'head', cm: 4 }, pitch: 46, clip: 'idle', look: 'eye', centre: true },
-    fish: CALM_FISH, butterfly: 'snout',
+    fish: CALM_FISH.filter(f => f.depth !== 6.5), butterfly: 'snout', // the fish are back, but for the one that idles where she is
     neckRings: [[1.9, 0.3, 1.0, 2.6, 1.7], [-1.9, 0.2, 0.9, 2.9, 1.1], [0.2, 1.7, 0.9, 3.3, 0.5], [0.4, -1.6, 0.7, 3.7, 0.2]], // she is sinking: more of them
   },
 ];

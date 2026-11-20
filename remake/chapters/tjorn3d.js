@@ -46,6 +46,8 @@ const SHOWS = 0.05; // a thing under the water counts as seen while the murk let
 // A lily at the plant's own size (world/forest/species.js): its pads within 1.05 m of its middle, their rims at most 2.7 cm over the
 // water, its flower's petals from 5 cm up. A triangle reaching over LILY_STANDS (times the lily's scale) is of a flower.
 const LILY_REACH = 1.1;
+const FISH_THICK = 0.14; // half the fish's width across its back and belly, as a share of its length
+const PERCH_OVER = 0.05; // cm: the butterfly's feet this far over her skin, so that no point of it is ever in her
 const LILY_STANDS = 0.04;
 const rad = d => (d * Math.PI) / 180;
 const r3 = x => Math.round(x * 1000) / 1000;
@@ -298,13 +300,14 @@ export const chapter = {
       for (let round = 0; round < ROUNDS; round++) {
         poseHer(k, x, z, sink);
         if (k.strike === 'fish') {
-          // her snout reaches for the fish and stops `gap` cm short of it, on the line from her chest. The first rounds she is moved
-          // (her neck as her pose has it) until the tip of her snout is under that point; from then on her neck and head reach for it.
+          // her snout reaches for the fish, which lies crosswise before her, and stops `gap` cm short of its side, a little under
+          // its middle. The first rounds she is moved (her neck as her pose has it) until the tip of her snout is under that point;
+          // from then on her neck and head reach for it.
           const reaching = round >= REACH_ROUNDS;
           rig.v.strike = reaching ? 1 : 0;
           settle(round ? 4 : 20);
-          const fish = V(...key.jump.at), chest = rig.bones.Chest.getWorldPosition(new THREE.Vector3());
-          strikePoint.copy(fish).add(chest.sub(fish).normalize().multiplyScalar(((k.gap ?? 0.5) + key.jump.size / 2) * S));
+          const short = ((k.gap ?? 0.5) + key.jump.size * FISH_THICK) * S;
+          V(...key.jump.at, strikePoint).add(p.set(-short * Math.cos(rad(k.heading)), -(k.under ?? 0.15) * S, -short * Math.sin(rad(k.heading))));
           if (!reaching) { x += strikePoint.x - rig.tip.x; z += strikePoint.z - rig.tip.z; poseHer(k, x, z, sink); rig.v.strike = 0; }
           settle(4);
         } else settle(round ? 4 : 20);
@@ -437,6 +440,22 @@ export const chapter = {
       // the deepest thing that can be seen: the lowest of the bed, her and the fish that the murk lets at least a twentieth of through
       const depths = { bed: deep(POND.bed), her: key.her && low < 0 ? deep(-low / S) : null, fish: deep(-fishLow) };
       const seenDeep = Object.entries(depths).filter(([, d]) => d && d.shows >= SHOWS).sort((a, b) => b[1].cm - a[1].cm)[0];
+      // nothing passes through another: the least distance from any point of a fish to any point of her skin (the picture's own
+      // moment only: it takes a while to work out)
+      const apart = points => {
+        let least = Infinity;
+        for (let i = 0; i < points.length; i += 3) {
+          for (let j = 0; j < mine.length; j += 3) {
+            const d = (points[i] - mine[j]) ** 2 + (points[i + 1] - LEVEL - mine[j + 1]) ** 2 + (points[i + 2] - mine[j + 2]) ** 2;
+            if (d < least) least = d;
+          }
+        }
+        return r3(Math.sqrt(least) / S);
+      };
+      const clear = drawn && key.her ? {
+        fishCm: Math.min(...view.fish.map((f, i) => apart(verticesOf(cast.fish[i].group)))),
+        jumperCm: key.jump ? apart(verticesOf(cast.jumper.group)) : null,
+      } : null;
       const round = o => (o ? Object.fromEntries(Object.entries(o).map(([n, v]) => [n, r3(v)])) : null);
       return {
         key: key.id, name: key.name, label: view.label, mode: view.mode,
@@ -449,7 +468,8 @@ export const chapter = {
         her: key.her ? { headCm: r3(topOf(mine, 1) / S), topCm: r3(topOf(mine) / S), lowCm: r3(low / S), sinkCm: r3(rig.v.sink / S), at: [r3(her.root.position.x / S), r3(her.root.position.z / S)], pitch: tip.pitch, solved: view.her ? { margins: round(view.her.margins), topCm: r3(view.her.top / S), headCm: r3(view.her.head / S) } : null } : null,
         margins: { share: round(share), cm: round(cm), least: least === null ? null : r3(least), leastCm: cm ? r3(Math.min(cm.left, cm.right, cm.top, cm.bottom)) : null, fits: least === null || least >= MARGIN - 1e-9 },
         deepest: { ...depths, seen: seenDeep ? { of: seenDeep[0], ...seenDeep[1] } : { of: 'nothing', cm: 0, parallaxCm: 0, share: 0, shows: 0 } },
-        butterfly: key.butterfly === 'snout' ? snout.report() : null,
+        butterfly: key.butterfly === 'snout' ? snout.report(drawn) : null,
+        clear,
         surfaceParallaxCm: surface.map(x => Math.round(x * 1e6) / 1e6),
         seenErrorPx: Math.round(seen * 1000) / 1000,
         murk: { density: MURK, clear: CLEAR },
@@ -459,50 +479,86 @@ export const chapter = {
     // ---- the butterfly on her snout: on the top of it, a little back from its tip, its feet on her skin ----
     const snout = (() => {
       const head = rig.bones.Head;
-      let perch = null; // in her Head bone's frame
+      let perch = null; // where it stands, in her Head bone's frame
+      let slope = null; // her skin's own way out there (a unit vector in that frame)
+      let skin = null; // her head's points in that frame: x, y, z (they go with the bone; her jaw is shut in this key)
       const local = new THREE.Vector3(), point = new THREE.Vector3(), up = new THREE.Vector3(), q = new THREE.Quaternion();
-      /** The highest point of her snout's top between 2.3 and 2.6 m along the head from its joint (its tip is at 2.8), near its middle line. */
+      /**
+       * The highest point of her snout's top between 2.3 and 2.6 m along the head from its joint (its tip is at 2.8), near its
+       * middle line, and the slope of the skin round it (a plane through the top points within 18 cm of it, by least squares).
+       */
       function find() {
         const points = cloud();
         head.updateWorldMatrix(true, false);
+        const mine = [];
         let best = null;
         for (let i = 0, v = 0; i < points.length; i += 3, v++) {
           if (part[v] !== 1) continue;
           head.worldToLocal(local.set(points[i], points[i + 1] + LEVEL, points[i + 2]));
+          mine.push(local.x, local.y, local.z);
           if (local.x < 2.3 || local.x > 2.6 || Math.abs(local.z) > 0.12) continue;
           if (!best || local.y > best.y) best = local.clone();
         }
+        skin = Float32Array.from(mine);
         perch = best ?? new THREE.Vector3(2.45, -0.2, 0);
+        // y = a x + b z + c over the points near it on the top of her snout
+        let n = 0, sx = 0, sz = 0, sy = 0, sxx = 0, szz = 0, sxz = 0, sxy = 0, szy = 0;
+        for (let i = 0; i < skin.length; i += 3) {
+          const x = skin[i] - perch.x, y = skin[i + 1] - perch.y, z = skin[i + 2] - perch.z;
+          if (Math.hypot(x, z) > 0.18 || y < -0.12) continue;
+          n++; sx += x; sz += z; sy += y; sxx += x * x; szz += z * z; sxz += x * z; sxy += x * y; szy += z * y;
+        }
+        slope = new THREE.Vector3(0, 1, 0);
+        if (n >= 6) {
+          const m = new THREE.Matrix3().set(sxx, sxz, sx, sxz, szz, sz, sx, sz, n);
+          if (Math.abs(m.determinant()) > 1e-12) {
+            const fit = new THREE.Vector3(sxy, szy, sy).applyMatrix3(m.invert());
+            slope.set(-fit.x, 1, -fit.y).normalize();
+          }
+        }
+      }
+      /** Where it stands and the way out of her skin there, in the world, as she is now. */
+      function stand() {
+        if (!perch) find();
+        head.updateWorldMatrix(true, false);
+        head.localToWorld(point.copy(perch));
+        up.copy(slope).applyQuaternion(head.getWorldQuaternion(q)).normalize();
       }
       return {
         /** Puts the butterfly there, wings at `flap`. */
         place(flap) {
-          if (!perch) find();
-          head.updateWorldMatrix(true, false);
-          head.localToWorld(point.copy(perch));
-          up.set(0, 1, 0).applyQuaternion(head.getWorldQuaternion(q)).normalize();
-          point.addScaledVector(up, 0.02); // a hair over her skin
+          stand();
+          point.addScaledVector(up, PERCH_OVER * S);
           cast.butterfly.show(point, her.heading + 180 + BUTTERFLY.heading, BUTTERFLY.span * S, flap, up);
         },
-        /** Its clearance: how far its lowest point is over her snout where it stands, and its least distance to any point of her skin (cm). */
-        report() {
-          if (!cast.butterfly.loaded || !perch) return null;
+        /**
+         * Its clearance, from its outermost reach (every point of its body, legs and wings): the least height of any of its points
+         * over the skin that lies under it (taken in the head's own frame, where the top of her snout is a floor: the highest of
+         * her points within 5 cm sideways of it), and its least distance to any point of her head's skin. cm on the table.
+         * `whole`: the first too (it takes a while).
+         */
+        report(whole = true) {
+          if (!cast.butterfly.loaded) return null;
+          stand();
           const mine = verticesOf(cast.butterfly.group);
-          const all = cloud();
-          const hers = [];
-          for (let j = 0, v = 0; j < all.length; j += 3, v++) if (part[v] === 1) hers.push(all[j], all[j + 1] + LEVEL, all[j + 2]);
-          head.updateWorldMatrix(true, false);
-          head.localToWorld(point.copy(perch));
-          up.set(0, 1, 0).applyQuaternion(head.getWorldQuaternion(q)).normalize();
-          let feet = Infinity, least = Infinity;
+          let over = Infinity, least = Infinity, feet = Infinity;
           for (let i = 0; i < mine.length; i += 3) {
             feet = Math.min(feet, (mine[i] - point.x) * up.x + (mine[i + 1] - point.y) * up.y + (mine[i + 2] - point.z) * up.z);
-            for (let j = 0; j < hers.length; j += 3) {
-              const d = (mine[i] - hers[j]) ** 2 + (mine[i + 1] - hers[j + 1]) ** 2 + (mine[i + 2] - hers[j + 2]) ** 2;
+            if (!whole) continue;
+            head.worldToLocal(local.set(mine[i], mine[i + 1], mine[i + 2]));
+            let floor = -Infinity;
+            for (let j = 0; j < skin.length; j += 3) {
+              const dx = skin[j] - local.x, dy = skin[j + 1] - local.y, dz = skin[j + 2] - local.z;
+              const d = dx * dx + dy * dy + dz * dz;
               if (d < least) least = d;
+              if (dx * dx + dz * dz < 0.05 * 0.05 && skin[j + 1] > floor && skin[j + 1] > perch.y - 0.4) floor = skin[j + 1];
             }
+            if (floor > -Infinity && local.y - floor < over) over = local.y - floor;
           }
-          return { feetOverSkinCm: r3(feet / S), leastToSkinCm: r3(Math.sqrt(least) / S), spanCm: BUTTERFLY.span };
+          return {
+            feetOverPerchCm: r3(feet / S), spanCm: BUTTERFLY.span,
+            ...(whole ? { leastOverSkinCm: r3(over / S), leastToSkinCm: r3(Math.sqrt(least) / S) } : {}),
+          };
         },
       };
     })();
