@@ -6647,7 +6647,7 @@
  "book_myndband_fundur_14": {
   "src": "assets/audio/book/book_myndband_fundur_14.mp3",
   "duration": 9.771,
-  "mouth": "2efc00ff90dffd09fde707e60000cebcedcec00bb008a996000089dff00d89ece008ee908c05dc77c9ab300000aa600000000000ec0000d909cb4003ce8000d9300ef900deeb875000000006c6600cf700decaabb8000bacfdba6440000000000000"
+  "mouth": "3efc00ff80dffd09fdf605e70000ceaceecec009a009a986000088eee00c87ede009de906b06db66b8ab00000099400000000000de0000da09ba4003ce9000d8300ef800cdda875000000006b4300dffffccaaaab9500baaedba6440000000000000"
  },
  "book_myndband_fundur_15": {
   "src": "assets/audio/book/book_myndband_fundur_15.mp3",
@@ -6677,7 +6677,7 @@
  "book_myndband_fundur_20": {
   "src": "assets/audio/book/book_myndband_fundur_20.mp3",
   "duration": 10.41,
-  "mouth": "00effd40bca000000000ea0cfffa05ee00efff00bcbcdcb0026cedb9720480308c0088643200000000000000000000dfecef500ca87870000aabeeefddb59a9885000000cfeb95778400000000007ded03fffd6afedb7dbba80088405ca7fda960034300000000000"
+  "mouth": "0efffb89de40000000ad08eddb00ce90adefb00d9bccc50028cdcb87000660009ddc966643300000000000000000bffddfd00ab8677000009beeeedbca0aa87760000000eeea87677000000000000e9e00fffe80dedbaddc950687000bb6eda860035300000000000"
  },
  "book_myndband_fundur_21": {
   "src": "assets/audio/book/book_myndband_fundur_21.mp3",
@@ -6721,8 +6721,8 @@
  },
  "book_myndband_fundur_29": {
   "src": "assets/audio/book/book_myndband_fundur_29.mp3",
-  "duration": 10.57,
-  "mouth": "000cd300bdefc05e8e9000cddc000ac73000008000bb0087543000000000000006c00bffa0aba8a850abcddcffb80000bba997059703acdcb90098500000000000000000bff6000dcb6c946500000000000000007b80bbdd000fcdffff000a5077443000000000000000"
+  "duration": 10.89,
+  "mouth": "000aff300beffd00dcdc400adeeb000b9200008300bddb9765443000000000000009a0aefd00eeeee846bacccceda90000ab9887404a633abecba008980400000000000000adfd0000eb947da58700000000000000008b60dbfa003fddefff6008c04860550000000000000000"
  },
  "book_myndband_fundur_30": {
   "src": "assets/audio/book/book_myndband_fundur_30.mp3",
