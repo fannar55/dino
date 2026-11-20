@@ -31,6 +31,7 @@ import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from './t
 import { installMurk, through } from './tjorn3d/murk.js';
 import { createCast, verticesOf } from './tjorn3d/cast.js';
 import { createShow } from './tjorn3d/play.js';
+import { createShowMeasure } from './tjorn3d/measure.js';
 import { LENGTH, FADE, partAt } from './tjorn3d/show.js';
 
 const CHARS = '../assets/characters/';
@@ -663,6 +664,7 @@ export const chapter = {
       const update = her.update;
       her.update = dt => { update.call(her, dt); show.late(); };
       const still = params.get('t') !== null && params.get('play') !== '1';
+      let seeks = params.get('t') !== null;
       const time = { from: null, started: false, showing: false, black: -1 };
       const now = () => (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
       const frame = () => {
@@ -675,8 +677,7 @@ export const chapter = {
         const b = still ? 0 : !time.showing && time.from !== null ? 1 : +Math.min(1, Math.max(0, 1 - t / FADE.in, (t - (LENGTH - FADE.out)) / FADE.out)).toFixed(3);
         if (time.started && b !== time.black) { time.black = b; s.fade(b, 0); }
       };
-      world.tjorn.show = show;
-      world.tjorn.time = time;
+      Object.assign(world.tjorn, { show, time, measureShow: createShowMeasure({ S, LEVEL, seat: SEAT, stage, her, rig, skin, part, cloud, cast, show, snout, lilyParts, lilyPoints, strikePoint, view }) });
       frame();
       s.after(0, function* run() {
         for (;;) {
@@ -687,7 +688,8 @@ export const chapter = {
       yield s.ready();
       for (;;) {
         time.started = true;
-        time.from = s.time;
+        time.from = seeks ? 0 : s.time; // (a page with t= is stepped from the scene's own start: its second is the show's)
+        seeks = false;
         time.showing = true;
         if (still) for (;;) yield;
         yield s.until(() => s.time - time.from >= LENGTH);

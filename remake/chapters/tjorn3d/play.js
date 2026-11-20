@@ -17,7 +17,7 @@ import {
 
 const RING_LIFE = 2.6; // s (world/props/water.js)
 const RING_SLOTS = 6; // of the water's eight: the first two are its own faint ones
-const DROP = { size: 0.4, life: 1.7, colour: '#eefbfd' }; // metres across at the game's size (its glow: the bright heart is a third of it)
+const DROP = { size: 0.2, life: 1.7, colour: '#eefbfd' }; // metres across at the game's size (its glow: the bright heart is a third of it, a millimetre on the table)
 const DROP_LOOK = { glow: 1, falloff: 3.2, star: 0, twinkle: 0, rim: 1, vary: 1, core: '#ffffff', blending: THREE.AdditiveBlending }; // chapter 2's spray
 const FLAP = { mid: 0.85, swing: 0.3, pace: 1.2 }; // the butterfly's wings at rest: radians up from flat, opening and closing
 const AHEAD = [0, 4.2, 26]; // where she looks while the butterfly sits on her snout: at the viewer and level, so her snout lies in full view
@@ -142,6 +142,7 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     // the leaping fish, and the one in her jaws
     const j = jumperAt(t);
     state.jumper = Boolean(j);
+    state.air = Boolean(j?.air);
     if (j) {
       V(...j.at, jumperPoint);
       cast.jumper.show(jumperPoint, j.heading, JUMP.size * S, { pitch: j.pitch, beat: j.beat });

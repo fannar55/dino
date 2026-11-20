@@ -7,6 +7,14 @@
 //   node remake/tools/tjorn3d-probe.mjs [--sizes 1280x800,1024x768] [--keys 1,2,3,4a,4b,4c,5,6] [--query "skjar=11"]
 //                                       [--json qa/tjorn3d/numbers.json] [--eval "js, its value printed per key"]
 //
+//   node remake/tools/tjorn3d-probe.mjs --show [--sizes 1280x800] [--query "..."] [--json qa/tjorn3d/syning/timeline.json]
+//
+// --show walks the show itself (?chapter=tjorn3d&t=0, stepped on with window.__advance: every 0,25 s, every 0,05 s round the leap
+// and every 0,125 s through the butterfly's flight) and asks world.tjorn.measureShow() at each step (chapters/tjorn3d/measure.js).
+// The picture's reach on the table is in cm and the eyes are where the seat puts them whatever the screen, so one walk gives the
+// margins of every screen setting: printed for 9,7 to 12,9 inches in both shapes (16:10 and 4:3), the least margin to each edge
+// with its second and whose it is; then the highest point through the show, the clearances, and anything inside her.
+//
 // Exit code 1 when the page throws or a measure breaks the geometry (the surface's parallax, the eyes' error); a key that does not
 // keep its margin is a number, not a failure.
 import http from 'node:http';
@@ -22,7 +30,7 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { sizes: '1280x800,1024x768', keys: '1,2,3,4a,4b,4c,5,6', query: '', json: null, evalJs: '', timeout: 180 };
+  const o = { sizes: null, keys: '1,2,3,4a,4b,4c,5,6', query: '', json: null, evalJs: '', timeout: 180, show: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--sizes') o.sizes = next();
@@ -31,8 +39,10 @@ function parseArgs(argv) {
     else if (a === '--json') o.json = next();
     else if (a === '--eval') o.evalJs = next();
     else if (a === '--timeout') o.timeout = Number(next());
+    else if (a === '--show') o.show = true;
     else throw new Error(`Unknown argument ${a}`);
   }
+  o.sizes ??= o.show ? '1280x800' : '1280x800,1024x768';
   return o;
 }
 
@@ -54,14 +64,14 @@ function startServer() {
   return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 
-async function probe(o, size, base) {
+/** Opens a page of the size in the headless browser and runs `fn({ send, evaluate, errors, load })` on it. */
+async function withPage(o, size, fn) {
   const [W, H] = size.split('x').map(Number);
   let browser = null;
   for (let tries = 0; !browser; tries++) { // the browser now and then fails to start on a busy machine
     try { browser = await launchBrowser({ browser: 'edge', width: W, height: H }); } catch (e) { if (tries >= 2) throw e; await sleep(2000); }
   }
   const { cdp } = browser;
-  const rows = [];
   try {
     const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
     const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
@@ -80,17 +90,34 @@ async function probe(o, size, base) {
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       return r.result.value;
     };
-    for (const key of o.keys.split(',')) {
+    /** Loads an address and waits until the page is drawn and `ready` (an expression) holds. */
+    const load = async (url, ready) => {
       errors.length = 0;
-      await send('Page.navigate', { url: `${base}?chapter=tjorn3d&lykill=${key}&t=2${o.query ? '&' + o.query : ''}` });
+      await send('Page.navigate', { url });
       const t0 = Date.now();
       for (;;) {
-        let ready = false;
-        try { ready = await evaluate('Boolean(window.__demoReady && window.__world?.tjorn?.view.key)'); } catch { /* loading */ }
-        if (ready) break;
-        if (Date.now() - t0 > o.timeout * 1000) throw new Error(`the page did not get ready${errors.length ? ': ' + errors[0] : ''}`);
+        let is = false;
+        try { is = await evaluate(`Boolean(window.__demoReady && ${ready})`); } catch { /* loading */ }
+        if (is) break;
+        if (Date.now() - t0 > o.timeout * 1000) {
+          let has = '';
+          try { has = await evaluate('JSON.stringify({ drawn: Boolean(window.__demoReady), tjorn: Object.keys(window.__world?.tjorn ?? {}), advance: typeof window.__advance })'); } catch { /* nothing to say */ }
+          throw new Error(`the page did not get ready${errors.length ? ': ' + errors[0] : ''} ${has}`);
+        }
         await sleep(250);
       }
+    };
+    return await fn({ send, evaluate, errors, load });
+  } finally {
+    await stopBrowser(browser);
+  }
+}
+
+async function probe(o, size, base) {
+  const rows = [];
+  await withPage(o, size, async ({ evaluate, errors, load }) => {
+    for (const key of o.keys.split(',')) {
+      await load(`${base}?chapter=tjorn3d&lykill=${key}&t=2${o.query ? '&' + o.query : ''}`, 'window.__world?.tjorn?.view.key');
       const row = await evaluate('window.__world.tjorn.measure()');
       // how long a new key takes to work out (the page stands still meanwhile)
       row.solveMs = await evaluate('(() => { const t = performance.now(); window.__world.tjorn.solve(); return Math.round(performance.now() - t); })()');
@@ -99,10 +126,102 @@ async function probe(o, size, base) {
       row.errors = [...errors];
       rows.push(row);
     }
-  } finally {
-    await stopBrowser(browser);
-  }
+  });
   return rows;
+}
+
+// ---- the show's timeline ----
+const LENGTH = 62; // s (chapters/tjorn3d/show.js)
+const FINE = [[42.5, 46, 50], [50, 58.5, 125]]; // from s, to s, ms a step: the leap and the catch, the butterfly's flight
+const stepAt = ms => FINE.find(([from, to]) => ms >= from * 1000 && ms < to * 1000)?.[2] ?? 250;
+const SCREENS = [9.7, 10, 10.5, 11, 12.9].flatMap(inches => [[16, 10], [4, 3]].map(([w, h]) => ({ inches, shape: `${w}:${h}`, W: (inches * 2.54 * w) / Math.hypot(w, h), Hs: (inches * 2.54 * h) / Math.hypot(w, h) })));
+const DESIGN = [10, 10.5, 11]; // the owner's tablet is 10 to 11 inches: the rule must hold at these
+const MARGIN = 0.04;
+
+async function walk(o, size, base) {
+  const rows = [];
+  let errors = [];
+  await withPage(o, size, async page => {
+    await page.load(`${base}?chapter=tjorn3d&t=0${o.query ? '&' + o.query : ''}`, 'window.__advance'); // (the scene has not taken a step yet: the first one starts the show, and the first moment asked is the first step's)
+    for (let ms = 0; ms < LENGTH * 1000;) {
+      const step = stepAt(ms);
+      ms += step;
+      rows.push(await page.evaluate(`(async () => { await window.__advance(${step / 1000}); return window.__world.tjorn.measureShow(); })()`));
+      if (ms % 5000 === 0) process.stderr.write(`  ${ms / 1000} s\n`);
+    }
+    errors = [...page.errors];
+  });
+  return { rows, errors };
+}
+
+/** The least margin to each edge over the rows, for a screen W x Hs cm: { left: { cm, share, t, of }, ... }. */
+function leastMargins(rows, W, Hs) {
+  const least = {};
+  for (const r of rows) {
+    for (const [of, b] of Object.entries(r.box)) {
+      if (!b) continue;
+      for (const [edge, cm, whole] of [['left', b.x0 + W / 2, W], ['right', W / 2 - b.x1, W], ['top', b.z0 + Hs / 2, Hs], ['bottom', Hs / 2 - b.z1, Hs]]) {
+        if (!least[edge] || cm < least[edge].cm) least[edge] = { cm, share: cm / whole, t: r.t, of };
+      }
+    }
+  }
+  return least;
+}
+
+function reportShow(rows) {
+  const f = (x, n = 2, w = 0) => (x === null || x === undefined ? '-' : x.toFixed(n)).padStart(w);
+  console.log(`\n--- the least margin of everything standing over the surface, over the whole show (${rows.length} moments; her skin has ${Math.max(...rows.map(r => r.vertices))} points) ---`);
+  console.log('screen            page cm          left                         right                        top                          bottom                       4 %');
+  let fits = true;
+  for (const s of SCREENS) {
+    const m = leastMargins(rows, s.W, s.Hs);
+    const ok = Object.values(m).every(e => e.share >= MARGIN - 1e-9);
+    const design = DESIGN.includes(s.inches);
+    if (design && !ok) fits = false;
+    const cell = e => `${f(e.share * 100, 1, 5)} % ${f(e.cm, 2, 5)} cm ${f(e.t, 2, 5)} s ${e.of}`.padEnd(29);
+    console.log(`${String(s.inches).padStart(4)}" ${s.shape.padEnd(5)} ${design ? '*' : ' '}  ${f(s.W, 2)} x ${f(s.Hs, 2)}    ${['left', 'right', 'top', 'bottom'].map(e => cell(m[e])).join('')}${ok ? 'holds' : 'NOT: ' + Object.entries(m).filter(([, e]) => e.share < MARGIN - 1e-9).map(([edge, e]) => `${edge} ${f((MARGIN * (edge === 'left' || edge === 'right' ? s.W : s.Hs)) - e.cm, 2)} cm short`).join(', ')}`);
+  }
+  console.log('(* the design range, 10 to 11 inches)');
+  // who is nearest each edge at the tight setting, by who it is
+  for (const s of SCREENS.filter(x => x.inches === 10)) {
+    console.log(`\n--- 10" ${s.shape}: each one's own least margin (cm; the rule asks ${f(MARGIN * s.W, 2)} at the sides, ${f(MARGIN * s.Hs, 2)} at top and bottom) ---`);
+    for (const of of ['her', 'held', 'fish', 'frog', 'butterfly', 'drops', 'lilies']) {
+      const m = leastMargins(rows.map(r => ({ t: r.t, box: { [of]: r.box[of] } })), s.W, s.Hs);
+      if (!m.left) continue;
+      console.log(`  ${of.padEnd(10)} ${['left', 'right', 'top', 'bottom'].map(e => `${e} ${f(m[e].cm, 2, 5)} at ${f(m[e].t, 2, 5)} s`).join('   ')}`);
+    }
+  }
+  console.log('\n--- the highest point over the surface, every two seconds and at each part\'s highest (cm, whose, parallax cm, % of a 10,5" 16:10 page\'s width) ---');
+  const W105 = SCREENS.find(s => s.inches === 10.5 && s.shape === '16:10').W;
+  const line = r => `${f(r.t, 2, 6)} s  ${(r.part ?? '').padEnd(10)} ${r.top ? `${f(r.top.cm, 2, 5)} cm  ${r.top.of.padEnd(9)} ${f(r.top.parallaxCm, 3)} cm  ${f((r.top.parallaxCm / W105) * 100, 2)} %` : 'nothing'}${r.her ? `   her head ${f(r.her.headCm, 2)} top ${f(r.her.topCm, 2)} root ${f(r.her.sinkCm, 2)} under` : ''}`;
+  for (const r of rows) if (Math.abs(r.t / 2 - Math.round(r.t / 2)) < 1e-6) console.log(line(r));
+  console.log('  highest of each part:');
+  for (const part of [...new Set(rows.map(r => r.part))]) {
+    const best = rows.filter(r => r.part === part && r.top).sort((a, b) => b.top.cm - a.top.cm)[0];
+    if (best) console.log('  ' + line(best));
+  }
+  console.log('\n--- nothing through another (least over the show, cm, with its second) ---');
+  const least = (pick, keep = () => true) => rows.filter(r => keep(r) && pick(r) !== null && pick(r) !== undefined).sort((a, b) => pick(a) - pick(b))[0];
+  const say = (name, r, pick, more = '') => console.log(`  ${name.padEnd(46)} ${r ? `${f(pick(r), 3, 7)} cm at ${f(r.t, 2, 5)} s${more && r ? more(r) : ''}` : '   -'}`);
+  say('the butterfly in the air, to her skin', least(r => r.clear.butterflyCm, r => r.butterfly.on === 'air'), r => r.clear.butterflyCm);
+  say('the butterfly on her snout, to her skin', least(r => r.clear.butterflyCm, r => r.butterfly.on === 'snout'), r => r.clear.butterflyCm);
+  say('  its lowest point over the skin under it', least(r => r.butterfly.sits?.leastOverSkinCm), r => r.butterfly.sits.leastOverSkinCm);
+  say('the butterfly on its lily, to her skin', least(r => r.clear.butterflyCm, r => r.butterfly.on === 'lily'), r => r.clear.butterflyCm);
+  say('the fish in the air, to her skin', least(r => r.clear.airFishCm), r => r.clear.airFishCm, r => `  (the tip of her snout ${f(r.tipToFishCm, 2)} cm from its middle)`);
+  say('a fish under the water, to her skin', least(r => r.clear.fishCm), r => r.clear.fishCm, r => `  (${r.clear.fishOf === 'jumper' ? 'the leaping fish on its way up' : 'fish ' + r.clear.fishOf})`);
+  say('where she cuts the surface, to a lily\'s pad', least(r => r.clear.padsCm), r => r.clear.padsCm);
+  say('where the leaping fish cuts it, to a pad', least(r => r.clear.jumperPadsCm), r => r.clear.jumperPadsCm);
+  say('fish to fish', least(r => r.clear.fishApartCm), r => r.clear.fishApartCm);
+  const inside = rows.filter(r => r.clear.inside.length);
+  console.log(inside.length ? `  INSIDE HER: ${inside.map(r => `${r.clear.inside.join('+')} at ${f(r.t, 2)} s`).join(', ')}` : '  no point of the butterfly or of a fish is inside her at any moment');
+  const strikes = rows.filter(r => r.strike && r.strike.weight >= 0.999);
+  if (strikes.length) console.log(`  the catch: her snout\'s tip is ${strikes.map(r => `${f(r.strike.tipToTargetCm, 2)} cm from the point it reaches for at ${f(r.t, 2)} s`).join(', ')}`);
+  const air = rows.filter(r => r.clear.airFishCm !== null && r.tipToFishCm !== null);
+  if (air.length) console.log(`  the last moment the fish is its own (${f(air.at(-1).t, 2)} s): the tip of her snout ${f(air.at(-1).tipToFishCm, 2)} cm from its middle, her skin ${f(air.at(-1).clear.airFishCm, 2)} cm from it, her jaw open ${f(air.at(-1).her?.jaw, 0)} degrees`);
+  const hold = rows.filter(r => r.t >= 36.4 && r.t <= 42 && r.her);
+  if (hold.length) console.log(`\n--- the hold (36,4 to 42 s): her head between ${f(Math.min(...hold.map(r => r.her.headCm)), 2)} and ${f(Math.max(...hold.map(r => r.her.headCm)), 2)} cm over the table ---`);
+  console.log(`drops in the air at most: ${Math.max(...rows.map(r => r.drops))} (at ${f(rows.slice().sort((a, b) => b.drops - a.drops)[0].t, 2)} s)`);
+  return fits;
 }
 
 const o = parseArgs(process.argv.slice(2));
@@ -112,7 +231,14 @@ const all = [];
 let bad = 0;
 const f = (x, n = 2, w = 0) => (x === null || x === undefined ? '-' : x.toFixed(n)).padStart(w);
 try {
-  for (const size of o.sizes.split(',')) {
+  for (const size of o.show ? o.sizes.split(',') : []) {
+    const { rows, errors } = await walk(o, size, base);
+    all.push(...rows.map(r => ({ ...r, size })));
+    console.log(`\n=== the show, walked on a ${size} page ===`);
+    reportShow(rows);
+    if (errors.length) { bad++; console.log(`ERRORS: ${errors.join(' | ')}`); }
+  }
+  for (const size of o.show ? [] : o.sizes.split(',')) {
     const rows = await probe(o, size, base);
     all.push(...rows);
     const p = rows[0].page, seat = rows[0].seat;
