@@ -1,11 +1,14 @@
-// The pond's murk (chapters/tjorn3d.js): under the water's surface everything fades into a dim tone, the more the longer the
-// eye's ray runs under the water, and the tone is darker the deeper the thing lies; over the surface nothing changes. It takes the
-// place of the look's mist (engine/fog.js, which patches the same two chunks of three's shaders for every material that takes fog,
-// and gives them the world's point, vFogWorld): the table has no mist over it. Display-space colours, as the mist's.
+// The pond's murk (chapters/tjorn3d.js): under the water's surface everything is dimmer the deeper it lies (less light gets down
+// to it) and fades into the water's own tone the longer the eye's ray runs under the water; at the bed nothing is left but the
+// tone, a little darker there than near the surface. So what is near the surface is clear, what is deep is a dark shape in
+// mid-toned water, and the bed is never seen: over the surface nothing changes. It takes the place of the look's mist
+// (engine/fog.js, which patches the same two chunks of three's shaders for every material that takes fog, and gives them the
+// world's point, vFogWorld): the table has no mist over it. Display-space colours, as the mist's.
 //
-//   installMurk(scene, { level, tone, deep, bed, density })   level: the surface's height (m); tone: the murk's colour near the
-//       surface; deep: how much of it is left at the bed (0 to 1); bed: metres under the surface where it is darkest; density: per
-//       metre of ray under the water (scene.fog.density from then on: it may be changed while the page runs)
+//   installMurk(scene, { level, tone, deep, dim, bed, density })   level: the surface's height (m); tone: the water's colour seen
+//       through much of it; deep: how much of the tone is left at the bed (0 to 1); dim: how fast a thing's own colour darkens
+//       with its depth (per metre); bed: metres under the surface where only the tone is left; density: per metre of ray under
+//       the water (scene.fog.density from then on: it may be changed while the page runs)
 //   murky(material)   a material made after that takes the murk too (its program is not shared with one compiled before it)
 import * as THREE from 'three';
 
@@ -18,8 +21,11 @@ function displayVec3(hex) {
   return `vec3(${out.r.toFixed(4)}, ${out.g.toFixed(4)}, ${out.b.toFixed(4)})`;
 }
 
-/** How much of a thing `under` metres under the surface comes through the murk, seen along a ray `steep` degrees down from level. */
-export const through = (under, density, steep = 45) => Math.exp((-density * Math.max(0, under)) / Math.sin((steep * Math.PI) / 180));
+/**
+ * How much of a thing's own colour comes through, `under` metres under the surface, seen along a ray `steep` degrees down from
+ * level: what the depth leaves of its light, times what the ray's way under the water lets through.
+ */
+export const through = (under, { density, dim }, steep = 45) => Math.exp(-dim * Math.max(0, under)) * Math.exp((-density * Math.max(0, under)) / Math.sin((steep * Math.PI) / 180));
 
 export function murky(material) {
   if (!material || material.userData?.murk) return material;
@@ -30,11 +36,12 @@ export function murky(material) {
   return material;
 }
 
-export function installMurk(scene, { level, tone, deep, bed, density }) {
+export function installMurk(scene, { level, tone, deep, dim, bed, density }) {
   THREE.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
 	#define MURK_LEVEL ${level.toFixed(4)}
 	#define MURK_TONE ${displayVec3(tone)}
 	#define MURK_DEEP ${deep.toFixed(4)}
+	#define MURK_DIM ${dim.toFixed(4)}
 	#define MURK_BED ${bed.toFixed(4)}
 	uniform vec3 fogColor;
 	varying vec3 vFogWorld;
@@ -55,8 +62,10 @@ export function installMurk(scene, { level, tone, deep, bed, density }) {
 		#else
 			float murkFactor = smoothstep(fogNear, fogFar, murkUnder);
 		#endif
-		vec3 murkTone = MURK_TONE * mix(1.0, MURK_DEEP, clamp(murkUnder / MURK_BED, 0.0, 1.0));
-		gl_FragColor.rgb = mix(gl_FragColor.rgb, murkTone, murkFactor);
+		float murkDepth = clamp(murkUnder / MURK_BED, 0.0, 1.0);
+		murkFactor = max(murkFactor, smoothstep(0.82, 1.0, murkDepth));
+		vec3 murkTone = MURK_TONE * mix(1.0, MURK_DEEP, murkDepth);
+		gl_FragColor.rgb = mix(gl_FragColor.rgb * exp(-MURK_DIM * murkUnder), murkTone, murkFactor);
 	}
 #endif`;
   if (scene.fog) scene.fog.density = density;

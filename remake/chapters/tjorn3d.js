@@ -43,7 +43,10 @@ const BUBBLE_SIZE = 7; // the water's own bubbles (3 to 7 cm in the game) drawn 
 const BUBBLE = { each: 6, apart: 0.22, seconds: 1.8, size: 0.05 }; // a burst: so many, s apart, s to rise, metres at the game's size
 const RING_LIFE = 2.6; // s (world/props/water.js)
 const SHOWS = 0.05; // a thing under the water counts as seen while the murk lets this share of it through
-const LILY_STANDS = 0.05; // m: a lily's points higher than this over the water stand up out of the screen (its flower); its pads lie on it
+// A lily at the plant's own size (world/forest/species.js): its pads within 1.05 m of its middle, their rims at most 2.7 cm over the
+// water, its flower's petals from 5 cm up. A triangle reaching over LILY_STANDS (times the lily's scale) is of a flower.
+const LILY_REACH = 1.1;
+const LILY_STANDS = 0.04;
 const rad = d => (d * Math.PI) / 180;
 const r3 = x => Math.round(x * 1000) / 1000;
 
@@ -71,7 +74,7 @@ export const chapter = {
     uggedla: { url: CHARS + 'spinosaurus.glb', position: [0, 0, 0], heading: 90 },
   },
   startShot: 'table',
-  shots: { table: { position: [0, 12, 12], target: [0, 0, 0], fov: 40 } },
+  shots: { table: { position: [0, 3, -96], target: [0, 2, -110], fov: 40 } }, // over the dry clearing; the table's own camera takes over at once (engine/table-stage.js)
 
   *script(s) {
     const uggedla = s.actor('uggedla');
@@ -83,15 +86,48 @@ export const chapter = {
     const V = (x, y, z, out = new THREE.Vector3()) => out.set(x * S, LEVEL + y * S, z * S); // a point of the table (cm) in the world
 
     // ---- the pond alone: the ground (its bed), the water, the lilies; no trees' shadows, mist, animals or music ----
+    // Of the forest's plants only the lilies stay: each batch of plants (a merged mesh, its points in the world) is taken out and a
+    // mesh of its lily triangles alone put in its place, on the same points and material (so they sway on the water as they do in
+    // the game). Each lily's triangles are told apart by height: its pads lie on the water, its flower stands up from it.
+    const lilyParts = LILIES.map(() => ({ pads: [], flowers: [] })); // triangles on the water, [x, z] three times
+    const lilyPoints = []; // the flowers' points, for the measure: x, metres over the surface, z
     const plants = [];
     for (const child of [...world.forest.group.children]) {
       if (child.name === 'Forest ground' || child === water.group) continue;
-      if (/^Forest (?!caster|cards|life)/.test(child.name) && child.isMesh) { child.receiveShadow = false; plants.push(child); continue; }
       world.forest.group.remove(child);
+      const at = child.isMesh && /^Forest (?!caster|cards|life)/.test(child.name) && child.geometry.attributes.position;
+      const master = child.userData.cull?.master; // all its triangles (its own index holds only what its culling last kept: world/forest/batch.js)
+      if (!at || !master) continue;
+      const mine = [];
+      for (let i = 0; i < master.length; i += 3) {
+        const a = master[i], b = master[i + 1], d = master[i + 2];
+        const x = at.getX(a), z = at.getZ(a);
+        let lily = -1, least = Infinity;
+        LILIES.forEach((l, n) => { const far = Math.hypot(x - l.at[0] * S, z - l.at[1] * S); if (far < LILY_REACH * l.scale && far < least) { lily = n; least = far; } });
+        if (lily < 0) continue;
+        mine.push(a, b, d);
+        const triangle = [x, z, at.getX(b), at.getZ(b), at.getX(d), at.getZ(d)];
+        if (Math.max(at.getY(a), at.getY(b), at.getY(d)) - LEVEL > LILY_STANDS * LILIES[lily].scale) {
+          lilyParts[lily].flowers.push(triangle);
+          for (const v of [a, b, d]) lilyPoints.push(at.getX(v), at.getY(v) - LEVEL, at.getZ(v));
+        } else lilyParts[lily].pads.push(triangle);
+      }
+      if (!mine.length) continue;
+      const geometry = new THREE.BufferGeometry();
+      for (const [name, attribute] of Object.entries(child.geometry.attributes)) geometry.setAttribute(name, attribute);
+      geometry.setIndex(mine);
+      const lilies = new THREE.Mesh(geometry, child.material);
+      lilies.name = `Tjörn lilies (${child.name})`;
+      lilies.frustumCulled = false;
+      lilies.castShadow = false;
+      lilies.receiveShadow = false;
+      lilies.renderOrder = child.renderOrder;
+      scene.add(lilies);
+      plants.push(lilies);
     }
     world.music?.setLevel?.(0, 0);
     const kept = world.forest.group.children.map(child => child.name);
-    installMurk(scene, { level: LEVEL, tone: POND.murk.tone, deep: POND.murk.deep, bed: POND.bed * S, density: MURK });
+    installMurk(scene, { level: LEVEL, tone: POND.murk.tone, deep: POND.murk.deep, dim: POND.murk.dim, bed: POND.bed * S, density: MURK });
     // the surface: the game's own, with most of its colour taken off so that what is under it shows (its rings stay as they are)
     {
       const material = water.surface.material;
@@ -122,15 +158,6 @@ export const chapter = {
       };
     }
     scene.add(bubbles);
-    // the lilies' own points over the surface (their flowers and the pads' rims), for the measure: they do not move but for the wind
-    const lilyPoints = [];
-    for (const mesh of plants) {
-      const at = mesh.geometry.attributes.position;
-      for (let i = 0; i < at.count; i++) {
-        const x = at.getX(i), y = at.getY(i), z = at.getZ(i);
-        if (Math.abs(x) < 16 * S && Math.abs(z) < 12 * S && y - LEVEL > LILY_STANDS) lilyPoints.push(x, y - LEVEL, z);
-      }
-    }
 
     // ---- Uggeðla: chapter 2's rig, and her whole body tipped nose up as a key says ----
     const c = { uggedla, world, mosi: null, egill: null };
@@ -187,19 +214,9 @@ export const chapter = {
      * The frog's seat on a lily: the point of its pads farthest from any pad's rim and from its flower (the middle of the widest
      * free one), found on the plants' own triangles as the forest laid them.
      */
-    function padSeat(l) {
-      const cx = l.at[0] * S, cz = l.at[1] * S, reach = 1.1 * l.scale, step = 0.06;
-      const pads = [], flowers = [];
-      for (const mesh of plants) {
-        const at = mesh.geometry.attributes.position, index = mesh.geometry.index;
-        const count = index ? index.count : at.count;
-        for (let i = 0; i < count; i += 3) {
-          const [a, b, c2] = [0, 1, 2].map(j => (index ? index.getX(i + j) : i + j));
-          if (Math.hypot(at.getX(a) - cx, at.getZ(a) - cz) > reach) continue;
-          const tri = [at.getX(a), at.getZ(a), at.getX(b), at.getZ(b), at.getX(c2), at.getZ(c2)];
-          (Math.max(at.getY(a), at.getY(b), at.getY(c2)) - LEVEL > LILY_STANDS ? flowers : pads).push(tri);
-        }
-      }
+    function padSeat(which) {
+      const l = LILIES[which], { pads, flowers } = lilyParts[which];
+      const cx = l.at[0] * S, cz = l.at[1] * S, reach = LILY_REACH * l.scale, step = 0.06;
       const inside = (t, x, z) => {
         const d1 = (x - t[2]) * (t[1] - t[3]) - (t[0] - t[2]) * (z - t[3]);
         const d2 = (x - t[4]) * (t[3] - t[5]) - (t[2] - t[4]) * (z - t[5]);
@@ -219,7 +236,7 @@ export const chapter = {
       }
       return best ? { point: new THREE.Vector3(best.x, LEVEL + 0.02 * l.scale, best.z), radius: Math.sqrt(best.free) } : { point: padTop(l), radius: 0 };
     }
-    const frogSeat = padSeat(LILIES[FROG.lily]);
+    const frogSeat = padSeat(FROG.lily);
     const flowerTop = l => V(l.at[0], 0, l.at[1]).setY(LEVEL + 0.062 * l.scale);
 
     // ---- the view: the key and the screen chosen, and what follows from them ----
@@ -311,12 +328,14 @@ export const chapter = {
       const mine = clouds.map(points => over(points, key.jump ? verticesOf(cast.jumper.group) : null));
       const box = outlineBox(mine, [eyes.left, eyes.right], [0, 0]);
       const margins = Number.isFinite(box.x0) ? marginsOf(box, pg.W * S, pg.Hs * S) : null;
-      // where her neck (or whatever of her front is there) cuts the surface: rings spread from there
+      // the middle of where she cuts the surface (her neck, her chest, her sail): rings spread from round there
       const last = clouds[clouds.length - 1];
       const cut = [0, 0, 0];
-      for (let i = 0, v = 0; i < last.length; i += 3, v++) if (part[v] && Math.abs(last[i + 1]) < 0.3) { cut[0] += last[i]; cut[1] += last[i + 2]; cut[2]++; }
+      for (let i = 0, v = 0; i < last.length; i += 3, v++) if (Math.abs(last[i + 1]) < 0.3) { cut[0] += last[i]; cut[1] += last[i + 2]; cut[2]++; }
       const neck = cut[2] ? [cut[0] / cut[2] / S, cut[1] / cut[2] / S] : [x / S + 4 * Math.cos(rad(k.heading)), z / S + 4 * Math.sin(rad(k.heading))];
-      view.her = { x, z, sink, neck, top: Math.max(...clouds.map(points => topOf(points))), head: Math.max(...clouds.map(points => topOf(points, 1))), margins };
+      const tip = [rig.tip.x / S, (rig.tip.y - LEVEL) / S, rig.tip.z / S]; // the tip of her snout (cm)
+      if (key.butterfly === 'snout' && cast.butterfly.loaded) snout.place(0.85); // it is there when the label is worked out
+      view.her = { x, z, sink, neck, tip, top: Math.max(...clouds.map(points => topOf(points))), head: Math.max(...clouds.map(points => topOf(points, 1))), margins };
       label();
     }
 
@@ -335,7 +354,7 @@ export const chapter = {
         case 'head': return `${key.name} ${tala(m.her.solved.headCm)} cm`;
         case 'fish': return `${key.name} ${tala(m.tops.fish)} cm`;
         case 'butterfly': return `${key.name} ${tala(m.tops.butterfly)} cm`;
-        default: return `${key.name}, hæst ${tala(m.top.cm)} cm`;
+        default: return m.top ? `${key.name}, hæst ${tala(m.top.cm)} cm` : key.name;
       }
     }
     function label() {
@@ -399,7 +418,7 @@ export const chapter = {
       let low = Infinity;
       for (let i = 1; i < mine.length; i += 3) if (mine[i] < low) low = mine[i];
       const fishLow = -Math.max(...key.fish.map(f => f.depth));
-      const deep = d => ({ cm: r3(d), parallaxCm: r3(-parallaxAt(-d, eyes.height, SEAT.ipd)), share: r3(-parallaxAt(-d, eyes.height, SEAT.ipd) / W), shows: r3(through(d * S, MURK, SEAT.a) * (1 - CLEAR)) });
+      const deep = d => ({ cm: r3(d), parallaxCm: r3(-parallaxAt(-d, eyes.height, SEAT.ipd)), share: r3(-parallaxAt(-d, eyes.height, SEAT.ipd) / W), shows: r3(through(d * S, { density: MURK, dim: POND.murk.dim }, SEAT.a) * (1 - CLEAR) * (1 - THREE.MathUtils.smoothstep(d / POND.bed, 0.82, 1))) });
       // what the viewer sees: points of her seen straight from an eye, against their pictures on the screen seen from that eye (px apart)
       let seen = 0;
       const eyeCam = new THREE.PerspectiveCamera(stage.seatFov, W / Hs, stage.near, stage.far);
@@ -437,12 +456,12 @@ export const chapter = {
       };
     }
 
-    // ---- the butterfly on her snout: on the top of it, a third of the way back from its tip, its feet on her skin ----
+    // ---- the butterfly on her snout: on the top of it, a little back from its tip, its feet on her skin ----
     const snout = (() => {
       const head = rig.bones.Head;
       let perch = null; // in her Head bone's frame
       const local = new THREE.Vector3(), point = new THREE.Vector3(), up = new THREE.Vector3(), q = new THREE.Quaternion();
-      /** The highest point of her snout's top between 1.9 and 2.3 m along the head from its joint, near its middle line. */
+      /** The highest point of her snout's top between 2.3 and 2.6 m along the head from its joint (its tip is at 2.8), near its middle line. */
       function find() {
         const points = cloud();
         head.updateWorldMatrix(true, false);
@@ -450,10 +469,10 @@ export const chapter = {
         for (let i = 0, v = 0; i < points.length; i += 3, v++) {
           if (part[v] !== 1) continue;
           head.worldToLocal(local.set(points[i], points[i + 1] + LEVEL, points[i + 2]));
-          if (local.x < 1.9 || local.x > 2.3 || Math.abs(local.z) > 0.12) continue;
+          if (local.x < 2.3 || local.x > 2.6 || Math.abs(local.z) > 0.12) continue;
           if (!best || local.y > best.y) best = local.clone();
         }
-        perch = best ?? new THREE.Vector3(2.1, -0.2, 0);
+        perch = best ?? new THREE.Vector3(2.45, -0.2, 0);
       }
       return {
         /** Puts the butterfly there, wings at `flap`. */
@@ -488,7 +507,7 @@ export const chapter = {
       };
     })();
 
-    world.tjorn = { view, stage, measure, solve, her, rig, cast, keys: KEYS, kept };
+    world.tjorn = { view, stage, measure, solve, her, rig, cast, keys: KEYS, kept, frogSeat, lilyParts };
 
     // ---- alive: the fish idle, the butterfly's wings open and close, rings and bubbles come where the key says ----
     function live() {
@@ -510,7 +529,14 @@ export const chapter = {
       // every so many seconds of the water's clock, so the page at a given time is the same however it got there
       const now = clock.value;
       const neck = view.her?.neck ?? [0, 0];
-      const rows = [...(key.rings ?? []), ...(key.neckRings ?? []).map(row => [neck[0] + row[0], neck[1] + row[1], row[2], row[3], row[4]])];
+      const tip = view.her?.tip ?? [0, 0, 0];
+      // a burst of bubbles from her snout while it is under the water: [x, z, cm under, every s, first at s]
+      const bursts = tip[1] < 0 ? (key.snoutBubbles ?? []).map(row => [tip[0] + row[0], tip[2] + row[1], -tip[1], row[2], row[3]]) : [];
+      const rows = [
+        ...(key.rings ?? []),
+        ...(key.neckRings ?? []).map(row => [neck[0] + row[0], neck[1] + row[1], row[2], row[3], row[4]]),
+        ...bursts.map(row => [row[0], row[1], 0.5, row[3], row[4] + BUBBLE.seconds]), // where it comes up
+      ];
       for (let i = 0; i < 6; i++) {
         const row = rows[i];
         const n = row ? Math.floor((now - row[4]) / row[3]) : -1;
@@ -519,7 +545,7 @@ export const chapter = {
       }
       const { position, aBubble } = bubbles.geometry.attributes;
       let b = 0;
-      for (const [x, z, depth, period, first] of key.bubbles ?? []) {
+      for (const [x, z, depth, period, first] of bursts) {
         for (let k = 0; k < BUBBLE.each && b < MOST_BUBBLES; k++, b++) {
           const start = first + k * BUBBLE.apart;
           const n = Math.floor((now - start) / period);

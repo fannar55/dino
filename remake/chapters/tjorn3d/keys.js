@@ -10,7 +10,9 @@ export const POND = {
   radius: 54, // m: the pool, far wider than any page (the bank is never in the window, over or under the water)
   bed: 15, // cm under the screen: the bottom (the plan: at most 15)
   clear: 0.34, // how much of the game's own water colour lies on the surface (its own is 0.95: nothing shows through)
-  murk: { tone: '#2c5a55', deep: 0.42, density: 0.115 }, // per metre of ray under the water (murk.js); the tone is the water's teal, dimmed
+  // murk.js: the water's tone (a mid-tone teal), how much of it is left at the bed, how fast a thing darkens with its depth (per
+  // metre) and fades into the tone (per metre of the eye's ray under the water)
+  murk: { tone: '#5a9a90', deep: 0.75, dim: 0.3, density: 0.16 },
 };
 
 /**
@@ -26,7 +28,7 @@ export function under(seen, depth, eye) {
 // The lily plants (the forest's own 'waterLily': a few pads and a flower each), where they float in every key: at the sides, clear of
 // the middle where she comes up. `scale` is the plant's (2 makes pads 1 to 2 cm across on the table).
 export const LILIES = [
-  { at: [-7.4, 3.9], variant: 2, scale: 2.0 }, // the frog's (it sits on the widest free pad of it)
+  { at: [-7.4, 3.6], variant: 2, scale: 2.6 }, // the frog's (it sits on the widest free pad of it)
   { at: [7.9, 2.9], variant: 0, scale: 2.0 }, // the butterfly's (one flower, on its middle pad)
   { at: [-6.6, -3.9], variant: 1, scale: 2.2 },
   { at: [7.3, -4.4], variant: 4, scale: 1.8 },
@@ -61,8 +63,8 @@ const FLED_FISH = [
  * the viewer's eyes), `strike` ('fish': her snout reaches for the fish in the air, `gap` cm short of it; she is put where it gets
  * there), `jaw` (degrees open), and `centre`: her picture over the surface is centred on the page between top and bottom. `says`
  * names the number the label gives. `rings` are [x, z, strength, every s, first at s] (cm on the page; a ring lives 2.6 s, so none
- * comes oftener), `neckRings` the same from where her neck cuts the surface, `bubbles` are bursts: [x, z, cm under the surface
- * they start, every s, first at s]. All go by the water's clock alone.
+ * comes oftener), `neckRings` the same from where her neck cuts the surface, `snoutBubbles` are bursts of bubbles from the
+ * tip of her snout, each with a ring where it comes up: [x, z from the tip, every s, first at s]. All go by the water's clock alone.
  */
 export const KEYS = [
   {
@@ -72,36 +74,35 @@ export const KEYS = [
   },
   {
     id: '2', name: 'Skugginn', says: 'under',
-    her: { at: [0.5, -9.5], heading: 58, sink: 14.6, pitch: 0, tuck: 0, clip: 'wade', pace: 0.25, swim: 0.6 },
+    her: { at: [0.5, -9.5], heading: 58, sink: 14.6, pitch: 0, tuck: 0, clip: 'idle', swim: 0.6 },
     fish: FLED_FISH, butterfly: 'lily',
-    bubbles: [[3.2, 1.6, 9, 2.6, -0.3], [1.6, 2.6, 8, 3.4, 0.7]], // over her snout
-    rings: [[3.2, 1.6, 0.5, 2.6, 1.5], [1.6, 2.6, 0.4, 3.4, 2.5]], // where each burst comes up
+    snoutBubbles: [[0, 0, 2.6, -0.3], [-0.9, 0.5, 3.4, 0.7]], // bursts from her snout, and a ring where each comes up
   },
   {
     id: '3', name: 'Seglið', says: 'sail',
-    her: { at: [-1.0, -1.5], heading: 14, rise: { of: 'all', cm: 3.5 }, pitch: 0, tuck: 0, clip: 'wade', pace: 0.3, swim: 1 },
+    her: { at: [-1.0, -1.5], heading: 14, rise: { of: 'all', cm: 3.5 }, pitch: 0, tuck: 0, clip: 'idle', swim: 1 },
     fish: FLED_FISH, butterfly: 'lily',
-    rings: [[2.6, -1.0, 0.6, 2.6, 1.5], [-3.4, -2.2, 0.45, 3.0, 0.9]],
+    neckRings: [[2.8, 1.0, 1.0, 2.6, 1.5], [-3.0, -0.4, 0.8, 3.0, 0.9], [0.4, 1.3, 0.7, 3.4, 0.3]], // from the middle of where the sail cuts the surface
   },
   ...[['4a', 5], ['4b', 6.5], ['4c', 8]].map(([id, cm]) => ({
     id, name: 'Höfuðið', says: 'head',
     her: { at: [0, 5], heading: 90, rise: { of: 'head', cm }, pitch: 62, clip: 'idle', look: 'eye', centre: true },
     fish: FLED_FISH, butterfly: 'lily',
-    neckRings: [[0, 0.6, 0.7, 2.6, 1.6], [0.3, -0.8, 0.4, 3.1, 1.0]],
+    neckRings: [[1.9, 0.3, 1.0, 2.6, 1.5], [-1.9, 0.2, 0.9, 3.1, 1.0], [0.2, 1.7, 0.9, 2.9, 0.6]], // round her, where she cuts the surface
   })),
   {
     id: '5', name: 'Fiskurinn', says: 'fish',
-    her: { at: [-1.2, 1.0], heading: 80, rise: { of: 'head', cm: 4.4 }, pitch: 48, clip: 'idle', strike: 'fish', gap: 0.5, jaw: 6 },
+    her: { at: [-1.0, 0.5], heading: 66, rise: { of: 'head', cm: 4.3 }, pitch: 56, clip: 'idle', strike: 'fish', gap: 0.5, jaw: 6 },
     fish: FLED_FISH, butterfly: 'lily',
-    jump: { at: [1.0, 5.0, 4.8], heading: 205, size: 2.5, pitch: 8, left: [3.4, 5.4] }, // the big fish at the top of its arc; where it left the water
-    rings: [[3.4, 5.4, 1.2, 2.6, 1.5], [3.4, 5.4, 0.6, 2.6, 0.9]],
-    neckRings: [[0, 0.4, 0.5, 3.0, 1.2]],
+    jump: { at: [2.8, 4.6, 3.4], heading: 186, size: 2.5, pitch: 4 }, // the big fish at the top of its arc, crossing in front of her
+    rings: [[5.8, 3.6, 1.2, 2.6, 1.5], [5.8, 3.6, 0.7, 2.6, 0.9]], // where it left the water
+    neckRings: [[-1.9, 0.2, 0.9, 3.0, 1.2], [0.2, 1.7, 0.8, 2.8, 0.5]],
   },
   {
     id: '6', name: 'Fiðrildið', says: 'butterfly',
     her: { at: [0, 4], heading: 90, rise: { of: 'head', cm: 4 }, pitch: 46, clip: 'idle', look: 'eye', centre: true },
     fish: CALM_FISH, butterfly: 'snout',
-    neckRings: [[0, 0.6, 0.6, 2.6, 1.7], [0.3, -1.0, 0.5, 2.9, 1.1], [-0.4, 0.2, 0.45, 3.3, 0.5]],
+    neckRings: [[1.9, 0.3, 1.0, 2.6, 1.7], [-1.9, 0.2, 0.9, 2.9, 1.1], [0.2, 1.7, 0.9, 3.3, 0.5], [0.4, -1.6, 0.7, 3.7, 0.2]], // she is sinking: more of them
   },
 ];
 

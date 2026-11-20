@@ -74,10 +74,14 @@ export function createCast(world, { fish: fishCount = 6 } = {}) {
     frog.mesh.name = 'Tjörn frog';
     frog.mesh.castShadow = false;
     frog.mesh.updateMorphTargets();
-    const box = geometry.boundingBox;
-    frog.length = baked.length ?? box.max.x - box.min.x;
-    frog.mesh.position.y = -box.min.y; // on its feet
     frog.group.add(frog.mesh);
+    // as it is drawn (its sitting pose is a morph of the bake): its length along its nose, its middle over the seat, its feet on it
+    frog.group.scale.setScalar(1);
+    frog.group.position.set(0, 0, 0);
+    frog.group.rotation.set(0, 0, 0);
+    const drawn = new THREE.Box3().setFromArray(verticesOf(frog.mesh));
+    frog.length = drawn.max.x - drawn.min.x;
+    frog.mesh.position.set(-(drawn.min.x + drawn.max.x) / 2, -drawn.min.y, -(drawn.min.z + drawn.max.z) / 2);
     frog.loaded = true;
   }).catch(error => { console.warn('[tjorn3d] the frog could not be loaded:', error?.message ?? error); }).then(() => { frog.settled = true; });
   /** The frog sitting at `point` (world, under its feet), facing `heading`, `length` metres long. */
