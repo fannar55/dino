@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Chapter 5's song in the game (Task 7): the owner's pick of 2026-11-11, DJ Flugeðla's set "Stóra sviðið" on the real disco-funk
-// band (tools/kafli5-lag/djamm-1, rendered into qa/remake/kafli5/lag/djamm/1/, which git ignores). This tool carries what the game
-// plays from there into remake/assets/audio/kafli5/song/:
+// band (tools/kafli5-lag/djamm-1). Since 2026-11-20 the game plays that tool's render with the mix review's three fixes
+// (`render.mjs --prufa`: the drops' weight where small speakers play it, no rumble under hearing, her s-sounds softer; the owner's
+// yes of 2026-11-20 to the trial), rendered into qa/remake/kafli5/lag/djamm/2/, which git ignores (djamm/1/ is the first render,
+// the song the game played until then). This tool carries what the game plays from there into remake/assets/audio/kafli5/song/:
 //
 //   djamm.mp3        the whole set, as rendered (scene 6 streams it: engine/audio/song.js)
 //   loop-<layer>.mp3 the set's loop (its beats 64-96: the band alone, one whole chord cycle) a layer a file, for scenes 4-5
@@ -27,7 +29,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const FROM = path.join(ROOT, 'qa/remake/kafli5/lag/djamm/1');
+const FROM = path.join(ROOT, 'qa/remake/kafli5/lag/djamm/2');
 const TO = path.join(ROOT, 'remake/assets/audio/kafli5/song');
 const MODULE = path.join(ROOT, 'remake/chapters/kafli5-set.js');
 const moduleOf = song => `// Chapter 5's song as the script reads it: assets/audio/kafli5/song/song.json as a module. Written by tools/kafli5-song.mjs: do not

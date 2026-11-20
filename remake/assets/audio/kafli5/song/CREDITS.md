@@ -28,10 +28,10 @@ recorded tones (`../CREDITS.md`). The crowd and the DJ's sounds are the recordin
 - "100 STUDENTS CHEERING" by Robo9418, CC0 1.0, https://freesound.org/people/Robo9418/sounds/736924/; young crowd cheering
 - "Transition Hit SFX -001.wav" by AudioPapkin, CC0 1.0, https://freesound.org/people/AudioPapkin/sounds/648534/; transition hit, the impact
 - "Bass Drop" by qubodup, CC0 1.0, https://freesound.org/people/qubodup/sounds/212768/; bass drop under the drop impact
+- "Rpeople_RevCrash2.wav" by rhythmpeople, CC0 1.0, https://freesound.org/people/rhythmpeople/sounds/165154/; reverse crash into the drop
 - "cheering and clapping crowd 1" by AlaskaRobotics, CC0 1.0, https://freesound.org/people/AlaskaRobotics/sounds/221568/; cheering and clapping crowd
 - ElevenLabs sound generation, made for this game; a crowd of children cheering on the drops (the Freesound cheers are adult sports crowds)
 - "Vinyl rewind" by TasmanianPower, CC0 1.0, https://freesound.org/people/TasmanianPower/sounds/162493/; vinyl rewind (spin-back)
-- "Rpeople_RevCrash2.wav" by rhythmpeople, CC0 1.0, https://freesound.org/people/rhythmpeople/sounds/165154/; reverse crash into the drop
 - "Free Dancehall Air Horn Sound Effect (EFX)" by neilyhype, CC BY 3.0, https://freesound.org/people/neilyhype/sounds/557337/; dancehall air horn
 - "Crowd Cheer" by FoolBoyMedia, CC0 1.0, https://freesound.org/people/FoolBoyMedia/sounds/397434/; crowd cheer on the drops
 - "kids cheering, unintelligible.wav" by xtrgamr, CC BY 4.0, https://freesound.org/people/xtrgamr/sounds/243406/; kids cheering
