@@ -641,6 +641,33 @@ test('nor any tree of the lush valley\'s thick forest round the snag (chapter 4 
   }
 });
 
+test('the take-off\'s forest (the lush valley): the white tree\'s patch grows it round its clearing and the valley keeps every tree of it, so the cut shows the same forest', async () => {
+  const { layout } = chapter.locations.hvitatre;
+  assert.ok(layout.moreTrees?.length >= 150, `${layout.moreTrees?.length} trees on the list`);
+  const plan = planOf(chapter, chapter.locations.hvitatre);
+  const snag = plan.placements.find(p => p.name === 'deadSnag' && Math.hypot(p.x - kafli4.SNAG[0], p.z - kafli4.SNAG[1]) < 0.01);
+  const [tx, tz] = placementInfo(snag).tip;
+  const listed = new Set(layout.moreTrees.map(s => s.position.join()));
+  const more = plan.placements.filter(p => listed.has([p.x, p.z].join()));
+  assert.ok(more.length >= 150, `the white tree's planner grows ${more.length} of them`);
+  // none in the clearing, all within TAKE_OFF.to of the snag
+  const [cx, cz] = layout.clearing.center;
+  for (const p of more) {
+    assert.ok(Math.hypot(p.x - cx, p.z - cz) >= layout.forestEdge && Math.hypot(p.x - tx, p.z - tz) <= kafli4.TAKE_OFF.to, `a ${p.name} at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
+  }
+  // the valley leaves none of them out (her way, under her, a still shot): nothing of the forest is gone as the place changes
+  const { world } = await playWide();
+  const valley = world.forest;
+  const [sx, , sz] = valley.route.tree;
+  const gone = valley.stats.left.filter(l => more.some(p => Math.hypot(l.x - (p.x - tx + sx), l.z - (p.z - tz + sz)) < 0.01));
+  assert.deepEqual(gone.map(l => `${l.name} at ${l.x.toFixed(0)}, ${l.z.toFixed(0)} (${l.why})`), []);
+  // and the take-off is a forest: 30 to 90 m round the snag, about four times the trees a hectare of the patch as it was (22)
+  const trees = valley.stats.sections.filter(Boolean).flatMap(part => part.userData.placements)
+    .filter(p => SPECIES[p.name]?.tall && p.name !== 'deadSnag' && Math.hypot(p.x - sx, p.z - sz) >= 30 && Math.hypot(p.x - sx, p.z - sz) < 90);
+  const perHectare = trees.length / ((Math.PI * (90 * 90 - 30 * 30)) / 10000);
+  assert.ok(perHectare >= 70, `${perHectare.toFixed(0)} trees a hectare round the snag`);
+});
+
 test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {
   for (const [id, text] of Object.entries(FLIGHT_WORDS)) assert.equal(chapter.lines[id]?.text, text, id);
   const { captions } = await playWide();
