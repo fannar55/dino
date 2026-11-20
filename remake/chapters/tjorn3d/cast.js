@@ -122,9 +122,14 @@ export function createCast(world, { fish: fishCount = 6 } = {}) {
     if (butterfly.wings.R) butterfly.wings.R.rotation.x = -flap;
   };
 
+  // the scene waits for the two where it waits for whatever loads (main.js: a capture's seek, the warm-up; engine/flier-saddle.js)
+  const ready = Promise.all([frogReady, butterflyReady]);
+  const loading = (world.loading ??= new Set());
+  loading.add(ready);
+  ready.then(() => loading.delete(ready));
+
   return {
-    group, fish, jumper, frog, butterfly,
-    ready: Promise.all([frogReady, butterflyReady]),
+    group, fish, jumper, frog, butterfly, ready,
     /** True once both models are here, or could not be had (the page then goes on without that one). */
     get settled() { return Boolean(frog.settled && butterfly.settled); },
   };

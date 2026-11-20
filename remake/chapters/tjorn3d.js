@@ -18,12 +18,12 @@
 // herself over the table. world.tjorn.measure() gives the numbers (tools/tjorn3d-probe.mjs asks it).
 import * as THREE from 'three';
 import { glassesStart } from '../engine/book/show-cards.js';
-import { onTable, parallaxAt, outlineBox, marginsOf } from '../engine/table3d.js';
+import { onTable, parallaxAt, outlineBox, marginsOf, placeEye } from '../engine/table3d.js';
 import { MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
 import { tableUi, tala } from '../engine/table-ui.js';
 import { FEN } from '../world/forest/config.js';
 import { lieLow } from './kafli2-uggedla.js';
-import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex } from './tjorn3d/keys.js';
+import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from './tjorn3d/keys.js';
 import { installMurk, through } from './tjorn3d/murk.js';
 import { createCast, verticesOf } from './tjorn3d/cast.js';
 
@@ -35,10 +35,14 @@ const S = SCALE;
 const MURK = knob('grugg', POND.murk.density, 0, 2);
 const CLEAR = knob('tint', POND.clear, 0, 1);
 const PHASES = 4; // moments of her breathing her picture is bounded over
-const BREATH = 4; // seconds: her idle
+const ROUNDS = 9; // at most so many times her place is worked out from what the last one showed over the surface
+const REACH_ROUNDS = 4; // of them, the first so many put her where her snout reaches the fish (key 5)
+const NEAR = 0.006; // m: near enough (a tenth of a millimetre on the table)
+const SWAY = 1 / 0.43; // s: one round of the rig's slow sway of her body (chapters/kafli2-uggedla.js)
 const BUBBLE_SIZE = 7; // the water's own bubbles (3 to 7 cm in the game) drawn this many times larger: half a centimetre on the table
 const BUBBLE = { each: 6, apart: 0.22, seconds: 1.8, size: 0.05 }; // a burst: so many, s apart, s to rise, metres at the game's size
 const RING_LIFE = 2.6; // s (world/props/water.js)
+const SHOWS = 0.05; // a thing under the water counts as seen while the murk lets this share of it through
 const LILY_STANDS = 0.05; // m: a lily's points higher than this over the water stand up out of the screen (its flower); its pads lie on it
 const rad = d => (d * Math.PI) / 180;
 const r3 = x => Math.round(x * 1000) / 1000;
@@ -51,12 +55,14 @@ export const chapter = {
   look: 'morning',
   gler: { panel: false },
   startButton: doc => glassesStart(doc, { more: 'Leggðu skjáinn flatan á borð og horfðu skáhallt niður á hann.' }),
-  // one pool, far wider than the page at any size, its bank and the fen round it never in the window; the path far off
+  // one pool, far wider than the page at any size, its bank and the fen round it never in the window. The place's clearing is on
+  // dry ground north of it, off the page: the ground's heights are counted from the clearing's middle (world/forest/terrain.js), so
+  // it must not lie in the pool, or the water's one level would be under its bed. The path is farther off still.
   layout: {
     seed: 23,
-    clearing: { center: [0, 0], radius: 34 },
-    forestEdge: 40,
-    path: [[-120, 96], [-60, 90], [0, 88], [60, 90], [120, 96]],
+    clearing: { center: [0, -110], radius: 16 },
+    forestEdge: 22,
+    path: [[-120, -150], [-60, -144], [0, -142], [60, -144], [120, -150]],
     biome: 'fen',
     water: { pools: [{ center: [0, 0], radius: POND.radius, depth: POND.bed * S }] },
     plants: LILIES.map(l => ({ name: 'waterLily', position: [l.at[0] * S, l.at[1] * S], variant: l.variant, scale: l.scale })),
@@ -133,6 +139,7 @@ export const chapter = {
     const tip = { pitch: 0 };
     her.control(dt => { rig.drive(dt); her.root.rotation.z = rad(tip.pitch); }, rig.pose);
     her.model.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); // no hard shadow edges on her over the table
+    her.footprintScale = -1000; // nor the ground's soft shade under an actor (world/forest/terrain.js: a capsule this much smaller than nothing), which lay on the bed under her, there or not
     const eyePoint = new THREE.Vector3(0, 20, 20);
     const strikePoint = new THREE.Vector3();
     // her skin at its finest, and which part each vertex is: 1 her head (and jaw), 2 her neck and chest, 0 the rest
@@ -176,30 +183,76 @@ export const chapter = {
     const cast = createCast(world, { fish: 6 });
     // a lily's middle pad's top, and its flower's (world/forest/species.js: the pad lies 1.6 cm over the water at the plant's own size, the flower's heart 5.4)
     const padTop = l => V(l.at[0], 0, l.at[1]).setY(LEVEL + 0.02 * l.scale);
+    /**
+     * The frog's seat on a lily: the point of its pads farthest from any pad's rim and from its flower (the middle of the widest
+     * free one), found on the plants' own triangles as the forest laid them.
+     */
+    function padSeat(l) {
+      const cx = l.at[0] * S, cz = l.at[1] * S, reach = 1.1 * l.scale, step = 0.06;
+      const pads = [], flowers = [];
+      for (const mesh of plants) {
+        const at = mesh.geometry.attributes.position, index = mesh.geometry.index;
+        const count = index ? index.count : at.count;
+        for (let i = 0; i < count; i += 3) {
+          const [a, b, c2] = [0, 1, 2].map(j => (index ? index.getX(i + j) : i + j));
+          if (Math.hypot(at.getX(a) - cx, at.getZ(a) - cz) > reach) continue;
+          const tri = [at.getX(a), at.getZ(a), at.getX(b), at.getZ(b), at.getX(c2), at.getZ(c2)];
+          (Math.max(at.getY(a), at.getY(b), at.getY(c2)) - LEVEL > LILY_STANDS ? flowers : pads).push(tri);
+        }
+      }
+      const inside = (t, x, z) => {
+        const d1 = (x - t[2]) * (t[1] - t[3]) - (t[0] - t[2]) * (z - t[3]);
+        const d2 = (x - t[4]) * (t[3] - t[5]) - (t[2] - t[4]) * (z - t[5]);
+        const d3 = (x - t[0]) * (t[5] - t[1]) - (t[4] - t[0]) * (z - t[1]);
+        return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+      };
+      const n = Math.ceil(reach / step), on = [], off = [];
+      for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {
+        const x = cx + i * step, z = cz + j * step;
+        (pads.some(t => inside(t, x, z)) && !flowers.some(t => inside(t, x, z)) ? on : off).push([x, z]);
+      }
+      let best = null;
+      for (const [x, z] of on) {
+        let free = Infinity;
+        for (const o of off) { const d = (o[0] - x) ** 2 + (o[1] - z) ** 2; if (d < free) free = d; }
+        if (!best || free > best.free) best = { x, z, free };
+      }
+      return best ? { point: new THREE.Vector3(best.x, LEVEL + 0.02 * l.scale, best.z), radius: Math.sqrt(best.free) } : { point: padTop(l), radius: 0 };
+    }
+    const frogSeat = padSeat(LILIES[FROG.lily]);
     const flowerTop = l => V(l.at[0], 0, l.at[1]).setY(LEVEL + 0.062 * l.scale);
 
     // ---- the view: the key and the screen chosen, and what follows from them ----
     const screen = screenSize(params);
     const stage = createTableStage(world, { seat: SEAT, sjon: SJON, mono: MONO, level: LEVEL });
-    const view = { index: keyIndex(params.get('lykill')), inches: screen.inches, mode: MODE, dirty: true, solves: 0, key: null, her: null, label: '' };
+    const view = { index: keyIndex(params.get('lykill')), inches: screen.inches, mode: MODE, dirty: true, solves: 0, key: null, her: null, fish: [], label: '' };
+    stage.use(tablePage(win, view.inches), S, [0, 0]); // the eyes are in place before the first frame (the small players are still on their way)
 
     /** Her pose for a key, with her root at [x, z] (m) and `sink` m under the surface. */
     function poseHer(k, x, z, sink) {
       rig.tweens.length = 0;
-      Object.assign(rig.v, { sink, tuck: k.tuck ?? 1, shiver: 0, yaw: 0, lunge: 0, jaw: k.jaw ?? 0, strike: k.strike ? 1 : 0, toss: 0, swim: k.swim ?? 0, curl: 0, life: k.life ?? 0.5 });
+      Object.assign(rig.v, { sink, tuck: k.tuck ?? 1, shiver: 0, yaw: 0, lunge: 0, jaw: k.jaw ?? 0, strike: k.strike ? 1 : 0, toss: 0, swim: k.swim ?? 0, curl: 0, life: k.life ?? 0 });
       rig.target = k.strike ? strikePoint : null;
       tip.pitch = k.pitch ?? 0;
       uggedla.place(x, z, k.heading);
     }
     const settle = (steps = 10) => { for (let i = 0; i < steps; i++) her.update(0.1); };
-    /** Her clouds over one breath; she is left at the moment of it she was at. */
-    const breath = () => Array.from({ length: PHASES }, () => { her.update(BREATH / PHASES); return cloud(); });
+    /** Her clouds at a few moments of one round of her clip and of her rig's slow sway: the same moments every time it is asked. */
+    const breath = k => {
+      const cycle = her.clips.get(k.clip ?? 'idle').duration / (k.pace ?? 1);
+      return Array.from({ length: PHASES }, (_, i) => {
+        her.mixer.setTime((i / PHASES) * cycle);
+        rig.t = (i / PHASES) * SWAY;
+        her.update(1e-3);
+        return cloud();
+      });
+    };
 
     /**
      * Everything that follows from the key, the screen and the seat. Where a key says how high something stands, her sink is
      * settled so that it does (her pose is first tipped and turned, so a rise is a rise of her whole body); where it says her
      * picture is centred, she is moved along the way to the viewer until the top and the bottom margin of everything of hers
-     * over the surface are the same. Four rounds: a new sink changes what is over the surface, her look changes with her place.
+     * over the surface are the same. A few rounds: a new sink changes what is over the surface, her look changes with her place.
      */
     function solve() {
       const key = KEYS[view.index];
@@ -210,11 +263,13 @@ export const chapter = {
       Object.assign(view, { ...pg, key, dirty: false, solves: view.solves + 1, her: null });
 
       // the small players: where this key has them (the butterfly on her snout is put every frame, live())
-      key.fish.forEach((f, i) => cast.fish[i]?.show(V(...f.at), f.heading, f.size * S, { beat: i * 0.37 }));
+      const eye = { x: eyes.mid.x / S, y: eyes.mid.y / S, z: eyes.mid.z / S };
+      view.fish = key.fish.map(f => ({ ...f, at: under(f.seen, f.depth, eye) }));
+      view.fish.forEach((f, i) => cast.fish[i]?.show(V(...f.at), f.heading, f.size * S, { beat: i * 0.37 }));
       for (let i = key.fish.length; i < cast.fish.length; i++) cast.fish[i].hide();
       if (key.jump) cast.jumper.show(V(...key.jump.at), key.jump.heading, key.jump.size * S, { pitch: key.jump.pitch });
       else cast.jumper.hide();
-      if (cast.frog.loaded) cast.frog.show(padTop(LILIES[FROG.lily]), FROG.heading, FROG.length * S);
+      if (cast.frog.loaded) cast.frog.show(frogSeat.point, FROG.heading, FROG.length * S);
 
       const k = key.her;
       her.root.visible = Boolean(k);
@@ -223,24 +278,35 @@ export const chapter = {
       her.play(k.clip ?? 'idle', { fade: 0, timeScale: k.pace ?? 1 });
       let x = k.at[0] * S, z = k.at[1] * S, sink = (k.sink ?? 8) * S;
       let clouds = [];
-      for (let round = 0; round < 4; round++) {
+      for (let round = 0; round < ROUNDS; round++) {
         poseHer(k, x, z, sink);
-        settle();
         if (k.strike === 'fish') {
-          // her snout reaches for the fish and stops `gap` cm short of it, on the line from her chest
+          // her snout reaches for the fish and stops `gap` cm short of it, on the line from her chest. The first rounds she is moved
+          // (her neck as her pose has it) until the tip of her snout is under that point; from then on her neck and head reach for it.
+          const reaching = round >= REACH_ROUNDS;
+          rig.v.strike = reaching ? 1 : 0;
+          settle(round ? 4 : 20);
           const fish = V(...key.jump.at), chest = rig.bones.Chest.getWorldPosition(new THREE.Vector3());
           strikePoint.copy(fish).add(chest.sub(fish).normalize().multiplyScalar(((k.gap ?? 0.5) + key.jump.size / 2) * S));
+          if (!reaching) { x += strikePoint.x - rig.tip.x; z += strikePoint.z - rig.tip.z; poseHer(k, x, z, sink); rig.v.strike = 0; }
           settle(4);
-        }
-        clouds = breath();
-        if (k.rise) sink += Math.max(...clouds.map(points => topOf(points, k.rise.of === 'head' ? 1 : null))) - k.rise.cm * S;
+        } else settle(round ? 4 : 20);
+        clouds = breath(k);
+        // what is still off: her height, and her picture's place between the page's top and bottom
+        let up = 0, back = 0;
+        if (k.rise) up = Math.max(...clouds.map(points => topOf(points, k.rise.of === 'head' ? 1 : null))) - k.rise.cm * S;
         if (k.centre) {
           const box = outlineBox(clouds.map(points => over(points)), [eyes.left, eyes.right], [0, 0]);
-          if (Number.isFinite(box.z0)) z -= (box.z0 + box.z1) / 2;
+          if (Number.isFinite(box.z0)) back = (box.z0 + box.z1) / 2;
         }
+        if (Math.abs(up) < NEAR && Math.abs(back) < NEAR && !(k.strike && round < REACH_ROUNDS + 1)) break; // she is where the clouds were taken
+        if (round === ROUNDS - 1) break; // as near as it gets: the label and the measure say what it is
+        sink += up;
+        z -= back;
       }
-      poseHer(k, x, z, sink);
-      settle(4);
+      her.mixer.setTime(s.time); // her clip and her sway go by the scene's clock again
+      rig.t = s.time;
+      her.update(1e-3);
       // how her picture lies over one breath, for the label (the measure reads the moment)
       const mine = clouds.map(points => over(points, key.jump ? verticesOf(cast.jumper.group) : null));
       const box = outlineBox(mine, [eyes.left, eyes.right], [0, 0]);
@@ -264,16 +330,16 @@ export const chapter = {
     /** The number a key's label gives, as the page stands now: [words, cm]. */
     function says(key, m) {
       switch (key.says) {
-        case 'under': return `${key.name} ${tala(-m.her.topCm)} cm undir`;
-        case 'sail': return `${key.name} ${tala(m.her.topCm)} cm`;
-        case 'head': return `${key.name} ${tala(m.her.headCm)} cm`;
+        case 'under': return `${key.name} ${tala(-m.her.solved.topCm)} cm undir`;
+        case 'sail': return `${key.name} ${tala(m.her.solved.topCm)} cm`;
+        case 'head': return `${key.name} ${tala(m.her.solved.headCm)} cm`;
         case 'fish': return `${key.name} ${tala(m.tops.fish)} cm`;
         case 'butterfly': return `${key.name} ${tala(m.tops.butterfly)} cm`;
         default: return `${key.name}, hæst ${tala(m.top.cm)} cm`;
       }
     }
     function label() {
-      const m = measure();
+      const m = measure(false);
       const { least, leastCm } = m.margins;
       const tight = least === null || least >= MARGIN - 1e-9 ? '' : least < 0 ? ` · kemst ekki fyrir (${tala(-leastCm)} cm út fyrir)` : ` · þröngt (${tala(leastCm)} cm að brún)`;
       view.label = `${view.key.id} · ${says(view.key, m)} · skjár ${tala(view.inches)} tommur${tight}`;
@@ -285,11 +351,12 @@ export const chapter = {
      * The numbers, as the page stands now. Everything over the surface (her skin, the fish in the air, the frog, the butterfly,
      * the lilies' flowers) through the two eye cameras the picture is drawn with; lengths in cm, shares of the page's width or depth.
      */
-    function measure() {
+    function measure(drawn = true) {
       const { W, Hs } = view;
       const { eyes } = stage;
       const key = view.key;
-      const throughEyes = stage.through();
+      // the cameras the last picture was drawn with, or (for the label, worked out before the next picture is drawn) two put where those will be
+      const throughEyes = drawn ? stage.through() : [eyes.left, eyes.right].map(eye => placeEye(new THREE.PerspectiveCamera(), eye, stage.at()));
       const mine = key.her ? cloud() : new Float32Array(0);
       // everything over the surface, by who it is
       const groups = {
@@ -331,7 +398,7 @@ export const chapter = {
       const surface = [[0, 0, 0], [0.4 * W * S, 0, -0.4 * Hs * S], [-0.3 * W * S, 0, 0.3 * Hs * S]].map(g => { const [l, r] = pictures({ x: g[0], y: 0, z: g[2] }); return l - r; });
       let low = Infinity;
       for (let i = 1; i < mine.length; i += 3) if (mine[i] < low) low = mine[i];
-      const fishLow = Math.min(...key.fish.map(f => f.at[1]));
+      const fishLow = -Math.max(...key.fish.map(f => f.depth));
       const deep = d => ({ cm: r3(d), parallaxCm: r3(-parallaxAt(-d, eyes.height, SEAT.ipd)), share: r3(-parallaxAt(-d, eyes.height, SEAT.ipd) / W), shows: r3(through(d * S, MURK, SEAT.a) * (1 - CLEAR)) });
       // what the viewer sees: points of her seen straight from an eye, against their pictures on the screen seen from that eye (px apart)
       let seen = 0;
@@ -348,6 +415,9 @@ export const chapter = {
           seen = Math.max(seen, Math.hypot(((a.x - b.x) * (win?.innerWidth ?? 1280)) / 2, ((a.y - b.y) * (win?.innerHeight ?? 800)) / 2));
         }
       }
+      // the deepest thing that can be seen: the lowest of the bed, her and the fish that the murk lets at least a twentieth of through
+      const depths = { bed: deep(POND.bed), her: key.her && low < 0 ? deep(-low / S) : null, fish: deep(-fishLow) };
+      const seenDeep = Object.entries(depths).filter(([, d]) => d && d.shows >= SHOWS).sort((a, b) => b[1].cm - a[1].cm)[0];
       const round = o => (o ? Object.fromEntries(Object.entries(o).map(([n, v]) => [n, r3(v)])) : null);
       return {
         key: key.id, name: key.name, label: view.label, mode: view.mode,
@@ -359,7 +429,7 @@ export const chapter = {
         tops,
         her: key.her ? { headCm: r3(topOf(mine, 1) / S), topCm: r3(topOf(mine) / S), lowCm: r3(low / S), sinkCm: r3(rig.v.sink / S), at: [r3(her.root.position.x / S), r3(her.root.position.z / S)], pitch: tip.pitch, solved: view.her ? { margins: round(view.her.margins), topCm: r3(view.her.top / S), headCm: r3(view.her.head / S) } : null } : null,
         margins: { share: round(share), cm: round(cm), least: least === null ? null : r3(least), leastCm: cm ? r3(Math.min(cm.left, cm.right, cm.top, cm.bottom)) : null, fits: least === null || least >= MARGIN - 1e-9 },
-        deepest: { bed: deep(POND.bed), her: key.her ? deep(-low / S) : null, fish: deep(-fishLow) },
+        deepest: { ...depths, seen: seenDeep ? { of: seenDeep[0], ...seenDeep[1] } : { of: 'nothing', cm: 0, parallaxCm: 0, share: 0, shows: 0 } },
         butterfly: key.butterfly === 'snout' ? snout.report() : null,
         surfaceParallaxCm: surface.map(x => Math.round(x * 1e6) / 1e6),
         seenErrorPx: Math.round(seen * 1000) / 1000,
@@ -424,7 +494,7 @@ export const chapter = {
     function live() {
       const key = view.key;
       const t = s.time;
-      key.fish.forEach((f, i) => {
+      view.fish.forEach((f, i) => {
         const sway = 0.12 * Math.sin(t * 0.5 + i * 1.7); // cm
         const h = rad(f.heading);
         cast.fish[i]?.show(V(f.at[0] + sway * Math.cos(h), f.at[1] + 0.05 * Math.sin(t * 0.7 + i), f.at[2] + sway * Math.sin(h)), f.heading, f.size * S, { beat: t * 0.45 + i * 0.37 });
@@ -435,16 +505,17 @@ export const chapter = {
         if (key.butterfly === 'snout' && key.her) snout.place(flap);
         else cast.butterfly.show(flowerTop(LILIES[BUTTERFLY.lily]), BUTTERFLY.heading, BUTTERFLY.span * S, flap);
       }
-      if (cast.frog.loaded && !cast.frog.group.visible) cast.frog.show(padTop(LILIES[FROG.lily]), FROG.heading, FROG.length * S);
+      if (cast.frog.loaded && !cast.frog.group.visible) cast.frog.show(frogSeat.point, FROG.heading, FROG.length * S);
       // rings where the key says (from where her neck cuts the surface, for a key that has her up), and bubbles: each comes again
       // every so many seconds of the water's clock, so the page at a given time is the same however it got there
       const now = clock.value;
-      const anchor = key.ringsOn === 'neck' && view.her ? view.her.neck : [0, 0];
+      const neck = view.her?.neck ?? [0, 0];
+      const rows = [...(key.rings ?? []), ...(key.neckRings ?? []).map(row => [neck[0] + row[0], neck[1] + row[1], row[2], row[3], row[4]])];
       for (let i = 0; i < 6; i++) {
-        const row = key.rings?.[i];
+        const row = rows[i];
         const n = row ? Math.floor((now - row[4]) / row[3]) : -1;
         if (n < 0) ripples[2 + i].set(0, 0, -99, 0);
-        else ripples[2 + i].set((anchor[0] + row[0]) * S, (anchor[1] + row[1]) * S, row[4] + n * row[3], row[2]);
+        else ripples[2 + i].set(row[0] * S, row[1] * S, row[4] + n * row[3], row[2]);
       }
       const { position, aBubble } = bubbles.geometry.attributes;
       let b = 0;
@@ -462,7 +533,7 @@ export const chapter = {
       aBubble.needsUpdate = true;
     }
 
-    yield s.until(() => cast.settled);
+    cast.ready.then(() => { view.dirty = true; }); // the frog and the butterfly are measured and counted in the label once they are here
     solve();
     live();
     s.after(0, function* keep() {

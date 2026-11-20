@@ -13,84 +13,95 @@ export const POND = {
   murk: { tone: '#2c5a55', deep: 0.42, density: 0.115 }, // per metre of ray under the water (murk.js); the tone is the water's teal, dimmed
 };
 
+/**
+ * Where a thing `depth` cm under the surface must be for its picture to lie at `seen` ([x, z] on the page, cm from its centre) for
+ * an eye at `eye` ({ x, y, z } cm: y its height over the table): what is under the water is seen through the page as through a
+ * window, so the deeper it lies the farther from the viewer it must be to be seen at the same place. Returns [x, y, z], y negative.
+ */
+export function under(seen, depth, eye) {
+  const k = (eye.y + depth) / eye.y;
+  return [seen[0] * k - (eye.x * depth) / eye.y, -depth, seen[1] * k - (eye.z * depth) / eye.y];
+}
+
 // The lily plants (the forest's own 'waterLily': a few pads and a flower each), where they float in every key: at the sides, clear of
 // the middle where she comes up. `scale` is the plant's (2 makes pads 1 to 2 cm across on the table).
 export const LILIES = [
-  { at: [-7.4, 3.9], variant: 2, scale: 2.0 }, // the frog's (this variant has no flower: its middle pad is free)
+  { at: [-7.4, 3.9], variant: 2, scale: 2.0 }, // the frog's (it sits on the widest free pad of it)
   { at: [7.9, 2.9], variant: 0, scale: 2.0 }, // the butterfly's (one flower, on its middle pad)
   { at: [-6.6, -3.9], variant: 1, scale: 2.2 },
   { at: [7.3, -4.4], variant: 4, scale: 1.8 },
 ];
-export const FROG = { lily: 0, length: 1.3, heading: 60 }; // cm long on the table, on the first pad of its lily
+export const FROG = { lily: 0, length: 1.2, heading: 60 }; // cm long on the table
 export const BUTTERFLY = { lily: 1, span: 1.5, heading: 200 }; // cm across its wings
 
-// The fish: [x, y, z] cm (y under the screen is negative), heading, length in cm. Idling in place.
+// The fish: where its picture lies on the page ([x, z] cm, for the eye between the two), how deep it is (cm), heading, length in cm.
+// Idling in place.
 const CALM_FISH = [
-  { at: [-3.2, -2.2, 1.4], heading: 20, size: 1.6 },
-  { at: [4.1, -4.0, -1.6], heading: 160, size: 2.2 },
-  { at: [0.6, -6.5, 3.0], heading: 250, size: 1.4 },
-  { at: [-5.6, -8.0, -1.0], heading: 80, size: 2.4 },
-  { at: [2.2, -1.4, -4.2], heading: 300, size: 1.2 },
-  { at: [8.4, -5.6, 0.4], heading: 120, size: 1.8 },
+  { seen: [-3.4, 2.6], depth: 2.2, heading: 20, size: 1.6 },
+  { seen: [3.6, 1.2], depth: 4.0, heading: 160, size: 2.2 },
+  { seen: [0.4, 4.6], depth: 6.5, heading: 250, size: 1.4 },
+  { seen: [-4.4, -0.6], depth: 8.0, heading: 80, size: 2.4 },
+  { seen: [1.8, -3.2], depth: 1.4, heading: 300, size: 1.2 },
+  { seen: [7.2, -1.2], depth: 5.6, heading: 120, size: 1.8 },
 ];
 // ...and getting out of her way: the same fish nearer the edges, their noses outward
 const FLED_FISH = [
-  { at: [-8.6, -2.0, 3.2], heading: 150, size: 1.6 },
-  { at: [9.2, -3.4, -3.4], heading: 320, size: 2.2 },
-  { at: [5.4, -5.0, 5.4], heading: 60, size: 1.4 },
-  { at: [-9.4, -6.4, -3.6], heading: 215, size: 2.4 },
-  { at: [-3.8, -1.2, -5.8], heading: 250, size: 1.2 },
-  { at: [10.2, -5.0, 2.4], heading: 20, size: 1.8 },
+  { seen: [-8.8, 4.6], depth: 2.0, heading: 150, size: 1.6 },
+  { seen: [8.6, -5.2], depth: 3.4, heading: 320, size: 2.2 },
+  { seen: [9.4, 5.2], depth: 5.0, heading: 40, size: 1.4 },
+  { seen: [-9.4, -1.2], depth: 6.4, heading: 190, size: 2.4 },
+  { seen: [-3.6, -5.4], depth: 1.2, heading: 250, size: 1.2 },
+  { seen: [3.2, -5.6], depth: 4.6, heading: 290, size: 1.8 },
 ];
 
 /**
  * The keys, in order. `her`: where her root is ([x, z]), her way, how far her root is under the surface (`sink`, cm) or what is
  * to stand how high (`rise`: { of: 'head' | 'all', cm }, which settles the sink), `pitch` (degrees her whole body is tipped nose
- * up), `clip`, `swim` (the tail's wave), `look` ('eye': her head turned to the viewer's eyes), `strike` (a point her snout
- * reaches for), `jaw` (degrees open), and `centre`: her picture over the surface (with whatever `with` names) is centred on the
- * page between top and bottom. `says` names the number the label gives. `rings` are [x, z, strength, every s, first at s] (cm; from
- * where her neck cuts the surface when `ringsOn` is 'neck'; a ring lives 2.6 s, so none comes oftener), `bubbles` are bursts:
- * [x, z, cm under the surface they start, every s, first at s]. Both go by the water's clock alone.
+ * up), `tuck` (1: her neck at ease, 0: folded down, lying low), `clip`, `swim` (the tail's wave), `look` ('eye': her head turned to
+ * the viewer's eyes), `strike` ('fish': her snout reaches for the fish in the air, `gap` cm short of it; she is put where it gets
+ * there), `jaw` (degrees open), and `centre`: her picture over the surface is centred on the page between top and bottom. `says`
+ * names the number the label gives. `rings` are [x, z, strength, every s, first at s] (cm on the page; a ring lives 2.6 s, so none
+ * comes oftener), `neckRings` the same from where her neck cuts the surface, `bubbles` are bursts: [x, z, cm under the surface
+ * they start, every s, first at s]. All go by the water's clock alone.
  */
 export const KEYS = [
   {
     id: '1', name: 'Kyrr tjörn', says: 'top',
     her: null, fish: CALM_FISH, butterfly: 'lily',
-    rings: [[-6.9, 4.5, 0.35, 3.1, 1.4], [3.4, 1.2, 0.3, 4.3, 1.1]],
+    rings: [[-5.2, 5.6, 0.35, 3.1, 1.4], [3.4, 1.2, 0.3, 4.3, 1.1]],
   },
   {
     id: '2', name: 'Skugginn', says: 'under',
-    her: { at: [0.5, -1.5], heading: 58, sink: 14.6, pitch: 0, clip: 'wade', pace: 0.25, swim: 0.6 },
+    her: { at: [0.5, -9.5], heading: 58, sink: 14.6, pitch: 0, tuck: 0, clip: 'wade', pace: 0.25, swim: 0.6 },
     fish: FLED_FISH, butterfly: 'lily',
     bubbles: [[3.2, 1.6, 9, 2.6, -0.3], [1.6, 2.6, 8, 3.4, 0.7]], // over her snout
     rings: [[3.2, 1.6, 0.5, 2.6, 1.5], [1.6, 2.6, 0.4, 3.4, 2.5]], // where each burst comes up
   },
   {
     id: '3', name: 'Seglið', says: 'sail',
-    her: { at: [-0.5, 1.2], heading: 14, rise: { of: 'all', cm: 3.5 }, pitch: 0, clip: 'wade', pace: 0.3, swim: 1 },
+    her: { at: [-1.0, -1.5], heading: 14, rise: { of: 'all', cm: 3.5 }, pitch: 0, tuck: 0, clip: 'wade', pace: 0.3, swim: 1 },
     fish: FLED_FISH, butterfly: 'lily',
-    rings: [[2.6, 1.9, 0.6, 2.6, 1.5], [-3.4, 0.6, 0.45, 3.0, 0.9]],
+    rings: [[2.6, -1.0, 0.6, 2.6, 1.5], [-3.4, -2.2, 0.45, 3.0, 0.9]],
   },
   ...[['4a', 5], ['4b', 6.5], ['4c', 8]].map(([id, cm]) => ({
     id, name: 'Höfuðið', says: 'head',
-    her: { at: [0, 0], heading: 90, rise: { of: 'head', cm }, pitch: 40, clip: 'idle', look: 'eye', centre: true },
+    her: { at: [0, 5], heading: 90, rise: { of: 'head', cm }, pitch: 62, clip: 'idle', look: 'eye', centre: true },
     fish: FLED_FISH, butterfly: 'lily',
-    rings: [[0, 0.6, 0.7, 2.6, 1.6], [0.3, -0.8, 0.4, 3.1, 1.0]],
-    ringsOn: 'neck',
+    neckRings: [[0, 0.6, 0.7, 2.6, 1.6], [0.3, -0.8, 0.4, 3.1, 1.0]],
   })),
   {
     id: '5', name: 'Fiskurinn', says: 'fish',
-    her: { at: [-1.6, -1.2], heading: 82, rise: { of: 'head', cm: 4.4 }, pitch: 36, clip: 'idle', strike: 'fish', gap: 0.5, jaw: 6 },
+    her: { at: [-1.2, 1.0], heading: 80, rise: { of: 'head', cm: 4.4 }, pitch: 48, clip: 'idle', strike: 'fish', gap: 0.5, jaw: 6 },
     fish: FLED_FISH, butterfly: 'lily',
-    jump: { at: [1.2, 5.0, 3.6], heading: 205, size: 2.5, pitch: 8, left: [3.6, 4.4] }, // the big fish at the top of its arc; where it left the water
-    rings: [[3.6, 4.4, 1.2, 2.6, 1.5], [3.6, 4.4, 0.6, 2.6, 0.9], [-1.4, 0.4, 0.5, 3.0, 1.2]],
+    jump: { at: [1.0, 5.0, 4.8], heading: 205, size: 2.5, pitch: 8, left: [3.4, 5.4] }, // the big fish at the top of its arc; where it left the water
+    rings: [[3.4, 5.4, 1.2, 2.6, 1.5], [3.4, 5.4, 0.6, 2.6, 0.9]],
+    neckRings: [[0, 0.4, 0.5, 3.0, 1.2]],
   },
   {
     id: '6', name: 'Fiðrildið', says: 'butterfly',
-    her: { at: [0, 0], heading: 90, rise: { of: 'head', cm: 4 }, pitch: 30, clip: 'idle', look: 'eye', centre: true },
+    her: { at: [0, 4], heading: 90, rise: { of: 'head', cm: 4 }, pitch: 46, clip: 'idle', look: 'eye', centre: true },
     fish: CALM_FISH, butterfly: 'snout',
-    rings: [[0, 0.6, 0.6, 2.6, 1.7], [0.3, -1.0, 0.5, 2.9, 1.1], [-0.4, 0.2, 0.45, 3.3, 0.5]],
-    ringsOn: 'neck',
+    neckRings: [[0, 0.6, 0.6, 2.6, 1.7], [0.3, -1.0, 0.5, 2.9, 1.1], [-0.4, 0.2, 0.45, 3.3, 0.5]],
   },
 ];
 
