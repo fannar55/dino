@@ -74,8 +74,13 @@ test('the big fish: up from the deep, out of the water in part 5, about 5 cm at 
   const a = jumperAt(JUMP.out + 0.2), b = jumperAt(JUMP.out + 0.4), c = jumperAt(JUMP.out + 0.6);
   assert.ok(Math.abs((c.at[1] - 2 * b.at[1] + a.at[1]) / 0.04 + GRAVITY) < 1e-6);
   // she reaches for it and her jaws are open as it comes, shut on it when it is hers
-  assert.ok(herAt(JUMP.take - 0.1).jaw > 10 && herAt(JUMP.take).strike === 1 && herAt(JUMP.take + 0.05).jaw <= 6);
+  assert.ok(herAt(JUMP.take - 0.1).jaw > 6 && herAt(JUMP.take).strike === 1 && herAt(JUMP.take + 0.05).jaw <= 2);
   assert.ok(JUMP.gulp > JUMP.take && herAt(JUMP.gulp + 0.3).jaw === 0);
+  // the tip of her snout is on the fish's flank the moment her jaws shut: under its middle, on her side of it, less than half a cm off
+  const fish = jumperAt(JUMP.take - 1e-6).at, tip = herAt(JUMP.take).snout;
+  assert.ok(Math.hypot(tip[0] - fish[0], tip[1] - fish[1], tip[2] - fish[2]) < 0.5 && tip[1] < fish[1] && tip[2] < fish[2]);
+  // and her head is hers again (her look's) well before the butterfly comes
+  assert.ok(herAt(JUMP.gulp + 2).strike === 0 && herAt(JUMP.gulp + 2).look === 'eye' && herAt(JUMP.gulp + 2).snout === null);
 });
 
 test('the small fish: in their rounds while the pond is calm, out of her way in part 2, home again at the end', () => {

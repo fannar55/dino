@@ -53,10 +53,18 @@ export function channel(rows) {
 export const DEEP = 27; // her root this far under and nothing of her is seen (her top is 15 cm under or more, tipped or not)
 // The glide: one straight line she swims along from the deep at the left to the right of the middle, her way along it. `u` is her
 // root's place on it (cm from `at`).
-export const LINE = { at: [-1, -1.3], heading: 8 };
+// It runs through the middle of the pond, clear of the lilies on both sides: the sail cuts the surface no nearer than half a
+// centimetre to a pad (the lily at the far left reaches z = -1.0, the butterfly's z = 1.2 from x = 4.7).
+export const LINE = { at: [-1, 0.0], heading: 4 };
 const along = u => [LINE.at[0] + u * Math.cos(rad(LINE.heading)), LINE.at[1] + u * Math.sin(rad(LINE.heading))];
 // The head: key 4b's place and height (keys.js: her picture centred on the page; her root is at her feet, near the viewer's edge)
 export const HEAD = { at: [0, 6.26], heading: 90, pitch: 62, sink: 5.02, top: 6.5 };
+// Lower in the water than that she stands a little farther from the viewer: her hands are at the waterline then, and their picture
+// lies nearest the viewer's edge of all she shows (on a 10 inch 16:10 page it would be 0.35 cm from it, not the 0.54 the rule asks)
+const BACK = { by: 0.35, from: 5.1, over: 0.7 };
+const backAt = sink => BACK.by * smooth((sink - BACK.from) / BACK.over);
+// The tip of her snout as her head stands in the hold (cm, measured: tools/tjorn3d-probe.mjs --show)
+const SNOUT = [-0.04, 6.27, 5.31];
 export const TURN = 32.0; // the second she turns, deep down and unseen
 export const HOLD = { from: 36.4, to: 42 }; // her head is up and still: the show's biggest moment
 export const SAIL = { up: 23.6, down: 28.6 }; // her sail is all the way up between these
@@ -66,23 +74,32 @@ const U = channel([[8, -10.0], [19, -8.6], [22, -6.5, 'in'], [29, 3.3, 'lin'], [
 const SINK = channel([
   [8, DEEP + 1], [19, 14.6, 'out'], [21.6, 12.4], [SAIL.up, 8.66], [SAIL.down, 8.66], [30.2, 12.6], [TURN, DEEP, 'in'],
   // the head: up through the murk, then out of the water more and more slowly
-  [32.4, DEEP], [34.4, 11.5, 'lin'], [HOLD.from, HEAD.sink, 'out'], [43.5, HEAD.sink],
-  // the fish: she dips a little into the dart, comes down with it and bobs up again (never higher than her head stood: the page
-  // has no more room over it at the smallest screen)
-  [43.84, 5.3, 'in'], [44.1, 5.1, 'out'], [44.5, 8.6, 'in'], [45.3, 7.2, 'out'], [46.4, 7.4], [49, 7.5],
+  [32.4, DEEP], [34.4, 11.5, 'lin'], [HOLD.from, HEAD.sink, 'out'], [43.98, HEAD.sink],
+  // the fish: when she has it she comes down with it and bobs up again (never higher than her head stood: the page has no more
+  // room over it at the smallest screen)
+  [44.5, 8.6, 'in'], [45.3, 7.2, 'out'], [46.4, 7.4], [49, 7.5],
   // the butterfly: she holds still, then sinks, slowly at first
   [55.2, 7.5], [GONE, DEEP, 'in'],
 ]);
 const SWIM = channel([[8, 0.5], [19, 0.6], [22, 1], [30, 1], [TURN, 0.4]]);
-const JAW = channel([[43.45, 0], [43.72, 24, 'out'], [43.84, 5, 'in'], [45.0, 5], [45.2, 18], [45.45, 0]]);
-const STRIKE = channel([[43.5, 0], [43.84, 1, 'in'], [44.0, 1], [44.6, 0]]);
-const TOSS = channel([[44.5, 0], [45.2, 1], [46.3, 0]]);
+// her jaw opens 9 degrees at most (kafli2-uggedla.js JAW_MAX): open as she darts, shut on the fish, open once more as it goes down
+const JAW = channel([[43.5, 0], [43.74, 9, 'out'], [43.84, 0, 'in'], [45.78, 0], [45.95, 8], [46.12, 0]]);
+// From the fish's coming to her swallowing it her head is led by the tip of her snout (the rig's strike: neck and head reach until
+// the tip is on a point), not by her look: the point is hers to the millimetre, so the catch is where the fish is and her head never
+// rises over where it stood. STRIKE is how much of her head's pose is the reach's.
+const STRIKE = channel([[42.5, 0], [43.2, 1], [46.9, 1], [47.9, 0]]);
+
+/** A path through points from rows [t, [x, y, z], ease into it]: as a channel, for three numbers. */
+function path(rows) {
+  const parts = [0, 1, 2].map(i => channel(rows.map(([t, p, ease]) => [t, p[i], ease])));
+  return t => parts.map(part => part(t));
+}
 
 /**
  * Her at a second: whether she is there at all, her root's place ([x, z]) and how far it is under the surface, her way and how far
  * her whole body is tipped nose up (degrees), her neck (tuck: 0 folded low, 1 at ease), her tail's swimming, her jaw (degrees),
- * how much she reaches for the fish, her head thrown back, and what she looks at ('eye' the viewer, 'fish', 'butterfly', 'ahead':
- * straight at him and level, so the butterfly sits in full view on her snout; null: nothing).
+ * how much her head is led by the tip of her snout and where that tip is put (`snout`, [x, y, z]), and what she looks at ('eye' the
+ * viewer, 'butterfly'; null: nothing).
  */
 export function herAt(t) {
   const sink = SINK(t);
@@ -90,16 +107,18 @@ export function herAt(t) {
     return { there: t >= 8, at: along(U(t)), sink, heading: LINE.heading, pitch: 0, tuck: 0, swim: SWIM(t), jaw: 0, strike: 0, toss: 0, look: null, lookWeight: 0 };
   }
   let look = null, lookWeight = 0;
-  // (her look is what holds her head down from her body's own way, 62 degrees up: it lets go only while her neck reaches for the
-  // fish and while she is low in the water after it)
-  if (t >= 34.2 && t < 42.4) { look = 'eye'; lookWeight = 1; }
-  else if (t >= 42.4 && t < JUMP.take) { look = 'fish'; lookWeight = 1; }
-  else if (t >= 46.0 && t < 50.6) { look = 'eye'; lookWeight = 1; }
+  // (her look is what holds her head down from her body's own way, 62 degrees up: it lets go only while the tip of her snout leads)
+  if (t >= 34.2 && t < 42.5) { look = 'eye'; lookWeight = 1; }
+  else if (t >= 46.9 && t < 50.6) { look = 'eye'; lookWeight = 1; }
   else if (t >= 50.6 && t < BUTTERFLY_TIMES.off) { look = 'butterfly'; lookWeight = 1; } // (play.js: it turns into 'ahead' as the butterfly comes near)
   else if (t >= BUTTERFLY_TIMES.off && t < 57.4) { look = 'butterfly'; lookWeight = 0.6; }
+  const back = backAt(sink);
+  const strike = STRIKE(t);
+  // the tip's place goes with her body: down as she sinks, away as she stands back
+  const tip = strike > 0 ? SNOUT_PATH(t) : null;
   return {
-    there: t < GONE, at: HEAD.at, sink, heading: HEAD.heading, pitch: HEAD.pitch, tuck: 1, swim: 0,
-    jaw: JAW(t), strike: STRIKE(t), toss: TOSS(t), look, lookWeight,
+    there: t < GONE, at: back ? [HEAD.at[0], HEAD.at[1] - back] : HEAD.at, sink, heading: HEAD.heading, pitch: HEAD.pitch, tuck: 1, swim: 0,
+    jaw: JAW(t), strike, toss: 0, snout: tip && [tip[0], tip[1] - (sink - HEAD.sink), tip[2] - back], look, lookWeight,
   };
 }
 
@@ -110,10 +129,11 @@ export function herAt(t) {
 export const JUMP = {
   size: 2.5, // cm long
   from: [8.4, -13.5, 2.2], // where it is first seen: small and far down
-  exit: [4.6, 0, 5.4], // where it leaves the water
+  exit: [4.3, 0, 5.1], // where it leaves the water
   catch: [0.5, 5.9], // [x, z] where she takes it, just past the top
   top: 4.45, // cm: its middle at the top of its arc (its back is some 0.6 higher)
-  rise: 40.4, out: 43.0, take: 43.84, gulp: 45.3,
+  short: [0, -0.15, -0.4], // the tip of her snout stops this far from its middle: under it, on her side of it
+  rise: 40.4, out: 43.0, take: 43.84, gulp: 46.1, // (it goes down her throat over the last third of a second before `gulp`)
 };
 const JUMP_UP = Math.sqrt(2 * GRAVITY * JUMP.top); // cm/s as it leaves the water
 JUMP.topAt = JUMP.out + JUMP_UP / GRAVITY;
@@ -141,6 +161,15 @@ export function jumperAt(t) {
   };
 }
 const JUMP_HEADING = (Math.atan2(JUMP.catch[1] - JUMP.exit[2], JUMP.catch[0] - JUMP.exit[0]) * 180) / Math.PI;
+
+// Where the tip of her snout goes (as her body stands in the hold; herAt takes it down and back with her): she turns to the fish as
+// it comes up, draws back, darts and has it; follows through; carries it, her head toward the viewer; flicks it down; and is back.
+const MEET = (() => { const at = jumperAt(JUMP.take - 1e-6).at; return at.map((x, i) => x + JUMP.short[i]); })();
+const CARRY = [0, 5.9, 5.2];
+const SNOUT_PATH = path([
+  [42.5, SNOUT], [43.3, [1.0, 5.9, 5.0]], [43.56, [1.0, 6.2, 4.6]], [JUMP.take, MEET, 'in'], [43.98, [MEET[0] - 0.45, MEET[1] - 0.25, MEET[2] + 0.1], 'out'],
+  [44.7, CARRY], [45.75, CARRY], [46.0, [CARRY[0], CARRY[1] + 0.7, CARRY[2] - 0.6], 'out'], [46.4, CARRY], [46.9, SNOUT],
+]);
 
 // ---------------------------------------------------------------------------------------------
 // The small fish: each patrols a small round at its own depth while the pond is calm, darts to a place out of her way as her
@@ -211,7 +240,7 @@ export const RINGS = [
   [34.4, NECK[0], NECK[1] + 0.2, 1.3], [34.9, 0.5, 2.0, 1.0], [35.5, -1.7, 1.7, 0.9], [36.2, 1.8, 1.5, 0.8], [37.6, 0.2, 3.1, 0.5], [39.2, -1.9, 1.4, 0.4], [40.8, 1.9, 1.6, 0.4],
   // 5. the fish leaves the water; she comes down; the water settles
   [JUMP.out, E[0], E[2], 1.2], [JUMP.out + 0.22, E[0] + 0.2, E[2], 0.7],
-  [44.42, NECK[0], NECK[1], 1.5], [44.58, -1.7, 1.9, 1.1], [44.74, 1.8, 1.7, 1.1], [45.5, 0.2, 3.1, 0.8], [46.8, -1.8, 1.5, 0.5], [48.4, 1.8, 1.6, 0.4],
+  [44.42, NECK[0], NECK[1], 1.5], [44.58, -1.7, 1.9, 1.1], [44.74, 1.8, 1.7, 1.1], [45.5, 0.2, 3.1, 0.8], [46.2, 0, 2.2, 0.6], [46.9, -1.8, 1.5, 0.5], [48.4, 1.8, 1.6, 0.4],
   // 6. the butterfly leaves its lily; she goes under; it is home
   [BUTTERFLY_TIMES.up + 0.1, BUTTERFLY_LILY[0], BUTTERFLY_LILY[1], 0.35],
   [56.4, 0.1, 2.3, 0.6], [57.2, NECK[0], NECK[1] + 0.3, 1.1], [57.8, 0.4, 2.3, 0.9], [58.5, -0.3, 2.6, 0.7], [59.3, 0, 2.5, 0.5],

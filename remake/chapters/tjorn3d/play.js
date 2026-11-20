@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { glints } from '../../world/props/sparkles.js';
 import { seededRandom } from '../../engine/random.js';
+import { THROAT } from '../kafli2-uggedla.js';
 import { BUTTERFLY, FROG, LILIES, under } from './keys.js';
 import {
   LENGTH, GRAVITY, JUMP, FISH, BUBBLE, BUBBLES, RINGS, SPLASHES, RUNOFF, DROPS, FLIGHT, BUTTERFLY_TIMES,
@@ -21,19 +22,38 @@ const DROP = { size: 0.2, life: 1.7, colour: '#eefbfd' }; // metres across at th
 const DROP_LOOK = { glow: 1, falloff: 3.2, star: 0, twinkle: 0, rim: 1, vary: 1, core: '#ffffff', blending: THREE.AdditiveBlending }; // chapter 2's spray
 const FLAP = { mid: 0.85, swing: 0.3, pace: 1.2 }; // the butterfly's wings at rest: radians up from flat, opening and closing
 const AHEAD = [0, 4.2, 26]; // where she looks while the butterfly sits on her snout: at the viewer and level, so her snout lies in full view
-const SHORT = [0, -0.15, -0.4]; // the tip of her snout stops this far from the fish's middle (cm): under it, on her side of it
+const SLIDE = 0.14; // s: the fish from where her jaws shut on it into them (chapter 2's catch: 0.12)
+const GULP = 0.35; // s: the fish down her throat, before JUMP.gulp (chapter 2's)
+// Splash drops stay on the page: none is thrown where its picture (either eye's) would leave these bounds (cm from the page's
+// middle: a 10 inch page's 4 % margins in its narrower shape each way, less a drop's own reach)
+const DROP_PAGE = { x: 9.1, z: 5.95 };
 const rad = d => (d * Math.PI) / 180;
 const Y = new THREE.Vector3(0, 1, 0);
 
 export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flowerTop, frogSeat, stage, ripples, clock, bubbles, mostBubbles, eyePoint, strikePoint, skin, part, view }) {
   const state = { t: 0, part: null, look: null, heldFish: false, jumper: false, onSnout: false, flying: false, drops: 0 };
   const lookPoint = new THREE.Vector3();
-  const looks = Object.fromEntries(['eye', 'fish', 'butterfly'].map(name => [name, out => out.copy(lookPoint)])); // one a kind: a new one comes with a blink (engine/actor.js)
+  const looks = Object.fromEntries(['eye', 'butterfly'].map(name => [name, out => out.copy(lookPoint)])); // one a kind: a new one comes with a blink (engine/actor.js)
   const lily = flowerTop(LILIES[BUTTERFLY.lily]);
   const jumperPoint = new THREE.Vector3(), butterflyPoint = new THREE.Vector3().copy(lily);
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3(), seat = new THREE.Vector3(), seatUp = new THREE.Vector3(), up = new THREE.Vector3();
   const left = { known: false, seat: new THREE.Vector3(), up: new THREE.Vector3() }; // her snout as it was when the butterfly lifted off it
-  const LIMITS = { eye: { maxAngle: 60, maxPitch: 40 }, fish: { maxAngle: 60, maxPitch: 40 }, butterfly: { maxAngle: 60, maxPitch: 70 } }; // (her look is counted from her body's own way, tipped nose up)
+  const LIMITS = { eye: { maxAngle: 60, maxPitch: 40 }, butterfly: { maxAngle: 60, maxPitch: 70 } }; // (her look is counted from her body's own way, tipped nose up)
+  // the fish as it is the moment her jaws shut on it (its holder's place in the world), and as it lies in her jaws and at her throat
+  // (in her Head bone's frame): it goes from the one into the other, and down
+  const head = rig.bones.Head;
+  const taken = new THREE.Matrix4(), toHead = new THREE.Matrix4();
+  {
+    const j = jumperAt(JUMP.take - 1e-6);
+    cast.jumper.show(V(...j.at), j.heading, JUMP.size * S, { pitch: j.pitch, beat: j.beat });
+    cast.jumper.group.updateWorldMatrix(true, false);
+    taken.copy(cast.jumper.group.matrixWorld);
+    cast.jumper.hide();
+  }
+  rig.fish.hold(JUMP.size * S);
+  const jaws = { p: rig.fish.group.position.clone(), q: rig.fish.group.quaternion.clone(), s: rig.fish.group.scale.clone() };
+  rig.fish.hide();
+  const from = { p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3() };
 
   // ---- the drops: one set for the whole show; each drop is a thrown thing, where it is at a second worked out from its start ----
   const set = glints(world, { count: DROPS, life: DROP.life, spread: 0, fall: 0, size: DROP.size, colour: DROP.colour, seed: 'tjorn drops', look: DROP_LOOK });
@@ -48,12 +68,31 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
   }
   const random = seededRandom('tjorn splashes');
   const drops = []; // { born, from: [x, y, z] cm or null (her skin's, taken when it is born), v: [x, y, z] cm/s, vertex }
+  const eyesCm = [stage.eyes.left, stage.eyes.right].map(e => ({ x: e.x / S, y: e.y / S, z: e.z / S }));
+  /** Whether a thrown drop's picture stays on the page all its way, for both eyes. */
+  const staysOnPage = (p, v) => {
+    const lands = (v[1] + Math.sqrt(v[1] * v[1] + 2 * GRAVITY * p[1])) / GRAVITY;
+    for (let k = 0; k <= 10; k++) {
+      const age = (lands * k) / 10;
+      const x = p[0] + v[0] * age, y = Math.max(0, p[1] + v[1] * age - 0.5 * GRAVITY * age * age), z = p[2] + v[2] * age;
+      for (const e of eyesCm) {
+        const u = e.y / (e.y - y);
+        if (Math.abs(e.x + (x - e.x) * u) > DROP_PAGE.x || Math.abs(e.z + (z - e.z) * u) > DROP_PAGE.z) return false;
+      }
+    }
+    return true;
+  };
   for (const [t, x, z, count, [slow, fast], [least, most], round] of SPLASHES) {
     for (let i = 0; i < count; i++) {
-      const turn = random() * 2 * Math.PI, far = round * Math.sqrt(random()), out = least + (most - least) * random();
-      let vz = out * Math.sin(turn);
-      if (vz > 0) vz *= 0.55; // less toward the viewer's edge, where the page ends
-      drops.push({ born: t + 0.12 * random(), from: [x + far * Math.cos(turn), 0, z + far * Math.sin(turn) * 0.8], v: [out * Math.cos(turn), slow + (fast - slow) * random() ** 1.4, vz] });
+      let p = null, v = null;
+      for (let tries = 0; tries < 60; tries++) { // (each try draws anew; the same drops every time)
+        const turn = random() * 2 * Math.PI, far = round * Math.sqrt(random()), out = least + (most - least) * random();
+        p = [x + far * Math.cos(turn), 0, z + far * Math.sin(turn) * 0.8];
+        v = [out * Math.cos(turn), slow + (fast - slow) * random() ** 1.4, out * Math.sin(turn)];
+        if (staysOnPage(p, v)) break;
+        p = null;
+      }
+      drops.push({ born: p ? t + 0.12 * random() : Infinity, from: p ?? [x, 0, z], v: v ?? [0, 0, 0] });
     }
   }
   // her skin's points that water lets go of: her head, her neck and her chest
@@ -147,6 +186,7 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
       V(...j.at, jumperPoint);
       cast.jumper.show(jumperPoint, j.heading, JUMP.size * S, { pitch: j.pitch, beat: j.beat });
     } else cast.jumper.hide();
+    // (it wriggles in her jaws, less and less; how it gets into them and down her throat: late())
     const held = t >= JUMP.take && t < JUMP.gulp;
     if (held) { rig.fish.hold(JUMP.size * S); rig.fish.wriggle(3, 1 - 0.8 * smooth((t - JUMP.take - 0.7) / 0.6)); }
     else if (state.heldFish) rig.fish.hide();
@@ -160,17 +200,16 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     Object.assign(rig.station, { x: h.at[0] * S, z: h.at[1] * S, heading: h.heading });
     rig.beat = 3.2 * t;
     tip.pitch = h.pitch;
-    // the fish's place when her jaws shut, a little short of its middle
-    const meet = jumperAt(JUMP.take - 1e-4).at;
-    V(meet[0] + SHORT[0], meet[1] + SHORT[1], meet[2] + SHORT[2], strikePoint);
-    rig.target = h.strike > 0 ? strikePoint : null;
+    // where the tip of her snout is put while it leads her head (round the catch)
+    if (h.snout) V(...h.snout, strikePoint);
+    rig.target = h.snout ? strikePoint : null;
     // what she looks at
     const bf = butterflyAt(t);
     if (h.look === 'eye') lookPoint.copy(eyePoint);
-    else if (h.look === 'fish') lookPoint.copy(j ? jumperPoint : strikePoint);
     else if (h.look === 'butterfly') {
-      // she watches it come, and as it nears her snout she looks straight ahead, level, and holds still for it
-      const near = bf.on === 'over' ? smooth((bf.u - 0.45) / 0.4) : bf.on === 'snout' ? 1 : 0;
+      // she watches it come, and as it nears her snout she looks straight ahead, level, and holds still for it; when it has lifted
+      // off she looks ahead a moment more (her snout must not swing after it while it is near), then after it
+      const near = bf.on === 'over' ? smooth((bf.u - 0.45) / 0.4) : bf.on === 'snout' ? 1 : bf.on === 'back' ? 1 - smooth((bf.u - 0.3) / 0.4) : 0;
       lookPoint.copy(butterflyPoint).lerp(V(...AHEAD, a), near);
     }
     if (h.look !== state.look || h.lookWeight !== state.lookWeight) {
@@ -223,6 +262,22 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
   function late() {
     const t = state.t;
     wetDrops(t);
+    if (state.heldFish) {
+      const { group } = rig.fish;
+      if (t < JUMP.take + SLIDE) {
+        // from where it was the moment her jaws shut (as her head is now) into her jaws, turning to lie along her snout
+        head.updateWorldMatrix(true, false);
+        toHead.copy(head.matrixWorld).invert().multiply(taken).decompose(from.p, from.q, from.s);
+        const k = smooth((t - JUMP.take) / SLIDE);
+        group.position.lerpVectors(from.p, jaws.p, k);
+        group.quaternion.slerpQuaternions(from.q, jaws.q, k);
+        group.scale.lerpVectors(from.s, jaws.s, k);
+      } else if (t > JUMP.gulp - GULP) {
+        const k = smooth((t - (JUMP.gulp - GULP)) / GULP);
+        group.position.lerpVectors(jaws.p, THROAT, k);
+        group.scale.copy(jaws.s).multiplyScalar(1 - k);
+      }
+    }
     if (!cast.butterfly.loaded) return;
     const bf = butterflyAt(t);
     if (bf.on === 'snout') {

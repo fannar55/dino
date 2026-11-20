@@ -85,7 +85,7 @@ const TAIL = BONES.filter(name => name.startsWith('Tail'));
 // goes down her throat.
 const SNOUT = new V3(2.79, -0.633, 0.026);
 const MOUTH = new V3(2.5, -0.7, 0); // where its nose is
-const THROAT = new V3(1.55, -0.45, 0);
+export const THROAT = new V3(1.55, -0.45, 0); // (chapters/tjorn3d/play.js sends its fish the same way)
 /** Where the middle of a fish `size` metres long is in her jaws. */
 const inJaws = (size, out = new V3()) => out.set(MOUTH.x + size / 2, MOUTH.y, MOUTH.z);
 const FISH_LENGTH = 0.3; // the Fen's fish, in metres; it is drawn at size / FISH_LENGTH
