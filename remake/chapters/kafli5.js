@@ -106,14 +106,17 @@ const BAND = { in: 2, join: 1.5, turn: 16, rhythm: 2 * BEAT, out: 8 * BEAT };
 export const SET_LEVEL = 1.75;
 const SET_TAIL = 2.4; // s after the set's last hit before she speaks: its ring
 // A hand on the fader (the owner's yes of 2026-11-18): the set's level is ridden through the scene as a DJ's hand would, in slow
-// moves a child does not hear as the volume being touched. By the file the last chorus plays 0.8 LU under the first drop at one
-// level, so the show's end did not top its middle: it is pulled back a little through the build and brought up again over the
-// count's last bar, so the drop comes out of less; pulled back as the record stops in the ending that is not one, and pushed up
-// under "Einu sinni enn!" to FINALE, where the last chorus sits about 0.7 LU over the first drop, the loudest music of the night,
-// and stays to the last hit. Each { beat, level, seconds }: from the set's beat `beat` the level goes to `level` over `seconds`.
-// (The page's limiter, engine/audio/output.js, takes 0.2 dB off the highest peaks at SET_LEVEL and 0.5 dB at FINALE, by a model
-// of it fed the file: the ride is neither flattened nor clipped. At 2.3 the peaks reach full scale: FINALE stays under 2.2.)
-export const FINALE = 2.1;
+// moves a child does not hear as the volume being touched. By the file the last chorus does not top the first drop at one level
+// (its first two bars play 0.2 LU under the drop's: -10.7 against -10.5 LUFS, the song of 2026-11-20), so the show's end did not
+// top its middle: it is pulled back a little through the build and brought up again over the count's last bar, so the drop comes
+// out of less; pulled back as the record stops in the ending that is not one, and pushed up under "Einu sinni enn!" to FINALE,
+// where the last chorus opens about 1 LU over the first drop, the loudest music of the night, and stays to the last hit. Each
+// { beat, level, seconds }: from the set's beat `beat` the level goes to `level` over `seconds`.
+// (The page's limiter, engine/audio/output.js, takes about 0.2 dB off the highest peaks at SET_LEVEL and 0.5 dB at FINALE, by a
+// model of it fed the file: the ride is neither flattened nor clipped. The song of 2026-11-20 has its highest peak in the last
+// chorus (beat 432, 0.3 dB over the first song's peak there), and at 2.1, where FINALE stood until then, a recording of the
+// chapter touched full scale on it: at 2.0 the highest peak is as far under full scale as it was, about 0.3 dB.)
+export const FINALE = 2.0;
 const PULLED_BACK = 1.5;
 const partBeat = id => SET.sections.find(section => section.id === id).startBeat;
 export const RIDE = [

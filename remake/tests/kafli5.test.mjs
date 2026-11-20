@@ -440,12 +440,13 @@ test('a hand on the fader: the set\'s level is ridden slowly, back before the dr
   for (let beat = 0; beat < part('lastchorus').startBeat; beat += 0.25) assert.ok(levelAt(beat) < FINALE, `beat ${beat} is under the finale`);
   assert.ok(Math.max(...Array.from({ length: part('fakeend').startBeat * 4 }, (_, i) => levelAt(i / 4))) <= SET_LEVEL, 'nothing before the false ending is over the level it had');
   assert.equal(Math.max(...RIDE.map(move => move.level), SET_LEVEL), FINALE);
-  // by the file the last chorus is 0.85 LU under the first drop at one level (-13.49 against -12.64 LUFS, BS.1770, measured from
-  // djamm.mp3); the finale's level puts it 0.5 to 1 LU over. And it stays under 2.2: at 2.3 the set's peaks reach full scale
-  // going into the page's limiter (engine/audio/output.js; a model of it fed the file)
-  const over = dB(FINALE / SET_LEVEL) - 0.85;
+  // by the file the last chorus's first two bars are 0.2 LU under the first drop's at one level (-10.7 against -10.5 LUFS,
+  // BS.1770, measured from djamm.mp3 as it is since 2026-11-20: each drop opens with the crowd's cheer, so the two are compared
+  // over their first two bars); the finale's level puts the last chorus 0.5 to 1 LU over. And it stays under 2.1: there a
+  // recording of the chapter touched full scale on this song's highest peak (the last chorus, beat 432)
+  const over = dB(FINALE / SET_LEVEL) - 0.2;
   assert.ok(over >= 0.5 && over <= 1, `the last chorus sits ${over.toFixed(2)} LU over the first drop`);
-  assert.ok(FINALE < 2.2);
+  assert.ok(FINALE < 2.1);
   // as it is played: each move on its beat, in order
   const run = await untouched();
   const c = run.world.chapterState;
