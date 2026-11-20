@@ -22,7 +22,8 @@
         "kambeðlan",
         "kambeðlu",
         "Kambeðlurnar",
-        "kambeðlurnar"
+        "kambeðlurnar",
+        "kambeðlunni"
       ],
       "recipes": {
         "hratt": {
@@ -318,7 +319,8 @@
       "word": "Mundu",
       "stem": "[Mm]und",
       "forms": [
-        "Mundu"
+        "Mundu",
+        "mundu"
       ],
       "recipes": {
         "hratt": {
@@ -340,7 +342,11 @@
         "Flugeðlu",
         "Flugeðlan",
         "Flugeðlur",
-        "Flugeðlurnar"
+        "Flugeðlurnar",
+        "flugeðla",
+        "flugeðlunum",
+        "flugeðlur",
+        "flugeðlurnar"
       ],
       "recipes": {
         "hratt": {
@@ -352,7 +358,11 @@
             "Flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
             "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\"",
             "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
-            "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\""
+            "Flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\"",
+            "flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
+            "flugeðlunum": "\"/ˈflʏːɣˌɛðlʏnʏm/\"",
+            "flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
+            "flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -361,6 +371,20 @@
           "context": "Flugeðlan flýgur hátt yfir skóginum og veifar vængjunum.",
           "seed": 42,
           "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42 (tapaði fyrir IPA í Eitt!)."
+        },
+        "bandstrik": {
+          "say": {
+            "Flugeðla": "Flug-eðla",
+            "Flugeðlu": "Flug-eðlu",
+            "Flugeðlan": "Flug-eðlan",
+            "Flugeðlur": "Flug-eðlur",
+            "Flugeðlurnar": "Flug-eðlurnar",
+            "flugeðla": "flug-eðla",
+            "flugeðlunum": "flug-eðlunum",
+            "flugeðlur": "flug-eðlur",
+            "flugeðlurnar": "flug-eðlurnar"
+          },
+          "note": "Bandstrik milli orðhlutanna, „flug-eðlur“. Hjá sögumanninum heyrði talgreining fyrstu töku línu 62 í heimsmyndbandinu („Yfir lóninu fljúga flugeðlur“) sem „flug eðlur“ eða „flugæðlur“, fræ 1 sem „flugæðlur“ og fræ 7 sem „flugeldur“, en þessa sem „flugeðlur“ í öll þrjú skiptin; lína 62 sendir þetta sjálf, með samhengi bókarinnar (óheyrt, 2026-11-09)."
         }
       },
       "chosen": "samhengi"
@@ -374,7 +398,8 @@
         "Þórseðlan",
         "þórseðlan",
         "Þórseðlurnar",
-        "þórseðluparið"
+        "þórseðluparið",
+        "Þórseðlur"
       ],
       "recipes": {
         "hratt": {
@@ -387,7 +412,8 @@
             "Þórseðlan": "\"/ˈθoursˌɛðlan/\"",
             "þórseðlan": "\"/ˈθoursˌɛðlan/\"",
             "Þórseðlurnar": "\"/ˈθoursˌɛðlʏrtnar/\"",
-            "þórseðluparið": "\"/ˈθoursˌɛðlʏˌpʰaːrɪð/\""
+            "þórseðluparið": "\"/ˈθoursˌɛðlʏˌpʰaːrɪð/\"",
+            "Þórseðlur": "\"/ˈθoursˌɛðlʏr/\""
           },
           "note": "IPA /ˈθoursˌɛðla/ (óheyrt)."
         },
@@ -403,7 +429,8 @@
       "stem": "[Uu]ggeðl",
       "forms": [
         "Uggeðla",
-        "Uggeðlu"
+        "Uggeðlu",
+        "uggeðla"
       ],
       "recipes": {
         "hratt": {
@@ -412,7 +439,8 @@
         "ipa": {
           "say": {
             "Uggeðla": "\"/ˈʏkːˌɛðla/\"",
-            "Uggeðlu": "\"/ˈʏkːˌɛðlʏ/\""
+            "Uggeðlu": "\"/ˈʏkːˌɛðlʏ/\"",
+            "uggeðla": "\"/ˈʏkːˌɛðla/\""
           },
           "note": "IPA /ˈʏkːˌɛðla/ (óheyrt)."
         },
@@ -458,7 +486,10 @@
         "Grameðlu",
         "grameðla",
         "grameðlu",
-        "Grameðlur"
+        "Grameðlur",
+        "grameðlan",
+        "Grameðlan",
+        "grameðlunnar"
       ],
       "recipes": {
         "hratt": {
@@ -470,7 +501,10 @@
             "Grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
             "grameðla": "\"/ˈkraːmˌɛðla/\"",
             "grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
-            "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\""
+            "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\"",
+            "grameðlan": "\"/ˈkraːmˌɛðlan/\"",
+            "Grameðlan": "\"/ˈkraːmˌɛðlan/\"",
+            "grameðlunnar": "\"/ˈkraːmˌɛðlʏnar/\""
           },
           "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
         },
@@ -1179,12 +1213,12 @@
             "of": "\"/ˈɔːv/\""
           },
           "seed": 42,
-          "note": "IPA /ˈɔːv/: opið o, f sem v."
+          "note": "IPA /ˈɔːv/: opið o, f sem v. Hjá sögumanninum heyrði talgreining „oh“ fyrir „of lítil“ í línu 81 í heimsmyndbandinu, með fræjum 42, 7 og 1 (2026-11-09)."
         },
         "samhengi": {
           "context": "Of langt! Allt of langt í burtu.",
           "seed": 42,
-          "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað)."
+          "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað). Talgreining heyrði „of“ rétt hjá sögumanninum í línu 81 í heimsmyndbandinu, sem sendir þetta sjálf (óheyrt, 2026-11-09)."
         }
       }
     },
@@ -1939,7 +1973,8 @@
       "forms": [
         "Synti",
         "synt",
-        "syntu"
+        "syntu",
+        "synti"
       ],
       "recipes": {
         "hratt": {
@@ -1953,7 +1988,9 @@
       "stem": "[Hh]itt",
       "forms": [
         "hittum",
-        "hittast"
+        "hittast",
+        "hittust",
+        "hitta"
       ],
       "recipes": {
         "hratt": {
@@ -2377,14 +2414,20 @@
       "word": "Klettaveggur",
       "stem": "[Kk]lettavegg",
       "forms": [
-        "Klettaveggurinn"
+        "Klettaveggurinn",
+        "klettaveggjanna",
+        "klettavegg"
       ],
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað, takan í leiknum til 2026-11-02. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready)."
         },
         "ipa": {
-          "say": "\"/ˈkʰlɛhtaˌvɛkːʏrɪn/\"",
+          "say": {
+            "Klettaveggurinn": "\"/ˈkʰlɛhtaˌvɛkːʏrɪn/\"",
+            "klettaveggjanna": "\"/ˈkʰlɛhtaˌvɛcːanːa/\"",
+            "klettavegg": "\"/ˈkʰlɛhtaˌvɛkː/\""
+          },
           "note": "IPA /ˈkʰlɛhtaˌvɛkːʏrɪn/. Þú hafnaðir henni 2026-11-02 (tal-síðan, Hvar er vinur minn?, g2_cliff_ready, með „reipið“ líka í IPA)."
         },
         "samhengi": {
@@ -2424,10 +2467,13 @@
         "Steingervingar",
         "steingervingum",
         "steingervingnum",
-        "steingervingana"
+        "steingervingana",
+        "steingervingi",
+        "steingervinga"
       ],
       "except": [
-        "Steingervingafræðingar"
+        "Steingervingafræðingar",
+        "steingervingafræðingur"
       ],
       "recipes": {
         "hratt": {
@@ -2474,6 +2520,511 @@
         }
       },
       "chosen": "hratt"
+    },
+    "vaff": {
+      "word": "V (bókstafurinn)",
+      "stem": "V$",
+      "forms": [
+        "V"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þá er óvíst hvort Eleven segir nafn stafsins („vaff“) eða bara hljóðið."
+        },
+        "stafsetning": {
+          "say": {
+            "V": "vaff"
+          },
+          "seed": 42,
+          "note": "„vaff“, nafn stafsins á íslensku; textinn á skjánum heldur „V“ (fuglamyndbandið, lína 11; óheyrt). Fræ 42."
+        }
+      },
+      "chosen": "stafsetning"
+    },
+    "svanedla": {
+      "word": "Svaneðla",
+      "stem": "[Ss]vaneðl",
+      "forms": [
+        "svaneðla",
+        "svaneðlurnar",
+        "Svaneðlurnar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði fyrstu töku línu 10 í dýramyndbandinu sem „svamiðla“ (2026-11-08)."
+        },
+        "samhengi": {
+          "context": "Svaneðlan synti um sjóinn og teygði langa hálsinn sinn.",
+          "seed": 42,
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42, eins og hjá Flugeðlu (óheyrt). Vann aftur í línu 58 í heimsmyndbandinu (talgreining heyrði „svaneðla“), sem sendir þetta sjálf (2026-11-09)."
+        },
+        "ipa": {
+          "say": {
+            "svaneðla": "\"/ˈsvaːnˌɛðla/\"",
+            "svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\"",
+            "Svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\""
+          },
+          "seed": 42,
+          "note": "IPA eftir sömu reglu og Flugeðla /ˈflʏːɣˌɛðla/, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "elfting": {
+      "word": "Elfting",
+      "stem": "[Ee]lfting",
+      "forms": [
+        "Elfting",
+        "elftingu",
+        "elftingar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði „Elting“, „eltingu“ og „eltingar“, án f, í línum 31 og 32 í heimsmyndbandinu (líka með samhengi og fræjum 1, 7 og 42), en „elftingar“ rétt í línum 9, 18 og 30 (2026-11-08)."
+        },
+        "samhengi": {
+          "context": "Sumar plöntur frá tímum risaeðlanna eru samt enn til: burknar, barrtré og elftingar.",
+          "seed": 42,
+          "note": "Lína 30 í heimsmyndbandinu, þar sem talgreining heyrði „elftingar“ rétt, send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði samt „Elting“ (óheyrt)."
+        },
+        "samhengi-planta": {
+          "context": "Elfting er lítil græn planta með mjóa stöngla. Elftingar eru eldgamlar plöntur.",
+          "seed": 1,
+          "note": "Setning um elftingu send á undan sem samhengi en ekki töluð, fræ 1. Talgreining heyrði samt „Elting“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Elfting": "\"/ˈɛlftiŋk/\"",
+            "elftingu": "\"/ˈɛlftiŋkʏ/\"",
+            "elftingar": "\"/ˈɛlftiŋkar/\""
+          },
+          "seed": 42,
+          "note": "IPA með skýru f, fræ 42. Talgreining heyrði „Elfdink“ í línu 31 og „elftingum“, „elftingarnar“ í línu 32 (óheyrt)."
+        },
+        "ipa-1": {
+          "say": {
+            "Elfting": "\"/ˈɛlftiŋk/\"",
+            "elftingu": "\"/ˈɛlftiŋkʏ/\"",
+            "elftingar": "\"/ˈɛlftiŋkar/\""
+          },
+          "seed": 1,
+          "note": "Sama IPA, fræ 1. Talgreining heyrði „Elfding“ í línu 31 og „elfdingu“, „elfdingar“ í línu 32: f-ið og endingarnar rétt (d er óblásið t). Línur 31 og 32 senda þetta sjálfar (óheyrt)."
+        },
+        "ipa-7": {
+          "say": {
+            "Elfting": "\"/ˈɛlftiŋk/\"",
+            "elftingu": "\"/ˈɛlftiŋkʏ/\"",
+            "elftingar": "\"/ˈɛlftiŋkar/\""
+          },
+          "seed": 7,
+          "note": "Sama IPA, fræ 7. Talgreining heyrði „Elfding“ í línu 31 en „eldingu“, „eldingar“ í línu 32 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "sitjum": {
+      "word": "Sitjum",
+      "stem": "[Ss]itjum",
+      "forms": [
+        "Sitjum"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; lína 24 í heimsmyndbandinu sendir þetta. Talgreining (scribe) heyrði allar sex tökurnar sem „Setjum“, líka IPA með í-hljóði, en heyrir „situr“ og „sitjandi“ rétt í öðrum línum: líklega villa talgreiningar, en óheyrt (2026-11-08)."
+        },
+        "samhengi": {
+          "context": "Krakkarnir sitja kyrr á stólunum sínum. Við sitjum líka kyrr.",
+          "seed": 42,
+          "note": "Setning um að sitja send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Sitjum": "\"/ˈsɪːtjʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA, fræ 42. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "fraeid-7": {
+          "seed": 7,
+          "note": "Eins og það er skrifað, fræ 7. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "ipa-i": {
+          "say": {
+            "Sitjum": "\"/ˈsiːtjʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA með i eins og í „sítt“, fræ 42. Talgreining heyrði „Setjum“ (óheyrt)."
+        },
+        "ipa-7": {
+          "say": {
+            "Sitjum": "\"/ˈsɪːtjʏm/\""
+          },
+          "seed": 7,
+          "note": "Sama IPA og ipa, fræ 7. Talgreining heyrði „Setjum“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "brynvarin": {
+      "word": "Brynvarin",
+      "stem": "[Bb]rynvar",
+      "forms": [
+        "brynvarin"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði línu 52 í heimsmyndbandinu sem „brunvarinn“, og með fræjum 7 og 1 sem „brynværin“ og „brynvörin“ (2026-11-09)."
+        },
+        "bandstrik": {
+          "say": {
+            "brynvarin": "bryn-varin"
+          },
+          "note": "Bandstrik milli orðhlutanna, „bryn-varin“. Talgreining heyrði „brynvarin“ rétt; lína 52 í heimsmyndbandinu sendir þetta sjálf (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "brynvarin": "\"/ˈprɪnˌvaːrɪn/\""
+          },
+          "note": "IPA. Talgreining heyrði „prinvarinn“, og „gabba“ fyrir gadda á eftir (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Brynvarin plöntuæta er með harða brynju á bakinu.",
+          "seed": 42,
+          "note": "Setning send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „brynvörnin“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "dungramur": {
+      "word": "Dúngramur",
+      "stem": "[Dd]úngram",
+      "forms": [
+        "dúngramur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining heyrði línu 76 í heimsmyndbandinu sem „dunkgramur“, og með fræjum 7 og 1 sem „dunkrammur“ (2026-11-09)."
+        },
+        "bandstrik": {
+          "say": {
+            "dúngramur": "dún-gramur"
+          },
+          "note": "Bandstrik milli orðhlutanna, „dún-gramur“. Talgreining heyrði „dúngramur“ rétt; lína 76 í heimsmyndbandinu sendir þetta sjálf (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "dúngramur": "\"/ˈtuːnˌkraːmʏr/\""
+          },
+          "note": "IPA. Talgreining heyrði „tunggramur“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Dúngramur var stór risaeðla, þakin dúni og fjöðrum.",
+          "seed": 42,
+          "note": "Setning send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „dunkrammur“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "paedla": {
+      "word": "Páeðla",
+      "stem": "[Pp]áeðl",
+      "forms": [
+        "páeðla"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; lína 77 í heimsmyndbandinu sendir þetta. Talgreining heyrði „páæðla“ í fimm tökum af sex (án fræs, fræ 7 og 1, bandstrik, línan sem samhengi), eins og hún heyrir „andæðla“ í book_sloedla_6, sem þú samþykktir: líklega bara á og e saman, en óheyrt (2026-11-09)."
+        },
+        "bandstrik": {
+          "say": {
+            "páeðla": "pá-eðla"
+          },
+          "note": "Bandstrik, „pá-eðla“. Talgreining heyrði „páæðla“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "páeðla": "\"/ˈpʰauːˌɛðla/\""
+          },
+          "note": "IPA. Talgreining heyrði „páfaeðla“ (óheyrt)."
+        },
+        "samhengi-lina": {
+          "context": "Og páeðla, frænka Mosa, með gogg eins og páfagaukur og langar burstir á halanum.",
+          "seed": 7,
+          "note": "Lína 77 í heimsmyndbandinu send á undan sem samhengi en ekki töluð, fræ 7 (eins og Ný 3). Talgreining heyrði „páæðla“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "ranedla": {
+      "word": "Ráneðla",
+      "stem": "[Rr]áneðl",
+      "forms": [
+        "ráneðla"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining heyrði línu 93 í heimsmyndbandinu sem „ráðneðla“, líka með fræjum 7 og 1 (2026-11-09)."
+        },
+        "bandstrik": {
+          "say": {
+            "ráneðla": "rán-eðla"
+          },
+          "note": "Bandstrik milli orðhlutanna, „rán-eðla“. Talgreining heyrði „ránedla“ (ð sem d, eins og hún skrifar oft): rán rétt; lína 93 í heimsmyndbandinu sendir þetta sjálf (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "ráneðla": "\"/ˈrauːnˌɛðla/\""
+          },
+          "note": "IPA. Talgreining heyrði „ránedla“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Ráneðla er stór risaeðla sem veiðir önnur dýr.",
+          "seed": 42,
+          "note": "Setning send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „ráðneðla“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "gaddedla": {
+      "word": "Gaddeðla",
+      "stem": "[Gg]addeðl",
+      "forms": [
+        "gaddeðla"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining heyrði línu 99 í heimsmyndbandinu sem „gaddæðla“, líka með fræjum 7 og 1 (2026-11-09)."
+        },
+        "bandstrik": {
+          "say": {
+            "gaddeðla": "gadd-eðla"
+          },
+          "note": "Bandstrik milli orðhlutanna, „gadd-eðla“. Talgreining heyrði „gaddedla“ (ð sem d): e-ið rétt; lína 99 í heimsmyndbandinu sendir þetta sjálf (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "gaddeðla": "\"/ˈkatːˌɛðla/\""
+          },
+          "note": "IPA. Talgreining heyrði „gatteðla“ (dd er borið fram eins og tt) (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Gaddeðla er brynvarin risaeðla. Gaddeðlan sveiflar kylfunni á halanum.",
+          "seed": 42,
+          "note": "Setning send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „gadddeðla“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "andaedla": {
+      "word": "Andaeðla",
+      "stem": "[Aa]ndaeðl",
+      "forms": [
+        "andaeðla",
+        "andaeðlur",
+        "andaeðlan"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og book_sloedla_6 („Hún var andaeðla, ...“), sem þú samþykktir og talgreining heyrir „andæðla“. Hún heyrði línu 101 í heimsmyndbandinu sem „andaðlur“ (líka með fræjum 7 og 1) og línu 102 sem „andaðil hann“, „andræðlan“ og „andæðlan“ (2026-11-09)."
+        },
+        "bandstrik": {
+          "say": {
+            "andaeðla": "anda-eðla",
+            "andaeðlur": "anda-eðlur",
+            "andaeðlan": "anda-eðlan"
+          },
+          "note": "Bandstrik milli orðhlutanna, „anda-eðlur“. Talgreining heyrði „andaedlur“ (ð sem d) í línu 101 og „andaeðlan“ rétt í línu 102 í heimsmyndbandinu; báðar senda þetta sjálfar (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "andaeðla": "\"/ˈantaˌɛðla/\"",
+            "andaeðlur": "\"/ˈantaˌɛðlʏr/\"",
+            "andaeðlan": "\"/ˈantaˌɛðlan/\""
+          },
+          "note": "IPA. Talgreining heyrði „andaðlur“ og „andæðlan“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Hún var andaeðla, með breiðan gogg eins og önd.",
+          "seed": 42,
+          "note": "book_sloedla_6 send á undan sem samhengi en ekki töluð, fræ 42. Talgreining heyrði „andaðlur“ og „andæðlan“ (óheyrt)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "fleki": {
+      "word": "Flekar",
+      "stem": "[Ff]lek[aiu]",
+      "forms": [
+        "Flekarnir",
+        "flekar",
+        "flekum"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði fyrstu töku línu 45 í landreksmyndbandinu sem „Flekkarnir“ (2026-11-09)."
+        },
+        "fraeid-7": {
+          "seed": 7,
+          "note": "Eins og það er skrifað, fræ 7 (óheyrt)."
+        },
+        "bandstrik": {
+          "say": {
+            "Flekarnir": "Fle-karnir",
+            "flekar": "fle-kar",
+            "flekum": "fle-kum"
+          },
+          "note": "Bandstrik á milli atkvæða, svo e-ið verði langt og k-ið eitt (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Flekarnir": "\"/ˈflɛːkarnɪr/\"",
+            "flekar": "\"/ˈflɛːkar/\"",
+            "flekum": "\"/ˈflɛːkʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA með löngu e og einu k, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "marie": {
+      "word": "Marie",
+      "stem": "Marie",
+      "forms": [
+        "Marie"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Marie": "Marí"
+          },
+          "note": "Eins og íslenskur sögumaður segir nafnið: Marí (lína 40 í landreksmyndbandinu, óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Marie": "\"/ˈmaːri/\""
+          },
+          "seed": 42,
+          "note": "IPA, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "tharp": {
+      "word": "Tharp",
+      "stem": "Tharp",
+      "forms": [
+        "Tharp"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Tharp": "Þarp"
+          },
+          "note": "Th eins og þ, eins og íslenskur sögumaður segir nafnið: Þarp (lína 40 í landreksmyndbandinu, óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Tharp": "\"/θarp/\""
+          },
+          "seed": 42,
+          "note": "IPA, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "wegener": {
+      "word": "Wegener",
+      "stem": "Wegener",
+      "forms": [
+        "Wegener"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði „Wegener“ í línum 6, 26 og 69 og „Vegener“ í línum 17 og 46 í landreksmyndbandinu (2026-11-09); hvort g-ið er hart (eins og á þýsku) bíður eyrans hans."
+        },
+        "ipa": {
+          "say": {
+            "Wegener": "\"/ˈveːɡənɐ/\""
+          },
+          "seed": 42,
+          "note": "Þýskur framburður í IPA: v og hart g, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "chicxulub": {
+      "word": "Chicxulub",
+      "stem": "Chicxulub",
+      "forms": [
+        "Chicxulub"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Chicxulub": "Tsjiksjúlúb"
+          },
+          "note": "Eins og íslenskur sögumaður segir nafnið á gígnum: Tsjiksjúlúb (lína 37 í loftsteinsmyndbandinu, óheyrt). Á máli heimamanna er áherslan á síðasta atkvæðinu."
+        },
+        "ipa": {
+          "say": {
+            "Chicxulub": "\"/tʃikʃuˈlub/\""
+          },
+          "seed": 42,
+          "note": "IPA með áherslu á síðasta atkvæði, fræ 42 (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "esja": {
+      "word": "Esja",
+      "stem": "Esj",
+      "forms": [
+        "Esja",
+        "Esju",
+        "Esjur",
+        "Esjan",
+        "Esjuna"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Þú hafnaðir henni 2026-11-19 (Hvað varð um risaeðlurnar?, lína 42: „Esjur“ sagt vitlaust)."
+        },
+        "samhengi": {
+          "context": "Esjan er fjallið fyrir ofan Reykjavík. Ein Esja, tvær Esjur, þrjár Esjur.",
+          "note": "Setning um fjallið og fleirtöluna send á undan sem samhengi, ekki töluð. Þú heyrðir hana 2026-11-19 (Esja-A) og valdir aðra."
+        },
+        "ipa": {
+          "say": {
+            "Esja": "\"/ˈɛːsja/\"",
+            "Esju": "\"/ˈɛːsjʏ/\"",
+            "Esjur": "\"/ˈɛːsjʏr/\"",
+            "Esjan": "\"/ˈɛːsjan/\"",
+            "Esjuna": "\"/ˈɛːsjʏna/\""
+          },
+          "note": "IPA /ˈɛːsja/: langt e, svo s og j. Þú heyrðir hana 2026-11-19 (Esja-B) og valdir aðra."
+        },
+        "stafsetning": {
+          "say": {
+            "Esja": "Es-ja",
+            "Esju": "Es-ju",
+            "Esjur": "Es-jur",
+            "Esjan": "Es-jan",
+            "Esjuna": "Es-juna"
+          },
+          "note": "„Es-jur“: bandstrik svo s og j séu borin fram hvort í sínu lagi. Þú valdir hana 2026-11-19 (Esja-C; Hvað varð um risaeðlurnar?, lína 42)."
+        }
+      },
+      "chosen": "stafsetning"
     },
     "grasbitur": {
       "word": "Grasbítur",

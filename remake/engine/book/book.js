@@ -423,8 +423,8 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   };
   // The Safnið leaf: the fossil collection (museum-page.js), whose cards (group 'fossil', when the data has them) open as an animal's do.
   const museum = createMuseumPage(leaves.get('fossils'), { save, audio, win, cards, onOpenCard, onChange: () => renderRibbonNew() });
-  // The Myndbönd leaf: the nine educational videos (videos.js), five on the left page and four on the right, the game's own show
-  // (chapter 5's music show) in the left page's sixth place, and the "3D myndbönd" column.
+  // The Myndbönd leaf: the ten educational videos (videos.js), six on the left page and four on the right, the game's own show
+  // (chapter 5's music show) under the six, and the "3D myndbönd" column.
   videosPage = createVideosPage(leaves.get('videos'), {
     save,
     audio,
