@@ -56,7 +56,10 @@ function startServer() {
 
 async function probe(o, size, base) {
   const [W, H] = size.split('x').map(Number);
-  const browser = await launchBrowser({ browser: 'edge', width: W, height: H });
+  let browser = null;
+  for (let tries = 0; !browser; tries++) { // the browser now and then fails to start on a busy machine
+    try { browser = await launchBrowser({ browser: 'edge', width: W, height: H }); } catch (e) { if (tries >= 2) throw e; await sleep(2000); }
+  }
   const { cdp } = browser;
   const rows = [];
   try {
