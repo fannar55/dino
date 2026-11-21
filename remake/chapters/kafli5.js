@@ -23,9 +23,9 @@
 //   7 a deep roar far in the west; everyone turns; the lines; the book
 //
 // Scene 6's set alone is the book's tile "Djamm skógarins" (`show`, at the end of this file; ?chapter=djamm).
-import { createRoute, FAR_POOL } from './kafli4-route.js';
+import { FAR_POOL } from './kafli4-route.js';
 import { lineQueue } from './kafli4-flight-play.js';
-import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, POOL_LIFE, seatsOf, around, headingTo } from './kafli5-pool.js';
+import { CHOIR, GROUPS, STEPS, SPOTS, WADE, WEST, SHOTS, SHOWS, seatsOf, around, headingTo } from './kafli5-pool.js';
 import { MELODY, TEMPO, LAYER_LEVELS, PHRASE_LAYERS, CALM } from './kafli5-song.js';
 import { SONG } from './kafli5-set.js';
 import { CAMERA, danceBeatAt, sectionAt, shielded } from './kafli5-video.js';
@@ -36,8 +36,7 @@ import { createChoir, ECHO, NOTE, WHOLE } from './kafli5-choir.js';
 import { createStems } from '../engine/audio/stems.js';
 import { createSong } from '../engine/audio/song.js';
 import { sloedlaLife, COURAGE } from './kafli5-sloedla.js';
-import { createArdalur } from '../world/ardalur/index.js';
-import { loadCritters } from '../world/ardalur/animals.js';
+import { buildPool, TAP_HEIGHT } from './kafli5-place.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
 import { createChoirSounds, loadChoirRecordings } from '../engine/audio/choir-sounds.js';
 import { demoAsked, startDemoChild } from './kafli5-demo.js';
@@ -45,7 +44,6 @@ import { SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 import { endCard, playStart } from '../engine/book/show-cards.js';
 import { leaveShow } from '../engine/book/show-player.js';
 
-const ROUTE = createRoute({ wingspan: 7.5 }); // chapter 4's valley, the very same land (kafli4.js ROUTE)
 const LEVEL = FAR_POOL.level;
 
 const WORDS = {
@@ -78,8 +76,6 @@ const REED_RADIUS = 5; // m: the reed's tap circle
 const PEEK_AFTER = 8; // s: she peeks out by herself if the reed is not tapped
 const PEEK_HOLD = 3; // s her eyes stay over the reed
 const GLOW = '#ffd56a'; // the light on a group's place
-// How high over its ground each group's tap point is (its middle as the child sees it), m.
-const TAP_HEIGHT = { grazers: 1.6, turtles: 0.5, frogs: 0.35, lizards: 0.5, flyers: 0.8 };
 // How fast each group goes to its place (m/s), and the shortest and longest the way may take (s).
 const GOING = { grazers: 1.6, lizards: 2.6, flyers: 6, turtles: 1, frogs: 1 };
 const GOING_SECONDS = [7, 17];
@@ -790,26 +786,6 @@ function createGlow(world, { reduced = false } = {}) {
   };
 }
 
-/** The still shots' lines of sight, kept clear of plants (createArdalur's `views`), and the choir's places, where nothing grows. */
-function viewsOf(world) {
-  const V3 = world.THREE.Vector3;
-  const point = ([x, z], up = 1.5) => new V3(x, Math.max(world.heightAt(x, z), LEVEL) + up, z);
-  const looks = {
-    pool_open: [point(FAR_POOL.bank, 1), point(FAR_POOL.mosi, 3), point(FAR_POOL.landing, 2)],
-    reed_close: [point(STEPS[0].at, 2.4), ...STEPS.map(step => point(step.at, 2.5))],
-    bank_talk: [point(SPOTS.egill, 1), point(SPOTS.mosi, 3)],
-    choir_wide: [...GROUPS.map(group => point(CHOIR[group].at, TAP_HEIGHT[group])), point(SPOTS.reed, 2.6)],
-    sloedla_out: [point(WADE.at, 2.6)],
-    west_listen: [point(SPOTS.egill, 1), point(SPOTS.mosi, 3)],
-  };
-  return Object.entries(SHOTS).map(([shot, { position }]) => ({ shot, position: new V3(...position), looks: looks[shot] ?? [] }));
-}
-const KEEP = [
-  ...GROUPS.filter(group => group !== 'frogs').flatMap(group => seatsOf(group).map(({ at: [x, z] }) => ({ x, z, r: group === 'grazers' ? 4.2 : 1.6 }))),
-  { x: SPOTS.egill[0], z: SPOTS.egill[1], r: 2 },
-  { x: SPOTS.mosi[0], z: SPOTS.mosi[1], r: 3 },
-];
-
 /** Where `point` is across the speakers from the camera now: -1 on the left to 1 on the right (a little short of the ends). */
 function panOf(world, point) {
   const camera = world.camera;
@@ -904,9 +880,7 @@ export const chapter = {
   locations: {
     // Árdalurinn round the far pool only, in its real look, with the choir's frogs and turtles; built before the start button shows
     tjorn: {
-      build: async world => createArdalur(world, {
-        grey: false, route: ROUTE, at: FAR_POOL.center, critters: await loadCritters(world), views: viewsOf(world), keep: KEEP, choir: POOL_LIFE,
-      }),
+      build: world => buildPool(world), // (kafli5-place.js: its views and kept ground)
       shots: SHOTS,
       // every shot drawn once before the start (the first video stalled 165 ms at the cut west), the music video's too (its first
       // recording stalled 233 ms at a first cut)

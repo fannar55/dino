@@ -39,8 +39,9 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
  * Build Árdalurinn. Options: grey (the stand-ins of chunk 1; otherwise the real look: look.js, the forest's plants, the game's
  * water), seed, route, budget(), now() (the build slices), critters (loadCritters in animals.js: the small lizard, loaded first),
  * cardFrom (metres past which a tree is drawn as its card: world/forest/cards.js; settable on the place too).
- * `at` ([x, z]) is for a chapter that stands in one spot of the valley and does not fly (chapter 5 at the far pool): only the sections
- * whose land is within SIGHT of it are built, all at once, none queued (its cameras stand near it: one that wanders off has the land
+ * `at` ([x, z], or a list of them) is for a chapter that stands in a spot or two of the valley and does not fly (chapter 5 at the far
+ * pool; chapter 6 there and at the ford above the falls): only the sections whose land is within SIGHT of any of them are built, all
+ * at once, none queued (its cameras stand near it: one that wanders off has the land
  * round it built when it comes, noted in stats.late), and they are shown with no flight (world.flightU
  * null: none wanted round the snag). `views` ({ position, looks }: Vector3s) are a still camera's lines of sight more, kept clear of
  * plants as the flight's are (banks.js VIEW), and `keep` ({ x, z, r }) spots where nothing grows: that chapter's own shots and spots.
@@ -52,6 +53,7 @@ export const DOWNWASH = 8; // metres round her body within which the reeds and t
 export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now(), critters = {}, cardFrom = FOREST.lod.cardFrom, at = null, views: moreViews = [], keep = [], choir = null, trees = [], treeless = [], lush = false } = {}) {
   // the lush valley (banks.js LUSH): chapter 4's flight; an object is LUSH with some of its parts changed (a probe's, a test's)
   const thick = lush && !grey ? (lush === true ? LUSH : { ...LUSH, ...lush }) : null;
+  const spots = at === null ? null : typeof at[0] === 'number' ? [at] : at; // where a chapter that stands still stands
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
@@ -258,9 +260,9 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const order = (a, b) => needed[a] - needed[b] || a - b;
   // Round the snag at once; the rest a slice at a time, soonest needed first. A chapter that stands at `at`: the land round it at once,
   // and nothing more.
-  const first = at ? new Set(nearTo(at[0], at[1])) : new Set([...sections.wanted(0), ...nearTo(route.tree[0], route.tree[2], reach0)]);
+  const first = spots ? new Set(spots.flatMap(([x, z]) => nearTo(x, z))) : new Set([...sections.wanted(0), ...nearTo(route.tree[0], route.tree[2], reach0)]);
   for (const i of [...first].sort(order)) finish({ steps: build(i), done: done(i) });
-  if (!at) for (const i of sections.list.map(s => s.index).filter(i => !first.has(i)).sort(order)) queue.add(i, build(i), done(i));
+  if (!spots) for (const i of sections.list.map(s => s.index).filter(i => !first.has(i)).sort(order)) queue.add(i, build(i), done(i));
 
   let lastVisible = [];
   const downwash = real ? real.plants.downwash : new THREE.Vector4();

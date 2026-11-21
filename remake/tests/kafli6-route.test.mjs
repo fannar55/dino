@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import {
   ROUTE, FORD, STEPS, STONE, FALLS_LOOK, BELT_PATH, PRINT_SIZE, PRINT_PACE, PRINT_TAP, PRINTS, mosiAt, CLOUD_BY_PRINT, CALL,
   callStand, directionPoint, herAt, SHOTS, SHOWS, STANDS, stepShot, printShot, callShot, meetShot, meetOf, MEET, BELT_GROUND,
-  FORD_VIEWS, FORD_KEEP,
+  ARDALUR_VIEWS, ARDALUR_KEEP,
 } from '../chapters/kafli6-route.js';
 import { KEEP, viewsOf, poolOptions } from '../chapters/kafli5-place.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
@@ -278,8 +278,9 @@ test('upright and wide: the three glows lie one in each third of callShot, and M
       const turn = { left: -CALL.angle, ahead: 0, right: CALL.angle }[walked[round]];
       assert.ok(offOf(b.heading, a.heading + turn) < 1e-9);
     }
-    // the whole of it on the belt's stage, in its cloud
-    for (const round of [0, 1, 2]) assert.ok(Math.hypot(...herAt(callStand(round, walked.slice(0, round)), walked[round], round)) < 62);
+    // where she is seen, on the belt's stage in its cloud (60 m round its middle): in the last round, and where she meets them
+    assert.ok(Math.hypot(...herAt(callStand(2, walked.slice(0, 2)), walked[2], 2)) < 55);
+    assert.ok(Math.hypot(...meetOf(callStand(3, walked)).she_comes.gramedla.at) < 55);
   }
   assert.deepEqual(CALL, { reach: 7, glow: 22, angle: 40, her: [60, 30, 12] });
 });
@@ -311,21 +312,21 @@ test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names', (
       for (const name of Object.keys(MEET)) {
         const shot = meetShot(name, stand, ground);
         rulesHold(`${name} (${walked})`, shot, flat(ground));
-        showsWho({ [name]: shot }, name, SHOWS[name], { ...STANDS[name], ...stands }, flat(ground));
+        showsWho({ [name]: shot }, name, SHOWS[name], stands[name], flat(ground));
       }
     }
   }
 });
 
 test('the ford\'s shots keep their lines of sight and the stones\' banks clear of plants', () => {
-  const names = Object.keys(SHOTS.ardalur).filter(name => name.startsWith('ford') || name === 'falls_look');
-  for (const name of names) assert.ok(FORD_VIEWS.some(v => v.shot === name), `${name} is kept clear`);
-  for (let k = 0; k < STEPS.length; k++) assert.ok(FORD_VIEWS.some(v => v.shot === `step_${k}`));
-  for (const v of FORD_VIEWS) {
+  const names = Object.keys(SHOTS.ardalur).filter(name => name !== 'pool_west'); // (chapter 5's own, kept already)
+  for (const name of names) assert.ok(ARDALUR_VIEWS.some(v => v.shot === name), `${name} is kept clear`);
+  for (let k = 0; k < STEPS.length; k++) assert.ok(ARDALUR_VIEWS.some(v => v.shot === `step_${k}`));
+  for (const v of ARDALUR_VIEWS) {
     assert.equal(v.position.length, 3);
     assert.ok(v.looks.length >= 1 && v.looks.every(p => p.length === 3));
   }
-  for (const end of [FORD.from, FORD.to]) assert.ok(FORD_KEEP.some(k => Math.hypot(k.x - end[0], k.z - end[1]) < 0.5 && k.r >= 3));
+  for (const end of [FORD.from, FORD.to]) assert.ok(ARDALUR_KEEP.some(k => Math.hypot(k.x - end[0], k.z - end[1]) < 0.5 && k.r >= 3));
 });
 
 test('buildPool with nothing more builds what chapter 5 built: the same sections, keep and views', () => {
@@ -341,10 +342,10 @@ test('buildPool with nothing more builds what chapter 5 built: the same sections
   const sum = KEEP.reduce((s, k) => s + k.x + 2 * k.z + 3 * k.r, 0);
   assert.ok(Math.abs(sum - KEEP_SUM) < 1e-6, `the kept ground is chapter 5's (${sum})`);
   // with the ford: its spot more, its views and its keep after chapter 5's
-  const more = poolOptions(world, { at: [FORD.centre], views: FORD_VIEWS, keep: FORD_KEEP });
+  const more = poolOptions(world, { at: [FORD.centre], views: ARDALUR_VIEWS, keep: ARDALUR_KEEP });
   assert.deepEqual(more.at, [FAR_POOL.center, FORD.centre]);
-  assert.deepEqual(more.keep, [...KEEP, ...FORD_KEEP]);
-  assert.equal(more.views.length, options.views.length + FORD_VIEWS.length);
+  assert.deepEqual(more.keep, [...KEEP, ...ARDALUR_KEEP]);
+  assert.equal(more.views.length, options.views.length + ARDALUR_VIEWS.length);
   for (const v of more.views) assert.ok(v.position.isVector3 && v.looks.every(p => p.isVector3), 'views as the valley takes them');
   // the same sections as chapter 5's one spot
   const scene = () => ({ scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200), flightU: null });

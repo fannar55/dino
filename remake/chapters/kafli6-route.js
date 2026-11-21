@@ -42,7 +42,7 @@ const fordPoint = (across, along = 0) => [
 ];
 export const FORD = { d: here.d, centre, from: fordPoint(0), to: fordPoint(2 * BANK), level: here.level, half: here.half };
 const LEVEL = FORD.level;
-const OVER = headingTo(FORD.from, FORD.to); // the way he crosses: south, a little east (92.8 degrees)
+const OVER = headingTo(FORD.from, FORD.to); // the way he crosses: south, a little west (92.8 degrees)
 
 /** The stones (m): the right one big, flat and dry, the others small and rocking; how far each stands out of the water; their tap circles. */
 export const STONE = { right: { across: 3, up: 0.35, tap: 1.6 }, wrong: { across: 1.4, up: 0.25, tap: 1.0 } };
@@ -82,8 +82,8 @@ export function stepShot(k) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The slope (scene 3), on the far land (its heights: world/ardalur/far-land.js heightAt, measured 2026-11-21; world/fjall's slope
-// stands on it). The path climbs west to the ledge, 280 m up, where he turns and the whole forest lies in the east.
+// The slope (scene 3), on the far land (its heights: world/ardalur/far-land.js heightAt, measured 2026-11-21, the slope's cameras'
+// too; world/fjall's slope stands on it). The path climbs west to the ledge, 280 m up, where he turns and the whole forest lies in the east.
 export const SLOPE = {
   ride: { at: [-2470, 124], heading: 190, ground: 265.9 }, // on the way up, below the ledge
   ledge: { at: [-2500, 122], ground: 279.9 }, // the ledge: he turns there, to the east and back to the mountain
@@ -236,14 +236,13 @@ export const TOP = { her: { at: [-22, 30], heading: -54 }, mosi: { at: [-18, 33.
 
 // ---------------------------------------------------------------------------------------------
 /** The shots of each place: a position and a target in metres ([x, y, z]) and a lens. */
-const on = ([x, z], ground, y) => [x, ground + y, z];
 export const SHOTS = {
   ardalur: {
     // Scene 1: the pool as chapter 5 leaves it, everyone turned to the west (kafli5-pool.js west_listen)
     pool_west: { ...POOL_SHOTS.west_listen },
-    // Scene 1: the farewell and Egill into the saddle: from over the north-east shallows, Slóeðla out in the pool on the right,
-    // Flugeðla, Egill and Mosi on the far bank
-    pool_saddle: { position: up(around(318, 24), FAR_POOL.level + 3.5), target: up(around(140, 4), FAR_POOL.level + 1.5), fov: 54 },
+    // Scene 1: the farewell and Egill into the saddle: from the north-east bank, across the pool, Slóeðla out in it on the right,
+    // and Mosi, Egill and Flugeðla on its south-east bank on the left
+    pool_saddle: { position: [-920.64, FAR_POOL.level + 3.4, 49.28], target: [-945, FAR_POOL.level + 2, 78.3], fov: 54 },
     // Scene 2: he comes to the ford: from over the water upstream, looking down the river at him on the north bank, the stones in
     // front of him and the lip of the falls beyond
     ford_arrive: { position: up(fordPoint(6, 7), LEVEL + 2.6), target: up(fordPoint(-0.5, -1), LEVEL + 2.4), fov: 50 },
@@ -253,12 +252,12 @@ export const SHOTS = {
     ford_across: { position: up(fordPoint(2 * BANK + 7, 5), LEVEL + 3.2), target: up(fordPoint(2 * BANK - 1, -1), LEVEL + 2.4), fov: 50 },
   },
   hlid: {
-    // the ride up: from up the path on his right, looking back down at him and the slope
-    slope_ride: { position: on([SLOPE.ride.at[0] - 11, SLOPE.ride.at[1] - 8], SLOPE.ledge.ground - 3, 3), target: on(SLOPE.ride.at, SLOPE.ride.ground, 2.4), fov: 50 },
+    // the ride up: from beside the path, below it on his left, looking up at him on the slope
+    slope_ride: { position: [-2476, 266, 134], target: up(SLOPE.ride.at, SLOPE.ride.ground + 2.4), fov: 50 },
     // the view east: behind them on the ledge, over their shoulders to the whole forest in the low sun
-    view_east: { position: on([SLOPE.ledge.at[0] - 9, SLOPE.ledge.at[1] + 3], SLOPE.ledge.ground + 2, 3.6), target: [-1500, 120, 100], fov: 50 },
+    view_east: { position: [-2509, 285.6, 125], target: [-1500, 120, 100], fov: 50 },
     // the clouds over them: from below them on the path, looking up past them to the mountain and its cloud
-    clouds_up: { position: on([SLOPE.ledge.at[0] + 9, SLOPE.ledge.at[1] - 3.3], SLOPE.ledge.ground - 5, 2.4), target: on([SLOPE.ledge.at[0] - 20, SLOPE.ledge.at[1] + 7], SLOPE.ledge.ground, 14), fov: 52 },
+    clouds_up: { position: [-2491, 280.2, 118.7], target: [-2520, 296.2, 129], fov: 52 },
   },
   sky: {
     // he steps into the first print and looks down: close and low beside it, his front feet in its heel and his head over it
@@ -318,11 +317,12 @@ export const STANDS = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// The ford's lines of sight, kept clear of plants as chapter 5's are (kafli5-place.js buildPool's `views`), and its banks where
-// nothing grows: where he stands on either bank, and the cameras on the banks.
+// Chapter 6's own lines of sight in Árdalurinn, kept clear of plants as chapter 5's are (kafli5-place.js buildPool's `views`), and
+// its ground where nothing grows: where he stands on either bank of the ford, and the cameras on the banks.
 const seenFrom = (shot, name) => ({ shot: name, position: shot.position, looks: [shot.target] });
 const stoneLooks = k => STEPS[k].stones.map(s => up(s.at, LEVEL + 0.4));
-export const FORD_VIEWS = [
+export const ARDALUR_VIEWS = [
+  { shot: 'pool_saddle', position: SHOTS.ardalur.pool_saddle.position, looks: [up(SPOTS.egill, FAR_POOL.level + 1.5), up(SPOTS.mosi, FAR_POOL.level + 3.5), up(WADE.at, FAR_POOL.level + 3)] },
   ...['ford_arrive', 'falls_look', 'ford_across'].map(name => {
     const shot = SHOTS.ardalur[name];
     const mosi = STANDS[name].mosi;
@@ -330,8 +330,8 @@ export const FORD_VIEWS = [
   }),
   ...STEPS.map((_, k) => ({ shot: `step_${k}`, position: stepShot(k).position, looks: [...stoneLooks(k), up(standBefore(k).at, LEVEL + 3.5)] })),
 ];
-export const FORD_KEEP = [
+export const ARDALUR_KEEP = [
   { x: FORD.from[0], z: FORD.from[1], r: 3.5 },
   { x: FORD.to[0], z: FORD.to[1], r: 3.5 },
-  ...['ford_across'].map(name => ({ x: SHOTS.ardalur[name].position[0], z: SHOTS.ardalur[name].position[2], r: 2.5 })),
+  ...['pool_saddle', 'ford_across'].map(name => ({ x: SHOTS.ardalur[name].position[0], z: SHOTS.ardalur[name].position[2], r: 2.5 })),
 ];

@@ -1869,3 +1869,23 @@ test('rings in the river where she skims it, on the water\'s clock; the grey val
   const grey = createArdalur({ scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() }, { grey: true, route });
   assert.doesNotThrow(() => grey.rippleAt(0, 0, 1));
 });
+
+// A chapter that stands in two spots of the valley (chapter 6: the far pool and the ford above the falls, 440 m apart)
+test('createArdalur at two spots builds the sections within SIGHT of either', () => {
+  const pool = [-952, 70];
+  const ford = [route.river.at(route.river.falls + 45).x, route.river.at(route.river.falls + 45).z];
+  const world = () => ({ scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200), flightU: null });
+  const built = place => [...place.stats.built].sort((a, b) => a - b);
+  const one = createArdalur(world(), { grey: true, route, at: pool });
+  const other = createArdalur(world(), { grey: true, route, at: ford });
+  const both = createArdalur(world(), { grey: true, route, at: [pool, ford] });
+  const either = [...new Set([...built(one), ...built(other)])].sort((a, b) => a - b);
+  assert.ok(built(other).some(i => !built(one).includes(i)), 'the ford has land of its own');
+  assert.deepEqual(built(both), either, 'the sections within SIGHT of either spot, and nothing more');
+  for (const i of [...both.near(...pool), ...both.near(...ford)]) assert.ok(built(both).includes(i));
+  assert.equal(both.building, null, 'nothing queued');
+  // a list of one is that one spot
+  const listed = createArdalur(world(), { grey: true, route, at: [pool] });
+  assert.deepEqual(built(listed), built(one));
+  for (const place of [one, other, both, listed]) place.dispose();
+});
