@@ -216,7 +216,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   material.name = 'far-tree-cards';
   material.userData.cardFade = fade;
   return patchLambert(material, 'far-tree-cards-lit', { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data } }, {
-    vertexHead: `attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
+    vertexHead: `attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
     vertexAfter: [
       ['#include <beginnormal_vertex>', `
   vec3 cardFoot = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
@@ -225,7 +225,11 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   float cardAway = length( cardToCamera );
   vec3 cardFace = cardAway > 1e-4 ? cardToCamera / cardAway : vec3( 0.0, 0.0, 1.0 );
   vec3 cardSide = vec3( cardFace.z, 0.0, -cardFace.x );
-  vCardFace = cardFace;
+  // the light's frame is the view's own, from the tree's middle: seen from above, a crown shows the camera its top, whose normals lean up
+  vec3 cardMiddle = cardFoot + vec3( 0.0, aCard.x > 0.0 ? aCard.x : 0.5 * aSize.y, 0.0 );
+  vec3 cardView = normalize( cameraPosition - cardMiddle );
+  vCardFace = cardView;
+  vCardUp = cross( cardView, cardSide );
   vCardSide = cardSide * ( aCard.z < 0.0 ? -1.0 : 1.0 );
   vCardSky = aCard.y;
   vCardFade = aCard.x > 0.0 ? forestCardShare( distance( cardFoot + vec3( 0.0, aCard.x, 0.0 ), cameraPosition ) ) : 1.0;
@@ -233,13 +237,13 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
       ['#include <begin_vertex>', `
   transformed = position + cardSide * ( aCorner.x * aSize.x ) + vec3( 0.0, aCorner.y * aSize.y, 0.0 );`],
     ],
-    fragmentHead: `${LIGHT_GLOBALS}\nuniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,
+    fragmentHead: `${LIGHT_GLOBALS}\nuniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,
     fragmentAfter: [
       ['#include <clipping_planes_fragment>', '  if ( forestDither() >= vCardFade ) discard;'],
       ['#include <map_fragment>', `
   vec4 cardLight = texture2D( uCardData, vMapUv );
   vec2 cardN = cardLight.xy * 2.0 - 1.0;
-  vec3 cardNormal = normalize( vCardSide * cardN.x + vec3( 0.0, cardN.y, 0.0 ) + vCardFace * sqrt( max( 0.0, 1.0 - dot( cardN, cardN ) ) ) );
+  vec3 cardNormal = normalize( vCardSide * cardN.x + vCardUp * cardN.y + vCardFace * sqrt( max( 0.0, 1.0 - dot( cardN, cardN ) ) ) );
   float cardSun = clamp( vCardSky + ( 1.0 - vCardSky ) * cardLight.z, 0.0, 1.0 );
   gSun = cardSun;
   gAmb = mix( 0.62, 1.0, cardSun );
