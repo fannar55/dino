@@ -31,7 +31,7 @@ export const SONG = {
     "endBeat": 472,
     "loudness": {
       "lufs": -16,
-      "truePeak": -1.7
+      "truePeak": -1.5
     },
     "sections": [
       {

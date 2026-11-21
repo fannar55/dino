@@ -1,0 +1,22 @@
+[
+  {
+    "id": "t3_uggedla_hallo",
+    "speaker": "uggedla",
+    "text": "Halló!"
+  },
+  {
+    "id": "t3_uggedla_namm",
+    "speaker": "uggedla",
+    "text": "Namm!"
+  },
+  {
+    "id": "t3_uggedla_fidrildi",
+    "speaker": "uggedla",
+    "text": "Ó, fiðrildi!"
+  },
+  {
+    "id": "t3_uggedla_bless",
+    "speaker": "uggedla",
+    "text": "Bless!"
+  }
+]

@@ -482,12 +482,12 @@ const BOOK_LINES = [
   { id: 'book_wait', speaker: 'narrator', text: 'Bíddu aðeins!' },
 ];
 
-test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's, Veiddu's, chapter 4's, chapter 5's and the 3D shows Grameðla kemur!'s and Flugeðla og fiðrildið's, each in a folder of its own", () => {
+test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's, chapter 2's, Veiddu's, chapter 4's, chapter 5's the 3D shows Grameðla kemur!'s and Flugeðla og fiðrildið's and the table show Uggeðla í tjörninni's, each in a folder of its own", () => {
   assert.deepEqual(SETS, {
     kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
     kafli2: 'remake/assets/audio/kafli2', veiddu: 'remake/assets/audio/veiddu', kafli4: 'remake/assets/audio/kafli4',
     kafli5: 'remake/assets/audio/kafli5', gramedla3d: 'remake/assets/audio/gramedla3d',
-    flugedla3d: 'remake/assets/audio/flugedla3d',
+    flugedla3d: 'remake/assets/audio/flugedla3d', tjorn3d: 'remake/assets/audio/tjorn3d',
   });
   assert.equal(REMAKE_AUDIO, SETS.kafli1, 'the chapter stays the default');
 });

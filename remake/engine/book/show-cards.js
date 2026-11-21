@@ -1,5 +1,7 @@
 // The 3D shows' start and end (chapters/fidrildi3d.js, chapters/gramedla3d.js): the glasses picture that starts a show with one tap,
 // and the end card with "Aftur" and "Hætta". Shared by every show; moved here from fidrildi3d.js (which still exports endCard).
+// And the start of a show with no glasses (chapter 5's music show alone): a play mark, shown only where the show cannot start itself.
+import { ICONS } from './icons.js';
 
 const BUTTON = 'font:800 clamp(24px,3.4vw,34px)/1 Nunito,sans-serif;padding:14px 34px;border:0;border-radius:999px;cursor:pointer;pointer-events:auto';
 // the end card's second choice (round 6, the owner: "þegar sena endar þá er bara hægt að velja spila aftur, en ekki hætta"): smaller
@@ -56,8 +58,51 @@ export function endCard(doc, { onAgain, onQuit }) {
   return { element, again, quit };
 }
 
-/** The glasses start (a show's chapter.startButton), laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */
-export function glassesStart(doc) {
+// A show with no glasses (chapters/kafli5.js `show`, "Djamm skógarins") starts as a video does, by itself (main.js
+// chapter.startsItself); where the browser wants a touch in the show's own page before it lets sound begin, this stands in the
+// middle instead: the book's play mark (icons.js, as on a video's tile), round and gold, breathing as the glasses do. No words.
+const PLAY_STYLE = `
+  .syning-start-wrap { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; pointer-events: none; }
+  .syning-start-wrap[hidden] { display: none; }
+  .syning-start { pointer-events: auto; cursor: pointer; margin: 0; padding: 0; width: min(34vmin, 220px); height: min(34vmin, 220px);
+    display: grid; place-items: center; border-radius: 50%; border: 5px solid #3b2f25; color: #3b2f25;
+    background: radial-gradient(circle at 36% 28%, rgba(255,255,255,.65), transparent 48%), #f2b630;
+    box-shadow: 0 7px 0 #b88418, 0 7px 0 5px #3b2f25, 0 14px 26px rgba(24,15,6,.45);
+    -webkit-tap-highlight-color: transparent; will-change: transform, opacity; animation: gler-pulse 1s ease-in-out infinite; }
+  .syning-start svg { width: 54%; height: 54%; margin-left: 5%; fill: currentColor; stroke: currentColor; stroke-width: 3; stroke-linejoin: round; }
+  @keyframes gler-pulse {
+    0%, 100% { transform: scale(1); opacity: .94; }
+    50% { transform: scale(1.06); opacity: 1; }
+  }
+  @keyframes gler-pulse-calm {
+    0%, 100% { opacity: .88; }
+    50% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .syning-start { animation: gler-pulse-calm 2.4s ease-in-out infinite; } }`;
+
+/** The play start (a show's chapter.startButton), laid on the page hidden: { element, button }, as the glasses start gives. */
+export function playStart(doc) {
+  const wrap = doc.createElement('div');
+  wrap.className = 'syning-start-wrap';
+  wrap.hidden = true;
+  const style = doc.createElement('style');
+  style.textContent = PLAY_STYLE;
+  const button = doc.createElement('button');
+  button.type = 'button';
+  button.className = 'syning-start';
+  button.setAttribute('aria-label', 'Spila');
+  button.innerHTML = ICONS.play;
+  wrap.append(style, button);
+  doc.body.append(wrap);
+  return { element: wrap, button };
+}
+
+/**
+ * The glasses start (a show's chapter.startButton), laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when
+ * it cannot be. `more` is one more line of text under "Rauða glerið á vinstra auga." (the table picture's, chapters/bord3d.js);
+ * without it the start is as every show's.
+ */
+export function glassesStart(doc, { more = null } = {}) {
   return new Promise(resolve => {
     const wrap = doc.createElement('div');
     wrap.className = 'gler-start-wrap';
@@ -75,6 +120,12 @@ export function glassesStart(doc) {
     line.className = 'gler-start-line';
     line.textContent = 'Rauða glerið á vinstra auga.';
     wrap.append(style, button, line);
+    if (more) {
+      const second = doc.createElement('p');
+      second.className = 'gler-start-line';
+      second.textContent = more;
+      wrap.append(second);
+    }
     img.addEventListener('load', () => {
       doc.body.append(wrap);
       resolve({ element: wrap, button });

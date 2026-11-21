@@ -4,11 +4,13 @@
 // cuts itself (range.mjs). What comes here: / goes on to /remake/, /fjolspil/ws/<code> to that code's Room (room-object.mjs, one
 // object per code by idFromName), /myndbond/<name>.mp4 to the R2 bucket with byte-range streaming, a sound to the assets and then
 // range.mjs, and anything else to the assets, which answer 404. A sound or video, whole or cut, keeps in the browser for a day
-// (cache.mjs), as the site's pictures and models do by site/_headers, which does not touch the Worker's answers.
+// (cache.mjs), as the site's pictures and models do by site/_headers, which does not touch the Worker's answers. A 404 is the
+// other way round: the assets give a missing picture, model or sound that day too (a _headers rule goes by the path), so every
+// 404 that leaves here says no-store, and no browser remembers "missing" after the file has come.
 
 import { normalizeCode } from '../../remake/engine/fjolspil/protocol.js';
 import { folderName } from '../../remake/engine/villa/skyrsla.js';
-import { MEDIA_CACHE, isKeptSound } from './cache.mjs';
+import { MEDIA_CACHE, MISSING_CACHE, isKeptSound } from './cache.mjs';
 import { isByteRange, parseRange, sliceRange } from './range.mjs';
 import { ROOM_PATH } from './room-object.mjs';
 
@@ -87,6 +89,18 @@ function keep(response) {
   return kept;
 }
 
+/**
+ * A file that is not there (a 404, the assets' or this Worker's own) is never remembered (cache.mjs MISSING_CACHE): the assets
+ * give a missing picture, model or sound the day of site/_headers, and a browser would keep "missing" for a day after the
+ * file has come. Any other answer goes through as it is.
+ */
+function missing(response) {
+  if (response.status !== 404) return response;
+  const gone = new Response(response.body, response);
+  gone.headers.set('cache-control', MISSING_CACHE);
+  return gone;
+}
+
 function decodeBase64(b64) {
   if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(b64);
   const bin = atob(b64);
@@ -160,11 +174,11 @@ export default {
     const { pathname, search } = new URL(request.url);
     if (pathname === '/') return new Response(null, { status: 302, headers: { location: `/remake/${search}` } });
     if (pathname === '/villa') return villa(request, env);
-    if (AUDIO_PATH.test(pathname)) return sound(request, env).then(keep);
+    if (AUDIO_PATH.test(pathname)) return sound(request, env).then(keep).then(missing);
     const vid = VIDEO_PATH.exec(pathname);
-    if (vid) return video(request, env, vid[1]);
+    if (vid) return video(request, env, vid[1]).then(missing);
     const path = ROOM_PATH.exec(pathname);
-    if (!path) return env.ASSETS.fetch(request);
+    if (!path) return Promise.resolve(env.ASSETS.fetch(request)).then(missing);
     const code = normalizeCode(path[1]);
     if (!code) return new Response(null, { status: 400 });
     return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(request);

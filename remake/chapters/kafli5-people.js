@@ -7,13 +7,14 @@
 //   Egill     his idle, hop and wave clips, each at the time the score gives it (never run by the mixer), his root's bounce and
 //             twist, and his arms reached to where the score has his hands (up, clapping, cupped at his mouth)
 //   Mosi      he has an idle and a walk only, so all of it is made here: his root sways and rears about his hind feet, his feet
-//             are kept on the ground or lifted, his head nods, his tail swings
+//             are kept on the ground or lifted, his head nods, his tail swings; and he marches: his walk clip at the place in
+//             its cycle the score gives, his root where those steps carry it (up the bank and down again, on its ground)
 //   Flugeðla  her clips at the score's times (her take-off, flight and landing along the score's flights), her wings opened to
-//             her own spread pose and lifted about her shoulders, her bow
+//             her own spread pose, lifted about her shoulders and swung forward (her calls, her scratch), her bow, her headbang
 //   Slóeðla   stays under her own life (kafli5-sloedla.js): the score is handed to her.dance, which lays it on gently
 // Each of the first three is taken with actor.control for the set and given back as found when it is over (dispose).
 import * as THREE from 'three';
-import { egillAt, mosiAt, flugedlaAt, sloedlaAt } from './kafli5-people-score.js';
+import { egillAt, mosiAt, flugedlaAt, sloedlaAt, mosiTurn, mosiTurnFoot, HER_DUCK } from './kafli5-people-score.js';
 import { BODY_HEIGHT } from './kafli4-route.js';
 
 const V3 = THREE.Vector3;
@@ -38,6 +39,8 @@ const SHRUG = 0.035; // m his shoulders come up as his hands go up (his arms are
 const ELBOW = [-0.25, -0.55, 0.8]; // the way his elbows point as his arms bend (his own frame: back, down and out)
 /** Mosi's hind feet from his root, along him (m): he rears about them. */
 const HIND = -0.05;
+/** How high his feet come off the ground as he steps round in his turn (m): his forefeet, his hind feet. */
+const TURN_STEP = { front: 0.34, hind: 0.24 };
 // Flugeðla's hips over her root as she flies (engine/flier.js): a flight's way is flown by her body, and her root hangs under it.
 const HIPS = new V3(0.06, BODY_HEIGHT, 0);
 const WING = ['UpperArm', 'Forearm', 'Wrist', 'Claws', 'Finger1', 'Finger2', 'Finger3'];
@@ -333,37 +336,62 @@ function mosiRig(c, clock, options) {
     return forwardOf(head);
   });
   const layer = overlay([neck, head, ...tail, ...feet.map(foot => foot.bone)]);
-  const clips = holdClips(actor, ['idle']);
+  const clips = holdClips(actor, ['idle', 'walk']);
   const yawQ = new Q();
   const q = new Q();
   const pivot = new V3();
   const turned = new V3();
   const side = new V3();
   const at = new V3();
+  // where he stood: the way he faced and his right, and the ground under him (he marches up the bank and down it again)
+  const homeQ = new Q().setFromAxisAngle(UP, -rad(home.heading));
+  const homeAhead = AHEAD.clone().applyQuaternion(homeQ);
+  const homeRight = RIGHT.clone().applyQuaternion(homeQ);
+  const groundAt = (x, z) => { const y = c.world?.heightAt?.(x, z); return Number.isFinite(y) ? y : home.position.y; };
+  const homeGround = groundAt(home.position.x, home.position.z);
+  let ground = home.position.y; // his ground where he is now
   let p = null;
   actor.lookAt(null);
   actor.control(() => {
     layer.restore();
     p = mosiAt(clock(), options);
-    // his body sways to his right and his left, and rears about his hind feet
-    yawQ.setFromAxisAngle(UP, -rad(home.heading + p.yaw));
+    // his body sways to his right and his left, and rears about his hind feet; marching, it is where his steps have carried it
+    // and turned as far as he has turned
+    yawQ.setFromAxisAngle(UP, -rad(home.heading + p.yaw + p.spin));
     root.quaternion.copy(yawQ).multiply(q.setFromAxisAngle(RIGHT, rad(p.rear))).multiply(q.setFromAxisAngle(AHEAD, rad(p.roll)));
     side.copy(RIGHT).applyQuaternion(yawQ);
     pivot.set(HIND, 0, 0).applyQuaternion(yawQ);
     turned.set(HIND, 0, 0).applyQuaternion(root.quaternion);
-    root.position.copy(home.position).addScaledVector(side, p.side).add(pivot).sub(turned);
-    root.position.y += p.lift;
-    clips.loop(clips.rest, 1, p.clock);
+    root.position.copy(home.position).addScaledVector(homeAhead, p.step).addScaledVector(homeRight, p.aside).addScaledVector(side, p.side);
+    ground = home.position.y + groundAt(root.position.x, root.position.z) - homeGround;
+    root.position.add(pivot).sub(turned);
+    root.position.y = ground + pivot.y - turned.y + p.lift;
+    // his walk clip where the score has him in its cycle (its own steps carry him: no foot slides), his idle clip the rest of him
+    const marching = clips.has('walk') ? p.march.weight : 0;
+    clips.show('walk', marching, p.march.time);
+    clips.loop(clips.rest, 1 - marching, p.clock);
   }, () => {
     layer.hold();
     if (!p) return;
     root.updateMatrixWorld(true);
-    // his feet stay on his ground as his body sways and sinks over them (his forefeet come up with a rear), or are lifted
+    // his feet stay on his ground as his body sways and sinks over them (his forefeet come up with a rear), or are lifted; where
+    // he marches they are his walk clip's
     const rearing = clamp(p.rear / 3, 0, 1);
+    const marching = clips.has('walk') ? p.march.weight : 0;
     for (const foot of feet) {
       foot.bone.getWorldPosition(at);
-      const planted = home.position.y + foot.rest + p.feet[foot.key];
-      at.y = foot.front ? planted + (at.y + p.feet[foot.key] - planted) * rearing : planted;
+      const planted = ground + foot.rest + p.feet[foot.key];
+      const stood = foot.front ? planted + (at.y + p.feet[foot.key] - planted) * rearing : planted;
+      // (and never under his ground: the walk clip's feet are its own, and a rear or a dip of his body would push them into it)
+      at.y = Math.max(ground + foot.rest, stood + (at.y + p.feet[foot.key] - stood) * marching);
+      if (p.round > 0 && p.round < 1) {
+        // his turn: the foot stands where his body will have it in the middle of its stance (round his root as it is then), and
+        // swings there while the other pair of feet stands
+        const own = mosiTurnFoot(p.round, foot.key === 'fr' || foot.key === 'bl');
+        const [then, now] = [mosiTurn(own.at), mosiTurn(p.round)];
+        at.sub(root.position).applyAxisAngle(UP, -rad(then.spin - now.spin)).add(root.position).addScaledVector(homeRight, then.aside - now.aside);
+        at.y = stood + (foot.front ? TURN_STEP.front : TURN_STEP.hind) * own.swing;
+      }
       foot.bone.position.copy(foot.bone.parent.worldToLocal(at));
       foot.bone.updateMatrixWorld(true);
     }
@@ -449,11 +477,15 @@ function flugedlaRig(c, clock, options) {
       }
       const lifted = p.raise[wing.key];
       if (lifted) turnBone(wing.shoulder, q.setFromAxisAngle(axis.copy(wing.axis).applyQuaternion(root.quaternion), rad(lifted)));
+      // and swung forward about her upright: out to the group she calls, or to and fro over the record
+      const swept = p.sweep[wing.key];
+      if (swept) turnBone(wing.shoulder, q.setFromAxisAngle(axis.copy(UP).applyQuaternion(root.quaternion), rad(wing.key === 'left' ? -swept : swept)));
     }
     faceTo({ root, neck, head, forward }, p.look, p.looking * (1 - p.air), 70, 30);
-    if (p.bow) {
+    const nodded = p.bow + p.bang; // her bow and her headbang, both down her neck
+    if (nodded) {
       axis.copy(RIGHT).applyQuaternion(root.quaternion);
-      for (const link of chain) turnBone(link.bone, q.setFromAxisAngle(axis, -rad(p.bow * link.share)));
+      for (const link of chain) turnBone(link.bone, q.setFromAxisAngle(axis, -rad(nodded * link.share)));
     }
     if (p.blink && !blinked) actor.blink?.();
     blinked = p.blink;
@@ -491,7 +523,20 @@ export function createPeople(c) {
       now.beat = video.beat;
       now.setBeat = video.setBeat;
     },
-    cue() {},
+    /** The set's events: the water rings where the DJ's wing scratches at it, and round Slóeðla as she surges up out of it. */
+    cue(event) {
+      const ring = c.world?.forest?.rippleAt;
+      if (!ring || options.reduced || !event) return;
+      if (event.kind === 'scratch' && c.flugedla?.raw) {
+        const { root } = c.flugedla.raw;
+        const out = new V3(2.2, 0, -2.4).applyQuaternion(root.quaternion); // ahead of her and to her left: where her wing saws
+        ring(root.position.x + out.x, root.position.z + out.z, 0.5);
+      }
+      if (event.kind === 'impact' && HER_DUCK.drops.includes(event.beat) && c.sloedla?.raw) {
+        const { position } = c.sloedla.raw.root;
+        ring(position.x, position.z, 1);
+      }
+    },
     dispose() {
       if (!live) return;
       live = false;
