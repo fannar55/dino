@@ -688,6 +688,7 @@ export const chapter = {
       yield s.ready();
       for (;;) {
         time.started = true;
+        show.reset(); // (played again: nothing is left over from the last time)
         time.from = seeks ? 0 : s.time; // (a page with t= is stepped from the scene's own start: its second is the show's)
         seeks = false;
         time.showing = true;

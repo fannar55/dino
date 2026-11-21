@@ -70,7 +70,8 @@ export const HOLD = { from: 36.4, to: 42 }; // her head is up and still: the sho
 export const SAIL = { up: 23.6, down: 28.6 }; // her sail is all the way up between these
 export const GONE = 59.6; // she is deep in the murk again, and stays there
 
-const U = channel([[8, -10.0], [19, -8.6], [22, -6.5, 'in'], [29, 2.9, 'lin'], [TURN, 5.0, 'out']]);
+// (it ends where the sail's fore end is still half a centimetre short of the butterfly's lily as it goes under)
+const U = channel([[8, -10.0], [19, -8.6], [22, -6.5, 'in'], [29, 2.2, 'lin'], [TURN, 4.3, 'out']]);
 const SINK = channel([
   [8, DEEP + 1], [19, 14.6, 'out'], [21.6, 12.4], [SAIL.up, 8.66], [SAIL.down, 8.66], [30.2, 12.6], [TURN, DEEP, 'in'],
   // the head: up through the murk, then out of the water more and more slowly
