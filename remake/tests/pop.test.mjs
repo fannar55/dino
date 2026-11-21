@@ -609,3 +609,38 @@ test('a section is drawn before any of its trees is near enough to be a mesh, an
     }
   }
 });
+
+test('a card, the sections\' ground and the far land at one point past 250 m take the same haze, while the far land shows', async () => {
+  const farLandJs = await import('../world/ardalur/far-land.js');
+  assert.equal(typeof farLandJs.farHazeAt, 'function', 'how much of the far land\'s haze a thing so far off takes (far-land.js farHazeAt)');
+  assert.ok(farLandJs.farHazeAt(250) === 0 && farLandJs.farHazeAt(400) > 0.05 && farLandJs.farHazeAt(1500) < 0.8, 'none to 250 m, more with distance, never all');
+  const { place } = valleyOf(true);
+  place.farLand.show(true);
+  // each material as three compiles it: the Lambert's own shaders through its onBeforeCompile
+  const compiled = material => {
+    const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
+    material.onBeforeCompile(shader, null);
+    return shader;
+  };
+  // what each does after the fog: the far land's haze, as one block of lines
+  const afterFog = shader => shader.fragmentShader.split('#include <fog_fragment>')[1].split('#endif')[0];
+  const farLand = place.farLand.group.getObjectByName('Far land').material;
+  const sectionCards = sectionMeshes(place.stats.sections[0]).find(m => m.userData.cards).material;
+  const sectionGround = place.materials.ground;
+  const far = compiled(farLand);
+  assert.match(afterFog(far), /mix\(/, 'the far land fades into its haze after the fog');
+  for (const [name, material] of [['the cards (the far layer\'s and the sections\')', sectionCards], ['the sections\' ground', sectionGround]]) {
+    const shader = compiled(material);
+    assert.equal(afterFog(shader).trim(), afterFog(far).trim(), `${name}: the far land's haze after the fog, line for line`);
+    for (const [key, uniform] of Object.entries(far.uniforms)) {
+      if (afterFog(far).includes(key)) assert.equal(shader.uniforms[key], uniform, `${name}: the far land's own ${key} (one colour, one switch)`);
+    }
+    assert.match(material.customProgramCacheKey(), /haze/, `${name}: its program is not the one without the haze (its own key)`);
+  }
+  // the haze is on while the far land shows and off where it does not, so what is not over the far land looks as it did
+  const haze = Object.entries(far.uniforms).find(([key]) => afterFog(far).includes(key))[1];
+  flyTo(valleyOf(true), 152, 70, 250);
+  assert.equal(haze.value.w, 1, 'at 152 s (the far land shows) the haze is on');
+  flyTo(valleyOf(true), 100, 40);
+  assert.equal(haze.value.w, 0, 'at 100 s (no far land yet) the haze is off');
+});
