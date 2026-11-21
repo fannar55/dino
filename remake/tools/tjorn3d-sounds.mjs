@@ -15,8 +15,8 @@
 // ffprobe open them (this tool reads their bytes for the fingerprint and no more, and works on the samples ffmpeg hands it), and
 // nothing is run from their folders. ffmpeg and ffprobe must be on the PATH.
 //
-// One-shots are mono, 44.1 kHz, 96 kbps, their peak at SHOT_PEAK dBFS; the bed is stereo (its two sides are all but unlike each
-// other, which is what makes a wash wide) at 128 kbps, levelled by its loudness. Every file is written without tags or dates, so
+// One-shots are mono, 44.1 kHz, 96 kbps, their peak at SHOT_PEAK dBFS; the bed is stereo (its two sides are only half alike,
+// which is what makes a wash wide on a tablet's two speakers) at 128 kbps, levelled by its loudness. Every file is written without tags or dates, so
 // the same sources and the same ffmpeg give the same bytes.
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -214,7 +214,7 @@ export const SOUNDS = {
       // The recording is 85 s of an even reed-wind wash with small ticks of water all through it, over a rumble (61 % of its energy
       // lies under 80 Hz) and with geese: loud calls at 46-50 s, far ones at 57-60 s and 80-81 s, gusts at 4-6, 19-25 and 41-44 s,
       // a click at 30.7 s. Its two even stretches without a call or a gust are joined into one loop.
-      const first = [60.45, 80.35], second = [50.2, 57.1], cross = 1.2, shelf = [5000, -6], ceiling = 17;
+      const first = [60.45, 80.35], second = [50.2, 57.1], cross = 1.2, shelf = [4000, -9], ceiling = 17;
       const filters = [high(180), `highshelf=f=${shelf[0]}:g=${shelf[1]}`];
       const before = bands(decode(src('573823'), { from: first[0], to: first[1], filters: [high(180)], channels: 2 }));
       const a = decode(src('573823'), { from: first[0], to: first[1], filters, channels: 2 });
@@ -261,7 +261,7 @@ export const SOUNDS = {
           `Its two even stretches with no call and no gust, ${first[0]} to ${first[1]} s and ${second[0]} to ${second[1]} s, joined with a ${cross} s crossfade at equal power and the end passed into the start the same way: a loop of ${seconds} s. ` +
           `${180} Hz high-pass (the rumble, which a tablet does not play), ${-shelf[1]} dB off above ${shelf[0] / 1000} kHz (the reeds' hiss: ${before[4]} % of its energy lay over 6 kHz, now ${bands(loop)[4]} %), ` +
           `${tamed} ticks more than ${ceiling} dB over the wash turned down to that (the most by ${r1(most)} dB: a plop at 73.3 s that would be known the second time round), ` +
-          `the left side was ${Math.abs(lean)} dB ${lean > 0 ? 'louder' : 'softer'} than the right and they are made alike (they are all but unlike each other, correlation ${r2(lr / Math.sqrt(l * r))}: it stays stereo), ` +
+          `the left side was ${Math.abs(lean)} dB ${lean > 0 ? 'louder' : 'softer'} than the right and the two are made as loud as each other (they are only half alike, correlation ${r2(lr / Math.sqrt(l * r))}, which is what makes a wash wide: it stays stereo), ` +
           `raised ${raised} dB to ${BED_RMS} dBFS RMS. ${ROLL} s of the loop's end is laid before it and ${ROLL} s of its start after it, and the show plays round from ${ROLL} s for ${seconds} s, so that no decoder's padding falls in the round. ` +
           `MP3 128 kbps stereo 44.1 kHz with ffmpeg / libmp3lame.`,
       };
@@ -279,13 +279,16 @@ export const SOUNDS = {
       // drips to 9.5 s. Both slower and lower, for size (modestly: these are MP3 previews, and slowness dulls them); the body's
       // heave a second in, the break just after it, so the pouring peaks after the surge.
       const body = { speed: 0.88, lead: 1.0, until: 13.4, gain: 0 }, top = { speed: 0.92, lead: 1.12, until: 7.6, gain: -4 };
-      const shave = 5, out = 1.6;
+      const shave = 9, out = 1.6, lead = { gain: 5, holds: 0.55, gone: 0.85 };
       const heave = loudestAt(decode(src('144272'), { from: 9.4, to: 10.4 })[0], 0, 1) + 9.4;
       const breaks = loudestAt(decode(src('679410'), { from: 4.2, to: 4.9 })[0], 0, 0.7) + 4.2;
       const cut = (id, { speed, lead, until }, event) => { const from = r3(event - lead * speed); return { from, channels: decode(src(id), { from, to: until, speed, filters: [high(150)] }) }; };
       const a = cut('144272', body, heave), b = cut('679410', top, breaks);
       const highsBefore = bands(decode(src('144272'), { from: a.from, to: body.until, filters: [high(150)] }))[4];
       const mixed = mix(fadeIn(scale(a.channels, lin(body.gain)), 0.06), fadeIn(scale(b.channels, lin(top.gain)), 0.06));
+      // the small splashes before the heave are raised, so that the water is heard to move from the first moment and the surge
+      // has something to grow out of: by lead.gain dB until lead.holds s, then less, and as it was from lead.gone s
+      for (const ch of mixed) for (let i = 0; i < Math.min(ch.length, at(lead.gone)); i++) ch[i] *= lin(lead.gain * Math.min(1, (lead.gone - i / RATE) / (lead.gone - lead.holds)));
       fadeOut(mixed, out);
       const { channels: limited, took } = limit(mixed, shave);
       const channels = toPeak(limited, SHOT_PEAK);
@@ -294,7 +297,7 @@ export const SOUNDS = {
         channels, kbps: 96,
         done: `Two recordings mixed. The body: a person getting out of a bath (18.4 s, mono 48 kHz; the heave measured at ${r2(heave)} s), from ${a.from} to ${body.until} s, played at ${body.speed} of its speed (slower and ${r1(-12 * Math.log2(body.speed))} semitones lower, for size), so the heave is ${body.lead} s in. ` +
           `The break: a head coming up out of water (10.8 s, the same on both sides; the surface breaks at ${r2(breaks)} s), from ${b.from} to ${top.until} s at ${top.speed} of its speed, ${-top.gain} dB under the body, its break ${top.lead} s in: the pouring peaks just after the surge. ` +
-          `150 Hz high-pass on both, 60 ms fade-in, the last ${out} s faded out, the peaks shaved ${took} dB by a limiter (a splash's one sample is not its loudness), the peak then at ${SHOT_PEAK} dBFS. ` +
+          `150 Hz high-pass on both, 60 ms fade-in, the first ${lead.holds} s raised ${lead.gain} dB and less from there to ${lead.gone} s (the small splashes before the heave: the water moves from the first moment, and the surge grows out of it), the last ${out} s faded out, the peaks shaved ${took} dB by a limiter (a splash's one sample is not its loudness), the peak then at ${SHOT_PEAK} dBFS. ` +
           `Its fullest 0.2 s is ${fullest} s in; ${shares(channels)} (the body alone had ${highsBefore} % over 6 kHz before it was slowed). MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame.`,
       };
     },
@@ -344,7 +347,7 @@ export const SOUNDS = {
     what: 'she sinks: the water closing over her head',
     make(src) {
       // A head dipping under water: soft movement from 0.7 s, the water closing over at 3.2 to 3.4 s, a muffled tail to 3.75 s.
-      const speed = 0.88, until = 3.86, shave = 4;
+      const speed = 0.88, until = 3.86, shave = 9;
       const closes = loudestAt(decode(src('679407'), { from: 3.0, to: 3.6 })[0], 0, 0.6) + 3.0;
       const from = r3(closes - SOUND.sinkLead * speed);
       const cut = decode(src('679407'), { from, to: until, speed, filters: [high(150)] });
@@ -487,10 +490,20 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       const file = path.join(out, name);
       encode(made.channels, file, made.kbps);
       const m = measured(file);
+      let seam = '';
+      if (made.loop) {
+        // the round as a browser will play it: what follows its end must be its start again
+        const heard = decode(file, { channels: m.channels }), [from, seconds] = made.loop, n = at(ROLL - 0.05);
+        let aa = 0, bb = 0, ab = 0;
+        for (const ch of heard) for (let i = 0; i < n; i++) { const a = ch[at(from) + i], b = ch[at(from + seconds) + i]; aa += a * a; bb += b * b; ab += a * b; }
+        const alike = ab / Math.sqrt(aa * bb);
+        if (!(alike > 0.9)) throw new Error(`${name}: what follows the round's end is not its start (correlation ${r2(alike)})`);
+        seam = ` What follows the round's end in the encoded file is its start again (correlation ${r2(alike)} over ${r2(ROLL - 0.05)} s).`;
+      }
       files[name] = {
         slot: job.slot, what: job.what, seconds: m.seconds, bytes: fs.statSync(file).size, channels: m.channels, ...(made.loop ? { loop: made.loop } : {}),
         sources: job.sources.map(sourceRecord), sha256: sha256(file),
-        done: `${made.done} Now ${m.seconds} s, its peak ${m.peak} dBFS after encoding.`,
+        done: `${made.done} Now ${m.seconds} s, its peak ${m.peak} dBFS after encoding.${seam}`,
       };
       console.log(`${name}: ${m.seconds} s, ${files[name].bytes} bytes, peak ${m.peak} dBFS, loudest 0,4 s ${m.loudest} dBFS, bands ${m.bands.join(' | ')} %`);
     }

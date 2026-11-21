@@ -51,7 +51,7 @@ test('the cues are in order, inside the show, and each names a sound that is the
     assert.ok(!Object.hasOwn(MADE, name), `${name} is a recording's name only`);
     assert.ok(entry.instead === 'water' || Object.hasOwn(MADE, entry.instead) || (Object.hasOwn(SLOTS, name) && Object.hasOwn(RECORDINGS, entry.instead)), `${name}: ${entry.instead} is there`);
     assert.ok(madeFor(name) === 'water' || Object.hasOwn(MADE, madeFor(name)), `${name}: at the end of it ${madeFor(name)} is made`);
-    assert.ok(entry.level > 0 && entry.level <= 1 && entry.urls.length > 0);
+    assert.ok(entry.level > 0 && entry.level <= 1.5 && entry.urls.length > 0);
   }
   assert.equal(SLOTS.pond.instead, 'water', 'the bed\'s slot stands in for the made water');
   assert.deepEqual([SLOTS.fish.instead, madeFor('fish'), SLOTS.frog.instead], ['plop', 'fishIn', 'croak'], 'the fish\'s leap and the frog stand in for what sounded before their recordings came');

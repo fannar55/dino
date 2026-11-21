@@ -13,6 +13,8 @@
 //   node remake/tools/tjorn3d-sound.mjs --played --glasses
 //       the page as the child opens it (?chapter=tjorn3d): the glasses' tap, the whole show, the end card, and then "Aftur" for a
 //       few seconds, to see that it starts clean.
+//   --made    with --render or --played: the show without the real recordings (the page's &upptokur=0): every slot plays what
+//             stands in for it
 //
 // Exit code 1 when the page throws, a cue of the sheet was not played, or the sum's peak reaches full scale.
 import http from 'node:http';
@@ -31,12 +33,13 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { render: false, played: false, glasses: false, from: 0, until: LENGTH, json: null, wav: null, timeout: 180, size: '1280x800' };
+  const o = { render: false, played: false, glasses: false, made: false, from: 0, until: LENGTH, json: null, wav: null, timeout: 180, size: '1280x800' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--render') o.render = true;
     else if (a === '--played') o.played = true;
     else if (a === '--glasses') o.glasses = true;
+    else if (a === '--made') o.made = true;
     else if (a === '--from') o.from = Number(next());
     else if (a === '--until') o.until = Number(next());
     else if (a === '--json') o.json = next();
@@ -119,7 +122,7 @@ function printSheet() {
 
 // ---- the measure: runs in the page ----
 /* eslint-disable no-undef */
-async function measureInPage({ from, length, alone }) {
+async function measureInPage({ from, length, alone, recordings }) {
   const { createPondSound, CUES, SLOTS, RECORDINGS } = await import('/remake/chapters/tjorn3d/sound.js');
   const { createOutput } = await import('/remake/engine/audio/output.js');
   const RATE = 48000, N = 4096;
@@ -168,7 +171,7 @@ async function measureInPage({ from, length, alone }) {
   }
   async function render(seconds, lay, chain = true, cues = CUES) {
     const context = new OfflineAudioContext(2, Math.ceil(seconds * RATE), RATE);
-    const sound = createPondSound({ context, output: chain ? createOutput(context) : null, offline: true, cues });
+    const sound = createPondSound({ context, output: chain ? createOutput(context) : null, offline: true, cues, recordings });
     await sound.ready;
     lay(sound);
     const buffer = await context.startRendering();
@@ -188,7 +191,7 @@ async function measureInPage({ from, length, alone }) {
   // each sound alone: the loudest cue of each name, and each made sound that stands in for a recording
   const names = [...new Set(CUES.filter(c => c.sound).map(c => c.sound))];
   const stand = [...Object.values(SLOTS), ...Object.values(RECORDINGS)].map(entry => entry.instead);
-  for (const name of alone ? [...names, ...stand.filter(n => n !== 'water')] : []) {
+  for (const name of alone ? [...new Set([...names, ...stand.filter(n => n !== 'water')])] : []) {
     const cue = CUES.filter(c => c.sound === name).sort((x, y) => y.level - x.level)[0] ?? { t: 0, n: 0, sound: name, level: 1, pan: 0, detail: {} };
     const one = await render(8, sound => sound.play(cue, 0.05), false);
     const all = span(one.L, one.R, 0, one.L.length);
@@ -241,7 +244,7 @@ async function render(o, base) {
   await withPage(o, async page => {
     await page.send('Page.navigate', { url: `${base}assets/audio/tjorn3d/hljod/sounds.json` }); // (any page of the server will do: the modules are asked for from it)
     await sleep(500);
-    result = await page.evaluate(`(${measureInPage.toString()})(${JSON.stringify({ from: o.from, length: LENGTH, alone: true })})`);
+    result = await page.evaluate(`(${measureInPage.toString()})(${JSON.stringify({ from: o.from, length: LENGTH, alone: true, recordings: !o.made })})`);
     if (o.wav) {
       const file = path.resolve(ROOT, o.wav);
       await fsp.mkdir(path.dirname(file), { recursive: true });
@@ -259,7 +262,7 @@ async function render(o, base) {
   });
   const lean = s => (s.left > 1e-7 && s.right > 1e-7 ? (20 * Math.log10(s.right / s.left)).toFixed(1) : '');
   const cuesIn = (a, b) => CUES.filter(c => c.t >= a && c.t < b && c.sound).map(c => c.sound);
-  console.log(`The show's sound, laid on an offline context from ${o.from} s and measured after the page's output chain (dBFS; "dry" is the peak before it)\n`);
+  console.log(`The show's sound ${o.made ? 'WITHOUT the recordings (every slot plays what stands in for it)' : 'with the recordings'}, laid on an offline context from ${o.from} s and measured after the page's output chain (dBFS; "dry" is the peak before it)\n`);
   console.log(`${lead('s', 4)} ${lead('peak', 6)} ${lead('dry', 6)} ${lead('RMS', 6)} ${lead('<150', 6)} ${lead('>6k', 5)} ${lead('R-L dB', 7)}  cues`);
   result.seconds.forEach((s, i) => {
     if (s.t >= LENGTH) return;
@@ -278,7 +281,7 @@ async function render(o, base) {
   const loud = result.seconds.filter(s => s.t < LENGTH).reduce((x, s) => (s.rms > x.rms ? s : x));
   const dryTop = result.dry.reduce((x, s) => (s.peak > x.peak ? s : x));
   console.log(`\nThe highest peak: ${dB(top.peak)} dBFS at second ${top.t} (before the output chain ${dB(dryTop.peak)} at second ${dryTop.t}); the loudest second: ${loud.t} (${dB(loud.rms)} dBFS RMS)`);
-  console.log(`The bed alone at its full level: RMS ${dB(result.bed.rms)} dBFS, peak ${dB(result.bed.peak)}; under 150 Hz ${share(result.bed.bands[0])}, 150-500 ${share(result.bed.bands[1])}, 500-2k ${share(result.bed.bands[2])}, 2-6k ${share(result.bed.bands[3])}, over 6 kHz ${share(result.bed.bands[4])}`);
+  console.log(`The bed alone at its full level (${result.log.find(e => e.kind === 'bed')?.played}): RMS ${dB(result.bed.rms)} dBFS, peak ${dB(result.bed.peak)}; under 150 Hz ${share(result.bed.bands[0])}, 150-500 ${share(result.bed.bands[1])}, 500-2k ${share(result.bed.bands[2])}, 2-6k ${share(result.bed.bands[3])}, over 6 kHz ${share(result.bed.bands[4])}`);
   console.log('\nEach sound alone (its loudest cue; before the output chain):');
   console.log(`  ${pad('sound', 9)} ${pad('plays', 16)} ${lead('at', 6)} ${lead('level', 5)} ${lead('peak', 6)} ${lead('loudest 0,4 s', 13)} ${lead('lasts', 6)} ${lead('<150', 5)} ${lead('150-500', 7)} ${lead('.5-2k', 6)} ${lead('2-6k', 5)} ${lead('>6k', 5)}`);
   for (const s of result.sounds) {
@@ -310,12 +313,12 @@ async function played(o, base) {
     let before = { t: 0, running: false, log: 0 };
     if (o.glasses) {
       // as the child opens it: the glasses' card, its tap, the pond built under the black, the show
-      await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d` });
+      await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d${o.made ? '&upptokur=0' : ''}` });
       await until('the glasses did not come', 'document.querySelector(".gler-start") && !document.querySelector(".gler-start-wrap")?.hidden');
       await page.evaluate('document.querySelector(".gler-start").click()');
       await until('the show did not start', SHOWING);
     } else {
-      await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d&t=${o.from}&play=1` });
+      await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d&t=${o.from}&play=1${o.made ? '&upptokur=0' : ''}` });
       await until('the page did not get ready', `window.__demoReady && ${SHOWING}`);
       await page.evaluate('window.__world.tjorn.sound.ready');
       before = await page.evaluate('({ t: window.__world.tjorn.view.t, running: window.__world.tjorn.sound.running, log: window.__world.tjorn.sound.log.length })');
@@ -340,7 +343,7 @@ async function played(o, base) {
     }
     errors = [...page.errors];
   });
-  console.log(`The page played from ${o.from} s to ${state.t.toFixed(2)} s: the cues as it played them\n`);
+  console.log(`The page played from ${o.from} s to ${state.t.toFixed(2)} s${o.made ? ' WITHOUT the recordings (&upptokur=0)' : ''}: the cues as it played them\n`);
   if (!o.glasses) console.log(`Before the tap: the show stood at ${state.before.t.toFixed(2)} s, the sound ${state.before.running ? 'RUNNING' : 'not started'}, ${state.before.log} cues played`);
   console.log(`${lead('played', 7)} ${lead('sheet', 6)} ${lead('late ms', 7)}  ${pad('sound', 9)} ${pad('kind', 9)} ${pad('what sounded', 16)} ${lead('level', 5)} ${lead('pan', 5)}`);
   for (const e of log) console.log(`${lead(e.at.toFixed(2), 7)} ${lead(e.t.toFixed(2), 6)} ${lead(Math.round((e.at - e.t) * 1000), 7)}  ${pad(e.sound, 9)} ${pad(e.kind, 9)} ${pad(e.played ?? 'NOT PLAYED', 16)} ${lead(e.level, 5)} ${lead(e.pan, 5)}`);

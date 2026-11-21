@@ -67,13 +67,13 @@ const own = file => `${FILES}${file}`;
  * the building side has heard them.
  */
 export const SLOTS = {
-  pond: { urls: [own('pond.mp3')], level: 0.25, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
-  rise: { urls: [own('rise.mp3')], level: 0.6, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
-  drips: { urls: [own('drips.mp3')], level: 0.2, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
-  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.25, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
-  sink: { urls: [own('sink.mp3')], level: 0.3, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
-  fish: { urls: [own('fish.mp3')], level: 0.25, instead: 'plop', what: 'a fish leaping out of the water: a light splash, under a second' },
-  frog: { urls: [own('frog-1.mp3'), own('frog-2.mp3')], level: 0.1, instead: 'croak', what: 'one croak of a frog, takes welcome' },
+  pond: { urls: [own('pond.mp3')], level: 0.29, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
+  rise: { urls: [own('rise.mp3')], level: 1.15, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
+  drips: { urls: [own('drips.mp3')], level: 0.35, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
+  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.3, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
+  sink: { urls: [own('sink.mp3')], level: 1.2, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
+  fish: { urls: [own('fish.mp3')], level: 0.35, instead: 'plop', what: 'a fish leaping out of the water: a light splash, under a second' },
+  frog: { urls: [own('frog-1.mp3'), own('frog-2.mp3')], level: 0.4, instead: 'croak', what: 'one croak of a frog, takes welcome' },
 };
 
 /** The recordings the game already has (assets/veiddu/splash.json), by the name a cue asks for them: as SLOTS. */
