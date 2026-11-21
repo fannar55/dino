@@ -1,5 +1,9 @@
 # Sounds in Uggeðla í tjörninni
 
+## Uggeðla's lines
+
+`t3_uggedla_hallo.mp3` ("Halló!"), `t3_uggedla_namm.mp3` ("Namm!"), `t3_uggedla_fidrildi.mp3` ("Ó, fiðrildi!") and `t3_uggedla_bless.mp3` ("Bless!"): Uggeðla's voice, made with the game's voice tools (line set `tjorn3d`, `lines.json`).
+
 ## The real water
 
 The pond's bed, her rise out of the water, the drips, the bubbles, her sinking, the fish's leap and the frog are cut, shaped and
@@ -24,4 +28,4 @@ here all the same.
 
 The splash as she comes down with the fish, and the fish's small plop when the show is played without the recordings, are Veiddu's
 (`assets/veiddu/splash.json`, CC0 1.0). Everything else is made in the show as it plays (`chapters/tjorn3d/sound.js`), in the manner
-and the key of the game's effects (`engine/audio/sfx.js`, `engine/audio/fen-sounds.js`). The show has no music and no voices.
+and the key of the game's effects (`engine/audio/sfx.js`, `engine/audio/fen-sounds.js`). The show has no music.

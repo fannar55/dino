@@ -237,10 +237,11 @@ test('the show: its tile in the book, the last under "3D myndbönd", with a pict
   // the whole screen back before it leaves for the book
   assert.match(source, /const SHOW = params\.get\('lykill'\) === null;/);
   assert.match(source, /startButton: doc => tableStart\(doc, glassesStart\(doc, /, 'the glasses start it, and their tap asks for the whole screen');
-  assert.match(source, /endCard\(doc, \{ onAgain: [^}]*\}, onQuit: \(\) => \{ sound\.end\(\); leaveShow\(win\); \} \}\)/, 'the end card: Aftur again; Hætta ends the sound and leaves');
-  // and leaving is the chapter's own: the whole screen given back, then the book's way out (show-player.js)
-  assert.match(source, /^import \{ leaveShow as leaveForBook \} from '\.\.\/engine\/book\/show-player\.js';$/m);
-  assert.match(source, /^const leaveShow = win => \{ giveBackScreen\(win\?\.document\); return leaveForBook\(win\); \};$/m);
+  // the end card: Aftur again; Hætta ends the sound, stops a line that is sounding, gives the whole screen back, and then leaves
+  // by the book's way out (show-player.js), in that order
+  assert.match(source, /endCard\(doc, \{ onAgain: [^}]*\}, onQuit: \(\) => \{ sound\.end\(\); hush\(\); giveBackScreen\(doc\); leaveShow\(win\); \} \}\)/);
+  assert.match(source, /^import \{ leaveShow \} from '\.\.\/engine\/book\/show-player\.js';$/m);
+  assert.match(source, /^import \{ tableUi, tableStart, giveBackScreen, tala \} from '\.\.\/engine\/table-ui\.js';$/m);
 });
 
 test('the shelf\'s judge: a name under another tile\'s card, tape, badge or twinkle, out of its own card, past its line or out of the column is wrong', () => {

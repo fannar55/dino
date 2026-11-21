@@ -9,6 +9,10 @@
 //   node remake/tools/tjorn3d-sounds.mjs --only rise.mp3,frog-1.mp3      make only these; the rest stay as they are
 //   node remake/tools/tjorn3d-sounds.mjs --dry                           print what it would make
 //   node remake/tools/tjorn3d-sounds.mjs --measure                       measure the files that are there (no source needed)
+//   node remake/tools/tjorn3d-sounds.mjs --credits                       write CREDITS.md alone, from sounds.json as it is (no source
+//                                                                        needed, nothing cut again): its lines section names the show's
+//                                                                        lines (chapters/tjorn3d/sound.js LINES), which the game's voice
+//                                                                        tools make, not this one
 //
 // The sources are not in the repo (git ignores qa/): <folder>/<id>-<use>/<id>-hq.mp3 with <folder>/sources.json beside them (title,
 // author, page, preview, licence, sourceSha256), by default qa/tjorn3d/hljod/heimildir. They are data from the web: only ffmpeg and
@@ -23,7 +27,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, SOUND } from '../chapters/tjorn3d/sound.js';
+import { SLOTS, SOUND, LINES } from '../chapters/tjorn3d/sound.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const SOURCES = 'qa/tjorn3d/hljod/heimildir';
@@ -424,7 +428,14 @@ export const slotsRecord = () => Object.fromEntries(Object.entries(SLOTS).map(([
 function creditsMarkdown(files) {
   const source = s => `"${s.title}" by ${s.author}, ${s.source}`;
   const rows = Object.entries(files).map(([name, entry]) => `| \`hljod/${name}\` | ${entry.what} | ${entry.sources.map(source).join('; and ')} | ${[...new Set(entry.sources.map(s => s.licence))].join(', ')} |`);
+  // her lines, as the show has them (chapters/tjorn3d/sound.js LINES): made by the game's voice tools, not by this one
+  const said = Object.entries(LINES).map(([id, text]) => `\`${id}.mp3\` ("${text}")`);
+  const lines = said.length > 1 ? `${said.slice(0, -1).join(', ')} and ${said.at(-1)}` : said[0];
   return `# Sounds in Uggeðla í tjörninni
+
+## Uggeðla's lines
+
+${lines}: Uggeðla's voice, made with the game's voice tools (line set \`tjorn3d\`, \`lines.json\`).
 
 ## The real water
 
@@ -441,7 +452,7 @@ ${rows.join('\n')}
 
 The splash as she comes down with the fish, and the fish's small plop when the show is played without the recordings, are Veiddu's
 (\`assets/veiddu/splash.json\`, CC0 1.0). Everything else is made in the show as it plays (\`chapters/tjorn3d/sound.js\`), in the manner
-and the key of the game's effects (\`engine/audio/sfx.js\`, \`engine/audio/fen-sounds.js\`). The show has no music and no voices.
+and the key of the game's effects (\`engine/audio/sfx.js\`, \`engine/audio/fen-sounds.js\`). The show has no music.
 `;
 }
 
@@ -458,6 +469,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       const m = measured(file);
       console.log(`${name.padEnd(15)} ${m.seconds.toFixed(3).padStart(7)} ${String(m.channels).padStart(2)} ${String(fs.statSync(file).size).padStart(7)} ${m.peak.toFixed(1).padStart(6)} ${m.rms.toFixed(1).padStart(6)} ${m.loudest.toFixed(1).padStart(6)}  ${m.bands.map(v => String(v).padStart(4)).join(' ')}  ${m.envelope.slice(0, 26).join(' ')}${m.envelope.length > 26 ? ' …' : ''}`);
     }
+  } else if (args.includes('--credits')) {
+    // CREDITS.md alone, from the cuts as sounds.json tells of them: nothing is cut again
+    const files = JSON.parse(fs.readFileSync(manifestFile, 'utf8')).files ?? {};
+    fs.writeFileSync(path.join(ROOT, CREDITS), creditsMarkdown(files));
+    console.log(`tjorn3d/CREDITS.md written: ${Object.keys(LINES).length} lines, ${Object.keys(files).length} recordings`);
   } else {
     const dry = args.includes('--dry');
     const only = value('--only') ? new Set(value('--only').split(',')) : null;

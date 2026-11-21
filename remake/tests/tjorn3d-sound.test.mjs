@@ -1,18 +1,21 @@
 // Uggeðla í tjörninni's sound (chapters/tjorn3d/sound.js): the cue sheet hangs on the timeline's own events, in order and inside
 // the show; every cue names a sound that is there; a still asks for nothing; a seek passes over what came before it and lays the
 // bed at its level; a slot plays its recording, and its made sound where the file is not there or the show is asked to play
-// without the recordings; and the recordings in the folder are the ones sounds.json tells of, each with its source and licence.
+// without the recordings; the recordings in the folder are the ones sounds.json tells of, each with its source and licence; and
+// her four lines are in the sheet, each hung on its event, said once at its second by the scene (never by the show's own player).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import { CUES, MADE, SLOTS, RECORDINGS, SOUND, KEY, MANIFEST, cueSheet, kindOf, madeFor, bedAt, panAt, createPondSound } from '../chapters/tjorn3d/sound.js';
-import { LENGTH, PARTS, CALM, TURN, HOLD, SAIL, JUMP, RINGS, BUBBLE, BUBBLES, SPLASHES, RUNOFF, BUTTERFLY_TIMES, BUTTERFLY_LILY, FLIGHT } from '../chapters/tjorn3d/show.js';
+import { CUES, MADE, SLOTS, RECORDINGS, LINES, SOUND, KEY, MANIFEST, cueSheet, kindOf, madeFor, bedAt, panAt, createPondSound, createLineCues } from '../chapters/tjorn3d/sound.js';
+import { LENGTH, PARTS, CALM, TURN, HOLD, SAIL, GONE, JUMP, RINGS, BUBBLE, BUBBLES, SPLASHES, RUNOFF, BUTTERFLY_TIMES, BUTTERFLY_LILY, FLIGHT, herAt, butterflyAt } from '../chapters/tjorn3d/show.js';
 import { LILIES, FROG } from '../chapters/tjorn3d/keys.js';
 import { createFakeContext, withFetch } from './fake-audio.mjs';
 
 const REMAKE = new URL('../', import.meta.url);
 const named = sound => CUES.filter(c => c.sound === sound);
+const SOUNDS = CUES.filter(c => c.line === undefined); // what the show's own player plays: the sounds and the bed
+const SAID = CUES.filter(c => c.line !== undefined); // her lines: the scene's to play
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 const base = file => file.split('/').pop();
 
@@ -35,12 +38,15 @@ async function playing(files, run, { has = () => true, options = {}, seconds = 3
 test('the cues are in order, inside the show, and each names a sound that is there', () => {
   assert.deepEqual(cueSheet(), CUES, 'the same sheet every time');
   for (let i = 1; i < CUES.length; i++) assert.ok(CUES[i].t >= CUES[i - 1].t, `in order at ${CUES[i].t}`);
-  assert.deepEqual(CUES.map(c => c.n), CUES.map((_, i) => i + 1));
+  // the sounds and the bed are numbered in their order, as they were before her lines came (a cue's number seeds what varies
+  // in it), and her lines after them
+  assert.deepEqual(SOUNDS.map(c => c.n), SOUNDS.map((_, i) => i + 1));
+  assert.deepEqual(SAID.map(c => c.n), SAID.map((_, i) => SOUNDS.length + i + 1));
   for (const cue of CUES) {
-    assert.ok(cue.t >= 0 && cue.t < LENGTH, `${cue.sound ?? 'bed'} at ${cue.t} is inside the show`);
-    assert.ok(kindOf(cue), `${cue.sound} at ${cue.t} is known`);
+    assert.ok(cue.t >= 0 && cue.t < LENGTH, `${cue.sound ?? cue.line ?? 'bed'} at ${cue.t} is inside the show`);
+    assert.ok(kindOf(cue), `${cue.sound ?? cue.line} at ${cue.t} is known`);
     assert.ok(typeof cue.what === 'string' && cue.what.length > 3);
-    if (cue.bed === undefined) {
+    if (cue.sound !== undefined) {
       assert.ok(cue.level > 0 && cue.level <= 1.5, `${cue.sound}'s level`);
       assert.ok(Math.abs(cue.pan) <= SOUND.panMost, `${cue.sound} at ${cue.t} is no farther to a side than ${SOUND.panMost}`);
     }
@@ -57,8 +63,9 @@ test('the cues are in order, inside the show, and each names a sound that is the
   assert.deepEqual([SLOTS.fish.instead, madeFor('fish'), SLOTS.frog.instead], ['plop', 'fishIn', 'croak'], 'the fish\'s leap and the frog stand in for what sounded before their recordings came');
   for (const entry of Object.values(RECORDINGS)) for (const file of entry.urls) assert.ok(fs.existsSync(new URL(file, REMAKE)), file);
   assert.deepEqual(Object.keys(SLOTS), ['pond', 'rise', 'drips', 'bubbles', 'sink', 'fish', 'frog']);
-  // no music and no voice in it: the sheet has sounds and the bed only
-  assert.ok(CUES.every(c => c.bed !== undefined || typeof c.sound === 'string'));
+  // no music in it: the sheet has sounds, the bed and her lines only, each cue one of them
+  assert.ok(CUES.every(c => [c.bed !== undefined, typeof c.sound === 'string', typeof c.line === 'string'].filter(Boolean).length === 1));
+  assert.equal(kindOf({ t: 1, line: 'not_a_line' }), null, 'a line the show does not have is not known');
   // tuned to the game's theme
   assert.deepEqual(KEY, JSON.parse(fs.readFileSync(new URL('assets/audio/theme.json', REMAKE), 'utf8')).key);
 });
@@ -149,7 +156,7 @@ test('a still asks for no sound', async () => {
   assert.match(source, /createPondSound\(\{ context: still \? null : world\.sound\?\.context \?\? null/);
   assert.match(source, /if \(time\.showing && !still && !s\.seeking\) \{\s+if \(!time\.sounding && time\.seen !== null && s\.time !== time\.seen\)/);
   assert.match(source, /time\.showing = false;\s+sound\.end\(\);/);
-  assert.match(source, /onQuit: \(\) => \{ sound\.end\(\); leaveShow\(win\); \}/);
+  assert.match(source, /onQuit: \(\) => \{ sound\.end\(\); hush\(\); giveBackScreen\(doc\); leaveShow\(win\); \}/, '"Hætta": the sound ends, a line that is sounding stops, the whole screen is given back, and it leaves');
   assert.match(source, /world\.music\?\.setLevel\?\.\(0, 0\)/, 'no music');
   // and plays without the real recordings only when the page is asked to (&upptokur=0)
   assert.match(source, /createPondSound\(\{[^}]*recordings: params\.get\('upptokur'\) !== '0' \}\)/);
@@ -166,7 +173,7 @@ test('a seek passes over the earlier cues and lays the bed at its level; played 
     context.advance(0.5);
     sound.frame(from + 0.5);
     sound.frame(from + 0.5); // (a second frame at the same second plays nothing again)
-    const due = CUES.filter(c => c.t >= from && c.t <= from + 0.5);
+    const due = SOUNDS.filter(c => c.t >= from && c.t <= from + 0.5);
     assert.ok(due.length > 0);
     assert.deepEqual(sound.log.map(e => e.n), due.map(c => c.n));
     assert.ok(sound.log.every(e => e.t >= from && e.played));
@@ -196,7 +203,7 @@ test('a cue waits a moment for an audio context that is still waking, and is pas
   await playing({}, ({ sound, context }) => {
     context.setState('suspended');
     sound.start(1);
-    const [first, second] = CUES.filter(c => c.t >= 1);
+    const [first, second] = SOUNDS.filter(c => c.t >= 1);
     sound.frame(first.t + 0.1);
     assert.equal(sound.log.length, 0, 'not yet');
     context.setState('running');
@@ -219,9 +226,9 @@ test('a slot with no file plays what stands in for it; with its file named in so
     sound.start(0);
     context.advance(1);
     sound.frame(LENGTH);
-    assert.deepEqual(sound.log.map(e => e.n), CUES.map(c => c.n), 'the whole sheet, once each');
+    assert.deepEqual(sound.log.map(e => e.n), SOUNDS.map(c => c.n), 'the whole sheet of sounds, once each');
     for (const entry of sound.log) {
-      const cue = CUES[entry.n - 1];
+      const cue = SOUNDS[entry.n - 1];
       if (entry.kind === 'slot') assert.equal(entry.played, standIn(SLOTS[cue.sound]), `${cue.sound} at ${cue.t}`);
       else if (entry.kind === 'recording') assert.equal(entry.played, base(RECORDINGS[cue.sound].urls[0]));
       else if (entry.kind === 'made') assert.equal(entry.played, cue.sound);
@@ -284,7 +291,7 @@ test('asked to play without the recordings, the show asks for none of the slots\
     sound.start(0);
     assert.ok(context.oscillators.length > 0, 'the made water is laid');
     sound.frame(LENGTH);
-    assert.deepEqual(sound.log.map(e => e.n), CUES.map(c => c.n));
+    assert.deepEqual(sound.log.map(e => e.n), SOUNDS.map(c => c.n));
     for (const entry of sound.log.filter(e => e.kind === 'slot')) assert.equal(entry.played, standIn(SLOTS[entry.sound]), entry.sound);
     assert.ok(sound.log.filter(e => e.kind === 'bed').every(e => e.played === 'water'));
   }, { options: { recordings: false } });
@@ -329,4 +336,130 @@ test('sounds.json names the slots as the code has them; every recording it tells
   assert.ok(Object.values(list.files).every(entry => (entry.loop !== undefined) === (entry.slot === 'pond')));
   assert.deepEqual(fs.readdirSync(folder).filter(file => file !== 'sounds.json').sort(), Object.keys(list.files).sort());
   assert.ok(total < 800_000, `small files: ${total} bytes in all`);
+});
+
+// ---- her lines ----
+const RECORDED = JSON.parse(fs.readFileSync(new URL('assets/audio/lines.json', REMAKE), 'utf8'));
+/** What lines.json says of a line's recording now (a take may be made again under the same id: nothing here knows its length). */
+const recorded = id => RECORDED[id];
+
+test('her four lines are in the sheet, each hung on its event and after it, in order, none over another, and each is in lines.json', () => {
+  assert.deepEqual(SAID.map(c => c.line), ['t3_uggedla_hallo', 't3_uggedla_namm', 't3_uggedla_fidrildi', 't3_uggedla_bless']);
+  assert.deepEqual(Object.keys(LINES), SAID.map(c => c.line), 'the show has these four and no other');
+  assert.deepEqual(Object.values(LINES), ['Halló!', 'Namm!', 'Ó, fiðrildi!', 'Bless!']);
+  const EVENTS = { 'HOLD.from': HOLD.from, 'JUMP.gulp': JUMP.gulp, 'BUTTERFLY_TIMES.land': BUTTERFLY_TIMES.land, 'BUTTERFLY_TIMES.off': BUTTERFLY_TIMES.off };
+  assert.deepEqual(SAID.map(c => c.on), Object.keys(EVENTS), 'the hold, the gulp, the landing, the lift-off');
+  for (const cue of SAID) {
+    assert.deepEqual(Object.keys(cue).sort(), ['line', 'n', 'on', 't', 'what'], `${cue.line}: a line has no level and no side of its own (the game's voice plays it)`);
+    assert.equal(kindOf(cue), 'line');
+    const event = EVENTS[cue.on];
+    assert.ok(cue.t >= event && cue.t - event <= 1.5, `${cue.line} at ${cue.t} is said at its event (${cue.on}, ${event} s) or a little after, never before`);
+    // its recording, as lines.json has it at this moment
+    const take = recorded(cue.line);
+    assert.ok(take, `${cue.line} is in lines.json`);
+    assert.equal(take.src, `assets/audio/tjorn3d/${cue.line}.mp3`);
+    assert.ok(fs.existsSync(new URL(take.src, REMAKE)), `${take.src} is there`);
+    assert.ok(take.duration > 0.3 && take.duration < 4 && /^[0-9a-f]+$/.test(take.mouth) && /[1-9a-f]/.test(take.mouth), `${cue.line} has its length and its mouth shapes`);
+    assert.ok(cue.t + take.duration < LENGTH);
+  }
+  for (let i = 1; i < SAID.length; i++) {
+    assert.ok(SAID[i].t > SAID[i - 1].t, 'in order');
+    assert.ok(SAID[i - 1].t + recorded(SAID[i - 1].line).duration <= SAID[i].t, `${SAID[i - 1].line} is over (its whole recording) before ${SAID[i].line} is said`);
+  }
+  // and the show's credits name them (tools/tjorn3d-sounds.mjs writes the file)
+  const credits = fs.readFileSync(new URL('assets/audio/tjorn3d/CREDITS.md', REMAKE), 'utf8');
+  assert.match(credits, /^## Uggeðla's lines$/m);
+  for (const [id, text] of Object.entries(LINES)) assert.ok(credits.includes(`\`${id}.mp3\` ("${text}")`), `${id} is in CREDITS.md`);
+  assert.ok(credits.includes('Uggeðla\'s voice, made with the game\'s voice tools (line set `tjorn3d`, `lines.json`)') && !/no voices/.test(credits));
+});
+
+test('each line is said where the picture has room for it: her jaw is the timeline\'s shut, she is up, and the butterfly is where the line says', () => {
+  const [hallo, namm, fidrildi, bless] = SAID;
+  const through = (cue, each) => { for (let t = cue.t - 0.3; t <= cue.t + recorded(cue.line).duration + 1e-9; t += 0.05) each(t); };
+  // her speaking mouth is laid on the jaw the timeline poses: that jaw is shut from a little before each line to the end of its
+  // recording, so her mouth opens from shut and shuts again, with no jump
+  for (const cue of SAID) through(cue, t => assert.equal(herAt(t).jaw, 0, `${cue.line}: the timeline's jaw at ${t.toFixed(2)} s`));
+  // "Halló!": in the hold, her head up and looking at him, after the rise's own sounds have begun to fall away
+  through(hallo, t => { const h = herAt(t); assert.ok(t > HOLD.from && t < HOLD.to && h.look === 'eye' && h.strike === 0, `at ${t.toFixed(2)} s she stands and looks at him`); });
+  assert.ok(hallo.t >= named('bloom')[0].t + 1, 'the little chord has rung');
+  // "Namm!": the fish is down (the gulp's sound began before it), and nothing is in her jaws
+  assert.ok(namm.t > JUMP.gulp && namm.t > named('gulp')[0].t + 0.5 && namm.t - JUMP.gulp < 1);
+  // "Ó, fiðrildi!": the butterfly sits on her snout from before the line to the end of its recording
+  through(fidrildi, t => assert.equal(butterflyAt(t).on, 'snout', `at ${t.toFixed(2)} s the butterfly sits`));
+  assert.ok(fidrildi.t >= named('chime')[0].t + 0.4, 'its two bells have rung');
+  // "Bless!": as the butterfly lifts off, while she is sinking; its recording is over before the water closes over her head
+  assert.ok(near(bless.t, BUTTERFLY_TIMES.off), 'at the lift-off, not later: the water reaches her mouth soon after it');
+  assert.equal(butterflyAt(bless.t).on, 'back');
+  assert.ok(herAt(bless.t).sink > herAt(bless.t - 0.4).sink && herAt(bless.t).there, 'she is sinking');
+  const [, , under] = SPLASHES;
+  assert.ok(bless.t + recorded(bless.line).duration < under[0] && under[0] < GONE, 'said before her head is under');
+});
+
+test('her lines are handed out once each as the show\'s second passes them; a start past a line passes over it; played again they are said again', () => {
+  const heard = [];
+  const lines = createLineCues({ say: cue => heard.push(cue.line) });
+  assert.deepEqual(lines.lines, SAID);
+  lines.frame(LENGTH);
+  assert.deepEqual(heard, [], 'nothing before the show has started');
+  lines.start(0);
+  for (let t = 0; t <= LENGTH; t += 1 / 30) { lines.frame(t); lines.frame(t); } // (a second frame at the same second says nothing again)
+  assert.deepEqual(heard, SAID.map(c => c.line), 'each once, in order');
+  assert.deepEqual(lines.log.map(e => [e.line, e.t, e.n]), SAID.map(c => [c.line, c.t, c.n]));
+  for (const e of lines.log) assert.ok(e.at >= e.t && e.at - e.t < 0.04, `${e.line} in the frame its second came in`);
+  // a seek into the middle of a line: that line is not said (never from its middle), the later ones are
+  heard.length = 0;
+  lines.start(SAID[1].t + 0.2);
+  lines.frame(SAID[1].t + 0.25);
+  assert.deepEqual(heard, []);
+  lines.frame(LENGTH);
+  assert.deepEqual(heard, SAID.slice(2).map(c => c.line));
+  // a start at a line's own second says it
+  heard.length = 0;
+  lines.start(SAID[2].t);
+  lines.frame(SAID[2].t);
+  assert.deepEqual(heard, [SAID[2].line]);
+  // played again ("Aftur"): from the top, clean
+  heard.length = 0;
+  lines.start(0);
+  assert.equal(lines.log.length, 0);
+  lines.frame(LENGTH);
+  assert.deepEqual(heard, SAID.map(c => c.line));
+  // a sheet without lines hands out none
+  const none = createLineCues({ cues: SOUNDS, say: () => assert.fail('no line to say') });
+  none.start(0);
+  none.frame(LENGTH);
+});
+
+test('the show\'s own player plays no line, with the recordings or without them; a still asks for none; and the chapter says them as the game says a show\'s lines', async () => {
+  // the player: the whole sheet of sounds, once each, and not one line, whichever water it plays
+  for (const options of [{}, { recordings: false }]) {
+    await playing({}, ({ sound, asked }) => {
+      sound.start(0);
+      sound.frame(LENGTH);
+      assert.deepEqual(sound.log.map(e => e.n), SOUNDS.map(c => c.n));
+      assert.ok(sound.log.every(e => e.kind !== 'line' && !Object.hasOwn(LINES, e.sound)));
+      assert.ok(asked.every(url => !/t3_uggedla/.test(url)), 'and it asks for no line\'s file');
+    }, { options });
+  }
+  // a still's player (no audio context) is the silent one whatever the sheet holds
+  const silent = createPondSound({ context: null });
+  silent.start(0);
+  silent.frame(LENGTH);
+  assert.equal(silent.log.length, 0);
+  // the chapter: the four lines with their recordings, Uggeðla's, said by the scene with no caption (the table page shows no
+  // text) as the other 3D shows say theirs; handed out by the sheet whenever the show is showing, a capture's seek and a still
+  // too, where the scene moves her mouth and asks for no sound (engine/scene/scene.js: a seek plays no voice; main.js: a still's
+  // voice is muted); nothing about them asks which water plays (&upptokur=0)
+  const source = fs.readFileSync(new URL('chapters/tjorn3d.js', REMAKE), 'utf8');
+  assert.match(source, /cast: \{ uggedla: \{ name: 'Uggeðla' \} \},/);
+  assert.match(source, /lines: Object\.fromEntries\(Object\.entries\(LINES\)\.map\(\(\[id, text\]\) => \[id, \{ text, audio: id \}\]\)\),/);
+  assert.match(source, /createLineCues\(\{ say: cue => \{ said\.task = s\.say\('uggedla', cue\.line, \{ hold: 0, caption: false, listen: false \}\); \} \}\)/);
+  assert.match(source, /if \(time\.showing\) lines\.frame\(t\);/);
+  assert.match(source, /hush\(\); \/\/ \(played again[^\n]*\n\s+lines\.start\(0\);/, 'played again, they are said again from the top');
+  assert.match(source, /time\.showing = false;\s+sound\.end\(\);[^\n]*\n\s+hush\(\);/, 'the end stops a line that is sounding');
+  assert.ok(!/createLineCues\([^\n]*(upptokur|recordings)/.test(source), 'the lines are not asked which water plays');
+  const scene = fs.readFileSync(new URL('engine/scene/scene.js', REMAKE), 'utf8');
+  assert.match(scene, /const sound = recording && !seeking \? voice\.play\(/, 'a seek asks for no line\'s sound');
+  const main = fs.readFileSync(new URL('main.js', REMAKE), 'utf8');
+  assert.match(main, /\/\/ Deterministic seek[^\n]*\r?\n\s+voice\.muted = true;/, 'and a still\'s voice is muted');
 });

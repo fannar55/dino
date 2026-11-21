@@ -23,7 +23,7 @@
 // its picture is to lie (keys.js: under). world.tjorn.measure() gives the numbers (tools/tjorn3d-probe.mjs asks it).
 import * as THREE from 'three';
 import { endCard, glassesStart } from '../engine/book/show-cards.js';
-import { leaveShow as leaveForBook } from '../engine/book/show-player.js';
+import { leaveShow } from '../engine/book/show-player.js';
 import { onTable, parallaxAt, outlineBox, marginsOf, placeEye } from '../engine/table3d.js';
 import { MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
 import { tableUi, tableStart, giveBackScreen, tala } from '../engine/table-ui.js';
@@ -35,7 +35,7 @@ import { createCast, verticesOf } from './tjorn3d/cast.js';
 import { createShow } from './tjorn3d/play.js';
 import { createShowMeasure } from './tjorn3d/measure.js';
 import { LENGTH, FADE, WARM, partAt } from './tjorn3d/show.js';
-import { createPondSound } from './tjorn3d/sound.js';
+import { createPondSound, createLineCues, LINES } from './tjorn3d/sound.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -63,10 +63,6 @@ const PERCH_OVER = 0.05; // cm: the butterfly's feet this far over her skin, so 
 const LILY_STANDS = 0.04;
 const rad = d => (d * Math.PI) / 180;
 const r3 = x => Math.round(x * 1000) / 1000;
-// Leaving the show ("Hætta" on its end card): the whole screen the start's tap took is given back first (engine/table-ui.js: a whole
-// screen the show did not take is left alone), then the book's own way out (engine/book/show-player.js): back to the book when the
-// show plays in its frame, so the book is as it was, or to the game's start from a page of its own.
-const leaveShow = win => { giveBackScreen(win?.document); return leaveForBook(win); };
 
 export { KEYS };
 
@@ -91,6 +87,9 @@ export const chapter = {
   actors: {
     uggedla: { url: CHARS + 'spinosaurus.glb', position: [0, 0, 0], heading: 90 },
   },
+  cast: { uggedla: { name: 'Uggeðla' } },
+  // her four lines (tjorn3d/sound.js LINES), heard only: the table page shows no text (rule 8)
+  lines: Object.fromEntries(Object.entries(LINES).map(([id, text]) => [id, { text, audio: id }])),
   startShot: 'table',
   shots: { table: { position: [0, 3, -96], target: [0, 2, -110], fov: 40 } }, // over the dry clearing; the table's own camera takes over at once (engine/table-stage.js)
 
@@ -674,16 +673,26 @@ export const chapter = {
       let seeks = params.get('t') !== null;
       const time = { from: null, started: false, showing: false, black: -1, warm: null, sounding: false, at: 0, seen: null };
       const now = () => time.warm ?? (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
-      // Its sound (tjorn3d/sound.js): no music (the theme is held at nothing, above), no voices; the cue sheet, each cue played as
+      // Its sound (tjorn3d/sound.js): no music (the theme is held at nothing, above); the cue sheet, each cue played as
       // the show's second passes it, and the pond's bed under it, all held with the game. A still (t= alone) has no audio context,
       // and asks for nothing. With &upptokur=0 the real recordings are left out and every slot plays its made sound.
       const sound = createPondSound({ context: still ? null : world.sound?.context ?? null, output: world.sound?.output ?? null, recordings: params.get('upptokur') !== '0' });
       if (!still) world.sound?.hold?.(sound);
+      // Her lines (tjorn3d/sound.js: the sheet says when, each hung on its event): said as the game says a show's lines
+      // (engine/scene/scene.js: the game's voice, straight out at the level every line has; her mouth, and her head a little,
+      // moving with the line's mouth shapes in lines.json), with no caption. Her speaking is laid over the pose the timeline
+      // gives her (engine/actor.js lays it on after the rig's), and the timeline's jaw is shut wherever she speaks, so her mouth
+      // opens from shut. A capture's seek and a still move her mouth and ask for no sound, so a still shows what playing shows;
+      // a line is said once, at its second, never from its middle.
+      const said = { task: null };
+      const hush = () => { said.task?.cancel(); said.task = null; }; // a line that is sounding stops, and her mouth shuts
+      const lines = createLineCues({ say: cue => { said.task = s.say('uggedla', cue.line, { hold: 0, caption: false, listen: false }); } });
       const frame = () => {
         if (view.dirty) fit();
         const t = now();
         show.apply(t);
         view.t = t;
+        if (time.showing) lines.frame(t);
         // The sound starts with the show, in the first frame the clock moves in (a page with t= and play=1 is stepped to its
         // second in silence and stands there until the tap): from the second the show stood at, so nothing before it is heard
         // and the bed is at the level it has there.
@@ -701,7 +710,7 @@ export const chapter = {
         const b = still ? 0 : !time.showing && time.from !== null ? 1 : +Math.min(1, Math.max(0, 1 - t / FADE.in, (t - (LENGTH - FADE.out)) / FADE.out)).toFixed(3);
         if (time.started && b !== time.black) { time.black = b; s.fade(b, 0); }
       };
-      Object.assign(world.tjorn, { show, time, sound, measureShow: createShowMeasure({ S, LEVEL, seat: SEAT, stage, her, rig, skin, part, cloud, cast, show, snout, lilyParts, lilyPoints, strikePoint, view }) });
+      Object.assign(world.tjorn, { show, time, sound, lines, measureShow: createShowMeasure({ S, LEVEL, seat: SEAT, stage, her, rig, skin, part, cloud, cast, show, snout, lilyParts, lilyPoints, strikePoint, view }) });
       frame();
       s.after(0, function* run() {
         for (;;) {
@@ -725,6 +734,8 @@ export const chapter = {
       for (;;) {
         time.started = true;
         show.reset(); // (played again: nothing is left over from the last time)
+        hush(); // (played again, her lines are said again from the top)
+        lines.start(0);
         time.from = seeks ? 0 : s.time; // (a page with t= is stepped from the scene's own start: its second is the show's)
         seeks = false;
         time.sounding = false; // (played again, the sound starts clean: frame)
@@ -734,8 +745,12 @@ export const chapter = {
         yield s.until(() => s.time - time.from >= LENGTH);
         time.showing = false;
         sound.end(); // (the bed has gone with the picture: nothing hangs over the end card)
+        hush();
         let again = false;
-        const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => { sound.end(); leaveShow(win); } });
+        // "Hætta": the whole screen the start's tap took is given back first (engine/table-ui.js: a whole screen the show did not
+        // take is left alone), then the book's own way out (engine/book/show-player.js): back to the book when the show plays in
+        // its frame, so the book is as it was, or to the game's start from a page of its own.
+        const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => { sound.end(); hush(); giveBackScreen(doc); leaveShow(win); } });
         doc.body.append(end);
         try {
           yield s.until(() => again);

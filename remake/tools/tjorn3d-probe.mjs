@@ -10,17 +10,22 @@
 //   node remake/tools/tjorn3d-probe.mjs --show [--sizes 1280x800] [--query "..."] [--json qa/tjorn3d/syning/timeline.json]
 //
 // --show walks the show itself (?chapter=tjorn3d&t=0, stepped on with window.__advance: every 0,25 s, every 0,05 s round the leap
-// and every 0,125 s through the butterfly's flight) and asks world.tjorn.measureShow() at each step (chapters/tjorn3d/measure.js).
+// and through each of her lines, and every 0,125 s through the butterfly's flight) and asks world.tjorn.measureShow() at each step
+// (chapters/tjorn3d/measure.js). A walk is a capture: her lines are not heard, and her mouth moves as it does when they are.
 // The picture's reach on the table is in cm and the eyes are where the seat puts them whatever the screen, so one walk gives the
 // margins of every screen setting: printed for 9,7 to 12,9 inches in both shapes (16:10 and 4:3), the least margin to each edge
-// with its second and whose it is; then the highest point through the show, the clearances, and anything inside her.
+// with its second and whose it is; then the highest point through the show, the clearances, anything inside her, and her mouth
+// and the tip of her snout through each line and while the butterfly sits.
 //
 // Exit code 1 when the page throws or a measure breaks the geometry (the surface's parallax, the eyes' error); a key that does not
 // keep its margin is a number, not a failure.
 import http from 'node:http';
+import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { ROOT, sleep, launchBrowser, stopBrowser } from './veiddu-video.mjs';
+import { CUES } from '../chapters/tjorn3d/sound.js';
+import { BUTTERFLY_TIMES } from '../chapters/tjorn3d/show.js';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -132,7 +137,16 @@ async function probe(o, size, base) {
 
 // ---- the show's timeline ----
 const LENGTH = 62; // s (chapters/tjorn3d/show.js)
-const FINE = [[42.5, 46, 50], [50, 58.5, 125]]; // from s, to s, ms a step: the leap and the catch, the butterfly's flight
+// her lines (the sheet's), each as long as lines.json says its recording is
+const RECORDED = JSON.parse(fs.readFileSync(path.join(ROOT, 'remake/assets/audio/lines.json'), 'utf8'));
+const SAID = CUES.filter(c => c.line !== undefined).map(c => ({ t: c.t, line: c.line, seconds: RECORDED[c.line]?.duration ?? 1.5 }));
+const QUARTER = 0.25;
+// from s, to s, ms a step: each line (from the quarter second before it to the one after its end and a little more, so the walk's
+// other moments stay where they were), the leap and the catch, the butterfly's flight
+const FINE = [
+  ...SAID.map(c => [Math.floor((c.t - 0.1) / QUARTER) * QUARTER, Math.ceil((c.t + c.seconds + 0.4) / QUARTER) * QUARTER, 50]),
+  [42.5, 46, 50], [50, 58.5, 125],
+];
 const stepAt = ms => FINE.find(([from, to]) => ms >= from * 1000 && ms < to * 1000)?.[2] ?? 250;
 const SCREENS = [9.7, 10, 10.5, 11, 12.9].flatMap(inches => [[16, 10], [4, 3]].map(([w, h]) => ({ inches, shape: `${w}:${h}`, W: (inches * 2.54 * w) / Math.hypot(w, h), Hs: (inches * 2.54 * h) / Math.hypot(w, h) })));
 const DESIGN = [10, 10.5, 11]; // the owner's tablet is 10 to 11 inches: the rule must hold at these
@@ -224,6 +238,35 @@ function reportShow(rows) {
   if (air.length) console.log(`  the last moment the fish is its own (${f(air.at(-1).t, 2)} s): the tip of her snout ${f(air.at(-1).tipToFishCm, 2)} cm from its middle, her skin ${f(air.at(-1).clear.airFishCm, 2)} cm from it, her jaw open ${f(air.at(-1).her?.jaw, 0)} degrees`);
   const hold = rows.filter(r => r.t >= 36.4 && r.t <= 42 && r.her);
   if (hold.length) console.log(`\n--- the hold (36,4 to 42 s): her head between ${f(Math.min(...hold.map(r => r.her.headCm)), 2)} and ${f(Math.max(...hold.map(r => r.her.headCm)), 2)} cm over the table ---`);
+  // her lines: her mouth and the tip of her snout through each (a line's seconds are its recording's, its silent end too)
+  const far = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const most = (list, pick) => list.reduce((best, r) => (best === null || pick(r) > pick(best) ? r : best), null);
+  console.log('\n--- her lines: her mouth (how open her speaking has it, 0 to 1; her jaw in degrees from shut, whatever opened it) and the tip of her snout ---');
+  for (const said of SAID) {
+    const mine = rows.filter(r => r.her && r.t >= said.t - 1e-6 && r.t <= said.t + said.seconds + 1e-6);
+    if (!mine.length) { console.log(`  ${said.line.padEnd(20)} at ${f(said.t, 2, 5)} s: she is not there`); continue; }
+    const before = rows.filter(r => r.her && r.t < said.t - 1e-6).at(-1) ?? mine[0];
+    const open = most(mine, r => r.her.mouth ?? 0), wide = most(mine, r => r.her.jawDeg ?? 0);
+    const spoke = mine.filter(r => r.her.speaking);
+    const moved = most(mine, r => far(r.her.tip, before.her.tip));
+    const low = mine.reduce((a, r) => (r.her.mouthCm < a.her.mouthCm ? r : a));
+    const chin = mine.reduce((a, r) => (r.her.headLowCm - r.her.mouthCm < a.her.headLowCm - a.her.mouthCm ? r : a));
+    const near = mine.filter(r => r.clear.butterflyCm !== null).sort((a, b) => a.clear.butterflyCm - b.clear.butterflyCm)[0];
+    console.log(`  ${said.line.padEnd(20)} ${f(said.t, 2, 5)} to ${f(said.t + said.seconds, 2, 5)} s (${mine.length} moments, speaking in ${spoke.length}${spoke.length ? `: ${f(spoke[0].t, 2)} to ${f(spoke.at(-1).t, 2)} s` : ''})`);
+    console.log(`      her mouth opens to ${f(open.her.mouth, 2)} at most (at ${f(open.t, 2)} s), her jaw to ${f(wide.her.jawDeg, 1)} degrees (at ${f(wide.t, 2)} s; the timeline's own jaw ${f(Math.max(...mine.map(r => r.her.jaw)), 1)}); just before the line it was ${f(before.her.jawDeg, 1)} degrees, in its first moment ${f(mine[0].her.jawDeg, 1)}`);
+    console.log(`      the tip of her snout is at most ${f(far(moved.her.tip, before.her.tip), 3)} cm from where it was just before the line (at ${f(moved.t, 2)} s); her mouth is ${f(low.her.mouthCm, 2)} cm over the water at its lowest (at ${f(low.t, 2)} s), ${f(mine.at(-1).her.mouthCm, 2)} cm at the line's end; the lowest point of her head and jaw is ${f(chin.her.mouthCm - chin.her.headLowCm, 2)} cm under her mouth at most (at ${f(chin.t, 2)} s, ${f(chin.her.headLowCm, 2)} cm over the water then; ${f(before.her.mouthCm - before.her.headLowCm, 2)} just before the line)${near ? `; the butterfly (${near.butterfly.on}) is ${f(near.clear.butterflyCm, 3)} cm from her skin at its nearest (at ${f(near.t, 2)} s)` : ''}`);
+  }
+  const sits = rows.filter(r => r.her && r.butterfly.on === 'snout');
+  if (sits.length) {
+    const from = sits[0];
+    const moved = most(sits, r => far(r.her.tip, from.her.tip));
+    let step = null;
+    for (let i = 1; i < sits.length; i++) { const d = far(sits[i].her.tip, sits[i - 1].her.tip) / (sits[i].t - sits[i - 1].t); if (!step || d > step.d) step = { d, t: sits[i].t }; }
+    const down = most(sits, r => from.her.tip[1] - r.her.tip[1]), up = most(sits, r => r.her.tip[1] - from.her.tip[1]);
+    console.log(`\n--- while the butterfly sits on her snout (${f(BUTTERFLY_TIMES.land, 1)} to ${f(BUTTERFLY_TIMES.off, 1)} s; ${sits.length} moments from ${f(from.t, 2)} s) ---`);
+    console.log(`  the tip of her snout is at most ${f(far(moved.her.tip, from.her.tip), 3)} cm from where it was as it landed (at ${f(moved.t, 2)} s): ${f(from.her.tip[1] - down.her.tip[1], 3)} cm lower at most (at ${f(down.t, 2)} s), ${f(up.her.tip[1] - from.her.tip[1], 3)} cm higher at most (at ${f(up.t, 2)} s); its greatest speed ${f(step?.d, 2)} cm/s (at ${f(step?.t, 2)} s)`);
+    console.log(`  her jaw is open ${f(Math.max(...sits.map(r => r.her.jawDeg ?? 0)), 1)} degrees at most; the butterfly's nearest point to her skin ${f(Math.min(...sits.map(r => r.clear.butterflyCm)), 3)} cm, its lowest point over the skin under it ${f(Math.min(...sits.map(r => r.butterfly.sits?.leastOverSkinCm ?? Infinity)), 3)} cm`);
+  }
   console.log(`drops in the air at most: ${Math.max(...rows.map(r => r.drops))} (at ${f(rows.slice().sort((a, b) => b.drops - a.drops)[0].t, 2)} s)`);
   return fits;
 }

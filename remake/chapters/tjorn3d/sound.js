@@ -5,8 +5,12 @@
 // her going under), so the sound follows when a second of the picture is mended. Pure: tests/tjorn3d-sound.test.mjs holds it and
 // tools/tjorn3d-sound.mjs prints it.
 //
-// The player (createPondSound): plays the sheet on the page's audio context as the show's second passes each cue. No music (the
-// theme is held at nothing for the show) and no voices. Three kinds of sound:
+// Her four lines (LINES) are in the sheet too, each hung on its event: the sheet says when, and the scene plays them as the game
+// plays every line (chapters/tjorn3d.js: s.say, the game's voice, her mouth moving by the line's mouth shapes in lines.json).
+// createLineCues hands them out as the show's second passes them.
+//
+// The player (createPondSound): plays the sheet's sounds on the page's audio context as the show's second passes each cue. No
+// music (the theme is held at nothing for the show), and the lines are not its to play. Three kinds of sound:
 //   made         small sounds made on the spot, with the tools and in the key of the game's effects (engine/audio/sfx.js): the
 //                game's own recipes where it has them (engine/audio/fen-sounds.js: the fish's plip, her jaws, her gulp), and the
 //                show's own beside them, in the same manner
@@ -23,6 +27,8 @@
 //                                                  scales it (1: as it is made), `pan` is its side (-1 left, 1 right: by where the
 //                                                  thing is on the page), `on` names the timeline event its second is taken from
 //   { t, bed, seconds, what }                      the bed's level (1: as it is laid), reached in a straight line over `seconds`
+//   { t, line, what, on }                          one of her lines (its id in LINES and in lines.json), heard from the middle at
+//                                                  the level every line of the game has
 //
 // The player makes its own sound tools, a copy of sfx.js's tone, noise and bell: a show's cue needs its own level and side (the
 // game's effects have neither for most sounds), must not be dropped by the effects' least gaps or their cap of 48 sources, and is
@@ -53,6 +59,30 @@ export const SOUND = {
   late: 0.3, // s a cue waits for an audio context that is still waking (the tap's wake-up takes a moment); later than this it is passed over
   takeVary: 0.04, // a recording plays up to this much faster or slower each time
 };
+
+/**
+ * Uggeðla's four lines (line set tjorn3d in assets/audio/lines.json, made with the game's voice tools): id → its text. Heard only:
+ * the table page shows no text.
+ */
+export const LINES = {
+  t3_uggedla_hallo: 'Halló!',
+  t3_uggedla_namm: 'Namm!',
+  t3_uggedla_fidrildi: 'Ó, fiðrildi!',
+  t3_uggedla_bless: 'Bless!',
+};
+// When she says each: the event it is hung on, and how long after it (s). No number here is a take's length: a take may be made
+// again under the same id.
+const SAYS = [
+  // she is up and looks at him; the rise's pouring has calmed and the little chord has rung
+  ['t3_uggedla_hallo', 'HOLD.from', HOLD.from, 1.1, 'she is up, the water has calmed: "Halló!"'],
+  // the fish is down her throat (her jaws are shut again 0.04 s after JUMP.gulp)
+  ['t3_uggedla_namm', 'JUMP.gulp', JUMP.gulp, 0.4, 'the fish is down: "Namm!"'],
+  // the butterfly has settled on her snout, its two bells have rung
+  ['t3_uggedla_fidrildi', 'BUTTERFLY_TIMES.land', BUTTERFLY_TIMES.land, 0.5, 'the butterfly has settled on her snout: "Ó, fiðrildi!", softly'],
+  // As it lifts off, and not a moment later: she has been sinking for 0.4 s then, and the water reaches her mouth 0.67 s after the
+  // lift-off (tools/tjorn3d-probe.mjs --show: her mouth over the water), so the word is said while her mouth is still over it.
+  ['t3_uggedla_bless', 'BUTTERFLY_TIMES.off', BUTTERFLY_TIMES.off, 0, 'the butterfly lifts off and she is sinking: "Bless!"'],
+];
 
 const FILES = 'assets/audio/tjorn3d/hljod/'; // against remake/
 /** What says which of the slots' files are there (and where each came from): only a file named in it is asked for. */
@@ -346,7 +376,14 @@ export function cueSheet() {
   add(CALM.from + 0.25, 'frog', 0.35, frogX, 'the frog: the pond is itself again');
   ringsIn(CALM.from, LENGTH).forEach(([t, x, , strength], i) => add(t, 'plip', 0.7 + strength, x, 'a fish kisses the surface', { on: 'RINGS', detail: { note: [2, 4][i % 2] } }));
 
-  return list.filter(c => c.t >= 0 && c.t < LENGTH).sort((a, b) => a.t - b.t).map((c, i) => ({ ...c, n: i + 1 }));
+  // The sounds and the bed are numbered in order of their seconds (a cue's number seeds what varies in it: the take of a recording,
+  // a drop's moment), and her lines after them, each so long after its event: a line in the sheet changes no sound's number, so
+  // the sounds are what they were before the lines came.
+  const inShow = c => c.t >= 0 && c.t < LENGTH;
+  const sounds = list.filter(inShow).sort((a, b) => a.t - b.t).map((c, i) => ({ ...c, n: i + 1 }));
+  const lines = SAYS.map(([line, on, at, after, what]) => ({ t: round(at + after), line, what, on })).filter(inShow)
+    .sort((a, b) => a.t - b.t).map((c, i) => ({ ...c, n: sounds.length + i + 1 }));
+  return [...sounds, ...lines].sort((a, b) => a.t - b.t); // (a sort that keeps the order of equals: a sound before a line at its second)
 }
 
 export const CUES = cueSheet();
@@ -354,9 +391,10 @@ export const CUES = cueSheet();
 /** The made sound at the end of a slot's or a recording's `instead` (a slot's may be one of RECORDINGS). */
 export const madeFor = name => { const entry = SLOTS[name] ?? RECORDINGS[name]; return entry ? madeFor(entry.instead) : name; };
 
-/** What a cue's name is: 'bed', 'slot', 'recording' or 'made' (null: nothing known). */
+/** What a cue's name is: 'bed', 'line', 'slot', 'recording' or 'made' (null: nothing known). */
 export function kindOf(cue) {
   if (cue.bed !== undefined) return 'bed';
+  if (cue.line !== undefined) return Object.hasOwn(LINES, cue.line) ? 'line' : null;
   if (Object.hasOwn(SLOTS, cue.sound)) return 'slot';
   if (Object.hasOwn(RECORDINGS, cue.sound)) return 'recording';
   return Object.hasOwn(MADE, cue.sound) ? 'made' : null;
@@ -377,6 +415,35 @@ export function bedAt(t, cues = CUES) {
     seconds = cue.seconds;
   }
   return { level: round(value(t), 4), to, left: round(Math.max(0, start + seconds - t), 4) };
+}
+
+/**
+ * Her lines as the show's second passes them. `say(cue)` is the scene's (chapters/tjorn3d.js: the game's voice and her mouth; a
+ * capture's seek moves her mouth and asks for no sound: engine/scene/scene.js).
+ *   start(from)   the show starts at its second `from`: the lines before it are passed over (a line is never said from its middle)
+ *   frame(t)      each frame, with the show's second: every line whose second has come is handed to `say`, once
+ *   log           { t, n, line, at } as they were handed out (at: the show's second it was)
+ */
+export function createLineCues({ cues = CUES, say = () => {} } = {}) {
+  const lines = cues.filter(cue => cue.line !== undefined);
+  const log = [];
+  let next = lines.length; // (nothing before start)
+  return {
+    lines,
+    log,
+    start(from = 0) {
+      log.length = 0;
+      next = lines.findIndex(cue => cue.t >= from - 1e-6);
+      if (next < 0) next = lines.length;
+    },
+    frame(t) {
+      while (next < lines.length && lines[next].t <= t) {
+        const cue = lines[next++];
+        log.push({ t: cue.t, n: cue.n, line: cue.line, at: round(t) });
+        say(cue);
+      }
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -411,7 +478,8 @@ function seeded(seed) {
  *   schedule(from)  the whole sheet from `from` laid on the audio clock at once, its second 0 at the clock's `at` (the tool's measure)
  *   log             what was played: { t, n, sound, level, pan, kind, played, at } (at: the show's second it was played at)
  */
-export function createPondSound({ context = null, output = null, fetch = globalThis.fetch, offline = false, cues = CUES, recordings = true } = {}) {
+export function createPondSound({ context = null, output = null, fetch = globalThis.fetch, offline = false, cues: sheet = CUES, recordings = true } = {}) {
+  const cues = sheet.filter(cue => cue.line === undefined); // (her lines are the scene's to play: createLineCues)
   const log = [];
   if (!context) {
     return { ready: Promise.resolve(false), start() {}, frame() {}, end() {}, setPaused() {}, play: () => false, schedule() {}, log, sounding: () => 0, running: false };

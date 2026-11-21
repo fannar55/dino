@@ -9,9 +9,14 @@
 //              (and the leaping fish's) against the lilies' pads; the fish against each other; and which of the animals has a
 //              point INSIDE her (a line straight up and one straight down from it both cross her skin an odd number of times)
 //   strike     how far the tip of her snout is from the point it reaches for, and from the fish's middle
+//   her        with the tip of her snout: how open her jaw is (degrees from how it lay shut, whatever opened it: the timeline's
+//              pose or her speaking), how open her speaking has it (0 to 1: engine/talk.js) and whether she is speaking, and how
+//              high her mouth is over the water (the place just inside the tip of her snout: kafli2-uggedla.js MOUTH), and the
+//              lowest point of her head and jaw (her chin, when her mouth is open)
 import * as THREE from 'three';
 import { outlineBox, parallaxAt } from '../../engine/table3d.js';
 import { verticesOf } from './cast.js';
+import { MOUTH } from '../kafli2-uggedla.js';
 
 const NEAR_HER = 3; // cm: an animal farther than this from the box round her is that far away at least (its points are not gone through)
 const AT_SURFACE = 0.2; // cm: her skin within this of the surface is where she cuts it
@@ -26,6 +31,11 @@ export function createShowMeasure({ S, LEVEL, seat, stage, her, rig, skin, part,
   const snoutTip = head.worldToLocal(rig.tip.clone());
   const index = skin.geometry.index.array;
   const v = new THREE.Vector3();
+  // her jaw against her head, as it lies shut (the timeline's jaw is 0 here and she is not speaking)
+  const jaw = rig.bones.Jaw;
+  const qHead = new THREE.Quaternion(), qJaw = new THREE.Quaternion();
+  const jawNow = () => head.getWorldQuaternion(qHead).invert().multiply(jaw.getWorldQuaternion(qJaw));
+  const jawShut = jawNow().clone();
 
   /** The points of a list (x, y in the world, z) that are over the surface: x, metres over it, z. */
   const over = (points, own = false) => {
@@ -143,11 +153,12 @@ export function createShowMeasure({ S, LEVEL, seat, stage, her, rig, skin, part,
     let top = null;
     for (const [of, b] of Object.entries(box)) if (b && (!top || b.top > top.cm)) top = { of, cm: b.top };
     if (top) top.parallaxCm = r3(parallaxAt(top.cm, stage.eyes.height, seat.ipd));
-    let headTop = -Infinity, herTop = -Infinity, low = Infinity;
+    let headTop = -Infinity, herTop = -Infinity, low = Infinity, headLow = Infinity;
     for (let i = 0, k = 0; i < mine.length; i += 3, k++) {
       if (mine[i + 1] > herTop) herTop = mine[i + 1];
       if (mine[i + 1] < low) low = mine[i + 1];
       if (part[k] === 1 && mine[i + 1] > headTop) headTop = mine[i + 1];
+      if (part[k] === 1 && mine[i + 1] < headLow) headLow = mine[i + 1]; // (her head's and her jaw's lowest point: her chin, when her mouth is open)
     }
 
     // ---- nothing through another ----
@@ -191,6 +202,9 @@ export function createShowMeasure({ S, LEVEL, seat, stage, her, rig, skin, part,
     head.updateWorldMatrix(true, false);
     head.localToWorld(v.copy(snoutTip));
     const tip = [r3(v.x / S), r3((v.y - LEVEL) / S), r3(v.z / S)];
+    const mouthCm = r3((head.localToWorld(v.copy(MOUTH)).y - LEVEL) / S);
+    const jawDeg = r3((jawShut.angleTo(jawNow()) * 180) / Math.PI);
+    head.localToWorld(v.copy(snoutTip)); // (v is the tip again, for what follows)
     const strike = rig.target ? { weight: r3(rig.v.strike), rigErrorCm: r3(rig.error / S), tipToTargetCm: r3(v.distanceTo(strikePoint) / S) } : null;
     let tipToFishCm = null;
     if (jumper.length) {
@@ -201,7 +215,7 @@ export function createShowMeasure({ S, LEVEL, seat, stage, her, rig, skin, part,
     return {
       t: r3(t), part: view.key?.name ?? null, vertices: mine.length / 3,
       box, top,
-      her: there ? { sinkCm: r3(rig.v.sink / S), headCm: r3(headTop / S), topCm: r3(herTop / S), lowCm: r3(low / S), tip, jaw: r3(rig.v.jaw) } : null,
+      her: there ? { sinkCm: r3(rig.v.sink / S), headCm: r3(headTop / S), topCm: r3(herTop / S), lowCm: r3(low / S), tip, jaw: r3(rig.v.jaw), jawDeg, mouth: r3(her.mouthOpen ?? 0), speaking: Boolean(her.talking), mouthCm, headLowCm: r3(headLow / S) } : null,
       butterfly: { on: show.state.onSnout ? 'snout' : show.state.flying ? 'air' : 'lily', sits: show.state.onSnout ? snout.report(true) : null },
       strike, tipToFishCm,
       clear,
