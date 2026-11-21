@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { CHOIR, GROUPS, STEPS, SPOTS, WADE, SHOTS, SHOWS, GROUP_SHOTS, seatsOf, around } from '../chapters/kafli5-pool.js';
+import { CHOIR, GROUPS, STEPS, SPOTS, WADE, SHOTS, SHOWS, GROUP_SHOTS, seatsOf, around, HER_TURN_AT } from '../chapters/kafli5-pool.js';
 import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
 import { LOOKS } from '../engine/looks.js';
 import { LIMITS, createDirector } from '../engine/camera/director.js';
@@ -123,8 +123,10 @@ const WHERE = {
   set_her_close: { sloedla: WADE.at },
   set_her_low: { sloedla: WADE.at },
   set_her_reed: { sloedla: WADE.at },
+  set_her_lap: { sloedla: HER_TURN_AT.at }, // (where she turns in the last chorus)
   set_sun: { sloedla: WADE.at },
   set_egill_close: { egill: SPOTS.egill },
+  set_bank_hop: { egill: SPOTS.egill, mosi: SPOTS.mosi },
   set_flugedla: { flugedla: SPOTS.flugedla },
 };
 
@@ -168,8 +170,10 @@ test('every chapter 5 shot keeps the director quiet (LIMITS) and shows who SHOWS
     // the sun 35 to 150 degrees off the camera's axis (STYLE.md 5), seen from above
     const heading = (Math.atan2(tz - z, tx - x) * 180) / Math.PI;
     const off = Math.abs(((heading - LOOKS.goldenAfternoon.sun.azimuth + 540) % 360) - 180);
-    // (but for the dusk's own look at the sun in its nightcap, when its light is dimmed: it looks straight at it)
-    if (name === 'set_sun') assert.ok(off <= 5, `${name} looks at the sun: ${off.toFixed(0)} degrees off its axis`);
+    // (but for the dusk's two looks at the low sun, when its light is dimmed: set_sun straight at it in its nightcap, and set_drop,
+    // the drop's shot, with the sun in its frame as Flugeðla shoots up across it)
+    const DUSK = { set_sun: [0, 5], set_drop: [5, 25] };
+    if (DUSK[name]) assert.ok(off >= DUSK[name][0] && off <= DUSK[name][1], `${name} looks toward the sun: ${off.toFixed(0)} degrees off its axis`);
     else assert.ok(off >= 35 && off <= 180, `${name}: the sun ${off.toFixed(0)} degrees off its axis`);
     for (const aspect of [1.6, 0.625]) {
       const { camera, director } = cameraOn(name, aspect);

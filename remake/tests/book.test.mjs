@@ -14,6 +14,8 @@ import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createZoom } from '../engine/book/zoom.js';
 import { createShowPlayer, showAddress, leaveShow, SHOW_CLOSE } from '../engine/book/show-player.js';
 import { endCard } from '../chapters/fidrildi3d.js';
+import { playStart } from '../engine/book/show-cards.js';
+import { ICONS } from '../engine/book/icons.js';
 import { createJuniorFrame } from '../engine/yatzy-junior/frame.js';
 import { rockYaw, ROCK_SWING } from '../engine/book/skeleton-view.js';
 import { createSave } from '../engine/save.js';
@@ -2373,7 +2375,7 @@ test('the Myndbönd page has ten videos, six on the left page and four on the ri
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
-  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek', 'loftsteinn'], 'six on the left page, three across');
+  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek', 'loftsteinn', 'djamm'], 'six on the left page, three across, and the game\'s own show under them');
   assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d'], 'and four on the right, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
@@ -2491,6 +2493,54 @@ test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open
   assert.equal(again.classList.contains('new'), false, 'and the tile is no longer new');
 });
 
+test('the left Myndbönd page ends in "Djamm skógarins": chapter 5\'s music show alone, open from the start as the 3D shows are, with no glasses mark, in the frame over the book', () => {
+  const { save, book, root, tap, shows, sounds } = fenRig();
+  const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
+  const left = leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains('left'))[0];
+  const tiles = left.findAll(e => e.classList.contains('video-tile'));
+  const show = tiles.at(-1);
+  assert.equal(tiles.length, 7, 'six videos, three by two, and the show under them');
+  assert.equal(show.getAttribute('data-video'), 'djamm');
+  assert.ok(show.classList.contains('video-tile-show'), 'marked as a show of the game');
+  assert.equal(show.classList.contains('video-tile-3d'), false, 'not a 3D show');
+  assert.equal(show.findAll(e => e.classList.contains('video-3d-badge')).length, 0, 'no glasses mark on it');
+  assert.equal(leaf.findAll(e => e.classList.contains('video-3d-column'))[0].findAll(e => e.getAttribute('data-video') === 'djamm').length, 0, 'and it is not under "3D myndbönd"');
+  assert.equal(show.findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Djamm skógarins', 'named as Flugeðla names her set');
+  assert.equal(show.getAttribute('aria-label'), 'Djamm skógarins, tónlistarmyndband úr leiknum');
+  assert.match(show.findAll(e => e.tagName === 'IMG')[0].src, /assets\/book\/videos\/djamm-thumb\.webp$/, 'its picture is a still of the show');
+  assert.equal(show.findAll(e => e.classList.contains('video-play-badge'))[0].hidden, false, 'with the play mark of a video');
+  assert.ok(show.classList.contains('new'), 'open from the start (no star needed), and new until watched');
+  assert.equal(save.get().stars.includes('k5_sloedla'), false);
+  const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
+    .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
+  assert.deepEqual(dots(), [], 'a show open from the start puts no Nýtt! on the ribbon');
+
+  book.open('videos', 'child');
+  sounds.length = 0;
+  const before = JSON.stringify({ ...save.get(), seen: null });
+  tap(show);
+  assert.equal(book.showPlayer.isOpen, true, 'the show player opens');
+  assert.equal(book.videoPlayer.isOpen, false, 'not the video player');
+  assert.deepEqual(shows, [true], 'main.js is told (the game under the book stops drawing)');
+  const frame = book.showPlayer.frame;
+  const address = new URLSearchParams(frame.src.slice(frame.src.indexOf('?')));
+  assert.equal(address.get('chapter'), 'djamm', 'the frame plays the show alone');
+  assert.equal(address.get('syning'), '1', 'as a show only');
+  assert.equal(address.get('gler'), null, 'and without the glasses');
+  assert.deepEqual(sounds, ['tile']);
+  assert.ok(save.get().seen.includes('video:djamm'), 'marked seen, as every tile is');
+  assert.equal(JSON.stringify({ ...save.get(), seen: null }), before, 'and nothing else in the save has changed: no star, no place, no find');
+  assert.ok(show.classList.contains('found'));
+
+  const player = root.findAll(e => e.classList.contains('show-player'))[0];
+  tap(player.findAll(e => e.classList.contains('show-close'))[0]);
+  assert.equal(book.showPlayer.isOpen, false, 'the close button takes the frame away');
+  assert.equal(player.findAll(e => e.classList.contains('show-frame')).length, 0, 'the frame is gone, its drawing and sound with it');
+  assert.deepEqual(shows, [true, false]);
+  assert.equal(book.isOpen, true, 'the book is there again');
+  assert.equal(book.tab, 'videos', 'on Myndbönd');
+});
+
 test('cards linked to an unlocked video show the card-video button and open the video player from the card', () => {
   const { save, book, root, tap, tile } = fenRig({
     fill: s => { s.addStar('k1_kambedla'); s.addFinding('butterfly'); s.addHalsFound('amber'); s.addHalsFound('tooth'); },
@@ -2593,6 +2643,17 @@ test('a show frame keeps only quality and debug from the page, and Escape or the
   win.dispatchEvent(message);
   assert.equal(player.isOpen, false, 'as does Escape in the frame, which it sends up');
   assert.deepEqual(told, ['open', 'close', 'open', 'close']);
+});
+
+test('a show with no glasses has a round play mark as its start, laid on the page hidden, for when the sound may not begin by itself', () => {
+  const doc = new FakeDocument([]);
+  const start = playStart(doc);
+  assert.equal(start.element.parentNode, doc.body, 'on the page');
+  assert.equal(start.element.hidden, true, 'hidden until main.js shows it');
+  assert.equal(start.button.tagName, 'BUTTON');
+  assert.equal(start.button.getAttribute('aria-label'), 'Spila');
+  assert.equal(start.button.innerHTML, ICONS.play, 'the book\'s own play mark, the one on the video tiles');
+  assert.equal(start.button.textContent, '', 'no words on it');
 });
 
 test('the show ends with "Aftur" and "Hætta": in the book\'s frame Hætta closes it as the close button does, on its own it goes to the game\'s start', () => {

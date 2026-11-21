@@ -481,6 +481,13 @@
   display: grid; grid-template-columns: repeat(3, var(--tile-w)); grid-template-rows: auto auto;
   justify-content: center; align-content: center; justify-items: center; gap: var(--gap) var(--gap);
 }
+/* Seven on the left page (six videos and the game's own show, chapter 5's music show): three rows, the show alone in the middle of
+   the third. The tiles keep the width two rows gave them wherever the page is tall enough for three. */
+.video-tiles:has(> :nth-child(7)) {
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 2) / 3.36);
+  grid-template-rows: auto auto auto;
+}
+.video-tiles > .video-tile-show:nth-child(7) { grid-column: 2; }
 .video-3d-column {
   grid-column: 3; grid-row: 1 / span 2; align-self: stretch;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--gap) * .45);

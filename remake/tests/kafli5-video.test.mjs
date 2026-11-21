@@ -1,9 +1,18 @@
 // The music video's clock (chapters/kafli5-video.js): the dance beat that everything moving to the set reads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { BENDS, CAMERA, danceBeatAt, sectionAt, shielded } from '../chapters/kafli5-video.js';
-import { SHOTS, GROUP_SHOTS } from '../chapters/kafli5-pool.js';
+import { SHOTS, SHOWS, SPOTS, WADE, GROUPS, GROUP_SHOTS, seatsOf } from '../chapters/kafli5-pool.js';
 import { SONG } from '../chapters/kafli5-set.js';
+import { WORD, WORDS } from '../chapters/kafli5-show-score.js';
+import { LETTERS, ROOM } from '../engine/show/big-number.js';
+import { danceOf, memberOf } from '../chapters/kafli5-dances.js';
+import { egillAt, flugedlaAt, mosiAt, sloedlaAt, clockAt, SCRATCHES, POINTS, LAP, MOSI_TURN } from '../chapters/kafli5-people-score.js';
+import { FAR_POOL, createRoute } from '../chapters/kafli4-route.js';
+import { createDirector } from '../engine/camera/director.js';
+import { createPointResolver } from '../engine/points.js';
+import { createTerrain } from '../world/ardalur/terrain.js';
 
 test('the bends are the set\'s own cues: the rewind into the second drop, and the freeze of Stoppdans', () => {
   const part = id => SONG.set.sections.find(section => section.id === id);
@@ -46,27 +55,56 @@ test('sectionAt names the set\'s part at a beat', () => {
 });
 
 // The camera (CAMERA): what the set is cut to. The style's own speeds hold (STYLE.md section 8); its 2.5 s between cuts does not,
-// as the flight has its own rule: in the set a shot lasts a bar at least, but for the few marked quick.
+// as the flight has its own rule: in the set a shot lasts a bar at least, but for the ones marked quick.
 const BEAT = 60 / SONG.bpm;
 const PEAK = Math.PI / 2; // a move eased in and out is this much faster in its middle than on average
+const END = SONG.set.endBeat + 4; // the last shot holds while the last hit rings
+/** How many beats the shot cut to by CAMERA's entry `k` lasts. */
+const lasts = k => (CAMERA[k + 1]?.beat ?? END) - CAMERA[k].beat;
+/** The shot on the screen at the set's beat `beat`. */
+const shotAt = beat => CAMERA.findLast(entry => entry.beat <= beat).cut;
+const line = id => SONG.set.lines.find(entry => entry.id === id).beat;
+const cues = kind => SONG.set.cues.filter(cue => cue.kind === kind);
 
-test('the camera is cut to the set: every part has its shot, on the bar, a bar apart at least but for the quick ones', () => {
+// Shots shorter than a bar (`quick`) are only in these runs of the set, and none is under `least` beats. The floor is two beats
+// (0.96 s): what the countdown has had from the start, long enough for a six-year-old to see who it is and one move of theirs. A
+// single beat (0.48 s) is kept for two runs where every picture is the same kind as the one before it and the sound says what it
+// is: three looks at the frogs, each nearer, and the five last hits, a group on each as it sings its own note.
+const QUICK_RUNS = [
+  { from: 160, to: 162, least: 1 }, // "frosk- frosk- froskadjamm!": three looks at the frogs
+  { from: 192, to: 194, least: 2 }, // the flyers take off, over the camera
+  { from: 264, to: 266, least: 2 }, // "Vængina upp!", before "Hendur upp, Egill!" goes to him
+  { from: 286, to: 296, least: 2 }, // the countdown: a group a number
+  { from: 312, to: 320, least: 2 }, // the drop's second coming: a group a half bar
+  { from: 432, to: 456, least: 2 }, // the last chorus: two groups between her horn's answers
+  { from: 460, to: 465, least: 1 }, // the five last hits: a group a hit
+];
+
+test('the camera is cut to the set: every part has its shot, on the beat, a bar long at least but for the quick ones', () => {
   assert.ok(CAMERA.length >= 45, `${CAMERA.length} cuts`);
   for (const [k, entry] of CAMERA.entries()) {
     assert.ok(SHOTS[entry.cut], `cut ${k} at ${entry.beat}: "${entry.cut}" is a shot`);
     assert.ok(Number.isInteger(entry.beat), `cut ${k} on a beat (${entry.beat})`);
-    if (k === 0) continue;
-    const apart = entry.beat - CAMERA[k - 1].beat;
-    assert.ok(apart > 0, `cut ${k} after the one before`);
-    if (!entry.quick && !CAMERA[k - 1].quick) assert.ok(apart >= 4, `the shot before the cut at ${entry.beat} lasts a bar (${apart} beats)`);
-    assert.notEqual(entry.cut, CAMERA[k - 1].cut, `the cut at ${entry.beat} is to another shot`);
+    if (k > 0) {
+      assert.ok(entry.beat > CAMERA[k - 1].beat, `cut ${k} after the one before`);
+      assert.notEqual(entry.cut, CAMERA[k - 1].cut, `the cut at ${entry.beat} is to another shot`);
+    }
+    // a shot lasts a bar, or it is marked quick, stands in one of the quick runs, is not under the run's floor and does not move
+    const beats = lasts(k);
+    assert.equal(Boolean(entry.quick), beats < 4, `the shot at ${entry.beat} lasts ${beats} beats: quick says so, and only then`);
+    if (!entry.quick) continue;
+    const run = QUICK_RUNS.find(({ from, to }) => entry.beat >= from && entry.beat + beats <= to);
+    assert.ok(run, `the quick shot at ${entry.beat} is inside a run of quick shots`);
+    assert.ok(beats >= run.least, `the quick shot at ${entry.beat} lasts ${beats} beats (${run.least} at least there)`);
+    assert.equal(entry.then, undefined, `the quick shot at ${entry.beat} stands still`);
   }
   // nothing bends the picture's clock with a cut inside it: the rewind spools one shot back, and the freeze begins in the shot it is in
   assert.ok(!CAMERA.some(entry => entry.beat > BENDS.rewind.from && entry.beat < BENDS.rewind.to), 'no cut in the rewind');
   assert.ok(!CAMERA.some(entry => entry.beat === BENDS.freeze.from), 'no cut on "Stopp!"');
-  // quick cuts are few: the three looks at the frogs and the countdown
-  const quick = CAMERA.filter(entry => entry.quick).map(entry => entry.beat);
-  assert.ok(quick.length <= 9 && quick.every(at => (at >= 160 && at <= 162) || (at >= 286 && at <= 296)), `quick: ${quick}`);
+  // quick shots come in short runs (five at most, as the countdown), and a shot of a bar or more follows each run
+  const quick = CAMERA.map(entry => Boolean(entry.quick));
+  assert.ok(quick.filter(Boolean).length <= 30, `${quick.filter(Boolean).length} quick shots`);
+  for (let k = 0; k + 5 < quick.length; k++) assert.ok(!quick.slice(k, k + 6).every(Boolean), `six quick shots in a row from ${CAMERA[k].beat}`);
   // every part of the set is seen in a shot of its own choosing, and each group's part in the group's own shots
   for (const section of SONG.set.sections) {
     const cuts = CAMERA.filter(entry => entry.beat >= section.startBeat && entry.beat < section.startBeat + section.beats);
@@ -80,6 +118,278 @@ test('the camera is cut to the set: every part has its shot, on the bar, a bar a
   const used = new Set(CAMERA.map(entry => entry.cut));
   assert.ok(used.size >= 14, `${used.size} different shots`);
   for (const group of Object.keys(GROUP_SHOTS)) assert.ok(used.has(GROUP_SHOTS[group].close) && used.has(GROUP_SHOTS[group].all), `${group} close and whole`);
+});
+
+// --- what the cut shows (the owner's list of 2026-11-18: the animals close on the big moments, a stop-dance and a rewind that
+// are seen, Egill shown when the room is asked to clap, lift its hands and hop, and the countdown's cuts on the numbers) ---
+
+const WIDE = ['choir_wide', 'set_low_wide', 'set_water_low']; // the three shots of the whole pool: the dancers are specks in them
+const DROP = SONG.set.sections.find(section => section.id === 'drop').startBeat;
+/** The share of the set from beat `from` on that the three wide shots hold. */
+const wideShare = from => CAMERA.reduce((sum, entry, k) => sum + (WIDE.includes(entry.cut) ? Math.max(0, entry.beat + lasts(k) - Math.max(entry.beat, from)) : 0), 0) / (END - from);
+const groupOf = shot => [...GROUPS, 'beetles'].find(group => shot.startsWith(`set_${group}`)) ?? (shot === 'set_wheel' ? 'flyers' : null);
+
+test('from the drop on the animals are seen close: the wide shots hold a third of it, and every group has its close shot', () => {
+  assert.ok(wideShare(0) <= 0.36, `the wide shots hold ${(100 * wideShare(0)).toFixed(1)} % of the set`);
+  assert.ok(wideShare(DROP) <= 0.36, `the wide shots hold ${(100 * wideShare(DROP)).toFixed(1)} % from the drop on`);
+  for (const group of [...GROUPS, 'beetles']) {
+    assert.ok(CAMERA.some(entry => entry.beat >= DROP && groupOf(entry.cut) === group && !entry.cut.endsWith('_run')), `the ${group} are seen close after the drop`);
+  }
+  // the drop's second coming and the last chorus go from group to group
+  const groupsIn = id => {
+    const { startBeat, beats } = SONG.set.sections.find(section => section.id === id);
+    return new Set(CAMERA.filter(entry => entry.beat >= startBeat && entry.beat < startBeat + beats).map(entry => groupOf(entry.cut)).filter(Boolean));
+  };
+  assert.ok(groupsIn('redrop').size >= 5, `the second drop shows ${[...groupsIn('redrop')]}`);
+  assert.ok(groupsIn('lastchorus').size >= 4, `the last chorus shows ${[...groupsIn('lastchorus')]}`);
+  // the five last hits: each group in its close shot on the hit it sings, high to low (kafli5-dances.js MOVES.end poses them so)
+  const hits = SONG.set.sections.find(section => section.id === 'end').startBeat;
+  [...GROUPS].reverse().forEach((group, k) => {
+    assert.ok(cues('call').some(cue => cue.group === group && cue.beat === hits + k), `the ${group} sing on ${hits + k}`);
+    assert.ok(CAMERA.some(entry => entry.beat === hits + k && entry.cut === GROUP_SHOTS[group].close), `the hit on ${hits + k} is cut to the ${group}, close`);
+  });
+  // where the music wants air it has it: a drop's first hit, the forest's answers and the last hit of all are wide
+  for (const beat of [BENDS.rewind.to, line('louder') + 2, SONG.set.endBeat]) assert.ok(WIDE.includes(shotAt(beat)), `wide on ${beat}`);
+});
+
+test('the countdown is cut on the numbers: each number with its group, low to high', () => {
+  const counts = cues('count');
+  assert.deepEqual(counts.map(cue => cue.n), [5, 4, 3, 2, 1]);
+  counts.forEach(cue => {
+    const group = GROUPS[5 - cue.n];
+    const cut = CAMERA.find(entry => entry.beat === cue.beat);
+    assert.ok(cut && groupOf(cut.cut) === group, `"${cue.n}" (${cue.beat}) is cut to the ${group}: ${cut?.cut}`);
+  });
+});
+
+test('Stoppdans is seen: close on the frogs as "Stopp!" catches them, Egill hanging in his jump, and no cut hides "Dansa!"', () => {
+  const { from: stopp, to: dansa } = BENDS.freeze;
+  const k = CAMERA.findLastIndex(entry => entry.beat <= stopp);
+  assert.equal(groupOf(CAMERA[k].cut), 'frogs', `"Stopp!" is seen in ${CAMERA[k].cut}`);
+  assert.ok(stopp - CAMERA[k].beat <= 2, 'the cut to the frogs is just before it: they are seen leaping, then caught');
+  // the camera goes on moving through the frozen picture: that is what says it is frozen
+  const { then } = CAMERA[k];
+  assert.ok(then && CAMERA[k].beat + then.beats >= stopp + 2, 'the camera moves on while the frogs hang');
+  // the moment everything moves again is inside a shot, and that shot is Egill's: he comes down out of his frozen jump
+  assert.ok(!CAMERA.some(entry => entry.beat === dansa), 'no cut on the beat everything moves again');
+  const j = CAMERA.findLastIndex(entry => entry.beat <= dansa);
+  assert.equal(CAMERA[j].cut, 'set_egill_close');
+  assert.ok(dansa - CAMERA[j].beat >= 2 && CAMERA[j].beat + lasts(j) - dansa >= 2, 'he is seen frozen, and seen starting again');
+});
+
+test('"Aftur!" is seen: the rewind is held close on the turtles, who spin on their shells there, and the first drop on Flugeðla', () => {
+  const { from, to } = BENDS.rewind;
+  const k = CAMERA.findLastIndex(entry => entry.beat <= from);
+  assert.equal(CAMERA[k].cut, 'set_turtles_close');
+  assert.ok(from - CAMERA[k].beat >= 2, 'they are seen spinning forwards first');
+  assert.ok(CAMERA[k].beat + lasts(k) >= to, 'and backwards to the end of the spool');
+  assert.equal(shotAt(DROP), 'set_drop', '"Nú!": Flugeðla up out of the pool');
+});
+
+test('Egill shows what the room is asked to do: the claps, his hands up and both "Hopp!"', () => {
+  const claps = cues('clap').map(cue => cue.beat);
+  const close = (beat, what) => assert.equal(shotAt(beat), 'set_egill_close', `${what} (${beat})`);
+  // "Klappið með!": the band's first three claps are his, close
+  claps.slice(0, 3).forEach(beat => close(beat, 'a clap of the warm-up'));
+  // "Hendur upp, Egill!": his hands go up in his own shot and stay up in it for a bar
+  const up = line('wings') + 2.2; // kafli5-people-score.js: his hands start up two beats into her line
+  close(up, 'his hands going up');
+  close(up + 4, 'his hands up');
+  // the carnival: two claps running before the first "Hopp!", one close on him and one in the picture he hops in; both
+  // "Hopp!" in that picture (set_bank_hop: him low in it, under the word, Mosi behind him), from the shout to his landing
+  const [first, second] = [line('hopp'), line('hopp-2')];
+  const before = claps.filter(beat => beat > first - 4 && beat < first);
+  assert.ok(before.length >= 2, 'two claps before the first "Hopp!"');
+  close(before[0], 'a clap of the carnival');
+  before.forEach(beat => assert.ok(SHOWS[shotAt(beat)].includes('egill'), `Egill is in ${shotAt(beat)} for the clap on ${beat}`));
+  for (const beat of [first, first + 1, second, second + 1]) assert.equal(shotAt(beat), 'set_bank_hop', `"Hopp!" and its landing (${beat})`);
+});
+
+// What is inside a shot's frame: the dances and the people's scores at a beat, seen by the real director's camera on a 16:10
+// screen and on a tablet held upright (it keeps the 16:10 frame's width there).
+const terrain = createTerrain(createRoute(), { seed: 4 });
+const ground = (x, z) => terrain.heightAt(x, z);
+const wet = (x, z) => Math.hypot(x - FAR_POOL.center[0], z - FAR_POOL.center[1]) < FAR_POOL.radius;
+const TALL = { grazers: 2.6, turtles: 0.7, frogs: 0.75, lizards: 0.6, flyers: 0.9 }; // m: a member's top over its feet
+const ON = { turtles: 1.8 }; // m: the turtles sit on top of their stone
+const members = Object.fromEntries(GROUPS.map(group => {
+  const seats = seatsOf(group).map(({ at, heading }) => ({ x: at[0], y: (wet(...at) ? FAR_POOL.level : ground(...at)) + (ON[group] ?? 0), z: at[1], heading }));
+  return [group, seats.map((_, k) => memberOf(group, k, seats))];
+}));
+/** `group`'s members at the set's beat `setBeat`: [{ feet, top, up }] (Vector3s, and metres off its seat's height). */
+function dancersAt(group, setBeat) {
+  return members[group].map(m => {
+    const pose = danceOf(m, danceBeatAt(setBeat).beat, { ground, setBeat });
+    const feet = new THREE.Vector3(m.x + pose.dx, m.y + pose.dy, m.z + pose.dz);
+    return { feet, top: feet.clone().add(new THREE.Vector3(0, TALL[group], 0)), up: pose.dy };
+  });
+}
+/** Asks whether a point is in the frame of CAMERA's shot at `setBeat` (its move played up to then), on a screen `aspect` wide. */
+function frameAt(setBeat, aspect) {
+  const k = CAMERA.findLastIndex(entry => entry.beat <= setBeat);
+  const camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 2000);
+  const world = { camera, heightAt: ground, actors: new Map() };
+  world.resolvePoint = createPointResolver(world);
+  const director = createDirector({ camera, world, shots: SHOTS, lint: false });
+  director.cut(CAMERA[k].cut, { check: false });
+  const { then } = CAMERA[k];
+  if (then?.push !== undefined) director.push({ distance: then.push, duration: then.beats * BEAT });
+  else if (then?.orbit !== undefined) director.orbit({ degrees: then.orbit, duration: then.beats * BEAT });
+  else if (then?.zoom !== undefined) director.zoom(then.zoom, { duration: then.beats * BEAT });
+  for (let t = 0; t < (setBeat - CAMERA[k].beat) * BEAT - 1e-9; t += 1 / 30) director.update(1 / 30);
+  camera.updateMatrixWorld();
+  const holds = (point, edge = 0) => { const p = point.clone().project(camera); return p.z < 1 && Math.abs(p.x) <= 1 - edge && Math.abs(p.y) <= 1 - edge; };
+  const down = point => (1 - point.clone().project(camera).y) / 2; // how far down the frame a point is: 0 its top, 1 its foot
+  return { shot: CAMERA[k].cut, holds, down, whole: dancer => holds(dancer.feet) && holds(dancer.top) };
+}
+const ASPECTS = [1.6, 0.625];
+
+test('the quick shots hold what they are cut to: each group whole in its frame as it pops up on its number, at 16:10 and upright', () => {
+  for (const cue of cues('count').filter(count => count.n > 1)) {
+    const group = GROUPS[5 - cue.n];
+    for (const aspect of ASPECTS) {
+      for (const beat of [cue.beat + 0.1, cue.beat + 1.3, cue.beat + 1.5, cue.beat + 1.7]) { // as the cut lands, and up in the air
+        const frame = frameAt(beat, aspect);
+        const out = dancersAt(group, beat).filter(dancer => !frame.whole(dancer)).length;
+        assert.equal(out, 0, `${out} of the ${group} out of ${frame.shot} at ${beat} (${aspect})`);
+      }
+    }
+  }
+});
+
+test('"Stopp!" catches two frogs in the air inside the frame, and they hang there while the camera moves', () => {
+  const { from: stopp } = BENDS.freeze;
+  for (const aspect of ASPECTS) {
+    for (const beat of [stopp, stopp + 1, stopp + 1.9]) {
+      const frame = frameAt(beat, aspect);
+      const frogs = dancersAt('frogs', beat);
+      const hanging = frogs.filter(frog => frog.up > 0.3);
+      assert.equal(hanging.length, 2, `${hanging.length} frogs in the air at ${beat}`);
+      assert.ok(hanging.every(frame.whole), `the frogs in the air are in ${frame.shot} at ${beat} (${aspect})`);
+      assert.ok(frogs.filter(frame.whole).length >= 4, `the pads round them too (${aspect})`);
+    }
+    // and the cut to them lands on a leap: one is in the air as the shot begins
+    const first = CAMERA.findLast(entry => entry.beat <= stopp).beat;
+    const frame = frameAt(first + 0.05, aspect);
+    assert.ok(dancersAt('frogs', first + 0.05).some(frog => frog.up > 0.3 && frame.whole(frog)), `a frog is in the air as the shot begins (${aspect})`);
+  }
+});
+
+// The big words stand in the upper part of the screen (kafli5-show-score.js WORDS, engine/show/big-number.js). Those a word is
+// shouted at are seen under it and over the caption (the lowest 14 % of a 16:10 screen). How far down the screen a word's foot
+// is, its outline and the shadow under it counted, on a screen `aspect` wide (800 px the short way), at its full size:
+function footOf(text, aspect) {
+  const [w, h] = aspect > 1 ? [800 * aspect, 800] : [800, 800 / aspect];
+  const word = WORDS.find(one => one.text === text);
+  const size = Math.min(WORD.height * h, (WORD.across / word.wide) * w);
+  return (word.at * (h - ROOM) + (LETTERS.line + LETTERS.outline + 0.045 - word.lift) * size) / h;
+}
+test('a big word does not hide those it is shouted at: the frogs hang under "STOPP!" and Egill hops under "HOPP!"', () => {
+  const { from: stopp } = BENDS.freeze;
+  const UNDER = Object.fromEntries(ASPECTS.map(aspect => [aspect, footOf('STOPP!', aspect)]));
+  const HOPP = Object.fromEntries(ASPECTS.map(aspect => [aspect, footOf('HOPP!', aspect)]));
+  for (const aspect of ASPECTS) {
+    for (const beat of [stopp, stopp + 1, stopp + 1.9]) {
+      const frame = frameAt(beat, aspect);
+      for (const frog of dancersAt('frogs', beat).filter(one => one.up > 0.3)) {
+        const head = frog.feet.clone().add(new THREE.Vector3(0, 0.9, 0)); // stretched out in its leap
+        assert.ok(frame.down(head) >= UNDER[aspect], `a hanging frog's head is ${(100 * frame.down(head)).toFixed(0)} % down ${frame.shot} at ${beat} (${aspect}), the word's foot ${(100 * UNDER[aspect]).toFixed(0)} %`);
+      }
+      if (aspect > 1) for (const frog of dancersAt('frogs', beat)) assert.ok(frame.down(frog.feet) <= 0.86, 'the frogs are over the caption');
+    }
+    // Egill: his feet are 0.15 m under the water, and at the top of a hop his head is 1.35 m over them (measured in a still)
+    for (const hopp of [line('hopp'), line('hopp-2')]) {
+      for (let beat = hopp; beat < hopp + 2; beat += 0.1) {
+        const frame = frameAt(beat, aspect);
+        const feet = new THREE.Vector3(SPOTS.egill[0], FAR_POOL.level - 0.15 + egillAt(clockAt(beat)).lift, SPOTS.egill[1]);
+        const head = feet.clone().add(new THREE.Vector3(0, 1.35, 0));
+        assert.ok(frame.down(head) >= HOPP[aspect], `Egill's head is ${(100 * frame.down(head)).toFixed(0)} % down ${frame.shot} at ${beat.toFixed(1)} (${aspect}), the word's foot ${(100 * HOPP[aspect]).toFixed(0)} %`);
+        assert.ok(frame.holds(feet) && frame.holds(head), `Egill is in ${frame.shot} at ${beat.toFixed(1)} (${aspect})`);
+        if (aspect > 1) assert.ok(frame.down(feet.clone().add(new THREE.Vector3(0, 0.15, 0))) <= 0.87, 'the water round his ankles is over the caption');
+      }
+    }
+  }
+});
+
+test('the drop\'s shot holds Flugeðla from the water to the top of her climb, the sun behind her', () => {
+  const body = beat => { const { at } = flugedlaAt(clockAt(beat)); return new THREE.Vector3(at[0], at[1] + 2.6, at[2]); }; // she flies 2.6 m over her path
+  for (const aspect of ASPECTS) {
+    for (let beat = DROP; beat < DROP + lasts(CAMERA.findIndex(entry => entry.beat === DROP)) - 0.2; beat += 0.25) {
+      const frame = frameAt(beat, aspect);
+      assert.ok(frame.holds(body(beat), 0.04), `she is in ${frame.shot} at ${beat} (${aspect})`);
+    }
+  }
+  // it looks toward the low sun (kafli5-pool.test.mjs lets it: it is dusk by then, as for set_sun), and she climbs across it
+  const { position, target } = SHOTS.set_drop;
+  const way = (Math.atan2(target[2] - position[2], target[0] - position[0]) * 180) / Math.PI;
+  const toHer = beat => (Math.atan2(body(beat).z - position[2], body(beat).x - position[0]) * 180) / Math.PI;
+  const SUN = 215;
+  assert.ok(Math.abs(((way - SUN + 540) % 360) - 180) <= 25, 'the sun is in the frame');
+  assert.ok(Math.abs(((toHer(DROP + 1) - SUN + 540) % 360) - 180) <= 6, 'and she goes up across it');
+});
+
+test('the flyers are in their frames: taking off toward the camera, and in their wheel when the drop comes back', () => {
+  for (const aspect of ASPECTS) {
+    // their part: all four whole in the frame for the first beat and a half of the take-off (they pass over the camera on the cut)
+    const start = SONG.set.sections.find(section => section.id === 'flyers').startBeat;
+    for (const beat of [start, start + 0.5, start + 1, start + 1.5]) {
+      const frame = frameAt(beat, aspect);
+      assert.equal(frame.shot, 'set_flyers');
+      assert.equal(dancersAt('flyers', beat).filter(frame.whole).length, 4, `the flyers in set_flyers at ${beat} (${aspect})`);
+    }
+    // the wheel: three of the four in the frame all the way
+    const k = CAMERA.findIndex(entry => entry.cut === 'set_wheel');
+    for (let beat = CAMERA[k].beat; beat < CAMERA[k].beat + lasts(k); beat += 0.25) {
+      const inFrame = dancersAt('flyers', beat).filter(frameAt(beat, aspect).whole).length;
+      assert.ok(inFrame >= 3, `${inFrame} flyers of the wheel in the frame at ${beat} (${aspect})`);
+    }
+  }
+});
+
+test('the second drop\'s shots hold the wildest of each dance: the lizards\' ring and the frogs\' leaps whole in their frames', () => {
+  for (const aspect of ASPECTS) {
+    for (const group of ['lizards', 'frogs', 'grazers']) {
+      const k = CAMERA.findIndex(entry => entry.beat >= BENDS.rewind.to && groupOf(entry.cut) === group);
+      for (let beat = CAMERA[k].beat; beat < CAMERA[k].beat + lasts(k); beat += 0.25) {
+        const frame = frameAt(beat, aspect);
+        const dancers = dancersAt(group, beat);
+        const whole = dancers.filter(frame.whole).length;
+        assert.ok(whole >= dancers.length - 1, `${whole} of ${dancers.length} ${group} whole in ${frame.shot} at ${beat} (${aspect})`);
+      }
+    }
+  }
+});
+
+test('the people\'s new acting is seen (round 2): the DJ\'s scratches and two of her calls, her lap, Mosi\'s march and his turn, and each of Slóeðla\'s three stances', () => {
+  const her = (beat, aspect) => {
+    const pose = sloedlaAt(clockAt(beat));
+    const h = (WADE.heading * Math.PI) / 180;
+    const at = [WADE.at[0] + Math.cos(h) * pose.step, WADE.at[1] + Math.sin(h) * pose.step];
+    return frameAt(beat, aspect).holds(new THREE.Vector3(at[0], FAR_POOL.level + 2, at[1]), 0.05);
+  };
+  const flugedla = (beat, aspect) => { const p = flugedlaAt(clockAt(beat)); return frameAt(beat, aspect).holds(new THREE.Vector3(p.at[0], p.at[1] + 2.6, p.at[2])); };
+  for (const aspect of ASPECTS) {
+    // the scratches, and the calls that come out of them (to the turtles at 144, to the beetles at 208)
+    for (const [from, to] of SCRATCHES) for (let b = from + 0.3; b < to - 0.3; b += 0.25) assert.ok(flugedla(b, aspect) && shotAt(b) === 'set_flugedla', `the scratch at ${b} (${aspect})`);
+    // (her wing going out to them as she says their name)
+    const called = POINTS.filter(point => [point.from + 0.5, point.at, point.at + 0.5].every(b => shotAt(b) === 'set_flugedla' && flugedla(b, aspect)));
+    assert.ok(called.length >= 2, `${called.map(point => point.id)} called in her own shot (${aspect})`);
+    // her lap round Slóeðla: both in the frame for most of it
+    let seen = 0;
+    let all = 0;
+    for (let b = LAP.at; b <= LAP.at + LAP.beats * (LAP.round.length - 1); b += 0.25, all++) if (flugedla(b, aspect) && her(b, aspect)) seen++;
+    assert.ok(seen / all > 0.7, `the lap: both in the frame ${seen} of ${all} times (${aspect})`);
+    // Slóeðla in each stance, in a shot of her own
+    for (const [beat, stance] of [[116, 'shy'], [228, 'shy'], [310, 'whole'], [344, 'whole'], [429, 'the surge'], [436, 'proud'], [450, 'proud, turning']]) {
+      assert.ok(her(beat, aspect) && (SHOWS[shotAt(beat)].includes('sloedla') || ['set_water_low'].includes(shotAt(beat))), `${stance} at ${beat} in ${shotAt(beat)} (${aspect})`);
+    }
+  }
+  // Mosi: his march and his turn, each in two shots of him
+  const his = beat => SHOWS[shotAt(beat)].includes('mosi');
+  const marching = CAMERA.filter((entry, k) => his(entry.beat) && [0.5, 1.5, 2.5].some(t => mosiAt(clockAt(entry.beat + t)).march.weight > 0.99 && entry.beat + t < (CAMERA[k + 1]?.beat ?? END)));
+  assert.ok(marching.length >= 2, `he marches in ${marching.map(entry => `${entry.cut} at ${entry.beat}`)}`);
+  const turning = CAMERA.filter((entry, k) => his(entry.beat) && entry.beat < MOSI_TURN.to && (CAMERA[k + 1]?.beat ?? END) > MOSI_TURN.from);
+  assert.ok(turning.length >= 2, `he turns in ${turning.map(entry => `${entry.cut} at ${entry.beat}`)}`);
 });
 
 test('every move of the camera in the set is slow enough for the style and over before the next cut', () => {
