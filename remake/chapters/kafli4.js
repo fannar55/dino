@@ -812,10 +812,18 @@ export function whiteTreesFor(world) {
  * still) or `near` m of its camera. The white tree's planner (world/forest/plan.js moreTrees) then keeps each its own rules let stand.
  */
 export const TAKE_OFF = { to: 96, spacing: 8, jitter: 3, chance: [0.45, 0.95], fern: 0.25, lane: 14, seconds: 40, view: 7, near: 9 };
+/**
+ * The white tree's far trees as still pictures of themselves (world/forest/forest.js layout.farCards): every tree of the carded kinds at
+ * least `from` m from its clearing's centre, past the take-off's forest's first rings, is one card that bends with the wind and never
+ * its mesh (the take-off's forest, drawn whole, took the white tree's frames to 307 000 triangles on the tablet held upright: its
+ * budget is 250 000). Its cameras keep within 30 m of that centre, so none comes within `camera` m of such a tree (the chapter's
+ * tests hold it).
+ */
+export const TREE_CARDS = { from: 50, camera: 20 };
 const layouts = new Map();
 function hvitatreLayout(lush) {
   if (!lush) return HVITATRE_LAYOUT;
-  if (!layouts.has('lush')) layouts.set('lush', { ...HVITATRE_LAYOUT, moreTrees: takeOffForest() });
+  if (!layouts.has('lush')) layouts.set('lush', { ...HVITATRE_LAYOUT, moreTrees: takeOffForest(), farCards: { from: TREE_CARDS.from } });
   return layouts.get('lush');
 }
 /** TAKE_OFF's list of trees, in the white tree's own frame: [{ name, position, scale, variant, rot }]. */

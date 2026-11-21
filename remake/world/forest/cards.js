@@ -6,7 +6,7 @@
 // own light from those (createCardMaterial). The batcher (batch.js) bakes each section's cards into one mesh and cullBatches draws a
 // tree's card or its mesh by the same distance, and in a band round cardFrom both, each pixel showing one of them (CARD_BAND there).
 import * as THREE from 'three';
-import { patchLambert, LIGHT_GLOBALS, CARD_FADE_GLSL, DITHER_GLSL, createCardFade } from './materials.js';
+import { patchLambert, LIGHT_GLOBALS, CARD_FADE_GLSL, DITHER_GLSL, WIND_GLSL, createCardFade } from './materials.js';
 
 /**
  * The species drawn as cards when far: the trees and tall plants that fill the land to the horizon, and the bushes, cycads and snags
@@ -15,7 +15,7 @@ import { patchLambert, LIGHT_GLOBALS, CARD_FADE_GLSL, DITHER_GLSL, createCardFad
 export const CARDED = ['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'bush', 'cycad', 'deadSnag'];
 
 const CELL = 128; // pixels a cell: a far tree is under 110 px tall at 16:10 (a 20 m tree at 150 m with the vista's 55°)
-const COLUMNS = 8;
+const DEFAULT_COLUMNS = 8;
 const MARGIN = 0.04; // of a cell on each side, so mip levels do not bleed between cells
 
 /** The outline of a model: its widest reach round its foot (seen from above), its lowest and highest points, its mean colour and sky share. */
@@ -125,8 +125,9 @@ export function bakeGeometry(model, scale, dx, dy) {
  * v1], width, height, bottom } at scale 1, the width twice the model's reach round its foot (so the foot stands in the middle of the
  * card) and bottom the model's lowest point, or null for a model without a card; cardOf the same for the very model of an entry (a
  * chapter's own tree or a prop, whose shape is not the variant's own). The first entry of a name and variant is the one card() gives.
+ * `cell`: pixels a cell (CELL, for trees 150 m off and more; a place whose cards stand nearer has bigger ones), `columns` across.
  */
-export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
+export function createCardAtlas(renderer, entries, { leafTone = 1, cell: CELL_PX = CELL, columns: COLUMNS = DEFAULT_COLUMNS } = {}) {
   const rows = Math.max(1, Math.ceil(entries.length / COLUMNS));
   const cells = new Map();
   const named = new Map(), byModel = new Map();
@@ -145,7 +146,7 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
   const exposure = [...cells.values()].reduce((sum, { e }) => sum + e.exposure / cells.size, 0);
   let texture, data, targets = [];
   if (renderer && typeof renderer.setRenderTarget === 'function') {
-    const target = colorSpace => new THREE.WebGLRenderTarget(COLUMNS * CELL, rows * CELL, {
+    const target = colorSpace => new THREE.WebGLRenderTarget(COLUMNS * CELL_PX, rows * CELL_PX, {
       colorSpace, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true,
     });
     targets = [target(THREE.SRGBColorSpace), target(THREE.NoColorSpace)];
@@ -219,17 +220,20 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
  * over the card's foot; 0 for a card that is always all there, as the
  * horizon's): `fade` is the band's uniform the place shares with its plants (materials.js createCardFade). `haze`: what the place adds
  * after the fog, and far off the fog as at its foot ({ uniforms, head, glsl, vertex, key }; Árdalur's far land's haze,
- * world/ardalur/far-land.js createFarHaze), none by default.
+ * world/ardalur/far-land.js createFarHaze), none by default. `wind`: a forest's shared uniforms (materials.js createSharedUniforms),
+ * by whose wind each card's top bends as its tree's top does (forestWind, from the weights its mesh bakes: batch.js makeCards `wind`),
+ * for cards that stand near enough for a sway to show; none by default (the valley's, 150 m off and more, stand still).
  */
-export function createCardMaterial(atlas, { coverage = false, fade = createCardFade(), haze = null } = {}) {
+export function createCardMaterial(atlas, { coverage = false, fade = createCardFade(), haze = null, wind = null } = {}) {
   // `coverage`: with MSAA (the tablet's preset) the cut-out's edge is alpha to coverage, soft and steady as the card moves, not a
   // hard edge that shimmers; without it (no samples to cover) it stays the plain cut-out
   const material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.4, alphaToCoverage: coverage });
   material.name = 'far-tree-cards';
   material.userData.cardFade = fade;
-  const key = `far-tree-cards-lit${coverage ? '-a2c' : ''}${haze ? `-${haze.key}` : ''}`;
-  return patchLambert(material, key, { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data }, ...haze?.uniforms }, {
-    vertexHead: `${haze ? `${haze.head}\n` : ''}attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
+  const key = `far-tree-cards-lit${coverage ? '-a2c' : ''}${haze ? `-${haze.key}` : ''}${wind ? '-wind' : ''}`;
+  const windUniforms = wind ? { uWindTime: wind.uWindTime, uWindStrength: wind.uWindStrength, uWindDirection: wind.uWindDirection, uBeats: wind.uBeats } : {};
+  return patchLambert(material, key, { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data }, ...haze?.uniforms, ...windUniforms }, {
+    vertexHead: `${haze ? `${haze.head}\n` : ''}${wind ? `attribute vec4 aWind;\nattribute float aTree;\n${WIND_GLSL}\n` : ''}attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
     vertexAfter: [
       ['#include <beginnormal_vertex>', `
   vec3 cardFoot = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
@@ -248,7 +252,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   vCardFade = aCard.x > 0.0 ? forestCardShare( distance( cardFoot + vec3( 0.0, aCard.x, 0.0 ), cameraPosition ) ) : 1.0;
   objectNormal = cardFace;`],
       ['#include <begin_vertex>', `
-  transformed = position + cardSide * ( aCorner.x * aSize.x ) + vec3( 0.0, aCorner.y * aSize.y, 0.0 );`],
+  transformed = position + cardSide * ( aCorner.x * aSize.x ) + vec3( 0.0, aCorner.y * aSize.y, 0.0 );${wind ? '\n  transformed += forestWind( cardFoot, aWind, aTree );' : ''}`],
       ...(haze?.vertex ? [['#include <fog_vertex>', haze.vertex('cardFoot', 'cardAway')]] : []),
     ],
     fragmentHead: `${LIGHT_GLOBALS}\n${haze ? `${haze.head}\n` : ''}uniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,

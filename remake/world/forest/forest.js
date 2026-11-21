@@ -30,6 +30,9 @@
 //           chapter, Fiðrildadansinn), so every other plant stays where it was
 //   sectors   { clearing, edge, inner, deep }: how many sector meshes each band is cut into (config.js: bands.sectors); fewer, bigger ones draw in fewer calls
 //   farRings  the far treeline's rings (far.js) instead of the biome's own: [{ radius, rows, spacing, height, crown, strip, color, haze, topHaze, araucaria }]
+//   farCards  { from }: the trees of the carded kinds (cards.js CARDED) at least `from` m from the clearing's centre, where the place's
+//           cameras never come near, are still pictures of themselves (cards.js), never their mesh: one quad each, lit as the plants
+//           and bending with the wind as their tops do (the take-off's forest round chapter 4's white tree)
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
@@ -50,7 +53,8 @@ import { createAtmosphere } from './atmosphere.js';
 import { createForestLife } from './life.js';
 import { createHangingMoss } from './moss.js';
 import { smoothstep, clamp } from './random.js';
-import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
+import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial, leafMeanOf } from './materials.js';
+import { CARDED, createCardAtlas, createCardMaterial } from './cards.js';
 import { runSync, runSliced, FRESH } from './slices.js';
 import { waterShape, createWaterSteps } from '../props/water.js';
 import { createMist } from '../props/mist.js';
@@ -73,6 +77,9 @@ const FAR_DROP = 0.12;
 const BANK = 0.02;
 // Hanging moss is a few centimetres of strand: past this far from the clearing it is not seen, so it is not drawn there.
 const MOSS_REACH = 100;
+// A far tree's picture (layout.farCards): pixels a cell of its atlas. Such a tree stands 20 m or more from the camera, mostly under
+// 300 px tall on the tablet (the white tree's: half of them under 180 px), so a cell of this holds it at about a pixel a pixel.
+const FAR_CARD_CELL = 256;
 // The plants are culled again once the camera has moved `move` m or turned `turn` radians (a degree and a half) since the last cull.
 const RECULL = { move: 0.4, turn: 0.0261 };
 
@@ -199,6 +206,32 @@ function tipOf({ model, x, z, rot, scale }) {
  * A forest for `layout` (see the top of this file), built at once, or with `slice` ({ budget, wait, onSlice }: slices.js runSliced)
  * a slice at a time over frames, so that it can be built while the child watches. Either way it resolves to the same forest.
  */
+/**
+ * The trees of the carded kinds at least `from` m from the clearing's centre (layout.farCards) as cards only: their pictures (one a
+ * shape, from the coarsest level each is drawn at, with the painted leaves' far tone, cards.js createCardAtlas) and the cards' material
+ * with the forest's wind; each such placement gets its `card` and `cardOnly`, so the batcher bakes its card and no mesh (batch.js).
+ * Returns { atlas, material, count } or null when no tree stands that far.
+ */
+function farCardsOf(world, placements, [cx, cz], { from }, { leafTexture, shared, low, q }) {
+  const far = placements.filter(p => CARDED.includes(p.name) && Math.hypot(p.x - cx, p.z - cz) >= from);
+  if (!far.length) return null;
+  const modelOf = p => (p.models || [{ model: p.model }]).at(-1).model;
+  const entries = [], known = new Set();
+  for (const p of far) {
+    const model = modelOf(p);
+    if (known.has(model)) continue;
+    known.add(model);
+    entries.push({ name: p.name, variant: p.variant, model });
+  }
+  const atlas = createCardAtlas(world.renderer ?? null, entries, { leafTone: low ? 1 : leafMeanOf(leafTexture), cell: FAR_CARD_CELL, columns: Math.min(8, Math.ceil(Math.sqrt(entries.length))) });
+  for (const p of far) {
+    p.card = atlas.cardOf(modelOf(p));
+    p.cardOnly = true;
+  }
+  const material = createCardMaterial(atlas, { coverage: Boolean(q.antialias), wind: shared });
+  return { atlas, material, count: far.length };
+}
+
 export async function createForest(world, layout, { slice = null } = {}) {
   const steps = forestSteps(world, layout);
   return slice ? runSliced(steps, slice) : runSync(steps);
@@ -264,12 +297,16 @@ function* forestSteps(world, layout) {
   const thin = createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'forest-thin', low, actors });
   const solidDepth = createWindDepthMaterial(shared, 'forest-solid');
   const thinDepth = createWindDepthMaterial(shared, 'forest-thin');
+  // the trees past all the place's cameras as cards of themselves (layout.farCards; some ms for their pictures: a slice of its own)
+  const [ccx, ccz] = layout.clearing.center;
+  if (layout.farCards) yield FRESH;
+  const farCards = layout.farCards ? farCardsOf(world, plan.placements, [ccx, ccz], layout.farCards, { leafTexture, shared, low, q }) : null;
+  if (layout.farCards) yield 'far cards';
   const batcher = createBatcher();
   for (const p of plan.placements) {
     batcher.add(p);
     if (CASTERS.has(p.name) && p.band !== 'deep' && !(low && p.band === 'inner')) batcher.addCaster(p);
   }
-  const [ccx, ccz] = layout.clearing.center;
   yield 'batched';
   const { meshes, casterMeshes } = yield* batcher.buildSteps(bucket => {
     const s = BAND_SETUP[bucket.band];
@@ -277,6 +314,7 @@ function* forestSteps(world, layout) {
   }, {
     order: p => Math.hypot(p.x - ccx, p.z - ccz),
     casterSetup: bucket => ({ material: solid, depthMaterial: bucket.kind === 'thin' ? thinDepth : solidDepth, renderOrder: 9 }),
+    cards: farCards ? { material: farCards.material, renderOrder: BAND_SETUP.deep.order, wind: true } : undefined,
   });
   for (const m of meshes) group.add(m);
   for (const m of casterMeshes) group.add(m);
@@ -343,6 +381,7 @@ function* forestSteps(world, layout) {
     groundTriangles: groundMesh.geometry.index.count / 3,
     waterTriangles: water ? water.triangles : 0,
     mossCards: moss ? moss.cards : 0,
+    farCards: farCards ? farCards.count : 0,
     mistCards: mists.reduce((n, m) => n + m.cards, 0),
     placementList: plan.placements.map(placementInfo),
   };
@@ -475,6 +514,8 @@ function* forestSteps(world, layout) {
       life.dispose();
       water?.dispose();
       moss?.dispose();
+      farCards?.material.dispose();
+      farCards?.atlas.dispose();
       for (const mist of mists) mist.dispose();
       for (const m of meshes) m.geometry.dispose();
       for (const m of casterMeshes) m.geometry.dispose();

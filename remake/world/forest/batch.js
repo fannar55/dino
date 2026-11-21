@@ -170,6 +170,11 @@ export function createBatcher() {
     const sw = UNDERSTORY.has(placement.name) ? LOD_SWITCH_SMALL : LOD_SWITCH;
     const crown = crownLod(placement, levels[0].level);
     const carded = !!placement.card;
+    // a tree only ever its card (placement.cardOnly: a place's trees far past all its cameras) has no mesh at all, at any distance
+    if (carded && placement.cardOnly) {
+      cards.push({ placement, ref, plant: null, only: true });
+      return;
+    }
     // what the plant was drawn as last (its level's place in `bands`, its card), shared by all its ranges, for the hysteresis
     const plant = { bands: [], li: -1, levelView: -1, state: null, cardView: -1 };
     if (carded) cards.push({ placement, ref, plant });
@@ -365,36 +370,45 @@ export function createBatcher() {
    * The cards of the placements that have one, in one mesh: a quad a tree, standing on its foot (aCentre, which is the position
    * too), its corners (aCorner) and size in metres (aSize) for cards.js's material to turn it to the camera, its picture's cell as
    * uv (mirrored for half the trees, by their turn), and what its material lights and fades it by (aCard: the height of its tree's
-   * mid-height over its foot, the tree's sky share, -1 where the picture is mirrored). Each card is a range (card: true) with its
-   * tree's ref and sector; the mesh is of the far band, whatever band its trees are of (a card is never near).
+   * mid-height over its foot, the tree's sky share, -1 where the picture is mirrored; 0 for the first of a tree only ever its card,
+   * which is all there at any distance). Each card is a range (card: true; `only` for such a tree) with its tree's ref and sector; the
+   * mesh is of the far band, whatever band its trees are of (a card is never near). With `wind` each corner carries the wind's weights
+   * as the meshes' vertices do (aWind: the tree's phase and, at the card's top, the sway of its tree's top; aTree: its tree's share),
+   * for a material that bends the card's top as the trees bend (cards.js createCardMaterial `wind`).
    */
-  function* makeCards({ material, renderOrder = 3 }) {
+  function* makeCards({ material, renderOrder = 3, wind = false }) {
     const n = cards.length * 4;
     const centre = new Float32Array(n * 3), corner = new Float32Array(n * 2), size = new Float32Array(n * 2), uv = new Float32Array(n * 2);
     const own = new Float32Array(n * 3); // aCard: the tree's mid-height over the card's foot, its sky share, and -1 for a mirrored picture
+    const sway = wind ? new Uint8Array(n * 4) : null, share = wind ? new Uint8Array(n) : null;
     const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
     const master = new IndexArray(cards.length * 6);
     const ranges = [];
     const box = new THREE.Box3();
     let biggest = 0;
-    cards.forEach(({ placement: p, ref, plant }, t) => {
+    cards.forEach(({ placement: p, ref, plant, only = false }, t) => {
       const { uv: [u0, v0, u1, v1], width, height, bottom } = p.card;
       const w = width * p.scale, h = height * p.scale, y = p.y + bottom * p.scale;
       const flip = Math.sin(p.rot) < 0;
+      const top = sway ? topSwayOf(p) : null;
       [[-0.5, 0], [0.5, 0], [0.5, 1], [-0.5, 1]].forEach(([cx, cy], k) => {
         const v = t * 4 + k;
         centre.set([p.x, y, p.z], v * 3);
         corner.set([cx, cy], v * 2);
         size.set([w, h], v * 2);
         uv.set([(cx < 0) !== flip ? u0 : u1, cy ? v1 : v0], v * 2);
-        own.set([Math.max(1e-3, ref.y - y), p.sky ?? 1, flip ? -1 : 1], v * 3);
+        own.set([only ? 0 : Math.max(1e-3, ref.y - y), p.sky ?? 1, flip ? -1 : 1], v * 3);
+        if (sway) {
+          sway.set([Math.round((p.phase % 1) * 255), cy ? top.sway : 0, 0, 0], v * 4);
+          share[v] = cy ? top.tree : 0;
+        }
       });
       const b = t * 4;
       master.set([b, b + 1, b + 2, b, b + 2, b + 3], t * 6);
-      const sphere = new THREE.Sphere(new THREE.Vector3(p.x, y + h / 2, p.z), Math.hypot(w, h) / 2);
+      const sphere = new THREE.Sphere(new THREE.Vector3(p.x, y + h / 2, p.z), Math.hypot(w, h) / 2 + (sway ? 0.8 : 0)); // (and its sway)
       ranges.push({
         start: t * 6, count: 6, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref, name: p.name, lod: 3, crown: null,
-        card: true, sector: p.sector, plant,
+        card: true, only, sector: p.sector, plant,
       });
       box.expandByPoint(sphere.center);
       biggest = Math.max(biggest, sphere.radius);
@@ -408,6 +422,10 @@ export function createBatcher() {
     g.setAttribute('aSize', new THREE.BufferAttribute(size, 2));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setAttribute('aCard', new THREE.BufferAttribute(own, 3));
+    if (sway) {
+      g.setAttribute('aWind', new THREE.BufferAttribute(sway, 4, true));
+      g.setAttribute('aTree', new THREE.BufferAttribute(share, 1, true));
+    }
     const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
     dynamic.setUsage(THREE.DynamicDrawUsage);
     g.setIndex(dynamic);
@@ -442,6 +460,24 @@ export function createBatcher() {
   /** build as steps (slices.js): a plant at a time. */
   const build = (setup, options) => runSync(buildSteps(setup, options));
   return { add, addCaster, build, buildSteps };
+}
+
+/**
+ * The sway of a tree's top as its mesh bakes it (buildGeometry: aWind.y, 0 to 1 of SWAY, and aTree, its tree's share, 0 to 255): its
+ * coarsest level's highest sway weight, at its scale. A card of it bends its top that much (makeCards `wind`).
+ */
+function topSwayOf(p) {
+  const { model } = (p.models || [{ model: p.model }]).at(-1);
+  let most = 0, tree = 1;
+  for (const part of [model.solid, model.thin]) {
+    if (!part?.count) continue;
+    for (let i = 0; i < part.count; i++) {
+      if (part.wind[i * 3] <= most) continue;
+      most = part.wind[i * 3];
+      tree = part.treeShare ? part.treeShare(most) : 1;
+    }
+  }
+  return { sway: Math.round(Math.min(1, (most * p.scale) / SWAY) * 255), tree: Math.round(tree * 255) };
 }
 
 function rebuildIndex(mesh, keep, signature) {
@@ -624,7 +660,7 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
     const keep = [], fade = [];
     data.ranges.forEach((r, i) => {
       let both = false;
-      if (r.card || r.carded) {
+      if ((r.card || r.carded) && !r.only) { // (a tree only ever its card is its card at any distance)
         const state = cardState(r.plant, _cam.distanceTo(r.ref), cardFrom);
         if (r.card ? state === MESH : state === CARD) return;
         both = state === BOTH;

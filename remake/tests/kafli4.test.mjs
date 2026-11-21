@@ -6,11 +6,12 @@ import * as kafli3 from '../chapters/kafli3.js';
 import { LOOKS } from '../engine/looks.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { createSave, defaultChapter } from '../engine/save.js';
-import { shapeGround, placementInfo } from '../world/forest/forest.js';
+import { shapeGround, placementInfo, createForest } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
-import { playUnattended } from './chapter-harness.mjs';
+import { createLighting } from '../engine/lighting.js';
+import { playUnattended, chapterWorld } from './chapter-harness.mjs';
 import { FLIGHT_WORDS, SONG, EGILL_ANSWERS, EGILL_ANSWER_AT } from '../chapters/kafli4-flight.js';
 import { PLAY } from '../chapters/kafli4-flight-play.js';
 import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
@@ -224,7 +225,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [], treeCameras: [], treeForest: null };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [], treeCameras: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -393,11 +394,8 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         const at = her.root.position;
         seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera), birds: group.kind === 'birds' ? (tree ? birds : -1) : null });
       }
-      // the white tree's place: its forest, and where its camera is in every frame there
-      if (world.location === 'hvitatre') {
-        seen.treeForest ??= world.forest;
-        seen.treeCameras.push(world.camera.position.clone());
-      }
+      // the white tree's place: where its camera is in every frame there
+      if (world.location === 'hvitatre') seen.treeCameras.push(world.camera.position.clone());
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
       // scene 5: how low she comes, and the black from it till two seconds into the flight
@@ -680,20 +678,24 @@ test('the take-off\'s far trees stand at the white tree as cards of themselves (
   const { layout } = chapter.locations.hvitatre;
   assert.deepEqual(layout.farCards, { from: TREE_CARDS.from }, 'the white tree\'s lush layout asks for them');
   const [cx, cz] = layout.clearing.center;
+  // the place's own forest, as the game builds it (the harness's places are their ground alone)
+  const world = await chapterWorld(chapter);
+  Object.assign(world, { q: PRESETS.tablet, look: LOOKS[chapter.look], params: new URLSearchParams(''), lighting: createLighting(world.scene, LOOKS[chapter.look], PRESETS.tablet) });
+  const forest = await createForest(world, { ...layout, shots: chapter.locations.hvitatre.shots });
+  const meshes = [];
+  forest.group.traverse(o => { if (o.userData?.cull?.ranges && !o.userData.caster) meshes.push(o); });
+  const cards = meshes.filter(m => m.userData.cards).flatMap(m => m.userData.cull.ranges);
+  const own = meshes.filter(m => !m.userData.cards).flatMap(m => m.userData.cull.ranges).filter(r => r.ref);
+  const at = (list, p) => list.some(r => Math.hypot(r.ref.x - p.x, r.ref.z - p.z) < 0.01);
+  const carded = forest.placements.filter(p => CARDED.includes(p.name));
+  const far = carded.filter(p => Math.hypot(p.x - cx, p.z - cz) >= TREE_CARDS.from);
+  forest.dispose();
+  assert.ok(far.length >= 150, `${far.length} trees past ${TREE_CARDS.from} m`);
+  assert.deepEqual(far.filter(p => !at(cards, p) || at(own, p)).map(p => `${p.name} at ${p.x.toFixed(0)}, ${p.z.toFixed(0)}`), [], 'each far tree its card and never its mesh');
+  assert.equal(cards.length, far.length, 'no card but theirs: every nearer tree is its mesh');
   for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
     const { watched } = await play();
-    const forest = watched.treeForest;
-    assert.ok(forest && watched.treeCameras.length > 3000, `the white tree's forest and ${watched.treeCameras.length} frames of its camera (${shape})`);
-    const meshes = [];
-    forest.group.traverse(o => { if (o.userData?.cull?.ranges && !o.userData.caster) meshes.push(o); });
-    const cards = meshes.filter(m => m.userData.cards).flatMap(m => m.userData.cull.ranges);
-    const own = meshes.filter(m => !m.userData.cards).flatMap(m => m.userData.cull.ranges).filter(r => r.ref);
-    const at = (list, p) => list.some(r => Math.hypot(r.ref.x - p.x, r.ref.z - p.z) < 0.01);
-    const carded = forest.placements.filter(p => CARDED.includes(p.name));
-    const far = carded.filter(p => Math.hypot(p.x - cx, p.z - cz) >= TREE_CARDS.from);
-    assert.ok(far.length >= 150, `${far.length} trees past ${TREE_CARDS.from} m (${shape})`);
-    assert.deepEqual(far.filter(p => !at(cards, p) || at(own, p)).map(p => `${p.name} at ${p.x.toFixed(0)}, ${p.z.toFixed(0)}`), [], `each far tree its card and never its mesh (${shape})`);
-    assert.equal(cards.length, far.length, `no card but theirs (${shape})`);
+    assert.ok(watched.treeCameras.length > 3000, `${watched.treeCameras.length} frames of the white tree's camera (${shape})`);
     // no camera of the place near one: the nearest any frame came
     let nearest = Infinity, where = '';
     for (const c of watched.treeCameras) for (const p of far) {
