@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { createCardAtlas, createCardMaterial } from '../forest/cards.js';
 import { seeded } from './ground.js';
 
-const VIEW = { near: 380, far: 4600, farthest: 3200, bearing: 62, spacing: 17, chance: 0.9, thin: 2000, sky: 0.55 }; // thin: past it half the trees, each bigger
+const VIEW = { near: 150, far: 4200, farthest: 3200, bearing: 62, spacing: 17, chance: 0.9, thin: 2000, sky: 0.55 }; // thin: past it half the trees, each bigger
 const KINDS = [['broadleaf', 4, 0.55, [1.3, 1.7]], ['araucaria', 2, 0.25, [1.1, 1.45]], ['swampConifer', 2, 0.2, [1.2, 1.55]]];
 const CANOPY_SINK = 15; // m a foot goes under the far land's canopy
 const STEEP = 0.7;
@@ -25,8 +25,20 @@ const FEN_FROM = -560; // x past which the far land is painted the Fen's gold (f
 const FEN = { x: -60, z: 90, r: 240 }; // the Fen itself (spec: Fenið, round Þórseðla's snag), kept open: gold reed, no trees
 const MOUNTAIN = 135; // m up past which the far land is the mountains' foot and sides
 const UPPER = { x: -1600, z: 65, half: 40 }; // the river above the valley's, west of x, into the mountains (far-land.js UPPER)
+// far-land.js UPPER's line: along it the far land is open meadow (no crowns over its floor) out to OPEN m, where trees stand on it
+const UPPER_LINE = [[-2250, 50], [-2050, 66], [-1850, 58], [-1680, 80]];
+const OPEN = 75;
+const fromLine = (line, x, z) => {
+  let best = Infinity;
+  for (let i = 0; i + 1 < line.length; i++) {
+    const [ax, az] = line[i], [bx, bz] = line[i + 1], ex = bx - ax, ez = bz - az;
+    const k = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez)));
+    best = Math.min(best, Math.hypot(x - ax - ex * k, z - az - ez * k));
+  }
+  return best;
+};
 
-export function viewForest(world, { far, terrain, route, haze, library, from, seed = 4, leafTone = 1 }) {
+export function viewForest(world, { far, terrain, route, haze, library, from, seed = 4, leafTone = 1, river = null }) {
   const entries = KINDS.flatMap(([name, variants]) => Array.from({ length: variants }, (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) })));
   const atlas = createCardAtlas(world.renderer ?? null, entries, { leafTone });
   const material = createCardMaterial(atlas, { coverage: Boolean(world.q?.antialias), haze });
@@ -48,14 +60,15 @@ export function viewForest(world, { far, terrain, route, haze, library, from, se
       if ((far2 && variant < 0.5) || (far3 && variant < 0.75)) continue;
       if (Math.hypot(px - GLADE.x, pz - GLADE.z) < GLADE.r * (0.85 + 0.3 * jz)) continue;
       if (PONDS.some(([qx, qz, r]) => Math.hypot(px - qx, pz - qz) < r)) continue;
-      if (px < UPPER.x && Math.abs(pz - UPPER.z) < UPPER.half) continue;
+      const upper = fromLine(UPPER_LINE, px, pz);
+      if (river ? upper < 11 * river.widen + river.more + 8 : px < UPPER.x && Math.abs(pz - UPPER.z) < UPPER.half) continue;
       const land = far.heightAt(px, pz);
       if (land > MOUNTAIN) continue;
       const w = terrain.where(px, pz);
-      if (w.e < 6 || w.toPool < route.pool.radius + 10) continue;
+      if (w.e < (river ? 8 * river.widen + river.more : 6) || w.toPool < route.pool.radius + (river ? river.poolMore + 8 : 10)) continue;
       const valley = terrain.heightAt(px, pz);
       const corridor = Math.abs(land - (valley - 2)) < 1.5;
-      const bare = px > FEN_FROM; // the far land's gold there has no canopy over its floor
+      const bare = px > FEN_FROM || (river && upper < OPEN); // the far land's gold there, and the meadow along the upper river, have no canopy over their floor
       const ground = corridor ? valley : land;
       const steep = Math.hypot(far.heightAt(px + 6, pz) - far.heightAt(px - 6, pz), far.heightAt(px, pz + 6) - far.heightAt(px, pz - 6)) / 12;
       if (steep > STEEP) continue;

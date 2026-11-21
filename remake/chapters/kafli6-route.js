@@ -293,12 +293,15 @@ export const SHOTS = {
     ford_across: { position: up(fordPoint(2 * BANK + 10, 9), LEVEL + 3.6), target: up(fordPoint(2 * BANK - 2, 0), LEVEL + 2.4), fov: 50 },
   },
   hlid: {
-    // the ride up: from beside the path, below it on his left, looking up at him on the slope
-    slope_ride: { position: [-2404, 232.7, 164], target: up(SLOPE.ride.at, SLOPE.ride.ground + 2.4), fov: 50 },
-    // the view east: behind them on the ledge, over their shoulders to the whole forest in the low sun
-    view_east: { position: [-2396, 241.3, 129], target: [-1500, 120, 100], fov: 50 },
-    // the clouds over them: from the shelf's east end, a little below them, looking up past them to the mountain and its cloud
-    clouds_up: { position: [-2368, 236.6, 120], target: [-2458, 268, 160], fov: 52 },
+    // the ride up: from the shelf's north-east end, ahead of him on his right, as he comes up the path toward the ledge; behind him
+    // the ridge's green side going up into the cloud
+    slope_ride: { position: [-2377, 241.6, 138], target: [-2418, 239.5, 168], fov: 50 },
+    // the view east: close behind them on the ledge, a little to their left, they on the right of the frame, looking down over the
+    // brink to the whole forest in the low sun: the glade, the river past the falls and the pool, the Fen, Þórseðla on her way
+    view_east: { position: [-2393, 244.9, 120.5], target: [-1400, 10, 34], fov: 40 },
+    // the clouds over them: from the shelf's north-east end (short of the brink), a little below them, looking up past them to the
+    // mountain and its cloud
+    clouds_up: { position: [-2381, 239.6, 105], target: [-2440, 270, 190], fov: 52 },
   },
   sky: {
     // he steps into the first print and looks down: close and low beside it, his front feet in its heel and his head over it

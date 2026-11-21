@@ -12,6 +12,8 @@ import { SHOTS, STANDS, SLOPE } from './kafli6-route.js';
 const params = new URLSearchParams(globalThis.location?.search ?? '');
 const VIEW = params.get('view') || 'view_east';
 const SHOWS = { ...SHOTS.hlid, wide: { position: [-2330, 300, 260], target: [-2400, 236, 124], fov: 55 } };
+// cam=x,y,z,tx,ty,tz,fov: the view's camera moved, to try a shot
+if (params.get('cam')) { const [x, y, z, tx, ty, tz, fov] = params.get('cam').split(',').map(Number); SHOWS[params.get('view') || 'view_east'] = { position: [x, y, z], target: [tx, ty, tz], fov }; }
 const stand = (STANDS[VIEW] ?? STANDS.view_east).mosi;
 
 export const chapter = {

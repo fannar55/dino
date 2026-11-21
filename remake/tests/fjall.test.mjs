@@ -188,7 +188,7 @@ test('from view_east the pool, the falls, the Fen and the glade are in frame, wi
   camera.lookAt(new THREE.Vector3(...shot.target));
   camera.updateMatrixWorld();
   camera.updateProjectionMatrix();
-  assert.ok(shot.fov >= 45, 'a wide shot');
+  assert.ok(shot.fov >= 38, 'a wide shot (the forest filling the frame: 40 degrees, as wide upright, where the director keeps the width)');
   // upright: the camera's right is level (no roll), and up on the screen is up in the world
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
