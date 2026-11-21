@@ -344,6 +344,7 @@ function* thePrints(s, c) {
       setCloud(c, CLOUD_BY_PRINT[0], 0);
       mosi.place(first.x - fx * STEP_IN, first.z - fz * STEP_IN, first.heading);
       lightTo(world, LOOKS.inCloud);
+      hideSky(c); // inside the cloud the sky's own sun and Mosi cloud (they take no fog) are not seen
       return null;
     },
   });
@@ -623,6 +624,7 @@ function* sheComes(s, c) {
     return null;
   });
   yield s.until(() => blown?.done);
+  showSky(c); // the cloud is gone: the sun and the Mosi cloud are back in the sky
   easeLight(world, AFTER_ROAR, 1.5); // a thin haze stays: the cloud lies round them still, below the top
   yield s.wait(0.6);
   yield* say(s, c, 'mosi', 'k6_mosi_yes');
@@ -752,6 +754,29 @@ const screenWidth = c => c.world.renderer?.domElement?.getBoundingClientRect?.()
 function pointWithHead(s, c, point) {
   c.mosi.lookAt(point, { weight: 0.9, maxAngle: 80, maxPitch: 40 });
   s.after(2.6, () => c.mosi.lookAt(null));
+}
+
+// The sky's own decorations (engine/sun-face.js, added by main.js): the smiling sun with its overlay and nightcap, and the cloud
+// shaped like Mosi. They take no fog, so inside the cloud they would show through the white.
+const SKY_DECOR = ['SunFace', 'SunHandsAndMouth', 'SunNightcap', 'MosiCloud'];
+/** Hide the sky's decorations, remembering how each was. */
+function hideSky(c) {
+  if (c.skyHidden) return;
+  c.skyHidden = new Map();
+  for (const name of SKY_DECOR) {
+    const object = c.world.scene.getObjectByName(name);
+    if (!object) continue;
+    c.skyHidden.set(object, object.visible);
+    object.visible = false;
+  }
+  c.log({ type: 'sky', hidden: true, count: c.skyHidden.size });
+}
+/** Put them back as they were (also when the chapter ends or is left: setUp's close). */
+function showSky(c) {
+  if (!c.skyHidden) return;
+  for (const [object, visible] of c.skyHidden) object.visible = visible;
+  c.skyHidden = null;
+  c.log({ type: 'sky', hidden: false });
 }
 
 /** The cloud's level, noted for the tests. */
@@ -942,6 +967,7 @@ function setUp(s) {
     const release = s.seeking ? null : world.sound?.hold?.(c.showSounds);
     return () => {
       c.ended = true;
+      showSky(c); // the sky as the engine had it, however the chapter ends or is left
       release?.();
       c.showSounds.stop();
       world.music?.setLevel?.(1, 1);

@@ -11,6 +11,7 @@ import { CLOUD_BY_PRINT } from '../chapters/kafli6-route.js';
 
 const { chapter, WORDS } = kafli6;
 const FRAME = 1 / 30;
+const SKY = ['SunFace', 'SunHandsAndMouth', 'MosiCloud']; // the sky's own decorations (engine/sun-face.js) the cloud must hide
 
 const inFrame = (point, camera) => {
   const p = point.clone().project(camera);
@@ -23,13 +24,20 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {} };
+  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [] };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses,
     onFrame(frame) {
       const { world, director, t } = frame;
+      // the harness has the smiling sun (createSunFace) but not main.js's Mosi cloud: the smallest stand-in, a sprite of its name
+      if (!world.scene.getObjectByName('MosiCloud')) {
+        const stand = new THREE.Sprite(new THREE.SpriteMaterial());
+        stand.name = 'MosiCloud';
+        world.scene.add(stand);
+      }
       const c = world.chapterState;
       if (!c) return;
+      seen.sky.push({ time: c.s.time, scene: c.scene, shown: SKY.filter(name => world.scene.getObjectByName(name)?.visible) });
       world.camera.updateMatrixWorld();
       const time = c.s.time;
       // never more than three big characters outside the farewell
@@ -244,4 +252,26 @@ test('every line of WORDS is said at least once by the untouched and the wrong-t
 
 test('outside scene 1 Slóeðla and Flugeðla are not shown, so never more than three big characters', async () => {
   for (const run of [await untouched(), await quick()]) assert.deepEqual(run.watched.crowd.slice(0, 5), []);
+});
+
+test("in the cloud the sky's own Mosi cloud and smiling sun are hidden, and back once it has blown away", async () => {
+  const run = await untouched();
+  const { world, watched } = run;
+  const log = world.chapterState.chapterLog.filter(e => e.type === 'sky');
+  assert.deepEqual(log.map(e => e.hidden), [true, false], 'hidden once, shown once');
+  assert.equal(log[0].scene, 4, 'hidden as the chapter enters the belt');
+  assert.equal(log[0].count, SKY.length, 'every decoration was found');
+  const blow = world.chapterState.chapterLog.find(e => e.type === 'blow');
+  const back = log[1].at;
+  assert.equal(log[1].scene, 6);
+  assert.ok(back > blow.at && back - blow.at < 4, `back ${(back - blow.at).toFixed(1)} s after the blow began`);
+  const inCloud = watched.sky.filter(f => (f.scene === 4 && f.time > log[0].at + 0.5) || f.scene === 5 || (f.scene === 6 && f.time < blow.at));
+  assert.ok(inCloud.length > 1000, `${inCloud.length} frames in the cloud`);
+  assert.deepEqual(inCloud.filter(f => f.shown.length).map(f => `${f.shown} at ${f.time.toFixed(1)} s`), [], 'none shows in the cloud');
+  const before = watched.sky.filter(f => f.scene === 3);
+  const after = watched.sky.filter(f => f.time > back + 0.1);
+  for (const [what, frames] of [['before the belt', before], ['after the blow', after]]) {
+    assert.ok(frames.length > 0 && frames.every(f => f.shown.length === SKY.length), `all shown ${what}`);
+  }
+  for (const name of SKY) assert.equal(world.scene.getObjectByName(name).visible, true, `${name} as the engine had it at the end`);
 });
