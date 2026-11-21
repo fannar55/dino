@@ -66,8 +66,9 @@ const PONDS = [[312, 525, 70], [323, 950, 90], [-560, 760, 55]]; // [x, z, radiu
 const KAMBEDLA = { x: -832, z: -192, glade: 140, above: 8, colour: '#ab85c1', blinks: [138.2, 138.9, 139.6, 140.3], width: 0.2, window: [137.5, 141.5], size: 22, call: 135 };
 // The river above the valley's (route.river ends 330 m above the falls): [x, z, level, half width], on into the mountains' foot.
 const UPPER = [[-1680, 80, 51.5, 11], [-1850, 58, 52.5, 11], [-2050, 66, 54, 10], [-2250, 50, 56, 9]];
-// The haze the far land fades into with distance (aerial perspective): none to 250 m, half by about 1.4 km, at most 80 %.
-const HAZE = { from: 250, scale: 1600, most: 0.8, sky: '#c3d3e2', blue: 0.35 };
+// The haze the far land fades into with distance (aerial perspective): none to 250 m, half by about 1.4 km, at most 80 %. foot: a
+// tree's card is fogged as the ground at its foot from `from` to `foot` metres on, all of it past (createFarHaze's `vertex`).
+const HAZE = { from: 250, scale: 1600, most: 0.8, sky: '#c3d3e2', blue: 0.35, foot: 400 };
 /** How much of the haze's colour a thing `metres` off takes while the far land shows (0 to 0.8; createFarHaze's lines say the same). */
 export const farHazeAt = metres => (1 - Math.exp(-Math.max(metres - HAZE.from, 0) / HAZE.scale)) * HAZE.most;
 /**
@@ -76,7 +77,11 @@ export const farHazeAt = metres => (1 - Math.exp(-Math.max(metres - HAZE.from, 0
  * One uniform, uFarHaze: rgb the haze's colour (display values: after the fog, which three applies after the sRGB conversion), w 1
  * while the far land shows and 0 while it does not (createFarLand's update sets both). A material adds `head` to its fragment
  * shader's head and `glsl` after its fog (cards.js createCardMaterial, look.js createGroundMaterial: their `haze`).
- *   createFarHaze() -> { uniforms: { uFarHaze }, head, glsl, key }
+ * `vertex(foot, away)`: a card's lines after its fog_vertex (`head` in its vertex head too): from 250 to 400 m off (`away`, metres)
+ * it is fogged as at its `foot` (a vec3), all of it past 400 m. The look's fog is height fog, thick low down and thin 20 m up, so
+ * a crown far off stood out bright over the misty land it stands on, over its own trunk faded into the mist; the land, the trunk and
+ * the crown now fade alike, as the far land's own forest (painted on it) does.
+ *   createFarHaze() -> { uniforms: { uFarHaze }, head, glsl, vertex(foot, away), key }
  */
 export function createFarHaze() {
   return {
@@ -85,6 +90,9 @@ export function createFarHaze() {
     glsl: `	#ifdef USE_FOG
 		float farHazeAway = max( length( vFogWorld - cameraPosition ) - ${HAZE.from.toFixed(1)}, 0.0 );
 		gl_FragColor.rgb = mix( gl_FragColor.rgb, uFarHaze.rgb, ( 1.0 - exp( -farHazeAway / ${HAZE.scale.toFixed(1)} ) ) * ${HAZE.most.toFixed(2)} * uFarHaze.w );
+	#endif`,
+    vertex: (foot, away) => `	#ifdef USE_FOG
+		vFogWorld.y = mix( vFogWorld.y, ${foot}.y, uFarHaze.w * smoothstep( ${HAZE.from.toFixed(1)}, ${HAZE.foot.toFixed(1)}, ${away} ) );
 	#endif`,
     key: 'haze',
   };

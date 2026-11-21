@@ -218,7 +218,8 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
  * mesh leaves out, or with `coverage` (MSAA) 2 share of each pixel's samples, clamped (aCard.x, the height of the tree's mid-height
  * over the card's foot; 0 for a card that is always all there, as the
  * horizon's): `fade` is the band's uniform the place shares with its plants (materials.js createCardFade). `haze`: what the place adds
- * after the fog ({ uniforms, head, glsl, key }; Árdalur's far land's haze, world/ardalur/far-land.js createFarHaze), none by default.
+ * after the fog, and far off the fog as at its foot ({ uniforms, head, glsl, vertex, key }; Árdalur's far land's haze,
+ * world/ardalur/far-land.js createFarHaze), none by default.
  */
 export function createCardMaterial(atlas, { coverage = false, fade = createCardFade(), haze = null } = {}) {
   // `coverage`: with MSAA (the tablet's preset) the cut-out's edge is alpha to coverage, soft and steady as the card moves, not a
@@ -228,7 +229,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   material.userData.cardFade = fade;
   const key = `far-tree-cards-lit${coverage ? '-a2c' : ''}${haze ? `-${haze.key}` : ''}`;
   return patchLambert(material, key, { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data }, ...haze?.uniforms }, {
-    vertexHead: `attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
+    vertexHead: `${haze ? `${haze.head}\n` : ''}attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
     vertexAfter: [
       ['#include <beginnormal_vertex>', `
   vec3 cardFoot = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
@@ -248,6 +249,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   objectNormal = cardFace;`],
       ['#include <begin_vertex>', `
   transformed = position + cardSide * ( aCorner.x * aSize.x ) + vec3( 0.0, aCorner.y * aSize.y, 0.0 );`],
+      ...(haze?.vertex ? [['#include <fog_vertex>', haze.vertex('cardFoot', 'cardAway')]] : []),
     ],
     fragmentHead: `${LIGHT_GLOBALS}\n${haze ? `${haze.head}\n` : ''}uniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,
     fragmentAfter: [
