@@ -1,0 +1,11 @@
+{
+  "note": "Uggeðla í tjörninni: the real recordings of the show's sound (remake/chapters/tjorn3d/sound.js, SLOTS). The show asks only for the files named under \"files\" here: a slot with no file plays the made sound named by its `instead`. To put a recording in a slot: lay the file in this folder under one of the slot's names and add its entry to \"files\" (what it is, where it came from, its licence, and `level` if it should play at another gain than the slot's). No code changes. tests/tjorn3d-sound.test.mjs holds this file against the slots and the folder.",
+  "slots": {
+    "pond": { "names": ["pond.mp3"], "instead": "water", "what": "the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round" },
+    "rise": { "names": ["rise.mp3"], "instead": "heave", "what": "something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in" },
+    "drips": { "names": ["drips.mp3"], "instead": "dripping", "what": "drips falling back into still water, thinning: about 5 s" },
+    "bubbles": { "names": ["bubbles-1.mp3", "bubbles-2.mp3", "bubbles-3.mp3"], "instead": "blips", "what": "a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome" },
+    "sink": { "names": ["sink.mp3"], "instead": "closing", "what": "something sinking softly, the water closing over it: its closing 0.6 s in" }
+  },
+  "files": {}
+}

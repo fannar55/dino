@@ -33,6 +33,7 @@ import { createCast, verticesOf } from './tjorn3d/cast.js';
 import { createShow } from './tjorn3d/play.js';
 import { createShowMeasure } from './tjorn3d/measure.js';
 import { LENGTH, FADE, WARM, partAt } from './tjorn3d/show.js';
+import { createPondSound } from './tjorn3d/sound.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -665,19 +666,36 @@ export const chapter = {
       her.update = dt => { update.call(her, dt); show.late(); };
       const still = params.get('t') !== null && params.get('play') !== '1';
       let seeks = params.get('t') !== null;
-      const time = { from: null, started: false, showing: false, black: -1, warm: null };
+      const time = { from: null, started: false, showing: false, black: -1, warm: null, sounding: false, at: 0, seen: null };
       const now = () => time.warm ?? (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
+      // Its sound (tjorn3d/sound.js): no music (the theme is held at nothing, above), no voices; the cue sheet, each cue played as
+      // the show's second passes it, and the pond's bed under it, all held with the game. A still (t= alone) has no audio context,
+      // and asks for nothing.
+      const sound = createPondSound({ context: still ? null : world.sound?.context ?? null, output: world.sound?.output ?? null });
+      if (!still) world.sound?.hold?.(sound);
       const frame = () => {
         if (view.dirty) fit();
         const t = now();
         show.apply(t);
         view.t = t;
+        // The sound starts with the show, in the first frame the clock moves in (a page with t= and play=1 is stepped to its
+        // second in silence and stands there until the tap): from the second the show stood at, so nothing before it is heard
+        // and the bed is at the level it has there.
+        if (time.showing && !still && !s.seeking) {
+          if (!time.sounding && time.seen !== null && s.time !== time.seen) {
+            time.sounding = true;
+            sound.start(Math.min(t, time.at));
+          }
+          if (time.sounding) sound.frame(t);
+        }
+        if (time.showing) time.at = t;
+        time.seen = s.time;
         view.key = { id: 'syning', name: partAt(t)?.name ?? 'Kyrr tjörn', says: null, her: her.root.visible ? {} : null, jump: show.state.jumper ? {} : null, fish: view.fish, butterfly: show.state.onSnout ? 'snout' : null };
         // black for the first moments and over the last (held through the end card); a capture has none
         const b = still ? 0 : !time.showing && time.from !== null ? 1 : +Math.min(1, Math.max(0, 1 - t / FADE.in, (t - (LENGTH - FADE.out)) / FADE.out)).toFixed(3);
         if (time.started && b !== time.black) { time.black = b; s.fade(b, 0); }
       };
-      Object.assign(world.tjorn, { show, time, measureShow: createShowMeasure({ S, LEVEL, seat: SEAT, stage, her, rig, skin, part, cloud, cast, show, snout, lilyParts, lilyPoints, strikePoint, view }) });
+      Object.assign(world.tjorn, { show, time, sound, measureShow: createShowMeasure({ S, LEVEL, seat: SEAT, stage, her, rig, skin, part, cloud, cast, show, snout, lilyParts, lilyPoints, strikePoint, view }) });
       frame();
       s.after(0, function* run() {
         for (;;) {
@@ -703,12 +721,15 @@ export const chapter = {
         show.reset(); // (played again: nothing is left over from the last time)
         time.from = seeks ? 0 : s.time; // (a page with t= is stepped from the scene's own start: its second is the show's)
         seeks = false;
+        time.sounding = false; // (played again, the sound starts clean: frame)
+        time.at = 0;
         time.showing = true;
         if (still) for (;;) yield;
         yield s.until(() => s.time - time.from >= LENGTH);
         time.showing = false;
+        sound.end(); // (the bed has gone with the picture: nothing hangs over the end card)
         let again = false;
-        const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => leaveShow(win) });
+        const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => { sound.end(); leaveShow(win); } });
         doc.body.append(end);
         try {
           yield s.until(() => again);
