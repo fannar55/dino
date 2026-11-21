@@ -217,15 +217,17 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
  * and its leaves (wrap and the glow through them). Fog as everything else. In the band round cardFrom it shows the pixels its tree's
  * mesh leaves out, or with `coverage` (MSAA) 2 share of each pixel's samples, clamped (aCard.x, the height of the tree's mid-height
  * over the card's foot; 0 for a card that is always all there, as the
- * horizon's): `fade` is the band's uniform the place shares with its plants (materials.js createCardFade).
+ * horizon's): `fade` is the band's uniform the place shares with its plants (materials.js createCardFade). `haze`: what the place adds
+ * after the fog ({ uniforms, head, glsl, key }; Árdalur's far land's haze, world/ardalur/far-land.js createFarHaze), none by default.
  */
-export function createCardMaterial(atlas, { coverage = false, fade = createCardFade() } = {}) {
+export function createCardMaterial(atlas, { coverage = false, fade = createCardFade(), haze = null } = {}) {
   // `coverage`: with MSAA (the tablet's preset) the cut-out's edge is alpha to coverage, soft and steady as the card moves, not a
   // hard edge that shimmers; without it (no samples to cover) it stays the plain cut-out
   const material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.4, alphaToCoverage: coverage });
   material.name = 'far-tree-cards';
   material.userData.cardFade = fade;
-  return patchLambert(material, coverage ? 'far-tree-cards-lit-a2c' : 'far-tree-cards-lit', { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data } }, {
+  const key = `far-tree-cards-lit${coverage ? '-a2c' : ''}${haze ? `-${haze.key}` : ''}`;
+  return patchLambert(material, key, { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data }, ...haze?.uniforms }, {
     vertexHead: `attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
     vertexAfter: [
       ['#include <beginnormal_vertex>', `
@@ -247,7 +249,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
       ['#include <begin_vertex>', `
   transformed = position + cardSide * ( aCorner.x * aSize.x ) + vec3( 0.0, aCorner.y * aSize.y, 0.0 );`],
     ],
-    fragmentHead: `${LIGHT_GLOBALS}\nuniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,
+    fragmentHead: `${LIGHT_GLOBALS}\n${haze ? `${haze.head}\n` : ''}uniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,
     fragmentAfter: [
       // in the band: without MSAA the pixels its tree's mesh leaves out (materials.js); with it 2 share of each pixel's samples, so
       // over the band's first half it comes in behind the whole mesh and over the second the mesh goes out in front of it, whole
@@ -261,6 +263,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   gAmb = mix( 0.62, 1.0, cardSun );
   gLeaf = cardLight.w;`],
       ['#include <normal_fragment_maps>', '  normal = normalize( ( viewMatrix * vec4( cardNormal, 0.0 ) ).xyz );'],
+      ...(haze ? [['#include <fog_fragment>', haze.glsl]] : []),
     ],
   });
 }

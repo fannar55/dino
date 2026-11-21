@@ -26,7 +26,7 @@ import { cullBatches, cardReach, mergeCardMeshes, cullLayer } from '../forest/ba
 import { createNoiseTexture, createLeafTexture, leafMeanOf, createCardFade, setCardFade } from '../forest/materials.js';
 import { createWaterMaterial, ringsUntil } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
-import { createFarLand, FAR } from './far-land.js';
+import { createFarLand, createFarHaze, FAR } from './far-land.js';
 import { FEN, FOREST } from '../forest/config.js';
 import { CARDED, createCardAtlas, createCardMaterial } from '../forest/cards.js';
 
@@ -64,8 +64,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const library = createSpeciesLibrary(seed);
     // the band round cardFrom over which a far tree fades into its card: one uniform for the cards and the plants that fade (update)
     const cardFade = createCardFade();
+    // the far land's haze: the trees' cards and the sections' ground fade into it as the far land does, while it shows (far-land.js)
+    const haze = createFarHaze();
     return {
-      noise, leaf, library, cardFade, atlas: null, cards: null, paint: groundPaint(terrain, route), // (atlas, cards: once the props are known)
+      noise, leaf, library, cardFade, haze, atlas: null, cards: null, paint: groundPaint(terrain, route), // (atlas, cards: once the props are known)
       plants: createPlantMaterials(world, { noise, leaf, cardFade }), water: createWaterMaterial(world, { seed, river: true, noise }),
     };
   })();
@@ -74,7 +76,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     ground: lambert(GREY.ground), water: lambert(GREY.water), rock: lambert(GREY.rock), plant: lambert(GREY.plant),
     falls: new THREE.MeshLambertMaterial({ color: GREY.falls, side: THREE.DoubleSide }), snag: lambert(GREY.snag), mark: lambert(GREY.mark), far: lambert(GREY.far),
   } : {
-    ground: createGroundMaterial(real.noise), water: real.water.material,
+    ground: createGroundMaterial(real.noise, { haze: real.haze }), water: real.water.material,
     falls: new THREE.MeshLambertMaterial({ color: '#dfe9ec', side: THREE.DoubleSide }), snag: lambert(FEN.snag), mark: lambert(GREY.mark),
   };
   const group = new THREE.Group();
@@ -116,14 +118,14 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       entries.push(e);
     }
     real.atlas = createCardAtlas(world.renderer ?? null, entries, { leafTone: world.q?.name === 'low' ? 1 : leafMeanOf(real.leaf) });
-    real.cards = createCardMaterial(real.atlas, { coverage: Boolean(world.q?.antialias), fade: real.cardFade });
+    real.cards = createCardMaterial(real.atlas, { coverage: Boolean(world.q?.antialias), fade: real.cardFade, haze: real.haze });
   }
   const crest = Math.floor(route.progressAt(FAR.from) * index.count); // her path's sample at the crest of E, where the far land shows
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
   // world/props/waterfall.js), the snag, the animal groups' marks (grey only), and the far land's slot in grey (the real look has
   // the far land itself, far-land.js, which the flight shows from the crest of E).
-  const farLand = real ? createFarLand(world, route, { terrain, seed }) : null;
+  const farLand = real ? createFarLand(world, route, { terrain, seed, haze: real.haze }) : null;
   if (farLand) group.add(farLand.group);
   const always = new THREE.Group();
   always.name = 'Árdalur (always)';

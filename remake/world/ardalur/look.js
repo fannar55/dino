@@ -3,8 +3,9 @@
 //
 //   groundPaint(terrain, route)(x, z, y, ny) -> [r, g, b, rock]   the ground's colour at a vertex (linear), and how much of it is bare
 //                                                                    rock (the walls of the gorge and the cliff of the falls: sandstone)
-//   createGroundMaterial(noise) -> material                       a Lambert with that colour, broken up by the noise at two scales,
-//                                                                    and the sandstone's layers where it is rock
+//   createGroundMaterial(noise, { haze }) -> material             a Lambert with that colour, broken up by the noise at two scales,
+//                                                                    and the sandstone's layers where it is rock; haze: the far land's
+//                                                                    (far-land.js createFarHaze) after its fog, as the land it covers
 //   createPlantMaterials(world, { noise, leaf }) -> { solid, thin, downwash, dispose() }   the forest's vegetation materials
 //                                                                    (world/forest/materials.js), with `downwash` (a Vector4: her body
 //                                                                    and how far round it the air pushes the plants away; w 0 is none)
@@ -50,12 +51,12 @@ export function groundPaint(terrain, route) {
 }
 
 /** The ground's material: its vertex colour broken up at two scales, and the sandstone's layers where it is rock (aRock). */
-export function createGroundMaterial(noise) {
+export function createGroundMaterial(noise, { haze = null } = {}) {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.name = 'ardalur-ground';
   const uniforms = {
     uNoise: { value: noise },
-    uStoneA: { value: GROUND.stone[0] }, uStoneB: { value: GROUND.stone[1] }, uStoneC: { value: GROUND.stone[2] },
+    uStoneA: { value: GROUND.stone[0] }, uStoneB: { value: GROUND.stone[1] }, uStoneC: { value: GROUND.stone[2] }, ...haze?.uniforms,
   };
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
@@ -69,7 +70,7 @@ uniform vec3 uStoneA;
 uniform vec3 uStoneB;
 uniform vec3 uStoneC;
 varying float vRock;
-varying vec3 vGround;`)
+varying vec3 vGround;${haze ? `\n${haze.head}` : ''}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
   // patches: broad ones and small ones, so the grass is never one flat green
   float broad = texture2D( uNoise, vGround.xz * 0.019 ).r;
@@ -84,8 +85,9 @@ varying vec3 vGround;`)
     stone *= 0.82 + 0.3 * texture2D( uNoise, vec2( vGround.x + vGround.z, vGround.y * 2.0 ) * 0.17 ).r;
     diffuseColor.rgb = mix( diffuseColor.rgb, stone, vRock );
   }`);
+    if (haze) shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>\n${haze.glsl}`);
   };
-  material.customProgramCacheKey = () => 'ardalur-ground';
+  material.customProgramCacheKey = () => (haze ? `ardalur-ground-${haze.key}` : 'ardalur-ground');
   return material;
 }
 
