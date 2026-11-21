@@ -1,0 +1,15 @@
+{
+  "set": "book",
+  "date": "2026-11-21",
+  "source": "jano-book-mary43.json",
+  "verdicts": {
+    "book/book_myndband_mary_43": {
+      "verdict": "ja",
+      "key": "b3f7ee6ed141a01aa5f474367dcad0fcfb737ea8c719cbda2668d20cecd2ecb6",
+      "mp3": "377e94832872100d5563e5618566e40c06558baa0cd1ef6232e0ac08a705ba95",
+      "speaker": "narrator",
+      "text": "Dýrið heitir svaneðla. Hún synti með fjórum hreifum, eins og hún flygi í gegnum sjóinn.",
+      "note": "Sagt í spjalli 2026-11-21 (ekki á já/nei-síðu). Eftir fyrstu útgáfu myndbandsins „Stelpan sem fann sæskrímslið“ sagði hann fyrst: „Flygi er rangt sagt, rannsaka hvernig það er borið fram,“. Hann fékk þá fjórar nýjar tökur af línunni (flýi, flíji og tvær með IPA) og þessa til samanburðar, og svaraði: „halda eins og er, ég hafði rangnt fyrir mér, halda áfram eins og þu mælir með“. Þessi taka, send eins og hún er skrifuð með samhengi Svaneðlu og fræi 7, stendur."
+    }
+  }
+}

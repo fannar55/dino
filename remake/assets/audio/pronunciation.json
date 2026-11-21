@@ -3417,6 +3417,19 @@
         }
       },
       "chosen": null
+    },
+    "flygi": {
+      "word": "flygi",
+      "stem": "flygi$",
+      "forms": [
+        "flygi"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. SAMÞYKKT AF EIGANDANUM 2026-11-21 í línu 43 í myndbandinu „Stelpan sem fann sæskrímslið“ (samhengi Svaneðlu, fræ 7): hann sagði fyrst „Flygi er rangt sagt“, fékk fjórar aðrar tökur og svaraði „halda eins og er, ég hafði rangnt fyrir mér“. Flett upp þá: g á milli sérhljóðs og i er sagt sem j (stigi, lygi, bogi) og víðast verður i/y á undan því að í, svo flygi hljómar eins og „flýi“. Prófað og EKKI valið: „flýi“ (fræ 7 og 42), „flíji“ (fræ 42), IPA /ˈfliːjɪ/ og /ˈflɪːjɪ/ (fræ 7). Talgreining heyrði samþykktu tökuna sem „flýgi“ og tökur með fræi 42 og 1 sem „flugi“: haldið fræi 7. Ekki breyta."
+        }
+      },
+      "chosen": "hratt"
     }
   },
   "lines": {
