@@ -67,8 +67,31 @@ export const STEPS = LAYOUT.map((stones, step) => ({
   })),
 }));
 const rightOf = step => STEPS[step].stones.find(s => s.right).at;
-/** Where Mosi stands before step `k`: on the north bank, or on the last right stone (with its top under his feet). */
-const standBefore = k => (k === 0 ? { at: FORD.from } : { at: rightOf(k - 1), y: LEVEL + STONE.right.up });
+/** m from Mosi's root (between his back feet) to his front feet (mosi.glb, measured 2026-11-21: 2.29 to 2.33; 0.88 m either side). */
+export const MOSI_FRONT = 2.3;
+/** m he walks on up the south bank after the last hop. */
+export const ACROSS_ON = 3.8;
+// Where his front feet go as he crosses: the north bank, the five right stones, the south bank
+const FEET = [FORD.from, ...STEPS.map((_, k) => rightOf(k)), FORD.to];
+/**
+ * Where Mosi stands at point `k` of the crossing, with his front feet on FEET[k] (0: the north bank before the stones; 1 to 5 the
+ * right stones, his back feet then on the stone before; 6 the south bank), facing the way he came onto it; 7: up the bank, ACROSS_ON
+ * m on. `{ at: [x, z], heading, y }`, y the stone's top under his feet (null: the ground).
+ */
+export function crossing(k) {
+  const i = Math.min(k, FEET.length - 1);
+  const [a, b] = i === 0 ? [FEET[0], FEET[1]] : [FEET[i - 1], FEET[i]];
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const dir = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+  const back = k > FEET.length - 1 ? MOSI_FRONT - ACROSS_ON : MOSI_FRONT;
+  return {
+    at: [FEET[i][0] - dir[0] * back, FEET[i][1] - dir[1] * back],
+    heading: Math.atan2(dir[1], dir[0]) / deg,
+    y: i >= 1 && i <= STEPS.length ? LEVEL + STONE.right.up : null,
+  };
+}
+/** Where Mosi stands before step `k`. */
+const standBefore = k => crossing(k);
 
 /**
  * The camera for step `k`: over the water on the far side of the step's stones, looking back north at them and at Mosi beyond with
@@ -245,11 +268,12 @@ export const SHOTS = {
     // Scene 1: the farewell and Egill into the saddle: from the north-east bank, across the pool, Slóeðla out in it on the right,
     // and Mosi, Egill and Flugeðla on its south-east bank on the left
     pool_saddle: { position: [-920.64, FAR_POOL.level + 3.4, 49.28], target: [-945, FAR_POOL.level + 2, 78.3], fov: 54 },
-    // Scene 2: he comes to the ford: from over the water upstream, looking down the river at him on the north bank, the stones in
-    // front of him and the lip of the falls beyond
-    ford_arrive: { position: up(fordPoint(6, 7), LEVEL + 2.6), target: up(fordPoint(-0.5, -1), LEVEL + 2.4), fov: 50 },
-    // Scene 2: on the middle stone they look down the falls: from upstream of them, over the lip and down the gorge
-    falls_look: { position: up(fordPoint(3.6 * (FALLS_LOOK + 1) + 2.5, 7), LEVEL + 3.4), target: up([river.at(river.falls - 60).x, river.at(river.falls - 60).z], LEVEL - 12), fov: 50 },
+    // Scene 2: he comes to the ford: from over the water upstream, looking down the river: Mosi on the north bank on the left, the
+    // stones across in front of him, and far beyond them the lip of the falls with its spray and rainbow
+    ford_arrive: { position: up(fordPoint(5, 14), LEVEL + 3), target: up(fordPoint(4, -8), LEVEL + 1.5), fov: 50 },
+    // Scene 2: on the middle stone they stop and look down the falls: from upstream behind them, over their shoulders, down the river
+    // to the lip 45 m off, the rainbow in its spray and the forest of the gorge below, where they flew up with Flugeðla
+    falls_look: { position: up(fordPoint(6, 9), LEVEL + 3.2), target: up(fordPoint(12, -45), LEVEL - 6), fov: 50 },
     // Scene 2: over: from the south bank upstream of him, looking back over the river
     ford_across: { position: up(fordPoint(2 * BANK + 7, 5), LEVEL + 3.2), target: up(fordPoint(2 * BANK - 1, -1), LEVEL + 2.4), fov: 50 },
   },
@@ -306,9 +330,9 @@ const firstPrint = mosiAt(0);
 export const STANDS = {
   pool_west: { egill: { at: SPOTS.egill }, mosi: { at: SPOTS.mosi } },
   pool_saddle: { egill: { at: SPOTS.egill }, mosi: { at: SPOTS.mosi }, flugedla: { at: SPOTS.flugedla }, sloedla: { at: WADE.at } },
-  ford_arrive: { mosi: { at: FORD.from, heading: OVER }, ...riding },
-  falls_look: { mosi: { at: rightOf(FALLS_LOOK), heading: OVER, y: LEVEL + STONE.right.up }, ...riding },
-  ford_across: { mosi: { at: FORD.to, heading: OVER }, ...riding },
+  ford_arrive: { mosi: crossing(0), ...riding },
+  falls_look: { mosi: crossing(FALLS_LOOK + 1), ...riding },
+  ford_across: { mosi: crossing(STEPS.length + 2), ...riding },
   slope_ride: { mosi: SLOPE.ride, ...riding },
   view_east: atLedge(0),
   clouds_up: atLedge(150),
@@ -335,5 +359,7 @@ export const ARDALUR_VIEWS = [
 export const ARDALUR_KEEP = [
   { x: FORD.from[0], z: FORD.from[1], r: 3.5 },
   { x: FORD.to[0], z: FORD.to[1], r: 3.5 },
+  // where he stands on either bank, his tail too
+  ...[0, STEPS.length + 2].flatMap(k => { const { at, heading } = crossing(k); return [0, -3].map(b => ({ x: at[0] + Math.cos(heading * deg) * b, z: at[1] + Math.sin(heading * deg) * b, r: 3 })); }),
   ...['pool_saddle', 'ford_across'].map(name => ({ x: SHOTS.ardalur[name].position[0], z: SHOTS.ardalur[name].position[2], r: 2.5 })),
 ];

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import {
   ROUTE, FORD, STEPS, STONE, FALLS_LOOK, BELT_PATH, PRINT_SIZE, PRINT_PACE, PRINT_TAP, PRINTS, mosiAt, CLOUD_BY_PRINT, CALL,
   callStand, directionPoint, herAt, SHOTS, SHOWS, STANDS, stepShot, printShot, callShot, meetShot, meetOf, MEET, BELT_GROUND,
-  ARDALUR_VIEWS, ARDALUR_KEEP,
+  ARDALUR_VIEWS, ARDALUR_KEEP, crossing, MOSI_FRONT,
 } from '../chapters/kafli6-route.js';
 import { KEEP, viewsOf, poolOptions } from '../chapters/kafli5-place.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
@@ -17,6 +17,11 @@ import { createPointResolver } from '../engine/points.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { createSlope } from '../world/fjall/index.js';
 import { createArdalur } from '../world/ardalur/index.js';
+import { createSteppingStones } from '../world/props/stepping-stones.js';
+import { createSpeciesLibrary } from '../world/forest/species.js';
+import { rainbowLevel } from '../world/props/waterfall.js';
+import { LOOKS } from '../engine/looks.js';
+import { sunDirection } from '../engine/lighting.js';
 
 const SUN = 215; // the chapter's sun (engine/looks.js lowSun and the places' looks): azimuth 215, as chapter 5's
 const terrain = createTerrain(ROUTE, { seed: 4 });
@@ -359,3 +364,86 @@ test('buildPool with nothing more builds what chapter 5 built: the same sections
 });
 // chapter 5's KEEP as it stood in kafli5.js before it moved (2026-11-21)
 const KEEP_SUM = -14937.170225784283;
+
+// The ford's stones as the chapter builds them in the real look: the valley's own rocks, standing on the river bed
+const fordStones = () => createSteppingStones({ THREE, scene: new THREE.Scene(), heightAt: (x, z) => terrain.heightAt(x, z) }, {
+  steps: STEPS, level: FORD.level, sizes: STONE, heightAt: (x, z) => terrain.heightAt(x, z), library: createSpeciesLibrary(4),
+});
+/** A stone's points over the water, in the world: the part a child sees. */
+function seenOf(stones, id) {
+  const mesh = stones.group.children.find(m => m.geometry.userData.stones?.some(r => r.id === id));
+  if (mesh) {
+    const { start, count } = mesh.geometry.userData.stones.find(r => r.id === id);
+    const pos = mesh.geometry.attributes.position;
+    return Array.from({ length: count }, (_, i) => new THREE.Vector3().fromBufferAttribute(pos, start + i)).filter(p => p.y >= FORD.level);
+  }
+  const wrong = stones.group.children.find(m => m.isInstancedMesh);
+  const matrix = stones.matrixOf(id);
+  const pos = wrong.geometry.attributes.position;
+  return Array.from({ length: pos.count }, (_, i) => new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(matrix)).filter(p => p.y >= FORD.level);
+}
+/** How wide a set of points is along the way `heading` (degrees) and across it. */
+function widths(points, heading) {
+  const h = THREE.MathUtils.degToRad(heading);
+  const a = points.map(p => p.x * Math.cos(h) + p.z * Math.sin(h)), b = points.map(p => -p.x * Math.sin(h) + p.z * Math.cos(h));
+  return [Math.max(...a) - Math.min(...a), Math.max(...b) - Math.min(...b)];
+}
+
+test('each right stone\'s top is dry (STONE.right.up over the river\'s level) and at least 2.8 m across', () => {
+  const stones = fordStones();
+  const over = crossing(1).heading;
+  for (const [step, { stones: list }] of STEPS.entries()) {
+    for (const stone of list) {
+      const points = seenOf(stones, stone.id);
+      const high = Math.max(...points.map(p => p.y));
+      const top = stones.topOf(stone.id);
+      if (stone.right) {
+        assert.ok(Math.abs(high - (FORD.level + STONE.right.up)) < 0.01, `${stone.id}: its top ${(high - FORD.level).toFixed(2)} m over the water`);
+        assert.ok(top.y >= FORD.level + STONE.right.up - 0.05, `${stone.id} is flat and dry in the middle: ${(top.y - FORD.level).toFixed(2)} m up`);
+        const [a, b] = widths(points, over);
+        assert.ok(a >= 2.8 && b >= 2.8, `${stone.id}: ${a.toFixed(2)} by ${b.toFixed(2)} m over the water`);
+        // where he stands at the next point of the crossing, his front feet (0.88 m either side) come down on its flat top
+        const at = crossing(step + 1);
+        const h = THREE.MathUtils.degToRad(at.heading);
+        for (const side of [-0.88, 0.88]) {
+          const foot = [at.at[0] + Math.cos(h) * MOSI_FRONT - Math.sin(h) * side, at.at[1] + Math.sin(h) * MOSI_FRONT + Math.cos(h) * side];
+          const under = stones.surfaceAt(stone.id, ...foot);
+          assert.ok(under >= FORD.level + STONE.right.up - 0.12, `${stone.id}: his front foot ${side} on its top (${(under - FORD.level).toFixed(2)} m up)`);
+        }
+        assert.equal(stones.frogSpot(stone.id), null);
+      } else {
+        // a wrong one is small and lower: no frog would sit on a right one
+        assert.ok(high <= FORD.level + STONE.wrong.up + 0.01 && high < FORD.level + STONE.right.up - 0.05, `${stone.id}: ${(high - FORD.level).toFixed(2)} m up`);
+        const [a, b] = widths(points, over);
+        assert.ok(Math.max(a, b) <= STONE.wrong.across * 1.15, `${stone.id} is small: ${a.toFixed(2)} by ${b.toFixed(2)} m`);
+        const frog = stones.frogSpot(stone.id);
+        assert.ok(Math.abs(frog[1] - stones.surfaceAt(stone.id, frog[0], frog[2])) < 1e-6, `${stone.id}: its frog sits on it`);
+        // its frog hops 0.6 m the way it faces (critters.js HOP.distance), off the stone into the water, clear of the others
+        const [ax, az] = stones.away(stone.id);
+        const lands = [frog[0] + ax * 0.6, frog[2] + az * 0.6];
+        for (const other of STEPS.flatMap(x => x.stones)) assert.equal(stones.surfaceAt(other.id, ...lands), -Infinity, `${stone.id}'s frog lands on ${other.id}`);
+        assert.ok(groundAt(lands) < FORD.level - 0.2, `${stone.id}'s frog lands in the water`);
+      }
+    }
+  }
+  stones.dispose();
+});
+
+test('from falls_look the rainbow shows (rainbowLevel > 0.5 under LOOKS.lowSun) and the lip is over 40 m away', () => {
+  const sun = sunDirection(LOOKS.lowSun);
+  const lip = river.at(river.falls);
+  for (const aspect of [1.6, 0.625]) {
+    const { camera } = cameraOn(SHOTS.ardalur, 'falls_look', aspect, PLACES.ardalur);
+    const view = camera.getWorldDirection(new THREE.Vector3());
+    assert.ok(rainbowLevel(view, sun) > 0.5, `the rainbow at ${rainbowLevel(view, sun).toFixed(2)} (${aspect})`);
+    assert.ok(camera.position.distanceTo(new THREE.Vector3(lip.x, lip.level, lip.z)) > 40, 'the lip far off');
+    // and the lip is in the frame: they look down the falls
+    const s = onScreen(camera, aspect, new THREE.Vector3(lip.x, lip.level, lip.z));
+    assert.ok(s.front && s.x > 0.05 * s.w && s.x < 0.95 * s.w && s.y > 0.1 * s.h && s.y < 0.9 * s.h, `the lip at ${s.x.toFixed(0)}, ${s.y.toFixed(0)}`);
+  }
+  // nothing is near the drop: Mosi crosses 45 m above it at the nearest
+  for (let k = 0; k <= STEPS.length + 2; k++) {
+    const n = river.nearest(...crossing(k).at);
+    assert.ok(n.d - river.falls > 40, `point ${k} of the crossing ${(n.d - river.falls).toFixed(1)} m from the lip`);
+  }
+});

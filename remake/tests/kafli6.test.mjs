@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as kafli6 from '../chapters/kafli6.js';
 import { playUnattended } from './chapter-harness.mjs';
-import { CLOUD_BY_PRINT } from '../chapters/kafli6-route.js';
+import { CLOUD_BY_PRINT, FORD, STEPS } from '../chapters/kafli6-route.js';
 
 const { chapter, WORDS } = kafli6;
 const FRAME = 1 / 30;
@@ -24,7 +24,7 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [] };
+  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [] };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses,
     onFrame(frame) {
@@ -38,6 +38,7 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
       const c = world.chapterState;
       if (!c) return;
       seen.sky.push({ time: c.s.time, scene: c.scene, shown: SKY.filter(name => world.scene.getObjectByName(name)?.visible) });
+      if (c.scene === 2 && c.stones) watchFord(world, c, seen);
       world.camera.updateMatrixWorld();
       const time = c.s.time;
       // never more than three big characters outside the farewell
@@ -66,6 +67,27 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
+}
+
+/** The ford as it goes, each frame of scene 2: Mosi, Egill and his seat, the wrong stones as they lie, the frogs, and every ring. */
+const WRONG = STEPS.flatMap(step => step.stones.filter(stone => !stone.right).map(stone => stone.id));
+function watchFord(world, c, seen) {
+  if (!seen.ringsWatched && world.forest?.rippleAt) {
+    const ripple = world.forest.rippleAt;
+    world.forest.rippleAt = (x, z, strength) => { seen.rings.push({ x, z, strength, at: c.s.time }); return ripple(x, z, strength); };
+    seen.ringsWatched = true;
+  }
+  seen.stones = c.stones;
+  const mosi = world.actors.get('mosi');
+  const egill = world.actors.get('egill');
+  mosi.root.updateMatrixWorld(true);
+  const frogs = {};
+  for (const id of WRONG) frogs[id] = c.frogs.group.getObjectByName(`Critter frog-${id}`).position.clone();
+  seen.ford.push({
+    time: c.s.time, root: mosi.root.position.clone(), head: mosi.headPosition(new THREE.Vector3()), heading: mosi.heading,
+    pitch: THREE.MathUtils.radToDeg(mosi.model.rotation.z), seat: c.saddle.seat.clone(), egill: egill.root.position.clone(),
+    stones: Object.fromEntries(WRONG.map(id => [id, c.stones.matrixOf(id).elements.slice()])), frogs,
+  });
 }
 
 // The children ----------------------------------------------------------------------------------
@@ -274,4 +296,73 @@ test("in the cloud the sky's own Mosi cloud and smiling sun are hidden, and back
     assert.ok(frames.length > 0 && frames.every(f => f.shown.length === SKY.length), `all shown ${what}`);
   }
   for (const name of SKY) assert.equal(world.scene.getObjectByName(name).visible, true, `${name} as the engine had it at the end`);
+});
+
+
+// The ford (Task 7) ------------------------------------------------------------------------------
+/** The frames of scene 2 from Mosi's first hop on (he crosses), as watchFord saw them. */
+function crossingFrames(run) {
+  const [first] = logOf(run, 'stones', 'hop');
+  return run.watched.ford.filter(f => f.time >= first.at);
+}
+const turned = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+
+test('a wrong stone wobbles and comes to rest where it lay; its frog is in the water with a ring', async () => {
+  const run = await wrong();
+  const { ford, rings } = run.watched;
+  const c = run.world.chapterState;
+  const [first] = logOf(run, 'stones', 'wobble');
+  assert.ok(first, 'a wrong stone wobbled');
+  const id = first.stone;
+  const before = ford.filter(f => f.time < first.at).at(-1);
+  const during = ford.filter(f => f.time > first.at && f.time < first.at + 1);
+  const after = ford.find(f => f.time > first.at + 1.4);
+  const moved = Math.max(...during.map(f => Math.max(...f.stones[id].map((v, i) => Math.abs(v - before.stones[id][i])))));
+  assert.ok(moved > 0.01, `it wobbled (${moved.toFixed(3)})`);
+  assert.deepEqual(after.stones[id], before.stones[id], 'at rest as it lay');
+  // its frog hopped off into the water: on the water's level, off every stone, with a ring where it came down
+  const hop = c.chapterLog.find(e => e.type === 'frog' && e.id === `frog-${id}` && e.into);
+  assert.ok(hop, 'its frog hopped in');
+  const landed = ford.find(f => f.time > hop.at + 0.4);
+  const frog = landed.frogs[id];
+  assert.ok(Math.abs(frog.y - FORD.level) < 0.05, `the frog at ${(frog.y - FORD.level).toFixed(2)} m over the water`);
+  for (const other of STEPS.flatMap(step => step.stones)) assert.equal(run.watched.stones.surfaceAt(other.id, frog.x, frog.z), -Infinity, `the frog off ${other.id}`);
+  const before0 = before.frogs[id];
+  assert.ok(Math.hypot(frog.x - before0.x, frog.z - before0.z) > 0.5, 'it hopped off its stone');
+  const ring = rings.find(r => Math.abs(r.at - hop.at) < 0.05 && Math.hypot(r.x - frog.x, r.z - frog.z) < 0.4);
+  assert.ok(ring, `a ring where it came down (${rings.length} rings)`);
+});
+
+test('nothing of Mosi jumps more than 8 degrees or 0.15 m in a frame while he crosses', async () => {
+  const run = await untouched();
+  const frames = crossingFrames(run);
+  assert.ok(frames.length > 600, `${frames.length} frames`);
+  const worst = { root: 0, head: 0, heading: 0, pitch: 0 };
+  for (let k = 1; k < frames.length; k++) {
+    const a = frames[k - 1], b = frames[k];
+    worst.root = Math.max(worst.root, a.root.distanceTo(b.root));
+    worst.head = Math.max(worst.head, a.head.distanceTo(b.head));
+    worst.heading = Math.max(worst.heading, turned(a.heading, b.heading));
+    worst.pitch = Math.max(worst.pitch, Math.abs(a.pitch - b.pitch));
+  }
+  assert.ok(worst.root <= 0.15 && worst.head <= 0.15, `his root ${worst.root.toFixed(3)} m, his head ${worst.head.toFixed(3)} m in a frame`);
+  assert.ok(worst.heading <= 8 && worst.pitch <= 8, `he turned ${worst.heading.toFixed(2)} and pitched ${worst.pitch.toFixed(2)} degrees in a frame`);
+  // he went all the way over: from the north bank onto the south one
+  assert.ok(frames[0].root.distanceTo(frames.at(-1).root) > 20, 'over the river');
+  // and the water rang where his front feet came down on each stone
+  for (const step of STEPS) {
+    const right = step.stones.find(stone => stone.right);
+    assert.ok(run.watched.rings.some(r => Math.hypot(r.x - right.at[0], r.z - right.at[1]) < 0.01), `a ring at ${right.id}`);
+  }
+});
+
+test('Egill stays in the saddle through every hop (within 2 cm)', async () => {
+  for (const run of [await untouched(), await quick()]) {
+    const frames = crossingFrames(run);
+    const off = Math.max(...frames.map(f => f.egill.distanceTo(f.seat)));
+    assert.ok(off <= 0.02, `Egill ${off.toFixed(3)} m off his seat`);
+    // and the seat bounces with Mosi's hop: up and down by more than 20 cm over the crossing
+    const lift = Math.max(...frames.map(f => f.seat.y - f.root.y)) - Math.min(...frames.map(f => f.seat.y - f.root.y));
+    assert.ok(lift > 0.2, `the seat bounced ${lift.toFixed(2)} m`);
+  }
 });

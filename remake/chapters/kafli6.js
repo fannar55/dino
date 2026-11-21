@@ -28,7 +28,7 @@ import { COURAGE, sloedlaLife } from './kafli5-sloedla.js';
 import { STEPS as REED_STEPS } from './kafli5-pool.js';
 import { buildPool } from './kafli5-place.js';
 import {
-  FORD, STEPS, STONE, FALLS_LOOK, stepShot, SLOPE, PRINTS, PRINT_SIZE, PRINT_TAP, mosiAt, CLOUD_BY_PRINT, printShot, CALL,
+  ROUTE, FORD, STEPS, STONE, FALLS_LOOK, stepShot, crossing, SLOPE, PRINTS, PRINT_SIZE, PRINT_TAP, mosiAt, CLOUD_BY_PRINT, printShot, CALL,
   callStand, directionPoint, herAt, callShot, meetShot, TOP, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP,
 } from './kafli6-route.js';
 import { createStones } from './kafli6-stones.js';
@@ -45,6 +45,7 @@ import { demoAsked, startDemoChild } from './kafli6-demo.js';
 import { createSlope, createBelt, createTop } from '../world/fjall/index.js';
 import { createSteppingStones } from '../world/props/stepping-stones.js';
 import { createCritters } from '../world/critters/critters.js';
+import { createSpeciesLibrary } from '../world/forest/species.js';
 import { splash } from '../world/props/splash.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
@@ -74,14 +75,16 @@ const COUNTS = { k2_mosi_1: 'Eitt!', k2_mosi_2: 'Tvö!', k2_mosi_3: 'Þrjú!', k
 const EGILL_HEAD = { actor: 'egill', part: 'head' };
 const HER_HEAD = { actor: 'gramedla', part: 'head' };
 const STAR_FROM = { actor: 'gramedla', part: 'head', offset: [0, 1.8, 0] }; // the star rises over her head
-const OVER = headingTo(FORD.from, FORD.to); // the way he crosses the ford
 const MIN_SHOT = 2.55; // s: a cut waits this long after the one before (the director's rule, engine/camera/director.js LIMITS.minShot)
 // Scene 1: Flugeðla lifts off and flies east, out of the pool's shot, in FLIGHT s (then she is gone: she calls the forest)
 const FLIGHT = { seconds: 6, way: [[0, 0, 0], [7, 4, -2], [26, 14, -6], [62, 28, -12]] };
 const FLOAT = 2.6; // s Egill takes to float into the saddle
-// Scene 2: Mosi's hop (kafli6-mosi.js), the look down the falls, and where the frog on a rocking stone jumps (degrees off the river's way)
-const HOP = { seconds: 0.9, height: 0.9 };
+// Scene 2: how long they look down the falls, at its lip (where they look); when a frog that hops off its stone lands in the water
+// (world/critters/critters.js HOP: crouch and leap; from its second hop on it turns round first)
 const FALLS_HOLD = 4;
+const LIP = ROUTE.river.at(ROUTE.river.falls);
+const FALLS_LIP = [LIP.x, LIP.level, LIP.z];
+const FROG_LANDS = { first: 0.72, later: 1.12 };
 // Scene 3: how fast Mosi goes up the path (m/s), and the waits on the ledge
 const RIDE = { speed: 2.1, turn: 1.2 };
 // Scene 4: he steps into the first print from STEP_IN m back; his walk from print to print (m/s)
@@ -180,13 +183,28 @@ function* theFord(s, c) {
   mark(c, 2);
   c.sloedla.raw.root.visible = false; // from here never more than three big characters
   c.flugedla.raw.root.visible = false;
-  mosi.place(FORD.from[0], FORD.from[1], OVER);
-  c.stones = createSteppingStones(world, { steps: STEPS, level: FORD.level, sizes: STONE });
-  // a frog on each small, rocking stone, ready to jump in
-  const frogs = STEPS.flatMap(step => step.stones.filter(stone => !stone.right).map(stone => ({
-    name: `frog-${stone.id}`, kind: 'frog', position: [stone.at[0], c.stones.top(stone.id), stone.at[1]], heading: OVER + 90,
-  })));
-  c.frogs = createCritters(world, { spots: frogs, heightAt: (x, z) => Math.max(world.heightAt(x, z), FORD.level) });
+  const start = crossing(0);
+  mosi.place(start.at[0], start.at[1], start.heading);
+  // the valley's own rocks (world/forest/species.js), the right ones broad, flat and dry, the wrong ones small, round and wet
+  const real = Boolean(world.forest?.waterfall);
+  c.stones = createSteppingStones(world, {
+    steps: STEPS, level: FORD.level, sizes: STONE, heightAt: world.heightAt, library: real ? stoneLibrary() : null, grey: !real,
+  });
+  const wrongs = STEPS.flatMap(step => step.stones.filter(stone => !stone.right));
+  // a frog on each small, wobbly stone, facing the water it will hop into (away from the step's right stone)
+  const frogs = wrongs.map(stone => {
+    const [ax, az] = c.stones.away(stone.id);
+    return { name: `frog-${stone.id}`, kind: 'frog', position: c.stones.frogSpot(stone.id), heading: Math.atan2(az, ax) * (180 / Math.PI) };
+  });
+  // the frogs stand on their stones' tops, and on the water off them
+  const frogGround = (x, z) => {
+    let top = -Infinity;
+    for (const stone of wrongs) top = Math.max(top, c.stones.surfaceAt(stone.id, x, z));
+    return Number.isFinite(top) ? top : Math.max(world.heightAt(x, z), FORD.level);
+  };
+  c.frogs = createCritters(world, { spots: frogs, heightAt: frogGround });
+  c.frogs.group?.traverse?.(o => { if (o.isMesh) o.castShadow = false; }); // 8 shadow draws for 20 cm frogs: not worth it
+  c.frogIn = new Map(); // frog -> in the water (it hops in, and back up at the next wobble)
   sound(s, c, 'forest');
   cut(s, c, 'ford_arrive', { check: false });
   yield s.wait(0.2);
@@ -194,15 +212,24 @@ function* theFord(s, c) {
   yield s.wait(0.8);
   yield* say(s, c, 'mosi', 'k6_mosi_river');
   yield* stonesTask(s, c);
-  // the last hop, onto the south bank
-  yield hopTo(mosi.raw, { to: FORD.to, y: world.heightAt(...FORD.to), heading: OVER, ...HOP });
+  // the last hop, his front feet onto the south bank; then up it
+  sound(s, c, 'step', { level: 0.7 });
+  yield hopTo(s, c, crossing(STEPS.length + 1));
   sound(s, c, 'step', { level: 0.9 });
   letGo(mosi.raw);
+  const on = crossing(STEPS.length + 2);
+  const up = mosi.walkTo([on.at], { speed: 1.6, turnRate: 50 });
+  soundWhile(s, c, 'step', 0.6, () => !up.done, { level: 0.6 });
   cut(s, c, 'ford_across');
-  yield s.wait(0.6);
+  yield up;
+  yield s.wait(0.3);
   yield* say(s, c, 'mosi', 'k6_mosi_across');
   yield s.wait(1.2);
 }
+
+/** The species library the ford's stones are made from: the valley's own rocks, made once. */
+let library = null;
+const stoneLibrary = () => (library ??= createSpeciesLibrary(4));
 
 function* stonesTask(s, c) {
   const task = createStones({ steps: STEPS });
@@ -228,7 +255,7 @@ function* stonesTask(s, c) {
 /** One of the stones' events, as the child sees it. */
 function onStone(s, c, event) {
   c.task('stones', event);
-  const { mosi, world, stones } = c;
+  const { mosi, egill, world, stones } = c;
   const stepOf = k => STEPS[k].stones;
   switch (event.type) {
     case 'want': {
@@ -243,30 +270,27 @@ function onStone(s, c, event) {
       const stone = stepOf(event.step).find(x => x.id === event.stone);
       s.after(0, function* hop() {
         sound(s, c, 'step', { level: 0.7 });
-        yield hopTo(mosi.raw, { to: stone.at, y: stones.top(stone.id), heading: OVER, ...HOP });
-        // he lands: the water rings round the stone and Egill bounces in the saddle
-        world.forest?.rippleAt?.(stone.at[0], stone.at[1], 0.7);
+        // his front feet come down on the stone: the water rings round it and Egill bounces in the saddle
+        yield hopTo(s, c, crossing(event.step + 1), { ring: stone.at });
         sound(s, c, 'step', { level: 1 });
         sound(s, c, 'splash', { level: 0.35 });
         if (event.step === FALLS_LOOK) {
-          // halfway: they look down the falls, where they flew up with Flugeðla
+          // halfway: they stop and look down the falls, where they flew up with Flugeðla
           yield s.wait(0.4);
           cut(s, c, 'falls_look');
+          for (const who of [mosi, egill]) yield who.lookAt(FALLS_LIP, { weight: 0.8, maxAngle: 90, maxPitch: 30 });
           yield* say(s, c, 'egill', 'k6_egill_flew');
           yield s.wait(FALLS_HOLD);
+          for (const who of [mosi, egill]) yield who.lookAt(null);
         }
         c.stoneTask.landed(s.time);
       });
       break;
     }
     case 'wobble': {
-      // the small stone rocks, its frog jumps in with a splash, and Mosi laughs: never a no
-      stones.rock(event.stone);
-      const frog = `frog-${event.stone}`;
-      c.frogs.react(frog);
-      const at = STEPS.flatMap(step => step.stones).find(x => x.id === event.stone).at;
-      splash(world, new world.THREE.Vector3(at[0], FORD.level, at[1]), { size: 0.5, seed: `frog ${event.stone} ${Math.round(s.time * 10)}` });
-      sound(s, c, 'frog');
+      // the small stone wobbles, its frog hops into the water with a splash and a ring, and Mosi laughs: never a no
+      stones.wobble(event.stone);
+      frogHops(s, c, event.stone);
       sound(s, c, 'splash', { level: 0.5 });
       c.lines.say('mosi', 'k6_mosi_wobble', { ifQuiet: true });
       break;
@@ -284,6 +308,28 @@ function onStone(s, c, event) {
     default:
       break;
   }
+}
+
+/**
+ * The frog on a wobbly stone hops off it into the water, with a splash and a ring where it lands (or, in the water already, back up
+ * onto its stone). A tap while it is in the air changes nothing.
+ */
+function frogHops(s, c, stoneId) {
+  const name = `frog-${stoneId}`;
+  const was = c.frogIn.get(name) ?? { inWater: false, hop: null, hops: 0 };
+  if (was.hop && !was.hop.done) return;
+  const hop = c.frogs.react(name);
+  const into = !was.inWater;
+  c.frogIn.set(name, { inWater: into, hop, hops: was.hops + 1 });
+  sound(s, c, 'frog');
+  const target = c.frogs.targets.find(t => t.name === name);
+  s.after(was.hops ? FROG_LANDS.later : FROG_LANDS.first, () => {
+    const at = target.point;
+    c.world.forest?.rippleAt?.(at.x, at.z, into ? 0.5 : 0.3);
+    if (into) splash(c.world, new c.world.THREE.Vector3(at.x, FORD.level, at.z), { size: 0.45, seed: `frog ${stoneId} ${Math.round(s.time * 10)}` });
+    c.log({ type: 'frog', id: name, into, ring: [at.x, at.z] });
+    return null;
+  });
 }
 
 // 3. The slope: the ride up the path; on the ledge Mosi turns to the whole forest in the low sun; then to the mountain, whose path
