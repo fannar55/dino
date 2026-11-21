@@ -206,7 +206,8 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
  * its normal from the light atlas, turned into the view of the tree's middle (the picture's right is the card's right, or its left for
  * a card whose picture is mirrored: aCard.z; its toward-the-viewer the way to the camera, so from above a crown shows its top), its sky share (the atlas's, with the tree's own: aCard.y, as the batcher bakes the meshes' vertex alpha)
  * and its leaves (wrap and the glow through them). Fog as everything else. In the band round cardFrom it shows the pixels its tree's
- * mesh leaves out (aCard.x, the height of the tree's mid-height over the card's foot; 0 for a card that is always all there, as the
+ * mesh leaves out, or with `coverage` (MSAA) 2 share of each pixel's samples, clamped (aCard.x, the height of the tree's mid-height
+ * over the card's foot; 0 for a card that is always all there, as the
  * horizon's): `fade` is the band's uniform the place shares with its plants (materials.js createCardFade).
  */
 export function createCardMaterial(atlas, { coverage = false, fade = createCardFade() } = {}) {
@@ -215,7 +216,7 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
   const material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.4, alphaToCoverage: coverage });
   material.name = 'far-tree-cards';
   material.userData.cardFade = fade;
-  return patchLambert(material, 'far-tree-cards-lit', { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data } }, {
+  return patchLambert(material, coverage ? 'far-tree-cards-lit-a2c' : 'far-tree-cards-lit', { uTranslucency: { value: 0.55 }, uCardFade: fade, uCardData: { value: atlas.data } }, {
     vertexHead: `attribute vec2 aCorner;\nattribute vec2 aSize;\nattribute vec3 aCard;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${CARD_FADE_GLSL}`,
     vertexAfter: [
       ['#include <beginnormal_vertex>', `
@@ -239,7 +240,9 @@ export function createCardMaterial(atlas, { coverage = false, fade = createCardF
     ],
     fragmentHead: `${LIGHT_GLOBALS}\nuniform sampler2D uCardData;\nvarying vec3 vCardSide;\nvarying vec3 vCardUp;\nvarying vec3 vCardFace;\nvarying float vCardSky;\nvarying float vCardFade;\n${DITHER_GLSL}`,
     fragmentAfter: [
-      ['#include <clipping_planes_fragment>', '  if ( forestDither() >= vCardFade ) discard;'],
+      // in the band: without MSAA the pixels its tree's mesh leaves out (materials.js); with it 2 share of each pixel's samples, so
+      // over the band's first half it comes in behind the whole mesh and over the second the mesh goes out in front of it, whole
+      coverage ? ['#include <alphatest_fragment>', '  diffuseColor.a *= clamp( 2.0 * vCardFade, 0.0, 1.0 );'] : ['#include <clipping_planes_fragment>', '  if ( forestDither() >= vCardFade ) discard;'],
       ['#include <map_fragment>', `
   vec4 cardLight = texture2D( uCardData, vMapUv );
   vec2 cardN = cardLight.xy * 2.0 - 1.0;

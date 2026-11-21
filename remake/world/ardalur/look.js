@@ -151,8 +151,11 @@ export function createPlantMaterials(world, { noise, leaf, cardFade = createCard
   const leafFade = low ? null : { from: LEAF_FADE[0], to: LEAF_FADE[1], mean: leafMeanOf(leaf) };
   const solid = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}`, downwash);
   const thin = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors }), `ardalur-thin${low ? '-low' : ''}`, downwash);
-  const solidFade = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade, cardFade: true }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}-card`, downwash);
-  const thinFade = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors, cardFade: true }), `ardalur-thin${low ? '-low' : ''}-card`, downwash);
+  // with MSAA (the preset's antialias: the canvas and the glasses' eye targets) the band shares each pixel's samples out, not its pixels
+  const coverage = Boolean(world.q?.antialias);
+  const by = coverage ? '-a2c' : '';
+  const solidFade = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade, cardFade: true, coverage }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}-card${by}`, downwash);
+  const thinFade = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors, cardFade: true, coverage }), `ardalur-thin${low ? '-low' : ''}-card${by}`, downwash);
   return {
     solid, thin, solidFade, thinFade, cardFade, downwash: downwash.value,
     dispose() { solid.dispose(); thin.dispose(); solidFade.dispose(); thinFade.dispose(); },

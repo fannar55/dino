@@ -299,24 +299,41 @@ test('a far tree fades from its mesh to its card over a band round cardFrom: bot
   }
 });
 
-test('in the band a pixel shows either the tree or its card, by one screen-door threshold; the plain plants never leave one out', () => {
-  const world = { wind: createWind(), q: PRESETS.tablet };
-  const valley = createPlantMaterials(world, { noise: createNoiseTexture(1), leaf: createLeafTexture(1) });
-  assert.ok(valley.solidFade && valley.thinFade, 'the valley has fading plant materials');
-  const atlas = createCardAtlas(null, [{ name: 'broadleaf', variant: 0, model: library.get('broadleaf', 0, 2) }]);
-  const cards = createCardMaterial(atlas, { fade: valley.cardFade });
+test('in the band a pixel shows the tree or its card, never neither: by MSAA coverage where the preset has it, else by one screen-door threshold', () => {
   const compiled = material => {
     const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
     material.onBeforeCompile(shader, null);
     return shader;
   };
-  const mesh = compiled(valley.solidFade).fragmentShader, thin = compiled(valley.thinFade).fragmentShader, card = compiled(cards).fragmentShader;
-  assert.ok(/if \( forestDither\(\) < vCardFade \) discard;/.test(mesh) && /if \( forestDither\(\) < vCardFade \) discard;/.test(thin), 'the mesh leaves out the pixels the card takes');
-  assert.ok(/if \( forestDither\(\) >= vCardFade \) discard;/.test(card), 'the card takes those and leaves the rest');
-  for (const [name, m] of [['solid', valley.solid], ['thin', valley.thin]]) assert.ok(!compiled(m).fragmentShader.includes('discard'), `the plain ${name} plants never leave a pixel out (early depth testing)`);
-  assert.equal(compiled(valley.solidFade).uniforms.uCardFade, compiled(cards).uniforms.uCardFade, 'one band for both');
-  valley.dispose();
-  cards.dispose();
+  const atlas = createCardAtlas(null, [{ name: 'broadleaf', variant: 0, model: library.get('broadleaf', 0, 2) }]);
+  for (const q of [PRESETS.low, PRESETS.tablet]) {
+    const world = { wind: createWind(), q };
+    const valley = createPlantMaterials(world, { noise: createNoiseTexture(1), leaf: createLeafTexture(1) });
+    assert.ok(valley.solidFade && valley.thinFade, 'the valley has fading plant materials');
+    const cards = createCardMaterial(atlas, { fade: valley.cardFade, coverage: Boolean(q.antialias) }); // as the valley makes it (index.js)
+    const mesh = compiled(valley.solidFade).fragmentShader, thin = compiled(valley.thinFade).fragmentShader, card = compiled(cards).fragmentShader;
+    if (q.antialias) {
+      // the tablet renders at one pixel a pixel, each two by two on his screen: a screen-door there is a grain he sees. With MSAA each
+      // pixel's samples are shared out instead: over the band's first half its card comes in behind the whole mesh, over the second
+      // the mesh goes out in front of the whole card, so in every pixel one of the two is always all there (no see-through middle)
+      for (const [name, m] of [['solid', valley.solidFade], ['thin', valley.thinFade], ['card', cards]]) assert.ok(m.alphaToCoverage, `${q.name}: the ${name} fades by coverage`);
+      for (const [name, f] of [['solid', mesh], ['thin', thin]]) {
+        assert.ok(f.includes('diffuseColor.a = clamp( 2.0 * ( 1.0 - vCardFade ), 0.0, 1.0 );') && !f.includes('forestDither() <'), `${q.name}: the ${name} mesh covers 2(1 - share), clamped`);
+      }
+      assert.ok(card.includes('diffuseColor.a *= clamp( 2.0 * vCardFade, 0.0, 1.0 );') && !card.includes('forestDither() >='), `${q.name}: the card covers 2 share, clamped`);
+    } else {
+      // without MSAA a pixel is one sample: the mesh leaves out the pixels its card takes, by one threshold
+      assert.ok(/if \( forestDither\(\) < vCardFade \) discard;/.test(mesh) && /if \( forestDither\(\) < vCardFade \) discard;/.test(thin), `${q.name}: the mesh leaves out the pixels the card takes`);
+      assert.ok(/if \( forestDither\(\) >= vCardFade \) discard;/.test(card), `${q.name}: the card takes those and leaves the rest`);
+      assert.ok(!valley.solidFade.alphaToCoverage && !cards.alphaToCoverage, `${q.name}: no coverage without samples to share`);
+    }
+    for (const [name, m] of [['solid', valley.solid], ['thin', valley.thin]]) {
+      assert.ok(!compiled(m).fragmentShader.includes('discard') && !m.alphaToCoverage, `${q.name}: the plain ${name} plants never leave a pixel out (early depth testing)`);
+    }
+    assert.equal(compiled(valley.solidFade).uniforms.uCardFade, compiled(cards).uniforms.uCardFade, 'one band for both');
+    valley.dispose();
+    cards.dispose();
+  }
   atlas.dispose();
 });
 

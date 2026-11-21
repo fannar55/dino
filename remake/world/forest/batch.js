@@ -46,9 +46,10 @@ const CROWN_FINE = FOREST.lod.crownFine ?? 4;
 const CARD_FROM = FOREST.lod.cardFrom ?? Infinity;
 // A far tree goes from its mesh to its card over a band round cardFrom, CARD_BAND of it on either side, and never in one frame: in the
 // band both are drawn, and each pixel shows one of them by a screen-door threshold (materials.js forestDither), the card taking
-// cardFadeAt of them, by the camera's distance to the tree's mid-height (as cardFrom counts it). The mesh is drawn there by its merged
-// mesh's twin (makeMeshes), whose material leaves pixels out: the plain one never does, so the GPU still tests depth before shading
-// it. Every vertex of a carded tree carries aGrow too, the way to that mid-height and -1 for its w (GROW), which the shader reads.
+// cardFadeAt of them, by the camera's distance to the tree's mid-height (as cardFrom counts it); with MSAA each pixel's samples are
+// shared out instead (the card comes in behind the whole mesh, then the mesh goes out in front of the whole card). The mesh is drawn
+// there by its merged mesh's twin (makeMeshes), whose material leaves pixels or samples out: the plain one never does, so the GPU
+// still tests depth before shading it. Every vertex of a carded tree carries aGrow too, the way to that mid-height and -1 for its w (GROW), which the shader reads.
 // Past either end what was drawn stays CARD_HOLD more (invisible there: all card, or all mesh), so one standing at an end is not
 // rewritten into the index each frame: the hysteresis of the switch it replaces.
 export const CARD_BAND = 0.08;

@@ -377,10 +377,11 @@ export function patchLambert(material, key, uniforms, parts) {
  * about a pivot of their own (PIVOT_GLSL). `actors` is { glsl, uniforms }: the footprint capsules
  * (terrain.js: ACTOR_GLSL and the uniforms it reads, the grass's and the ground's own) that the ferns
  * lean away from. The caller hands them in because terrain.js imports this file. `cardFade`: the material a merged mesh's twin draws
- * the trees in the band round cardFrom with (batch.js CARD_BAND), which leaves out the pixels their cards take (CARD_FADE_GLSL); the
- * plain one never leaves a pixel out, so the GPU tests depth before it shades.
+ * the trees in the band round cardFrom with (batch.js CARD_BAND), which leaves out the pixels their cards take (CARD_FADE_GLSL), or
+ * with `coverage` (MSAA: alpha to coverage) covers 2 (1 - share) of each pixel's samples, clamped; the plain one never leaves a pixel
+ * out, so the GPU tests depth before it shades.
  */
-export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors, leafFade = null, cardFade = false }) {
+export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors, leafFade = null, cardFade = false, coverage = false }) {
   if (!actors) throw new Error('createVegetationMaterial needs `actors`, { glsl, uniforms }: the footprints the ferns lean away from');
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side });
   material.name = cardFade ? `${key}-card` : key;
@@ -391,11 +392,16 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
     material.defines = { FOREST_LEAF_FADE: '', LEAF_FADE_FROM: leafFade.from.toFixed(1), LEAF_FADE_TO: leafFade.to.toFixed(1), LEAF_MEAN: leafFade.mean.toFixed(5) };
   }
   key = low ? `${key}-low` : leafFade ? `${key}-fade` : key;
-  if (cardFade) key = `${key}-card`;
+  if (cardFade) key = `${key}-card${coverage ? '-a2c' : ''}`;
+  if (cardFade && coverage) material.alphaToCoverage = true;
   // the card's share of a tree, from the way to its mid-height (aGrow, w -1), and the pixels left to its card
   const fadeHead = cardFade ? `\n${CARD_FADE_GLSL}\nvarying float vCardFade;` : '';
   const fadeLine = cardFade ? `vCardFade = aGrow.w < -0.5 ? forestCardShare( distance( ( modelMatrix * vec4( position + aGrow.xyz * ${GROW.reach.toFixed(1)}, 1.0 ) ).xyz, cameraPosition ) ) : 0.0;\n` : '';
-  const fadeAfter = cardFade ? [['#include <clipping_planes_fragment>', '  if ( forestDither() < vCardFade ) discard;']] : [];
+  // without MSAA the pixels its card takes are left out (screen-door); with it the mesh covers 2 (1 - share) of each pixel's samples,
+  // whole over the band's first half while its card comes in behind it (cards.js: 2 share), so one of the two is always all there
+  const fadeAfter = !cardFade ? []
+    : coverage ? [['#include <alphatest_fragment>', '  diffuseColor.a = clamp( 2.0 * ( 1.0 - vCardFade ), 0.0, 1.0 );']]
+      : [['#include <clipping_planes_fragment>', '  if ( forestDither() < vCardFade ) discard;']];
   return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
     vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}\n${GROW_GLSL}${fadeHead}`,
     vertexAfter: [
