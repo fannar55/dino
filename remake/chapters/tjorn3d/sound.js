@@ -35,13 +35,14 @@ import { fenSounds } from '../../engine/audio/fen-sounds.js';
 /** The key the sounds are tuned to: the game's theme's (assets/audio/theme.json: do re mi sol la), as numbers, since the show has no theme. */
 export const KEY = [524.28, 588.48, 660.55, 785.53, 881.73];
 
-// The numbers, in one place. The levels are set by measure (tools/tjorn3d-sound.mjs --render: after the page's output chain the
-// rise in part 4 is the loudest moment, its peak 3 dB under full scale and its loudest second at -16 dBFS RMS; the small sounds'
-// peaks lie 6 to 15 dB under it, a narrow range, for a tablet's small speakers; the bed alone lies at -33 dBFS RMS), not by ear.
+// The numbers, in one place. The levels are set by measure, not by ear (tools/tjorn3d-sound.mjs --render: after the page's output
+// chain the rise in part 4 is the loudest moment, its peak about 3 dB under full scale and its loudest second at -16 dBFS RMS, 6 dB
+// over the loudest second outside it, the sail's parting; the small sounds are kept near it, a narrow range for a tablet's small
+// speakers; the bed alone lies at -34 dBFS RMS).
 export const SOUND = {
-  master: 1.5, // the whole show's gain into the page's output
+  master: 1.45, // the whole show's gain into the page's output
   made: 3.1, // the made sounds' gain under it (their recipes are at the game's effects' levels, which sit under its voices and its music: here they are all there is)
-  bed: 1.55, // and the made bed's: a faint presence under the rest (a made murmur that is plainly heard is a hiss)
+  bed: 1.35, // and the made bed's: a faint presence under the rest (a made murmur that is plainly heard is a hiss)
   halfPage: 11, // cm: a thing this far to a side of the page's middle is as far to that side as the sound goes
   panMost: 0.5, // (a tablet lying flat has its speakers at its short edges: more than this and a sound sits in one of them alone)
   gulpLead: 0.25, // s before JUMP.gulp the swallow begins (the fish goes down over the last third of a second before it)
@@ -160,7 +161,7 @@ export const MADE = {
     noise({ kind: 'brown', type: 'bandpass', frequency: 300, end: 560, q: 0.6, duration: seconds, level: 0.13, attack: seconds * 0.45 });
     tone({ frequency: key[0] / 2, end: key[2] / 2, duration: seconds * 0.9, level: 0.04, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.1 });
     tone({ frequency: (key[0] / 2) * 1.008, end: (key[2] / 2) * 1.008, duration: seconds * 0.9, level: 0.025, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.1 });
-    tone({ frequency: key[0], end: key[2], duration: seconds * 0.8, level: 0.02, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.2 });
+    tone({ frequency: key[0], end: key[2], duration: seconds * 0.8, level: 0.03, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.2 });
   },
   // a burst of bubbles reaches the surface (detail: how many, how far apart, as the picture's): each a round blip gliding up and a tiny pop
   blips({ tone, noise, key, between }, { many = 6, apart = 0.22 } = {}) {
@@ -568,10 +569,11 @@ export function createPondSound({ context = null, output = null, fetch = globalT
       playBuffer(run, buffers.get(file), { at, level: levels.get(file) ?? SLOTS.pond.level, pan: 0, loop: true, bus: run.bed });
       return 'recording';
     }
-    // two murmurs of water, one a little to each side, each lapping in its own slow time; and a thin breath of air over them
-    for (const [pan, low, high, level, lapsIn, depth, offset] of [[-0.3, 220, 950, 0.07, 0.24, 0.45, 0.2], [0.3, 260, 1250, 0.055, 0.17, 0.5, 1.3]]) {
+    // two murmurs of water, one a little to each side, each lapping in its own slow time, the second a lighter one (half of what a
+    // small speaker gives of the bed is its); and a thin breath of air over them
+    for (const [pan, kind, low, high, level, lapsIn, depth, offset] of [[-0.3, 'brown', 220, 950, 0.07, 0.24, 0.45, 0.2], [0.3, 'warm', 350, 1400, 0.07, 0.17, 0.5, 1.3]]) {
       const water = context.createBufferSource();
-      water.buffer = noiseBuffer('brown');
+      water.buffer = noiseBuffer(kind);
       water.loop = true;
       const floor = context.createBiquadFilter();
       floor.type = 'highpass';
