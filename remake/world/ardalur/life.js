@@ -166,8 +166,9 @@ const FLY = {
 };
 const NEST_FEET = 0.02; // metres a flyer's feet stand over the top of the rock under its nest (NEST_ROCKS)
 // Its ledge: `out` m from the wall (its body is in the air, not the rock: tests/pop.test.mjs), on a rock as `rock` if NEST_ROCKS has
-// none for its nest.
-const LEDGE = { out: 1, rock: { variant: 1, turn: 0, scale: 1.3, shape: { mossy: 0.25 } } };
+// none for its nest. Taking off, `fade` of that metre fades as it goes (flyerAt), so it comes off nearly the way it did off the wall
+// (clear of the line from the ledge shot's camera to Egill) and still clear of its own rock.
+const LEDGE = { out: 1, fade: 0.6, rock: { variant: 1, turn: 0, scale: 1.3, shape: { mossy: 0.25 } } };
 const SLOTS = {
   right: [[-3.5, 6, 5.2], [-6.5, 4.5, 6.4], [-5, 5.5, -2.4], [-8.5, 7.5, 5.6]],
   left: [[-7.5, -5.5, 6.2], [-4.5, -6, 7.4], [-9.5, -2.5, -2.4], [-9.5, -7.5, 5]],
@@ -488,7 +489,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   // side of her
   const flyers = !flyer ? [] : NESTS.map(([x, y, z, heading], k) => {
     const nest = ledges[k].perch.clone();
-    const b = add(`flyer-${k}`, 'flugdyr', nest, heading, { nest, look: [Math.cos(heading * DEG), Math.sin(heading * DEG)] });
+    const b = add(`flyer-${k}`, 'flugdyr', nest, heading, { nest, wall: new THREE.Vector3(x, y, z), look: [Math.cos(heading * DEG), Math.sin(heading * DEG)] });
     ledges[k].flyer = b;
     b.trigger = firstWithin(new THREE.Vector3(x, y, z), FLY.within);
     const p = herAt(b.trigger, new THREE.Vector3());
@@ -834,11 +835,14 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     slotAt(b, t, tau > 0 ? FLY.land.ahead * smooth(tau / (0.6 * FLY.land.seconds)) : 0, out);
     const joined = smooth((s - FLY.wait) / FLY.join);
     if (joined < 1) {
+      // off its ledge nearly the way it took off the wall itself (the nest's point, `wall`): LEDGE.fade of its perch's metre out fades
+      // as it goes, so it keeps clear of the line from the ledge shot's camera to Egill, and of its rock
       const o = smooth(s / FLY.off);
+      const back = b.wall ? LEDGE.fade * o : 0;
       launchAt.set(
-        b.nest.x + b.look[0] * FLY.out * o + b.way[0] * FLY.along * s,
+        b.nest.x - (b.nest.x - (b.wall?.x ?? 0)) * back + b.look[0] * FLY.out * o + b.way[0] * FLY.along * s,
         b.nest.y - FLY.drop * o,
-        b.nest.z + b.look[1] * FLY.out * o + b.way[1] * FLY.along * s,
+        b.nest.z - (b.nest.z - (b.wall?.z ?? 0)) * back + b.look[1] * FLY.out * o + b.way[1] * FLY.along * s,
       );
       out.lerpVectors(launchAt, out, joined);
     }

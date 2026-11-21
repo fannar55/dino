@@ -147,6 +147,44 @@ test('a crown on screen at the frame\'s edge keeps its fine shape (its sphere ho
   assert.ok(found > 0, 'turned until only the edge of its mesh was on screen');
 });
 
+test('a crown on screen keeps its fine shape when nearer crowns stand just off screen (they never take its turn)', () => {
+  // one tree, to know where its crown and its pieces are from its foot (the same tree, turned the same, anywhere)
+  const proto = placement('broadleaf', { lod: 0, x: 0, z: 0, y: 0, scale: 1.2 });
+  proto.models = [0, 1, 2].map(level => ({ level, model: library.get('broadleaf', 0, level) }));
+  const ranges0 = bake(proto).flatMap(m => m.userData.cull.ranges);
+  const crown0 = ranges0.find(r => r.crown).crown;
+  const eye = new THREE.Vector3(0, crown0.centre.y, 0);
+  const camera = cameraAt(eye, new THREE.Vector3(-1, crown0.centre.y, 0));
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  const at = (d, yaw) => new THREE.Vector3(-d * Math.cos(yaw * DEG), 0, d * Math.sin(yaw * DEG));
+  const sphereAt = (s, p) => new THREE.Sphere(s.center.clone().add(p), s.radius);
+  // where a tree `d` m off stands with all of it just off screen while its crown's round sphere still reaches into the frame
+  const offAt = (d, side) => {
+    for (let yaw = 20; yaw < 80; yaw += 0.25) {
+      const p = at(d, side * yaw);
+      if (ranges0.some(r => frustum.intersectsSphere(sphereAt(r.sphere, p)))) continue;
+      if (frustum.intersectsSphere(new THREE.Sphere(crown0.centre.clone().add(p), crown0.reach + 1.5))) return p;
+      return null;
+    }
+    return null;
+  };
+  const dA = crown0.size / 0.32; // on screen, fine by its size on screen (CROWN_T0 0.3)
+  const tree = p => {
+    const t = placement('broadleaf', { lod: 0, x: p.x, z: p.z, y: 0, scale: 1.2 });
+    t.models = [0, 1, 2].map(level => ({ level, model: library.get('broadleaf', 0, level) }));
+    return t;
+  };
+  const off = [offAt(dA * 0.8, 1), offAt(dA * 0.8, -1), offAt(dA * 0.7, 1)];
+  assert.ok(off.every(Boolean), 'three nearer trees just off screen');
+  const shown = tree(at(dA, 0));
+  const meshes = bake(shown, ...off.map(tree));
+  cullBatches(meshes, camera);
+  const centre = crown0.centre.clone().add(at(dA, 0));
+  const own = meshes.flatMap(m => m.userData.cull.kept).filter(r => r.crown && r.crown.centre.distanceTo(centre) < 1e-3);
+  assert.ok(own.length > 0, 'its crown is drawn');
+  assert.deepEqual([...new Set(own.map(r => r.lod))], [0], 'its crown fine, though three nearer crowns stand just off screen');
+});
+
 // ---- far plants while the camera turns slowly --------------------------------------------------------
 
 function nodeWorld() {

@@ -411,7 +411,8 @@ const _crowns = [];
  * is missing in between), at the level of detail its distance calls for; a plant with a card
  * (makeCards) as its card when it is `cardFrom` or more from the camera, as itself nearer. Crowns are ranked by
  * projected size first: the few largest in view get the fine level (a capped number, so the cost
- * stays bounded), the rest the middle or far level. An empty mesh is hidden, so it costs no draw
+ * stays bounded; those on screen before those only in the margin), the rest the middle or far level. A crown counts as in view
+ * while any of its mesh can be (its sphere holds all its pieces). An empty mesh is hidden, so it costs no draw
  * call. `hide(range, mesh)`, if given, true leaves out more (a place that knows what its ground hides:
  * world/ardalur/sight.js). Returns the number of triangles now submitted.
  */
@@ -457,11 +458,20 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
       c.proj = c.size / Math.max(0.5, _cam.distanceTo(c.centre));
       c.rank = c.prev === 0 ? c.proj * (1 + HYSTERESIS) : c.proj;
       c.level = 2;
+      c.shown = false;
       _sphere.set(c.centre, c.reach + margin + (lean ? lean * _cam.distanceTo(c.centre) : 0));
       if (_frustum.intersectsSphere(_sphere)) _crowns.push(c);
     }
   }
-  _crowns.sort((a, b) => b.rank - a.rank);
+  // which of them are on screen (one of their pieces in the frame itself, not only in the margin round it): those take the fine turns
+  // first, so a crown just off screen never takes one from a crown the child sees
+  for (const mesh of meshes) {
+    for (const r of mesh.userData.cull.ranges) {
+      const c = r.crown;
+      if (c && c.frame === _view && !c.shown && _frustum.intersectsSphere(r.sphere)) c.shown = true;
+    }
+  }
+  _crowns.sort((a, b) => b.shown - a.shown || b.rank - a.rank);
   const past = (prev, finer) => (prev !== null && prev <= finer ? 1 - HYSTERESIS : 1); // finer at the threshold, coarser past it
   _crowns.forEach((c, i) => {
     const want = i < CROWN_FINE && c.proj > CROWN_T0 * past(c.prev, 0) ? 0 : c.proj > CROWN_T1 * past(c.prev, 1) ? 1 : 2;
