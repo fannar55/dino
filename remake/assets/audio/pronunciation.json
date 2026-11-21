@@ -3251,13 +3251,27 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Talgreining heyrði „ókurlega“, með hörðu k, í þremur tökum af línu 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“ (án fræs, fræ 7, samhengi með fræi 42)."
+          "note": "Sent eins og það er skrifað. Talgreining heyrði „ókurlega“, með hörðu k, í þremur tökum af línu 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“ (án fræs, fræ 7, samhengi með fræi 42). Samhengi með „skógur“ og „ógurlegur“ (fræ 3) gaf líka lokhljóð á hljóðrófsmynd (2026-11-21)."
         },
         "ipa": {
           "say": {
             "ógurlega": "\"/ˈouːɣʏrlɛɣa/\""
           },
-          "note": "IPA með mjúku g. Talgreining heyrði „ógurlega“ (lína 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt)."
+          "note": "IPA með mjúku g. Talgreining heyrði „ógurlega“, en eigandinn heyrði tökuna í myndbandinu „Hvernig fundum við risaeðlurnar?“ (lína 35) og sagði 2026-11-21: „\"ógurlega\" stór eðla, er rangt sagt“. Á hljóðrófsmynd sést lokhljóð á eftir ó („ókurlega“). Ekki nota."
+        },
+        "stafsetning": {
+          "say": {
+            "ógurlega": "óurlega"
+          },
+          "seed": 7,
+          "note": "Skrifað án g, því g-ið í ógurlega er þögult (eins og í skógur). Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð (lína 35, fræ 7 = prufa A, fræ 42 = prufa B, 2026-11-21). Bíður eyra eigandans."
+        },
+        "ipa2": {
+          "say": {
+            "ógurlega": "\"/ˈouːʏrˌlɛːɣa/\""
+          },
+          "seed": 7,
+          "note": "IPA án g. Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð (lína 35, fræ 7 = prufa C, 2026-11-21). Bíður eyra eigandans."
         }
       },
       "chosen": null
