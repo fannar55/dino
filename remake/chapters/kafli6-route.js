@@ -104,7 +104,7 @@ const standBefore = k => crossing(k);
 // as it sees them), the south bank behind them; the falls behind it. back/upstream/height: m from the stones' middle; aim: m over the
 // water it looks at there.
 export const FROM_NORTH = 3;
-const BEHIND = { 3: { back: 9, upstream: 2, height: 5, aim: 1.2 }, 4: { back: 9, upstream: -5, height: 5, aim: 1.2 } };
+const BEHIND = { 3: { back: 10, upstream: 4, height: 5, aim: 1 }, 4: { back: 9, upstream: -5, height: 5, aim: 1.2 } };
 export function stepShot(k) {
   const stones = STEPS[k].stones;
   const mid = [stones.reduce((s, x) => s + x.at[0], 0) / stones.length, stones.reduce((s, x) => s + x.at[1], 0) / stones.length];
