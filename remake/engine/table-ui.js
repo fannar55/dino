@@ -19,7 +19,31 @@ export function wholeScreen(doc) {
     return Promise.resolve(false);
   }
 }
-export const isWholeScreen = doc => Boolean(doc?.fullscreenElement ?? doc?.webkitFullscreenElement);
+/**
+ * The page has the whole screen: something of it fills the screen by asking, or the app is shown without the browser round it
+ * (the installed app, manifest.webmanifest display fullscreen; the browser's own whole-screen key; a book round a show's frame that
+ * has it). Then nothing is asked for, and so nothing is taken that would have to be given back.
+ */
+export const isWholeScreen = doc => Boolean(doc?.fullscreenElement ?? doc?.webkitFullscreenElement) || shownWhole(doc);
+const shownWhole = doc => {
+  try { return Boolean(doc?.defaultView?.matchMedia?.('(display-mode: fullscreen)')?.matches); } catch { return false; }
+};
+/**
+ * Gives the whole screen back when it is this page's own taking (wholeScreen above was given it: the page's own root is what
+ * fills the screen). A show that is left for the book must leave the page as the book had it: a whole screen the show did not
+ * take (the app's, the browser's, the book's) is not this page's root, and is left alone. Resolves to whether it gave it back;
+ * never throws.
+ */
+export function giveBackScreen(doc) {
+  const mine = doc?.fullscreenElement ?? doc?.webkitFullscreenElement;
+  const leave = doc?.exitFullscreen ?? doc?.webkitExitFullscreen;
+  if (!mine || mine !== doc.documentElement || !leave) return Promise.resolve(false);
+  try {
+    return Promise.resolve(leave.call(doc)).then(() => true, () => false);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
 const canWholeScreen = doc => Boolean(doc?.documentElement?.requestFullscreen ?? doc?.documentElement?.webkitRequestFullscreen);
 
 /**

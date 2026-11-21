@@ -1,8 +1,9 @@
 // Uggeðla í tjörninni (?chapter=tjorn3d): a show for a screen LYING FLAT on a table, watched through the red/cyan glasses from one
 // seat (the plan: docs/superpowers/specs/2026-11-19-uggedla-i-tjorninni-bordmynd-design.md). The screen is the surface of a pond:
-// what is over it stands up out of the screen, what is under it is seen through it as through a window. This is step 1 of the
-// plan: the key frames as stills that live (she breathes and blinks, the fish idle, rings spread), one at a time, with the real
-// numbers in a label, for the owner to judge on his tablet. No sound, no speech, no end, no tile in the book.
+// what is over it stands up out of the screen, what is under it is seen through it as through a window. Without lykill= it is the
+// show (showScript below: the glasses' start, 62 s, the end card), which the book opens from its tile under "3D myndbönd"
+// (engine/book/videos.js BOOK_3D). With lykill= it is step 1 of the plan: the key frames as stills that live (she breathes and
+// blinks, the fish idle, rings spread), one at a time, with the real numbers in a label, for the owner to judge on his tablet.
 //
 //   ?chapter=tjorn3d&lykill=1              the glasses start, then key 1; ‹ › (or the arrow keys): 1, 2, 3, 4a, 4b, 4c, 5, 6
 //   &lykill=4b                             that key at once
@@ -22,10 +23,10 @@
 // its picture is to lie (keys.js: under). world.tjorn.measure() gives the numbers (tools/tjorn3d-probe.mjs asks it).
 import * as THREE from 'three';
 import { endCard, glassesStart } from '../engine/book/show-cards.js';
-import { leaveShow } from '../engine/book/show-player.js';
+import { leaveShow as leaveForBook } from '../engine/book/show-player.js';
 import { onTable, parallaxAt, outlineBox, marginsOf, placeEye } from '../engine/table3d.js';
 import { MARGIN, tableKnobs, screenSize, tablePage, createTableStage } from '../engine/table-stage.js';
-import { tableUi, tableStart, tala } from '../engine/table-ui.js';
+import { tableUi, tableStart, giveBackScreen, tala } from '../engine/table-ui.js';
 import { FEN } from '../world/forest/config.js';
 import { lieLow } from './kafli2-uggedla.js';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from './tjorn3d/keys.js';
@@ -62,6 +63,10 @@ const PERCH_OVER = 0.05; // cm: the butterfly's feet this far over her skin, so 
 const LILY_STANDS = 0.04;
 const rad = d => (d * Math.PI) / 180;
 const r3 = x => Math.round(x * 1000) / 1000;
+// Leaving the show ("Hætta" on its end card): the whole screen the start's tap took is given back first (engine/table-ui.js: a whole
+// screen the show did not take is left alone), then the book's own way out (engine/book/show-player.js): back to the book when the
+// show plays in its frame, so the book is as it was, or to the game's start from a page of its own.
+const leaveShow = win => { giveBackScreen(win?.document); return leaveForBook(win); };
 
 export { KEYS };
 

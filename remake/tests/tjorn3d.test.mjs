@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { onTable } from '../engine/table3d.js';
 import { SCREEN, SCREEN_KEY, screenSize, tablePage, tableKnobs } from '../engine/table-stage.js';
-import { wholeScreen, isWholeScreen, tableStart } from '../engine/table-ui.js';
+import { wholeScreen, isWholeScreen, giveBackScreen, tableStart } from '../engine/table-ui.js';
+import { BOOK_3D } from '../engine/book/videos.js';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from '../chapters/tjorn3d/keys.js';
 
 // Uggeðla í tjörninni, step 1 (chapters/tjorn3d.js): the key frames as data, and what the two table pages share that no page can
@@ -169,4 +171,73 @@ test('the tap that starts a table page asks for the whole screen: once, not when
   assert.equal(await tableStart(doc, Promise.resolve(null)), null);
   byrja.taps[0][1]();
   assert.equal(doc.asked.length, 1, 'Byrja asks as well');
+});
+
+test('the whole screen is given back when the page took it, and left alone when it did not; an app shown whole is not asked', async () => {
+  const page = ({ whole = 'none', can = true, refuse = false, old = false, shown = false } = {}) => {
+    const root = {};
+    const doc = { left: 0, asked: 0, documentElement: root, fullscreenElement: whole === 'mine' ? root : whole === 'other' ? {} : null };
+    if (can) doc[old ? 'webkitExitFullscreen' : 'exitFullscreen'] = () => { doc.left++; return refuse ? Promise.reject(new Error('no')) : Promise.resolve(); };
+    root.requestFullscreen = () => { doc.asked++; return Promise.resolve(); };
+    doc.defaultView = { matchMedia: query => ({ matches: shown && query === '(display-mode: fullscreen)' }) };
+    return doc;
+  };
+  let doc = page({ whole: 'mine' });
+  assert.equal(await giveBackScreen(doc), true, 'the root of the page fills the screen: its own taking, given back');
+  assert.equal(doc.left, 1);
+  doc = page({ whole: 'other' });
+  assert.equal(await giveBackScreen(doc), false, 'something else of the page fills the screen: not what the start took');
+  assert.equal(doc.left, 0);
+  doc = page();
+  assert.equal(await giveBackScreen(doc), false, 'nothing was taken (refused, or the book round the frame has the whole screen itself)');
+  assert.equal(doc.left, 0);
+  assert.equal(await giveBackScreen(page({ whole: 'mine', can: false })), false, 'a browser that cannot');
+  assert.equal(await giveBackScreen(page({ whole: 'mine', refuse: true })), false, 'a refusal is an answer, not an error');
+  assert.equal(await giveBackScreen(page({ whole: 'mine', old: true })), true, 'the older name');
+  assert.equal(await giveBackScreen(null), false);
+
+  // the installed app (manifest.webmanifest: display fullscreen), or a browser or a book that is whole-screen already: the
+  // page has the whole screen, asks for nothing, and so has nothing to give back
+  doc = page({ shown: true });
+  assert.equal(isWholeScreen(doc), true);
+  assert.equal(await wholeScreen(doc), false);
+  assert.equal(doc.asked, 0);
+  assert.equal(await giveBackScreen(doc), false);
+  assert.equal(doc.left, 0, 'the whole screen of the app is left alone');
+  assert.equal(JSON.parse(fs.readFileSync(new URL('../manifest.webmanifest', import.meta.url), 'utf8')).display, 'fullscreen');
+  doc = page();
+  assert.equal(isWholeScreen(doc), false);
+  assert.equal(await wholeScreen(doc), true, 'a page in a tab of a browser asks');
+});
+
+test('the show: its tile in the book, the last under "3D myndbönd", with a picture of the show itself; "Hætta" gives the whole screen back and leaves', () => {
+  const tile = BOOK_3D.find(entry => entry.id === 'tjorn3d');
+  assert.ok(tile, 'the pond show has a tile');
+  assert.equal(BOOK_3D.at(-1), tile, 'after the four shows that were there');
+  assert.equal(tile.chapter, 'tjorn3d', 'the tile plays the chapter of the show (show-player.js: ?chapter=tjorn3d&syning=1, from the glasses)');
+  assert.deepEqual(tile.unlock, { start: true }, 'open from the start, as the other shows');
+  const source = fs.readFileSync(new URL('../chapters/tjorn3d.js', import.meta.url), 'utf8');
+  // the name is a working one, said in two places only: the tile's and the chapter's own title
+  assert.equal(tile.title, tile.name);
+  assert.equal(source.match(/^  title: '([^']+)',$/m)?.[1], tile.title, 'the chapter is called what its tile is called');
+  assert.ok(tile.label.startsWith(`${tile.name}, `) && /á borði/.test(tile.label) && /flatur/.test(tile.label) && tile.label.endsWith('með rauðum og bláum gleraugum'),
+    'the label says it is watched on a table, the screen lying flat, with the glasses');
+  assert.match(tile.hue, /^#[0-9a-f]{6}$/);
+  assert.equal(new Set(BOOK_3D.map(entry => entry.hue)).size, BOOK_3D.length, 'its colour is no other show’s');
+  // its picture: there, a WebP as the other shows' are, and the tool that makes it again writes that very file at their size
+  assert.match(tile.poster, /tjorn3d-thumb\.webp$/);
+  const picture = fs.readFileSync(new URL('../assets/book/videos/tjorn3d-thumb.webp', import.meta.url));
+  assert.equal(picture.toString('latin1', 0, 4) + picture.toString('latin1', 8, 12), 'RIFFWEBP');
+  assert.ok(picture.length > 3000 && picture.length < 45000, `the picture is ${picture.length} bytes`);
+  const tool = fs.readFileSync(new URL('../tools/tjorn3d-tile.mjs', import.meta.url), 'utf8');
+  assert.match(tool, /out: 'remake\/assets\/book\/videos\/tjorn3d-thumb\.webp'/);
+  assert.match(tool, /size: \[640, 360\]/);
+  // the show is the page without lykill= (the key page is a review tool, not for the book), and "Hætta" on its end card gives
+  // the whole screen back before it leaves for the book
+  assert.match(source, /const SHOW = params\.get\('lykill'\) === null;/);
+  assert.match(source, /startButton: doc => tableStart\(doc, glassesStart\(doc, /, 'the glasses start it, and their tap asks for the whole screen');
+  assert.match(source, /endCard\(doc, \{ onAgain: [^}]*\}, onQuit: \(\) => \{ sound\.end\(\); leaveShow\(win\); \} \}\)/, 'the end card: Aftur again; Hætta ends the sound and leaves');
+  // and leaving is the chapter's own: the whole screen given back, then the book's way out (show-player.js)
+  assert.match(source, /^import \{ leaveShow as leaveForBook \} from '\.\.\/engine\/book\/show-player\.js';$/m);
+  assert.match(source, /^const leaveShow = win => \{ giveBackScreen\(win\?\.document\); return leaveForBook\(win\); \};$/m);
 });

@@ -199,7 +199,7 @@ const LOOK = `(() => {
     frames: document.querySelectorAll('iframe').length,
     tile: tile ? { new: tile.classList.contains('new'), found: tile.classList.contains('found'), label: tile.getAttribute('aria-label') } : null,
     bookSound: sound?.context?.state ?? null,
-    music: (() => { try { return window.__world?.music?.level?.() ?? null; } catch { return null; } })(),
+    music: (() => { try { const m = window.__world?.music; return m ? { muted: Boolean(m.muted), at: +(+m.position).toFixed(2) } : null; } catch { return null; } })(),
     show: show ? { t: +(show.view.t ?? 0).toFixed(2), showing: Boolean(show.time?.showing), context: inner.__world.sound?.context?.state ?? null, running: Boolean(show.sound?.running), sounding: show.sound?.sounding?.() ?? null, page: [inner.innerWidth, inner.innerHeight], card: Boolean(inner.document.querySelector('.dans-end')) } : null,
   };
 })()`;
@@ -217,6 +217,10 @@ async function walk(o, base) {
       if (shot && o.shots) await page.shot(`${o.shots}/${String(stops.length).padStart(2, '0')}-${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.png`);
       return look;
     };
+    // a child who has Kambeðla's star (chapter 1 played): the book's button is on the page from the start, and the game opens on chapter 2
+    await page.send('Page.navigate', { url: `${base}manifest.webmanifest` });
+    await page.until('the server did not answer', "document.readyState === 'complete'", 20);
+    await page.evaluate(`localStorage.setItem('mosi-remake-v1', JSON.stringify({ stars: ['k1_kambedla'], findings: [], seen: [], places: [] }))`);
     await page.send('Page.navigate', { url: base });
     await page.until('the start did not come', "window.__demoReady && document.getElementById('start') && !document.getElementById('start').hidden");
     await page.press('Byrja', "document.getElementById('start').getBoundingClientRect()");
@@ -269,6 +273,7 @@ async function walk(o, base) {
     if (!after.bookOpen || after.tab !== 'videos') bad.push('the book is not open on Myndbönd');
     if (after.player || after.frame !== null || after.frames !== before.frames) bad.push('the show\'s frame is still there');
     if (after.bookSound !== before.bookSound) bad.push(`the book's sound is ${after.bookSound}, it was ${before.bookSound}`);
+    if (after.music?.muted !== before.music?.muted) bad.push(`the book's music is ${after.music?.muted ? 'muted' : 'not muted'}, it was ${before.music?.muted ? 'muted' : 'not muted'}`);
     if (!before.tile?.new || after.tile?.new || !after.tile?.found) bad.push('the tile\'s Nýtt! mark did not go with the press');
     if (!during?.show?.running) bad.push('the show\'s sound was not running in the show');
     if (end.show?.running || end.show?.sounding) bad.push('the show\'s sound had not ended at the end card');
@@ -279,8 +284,8 @@ async function walk(o, base) {
   for (const s of stops) {
     console.log(`${s.name}`);
     console.log(`  whole screen: ${s.whole ?? 'no'}${s.showWhole === null ? '' : ` (the show's own page: ${s.showWhole ? 'whole' : 'not whole'})`}; the page ${s.page.join(' x ')}; the book ${s.bookOpen ? `open on ${s.tab}` : 'shut'}; the show's player ${s.player ? `open, ${s.frame}` : 'shut'}`);
-    console.log(`  the book's sound: ${s.bookSound}${s.music === null ? '' : `, music ${s.music}`}${s.tile ? `; the tile ${s.tile.new ? 'new' : s.tile.found ? 'seen' : 'locked'}` : ''}`);
-    if (s.show) console.log(`  the show: at ${s.show.t} s, ${s.show.showing ? 'showing' : 'not showing'}, its page ${s.show.page.join(' x ')}, its sound ${s.show.context}, ${s.show.running ? 'running' : 'not running'}, ${s.show.sounding} sources sounding${s.show.card ? ', the end card up' : ''}`);
+    console.log(`  the book's sound: ${s.bookSound}${s.music ? `, its music ${s.music.muted ? 'muted' : 'not muted'}, ${s.music.at} s into the theme` : ''}${s.tile ? `; the tile ${s.tile.new ? 'new' : s.tile.found ? 'seen' : 'locked'}` : ''}`);
+    if (s.show) console.log(`  the show: at ${s.show.t} s, ${s.show.showing ? 'showing' : 'not showing'}, its page ${s.show.page.join(' x ')}, its audio context ${s.show.context}, the show's sound ${s.show.running ? 'playing' : 'not playing'}, ${s.show.sounding} sources sounding${s.show.card ? ', the end card up' : ''}`);
   }
   console.log(bad.length ? `\nNOT AS IT WAS: ${bad.join('; ')}` : '\nThe book is there again as it was: the whole screen given back (or left as it was), the frame gone and its sound with it, the book\'s own sound as before, the tile seen.');
   if (errors.length) console.log(`The page said: ${errors.join(' | ')}`);
