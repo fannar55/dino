@@ -5,6 +5,7 @@ import { onTable } from '../engine/table3d.js';
 import { SCREEN, SCREEN_KEY, screenSize, tablePage, tableKnobs } from '../engine/table-stage.js';
 import { wholeScreen, isWholeScreen, giveBackScreen, tableStart } from '../engine/table-ui.js';
 import { BOOK_3D } from '../engine/book/videos.js';
+import { judgeShelf, apart, SHELF_STATES, SHELF_SIZES } from '../tools/tjorn3d-tile.mjs';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from '../chapters/tjorn3d/keys.js';
 
 // Uggeðla í tjörninni, step 1 (chapters/tjorn3d.js): the key frames as data, and what the two table pages share that no page can
@@ -240,4 +241,65 @@ test('the show: its tile in the book, the last under "3D myndbönd", with a pict
   // and leaving is the chapter's own: the whole screen given back, then the book's way out (show-player.js)
   assert.match(source, /^import \{ leaveShow as leaveForBook \} from '\.\.\/engine\/book\/show-player\.js';$/m);
   assert.match(source, /^const leaveShow = win => \{ giveBackScreen\(win\?\.document\); return leaveForBook\(win\); \};$/m);
+});
+
+test('the shelf\'s judge: a name under another tile\'s card, tape, badge or twinkle, out of its own card, past its line or out of the column is wrong', () => {
+  // two tiles one under the other, as tools/tjorn3d-tile.mjs --shelf measures them in the page (boxes are left, top, right, bottom):
+  // a tile's card with its glow reaches 6 over its top, its tape 8, its badge 4, and its name ends 10 over its card's foot
+  const tile = (id, top) => ({
+    id, new: true, drawn: true, fits: { inCard: [3, 60, 3, 3], pastLine: 0, lines: 2 },
+    nameBox: [112, top + 62, 188, top + 88], painted: [92, top - 8, 208, top + 98],
+    parts: { card: [94, top - 6, 206, top + 98], tape: [128, top - 8, 172, top + 8], badge: [150, top - 4, 208, top + 26] },
+  });
+  const shelf = (gap, change = () => {}) => {
+    const m = {
+      page: [0, 0, 400, 600], column: [80, 40, 220, 560], over: 0, head: [100, 50, 200, 70], close: [330, 0, 400, 70],
+      tiles: [tile('a', 90), tile('b', 190 + gap)], videos: [{ id: 'v', box: [10, 100, 60, 150], page: [0, 0, 400, 600] }],
+    };
+    change(m.tiles[0], m);
+    return m;
+  };
+  assert.equal(apart([0, 0, 10, 10], [12, 0, 20, 10]), 2);
+  assert.equal(apart([0, 0, 10, 10], [5, 8, 20, 30]), -2, 'so deep in each other');
+  // a's name ends at 178; b's top is at 190 and the gap: its card with the glow begins 6 over that, its tape 8
+  let judged = judgeShelf(shelf(2));
+  assert.deepEqual(judged.wrong, []);
+  assert.deepEqual(judged.least, { px: 6, name: 'a', tile: 'b', part: 'tape' }, 'the nearest thing of another tile, and how far');
+  assert.equal(judged.whole.px, 6);
+  judged = judgeShelf(shelf(-7));
+  assert.deepEqual(judged.wrong, ['a\'s name lies under b\'s card (1 px in it)', 'a\'s name lies under b\'s tape (3 px in it)'], 'the next tile too near: its card with the glow, and its tape');
+  // a twinkle at the corner counts where it is, not across the tile's whole width
+  judged = judgeShelf(shelf(2, (a, m) => { m.tiles[1].parts.twinkle = [196, 170, 216, 190]; m.tiles[1].painted = [92, 170, 216, 290]; }));
+  assert.deepEqual(judged.wrong, [], 'a twinkle beside the name\'s end is not over it');
+  assert.equal(judged.whole.px, -8, 'though the one box round all the tile paints is');
+  judged = judgeShelf(shelf(2, (a, m) => { m.tiles[1].parts.twinkle = [180, 170, 200, 190]; }));
+  assert.deepEqual(judged.wrong, ['a\'s name lies under b\'s twinkle (8 px in it)']);
+  // the name against its own card, its line and the column
+  const said = change => judgeShelf(shelf(2, change)).wrong;
+  assert.deepEqual(said(a => { a.fits.inCard = [-2.5, 60, 3, 3]; }), ['a\'s name runs 2.5 px out of its own tile']);
+  assert.deepEqual(said(a => { a.fits.pastLine = 1.5; }), ['a\'s name is 1.5 px wider than its line']);
+  assert.deepEqual(said(a => { a.fits.lines = 3; }), ['a\'s name is on 3 lines']);
+  assert.deepEqual(said(a => { a.nameBox = [70, 152, 188, 178]; }), ['a\'s name reaches out of the column']);
+  assert.deepEqual(said(a => { a.drawn = false; }), ['a\'s picture did not load']);
+  // the heading, the close button, the page
+  assert.deepEqual(said((a, m) => { m.head = [100, 70, 200, 85.5]; }), ['the heading lies under a\'s card', 'the heading lies under a\'s tape']);
+  assert.deepEqual(said((a, m) => { m.close = [150, 0, 240, 60]; }), ['the heading lies under the book\'s close button']);
+  assert.deepEqual(said((a, m) => { m.over = 6; }), ['the column\'s tiles are 6 px taller than it']);
+  assert.deepEqual(said((a, m) => { m.page = [0, 0, 400, 250]; m.videos = []; }), ['the column reaches out of its page', 'b reaches out of its page']);
+});
+
+test('the shelf is laid for the five shows it has: the measure\'s states name every one, and the page\'s rules are the ones measured', () => {
+  const ids = BOOK_3D.map(entry => entry.id);
+  assert.equal(ids.length, 5, 'a sixth show needs an arrangement of its own: book.css lays up to five, and tools/tjorn3d-tile.mjs --shelf must read');
+  assert.deepEqual(SHELF_STATES['none-new'], ids, 'the state with every show seen');
+  assert.deepEqual(SHELF_STATES['all-new'], []);
+  for (const [state, seen] of Object.entries(SHELF_STATES)) assert.ok(seen.every(id => ids.includes(id)), `${state} names only shows of the book`);
+  assert.deepEqual([...SHELF_STATES.mix, ...SHELF_STATES['mix-other']].sort(), [...ids].sort(), 'the two mixes are each other\'s reverse');
+  assert.deepEqual(SHELF_SIZES.split(','), ['1280x800', '1024x768', '820x1180', '800x1280']);
+  const css = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
+  const five = '.video-3d-column:has(> .video-tile-3d:nth-of-type(5))';
+  assert.ok(css.includes(`${five} .video-tile-3d .tile-picture { aspect-ratio: 16 / 9;`), 'the pictures whole');
+  assert.match(css, /nth-of-type\(5\)\) \.video-tile-3d \.tile-name \{\s+min-height: 2\.16em; [^}]*font-size: clamp\(12px, /, 'a name\'s box of two lines, the names never under 12 px');
+  assert.ok(css.includes(`${five} .video-tile-3d.new::after { box-shadow: 0 0 0 3px var(--book-gold), 0 0 4px 1px `), 'the glow close round the card (the measure counts it as far as it is seen)');
+  assert.ok(!css.includes('nth-of-type(6)'), 'no rule for six');
 });
