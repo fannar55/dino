@@ -3323,10 +3323,10 @@
           "say": {
             "Joseph": "Djósef"
           },
-          "note": "Enska nafnið eins og íslenskur sögumaður segir það: Djósef (lína 17 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt)."
+          "note": "Enska nafnið eins og íslenskur sögumaður segir það: Djósef (lína 17 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Stelpan sem fann sæskrímslið“ (tvær útgáfur), bað um tvennt annað (línu 43 og lengd svaneðlunnar) og svaraði 2026-11-21 spurningunni „Má myndbandið fara í bókina eins og það er, eða viltu laga fleira fyrst?“ með „Má fara í bókina“."
         }
       },
-      "chosen": null
+      "chosen": "islenskad"
     },
     "tray": {
       "word": "Tray",
@@ -3342,10 +3342,10 @@
           "say": {
             "Tray": "Trei"
           },
-          "note": "Enska nafnið á hundinum eins og það er sagt: Trei (línur 37 og 62 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt)."
+          "note": "Enska nafnið á hundinum eins og það er sagt: Trei (línur 37 og 62 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Stelpan sem fann sæskrímslið“ (tvær útgáfur), bað um tvennt annað (línu 43 og lengd svaneðlunnar) og svaraði 2026-11-21 spurningunni „Má myndbandið fara í bókina eins og það er, eða viltu laga fleira fyrst?“ með „Má fara í bókina“."
         }
       },
-      "chosen": null
+      "chosen": "islenskad"
     },
     "ichthyosaurus": {
       "word": "Ichthyosaurus",
@@ -3361,10 +3361,10 @@
           "say": {
             "Ichthyosaurus": "Iktíósaurus"
           },
-          "note": "Ch eins og k og th eins og t, endingin óbreytt eins og í Megalosaurus: Iktíósaurus (lína 28 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt)."
+          "note": "Ch eins og k og th eins og t, endingin óbreytt eins og í Megalosaurus: Iktíósaurus (lína 28 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Stelpan sem fann sæskrímslið“ (tvær útgáfur), bað um tvennt annað (línu 43 og lengd svaneðlunnar) og svaraði 2026-11-21 spurningunni „Má myndbandið fara í bókina eins og það er, eða viltu laga fleira fyrst?“ með „Má fara í bókina“."
         }
       },
-      "chosen": null
+      "chosen": "islenskad"
     },
     "fiskedla": {
       "word": "Fiskeðla",
@@ -3399,7 +3399,7 @@
             "fiskeðlurnar": "fisk-eðlurnar",
             "fiskeðlunum": "fisk-eðlunum"
           },
-          "note": "Bandstrik milli orðhlutanna, „fisk-eðla“, svo ekkert g skjótist inn (myndbandið „Stelpan sem fann sæskrímslið“, óheyrt)."
+          "note": "Bandstrik milli orðhlutanna, „fisk-eðla“, svo ekkert g skjótist inn (myndbandið „Stelpan sem fann sæskrímslið“, óheyrt). HEYRT: eigandinn horfði og hlustaði á allt myndbandið „Stelpan sem fann sæskrímslið“ (tvær útgáfur), þar sem átta línur segja orðið svona, og sagði 2026-11-21 „Má fara í bókina“. Ekki orðið val orðsins enn: þá breyttist beiðni línu 39 í heimsmyndbandinu (book_myndband_heimur_39, send eins og hún er skrifuð með eigin fræi 1 og samþykkt í því myndbandi). Sú lína þarf fyrst sitt eigið „say“."
         },
         "ipa": {
           "say": {

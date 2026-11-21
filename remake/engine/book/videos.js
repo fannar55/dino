@@ -2,16 +2,16 @@ import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { isUnlocked, bookState, FIND_ME } from './cards.js';
 
-// The Myndbönd page: eleven educational videos, seven on the left page of the Myndbönd leaf and four on the right, as taped video
+// The Myndbönd page: twelve educational videos, eight on the left page of the Myndbönd leaf and four on the right, as taped video
 // tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan glasses, open from the
 // start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one with a `src` would play
-// in the video player as the others do. After the left page's seven videos, beside the seventh in the third row, stands a show of
-// the game's own with no glasses (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the 3D
+// in the video player as the others do. After the left page's eight videos, the last of its third row, stands a show of the
+// game's own with no glasses (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the 3D
 // shows.
 // Each video shares the unlock rules of the dinosaur, animal or fossil it belongs to (cards.js isUnlocked), so the child unlocks
-// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Three
-// belong to no card and are open from the start: Heimur risaeðlanna, Hvað varð um risaeðlurnar? and Hvernig fundum við
-// risaeðlurnar?
+// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Four
+// belong to no card and are open from the start: Heimur risaeðlanna, Hvað varð um risaeðlurnar?, Hvernig fundum við
+// risaeðlurnar? and Stelpan sem fann sæskrímslið.
 
 const WIGGLE_MS = 560;
 const NOD_MS = 620;
@@ -94,6 +94,17 @@ export const BOOK_VIDEOS = [
     src: '/myndbond/fundur.mp4',
     poster: videoUrl('fundur-thumb.webp'), // the video's frame at 312.7 s: the statues in the park and the second drawing
     hue: '#8c3f4f',
+    unlock: { start: true },
+    cards: [],
+    findMe: 'book_mosi_later',
+  },
+  {
+    id: 'mary', // Mary Anning and the sea reptiles of her shore: one of the finders the video before it is about, belonging to no card, so open from the start
+    name: 'Stelpan sem fann sæskrímslið',
+    title: 'Stelpan sem fann sæskrímslið',
+    src: '/myndbond/mary.mp4',
+    poster: videoUrl('mary-thumb.webp'), // the video's end card composed for the tile, which shows only the middle of the picture: the title over her shore, Mary and Tray, the fish lizard and her young alive below (the video repo's tools/mary-flis.mjs)
+    hue: '#5c9469', // her green cloak
     unlock: { start: true },
     cards: [],
     findMe: 'book_mosi_later',
@@ -297,7 +308,7 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   left.classList.add('video-tiles');
   right.classList.add('video-tiles');
   // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across
-  // (seven now), and the game's own show follows them in the third row (book.css)
+  // (eight now), and the game's own show follows them, the last of the third row (book.css)
   const leftCount = threeDs.length ? Math.max(regular.length - 4, Math.ceil(regular.length / 2)) : 4;
   left.append(...regular.slice(0, leftCount).map(item => item.tile), ...ownShows.map(item => item.tile));
   right.append(...regular.slice(leftCount).map(item => item.tile));
