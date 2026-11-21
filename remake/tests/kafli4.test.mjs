@@ -17,6 +17,7 @@ import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafl
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
 import { createTreeProbe, plantVolumes, reachInto } from '../engine/tree-probe.js';
+import { CARDED } from '../world/forest/cards.js';
 import { createShell } from '../engine/shell.js';
 import fs from 'node:fs';
 
@@ -223,7 +224,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [], treeCameras: [], treeForest: null };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -391,6 +392,11 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         const size = high > low ? (Math.min(high, 1) - Math.max(low, -1)) / 2 : 0;
         const at = her.root.position;
         seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera), birds: group.kind === 'birds' ? (tree ? birds : -1) : null });
+      }
+      // the white tree's place: its forest, and where its camera is in every frame there
+      if (world.location === 'hvitatre') {
+        seen.treeForest ??= world.forest;
+        seen.treeCameras.push(world.camera.position.clone());
       }
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
@@ -666,6 +672,36 @@ test('the take-off\'s forest (the lush valley): the white tree\'s patch grows it
     .filter(p => SPECIES[p.name]?.tall && p.name !== 'deadSnag' && Math.hypot(p.x - sx, p.z - sz) >= 30 && Math.hypot(p.x - sx, p.z - sz) < 90);
   const perHectare = trees.length / ((Math.PI * (90 * 90 - 30 * 30)) / 10000);
   assert.ok(perHectare >= 70, `${perHectare.toFixed(0)} trees a hectare round the snag`);
+});
+
+test('the take-off\'s far trees stand at the white tree as cards of themselves (stills, no mesh): every tree past TREE_CARDS.from m of its clearing, none nearer, and no camera of its scenes comes within TREE_CARDS.camera m of one', async () => {
+  const { TREE_CARDS } = kafli4;
+  assert.ok(TREE_CARDS?.from >= 40 && TREE_CARDS.camera >= 20, `the far trees' cards: ${JSON.stringify(TREE_CARDS)}`);
+  const { layout } = chapter.locations.hvitatre;
+  assert.deepEqual(layout.farCards, { from: TREE_CARDS.from }, 'the white tree\'s lush layout asks for them');
+  const [cx, cz] = layout.clearing.center;
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    const forest = watched.treeForest;
+    assert.ok(forest && watched.treeCameras.length > 3000, `the white tree's forest and ${watched.treeCameras.length} frames of its camera (${shape})`);
+    const meshes = [];
+    forest.group.traverse(o => { if (o.userData?.cull?.ranges && !o.userData.caster) meshes.push(o); });
+    const cards = meshes.filter(m => m.userData.cards).flatMap(m => m.userData.cull.ranges);
+    const own = meshes.filter(m => !m.userData.cards).flatMap(m => m.userData.cull.ranges).filter(r => r.ref);
+    const at = (list, p) => list.some(r => Math.hypot(r.ref.x - p.x, r.ref.z - p.z) < 0.01);
+    const carded = forest.placements.filter(p => CARDED.includes(p.name));
+    const far = carded.filter(p => Math.hypot(p.x - cx, p.z - cz) >= TREE_CARDS.from);
+    assert.ok(far.length >= 150, `${far.length} trees past ${TREE_CARDS.from} m (${shape})`);
+    assert.deepEqual(far.filter(p => !at(cards, p) || at(own, p)).map(p => `${p.name} at ${p.x.toFixed(0)}, ${p.z.toFixed(0)}`), [], `each far tree its card and never its mesh (${shape})`);
+    assert.equal(cards.length, far.length, `no card but theirs (${shape})`);
+    // no camera of the place near one: the nearest any frame came
+    let nearest = Infinity, where = '';
+    for (const c of watched.treeCameras) for (const p of far) {
+      const d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d < nearest) { nearest = d; where = `a ${p.name} at ${p.x.toFixed(0)}, ${p.z.toFixed(0)} from ${c.x.toFixed(1)}, ${c.z.toFixed(1)}`; }
+    }
+    assert.ok(nearest >= TREE_CARDS.camera, `the camera came ${nearest.toFixed(1)} m from ${where} (${shape})`);
+  }
 });
 
 test('every caption is words, never a line id: the flight\'s lines are the chapter\'s too', async () => {

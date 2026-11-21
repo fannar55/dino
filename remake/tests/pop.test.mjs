@@ -339,6 +339,64 @@ test('in the band a pixel shows the tree or its card, never neither: by MSAA cov
   atlas.dispose();
 });
 
+test('a tree that is only ever its card (placement.cardOnly: a place\'s trees far past all its cameras) is its card near and far while in view, never its mesh, and sways as its tree\'s top', () => {
+  // the same tree twice, at the same scale: one only ever a card, the other its mesh
+  const pictured = { ...placement('swampConifer', { lod: 2, x: 0, z: 0, y: 0, scale: 1.2 }), card: { uv: [0, 0, 0.12, 0.3], width: 7, height: 18, bottom: -0.2 }, cardOnly: true };
+  const meshed = placement('swampConifer', { lod: 2, x: 0, z: 30, y: 0, scale: 1.2 });
+  const batcher = createBatcher();
+  batcher.add(pictured);
+  batcher.add(meshed);
+  const { meshes } = batcher.build(() => ({ material: new THREE.MeshBasicMaterial() }), { cards: { material: new THREE.MeshBasicMaterial(), wind: true } });
+  const card = meshes.find(m => m.userData.cards);
+  const own = meshes.filter(m => !m.userData.cards);
+  assert.ok(card, 'its card is baked into the card mesh');
+  const of = (list, x, z) => list.flatMap(m => m.userData.cull.ranges).filter(r => Math.hypot(r.ref.x - x, r.ref.z - z) < 0.5);
+  assert.equal(of(own, 0, 0).length, 0, 'none of its mesh is baked');
+  assert.ok(of(own, 0, 30).length > 0 && of([card], 0, 30).length === 0, 'the other tree is its mesh, with no card');
+  // drawn at every distance while in view, from inside the band round cardFrom's near end to far past it, and not when out of view
+  const middle = new THREE.Vector3(0, 9, 0);
+  for (const d of [12, 40, 80, 0.85 * FOREST.lod.cardFrom, 1.2 * FOREST.lod.cardFrom, 400]) {
+    cullBatches(meshes, cameraAt(new THREE.Vector3(-d, 9, 0), middle), 1.5, null, FOREST.lod.cardFrom);
+    assert.ok(card.visible && card.userData.cull.kept.length === 1, `${d.toFixed(0)} m off: its card is drawn`);
+  }
+  cullBatches(meshes, cameraAt(new THREE.Vector3(-40, 9, 0), new THREE.Vector3(-200, 9, 0)), 1.5, null, FOREST.lod.cardFrom);
+  assert.ok(!card.visible, 'looking away from it: not drawn');
+  // all there at any distance (aCard.x 0: no share of a band, cards.js), and its top sways as the tree's top does (its mesh's highest
+  // sway weight, aWind.y as the batcher bakes it, with its phase), its foot not at all
+  const aCard = card.geometry.getAttribute('aCard'), aWind = card.geometry.getAttribute('aWind'), aTree = card.geometry.getAttribute('aTree');
+  assert.ok(aWind && aTree, 'the card mesh carries the wind\'s weights (built with `wind`)');
+  const tree = own.find(m => of([m], 0, 30).length);
+  const meshWind = tree.geometry.getAttribute('aWind');
+  let top = 0, phase = -1;
+  for (const r of of([tree], 0, 30)) for (let j = r.start; j < r.start + r.count; j++) {
+    const v = tree.userData.cull.master[j];
+    top = Math.max(top, meshWind.getY(v));
+    phase = meshWind.getX(v);
+  }
+  assert.ok(top > 0.05, `the tree's top sways (${top.toFixed(3)})`);
+  for (let v = 0; v < 4; v++) {
+    const up = card.geometry.getAttribute('aCorner').getY(v);
+    assert.equal(aCard.getX(v), 0, `corner ${v}: all there at any distance`);
+    assert.ok(Math.abs(aWind.getY(v) - (up ? top : 0)) < 1.5 / 255, `corner ${v}: sways ${aWind.getY(v).toFixed(3)} (${up ? `its top's ${top.toFixed(3)}` : 'its foot: none'})`);
+    assert.ok(Math.abs(aWind.getX(v) - phase) < 1.5 / 255, `corner ${v}: the tree's own phase`);
+    assert.ok(aTree.getX(v) > 0.99 || !up, `corner ${v}: a tree's sway (the beat's tree wave)`);
+  }
+  // and the cards' material bends its top by the forest's own wind (materials.js forestWind), from the shared uniforms
+  const shared = { uWindTime: { value: 0 }, uWindStrength: { value: 1 }, uWindDirection: { value: new THREE.Vector2(1, 0) }, uBeats: { value: -1 } };
+  const atlas = createCardAtlas(null, [{ name: 'swampConifer', variant: 0, model: library.get('swampConifer', 0, 2) }]);
+  const material = createCardMaterial(atlas, { wind: shared });
+  const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
+  material.onBeforeCompile(shader, null);
+  assert.match(shader.vertexShader.split('#include <begin_vertex>')[1], /transformed \+= forestWind\( cardFoot, aWind, aTree \);/, 'its top bends as the trees do');
+  for (const key of Object.keys(shared)) assert.equal(shader.uniforms[key], shared[key], `the forest's own ${key}`);
+  assert.match(material.customProgramCacheKey(), /wind/, 'its own program');
+  const still = createCardMaterial(atlas);
+  const plain = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
+  still.onBeforeCompile(plain, null);
+  assert.doesNotMatch(plain.vertexShader, /forestWind/, 'the valley\'s cards (no `wind`) as they were');
+  material.dispose(); still.dispose(); atlas.dispose();
+});
+
 // ---- critters ----------------------------------------------------------------------------------------
 
 /** The scale a crowd drew its last placed critter of `kind` at (its instance matrix). */
