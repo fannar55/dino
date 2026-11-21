@@ -132,10 +132,11 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
     }
     deck = createCloudCards(world, cards, { name: 'Slope cloud deck', renderOrder: 12, seed, noise: look.noise, fogShare: 0.3 });
     wisps = createCloudCards(world, WISPS.map(([x, z], k) => ({ x, z, y: Math.min(heightAt(x, z) + 10, DECK.y - 4), w: 70 + 20 * (k % 3), h: 34 + 8 * (k % 2), opacity: 0.9, seed: k * 1.7 + 0.4 })), { name: 'Slope wisps', renderOrder: 13, seed, noise: look.noise });
-    // the falls' spray: a plume rising from the foot of the falls, white in the low sun
+    // the falls' spray: a plume rising from the foot of the falls over its lip, white in the low sun (from the ledge, west of it and
+    // above, the falls' face looks away: the spray over the lip is what shows them)
     spray = createCloudCards(world, Array.from({ length: SPRAY.cards }, (_, k) => {
       const w = SPRAY.width[0] + (SPRAY.width[1] - SPRAY.width[0]) * rng();
-      return { x: FALLS.x + 18 + (rng() - 0.3) * 30, z: FALLS.z + (rng() - 0.5) * 34, y: FALLS.base + 8 + k * 4, w, h: SPRAY.height[0] + (SPRAY.height[1] - SPRAY.height[0]) * rng(), opacity: 0.55, seed: rng() * 10 };
+      return { x: FALLS.x + 18 + (rng() - 0.3) * 30, z: FALLS.z + (rng() - 0.5) * 34, y: FALLS.base + 14 + k * 7, w, h: SPRAY.height[0] + (SPRAY.height[1] - SPRAY.height[0]) * rng(), opacity: 0.55, seed: rng() * 10 };
     }), { name: 'Falls spray', renderOrder: 12, seed, noise: look.noise, fogShare: 0.6 });
     // the far pool: water that catches the sky (its colour the sky's own low down, as the look sets it)
     const geometry = new THREE.CircleGeometry(route.pool.radius + 4, 48);

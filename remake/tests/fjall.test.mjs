@@ -8,6 +8,9 @@ import { easeLight } from '../engine/light-blend.js';
 import { CLOUD, densityAt, createCloud } from '../world/fjall/cloud.js';
 import { FJALL, createSlope, createBelt, createTop } from '../world/fjall/index.js';
 import { lightWorld } from './light-world.mjs';
+import { readFileSync } from 'node:fs';
+import { createRoute, FALLS } from '../chapters/kafli4-route.js';
+import { SHOTS } from '../chapters/kafli6-route.js';
 
 const DT = 1 / 30;
 const run = (cloud, seconds) => { for (let t = 0; t < seconds - 1e-9; t += DT) cloud.update(DT, t); };
@@ -169,4 +172,136 @@ test('the belt\'s and the top\'s ground lies between 0 and 3 m; the slope\'s led
   assert.ok(slope.heightAt(x, z) >= slope.far.heightAt(x, z), 'and over it');
   slope.update(DT, 0);
   for (const place of [belt, top, slope]) place.dispose();
+});
+
+// ---- Task 8: the stages for real -------------------------------------------------------------------------------------
+
+const LENGTHS = { thorsedla: 22, kambedla: 7, uggedla: 14, sloedla: 7.5, flugedla: 7.5, gramedla: 12 }; // STYLE.md section 3
+
+test('from view_east the pool, the falls, the Fen and the glade are in frame, wide and upright, with no ground in between', () => {
+  const w = world();
+  const slope = createSlope(w, { grey: true });
+  const shot = SHOTS.hlid.view_east;
+  const camera = new THREE.PerspectiveCamera(shot.fov, 1280 / 800, 0.1, 6000);
+  camera.position.set(...shot.position);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(new THREE.Vector3(...shot.target));
+  camera.updateMatrixWorld();
+  camera.updateProjectionMatrix();
+  assert.ok(shot.fov >= 45, 'a wide shot');
+  // upright: the camera's right is level (no roll), and up on the screen is up in the world
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  assert.ok(Math.abs(right.y) < 1e-6, `rolled: ${right.y}`);
+  assert.ok(up.y > 0.9, 'upright');
+  const route = createRoute();
+  const on = (x, z, above) => new THREE.Vector3(x, slope.far.heightAt(x, z) + above, z);
+  const things = {
+    pool: new THREE.Vector3(route.pool.center[0], route.pool.level + 0.5, route.pool.center[1]),
+    falls: new THREE.Vector3(FALLS.x + 10, FALLS.top + 8, FALLS.z), // its lip and the spray rising over it (the face looks east, away)
+    fen: on(-60, 90, 6),
+    glade: on(-832, -192, 8),
+  };
+  const from = camera.position;
+  for (const [name, point] of Object.entries(things)) {
+    const p = point.clone().project(camera);
+    assert.ok(Math.abs(p.x) < 0.95 && Math.abs(p.y) < 0.95 && p.z < 1, `${name} in frame: ${p.x.toFixed(2)}, ${p.y.toFixed(2)}`);
+    // the line of sight to it stays over the ground all the way (the last 2 % is the thing's own ground)
+    for (let t = 0.01; t < 0.98; t += 0.0025) {
+      const q = from.clone().lerp(point, t);
+      assert.ok(q.y > slope.heightAt(q.x, q.z), `${name}: ground in between at ${q.x.toFixed(0)}, ${q.z.toFixed(0)} (t ${t.toFixed(3)})`);
+    }
+  }
+  slope.dispose();
+});
+
+test('the top holds everyone: six discs inside the rim, none overlapping, 12 m free in the middle', () => {
+  const top = createTop(world(), { grey: true });
+  assert.deepEqual(top.room.map(r => r.friend).sort(), Object.keys(LENGTHS).sort());
+  for (const { friend, at, r } of top.room) {
+    assert.equal(r, LENGTHS[friend] / 2, `${friend}: half her length`);
+    const d = Math.hypot(...at);
+    assert.ok(d + r <= top.radius, `${friend} inside the rim: ${d + r}`);
+    assert.ok(d - r >= 12, `${friend} keeps the middle free: ${d - r}`);
+  }
+  for (let i = 0; i < top.room.length; i++) {
+    for (let j = i + 1; j < top.room.length; j++) {
+      const [a, b] = [top.room[i], top.room[j]];
+      assert.ok(Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) >= a.r + b.r, `${a.friend} and ${b.friend} overlap`);
+    }
+  }
+  assert.deepEqual(top.centre, [0, 0]);
+  top.dispose();
+});
+
+test('the top is flat (no step over 0.3 m inside the rim); every wayUp starts under the sea and ends 8 m inside the rim', () => {
+  const top = createTop(world(), { grey: true });
+  for (let x = -top.radius; x < top.radius; x += 1) {
+    for (let z = -top.radius; z < top.radius; z += 1) {
+      if (Math.hypot(x + 1, z + 1) > top.radius) continue;
+      const y = top.heightAt(x, z);
+      assert.ok(Math.abs(top.heightAt(x + 1, z) - y) <= 0.3 && Math.abs(top.heightAt(x, z + 1) - y) <= 0.3, `a step at ${x}, ${z}`);
+    }
+  }
+  for (let k = 0; k < 24; k++) {
+    const angle = (k / 24) * Math.PI * 2;
+    const [ex, ez] = top.edge(angle);
+    const rim = Math.hypot(ex, ez);
+    assert.ok(rim >= top.radius && Math.abs(top.heightAt(ex, ez) - top.sea.level) < 0.05, `the rim at ${k}: where the ground meets the cloud`);
+    const way = top.wayUp(angle);
+    assert.equal(way.length, 3);
+    assert.ok(top.heightAt(...way[0]) < top.sea.level, `way ${k} starts under the sea`);
+    assert.ok(Math.abs(Math.hypot(...way[2]) - (rim - 8)) < 1e-6, `way ${k} ends 8 m inside the rim`);
+    const end = top.heightAt(...way[2]);
+    assert.ok(end >= 0 && end <= 3, `way ${k} ends on the top: ${end}`);
+  }
+  top.dispose();
+});
+
+test('createTop alone builds with no chapter 6 state, and dispose leaves the scene as it found it', () => {
+  const source = readFileSync(new URL('../world/fjall/top.js', import.meta.url), 'utf8');
+  assert.ok(!/chapters\//.test(source), 'top.js imports nothing of a chapter');
+  const w = world();
+  const before = [...w.scene.children];
+  const top = createTop(w);
+  assert.equal(top.group.parent, w.scene);
+  assert.ok(top.plants.length > 50, 'grass, low plants and rocks');
+  assert.ok(top.sea.cards && top.sea.bank, 'the sea of cloud and its bank');
+  for (let t = 0; t < 1; t += DT) top.update(DT, t);
+  const swell = top.sea.wave({ from: [-40, 30], strength: 3, seconds: 0.5 });
+  for (let t = 0; t < 0.6; t += DT) top.update(DT, t);
+  assert.ok(swell.done, 'the swell has passed');
+  top.veil.setLevel(1);
+  top.sea.setGlow(0.5);
+  top.dispose();
+  assert.deepEqual(w.scene.children, before);
+  assert.equal(top.group.parent, null);
+});
+
+test('in the cloud at level 0.5 a bush 30 m off is whiter than one 8 m off; at level 1 neither shows beyond 20 m', () => {
+  const w = world();
+  const belt = createBelt(w, { prints: PRINTS });
+  const bushes = belt.plants.filter(p => p.name === 'bush').map(p => new THREE.Vector3(p.x, p.y + 0.8, p.z));
+  // an eye in the cloud, 3 m up, 8 m from one bush and about 30 m from another
+  let eye = null, near = null, far = null;
+  for (const n of bushes) {
+    for (let k = 0; k < 16 && !far; k++) {
+      const e = new THREE.Vector3(n.x + Math.cos(k * 0.39) * 8, 3, n.z + Math.sin(k * 0.39) * 8);
+      const f = bushes.find(p => Math.abs(e.distanceTo(p) - 30) < 3);
+      if (f) [eye, near, far] = [e, n, f];
+    }
+    if (far) break;
+  }
+  assert.ok(eye, 'a bush near and one far');
+  // the fog the engine draws (engine/fog.js): its density at the eye's height times the path, nearly level here
+  const falloff = w.look.fog.heightFalloff;
+  const fogged = p => 1 - Math.exp(-w.scene.fog.density * Math.exp(-falloff * eye.y) * eye.distanceTo(p));
+  belt.cloud.setLevel(0.5, 0);
+  assert.ok(fogged(far) > fogged(near) + 0.2, `${fogged(far)} vs ${fogged(near)}`);
+  belt.cloud.setLevel(1, 0);
+  for (const p of belt.plants) {
+    const at = new THREE.Vector3(p.x, p.y + 0.5, p.z);
+    if (eye.distanceTo(at) > 20) assert.ok(fogged(at) > 0.95, `shows at ${eye.distanceTo(at).toFixed(1)} m`);
+  }
+  belt.dispose();
 });
