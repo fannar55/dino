@@ -16,6 +16,7 @@ import { createRng } from './random.js';
 import { patchLambert, WIND_GLSL, LIGHT_GLOBALS } from './materials.js';
 
 const SEGMENTS = 3; // rows down a card
+const FAR_SEGMENTS = 1; // of a tree only ever its card (placement.cardOnly): 50 m off and more, a strand's swing is a pixel or two
 const SWAY = FOREST.wind.swayScale;
 
 /** A drawn texture of hanging strands: ragged at the foot, a little lighter toward the tips (alpha in A). */
@@ -69,6 +70,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
     const strands = p.model.moss;
     if (!strands?.length) continue;
     const fromVertex = pos.length / 3, fromIndex = idx.length;
+    const rows = p.cardOnly ? FAR_SEGMENTS : SEGMENTS;
     const c = Math.cos(p.rot), s = Math.sin(p.rot), sc = p.scale;
     const H = p.model.height * sc;
     const phase = Math.round((p.phase % 1) * 255);
@@ -84,8 +86,8 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
         const dx = Math.cos(yaw) * width * 0.5, dz = Math.sin(yaw) * width * 0.5;
         const n = [-Math.sin(yaw), 0.35, Math.cos(yaw)];
         const first = pos.length / 3;
-        for (let r = 0; r <= SEGMENTS; r++) {
-          const v = r / SEGMENTS;
+        for (let r = 0; r <= rows; r++) {
+          const v = r / rows;
           const sway = carried + swing * length * v * v;
           const narrow = 1 - 0.25 * v;
           for (const side of [-1, 1]) {
@@ -97,7 +99,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
             tree.push(Math.round(Math.min(1, carried / Math.max(sway, 1e-6)) * 255));
           }
         }
-        for (let r = 0; r < SEGMENTS; r++) {
+        for (let r = 0; r < rows; r++) {
           const a = first + r * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
