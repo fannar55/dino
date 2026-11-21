@@ -130,7 +130,12 @@ export const PRINT_TAP = 2.2; // m round a print's middle: its tap circle
 const PRINT_FROM = 6; // m along the path to the first print
 const PRINT_GAUGE = 1; // m from the path's middle to a print's: she walks on two feet, left and right
 const PRINT_TURN = 6; // degrees a print's toes turn in
-const MOSI_BACK = 3.8; // m from a print's middle back to Mosi's root: his front feet (2.3 m ahead of it) 1 m inside its heel
+// m from a print's middle back to Mosi's root: his front feet (2.3 m ahead of it) 1 m inside its heel, whose back is 0.36 of the
+// print's size behind its middle (her three-toed print: world/props/mud-prints.js THEROPOD)
+const MOSI_BACK = PRINT_SIZE * 0.36 - 1 + 2.3;
+// The prints' water (mud-prints.js): the first three dry, rain in the fourth, the fifth trembling as she comes, the sixth dry, its
+// pebbles hopping at her thud (world/fjall belt.pebbles)
+const PRINT_WATER = ['none', 'none', 'none', 'pool', 'rippling', 'none'];
 /** Where a path is `s` metres along it, and its way there (unit); past its end, on along its last leg. */
 function pathAt(path, s) {
   let i = 0;
@@ -150,7 +155,7 @@ function printAt(k) {
   const heading = Math.atan2(p.dz, p.dx) / deg - right * PRINT_TURN;
   return { position: [p.x - p.dz * PRINT_GAUGE * right, p.z + p.dx * PRINT_GAUGE * right], heading, foot: right > 0 ? 'right' : 'left' };
 }
-export const PRINTS = Array.from({ length: 6 }, (_, k) => printAt(k));
+export const PRINTS = Array.from({ length: 6 }, (_, k) => ({ ...printAt(k), water: PRINT_WATER[k] }));
 /** Where Mosi stands at print `k` (0 to 6): his front feet in it near its heel, on its line; at 6, a pace past the sixth, on the rock. */
 export function mosiAt(k) {
   const { position: [x, z] } = printAt(k);
@@ -367,3 +372,28 @@ export const ARDALUR_KEEP = [
   ...[0, STEPS.length + 2].flatMap(k => { const { at, heading } = crossing(k); return [0, -3].map(b => ({ x: at[0] + Math.cos(heading * deg) * b, z: at[1] + Math.sin(heading * deg) * b, r: 3 })); }),
   ...['pool_saddle', 'ford_across'].map(name => ({ x: SHOTS.ardalur[name].position[0], z: SHOTS.ardalur[name].position[2], r: 2.5 })),
 ];
+
+/**
+ * Where nothing grows in the belt (world/fjall createBelt's clear): every walk of the call between its stands, the spots she answers
+ * from in its second round, and the last stand's ground where she stops over them, marches on and Mosi runs beside her.
+ */
+export const BELT_CLEAR = (() => {
+  const out = [];
+  const ahead = (s, d, r = 0) => [s.x + Math.cos(s.heading * deg) * d - Math.sin(s.heading * deg) * r, s.z + Math.sin(s.heading * deg) * d + Math.cos(s.heading * deg) * r];
+  const walk = walked => {
+    const round = walked.length;
+    const from = callStand(round, walked);
+    if (round === 3) {
+      out.push({ at: ahead(from, 13.5), r: 6 }, { from: [from.x, from.z], to: ahead(from, 21), r: 5 }, { from: ahead(from, 9, 5), to: ahead(from, 21, 5), r: 3.5 });
+      return;
+    }
+    for (const w of ['left', 'ahead', 'right']) {
+      const to = callStand(round + 1, [...walked, w]);
+      out.push({ from: [from.x, from.z], to: [to.x, to.z], r: 3.5 });
+      if (round === 1) out.push({ at: herAt(from, w, 1), r: 5 });
+      walk([...walked, w]);
+    }
+  };
+  walk([]);
+  return out;
+})();

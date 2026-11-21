@@ -29,7 +29,7 @@ import { STEPS as REED_STEPS } from './kafli5-pool.js';
 import { buildPool } from './kafli5-place.js';
 import {
   ROUTE, FORD, STEPS, STONE, FALLS_LOOK, stepShot, crossing, SLOPE, PRINTS, PRINT_SIZE, PRINT_TAP, mosiAt, CLOUD_BY_PRINT, printShot, CALL,
-  callStand, directionPoint, herAt, callShot, meetShot, TOP, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP,
+  callStand, directionPoint, herAt, callShot, meetShot, TOP, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP, BELT_CLEAR,
 } from './kafli6-route.js';
 import { createStones } from './kafli6-stones.js';
 import { createPrints } from './kafli6-prints.js';
@@ -106,7 +106,10 @@ const WAY_TAP = 7; // m: the radius of each way's tap target, round its glow
 const HER_STOP = 9;
 const STEP_OUT = 4.5;
 const BLOW_AT = 1.1;
-const AFTER_HAZE = 0.012;
+// The haze after the roar: thin, the sunset's own and a little more (the bank round them hides the belt's edge: world/fjall belt.js)
+const AFTER_HAZE = 0.006;
+const VEIL_OUT = 3; // s the last wisp on the top takes to thin away, in VEIL_STEPS steps
+const VEIL_STEPS = 12;
 const AFTER_ROAR = { ...LOOKS.sunset, name: 'sunset haze', fog: { ...LOOKS.sunset.fog, density: AFTER_HAZE } };
 // Scene 7: a tap on her head or Egill, or this long, and he floats up; how far she marches on the belt and on the top
 const HEAD_WAIT = 6;
@@ -361,7 +364,9 @@ function* theSlope(s, c) {
   cut(s, c, 'view_east');
   yield egill.lookAt([-1500, 120, 100], { weight: 0.8, maxAngle: 80, maxPitch: 30 });
   yield s.wait(RIDE.turn);
+  world.forest?.glade?.(true); // the slope (world/fjall createSlope): her glade's lilac glow, held while he speaks of it
   yield* say(s, c, 'egill', 'k6_egill_glade');
+  world.forest?.glade?.(false);
   yield mosi.lookAt([-1700, 140, 160], { weight: 0.6, maxAngle: 70, maxPitch: 30 });
   yield* say(s, c, 'mosi', 'k6_mosi_thorsedla');
   yield s.wait(0.8);
@@ -495,6 +500,7 @@ function thud(s, c) {
   }
   c.showSounds.play({ sound: 'thump', db: -4, cutoff: 600, rate: 0.85 });
   sound(s, c, 'step', { level: 1.6 });
+  c.belt?.pebbles?.hop(); // the little stones round the sixth print hop (world/fjall belt.js)
   c.log({ type: 'thud', handheld: shake });
 }
 
@@ -639,6 +645,7 @@ function* sheComes(s, c) {
   const stand = callStand(3, c.callTask.directions);
   const ground = groundAt(c, [stand.x, stand.z]);
   c.meet = { stand, ground };
+  c.belt?.summit?.place(stand); // the top's shape ahead of them, seen over the bank once her roar has blown the cloud away
   const shot = name => ({ ...meetShot(name, stand, ground), label: name });
   cut(s, c, shot('she_comes'));
   her.show();
@@ -731,11 +738,13 @@ function* upToTheTop(s, c) {
       her.place(TOP.her.at, TOP.her.heading);
       mosi.place(TOP.mosi.at[0], TOP.mosi.at[1], TOP.mosi.heading);
       lightTo(world, LOOKS.sunset);
+      world.forest?.veil?.setLevel(1); // the top (createTop): the last wisp of the cloud by its south-west rim
       return null;
     },
   });
   s.releaseLocation('sky');
   cut(s, c, 'above_clouds');
+  for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { world.forest?.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
   const [hx, hz] = way(TOP.her.heading);
   const into = her.walk([[TOP.her.at[0] + hx * TOP_WALK, TOP.her.at[1] + hz * TOP_WALK]]);
   const by = mosi.walkTo([[TOP.mosi.at[0] + hx * TOP_WALK, TOP.mosi.at[1] + hz * TOP_WALK]], { speed: 1.1, turnRate: 40 });
@@ -921,9 +930,9 @@ export const chapter = {
   locations: {
     // Árdalurinn round the far pool, as chapter 5 leaves it, and the ford above the falls, with chapter 6's lines of sight kept clear
     ardalur: { build: world => buildPool(world, { at: [FORD.centre], views: ARDALUR_VIEWS, keep: ARDALUR_KEEP }), shots: SHOTS.ardalur },
-    hlid: { build: world => createSlope(world, { grey: true }), shots: SHOTS.hlid },
-    sky: { build: world => createBelt(world, { grey: true, prints: PRINTS, printSize: PRINT_SIZE, reduced: reducedMotion(world) }), shots: SHOTS.sky },
-    toppur: { build: world => createTop(world, { grey: true }), shots: SHOTS.toppur },
+    hlid: { build: world => createSlope(world), shots: SHOTS.hlid },
+    sky: { build: world => createBelt(world, { prints: PRINTS, printSize: PRINT_SIZE, reduced: reducedMotion(world), clear: BELT_CLEAR }), shots: SHOTS.sky },
+    toppur: { build: world => createTop(world), shots: SHOTS.toppur },
   },
   prepare: ['hlid', 'sky', 'toppur'],
   actors: {

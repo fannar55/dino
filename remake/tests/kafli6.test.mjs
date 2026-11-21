@@ -24,7 +24,7 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [] };
+  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] } };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses,
     onFrame(frame) {
@@ -64,6 +64,7 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
         if (Math.abs(t - (pause.at - FRAME)) < FRAME / 2) (seen.around[key] ??= {}).before = c.cloud?.level ?? null;
         if (Math.abs(t - (pause.at + pause.seconds + FRAME)) < FRAME / 2) (seen.around[key] ??= {}).after = c.cloud?.level ?? null;
       }
+      watchMountain(world, c, seen.mountain);
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
@@ -88,6 +89,16 @@ function watchFord(world, c, seen) {
     pitch: THREE.MathUtils.radToDeg(mosi.model.rotation.z), seat: c.saddle.seat.clone(), egill: egill.root.position.clone(),
     stones: Object.fromEntries(WRONG.map(id => [id, c.stones.matrixOf(id).elements.slice()])), frogs,
   });
+}
+
+/** The mountain as the chapter plays it (world/fjall): the glade's glow on the slope, the pebbles, the top's shape, the last wisp. */
+function watchMountain(world, c, seen) {
+  const place = world.forest;
+  if (!place) return;
+  if (c.scene === 3 && place.far) seen.glade.push({ time: c.s.time, level: place.far.kambedla.glow.material.uniforms.uLevel.value });
+  if (c.scene === 4 && place.pebbles) seen.hop = Math.max(seen.hop, ...place.pebbles.stones.map(stone => stone.lift ?? 0));
+  if (c.scene === 6 && place.summit && c.meet && !seen.summit) seen.summit = { at: place.summit.group.position.clone(), stand: c.meet.stand };
+  if (c.scene === 7 && place.veil) seen.veil.push(place.veil.level);
 }
 
 // The children ----------------------------------------------------------------------------------
@@ -366,4 +377,18 @@ test('Egill stays in the saddle through every hop (within 2 cm)', async () => {
     const lift = Math.max(...frames.map(f => f.seat.y - f.root.y)) - Math.min(...frames.map(f => f.seat.y - f.root.y));
     assert.ok(lift > 0.2, `the seat bounced ${lift.toFixed(2)} m`);
   }
+});
+
+test('the mountain as it plays: the glade glows while Egill speaks of it, the pebbles hop at the thud, the top ahead after the roar, the last wisp thins', async () => {
+  const run = await untouched();
+  const { glade, hop, summit, veil } = run.watched.mountain;
+  assert.ok(glade.some(f => f.level > 0.5), 'the glade glows on the slope');
+  assert.ok(glade.at(-1).level === 0, 'and is off again before the slope is left');
+  assert.ok(glade[0].level === 0, 'off as the slope begins');
+  assert.ok(hop > 0.08, `the pebbles hop ${hop.toFixed(2)} m`);
+  assert.ok(summit, 'the top placed at the meet');
+  const ahead = Math.hypot(summit.at.x - summit.stand.x, summit.at.z - summit.stand.z);
+  const way = Math.atan2(summit.at.z - summit.stand.z, summit.at.x - summit.stand.x) * 180 / Math.PI;
+  assert.ok(ahead > 200 && Math.abs(((way - summit.stand.heading + 540) % 360) - 180) < 5, `ahead of them: ${ahead.toFixed(0)} m at ${way.toFixed(0)}`);
+  assert.ok(veil.length && veil[0] === 1 && veil.at(-1) === 0, 'the last wisp on the top, thinned away');
 });

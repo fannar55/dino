@@ -11,7 +11,7 @@
 //   top.room -> [{ friend, at, r }]    where each of the six friends stands at the festival: a disc half her length, none
 //                                      overlapping, all inside the flat, ROOM.middle m round the middle kept free
 //   top.sea                            { level, setGlow(v), wave({ from, strength, seconds }) -> Handle, cards, bank }
-//   top.veil                           { setLevel(v) }: the last wisp chapter 6 climbs out of, by the south-west rim (0 gone, 1 thick)
+//   top.veil                           { setLevel(v), level }: the last wisp chapter 6 climbs out of, by the south-west rim (0 gone, 1 thick)
 //
 // Not grey: the game's own ground material painted as a meadow (grass, a little dry grass, stone only on the steep), the game's own
 // low plants and single rocks (world/forest/species.js), none in a friend's room; the sea and its bank are cloud cards (look.js
@@ -210,8 +210,9 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
       },
     },
     veil: {
+      level: 0,
       /** The last wisp by the south-west rim: 0 gone, 1 as thick as it comes. */
-      setLevel(v) { veil?.setOpacity(Math.min(1, Math.max(0, v))); },
+      setLevel(v) { this.level = Math.min(1, Math.max(0, v)); veil?.setOpacity(this.level); },
     },
     update(dt = 0, time = 0) {
       const step = Math.min(0.1, Math.max(0, dt));
