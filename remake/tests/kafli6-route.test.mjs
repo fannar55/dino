@@ -15,12 +15,13 @@ import { FLOW } from '../world/ardalur/river.js';
 import { LIMITS, createDirector } from '../engine/camera/director.js';
 import { createPointResolver } from '../engine/points.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
-import { createFarLand } from '../world/ardalur/far-land.js';
+import { createSlope } from '../world/fjall/index.js';
 import { createArdalur } from '../world/ardalur/index.js';
 
 const SUN = 215; // the chapter's sun (engine/looks.js lowSun and the places' looks): azimuth 215, as chapter 5's
 const terrain = createTerrain(ROUTE, { seed: 4 });
-const far = createFarLand({ scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() }, ROUTE, { terrain });
+// the slope stage as chapter 6 builds it (world/fjall createSlope): its shelf over the far land
+const slope = createSlope({ THREE, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(50, 1.6, 0.1, 1000), heightAt: () => 0 }, { grey: true });
 const river = ROUTE.river;
 /** The water's level at (x, z), or -Infinity where there is none (the river above the falls, the far pool). */
 function waterAt(x, z) {
@@ -34,7 +35,7 @@ function waterAt(x, z) {
 // flat ground at BELT_GROUND, and the functions' shots on flat ground at 0, the middle and 3 m.
 const PLACES = {
   ardalur: { ground: (x, z) => terrain.heightAt(x, z), surface: (x, z) => Math.max(terrain.heightAt(x, z), waterAt(x, z)) },
-  hlid: { ground: (x, z) => far.heightAt(x, z), surface: (x, z) => far.heightAt(x, z) },
+  hlid: { ground: (x, z) => slope.heightAt(x, z), surface: (x, z) => slope.heightAt(x, z) },
   sky: { ground: () => BELT_GROUND, surface: () => BELT_GROUND },
   toppur: { ground: () => BELT_GROUND, surface: () => BELT_GROUND },
 };

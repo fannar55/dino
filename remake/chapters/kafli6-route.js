@@ -82,11 +82,13 @@ export function stepShot(k) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The slope (scene 3), on the far land (its heights: world/ardalur/far-land.js heightAt, measured 2026-11-21, the slope's cameras'
-// too; world/fjall's slope stands on it). The path climbs west to the ledge, 280 m up, where he turns and the whole forest lies in the east.
+// The slope (scene 3), on world/fjall's slope stage (createSlope: its shelf round [-2398, 120], 237.5 m up; heights measured on its
+// heightAt 2026-11-21, the cameras' too). The land falls steeply east of the shelf and rises west of it, so the path comes up from
+// the south onto the shelf, where he turns: the whole forest lies in the east, and the mountain rises in the west.
 export const SLOPE = {
-  ride: { at: [-2470, 124], heading: 190, ground: 265.9 }, // on the way up, below the ledge
-  ledge: { at: [-2500, 122], ground: 279.9 }, // the ledge: he turns there, to the east and back to the mountain
+  from: { at: [-2392, 160], ground: 231.5 }, // where the ride begins, below the shelf
+  ride: { at: [-2390, 144], heading: -80.5, ground: 235.6 }, // on the way up, below the ledge
+  ledge: { at: [-2386, 124], ground: 237.5 }, // the ledge: he turns there, to the east and back to the mountain
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -253,11 +255,11 @@ export const SHOTS = {
   },
   hlid: {
     // the ride up: from beside the path, below it on his left, looking up at him on the slope
-    slope_ride: { position: [-2476, 266, 134], target: up(SLOPE.ride.at, SLOPE.ride.ground + 2.4), fov: 50 },
+    slope_ride: { position: [-2404, 232.7, 164], target: up(SLOPE.ride.at, SLOPE.ride.ground + 2.4), fov: 50 },
     // the view east: behind them on the ledge, over their shoulders to the whole forest in the low sun
-    view_east: { position: [-2509, 285.6, 125], target: [-1500, 120, 100], fov: 50 },
-    // the clouds over them: from below them on the path, looking up past them to the mountain and its cloud
-    clouds_up: { position: [-2491, 280.2, 118.7], target: [-2520, 296.2, 129], fov: 52 },
+    view_east: { position: [-2396, 241.3, 129], target: [-1500, 120, 100], fov: 50 },
+    // the clouds over them: from the shelf's east end, a little below them, looking up past them to the mountain and its cloud
+    clouds_up: { position: [-2368, 236.6, 120], target: [-2458, 268, 160], fov: 52 },
   },
   sky: {
     // he steps into the first print and looks down: close and low beside it, his front feet in its heel and his head over it
@@ -309,7 +311,7 @@ export const STANDS = {
   ford_across: { mosi: { at: FORD.to, heading: OVER }, ...riding },
   slope_ride: { mosi: SLOPE.ride, ...riding },
   view_east: atLedge(0),
-  clouds_up: atLedge(180),
+  clouds_up: atLedge(150),
   print_first: { mosi: { at: [firstPrint.x, firstPrint.z], heading: firstPrint.heading }, ...riding },
   ...meetOf(MEET_STAND),
   above_clouds: { gramedla: TOP.her, mosi: TOP.mosi, egill: { on: 'gramedla' } },
