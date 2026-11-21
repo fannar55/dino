@@ -361,12 +361,13 @@ function* theSlope(s, c) {
   // he turns on the ledge: behind them, the whole forest
   yield mosi.turnTo(0, { rate: 70 });
   cut(s, c, 'view_east');
-  yield egill.lookAt([-1500, 120, 100], { weight: 0.8, maxAngle: 80, maxPitch: 30 });
+  // Egill looks at her glade, Mosi at Þórseðla (world/fjall slope.js GLADE, THORSEDLA)
+  yield egill.lookAt([-832, 60, -192], { weight: 0.8, maxAngle: 80, maxPitch: 30 });
   yield s.wait(RIDE.turn);
   world.forest?.glade?.(true); // the slope (world/fjall createSlope): her glade's lilac glow, held while he speaks of it
   yield* say(s, c, 'egill', 'k6_egill_glade');
   world.forest?.glade?.(false);
-  yield mosi.lookAt([-1700, 140, 160], { weight: 0.6, maxAngle: 70, maxPitch: 30 });
+  yield mosi.lookAt([-1180, 120, -360], { weight: 0.6, maxAngle: 70, maxPitch: 30 });
   yield* say(s, c, 'mosi', 'k6_mosi_thorsedla');
   yield s.wait(0.8);
   // and to the mountain: the path goes up into the clouds

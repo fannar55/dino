@@ -12,7 +12,7 @@
 //   haze.update(world)        every frame: its colours from the look (the fog's colour, its sun colour)
 import * as THREE from 'three';
 
-export const HAZE = { from: 280, scale: 1300, most: 0.86, end: [4300, 5500], warm: 0.6 };
+export const HAZE = { from: 280, scale: 1300, most: 0.86, end: [3000, 4900], warm: 0.6 };
 
 const FN = /* glsl */`
 uniform vec4 uViewHaze;

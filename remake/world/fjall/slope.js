@@ -37,7 +37,7 @@ const MEADOW_COUNT = 70;
 const MOSI_STAND = [-2386, 124]; // where he stands on the ledge and turns (kafli6-route.js SLOPE.ledge)
 // Þórseðla: on her way from the Fen to the mountain, north of the glade's line from the ledge, walking north-west (seen side-on from
 // the ledge, her long neck across the view), her head and neck well over the trees
-export const THORSEDLA = { from: [-1180, -360], heading: 235, speed: 5, scale: 7, walk: 0.45 };
+export const THORSEDLA = { from: [-1180, -360], heading: 235, speed: 5, scale: 9, walk: 0.45 };
 // The cloud's underside: flat cards over the ridge, west of the ledge (the view east keeps its sky), and over every mountain round
 // the slope whose land would rise into it (DECK.over m under it or higher): the far land there is held under it (CEILING), so a
 // mountain goes up into the cloud and no grey peak stands over it; wisps where it meets the path
