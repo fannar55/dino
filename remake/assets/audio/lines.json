@@ -6913,5 +6913,345 @@
   "src": "assets/audio/book/book_myndband_fundur_67.mp3",
   "duration": 1.69,
   "mouth": "04fa020bfdced5dc936400000000000000"
+ },
+ "book_myndband_mary_1": {
+  "src": "assets/audio/book/book_myndband_mary_1.mp3",
+  "duration": 1.85,
+  "mouth": "00affcfb00cdda9d003fefdb8630000000000"
+ },
+ "book_myndband_mary_2": {
+  "src": "assets/audio/book/book_myndband_mary_2.mp3",
+  "duration": 5.69,
+  "mouth": "0da007ffdfff90edc9abc900000d9004e87ab9407a3006640000000000000050000defa00cccb8306bba0000c98508969b9704320000000000"
+ },
+ "book_myndband_mary_3": {
+  "src": "assets/audio/book/book_myndband_mary_3.mp3",
+  "duration": 7.61,
+  "mouth": "008ffff6dfeedb0000cd9bf78b96aa95899600000a8000000bdb8bca9005a00007870070077006988000ada533000000000000000009ffa06eeb00007cdfedc9ca62acc964000000000000000"
+ },
+ "book_myndband_mary_4": {
+  "src": "assets/audio/book/book_myndband_mary_4.mp3",
+  "duration": 6.41,
+  "mouth": "00fff70afdcfe00baa990000dd30aeee800ca0096000000000000000000000fd000ccc09cbba9aa6006a00abb903aa90000000aba000088730000000000000000"
+ },
+ "book_myndband_mary_5": {
+  "src": "assets/audio/book/book_myndband_mary_5.mp3",
+  "duration": 3.13,
+  "mouth": "0acfe60000200bccc5db0000a997000000000ef0feff59c8865500000000000"
+ },
+ "book_myndband_mary_6": {
+  "src": "assets/audio/book/book_myndband_mary_6.mp3",
+  "duration": 2.73,
+  "mouth": "0000bf80009fff800bfc09ccc6009dd50067a700043000000000000"
+ },
+ "book_myndband_mary_7": {
+  "src": "assets/audio/book/book_myndband_mary_7.mp3",
+  "duration": 4.33,
+  "mouth": "0affffcdb9b00aa5ceedc99837b99d9000bec07a877730009c0000dcda899700896cdc86400000000000000"
+ },
+ "book_myndband_mary_8": {
+  "src": "assets/audio/book/book_myndband_mary_8.mp3",
+  "duration": 6.41,
+  "mouth": "02bf900ddffc00bbaa92000cab00bcceefdbfe3008cdddb500050000000000000009b6dffdafeedfeb0020ceddfff79c605acbcba498800cb8653300000000000"
+ },
+ "book_myndband_mary_9": {
+  "src": "assets/audio/book/book_myndband_mary_9.mp3",
+  "duration": 9.37,
+  "mouth": "000efb000db0addb59a000cb700043000000000000000008f009effffe88980009dd50cacdddd8999acd007b893000b95000dc5000accdb87635800cd9753000000000000000000dffeedeec7000db600907b40cba897654300000000000"
+ },
+ "book_myndband_mary_10": {
+  "src": "assets/audio/book/book_myndband_mary_10.mp3",
+  "duration": 6.09,
+  "mouth": "0008ffffe90ad00dffb00ccca20000bdddd604800276530000000000000aeb8da900bed700dccda005a50700006bba3ba45500ab970000000000000000"
+ },
+ "book_myndband_mary_11": {
+  "src": "assets/audio/book/book_myndband_mary_11.mp3",
+  "duration": 6.09,
+  "mouth": "6ffcedc04d809eff70beff80000afc009808830000000000000000009dbacbbabcdfd8006ca028cdeeddc7654000000007c30a00bdb000000000000000"
+ },
+ "book_myndband_mary_12": {
+  "src": "assets/audio/book/book_myndband_mary_12.mp3",
+  "duration": 8.09,
+  "mouth": "0df0ed0cdefe600ec200b000beddd5007b84000beffd00adb00033000000000000000ca0cbfdfeeeffdd8bea8c3008cbeb69983007dedcfba6ba9b000dcdca888300a9a3008bcbaa867730030000000000"
+ },
+ "book_myndband_mary_13": {
+  "src": "assets/audio/book/book_myndband_mary_13.mp3",
+  "duration": 8.17,
+  "mouth": "009efccffffde949800085000accb87000000000000007ec800005bbb0af86bcddccbbb93888367850a8400ccdb006a80088600000000000000000000bdcb200008400007998730000078500000000000000"
+ },
+ "book_myndband_mary_14": {
+  "src": "assets/audio/book/book_myndband_mary_14.mp3",
+  "duration": 8.73,
+  "mouth": "0006fff60ba08e87ddc80983000009b84000000000000000ad69fffeee00dc8008baba900bbaccbbba7009e9c89a7540000000000ad30000000dc0000800043000000000000efdcfc0df7300cffeca86000500000000000"
+ },
+ "book_myndband_mary_15": {
+  "src": "assets/audio/book/book_myndband_mary_15.mp3",
+  "duration": 5.13,
+  "mouth": "09bdb00000e93c8adb6bcc0000000000000002efdfd8defffd000bbbd84985008ddab0039000000ac0000005000000000000000"
+ },
+ "book_myndband_mary_16": {
+  "src": "assets/audio/book/book_myndband_mary_16.mp3",
+  "duration": 10.97,
+  "mouth": "00cffd30bededff00fffb9aa9500000000e60000e49efb9ecceeb6abba875950b30076443000000000000000beb0fffedfedfe8aed000cdba9973047c908bcda6bcbba0850004cba750000000000000a6400df000bdbcb5306eb7b500cb4000abba67bca7addb803000000000000"
+ },
+ "book_myndband_mary_17": {
+  "src": "assets/audio/book/book_myndband_mary_17.mp3",
+  "duration": 6.09,
+  "mouth": "00ffff65fe900000000dff00ffc50089700000004000ffeded0befffceeca7588300000799efdd000c608edde904cc9500007900b50076400000000000"
+ },
+ "book_myndband_mary_18": {
+  "src": "assets/audio/book/book_myndband_mary_18.mp3",
+  "duration": 9.61,
+  "mouth": "00eff60bfeac97bd708ebddff7009a30803000730000dbc600aac9600000000000000000009d0000cbddbb7899dfed600ab0000800000d00009a84003aa66400000000000000000ad60cffffb8fd00039a44469ffe50050006000000000000000"
+ },
+ "book_myndband_mary_19": {
+  "src": "assets/audio/book/book_myndband_mary_19.mp3",
+  "duration": 2.89,
+  "mouth": "008ffdf000efdcb9308fa0ca00ddcc97b50bbbab96c845000000000000"
+ },
+ "book_myndband_mary_20": {
+  "src": "assets/audio/book/book_myndband_mary_20.mp3",
+  "duration": 6.17,
+  "mouth": "0bfc00006ded8dc00cfa00a56300000000000000dffffdfeccefdc000cc5ddb0accccb700843500000000abdefeeeddd800080059bb87630000000000000"
+ },
+ "book_myndband_mary_21": {
+  "src": "assets/audio/book/book_myndband_mary_21.mp3",
+  "duration": 2.57,
+  "mouth": "9dff50000bee00000efe8bd89aba099009500066400000000000"
+ },
+ "book_myndband_mary_22": {
+  "src": "assets/audio/book/book_myndband_mary_22.mp3",
+  "duration": 7.211,
+  "mouth": "00efc000fefeb80b930304ba7000000000009eeffd700c8905830000000000000000007dfffea06eddddbba308a0000bdc006a96408a96089bbb6b808a98886570000000000000000"
+ },
+ "book_myndband_mary_23": {
+  "src": "assets/audio/book/book_myndband_mary_23.mp3",
+  "duration": 5.45,
+  "mouth": "0cfefeb0bed40ddc739cacc50000dffecbb5046678630000000000008dc009d700acff5009cded0d9304dee06b0076000000000000000"
+ },
+ "book_myndband_mary_24": {
+  "src": "assets/audio/book/book_myndband_mary_24.mp3",
+  "duration": 7.93,
+  "mouth": "00ef000cefc0eeeffee9d969200000000000000008950cdba000000cf50000a960000000000000000009cffc9fdeeec00bb97aa500000000bdddca99a300000c80e4023bef20aa04500000000000000"
+ },
+ "book_myndband_mary_25": {
+  "src": "assets/audio/book/book_myndband_mary_25.mp3",
+  "duration": 6.09,
+  "mouth": "0ffe05bffe0bf44dbbba40008dbded000eec0005300000000000000000fe40ec09dbdb92cdefd500dfed509500000000ae75c000cec954000000000000"
+ },
+ "book_myndband_mary_26": {
+  "src": "assets/audio/book/book_myndband_mary_26.mp3",
+  "duration": 8.73,
+  "mouth": "0adff00ecffedb4db0000c700ca0defe9059804440000000000000000efffd7ddd8ec000b9b008d90008408b8000079667540030000000000b70dfffeb0ded0bed9007b800cb0006ccc99960006bcbab500330000000000"
+ },
+ "book_myndband_mary_27": {
+  "src": "assets/audio/book/book_myndband_mary_27.mp3",
+  "duration": 6.09,
+  "mouth": "006efdade7c4005badb8030000000000000006bba6ad85abddc9aaaa958897300a50000858007b84000000000000000fe87fc0bfffe996000000000000"
+ },
+ "book_myndband_mary_28": {
+  "src": "assets/audio/book/book_myndband_mary_28.mp3",
+  "duration": 6.25,
+  "mouth": "3ceffd8fffeeeb09ca3008cd9a88bcbba7000000000000004d40000996004640000000000000000000ff805df5cd8000000d5000030897633000000000000"
+ },
+ "book_myndband_mary_29": {
+  "src": "assets/audio/book/book_myndband_mary_29.mp3",
+  "duration": 9.29,
+  "mouth": "00ffefffedeeccceffec50dc059003c76a984003000000000000000977cd9a000c600b400d302007a50000aeeda004ba8400000000000000004ffdb00009dffd70064000000003a80a60bccdcbbb0000a007ec07705000000000000000"
+ },
+ "book_myndband_mary_30": {
+  "src": "assets/audio/book/book_myndband_mary_30.mp3",
+  "duration": 7.211,
+  "mouth": "0afe7effd0dfcecec00dbbed80000066000000003abdd8cd8cfa38600960000000000000000af909e0fd0ad305ddfe9009edec7b003b300beddb87500058877ab6003000000000000"
+ },
+ "book_myndband_mary_31": {
+  "src": "assets/audio/book/book_myndband_mary_31.mp3",
+  "duration": 5.85,
+  "mouth": "0daeff9fa00000d4aa50000959500045300000000000008fe57e88db00bc0078005bcffa78400300000000ec00000069508007950300000000000"
+ },
+ "book_myndband_mary_32": {
+  "src": "assets/audio/book/book_myndband_mary_32.mp3",
+  "duration": 8.01,
+  "mouth": "0000cddd9db0ffffc3550000000000000b8a30000cca89a9ab00acb004500000000000000000990009ceffe9aefd66aa940004cdd78dcccdb00035640000000000009d700000008986400000000000000"
+ },
+ "book_myndband_mary_33": {
+  "src": "assets/audio/book/book_myndband_mary_33.mp3",
+  "duration": 8.89,
+  "mouth": "06dec3007e500069ddcccb0add9bcb000a87633200000000000defffedca64000000000007afec00cbdeddc7dd700ae000aaaaccddd80053000000000000009a000efffedbab9303c707d49dedca30004a7000000000000000"
+ },
+ "book_myndband_mary_34": {
+  "src": "assets/audio/book/book_myndband_mary_34.mp3",
+  "duration": 6.41,
+  "mouth": "0fbaf000aa97035000000000000000000aeeeefeffddcd400ced66987665006b8bc8afab76decb000a978557578069008bcfff807cd90008a9400000000000000"
+ },
+ "book_myndband_mary_35": {
+  "src": "assets/audio/book/book_myndband_mary_35.mp3",
+  "duration": 5.77,
+  "mouth": "0cffffde4ad50abbce000ca009809cb20997203b9643200000000000000bc6dfebd67b0000cabaca009bbd388730007779400754000000000000"
+ },
+ "book_myndband_mary_36": {
+  "src": "assets/audio/book/book_myndband_mary_36.mp3",
+  "duration": 10.09,
+  "mouth": "00ffefff4009deddedbabda0bd3aab8878732385000cffbcdda09b7594000000000000beea70000aba758730000000000000000007f8007ffde3000cd00000bb70a500cd40000a00087600009cb000deda00ca3cb0db6aba8a48866000bca6400000000000"
+ },
+ "book_myndband_mary_37": {
+  "src": "assets/audio/book/book_myndband_mary_37.mp3",
+  "duration": 7.45,
+  "mouth": "0dfccff00d60ba970000004caba8eef9debdffd0cfe47bbbb769700000000008ffbffbcd70c000dfea6aa707a8308abbbccda00ccc9409a0aee00b90025300000000000b9600000000000"
+ },
+ "book_myndband_mary_38": {
+  "src": "assets/audio/book/book_myndband_mary_38.mp3",
+  "duration": 7.61,
+  "mouth": "00bcaa5669a000095640000000000000003ff80ddff63ee0d740ceeffd9000009fddda700ab7a84200000000000003b0000ffe407fde06cba8000007eb00a9000dddc89996874000000000000"
+ },
+ "book_myndband_mary_39": {
+  "src": "assets/audio/book/book_myndband_mary_39.mp3",
+  "duration": 4.33,
+  "mouth": "00ffcaffe7eaccb000acb8000000000000000bdfec4003e60408fecbdea0befdba684000030000000000000"
+ },
+ "book_myndband_mary_40": {
+  "src": "assets/audio/book/book_myndband_mary_40.mp3",
+  "duration": 6.49,
+  "mouth": "00cdedeeeeed8cc8bb00099000bac300bbaa886774665000007ab38ccbba00000085000000000000000000004ccce9000fffffa0000feeb6b64030000000000000"
+ },
+ "book_myndband_mary_41": {
+  "src": "assets/audio/book/book_myndband_mary_41.mp3",
+  "duration": 10.09,
+  "mouth": "0eff30dffffbe900bcefdeb4dd70de00aa820008db9000074003000000000000008faecfa0003feecbbc6003dddbb50aba708950000000000bcffebcb0bd309a984000000000e844afdb70000009d9d900cca6006ffdd900b98630aa6a9900420000000000"
+ },
+ "book_myndband_mary_42": {
+  "src": "assets/audio/book/book_myndband_mary_42.mp3",
+  "duration": 8.491,
+  "mouth": "04cdefff448fd0003eda8743000000000005bcb0ae800000cda7300000000000000006abdac0059730a87acd0088a6000452000000000000000007f800bc06b868002ac9cb99ba0000adfffc600006500000000000"
+ },
+ "book_myndband_mary_43": {
+  "src": "assets/audio/book/book_myndband_mary_43.mp3",
+  "duration": 6.89,
+  "mouth": "0fffeee00afd0dc00079edefc98554000000000000000cf500ff0000adfe9000cfeccbff500dee90898500006dc097bc0000dddba79950780a60a9200ba854000000000000"
+ },
+ "book_myndband_mary_44": {
+  "src": "assets/audio/book/book_myndband_mary_44.mp3",
+  "duration": 12.97,
+  "mouth": "00bfffccfa8bdb09d6abcaaa9a00069a75660000000b8009a000bb708858006ccca74300000000000000000000048078005fe00ba504d78fedc5500000000008855444300000000000000bfa7000e60000ceeea55aade80006bdeeb9bdeb099404ba500000000000000000cb0e50008bfb700fdcadf5022cfcfa0000000000000000"
+ },
+ "book_myndband_mary_45": {
+  "src": "assets/audio/book/book_myndband_mary_45.mp3",
+  "duration": 4.57,
+  "mouth": "00febffc0db00db3000befef000ededefe9bc0000bddff8009dbc36500000000000000dfbed0a708940000000000"
+ },
+ "book_myndband_mary_46": {
+  "src": "assets/audio/book/book_myndband_mary_46.mp3",
+  "duration": 7.61,
+  "mouth": "07ef6bfbdffefb0bc66b009efe038caceec008ab98db09cba643000000000000007cfffcdb40d804b40006987889a730000000000000000efdfe84b00edbbb800c96037000663000000000000"
+ },
+ "book_myndband_mary_47": {
+  "src": "assets/audio/book/book_myndband_mary_47.mp3",
+  "duration": 6.25,
+  "mouth": "00af6000bffddc9e806b00000beeeec900900a9530000000000000c900000000780069950688743000000000000efffbeb68ec009a6004005800000000000"
+ },
+ "book_myndband_mary_48": {
+  "src": "assets/audio/book/book_myndband_mary_48.mp3",
+  "duration": 7.29,
+  "mouth": "0cd8eed0cf7dffddeceee404aba5885000005cffdbc008a80088503868b98a6878000adc00000965000400000000000000009ffffccdca056c97fb5fc7000058340033000000000000"
+ },
+ "book_myndband_mary_49": {
+  "src": "assets/audio/book/book_myndband_mary_49.mp3",
+  "duration": 7.85,
+  "mouth": "3bffeead807db0a209500bcb80400000000000000000fffffed709b00059a97876684000007808cddbddaec8898a88b836740000000002cdefdebc9000000b8aaa8ac700009aa8300000000000000"
+ },
+ "book_myndband_mary_50": {
+  "src": "assets/audio/book/book_myndband_mary_50.mp3",
+  "duration": 6.97,
+  "mouth": "04ed000ddffd5000999900009ec9000000000000000000affffffe00aaaaa505a9a000ba000008cbb9209640b600000000000000000000aa00c0aa4b40b8cb83000000000000"
+ },
+ "book_myndband_mary_51": {
+  "src": "assets/audio/book/book_myndband_mary_51.mp3",
+  "duration": 5.61,
+  "mouth": "000ffc0009800000000000000000defd5dfabcdfffeededc5bdbd70acdc800009b2005500000000000cbb4cc9600000ba9840000000000000"
+ },
+ "book_myndband_mary_52": {
+  "src": "assets/audio/book/book_myndband_mary_52.mp3",
+  "duration": 5.85,
+  "mouth": "00effffdcfb0beaaca300c800ca00059aa790a800dba07300000000000000000cf5000000000000005cebba9bdeffe000b75ca056644000000000"
+ },
+ "book_myndband_mary_53": {
+  "src": "assets/audio/book/book_myndband_mary_53.mp3",
+  "duration": 7.69,
+  "mouth": "0bb0fffffed79ddffffc00ca06808960387630000adddddddadc4765a9900bea0009b8004879800bcb70000000000000000000cdfe604eb023950004dba000dc80000740054000000000000000"
+ },
+ "book_myndband_mary_54": {
+  "src": "assets/audio/book/book_myndband_mary_54.mp3",
+  "duration": 7.85,
+  "mouth": "06ffe00efdaceeed60000cd899d7b8000cb00abcba876066500009bccb88886bcdba4000000000000000bee0000004bdeda09ffe08bdefeebeeedddaabab705dfffff00aecba40000400000000000"
+ },
+ "book_myndband_mary_55": {
+  "src": "assets/audio/book/book_myndband_mary_55.mp3",
+  "duration": 6.17,
+  "mouth": "00eefeff04ddefdd708cdc3000cffd00ce00dee900abba009b9000fec9800030000000000befeaffee59a00de40003a008700ba78980bb83000000000000"
+ },
+ "book_myndband_mary_56": {
+  "src": "assets/audio/book/book_myndband_mary_56.mp3",
+  "duration": 9.45,
+  "mouth": "6efffffd00efeace80ab009deed68998444000000007b000cc00000c70ad00bbca0004b906a709900384400000000000000000000009fffd00aed20005e600ceec9cddbfdcfe605ba87200500000000003bcedd4000adddc8520000000000"
+ },
+ "book_myndband_mary_57": {
+  "src": "assets/audio/book/book_myndband_mary_57.mp3",
+  "duration": 6.41,
+  "mouth": "0bfffeaed607ddfeda00acb97ab700009a00006a684667700000000000000009c6cffffbbeda846760000bca007c900bbbcbbcbb9736744800000000000000000"
+ },
+ "book_myndband_mary_58": {
+  "src": "assets/audio/book/book_myndband_mary_58.mp3",
+  "duration": 8.73,
+  "mouth": "00cfffffeddfcfffd6da00000ac20adc005ccdc7aa9400adddeeeba98a76905bb00330000000000000000008f70007eedbdd300000000006cbacbbc9ad70000000008effd7ddecaea000009c80efcba8600030000000000"
+ },
+ "book_myndband_mary_59": {
+  "src": "assets/audio/book/book_myndband_mary_59.mp3",
+  "duration": 7.93,
+  "mouth": "00d90dd006c0000cffeeb00aba600cdcccddaed88a883076002a3009a933ba8540000000000000006fffffcdd404ea805c9a000c7db8087746556500009507eeb0acdc947600a996000000000000000"
+ },
+ "book_myndband_mary_60": {
+  "src": "assets/audio/book/book_myndband_mary_60.mp3",
+  "duration": 6.25,
+  "mouth": "08efe0cf9eefeed6000cffbdfc0addc000ab460ce908bcdcc8aaba6cddc7554000000000000000aa0f800ceeef405c9d60003addb008b8775330000000000"
+ },
+ "book_myndband_mary_61": {
+  "src": "assets/audio/book/book_myndband_mary_61.mp3",
+  "duration": 9.45,
+  "mouth": "bc00ffeec00006ffffee49cdb8009cd8004500000000000000000000000fa0005aa987878600000003ceccdccb8bbcb60b500adec98cb789488756300008ca70a30009bbba9000360000cdba8a406700797407babba003200000000000000"
+ },
+ "book_myndband_mary_62": {
+  "src": "assets/audio/book/book_myndband_mary_62.mp3",
+  "duration": 9.05,
+  "mouth": "aeff03feeffdaccc99600008db0a0000c70000bb7b6bddeedc8ba493000bb74000000009efebc89600bca753000000000000000002db00d09f80dcbbdd876500000000000007fc0000ffcefdedc8000bd00000930000000000000"
+ },
+ "book_myndband_mary_63": {
+  "src": "assets/audio/book/book_myndband_mary_63.mp3",
+  "duration": 6.41,
+  "mouth": "0005ffeddfd000bb00be90bceeb8b00890007753000000000940000cbbb9ba008632000000000000008db00edffffa0abb73007b7840397960003000000000000"
+ },
+ "book_myndband_mary_64": {
+  "src": "assets/audio/book/book_myndband_mary_64.mp3",
+  "duration": 6.81,
+  "mouth": "00fef009effefffacca69ab9400007cd90ddfffd87aa009b6aa978005800008960000cdecdc88b0009cdda38970ac7cddb97003000000005b806a00820453000000000000"
+ },
+ "book_myndband_mary_65": {
+  "src": "assets/audio/book/book_myndband_mary_65.mp3",
+  "duration": 10.41,
+  "mouth": "00efafee4003aa00000ba88850000b90000b40ad00069a9678306c900cc70700077003000000000000000000dfdfcbdc005ccdec7ec0000c5000abd900cdffeca07aaaa75650000000000037bfc00dfeedbab500000970005ccb900000fff90009600000000000000"
+ },
+ "book_myndband_mary_66": {
+  "src": "assets/audio/book/book_myndband_mary_66.mp3",
+  "duration": 10.33,
+  "mouth": "0df8dc000dfe0bec60bfee7000cffb0cc00cd000698604000000000abbdef00dcb6009a746a40a80000b63c8000000000000000000effe003ffdffda00799730abd00dd5000dbae800cdc9aaa00008d0000af968a000aedb3000cddbaa000874230000000000000"
+ },
+ "book_myndband_mary_67": {
+  "src": "assets/audio/book/book_myndband_mary_67.mp3",
+  "duration": 8.01,
+  "mouth": "000afffeca30000000000add90c70afc7d900adfb0896000000950860000ded6a80009cddb99974b830000000000000000000000000affcc6ffeb0000bd9bc800bdcb9990005db7600000000000000000"
+ },
+ "book_myndband_mary_68": {
+  "src": "assets/audio/book/book_myndband_mary_68.mp3",
+  "duration": 1.69,
+  "mouth": "04fa020bfdced5dc936400000000000000"
  }
 }

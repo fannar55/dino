@@ -346,7 +346,9 @@
         "flugeðla",
         "flugeðlunum",
         "flugeðlur",
-        "flugeðlurnar"
+        "flugeðlurnar",
+        "flugeðlu",
+        "flugeðlan"
       ],
       "recipes": {
         "hratt": {
@@ -362,7 +364,9 @@
             "flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
             "flugeðlunum": "\"/ˈflʏːɣˌɛðlʏnʏm/\"",
             "flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\"",
-            "flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\""
+            "flugeðlurnar": "\"/ˈflʏːɣˌɛðlʏrtnar/\"",
+            "flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
+            "flugeðlan": "\"/ˈflʏːɣˌɛðlan/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -382,7 +386,9 @@
             "flugeðla": "flug-eðla",
             "flugeðlunum": "flug-eðlunum",
             "flugeðlur": "flug-eðlur",
-            "flugeðlurnar": "flug-eðlurnar"
+            "flugeðlurnar": "flug-eðlurnar",
+            "flugeðlu": "flug-eðlu",
+            "flugeðlan": "flug-eðlan"
           },
           "note": "Bandstrik milli orðhlutanna, „flug-eðlur“. Hjá sögumanninum heyrði talgreining fyrstu töku línu 62 í heimsmyndbandinu („Yfir lóninu fljúga flugeðlur“) sem „flug eðlur“ eða „flugæðlur“, fræ 1 sem „flugæðlur“ og fræ 7 sem „flugeldur“, en þessa sem „flugeðlur“ í öll þrjú skiptin; lína 62 sendir þetta sjálf, með samhengi bókarinnar (óheyrt, 2026-11-09)."
         }
@@ -2547,7 +2553,9 @@
       "forms": [
         "svaneðla",
         "svaneðlurnar",
-        "Svaneðlurnar"
+        "Svaneðlurnar",
+        "svaneðlur",
+        "svaneðlan"
       ],
       "recipes": {
         "hratt": {
@@ -2562,7 +2570,9 @@
           "say": {
             "svaneðla": "\"/ˈsvaːnˌɛðla/\"",
             "svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\"",
-            "Svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\""
+            "Svaneðlurnar": "\"/ˈsvaːnˌɛðlʏrtnar/\"",
+            "svaneðlur": "\"/ˈsvaːnˌɛðlʏr/\"",
+            "svaneðlan": "\"/ˈsvaːnˌɛðlan/\""
           },
           "seed": 42,
           "note": "IPA eftir sömu reglu og Flugeðla /ˈflʏːɣˌɛðla/, fræ 42 (óheyrt)."
@@ -3295,6 +3305,115 @@
             "styttan": "stittan"
           },
           "note": "Skrifað með i (i og y hljóma eins): Stitturnar. Talgreining heyrði „Stytturnar“ (lína 41 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "joseph": {
+      "word": "Joseph",
+      "stem": "Joseph",
+      "forms": [
+        "Joseph"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Joseph": "Djósef"
+          },
+          "note": "Enska nafnið eins og íslenskur sögumaður segir það: Djósef (lína 17 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "tray": {
+      "word": "Tray",
+      "stem": "Tray",
+      "forms": [
+        "Tray"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Tray": "Trei"
+          },
+          "note": "Enska nafnið á hundinum eins og það er sagt: Trei (línur 37 og 62 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "ichthyosaurus": {
+      "word": "Ichthyosaurus",
+      "stem": "Ichthyosaurus",
+      "forms": [
+        "Ichthyosaurus"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Ichthyosaurus": "Iktíósaurus"
+          },
+          "note": "Ch eins og k og th eins og t, endingin óbreytt eins og í Megalosaurus: Iktíósaurus (lína 28 í myndbandinu „Stelpan sem fann sæskrímslið“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "fiskedla": {
+      "word": "Fiskeðla",
+      "stem": "[Ff]iskeðl",
+      "forms": [
+        "fiskeðla",
+        "fiskeðlan",
+        "Fiskeðlan",
+        "fiskeðlu",
+        "fiskeðlur",
+        "Fiskeðlur",
+        "fiskeðlurnar",
+        "fiskeðlunum"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining (scribe) heyrði „fiskgeðlur“ í tveimur tökum af línu 39 í heimsmyndbandinu (án fræs og fræ 7) en „fisk eðlur“ með fræi 1, sem sú lína sendir sjálf (2026-11-09)."
+        },
+        "samhengi": {
+          "context": "Fiskeðlan synti hratt um sjóinn og veiddi fiska.",
+          "seed": 42,
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42, eins og hjá Flugeðlu og Svaneðlu (myndbandið „Stelpan sem fann sæskrímslið“, óheyrt)."
+        },
+        "bandstrik": {
+          "say": {
+            "fiskeðla": "fisk-eðla",
+            "fiskeðlan": "fisk-eðlan",
+            "Fiskeðlan": "Fisk-eðlan",
+            "fiskeðlu": "fisk-eðlu",
+            "fiskeðlur": "fisk-eðlur",
+            "Fiskeðlur": "Fisk-eðlur",
+            "fiskeðlurnar": "fisk-eðlurnar",
+            "fiskeðlunum": "fisk-eðlunum"
+          },
+          "note": "Bandstrik milli orðhlutanna, „fisk-eðla“, svo ekkert g skjótist inn (myndbandið „Stelpan sem fann sæskrímslið“, óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "fiskeðla": "\"/ˈfɪskˌɛðla/\"",
+            "fiskeðlan": "\"/ˈfɪskˌɛðlan/\"",
+            "Fiskeðlan": "\"/ˈfɪskˌɛðlan/\"",
+            "fiskeðlu": "\"/ˈfɪskˌɛðlʏ/\"",
+            "fiskeðlur": "\"/ˈfɪskˌɛðlʏr/\"",
+            "Fiskeðlur": "\"/ˈfɪskˌɛðlʏr/\"",
+            "fiskeðlurnar": "\"/ˈfɪskˌɛðlʏrtnar/\"",
+            "fiskeðlunum": "\"/ˈfɪskˌɛðlʏnʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA eftir sömu reglu og Flugeðla /ˈflʏːɣˌɛðla/, fræ 42 (óheyrt)."
         }
       },
       "chosen": null
