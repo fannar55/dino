@@ -213,9 +213,8 @@ test('upright and wide: each step\'s stones are in stepShot(k), their tap circle
         const apart = Math.hypot(seen[i].x - seen[j].x, seen[i].y - seen[j].y);
         assert.ok(apart >= seen[i].r + seen[j].r, `step ${k} at ${aspect}: ${apart.toFixed(0)} px, ${(seen[i].r + seen[j].r).toFixed(0)} needed`);
       }
-      // Mosi, on the bank or the last stone, with Egill on his back
-      const mosi = k === 0 ? FORD.from : STEPS[k - 1].stones.find(s => s.right).at;
-      const stands = { mosi: { at: mosi, heading: headingOf([...FORD.from.slice(0, 1), 0, FORD.from[1]], [FORD.to[0], 0, FORD.to[1]]), y: k === 0 ? undefined : FORD.level + STONE.right.up }, egill: { on: 'mosi' } };
+      // Mosi, on the bank or with his front feet on the last stone, with Egill on his back
+      const stands = { mosi: crossing(k), egill: { on: 'mosi' } };
       for (const who of ['mosi', 'egill']) {
         const s = onScreen(camera, aspect, pointOf(stands, who, PLACES.ardalur));
         assert.ok(s.front && s.x >= 0.04 * s.w && s.x <= 0.96 * s.w && s.y >= 0.05 * s.h && s.y <= 0.85 * s.h, `${who} in stepShot(${k}) at ${aspect}`);

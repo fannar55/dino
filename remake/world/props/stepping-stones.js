@@ -22,7 +22,8 @@ import { sparkleBurst } from './sparkles.js';
 //
 // Everything runs on the game clock (world.effects), so a paused game pauses it and a capture lands on the same frame. Draw calls: the
 // right stones are one merged mesh, the wrong ones one instanced mesh (each casts a shadow: two more in the shadow pass). Triangles:
-// 5 x 80 for the right ones (lod 1), 8 x 80 for the wrong ones.
+// 5 x about 320 for the right ones (the rock's finest shape, lod 0: they are big and near the camera; lod 1 shows its facets), 8 x 80
+// for the wrong ones (lod 1).
 
 const DEPTH = 0.6; // m under the water at the least (the grey discs; the real stones go down to the river bed)
 const BED = 0.15; // m into the river bed
@@ -31,8 +32,8 @@ const STONE = { right: { across: 3, up: 0.35, tap: 1.6 }, wrong: { across: 1.4, 
 // The look: the right stone's top pressed flat over its last FLAT m, its colour lifted toward a pale dry grey; the wrong stone darker,
 // and darker yet (wet) up to WET m over the water, with a shine
 const FLAT = 0.1;
-const DRY = { toward: [0.74, 0.72, 0.66], by: 0.42, mossy: 0.3, long: 1.12, spread: 1.1 }; // spread: its widest over its width at the water
-const WET = { band: 0.12, dark: 0.5, band_dark: 0.55, tint: [0.92, 0.98, 1.0], mossy: 1.1, shininess: 40, specular: '#2c3032' };
+const DRY = { toward: [0.8, 0.79, 0.75], by: 0.55, mossy: 0.25, long: 1.12, spread: 1.16, lod: 0 }; // spread: its widest over its width at the water
+const WET = { band: 0.12, dark: 0.62, band_dark: 0.6, tint: [0.92, 0.98, 1.0], mossy: 1.1, shininess: 40, specular: '#2c3032' };
 const WOBBLE = { seconds: 1.1, degrees: 9, swings: 2.5 };
 const GLITTER = { seconds: 3, every: 0.35 };
 const VARIANTS = 5; // the species library's rock variants (world/forest/config.js FOREST.trees.variants.rock)
@@ -157,7 +158,7 @@ export function createSteppingStones(world, { steps, level, heightAt = world.hei
       const s = stones.get(stone.id);
       const [x, z] = stone.at;
       const down = level - bed(x, z);
-      const laid = layRock(library.get('rock', (k + seed) % VARIANTS, 1, { mossy: DRY.mossy }), { across: s.size.across * DRY.spread, long: DRY.long, up: s.size.up, down, flat: FLAT, paint: paintDry });
+      const laid = layRock(library.get('rock', (k + seed) % VARIANTS, DRY.lod, { mossy: DRY.mossy }), { across: s.size.across * DRY.spread, long: DRY.long, up: s.size.up, down, flat: FLAT, paint: paintDry });
       const turn = along + ((k * 37) % 30 - 15) * (Math.PI / 180);
       const cos = Math.cos(turn), sin = Math.sin(turn);
       for (let i = 0; i < laid.pos.length; i += 3) {

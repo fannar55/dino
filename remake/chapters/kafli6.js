@@ -85,6 +85,8 @@ const FALLS_HOLD = 4;
 const LIP = ROUTE.river.at(ROUTE.river.falls);
 const FALLS_LIP = [LIP.x, LIP.level, LIP.z];
 const FROG_LANDS = { first: 0.72, later: 1.12 };
+const FROG_SCALE = 1.7; // the ford's frogs a little larger than life, so a child sees one on each wobbly stone from the step's shot
+const UP_BANK = { seconds: 2.4, height: 0.08 }; // his stride up the south bank after the last hop (ACROSS_ON m)
 // Scene 3: how fast Mosi goes up the path (m/s), and the waits on the ledge
 const RIDE = { speed: 2.1, turn: 1.2 };
 // Scene 4: he steps into the first print from STEP_IN m back; his walk from print to print (m/s)
@@ -194,7 +196,7 @@ function* theFord(s, c) {
   // a frog on each small, wobbly stone, facing the water it will hop into (away from the step's right stone)
   const frogs = wrongs.map(stone => {
     const [ax, az] = c.stones.away(stone.id);
-    return { name: `frog-${stone.id}`, kind: 'frog', position: c.stones.frogSpot(stone.id), heading: Math.atan2(az, ax) * (180 / Math.PI) };
+    return { name: `frog-${stone.id}`, kind: 'frog', position: c.stones.frogSpot(stone.id), heading: Math.atan2(az, ax) * (180 / Math.PI), scale: FROG_SCALE };
   });
   // the frogs stand on their stones' tops, and on the water off them
   const frogGround = (x, z) => {
@@ -212,16 +214,16 @@ function* theFord(s, c) {
   yield s.wait(0.8);
   yield* say(s, c, 'mosi', 'k6_mosi_river');
   yield* stonesTask(s, c);
-  // the last hop, his front feet onto the south bank; then up it
+  // the last hop, his front feet onto the south bank at its height; then he strides up it (the bank is a step over the river bed,
+  // which his own walk would follow: the stride keeps him level with the bank until he stands on it)
   sound(s, c, 'step', { level: 0.7 });
-  yield hopTo(s, c, crossing(STEPS.length + 1));
+  yield hopTo(s, c, { ...crossing(STEPS.length + 1), y: world.heightAt(...FORD.to) }, { settle: false });
   sound(s, c, 'step', { level: 0.9 });
-  letGo(mosi.raw);
-  const on = crossing(STEPS.length + 2);
-  const up = mosi.walkTo([on.at], { speed: 1.6, turnRate: 50 });
+  const up = hopTo(s, c, crossing(STEPS.length + 2), { seconds: UP_BANK.seconds, height: UP_BANK.height });
   soundWhile(s, c, 'step', 0.6, () => !up.done, { level: 0.6 });
   cut(s, c, 'ford_across');
   yield up;
+  letGo(mosi.raw);
   yield s.wait(0.3);
   yield* say(s, c, 'mosi', 'k6_mosi_across');
   yield s.wait(1.2);
@@ -271,7 +273,7 @@ function onStone(s, c, event) {
       s.after(0, function* hop() {
         sound(s, c, 'step', { level: 0.7 });
         // his front feet come down on the stone: the water rings round it and Egill bounces in the saddle
-        yield hopTo(s, c, crossing(event.step + 1), { ring: stone.at });
+        yield hopTo(s, c, crossing(event.step + 1), { ring: stone.at, settle: event.step < STEPS.length - 1 }); // from the last, on at once
         sound(s, c, 'step', { level: 1 });
         sound(s, c, 'splash', { level: 0.35 });
         if (event.step === FALLS_LOOK) {

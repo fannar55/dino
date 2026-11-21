@@ -337,15 +337,16 @@ test('nothing of Mosi jumps more than 8 degrees or 0.15 m in a frame while he cr
   const run = await untouched();
   const frames = crossingFrames(run);
   assert.ok(frames.length > 600, `${frames.length} frames`);
-  const worst = { root: 0, head: 0, heading: 0, pitch: 0 };
+  const worst = { root: 0, head: 0, heading: 0, pitch: 0, at: {} };
+  const most = (what, v, t) => { if (v > worst[what]) { worst[what] = v; worst.at[what] = t.toFixed(2); } };
   for (let k = 1; k < frames.length; k++) {
     const a = frames[k - 1], b = frames[k];
-    worst.root = Math.max(worst.root, a.root.distanceTo(b.root));
-    worst.head = Math.max(worst.head, a.head.distanceTo(b.head));
-    worst.heading = Math.max(worst.heading, turned(a.heading, b.heading));
-    worst.pitch = Math.max(worst.pitch, Math.abs(a.pitch - b.pitch));
+    most('root', a.root.distanceTo(b.root), b.time);
+    most('head', a.head.distanceTo(b.head), b.time);
+    most('heading', turned(a.heading, b.heading), b.time);
+    most('pitch', Math.abs(a.pitch - b.pitch), b.time);
   }
-  assert.ok(worst.root <= 0.15 && worst.head <= 0.15, `his root ${worst.root.toFixed(3)} m, his head ${worst.head.toFixed(3)} m in a frame`);
+  assert.ok(worst.root <= 0.15 && worst.head <= 0.15, `his root ${worst.root.toFixed(3)} m, his head ${worst.head.toFixed(3)} m in a frame (at ${JSON.stringify(worst.at)} s)`);
   assert.ok(worst.heading <= 8 && worst.pitch <= 8, `he turned ${worst.heading.toFixed(2)} and pitched ${worst.pitch.toFixed(2)} degrees in a frame`);
   // he went all the way over: from the north bank onto the south one
   assert.ok(frames[0].root.distanceTo(frames.at(-1).root) > 20, 'over the river');

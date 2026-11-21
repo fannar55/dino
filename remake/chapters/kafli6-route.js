@@ -97,11 +97,15 @@ const standBefore = k => crossing(k);
  * The camera for step `k`: over the water on the far side of the step's stones, looking back north at them and at Mosi beyond with
  * Egill on his back, the falls off to the right; the stones low in the middle of the frame, all of them, upright too.
  */
+const SHOT_BANK = 3;
 export function stepShot(k) {
   const stones = STEPS[k].stones;
   const mid = [stones.reduce((s, x) => s + x.at[0], 0) / stones.length, stones.reduce((s, x) => s + x.at[1], 0) / stones.length];
   const at = (back, y) => [mid[0] + ACROSS[0] * back, y, mid[1] + ACROSS[1] * back];
-  return { position: at(10, LEVEL + 3.6), target: at(-2, LEVEL + 1), fov: 50 };
+  // Where it stands more than SHOT_BANK m past FORD.to on the south bank (the last step), it stands higher, looking down past the
+  // water's near edge (from low on the bank the edge's lip fills the bottom of the frame)
+  const onBank = Math.max(0, 3.6 * (k + 1) + 10 - (2 * BANK + SHOT_BANK));
+  return { position: at(10, LEVEL + 3.6 + 0.4 * onBank), target: at(-2, LEVEL + 1), fov: 50 };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -270,12 +274,12 @@ export const SHOTS = {
     pool_saddle: { position: [-920.64, FAR_POOL.level + 3.4, 49.28], target: [-945, FAR_POOL.level + 2, 78.3], fov: 54 },
     // Scene 2: he comes to the ford: from over the water upstream, looking down the river: Mosi on the north bank on the left, the
     // stones across in front of him, and far beyond them the lip of the falls with its spray and rainbow
-    ford_arrive: { position: up(fordPoint(5, 14), LEVEL + 3), target: up(fordPoint(4, -8), LEVEL + 1.5), fov: 50 },
+    ford_arrive: { position: up(fordPoint(7, 14), LEVEL + 3), target: up(fordPoint(6, -8), LEVEL + 1.5), fov: 50 },
     // Scene 2: on the middle stone they stop and look down the falls: from upstream behind them, over their shoulders, down the river
     // to the lip 45 m off, the rainbow in its spray and the forest of the gorge below, where they flew up with Flugeðla
-    falls_look: { position: up(fordPoint(6, 9), LEVEL + 3.2), target: up(fordPoint(12, -45), LEVEL - 6), fov: 50 },
+    falls_look: { position: up(fordPoint(4, 13), LEVEL + 3.6), target: up(fordPoint(12, -45), LEVEL - 6), fov: 50 },
     // Scene 2: over: from the south bank upstream of him, looking back over the river
-    ford_across: { position: up(fordPoint(2 * BANK + 7, 5), LEVEL + 3.2), target: up(fordPoint(2 * BANK - 1, -1), LEVEL + 2.4), fov: 50 },
+    ford_across: { position: up(fordPoint(2 * BANK + 10, 9), LEVEL + 3.6), target: up(fordPoint(2 * BANK - 2, 0), LEVEL + 2.4), fov: 50 },
   },
   hlid: {
     // the ride up: from beside the path, below it on his left, looking up at him on the slope

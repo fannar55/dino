@@ -18,7 +18,7 @@ const smooth = k => { const x = Math.min(1, Math.max(0, k)); return x * x * (3 -
  * he takes to get going and to stop (his speed is even between: no frame jumps), his nose up as he goes and down as he lands
  * (degrees), and the dip as he lands (m, s): Egill bounces in the saddle with it.
  */
-export const HOP = { seconds: 1.1, height: 0.35, ramp: 0.15, pitch: 3, dip: 0.07, settle: 0.3 };
+export const HOP = { seconds: 1.1, height: 0.35, ramp: 0.12, pitch: 1.5, dip: 0.07, settle: 0.3 };
 /** His little roar: neck and head raised (degrees, up), how long it takes to rise and to come down (s). */
 export const ROAR = { neck: 28, head: 18, rise: 0.35, fall: 0.45 };
 const WALK_SCALE = 1.8; // his walk's speed in a hop when his gait is not measured yet
@@ -36,9 +36,11 @@ export function hopEase(k, ramp = HOP.ramp) {
 /**
  * Mosi hops to `point` ({ at: [x, z], y: the top under his feet or null for the ground, heading }): his walk plays, his root goes
  * there evenly, turning to `heading`, and a bob lifts him (actor.setOverlay) and dips him as he lands, with Egill riding along. As he
- * lands the water rings at `ring` ([x, z], where his front feet come down; null: none). A Handle, done as he lands; he then stands there.
+ * lands the water rings at `ring` ([x, z], where his front feet come down; null: none), and he settles into his idle unless `settle`
+ * is false (another hop or stride follows at once: his walk goes on, never cut off and started again). A Handle, done as he lands; he
+ * then stands there.
  */
-export function hopTo(s, c, point, { seconds = HOP.seconds, height = HOP.height, ring = null } = {}) {
+export function hopTo(s, c, point, { seconds = HOP.seconds, height = HOP.height, ring = null, settle = true } = {}) {
   const actor = c.mosi.raw;
   const world = c.world;
   const handle = new Handle(`${actor.name} hops`);
@@ -60,7 +62,7 @@ export function hopTo(s, c, point, { seconds = HOP.seconds, height = HOP.height,
     actor.root.rotation.y = -rad(fromHeading + turn * smooth(k));
     if (k >= 1 && !landed) {
       landed = true;
-      actor.play('idle', { fade: 0.35 });
+      if (settle) actor.play('idle', { fade: 0.35 });
       if (ring) world.forest?.rippleAt?.(ring[0], ring[1], 0.8);
       c.log?.({ type: 'land', at: [point.at[0], point.at[1]], ring });
       handle.finish();
