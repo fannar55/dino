@@ -236,7 +236,7 @@ function nod(s, c, k) {
 }
 
 /** Egill taps print k himself: he points at it from the saddle, and glints fly from his hand to it. */
-function* egillTaps(s, c, k) {
+export function* egillTaps(s, c, k) {
   const { world, egill } = c;
   const at = c.prints.targets[k].point;
   yield egill.lookAt(at, { weight: 0.85, maxPitch: 50 });
