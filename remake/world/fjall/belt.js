@@ -36,7 +36,7 @@ const PRINT_MUD = { floor: '#4f4838', wall: '#5c5545', lip: '#9a937e', band: '#6
 /** The bank of cloud her roar leaves round them: its cards' distance from the last print, their heights (lower ahead, toward the top). */
 const BANK = { from: 84, to: 104, rows: 2, cards: 24, width: [36, 52], height: [24, 42], ahead: 0.55 };
 /** The top's shape: its middle `ahead` m on, its flat top `top` m up, `flat` m round, its foot `foot` m round and under the ground. */
-export const SUMMIT = { ahead: 300, top: 92, flat: 55, foot: 175, under: -25 };
+export const SUMMIT = { ahead: 320, top: 88, flat: 70, foot: 260, under: -70 };
 const PEBBLES = { count: 14, near: 0.55, far: 1.25, size: [0.18, 0.34], hop: [0.12, 0.3], seconds: 0.75 };
 
 /** The belt's ground: 0.2 m low at the west, rising gently east along the prints to 2.8 m, with a slight swell. */
@@ -70,7 +70,7 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
     const n = patchAt(x, z, seed), m = patchAt(x * 1.9, z * 1.7, seed + 3);
     let c = mixRGB(PAINT.grass, PAINT.grassDeep, smooth((n - 0.45) / 0.3) * 0.7);
     c = mixRGB(c, PAINT.stone, smooth((m - 0.62) / 0.16) * 0.8);
-    c = mixRGB(c, PAINT.moss, smooth((0.38 - m) / 0.15) * 0.5);
+    c = mixRGB(c, PAINT.moss, smooth((0.38 - m) / 0.15) * 0.3);
     if (path.length) c = mixRGB(c, PAINT.trodden, (1 - smooth((nearPath(x, z) - printSize * 0.2) / (printSize * 0.5))) * 0.5);
     return [...c, smooth((0.75 - ny) / 0.2)];
   };
@@ -233,17 +233,17 @@ function makeBank(world, { centre, seed, heightAt, toward = 35 }) {
 function makeSummit(world, { look, seed }) {
   const group = new THREE.Group();
   group.name = 'The top, seen from the belt';
-  // a plateau: its flat top's edge wanders a little round it, cliffs drop from it and ease out into the slopes at its foot
+  // a plateau: its flat top's edge wanders a little round it, its shoulders round over and ease out into the slopes at its foot
   const heightAt = (x, z) => {
     const a = Math.atan2(z, x);
     const edge = SUMMIT.flat * (1 + 0.14 * Math.sin(a * 3 + seed) + 0.07 * Math.sin(a * 7 - seed * 2));
     const t = Math.min(1, Math.max(0, (Math.hypot(x, z) - edge) / (SUMMIT.foot - edge)));
     const rough = 1.5 * Math.sin(x * 0.09 + seed) * Math.sin(z * 0.08 - seed);
-    return SUMMIT.top - (SUMMIT.top - SUMMIT.under) * (1 - (1 - t) ** 1.9) + rough * (1 - t) * t * 4;
+    return SUMMIT.top - (SUMMIT.top - SUMMIT.under) * t * t * (3 - 2 * t) + rough * (1 - t) * t * 6;
   };
-  // the game's own ground colours, no sandstone layers (at 300 m they shimmer): green on the flat top, warm rock down its cliffs
-  const grass = linear('#86a256'), rock = linear('#b08a63'), scree = linear('#9c8a70');
-  const paint = (x, z, y, ny) => [...mixRGB(mixRGB(scree, rock, smooth((0.85 - ny) / 0.3)), grass, smooth((ny - 0.86) / 0.08)), 0];
+  // the game's own ground colours, no sandstone layers (at 300 m they shimmer): green on the top and its shoulders, grey rock down its steep sides
+  const grass = linear('#8fa65e'), rock = linear('#a89c86'), scree = linear('#9a9a7c');
+  const paint = (x, z, y, ny) => [...mixRGB(mixRGB(scree, rock, smooth((0.85 - ny) / 0.3)), grass, smooth((ny - 0.72) / 0.12)), 0];
   const ground = groundMesh(heightAt, { radius: SUMMIT.foot, step: 6, colour: GREY.ground, name: 'Summit', paint: look && paint, material: look?.ground });
   ground.mesh.receiveShadow = false;
   group.add(ground.mesh);

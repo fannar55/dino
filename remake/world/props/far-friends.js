@@ -50,7 +50,7 @@ import { sparkleBurst } from './sparkles.js';
 //                                   them (no prefetch)
 //   far.actorOf(name), far.group, far.isReady, far.disposed
 
-const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus', gramedla: 'trex' };
+const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus', gramedla: 'trex', thorsedla: 'brontosaurus' };
 const url = model => new URL(`../../assets/characters/${model}.glb`, import.meta.url).href;
 export const SHOW_ABOVE = 6; // metres the camera must be above for them to show
 const LIGHT_ONLY = [Infinity, Infinity, Infinity, Infinity]; // thorsedla-lod's levels by pixels: always the lightest

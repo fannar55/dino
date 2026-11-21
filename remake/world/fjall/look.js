@@ -165,13 +165,17 @@ void main() {
     : normalize( vec3( -view.x, 0.0, -view.z ) * 0.7 + vec3( 0.0, 0.25 + 0.75 * clamp( vUv.y * 0.5 + 0.5, 0.0, 1.0 ), 0.0 ) );
   if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) normal.y = -normal.y; // its underside, seen from below
   float up = normal.y * 0.5 + 0.5;
+  if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) up = 0.45 + 0.35 * up; // an underside takes the sky's light round it, not the brown of the ground
   // a heap is lit on its top and its sunward side, in its own shade low down and in the folds between its puffs
   float height = vFlat > 0.5 ? 0.75 : clamp( vUv.y * 0.5 + 0.5, 0.0, 1.0 );
   float fold = mix( 0.7, 1.0, smoothstep( 0.2, 0.8, puff ) );
   float lit = clamp( dot( normal, uSunDir ) * 0.55 + 0.45, 0.0, 1.0 ) * mix( 0.45, 1.0, height ) * fold; // wrapped: light goes round a cloud
   float through = pow( max( dot( view, uSunDir ), 0.0 ), 6.0 ) * ( 0.35 + 0.65 * ( 1.0 - thick ) ); // the light through it toward the sun
+  if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) through *= 0.3; // a cloud's underside is thick: little sun comes through it
   vec3 albedo = vec3( 0.9 + 0.1 * n );
   vec3 colour = albedo * RECIPROCAL_PI * ( mix( uGround, uSky, up ) * mix( 0.8, 1.2, height ) + uSun * ( lit * 1.25 + through * 1.6 ) ) + uGlow * ( 0.5 + 0.5 * thick );
+  // its underside, seen from below: the sky's light and the low sun under it, soft and pale (the ground's brown made it dirty)
+  if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) colour = albedo * RECIPROCAL_PI * ( mix( uGround, uSky, 0.8 ) * 1.3 + uSun * ( 0.45 + 0.25 * fold + through ) );
   gl_FragColor = vec4( colour, a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
