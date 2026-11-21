@@ -244,6 +244,47 @@ test('a far plant coming in at the frame\'s edge is drawn while the camera turns
   assert.deepEqual(missing.slice(0, 10), [], `${missing.length} far plants missing at the frame's edge`);
 });
 
+test('of the hanging moss and the forest\'s ground only what is in view is drawn, and all of that: no strand or ground triangle in the frame is left out', async () => {
+  const world = { ...nodeWorld(), chapter: kafli4.chapter };
+  const place = kafli4.chapter.locations.hvitatre;
+  const forest = await createForest(world, { ...place.layout, shots: place.shots });
+  const moss = forest.group.getObjectByName('Hanging moss'), ground = forest.group.getObjectByName('Forest ground');
+  assert.ok(moss && ground, 'the white tree\'s forest has hanging moss and its ground');
+  const camera = world.camera;
+  let fewer = 0, views = 0;
+  for (const [name, shot] of Object.entries(place.shots)) for (const turn of [0, 120, 240]) {
+    // from each of the place's shots, as set and turned a third and two thirds round
+    const eye = new THREE.Vector3(...shot.position), target = new THREE.Vector3(...shot.target).sub(eye).applyAxisAngle(new THREE.Vector3(0, 1, 0), turn * DEG).add(eye);
+    camera.fov = shot.fov ?? 50;
+    camera.position.copy(eye);
+    camera.lookAt(target);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    forest.update(1 / 30, 0);
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    for (const mesh of [moss, ground]) {
+      const g = mesh.geometry, index = g.index, pos = g.getAttribute('position');
+      const drawn = new Set();
+      const count = Math.min(index.count, g.drawRange.count);
+      for (let i = g.drawRange.start; i < g.drawRange.start + count; i += 3) drawn.add([index.getX(i), index.getX(i + 1), index.getX(i + 2)].join());
+      const all = mesh.userData.cull?.master;
+      assert.ok(all, `${mesh.name}: cut into pieces the forest culls (userData.cull)`);
+      const p = new THREE.Vector3();
+      const missing = [];
+      for (let i = 0; i < all.length; i += 3) {
+        const tri = [all[i], all[i + 1], all[i + 2]];
+        if (!tri.some(v => frustum.containsPoint(p.fromBufferAttribute(pos, v)))) continue;
+        if (!drawn.has(tri.join())) missing.push(i / 3);
+      }
+      assert.deepEqual(missing.slice(0, 5), [], `${name} turned ${turn}°: ${missing.length} triangles of the ${mesh.name.toLowerCase()} in the frame not drawn`);
+      if (mesh.visible && drawn.size < all.length / 3 * 0.75) fewer++;
+      views++;
+    }
+  }
+  forest.dispose();
+  assert.ok(fewer >= views * 0.75, `in ${fewer} of ${views} views a quarter or more of them is left out (behind or beside the camera)`);
+});
+
 // ---- far trees and their cards -----------------------------------------------------------------------
 
 /** A broadleaf at its far level with a card (cards.js: placement.card), baked with a plain material, a fading one and the cards'. */
