@@ -48,10 +48,11 @@ let litWorldOf = null;
  */
 // the owner's grazer, as the chapter loads it (animals.js loadCritters), so the lit valley has its herd (life.js)
 const grazer = crowdModelFrom(await loadGlb(new URL(GRASBITUR_MODEL)));
+const flyer = crowdModelFrom(await loadGlb(new URL(FLUGDYR_MODEL))); // the gorge's flyers: their ledge rocks grow with them
 function litValley(lush = false) {
   if (!lits.has(lush)) {
     const world = litWorld();
-    const place = createArdalur(world, { grey: false, route, critters: { grasbitur: grazer }, lush });
+    const place = createArdalur(world, { grey: false, route, critters: { grasbitur: grazer, flugdyr: flyer }, lush });
     place.buildAll();
     lits.set(lush, { place, world });
   }

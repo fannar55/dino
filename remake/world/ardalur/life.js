@@ -23,7 +23,7 @@
 //   life.herd            [{ id, at, dir, room, members }]: the herd's groups, `room` how far they go ([] without the grazer)
 //   life.flyers          the gorge's flyers, each with its perch (nest), its place round her (slot) and its landing (land)
 //   life.ledges          [{ nest, perch, out, prop, flyer }]: under each nest of NESTS, where its flyer stands (a metre out from the
-//                        wall, `out` the way out of it) and the rock under it (a prop, in life.props); flyer null without them
+//                        wall, `out` the way out of it) and the rock under it (a prop, in life.props); none without the flyers
 //   life.flyersOff       { at, side }: the flight second the first of them leaves its nest, and its side of her ('left' or 'right');
 //                        null without them (chapters/kafli4-flight-play.js: they cry then)
 //   life.arrivals        those that stand at the far pool in scene 7, each with its spot there (gather: { at, heading })
@@ -469,8 +469,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
 
   // D to G: a ledge under each nest of NESTS (a point on the wall as it is drawn): its flyer stands LEDGE.out m out from the wall, down
   // the wall's slope seen from above, on one of the game's rocks (NEST_ROCKS: which, turned how far from that way, how large), set so
-  // its top is NEST_FEET under the feet (rockSurface). The rocks grow with the banks (life.props), with flyers or without.
-  const ledges = NESTS.map(([x, y, z], nest) => {
+  // its top is NEST_FEET under the feet (rockSurface). The rocks grow with the banks (life.props), only where the flyers are: a place
+  // that builds the valley without them (the 3D show flugedla3d) keeps its walls bare.
+  const ledges = !flyer ? [] : NESTS.map(([x, y, z], nest) => {
     const e = 0.5;
     const gx = heightAt(x + e, z) - heightAt(x - e, z), gz = heightAt(x, z + e) - heightAt(x, z - e);
     const l = Math.hypot(gx, gz) || 1;
