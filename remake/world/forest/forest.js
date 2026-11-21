@@ -33,6 +33,8 @@
 //   farCards  { from }: the trees of the carded kinds (cards.js CARDED) at least `from` m from the clearing's centre, where the place's
 //           cameras never come near, are still pictures of themselves (cards.js), never their mesh: one quad each, lit as the plants
 //           and bending with the wind as their tops do (the take-off's forest round chapter 4's white tree)
+//   groundPieces  true cuts the ground into pieces round the clearing (cutGround) and draws only those in view: its far rings have as
+//           many triangles as its near ones, and a camera in the clearing sees a sixth of them
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
@@ -80,6 +82,8 @@ const MOSS_REACH = 100;
 // A far tree's picture (layout.farCards): pixels a cell of its atlas. Such a tree stands 20 m or more from the camera, mostly under
 // 300 px tall on the tablet (the white tree's: half of them under 180 px), so a cell of this holds it at about a pixel a pixel.
 const FAR_CARD_CELL = 256;
+// The ground's pieces (cutGround): sectors round the clearing's centre, and rings out from it (metres), each ring's sector one piece.
+const GROUND_PIECES = { sectors: 24, rings: [8, 16, 28, 45, 70, 110, 170] };
 // The plants are culled again once the camera has moved `move` m or turned `turn` radians (a degree and a half) since the last cull.
 const RECULL = { move: 0.4, turn: 0.0261 };
 
@@ -232,6 +236,47 @@ function farCardsOf(world, placements, [cx, cz], { from }, { leafTexture, shared
   return { atlas, material, count: far.length };
 }
 
+/**
+ * The forest's ground (one mesh, its rings round the clearing as many triangles each, the far ones as many as the near) in pieces the
+ * forest culls as the batcher's meshes (batch.js cullBatches): its triangles sorted by where their middle is, a sector round `center`
+ * and a ring out from it (GROUND_PIECES), each piece a range of the index with a sphere round all its triangles. The same vertices and
+ * triangles, drawn whole until the first cull.
+ */
+function cutGround(mesh, [cx, cz]) {
+  const g = mesh.geometry, pos = g.getAttribute('position'), all = g.index.array;
+  const { sectors, rings } = GROUND_PIECES;
+  const pieces = new Map();
+  for (let i = 0; i < all.length; i += 3) {
+    let x = 0, z = 0;
+    for (let k = 0; k < 3; k++) { x += pos.getX(all[i + k]) / 3; z += pos.getZ(all[i + k]) / 3; }
+    const ring = rings.findIndex(r => Math.hypot(x - cx, z - cz) < r);
+    const sector = Math.floor(((Math.atan2(z - cz, x - cx) / (2 * Math.PI)) + 1) % 1 * sectors) % sectors;
+    const key = (ring < 0 ? rings.length : ring) * sectors + sector;
+    if (!pieces.has(key)) pieces.set(key, []);
+    pieces.get(key).push(i);
+  }
+  const master = new all.constructor(all.length);
+  const ranges = [];
+  const box = new THREE.Box3(), v = new THREE.Vector3();
+  let k = 0;
+  for (const key of [...pieces.keys()].sort((a, b) => a - b)) {
+    const start = k;
+    box.makeEmpty();
+    for (const i of pieces.get(key)) {
+      for (let j = 0; j < 3; j++) {
+        master[k++] = all[i + j];
+        box.expandByPoint(v.fromBufferAttribute(pos, all[i + j]));
+      }
+    }
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    ranges.push({ start, count: k - start, sphere, ref: sphere.center, minD: 0, maxD: Infinity, cull: Infinity, crown: null, plant: null, li: -1, name: 'ground' });
+  }
+  const index = new THREE.BufferAttribute(master.slice(), 1);
+  index.setUsage(THREE.DynamicDrawUsage);
+  g.setIndex(index);
+  mesh.userData = { ...mesh.userData, kind: 'ground', cull: { master, ranges, signature: -1, submitted: master.length / 3, geometry: g }, hidden: false };
+}
+
 export async function createForest(world, layout, { slice = null } = {}) {
   const steps = forestSteps(world, layout);
   return slice ? runSliced(steps, slice) : runSync(steps);
@@ -285,6 +330,7 @@ function* forestSteps(world, layout) {
   const groundMesh = new THREE.Mesh(yield* terrain.buildGroundGeometrySteps(q), floor.material);
   yield 'ground';
   groundMesh.name = 'Forest ground';
+  if (layout.groundPieces) cutGround(groundMesh, layout.clearing.center); // in pieces, of which the forest draws those in view
   groundMesh.receiveShadow = true;
   groundMesh.renderOrder = 7;
   group.add(groundMesh);
@@ -348,6 +394,7 @@ function* forestSteps(world, layout) {
     antialias: q.antialias, seed, clear: layout.mossClear ?? [],
   });
   if (moss) group.add(moss.mesh);
+  const pieces = [groundMesh.userData.cull ? groundMesh : null, moss?.mesh].filter(Boolean); // culled as the plants are (cutGround, moss.js)
   yield 'moss';
   // the mist lies over the water where there is any, its cards standing on the surface
   const mists = [];
@@ -391,7 +438,7 @@ function* forestSteps(world, layout) {
   const off = new Set((world.params?.get?.('forestOff') || '').split(',').filter(Boolean));
   if (off.has('grass')) grass.group.visible = false;
   if (off.has('trees')) for (const m of meshes) m.userData.hidden = true;
-  if (off.has('ground')) groundMesh.visible = false;
+  if (off.has('ground')) { groundMesh.visible = false; groundMesh.userData.hidden = true; } // (the cull leaves a hidden one hidden)
   if (off.has('far')) far.mesh.visible = false;
   if (off.has('air')) air.group.visible = false;
   if (off.has('life')) life.group.visible = false;
@@ -448,6 +495,8 @@ function* forestSteps(world, layout) {
     turnNow.setFromRotationMatrix(cam.matrixWorld);
     if (camNow.distanceTo(lastCam) > RECULL.move || turnNow.angleTo(lastTurn) > RECULL.turn || cam.fov !== lastFov || cam.aspect !== lastAspect) {
       submitted = cullBatches(meshes, cam, undefined, null, undefined, RECULL.turn);
+      // the moss a tree at a time, the ground in pieces (while each is the geometry it cut: a place may swap its ground's for its own)
+      cullBatches(pieces.filter(m => m.geometry === m.userData.cull.geometry), cam, undefined, null, undefined, RECULL.turn);
       lastCam.copy(camNow); lastTurn.copy(turnNow); lastFov = cam.fov; lastAspect = cam.aspect;
     }
     if (sun && sun.castShadow && casterMeshes.length) {

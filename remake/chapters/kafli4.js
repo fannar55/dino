@@ -823,7 +823,7 @@ export const TREE_CARDS = { from: 50, camera: 20 };
 const layouts = new Map();
 function hvitatreLayout(lush) {
   if (!lush) return HVITATRE_LAYOUT;
-  if (!layouts.has('lush')) layouts.set('lush', { ...HVITATRE_LAYOUT, moreTrees: takeOffForest(), farCards: { from: TREE_CARDS.from } });
+  if (!layouts.has('lush')) layouts.set('lush', { ...HVITATRE_LAYOUT, moreTrees: takeOffForest(), farCards: { from: TREE_CARDS.from }, groundPieces: true });
   return layouts.get('lush');
 }
 /** TAKE_OFF's list of trees, in the white tree's own frame: [{ name, position, scale, variant, rot }]. */
