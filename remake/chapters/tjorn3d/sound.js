@@ -35,11 +35,13 @@ import { fenSounds } from '../../engine/audio/fen-sounds.js';
 /** The key the sounds are tuned to: the game's theme's (assets/audio/theme.json: do re mi sol la), as numbers, since the show has no theme. */
 export const KEY = [524.28, 588.48, 660.55, 785.53, 881.73];
 
-// The numbers, in one place.
+// The numbers, in one place. The levels are set by measure (tools/tjorn3d-sound.mjs --render: after the page's output chain the
+// rise in part 4 is the loudest moment, its peak 3 dB under full scale and its loudest second at -16 dBFS RMS; the small sounds'
+// peaks lie 6 to 15 dB under it, a narrow range, for a tablet's small speakers; the bed alone lies at -33 dBFS RMS), not by ear.
 export const SOUND = {
   master: 1.5, // the whole show's gain into the page's output
-  made: 2.2, // the made sounds' gain under it (their recipes are at the game's effects' levels, which sit under its voices and its music: here they are all there is)
-  bed: 1.1, // and the made bed's: a faint presence under the rest (a made murmur that is plainly heard is a hiss)
+  made: 3.1, // the made sounds' gain under it (their recipes are at the game's effects' levels, which sit under its voices and its music: here they are all there is)
+  bed: 1.55, // and the made bed's: a faint presence under the rest (a made murmur that is plainly heard is a hiss)
   halfPage: 11, // cm: a thing this far to a side of the page's middle is as far to that side as the sound goes
   panMost: 0.5, // (a tablet lying flat has its speakers at its short edges: more than this and a sound sits in one of them alone)
   gulpLead: 0.25, // s before JUMP.gulp the swallow begins (the fish goes down over the last third of a second before it)
@@ -56,14 +58,16 @@ const own = file => `${FILES}${file}`;
 /**
  * The five slots for real recordings, as sfx.js's SAMPLES: the files a slot plays (`urls`, against remake/: one of them each time,
  * not the one played last), the gain it plays at (`level`; a file's entry in sounds.json may give its own) and the made sound that
- * plays until a file is there (`instead`). The bed's is a loop.
+ * plays until a file is there (`instead`). The bed's is a loop. The levels are guesses for files levelled to a peak 1 dB under full
+ * scale, as the game's sound tools level them (SOUND.master comes on top): they put each recording about where its made sound
+ * lies, the rise a little under full scale. Nobody has heard one yet.
  */
 export const SLOTS = {
-  pond: { urls: [own('pond.mp3')], level: 0.25, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
-  rise: { urls: [own('rise.mp3')], level: 0.7, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
-  drips: { urls: [own('drips.mp3')], level: 0.2, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
-  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.25, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
-  sink: { urls: [own('sink.mp3')], level: 0.35, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
+  pond: { urls: [own('pond.mp3')], level: 0.12, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
+  rise: { urls: [own('rise.mp3')], level: 0.5, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
+  drips: { urls: [own('drips.mp3')], level: 0.15, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
+  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.18, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
+  sink: { urls: [own('sink.mp3')], level: 0.25, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
 };
 
 /** The recordings the game already has (assets/veiddu/splash.json), by the name a cue asks for them: as SLOTS. */
@@ -257,7 +261,7 @@ export function cueSheet() {
   const list = [];
   const add = (t, sound, level, x, what, more = {}) => list.push({ t: round(t), sound, level: round(level, 2), pan: panAt(x), what, ...more });
   const bed = (t, level, seconds, what) => list.push({ t: round(t), bed: level, seconds, what });
-  const [calm, shadow, sail, head, fish, butterfly] = PARTS;
+  const [calm, shadow, sail, , fish, butterfly] = PARTS;
   const frogX = LILIES[FROG.lily].at[0];
 
   // ---- the bed: in under the black, thinner while her shadow is in the pond, hushed before her head rises, back when she has
@@ -279,7 +283,7 @@ export function cueSheet() {
   // surface, small, then more as she nears ----
   [1.0, 5.2, 9.0].forEach((after, i) => {
     const t = shadow.from + after;
-    add(t, 'deep', 0.35 + 0.1 * i, herAt(t).at[0], `something big moves far down (${i + 1})`, { detail: { seconds: 3.6 } });
+    add(t, 'deep', 0.25 + 0.07 * i, herAt(t).at[0], `something big moves far down (${i + 1})`, { detail: { seconds: 3.6 } });
   });
   // (a burst reaches the surface BUBBLE.seconds after it is let go; the later ones are here too: where her head is about to come
   // up, the first of them the loudest, and where she went down)
@@ -293,7 +297,7 @@ export function cueSheet() {
   // water laps shut where it goes under ----
   ringsIn(sail.from, TURN).forEach(([t, x, , strength], i) => {
     if (i === 0) add(t, 'parting', 1, x, 'her sail breaks the surface', { on: 'RINGS', detail: { up: round(SAIL.up - t) } });
-    else if (t <= SAIL.down + 0.5) add(t, 'stroke', 0.7 + 0.7 * strength, x, 'a stroke of her swimming, her sail cutting along', { on: 'RINGS', detail: { side: i % 2 } });
+    else if (t <= SAIL.down + 0.5) add(t, 'stroke', 0.6 + 0.6 * strength, x, 'a stroke of her swimming, her sail cutting along', { on: 'RINGS', detail: { side: i % 2 } });
     else add(t, 'lap', 0.4 + 0.6 * strength, x, 'the water laps shut where her sail went under', { on: 'RINGS' });
   });
 
@@ -301,8 +305,8 @@ export function cueSheet() {
   // stands; the water running off her and dripping back through the hold; the water stirring round her ----
   const headRings = ringsIn(TURN, HOLD.to);
   const breaks = headRings[0][0];
-  add(breaks, 'rise', 1.25, headRings[0][1], 'her head rises out of the water, the water pouring off it', { on: 'RINGS', detail: { seconds: round(HOLD.from - breaks) } });
-  add(HOLD.from, 'bloom', 0.8, 0, 'she is up, and looks at him', { on: 'HOLD.from' });
+  add(breaks, 'rise', 0.9, headRings[0][1], 'her head rises out of the water, the water pouring off it', { on: 'RINGS', detail: { seconds: round(HOLD.from - breaks) } });
+  add(HOLD.from, 'bloom', 0.6, 0, 'she is up, and looks at him', { on: 'HOLD.from' });
   const runs = RUNOFF.from + 1; // (the rise's own pouring covers the first of it)
   add(runs, 'drips', 1, headRings[0][1], 'the water runs off her and drips back, thinning', { on: 'RUNOFF', detail: { seconds: round(HOLD.to - 0.8 - runs) } });
   headRings.filter(([t]) => t > HOLD.from).forEach(([t, x, , strength]) => add(t, 'lap', 0.3 + strength, x, 'the water stirs round her', { on: 'RINGS' }));
@@ -312,10 +316,10 @@ export function cueSheet() {
   const [leap, down, under] = SPLASHES;
   add(leap[0], 'plop', 1, leap[1], 'the fish leaps out of the water', { on: 'JUMP.out' });
   add(leap[0], 'fishOut', 1, leap[1], 'and its plip', { on: 'JUMP.out' });
-  add(JUMP.take, 'jawSnap', 1.2, JUMP.catch[0], 'her jaws shut on the fish', { on: 'JUMP.take' });
+  add(JUMP.take, 'jawSnap', 0.85, JUMP.catch[0], 'her jaws shut on the fish', { on: 'JUMP.take' });
   add(down[0], 'splash', 1, down[1], 'she comes down with it: the splash round her', { on: 'SPLASHES' });
   add(down[0], 'spray', 1, down[1], 'and the spray raining back', { on: 'SPLASHES' });
-  add(JUMP.gulp - SOUND.gulpLead, 'gulp', 1.1, 0, 'she swallows it', { on: 'JUMP.gulp' });
+  add(JUMP.gulp - SOUND.gulpLead, 'gulp', 0.8, 0, 'she swallows it', { on: 'JUMP.gulp' });
   ringsIn(down[0] + 0.5, fish.to).forEach(([t, x, , strength]) => add(t, 'lap', 0.3 + strength, x, 'the water settles', { on: 'RINGS' }));
 
   // ---- 6. the butterfly: tiny wings over to her snout, two small bells as it lands, its lift-off and its wings home; she sinks,
@@ -324,10 +328,10 @@ export function cueSheet() {
   const lily = panAt(BUTTERFLY_LILY[0]), snout = panAt(0);
   add(up, 'flit', 1, BUTTERFLY_LILY[0], 'the butterfly lifts off its lily', { on: 'BUTTERFLY_TIMES.up' });
   add(up, 'wings', 1, BUTTERFLY_LILY[0], 'its wings, over to her', { on: 'BUTTERFLY_TIMES.up', detail: { seconds: round(land - up), beats: FLIGHT.wings, to: round(snout - lily, 2) } });
-  add(land, 'chime', 0.8, 0, 'it lands on her snout', { on: 'BUTTERFLY_TIMES.land' });
+  add(land, 'chime', 0.6, 0, 'it lands on her snout', { on: 'BUTTERFLY_TIMES.land' });
   add(off, 'flit', 0.7, 0, 'it lifts off her snout', { on: 'BUTTERFLY_TIMES.off' });
   add(off, 'wings', 0.8, 0, 'its wings, home', { on: 'BUTTERFLY_TIMES.off', detail: { seconds: round(home - off), beats: FLIGHT.wings, to: round(lily - snout, 2) } });
-  add(under[0] - SOUND.sinkLead, 'sink', 0.7, under[1], 'she sinks: the water closes over her head', { on: 'SPLASHES' });
+  add(under[0] - SOUND.sinkLead, 'sink', 0.5, under[1], 'she sinks: the water closes over her head', { on: 'SPLASHES' });
   ringsIn(butterfly.from, CALM.from).filter(([t]) => Math.abs(t - under[0]) > 1e-6).forEach(([t, x, , strength]) => add(t, 'lap', 0.3 + strength, x, t < under[0] ? 'the water stirs as she goes down' : 'the last rings', { on: 'RINGS' }));
 
   // ---- the calm pond again: the frog, and a fish kissing the surface at each ring ----
