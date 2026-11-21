@@ -95,7 +95,7 @@ const GLOW = [0.55, 0.8, 1];
 const STRONG = 1.3;
 const CALL_WALK = 1.3;
 const SWIRL_AT = 9;
-const TAP_THIRD = { x: 0.62, radius: 7 }; // where each way's glow and target stand across the screen (NDC), and the target's radius (m)
+const WAY_TAP = 7; // m: the radius of each way's tap target, round its glow
 // Scene 6: she stops HER_STOP m ahead of him (kafli6-route.js meetOf), after two steps from STEP_OUT m further back; her roar's
 // blow comes BLOW_AT s into it; after the blow a thin haze stays (fog density), so the belt's far edge never shows
 const HER_STOP = 9;
@@ -525,7 +525,7 @@ function onCall(s, c, event) {
       herAnswers(s, c, stand, round, direction);
       if (round === 2 && !event.again) s.after(1.4, () => say(s, c, 'egill', 'k6_egill_gramedla'));
       if (!event.again) {
-        for (const d of DIRECTIONS) aim(s, c, `dir-${d}`, glowAt(c, stand, d), TAP_THIRD.radius);
+        for (const d of DIRECTIONS) aim(s, c, `dir-${d}`, glowAt(c, stand, d), WAY_TAP);
         wait(s, c, 'call', DIRECTIONS.map(d => `dir-${d}`));
       }
       break;
@@ -728,26 +728,11 @@ function ahead(c, distance) {
 }
 
 /**
- * Where the fog glows when she answers from `direction`, as the call's still camera sees it: the route's point (directionPoint),
- * unless that lies outside the middle of the screen's thirds, as it does on a tablet held upright (its narrower view); it is then
- * brought in along the screen to TAP_THIRD.x, at the same depth, so the gold is always in its third of the screen.
+ * Where the fog glows when she answers from `direction`: the route's point (directionPoint). On a tablet held upright the director
+ * keeps the shot's width (engine/camera/director.js fits the fov), so the gold stays in its third of the screen there too.
  */
 function glowAt(c, stand, direction) {
-  const { world } = c;
-  const V3 = world.THREE.Vector3;
-  const ground = groundAt(c, [stand.x, stand.z]);
-  const point = new V3(...directionPoint(stand, direction, ground));
-  const shot = callShot(stand, ground);
-  const eye = world.camera.clone();
-  eye.position.set(...shot.position);
-  eye.fov = shot.fov;
-  eye.updateProjectionMatrix();
-  eye.lookAt(...shot.target);
-  eye.updateMatrixWorld(true);
-  const p = point.clone().project(eye);
-  const want = { left: -TAP_THIRD.x, ahead: 0, right: TAP_THIRD.x }[direction];
-  if (direction === 'ahead' || Math.abs(p.x) <= Math.abs(want) + 0.12) return point.toArray();
-  return new V3(want, p.y, p.z).unproject(eye).toArray();
+  return directionPoint(stand, direction, groundAt(c, [stand.x, stand.z]));
 }
 
 /** Where a tap on no target lands on the ground ([x, z]), near Mosi: a ray from the camera through it. */
