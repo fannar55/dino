@@ -819,7 +819,7 @@ export const TAKE_OFF = { to: 96, spacing: 8, jitter: 3, chance: [0.45, 0.95], f
  * budget is 250 000). Its cameras keep within 30 m of that centre, so none comes within `camera` m of such a tree (the chapter's
  * tests hold it).
  */
-export const TREE_CARDS = { from: 50, camera: 20 };
+export const TREE_CARDS = { from: 45, camera: 20 };
 const layouts = new Map();
 function hvitatreLayout(lush) {
   if (!lush) return HVITATRE_LAYOUT;
