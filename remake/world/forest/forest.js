@@ -83,7 +83,7 @@ const MOSS_REACH = 100;
 // 300 px tall on the tablet (the white tree's: half of them under 180 px), so a cell of this holds it at about a pixel a pixel.
 const FAR_CARD_CELL = 256;
 // The ground's pieces (cutGround): sectors round the clearing's centre, and rings out from it (metres), each ring's sector one piece.
-const GROUND_PIECES = { sectors: 24, rings: [8, 16, 28, 45, 70, 110, 170] };
+const GROUND_PIECES = { sectors: 48, rings: [3, 6, 9, 12, 15, 18, 22, 26, 30, 35, 40, 50, 60, 80, 110, 170] };
 // The plants are culled again once the camera has moved `move` m or turned `turn` radians (a degree and a half) since the last cull.
 const RECULL = { move: 0.4, turn: 0.0261 };
 

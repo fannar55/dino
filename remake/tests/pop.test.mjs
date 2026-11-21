@@ -285,6 +285,23 @@ test('of the hanging moss and the forest\'s ground only what is in view is drawn
   assert.ok(fewer >= views * 0.75, `in ${fewer} of ${views} views a quarter or more of them is left out (behind or beside the camera)`);
 });
 
+test('a tree only ever its card keeps its hanging moss, each strand one row (four triangles) where a nearer tree\'s has three: it hangs 50 m off and more', async () => {
+  const { createHangingMoss } = await import('../world/forest/moss.js');
+  const conifer = placement('swampConifer', { lod: 0, x: 0, z: 0, y: 0, scale: 1.2 });
+  const strands = conifer.model.moss?.length ?? 0;
+  assert.ok(strands > 4, `a swamp conifer has strands of moss (${strands})`);
+  const shared = createSharedUniforms({ wind: createWind() }, createNoiseTexture(1), createLeafTexture(1));
+  const near = createHangingMoss({}, [conifer], shared, { antialias: true, seed: 3 });
+  const far = createHangingMoss({}, [{ ...conifer, cardOnly: true }], shared, { antialias: true, seed: 3 });
+  assert.equal(near.cards, far.cards, 'as many strands, each two crossed cards');
+  assert.equal(near.triangles, strands * 2 * 3 * 2, 'a nearer tree\'s strand: three rows a card');
+  assert.equal(far.triangles, strands * 2 * 1 * 2, 'a far tree\'s: one row a card');
+  // hung from the same points, as long: its top and foot where the nearer one's are
+  const box = m => new THREE.Box3().setFromBufferAttribute(m.mesh.geometry.getAttribute('position'));
+  assert.ok(box(near).min.distanceTo(box(far).min) < 0.05 && box(near).max.distanceTo(box(far).max) < 0.05, 'the same strands');
+  near.dispose(); far.dispose();
+});
+
 // ---- far trees and their cards -----------------------------------------------------------------------
 
 /** A broadleaf at its far level with a card (cards.js: placement.card), baked with a plain material, a fading one and the cards'. */
