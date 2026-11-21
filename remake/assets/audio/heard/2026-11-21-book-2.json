@@ -1,0 +1,15 @@
+{
+  "set": "book",
+  "date": "2026-11-21",
+  "source": "jano-book-A.json",
+  "verdicts": {
+    "book/book_myndband_fundur_35": {
+      "verdict": "ja",
+      "key": "9057591f04f11c3e2662763d7b4899c01f44b7035726469a5ce0d2dbfacbb5ea",
+      "mp3": "b9b91aae75ae133347d0e73ca3ba9d9cf6d56381100e0e1bc807f7de1f2b0d0d",
+      "speaker": "narrator",
+      "text": "Þetta var sérstakur hópur dýra, og hann þurfti nafn. Owen bjó til nýtt orð: Dinosauria. Það þýðir ógurlega stór eðla.",
+      "note": "Sagt í spjalli 2026-11-21 (ekki á já/nei-síðu): hann fékk þrjár nýjar tökur af línunni (A, B og C) og svaraði „A“. Þetta er taka A: „ógurlega“ sent sem „óurlega“, fræ 7."
+    }
+  }
+}

@@ -3264,17 +3264,17 @@
             "ógurlega": "óurlega"
           },
           "seed": 7,
-          "note": "Skrifað án g, því g-ið í ógurlega er þögult (eins og í skógur). Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð (lína 35, fræ 7 = prufa A, fræ 42 = prufa B, 2026-11-21). Bíður eyra eigandans."
+          "note": "Skrifað án g, því g-ið í ógurlega er þögult (eins og í skógur). VALIÐ AF EIGANDANUM 2026-11-21: hann heyrði þrjár tökur af línu 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“ (A = þessi, fræ 7; B = sama, fræ 42; C = IPA án g) og svaraði „A“. Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð."
         },
         "ipa2": {
           "say": {
             "ógurlega": "\"/ˈouːʏrˌlɛːɣa/\""
           },
           "seed": 7,
-          "note": "IPA án g. Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð (lína 35, fræ 7 = prufa C, 2026-11-21). Bíður eyra eigandans."
+          "note": "IPA án g. Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð (lína 35, fræ 7 = prufa C, 2026-11-21). Eigandinn heyrði hana og valdi A (stafsetning) fram yfir hana."
         }
       },
-      "chosen": null
+      "chosen": "stafsetning"
     },
     "stytta": {
       "word": "stytta",
