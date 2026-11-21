@@ -33,7 +33,7 @@ const BLOW_CLEAR = 0.55; // the share of the blow by which the air inside the ri
 const AROUND = { box: 22, near: [1.5, 5], strength: 0.42 };
 const LIFT = { cards: 6, seconds: 2.2, dip: 0.35, dipSeconds: 2.4 }; // dip: how much thinner the white gets, at most
 const SWIRL = { cards: 5, seconds: 1.8, turn: 2.2 };
-const GLOW = { colour: '#ffcf80', size: 30, alpha: 0.55, rate: 1.25 }; // rate: strength a second
+const GLOW = { colour: '#ffcf80', size: 30, alpha: 0.45, rate: 1.25 }; // rate: strength a second
 
 /** The fog's density at a level of the cloud: 0 sees about 115 m (to nine tenths white), 1 about 13 m. */
 export function densityAt(level) {
@@ -76,6 +76,7 @@ uniform vec3 uLit;
 uniform vec3 uShade;
 uniform vec3 uBright;
 uniform float uTime;
+uniform float uFogShare;
 uniform sampler2D uNoise;
 varying vec2 vUv;
 varying float vOpacity;
@@ -95,7 +96,9 @@ void main() {
   gl_FragColor = vec4( colour, a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
+  vec3 unfogged = gl_FragColor.rgb;
   #include <fog_fragment>
+  gl_FragColor.rgb = mix( unfogged, gl_FragColor.rgb, uFogShare ); // a wisp is cloud itself: the cloud whitens it only partly, so it shows moving in the white
 }`;
 
 const GLOW_VERT = /* glsl */`
@@ -150,7 +153,8 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   const uniforms = {
     ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
     uLit: { value: new THREE.Color('#ffffff') },
-    uShade: { value: new THREE.Color('#d9dfdb') },
+    uShade: { value: new THREE.Color('#c6cdc9') },
+    uFogShare: { value: 0.55 },
     uBright: { value: new THREE.Color('#fff1cf') },
     uNear: { value: new THREE.Vector2(...AROUND.near) },
     uTime: { value: 0 },
@@ -166,7 +170,8 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   mesh.renderOrder = 14;
   mesh.visible = false;
 
-  // ---- the golden glow: one disc turned to the camera, no fog (it shines through the white) ----
+  // ---- the golden glow: one disc turned to the camera, no fog and no depth test (it is light in the white between, so it lies over
+  // the ground's edge in the cloud, and softly over what stands nearer, rather than cut off by the ground) ----
   const glowUniforms = {
     uCentre: { value: new THREE.Vector3() }, uSize: { value: GLOW.size }, uColour: { value: new THREE.Color(GLOW.colour) }, uLevel: { value: 0 },
   };
@@ -174,7 +179,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   glowGeometry.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
   glowGeometry.setIndex([0, 1, 2, 0, 2, 3]);
   const glowMaterial = new THREE.ShaderMaterial({
-    vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG, uniforms: glowUniforms, transparent: true, depthWrite: false, fog: false,
+    vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG, uniforms: glowUniforms, transparent: true, depthWrite: false, depthTest: false, fog: false,
   });
   glowMaterial.name = 'fjall-cloud-glow';
   const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);

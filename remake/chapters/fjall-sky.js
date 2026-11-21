@@ -54,7 +54,7 @@ export const chapter = {
     const cloud = belt.cloud;
     lightTo(world, LOOKS.inCloud);
     cloud.setLevel(LEVEL, 0);
-    world.chapterState = { belt, cloud }; // for probes
+    world.chapterState = globalThis.__fjallSky = { belt, cloud }; // for probes
     if (params.get('glow') === '1') cloud.glow({ x: HER[0] + 4, y: 5, z: HER[1] }, 1);
     if (params.get('swirl') === '1') cloud.swirlAt({ x: PRINTS[1].position[0], z: PRINTS[1].position[1] });
     yield s.camera.cut(VIEW in VIEWS ? VIEW : 'game', { check: false });
@@ -62,6 +62,7 @@ export const chapter = {
     yield s.fade(0, 0.3);
     if (params.get('blow') !== '1') { yield s.wait(1e6); return; }
     yield s.wait(BLOW);
+    world.chapterState.blowAt = s.time;
     cloud.blowAway({ from: { x: HER[0], y: 0, z: HER[1] } });
     easeLight(world, LOOKS.sunset, 3);
     yield s.wait(6 - BLOW - 0.3);

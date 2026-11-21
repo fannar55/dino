@@ -12,7 +12,9 @@ import { createCloud } from './cloud.js';
 import { groundMesh } from './index.js';
 import * as THREE from 'three';
 
-export const BELT = { radius: 90, cloud: 60 }; // the ground's reach (past where the cloud hides it), the cloud's
+// the ground's reach, so far that the thinnest cloud a chapter stands in (level 0.25, about 40 m seen) has hidden its edge wholly (at
+// 90 m a thin line of horizon still showed on the upright tablet), and the cloud's
+export const BELT = { radius: 150, cloud: 60 };
 
 /** The belt's ground: 0.2 m low at the west, rising gently east along the prints to 2.8 m, with a slight swell. */
 export function beltHeight(x, z) {
@@ -23,7 +25,7 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
   const heightAt = (x, z) => beltHeight(x, z);
   const group = new THREE.Group();
   group.name = 'Fjall: the belt of cloud';
-  const ground = groundMesh(heightAt, { radius: BELT.radius, step: 2, colour: GREY.ground, name: 'Belt ground' });
+  const ground = groundMesh(heightAt, { radius: BELT.radius, step: 2.5, colour: GREY.ground, name: 'Belt ground' });
   group.add(ground.mesh);
   const cloud = createCloud(world, { centre: [0, 0], radius: BELT.cloud, heightAt, seed, reduced });
   group.add(cloud.group);
