@@ -144,7 +144,7 @@ Eftir að hjálpin hefur einu sinni gert það sjálf styttast biðtímarnir um 
 
 ### Verkefni 2: sporin (sex spor)
 - Eins og sporin tíu í kafla 2, nema sporin eru risastór og þokan felur þau sem eru lengra burtu. Næsta spor sést dauft í þokunni.
-- **Rétt pikk:** þokan lyftist af sporinu, talan rís upp úr því og Mosi telur: „Einn!“ … „Sex!“
+- **Rétt pikk:** þokan lyftist af sporinu, talan rís upp úr því og Mosi telur: „Eitt!“ … „Sex!“, með sömu upptökum og í kafla 2
 - **Rangt pikk** (á þokuna eða stein): þokan þyrlast þar og ekkert annað gerist. Næsta spor glitrar.
 - **Hjálp:** eftir 8 s glitrar sporið, eftir 16 s finnur Egill það sjálfur.
 
