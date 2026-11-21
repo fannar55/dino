@@ -203,8 +203,8 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
  * The cards' material: the game's Lambert with the forest's own light (materials.js), the atlas as its map, cut out where the
  * picture is clear. Each card turns about its upright axis to face the camera (aCentre is its foot, aCorner the corner, -0.5 to
  * 0.5 across and 0 to 1 up, aSize its width and height in metres) and each of its pixels is lit as the tree's own surface there is:
- * its normal from the light atlas, turned with the card (the picture's right is the card's right, or its left for a card whose picture
- * is mirrored: aCard.z), its sky share (the atlas's, with the tree's own: aCard.y, as the batcher bakes the meshes' vertex alpha)
+ * its normal from the light atlas, turned into the view of the tree's middle (the picture's right is the card's right, or its left for
+ * a card whose picture is mirrored: aCard.z; its toward-the-viewer the way to the camera, so from above a crown shows its top), its sky share (the atlas's, with the tree's own: aCard.y, as the batcher bakes the meshes' vertex alpha)
  * and its leaves (wrap and the glow through them). Fog as everything else. In the band round cardFrom it shows the pixels its tree's
  * mesh leaves out (aCard.x, the height of the tree's mid-height over the card's foot; 0 for a card that is always all there, as the
  * horizon's): `fade` is the band's uniform the place shares with its plants (materials.js createCardFade).
