@@ -9,6 +9,7 @@
 //   &skjar=  &fjarlaegd=  &horn=  &augu=  &gler=0  &sjon=1    the table's own knobs (engine/table-stage.js); the screen's size is
 //                                          remembered on the device, for this page and Mosi's (chapters/bord3d.js)
 //   &grugg=0.16  &tint=0.34                the murk's density per metre under the water, and how much of the water's colour lies on its surface
+//   &upptokur=0                            the show's sound without the real recordings: every slot plays its made sound (for an ear to compare)
 //
 // The stage (tjorn3d/keys.js has every number): the pond is the Fen's own water in a pool far wider than the page, 15 cm deep on
 // the table; one cm of the table is SCALE metres of the game. The water is the game's surface with most of its colour taken off, so
@@ -670,8 +671,8 @@ export const chapter = {
       const now = () => time.warm ?? (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
       // Its sound (tjorn3d/sound.js): no music (the theme is held at nothing, above), no voices; the cue sheet, each cue played as
       // the show's second passes it, and the pond's bed under it, all held with the game. A still (t= alone) has no audio context,
-      // and asks for nothing.
-      const sound = createPondSound({ context: still ? null : world.sound?.context ?? null, output: world.sound?.output ?? null });
+      // and asks for nothing. With &upptokur=0 the real recordings are left out and every slot plays its made sound.
+      const sound = createPondSound({ context: still ? null : world.sound?.context ?? null, output: world.sound?.output ?? null, recordings: params.get('upptokur') !== '0' });
       if (!still) world.sound?.hold?.(sound);
       const frame = () => {
         if (view.dirty) fit();

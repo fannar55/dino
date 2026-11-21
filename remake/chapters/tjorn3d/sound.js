@@ -1,4 +1,4 @@
-// Uggeðla í tjörninni, step 3a: the show's sound. Two halves.
+// Uggeðla í tjörninni, step 3: the show's sound. Two halves.
 //
 // The cue sheet (cueSheet, CUES): what sounds at which second, as data, each cue hung on the timeline's own events (show.js: the
 // rings, the bubbles, the sail, her head's rise and the water running off it, the fish's leap, her jaws, the gulp, the butterfly,
@@ -11,8 +11,10 @@
 //                game's own recipes where it has them (engine/audio/fen-sounds.js: the fish's plip, her jaws, her gulp), and the
 //                show's own beside them, in the same manner
 //   recordings   the two real splashes the game has (assets/veiddu/splash.json: Veiddu's, CC0)
-//   slots        five places for real recordings that may come (SLOTS): until a slot's file is there, the made sound named by its
-//                `instead` plays in its place
+//   slots        seven places for real recordings (SLOTS; step 3b: real water, cut by tools/tjorn3d-sounds.mjs into
+//                assets/audio/tjorn3d/hljod/, each named in its sounds.json): where a slot's file is not there, or the show is
+//                asked to play without them (`recordings: false`, the page's &upptokur=0, for an ear to compare), the sound named
+//                by its `instead` plays in its place
 // and under them the bed, the pond's still water, whose level the sheet moves (it thins as her shadow comes, hushes before her
 // head rises, and is alone again at the end).
 //
@@ -57,23 +59,26 @@ export const MANIFEST = `${FILES}sounds.json`;
 const own = file => `${FILES}${file}`;
 
 /**
- * The five slots for real recordings, as sfx.js's SAMPLES: the files a slot plays (`urls`, against remake/: one of them each time,
- * not the one played last), the gain it plays at (`level`; a file's entry in sounds.json may give its own) and the made sound that
- * plays until a file is there (`instead`). The bed's is a loop. The levels are guesses for files levelled to a peak 1 dB under full
- * scale, as the game's sound tools level them (SOUND.master comes on top): they put each recording about where its made sound
- * lies, the rise a little under full scale. Nobody has heard one yet.
+ * The slots for real recordings, as sfx.js's SAMPLES: the files a slot plays (`urls`, against remake/: one of them each time, not
+ * the one played last), the gain it plays at (`level`; a file's entry in sounds.json may give its own) and the sound that plays
+ * where no file is there (`instead`: a made sound, or one of RECORDINGS, whose own `instead` is a made one). The bed's is a loop.
+ * The files are levelled by tools/tjorn3d-sounds.mjs (a one-shot's peak 3 dB under full scale, the bed at -24 dBFS RMS) and the
+ * levels here are set by the measure of the whole show (tools/tjorn3d-sound.mjs --render; SOUND.master comes on top). Nobody on
+ * the building side has heard them.
  */
 export const SLOTS = {
-  pond: { urls: [own('pond.mp3')], level: 0.12, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
-  rise: { urls: [own('rise.mp3')], level: 0.5, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
-  drips: { urls: [own('drips.mp3')], level: 0.15, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
-  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.18, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
-  sink: { urls: [own('sink.mp3')], level: 0.25, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
+  pond: { urls: [own('pond.mp3')], level: 0.25, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
+  rise: { urls: [own('rise.mp3')], level: 0.6, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
+  drips: { urls: [own('drips.mp3')], level: 0.2, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
+  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.25, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
+  sink: { urls: [own('sink.mp3')], level: 0.3, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
+  fish: { urls: [own('fish.mp3')], level: 0.25, instead: 'plop', what: 'a fish leaping out of the water: a light splash, under a second' },
+  frog: { urls: [own('frog-1.mp3'), own('frog-2.mp3')], level: 0.1, instead: 'croak', what: 'one croak of a frog, takes welcome' },
 };
 
 /** The recordings the game already has (assets/veiddu/splash.json), by the name a cue asks for them: as SLOTS. */
 export const RECORDINGS = {
-  plop: { urls: ['assets/veiddu/splash-soft.mp3'], level: 0.2, instead: 'fishIn', what: 'a small plop: the fish leaves the water' },
+  plop: { urls: ['assets/veiddu/splash-soft.mp3'], level: 0.2, instead: 'fishIn', what: 'a small plop: what the fish\'s leap plays without its own recording' },
   splash: { urls: ['assets/veiddu/splash.mp3'], level: 0.55, instead: 'slap', what: 'a full splash: she comes down with the fish' },
 };
 
@@ -114,8 +119,8 @@ export const MADE = {
     tone({ frequency: key[i ? 2 : 0] / 2, end: key[i ? 0 : 2] / 2, duration: 0.5, level: 0.014, attack: 0.18, delay: 0.1 });
     droplet(tools, key[i ? 4 : 3], 0.4 + between(0, 0.1), 0.012);
   },
-  // the frog on its lily (sfx.js's frog): two throaty croaks, the second one rising
-  frog({ tone, noise, between }) {
+  // the frog on its lily (sfx.js's frog): two throaty croaks, the second one rising (what the frog's slot plays without its recording)
+  croak({ tone, noise, between }) {
     const pitch = between(0.97, 1.03);
     for (const [at, from, to, length] of [[0, 190, 140, 0.1], [0.14, 150, 235, 0.13]]) {
       tone({ frequency: from * pitch, end: to * pitch, duration: length, level: 0.11, delay: at, type: 'triangle', attack: 0.015 });
@@ -315,7 +320,7 @@ export function cueSheet() {
   // ---- 5. the fish: its leap out of the water, her jaws, the splash as she comes down with it, nothing while she holds it, the
   // gulp, and the water settling ----
   const [leap, down, under] = SPLASHES;
-  add(leap[0], 'plop', 1, leap[1], 'the fish leaps out of the water', { on: 'JUMP.out' });
+  add(leap[0], 'fish', 1, leap[1], 'the fish leaps out of the water', { on: 'JUMP.out' });
   add(leap[0], 'fishOut', 1, leap[1], 'and its plip', { on: 'JUMP.out' });
   add(JUMP.take, 'jawSnap', 0.85, JUMP.catch[0], 'her jaws shut on the fish', { on: 'JUMP.take' });
   add(down[0], 'splash', 1, down[1], 'she comes down with it: the splash round her', { on: 'SPLASHES' });
@@ -343,6 +348,9 @@ export function cueSheet() {
 }
 
 export const CUES = cueSheet();
+
+/** The made sound at the end of a slot's or a recording's `instead` (a slot's may be one of RECORDINGS). */
+export const madeFor = name => { const entry = SLOTS[name] ?? RECORDINGS[name]; return entry ? madeFor(entry.instead) : name; };
 
 /** What a cue's name is: 'bed', 'slot', 'recording' or 'made' (null: nothing known). */
 export function kindOf(cue) {
@@ -389,7 +397,8 @@ function seeded(seed) {
 /**
  * The show's sound on `context` (null: a capture or a still, which are silent: the same object, doing nothing), heard through
  * `output` (the page's: world.sound.output). `offline`: the context is an OfflineAudioContext (the tool's measure), which does not
- * say it is running. Returns
+ * say it is running. `recordings: false`: the slots' files are not asked for, and every slot plays its `instead` (the show as
+ * it was before the real water came, for an ear to compare). Returns
  *   ready           resolves when the recordings that are there have been fetched and decoded
  *   start(from)     the show starts at its second `from` (0, or where a seek put it): whatever sounded is let go, the cues before
  *                   `from` are passed over, and the bed is laid at the level it has there
@@ -400,7 +409,7 @@ function seeded(seed) {
  *   schedule(from)  the whole sheet from `from` laid on the audio clock at once, its second 0 at the clock's `at` (the tool's measure)
  *   log             what was played: { t, n, sound, level, pan, kind, played, at } (at: the show's second it was played at)
  */
-export function createPondSound({ context = null, output = null, fetch = globalThis.fetch, offline = false, cues = CUES } = {}) {
+export function createPondSound({ context = null, output = null, fetch = globalThis.fetch, offline = false, cues = CUES, recordings = true } = {}) {
   const log = [];
   if (!context) {
     return { ready: Promise.resolve(false), start() {}, frame() {}, end() {}, setPaused() {}, play: () => false, schedule() {}, log, sounding: () => 0, running: false };
@@ -414,6 +423,7 @@ export function createPondSound({ context = null, output = null, fetch = globalT
   // ---- the recordings: Veiddu's two splashes, and whichever of the slots' files sounds.json says are there ----
   const buffers = new Map(); // address → its decoded buffer
   const levels = new Map(); // address → the level its entry in sounds.json gives it
+  const loops = new Map(); // address → the stretch its entry says a loop is played round: [from s, seconds]
   const lastTake = new Map(); // name → the address it played last
   const address = file => new URL(file, REMAKE).href;
   const load = file => Promise.resolve()
@@ -423,7 +433,7 @@ export function createPondSound({ context = null, output = null, fetch = globalT
     .then(buffer => { buffers.set(file, buffer); })
     .catch(() => {}); // a recording that cannot be had is not heard: its made sound is, in its place
   const ready = Promise.resolve()
-    .then(() => fetch(address(MANIFEST)))
+    .then(() => (recordings ? fetch(address(MANIFEST)) : { ok: false }))
     .then(response => (response.ok ? response.json() : {}))
     .catch(() => ({}))
     .then(list => {
@@ -432,6 +442,8 @@ export function createPondSound({ context = null, output = null, fetch = globalT
       for (const file of slots) {
         const level = Number(there[file.split('/').pop()]?.level);
         if (Number.isFinite(level) && level >= 0) levels.set(file, level);
+        const [from, seconds] = there[file.split('/').pop()]?.loop ?? [];
+        if (Number.isFinite(from) && seconds > 0) loops.set(file, [from, seconds]);
       }
       return Promise.all([...Object.values(RECORDINGS).flatMap(recording => recording.urls), ...slots].map(load));
     })
@@ -540,11 +552,16 @@ export function createPondSound({ context = null, output = null, fetch = globalT
     return { tone, noise, bell, key: KEY, between };
   }
 
-  /** A recording, from its start: through its gain and its side into the run. */
-  function playBuffer(run, buffer, { at, level, pan, rate = 1, loop = false, bus = run.bus }) {
+  /** A recording, from its start: through its gain and its side into the run. `round`: the stretch a loop is played round. */
+  function playBuffer(run, buffer, { at, level, pan, rate = 1, loop = false, round: [from, seconds] = [0, 0], bus = run.bus }) {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.loop = loop;
+    const inside = loop && seconds > 0 && from + seconds <= buffer.duration + 0.05; // (else the whole of it, as it is)
+    if (inside) {
+      source.loopStart = from;
+      source.loopEnd = from + seconds;
+    }
     source.playbackRate.value = rate > 0 ? rate : 1;
     const volume = context.createGain();
     if (loop) volume.gain.setValueAtTime(level, at);
@@ -557,7 +574,8 @@ export function createPondSound({ context = null, output = null, fetch = globalT
     }
     source.connect(volume);
     keep(run, source, [volume, ...outlet(volume, clamp(pan, -1, 1), bus)]);
-    source.start(at);
+    if (inside) source.start(at, from);
+    else source.start(at);
     return source;
   }
 
@@ -566,7 +584,7 @@ export function createPondSound({ context = null, output = null, fetch = globalT
   function layBed(run, at) {
     const file = takeOf('pond', SLOTS.pond, seeded(1));
     if (file) {
-      playBuffer(run, buffers.get(file), { at, level: levels.get(file) ?? SLOTS.pond.level, pan: 0, loop: true, bus: run.bed });
+      playBuffer(run, buffers.get(file), { at, level: levels.get(file) ?? SLOTS.pond.level, pan: 0, loop: true, round: loops.get(file), bus: run.bed });
       return 'recording';
     }
     // two murmurs of water, one a little to each side, each lapping in its own slow time, the second a lighter one (half of what a
@@ -668,15 +686,16 @@ export function createPondSound({ context = null, output = null, fetch = globalT
       return true;
     }
     const random = seeded(100 + (cue.n ?? 0));
-    const recorded = SLOTS[cue.sound] ?? RECORDINGS[cue.sound];
-    const file = recorded && takeOf(cue.sound, recorded, random);
-    if (file) {
+    // a recording: the cue's own, or, where that is not there, the recording its `instead` names (the fish's: Veiddu's plop)
+    for (let name = cue.sound, recorded = SLOTS[name] ?? RECORDINGS[name]; recorded; name = recorded.instead, recorded = RECORDINGS[name]) {
+      const file = takeOf(name, recorded, random);
+      if (!file) continue;
       const rate = Number.isFinite(cue.rate) ? cue.rate : 1 + (random() * 2 - 1) * SOUND.takeVary;
       playBuffer(run, buffers.get(file), { at, level: (levels.get(file) ?? recorded.level) * cue.level, pan: cue.pan, rate });
       entry.played = file.split('/').pop();
       return true;
     }
-    const name = recorded ? recorded.instead : cue.sound;
+    const name = madeFor(cue.sound);
     MADE[name](toolsFor({ run, at, level: cue.level, pan: cue.pan, random }), cue.detail ?? {});
     entry.played = name;
     return true;

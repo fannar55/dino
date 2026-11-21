@@ -1,11 +1,294 @@
 {
-  "note": "Uggeðla í tjörninni: the real recordings of the show's sound (remake/chapters/tjorn3d/sound.js, SLOTS). The show asks only for the files named under \"files\" here: a slot with no file plays the made sound named by its `instead`. To put a recording in a slot: lay the file in this folder under one of the slot's names and add its entry to \"files\" (what it is, where it came from, its licence, and `level` if it should play at another gain than the slot's). No code changes. tests/tjorn3d-sound.test.mjs holds this file against the slots and the folder.",
+  "note": "Uggeðla í tjörninni: the real recordings of the show's sound (remake/chapters/tjorn3d/sound.js, SLOTS). The show asks only for the files named under \"files\" here: a slot with no file plays the made sound named by its `instead`. The files are cut, shaped and levelled from Freesound HQ previews by `node remake/tools/tjorn3d-sounds.mjs`, which writes their entries: what each is in the show, its seconds and bytes, where it came from (title, author, page, preview, licence, the day it was fetched and the fingerprint of what was fetched), the fingerprint of the cut and what was done to it; `loop` is the stretch a looping file is played round ([from s, seconds]), and `level`, where a file has one, the gain it plays at instead of its slot's. All are CC0 1.0 (public domain): no credit is asked; it is given all the same in ../CREDITS.md. The owner said yes to fetching them on 2026-11-21 (\"Já, sækja\"); nobody had heard them when they were cut: the cuts are by measure. tests/tjorn3d-sound.test.mjs holds this file against the slots and the folder.",
   "slots": {
-    "pond": { "names": ["pond.mp3"], "instead": "water", "what": "the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round" },
-    "rise": { "names": ["rise.mp3"], "instead": "heave", "what": "something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in" },
-    "drips": { "names": ["drips.mp3"], "instead": "dripping", "what": "drips falling back into still water, thinning: about 5 s" },
-    "bubbles": { "names": ["bubbles-1.mp3", "bubbles-2.mp3", "bubbles-3.mp3"], "instead": "blips", "what": "a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome" },
-    "sink": { "names": ["sink.mp3"], "instead": "closing", "what": "something sinking softly, the water closing over it: its closing 0.6 s in" }
+    "pond": {
+      "names": [
+        "pond.mp3"
+      ],
+      "instead": "water",
+      "what": "the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round"
+    },
+    "rise": {
+      "names": [
+        "rise.mp3"
+      ],
+      "instead": "heave",
+      "what": "something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in"
+    },
+    "drips": {
+      "names": [
+        "drips.mp3"
+      ],
+      "instead": "dripping",
+      "what": "drips falling back into still water, thinning: about 5 s"
+    },
+    "bubbles": {
+      "names": [
+        "bubbles-1.mp3",
+        "bubbles-2.mp3",
+        "bubbles-3.mp3"
+      ],
+      "instead": "blips",
+      "what": "a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome"
+    },
+    "sink": {
+      "names": [
+        "sink.mp3"
+      ],
+      "instead": "closing",
+      "what": "something sinking softly, the water closing over it: its closing 0.6 s in"
+    },
+    "fish": {
+      "names": [
+        "fish.mp3"
+      ],
+      "instead": "plop",
+      "what": "a fish leaping out of the water: a light splash, under a second"
+    },
+    "frog": {
+      "names": [
+        "frog-1.mp3",
+        "frog-2.mp3"
+      ],
+      "instead": "croak",
+      "what": "one croak of a frog, takes welcome"
+    }
   },
-  "files": {}
+  "files": {
+    "pond.mp3": {
+      "slot": "pond",
+      "what": "the bed: the pond's still air and water, wind in the reeds far off; a loop",
+      "seconds": 24.9,
+      "bytes": 399568,
+      "channels": 2,
+      "loop": [
+        0.25,
+        24.4
+      ],
+      "sources": [
+        {
+          "id": "573823",
+          "title": "Calm pond bright wind in reeds geese water TTP 190401.flac",
+          "author": "TRP",
+          "source": "https://freesound.org/people/TRP/sounds/573823/",
+          "preview": "https://cdn.freesound.org/previews/573/573823_97550-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "bcb6f6760f07d3bc470cad429dbde9f986fcf9e83d14777aa59cfcd2b6b6c75e"
+        }
+      ],
+      "sha256": "fef138cc83d74d048550aa78349498f3563189afce6358294927699639809bd8",
+      "done": "An 84.8 s recording of a pond, stereo 48 kHz: an even wash of wind in reeds with small ticks of water, over a rumble, with geese calling at 46 to 50 s (far ones at 57 to 60 s and at 80 s) and gusts at 4 to 6, 19 to 25 and 41 to 44 s. Its two even stretches with no call and no gust, 60.45 to 80.35 s and 50.2 to 57.1 s, joined with a 1.2 s crossfade at equal power and the end passed into the start the same way: a loop of 24.4 s. 180 Hz high-pass (the rumble, which a tablet does not play), 6 dB off above 5 kHz (the reeds' hiss: 25 % of its energy lay over 6 kHz, now 12 %), 17 ticks more than 17 dB over the wash turned down to that (the most by 8.1 dB: a plop at 73.3 s that would be known the second time round), the left side was 2 dB louder than the right and they are made alike (they are all but unlike each other, correlation 0.38: it stays stereo), raised 23.2 dB to -24 dBFS RMS. 0.25 s of the loop's end is laid before it and 0.25 s of its start after it, and the show plays round from 0.25 s for 24.4 s, so that no decoder's padding falls in the round. MP3 128 kbps stereo 44.1 kHz with ffmpeg / libmp3lame. Now 24.9 s, its peak -7.5 dBFS after encoding."
+    },
+    "rise.mp3": {
+      "slot": "rise",
+      "what": "her head rises out of the water: a body lifting out of water, the water breaking and pouring off it, the first drips",
+      "seconds": 4.943,
+      "bytes": 60186,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "144272",
+          "title": "immersion in a bath and getting out of the bath.wav",
+          "author": "Zabuhailo",
+          "source": "https://freesound.org/people/Zabuhailo/sounds/144272/",
+          "preview": "https://cdn.freesound.org/previews/144/144272_2580450-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "26a85618b0ba3c67af1b6bbc2c777648fc36017446297c13f027964f11c5a1dc"
+        },
+        {
+          "id": "679410",
+          "title": "Coming up from underwater",
+          "author": "adviseme333",
+          "source": "https://freesound.org/people/adviseme333/sounds/679410/",
+          "preview": "https://cdn.freesound.org/previews/679/679410_14805886-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "782ce76308e3034e395fece19af3b0accba21faf4e9cba5885d520755ce22f59"
+        }
+      ],
+      "sha256": "860876290726e22df7891b4fd5f317ec9ca80d67591da89e28589a62f94f3779",
+      "done": "Two recordings mixed. The body: a person getting out of a bath (18.4 s, mono 48 kHz; the heave measured at 9.93 s), from 9.05 to 13.4 s, played at 0.88 of its speed (slower and 2.2 semitones lower, for size), so the heave is 1 s in. The break: a head coming up out of water (10.8 s, the same on both sides; the surface breaks at 4.51 s), from 3.48 to 7.6 s at 0.92 of its speed, 4 dB under the body, its break 1.12 s in: the pouring peaks just after the surge. 150 Hz high-pass on both, 60 ms fade-in, the last 1.6 s faded out, the peaks shaved 5 dB by a limiter (a splash's one sample is not its loudness), the peak then at -3 dBFS. Its fullest 0.2 s is 1 s in; 0 % of its energy under 150 Hz, 7 % over 6 kHz (the body alone had 8 % over 6 kHz before it was slowed). MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 4.943 s, its peak -3.3 dBFS after encoding."
+    },
+    "drips.mp3": {
+      "slot": "drips",
+      "what": "the water still running off her and dripping back through the hold, thinning",
+      "seconds": 5.85,
+      "bytes": 70844,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "138073",
+          "title": "mop_dripping_in_water_bucket.wav",
+          "author": "daboy291",
+          "source": "https://freesound.org/people/daboy291/sounds/138073/",
+          "preview": "https://cdn.freesound.org/previews/138/138073_1839281-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "9ac0300ed84301a98bce8b216859a2464ee6352c1cf5fa64b23b234c26aa80f2"
+        }
+      ],
+      "sha256": "4c5fe2ab6e0d1686bc76fc46645b5886d15ab21cc09a2be4bf7d46fdc0c46805",
+      "done": "A wet mop dripping into a bucket of water, 14.1 s, the same on both sides, 48 kHz: heavy run-off at 0.3 to 3 s, thinning to single drips by 6 s, wrung again after. Cut from 0.2 to 6.05 s, mixed to mono, 200 Hz high-pass, 50 ms fade-in, faded out in a straight line from 2.9 s in to the end (the run-off thins to drips and the drips to nothing), the peaks shaved 4 dB by a limiter, the peak then at -3 dBFS. 0 % of its energy under 150 Hz, 6 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 5.85 s, its peak -3.1 dBFS after encoding."
+    },
+    "bubbles-1.mp3": {
+      "slot": "bubbles",
+      "what": "a burst of bubbles reaching the surface (take 1 of 3)",
+      "seconds": 1.05,
+      "bytes": 13479,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "186384",
+          "title": "small bubbles.wav",
+          "author": "Yuval",
+          "source": "https://freesound.org/people/Yuval/sounds/186384/",
+          "preview": "https://cdn.freesound.org/previews/186/186384_770707-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "32671fb813c1c1fee316b8838dd0770a8f6a0d1d845578676122747d89a75784"
+        }
+      ],
+      "sha256": "6efce093ce5d85570d057e9773af9f4358788c9eef43e7d6a801dbf932b1bc70",
+      "done": "Small bubbles blown in water, 18.2 s, stereo 48 kHz (its sides all but the same), six runs of them. The run at 1.2 to 2.25 s, mixed to mono, 150 Hz high-pass, 20 ms fade-in, 0.2 s fade-out, raised 5.7 dB so the peak is -3 dBFS. 0 % of its energy under 150 Hz, 5 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 1.05 s, its peak -3.5 dBFS after encoding."
+    },
+    "bubbles-2.mp3": {
+      "slot": "bubbles",
+      "what": "a burst of bubbles reaching the surface (take 2 of 3)",
+      "seconds": 1.25,
+      "bytes": 15673,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "186384",
+          "title": "small bubbles.wav",
+          "author": "Yuval",
+          "source": "https://freesound.org/people/Yuval/sounds/186384/",
+          "preview": "https://cdn.freesound.org/previews/186/186384_770707-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "32671fb813c1c1fee316b8838dd0770a8f6a0d1d845578676122747d89a75784"
+        }
+      ],
+      "sha256": "51c479f5a5235f6f4217b161752872097adb31f26df36830a5eac3d5d872901f",
+      "done": "Small bubbles blown in water, 18.2 s, stereo 48 kHz (its sides all but the same), six runs of them. The run at 2.7 to 3.95 s, mixed to mono, 150 Hz high-pass, 20 ms fade-in, 0.2 s fade-out, raised 12.7 dB so the peak is -3 dBFS. 0 % of its energy under 150 Hz, 9 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 1.25 s, its peak -3.4 dBFS after encoding."
+    },
+    "bubbles-3.mp3": {
+      "slot": "bubbles",
+      "what": "a burst of bubbles reaching the surface (take 3 of 3)",
+      "seconds": 1.5,
+      "bytes": 18808,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "186384",
+          "title": "small bubbles.wav",
+          "author": "Yuval",
+          "source": "https://freesound.org/people/Yuval/sounds/186384/",
+          "preview": "https://cdn.freesound.org/previews/186/186384_770707-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "32671fb813c1c1fee316b8838dd0770a8f6a0d1d845578676122747d89a75784"
+        }
+      ],
+      "sha256": "8d57d48c21531be46c2deb63e535d13f0ec6b80a0ee4ade6d95b9141771b2d38",
+      "done": "Small bubbles blown in water, 18.2 s, stereo 48 kHz (its sides all but the same), six runs of them. The run at 6.95 to 8.45 s, mixed to mono, 150 Hz high-pass, 20 ms fade-in, 0.2 s fade-out, raised 8.9 dB so the peak is -3 dBFS. 1 % of its energy under 150 Hz, 6 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 1.5 s, its peak -3.5 dBFS after encoding."
+    },
+    "sink.mp3": {
+      "slot": "sink",
+      "what": "she sinks: the water closing over her head",
+      "seconds": 1.168,
+      "bytes": 14733,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "679407",
+          "title": "Dipping below water 2",
+          "author": "adviseme333",
+          "source": "https://freesound.org/people/adviseme333/sounds/679407/",
+          "preview": "https://cdn.freesound.org/previews/679/679407_14805886-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "7438616f2fb74c433b1705aa8d40096d850f1b83f9a4b9a6b3f14a6b9449791a"
+        }
+      ],
+      "sha256": "e976a4d40c0818b8d2d6fda24f6fdcb5a9b632edbcff75d83deca1fb8af0a616",
+      "done": "A head dipping under water, 4.1 s, the same on both sides, 48 kHz: soft movement from 0.7 s, the water closing over it (measured at 3.36 s), a muffled tail to 3.75 s. Cut from 2.832 to 3.86 s and played at 0.88 of its speed (slower and 2.2 semitones lower, for size), so the closing is 0.6 s in, as the show's cue wants it; mixed to mono, 150 Hz high-pass, 0.15 s fade-in, 0.1 s fade-out, the peaks shaved 4 dB by a limiter, the peak then at -3 dBFS. 0 % of its energy under 150 Hz, 17 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 1.168 s, its peak -3.2 dBFS after encoding."
+    },
+    "fish.mp3": {
+      "slot": "fish",
+      "what": "the fish leaps out of the water: a light splash",
+      "seconds": 0.9,
+      "bytes": 11598,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "507091",
+          "title": "Fish Jumping Splash 2.wav",
+          "author": "paulprit",
+          "source": "https://freesound.org/people/paulprit/sounds/507091/",
+          "preview": "https://cdn.freesound.org/previews/507/507091_8682843-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "f0ef515427c62c2fb6d80ba466f9ed5f4ff4cdcfe4e89b01312f67951cb12a1f"
+        }
+      ],
+      "sha256": "61b1d49c4a02a783e53897deef3e1cf3d9afde80159d62400c18287d267cff55",
+      "done": "A fish jumping, 5.2 s, the same on both sides, 48 kHz: water lapping to 1.0 s, then three swells of splashing (the third a copy of the second). The first swell (it begins at 1.04 s, measured), from 1.01 s for 0.9 s, mixed to mono, 150 Hz high-pass, 10 ms fade-in, the last 0.5 s faded out in a straight line (a light splash out of the water, not a thrashing), raised 1.9 dB so the peak is -3 dBFS. 0 % of its energy under 150 Hz, 4 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 0.9 s, its peak -3.4 dBFS after encoding."
+    },
+    "frog-1.mp3": {
+      "slot": "frog",
+      "what": "the frog on its lily: one croak (take 1 of 2)",
+      "seconds": 0.88,
+      "bytes": 11284,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "397568",
+          "title": "Frog Croak Ambient",
+          "author": "Sojan",
+          "source": "https://freesound.org/people/Sojan/sounds/397568/",
+          "preview": "https://cdn.freesound.org/previews/397/397568_5477651-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "51164311f7480412fa2f735c0ad96070324b1ea6c3ba05b53900a189cef231d3"
+        }
+      ],
+      "sha256": "a0c29319cccd8a7e5cf20514a120951e8dae4a03310d3eb94b974dcf9593bf54",
+      "done": "A frog croaking, 54.2 s, mono 48 kHz: 23 croaks, one about every 2.3 s, most of each between 1 and 3 kHz, a rumble between them. The first croak, 2.59 to 3.47 s (where it rises out of the quiet to where it is gone, measured), 300 Hz high-pass, 10 ms fade-in, 50 ms fade-out, lowered 0 dB so the peak is -3 dBFS. 0 % of its energy under 150 Hz, 0 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 0.88 s, its peak -3.5 dBFS after encoding."
+    },
+    "frog-2.mp3": {
+      "slot": "frog",
+      "what": "the frog on its lily: one croak (take 2 of 2)",
+      "seconds": 0.63,
+      "bytes": 8463,
+      "channels": 1,
+      "sources": [
+        {
+          "id": "397568",
+          "title": "Frog Croak Ambient",
+          "author": "Sojan",
+          "source": "https://freesound.org/people/Sojan/sounds/397568/",
+          "preview": "https://cdn.freesound.org/previews/397/397568_5477651-hq.mp3",
+          "licence": "CC0 1.0",
+          "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "downloaded": "2026-11-21",
+          "sourceSha256": "51164311f7480412fa2f735c0ad96070324b1ea6c3ba05b53900a189cef231d3"
+        }
+      ],
+      "sha256": "62fa8af3e7ab3c33a480fd752cb414cd1854d1418a69628e3e54a7a3f77f4f21",
+      "done": "A frog croaking, 54.2 s, mono 48 kHz: 23 croaks, one about every 2.3 s, most of each between 1 and 3 kHz, a rumble between them. The eighteenth croak, 41.36 to 41.99 s (where it rises out of the quiet to where it is gone, measured), 300 Hz high-pass, 10 ms fade-in, 50 ms fade-out, lowered 1.9 dB so the peak is -3 dBFS. 0 % of its energy under 150 Hz, 0 % over 6 kHz. MP3 96 kbps mono 44.1 kHz with ffmpeg / libmp3lame. Now 0.63 s, its peak -3.4 dBFS after encoding."
+    }
+  }
 }
