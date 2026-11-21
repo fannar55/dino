@@ -17,16 +17,20 @@
 //       stands, and at the end that the book is there again as it was. --whole: the book's page has the whole screen before the
 //       tile is pressed (as an app that is whole-screen already), and must still have it after.
 //
-//   node remake/tools/tjorn3d-tile.mjs --shelf [--sizes 1280x800,820x1180] [--shots qa/tjorn3d/bok] [--drop tjorn3d]
-//       the book's Myndbönd page (book-lab.html?state=videos) at each size: whether the "3D myndbönd" column, its heading and every
-//       tile lie inside their page, one under the other, each name whole; and a picture of the page. --drop takes a tile off the
-//       page first (the page as it was before that show had one), to compare.
+//   node remake/tools/tjorn3d-tile.mjs --shelf [--sizes 1280x800,1024x768,820x1180,800x1280] [--states all-new,none-new,mix,mix-other]
+//                                      [--shots qa/tjorn3d/bok] [--json qa/tjorn3d/bok/shelf.json] [--drop tjorn3d]
+//       the book's Myndbönd page (book-lab.html?state=videos) at each size and in each state (every show new, none, and two mixes):
+//       whether every tile's name under "3D myndbönd" can be read whole. A tile is measured as it is PAINTED over a whole round of
+//       its rocking or breathing: its card, tape, "Nýtt!" badge, glow and twinkle. No name may lie under another tile so painted,
+//       run out of its own card, pass its line or leave the column; the column, the heading and every tile stay inside the page
+//       and clear of the book's close button. A picture of each. --drop takes a tile off the page first, to compare.
 //
-// Exit code 1 when the page throws, a stop is not reached, the book is not as it was when the show is left, or a tile does not fit.
+// Exit code 1 when the page throws, a stop is not reached, the book is not as it was when the show is left, or the shelf does not read.
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { ROOT, sleep, launchBrowser, stopBrowser } from './veiddu-video.mjs';
 import { LENGTH } from '../chapters/tjorn3d/show.js';
@@ -40,7 +44,7 @@ const MIME = {
 export const POSTER = { t: 38, view: 'sjon', crop: [332, 222, 640, 360], size: [640, 360], inches: 10.5, page: '1280x800', out: 'remake/assets/book/videos/tjorn3d-thumb.webp' };
 
 function parseArgs(argv) {
-  const o = { poster: false, walk: false, shelf: false, sizes: '1280x800,820x1180', drop: null, whole: false, t: POSTER.t, view: POSTER.view, crop: POSTER.crop, out: POSTER.out, png: null, size: POSTER.page, shots: null, json: null, timeout: 180 };
+  const o = { poster: false, walk: false, shelf: false, sizes: null, states: null, drop: null, whole: false, t: POSTER.t, view: POSTER.view, crop: POSTER.crop, out: POSTER.out, png: null, size: POSTER.page, shots: null, json: null, timeout: 180 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--poster') o.poster = true;
@@ -48,6 +52,7 @@ function parseArgs(argv) {
     else if (a === '--whole') o.whole = true;
     else if (a === '--shelf') o.shelf = true;
     else if (a === '--sizes') o.sizes = next();
+    else if (a === '--states') o.states = next();
     else if (a === '--drop') o.drop = next();
     else if (a === '--t') o.t = Number(next());
     else if (a === '--view') o.view = next();
@@ -61,6 +66,8 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument ${a}`);
   }
   if ([o.poster, o.walk, o.shelf].filter(Boolean).length !== 1) throw new Error('Say --poster, --walk or --shelf');
+  o.sizes ??= SHELF_SIZES;
+  o.states ??= Object.keys(SHELF_STATES).join(',');
   if (!['sjon', 'mono'].includes(o.view)) throw new Error('--view is sjon or mono');
   if (o.crop.length !== 4 || o.crop.some(n => !Number.isFinite(n))) throw new Error('--crop is x,y,width,height');
   return o;
@@ -295,86 +302,237 @@ async function walk(o, base) {
 // ---------------------------------------------------------------------------------------------
 // the shelf: the Myndbönd page with its "3D myndbönd" column
 
+export const SHELF_SIZES = '1280x800,1024x768,820x1180,800x1280';
+/** The states the shelf is measured in: which of the shows have been seen (the rest wear "Nýtt!", rock and glow). */
+export const SHELF_STATES = {
+  'all-new': [],
+  'none-new': ['fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'],
+  'mix': ['safn3d', 'flugedla3d'],
+  'mix-other': ['fidrildi3d', 'gramedla3d', 'tjorn3d'],
+};
+
 /**
- * The page's boxes, asked in the lab's page: the right page, the column, its heading, each of its tiles and the book's close button.
- * A tile is a sticker laid a little askew: "box" is what it covers as drawn, "layout" its own width and height before the turn.
+ * Asked in the lab's page: the right page, the column, its heading, the book's close button, and each tile of the column as it is
+ * PAINTED. A tile is a sticker laid askew that rocks while it is new and breathes when it is seen, with a tape over its top, a
+ * "Nýtt!" badge that wobbles, a glow round it while new and a twinkle at its corner when seen. So each tile's own animation is
+ * stepped through a whole round (and its badge's through a round at each step), and "parts" are the boxes that hold, over all of
+ * it, each thing the tile paints: its card with the glow as far as it is seen (each shadow's spread and blur), its tape, its badge
+ * with its rings, and its twinkle; "painted" is the one box round them all, and "nameBox" the box that holds the name's letters
+ * over the same round. "fits" is the name as laid out before the
+ * turn: how far its letters are inside the card on each side, and how far they pass the name's own line. `seen` sets the state
+ * first, as videos.js render() does (a seen show's tile is found and has no badge).
  */
-const SHELF = `(() => {
+async function gatherShelf(seen) {
   const column = document.querySelector('.video-3d-column');
-  const box = e => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom].map(n => Math.round(n * 10) / 10); };
-  const tile = t => {
-    const name = t.querySelector('.tile-name'), picture = t.querySelector('.tile-picture'), img = t.querySelector('img');
-    return { id: t.getAttribute('data-video'), box: box(t), layout: [t.offsetWidth, t.offsetHeight], picture: [picture.offsetWidth, picture.offsetHeight], name: name.textContent,
-      nameOver: Math.max(0, name.scrollWidth - name.clientWidth, name.scrollHeight - name.clientHeight), font: getComputedStyle(name).fontSize,
-      drawn: Boolean(img.complete && img.naturalWidth), new: t.classList.contains('new'), label: t.getAttribute('aria-label') };
+  const tiles = [...column.querySelectorAll('.video-tile-3d')];
+  for (const t of tiles) {
+    if (!seen.includes(t.getAttribute('data-video'))) continue;
+    t.classList.remove('new');
+    t.classList.add('found');
+    t.querySelector('.badge-new')?.remove();
+  }
+  for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame);
+  const r1 = n => Math.round(n * 10) / 10;
+  const box = r => [r.left, r.top, r.right, r.bottom].map(r1);
+  const grow = (b, c) => (b ? [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[2]), Math.max(b[3], c[3])] : [...c]);
+  const px = v => parseFloat(v) || 0;
+  // a box-shadow as the browser gives it back: each shadow's x, y, blur and spread
+  const shadows = text => (!text || text === 'none' ? [] : text.split(/,(?![^(]*\))/).map(one => {
+    const n = [...one.replace(/rgba?\([^)]*\)/g, '').matchAll(/(-?[\d.]+)px/g)].map(m => Number(m[1]));
+    return { x: n[0] ?? 0, y: n[1] ?? 0, blur: n[2] ?? 0, spread: n[3] ?? 0, inset: /inset/.test(one) };
+  }).filter(s => !s.inset));
+  const textOf = e => { const range = document.createRange(); range.selectNodeContents(e); return range; };
+  const pseudoScale = (t, pseudo) => Math.max(1, ...t.getAnimations({ subtree: true })
+    .filter(a => a.effect?.target === t && a.effect.pseudoElement === pseudo)
+    .flatMap(a => a.effect.getKeyframes().map(k => Number(/scale\(([\d.]+)/.exec(k.transform ?? '')?.[1] ?? 1))));
+  const hold = (list, part) => {
+    for (const a of list) {
+      const d = a.effect.getComputedTiming().duration;
+      a.pause();
+      a.currentTime = part * (typeof d === 'number' && d > 0 ? d : 0);
+    }
   };
+  const STEPS = 16, BADGE_STEPS = 8;
+
+  const measured = tiles.map(t => {
+    const name = t.querySelector('.tile-name'), picture = t.querySelector('.tile-picture'), img = t.querySelector('img'), badge = t.querySelector('.badge-new');
+    const range = textOf(name);
+    // as laid out, before the turn
+    const was = [t.style.animation, t.style.transform];
+    t.style.animation = 'none';
+    t.style.transform = 'none';
+    const card = t.getBoundingClientRect(), text = range.getBoundingClientRect(), line = name.getBoundingClientRect();
+    const W = card.width, H = card.height;
+    const fits = {
+      inCard: [text.left - card.left, text.top - card.top, card.right - text.right, card.bottom - text.bottom].map(r1),
+      pastLine: r1(Math.max(0, line.left - text.left, text.right - line.right)),
+      lines: new Set([...range.getClientRects()].map(r => Math.round(r.top))).size,
+    };
+    const pictureSize = [r1(picture.getBoundingClientRect().width), r1(picture.getBoundingClientRect().height)];
+    [t.style.animation, t.style.transform] = was;
+    void t.offsetWidth;
+
+    const fresh = t.classList.contains('new');
+    const after = getComputedStyle(t, '::after'), before = getComputedStyle(t, '::before');
+    const afterScale = pseudoScale(t, '::after');
+    const glow = fresh ? Math.max(0, ...shadows(after.boxShadow).map(s => Math.max(Math.abs(s.x), Math.abs(s.y)) + s.spread + s.blur)) : 0;
+    const ring = fresh ? Math.max(0, ...shadows(after.boxShadow).filter(s => !s.blur).map(s => s.spread)) : 0;
+    const tape = before.content && before.content !== 'none'
+      ? { x: px(before.left), y: px(before.top), w: px(before.width), h: px(before.height), m: new DOMMatrix(before.transform === 'none' ? '' : before.transform) } : null;
+    const star = !fresh && t.classList.contains('found') && after.content && after.content !== 'none'
+      ? { w: px(after.width), top: px(after.top), right: px(after.right) } : null;
+    const badgeRing = badge ? Math.max(0, ...shadows(getComputedStyle(badge).boxShadow).filter(s => !s.blur).map(s => s.spread)) : 0;
+
+    const own = t.getAnimations(), wobble = badge ? badge.getAnimations() : [];
+    const parts = { card: null, tape: null, badge: null, twinkle: null };
+    let nameBox = null;
+    for (let i = 0; i < STEPS; i++) {
+      hold(own, i / STEPS);
+      const m = new DOMMatrix(getComputedStyle(t).transform === 'none' ? '' : getComputedStyle(t).transform), b = t.getBoundingClientRect();
+      const cx = (b.left + b.right) / 2, cy = (b.top + b.bottom) / 2;
+      const P = (x, y) => [cx + m.a * x + m.c * y, cy + m.b * x + m.d * y]; // a point of the tile, counted from its middle, on the page
+      const scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c));
+      const add = (part, points, pad = 0) => { for (const [x, y] of points) parts[part] = grow(parts[part], [x - pad, y - pad, x + pad, y + pad]); };
+      const corners = (hw, hh) => [P(-hw, -hh), P(hw, -hh), P(hw, hh), P(-hw, hh)];
+      add('card', corners(W / 2, H / 2));
+      if (glow) add('card', corners(W / 2 * afterScale, H / 2 * afterScale), glow * scale * afterScale);
+      if (tape) {
+        const mx = tape.x + tape.w / 2 - W / 2 + tape.m.e, my = tape.y + tape.h / 2 - H / 2 + tape.m.f; // its middle, from the tile's
+        add('tape', [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => {
+          const x = u * tape.w / 2, y = v * tape.h / 2;
+          return P(mx + tape.m.a * x + tape.m.c * y, my + tape.m.b * x + tape.m.d * y);
+        }));
+      }
+      if (star) add('twinkle', [P(W / 2 - star.right - star.w / 2, star.top + star.w / 2 - H / 2)], star.w / 2 * afterScale * scale);
+      for (let j = 0; j < (badge ? BADGE_STEPS : 0); j++) {
+        hold(wobble, j / BADGE_STEPS);
+        const r = badge.getBoundingClientRect();
+        parts.badge = grow(parts.badge, [r.left - badgeRing, r.top - badgeRing, r.right + badgeRing, r.bottom + badgeRing]);
+      }
+      for (const r of range.getClientRects()) nameBox = grow(nameBox, [r.left, r.top, r.right, r.bottom]);
+    }
+    for (const a of [...own, ...wobble]) a.play();
+    const painted = Object.values(parts).filter(Boolean).reduce((all, one) => grow(all, one), null);
+    const drawn = Object.fromEntries(Object.entries(parts).filter(([, b]) => b).map(([part, b]) => [part, b.map(r1)]));
+    return {
+      id: t.getAttribute('data-video'), new: fresh, layout: [r1(W), r1(H)], picture: pictureSize, name: name.textContent, font: px(getComputedStyle(name).fontSize),
+      fits, drawn: Boolean(img.complete && img.naturalWidth), label: t.getAttribute('aria-label'),
+      glow: r1(glow), ring: r1(ring), parts: drawn, painted: painted.map(r1), nameBox: nameBox.map(r1),
+    };
+  });
+
   const pageOf = e => e.closest('.book-page');
   const close = [...document.querySelectorAll('#book button')].find(b => /loka/i.test(b.getAttribute('aria-label') ?? '') && b.getBoundingClientRect().width > 0);
+  const head = column.querySelector('.video-3d-head');
   return {
-    page: box(pageOf(column)), column: box(column), over: column.scrollHeight - column.clientHeight, head: box(column.querySelector('.video-3d-head')),
-    close: close ? box(close) : null,
-    tiles: [...column.querySelectorAll('.video-tile-3d')].map(tile),
-    videos: [...document.querySelectorAll('.book-leaf[data-tab="videos"] .video-tile:not(.video-tile-3d)')].map(t => ({ ...tile(t), page: box(pageOf(t)) })),
+    page: box(pageOf(column).getBoundingClientRect()), column: box(column.getBoundingClientRect()), over: column.scrollHeight - column.clientHeight,
+    head: box(textOf(head).getBoundingClientRect()), headFont: px(getComputedStyle(head).fontSize),
+    close: close ? box(close.getBoundingClientRect()) : null,
+    tiles: measured,
+    videos: [...document.querySelectorAll('.book-leaf[data-tab="videos"] .video-tile:not(.video-tile-3d)')].map(t => ({ id: t.getAttribute('data-video'), layout: [t.offsetWidth, t.offsetHeight], box: box(t.getBoundingClientRect()), page: box(pageOf(t).getBoundingClientRect()) })),
   };
-})()`;
-const NAME_SLACK = 4; // px a name may reach past its line before it counts as cut (the four tiles before this one had as much on a narrow page)
+}
+
+/** How far two boxes ([left, top, right, bottom]) are apart: over 0 they are clear of each other by so many px, else in each other. */
+export const apart = (b, c) => Math.max(b[0] - c[2], c[0] - b[2], b[1] - c[3], c[1] - b[3]);
+const within = (b, p, slack = 0.5) => b[0] >= p[0] - slack && b[1] >= p[1] - slack && b[2] <= p[2] + slack && b[3] <= p[3] + slack;
+
+/**
+ * The shelf's rules over what gatherShelf measured: what is wrong (an empty list when the shelf reads), the name that is nearest to
+ * anything another tile paints, with how far and to what ("least"), and the same counted to the one box round all the other tile
+ * paints ("whole": stricter than the eye, since a twinkle at one corner then counts across the tile's whole width).
+ */
+export function judgeShelf(m) {
+  const wrong = [];
+  let least = null, whole = null;
+  const partsOf = t => Object.entries(t.parts ?? { card: t.painted });
+  const r1 = n => Math.round(n * 10) / 10;
+  if (!within(m.column, m.page)) wrong.push('the column reaches out of its page');
+  if (m.over > 1) wrong.push(`the column's tiles are ${m.over} px taller than it`);
+  if (!within(m.head, m.column)) wrong.push('the heading is not inside the column');
+  if (m.close && apart(m.head, m.close) <= 0) wrong.push('the heading lies under the book\'s close button');
+  for (const t of m.tiles) {
+    for (const other of m.tiles) {
+      if (other === t) continue;
+      const all = r1(apart(t.nameBox, other.painted));
+      if (!whole || all < whole.px) whole = { px: all, name: t.id, tile: other.id };
+      for (const [part, b] of partsOf(other)) {
+        const d = r1(apart(t.nameBox, b));
+        if (!least || d < least.px) least = { px: d, name: t.id, tile: other.id, part };
+        if (d <= 0) wrong.push(`${t.id}'s name lies under ${other.id}'s ${part} (${-d} px in it)`);
+      }
+    }
+    const out = Math.max(0, ...t.fits.inCard.map(v => -v));
+    if (out > 0) wrong.push(`${t.id}'s name runs ${out} px out of its own tile`);
+    if (t.fits.pastLine > 0.5) wrong.push(`${t.id}'s name is ${t.fits.pastLine} px wider than its line`);
+    if (t.fits.lines > 2) wrong.push(`${t.id}'s name is on ${t.fits.lines} lines`);
+    if (!within(t.nameBox, m.column, 0)) wrong.push(`${t.id}'s name reaches out of the column`);
+    if (!within(t.painted, m.page)) wrong.push(`${t.id} reaches out of its page`);
+    if (m.close && apart(t.painted, m.close) <= 0) wrong.push(`${t.id} lies under the book's close button`);
+    for (const [part, b] of partsOf(t)) if (apart(m.head, b) <= 0) wrong.push(`the heading lies under ${t.id}'s ${part}`);
+    if (!t.drawn) wrong.push(`${t.id}'s picture did not load`);
+  }
+  for (const v of m.videos ?? []) if (!within(v.box, v.page)) wrong.push(`${v.id} reaches out of its page`);
+  return { wrong, least, whole };
+}
 
 async function shelf(o, base) {
   const rows = [];
   let bad = false;
+  const states = o.states.split(',');
+  for (const state of states) if (!SHELF_STATES[state]) throw new Error(`--states: ${Object.keys(SHELF_STATES).join(', ')}`);
   for (const size of o.sizes.split(',')) {
-    let m = null, errors = [];
+    const measured = [];
     await withPage({ ...o, size }, {}, async page => {
-      await page.send('Page.navigate', { url: `${base}book-lab.html?state=videos` });
-      await page.until('the book did not open on Myndbönd', "window.__demoReady && document.querySelector('.video-3d-column')");
-      if (o.drop) await page.evaluate(`document.querySelector('.video-3d-column [data-video=${JSON.stringify(o.drop)}]').remove()`);
-      await sleep(1500);
-      m = await page.evaluate(SHELF);
-      if (o.shots) await page.shot(`${o.shots}/hilla-${size}${o.drop ? '-an-' + o.drop : ''}.png`);
-      errors = [...page.errors];
+      for (const state of states) { // (the page anew for each state: the lab's own save, every show new)
+        const said = page.errors.length;
+        await page.send('Page.navigate', { url: `${base}book-lab.html?state=videos&hilla=${state}` });
+        await page.until('the book did not open on Myndbönd', `location.search.endsWith('hilla=${state}') && window.__demoReady && document.querySelector('.video-3d-column')`);
+        if (o.drop) await page.evaluate(`document.querySelector('.video-3d-column [data-video=${JSON.stringify(o.drop)}]').remove()`);
+        await sleep(1200);
+        const m = await page.evaluate(`(${gatherShelf})(${JSON.stringify(SHELF_STATES[state])})`);
+        await sleep(400);
+        if (o.shots) await page.shot(`${o.shots}/hilla-${size}-${state}${o.drop ? '-an-' + o.drop : ''}.png`);
+        measured.push({ state, m, errors: page.errors.slice(said) });
+      }
     });
-    const inside = (b, p) => b[0] >= p[0] - 0.5 && b[1] >= p[1] - 0.5 && b[2] <= p[2] + 0.5 && b[3] <= p[3] + 0.5;
-    const meet = (b, c) => b[0] < c[2] && c[0] < b[2] && b[1] < c[3] && c[1] < b[3];
-    const wrong = [];
-    if (!inside(m.column, m.page)) wrong.push('the column reaches out of its page');
-    if (m.over > 1) wrong.push(`the column's tiles are ${m.over} px taller than it`);
-    if (!inside(m.head, m.page)) wrong.push('the heading is not inside the page');
-    if (m.close && meet(m.head, m.close)) wrong.push('the heading lies under the book\'s close button');
-    m.tiles.forEach(t => {
-      if (!inside(t.box, m.page)) wrong.push(`${t.id} reaches out of its page`);
-      if (m.close && meet(t.box, m.close)) wrong.push(`${t.id} lies under the book's close button`);
-      if (t.nameOver > NAME_SLACK) wrong.push(`${t.id}'s name is cut by ${t.nameOver} px`);
-      if (!t.drawn) wrong.push(`${t.id}'s picture did not load`);
-    });
-    for (const v of m.videos) if (!inside(v.box, v.page)) wrong.push(`${v.id} reaches out of its page`);
-    rows.push({ size, ...m, wrong, errors });
-    console.log(`${size}: the right page ${m.page.map(Math.round).join(', ')}; the column ${m.column.map(Math.round).join(', ')}; ${m.tiles.length} tiles under "3D myndbönd"`);
-    for (const t of m.tiles) console.log(`  ${t.id.padEnd(11)} ${t.layout.join(' x ')} from y ${Math.round(t.box[1])} to ${Math.round(t.box[3])}, its picture ${t.picture.join(' x ')}, "${t.name}" at ${t.font}${t.nameOver ? ` (${t.nameOver} px past its line)` : ''}${t.new ? ', Nýtt!' : ''}`);
-    console.log(`  the other videos: ${m.videos.map(v => `${v.id} ${v.layout.join(' x ')}`).join(', ')}`);
-    console.log(wrong.length ? `  DOES NOT FIT: ${wrong.join('; ')}` : `  all inside the page and clear of the close button, the column no taller than its room, every name whole; ${Math.round(m.page[3] - m.tiles.at(-1).box[3])} px under the last tile, ${Math.round(m.head[1] - m.page[1])} px over the heading`);
-    if (errors.length) console.log(`  The page said: ${errors.join(' | ')}`);
-    if (wrong.length || errors.length) bad = true;
+    for (const { state, m, errors } of measured) {
+      const { wrong, least, whole } = judgeShelf(m);
+      rows.push({ size, state, ...m, wrong, least, whole, errors });
+      if (state === states[0]) {
+        console.log(`${size}: the right page ${m.page.map(Math.round).join(', ')}; the column ${m.column.map(Math.round).join(', ')}; "3D myndbönd" at ${m.headFont} px; ${m.tiles.length} tiles`);
+        for (const t of m.tiles) console.log(`  ${t.id.padEnd(11)} ${t.layout.join(' x ')}, its picture ${t.picture.join(' x ')}, "${t.name}" at ${t.font} px on ${t.fits.lines} line${t.fits.lines > 1 ? 's' : ''}, its letters ${Math.min(t.fits.inCard[0], t.fits.inCard[2])} px inside the card's sides and ${t.fits.inCard[3]} px over its foot`);
+        console.log(`  the other videos: ${[...new Set(m.videos.map(v => v.layout.join(' x ')))].join(', ')} (${m.videos.length} tiles)`);
+      }
+      const news = m.tiles.filter(t => t.new).length;
+      console.log(`  ${state.padEnd(9)} (${news} new${news ? `, the glow seen ${Math.max(...m.tiles.map(t => t.glow))} px out` : ''}): ${wrong.length ? `DOES NOT READ: ${wrong.join('; ')}` : `every name whole and clear; the nearest, ${least.name}'s, is ${least.px} px from ${least.tile}'s ${least.part} as painted`}`);
+      if (errors.length) console.log(`  The page said: ${errors.join(' | ')}`);
+      if (wrong.length || errors.length) bad = true;
+    }
   }
   return { result: rows, bad };
 }
 
-const o = parseArgs(process.argv.slice(2));
-const server = await startServer();
-const base = `http://127.0.0.1:${server.address().port}/remake/`;
-let bad = false;
-try {
-  const { result, bad: wrong } = o.poster ? await poster(o, base) : o.shelf ? await shelf(o, base) : await walk(o, base);
-  bad = wrong;
-  if (o.json) {
-    const file = path.resolve(ROOT, o.json);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(result, null, 1));
-    console.log(`Written: ${o.json}`);
+async function main() {
+  const o = parseArgs(process.argv.slice(2));
+  const server = await startServer();
+  const base = `http://127.0.0.1:${server.address().port}/remake/`;
+  let bad = false;
+  try {
+    const { result, bad: wrong } = o.poster ? await poster(o, base) : o.shelf ? await shelf(o, base) : await walk(o, base);
+    bad = wrong;
+    if (o.json) {
+      const file = path.resolve(ROOT, o.json);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(result, null, 1));
+      console.log(`Written: ${o.json}`);
+    }
+  } catch (e) {
+    console.error(e.message);
+    bad = true;
+  } finally {
+    server.close();
   }
-} catch (e) {
-  console.error(e.message);
-  bad = true;
-} finally {
-  server.close();
+  process.exit(bad ? 1 : 0);
 }
-process.exit(bad ? 1 : 0);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

@@ -505,18 +505,42 @@
 .video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.1 - 30px) / 4.2);
 }
-/* Five (Uggeðla í tjörninni the fifth). On a wide page the column stays one tile across, the tiles smaller again (--one: five of
-   them and the heading in the page's height). On an upright page five in a row down would be tiny, and the column is as wide as
-   two of them: there they go two across in three rows (--two), at the size four had. The tiles wrap by their own width. */
-.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) { flex-direction: row; flex-wrap: wrap; align-content: center; gap: calc(var(--gap) * .2); }
-.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-3d-head { flex: 0 0 100%; }
-.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d {
-  --across: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.24); /* the column's width: a video's tile */
-  --one: min(var(--across), (100cqh - var(--pad-top) - var(--pad-bottom) - 176px) / 4);
-  --two: min((var(--across) - var(--gap) * .2 - 6px) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - 130px) / 2.4); /* (6px: the column's dashed rule, and a hair) */
-  --tile-w: max(var(--one), var(--two));
+/* Five (Uggeðla í tjörninni the fifth): laid so that every name is read whole. A tile is a sticker that rocks and glows while it is
+   new, so the tiles stand as far apart as that takes: no card, tape, badge or glow of one reaches the name of another, new or
+   seen (tools/tjorn3d-tile.mjs --shelf measures it as painted, over a whole round of the rocking). To be as large as that allows,
+   the pictures are shown whole (they are 16:9, and a lower picture leaves room for a wider tile), each name has a box of two lines
+   that reaches nearly to the card's edges, the glow lies close round the card, and "Nýtt!" is small enough to leave the 3D mark
+   clear. On a wide page the column is one tile across (--w5: the heading, five tiles and five gaps in the page's height, 7 px
+   kept free at the top so the heading is clear of the book's close button; its second term is for tiles as tall as their
+   picture and name make them, its third for tiles at the least height a finger's target has, its fourth for names at their
+   least size). On an upright page (the rule after this) it is two across in three rows. */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) {
+  --room: calc(100cqh - var(--pad-top) - var(--pad-bottom));
+  --across: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (var(--room) - var(--gap)) / 2.24); /* the column's width: a video's tile */
+  --head: calc(clamp(16px, var(--across) * .13, 28px) * 1.1); /* the heading's height (.video-3d-head) */
+  --w5: max(var(--book-target), min(var(--across), (var(--room) - var(--head) - 7px) / 5.31,
+    (var(--room) - var(--head) - 7px - 5 * var(--book-target)) / .8, (var(--room) - var(--head) - 137px) / 3.91));
+  gap: calc(var(--w5) * .16);
+  padding-top: calc(var(--gap) * .35 + 7px);
 }
-.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d .tile-name { font-size: clamp(12px, var(--tile-w) * .128, 24px); } /* "Fiðrildadansinn" whole on its line */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d { --tile-w: var(--w5); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d .tile-picture { aspect-ratio: 16 / 9; flex: 1 0 auto; } /* (taller where the tile is, at a finger's least height) */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d .tile-name {
+  min-height: 2.16em; margin-inline: calc(var(--tile-w) * -.04); font-size: clamp(12px, var(--tile-w) * .13, 24px);
+}
+.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d .badge-new { font-size: clamp(13px, var(--tile-w) * .135, 26px); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d.new::after { box-shadow: 0 0 0 3px var(--book-gold), 0 0 4px 1px rgb(242 182 48 / .9); }
+@media (max-aspect-ratio: 1/1) {
+  /* (the column's own sides are thinner here, so that two tiles and the gap between two rocking stickers fit across it) */
+  .video-3d-column:has(> .video-tile-3d:nth-of-type(5)) {
+    flex-direction: row; flex-wrap: wrap; align-content: center;
+    --w5: max(var(--book-target), min((var(--across) + var(--gap) * .6 - 4px) / 2.215, (var(--room) - var(--head) - 80px) / 3.1));
+    gap: calc(var(--w5) * .21) calc(var(--w5) * .215);
+    padding: calc(var(--gap) * .35) calc(var(--gap) * .1) calc(var(--gap) * .35) calc(var(--gap) * .3);
+  }
+  .video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-3d-head { flex: 0 0 100%; }
+  .video-3d-column:has(> .video-tile-3d:nth-of-type(5)) .video-tile-3d .tile-picture { aspect-ratio: 4 / 3; }
+}
 /* the column may stand taller than the two rows of videos beside it: they keep their own size and stay together in the middle (the
    first two at the foot of the first row, the other two at the top of the second), level with the left page's */
 .video-tiles.with-3d:has(.video-tile-3d:nth-of-type(3)) > .video-tile:nth-child(-n + 2) { align-self: end; }
