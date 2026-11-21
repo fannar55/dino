@@ -6,17 +6,19 @@ import * as kafli3 from '../chapters/kafli3.js';
 import { LOOKS } from '../engine/looks.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { createSave, defaultChapter } from '../engine/save.js';
-import { shapeGround, placementInfo } from '../world/forest/forest.js';
+import { shapeGround, placementInfo, createForest } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
-import { playUnattended } from './chapter-harness.mjs';
+import { createLighting } from '../engine/lighting.js';
+import { playUnattended, chapterWorld } from './chapter-harness.mjs';
 import { FLIGHT_WORDS, SONG, EGILL_ANSWERS, EGILL_ANSWER_AT } from '../chapters/kafli4-flight.js';
 import { PLAY } from '../chapters/kafli4-flight-play.js';
 import { FAR_POOL, POOL, BEATS, CALL_SHOTS, createRoute } from '../chapters/kafli4-route.js';
 import { createTerrain } from '../world/ardalur/terrain.js';
 import { poolPlants } from '../world/ardalur/river.js';
 import { createTreeProbe, plantVolumes, reachInto } from '../engine/tree-probe.js';
+import { CARDED } from '../world/forest/cards.js';
 import { createShell } from '../engine/shell.js';
 import fs from 'node:fs';
 
@@ -223,7 +225,7 @@ const SUBJECTS = {
  * or 'tap's anywhere on the screen, one every `every` seconds from a second into scene 3 on, `count` of them).
  */
 function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, reduced = false } = {}) {
-  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [] };
+  const seen = { critters: [], rows: [], flyers: [], cuts: 0, lastShot: null, calls: [], heads: [], ledge: [], herdHeads: [], shots: new Map(), out: [], perch: [], wind: [], gusty: [], stirred: [], hands: [], circle: [], fades: [], switched: null, low: null, turns: [], posed: null, pool: [], flown: null, theme: null, songCue: null, songAtHorn: null, clips: new Map(), probed: { fen: 0, hvitatre: 0 }, sight: [], ground: [], treeCameras: [] };
   let where = null;
   const shells = new Map();
   return playUnattended(kafli4, {
@@ -392,6 +394,8 @@ function playIt({ aspect = 1.6, tap = false, hands = null, savedWith = null, red
         const at = her.root.position;
         seen.calls.push({ id: calling.id, t: world.flightTime, near: Math.hypot(at.x - group.point.x, at.z - group.point.z), size, middle: group.point.clone().project(world.camera), birds: group.kind === 'birds' ? (tree ? birds : -1) : null });
       }
+      // the white tree's place: where its camera is in every frame there
+      if (world.location === 'hvitatre') seen.treeCameras.push(world.camera.position.clone());
       // scene 4: where she is round the snag
       if (scene === 4 && world.location === 'hvitatre') seen.circle.push({ t: world.clock.time, at: her.root.position.clone(), top: c.perch?.top?.clone() ?? null });
       // scene 5: how low she comes, and the black from it till two seconds into the flight
@@ -617,6 +621,88 @@ test('none of the white tree\'s trees in the valley stands at the flight\'s came
       }
     }
     assert.deepEqual([...blocked].map(([tree, how]) => `${tree}: ${how}`), [], `at ${shape}`);
+  }
+});
+
+test('nor any tree of the lush valley\'s thick forest round the snag (chapter 4 grows it, kafli4-flight.js lushValley), in that half minute', async () => {
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { world, watched } = await play();
+    assert.ok(world.forest.stats.belts.some(Boolean), 'the chapter flies through the lush valley');
+    const trees = world.forest.stats.sections.filter(Boolean).flatMap(part => part.userData.placements)
+      .filter(p => !p.own && SPECIES[p.name]?.tall && Math.hypot(p.x - world.forest.route.tree[0], p.z - world.forest.route.tree[2]) < 600).map(plantVolumes);
+    assert.ok(trees.length > 400, `${trees.length} trees (${shape})`);
+    const blocked = new Map();
+    for (const f of watched.sight) {
+      const line = [{ a: f.camera, b: f.egill, r: 0.1, bone: 'the line to Egill' }, { a: f.camera, b: f.camera, r: 0.5, bone: 'the camera' }];
+      for (const tree of trees) {
+        const key = `${tree.name} at ${tree.x.toFixed(0)}, ${tree.z.toFixed(0)}`;
+        if (blocked.has(key)) continue;
+        const hit = reachInto(tree, line);
+        if (hit) blocked.set(key, `${hit.bone} at ${f.t.toFixed(1)} s (${f.shot})`);
+      }
+    }
+    assert.deepEqual([...blocked].map(([tree, how]) => `${tree}: ${how}`), [], `at ${shape}`);
+  }
+});
+
+test('the take-off\'s forest (the lush valley): the white tree\'s patch grows it round its clearing and the valley keeps every tree of it, so the cut shows the same forest', async () => {
+  const { layout } = chapter.locations.hvitatre;
+  assert.ok(layout.moreTrees?.length >= 150, `${layout.moreTrees?.length} trees on the list`);
+  const plan = planOf(chapter, chapter.locations.hvitatre);
+  const snag = plan.placements.find(p => p.name === 'deadSnag' && Math.hypot(p.x - kafli4.SNAG[0], p.z - kafli4.SNAG[1]) < 0.01);
+  const [tx, tz] = placementInfo(snag).tip;
+  const listed = new Set(layout.moreTrees.map(s => s.position.join()));
+  const more = plan.placements.filter(p => listed.has([p.x, p.z].join()));
+  assert.ok(more.length >= 150, `the white tree's planner grows ${more.length} of them`);
+  // none in the clearing, all within TAKE_OFF.to of the snag
+  const [cx, cz] = layout.clearing.center;
+  for (const p of more) {
+    assert.ok(Math.hypot(p.x - cx, p.z - cz) >= layout.forestEdge && Math.hypot(p.x - tx, p.z - tz) <= kafli4.TAKE_OFF.to, `a ${p.name} at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
+  }
+  // the valley leaves none of them out (her way, under her, a still shot): nothing of the forest is gone as the place changes
+  const { world } = await playWide();
+  const valley = world.forest;
+  const [sx, , sz] = valley.route.tree;
+  const gone = valley.stats.left.filter(l => more.some(p => Math.hypot(l.x - (p.x - tx + sx), l.z - (p.z - tz + sz)) < 0.01));
+  assert.deepEqual(gone.map(l => `${l.name} at ${l.x.toFixed(0)}, ${l.z.toFixed(0)} (${l.why})`), []);
+  // and the take-off is a forest: 30 to 90 m round the snag, about four times the trees a hectare of the patch as it was (22)
+  const trees = valley.stats.sections.filter(Boolean).flatMap(part => part.userData.placements)
+    .filter(p => SPECIES[p.name]?.tall && p.name !== 'deadSnag' && Math.hypot(p.x - sx, p.z - sz) >= 30 && Math.hypot(p.x - sx, p.z - sz) < 90);
+  const perHectare = trees.length / ((Math.PI * (90 * 90 - 30 * 30)) / 10000);
+  assert.ok(perHectare >= 70, `${perHectare.toFixed(0)} trees a hectare round the snag`);
+});
+
+test('the take-off\'s far trees stand at the white tree as cards of themselves (stills, no mesh): every tree past TREE_CARDS.from m of its clearing, none nearer, and no camera of its scenes comes within TREE_CARDS.camera m of one', async () => {
+  const { TREE_CARDS } = kafli4;
+  assert.ok(TREE_CARDS?.from >= 40 && TREE_CARDS.camera >= 20, `the far trees' cards: ${JSON.stringify(TREE_CARDS)}`);
+  const { layout } = chapter.locations.hvitatre;
+  assert.deepEqual(layout.farCards, { from: TREE_CARDS.from }, 'the white tree\'s lush layout asks for them');
+  const [cx, cz] = layout.clearing.center;
+  // the place's own forest, as the game builds it (the harness's places are their ground alone)
+  const world = await chapterWorld(chapter);
+  Object.assign(world, { q: PRESETS.tablet, look: LOOKS[chapter.look], params: new URLSearchParams(''), lighting: createLighting(world.scene, LOOKS[chapter.look], PRESETS.tablet) });
+  const forest = await createForest(world, { ...layout, shots: chapter.locations.hvitatre.shots });
+  const meshes = [];
+  forest.group.traverse(o => { if (o.userData?.cull?.ranges && !o.userData.caster) meshes.push(o); });
+  const cards = meshes.filter(m => m.userData.cards).flatMap(m => m.userData.cull.ranges);
+  const own = meshes.filter(m => !m.userData.cards).flatMap(m => m.userData.cull.ranges).filter(r => r.ref);
+  const at = (list, p) => list.some(r => Math.hypot(r.ref.x - p.x, r.ref.z - p.z) < 0.01);
+  const carded = forest.placements.filter(p => CARDED.includes(p.name));
+  const far = carded.filter(p => Math.hypot(p.x - cx, p.z - cz) >= TREE_CARDS.from);
+  forest.dispose();
+  assert.ok(far.length >= 150, `${far.length} trees past ${TREE_CARDS.from} m`);
+  assert.deepEqual(far.filter(p => !at(cards, p) || at(own, p)).map(p => `${p.name} at ${p.x.toFixed(0)}, ${p.z.toFixed(0)}`), [], 'each far tree its card and never its mesh');
+  assert.equal(cards.length, far.length, 'no card but theirs: every nearer tree is its mesh');
+  for (const [shape, play] of [['16:10', playWide], ['upright', playUpright]]) {
+    const { watched } = await play();
+    assert.ok(watched.treeCameras.length > 3000, `${watched.treeCameras.length} frames of the white tree's camera (${shape})`);
+    // no camera of the place near one: the nearest any frame came
+    let nearest = Infinity, where = '';
+    for (const c of watched.treeCameras) for (const p of far) {
+      const d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d < nearest) { nearest = d; where = `a ${p.name} at ${p.x.toFixed(0)}, ${p.z.toFixed(0)} from ${c.x.toFixed(1)}, ${c.z.toFixed(1)}`; }
+    }
+    assert.ok(nearest >= TREE_CARDS.camera, `the camera came ${nearest.toFixed(1)} m from ${where} (${shape})`);
   }
 });
 

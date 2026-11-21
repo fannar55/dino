@@ -97,8 +97,12 @@ export function playStart(doc) {
   return { element: wrap, button };
 }
 
-/** The glasses start (a show's chapter.startButton), laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */
-export function glassesStart(doc) {
+/**
+ * The glasses start (a show's chapter.startButton), laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when
+ * it cannot be. `more` is one more line of text under "Rauða glerið á vinstra auga." (the table picture's, chapters/bord3d.js);
+ * without it the start is as every show's.
+ */
+export function glassesStart(doc, { more = null } = {}) {
   return new Promise(resolve => {
     const wrap = doc.createElement('div');
     wrap.className = 'gler-start-wrap';
@@ -116,6 +120,12 @@ export function glassesStart(doc) {
     line.className = 'gler-start-line';
     line.textContent = 'Rauða glerið á vinstra auga.';
     wrap.append(style, button, line);
+    if (more) {
+      const second = doc.createElement('p');
+      second.className = 'gler-start-line';
+      second.textContent = more;
+      wrap.append(second);
+    }
     img.addEventListener('load', () => {
       doc.body.append(wrap);
       resolve({ element: wrap, button });

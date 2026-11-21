@@ -34,7 +34,7 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { DONE, Handle } from '../../engine/handle.js';
 import { clipPose, crowdModelFrom } from '../critters/crowd-models.js';
 import { createModel } from '../critters/models.js';
-import { createCrowds } from '../critters/crowd.js';
+import { createCrowds, growWindow } from '../critters/crowd.js';
 import { splash } from '../props/splash.js';
 
 /** How much larger than life each critter is drawn: they are seen from her back, 5 m up and 10 to 15 m off, at 14 to 16 m/s (and
@@ -160,6 +160,8 @@ const FOLLOW = { rise: 0.6, with: 4.0, peel: 1.2, away: 10 }; // seconds: catch 
 // and `inland` into the trees in `into` seconds, out of sight once `hide` of the way in. Their legs go round once every `stride`
 // metres covered (the small lizard's own stride at its size is 0.5 m: at her speed its feet would blur).
 const RUN = { turn: 0.3, metres: 24, seconds: 4, out: 1.4, ahead: 8, inland: 25, into: 5, hide: 0.8, stride: 0.95, stagger: 0.05 };
+/** The second of its run (`u`, a run up the bank `seconds` long) a small lizard is out of sight: `hide` of the way inland (smoothstepped). */
+const hiddenAt = seconds => RUN.turn + seconds + RUN.into * (0.5 - Math.sin(Math.asin(1 - 2 * RUN.hide) / 3));
 // The frogs: a crouch and a leap `out` metres off the pad into the river, then they swim upstream on the surface and dive at `dive`.
 const HOP = { crouch: 0.22, air: 0.62, height: 1.25, out: 1.5, stagger: 0.18 };
 const SWIM = { speed: 1.5, kick: 2.2, dive: 6.0 };
@@ -366,6 +368,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
     m.position.copy(m.home);
     m.heading = m.rest;
     m.visible = true;
+    m.grow = 1; // its size, less as it goes or comes (world/critters/crowd.js growWindow): none goes out of sight whole
     m.pitch = 0;
     squash(m, 1, 1, 1);
     const p = m.phase;
@@ -383,6 +386,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         const u = tau - k * HOP.stagger;
         if (u <= 0) break;
         if (u >= SWIM.dive) { m.visible = false; break; } // dived: on its way under the water
+        m.grow = growWindow(u, -Infinity, SWIM.dive);
         if (hasRig) m.morphs.breathe = 0;
         const water = spot(m.d, m.side, m.along, m.e - HOP.out); // where it lands, out from its pad
         const toRiver = headingOf(-water.out[0], -water.out[1]);
@@ -429,6 +433,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         squash(m, 1, 1 + 0.012 * Math.sin((TAU * t) / 3.2 + p), 1);
         if (u === null || u <= SLIDE.from) break;
         if (u >= SLIDE.gone) { m.visible = false; break; } // under: on its way along the riverbed
+        m.grow = growWindow(u, -Infinity, SLIDE.gone);
         if (u < SLIDE.from + SLIDE.seconds) {
           // off its stone or log, nose down, into the river
           const a = smooth((u - SLIDE.from) / SLIDE.seconds);
@@ -462,6 +467,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         if (u <= 0) break;
         const body = herNow();
         if (u >= FLY.gone || !body) { m.visible = false; break; } // gone: on its way to the festival
+        m.grow = growWindow(u, -Infinity, FLY.gone);
         // a place by her, on their tree's side of her (so none crosses her), the dragonflies' places spread wider
         const r = river.at(river.nearest(body.x, body.z).d);
         const fx = r.dir[0], fz = r.dir[1];
@@ -499,6 +505,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         const body = herNow();
         const out = FOLLOW.rise + FOLLOW.with;
         if (!body || tau >= out + FOLLOW.peel) { m.visible = false; break; } // gone off: home again, unseen, at FOLLOW.away
+        m.grow = growWindow(tau, -Infinity, out + FOLLOW.peel);
         // her forward: up the river where she is
         const r = river.at(river.nearest(body.x, body.z).d);
         const fx = r.dir[0], fz = r.dir[1];
@@ -528,6 +535,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
         const run = smooth((u - RUN.turn) / g.run.seconds);
         const inland = smooth((u - RUN.turn - g.run.seconds) / RUN.into);
         if (inland >= RUN.hide) { m.visible = false; break; }
+        m.grow = growWindow(u, -Infinity, hiddenAt(g.run.seconds));
         const along = g.run.metres * run + RUN.ahead * inland;
         const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) + RUN.inland * inland;
         const at = spot(m.d, m.side, m.along + along, e);
@@ -561,6 +569,7 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       const run = smooth((u - RUN.turn) / own.seconds);
       const inland = smooth((u - RUN.turn - own.seconds) / RUN.into);
       if (inland >= RUN.hide) { m.visible = false; return; }
+      m.grow = growWindow(u, -Infinity, hiddenAt(own.seconds));
       const e = m.e + RUN.out * smooth((u - RUN.turn) / 1.0) + RUN.inland * inland;
       const at = spot(m.d, m.side, m.along + own.metres * run + RUN.ahead * inland, e);
       m.position.set(at.x, heightAt(at.x, at.z), at.z);
@@ -622,6 +631,8 @@ export function createAnimals(world, route, { heightAt = () => 0, library = null
       const at = tau === null ? null : STAY.has(g.kind) ? Math.min(tau, length) : answering ? tau : null;
       g.members.forEach((m, k) => {
         pose(g, m, k, t, at);
+        // the dragonflies come home unseen and grow in there as their answer ends
+        if (g.kind === 'dragonflies' && tau !== null && tau >= FOLLOW.away) m.grow = growWindow(tau, FOLLOW.away, Infinity);
         turnToHer(g, m, t, tau);
         splashFrame(g, m, k, tau);
         if (m.visible) crowds.place(m.kind, m.position, m.heading, m.scale, m); // a member is its own pose: morphs, wings, pitch, squash

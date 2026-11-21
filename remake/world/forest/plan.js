@@ -16,7 +16,8 @@
 // give way, by the fen's share there, so a trail that turns from forest to fen turns over the width of its blend. Its plants
 // keep out of the water (layout.keepOut) but the lilies, which grow only on it (layout.water.depthAt), and its tall plants keep
 // out of the lines from the lookout to the far friends (layout.lookout, layout.farFriends). Plants the layout names itself
-// (layout.plants) are placed first, where it says.
+// (layout.plants) are placed first, where it says; a Fen's list of more trees (layout.moreTrees) last, each where it says if the
+// rules above let it stand there.
 import * as THREE from 'three';
 import { runSync } from './slices.js';
 import { FOREST, FEN, scaled, gladeOf } from './config.js';
@@ -1044,6 +1045,21 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
           scale: rng.range(0.8, 1.2), spacing: 0.9, inWater: true, pathClear: 0, actorClear: 2.6, y: water.surfaceAt(...at) + 0.012, lod: lodAt(...at),
         });
         if (p) placed++;
+      }
+    }
+    // 9. a layout's own list of more trees (layout.moreTrees: [{ name, position, scale, variant, rot }], chapter 4's forest round
+    //    the white snag): each where the list says, if the fen's rules let it stand there (the shots, the path, the actors, the
+    //    lookout's sight lines, room), after all the rest, so the place's other plants are as they were; a share of them on a
+    //    device that grows fewer trees (q.trees)
+    if (layout.moreTrees?.length) {
+      const rng = createRng(seed, 'fen-more');
+      for (const spec of layout.moreTrees) {
+        yield; // a plant tried at a time (slices.js)
+        if (allQ.trees < 1 && rng.next() > allQ.trees) continue;
+        const own = { scale: spec.scale ?? 1, ...(spec.variant === undefined ? {} : { variant: spec.variant }), ...(spec.rot === undefined ? {} : { rot: spec.rot }) };
+        yield* fenPlace(spec.name, spec.position, rng, {
+          tall: true, pathClear: P.treeClear, treeSpacing: 4.2, blocksGrass: true, grassRadius: 1.0, sink: spec.name === 'swampConifer' ? 0.05 : undefined, ...own,
+        });
       }
     }
   }

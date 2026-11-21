@@ -6,8 +6,9 @@
 //   ?chapter=flug&flugedla=10   Flugeðla 10 m from wingtip to wingtip instead of 7.5 (the owner picks one: spec 11)
 //   ?chapter=flug&lit=1         the real valley instead of grey (from chunk 2)
 //   ?chapter=flug&reduced=1     as a tablet that asks for less motion sees it: no orbit, no slow second, half the bank
+//   ?chapter=flug&lit=1&skogur=0  the real valley as it was before the lush forest (world/ardalur/banks.js LUSH)
 import { createRoute, TREE } from './kafli4-route.js';
-import { theFlight, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
+import { theFlight, FLIGHT_WORDS, createFlightSong, lushValley } from './kafli4-flight.js';
 import { lineQueue } from './kafli4-flight-play.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
@@ -36,7 +37,8 @@ export const chapter = {
   start: 'ardalur',
   locations: {
     ardalur: {
-      build: async world => createArdalur(world, { grey: !params.has('lit'), route, critters: params.has('lit') ? await loadCritters(world) : {} }),
+      // lit: the lush valley as the full chapter has it (kafli4.js lushValley; ?skogur=0 the valley as it was)
+      build: async world => createArdalur(world, { grey: !params.has('lit'), route, critters: params.has('lit') ? await loadCritters(world) : {}, lush: lushValley(world) }),
       shots: {
         // While the start button waits: the white snag on the Fen, with her on top of it and Egill on her back.
         flug_snag: { position: [17, 5, 13], target: [...TREE].map((v, i) => (i === 1 ? v + 1.5 : v)), fov: 42 },

@@ -3,14 +3,15 @@
 //
 //   groundPaint(terrain, route)(x, z, y, ny) -> [r, g, b, rock]   the ground's colour at a vertex (linear), and how much of it is bare
 //                                                                    rock (the walls of the gorge and the cliff of the falls: sandstone)
-//   createGroundMaterial(noise) -> material                       a Lambert with that colour, broken up by the noise at two scales,
-//                                                                    and the sandstone's layers where it is rock
+//   createGroundMaterial(noise, { haze }) -> material             a Lambert with that colour, broken up by the noise at two scales,
+//                                                                    and the sandstone's layers where it is rock; haze: the far land's
+//                                                                    (far-land.js createFarHaze) after its fog, as the land it covers
 //   createPlantMaterials(world, { noise, leaf }) -> { solid, thin, downwash, dispose() }   the forest's vegetation materials
 //                                                                    (world/forest/materials.js), with `downwash` (a Vector4: her body
 //                                                                    and how far round it the air pushes the plants away; w 0 is none)
 import * as THREE from 'three';
 import { PALETTE, FEN, FOREST } from '../forest/config.js';
-import { createSharedUniforms, createVegetationMaterial, leafMeanOf } from '../forest/materials.js';
+import { createSharedUniforms, createVegetationMaterial, leafMeanOf, createCardFade } from '../forest/materials.js';
 import { ACTOR_GLSL } from '../forest/terrain.js';
 import { RAPIDS } from './river.js';
 
@@ -50,12 +51,12 @@ export function groundPaint(terrain, route) {
 }
 
 /** The ground's material: its vertex colour broken up at two scales, and the sandstone's layers where it is rock (aRock). */
-export function createGroundMaterial(noise) {
+export function createGroundMaterial(noise, { haze = null } = {}) {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.name = 'ardalur-ground';
   const uniforms = {
     uNoise: { value: noise },
-    uStoneA: { value: GROUND.stone[0] }, uStoneB: { value: GROUND.stone[1] }, uStoneC: { value: GROUND.stone[2] },
+    uStoneA: { value: GROUND.stone[0] }, uStoneB: { value: GROUND.stone[1] }, uStoneC: { value: GROUND.stone[2] }, ...haze?.uniforms,
   };
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
@@ -69,7 +70,7 @@ uniform vec3 uStoneA;
 uniform vec3 uStoneB;
 uniform vec3 uStoneC;
 varying float vRock;
-varying vec3 vGround;`)
+varying vec3 vGround;${haze ? `\n${haze.head}` : ''}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
   // patches: broad ones and small ones, so the grass is never one flat green
   float broad = texture2D( uNoise, vGround.xz * 0.019 ).r;
@@ -84,8 +85,9 @@ varying vec3 vGround;`)
     stone *= 0.82 + 0.3 * texture2D( uNoise, vec2( vGround.x + vGround.z, vGround.y * 2.0 ) * 0.17 ).r;
     diffuseColor.rgb = mix( diffuseColor.rgb, stone, vRock );
   }`);
+    if (haze) shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>\n${haze.glsl}`);
   };
-  material.customProgramCacheKey = () => 'ardalur-ground';
+  material.customProgramCacheKey = () => (haze ? `ardalur-ground-${haze.key}` : 'ardalur-ground');
   return material;
 }
 
@@ -126,9 +128,14 @@ function withDownwash(material, key, downwash) {
 // texture is read at its third mip level or coarser (a cell about two texels), so the fade shows as little as the mip levels do
 export const LEAF_FADE = [60, 90];
 
-/** The plants' materials: the forest's (solid and double-sided thin parts), bending away under her. */
-export function createPlantMaterials(world, { noise, leaf }) {
+/**
+ * The plants' materials: the forest's (solid and double-sided thin parts), bending away under her, and each again fading into the far
+ * trees' cards in the band round cardFrom (solidFade, thinFade: world/forest/batch.js CARD_BAND), by `cardFade`, the band's uniform
+ * the cards' material shares (materials.js createCardFade; one of its own if none is given).
+ */
+export function createPlantMaterials(world, { noise, leaf, cardFade = createCardFade() }) {
   const shared = createSharedUniforms(world, noise, leaf, 0);
+  shared.uCardFade = cardFade;
   // no footprints in the valley: the ferns lean from nobody (the forest's capsules, none of them used)
   const actors = {
     glsl: ACTOR_GLSL,
@@ -146,8 +153,13 @@ export function createPlantMaterials(world, { noise, leaf }) {
   const leafFade = low ? null : { from: LEAF_FADE[0], to: LEAF_FADE[1], mean: leafMeanOf(leaf) };
   const solid = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}`, downwash);
   const thin = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors }), `ardalur-thin${low ? '-low' : ''}`, downwash);
+  // with MSAA (the preset's antialias: the canvas and the glasses' eye targets) the band shares each pixel's samples out, not its pixels
+  const coverage = Boolean(world.q?.antialias);
+  const by = coverage ? '-a2c' : '';
+  const solidFade = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade, cardFade: true, coverage }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}-card${by}`, downwash);
+  const thinFade = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors, cardFade: true, coverage }), `ardalur-thin${low ? '-low' : ''}-card${by}`, downwash);
   return {
-    solid, thin, downwash: downwash.value,
-    dispose() { solid.dispose(); thin.dispose(); },
+    solid, thin, solidFade, thinFade, cardFade, downwash: downwash.value,
+    dispose() { solid.dispose(); thin.dispose(); solidFade.dispose(); thinFade.dispose(); },
   };
 }

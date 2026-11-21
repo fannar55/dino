@@ -6403,6 +6403,30 @@
    "duration": 4.25,
    "model": "eleven_v4"
   },
+  "tjorn3d/t3_uggedla_bless": {
+   "key": "fb6127b30a6c0fb8ce12b9e128c55df754a45bae2f39bbb87be9b661baf205ab",
+   "mp3": "06603d8445533d16b834cc887e87bcfa0b36a591af33c322c0dfcd95bc49248d",
+   "duration": 1.29,
+   "model": "eleven_v4"
+  },
+  "tjorn3d/t3_uggedla_fidrildi": {
+   "key": "d34721764f6a32cf236b21704daab722b937ae59fe8b2cb4b6937060a8b00fef",
+   "mp3": "7934b0758ebec876dfeef33f161861e3f7fec3fa619f44f62c817416e4e22c00",
+   "duration": 2.01,
+   "model": "eleven_v4"
+  },
+  "tjorn3d/t3_uggedla_hallo": {
+   "key": "18d948fad3bed7f91897bcda52ef82c72bf6d6f95774713c2388134baaafc94a",
+   "mp3": "beba5db39ed471bb3a2f9c97afffeeb39a8408c91be61b8d82a32dec550150de",
+   "duration": 1.13,
+   "model": "eleven_v4"
+  },
+  "tjorn3d/t3_uggedla_namm": {
+   "key": "52ebf19e27f1851c26df4d72b543b77f5a7cfa029c4055587d68cdafbc40ec9d",
+   "mp3": "a75ad1cfaa5c7a8ce95f132ea500deff6db03a2b8da699ec19282b1e7d2c14a8",
+   "duration": 1.21,
+   "model": "eleven_v4"
+  },
   "veiddu/veiddu_egill_ask_brunnklukka": {
    "key": "967f5f55813e6618f0f63ac5bc871593a64e922b97a12c2bbff4a507e105b9bf",
    "mp3": "2d0da172d33e1434ea20cb294a2ca3bb344d26108b1ca2819b01b764e565c197",

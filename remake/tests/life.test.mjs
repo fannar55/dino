@@ -358,14 +358,18 @@ function turned(b, step, from, to) {
   return hi - lo;
 }
 
-test("the ledge's flyer stands on a rock of the valley's own, set in the wall, clear of her and of its way off (NEST_ROCKS)", async () => {
+test("every ledge's flyer stands on a rock of the valley's own a metre out, set in the wall, clear of her and of its way off (NEST_ROCKS)", async () => {
   const library = createSpeciesLibrary(4);
   const { life, step } = made({ critters: await allModels(), library });
   assert.ok(NEST_ROCKS.some(r => CALL_SHOTS.some(row => row.shot === 'ledge' && row.nest === r.nest)), "a rock under the ledge shot's nest");
+  assert.deepEqual(NEST_ROCKS.map(r => r.nest).sort(), NESTS.map((_, k) => k), 'a rock under every nest: no flyer on a bare wall');
   const ray = new THREE.Raycaster();
   const down = new THREE.Vector3(0, -1, 0);
   for (const { nest, variant, scale, shape = {} } of NEST_ROCKS) {
-    const [x, y, z] = NESTS[nest];
+    const [wx, , wz] = NESTS[nest]; // the nest's point on the wall as drawn
+    const ledge = life.ledges.find(l => l.nest === nest);
+    const { x, y, z } = ledge.perch; // where its flyer stands: a metre out from it
+    assert.ok(Math.abs(Math.hypot(x - wx, z - wz) - 1) < 0.01, `nest ${nest}: its perch a metre out from the wall`);
     const rocks = life.props.filter(p => p.name === 'rock' && Math.hypot(p.x - x, p.z - z) < 3);
     assert.equal(rocks.length, 1, `one rock under nest ${nest}`);
     const [rock] = rocks;
@@ -388,16 +392,21 @@ test("the ledge's flyer stands on a rock of the valley's own, set in the wall, c
       const h = top(x + 0.3 * Math.cos(a * Math.PI / 4), z + 0.3 * Math.sin(a * Math.PI / 4));
       assert.ok(h !== null && Math.abs(h - y) < 0.2, `its top round the feet ${h === null ? 'missing' : (h - y).toFixed(2)} m from them`);
     }
-    // set in the wall: at least half of it in the ground as drawn, and at least a sixth of it out where it is seen
+    // set in the wall: its back goes into the wall behind the nest's point (no gap to float in), and most of it shows as a ledge
     const pos = geometry.attributes.position;
     const v = new THREE.Vector3();
-    let out = 0;
-    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld); if (v.y > groundDrawnAt(heightAt, v.x, v.z)) out++; }
-    assert.ok(out / pos.count <= 0.5 && out / pos.count >= 1 / 6, `${(100 * out / pos.count).toFixed(0)} % of it out of the wall`);
+    let out = 0, back = 0;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+      if (v.y > groundDrawnAt(heightAt, v.x, v.z)) out++;
+      back = Math.max(back, -((v.x - wx) * ledge.out[0] + (v.z - wz) * ledge.out[1]));
+    }
+    assert.ok(out / pos.count >= 0.5 && out / pos.count <= 0.95, `${(100 * out / pos.count).toFixed(0)} % of it out of the wall`);
+    assert.ok(back >= 0.15, `its back ${back.toFixed(2)} m into the wall`);
     // the flyer on it until it sets off; as it flies off, its feet stay over the rock
     const b = life.flyers[nest];
     step(b.trigger - 0.1);
-    assert.ok(b.position.distanceTo(new THREE.Vector3(x, y, z)) < 1e-6, 'the flyer on its nest');
+    assert.ok(b.position.distanceTo(ledge.perch) < 1e-6, 'the flyer on its ledge');
     let lowest = Infinity;
     for (let t = b.trigger; t <= b.trigger + 1.5; t += 0.02) {
       step(t);
@@ -436,10 +445,10 @@ test('the flyers leave their nests as she passes and fly with her to the far poo
     sides.set(w.side, (sides.get(w.side) ?? 0) + 1);
   }
   assert.ok(sides.size === 2 && [...sides.values()].every(n => n >= 3), `nests on both walls (${[...sides.values()].join(' and ')})`);
-  // each sits on its ledge until the schedule brings her within 25 m of it, then flies off
+  // each sits on its ledge (a metre out from its nest) until the schedule brings her within 25 m of the nest, then flies off
   for (const b of flyers) {
     let at = null;
-    for (let t = BEATS.C; t <= BEATS.E && at === null; t += 0.01) if (herAt(t).distanceTo(b.nest) <= 25) at = t;
+    for (let t = BEATS.C; t <= BEATS.E && at === null; t += 0.01) if (herAt(t).distanceTo(b.wall) <= 25) at = t;
     assert.ok(at !== null && Math.abs(b.trigger - at) < 0.02, `${b.id} sets off at ${b.trigger?.toFixed(2)} s (she is 25 m off at ${at?.toFixed(2)} s)`);
     for (const t of [0, BEATS.D, b.trigger - 0.2]) {
       step(t);

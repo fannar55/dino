@@ -30,18 +30,20 @@ import { thorsedlaLife, leafWarm } from './kafli3-thorsedla.js';
 import { perch, holdHer, flyPath, watchHer, landingTime } from './kafli4-flugedla.js';
 import { theWind } from './kafli4-wind.js';
 import { lineQueue, panOf } from './kafli4-flight-play.js';
-import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong } from './kafli4-flight.js';
+import { theFlight, TAKE_OFF_FACE, FLIGHT_WORDS, createFlightSong, lushValley } from './kafli4-flight.js';
 import { createRoute, FAR_POOL, BODY_HEIGHT } from './kafli4-route.js';
 import { splash as splashOf, splashWarm } from '../world/props/splash.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { shapeGround, placementInfo } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
+import { FOREST } from '../world/forest/config.js';
 import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { createFlier, rideFlier, perchedHeading, SEAT } from '../engine/flier.js';
 import { createFlierSaddle } from '../engine/flier-saddle.js';
-import { createFlightCamera } from '../engine/camera/flight-camera.js';
+import { createFlightCamera, stillViews } from '../engine/camera/flight-camera.js';
+import { groveAt, seeded } from '../world/ardalur/banks.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
 import { createSaddle, ride, floatTo, floatDown, SIT_DEPTH } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
@@ -799,6 +801,73 @@ export function whiteTreesFor(world) {
   return { trees, treeless: [{ x: sx, z: sz, r: reach + 0.01 }] };
 }
 
+/**
+ * The take-off's forest (the lush valley; the owner's word of 2026-11-19, "so few trees when Flugeðla takes off"): the white tree's
+ * patch of fen grows a thick forest round its clearing, from the clearing's rim (HVITATRE_LAYOUT.forestEdge) out to `to` m from the
+ * snag, and the valley takes it with the patch's other trees (whiteTreesFor), so the cut from the white tree to the flight shows the
+ * same forest on both sides. The list: a jittered grid (`spacing`, `jitter`), each spot taken at a chance from `chance[0]` in the
+ * valley's glades to `chance[1]` in its groves (banks.js groveAt), a swamp conifer or (`fern` of them) a tree fern; none where the
+ * valley would leave it out (in its own frame, the snag's tip on ROUTE.tree): within `lane` m of her path in the flight's first
+ * `seconds` (her way out and up, and under her), within `view` m of a line of sight of a still shot of those seconds (the take-off
+ * still) or `near` m of its camera. The white tree's planner (world/forest/plan.js moreTrees) then keeps each its own rules let stand.
+ */
+export const TAKE_OFF = { to: 96, spacing: 8, jitter: 3, chance: [0.45, 0.95], fern: 0.25, lane: 14, seconds: 40, view: 7, near: 9 };
+/**
+ * The white tree's far trees as still pictures of themselves (world/forest/forest.js layout.farCards): every tree of the carded kinds at
+ * least `from` m from its clearing's centre, past the take-off's forest's first rings, is one card that bends with the wind and never
+ * its mesh (the take-off's forest, drawn whole, took the white tree's frames to 307 000 triangles on the tablet held upright: its
+ * budget is 250 000). Its cameras keep within 30 m of that centre, so none comes within `camera` m of such a tree (the chapter's
+ * tests hold it).
+ */
+export const TREE_CARDS = { from: 45, camera: 20 };
+const layouts = new Map();
+function hvitatreLayout(lush) {
+  if (!lush) return HVITATRE_LAYOUT;
+  if (!layouts.has('lush')) layouts.set('lush', { ...HVITATRE_LAYOUT, moreTrees: takeOffForest(), farCards: { from: TREE_CARDS.from }, groundPieces: true });
+  return layouts.get('lush');
+}
+/** TAKE_OFF's list of trees, in the white tree's own frame: [{ name, position, scale, variant, rot }]. */
+export function takeOffForest() {
+  const library = createSpeciesLibrary(HVITATRE_LAYOUT.seed >>> 0);
+  const snag = { name: 'deadSnag', model: library.get('deadSnag', 2, 0), x: SNAG[0], y: 0, z: SNAG[1], rot: 0, scale: 1.5 };
+  const [tx, tz] = placementInfo(snag).tip ?? SNAG;
+  const [sx, , sz] = ROUTE.tree;
+  const toValley = (x, z) => [x - tx + sx, z - tz + sz];
+  // her path in the flight's first seconds, seen from above, and the lines of sight of the still shots of those seconds
+  const path = [];
+  for (let t = 0; t <= TAKE_OFF.seconds; t += 0.25) {
+    const p = ROUTE.pointAt(ROUTE.progressAt(t));
+    path.push([p.x, p.z]);
+  }
+  const views = stillViews(ROUTE).filter(v => v.from < TAKE_OFF.seconds);
+  const segment = (x, z, [ax, az], [bx, bz]) => {
+    const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+    const f = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / l2));
+    return Math.hypot(x - ax - dx * f, z - az - dz * f);
+  };
+  const kept = (x, z) => !path.some(([px, pz]) => Math.hypot(px - x, pz - z) < TAKE_OFF.lane)
+    && !views.some(v => Math.hypot(v.position.x - x, v.position.z - z) < TAKE_OFF.near
+      || v.looks.some(b => segment(x, z, [v.position.x, v.position.z], [b.x, b.z]) < TAKE_OFF.view));
+  const rng = seeded(4104);
+  const [cx, cz] = HVITATRE_LAYOUT.clearing.center;
+  const trees = [];
+  const reach = TAKE_OFF.to + TAKE_OFF.spacing;
+  for (let gz = -reach; gz <= reach; gz += TAKE_OFF.spacing) {
+    for (let gx = -reach; gx <= reach; gx += TAKE_OFF.spacing) {
+      const x = tx + gx + (rng() - 0.5) * 2 * TAKE_OFF.jitter, z = tz + gz + (rng() - 0.5) * 2 * TAKE_OFF.jitter;
+      const roll = rng(), kind = rng(), size = rng(), turn = rng(), variant = rng();
+      if (Math.hypot(x - tx, z - tz) > TAKE_OFF.to || Math.hypot(x - cx, z - cz) < HVITATRE_LAYOUT.forestEdge) continue;
+      const [vx, vz] = toValley(x, z);
+      const g = Math.min(1, Math.max(0, groveAt(vx, vz) / 0.6));
+      if (roll > TAKE_OFF.chance[0] + (TAKE_OFF.chance[1] - TAKE_OFF.chance[0]) * g || !kept(vx, vz)) continue;
+      const name = kind < TAKE_OFF.fern ? 'treeFern' : 'swampConifer';
+      const scale = name === 'treeFern' ? 0.85 + size * 0.35 : 0.8 + size * 0.4;
+      trees.push({ name, position: [x, z], scale, variant: Math.floor(variant * FOREST.trees.variants[name]), rot: turn * Math.PI * 2 });
+    }
+  }
+  return trees;
+}
+
 /** Less motion: the page's ask (prefers-reduced-motion), ?reduced=1, or what a test's world says. */
 function reducedMotion(world) {
   if (typeof world.reduced === 'boolean') return world.reduced;
@@ -848,15 +917,18 @@ export const chapter = {
     // chapter 3's layout, planted for chapter 3's late morning sun: the planner keeps the sun's way into a clearing clear of big crowns,
     // and this chapter's sun stands elsewhere (world/forest/plan.js: plantedFor)
     fen: { layout: { ...FEN.layout, plantedFor: kafli3.look }, shots: { ...FEN.shots, ...FEN_SHOTS }, warmUp: FEN_WARM },
-    hvitatre: { layout: HVITATRE_LAYOUT, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind', 'tre_above'] },
+    // with the lush valley the take-off's forest round it too (hvitatreLayout), ?skogur=0 the patch as it was
+    hvitatre: { get layout() { return hvitatreLayout(lushValley({})); }, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind', 'tre_above'] },
     // the flight's valley in its real look; its shots are the flight camera's (engine/camera/flight-camera.js), and the far pool's for
     // scene 7 (kafli4-route.js: FAR_POOL). Readied before the start button shows (readyFirst, below): its far land's models loaded,
     // so that they are drawn then too. Its other sections are still built a slice a frame as she flies (all of them here would double
     // the wait for the start button).
     ardalur: {
       // the owner's small lizard first (world/ardalur/animals.js: loadCritters), so C's lizards are his from their first frame
-      // and the white tree's trees round its snag (whiteTreesFor), and Mosi's way in to the far pool clear (FAR_POOL.wayIn)
-      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world), keep: FAR_POOL.wayIn, ...whiteTreesFor(world) }),
+      // and the white tree's trees round its snag (whiteTreesFor), and Mosi's way in to the far pool clear (FAR_POOL.wayIn); the lush
+      // valley (world/ardalur/banks.js LUSH: groves of forest, thick understory, forest on the horizon and round the snag; the owner's
+      // word of 2026-11-19), ?skogur=0 the valley as it was
+      build: async world => createArdalur(world, { grey: false, route: ROUTE, critters: await loadCritters(world), keep: FAR_POOL.wayIn, ...whiteTreesFor(world), lush: lushValley(world) }),
       shots: FAR_POOL.shots, warmUp: [],
       async ready(world, valley) {
         valley.farLand?.prefetch();

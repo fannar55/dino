@@ -102,6 +102,7 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   let lastDraw = 0;
   const lastPos = new THREE.Vector3();
   const v = new THREE.Vector3();
+  let ownEyes = null; // a chapter's own placing of the two eye cameras (setEyes), or null: the pair beside the director's camera
 
   function ensureTargets(w, h) {
     if (targets && targets[0].width === w && targets[0].height === h) return;
@@ -137,6 +138,7 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   }
 
   function placeEyes() {
+    if (ownEyes) { ownEyes(eyes, camera); return; }
     camera.updateMatrixWorld();
     const f = eyeFrusta(camera, plane, settings.strength);
     const right = v.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
@@ -250,6 +252,12 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     enable(on = true) { settings.on = on; ui.sync(); },
     /** The zero-parallax distance in metres, eased; null follows the look target again. `jump` sets it at once (under a fade). */
     setPlane(distance, { jump = false } = {}) { manual = distance ?? null; if (jump) jumpNext = true; },
+    /**
+     * A chapter places the two eye cameras itself: fn(eyes, camera) is called at every draw in place of the pair beside the director's
+     * camera, and must leave each eye's place, turn, layers and projection set (the table picture, chapters/bord3d.js); null gives
+     * them back. Off unless a chapter calls it.
+     */
+    setEyes(fn) { ownEyes = fn ?? null; },
     draw,
   };
 }

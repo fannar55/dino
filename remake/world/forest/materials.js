@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { FOREST, BEAT_SHARE, PIVOT, WIND_PEAK } from './config.js';
 import { createRng } from './random.js';
 import { runSync } from './slices.js';
+import { GROW, cardBand } from './batch.js';
 
 /** Tileable 128x128 noise: R dapple blobs, G medium fbm, B coarse fbm, A fine grain. */
 export function createNoiseTexture(seed, size = 128) {
@@ -212,6 +213,46 @@ vec3 forestPivot( vec3 wp, vec4 w, vec4 a ) {
   return turned - rel;
 }`;
 
+// A small plant grows out of the ground at the edge of its distance and shrinks back into it there (batch.js GROW and growAt, which
+// this is): its size is 1 - smoothstep(from * cut, cut, d), d the camera's distance to its foot, and the whole plant, as the wind, the
+// dance and whatever else moved it, is drawn that size about its foot. aGrow's w is 0 for a plant that never shrinks; a mesh without
+// aGrow reads (0, 0, 0, 1), which is none either.
+export const GROW_GLSL = /* glsl */`
+attribute vec4 aGrow;
+vec3 forestGrown( vec3 p ) {
+  if ( aGrow.w <= 0.0 || aGrow.w > 0.99 ) return p;
+  vec3 foot = position + aGrow.xyz * ${GROW.reach.toFixed(1)};
+  float cut = aGrow.w * ${GROW.far.toFixed(1)};
+  float d = distance( ( modelMatrix * vec4( foot, 1.0 ) ).xyz, cameraPosition );
+  return foot + ( p - foot ) * ( 1.0 - smoothstep( ${GROW.from.toFixed(3)} * cut, cut, d ) );
+}`;
+const GROW_LINE = 'transformed = forestGrown( transformed );';
+
+// A far tree fades into its card over the band round cardFrom (batch.js CARD_BAND and cardFadeAt, which forestCardShare is): uCardFade
+// is the band, [all mesh, all card] in metres to the tree's mid-height, which the place that has cards sets each frame (one object,
+// shared by its plants' fading materials and its cards' material; far off, 1e9, where nothing fades). In the band a pixel shows the
+// tree's mesh where forestDither (a 4x4 ordered threshold, fixed on the screen) is at least the card's share, and the card where it is
+// under it: one threshold, so the two take turns pixel by pixel, never both and never neither, and nothing has to be sorted.
+export const CARD_FADE_GLSL = /* glsl */`
+uniform vec2 uCardFade;
+float forestCardShare( float d ) {
+  float t = clamp( ( d - uCardFade.x ) / max( uCardFade.y - uCardFade.x, 1e-3 ), 0.0, 1.0 );
+  return t * t * ( 3.0 - 2.0 * t );
+}`;
+export const DITHER_GLSL = /* glsl */`
+float forestBayer2( vec2 a ) { a = floor( a ); return fract( dot( a, vec2( 0.5, a.y * 0.75 ) ) ); }
+float forestDither() {
+  vec2 p = mod( floor( gl_FragCoord.xy ), 4.0 ); // small numbers: exact at any screen size and precision
+  return forestBayer2( 0.5 * p ) * 0.25 + forestBayer2( p ) + 1.0 / 32.0; // (k + 0.5) / 16, k 0 to 15 over the 4x4
+}`;
+/** The band uniform for a place's fading plants and its cards: nothing fades until the place sets it (batch.js cardBand). */
+export const createCardFade = () => ({ value: new THREE.Vector2(1e9, 1e9) });
+/** Sets the band uniform from `cardFrom` (Infinity: nothing fades), as cullBatches counts it. */
+export function setCardFade(uniform, cardFrom) {
+  if (Number.isFinite(cardFrom)) uniform.value.set(...cardBand(cardFrom));
+  else uniform.value.set(1e9, 1e9);
+}
+
 // Replacement for three's lights_lambert_pars_fragment: wrap lighting, canopy shade, backlit glow.
 // gSun scales the sun (after the shadow map), gAmb the sky fill, gLeaf turns on wrap and glow.
 export const LIGHTS_GLSL = /* glsl */`
@@ -300,6 +341,7 @@ export function createSharedUniforms(world, noiseTexture, leafTexture, leafShado
     uDapple: { value: FOREST.shade.dapple },
     uLeafShadow: { value: leafShadow },
     uTranslucency: { value: 0.55 },
+    uCardFade: createCardFade(),
   };
 }
 
@@ -334,12 +376,15 @@ export function patchLambert(material, key, uniforms, parts) {
  * the tree's share of the sway (which wave of the beat a vertex rides) and aPivot the parts that move
  * about a pivot of their own (PIVOT_GLSL). `actors` is { glsl, uniforms }: the footprint capsules
  * (terrain.js: ACTOR_GLSL and the uniforms it reads, the grass's and the ground's own) that the ferns
- * lean away from. The caller hands them in because terrain.js imports this file.
+ * lean away from. The caller hands them in because terrain.js imports this file. `cardFade`: the material a merged mesh's twin draws
+ * the trees in the band round cardFrom with (batch.js CARD_BAND), which leaves out the pixels their cards take (CARD_FADE_GLSL), or
+ * with `coverage` (MSAA: alpha to coverage) covers 2 (1 - share) of each pixel's samples, clamped; the plain one never leaves a pixel
+ * out, so the GPU tests depth before it shades.
  */
-export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors, leafFade = null }) {
+export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors, leafFade = null, cardFade = false, coverage = false }) {
   if (!actors) throw new Error('createVegetationMaterial needs `actors`, { glsl, uniforms }: the footprints the ferns lean away from');
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side });
-  material.name = key;
+  material.name = cardFade ? `${key}-card` : key;
   if (low) material.defines = { FOREST_LOW: '' };
   // `leafFade` ({ from, to, mean }: metres, and leafTone's mean, leafFadeOf): the painted leaves fade to their mean tone between
   // from and to metres, where their texture's mip levels have all but blurred them out, and past `to` the texture is not read
@@ -347,8 +392,18 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
     material.defines = { FOREST_LEAF_FADE: '', LEAF_FADE_FROM: leafFade.from.toFixed(1), LEAF_FADE_TO: leafFade.to.toFixed(1), LEAF_MEAN: leafFade.mean.toFixed(5) };
   }
   key = low ? `${key}-low` : leafFade ? `${key}-fade` : key;
+  if (cardFade) key = `${key}-card${coverage ? '-a2c' : ''}`;
+  if (cardFade && coverage) material.alphaToCoverage = true;
+  // the card's share of a tree, from the way to its mid-height (aGrow, w -1), and the pixels left to its card
+  const fadeHead = cardFade ? `\n${CARD_FADE_GLSL}\nvarying float vCardFade;` : '';
+  const fadeLine = cardFade ? `vCardFade = aGrow.w < -0.5 ? forestCardShare( distance( ( modelMatrix * vec4( position + aGrow.xyz * ${GROW.reach.toFixed(1)}, 1.0 ) ).xyz, cameraPosition ) ) : 0.0;\n` : '';
+  // without MSAA the pixels its card takes are left out (screen-door); with it the mesh covers 2 (1 - share) of each pixel's samples,
+  // whole over the band's first half while its card comes in behind it (cards.js: 2 share), so one of the two is always all there
+  const fadeAfter = !cardFade ? []
+    : coverage ? [['#include <alphatest_fragment>', '  diffuseColor.a = clamp( 2.0 * ( 1.0 - vCardFade ), 0.0, 1.0 );']]
+      : [['#include <clipping_planes_fragment>', '  if ( forestDither() < vCardFade ) discard;']];
   return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
-    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}`,
+    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}\n${GROW_GLSL}${fadeHead}`,
     vertexAfter: [
       ['#include <color_vertex>', `
   #ifdef USE_COLOR_ALPHA
@@ -365,9 +420,14 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   // foliage samples the shadow map a little outside its surface: no acne on the lobes
   float forestShadowPush = mix( 0.02, 0.22, aWind.w );`],
     ],
-    vertexReplace: [['#include <shadowmap_vertex>', THREE.ShaderChunk.shadowmap_vertex.split('directionalLightShadows[ i ].shadowNormalBias').join('( directionalLightShadows[ i ].shadowNormalBias + forestShadowPush )')]],
-    fragmentHead: `uniform sampler2D uNoise;\nuniform sampler2D uLeaf;\nuniform float uDapple;\nuniform float uWindTime;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${LIGHT_GLOBALS}`,
+    vertexReplace: [
+      ['#include <shadowmap_vertex>', THREE.ShaderChunk.shadowmap_vertex.split('directionalLightShadows[ i ].shadowNormalBias').join('( directionalLightShadows[ i ].shadowNormalBias + forestShadowPush )')],
+      // last of all that moves it (a place's own pushes after the dance too: world/ardalur/look.js, her downwash), before it is drawn
+      ['#include <project_vertex>', `${GROW_LINE}\n${fadeLine}#include <project_vertex>`],
+    ],
+    fragmentHead: `uniform sampler2D uNoise;\nuniform sampler2D uLeaf;\nuniform float uDapple;\nuniform float uWindTime;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${LIGHT_GLOBALS}${cardFade ? `\nvarying float vCardFade;\n${DITHER_GLSL}` : ''}`,
     fragmentAfter: [
+      ...fadeAfter,
       ['#include <color_fragment>', `
   float forestDapple = texture2D( uNoise, vForestPos.xz * 0.16 + vForestPos.y * 0.045 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r;
   forestDapple = smoothstep( 0.6, 0.78, forestDapple );

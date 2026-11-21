@@ -7258,5 +7258,25 @@
   "src": "assets/audio/book/book_myndband_mary_69.mp3",
   "duration": 5.21,
   "mouth": "04ffdeefea000b9dbbdffca0689baa960000000000000006bfd00cfcbda89b3000dda979bc00c747bccecc0673000000000000000"
+ },
+ "t3_uggedla_hallo": {
+  "src": "assets/audio/tjorn3d/t3_uggedla_hallo.mp3",
+  "duration": 1.13,
+  "mouth": "00bdbeffd80000000000000"
+ },
+ "t3_uggedla_namm": {
+  "src": "assets/audio/tjorn3d/t3_uggedla_namm.mp3",
+  "duration": 1.21,
+  "mouth": "09efffb600000000000000000"
+ },
+ "t3_uggedla_fidrildi": {
+  "src": "assets/audio/tjorn3d/t3_uggedla_fidrildi.mp3",
+  "duration": 2.01,
+  "mouth": "9ffec70000000000afa0995400000000000000000"
+ },
+ "t3_uggedla_bless": {
+  "src": "assets/audio/tjorn3d/t3_uggedla_bless.mp3",
+  "duration": 1.29,
+  "mouth": "008ffd00000000000000000000"
  }
 }

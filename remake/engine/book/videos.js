@@ -186,6 +186,18 @@ export const BOOK_3D = [
     unlock: { start: true },
     label: 'Flugeðla og fiðrildið, þrívíddarmyndband, með rauðum og bláum gleraugum',
   },
+  {
+    // a show for a screen lying flat on a table (chapters/tjorn3d.js). Its name is a working one and its place the last: both are
+    // the owner's to rule on, and nothing else is tied to either (the tests read them from here).
+    id: 'tjorn3d',
+    name: 'Uggeðla í tjörninni',
+    title: 'Uggeðla í tjörninni',
+    chapter: 'tjorn3d',
+    poster: videoUrl('tjorn3d-thumb.webp'), // a still of the show (38 s, her head held up out of the pond, as the seat sees it without the glasses: tools/tjorn3d-tile.mjs --poster)
+    hue: '#4f8fc0',
+    unlock: { start: true },
+    label: 'Uggeðla í tjörninni, þrívíddarsýning á borði, skjárinn lagður flatur, með rauðum og bláum gleraugum',
+  },
 ];
 
 /**

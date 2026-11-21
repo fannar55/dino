@@ -2,7 +2,8 @@
 // the falls and as she glides down, from the cut at the crest of E to the end of the flight. Without it the valley's land ends 160 m
 // from her path (terrain.js: CORRIDOR) and the sections far from her are not drawn (index.js), so from up there the land would stop.
 //
-//   const far = createFarLand(world, route, { terrain })   // the real valley makes one (index.js: place.farLand)
+//   const far = createFarLand(world, route, { terrain, haze })   // the real valley makes one (index.js: place.farLand); haze: its
+//                                 createFarHaze(), shared with the cards and the sections' ground (its own if none)
 //   far.show(on)                  the flight turns it on (and off when it ends)
 //   far.update(t, camera)         every frame (the place's update, with world.flightTime), with the flight's time (-1 before it):
 //                                 shown from FAR.from to FAR.to; Grameðla's walk and roar,
@@ -65,8 +66,37 @@ const PONDS = [[312, 525, 70], [323, 950, 90], [-560, 760, 55]]; // [x, z, radiu
 const KAMBEDLA = { x: -832, z: -192, glade: 140, above: 8, colour: '#ab85c1', blinks: [138.2, 138.9, 139.6, 140.3], width: 0.2, window: [137.5, 141.5], size: 22, call: 135 };
 // The river above the valley's (route.river ends 330 m above the falls): [x, z, level, half width], on into the mountains' foot.
 const UPPER = [[-1680, 80, 51.5, 11], [-1850, 58, 52.5, 11], [-2050, 66, 54, 10], [-2250, 50, 56, 9]];
-// The haze the far land fades into with distance (aerial perspective): none to 250 m, half by about 1.4 km, at most 80 %.
-const HAZE = { from: 250, scale: 1600, most: 0.8, sky: '#c3d3e2', blue: 0.35 };
+// The haze the far land fades into with distance (aerial perspective): none to 250 m, half by about 1.4 km, at most 80 %. foot: a
+// tree's card is fogged as the ground at its foot from `from` to `foot` metres on, all of it past (createFarHaze's `vertex`).
+const HAZE = { from: 250, scale: 1600, most: 0.8, sky: '#c3d3e2', blue: 0.35, foot: 400 };
+/** How much of the haze's colour a thing `metres` off takes while the far land shows (0 to 0.8; createFarHaze's lines say the same). */
+export const farHazeAt = metres => (1 - Math.exp(-Math.max(metres - HAZE.from, 0) / HAZE.scale)) * HAZE.most;
+/**
+ * The far land's haze, for what stands on it or in its place too: the valley's tree cards (the far layer's and the sections') and the
+ * sections' ground, so that a tree 400 m off is as faded as the land at its foot, and a section's ground as the far land it covers.
+ * One uniform, uFarHaze: rgb the haze's colour (display values: after the fog, which three applies after the sRGB conversion), w 1
+ * while the far land shows and 0 while it does not (createFarLand's update sets both). A material adds `head` to its fragment
+ * shader's head and `glsl` after its fog (cards.js createCardMaterial, look.js createGroundMaterial: their `haze`).
+ * `vertex(foot, away)`: a card's lines after its fog_vertex (`head` in its vertex head too): from 250 to 400 m off (`away`, metres)
+ * it is fogged as at its `foot` (a vec3), all of it past 400 m. The look's fog is height fog, thick low down and thin 20 m up, so
+ * a crown far off stood out bright over the misty land it stands on, over its own trunk faded into the mist; the land, the trunk and
+ * the crown now fade alike, as the far land's own forest (painted on it) does.
+ *   createFarHaze() -> { uniforms: { uFarHaze }, head, glsl, vertex(foot, away), key }
+ */
+export function createFarHaze() {
+  return {
+    uniforms: { uFarHaze: { value: new THREE.Vector4(0.85, 0.88, 0.9, 0) } },
+    head: 'uniform vec4 uFarHaze;',
+    glsl: `	#ifdef USE_FOG
+		float farHazeAway = max( length( vFogWorld - cameraPosition ) - ${HAZE.from.toFixed(1)}, 0.0 );
+		gl_FragColor.rgb = mix( gl_FragColor.rgb, uFarHaze.rgb, ( 1.0 - exp( -farHazeAway / ${HAZE.scale.toFixed(1)} ) ) * ${HAZE.most.toFixed(2)} * uFarHaze.w );
+	#endif`,
+    vertex: (foot, away) => `	#ifdef USE_FOG
+		vFogWorld.y = mix( vFogWorld.y, ${foot}.y, uFarHaze.w * smoothstep( ${HAZE.from.toFixed(1)}, ${HAZE.foot.toFixed(1)}, ${away} ) );
+	#endif`,
+    key: 'haze',
+  };
+}
 /** Grameðla: where she walks (along the ridge's crest, south), how fast, at what size, and how dark. */
 const GRAMEDLA = { from: [-2578, 120], heading: 83, speed: 3, scale: 10, height: 5.22, tint: '#2b2d36', walk: 0.45 };
 const VISTA = [-1408, 116]; // where the vista over the falls looks from, as she speaks of Grameðla (flight-camera.js)
@@ -127,7 +157,7 @@ function mountainsAt(x, z) {
 }
 
 /** The far land for the route, on the valley's `terrain` (terrain.js: createTerrain). */
-export function createFarLand(world, route, { terrain, seed = 4 } = {}) {
+export function createFarLand(world, route, { terrain, seed = 4, haze = createFarHaze() } = {}) {
   const index = createRouteIndex(route);
   const paint = groundPaint(terrain, route);
   const { river, pool } = route;
@@ -267,15 +297,12 @@ export function createFarLand(world, route, { terrain, seed = 4 } = {}) {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.name = 'far-land';
   // far off, the land fades toward the haze's colour (a little bluer than the haze), so the mountains stand back
-  const haze = { value: new THREE.Vector3(0.85, 0.88, 0.9) };
+  // (createFarHaze: the cards and the sections' ground take the same, so what stands on the far land fades as it does)
   material.onBeforeCompile = shader => {
-    shader.uniforms.uHaze = haze;
-    shader.fragmentShader = `uniform vec3 uHaze;
+    Object.assign(shader.uniforms, haze.uniforms);
+    shader.fragmentShader = `${haze.head}
 ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
-	#ifdef USE_FOG
-		float hazeAway = max(length(vFogWorld - cameraPosition) - ${HAZE.from.toFixed(1)}, 0.0);
-		gl_FragColor.rgb = mix(gl_FragColor.rgb, uHaze, (1.0 - exp(-hazeAway / ${HAZE.scale.toFixed(1)})) * ${HAZE.most.toFixed(2)});
-	#endif`)}`;
+${haze.glsl}`)}`;
   };
   material.customProgramCacheKey = () => 'far-land-haze';
   const hazeSky = new THREE.Color();
@@ -405,6 +432,7 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
   function update(t, camera) {
     const on = shown && t >= FAR.from && t < FAR.to;
     group.visible = on;
+    haze.uniforms.uFarHaze.value.w = on ? 1 : 0; // the cards and the sections' ground take the haze only while the far land shows
     if (on !== showing) friends.show(on);
     showing = on;
     if (camera) {
@@ -420,7 +448,7 @@ ${shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragme
     if (world.scene?.fog) {
       world.scene.fog.color.getRGB(fogColour, THREE.SRGBColorSpace);
       mist.uniforms.uColour.value.set(fogColour.r, fogColour.g, fogColour.b);
-      haze.value.set(lerp(fogColour.r, hazeSky.r, HAZE.blue), lerp(fogColour.g, hazeSky.g, HAZE.blue), lerp(fogColour.b, hazeSky.b, HAZE.blue));
+      haze.uniforms.uFarHaze.value.set(lerp(fogColour.r, hazeSky.r, HAZE.blue), lerp(fogColour.g, hazeSky.g, HAZE.blue), lerp(fogColour.b, hazeSky.b, HAZE.blue), 1);
     }
     const pixels = world.renderer?.domElement?.height ?? 800;
     if (camera) glow.uniforms.uPixel.value = pixels / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);

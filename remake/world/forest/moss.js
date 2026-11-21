@@ -5,7 +5,8 @@
 // wave of the beat. Lit like foliage, so they glow when the sun is behind them. Within 3 m of the camera a strand wears away
 // from its edges, gone by 1.2 m, so a camera under a crown never looks through a beard. No strand hangs from inside a disc of
 // `clear` (the layout's mossClear: where a face comes down between the trees). All of a forest's strands are one mesh, one draw
-// call.
+// call, its strands a tree at a time a range of its index (userData.cull, as the batcher's meshes: batch.js), so the forest draws
+// only the trees' strands in view (cullBatches; whole until it first does).
 //
 //   createHangingMoss(world, placements, shared, { antialias, seed, clear: [{ center: [x, z], radius }] })
 //     -> { mesh, cards, triangles, dispose() } | null (no strands)
@@ -15,6 +16,7 @@ import { createRng } from './random.js';
 import { patchLambert, WIND_GLSL, LIGHT_GLOBALS } from './materials.js';
 
 const SEGMENTS = 3; // rows down a card
+const FAR_SEGMENTS = 1; // of a tree only ever its card (placement.cardOnly): 50 m off and more, a strand's swing is a pixel or two
 const SWAY = FOREST.wind.swayScale;
 
 /** A drawn texture of hanging strands: ragged at the foot, a little lighter toward the tips (alpha in A). */
@@ -63,9 +65,12 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
   const base = new THREE.Color(FEN.hangingMoss);
   const swing = THREE.MathUtils.degToRad(FEN.mossCards.swingDeg);
   let cards = 0;
+  const ranges = [];
   for (const p of placements) {
     const strands = p.model.moss;
     if (!strands?.length) continue;
+    const fromVertex = pos.length / 3, fromIndex = idx.length;
+    const rows = p.cardOnly ? FAR_SEGMENTS : SEGMENTS;
     const c = Math.cos(p.rot), s = Math.sin(p.rot), sc = p.scale;
     const H = p.model.height * sc;
     const phase = Math.round((p.phase % 1) * 255);
@@ -81,8 +86,8 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
         const dx = Math.cos(yaw) * width * 0.5, dz = Math.sin(yaw) * width * 0.5;
         const n = [-Math.sin(yaw), 0.35, Math.cos(yaw)];
         const first = pos.length / 3;
-        for (let r = 0; r <= SEGMENTS; r++) {
-          const v = r / SEGMENTS;
+        for (let r = 0; r <= rows; r++) {
+          const v = r / rows;
           const sway = carried + swing * length * v * v;
           const narrow = 1 - 0.25 * v;
           for (const side of [-1, 1]) {
@@ -94,13 +99,21 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
             tree.push(Math.round(Math.min(1, carried / Math.max(sway, 1e-6)) * 255));
           }
         }
-        for (let r = 0; r < SEGMENTS; r++) {
+        for (let r = 0; r < rows; r++) {
           const a = first + r * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
         cards++;
       }
     });
+    // the tree's strands: one range, in a sphere round all of them with room for the sway (a tree's top leans a metre or so, a strand
+    // swings a little below it)
+    if (idx.length > fromIndex) {
+      const box = new THREE.Box3().setFromArray(pos.slice(fromVertex * 3));
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      sphere.radius += 1;
+      ranges.push({ start: fromIndex, count: idx.length - fromIndex, sphere, ref: sphere.center, minD: 0, maxD: Infinity, cull: Infinity, crown: null, plant: null, li: -1, name: 'moss' });
+    }
   }
   if (!cards) return null;
   const geometry = new THREE.BufferGeometry();
@@ -110,7 +123,12 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geometry.setAttribute('aWind', new THREE.BufferAttribute(new Uint8Array(wind), 4, true));
   geometry.setAttribute('aTree', new THREE.BufferAttribute(new Uint8Array(tree), 1, true));
-  geometry.setIndex(idx);
+  // the index the cull fills (all of it until it first does), from the strands as built (master)
+  const IndexArray = pos.length / 3 > 65535 ? Uint32Array : Uint16Array;
+  const master = IndexArray.from(idx);
+  const index = new THREE.BufferAttribute(master.slice(), 1);
+  index.setUsage(THREE.DynamicDrawUsage);
+  geometry.setIndex(index);
   geometry.computeBoundingSphere();
   geometry.boundingSphere.radius += 1;
   const map = strandTexture(seed);
@@ -134,6 +152,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'Hanging moss';
   mesh.renderOrder = 3;
+  mesh.userData = { kind: 'moss', cull: { master, ranges, signature: -1, submitted: idx.length / 3, geometry }, hidden: false };
   return {
     mesh, cards, triangles: idx.length / 3,
     dispose() { geometry.dispose(); material.dispose(); map.dispose(); },
