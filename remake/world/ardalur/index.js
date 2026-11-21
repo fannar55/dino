@@ -23,7 +23,7 @@ import { stillViews } from '../../engine/camera/flight-camera.js';
 import { createCrowds } from '../critters/crowd.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
-import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
+import { createNoiseTexture, createLeafTexture, leafMeanOf, createCardFade, setCardFade } from '../forest/materials.js';
 import { createWaterMaterial, ringsUntil } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
 import { createFarLand, FAR } from './far-land.js';
@@ -60,11 +60,14 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const noise = createNoiseTexture(seed);
     const leaf = createLeafTexture(seed);
     const library = createSpeciesLibrary(seed);
+    // the cards' colours as the plants' material draws the trees far off: their painted leaves at their far tone (none in the low preset)
     const atlas = createCardAtlas(world.renderer ?? null, CARDED.flatMap(name => Array.from({ length: FOREST.trees.variants[name] },
-      (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) }))));
+      (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) }))), { leafTone: world.q?.name === 'low' ? 1 : leafMeanOf(leaf) });
+    // the band round cardFrom over which a far tree fades into its card: one uniform for the cards and the plants that fade (update)
+    const cardFade = createCardFade();
     return {
-      noise, leaf, library, atlas, cards: createCardMaterial(atlas, { coverage: Boolean(world.q?.antialias) }), paint: groundPaint(terrain, route),
-      plants: createPlantMaterials(world, { noise, leaf }), water: createWaterMaterial(world, { seed, river: true, noise }),
+      noise, leaf, library, atlas, cardFade, cards: createCardMaterial(atlas, { coverage: Boolean(world.q?.antialias), fade: cardFade }), paint: groundPaint(terrain, route),
+      plants: createPlantMaterials(world, { noise, leaf, cardFade }), water: createWaterMaterial(world, { seed, river: true, noise }),
     };
   })();
   if (real) real.water.uniforms.uRingsUntil.value = -1; // no ring yet: rippleAt keeps it
@@ -247,6 +250,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       const t = world.flightTime ?? -1;
       const farOn = farLand.shown && t >= FAR.from && t < FAR.to;
       for (const i of lastVisible) if (belts[i]) belts[i].group.visible = !farOn;
+      setCardFade(real.cardFade, cardFrom); // the shaders fade a tree into its card over the band the cull draws both in
       for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
       // the ground's tiles in view (only the frustum: the ground is what hides the rest)
       cullBatches(lastVisible.map(i => groundMeshes[i]).filter(Boolean), world.camera, 2);

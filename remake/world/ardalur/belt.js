@@ -21,6 +21,7 @@ import { groveAt } from './banks.js';
 const smooth = x => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
 const SCALE = { broadleaf: [0.9, 1.2], araucaria: [0.75, 1.0], treeFern: [0.9, 1.4], swampConifer: [0.9, 1.15] };
 const STEEP = 0.75; // rise over run past which no tree stands (banks.js: the same)
+const BELT_SKY = 0.9; // the sky share of the valley's land trees (banks.js grow: 0.9 away from the fen), for the cards' light
 
 /** A seeded random number generator (mulberry32), as banks.js has it. */
 function seeded(seed) {
@@ -139,6 +140,8 @@ export function* beltSteps({ terrain, index, route, samples, seed, paint, ground
   // the cards, near the river first (her side of the forest, drawn before what it hides)
   const n = trees.length * 4;
   const centre = new Float32Array(n * 3), cornerAt = new Float32Array(n * 2), sizes = new Float32Array(n * 2), uv = new Float32Array(n * 2);
+  // aCard (world/forest/cards.js): always all there (0), lit with the sky share of the valley's land trees (banks.js), mirrored or not
+  const lit = new Float32Array(n * 3);
   const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
   const master = new IndexArray(trees.length * 6);
   const ranges = [];
@@ -155,6 +158,7 @@ export function* beltSteps({ terrain, index, route, samples, seed, paint, ground
       cornerAt.set([cx, cy], v * 2);
       sizes.set([w, h], v * 2);
       uv.set([(cx < 0) !== flip ? u0 : u1, cy ? v1 : v0], v * 2);
+      lit.set([0, BELT_SKY, flip ? -1 : 1], v * 3);
     });
     const b = t * 4;
     master.set([b, b + 1, b + 2, b, b + 2, b + 3], t * 6);
@@ -174,6 +178,7 @@ export function* beltSteps({ terrain, index, route, samples, seed, paint, ground
     g.setAttribute('aCorner', new THREE.BufferAttribute(cornerAt, 2));
     g.setAttribute('aSize', new THREE.BufferAttribute(sizes, 2));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setAttribute('aCard', new THREE.BufferAttribute(lit, 3));
     const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
     dynamic.setUsage(THREE.DynamicDrawUsage);
     g.setIndex(dynamic);

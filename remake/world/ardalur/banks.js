@@ -585,6 +585,8 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
   yield 'order';
   const { meshes } = yield* batcher.buildSteps(bucket => ({
     material: bucket.kind === 'thin' ? materials.thin : materials.solid, receiveShadow: true, renderOrder: 3,
+    // the trees in the band round cardFrom, fading into their cards (world/forest/batch.js CARD_BAND)
+    fadeMaterial: cards ? (bucket.kind === 'thin' ? materials.thinFade : materials.solidFade) : null,
   }), { order: p => nearToFar.get(p), cards: cards ? { material: cards, renderOrder: 3 } : null });
   const group = new THREE.Group();
   group.name = 'Árdalur plants';

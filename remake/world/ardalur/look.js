@@ -10,7 +10,7 @@
 //                                                                    and how far round it the air pushes the plants away; w 0 is none)
 import * as THREE from 'three';
 import { PALETTE, FEN, FOREST } from '../forest/config.js';
-import { createSharedUniforms, createVegetationMaterial, leafMeanOf } from '../forest/materials.js';
+import { createSharedUniforms, createVegetationMaterial, leafMeanOf, createCardFade } from '../forest/materials.js';
 import { ACTOR_GLSL } from '../forest/terrain.js';
 import { RAPIDS } from './river.js';
 
@@ -126,9 +126,14 @@ function withDownwash(material, key, downwash) {
 // texture is read at its third mip level or coarser (a cell about two texels), so the fade shows as little as the mip levels do
 export const LEAF_FADE = [60, 90];
 
-/** The plants' materials: the forest's (solid and double-sided thin parts), bending away under her. */
-export function createPlantMaterials(world, { noise, leaf }) {
+/**
+ * The plants' materials: the forest's (solid and double-sided thin parts), bending away under her, and each again fading into the far
+ * trees' cards in the band round cardFrom (solidFade, thinFade: world/forest/batch.js CARD_BAND), by `cardFade`, the band's uniform
+ * the cards' material shares (materials.js createCardFade; one of its own if none is given).
+ */
+export function createPlantMaterials(world, { noise, leaf, cardFade = createCardFade() }) {
   const shared = createSharedUniforms(world, noise, leaf, 0);
+  shared.uCardFade = cardFade;
   // no footprints in the valley: the ferns lean from nobody (the forest's capsules, none of them used)
   const actors = {
     glsl: ACTOR_GLSL,
@@ -146,8 +151,10 @@ export function createPlantMaterials(world, { noise, leaf }) {
   const leafFade = low ? null : { from: LEAF_FADE[0], to: LEAF_FADE[1], mean: leafMeanOf(leaf) };
   const solid = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}`, downwash);
   const thin = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors }), `ardalur-thin${low ? '-low' : ''}`, downwash);
+  const solidFade = withDownwash(createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'ardalur-solid', low, actors, leafFade, cardFade: true }), `ardalur-solid${low ? '-low' : leafFade ? '-fade' : ''}-card`, downwash);
+  const thinFade = withDownwash(createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'ardalur-thin', low, actors, cardFade: true }), `ardalur-thin${low ? '-low' : ''}-card`, downwash);
   return {
-    solid, thin, downwash: downwash.value,
-    dispose() { solid.dispose(); thin.dispose(); },
+    solid, thin, solidFade, thinFade, cardFade, downwash: downwash.value,
+    dispose() { solid.dispose(); thin.dispose(); solidFade.dispose(); thinFade.dispose(); },
   };
 }
