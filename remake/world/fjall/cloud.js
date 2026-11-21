@@ -214,6 +214,17 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   };
   const dipNow = () => (dip ? LIFT.dip * bump(dip.age / LIFT.dipSeconds) : 0);
   const writeFog = () => { if (held && fog) fog.density = heldDensity * (1 - dipNow()); };
+  // The fog's warm glow toward the sun on whatever it covers is the look's the game began with (engine/fog.js bakes its colour and
+  // strength into every material); the sky's horizon takes the look of the moment. Inside the cloud the far ground is all fog, so the
+  // two met at the horizon in a hard line (a warm patch on the ground under a plain white sky): while the cloud holds the fog the
+  // sky's horizon takes the same glow, and ground and sky are one there.
+  const skyUniforms = world.sky?.dome?.material?.uniforms ?? null;
+  const baked = world.look?.fog ?? null;
+  const matchSky = () => {
+    if (!skyUniforms || !baked) return;
+    skyUniforms.uFogSun?.value?.set?.(baked.sunColor);
+    if (skyUniforms.uFogSunStrength) skyUniforms.uFogSunStrength.value = baked.sunStrength;
+  };
 
   function spawn(kind, at) {
     const card = cards.find(c => !c.alive);
@@ -389,6 +400,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
         }
       }
       writeFog();
+      if (held && !blow) matchSky();
       glowLevel = glowTo > glowLevel ? Math.min(glowTo, glowLevel + GLOW.rate * dt) : Math.max(glowTo, glowLevel - GLOW.rate * dt);
       glowUniforms.uLevel.value = glowLevel * GLOW.alpha;
       glowMesh.visible = glowLevel > 0.002;

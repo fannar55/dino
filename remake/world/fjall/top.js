@@ -5,7 +5,7 @@
 //   const top = createTop(world, { grey, seed, radius })   -> { group, heightAt(x, z), sea, update(dt, time), dispose() }
 import * as THREE from 'three';
 import { GREY } from '../ardalur/terrain.js';
-import { FJALL, groundMesh, smooth } from './index.js';
+import { FJALL, groundMesh, smooth } from './ground.js';
 
 const SHOULDER = 50; // metres past the flat over which the ground falls to under the sea
 const SEA = { radius: 2500, colour: GREY.snag };

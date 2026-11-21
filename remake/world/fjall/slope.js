@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { createRoute } from '../../chapters/kafli4-route.js';
 import { createTerrain, GREY } from '../ardalur/terrain.js';
 import { createFarLand, FAR } from '../ardalur/far-land.js';
-import { FJALL, groundMesh, smooth } from './index.js';
+import { FJALL, groundMesh, smooth } from './ground.js';
 
 const LEDGE = { east: 180, shelf: 12, up: 1, over: 0.6, radius: 70, rim: 20 }; // m: east of the ridge, the shelf's half width, ...
 
