@@ -1,0 +1,15 @@
+{
+  "set": "book",
+  "date": "2026-11-21",
+  "source": "jano-book-mary69.json",
+  "verdicts": {
+    "book/book_myndband_mary_69": {
+      "verdict": "ja",
+      "key": "389bfd9aeed43600a51ee90e02eef7cd2679f220a3a201b5c7aee8c4a1c70e2b",
+      "mp3": "f967315b710f25c79c1bf5199ba5fbcb6f12448af4da309bef5c65629d53a72c",
+      "speaker": "narrator",
+      "text": "Hún var um þrjá metra löng. Jafn löng og lítill árabátur!",
+      "note": "Sagt í spjalli 2026-11-21 (ekki á já/nei-síðu). Hann fékk aðra útgáfu myndbandsins „Stelpan sem fann sæskrímslið“ og 20 sekúndna bút með þessari línu (mælistrika „Um 3 m“ og árabátur með barni yfir svaneðlunni) og var spurður: „Er nýja línan með árabátnum í lagi svona, eða viltu annan samanburð?“ Hann svaraði: „Já, gott svona“."
+    }
+  }
+}
