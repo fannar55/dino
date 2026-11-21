@@ -57,7 +57,7 @@ const LAYOUT = [
   [[0, 0], [-3, -0.3]],
   [[3, -0.4], [0, 0], [-3, -0.2]],
   [[3, -0.3], [0, 0]],
-  [[0, 0], [-2.9, -0.3], [-5.8, -0.7]],
+  [[0, 0], [-3.4, -0.3], [-5.8, -0.7]],
 ];
 export const STEPS = LAYOUT.map((stones, step) => ({
   stones: stones.map(([along, across], k) => ({
@@ -97,15 +97,21 @@ const standBefore = k => crossing(k);
  * The camera for step `k`: over the water on the far side of the step's stones, looking back north at them and at Mosi beyond with
  * Egill on his back, the falls off to the right; the stones low in the middle of the frame, all of them, upright too.
  */
-const SHOT_BANK = 3;
+// The late steps' stones lie near the south bank, where a camera on their far side would stand on the bank, its slab filling the
+// bottom of an upright frame: from step FROM_NORTH on it stands over the water north of the stones instead, high, and off to the side
+// of Mosi so his body hides none of them (step 3 a little upstream of him, its two stones broadside enough to keep their tap circles
+// apart; step 4 downstream, where its stones run), looking south at the stones past him and Egill (they are then listed right to left
+// as it sees them), the south bank behind them; the falls behind it. back/upstream/height: m from the stones' middle; aim: m over the
+// water it looks at there.
+export const FROM_NORTH = 3;
+const BEHIND = { 3: { back: 9, upstream: 2, height: 5, aim: 1.2 }, 4: { back: 9, upstream: -5, height: 5, aim: 1.2 } };
 export function stepShot(k) {
   const stones = STEPS[k].stones;
   const mid = [stones.reduce((s, x) => s + x.at[0], 0) / stones.length, stones.reduce((s, x) => s + x.at[1], 0) / stones.length];
-  const at = (back, y) => [mid[0] + ACROSS[0] * back, y, mid[1] + ACROSS[1] * back];
-  // Where it stands more than SHOT_BANK m past FORD.to on the south bank (the last step), it stands higher, looking down past the
-  // water's near edge (from low on the bank the edge's lip fills the bottom of the frame)
-  const onBank = Math.max(0, 3.6 * (k + 1) + 10 - (2 * BANK + SHOT_BANK));
-  return { position: at(10, LEVEL + 3.6 + 0.4 * onBank), target: at(-2, LEVEL + 1), fov: 50 };
+  const at = (back, y, along = 0) => [mid[0] + ACROSS[0] * back + UP[0] * along, y, mid[1] + ACROSS[1] * back + UP[1] * along];
+  const b = BEHIND[k];
+  if (k >= FROM_NORTH) return { position: at(-b.back, LEVEL + b.height, b.upstream), target: at(0, LEVEL + b.aim), fov: 50 };
+  return { position: at(10, LEVEL + 3.6), target: at(-2, LEVEL + 1), fov: 50 };
 }
 
 // ---------------------------------------------------------------------------------------------

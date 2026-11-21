@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import {
   ROUTE, FORD, STEPS, STONE, FALLS_LOOK, BELT_PATH, PRINT_SIZE, PRINT_PACE, PRINT_TAP, PRINTS, mosiAt, CLOUD_BY_PRINT, CALL,
   callStand, directionPoint, herAt, SHOTS, SHOWS, STANDS, stepShot, printShot, callShot, meetShot, meetOf, MEET, BELT_GROUND,
-  ARDALUR_VIEWS, ARDALUR_KEEP, crossing, MOSI_FRONT,
+  ARDALUR_VIEWS, ARDALUR_KEEP, crossing, MOSI_FRONT, FROM_NORTH,
 } from '../chapters/kafli6-route.js';
 import { KEEP, viewsOf, poolOptions } from '../chapters/kafli5-place.js';
 import { FAR_POOL } from '../chapters/kafli4-route.js';
@@ -208,7 +208,9 @@ test('upright and wide: each step\'s stones are in stepShot(k), their tap circle
         assert.ok(s.front && s.x - s.r >= 0 && s.x + s.r <= s.w, `${s.stone.id} across the frame at ${aspect}: ${s.x.toFixed(0)} ± ${s.r.toFixed(0)}`);
         assert.ok(s.y - s.r >= 0 && s.y + s.r <= 0.85 * s.h, `${s.stone.id} above the bottom 15 % at ${aspect}: ${s.y.toFixed(0)} ± ${s.r.toFixed(0)}`);
       }
-      for (let i = 1; i < seen.length; i++) assert.ok(seen[i].x > seen[i - 1].x, `step ${k}: listed left to right at ${aspect}`);
+      // listed upstream first: left to right from the south, right to left from the north (the late steps, FROM_NORTH on)
+      const way = k >= FROM_NORTH ? -1 : 1;
+      for (let i = 1; i < seen.length; i++) assert.ok(way * (seen[i].x - seen[i - 1].x) > 0, `step ${k}: listed in order at ${aspect}`);
       for (let i = 0; i < seen.length; i++) for (let j = i + 1; j < seen.length; j++) {
         const apart = Math.hypot(seen[i].x - seen[j].x, seen[i].y - seen[j].y);
         assert.ok(apart >= seen[i].r + seen[j].r, `step ${k} at ${aspect}: ${apart.toFixed(0)} px, ${(seen[i].r + seen[j].r).toFixed(0)} needed`);
