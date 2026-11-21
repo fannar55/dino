@@ -66,6 +66,9 @@ const DIGIT = {
   rise: 0.62, // m its bottom rises out of the water
 };
 const GLIMMER = { every: 0.9, ring: 1.6 }; // s between the glints off the next print's rim, and between its soft rings
+// What stands in a print: water (a still pool, the default, as chapter 2's), water that still trembles, or none (dry)
+const WATERS = ['none', 'pool', 'rippling'];
+const TREMBLE = { every: 0.75, reach: 0.12, strength: 0.55 }; // s between a trembling print's rings; m off its pad they start (real size)
 
 const smooth = t => { const k = Math.min(1, Math.max(0, t)); return k * k * (3 - 2 * k); };
 const easeOutBack = x => 1 + 2.70158 * (x - 1) ** 3 + 1.70158 * (x - 1) ** 2;
@@ -101,6 +104,26 @@ const PES = [
   claw(25, 0.11, 0.065, 35), // digit II's
   claw(58, 0.095, 0.058, 58), // digit III's
 ];
+// Grameðla's hind foot (chapter 6), from a real Tyrannosaurus track (Tyrannosauripus pillmorei: 0.83 m long, 0.71 m wide): three
+// toes forward from a broad heel pad, the middle one (digit III) the longest and straight ahead, the inner (II) and outer (IV) each
+// splayed about 35 degrees from it and a little shorter, each ending in a narrow claw mark; no front foot's print beside it (she
+// walks on two feet). Her right foot's, in the print's frame (u the way it points, w toward the outside of the foot): the heel's
+// back at u -0.36, the middle claw's tip at u 0.44, so 0.8 m long; the toes' tips about 0.55 m apart. Ellipses fused over a smaller
+// blend than the sauropod's, so the toes stay apart to their roots.
+const THEROPOD_BLEND = 0.05;
+const toe = (turn, from, len, wide) => {
+  const t = THREE.MathUtils.degToRad(turn);
+  return [
+    blob(from[0] + Math.cos(t) * len * 0.62, from[1] + Math.sin(t) * len * 0.62, len * 0.62, wide, turn), // the toe
+    blob(from[0] + Math.cos(t) * (len * 1.2 + 0.03), from[1] + Math.sin(t) * (len * 1.2 + 0.03), 0.07, wide * 0.5, turn), // its claw
+  ];
+};
+const THEROPOD_PES = [
+  blob(-0.14, 0.01, 0.22, 0.17), // the heel pad (the first: the water's light ring goes out from its middle)
+  ...toe(0, [0.02, 0], 0.267, 0.075), // digit III, straight ahead
+  ...toe(-34, [-0.02, -0.04], 0.23, 0.07), // digit II, the inner
+  ...toe(37, [-0.02, 0.05], 0.24, 0.07), // digit IV, the outer
+];
 /** A turned ellipse's signed distance (m, negative inside) at (u, w), to first order. */
 function blobDistance(u, w, b) {
   const a = u - b.x, c = w - b.z;
@@ -110,19 +133,21 @@ function blobDistance(u, w, b) {
   return g < 1e-6 ? -Math.min(b.rx, b.rz) : ((k - 1) * k) / g;
 }
 /** The hind print's signed distance (m, negative inside) at (u, w) in its frame: its ellipses' smooth union (as the water's shader). */
-function printDistance(u, w) {
+function printDistance(u, w, shape = SAUROPOD) {
+  const blend = shape.blend;
   let d = 1e3;
-  for (const b of PES) {
+  for (const b of shape.pes) {
     const e = blobDistance(u, w, b);
-    const h = Math.max(BLEND - Math.abs(d - e), 0) / BLEND;
-    d = Math.min(d, e) - h * h * BLEND * 0.25;
+    const h = Math.max(blend - Math.abs(d - e), 0) / blend;
+    d = Math.min(d, e) - h * h * blend * 0.25;
   }
   return d;
 }
 /** A turned ellipse's half extents along u and w. */
 const reach = b => [Math.hypot(b.rx * b.cos, b.rz * b.sin), Math.hypot(b.rx * b.sin, b.rz * b.cos)];
-/** The front foot's crescent: the outer ellipse less the inner. */
-function manusDistance(u, v) {
+/** The front foot's crescent: the outer ellipse less the inner (none for a shape without one: far outside it everywhere). */
+function manusDistance(u, v, shape = SAUROPOD) {
+  if (!shape.manus) return 1e3;
   return Math.max(ellipseDistance(u, v, ...MANUS.outer), -ellipseDistance(u, v, ...MANUS.inner));
 }
 const lerp = THREE.MathUtils.lerp;
@@ -148,29 +173,40 @@ function manusHeight(d, ground, k = 1) {
   return lerp(ground + M.crest * k, ground - SINK * k, smooth((d - M.wall) / (M.skirt - M.wall)));
 }
 /** The mud of one print (both feet) at (u, v): inside a print its floor and wall, outside the higher of their lips and skirts. */
-function mudAt(u, v, ground, level, k = 1) {
-  const dp = printDistance(u, v), dm = manusDistance(u, v);
+function mudAt(u, v, ground, level, k = 1, shape = SAUROPOD) {
+  const dp = printDistance(u, v, shape), dm = manusDistance(u, v, shape);
   if (dp < 0) return { h: pesHeight(dp, ground, level, k), dp, dm };
   if (dm < 0) return { h: manusHeight(dm, ground, k), dp, dm };
   return { h: Math.max(pesHeight(dp, ground, level, k), manusHeight(dm, ground, k)), dp, dm };
 }
 const covered = (dp, dm) => dp < SKIRT || dm < MANUS.skirt; // mud there, above the ground or under it
 
-const EXTENT = (() => {
-  const xs = PES.flatMap(b => [b.x - reach(b)[0], b.x + reach(b)[0]]);
-  const zs = PES.flatMap(b => [b.z - reach(b)[1], b.z + reach(b)[1]]);
-  const pad = SKIRT + 0.05;
-  const front = MANUS.outer[0] + MANUS.outer[2] + MANUS.skirt + 0.05;
-  const side = Math.max(...zs.map(Math.abs), MANUS.outer[3]) + pad;
-  return { x0: Math.min(...xs) - pad, x1: Math.max(Math.max(...xs) + pad, front), z0: -side, z1: side };
-})();
-// The water's quad over the hind print (the shader keeps only what is inside the print's shape), in the print's frame.
-const POOL = (() => {
-  const xs = PES.flatMap(b => [b.x - reach(b)[0], b.x + reach(b)[0]]);
-  const zs = PES.flatMap(b => [b.z - reach(b)[1], b.z + reach(b)[1]]);
-  return { x0: Math.min(...xs) - 0.02, x1: Math.max(...xs) + 0.02, z0: Math.min(...zs) - 0.02, z1: Math.max(...zs) + 0.02 };
-})();
-const PAD = [-0.02, 0]; // the middle of the sole: where a tap aims and a digit rises
+/** A print's shape: its ellipses, their blend, whether a front foot's crescent lies ahead of it, where a tap aims, its bounds. */
+function makeShape(name, { pes, blend, manus, pad }) {
+  const xs = pes.flatMap(b => [b.x - reach(b)[0], b.x + reach(b)[0]]);
+  const zs = pes.flatMap(b => [b.z - reach(b)[1], b.z + reach(b)[1]]);
+  const skirt = SKIRT + 0.05;
+  const front = manus ? MANUS.outer[0] + MANUS.outer[2] + MANUS.skirt + 0.05 : -Infinity;
+  const side = Math.max(...zs.map(Math.abs), manus ? MANUS.outer[3] : 0) + skirt;
+  return {
+    name, pes, blend, manus, pad,
+    extent: { x0: Math.min(...xs) - skirt, x1: Math.max(Math.max(...xs) + skirt, front), z0: -side, z1: side },
+    // the water's quad over the hind print (the shader keeps only what is inside the print's shape), in the print's frame
+    pool: { x0: Math.min(...xs) - 0.02, x1: Math.max(...xs) + 0.02, z0: Math.min(...zs) - 0.02, z1: Math.max(...zs) + 0.02 },
+  };
+}
+const SAUROPOD = makeShape('sauropod', { pes: PES, blend: BLEND, manus: true, pad: [-0.02, 0] }); // pad: the middle of the sole
+const THEROPOD = makeShape('theropod', { pes: THEROPOD_PES, blend: THEROPOD_BLEND, manus: false, pad: [-0.12, 0] }); // the heel pad's
+const SHAPES = { sauropod: SAUROPOD, theropod: THEROPOD };
+function shapeOf(name) {
+  if (!SHAPES[name]) throw new TypeError(`A print's shape is 'sauropod' or 'theropod', not ${JSON.stringify(name)}`);
+  return SHAPES[name];
+}
+/** A real-size print's outline as a signed distance (m, negative inside) at (u, w) in its frame, for its shape: `(u, w) -> d`. */
+export function printOutline(shape = 'sauropod') {
+  const s = shapeOf(shape);
+  return (u, w) => printDistance(u, w, s);
+}
 
 /** A print's frame from its layout entry: where it is, its way (ax, az; its right is (-az, ax)) and the outside of the foot. */
 function frameOf({ position: [x, z], heading = 0, foot = 'right' }) {
@@ -185,16 +221,17 @@ function frameOf({ position: [x, z], heading = 0, foot = 'right' }) {
  * (world/forest: grass and plants keep out of it), so no blade of grass stands in a print's water, whether the print lies on the
  * path or its outer edge reaches the verge.
  */
-export function printsKeepOut(prints, { size = 1, margin = 0.25 } = {}) {
+export function printsKeepOut(prints, { size = 1, margin = 0.25, shape: shapeName = 'sauropod' } = {}) {
+  const shape = shapeOf(shapeName);
   const frames = prints.map(frameOf);
-  const near = (EXTENT.x1 - EXTENT.x0) * size + margin;
+  const near = (shape.extent.x1 - shape.extent.x0) * size + margin;
   return (x, z) => {
     let keep = 0;
     for (const f of frames) {
       const dx = x - f.x, dz = z - f.z;
       if (dx * dx + dz * dz > near * near) continue;
       const u = (dx * f.ax + dz * f.az) / size, w = ((-dx * f.az + dz * f.ax) * f.out) / size;
-      const beyond = Math.min(printDistance(u, w) - SKIRT, manusDistance(u, w) - MANUS.skirt) * size; // m past the mud's edge
+      const beyond = Math.min(printDistance(u, w, shape) - SKIRT, manusDistance(u, w, shape) - MANUS.skirt) * size; // m past the mud's edge
       keep = Math.max(keep, 1 - smooth(beyond / margin));
       if (keep >= 1) break;
     }
@@ -344,12 +381,18 @@ export function digitGeometry(number) {
  *   update(t)      pose everything for game time t (the registered effect does it every frame)
  *   dispose()
  */
-export function createMudPrints(world, { prints, heightAt = world.heightAt, seed = 12, size = 1 } = {}) {
+export function createMudPrints(world, { prints, heightAt = world.heightAt, seed = 12, size = 1, shape: shapeName = 'sauropod', colours = null } = {}) {
   if (!Array.isArray(prints) || !prints.length) throw new TypeError('createMudPrints takes `prints`: [{ position: [x, z], heading, foot }]');
   if (!(size > 0)) throw new TypeError(`A print's size is how many times a real one's it is drawn, above 0, not ${JSON.stringify(size)}`);
+  const shape = shapeOf(shapeName);
+  for (const p of prints) {
+    if (p.water !== undefined && !WATERS.includes(p.water)) throw new TypeError(`A print's water is one of ${WATERS.join(', ')}, not ${JSON.stringify(p.water)}`);
+  }
   needEffects(world, 'createMudPrints');
+  const { extent: EXTENT, pool: POOL, pad: PAD, pes } = shape;
+  const watered = prints.map(p => (p.water ?? 'pool') !== 'none');
   const group = new THREE.Group();
-  group.name = 'Þórseðla prints';
+  group.name = shape === SAUROPOD ? 'Þórseðla prints' : 'Grameðla prints';
   const frames = prints.map(frameOf);
   /** A point in print f's frame (u along it, v to its right, in a real-size print's metres) in the world, `size` times out. */
   const toWorld = (f, u, v) => [f.x + (f.ax * u - f.az * v) * size, f.z + (f.az * u + f.ax * v) * size];
@@ -361,7 +404,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   const levels = [], rims = [], floors = [];
   const water = { pos: [], data: [], flow: [], state: [], owner: [], local: [], index: [] };
   const nu = Math.ceil((EXTENT.x1 - EXTENT.x0) / CELL), nv = Math.ceil((EXTENT.z1 - EXTENT.z0) / CELL);
-  const C = Object.fromEntries(Object.entries(MUD).map(([k, v]) => [k, new THREE.Color(v)]));
+  const C = Object.fromEntries(Object.entries({ ...MUD, ...colours }).map(([k, v]) => [k, new THREE.Color(v)]));
   const tint = new THREE.Color();
   /** The colour of the mud at a grid point: dark on the floors and walls, light on the lips, the path's at the edge. */
   function mudColour(g, level) {
@@ -381,7 +424,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
         const u = EXTENT.x0 + ((EXTENT.x1 - EXTENT.x0) * i) / nu, v = EXTENT.z0 + ((EXTENT.z1 - EXTENT.z0) * j) / nv;
         const [x, z] = shapeToWorld(f, u, v);
         const ground = heightAt(x, z);
-        const dp = printDistance(u, v);
+        const dp = printDistance(u, v, shape);
         if (dp < 0) highest = Math.max(highest, ground);
         grid.push({ u, v, x, z, ground, dp });
       }
@@ -392,7 +435,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     const at = (i, j) => grid[j * (nu + 1) + i];
     const base = pos.length / 3;
     for (const g of grid) {
-      const m = mudAt(g.u, g.v, g.ground, level, size);
+      const m = mudAt(g.u, g.v, g.ground, level, size, shape);
       g.h = m.h;
       g.dm = m.dm;
       pos.push(g.x, m.h, g.z);
@@ -411,7 +454,8 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
         else index.push(a, b, c, b, d, c); // the mirror's triangles turn the other way: keep them facing up
       }
     }
-    // the water: one quad over the hind print, flat at its level; the shader draws its shore from the print's shape
+    // the water: one quad over the hind print, flat at its level; the shader draws its shore from the print's shape (none in a dry one)
+    if (!watered[k]) return;
     const wbase = water.pos.length / 3;
     for (const [u, v] of [[POOL.x0, POOL.z0], [POOL.x1, POOL.z0], [POOL.x0, POOL.z1], [POOL.x1, POOL.z1]]) {
       const [x, z] = shapeToWorld(f, u, v);
@@ -450,15 +494,18 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   waterGeometry.setAttribute('aLocal', new THREE.Float32BufferAttribute(water.local, 2));
   waterGeometry.setIndex(water.index);
   waterGeometry.computeBoundingSphere();
-  const surface = createWaterMaterial(world, { seed, fade: WATER_FADE, prints: true, blobs: PES.length, bed: BED });
-  surface.uniforms.uBlobs.value.forEach((v, i) => v.set(PES[i].x, PES[i].z, PES[i].rx, PES[i].rz));
-  surface.uniforms.uBlobTurn.value.forEach((v, i) => v.set(PES[i].cos, PES[i].sin));
-  surface.uniforms.uBlend.value = BLEND;
+  const surface = createWaterMaterial(world, { seed, fade: WATER_FADE, prints: true, blobs: pes.length, bed: BED });
+  surface.uniforms.uBlobs.value.forEach((v, i) => v.set(pes[i].x, pes[i].z, pes[i].rx, pes[i].rz));
+  surface.uniforms.uBlobTurn.value.forEach((v, i) => v.set(pes[i].cos, pes[i].sin));
+  surface.uniforms.uBlend.value = shape.blend;
   const waterMesh = new THREE.Mesh(waterGeometry, surface.material);
   waterMesh.name = 'Print water';
   waterMesh.renderOrder = 8;
-  group.add(waterMesh);
+  if (water.pos.length) group.add(waterMesh); // prints with no water at all: one draw call, the mud
   const ripples = surface.uniforms.uRipples.value;
+  // the prints whose water still trembles (her foot left it a moment ago): a ring now and then, from round its heel
+  const rippling = prints.map((p, k) => (p.water === 'rippling' ? k : -1)).filter(k => k >= 0);
+  let nextTremble = 0, trembles = 0;
   let slot = 0;
 
   // ---- what each print is doing ----
@@ -498,7 +545,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       const dx = x - f.x, dz = z - f.z;
       if (dx * dx + dz * dz > near * near) continue;
       const u = (dx * f.ax + dz * f.az) / size, w = ((-dx * f.az + dz * f.ax) * f.out) / size;
-      const m = mudAt(u, w, ground, levels[k], size);
+      const m = mudAt(u, w, ground, levels[k], size, shape);
       if (covered(m.dp, m.dm)) return Math.max(ground, m.h);
     }
     return ground;
@@ -610,6 +657,15 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
         nextRing = now + GLIMMER.ring;
         ring(next, 0.5);
       }
+    }
+    if (rippling.length && now >= nextTremble) {
+      nextTremble = now + TREMBLE.every;
+      for (const k of rippling) {
+        const turn = trembles * 2.39996;
+        const [x, z] = toWorld(frames[k], PAD[0] + Math.cos(turn) * TREMBLE.reach, Math.sin(turn) * TREMBLE.reach);
+        rippleAt([x, levels[k], z], TREMBLE.strength);
+      }
+      trembles++;
     }
     if (digit) poseDigit();
     for (const handle of live) if (handle.done) live.delete(handle);

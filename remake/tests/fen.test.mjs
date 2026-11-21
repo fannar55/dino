@@ -5,7 +5,8 @@ import { chapter as kafli2 } from '../chapters/kafli2.js';
 import { chapter, EGILL_PICKS } from '../chapters/kafli3.js';
 import { PICK_LOOK } from '../chapters/kafli3-fen.js';
 import { createWater, createWaterMaterial, waterShape } from '../world/props/water.js';
-import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
+import { createMudPrints, printsKeepOut, printOutline } from '../world/props/mud-prints.js';
+import { createHash } from 'node:crypto';
 import { createBerryBushes } from '../world/props/berries.js';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
@@ -548,6 +549,69 @@ test('ten mud prints lie on the trail with water in them', () => {
   }
   mud.dispose();
   assert.equal(mud.group.parent, null);
+});
+
+test('the sauropod print is drawn as before: its mesh\'s positions are the ones chapter 2 had', () => {
+  // the hash of chapter 2's ten prints (positions, colours, triangles) as built before her three-toed print came (chapter 6)
+  const { terrain } = shapeGround({ chapter }, layoutOf(TRAIL), TRAIL.layout.seed);
+  const { world } = propWorld(terrain.heightAt);
+  const mud = createMudPrints(world, { prints: TRAIL.layout.prints, heightAt: terrain.heightAt, size: PRINT_SIZE });
+  const g = mud.group.getObjectByName('Mud prints').geometry;
+  const hash = createHash('sha256');
+  for (const name of ['position', 'color']) hash.update(Buffer.from(g.attributes[name].array.buffer));
+  hash.update(Buffer.from(Uint32Array.from(g.index.array).buffer));
+  assert.equal(g.attributes.position.count, 8250);
+  assert.equal(hash.digest('hex'), '11e2232f28dfa36e850a05797505f6a494b46a4940837f6377168e70993dd6b3');
+  mud.dispose();
+});
+
+test('her print has three toes and no front crescent; a print with water none has no water', () => {
+  // Grameðla's (chapter 6): a Tyrannosaurus track, three toes forward from a broad heel, no front foot's print, 0.8 m long at size 1
+  const outline = printOutline('theropod');
+  const inside = (u, w) => outline(u, w) < 0;
+  // the toes: round an arc 0.32 m out from the heel's front, three runs inside the print, apart
+  let runs = 0, was = false;
+  for (let a = -80; a <= 80; a += 1) {
+    const t = (a * Math.PI) / 180;
+    const now = inside(0.32 * Math.cos(t), 0.32 * Math.sin(t));
+    if (now && !was) runs++;
+    was = now;
+  }
+  assert.equal(runs, 3, 'three toes');
+  // its length: 0.8 m from the heel to the middle toe's claw
+  let front = -1, back = 1;
+  for (let u = -1; u <= 1; u += 0.005) if (inside(u, 0)) { front = Math.max(front, u); back = Math.min(back, u); }
+  assert.ok(Math.abs(front - back - 0.8) < 0.04, `${(front - back).toFixed(3)} m long`);
+  // no front crescent: nothing of the print ahead of her toes
+  for (let u = front + 0.05; u < 1.2; u += 0.02) for (let w = -0.4; w <= 0.4; w += 0.02) assert.ok(!inside(u, w), `nothing at ${u.toFixed(2)}, ${w.toFixed(2)}`);
+  const sauropod = printOutline('sauropod');
+  assert.ok(sauropod(0.84, 0) > 0 && sauropod(0.62, 0) > 0, 'the sauropod\'s shape is its own: its front foot is the crescent beside it');
+
+  const heightAt = (x, z) => 0.05 * Math.sin(x * 0.3) + 0.03 * z;
+  const { world, run } = propWorld(heightAt);
+  const prints = [
+    { position: [0, 0], heading: 10, foot: 'right', water: 'none' },
+    { position: [2, 0.4], heading: 10, foot: 'left' },
+    { position: [4, 0], heading: 10, foot: 'right', water: 'rippling' },
+  ];
+  const mud = createMudPrints(world, { prints, heightAt, shape: 'theropod', size: 2 });
+  const water = mud.group.getObjectByName('Print water');
+  const owners = new Set(water.geometry.attributes.aPrint.array);
+  assert.deepEqual([...owners].sort(), [1, 2], 'water in the second and third, none in the first');
+  // the rippling one keeps rings going on its own; the still pool does not
+  const ripples = water.material.uniforms.uRipples.value;
+  run(3);
+  const near = k => ripples.filter(r => r.z > 0.5 && Math.hypot(r.x - prints[k].position[0], r.y - prints[k].position[1]) < 1.2).length;
+  assert.ok(near(2) >= 2, `rings in the rippling one: ${near(2)}`);
+  assert.equal(near(1), 0, 'none in the still pool');
+  // all three are pressed into the ground and lipped: the middle of the heel lies under the rim round it
+  for (const k of [0, 1, 2]) assert.ok(mud.floorOf(k) < mud.rimOf(k), `print ${k + 1}`);
+  // a print with no water at all: no water mesh (one draw call)
+  const dry = createMudPrints(world, { prints: [prints[0]], heightAt, shape: 'theropod' });
+  assert.equal(dry.group.getObjectByName('Print water'), undefined);
+  assert.throws(() => createMudPrints(world, { prints, heightAt, shape: 'hadrosaur' }), /shape/);
+  mud.dispose();
+  dry.dispose();
 });
 
 test('berry bushes expose five red targets and the blue ones', () => {
