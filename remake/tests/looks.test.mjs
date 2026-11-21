@@ -40,3 +40,24 @@ test('blendLooks mixes two looks: the ends are the looks themselves', () => {
   assert.equal(at1.hemi.intensity, LOOKS.golden.hemi.intensity);
   assert.equal(at0.sun.azimuth, LOOKS.lateMorning.sun.azimuth);
 });
+
+// Chapter 6's (its spec 2): the low sun of the climb, the red gold of the slope, the white inside the cloud, and the sunset over the
+// sea of cloud at the top; one fixed sun for all four, low in the west-south-west.
+test('the four looks have every field morning has, and one sun', () => {
+  for (const name of ['lowSun', 'redGold', 'inCloud', 'sunset']) {
+    assert.deepEqual(Object.keys(LOOKS[name]).sort(), Object.keys(LOOKS.morning).sort(), name);
+    for (const part of ['sun', 'hemi', 'sky', 'fog']) assert.deepEqual(Object.keys(LOOKS[name][part]).sort(), Object.keys(LOOKS.morning[part]).sort(), `${name}.${part}`);
+    assert.deepEqual([LOOKS[name].sun.azimuth, LOOKS[name].sun.elevation], [215, 10], name);
+  }
+  assert.equal(LOOKS.inCloud.fog.color, LOOKS.inCloud.sky.horizon);
+  assert.equal(LOOKS.inCloud.sky.zenith, '#f1f3f0');
+  assert.equal(LOOKS.inCloud.fog.color, '#f1f3f0');
+  assert.deepEqual([LOOKS.inCloud.sun.intensity, LOOKS.inCloud.hemi.intensity], [1.2, 0.95]);
+  assert.equal(LOOKS.sunset.fog.density, 0.004);
+  assert.equal(LOOKS.sunset.sky.horizon, LOOKS.evening.sky.horizon);
+  const lowSun = blendLooks(LOOKS.goldenAfternoon, LOOKS.evening, 0.35);
+  const redGold = blendLooks(LOOKS.goldenAfternoon, LOOKS.evening, 0.65);
+  assert.equal(LOOKS.lowSun.sky.glow, lowSun.sky.glow);
+  assert.equal(LOOKS.lowSun.fog.density, lowSun.fog.density);
+  assert.equal(LOOKS.redGold.sun.color, redGold.sun.color);
+});

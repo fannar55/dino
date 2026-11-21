@@ -93,6 +93,29 @@ LOOKS.goldenAfternoon = {
   sun: { ...blendLooks(LOOKS.lateMorning, LOOKS.golden, 0.7).sun, azimuth: 215, elevation: 14 },
 };
 
+// Chapter 6's (its spec 2: "síðdegi að sólsetri"), one fixed sun for all four, low in the west-south-west (azimuth 215, as chapters 4
+// and 5 had it, elevation 10), the afternoon told by the place's look (engine/light-blend.js eases between them while the game runs):
+// lowSun the chapter's own, a third of the way from the golden afternoon toward evening; redGold the slope's, two thirds; inCloud
+// inside the cloud, its fog and sky one soft white (the sky's glow a third darker, so the sun's disc is no brighter than the white
+// round it) and its light soft and from everywhere; sunset over the sea of cloud at the top, evening's colours and a thin, clear air.
+const lowSunAt = (k, more = {}) => {
+  const look = blendLooks(LOOKS.goldenAfternoon, LOOKS.evening, k);
+  return { ...look, ...more, sun: { ...look.sun, ...more.sun, azimuth: 215, elevation: 10 } };
+};
+LOOKS.lowSun = lowSunAt(0.35);
+LOOKS.redGold = lowSunAt(0.65);
+LOOKS.inCloud = lowSunAt(0.35, {
+  sun: { intensity: 1.2 },
+  hemi: { ...LOOKS.lowSun.hemi, intensity: 0.95 },
+  sky: { ...LOOKS.lowSun.sky, zenith: '#f1f3f0', horizon: '#f1f3f0', glow: '#a1a2a0', cloud: '#f6f7f4', cloudShade: '#e4e8e4' },
+  fog: { ...LOOKS.lowSun.fog, color: '#f1f3f0', sunColor: '#fff6e4', density: 0.02 },
+});
+LOOKS.sunset = {
+  ...LOOKS.evening,
+  sun: { ...LOOKS.evening.sun, azimuth: 215, elevation: 10 },
+  fog: { ...LOOKS.evening.fog, density: 0.004 },
+};
+
 /**
  * A look `k` of the way from `a` to `b` (0 is a, 1 is b): its colours mixed as written (sRGB hex, channel by channel) and its numbers
  * in between; the sun's place is a's.
