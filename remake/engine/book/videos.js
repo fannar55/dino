@@ -2,13 +2,16 @@ import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { isUnlocked, bookState, FIND_ME } from './cards.js';
 
-// The Myndbönd page: ten short educational videos, six on the left page of the Myndbönd leaf and four on the right, as taped video
+// The Myndbönd page: eleven educational videos, seven on the left page of the Myndbönd leaf and four on the right, as taped video
 // tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan glasses, open from the
 // start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one with a `src` would play
-// in the video player as the others do.
+// in the video player as the others do. After the left page's seven videos, beside the seventh in the third row, stands a show of
+// the game's own with no glasses (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the 3D
+// shows.
 // Each video shares the unlock rules of the dinosaur, animal or fossil it belongs to (cards.js isUnlocked), so the child unlocks
-// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Two
-// belong to no card and are open from the start: Heimur risaeðlanna and Hvað varð um risaeðlurnar?
+// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Three
+// belong to no card and are open from the start: Heimur risaeðlanna, Hvað varð um risaeðlurnar? and Hvernig fundum við
+// risaeðlurnar?
 
 const WIGGLE_MS = 560;
 const NOD_MS = 620;
@@ -80,6 +83,17 @@ export const BOOK_VIDEOS = [
     src: '/myndbond/loftsteinn.mp4',
     poster: videoUrl('loftsteinn-thumb.webp'),
     hue: '#4a6fa5',
+    unlock: { start: true },
+    cards: [],
+    findMe: 'book_mosi_later',
+  },
+  {
+    id: 'fundur', // how people found the dinosaurs: what came after the story's end, belonging to no card, so open from the start
+    name: 'Hvernig fundum við risaeðlurnar?',
+    title: 'Hvernig fundum við risaeðlurnar?',
+    src: '/myndbond/fundur.mp4',
+    poster: videoUrl('fundur-thumb.webp'), // the video's frame at 312.7 s: the statues in the park and the second drawing
+    hue: '#8c3f4f',
     unlock: { start: true },
     cards: [],
     findMe: 'book_mosi_later',
@@ -186,6 +200,26 @@ export const BOOK_3D = [
   },
 ];
 
+/**
+ * Shows of the game's own, with no glasses: a scene of a chapter played alone (`chapter`: the chapter module that plays it), in the
+ * show player's frame as the 3D shows are. "Djamm skógarins" is chapter 5's music show, DJ Flugeðla's set (chapters/kafli5.js
+ * `show`), so it can be watched again without the story before it. Open from the start, as every show on this page is (the three
+ * 3D shows): a show is no reward. (To keep it until the chapter is finished instead: `unlock: { star: 'k5_sloedla' }`, and it
+ * stands as a "?" until then, with "Nýtt!" on the ribbon when the star comes, as the videos do.)
+ */
+export const BOOK_SHOWS = [
+  {
+    id: 'djamm',
+    name: 'Djamm skógarins',
+    title: 'Djamm skógarins',
+    chapter: 'djamm',
+    poster: videoUrl('djamm-thumb.webp'), // a still of the show itself (tools/capture.mjs, ?chapter=djamm&t=...)
+    hue: '#e2833a',
+    unlock: { start: true },
+    label: 'Djamm skógarins, tónlistarmyndband úr leiknum',
+  },
+];
+
 export const videoSeenId = id => `video:${id}`;
 
 export function isVideoUnlocked(video, state) {
@@ -206,10 +240,11 @@ export function videoForCard(cardId, videos = BOOK_VIDEOS) {
 
 /**
  * The Myndbönd page on `leaf` (book.js's { el, pages, tiles }), over the `save` and the book's `audio`.
- * `onOpenVideo(video, fromRect)` opens a found video in the player; `onOpenShow(entry)` plays a 3D entry that is a chapter (`shows`,
- * BOOK_3D); `onChange()` is told when a tile's seen state changes.
+ * `onOpenVideo(video, fromRect)` opens a found video in the player; `onOpenShow(entry)` plays an entry that is a chapter (`shows`,
+ * BOOK_3D, and `own`, BOOK_SHOWS: the game's own shows, after the videos on the left page); `onChange()` is told when a tile's seen
+ * state changes.
  */
-export function createVideosPage(leaf, { save, audio = null, win = globalThis.window, videos = BOOK_VIDEOS, shows = BOOK_3D, onOpenVideo = null, onOpenShow = null, onChange = null } = {}) {
+export function createVideosPage(leaf, { save, audio = null, win = globalThis.window, videos = BOOK_VIDEOS, shows = BOOK_3D, own = BOOK_SHOWS, onOpenVideo = null, onOpenShow = null, onChange = null } = {}) {
   const doc = leaf.el.ownerDocument;
   const make = (tag, className) => {
     const element = doc.createElement(tag);
@@ -250,14 +285,21 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   };
   const regular = videos.map(video => tileOf(video, false));
   const threeDs = shows.map(video => tileOf(video, true));
-  const items = [...regular, ...threeDs];
+  // the game's own shows: a video's tile (no 3D mark), marked as a show for the page's style and the tests
+  const ownShows = own.map(video => {
+    const item = tileOf(video, false);
+    item.tile.classList.add('video-tile-show');
+    return item;
+  });
+  const items = [...regular, ...ownShows, ...threeDs];
 
   const [left, right] = leaf.tiles;
   left.classList.add('video-tiles');
   right.classList.add('video-tiles');
-  // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across (six now)
+  // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across
+  // (seven now), and the game's own show follows them in the third row (book.css)
   const leftCount = threeDs.length ? Math.max(regular.length - 4, Math.ceil(regular.length / 2)) : 4;
-  left.append(...regular.slice(0, leftCount).map(item => item.tile));
+  left.append(...regular.slice(0, leftCount).map(item => item.tile), ...ownShows.map(item => item.tile));
   right.append(...regular.slice(leftCount).map(item => item.tile));
   if (threeDs.length) {
     // the 3D column: its own heading, set apart from the videos, room for three tiles
@@ -324,7 +366,7 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
     const wasNew = save.addSeen(videoSeenId(item.video.id));
     render();
     if (wasNew) onChange?.();
-    if (item.video.chapter) onOpenShow?.(item.video); // a 3D show the game plays
+    if (item.video.chapter) onOpenShow?.(item.video); // a show the game plays, with glasses or without
     else onOpenVideo?.(item.video, item.picture.getBoundingClientRect());
   }
 

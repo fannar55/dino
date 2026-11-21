@@ -163,7 +163,7 @@ test('main.js draws the chapter once before the start button shows, builds its l
   // behind the start button: black until the warm-up is done, then the button
   const start = main.slice(main.indexOf('// Wait for a tap'), main.indexOf("if (params.get('orbit') === '1')"));
   assert.match(start, /ui\.setFade\(1\);/);
-  assert.match(start, /getReady\(\)[\s\S]*\.finally\(\(\) => \{[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
+  assert.match(start, /getReady\(\)[\s\S]*\.finally\((?:async )?\(\) => \{[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
   assert.doesNotMatch(start.slice(0, start.indexOf('getReady()')), /button\.hidden = false/, 'the button waits for the warm-up');
   const ready = main.slice(main.indexOf('async function getReady()'), main.indexOf('const describeWarm'));
   assert.match(ready, /await characterLodsReady\(\);/);
@@ -242,7 +242,7 @@ test('while the start screen is black for the warm-up a small gold star breathes
   const main = read('main.js');
   const start = main.slice(main.indexOf('// Wait for a tap'), main.indexOf("if (params.get('orbit') === '1')"));
   assert.match(start, /ui\.setFade\(1\);[\s\S]*loading\.hidden = false;[\s\S]*getReady\(\)/);
-  assert.match(start, /\.finally\(\(\) => \{[\s\S]*loading\.classList\.add\('done'\);[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
+  assert.match(start, /\.finally\((?:async )?\(\) => \{[\s\S]*loading\.classList\.add\('done'\);[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
   assert.equal((main.match(/loading\.hidden = false/g) ?? []).length, 1, 'nowhere else');
   // The page and #fade start dark (#15110c) before the first await, and adaptive resolution never resizes the canvas after render().
   assert.match(rule('html, body'), /background:\s*#15110c/i, 'page background matches .fade so loading and canvas resizes never flash white');

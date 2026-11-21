@@ -21,18 +21,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { headersFile } from './src/cache.mjs';
 import { isSafeName, writeOfflineList } from './src/offline-list.mjs';
+import { distAudioOf, missingDistAudio } from './src/staged-sounds.mjs';
 
 const cloud = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.dirname(cloud);
 const site = path.join(cloud, 'site');
 const MAX_BYTES = 25 * 1024 * 1024;
 
+// The old game's sounds the game's lines point at (src/staged-sounds.mjs). One that is named and not in the repo stops the
+// staging here, by name: the cloud would answer 404 for a line that plays at home.
 const linesJson = JSON.parse(fs.readFileSync(path.join(repo, 'remake/assets/audio/lines.json'), 'utf8'));
-const usedDistAudio = new Set(
-  Object.values(linesJson)
-    .map(entry => /^\.\.\/\.\.\/dist\/assets\/audio\/(.+)$/.exec(entry?.src ?? '')?.[1])
-    .filter(Boolean),
-);
+const usedDistAudio = distAudioOf(linesJson);
+const lostDistAudio = missingDistAudio(usedDistAudio, path.join(repo, 'dist/assets/audio'));
+if (lostDistAudio.length) {
+  for (const rel of lostDistAudio) console.error(`a line points at a sound that is not there: dist/assets/audio/${rel}`);
+  process.exit(1);
+}
 
 /** A narration take of one of the book's educational videos: kept in the repo for the voice tools, never loaded by the game. */
 const isVideoNarration = rel => /^assets\/audio\/book\/book_myndband_[a-z0-9_]+\.mp3$/.test(rel);

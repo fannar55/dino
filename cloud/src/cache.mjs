@@ -10,6 +10,14 @@
 /** The Cache-Control of a sound, a picture, a model or the font: kept for a day (86,400 seconds). */
 export const MEDIA_CACHE = 'public, max-age=86400';
 
+/**
+ * The Cache-Control of a file that is not there (a 404): never remembered. A rule of site/_headers goes by the path, whatever
+ * the answer, so the assets give a missing picture, model or sound the day too; a browser then keeps "missing" for a day after
+ * the file has come (Mosi's welcome in chapter 1, November 2026). worker.mjs, which every missing file passes through, says this
+ * on each 404 instead.
+ */
+export const MISSING_CACHE = 'no-store';
+
 /** The kinds of file that keep for a day: every kind in remake/assets but its lists (.json) and notes (.md, .txt). */
 export const MEDIA_FILES = ['mp3', 'wav', 'jpg', 'jpeg', 'png', 'webp', 'svg', 'glb', 'woff2'];
 

@@ -3109,6 +3109,195 @@
         }
       },
       "chosen": "hratt"
+    },
+    "gideon": {
+      "word": "Gideon",
+      "stem": "Gideon",
+      "forms": [
+        "Gideon"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Gideon": "Gídeon"
+          },
+          "note": "Eins og íslenskur sögumaður segir nafnið: Gídeon (lína 19 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "mantell": {
+      "word": "Mantell",
+      "stem": "Mantell",
+      "forms": [
+        "Mantell"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Mantell": "Mantel"
+          },
+          "note": "Eitt l, svo ll verði ekki að „dl“: Mantel (línur 19 til 30 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "mary": {
+      "word": "Mary",
+      "stem": "Mary",
+      "forms": [
+        "Mary"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Mary": "Merí"
+          },
+          "note": "Enska nafnið eins og íslenskur sögumaður segir það: Merí (Merí Ann) (lína 20 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "iguana": {
+      "word": "iguana",
+      "stem": "iguana",
+      "forms": [
+        "iguana"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "iguana": "ígúana"
+          },
+          "note": "Í og ú eins og í spænsku: ígúana (línur 24 og 26 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "iguanodon": {
+      "word": "Iguanodon",
+      "stem": "Iguanodon",
+      "forms": [
+        "Iguanodon"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Iguanodon": "Ígúanodon"
+          },
+          "note": "Í og ú eins og í ígúana: Ígúanodon (lína 26 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "richard": {
+      "word": "Richard",
+      "stem": "Richard",
+      "forms": [
+        "Richard"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Richard": "Ritsjard"
+          },
+          "note": "Enska nafnið eins og íslenskur sögumaður segir það: Ritsjard (lína 33 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "owen": {
+      "word": "Owen",
+      "stem": "Owen",
+      "forms": [
+        "Owen"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Owen": "Óen"
+          },
+          "note": "Enska nafnið eins og íslenskur sögumaður segir það: Óen (línur 33 og 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt). VALIÐ: eigandinn horfði og hlustaði á allt myndbandið „Hvernig fundum við risaeðlurnar?“ og sagði 2026-11-21 að ekkert fleira þyrfti að laga („nei, má sameina, ýta og senda“)."
+        }
+      },
+      "chosen": "islenskad"
+    },
+    "ogurlega": {
+      "word": "ógurlega",
+      "stem": "ógurleg",
+      "forms": [
+        "ógurlega"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining heyrði „ókurlega“, með hörðu k, í þremur tökum af línu 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“ (án fræs, fræ 7, samhengi með fræi 42). Samhengi með „skógur“ og „ógurlegur“ (fræ 3) gaf líka lokhljóð á hljóðrófsmynd (2026-11-21)."
+        },
+        "ipa": {
+          "say": {
+            "ógurlega": "\"/ˈouːɣʏrlɛɣa/\""
+          },
+          "note": "IPA með mjúku g. Talgreining heyrði „ógurlega“, en eigandinn heyrði tökuna í myndbandinu „Hvernig fundum við risaeðlurnar?“ (lína 35) og sagði 2026-11-21: „\"ógurlega\" stór eðla, er rangt sagt“. Á hljóðrófsmynd sést lokhljóð á eftir ó („ókurlega“). Ekki nota."
+        },
+        "stafsetning": {
+          "say": {
+            "ógurlega": "óurlega"
+          },
+          "seed": 7,
+          "note": "Skrifað án g, því g-ið í ógurlega er þögult (eins og í skógur). VALIÐ AF EIGANDANUM 2026-11-21: hann heyrði þrjár tökur af línu 35 í myndbandinu „Hvernig fundum við risaeðlurnar?“ (A = þessi, fræ 7; B = sama, fræ 42; C = IPA án g) og svaraði „A“. Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð."
+        },
+        "ipa2": {
+          "say": {
+            "ógurlega": "\"/ˈouːʏrˌlɛːɣa/\""
+          },
+          "seed": 7,
+          "note": "IPA án g. Á hljóðrófsmynd er röddin samfelld, ekkert lokhljóð (lína 35, fræ 7 = prufa C, 2026-11-21). Eigandinn heyrði hana og valdi A (stafsetning) fram yfir hana."
+        }
+      },
+      "chosen": "stafsetning"
+    },
+    "stytta": {
+      "word": "stytta",
+      "stem": "[Ss]tytt(?:an|ur)",
+      "forms": [
+        "Stytturnar",
+        "styttur",
+        "styttan"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Talgreining heyrði „Stutturnar“ í tveimur tökum af línu 41 í myndbandinu „Hvernig fundum við risaeðlurnar?“ (án fræs og fræ 7), en „styttur“ og „styttan“ rétt í línum 37 og 39."
+        },
+        "stafsetning": {
+          "say": {
+            "Stytturnar": "Stitturnar",
+            "styttur": "stittur",
+            "styttan": "stittan"
+          },
+          "note": "Skrifað með i (i og y hljóma eins): Stitturnar. Talgreining heyrði „Stytturnar“ (lína 41 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt)."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {

@@ -1,7 +1,8 @@
 import { pressable } from './fx.js';
 import { ICONS } from './icons.js';
 
-// The book's show player: a "3D myndbönd" show (videos.js BOOK_3D) is a chapter of its own (chapters/fidrildi3d.js), so it plays
+// The book's show player: a "3D myndbönd" show (videos.js BOOK_3D) is a chapter of its own (chapters/fidrildi3d.js), and so is a
+// show of the game's own (BOOK_SHOWS: chapters/djamm.js, chapter 5's music show alone), so it plays
 // in a full-screen frame of this same page at ?chapter=<the show's chapter>&syning=1 (main.js: only the show, no book button, no
 // first-run line), laid over the open book as the video player is. The child's place is kept: the chapter behind stands still
 // under the book (main.js holds the clock while the child has the book open, and draws nothing while a show is open), and the
