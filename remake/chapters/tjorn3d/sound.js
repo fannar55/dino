@@ -37,8 +37,9 @@ export const KEY = [524.28, 588.48, 660.55, 785.53, 881.73];
 
 // The numbers, in one place.
 export const SOUND = {
-  master: 1, // the whole show's gain into the page's output
-  made: 1, // the made sounds' gain under it (their recipes are at the game's effects' levels)
+  master: 1.5, // the whole show's gain into the page's output
+  made: 2.2, // the made sounds' gain under it (their recipes are at the game's effects' levels, which sit under its voices and its music: here they are all there is)
+  bed: 1.1, // and the made bed's: a faint presence under the rest (a made murmur that is plainly heard is a hiss)
   halfPage: 11, // cm: a thing this far to a side of the page's middle is as far to that side as the sound goes
   panMost: 0.5, // (a tablet lying flat has its speakers at its short edges: more than this and a sound sits in one of them alone)
   gulpLead: 0.25, // s before JUMP.gulp the swallow begins (the fish goes down over the last third of a second before it)
@@ -58,17 +59,17 @@ const own = file => `${FILES}${file}`;
  * plays until a file is there (`instead`). The bed's is a loop.
  */
 export const SLOTS = {
-  pond: { urls: [own('pond.mp3')], level: 0.5, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
-  rise: { urls: [own('rise.mp3')], level: 0.9, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
-  drips: { urls: [own('drips.mp3')], level: 0.5, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
-  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.5, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
-  sink: { urls: [own('sink.mp3')], level: 0.6, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
+  pond: { urls: [own('pond.mp3')], level: 0.25, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
+  rise: { urls: [own('rise.mp3')], level: 0.7, instead: 'heave', what: 'something big rising out of water, the water pouring off it: the rise begins at once and its fullest is about a second in' },
+  drips: { urls: [own('drips.mp3')], level: 0.2, instead: 'dripping', what: 'drips falling back into still water, thinning: about 5 s' },
+  bubbles: { urls: [own('bubbles-1.mp3'), own('bubbles-2.mp3'), own('bubbles-3.mp3')], level: 0.25, instead: 'blips', what: 'a small burst of bubbles reaching the surface: 1 to 1.5 s, takes welcome' },
+  sink: { urls: [own('sink.mp3')], level: 0.35, instead: 'closing', what: `something sinking softly, the water closing over it: its closing ${SOUND.sinkLead} s in` },
 };
 
 /** The recordings the game already has (assets/veiddu/splash.json), by the name a cue asks for them: as SLOTS. */
 export const RECORDINGS = {
-  plop: { urls: ['assets/veiddu/splash-soft.mp3'], level: 0.3, instead: 'fishIn', what: 'a small plop: the fish leaves the water' },
-  splash: { urls: ['assets/veiddu/splash.mp3'], level: 0.6, instead: 'slap', what: 'a full splash: she comes down with the fish' },
+  plop: { urls: ['assets/veiddu/splash-soft.mp3'], level: 0.2, instead: 'fishIn', what: 'a small plop: the fish leaves the water' },
+  splash: { urls: ['assets/veiddu/splash.mp3'], level: 0.55, instead: 'slap', what: 'a full splash: she comes down with the fish' },
 };
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -124,8 +125,8 @@ export const MADE = {
   },
   // the butterfly lands (sfx.js's call chime): two soft, high bells, mi and la, close together
   chime({ bell, key }) {
-    bell(key[2] * 2, { level: 0.03, duration: 0.5 });
-    bell(key[4] * 2, { level: 0.026, delay: 0.09, duration: 0.6 });
+    bell(key[2] * 2, { level: 0.045, duration: 0.5 });
+    bell(key[4] * 2, { level: 0.038, delay: 0.09, duration: 0.6 });
   },
   // the slap of a splash (the first of fen-sounds.js's tailSplash; what plays if the real splash cannot be had)
   slap({ tone, noise, key }) {
@@ -136,9 +137,9 @@ export const MADE = {
   // the spray of a splash raining back (the rest of tailSplash): a hiss of drops in the air, seven drops, the water rolling away
   spray(tools) {
     const { noise, key, between } = tools;
-    noise({ kind: 'white', type: 'bandpass', frequency: 3400, end: 2000, q: 1.1, duration: 0.9, level: 0.04, attack: 0.08, delay: 0.06 });
-    [4, 2, 3, 1, 4, 3, 2].forEach((n, i) => droplet(tools, key[n] * 2, 0.3 + i * 0.1 + between(0, 0.05), 0.016, between(-0.3, 0.3)));
-    noise({ kind: 'warm', type: 'lowpass', frequency: 800, end: 260, duration: 1.4, level: 0.07, attack: 0.2, delay: 0.25 });
+    noise({ kind: 'white', type: 'bandpass', frequency: 3400, end: 2000, q: 1.1, duration: 0.9, level: 0.05, attack: 0.08, delay: 0.06 });
+    [4, 2, 3, 1, 4, 3, 2].forEach((n, i) => droplet(tools, key[n] * 2, 0.3 + i * 0.1 + between(0, 0.05), 0.022, between(-0.3, 0.3)));
+    noise({ kind: 'warm', type: 'bandpass', frequency: 650, end: 300, q: 0.6, duration: 1.4, level: 0.09, attack: 0.2, delay: 0.25 });
   },
 
   // ---- the show's own ----
@@ -148,12 +149,14 @@ export const MADE = {
     droplet(tools, key[((note % 5) + 5) % 5] * 2, 0, 0.045);
     noise({ kind: 'warm', type: 'bandpass', frequency: 900, end: 520, q: 1, duration: 0.3, level: 0.03, attack: 0.03, delay: 0.02 });
   },
-  // something big moves far down: a slow, round swell of water with a note rising in it, do to mi, like a question. Curious, not
-  // dark: it rises, it is in the major key, and it has no growl in it.
+  // something big moves far down: a slow, round swell of water with a note rising in it, do to mi, like a question, and a second
+  // note a hair off it, so the two wobble slowly as things do under water. Curious, not dark: it rises, it is in the major key,
+  // and it has no growl in it.
   deep({ tone, noise, key }, { seconds = 3.6 } = {}) {
-    noise({ kind: 'brown', type: 'bandpass', frequency: 230, end: 430, q: 0.6, duration: seconds, level: 0.3, attack: seconds * 0.45 });
-    tone({ frequency: key[0] / 2, end: key[2] / 2, duration: seconds * 0.9, level: 0.03, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.1 });
-    tone({ frequency: key[0], end: key[2], duration: seconds * 0.8, level: 0.008, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.2 });
+    noise({ kind: 'brown', type: 'bandpass', frequency: 300, end: 560, q: 0.6, duration: seconds, level: 0.13, attack: seconds * 0.45 });
+    tone({ frequency: key[0] / 2, end: key[2] / 2, duration: seconds * 0.9, level: 0.04, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.1 });
+    tone({ frequency: (key[0] / 2) * 1.008, end: (key[2] / 2) * 1.008, duration: seconds * 0.9, level: 0.025, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.1 });
+    tone({ frequency: key[0], end: key[2], duration: seconds * 0.8, level: 0.02, attack: seconds * 0.4, body: 0.8, sustain: 0.9, delay: 0.2 });
   },
   // a burst of bubbles reaches the surface (detail: how many, how far apart, as the picture's): each a round blip gliding up and a tiny pop
   blips({ tone, noise, key, between }, { many = 6, apart = 0.22 } = {}) {
@@ -163,54 +166,54 @@ export const MADE = {
       const hz = (key[n % 5] / 2) * (i % 3 === 2 ? 2 : 1);
       const at = i * apart + between(0, apart * 0.4);
       const pan = between(-0.08, 0.08);
-      tone({ frequency: hz, end: hz * 1.9, duration: 0.065, level: 0.045 * between(0.7, 1), delay: at, pan, attack: 0.005, body: 0 });
-      noise({ kind: 'white', type: 'bandpass', frequency: 2400, q: 3, duration: 0.025, level: 0.01, delay: at + 0.055, pan, attack: 0.003 });
+      tone({ frequency: hz, end: hz * 1.9, duration: 0.065, level: 0.075 * between(0.7, 1), delay: at, pan, attack: 0.005, body: 0 });
+      noise({ kind: 'white', type: 'bandpass', frequency: 2400, q: 3, duration: 0.025, level: 0.015, delay: at + 0.055, pan, attack: 0.003 });
     }
   },
   // her sail breaks the surface in open water: the water opening in a rising "shhh", running off the sail's edge, a note climbing
   // do to sol under it, drops falling off, and a small bell, sol, as the sail stands (detail.up: seconds until it does)
   parting(tools, { up = 1.7 } = {}) {
     const { tone, noise, bell, key, between } = tools;
-    noise({ kind: 'warm', type: 'bandpass', frequency: 480, end: 1500, q: 0.7, duration: 1.6, level: 0.14, attack: 0.55 });
-    noise({ kind: 'white', type: 'bandpass', frequency: 2600, end: 1700, q: 1.2, duration: 1.2, level: 0.022, attack: 0.3, delay: 0.5 });
-    tone({ frequency: key[0] / 2, end: key[3] / 2, duration: 1.5, level: 0.022, attack: 0.5, body: 0.8, sustain: 0.9 });
-    [3, 4, 2, 3].forEach((n, i) => droplet(tools, key[n] * 2, 0.75 + i * 0.22 + between(0, 0.08), 0.014, between(-0.1, 0.1)));
-    bell(key[3], { delay: up, level: 0.03, duration: 0.9 });
+    noise({ kind: 'warm', type: 'bandpass', frequency: 480, end: 1500, q: 0.7, duration: 1.6, level: 0.2, attack: 0.55 });
+    noise({ kind: 'white', type: 'bandpass', frequency: 2600, end: 1700, q: 1.2, duration: 1.2, level: 0.03, attack: 0.3, delay: 0.5 });
+    tone({ frequency: key[0] / 2, end: key[3] / 2, duration: 1.5, level: 0.03, attack: 0.5, body: 0.8, sustain: 0.9 });
+    [3, 4, 2, 3].forEach((n, i) => droplet(tools, key[n] * 2, 0.75 + i * 0.22 + between(0, 0.08), 0.02, between(-0.1, 0.1)));
+    bell(key[3], { delay: up, level: 0.04, duration: 0.9 });
   },
   // the water stirs and settles: one soft lap of a ring spreading, and a low drop
   lap(tools) {
     const { noise, key, between } = tools;
-    noise({ kind: 'warm', type: 'bandpass', frequency: 640, end: 400, q: 0.8, duration: 0.9, level: 0.08, attack: 0.25 });
-    droplet(tools, key[Math.floor(between(2, 4.999))], 0.28 + between(0, 0.1), 0.012);
+    noise({ kind: 'warm', type: 'bandpass', frequency: 640, end: 400, q: 0.8, duration: 0.9, level: 0.1, attack: 0.25 });
+    droplet(tools, key[Math.floor(between(2, 4.999))], 0.28 + between(0, 0.1), 0.016);
   },
   // her head rises out of the water (detail.seconds: how long the rise is): the water lifting, a deep swell that opens upward as
   // she pushes through it; the water pouring off her from the crest, a broad "pshhh" falling away; and a round note rising under
   // it all, do to sol. The biggest sound of the show.
   heave({ tone, noise, key }, { seconds = 2 } = {}) {
     const s = clamp(seconds, 1, 4);
-    noise({ kind: 'brown', type: 'lowpass', frequency: 300, end: 950, duration: s + 0.5, level: 0.55, attack: s * 0.5 });
-    noise({ kind: 'warm', type: 'bandpass', frequency: 420, end: 1500, q: 0.6, duration: s + 0.4, level: 0.26, attack: s * 0.55 });
+    noise({ kind: 'warm', type: 'bandpass', frequency: 300, end: 900, q: 0.5, duration: s + 0.5, level: 0.5, attack: s * 0.5 });
+    noise({ kind: 'warm', type: 'bandpass', frequency: 520, end: 1700, q: 0.6, duration: s + 0.4, level: 0.26, attack: s * 0.55 });
     noise({ kind: 'white', type: 'bandpass', frequency: 3000, end: 1200, q: 0.7, duration: 2.6, level: 0.1, attack: 0.35, delay: s * 0.45 });
-    noise({ kind: 'warm', type: 'lowpass', frequency: 1500, end: 320, duration: 2.8, level: 0.16, attack: 0.3, delay: s * 0.5 });
+    noise({ kind: 'warm', type: 'bandpass', frequency: 1300, end: 420, q: 0.5, duration: 2.8, level: 0.2, attack: 0.3, delay: s * 0.5 });
     tone({ frequency: key[0] / 2, end: key[3] / 2, duration: s + 0.6, level: 0.06, type: 'triangle', attack: s * 0.5, body: 0.8, sustain: 0.9 });
     tone({ frequency: key[0], end: key[3], duration: s + 0.4, level: 0.018, attack: s * 0.5, body: 0.8, sustain: 0.9 });
   },
   // she is up, and looks at him: a little chord rolling upward, mi sol do, over a glow (sfx.js's plate, an octave lower and softer)
   bloom({ tone, bell, key }) {
-    tone({ frequency: key[0] / 2, duration: 1.8, level: 0.03, attack: 0.4, body: 0.5, sustain: 0.6 });
-    tone({ frequency: key[0], duration: 1.6, level: 0.016, attack: 0.45, body: 0.5, sustain: 0.6 });
-    [[2, 1], [3, 1], [0, 2]].forEach(([n, octave], i) => bell(key[n] * octave, { delay: 0.2 + i * 0.16, level: 0.045, duration: 1.5, pan: (i - 1) * 0.12 }));
+    tone({ frequency: key[0] / 2, duration: 1.8, level: 0.018, attack: 0.4, body: 0.5, sustain: 0.6 });
+    tone({ frequency: key[0], duration: 1.6, level: 0.01, attack: 0.45, body: 0.5, sustain: 0.6 });
+    [[2, 1], [3, 1], [0, 2]].forEach(([n, octave], i) => bell(key[n] * octave, { delay: 0.2 + i * 0.16, level: 0.028, duration: 1.5, pan: (i - 1) * 0.12 }));
   },
   // the water still running off her, and dripping back through the hold (detail.seconds): a thin trickle at first, and drops that
   // fall thick and then one by one
   dripping(tools, { seconds = 5 } = {}) {
     const { noise, key, between } = tools;
-    noise({ kind: 'white', type: 'bandpass', frequency: 3200, end: 2200, q: 1.5, duration: Math.min(2.4, seconds * 0.45), level: 0.02, attack: 0.25 });
+    noise({ kind: 'white', type: 'bandpass', frequency: 3200, end: 2200, q: 1.5, duration: Math.min(2.4, seconds * 0.45), level: 0.026, attack: 0.25 });
     const many = Math.round(clamp(seconds * 5, 8, 30));
     for (let i = 0; i < many; i++) {
       const u = i / (many - 1);
       const at = seconds * u ** 1.8 + between(0, 0.08);
-      droplet(tools, key[Math.floor(between(0, 4.999))] * (i % 4 === 3 ? 4 : 2), at, 0.024 - 0.01 * u, between(-0.16, 0.16));
+      droplet(tools, key[Math.floor(between(0, 4.999))] * (i % 4 === 3 ? 4 : 2), at, 0.032 - 0.014 * u, between(-0.16, 0.16));
     }
   },
   // tiny wings (detail: seconds of flight, beats a second, and how far the sound moves to a side on the way): a puff of air for
@@ -221,12 +224,12 @@ export const MADE = {
       const u = i / many;
       const open = smooth(u / 0.12) * smooth((1 - u) / 0.2);
       if (open < 0.05) continue;
-      noise({ kind: 'white', type: 'bandpass', frequency: i % 2 ? 3300 : 3900, q: 2, duration: 0.05, level: 0.016 * open, delay: i / beats, pan: to * u, attack: 0.014 });
+      noise({ kind: 'white', type: 'bandpass', frequency: i % 2 ? 3300 : 3900, q: 2, duration: 0.05, level: 0.04 * open, delay: i / beats, pan: to * u, attack: 0.014 });
     }
   },
   // the butterfly lifts off (sfx.js's butterfly, thinner): three tiny high pings and a breath of air
   flit({ tone, noise, key }) {
-    for (let i = 0; i < 3; i++) tone({ frequency: key[(i * 2 + 1) % 5] * 4, duration: 0.09, level: 0.022, delay: i * 0.06 });
+    for (let i = 0; i < 3; i++) tone({ frequency: key[(i * 2 + 1) % 5] * 4, duration: 0.09, level: 0.026, delay: i * 0.06 });
     noise({ kind: 'white', type: 'bandpass', frequency: 4200, end: 3000, q: 1, duration: 0.3, level: 0.018, attack: 0.1 });
   },
   // she sinks: the water closing over her head, a soft swell falling shut, a round note sinking sol to do, a "bloop" as it closes
@@ -235,7 +238,7 @@ export const MADE = {
     const { tone, noise, key, between } = tools;
     const shut = SOUND.sinkLead;
     noise({ kind: 'warm', type: 'bandpass', frequency: 1300, end: 380, q: 0.7, duration: 1.6, level: 0.13, attack: shut });
-    noise({ kind: 'brown', type: 'lowpass', frequency: 850, end: 260, duration: 1.8, level: 0.3, attack: shut, delay: 0.05 });
+    noise({ kind: 'warm', type: 'bandpass', frequency: 700, end: 300, q: 0.5, duration: 1.8, level: 0.22, attack: shut, delay: 0.05 });
     tone({ frequency: key[3] / 2, end: key[0] / 2, duration: 1.3, level: 0.035, attack: shut * 0.8, body: 0.8, sustain: 0.9 });
     tone({ frequency: key[0], end: key[0] / 2, duration: 0.18, level: 0.05, delay: shut, attack: 0.01 });
     [3, 2, 4].forEach((n, i) => droplet(tools, key[n] * 2, shut + 0.2 + i * 0.16 + between(0, 0.06), 0.016, between(-0.15, 0.15)));
@@ -268,15 +271,15 @@ export function cueSheet() {
 
   // ---- 1. the calm pond: a fish kisses the surface at each ring, the frog on its lily, a bird far off ----
   ringsIn(calm.from, calm.to).forEach(([t, x, , strength], i) => add(t, 'plip', 0.7 + strength, x, 'a fish kisses the surface', { on: 'RINGS', detail: { note: [3, 2, 4, 3][i % 4] } }));
-  add(calm.from + 2.4, 'frog', 0.45, frogX, 'the frog on its lily');
+  add(calm.from + 2.4, 'frog', 0.4, frogX, 'the frog on its lily');
   add(calm.from + 4.5, 'farBird', 1, 5.5, 'a bird far over the water');
-  add(calm.from + 6.5, 'frog', 0.3, frogX, 'the frog again, softer');
+  add(calm.from + 6.5, 'frog', 0.28, frogX, 'the frog again, softer');
 
   // ---- 2. her shadow: something big moves far down, three times and nearer each time; bubbles as each burst reaches the
   // surface, small, then more as she nears ----
   [1.0, 5.2, 9.0].forEach((after, i) => {
     const t = shadow.from + after;
-    add(t, 'deep', 0.6 + 0.2 * i, herAt(t).at[0], `something big moves far down (${i + 1})`, { detail: { seconds: 3.6 } });
+    add(t, 'deep', 0.35 + 0.1 * i, herAt(t).at[0], `something big moves far down (${i + 1})`, { detail: { seconds: 3.6 } });
   });
   // (a burst reaches the surface BUBBLE.seconds after it is let go; the later ones are here too: where her head is about to come
   // up, the first of them the loudest, and where she went down)
@@ -290,7 +293,7 @@ export function cueSheet() {
   // water laps shut where it goes under ----
   ringsIn(sail.from, TURN).forEach(([t, x, , strength], i) => {
     if (i === 0) add(t, 'parting', 1, x, 'her sail breaks the surface', { on: 'RINGS', detail: { up: round(SAIL.up - t) } });
-    else if (t <= SAIL.down + 0.5) add(t, 'stroke', 0.5 + 0.5 * strength, x, 'a stroke of her swimming, her sail cutting along', { on: 'RINGS', detail: { side: i % 2 } });
+    else if (t <= SAIL.down + 0.5) add(t, 'stroke', 0.7 + 0.7 * strength, x, 'a stroke of her swimming, her sail cutting along', { on: 'RINGS', detail: { side: i % 2 } });
     else add(t, 'lap', 0.4 + 0.6 * strength, x, 'the water laps shut where her sail went under', { on: 'RINGS' });
   });
 
@@ -298,8 +301,8 @@ export function cueSheet() {
   // stands; the water running off her and dripping back through the hold; the water stirring round her ----
   const headRings = ringsIn(TURN, HOLD.to);
   const breaks = headRings[0][0];
-  add(breaks, 'rise', 1, headRings[0][1], 'her head rises out of the water, the water pouring off it', { on: 'RINGS', detail: { seconds: round(HOLD.from - breaks) } });
-  add(HOLD.from, 'bloom', 1, 0, 'she is up, and looks at him', { on: 'HOLD.from' });
+  add(breaks, 'rise', 1.25, headRings[0][1], 'her head rises out of the water, the water pouring off it', { on: 'RINGS', detail: { seconds: round(HOLD.from - breaks) } });
+  add(HOLD.from, 'bloom', 0.8, 0, 'she is up, and looks at him', { on: 'HOLD.from' });
   const runs = RUNOFF.from + 1; // (the rise's own pouring covers the first of it)
   add(runs, 'drips', 1, headRings[0][1], 'the water runs off her and drips back, thinning', { on: 'RUNOFF', detail: { seconds: round(HOLD.to - 0.8 - runs) } });
   headRings.filter(([t]) => t > HOLD.from).forEach(([t, x, , strength]) => add(t, 'lap', 0.3 + strength, x, 'the water stirs round her', { on: 'RINGS' }));
@@ -309,10 +312,10 @@ export function cueSheet() {
   const [leap, down, under] = SPLASHES;
   add(leap[0], 'plop', 1, leap[1], 'the fish leaps out of the water', { on: 'JUMP.out' });
   add(leap[0], 'fishOut', 1, leap[1], 'and its plip', { on: 'JUMP.out' });
-  add(JUMP.take, 'jawSnap', 1, JUMP.catch[0], 'her jaws shut on the fish', { on: 'JUMP.take' });
+  add(JUMP.take, 'jawSnap', 1.2, JUMP.catch[0], 'her jaws shut on the fish', { on: 'JUMP.take' });
   add(down[0], 'splash', 1, down[1], 'she comes down with it: the splash round her', { on: 'SPLASHES' });
   add(down[0], 'spray', 1, down[1], 'and the spray raining back', { on: 'SPLASHES' });
-  add(JUMP.gulp - SOUND.gulpLead, 'gulp', 1, 0, 'she swallows it', { on: 'JUMP.gulp' });
+  add(JUMP.gulp - SOUND.gulpLead, 'gulp', 1.1, 0, 'she swallows it', { on: 'JUMP.gulp' });
   ringsIn(down[0] + 0.5, fish.to).forEach(([t, x, , strength]) => add(t, 'lap', 0.3 + strength, x, 'the water settles', { on: 'RINGS' }));
 
   // ---- 6. the butterfly: tiny wings over to her snout, two small bells as it lands, its lift-off and its wings home; she sinks,
@@ -321,14 +324,14 @@ export function cueSheet() {
   const lily = panAt(BUTTERFLY_LILY[0]), snout = panAt(0);
   add(up, 'flit', 1, BUTTERFLY_LILY[0], 'the butterfly lifts off its lily', { on: 'BUTTERFLY_TIMES.up' });
   add(up, 'wings', 1, BUTTERFLY_LILY[0], 'its wings, over to her', { on: 'BUTTERFLY_TIMES.up', detail: { seconds: round(land - up), beats: FLIGHT.wings, to: round(snout - lily, 2) } });
-  add(land, 'chime', 1, 0, 'it lands on her snout', { on: 'BUTTERFLY_TIMES.land' });
+  add(land, 'chime', 0.8, 0, 'it lands on her snout', { on: 'BUTTERFLY_TIMES.land' });
   add(off, 'flit', 0.7, 0, 'it lifts off her snout', { on: 'BUTTERFLY_TIMES.off' });
   add(off, 'wings', 0.8, 0, 'its wings, home', { on: 'BUTTERFLY_TIMES.off', detail: { seconds: round(home - off), beats: FLIGHT.wings, to: round(lily - snout, 2) } });
-  add(under[0] - SOUND.sinkLead, 'sink', 1, under[1], 'she sinks: the water closes over her head', { on: 'SPLASHES' });
+  add(under[0] - SOUND.sinkLead, 'sink', 0.7, under[1], 'she sinks: the water closes over her head', { on: 'SPLASHES' });
   ringsIn(butterfly.from, CALM.from).filter(([t]) => Math.abs(t - under[0]) > 1e-6).forEach(([t, x, , strength]) => add(t, 'lap', 0.3 + strength, x, t < under[0] ? 'the water stirs as she goes down' : 'the last rings', { on: 'RINGS' }));
 
   // ---- the calm pond again: the frog, and a fish kissing the surface at each ring ----
-  add(CALM.from + 0.25, 'frog', 0.4, frogX, 'the frog: the pond is itself again');
+  add(CALM.from + 0.25, 'frog', 0.35, frogX, 'the frog: the pond is itself again');
   ringsIn(CALM.from, LENGTH).forEach(([t, x, , strength], i) => add(t, 'plip', 0.7 + strength, x, 'a fish kisses the surface', { on: 'RINGS', detail: { note: [2, 4][i % 2] } }));
 
   return list.filter(c => c.t >= 0 && c.t < LENGTH).sort((a, b) => a.t - b.t).map((c, i) => ({ ...c, n: i + 1 }));
@@ -562,7 +565,7 @@ export function createPondSound({ context = null, output = null, fetch = globalT
       return 'recording';
     }
     // two murmurs of water, one a little to each side, each lapping in its own slow time; and a thin breath of air over them
-    for (const [pan, low, high, level, lapsIn, depth, offset] of [[-0.3, 180, 720, 0.07, 0.24, 0.45, 0.2], [0.3, 220, 900, 0.055, 0.17, 0.5, 1.3]]) {
+    for (const [pan, low, high, level, lapsIn, depth, offset] of [[-0.3, 220, 950, 0.07, 0.24, 0.45, 0.2], [0.3, 260, 1250, 0.055, 0.17, 0.5, 1.3]]) {
       const water = context.createBufferSource();
       water.buffer = noiseBuffer('brown');
       water.loop = true;
@@ -575,11 +578,11 @@ export function createPondSound({ context = null, output = null, fetch = globalT
       roof.frequency.value = high;
       roof.Q.value = 0.5;
       const lap = context.createGain();
-      lap.gain.value = level;
+      lap.gain.value = level * SOUND.bed;
       const lapping = context.createOscillator();
       lapping.frequency.value = lapsIn;
       const lapDepth = context.createGain();
-      lapDepth.gain.value = level * depth;
+      lapDepth.gain.value = level * depth * SOUND.bed;
       lapping.connect(lapDepth);
       lapDepth.connect(lap.gain);
       water.connect(floor);
@@ -598,7 +601,7 @@ export function createPondSound({ context = null, output = null, fetch = globalT
     band.frequency.value = 2800;
     band.Q.value = 0.6;
     const hiss = context.createGain();
-    hiss.gain.value = 0.0035;
+    hiss.gain.value = 0.0035 * SOUND.bed;
     air.connect(band);
     band.connect(hiss);
     hiss.connect(run.bed);
