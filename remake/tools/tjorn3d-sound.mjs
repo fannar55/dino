@@ -344,13 +344,15 @@ async function played(o, base) {
   if (!o.glasses) console.log(`Before the tap: the show stood at ${state.before.t.toFixed(2)} s, the sound ${state.before.running ? 'RUNNING' : 'not started'}, ${state.before.log} cues played`);
   console.log(`${lead('played', 7)} ${lead('sheet', 6)} ${lead('late ms', 7)}  ${pad('sound', 9)} ${pad('kind', 9)} ${pad('what sounded', 16)} ${lead('level', 5)} ${lead('pan', 5)}`);
   for (const e of log) console.log(`${lead(e.at.toFixed(2), 7)} ${lead(e.t.toFixed(2), 6)} ${lead(Math.round((e.at - e.t) * 1000), 7)}  ${pad(e.sound, 9)} ${pad(e.kind, 9)} ${pad(e.played ?? 'NOT PLAYED', 16)} ${lead(e.level, 5)} ${lead(e.pan, 5)}`);
-  const due = CUES.filter(c => c.t >= o.from - 1e-6 && c.t <= Math.min(o.until, state.t) - 0.05);
+  // (the page plays on for a second and a half past --until before it is asked: due is what lay before the second it then stood at)
+  const due = CUES.filter(c => c.t >= o.from - 1e-6 && c.t <= Math.min(LENGTH, state.t) - 0.05);
   const missing = due.filter(c => !log.some(e => e.n === c.n && e.played));
   const early = log.filter(e => e.t < o.from - 1e-6);
   const order = log.every((e, i) => i === 0 || e.t >= log[i - 1].t);
   const late = Math.max(0, ...log.map(e => e.at - e.t));
   console.log(`\n${log.length} cues played of the ${due.length} due; in order: ${order ? 'yes' : 'NO'}; the latest ${Math.round(late * 1000)} ms after its second; cues from before ${o.from} s: ${early.length}`);
-  console.log(`After the end: the audio context is ${state.context}, the show's sound ${state.running ? 'still RUNNING' : 'ended'}, ${state.sounding} of its sources still sounding`);
+  if (state.t < LENGTH - 0.05) console.log(`Asked at ${state.t.toFixed(2)} s, in the middle of the show: the audio context is ${state.context}, the show's sound ${state.running ? 'running' : 'NOT RUNNING'}, ${state.sounding} of its sources sounding`);
+  else console.log(`After the end: the audio context is ${state.context}, the show's sound ${state.running ? 'still RUNNING' : 'ended'}, ${state.sounding} of its sources still sounding`);
   let stale = false;
   if (again) {
     const first = again.log[0];
