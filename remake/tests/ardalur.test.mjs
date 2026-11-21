@@ -6,7 +6,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS, NEST_ROCKS } from '../chapters/kafli4-route.js';
+import { createRoute, BEATS, LEAP, FALLS, GORGE, HILLS, OUTCROPS, STREAMS, PONDS, MEADOW, CALL_SHOTS } from '../chapters/kafli4-route.js';
 import { createTreeProbe } from '../engine/tree-probe.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
@@ -882,15 +882,15 @@ for (const lush of [false, true]) test(`the still shots see what they show: noth
 
 /**
  * The placements that are an animal group's own props (animals.js PROPS: the birds' tree, the lily pads, the stones and logs), by
- * group id: own(id) → a Set of placements (empty for null); own(null, ledgeRow) the rock under that ledge shot's nest (NEST_ROCKS).
+ * group id: own(id) → a Set of placements (empty for null); own(null, ledgeRow) the rock under that ledge shot's nest (life.js ledges).
  */
 function groupProps(place) {
   const placements = place.stats.sections.flatMap(part => part.userData.placements);
   const sets = new Map();
   return (id, ledge = null) => {
     if (ledge) {
-      const rock = NEST_ROCKS.find(r => r.nest === ledge.nest);
-      return new Set(rock ? placements.filter(q => q.name === 'rock' && Math.hypot(q.x - rock.at[0], q.z - rock.at[1]) < 0.01) : []);
+      const rock = place.life.ledges.find(l => l.nest === ledge.nest)?.prop;
+      return new Set(rock ? placements.filter(q => q.name === 'rock' && Math.hypot(q.x - rock.x, q.z - rock.z) < 0.01) : []);
     }
     if (!id) return new Set();
     if (!sets.has(id)) {

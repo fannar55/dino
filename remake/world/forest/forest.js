@@ -73,6 +73,8 @@ const FAR_DROP = 0.12;
 const BANK = 0.02;
 // Hanging moss is a few centimetres of strand: past this far from the clearing it is not seen, so it is not drawn there.
 const MOSS_REACH = 100;
+// The plants are culled again once the camera has moved `move` m or turned `turn` radians (a degree and a half) since the last cull.
+const RECULL = { move: 0.4, turn: 0.0261 };
 
 /**
  * A layout's ground, shaped as the forest grows it: the layout itself, or a copy whose `lift` digs the Fen's water out of the
@@ -394,18 +396,20 @@ function* forestSteps(world, layout) {
     }
   }
 
-  // Rebuild the index buffers when the view (main meshes) or the shadow focus (casters) moved.
-  const lastCam = new THREE.Vector3(Infinity, 0, 0), lastDir = new THREE.Vector3(), lastFocus = new THREE.Vector3(Infinity, 0, 0);
-  const camNow = new THREE.Vector3(), dirNow = new THREE.Vector3(), focusNow = new THREE.Vector3();
-  let lastFov = 0, lastRadius = 0;
+  // Rebuild the index buffers when the view (main meshes) or the shadow focus (casters) moved: the main ones once the camera has
+  // moved RECULL.move m or turned RECULL.turn (any way, a roll too) since. In between, the cull's margin holds the move and its
+  // slack for the turn (batch.js cullBatches `turn`) the rest, so a far plant at the frame's edge is drawn while the camera turns slowly.
+  const lastCam = new THREE.Vector3(Infinity, 0, 0), lastTurn = new THREE.Quaternion(), lastFocus = new THREE.Vector3(Infinity, 0, 0);
+  const camNow = new THREE.Vector3(), turnNow = new THREE.Quaternion(), focusNow = new THREE.Vector3();
+  let lastFov = 0, lastAspect = 0, lastRadius = 0;
   let submitted = 0, casterTris = 0;
   function cullIfMoved() {
     const cam = world.camera;
     camNow.setFromMatrixPosition(cam.matrixWorld);
-    dirNow.set(0, 0, -1).transformDirection(cam.matrixWorld);
-    if (camNow.distanceTo(lastCam) > 0.4 || dirNow.dot(lastDir) < 0.99966 || cam.fov !== lastFov) {
-      submitted = cullBatches(meshes, cam);
-      lastCam.copy(camNow); lastDir.copy(dirNow); lastFov = cam.fov;
+    turnNow.setFromRotationMatrix(cam.matrixWorld);
+    if (camNow.distanceTo(lastCam) > RECULL.move || turnNow.angleTo(lastTurn) > RECULL.turn || cam.fov !== lastFov || cam.aspect !== lastAspect) {
+      submitted = cullBatches(meshes, cam, undefined, null, undefined, RECULL.turn);
+      lastCam.copy(camNow); lastTurn.copy(turnNow); lastFov = cam.fov; lastAspect = cam.aspect;
     }
     if (sun && sun.castShadow && casterMeshes.length) {
       focusNow.copy(sun.target.position);

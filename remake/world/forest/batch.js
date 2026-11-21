@@ -20,7 +20,18 @@ import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
 // Small things vanish into the grass and mist long before this distance (metres to the camera).
-const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 45, horsetailReed: 64, horsetailTall: 55, mossHummock: 45 };
+export const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 45, horsetailReed: 64, horsetailTall: 55, mossHummock: 45 };
+// ...and they never appear or vanish whole there: the vegetation shader (materials.js forestGrown) grows each from nothing at its cut to
+// its full size at `from` of it, about its foot, by the camera's distance to that foot, so a plant the cull takes in or leaves out
+// (cullBatches, by its sphere's near edge, nearer than its foot) is nothing then. Each vertex of such a plant carries aGrow (four signed
+// shorts): the way from it to its plant's foot in `reach` m (xyz) and its cut in `far` m (w); 0 there for a plant that never shrinks.
+export const GROW = { from: 0.8, reach: 32, far: 256 };
+/** How much of its size a plant whose cut is `cut` m has with its foot `d` m from the camera (the shader's forestGrown). */
+export function growAt(d, cut) {
+  const t = Math.min(1, Math.max(0, (d - GROW.from * cut) / ((1 - GROW.from) * cut)));
+  return 1 - t * t * (3 - 2 * t);
+}
+const short = v => Math.round(Math.max(-1, Math.min(1, v)) * 32767);
 const LOD_SWITCH = FOREST.lod.switch;
 // small understory plants drop to their far shape sooner than the trees
 const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail', 'horsetailReed', 'horsetailTall', 'mossHummock', 'waterLily']);
@@ -61,7 +72,8 @@ function crownLod(placement, first) {
     placement.y + cr.c[1] * sc,
     placement.z + (cr.c[0] * s + cr.c[2] * c) * sc,
   );
-  return { centre, size: Math.max(cr.r, cr.ry) * sc, first, level: 2, frame: -1, proj: 0 };
+  const size = Math.max(cr.r, cr.ry) * sc;
+  return { centre, size, reach: size, first, level: 2, frame: -1, proj: 0 };
 }
 
 const TAU = Math.PI * 2;
@@ -167,6 +179,8 @@ export function createBatcher() {
     const wind = new Uint8Array(n * 4);
     const tree = new Uint8Array(n);
     const pivot = caster ? null : new Uint8Array(n * 4);
+    // the plants that grow in and shrink out at their cut (GROW), if this mesh has any
+    const grow = !caster && bucket.items.some(({ placement: p }) => CULL_DISTANCE[p.name]) ? new Int16Array(n * 4) : null;
     const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
     const master = new IndexArray(bucket.indices);
     const ranges = [];
@@ -178,6 +192,7 @@ export function createBatcher() {
       const phase = Math.round((p.phase % 1) * 255);
       const sky = p.sky;
       const base = v;
+      const cut = grow ? CULL_DISTANCE[p.name] ?? 0 : 0;
       box.makeEmpty();
       for (let i = 0; i < m.count; i++, v++) {
         let lx = m.pos[i * 3], ly = m.pos[i * 3 + 1], lz = m.pos[i * 3 + 2];
@@ -201,6 +216,12 @@ export function createBatcher() {
           const exposure = m.exp[i];
           col[v * 4 + 3] = Math.round(Math.min(1, Math.max(0, sky + (1 - sky) * exposure)) * 255);
         }
+        if (cut) {
+          grow[v * 4] = short((p.x - x) / GROW.reach);
+          grow[v * 4 + 1] = short((p.y - y) / GROW.reach);
+          grow[v * 4 + 2] = short((p.z - z) / GROW.reach);
+          grow[v * 4 + 3] = short(cut / GROW.far);
+        }
         wind[v * 4] = phase;
         wind[v * 4 + 1] = Math.round(Math.min(1, (m.wind[i * 3] * sc) / SWAY) * 255);
         wind[v * 4 + 2] = Math.round(Math.min(1, m.wind[i * 3 + 1]) * 255);
@@ -221,10 +242,14 @@ export function createBatcher() {
         }
         const sphere = pbox.getBoundingSphere(new THREE.Sphere());
         sphere.radius += 0.8; // sway
-        // pieces after the first mark are the crown: cullBatches picks their level per view
+        // pieces after the first mark are the crown: cullBatches picks their level per view, by a sphere that holds every level's
+        // piece (one on screen at the frame's edge is ranked, so it never drops to coarse while it shows)
+        const own = c2 > 0 && crown ? crown : null;
+        if (own) own.reach = Math.max(own.reach, sphere.center.distanceTo(own.centre) + sphere.radius);
         ranges.push({
           start, count: k - start, sphere, cull: CULL_DISTANCE[p.name] ?? Infinity, minD, maxD, ref: ref || sphere.center,
-          name: p.name, lod: level ?? p.lod, crown: c2 > 0 && crown ? crown : null, carded, plant, li, near: null,
+          name: p.name, lod: level ?? p.lod, crown: own, carded, plant, li, near: null,
+          foot: CULL_DISTANCE[p.name] ? new THREE.Vector3(p.x, p.y, p.z) : null,
         });
       }
       yield; // a plant at a time
@@ -238,6 +263,7 @@ export function createBatcher() {
     g.setAttribute('aWind', new THREE.BufferAttribute(wind, 4, true));
     g.setAttribute('aTree', new THREE.BufferAttribute(tree, 1, true));
     if (pivot) g.setAttribute('aPivot', new THREE.BufferAttribute(pivot, 4, true));
+    if (grow) g.setAttribute('aGrow', new THREE.BufferAttribute(grow, 4, true));
     const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
     dynamic.setUsage(THREE.DynamicDrawUsage);
     g.setIndex(dynamic);
@@ -380,7 +406,9 @@ const _crowns = [];
 
 /**
  * Main pass: a plant is drawn when its sphere is in the camera frustum (with a margin, so small
- * moves need no rebuild), at the level of detail its distance calls for; a plant with a card
+ * moves need no rebuild, and for a caller that culls again only after the camera has turned `turn`
+ * radians, as much more as that turn moves a thing as far off as it is: so nothing at the frame's edge
+ * is missing in between), at the level of detail its distance calls for; a plant with a card
  * (makeCards) as its card when it is `cardFrom` or more from the camera, as itself nearer. Crowns are ranked by
  * projected size first: the few largest in view get the fine level (a capped number, so the cost
  * stays bounded), the rest the middle or far level. An empty mesh is hidden, so it costs no draw
@@ -409,7 +437,8 @@ function bandOf(plant, d) {
   return li;
 }
 
-export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom = CARD_FROM) {
+export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom = CARD_FROM, turn = 0) {
+  const lean = Math.sin(Math.min(turn, Math.PI / 2)); // metres of slack a metre away
   _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_m4);
   _cam.setFromMatrixPosition(camera.matrixWorld);
@@ -428,7 +457,7 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
       c.proj = c.size / Math.max(0.5, _cam.distanceTo(c.centre));
       c.rank = c.prev === 0 ? c.proj * (1 + HYSTERESIS) : c.proj;
       c.level = 2;
-      _sphere.set(c.centre, c.size + margin);
+      _sphere.set(c.centre, c.reach + margin + (lean ? lean * _cam.distanceTo(c.centre) : 0));
       if (_frustum.intersectsSphere(_sphere)) _crowns.push(c);
     }
   }
@@ -464,7 +493,7 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
         if (!r.near) return;
       }
       _sphere.copy(r.sphere);
-      _sphere.radius += margin;
+      _sphere.radius += margin + (lean ? lean * _cam.distanceTo(r.sphere.center) : 0);
       if (!_frustum.intersectsSphere(_sphere)) return;
       if (hide && hide(r, mesh)) return;
       keep.push(r);

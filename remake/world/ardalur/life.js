@@ -21,7 +21,9 @@
 //   life.rows            [{ id, where ('F' or 'G'), from, dir, length, delay, members }]: the rows of small lizards, `from` the front
 //   life.flocks          [{ id, from, dir, delay, members }]: the flocks of birds, `from` the middle of the grove they sit in
 //   life.herd            [{ id, at, dir, room, members }]: the herd's groups, `room` how far they go ([] without the grazer)
-//   life.flyers          the gorge's flyers, each with its ledge (nest), its place round her (slot) and its landing (land)
+//   life.flyers          the gorge's flyers, each with its perch (nest), its place round her (slot) and its landing (land)
+//   life.ledges          [{ nest, perch, out, prop, flyer }]: under each nest of NESTS, where its flyer stands (a metre out from the
+//                        wall, `out` the way out of it) and the rock under it (a prop, in life.props); flyer null without them
 //   life.flyersOff       { at, side }: the flight second the first of them leaves its nest, and its side of her ('left' or 'right');
 //                        null without them (chapters/kafli4-flight-play.js: they cry then)
 //   life.arrivals        those that stand at the far pool in scene 7, each with its spot there (gather: { at, heading })
@@ -59,7 +61,7 @@
 import * as THREE from 'three';
 import { BEATS, FAR_POOL, MEADOW, NESTS, NEST_ROCKS } from '../../chapters/kafli4-route.js';
 import { createModel } from '../critters/models.js';
-import { createCrowds } from '../critters/crowd.js';
+import { createCrowds, growWindow } from '../critters/crowd.js';
 import { clipPose } from '../critters/crowd-models.js';
 import { crownOf } from './animals.js';
 import { groveAt } from './banks.js';
@@ -88,7 +90,9 @@ const FEN_BIRDS = { at: [5.5, 7.5, 9.5, 11.5, 13.5], off: [9, 8, 10, 7, 11, 6, 1
 const FEN_FLIES = { at: [7, 10.5, 14, 17], off: [8, 10, 7, 12], up: 1.4 };
 // The fish: one every `every` metres up the river from `from`, `off` metres beside her path, jumping `height` m in `seconds` when
 // she is `ahead` metres before it, `across` metres out from her path.
-export const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4 };
+// It grows out of the water over the first `grow` of its jump and shrinks back into it over the last (its jump is too short for the
+// crowd's half second).
+export const FISH = { from: 30, every: 88, off: [3.5, 4.5, 5.5], ahead: 24, height: 1.2, seconds: 0.8, across: 1.4, grow: 0.3 };
 // The bank trees: in the gaps between the groups (but those just after a group of birds, and the 14 m between the two lizard groups
 // of the run-along call shot; the third on the far bank from the second water-level shot, which stands by the near one), `e` m from
 // the water, `scale` as the birds' trees in animals.js; four birds in the crown's river side ([turn from facing the river, height in
@@ -113,6 +117,9 @@ const ROWS = [
 // after another `stagger` s apart, up to `speed` m/s in `accel` s, easing to a stop over the last `ease` m and huddling again. Their
 // legs go round once every `stride` m. Nothing grows within `lane` m of the way they run (circles every `step` m).
 const ROW = { count: 10, pair: 1.4, side: [0.6, 0.5], stagger: 0.3, speed: 4.5, accel: 0.8, ease: 3, stride: 1.6, lane: 2.2, step: 3 };
+// How far the rows' lizards are drawn where it is more than the crowd's own: G's are seen from cameras 40-75 m over the low land, the
+// crowd's 160 m reach was where they went (world/critters/crowd.js: they shrink away to it now, far beyond where they read).
+const ROW_SEEN = { G: 250 };
 // The flocks: `count` birds each in the crowns of a grove above the falls (`canopy` m over the ground, within `spread` m of its
 // middle), off `delay` s after the call (each bird up to `stagger` s later), up `rise` m in `riseFor` s and on up `climb` m/s, toward
 // the far pool at up to `speed` m/s (in `accel` s), gone at `gone` s, behind her by then. Each grove is one the flight's shots see.
@@ -158,6 +165,9 @@ const FLY = {
   climb: [105, 119.5], turns: 1, circle: [126, 149], land: { from: 162.5, every: 0.3, seconds: 4.5, ahead: 22, arc: 2.5, flare: 1.2 },
 };
 const NEST_FEET = 0.02; // metres a flyer's feet stand over the top of the rock under its nest (NEST_ROCKS)
+// Its ledge: `out` m from the wall (its body is in the air, not the rock: tests/pop.test.mjs), on a rock as `rock` if NEST_ROCKS has
+// none for its nest.
+const LEDGE = { out: 1, rock: { variant: 1, turn: 0, scale: 1.3, shape: { mossy: 0.25 } } };
 const SLOTS = {
   right: [[-3.5, 6, 5.2], [-6.5, 4.5, 6.4], [-5, 5.5, -2.4], [-8.5, 7.5, 5.6]],
   left: [[-7.5, -5.5, 6.2], [-4.5, -6, 7.4], [-9.5, -2.5, -2.4], [-9.5, -7.5, 5]],
@@ -379,7 +389,9 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       const along = -Math.floor(k / 2) * ROW.pair;
       const side = (k % 2 ? 1 : -1) * (ROW.side[0] + ROW.side[1] * ((k * 0.37) % 1));
       const [x, z] = across(row, along, side);
-      row.members.push(add(`${row.id}-lizard-${k}`, LIZARD, new THREE.Vector3(x, heightAt(x, z), z), run + 30 * Math.sin(k * 1.7 + row.delay), { row, k, along, side, run }));
+      row.members.push(add(`${row.id}-lizard-${k}`, LIZARD, new THREE.Vector3(x, heightAt(x, z), z), run + 30 * Math.sin(k * 1.7 + row.delay), {
+        row, k, along, side, run, ...(ROW_SEEN[spec.where] ? { seen: ROW_SEEN[spec.where] } : {}),
+      }));
     }
     // nothing grows in the way they run, from the tail of the huddle to where they huddle again
     for (let a = -Math.floor((ROW.count - 1) / 2) * ROW.pair - ROW.lane; a <= row.length + ROW.lane; a += ROW.step) {
@@ -454,11 +466,31 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     return group;
   });
 
-  // D to G: the gorge's flyers, each on its ledge until she comes, its place round her on its own wall's side of her
+  // D to G: a ledge under each nest of NESTS (a point on the wall as it is drawn): its flyer stands LEDGE.out m out from the wall, down
+  // the wall's slope seen from above, on one of the game's rocks (NEST_ROCKS: which, turned how far from that way, how large), set so
+  // its top is NEST_FEET under the feet (rockSurface). The rocks grow with the banks (life.props), with flyers or without.
+  const ledges = NESTS.map(([x, y, z], nest) => {
+    const e = 0.5;
+    const gx = heightAt(x + e, z) - heightAt(x - e, z), gz = heightAt(x, z + e) - heightAt(x, z - e);
+    const l = Math.hypot(gx, gz) || 1;
+    const out = [-gx / l, -gz / l];
+    const perch = new THREE.Vector3(x + out[0] * LEDGE.out, y, z + out[1] * LEDGE.out);
+    const { variant, turn, scale, shape = {} } = NEST_ROCKS.find(r => r.nest === nest) ?? LEDGE.rock;
+    const rot = Math.atan2(out[1], out[0]) + turn * DEG;
+    const model = library?.get?.('rock', variant, 1, shape) ?? null;
+    const top = rockSurface(model, { x: perch.x, y: 0, z: perch.z, rot, scale })(perch.x, perch.z);
+    const prop = { name: 'rock', variant, x: perch.x, y: y - NEST_FEET - top, z: perch.z, rot, scale, shape };
+    props.push(prop);
+    clear.push({ x: perch.x, z: perch.z, r: 1.2 * scale });
+    return { nest, perch, out, prop, flyer: null };
+  });
+  // the gorge's flyers, each on its ledge until she comes (she is within FLY.within of its nest), its place round her on its own wall's
+  // side of her
   const flyers = !flyer ? [] : NESTS.map(([x, y, z, heading], k) => {
-    const nest = new THREE.Vector3(x, y, z);
+    const nest = ledges[k].perch.clone();
     const b = add(`flyer-${k}`, 'flugdyr', nest, heading, { nest, look: [Math.cos(heading * DEG), Math.sin(heading * DEG)] });
-    b.trigger = firstWithin(nest, FLY.within);
+    ledges[k].flyer = b;
+    b.trigger = firstWithin(new THREE.Vector3(x, y, z), FLY.within);
     const p = herAt(b.trigger, new THREE.Vector3());
     const way = wayAt(b.trigger);
     b.way = [way.fx, way.fz];
@@ -482,16 +514,6 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   // the first to leave its nest, and its side of her: they cry then (chapters/kafli4-flight-play.js)
   const first = flyers.reduce((a, b) => (a && a.trigger <= b.trigger ? a : b), null);
   const flyersOff = first ? { at: first.trigger, side: first.side } : null;
-  // the rocks some of them stand on (NEST_ROCKS: where a shot sees the ledge), grown with the banks, each as high as puts its drawn
-  // top NEST_FEET under the flyer's feet (its top over the nest: rockSurface)
-  for (const { nest, at: [x, z], variant, rot, scale, shape = {} } of NEST_ROCKS) {
-    const [nx, ny, nz] = NESTS[nest];
-    const model = library?.get?.('rock', variant, 1, shape) ?? null;
-    const y = ny - NEST_FEET - rockSurface(model, { x, y: 0, z, rot, scale })(nx, nz);
-    props.push({ name: 'rock', variant, x, y, z, rot, scale, shape });
-    clear.push({ x, z, r: 1.2 * scale });
-  }
-
   // Scene 7: the arrivals, each given its spot at the far pool, turned toward her in the shallows; the flyers stand where they landed
   let arrived = false;
   const arrivals = [];
@@ -603,6 +625,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.wings[1] = 0;
     if (s < 0) return;
     if (s >= FLUSH.gone) { b.visible = false; return; }
+    b.grow = growWindow(s, -Infinity, FLUSH.gone); // shrinking away as it goes out of sight
     const up = FLUSH.climb * s - FLUSH.drag * s * s;
     const off = FLUSH.away * s + FLUSH.faster * s * s;
     b.position.set(b.at.x + b.dir[0] * off, b.at.y + up, b.at.z + b.dir[1] * off);
@@ -700,6 +723,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.wings[1] = 0;
     const s = call === null || ft === null ? -1 : ft - call - flock.delay - b.late;
     if (s < 0 || s >= FLOCK.gone) { b.visible = false; return; }
+    b.grow = growWindow(s, 0, FLOCK.gone); // growing in as it rises out of the crowns, shrinking away as it goes
     const up = FLOCK.rise * smooth(s / FLOCK.riseFor) + FLOCK.climb * s;
     const off = s < FLOCK.accel ? (FLOCK.speed * s * s) / (2 * FLOCK.accel) : FLOCK.speed * (s - FLOCK.accel / 2);
     b.position.set(b.at.x + flock.dir[0] * off, b.at.y + up, b.at.z + flock.dir[1] * off);
@@ -879,6 +903,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
     b.position.copy(b.at);
     b.heading = b.rest;
     b.visible = true;
+    b.grow = 1; // its size, less as it goes or comes by its pose (world/critters/crowd.js growWindow)
     b.pitch = 0;
     b.roll = 0;
     b.squash[0] = 1; b.squash[1] = 1; b.squash[2] = 1;
@@ -937,6 +962,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
       case 'fish': {
         // under the water, out of sight, but for its one jump
         if (!(s >= 0 && s <= FISH.seconds)) { b.visible = false; break; }
+        b.grow = growWindow(s, 0, FISH.seconds, FISH.seconds * FISH.grow); // out of the water and back in, never whole at once
         const a = s / FISH.seconds;
         b.position.set(b.at.x + b.dir[0] * FISH.across * a, b.at.y + 4 * FISH.height * a * (1 - a), b.at.z + b.dir[1] * FISH.across * a);
         b.pitch = 0.8 * Math.atan2(4 * FISH.height * (1 - 2 * a), FISH.across);
@@ -1124,7 +1150,7 @@ export function createLife(world, route, { heightAt = () => 0, library = null, c
   }
 
   return {
-    things, rows, flocks, herd, flyers, flyersOff, arrivals, props, clear, crowds, update, skim, bigCall, arrive, cheer, pool, moveTo, hop,
+    things, rows, flocks, herd, flyers, flyersOff, ledges, arrivals, props, clear, crowds, update, skim, bigCall, arrive, cheer, pool, moveTo, hop,
     dispose() { if (own) crowds.dispose(); },
   };
 }

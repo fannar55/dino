@@ -1,6 +1,7 @@
 // Crowds: any number of critters of a kind drawn in one draw call (one THREE.InstancedMesh a kind), each with its own place,
 // heading, size, pose (morph weights) and wing beat. Each frame the caller places what lives near: begin(camera), place(...) for
-// each critter, end(). A critter farther than `seen` metres from the camera is not drawn, so the cost is what is near.
+// each critter, end(). A critter farther than `seen` metres from the camera is not drawn, so the cost is what is near; it shrinks to
+// nothing as it nears that (CROWD_GROW), and a pose's `grow` draws it smaller (one going or coming by its pose), `seen` farther.
 // A baked model (world/critters/crowd-models.js) has two levels of detail: `reserve(kind, n, model)` draws a critter within
 // `lods[0].until` metres of the camera from the fine level and one beyond it from the coarse one, one draw call a level.
 // ready(): the meshes now, once every kind is reserved, so a warm-up drawn before the first frame builds their shaders (begin()
@@ -51,6 +52,20 @@ const SHADE_GROW = 1.2;
 const SHADE_STRENGTH = 0.42; // the darkest, at its middle (the memory game's contact shade is 0.48)
 const SHADE_FADE = [70, 150]; // m
 const SHADE_LIFT = 0.04; // m over the ground
+// No critter appears or vanishes whole: one is drawn at its full size to `1 - reach` of how far it is drawn and shrinks to nothing at
+// that edge (smoothly, by its distance), and one that leaves or comes by its pose (flushed, gone under the water, into the trees) is
+// given `grow` in its pose (0 to 1, its size: growWindow), over `seconds`.
+export const CROWD_GROW = { reach: 0.15, seconds: 0.5 };
+const smoothstep01 = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
+/**
+ * A pose's `grow` for one that is there from `from` to `to` (seconds on its own clock, `s`): growing in over the first `seconds` of it
+ * and shrinking away over the last (either end may be open: -Infinity, Infinity).
+ */
+export function growWindow(s, from, to, seconds = CROWD_GROW.seconds) {
+  return smoothstep01((s - from) / seconds) * (1 - smoothstep01((s - (to - seconds)) / seconds));
+}
+/** How much of its size a critter `d` m from the camera has, drawn to `reach` m. */
+const reachGrow = (d, reach) => 1 - smoothstep01((d - (1 - CROWD_GROW.reach) * reach) / (CROWD_GROW.reach * reach));
 
 export function createCrowds(world, { parent = world.scene, seen = 160, inView = false, groundAt = null, castShadow = true } = {}) {
   const group = new THREE.Group();
@@ -228,8 +243,12 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     const k = kinds.get(kind);
     if (!k) throw new Error(`[crowds] "${kind}" was not reserved`);
     const far = eye ? eye.distanceToSquared(position) : 0;
-    const reach = k.reach ?? seen;
+    const reach = pose.seen ?? k.reach ?? seen; // a pose may be seen farther than its kind (the G rows' lizards)
     if (far > reach * reach) return -1;
+    // its size: its pose's own growth, and shrinking to nothing at the edge of its reach (CROWD_GROW)
+    const grown = (pose.grow ?? 1) * (eye ? reachGrow(Math.sqrt(far), reach) : 1);
+    if (grown <= 1e-3) return -1;
+    scale *= grown;
     if (culling) {
       const height = pose.height ?? k.height * scale;
       bounds.center.set(position.x, position.y + height / 2, position.z);

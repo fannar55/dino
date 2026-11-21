@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { FOREST, BEAT_SHARE, PIVOT, WIND_PEAK } from './config.js';
 import { createRng } from './random.js';
 import { runSync } from './slices.js';
+import { GROW } from './batch.js';
 
 /** Tileable 128x128 noise: R dapple blobs, G medium fbm, B coarse fbm, A fine grain. */
 export function createNoiseTexture(seed, size = 128) {
@@ -212,6 +213,21 @@ vec3 forestPivot( vec3 wp, vec4 w, vec4 a ) {
   return turned - rel;
 }`;
 
+// A small plant grows out of the ground at the edge of its distance and shrinks back into it there (batch.js GROW and growAt, which
+// this is): its size is 1 - smoothstep(from * cut, cut, d), d the camera's distance to its foot, and the whole plant, as the wind, the
+// dance and whatever else moved it, is drawn that size about its foot. aGrow's w is 0 for a plant that never shrinks; a mesh without
+// aGrow reads (0, 0, 0, 1), which is none either.
+export const GROW_GLSL = /* glsl */`
+attribute vec4 aGrow;
+vec3 forestGrown( vec3 p ) {
+  if ( aGrow.w <= 0.0 || aGrow.w > 0.99 ) return p;
+  vec3 foot = position + aGrow.xyz * ${GROW.reach.toFixed(1)};
+  float cut = aGrow.w * ${GROW.far.toFixed(1)};
+  float d = distance( ( modelMatrix * vec4( foot, 1.0 ) ).xyz, cameraPosition );
+  return foot + ( p - foot ) * ( 1.0 - smoothstep( ${GROW.from.toFixed(3)} * cut, cut, d ) );
+}`;
+const GROW_LINE = 'transformed = forestGrown( transformed );';
+
 // Replacement for three's lights_lambert_pars_fragment: wrap lighting, canopy shade, backlit glow.
 // gSun scales the sun (after the shadow map), gAmb the sky fill, gLeaf turns on wrap and glow.
 export const LIGHTS_GLSL = /* glsl */`
@@ -348,7 +364,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   }
   key = low ? `${key}-low` : leafFade ? `${key}-fade` : key;
   return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
-    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}`,
+    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}\n${GROW_GLSL}`,
     vertexAfter: [
       ['#include <color_vertex>', `
   #ifdef USE_COLOR_ALPHA
@@ -365,7 +381,11 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   // foliage samples the shadow map a little outside its surface: no acne on the lobes
   float forestShadowPush = mix( 0.02, 0.22, aWind.w );`],
     ],
-    vertexReplace: [['#include <shadowmap_vertex>', THREE.ShaderChunk.shadowmap_vertex.split('directionalLightShadows[ i ].shadowNormalBias').join('( directionalLightShadows[ i ].shadowNormalBias + forestShadowPush )')]],
+    vertexReplace: [
+      ['#include <shadowmap_vertex>', THREE.ShaderChunk.shadowmap_vertex.split('directionalLightShadows[ i ].shadowNormalBias').join('( directionalLightShadows[ i ].shadowNormalBias + forestShadowPush )')],
+      // last of all that moves it (a place's own pushes after the dance too: world/ardalur/look.js, her downwash), before it is drawn
+      ['#include <project_vertex>', `${GROW_LINE}\n#include <project_vertex>`],
+    ],
     fragmentHead: `uniform sampler2D uNoise;\nuniform sampler2D uLeaf;\nuniform float uDapple;\nuniform float uWindTime;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${LIGHT_GLOBALS}`,
     fragmentAfter: [
       ['#include <color_fragment>', `

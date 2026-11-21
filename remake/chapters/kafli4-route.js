@@ -213,14 +213,24 @@ export const NESTS = [
   [-1231.53, 28.03, 153.77, -48], // 1135 m, south, 20 m: 99.7 s
 ];
 /**
- * The rocks the flyers stand on, where a shot comes near enough to see what a flyer stands on (kall-sylla: nest 5): the valley's own
- * rock (world/forest/species.js, as the banks place it), `at` [x, z] with its back a quarter of its width in the wall, turned `rot`
- * and scaled, its `shape` the species' own options (`mossy`: how much moss grows on its top; the forest's rocks have 0.7 to 1.4,
- * this one is grey rock with a little moss, as a ledge in a bare wall is); world/ardalur/life.js sets its height so its top is just
- * under the flyer's feet. The wall there is 83° steep, so it juts out of it like a shelf, 0.95 m out past the flyer's feet and its top
- * within 0.16 m of level round them.
+ * The rocks the flyers stand on, one under each nest (the owner's word of 2026-11-21: they sat in the rock): the valley's own rock
+ * (world/forest/species.js, as the banks place it), `variant`, turned `turn` degrees from the way out of the wall and scaled, its
+ * `shape` the species' own options (`mossy`: how much moss grows on its top; the forest's rocks have 0.7 to 1.4, these are grey rock
+ * with a little moss, as a ledge in a bare wall is). world/ardalur/life.js stands each flyer a metre out from the wall and puts its
+ * rock's middle under its feet, its top just under them. The walls are 81-84° steep, so each juts out of its wall like a shelf, 1.05
+ * to 1.5 m out past the flyer's feet, its top within 0.1 m of level round them, no part of the flyer in it or in the wall (measured
+ * 2026-11-21 over the variants, turns and sizes: .superpowers/sdd/2026-11-19-kafli4-skogur/pop/ledge-probe.mjs).
  */
-export const NEST_ROCKS = [{ nest: 5, at: [-1181.78, 163.59], variant: 0, rot: 1.047, scale: 1.6, shape: { mossy: 0.25 } }];
+export const NEST_ROCKS = [
+  { nest: 0, variant: 2, turn: 45, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 1, variant: 4, turn: 90, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 2, variant: 1, turn: 0, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 3, variant: 2, turn: 0, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 4, variant: 4, turn: 90, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 5, variant: 1, turn: 0, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 6, variant: 2, turn: 45, scale: 1.3, shape: { mossy: 0.25 } },
+  { nest: 7, variant: 4, turn: 90, scale: 1.3, shape: { mossy: 0.25 } },
+];
 
 // ---------------------------------------------------------------------------------------------
 // The land above the falls (F): not a flat lawn but soft hills, outcrops of rock, two streams running into the upper river, two small
