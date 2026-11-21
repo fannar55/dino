@@ -8,8 +8,11 @@
 import * as THREE from 'three';
 import { patchLambert, LIGHT_GLOBALS, CARD_FADE_GLSL, DITHER_GLSL, createCardFade } from './materials.js';
 
-/** The species drawn as cards when far: the trees and tall plants that fill the land to the horizon. */
-export const CARDED = ['broadleaf', 'araucaria', 'treeFern', 'swampConifer'];
+/**
+ * The species drawn as cards when far: the trees and tall plants that fill the land to the horizon, and the bushes, cycads and snags
+ * under and among them (with no card they would be drawn whole as far as their section is, and come and go with it).
+ */
+export const CARDED = ['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'bush', 'cycad', 'deadSnag'];
 
 const CELL = 128; // pixels a cell: a far tree is under 110 px tall at 16:10 (a 20 m tree at 150 m with the vista's 55°)
 const COLUMNS = 8;
@@ -118,13 +121,15 @@ export function bakeGeometry(model, scale, dx, dy) {
  * green, as 0.5 + 0.5 n), the sky share (blue) and the leaves (alpha). Without one (the tests) each cell is its model's mean colour,
  * a normal toward the viewer, its mean sky share and leaves. `leafTone`: the painted leaves' far tone (materials.js leafMeanOf), by
  * which the closed parts' leaves are darker far off, as the plants' material draws them (1 where it has no leaf texture: the low
- * preset). Returns { texture, data, card(name, variant), dispose() }: card gives the cell's picture { uv: [u0, v0, u1, v1], width,
- * height, bottom } at scale 1, the width twice the model's reach round its foot (so the foot stands in the middle of the card) and
- * bottom the model's lowest point, or null for a model without a card.
+ * preset). Returns { texture, data, card(name, variant), cardOf(model), dispose() }: card gives the cell's picture { uv: [u0, v0, u1,
+ * v1], width, height, bottom } at scale 1, the width twice the model's reach round its foot (so the foot stands in the middle of the
+ * card) and bottom the model's lowest point, or null for a model without a card; cardOf the same for the very model of an entry (a
+ * chapter's own tree or a prop, whose shape is not the variant's own). The first entry of a name and variant is the one card() gives.
  */
 export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
   const rows = Math.max(1, Math.ceil(entries.length / COLUMNS));
   const cells = new Map();
+  const named = new Map(), byModel = new Map();
   const inner = 1 - 2 * MARGIN;
   entries.forEach(({ name, variant, model }, i) => {
     const e = extentOf(model);
@@ -132,7 +137,10 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
     const fit = inner / Math.max(width, height, 1e-3); // cell units a metre
     const cx = (i % COLUMNS) + 0.5, cy = Math.floor(i / COLUMNS) + MARGIN;
     const uv = [(cx - e.reach * fit) / COLUMNS, cy / rows, (cx + e.reach * fit) / COLUMNS, (cy + height * fit) / rows];
-    cells.set(`${name}:${variant}`, { i, model, e, fit, cx, cy, card: { uv, width, height, bottom: e.bottom } });
+    const cell = { i, model, e, fit, cx, cy, card: { uv, width, height, bottom: e.bottom } };
+    cells.set(`${name}:${variant}:${i}`, cell);
+    if (!named.has(`${name}:${variant}`)) named.set(`${name}:${variant}`, cell);
+    byModel.set(model, cell);
   });
   const exposure = [...cells.values()].reduce((sum, { e }) => sum + e.exposure / cells.size, 0);
   let texture, data, targets = [];
@@ -191,7 +199,8 @@ export function createCardAtlas(renderer, entries, { leafTone = 1 } = {}) {
   data.name = 'Far tree cards: light';
   return {
     texture, data,
-    card: (name, variant) => cells.get(`${name}:${variant}`)?.card ?? null,
+    card: (name, variant) => named.get(`${name}:${variant}`)?.card ?? null,
+    cardOf: model => byModel.get(model)?.card ?? null,
     dispose() {
       if (targets.length) targets.forEach(t => t.dispose());
       else { texture.dispose(); data.dispose(); }

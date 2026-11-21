@@ -20,7 +20,8 @@ import { runSync } from './slices.js';
 import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
-// Small things vanish into the grass and mist long before this distance (metres to the camera).
+// Small things vanish into the grass and mist long before this distance (metres to the camera). A place may give a placement a cut of
+// its own (placement.cut: the valley's far plants that have no card, world/ardalur/banks.js FAR_CUT); its species' comes first.
 export const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 45, horsetailReed: 64, horsetailTall: 55, mossHummock: 45 };
 // ...and they never appear or vanish whole there: the vegetation shader (materials.js forestGrown) grows each from nothing at its cut to
 // its full size at `from` of it, about its foot, by the camera's distance to that foot, so a plant the cull takes in or leaves out
@@ -34,6 +35,8 @@ export function growAt(d, cut) {
   return 1 - t * t * (3 - 2 * t);
 }
 const short = v => Math.round(Math.max(-1, Math.min(1, v)) * 32767);
+/** A placement's cut (CULL_DISTANCE, or its own), 0 for one drawn at any distance. */
+const cutOf = p => CULL_DISTANCE[p.name] || p.cut || 0;
 const LOD_SWITCH = FOREST.lod.switch;
 // small understory plants drop to their far shape sooner than the trees
 const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail', 'horsetailReed', 'horsetailTall', 'mossHummock', 'waterLily']);
@@ -57,6 +60,10 @@ const CARD_HOLD = 0.02;
 /** The band round `cardFrom` over which a tree fades into its card: [all mesh, all card], metres to its mid-height. */
 export function cardBand(cardFrom) {
   return [cardFrom * (1 - CARD_BAND), cardFrom * (1 + CARD_BAND)];
+}
+/** Metres to its mid-height past which a tree with a card is never its mesh, whatever it was drawn as last (the band's end and its hold). */
+export function cardReach(cardFrom) {
+  return cardBand(cardFrom)[1] * (1 + CARD_HOLD);
 }
 /** How much of a tree its card shows with its mid-height `d` m from the camera (the shaders' forestCardShare): 0 to 1 over the band. */
 export function cardFadeAt(d, cardFrom) {
@@ -203,7 +210,7 @@ export function createBatcher() {
     const tree = new Uint8Array(n);
     const pivot = caster ? null : new Uint8Array(n * 4);
     // the plants that grow in and shrink out at their cut (GROW), and the trees that fade into their cards (CARD_BAND), if it has any
-    const grow = !caster && bucket.items.some(({ placement: p, carded }) => CULL_DISTANCE[p.name] || carded) ? new Int16Array(n * 4) : null;
+    const grow = !caster && bucket.items.some(({ placement: p, carded }) => cutOf(p) || carded) ? new Int16Array(n * 4) : null;
     let cardedIndices = 0; // what of it a twin may draw fading (makeMeshes)
     const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
     const master = new IndexArray(bucket.indices);
@@ -216,7 +223,7 @@ export function createBatcher() {
       const phase = Math.round((p.phase % 1) * 255);
       const sky = p.sky;
       const base = v;
-      const cut = grow ? CULL_DISTANCE[p.name] ?? 0 : 0;
+      const cut = grow ? cutOf(p) : 0;
       box.makeEmpty();
       for (let i = 0; i < m.count; i++, v++) {
         let lx = m.pos[i * 3], ly = m.pos[i * 3 + 1], lz = m.pos[i * 3 + 2];
@@ -277,9 +284,9 @@ export function createBatcher() {
         const own = c2 > 0 && crown ? crown : null;
         if (own) own.reach = Math.max(own.reach, sphere.center.distanceTo(own.centre) + sphere.radius);
         ranges.push({
-          start, count: k - start, sphere, cull: CULL_DISTANCE[p.name] ?? Infinity, minD, maxD, ref: ref || sphere.center,
+          start, count: k - start, sphere, cull: cutOf(p) || Infinity, minD, maxD, ref: ref || sphere.center,
           name: p.name, lod: level ?? p.lod, crown: own, carded, plant, li, near: null,
-          foot: CULL_DISTANCE[p.name] ? new THREE.Vector3(p.x, p.y, p.z) : null,
+          foot: cutOf(p) ? new THREE.Vector3(p.x, p.y, p.z) : null,
         });
       }
       yield; // a plant at a time
@@ -457,6 +464,67 @@ function rebuildIndex(mesh, keep, signature) {
   return data.submitted;
 }
 
+/**
+ * One mesh of the cards of many card meshes (the batcher's, makeCards): a place's far layer, which draws the cards of the parts that
+ * are not drawn (cullLayer), in one draw call. `parts` are { mesh, part }; its ranges are theirs (the same tree: its ref, sphere,
+ * plant and sector) with `part` the one each came with. `into`, a layer made before: its geometry is replaced, so it stays the
+ * same object. Returns the mesh, or `into` (null) when the parts have no cards.
+ */
+export function mergeCardMeshes(parts, { material, renderOrder = 3, into = null } = {}) {
+  const NAMES = ['aCentre', 'aCorner', 'aSize', 'uv', 'aCard'];
+  let verts = 0, indices = 0;
+  for (const { mesh } of parts) {
+    verts += mesh.geometry.getAttribute('aCentre').count;
+    indices += mesh.userData.cull.master.length;
+  }
+  if (!verts) return into;
+  const arrays = Object.fromEntries(NAMES.map(n => [n, new Float32Array(verts * parts[0].mesh.geometry.getAttribute(n).itemSize)]));
+  const IndexArray = verts > 65535 ? Uint32Array : Uint16Array;
+  const master = new IndexArray(indices);
+  const ranges = [];
+  const box = new THREE.Box3();
+  let v = 0, k = 0;
+  for (const { mesh, part } of parts) {
+    const g = mesh.geometry;
+    for (const n of NAMES) {
+      const a = g.getAttribute(n);
+      arrays[n].set(a.array.subarray(0, a.count * a.itemSize), v * a.itemSize);
+    }
+    const own = mesh.userData.cull.master;
+    for (let j = 0; j < own.length; j++) master[k + j] = own[j] + v;
+    for (const r of mesh.userData.cull.ranges) ranges.push({ ...r, start: r.start + k, part });
+    box.union(g.boundingBox);
+    v += g.getAttribute('aCentre').count;
+    k += own.length;
+  }
+  const g = new THREE.BufferGeometry();
+  const at = new THREE.BufferAttribute(arrays.aCentre, 3);
+  g.setAttribute('position', at);
+  g.setAttribute('aCentre', at);
+  for (const n of NAMES.slice(1)) g.setAttribute(n, new THREE.BufferAttribute(arrays[n], parts[0].mesh.geometry.getAttribute(n).itemSize));
+  const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
+  dynamic.setUsage(THREE.DynamicDrawUsage);
+  g.setIndex(dynamic);
+  g.setDrawRange(0, 0);
+  g.boundingBox = box;
+  g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+  const mesh = into ?? new THREE.Mesh(g, material);
+  if (into) {
+    into.geometry.dispose();
+    into.geometry = g;
+  }
+  mesh.name = 'Far cards';
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.renderOrder = renderOrder;
+  mesh.visible = false; // until the first cull
+  mesh.userData = {
+    band: 'far', sector: 0, kind: 'card', cards: true, layer: true, triangles: indices / 3, caster: false,
+    cull: { master, ranges, signature: -1, submitted: 0 }, hidden: false,
+  };
+  return mesh;
+}
+
 const _frustum = new THREE.Frustum();
 const _m4 = new THREE.Matrix4();
 const _sphere = new THREE.Sphere();
@@ -601,6 +669,33 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
     }
   }
   return total;
+}
+
+/**
+ * The far layer's cull (mergeCardMeshes): the cards `keep(range)` lets in (those of the parts not drawn), in the frustum (grown by
+ * `margin`), but those `hide(range, mesh)` leaves out. A part is drawn whenever a tree of it could be nearer than its band's end
+ * (world/ardalur/index.js), so a card here is always whole, and no tree's state (cardState) is read or changed. Returns the
+ * triangles now submitted.
+ */
+export function cullLayer(mesh, camera, { margin = 1.5, keep = () => true, hide = null } = {}) {
+  _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  _frustum.setFromProjectionMatrix(_m4);
+  const data = mesh.userData.cull;
+  const kept = [];
+  let signature = 17;
+  data.ranges.forEach((r, i) => {
+    if (!keep(r)) return;
+    _sphere.copy(r.sphere);
+    _sphere.radius += margin;
+    if (!_frustum.intersectsSphere(_sphere)) return;
+    if (hide && hide(r, mesh)) return;
+    kept.push(r);
+    signature = (Math.imul(signature, 31) + i + 1) | 0;
+  });
+  const n = rebuildIndex(mesh, kept, signature);
+  data.kept = kept;
+  mesh.visible = n > 0 && !mesh.userData.hidden;
+  return n;
 }
 
 /**

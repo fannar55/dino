@@ -22,6 +22,8 @@ import { createSharedUniforms, createVegetationMaterial, createNoiseTexture, cre
 import { ACTOR_GLSL } from '../world/forest/terrain.js';
 import { FOREST } from '../world/forest/config.js';
 import { chapter as kafli2 } from '../chapters/kafli2.js';
+import * as kafli4 from '../chapters/kafli4.js';
+import { createArdalur } from '../world/ardalur/index.js';
 import { PRESETS } from '../engine/quality.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
@@ -494,4 +496,116 @@ test('no gorge flyer stands in the rock: each perches on a ledge rock about a me
     assert.ok(inRock / rest.count <= 0.02, `${b.id}: ${(100 * inRock / rest.count).toFixed(1)} % in its rock`);
   }
   life.dispose();
+});
+
+// ---- the valley's far layer ----------------------------------------------------------------------------
+
+/** The real valley in Node (no renderer), every section built, chapter 4's own trees in it as the chapter has them. */
+function builtValley(lush) {
+  const look = pickLook('earlyAfternoon');
+  const world = {
+    scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(50, 1.6, 0.1, 1200), q: PRESETS.tablet, look,
+    lighting: { direction: sunDirection(look), focusRadius: 10 }, wind: createWind(), actors: new Map(), params: new URLSearchParams(''),
+  };
+  const place = createArdalur(world, { grey: false, route, lush, ...kafli4.whiteTreesFor(world) });
+  place.buildAll();
+  return { place, world };
+}
+const valleys = new Map();
+const valleyOf = lush => {
+  if (!valleys.has(lush)) valleys.set(lush, builtValley(lush));
+  return valleys.get(lush);
+};
+/** Puts the valley's camera `up` m over her path at the flight's second `t`, looking `ahead` m on along it and down to it, and updates. */
+function flyTo({ place, world }, t, up = 40, ahead = 120) {
+  const u = route.progressAt(t);
+  const her = route.pointAt(u, new THREE.Vector3());
+  const on = route.pointAt(Math.min(1, u + ahead / route.length), new THREE.Vector3());
+  world.flightU = u;
+  world.flightTime = t;
+  world.camera.position.set(her.x, her.y + up, her.z);
+  world.camera.lookAt(on);
+  world.camera.updateMatrixWorld(true);
+  world.camera.updateProjectionMatrix();
+  place.update(0, t);
+  place.update(0, t); // a second frame: the far land sets how far the camera sees as it shows (far-land.js FAR_PLANE)
+  return world.camera;
+}
+const sectionMeshes = part => {
+  const out = [];
+  part?.traverse(o => { if (o.userData?.cull?.ranges && o.userData.band !== 'ground' && !o.userData.twinOf) out.push(o); });
+  return out;
+};
+
+test('from high up every tree of a section not drawn stands in the far layer as its card (one draw call), none of one drawn', () => {
+  for (const lush of [true, false]) {
+    const valley = valleyOf(lush);
+    const { place } = valley;
+    place.farLand.show(true); // as the flight has it: from the crest of E the far land stands under the sections not drawn
+    // before it there is no land under them to stand on: the layer draws nothing
+    flyTo(valley, 100, 40);
+    const layer = place.farCards;
+    assert.ok(layer?.isMesh, `${lush ? 'lush' : 'plain'}: the valley has a far layer of cards (place.farCards)`);
+    assert.ok(!layer.visible, `${lush ? 'lush' : 'plain'}: at 100 s (no far land yet) the far layer is not drawn`);
+    // G: 70 m up, a grove beyond the pond (section 6) was not drawn till it came within reach, then all at once (g319a/b)
+    const camera = flyTo(valley, 152, 70, 250);
+    // fogged and lit as the sections' cards are: their very material
+    const sectionCards = sectionMeshes(place.stats.sections[0]).find(m => m.userData.cards);
+    assert.equal(layer.material, sectionCards.material, `${lush ? 'lush' : 'plain'}: the far layer is drawn with the cards' material`);
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const drawn = new Set((layer.visible ? layer.userData.cull.kept ?? [] : []).map(r => r.plant));
+    let hidden = 0;
+    place.stats.sections.forEach((part, i) => {
+      if (!part) return;
+      const shown = place.sections.list[i].visible;
+      for (const mesh of sectionMeshes(part)) {
+        for (const r of mesh.userData.cull.ranges) {
+          if (!r.card) continue;
+          if (shown) assert.ok(!drawn.has(r.plant), `${lush ? 'lush' : 'plain'}: section ${i} is drawn: its ${r.name} is not in the far layer too`);
+          else if (frustum.intersectsSphere(r.sphere)) {
+            hidden++;
+            assert.ok(drawn.has(r.plant), `${lush ? 'lush' : 'plain'}: section ${i} is not drawn: its ${r.name} ${r.ref.distanceTo(camera.position).toFixed(0)} m off is in the far layer`);
+          }
+        }
+      }
+    });
+    assert.ok(hidden > 50, `${lush ? 'lush' : 'plain'}: the shot sees many trees of sections not drawn (${hidden})`);
+    // its budget: one mesh (a draw call), at most 25k triangles with every card of the valley in it
+    assert.ok(layer.userData.triangles <= 25000, `${lush ? 'lush' : 'plain'}: the far layer has ${layer.userData.triangles} triangles`);
+  }
+});
+
+test('a section is drawn before any of its trees is near enough to be a mesh, and before its other plants have grown from nothing', () => {
+  const { cardReach, growAt } = batch;
+  assert.equal(typeof cardReach, 'function', 'the distance past which a tree with a card is never its mesh (batch.js cardReach)');
+  for (const lush of [true, false]) {
+    const valley = valleyOf(lush);
+    const { place } = valley;
+    const reach = cardReach(place.cardFrom);
+    // what a section has that is not a card: a tree with one (a mesh only nearer than reach), or a plant that grows in by its cut
+    place.stats.sections.forEach((part, i) => {
+      for (const mesh of sectionMeshes(part)) {
+        for (const r of mesh.userData.cull.ranges) {
+          if (r.card || r.carded || mesh.userData.belt) continue;
+          assert.ok(r.cull < Infinity && r.foot, `${lush ? 'lush' : 'plain'}: section ${i}'s ${r.name} has no card: it grows in by its cut (${r.cull})`);
+        }
+      }
+    });
+    // along the flight, low and high: what a section not drawn has is a card, or nothing
+    for (let t = 2; t < BEATS.END; t += 6) {
+      for (const up of [12, 70]) {
+        const camera = flyTo(valley, t, up);
+        place.stats.sections.forEach((part, i) => {
+          if (!part || place.sections.list[i].visible) return;
+          for (const mesh of sectionMeshes(part)) {
+            for (const r of mesh.userData.cull.ranges) {
+              if (r.card || mesh.userData.belt) continue;
+              if (r.carded) assert.ok(r.ref.distanceTo(camera.position) >= reach, `${lush ? 'lush' : 'plain'} ${t} s ${up} m up: section ${i} not drawn, its ${r.name} ${r.ref.distanceTo(camera.position).toFixed(0)} m off is past ${reach.toFixed(0)} m (a card)`);
+              else assert.equal(growAt(r.foot.distanceTo(camera.position), r.cull), 0, `${lush ? 'lush' : 'plain'} ${t} s ${up} m up: section ${i} not drawn, its ${r.name} ${r.foot.distanceTo(camera.position).toFixed(0)} m off is nothing yet`);
+            }
+          }
+        });
+      }
+    }
+  }
 });

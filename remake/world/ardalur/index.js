@@ -13,7 +13,7 @@ import { createRoute, BEATS } from '../../chapters/kafli4-route.js';
 import { createSections, createBuildQueue, finish } from './sections.js';
 import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './terrain.js';
 import { createRiverSurface, createFallsSlot, createPoolSurface, poolPlants, landPlants, createLandWaters } from './river.js';
-import { bankSteps, plantSteps, outcropProps, LUSH, viewKeeper } from './banks.js';
+import { bankSteps, plantSteps, outcropProps, LUSH, viewKeeper, FAR_CUT, propFarModel } from './banks.js';
 import { beltSteps } from './belt.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
 import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
@@ -22,7 +22,7 @@ import { createLife } from './life.js';
 import { stillViews } from '../../engine/camera/flight-camera.js';
 import { createCrowds } from '../critters/crowd.js';
 import { createSpeciesLibrary } from '../forest/species.js';
-import { cullBatches } from '../forest/batch.js';
+import { cullBatches, cardReach, mergeCardMeshes, cullLayer } from '../forest/batch.js';
 import { createNoiseTexture, createLeafTexture, leafMeanOf, createCardFade, setCardFade } from '../forest/materials.js';
 import { createWaterMaterial, ringsUntil } from '../props/water.js';
 import { createWaterfall } from '../props/waterfall.js';
@@ -31,6 +31,8 @@ import { FEN, FOREST } from '../forest/config.js';
 import { CARDED, createCardAtlas, createCardMaterial } from '../forest/cards.js';
 
 export const SIGHT = 100; // metres from the camera (seen from above) to a section's land (its route piece and the 160 m round it) within which it is shown
+// ...and in the flight more than that: so far that each of its trees with a card is its card (batch.js cardReach) and its other
+// plants nothing yet (their cut, banks.js FAR_CUT) when it comes, so its coming changes nothing seen (showReach)
 export const DOWNWASH = 8; // metres round her body within which the reeds and the plants bend away from her
 
 /**
@@ -60,13 +62,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     const noise = createNoiseTexture(seed);
     const leaf = createLeafTexture(seed);
     const library = createSpeciesLibrary(seed);
-    // the cards' colours as the plants' material draws the trees far off: their painted leaves at their far tone (none in the low preset)
-    const atlas = createCardAtlas(world.renderer ?? null, CARDED.flatMap(name => Array.from({ length: FOREST.trees.variants[name] },
-      (_, variant) => ({ name, variant, model: library.get(name, variant, 2, {}) }))), { leafTone: world.q?.name === 'low' ? 1 : leafMeanOf(leaf) });
     // the band round cardFrom over which a far tree fades into its card: one uniform for the cards and the plants that fade (update)
     const cardFade = createCardFade();
     return {
-      noise, leaf, library, atlas, cardFade, cards: createCardMaterial(atlas, { coverage: Boolean(world.q?.antialias), fade: cardFade }), paint: groundPaint(terrain, route),
+      noise, leaf, library, cardFade, atlas: null, cards: null, paint: groundPaint(terrain, route), // (atlas, cards: once the props are known)
       plants: createPlantMaterials(world, { noise, leaf, cardFade }), water: createWaterMaterial(world, { seed, river: true, noise }),
     };
   })();
@@ -103,6 +102,22 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   // the still shots' views, where nothing stands by the camera or on its line of sight (banks.js VIEW, spec 6)
   const views = real ? [...stillViews(route, { heightAt: (x, z) => terrain.heightAt(x, z) }), ...moreViews] : [];
   const keeper = thick?.belt ? viewKeeper(views) : null; // the belt's trees keep off the still shots' lines of sight too
+  if (real) {
+    // the far trees' pictures: every variant of the CARDED species as the library makes it, then the far shapes of the chapter's own
+    // trees and of the props of those species (their shapes are their own); the cards' colours as the plants' material draws them far
+    // off: their painted leaves at their far tone (none in the low preset)
+    const entries = CARDED.flatMap(name => Array.from({ length: FOREST.trees.variants[name] }, (_, variant) => ({ name, variant, model: real.library.get(name, variant, 2, {}) })));
+    const known = new Set(entries.map(e => e.model));
+    const own = [...trees.map(t => ({ name: t.name, variant: t.variant, model: t.models.at(-1).model })),
+      ...props.filter(p => CARDED.includes(p.name)).map(p => ({ name: p.name, variant: p.variant, model: propFarModel(real.library, p) }))];
+    for (const e of own) {
+      if (!CARDED.includes(e.name) || known.has(e.model)) continue;
+      known.add(e.model);
+      entries.push(e);
+    }
+    real.atlas = createCardAtlas(world.renderer ?? null, entries, { leafTone: world.q?.name === 'low' ? 1 : leafMeanOf(real.leaf) });
+    real.cards = createCardMaterial(real.atlas, { coverage: Boolean(world.q?.antialias), fade: real.cardFade });
+  }
   const crest = Math.floor(route.progressAt(FAR.from) * index.count); // her path's sample at the crest of E, where the far land shows
 
   // What is always there: the water, the falls (a slot in grey, the falling water, spray, rainbow and foam in the real look:
@@ -160,12 +175,16 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   });
   const away = (b, x, z) => Math.hypot(Math.max(b.minX - x, 0, x - b.maxX), Math.max(b.minZ - z, 0, z - b.maxZ));
   const nearTo = (x, z, reach = SIGHT) => sections.list.filter((_, i) => away(bounds[i], x, z) < reach).map(s => s.index);
+  // the flight's reach: past it every tree of a section is its card (5 m to spare: a tree stands in its section's land, its mid-height
+  // over it) and its other plants nothing (10 m to spare); a chapter that stands still (`at`), or one with no cards, keeps SIGHT
+  const showReach = () => (at || !real || !Number.isFinite(cardFrom) ? SIGHT : Math.max(SIGHT, cardReach(cardFrom) + 5, FAR_CUT + 10));
+  const reach0 = showReach();
   const needed = sections.list.map(() => Infinity);
   const p = new THREE.Vector3();
   for (let t = 0; t <= BEATS.END; t += 1) {
     const u = route.progressAt(t);
     route.pointAt(u, p);
-    for (const i of [...sections.wanted(u), ...nearTo(p.x, p.z, SIGHT + 120)]) needed[i] = Math.min(needed[i], t);
+    for (const i of [...sections.wanted(u), ...nearTo(p.x, p.z, reach0 + 120)]) needed[i] = Math.min(needed[i], t);
   }
 
   const parts = sections.list.map(() => null); // each section's group once built
@@ -180,6 +199,19 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   const hideHazed = (range, mesh) => mesh.userData.band === 'far' && haze.hidden(world.camera.position, range.sphere);
   const hideBoth = (range, mesh) => hideHazed(range, mesh) || hideAbove(range, mesh);
   const stats = { late: [], built: [], sections: parts, left: [], belts };
+  // The far layer (batch.js mergeCardMeshes): every built section's cards in one mesh, one draw call, which draws the cards of the
+  // sections not shown while the far land stands under them (from the crest of E: far-land.js), fogged and lit as theirs (their very
+  // material). A section comes into reach with its trees all cards, so it takes over from the layer with nothing seen to change, then
+  // each tree turns into its mesh over the band (batch.js CARD_BAND). Remade when a section is built, once the queue is done (or the
+  // far land shows); none in a chapter that stands still (`at`).
+  const layer = { mesh: null, dirty: false };
+  function remakeLayer() {
+    layer.dirty = false;
+    const own = parts.map((part, i) => ({ part: i, mesh: plantMeshes[i].find(m => m.userData.cards && !m.userData.belt) })).filter(p => p.mesh);
+    const made = mergeCardMeshes(own, { material: real.cards, renderOrder: 3, into: layer.mesh });
+    if (made && !layer.mesh) group.add(made);
+    layer.mesh = made;
+  }
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
     const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
@@ -218,11 +250,13 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     group.add(part);
     sections.list[i].built = true;
     stats.built.push(i);
+    layer.dirty = true;
+    if (real && !at && !queue.busy) remakeLayer(); // the last section built: the layer is there before the first frame draws
   };
   const order = (a, b) => needed[a] - needed[b] || a - b;
   // Round the snag at once; the rest a slice at a time, soonest needed first. A chapter that stands at `at`: the land round it at once,
   // and nothing more.
-  const first = at ? new Set(nearTo(at[0], at[1])) : new Set([...sections.wanted(0), ...nearTo(route.tree[0], route.tree[2])]);
+  const first = at ? new Set(nearTo(at[0], at[1])) : new Set([...sections.wanted(0), ...nearTo(route.tree[0], route.tree[2], reach0)]);
   for (const i of [...first].sort(order)) finish({ steps: build(i), done: done(i) });
   if (!at) for (const i of sections.list.map(s => s.index).filter(i => !first.has(i)).sort(order)) queue.add(i, build(i), done(i));
 
@@ -232,7 +266,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     // no flight where the chapter stands still (`at`): only what the camera is near is wanted
     const u = at && (world.flightU === null || world.flightU === undefined) ? null : world.flightU ?? 0;
     const camera = world.camera?.position;
-    const near = camera ? nearTo(camera.x, camera.z) : [];
+    const near = camera ? nearTo(camera.x, camera.z, showReach()) : [];
     for (const i of new Set([...(u === null ? [] : sections.wanted(u)), ...near])) {
       if (sections.list[i].built) continue;
       const job = queue.take(i);
@@ -252,6 +286,14 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       for (const i of lastVisible) if (belts[i]) belts[i].group.visible = !farOn;
       setCardFade(real.cardFade, cardFrom); // the shaders fade a tree into its card over the band the cull draws both in
       for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
+      // the far layer: the cards of the sections not shown, while the far land stands under them
+      if (!at && layer.dirty && (farOn || !queue.busy)) remakeLayer();
+      if (layer.mesh) {
+        if (farOn) {
+          const shown = new Set(lastVisible);
+          cullLayer(layer.mesh, world.camera, { margin: 1.5, keep: r => !shown.has(r.part), hide });
+        } else layer.mesh.visible = false;
+      }
       // the ground's tiles in view (only the frustum: the ground is what hides the rest)
       cullBatches(lastVisible.map(i => groundMeshes[i]).filter(Boolean), world.camera, 2);
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
@@ -296,6 +338,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     /** The sections whose land is within `reach` metres of (x, z), seen from above. */
     near: (x, z, reach = SIGHT) => nearTo(x, z, reach),
     get visible() { return lastVisible; },
+    /** The far layer: the cards of the sections not shown, one mesh (null till the first frame after the build, and where it stands still). */
+    get farCards() { return layer.mesh; },
     /** Metres past which a tree is drawn as its card (Infinity: never). */
     get cardFrom() { return cardFrom; },
     set cardFrom(metres) { cardFrom = metres; },

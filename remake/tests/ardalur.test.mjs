@@ -1106,6 +1106,7 @@ test('from down in the gorge the ground hides most plants above the falls: the c
   assert.ok(withAbove.length >= 2, `${withAbove.length} sections have plants above the falls`);
 
   // the view up the gorge at t 90 (the capture's camera): most of them are left out; a plain cull of the same view would draw them
+  // (pieces of plants and their cards: far off most of them are cards)
   const look = (x, y, z, tx, ty, tz, t) => {
     world.flightU = route.progressAt(t);
     world.flightPoint = null;
@@ -1114,14 +1115,14 @@ test('from down in the gorge the ground hides most plants above the falls: the c
     world.camera.updateMatrixWorld();
     place.update(DT, t);
   };
-  const drawn = () => withAbove.filter(part => part.visible)
-    .reduce((n, part) => n + aboveMeshes(part).reduce((m, mesh) => m + (mesh.visible ? mesh.geometry.drawRange.count / 3 : 0), 0), 0);
+  const drawn = () => withAbove.filter(part => part.visible).reduce((n, part) => n + plantsOf(part).reduce((m, mesh) => m + (mesh.visible
+    ? (mesh.userData.cull.kept ?? []).filter(r => (r.sector ?? mesh.userData.sector) === ABOVE_SECTOR).length : 0), 0), 0);
   look(-1102.2, 15, 164.5, -1347, 50, 126, 90);
   assert.ok(sight.active(world.camera.position), 'the rule is on down in the gorge');
   const ruled = drawn();
-  for (const part of withAbove) if (part.visible) cullBatches(aboveMeshes(part), world.camera);
+  for (const part of withAbove) if (part.visible) cullBatches(plantsOf(part), world.camera);
   const plain = drawn();
-  assert.ok(plain > 20000, `a plain cull draws ${plain} triangles above the falls at t 90`); // the groves and the meadow (banks.js) leave fewer in this view
+  assert.ok(plain > 200, `a plain cull draws ${plain} plant pieces above the falls at t 90`); // the groves and the meadow (banks.js) leave fewer in this view
   assert.ok(ruled < plain * 0.25, `the rule draws ${ruled} of them`);
   // over the lip, looking up the valley: the rule is off
   look(-1350, 61, 125.6, -1470, 70, 92, 112);
@@ -1189,22 +1190,23 @@ test('low over the fen the far plants deep in the haze are left out, and only th
     world.camera.updateMatrixWorld();
     place.update(DT, t);
     const kept = { far: 0, near: 0 };
-    for (const mesh of meshes()) if (mesh.visible) kept[mesh.userData.band] += mesh.userData.cull.kept.reduce((n, r) => n + r.count / 3, 0);
+    for (const mesh of meshes()) if (mesh.visible) kept[mesh.userData.band] += mesh.userData.cull.kept.length;
     return kept;
   };
   const plain = () => {
     const kept = { far: 0, near: 0 };
     for (const mesh of meshes()) {
       cullBatches([mesh], world.camera);
-      if (mesh.visible) kept[mesh.userData.band] += mesh.userData.cull.kept.reduce((n, r) => n + r.count / 3, 0);
+      if (mesh.visible) kept[mesh.userData.band] += mesh.userData.cull.kept.length;
     }
     return kept;
   };
   for (const t of [22, 30, 40.45]) {
     const ruled = view(t);
     const all = plain();
-    assert.ok(all.far > 30000, `t ${t}: a plain cull draws ${all.far} far triangles`);
-    assert.ok(ruled.far < all.far * 0.85, `t ${t}: the haze rule draws ${ruled.far} of ${all.far} far triangles`);
+    // (plant pieces and cards: far off most of them are cards, two triangles a tree)
+    assert.ok(all.far > 300, `t ${t}: a plain cull draws ${all.far} far pieces`);
+    assert.ok(ruled.far < all.far * 0.85, `t ${t}: the haze rule draws ${ruled.far} of ${all.far} far pieces`);
     assert.equal(ruled.near, all.near, `t ${t}: the near band is never left out for haze`);
     // every far piece left out is more than FOG_CUT fogged at its nearest point and at its top; every one kept is less
     view(t);

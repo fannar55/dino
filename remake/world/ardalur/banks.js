@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { GRID } from './terrain.js';
 import { FOREST, FEN } from '../forest/config.js';
-import { createBatcher } from '../forest/batch.js';
+import { createBatcher, CULL_DISTANCE } from '../forest/batch.js';
 import { RAPIDS } from './river.js';
 import { aboveTheFalls, ABOVE_SECTOR } from './sight.js';
 
@@ -260,6 +260,12 @@ const FEN_FULL = 40; // m from her path within which the Fen grows as thick as i
 const FEN_FAR = 0.35;
 const FINE = 30; // m from her path within which a plant has its middle detail level for when the camera comes near; beyond, only the coarse one
 const ONE_LEVEL = new Set(['rock', 'rockSmall', 'mossHummock']); // their middle level is cheap enough anywhere
+/** The shape a prop (what an animal sits on, plantSteps `props`) is drawn as far off: its card's picture, if its species has one. */
+export const propFarModel = (library, prop) => library.get(prop.name, prop.variant, ONE_LEVEL.has(prop.name) ? 1 : 2, prop.shape ?? {});
+// A plant with neither a card nor a cut of its own (batch.js CULL_DISTANCE: the rocks, a log) grows in from nothing at FAR_CUT m and is
+// whole from 80 % of it (batch.js GROW), so it never comes with its section all at once: index.js shows a section before any of its
+// plants is that near.
+export const FAR_CUT = 160;
 const LANE = 4; // m she may be steered aside (route.lanes)
 export const CLEAR_OF_HER = 3.5; // m between a plant (its crown counted) and her path at any steer: a little more than the 3 m the test asks
 const SNAG_CLEAR = 4; // m round the white snag's foot
@@ -527,6 +533,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     placements.push({
       name: prop.name, model: middle, models, variant: prop.variant, lod: 1, x: prop.x, y: prop.y - (middle.sink ?? 0) * prop.scale, z: prop.z,
       rot: prop.rot, scale: prop.scale, phase: 0.5, band: 'near', sector: aboveTheFalls(route, d) ? ABOVE_SECTOR : 0, sky: 0.9, d,
+      card: atlas?.cardOf?.(models.at(-1).model) ?? null,
     });
   }
   // a chapter's own trees, those that stand in this section's own cells: each as it is given, where the valley lets a tree stand.
@@ -556,7 +563,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     placements.push({
       name, model, models, variant: tree.variant, lod: models[0].level, x, y: y - (model.sink ?? 0) * scale, z,
       rot: tree.rot, scale, phase: tree.phase ?? 0.5, band: 'near', sector: aboveTheFalls(route, w.d) ? ABOVE_SECTOR : 0, sky: tree.sky ?? FEN.sky, d: w.d,
-      card: null, own: true,
+      card: atlas?.cardOf?.(models.at(-1).model) ?? null, own: true, // (index.js puts its far shape in the atlas)
     });
   }
   // the budget: the grove plants where the grove is thinnest go first while the section would draw more than GROVE.budget
@@ -574,6 +581,8 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     }
     for (let k = placements.length - 1; k >= 0; k--) if (drop.has(placements[k])) placements.splice(k, 1);
   }
+  // what has no card and no cut grows in from far off (FAR_CUT)
+  for (const p of placements) if (!p.card && !CULL_DISTANCE[p.name]) p.cut = FAR_CUT;
   const batcher = createBatcher();
   for (const p of placements) batcher.add(p);
   // each merged mesh draws its plants near to far as the flight sees them (on down the river, then out from it), so early depth
