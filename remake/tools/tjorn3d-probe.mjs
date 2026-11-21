@@ -215,7 +215,11 @@ function reportShow(rows) {
   const inside = rows.filter(r => r.clear.inside.length);
   console.log(inside.length ? `  INSIDE HER: ${inside.map(r => `${r.clear.inside.join('+')} at ${f(r.t, 2)} s`).join(', ')}` : '  no point of the butterfly or of a fish is inside her at any moment');
   const strikes = rows.filter(r => r.strike && r.strike.weight >= 0.999);
-  if (strikes.length) console.log(`  the catch: her snout\'s tip is ${strikes.map(r => `${f(r.strike.tipToTargetCm, 2)} cm from the point it reaches for at ${f(r.t, 2)} s`).join(', ')}`);
+  if (strikes.length) {
+    const worst = strikes.slice().sort((a, b) => b.strike.tipToTargetCm - a.strike.tipToTargetCm)[0];
+    const taken = strikes.find(r => r.t >= 43.84) ?? worst;
+    console.log(`  while the tip of her snout leads her head (${f(strikes[0].t, 2)} to ${f(strikes.at(-1).t, 2)} s) it is at most ${f(worst.strike.tipToTargetCm, 2)} cm from where it is put (at ${f(worst.t, 2)} s), ${f(taken.strike.tipToTargetCm, 2)} cm as her jaws shut (${f(taken.t, 2)} s)`);
+  }
   const air = rows.filter(r => r.clear.airFishCm !== null && r.tipToFishCm !== null);
   if (air.length) console.log(`  the last moment the fish is its own (${f(air.at(-1).t, 2)} s): the tip of her snout ${f(air.at(-1).tipToFishCm, 2)} cm from its middle, her skin ${f(air.at(-1).clear.airFishCm, 2)} cm from it, her jaw open ${f(air.at(-1).her?.jaw, 0)} degrees`);
   const hold = rows.filter(r => r.t >= 36.4 && r.t <= 42 && r.her);

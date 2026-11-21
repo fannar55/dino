@@ -74,7 +74,8 @@ test('the big fish: up from the deep, out of the water in part 5, about 5 cm at 
   const a = jumperAt(JUMP.out + 0.2), b = jumperAt(JUMP.out + 0.4), c = jumperAt(JUMP.out + 0.6);
   assert.ok(Math.abs((c.at[1] - 2 * b.at[1] + a.at[1]) / 0.04 + GRAVITY) < 1e-6);
   // she reaches for it and her jaws are open as it comes, shut on it when it is hers
-  assert.ok(herAt(JUMP.take - 0.1).jaw > 6 && herAt(JUMP.take).strike === 1 && herAt(JUMP.take + 0.05).jaw <= 2);
+  // (shut as far as the fish across her jaws lets them)
+  assert.ok(herAt(JUMP.take - 0.1).jaw > 8 && herAt(JUMP.take).strike === 1 && herAt(JUMP.take + 0.05).jaw < herAt(JUMP.take - 0.1).jaw - 2);
   assert.ok(JUMP.gulp > JUMP.take && herAt(JUMP.gulp + 0.3).jaw === 0);
   // the tip of her snout is on the fish's flank the moment her jaws shut: under its middle, on her side of it, less than half a cm off
   const fish = jumperAt(JUMP.take - 1e-6).at, tip = herAt(JUMP.take).snout;

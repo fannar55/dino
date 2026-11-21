@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { glints } from '../../world/props/sparkles.js';
 import { seededRandom } from '../../engine/random.js';
-import { THROAT } from '../kafli2-uggedla.js';
+import { MOUTH, THROAT } from '../kafli2-uggedla.js';
 import { BUTTERFLY, FROG, LILIES, under } from './keys.js';
 import {
   LENGTH, GRAVITY, JUMP, FISH, BUBBLE, BUBBLES, RINGS, SPLASHES, RUNOFF, DROPS, FLIGHT, BUTTERFLY_TIMES,
@@ -50,8 +50,17 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     taken.copy(cast.jumper.group.matrixWorld);
     cast.jumper.hide();
   }
+  // Chapter 2 holds a fish along her snout, its nose in her mouth (she is seen from the side there). Here she faces the viewer, and
+  // a fish along her snout would show him its tail's end only: she holds it ACROSS her jaws, just inside the tip of her snout, its
+  // nose to her right, the way it flew, so it shows its side; her jaws stay open by its height (show.js JAW). It turns nose in as
+  // it goes down.
   rig.fish.hold(JUMP.size * S);
-  const jaws = { p: rig.fish.group.position.clone(), q: rig.fish.group.quaternion.clone(), s: rig.fish.group.scale.clone() };
+  const along = { q: rig.fish.group.quaternion.clone(), s: rig.fish.group.scale.clone() };
+  const fishMesh = rig.fish.group.children[0];
+  fishMesh.geometry.computeBoundingBox();
+  const fishMiddle = ((fishMesh.geometry.boundingBox.min.y + fishMesh.geometry.boundingBox.max.y) / 2) * along.s.y; // its middle over its origin
+  const jaws = { p: new THREE.Vector3(MOUTH.x + 0.08, MOUTH.y - 0.1 - fishMiddle, 0), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)), s: along.s };
+  const wag = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0);
   rig.fish.hide();
   const from = { p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3() };
 
@@ -147,7 +156,7 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     c.copy(seat).addScaledVector(seatUp, 1.6 * S).addScaledVector(Y, 0.5 * S);
     const k1 = 1 - k;
     butterflyPoint.set(0, 0, 0).addScaledVector(lily, k1 * k1 * k1).addScaledVector(b, 3 * k1 * k1 * k).addScaledVector(c, 3 * k1 * k * k).addScaledVector(seat, k * k * k);
-    const calm = Math.sin(Math.PI * u) ** 0.7; // none of the bobbing where it lifts off and sits down
+    const calm = smooth(u / 0.2) * smooth((1 - u) / 0.35) ** 2; // none of the bobbing where it lifts off and sits down: it must not dip into her skin
     d.set(seat.z - lily.z, 0, lily.x - seat.x).normalize(); // sideways to its way
     butterflyPoint.addScaledVector(d, FLIGHT.sway * S * calm * Math.sin(2 * Math.PI * 1.3 * since + 1)).addScaledVector(Y, FLIGHT.flutter * S * calm * Math.sin(2 * Math.PI * 2.3 * since));
     butterflyPoint.y = Math.min(butterflyPoint.y, LEVEL + FLIGHT.high * S);
@@ -186,7 +195,7 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
       V(...j.at, jumperPoint);
       cast.jumper.show(jumperPoint, j.heading, JUMP.size * S, { pitch: j.pitch, beat: j.beat });
     } else cast.jumper.hide();
-    // (it wriggles in her jaws, less and less; how it gets into them and down her throat: late())
+    // (its tail flexes, less and less; where it is in her jaws, how it gets there and down her throat: late())
     const held = t >= JUMP.take && t < JUMP.gulp;
     if (held) { rig.fish.hold(JUMP.size * S); rig.fish.wriggle(3, 1 - 0.8 * smooth((t - JUMP.take - 0.7) / 0.6)); }
     else if (state.heldFish) rig.fish.hide();
@@ -264,18 +273,27 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     wetDrops(t);
     if (state.heldFish) {
       const { group } = rig.fish;
+      // across her jaws, its ends flapping up and down a little, less and less
+      const calms = 1 - 0.8 * smooth((t - JUMP.take - 0.7) / 0.6);
+      wag.setFromAxisAngle(X, 0.16 * calms * Math.sin(2 * Math.PI * 3 * t)).multiply(jaws.q);
       if (t < JUMP.take + SLIDE) {
-        // from where it was the moment her jaws shut (as her head is now) into her jaws, turning to lie along her snout
+        // from where it was the moment her jaws shut (as her head is now) into them
         head.updateWorldMatrix(true, false);
         toHead.copy(head.matrixWorld).invert().multiply(taken).decompose(from.p, from.q, from.s);
         const k = smooth((t - JUMP.take) / SLIDE);
         group.position.lerpVectors(from.p, jaws.p, k);
-        group.quaternion.slerpQuaternions(from.q, jaws.q, k);
+        group.quaternion.slerpQuaternions(from.q, wag, k);
         group.scale.lerpVectors(from.s, jaws.s, k);
       } else if (t > JUMP.gulp - GULP) {
+        // down her throat: it turns nose in and is gone
         const k = smooth((t - (JUMP.gulp - GULP)) / GULP);
         group.position.lerpVectors(jaws.p, THROAT, k);
+        group.quaternion.slerpQuaternions(wag, along.q, smooth(k * 1.6));
         group.scale.copy(jaws.s).multiplyScalar(1 - k);
+      } else {
+        group.position.copy(jaws.p);
+        group.quaternion.copy(wag);
+        group.scale.copy(jaws.s);
       }
     }
     if (!cast.butterfly.loaded) return;
@@ -297,8 +315,10 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     const sits = her.heading + 180 + BUTTERFLY.heading;
     const heading = turnTo(turnTo(way, BUTTERFLY.heading, 1 - smooth(u / 0.15)), sits, smooth((u - 0.8) / 0.2));
     up.copy(Y).lerp(seatUp, smooth((u - 0.75) / 0.25)).normalize();
-    const calm = Math.sin(Math.PI * u) ** 0.5;
-    const flap = FLAP.mid + (FLAP.swing + 0.3 * calm) * Math.sin(2 * Math.PI * (1 + (FLIGHT.wings - 1) * calm) * since);
+    // its wings go from their slow opening and closing at rest into the beat of flight, and back as it sits down
+    const beats = smooth(u / 0.1) * smooth((1 - u) / 0.2);
+    const rest = FLAP.mid + FLAP.swing * Math.sin(t * FLAP.pace);
+    const flap = rest + beats * (FLAP.mid + (FLAP.swing + 0.3) * Math.sin(2 * Math.PI * FLIGHT.wings * since) - rest);
     cast.butterfly.show(point, heading, BUTTERFLY.span * S, flap, up);
   }
 

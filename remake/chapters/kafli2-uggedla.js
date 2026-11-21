@@ -84,7 +84,7 @@ const TAIL = BONES.filter(name => name.startsWith('Tail'));
 // where a fish lies in her jaws (its nose just inside her mouth, its length out along her snout, so that it shows its side) and where it
 // goes down her throat.
 const SNOUT = new V3(2.79, -0.633, 0.026);
-const MOUTH = new V3(2.5, -0.7, 0); // where its nose is
+export const MOUTH = new V3(2.5, -0.7, 0); // where its nose is
 export const THROAT = new V3(1.55, -0.45, 0); // (chapters/tjorn3d/play.js sends its fish the same way)
 /** Where the middle of a fish `size` metres long is in her jaws. */
 const inJaws = (size, out = new V3()) => out.set(MOUTH.x + size / 2, MOUTH.y, MOUTH.z);
