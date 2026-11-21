@@ -82,6 +82,19 @@ test('the big fish: up from the deep, out of the water in part 5, about 5 cm at 
   assert.ok(Math.hypot(tip[0] - fish[0], tip[1] - fish[1], tip[2] - fish[2]) < 0.5 && tip[1] < fish[1] && tip[2] < fish[2]);
   // and her head is hers again (her look's) well before the butterfly comes
   assert.ok(herAt(JUMP.gulp + 2).strike === 0 && herAt(JUMP.gulp + 2).look === 'eye' && herAt(JUMP.gulp + 2).snout === null);
+  // the tip of her snout takes her head over while her look still holds it (with neither, her head would lift over 6,5 cm)
+  assert.ok(herAt(HOLD.to + 0.25).look === 'eye' && herAt(HOLD.to + 0.25).strike > 0.3 && herAt(HOLD.to + 0.25).snout);
+  for (let t = HOLD.to; t <= JUMP.gulp + 2; t += 0.05) {
+    const h = herAt(t);
+    assert.ok(h.jaw >= 0 && h.jaw <= 9, `her jaw opens 9 degrees at most (${t.toFixed(2)})`);
+    assert.ok(h.strike === 1 || h.look === 'eye', `her head is led at ${t.toFixed(2)}`);
+  }
+  // she holds the fish a moment before it goes down
+  assert.ok(JUMP.gulp - JUMP.take >= 1.5 && herAt((JUMP.take + JUMP.gulp) / 2).jaw > 4, 'her jaws stay open by the fish across them');
+});
+
+test('she never stands higher out of the water than in the hold (the smallest page has no more room over her head)', () => {
+  for (let t = 0; t <= LENGTH; t += 0.05) assert.ok(herAt(t).sink >= HEAD.sink - 1e-9, `at ${t.toFixed(2)}`);
 });
 
 test('the small fish: in their rounds while the pond is calm, out of her way in part 2, home again at the end', () => {
@@ -111,6 +124,8 @@ test('the butterfly: on its lily, over to her snout in part 6, two to three seco
   assert.equal(herAt(land).sink, herAt(off - 0.5).sink);
   assert.ok(herAt(off).sink - herAt(land).sink < 0.4, 'it leaves before the water comes near');
   assert.ok(herAt(home).sink > herAt(off).sink + 5, 'then she goes down');
+  // her look keeps all its weight from the moment she turns to it until she is gone (with less, her snout would rise into it)
+  for (let t = up + 1; t < GONE; t += 0.1) assert.deepEqual([herAt(t).look, herAt(t).lookWeight], ['butterfly', 1], `her look at ${t.toFixed(1)}`);
 });
 
 test('the last second is the calm pond: she is gone, nothing leaps or flies, no splash is in the air, the water has settled', () => {
