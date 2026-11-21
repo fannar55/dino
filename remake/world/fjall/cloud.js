@@ -28,6 +28,7 @@ export const CLOUD = { density: [0.02, 0.17], colour: '#f1f3f0', ease: 2.5, blow
 const POOL = 64; // cards at most
 const DRIFT = 14; // the wisps round the camera
 const RING = 24; // the ring her roar blows out
+const BLOW_CLEAR = 0.55; // the share of the blow by which the air inside the ring is clear
 // The wisps round the camera: within `box` m of it (wrapped as it moves), fading in from `near` m; their strength at level 1.
 const AROUND = { box: 22, near: [1.5, 5], strength: 0.42 };
 const LIFT = { cards: 6, seconds: 2.2, dip: 0.35, dipSeconds: 2.4 }; // dip: how much thinner the white gets, at most
@@ -50,7 +51,7 @@ const VERT = /* glsl */`
 attribute vec3 aCentre;
 attribute vec2 aCorner;
 attribute vec4 aCard; // x: width (m), y: height (m), z: opacity, w: seed
-attribute float aBright;
+attribute vec2 aBright; // x: how bright (reduced motion's swirl), y: how far off it fades in, times uNear
 uniform vec2 uNear;
 varying vec2 vUv;
 varying float vOpacity;
@@ -63,9 +64,9 @@ void main() {
   float dist = -mvPosition.z;
   mvPosition.xy += aCorner * aCard.xy * 0.5; // turned to the camera
   vUv = aCorner;
-  vOpacity = aCard.z * smoothstep( uNear.x, uNear.y, dist ); // the camera passes through a card, never a sheet
+  vOpacity = aCard.z * smoothstep( uNear.x * aBright.y, uNear.y * aBright.y, dist ); // the camera passes through a card, never a sheet
   vSeed = aCard.w;
-  vBright = aBright;
+  vBright = aBright.x;
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
@@ -129,7 +130,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   const cards = Array.from({ length: POOL }, (_, k) => ({
     k, kind: null, alive: false, x: 0, y: 0, z: 0, w: 1, h: 1, opacity: 0, bright: 0, age: 0, life: 0, seed: rng.range(0, 10),
   }));
-  const centres = new Float32Array(POOL * 12), data = new Float32Array(POOL * 16), bright = new Float32Array(POOL * 4);
+  const centres = new Float32Array(POOL * 12), data = new Float32Array(POOL * 16), bright = new Float32Array(POOL * 8);
   const corners = [], index = [];
   for (let k = 0; k < POOL; k++) {
     corners.push(-1, -1, 1, -1, 1, 1, -1, 1);
@@ -138,7 +139,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   const geometry = new THREE.BufferGeometry();
   const centreAttr = new THREE.BufferAttribute(centres, 3).setUsage(THREE.DynamicDrawUsage);
   const cardAttr = new THREE.BufferAttribute(data, 4).setUsage(THREE.DynamicDrawUsage);
-  const brightAttr = new THREE.BufferAttribute(bright, 1).setUsage(THREE.DynamicDrawUsage);
+  const brightAttr = new THREE.BufferAttribute(bright, 2).setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute('position', centreAttr); // three needs one; the shader places the corners
   geometry.setAttribute('aCentre', centreAttr);
   geometry.setAttribute('aCorner', new THREE.Float32BufferAttribute(corners, 2));
@@ -219,7 +220,8 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
   // the wisps round the camera, placed once round the cloud's centre and wrapped round the camera as it goes
   for (let i = 0; i < DRIFT; i++) {
     const x = centre[0] + rng.range(-AROUND.box, AROUND.box), z = centre[1] + rng.range(-AROUND.box, AROUND.box);
-    spawn('drift', { x, z, y: ground(x, z) + rng.range(0.6, 3.5), w: rng.range(6, 11), h: rng.range(3, 5.5), life: Infinity, vx: rng.range(0.25, 0.5), vz: rng.range(-0.15, 0.15) });
+    const card = spawn('drift', { x, z, w: rng.range(6, 11), h: rng.range(3, 5.5), life: Infinity, vx: rng.range(0.25, 0.5), vz: rng.range(-0.15, 0.15) });
+    card.y = ground(x, z) + card.h * 0.42 + (card.seed % 1) * 2; // its soft foot over the ground
   }
   const camera = new THREE.Vector3();
   const wrap = (v, c) => c + ((((v - c + AROUND.box) % (2 * AROUND.box)) + 2 * AROUND.box) % (2 * AROUND.box)) - AROUND.box;
@@ -238,7 +240,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
           if (!reduced) { c.x += c.vx * dt; c.z += c.vz * dt; }
           if (world.camera) {
             const x = wrap(c.x, camera.x), z = wrap(c.z, camera.z);
-            if (x !== c.x || z !== c.z) { c.x = x; c.z = z; c.y = ground(x, z) + 0.6 + (c.seed % 1) * 2.9; }
+            if (x !== c.x || z !== c.z) { c.x = x; c.z = z; c.y = ground(x, z) + c.h * 0.42 + (c.seed % 1) * 2; }
           }
           c.opacity = AROUND.strength * levelShare;
           break;
@@ -267,7 +269,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
             c.z = c.fz + Math.sin(c.a) * r;
             c.y = c.y0 + 2.5 * easeOut(b);
             c.w = c.w0 * (1 + 0.8 * b);
-            c.opacity = 0.85 * (1 - smooth((b - 0.5) / 0.5));
+            c.opacity = 0.9 * (1 - smooth((b - 0.6) / 0.4)); // a white wall going out, the air inside it already clear
           } else c.opacity = 0.85 * (1 - smooth(b));
           break;
         }
@@ -282,7 +284,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
         const i = c.k * 4 + v;
         centres[i * 3] = c.x; centres[i * 3 + 1] = c.y; centres[i * 3 + 2] = c.z;
         data[i * 4] = c.w; data[i * 4 + 1] = c.h; data[i * 4 + 2] = o; data[i * 4 + 3] = c.seed;
-        bright[i] = c.bright;
+        bright[i * 2] = c.bright; bright[i * 2 + 1] = c.near ?? 1;
       }
     }
     centreAttr.needsUpdate = cardAttr.needsUpdate = brightAttr.needsUpdate = true;
@@ -315,7 +317,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
         const d = r * rng.range(0.2, 0.6);
         const x = x0 + Math.cos(a) * d, z = z0 + Math.sin(a) * d;
         spawn('lift', {
-          x, z, y: ground(x, z) + rng.range(0.4, 1.2), w: rng.range(3, 5), h: rng.range(2, 3), life: LIFT.seconds,
+          x, z, y: ground(x, z) + 1.3 + rng.range(0, 0.6), w: rng.range(3, 5), h: rng.range(2, 3), life: LIFT.seconds,
           vx: Math.cos(a) * 1.2, vz: Math.sin(a) * 1.2, vy: rng.range(0.6, 1),
         });
       }
@@ -346,10 +348,11 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
       for (let i = 0; i < RING; i++) {
         const a = (i / RING) * Math.PI * 2 + rng.range(-0.12, 0.12);
         const r0 = reduced ? rng.range(6, 18) : rng.range(2.5, 4);
-        const w0 = rng.range(9, 14);
+        const w0 = rng.range(14, 22);
         const x = fx + Math.cos(a) * r0, z = fz + Math.sin(a) * r0;
-        const y0 = ground(x, z) + rng.range(0.5, 6);
-        spawn('ring', { a, r0, fx, fz, reach: radius + 30, w0, w: w0, h: w0 * rng.range(0.55, 0.75), x, z, y: y0, y0, seconds, life: seconds + 0.3 });
+        const h = w0 * rng.range(0.6, 0.8);
+        const y0 = ground(x, z) + h * 0.42 + rng.range(0, 2.5); // its soft foot over the ground: no line where it meets it
+        spawn('ring', { a, r0, fx, fz, reach: radius + 30, w0, w: w0, h, near: 4, x, z, y: y0, y0, seconds, life: seconds + 0.3 });
       }
       return handle;
     },
@@ -368,7 +371,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
       }
       if (blow) {
         blow.age += dt;
-        const k = smooth(blow.age / blow.seconds);
+        const k = smooth(blow.age / (blow.seconds * BLOW_CLEAR)); // the air clears ahead of the ring, so the ring reads going out
         level = blow.level * (1 - k);
         heldDensity = blow.density + (LOOKS.sunset.fog.density - blow.density) * k;
         if (blow.age >= blow.seconds) {

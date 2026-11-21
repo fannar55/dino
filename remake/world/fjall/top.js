@@ -28,6 +28,7 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
   sea.name = 'Sea of cloud (grey)';
   sea.position.y = FJALL.top.sea;
   group.add(sea);
+  world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
   return {
     group, heightAt, sea, grey,
     update() {},

@@ -33,6 +33,7 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
   group.name = 'Fjall: the slope';
   const ground = groundMesh(heightAt, { centre: ledge, radius: LEDGE.radius, step: 2, colour: GREY.ground, name: 'Slope ground' });
   group.add(ground.mesh, far.group);
+  world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
   let disposed = false;
   return {
     group, heightAt, far, ledge, grey,

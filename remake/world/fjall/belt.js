@@ -3,7 +3,8 @@
 // lies between 0 and 3 m everywhere the cloud reaches, so a camera's height over it reads the same to the fog everywhere (the fog
 // thins with height above y 0: engine/fog.js).
 //
-//   const belt = createBelt(world, { grey, seed, prints, printSize })   // prints: [{ position: [x, z], heading, foot }]
+//   const belt = createBelt(world, { grey, seed, prints, printSize, reduced })   // prints: [{ position: [x, z], heading, foot }];
+//                                                                           reduced: the cloud's (the chapter's reducedMotion)
 //   belt.cloud, belt.prints (createMudPrints's, null with no prints), belt.heightAt(x, z), belt.update(dt, time), belt.dispose()
 import { GREY } from '../ardalur/terrain.js';
 import { createMudPrints } from '../props/mud-prints.js';
@@ -18,16 +19,17 @@ export function beltHeight(x, z) {
   return 1.5 + 1.3 * Math.tanh((x - 25) / 35) + 0.15 * Math.sin(x * 0.21 + 0.4) * Math.sin(z * 0.17 + 1.1);
 }
 
-export function createBelt(world, { grey = false, seed = 6, prints = [], printSize = 5 } = {}) {
+export function createBelt(world, { grey = false, seed = 6, prints = [], printSize = 5, reduced = false } = {}) {
   const heightAt = (x, z) => beltHeight(x, z);
   const group = new THREE.Group();
   group.name = 'Fjall: the belt of cloud';
   const ground = groundMesh(heightAt, { radius: BELT.radius, step: 2, colour: GREY.ground, name: 'Belt ground' });
   group.add(ground.mesh);
-  const cloud = createCloud(world, { centre: [0, 0], radius: BELT.cloud, heightAt, seed });
+  const cloud = createCloud(world, { centre: [0, 0], radius: BELT.cloud, heightAt, seed, reduced });
   group.add(cloud.group);
   const marks = prints.length ? createMudPrints(world, { prints, heightAt, seed, size: printSize }) : null;
   if (marks) group.add(marks.group); // with the place: hidden while another one shows
+  world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
   return {
     group, heightAt, cloud, prints: marks, grey,
     update(dt, time) { cloud.update(dt, time); },
