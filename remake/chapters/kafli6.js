@@ -69,7 +69,7 @@ export const WORDS = {
   k6_egill_above: 'Við erum ofan við skýin!', k6_mosi_room: 'Hér… er nóg pláss… fyrir alla!',
 };
 // Mosi counts the prints with chapter 2's own takes (the plan's ruling): "Eitt!" to "Sex!"
-const COUNTS = { k2_mosi_1: 'Eitt!', k2_mosi_2: 'Tveir!', k2_mosi_3: 'Þrír!', k2_mosi_4: 'Fjórir!', k2_mosi_5: 'Fimm!', k2_mosi_6: 'Sex!' };
+const COUNTS = { k2_mosi_1: 'Eitt!', k2_mosi_2: 'Tvö!', k2_mosi_3: 'Þrjú!', k2_mosi_4: 'Fjögur!', k2_mosi_5: 'Fimm!', k2_mosi_6: 'Sex!' };
 
 const EGILL_HEAD = { actor: 'egill', part: 'head' };
 const HER_HEAD = { actor: 'gramedla', part: 'head' };
