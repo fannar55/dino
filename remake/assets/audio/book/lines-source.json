@@ -672,5 +672,6 @@
  { "id": "book_myndband_mary_65", "speaker": "narrator", "text": "Það var úr kjálka á stærstu fiskeðlu sem fundist hefur. Hún var líklega um tuttugu og fimm metra löng, jafn löng og heil sundlaug!", "say": "Það var úr kjálka á stærstu fisk-eðlu sem fundist hefur. Hún var líklega um tuttugu og fimm metra löng, jafn löng og heil sundlaug!", "fixes": ["fiskedla"], "note": "Own say, the book's recipe for Fiskeðla (bandstrik: fisk-eðla) (2026-11-21). Not yet heard by the owner." },
  { "id": "book_myndband_mary_66", "speaker": "narrator", "text": "Á Íslandi finnast engar fiskeðlur, því landið okkar er alltof ungt. En á Tjörnesi eru bakkar við sjóinn fullir af eldgömlum skeljum.", "say": "Á Íslandi finnast engar fisk-eðlur, því landið okkar er alltof ungt. En á Tjörnesi eru bakkar við sjóinn fullir af eldgömlum skeljum.", "fixes": ["fiskedla"], "note": "Own say, the book's recipe for Fiskeðla (bandstrik: fisk-eðla) (2026-11-21). Not yet heard by the owner." },
  { "id": "book_myndband_mary_67", "speaker": "narrator", "text": "Svo næst þegar þú ferð í fjöru skaltu skoða steinana vel. Hver veit hverju sjórinn skilar þér?" },
- { "id": "book_myndband_mary_68", "speaker": "narrator", "text": "Takk fyrir að horfa!" }
+ { "id": "book_myndband_mary_68", "speaker": "narrator", "text": "Takk fyrir að horfa!" },
+ { "id": "book_myndband_mary_69", "speaker": "narrator", "text": "Hún var um þrjá metra löng. Jafn löng og lítill árabátur!" }
 ]
