@@ -10,6 +10,9 @@
 //   node remake/tools/tjorn3d-sound.mjs --played [--from 0] [--until 62] [--json file]
 //       plays the page itself (?chapter=tjorn3d&t=<from>&play=1, tapped) and lists the cues as it played them: the show's second
 //       each was played at, how late that was, and what sounded for it (a made sound, or a recording's file).
+//   node remake/tools/tjorn3d-sound.mjs --played --glasses
+//       the page as the child opens it (?chapter=tjorn3d): the glasses' tap, the whole show, the end card, and then "Aftur" for a
+//       few seconds, to see that it starts clean.
 //
 // Exit code 1 when the page throws, a cue of the sheet was not played, or the sum's peak reaches full scale.
 import http from 'node:http';
@@ -28,11 +31,12 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { render: false, played: false, from: 0, until: LENGTH, json: null, wav: null, timeout: 180, size: '1280x800' };
+  const o = { render: false, played: false, glasses: false, from: 0, until: LENGTH, json: null, wav: null, timeout: 180, size: '1280x800' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--render') o.render = true;
     else if (a === '--played') o.played = true;
+    else if (a === '--glasses') o.glasses = true;
     else if (a === '--from') o.from = Number(next());
     else if (a === '--until') o.until = Number(next());
     else if (a === '--json') o.json = next();
@@ -289,20 +293,34 @@ async function render(o, base) {
 }
 
 async function played(o, base) {
-  let log = [], errors = [], state = null;
+  let log = [], errors = [], state = null, again = null;
+  if (o.glasses) Object.assign(o, { from: 0, until: LENGTH });
   await withPage(o, async page => {
-    await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d&t=${o.from}&play=1` });
-    const t0 = Date.now();
-    for (;;) {
-      let is = false;
-      try { is = await page.evaluate('Boolean(window.__demoReady && window.__world?.tjorn?.sound && window.__world.tjorn.time?.showing)'); } catch { /* loading */ }
-      if (is) break;
-      if (Date.now() - t0 > o.timeout * 1000) throw new Error(`the page did not get ready${page.errors.length ? ': ' + page.errors[0] : ''}`);
-      await sleep(250);
+    const until = async (what, test) => {
+      const t0 = Date.now();
+      for (;;) {
+        let is = false;
+        try { is = await page.evaluate(`Boolean(${test})`); } catch { /* loading */ }
+        if (is) return;
+        if (Date.now() - t0 > o.timeout * 1000) throw new Error(`${what}${page.errors.length ? ': ' + page.errors[0] : ''}`);
+        await sleep(250);
+      }
+    };
+    const SHOWING = 'window.__world?.tjorn?.sound && window.__world.tjorn.time?.showing';
+    let before = { t: 0, running: false, log: 0 };
+    if (o.glasses) {
+      // as the child opens it: the glasses' card, its tap, the pond built under the black, the show
+      await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d` });
+      await until('the glasses did not come', 'document.querySelector(".gler-start") && !document.querySelector(".gler-start-wrap")?.hidden');
+      await page.evaluate('document.querySelector(".gler-start").click()');
+      await until('the show did not start', SHOWING);
+    } else {
+      await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d&t=${o.from}&play=1` });
+      await until('the page did not get ready', `window.__demoReady && ${SHOWING}`);
+      await page.evaluate('window.__world.tjorn.sound.ready');
+      before = await page.evaluate('({ t: window.__world.tjorn.view.t, running: window.__world.tjorn.sound.running, log: window.__world.tjorn.sound.log.length })');
+      await page.evaluate('document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))'); // the tap
     }
-    await page.evaluate('window.__world.tjorn.sound.ready');
-    const before = await page.evaluate('({ t: window.__world.tjorn.view.t, running: window.__world.tjorn.sound.running, log: window.__world.tjorn.sound.log.length })');
-    await page.evaluate('document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))'); // the tap
     const began = Date.now();
     for (;;) {
       await sleep(500);
@@ -312,11 +330,18 @@ async function played(o, base) {
     await sleep(1500);
     state = await page.evaluate('({ t: window.__world.tjorn.view.t, context: window.__world.sound.context.state, running: window.__world.tjorn.sound.running, sounding: window.__world.tjorn.sound.sounding(), endCard: Boolean(document.querySelector(".show-end, .gler-end, [class*=end]")) })');
     state.before = before;
-    log = await page.evaluate('window.__world.tjorn.sound.log');
+    log = await page.evaluate('window.__world.tjorn.sound.log.slice()');
+    if (o.glasses) {
+      // "Aftur": the show from its start again, clean
+      await until('the end card did not come', 'document.querySelector(".dans-end button")');
+      await page.evaluate('document.querySelector(".dans-end button").click()');
+      await sleep(4000);
+      again = await page.evaluate('({ t: window.__world.tjorn.view.t, card: Boolean(document.querySelector(".dans-end")), running: window.__world.tjorn.sound.running, log: window.__world.tjorn.sound.log.slice() })');
+    }
     errors = [...page.errors];
   });
   console.log(`The page played from ${o.from} s to ${state.t.toFixed(2)} s: the cues as it played them\n`);
-  console.log(`Before the tap: the show stood at ${state.before.t} s, the sound ${state.before.running ? 'RUNNING' : 'not started'}, ${state.before.log} cues played`);
+  if (!o.glasses) console.log(`Before the tap: the show stood at ${state.before.t.toFixed(2)} s, the sound ${state.before.running ? 'RUNNING' : 'not started'}, ${state.before.log} cues played`);
   console.log(`${lead('played', 7)} ${lead('sheet', 6)} ${lead('late ms', 7)}  ${pad('sound', 9)} ${pad('kind', 9)} ${pad('what sounded', 16)} ${lead('level', 5)} ${lead('pan', 5)}`);
   for (const e of log) console.log(`${lead(e.at.toFixed(2), 7)} ${lead(e.t.toFixed(2), 6)} ${lead(Math.round((e.at - e.t) * 1000), 7)}  ${pad(e.sound, 9)} ${pad(e.kind, 9)} ${pad(e.played ?? 'NOT PLAYED', 16)} ${lead(e.level, 5)} ${lead(e.pan, 5)}`);
   const due = CUES.filter(c => c.t >= o.from - 1e-6 && c.t <= Math.min(o.until, state.t) - 0.05);
@@ -326,9 +351,15 @@ async function played(o, base) {
   const late = Math.max(0, ...log.map(e => e.at - e.t));
   console.log(`\n${log.length} cues played of the ${due.length} due; in order: ${order ? 'yes' : 'NO'}; the latest ${Math.round(late * 1000)} ms after its second; cues from before ${o.from} s: ${early.length}`);
   console.log(`After the end: the audio context is ${state.context}, the show's sound ${state.running ? 'still RUNNING' : 'ended'}, ${state.sounding} of its sources still sounding`);
+  let stale = false;
+  if (again) {
+    const first = again.log[0];
+    stale = again.card || !again.running || !first || first.t !== 0 || again.log.some(e => e.t > again.t + 0.05);
+    console.log(`"Aftur": ${again.t.toFixed(2)} s into the show again, the card ${again.card ? 'STILL THERE' : 'gone'}, the sound ${again.running ? 'running' : 'NOT RUNNING'}; played since: ${again.log.map(e => `${e.sound} at ${e.at.toFixed(2)}`).join(', ')}`);
+  }
   if (missing.length) console.log(`NOT PLAYED: ${missing.map(c => `${c.sound ?? 'bed'} at ${c.t}`).join(', ')}`);
   if (errors.length) console.log(`The page said: ${errors.join(' | ')}`);
-  return { result: { log, state }, bad: Boolean(missing.length || errors.length || early.length || !order) };
+  return { result: { log, state, again }, bad: Boolean(missing.length || errors.length || early.length || !order || stale) };
 }
 
 const o = parseArgs(process.argv.slice(2));
