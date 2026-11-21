@@ -2,14 +2,16 @@ import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { isUnlocked, bookState, FIND_ME } from './cards.js';
 
-// The Myndbönd page: ten short educational videos, six on the left page of the Myndbönd leaf and four on the right, as taped video
+// The Myndbönd page: eleven educational videos, seven on the left page of the Myndbönd leaf and four on the right, as taped video
 // tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan glasses, open from the
 // start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one with a `src` would play
-// in the video player as the others do. Under the left page's six videos stands a show of the game's own with no glasses
-// (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the 3D shows.
+// in the video player as the others do. After the left page's seven videos, beside the seventh in the third row, stands a show of
+// the game's own with no glasses (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the 3D
+// shows.
 // Each video shares the unlock rules of the dinosaur, animal or fossil it belongs to (cards.js isUnlocked), so the child unlocks
-// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Two
-// belong to no card and are open from the start: Heimur risaeðlanna and Hvað varð um risaeðlurnar?
+// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Three
+// belong to no card and are open from the start: Heimur risaeðlanna, Hvað varð um risaeðlurnar? and Hvernig fundum við
+// risaeðlurnar?
 
 const WIGGLE_MS = 560;
 const NOD_MS = 620;
@@ -81,6 +83,17 @@ export const BOOK_VIDEOS = [
     src: '/myndbond/loftsteinn.mp4',
     poster: videoUrl('loftsteinn-thumb.webp'),
     hue: '#4a6fa5',
+    unlock: { start: true },
+    cards: [],
+    findMe: 'book_mosi_later',
+  },
+  {
+    id: 'fundur', // how people found the dinosaurs: what came after the story's end, belonging to no card, so open from the start
+    name: 'Hvernig fundum við risaeðlurnar?',
+    title: 'Hvernig fundum við risaeðlurnar?',
+    src: '/myndbond/fundur.mp4',
+    poster: videoUrl('fundur-thumb.webp'), // the video's frame at 312.7 s: the statues in the park and the second drawing
+    hue: '#8c3f4f',
     unlock: { start: true },
     cards: [],
     findMe: 'book_mosi_later',
@@ -271,8 +284,8 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   const [left, right] = leaf.tiles;
   left.classList.add('video-tiles');
   right.classList.add('video-tiles');
-  // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across (six
-  // now), and the game's own show stands under them, alone in the middle of a third row (book.css)
+  // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across
+  // (seven now), and the game's own show follows them in the third row (book.css)
   const leftCount = threeDs.length ? Math.max(regular.length - 4, Math.ceil(regular.length / 2)) : 4;
   left.append(...regular.slice(0, leftCount).map(item => item.tile), ...ownShows.map(item => item.tile));
   right.append(...regular.slice(leftCount).map(item => item.tile));
