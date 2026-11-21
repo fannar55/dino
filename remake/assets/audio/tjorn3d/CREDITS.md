@@ -2,7 +2,8 @@
 
 ## Uggeðla's lines
 
-`t3_uggedla_hallo.mp3` ("Halló!"), `t3_uggedla_namm.mp3` ("Namm!"), `t3_uggedla_fidrildi.mp3` ("Ó, fiðrildi!") and `t3_uggedla_bless.mp3` ("Bless!"): Uggeðla's voice, made with the game's voice tools (line set `tjorn3d`, `lines.json`).
+`t3_uggedla_hallo.mp3` ("Halló!"), `t3_uggedla_namm.mp3` ("Namm!"), `t3_uggedla_fidrildi.mp3` ("Ó, fiðrildi!") and
+`t3_uggedla_bless.mp3` ("Bless!"): Uggeðla's voice, made with the game's voice tools (line set `tjorn3d`, `lines.json`).
 
 ## The real water
 

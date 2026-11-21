@@ -8,6 +8,7 @@
 //                                       [--json qa/tjorn3d/numbers.json] [--eval "js, its value printed per key"]
 //
 //   node remake/tools/tjorn3d-probe.mjs --show [--sizes 1280x800] [--query "..."] [--json qa/tjorn3d/syning/timeline.json]
+//                                              [--late 0.3 | --without-lines]
 //
 // --show walks the show itself (?chapter=tjorn3d&t=0, stepped on with window.__advance: every 0,25 s, every 0,05 s round the leap
 // and through each of her lines, and every 0,125 s through the butterfly's flight) and asks world.tjorn.measureShow() at each step
@@ -16,6 +17,10 @@
 // margins of every screen setting: printed for 9,7 to 12,9 inches in both shapes (16:10 and 4:3), the least margin to each edge
 // with its second and whose it is; then the highest point through the show, the clearances, anything inside her, and her mouth
 // and the tip of her snout through each line and while the butterfly sits.
+// --late <s>: her lines are handed to the scene so much later than the sheet says, as a voice heard that late has her mouth (the
+// scene moves her mouth from the moment a line is heard, and a recording is heard a little after it is asked for). --without-lines:
+// none is said, which is what the picture was before she spoke. The walk's moments are the same whichever is asked, so two walks
+// can be laid side by side.
 //
 // Exit code 1 when the page throws or a measure breaks the geometry (the surface's parallax, the eyes' error); a key that does not
 // keep its margin is a number, not a failure.
@@ -35,7 +40,7 @@ const MIME = {
 };
 
 function parseArgs(argv) {
-  const o = { sizes: null, keys: '1,2,3,4a,4b,4c,5,6', query: '', json: null, evalJs: '', timeout: 180, show: false };
+  const o = { sizes: null, keys: '1,2,3,4a,4b,4c,5,6', query: '', json: null, evalJs: '', timeout: 180, show: false, late: 0, mute: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--sizes') o.sizes = next();
@@ -45,6 +50,8 @@ function parseArgs(argv) {
     else if (a === '--eval') o.evalJs = next();
     else if (a === '--timeout') o.timeout = Number(next());
     else if (a === '--show') o.show = true;
+    else if (a === '--late') o.late = Number(next());
+    else if (a === '--without-lines') o.mute = true;
     else throw new Error(`Unknown argument ${a}`);
   }
   o.sizes ??= o.show ? '1280x800' : '1280x800,1024x768';
@@ -141,10 +148,10 @@ const LENGTH = 62; // s (chapters/tjorn3d/show.js)
 const RECORDED = JSON.parse(fs.readFileSync(path.join(ROOT, 'remake/assets/audio/lines.json'), 'utf8'));
 const SAID = CUES.filter(c => c.line !== undefined).map(c => ({ t: c.t, line: c.line, seconds: RECORDED[c.line]?.duration ?? 1.5 }));
 const QUARTER = 0.25;
-// from s, to s, ms a step: each line (from the quarter second before it to the one after its end and a little more, so the walk's
-// other moments stay where they were), the leap and the catch, the butterfly's flight
+// from s, to s, ms a step: each line (from the quarter second before it to the one after its end and a second more: room for a
+// line said late, and the walk's other moments stay where they were), the leap and the catch, the butterfly's flight
 const FINE = [
-  ...SAID.map(c => [Math.floor((c.t - 0.1) / QUARTER) * QUARTER, Math.ceil((c.t + c.seconds + 0.4) / QUARTER) * QUARTER, 50]),
+  ...SAID.map(c => [Math.floor((c.t - 0.1) / QUARTER) * QUARTER, Math.ceil((c.t + c.seconds + 1) / QUARTER) * QUARTER, 50]),
   [42.5, 46, 50], [50, 58.5, 125],
 ];
 const stepAt = ms => FINE.find(([from, to]) => ms >= from * 1000 && ms < to * 1000)?.[2] ?? 250;
@@ -157,10 +164,17 @@ async function walk(o, size, base) {
   let errors = [];
   await withPage(o, size, async page => {
     await page.load(`${base}?chapter=tjorn3d&t=0${o.query ? '&' + o.query : ''}`, 'window.__advance'); // (the scene has not taken a step yet: the first one starts the show, and the first moment asked is the first step's)
+    // her lines later, or not at all: the seconds of the page's own line cues are moved (the first is far from the show's start)
+    const shift = o.mute ? 1000 : o.late;
+    let shifted = !shift;
     for (let ms = 0; ms < LENGTH * 1000;) {
       const step = stepAt(ms);
       ms += step;
       rows.push(await page.evaluate(`(async () => { await window.__advance(${step / 1000}); return window.__world.tjorn.measureShow(); })()`));
+      if (!shifted) {
+        shifted = await page.evaluate(`(() => { const lines = window.__world.tjorn.lines; if (!lines || lines.log.length) return false; for (const cue of lines.lines) cue.t += ${shift}; return true; })()`);
+        if (!shifted) throw new Error('the lines could not be moved');
+      }
       if (ms % 5000 === 0) process.stderr.write(`  ${ms / 1000} s\n`);
     }
     errors = [...page.errors];
@@ -241,8 +255,8 @@ function reportShow(rows) {
   // her lines: her mouth and the tip of her snout through each (a line's seconds are its recording's, its silent end too)
   const far = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
   const most = (list, pick) => list.reduce((best, r) => (best === null || pick(r) > pick(best) ? r : best), null);
-  console.log('\n--- her lines: her mouth (how open her speaking has it, 0 to 1; her jaw in degrees from shut, whatever opened it) and the tip of her snout ---');
-  for (const said of SAID) {
+  console.log(`\n--- her lines${o.mute ? ', NOT SAID in this walk (the picture without them, at the seconds the sheet has them)' : o.late ? `, each handed to the scene ${o.late} s LATER than the sheet says (a voice heard that late)` : ''}: her mouth (how open her speaking has it, 0 to 1; her jaw in degrees from shut, whatever opened it) and the tip of her snout ---`);
+  for (const said of SAID.map(c => ({ ...c, t: Math.round((c.t + (o.mute ? 0 : o.late)) * 1000) / 1000 }))) {
     const mine = rows.filter(r => r.her && r.t >= said.t - 1e-6 && r.t <= said.t + said.seconds + 1e-6);
     if (!mine.length) { console.log(`  ${said.line.padEnd(20)} at ${f(said.t, 2, 5)} s: she is not there`); continue; }
     const before = rows.filter(r => r.her && r.t < said.t - 1e-6).at(-1) ?? mine[0];

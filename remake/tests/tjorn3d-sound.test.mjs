@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { CUES, MADE, SLOTS, RECORDINGS, LINES, SOUND, KEY, MANIFEST, cueSheet, kindOf, madeFor, bedAt, panAt, createPondSound, createLineCues } from '../chapters/tjorn3d/sound.js';
-import { LENGTH, PARTS, CALM, TURN, HOLD, SAIL, GONE, JUMP, RINGS, BUBBLE, BUBBLES, SPLASHES, RUNOFF, BUTTERFLY_TIMES, BUTTERFLY_LILY, FLIGHT, herAt, butterflyAt } from '../chapters/tjorn3d/show.js';
+import { LENGTH, PARTS, CALM, TURN, HOLD, SAIL, SINKS, GONE, JUMP, RINGS, BUBBLE, BUBBLES, SPLASHES, RUNOFF, BUTTERFLY_TIMES, BUTTERFLY_LILY, FLIGHT, herAt, butterflyAt } from '../chapters/tjorn3d/show.js';
 import { LILIES, FROG } from '../chapters/tjorn3d/keys.js';
 import { createFakeContext, withFetch } from './fake-audio.mjs';
 
@@ -347,8 +347,8 @@ test('her four lines are in the sheet, each hung on its event and after it, in o
   assert.deepEqual(SAID.map(c => c.line), ['t3_uggedla_hallo', 't3_uggedla_namm', 't3_uggedla_fidrildi', 't3_uggedla_bless']);
   assert.deepEqual(Object.keys(LINES), SAID.map(c => c.line), 'the show has these four and no other');
   assert.deepEqual(Object.values(LINES), ['Halló!', 'Namm!', 'Ó, fiðrildi!', 'Bless!']);
-  const EVENTS = { 'HOLD.from': HOLD.from, 'JUMP.gulp': JUMP.gulp, 'BUTTERFLY_TIMES.land': BUTTERFLY_TIMES.land, 'BUTTERFLY_TIMES.off': BUTTERFLY_TIMES.off };
-  assert.deepEqual(SAID.map(c => c.on), Object.keys(EVENTS), 'the hold, the gulp, the landing, the lift-off');
+  const EVENTS = { 'HOLD.from': HOLD.from, 'JUMP.gulp': JUMP.gulp, 'BUTTERFLY_TIMES.land': BUTTERFLY_TIMES.land, SINKS };
+  assert.deepEqual(SAID.map(c => c.on), Object.keys(EVENTS), 'the hold, the gulp, the landing, the start of her sinking');
   for (const cue of SAID) {
     assert.deepEqual(Object.keys(cue).sort(), ['line', 'n', 'on', 't', 'what'], `${cue.line}: a line has no level and no side of its own (the game's voice plays it)`);
     assert.equal(kindOf(cue), 'line');
@@ -367,8 +367,9 @@ test('her four lines are in the sheet, each hung on its event and after it, in o
     assert.ok(SAID[i - 1].t + recorded(SAID[i - 1].line).duration <= SAID[i].t, `${SAID[i - 1].line} is over (its whole recording) before ${SAID[i].line} is said`);
   }
   // and the show's credits name them (tools/tjorn3d-sounds.mjs writes the file)
-  const credits = fs.readFileSync(new URL('assets/audio/tjorn3d/CREDITS.md', REMAKE), 'utf8');
-  assert.match(credits, /^## Uggeðla's lines$/m);
+  const written = fs.readFileSync(new URL('assets/audio/tjorn3d/CREDITS.md', REMAKE), 'utf8');
+  assert.match(written, /^## Uggeðla's lines$/m);
+  const credits = written.replace(/\s+/g, ' '); // (its rows are broken where the width asks)
   for (const [id, text] of Object.entries(LINES)) assert.ok(credits.includes(`\`${id}.mp3\` ("${text}")`), `${id} is in CREDITS.md`);
   assert.ok(credits.includes('Uggeðla\'s voice, made with the game\'s voice tools (line set `tjorn3d`, `lines.json`)') && !/no voices/.test(credits));
 });
@@ -386,13 +387,16 @@ test('each line is said where the picture has room for it: her jaw is the timeli
   assert.ok(namm.t > JUMP.gulp && namm.t > named('gulp')[0].t + 0.5 && namm.t - JUMP.gulp < 1);
   // "Ó, fiðrildi!": the butterfly sits on her snout from before the line to the end of its recording
   through(fidrildi, t => assert.equal(butterflyAt(t).on, 'snout', `at ${t.toFixed(2)} s the butterfly sits`));
-  assert.ok(fidrildi.t >= named('chime')[0].t + 0.4, 'its two bells have rung');
-  // "Bless!": as the butterfly lifts off, while she is sinking; its recording is over before the water closes over her head
-  assert.ok(near(bless.t, BUTTERFLY_TIMES.off), 'at the lift-off, not later: the water reaches her mouth soon after it');
-  assert.equal(butterflyAt(bless.t).on, 'back');
-  assert.ok(herAt(bless.t).sink > herAt(bless.t - 0.4).sink && herAt(bless.t).there, 'she is sinking');
+  assert.ok(fidrildi.t >= named('chime')[0].t + 0.25, 'its two bells have been struck');
+  // "Bless!": the moment she begins to sink, and no later (the water is at her lips a second after, and a line is heard a little
+  // after it is asked for: tools/tjorn3d-probe.mjs --show --late); the butterfly still sits and lifts off as the word is said;
+  // its recording is over well before the water closes over her head
+  assert.ok(near(bless.t, SINKS), 'as she begins to sink');
+  assert.ok(herAt(bless.t).there && near(herAt(bless.t).sink, herAt(bless.t - 0.5).sink) && herAt(bless.t + 0.5).sink > herAt(bless.t).sink, 'she holds still until then, and sinks from then');
+  assert.equal(butterflyAt(bless.t).on, 'snout');
+  assert.ok(BUTTERFLY_TIMES.off > bless.t && BUTTERFLY_TIMES.off - bless.t < 0.6, 'the butterfly lifts off as the word is said');
   const [, , under] = SPLASHES;
-  assert.ok(bless.t + recorded(bless.line).duration < under[0] && under[0] < GONE, 'said before her head is under');
+  assert.ok(bless.t + recorded(bless.line).duration + 0.4 < under[0] && under[0] < GONE, 'said before her head is under, heard late or not');
 });
 
 test('her lines are handed out once each as the show\'s second passes them; a start past a line passes over it; played again they are said again', () => {
@@ -455,6 +459,7 @@ test('the show\'s own player plays no line, with the recordings or without them;
   assert.match(source, /lines: Object\.fromEntries\(Object\.entries\(LINES\)\.map\(\(\[id, text\]\) => \[id, \{ text, audio: id \}\]\)\),/);
   assert.match(source, /createLineCues\(\{ say: cue => \{ said\.task = s\.say\('uggedla', cue\.line, \{ hold: 0, caption: false, listen: false \}\); \} \}\)/);
   assert.match(source, /if \(time\.showing\) lines\.frame\(t\);/);
+  assert.match(source, /time\.sounding = true;\s+hush\(\);\s+lines\.start\(Math\.min\(t, time\.at\)\);\s+sound\.start\(Math\.min\(t, time\.at\)\);/, 'played on from a second inside a line (a page with t= and play=1), that line is not said and her mouth is let go; the lines from that second on are');
   assert.match(source, /hush\(\); \/\/ \(played again[^\n]*\n\s+lines\.start\(0\);/, 'played again, they are said again from the top');
   assert.match(source, /time\.showing = false;\s+sound\.end\(\);[^\n]*\n\s+hush\(\);/, 'the end stops a line that is sounding');
   assert.ok(!/createLineCues\([^\n]*(upptokur|recordings)/.test(source), 'the lines are not asked which water plays');

@@ -692,17 +692,21 @@ export const chapter = {
         const t = now();
         show.apply(t);
         view.t = t;
-        if (time.showing) lines.frame(t);
         // The sound starts with the show, in the first frame the clock moves in (a page with t= and play=1 is stepped to its
         // second in silence and stands there until the tap): from the second the show stood at, so nothing before it is heard
-        // and the bed is at the level it has there.
+        // and the bed is at the level it has there. Her lines the same: one the page passed on its way there moved her mouth in
+        // the picture it stood on, and played on from there it is not said from its middle, so her mouth is let go; the lines
+        // from that second on are said.
         if (time.showing && !still && !s.seeking) {
           if (!time.sounding && time.seen !== null && s.time !== time.seen) {
             time.sounding = true;
+            hush();
+            lines.start(Math.min(t, time.at));
             sound.start(Math.min(t, time.at));
           }
           if (time.sounding) sound.frame(t);
         }
+        if (time.showing) lines.frame(t); // (after the start above: a line due in the first frame is said)
         if (time.showing) time.at = t;
         time.seen = s.time;
         view.key = { id: 'syning', name: partAt(t)?.name ?? 'Kyrr tjörn', says: null, her: her.root.visible ? {} : null, jump: show.state.jumper ? {} : null, fish: view.fish, butterfly: show.state.onSnout ? 'snout' : null };

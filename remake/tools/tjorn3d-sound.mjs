@@ -23,7 +23,7 @@
 //             stands in for it
 //
 // Exit code 1 when the page throws, a cue of the sheet was not played, a line was not said (or was said from before the page's
-// start), or the sum's peak reaches full scale.
+// start, or mouthed on in silence after it), a still asked for sound, or the sum's peak reaches full scale.
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -370,8 +370,9 @@ async function render(o, base) {
 }
 
 /**
- * Put in the page before anything of it runs: every <audio> the page makes (the game's voice makes one for each line it plays)
- * is noted, with the show's second it was asked for, was first heard and was over at.
+ * Put in the page before anything of it runs: every <audio> the page makes for a recording (the game's voice makes one for each
+ * line it plays, with the line's address; the music makes its own with none, and is not noted) is noted, with the show's second it
+ * was asked for, was first heard and was over at.
  */
 function spyOnVoices() {
   const Real = window.Audio;
@@ -379,6 +380,7 @@ function spyOnVoices() {
   window.__voices = [];
   window.Audio = function Audio(...args) {
     const element = new Real(...args);
+    if (!args[0]) return element; // (the theme's element: engine/audio/music.js)
     const row = { askedAt: now(), heardAt: null, overAt: null, stoppedAt: null };
     window.__voices.push({ element, row });
     element.addEventListener('playing', () => { row.heardAt ??= now(); });
@@ -406,7 +408,7 @@ async function played(o, base) {
       }
     };
     const SHOWING = 'window.__world?.tjorn?.sound && window.__world.tjorn.time?.showing';
-    let before = { t: 0, running: false, log: 0 };
+    let before = { t: 0, running: false, log: 0, passed: [], voices: 0 };
     if (o.glasses) {
       // as the child opens it: the glasses' card, its tap, the pond built under the black, the show
       await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d${o.made ? '&upptokur=0' : ''}` });
@@ -417,8 +419,11 @@ async function played(o, base) {
       await page.send('Page.navigate', { url: `${base}?chapter=tjorn3d&t=${o.from}&play=1${o.made ? '&upptokur=0' : ''}` });
       await until('the page did not get ready', `window.__demoReady && ${SHOWING}`);
       await page.evaluate('window.__world.tjorn.sound.ready');
-      before = await page.evaluate('({ t: window.__world.tjorn.view.t, running: window.__world.tjorn.sound.running, log: window.__world.tjorn.sound.log.length })');
+      before = await page.evaluate(`({ t: window.__world.tjorn.view.t, running: window.__world.tjorn.sound.running, log: window.__world.tjorn.sound.log.length, passed: (window.__world.tjorn.lines?.log ?? []).slice(), voices: ${VOICES}.length, speaking: Boolean(window.__world.tjorn.her?.talking), mouth: window.__world.tjorn.her?.mouthOpen ?? 0 })`);
       await page.evaluate('document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))'); // the tap
+      // her mouth a few frames after the tap: a line the page passed on its way is let go, not mouthed on in silence
+      await sleep(150);
+      before.after = await page.evaluate(`({ t: window.__world.tjorn.view.t, speaking: Boolean(window.__world.tjorn.her?.talking), voices: ${VOICES}.length })`);
     }
     const began = Date.now();
     for (;;) {
@@ -448,23 +453,28 @@ async function played(o, base) {
   const due = SOUNDS.filter(c => c.t >= o.from - 1e-6 && c.t <= Math.min(LENGTH, state.t) - 0.05);
   const missing = due.filter(c => !log.some(e => e.n === c.n && e.played));
   // her lines as the page said them: each handed to the scene at its second, and its recording heard (the n-th <audio> the page
-  // made is the n-th line's: a line the page had fetched ahead plays from memory, under an address that does not name it)
+  // made for a recording is the n-th line's: a line the page had fetched ahead plays from memory, under an address that does not
+  // name it). The lines the page passed on its way to its start (a page with t=) were handed to the scene in the seek, where it
+  // moves her mouth and asks for no sound: they are not said, and the page's list of lines starts anew when it plays on.
   const dueLines = SAID.filter(l => l.t >= o.from - 1e-6 && l.t <= Math.min(LENGTH, state.t) - 0.05);
   const unsaid = [];
-  console.log(`\nHer lines as the page said them (the show's seconds):`);
-  console.log(`  ${pad('line', 20)} ${lead('sheet', 6)} ${lead('handed', 7)} ${lead('late ms', 7)} | ${lead('asked', 6)} ${lead('heard', 6)} ${lead('over', 6)} ${lead('file s', 6)}  hung on`);
-  said.log.forEach((e, i) => {
+  const passed = state.before.passed, spoken = said.log;
+  if (passed.length || state.before.voices) console.log(`\nOn the way to ${o.from} s the page passed ${passed.map(e => `${e.line} (${e.t.toFixed(2)} s)`).join(', ') || 'no line'}: her mouth alone; voices made before the tap: ${state.before.voices}; where it stood her mouth was ${state.before.speaking ? `speaking (open ${state.before.mouth.toFixed(2)})` : 'still'}${state.before.after ? `, and ${state.before.after.speaking && state.before.after.voices === 0 ? 'STILL SPEAKING with no voice' : state.before.after.speaking ? 'speaking a line it was handed' : 'still'} at ${state.before.after.t.toFixed(2)} s, just after the tap` : ''}`);
+  console.log(`\nHer lines as the page said them (the show's seconds; a line is heard a little after it is asked for, and her mouth moves from then):`);
+  console.log(`  ${pad('line', 20)} ${lead('sheet', 6)} ${lead('handed', 7)} ${lead('late ms', 7)} | ${lead('asked', 6)} ${lead('heard', 6)} ${lead('after ms', 8)} ${lead('over', 6)} ${lead('file s', 6)}  hung on`);
+  spoken.forEach((e, i) => {
     const voice = said.voices[i], line = SAID.find(l => l.line === e.line);
     const s2 = x => (x === null || x === undefined ? '-' : x.toFixed(2));
-    console.log(`  ${pad(e.line, 20)} ${lead(e.t.toFixed(2), 6)} ${lead(e.at.toFixed(2), 7)} ${lead(Math.round((e.at - e.t) * 1000), 7)} | ${lead(s2(voice?.askedAt), 6)} ${lead(s2(voice?.heardAt), 6)} ${lead(s2(voice?.overAt ?? voice?.stoppedAt), 6)} ${lead(s2(voice?.seconds), 6)}  ${line?.on ?? ''}${voice ? (voice.heardAt === null ? '  NOT HEARD' : voice.overAt === null ? `  (stopped at ${s2(voice.at)} s of it)` : '') : '  NO VOICE'}`);
+    const after = voice && voice.heardAt !== null && voice.askedAt !== null ? Math.round((voice.heardAt - voice.askedAt) * 1000) : '-';
+    console.log(`  ${pad(e.line, 20)} ${lead(e.t.toFixed(2), 6)} ${lead(e.at.toFixed(2), 7)} ${lead(Math.round((e.at - e.t) * 1000), 7)} | ${lead(s2(voice?.askedAt), 6)} ${lead(s2(voice?.heardAt), 6)} ${lead(after, 8)} ${lead(s2(voice?.overAt ?? voice?.stoppedAt), 6)} ${lead(s2(voice?.seconds), 6)}  ${line?.on ?? ''}${voice ? (voice.heardAt === null ? '  NOT HEARD' : voice.overAt === null ? (voice.stoppedAt === null ? '  (still sounding)' : `  (stopped ${s2(voice.at)} s into it)`) : '') : '  NO VOICE'}`);
   });
   for (const l of dueLines) {
-    const i = said.log.findIndex(e => e.line === l.line);
+    const i = spoken.findIndex(e => e.line === l.line);
     if (i < 0 || !said.voices[i] || said.voices[i].heardAt === null) unsaid.push(l.line);
   }
-  const fromBefore = said.log.filter(e => e.t < o.from - 1e-6);
-  const extra = said.voices.length - said.log.length;
-  console.log(`  ${said.log.length} lines said of the ${dueLines.length} due; voices the page made: ${said.voices.length}${fromBefore.length ? `; FROM BEFORE ${o.from} s: ${fromBefore.map(e => e.line).join(', ')}` : ''}`);
+  const fromBefore = spoken.filter(e => e.t < o.from - 1e-6);
+  const extra = said.voices.length - spoken.length + state.before.voices;
+  console.log(`  ${spoken.length} lines said of the ${dueLines.length} due; voices the page made: ${said.voices.length}${fromBefore.length ? `; FROM BEFORE ${o.from} s: ${fromBefore.map(e => e.line).join(', ')}` : ''}`);
   const early = log.filter(e => e.t < o.from - 1e-6);
   const order = log.every((e, i) => i === 0 || e.t >= log[i - 1].t);
   const late = Math.max(0, ...log.map(e => e.at - e.t));
@@ -482,7 +492,8 @@ async function played(o, base) {
   if (missing.length) console.log(`NOT PLAYED: ${missing.map(c => `${c.sound ?? 'bed'} at ${c.t}`).join(', ')}`);
   if (unsaid.length) console.log(`NOT SAID: ${unsaid.join(', ')}`);
   if (errors.length) console.log(`The page said: ${errors.join(' | ')}`);
-  return { result: { log, state, again, said }, bad: Boolean(missing.length || unsaid.length || fromBefore.length || extra > 0 || errors.length || early.length || !order || stale) };
+  const mouthed = Boolean(state.before.after?.speaking && state.before.after.voices === 0); // (a passed line mouthed on in silence)
+  return { result: { log, state, again, said }, bad: Boolean(missing.length || unsaid.length || fromBefore.length || extra > 0 || mouthed || errors.length || early.length || !order || stale) };
 }
 
 /** A still (?chapter=tjorn3d&t=<from>, no play=1), then stepped on to --until as a capture is: it must ask for no sound at all. */

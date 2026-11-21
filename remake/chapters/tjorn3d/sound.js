@@ -35,7 +35,7 @@
 // laid at a time of the audio clock that is handed to it, so the tool can lay the whole show on an offline context at once and
 // measure it (nobody on the building side can hear it). The game's effects are not touched.
 import {
-  PARTS, CALM, LENGTH, TURN, HOLD, SAIL, GONE, JUMP, BUTTERFLY_TIMES, BUTTERFLY_LILY, RINGS, BUBBLE, BUBBLES, SPLASHES, RUNOFF, FLIGHT, herAt,
+  PARTS, CALM, LENGTH, TURN, HOLD, SAIL, SINKS, GONE, JUMP, BUTTERFLY_TIMES, BUTTERFLY_LILY, RINGS, BUBBLE, BUBBLES, SPLASHES, RUNOFF, FLIGHT, herAt,
 } from './show.js';
 import { LILIES, FROG } from './keys.js';
 import { fenSounds } from '../../engine/audio/fen-sounds.js';
@@ -72,16 +72,21 @@ export const LINES = {
 };
 // When she says each: the event it is hung on, and how long after it (s). No number here is a take's length: a take may be made
 // again under the same id.
+//
+// A line is heard a little after it is asked for (the game's voice starts a recording when its second comes, and the scene moves
+// her mouth from the moment it is heard: engine/scene/scene.js; a few tenths of a second in the headless browser the tools use),
+// so a second here is the earliest the line is heard, and where the picture leaves little room the line is asked for early.
 const SAYS = [
   // she is up and looks at him; the rise's pouring has calmed and the little chord has rung
   ['t3_uggedla_hallo', 'HOLD.from', HOLD.from, 1.1, 'she is up, the water has calmed: "Halló!"'],
   // the fish is down her throat (her jaws are shut again 0.04 s after JUMP.gulp)
   ['t3_uggedla_namm', 'JUMP.gulp', JUMP.gulp, 0.4, 'the fish is down: "Namm!"'],
-  // the butterfly has settled on her snout, its two bells have rung
-  ['t3_uggedla_fidrildi', 'BUTTERFLY_TIMES.land', BUTTERFLY_TIMES.land, 0.5, 'the butterfly has settled on her snout: "Ó, fiðrildi!", softly'],
-  // As it lifts off, and not a moment later: she has been sinking for 0.4 s then, and the water reaches her mouth 0.67 s after the
-  // lift-off (tools/tjorn3d-probe.mjs --show: her mouth over the water), so the word is said while her mouth is still over it.
-  ['t3_uggedla_bless', 'BUTTERFLY_TIMES.off', BUTTERFLY_TIMES.off, 0, 'the butterfly lifts off and she is sinking: "Bless!"'],
+  // the butterfly has settled on her snout, its two bells have been struck; early enough to be over before her last word
+  ['t3_uggedla_fidrildi', 'BUTTERFLY_TIMES.land', BUTTERFLY_TIMES.land, 0.3, 'the butterfly has settled on her snout: "Ó, fiðrildi!", softly'],
+  // The moment she begins to sink, the butterfly still on her snout (it lifts off 0.4 s later, as the word is said): the water
+  // reaches her mouth 1.07 s after she begins (tools/tjorn3d-probe.mjs --show: her mouth over the water) and the word takes about
+  // 0.7 s, so it is over before the water is at her lips even when it is heard 0.3 s late. Hung on the lift-off it was not.
+  ['t3_uggedla_bless', 'SINKS', SINKS, 0, 'she begins to sink: "Bless!", and the butterfly lifts off'],
 ];
 
 const FILES = 'assets/audio/tjorn3d/hljod/'; // against remake/

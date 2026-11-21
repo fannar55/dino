@@ -431,11 +431,17 @@ function creditsMarkdown(files) {
   // her lines, as the show has them (chapters/tjorn3d/sound.js LINES): made by the game's voice tools, not by this one
   const said = Object.entries(LINES).map(([id, text]) => `\`${id}.mp3\` ("${text}")`);
   const lines = said.length > 1 ? `${said.slice(0, -1).join(', ')} and ${said.at(-1)}` : said[0];
+  // (laid in rows as wide as the rest of the file's)
+  const rowsOf = (text, width = 131) => text.split(' ').reduce((all, word) => {
+    if (all.length && `${all.at(-1)} ${word}`.length <= width) all[all.length - 1] += ` ${word}`;
+    else all.push(word);
+    return all;
+  }, []).join('\n');
   return `# Sounds in Uggeðla í tjörninni
 
 ## Uggeðla's lines
 
-${lines}: Uggeðla's voice, made with the game's voice tools (line set \`tjorn3d\`, \`lines.json\`).
+${rowsOf(`${lines}: Uggeðla's voice, made with the game's voice tools (line set \`tjorn3d\`, \`lines.json\`).`)}
 
 ## The real water
 

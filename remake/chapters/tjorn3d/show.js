@@ -68,6 +68,7 @@ const SNOUT = [-0.04, 6.27, 5.31];
 export const TURN = 32.0; // the second she turns, deep down and unseen
 export const HOLD = { from: 36.4, to: 42 }; // her head is up and still: the show's biggest moment
 export const SAIL = { up: 23.6, down: 28.6 }; // her sail is all the way up between these
+export const SINKS = 55.2; // the second she begins to sink for good, slowly at first: the butterfly still sits, and lifts off soon after
 export const GONE = 59.6; // she is deep in the murk again, and stays there
 
 // (it ends where the sail's fore end is still half a centimetre short of the butterfly's lily as it goes under)
@@ -80,7 +81,7 @@ const SINK = channel([
   // room over it at the smallest screen)
   [44.5, 8.6, 'in'], [45.3, 7.2, 'out'], [46.4, 7.4], [49, 7.5],
   // the butterfly: she holds still, then sinks, slowly at first
-  [55.2, 7.5], [GONE, DEEP, 'in'],
+  [SINKS, 7.5], [GONE, DEEP, 'in'],
 ]);
 const SWIM = channel([[8, 0.5], [19, 0.6], [22, 1], [30, 1], [TURN, 0.4]]);
 // her jaw opens 9 degrees at most (kafli2-uggedla.js JAW_MAX): open as she darts, shut on the fish as far as the fish lets it (she
