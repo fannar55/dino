@@ -32,7 +32,7 @@ import { installMurk, through } from './tjorn3d/murk.js';
 import { createCast, verticesOf } from './tjorn3d/cast.js';
 import { createShow } from './tjorn3d/play.js';
 import { createShowMeasure } from './tjorn3d/measure.js';
-import { LENGTH, FADE, partAt } from './tjorn3d/show.js';
+import { LENGTH, FADE, WARM, partAt } from './tjorn3d/show.js';
 
 const CHARS = '../assets/characters/';
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
@@ -665,8 +665,8 @@ export const chapter = {
       her.update = dt => { update.call(her, dt); show.late(); };
       const still = params.get('t') !== null && params.get('play') !== '1';
       let seeks = params.get('t') !== null;
-      const time = { from: null, started: false, showing: false, black: -1 };
-      const now = () => (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
+      const time = { from: null, started: false, showing: false, black: -1, warm: null };
+      const now = () => time.warm ?? (time.from === null ? 0 : Math.min(LENGTH, Math.max(0, s.time - time.from)));
       const frame = () => {
         if (view.dirty) fit();
         const t = now();
@@ -686,6 +686,18 @@ export const chapter = {
         }
       });
       yield s.ready();
+      // What first shows later in the show (her, the leaping fish, the fish in her jaws, the spray) is drawn once now, under the
+      // black the scene opens from: a thing's first draw builds its shaders (engine/warm-up.js), and played without this the pond
+      // stood still for 1,2 s at the second her shadow comes and for a tenth of a second as her jaws shut (the laptop's numbers).
+      // Two frames for each second: it is put in the next frame's step and drawn in the one after.
+      if (!seeks) {
+        for (const t of WARM) {
+          time.warm = t;
+          yield;
+          yield;
+        }
+        time.warm = null;
+      }
       for (;;) {
         time.started = true;
         show.reset(); // (played again: nothing is left over from the last time)

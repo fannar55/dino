@@ -274,3 +274,8 @@ export const SPLASHES = [
 // The water that runs off her as her head comes up: drops let go of her skin one by one over these seconds, most at the start
 export const RUNOFF = { from: 34.5, to: 39.0, drops: 80 };
 export const DROPS = SPLASHES.reduce((n, row) => n + row[3], 0) + RUNOFF.drops;
+
+// Seconds that between them show everything the show has: her (under the water, her sail up, her head up with the water running
+// off it), the leaping fish in the air, the fish in her jaws with the spray round it, the butterfly in flight. The page draws each
+// once under the black before the show starts (chapters/tjorn3d.js), so that nothing's first draw falls in the show.
+export const WARM = [12, 26, 38, JUMP.out + 0.5, JUMP.take + 0.76, BUTTERFLY_TIMES.up + 2];

@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PARTS, CALM, LENGTH, FADE, HOLD, HEAD, DEEP, TURN, SAIL, GONE, JUMP, FISH, BUTTERFLY_TIMES, RINGS, BUBBLES, BUBBLE, SPLASHES, RUNOFF, DROPS,
+  PARTS, CALM, LENGTH, FADE, HOLD, HEAD, DEEP, TURN, SAIL, GONE, JUMP, FISH, BUTTERFLY_TIMES, RINGS, BUBBLES, BUBBLE, SPLASHES, RUNOFF, DROPS, WARM,
   GRAVITY, partAt, herAt, jumperAt, fishAt, butterflyAt, channel,
 } from '../chapters/tjorn3d/show.js';
 
@@ -91,6 +91,14 @@ test('the big fish: up from the deep, out of the water in part 5, about 5 cm at 
   }
   // she holds the fish a moment before it goes down
   assert.ok(JUMP.gulp - JUMP.take >= 1.5 && herAt((JUMP.take + JUMP.gulp) / 2).jaw > 4, 'her jaws stay open by the fish across them');
+});
+
+test('the seconds drawn under the black before the show show everything that first comes later (no first draw falls in the show)', () => {
+  assert.ok(WARM.some(t => herAt(t).there && t < TURN), 'her, swimming');
+  assert.ok(WARM.some(t => t >= HOLD.from && t <= HOLD.to && t >= RUNOFF.from && t <= RUNOFF.to), 'her head up, the water running off it');
+  assert.ok(WARM.some(t => jumperAt(t)?.air), 'the leaping fish in the air');
+  assert.ok(WARM.some(t => t >= JUMP.take + 0.2 && t < JUMP.gulp - 0.4 && SPLASHES.some(([at]) => t > at && t - at < 0.8)), 'the fish in her jaws, spray in the air');
+  assert.ok(WARM.some(t => butterflyAt(t).on === 'over'), 'the butterfly in flight');
 });
 
 test('she never stands higher out of the water than in the hold (the smallest page has no more room over her head)', () => {
