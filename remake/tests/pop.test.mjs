@@ -637,6 +637,11 @@ test('a card, the sections\' ground and the far land at one point past 250 m tak
     }
     assert.match(material.customProgramCacheKey(), /haze/, `${name}: its program is not the one without the haze (its own key)`);
   }
+  // the look's fog is height fog (thick low down): far off, a card is fogged as the ground at its foot, not as its crown 20 m up,
+  // which stood out bright over the misty land and its own faded trunk; from 250 m, all of it from 400 m, while the far land shows
+  const cardVertex = compiled(sectionCards).vertexShader.split('#include <fog_vertex>')[1];
+  assert.match(cardVertex, /vFogWorld\.y = mix\( vFogWorld\.y, cardFoot\.y, uFarHaze\.w \* smoothstep\( 250\.0, 400\.0, cardAway \) \)/, 'a far card is fogged as at its foot');
+  assert.doesNotMatch(compiled(sectionGround).vertexShader, /cardFoot/, 'the ground is fogged where it is');
   // the haze is on while the far land shows and off where it does not, so what is not over the far land looks as it did
   const haze = Object.entries(far.uniforms).find(([key]) => afterFog(far).includes(key))[1];
   flyTo(valleyOf(true), 152, 70, 250);
