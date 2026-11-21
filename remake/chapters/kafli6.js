@@ -106,11 +106,10 @@ const WAY_TAP = 7; // m: the radius of each way's tap target, round its glow
 const HER_STOP = 9;
 const STEP_OUT = 4.5;
 const BLOW_AT = 1.1;
-// The haze after the roar: thin, the sunset's own and a little more (the bank round them hides the belt's edge: world/fjall belt.js)
-const AFTER_HAZE = 0.006;
 const VEIL_OUT = 3; // s the last wisp on the top takes to thin away, in VEIL_STEPS steps
 const VEIL_STEPS = 12;
-const AFTER_ROAR = { ...LOOKS.sunset, name: 'sunset haze', fog: { ...LOOKS.sunset.fog, density: AFTER_HAZE } };
+// After the roar: the sunset golden on the belt, a thin haze staying (the bank round them hides the belt's edge: world/fjall belt.js)
+const AFTER_ROAR = { ...LOOKS.afterRoar, name: 'after the roar' };
 // Scene 7: a tap on her head or Egill, or this long, and he floats up; how far she marches on the belt and on the top
 const HEAD_WAIT = 6;
 const MARCH = 12;

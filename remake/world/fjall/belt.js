@@ -242,7 +242,8 @@ function makeSummit(world, { look, seed }) {
     return SUMMIT.top - (SUMMIT.top - SUMMIT.under) * t * t * (3 - 2 * t) + rough * (1 - t) * t * 6;
   };
   // the game's own ground colours, no sandstone layers (at 300 m they shimmer): green on the top and its shoulders, grey rock down its steep sides
-  const grass = linear('#8fa65e'), rock = linear('#a89c86'), scree = linear('#9a9a7c');
+  // (its grass a sunny yellow-green, so the low sun on it after the roar reads gold: LOOKS.afterRoar)
+  const grass = linear('#b4b65c'), rock = linear('#b8a585'), scree = linear('#a8a27c');
   const paint = (x, z, y, ny) => [...mixRGB(mixRGB(scree, rock, smooth((0.85 - ny) / 0.3)), grass, smooth((ny - 0.72) / 0.12)), 0];
   const ground = groundMesh(heightAt, { radius: SUMMIT.foot, step: 6, colour: GREY.ground, name: 'Summit', paint: look && paint, material: look?.ground });
   ground.mesh.receiveShadow = false;

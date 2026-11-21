@@ -108,7 +108,7 @@ export const chapter = {
     if (params.get('done') === '1') {
       cloud.blowAway({ from: fwd(MEET, 9), seconds: 0.05 });
       cloud.update(0.1);
-      lightTo(world, { ...LOOKS.sunset, fog: { ...LOOKS.sunset.fog, density: Number(params.get('haze') ?? LOOKS.sunset.fog.density) } });
+      lightTo(world, { ...LOOKS.afterRoar, fog: { ...LOOKS.afterRoar.fog, density: Number(params.get('haze') ?? LOOKS.afterRoar.fog.density) } });
     }
     yield s.fade(0, 0.3);
     if (params.get('hop') === '1') { yield s.wait(1); belt.pebbles.hop(); }
@@ -116,7 +116,7 @@ export const chapter = {
     yield s.wait(BLOW);
     world.chapterState.blowAt = s.time;
     cloud.blowAway({ from: VIEW === 'after' ? fwd(MEET, 9) : HER });
-    easeLight(world, LOOKS.sunset, 3);
+    easeLight(world, LOOKS.afterRoar, 3);
     yield s.wait(6 - BLOW - 0.3);
   },
 };

@@ -115,6 +115,18 @@ LOOKS.sunset = {
   sun: { ...LOOKS.evening.sun, azimuth: 215, elevation: 10 },
   fog: { ...LOOKS.evening.fog, density: 0.004 },
 };
+// The belt the moment after Grameðla's roar (its spec: "above them the mountain top appears, golden in the sunset"): the sunset's
+// sun and sky, the sun stronger and more golden, the light from all round warm (the sky's glow on them, the ground's light gold, not
+// the evening's brown) and the exposure up a little, so the cloud's going is the brightest picture of the chapter; a thin haze stays
+// (the cloud lies round them still, below the top). Light only: the ground's own colours are as they were.
+LOOKS.afterRoar = {
+  ...LOOKS.sunset,
+  sun: { ...LOOKS.sunset.sun, color: '#ffb879', intensity: 3.4 },
+  hemi: { sky: '#ffd6b4', ground: '#b08a52', intensity: 1.0 },
+  sky: { ...LOOKS.sunset.sky, zenith: '#5f86c4', horizon: '#ffc994', glow: '#ffc27e', cloud: '#ffe6c8', cloudShade: '#c9a0a0' },
+  fog: { ...LOOKS.sunset.fog, color: '#e8c7a8', sunColor: '#ffbe84', density: 0.006 },
+  exposure: 1.2,
+};
 
 /**
  * A look `k` of the way from `a` to `b` (0 is a, 1 is b): its colours mixed as written (sRGB hex, channel by channel) and its numbers
