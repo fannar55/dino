@@ -39,6 +39,7 @@ const SEA = { from: 34, to: 2400, grow: 1.16, across: 0.42, base: -4 };
 // Its western bank, toward the low sun (LOOKS.sunset's azimuth 215: bearing -145 here), rising with distance
 const BANK = { bearing: -145, spread: 70, from: 900, to: 2000, rows: 3, cards: 18, height: [40, 380], width: [280, 460] };
 const RIM = { cards: 44, out: 5, rise: [1.5, 4], width: [20, 32] }; // puffs lying round the rim, higher than the sea: the ground goes into cloud, not over an edge
+const HEAPS = { count: 70, from: 140, to: 1500, height: [10, 46] };
 const VEIL = { at: [-27, 37], cards: 6 }; // by the south-west rim, where Grameðla climbs out of the cloud
 const WAVE = { speed: 160, width: 70 };
 
@@ -143,11 +144,19 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
       const w = RIM.width[0] + (RIM.width[1] - RIM.width[0]) * rng();
       rim.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y: FJALL.top.sea + RIM.rise[0] + (RIM.rise[1] - RIM.rise[0]) * rng(), w, h: w * 0.8, opacity: 0.95, seed: rng() * 10, flat: true, turn: rng() * Math.PI });
     }
-    rimCards = createCloudCards(world, rim, { name: 'Sea of cloud: round the rim', renderOrder: 11, seed, noise: look.noise, fogShare: 0.6 });
+    // and heaps standing out of it here and there, so far off it reads as cloud, not a flat lake
+    for (let i = 0; i < HEAPS.count; i++) {
+      const a = rng() * Math.PI * 2, d = HEAPS.from + (HEAPS.to - HEAPS.from) * rng() ** 0.7;
+      const h = HEAPS.height[0] + (HEAPS.height[1] - HEAPS.height[0]) * rng() * (0.5 + d / HEAPS.to);
+      rim.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y: FJALL.top.sea + h * 0.15, w: h * (2.2 + rng()), h, opacity: 0.9, seed: rng() * 10 });
+    }
+    rimCards = createCloudCards(world, rim, { name: 'Sea of cloud: round the rim and its heaps', renderOrder: 11, seed, noise: look.noise, fogShare: 0.4 });
+    rimCards.setGlow(0.35, '#f6e4da'); // a pale light of their own: a standing heap against the low sun went brown
     veil = createCloudCards(world, Array.from({ length: VEIL.cards }, (_, k) => ({
-      x: VEIL.at[0] + (rng() - 0.5) * 14, z: VEIL.at[1] + (rng() - 0.5) * 14, y: 1.5 + rng() * 3, w: 10 + rng() * 8, h: 6 + rng() * 5, opacity: 0.85, seed: k * 2.1 + 0.3,
-    })), { name: 'Top veil', renderOrder: 13, seed, noise: look.noise });
+      x: VEIL.at[0] + (rng() - 0.5) * 14, z: VEIL.at[1] + (rng() - 0.5) * 14, y: 0.5 + rng() * 2.5, w: 9 + rng() * 6, h: 5 + rng() * 4, opacity: 0.6, seed: k * 2.1 + 0.3,
+    })), { name: 'Top veil', renderOrder: 13, seed, noise: look.noise, fogShare: 0.2 });
     veil.setOpacity(0);
+    veil.setGlow(0.55, '#f6e4da'); // its own pale light: against the low sun a standing wisp went brown as smoke
     group.add(seaCards.mesh, bank.mesh, rimCards.mesh, veil.mesh);
   }
   // under the cards, so nothing shows through between them: a pale disc lit as they are (grey: the sea itself)

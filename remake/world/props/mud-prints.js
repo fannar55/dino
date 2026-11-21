@@ -25,6 +25,15 @@ import { FEN } from '../forest/config.js';
 //   prints.count(4);         // the number: a big cream digit (here 5) with a dark edge rises out of the water for 1.6 s
 //   prints.done(4);          // counted: its water goes still and warm gold
 //
+// Chapter 6 draws Grameðla's prints with the same code (`shape: 'theropod'`): three toes and a heel pad as a real Tyrannosaurus
+// track's (0.8 m long at size 1, the middle toe the longest, the outer two spread about 35 degrees off it), no front crescent. Each
+// print may carry its own `water`: 'pool' (as before, the default), 'none' (dry: no water mesh for it, and none at all when no print
+// has water) or 'rippling' (rings run out over its water every TREMBLE.every s, as from steps far off). `colours` sets the mud's
+// own over MUD's (a pale mountain mud for hers). The sauropod print is drawn exactly as before (tests/fen.test.mjs holds a hash of it).
+//
+//   createMudPrints(world, { prints, heightAt, size, seed, shape = 'sauropod' | 'theropod', colours })   prints: [{ ..., water }]
+//   printOutline(shape) -> (u, w) => d   the print's outline as a distance in its own frame (negative inside); printsKeepOut
+//
 // The digits are built in code as rounded strokes (Nunito's black weight, the game's face: round ends, an even, heavy stroke),
 // each a tube with an inverted hull for its edge, so the number reads against mud, reed, mist or sky; it turns to face the
 // camera as it rises. Everything runs on the game clock (world.effects and world.clock.time), so a capture lands on the same
