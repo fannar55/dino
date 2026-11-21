@@ -16,8 +16,8 @@
 // nothing is run from their folders. ffmpeg and ffprobe must be on the PATH.
 //
 // One-shots are mono, 44.1 kHz, 96 kbps, their peak at SHOT_PEAK dBFS; the bed is stereo (its two sides are only half alike,
-// which is what makes a wash wide on a tablet's two speakers) at 128 kbps, levelled by its loudness. Every file is written without tags or dates, so
-// the same sources and the same ffmpeg give the same bytes.
+// which is what makes a wash wide on a tablet's two speakers) at 128 kbps, levelled by its loudness. Every file is written without
+// tags or dates, so the same sources and the same ffmpeg give the same bytes.
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';

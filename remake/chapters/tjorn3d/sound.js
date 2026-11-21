@@ -37,10 +37,11 @@ import { fenSounds } from '../../engine/audio/fen-sounds.js';
 /** The key the sounds are tuned to: the game's theme's (assets/audio/theme.json: do re mi sol la), as numbers, since the show has no theme. */
 export const KEY = [524.28, 588.48, 660.55, 785.53, 881.73];
 
-// The numbers, in one place. The levels are set by measure, not by ear (tools/tjorn3d-sound.mjs --render: after the page's output
-// chain the rise in part 4 is the loudest moment, its peak about 3 dB under full scale and its loudest second at -16 dBFS RMS, 6 dB
-// over the loudest second outside it, the sail's parting; the small sounds are kept near it, a narrow range for a tablet's small
-// speakers; the bed alone lies at -34 dBFS RMS).
+// The numbers, in one place. The levels are set by measure, not by ear (tools/tjorn3d-sound.mjs --render, and with --made for the
+// show without the recordings: after the page's output chain the rise in part 4 is the loudest moment, its peak about 3 dB under
+// full scale (-3.1 dBFS with the recordings, -2.9 made only) and its second the loudest of the show (-18.5 dBFS RMS with the
+// recordings, -16.2 made only), 4 to 6 dB over the loudest second outside it, the sail's parting; the small sounds are kept near
+// it, a narrow range for a tablet's small speakers; the bed alone lies at -32 dBFS RMS (the real pond) or -34 (the made murmur)).
 export const SOUND = {
   master: 1.45, // the whole show's gain into the page's output
   made: 3.1, // the made sounds' gain under it (their recipes are at the game's effects' levels, which sit under its voices and its music: here they are all there is)
@@ -63,8 +64,9 @@ const own = file => `${FILES}${file}`;
  * the one played last), the gain it plays at (`level`; a file's entry in sounds.json may give its own) and the sound that plays
  * where no file is there (`instead`: a made sound, or one of RECORDINGS, whose own `instead` is a made one). The bed's is a loop.
  * The files are levelled by tools/tjorn3d-sounds.mjs (a one-shot's peak 3 dB under full scale, the bed at -24 dBFS RMS) and the
- * levels here are set by the measure of the whole show (tools/tjorn3d-sound.mjs --render; SOUND.master comes on top). Nobody on
- * the building side has heard them.
+ * levels here are set by the measure of the whole show (tools/tjorn3d-sound.mjs --render; SOUND.master comes on top). A level
+ * over 1 is no slip: a one-channel file sent through its side's panner at the middle comes out 3 dB down in each speaker. Nobody
+ * on the building side has heard them.
  */
 export const SLOTS = {
   pond: { urls: [own('pond.mp3')], level: 0.29, instead: 'water', loop: true, what: 'the bed: a still pond, a loop of 20 s or more with no single call that would be known the second time round' },
