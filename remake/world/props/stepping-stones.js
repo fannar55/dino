@@ -15,6 +15,8 @@ import { sparkleBurst } from './sparkles.js';
 //   stones.topOf(id)                         // Vector3: its top at its middle, where Mosi's front feet go
 //   stones.frogSpot(id)                      // [x, y, z] on a wrong stone, off its middle away from the step's right one (null: a right one)
 //   stones.away(id)                          // [x, z]: the way from the step's right stone to this one (the frog hops that way)
+//   stones.surfaceAt(id, x, z)               // its surface's height over (x, z), -Infinity off it (what a frog stands on)
+//   stones.matrixOf(id)                      // how it lies now (Matrix4): its rest, or a wobble
 //   stones.wobble(id)                        // a wrong stone rocks for WOBBLE.seconds and comes to rest as it lay; returns a Handle
 //   stones.glitter(id)                       // glints rise off it for GLITTER.seconds: the help's hint (a Handle); glitter(null) stops all
 //   stones.update(dt, time)                  // by hand, for a world without effects (with world.effects it runs itself)
@@ -34,6 +36,7 @@ const STONE = { right: { across: 3, up: 0.35, tap: 1.6 }, wrong: { across: 1.4, 
 const FLAT = 0.1;
 const DRY = { toward: [0.8, 0.79, 0.75], by: 0.55, mossy: 0.25, long: 1.12, spread: 1.16, lod: 0 }; // spread: its widest over its width at the water
 const WET = { band: 0.12, dark: 0.62, band_dark: 0.6, tint: [0.92, 0.98, 1.0], mossy: 1.1, shininess: 40, specular: '#2c3032' };
+const UNDER = { colour: [0.1, 0.19, 0.18], most: 0.85, depth: 0.45 };
 const WOBBLE = { seconds: 1.1, degrees: 9, swings: 2.5 };
 const GLITTER = { seconds: 3, every: 0.35 };
 const VARIANTS = 5; // the species library's rock variants (world/forest/config.js FOREST.trees.variants.rock)
@@ -87,7 +90,9 @@ function layRock(model, { across, long = 1, up, down, flat = 0, paint }) {
     pos[i * 3] = (src.pos[i * 3] - cx) * sx;
     pos[i * 3 + 1] = y;
     pos[i * 3 + 2] = (src.pos[i * 3 + 2] - cz) * sz;
-    const c = paint([src.col[i * 3], src.col[i * 3 + 1], src.col[i * 3 + 2]], y);
+    let c = paint([src.col[i * 3], src.col[i * 3 + 1], src.col[i * 3 + 2]], y);
+    // under the water it goes the river's dark green, so where the shallows by a bank are clear it reads as under them
+    if (y < 0) c = mix(c, UNDER.colour, UNDER.most * Math.min(1, -y / UNDER.depth));
     toLinear(c[0], c[1], c[2]);
     col[i * 3] = linear.r; col[i * 3 + 1] = linear.g; col[i * 3 + 2] = linear.b;
   }
