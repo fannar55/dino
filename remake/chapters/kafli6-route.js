@@ -298,7 +298,7 @@ export const SHOTS = {
     slope_ride: { position: [-2377, 241.6, 138], target: [-2418, 239.5, 168], fov: 50 },
     // the view east: close behind them on the ledge, a little to their left, they on the right of the frame, looking down over the
     // brink to the whole forest in the low sun: the glade, the river past the falls and the pool, the Fen, Þórseðla on her way
-    view_east: { position: [-2393, 244.9, 120.5], target: [-1400, 10, 34], fov: 40 },
+    view_east: { position: [-2393, 244.9, 120.5], target: [-1400, 78, 34], fov: 40 },
     // the clouds over them: from the shelf's north-east end (short of the brink), a little below them, looking up past them to the
     // mountain and its cloud
     clouds_up: { position: [-2381, 239.6, 105], target: [-2440, 270, 190], fov: 52 },

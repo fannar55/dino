@@ -44,7 +44,7 @@ export const THORSEDLA = { from: [-1180, -360], heading: 235, speed: 5, scale: 7
 const DECK = { centre: [-2760, 150], half: [330, 620], step: 120, y: 274, width: [170, 230], reach: 1700, over: 34, keep: [25, 260] };
 const CEILING = 262; // m: the far land near the slope no higher (under the deck's lowest cards)
 const WISPS = [[-2500, 150], [-2490, 112], [-2512, 190], [-2505, 72], [-2522, 230], [-2480, 168]]; // [x, z]: where the ground is about 265 m up
-const LYING = { count: 44, under: 34, w: [150, 230], h: [60, 85], above: 16 }; // more wisps where the cloud lies on the mountains round
+const LYING = { count: 48, under: 40, w: [150, 230], h: [60, 85], above: 16 }; // more wisps where the cloud lies on the mountains round
 // The far land as the view sees it (its own instance, reshaped once): the mountains' sides round the slope green under the cloud,
 // the Fen a pale patch of reed in the forest, and a line of low hills where the land ends, under the haze
 const MOUNTAIN_GREEN = { from: 80, full: 170, reach: [1900, 2600], colours: ['#7f9a4e', '#93a85a', '#6f8a46'] };
@@ -150,7 +150,9 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
   if (look) {
     const rng = seeded(seed * 53 + 2);
     deck = createCloudCards(world, deckCards, { name: 'Slope cloud deck', renderOrder: 12, seed, noise: look.noise, fogShare: 0.3 });
-    const lying = deckCards.filter(c => c.over && far.heightAt(c.x, c.z) > DECK.y - LYING.under).sort((a, b) => Math.hypot(a.x - ledge[0], a.z - ledge[1]) - Math.hypot(b.x - ledge[0], b.z - ledge[1])).slice(0, LYING.count);
+    // where the land goes up into it (or near it: a ridge's crest under it), nearest the slope first
+    const rank = c => Math.hypot(c.x - ledge[0], c.z - ledge[1]);
+    const lying = deckCards.filter(c => c.over && far.heightAt(c.x, c.z) > DECK.y - LYING.under).sort((a, b) => rank(a) - rank(b)).slice(0, LYING.count);
     wisps = createCloudCards(world, [
       ...WISPS.map(([x, z], k) => ({ x, z, y: Math.min(heightAt(x, z) + 10, DECK.y - 4), w: 70 + 20 * (k % 3), h: 34 + 8 * (k % 2), opacity: 0.9, seed: k * 1.7 + 0.4 })),
       ...lying.map((c, k) => ({ x: c.x, z: c.z, y: Math.min(far.heightAt(c.x, c.z) + LYING.above, DECK.y - 4), w: LYING.w[0] + (LYING.w[1] - LYING.w[0]) * rng(), h: LYING.h[0] + (LYING.h[1] - LYING.h[0]) * rng(), opacity: 0.8, seed: k * 2.3 + 1.1 })),
@@ -270,16 +272,24 @@ function deckOver(far, ledge, seed) {
     const w = DECK.width[0] + (DECK.width[1] - DECK.width[0]) * rng();
     cards.push({ x: x + (rng() - 0.5) * 40, z: z + (rng() - 0.5) * 40, y: DECK.y + (rng() - 0.5) * 10, w, h: w * (0.8 + 0.3 * rng()), opacity: 0.95, seed: rng() * 10, flat: true, turn: rng() * Math.PI });
   };
-  const inGrid = (x, z) => Math.abs(x - DECK.centre[0]) <= DECK.half[0] + DECK.step / 2 && Math.abs(z - DECK.centre[1]) <= DECK.half[1] + DECK.step / 2;
-  for (let x = -DECK.half[0]; x <= DECK.half[0]; x += DECK.step) for (let z = -DECK.half[1]; z <= DECK.half[1]; z += DECK.step) card(DECK.centre[0] + x, DECK.centre[1] + z);
   const S = DECK.step, R = DECK.reach;
+  const rises = (x, z) => { // the land round (x, z) goes up into the cloud
+    let high = -Infinity;
+    for (const [a, b] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) high = Math.max(high, far.heightAt(x + a * S * 1.4, z + b * S * 1.4));
+    return high > DECK.y - DECK.over;
+  };
+  const inGrid = (x, z) => Math.abs(x - DECK.centre[0]) <= DECK.half[0] + DECK.step / 2 && Math.abs(z - DECK.centre[1]) <= DECK.half[1] + DECK.step / 2;
+  for (let x = -DECK.half[0]; x <= DECK.half[0]; x += DECK.step) {
+    for (let z = -DECK.half[1]; z <= DECK.half[1]; z += DECK.step) {
+      card(DECK.centre[0] + x, DECK.centre[1] + z);
+      cards.at(-1).over = rises(DECK.centre[0] + x, DECK.centre[1] + z);
+    }
+  }
   for (let x = ledge[0] - R; x <= ledge[0] + R; x += S) {
     for (let z = ledge[1] - R; z <= ledge[1] + R; z += S) {
       if (Math.hypot(x - ledge[0], z - ledge[1]) > R || inGrid(x, z)) continue;
       if (x > ledge[0] - DECK.keep[0] && Math.abs(z - ledge[1]) < DECK.keep[1]) continue; // the sky over the ledge and the view east
-      let high = -Infinity;
-      for (const [a, b] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) high = Math.max(high, far.heightAt(x + a * S * 1.4, z + b * S * 1.4));
-      if (high > DECK.y - DECK.over) { card(x, z); cards.at(-1).over = true; }
+      if (rises(x, z)) { card(x, z); cards.at(-1).over = true; }
     }
   }
   return cards;
