@@ -1,7 +1,8 @@
 // Nothing appears or vanishes whole in front of the child (the owner's word of 2026-11-21: "Mjög mikið um pop in og pop out á trjám,
 // plöntum og dýrum ... og fuglar á bergi í gilinu við foss sitja inní klett"). A small plant grows out of the ground and shrinks back
 // into it at the edge of its distance; a critter shrinks away and grows in; a crown on screen keeps its shape at the frame's edge; a
-// far plant at the frame's edge is drawn while the camera turns slowly; and the gorge's flyers stand on rock ledges, out of the wall.
+// far plant at the frame's edge is drawn while the camera turns slowly; a far tree fades into its card over a band, never swapped in
+// one frame; and the gorge's flyers stand on rock ledges, out of the wall.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -14,6 +15,8 @@ import { crowdModelFrom, clipPose } from '../world/critters/crowd-models.js';
 import { createCrowds, CROWD_GROW } from '../world/critters/crowd.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { createBatcher, cullBatches, growAt, GROW, CULL_DISTANCE } from '../world/forest/batch.js';
+import * as batch from '../world/forest/batch.js';
+import { createCardAtlas, createCardMaterial } from '../world/forest/cards.js';
 import { createForest } from '../world/forest/forest.js';
 import { createSharedUniforms, createVegetationMaterial, createNoiseTexture, createLeafTexture } from '../world/forest/materials.js';
 import { ACTOR_GLSL } from '../world/forest/terrain.js';
@@ -237,6 +240,84 @@ test('a far plant coming in at the frame\'s edge is drawn while the camera turns
   forest.dispose();
   assert.ok(checked > 10, `${checked} far plants came in at the edge`);
   assert.deepEqual(missing.slice(0, 10), [], `${missing.length} far plants missing at the frame's edge`);
+});
+
+// ---- far trees and their cards -----------------------------------------------------------------------
+
+/** A broadleaf at its far level with a card (cards.js: placement.card), baked with a plain material, a fading one and the cards'. */
+function cardedTree() {
+  const tree = { ...placement('broadleaf', { lod: 2, x: 0, z: 0, y: 0, scale: 1.2 }), card: { uv: [0, 0, 0.12, 0.3], width: 11, height: 16, bottom: -0.2 } };
+  const batcher = createBatcher();
+  batcher.add(tree);
+  const plain = new THREE.MeshBasicMaterial(), fading = new THREE.MeshBasicMaterial();
+  const { meshes } = batcher.build(() => ({ material: plain, fadeMaterial: fading }), { cards: { material: new THREE.MeshBasicMaterial() } });
+  const ref = new THREE.Vector3(tree.x, tree.y + tree.model.height * tree.scale * 0.5, tree.z); // its mid-height, as cardFrom counts
+  return { tree, meshes, ref, plain, fading };
+}
+
+test('a far tree fades from its mesh to its card over a band round cardFrom: both drawn there, so it never swaps in one frame', () => {
+  const { cardFadeAt, cardBand } = batch;
+  assert.equal(typeof cardFadeAt, 'function', 'the card\'s share of a tree at a distance (batch.js cardFadeAt)');
+  const cardFrom = FOREST.lod.cardFrom;
+  const [from, to] = cardBand(cardFrom);
+  assert.ok(from < cardFrom && to > cardFrom && to - from >= 0.1 * cardFrom, `the band (${from}-${to} m) is round ${cardFrom} m, a tenth of it wide or more`);
+  assert.equal(cardFadeAt(from, cardFrom), 0, 'all mesh where the band begins');
+  assert.equal(cardFadeAt(to, cardFrom), 1, 'all card where it ends');
+  let last = 0;
+  for (let d = from; d <= to + 1e-9; d += 0.5) {
+    const f = cardFadeAt(d, cardFrom);
+    assert.ok(f >= last && f - last < 0.06, `${d} m: ${f.toFixed(3)}, a little more card than half a metre nearer (${last.toFixed(3)})`);
+    last = f;
+  }
+  const { meshes, ref, plain, fading } = cardedTree();
+  const card = meshes.find(m => m.userData.cards);
+  const own = meshes.filter(m => !m.userData.cards);
+  const drawn = (list, material) => list.some(m => m.visible && m.geometry.drawRange.count > 0 && (!material || m.material === material));
+  const at = d => {
+    const camera = cameraAt(new THREE.Vector3(ref.x + d, ref.y, ref.z), ref, 50);
+    cullBatches(meshes, camera, 1.5, null, cardFrom);
+    return cardFadeAt(d, cardFrom);
+  };
+  // out through the band, back in through it, out again: every distance shows the share of each that the fade gives it
+  const sweep = [0.8, 0.9, 0.95, 1, 1.03, 1.06, 1.12, 1.25, 1.12, 1.03, 0.97, 0.9, 0.8].map(k => k * cardFrom);
+  for (const d of [...sweep, ...[0.93, 0.97, 1, 1.04, 1.08, 1.2].map(k => k * cardFrom)]) {
+    const f = at(d);
+    if (f < 1) assert.ok(drawn(own), `${d.toFixed(1)} m: ${(100 * (1 - f)).toFixed(0)} % of its mesh shows, and it is drawn`);
+    if (f > 0) assert.ok(drawn([card]), `${d.toFixed(1)} m: ${(100 * f).toFixed(0)} % of its card shows, and it is drawn`);
+    // in the band its mesh is drawn by the fading material (screen-door) and not by the plain one, which never leaves a pixel out
+    if (f > 0 && f < 1) assert.ok(drawn(own, fading) && !drawn(own, plain), `${d.toFixed(1)} m: the mesh is drawn fading`);
+    if (f === 0 && d < from * 0.95) assert.ok(!drawn([card]) && !drawn(own, fading), `${d.toFixed(1)} m: the mesh alone, whole`);
+    if (f === 1 && d > to * 1.05) assert.ok(!drawn(own), `${d.toFixed(1)} m: the card alone`);
+  }
+  // one standing just past either end of the band is not drawn and dropped by turns (what was drawn stays a little past it)
+  for (const [edge, list] of [[to, own], [from, [card]]]) {
+    at(edge * (edge === to ? 0.995 : 1.005));
+    for (const k of [1.005, 0.995, 1.005]) {
+      at(edge * (edge === to ? k : 2 - k));
+      assert.ok(drawn(list), `at ${(edge * (edge === to ? k : 2 - k)).toFixed(1)} m, by the band's ${edge === to ? 'far' : 'near'} end, it stays drawn`);
+    }
+  }
+});
+
+test('in the band a pixel shows either the tree or its card, by one screen-door threshold; the plain plants never leave one out', () => {
+  const world = { wind: createWind(), q: PRESETS.tablet };
+  const valley = createPlantMaterials(world, { noise: createNoiseTexture(1), leaf: createLeafTexture(1) });
+  assert.ok(valley.solidFade && valley.thinFade, 'the valley has fading plant materials');
+  const atlas = createCardAtlas(null, [{ name: 'broadleaf', variant: 0, model: library.get('broadleaf', 0, 2) }]);
+  const cards = createCardMaterial(atlas, { fade: valley.cardFade });
+  const compiled = material => {
+    const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
+    material.onBeforeCompile(shader, null);
+    return shader;
+  };
+  const mesh = compiled(valley.solidFade).fragmentShader, thin = compiled(valley.thinFade).fragmentShader, card = compiled(cards).fragmentShader;
+  assert.ok(/if \( forestDither\(\) < vCardFade \) discard;/.test(mesh) && /if \( forestDither\(\) < vCardFade \) discard;/.test(thin), 'the mesh leaves out the pixels the card takes');
+  assert.ok(/if \( forestDither\(\) >= vCardFade \) discard;/.test(card), 'the card takes those and leaves the rest');
+  for (const [name, m] of [['solid', valley.solid], ['thin', valley.thin]]) assert.ok(!compiled(m).fragmentShader.includes('discard'), `the plain ${name} plants never leave a pixel out (early depth testing)`);
+  assert.equal(compiled(valley.solidFade).uniforms.uCardFade, compiled(cards).uniforms.uCardFade, 'one band for both');
+  valley.dispose();
+  cards.dispose();
+  atlas.dispose();
 });
 
 // ---- critters ----------------------------------------------------------------------------------------
