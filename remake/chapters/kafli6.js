@@ -152,16 +152,16 @@ const TOP_WAY = 126;
 const UNDER = 6;
 const TOP_WALK = 6;
 const TOP_PACE = 1.2;
-// Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame), from the side: her
-// head down on the ground with Mosi beyond it, and the climb from beyond Mosi on her right. on_her_head from the seat of Egill's
+// Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame): her head down on
+// the ground from behind on her right (Mosi and Egill beyond it, apart from it), and the climb from beyond Mosi on her right. on_her_head from the seat of Egill's
 // trousers ([ahead, up, right] in her frame): behind and over his shoulder, looking far ahead and a little down. top_wide from where
 // she stands on the top ([along, up, right] m: along her way back out to the rim, right of her): from ahead of them on her right,
 // back past them over the rim to the sea of cloud, where Flugeðla comes up. above_clouds from the rim where she comes up ([in, up,
 // right] m along her way in, up from the ground under the camera): from low on the top inside it, back out over the brow she comes
 // up over, the sea of cloud and the sky behind her.
 const CLIMB_FRAMES = {
-  head_down: { position: [2, -14, 3.2], target: [5, 2, 1.4], fov: 50 },
-  climb_side: { position: [5, 18, 2.6], target: [15, 2, 3.4], fov: 50 },
+  head_down: { position: [-6, -12, 3.6], target: [5, 2.5, 1.4], fov: 50 },
+  climb_side: { position: [5, 18, 4.4], target: [15, 2, 3.4], fov: 50 },
 };
 const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
 const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50 };
