@@ -1080,6 +1080,7 @@ export const show = {
   ...chapter,
   id: 'djamm',
   title: 'Djamm skógarins',
+  next: null, // the show alone hands over to no chapter (its end card has Aftur and Hætta)
   lines: {}, // none of the story's: Flugeðla's words are in the set's record, and on the screen as it plays
   startShot: 'choir_wide',
   // It starts as a video does: at once where the browser lets sound begin (the tap on its tile was the touch: main.js), else from
