@@ -91,7 +91,7 @@ const FOR_ALL = [AT_POOL(SPOTS.egill, 1), AT_POOL(SPOTS.mosi, 2.5), AT_POOL(SPOT
 const FAREWELL_FRAMES = {
   bye_sloedla: { ...POOL_SHOTS.sloedla_out, tall: { position: [-965.5, 7.0, 70.5], target: [-961, 6.6, 62.2], fov: 36 }, looks: [AT_POOL(WADE.at, 2)] },
   bye_flugedla: { position: [-947.5, 7.0, 85.2], target: [-936, 7.3, 89.6], fov: 44, tall: { position: [-946.2, 7.0, 86.4], target: [-937.5, 6.9, 89.6], fov: 36 }, looks: FOR_ALL },
-  takeoff: { position: [-940, 7.4, 99], target: [-934, 10.5, 86], fov: 58, tall: { position: [-939.5, 7.0, 97.5], target: [-934.5, 9.5, 87.5], fov: 40 }, looks: FOR_ALL },
+  takeoff: { position: [-940, 7.4, 99], target: [-934, 10.5, 86], fov: 58, tall: { position: [-940, 7.2, 98.5], target: [-933.5, 10.5, 87], fov: 50 }, looks: FOR_ALL },
   saddle_float: { position: [-939.8, 7.3, 82.8], target: [-932.4, 7.2, 87.9], fov: 42, tall: { position: [-938.4, 7.4, 84.2], target: [-932.6, 7.0, 87.9], fov: 36 }, looks: FOR_ALL.slice(0, 2) },
   saddle_come: { position: [-937, 10.5, 81], target: [-932.6, 7.7, 87.7], fov: 44, tall: { position: [-936.6, 10.6, 81.3], target: [-932.3, 7.6, 87.6], fov: 38 }, looks: FOR_ALL.slice(0, 2) },
 };

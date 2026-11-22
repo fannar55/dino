@@ -896,7 +896,7 @@ test('a save that ended chapter 5 loses nothing: its stars, places and finds are
   assert.equal(defaultChapter(run.save), 'kafli6');
 });
 
-test('scene 1 at both shapes of screen: each shot shows whom it is for, Flugeðla while she is still there', async () => {
+test('scene 1 at both shapes of screen: each shot shows whom it is for, Flugeðla until she flies out of it', async () => {
   const FOR = {
     bye_sloedla: ['sloedla'], bye_flugedla: ['flugedla', 'egill', 'mosi'], takeoff: ['flugedla', 'mosi'],
     saddle_float: ['mosi', 'egill'], saddle_come: ['mosi', 'egill'],
@@ -908,7 +908,9 @@ test('scene 1 at both shapes of screen: each shot shows whom it is for, Flugeðl
       const row = seen[shot];
       for (const who of whom) {
         const of = who === 'flugedla' ? row.flugedlaShown : row.frames;
-        assert.ok(of > 0 && row[who] / of >= 0.9, `${kind}, ${shot}: ${who} in frame ${row[who]} of ${of} frames`);
+        // in the take-off she flies out of the shot to the east before she is gone: in it for her lift-off and over half her 6 s way
+        const share = shot === 'takeoff' && who === 'flugedla' ? 0.55 : 0.9;
+        assert.ok(of > 0 && row[who] / of >= share, `${kind}, ${shot}: ${who} in frame ${row[who]} of ${of} frames`);
       }
     }
   }
