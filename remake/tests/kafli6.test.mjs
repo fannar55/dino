@@ -953,7 +953,7 @@ test("an overlay laid over another finishes the one it displaces, so nothing wai
   const scheduler = createScheduler({ onError: error => { throw error; } });
   const first = smallRoar(null, c);
   let went = false;
-  scheduler.start(function* waiting() { yield first; went = true; });
+  scheduler.start((function* waiting() { yield first; went = true; })());
   scheduler.update(1 / 30);
   dipHead(c);
   scheduler.update(1 / 30);
@@ -986,7 +986,7 @@ test('two voices never sound at once: a direct line and the help\'s queue wait f
   }
 });
 
-test('nobody touching ends at the same second as before the audit round (460.1 s), its lines in the same order', async () => {
+test('nobody touching ends within a second of 460.1 s, as before the audit round', async () => {
   const run = await untouched();
   const end = ended(run, 'untouched');
   assert.ok(Math.abs(end - 460.08) < 1, `the end at ${end.toFixed(2)} s`);
