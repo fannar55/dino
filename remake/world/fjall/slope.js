@@ -203,6 +203,9 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
       },
     },
   });
+  // with the place: hidden while another one shows (createFarFriends puts its group in the scene; prepared ahead, main.js draws the
+  // slope once in Árdalurinn's place, and her far Þórseðla stood 200 m tall in scenes 1 and 2)
+  if (friends) group.add(friends.group);
   let scaled = false;
 
   let gladeOn = false;
@@ -214,6 +217,7 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
     group, heightAt, far, ledge, grey, deck, wisps, thorsedla, plants: placements, get forest() { return forest; },
     glade(on = true) { gladeOn = Boolean(on); },
     update(dt = 0, time = 0) {
+      if (!group.visible) { far.update(-1, world.camera); return; } // not the place in view: the camera's own far plane, nothing moved
       const step = Math.min(0.1, Math.max(0, dt));
       clock += step;
       far.update(FAR.from, world.camera); // the far land shows (it is drawn in its flight's window) and the camera sees far

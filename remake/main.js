@@ -557,7 +557,8 @@ function warmDrawing() {
 
 /** Runs `fn` with a place the chapter goes to later (its built `forest`) shown in place of the one in view, and puts that back. */
 function withPlace(forest, fn) {
-  const here = { forest: world.forest, heightAt: world.heightAt };
+  // the camera's far plane too: a place that sees further while it shows (world/fjall/slope.js's far land) is not told it is hidden again
+  const here = { forest: world.forest, heightAt: world.heightAt, far: camera.far };
   here.forest.group.visible = false;
   forest.group.visible = true;
   world.forest = forest;
@@ -569,6 +570,7 @@ function withPlace(forest, fn) {
     here.forest.group.visible = true;
     world.forest = here.forest;
     world.heightAt = here.heightAt;
+    if (camera.far !== here.far) { camera.far = here.far; camera.updateProjectionMatrix(); }
     world.forest.update?.(0, clock.time);
   }
 }
