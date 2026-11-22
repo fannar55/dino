@@ -37,6 +37,25 @@ test('an old chapter 2 save (Þórseðla\'s star, no Uggeðla\'s) opens chapter 
   assert.deepEqual(save.get().places, stored.places, 'the places are as they were');
 });
 
+test('a save that ended chapter 5 opens chapter 6 and loses nothing, and so does one that ended chapter 6', () => {
+  const FIVE = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla'];
+  const stored = {
+    stars: FIVE, findings: ['beetle'], seen: ['map-route-a', 'map-route-e'], places: ['fen', 'sloedla', 'flugedla', 'uggedla'],
+    hals: { found: ['skull'], played: true }, stickers: { sloedla: 2 },
+  };
+  const storage = memoryStorage({ 'mosi-remake-v1': JSON.stringify(stored) });
+  const save = createSave(storage);
+  assert.equal(defaultChapter(save), 'kafli6', 'she goes to Grameðla');
+  assert.deepEqual(save.get(), { stars: stored.stars, findings: stored.findings, seen: stored.seen, places: stored.places });
+  assert.equal(save.getStickers().sloedla, 2, 'her stickers stay');
+  assert.equal(save.addStar('k6_gramedla'), true);
+  assert.equal(save.addStar('k6_gramedla'), false, 'her star once');
+  const after = createSave(storage);
+  assert.equal(defaultChapter(after), 'kafli6', 'the last chapter until the festival is made');
+  assert.deepEqual(after.get().stars, [...FIVE, 'k6_gramedla']);
+  assert.deepEqual(after.get().places, stored.places, 'the places are as they were');
+});
+
 test('forgetSave never throws: no storage, or one that fails', () => {
   assert.doesNotThrow(() => forgetSave(null));
   assert.doesNotThrow(() => forgetSave({ removeItem() { throw new Error('blocked'); } }));

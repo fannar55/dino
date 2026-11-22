@@ -24,7 +24,7 @@
 //   7 Egill onto her head, the march up, out of the clouds onto the top; the book
 import * as THREE from 'three';
 import { FAR_POOL } from './kafli4-route.js';
-import { SPOTS, WADE, WEST, headingTo } from './kafli5-pool.js';
+import { SPOTS, WADE, WEST, headingTo, SHOTS as POOL_SHOTS } from './kafli5-pool.js';
 import { COURAGE, sloedlaLife } from './kafli5-sloedla.js';
 import { STEPS as REED_STEPS } from './kafli5-pool.js';
 import { buildPool } from './kafli5-place.js';
@@ -80,6 +80,28 @@ const MIN_SHOT = 2.55; // s: a cut waits this long after the one before (the dir
 // Scene 1: Flugeðla lifts off and flies east, out of the pool's shot, in FLIGHT s (then she is gone: she calls the forest)
 const FLIGHT = { seconds: 6, way: [[0, 0, 0], [7, 4, -2], [26, 14, -6], [62, 28, -12]] };
 const FLOAT = 2.6; // s Egill takes to float into the saddle
+// Scene 1's shots, in Árdalurinn's metres round the far pool as chapter 5 leaves it (kafli5-pool.js SPOTS: Mosi, Egill and Flugeðla
+// on its south-east bank, all turned west; Slóeðla out in it at WADE). Slóeðla says goodbye in her own shot from chapter 5 (out in
+// the pool, from the reed's side); Flugeðla from close in front of her, Egill and Mosi behind her on the bank; her take-off low from
+// behind her, west, so she rises over them and away east into the sky; Egill floats up beside Mosi's face; and "Komdu, Egill" (and
+// the map over it) from over Mosi's left side, high enough that Egill in the saddle shows over his frill. `tall`: as MEET_FRAMES.
+const FAREWELL_FRAMES = {
+  bye_sloedla: { ...POOL_SHOTS.sloedla_out, tall: { position: [-965.5, 7.0, 70.5], target: [-961, 6.6, 62.2], fov: 36 } },
+  bye_flugedla: { position: [-947.5, 7.0, 85.2], target: [-936, 7.3, 89.6], fov: 44, tall: { position: [-946.2, 7.0, 86.4], target: [-937.5, 6.9, 89.6], fov: 36 } },
+  takeoff: { position: [-948, 6.4, 94], target: [-925, 14, 85], fov: 58, tall: { position: [-946.5, 6.3, 93.3], target: [-928, 13, 86], fov: 46 } },
+  saddle_float: { position: [-939.8, 7.3, 82.8], target: [-932.4, 7.2, 87.9], fov: 42, tall: { position: [-938.4, 7.4, 84.2], target: [-932.6, 7.0, 87.9], fov: 36 } },
+  saddle_come: { position: [-937, 10.5, 81], target: [-932.6, 7.7, 87.7], fov: 44, tall: { position: [-935.8, 10.0, 82.6], target: [-932.3, 7.4, 87.6], fov: 36 } },
+};
+/** Scene 1's shot `name` (FAREWELL_FRAMES, its `tall` frame when `tall`), labelled. */
+function farewellFrame(name, tall = false) {
+  const { tall: upright, ...wide } = FAREWELL_FRAMES[name];
+  const { position, target, fov } = tall && upright ? upright : wide;
+  return { position, target, fov, label: name };
+}
+// Their lines of sight, kept clear of plants as the pool's own are (kafli5-place.js buildPool's `views`)
+const FAREWELL_VIEWS = Object.entries(FAREWELL_FRAMES).flatMap(([name, { tall, ...wide }]) => [wide, tall].map(frame => ({
+  shot: name, position: frame.position, looks: [frame.target],
+})));
 // Scene 2: how long they look down the falls, at its lip (where they look); when a frog that hops off its stone lands in the water
 // (world/critters/critters.js HOP: crouch and leap; from its second hop on it turns round first)
 const FALLS_HOLD = 4;
@@ -209,19 +231,26 @@ function* farewell(s, c) {
   mark(c, 1);
   const { mosi, egill, flugedla, sloedla } = c;
   sound(s, c, 'fen');
+  const shot = name => farewellFrame(name, tallScreen(c));
   yield s.wait(2.4); // the pool as chapter 5 left it, looking west
-  cut(s, c, 'pool_saddle');
+  // Slóeðla, out in the pool: they come after with the whole forest
+  cut(s, c, shot('bye_sloedla'));
   for (const who of [mosi, egill]) yield who.lookAt({ actor: 'sloedla', part: 'head' }, { weight: 0.7, maxAngle: 80, maxPitch: 35 });
   yield sloedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
   yield s.wait(0.8);
   yield* say(s, c, 'sloedla', 'k6_sloedla_follow');
+  // Flugeðla, close, Egill and Mosi behind her: she calls the forest, and lifts off over them and away east
+  cut(s, c, shot('bye_flugedla'));
   yield flugedla.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 45 });
   for (const who of [mosi, egill]) yield who.lookAt({ actor: 'flugedla', part: 'head' }, { weight: 0.7, maxAngle: 80, maxPitch: 35 });
   yield* say(s, c, 'flugedla', 'k6_flugedla_call');
+  yield s.until(() => s.time >= c.lastCut + MIN_SHOT);
+  cut(s, c, shot('takeoff'));
   yield* flyAway(s, c);
-  // Egill into the saddle
+  // Egill into the saddle: he floats up beside Mosi's face
   for (const who of [mosi, egill]) yield who.lookAt(null);
   yield egill.lookAt({ actor: 'mosi', part: 'head' }, { weight: 0.7, maxPitch: 30 });
+  cut(s, c, shot('saddle_float'));
   c.saddle.show();
   sound(s, c, 'saddle');
   yield s.wait(0.6);
@@ -229,6 +258,8 @@ function* farewell(s, c) {
   yield floatTo(egill.raw, c.saddle, { duration: FLOAT });
   c.riding = ride(egill.raw, c.saddle, { settle: 0 });
   yield egill.lookAt(null);
+  // "Komdu, Egill": from over Mosi's side, Egill in the saddle; the map comes up over this shot
+  cut(s, c, shot('saddle_come'));
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 35 });
   yield* say(s, c, 'mosi', 'k6_mosi_come');
   // the map: piece f up the mountain into the clouds, and why they go there
@@ -1128,7 +1159,7 @@ export const chapter = {
   start: 'ardalur',
   locations: {
     // Árdalurinn round the far pool, as chapter 5 leaves it, and the ford above the falls, with chapter 6's lines of sight kept clear
-    ardalur: { build: world => buildPool(world, { at: [FORD.centre], views: ARDALUR_VIEWS, keep: ARDALUR_KEEP }), shots: SHOTS.ardalur },
+    ardalur: { build: world => buildPool(world, { at: [FORD.centre], views: [...ARDALUR_VIEWS, ...FAREWELL_VIEWS], keep: ARDALUR_KEEP }), shots: SHOTS.ardalur },
     hlid: { build: world => createSlope(world), shots: SHOTS.hlid },
     sky: { build: world => createBelt(world, { prints: PRINTS, printSize: PRINT_SIZE, reduced: reducedMotion(world), clear: BELT_CLEAR }), shots: SHOTS.sky },
     toppur: { build: world => createTop(world), shots: SHOTS.toppur },
@@ -1153,7 +1184,9 @@ export const chapter = {
 
   warmUp(world) {
     const objects = [...world.actors.values()].map(actor => actor.root);
-    return { objects, shots: ['pool_west', 'pool_saddle', 'ford_arrive'], dispose() {} };
+    const tall = world.camera.aspect < 1;
+    const farewell = Object.keys(FAREWELL_FRAMES).map(name => farewellFrame(name, tall));
+    return { objects, shots: ['pool_west', ...farewell, 'ford_arrive'], dispose() {} };
   },
   shots: {}, // every shot belongs to its place: chapter.locations.<place>.shots
 

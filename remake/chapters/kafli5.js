@@ -871,7 +871,7 @@ export { SHOWS };
 export const chapter = {
   id: 'kafli5',
   title: 'Boð til Slóeðlu',
-  next: null, // the last chapter so far
+  next: 'kafli6', // "Áfram": the invitation for Grameðla
   look: 'goldenAfternoon',
   // Her song's own tempo and key, and no file: the page plays no theme under this chapter (the band's loop and Flugeðla's set are
   // its music, below), and the forest dances and the effects ring on the song's beat and notes (engine/audio/theme.js).

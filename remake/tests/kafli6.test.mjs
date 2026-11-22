@@ -9,6 +9,13 @@ import * as kafli6 from '../chapters/kafli6.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { CLOUD_BY_PRINT, FORD, STEPS, CALL, callStand } from '../chapters/kafli6-route.js';
 import { SHAPE, STEP_OUT, SNIFF } from '../chapters/kafli6-gramedla.js';
+import * as kafli5 from '../chapters/kafli5.js';
+import { createSave, defaultChapter } from '../engine/save.js';
+import { renderMap } from '../engine/book/map-page.js';
+import { parseCards, bookState, isUnlocked } from '../engine/book/cards.js';
+import { BOOK_VIDEOS, isVideoUnlocked } from '../engine/book/videos.js';
+import { FakeDocument } from './fake-dom.mjs';
+import fs from 'node:fs';
 
 const { chapter, WORDS } = kafli6;
 const FRAME = 1 / 30;
@@ -24,10 +31,10 @@ const inFrame = (point, camera) => {
  * the run sees on the way: the big characters shown outside scene 1, every aimed target out of frame while its task waits, the
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
-function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [], music: [] };
+function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620, savedWith = null } = {}) {
+  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [], music: [], farewell: {} };
   return playUnattended(kafli6, {
-    seeking, limit, shaped: true, aspect, reduced, pauses,
+    seeking, limit, shaped: true, aspect, reduced, pauses, savedWith,
     onFrame(frame) {
       const { world, director, t } = frame;
       // the harness has the smiling sun (createSunFace) but not main.js's Mosi cloud: the smallest stand-in, a sprite of its name
@@ -73,6 +80,7 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
         if (Math.abs(t - (pause.at + pause.seconds + FRAME)) < FRAME / 2) (seen.around[key] ??= {}).after = c.cloud?.level ?? null;
       }
       watchMountain(world, c, seen.mountain);
+      watchFarewell(world, c, seen.farewell);
       watchHer(world, c, seen.her);
       watchClimb(world, c, seen.climb);
       child?.(c, frame, seen);
@@ -99,6 +107,19 @@ function watchFord(world, c, seen) {
     pitch: THREE.MathUtils.radToDeg(mosi.model.rotation.z), seat: c.saddle.seat.clone(), egill: egill.root.position.clone(),
     stones: Object.fromEntries(WRONG.map(id => [id, c.stones.matrixOf(id).elements.slice()])), frogs,
   });
+}
+
+/** Scene 1, each frame: for each shot, how many frames it held and in how many each big character's head was in it (shown). */
+function watchFarewell(world, c, seen) {
+  if (c.scene !== 1 || !c.shotLabel) return;
+  const row = (seen[c.shotLabel] ??= { frames: 0, mosi: 0, egill: 0, flugedla: 0, sloedla: 0, flugedlaShown: 0 });
+  row.frames++;
+  for (const who of ['mosi', 'egill', 'flugedla', 'sloedla']) {
+    const actor = world.actors.get(who);
+    if (!actor.root.visible) continue;
+    if (who === 'flugedla') row.flugedlaShown++;
+    if (inFrame(actor.headPosition(new THREE.Vector3()), world.camera)) row[who]++;
+  }
 }
 
 /** The mountain as the chapter plays it (world/fjall): the glade's glow on the slope, the pebbles, the top's shape, the last wisp. */
@@ -754,4 +775,141 @@ test('the prints squelch, Mosi roars a little, her steps thump, and the cloud ha
   const blow = c.chapterLog.find(e => e.type === 'blow');
   assert.ok(wind[0].at < print.at && wind[0].level > 0, 'the wind as they go into the cloud');
   assert.ok(wind.some(e => e.level === 0 && Math.abs(e.at - blow.at) < 0.05), 'and gone as the cloud blows away');
+});
+
+// The start, the end and the save (the plan's Task 14): the chapter a save opens, the hand-over from chapter 5, the map's piece f
+// and her star, the book, a second play, and a save from chapter 5's end that loses nothing.
+
+const FIVE = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla'];
+const saveWith = stars => {
+  const save = createSave(null);
+  for (const star of stars) save.addStar(star);
+  return save;
+};
+// a child who comes from chapter 5's end: its five stars, the places chapter 3's lookout gives, two finds and the map's pieces a to
+// e seen drawn; and one who has played this chapter to its end before
+const PLACES = ['fen', 'sloedla', 'flugedla', 'uggedla'];
+const FINDS = ['beetle', 'dragonfly'];
+const SEEN = ['a', 'b', 'c', 'd', 'e'].map(id => `map-route-${id}`);
+const fromFive = () => play('fromFive', { seeking: false, savedWith: s => { FIVE.forEach(id => s.addStar(id)); PLACES.forEach(id => s.addPlace(id)); FINDS.forEach(id => s.addFinding(id)); SEEN.forEach(id => s.addSeen(id)); } });
+const again = () => play('again', { seeking: false, savedWith: s => { [...FIVE, 'k6_gramedla'].forEach(id => s.addStar(id)); PLACES.forEach(id => s.addPlace(id)); [...SEEN, 'map-route-f'].forEach(id => s.addSeen(id)); } });
+/** The book's map over `save` (engine/book/map-page.js); `reduced`: as a page that asks for less motion. */
+function mapOf(save, { reduced = false } = {}) {
+  const doc = new FakeDocument();
+  const leaf = { el: doc.createElement('div'), tiles: [doc.createElement('div'), doc.createElement('div')] };
+  leaf.el.append(...leaf.tiles);
+  return renderMap(leaf, { save, win: { matchMedia: () => ({ matches: reduced }) }, liveMap: () => null });
+}
+
+test('defaultChapter opens chapter 6 after Slóeðla and keeps every earlier answer', () => {
+  const cases = [[[], 'kafli1'], [FIVE.slice(0, 1), 'kafli2'], [FIVE.slice(0, 2), 'kafli3'], [FIVE.slice(0, 3), 'kafli4'],
+    [FIVE.slice(0, 4), 'kafli5'], [FIVE, 'kafli6'], [[...FIVE, 'k6_gramedla'], 'kafli6'],
+    [['k1_kambedla', 'k2_thorsedla'], 'kafli2'], // an old chapter 2 save still meets Uggeðla
+    [['k1_kambedla', 'k2_uggedla', 'k4_flugedla'], 'kafli3'], // Flugeðla's star alone does not skip Þórseðla
+    [[...FIVE.slice(0, 4), 'k6_gramedla'], 'kafli5']]; // nor Grameðla's Slóeðla
+  for (const [stars, want] of cases) assert.equal(defaultChapter(saveWith(stars)), want, `stars ${stars.join(', ') || 'none'}`);
+});
+
+test('kafli5 hands over to kafli6 (kafli5.chapter.next), and kafli6 to none yet (chapter.next === null)', () => {
+  assert.equal(kafli5.chapter.next, 'kafli6');
+  assert.equal(chapter.next, null, 'the festival is not made yet');
+});
+
+test("scene 1 draws map piece f once, with Mosi's, Egill's and Mosi's lines said while the map is up", async () => {
+  for (const [kind, playKind] of [['from chapter 5', fromFive], ['untouched', untouched]]) {
+    const run = await playKind();
+    ended(run, kind);
+    assert.deepEqual(run.moments.flatMap(moment => moment.ids), ['f'], `${kind}: piece f, once: from her pool into the mist`);
+    const [moment] = run.moments;
+    assert.ok(moment.at >= sceneAt(run, 1) && moment.closeAt < sceneAt(run, 2), `${kind}: in scene 1 (${moment.at.toFixed(1)} to ${moment.closeAt?.toFixed(1)} s)`);
+    const said = ['k6_mosi_map', 'k6_egill_hers', 'k6_mosi_why'].map(id => run.seen.spokenAt.get(id));
+    assert.ok(said[0] < said[1] && said[1] < said[2], `${kind}: in their order`);
+    for (const at of said) assert.ok(at >= moment.at && at < moment.closeAt, `${kind}: said while it is up (${at.toFixed(1)} s)`);
+    assert.ok(run.seen.spokenAt.get('k6_mosi_come') < moment.at, `${kind}: after "Komdu, Egill"`);
+    assert.equal(run.save.get().seen.filter(id => id === 'map-route-f').length, 1, `${kind}: kept as seen once`);
+  }
+});
+
+test('her star stars the map: her slot done, piece f reached, nothing ahead, the mist open', async () => {
+  const run = await fromFive();
+  ended(run, 'from chapter 5');
+  const map = mapOf(run.save);
+  assert.equal(map.stateOf('gramedla'), 'done', 'her slot has its star');
+  assert.equal(map.routeOf('f'), 'drawn', 'piece f is reached, and was seen drawn in scene 1');
+  assert.equal(map.next(), null, 'nothing is ahead: every friend is reached');
+  map.show(0);
+  assert.equal(map.mistOpen(), true, 'the mist is drawn back from her');
+  assert.equal(mapOf(run.save, { reduced: true }).mistOpen(), true, 'and simply open with less motion');
+  // before her star she was the way ahead, in the mist
+  const before = mapOf(saveWith(FIVE));
+  assert.equal(before.next(), 'f');
+  assert.equal(before.stateOf('gramedla'), 'empty');
+  before.show(0);
+  assert.equal(before.mistOpen(), false);
+});
+
+test('the book has her card and her video after the star, and not before', async () => {
+  const run = await fromFive();
+  ended(run, 'from chapter 5');
+  const cards = parseCards(JSON.parse(fs.readFileSync(new URL('../assets/book/cards.json', import.meta.url), 'utf8')));
+  const card = cards.find(entry => entry.id === 'gramedla');
+  const video = BOOK_VIDEOS.find(entry => entry.id === 'gramedla');
+  const was = bookState(saveWith(FIVE));
+  const now = bookState(run.save);
+  assert.equal(isUnlocked(card, was), false, 'her card waits before her star');
+  assert.equal(isVideoUnlocked(video, was), false, 'and so does her video');
+  assert.equal(isUnlocked(card, now), true, 'her card opens with k6_gramedla');
+  assert.equal(isVideoUnlocked(video, now), true, 'and her video');
+});
+
+test('played again with k6_gramedla already in the save: no second star, map-route-f once in seen', async () => {
+  const run = await again();
+  ended(run, 'played again');
+  const { stars, seen, places } = run.save.get();
+  assert.deepEqual([...stars].sort(), [...FIVE, 'k6_gramedla'].sort(), `no second star: ${stars}`);
+  assert.equal(seen.filter(id => id === 'map-route-f').length, 1, `piece f seen once: ${seen}`);
+  assert.deepEqual(places, PLACES, 'the places as they were');
+  assert.deepEqual(run.moments.flatMap(moment => moment.ids), ['f'], 'the map still draws the way in scene 1');
+  assert.ok(run.seen.spokenAt.has('k6_mosi_star') && run.seen.spokenAt.has('k6_mosi_room'), 'the lines are said all the same');
+  assert.equal(defaultChapter(run.save), 'kafli6', 'and the save still opens chapter 6');
+});
+
+test('the chapter ends in the book on the dinosaurs with Grameðla nodding, then the map', async () => {
+  for (const [kind, playKind] of [['untouched', untouched], ['from chapter 5', fromFive], ['played again', again]]) {
+    const run = await playKind();
+    const end = ended(run, kind);
+    assert.ok(run.seen.spokenAt.get('k6_mosi_room') < end, `${kind}: her room is said, then the book`);
+    assert.deepEqual(run.book.opened.map(([tab]) => tab), ['dinosaurs', 'map'], `${kind}: the book, twice`);
+    assert.deepEqual(run.book.nods, ['gramedla', null], `${kind}: her tile nods`);
+    assert.equal(run.book.isOpen, true, `${kind}: and it stays open`);
+  }
+});
+
+test('a save that ended chapter 5 loses nothing: its stars, places and finds are all there at the end', async () => {
+  const run = await fromFive();
+  ended(run, 'from chapter 5');
+  const { stars, places, findings, seen } = run.save.get();
+  assert.deepEqual(stars, [...FIVE, 'k6_gramedla'], 'her star after the five');
+  assert.deepEqual(places, PLACES);
+  assert.deepEqual(findings, FINDS);
+  for (const id of SEEN) assert.ok(seen.includes(id), `${id} is still seen`);
+  assert.equal(defaultChapter(run.save), 'kafli6');
+});
+
+test('scene 1 at both shapes of screen: each shot shows whom it is for, Flugeðla while she is still there', async () => {
+  const FOR = {
+    bye_sloedla: ['sloedla'], bye_flugedla: ['flugedla', 'egill', 'mosi'], takeoff: ['flugedla', 'mosi'],
+    saddle_float: ['mosi', 'egill'], saddle_come: ['mosi', 'egill'],
+  };
+  for (const [kind, playKind] of [['wide', untouched], ['upright', upright]]) {
+    const seen = (await playKind()).watched.farewell;
+    assert.deepEqual(Object.keys(seen), Object.keys(FOR), `${kind}: the farewell's shots, in order`);
+    for (const [shot, whom] of Object.entries(FOR)) {
+      const row = seen[shot];
+      for (const who of whom) {
+        const of = who === 'flugedla' ? row.flugedlaShown : row.frames;
+        assert.ok(of > 0 && row[who] / of >= 0.9, `${kind}, ${shot}: ${who} in frame ${row[who]} of ${of} frames`);
+      }
+    }
+  }
 });

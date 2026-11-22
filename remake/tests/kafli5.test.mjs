@@ -598,20 +598,20 @@ const apart = (a, b) => Math.abs((((a - b) % 360) + 540) % 360 - 180);
 const fromFour = () => play('fromFour', { savedWith: s => { EARLIER.forEach(id => s.addStar(id)); ['fen', 'sloedla', 'flugedla', 'uggedla'].forEach(id => s.addPlace(id)); } });
 const again = () => play('again', { savedWith: s => { [...EARLIER, 'k5_sloedla'].forEach(id => s.addStar(id)); ['fen', 'sloedla', 'flugedla', 'uggedla'].forEach(id => s.addPlace(id)); } });
 
-test('defaultChapter opens chapter 5 after Flugeðla and keeps every earlier answer', () => {
+test('defaultChapter opens chapter 5 after Flugeðla and chapter 6 after Slóeðla, and keeps every earlier answer', () => {
   const cases = [[[], 'kafli1'], [['k1_kambedla'], 'kafli2'], [['k1_kambedla', 'k2_uggedla'], 'kafli3'],
     [['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'], 'kafli4'],
     [EARLIER, 'kafli5'],
-    [[...EARLIER, 'k5_sloedla'], 'kafli5'],
+    [[...EARLIER, 'k5_sloedla'], 'kafli6'],
     [['k1_kambedla', 'k2_thorsedla'], 'kafli2'], // an old chapter 2 save still meets Uggeðla
     [['k1_kambedla', 'k2_thorsedla', 'k4_flugedla'], 'kafli2'], // and so does one that flew with Flugeðla before it met her
     [['k1_kambedla', 'k2_uggedla', 'k4_flugedla'], 'kafli3']]; // Flugeðla's star alone does not skip Þórseðla
   for (const [stars, want] of cases) assert.equal(defaultChapter(saveWith(stars)), want, `stars ${stars.join(', ') || 'none'}`);
 });
 
-test('kafli4 hands over to kafli5, and kafli5 to none yet', () => {
+test('kafli4 hands over to kafli5, and kafli5 to kafli6', () => {
   assert.equal(kafli4.chapter.next, 'kafli5');
-  assert.equal(chapter.next, null, 'chapter 6 is not made yet');
+  assert.equal(chapter.next, 'kafli6', 'the invitation for Grameðla');
 });
 
 test('scene 1 draws map piece e, and her star stars it', async () => {
