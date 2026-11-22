@@ -8,6 +8,9 @@
 //   const roar = smallRoar(s, c, { seconds })        -> Handle, done when his head is down again (neck, head and jaw: SMALL_ROAR)
 //   pointWithHead(c, point, { seconds })             -> Handle: he looks at point and jabs his head toward it twice (the call's help)
 //   const dip = dipHead(c); ... dip.up()             his head lowered while she sniffs Egill (DIP); up() -> Handle, done when up
+//   const run = runBeside(s, c, points, { speed, pant })   -> Handle, done as he stops: his walk along `points` beside her up to the
+//                                                    top (scene 7) as fast as his feet keep up; with `pant` he then puffs (puffs)
+//   puffs(c, { seconds })                            -> Handle: his neck and head bob as he gets his breath back, where he stands
 //
 // Each runs on the actor's own update (the game clock), so the book's pause holds it.
 import * as THREE from 'three';
@@ -212,6 +215,43 @@ export function pointWithHead(c, point, { seconds = POINT.seconds } = {}) {
       end();
       return false;
     },
+  });
+  return handle;
+}
+
+/**
+ * Running beside her up the last slope (scene 7): his walk at `speed` m/s (its clip runs at up to three times its own pace, 1.23 m/s,
+ * engine/actor.js walkTo, so his feet keep to the ground). And once he stands on the top, puffing: his neck and head bob `rate`
+ * times a second (degrees at the most), fading out over the last `fade` of `seconds`.
+ */
+export const BESIDE = { speed: 3.3, turnRate: 60 };
+export const PANT = { seconds: 9, rate: 1.6, neck: 4, head: 3, fade: 2.5 };
+
+export function runBeside(s, c, points, { speed = BESIDE.speed, pant = false } = {}) {
+  const actor = c.mosi.raw;
+  const going = actor.walkTo(points, { speed, turnRate: BESIDE.turnRate });
+  if (!pant) return going;
+  const handle = new Handle(`${actor.name} runs beside her`);
+  s.after(0, function* thenPuff() {
+    yield going;
+    handle.finish();
+    puffs(c);
+  });
+  return handle;
+}
+
+/** He puffs where he stands: his neck and head bob, fading out over PANT.seconds (on his overlay, as his little roar). A Handle. */
+export function puffs(c, { seconds = PANT.seconds } = {}) {
+  const actor = c.mosi.raw;
+  const handle = new Handle(`${actor.name} puffs`);
+  let t = 0;
+  const done = lay(actor, (dt, bones) => {
+    t += dt;
+    const left = smooth((seconds - t) / PANT.fade) * smooth(t / 0.4);
+    const beat = Math.sin(2 * Math.PI * PANT.rate * t);
+    bones.pitchNeck(PANT.neck * beat * left);
+    bones.pitchHead(-PANT.head * 0.5 * beat * left);
+    if (t >= seconds || actor.walking) { done(); handle.finish(); }
   });
   return handle;
 }

@@ -17,7 +17,11 @@
 //                                         blowAway, a Handle) ROAR.blow s into it
 //   her.nod()                             two dips and a snort, a Handle
 //   her.points()                          { root, head, snout, heading } in the world now (Vector3s, degrees)
-//   her.lean                              her lean (createLean), for her seat and march (Task 11)
+//   yield* her.headDown()                 her head down on the ground before them, slowly: an invitation (kafli6-seat.js HEAD_DOWN:
+//                                         her lean, her head tipped and her hips forward, her feet where they are)
+//   yield* her.rise()                     up again, her head level (Egill on it)
+//   her.trampUp(points, { speed, clip })  her stride (STRIDE.speed m/s) along `points` ([x, z]), a Handle; with clip 'walk' her walk
+//   her.lean, her.hips                    her lean (createLean) and hips (kafli6-seat.js createHips)
 //   her.seen / her.tint                   how much of her is drawn (0 to 1) and how dark the cloud's tint is (1: all tint)
 //   her.place, face, walk, idle, roar, show, shown, dispose   as chunk 1's placeholder had them (scene 7 walks her with them)
 //
@@ -27,12 +31,15 @@ import { Handle } from '../engine/handle.js';
 import { createLean } from '../engine/pose/lean.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { CALL, herAt } from './kafli6-route.js';
+import { HEAD_DOWN, createHips, headDownPose } from './kafli6-seat.js';
 
 /**
  * How fast she walks (m/s); her roar clip's pace (a little slow: she is big, and at its own pace her snout moves 0.19 m a frame) and
  * how long it holds before she goes back to standing (s).
  */
 export const HER = { walk: 1.1, roarPace: 0.75, roar: 3.4 };
+/** Her stride up to the top (m/s: the clip's own pace, trex.glb `stride`, 4.2 m in 1.9 s), and a footfall every `footfall` s. */
+export const STRIDE = { speed: 2.2, footfall: 0.95 };
 /**
  * Her shape in the call: the tint's colour and the cloud's white it is laid over (createTint), how much of the tint is seen by round,
  * how far to Mosi's right of straight ahead she stands when she answers from ahead (degrees: shapePlace), how long she takes to come
@@ -137,9 +144,10 @@ export function gramedlaLife(s, c) {
   const actor = c.gramedla.raw;
   const world = actor.world;
   const lean = createLean(actor);
+  const hips = createHips(actor);
   const tint = createTint(actor.model);
   // what she is now: her lean, how much of her is drawn, how dark, hidden
-  const now = { theta: 0, turn: 0, roll: 0, pitch: 0, seen: 1, tint: 0 };
+  const now = { theta: 0, turn: 0, roll: 0, pitch: 0, hips: 0, seen: 1, tint: 0 };
   const tweens = new Map(); // key -> { from, to, t0, seconds, handle }
   const bumps = []; // { key, amount, t0, seconds } added on top: dips, breaths
   let clock = 0;
@@ -183,6 +191,7 @@ export function gramedlaLife(s, c) {
     const seen = value('seen');
     actor.root.visible = !hidden && seen > 0.003;
     tint.set(value('tint'), seen);
+    hips.set(value('hips')); // before the lean: her pitch turns her head back up by as much
     lean.set({ theta: value('theta') + bumped('theta'), turn: value('turn'), roll: value('roll'), pitch: value('pitch') + bumped('pitch') });
   });
 
@@ -412,13 +421,34 @@ export function gramedlaLife(s, c) {
     return handle;
   }
 
+  /** Her head down on the ground before them (scene 7), slowly: an invitation; a soft breath as her chin comes to rest. */
+  function* headDown() {
+    const down = headDownPose(actor, lean, hips);
+    note('headDown', { down });
+    yield s.all(...easeAll({ theta: down.theta, pitch: down.pitch, hips: down.hips, turn: 0, roll: 0 }, HEAD_DOWN.seconds));
+    sfx('gramedlaExhale', { level: 0.45 });
+    note('headIsDown');
+  }
+
+  /** Up again with Egill on her head, her head level all the way. */
+  function* rise() {
+    note('rising');
+    yield s.all(...easeAll({ theta: 0, pitch: 0, hips: 0, turn: 0, roll: 0 }, HEAD_DOWN.rise));
+    note('risen');
+  }
+
+  /** Her stride along `points` ([x, z]), or with `clip` 'walk' her walk: a Handle, done as she stops. */
+  function trampUp(points, { speed = STRIDE.speed, clip = 'stride' } = {}) {
+    return actor.walkTo(points, { speed, turnRate: 30, clip });
+  }
+
   function points() {
     actor.root.updateMatrixWorld(true);
     return { root: actor.root.position.clone(), head: actor.headPosition(new THREE.Vector3()), snout: lean.snout(new THREE.Vector3()), heading: actor.heading };
   }
 
   return {
-    hide, show, shape, fadeOut, stepOut, tilt, bowAndSniff, roarYes, nod, points, lean, roar, hold,
+    hide, show, shape, fadeOut, stepOut, tilt, bowAndSniff, roarYes, nod, headDown, rise, trampUp, points, lean, hips, roar, hold,
     get shown() { return actor.root.visible; },
     get seen() { return hidden ? 0 : now.seen; },
     get tint() { return now.tint; },
@@ -426,6 +456,6 @@ export function gramedlaLife(s, c) {
     face(heading) { return actor.turnTo(heading, { rate: 35 }); },
     walk(points, { speed = HER.walk } = {}) { return actor.walkTo(points, { speed, turnRate: 30 }); },
     idle() { actor.play('idle', { fade: 0.6 }); },
-    dispose() { actor.setOverlay(null); lean.release(); tint.dispose(); },
+    dispose() { actor.setOverlay(null); hips.release(); lean.release(); tint.dispose(); },
   };
 }

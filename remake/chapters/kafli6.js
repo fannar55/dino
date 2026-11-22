@@ -22,6 +22,7 @@
 //   5 the call, three rounds: Mosi roars a little, she answers from a side, the fog glows gold there, Egill shows the way
 //   6 she steps out, the invitation, her roar blows the cloud away, the gift and the sixth star
 //   7 Egill onto her head, the march up, out of the clouds onto the top; the book
+import * as THREE from 'three';
 import { FAR_POOL } from './kafli4-route.js';
 import { SPOTS, WADE, WEST, headingTo } from './kafli5-pool.js';
 import { COURAGE, sloedlaLife } from './kafli5-sloedla.js';
@@ -35,8 +36,9 @@ import { createStones } from './kafli6-stones.js';
 import { createPrints } from './kafli6-prints.js';
 import { createCall, thirdOf, ANSWER } from './kafli6-call.js';
 import { DIRECTIONS } from './kafli6-help.js';
-import { hopTo, letGo, smallRoar, pointWithHead, dipHead } from './kafli6-mosi.js';
-import { gramedlaLife, STEP_OUT as HER_STEP_OUT } from './kafli6-gramedla.js';
+import { hopTo, letGo, smallRoar, pointWithHead, dipHead, runBeside } from './kafli6-mosi.js';
+import { gramedlaLife, STEP_OUT as HER_STEP_OUT, STRIDE } from './kafli6-gramedla.js';
+import { HEAD_SEAT } from './kafli6-seat.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
 import { egillTaps } from './kafli2-trail.js';
 import { lineQueue } from './kafli4-flight-play.js';
@@ -50,7 +52,7 @@ import { splash } from '../world/props/splash.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
-import { createSaddle, createSeat, floatTo, ride } from '../engine/riding.js';
+import { createSaddle, createSeat, floatTo, ride, SIT_DEPTH } from '../engine/riding.js';
 
 export const WORDS = {
   k6_sloedla_follow: 'Við komum á eftir ykkur. Sjáumst uppi á fjalli!', k6_flugedla_call: 'Ég kalla á allan skóginn. Flýtið ykkur, sólin er að lækka!',
@@ -133,10 +135,36 @@ const VEIL_OUT = 3; // s the last wisp on the top takes to thin away, in VEIL_ST
 const VEIL_STEPS = 12;
 // After the roar: the sunset golden on the belt, a thin haze staying (the bank round them hides the belt's edge: world/fjall belt.js)
 const AFTER_ROAR = { ...LOOKS.afterRoar, name: 'after the roar' };
-// Scene 7: a tap on her head or Egill, or this long, and he floats up; how far she marches on the belt and on the top
+// Scene 7: Mosi steps out of her way to MOSI_ASIDE ([ahead, right] m from his stand) before she lays her head down; a tap on her
+// head or Egill, or HEAD_WAIT s, and Egill floats up onto it over FLOAT_UP s. She tramps MARCH m up the belt's last slope, Mosi
+// running RUN_SIDE m on her right, the light easing from after the roar to the top's sunset as they climb (so the cut to the top does
+// not step). On the top she strides up out of the sea of cloud at bearing TOP_WAY (degrees, past the last wisp: world/fjall/top.js
+// VEIL) from UNDER m out past the rim (in the sea of cloud, on the shoulder's gentler foot) to inside it, and walks TOP_WALK m on toward her room (top.room) at TOP_PACE m/s, where they stand.
+const MOSI_ASIDE = [0, 7.5];
 const HEAD_WAIT = 6;
-const MARCH = 12;
-const TOP_WALK = 7;
+const FLOAT_UP = 2.6;
+const TURN_RATE = 50;
+const MARCH = 16;
+const RUN_SIDE = 5.5;
+const TOP_WAY = 126;
+const UNDER = 6;
+const TOP_WALK = 6;
+const TOP_PACE = 1.2;
+// Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame), from the side: her
+// head down on the ground with Mosi beyond it, and the climb from beyond Mosi on her right. on_her_head from the seat of Egill's
+// trousers ([ahead, up, right] in her frame): behind and over his shoulder, looking far ahead and a little down. top_wide from where
+// she stands on the top ([along, up, right] m: along her way back out to the rim, right of her): from ahead of them on her right,
+// back past them over the rim to the sea of cloud, where Flugeðla comes up.
+const CLIMB_FRAMES = {
+  head_down: { position: [2, -14, 3.2], target: [5, 2, 1.4], fov: 50 },
+  climb_side: { position: [5, 18, 2.6], target: [15, 2, 3.4], fov: 50 },
+};
+const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
+const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50 };
+const UP = new THREE.Vector3(0, 1, 0);
+// Flugeðla far below as they stand on the top: a speck `out` m out past them over the sea and `side` m to her right, flying up out
+// of the sea from `from` to `to` m (under the top's ground) over `seconds`.
+const SPECK = { out: 150, side: -30, from: -30, to: -4, rise: 40, seconds: 9 };
 const TO_THE_MAP = 1.2; // s the book shows its dinosaurs (Grameðla nodding) before it turns to the map, as chapter 5's
 
 // ---------------------------------------------------------------------------------------------
@@ -724,64 +752,93 @@ function* sheComes(s, c) {
   yield s.wait(0.8);
 }
 
-// 7. She lays her head down; a tap on it or on Egill (or 6 s) and Egill floats up onto it. She marches up the last slope, Mosi
-// running beside her, out of the last of the cloud onto the wide top in the sunset. The chapter ends in the book.
+// 7. Mosi steps out of her way and she lays her head down on the ground; a tap on it or on Egill (or 6 s) and Egill floats up onto
+// it. She rises and turns, and he sees over everything from up there. She tramps up the last slope, Mosi running beside her ("Bíddu…
+// eftir… mér!"), up out of the last of the cloud onto the wide top in the sunset, and far below Flugeðla comes up out of the sea of
+// cloud. The chapter ends in the book.
 function* upToTheTop(s, c) {
   mark(c, 7);
   const { mosi, egill, world, her } = c;
   const { stand, ground } = c.meet;
-  const shot = name => ({ ...meetShot(name, stand, ground), label: name });
+  const shot = name => ({ ...climbFrame(name, stand, ground), label: name });
   cut(s, c, shot('head_down'));
-  let tapped = null;
-  const offs = ['gramedla-head', 'egill'].map(name => s.onTap(name, () => { tapped ??= name; }));
-  aim(s, c, 'gramedla-head', HER_HEAD, 2.2);
+  for (const who of [mosi, egill]) who.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 40 });
+  yield runBeside(s, c, [forward(stand, -0.5, MOSI_ASIDE[1] * 0.5), forward(stand, MOSI_ASIDE[0], MOSI_ASIDE[1])], { speed: 1.3 });
+  yield mosi.raw.turnTo(stand.heading, { rate: 40 });
+  yield* her.headDown();
+  c.seat = createSeat(c.gramedla.raw, HEAD_SEAT);
+  const seatPoint = out => out.copy(c.seat.update()).addScaledVector(UP, 0.6);
+  aim(s, c, 'gramedla-head', seatPoint, 2.2);
   aim(s, c, 'egill', EGILL_HEAD, 1);
-  const from = s.time;
+  wait(s, c, 'head', ['gramedla-head', 'egill']);
+  let tapped;
   try {
-    yield s.until(() => tapped !== null || s.time - from >= HEAD_WAIT);
+    tapped = yield s.race(s.tap(['gramedla-head', 'egill']), s.wait(HEAD_WAIT));
   } finally {
-    for (const off of offs) off();
     unaim(s, c);
   }
-  c.log({ type: 'onHerHead', tapped });
+  c.log({ type: 'onHerHead', tapped: tapped ?? null });
+  for (const who of [mosi, egill]) who.lookAt(null);
   sound(s, c, 'float');
-  const seat = createSeat(c.gramedla.raw, { bone: 'Head', offset: [0, 0.7, -0.2] });
-  yield floatTo(egill.raw, seat, { duration: FLOAT });
-  c.riding = ride(egill.raw, seat, { settle: 0 });
+  s.after(FLOAT_UP * 0.4, () => { egill.raw.play('sit', { fade: 0.5 }); return null; }); // he comes down onto her head sitting, astride
+  yield floatTo(egill.raw, c.seat, { duration: FLOAT_UP, carryLegs: true });
+  c.riding = ride(egill.raw, c.seat, { settle: 0 });
   c.saddle.hide();
-  yield her.face(stand.heading);
-  cut(s, c, shot('on_her_head'));
+  c.log({ type: 'seated' });
+  // she rises with him and turns the way they go
+  yield s.all(her.rise(), c.gramedla.raw.turnTo(stand.heading, { rate: TURN_RATE }));
+  cut(s, c, headShot(c));
   yield s.wait(2.8);
-  // the march up the last slope, Mosi running beside her
+  // the tramp up the last slope, Mosi running beside her, puffing
   cut(s, c, shot('climb_side'));
-  const march = her.walk([forward(stand, HER_STOP + MARCH)]);
-  const beside = mosi.walkTo([forward(stand, HER_STOP + MARCH, 5)], { speed: 1.25, turnRate: 50 });
-  soundWhile(s, c, 'step', 0.5, () => !beside.done, { level: 0.6 });
-  for (const t of [0.6, 2.4, 4.2, 6.0]) s.after(t, () => { thump(c, -6); return null; });
-  yield s.wait(1.6);
+  c.log({ type: 'tramp' });
+  const march = her.trampUp([forward(stand, HER_STOP + MARCH)]);
+  const beside = runBeside(s, c, [forward(stand, HER_STOP + 3, RUN_SIDE), forward(stand, HER_STOP + MARCH - 1.5, RUN_SIDE)]);
+  easeLight(world, LOOKS.sunset, MARCH / STRIDE.speed + 1);
+  soundWhile(s, c, 'step', 0.3, () => !beside.done, { level: 0.6 });
+  footfalls(s, c, march, -6);
+  yield s.wait(1.4);
   yield* say(s, c, 'mosi', 'k6_mosi_wait');
   yield s.all(march, beside);
+  // the top: up out of the sea of cloud past the last wisp
+  let top = null, slope = null;
   yield s.goTo('toppur', {
     hold: () => {
-      her.place(TOP.her.at, TOP.her.heading);
-      mosi.place(TOP.mosi.at[0], TOP.mosi.at[1], TOP.mosi.heading);
+      top = world.forest;
+      slope = top.wayUp(THREE.MathUtils.degToRad(TOP_WAY));
+      const heading = headingTo(slope[0], slope[1]);
+      slope[0] = aside(slope[1], heading, -UNDER, 0);
+      her.place(slope[0], heading);
+      const [mx, mz] = aside(slope[0], heading, -1, RUN_SIDE);
+      mosi.place(mx, mz, heading);
       lightTo(world, LOOKS.sunset);
-      world.forest?.veil?.setLevel(1); // the top (createTop): the last wisp of the cloud by its south-west rim
+      top.veil?.setLevel(1); // the last wisp of the cloud by its south-west rim
       return null;
     },
   });
   s.releaseLocation('sky');
   cut(s, c, 'above_clouds');
-  for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { world.forest?.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
-  const [hx, hz] = way(TOP.her.heading);
-  const into = her.walk([[TOP.her.at[0] + hx * TOP_WALK, TOP.her.at[1] + hz * TOP_WALK]]);
-  const by = mosi.walkTo([[TOP.mosi.at[0] + hx * TOP_WALK, TOP.mosi.at[1] + hz * TOP_WALK]], { speed: 1.1, turnRate: 40 });
-  for (const t of [0.6, 2.4, 4.2]) s.after(t, () => { thump(c, -8); return null; });
-  yield s.wait(1.2);
+  for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { top.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
+  const up = her.trampUp([slope[1], slope[2]]);
+  const upHeading = headingTo(slope[1], slope[2]);
+  const by = runBeside(s, c, [aside(slope[1], upHeading, 0, RUN_SIDE), aside(slope[2], upHeading, -1.5, RUN_SIDE)], { speed: STRIDE.speed * 1.05 });
+  footfalls(s, c, up, -8);
+  yield s.wait(2.4);
   yield* say(s, c, 'egill', 'k6_egill_above');
-  yield s.all(into, by);
-  cut(s, c, 'top_wide');
-  yield s.wait(0.8);
+  yield s.all(up, by);
+  // on toward her room on the flat top; they stand, Mosi puffing, and far below a speck comes up out of the sea: Flugeðla
+  const room = top.room.find(r => r.friend === 'gramedla').at;
+  const towards = headingTo(slope[2], room);
+  const stop = aside(slope[2], towards, TOP_WALK, 0);
+  c.topStop = { at: stop, heading: towards };
+  cut(s, c, topShot(c, stop, towards));
+  const into = her.trampUp([stop], { clip: 'walk', speed: TOP_PACE });
+  const by2 = runBeside(s, c, [aside(stop, towards, -1, RUN_SIDE)], { speed: TOP_PACE * 1.05, pant: true });
+  footfalls(s, c, into, -9, 1.1);
+  s.after(0, function* far() { yield* speck(s, c, stop, towards); });
+  yield s.all(into, by2);
+  c.log({ type: 'tramped' });
+  yield s.wait(0.4);
   yield* say(s, c, 'mosi', 'k6_mosi_room');
   yield s.wait(2.4);
   mark(c, 'end');
@@ -789,6 +846,60 @@ function* upToTheTop(s, c) {
   s.journal.open('dinosaurs', { nod: 'gramedla' });
   s.after(TO_THE_MAP, () => s.journal.open('map'));
   yield s.wait(TO_THE_MAP + 0.4);
+}
+
+/** Scene 7's shot `name` for Mosi at `stand` on `ground` (CLIMB_FRAMES, else the route's meetShot). */
+function climbFrame(name, stand, ground) {
+  const frame = CLIMB_FRAMES[name];
+  if (!frame) return meetShot(name, stand, ground);
+  const [fx, fz] = way(stand.heading);
+  const at = ([a, right, y]) => [stand.x + fx * a - fz * right, ground + y, stand.z + fz * a + fx * right];
+  return { position: at(frame.position), target: at(frame.target), fov: frame.fov };
+}
+/** From her head (HEAD_FRAME), round the seat as it is now. */
+function headShot(c) {
+  const bottom = c.seat.update().clone().addScaledVector(UP, SIT_DEPTH);
+  const [fx, fz] = way(c.gramedla.raw.heading);
+  const at = ([a, u, r]) => [bottom.x + fx * a - fz * r, bottom.y + u, bottom.z + fz * a + fx * r];
+  return { position: at(HEAD_FRAME.from), target: at(HEAD_FRAME.at), fov: HEAD_FRAME.fov, label: 'on_her_head' };
+}
+/** The top wide (TOP_FRAME) round where she stops, facing `heading` (her way back out to the rim is behind her). */
+function topShot(c, [x, z], heading) {
+  const ground = c.world.heightAt(x, z);
+  const [fx, fz] = way(heading);
+  const at = ([along, u, r]) => [x - fx * along - fz * r, ground + u, z - fz * along + fx * r];
+  return { position: at(TOP_FRAME.from), target: at(TOP_FRAME.at), fov: TOP_FRAME.fov, label: 'top_wide' };
+}
+/** [x, z] `ahead` m along `heading` from [x, z] and `right` m to its right. */
+function aside([x, z], heading, ahead, right) {
+  const [fx, fz] = way(heading);
+  return [x + fx * ahead - fz * right, z + fz * ahead + fx * right];
+}
+/** Her footfall (thump, dB) every STRIDE.footfall s (or `every`) while `going` (a Handle) is not done. */
+function footfalls(s, c, going, db, every = STRIDE.footfall) {
+  s.after(0, function* falling() {
+    yield s.wait(every * 0.5);
+    while (!going.done && !c.ended) {
+      thump(c, db);
+      yield s.wait(every);
+    }
+  });
+}
+/**
+ * Flugeðla far below them (SPECK): `out` m past where she stands, back over the rim, she flies up out of the sea of cloud and on
+ * along it, never near (kafli4-flugedla.js holdHer, flyPath).
+ */
+function* speck(s, c, [x, z], heading) {
+  const back = heading + 180;
+  const [sx, sz] = aside([x, z], back, SPECK.out, SPECK.side);
+  const [ex, ez] = aside([x, z], back, SPECK.out - 10, SPECK.side + SPECK.rise);
+  const flier = c.flugedla.raw;
+  const held = holdHer(c);
+  held.place(new THREE.Vector3(sx, SPECK.from, sz), headingTo([sx, sz], [ex, ez]));
+  flier.root.visible = true;
+  c.log({ type: 'speck' });
+  const mid = [(sx + ex) / 2, (SPECK.from + SPECK.to) / 2 + 3, (sz + ez) / 2];
+  yield* flyPath(s, c, held, { points: [[sx, SPECK.from, sz], mid, [ex, SPECK.to, ez]], seconds: SPECK.seconds, clips: [[0, 'fly', 0.4]], landing: null });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -880,6 +991,7 @@ function cutSoon(s, c, shot) {
 }
 function cut(s, c, shot, options = {}) {
   c.cutToken = null;
+  c.shotLabel = typeof shot === 'string' ? shot : shot?.label ?? null;
   if (options.check !== false) c.lastCut = s.time;
   return s.camera.cut(shot, options);
 }
