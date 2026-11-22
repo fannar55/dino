@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createSfx } from '../engine/audio/sfx.js';
+import { fileURLToPath } from 'node:url';
+import { createSfx, SAMPLES, KAFLI6_PICKED } from '../engine/audio/sfx.js';
 import { createScene } from '../engine/scene/scene.js';
 import { DONE } from '../engine/handle.js';
 import { centsFromKey, createFakeContext, peakThrough, pitchesOf } from './fake-audio.mjs';
 
 const THEME = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
-const NAMES = ['forest', 'step', 'frog', 'snail', 'beetle', 'birds', 'butterfly', 'flower', 'plate', 'star', 'journal', 'saddle', 'float', 'mapOpen', 'mapPen', 'sloedlaHorn'];
+const NAMES = ['forest', 'step', 'frog', 'snail', 'beetle', 'birds', 'butterfly', 'flower', 'plate', 'star', 'journal', 'saddle', 'float', 'mapOpen', 'mapPen', 'sloedlaHorn', 'littleRoar'];
 const ONE_SHOTS = NAMES.filter(name => name !== 'forest');
 const MELODIC = ['plate', 'star', 'flower', 'journal', 'saddle', 'float']; // the sounds made of bells
 
@@ -339,4 +340,126 @@ test('Slóeðla\'s horn from the far reed: one low, hollow note that will not ho
   assert.ok(voices.every(source => source.reaches(context.destination)));
   const loudest = Math.max(...voices.map(source => peakThrough(source, context.destination)));
   assert.ok(loudest > 0.04 && loudest <= 0.2, `far off, under the voices: ${loudest.toFixed(3)}`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Chapter 6's recordings (assets/audio/kafli6/CREDITS.md): her footfall is "Grameðla kemur!"'s; the other six wait for the owner's
+// picks (KAFLI6_PICKED), and until then have no file to fetch and play their made sound in its place.
+
+const KAFLI6 = ['mosiRoar', 'hoofStone', 'stoneRock', 'frogSplash', 'wetStep', 'mountainWind', 'gramedlaThump'];
+const CREDITS6 = new URL('../assets/audio/kafli6/CREDITS.md', import.meta.url);
+const urlsOf = sample => sample.urls ?? (sample.url ? [sample.url] : []);
+
+/** A fetch that answers every url with a few bytes, and remembers what it was asked for. */
+function fakeFetch() {
+  const asked = [];
+  const fetch = url => {
+    asked.push(String(url));
+    return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) });
+  };
+  return { asked, fetch };
+}
+async function withFetch(fetch, run) {
+  const was = globalThis.fetch;
+  globalThis.fetch = fetch;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = was;
+  }
+}
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+test('every chapter 6 sample has its file, a made sound instead, and a line in CREDITS.md with its author and licence', async () => {
+  const credits = fs.readFileSync(CREDITS6, 'utf8');
+  for (const name of KAFLI6) {
+    const sample = SAMPLES[name];
+    assert.ok(sample, `${name} is a sample`);
+    // its made sound: one of the game's own, which plays on a page that has none of the files
+    assert.equal(typeof sample.instead, 'string', `${name} has a made sound instead`);
+    assert.ok(!Object.hasOwn(SAMPLES, sample.instead), `${name}: ${sample.instead} is a made sound, not a recording`);
+    const { context, sfx } = setup();
+    assert.equal(sfx.play(sample.instead), true, `${name}: ${sample.instead} plays`);
+    assert.ok(context.started.length > 0, `${name}: ${sample.instead} starts something`);
+    // its files: none until it is picked (nothing is fetched that is not there); once picked, each there and credited
+    const urls = urlsOf(sample);
+    const picked = name === 'gramedlaThump' || Object.hasOwn(KAFLI6_PICKED, name);
+    if (!picked) {
+      assert.deepEqual(urls, [], `${name}: no file until the owner has picked one`);
+      continue;
+    }
+    assert.ok(urls.length > 0, `${name}: its files`);
+    for (const url of urls) {
+      const file = fileURLToPath(url);
+      assert.ok(fs.existsSync(file), `${name}: ${file} is there`);
+      const base = file.split(/[\\/]/).at(-1);
+      const line = credits.split('\n').find(l => l.startsWith('|') && l.includes(base));
+      assert.ok(line, `${name}: CREDITS.md has a line for ${base}`);
+      assert.match(line, / by [^,|]+/, `${name}: ${base}'s line names its author`);
+      assert.match(line, /CC0 1\.0|CC BY 4\.0|CC BY 3\.0|ElevenLabs/, `${name}: ${base}'s line names its licence`);
+    }
+  }
+  assert.match(credits, /thump\.mp3.*Beefmaster69.*CC0 1\.0/, 'her footfall as "Grameðla kemur!" credits it');
+});
+
+test('a chapter 6 sample with no file plays its made sound, and asks for no file at all', async () => {
+  const { asked, fetch } = fakeFetch();
+  await withFetch(fetch, async () => {
+    const context = createFakeContext({ state: 'running' });
+    const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    assert.ok(asked.some(url => url.endsWith('gramedla3d/hljod/thump.mp3')), 'her footfall is fetched');
+    assert.deepEqual(asked.filter(url => url.includes('/kafli6/')), [], 'no chapter 6 file is asked for before it is picked');
+    for (const name of KAFLI6.filter(n => !Object.hasOwn(KAFLI6_PICKED, n) && n !== 'gramedlaThump' && !SAMPLES[n].loop)) {
+      const before = context.started.length;
+      assert.equal(sfx.play(name), true, name);
+      assert.ok(context.started.length > before, `${name}: its made sound (${SAMPLES[name].instead}) is heard`);
+      context.advance(5);
+    }
+  });
+});
+
+test('a recorded sample plays through a low-pass when the play asks for one, and its level and side as asked', async () => {
+  const { fetch } = fakeFetch();
+  await withFetch(fetch, async () => {
+    const context = createFakeContext({ state: 'running' });
+    const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    const before = context.of('filter').length;
+    assert.equal(sfx.play('gramedlaRoar', { level: 0.2, cutoff: 700, pan: -0.7 }), true);
+    const [source] = context.bufferSources.slice(-1);
+    const filters = context.of('filter').slice(before);
+    assert.equal(filters.length, 1, 'one low-pass');
+    assert.equal(filters[0].type, 'lowpass');
+    assert.equal(filters[0].frequency.valueAt(0.1), 700);
+    assert.ok(source.reaches(context.destination));
+    assert.ok(context.of('panner').some(panner => panner.pan.valueAt(0.1) === -0.7), 'from her side');
+    context.advance(10);
+    const plain = context.of('filter').length;
+    sfx.play('gramedlaRoar', { level: 1 });
+    assert.equal(context.of('filter').length, plain, 'and none when the play asks for none');
+  });
+});
+
+test('the mountain wind is a soft loop laid once, faded out when asked, and stood in for by the forest\'s wind until it has a file', async () => {
+  const { fetch } = fakeFetch();
+  await withFetch(fetch, async () => {
+    const context = createFakeContext({ state: 'running' });
+    const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    sfx.play('forest', { calls: false, level: 0, seconds: 3 });
+    assert.equal(SAMPLES.mountainWind.loop, true);
+    assert.equal(sfx.play('mountainWind', { level: 0.6, seconds: 3 }), true);
+    const loops = () => context.bufferSources.filter(source => source.loop && source.started && !source.ended);
+    if (!Object.hasOwn(KAFLI6_PICKED, 'mountainWind')) {
+      // no file yet: the forest's own wind (its bed, calls off) is what is heard, at the wind's level
+      assert.equal(loops().length, 1, 'one bed of wind');
+      context.advance(4);
+      assert.ok(context.of('gain').some(gain => Math.abs(gain.gain.valueAt(context.currentTime) - 0.8 * 0.6) < 1e-6), 'the beds\' bus at the wind\'s level');
+    }
+    sfx.play('mountainWind', { level: 0, seconds: 2 });
+    sfx.play('forest', { calls: false, level: 1, seconds: 2 });
+    context.advance(4);
+    assert.ok(context.of('gain').some(gain => Math.abs(gain.gain.valueAt(context.currentTime) - 0.8) < 1e-6), 'the forest back as it was');
+  });
 });

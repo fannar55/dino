@@ -21,6 +21,11 @@ const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot 
 // it to a side: { pan: -0.6 }. Chapter 4's (assets/audio/kafli4/CREDITS.md, the owner's picks of 2026-11-02) have takes (`urls`):
 // one of them each time, not the one played last; until they have decoded, the made sound `instead` plays in their place.
 const kafli4 = file => new URL(`../../assets/audio/kafli4/hljod/${file}`, import.meta.url).href;
+// Chapter 6's recordings, by sample name: its files in assets/audio/kafli6/hljod/, once the owner has picked them by ear and
+// tools/kafli6-sounds.mjs has mastered them (it prints the entries to put here). A name not here has no url, so nothing is fetched for
+// it (a missing file would be a failed request in the page's log) and its made sound `instead` plays every time.
+export const KAFLI6_PICKED = {};
+const picked = name => (KAFLI6_PICKED[name] ?? []).map(file => new URL(`../../assets/audio/kafli6/hljod/${file}`, import.meta.url).href);
 export const SAMPLES = {
   gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
   gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 1.0 },
@@ -30,6 +35,17 @@ export const SAMPLES = {
   // the owner's picks of 2026-11-07: the herd answering her big call, and the gorge's flyers (as they leave their nests, and answering)
   grazers: { urls: ['grazer-1.mp3', 'grazer-2.mp3', 'grazer-3.mp3', 'grazer-4.mp3'].map(kafli4), level: 0.5 },
   flyers: { urls: ['flyer-1.mp3', 'flyer-2.mp3'].map(kafli4), level: 0.4 },
+  // Chapter 6's (assets/audio/kafli6/CREDITS.md): her footfall, "Grameðla kemur!"'s recording, played at her distance (a play's
+  // detail.cutoff puts it through a low-pass: far off, duller); and six that wait for the owner's picks (KAFLI6_PICKED below).
+  gramedlaThump: { url: new URL('../../assets/audio/gramedla3d/hljod/thump.mp3', import.meta.url).href, level: 1, instead: 'step' },
+  mosiRoar: { urls: picked('mosiRoar'), level: 0.7, instead: 'littleRoar' }, // Mosi's little roar in the call
+  hoofStone: { urls: picked('hoofStone'), level: 0.6, instead: 'step' }, // his front hooves come down on a stone of the ford
+  stoneRock: { urls: picked('stoneRock'), level: 0.5, instead: 'splash' }, // a small stone rocks under a wrong tap
+  frogSplash: { urls: picked('frogSplash'), level: 0.5, instead: 'splash' }, // its frog lands in the water
+  wetStep: { urls: picked('wetStep'), level: 0.6, instead: 'splash' }, // Mosi steps into one of her prints
+  // the wind in the belt of cloud: a loop, s.sfx('mountainWind', { level, seconds }) to `level` over `seconds` (0 fades it out and ends
+  // it); until it has a file the forest's own wind stands for it (its bed with no birds, at the same level)
+  mountainWind: { urls: picked('mountainWind'), level: 0.3, loop: true, instead: 'forest' },
 };
 const SAMPLE_VARY = 0.06; // a recorded sample plays up to 6 % higher or lower each time (a play's detail.rate sets it instead)
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
@@ -351,6 +367,16 @@ export function createSfx({ context = null, theme = null, output, random = Math.
         noise({ type: 'bandpass', frequency: 700 * pitch, end: 500, q: 1.5, duration: length, level: 0.05, delay: at, pan, attack: 0.02 });
       }
     },
+    // Mosi's little roar (chapter 6's call, until its recording is picked): a young one trying to roar, a thin, squeaky "rraah" that
+    // climbs and falls, with a breath of air in it. Small and funny, never fierce.
+    littleRoar({ pan = 0, level = 1 } = {}) {
+      const pitch = between(0.96, 1.04);
+      for (const [at, from, to, length] of [[0, 330, 560, 0.28], [0.26, 560, 300, 0.62]]) {
+        tone({ frequency: from * pitch, end: to * pitch, duration: length, level: 0.07 * level, delay: at, pan, type: 'triangle', attack: 0.03, body: 0 });
+        tone({ frequency: from * pitch * 2, end: to * pitch * 2, duration: length, level: 0.018 * level, delay: at, pan, type: 'sawtooth', attack: 0.03, body: 0 });
+      }
+      noise({ kind: 'warm', type: 'bandpass', frequency: 1400, end: 800, q: 0.8, duration: 0.85, level: 0.04 * level, attack: 0.08, pan });
+    },
     // A squishy bloop as the stalks draw in, and a tiny blip behind it.
     snail() {
       const pan = between(-0.3, 0.3);
@@ -511,12 +537,16 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   // The recorded ones, for the chapter's page only (`recorded`: main.js; the games make effects of their own and have no use for
   // them): each file fetched and decoded once, in the background, as the effects are made, and played through the master like the
   // rest, so it mutes and holds with them. One asked for before its file has decoded is not played.
+  // A play's detail may also ask for `cutoff` (Hz: through a low-pass, as createShowSounds does per play, chapters/gramedla3d/sounds.js)
+  // and `tail` (s: an echo that dies away over that long after it, off the mountain round her far off: chapter 6's call).
+  // A sample with `loop` (chapter 6's mountain wind) is one voice that runs until asked for at level 0 (see loopSample).
   const buffers = new Map(); // url → its decoded buffer
   const lastTake = new Map(); // name → the url it played last
+  const loops = new Map(); // name → { source, volume } of a looped sample sounding now
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
-    const urls = sample.urls ?? [sample.url];
-    SOUNDS[name] = (detail = {}) => {
+    const urls = sample.urls ?? (sample.url ? [sample.url] : []);
+    SOUNDS[name] = sample.loop ? (detail = {}) => loopSample(name, sample, urls, detail) : (detail = {}) => {
       const ready = urls.filter(url => buffers.has(url));
       const fresh = ready.length > 1 ? ready.filter(url => url !== lastTake.get(name)) : ready;
       if (!fresh.length) {
@@ -531,9 +561,22 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       source.playbackRate.value = Number.isFinite(detail.rate) && detail.rate > 0 ? detail.rate : between(1 - SAMPLE_VARY, 1 + SAMPLE_VARY);
       const volume = context.createGain();
       volume.gain.value = sample.level * (Number.isFinite(detail.level) ? detail.level : 1);
-      source.connect(volume);
-      track(source, [volume, ...outlet(volume, Number.isFinite(detail.pan) ? detail.pan : 0, master)]);
+      const nodes = [volume];
+      let into = source;
+      if (Number.isFinite(detail.cutoff) && detail.cutoff > 0) {
+        const filter = context.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = detail.cutoff;
+        filter.Q.value = 0.7;
+        source.connect(filter);
+        into = filter;
+        nodes.push(filter);
+      }
+      into.connect(volume);
+      const pan = Number.isFinite(detail.pan) ? detail.pan : 0;
+      track(source, [...nodes, ...outlet(volume, pan, master)]);
       source.start(context.currentTime);
+      if (Number.isFinite(detail.tail) && detail.tail > 0) echo(volume, detail.tail, pan, source.buffer.duration / source.playbackRate.value);
     };
     for (const url of urls) {
       Promise.resolve()
@@ -543,6 +586,90 @@ export function createSfx({ context = null, theme = null, output, random = Math.
         .then(buffer => buffers.set(url, buffer))
         .catch(() => {}); // a sound that cannot be had is simply not heard (or its made one is, in its place)
     }
+  }
+
+  /**
+   * An echo of `input` that dies away over `seconds` after a sound `heard` s long: a short delay fed back into itself through a
+   * low-pass (each repeat duller and softer), to `pan`. Its nodes are let go once it has died away. Not on a page with no delay.
+   */
+  function echo(input, seconds, pan, heard) {
+    if (!context.createDelay) return;
+    const now = context.currentTime;
+    const gap = 0.17;
+    const delay = context.createDelay(1);
+    delay.delayTime.value = gap;
+    const back = context.createGain(); // each repeat this much of the one before: down by 60 dB over `seconds`
+    back.gain.value = Math.min(0.7, 0.001 ** (gap / seconds));
+    const dull = context.createBiquadFilter();
+    dull.type = 'lowpass';
+    dull.frequency.value = 1200;
+    const send = context.createGain();
+    send.gain.value = 0.35;
+    input.connect(send);
+    send.connect(delay);
+    delay.connect(dull);
+    dull.connect(back);
+    back.connect(delay);
+    const keeper = context.createBufferSource(); // silent: it ends when the echo has died away, and lets go of its nodes
+    keeper.buffer = context.createBuffer(1, 1, context.sampleRate);
+    track(keeper, [send, delay, dull, back, ...outlet(dull, pan * 0.6, master)]);
+    keeper.start(now);
+    keeper.stop(now + heard + seconds);
+  }
+
+  /**
+   * A looped sample (`sample.loop`), to `detail.level` of its own level over `detail.seconds`: started when it is not sounding, faded
+   * out and ended at level 0. With no file decoded yet its made bed (`sample.instead`, the forest's wind) stands for it: that bed,
+   * with no small sounds over it, to the same level.
+   */
+  function loopSample(name, sample, urls, detail) {
+    const level = Number.isFinite(detail.level) ? Math.max(0, detail.level) : 1;
+    const seconds = Number.isFinite(detail.seconds) ? Math.max(0, detail.seconds) : 0;
+    const now = context.currentTime;
+    const playing = loops.get(name);
+    const url = urls.find(u => buffers.has(u));
+    if (!playing && !url) {
+      if (BEDS.includes(sample.instead)) askBed(sample.instead, { calls: false, level, seconds });
+      else if (level > 0) SOUNDS[sample.instead]?.(detail);
+      return;
+    }
+    if (playing) {
+      const gain = playing.volume.gain;
+      if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+      else {
+        const was = gain.value;
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(was, now);
+      }
+      gain.linearRampToValueAtTime(sample.level * level, now + Math.max(0.05, seconds));
+      if (level === 0) {
+        loops.delete(name);
+        playing.source.stop(now + Math.max(0.05, seconds) + 0.05);
+      }
+      return;
+    }
+    if (level === 0) return;
+    const source = context.createBufferSource();
+    source.buffer = buffers.get(url);
+    source.loop = true;
+    const volume = context.createGain();
+    volume.gain.setValueAtTime(0, now);
+    volume.gain.linearRampToValueAtTime(sample.level * level, now + Math.max(0.05, seconds));
+    source.connect(volume);
+    // into the master, not the beds' bus: the chapter takes the forest away under it
+    track(source, [volume, ...outlet(volume, Number.isFinite(detail.pan) ? detail.pan : 0, master)]);
+    source.start(now, between(0, Math.max(0, source.buffer.duration - 1)));
+    loops.set(name, { source, volume });
+  }
+
+  /** The bed `name` asked for (play's own branch for the forest and the Fen): `detail.calls`, and `detail.level` over `detail.seconds`. */
+  function askBed(name, detail) {
+    wanted = name;
+    calls = detail?.calls !== false;
+    // { level, seconds }: the bed (and its small sounds) to `level` of where the game lays it, over `seconds` (Grameðla kemur!
+    // drops the forest away for her thumps and for its stillness)
+    if (Number.isFinite(detail?.level)) bedLevel(Math.max(0, detail.level), Number.isFinite(detail.seconds) ? Math.max(0, detail.seconds) : 0);
+    return allowed() && startBed(name);
   }
   const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
@@ -572,14 +699,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
      */
     play(name, detail) {
       if (typeof name !== 'string' || !Object.hasOwn(SOUNDS, name)) return false;
-      if (BEDS.includes(name)) {
-        wanted = name;
-        calls = detail?.calls !== false;
-        // { level, seconds }: the bed (and its small sounds) to `level` of where the game lays it, over `seconds` (Grameðla kemur!
-        // drops the forest away for her thumps and for its stillness)
-        if (Number.isFinite(detail?.level)) bedLevel(Math.max(0, detail.level), Number.isFinite(detail.seconds) ? Math.max(0, detail.seconds) : 0);
-        return allowed() && startBed(name);
-      }
+      if (BEDS.includes(name)) return askBed(name, detail);
       if (!allowed() || sounding >= MAX_SOUNDS) return false;
       const now = context.currentTime;
       if (now - (lastPlayed.get(name) ?? -Infinity) < (least[name] ?? 0)) return false;
@@ -615,6 +735,11 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     stop() {
       wanted = null;
       if (bed) fadeOut(bed, 0.2);
+      for (const [name, { source, volume }] of loops) {
+        loops.delete(name);
+        volume.gain.setTargetAtTime(0, context.currentTime, 0.1);
+        source.stop(context.currentTime + 0.6);
+      }
     },
     /** Held with the game clock: silent while the book is open or the tab is hidden, and back after. */
     setPaused(value) {

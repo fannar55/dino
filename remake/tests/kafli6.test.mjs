@@ -25,7 +25,7 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [] };
+  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [], music: [] };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses,
     onFrame(frame) {
@@ -36,6 +36,8 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
         stand.name = 'MosiCloud';
         world.scene.add(stand);
       }
+      // the music's level as the chapter sets it (engine/audio/music.js setLevel: a straight line over `seconds`)
+      if (!world.music) world.music = { setLevel: (level, seconds = 1) => seen.music.push({ level, seconds, at: world.chapterState?.s.time ?? 0 }) };
       const c = world.chapterState;
       if (!c) return;
       seen.sky.push({ time: c.s.time, scene: c.scene, shown: SKY.filter(name => world.scene.getObjectByName(name)?.visible) });
@@ -656,4 +658,100 @@ test('in top_wide she, Mosi and Egill are in frame at both shapes of screen, and
     assert.ok(top.flier.off > 100, `Flugeðla is ${top.flier.off.toFixed(0)} m off`);
     assert.ok(top.flier.below > 0, `and ${top.flier.below.toFixed(1)} m below her feet`);
   }
+});
+
+// The sounds (Task 12) ------------------------------------------------------------------------------------------------------------
+
+const soundsOf = (run, name) => run.world.chapterState.chapterLog.filter(e => e.type === 'sound' && (!name || e.name === name));
+/** The music's level at `t` (scene time), from the chapter's setLevel calls (a straight line from where it was over `seconds`). */
+function musicAt(calls, t) {
+  const valueAt = (r, x) => (r.seconds <= 0 || x >= r.start + r.seconds ? r.to : r.from + (r.to - r.from) * ((x - r.start) / r.seconds));
+  let ramp = { from: 1, to: 1, start: -Infinity, seconds: 0 };
+  for (const call of calls) {
+    if (call.at > t) break;
+    ramp = { from: valueAt(ramp, call.at), to: call.level, start: call.at, seconds: call.seconds };
+  }
+  return valueAt(ramp, t);
+}
+
+test('her answer is quieter and duller the further off she is: 60, 30 and 12 m in that order', async () => {
+  const { farRoarAt } = kafli6;
+  const db = level => 20 * Math.log10(level);
+  const far = farRoarAt(60), mid = farRoarAt(30), near = farRoarAt(12);
+  assert.ok(Math.abs(db(far.level) + 14) < 0.01 && far.cutoff === 700, `60 m: ${db(far.level).toFixed(1)} dB through ${far.cutoff} Hz`);
+  assert.ok(Math.abs(db(mid.level) + 7) < 0.01 && mid.cutoff === 1800, `30 m: ${db(mid.level).toFixed(1)} dB through ${mid.cutoff} Hz`);
+  assert.ok(Math.abs(db(near.level)) < 0.01 && near.cutoff === null, `12 m: ${db(near.level).toFixed(1)} dB, no low-pass`);
+  assert.ok(far.tail > mid.tail && mid.tail > near.tail, `a longer tail far off: ${far.tail}, ${mid.tail}, ${near.tail} s`);
+  for (const run of [await untouched(), await quick()]) {
+    const firsts = logOf(run, 'call', 'answer').filter(e => !e.again);
+    const roars = firsts.map(answer => soundsOf(run, 'gramedlaRoar').find(e => e.scene === 5 && Math.abs(e.at - answer.at) < 1e-6));
+    assert.ok(roars.every(Boolean), 'each answer is her roar');
+    assert.deepEqual(roars.map(e => e.distance), CALL.her, 'from 60, 30 and 12 m');
+    assert.ok(roars[0].level < roars[1].level && roars[1].level < roars[2].level, `louder as she comes: ${roars.map(e => e.level.toFixed(2))}`);
+    assert.deepEqual(roars.map(e => e.cutoff ?? null), [700, 1800, null], 'and clearer');
+    const sides = { left: -1, ahead: 0, right: 1 };
+    roars.forEach((e, k) => assert.equal(Math.sign(e.pan), sides[firsts[k].direction], `round ${k + 1} heard from the ${firsts[k].direction}`));
+  }
+});
+
+test('in the cloud the music is at 0 from the first print to her roar, and at 1 within 2 s after it', async () => {
+  const run = await untouched();
+  const calls = run.watched.music;
+  assert.ok(calls.length >= 2, `${calls.length} calls`);
+  const c = run.world.chapterState;
+  const [print] = run.seen.said.filter(e => e.id === 'k6_mosi_print');
+  const roar = c.chapterLog.find(e => e.type === 'herRoar' && e.scene === 6);
+  for (const scene of [2, 3]) {
+    const from = sceneAt(run, scene), to = sceneAt(run, scene + 1);
+    for (let t = from; t < to; t += 0.5) assert.equal(musicAt(calls, t), 1, `the music at 1 at ${t.toFixed(1)} s (scene ${scene})`);
+  }
+  for (let t = print.at; t <= roar.at; t += 0.5) assert.equal(musicAt(calls, t), 0, `the music at 0 at ${t.toFixed(1)} s in the cloud`);
+  assert.equal(musicAt(calls, roar.at + 2), 1, 'back 2 s after her roar');
+  assert.ok(musicAt(calls, roar.at + 1) > 0.3 && musicAt(calls, roar.at + 1) < 0.7, 'coming back over the 2 s');
+  const into = calls.find(call => call.level === 0);
+  assert.equal(into.seconds, 3, 'gone over 3 s as they go into the cloud');
+});
+
+test('a wrong stone is heard: the rock, then the splash; a hop: hooves', async () => {
+  const run = await wrong();
+  const c = run.world.chapterState;
+  const wobbles = logOf(run, 'stones', 'wobble');
+  assert.ok(wobbles.length >= 5);
+  let splashes = 0;
+  for (const wobble of wobbles) {
+    const rock = soundsOf(run, 'stoneRock').find(e => Math.abs(e.at - wobble.at) < 0.05);
+    assert.ok(rock, `the stone rocks at ${wobble.at.toFixed(1)} s`);
+    const into = c.chapterLog.find(e => e.type === 'frog' && e.id === `frog-${wobble.stone}` && e.at >= wobble.at && e.at < wobble.at + 1.5);
+    if (!into?.into) continue;
+    const splash = soundsOf(run, 'frogSplash').find(e => e.at > rock.at && e.at < wobble.at + 1.5);
+    assert.ok(splash, `its frog splashes in after it (${wobble.at.toFixed(1)} s)`);
+    assert.ok(Math.abs(splash.at - into.at) < 0.05, 'as it lands in the water');
+    splashes++;
+  }
+  assert.ok(splashes >= 1, `${splashes} frogs went in`);
+  for (const ran of [await untouched(), run]) {
+    const hops = logOf(ran, 'stones', 'hop');
+    const hooves = soundsOf(ran, 'hoofStone');
+    assert.equal(hooves.length, hops.length, `a hoof on stone for each of ${hops.length} hops`);
+    hops.forEach((hop, k) => {
+      const next = hops[k + 1]?.at ?? Infinity;
+      assert.ok(hooves[k].at > hop.at && hooves[k].at < next, `hop ${k + 1}: his hooves come down on its stone`);
+    });
+  }
+});
+
+test('the prints squelch, Mosi roars a little, her steps thump, and the cloud has its wind, gone as it blows away', async () => {
+  const run = await untouched();
+  const c = run.world.chapterState;
+  const counts = logOf(run, 'prints', 'count');
+  const wet = soundsOf(run, 'wetStep');
+  assert.equal(wet.length, counts.length, 'a wet step for each print');
+  assert.equal(soundsOf(run, 'mosiRoar').length, logOf(run, 'call', 'call').length, 'his little roar each time he calls');
+  const thumps = soundsOf(run, 'gramedlaThump');
+  for (const scene of [4, 5, 6, 7]) assert.ok(thumps.some(e => e.scene === scene), `her footfall in scene ${scene}`);
+  const wind = soundsOf(run, 'mountainWind');
+  const [print] = run.seen.said.filter(e => e.id === 'k6_mosi_print');
+  const blow = c.chapterLog.find(e => e.type === 'blow');
+  assert.ok(wind[0].at < print.at && wind[0].level > 0, 'the wind as they go into the cloud');
+  assert.ok(wind.some(e => e.level === 0 && Math.abs(e.at - blow.at) < 0.05), 'and gone as the cloud blows away');
 });
