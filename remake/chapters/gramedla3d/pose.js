@@ -11,34 +11,12 @@
 //   pose.snout(out)                     the snout tip in the world now
 //   pose.leanNow({ theta, turn, roll, pitch })   leans from the pose her clips have given her this frame (the show: director.js)
 import * as THREE from 'three';
-import { rotateBoneWorld } from '../../engine/actor.js';
 import { bodyMesh } from '../../engine/clip-probe.js';
+import { createLean, guardBones } from '../../engine/pose/lean.js';
 
-/**
- * For bones a pose turns after the clips: the mixer leaves a bone alone when its value has not changed since it last set it, so a
- * turn laid on it would be laid on again the next frame. begin() puts back what the bone was before the last turn where the mixer
- * has not set it since (it is still what the turn left); end() remembers what the turn left.
- */
-export function guardBones(bones) {
-  const before = bones.map(b => b.quaternion.clone());
-  const after = bones.map(b => b.quaternion.clone());
-  let armed = false;
-  return {
-    begin() {
-      bones.forEach((b, i) => {
-        if (armed && b.quaternion.equals(after[i])) b.quaternion.copy(before[i]);
-        before[i].copy(b.quaternion);
-      });
-    },
-    end() {
-      bones.forEach((b, i) => after[i].copy(b.quaternion));
-      armed = true;
-    },
-  };
-}
+export { guardBones };
 
-// her lean: spine, chest and neck bend down by these shares of one angle; the head turns the snout to the lens
-const LEAN = { Spine: 0.22, Chest: 0.3, Neck: 0.48 };
+// her lean (engine/pose/lean.js): spine, chest and neck bend down by its shares of one angle; the head turns the snout to the lens
 const SNOUT_MID = 0.12; // m: the snout tip is the forward-most upper-jaw vertex within this of the head's middle
 const NOSTRIL_VERTICES = [22403, 22073]; // the trex model's skin in her left and right nostril (found from a still, 2026-11-12)
 const RIDGE_BACK = 0.12; // m behind her nostrils: where on the ridge of her snout the butterfly sits
@@ -51,7 +29,6 @@ export const SNOUT_V = 0.56; // step 0's snout height in the frame: a little und
 export function createGramPose(gram, stage, camera) {
   const { camPos, stageCam, framePoint, frameOf } = stage;
   const D = stage.D;
-  const q = new THREE.Quaternion();
   const bone = name => gram.model.getObjectByName(name);
   const bones = { Spine: bone('Spine'), Chest: bone('Chest'), Neck: bone('Neck'), Head: bone('Head'), Jaw: bone('Jaw'), Hips: bone('Hips') };
   const facingLens = (x, z) => Math.atan2(camPos.z - z, camPos.x - x) * 180 / Math.PI;
@@ -153,30 +130,25 @@ export function createGramPose(gram, stage, camera) {
   const nostril = (i, out = new THREE.Vector3()) => out.copy(nostrilsLocal[i]).applyMatrix4(bones.Head.matrixWorld);
   hold('idle', 0);
 
-  // ---- the lean ----
-  const right = new THREE.Vector3(), sp = new THREE.Vector3(), hp = new THREE.Vector3(), fw = new THREE.Vector3();
-  const UP = new THREE.Vector3(0, 1, 0);
+  // ---- the lean (engine/pose/lean.js), its head aimed at the lens ----
+  const bender = createLean(gram, { snoutLocal });
+  const right = bender.right;
+  const sp = new THREE.Vector3(), hp = new THREE.Vector3();
   function lean(theta, { turn = 0, roll = 0, pitch = 0 } = {}) {
     for (const [o, r] of rest) o.quaternion.copy(r);
-    gram.root.updateMatrixWorld(true);
-    right.set(0, 0, 1).applyQuaternion(gram.root.quaternion);
-    for (const [name, share] of Object.entries(LEAN)) rotateBoneWorld(bones[name], q.setFromAxisAngle(right, -theta * share));
-    // the head: as it stands (the lean undone), then down by the angle from the snout to the lens, so she looks at us
-    rotateBoneWorld(bones.Head, q.setFromAxisAngle(right, theta));
+    // the body down by the shares, the head as it stood (the lean undone)
+    bender.bend(theta);
+    // then down by the angle from the snout to the lens, so she looks at us
     snout(sp);
     const drop = Math.atan2(sp.y - camera.position.y, Math.hypot(sp.x - camera.position.x, sp.z - camera.position.z));
-    rotateBoneWorld(bones.Head, q.setFromAxisAngle(right, -drop * AIM + pitch));
+    bender.pitchHead(-drop * AIM + pitch);
     // and about the upright, so the snout points at the lens from the side too
     bones.Head.getWorldPosition(hp);
     snout(sp);
     const yaw = Math.atan2(camera.position.x - hp.x, camera.position.z - hp.z) - Math.atan2(sp.x - hp.x, sp.z - hp.z);
-    rotateBoneWorld(bones.Head, q.setFromAxisAngle(UP, yaw + turn));
+    bender.turnHead(yaw + turn);
     // tilted about its own length (head to snout)
-    if (roll) {
-      bones.Head.getWorldPosition(hp);
-      fw.copy(snout(sp)).sub(hp).normalize();
-      rotateBoneWorld(bones.Head, q.setFromAxisAngle(fw, roll));
-    }
+    if (roll) bender.rollHead(roll);
   }
   const poseAt = (x, z, theta, p = new THREE.Vector3(), how = {}) => { at(x, z); lean(theta, how); return snout(p); };
 
