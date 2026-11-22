@@ -16,9 +16,11 @@ import { twoBoneLeg } from '../../engine/ik.js';
 //   wade  cycle  a slow walk through shallow water (see WADE below): lower and leaning forward, the
 //                snout held low over the water, the feet lifted high out of it, the tail sweeping from
 //                side to side for balance; the actor wades at its matched speed (walkTo, clip 'wade')
+//   stride cycle a heavy, eager tramp (see STRIDE below): longer, quicker steps, leaning into them,
+//                the head up and steady; the actor strides at its matched speed (walkTo, clip 'stride')
 //
-// The bake's `clips` option says which a character gets: Grameðla idle, walk and roar; Uggeðla idle,
-// walk, kink, happy and wade.
+// The bake's `clips` option says which a character gets: Grameðla idle, walk, roar and stride;
+// Uggeðla idle, walk, kink, happy and wade.
 //
 // The legs are posed from where the feet go, by the two-bone IK the engine's footing uses
 // (engine/ik.js): the thigh and shin reach the heel (the Foot bone) with the knee pointing forward,
@@ -85,6 +87,25 @@ export const WADE = {
   head: 26, // and the head turns back up against it, so the snout stays clear of the chest
   snout: 0.27, // of the height
   sweep: 9, // degrees the last tail bone sweeps to each side
+};
+
+// The stride: a big glad animal's eager, heavy tramp up a slope, the walk's steps longer and quicker
+// (Grameðla's: 4.2 m in 1.9 s, 2.2 m/s). A foot is down a little less of the cycle, lifted higher and
+// set down firm; the body leans forward into it, sinks a little lower and bobs more with the weight
+// of each step, while the neck and head take most of the bob and the lean back, so her head stays up
+// and looks ahead; the tail is held out level behind and swings a little, slower than the steps.
+export const STRIDE = {
+  stride: 1.5, // of the walk's stride
+  cycle: 0.76, // of the walk's cycle
+  lift: 0.16,
+  lean: 6, // degrees the body leans forward
+  peel: 0.44,
+  toeOff: 0.57,
+  heelUp: 20,
+  toesUp: 6,
+  reach: 0.93,
+  crouch: 0.06, // the hips sink this share of the hip's height
+  bob: 0.022, // and bob this share up and down, twice a cycle
 };
 
 export function authorClips({ bones, joints: J, toes, height = 1, snout = null, sail = false, tailRest = {}, walk: gait, clips: wanted = ['idle', 'walk', 'roar'] }) {
@@ -340,6 +361,35 @@ export function authorClips({ bones, joints: J, toes, height = 1, snout = null, 
     return cycle.make();
   };
 
+  // --- stride ---------------------------------------------------------------------------------------
+  // The heavy, eager tramp: the body leans into the slope and bobs with every step, the hips turning
+  // and rolling more than in the walk; the spine and chest take some of the lean back, the neck lifts
+  // the head out of it and the head counters the bob, so it rides steady and looks up the slope. The
+  // tail is lifted against the lean and swings as in the walk, its wave travelling down it.
+  const stride = () => {
+    const cycle = walkCycle('stride', STRIDE.stride * gait.stride, STRIDE.cycle * gait.cycle, 60, STRIDE,
+      { crouch: STRIDE.crouch, bob: STRIDE.bob, sway: 0.035, yaw: 4, roll: 2.5, pitch: 1.2, lean: -STRIDE.lean }, (u, b, q) => {
+        const step = 2 * TAU * (u - b.mid);
+        q.Spine = chain(rot(Y, -0.35 * b.yaw), rot(X, -0.3 * back * b.roll), rot(Z, 0.15 * STRIDE.lean));
+        q.Chest = chain(rot(Y, -0.35 * b.yaw), rot(X, -0.3 * back * b.roll), rot(Z, 0.15 * STRIDE.lean - 0.5 * b.pitch));
+        q.Neck = chain(rot(Y, -0.2 * b.yaw), rot(X, -0.25 * b.roll), rot(Z, 0.5 * STRIDE.lean - 0.5 * b.pitch + 1.6 * Math.cos(step + 0.9)));
+        q.Head = chain(rot(Y, -0.15 * b.yaw), rot(X, -0.15 * b.roll), rot(Z, 0.2 * STRIDE.lean - 1.6 * Math.cos(step + 1.3)));
+        if (hasJaw) q.Jaw = rot(Z, -1.2);
+        for (let k = 1; k <= 6; k++) {
+          const swing = -(0.8 + 0.22 * k) * Math.sin(TAU * (u - b.mid + 0.25) - 0.5 * k);
+          q[`Tail${k}`] = tailBase(k, swing, (k === 1 ? 0.6 * STRIDE.lean : 0) + 1.1 * (k <= 3 ? back : 1) * Math.cos(step - 0.45 * k));
+        }
+      }, (side, own, q) => {
+        // the little arms pump with the other leg, held a little up and forward
+        const arm = TAU * (own - 0.5);
+        q[`${side}UpperArm`] = rot(Z, 6 + 6 * Math.sin(arm));
+        q[`${side}LowerArm`] = rot(Z, 10 + 5 * Math.sin(arm - 0.6));
+        q[`${side}Hand`] = rot(Z, 4 * Math.sin(arm - 1.2));
+      });
+    report.stride = cycle.report;
+    return cycle.make();
+  };
+
   // --- roar ----------------------------------------------------------------------------------------
   const ROAR = 3.6;
   const roar = () => sample('roar', ROAR, Math.round(ROAR * 30), (u, t) => {
@@ -422,7 +472,7 @@ export function authorClips({ bones, joints: J, toes, height = 1, snout = null, 
     return { q, offset };
   });
 
-  const authors = { idle, walk, roar, kink, happy, wade };
+  const authors = { idle, walk, roar, kink, happy, wade, stride };
   const clips = wanted.map(name => {
     if (!authors[name]) throw new Error(`no clip called ${name}`);
     return authors[name]();

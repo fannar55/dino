@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { createActor } from '../engine/actor.js';
@@ -263,4 +264,71 @@ test('turning on the spot, a planted foot stays put and the feet step around', a
   assert.ok(watch.lifts >= 3, `${watch.lifts} steps`);
   assert.ok(watch.slide < 1e-3, `a planted foot moved ${mm(watch.slide)} in a frame`);
   assert.equal(watch.kneeBack, false, 'a knee bent backwards');
+});
+
+// --- the stride (kafli 6: her eager tramp up the slope), baked into her with tailed-biped-clips.js STRIDE ---
+
+test('her clips are idle, walk, roar and stride, each turning every bone', async () => {
+  const gltf = await fresh();
+  assert.deepEqual(gltf.animations.map(c => c.name), ['idle', 'walk', 'roar', 'stride']);
+  for (const clip of gltf.animations) {
+    const animated = new Set(clip.tracks.map(t => t.name.split('.')[0]));
+    for (const bone of BONES.slice(1)) assert.ok(animated.has(bone), `${clip.name} leaves ${bone} alone`);
+  }
+  assert.ok(Math.abs(gltf.animations.find(c => c.name === 'stride').duration - 1.9) < 1e-3, 'a stride is 1.9 s');
+});
+
+test('the actor measures the stride at 2.2 m/s (walkTo with { speed: 2.2, clip: \'stride\' }: naturalSpeed within 0.05 of 4.2 / 1.9)', async () => {
+  const rex = await stage();
+  rex.walkTo([[40, 0]], { speed: 2.2, clip: 'stride' });
+  // walkTo plays the clip at speed / naturalSpeed
+  const action = rex.mixer.clipAction(rex.clips.get('stride'));
+  const natural = 2.2 / action.getEffectiveTimeScale();
+  assert.ok(Math.abs(natural - 4.2 / 1.9) < 0.05, `the stride measures ${natural.toFixed(3)} m/s`);
+});
+
+test('striding, a planted foot stays put', async () => {
+  for (const speed of [1.8, 2.2]) {
+    const rex = await stage();
+    const watch = footWatch(rex);
+    const walk = rex.walkTo([[60, 0]], { speed, clip: 'stride' });
+    for (let i = 0; i < 900 && rex.root.position.x < 5; i++) rex.update(1 / 30);
+    watch.start();
+    for (let i = 0; i < 900 && rex.root.position.x < 40; i++) { rex.update(1 / 30); watch.sample(); }
+    assert.equal(walk.done, false);
+    assert.ok(watch.lifts >= 12, `${watch.lifts} steps at ${speed} m/s`);
+    assert.ok(watch.slide < 1e-3, `at ${speed} m/s a planted foot moved ${mm(watch.slide)} in a frame`);
+    assert.equal(watch.kneeBack, false, `at ${speed} m/s a knee bent backwards`);
+  }
+});
+
+// What the bake of 2026-11-22 (the stride) must leave as it was, read from the model before it (sha256 c9c590cc...):
+// her skin, her eyes, and the walk and the roar, their times and values hashed as float32.
+const BEFORE = {
+  vertices: 24617, triangles: 39758, eyes: 2, face: '2122808ebac4ab5b', walk: '754e9741e6ee8c19', roar: 'c69266b5ce434c2c',
+  nostrils: [[4.994688510894775, 4.20978307723999, 0.2290063351392746], [4.8861918449401855, 4.178228378295898, -0.5351577997207642]],
+};
+const floatHash = arrays => {
+  const h = crypto.createHash('sha256');
+  for (const a of arrays) h.update(Buffer.from(new Float32Array(a).buffer));
+  return h.digest('hex').slice(0, 16);
+};
+
+test('the bake left her skin as it was: vertex count, triangles and eyes, the walk and the roar unchanged', async () => {
+  const gltf = await fresh();
+  const mesh = skinnedMesh(gltf);
+  const position = mesh.geometry.attributes.position;
+  assert.equal(position.count, BEFORE.vertices);
+  assert.equal(mesh.geometry.index.count / 3, BEFORE.triangles);
+  assert.equal(mesh.userData.face?.eyes?.length, BEFORE.eyes);
+  assert.equal(crypto.createHash('sha256').update(JSON.stringify(mesh.userData.face)).digest('hex').slice(0, 16), BEFORE.face, 'her eyes moved');
+  for (const name of ['walk', 'roar']) {
+    const clip = gltf.animations.find(c => c.name === name);
+    assert.equal(floatHash(clip.tracks.flatMap(t => [t.times, t.values])), BEFORE[name], `the ${name} changed`);
+  }
+  // the two nostril vertices chapters/gramedla3d/pose.js names, where they were
+  [22403, 22073].forEach((i, k) => {
+    const p = new THREE.Vector3().fromBufferAttribute(position, i);
+    assert.ok(p.distanceTo(new THREE.Vector3(...BEFORE.nostrils[k])) < 1e-4, `nostril vertex ${i} moved ${mm(p.distanceTo(new THREE.Vector3(...BEFORE.nostrils[k])))}`);
+  });
 });
