@@ -6,7 +6,8 @@
 //   standOn(mosi.raw, { at: [x, z], y, heading })    he stands on a top that is not the ground (a stone), until let go
 //   letGo(mosi.raw)                                  his feet are the ground's again
 //   const roar = smallRoar(s, c, { seconds })        -> Handle, done when his head is down again (neck, head and jaw: SMALL_ROAR)
-//   pointWithHead(c, point)                          -> Handle: he looks at point and jabs his head toward it twice (the call's help)
+//   pointWithHead(c, point, { seconds })             -> Handle: he looks at point and jabs his head toward it twice (the call's help)
+//   const dip = dipHead(c); ... dip.up()             his head lowered while she sniffs Egill (DIP); up() -> Handle, done when up
 //
 // Each runs on the actor's own update (the game clock), so the book's pause holds it.
 import * as THREE from 'three';
