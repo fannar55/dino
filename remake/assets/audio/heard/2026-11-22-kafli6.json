@@ -1,0 +1,203 @@
+{
+  "set": "kafli6",
+  "date": "2026-11-22",
+  "source": "jano-kafli6.json",
+  "verdicts": {
+    "kafli6/k6_sloedla_follow": {
+      "verdict": "ja",
+      "key": "1a05abeb8380fa978b70e523692d3f250c681df3a64282ac6b515b3663f9f8e7",
+      "mp3": "6afc54156a92dcae6852c54834541ef2e81b77d366a8a5c15e4495c5159b74b8",
+      "speaker": "sloedla",
+      "text": "Við komum á eftir ykkur. Sjáumst uppi á fjalli!"
+    },
+    "kafli6/k6_flugedla_call": {
+      "verdict": "ja",
+      "key": "8026a12fe62ab976ad27651b4ad3217e96196892d83d13d3fbe2513ad18a2e5e",
+      "mp3": "53995653e2f81d87cd6b18d6135e85abf65b3e15d6fddc0f21a3a133beadeb6e",
+      "speaker": "flugedla",
+      "text": "Ég kalla á allan skóginn. Flýtið ykkur, sólin er að lækka!"
+    },
+    "kafli6/k6_mosi_come": {
+      "verdict": "ja",
+      "key": "0b8a9c2767528d6fad9d50e7383c9df7c81695d7cef3e775bc1d8d120102eb23",
+      "mp3": "f868c66ff64199212104498e272d10d1748ce5be5010fb7fa248ca41574e5ade",
+      "speaker": "mosi",
+      "text": "Komdu, Egill. Lengsta ferðin bíður."
+    },
+    "kafli6/k6_mosi_map": {
+      "verdict": "ja",
+      "key": "78d64074b7b89680a8360e74c370ed42c5eef5bc22c449ce98856d5d5ecccccc",
+      "mp3": "29463e1a5f478f67a5ec6f261b22a9e8044eccfa8d70bb2107c4ea2592b4d0b6",
+      "speaker": "mosi",
+      "text": "Þarna uppi á fjallinu, í skýjunum, býr Grameðla. Og þar er Stjörnuhátíðin haldin, næst stjörnunum."
+    },
+    "kafli6/k6_egill_hers": {
+      "verdict": "ja",
+      "key": "35694efc2f96c7cf76048ce323c57b1246d87ee3d719cd2006c4c4884244e46d",
+      "mp3": "bf6d47e1533ca0afadb692a49916109c82e360cfe465521ecd04e42a74c195dd",
+      "speaker": "egill",
+      "text": "Á fjallinu hennar?"
+    },
+    "kafli6/k6_mosi_why": {
+      "verdict": "ja",
+      "key": "d8527bf5ae58ee119eeabcf446290df708c0d0fbcf8de3f4283b4b83b897370c",
+      "mp3": "d4f16a065357568369c987cb5c78ae8054785a5b7272e89cd28902dfed9a3f24",
+      "speaker": "mosi",
+      "text": "Já. Þess vegna verðum við að bjóða henni!"
+    },
+    "kafli6/k6_mosi_river": {
+      "verdict": "ja",
+      "key": "87fdaaed2d11fab8a2ac561ba16e397f64ee242974781d65b1adbfa58def325e",
+      "mp3": "7270630a199695a47dd8728c3688343b53f452270485ea11ec1e0be072cc4c6a",
+      "speaker": "mosi",
+      "text": "Áin er breið hérna. En sjáðu steinana! Hvaða steinn er næstur, Egill?"
+    },
+    "kafli6/k6_mosi_wobble": {
+      "verdict": "nei",
+      "key": "dd5f8d4b0689c3e1be7629e516eb2595977302c0e5762c1b6e605f0ef8788ae5",
+      "mp3": "a4713af0bf8c465adbe6b743a3b23e3a508a27abce232f010d85b2e1d2ed3d12",
+      "speaker": "mosi",
+      "text": "Úps, sá vaggar!"
+    },
+    "kafli6/k6_mosi_flat": {
+      "verdict": "ja",
+      "key": "68677ce8c94ba877eef2fad5dabe7df6772e668f6a2ae3670a8eabe994b514c1",
+      "mp3": "b188fc2fbc2d8ae17978daa11d8ba0b2e0c16369d99236e8d8673048348f9dea",
+      "speaker": "mosi",
+      "text": "Þessi stóri, flati!"
+    },
+    "kafli6/k6_egill_flew": {
+      "verdict": "ja",
+      "key": "d871f69667358c84e2efbe307d2fd2b4e835c12dd25f6b2dc1be34dd212853cd",
+      "mp3": "099c038b115ae6acab477945cbced8c7c6028b6f2489ba504b9866a2c4839540",
+      "speaker": "egill",
+      "text": "Þarna flugum við upp með Flugeðlu!"
+    },
+    "kafli6/k6_mosi_across": {
+      "verdict": "ja",
+      "key": "12457c07440a2931a791f89ca6fa701c8180d1b03a63bd2df53705a012ff71d3",
+      "mp3": "fc508e70e9176800092a0d89385c8d229387e9fb4227957627197c97857e4ba8",
+      "speaker": "mosi",
+      "text": "Við komumst yfir! Vel valið, Egill."
+    },
+    "kafli6/k6_egill_glade": {
+      "verdict": "ja",
+      "key": "d5baa60b57d75181ecfc12e3f571d55d60608ed4fc11f0a7ca08ff3b24cfe08f",
+      "mp3": "1df1a90f957cd3a8f54afd3e2d1e000842dbf866e4a80c50ad5c8569e2398ee8",
+      "speaker": "egill",
+      "text": "Sjáðu, Mosi! Þarna er rjóðrið þar sem við hittumst!"
+    },
+    "kafli6/k6_mosi_thorsedla": {
+      "verdict": "ja",
+      "key": "789130fae1601ea77a83ace28f84ff43dd027be93876cd7f1cc1045b61ed5c9e",
+      "mp3": "043722bfb4f5441adb3baad34193760e1ad053a2efb17fdcf9348a6e12c1c581",
+      "speaker": "mosi",
+      "text": "Og þarna er Þórseðla. Hún er lögð af stað."
+    },
+    "kafli6/k6_mosi_clouds": {
+      "verdict": "ja",
+      "key": "25df1e1d7efd7bf7c902a6c93113ff1a51ef19941425a21fc53e40a5775c4dbe",
+      "mp3": "b5606904ad84091344d4ca884b50cf44df15b5a2839b42e278f4395ef4fae607",
+      "speaker": "mosi",
+      "text": "Og þarna uppi… eru skýin."
+    },
+    "kafli6/k6_mosi_print": {
+      "verdict": "ja",
+      "key": "152ce7d325454a25ab32e9baf896d0ae3c93c2f858c41e7a0e5461aa6476de11",
+      "mp3": "c4df58d5033c7dc9d21be904b70a0d09d72df5173ef9e3bd0bbeb6301bbf676f",
+      "speaker": "mosi",
+      "text": "Egill… þetta er spor. Ég kemst ofan í það!"
+    },
+    "kafli6/k6_egill_huge": {
+      "verdict": "ja",
+      "key": "af32d9d307c51574146e5df5e606243a2a7d37375abe19c9a2cdd377317fef57",
+      "mp3": "d896e37a1bc7223b8dc05f03d5247b64c6049693625f436268918ea25403f60a",
+      "speaker": "egill",
+      "text": "Hún er RISASTÓR!"
+    },
+    "kafli6/k6_mosi_six": {
+      "verdict": "ja",
+      "key": "19f79d7c9257153ecb9ea57802f8031b162bdfb0802b63a394410957c53c30ad",
+      "mp3": "9dac3a81e2b2de0760fa4460328013858f6b148bf627b1bf8322a1495f65d003",
+      "speaker": "mosi",
+      "text": "Sex spor. Og hún er sjötti vinurinn!"
+    },
+    "kafli6/k6_mosi_end": {
+      "verdict": "ja",
+      "key": "f0cb88f3b4854f3eee1466ad5c45af7020d1b8d8143d0a9ce36f39e633166377",
+      "mp3": "2cba014be45df8ac0ff1bf345ae5e62250418c42ad64829291d445d15258a5b0",
+      "speaker": "mosi",
+      "text": "Sporin enda hér. Ég sé ekkert. Ég kalla á hana. Hjálpaðu mér, Egill!"
+    },
+    "kafli6/k6_mosi_listen": {
+      "verdict": "ja",
+      "key": "f9dfcdc5ba410ce276d6b3ddffd7c2eb0f4e531976cbe745e14c9ae499db5422",
+      "mp3": "85b8c621d4909af8c6a3c263eab90840e0f91778607f3c4e8076af2b9ea09858",
+      "speaker": "mosi",
+      "text": "Hlustum aftur!"
+    },
+    "kafli6/k6_egill_gramedla": {
+      "verdict": "ja",
+      "key": "c3edff39896ff8c8dda16c7fec868ad52e7f8ab6172aa4d9d9fa54b600860e69",
+      "mp3": "12f8b6d34dcab35f9e667ca5284e77dcf7c79de72fcb2b06db9202c07381f79d",
+      "speaker": "egill",
+      "text": "Grameðla!"
+    },
+    "kafli6/k6_egill_hi": {
+      "verdict": "ja",
+      "key": "4d67cf36d735891976db51e8b16df7f950bbffe0faad96cbf73569a0a6524e5b",
+      "mp3": "b4cfc1fbb48d461dff70e52f7110a0eb622bdab676904d75aff6afb2b7f41740",
+      "speaker": "egill",
+      "text": "Hæ, Grameðla!"
+    },
+    "kafli6/k6_mosi_invite": {
+      "verdict": "ja",
+      "key": "9234c1b7c7a4731d2289dafd087be2965e4b09676144d519a465045c280b0a6a",
+      "mp3": "4aa0a105f0513365b04114a737e84e5797fb42b224b3f42ebced95568d0b367e",
+      "speaker": "mosi",
+      "text": "Halló, Grameðla! Stjörnuhátíðin er í kvöld, hér á fjallinu þínu. Viltu halda hana með okkur?"
+    },
+    "kafli6/k6_mosi_yes": {
+      "verdict": "ja",
+      "key": "f6cf62c157426ea020c5be47f7c4331fb7fe9d759374cabb8218ef8c8393185c",
+      "mp3": "412f7228c19b33b9824724ddfc52a4b078f9b18fdfa5819bd5a936a20424676e",
+      "speaker": "mosi",
+      "text": "Hún segir já!"
+    },
+    "kafli6/k6_mosi_gift": {
+      "verdict": "ja",
+      "key": "7e82ee0a2373a01bbeea56d74f5274cd01a2404801e558449458ba16017446d9",
+      "mp3": "45e3a2285d19da7a9c7ac336717ea708751c7294462dd4bc688eeb1db0bad378",
+      "speaker": "mosi",
+      "text": "Öskrið þitt verður merkið, Grameðla. Þegar þú öskrar kvikna stjörnurnar!"
+    },
+    "kafli6/k6_mosi_star": {
+      "verdict": "ja",
+      "key": "b3f8fba308e0bcd940e1f80e9145b8c921e71e1f0b621ad9d8e4a700244553a2",
+      "mp3": "2e9963466890754111fa6ec140a61d642b4cc9b7c454106266e436daccfa097a",
+      "speaker": "mosi",
+      "text": "Sjötta stjarnan! Nú eru allir komnir!"
+    },
+    "kafli6/k6_mosi_wait": {
+      "verdict": "ja",
+      "key": "80ad31bbff0f9c51d338d7acbbfe0624669458da3ab985a85e04fb8d08b50c8a",
+      "mp3": "b85cc67b51c17f44e5ae3f9ae4af323154d185e173b8cda8b9f4dec480049e5d",
+      "speaker": "mosi",
+      "text": "Bíddu… eftir… mér!"
+    },
+    "kafli6/k6_egill_above": {
+      "verdict": "ja",
+      "key": "f942ff6f9791e0f2958132bc15ccd3dda39a43e354b0c3107979a030e81bae43",
+      "mp3": "3646d54c0cc4a39bfb66720c8e9617d1dd3ab31f46b55a8471aa1ba8e6670061",
+      "speaker": "egill",
+      "text": "Við erum ofan við skýin!"
+    },
+    "kafli6/k6_mosi_room": {
+      "verdict": "ja",
+      "key": "6afa064f2c5a8569d352510f98aefa2c44be8b58c1a8d14e262104a5d205cc1b",
+      "mp3": "cff173f9704d79e11cd0ce5a855044521a819b049a9b0271b95862644e236470",
+      "speaker": "mosi",
+      "text": "Hér… er nóg pláss… fyrir alla!"
+    }
+  }
+}
