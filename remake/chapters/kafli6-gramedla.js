@@ -34,32 +34,32 @@ import { CALL, herAt } from './kafli6-route.js';
  */
 export const HER = { walk: 1.1, roarPace: 0.75, roar: 3.4 };
 /**
- * Her shape in the call: the tint's colour (her own model out of the engine's fog, darkened toward it), how much of her is drawn by
- * round, how long she takes to come out of the white and to melt back into it (s), the step she takes toward them after her roar
- * (m, m/s) and when its foot comes down (s into it).
+ * Her shape in the call: the tint's colour and the cloud's white it is laid over (createTint), how much of the tint is seen by round,
+ * how far to Mosi's right of straight ahead she stands when she answers from ahead (degrees: shapePlace), how long she takes to come
+ * out of the white, stays, and melts back into it (s), the step she takes toward them after her roar (m, m/s) and when its foot comes
+ * down (s into it).
  */
-export const SHAPE = { colour: '#3a3632', seen: [0, 0.35, 0.7], ahead: 11, fadeIn: 1.2, hold: 0.8, fadeOut: 1.6, step: 1.5, stepSpeed: 0.85, footfall: 1.1 };
+export const SHAPE = { colour: '#3a3632', white: '#f4eee2', seen: [0, 0.35, 0.7], ahead: 11, fadeIn: 1.2, hold: 0.8, fadeOut: 1.6, step: 1.5, stepSpeed: 0.85, footfall: 1.1 };
 /**
  * Stepping out (scene 6): she comes out of the white `from` m behind where she stops, as the shape first (seen, s), and walks to
  * `stop` m ahead of Mosi's root in two heavy steps (her walk clip at this speed: its feet come down `footfalls` s in), her own
  * colours coming over them. There her bow reaches Egill with her feet planted; her snout is never nearer than `clear` m to his head
  * before it (measured: kafli6.test.mjs).
  */
-export const STEP_OUT = { stop: 7.8, clear: 2, thin: 3, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
+export const STEP_OUT = { stop: 7.4, clear: 1.75, thin: 3, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
 /** Her head tilt: degrees about its own length, the time over to it and back (s), how long she holds it, her two blinks (s in). */
 export const TILT = { roll: 12, ease: 0.7, hold: 1.4, blinks: [0.45, 1.25] };
 /**
  * The sniff: her snout comes `near` m from Egill's head over `seconds` (the lean and her head tipped, found by search), two breaths
  * `breaths` s apart; at each his head tips back `hair` degrees and a puff of sparkles passes him; up again over `rise` s.
  */
-export const SNIFF = { near: 1.05, seconds: 3.2, breaths: 2, between: 1.5, hair: 6, hairSeconds: 0.9, rise: 1.8 };
+export const SNIFF = { near: 1.1, over: 0.35, seconds: 3.2, breaths: 2, between: 1.5, hair: 6, hairSeconds: 0.9, rise: 1.8 };
 /** Her roar of yes: the breath in (her lean back, radians, s), the blow this long into her roar (s). */
 export const ROAR = { back: 0.15, breathIn: 1, blow: 1.1 };
 /** Her nod: two dips of the lean (radians down, her head tipped, s each), the snort with the second. */
 export const NOD = { theta: 0.13, pitch: -0.12, seconds: 0.6, gap: 0.62 };
 // standing tall in the call and when she steps out: her lean a little back, her head a little up (proud and glad, not looming)
 const TALL = { theta: -0.3, pitch: 0.35 };
-const OVER_GLOW = 16;
 
 const rad = THREE.MathUtils.degToRad;
 const smooth = k => { const x = Math.min(1, Math.max(0, k)); return x * x * (3 - 2 * x); };
@@ -67,12 +67,16 @@ const way = heading => [Math.cos(rad(heading)), Math.sin(rad(heading))];
 const headingTo = ([x0, z0], [x1, z1]) => THREE.MathUtils.radToDeg(Math.atan2(z1 - z0, x1 - x0));
 
 /**
- * Her model out of the engine's fog and darkened toward `colour` (createHaze's way, chapters/gramedla3d/haze.js): her albedo down and
- * the colour as her emissive as `tint` goes to 1, drawn faint where `seen` is under 1, no shadow while she is mostly tint. Her skin's
- * material is shared by every model from the same file, so she gets her own copies first; dispose() gives the shared ones back.
+ * Her model out of the engine's fog and darkened toward `colour` in the white (createHaze's way, chapters/gramedla3d/haze.js): as `tint`
+ * goes to 1 her albedo goes down and her emissive goes to the shape's colour, which is `colour` laid over the cloud's `white` by
+ * `seen` (0: all white, she is not there; 1: all `colour`). She stays opaque: her skin's texture has alpha, which would show through
+ * a faint (transparent) shape as her stripes. No shadow while she is mostly tint. Out of the fog the whole chapter (set once, so no
+ * shader is built again mid-scene: in the cloud she is a shape, after the roar the air is all but clear). Her skin's material is shared
+ * by every model from the same file, so she gets her own copies first; dispose() gives the shared ones back.
  */
-export function createTint(model, { colour = SHAPE.colour } = {}) {
+export function createTint(model, { colour = SHAPE.colour, white = SHAPE.white } = {}) {
   const shade = new THREE.Color(colour);
+  const behind = new THREE.Color(white);
   const meshes = [];
   const tinted = [];
   model.traverse(o => {
@@ -86,36 +90,35 @@ export function createTint(model, { colour = SHAPE.colour } = {}) {
         copy.onBeforeCompile = m.onBeforeCompile;
         copy.customProgramCacheKey = m.customProgramCacheKey;
       }
-      tinted.push({ m: copy, own: !lid, colour: copy.color.clone(), emissive: copy.emissive?.clone() ?? null, transparent: copy.transparent, opacity: copy.opacity, fog: copy.fog, env: copy.envMapIntensity ?? null, rough: copy.roughness ?? null });
+      tinted.push({ m: copy, own: !lid, colour: copy.color.clone(), emissive: copy.emissive?.clone() ?? null, fog: copy.fog, env: copy.envMapIntensity ?? null, rough: copy.roughness ?? null });
+      if (copy.fog) { copy.fog = false; copy.needsUpdate = true; }
       return copy;
     });
     o.material = Array.isArray(shared) ? own : own[0];
-    meshes.push({ o, shared, cast: o.castShadow, order: o.renderOrder });
+    meshes.push({ o, shared, cast: o.castShadow });
   });
-  let now = { tint: -1, seen: -1, fog: null };
+  const shapeColour = new THREE.Color();
+  let now = { tint: -1, seen: -1 };
   return {
-    set(tint = 0, seen = 1, fog = true) {
-      if (Math.abs(tint - now.tint) < 1e-4 && Math.abs(seen - now.seen) < 1e-4 && fog === now.fog) return;
-      now = { tint, seen, fog };
+    set(tint = 0, seen = 1) {
+      if (Math.abs(tint - now.tint) < 1e-4 && Math.abs(seen - now.seen) < 1e-4) return;
+      now = { tint, seen };
+      shapeColour.copy(behind).lerp(shade, seen);
       for (const h of tinted) {
         h.m.color.copy(h.colour).multiplyScalar(1 - tint);
-        if (h.emissive) h.m.emissive.copy(h.emissive).lerp(shade, tint);
+        if (h.emissive) h.m.emissive.copy(h.emissive).lerp(shapeColour, tint);
         // no sheen on a shape: her albedo alone going dark leaves the sky's reflection on her skin
         if (h.env !== null) h.m.envMapIntensity = h.env * (1 - tint);
         if (h.rough !== null) h.m.roughness = h.rough + (1 - h.rough) * tint;
-        const faint = seen < 0.999;
-        const transparent = faint || h.transparent;
-        const fogged = fog && h.fog;
-        if (h.m.transparent !== transparent || h.m.fog !== fogged) { h.m.transparent = transparent; h.m.fog = fogged; h.m.needsUpdate = true; }
-        h.m.opacity = h.opacity * seen;
       }
-      // drawn over the cloud's glow (world/fjall/cloud.js draws it at renderOrder 15, no depth test) while she is a shape in it
-      const over = seen < 0.999 || tint > 0.001;
-      for (const { o, cast, order } of meshes) { o.castShadow = cast && tint < 0.5; o.renderOrder = over ? OVER_GLOW : order; }
+      for (const { o, cast } of meshes) o.castShadow = cast && tint < 0.5;
     },
     dispose() {
-      for (const { o, shared, cast, order } of meshes) { o.material = shared; o.castShadow = cast; o.renderOrder = order; }
-      for (const h of tinted) if (h.own) h.m.dispose();
+      for (const { o, shared, cast } of meshes) { o.material = shared; o.castShadow = cast; }
+      for (const h of tinted) {
+        if (h.own) h.m.dispose();
+        else { h.m.color.copy(h.colour); h.m.emissive?.copy(h.emissive); h.m.fog = h.fog; h.m.needsUpdate = true; }
+      }
     },
   };
 }
@@ -135,8 +138,8 @@ export function gramedlaLife(s, c) {
   const world = actor.world;
   const lean = createLean(actor);
   const tint = createTint(actor.model);
-  // what she is now: her lean, how much of her is drawn, how dark, in the fog or out of it, hidden
-  const now = { theta: 0, turn: 0, roll: 0, pitch: 0, seen: 1, tint: 0, fog: true };
+  // what she is now: her lean, how much of her is drawn, how dark, hidden
+  const now = { theta: 0, turn: 0, roll: 0, pitch: 0, seen: 1, tint: 0 };
   const tweens = new Map(); // key -> { from, to, t0, seconds, handle }
   const bumps = []; // { key, amount, t0, seconds } added on top: dips, breaths
   let clock = 0;
@@ -179,7 +182,7 @@ export function gramedlaLife(s, c) {
     for (let i = bumps.length - 1; i >= 0; i--) if (clock > bumps[i].t0 + bumps[i].seconds) bumps.splice(i, 1);
     const seen = value('seen');
     actor.root.visible = !hidden && seen > 0.003;
-    tint.set(value('tint'), seen, now.fog);
+    tint.set(value('tint'), seen);
     lean.set({ theta: value('theta') + bumped('theta'), turn: value('turn'), roll: value('roll'), pitch: value('pitch') + bumped('pitch') });
   });
 
@@ -249,7 +252,7 @@ export function gramedlaLife(s, c) {
       bumps.length = 0;
       actor.place(x, z, headingTo([x, z], [stand.x, stand.z]));
       actor.play('idle', { fade: 0 });
-      Object.assign(now, { theta: TALL.theta, turn: 0, roll: 0, pitch: TALL.pitch, seen: 0, tint: 1, fog: false });
+      Object.assign(now, { theta: TALL.theta, turn: 0, roll: 0, pitch: TALL.pitch, seen: 0, tint: 1 });
       hidden = false;
       shapeAt = { round, direction, stand };
       ease('seen', SHAPE.seen[round], SHAPE.fadeIn);
@@ -293,7 +296,7 @@ export function gramedlaLife(s, c) {
     tweens.clear();
     actor.place(from[0], from[1], stand.heading + 180);
     actor.play('idle', { fade: 0 });
-    Object.assign(now, { theta: TALL.theta, turn: 0, roll: 0, pitch: TALL.pitch, seen: 0, tint: 1, fog: false });
+    Object.assign(now, { theta: TALL.theta, turn: 0, roll: 0, pitch: TALL.pitch, seen: 0, tint: 1 });
     hidden = false;
     shapeAt = null;
     note('stepOut');
@@ -329,8 +332,9 @@ export function gramedlaLife(s, c) {
       actor.root.updateMatrixWorld(true);
       lean.snout(p);
       const d = p.distanceTo(point);
-      const under = point.y - p.y; // her snout under his head reads as going for Mosi, not sniffing Egill
-      const score = Math.abs(d - near) + Math.max(0, under - 0.2) * 2 + Math.abs(pose.theta) * 0.05;
+      // her snout over his head (at his hair, over Mosi's frill): under it, it reads as going for Mosi, not sniffing Egill
+      const under = point.y + SNIFF.over - p.y;
+      const score = Math.abs(d - near) + Math.max(0, under) * 3 + Math.abs(pose.theta) * 0.05;
       if (!best || score < best.score) best = { ...pose, score, d };
     };
     for (let theta = -0.1; theta <= 1.2; theta += 0.05) {
@@ -393,7 +397,6 @@ export function gramedlaLife(s, c) {
     let blown = null;
     s.after(ROAR.blow, () => { blown = blow?.() ?? null; return null; });
     yield s.until(() => roared.done && (blow === null || blown?.done));
-    now.fog = true; // the air is clear: she is in the world's air again
   }
 
   /** Two dips of her lean and a snort: yes. A Handle, done when her head is up again. */
@@ -419,7 +422,6 @@ export function gramedlaLife(s, c) {
     get shown() { return actor.root.visible; },
     get seen() { return hidden ? 0 : now.seen; },
     get tint() { return now.tint; },
-    get fog() { return now.fog; },
     place([x, z], heading) { actor.place(x, z, heading); },
     face(heading) { return actor.turnTo(heading, { rate: 35 }); },
     walk(points, { speed = HER.walk } = {}) { return actor.walkTo(points, { speed, turnRate: 30 }); },

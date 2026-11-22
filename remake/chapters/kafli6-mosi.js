@@ -158,7 +158,7 @@ export function smallRoar(s, c, { seconds = SMALL_ROAR.seconds } = {}) {
 }
 
 /** His head lowered in greeting while she sniffs Egill (degrees down, s to go down and to come up): his frill out of her way. */
-export const DIP = { neck: 12, head: 10, down: 1.4, up: 1.2 };
+export const DIP = { neck: 18, head: 14, down: 1.4, up: 1.2 };
 /**
  * Mosi lowers his head and holds it there until `up()` (a Handle, done when it is up again). On his overlay, as his little roar.
  */
