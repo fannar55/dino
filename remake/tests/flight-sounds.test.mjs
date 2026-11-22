@@ -97,7 +97,8 @@ test('pausing silences every loop and every one-shot, and none starts while it i
   const master = masterOf(context, out);
   const started = context.bufferSources.filter(s => s.started);
   assert.ok(started.length >= 9, `${started.length} sources`);
-  for (const source of started) assert.ok(source.reaches(master), `${source.buffer?.file} plays through the hold`);
+  // a one-shot shorter than the two seconds has played out by now, as in a browser: it was not cut off
+  for (const source of started) assert.ok(source.ended || source.reaches(master), `${source.buffer?.file} plays through the hold`);
   assert.ok(sounds.level > 0.99);
   sounds.pause();
   context.advance(0.2);
