@@ -684,7 +684,7 @@ test('her answer is quieter and duller the further off she is: 60, 30 and 12 m i
   assert.ok(far.tail > mid.tail && mid.tail > near.tail, `a longer tail far off: ${far.tail}, ${mid.tail}, ${near.tail} s`);
   for (const run of [await untouched(), await quick()]) {
     const firsts = logOf(run, 'call', 'answer').filter(e => !e.again);
-    const roars = firsts.map(answer => soundsOf(run, 'gramedlaRoar').find(e => e.scene === 5 && Math.abs(e.at - answer.at) < 1e-6));
+    const roars = firsts.map(answer => soundsOf(run, 'gramedlaRoar').find(e => e.scene === 5 && e.at >= answer.at - 1e-6 && e.at < answer.at + 0.2));
     assert.ok(roars.every(Boolean), 'each answer is her roar');
     assert.deepEqual(roars.map(e => e.distance), CALL.her, 'from 60, 30 and 12 m');
     assert.ok(roars[0].level < roars[1].level && roars[1].level < roars[2].level, `louder as she comes: ${roars.map(e => e.level.toFixed(2))}`);

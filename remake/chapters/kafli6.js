@@ -42,7 +42,6 @@ import { HEAD_SEAT } from './kafli6-seat.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
 import { egillTaps } from './kafli2-trail.js';
 import { lineQueue } from './kafli4-flight-play.js';
-import { createShowSounds } from './gramedla3d/sounds.js';
 import { demoAsked, startDemoChild } from './kafli6-demo.js';
 import { createSlope, createBelt, createTop } from '../world/fjall/index.js';
 import { createSteppingStones } from '../world/props/stepping-stones.js';
@@ -94,15 +93,25 @@ const RIDE = { speed: 2.1, turn: 1.2 };
 // Scene 4: he steps into the first print from STEP_IN m back; his walk from print to print (m/s)
 const STEP_IN = 4;
 const PRINT_WALK = 1.7;
-// Scene 5: her roar by round (level, as sfx.js gramedlaRoar: far, nearer, by them), from where (pan), the glow's strength by round
-// and when strong (the help's "she roars again, the glow stronger"); a walk's speed; how far the swirl of a wrong third is from Mosi
-const ROAR_LEVEL = [0.25, 0.55, 1.0];
+// The wind in the cloud (sfx.js mountainWind), of its own level: soft, under the steps and the roars, from the way in until her roar
+// blows the cloud away (the top has the music and the forest back, and no wind)
+const WIND = 0.6;
+// Scene 5: her roar from where (pan), the glow's strength by round and when strong (the help's "she roars again, the glow stronger":
+// her roar louder by as much); a walk's speed; how far the swirl of a wrong third is from Mosi. Her roar by her distance is FAR_ROAR.
 const ROAR_PAN = { left: -0.7, ahead: 0, right: 0.7 };
 const GLOW = [0.55, 0.8, 1];
 const STRONG = 1.3;
 const CALL_WALK = 1.3;
 const SWIRL_AT = 9;
 const WAY_TAP = 7; // m: the radius of each way's tap target, round its glow
+// Her answer by how far off she is (CALL.her: 60, 30 and 12 m in the three rounds): the same recording (sfx.js gramedlaRoar), quieter
+// (dB), duller (a low-pass, Hz; none near) and with a longer echo off the mountain (s) the further off she is; in between, in between.
+export const FAR_ROAR = [
+  { distance: 12, db: 0, cutoff: null, tail: 0 },
+  { distance: 30, db: -7, cutoff: 1800, tail: 0.6 },
+  { distance: 60, db: -14, cutoff: 700, tail: 1.4 },
+];
+const OPEN = 20000; // Hz: no low-pass, as far as an in-between distance is concerned
 // Scene 6: she stops HER_STOP m ahead of his root (kafli6-gramedla.js STEP_OUT: where her bow reaches Egill, her feet planted)
 const HER_STOP = HER_STEP_OUT.stop;
 const MEET_CLOUD = 0.12; // the cloud's level round them once she has stepped out (thin: her, Mosi and Egill all clear)
@@ -342,7 +351,7 @@ function onStone(s, c, event) {
         sound(s, c, 'step', { level: 0.7 });
         // his front feet come down on the stone: the water rings round it and Egill bounces in the saddle
         yield hopTo(s, c, crossing(event.step + 1), { ring: stone.at, settle: event.step < STEPS.length - 1 }); // from the last, on at once
-        sound(s, c, 'step', { level: 1 });
+        sound(s, c, 'hoofStone', { level: 1 });
         sound(s, c, 'splash', { level: 0.35 });
         if (event.step === FALLS_LOOK) {
           // halfway: they stop and look down the falls, where they flew up with Flugeðla
@@ -360,8 +369,8 @@ function onStone(s, c, event) {
     case 'wobble': {
       // the small stone wobbles, its frog hops into the water with a splash and a ring, and Mosi laughs: never a no
       stones.wobble(event.stone);
+      sound(s, c, 'stoneRock', { level: 0.5 });
       frogHops(s, c, event.stone);
-      sound(s, c, 'splash', { level: 0.5 });
       c.lines.say('mosi', 'k6_mosi_wobble', { ifQuiet: true });
       break;
     }
@@ -396,7 +405,10 @@ function frogHops(s, c, stoneId) {
   s.after(was.hops ? FROG_LANDS.later : FROG_LANDS.first, () => {
     const at = target.point;
     c.world.forest?.rippleAt?.(at.x, at.z, into ? 0.5 : 0.3);
-    if (into) splash(c.world, new c.world.THREE.Vector3(at.x, FORD.level, at.z), { size: 0.45, seed: `frog ${stoneId} ${Math.round(s.time * 10)}` });
+    if (into) {
+      splash(c.world, new c.world.THREE.Vector3(at.x, FORD.level, at.z), { size: 0.45, seed: `frog ${stoneId} ${Math.round(s.time * 10)}` });
+      sound(s, c, 'frogSplash', { level: 0.5 });
+    }
     c.log({ type: 'frog', id: name, into, ring: [at.x, at.z] });
     return null;
   });
@@ -468,8 +480,9 @@ function* thePrints(s, c) {
     },
   });
   s.releaseLocation('hlid');
-  world.music?.setLevel?.(0, 3); // no music in the cloud: only the quiet, the steps and the roars
+  world.music?.setLevel?.(0, 3); // no music in the cloud: only the quiet, the wind, the steps and the roars
   sound(s, c, 'forest', { calls: false, level: 0, seconds: 3 });
+  sound(s, c, 'mountainWind', { level: WIND, seconds: 3 });
   cut(s, c, { ...printShot(0, groundAt(c, PRINTS[0].position)), label: 'print_first' });
   const into = mosi.walkTo([[first.x, first.z]], { speed: 1.1, turnRate: 40 });
   soundWhile(s, c, 'step', 0.6, () => !into.done, { level: 0.6 });
@@ -535,7 +548,7 @@ function onPrint(s, c, event) {
       prints.splash(k);
       prints.count(k);
       sound(s, c, 'countTone', { index: k + 1 });
-      sound(s, c, 'splash', { level: 0.6 });
+      sound(s, c, 'wetStep', { level: 0.6 });
       c.lines.say('mosi', `k2_mosi_${k + 1}`);
       s.after(0.5, () => { prints.done(k); return null; });
       setCloud(c, CLOUD_BY_PRINT[k + 1]);
@@ -564,7 +577,7 @@ function thud(s, c) {
     s.camera.handheld(0.6, { duration: 0.4 });
     s.after(0.6, () => s.camera.handheld(0, { duration: 0.8 }));
   }
-  c.showSounds.play({ sound: 'thump', db: -4, cutoff: 600, rate: 0.85 });
+  thump(s, c, { db: -4, cutoff: 600, rate: 0.85 });
   sound(s, c, 'step', { level: 1.6 });
   c.belt?.pebbles?.hop(); // the little stones round the sixth print hop (world/fjall belt.js)
   c.log({ type: 'thud', handheld: shake });
@@ -635,12 +648,12 @@ function onCall(s, c, event) {
       unaim(s, c);
       mosi.lookAt(null);
       smallRoar(s, c, { seconds: ANSWER.mosi });
+      sound(s, c, 'mosiRoar');
       c.log({ type: 'mosiRoar', round: event.round, by: event.by });
       break;
     case 'answer': {
       const { round, direction, strong } = event;
-      const level = Math.min(1.2, ROAR_LEVEL[round] * (strong ? STRONG : 1));
-      sound(s, c, 'gramedlaRoar', { level, pan: ROAR_PAN[direction] });
+      farRoar(s, c, { distance: CALL.her[round], pan: ROAR_PAN[direction], louder: strong ? STRONG : 1 });
       c.log({ type: 'herRoar', round, direction, again: event.again, strong });
       cloud.glow(glowAt(c, stand, direction), Math.min(1, GLOW[round] * (strong ? STRONG : 1)));
       herAnswers(s, c, stand, round, direction);
@@ -681,6 +694,26 @@ function onCall(s, c, event) {
   }
 }
 
+/** Her roar `distance` m off (FAR_ROAR): { level, cutoff (Hz, or null: none), tail (s) }. */
+export function farRoarAt(distance) {
+  const rows = FAR_ROAR;
+  const d = Math.min(rows.at(-1).distance, Math.max(rows[0].distance, distance));
+  const k = rows.findIndex(row => row.distance >= d);
+  const a = rows[Math.max(0, k - 1)], b = rows[k];
+  const u = a === b ? 1 : (d - a.distance) / (b.distance - a.distance);
+  const pick = u >= 1 ? b : u <= 0 ? a : null;
+  const db = pick ? pick.db : a.db + (b.db - a.db) * u;
+  const tail = pick ? pick.tail : a.tail + (b.tail - a.tail) * u;
+  let cutoff = pick ? pick.cutoff : Math.round(Math.exp(Math.log(a.cutoff ?? OPEN) + (Math.log(b.cutoff ?? OPEN) - Math.log(a.cutoff ?? OPEN)) * u));
+  if (cutoff >= OPEN) cutoff = null;
+  return { level: 10 ** (db / 20), cutoff, tail };
+}
+/** Her answer in the call, `distance` m off and from `pan` (`louder`: the help's stronger answer), in the chapter's log. */
+function farRoar(s, c, { distance, pan = 0, louder = 1 }) {
+  const { level, cutoff, tail } = farRoarAt(distance);
+  sound(s, c, 'gramedlaRoar', { level: Math.min(1.2, level * louder), pan, distance, ...(cutoff ? { cutoff } : {}), ...(tail ? { tail } : {}) });
+}
+
 /**
  * She answers: from the second round her shape in the glow (kafli6-gramedla.js shape: in the first she is too far off to be seen),
  * her roar clip and a step toward them with a thud, nearer each round.
@@ -691,13 +724,13 @@ function herAnswers(s, c, stand, round, direction) {
 
 /** Her footfall in the call and as she steps out (kafli6-gramedla.js): far and to the side in the call, near and shaking after. */
 function footfall(s, c, { round = null, direction = 'ahead', near = false, tremble = false } = {}) {
-  if (round === 1) c.showSounds.play({ sound: 'thump', db: -16, cutoff: 300, rate: 0.85, pan: ROAR_PAN[direction] });
+  if (round === 1) thump(s, c, { db: -16, cutoff: 300, rate: 0.85, pan: ROAR_PAN[direction] });
   else if (round === 2) {
-    c.showSounds.play({ sound: 'thump', db: -7, cutoff: 500, rate: 0.85, pan: ROAR_PAN[direction] });
+    thump(s, c, { db: -7, cutoff: 500, rate: 0.85, pan: ROAR_PAN[direction] });
     c.belt?.pebbles?.hop(); // the little stones hop at her step
     tremor(s, c, 0.35);
   } else {
-    thump(c, near ? -3 : -8);
+    thump(s, c, { db: near ? -3 : -8 });
     if (tremble) tremor(s, c, 0.45);
   }
   c.log({ type: 'thud', her: true, round, handheld: !c.reduced && (round === 2 || tremble) });
@@ -737,13 +770,16 @@ function* sheComes(s, c) {
   // her roar of joy: the cloud blows away in a ring, the sunset comes through, the music is back
   cut(s, c, shot('roar_wide'));
   yield* her.roarYes({
-    roared: () => c.log({ type: 'herRoar', scene: 6 }),
+    roared: () => {
+      c.log({ type: 'herRoar', scene: 6 });
+      world.music?.setLevel?.(1, 2); // the theme swells back under her roar, full as the cloud flies off
+    },
     blow: () => {
       const at = c.gramedla.raw.root.position;
       const blown = c.cloud.blowAway({ from: [at.x, at.z] });
       c.log({ type: 'blow' });
       easeLight(world, LOOKS.sunset, 3);
-      world.music?.setLevel?.(1, 2);
+      sound(s, c, 'mountainWind', { level: 0, seconds: 2 }); // the wind of the cloud goes with it
       sound(s, c, 'forest', { calls: false, level: 1, seconds: 2 });
       return blown;
     },
@@ -906,7 +942,7 @@ function footfalls(s, c, going, db, every = STRIDE.footfall) {
   s.after(0, function* falling() {
     yield s.wait(every * 0.5);
     while (!going.done && !c.ended) {
-      thump(c, db);
+      thump(s, c, { db });
       yield s.wait(every);
     }
   });
@@ -1001,9 +1037,12 @@ function setCloud(c, level, seconds) {
   c.log({ type: 'cloudLevel', level });
 }
 
-/** Her footfall, near or far (dB). */
-function thump(c, db) {
-  c.showSounds.play({ sound: 'thump', db, cutoff: 700, rate: 0.9 });
+/**
+ * Her footfall (sfx.js gramedlaThump, "Grameðla kemur!"'s recording) at `db`, through a low-pass at `cutoff` Hz (duller far off), at
+ * `rate` (a little slower: heavier), from `pan`.
+ */
+function thump(s, c, { db, cutoff = 700, rate = 0.9, pan = 0 }) {
+  sound(s, c, 'gramedlaThump', { level: 10 ** (db / 20), cutoff, rate, ...(pan ? { pan } : {}) });
 }
 
 /** A cut that keeps the director's rule: it waits until MIN_SHOT after the last one (a newer one waiting takes its place). */
@@ -1179,17 +1218,12 @@ function setUp(s) {
   c.her = gramedlaLife(s, c);
   c.sloedlaLife = sloedlaLife(sloedla);
   c.saddle = createSaddle(mosi.raw);
-  // her footfalls and far thumps, the recordings "Grameðla kemur!" plays (chapters/gramedla3d/sounds.js), held with the game
-  c.showSounds = createShowSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
   world.chapterState = c;
   c.run = () => {
-    const release = s.seeking ? null : world.sound?.hold?.(c.showSounds);
     return () => {
       c.ended = true;
       showSky(c); // the sky as the engine had it, however the chapter ends or is left
       c.her.dispose(); // her skin's shared material back on her model
-      release?.();
-      c.showSounds.stop();
       world.music?.setLevel?.(1, 1);
     };
   };
