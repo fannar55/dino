@@ -305,3 +305,75 @@ test('in the cloud at level 0.5 a bush 30 m off is whiter than one 8 m off; at l
   }
   belt.dispose();
 });
+
+// ---- the audit (B10): the cloud's blow and the light finish cleanly ----------------------------------------------------
+
+test('setLevel during a blow finishes the blow: whoever waits on it goes on', () => {
+  const w = world();
+  const cloud = createCloud(w);
+  cloud.setLevel(1, 0);
+  const blown = cloud.blowAway({ from: [0, 0] });
+  run(cloud, 0.5);
+  cloud.setLevel(0.5, 0);
+  assert.equal(blown.done, true);
+  cloud.dispose();
+});
+
+test('the ring of her roar is whole however many swirls are in the cloud', () => {
+  const w = world();
+  const cloud = createCloud(w);
+  cloud.setLevel(1, 0);
+  for (let i = 0; i < 12; i++) cloud.swirlAt([i * 3, 0]); // a child tapping wrong again and again
+  for (let i = 0; i < 3; i++) cloud.liftAt([i * 4, 2]);
+  cloud.blowAway({ from: [0, 0] });
+  assert.equal(cloud.cards.filter(c => c.alive && c.kind === 'ring').length, 24);
+  assert.equal(cloud.cards.filter(c => c.alive && c.kind === 'drift').length, 14, 'the wisps round the camera stay');
+  cloud.dispose();
+});
+
+test('blowAway ends at the fog of the look the light is going to (world.lightLook)', () => {
+  const w = world();
+  w.look = LOOKS.lowSun;
+  const cloud = createCloud(w);
+  cloud.setLevel(1, 0);
+  w.lightLook = LOOKS.afterRoar;
+  const blown = cloud.blowAway({ from: [0, 0] });
+  run(cloud, CLOUD.blow + DT);
+  assert.equal(blown.done, true);
+  assert.ok(Math.abs(w.scene.fog.density - LOOKS.afterRoar.fog.density) < 1e-9, `${w.scene.fog.density}`);
+  cloud.dispose();
+});
+
+test('dispose while the cloud holds the fog gives the sky\'s fog glow back', () => {
+  // held at dispose (a chapter left in the cloud): the sky's horizon glow is the look's again, not the one the cloud matched it to
+  const v = world();
+  v.look = LOOKS.lowSun;
+  v.lightLook = LOOKS.inCloud;
+  const sky = v.sky.dome.material.uniforms;
+  const held = createCloud(v);
+  held.setLevel(1, 0);
+  run(held, 0.2);
+  held.dispose();
+  assert.equal(sky.uFogSun.value.getHex(), new THREE.Color(LOOKS.inCloud.fog.sunColor).getHex());
+  assert.equal(sky.uFogSunStrength.value, LOOKS.inCloud.fog.sunStrength);
+});
+
+test('the light eased while the cloud holds the fog takes the density on from where the cloud lets go of it, with no jump', () => {
+  const w = { ...world(), look: LOOKS.lowSun };
+  const cloud = createCloud(w);
+  cloud.setLevel(1, 0);
+  const ease = easeLight(w, LOOKS.sunset, 3); // the roar's: the cloud blows away under it, over the same 3 s
+  const blown = cloud.blowAway({ from: [0, 0], seconds: 2 });
+  let last = w.scene.fog.density, most = 0;
+  for (let t = 0; t < 3.5; t += DT) {
+    w.effects.update(DT);
+    cloud.update(DT, t);
+    most = Math.max(most, Math.abs(w.scene.fog.density - last));
+    last = w.scene.fog.density;
+  }
+  assert.equal(blown.done, true);
+  assert.equal(ease.done, true);
+  assert.ok(most < 0.01, `the fog jumped by ${most}`);
+  assert.ok(Math.abs(w.scene.fog.density - LOOKS.sunset.fog.density) < 1e-9);
+  cloud.dispose();
+});
