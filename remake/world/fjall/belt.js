@@ -19,6 +19,7 @@ import { createMudPrints } from '../props/mud-prints.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { Handle } from '../../engine/handle.js';
 import { createCloud } from './cloud.js';
+import { createNoiseTexture } from '../forest/materials.js';
 import { groundMesh, linear, mixRGB, patchAt, seeded, smooth } from './ground.js';
 import { createStageLook, plantMeshes, createCloudCards } from './look.js';
 
@@ -37,6 +38,9 @@ const PRINT_MUD = { floor: '#4f4838', wall: '#5c5545', lip: '#9a937e', band: '#6
 const BANK = { from: 84, to: 104, rows: 2, cards: 24, width: [36, 52], height: [24, 42], ahead: 0.55 };
 /** The top's shape: its middle `ahead` m on, its flat top `top` m up, `flat` m round, its foot `foot` m round and under the ground. */
 export const SUMMIT = { ahead: 320, top: 88, flat: 70, foot: 260, under: -70 };
+// The cloud's level from which the top and the bank are not drawn: the white hides them wholly (the top's 12,000 triangles and the
+// bank's cards; below it the top's high ground still shows, faintly, through the thinner cloud's height fog)
+const HIDDEN_FROM = 0.9;
 const PEBBLES = { count: 14, near: 0.55, far: 1.25, size: [0.18, 0.34], hop: [0.12, 0.3], seconds: 0.75 };
 
 /** The belt's ground: 0.2 m low at the west, rising gently east along the prints to 2.8 m, with a slight swell. */
@@ -99,16 +103,17 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
       placements.push({ name, variant: Math.floor(rng() * 4), lod, x, y: heightAt(x, z) - 0.05, z, rot: rng() * Math.PI * 2, scale, sky: 0.95, phase: rng() });
     }
   }
-  const plants = look ? plantMeshes(placements, { library: createSpeciesLibrary(seed), materials: look.plants, name: 'Belt plants' }) : null;
+  const plants = look ? plantMeshes(placements, { library: look.library, materials: look.plants, name: 'Belt plants' }) : null;
   if (plants) group.add(...plants.meshes);
 
   // ---- the little stones round the last print, that hop at her thud ----
-  const pebbles = makePebbles(world, { prints, printSize, heightAt, seed, free: (x, z) => !marks || marks.groundAt(x, z) <= heightAt(x, z) + 0.002 });
+  const pebbles = makePebbles(world, { prints, printSize, heightAt, seed, library: look?.library ?? null, free: (x, z) => !marks || marks.groundAt(x, z) <= heightAt(x, z) + 0.002 });
   if (pebbles.mesh) group.add(pebbles.mesh);
 
   // ---- the bank her roar leaves, and the top above it ----
   const last = prints.at(-1)?.position ?? [0, 0];
   let bank = null;
+  const bankNoise = grey ? null : createNoiseTexture((seed ^ 0x2c1b) >>> 0); // createCloudCards's own for this seed, made once
   const top = makeSummit(world, { look, seed });
   group.add(top.group);
   const summit = {
@@ -118,7 +123,7 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
       top.place(stand);
       if (grey) return;
       bank?.dispose();
-      bank = makeBank(world, { centre: last, seed, heightAt, toward: stand.heading });
+      bank = makeBank(world, { centre: last, seed, heightAt, toward: stand.heading, noise: bankNoise });
       group.add(bank.mesh);
     },
   };
@@ -130,6 +135,9 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
     get bank() { return bank; },
     update(dt, time) {
       cloud.update(dt, time);
+      const hidden = cloud.level >= HIDDEN_FROM;
+      top.group.visible = !hidden;
+      if (bank) bank.mesh.visible = !hidden;
       bank?.update(dt, time);
       pebbles.update(dt);
     },
@@ -140,6 +148,7 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
       plants?.dispose();
       pebbles.dispose();
       bank?.dispose();
+      bankNoise?.dispose();
       top.dispose();
       look?.dispose();
       group.removeFromParent();
@@ -148,11 +157,11 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
 }
 
 /** The little stones round the last print (the game's small rock, small), one instanced mesh; hop() makes them jump twice. */
-function makePebbles(world, { prints, printSize, heightAt, seed, free }) {
+function makePebbles(world, { prints, printSize, heightAt, seed, library = null, free }) {
   const last = prints.at(-1);
   const none = { mesh: null, stones: [], hop: () => new Handle('pebbles').finish(), update() {}, dispose() {} };
   if (!last) return none;
-  const model = createSpeciesLibrary(seed).get('rockSmall', 1, 1).solid;
+  const model = (library ?? createSpeciesLibrary(seed)).get('rockSmall', 1, 1).solid;
   const geometry = new THREE.BufferGeometry();
   const colour = new THREE.Color();
   const col = [];
@@ -211,7 +220,7 @@ function makePebbles(world, { prints, printSize, heightAt, seed, free }) {
 }
 
 /** The bank of cloud round the last print: two rows of standing cards, lower `toward` (degrees: the way the top shows). */
-function makeBank(world, { centre, seed, heightAt, toward = 35 }) {
+function makeBank(world, { centre, seed, heightAt, toward = 35, noise = null }) {
   const rng = seeded(seed * 17 + 3);
   const cards = [];
   for (let row = 0; row < BANK.rows; row++) {
@@ -226,7 +235,7 @@ function makeBank(world, { centre, seed, heightAt, toward = 35 }) {
       cards.push({ x, z, y: heightAt(x, z) + h * 0.32, w, h, opacity: 0.95, seed: rng() * 10 });
     }
   }
-  return createCloudCards(world, cards, { name: 'Cloud bank', renderOrder: 11, seed });
+  return createCloudCards(world, cards, { name: 'Cloud bank', renderOrder: 11, seed, noise });
 }
 
 /** The mountain's top seen from the belt: a broad shape with a flat top, its sides rock, its top green, under the belt's ground at its foot. */

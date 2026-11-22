@@ -1,9 +1,11 @@
 // The mountain's real look (chapter 6, chunk 2), shared by its three stages: the game's own ground material and plants on a small
 // stage, and the cloud's cards lit by the scene's own lights.
 //
-//   createStageLook(world, { seed })  -> { noise, leaf, ground, plants: { solid, thin }, dispose() }
+//   createStageLook(world, { seed })  -> { noise, leaf, library, ground, plants: { solid, thin }, dispose() }
 //                                    the valley's ground material (world/ardalur/look.js createGroundMaterial: vertex colours and
-//                                    the noise's patches) and the forest's plant materials (createPlantMaterials), made once a stage
+//                                    the noise's patches) and the forest's plant materials (createPlantMaterials), made once a stage;
+//                                    its noise and leaf textures and its species library (world/forest/species.js) are made once for
+//                                    the stages of one seed alive at a time (the belt and the top: the same bytes), and let go with the last
 //   plantMeshes(placements, { library, materials }) -> { meshes, triangles, dispose() }
 //                                    the game's own plants and rocks (world/forest/species.js), each at its place, merged into two
 //                                    static meshes (their solid and their thin parts) as the forest's batcher bakes them: they sway in
@@ -16,21 +18,42 @@
 import * as THREE from 'three';
 import { createGroundMaterial, createPlantMaterials } from '../ardalur/look.js';
 import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
+import { createSpeciesLibrary } from '../forest/species.js';
 import { FOREST } from '../forest/config.js';
 import { createWind } from '../../engine/wind.js';
 
 const SWAY = FOREST.wind.swayScale;
 
+// seed -> { noise, leaf, library, users }: what the stages of one seed share while any of them is alive (the leaf texture alone is
+// some 200 ms of a frame)
+const SHARED = new Map();
+
 /** The ground and plant materials of a stage. A world with no wind (a test's) gets one of its own. */
 export function createStageLook(world, { seed = 6 } = {}) {
-  const noise = createNoiseTexture((seed * 7919) >>> 0);
-  const leaf = createLeafTexture((seed * 104729) >>> 0);
+  let shared = SHARED.get(seed);
+  if (!shared) {
+    shared = { noise: createNoiseTexture((seed * 7919) >>> 0), leaf: createLeafTexture((seed * 104729) >>> 0), library: null, users: 0 };
+    SHARED.set(seed, shared);
+  }
+  shared.users++;
+  const { noise, leaf } = shared;
   const ground = createGroundMaterial(noise);
   const plantWorld = world.wind ? world : Object.assign(Object.create(world), { wind: createWind() });
   const plants = createPlantMaterials(plantWorld, { noise, leaf });
+  let disposed = false;
   return {
     noise, leaf, ground, plants,
-    dispose() { ground.dispose(); plants.dispose(); noise.dispose(); leaf.dispose(); },
+    get library() { return (shared.library ??= createSpeciesLibrary(seed)); },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      ground.dispose();
+      plants.dispose();
+      if (--shared.users > 0) return;
+      noise.dispose();
+      leaf.dispose();
+      if (SHARED.get(seed) === shared) SHARED.delete(seed);
+    },
   };
 }
 

@@ -18,7 +18,6 @@ import { createRoute, FALLS } from '../../chapters/kafli4-route.js';
 import { createTerrain, GREY } from '../ardalur/terrain.js';
 import { createFarLand, createFarHaze, FAR } from '../ardalur/far-land.js';
 import { createFarFriends } from '../props/far-friends.js';
-import { createSpeciesLibrary } from '../forest/species.js';
 import { FJALL, groundMesh, linear, mixRGB, patchAt, seeded, smooth } from './ground.js';
 import { createStageLook, plantMeshes, createCloudCards } from './look.js';
 import { viewForest } from './view.js';
@@ -37,7 +36,8 @@ const MEADOW_COUNT = 70;
 const MOSI_STAND = [-2386, 124]; // where he stands on the ledge and turns (kafli6-route.js SLOPE.ledge)
 // Þórseðla: on her way from the Fen to the mountain, north of the glade's line from the ledge, walking north-west (seen side-on from
 // the ledge, her long neck across the view), her head and neck well over the trees
-export const THORSEDLA = { from: [-1180, -360], heading: 235, speed: 5, scale: 9, walk: 0.45 };
+// (reach: m she walks at most, far more than scene 3 lasts, some 45 s: a slope left built does not walk her off over the mountains)
+export const THORSEDLA = { from: [-1180, -360], heading: 235, speed: 5, scale: 9, walk: 0.45, reach: 600 };
 // The cloud's underside: flat cards over the ridge, west of the ledge (the view east keeps its sky), and over every mountain round
 // the slope whose land would rise into it (DECK.over m under it or higher): the far land there is held under it (CEILING), so a
 // mountain goes up into the cloud and no grey peak stands over it; wisps where it meets the path
@@ -141,7 +141,7 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
       made++;
     }
   }
-  const library = look ? createSpeciesLibrary(seed) : null;
+  const library = look ? look.library : null;
   const plants = look ? plantMeshes(placements, { library, materials: look.plants, name: 'Slope plants' }) : null;
   if (plants) group.add(...plants.meshes);
 
@@ -205,7 +205,14 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
   });
   // with the place: hidden while another one shows (createFarFriends puts its group in the scene; prepared ahead, main.js draws the
   // slope once in Árdalurinn's place, and her far Þórseðla stood 200 m tall in scenes 1 and 2)
-  if (friends) group.add(friends.group);
+  if (friends) {
+    group.add(friends.group);
+    // a capture's seek (and main.js's warm-up) waits for her model, as it does for what else loads (world.loading)
+    const loading = (world.loading ??= new Set());
+    const loaded = friends.ready();
+    loading.add(loaded);
+    loaded.finally(() => loading.delete(loaded));
+  }
   let scaled = false;
 
   let gladeOn = false;
@@ -229,11 +236,10 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
       if (halo) {
         halo.mesh.visible = gladeOn;
         halo.uniforms.uLevel.value = breath;
-        halo.uniforms.uPixel.value = (world.renderer?.domElement?.height ?? 800) / 2 / Math.tan(THREE.MathUtils.degToRad(world.camera?.fov ?? 40) / 2);
       }
       for (const cards of [deck, wisps, spray]) cards?.update(step, time);
       if (friends) {
-        thorsedla.walked += step * THORSEDLA.speed;
+        thorsedla.walked = Math.min(THORSEDLA.reach, thorsedla.walked + step * THORSEDLA.speed);
         const actor = friends.actorOf('thorsedla');
         if (actor) {
           if (!scaled) { scaled = true; actor.root.scale.setScalar(THORSEDLA.scale); actor.play('walk', { fade: 0, timeScale: THORSEDLA.walk }); }
@@ -452,7 +458,7 @@ function gladeHalo(far) {
   geometry.setAttribute('aCorner', new THREE.Float32BufferAttribute([-1, -1, 1, -1, 1, 1, -1, 1], 2));
   geometry.setIndex([0, 1, 2, 0, 2, 3]);
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(GLADE.x, y, GLADE.z), GLADE.size);
-  const uniforms = { uColour: { value: new THREE.Vector3(...GLADE.colour) }, uLevel: { value: 0 }, uSize: { value: GLADE.size }, uPixel: { value: 900 } };
+  const uniforms = { uColour: { value: new THREE.Vector3(...GLADE.colour) }, uLevel: { value: 0 }, uSize: { value: GLADE.size } };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader: HALO_VERTEX, fragmentShader: HALO_FRAGMENT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
   material.name = 'slope-glade-halo';
   const mesh = new THREE.Mesh(geometry, material);

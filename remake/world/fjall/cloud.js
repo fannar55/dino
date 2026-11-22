@@ -12,7 +12,8 @@
 //   cloud.swirlAt(point)                          a tap on nothing: the cloud swirls there (reduced: it brightens there, still)
 //   cloud.glow(point | null, strength)            the golden glow in the cloud toward `point` (null: it fades)
 //   cloud.blowAway({ from, seconds = CLOUD.blow }) -> Handle: a ring of cloud flies out from `from` as the density eases down to the
-//                                                 sunset's clear air (LOOKS.sunset) and the level to 0 (reduced: the ring only fades)
+//                                                 clear air of the look the light goes to (world.lightLook, else LOOKS.sunset) and
+//                                                 the level to 0 (reduced: the ring only fades); setLevel or dispose finish it too
 //   cloud.update(dt, time)                        every frame (the place's update); nothing changes without it
 //   cloud.dispose()                               the fog back as the look had it (world.lightLook, else world.look)
 //
@@ -212,6 +213,8 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
     held = false;
     if (fog?.userData?.heldBy === cloud) fog.userData.heldBy = null;
   };
+  // the clear air the blow leaves: the fog of the look the light is at or going to (light-blend.js), else the sunset's
+  const clearAir = () => (world.lightLook ?? LOOKS.sunset).fog.density;
   const dipNow = () => (dip ? LIFT.dip * bump(dip.age / LIFT.dipSeconds) : 0);
   const writeFog = () => { if (held && fog) fog.density = heldDensity * (1 - dipNow()); };
   // The fog's warm glow toward the sun on whatever it covers is the look's the game began with (engine/fog.js bakes its colour and
@@ -226,8 +229,12 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
     if (skyUniforms.uFogSunStrength) skyUniforms.uFogSunStrength.value = baked.sunStrength;
   };
 
-  function spawn(kind, at) {
-    const card = cards.find(c => !c.alive);
+  // steal: with no card free (a child tapping wrong again and again), the swirl or lift card nearest its end gives way (her roar's ring)
+  function spawn(kind, at, steal = false) {
+    let card = cards.find(c => !c.alive);
+    if (!card && steal) {
+      for (const c of cards) if ((c.kind === 'swirl' || c.kind === 'lift') && (!card || c.age / c.life > card.age / card.life)) card = c;
+    }
     if (!card) return null;
     Object.assign(card, { kind, alive: true, age: 0, bright: 0, opacity: 0, vx: 0, vy: 0, vz: 0 }, at);
     return card;
@@ -293,6 +300,8 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
       }
       if (c.opacity > 0.002) any = true;
     }
+    mesh.visible = any;
+    if (!any) return;
     // into the buffers
     for (const c of cards) {
       const o = c.alive ? c.opacity : 0;
@@ -304,7 +313,6 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
       }
     }
     centreAttr.needsUpdate = cardAttr.needsUpdate = brightAttr.needsUpdate = true;
-    mesh.visible = any;
   }
 
   const cloud = {
@@ -314,6 +322,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
     get glowLevel() { return glowLevel; },
     setLevel(to, seconds = CLOUD.ease) {
       const target = Math.min(1, Math.max(0, to));
+      blow?.handle.finish(); // whoever waits on the blow goes on
       blow = null;
       hold();
       if (!(seconds > 0)) {
@@ -368,7 +377,7 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
         const x = fx + Math.cos(a) * r0, z = fz + Math.sin(a) * r0;
         const h = w0 * rng.range(0.6, 0.8);
         const y0 = ground(x, z) + h * 0.42 + rng.range(0, 2.5); // its soft foot over the ground: no line where it meets it
-        spawn('ring', { a, r0, fx, fz, reach: radius + 30, w0, w: w0, h, near: 4, x, z, y: y0, y0, seconds, life: seconds + 0.3 });
+        spawn('ring', { a, r0, fx, fz, reach: radius + 30, w0, w: w0, h, near: 4, x, z, y: y0, y0, seconds, life: seconds + 0.3 }, true);
       }
       return handle;
     },
@@ -389,10 +398,11 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
         blow.age += dt;
         const k = smooth(blow.age / (blow.seconds * BLOW_CLEAR)); // the air clears ahead of the ring, so the ring reads going out
         level = blow.level * (1 - k);
-        heldDensity = blow.density + (LOOKS.sunset.fog.density - blow.density) * k;
+        const clear = clearAir();
+        heldDensity = blow.density + (clear - blow.density) * k;
         if (blow.age >= blow.seconds) {
           level = 0;
-          heldDensity = LOOKS.sunset.fog.density;
+          heldDensity = clear;
           writeFog();
           letGo();
           blow.handle.finish();
@@ -409,8 +419,14 @@ export function createCloud(world, { centre = [0, 0], radius = 60, heightAt = wo
     dispose() {
       blow?.handle.finish();
       blow = null;
+      const holding = held;
       letGo();
       const look = world.lightLook ?? world.look;
+      // still holding (a chapter left in the cloud): the sky's fog glow, matched to the baked one (matchSky), is the look's again
+      if (holding && skyUniforms && look) {
+        skyUniforms.uFogSun?.value?.set?.(look.fog.sunColor);
+        if (skyUniforms.uFogSunStrength) skyUniforms.uFogSunStrength.value = look.fog.sunStrength;
+      }
       if (fog && look) {
         fog.density = look.fog.density;
         fog.color.set(look.fog.color);

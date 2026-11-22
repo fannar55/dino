@@ -66,6 +66,8 @@ export function easeLight(world, look, seconds) {
   const to = { colours: colours.map(({ of }) => new THREE.Color(of(look))), numbers: numbers.map(({ of }) => of(look)) };
   world.lightEase = handle;
   world.lightLook = look;
+  // a number held meanwhile (the cloud's fog density) is eased on from where it is let go, over what is left of the ease
+  const since = numbers.map(() => 0);
   let age = 0;
   world.effects.add({
     label: 'light',
@@ -74,7 +76,11 @@ export function easeLight(world, look, seconds) {
       age += dt;
       const k = smooth(age / seconds);
       colours.forEach(({ value }, i) => value.copy(from.colours[i]).lerp(to.colours[i], k));
-      numbers.forEach(({ object, key, held }, i) => { if (!held()) object[key] = from.numbers[i] + (to.numbers[i] - from.numbers[i]) * k; });
+      numbers.forEach(({ object, key, held }, i) => {
+        if (held()) { from.numbers[i] = object[key]; since[i] = k; return; }
+        const share = since[i] < 1 ? (k - since[i]) / (1 - since[i]) : 1;
+        object[key] = from.numbers[i] + (to.numbers[i] - from.numbers[i]) * share;
+      });
       if (age < seconds) return true;
       world.lightEase = null;
       handle.finish();

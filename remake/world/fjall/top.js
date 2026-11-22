@@ -19,7 +19,6 @@
 // the evening or a night.
 import * as THREE from 'three';
 import { GREY } from '../ardalur/terrain.js';
-import { createSpeciesLibrary } from '../forest/species.js';
 import { Handle } from '../../engine/handle.js';
 import { FJALL, groundMesh, linear, mixRGB, patchAt, seeded, smooth } from './ground.js';
 import { createStageLook, plantMeshes, createCloudCards } from './look.js';
@@ -103,7 +102,7 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
       placements.push({ name, variant: Math.floor(rng() * 4), lod: 0, x, y: heightAt(x, z) - 0.05, z, rot: rng() * Math.PI * 2, scale, sky: 1, phase: rng() });
     }
   }
-  const plants = look ? plantMeshes(placements, { library: createSpeciesLibrary(seed), materials: look.plants, name: 'Top plants' }) : null;
+  const plants = look ? plantMeshes(placements, { library: look.library, materials: look.plants, name: 'Top plants' }) : null;
   if (plants) group.add(...plants.meshes);
 
   // ---- the sea of cloud, its western bank and the veil ----
@@ -177,10 +176,11 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
     wave.age += dt;
     const front = wave.age * WAVE.speed;
     const fade = 1 - smooth(wave.age / wave.seconds);
-    for (let i = 0; i < centres.count; i++) {
-      const dx = rest[i * 3] - wave.from[0], dz = rest[i * 3 + 2] - wave.from[1];
+    for (let card = 0; card < centres.count; card += 4) {
+      const dx = rest[card * 3] - wave.from[0], dz = rest[card * 3 + 2] - wave.from[1];
       const k = (Math.hypot(dx, dz) - front) / WAVE.width;
-      centres.array[i * 3 + 1] = rest[i * 3 + 1] + wave.strength * fade * Math.exp(-k * k);
+      const lift = wave.strength * fade * Math.exp(-k * k);
+      for (let i = card; i < card + 4; i++) centres.array[i * 3 + 1] = rest[i * 3 + 1] + lift;
     }
     centres.needsUpdate = true;
     if (wave.age >= wave.seconds) {
@@ -197,8 +197,9 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
     group, heightAt, grey, centre: [0, 0], radius, edge, wayUp, room, plants: placements,
     sea: {
       level: FJALL.top.sea, cards: seaCards, bank,
-      /** A warm light of the sea's own (the festival's glow under the night): 0 none, 1 full. */
-      setGlow(v) { seaCards?.setGlow(v); bank?.setGlow(v * 0.6); },
+      /** A warm light of the sea's own (the festival's glow under the night): 0 none, 1 full. The rim's puffs and heaps take it too, in
+       * place of the pale light of their own they have at the sunset (set at the build; chapter 6 never calls this). */
+      setGlow(v) { seaCards?.setGlow(v); bank?.setGlow(v * 0.6); rimCards?.setGlow(v); },
       /** A swell running out over the sea from `from` ([x, z]), `strength` m high, over `seconds`; a Handle, done when it has passed. */
       wave({ from = [0, 0], strength = 3, seconds = 4 } = {}) {
         wave?.handle.finish();

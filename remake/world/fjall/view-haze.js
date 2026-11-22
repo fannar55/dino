@@ -28,7 +28,7 @@ const AWAY = '  vViewAway = distance( ( modelMatrix * vec4( transformed, 1.0 ) )
 
 export function createViewHaze() {
   const uniforms = { uViewHaze: { value: new THREE.Vector4(0.8, 0.72, 0.7, 1) }, uViewWarm: { value: new THREE.Color(0.95, 0.75, 0.6) } };
-  const fog = { r: 0, g: 0, b: 0 }, sun = new THREE.Color();
+  const fog = { r: 0, g: 0, b: 0 }, s = { r: 0, g: 0, b: 0 }, sun = new THREE.Color();
   return {
     uniforms,
     patch(material, key, more = null) {
@@ -59,7 +59,6 @@ export function createViewHaze() {
       uniforms.uViewHaze.value.set(fog.r, fog.g, fog.b, 1);
       // the air in front of the far land, lit by the sun behind the camera: the fog's colour toward the sun's own
       sun.copy(sky?.uFogSun?.value ?? colour);
-      const s = { r: 0, g: 0, b: 0 };
       sun.getRGB(s, THREE.SRGBColorSpace);
       uniforms.uViewWarm.value.setRGB(fog.r + (s.r - fog.r) * HAZE.warm, fog.g + (s.g - fog.g) * HAZE.warm, fog.b + (s.b - fog.b) * HAZE.warm);
     },
