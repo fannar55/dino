@@ -22,11 +22,13 @@ const SPOT = [-10, 0, 2]; // her root, so she stands in the open middle of the c
 // Close views of the seat: [ahead, up, right] in metres from the seat of his trousers in her frame (heading 0, world up), and where
 // they look, likewise. The wide view is from her left, far enough for all of her.
 const CLOSE = {
-  back: { from: [-3.2, 1.3, 0], at: [0.4, 0.1, 0], fov: 38 },
-  left: { from: [0.2, 0.5, -3.2], at: [0.2, 0, 0], fov: 36 },
-  right: { from: [0.2, 0.5, 3.2], at: [0.2, 0, 0], fov: 36 },
+  back: { from: [-3.4, 2.1, 0], at: [0.4, 0, 0], fov: 38 },
+  left: { from: [0.2, 1.0, -3.0], at: [0.2, -0.05, 0], fov: 38 },
+  right: { from: [0.2, 1.0, 3.0], at: [0.2, -0.05, 0], fov: 38 },
   front: { from: [3.4, 1.1, -1.6], at: [0, 0.2, 0], fov: 36 },
-  top: { from: [-0.8, 3.2, 0.05], at: [0.1, 0, 0], fov: 40 },
+  top: { from: [-1.6, 2.6, 0.05], at: [0.2, 0, 0], fov: 42 },
+  // her head down: her neck and back rise behind him, so from over them
+  backDown: { from: [-1.7, 2.4, 0.3], at: [0.6, -0.1, 0], fov: 40 },
   wide: { from: [1, 0.5, -17], at: [-2.5, -2, 0], fov: 44 },
 };
 
@@ -72,7 +74,7 @@ export const chapter = {
     const riding = ride(egill, seat, { settle: 0 });
     her.world.chapterState = { her, egill, seat, riding, down }; // for probes
     yield s.wait(0.5); // let the pose, the seat and his hands and legs settle
-    const view = CLOSE[VIEW] ?? CLOSE.right;
+    const view = (POSE === 'down' && VIEW === 'back' ? CLOSE.backDown : CLOSE[VIEW]) ?? CLOSE.right;
     const bottom = seat.update().clone().add(new THREE.Vector3(0, SIT_DEPTH, 0));
     const at = ([a, u, r]) => bottom.clone().add(new THREE.Vector3(a, u, r));
     yield s.camera.cut({ position: at(view.from).toArray(), target: at(view.at).toArray(), fov: view.fov, label: VIEW }, { check: false });
