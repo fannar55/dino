@@ -241,17 +241,25 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     return true;
   }
 
-  /** A bed fades out (over about 4.6 time constants) and lets go of its nodes. */
-  function fadeOut(old, tau) {
+  /**
+   * `param` held where it is at `now`, times `share`, with whatever was scheduled after cancelled: also halfway through a ramp
+   * (cancelScheduledValues alone would drop it to the start of that, and a ramp left in place governs the time before it, so a
+   * fade set over it would not be heard).
+   */
+  function hold(param, now, share = 1) {
+    if (param.cancelAndHoldAtTime && share === 1) param.cancelAndHoldAtTime(now);
+    else {
+      const level = param.value * share; // where it is now, read before the cancel
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(level, now);
+    }
+  }
+
+  /** A bed fades out (over about 4.6 time constants) and lets go of its nodes; from `share` of where it is (stop: the bus's). */
+  function fadeOut(old, tau, share = 1) {
     if (bed === old) bed = null;
     const now = context.currentTime;
-    // from where it is now, also halfway through its own fade in (cancelScheduledValues alone would drop it to the start of that)
-    if (old.fade.gain.cancelAndHoldAtTime) old.fade.gain.cancelAndHoldAtTime(now);
-    else {
-      const level = old.fade.gain.value; // where it is now, read before the cancel
-      old.fade.gain.cancelScheduledValues(now);
-      old.fade.gain.setValueAtTime(level, now);
-    }
+    hold(old.fade.gain, now, share);
     old.fade.gain.setTargetAtTime(0, now, tau);
     const [first, ...rest] = old.sources;
     for (const source of old.sources) source.stop(now + tau * 6);
@@ -550,9 +558,13 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   const buffers = new Map(); // url → its decoded buffer
   const lastTake = new Map(); // name → the url it played last
   const loops = new Map(); // name → { source, volume } of a looped sample sounding now
+  const standing = new Set(); // names of looped samples whose made bed stands in for them now (no file decoded when asked)
+  const waiting = new Map(); // name → detail of a looped sample asked for before sound was allowed: laid by update() when it is
+  const looped = new Set(); // the names of the looped samples, which play() treats as it treats the beds
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
     const urls = sample.urls ?? (sample.url ? [sample.url] : []);
+    if (sample.loop) looped.add(name);
     SOUNDS[name] = sample.loop ? (detail = {}) => loopSample(name, sample, urls, detail) : (detail = {}) => {
       const ready = urls.filter(url => buffers.has(url));
       const fresh = ready.length > 1 ? ready.filter(url => url !== lastTake.get(name)) : ready;
@@ -617,12 +629,21 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     delay.connect(dull);
     dull.connect(back);
     back.connect(delay);
-    const keeper = context.createBufferSource(); // silent: it ends when the echo has died away, and lets go of its nodes
-    keeper.buffer = context.createBuffer(1, 1, context.sampleRate);
-    track(keeper, [send, delay, dull, back, ...outlet(dull, pan * 0.6, master)]);
+    // Silent: it ends when the echo has died away, and lets go of its nodes. It loops its one sample, as a source that does not
+    // loop ends when its buffer has played (at once, here), whatever stop() says; and it is connected (to nothing, through a
+    // closed gain), so the browser pulls it and its end is fired.
+    const keeper = context.createBufferSource();
+    keeper.buffer = silence ??= context.createBuffer(1, 1, context.sampleRate);
+    keeper.loop = true;
+    const sink = context.createGain();
+    sink.gain.value = 0;
+    keeper.connect(sink);
+    sink.connect(master);
+    track(keeper, [sink, send, delay, dull, back, ...outlet(dull, pan * 0.6, master)]);
     keeper.start(now);
     keeper.stop(now + heard + seconds);
   }
+  let silence = null; // the keepers' one sample
 
   /**
    * A looped sample (`sample.loop`), to `detail.level` of its own level over `detail.seconds`: started when it is not sounding, faded
@@ -636,18 +657,16 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     const playing = loops.get(name);
     const url = urls.find(u => buffers.has(u));
     if (!playing && !url) {
-      if (BEDS.includes(sample.instead)) askBed(sample.instead, { calls: false, level, seconds });
-      else if (level > 0) SOUNDS[sample.instead]?.(detail);
+      if (BEDS.includes(sample.instead)) {
+        if (level > 0) standing.add(name);
+        else standing.delete(name);
+        askBed(sample.instead, { calls: false, level, seconds });
+      } else if (level > 0) SOUNDS[sample.instead]?.(detail);
       return;
     }
     if (playing) {
       const gain = playing.volume.gain;
-      if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
-      else {
-        const was = gain.value;
-        gain.cancelScheduledValues(now);
-        gain.setValueAtTime(was, now);
-      }
+      hold(gain, now);
       gain.linearRampToValueAtTime(sample.level * level, now + Math.max(0.05, seconds));
       if (level === 0) {
         loops.delete(name);
@@ -655,6 +674,8 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       }
       return;
     }
+    // its file has come since its bed stood in for it: the bed gives way to it (or goes, at level 0), as the scene had it before
+    if (standing.delete(name)) askBed(sample.instead, { calls: false, level: 0, seconds });
     if (level === 0) return;
     const source = context.createBufferSource();
     source.buffer = buffers.get(url);
@@ -678,6 +699,20 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     if (Number.isFinite(detail?.level)) bedLevel(Math.max(0, detail.level), Number.isFinite(detail.seconds) ? Math.max(0, detail.seconds) : 0);
     return allowed() && startBed(name);
   }
+  /**
+   * A looped sample asked for (play's own branch for them, as for the beds): one asked to sound before sound is allowed waits, and
+   * is laid by update() as soon as it is; one asked to stop (level 0) stops whatever holds the game, and takes back one waiting.
+   * Not counted against MAX_SOUNDS: it is one voice, laid once.
+   */
+  function askLoop(name, detail) {
+    if (!(Number.isFinite(detail.level) && detail.level <= 0) && !allowed()) {
+      waiting.set(name, detail);
+      return false;
+    }
+    waiting.delete(name);
+    SOUNDS[name](detail);
+    return true;
+  }
   const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
   const lastPlayed = new Map();
@@ -687,12 +722,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   /** The beds' bus to `level` of AMBIENCE, in a straight line over `seconds` from where it is now. */
   function bedLevel(level, seconds) {
     const now = context.currentTime, gain = ambience.gain;
-    if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
-    else {
-      const was = gain.value;
-      gain.cancelScheduledValues(now);
-      gain.setValueAtTime(was, now);
-    }
+    hold(gain, now);
     if (seconds > 0) gain.linearRampToValueAtTime(AMBIENCE * level, now + seconds);
     else gain.setValueAtTime(AMBIENCE * level, now);
   }
@@ -707,6 +737,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     play(name, detail) {
       if (typeof name !== 'string' || !Object.hasOwn(SOUNDS, name)) return false;
       if (BEDS.includes(name)) return askBed(name, detail);
+      if (looped.has(name)) return askLoop(name, detail ?? {});
       if (!allowed() || sounding >= MAX_SOUNDS) return false;
       const now = context.currentTime;
       if (now - (lastPlayed.get(name) ?? -Infinity) < (least[name] ?? 0)) return false;
@@ -721,6 +752,10 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     update(dt) {
       if (!allowed()) return;
       if (wanted && bed?.name !== wanted) startBed(wanted);
+      for (const [name, detail] of waiting) {
+        waiting.delete(name);
+        SOUNDS[name](detail);
+      }
       if (!bed || !calls) return;
       callIn -= dt;
       if (callIn > 0) return;
@@ -738,14 +773,25 @@ export function createSfx({ context = null, theme = null, output, random = Math.
         for (let i = 0; i < 3; i++) noise({ kind: 'white', type: 'bandpass', frequency: 3900, q: 5, duration: 0.08, level: 0.015, delay: 0.8 + i * 0.17, bus: ambience });
       }
     },
-    /** Ends the bed's loop (the scene is over), or the wish for one; the effects that are playing finish by themselves. */
+    /**
+     * Ends the bed's loop (the scene is over), or the wish for one, and the looped samples; the effects that are playing finish by
+     * themselves. The beds' bus is back at the game's level for the next scene's bed: the bed going fades from where the bus had
+     * it (a scene that turned the beds down leaves them down as they go, and not for ever after).
+     */
     stop() {
       wanted = null;
-      if (bed) fadeOut(bed, 0.2);
+      waiting.clear();
+      standing.clear();
+      const now = context.currentTime;
+      const share = ambience.gain.value / AMBIENCE;
+      hold(ambience.gain, now);
+      ambience.gain.setValueAtTime(AMBIENCE, now);
+      if (bed) fadeOut(bed, 0.2, share);
       for (const [name, { source, volume }] of loops) {
         loops.delete(name);
-        volume.gain.setTargetAtTime(0, context.currentTime, 0.1);
-        source.stop(context.currentTime + 0.6);
+        hold(volume.gain, now);
+        volume.gain.setTargetAtTime(0, now, 0.1);
+        source.stop(now + 0.6);
       }
     },
     /** Held with the game clock: silent while the book is open or the tab is hidden, and back after. */

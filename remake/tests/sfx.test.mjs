@@ -465,3 +465,217 @@ test('the mountain wind is a soft loop laid once, faded out when asked, and stoo
     assert.ok(context.of('gain').some(gain => Math.abs(gain.gain.valueAt(context.currentTime) - 0.8) < 1e-6), 'the forest back as it was');
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// The fake keeps the rules these tests lean on, as a browser does (Web Audio, AudioBufferSourceNode: a source that does not loop
+// ends once its buffer has played, whatever stop() said; a ramp governs the time from the event before it to its own).
+
+test('the fake ends a buffer that does not loop when it has played, and a looped one when it is stopped', () => {
+  const context = createFakeContext({ state: 'running' });
+  const once = context.createBufferSource();
+  once.buffer = context.createBuffer(1, 441, 44100); // 10 ms
+  once.connect(context.destination);
+  once.start(0);
+  once.stop(5);
+  const looped = context.createBufferSource();
+  looped.buffer = once.buffer;
+  looped.loop = true;
+  looped.start(0);
+  looped.stop(5);
+  let ended = 0;
+  once.onended = () => ended++;
+  context.advance(0.02);
+  assert.equal(once.ended, true, 'its buffer has played: it has ended, though stop() said 5 s');
+  assert.equal(ended, 1);
+  assert.equal(looped.ended, false, 'a looped one plays on');
+  context.advance(5);
+  assert.equal(looped.ended, true, 'and ends when it is stopped');
+  const slow = context.createBufferSource();
+  slow.buffer = once.buffer;
+  slow.playbackRate.value = 0.5;
+  slow.start(context.currentTime, 0.005);
+  context.advance(0.009);
+  assert.equal(slow.ended, false, 'from its offset, at its rate: 5 ms of buffer at half speed is 10 ms');
+  context.advance(0.002);
+  assert.equal(slow.ended, true);
+});
+
+test('the fake lets a ramp govern the time before it, over a target set earlier in that time', () => {
+  const context = createFakeContext({ state: 'running' });
+  const gain = context.createGain().gain;
+  gain.setValueAtTime(0, 0);
+  gain.linearRampToValueAtTime(1, 3);
+  gain.setTargetAtTime(0, 1, 0.1); // a fade out that did not cancel the ramp first: the ramp runs on to its end, from the target
+  assert.ok(Math.abs(gain.valueAt(2) - 0.5) < 1e-9, `from where the events before the target left it (0 at 1 s): ${gain.valueAt(2)}`);
+  assert.equal(gain.valueAt(4), 1);
+  const delay = context.createDelay(1);
+  assert.equal(delay.delayTime.value, 0, 'and has a delay, as a browser does');
+});
+
+/** The gain from `node` to `target` at `time`: each gain on the way at that time, multiplied (the loudest way, when there are more). */
+function gainAt(node, target, time, seen = new Set()) {
+  if (node === target) return 1;
+  if (seen.has(node)) return 0; // once round an echo's loop
+  const own = node.kind === 'gain' ? node.gain.valueAt(time) : 1;
+  return own * Math.max(0, ...node.outputs.filter(out => out.outputs).map(out => gainAt(out, target, time, new Set([...seen, node]))));
+}
+
+// Chapter 6's far answers (kafli6.js FAR_ROAR): her roar with a tail, an echo off the mountain that dies away over that long.
+test('her far roar\'s echo off the mountain is heard after the roar, and lets go of its nodes once it has died away', async () => {
+  const { fetch } = fakeFetch();
+  await withFetch(fetch, async () => {
+    const context = createFakeContext({ state: 'running' });
+    const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    const before = context.bufferSources.length;
+    const nodesBefore = context.nodes.length;
+    assert.equal(sfx.play('gramedlaRoar', { level: 0.2, cutoff: 700, pan: -0.7, tail: 1.4 }), true);
+    const made = context.nodes.slice(nodesBefore);
+    const [roar, ...rest] = context.bufferSources.slice(before);
+    const heard = roar.buffer.duration / roar.playbackRate.value;
+    const delays = context.of('delay');
+    assert.equal(delays.length, 1, 'an echo');
+    const [delay] = delays;
+    assert.ok(roar.reaches(delay), 'of the roar');
+    assert.ok([roar, ...rest].every(source => source.reaches(context.destination)), 'everything it starts is pulled by the speakers');
+    assert.equal(delay.delayTime.valueAt(0), 0.17);
+    context.advance(0.2); // its first repeat is due at 0.17 s
+    assert.ok(!delay.disconnected && delay.reaches(context.destination), 'the first repeat is heard');
+    assert.ok(gainAt(delay, context.destination, context.currentTime) > 0, 'and not at nothing');
+    for (let t = 0.2; t < heard + 1.3; t += 0.1) context.advance(0.1);
+    assert.ok(delay.reaches(context.destination), 'it carries on to the end of its tail');
+    context.advance(1);
+    assert.ok(delay.disconnected, 'and lets go once it has died away');
+    assert.ok(made.every(node => node.disconnected), 'all of it, the roar\'s own nodes with it');
+    assert.ok(rest.every(source => source.ended), 'its keeper has ended');
+  });
+});
+
+/** A fetch like fakeFetch, which holds back the files whose url has `held` in it until release(). */
+function heldFetch(held) {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const fetch = url => {
+    const answer = { ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) };
+    return String(url).includes(held) ? gate.then(() => answer) : Promise.resolve(answer);
+  };
+  return { fetch, release: () => release() };
+}
+const windLoops = context => context.bufferSources.filter(source => source.loop && source.started && !source.ended && source.buffer.length !== context.sampleRate * 3);
+
+// B4 (the audit of 2026-11-22): the cloud's wind and the beds' bus start and stop cleanly however the calls fall.
+test('a scene that ends with the beds turned down leaves the next one its forest at the game\'s level, and no jump in the old one', () => {
+  const { context, sfx } = setup();
+  sfx.play('forest', { calls: false });
+  sfx.play('forest', { calls: false, level: 0, seconds: 3 }); // chapter 6 on the way into the cloud
+  context.advance(4);
+  const [old] = context.bufferSources.filter(source => source.loop);
+  sfx.stop(); // the chapter left before her roar brought it back
+  for (let t = 0; t < 1.5; t += 0.05) {
+    assert.ok(gainAt(old, context.destination, context.currentTime) < 1e-6, `the old bed stays silent as it goes (${t.toFixed(2)} s)`);
+    context.advance(0.05);
+  }
+  assert.equal(sfx.play('forest'), true, 'the next chapter lays its forest');
+  context.advance(3);
+  const [bed] = context.bufferSources.filter(source => source.loop && !source.ended);
+  const level = gainAt(bed, context.destination, context.currentTime);
+  assert.ok(Math.abs(level - 0.018 * 0.8) < 1e-6, `and it is heard at the game's level: ${level}`);
+});
+
+test('the wind asked for before its file has decoded is stood in for by the forest, which gives way to it and goes with it', async () => {
+  for (const later of ['stop', 'start']) {
+    const { fetch, release } = heldFetch('mountainWind');
+    await withFetch(fetch, async () => {
+      const context = createFakeContext({ state: 'running' });
+      const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+      const [, ambience] = context.of('gain'); // the beds' bus, made second, after the master
+      await settle();
+      sfx.play('forest', { calls: false, level: 0, seconds: 3 });
+      sfx.play('mountainWind', { level: 0.6, seconds: 3 });
+      context.advance(4);
+      assert.ok(Math.abs(ambience.gain.valueAt(context.currentTime) - 0.8 * 0.6) < 1e-6, 'the forest\'s wind stands in, at the wind\'s level');
+      assert.equal(windLoops(context).length, 0);
+      release();
+      await settle();
+      await settle();
+      if (later === 'stop') {
+        sfx.play('mountainWind', { level: 0, seconds: 2 });
+        context.advance(3);
+        assert.ok(ambience.gain.valueAt(context.currentTime) < 1e-6, 'the wind stopped once its file has come: the stand-in goes');
+        assert.equal(windLoops(context).length, 0, 'and no wind starts');
+      } else {
+        sfx.play('mountainWind', { level: 0.6, seconds: 3 });
+        context.advance(4);
+        assert.equal(windLoops(context).length, 1, 'the wind\'s own file takes over');
+        assert.ok(ambience.gain.valueAt(context.currentTime) < 1e-6, 'and the stand-in gives way: not both at once');
+      }
+    });
+  }
+});
+
+test('the wind stops when asked while the game is held, muted or full of sounds, and one asked for before sound wakes is laid when it does', async () => {
+  const { fetch } = fakeFetch();
+  await withFetch(fetch, async () => {
+    for (const hold of ['paused', 'muted', 'full']) {
+      const context = createFakeContext({ state: 'running' });
+      const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+      await settle();
+      assert.equal(sfx.play('mountainWind', { level: 0.6, seconds: 3 }), true);
+      context.advance(4);
+      assert.equal(windLoops(context).length, 1);
+      if (hold === 'paused') sfx.setPaused(true);
+      if (hold === 'muted') sfx.muted = true;
+      if (hold === 'full') while (sfx.play('star')); // a child tapping: as many sounds as can be at once
+      sfx.play('mountainWind', { level: 0, seconds: 2 });
+      sfx.setPaused(false);
+      sfx.muted = false;
+      context.advance(3);
+      assert.equal(windLoops(context).length, 0, `${hold}: the wind has ended`);
+    }
+
+    const context = createFakeContext({ state: 'suspended' });
+    const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    assert.equal(sfx.play('mountainWind', { level: 0.6, seconds: 3 }), false, 'not yet');
+    context.setState('running');
+    sfx.update(0.016);
+    assert.equal(windLoops(context).length, 1, 'laid the moment sound wakes');
+    sfx.update(0.016);
+    assert.equal(windLoops(context).length, 1, 'once');
+
+    const other = createFakeContext({ state: 'suspended' });
+    const quiet = createSfx({ context: other, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    quiet.play('mountainWind', { level: 0.6, seconds: 3 });
+    quiet.play('mountainWind', { level: 0, seconds: 2 }); // asked away before sound woke
+    other.setState('running');
+    quiet.update(0.016);
+    assert.equal(windLoops(other).length, 0, 'and one asked away before it woke is not laid');
+    const late = createFakeContext({ state: 'suspended' });
+    const stopped = createSfx({ context: late, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    stopped.play('mountainWind', { level: 0.6, seconds: 3 });
+    stopped.stop();
+    late.setState('running');
+    stopped.update(0.016);
+    assert.equal(windLoops(late).length, 0, 'nor one whose scene was stopped');
+  });
+});
+
+test('stopping the scene fades the wind out even while it is still coming in', async () => {
+  const { fetch } = fakeFetch();
+  await withFetch(fetch, async () => {
+    const context = createFakeContext({ state: 'running' });
+    const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    await settle();
+    sfx.play('mountainWind', { level: 0.6, seconds: 3 });
+    context.advance(0.5);
+    const [wind] = windLoops(context);
+    const volume = wind.outputs[0];
+    const at = volume.gain.valueAt(context.currentTime);
+    sfx.stop();
+    assert.ok(volume.gain.valueAt(context.currentTime + 0.5) < at * 0.01, `it fades from ${at.toFixed(3)}, not up to its level: ${volume.gain.valueAt(context.currentTime + 0.5)}`);
+    context.advance(1);
+    assert.ok(wind.ended);
+  });
+});

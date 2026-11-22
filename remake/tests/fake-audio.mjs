@@ -45,6 +45,12 @@ export class FakeParam {
       const next = list[i + 1];
       if (event.type === 'target') {
         if (event.time > time) break;
+        if (next && (next.type === 'linear' || next.type === 'exponential')) {
+          // a ramp after it governs the time from it to the ramp's end, from where the param was as the target began (the
+          // specification: a ramp runs from the event before it): the target is never heard
+          from = event.time;
+          continue;
+        }
         const handedOver = next && next.time <= time;
         const end = handedOver ? next.time : time;
         const reached = event.value + (value - event.value) * Math.exp(-(end - event.time) / event.tau);
@@ -88,9 +94,11 @@ export class FakeNode {
     this.disconnected = true;
   }
 
-  /** Is `node` somewhere downstream of this one? */
-  reaches(node) {
-    return this.outputs.some(out => out === node || out.reaches?.(node)); // an output may be a param, which leads nowhere
+  /** Is `node` somewhere downstream of this one? (A delay fed back into itself is a loop in the graph: each node is looked at once.) */
+  reaches(node, seen = new Set()) {
+    if (seen.has(this)) return false;
+    seen.add(this);
+    return this.outputs.some(out => out === node || out.reaches?.(node, seen)); // an output may be a param, which leads nowhere
   }
 }
 
@@ -114,9 +122,25 @@ class FakeSource extends FakeNode {
   }
 
   get started() { return this.starts.length > 0; }
-  /** Has it started by `time` and not yet stopped? */
+  /**
+   * When it ends: at its stop time, or, for a buffer that does not loop, once the buffer has played from its offset at its rate,
+   * if that comes first (the specification's AudioBufferSourceNode: playback ends at the end of a buffer that does not loop, and
+   * `ended` is fired then, whatever stop() said), or undefined while it has no end.
+   */
+  get endTime() {
+    if (!this.started) return undefined;
+    let end = this.stopTime ?? Infinity;
+    if (this.kind === 'bufferSource' && this.buffer && !this.loop) {
+      const { when, offset } = this.starts[0];
+      const rate = Math.abs(this.playbackRate.valueAt(when)) || 1;
+      end = Math.min(end, when + Math.max(0, this.buffer.duration - offset) / rate);
+    }
+    return Number.isFinite(end) ? end : undefined;
+  }
+  /** Has it started by `time` and not yet ended? */
   soundingAt(time) {
-    return this.started && this.starts[0].when <= time && (this.stopTime === undefined || time < this.stopTime);
+    const end = this.endTime;
+    return this.started && this.starts[0].when <= time && (end === undefined || time < end);
   }
 }
 
@@ -294,31 +318,40 @@ export class FakeContext extends EventTarget {
     return Promise.resolve();
   }
 
-  /** Time passes for a running context (an asleep one stands still, and so do the elements it pulls); sources whose stop time has come end. */
+  /**
+   * Time passes for a running context (an asleep one stands still, and so do the elements it pulls); sources whose end has come
+   * end: their stop time, or the end of a buffer that does not loop.
+   */
   advance(seconds) {
     if (this.state === 'running' && !this.stalled) {
       this.currentTime += seconds;
       for (const element of this.elements) element.tick(seconds);
     }
     for (const node of this.nodes) {
-      if (node instanceof FakeSource && node.stopTime !== undefined && node.stopTime <= this.currentTime && !node.ended) {
+      if (node instanceof FakeSource && !node.ended && node.endTime !== undefined && node.endTime <= this.currentTime) {
         node.ended = true;
         node.onended?.();
       }
     }
   }
 
+  /** A file decodes to `decodedSeconds` (2 by default) of silence: a short recording, which plays to its end and is over. */
   decodeAudioData(bytes) {
     this.decoded.push(bytes);
-    return Promise.resolve(this.createBuffer(2, 1, this.sampleRate));
+    return Promise.resolve(this.createBuffer(2, Math.round((this.decodedSeconds ?? 2) * this.sampleRate), this.sampleRate));
   }
 
   createBuffer(channels, length, sampleRate) {
-    const data = Array.from({ length: channels }, () => new Float32Array(length));
-    return { numberOfChannels: channels, length, sampleRate, duration: length / sampleRate, getChannelData: i => data[i] };
+    const data = []; // made when asked for, so long silent buffers cost nothing
+    return { numberOfChannels: channels, length, sampleRate, duration: length / sampleRate, getChannelData: i => (data[i] ??= new Float32Array(length)) };
   }
 
   createGain() { return new FakeNode(this, 'gain', { gain: 1 }); }
+  createDelay(maxDelayTime = 1) {
+    const delay = new FakeNode(this, 'delay', { delayTime: 0 });
+    delay.maxDelayTime = maxDelayTime;
+    return delay;
+  }
   createStereoPanner() { return new FakeNode(this, 'panner', { pan: 0 }); }
   createWaveShaper() {
     const shaper = new FakeNode(this, 'shaper');
@@ -436,14 +469,15 @@ export async function withFetch(run, answer = () => ({ ok: true, status: 200, ar
  * The most a signal can be scaled by on its way from `node` to `target`: the largest value each gain on the
  * way is ever given, multiplied. Several sources at their peaks together can add up to this much each.
  */
-export function peakThrough(node, target) {
+export function peakThrough(node, target, seen = new Set()) {
   if (node === target) return 1;
+  if (seen.has(node)) return 0; // round a feedback loop (an echo): the way through it once is the way that counts
   let gain = 1;
   if (node.kind === 'gain') {
     const values = node.gain.events.length ? node.gain.events.map(event => event.value) : [node.gain.initial];
     gain = Math.max(...values.map(Math.abs));
   }
-  const onward = node.outputs.filter(out => out instanceof FakeNode).map(out => peakThrough(out, target));
+  const onward = node.outputs.filter(out => out instanceof FakeNode).map(out => peakThrough(out, target, new Set([...seen, node])));
   return gain * Math.max(0, ...onward);
 }
 
