@@ -377,3 +377,12 @@ test('the light eased while the cloud holds the fog takes the density on from wh
   assert.ok(Math.abs(w.scene.fog.density - LOOKS.sunset.fog.density) < 1e-9);
   cloud.dispose();
 });
+
+test('topRooms() are the top\'s own rooms, with no top built (fjall-toppur.js reads them)', async () => {
+  const { topRooms } = await import('../world/fjall/top.js');
+  const top = createTop(world(), { grey: true });
+  assert.deepEqual(topRooms(), top.room);
+  top.dispose();
+  const page = readFileSync(new URL('../chapters/fjall-toppur.js', import.meta.url), 'utf8');
+  assert.ok(page.includes('topRooms()') && !/createTop\(\{ scene: null \}/.test(page), 'the page builds no top at import');
+});

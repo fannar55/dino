@@ -10,6 +10,7 @@
 //   top.wayUp(angle) -> [[x, z] x 3]   the way a friend comes up at `angle`: from under the sea, over the rim, 8 m inside it
 //   top.room -> [{ friend, at, r }]    where each of the six friends stands at the festival: a disc half her length, none
 //                                      overlapping, all inside the flat, ROOM.middle m round the middle kept free
+//   topRooms() -> the same rooms, with no top built (a page or a chapter that needs them before the place)
 //   top.sea                            { level, setGlow(v), wave({ from, strength, seconds }) -> Handle, cards, bank }
 //   top.veil                           { setLevel(v), level }: the last wisp chapter 6 climbs out of, by the south-west rim (0 gone, 1 thick)
 //
@@ -42,6 +43,14 @@ const HEAPS = { count: 70, from: 140, to: 1500, height: [10, 46] };
 const VEIL = { at: [-27, 37], cards: 6 }; // by the south-west rim, where Grameðla climbs out of the cloud
 const WAVE = { speed: 160, width: 70 };
 
+/** Where each of the six friends stands on the top: [{ friend, at: [x, z], r }] (createTop's top.room). */
+export function topRooms() {
+  return ROOM.friends.map(([friend, length, bearing, d]) => {
+    const a = THREE.MathUtils.degToRad(bearing);
+    return { friend, at: [Math.cos(a) * d, Math.sin(a) * d], r: length / 2 };
+  });
+}
+
 export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.radius } = {}) {
   const s = seed * 0.37;
   const flat = (x, z) => 1.2 + 0.45 * Math.sin(x * 0.07 + s) * Math.sin(z * 0.06 - s) + 0.25 * Math.sin((x + z) * 0.13 + s * 2);
@@ -65,10 +74,7 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
     const d = Math.hypot(x, z), c = x / d, n = z / d;
     return [[c * (d + WAY.under), n * (d + WAY.under)], [x, z], [c * (d - WAY.inside), n * (d - WAY.inside)]];
   };
-  const room = ROOM.friends.map(([friend, length, bearing, d]) => {
-    const a = THREE.MathUtils.degToRad(bearing);
-    return { friend, at: [Math.cos(a) * d, Math.sin(a) * d], r: length / 2 };
-  });
+  const room = topRooms();
 
   const group = new THREE.Group();
   group.name = 'Fjall: the top';

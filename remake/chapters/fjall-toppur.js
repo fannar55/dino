@@ -6,7 +6,7 @@
 //   view = wide (across the top) | sun (over the rim to the bank and the sun) | rim (low by the rim, the sea of cloud) | high |
 //          above_clouds (chapter 6's shot: back over the south-west rim)
 //   veil=<0..1>  the last wisp by the south-west rim;  wave=1  a swell runs out over the sea at 1 s;  glow=<0..1>  the sea's glow
-import { createTop } from '../world/fjall/top.js';
+import { createTop, topRooms } from '../world/fjall/top.js';
 import { LOOKS } from '../engine/looks.js';
 import { lightTo } from '../engine/light-blend.js';
 
@@ -15,10 +15,8 @@ const VIEW = params.get('view') || 'wide';
 const FRIENDS = params.get('friends') === '1';
 const CHARS = '../assets/characters/';
 const MODELS = { thorsedla: 'brontosaurus', kambedla: 'stegosaurus', uggedla: 'spinosaurus', sloedla: 'parasaurolophus', flugedla: 'pteranodon', gramedla: 'trex' };
-// the rooms as top.js lays them (createTop's room; the page needs them before the place is built, so it asks a grey one)
-const ROOMS = createTop({ scene: null }, { grey: true });
-const room = ROOMS.room;
-ROOMS.dispose();
+// the rooms as top.js lays them (createTop's room; the page needs them before the place is built)
+const room = topRooms();
 const facing = ([x, z]) => (Math.atan2(-z, -x) * 180) / Math.PI; // toward the middle
 
 const SHOTS = {
