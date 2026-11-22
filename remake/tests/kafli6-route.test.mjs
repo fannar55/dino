@@ -430,6 +430,34 @@ test('each right stone\'s top is dry (STONE.right.up over the river\'s level) an
   stones.dispose();
 });
 
+test('dispose gives back everything the stones made, the wrong ones\' instanced mesh too, once (audit B11)', () => {
+  const stones = fordStones();
+  const wrong = stones.group.getObjectByName('Stepping stones wrong');
+  assert.ok(wrong?.isInstancedMesh, 'the wrong stones are one instanced mesh');
+  let freed = 0;
+  wrong.addEventListener('dispose', () => freed++);
+  const scene = stones.group.parent;
+  stones.dispose();
+  stones.dispose();
+  assert.equal(freed, 1, 'its instance buffers are given back once');
+  assert.equal(scene.getObjectByName('Stepping stones'), undefined, 'and the stones are out of the scene');
+});
+
+test('a wrong stone wobbles and comes back to rest exactly as it lay (stepping-stones.js wobbleAt)', () => {
+  const stones = fordStones();
+  const id = STEPS.flatMap(step => step.stones).find(stone => !stone.right).id;
+  const rest = stones.matrixOf(id).elements.slice();
+  stones.wobble(id);
+  let most = 0;
+  for (let t = 0; t <= 1.3; t += 1 / 30) {
+    stones.update(1 / 30, t);
+    most = Math.max(most, ...stones.matrixOf(id).elements.map((v, i) => Math.abs(v - rest[i])));
+  }
+  assert.ok(most > 0.01, `it rocked (${most.toFixed(3)})`);
+  assert.deepEqual(stones.matrixOf(id).elements.slice(), rest, 'at rest as it lay');
+  stones.dispose();
+});
+
 test('from falls_look the rainbow shows (rainbowLevel > 0.5 under LOOKS.lowSun) and the lip is over 40 m away', () => {
   const sun = sunDirection(LOOKS.lowSun);
   const lip = river.at(river.falls);

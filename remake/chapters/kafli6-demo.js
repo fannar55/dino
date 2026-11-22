@@ -5,7 +5,7 @@
 //
 // What it taps (steps, prints and rounds counted from 1):
 //   the stones: a wobbling one first at steps 1 and 3, the right one after it glitters at step 2, after Mosi names it at step 4
-//   the prints: the cloud before print 2, print 4 while Mosi says "Þrjú!", print 5 after it glimmers, the rest soon
+//   the prints: the cloud before print 2, print 4 at once (0.4 s after it is wanted, as Mosi's "Þrjú!" ends), print 5 after it glimmers, the rest soon
 //   the call: Mosi in rounds 1 and 3 (in round 2 he calls by himself), a way before she answers in round 1, the wrong way first in
 //   round 2; then her head, and the star as it rises
 

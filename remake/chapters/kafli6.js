@@ -12,9 +12,9 @@
 // (kafli6-stones.js, kafli6-prints.js, kafli6-call.js, their help in kafli6-help.js): here their events become hops, stones that
 // rock, numbers, roars and light in the fog. Mosi's hop and little roar are kafli6-mosi.js, her life kafli6-gramedla.js.
 //
-// Chunk 1 (the plan's Task 6): every scene, shot and wait, in grey. The stones are flat discs, the stages bare ground, the prints
-// chapter 2's mud print made big, and Grameðla her three clips (no lean, no seat: Egill floats to a point over her head). The lines
-// have no recordings yet: each is its caption, held as long as a child reads it (engine/scene/scene.js lineDuration).
+// The stones are the valley's own rocks (world/props/stepping-stones.js; grey discs only where the valley is not built), the places
+// world/fjall's, the prints her three-toed ones in chapter 2's mud (world/props/mud-prints.js), and Grameðla her clips with a lean
+// and the seat on her head (kafli6-gramedla.js, kafli6-seat.js). Every line has its recording and every sound was picked by ear.
 //   1 the pool as chapter 5 leaves it; Slóeðla's and Flugeðla's goodbyes, Flugeðla flies east; Egill into the saddle; the map draws f
 //   2 the ford: five steps of stones, the look down the falls at the third; over
 //   3 the slope: the ride up, the turn on the ledge to the whole forest, and up to the clouds
@@ -340,6 +340,13 @@ function* theFord(s, c) {
   yield s.wait(1.2);
 }
 
+/** The ford's stones and frogs given back: as the slope comes, or when the chapter ends or is left at the ford (setUp's close). */
+function clearFord(c) {
+  c.stones?.dispose();
+  c.frogs?.dispose();
+  c.stones = c.frogs = null;
+}
+
 /** The species library the ford's stones are made from: the valley's own rocks, made once. */
 let library = null;
 const stoneLibrary = () => (library ??= createSpeciesLibrary(4));
@@ -455,9 +462,7 @@ function* theSlope(s, c) {
   const { mosi, egill, world } = c;
   yield s.goTo('hlid', {
     hold: () => {
-      c.stones?.dispose();
-      c.frogs?.dispose();
-      c.stones = c.frogs = null;
+      clearFord(c);
       mosi.place(SLOPE.from.at[0], SLOPE.from.at[1], headingTo(SLOPE.from.at, SLOPE.ride.at));
       lightTo(world, LOOKS.lowSun);
       return null;
@@ -1102,14 +1107,43 @@ function reducedMotion(world) {
   return params.get('reduced') === '1' || Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 }
 
-/** A line, one voice at a time: `c.saying` counts the lines under way. */
+/**
+ * A scene's own line, one voice at a time: it waits for the help's line under way (c.lines), and `c.saying` counts the lines under
+ * way, so the help's lines wait for them.
+ */
 function* say(s, c, speaker, id, options) {
   c.saying = (c.saying ?? 0) + 1;
   try {
+    if (c.lines.queue.speaking) yield s.until(() => !c.lines.queue.speaking);
     yield s.say(speaker, id, options);
   } finally {
     c.saying--;
   }
+}
+
+/**
+ * The help's lines, the counts and "Úps", one at a time (kafli4-flight-play.js lineQueue, `queue`), and never over a scene's own
+ * line (say): while one is said an `ifQuiet` line is not said at all, and any other waits until it is over, in the order asked.
+ */
+function helpLines(s, c) {
+  const queue = lineQueue(s);
+  const held = [];
+  return {
+    queue,
+    get speaking() { return queue.speaking || held.length > 0; },
+    say(speaker, id, options = {}) {
+      if (!c.saying && !held.length) return queue.say(speaker, id, options);
+      if (options.ifQuiet) return null;
+      held.push([speaker, id, options]);
+      if (held.length === 1) {
+        s.after(0, function* afterTheLine() {
+          yield s.until(() => !c.saying);
+          while (held.length) queue.say(...held.shift());
+        });
+      }
+      return null;
+    },
+  };
 }
 
 /** A sound effect, noted in the chapter's log. */
@@ -1248,7 +1282,7 @@ function setUp(s) {
   c.log = entry => c.chapterLog.push({ ...entry, at: s.time, scene: c.scene });
   c.task = (task, event) => c.taskLog.push({ task, ...event, at: event.time ?? s.time });
   c.reduced = reducedMotion(world);
-  c.lines = lineQueue(s); // the help's lines, the counts and "Úps": one at a time
+  c.lines = helpLines(s, c); // the help's lines, the counts and "Úps": one at a time, never over a scene's own line
   c.footfall = detail => footfall(s, c, detail); // her steps (kafli6-gramedla.js)
   c.sfx = (name, detail) => sound(s, c, name, detail); // her roars and breaths, in the chapter's log
   c.her = gramedlaLife(s, c);
@@ -1258,6 +1292,8 @@ function setUp(s) {
   c.run = () => {
     return () => {
       c.ended = true;
+      clearFord(c); // left at the ford: its stones and frogs
+      c.saddle.dispose();
       showSky(c); // the sky as the engine had it, however the chapter ends or is left
       c.her.dispose(); // her skin's shared material back on her model
       world.music?.setLevel?.(1, 1);

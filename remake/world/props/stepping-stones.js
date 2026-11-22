@@ -219,7 +219,7 @@ export function createSteppingStones(world, { steps, level, heightAt = world.hei
     wrongMesh.instanceMatrix.needsUpdate = true;
     wrongMesh.computeBoundingSphere();
     group.add(wrongMesh);
-    disposables.push(geometryW, materialW);
+    disposables.push(geometryW, materialW, wrongMesh); // the instanced mesh gives back its instance buffers
   } else {
     // chunk 1's grey discs: a flat disc each, standing out of the water by its `up` and down DEPTH under it
     const materials = { right: new THREE.MeshLambertMaterial({ color: COLOUR.right }), wrong: new THREE.MeshLambertMaterial({ color: COLOUR.wrong }) };
@@ -259,7 +259,7 @@ export function createSteppingStones(world, { steps, level, heightAt = world.hei
 
   let disposed = false;
   const live = new Set();
-  const pivot = new THREE.Vector3(), turnQ = new THREE.Quaternion(), axis = new THREE.Vector3(), m = new THREE.Matrix4(), tm = new THREE.Matrix4();
+  const pivot = new THREE.Vector3(), turnQ = new THREE.Quaternion(), axis = new THREE.Vector3(), awayV = new THREE.Vector3(), m = new THREE.Matrix4(), tm = new THREE.Matrix4();
   function wobbleAt(s, now) {
     const w = s.wobbling;
     if (!w) return;
@@ -272,7 +272,7 @@ export function createSteppingStones(world, { steps, level, heightAt = world.hei
       else {
         // it rocks about a point at the water line under its middle, about an axis across the river and a little along it
         pivot.set(s.at[0], level - 0.1, s.at[1]);
-        axis.set(-s.away[1], 0, s.away[0]).addScaledVector(new THREE.Vector3(s.away[0], 0, s.away[1]), 0.6).normalize();
+        axis.set(-s.away[1], 0, s.away[0]).addScaledVector(awayV.set(s.away[0], 0, s.away[1]), 0.6).normalize();
         turnQ.setFromAxisAngle(axis, swing);
         m.makeTranslation(pivot.x, pivot.y, pivot.z).multiply(tm.makeRotationFromQuaternion(turnQ)).multiply(tm.makeTranslation(-pivot.x, -pivot.y, -pivot.z));
         wrongMesh.setMatrixAt(s.index, m.multiply(s.matrix));

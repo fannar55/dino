@@ -28,7 +28,7 @@ import { FEN } from '../forest/config.js';
 // Chapter 6 draws Grameðla's prints with the same code (`shape: 'theropod'`): three toes and a heel pad as a real Tyrannosaurus
 // track's (0.8 m long at size 1, the middle toe the longest, the outer two spread about 35 degrees off it), no front crescent. Each
 // print may carry its own `water`: 'pool' (as before, the default), 'none' (dry: no water mesh for it, and none at all when no print
-// has water) or 'rippling' (rings run out over its water every TREMBLE.every s, as from steps far off). `colours` sets the mud's
+// has water; its splash and its glimmer make no drops and no rings) or 'rippling' (rings run out over its water every TREMBLE.every s, as from steps far off). `colours` sets the mud's
 // own over MUD's (a pale mountain mud for hers). The sauropod print is drawn exactly as before (tests/fen.test.mjs holds a hash of it).
 //
 //   createMudPrints(world, { prints, heightAt, size, seed, shape = 'sauropod' | 'theropod', colours })   prints: [{ ..., water }]
@@ -530,7 +530,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   const state = frames.map(() => ({ done: 0, doneGoal: 0, glimmer: 0, glimmerGoal: 0 }));
   let next = null;
   let nextGlint = 0, nextRing = 0;
-  let now = 0;
+  let now = world.clock?.time ?? 0; // the game clock now: a digit counted before the first update keeps its 1.6 s
   let disposed = false;
   const live = new Set(); // the handles under way, cancelled at dispose
 
@@ -561,6 +561,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   }
 
   function splash(k) {
+    if (!watered[k]) return new Handle('print splash').finish(); // a dry print: no water to ring or splash
     const at = pointOf(k);
     ring(k, 1.3);
     ring(k, 0.6, now + 0.18);
@@ -664,7 +665,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       }
       if (now >= nextRing) {
         nextRing = now + GLIMMER.ring;
-        ring(next, 0.5);
+        if (watered[next]) ring(next, 0.5); // a dry print glints only: its rings would take the water's ring slots
       }
     }
     if (rippling.length && now >= nextTremble) {

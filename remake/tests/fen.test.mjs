@@ -614,6 +614,56 @@ test('her print has three toes and no front crescent; a print with water none ha
   dry.dispose();
 });
 
+test('a dry print (water none) splashes no water and rings none; one with water does both (audit B12)', () => {
+  const heightAt = (x, z) => 0.05 * Math.sin(x * 0.3) + 0.03 * z;
+  const { world, run } = propWorld(heightAt);
+  const prints = [
+    { position: [0, 0], heading: 10, foot: 'right', water: 'none' },
+    { position: [4, 0.4], heading: 10, foot: 'left' },
+    { position: [8, 0], heading: 10, foot: 'right', water: 'rippling' },
+  ];
+  const mud = createMudPrints(world, { prints, heightAt, shape: 'theropod', size: 2 });
+  const ripples = mud.group.getObjectByName('Print water').material.uniforms.uRipples.value;
+  const near = k => ripples.filter(r => r.w > 0 && Math.hypot(r.x - prints[k].position[0], r.y - prints[k].position[1]) < 2).length;
+  const drops = () => { let n = 0; world.scene.traverse(o => { if (o.name === 'Print splash') n++; }); return n; };
+  run(0.5);
+  const was = ripples.map(r => r.toArray().join());
+  const dry = mud.splash(0);
+  run(0.3);
+  assert.equal(near(0), 0, 'no ring in the dry print');
+  assert.equal(drops(), 0, 'and no drops of water over it');
+  assert.ok(dry.done, 'its Handle is done at once');
+  // no ring slot taken: the only slots written meanwhile are the rippling print's own rings
+  const taken = ripples.filter((r, i) => r.toArray().join() !== was[i]);
+  assert.ok(taken.every(r => Math.hypot(r.x - prints[2].position[0], r.y - prints[2].position[1]) < 2), `${taken.length} slots written, all by the rippling print`);
+  // the next to count glimmers: a dry one with glints only, no soft ring
+  mud.glimmer(0);
+  run(4);
+  assert.equal(near(0), 0, 'no glimmer ring in the dry print');
+  // a print with water: the ring and the drops, as chapter 2's
+  mud.splash(1);
+  assert.ok(near(1) >= 1, 'a ring in the pool');
+  assert.equal(drops(), 1, 'and its splash of drops');
+  mud.glimmer(1);
+  run(2);
+  assert.ok(near(1) >= 1, 'its glimmer rings it');
+  mud.dispose();
+});
+
+test('a digit counted before the prints\' first frame rises all the same, late in a long game (audit B15)', () => {
+  const heightAt = () => 0;
+  const { world, run } = propWorld(heightAt);
+  world.clock.step(100); // a hundred seconds into the chapter when the prints are made
+  const mud = createMudPrints(world, { prints: [{ position: [0, 0], heading: 0, foot: 'right' }], heightAt });
+  const counting = mud.count(0);
+  run(1 / 30);
+  assert.equal(counting.done, false, 'the digit is still rising after its first frame');
+  assert.ok(world.scene.getObjectByName('Print digit'), 'and in the scene');
+  run(1.7);
+  assert.equal(counting.done, true, 'gone after its 1.6 s');
+  mud.dispose();
+});
+
 test('berry bushes expose five red targets and the blue ones', () => {
   const { layout, terrain, plan } = planOf(FEN_PLACE);
   const spec = FEN_PLACE.layout.berries;

@@ -13,8 +13,8 @@
 //             the prints along BELT_PATH, then the call's three walks, then where she meets them (MEET).
 //   toppur    the top, a stage of its own (world/fjall createTop: 45 m round, ground 0 to 3 m, the sea of cloud at -7 m).
 //
-// The belt and the top have no real heights yet (the stages are grey in chunk 1): their shots stand on BELT_GROUND, and the shots
-// made for a stand (printShot, callShot, meetShot) take the ground under it.
+// The shots made for a stand on the belt (printShot, callShot, meetShot) take the ground under it (kafli6.js gives the place's
+// heightAt there); where none is given (a test with no place built) they stand on BELT_GROUND.
 import { FAR_POOL } from './kafli4-route.js';
 import { SHOTS as POOL_SHOTS, SPOTS, WADE, around } from './kafli5-pool.js';
 import { ROUTE } from './kafli5-place.js';

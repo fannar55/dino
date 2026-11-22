@@ -32,7 +32,7 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620, savedWith = null } = {}) {
-  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [], music: [], farewell: {} };
+  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [], music: [], farewell: {}, voices: [], disposed: {} };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses, savedWith,
     onFrame(frame) {
@@ -47,6 +47,8 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
       if (!world.music) world.music = { setLevel: (level, seconds = 1) => seen.music.push({ level, seconds, at: world.chapterState?.s.time ?? 0 }) };
       const c = world.chapterState;
       if (!c) return;
+      watchVoices(world, c, seen);
+      watchDisposals(c, seen);
       seen.sky.push({ time: c.s.time, scene: c.scene, shown: SKY.filter(name => world.scene.getObjectByName(name)?.visible) });
       if (c.scene === 2 && c.stones) watchFord(world, c, seen);
       world.camera.updateMatrixWorld();
@@ -86,6 +88,23 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
+}
+
+/** Every frame two actors talk at once (a voice over a voice), by whom and when. */
+function watchVoices(world, c, seen) {
+  const talking = [...world.actors].filter(([, actor]) => actor.talking).map(([name]) => name);
+  if (talking.length > 1) seen.voices.push(`${talking.join(' and ')} at ${c.s.time.toFixed(2)} s`);
+}
+/** How many times the stones, the frogs and the saddle are given back (dispose), counted from when each is made. */
+function watchDisposals(c, seen) {
+  for (const name of ['stones', 'frogs', 'saddle']) {
+    const thing = c[name];
+    if (!thing || thing.counted) continue;
+    thing.counted = true;
+    seen.disposed[name] ??= 0;
+    const dispose = thing.dispose.bind(thing);
+    thing.dispose = () => { seen.disposed[name]++; dispose(); };
+  }
 }
 
 /** The ford as it goes, each frame of scene 2: Mosi, Egill and his seat, the wrong stones as they lie, the frogs, and every ring. */
@@ -914,4 +933,82 @@ test('scene 1 at both shapes of screen: each shot shows whom it is for, Flugeðl
       }
     }
   }
+});
+
+// The audit round (builder D) -------------------------------------------------------------------------------------------------------
+
+test("an overlay laid over another finishes the one it displaces, so nothing waits on it for ever (audit B14)", async () => {
+  const { smallRoar, dipHead, puffs } = await import('../chapters/kafli6-mosi.js');
+  const actor = { name: 'Mosi', model: { getObjectByName: () => null }, overlay: null, walking: false, setOverlay(fn) { this.overlay = fn; } };
+  const c = { mosi: { raw: actor } };
+  const roar = smallRoar(null, c);
+  const dip = dipHead(c);
+  assert.equal(roar.done, true, 'his little roar, laid over by the dip, is done');
+  const lifted = dip.up();
+  const puff = puffs(c);
+  assert.equal(lifted.done, true, 'the dip, laid over by his puffs, is done');
+  assert.equal(puff.done, false, 'the puffs are his overlay now');
+  // a script waiting on the first goes on
+  const { createScheduler } = await import('../engine/scene/scheduler.js');
+  const scheduler = createScheduler({ onError: error => { throw error; } });
+  const first = smallRoar(null, c);
+  let went = false;
+  scheduler.start(function* waiting() { yield first; went = true; });
+  scheduler.update(1 / 30);
+  dipHead(c);
+  scheduler.update(1 / 30);
+  assert.equal(went, true, 'the script waiting on the roar went on');
+});
+
+/**
+ * Taps a wrong way at the worst moment for the voices: in the call's third round, the first frame Mosi may say "Hlustum aftur!"
+ * (ANSWER.roar s after her answer), while Egill's "Grameðla!" (1.4 s after it) is still being said.
+ */
+function worstTapChild(c, frame, seen) {
+  const call = c.callTask?.state();
+  if (!call || call.phase !== 'listen' || call.round !== 2 || seen.worstTapped) return;
+  const answer = c.taskLog.find(e => e.task === 'call' && e.type === 'answer' && e.round === 2 && !e.again);
+  if (!answer || c.s.time < answer.at + 2.6 + 1e-6) return;
+  seen.worstTapped = c.s.time;
+  const wrongWay = ['left', 'ahead', 'right'].find(d => d !== call.direction);
+  frame.pointer.tap(`dir-${wrongWay}`, { x: 640, y: 400 });
+}
+const worstTap = () => play('worst tap', { child: worstTapChild });
+
+test('two voices never sound at once: a direct line and the help\'s queue wait for each other (audit C5)', async () => {
+  const run = await worstTap();
+  ended(run, 'worst tap');
+  assert.ok(run.watched.worstTapped, 'the child tapped wrong in round 3');
+  const again = logOf(run, 'call', 'again').filter(e => e.round === 2);
+  assert.ok(again.length >= 1, 'and the call asked to listen again');
+  for (const [kind, ran] of [['worst tap', run], ['untouched', await untouched()], ['quick', await quick()], ['wrong', await wrong()]]) {
+    assert.deepEqual(ran.watched.voices.slice(0, 5), [], `${kind}: two voices at once`);
+  }
+});
+
+test('nobody touching ends at the same second as before the audit round (460.1 s), its lines in the same order', async () => {
+  const run = await untouched();
+  const end = ended(run, 'untouched');
+  assert.ok(Math.abs(end - 460.08) < 1, `the end at ${end.toFixed(2)} s`);
+});
+
+test('the stones, the frogs and the saddle are given back once, whether the chapter ends or is left at the ford (audit B8)', async () => {
+  const run = await untouched();
+  ended(run, 'untouched');
+  assert.deepEqual(run.watched.disposed, { stones: 1, frogs: 1, saddle: 1 }, 'each once at the end');
+  const left = await play('left at the ford', {
+    child: (c, frame, seen) => {
+      const at = c.world.chapterTimeline.find(mark => mark.scene === 2)?.at;
+      if (at === undefined || seen.left || c.s.time < at + 12) return;
+      seen.left = c.s.time;
+      frame.stage.stop(); // the book's way out, or a jump to another chapter: everything the scene set going is cancelled
+    },
+  });
+  const { world, task, watched } = left;
+  assert.ok(watched.left && task.done && task.cancelled, `left during the ford at ${watched.left?.toFixed(1)} s`);
+  assert.equal(world.chapterState.scene, 2);
+  assert.deepEqual(watched.disposed, { stones: 1, frogs: 1, saddle: 1 }, 'each given back once');
+  for (const name of ['Stepping stones', 'Critters']) assert.equal(world.scene.getObjectByName(name), undefined, `no ${name} left in the scene`);
+  const saddle = world.chapterState.saddle.object;
+  assert.ok(!saddle || !saddle.parent, 'and no saddle on Mosi');
 });

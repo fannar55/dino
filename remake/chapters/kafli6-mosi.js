@@ -1,6 +1,6 @@
 // Mosi in chapter 6 (docs/superpowers/specs/2026-11-21-kafli-6-bod-til-gramedlu-design.md): what he does that his two clips (idle,
 // walk) do not, made in code as his dance in chapter 5 is: his hop from stone to stone over the ford, and his little roar in the cloud
-// (his head and neck up, his beak open; its sound is picked by ear in chunk 4, so for now it is his motion alone).
+// (his head and neck up, his beak open; its sound, sfx.js mosiRoar, is the chapter's: kafli6.js plays it with this motion).
 //
 //   const hop = hopTo(s, c, { at: [x, z], y, heading }, { seconds, height, ring })   -> Handle, done as he lands; he then stands there
 //   standOn(mosi.raw, { at: [x, z], y, heading })    he stands on a top that is not the ground (a stone), until let go
@@ -110,16 +110,18 @@ export function letGo(actor) {
 
 /**
  * His little roar (scene 5): his neck and head go up and his beak opens wide on one envelope (degrees at the peak), a thin quiver
- * in his head while he holds it (degrees, per second), and down again. Its sound is chunk 4's: for now his motion alone.
+ * in his head while he holds it (degrees, per second), and down again. His motion only: kafli6.js plays its sound (sfx.js mosiRoar).
  */
 export const SMALL_ROAR = { seconds: 1.8, neck: 28, head: 22, jaw: 24, rise: 0.35, fall: 0.45, quiver: 1.2, rate: 9 };
 /** His head points at a thing (the help that names a way): he looks at it and jabs his head toward it twice (degrees down, s). */
 export const POINT = { seconds: 2.6, jab: 9, jabs: 2, first: 0.5, each: 0.45 };
 
-// who lays Mosi's overlay now (a roar, a point): one that ends clears it only while it is still its own
+// who lays Mosi's overlay now (a roar, a point): one that ends clears it only while it is still its own; one laid over another ends
+// that one (`displaced`: its Handle finished, so a script waiting on it goes on)
 const overlays = new WeakMap();
-function lay(actor, fn) {
-  const token = {};
+function lay(actor, fn, displaced = null) {
+  const token = { displaced };
+  overlays.get(actor)?.displaced?.();
   overlays.set(actor, token);
   actor.setOverlay(fn);
   return () => {
@@ -157,7 +159,7 @@ export function smallRoar(s, c, { seconds = SMALL_ROAR.seconds } = {}) {
       done();
       handle.finish();
     }
-  });
+  }, () => handle.finish());
   return handle;
 }
 
@@ -176,7 +178,7 @@ export function dipHead(c) {
     bones.pitchNeck(-DIP.neck * down);
     bones.pitchHead(-DIP.head * down);
     if (rising !== null && t - rising >= DIP.up) { done(); handle.finish(); }
-  });
+  }, () => handle.finish());
   return {
     up() { if (rising === null) rising = t; return handle; },
   };
@@ -252,6 +254,6 @@ export function puffs(c, { seconds = PANT.seconds } = {}) {
     bones.pitchNeck(PANT.neck * beat * left);
     bones.pitchHead(-PANT.head * 0.5 * beat * left);
     if (t >= seconds || actor.walking) { done(); handle.finish(); }
-  });
+  }, () => handle.finish());
   return handle;
 }
