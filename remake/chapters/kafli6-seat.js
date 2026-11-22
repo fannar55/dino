@@ -9,7 +9,9 @@
 //   hips.set(angle)                              each frame after her clips, before her lean (radians; her feet stay where they are)
 //   const down = headDownPose(actor, lean, hips, { ground })   her lean (and hips, if it does not reach) with her head down on the
 //                                                ground: { theta, pitch, hips, low, snout, seat }
-//   lowestOfHead(actor)                          { low, snout }: the lowest of her head now, and of its front (the jaw's underside)
+//   lowestOfHead(actor)                          { low, snout }: the lowest of her head now, and of its front (the jaw's underside);
+//                                                her head's vertices are found once (the first call), then skinned from their bones
+//                                                with a dot product each, so headDownPose's search costs milliseconds
 //
 // Units are metres; angles radians unless they say degrees.
 import * as THREE from 'three';
