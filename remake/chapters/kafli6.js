@@ -109,23 +109,28 @@ const MEET_CLOUD = 0.12; // the cloud's level round them once she has stepped ou
 // Scene 6's shots, [ahead, right, up] m from Mosi's root in his frame as kafli6-route.js MEET (whose numbers were made for her at
 // 9 m and in grey): from well to the side, so she is seen whole beside Mosi and Egill and as big as she is, never behind him.
 // The tilt and the sniff look across his heading (in the cloud no sun shows); after the roar they are within 50 degrees of it.
+// `tall` is the same shot on an upright screen (tallScreen): the director keeps a 16:10 frame's width there and shows far more above
+// and below (director.js effectiveFov), so they would stand small in the middle of empty ground; nearer, on a narrower lens and aimed
+// a little lower they are as readable as on a wide screen (as chapter 2's print camera and chapter 3's lookout do on a tall screen).
 const MEET_FRAMES = {
   // she comes out of the white: from behind him on his right and well out, all of her beside him as she comes
-  she_comes: { position: [-6, 14, 4.2], target: [6, 0, 3.4], fov: 50 },
+  she_comes: { position: [-6, 14, 4.2], target: [6, 0, 3.4], fov: 50, tall: { position: [-2.4, 9.8, 4.0], target: [6, 0, 3.0], fov: 34 } },
   // she tilts her head at them: her face and Egill from his right
-  tilt: { position: [0.5, 9.5, 4.6], target: [4.2, 0, 4.0], fov: 46 },
+  tilt: { position: [0.5, 9.5, 4.6], target: [4.2, 0, 4.0], fov: 46, tall: { position: [1.6, 6.7, 4.4], target: [3.8, 0, 3.6], fov: 34 } },
   // she sniffs at Egill: beside them on his right, her snout and Egill's face in profile
-  sniff_close: { position: [0.6, 6.2, 5.0], target: [2.3, 0, 3.8], fov: 46 },
+  sniff_close: { position: [0.6, 6.2, 5.0], target: [2.3, 0, 3.8], fov: 46, tall: { position: [1.1, 4.3, 4.6], target: [2.3, 0, 3.4], fov: 34 } },
   // Mosi asks her: over his left shoulder, her face down at them
   invite: { position: [-5.5, -4.2, 3.4], target: [6, 0.8, 4.0], fov: 48 },
-  // her roar blows the cloud away: wide from behind him on his left and well out, her whole body and the sky over her
-  roar_wide: { position: [-7, -15, 3.2], target: [6, 0, 5.0], fov: 54 },
-  // the star rises over her head: from low behind him, looking up
-  star_up: { position: [-7, 3, 2.2], target: [7, 0, 7.2], fov: 52 },
+  // her roar blows the cloud away (and her nod after it): wide from behind him on his left and well out, her whole body and the sky over her
+  roar_wide: { position: [-7, -15, 3.2], target: [6, 0, 5.0], fov: 54, tall: { position: [-3.1, -10.5, 3.7], target: [4.2, 0, 4.4], fov: 34 } },
+  // the star rises over her head: low from beside them on his right, she, the star over her, Mosi and Egill all seen
+  star_up: { position: [3, 15, 1.6], target: [6, 0.5, 5.2], fov: 50, tall: { position: [3.8, 11.4, 2.5], target: [5, 0.5, 4.6], fov: 36 } },
 };
-/** Scene 6's shot `name` for Mosi at `stand` on `ground` (MEET_FRAMES, else the route's meetShot). */
-function meetFrame(name, stand, ground) {
-  const frame = MEET_FRAMES[name];
+/** An upright screen (a tablet held tall): shots take their `tall` frame there. */
+const tallScreen = c => c.world.camera.aspect < 1;
+/** Scene 6's shot `name` for Mosi at `stand` on `ground` (MEET_FRAMES, its `tall` frame when `tall`, else the route's meetShot). */
+function meetFrame(name, stand, ground, tall = false) {
+  const frame = tall && MEET_FRAMES[name]?.tall ? MEET_FRAMES[name].tall : MEET_FRAMES[name];
   if (!frame) return meetShot(name, stand, ground);
   const [fx, fz] = way(stand.heading);
   const at = ([a, right, y]) => [stand.x + fx * a - fz * right, ground + y, stand.z + fz * a + fx * right];
@@ -153,19 +158,23 @@ const UNDER = 6;
 const TOP_WALK = 4;
 const TOP_PACE = 1.2;
 // Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame): her head down on
-// the ground from behind on her right (Mosi and Egill beyond it, apart from it), and the climb from beyond Mosi on her right. on_her_head from the seat of Egill's
-// trousers ([ahead, up, right] in her frame): behind and over his shoulder, looking far ahead and a little down. top_wide from where
-// she stands on the top ([along, up, right] m: along her way back out to the rim, right of her): from ahead of them on her right,
-// back past them over the rim to the sea of cloud, where Flugeðla comes up. above_clouds from the rim where she comes up ([in, up,
-// right] m along her way in, up from the ground under the camera): from low on the top inside it, back out over the brow she comes
-// up over, the sea of cloud and the sky behind her.
+// the ground from behind on her right (Mosi and Egill beyond it, apart from it), and the climb low from ahead of her on her right (she
+// whole as she comes, Egill high on her head against the sky, Mosi a little behind her beside her tail; from her left the sun is
+// right behind her and Mosi would be hidden behind her body). on_her_head from the seat of Egill's trousers ([ahead, up, right] in her
+// frame): behind and over his shoulder, looking far ahead and a little down. top_wide from where she stands on the top ([along, up,
+// right] m: along her way back out to the rim, right of her): from ahead of them on her right, back past them over the rim to the sea
+// of cloud, where Flugeðla comes up. above_clouds from the rim where she comes up ([in, up, right] m along her way in, up from the
+// ground under the camera): low on the top just off her way, back out over the brow: her head and Egill come up over it toward the
+// camera, Mosi beside her, the sea of cloud behind them (the brow hides her feet on the steep shoulder). `tall`: as MEET_FRAMES.
 const CLIMB_FRAMES = {
-  head_down: { position: [-6, -12, 3.6], target: [5, 2.5, 1.4], fov: 50 },
-  climb_side: { position: [5, 18, 4.4], target: [15, 2, 3.4], fov: 50 },
+  head_down: { position: [-6, -12, 3.6], target: [5, 2.5, 1.4], fov: 50, tall: { position: [-2.7, -7.7, 2.9], target: [5, 2.5, 1.0], fov: 34 } },
+  climb_side: { position: [30, 13, 2.2], target: [15, 0.5, 3.8], fov: 50, tall: { position: [26.2, 9.9, 2.6], target: [15, 1.2, 3.4], fov: 34 } },
 };
 const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
-const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50 };
-const ABOVE_FRAME = { from: [22, 3.2, 14], at: [3, -1.6, 0], fov: 50 };
+const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50, tall: { from: [-11.6, 3.3, 5.4], at: [6, 0.4, 1], fov: 36 } };
+const ABOVE_FRAME = { from: [18, 1.3, -5], at: [3, -0.4, 1], fov: 50, tall: { from: [13.5, 1.2, -3.2], at: [3, -0.1, 1], fov: 34 } };
+// Egill's "Við erum ofan við skýin!" waits ABOVE_LINE s into above_clouds, until her head and he are up over the brow
+const ABOVE_LINE = 5.2;
 const UP = new THREE.Vector3(0, 1, 0);
 // Flugeðla far below as they stand on the top: a speck `out` m out past them over the sea and `side` m to her right, flying up out
 // of the sea from `from` to `to` m (under the top's ground) over `seconds`.
@@ -710,7 +719,7 @@ function* sheComes(s, c) {
   const ground = groundAt(c, [stand.x, stand.z]);
   c.meet = { stand, ground };
   c.belt?.summit?.place(stand); // the top's shape ahead of them, seen over the bank once her roar has blown the cloud away
-  const shot = name => ({ ...meetFrame(name, stand, ground), label: name });
+  const shot = name => ({ ...meetFrame(name, stand, ground, tallScreen(c)), label: name });
   cut(s, c, shot('she_comes'));
   setCloud(c, MEET_CLOUD, HER_STEP_OUT.thin); // she steps out of the white: it thins round them, so all three are seen
   for (const who of [mosi, egill]) who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 45 });
@@ -765,7 +774,7 @@ function* upToTheTop(s, c) {
   mark(c, 7);
   const { mosi, egill, world, her } = c;
   const { stand, ground } = c.meet;
-  const shot = name => ({ ...climbFrame(name, stand, ground), label: name });
+  const shot = name => ({ ...climbFrame(name, stand, ground, tallScreen(c)), label: name });
   cut(s, c, shot('head_down'));
   for (const who of [mosi, egill]) who.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 40 });
   yield runBeside(s, c, [forward(stand, -0.5, MOSI_ASIDE[1] * 0.5), forward(stand, MOSI_ASIDE[0], MOSI_ASIDE[1])], { speed: 2 });
@@ -831,9 +840,8 @@ function* upToTheTop(s, c) {
   const upHeading = headingTo(slope[1], slope[2]);
   const by = runBeside(s, c, [aside(slope[1], upHeading, 0, RUN_SIDE), aside(slope[2], upHeading, -1.5, RUN_SIDE)], { speed: CLIMB_PACE * 1.1 });
   footfalls(s, c, up, -8);
-  yield s.wait(2.4);
-  yield* say(s, c, 'egill', 'k6_egill_above');
-  yield s.all(up, by);
+  const line = s.after(ABOVE_LINE, function* above() { yield* say(s, c, 'egill', 'k6_egill_above'); });
+  yield s.all(up, by, line);
   // on toward her room on the flat top; they stand, Mosi puffing, and far below a speck comes up out of the sea: Flugeðla
   const room = top.room.find(r => r.friend === 'gramedla').at;
   const towards = headingTo(slope[2], room);
@@ -846,7 +854,7 @@ function* upToTheTop(s, c) {
   s.after(0, function* far() { yield* speck(s, c, stop, towards); });
   yield s.all(into, by2);
   c.log({ type: 'tramped' });
-  yield s.wait(0.4);
+  yield s.wait(0.2);
   yield* say(s, c, 'mosi', 'k6_mosi_room');
   yield s.wait(1.6);
   mark(c, 'end');
@@ -856,9 +864,9 @@ function* upToTheTop(s, c) {
   yield s.wait(TO_THE_MAP + 0.4);
 }
 
-/** Scene 7's shot `name` for Mosi at `stand` on `ground` (CLIMB_FRAMES, else the route's meetShot). */
-function climbFrame(name, stand, ground) {
-  const frame = CLIMB_FRAMES[name];
+/** Scene 7's shot `name` for Mosi at `stand` on `ground` (CLIMB_FRAMES, its `tall` frame when `tall`, else the route's meetShot). */
+function climbFrame(name, stand, ground, tall = false) {
+  const frame = tall && CLIMB_FRAMES[name]?.tall ? CLIMB_FRAMES[name].tall : CLIMB_FRAMES[name];
   if (!frame) return meetShot(name, stand, ground);
   const [fx, fz] = way(stand.heading);
   const at = ([a, right, y]) => [stand.x + fx * a - fz * right, ground + y, stand.z + fz * a + fx * right];
@@ -873,17 +881,19 @@ function headShot(c) {
 }
 /** The top wide (TOP_FRAME) round where she stops, facing `heading` (her way back out to the rim is behind her). */
 function topShot(c, [x, z], heading) {
+  const frame = tallScreen(c) ? TOP_FRAME.tall : TOP_FRAME;
   const ground = c.world.heightAt(x, z);
   const [fx, fz] = way(heading);
   const at = ([along, u, r]) => [x - fx * along - fz * r, ground + u, z - fz * along + fx * r];
-  return { position: at(TOP_FRAME.from), target: at(TOP_FRAME.at), fov: TOP_FRAME.fov, label: 'top_wide' };
+  return { position: at(frame.from), target: at(frame.at), fov: frame.fov, label: 'top_wide' };
 }
 /** Up over the brow (ABOVE_FRAME), round the rim at [x, z] where she comes up going `heading`. */
 function aboveShot(c, rim, heading) {
-  const from = aside(rim, heading, ABOVE_FRAME.from[0], ABOVE_FRAME.from[2]);
-  const to = aside(rim, heading, ABOVE_FRAME.at[0], ABOVE_FRAME.at[2]);
+  const frame = tallScreen(c) ? ABOVE_FRAME.tall : ABOVE_FRAME;
+  const from = aside(rim, heading, frame.from[0], frame.from[2]);
+  const to = aside(rim, heading, frame.at[0], frame.at[2]);
   const ground = c.world.heightAt(from[0], from[1]);
-  return { position: [from[0], ground + ABOVE_FRAME.from[1], from[1]], target: [to[0], ground + ABOVE_FRAME.at[1], to[1]], fov: ABOVE_FRAME.fov, label: 'above_clouds' };
+  return { position: [from[0], ground + frame.from[1], from[1]], target: [to[0], ground + frame.at[1], to[1]], fov: frame.fov, label: 'above_clouds' };
 }
 /** [x, z] `ahead` m along `heading` from [x, z] and `right` m to its right. */
 function aside([x, z], heading, ahead, right) {
