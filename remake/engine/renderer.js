@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { initKTX2Renderer } from '../../dist/vendor/gltf-codecs.js';
 
 // WebGL2 renderer with the remake's colour pipeline: linear working space, sRGB output, and
 // Khronos PBR Neutral tone mapping, which keeps the painted Tripo colours close to their source.
 export function createRenderer(canvas, q) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance', stencil: false });
+  initKTX2Renderer(renderer);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1;

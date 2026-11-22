@@ -48,7 +48,7 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
   let waiting = null; // the piece waiting for its roll (its idle life)
   // Lighter levels for every piece (thorsedla-lod.js, with a piece's switch sizes): four pieces of 20,000 to 39,000 triangles
   // each would cost the budget even at character-lod.js's quarter.
-  const lod = createThorsedlaLod(world.lighting?.sun);
+  const lod = createThorsedlaLod(world.lighting?.sun, world.renderer);
   const list = await Promise.all(roster.map((id, index) => createPiece(world, board, id, index, { tween, lod, get calm() { return calm; } })));
   return {
     list,

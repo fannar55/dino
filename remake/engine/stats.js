@@ -13,6 +13,11 @@ export function installStats({ renderer, scene, q, render, getScale, debugEl, ex
     const add = tex => {
       if (!tex || seen.has(tex)) return;
       seen.add(tex);
+      if (tex.isCompressedTexture && Array.isArray(tex.mipmaps) && tex.mipmaps.length) {
+        let sum = 0;
+        for (const mip of tex.mipmaps) sum += mip?.data?.byteLength ?? 0;
+        if (sum > 0) { bytes += sum * (tex.isCubeTexture ? 6 : 1); return; }
+      }
       const img = tex.image;
       const w = img?.width || (Array.isArray(img) ? img[0]?.width : 0) || 0;
       const h = img?.height || (Array.isArray(img) ? img[0]?.height : 0) || 0;

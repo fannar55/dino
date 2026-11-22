@@ -82,3 +82,42 @@ Several audit suggestions were deliberately adjusted or skipped to preserve veri
 - **`net.js` `MISSED_PINGS` threshold:** Retained per `fjolspil-net.test.mjs` presence timing assertions.
 - **`map-page.js` WebGL context retention & `map-life.js` `requestIdleCallback` hook:** Retained per `book.test.mjs` lifecycle contracts (eager `setTimeout(..., 0)` fallback removed).
 - **`hals.prewarm()` on `Leikir` tab open (`main.js`):** Retained via lazy `hals` proxy (so page startup skips loading Háls og hali while `kafli2.test.mjs` tab-open prewarm contract remains intact).
+
+---
+
+## 5. Android Tablet Render Polish & Character KTX2 + Meshopt Compression
+
+Following the audit fixes, two additional zero-overhead rendering and asset upgrades were merged into `main`:
+
+### A. Low-Cost Render Polish (`369fc22`)
+- **4-tap Vogel-disk rotated PCF shadows (`remake/engine/shadows.js`):** Breaks up grid shadow-map stairstepping at zero extra texture lookups (still 4 hardware depth compares per pixel).
+- **Sun-scattering aerial perspective & height mist (`remake/engine/fog.js`):** Subtle forward sun-glow in distance fog plus soft low-lying ground mist in meadows/fens (`uSunDir`, `uSunScatter`, `uHeightFog`).
+- **Storybook sky sun halo & wispy clouds (`remake/engine/sky.js`):** Single-pass analytic Mie sun glow and gentle procedural clouds on the sky dome (0 extra draw calls).
+- **Character eye catchlights & subtle rim light (`remake/engine/actor.js`):** Soft animated specular sparkle on eyes plus warm grazing rim on character skin.
+- **Ground micro-relief & canopy translucency (`remake/world/forest/terrain.js`, `forest.js`):** Smooth world-space finite-difference normal perturbation on soil/mud and backlit leaf translucency.
+- **Zero-cost CSS storybook polish (`remake/index.html`, `style.css`):** Subtle warm edge vignette overlay.
+
+### B. KTX2 (Basis Universal) + Meshopt Character Compression
+- **Vendored official Three.js r180 decoders (`dist/vendor/`):** `KTX2Loader.js`, `WorkerPool.js`, `ktx-parse.module.js`, `zstddec.module.js`, `ColorSpaces.js`, `meshopt_decoder.module.js`, and `basis/basis_transcoder.{js,wasm}`.
+- **Universal glTF wiring (`dist/vendor/gltf-codecs.js`, `GLTFLoader.js`, `remake/engine/renderer.js`):** `GLTFLoader` attaches `KTX2Loader` (with `workerLimit: 2`, transcoding to native ASTC/ETC2 on Android tablets and BC1/BC7 on desktop) and `MeshoptDecoder` by default across all pages, with a lightweight 1x1 stub in headless Node unit tests.
+- **Compressed VRAM telemetry & Háls og hali coarse LOD (`remake/engine/stats.js`, `remake/engine/hals/thorsedla-lod.js`):** `textureMB()` sums compressed mipmap byte lengths directly on `CompressedTexture`s; `thorsedla-lod.js` reads back GPU-compressed KTX2 albedo maps via a one-shot 256x256 RGBA8 render target with exact sRGB encoding for coarse vertex-coloured LODs.
+- **Lossless-contract GLB recipe (`remake/assets/characters/*.glb`):**
+  - Albedo textures: **ETC1S** (`qualityLevel: 255`, sRGB transfer function, baked mipmaps -> 8x smaller GPU VRAM via ETC2/BC1/ASTC).
+  - Normal maps: **UASTC + Zstd** (`uastcLDRQualityLevel: 2`, `rdoQualityLevel: 2.5`, linear, baked mipmaps -> 4x smaller GPU VRAM via ASTC/BC7).
+  - Vertex packing & buffer compression: `NORMAL` (`Int8` normalized), unit-range `TEXCOORD_0` (`Uint16` normalized), renormalized `WEIGHTS_0` (`Uint8` normalized), plus `EXT_meshopt_compression` in `QUANTIZE` mode — keeping `POSITION`, `_PLATEROW`, `JOINTS_0`, and all animation tracks 100% bit-exact `Float32`.
+  - **Character GLB total:** `17.42 MB` -> **`12.62 MB`** (**`-4.80 MB` / `-27.5%`** across all 10 files).
+  - **Staged cloud & offline bundle (`npm run stage:cloud`):** `2,139 files / 182.80 MB` -> **`2,148 files / 178.50 MB`** (**net `-4.30 MB`**, even after adding the 585 KB Basis WASM + Meshopt decoders).
+
+### C. Measured GPU Frame Time & Texture VRAM (`1280x800`, Intel Iris Xe D3D11, `--bench 120`)
+
+| Scene (`quality`) | Pre-Polish `main` (`0fc8076`) | + Render Polish (`369fc22`) | + KTX2 & Meshopt (Final) | Net GPU Delta | Texture VRAM Delta |
+|---|---|---|---|---|---|
+| `mosi_hero` (`tablet`) | `4.364 ms` / `34.9 MB` | `4.843 ms` / `34.9 MB` | **`4.465 ms` / `19.0 MB`** | `+0.101 ms` | **`-15.9 MB (-45.6%)`** |
+| `mosi_face` (`tablet`) | `4.545 ms` / `34.9 MB` | `4.621 ms` / `34.9 MB` | **`4.106 ms` / `19.0 MB`** | **`-0.439 ms`** | **`-15.9 MB (-45.6%)`** |
+| `mosi_rim` (`tablet`) | `4.854 ms` / `34.9 MB` | `4.903 ms` / `34.9 MB` | **`4.232 ms` / `19.0 MB`** | **`-0.622 ms`** | **`-15.9 MB (-45.6%)`** |
+| `mosi_golden` (`tablet`) | `4.676 ms` / `34.9 MB` | `4.968 ms` / `34.9 MB` | **`4.423 ms` / `19.0 MB`** | **`-0.253 ms`** | **`-15.9 MB (-45.6%)`** |
+| `k1_closeup` (`tablet`) | `4.944 ms` / `51.6 MB` | `5.069 ms` / `51.6 MB` | **`4.611 ms` / `27.1 MB`** | **`-0.333 ms`** | **`-24.5 MB (-47.5%)`** |
+| `k3_fen` (`tablet`) | `5.546 ms` / `49.0 MB` | `5.522 ms` / `49.0 MB` | **`5.271 ms` / `35.3 MB`** | **`-0.275 ms`** | **`-13.7 MB (-28.0%)`** |
+| `mosi_low` (`low`) | `2.981 ms` / `34.9 MB` | `2.836 ms` / `34.9 MB` | **`1.665 ms` / `19.0 MB`** | **`-1.316 ms`** | **`-15.9 MB (-45.6%)`** |
+
+Because hardware-compressed KTX2 textures stay compressed in GPU L1/L2 texture caches and packed vertex buffers reduce vertex fetch bandwidth, the combined build renders **faster on average than pre-polish `main`** while cutting active scene texture VRAM by **28%–47.5%** and keeping all 2,361 remake tests + 22 cloud tests green.

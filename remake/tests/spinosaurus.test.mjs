@@ -34,17 +34,10 @@ function carried(mesh, i, bones) {
 }
 const worldOf = (mesh, i) => mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
 
-// Width and height of a JPEG from its start-of-frame marker.
-function jpegSize(bytes) {
-  for (let i = 2; i < bytes.length;) {
-    const marker = bytes.readUInt16BE(i);
-    const length = bytes.readUInt16BE(i + 2);
-    if (marker >= 0xffc0 && marker <= 0xffcf && ![0xffc4, 0xffc8, 0xffcc].includes(marker)) {
-      return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) };
-    }
-    i += 2 + length;
-  }
-  return null;
+// Width and height of a KTX2 texture from its 12-byte magic + header.
+function ktx2Size(bytes) {
+  if (bytes.length < 28 || bytes.readUInt32BE(0) !== 0xab4b5458 || bytes.readUInt32BE(4) !== 0x203230bb) return null;
+  return { width: bytes.readUInt32LE(20), height: bytes.readUInt32LE(24) };
 }
 
 // Plays a clip on a copy and calls look(t) at `steps` + 1 times over it.
@@ -106,8 +99,8 @@ test('she is 14 m long, 7.3 m to the top of her sail, stands on the ground and f
   assert.equal(json.images.length, 2, 'two maps: base colour and normal');
   for (const image of json.images) {
     const view = json.bufferViews[image.bufferView];
-    assert.equal(image.mimeType, 'image/jpeg');
-    assert.deepEqual(jpegSize(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength)), { width: 1024, height: 1024 });
+    assert.equal(image.mimeType, 'image/ktx2');
+    assert.deepEqual(ktx2Size(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength)), { width: 1024, height: 1024 });
   }
 });
 

@@ -183,7 +183,7 @@ export async function createThorsedlas(world, board, places) {
   // their own levels of detail (thorsedla-lod.js), not character-lod.js's: an actor world without a renderer skips those
   const own = Object.create(world);
   own.renderer = null;
-  const lod = createThorsedlaLod(world.lighting?.sun);
+  const lod = createThorsedlaLod(world.lighting?.sun, world.renderer);
   const list = await Promise.all(places.map(place => createThorsedla(own, board, place, lod, places)));
   const necks = new Map(list.filter(t => t.place.neck).map(t => [t.place.neck.from, t]));
   const tails = new Map(list.filter(t => t.place.tail).map(t => [t.place.tail.from, t]));
