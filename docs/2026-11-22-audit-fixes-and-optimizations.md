@@ -90,12 +90,12 @@ Several audit suggestions were deliberately adjusted or skipped to preserve veri
 Following the audit fixes, two additional zero-overhead rendering and asset upgrades were merged into `main`:
 
 ### A. Low-Cost Render Polish (`369fc22`)
-- **4-tap Vogel-disk rotated PCF shadows (`remake/engine/shadows.js`):** Breaks up grid shadow-map stairstepping at zero extra texture lookups (still 4 hardware depth compares per pixel).
-- **Sun-scattering aerial perspective & height mist (`remake/engine/fog.js`):** Subtle forward sun-glow in distance fog plus soft low-lying ground mist in meadows/fens (`uSunDir`, `uSunScatter`, `uHeightFog`).
-- **Storybook sky sun halo & wispy clouds (`remake/engine/sky.js`):** Single-pass analytic Mie sun glow and gentle procedural clouds on the sky dome (0 extra draw calls).
-- **Character eye catchlights & subtle rim light (`remake/engine/actor.js`):** Soft animated specular sparkle on eyes plus warm grazing rim on character skin.
-- **Ground micro-relief & canopy translucency (`remake/world/forest/terrain.js`, `forest.js`):** Smooth world-space finite-difference normal perturbation on soil/mud and backlit leaf translucency.
-- **Zero-cost CSS storybook polish (`remake/index.html`, `style.css`):** Subtle warm edge vignette overlay.
+- **4-tap rotated PCF shadows (`remake/engine/shadows.js`):** Breaks up shadow-map stairstepping at zero extra texture lookups (still 4 hardware depth compares per pixel).
+- **8-bit screen-space fog dithering (`remake/engine/fog.js`):** Interleaved gradient noise dither removes banding in fog and sky gradients.
+- **3D directional cloud lighting & silver lining (`remake/engine/sky.js`):** Offset sun-direction cloud sample gives clouds lit tops, shaded undersides, and warm backlit silver edges.
+- **Character eye catchlights, cavity AO & anisotropy (`remake/engine/actor.js`):** Soft specular eye sparkle, subtle crease cavity shading, and up to 4x anisotropic texture filtering.
+- **Ground micro-relief & 4x anisotropy (`remake/world/forest/terrain.js`, `forest.js`):** Smooth world-space finite-difference normal perturbation on soil/mud and 4x anisotropic filtering on ground noise, leaf, and mask textures.
+- **Zero-cost CSS storybook vignette (`remake/index.html`, `style.css`):** Subtle warm edge vignette overlay.
 
 ### B. KTX2 (Basis Universal) + Meshopt Character Compression
 - **Vendored official Three.js r180 decoders (`dist/vendor/`):** `KTX2Loader.js`, `WorkerPool.js`, `ktx-parse.module.js`, `zstddec.module.js`, `ColorSpaces.js`, `meshopt_decoder.module.js`, and `basis/basis_transcoder.{js,wasm}`.
