@@ -184,7 +184,7 @@ void main() {
   // a soft normal: up for a lying card (tilted by the noise), up and toward the camera for a standing one
   vec3 view = normalize( vWorld - cameraPosition );
   vec3 normal = vFlat > 0.5
-    ? normalize( vec3( ( n - 0.5 ) * 0.8, 1.0, ( texture2D( uNoise, q * 0.9 + vSeed ).r - 0.5 ) * 0.8 ) )
+    ? normalize( vec3( ( n - 0.5 ) * 0.8, 1.0, ( puff - 0.5 ) * 0.8 ) )
     : normalize( vec3( -view.x, 0.0, -view.z ) * 0.7 + vec3( 0.0, 0.25 + 0.75 * clamp( vUv.y * 0.5 + 0.5, 0.0, 1.0 ), 0.0 ) );
   if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) normal.y = -normal.y; // its underside, seen from below
   float up = normal.y * 0.5 + 0.5;

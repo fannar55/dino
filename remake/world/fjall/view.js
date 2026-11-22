@@ -78,12 +78,11 @@ export function viewForest(world, { far, terrain, route, haze, library, from, se
       const card = atlas.card(name, Math.floor(variant * variants));
       if (!card) continue;
       const scale = (lo + size * (hi - lo)) * (far3 ? 1.75 : far2 ? 1.3 : 1);
-      trees.push({ d2: dx * dx + dz * dz, x: px, z: pz, y: corridor || bare ? ground - 0.5 : ground - CANOPY_SINK * (0.85 + 0.3 * size), scale, rot: turn * Math.PI * 2, card });
+      trees.push({ x: px, z: pz, y: corridor || bare ? ground - 0.5 : ground - CANOPY_SINK * (0.85 + 0.3 * size), scale, rot: turn * Math.PI * 2, card });
     }
   }
-  // near ones first: the cards are cut out and opaque, so the depth test keeps the nearest whatever the order, and drawn first they
-  // spare the far ones behind them their shading
-  trees.sort((a, b) => a.d2 - b.d2);
+  // far ones first: the near ones draw over them (the cards are cut out, so this only saves overdraw)
+  trees.sort((a, b) => Math.hypot(b.x - from[0], b.z - from[1]) - Math.hypot(a.x - from[0], a.z - from[1]));
   const n = trees.length * 4;
   const centre = new Float32Array(n * 3), corner = new Float32Array(n * 2), sizes = new Float32Array(n * 2), uv = new Float32Array(n * 2), lit = new Float32Array(n * 3);
   const index = new (n > 65535 ? Uint32Array : Uint16Array)(trees.length * 6);

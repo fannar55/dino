@@ -38,9 +38,6 @@ const PRINT_MUD = { floor: '#4f4838', wall: '#5c5545', lip: '#9a937e', band: '#6
 const BANK = { from: 84, to: 104, rows: 2, cards: 24, width: [36, 52], height: [24, 42], ahead: 0.55 };
 /** The top's shape: its middle `ahead` m on, its flat top `top` m up, `flat` m round, its foot `foot` m round and under the ground. */
 export const SUMMIT = { ahead: 320, top: 88, flat: 70, foot: 260, under: -70 };
-// The cloud's level from which the top and the bank are not drawn: the white hides them wholly (the top's 12,000 triangles and the
-// bank's cards; below it the top's high ground still shows, faintly, through the thinner cloud's height fog)
-const HIDDEN_FROM = 0.9;
 const PEBBLES = { count: 14, near: 0.55, far: 1.25, size: [0.18, 0.34], hop: [0.12, 0.3], seconds: 0.75 };
 
 /** The belt's ground: 0.2 m low at the west, rising gently east along the prints to 2.8 m, with a slight swell. */
@@ -135,9 +132,6 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
     get bank() { return bank; },
     update(dt, time) {
       cloud.update(dt, time);
-      const hidden = cloud.level >= HIDDEN_FROM;
-      top.group.visible = !hidden;
-      if (bank) bank.mesh.visible = !hidden;
       bank?.update(dt, time);
       pebbles.update(dt);
     },
