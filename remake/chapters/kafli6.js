@@ -144,13 +144,13 @@ const AFTER_ROAR = { ...LOOKS.afterRoar, name: 'after the roar' };
 const MOSI_ASIDE = [3, 7.5];
 const HEAD_WAIT = 6;
 const FLOAT_UP = 2.6;
-const TURN_RATE = 50;
+const TURN_RATE = 70;
 const CLIMB_PACE = 1.8; // m/s: her stride a little under its own pace, so Mosi at his fastest (BESIDE.speed) keeps beside her
-const MARCH = 16;
+const MARCH = 12;
 const RUN_SIDE = 5.5;
 const TOP_WAY = 126;
 const UNDER = 6;
-const TOP_WALK = 6;
+const TOP_WALK = 4;
 const TOP_PACE = 1.2;
 // Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame): her head down on
 // the ground from behind on her right (Mosi and Egill beyond it, apart from it), and the climb from beyond Mosi on her right. on_her_head from the seat of Egill's
@@ -768,9 +768,8 @@ function* upToTheTop(s, c) {
   const shot = name => ({ ...climbFrame(name, stand, ground), label: name });
   cut(s, c, shot('head_down'));
   for (const who of [mosi, egill]) who.lookAt(HER_HEAD, { weight: 0.6, maxAngle: 70, maxPitch: 40 });
-  yield runBeside(s, c, [forward(stand, -0.5, MOSI_ASIDE[1] * 0.5), forward(stand, MOSI_ASIDE[0], MOSI_ASIDE[1])], { speed: 1.3 });
-  yield mosi.raw.turnTo(stand.heading, { rate: 40 });
-  yield* her.headDown();
+  yield runBeside(s, c, [forward(stand, -0.5, MOSI_ASIDE[1] * 0.5), forward(stand, MOSI_ASIDE[0], MOSI_ASIDE[1])], { speed: 2 });
+  yield s.all(mosi.raw.turnTo(stand.heading, { rate: 60 }), her.headDown()); // he turns to watch while she lays her head down
   c.seat = createSeat(c.gramedla.raw, HEAD_SEAT);
   const seatPoint = out => out.copy(c.seat.update()).addScaledVector(UP, 0.6);
   aim(s, c, 'gramedla-head', seatPoint, 2.2);
@@ -849,7 +848,7 @@ function* upToTheTop(s, c) {
   c.log({ type: 'tramped' });
   yield s.wait(0.4);
   yield* say(s, c, 'mosi', 'k6_mosi_room');
-  yield s.wait(2.4);
+  yield s.wait(1.6);
   mark(c, 'end');
   s.fade(0.45, 1.6);
   s.journal.open('dinosaurs', { nod: 'gramedla' });
