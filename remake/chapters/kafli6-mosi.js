@@ -220,11 +220,11 @@ export function pointWithHead(c, point, { seconds = POINT.seconds } = {}) {
 }
 
 /**
- * Running beside her up the last slope (scene 7): his walk at `speed` m/s (its clip runs at up to three times its own pace, 1.23 m/s,
- * engine/actor.js walkTo, so his feet keep to the ground). And once he stands on the top, puffing: his neck and head bob `rate`
+ * Running beside her up the last slope (scene 7): his walk at `speed` m/s, as fast as his feet keep to the ground (his walk's own pace
+ * is 1.23 m/s; at 1.8 times it, 2.2 m/s, a planted foot slides under 3 cm in a frame, and more above it). And once he stands on the top, puffing: his neck and head bob `rate`
  * times a second (degrees at the most), fading out over the last `fade` of `seconds`.
  */
-export const BESIDE = { speed: 3.3, turnRate: 60 };
+export const BESIDE = { speed: 2.2, turnRate: 60 };
 export const PANT = { seconds: 9, rate: 1.6, neck: 4, head: 3, fade: 2.5 };
 
 export function runBeside(s, c, points, { speed = BESIDE.speed, pant = false } = {}) {

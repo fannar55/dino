@@ -25,7 +25,7 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [] };
+  const seen = { climb: { side: [], slide: { gramedla: 0, mosi: 0 }, seat: 0, top: null }, crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [] };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses,
     onFrame(frame) {
@@ -44,7 +44,12 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
       const time = c.s.time;
       // never more than three big characters outside the farewell
       if (typeof c.scene === 'number' && c.scene > 1) {
-        for (const who of ['sloedla', 'flugedla']) if (world.actors.get(who).root.visible) seen.crowd.push(`${who} at ${time.toFixed(1)} s`);
+        for (const who of ['sloedla', 'flugedla']) {
+          const actor = world.actors.get(who);
+          // Flugeðla at the very end is a speck far out over the sea of cloud, not a big character in the frame
+          const far = who === 'flugedla' && c.scene === 7 && actor.root.position.distanceTo(world.actors.get('gramedla').root.position) > 100;
+          if (actor.root.visible && !far) seen.crowd.push(`${who} at ${time.toFixed(1)} s`);
+        }
       }
       // the aimed targets while their task waits (from WAIT_GRACE after the wait began: the shot for it may wait a moment to cut)
       const w = c.waiting;
@@ -67,6 +72,7 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
       }
       watchMountain(world, c, seen.mountain);
       watchHer(world, c, seen.her);
+      watchClimb(world, c, seen.climb);
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
@@ -127,6 +133,62 @@ function watchHer(world, c, seen) {
   });
 }
 
+/**
+ * Scene 7 (Task 11), each frame: Egill on the seat on her head from when he is seated; in the tramp up (from 'tramp' to 'tramped')
+ * how far Mosi is from her side (across her way and along it) and how far a planted foot of either moves in a frame (a foot is
+ * planted while its heel stands, in its own root's frame, within 2 mm of where it stood at the start of the scene; not on the rim's
+ * steep shoulder, more than STEEP degrees, where the feet keep to her root's level and the brow hides them); and in top_wide,
+ * once they stand, whether she, Mosi and Egill are in the frame and where Flugeðla is.
+ */
+const STEEP = 15;
+const CLIMB_FEET = { gramedla: ['LeftFoot', 'RightFoot'], mosi: ['BackFootL', 'BackFootR', 'FrontFootL', 'FrontFootR'] };
+function watchClimb(world, c, seen) {
+  if (c.scene !== 7) return;
+  const her = world.actors.get('gramedla'), mosi = world.actors.get('mosi'), egill = world.actors.get('egill');
+  for (const a of [her, mosi, egill]) a.root.updateMatrixWorld(true);
+  const actors = { gramedla: her, mosi };
+  const heels = who => CLIMB_FEET[who].map(n => {
+    const bone = actors[who].model.getObjectByName(n);
+    const p = bone.getWorldPosition(new THREE.Vector3());
+    return { world: p, y: actors[who].root.worldToLocal(p.clone()).y };
+  });
+  seen.rest ??= { gramedla: heels('gramedla').map(h => h.y), mosi: heels('mosi').map(h => h.y) };
+  const log = c.chapterLog;
+  if (c.seat && log.some(e => e.type === 'seated')) seen.seat = Math.max(seen.seat, egill.root.position.distanceTo(c.seat.update()));
+  const tramping = log.some(e => e.type === 'tramp') && !log.some(e => e.type === 'tramped');
+  if (tramping) {
+    const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(her.root.quaternion).setY(0).normalize();
+    const d = mosi.root.position.clone().sub(her.root.position).setY(0);
+    seen.side.push({ time: c.s.time, across: Math.abs(d.x * ahead.z - d.z * ahead.x), along: d.dot(ahead) });
+    const now = { place: world.forest, gramedla: heels('gramedla'), mosi: heels('mosi'), roots: { gramedla: her.root.position.clone(), mosi: mosi.root.position.clone() } };
+    if (seen.last && seen.last.place === now.place) {
+      for (const who of ['gramedla', 'mosi']) now[who].forEach((h, k) => {
+        const a = now.roots[who], b = seen.last.roots[who];
+        if (Math.abs(a.y - b.y) > Math.tan(THREE.MathUtils.degToRad(STEEP)) * Math.hypot(a.x - b.x, a.z - b.z) + 1e-4) return;
+        const was = seen.last[who][k], rest = seen.rest[who][k];
+        if (h.y - rest < 0.002 && was.y - rest < 0.002) {
+          const moved = Math.hypot(h.world.x - was.world.x, h.world.z - was.world.z);
+          if (moved > seen.slide[who]) { seen.slide[who] = moved; seen.slideAt = { who, k, time: c.s.time }; }
+        }
+      });
+    }
+    seen.last = now;
+  }
+  const stood = log.find(e => e.type === 'tramped');
+  if (c.shotLabel === 'top_wide' && stood && !seen.top && c.s.time >= stood.at + 0.5) {
+    const flier = world.actors.get('flugedla');
+    seen.top = {
+      time: c.s.time,
+      framed: {
+        gramedla: inFrame(her.headPosition(new THREE.Vector3()), world.camera) && inFrame(her.root.position, world.camera),
+        mosi: inFrame(mosi.headPosition(new THREE.Vector3()), world.camera),
+        egill: inFrame(egill.headPosition(new THREE.Vector3()), world.camera),
+      },
+      flier: { shown: flier.root.visible, off: flier.root.position.distanceTo(her.root.position), below: her.root.position.y - flier.root.position.y },
+    };
+  }
+}
+
 // The children ----------------------------------------------------------------------------------
 /** What the chapter wants now, as a key that changes with each new wait, and the right tap for it. */
 function wantNow(c) {
@@ -178,6 +240,15 @@ const quick = () => play('quick', { child: quickChild });
 const wrong = () => play('wrong', { child: wrongChild });
 const calm = () => play('reduced', { reduced: true, child: wrongChild });
 const upright = () => play('upright', { aspect: 0.625 });
+/** Taps `name` once, a second after the chapter waits for a tap on her head or Egill (scene 7). */
+const headTap = name => (c, frame, seen) => {
+  if (c.waiting?.task !== 'head' || seen.headTapped || c.s.time - c.waiting.since < 1) return;
+  seen.headTapped = c.s.time;
+  frame.pointer.tap(name, { x: 640, y: 400 });
+};
+// a child who taps only her head, and an upright one who taps only Egill: as a child plays (no seeking, which takes a tap by itself)
+const herHead = () => play('her head', { seeking: false, child: headTap('gramedla-head') });
+const egillTapped = () => play('egill tapped', { seeking: false, aspect: 0.625, child: headTap('egill') });
 
 const logOf = (run, task, type) => run.world.chapterState.taskLog.filter(e => e.task === task && (!type || e.type === type));
 const sceneAt = (run, scene) => run.world.chapterTimeline.find(mark => mark.scene === scene)?.at;
@@ -533,4 +604,56 @@ test('the star rises from over her head and is k6_gramedla', async () => {
   assert.ok(flat(from, head) < 0.5, `${flat(from, head).toFixed(2)} m to the side of it`);
   assert.equal(star.scene, 6);
   assert.deepEqual(run.save.get().stars.filter(id => id === 'k6_gramedla'), ['k6_gramedla']);
+});
+
+// Scene 7 (Task 11): the seat on her head and the walk up --------------------------------------------------------------------------
+
+test('Egill floats up when her head or he is tapped, and after 6 s when nothing is', async () => {
+  const runs = { nothing: await untouched(), 'gramedla-head': await herHead(), egill: await egillTapped() };
+  for (const [name, run] of Object.entries(runs)) {
+    ended(run, name);
+    const log = run.world.chapterState.chapterLog;
+    const down = log.find(e => e.type === 'her' && e.what === 'headIsDown');
+    const on = log.find(e => e.type === 'onHerHead');
+    const seated = log.find(e => e.type === 'seated');
+    assert.ok(down && on && seated, `${name}: her head down, the float and the seat are logged`);
+    if (name === 'nothing') {
+      assert.equal(on.tapped, null);
+      assert.ok(Math.abs(on.at - down.at - 6) < 0.2, `nothing tapped: he floats up ${(on.at - down.at).toFixed(2)} s after her head is down`);
+    } else {
+      assert.equal(on.tapped, name, `${name} tapped`);
+      assert.ok(Math.abs(on.at - run.watched.headTapped) < 0.1, `${name}: he floats up ${(on.at - run.watched.headTapped).toFixed(2)} s after the tap`);
+    }
+    assert.ok(Math.abs(seated.at - on.at - 2.6) < 0.1, `${name}: the float takes ${(seated.at - on.at).toFixed(2)} s`);
+  }
+});
+
+test('in the tramp up Mosi stays 4 to 9 m from her side and neither slides a planted foot more than 3 cm in a frame', async () => {
+  for (const run of [await untouched(), await egillTapped()]) {
+    const { side, slide, slideAt } = run.watched.climb;
+    assert.ok(side.length > 300, `${side.length} frames of the tramp`);
+    const across = side.map(f => f.across), along = side.map(f => Math.abs(f.along));
+    assert.ok(Math.min(...across) >= 4 && Math.max(...across) <= 9, `Mosi is ${Math.min(...across).toFixed(2)} to ${Math.max(...across).toFixed(2)} m off her side`);
+    assert.ok(Math.max(...along) <= 9, `and at most ${Math.max(...along).toFixed(2)} m ahead of her or behind`);
+    for (const who of ['gramedla', 'mosi']) assert.ok(slide[who] <= 0.03, `${who}'s planted foot slid ${(slide[who] * 100).toFixed(1)} cm in a frame (${JSON.stringify(slideAt)})`);
+  }
+});
+
+test("Egill stays within 2 cm of the seat from the rise to the chapter's end", async () => {
+  for (const run of [await untouched(), await herHead()]) {
+    const { seat } = run.watched.climb;
+    assert.ok(seat < 0.02, `he was ${(seat * 100).toFixed(1)} cm off the seat`);
+    assert.ok(run.world.chapterState.riding, 'he rides her to the end');
+  }
+});
+
+test('in top_wide she, Mosi and Egill are in frame at both shapes of screen, and Flugeðla is over 100 m off and below them', async () => {
+  for (const run of [await untouched(), await egillTapped()]) {
+    const { top } = run.watched.climb;
+    assert.ok(top, 'top_wide was held with them standing');
+    assert.deepEqual(top.framed, { gramedla: true, mosi: true, egill: true });
+    assert.equal(top.flier.shown, true, 'Flugeðla is there, far below');
+    assert.ok(top.flier.off > 100, `Flugeðla is ${top.flier.off.toFixed(0)} m off`);
+    assert.ok(top.flier.below > 0, `and ${top.flier.below.toFixed(1)} m below her feet`);
+  }
 });

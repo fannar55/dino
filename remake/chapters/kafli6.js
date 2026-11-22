@@ -136,14 +136,16 @@ const VEIL_STEPS = 12;
 // After the roar: the sunset golden on the belt, a thin haze staying (the bank round them hides the belt's edge: world/fjall belt.js)
 const AFTER_ROAR = { ...LOOKS.afterRoar, name: 'after the roar' };
 // Scene 7: Mosi steps out of her way to MOSI_ASIDE ([ahead, right] m from his stand) before she lays her head down; a tap on her
-// head or Egill, or HEAD_WAIT s, and Egill floats up onto it over FLOAT_UP s. She tramps MARCH m up the belt's last slope, Mosi
+// head or Egill, or HEAD_WAIT s, and Egill floats up onto it over FLOAT_UP s. She rises and turns round toward Mosi's side (her head
+// over him, her tail away from him) at TURN_RATE degrees a second. She tramps MARCH m up the belt's last slope, Mosi
 // running RUN_SIDE m on her right, the light easing from after the roar to the top's sunset as they climb (so the cut to the top does
 // not step). On the top she strides up out of the sea of cloud at bearing TOP_WAY (degrees, past the last wisp: world/fjall/top.js
 // VEIL) from UNDER m out past the rim (in the sea of cloud, on the shoulder's gentler foot) to inside it, and walks TOP_WALK m on toward her room (top.room) at TOP_PACE m/s, where they stand.
-const MOSI_ASIDE = [0, 7.5];
+const MOSI_ASIDE = [3, 7.5];
 const HEAD_WAIT = 6;
 const FLOAT_UP = 2.6;
 const TURN_RATE = 50;
+const CLIMB_PACE = 1.8; // m/s: her stride a little under its own pace, so Mosi at his fastest (BESIDE.speed) keeps beside her
 const MARCH = 16;
 const RUN_SIDE = 5.5;
 const TOP_WAY = 126;
@@ -154,17 +156,20 @@ const TOP_PACE = 1.2;
 // head down on the ground with Mosi beyond it, and the climb from beyond Mosi on her right. on_her_head from the seat of Egill's
 // trousers ([ahead, up, right] in her frame): behind and over his shoulder, looking far ahead and a little down. top_wide from where
 // she stands on the top ([along, up, right] m: along her way back out to the rim, right of her): from ahead of them on her right,
-// back past them over the rim to the sea of cloud, where Flugeðla comes up.
+// back past them over the rim to the sea of cloud, where Flugeðla comes up. above_clouds from the rim where she comes up ([in, up,
+// right] m along her way in, up from the ground under the camera): from low on the top inside it, back out over the brow she comes
+// up over, the sea of cloud and the sky behind her.
 const CLIMB_FRAMES = {
   head_down: { position: [2, -14, 3.2], target: [5, 2, 1.4], fov: 50 },
   climb_side: { position: [5, 18, 2.6], target: [15, 2, 3.4], fov: 50 },
 };
 const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
 const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50 };
+const ABOVE_FRAME = { from: [22, 3.2, 14], at: [3, -1.6, 0], fov: 50 };
 const UP = new THREE.Vector3(0, 1, 0);
 // Flugeðla far below as they stand on the top: a speck `out` m out past them over the sea and `side` m to her right, flying up out
 // of the sea from `from` to `to` m (under the top's ground) over `seconds`.
-const SPECK = { out: 150, side: -30, from: -30, to: -4, rise: 40, seconds: 9 };
+const SPECK = { out: 150, side: 110, from: -24, to: -1, rise: 25, seconds: 8 };
 const TO_THE_MAP = 1.2; // s the book shows its dinosaurs (Grameðla nodding) before it turns to the map, as chapter 5's
 
 // ---------------------------------------------------------------------------------------------
@@ -786,15 +791,19 @@ function* upToTheTop(s, c) {
   c.saddle.hide();
   c.log({ type: 'seated' });
   // she rises with him and turns the way they go
-  yield s.all(her.rise(), c.gramedla.raw.turnTo(stand.heading, { rate: TURN_RATE }));
+  const turning = s.after(0, function* turn() {
+    yield c.gramedla.raw.turnTo(stand.heading + 90, { rate: TURN_RATE });
+    yield c.gramedla.raw.turnTo(stand.heading, { rate: TURN_RATE });
+  });
+  yield s.all(her.rise(), turning);
   cut(s, c, headShot(c));
   yield s.wait(2.8);
   // the tramp up the last slope, Mosi running beside her, puffing
   cut(s, c, shot('climb_side'));
   c.log({ type: 'tramp' });
-  const march = her.trampUp([forward(stand, HER_STOP + MARCH)]);
+  const march = her.trampUp([forward(stand, HER_STOP + MARCH)], { speed: CLIMB_PACE });
   const beside = runBeside(s, c, [forward(stand, HER_STOP + 3, RUN_SIDE), forward(stand, HER_STOP + MARCH - 1.5, RUN_SIDE)]);
-  easeLight(world, LOOKS.sunset, MARCH / STRIDE.speed + 1);
+  easeLight(world, LOOKS.sunset, MARCH / CLIMB_PACE + 1);
   soundWhile(s, c, 'step', 0.3, () => !beside.done, { level: 0.6 });
   footfalls(s, c, march, -6);
   yield s.wait(1.4);
@@ -817,11 +826,11 @@ function* upToTheTop(s, c) {
     },
   });
   s.releaseLocation('sky');
-  cut(s, c, 'above_clouds');
+  cut(s, c, aboveShot(c, slope[1], headingTo(slope[0], slope[1])));
   for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { top.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
-  const up = her.trampUp([slope[1], slope[2]]);
+  const up = her.trampUp([slope[1], slope[2]], { speed: CLIMB_PACE });
   const upHeading = headingTo(slope[1], slope[2]);
-  const by = runBeside(s, c, [aside(slope[1], upHeading, 0, RUN_SIDE), aside(slope[2], upHeading, -1.5, RUN_SIDE)], { speed: STRIDE.speed * 1.05 });
+  const by = runBeside(s, c, [aside(slope[1], upHeading, 0, RUN_SIDE), aside(slope[2], upHeading, -1.5, RUN_SIDE)], { speed: CLIMB_PACE * 1.1 });
   footfalls(s, c, up, -8);
   yield s.wait(2.4);
   yield* say(s, c, 'egill', 'k6_egill_above');
@@ -869,6 +878,13 @@ function topShot(c, [x, z], heading) {
   const [fx, fz] = way(heading);
   const at = ([along, u, r]) => [x - fx * along - fz * r, ground + u, z - fz * along + fx * r];
   return { position: at(TOP_FRAME.from), target: at(TOP_FRAME.at), fov: TOP_FRAME.fov, label: 'top_wide' };
+}
+/** Up over the brow (ABOVE_FRAME), round the rim at [x, z] where she comes up going `heading`. */
+function aboveShot(c, rim, heading) {
+  const from = aside(rim, heading, ABOVE_FRAME.from[0], ABOVE_FRAME.from[2]);
+  const to = aside(rim, heading, ABOVE_FRAME.at[0], ABOVE_FRAME.at[2]);
+  const ground = c.world.heightAt(from[0], from[1]);
+  return { position: [from[0], ground + ABOVE_FRAME.from[1], from[1]], target: [to[0], ground + ABOVE_FRAME.at[1], to[1]], fov: ABOVE_FRAME.fov, label: 'above_clouds' };
 }
 /** [x, z] `ahead` m along `heading` from [x, z] and `right` m to its right. */
 function aside([x, z], heading, ahead, right) {
