@@ -28,12 +28,14 @@ export function depthShadowChunk(chunk = THREE.ShaderChunk.shadowmap_pars_fragme
 		shadowCoord.z += shadowBias;
 		bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;
 		if ( inFrustum && shadowCoord.z <= 1.0 ) {
-			vec2 d = shadowRadius * 0.5 / shadowMapSize;
+			float sAngle = fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( 0.06711056, 0.00583715 ) ) ) ) * 6.2831853;
+			vec2 sDir = vec2( cos( sAngle ), sin( sAngle ) ) * ( shadowRadius * 0.78 / shadowMapSize );
+			vec2 sPerp = vec2( - sDir.y, sDir.x );
 			shadow = 0.25 * (
-				texture( shadowMap, vec3( shadowCoord.xy + vec2( - d.x, - d.y ), shadowCoord.z ) ) +
-				texture( shadowMap, vec3( shadowCoord.xy + vec2( d.x, - d.y ), shadowCoord.z ) ) +
-				texture( shadowMap, vec3( shadowCoord.xy + vec2( - d.x, d.y ), shadowCoord.z ) ) +
-				texture( shadowMap, vec3( shadowCoord.xy + vec2( d.x, d.y ), shadowCoord.z ) ) );
+				texture( shadowMap, vec3( shadowCoord.xy + sDir * 0.55, shadowCoord.z ) ) +
+				texture( shadowMap, vec3( shadowCoord.xy + sPerp, shadowCoord.z ) ) +
+				texture( shadowMap, vec3( shadowCoord.xy - sDir * 0.85, shadowCoord.z ) ) +
+				texture( shadowMap, vec3( shadowCoord.xy - sPerp * 0.70, shadowCoord.z ) ) );
 		}
 		return mix( 1.0, shadow, shadowIntensity );
 	}

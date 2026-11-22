@@ -84,7 +84,11 @@ void main() {
     vec2 uv = d.xz / (h + 0.2) * 0.16 + vec2(uTime * 0.0016, uTime * 0.0007);
     float n = texture2D(uNoise, uv).r * 0.62 + texture2D(uNoise, uv * 2.7 + 0.31).r * 0.38;
     float m = smoothstep(uCover, uCover + 0.2, n) * smoothstep(0.015, 0.22, h);
-    vec3 cloudCol = mix(uCloudShade, uCloud, 0.5 + 0.5 * sd2);
+    vec2 sunStep = normalize(uSunDir.xz + vec2(1e-4, 0.0)) * 0.018;
+    float nSun = texture2D(uNoise, uv + sunStep).r * 0.62 + texture2D(uNoise, (uv + sunStep) * 2.7 + 0.31).r * 0.38;
+    float cloudLit = clamp(0.56 + (n - nSun) * 2.6 + 0.24 * sd2, 0.0, 1.0);
+    float silver = sd4 * 0.24 * (1.0 - smoothstep(0.0, 0.28, nSun - uCover));
+    vec3 cloudCol = mix(uCloudShade, uCloud, cloudLit) + uGlow * silver;
     col = mix(col, cloudCol, m * 0.92);
   }
   vec3 fogTint = mix(uFogColor, uFogSun, sd8 * uFogSunStrength);

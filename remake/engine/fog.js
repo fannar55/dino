@@ -35,6 +35,7 @@ const FOG_FRAGMENT = `#ifdef USE_FOG
 	float fogDot4 = fogDot2 * fogDot2;
 	float fogSun = (fogDot4 * fogDot4) * FOG_SUN_STRENGTH;
 	gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(fogColor, FOG_SUN_COLOR, fogSun), fogFactor);
+	gl_FragColor.rgb += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
 #endif`;
 
 const sceneFogPars = new WeakMap();

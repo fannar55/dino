@@ -289,9 +289,12 @@ function* forestSteps(world, layout) {
   const group = new THREE.Group();
   group.name = 'Forest';
 
+  const aniso = Math.min(4, world.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
   const noiseTexture = yield* createNoiseTextureSteps(seed);
+  if (aniso > 1) noiseTexture.anisotropy = aniso;
   yield 'noise';
   const leafTexture = yield* createLeafTextureSteps(seed);
+  if (aniso > 1) leafTexture.anisotropy = aniso;
   yield 'leaf';
   const shared = createSharedUniforms(world, noiseTexture, leafTexture, leafShadowsOf(layout) ? FOREST.leafShadow.strength : 0);
   const actorUniforms = {
@@ -326,6 +329,7 @@ function* forestSteps(world, layout) {
   }), world.lighting.direction);
   yield 'canopy';
   const floor = yield* terrain.createGroundMaterialSteps(shared, actorUniforms); // after planning: soil stamps, canopy
+  if (aniso > 1 && floor.mask?.tex) floor.mask.tex.anisotropy = aniso;
   yield 'ground material';
   const groundMesh = new THREE.Mesh(yield* terrain.buildGroundGeometrySteps(q), floor.material);
   yield 'ground';

@@ -361,7 +361,10 @@ varying float vShore;
 #endif
 ${ACTOR_GLSL}
 ${LIGHT_GLOBALS}
-${LEAF_SHADOW_GLSL}`,
+${LEAF_SHADOW_GLSL}
+float gBumpStrength = 0.0;
+float gBumpH0 = 0.0;
+float gWetShore = 0.0;`,
       fragmentAfter: [['#include <color_fragment>', `
   vec2 gp = vGroundPos.xz;
   vec4 m = texture2D( uGroundMask, ( gp - uMaskOrigin ) / uMaskSize );
@@ -400,14 +403,18 @@ ${LEAF_SHADOW_GLSL}`,
   fenC = mix( fenC, uFenMossWet * 0.82 * ( 0.85 + 0.3 * fine ), smoothstep( 0.6, 0.8, nD.r + ( fine - 0.5 ) * 0.2 ) * 0.7 );
   fenC = mix( fenC, uFenMoss * ( 0.92 + 0.16 * fine ), smoothstep( 0.22, 0.42, above ) * 0.35 );
   fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.25, 1.0 + 0.3 * med, shoreD ) ) * 0.3 );
-  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD ) );
+  float fenMud = ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD );
+  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), fenMud );
   // the bed under the water, from its very edge: wet and darker in its first 0.3 m, where the surface fades in over it
   fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ) * mix( 0.7, 1.0, smoothstep( 0.0, -0.3, shoreD ) ), smoothstep( 0.0, -0.25, shoreD ) );
+  gWetShore = fen * ( fenMud + ( 1.0 - smoothstep( 0.12, 0.42, shoreD ) ) * smoothstep( -0.03, 0.03, shoreD ) * 0.4 );
 
   col = mix( col, fenC, fen );
   pathC = mix( pathC, uFenPath * ( 0.88 + 0.22 * fine ), fen * 0.85 );
   #endif
   col = mix( col, pathC, pathEdge );
+  gBumpStrength = ( 0.25 + 0.75 * max( pathEdge, soil ) ) * ( 1.0 - gWetShore );
+  gBumpH0 = med;
   vec2 actorSN = forestActorShadeNear( vGroundPos );
   float ao = actorSN.x;
   float actorNear = actorSN.y;
@@ -427,7 +434,29 @@ ${LEAF_SHADOW_GLSL}`,
   gAmb = mix( 0.5, 1.0, openSky );
   // the real shadow map keeps counting well under the canopy edge, where the baked shade is
   // already dark, so no lit band opens between the two
-  gShadowUse = smoothstep( 0.2, 0.45, openSky );`]],
+  gShadowUse = smoothstep( 0.2, 0.45, openSky );`],
+        ['#include <normal_fragment_maps>', `
+  {
+    float bumpFade = ( 1.0 - smoothstep( 8.0, 26.0, length( vViewPosition ) ) ) * gBumpStrength;
+    if ( bumpFade > 0.001 ) {
+      vec2 bgp = vGroundPos.xz;
+      float hx = texture2D( uNoise, ( bgp + vec2( 0.18, 0.0 ) ) * 0.13 ).g;
+      float hz = texture2D( uNoise, ( bgp + vec2( 0.0, 0.18 ) ) * 0.13 ).g;
+      vec3 wTilt = vec3( ( gBumpH0 - hx ) * ( 0.85 * bumpFade ), 0.0, ( gBumpH0 - hz ) * ( 0.85 * bumpFade ) );
+      normal = normalize( normal + ( viewMatrix * vec4( wTilt, 0.0 ) ).xyz );
+    }
+  }`],
+        ['#include <lights_fragment_end>', `
+  #if defined( FOREST_FEN ) && NUM_DIR_LIGHTS > 0
+  if ( gWetShore > 0.001 ) {
+    vec3 wetHalf = normalize( directionalLights[ 0 ].direction + geometryViewDir );
+    float wetH = max( dot( geometryNormal, wetHalf ), 0.0 );
+    float w2 = wetH * wetH;
+    float w4 = w2 * w2;
+    float w8 = w4 * w4;
+    reflectedLight.directDiffuse += directionalLights[ 0 ].color * ( w8 * 0.18 * gWetShore * gSun );
+  }
+  #endif`]],
     });
     return { material, mask };
   }
