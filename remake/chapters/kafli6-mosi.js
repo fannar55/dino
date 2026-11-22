@@ -5,11 +5,13 @@
 //   const hop = hopTo(s, c, { at: [x, z], y, heading }, { seconds, height, ring })   -> Handle, done as he lands; he then stands there
 //   standOn(mosi.raw, { at: [x, z], y, heading })    he stands on a top that is not the ground (a stone), until let go
 //   letGo(mosi.raw)                                  his feet are the ground's again
-//   const roar = smallRoar(mosi.raw, { seconds })    -> Handle, done when his head is down again
+//   const roar = smallRoar(s, c, { seconds })        -> Handle, done when his head is down again (neck, head and jaw: SMALL_ROAR)
+//   pointWithHead(c, point)                          -> Handle: he looks at point and jabs his head toward it twice (the call's help)
 //
 // Each runs on the actor's own update (the game clock), so the book's pause holds it.
 import * as THREE from 'three';
 import { Handle } from '../engine/handle.js';
+import { rotateBoneWorld } from '../engine/actor.js';
 
 const rad = THREE.MathUtils.degToRad;
 const smooth = k => { const x = Math.min(1, Math.max(0, k)); return x * x * (3 - 2 * x); };
@@ -19,8 +21,6 @@ const smooth = k => { const x = Math.min(1, Math.max(0, k)); return x * x * (3 -
  * (degrees), and the dip as he lands (m, s): Egill bounces in the saddle with it.
  */
 export const HOP = { seconds: 1.1, height: 0.35, ramp: 0.12, pitch: 1.5, dip: 0.07, settle: 0.3 };
-/** His little roar: neck and head raised (degrees, up), how long it takes to rise and to come down (s). */
-export const ROAR = { neck: 28, head: 18, rise: 0.35, fall: 0.45 };
 const WALK_SCALE = 1.8; // his walk's speed in a hop when his gait is not measured yet
 
 /** How far through the way he is at `k` of the hop: speeding up over `ramp`, even, slowing over the last `ramp`. */
@@ -105,23 +105,91 @@ export function letGo(actor) {
 }
 
 /**
- * His little roar: his neck and head go up, his beak opens with a thin call (the mouth follows a made-up line of text: his talk),
- * he holds it, and comes down again. A Handle, done when his head is down.
+ * His little roar (scene 5): his neck and head go up and his beak opens wide on one envelope (degrees at the peak), a thin quiver
+ * in his head while he holds it (degrees, per second), and down again. Its sound is chunk 4's: for now his motion alone.
  */
-export function smallRoar(actor, { seconds = 1.8 } = {}) {
+export const SMALL_ROAR = { seconds: 1.8, neck: 28, head: 22, jaw: 24, rise: 0.35, fall: 0.45, quiver: 1.2, rate: 9 };
+/** His head points at a thing (the help that names a way): he looks at it and jabs his head toward it twice (degrees down, s). */
+export const POINT = { seconds: 2.6, jab: 9, jabs: 2, first: 0.5, each: 0.45 };
+
+// who lays Mosi's overlay now (a roar, a point): one that ends clears it only while it is still its own
+const overlays = new WeakMap();
+function lay(actor, fn) {
+  const token = {};
+  overlays.set(actor, token);
+  actor.setOverlay(fn);
+  return () => {
+    if (overlays.get(actor) !== token) return;
+    overlays.delete(actor);
+    actor.setOverlay(null);
+  };
+}
+
+/**
+ * His little roar: his neck and head go up, his beak opens and he holds it, quivering a little, and comes down again; laid over his
+ * idle with setOverlay (the actor puts his neck, head and jaw back as his clip has them every frame, so nothing is left turned). A
+ * Handle, done when his head is down.
+ */
+export function smallRoar(s, c, { seconds = SMALL_ROAR.seconds } = {}) {
+  const actor = c.mosi.raw;
   const handle = new Handle(`${actor.name} roars a little`);
+  const jaw = actor.model.getObjectByName('Jaw');
+  const q = new THREE.Quaternion();
+  const right = new THREE.Vector3();
+  const { rise, fall } = SMALL_ROAR;
   let t = 0;
-  const token = actor.talk({ duration: Math.max(0.4, seconds - ROAR.rise - ROAR.fall), text: 'Grrraaaa' });
-  actor.setOverlay((dt, bones) => {
+  const done = lay(actor, (dt, bones) => {
     t += dt;
-    const up = t < ROAR.rise ? smooth(t / ROAR.rise) : t > seconds - ROAR.fall ? smooth((seconds - t) / ROAR.fall) : 1;
-    bones.pitchNeck(ROAR.neck * up);
-    bones.pitchHead(ROAR.head * up);
+    const up = t < rise ? smooth(t / rise) : t > seconds - fall ? smooth((seconds - t) / fall) : 1;
+    const quiver = SMALL_ROAR.quiver * Math.sin(2 * Math.PI * SMALL_ROAR.rate * t) * smooth((t - rise) / 0.2) * up;
+    bones.pitchNeck(SMALL_ROAR.neck * up);
+    bones.pitchHead(SMALL_ROAR.head * up + quiver);
+    if (jaw) {
+      right.set(0, 0, 1).applyQuaternion(actor.root.quaternion);
+      actor.model.updateMatrixWorld(true);
+      rotateBoneWorld(jaw, q.setFromAxisAngle(right, -rad(SMALL_ROAR.jaw * up)));
+    }
     if (t >= seconds) {
-      actor.setOverlay(null);
-      actor.stopTalking(token);
+      done();
       handle.finish();
     }
+  });
+  return handle;
+}
+
+/**
+ * Mosi points with his head at `point` (a point spec): he looks at it and jabs his head toward it twice, then looks ahead again
+ * after POINT.seconds. A Handle, done then. On the game clock (world.effects), so the book's pause holds it.
+ */
+export function pointWithHead(c, point, { seconds = POINT.seconds } = {}) {
+  const actor = c.mosi.raw;
+  const handle = new Handle(`${actor.name} points with his head`);
+  c.mosi.lookAt(point, { weight: 0.9, maxAngle: 80, maxPitch: 40 });
+  let t = 0;
+  const done = lay(actor, (dt, bones) => {
+    t += dt;
+    let jab = 0;
+    for (let k = 0; k < POINT.jabs; k++) {
+      const u = (t - POINT.first - k * POINT.each) / (POINT.each * 0.8);
+      if (u > 0 && u < 1) jab = Math.sin(Math.PI * u) ** 2;
+    }
+    bones.pitchNeck(-POINT.jab * 0.4 * jab);
+    bones.pitchHead(-POINT.jab * 0.6 * jab);
+    if (t >= POINT.first + POINT.jabs * POINT.each) done();
+  });
+  let u = 0;
+  const effects = c.world.effects;
+  const end = () => { done(); c.mosi.lookAt(null); handle.finish(); };
+  if (!effects) { end(); return handle; }
+  effects.add({
+    label: 'Mosi points',
+    update: dt => {
+      if (handle.done) return false;
+      u += dt;
+      if (u < seconds) return true;
+      end();
+      return false;
+    },
   });
   return handle;
 }

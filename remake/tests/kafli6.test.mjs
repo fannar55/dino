@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as kafli6 from '../chapters/kafli6.js';
 import { playUnattended } from './chapter-harness.mjs';
-import { CLOUD_BY_PRINT, FORD, STEPS } from '../chapters/kafli6-route.js';
+import { CLOUD_BY_PRINT, FORD, STEPS, CALL, callStand } from '../chapters/kafli6-route.js';
+import { SHAPE, STEP_OUT, SNIFF } from '../chapters/kafli6-gramedla.js';
 
 const { chapter, WORDS } = kafli6;
 const FRAME = 1 / 30;
@@ -24,7 +25,7 @@ const inFrame = (point, camera) => {
  * cloud's level, the handheld, the brightened swirl cards (less motion).
  */
 function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, pauses = [], limit = 620 } = {}) {
-  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] } };
+  const seen = { crowd: [], out: [], cloud: [], handheld: 0, bright: false, aimChecks: 0, around: {}, sky: [], ford: [], rings: [], mountain: { glade: [], hop: 0, summit: null, veil: [] }, her: [] };
   return playUnattended(kafli6, {
     seeking, limit, shaped: true, aspect, reduced, pauses,
     onFrame(frame) {
@@ -65,6 +66,7 @@ function playIt({ seeking = true, aspect = 1.6, reduced = false, child = null, p
         if (Math.abs(t - (pause.at + pause.seconds + FRAME)) < FRAME / 2) (seen.around[key] ??= {}).after = c.cloud?.level ?? null;
       }
       watchMountain(world, c, seen.mountain);
+      watchHer(world, c, seen.her);
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
@@ -99,6 +101,30 @@ function watchMountain(world, c, seen) {
   if (c.scene === 4 && place.pebbles) seen.hop = Math.max(seen.hop, ...place.pebbles.stones.map(stone => stone.lift ?? 0));
   if (c.scene === 6 && place.summit && c.meet && !seen.summit) seen.summit = { at: place.summit.group.position.clone(), stand: c.meet.stand };
   if (c.scene === 7 && place.veil) seen.veil.push(place.veil.level);
+}
+
+/**
+ * Grameðla, Mosi and Egill each frame of scenes 5 and 6 until the star (Task 10): her place, head, snout and heading, how much of her
+ * is drawn, her feet, the call's round, the glow, Egill's and Mosi's heads, and Mosi's neck, head and jaw (his little roar).
+ */
+const MOSI_BONES = ['Neck', 'Head', 'Jaw'];
+function watchHer(world, c, seen) {
+  if (!(c.scene === 5 || c.scene === 6) || !c.her?.points) return;
+  if (c.chapterLog.some(e => e.type === 'star')) return;
+  const her = world.actors.get('gramedla');
+  const mosi = world.actors.get('mosi');
+  const egill = world.actors.get('egill');
+  for (const a of [her, mosi, egill]) a.root.updateMatrixWorld(true);
+  const call = c.callTask?.state();
+  const glow = c.cloud?.glowMesh;
+  seen.push({
+    time: c.s.time, scene: c.scene, round: call?.round ?? null, phase: call?.phase ?? null, direction: call?.direction ?? null,
+    drawn: her.root.visible ? c.her.seen : 0, ...c.her.points(),
+    feet: ['LeftFoot', 'RightFoot'].map(n => her.model.getObjectByName(n).getWorldPosition(new THREE.Vector3())),
+    egill: egill.headPosition(new THREE.Vector3()), mosiHead: mosi.headPosition(new THREE.Vector3()), mosiRoot: mosi.root.position.clone(),
+    glow: { level: c.cloud?.glowLevel ?? 0, at: glow?.material.uniforms.uCentre.value.clone() },
+    mosiBones: MOSI_BONES.map(n => mosi.model.getObjectByName(n).quaternion.clone()),
+  });
 }
 
 // The children ----------------------------------------------------------------------------------
@@ -391,4 +417,118 @@ test('the mountain as it plays: the glade glows while Egill speaks of it, the pe
   const way = Math.atan2(summit.at.z - summit.stand.z, summit.at.x - summit.stand.x) * 180 / Math.PI;
   assert.ok(ahead > 200 && Math.abs(((way - summit.stand.heading + 540) % 360) - 180) < 5, `ahead of them: ${ahead.toFixed(0)} m at ${way.toFixed(0)}`);
   assert.ok(veil.length && veil[0] === 1 && veil.at(-1) === 0, 'the last wisp on the top, thinned away');
+});
+
+
+// Grameðla in the cloud (Task 10) ------------------------------------------------------------------
+const TURNS = { left: -CALL.angle, ahead: 0, right: CALL.angle };
+const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+/** The way from `stand` to `point`, in degrees from his heading (left negative). */
+const sideOf = (stand, point) => (((Math.atan2(point.z - stand.z, point.x - stand.x) * 180) / Math.PI - stand.heading + 540) % 360) - 180;
+const herLog = (run, what) => run.world.chapterState.chapterLog.filter(e => e.type === 'her' && e.what === what);
+
+test("in round 1 she is hidden and the glow is on the answer's side", async () => {
+  for (const run of [await untouched(), await quick()]) {
+    const frames = run.watched.her.filter(f => f.scene === 5 && f.round === 0 && f.phase === 'listen');
+    assert.ok(frames.length > 10, `${frames.length} frames`);
+    assert.equal(Math.max(...frames.map(f => f.drawn)), 0, 'nothing of her is drawn in the first round');
+    const stand = callStand(0, []);
+    const lit = frames.filter(f => f.glow.level > 0.3);
+    assert.ok(lit.length > 5, 'the glow is on');
+    for (const f of lit) {
+      const side = sideOf(stand, f.glow.at);
+      assert.ok(Math.abs(side - TURNS[f.direction]) < 3, `the glow at ${side.toFixed(1)} degrees for ${f.direction}`);
+    }
+  }
+});
+
+test("in rounds 2 and 3 she stands on the answer's side at CALL.her metres, facing Mosi, seen 0.35 and 0.7", async () => {
+  for (const run of [await untouched(), await quick()]) {
+    const { directions } = run.world.chapterState.callTask;
+    for (const round of [1, 2]) {
+      const frames = run.watched.her.filter(f => f.scene === 5 && f.round === round && f.phase === 'listen');
+      assert.ok(frames.length > 10, `round ${round + 1}: ${frames.length} frames`);
+      const most = Math.max(...frames.map(f => f.drawn));
+      assert.ok(Math.abs(most - SHAPE.seen[round]) < 0.01, `round ${round + 1}: seen ${most.toFixed(3)}`);
+      // as soon as she is all there (before her step toward them)
+      const f = frames.find(g => g.drawn >= SHAPE.seen[round] - 0.005);
+      const stand = callStand(round, directions);
+      const off = flat(f.root, stand);
+      assert.ok(Math.abs(off - CALL.her[round]) < 0.3, `round ${round + 1}: ${off.toFixed(2)} m from Mosi`);
+      const side = sideOf(stand, f.root);
+      assert.ok(Math.abs(side - TURNS[f.direction]) < 2, `round ${round + 1}: at ${side.toFixed(1)} degrees for ${f.direction}`);
+      const facing = (((Math.atan2(stand.z - f.root.z, stand.x - f.root.x) * 180) / Math.PI - f.heading + 540) % 360) - 180;
+      assert.ok(Math.abs(facing) < 5, `round ${round + 1}: she faces ${facing.toFixed(1)} degrees off Mosi`);
+    }
+  }
+});
+
+test(`she steps out to ${STEP_OUT.stop} m ahead of Mosi and never nearer than ${STEP_OUT.clear} m to Egill's head until she bows`, async () => {
+  for (const run of [await untouched(), await quick()]) {
+    const [bow] = herLog(run, 'bow');
+    const [stopped] = herLog(run, 'stopped');
+    assert.ok(bow && stopped, 'she stopped and bowed');
+    const frames = run.watched.her.filter(f => f.scene === 6 && f.time < bow.at && f.drawn > 0);
+    assert.ok(frames.length > 60, `${frames.length} frames`);
+    const at = frames.at(-1);
+    const { stand } = run.world.chapterState.meet;
+    const ahead = flat(at.root, stand);
+    assert.ok(Math.abs(ahead - STEP_OUT.stop) < 0.25, `she stopped ${ahead.toFixed(2)} m ahead of his root`);
+    assert.ok(Math.abs(sideOf(stand, at.root)) < 2, 'straight ahead of him');
+    const nearest = Math.min(...frames.map(f => Math.min(f.snout.distanceTo(f.egill), f.head.distanceTo(f.egill))));
+    assert.ok(nearest >= STEP_OUT.clear, `her snout ${nearest.toFixed(2)} m from Egill's head before she bowed`);
+    // and nothing of her is in the white before she comes out of it: she is drawn from the stepOut on
+    assert.ok(frames[0].time >= herLog(run, 'stepOut')[0].at - 1e-6);
+  }
+});
+
+test("bowing, her snout comes within 1.0 to 1.5 m of Egill's head and her feet stay planted", async () => {
+  for (const run of [await untouched(), await quick()]) {
+    const [bow] = herLog(run, 'bow');
+    const [up] = herLog(run, 'up');
+    const frames = run.watched.her.filter(f => f.time >= bow.at && f.time <= up.at);
+    assert.ok(frames.length > 100, `${frames.length} frames`);
+    const nearest = Math.min(...frames.map(f => f.snout.distanceTo(f.egill)));
+    assert.ok(nearest >= 1.0 && nearest <= 1.5, `her snout ${nearest.toFixed(2)} m from Egill's head at its nearest`);
+    const moved = Math.max(...frames.map(f => Math.max(f.feet[0].distanceTo(frames[0].feet[0]), f.feet[1].distanceTo(frames[0].feet[1]))));
+    assert.ok(moved < 0.03, `a foot moved ${moved.toFixed(3)} m while she bowed`);
+    // and her snout is in front of his head and not under it: she sniffs Egill, not Mosi
+    const low = frames.reduce((a, f) => (f.snout.distanceTo(f.egill) < a.snout.distanceTo(a.egill) ? f : a));
+    assert.ok(low.snout.y > low.egill.y - 0.6, `her snout ${(low.egill.y - low.snout.y).toFixed(2)} m under his head`);
+    assert.ok(low.snout.distanceTo(low.mosiHead) > 0.9, `her snout ${low.snout.distanceTo(low.mosiHead).toFixed(2)} m from Mosi's head`);
+  }
+});
+
+test('nothing of her jumps more than 8 degrees or 0.15 m in a frame from her first shape to the star', async () => {
+  for (const run of [await untouched(), await quick(), await upright()]) {
+    const frames = run.watched.her;
+    const first = frames.findIndex(f => f.drawn > 0);
+    assert.ok(first >= 0, 'she was seen');
+    const worst = { root: 0, head: 0, snout: 0, heading: 0, at: {} };
+    const most = (what, v, t) => { if (v > worst[what]) { worst[what] = v; worst.at[what] = t.toFixed(2); } };
+    let pairs = 0;
+    for (let k = first + 1; k < frames.length; k++) {
+      const a = frames[k - 1], b = frames[k];
+      if (!(a.drawn > 0 && b.drawn > 0) || b.time - a.time > 0.1) continue;
+      pairs++;
+      for (const what of ['root', 'head', 'snout']) most(what, a[what].distanceTo(b[what]), b.time);
+      most('heading', turned(a.heading, b.heading), b.time);
+    }
+    assert.ok(pairs > 600, `${pairs} frames seen`);
+    assert.ok(worst.root <= 0.15 && worst.head <= 0.15 && worst.snout <= 0.15, `root ${worst.root.toFixed(3)}, head ${worst.head.toFixed(3)}, snout ${worst.snout.toFixed(3)} m in a frame (at ${JSON.stringify(worst.at)} s)`);
+    assert.ok(worst.heading <= 8, `she turned ${worst.heading.toFixed(2)} degrees in a frame`);
+  }
+});
+
+test('the star rises from over her head and is k6_gramedla', async () => {
+  const run = await untouched();
+  const stars = run.world.chapterState.chapterLog.filter(e => e.type === 'star');
+  assert.equal(stars.length, 1);
+  const [star] = stars;
+  assert.equal(star.id, 'k6_gramedla');
+  const from = new THREE.Vector3(...star.from), head = new THREE.Vector3(...star.head);
+  assert.ok(from.y - head.y > 1 && from.y - head.y < 3, `${(from.y - head.y).toFixed(2)} m over her head`);
+  assert.ok(flat(from, head) < 0.5, `${flat(from, head).toFixed(2)} m to the side of it`);
+  assert.equal(star.scene, 6);
+  assert.deepEqual(run.save.get().stars.filter(id => id === 'k6_gramedla'), ['k6_gramedla']);
 });

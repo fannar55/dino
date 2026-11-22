@@ -29,14 +29,14 @@ import { STEPS as REED_STEPS } from './kafli5-pool.js';
 import { buildPool } from './kafli5-place.js';
 import {
   ROUTE, FORD, STEPS, STONE, FALLS_LOOK, stepShot, crossing, SLOPE, PRINTS, PRINT_SIZE, PRINT_TAP, mosiAt, CLOUD_BY_PRINT, printShot, CALL,
-  callStand, directionPoint, herAt, callShot, meetShot, TOP, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP, BELT_CLEAR,
+  callStand, directionPoint, callShot, meetShot, TOP, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP, BELT_CLEAR,
 } from './kafli6-route.js';
 import { createStones } from './kafli6-stones.js';
 import { createPrints } from './kafli6-prints.js';
 import { createCall, thirdOf, ANSWER } from './kafli6-call.js';
 import { DIRECTIONS } from './kafli6-help.js';
-import { hopTo, letGo, smallRoar } from './kafli6-mosi.js';
-import { gramedlaLife } from './kafli6-gramedla.js';
+import { hopTo, letGo, smallRoar, pointWithHead } from './kafli6-mosi.js';
+import { gramedlaLife, STEP_OUT as HER_STEP_OUT } from './kafli6-gramedla.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
 import { egillTaps } from './kafli2-trail.js';
 import { lineQueue } from './kafli4-flight-play.js';
@@ -101,11 +101,30 @@ const STRONG = 1.3;
 const CALL_WALK = 1.3;
 const SWIRL_AT = 9;
 const WAY_TAP = 7; // m: the radius of each way's tap target, round its glow
-// Scene 6: she stops HER_STOP m ahead of him (kafli6-route.js meetOf), after two steps from STEP_OUT m further back; her roar's
-// blow comes BLOW_AT s into it; after the blow a thin haze stays (fog density), so the belt's far edge never shows
-const HER_STOP = 9;
-const STEP_OUT = 4.5;
-const BLOW_AT = 1.1;
+// Scene 6: she stops HER_STOP m ahead of his root (kafli6-gramedla.js STEP_OUT: where her bow reaches Egill, her feet planted)
+const HER_STOP = HER_STEP_OUT.stop;
+// Scene 6's shots, [ahead, right, up] m from Mosi's root in his frame as kafli6-route.js MEET (whose numbers were made for her at
+// 9 m and in grey): from higher and further to the side, so she is seen whole over Mosi and Egill, never behind him
+const MEET_FRAMES = {
+  // she comes out of the white: from behind him on his right, high enough to see all of her over his back
+  she_comes: { position: [-9, 6.5, 4.6], target: [7, -1.2, 3.4], fov: 52 },
+  // she sniffs at Egill: beside them on his right, her snout and Egill's face in profile
+  sniff_close: { position: [0.6, 6.2, 4.3], target: [2.4, -0.5, 3.7], fov: 46 },
+  // Mosi asks her: over his left shoulder, her face down at them
+  invite: { position: [-5.5, -4.2, 3.4], target: [6, 0.8, 4.0], fov: 48 },
+  // her roar blows the cloud away: wide and low from behind him on his left, her whole body and the sky over her
+  roar_wide: { position: [-12, -6.5, 2.6], target: [8, 0.5, 5.2], fov: 54 },
+  // the star rises over her head: from low behind him, looking up
+  star_up: { position: [-7, 3, 2.2], target: [7, 0, 7.2], fov: 52 },
+};
+/** Scene 6's shot `name` for Mosi at `stand` on `ground` (MEET_FRAMES, else the route's meetShot). */
+function meetFrame(name, stand, ground) {
+  const frame = MEET_FRAMES[name];
+  if (!frame) return meetShot(name, stand, ground);
+  const [fx, fz] = way(stand.heading);
+  const at = ([a, right, y]) => [stand.x + fx * a - fz * right, ground + y, stand.z + fz * a + fx * right];
+  return { position: at(frame.position), target: at(frame.target), fov: frame.fov };
+}
 const VEIL_OUT = 3; // s the last wisp on the top takes to thin away, in VEIL_STEPS steps
 const VEIL_STEPS = 12;
 // After the roar: the sunset golden on the belt, a thin haze staying (the bank round them hides the belt's edge: world/fjall belt.js)
@@ -568,7 +587,7 @@ function onCall(s, c, event) {
     case 'call':
       unaim(s, c);
       mosi.lookAt(null);
-      smallRoar(mosi.raw, { seconds: ANSWER.mosi });
+      smallRoar(s, c, { seconds: ANSWER.mosi });
       c.log({ type: 'mosiRoar', round: event.round, by: event.by });
       break;
     case 'answer': {
@@ -594,11 +613,12 @@ function onCall(s, c, event) {
       c.lines.say('mosi', 'k6_mosi_listen', { ifQuiet: true });
       break;
     case 'help':
-      if (event.level === 'name') pointWithHead(s, c, glowAt(c, stand, event.direction));
+      if (event.level === 'name') pointWithHead(c, glowAt(c, stand, event.direction));
       break;
     case 'walk': {
       unaim(s, c);
       cloud.glow(null);
+      c.her.fadeOut(); // her shape melts back into the white with the glow
       const to = standIn(c, event.round + 1);
       s.after(0, function* walk() {
         const going = mosi.walkTo([[to.x, to.z]], { speed: CALL_WALK, turnRate: 45 });
@@ -615,29 +635,36 @@ function onCall(s, c, event) {
 }
 
 /**
- * She answers: her roar clip, and from the second round her shape in the glow (in the first she is too far off to be seen); her
- * thumps as she comes nearer. In the last round she stands where she will step out from (scene 6).
+ * She answers: from the second round her shape in the glow (kafli6-gramedla.js shape: in the first she is too far off to be seen),
+ * her roar clip and a step toward them with a thud, nearer each round.
  */
 function herAnswers(s, c, stand, round, direction) {
-  if (round === 0) return;
-  const her = c.her;
-  if (round === 1) {
-    const [x, z] = herAt(stand, direction, round);
-    her.place([x, z], headingTo([x, z], [stand.x, stand.z]));
-  } else {
-    const meet = callStand(3, c.callTask.directions);
-    const at = forward(meet, HER_STOP + STEP_OUT);
-    her.place(at, meet.heading + 180);
-  }
-  her.show();
-  her.roar();
-  for (const [k, t] of [0.9, 2.2].entries()) {
-    s.after(t + ANSWER.roar, () => { c.showSounds.play({ sound: 'thump', db: round === 1 ? -16 : -8, cutoff: round === 1 ? 300 : 500, rate: 0.85 + 0.04 * k, pan: ROAR_PAN[direction] }); return null; });
-  }
+  c.her.shape(round, direction, stand);
 }
 
-// 6. She steps out of the cloud, two heavy steps, and stops over them. Egill laughs, Mosi asks her; her roar of joy blows the cloud
-// away in a ring and the sunset comes through. "Hún segir já!" The gift, and the sixth star over her head.
+/** Her footfall in the call and as she steps out (kafli6-gramedla.js): far and to the side in the call, near and shaking after. */
+function footfall(s, c, { round = null, direction = 'ahead', near = false, tremble = false } = {}) {
+  if (round === 1) c.showSounds.play({ sound: 'thump', db: -16, cutoff: 300, rate: 0.85, pan: ROAR_PAN[direction] });
+  else if (round === 2) {
+    c.showSounds.play({ sound: 'thump', db: -7, cutoff: 500, rate: 0.85, pan: ROAR_PAN[direction] });
+    c.belt?.pebbles?.hop(); // the little stones hop at her step
+    tremor(s, c, 0.35);
+  } else {
+    thump(c, near ? -3 : -8);
+    if (tremble) tremor(s, c, 0.45);
+  }
+  c.log({ type: 'thud', her: true, round, handheld: !c.reduced && (round === 2 || tremble) });
+}
+/** The camera trembles a moment with her step (not with less motion). */
+function tremor(s, c, level) {
+  if (c.reduced) return;
+  s.camera.handheld(level, { duration: 0.25 });
+  s.after(0.45, () => { s.camera.handheld(0, { duration: 0.7 }); return null; });
+}
+
+// 6. She steps out of the cloud, two heavy steps, and stops over them. She tilts her head and blinks, bows to sniff Egill (he laughs),
+// Mosi asks her; her roar of joy blows the cloud away in a ring and the sunset comes through. "Hún segir já!" The gift, her nod, and
+// the sixth star over her head. Her life is kafli6-gramedla.js; the shots are MEET_FRAMES, round where the call left Mosi.
 function* sheComes(s, c) {
   mark(c, 6);
   const { mosi, egill, world, her } = c;
@@ -646,48 +673,41 @@ function* sheComes(s, c) {
   const ground = groundAt(c, [stand.x, stand.z]);
   c.meet = { stand, ground };
   c.belt?.summit?.place(stand); // the top's shape ahead of them, seen over the bank once her roar has blown the cloud away
-  const shot = name => ({ ...meetShot(name, stand, ground), label: name });
+  const shot = name => ({ ...meetFrame(name, stand, ground), label: name });
   cut(s, c, shot('she_comes'));
-  her.show();
-  const out = her.walk([forward(stand, HER_STOP)]);
-  for (const t of [0.9, 3.0]) s.after(t, () => { thump(c, -3); return null; });
-  for (const who of [mosi, egill]) yield who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 45 });
-  yield out;
-  her.face(stand.heading + 180);
-  her.idle();
-  yield s.wait(1.4);
+  for (const who of [mosi, egill]) who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 45 });
+  yield* her.stepOut();
+  yield* her.tilt();
   cut(s, c, shot('sniff_close'));
-  yield s.wait(0.6);
-  sound(s, c, 'gramedlaExhale', { level: 0.7 });
-  yield s.wait(1);
-  yield* say(s, c, 'egill', 'k6_egill_hi');
-  cut(s, c, shot('roar_wide'));
+  yield* her.bowAndSniff({ laugh: function* laugh() { yield* say(s, c, 'egill', 'k6_egill_hi'); } });
+  cut(s, c, shot('invite'));
   yield* say(s, c, 'mosi', 'k6_mosi_invite');
-  yield s.wait(0.8);
+  yield s.wait(0.4);
   // her roar of joy: the cloud blows away in a ring, the sunset comes through, the music is back
-  her.roar();
-  sound(s, c, 'gramedlaRoar', { level: 1 });
+  cut(s, c, shot('roar_wide'));
   c.log({ type: 'herRoar', scene: 6 });
-  let blown = null;
-  s.after(BLOW_AT, () => {
-    const at = c.gramedla.raw.root.position;
-    blown = c.cloud.blowAway({ from: [at.x, at.z] });
-    c.log({ type: 'blow' });
-    easeLight(world, LOOKS.sunset, 3);
-    world.music?.setLevel?.(1, 2);
-    sound(s, c, 'forest', { calls: false, level: 1, seconds: 2 });
-    return null;
+  yield* her.roarYes({
+    blow: () => {
+      const at = c.gramedla.raw.root.position;
+      const blown = c.cloud.blowAway({ from: [at.x, at.z] });
+      c.log({ type: 'blow' });
+      easeLight(world, LOOKS.sunset, 3);
+      world.music?.setLevel?.(1, 2);
+      sound(s, c, 'forest', { calls: false, level: 1, seconds: 2 });
+      return blown;
+    },
   });
-  yield s.until(() => blown?.done);
   showSky(c); // the cloud is gone: the sun and the Mosi cloud are back in the sky
   easeLight(world, AFTER_ROAR, 1.5); // a thin haze stays: the cloud lies round them still, below the top
   yield s.wait(0.6);
   yield* say(s, c, 'mosi', 'k6_mosi_yes');
   yield* say(s, c, 'mosi', 'k6_mosi_gift');
-  sound(s, c, 'gramedlaExhale', { level: 0.6 }); // she snorts: yes
-  yield s.wait(0.8);
+  yield her.nod(); // and she snorts: yes
+  yield s.wait(0.4);
   cut(s, c, shot('star_up'));
   sound(s, c, 'star');
+  const from = world.resolvePoint(STAR_FROM, new world.THREE.Vector3());
+  c.log({ type: 'star', id: 'k6_gramedla', from: from.toArray(), head: c.her.points().head.toArray() });
   const star = s.star('k6_gramedla', STAR_FROM);
   yield s.wait(1.4);
   yield* say(s, c, 'mosi', 'k6_mosi_star');
@@ -806,12 +826,6 @@ function groundUnder(c, { x, y }) {
   return [hit.x, hit.z];
 }
 const screenWidth = c => c.world.renderer?.domElement?.getBoundingClientRect?.().width ?? 1280;
-
-/** Mosi points with his head at `point` for a moment (the help that names a thing). */
-function pointWithHead(s, c, point) {
-  c.mosi.lookAt(point, { weight: 0.9, maxAngle: 80, maxPitch: 40 });
-  s.after(2.6, () => c.mosi.lookAt(null));
-}
 
 // The sky's own decorations (engine/sun-face.js, added by main.js): the smiling sun with its overlay and nightcap, and the cloud
 // shaped like Mosi. They take no fog, so inside the cloud they would show through the white.
@@ -1014,7 +1028,9 @@ function setUp(s) {
   c.task = (task, event) => c.taskLog.push({ task, ...event, at: event.time ?? s.time });
   c.reduced = reducedMotion(world);
   c.lines = lineQueue(s); // the help's lines, the counts and "Úps": one at a time
-  c.her = gramedlaLife(gramedla);
+  c.footfall = detail => footfall(s, c, detail); // her steps (kafli6-gramedla.js)
+  c.sfx = (name, detail) => sound(s, c, name, detail); // her roars and breaths, in the chapter's log
+  c.her = gramedlaLife(s, c);
   c.sloedlaLife = sloedlaLife(sloedla);
   c.saddle = createSaddle(mosi.raw);
   // her footfalls and far thumps, the recordings "Grameðla kemur!" plays (chapters/gramedla3d/sounds.js), held with the game
@@ -1025,6 +1041,7 @@ function setUp(s) {
     return () => {
       c.ended = true;
       showSky(c); // the sky as the engine had it, however the chapter ends or is left
+      c.her.dispose(); // her skin's shared material back on her model
       release?.();
       c.showSounds.stop();
       world.music?.setLevel?.(1, 1);

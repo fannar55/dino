@@ -96,3 +96,32 @@ test('the lean laid on every frame does not add up: 200 frames at theta 0.5 give
     assert.ok(leanA.snout().distanceTo(leanB.snout()) < 1e-4);
   }
 });
+
+// Mosi's little roar (chapters/kafli6-mosi.js, Task 10) -----------------------------------------------
+test("Mosi's little roar opens his jaw 24 degrees at its peak and leaves every bone within 0.5 degrees of where it was", async () => {
+  const { chapterWorld } = await import('./chapter-harness.mjs');
+  const { chapter } = await import('../chapters/kafli6.js');
+  const { smallRoar, SMALL_ROAR } = await import('../chapters/kafli6-mosi.js');
+  const world = await chapterWorld(chapter);
+  const mosi = world.actors.get('mosi');
+  mosi.mixer.timeScale = 0; // held still: the mixer then leaves his bones alone, so a turn left on one would stay
+  for (let i = 0; i < 10; i++) mosi.update(1 / 30);
+  const bones = [];
+  mosi.model.traverse(o => { if (o.isBone) bones.push(o); });
+  const before = bones.map(b => b.quaternion.clone());
+  const deg = (a, b) => THREE.MathUtils.radToDeg(a.angleTo(b));
+  const at = name => bones.findIndex(b => b.name === name);
+  const peak = { Neck: 0, Head: 0, Jaw: 0 };
+  const roar = smallRoar(null, { mosi: { raw: mosi }, world });
+  for (let t = 0; t < SMALL_ROAR.seconds + 0.7; t += 1 / 30) {
+    mosi.update(1 / 30);
+    for (const name of Object.keys(peak)) peak[name] = Math.max(peak[name], deg(bones[at(name)].quaternion, before[at(name)]));
+  }
+  assert.ok(roar.done, 'the roar is over');
+  assert.ok(Math.abs(peak.Jaw - SMALL_ROAR.jaw) < 1, `his jaw opened ${peak.Jaw.toFixed(1)} degrees`);
+  assert.ok(Math.abs(peak.Neck - SMALL_ROAR.neck) < 1.5, `his neck rose ${peak.Neck.toFixed(1)} degrees`);
+  assert.ok(Math.abs(peak.Head - SMALL_ROAR.head) < 2, `his head rose ${peak.Head.toFixed(1)} degrees`);
+  const worst = bones.map((b, i) => [b.name, deg(b.quaternion, before[i])]).sort((a, b) => b[1] - a[1])[0];
+  assert.ok(worst[1] < 0.5, `${worst[0]} left ${worst[1].toFixed(2)} degrees off`);
+  assert.equal(mosi.model.position.length(), 0, 'his model back in its frame');
+});
