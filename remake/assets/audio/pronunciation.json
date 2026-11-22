@@ -3336,6 +3336,43 @@
         }
       },
       "chosen": null
+    },
+    "ups": {
+      "word": "Úps",
+      "stem": "[Úú]ps",
+      "forms": [
+        "Úps"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: svona eru „Úps, ég gleymdi!“, „Úps, of langt!“ og Litla Yatzy sem þú samþykktir. Hjá Mosa er þetta takan sem þú hafnaðir. Línan „Úps, sá vaggar!“ (Mosi, kafli 6) fékk nei hjá þér 2026-11-22 án athugasemdar."
+        },
+        "samhengi": {
+          "context": {
+            "mosi": "Mosi stígur á stein í ánni og steinninn ruggar undir honum. Hann hlær og segir glaður:"
+          },
+          "note": "Glatt: steinninn ruggar og Mosi hlær. Línan „Úps, sá vaggar!“ (Mosi, kafli 6) fékk nei hjá þér 2026-11-22 án athugasemdar. Samhengið er sent á undan en ekki talað."
+        },
+        "samhengi-rolegt": {
+          "context": {
+            "mosi": "Mosi rennur aðeins til á blautum steini, en hann er rólegur og brosir. Hann segir létt og hægt:"
+          },
+          "note": "Rólegt og hægt. Línan „Úps, sá vaggar!“ (Mosi, kafli 6) fékk nei hjá þér 2026-11-22 án athugasemdar. Samhengið er sent á undan en ekki talað."
+        },
+        "ubbs": {
+          "say": {
+            "Úps": "Úbbs"
+          },
+          "note": "Stafsett „Úbbs“, eins og orðið er oft skrifað á íslensku. Línan „Úps, sá vaggar!“ (Mosi, kafli 6) fékk nei hjá þér 2026-11-22 án athugasemdar."
+        },
+        "ipa": {
+          "say": {
+            "Úps": "\"/ˈups/\""
+          },
+          "note": "IPA /ˈups/: stutt íslenskt ú, ekki enskt „oops“. Línan „Úps, sá vaggar!“ (Mosi, kafli 6) fékk nei hjá þér 2026-11-22 án athugasemdar."
+        }
+      },
+      "chosen": "hratt"
     }
   },
   "lines": {
