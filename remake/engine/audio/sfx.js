@@ -561,6 +561,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   const standing = new Set(); // names of looped samples whose made bed stands in for them now (no file decoded when asked)
   const waiting = new Map(); // name → detail of a looped sample asked for before sound was allowed: laid by update() when it is
   const looped = new Set(); // the names of the looped samples, which play() treats as it treats the beds
+  let silence = null; // one silent sample, which an echo's keeper loops (see echo)
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
     const urls = sample.urls ?? (sample.url ? [sample.url] : []);
@@ -643,7 +644,6 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     keeper.start(now);
     keeper.stop(now + heard + seconds);
   }
-  let silence = null; // the keepers' one sample
 
   /**
    * A looped sample (`sample.loop`), to `detail.level` of its own level over `detail.seconds`: started when it is not sounding, faded
