@@ -35,7 +35,7 @@ import { createStones } from './kafli6-stones.js';
 import { createPrints } from './kafli6-prints.js';
 import { createCall, thirdOf, ANSWER } from './kafli6-call.js';
 import { DIRECTIONS } from './kafli6-help.js';
-import { hopTo, letGo, smallRoar, pointWithHead } from './kafli6-mosi.js';
+import { hopTo, letGo, smallRoar, pointWithHead, dipHead } from './kafli6-mosi.js';
 import { gramedlaLife, STEP_OUT as HER_STEP_OUT } from './kafli6-gramedla.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
 import { egillTaps } from './kafli2-trail.js';
@@ -103,17 +103,21 @@ const SWIRL_AT = 9;
 const WAY_TAP = 7; // m: the radius of each way's tap target, round its glow
 // Scene 6: she stops HER_STOP m ahead of his root (kafli6-gramedla.js STEP_OUT: where her bow reaches Egill, her feet planted)
 const HER_STOP = HER_STEP_OUT.stop;
+const MEET_CLOUD = 0.12; // the cloud's level round them once she has stepped out (thin: her, Mosi and Egill all clear)
 // Scene 6's shots, [ahead, right, up] m from Mosi's root in his frame as kafli6-route.js MEET (whose numbers were made for her at
-// 9 m and in grey): from higher and further to the side, so she is seen whole over Mosi and Egill, never behind him
+// 9 m and in grey): from well to the side, so she is seen whole beside Mosi and Egill and as big as she is, never behind him.
+// The tilt and the sniff look across his heading (in the cloud no sun shows); after the roar they are within 50 degrees of it.
 const MEET_FRAMES = {
-  // she comes out of the white: from behind him on his right, high enough to see all of her over his back
-  she_comes: { position: [-9, 6.5, 4.6], target: [7, -1.2, 3.4], fov: 52 },
+  // she comes out of the white: from behind him on his right and well out, all of her beside him as she comes
+  she_comes: { position: [-6, 14, 4.2], target: [6, 0, 3.4], fov: 50 },
+  // she tilts her head at them: her face and Egill from his right
+  tilt: { position: [0.5, 9.5, 4.6], target: [4.2, 0, 4.0], fov: 46 },
   // she sniffs at Egill: beside them on his right, her snout and Egill's face in profile
-  sniff_close: { position: [0.6, 6.2, 4.3], target: [2.4, -0.5, 3.7], fov: 46 },
+  sniff_close: { position: [0.6, 6.2, 5.0], target: [2.3, 0, 3.8], fov: 46 },
   // Mosi asks her: over his left shoulder, her face down at them
   invite: { position: [-5.5, -4.2, 3.4], target: [6, 0.8, 4.0], fov: 48 },
-  // her roar blows the cloud away: wide and low from behind him on his left, her whole body and the sky over her
-  roar_wide: { position: [-12, -6.5, 2.6], target: [8, 0.5, 5.2], fov: 54 },
+  // her roar blows the cloud away: wide from behind him on his left and well out, her whole body and the sky over her
+  roar_wide: { position: [-7, -15, 3.2], target: [6, 0, 5.0], fov: 54 },
   // the star rises over her head: from low behind him, looking up
   star_up: { position: [-7, 3, 2.2], target: [7, 0, 7.2], fov: 52 },
 };
@@ -675,18 +679,22 @@ function* sheComes(s, c) {
   c.belt?.summit?.place(stand); // the top's shape ahead of them, seen over the bank once her roar has blown the cloud away
   const shot = name => ({ ...meetFrame(name, stand, ground), label: name });
   cut(s, c, shot('she_comes'));
+  setCloud(c, MEET_CLOUD, HER_STEP_OUT.thin); // she steps out of the white: it thins round them, so all three are seen
   for (const who of [mosi, egill]) who.lookAt(HER_HEAD, { weight: 0.8, maxAngle: 80, maxPitch: 45 });
   yield* her.stepOut();
+  cut(s, c, shot('tilt'));
   yield* her.tilt();
   cut(s, c, shot('sniff_close'));
+  const dip = dipHead(c); // Mosi lowers his head in greeting: his frill out of her way to Egill
   yield* her.bowAndSniff({ laugh: function* laugh() { yield* say(s, c, 'egill', 'k6_egill_hi'); } });
+  dip.up();
   cut(s, c, shot('invite'));
   yield* say(s, c, 'mosi', 'k6_mosi_invite');
   yield s.wait(0.4);
   // her roar of joy: the cloud blows away in a ring, the sunset comes through, the music is back
   cut(s, c, shot('roar_wide'));
-  c.log({ type: 'herRoar', scene: 6 });
   yield* her.roarYes({
+    roared: () => c.log({ type: 'herRoar', scene: 6 }),
     blow: () => {
       const at = c.gramedla.raw.root.position;
       const blown = c.cloud.blowAway({ from: [at.x, at.z] });

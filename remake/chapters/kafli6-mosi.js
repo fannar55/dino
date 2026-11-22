@@ -157,6 +157,27 @@ export function smallRoar(s, c, { seconds = SMALL_ROAR.seconds } = {}) {
   return handle;
 }
 
+/** His head lowered in greeting while she sniffs Egill (degrees down, s to go down and to come up): his frill out of her way. */
+export const DIP = { neck: 12, head: 10, down: 1.4, up: 1.2 };
+/**
+ * Mosi lowers his head and holds it there until `up()` (a Handle, done when it is up again). On his overlay, as his little roar.
+ */
+export function dipHead(c) {
+  const actor = c.mosi.raw;
+  const handle = new Handle(`${actor.name} lifts his head`);
+  let t = 0, rising = null;
+  const done = lay(actor, (dt, bones) => {
+    t += dt;
+    const down = rising === null ? smooth(t / DIP.down) : smooth(1 - (t - rising) / DIP.up) * smooth(rising / DIP.down);
+    bones.pitchNeck(-DIP.neck * down);
+    bones.pitchHead(-DIP.head * down);
+    if (rising !== null && t - rising >= DIP.up) { done(); handle.finish(); }
+  });
+  return {
+    up() { if (rising === null) rising = t; return handle; },
+  };
+}
+
 /**
  * Mosi points with his head at `point` (a point spec): he looks at it and jabs his head toward it twice, then looks ahead again
  * after POINT.seconds. A Handle, done then. On the game clock (world.effects), so the book's pause holds it.

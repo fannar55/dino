@@ -13,7 +13,8 @@
 //   yield* her.tilt()                     her head TILT.roll degrees to one side, two blinks, and back
 //   yield* her.bowAndSniff({ laugh })     the lean eased so her snout comes SNIFF.near m from Egill's head, two breaths that blow his
 //                                         hair, `laugh` (a generator function: Egill's line) and up again
-//   yield* her.roarYes({ blow })          a breath in (the lean back), her roar; `blow()` (the cloud's blowAway, a Handle) ROAR.blow s in
+//   yield* her.roarYes({ blow, roared })  a breath in (the lean back), her roar (`roared()` as it starts); `blow()` (the cloud's
+//                                         blowAway, a Handle) ROAR.blow s into it
 //   her.nod()                             two dips and a snort, a Handle
 //   her.points()                          { root, head, snout, heading } in the world now (Vector3s, degrees)
 //   her.lean                              her lean (createLean), for her seat and march (Task 11)
@@ -25,7 +26,7 @@ import * as THREE from 'three';
 import { Handle } from '../engine/handle.js';
 import { createLean } from '../engine/pose/lean.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
-import { herAt } from './kafli6-route.js';
+import { CALL, herAt } from './kafli6-route.js';
 
 /**
  * How fast she walks (m/s); her roar clip's pace (a little slow: she is big, and at its own pace her snout moves 0.19 m a frame) and
@@ -37,21 +38,21 @@ export const HER = { walk: 1.1, roarPace: 0.75, roar: 3.4 };
  * round, how long she takes to come out of the white and to melt back into it (s), the step she takes toward them after her roar
  * (m, m/s) and when its foot comes down (s into it).
  */
-export const SHAPE = { colour: '#3a3632', seen: [0, 0.35, 0.7], fadeIn: 1.2, hold: 0.8, fadeOut: 1.6, step: 1.5, stepSpeed: 0.85, footfall: 1.1 };
+export const SHAPE = { colour: '#3a3632', seen: [0, 0.35, 0.7], ahead: 11, fadeIn: 1.2, hold: 0.8, fadeOut: 1.6, step: 1.5, stepSpeed: 0.85, footfall: 1.1 };
 /**
  * Stepping out (scene 6): she comes out of the white `from` m behind where she stops, as the shape first (seen, s), and walks to
  * `stop` m ahead of Mosi's root in two heavy steps (her walk clip at this speed: its feet come down `footfalls` s in), her own
  * colours coming over them. There her bow reaches Egill with her feet planted; her snout is never nearer than `clear` m to his head
  * before it (measured: kafli6.test.mjs).
  */
-export const STEP_OUT = { stop: 7.8, clear: 2, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
+export const STEP_OUT = { stop: 7.8, clear: 2, thin: 3, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
 /** Her head tilt: degrees about its own length, the time over to it and back (s), how long she holds it, her two blinks (s in). */
 export const TILT = { roll: 12, ease: 0.7, hold: 1.4, blinks: [0.45, 1.25] };
 /**
  * The sniff: her snout comes `near` m from Egill's head over `seconds` (the lean and her head tipped, found by search), two breaths
  * `breaths` s apart; at each his head tips back `hair` degrees and a puff of sparkles passes him; up again over `rise` s.
  */
-export const SNIFF = { near: 1.2, seconds: 3.2, breaths: 2, between: 1.5, hair: 6, hairSeconds: 0.9, rise: 1.8 };
+export const SNIFF = { near: 1.05, seconds: 3.2, breaths: 2, between: 1.5, hair: 6, hairSeconds: 0.9, rise: 1.8 };
 /** Her roar of yes: the breath in (her lean back, radians, s), the blow this long into her roar (s). */
 export const ROAR = { back: 0.15, breathIn: 1, blow: 1.1 };
 /** Her nod: two dips of the lean (radians down, her head tipped, s each), the snort with the second. */
@@ -85,7 +86,7 @@ export function createTint(model, { colour = SHAPE.colour } = {}) {
         copy.onBeforeCompile = m.onBeforeCompile;
         copy.customProgramCacheKey = m.customProgramCacheKey;
       }
-      tinted.push({ m: copy, own: !lid, colour: copy.color.clone(), emissive: copy.emissive?.clone() ?? null, transparent: copy.transparent, opacity: copy.opacity, fog: copy.fog });
+      tinted.push({ m: copy, own: !lid, colour: copy.color.clone(), emissive: copy.emissive?.clone() ?? null, transparent: copy.transparent, opacity: copy.opacity, fog: copy.fog, env: copy.envMapIntensity ?? null, rough: copy.roughness ?? null });
       return copy;
     });
     o.material = Array.isArray(shared) ? own : own[0];
@@ -99,6 +100,9 @@ export function createTint(model, { colour = SHAPE.colour } = {}) {
       for (const h of tinted) {
         h.m.color.copy(h.colour).multiplyScalar(1 - tint);
         if (h.emissive) h.m.emissive.copy(h.emissive).lerp(shade, tint);
+        // no sheen on a shape: her albedo alone going dark leaves the sky's reflection on her skin
+        if (h.env !== null) h.m.envMapIntensity = h.env * (1 - tint);
+        if (h.rough !== null) h.m.roughness = h.rough + (1 - h.rough) * tint;
         const faint = seen < 0.999;
         const transparent = faint || h.transparent;
         const fogged = fog && h.fog;
@@ -114,6 +118,16 @@ export function createTint(model, { colour = SHAPE.colour } = {}) {
       for (const h of tinted) if (h.own) h.m.dispose();
     },
   };
+}
+
+/**
+ * Where her shape stands in round `round` answering from `direction`, Mosi at `stand`: herAt (kafli6-route.js), but straight ahead
+ * she stands SHAPE.ahead degrees to his right of his line, or the call's camera (behind him on his line) sees her behind his back.
+ */
+export function shapePlace(stand, direction, round) {
+  if (direction !== 'ahead') return herAt(stand, direction, round);
+  const [dx, dz] = way(stand.heading + SHAPE.ahead);
+  return [stand.x + dx * CALL.her[round], stand.z + dz * CALL.her[round]];
 }
 
 export function gramedlaLife(s, c) {
@@ -229,7 +243,7 @@ export function gramedlaLife(s, c) {
     if (round <= 0) { if (!hidden) fadeOut(); return; }
     const again = shapeAt && shapeAt.round === round && shapeAt.direction === direction;
     if (!again) {
-      const [x, z] = herAt(stand, direction, round);
+      const [x, z] = shapePlace(stand, direction, round);
       for (const tw of tweens.values()) tw.handle.finish();
       tweens.clear();
       bumps.length = 0;
@@ -369,10 +383,11 @@ export function gramedlaLife(s, c) {
   }
 
   /** The breath in (her lean back), her roar of joy; `blow()` ROAR.blow s into it. Done when the roar and the blow are. */
-  function* roarYes({ blow = null } = {}) {
+  function* roarYes({ blow = null, roared: onRoar = null } = {}) {
     note('breathIn');
     yield s.all(...easeAll({ theta: TALL.theta - ROAR.back, pitch: TALL.pitch, turn: 0, roll: 0 }, ROAR.breathIn));
     const roared = roar();
+    onRoar?.();
     sfx('gramedlaRoar', { level: 1 });
     ease('theta', TALL.theta, HER.roar);
     let blown = null;
@@ -384,6 +399,7 @@ export function gramedlaLife(s, c) {
   /** Two dips of her lean and a snort: yes. A Handle, done when her head is up again. */
   function nod() {
     const handle = new Handle('Grameðla nods');
+    note('nod');
     for (let k = 0; k < 2; k++) {
       bump('theta', NOD.theta, NOD.seconds, k * NOD.gap);
       bump('pitch', NOD.pitch, NOD.seconds, k * NOD.gap);

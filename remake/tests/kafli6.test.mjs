@@ -455,8 +455,10 @@ test("in rounds 2 and 3 she stands on the answer's side at CALL.her metres, faci
       const stand = callStand(round, directions);
       const off = flat(f.root, stand);
       assert.ok(Math.abs(off - CALL.her[round]) < 0.3, `round ${round + 1}: ${off.toFixed(2)} m from Mosi`);
+      // straight ahead she stands a little to his right (kafli6-gramedla.js SHAPE.ahead), or the call's camera sees her behind him
       const side = sideOf(stand, f.root);
-      assert.ok(Math.abs(side - TURNS[f.direction]) < 2, `round ${round + 1}: at ${side.toFixed(1)} degrees for ${f.direction}`);
+      const want = f.direction === 'ahead' ? SHAPE.ahead : TURNS[f.direction];
+      assert.ok(Math.abs(side - want) < 2, `round ${round + 1}: at ${side.toFixed(1)} degrees for ${f.direction}`);
       const facing = (((Math.atan2(stand.z - f.root.z, stand.x - f.root.x) * 180) / Math.PI - f.heading + 540) % 360) - 180;
       assert.ok(Math.abs(facing) < 5, `round ${round + 1}: she faces ${facing.toFixed(1)} degrees off Mosi`);
     }
