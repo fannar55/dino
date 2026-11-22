@@ -27,19 +27,24 @@ import { createLean } from '../engine/pose/lean.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { herAt } from './kafli6-route.js';
 
-/** How fast she walks (m/s), and how long her roar clip holds before she goes back to standing (s). */
-export const HER = { walk: 1.1, roar: 2.6 };
+/**
+ * How fast she walks (m/s); her roar clip's pace (a little slow: she is big, and at its own pace her snout moves 0.19 m a frame) and
+ * how long it holds before she goes back to standing (s).
+ */
+export const HER = { walk: 1.1, roarPace: 0.75, roar: 3.4 };
 /**
  * Her shape in the call: the tint's colour (her own model out of the engine's fog, darkened toward it), how much of her is drawn by
  * round, how long she takes to come out of the white and to melt back into it (s), the step she takes toward them after her roar
  * (m, m/s) and when its foot comes down (s into it).
  */
-export const SHAPE = { colour: '#3a3632', seen: [0, 0.35, 0.7], fadeIn: 1.2, fadeOut: 1.6, step: 1.5, stepSpeed: 0.85, footfall: 0.75 };
+export const SHAPE = { colour: '#3a3632', seen: [0, 0.35, 0.7], fadeIn: 1.2, hold: 0.8, fadeOut: 1.6, step: 1.5, stepSpeed: 0.85, footfall: 1.1 };
 /**
- * Stepping out (scene 6): she comes out of the white `from` m behind where she stops, as the shape first (seen, s), and walks `stop`
- * m ahead of Mosi's root in two heavy steps, her own colours coming over them; a footfall `footfalls` s into the walk.
+ * Stepping out (scene 6): she comes out of the white `from` m behind where she stops, as the shape first (seen, s), and walks to
+ * `stop` m ahead of Mosi's root in two heavy steps (her walk clip at this speed: its feet come down `footfalls` s in), her own
+ * colours coming over them. There her bow reaches Egill with her feet planted; her snout is never nearer than `clear` m to his head
+ * before it (measured: kafli6.test.mjs).
  */
-export const STEP_OUT = { stop: 7.9, clear: 2, from: 4.6, speed: 1.05, seen: 0.7, fadeIn: 0.9, footfalls: [1.15, 3.35] };
+export const STEP_OUT = { stop: 7.8, clear: 2, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
 /** Her head tilt: degrees about its own length, the time over to it and back (s), how long she holds it, her two blinks (s in). */
 export const TILT = { roll: 12, ease: 0.7, hold: 1.4, blinks: [0.45, 1.25] };
 /**
@@ -52,7 +57,7 @@ export const ROAR = { back: 0.15, breathIn: 1, blow: 1.1 };
 /** Her nod: two dips of the lean (radians down, her head tipped, s each), the snort with the second. */
 export const NOD = { theta: 0.13, pitch: -0.12, seconds: 0.6, gap: 0.62 };
 // standing tall in the call and when she steps out: her lean a little back, her head a little up (proud and glad, not looming)
-const TALL = { theta: -0.08, pitch: 0.06 };
+const TALL = { theta: -0.3, pitch: 0.35 };
 const OVER_GLOW = 16;
 
 const rad = THREE.MathUtils.degToRad;
@@ -197,7 +202,7 @@ export function gramedlaLife(s, c) {
     roaring?.finish();
     const handle = new Handle('Grameðla roars');
     roaring = handle;
-    actor.play('roar', { fade: 0.3, once: true });
+    actor.play('roar', { fade: 0.3, once: true, timeScale: HER.roarPace });
     let t = 0;
     const effects = world.effects;
     if (!effects) { handle.finish(); return handle; }
@@ -246,10 +251,22 @@ export function gramedlaLife(s, c) {
     });
   }
 
-  /** The shape melts back into the white. */
+  /**
+   * The shape melts back into the white: once she is all there (a quick child may send Mosi her way before she is) and SHAPE.hold
+   * later. A Handle, done when she is gone; a newer shape or step out takes over from it.
+   */
   function fadeOut() {
-    shapeAt = null;
-    return ease('seen', 0, SHAPE.fadeOut);
+    const handle = new Handle('Grameðla melts into the white');
+    const from = shapeAt;
+    const tw = tweens.get('seen');
+    const left = tw && tw.to > 0 ? Math.max(0, tw.t0 + tw.seconds - clock) : 0;
+    s.after(left + SHAPE.hold, () => {
+      if (shapeAt !== from) { handle.finish(); return null; }
+      shapeAt = null;
+      return ease('seen', 0, SHAPE.fadeOut);
+    });
+    s.after(left + SHAPE.hold + SHAPE.fadeOut, () => { handle.finish(); return null; });
+    return handle;
   }
 
   /** Out of the cloud: from the white behind where she stops, two heavy steps, her colours coming; she stops over them. */
@@ -273,8 +290,7 @@ export function gramedlaLife(s, c) {
     ease('tint', 0, seconds);
     STEP_OUT.footfalls.forEach((t, k) => s.after(t, () => { footfall({ step: k, near: true, tremble: true }); return null; }));
     yield walking;
-    yield s.until(() => !actor.walking && !actor.turning);
-    actor.play('idle', { fade: 0.5 });
+    yield s.until(() => !actor.walking && !actor.turning); // her walk settles into her idle by itself
     note('stopped');
   }
 
@@ -355,7 +371,7 @@ export function gramedlaLife(s, c) {
   /** The breath in (her lean back), her roar of joy; `blow()` ROAR.blow s into it. Done when the roar and the blow are. */
   function* roarYes({ blow = null } = {}) {
     note('breathIn');
-    yield s.all(...easeAll({ theta: -ROAR.back, pitch: TALL.pitch, turn: 0, roll: 0 }, ROAR.breathIn));
+    yield s.all(...easeAll({ theta: TALL.theta - ROAR.back, pitch: TALL.pitch, turn: 0, roll: 0 }, ROAR.breathIn));
     const roared = roar();
     sfx('gramedlaRoar', { level: 1 });
     ease('theta', TALL.theta, HER.roar);

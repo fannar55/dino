@@ -446,7 +446,7 @@ test("in rounds 2 and 3 she stands on the answer's side at CALL.her metres, faci
   for (const run of [await untouched(), await quick()]) {
     const { directions } = run.world.chapterState.callTask;
     for (const round of [1, 2]) {
-      const frames = run.watched.her.filter(f => f.scene === 5 && f.round === round && f.phase === 'listen');
+      const frames = run.watched.her.filter(f => f.scene === 5 && f.round === round && ['listen', 'walk'].includes(f.phase));
       assert.ok(frames.length > 10, `round ${round + 1}: ${frames.length} frames`);
       const most = Math.max(...frames.map(f => f.drawn));
       assert.ok(Math.abs(most - SHAPE.seen[round]) < 0.01, `round ${round + 1}: seen ${most.toFixed(3)}`);

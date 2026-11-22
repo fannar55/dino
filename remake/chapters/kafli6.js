@@ -324,7 +324,7 @@ function onStone(s, c, event) {
       else if (event.level === 'name') {
         stones.glitter(event.stone);
         c.lines.say('mosi', 'k6_mosi_flat');
-        pointWithHead(s, c, point);
+        pointWithHead(c, point);
       }
       break;
     }

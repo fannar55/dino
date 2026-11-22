@@ -70,7 +70,7 @@ export function hopTo(s, c, point, { seconds = HOP.seconds, height = HOP.height,
     }
   });
   let u = 0;
-  actor.setOverlay(dt => {
+  const off = lay(actor, dt => {
     u += dt;
     const k = u / seconds;
     const model = actor.model;
@@ -81,7 +81,7 @@ export function hopTo(s, c, point, { seconds = HOP.seconds, height = HOP.height,
       const d = (u - seconds) / HOP.settle;
       model.position.y = d < 1 ? -HOP.dip * Math.sin(Math.PI * d) : 0;
       model.rotation.z = 0;
-      if (d >= 1) actor.setOverlay(null);
+      if (d >= 1) off();
     }
   });
   return handle;
