@@ -6971,8 +6971,8 @@
  },
  "k6_mosi_wobble": {
   "src": "assets/audio/kafli6/k6_mosi_wobble.mp3",
-  "duration": 2.17,
-  "mouth": "6ffb00300000000000bbcda8fd856bda500000000000"
+  "duration": 2.091,
+  "mouth": "dfc0070000000006ffb978fa0000cb600000000000"
  },
  "k6_mosi_flat": {
   "src": "assets/audio/kafli6/k6_mosi_flat.mp3",

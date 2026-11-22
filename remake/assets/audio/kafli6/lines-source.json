@@ -37,7 +37,10 @@
   {
     "id": "k6_mosi_wobble",
     "speaker": "mosi",
-    "text": "Úps, sá vaggar!"
+    "text": "Úps, sá vaggar!",
+    "context": "Mosi stígur á stein í ánni og steinninn ruggar undir honum. Hann hlær og segir glaður:",
+    "fixes": "ups",
+    "note": "Own context, the book's ups recipe \"samhengi\": the owner said no to the plain Ný 3 take on 2026-11-22 and picked this one by ear of four on 2026-11-22."
   },
   {
     "id": "k6_mosi_flat",

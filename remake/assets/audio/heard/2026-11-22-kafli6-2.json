@@ -1,0 +1,15 @@
+{
+  "set": "kafli6",
+  "date": "2026-11-22",
+  "source": "jano-kafli6-wobble.json",
+  "verdicts": {
+    "kafli6/k6_mosi_wobble": {
+      "verdict": "ja",
+      "key": "34503ce416c920cc82c53330cd9005d70d64a2b72f2cd466c760f68667266e91",
+      "mp3": "a9172c7cc403a1d1e500b0fe050b9eb2d25bf858b8c4aaa5f1ae76e62161a03c",
+      "speaker": "mosi",
+      "text": "Úps, sá vaggar!",
+      "note": "his pick (samhengi) of four on 2026-11-22"
+    }
+  }
+}
