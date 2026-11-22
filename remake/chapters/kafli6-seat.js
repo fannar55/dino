@@ -58,7 +58,7 @@ function headVertices(actor) {
   actor.root.updateMatrixWorld(true);
   body.skeleton.update();
   const all = [], front = [], allIds = [], frontIds = [], used = new Set();
-  const v = new THREE.Vector3(), bound = new THREE.Vector3(), local = new THREE.Vector3(), m = new THREE.Matrix4();
+  const v = new THREE.Vector3(), bound = new THREE.Vector3(), local = new THREE.Vector3();
   for (let i = 0; i < si.count; i++) {
     let top = 0, w = -1;
     for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
@@ -69,7 +69,7 @@ function headVertices(actor) {
       const weight = sw.getComponent(i, k);
       if (weight === 0) continue;
       const b = si.getComponent(i, k);
-      local.copy(bound).applyMatrix4(m.copy(body.skeleton.boneInverses[b]));
+      local.copy(bound).applyMatrix4(body.skeleton.boneInverses[b]);
       row.push(b, weight, local.x, local.y, local.z);
       row[0]++;
       row[1] += weight;
@@ -85,16 +85,17 @@ function headVertices(actor) {
   return rows;
 }
 
-const toWorld = new THREE.Matrix4();
+const toMesh = new THREE.Matrix4(), toWorld = new THREE.Matrix4();
 /** The lowest (world y) of a packed list of head vertices, the bones' matrixWorld as they are now. */
 function lowestOf(rows, list) {
   const { body, ty, used } = rows;
   const bones = body.skeleton.bones;
   // the mesh's own move is laid once on the weighted sum (getVertexPosition), not once per bone: weights a hair off 1 are put right
-  const lift = toWorld.multiplyMatrices(body.matrixWorld, body.bindMatrixInverse).elements[13];
-  // the world's y row of each bone's skinning: (mesh.matrixWorld * bindMatrixInverse * bone.matrixWorld) row 2
+  toMesh.multiplyMatrices(body.matrixWorld, body.bindMatrixInverse);
+  const lift = toMesh.elements[13];
+  // the world's y row of each bone's skinning: mesh.matrixWorld * bindMatrixInverse * bone.matrixWorld
   for (const b of used) {
-    const e = toWorld.multiplyMatrices(body.matrixWorld, body.bindMatrixInverse).multiply(bones[b].matrixWorld).elements;
+    const e = toWorld.multiplyMatrices(toMesh, bones[b].matrixWorld).elements;
     ty[b * 4] = e[1]; ty[b * 4 + 1] = e[5]; ty[b * 4 + 2] = e[9]; ty[b * 4 + 3] = e[13];
   }
   let low = Infinity;

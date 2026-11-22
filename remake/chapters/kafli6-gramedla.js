@@ -125,13 +125,13 @@ export function createTint(model, { colour = SHAPE.colour, white = SHAPE.white }
       for (const h of tinted) {
         if (h.own) h.m.dispose();
         else {
-        h.m.color.copy(h.colour);
-        h.m.emissive?.copy(h.emissive);
-        if (h.env !== null) h.m.envMapIntensity = h.env;
-        if (h.rough !== null) h.m.roughness = h.rough;
-        h.m.fog = h.fog;
-        h.m.needsUpdate = true;
-      }
+          h.m.color.copy(h.colour);
+          h.m.emissive?.copy(h.emissive);
+          if (h.env !== null) h.m.envMapIntensity = h.env;
+          if (h.rough !== null) h.m.roughness = h.rough;
+          h.m.fog = h.fog;
+          h.m.needsUpdate = true;
+        }
       }
     },
   };
