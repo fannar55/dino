@@ -203,6 +203,9 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   const hips = legs.find(L => L.jointed)?.parent ?? null;
   const hipsUnit = hips ? hips.parent.getWorldScale(new THREE.Vector3()).x : 1;
   const hipsAnimated = new THREE.Vector3();
+  // and their turn as the clips left it: a pose that turns them after the feet (chapter 6's hips) must not leave the feet to be
+  // solved in its turn on a frame the mixer does not set them (the clock stood still)
+  const hipsTurn = new THREE.Quaternion();
   let sink = 0; // metres the hips are lowered this frame
 
   let mode = 'stand'; // 'walk' (the walk clip times the steps), 'stand' (footing does) or 'free'
@@ -556,14 +559,20 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
         L.leg.quaternion.copy(L.animated.quaternion);
         L.foot.quaternion.copy(L.animated.foot);
       }
-      if (hips) hips.position.copy(hipsAnimated);
+      if (hips) {
+        hips.position.copy(hipsAnimated);
+        hips.quaternion.copy(hipsTurn);
+      }
       applied = false;
     },
     /** Step and pose the legs; call after the mixer. */
     update(dt) {
       if (!legs.length) return;
       root.updateMatrixWorld(true);
-      if (hips) hipsAnimated.copy(hips.position);
+      if (hips) {
+        hipsAnimated.copy(hips.position);
+        hipsTurn.copy(hips.quaternion);
+      }
       const yaw = root.rotation.y;
       if (dt > 0) {
         if (lastYaw !== null) yawRate += (wrap(yaw - lastYaw) / dt - yawRate) * (1 - Math.exp(-dt / 0.2));

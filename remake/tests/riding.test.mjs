@@ -511,6 +511,7 @@ async function onGrameðla() {
     her.root.updateMatrixWorld(true);
     return laid;
   };
+  hold.lay = pose => { laid = pose; };
   let body = null;
   her.model.traverse(o => { if (o.isSkinnedMesh && (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count)) body = o; });
   const head = her.model.getObjectByName('Head');
@@ -523,7 +524,7 @@ async function onGrameðla() {
     return hit ? p.y - hit.point.y : Infinity;
   };
   const refresh = () => { body.skeleton.update(); body.computeBoundingSphere(); };
-  return { world, her, egill, frame, hold, over, refresh, HEAD_SEAT, body, head };
+  return { world, her, egill, frame, hold, over, refresh, HEAD_SEAT, body, head, lean, hips, headDownPose };
 }
 
 test('the seat is on her skin: his seat 0.01 m over it, his soles 0.125 m, with her head down, standing and at four moments of the stride', async () => {
@@ -570,6 +571,31 @@ test('the seat is on her skin: his seat 0.01 m over it, his soles 0.125 m, with 
     assert.ok(Math.abs(((egill.heading - her.heading + 540) % 360) - 180) < 2, `${name}: he faces her way`);
   }
   riding.stop();
+});
+
+// Audit B2: a frame where the clock stands still (the book's pause, a bug report's still, a ?t= link) after a frame that ran, her hips
+// pitched: her feet stay where they were (they jumped 44-60 cm forward when her Hips' tilt was left on for her feet to be solved in).
+test('on a frozen frame with her hips pitched her feet stay where they were, at every heading', async () => {
+  const { her, frame, hold, lean, hips, headDownPose } = await onGrameðla();
+  const feet = () => { her.root.updateMatrixWorld(true); return ['LeftFoot', 'RightFoot'].map(n => her.model.getObjectByName(n).getWorldPosition(new THREE.Vector3())); };
+  // her idle running at its own pace, as in scene 7 (the mixer sets her Hips on every frame that runs, and on no frame that does not)
+  for (let k = 0; k < 30; k++) frame(1 / 30);
+  const down = headDownPose(her, lean, hips);
+  assert.ok(down.hips > 0.1, `her hips pitch ${down.hips.toFixed(3)} rad in the head-down pose`);
+  const poses = [down, { theta: 0, pitch: 0.25, hips: 0.25 }];
+  for (const [heading, pose] of [[0, down], [90, down], [180, down], [0, poses[1]], [90, poses[1]], [180, poses[1]]]) {
+    her.place(0, 0, heading);
+    hold.lay(pose);
+    for (let k = 0; k < 30; k++) frame(1 / 30);
+    const ran = feet();
+    for (let k = 0; k < 3; k++) frame(0);
+    const frozen = feet();
+    for (const i of [0, 1]) assert.ok(ran[i].distanceTo(frozen[i]) < 0.001, `heading ${heading}: on a frozen frame her foot jumped ${(ran[i].distanceTo(frozen[i]) * 100).toFixed(1)} cm`);
+    // and the clock going on again: the same pose as before the freeze
+    frame(1 / 30);
+    const again = feet();
+    for (const i of [0, 1]) assert.ok(ran[i].distanceTo(again[i]) < 0.001, `heading ${heading}: after the freeze her foot is ${(ran[i].distanceTo(again[i]) * 100).toFixed(1)} cm off`);
+  }
 });
 
 test('with her head down the seat is under 2.4 m over the ground and her feet have not moved', async () => {
