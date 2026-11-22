@@ -130,7 +130,7 @@ export const SLOPE = {
 // the sun behind them.
 export const BELT_GROUND = 1.5; // m: the stage's ground where it is not known (world/fjall: 0 to 3 m)
 export const BELT_PATH = [[-34, -22], [-17, -12], [0, 0], [16, 12]];
-export const PRINT_SIZE = 5; // world/props/mud-prints.js size: 5 m long, 3.4 m wide (the owner may pick 11 from stills)
+export const PRINT_SIZE = 5; // world/props/mud-prints.js size: 5 m long, 3.4 m wide (the owner picked 5 over 11 from stills, 2026-11-22)
 export const PRINT_PACE = 9; // m along the path from one print to the next
 export const PRINT_TAP = 2.2; // m round a print's middle: its tap circle
 const PRINT_FROM = 6; // m along the path to the first print
