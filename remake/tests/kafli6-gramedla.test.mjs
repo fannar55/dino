@@ -97,6 +97,134 @@ test('the lean laid on every frame does not add up: 200 frames at theta 0.5 give
   }
 });
 
+// Her life (kafli6-gramedla.js gramedlaLife) on the game clock: a scheduler as the scene's, her overlay and the effects ------------
+async function herLife(heading = 0) {
+  const { createActor: make, updateActors } = await import('../engine/actor.js');
+  const { createEffects } = await import('../engine/effects.js');
+  const { createScheduler, wait, all, race, until } = await import('../engine/scene/scheduler.js');
+  const { gramedlaLife } = await import('../chapters/kafli6-gramedla.js');
+  const world = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000), heightAt: () => 0, actors: new Map(), effects: createEffects() };
+  world.resolvePoint = createPointResolver(world);
+  const her = await make(world, { name: 'gramedla', gltf: await loadTrex(), position: [0, 0, 0], heading });
+  world.actors.set('gramedla', her);
+  const scheduler = createScheduler({ onError: error => { throw error; } });
+  const s = { wait, all, race, until, after: (d, item) => scheduler.start((function* after() { yield wait(d); return yield (typeof item === 'function' ? item() : item); })()) };
+  const falls = [], log = [];
+  const c = { gramedla: { raw: her }, world, footfall: d => falls.push({ at: scheduler.time, ...d }), sfx: () => {}, log: e => log.push({ at: scheduler.time, ...e }), meet: { stand: { x: 0, z: 0, heading } } };
+  const life = gramedlaLife(s, c);
+  const clips = [];
+  const play = her.play;
+  her.play = (name, options) => { clips.push({ at: scheduler.time, name }); return play(name, options); };
+  // the game's order (main.js update): the scene, the actors, the effects
+  let walking = false;
+  const frame = (dt = 1 / 30) => {
+    scheduler.update(dt);
+    updateActors(world.actors.values(), dt);
+    world.effects.update(dt);
+    if (her.walking && !walking) clips.push({ at: scheduler.time, name: 'walk' }); // her walks start inside the actor
+    walking = her.walking;
+  };
+  const until_ = (t, dt = 1 / 30) => { while (scheduler.time < t - 1e-9) frame(dt); };
+  return { her, life, frame, to: until_, scheduler, falls, log, clips, world, c };
+}
+const STAND = { x: 0, z: 0, heading: 0 };
+
+test('B6: a wrong tap at 2.7 s, in her 3.4 s roar, roars again and her step waits for that roar to end', async () => {
+  const { HER } = await import('../chapters/kafli6-gramedla.js');
+  const { life, to, clips, falls } = await herLife();
+  life.shape(1, 'left', STAND);
+  to(2.7);
+  life.shape(1, 'left', STAND); // she answers again where she stands
+  to(2.7 + HER.roar + 0.05);
+  const after = clips.filter(k => k.at > 2.7 + 1e-6);
+  // her second roar is not cut: nothing plays over it before it ends, then her step
+  assert.ok(!after.some(k => k.at < 2.7 + HER.roar - 1e-6), `her second roar was cut at ${after.map(k => `${k.at.toFixed(2)} ${k.name}`).join(', ')}`);
+  to(12);
+  assert.equal(falls.length, 1, 'one thud for her one step');
+  assert.ok(falls[0].at > 2.7 + HER.roar, `her thud came at ${falls[0].at.toFixed(2)} s`);
+});
+
+test('B6: the untouched answer keeps its times: the roar 3.4 s, then the step, its thud 1.1 s in', async () => {
+  const { HER, SHAPE } = await import('../chapters/kafli6-gramedla.js');
+  const { life, to, clips, falls } = await herLife();
+  life.shape(2, 'ahead', STAND);
+  to(10);
+  assert.equal(falls.length, 1);
+  assert.ok(Math.abs(falls[0].at - (HER.roar + SHAPE.footfall)) < 1 / 30 + 1e-6, `her thud at ${falls[0].at.toFixed(3)} s`);
+  assert.ok(clips.some(k => k.name === 'walk' && Math.abs(k.at - HER.roar) < 1 / 30 + 1e-6), 'her step at the roar\'s end');
+});
+
+test('B6: hidden, stepped out or disposed in her roar, nothing she had scheduled comes after', async () => {
+  const { HER, SHAPE, STEP_OUT } = await import('../chapters/kafli6-gramedla.js');
+  for (const how of ['hide', 'stepOut', 'dispose', 'hide in the step']) {
+    const { life, to, clips, falls, scheduler } = await herLife();
+    life.shape(1, 'right', STAND);
+    const at = how === 'hide in the step' ? HER.roar + 0.5 : 2;
+    to(at);
+    if (how === 'stepOut') scheduler.run(life.stepOut());
+    else if (how === 'dispose') life.dispose();
+    else life.hide();
+    to(at + 8);
+    // stepping out she stands (idle) and walks out of the white herself: only her old roar's end (idle) may not come in it
+    const walked = at + STEP_OUT.fadeIn + STEP_OUT.from / STEP_OUT.speed;
+    const late = clips.filter(k => k.at > at + 1e-6 && (how !== 'stepOut' || (k.name === 'idle' && k.at > at + 0.1 && k.at < walked - 0.1)));
+    assert.deepEqual(late.map(k => k.name), [], `${how}: her clips after it: ${late.map(k => `${k.at.toFixed(2)} ${k.name}`).join(', ')}`);
+    const thuds = falls.filter(f => f.round !== undefined);
+    assert.deepEqual(thuds, [], `${how}: the call's thud came after it`);
+    if (how === 'stepOut') assert.equal(falls.filter(f => f.tremble).length, STEP_OUT.footfalls.length, 'stepping out has its own two thuds');
+    void SHAPE;
+  }
+});
+
+test('B7: her roar of yes ends when its blow gives nothing back', async () => {
+  const { life, to, scheduler } = await herLife();
+  life.show();
+  for (const blow of [() => null, () => undefined, null]) {
+    const task = scheduler.run(life.roarYes({ blow }));
+    to(scheduler.time + 8);
+    assert.equal(task.done, true, `roarYes with blow ${String(blow)} hung`);
+  }
+  // a Handle it waits for
+  const { Handle } = await import('../engine/handle.js');
+  const h = new Handle('blow');
+  const task = scheduler.run(life.roarYes({ blow: () => h }));
+  to(scheduler.time + 8);
+  assert.equal(task.done, false, 'it waits for the blow');
+  h.finish();
+  to(scheduler.time + 0.1);
+  assert.equal(task.done, true);
+});
+
+test('B5: her tint gives the shared eyelid material back as it was', async () => {
+  const { createTint } = await import('../chapters/kafli6-gramedla.js');
+  const rex = await gramedla();
+  const lids = [];
+  rex.model.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) if (m?.customProgramCacheKey?.() === 'eyelids') lids.push(m); });
+  assert.ok(lids.length > 0, 'she has eyelids');
+  const was = lids.map(m => ({ env: m.envMapIntensity, rough: m.roughness, colour: m.color.getHex(), emissive: m.emissive?.getHex(), fog: m.fog }));
+  const tint = createTint(rex.model);
+  tint.set(1, 0.7);
+  tint.set(0.4, 1);
+  tint.dispose();
+  lids.forEach((m, i) => assert.deepEqual({ env: m.envMapIntensity, rough: m.roughness, colour: m.color.getHex(), emissive: m.emissive?.getHex(), fog: m.fog }, was[i]));
+});
+
+test('B9: her head-down pose found leaves her lean as it was (standing tall, her snout where it was)', async () => {
+  const { headDownPose } = await import('../chapters/kafli6-seat.js');
+  const { life, her, frame } = await herLife(30);
+  life.show();
+  for (let i = 0; i < 30; i++) frame();
+  for (const pose of [{ theta: -0.3, pitch: 0.35 }, { theta: 0.4, pitch: -0.1, turn: 0.2, roll: 0.05 }]) {
+    life.lean.set(pose);
+    her.root.updateMatrixWorld(true);
+    const before = life.lean.snout();
+    headDownPose(her, life.lean, life.hips);
+    her.root.updateMatrixWorld(true);
+    const moved = life.lean.snout().distanceTo(before);
+    assert.ok(moved < 1e-6, `her snout is ${(moved * 1000).toFixed(1)} mm from where it was`);
+  }
+});
+
 // Mosi's little roar (chapters/kafli6-mosi.js, Task 10) -----------------------------------------------
 test("Mosi's little roar opens his jaw 24 degrees at its peak and leaves every bone within 0.5 degrees of where it was", async () => {
   const { chapterWorld } = await import('./chapter-harness.mjs');

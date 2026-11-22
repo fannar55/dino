@@ -40,42 +40,90 @@ const HEAD_BONES = ['Head', 'Jaw'];
 const FRONT = 1.6; // m ahead of her Head bone (in its frame): the front of her head, her jaws, ahead of her eyes
 
 const found = new WeakMap();
-/** Her head's vertices (those the Head or Jaw carries most), and the lowest of them in the world now. */
+/**
+ * Her head's vertices (those the Head or Jaw carries most), each as the bones that carry it see it: for every one of its bones
+ * (weight w > 0) the vertex in that bone's frame, so that skinned it is sum(w * bone.matrixWorld * local) under the mesh's
+ * bindMatrixInverse and matrixWorld, as SkinnedMesh.getVertexPosition skins it, without its per-vertex matrix products.
+ * `all` and `front` are packed rows of the vertices of the whole head and of its front: [count, sum of w, (bone, w, x, y, z) * count, ...].
+ */
 function headVertices(actor) {
   if (found.has(actor)) return found.get(actor);
   const body = bodyMesh(actor);
   const bones = body.skeleton.bones;
   const ids = new Set(HEAD_BONES.map(n => bones.indexOf(actor.model.getObjectByName(n))).filter(i => i >= 0));
   const si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight;
+  const position = body.geometry.attributes.position;
+  const morphed = Boolean(body.geometry.morphAttributes?.position?.length);
   const head = actor.model.getObjectByName('Head');
   actor.root.updateMatrixWorld(true);
   body.skeleton.update();
-  const all = [], front = [];
-  const v = new THREE.Vector3();
+  const all = [], front = [], allIds = [], frontIds = [], used = new Set();
+  const v = new THREE.Vector3(), bound = new THREE.Vector3(), local = new THREE.Vector3(), m = new THREE.Matrix4();
   for (let i = 0; i < si.count; i++) {
     let top = 0, w = -1;
     for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
     if (!ids.has(top)) continue;
-    all.push(i);
+    const row = [0, 0];
+    bound.fromBufferAttribute(position, i).applyMatrix4(body.bindMatrix);
+    for (let k = 0; k < 4; k++) {
+      const weight = sw.getComponent(i, k);
+      if (weight === 0) continue;
+      const b = si.getComponent(i, k);
+      local.copy(bound).applyMatrix4(m.copy(body.skeleton.boneInverses[b]));
+      row.push(b, weight, local.x, local.y, local.z);
+      row[0]++;
+      row[1] += weight;
+      used.add(b);
+    }
+    all.push(...row);
+    allIds.push(i);
     body.getVertexPosition(i, v).applyMatrix4(body.matrixWorld);
-    if (head.worldToLocal(v).x > FRONT) front.push(i);
+    if (head.worldToLocal(v).x > FRONT) { front.push(...row); frontIds.push(i); }
   }
-  found.set(actor, { body, all, front });
-  return found.get(actor);
+  const rows = { body, morphed, all: Float64Array.from(all), front: Float64Array.from(front), allIds, frontIds, used: [...used], ty: new Float64Array(bones.length * 4) };
+  found.set(actor, rows);
+  return rows;
 }
+
+const toWorld = new THREE.Matrix4();
+/** The lowest (world y) of a packed list of head vertices, the bones' matrixWorld as they are now. */
+function lowestOf(rows, list) {
+  const { body, ty, used } = rows;
+  const bones = body.skeleton.bones;
+  // the mesh's own move is laid once on the weighted sum (getVertexPosition), not once per bone: weights a hair off 1 are put right
+  const lift = toWorld.multiplyMatrices(body.matrixWorld, body.bindMatrixInverse).elements[13];
+  // the world's y row of each bone's skinning: (mesh.matrixWorld * bindMatrixInverse * bone.matrixWorld) row 2
+  for (const b of used) {
+    const e = toWorld.multiplyMatrices(body.matrixWorld, body.bindMatrixInverse).multiply(bones[b].matrixWorld).elements;
+    ty[b * 4] = e[1]; ty[b * 4 + 1] = e[5]; ty[b * 4 + 2] = e[9]; ty[b * 4 + 3] = e[13];
+  }
+  let low = Infinity;
+  for (let i = 0; i < list.length;) {
+    const n = list[i++];
+    let y = (1 - list[i++]) * lift;
+    for (let k = 0; k < n; k++, i += 5) {
+      const o = list[i] * 4;
+      y += list[i + 1] * (ty[o] * list[i + 2] + ty[o + 1] * list[i + 3] + ty[o + 2] * list[i + 4] + ty[o + 3]);
+    }
+    if (y < low) low = y;
+  }
+  return low;
+}
+/** The same, read vertex by vertex (a model with morph targets, which the packed rows do not carry). */
+function lowestRead(body, ids) {
+  const v = new THREE.Vector3();
+  let low = Infinity;
+  for (const i of ids) low = Math.min(low, body.getVertexPosition(i, v).applyMatrix4(body.matrixWorld).y);
+  return low;
+}
+const lowestAll = (rows) => (rows.morphed ? lowestRead(rows.body, rows.allIds) : lowestOf(rows, rows.all));
+const lowestFront = (rows) => (rows.morphed ? lowestRead(rows.body, rows.frontIds) : lowestOf(rows, rows.front));
 
 /** { low, snout }: the lowest point of her head in the world now (y), and of its front (her jaw's underside). */
 export function lowestOfHead(actor) {
-  const { body, all, front } = headVertices(actor);
+  const rows = headVertices(actor);
   actor.root.updateMatrixWorld(true);
-  body.skeleton.update();
-  const v = new THREE.Vector3();
-  const lowest = list => {
-    let low = Infinity;
-    for (const i of list) low = Math.min(low, body.getVertexPosition(i, v).applyMatrix4(body.matrixWorld).y);
-    return low;
-  };
-  return { low: lowest(all), snout: lowest(front) };
+  return { low: lowestAll(rows), snout: lowestFront(rows) };
 }
 
 /**
@@ -133,12 +181,13 @@ export function headDownPose(actor, lean, hips, { ground = HEAD_DOWN.ground, pit
   const { x, z } = actor.root.position;
   const floor = actor.world?.heightAt?.(x, z) ?? actor.root.position.y;
   const head = actor.model.getObjectByName('Head');
-  const before = { hips: hips.angle };
+  const before = { hips: hips.angle, lean: lean.pose ?? {} };
+  const rows = headVertices(actor);
   const lay = (theta, h) => {
     hips.set(h);
     lean.set({ theta, pitch: pitch + h });
     actor.root.updateMatrixWorld(true);
-    return lowestOfHead(actor).low - floor;
+    return lowestAll(rows) - floor;
   };
   const bisect = (f, lo, hi) => {
     for (let k = 0; k < 24; k++) {
@@ -151,11 +200,11 @@ export function headDownPose(actor, lean, hips, { ground = HEAD_DOWN.ground, pit
   if (lay(0, 0) <= ground) theta = 0;
   else if (lay(most, 0) <= ground) theta = bisect(t => lay(t, 0), 0, most);
   else h = lay(most, hipsMost) <= ground ? bisect(a => lay(most, a), 0, hipsMost) : hipsMost;
-  lay(theta, h);
-  const { low, snout } = lowestOfHead(actor);
+  const low = lay(theta, h) + floor;
+  const snout = lowestFront(rows);
   const seat = new THREE.Vector3(...HEAD_SEAT.skin.seat).applyMatrix4(head.matrixWorld).y - floor;
   hips.set(before.hips);
-  lean.set({});
+  lean.set(before.lean);
   actor.root.updateMatrixWorld(true);
   return { theta, pitch: pitch + h, hips: h, low: low - floor, snout: snout - floor, seat };
 }

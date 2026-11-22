@@ -124,7 +124,14 @@ export function createTint(model, { colour = SHAPE.colour, white = SHAPE.white }
       for (const { o, shared, cast } of meshes) { o.material = shared; o.castShadow = cast; }
       for (const h of tinted) {
         if (h.own) h.m.dispose();
-        else { h.m.color.copy(h.colour); h.m.emissive?.copy(h.emissive); h.m.fog = h.fog; h.m.needsUpdate = true; }
+        else {
+        h.m.color.copy(h.colour);
+        h.m.emissive?.copy(h.emissive);
+        if (h.env !== null) h.m.envMapIntensity = h.env;
+        if (h.rough !== null) h.m.roughness = h.rough;
+        h.m.fog = h.fog;
+        h.m.needsUpdate = true;
+      }
       }
     },
   };
@@ -154,6 +161,7 @@ export function gramedlaLife(s, c) {
   let hidden = true;
   let roaring = null;
   let shapeAt = null; // the round and way her shape stands in now
+  let stepping = null; // her step in the call, waiting for her roar to end
 
   function value(key) {
     const tw = tweens.get(key);
@@ -201,14 +209,29 @@ export function gramedlaLife(s, c) {
   const hold = (x, z) => actor.place(x, z, actor.heading);
   const note = (what, detail) => c.log?.({ type: 'her', what, ...detail });
 
+  // what she has scheduled on the game clock (her step in the call and its thud, stepping out's thuds): a newer shape, hide(),
+  // stepOut() and dispose() take it back, so none of it comes after she has gone or moved on
+  const later = new Set();
+  function after(seconds, fn) {
+    const task = s.after(seconds, () => { later.delete(task); return fn(); });
+    later.add(task);
+    return task;
+  }
+  function takeBack() {
+    for (const task of later) task.cancel?.();
+    later.clear();
+  }
+
   /** A step toward `to` ([x, z]) on her walk, and the foot's thud `at` s in. */
   function step(to, { speed, at, detail }) {
     const going = actor.walkTo([to], { speed, turnRate: 30 });
-    s.after(at, () => { footfall(detail); return null; });
+    after(at, () => { footfall(detail); return null; });
     return going;
   }
 
   function hide() {
+    takeBack();
+    roaring?.finish();
     for (const tw of tweens.values()) tw.handle.finish();
     tweens.clear();
     bumps.length = 0;
@@ -255,6 +278,7 @@ export function gramedlaLife(s, c) {
     if (round <= 0) { if (!hidden) fadeOut(); return; }
     const again = shapeAt && shapeAt.round === round && shapeAt.direction === direction;
     if (!again) {
+      takeBack();
       const [x, z] = shapePlace(stand, direction, round);
       for (const tw of tweens.values()) tw.handle.finish();
       tweens.clear();
@@ -267,8 +291,10 @@ export function gramedlaLife(s, c) {
       ease('seen', SHAPE.seen[round], SHAPE.fadeIn);
     } else if (now.seen < SHAPE.seen[round]) ease('seen', SHAPE.seen[round], SHAPE.fadeIn * 0.5);
     roar();
-    if (again) return;
-    s.after(HER.roar, () => {
+    // her step toward them comes as her roar ends: answering again before it has, the step waits for the newer roar
+    if (again && !(stepping && later.has(stepping))) return;
+    if (stepping) { stepping.cancel?.(); later.delete(stepping); }
+    stepping = after(HER.roar, () => {
       if (shapeAt?.round !== round) return null;
       const [fx, fz] = way(actor.heading);
       const { x, z } = actor.root.position;
@@ -301,6 +327,8 @@ export function gramedlaLife(s, c) {
     const [fx, fz] = way(stand.heading);
     const at = d => [stand.x + fx * d, stand.z + fz * d];
     const from = at(STEP_OUT.stop + STEP_OUT.from);
+    takeBack();
+    roaring?.finish();
     for (const tw of tweens.values()) tw.handle.finish();
     tweens.clear();
     actor.place(from[0], from[1], stand.heading + 180);
@@ -314,7 +342,7 @@ export function gramedlaLife(s, c) {
     const seconds = STEP_OUT.from / STEP_OUT.speed;
     ease('seen', 1, seconds * 0.55);
     ease('tint', 0, seconds);
-    STEP_OUT.footfalls.forEach((t, k) => s.after(t, () => { footfall({ step: k, near: true, tremble: true }); return null; }));
+    STEP_OUT.footfalls.forEach((t, k) => after(t, () => { footfall({ step: k, near: true, tremble: true }); return null; }));
     yield walking;
     yield s.until(() => !actor.walking && !actor.turning); // her walk settles into her idle by itself
     note('stopped');
@@ -335,11 +363,12 @@ export function gramedlaLife(s, c) {
   function sniffPose(point, near = SNIFF.near) {
     const p = new THREE.Vector3();
     const head = new THREE.Vector3();
+    const bent = new THREE.Vector3(), q = new THREE.Quaternion();
     let best = null;
+    // her head's tip only turns her head about its own place (lean.pitchHead), so for each lean her snout at every tip is the
+    // snout of the lean alone turned about her right side round her head: one skeleton pose for each lean, not one for each tip
     const tryPose = pose => {
-      lean.set(pose);
-      actor.root.updateMatrixWorld(true);
-      lean.snout(p);
+      p.copy(bent).sub(head).applyQuaternion(q.setFromAxisAngle(lean.right, pose.pitch)).add(head);
       const d = p.distanceTo(point);
       // her snout over his head (at his hair, over Mosi's frill): under it, it reads as going for Mosi, not sniffing Egill
       const under = point.y + SNIFF.over - p.y;
@@ -347,6 +376,10 @@ export function gramedlaLife(s, c) {
       if (!best || score < best.score) best = { ...pose, score, d };
     };
     for (let theta = -0.1; theta <= 1.2; theta += 0.05) {
+      lean.set({ theta, pitch: 0, turn: 0, roll: 0 });
+      actor.root.updateMatrixWorld(true);
+      lean.bones.Head.getWorldPosition(head);
+      lean.snout(bent);
       for (let pitch = -0.7; pitch <= 0.4; pitch += 0.05) tryPose({ theta, pitch, turn: 0, roll: 0 });
     }
     // turned about the upright so the snout points at him from the side too
@@ -403,9 +436,10 @@ export function gramedlaLife(s, c) {
     onRoar?.();
     sfx('gramedlaRoar', { level: 1 });
     ease('theta', TALL.theta, HER.roar);
-    let blown = null;
-    s.after(ROAR.blow, () => { blown = blow?.() ?? null; return null; });
-    yield s.until(() => roared.done && (blow === null || blown?.done));
+    let blown = null, blew = false;
+    s.after(ROAR.blow, () => { blown = blow?.() ?? null; blew = true; return null; });
+    // done when the roar is and the blow has been (and the Handle it gave back, if it gave one, is done)
+    yield s.until(() => roared.done && (blow === null || (blew && (blown === null || blown.done))));
   }
 
   /** Two dips of her lean and a snort: yes. A Handle, done when her head is up again. */
@@ -456,6 +490,6 @@ export function gramedlaLife(s, c) {
     face(heading) { return actor.turnTo(heading, { rate: 35 }); },
     walk(points, { speed = HER.walk } = {}) { return actor.walkTo(points, { speed, turnRate: 30 }); },
     idle() { actor.play('idle', { fade: 0.6 }); },
-    dispose() { actor.setOverlay(null); hips.release(); lean.release(); tint.dispose(); },
+    dispose() { takeBack(); roaring?.finish(); actor.setOverlay(null); hips.release(); lean.release(); tint.dispose(); },
   };
 }
