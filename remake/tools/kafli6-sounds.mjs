@@ -129,7 +129,17 @@ const withoutNotes = ({ need, where, previewKB, seconds, ...source }) => source;
  *   'mountainWind-1.mp3': { sample: 'mountainWind', loop: true, cross: 1.5, ...free(697217, [2, 32]) },
  *   'mosiRoar-1.mp3': { sample: 'mosiRoar', ...eleven('mosi-roar-2') },
  */
-export const PICKS = {};
+export const PICKS = {
+  // his picks of 2026-11-22 (hljod-val.json). The boots recording is six jumps onto rock: three of its landings, so the hops differ
+  'hoofStone-1.mp3': { sample: 'hoofStone', ...free(558477, [0.35, 0.88]) },
+  'hoofStone-2.mp3': { sample: 'hoofStone', ...free(558477, [3.39, 3.8]) },
+  'hoofStone-3.mp3': { sample: 'hoofStone', ...free(558477, [4.93, 5.28]) },
+  'stoneRock-1.mp3': { sample: 'stoneRock', ...free(700535, [0.12, 0.75]) },
+  'frogSplash-1.mp3': { sample: 'frogSplash', ...free(53685, [0, 1.05]) },
+  'wetStep-1.mp3': { sample: 'wetStep', ...free(488082, [0, 0.62]) },
+  'mountainWind-1.mp3': { sample: 'mountainWind', loop: true, cross: 1.5, ...free(697217, [0.5, 40.5]) },
+  'mosiRoar-1.mp3': { sample: 'mosiRoar', ...eleven('mosi-roar-3') },
+};
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const hide = (text, key) => String(text).replaceAll(key, '[redacted]');

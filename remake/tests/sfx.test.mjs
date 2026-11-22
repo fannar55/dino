@@ -409,7 +409,9 @@ test('a chapter 6 sample with no file plays its made sound, and asks for no file
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
     await settle();
     assert.ok(asked.some(url => url.endsWith('gramedla3d/hljod/thump.mp3')), 'her footfall is fetched');
-    assert.deepEqual(asked.filter(url => url.includes('/kafli6/')), [], 'no chapter 6 file is asked for before it is picked');
+    const picked = Object.values(KAFLI6_PICKED).flat().sort();
+    const askedOfSix = asked.filter(url => url.includes('/kafli6/')).map(url => url.split('/').pop()).sort();
+    assert.deepEqual(askedOfSix, picked, 'only the picked chapter 6 files are asked for: none before it is picked');
     for (const name of KAFLI6.filter(n => !Object.hasOwn(KAFLI6_PICKED, n) && n !== 'gramedlaThump' && !SAMPLES[n].loop)) {
       const before = context.started.length;
       assert.equal(sfx.play(name), true, name);

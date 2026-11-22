@@ -1,0 +1,143 @@
+{
+  "about": "Chapter 6's recorded sounds (tools/kafli6-sounds.mjs): the owner's picks, each with its sample in engine/audio/sfx.js, its source and its cut.",
+  "files": {
+    "hoofStone-1.mp3": {
+      "sample": "hoofStone",
+      "source": {
+        "kind": "Freesound",
+        "id": 558477,
+        "name": "Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav",
+        "author": "Nox_Sound",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/Nox_Sound/sounds/558477/",
+        "preview": "https://cdn.freesound.org/previews/558/558477_9250976-hq.mp3"
+      },
+      "what": "his front hooves come down on a stone of the ford",
+      "seconds": 0.53,
+      "cut": [
+        0.35,
+        0.88
+      ]
+    },
+    "hoofStone-2.mp3": {
+      "sample": "hoofStone",
+      "source": {
+        "kind": "Freesound",
+        "id": 558477,
+        "name": "Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav",
+        "author": "Nox_Sound",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/Nox_Sound/sounds/558477/",
+        "preview": "https://cdn.freesound.org/previews/558/558477_9250976-hq.mp3"
+      },
+      "what": "his front hooves come down on a stone of the ford",
+      "seconds": 0.41,
+      "cut": [
+        3.39,
+        3.8
+      ]
+    },
+    "hoofStone-3.mp3": {
+      "sample": "hoofStone",
+      "source": {
+        "kind": "Freesound",
+        "id": 558477,
+        "name": "Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav",
+        "author": "Nox_Sound",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/Nox_Sound/sounds/558477/",
+        "preview": "https://cdn.freesound.org/previews/558/558477_9250976-hq.mp3"
+      },
+      "what": "his front hooves come down on a stone of the ford",
+      "seconds": 0.35,
+      "cut": [
+        4.93,
+        5.28
+      ]
+    },
+    "stoneRock-1.mp3": {
+      "sample": "stoneRock",
+      "source": {
+        "kind": "Freesound",
+        "id": 700535,
+        "name": "stone_slab1.wav",
+        "author": "NistuGgner",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/NistuGgner/sounds/700535/",
+        "preview": "https://cdn.freesound.org/previews/700/700535_13373037-hq.mp3"
+      },
+      "what": "a small stone rocks under a wrong tap",
+      "seconds": 0.63,
+      "cut": [
+        0.12,
+        0.75
+      ]
+    },
+    "frogSplash-1.mp3": {
+      "sample": "frogSplash",
+      "source": {
+        "kind": "Freesound",
+        "id": 53685,
+        "name": "Ploppy_2.wav",
+        "author": "digifishmusic",
+        "licence": "CC BY 4.0",
+        "page": "https://freesound.org/people/digifishmusic/sounds/53685/",
+        "preview": "https://cdn.freesound.org/previews/53/53685_29541-hq.mp3"
+      },
+      "what": "the frog on it lands in the water",
+      "seconds": 1.05,
+      "cut": [
+        0,
+        1.05
+      ]
+    },
+    "wetStep-1.mp3": {
+      "sample": "wetStep",
+      "source": {
+        "kind": "Freesound",
+        "id": 488082,
+        "name": "Footsteps_Mud_Single_03.wav",
+        "author": "BenDrain",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/BenDrain/sounds/488082/",
+        "preview": "https://cdn.freesound.org/previews/488/488082_4763661-hq.mp3"
+      },
+      "what": "Mosi steps into one of her prints",
+      "seconds": 0.62,
+      "cut": [
+        0,
+        0.62
+      ]
+    },
+    "mountainWind-1.mp3": {
+      "sample": "mountainWind",
+      "loop": true,
+      "source": {
+        "kind": "Freesound",
+        "id": 697217,
+        "name": "Looping Gentle Wind Ambience on an Open Desert Plain.wav",
+        "author": "dhallcomposer",
+        "licence": "CC0 1.0",
+        "page": "https://freesound.org/people/dhallcomposer/sounds/697217/",
+        "preview": "https://cdn.freesound.org/previews/697/697217_7678208-hq.mp3"
+      },
+      "what": "the wind in the belt of cloud, a soft loop under the scene",
+      "seconds": 38.5,
+      "cut": [
+        0.5,
+        40.5
+      ]
+    },
+    "mosiRoar-1.mp3": {
+      "sample": "mosiRoar",
+      "source": {
+        "kind": "ElevenLabs",
+        "licence": "ElevenLabs sound generation, made for this game",
+        "take": "mosi-roar-3",
+        "prompt": "qa/remake/kafli6/hljod/eleven/mosi-roar-3.json"
+      },
+      "what": "Mosi's little roar in the call",
+      "seconds": 1.123
+    }
+  }
+}

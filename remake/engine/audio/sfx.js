@@ -24,7 +24,14 @@ const kafli4 = file => new URL(`../../assets/audio/kafli4/hljod/${file}`, import
 // Chapter 6's recordings, by sample name: its files in assets/audio/kafli6/hljod/, once the owner has picked them by ear and
 // tools/kafli6-sounds.mjs has mastered them (it prints the entries to put here). A name not here has no url, so nothing is fetched for
 // it (a missing file would be a failed request in the page's log) and its made sound `instead` plays every time.
-export const KAFLI6_PICKED = {};
+export const KAFLI6_PICKED = {
+  hoofStone: ['hoofStone-1.mp3', 'hoofStone-2.mp3', 'hoofStone-3.mp3'],
+  stoneRock: ['stoneRock-1.mp3'],
+  frogSplash: ['frogSplash-1.mp3'],
+  wetStep: ['wetStep-1.mp3'],
+  mountainWind: ['mountainWind-1.mp3'],
+  mosiRoar: ['mosiRoar-1.mp3'],
+};
 const picked = name => (KAFLI6_PICKED[name] ?? []).map(file => new URL(`../../assets/audio/kafli6/hljod/${file}`, import.meta.url).href);
 export const SAMPLES = {
   gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
