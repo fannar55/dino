@@ -115,10 +115,11 @@ const MEET_CLOUD = 0.12; // the cloud's level round them once she has stepped ou
 const MEET_FRAMES = {
   // she comes out of the white: from behind him on his right and well out, all of her beside him as she comes
   she_comes: { position: [-6, 14, 4.2], target: [6, 0, 3.4], fov: 50, tall: { position: [-2.4, 9.8, 4.0], target: [6, 0, 3.0], fov: 34 } },
-  // she tilts her head at them: her face and Egill from his right
-  tilt: { position: [0.5, 9.5, 4.6], target: [4.2, 0, 4.0], fov: 46, tall: { position: [1.6, 6.7, 4.4], target: [3.8, 0, 3.6], fov: 34 } },
+  // she tilts her head at them: her face, Mosi and Egill from out on his right, past her side (far enough that Mosi draws at his half
+  // level, engine/character-lod.js: nearer, this shot was over the 250k triangle budget)
+  tilt: { position: [6, 13, 4.6], target: [4.6, 0, 4.0], fov: 48, tall: { position: [6, 13, 4.6], target: [4.6, 0, 3.7], fov: 34 } },
   // she sniffs at Egill: beside them on his right, her snout and Egill's face in profile
-  sniff_close: { position: [0.6, 6.2, 5.0], target: [2.3, 0, 3.8], fov: 46, tall: { position: [1.1, 4.3, 4.6], target: [2.3, 0, 3.4], fov: 34 } },
+  sniff_close: { position: [0.6, 6.2, 5.0], target: [2.3, 0, 3.8], fov: 46, tall: { position: [0.8, 6.0, 4.9], target: [2.3, 0, 3.4], fov: 36 } },
   // Mosi asks her: over his left shoulder, her face down at them
   invite: { position: [-5.5, -4.2, 3.4], target: [6, 0.8, 4.0], fov: 48 },
   // her roar blows the cloud away (and her nod after it): wide from behind him on his left and well out, her whole body and the sky over her
@@ -171,7 +172,7 @@ const CLIMB_FRAMES = {
   climb_side: { position: [30, 13, 2.2], target: [15, 0.5, 3.8], fov: 50, tall: { position: [26.2, 9.9, 2.6], target: [15, 1.2, 3.4], fov: 34 } },
 };
 const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
-const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50, tall: { from: [-11.6, 3.3, 5.4], at: [6, 0.4, 1], fov: 36 } };
+const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50, tall: { from: [-11.6, 3.3, 5.4], at: [6, 1.0, 1], fov: 36 } };
 const ABOVE_FRAME = { from: [18, 1.3, -5], at: [3, -0.4, 1], fov: 50, tall: { from: [13.5, 1.2, -3.2], at: [3, -0.1, 1], fov: 34 } };
 // Egill's "Við erum ofan við skýin!" waits ABOVE_LINE s into above_clouds, until her head and he are up over the brow
 const ABOVE_LINE = 5.2;
