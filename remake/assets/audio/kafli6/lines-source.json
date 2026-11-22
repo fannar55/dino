@@ -1,0 +1,142 @@
+[
+  {
+    "id": "k6_sloedla_follow",
+    "speaker": "sloedla",
+    "text": "Við komum á eftir ykkur. Sjáumst uppi á fjalli!"
+  },
+  {
+    "id": "k6_flugedla_call",
+    "speaker": "flugedla",
+    "text": "Ég kalla á allan skóginn. Flýtið ykkur, sólin er að lækka!"
+  },
+  {
+    "id": "k6_mosi_come",
+    "speaker": "mosi",
+    "text": "Komdu, Egill. Lengsta ferðin bíður."
+  },
+  {
+    "id": "k6_mosi_map",
+    "speaker": "mosi",
+    "text": "Þarna uppi á fjallinu, í skýjunum, býr Grameðla. Og þar er Stjörnuhátíðin haldin, næst stjörnunum."
+  },
+  {
+    "id": "k6_egill_hers",
+    "speaker": "egill",
+    "text": "Á fjallinu hennar?"
+  },
+  {
+    "id": "k6_mosi_why",
+    "speaker": "mosi",
+    "text": "Já. Þess vegna verðum við að bjóða henni!"
+  },
+  {
+    "id": "k6_mosi_river",
+    "speaker": "mosi",
+    "text": "Áin er breið hérna. En sjáðu steinana! Hvaða steinn er næstur, Egill?"
+  },
+  {
+    "id": "k6_mosi_wobble",
+    "speaker": "mosi",
+    "text": "Úps, sá vaggar!"
+  },
+  {
+    "id": "k6_mosi_flat",
+    "speaker": "mosi",
+    "text": "Þessi stóri, flati!"
+  },
+  {
+    "id": "k6_egill_flew",
+    "speaker": "egill",
+    "text": "Þarna flugum við upp með Flugeðlu!"
+  },
+  {
+    "id": "k6_mosi_across",
+    "speaker": "mosi",
+    "text": "Við komumst yfir! Vel valið, Egill."
+  },
+  {
+    "id": "k6_egill_glade",
+    "speaker": "egill",
+    "text": "Sjáðu, Mosi! Þarna er rjóðrið þar sem við hittumst!"
+  },
+  {
+    "id": "k6_mosi_thorsedla",
+    "speaker": "mosi",
+    "text": "Og þarna er Þórseðla. Hún er lögð af stað."
+  },
+  {
+    "id": "k6_mosi_clouds",
+    "speaker": "mosi",
+    "text": "Og þarna uppi… eru skýin."
+  },
+  {
+    "id": "k6_mosi_print",
+    "speaker": "mosi",
+    "text": "Egill… þetta er spor. Ég kemst ofan í það!"
+  },
+  {
+    "id": "k6_egill_huge",
+    "speaker": "egill",
+    "text": "Hún er RISASTÓR!"
+  },
+  {
+    "id": "k6_mosi_six",
+    "speaker": "mosi",
+    "text": "Sex spor. Og hún er sjötti vinurinn!"
+  },
+  {
+    "id": "k6_mosi_end",
+    "speaker": "mosi",
+    "text": "Sporin enda hér. Ég sé ekkert. Ég kalla á hana. Hjálpaðu mér, Egill!"
+  },
+  {
+    "id": "k6_mosi_listen",
+    "speaker": "mosi",
+    "text": "Hlustum aftur!"
+  },
+  {
+    "id": "k6_egill_gramedla",
+    "speaker": "egill",
+    "text": "Grameðla!"
+  },
+  {
+    "id": "k6_egill_hi",
+    "speaker": "egill",
+    "text": "Hæ, Grameðla!"
+  },
+  {
+    "id": "k6_mosi_invite",
+    "speaker": "mosi",
+    "text": "Halló, Grameðla! Stjörnuhátíðin er í kvöld, hér á fjallinu þínu. Viltu halda hana með okkur?"
+  },
+  {
+    "id": "k6_mosi_yes",
+    "speaker": "mosi",
+    "text": "Hún segir já!"
+  },
+  {
+    "id": "k6_mosi_gift",
+    "speaker": "mosi",
+    "text": "Öskrið þitt verður merkið, Grameðla. Þegar þú öskrar kvikna stjörnurnar!"
+  },
+  {
+    "id": "k6_mosi_star",
+    "speaker": "mosi",
+    "text": "Sjötta stjarnan! Nú eru allir komnir!"
+  },
+  {
+    "id": "k6_mosi_wait",
+    "speaker": "mosi",
+    "text": "Bíddu… eftir… mér!"
+  },
+  {
+    "id": "k6_egill_above",
+    "speaker": "egill",
+    "text": "Við erum ofan við skýin!"
+  },
+  {
+    "id": "k6_mosi_room",
+    "speaker": "mosi",
+    "text": "Hér… er nóg pláss… fyrir alla!"
+  }
+]

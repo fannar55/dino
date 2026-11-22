@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Voices the remake's chapters and book with ElevenLabs Eleven v4 (MODEL), the way scripts/generate-narration.mjs voices the game:
-//   node remake/tools/voice-lines.mjs [--set book|eitt|hals|kafli2|...|gramedla3d|flugedla3d|tjorn3d] [--only id,id]   make the lines of assets/audio/<set>/lines-source.json (all, or just these)
+//   node remake/tools/voice-lines.mjs [--set book|eitt|hals|kafli2|...|kafli6|gramedla3d|flugedla3d|tjorn3d] [--only id,id]   make the lines of assets/audio/<set>/lines-source.json (all, or just these)
 //   node remake/tools/voice-lines.mjs --audition kambedla    one sample line per candidate voice, in qa/remake/voices/, to choose from
 //   node remake/tools/voice-lines.mjs --audition egill
 //   node remake/tools/voice-lines.mjs --audition narrator

@@ -580,7 +580,8 @@
       "forms": [
         "Stjörnuhátíð",
         "stjörnuhátíð",
-        "Stjörnuhátíðina"
+        "Stjörnuhátíðina",
+        "Stjörnuhátíðin"
       ],
       "recipes": {
         "hratt": {
@@ -590,7 +591,8 @@
           "say": {
             "Stjörnuhátíð": "\"/ˈstjœrtnʏˌhauːtʰiθ/\"",
             "stjörnuhátíð": "\"/ˈstjœrtnʏˌhauːtʰiθ/\"",
-            "Stjörnuhátíðina": "\"/ˈstjœrtnʏˌhauːtʰiðɪna/\""
+            "Stjörnuhátíðina": "\"/ˈstjœrtnʏˌhauːtʰiðɪna/\"",
+            "Stjörnuhátíðin": "\"/ˈstjœrtnʏˌhauːtʰiðɪn/\""
           },
           "note": "IPA /ˈstjœrtnʏˌhauːtʰiθ/: rn borið fram „rtn“ eins og í „stjarna“ (óheyrt)."
         },
@@ -1990,7 +1992,8 @@
         "hittum",
         "hittast",
         "hittust",
-        "hitta"
+        "hitta",
+        "hittumst"
       ],
       "recipes": {
         "hratt": {
@@ -3295,6 +3298,41 @@
             "styttan": "stittan"
           },
           "note": "Skrifað með i (i og y hljóma eins): Stitturnar. Talgreining heyrði „Stytturnar“ (lína 41 í myndbandinu „Hvernig fundum við risaeðlurnar?“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "risastor": {
+      "word": "risastór",
+      "stem": "[Rr]isastór|RISASTÓR",
+      "forms": [
+        "risastór",
+        "Risastór",
+        "risastórt",
+        "risastórar",
+        "risastórum",
+        "Risastórum",
+        "risastóran",
+        "risastóru",
+        "risastórrar",
+        "RISASTÓR"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað: svona eru línurnar í myndböndum bókarinnar sem þú samþykktir. „Hún er RISASTÓR!“ (Egill, kafli 6) er óheyrð."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "rjodur": {
+      "word": "rjóður",
+      "stem": "[Rr]jóð",
+      "forms": [
+        "rjóðrið"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt): „Sjáðu, Mosi! Þarna er rjóðrið þar sem við hittumst!“ (Egill, kafli 6)."
         }
       },
       "chosen": null
