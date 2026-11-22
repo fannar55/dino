@@ -481,3 +481,109 @@ test('a seat needs its bone, and faces the host\'s way when its bone points stra
   thorsedla.root.updateMatrixWorld(true);
   assert.ok(Math.abs(faces() - 50) < 0.5, `turned 20 degrees aside the seat faces ${faces().toFixed(2)}`);
 });
+
+// Grameðla's head (chapter 6, kafli6-seat.js): Egill astride behind her brow, his seat and soles on her skin with her head down on the
+// ground, standing, and through her stride.
+const trexGltf = loadGlb(new URL('../assets/characters/trex.glb', import.meta.url));
+async function onGrameðla() {
+  const { HEAD_SEAT, createHips, headDownPose } = await import('../chapters/kafli6-seat.js');
+  const { createLean } = await import('../engine/pose/lean.js');
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map(), effects: createEffects() };
+  world.resolvePoint = createPointResolver(world);
+  const her = await createActor(world, { name: 'gramedla', gltf: await trexGltf, position: [0, 0, 0], heading: 30 });
+  const egill = await createActor(world, { name: 'egill', gltf: await egillGltf, position: [6, 0, 3], heading: 0 });
+  world.actors.set('gramedla', her);
+  world.actors.set('egill', egill);
+  const lean = createLean(her);
+  const hips = createHips(her);
+  let laid = null;
+  her.setOverlay(() => { hips.set(laid?.hips ?? 0); lean.set({ theta: laid?.theta ?? 0, pitch: laid?.pitch ?? 0 }); });
+  const frame = (dt = 1 / 30) => { updateActors(world.actors.values(), dt); world.effects.update(dt); };
+  /** Hold her in `pose` (down, up, or stride at a share of its clip) and let him settle there. */
+  const hold = (pose, at = 0) => {
+    laid = null;
+    const action = her.play(pose === 'stride' ? 'stride' : 'idle', { fade: 0, timeScale: 0 });
+    action.time = pose === 'stride' ? at * action.getClip().duration : 0;
+    her.mixer.update(0);
+    if (pose === 'down') laid = headDownPose(her, lean, hips);
+    for (let k = 0; k < 4; k++) frame();
+    her.root.updateMatrixWorld(true);
+    return laid;
+  };
+  let body = null;
+  her.model.traverse(o => { if (o.isSkinnedMesh && (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count)) body = o; });
+  const head = her.model.getObjectByName('Head');
+  const ray = new THREE.Raycaster();
+  /** How far `local` (a point in her Head bone's frame) stands straight over her skin now. */
+  const over = local => {
+    const p = new THREE.Vector3(...local).applyMatrix4(head.matrixWorld);
+    ray.set(p.clone().add(new THREE.Vector3(0, 1, 0)), new THREE.Vector3(0, -1, 0));
+    const hit = ray.intersectObject(body, false)[0];
+    return hit ? p.y - hit.point.y : Infinity;
+  };
+  const refresh = () => { body.skeleton.update(); body.computeBoundingSphere(); };
+  return { world, her, egill, frame, hold, over, refresh, HEAD_SEAT, body, head };
+}
+
+test('the seat is on her skin: his seat 0.01 m over it, his soles 0.125 m, with her head down, standing and at four moments of the stride', async () => {
+  const { her, egill, hold, over, refresh, HEAD_SEAT, body, head } = await onGrameðla();
+  const { skinSurface } = await import('../engine/skin-surface.js');
+  her.root.updateMatrixWorld(true);
+  const skin = skinSurface(body, { around: body.worldToLocal(head.getWorldPosition(new THREE.Vector3())), near: 2.5 });
+  let his = null;
+  egill.model.traverse(o => { if (o.isSkinnedMesh && (!his || o.geometry.attributes.position.count > his.geometry.attributes.position.count)) his = o; });
+  /** How his skin meets hers now: how many of his vertices are inside her and how deep, and the least air under the rest. */
+  const meets = () => {
+    skin.pose();
+    egill.root.updateMatrixWorld(true);
+    his.skeleton.update();
+    const v = new THREE.Vector3();
+    let inside = 0, deepest = 0, air = Infinity;
+    for (let i = 0; i < his.geometry.attributes.position.count; i += 2) {
+      his.getVertexPosition(i, v).applyMatrix4(his.matrixWorld);
+      const d = skin.closest(v).distance;
+      if (d < 0) { inside++; deepest = Math.max(deepest, -d); } else air = Math.min(air, d);
+    }
+    return { inside, deepest, air };
+  };
+  const seat = createSeat(her, HEAD_SEAT);
+  egill.play('sit', { fade: 0 });
+  const riding = ride(egill, seat, { settle: 0 });
+  const poses = [['down'], ['up'], ['stride', 0], ['stride', 0.25], ['stride', 0.5], ['stride', 0.75]];
+  for (const [pose, at] of poses) {
+    hold(pose, at);
+    refresh();
+    const name = pose + (at === undefined ? '' : ` ${at}`);
+    const s = over(HEAD_SEAT.skin.seat);
+    assert.ok(Math.abs(s - 0.01) < 0.02, `${name}: his seat is ${(s * 100).toFixed(1)} cm over her skin`);
+    for (const side of ['left', 'right']) {
+      const a = over(HEAD_SEAT.skin.ankles[side]);
+      assert.ok(Math.abs(a - 0.125) < 0.03, `${name}: his ${side} sole is ${(a * 100).toFixed(1)} cm over her skin`);
+    }
+    // none of him is in her, and the lowest of him (his seat, his soles) is on her, not over her
+    const meet = meets();
+    assert.ok(meet.deepest < 0.02, `${name}: ${meet.inside} of his vertices are in her skin, ${(meet.deepest * 100).toFixed(1)} cm at most`);
+    assert.ok(meet.air < 0.03, `${name}: the lowest of him is ${(meet.air * 100).toFixed(1)} cm over her skin`);
+    // he rides it: his root where the seat is, upright, facing her way
+    assert.ok(egill.root.position.distanceTo(seat.update()) < 0.01, `${name}: he is on the seat`);
+    assert.ok(Math.abs(((egill.heading - her.heading + 540) % 360) - 180) < 2, `${name}: he faces her way`);
+  }
+  riding.stop();
+});
+
+test('with her head down the seat is under 2.4 m over the ground and her feet have not moved', async () => {
+  const { her, hold, refresh, HEAD_SEAT, head } = await onGrameðla();
+  const feet = () => ['LeftFoot', 'RightFoot'].map(n => her.model.getObjectByName(n).getWorldPosition(new THREE.Vector3()));
+  hold('up');
+  const before = feet();
+  const down = hold('down');
+  refresh();
+  const after = feet();
+  for (const k of [0, 1]) assert.ok(before[k].distanceTo(after[k]) < 0.01, `her foot moved ${(before[k].distanceTo(after[k]) * 100).toFixed(1)} cm`);
+  assert.ok(Math.abs(down.snout - 0.2) < 0.02, `her jaw's underside is ${down.snout.toFixed(2)} m over the ground`);
+  assert.ok(down.low > 0.18, `nothing of her head is under the ground (lowest ${down.low.toFixed(2)} m)`);
+  assert.ok(down.hips <= THREE.MathUtils.degToRad(25) + 1e-6, `her hips pitch ${THREE.MathUtils.radToDeg(down.hips).toFixed(1)} degrees`);
+  const seatY = new THREE.Vector3(...HEAD_SEAT.skin.seat).applyMatrix4(head.matrixWorld).y - 0.32;
+  assert.ok(seatY < 2.4, `the seat (his root) is ${seatY.toFixed(2)} m over the ground`);
+});
