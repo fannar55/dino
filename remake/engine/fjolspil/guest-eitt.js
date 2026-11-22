@@ -82,6 +82,7 @@ const FAN_MAX = 8; // the backs a seat's fan shows at most; its number says how 
 const PILE_KEEP = 3; // the cards the pile shows, the top one last
 const CUE_MS = 2500; // her card of "Þú átt leik!" stays this long, or until her first touch
 const CUE_FADE_MS = 220; // and fades out this long
+const UNLOCK_MS = 5000; // safety unlock if a sent act never receives a fresh view
 const BUZZ = [60, 40, 60]; // ms of buzz, quiet, buzz: where the phone has a motor
 
 const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -99,6 +100,10 @@ export function renderEitt(root, view, { send, doc = root.ownerDocument, audio =
   at.audio = audio;
   shown = at;
   update(at, view && typeof view === 'object' ? view : {});
+  return () => {
+    clearUnlock(at);
+    endCue(at, { quick: true });
+  };
 }
 
 function build(root, doc) {
@@ -170,6 +175,7 @@ function build(root, doc) {
     send: null, audio: null,
     view: null, // the view shown
     sent: false, // an act is on its way to the big screen: nothing more until the next view
+    unlockTimer: 0,
     choosing: null, // the wild whose colour is being picked
     cards: new Map(), // card id -> its button in the hand
     seats: new Map(), // seat -> its fan at the top
@@ -212,12 +218,32 @@ function play(at, name) {
   }
 }
 
+function clearUnlock(at) {
+  if (at.unlockTimer) { clearTimeout(at.unlockTimer); at.unlockTimer = 0; }
+}
+
+function unlock(at) {
+  clearUnlock(at);
+  at.sent = false;
+  at.deckEl.classList.toggle('draw', at.view?.canDraw === true);
+  for (const el of at.cards.values()) el.classList.remove('going');
+}
+
 /** An act to the big screen, one for each view: what came of it is the next view. False when one is on its way already. */
 function act(at, body) {
   if (at.sent || !at.view) return false;
+  const view = at.view;
   at.sent = true;
   at.deckEl.classList.remove('draw');
-  at.send?.(body);
+  if (at.send?.(body) === false) {
+    if (at.view === view) unlock(at);
+    return false;
+  }
+  if (at.view === view && at.sent) {
+    clearUnlock(at);
+    at.unlockTimer = setTimeout(() => { at.unlockTimer = 0; if (at.view === view) unlock(at); }, UNLOCK_MS);
+    at.unlockTimer?.unref?.();
+  }
   return true;
 }
 
@@ -345,6 +371,7 @@ function endCue(at, { quick = false } = {}) {
 }
 
 function update(at, view) {
+  clearUnlock(at);
   const prev = at.view;
   at.view = view;
   at.sent = false;

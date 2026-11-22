@@ -77,7 +77,9 @@ const LEAVE_LOW = 1.2;
 const LEAVE_MARGIN = 0.15;
 export const leftOut = []; // what it took, for the notes and the probe (world.dans.state.leftOut)
 // ?skog=heill grows the place whole (for before/after pictures of what the leave-out takes)
-const WHOLE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('skog') === 'heill';
+const PARAMS = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+const WHOLE = PARAMS.get('skog') === 'heill';
+const PROBE = PARAMS.get('probe') === '1';
 export function leaveOut(info, placement) {
   if (WHOLE || !WALK || !placement?.model || info.height < LEAVE_LOW) return false;
   const reach = 14 + info.radius; // her root to her nose or tail tip is under 13 m
@@ -123,6 +125,7 @@ const KC = track([[30, 0.12, 0, 1.45], [33.5, 0.14, 0, 1.3], [36.5, 0.14, 0, 0.8
 // and (round 5) how far up it turns and how much smaller: once Þórseðla has come (her neck from k 0.6 to 1.25 and her chest at 1.35,
 // right of the middle) the ring goes back behind the screen small and high, between Mosi's frill and her back, behind her neck
 const RING = track([[30, 0, 0, 0], [41, 0, 0, 0], [43, -0.2, 0.45, 0], [44.5, -0.23, 0.45, 0], [50, -0.23, 0.45, 0]]);
+const MOTH_KC = [0, 0, 0], MOTH_RING = [0, 0, 0];
 /** A moth's (u, v, k) at show time t: its keys with a lively loop on top, and during the swarm a ring round its edge. */
 function mothAt(m, t, out = []) {
   m.track ??= track(m.keys);
@@ -134,8 +137,8 @@ function mothAt(m, t, out = []) {
   const w = smooth((t - m.ringFrom) / 2) * (1 - smooth((t - m.ringTo) / 2));
   if (w > 0) {
     const turn = m.ring + (2 * Math.PI * (t - 30)) / 8;
-    const [du, , kc] = KC(t, []);
-    const [dv, shrink] = RING(t, []);
+    const [du, , kc] = KC(t, MOTH_KC);
+    const [dv, shrink] = RING(t, MOTH_RING);
     out[0] = lerp(out[0], 0.53 + du + 0.2 * (1 - shrink) * Math.cos(turn), w); // round 5: 0.3 wide, which took them into Mosi and her
     out[1] = lerp(out[1], 0.47 + dv + 0.2 * (1 - shrink) * Math.sin(turn), w);
     out[2] = lerp(out[2], Math.max(0.55, kc + 0.05), w);
@@ -343,7 +346,7 @@ export const chapter = {
       cost.ms += performance.now() - t0;
     }
     updateShells();
-    world.effects.add({ label: 'dans shells', update() { updateShells(); if (state.showing) flownCheck(); return true; } });
+    world.effects.add({ label: 'dans shells', update() { updateShells(); if (PROBE && state.showing) flownCheck(); return true; } });
     /** A butterfly drawn at `p` (moved in place): out of every animal by `margin`, `weight` (0..1) of the way; `name` keeps where it was drawn (state.drawn, for the probe). */
     function keepOut(p, margin, weight = 1, name = null) {
       if (name) state.drawn[name] = [p.x, p.y, p.z];
@@ -409,20 +412,21 @@ export const chapter = {
         gler?.setPlane(D0, { jump: true });
         camera.updateMatrixWorld();
         state.time = tau();
-        if (state.walking) walkProbe();
+        if (PROBE && state.walking) walkProbe();
         yield;
       }
     }
     s.after(0, () => keepPlane());
 
     const uvk2 = [];
+    const walkBone = new THREE.Vector3();
     // While she walks: the nearest of her bones in the frame, and the nearest of those at or past a frame edge while some of her is in it.
     function walkProbe() {
       let near = Infinity, edge = Infinity, inside = false;
       const seen = [];
       thor.model.traverse(o => {
         if (!o.isBone) return;
-        const f = frameOf(o.getWorldPosition(new THREE.Vector3()));
+        const f = frameOf(o.getWorldPosition(walkBone));
         if (f[2] > 0) seen.push(f);
       });
       for (const [u, vv, k] of seen) {
@@ -467,7 +471,10 @@ export const chapter = {
       yield* show();
       // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
       let again = false;
-      const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => leaveShow(window) });
+      const { element: end } = endCard(document, {
+        onAgain: () => { again = true; },
+        onQuit: () => { s.sfx('forest', { level: 0 }); world.music?.setLevel?.(0, 0); leaveShow(window); },
+      });
       document.body.append(end);
       try {
         yield s.until(() => again);
@@ -483,103 +490,107 @@ export const chapter = {
       state.flown = {};
       state.heroContact = false;
       const handles = [];
-      // reset: Þórseðla upright, the moth far off in the forest, the swarm hidden
-      thorStart();
-      state.walking = false;
-      for (const m of MOTHS) {
-        const at = [];
-        butterflies?.follow(m.name, out => { mothAt(m, tau(), at); return keepOut(framePoint(at[0], at[1], at[2], out), heroWing() + SAFE, 1, m.name); }, { snap: true });
+      let swarmRun = null;
+      try {
+        // reset: Þórseðla upright, the moth far off in the forest, the swarm hidden
+        thorStart();
+        state.walking = false;
+        for (const m of MOTHS) {
+          const at = [];
+          butterflies?.follow(m.name, out => { mothAt(m, tau(), at); return keepOut(framePoint(at[0], at[1], at[2], out), heroWing() + SAFE, 1, m.name); }, { snap: true });
+        }
+        const walkAt = ARRIVE - thorLength / THOR_SPEED;
+        state.walkAt = +walkAt.toFixed(2);
+        handles.push(s.after(walkAt, () => walkIn()));
+        for (let i = 0; i < SWARM; i++) swarm.set(i, v.set(0, -50, 0), 0, 0);
+        const heroKeys = track([
+          [0, 0.7, 0.36, 3.4], [6, 0.68, 0.38, 3.0, 'rest'],
+          [9.5, 0.56, 0.38, 1.15], // past Mosi's horn (round 5: just right of his frill, 0.47 went through his head)
+          [12, 0.5, 0.46, 0.7], [14.5, 0.5, 0.47, 0.48, 'rest'], // slowly out of the screen to the middle
+        ]);
+        const uvk = [];
+        const hover = t => { const e = smooth((t - 14) / 0.8) * (1 - smooth((t - 17.2) / 0.6)); return [0.02 * Math.sin(2.2 * (t - 14)) * e, 0.012 * Math.sin(4.4 * (t - 14)) * e]; };
+        const heroPath = out => {
+          const t = tau();
+          heroKeys(t, uvk);
+          const [du, dv] = hover(t);
+          return keepOut(framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out), heroWing() + SAFE, 1, 'hero');
+        };
+        butterflies?.follow(HERO, heroPath, { snap: true }); // round 5: on its path at once, under the opening black (not eased in from its loop, through Mosi)
+        state.hero = () => butterflies?.hero?.group.getWorldPosition(new THREE.Vector3());
+
+        // the motes: pale specks at many depths, in front of the screen only within the middle of the frame
+        const motes = moteCloud();
+        handles.push(motes);
+
+        yield s.fade(1, 0);
+        handles.push(s.after(0.2, () => s.fade(0, 2.5)));
+        handles.push(s.after(0.8, () => s.say('mosi', 'k1_mosi_hum', { hold: 0 })));
+        yield s.until(() => tau() >= 6);
+
+        // 6-18: the moth comes out
+        s.sfx('butterfly');
+        yield s.until(() => tau() >= 14);
+        s.sfx('star');
+        handles.push(sparkleTrail(world, () => butterflies.hero.group.getWorldPosition(new THREE.Vector3()), { duration: 3.4, count: 46, life: 0.9, colour: '#fff0b8', size: 0.07, seed: 'dans trail' }));
+        yield s.until(() => tau() >= 17.4);
+        // back in, onto his horn
+        butterflies?.land(horn, { name: HERO, duration: 3.2 });
+        state.heroContact = true; // meant contact: onto the horn, sitting there, and the first second of being blown off it
+        state.drawn.hero = null; // the landing is the butterflies' own flight, not a drawn one
+        yield s.until(() => tau() >= 21.2);
+
+        // 18-30: tickle, sneeze, the pollen blows out at the viewer and the moth is blown off
+        yield s.say('mosi', 'k1_mosi_tickle', { hold: 0.2 });
+        const atsju = atsjuOf(s.lineMouth('k1_mosi_sneeze'));
+        handles.push(s.after(atsju, () => {
+          const from = sneezeAt(new THREE.Vector3());
+          const to = framePoint(0.47, 0.5, 0.4, new THREE.Vector3());
+          state.pollen = { from: from.clone(), to: to.clone() };
+          s.sfx('blow');
+          blowOff();
+          return pollenBurst(world, from, { count: 46, duration: 2.6, size: 0.16, spread: from.distanceTo(to), direction: to.clone().sub(from), cone: 0.14, colour: '#e9e27a', seed: 'dans pollen' });
+        }));
+        yield s.say('mosi', 'k1_mosi_sneeze', { hold: 0.2 });
+        yield s.until(() => tau() >= 29.5);
+
+        // 30-45: the swarm rises from the grass and dances
+        s.sfx('butterfly');
+        swarmRun = dance();
+        handles.push(s.after(Math.max(0, 36 - tau()), () => { mosi.lookAt('thorsedla.head', { weight: 0.45 }); return s.wait(0); })); // he glances at her as she comes
+        handles.push(s.after(Math.max(0, 43.8 - tau()), () => { mosi.lookAt('camera', { weight: 0.6 }); return s.wait(0); }));
+        yield s.until(() => tau() >= 45);
+
+        // 45-55: Þórseðla's head comes down through them and out
+        s.sfx('float');
+        const lower = thor.play('lowerHead', { fade: 0.6 });
+        const down = thorClip.duration * thorAt;
+        yield s.until(() => tau() >= 45 + down);
+        lower.setEffectiveTimeScale(0);
+        state.thorHeld = tau();
+        yield s.until(() => tau() >= 53.2);
+        lower.setEffectiveTimeScale(-1); // and back up the way it came
+        state.thorUp = tau();
+
+        // 55-60: the butterflies drift away; the moth comes to the exact middle at the screen plane and settles
+        yield s.until(() => tau() >= 55.2);
+        const centre = out => framePoint(0.5, 0.5, 1, out);
+        butterflies?.land(centre, { name: HERO, duration: 3.4 });
+        state.drawn.hero = null;
+        yield s.until(() => tau() >= 53.2 + down);
+        thor.play('idle', { fade: 0.5 });
+        yield s.until(() => tau() >= 57);
+        s.sun.wave();
+        yield s.until(() => tau() >= 58.8);
+        s.sfx('star');
+        sparkleBurst(world, centre(new THREE.Vector3()), { count: 18, duration: 1.2, size: 0.12, spread: 0.35, colour: '#fff3c0', seed: 'dans end' });
+        yield s.until(() => tau() >= LENGTH - 0.6);
+        yield s.fade(1, 1.2);
+      } finally {
+        swarmRun?.cancel?.();
+        for (const h of handles) h?.cancel?.();
+        state.showing = false;
       }
-      const walkAt = ARRIVE - thorLength / THOR_SPEED;
-      state.walkAt = +walkAt.toFixed(2);
-      handles.push(s.after(walkAt, () => walkIn()));
-      for (let i = 0; i < SWARM; i++) swarm.set(i, v.set(0, -50, 0), 0, 0);
-      const heroKeys = track([
-        [0, 0.7, 0.36, 3.4], [6, 0.68, 0.38, 3.0, 'rest'],
-        [9.5, 0.56, 0.38, 1.15], // past Mosi's horn (round 5: just right of his frill, 0.47 went through his head)
-        [12, 0.5, 0.46, 0.7], [14.5, 0.5, 0.47, 0.48, 'rest'], // slowly out of the screen to the middle
-      ]);
-      const uvk = [];
-      const hover = t => { const e = smooth((t - 14) / 0.8) * (1 - smooth((t - 17.2) / 0.6)); return [0.02 * Math.sin(2.2 * (t - 14)) * e, 0.012 * Math.sin(4.4 * (t - 14)) * e]; };
-      const heroPath = out => {
-        const t = tau();
-        heroKeys(t, uvk);
-        const [du, dv] = hover(t);
-        return keepOut(framePoint(uvk[0] + du, uvk[1] + dv, uvk[2], out), heroWing() + SAFE, 1, 'hero');
-      };
-      butterflies?.follow(HERO, heroPath, { snap: true }); // round 5: on its path at once, under the opening black (not eased in from its loop, through Mosi)
-      state.hero = () => butterflies?.hero?.group.getWorldPosition(new THREE.Vector3());
-
-      // the motes: pale specks at many depths, in front of the screen only within the middle of the frame
-      const motes = moteCloud();
-      handles.push(motes);
-
-      yield s.fade(1, 0);
-      s.after(0.2, () => s.fade(0, 2.5));
-      s.after(0.8, () => s.say('mosi', 'k1_mosi_hum', { hold: 0 }));
-      yield s.until(() => tau() >= 6);
-
-      // 6-18: the moth comes out
-      s.sfx('butterfly');
-      yield s.until(() => tau() >= 14);
-      s.sfx('star');
-      handles.push(sparkleTrail(world, () => butterflies.hero.group.getWorldPosition(new THREE.Vector3()), { duration: 3.4, count: 46, life: 0.9, colour: '#fff0b8', size: 0.07, seed: 'dans trail' }));
-      yield s.until(() => tau() >= 17.4);
-      // back in, onto his horn
-      butterflies?.land(horn, { name: HERO, duration: 3.2 });
-      state.heroContact = true; // meant contact: onto the horn, sitting there, and the first second of being blown off it
-      state.drawn.hero = null; // the landing is the butterflies' own flight, not a drawn one
-      yield s.until(() => tau() >= 21.2);
-
-      // 18-30: tickle, sneeze, the pollen blows out at the viewer and the moth is blown off
-      yield s.say('mosi', 'k1_mosi_tickle', { hold: 0.2 });
-      const atsju = atsjuOf(s.lineMouth('k1_mosi_sneeze'));
-      s.after(atsju, () => {
-        const from = sneezeAt(new THREE.Vector3());
-        const to = framePoint(0.47, 0.5, 0.4, new THREE.Vector3());
-        state.pollen = { from: from.clone(), to: to.clone() };
-        s.sfx('blow');
-        blowOff();
-        return pollenBurst(world, from, { count: 46, duration: 2.6, size: 0.16, spread: from.distanceTo(to), direction: to.clone().sub(from), cone: 0.14, colour: '#e9e27a', seed: 'dans pollen' });
-      });
-      yield s.say('mosi', 'k1_mosi_sneeze', { hold: 0.2 });
-      yield s.until(() => tau() >= 29.5);
-
-      // 30-45: the swarm rises from the grass and dances
-      s.sfx('butterfly');
-      const swarmRun = dance();
-      s.after(Math.max(0, 36 - tau()), () => { mosi.lookAt('thorsedla.head', { weight: 0.45 }); return s.wait(0); }); // he glances at her as she comes
-      s.after(Math.max(0, 43.8 - tau()), () => { mosi.lookAt('camera', { weight: 0.6 }); return s.wait(0); });
-      yield s.until(() => tau() >= 45);
-
-      // 45-55: Þórseðla's head comes down through them and out
-      s.sfx('float');
-      const lower = thor.play('lowerHead', { fade: 0.6 });
-      const down = thorClip.duration * thorAt;
-      yield s.until(() => tau() >= 45 + down);
-      lower.setEffectiveTimeScale(0);
-      state.thorHeld = tau();
-      yield s.until(() => tau() >= 53.2);
-      lower.setEffectiveTimeScale(-1); // and back up the way it came
-      state.thorUp = tau();
-
-      // 55-60: the butterflies drift away; the moth comes to the exact middle at the screen plane and settles
-      yield s.until(() => tau() >= 55.2);
-      const centre = out => framePoint(0.5, 0.5, 1, out);
-      butterflies?.land(centre, { name: HERO, duration: 3.4 });
-      state.drawn.hero = null;
-      yield s.until(() => tau() >= 53.2 + down);
-      thor.play('idle', { fade: 0.5 });
-      yield s.until(() => tau() >= 57);
-      s.sun.wave();
-      yield s.until(() => tau() >= 58.8);
-      s.sfx('star');
-      sparkleBurst(world, centre(new THREE.Vector3()), { count: 18, duration: 1.2, size: 0.12, spread: 0.35, colour: '#fff3c0', seed: 'dans end' });
-      yield s.until(() => tau() >= LENGTH - 0.6);
-      yield s.fade(1, 1.2);
-      swarmRun.cancel?.();
-      for (const h of handles) h?.cancel?.();
-      state.showing = false;
     }
 
     // Þórseðla walks in from the forest to her spot and turns the last degrees to her heading, her footfalls heard all the way.

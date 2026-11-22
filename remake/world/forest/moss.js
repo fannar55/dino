@@ -18,6 +18,7 @@ import { patchLambert, WIND_GLSL, LIGHT_GLOBALS } from './materials.js';
 const SEGMENTS = 3; // rows down a card
 const FAR_SEGMENTS = 1; // of a tree only ever its card (placement.cardOnly): 50 m off and more, a strand's swing is a pixel or two
 const SWAY = FOREST.wind.swayScale;
+const INV_N = 1 / Math.hypot(1, 0.35);
 
 /** A drawn texture of hanging strands: ragged at the foot, a little lighter toward the tips (alpha in A). */
 function strandTexture(seed) {
@@ -84,7 +85,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
       for (const turn of [0, Math.PI / 2]) {
         const yaw = st.yaw + p.rot + turn;
         const dx = Math.cos(yaw) * width * 0.5, dz = Math.sin(yaw) * width * 0.5;
-        const n = [-Math.sin(yaw), 0.35, Math.cos(yaw)];
+        const n = [-Math.sin(yaw) * INV_N, 0.35 * INV_N, Math.cos(yaw) * INV_N];
         const first = pos.length / 3;
         for (let r = 0; r <= rows; r++) {
           const v = r / rows;
@@ -152,7 +153,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'Hanging moss';
   mesh.renderOrder = 3;
-  mesh.userData = { kind: 'moss', cull: { master, ranges, signature: -1, submitted: idx.length / 3, geometry }, hidden: false };
+  mesh.userData = { kind: 'moss', cull: { master, ranges, crownRanges: [], kept: [], signature: -1, submitted: idx.length / 3, geometry }, hidden: false };
   return {
     mesh, cards, triangles: idx.length / 3,
     dispose() { geometry.dispose(); material.dispose(); map.dispose(); },

@@ -74,9 +74,11 @@ function headingAt(route, t) {
  */
 function standAlong(a, b, t0, t1, above, groundAt) {
   const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const span = t1 - t0;
-  const speed = length / (span - EASE);
-  const gone = k => (k < EASE ? (speed * k * k) / (2 * EASE) : k > span - EASE ? length - (speed * (span - k) ** 2) / (2 * EASE) : speed * (k - EASE / 2));
+  const span = Math.max(0, t1 - t0);
+  const ease = Math.min(EASE, span / 2);
+  const denom = span - ease;
+  const speed = denom > 1e-6 ? length / denom : 0;
+  const gone = k => (ease <= 0 ? (span > 0 ? (length * k) / span : length) : k < ease ? (speed * k * k) / (2 * ease) : k > span - ease ? length - (speed * (span - k) ** 2) / (2 * ease) : speed * (k - ease / 2));
   return {
     speed,
     at(t, out = new V3()) {
@@ -184,7 +186,8 @@ const FIXED = {
     if (!ease) return { ...made, middle, group: null, look: target => target.copy(last) };
     const first = middle.clone().add(new V3(0, -drop, 0));
     const [from, to] = ease;
-    return { ...made, middle, group: null, look: target => target.copy(first).lerp(last, smooth(((c.flier.t ?? 0) - from) / (to - from))) };
+    const span = to - from;
+    return { ...made, middle, group: null, look: target => target.copy(first).lerp(last, span > 0 ? smooth(((c.flier.t ?? 0) - from) / span) : 1) };
   },
   // E: out over the plunge pool beside the cliff (inside the bowl's walls), the climb seen from the side, 21 m from it; under the
   // chapter's sun (earlyAfternoon, 215/22, over the cliff) it looks toward the sun through the spray
@@ -204,7 +207,7 @@ const FIXED = {
     const right = new V3(-Math.sin(h), 0, Math.cos(h));
     return {
       position: her.clone().addScaledVector(f, -30).addScaledVector(right, 12).add(new V3(0, 7, 0)), fov: 55,
-      look: out => out.copy(c.flier.pose.position).add(new V3(0, 4, 0)),
+      look: out => { out.copy(c.flier.pose.position); out.y += 4; return out; },
     };
   },
 };
@@ -268,6 +271,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   let fixed = null; // { position, fov, look, track: the run-along's moving stand or null }
   let bound = null;
   let orbitAt = 0;
+  const orbitOffset = [0, 0, 0];
 
   const warn = message => director.warnings.push({ time: Number(director.time.toFixed(2)), message: `flight: ${message}` });
   const once = (key, message) => { if (!state.broken.has(key)) { state.broken.add(key); warn(message); } };
@@ -296,6 +300,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
   }
 
   function step(rig, dt) {
+    if (!bound && !fixed) return;
     frame();
     const base = bound?.fov ?? fixed?.fov ?? rig.fov;
     // the chase a little wider the faster she goes, easing at the lens's own pace (at once on a cut: a new shot's lens)
@@ -307,7 +312,10 @@ export function createFlightCamera(director, flier, { world = null, egill = null
       if (bound.radius) {
         orbitAt += dt;
         const a = rad(bound.from + (bound.to - bound.from) * inOut(orbitAt / bound.seconds));
-        offset = [Math.cos(a) * bound.radius, bound.height, Math.sin(a) * bound.radius];
+        orbitOffset[0] = Math.cos(a) * bound.radius;
+        orbitOffset[1] = bound.height;
+        orbitOffset[2] = Math.sin(a) * bound.radius;
+        offset = orbitOffset;
       } else offset = bound.offset;
       originOf(bound.origin, origin);
       rig.position.copy(origin).add(inFrame(offset, relative));
@@ -377,7 +385,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     if (reduced && name === 'orbit') {
       chosen = 'vista'; // reduced motion: no circling (Review Focus 5)
       // the circle's last part: the same still vista as the whole circle's, where it would have stood (a shot cut into it)
-      if (seconds !== null) options.at = (flier.t ?? 0) - (BOUND.orbit.seconds - clamp(seconds, 0, BOUND.orbit.seconds));
+      if (seconds !== null) options.at = Math.max(0, (flier.t ?? 0) - (BOUND.orbit.seconds - clamp(seconds, 0, BOUND.orbit.seconds)));
     }
     state.name = name;
     state.started = director.time;
@@ -403,7 +411,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
       const track = made.track && !reduced ? made.track : null;
       const position = made.track && reduced ? made.track.at(made.track.middle) : made.position.clone();
       const ahead = made.ahead ?? null;
-      const lookAt = look ?? made.look ?? (ahead ? out => out.copy(fixed.position).add(ahead) : out => out.copy(flier.pose.position).add(new V3(0, 0.6, 0)));
+      const lookAt = look ?? made.look ?? (ahead ? out => out.copy(fixed.position).add(ahead) : out => { out.copy(flier.pose.position); out.y += 0.6; return out; });
       fixed = { position, fov: made.fov, look: lookAt, track, tall };
     }
     const handle = director.drive(`flight ${name}`, step);
@@ -429,7 +437,7 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     },
     /** One frame without the director (a test); the director calls the same step each frame while a flight shot is its mode. */
     update(dt) { step(director.rig, dt); director.apply(); },
-    /** The flight is over: the last shot's length is checked. */
-    stop() { endShot(); state.name = null; bound = null; fixed = null; },
+    /** The flight is over: the last shot's length is checked and the director stops driving it. */
+    stop() { endShot(); state.name = null; state.fast = 0; bound = null; fixed = null; director.stop(); },
   };
 }

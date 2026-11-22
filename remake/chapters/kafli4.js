@@ -45,6 +45,7 @@ import { createFlierSaddle } from '../engine/flier-saddle.js';
 import { createFlightCamera, stillViews } from '../engine/camera/flight-camera.js';
 import { groveAt, seeded } from '../world/ardalur/banks.js';
 import { createFlightSounds, loadFlightRecordings } from '../engine/audio/flight-sounds.js';
+import { preloadSamples } from '../engine/audio/sfx.js';
 import { createSaddle, ride, floatTo, floatDown, SIT_DEPTH } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
@@ -241,26 +242,29 @@ function* goodbyeAtThePool(s, c) {
   thorsedlaLife(s, c); // she nods and bites her conifer as in chapter 3
   s.target('thorsedla', { point: 'thorsedla', radius: 2.6 });
   const unhear = s.onTap('thorsedla', () => { c.bye ??= s.after(0, () => goodbye(s, c, 'tap')); });
-  yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxPitch: 35 });
-  yield egill.lookAt(MOSI_HEAD, { weight: 0.6, maxPitch: 30 });
-  yield* say(s, c, 'mosi', 'k4_mosi_next');
-  yield* say(s, c, 'egill', 'k4_egill_fly');
-  yield* say(s, c, 'mosi', 'k4_mosi_higher');
-  // The map slides up over the game and draws piece d, from her pool to Flugeðla's circle, while Mosi says where they are going.
-  yield* mapMoment(s, c, { pieces: ['d'], line: 'k4_mosi_map_tree', speak: (speaker, id) => say(s, c, speaker, id) });
-  // Her head comes down to them: goodbye. A goodbye from a tap still going ends first.
-  if (c.bye) yield c.bye;
-  yield s.camera.cut('fen_farewell');
-  yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
-  yield egill.lookAt(HER_HEAD, { weight: 0.9, maxPitch: 50 });
-  c.bye = s.after(0, () => goodbye(s, c, 'leaving'));
-  // Egill says goodbye as her head comes down, and she answers (the juice review)
-  yield s.wait(0.6);
-  yield* say(s, c, 'egill', 'k4_egill_bye');
-  yield* say(s, c, 'thorsedla', 'k4_thorsedla_bye');
-  yield c.bye;
-  unhear();
-  s.target('thorsedla', null);
+  try {
+    yield mosi.lookAt(EGILL_HEAD, { weight: 0.6, maxPitch: 35 });
+    yield egill.lookAt(MOSI_HEAD, { weight: 0.6, maxPitch: 30 });
+    yield* say(s, c, 'mosi', 'k4_mosi_next');
+    yield* say(s, c, 'egill', 'k4_egill_fly');
+    yield* say(s, c, 'mosi', 'k4_mosi_higher');
+    // The map slides up over the game and draws piece d, from her pool to Flugeðla's circle, while Mosi says where they are going.
+    yield* mapMoment(s, c, { pieces: ['d'], line: 'k4_mosi_map_tree', speak: (speaker, id) => say(s, c, speaker, id) });
+    // Her head comes down to them: goodbye. A goodbye from a tap still going ends first.
+    if (c.bye) yield c.bye;
+    yield s.camera.cut('fen_farewell');
+    yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
+    yield egill.lookAt(HER_HEAD, { weight: 0.9, maxPitch: 50 });
+    c.bye = s.after(0, () => goodbye(s, c, 'leaving'));
+    // Egill says goodbye as her head comes down, and she answers (the juice review)
+    yield s.wait(0.6);
+    yield* say(s, c, 'egill', 'k4_egill_bye');
+    yield* say(s, c, 'thorsedla', 'k4_thorsedla_bye');
+    yield c.bye;
+  } finally {
+    unhear();
+    s.target('thorsedla', null);
+  }
   // and they go, north out of the Fen toward the white snag, while the picture fades to it
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
@@ -454,7 +458,7 @@ function* upAndAway(s, c) {
   const flier = (c.flier = createFlier(flugedla.raw, ROUTE, { world, reduced: c.reduced }));
   flier.update(0);
   const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced: c.reduced });
-  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, song: c.song, reduced: c.reduced, flight: null };
+  const f = { s, world, flugedla, egill, mosi, route: ROUTE, flier, riding: c.riding, camera, sounds: c.sounds, song: c.song, lines: c.lines, reduced: c.reduced, flight: null };
   f.beds = true; // the forest's bed from C, the Fen's again at the far pool (the review flight has none)
   f.say = c.lines.say;
   Object.defineProperty(f, 'speaking', { get: () => c.lines.speaking });
@@ -782,12 +786,27 @@ const ROUTE = createRoute({ wingspan: 7.5 }); // the flight's way through Árdal
  * there is the valley's snag. The valley leaves out those in her way or in a still shot's view (stats.left) and grows no tree of
  * its own among them.
  */
+let layoutWorld = null;
+const whiteTreesCache = new Map();
+function qualityKey(q) {
+  if (q === PRESETS.low) return 'low';
+  if (q === PRESETS.tablet) return 'tablet';
+  if (q === PRESETS.high) return 'high';
+  return JSON.stringify(q);
+}
+
 export function whiteTreesFor(world) {
   const place = chapter.locations.hvitatre;
-  const seed = place.layout.seed >>> 0;
+  const lush = lushValley(world ?? {});
+  const q = world?.q ?? PRESETS.tablet;
+  const key = `${lush ? 'lush' : 'plain'}:${qualityKey(q)}`;
+  const hit = whiteTreesCache.get(key);
+  if (hit) return { trees: hit.trees.slice(), treeless: hit.treeless.slice() };
+  const baseLayout = hvitatreLayout(lush);
+  const seed = baseLayout.seed >>> 0;
   const of = { chapter };
-  const { layout, terrain } = shapeGround(of, { ...place.layout, shots: place.shots }, seed);
-  const plan = planForest({ world: of, layout, seed, terrain, library: createSpeciesLibrary(seed), q: world.q ?? PRESETS.tablet }); // (a test's world has no quality: the tablet's, as its forests)
+  const { layout, terrain } = shapeGround(of, { ...baseLayout, shots: place.shots }, seed);
+  const plan = planForest({ world: of, layout, seed, terrain, library: createSpeciesLibrary(seed), q }); // (a test's world has no quality: the tablet's, as its forests)
   const snag = plan.placements.find(p => p.name === 'deadSnag' && Math.hypot(p.x - SNAG[0], p.z - SNAG[1]) < 1.5);
   const [tx, tz] = placementInfo(snag).tip ?? [snag.x, snag.z];
   const [sx, , sz] = ROUTE.tree;
@@ -798,7 +817,9 @@ export function whiteTreesFor(world) {
     return { name: p.name, variant: p.variant, x: p.x - tx + sx, z: p.z - tz + sz, rot: p.rot, scale: p.scale, models, phase: p.phase, sky: p.sky };
   });
   const reach = Math.max(...trees.map(t => Math.hypot(t.x - sx, t.z - sz)));
-  return { trees, treeless: [{ x: sx, z: sz, r: reach + 0.01 }] };
+  const result = { trees, treeless: [{ x: sx, z: sz, r: reach + 0.01 }] };
+  whiteTreesCache.set(key, result);
+  return { trees: result.trees.slice(), treeless: result.treeless.slice() };
 }
 
 /**
@@ -918,7 +939,7 @@ export const chapter = {
     // and this chapter's sun stands elsewhere (world/forest/plan.js: plantedFor)
     fen: { layout: { ...FEN.layout, plantedFor: kafli3.look }, shots: { ...FEN.shots, ...FEN_SHOTS }, warmUp: FEN_WARM },
     // with the lush valley the take-off's forest round it too (hvitatreLayout), ?skogur=0 the patch as it was
-    hvitatre: { get layout() { return hvitatreLayout(lushValley({})); }, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind', 'tre_above'] },
+    hvitatre: { get layout() { return hvitatreLayout(lushValley(layoutWorld ?? {})); }, shots: TREE_SHOTS, warmUp: ['tre_arrive', 'tre_ground', 'tre_wind', 'tre_above'] },
     // the flight's valley in its real look; its shots are the flight camera's (engine/camera/flight-camera.js), and the far pool's for
     // scene 7 (kafli4-route.js: FAR_POOL). Readied before the start button shows (readyFirst, below): its far land's models loaded,
     // so that they are drawn then too. Its other sections are still built a slice a frame as she flies (all of them here would double
@@ -983,6 +1004,7 @@ export const chapter = {
     const thorsedla = s.actor('thorsedla');
     const flugedla = s.actor('flugedla');
     const world = mosi.raw.world;
+    layoutWorld = world;
     world.chapterTimeline = [];
     const c = { s, world, mosi, egill, thorsedla, flugedla, saying: 0, goodbyes: [], bye: null, lastSaid: null, point: new world.THREE.Vector3() };
     c.reduced = reducedMotion(world); // the flight as a tablet that asks for less motion sees it (chapters/flug.js)
@@ -990,6 +1012,7 @@ export const chapter = {
     c.lines = lineQueue(s); // the voices that come as the child plays, one at a time (the wind's help and cheers)
     // the gusts, and the flight's wind and water: the recordings are fetched now, in the background, for the page
     const context = world.sound?.context ?? null;
+    preloadSamples(context, ['gramedlaRoar', 'skim', 'turtleCall', 'lizards', 'grazers', 'flyers']);
     c.sounds = createFlightSounds({ context, output: world.sound?.output ?? null, recordings: loadFlightRecordings(context) });
     c.song = createFlightSong(world); // the flight's own song, made now so its file is there by the take-off
     c.doc = world.page ?? globalThis.document ?? null; // the page the wind's hint goes on
@@ -1003,10 +1026,16 @@ export const chapter = {
     c.saddle = createSaddle(mosi.raw);
     c.saddle.show();
     c.riding = ride(egill.raw, c.saddle, { settle: 0 });
-    yield s.camera.cut('fen_star_rise');
-    yield s.ready(); // the start button; immediate in captures
-    s.sfx('fen');
-    yield s.fade(0, 0.8); // the scene opens from black (main.js)
-    yield* story(s, c);
+    try {
+      yield s.camera.cut('fen_star_rise');
+      yield s.ready(); // the start button; immediate in captures
+      s.sfx('fen');
+      yield s.fade(0, 0.8); // the scene opens from black (main.js)
+      yield* story(s, c);
+    } finally {
+      if (layoutWorld === world) layoutWorld = null;
+      c.song?.dispose?.();
+      c.sounds?.dispose?.();
+    }
   },
 };

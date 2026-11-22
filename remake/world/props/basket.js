@@ -125,6 +125,7 @@ export function createBasket(world) {
   const berries = new THREE.InstancedMesh(berryShape, berryMaterial, IN_BASKET.length * BUNCH.length);
   berries.name = 'Basket berries';
   berries.count = 0;
+  berries.visible = false;
   berries.castShadow = false;
   berries.frustumCulled = false;
   group.add(berries);
@@ -134,12 +135,16 @@ export function createBasket(world) {
 
   const point = new THREE.Vector3();
   let actor = null;
+  let leftHand = null, rightHand = null;
   let hands = null;
   let lift = 0; // 0 carried, 1 held up
   let move = null; // { from, to, start, duration, handle }
   let now = 0;
   let disposed = false;
   const added = []; // { at, kind }
+  let berriesSettled = true;
+  let berriesSettleAt = -Infinity;
+  let lastBerryTime = -Infinity;
   let total = 0;
   const live = new Set();
 
@@ -157,43 +162,47 @@ export function createBasket(world) {
   // His hands turned to the rim: each frame, from the turn his clip gives them, toward palm on the rim and fingers up over it, as
   // far as the hold holds (its weight). The clip's own turn goes back to a hand the mixer has left as this set it (hand-hold.js's
   // way), so letting go ends on the clip's pose.
-  const turns = { left: { own: new THREE.Quaternion(), set: null }, right: { own: new THREE.Quaternion(), set: null } };
+  const turns = { left: { own: new THREE.Quaternion(), set: new THREE.Quaternion(), hasSet: false }, right: { own: new THREE.Quaternion(), set: new THREE.Quaternion(), hasSet: false } };
+  const handFingers = new THREE.Vector3(), handPalm = new THREE.Vector3();
   const fingersTo = new THREE.Vector3(), palmTo = new THREE.Vector3(), handTurn = new THREE.Quaternion(), parentTurn = new THREE.Quaternion();
   const fromBasis = new THREE.Matrix4(), toBasis = new THREE.Matrix4(), third = new THREE.Vector3(), third2 = new THREE.Vector3();
   function turnHands(weight) {
     for (const side of ['left', 'right']) {
-      const bone = actor.model.getObjectByName(side === 'left' ? 'LeftHand' : 'RightHand');
+      const bone = side === 'left' ? leftHand : rightHand;
+      if (!bone) continue;
       const t = turns[side];
-      if (t.set && bone.quaternion.equals(t.set)) bone.quaternion.copy(t.own);
-      t.set = null;
+      if (t.hasSet && bone.quaternion.equals(t.set)) bone.quaternion.copy(t.own);
+      t.hasSet = false;
       if (weight <= 0) continue;
       t.own.copy(bone.quaternion);
       const mirror = side === 'left' ? -1 : 1;
-      const fingers = HAND.fingers.clone().setZ(HAND.fingers.z * mirror);
-      const palm = HAND.palm.clone().setZ(HAND.palm.z * mirror);
-      palm.addScaledVector(fingers, -palm.dot(fingers)).normalize();
+      handFingers.copy(HAND.fingers).setZ(HAND.fingers.z * mirror);
+      handPalm.copy(HAND.palm).setZ(HAND.palm.z * mirror);
+      handPalm.addScaledVector(handFingers, -handPalm.dot(handFingers)).normalize();
       // on its side of the rim: the palm toward the basket's middle, the fingers up and a little in, over the rim
       palmTo.copy(across).multiplyScalar(-mirror);
       fingersTo.set(0, 1, 0).addScaledVector(palmTo, 0.45).normalize();
       palmTo.addScaledVector(fingersTo, -palmTo.dot(fingersTo)).normalize();
-      fromBasis.makeBasis(fingers, palm, third.crossVectors(fingers, palm));
+      fromBasis.makeBasis(handFingers, handPalm, third.crossVectors(handFingers, handPalm));
       toBasis.makeBasis(fingersTo, palmTo, third2.crossVectors(fingersTo, palmTo));
       handTurn.setFromRotationMatrix(toBasis.multiply(fromBasis.transpose()));
       bone.parent.getWorldQuaternion(parentTurn);
       const target = parentTurn.invert().multiply(handTurn);
       bone.quaternion.slerp(target, smooth(weight));
       bone.updateMatrixWorld(true);
-      t.set = bone.quaternion.clone();
+      t.set.copy(bone.quaternion);
+      t.hasSet = true;
     }
   }
 
   const mid = new THREE.Vector3(), across = new THREE.Vector3(), ahead = new THREE.Vector3(), up = new THREE.Vector3();
   const basis = new THREE.Matrix4(), turn = new THREE.Quaternion(), tilt = new THREE.Quaternion();
   const matrix = new THREE.Matrix4(), unit = new THREE.Vector3(1, 1, 1), qb = new THREE.Quaternion();
-  const bunchAt = new THREE.Vector3(), bunchMiddle = new THREE.Vector3();
+  const bunchAt = new THREE.Vector3(), bunchMiddle = new THREE.Vector3(), putAt = new THREE.Vector3();
+  const berryTint = new THREE.Color();
   /** The basket where his hands are now: between his wrists, a little ahead, its rim just above them, level across them. */
   function place() {
-    const leftHand = actor.model.getObjectByName('LeftHand'), rightHand = actor.model.getObjectByName('RightHand');
+    if (!leftHand || !rightHand) return;
     actor.root.updateMatrixWorld(true);
     leftHand.getWorldPosition(wrists.left);
     rightHand.getWorldPosition(wrists.right);
@@ -214,8 +223,10 @@ export function createBasket(world) {
 
   function poseBerries() {
     berries.count = added.length * BUNCH.length;
+    berries.visible = added.length > 0;
+    if (!added.length) return;
     added.forEach(({ at }, i) => {
-      const k = Math.min(1, (now - at) / 0.3);
+      const k = Math.min(1, Math.max(0, (now - at) / 0.3));
       const bounce = k < 1 ? 0.05 * Math.sin(Math.PI * k) * (1 - k) : 0;
       const [x, y, z] = IN_BASKET[i % IN_BASKET.length];
       qb.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, i * 1.7);
@@ -231,6 +242,10 @@ export function createBasket(world) {
   let placing = null; // the effect that puts the basket in his hands: added after the hold's own, so it sees his hands as held
   function hold(who) {
     actor = who;
+    leftHand = who?.model?.getObjectByName('LeftHand') ?? null;
+    rightHand = who?.model?.getObjectByName('RightHand') ?? null;
+    turns.left.hasSet = false;
+    turns.right.hasSet = false;
     hands?.release(0);
     hands = holdWithHands(world, who, { left: out => wristGoal('left', out), right: out => wristGoal('right', out) }).grip(0.45);
     if (placing) placing.over = true;
@@ -261,10 +276,10 @@ export function createBasket(world) {
     hands = null;
     lift = 0;
     actor.root.updateMatrixWorld(true);
-    const at = new THREE.Vector3(0.38, 0, 0.12).applyMatrix4(actor.root.matrixWorld);
-    at.y = world.heightAt?.(at.x, at.z) ?? actor.root.position.y;
+    putAt.set(0.38, 0, 0.12).applyMatrix4(actor.root.matrixWorld);
+    putAt.y = world.heightAt?.(putAt.x, putAt.z) ?? actor.root.position.y;
     group.quaternion.copy(actor.root.quaternion);
-    group.position.copy(at);
+    group.position.copy(putAt);
     group.updateMatrixWorld(true);
     point.set(0, SIZE.depth + 0.06, 0).applyMatrix4(group.matrixWorld);
   }
@@ -289,12 +304,14 @@ export function createBasket(world) {
 
   function add(kind = 'red') {
     const handle = new Handle('a bunch in the basket');
+    if (added.length >= IN_BASKET.length) return handle.finish();
     added.push({ at: now, kind });
     total++;
     const i = added.length - 1;
-    const tint = new THREE.Color();
-    BUNCH.forEach((_, b) => berries.setColorAt(i * BUNCH.length + b, tint.set(BERRY[kind] ?? BERRY.red).offsetHSL(0, 0, (b % 3 - 1) * 0.04)));
+    BUNCH.forEach((_, b) => berries.setColorAt(i * BUNCH.length + b, berryTint.set(BERRY[kind] ?? BERRY.red).offsetHSL(0, 0, (b % 3 - 1) * 0.04)));
     berries.instanceColor.needsUpdate = true;
+    berriesSettled = false;
+    berriesSettleAt = Math.max(berriesSettleAt, now + 0.3);
     poseBerries();
     added.at(-1).handle = handle;
     return handle;
@@ -329,6 +346,8 @@ export function createBasket(world) {
       return { mesh: bunch, from: bunch.position.clone(), start: now + i * every, seconds };
     });
     leaving.push({ out, to, handle });
+    berriesSettled = true;
+    berriesSettleAt = -Infinity;
     poseBerries();
     return handle;
   }
@@ -383,7 +402,11 @@ export function createBasket(world) {
         if (u >= 1) { const { handle } = move; move = null; handle.finish(); }
       }
       if (leaving.length) flyOut();
-      if (added.length) poseBerries();
+      if (added.length && (!berriesSettled || now < lastBerryTime)) {
+        poseBerries();
+        berriesSettled = now >= berriesSettleAt;
+      }
+      lastBerryTime = now;
       poseGlow();
       for (const a of added) if (a.handle && !a.handle.done && now - a.at >= 0.3) a.handle.finish();
       for (const handle of live) if (handle.done) live.delete(handle);

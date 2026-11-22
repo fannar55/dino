@@ -115,7 +115,7 @@ export function createWorldFx({ scene, heightAt, wet = () => false, wood = () =>
       p.colour.toArray(colours, i * 3); sizes[i] = p.size * (p.grow ?? (p.kind ? 1 : 1 + t * 1.8)); alpha[i] = (p.alpha ?? (p.kind === 2 ? .96 : p.kind === 1 ? .88 : .36)) * Math.sin(Math.min(1, t * 7) * Math.PI / 2) * (1 - t) ** (p.fade ?? (p.kind === 2 ? .85 : 1.5)); kinds[i] = p.kind; angles[i] = p.angle + p.spin * p.age;
     });
     geometry.setDrawRange(0, particles.length); mesh.visible = particles.length > 0 && !reduced;
-    for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;
+    if (particles.length > 0) for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;
   }
   return { emit, update, setReducedMotion(value) { reduced = Boolean(value); if (reduced) { particles.length = 0; mesh.visible = false; } },
     pollSteps: () => steps.splice(0), reset() { particles.length = steps.length = 0; tracking = new WeakMap(); mesh.visible = false; sequence = emitted = footPuffs = 0; clock = 0; lastStep = -1; },

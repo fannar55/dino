@@ -41,7 +41,8 @@ export function holdWithHands(world, actor, { left = null, right = null } = {}) 
     return {
       spec, upper, lower, hand,
       own: { upper: new THREE.Quaternion(), lower: new THREE.Quaternion() }, // the clip's turn, before the reach
-      set: { upper: null, lower: null }, // the turn the reach gave each bone, while it is the hold's
+      set: { upper: new THREE.Quaternion(), lower: new THREE.Quaternion() }, // the turn the reach gave each bone, while it is the hold's
+      hasSet: false,
     };
   });
 
@@ -57,9 +58,11 @@ export function holdWithHands(world, actor, { left = null, right = null } = {}) 
   function update(dt) {
     if (over) return;
     for (const arm of arms) {
-      for (const bone of BONES) {
-        if (arm.set[bone] && arm[bone].quaternion.equals(arm.set[bone])) arm[bone].quaternion.copy(arm.own[bone]);
-        arm.set[bone] = null;
+      if (arm.hasSet) {
+        for (const bone of BONES) {
+          if (arm[bone].quaternion.equals(arm.set[bone])) arm[bone].quaternion.copy(arm.own[bone]);
+        }
+        arm.hasSet = false;
       }
     }
     const step = dt > 0 ? rate * dt : 0; // a frame with no time moves nothing (and grip(0)'s Infinity times 0 is no NaN)
@@ -76,8 +79,9 @@ export function holdWithHands(world, actor, { left = null, right = null } = {}) 
       world.resolvePoint(arm.spec, point);
       target.lerpVectors(arm.hand.getWorldPosition(wrist), point, k);
       reachTwoBones(arm.upper, arm.lower, arm.hand, target);
-      arm.set.upper = arm.upper.quaternion.clone();
-      arm.set.lower = arm.lower.quaternion.clone();
+      arm.set.upper.copy(arm.upper.quaternion);
+      arm.set.lower.copy(arm.lower.quaternion);
+      arm.hasSet = true;
     }
   }
 

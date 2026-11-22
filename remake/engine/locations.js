@@ -58,15 +58,29 @@ export function createLocations({ world, locations, build }) {
   const names = Object.keys(locations);
   const forests = new Map(); // location name -> promise of its forest, so a build is never started twice
   const built = new Map(); // location name -> its forest, once built
+  const generation = new Map(); // location name -> build generation (incremented on release to drop stale in-flight builds)
   let current = null; // the name in view
   let shown = null; // the forest in view
 
   function forestOf(name, options) {
     if (!forests.has(name)) {
+      const gen = (generation.get(name) ?? 0) + 1;
+      generation.set(name, gen);
       const { layout, shots = {}, build: own } = locations[name];
       const building = Promise.resolve(own ? own(world, options) : build({ ...layout, shots }, options));
       forests.set(name, building);
-      building.then(forest => built.set(name, forest), () => forests.delete(name)); // a failed build may be tried again
+      building.then(
+        forest => {
+          if (generation.get(name) !== gen) {
+            // Released while still building: dispose orphaned forest immediately so it cannot leak in scene.
+            forest?.group?.removeFromParent?.();
+            forest?.dispose?.();
+            return;
+          }
+          built.set(name, forest);
+        },
+        () => { if (forests.get(name) === building) forests.delete(name); }, // a failed build may be tried again
+      );
     }
     return forests.get(name);
   }
@@ -84,12 +98,17 @@ export function createLocations({ world, locations, build }) {
   return {
     names,
     get current() { return current; },
-    /** Build a place now and keep it, hidden unless it is the place in view; going there later builds nothing. Returns its forest. */
+    /** Build a place now and keep it, hidden unless it is the place in view; going there later builds nothing. Returns its forest (or null if released while building). */
     async prepare(name, options) {
       if (!names.includes(name)) throw new Error(`No location named "${name}" (the chapter has ${names.join(', ')})`);
       const forest = await forestOf(name, options);
+      if (built.get(name) !== forest) return null; // released while building
       if (forest !== shown) forest.group.visible = false; // a forest is built shown
       return forest;
+    },
+    /** Whether `forest` is still the live built instance for `name` (used by multi-frame warm-ups to skip disposed places). */
+    isAlive(name, forest) {
+      return built.get(name) === forest;
     },
     async setLocation(name) {
       if (!names.includes(name)) throw new Error(`No location named "${name}" (the chapter has ${names.join(', ')})`);
@@ -108,6 +127,7 @@ export function createLocations({ world, locations, build }) {
     /** Dispose a previously built location that is no longer in view so multi-stage chapters can free GPU memory. */
     release(name) {
       if (!names.includes(name) || name === current) return false;
+      generation.set(name, (generation.get(name) ?? 0) + 1);
       const forest = built.get(name);
       built.delete(name);
       forests.delete(name);

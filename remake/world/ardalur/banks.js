@@ -193,28 +193,67 @@ export const LOW = { reach: 10, height: 0.6 };
 export const VIEW = { near: 6, tall: 0.5, gap: 1 };
 const VIEW_STEP = 0.25; // metres between the points of a line of sight a plant is measured from (and VIEW_STEP / 2 more kept clear)
 
-/** The views' lines of sight, each with its box seen from above. */
+/** The views' lines of sight, each with its precomputed direction and bounds. */
 function linesOf(views) {
   return views.flatMap(v => v.looks.map(b => {
     const a = v.position;
-    return { a, b, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minZ: Math.min(a.z, b.z), maxZ: Math.max(a.z, b.z) };
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    return {
+      a, dx, dy, dz, lenSqXZ: dx * dx + dz * dz,
+      minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x),
+      minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y),
+      minZ: Math.min(a.z, b.z), maxZ: Math.max(a.z, b.z),
+    };
   }));
 }
 
 /** True when a plant at (x, y, z), `r` round and `h` tall, stands in a still shot's view: tall by its camera, or by a line of sight. */
 function inView(views, lines, x, y, z, r, h) {
   if (h > VIEW.tall && views.some(v => Math.hypot(v.position.x - x, v.position.z - z) <= VIEW.near)) return true;
+  const limit = VIEW.gap + VIEW_STEP / 2;
+  const limitSq = limit * limit;
   const reach = r + VIEW.gap + VIEW_STEP;
-  for (const { a, b, minX, maxX, minZ, maxZ } of lines) {
-    if (x < minX - reach || x > maxX + reach || z < minZ - reach || z > maxZ + reach) continue;
-    const length = a.distanceTo(b);
-    const steps = Math.max(1, Math.ceil(length / VIEW_STEP));
-    for (let k = 0; k <= steps; k++) {
-      const f = k / steps;
-      const sx = a.x + (b.x - a.x) * f, sy = a.y + (b.y - a.y) * f, sz = a.z + (b.z - a.z) * f;
-      const across = Math.hypot(sx - x, sz - z) - r;
-      const up = Math.max(0, y - sy, sy - (y + h));
-      if (Math.hypot(Math.max(0, across), up) < VIEW.gap + VIEW_STEP / 2) return true;
+  const maxRhoSq = (r + limit) * (r + limit);
+  const top = y + h;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (x < l.minX - reach || x > l.maxX + reach || z < l.minZ - reach || z > l.maxZ + reach) continue;
+    if (l.maxY < y - limit || l.minY > top + limit) continue;
+    const { a, dx, dy, dz, lenSqXZ } = l;
+    const ox = a.x - x, oz = a.z - z;
+    // Closest point to the vertical axis in XZ; rejects lines that stay outside radius + limit everywhere
+    const fXZ = lenSqXZ > 1e-12 ? Math.min(1, Math.max(0, -(ox * dx + oz * dz) / lenSqXZ)) : 0;
+    const px = ox + dx * fXZ, pz = oz + dz * fXZ;
+    if (px * px + pz * pz >= maxRhoSq) continue;
+    const py = a.y + dy * fXZ;
+    const acrossXZ = Math.max(0, Math.hypot(px, pz) - r);
+    const upXZ = py < y ? y - py : py > top ? py - top : 0;
+    if (acrossXZ * acrossXZ + upXZ * upXZ < limitSq) return true;
+    if (upXZ === 0 || Math.abs(dy) <= 1e-12) continue;
+    // Convex 1D distance² reaches its minimum between fXZ and the clamped vertical slab [fLo, fHi]
+    const t0 = (y - a.y) / dy, t1 = (top - a.y) / dy;
+    const fLo = Math.min(1, Math.max(0, Math.min(t0, t1)));
+    const fHi = Math.min(1, Math.max(0, Math.max(t0, t1)));
+    let lo, hi, fEdge;
+    if (fXZ < fLo) { lo = fXZ; hi = fEdge = fLo; }
+    else if (fXZ > fHi) { lo = fEdge = fHi; hi = fXZ; }
+    else continue;
+    const ex = ox + dx * fEdge, ez = oz + dz * fEdge, ey = a.y + dy * fEdge;
+    const eAcross = Math.max(0, Math.hypot(ex, ez) - r);
+    const eUp = ey < y ? y - ey : ey > top ? ey - top : 0;
+    if (eAcross * eAcross + eUp * eUp < limitSq) return true;
+    // Bisect on the monotonic derivative of the convex distance² over the shoulder interval
+    for (let step = 0; step < 10; step++) {
+      const m = 0.5 * (lo + hi);
+      const sx = ox + dx * m, sz = oz + dz * m, sy = a.y + dy * m;
+      const rho = Math.hypot(sx, sz);
+      const across = Math.max(0, rho - r);
+      const up = sy < y ? y - sy : sy > top ? sy - top : 0;
+      if (across * across + up * up < limitSq) return true;
+      const hGrad = rho > r ? ((rho - r) / rho) * (sx * dx + sz * dz) : 0;
+      const vGrad = sy < y ? (sy - y) * dy : sy > top ? (sy - top) * dy : 0;
+      if (hGrad + vGrad > 0) hi = m;
+      else lo = m;
     }
   }
   return false;

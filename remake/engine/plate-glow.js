@@ -136,6 +136,7 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
   // Each ease moves some rows together, from where they were to their targets, over one duration. A row
   // is in one ease at a time: a new target takes it over, and an ease left with no rows is cancelled.
   const eases = new Set();
+  let disposed = false;
 
   function release(index) {
     for (const ease of eases) if (ease.rows.delete(index) && !ease.rows.size) ease.handle.cancel();
@@ -169,24 +170,28 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
       const to = unit('level', level);
       return move(Array.from({ length: rows }, (_, index) => [index, to]), seconds(duration), `${actor.name} plates`);
     },
-    /** Advance the eases and gentle glow pulse by dt game seconds. Returns true, as an effect does that goes on while the actor does. */
+    /** Advance the eases and gentle glow pulse by dt game seconds. Returns false once disposed. */
     update(dt) {
+      if (disposed) return false;
       if (!(dt > 0)) return true; // paused or frozen
       pulseTime += dt;
       uniforms.uPlatePulse.value = PULSE_BASE + PULSE_SWING * Math.sin(pulseTime * Math.PI * 2 * PULSE_HZ);
-      for (const ease of [...eases]) {
-        ease.time += dt;
-        const x = Math.min(1, ease.time / ease.duration);
-        const eased = x * x * (3 - 2 * x);
-        for (const [index, { from, to }] of ease.rows) levels[index] = x < 1 ? from + (to - from) * eased : to;
-        if (x >= 1) {
-          eases.delete(ease);
-          ease.handle.finish();
+      if (eases.size) {
+        for (const ease of [...eases]) {
+          ease.time += dt;
+          const x = Math.min(1, ease.time / ease.duration);
+          const eased = x * x * (3 - 2 * x);
+          for (const [index, { from, to }] of ease.rows) levels[index] = x < 1 ? from + (to - from) * eased : to;
+          if (x >= 1) {
+            eases.delete(ease);
+            ease.handle.finish();
+          }
         }
       }
       return true;
     },
     dispose() {
+      disposed = true;
       for (const ease of [...eases]) ease.handle.cancel();
       for (const skin of skins) {
         const own = skinsBefore.get(skin);

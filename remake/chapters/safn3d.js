@@ -11,6 +11,7 @@
 // Units are metres; heading 0 faces +X, 90 faces +Z (toward the overview camera).
 import { chapter as grunnur } from './grunnur.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
+import { glassesStart } from '../engine/book/show-cards.js';
 
 const params = new URLSearchParams(globalThis.location?.search ?? '');
 const CHARS = '../assets/characters/';
@@ -54,53 +55,6 @@ const TEXT = {
 const rad = d => (d * Math.PI) / 180;
 const forwardOf = heading => [Math.cos(rad(heading)), Math.sin(rad(heading))];
 
-const GLASSES = new URL('../assets/book/gleraugu-3d.svg', import.meta.url).href;
-const GLASSES_STYLE = `
-  .gler-start-wrap { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; align-content: center; gap: 2.4vmin; pointer-events: none; }
-  .gler-start-wrap[hidden] { display: none; }
-  .gler-start { pointer-events: auto; border: 0; padding: 0; margin: 0; background: none; cursor: pointer; border-radius: 6vmin;
-    -webkit-tap-highlight-color: transparent; will-change: transform, opacity; animation: gler-pulse 1s ease-in-out infinite; }
-  .gler-start img { display: block; width: min(60vmin, 92vw); height: auto; aspect-ratio: 1764 / 1335; -webkit-user-drag: none;
-    filter: drop-shadow(0 0 2.4vmin rgba(255, 250, 215, .82)); }
-  .gler-start-line { margin: 0; padding: 6px 16px; border-radius: 12px; background: rgba(255,255,255,.88); color: #2b2b2b;
-    font: 700 clamp(17px, 2.2vw, 22px)/1.3 Nunito, sans-serif; text-align: center; }
-  @keyframes gler-pulse {
-    0%, 100% { transform: scale(1); opacity: .94; }
-    50% { transform: scale(1.06); opacity: 1; }
-  }
-  @keyframes gler-pulse-calm {
-    0%, 100% { opacity: .88; }
-    50% { opacity: 1; }
-  }
-  @media (prefers-reduced-motion: reduce) { .gler-start { animation: gler-pulse-calm 2.4s ease-in-out infinite; } }`;
-/** The glasses start, laid on the page hidden, once its picture has loaded; null (main.js: Byrja) when it cannot be. */
-function glassesStart(doc) {
-  return new Promise(resolve => {
-    const wrap = doc.createElement('div');
-    wrap.className = 'gler-start-wrap';
-    wrap.hidden = true;
-    const style = doc.createElement('style');
-    style.textContent = GLASSES_STYLE;
-    const button = doc.createElement('button');
-    button.type = 'button';
-    button.className = 'gler-start';
-    const img = doc.createElement('img');
-    img.alt = 'Settu upp 3D gleraugun og ýttu hér';
-    img.draggable = false;
-    button.append(img);
-    const line = doc.createElement('p');
-    line.className = 'gler-start-line';
-    line.textContent = 'Rauða glerið á vinstra auga.';
-    wrap.append(style, button, line);
-    img.addEventListener('load', () => {
-      doc.body.append(wrap);
-      resolve({ element: wrap, button });
-    }, { once: true });
-    img.addEventListener('error', () => resolve(null), { once: true });
-    img.src = GLASSES;
-  });
-}
-
 export const chapter = {
   id: 'safn3d',
   title: 'Þrívíddarsafnið',
@@ -130,17 +84,18 @@ export const chapter = {
 
     // ---- depth helpers (view-space depth: what parallax depends on) ----
     const depthOf = (cam, p) => -v.copy(p).applyMatrix4(cam.matrixWorldInverse).z;
+    const edgeDir = new THREE.Vector3(), edgeFwd = new THREE.Vector3();
     function groundEdgeDepth(cam) {
-      const dir = new THREE.Vector3(0, -1, 0.5).unproject(cam).sub(cam.position).normalize();
-      if (dir.y > -0.01) return Infinity;
-      let t = (0 - cam.position.y) / dir.y;
+      edgeDir.set(0, -1, 0.5).unproject(cam).sub(cam.position).normalize();
+      if (edgeDir.y > -0.01) return Infinity;
+      let t = (0 - cam.position.y) / edgeDir.y;
       for (let i = 0; i < 3; i++) {
-        const x = cam.position.x + dir.x * t;
-        const z = cam.position.z + dir.z * t;
-        t = (world.heightAt(x, z) - cam.position.y) / dir.y;
+        const x = cam.position.x + edgeDir.x * t;
+        const z = cam.position.z + edgeDir.z * t;
+        t = (world.heightAt(x, z) - cam.position.y) / edgeDir.y;
       }
-      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-      return t * dir.dot(forward);
+      edgeFwd.set(0, 0, -1).applyQuaternion(cam.quaternion);
+      return t * edgeDir.dot(edgeFwd);
     }
     // the nearer of the ground at the bottom edge, the bodies given, and any other friend in or at the edge of the frame
     const ndc = new THREE.Vector3();
@@ -249,18 +204,28 @@ export const chapter = {
     const state = world.safn.state;
     state.focus = null; // a friend's name, or null for the overview
     state.locked = false; // held while the head is out
+    const allBodies = NAMES.map(() => new THREE.Vector3());
+    const focusBodies = [new THREE.Vector3()];
+    const headScratch = new THREE.Vector3();
     function* keepPlane() {
       for (;;) {
         if (gler && !state.locked) {
-          const bodies = state.focus ? [actors[state.focus].centre(new THREE.Vector3())] : NAMES.map(n => actors[n].centre(new THREE.Vector3()));
+          let bodies;
+          if (state.focus) {
+            actors[state.focus].centre(focusBodies[0]);
+            bodies = focusBodies;
+          } else {
+            for (let i = 0; i < NAMES.length; i++) actors[NAMES[i]].centre(allBodies[i]);
+            bodies = allBodies;
+          }
           state.plane = comfortPlane(camera, bodies);
           gler.setPlane(state.plane, { jump: state.jump });
           state.jump = false;
         }
         if (state.focus) {
-          const head = actors[state.focus].headPosition(new THREE.Vector3());
+          actors[state.focus].headPosition(headScratch);
           camera.updateMatrixWorld();
-          state.headDepth = depthOf(camera, head);
+          state.headDepth = depthOf(camera, headScratch);
           state.ratio = state.headDepth / (gler?.plane ?? state.plane);
         }
         yield;
@@ -286,8 +251,12 @@ export const chapter = {
       // (the order only matters while seeking, where the first is taken: ?vinur= first, then the friends not seen yet)
       const fresh = NAMES.filter(n => !visited.has(n));
       const order = [...new Set([...(first && fresh.includes(first) ? [first] : []), ...fresh, ...NAMES])];
-      const name = yield s.tap(order);
-      for (const n of NAMES) s.target(n, null);
+      let name;
+      try {
+        name = yield s.tap(order);
+      } finally {
+        for (const n of NAMES) s.target(n, null);
+      }
       yield* visit(name);
       visited.add(name);
       state.visited = [...visited];
@@ -308,6 +277,7 @@ export const chapter = {
       const a = actors[name];
       const actor = s.actor(name);
       const p = portraits[name];
+      if (!p) return;
       const shot = { position: p.position, target: p.aim, fov: FRIENDS[name].fov ?? PORTRAIT_FOV, label: `portrait ${name}` };
       state.focus = name;
       state.ratio = null;

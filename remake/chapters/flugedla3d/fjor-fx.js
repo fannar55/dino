@@ -38,7 +38,7 @@ export function createFjorFx(world) {
   streaks.frustumCulled = false;
   scene.add(streaks);
 
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), p = new THREE.Vector3(), fwd = new THREE.Vector3();
 
   /**
    * frame: { t, cam: {x, y, z, up, back}, low (the camera near the floor), white, sAt(t) the path's metres flown, placeAt(s) the
@@ -48,7 +48,8 @@ export function createFjorFx(world) {
     // flecks: index j hangs at s = j · spacing along the line, a little to its side and above the floor
     let n = 0;
     // (polish: a fleck shrinks away before it comes nearer than 4.5 m along the view, 6 % out: one did at 15.65 s, 7.6 %)
-    const view = viewCam ?? world.camera, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(view.quaternion);
+    const view = viewCam ?? world.camera;
+    fwd.set(0, 0, -1).applyQuaternion(view.quaternion);
     if (low) {
       const j0 = Math.ceil((sCam - FLECK.behind) / FLECK.spacing), j1 = Math.floor((sCam + FLECK.ahead) / FLECK.spacing);
       for (let j = j0; j <= j1 && n < FLECK.count; j++) {
@@ -104,7 +105,9 @@ export function createFjorFx(world) {
         let y = base + Math.floor((cam.y - base) / span + 0.5) * span;
         if (y - cam.y > span / 2) y -= span;
         const x = cam.x + Math.cos(a) * r, z = cam.z + Math.sin(a) * r;
-        pos.set([x, y, z, x, y + STREAK.length, z], i * 6);
+        const o = i * 6;
+        pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
+        pos[o + 3] = x; pos[o + 4] = y + STREAK.length; pos[o + 5] = z;
       }
       lineGeo.attributes.position.needsUpdate = true;
     }

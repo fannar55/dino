@@ -28,6 +28,7 @@ import { pressable } from '../book/fx.js';
 import { yatzyPhoneSounds, YATZY_PHONE_GAPS } from './yatzy-phone-sounds.js';
 
 const TUMBLE_MS = 950;
+const UNLOCK_MS = 5000; // safety unlock if a sent act never receives a fresh view
 const ROLLS = 3; // a turn's rolls
 
 // The dice's six faces, 1 to 6: copied from engine/yatzy-table/dice.js's DINO_FACES (the big screen's dice and the cards'
@@ -72,6 +73,10 @@ export function renderYatzy(root, view, { send, doc = root.ownerDocument, contro
   at.send = send;
   at.audio = audio;
   update(at, view && typeof view === 'object' ? view : {});
+  return () => {
+    clearUnlock(at);
+    clearTimeout(at.tumbleTimer);
+  };
 }
 
 function build(root, doc, control) {
@@ -160,10 +165,12 @@ function build(root, doc, control) {
   const at = {
     make, face, turnEl, rollsEl, pips, diceEl, dice, cupEl, cardsEl, cards, playersEl, wonEl, burst, winnerFace, wonWords,
     send: null, audio: null,
+    view: null,
     rows: new Map(), // seat -> its row in the players' bar
     asking: null, // the card whose "Nota spjaldið? 0 stig" shows
     seq: undefined, // the last view's roll.seq (null: no roll yet; undefined: no view yet)
     tumbleTimer: 0,
+    unlockTimer: 0,
   };
   built.set(root, at);
   return at;
@@ -171,16 +178,48 @@ function build(root, doc, control) {
 
 // ---- What a tap asks for ---------------------------------------------------------------------------------------------
 
+function clearUnlock(at) {
+  if (at.unlockTimer) { clearTimeout(at.unlockTimer); at.unlockTimer = 0; }
+}
+
+function restoreControls(at) {
+  clearUnlock(at);
+  const view = at.view;
+  if (!view) return;
+  const over = view.winner !== null && view.winner !== undefined;
+  for (const die of at.dice) die.button.disabled = over || view.canHold !== true;
+  at.cupEl.disabled = over || view.canRoll !== true;
+  for (const card of at.cards.values()) {
+    const available = !over && view.canScore === true && card.el.classList.contains('available');
+    const zero = available && card.el.classList.contains('zero');
+    card.pick.disabled = !available;
+    card.use.disabled = !zero;
+  }
+}
+
+function dispatch(at, body, lock) {
+  const view = at.view;
+  lock();
+  if (at.send?.(body) === false) {
+    if (at.view === view) restoreControls(at);
+    return false;
+  }
+  if (at.view === view) {
+    clearUnlock(at);
+    at.unlockTimer = setTimeout(() => { at.unlockTimer = 0; if (at.view === view) restoreControls(at); }, UNLOCK_MS);
+    at.unlockTimer?.unref?.();
+  }
+  return true;
+}
+
 /** "Kasta!": one roll for each view that offers one. */
 function roll(at) {
-  at.cupEl.disabled = true;
-  at.send?.({ type: 'roll' });
+  dispatch(at, { type: 'roll' }, () => { at.cupEl.disabled = true; });
 }
 
 /** A die held, or let go: one for each view, so every die waits. */
 function hold(at, i) {
-  for (const die of at.dice) die.button.disabled = true;
-  at.send?.({ type: 'hold', die: i });
+  dispatch(at, { type: 'hold', die: i }, () => { for (const die of at.dice) die.button.disabled = true; });
 }
 
 /** A card tapped: one free card she may pick scores, one worth nothing asks first. */
@@ -193,13 +232,14 @@ function tapCard(at, id) {
 
 /** The card picked: once, and every card waits for the next view. */
 function score(at, id) {
-  at.asking = null;
-  for (const card of at.cards.values()) {
-    card.pick.disabled = true;
-    card.use.disabled = true;
-    card.confirm.hidden = true;
-  }
-  at.send?.({ type: 'score', card: id });
+  dispatch(at, { type: 'score', card: id }, () => {
+    at.asking = null;
+    for (const card of at.cards.values()) {
+      card.pick.disabled = true;
+      card.use.disabled = true;
+      card.confirm.hidden = true;
+    }
+  });
 }
 
 /** The card `id` asks "Nota spjaldið? 0 stig" (null: none does). */
@@ -255,6 +295,8 @@ function rattle(at) {
 }
 
 function update(at, view) {
+  clearUnlock(at);
+  at.view = view;
   const players = Array.isArray(view.players) ? view.players.filter(player => Number.isInteger(player?.seat)) : [];
   const playerOf = seat => players.find(player => player.seat === seat);
   const nameOf = seat => String(playerOf(seat)?.name ?? '');

@@ -27,8 +27,10 @@ export function simplify(positions, index, { levels = [{ ratio: 0.25, maxError: 
   const source = index ?? Uint32Array.from({ length: count }, (_, i) => i);
 
   // weld vertices with identical positions (seams split them), with an open-addressing hash on the
-  // float bits
-  const bits = new Int32Array(Float32Array.from(positions).buffer);
+  // float bits (-0.0 normalised to +0.0 so coincident zero-plane vertices always weld)
+  const f32 = Float32Array.from(positions);
+  for (let i = 0; i < f32.length; i++) if (f32[i] === 0) f32[i] = 0;
+  const bits = new Int32Array(f32.buffer);
   const size = 1 << Math.ceil(Math.log2(count * 2 + 2));
   const table = new Int32Array(size).fill(-1);
   const weldOf = new Int32Array(count);

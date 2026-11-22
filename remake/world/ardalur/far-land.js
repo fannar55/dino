@@ -427,6 +427,7 @@ ${haze.glsl}`)}`;
   let shown = false;
   let showing = false;
   let ownFar = null; // the camera's own far plane, while it sees further
+  let farCamera = null;
   let last = null;
   const fogColour = new THREE.Color();
   function update(t, camera) {
@@ -436,8 +437,8 @@ ${haze.glsl}`)}`;
     if (on !== showing) friends.show(on);
     showing = on;
     if (camera) {
-      if (on && camera.far < FAR_PLANE) { ownFar = camera.far; camera.far = FAR_PLANE; camera.updateProjectionMatrix(); }
-      if (!on && ownFar !== null) { camera.far = ownFar; ownFar = null; camera.updateProjectionMatrix(); }
+      if (on && camera.far < FAR_PLANE) { ownFar = camera.far; farCamera = camera; camera.far = FAR_PLANE; camera.updateProjectionMatrix(); }
+      if (!on && ownFar !== null) { camera.far = ownFar; ownFar = null; farCamera = null; camera.updateProjectionMatrix(); }
     }
     const dt = last === null ? 0 : Math.min(0.1, Math.max(0, t - last));
     last = t;
@@ -495,6 +496,12 @@ ${haze.glsl}`)}`;
     },
     kambedla: { glow: glow.points, level, answerAt(t) { answer = t - KAMBEDLA.call; } },
     dispose() {
+      if (ownFar !== null && farCamera) {
+        farCamera.far = ownFar;
+        farCamera.updateProjectionMatrix();
+        ownFar = null;
+        farCamera = null;
+      }
       group.removeFromParent();
       geometry.dispose();
       material.dispose();
@@ -515,7 +522,8 @@ varying float vSeed;
 void main() {
   vec3 toCamera = cameraPosition - aCentre;
   toCamera.y = 0.0;
-  vec3 facing = normalize(toCamera + vec3(1e-4, 0.0, 0.0));
+  float camLen = length(toCamera);
+  vec3 facing = camLen > 1e-4 ? toCamera / camLen : vec3(1.0, 0.0, 0.0);
   vec3 right = vec3(facing.z, 0.0, -facing.x);
   vec3 p = aCentre + right * aCorner.x * aCard.x * 0.5 + vec3(0.0, aCorner.y * aCard.y * 0.5, 0.0);
   vUv = aCorner;

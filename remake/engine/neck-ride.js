@@ -274,7 +274,11 @@ export function waterDrops(world, { seconds = 8, count = 24, seed = 'drops', rin
         set.birth[i] = 1e6;
         set.points.geometry.attributes.birth.needsUpdate = true;
         if (drop.wet) ring([drop.p.x, drop.floor, drop.p.z]);
-      } else set.position.set([drop.p.x, drop.p.y, drop.p.z], i * 3);
+      } else {
+        set.position[i * 3] = drop.p.x;
+        set.position[i * 3 + 1] = drop.p.y;
+        set.position[i * 3 + 2] = drop.p.z;
+      }
       moved = true;
     });
     if (moved) set.points.geometry.attributes.position.needsUpdate = true;
@@ -293,7 +297,9 @@ export function waterDrops(world, { seconds = 8, count = 24, seed = 'drops', rin
       const surface = world.forest?.water?.surfaceAt?.(point.x, point.z) ?? null;
       drop.wet = surface !== null;
       drop.floor = drop.wet ? surface : (world.heightAt?.(point.x, point.z) ?? 0);
-      set.position.set([point.x, point.y, point.z], i * 3);
+      set.position[i * 3] = point.x;
+      set.position[i * 3 + 1] = point.y;
+      set.position[i * 3 + 2] = point.z;
       set.birth[i] = age;
       set.points.geometry.attributes.position.needsUpdate = true;
       set.points.geometry.attributes.birth.needsUpdate = true;
@@ -331,8 +337,9 @@ export function slideDown(rider, host, saddle, { duration = 3.2, seed = 'slide',
   const startAlong = start * length();
   const from = rider.root.position.clone();
   const fromTurn = rider.root.quaternion.clone();
-  const tNeck = SLIDE.neckShare * duration;
-  const tLand = duration - SLIDE.bounce;
+  const d = Math.max(1e-3, duration);
+  const tNeck = SLIDE.neckShare * d;
+  const tLand = Math.max(tNeck + 1e-3, d - Math.min(SLIDE.bounce, d * 0.25));
   const point = new V3(), tangent = new V3(), normal = new V3(), body = new V3(), onNeck = new V3();
   const slideTurn = new THREE.Quaternion(), facing = new THREE.Quaternion(), yaw = new THREE.Quaternion(), pitch = new THREE.Quaternion();
   const leftNeck = { at: new V3(), turn: new THREE.Quaternion(), set: false };
@@ -394,7 +401,7 @@ export function slideDown(rider, host, saddle, { duration = 3.2, seed = 'slide',
       } else {
         // A bounce in the saddle.
         handle.phase = 'bounce';
-        const k = clamp01((t - tLand) / (duration - tLand));
+        const k = clamp01((t - tLand) / Math.max(1e-3, d - tLand));
         rider.root.position.copy(seat).addScaledVector(UP, SLIDE.bounceHeight * Math.sin(Math.PI * k));
         rider.root.quaternion.copy(facing);
         if (k >= 1 && !handle.done) {

@@ -40,6 +40,7 @@ import { createArdalur } from '../world/ardalur/index.js';
 import { loadCritters } from '../world/ardalur/animals.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
 import { createChoirSounds, loadChoirRecordings } from '../engine/audio/choir-sounds.js';
+import { preloadSamples } from '../engine/audio/sfx.js';
 import { demoAsked, startDemoChild } from './kafli5-demo.js';
 import { SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 import { endCard, playStart } from '../engine/book/show-cards.js';
@@ -209,8 +210,12 @@ function* shyInTheReed(s, c) {
   // her crest over the reed, and the reed is a tap target
   yield s.camera.cut('reed_close');
   aim(s, c, 'reed', REED_POINT, REED_RADIUS);
-  const tapped = yield s.race(s.tap('reed'), s.wait(PEEK_AFTER));
-  aim(s, c, 'reed', null);
+  let tapped;
+  try {
+    tapped = yield s.race(s.tap('reed'), s.wait(PEEK_AFTER));
+  } finally {
+    aim(s, c, 'reed', null);
+  }
   c.log({ type: 'peek', tapped: tapped === 'reed' });
   c.her.peek(true);
   sound(s, c, 'sailRise'); // the reed rustles round her as she rises
@@ -584,7 +589,10 @@ function* answerFromAfar(s, c) {
   mark(c, 'end');
   s.fade(0.45, 1.6);
   s.journal.open('dinosaurs', { nod: 'sloedla' });
-  s.after(TO_THE_MAP, () => s.journal.open('map'));
+  s.after(TO_THE_MAP, () => {
+    const card = c.world.page?.querySelector?.('.card');
+    if (s.journal.isOpen && s.journal.tab === 'dinosaurs' && (!card || card.hidden)) s.journal.open('map');
+  });
   yield s.wait(TO_THE_MAP + 0.4);
 }
 
@@ -650,22 +658,37 @@ function leanTo(s, c, group) {
   const { target, position } = SHOTS.choir_wide;
   const p = tapPoint(c, group);
   const V3 = c.world.THREE.Vector3;
-  const eye = c.world.camera.clone();
-  eye.position.set(...position);
-  const seen = [...GROUPS.map(g => tapPoint(c, g)), REED_POINT].map(point => new V3(...point));
-  const framed = aim => {
-    eye.lookAt(...aim);
+  const scratch = (c._lean ??= {
+    eye: c.world.camera.clone(),
+    seen: Array.from({ length: GROUPS.length + 1 }, () => new V3()),
+    proj: new V3(),
+    aim: [0, 0, 0],
+  });
+  const { eye, seen, proj, aim } = scratch;
+  eye.fov = c.world.camera.fov;
+  eye.aspect = c.world.camera.aspect;
+  eye.near = c.world.camera.near;
+  eye.far = c.world.camera.far;
+  eye.projectionMatrix.copy(c.world.camera.projectionMatrix);
+  eye.position.set(position[0], position[1], position[2]);
+  for (let i = 0; i < GROUPS.length; i++) seen[i].fromArray(tapPoint(c, GROUPS[i]));
+  seen[GROUPS.length].fromArray(REED_POINT);
+  const framed = () => {
+    eye.lookAt(aim[0], aim[1], aim[2]);
     eye.updateMatrixWorld(true);
-    return seen.every(point => {
-      const q = point.clone().project(eye);
-      return q.z < 1 && Math.abs(q.x) <= LEAN.framed && Math.abs(q.y) <= LEAN.framed;
-    });
+    for (let i = 0; i < seen.length; i++) {
+      proj.copy(seen[i]).project(eye);
+      if (!(proj.z < 1 && Math.abs(proj.x) <= LEAN.framed && Math.abs(proj.y) <= LEAN.framed)) return false;
+    }
+    return true;
   };
   let share = LEAN.share;
   for (let k = 0; k < LEAN.tries; k++, share /= 2) {
-    const aim = target.map((v, i) => v + (p[i] - v) * share);
-    if (!framed(aim)) continue;
-    s.camera.lookAt(aim, { duration: LEAN.seconds });
+    aim[0] = target[0] + (p[0] - target[0]) * share;
+    aim[1] = target[1] + (p[1] - target[1]) * share;
+    aim[2] = target[2] + (p[2] - target[2]) * share;
+    if (!framed()) continue;
+    s.camera.lookAt([aim[0], aim[1], aim[2]], { duration: LEAN.seconds });
     return;
   }
 }
@@ -810,12 +833,14 @@ const KEEP = [
   { x: SPOTS.mosi[0], z: SPOTS.mosi[1], r: 3 },
 ];
 
+let panScratch = null;
 /** Where `point` is across the speakers from the camera now: -1 on the left to 1 on the right (a little short of the ends). */
 function panOf(world, point) {
   const camera = world.camera;
   if (!camera) return 0;
   camera.updateMatrixWorld();
-  const local = new world.THREE.Vector3().fromArray(point).applyMatrix4(camera.matrixWorldInverse);
+  panScratch ??= new world.THREE.Vector3();
+  const local = panScratch.fromArray(point).applyMatrix4(camera.matrixWorldInverse);
   const across = local.x / (Math.hypot(local.x, local.z) || 1);
   return Math.max(-1, Math.min(1, across)) * 0.8;
 }
@@ -931,7 +956,8 @@ export const chapter = {
 
   warmUp(world) {
     const objects = [...world.actors.values()].map(actor => actor.root);
-    return { objects, shots: ['pool_open', 'choir_wide', 'reed_close'], dispose() {} };
+    // choir_wide and reed_close are already warmed by tjorn.warmUp
+    return { objects, shots: ['pool_open'], dispose() {} };
   },
   shots: {}, // every shot belongs to the place: chapter.locations.tjorn.shots
 
@@ -974,6 +1000,7 @@ function setUp(s) {
   c.reduced = reducedMotion(world);
   c.lines = lineQueue(s); // Mosi's names for the groups, as the child plays: one at a time
   const context = world.sound?.context ?? null;
+  preloadSamples(context, ['gramedlaRoar', 'turtleCall', 'lizards', 'grazers', 'flyers']);
   // the owner's picked recordings (Task 6), fetched in the background; until each has come its part is made
   c.sounds = createChoirSounds({ context, output: world.sound?.output ?? null, recordings: loadChoirRecordings(context) });
   // the band's loop (scenes 4 and 5) and Flugeðla's set (scene 6), both on the game clock's beat, held with the game's sound and
@@ -984,15 +1011,24 @@ function setUp(s) {
   c.beatClock = { shift: 0, get time() { return clock.time - this.shift; } };
   const output = world.sound?.output ?? null;
   const music = [];
-  const releases = [];
+  const releases = new Map();
   let ours = false; // nothing holds them (no page): the script gives them their frame itself
   const keep = part => {
     music.push(part);
     if (s.seeking) return part;
     const off = world.sound?.hold?.(part) ?? null;
-    releases.push(off);
-    if (!off) ours = true;
+    if (off) releases.set(part, off);
+    else ours = true;
     return part;
+  };
+  const drop = part => {
+    const idx = music.indexOf(part);
+    if (idx >= 0) music.splice(idx, 1);
+    const off = releases.get(part);
+    if (off) {
+      releases.delete(part);
+      off();
+    }
   };
   c.band = keep(createStems({ context, output, clock: c.beatClock, song: SONG, base: SONG_BASE, speaking: () => Boolean(world.sound?.speaking) }));
   const record = () => keep(createSong({
@@ -1001,7 +1037,9 @@ function setUp(s) {
   c.song = record();
   /** The set's record once more from its top (the show alone, "Aftur"): a song plays once, so the old one goes and a new one is made. */
   c.newSong = () => {
-    c.song.stop(0.3);
+    const old = c.song;
+    old.stop(0.3);
+    drop(old);
     c.song = record();
   };
   c.glow = createGlow(world, { reduced: c.reduced });
@@ -1020,12 +1058,16 @@ function setUp(s) {
     });
     return () => {
       c.ended = true;
+      for (const name of Object.keys(c.aims)) aim(s, c, name, null);
       c.show?.day(); // the afternoon, and the sun's cap off, for whatever is played next
+      c.glow.dispose();
       release?.();
       c.sounds.stop();
       c.band.stop(0.3);
       c.song.stop(0.5);
-      for (const off of releases) off?.();
+      for (const off of releases.values()) off();
+      releases.clear();
+      music.length = 0;
     };
   };
   return c;

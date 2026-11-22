@@ -138,27 +138,31 @@ export const chapter = {
 
     // ---- the show: the glasses' start (chapter.startButton), the take once from the top, the dip, then the end card ----
     let from = Math.min(length - 1, params.get('play') === '1' ? startAt : 0);
-    for (;;) {
-      state.started = true;
-      if (!capture) {
-        clock.ended = false;
-        clock.from = s.time - from;
-        state.showing = true;
-        player.soundStart(); // "Aftur" starts clean: the last play's sounds stopped, the set from its beat again
+    try {
+      for (;;) {
+        state.started = true;
+        if (!capture) {
+          clock.ended = false;
+          clock.from = s.time - from;
+          state.showing = true;
+          player.soundStart(); // "Aftur" starts clean: the last play's sounds stopped, the set from its beat again
+        }
+        if (capture) for (;;) yield;
+        yield s.until(() => s.time - clock.from >= length);
+        state.showing = false;
+        // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
+        let again = false;
+        const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => { player.soundEnd(); leaveShow(window); } });
+        document.body.append(end);
+        try {
+          yield s.until(() => again);
+        } finally {
+          end.remove();
+        }
+        from = 0;
       }
-      if (capture) for (;;) yield;
-      yield s.until(() => s.time - clock.from >= length);
-      state.showing = false;
-      // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
-      let again = false;
-      const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => { player.soundEnd(); leaveShow(window); } });
-      document.body.append(end);
-      try {
-        yield s.until(() => again);
-      } finally {
-        end.remove();
-      }
-      from = 0;
+    } finally {
+      player.dispose?.();
     }
   },
 };

@@ -73,7 +73,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   })();
   if (real) real.water.uniforms.uRingsUntil.value = -1; // no ring yet: rippleAt keeps it
   const materials = grey ? {
-    ground: lambert(GREY.ground), water: lambert(GREY.water), rock: lambert(GREY.rock), plant: lambert(GREY.plant),
+    ground: lambert(GREY.ground), water: new THREE.MeshLambertMaterial({ color: GREY.water, side: THREE.DoubleSide }), rock: lambert(GREY.rock), plant: lambert(GREY.plant),
     falls: new THREE.MeshLambertMaterial({ color: GREY.falls, side: THREE.DoubleSide }), snag: lambert(GREY.snag), mark: lambert(GREY.mark), far: lambert(GREY.far),
   } : {
     ground: createGroundMaterial(real.noise, { haze: real.haze }), water: real.water.material,
@@ -143,14 +143,7 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   snag.position.set(route.tree[0], (route.tree[1] + foot) / 2, route.tree[2]);
   snag.name = 'White snag (grey)';
   snag.castShadow = true;
-  const marks = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), materials.mark, route.groups.length);
   const m = new THREE.Matrix4();
-  route.groups.forEach((g, i) => {
-    const r = g.kind === 'dragonflies' ? 0.6 : 1.2;
-    marks.setMatrixAt(i, m.compose(new THREE.Vector3(...g.at), new THREE.Quaternion(), new THREE.Vector3(r, r, r)));
-  });
-  marks.name = 'Animal groups (marks)';
-  marks.computeBoundingSphere();
   always.add(snag);
   if (grey) {
     const far = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 9, 1, true).translate(0, 0.5, 0), materials.far, 4);
@@ -161,8 +154,16 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     far.computeBoundingSphere();
     always.add(far);
   }
-  if (!animals) always.add(marks);
-  else marks.geometry.dispose();
+  if (!animals) {
+    const marks = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), materials.mark, route.groups.length);
+    route.groups.forEach((g, i) => {
+      const r = g.kind === 'dragonflies' ? 0.6 : 1.2;
+      marks.setMatrixAt(i, m.compose(new THREE.Vector3(...g.at), new THREE.Quaternion(), new THREE.Vector3(r, r, r)));
+    });
+    marks.name = 'Animal groups (marks)';
+    marks.computeBoundingSphere();
+    always.add(marks);
+  }
   group.add(always);
 
   // Each section's bounds seen from above (its route piece and the corridor round it), and when the flight first needs it.
@@ -216,21 +217,31 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   }
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
-    const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
-    const banks = grey
-      ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
-      : yield* plantSteps({
-        terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
-        atlas: real.atlas, cards: real.cards, grove: seed, trees, treeless, lush: thick,
-      });
-    // (a section the flight first comes to after the crest of E has none: the far land is the horizon by then)
-    const belt = thick?.belt && ground.samples[0] < crest
-      ? yield* beltSteps({
-        terrain, index, route, samples: ground.samples, seed: seed * 1000 + i + 500, paint: real.paint, groundMaterial: materials.ground,
-        atlas: real.atlas, cardMaterial: real.cards, inView: keeper, belt: thick.belt, grove: seed,
-      })
-      : null;
-    return { ground, banks, belt };
+    let ground = null, banks = null, belt = null, committed = false;
+    try {
+      ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
+      banks = grey
+        ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
+        : yield* plantSteps({
+          terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants, props, clear, low, views,
+          atlas: real.atlas, cards: real.cards, grove: seed, trees, treeless, lush: thick,
+        });
+      // (a section the flight first comes to after the crest of E has none: the far land is the horizon by then)
+      belt = thick?.belt && ground.samples[0] < crest
+        ? yield* beltSteps({
+          terrain, index, route, samples: ground.samples, seed: seed * 1000 + i + 500, paint: real.paint, groundMaterial: materials.ground,
+          atlas: real.atlas, cardMaterial: real.cards, inView: keeper, belt: thick.belt, grove: seed,
+        })
+        : null;
+      committed = true;
+      return { ground, banks, belt };
+    } finally {
+      if (!committed) {
+        ground?.mesh?.geometry?.dispose?.();
+        banks?.group?.traverse?.(o => { if (o.isInstancedMesh) o.dispose(); if (o.geometry) o.geometry.dispose(); });
+        belt?.group?.traverse?.(o => { if (o.isInstancedMesh) o.dispose(); if (o.geometry) o.geometry.dispose(); });
+      }
+    }
   }
   const done = i => ({ ground, banks, belt }) => {
     const part = new THREE.Group();
@@ -264,40 +275,99 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
 
   let lastVisible = [];
   const downwash = real ? real.plants.downwash : new THREE.Vector4();
+  const RECULL_MOVE_SQ = 0.4 * 0.4;
+  const RECULL_TURN = (1.5 * Math.PI) / 180;
+  const RECULL_COS = Math.cos(RECULL_TURN);
+  const lastCullPos = new THREE.Vector3(Infinity, 0, 0);
+  const lastCullDir = new THREE.Vector3();
+  const curDir = new THREE.Vector3();
+  let lastCullCam = null, lastCullCardFrom = NaN, lastCullFarOn = null, lastCullSight = null;
+  let lastCullFog = NaN, lastCullFar = NaN, lastCullFov = NaN, lastCullAspect = NaN, lastCullSig = NaN;
+  const activeGrounds = [];
+  const wantedSet = new Set();
+  const shownSet = new Set();
+  const keepFar = r => !shownSet.has(r.part);
+  function cullSigOf() {
+    let h = 1;
+    for (let k = 0; k < lastVisible.length; k++) {
+      const list = plantMeshes[lastVisible[k]];
+      for (let j = 0; j < list.length; j++) h = (Math.imul(h, 31) + list[j].userData.cull.signature) | 0;
+    }
+    return h;
+  }
+
   function update(dt, time = 0) {
     // no flight where the chapter stands still (`at`): only what the camera is near is wanted
     const u = at && (world.flightU === null || world.flightU === undefined) ? null : world.flightU ?? 0;
     const camera = world.camera?.position;
     const near = camera ? nearTo(camera.x, camera.z, showReach()) : [];
-    for (const i of new Set([...(u === null ? [] : sections.wanted(u)), ...near])) {
+    wantedSet.clear();
+    if (u !== null) for (const i of sections.wanted(u)) wantedSet.add(i);
+    for (const i of near) wantedSet.add(i);
+    for (const i of wantedSet) {
       if (sections.list[i].built) continue;
       const job = queue.take(i);
       if (job) finish(job);
       stats.late.push({ index: i, u });
     }
+    const prevVisible = lastVisible;
     lastVisible = sections.update(u, near);
-    parts.forEach((part, i) => { if (part) part.visible = sections.list[i].visible; });
+    let visChanged = lastVisible.length !== prevVisible.length;
+    if (!visChanged) {
+      for (let k = 0; k < lastVisible.length; k++) if (lastVisible[k] !== prevVisible[k]) { visChanged = true; break; }
+    }
+    for (let i = 0; i < parts.length; i++) if (parts[i]) parts[i].visible = sections.list[i].visible;
     if (real) {
       // the plants in view, at the detail their distance calls for (world/forest/batch.js), but for those the gorge or the haze hides; her
       // downwash; the water's clock
       world.camera.updateMatrixWorld();
-      const hide = sight.active(camera) ? hideBoth : hideHazed;
+      const sightActive = sight.active(camera);
+      const hide = sightActive ? hideBoth : hideHazed;
       // the belt is the horizon below the falls until the far land shows (from the crest of E), which stands in for it then
       const t = world.flightTime ?? -1;
       const farOn = farLand.shown && t >= FAR.from && t < FAR.to;
       for (const i of lastVisible) if (belts[i]) belts[i].group.visible = !farOn;
       setCardFade(real.cardFade, cardFrom); // the shaders fade a tree into its card over the band the cull draws both in
-      for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
-      // the far layer: the cards of the sections not shown, while the far land stands under them
-      if (!at && layer.dirty && (farOn || !queue.busy)) remakeLayer();
-      if (layer.mesh) {
-        if (farOn) {
-          const shown = new Set(lastVisible);
-          cullLayer(layer.mesh, world.camera, { margin: 1.5, keep: r => !shown.has(r.part), hide });
-        } else layer.mesh.visible = false;
+      let layerRemade = false;
+      if (!at && layer.dirty && (farOn || !queue.busy)) { remakeLayer(); layerRemade = true; }
+      world.camera.getWorldDirection(curDir);
+      const fogDensity = world.scene?.fog?.density ?? 0;
+      const moved = world.camera !== lastCullCam
+        || camera.distanceToSquared(lastCullPos) > RECULL_MOVE_SQ
+        || curDir.dot(lastCullDir) < RECULL_COS
+        || visChanged || layerRemade
+        || cardFrom !== lastCullCardFrom || farOn !== lastCullFarOn || sightActive !== lastCullSight
+        || fogDensity !== lastCullFog || world.camera.far !== lastCullFar
+        || world.camera.fov !== lastCullFov || world.camera.aspect !== lastCullAspect
+        || cullSigOf() !== lastCullSig;
+      if (moved) {
+        lastCullCam = world.camera;
+        lastCullPos.copy(camera);
+        lastCullDir.copy(curDir);
+        lastCullCardFrom = cardFrom;
+        lastCullFarOn = farOn;
+        lastCullSight = sightActive;
+        lastCullFog = fogDensity;
+        lastCullFar = world.camera.far;
+        lastCullFov = world.camera.fov;
+        lastCullAspect = world.camera.aspect;
+        for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide, cardFrom);
+        lastCullSig = cullSigOf();
+        // the far layer: the cards of the sections not shown, while the far land stands under them
+        if (layer.mesh) {
+          if (farOn) {
+            shownSet.clear();
+            for (const i of lastVisible) shownSet.add(i);
+            cullLayer(layer.mesh, world.camera, { margin: 1.5, keep: keepFar, hide });
+          } else layer.mesh.visible = false;
+        }
+        // the ground's tiles in view (only the frustum: the ground is what hides the rest)
+        activeGrounds.length = 0;
+        for (const i of lastVisible) if (groundMeshes[i]) activeGrounds.push(groundMeshes[i]);
+        cullBatches(activeGrounds, world.camera, 2);
+      } else if (layer.mesh && !farOn) {
+        layer.mesh.visible = false;
       }
-      // the ground's tiles in view (only the frustum: the ground is what hides the rest)
-      cullBatches(lastVisible.map(i => groundMeshes[i]).filter(Boolean), world.camera, 2);
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
       else downwash.set(0, 0, 0, 0);
@@ -351,9 +421,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     /** Build every section now (a capture or a test that jumps about). */
     buildAll() { for (const i of sections.list.map(s => s.index)) { const job = queue.take(i); if (job) finish(job); } },
     dispose() {
+      queue.clear();
       group.removeFromParent();
-      group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-      for (const material of Object.values(materials)) material.dispose();
       if (real) {
         farLand.dispose();
         waterfall.dispose();
@@ -362,9 +431,18 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
         crowds.dispose();
         real.plants.dispose();
         real.water.dispose();
+        real.noise.dispose();
         real.leaf.dispose();
         real.cards.dispose();
         real.atlas.dispose();
+      }
+      group.traverse(o => {
+        if (o.isInstancedMesh) o.dispose();
+        if (o.geometry) o.geometry.dispose();
+      });
+      for (const [k, material] of Object.entries(materials)) {
+        if (real && k === 'water') continue; // already disposed via real.water.dispose()
+        material.dispose();
       }
     },
   };

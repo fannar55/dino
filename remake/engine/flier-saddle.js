@@ -101,7 +101,11 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL, places: early = nu
   const load = () => {
     if (world?.loadModel) return world.loadModel(url);
     if (typeof document === 'undefined') return null;
-    if (!models.has(url)) models.set(url, new GLTFLoader().loadAsync(url));
+    if (!models.has(url)) {
+      const promise = new GLTFLoader().loadAsync(url);
+      models.set(url, promise);
+      promise.catch(() => { if (models.get(url) === promise) models.delete(url); });
+    }
     return models.get(url);
   };
   const loaded = Promise.resolve().then(load).then(gltf => { // a load that throws at once fails as one that fails later
@@ -140,7 +144,9 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL, places: early = nu
     mesh.castShadow = false; // a shadow would cost the shadow pass a draw call for a sliver on her back (as Mosi's)
     mesh.receiveShadow = true;
     mesh.frustumCulled = false; // as her body: its bounds are the bind pose's, not where she is
-    mesh.visible = shown;
+    mesh.userData.followsBody = body;
+    mesh.userData.wantVisible = shown;
+    mesh.visible = shown && body.visible;
     // its corrections, on as her upper arms say each time it is drawn (where her wing roots swing up over her back)
     corrections = source.userData.corrections ?? [];
     clean = source.userData.clean ?? [];
@@ -211,11 +217,11 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL, places: early = nu
     show() {
       shown = true;
       uniforms.popScale.value = 1;
-      if (mesh) mesh.visible = true;
+      if (mesh) { mesh.userData.wantVisible = true; mesh.visible = body.visible; }
     },
     hide() {
       shown = false;
-      if (mesh) mesh.visible = false;
+      if (mesh) { mesh.userData.wantVisible = false; mesh.visible = false; }
     },
     /** It pops onto her back with a burst of sparkles over the seat. Returns a Handle that finishes when it has settled. */
     appear({ duration = 0.8 } = {}) {
@@ -225,7 +231,8 @@ export function createFlierSaddle(host, { url = SADDLE_MODEL, places: early = nu
       if (!mesh) { handle.finish(); return handle; } // no model: nothing to see
       host.model.updateMatrixWorld(true);
       const burst = at(spots.seat, new V3()).add(new V3(0, 0.12, 0));
-      mesh.visible = true;
+      mesh.userData.wantVisible = true;
+      mesh.visible = body.visible;
       uniforms.popScale.value = 1e-4;
       let t = 0;
       world.effects.add({

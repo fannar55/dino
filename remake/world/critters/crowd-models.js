@@ -84,15 +84,33 @@ function inMetres(mesh) {
 /**
  * The pose of `clip` at `time` seconds (the game clock), `phase` (0 to 1) along the clip for this critter: the two frames round
  * (time / seconds + phase) mod 1, blended linearly, weights summing to 1. Every clip loops.
+ * When `out` is given, weights (scaled by `weight`) are accumulated directly into `out` without allocating.
  */
-export function clipPose(model, clip, time, phase = 0) {
+export function clipPose(model, clip, time, phase = 0, out = null, weight = 1) {
   const { frames, seconds } = model.clips[clip];
-  if (frames < 2) return { [`${clip}.0`]: 1 };
+  if (!out) {
+    if (frames < 2) return { [`${clip}.0`]: weight };
+    let u = (time / seconds + phase) % 1;
+    if (u < 0) u += 1;
+    const at = u * frames;
+    const k = Math.floor(at) % frames;
+    const w = at - Math.floor(at);
+    const next = (k + 1) % frames;
+    return { [`${clip}.${k}`]: (1 - w) * weight, [`${clip}.${next}`]: w * weight };
+  }
+  if (frames < 2) {
+    const n0 = `${clip}.0`;
+    out[n0] = (out[n0] ?? 0) + weight;
+    return out;
+  }
   let u = (time / seconds + phase) % 1;
   if (u < 0) u += 1;
   const at = u * frames;
   const k = Math.floor(at) % frames;
   const w = at - Math.floor(at);
   const next = (k + 1) % frames;
-  return { [`${clip}.${k}`]: 1 - w, [`${clip}.${next}`]: w };
+  const n0 = `${clip}.${k}`, n1 = `${clip}.${next}`;
+  out[n0] = (out[n0] ?? 0) + (1 - w) * weight;
+  out[n1] = (out[n1] ?? 0) + w * weight;
+  return out;
 }

@@ -7,7 +7,7 @@
 // attack ('attack', 'keep-attack') name Kambeðla, so where the player about to move is not her (a round of Fjölspil) the table
 // asks for advice with `attackable: false`: the move is the same, and he gives the card's plain reason instead.
 
-import { canDraw, isWild, playable } from './rules.js';
+import { canDraw, canPlay, isWild, playable } from './rules.js';
 import { ATTACK_AT, bestColour, nextAfter, sharpMove } from './kambedla.js';
 
 /** Why Mosi advises what he does; each is a line of his, eitt_why_<reason> with its dashes as underscores. */
@@ -36,13 +36,13 @@ function reasonFor(game, who, move, attackable) {
   const card = hand.find(held => held.id === move.cardId);
   const rest = hand.filter(held => held !== card);
   const attack = attackable && game.hands[nextAfter(game, who)].length <= ATTACK_AT;
-  if (card.kind === 'skip' || card.kind === 'reverse') return 'skip';
+  if (game.hands.length === 2 && (card.kind === 'skip' || card.kind === 'reverse')) return 'skip';
   if (attack && (card.kind === 'draw2' || card.kind === 'wild4')) return 'attack';
   if (isWild(card)) { // a sharp player plays a wild only when nothing else fits (or to attack)
     return attackable || playable(game, who).every(isWild) ? 'only-wild' : 'change-colour';
   }
   if (rest.some(isWild)) return 'keep-wild';
-  if (attackable && !attack && rest.some(held => held.kind === 'draw2')) return 'keep-attack';
+  if (attackable && !attack && rest.some(held => held.kind === 'draw2' && canPlay(held, game))) return 'keep-attack';
   if (card.colour !== game.colour && card.colour === bestColour(rest)) return 'change-colour';
   return card.colour === game.colour ? 'colour' : 'number';
 }

@@ -54,10 +54,14 @@ export const ANSWER = { frogs: 'frog', birds: 'birds', dragonflies: 'dragonfly',
  * line plays, or `ifFree` and a line already waits its turn (it waits for the one playing, but not behind others). `pan` (-1..1, or
  * a function giving it as the line begins): heard from that side.
  */
+const SCRATCH_LOCAL = new THREE.Vector3();
+const SCRATCH_POINT = new THREE.Vector3();
+
 export function lineQueue(s) {
   let current = null; // the task of the line playing
   const waiting = [];
   let pumping = false;
+  let pumpTask = null;
   const playing = () => current !== null && !current.done;
   function begin(entry) {
     const pan = typeof entry.pan === 'function' ? entry.pan() : entry.pan;
@@ -74,6 +78,7 @@ export function lineQueue(s) {
       }
     } finally {
       pumping = false;
+      pumpTask = null;
     }
   }
   return {
@@ -85,12 +90,18 @@ export function lineQueue(s) {
         waiting.push(entry);
         if (!pumping) {
           pumping = true;
-          s.after(0, () => pump());
+          pumpTask = s.after(0, () => pump());
         }
         return entry;
       }
       begin(entry);
       return entry;
+    },
+    stop() {
+      waiting.length = 0;
+      pumpTask?.cancel?.();
+      pumpTask = null;
+      pumping = false;
     },
   };
 }
@@ -102,15 +113,28 @@ export function flightPlay(s, c) {
   const calls = []; // { id (a group's, or 'land'), how ('auto', or 'shot': a call shot's), t, voiced }
   const answers = []; // { id, t }
   let last = null; // the flight's time at the last update
+  let stopped = false;
+  const pending = new Set();
+  const schedule = (delay, fn) => {
+    if (stopped) return null;
+    let task = null;
+    task = s.after(delay, () => {
+      pending.delete(task);
+      if (stopped) return null;
+      return fn();
+    });
+    if (task && !task.done) pending.add(task);
+    return task;
+  };
   const effects = Boolean(world.effects && world.scene); // the splashes need them (none in a test's bare world)
   const life = world.forest?.life ?? null;
   const panOfPoint = point => (world.camera?.updateMatrixWorld ? panOf(world, point) : 0);
   const herSide = () => panOfPoint(flier.pose.position); // where she is across the speakers, as the camera sees her now
 
   // a splash and a set of plain glints nobody sees (the splash's lit program, the sparkles'), drawn once now as the flight starts in
-  // the black, so their first draw is not mid-flight (a stall of some 0.1 s: main.js), for the review flight, which has no falls built
-  // before it nor sparkles
-  if (!s.seeking && world.warmObjects && effects) {
+  // the black, so their first draw is not mid-flight (a stall of some 0.1 s: main.js), for the review flight (c.beds is falsy), which
+  // has no falls built before it nor sparkles; kafli4 (c.beds true) warms behind the start button and cuts to Árdalur without black
+  if (!s.seeking && !c.beds && world.warmObjects && effects) {
     const warm = [splashWarm(world), glintsWarm(world)];
     world.warmObjects(warm.map(w => w.object));
     for (const w of warm) w.dispose();
@@ -120,14 +144,14 @@ export function flightPlay(s, c) {
   const animalOf = id => world.forest?.animals?.groups.find(g => g.id === id) ?? null;
   const groups = route.groups.map(g => ({ id: g.id, kind: g.kind, at: g.at, u: g.u, called: false }));
   let nextCall = 0;
-  const pointOf = g => animalOf(g.id)?.point ?? new THREE.Vector3(...g.at);
+  const pointOf = g => animalOf(g.id)?.point ?? SCRATCH_POINT.set(...g.at);
   function callGroup(g, how) {
     if (g.called) return;
     g.called = true;
     const voiced = c.say('flugedla', CALLS[nextCall % CALLS.length], { ifQuiet: true }) !== null;
     if (voiced) nextCall++;
     calls.push({ id: g.id, how, t: flightTime(), voiced });
-    s.after(PLAY.answerAfter, () => answer(g));
+    schedule(PLAY.answerAfter, () => answer(g));
   }
   function answer(g, run = undefined) {
     const animal = animalOf(g.id);
@@ -153,7 +177,7 @@ export function flightPlay(s, c) {
       animalOf(g.id)?.hear?.((world.clock?.time ?? s.time) - late);
       const early = r.row.early?.[g.id] ?? null;
       const at = early ? r.row.call + PLAY.answerAfter : r.row.pass + PLAY.runAfter;
-      s.after(Math.max(0, at - flightTime()), () => answer(g, early ?? undefined));
+      schedule(Math.max(0, at - flightTime()), () => answer(g, early ?? undefined));
     }
   }
   function groupsFrame() {
@@ -174,11 +198,12 @@ export function flightPlay(s, c) {
     c.say('flugedla', 'k4_flugedla_call1', {
       pan: herSide, // from the herd's call shot, as its camera sees her
       onStart: () => {
+        if (stopped) return;
         big.at = flightTime();
         calls.push({ id: 'land', how, t: big.at, voiced: true });
         world.forest?.farLand?.kambedla?.answerAt?.(big.at);
         world.forest?.life?.bigCall?.(big.at); // the rows of small lizards and the flocks set off (world/ardalur/life.js)
-        for (const [after, name, pan] of PLAY.bigAnswers) s.after(after, () => { s.sfx(name, { pan }); });
+        for (const [after, name, pan] of PLAY.bigAnswers) schedule(after, () => { s.sfx(name, { pan }); });
       },
     });
   }
@@ -233,7 +258,7 @@ export function flightPlay(s, c) {
         const back = new THREE.Vector3(out.x + b.dir[0] * FISH.across, out.y, out.z + b.dir[1] * FISH.across);
         s.sfx('fish', { part: 'out', pan: panOfPoint(out) });
         world.forest?.rippleAt?.(out.x, out.z, 0.5);
-        s.after(FISH.seconds, () => {
+        schedule(FISH.seconds, () => {
           s.sfx('fish', { part: 'in', pan: panOfPoint(back) });
           world.forest?.rippleAt?.(back.x, back.z, 0.6);
           if (effects) splash(world, back, { size: 0.35, count: 14, seed: `${b.id} in` });
@@ -258,6 +283,7 @@ export function flightPlay(s, c) {
     },
     bigCall,
     update(t) {
+      if (stopped) return;
       const before = last;
       last = t;
       groupsFrame();
@@ -265,7 +291,13 @@ export function flightPlay(s, c) {
       cryFrame(before, t);
       lifeFrame(before, t);
     },
-    stop() {},
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      for (const task of pending) task.cancel?.();
+      pending.clear();
+      c.lines?.stop?.();
+    },
   };
 }
 
@@ -273,7 +305,7 @@ export function flightPlay(s, c) {
 export function panOf(world, point) {
   const camera = world.camera;
   camera.updateMatrixWorld();
-  const local = point.clone().applyMatrix4(camera.matrixWorldInverse);
+  const local = SCRATCH_LOCAL.copy(point).applyMatrix4(camera.matrixWorldInverse);
   const across = local.x / (Math.hypot(local.x, local.z) || 1);
   return Math.max(-1, Math.min(1, across)) * 0.8;
 }

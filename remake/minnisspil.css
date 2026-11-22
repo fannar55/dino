@@ -18,7 +18,7 @@
 
    Every control is at least 88 px (--target) but the leaves (44 px, game.js) and the credits' "i" (88 px to tap, drawn small: it is not
    the child's), Nunito only. */
-@font-face{font-family:Nunito;src:url('./assets/fonts/nunito-latin.woff2') format('woff2');font-weight:400 900;font-display:swap}
+@font-face{font-family:Nunito;src:url('./assets/fonts/nunito-latin.woff2') format('woff2');font-weight:400 1000;font-display:swap}
 :root{
   color-scheme:light;
   /* (yatzy-junior.css :root) */

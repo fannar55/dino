@@ -41,10 +41,31 @@ if (lostDistAudio.length) {
 /** A narration take of one of the book's educational videos: kept in the repo for the voice tools, never loaded by the game. */
 const isVideoNarration = rel => /^assets\/audio\/book\/book_myndband_[a-z0-9_]+\.mp3$/.test(rel);
 
+/** Unused developer lab HTML pages (sloedla-lab.html is runtime and MUST stay). */
+const DEV_LAB_HTML = new Set([
+  'book-lab.html',
+  'eitt-lab.html',
+  'eitt-rod-lab.html',
+  'fen-sounds-lab.html',
+  'fjolspil-lab.html',
+  'hals-game-lab.html',
+  'hals-lab.html',
+  'veiddu-lab.html',
+]);
+
+/** Non-runtime docs, licenses and generator source metadata never loaded by the game. */
+const isNonRuntime = rel => {
+  const name = rel.slice(rel.lastIndexOf('/') + 1);
+  return DEV_LAB_HTML.has(rel)
+    || /\.(?:md|txt)$/i.test(name)
+    || name === 'LICENSE'
+    || /-source\.json$/i.test(name);
+};
+
 const SOURCES = [
-  { from: 'remake', to: 'remake', skip: ['tests', 'tools', 'prompts', 'assets/characters/source'], keep: rel => !isVideoNarration(rel) },
-  { from: 'dist/vendor', to: 'dist/vendor', skip: [] },
-  { from: 'dist/assets/audio', to: 'dist/assets/audio', skip: [], keep: rel => usedDistAudio.has(rel) || /\.txt$/i.test(rel) },
+  { from: 'remake', to: 'remake', skip: ['tests', 'tools', 'prompts', 'assets/characters/source'], keep: rel => !isVideoNarration(rel) && !isNonRuntime(rel) },
+  { from: 'dist/vendor', to: 'dist/vendor', skip: [], keep: rel => !isNonRuntime(rel) },
+  { from: 'dist/assets/audio', to: 'dist/assets/audio', skip: [], keep: rel => usedDistAudio.has(rel) },
 ];
 
 /** A name never published: a dotfile or dot-folder, or a key or certificate. */

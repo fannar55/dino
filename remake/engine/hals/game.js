@@ -517,13 +517,18 @@ export function createHalsGame(doc, {
   }
 
   /** The pieces for `ids`, made anew when the players change (or a turn was cut short), else the ones there are. */
+  let piecesToken = 0;
   async function ensurePieces(ids) {
     if (pieces && !stale && roster?.join() === ids.join()) return pieces;
+    const token = ++piecesToken;
     const { createPieces } = await import('./pieces.js');
+    if (token !== piecesToken || !isOpen) return null;
     globalThis.performance?.mark?.('hals:pieces');
     const made = await createPieces(hw.world, hw.board, { roster: ids });
+    if (token !== piecesToken || !isOpen) { made.dispose(); return null; }
     made.update(0);
     await compiled(hw.scene, hw.camera);
+    if (token !== piecesToken || !isOpen) { made.dispose(); return null; }
     pieces?.dispose();
     pieces = made;
     roster = ids;
@@ -1037,6 +1042,7 @@ export function createHalsGame(doc, {
     const egill = piece.id === 'egill';
     const fossilKind = result.event?.type === 'fossil' ? game.fossilKinds?.[result.landed] ?? null : null;
     await playTurn({ world: hw, pieces, thorsedlas: hw.thorsedlas }, piece, result, {
+      isCancelled: () => token !== round,
       onStep: async (square, count, { back = false } = {}) => {
         if (token !== round) return;
         liveSquare = { index, square };
@@ -1300,18 +1306,42 @@ export function createHalsGame(doc, {
   }
 
   /** "Halda áfram": the kept game, with its seats when it has them (the room opens again and the guests come back to it). */
+  let setupBusy = false;
   async function resume(kept) {
     if (!kept.setup.seats) return start(kept.setup, kept);
-    await fjolspil.resume(kept.setup.seats);
-    const seats = fjolspil.seats.list();
-    if (!isOpen || seats.length !== kept.state.players.length) return; // another tab has the room: its seats are not this game's
-    return start({ seats }, kept);
+    if (setupBusy) return;
+    setupBusy = true;
+    const token = round;
+    try {
+      await fjolspil.resume(kept.setup.seats);
+      const seats = fjolspil.seats.list();
+      if (!isOpen || phase !== 'setup' || token !== round) {
+        if (!multi) fjolspil.closeGame?.();
+        return;
+      }
+      if (seats.length !== kept.state.players.length) return; // another tab has the room: its seats are not this game's
+    } finally {
+      setupBusy = false;
+    }
+    return start({ seats: fjolspil.seats.list() }, kept);
   }
 
   /** "Fjölspil": the lobby, and at its "Byrjum!" a game of its seats; its X leaves the setup as it was. */
   async function openLobby() {
-    const opened = await fjolspil.openLobby({ game: 'hals', ai: AI });
-    if (!opened || !isOpen || phase !== 'setup') return; // the X, or another tab took the room
+    if (setupBusy) return;
+    setupBusy = true;
+    const token = round;
+    let opened = null;
+    try {
+      opened = await fjolspil.openLobby({ game: 'hals', ai: AI });
+    } finally {
+      setupBusy = false;
+    }
+    if (!opened) return;
+    if (!isOpen || phase !== 'setup' || token !== round) {
+      if (!multi) fjolspil.closeGame?.();
+      return;
+    }
     return start({ seats: opened.seats });
   }
 
@@ -1336,6 +1366,10 @@ export function createHalsGame(doc, {
    */
   async function start(choice = setup, kept = null, { teach = false } = {}) {
     const token = ++round;
+    hw?.cancelTweens?.();
+    hw?.thorsedlas?.cancelTweens?.();
+    pieces?.cancelTweens?.();
+    sparks?.clear?.();
     for (const id of timers) clearTimeout(id);
     timers.clear();
     hush();
@@ -1361,7 +1395,7 @@ export function createHalsGame(doc, {
     if (token !== round) return;
     const ids = seated ? rosterOf(seated) : ROSTERS[setup.players];
     await ensurePieces(ids);
-    if (token !== round) return;
+    if (token !== round || !pieces) return;
     veil.classList.remove('waiting');
     game = kept?.state ?? createGame(seated
       ? { playerCount: ids.length, computers: computersOf(seated), mode: 'adventure', random }
@@ -1468,6 +1502,11 @@ export function createHalsGame(doc, {
     if (!isOpen) return;
     isOpen = false;
     round++;
+    piecesToken++;
+    hw?.cancelTweens?.();
+    hw?.thorsedlas?.cancelTweens?.();
+    pieces?.cancelTweens?.();
+    sparks?.clear?.();
     if (turning) stale = true; // its pieces are left mid-move: new ones next time
     turning = false;
     for (const id of timers) clearTimeout(id);
@@ -1556,9 +1595,9 @@ export function createHalsGame(doc, {
       },
     });
   }
-  pressable(startEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) run(start({ players: setup.players })); } });
-  pressable(multiEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && fjolspil) run(openLobby()); } });
-  pressable(continueEl, { audio: tap, win, onTap: () => { wake(); const kept = savedGame(); if (isOpen) run(kept ? resume(kept) : start({ players: setup.players })); } });
+  pressable(startEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && phase === 'setup' && !setupBusy) run(start({ players: setup.players })); } });
+  pressable(multiEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && phase === 'setup' && !setupBusy && fjolspil) run(openLobby()); } });
+  pressable(continueEl, { audio: tap, win, onTap: () => { wake(); if (!isOpen || phase !== 'setup' || setupBusy) return; const kept = savedGame(); run(kept ? resume(kept) : start({ players: setup.players })); } });
   pressable(freshEl, { audio: tap, win, onTap: () => { wake(); save?.setHalsPlay?.({ game: null }); resumeEl.hidden = true; chooseEl.hidden = false; } });
   // "Spilum aftur?" after a game of "Fjölspil" plays again in the same seats, with no lobby (spec §4 step 7)
   pressable(againEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) run(start(multi ? { seats: fjolspil.seats.list() } : { players: setup.players })); } });

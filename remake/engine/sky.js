@@ -8,7 +8,7 @@ import * as THREE from 'three';
 function tileableNoise(size = 256, seed = 7) {
   let s = seed >>> 0;
   const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-  const data = new Uint8Array(size * size * 4);
+  const data = new Uint8Array(size * size);
   const octaves = [8, 16, 32, 64];
   const lattices = octaves.map(n => Float32Array.from({ length: n * n }, rand));
   const smooth = t => t * t * (3 - 2 * t);
@@ -17,7 +17,8 @@ function tileableNoise(size = 256, seed = 7) {
       let v = 0;
       let amp = 0.5;
       let norm = 0;
-      octaves.forEach((n, o) => {
+      for (let o = 0; o < octaves.length; o++) {
+        const n = octaves[o];
         const fx = (x / size) * n;
         const fy = (y / size) * n;
         const x0 = Math.floor(fx) % n, y0 = Math.floor(fy) % n;
@@ -29,14 +30,11 @@ function tileableNoise(size = 256, seed = 7) {
         v += (a + (b - a) * ty) * amp;
         norm += amp;
         amp *= 0.5;
-      });
-      const byte = Math.round((v / norm) * 255);
-      const i = (y * size + x) * 4;
-      data[i] = data[i + 1] = data[i + 2] = byte;
-      data[i + 3] = 255;
+      }
+      data[y * size + x] = Math.round((v / norm) * 255);
     }
   }
-  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  const tex = new THREE.DataTexture(data, size, size, THREE.RedFormat);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -73,16 +71,23 @@ void main() {
   float h = d.y;
   vec3 col = mix(uHorizon, uZenith, pow(clamp(h, 0.0, 1.0), 0.4));
   float sd = max(dot(d, uSunDir), 0.0);
-  col += uGlow * (pow(sd, 6.0) * 0.22 + pow(sd, 64.0) * 0.45);
+  float sd2 = sd * sd;
+  float sd4 = sd2 * sd2;
+  float sd6 = sd4 * sd2;
+  float sd8 = sd4 * sd4;
+  float sd16 = sd8 * sd8;
+  float sd32 = sd16 * sd16;
+  float sd64 = sd32 * sd32;
+  col += uGlow * (sd6 * 0.22 + sd64 * 0.45);
   col = mix(col, uGlow * 1.5, smoothstep(0.99935, 0.9997, sd));
   if (h > 0.0) {
     vec2 uv = d.xz / (h + 0.2) * 0.16 + vec2(uTime * 0.0016, uTime * 0.0007);
     float n = texture2D(uNoise, uv).r * 0.62 + texture2D(uNoise, uv * 2.7 + 0.31).r * 0.38;
     float m = smoothstep(uCover, uCover + 0.2, n) * smoothstep(0.015, 0.22, h);
-    vec3 cloudCol = mix(uCloudShade, uCloud, 0.5 + 0.5 * pow(sd, 2.0));
+    vec3 cloudCol = mix(uCloudShade, uCloud, 0.5 + 0.5 * sd2);
     col = mix(col, cloudCol, m * 0.92);
   }
-  vec3 fogTint = mix(uFogColor, uFogSun, pow(sd, 8.0) * uFogSunStrength);
+  vec3 fogTint = mix(uFogColor, uFogSun, sd8 * uFogSunStrength);
   col = mix(col, fogTint, smoothstep(0.09, 0.0, h));
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>

@@ -165,7 +165,8 @@ export const chapter = {
       const tight = view.fits ? '' : view.least < 0 ? ` · kemst ekki fyrir (${tala(-view.leastCm)} cm út fyrir)` : ` · þröngt (${tala(view.leastCm)} cm að brún)`;
       ui.label.textContent = `Mosi ${tala(view.height)} cm · skjár ${tala(view.inches)} tommur · ${view.index + 1} af ${view.steps.length}${tight}`;
     }
-    win?.addEventListener('resize', () => { view.dirty = true; });
+    const onResize = () => { view.dirty = true; };
+    win?.addEventListener('resize', onResize);
 
     /**
      * The numbers, as he stands now: every vertex of his skin through the two eye cameras the picture is drawn with (the glasses'
@@ -243,9 +244,14 @@ export const chapter = {
       }
     });
 
-    yield s.ready();
-    if (ui) document.body.append(ui.element);
-    yield s.fade(0, 1);
-    for (;;) yield;
+    try {
+      yield s.ready();
+      if (ui) document.body.append(ui.element);
+      yield s.fade(0, 1);
+      for (;;) yield;
+    } finally {
+      win?.removeEventListener('resize', onResize);
+      ui?.element.remove();
+    }
   },
 };

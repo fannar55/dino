@@ -101,13 +101,18 @@ export function tableUi(doc, { step, screen, prev = 'Fyrra', next = 'Næsta' }) 
   showWhole();
   // the buttons' touches are not touches in the world
   for (const button of element.querySelectorAll('button')) for (const type of ['pointerdown', 'pointerup']) button.addEventListener(type, e => e.stopPropagation());
-  doc.addEventListener('keydown', e => {
+  const onKeydown = e => {
     if (e.key === 'ArrowLeft') step(-1);
     else if (e.key === 'ArrowRight') step(1);
     else return;
     e.preventDefault();
-  });
-  return { element, label };
+  };
+  doc.addEventListener('keydown', onKeydown);
+  function dispose() {
+    for (const type of ['fullscreenchange', 'webkitfullscreenchange']) doc.removeEventListener(type, showWhole);
+    doc.removeEventListener('keydown', onKeydown);
+  }
+  return { element, label, dispose };
 }
 
 /** A number as the label writes it: at most one decimal, a comma. */

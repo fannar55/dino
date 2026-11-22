@@ -265,6 +265,8 @@ export async function createKambedlaView(container, { win = globalThis.window, o
   function update(dt) {
     clock += dt;
     for (let i = timers.length - 1; i >= 0; i--) {
+      if (i >= timers.length) i = timers.length - 1;
+      if (i < 0) break;
       if (timers[i].at > clock) continue;
       const [{ fn }] = timers.splice(i, 1);
       fn();

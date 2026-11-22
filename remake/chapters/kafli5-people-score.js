@@ -42,7 +42,36 @@ function keyed(keys, b) {
   }
   return keys.at(-1)[1];
 }
-const cues = kind => SET.cues.filter(event => event.kind === kind).map(event => event.beat);
+const cues = kind => SET.cues.filter(event => event.kind === kind).map(event => event.beat).sort((a, b) => a - b);
+function lowerBound(sorted, minVal) {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < minVal) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+function maxHumpInWindow(sorted, b, lead, peakOff, tail) {
+  let best = 0;
+  for (let i = lowerBound(sorted, b - tail); i < sorted.length; i++) {
+    const at = sorted[i];
+    if (at > b + lead) break;
+    const v = hump(b, at - lead, at + peakOff, at + tail);
+    if (v > best) best = v;
+  }
+  return best;
+}
+function maxSpanInWindow(sorted, b, lead, tail, rise, fall) {
+  let best = 0;
+  for (let i = lowerBound(sorted, b - tail); i < sorted.length; i++) {
+    const at = sorted[i];
+    if (at > b + lead) break;
+    const v = span(b, at - lead, at + tail, rise, fall);
+    if (v > best) best = v;
+  }
+  return best;
+}
 const part = id => { const s = SET.sections.find(section => section.id === id); return { from: s.startBeat, to: s.startBeat + s.beats }; };
 const line = id => SET.lines.find(entry => entry.id === id).beat;
 
@@ -85,7 +114,15 @@ const ENERGY = [
 ];
 export const energy = b => keyed(ENERGY, b);
 /** How far everyone is bent down, 0..1 (the hush before a jump), let go over the `release` beats after the jump's own. */
-const hush = (b, release = 0.4) => Math.max(...HUSH.map(([from, to]) => span(b, from, to + release, 0.8, release)));
+function hush(b, release = 0.4) {
+  let best = 0;
+  for (let i = 0; i < HUSH.length; i++) {
+    const [from, to] = HUSH[i];
+    const v = span(b, from, to + release, 0.8, release);
+    if (v > best) best = v;
+  }
+  return best;
+}
 /** 1 while the people stand (the set's start and its end): everything of theirs is given back as it was found. */
 const there = b => ramp(b, 0, 3) * (1 - ramp(b, END + 2.5, END + 4.6));
 
@@ -115,13 +152,13 @@ export const HER_MIDDLE = [WADE.at[0] + HER_WADE.far * Math.cos((WADE.heading * 
 const GROUP_PARTS = ['grazers', 'turtles', 'frogs', 'lizards', 'flyers', 'beetles'].map(id => [P[id].from, id === 'flyers' ? 'over' : id]);
 /** A look: [score beat, whom] keys; the point looked at goes from one to the next over `turn` beats. */
 function lookAt(keys, b, turn = 1.5) {
-  let i = keys.findLastIndex(([beat]) => beat <= b);
-  if (i < 0) i = 0;
+  let i = keys.length - 1;
+  while (i > 0 && keys[i][0] > b) i--;
   const to = LOOKS[keys[i][1]];
-  if (i === 0) return [...to];
+  if (i === 0) return [to[0], to[1], to[2]];
   const from = LOOKS[keys[i - 1][1]];
   const k = ramp(b, keys[i][0], keys[i][0] + turn);
-  return from.map((v, n) => v + (to[n] - v) * k);
+  return [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k, from[2] + (to[2] - from[2]) * k];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -153,6 +190,7 @@ const EGILL_LOOK = [
 ];
 /** The two gaps the child shouts "Já!" in, by score beat: Egill cups his hands at his mouth and leans into it. */
 export const SHOUTS = [[406.4, 409.6, 0.8], [414.6, 416, 1]];
+const EGILL_SPINS = [332, 348, 380, 396, 436, 452];
 
 /**
  * Egill at the clock: {
@@ -205,30 +243,38 @@ export function egillAt(clock, { reduced = false } = {}) {
   out.wave.weight = (span(b, 35.2, 40.5, 0.6) + span(b, 465.5, 471.2, 0.7)) * free;
   // "Klappið með!": hands apart in front, together on every clap of the band
   const clapping = span(b, 41, 62, 1, 0.5) + 0.85 * span(b, 376, 402.5, 1);
-  const clap = Math.max(...CLAPS.map(at => hump(b, at - 0.4, at, at + 0.35)));
-  for (const arm of [out.arms.right, out.arms.left]) {
-    arm.clap = clapping * clap * free;
-    arm.open = clapping * (1 - clap) * free;
-    arm.pump *= 1 - clapping;
-  }
+  const clap = clapping > 0 ? maxHumpInWindow(CLAPS, b, 0.4, 0, 0.35) : 0;
+  const { right, left } = out.arms;
+  right.clap = left.clap = clapping * clap * free;
+  right.open = left.open = clapping * (1 - clap) * free;
+  right.pump *= 1 - clapping;
+  left.pump *= 1 - clapping;
   // "Hendur upp, Egill!": up, and they stay up through the build, swaying; down as he bends for the drop
-  const handsUp = span(b, 266.2, 294.6, 1, 0.8) + span(b, 417.6, 424.5, 0.8, 1) + Math.max(...HITS.map(at => hump(b, at - 0.2, at + 0.15, at + 0.9)));
+  const handsUp = span(b, 266.2, 294.6, 1, 0.8) + span(b, 417.6, 424.5, 0.8, 1) + maxHumpInWindow(HITS, b, 0.2, 0.15, 0.9);
   // a spin on the spot, a bar into every other phrase of the big parts
-  const spins = [332, 348, 380, 396, 436, 452];
-  out.spin = 360 * spins.reduce((sum, at) => sum + ramp(b, at, at + 2), 0);
+  let spinSum = 0;
+  for (let i = 0; i < EGILL_SPINS.length; i++) spinSum += ramp(b, EGILL_SPINS[i], EGILL_SPINS[i] + 2);
+  out.spin = 360 * spinSum;
   // "Egill, segðu já!": hands at his mouth, leaning into the shout
   let cup = 0;
-  for (const [from, to, size] of SHOUTS) cup = Math.max(cup, size * span(b, from, to, 0.7, 0.4));
-  out.lean = 14 * cup + 8 * quiet * free * (1 - cup);
-  for (const arm of [out.arms.right, out.arms.left]) {
-    arm.up = clamp(handsUp) * free * (1 - cup);
-    arm.cup = cup;
-    arm.pump *= (1 - clamp(handsUp)) * (1 - cup);
-    arm.clap *= 1 - cup;
-    arm.open *= 1 - cup;
+  for (let i = 0; i < SHOUTS.length; i++) {
+    const [from, to, size] = SHOUTS[i];
+    const v = size * span(b, from, to, 0.7, 0.4);
+    if (v > cup) cup = v;
   }
+  out.lean = 14 * cup + 8 * quiet * free * (1 - cup);
+  const upClamped = clamp(handsUp);
+  right.up = left.up = upClamped * free * (1 - cup);
+  right.cup = left.cup = cup;
+  const pumpScale = (1 - upClamped) * (1 - cup);
+  right.pump *= pumpScale;
+  left.pump *= pumpScale;
+  right.clap *= 1 - cup;
+  left.clap *= 1 - cup;
+  right.open *= 1 - cup;
+  left.open *= 1 - cup;
   // with his hands up he sways them from side to side
-  out.roll += 4 * clamp(handsUp) * Math.sin((TAU * d) / 2);
+  out.roll += 4 * upClamped * Math.sin((TAU * d) / 2);
   return out;
 }
 
@@ -378,13 +424,15 @@ export function mosiAt(clock, { reduced = false } = {}) {
   // the nod: down on the backbeat, a small one on every beat
   out.nod = -e * (12 * (0.5 + 0.5 * Math.cos(Math.PI * (d - 1))) ** 2 + 3 * (0.5 + 0.5 * Math.cos(TAU * d)));
   // the stomps: a forefoot up slowly, and down hard on the beat; his shoulders dip as it lands
-  STOMPS.forEach((at, n) => {
+  for (let n = 0; n < STOMPS.length; n++) {
+    const at = STOMPS[n];
+    if (b <= at - 1.4 || b >= at + 0.9) continue;
     const foot = n % 2 ? 'fl' : 'fr';
     out.feet[foot] += 0.5 * on * hump(b, at - 1.4, at - 0.3, at);
     out.lift -= 0.05 * on * hump(b, at - 0.05, at + 0.12, at + 0.8);
     out.nod -= 5 * on * hump(b, at - 0.05, at + 0.15, at + 0.9);
     out.roll += (n % 2 ? -1 : 1) * 1.5 * on * hump(b, at - 1.4, at - 0.3, at + 0.3);
-  });
+  }
   // the rears: his front comes up as the others jump, and down with a thud
   let rear = 0;
   let thud = 0;
@@ -574,15 +622,28 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   }
   const dance = e * (1 - still) * (1 - goodnight);
   // the DJ at her decks: the scratch, the wing out to the group she calls, the headbang
-  const scratch = Math.max(...SCRATCHES.map(([from, to]) => span(b, from, to, 0.3, 0.35))) * on;
+  let rawScratch = 0;
+  for (let i = 0; i < SCRATCHES.length; i++) {
+    const [from, to] = SCRATCHES[i];
+    const v = span(b, from, to, 0.3, 0.35);
+    if (v > rawScratch) rawScratch = v;
+  }
+  const scratch = rawScratch * on;
   let called = null; // the group her wing is out to now, and how far out it is (0..1)
   let calling = 0;
-  for (const one of POINTS) {
+  for (let i = 0; i < POINTS.length; i++) {
+    const one = POINTS[i];
     const far = span(b, one.from, one.to, one.rise, 1.1);
-    if (far > calling) [called, calling] = [one, far];
+    if (far > calling) { called = one; calling = far; }
   }
   calling *= on * (1 - scratch);
-  const banging = Math.max(...BANG.parts.map(([from, to]) => span(b, from, to, 1.5, 0.6))) * (1 - still) * on;
+  let rawBang = 0;
+  for (let i = 0; i < BANG.parts.length; i++) {
+    const [from, to] = BANG.parts[i];
+    const v = span(b, from, to, 1.5, 0.6);
+    if (v > rawBang) rawBang = v;
+  }
+  const banging = rawBang * (1 - still) * on;
   const busy = Math.max(scratch, calling); // a wing of hers has something to do: they stop beating the time
   out.clips.happy.weight = clamp(dance * 0.75) * (1 - wingsUp) * (1 - quiet) * (1 - 0.5 * banging) * (1 - 0.6 * busy);
   out.lift = 0.07 * dance * (0.5 - 0.5 * Math.cos(TAU * d)) - 0.12 * quiet;
@@ -591,19 +652,32 @@ export function flugedlaAt(clock, { reduced = false } = {}) {
   // she beats the time on the water: on each of the band's wing beats her wings open and lift, and come down flat on the water
   // (a wing that is out to a group or at the record leaves the time to the other: the grazers are called on the band's first wing beat)
   const free = (1 - wingsUp) * (1 - welcome) * on;
-  const beats = busyHere => {
-    const beating = free * (1 - busyHere);
-    const open = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.25, at + 0.75))) * beating;
-    const lifted = Math.max(...WINGS.map(at => hump(b, at - 0.9, at - 0.45, at - 0.05))) * beating;
-    const slap = Math.max(...WINGS.map(at => hump(b, at - 0.4, at, at + 0.6))) * beating;
-    return { open, raise: 16 * lifted - WING_SLAP * slap + 7 * dance * (1 - open) * (1 - busyHere) * Math.sin(Math.PI * d) };
-  };
-  const [left, right] = [beats(busy), beats(Math.max(called?.both ? calling : 0, point))];
-  out.spread.left = clamp(both + left.open + flick + calling + scratch); // the wing on the choir's side: out to the group, or at the record
-  out.spread.right = clamp(both + right.open + point); // the wing on Egill's side, out to him
-  out.raise.left = left.raise + 16 * welcome * (0.6 + 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick
+  let rawOpen = 0, rawLifted = 0, rawSlap = 0;
+  if (free > 0) {
+    for (let i = lowerBound(WINGS, b - 0.75); i < WINGS.length; i++) {
+      const at = WINGS[i];
+      if (at > b + 0.9) break;
+      const o = hump(b, at - 0.9, at - 0.25, at + 0.75);
+      if (o > rawOpen) rawOpen = o;
+      const l = hump(b, at - 0.9, at - 0.45, at - 0.05);
+      if (l > rawLifted) rawLifted = l;
+      const s = hump(b, at - 0.4, at, at + 0.6);
+      if (s > rawSlap) rawSlap = s;
+    }
+  }
+  const sinD = Math.sin(Math.PI * d);
+  const rightBusy = Math.max(called?.both ? calling : 0, point);
+  const leftBeating = free * (1 - busy);
+  const rightBeating = free * (1 - rightBusy);
+  const leftOpen = rawOpen * leftBeating;
+  const rightOpen = rawOpen * rightBeating;
+  const leftRaise = 16 * rawLifted * leftBeating - WING_SLAP * rawSlap * leftBeating + 7 * dance * (1 - leftOpen) * (1 - busy) * sinD;
+  const rightRaise = 16 * rawLifted * rightBeating - WING_SLAP * rawSlap * rightBeating + 7 * dance * (1 - rightOpen) * (1 - rightBusy) * sinD;
+  out.spread.left = clamp(both + leftOpen + flick + calling + scratch); // the wing on the choir's side: out to the group, or at the record
+  out.spread.right = clamp(both + rightOpen + point); // the wing on Egill's side, out to him
+  out.raise.left = leftRaise + 16 * welcome * (0.6 + 0.4 * sinD) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 30 * flick
     + (called?.both ? 12 : 5) * calling - SCRATCH.down * scratch;
-  out.raise.right = right.raise + 16 * welcome * (0.6 - 0.4 * Math.sin(Math.PI * d)) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point
+  out.raise.right = rightRaise + 16 * welcome * (0.6 - 0.4 * sinD) + 42 * wingsUp + 5 * wingsUp * Math.sin(TAU * d) - 22 * goodnight + 8 * point
     + (called?.both ? 12 * calling : 0);
   // the scratch: the wing forward and down to the water, sawing to and fro twice a beat; the call: the wing swung forward to
   // where the group is, her body turned after it
@@ -723,13 +797,18 @@ export function sloedlaAt(clock, { reduced = false } = {}) {
   const on = there(b);
   let e = keyed(HER_ENERGY, b) * on;
   // her horn: she stands and blows, and dances between the answers
-  const blowing = Math.max(...HORNS.map(at => span(b, at - 1.6, at + 2.6, 1.6, 2)));
+  const blowing = maxSpanInWindow(HORNS, b, 1.6, 2.6, 1.6, 2);
   e *= 1 - 0.8 * blowing;
   // and her head comes up with everyone's jump, big and unhurried: she all but stands as it does
   let rise = 0;
-  for (const at of JUMPS) rise = Math.max(rise, hump(b, at - 0.5, at + 1.9, at + 5.5));
+  for (let j = 0; j < JUMPS.length; j++) {
+    const at = JUMPS[j];
+    const v = hump(b, at - 0.5, at + 1.9, at + 5.5);
+    if (v > rise) rise = v;
+  }
   e *= 1 - 0.6 * hump(rise, 0, 0.5, 1.0001);
-  const i = Math.max(0, HER_TURNS.findLastIndex(([beat]) => beat <= b));
+  let i = HER_TURNS.length - 1;
+  while (i > 0 && HER_TURNS[i][0] > b) i--;
   const turnFrom = i > 0 ? HER_TURNS[i - 1][1] : 0;
   const facing = (turnFrom + (HER_TURNS[i][1] - turnFrom) * ramp(b, HER_TURNS[i][0], HER_TURNS[i][0] + HER_TURN.beats)) * on;
   const body = clamp(facing * HER_TURN.body, -HER_TURN.most, HER_TURN.most);

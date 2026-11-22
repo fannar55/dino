@@ -91,17 +91,18 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   const lookAt = new THREE.Vector3();
   let shadowing = false;
   let levelOf = new WeakMap(); // a pose object -> the level it was drawn at last (hysteresis)
+  const shadeCache = new WeakMap(); // a pose object -> cached { x, z, ground, hasSlope, sx, sy, sz }
   const lastEye = new THREE.Vector3(Infinity, 0, 0); // a camera that moved more than CUT m since the last frame cut: levels as they are
   let shade = null; // the shades under the critters (groundAt given): { mesh, strength, n }
 
   // `seen`: how far this kind is drawn, if not as far as the crowd's own (a large animal on open land reads from farther)
-  function reserve(kind, count, { model = null, material = null, lods = null, pivot = 0, height, wing = null, seen: reach = null, castShadow: kindCast = castShadow } = {}) {
+  function reserve(kind, count, { model = null, material = null, ownMaterial = false, lods = null, pivot = 0, height, wing = null, seen: reach = null, castShadow: kindCast = castShadow } = {}) {
     if (built) throw new Error(`[crowds] reserve "${kind}" before the first begin()`);
     const k = kinds.get(kind);
     if (k) { k.capacity += count; return; }
     kinds.set(kind, {
       model: model ?? (lods ? bakedModel(kind, lods, pivot, height, wing) : createModel(kind)),
-      material, capacity: count, reach, castShadow: Boolean(kindCast),
+      material, ownMaterial: Boolean(ownMaterial), capacity: count, reach, castShadow: Boolean(kindCast),
     });
   }
 
@@ -110,22 +111,31 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     for (const [kind, k] of kinds) {
       const { model } = k;
       const levels = model.levels ?? [{ geometry: model.geometry, until: Infinity, triangles: model.triangles }];
-      if (model.wings) {
-        k.flight = new THREE.InstancedBufferAttribute(new Float32Array(k.capacity * 2), 2);
-        k.flight.setUsage(THREE.DynamicDrawUsage);
-        for (const { geometry } of levels) geometry.setAttribute('aFlight', k.flight);
-        if (k.material && !k.material.userData?.wingShader) {
-          k.material = birdMaterial(kind, {
-            map: k.material.map ?? null,
-            vertexColors: Boolean(k.material.vertexColors),
-            wing: model.wing ?? null,
-          });
-        }
+      if (model.wings && k.material && !k.material.userData?.wingShader) {
+        const prev = k.material;
+        k.material = birdMaterial(kind, {
+          map: prev.map ?? null,
+          vertexColors: Boolean(prev.vertexColors),
+          wing: model.wing ?? null,
+        });
+        if (k.ownMaterial) prev.dispose();
+        k.ownMaterial = true;
       }
-      k.material ??= model.wings ? birdMaterial(kind, { wing: model.wing ?? null }) : ground;
-      k.ownMaterial = k.material !== ground;
-      if (model.morphs.length) k.holder = { morphTargetInfluences: new Float32Array(model.morphs.length) };
+      if (!k.material) {
+        k.material = model.wings ? birdMaterial(kind, { wing: model.wing ?? null }) : ground;
+        k.ownMaterial = k.material !== ground;
+      }
+      if (model.morphs.length) {
+        k.holder = { morphTargetInfluences: new Float32Array(model.morphs.length) };
+        k.morphIndex = new Map(model.morphs.map((name, idx) => [name, idx]));
+      }
       k.levels = levels.map(({ geometry, until, triangles }, level) => {
+        let flight = null;
+        if (model.wings) {
+          flight = new THREE.InstancedBufferAttribute(new Float32Array(k.capacity * 2), 2);
+          flight.setUsage(THREE.DynamicDrawUsage);
+          geometry.setAttribute('aFlight', flight);
+        }
         const mesh = new THREE.InstancedMesh(geometry, k.material, k.capacity);
         mesh.name = level ? `${kind} far` : kind;
         mesh.userData = { kind, level };
@@ -136,7 +146,7 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
         // makes the morph texture, one row a critter, sized by the mesh's count (the capacity now)
         if (k.holder) mesh.setMorphAt(0, k.holder);
         mesh.count = 0;
-        const entry = { mesh, until, triangles, n: 0, casting: 0, still: 0, lastMorphs: null, lastMorphCount: -1 };
+        const entry = { mesh, until, triangles, flight, n: 0, casting: 0, still: 0, lastMorphs: null, lastMorphCount: -1 };
         if (k.castShadow) {
           // the shadow pass draws the first `casting` instances, the main pass all `n`
           mesh.onBeforeShadow = () => { mesh.count = entry.casting; };
@@ -245,8 +255,9 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     const far = eye ? eye.distanceToSquared(position) : 0;
     const reach = pose.seen ?? k.reach ?? seen; // a pose may be seen farther than its kind (the G rows' lizards)
     if (far > reach * reach) return -1;
+    const dist = eye ? Math.sqrt(far) : 0;
     // its size: its pose's own growth, and shrinking to nothing at the edge of its reach (CROWD_GROW)
-    const grown = (pose.grow ?? 1) * (eye ? reachGrow(Math.sqrt(far), reach) : 1);
+    const grown = (pose.grow ?? 1) * (eye ? reachGrow(dist, reach) : 1);
     if (grown <= 1e-3) return -1;
     scale *= grown;
     if (culling) {
@@ -255,7 +266,7 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
       bounds.radius = height * SHADOW_REACH + 1;
       if (!view.intersectsSphere(bounds)) return -1;
     }
-    const l = levelFor(k, Math.sqrt(far), pose);
+    const l = levelFor(k, dist, pose);
     const level = k.levels[l];
     if (level.n >= k.capacity) {
       if (!warned.has(kind)) { warned.add(kind); console.warn(`[crowds] more ${kind} placed than the ${k.capacity} reserved`); }
@@ -281,18 +292,18 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
       const weights = k.holder.morphTargetInfluences;
       weights.fill(0);
       if (pose.morphs) for (const name in pose.morphs) {
-        const m = k.model.morphs.indexOf(name);
-        if (m >= 0) weights[m] = pose.morphs[name];
+        const m = k.morphIndex.get(name);
+        if (m !== undefined) weights[m] = pose.morphs[name];
       }
       level.mesh.setMorphAt(i, k.holder);
     }
-    if (k.flight) k.flight.setXY(i, pose.wings?.[0] ?? 0, pose.wings?.[1] ?? 0);
+    if (level.flight) level.flight.setXY(i, pose.wings?.[0] ?? 0, pose.wings?.[1] ?? 0);
     const record = drawn[placedCount] ??= { kind: '', position: new THREE.Vector3(), height: 0 };
     record.kind = kind;
     record.position.copy(position);
     record.height = pose.height ?? k.height * scale;
     placedCount++;
-    if (shade) shadeUnder(k, position, heading, scale, record.height, casts, Math.sqrt(far));
+    if (shade) shadeUnder(k, position, heading, scale, record.height, casts, dist, pose);
     return i;
   }
 
@@ -303,9 +314,24 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   const footAt = new THREE.Vector3();
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   // The shade under a critter just placed, if it is on the ground and out of the sun's shadow map.
-  function shadeUnder(k, position, heading, scale, height, casts, d) {
+  function shadeUnder(k, position, heading, scale, height, casts, d, pose) {
     footAt.set(k.foot.x * scale, 0, k.foot.z * scale).applyAxisAngle(up, -heading * DEG).add(position);
-    const ground = groundAt(footAt.x, footAt.z);
+    const cacheable = pose && typeof pose === 'object';
+    let cache = cacheable ? shadeCache.get(pose) : null;
+    let ground;
+    if (cache && (footAt.x - cache.x) * (footAt.x - cache.x) + (footAt.z - cache.z) * (footAt.z - cache.z) <= 0.0025) {
+      ground = cache.ground;
+    } else {
+      ground = groundAt(footAt.x, footAt.z);
+      if (cacheable) {
+        if (!cache) {
+          cache = { x: footAt.x, z: footAt.z, ground, hasSlope: false, sx: 0, sy: 1, sz: 0 };
+          shadeCache.set(pose, cache);
+        } else {
+          cache.x = footAt.x; cache.z = footAt.z; cache.ground = ground; cache.hasSlope = false;
+        }
+      }
+    }
     const lifted = 1 - smooth(0, Math.max(0.3, height), position.y - ground);
     const near = 1 - smooth(SHADE_FADE[0], SHADE_FADE[1], d);
     let out = 1; // how far out of the shadow box: the ground's real shadow fades in over its last SHADE_EDGE
@@ -316,8 +342,13 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
     }
     const strength = SHADE_STRENGTH * lifted * near * out;
     if (strength < 0.01) return;
-    const e = 0.4;
-    slope.set(groundAt(footAt.x - e, footAt.z) - groundAt(footAt.x + e, footAt.z), 2 * e, groundAt(footAt.x, footAt.z - e) - groundAt(footAt.x, footAt.z + e)).normalize();
+    if (cache?.hasSlope) {
+      slope.set(cache.sx, cache.sy, cache.sz);
+    } else {
+      const e = 0.4;
+      slope.set(groundAt(footAt.x - e, footAt.z) - groundAt(footAt.x + e, footAt.z), 2 * e, groundAt(footAt.x, footAt.z - e) - groundAt(footAt.x, footAt.z + e)).normalize();
+      if (cache) { cache.hasSlope = true; cache.sx = slope.x; cache.sy = slope.y; cache.sz = slope.z; }
+    }
     lie.setFromUnitVectors(up, slope).multiply(turn.setFromAxisAngle(up, -heading * DEG));
     const grow = SHADE_GROW * scale * (1 + 0.5 * (1 - lifted));
     footprint.set(Math.max(0.2, k.foot.w * grow), 1, Math.max(0.2, k.foot.d * grow));
@@ -346,7 +377,7 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
   function end() {
     for (const k of kinds.values()) {
       for (const level of k.levels) {
-        const { mesh, n, casting, still } = level;
+        const { mesh, n, casting, still, flight } = level;
         // close the gap: those that only show (written from the back) come right after those that cast
         if (still && casting + still < k.capacity) {
           const from = k.capacity - still;
@@ -356,12 +387,14 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
             const len = rows.length / k.capacity;
             rows.copyWithin(casting * len, from * len, k.capacity * len);
           }
-          if (k.flight) k.flight.array.copyWithin(casting * 2, from * 2, k.capacity * 2);
+          if (flight) flight.array.copyWithin(casting * 2, from * 2, k.capacity * 2);
         }
         mesh.count = n;
         mesh.castShadow = k.castShadow && casting > 0;
         if (!k.castShadow) mesh.visible = n > 0;
         if (!n) { level.lastMorphCount = 0; continue; }
+        mesh.instanceMatrix.clearUpdateRanges();
+        mesh.instanceMatrix.addUpdateRange(0, n * 16);
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.morphTexture) {
           const rows = mesh.morphTexture.source.data.data;
@@ -377,14 +410,22 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
             mesh.morphTexture.needsUpdate = true;
           }
         }
-        if (k.flight) k.flight.needsUpdate = true;
+        if (flight) {
+          flight.clearUpdateRanges();
+          flight.addUpdateRange(0, n * 2);
+          flight.needsUpdate = true;
+        }
       }
     }
     if (shade) {
       shade.mesh.count = shade.n;
       shade.mesh.visible = shade.n > 0;
       if (shade.n > 0) {
+        shade.mesh.instanceMatrix.clearUpdateRanges();
+        shade.mesh.instanceMatrix.addUpdateRange(0, shade.n * 16);
         shade.mesh.instanceMatrix.needsUpdate = true;
+        shade.strength.clearUpdateRanges();
+        shade.strength.addUpdateRange(0, shade.n);
         shade.strength.needsUpdate = true;
       }
     }
@@ -406,8 +447,14 @@ export function createCrowds(world, { parent = world.scene, seen = 160, inView =
         mesh.dispose();
         mesh.geometry.dispose();
       }
-      if (!k.levels) k.model.geometry.dispose();
-      if (k.ownMaterial) k.material.dispose();
+      if (!k.levels) {
+        const geos = new Set();
+        if (k.model.levels) for (const l of k.model.levels) if (l.geometry) geos.add(l.geometry);
+        if (k.model.lods) for (const l of k.model.lods) if (l.geometry) geos.add(l.geometry);
+        if (k.model.geometry) geos.add(k.model.geometry);
+        for (const g of geos) g.dispose();
+      }
+      if (k.ownMaterial && k.material) k.material.dispose();
     }
     ground.dispose();
     if (shade) {

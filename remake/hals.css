@@ -285,7 +285,7 @@
   box-shadow: 0 0 0 4px var(--card), 0 0 0 7px var(--ink), 0 6px 10px 2px rgb(40 24 10 / .3);
 }
 .hals-face {
-  position: absolute; inset: 0; border-radius: 20%; backface-visibility: hidden;
+  position: absolute; inset: 0; border-radius: 20%; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   background: radial-gradient(circle at 32% 26%, #fff, var(--card) 55%, color-mix(in srgb, var(--c) 22%, var(--card)));
   border: 3.5px solid var(--ink);
   box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--c) 30%, transparent);

@@ -41,7 +41,8 @@ varying vec3 vWorld;
 void main() {
   vec3 centre = position + vec3( uWind.x, 0.0, uWind.y ) * sin( uTime * 0.05 + aCard.z * 6.2831 ) * 1.6;
   vec3 toCam = cameraPosition - centre;
-  vec2 level2 = normalize( vec2( toCam.x, toCam.z ) + 1e-4 );
+  float level2Len = length( toCam.xz );
+  vec2 level2 = level2Len > 1e-4 ? toCam.xz / level2Len : vec2( 1.0, 0.0 );
   vec3 side = vec3( -level2.y, 0.0, level2.x );
   vec3 p = centre + side * aCorner.x * aCard.x * 0.5 + vec3( 0.0, aCorner.y * aCard.y, 0.0 );
   vUv = vec2( aCorner.x, aCorner.y );
@@ -82,7 +83,27 @@ void main() {
   gl_FragColor = vec4( uColour, a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  #include <fog_fragment>
+  #ifdef USE_FOG
+    #ifdef FOG_FALLOFF
+      vec3 fogRay = vFogWorld - cameraPosition;
+      float fogDist = max( length( fogRay ), 1e-4 );
+      vec3 fogDir = fogRay / fogDist;
+      #ifdef FOG_EXP2
+        float fogBase = fogDensity * exp( clamp( -FOG_FALLOFF * max( cameraPosition.y, 0.0 ), -20.0, 0.0 ) );
+        float fogPath = abs( fogDir.y ) > 1e-3 ? ( 1.0 - exp( clamp( -FOG_FALLOFF * fogRay.y, -20.0, 20.0 ) ) ) / ( FOG_FALLOFF * fogDir.y ) : fogDist;
+        float fogFactor = 1.0 - exp( -clamp( fogBase * fogPath, 0.0, 20.0 ) );
+      #else
+        float fogFactor = smoothstep( fogNear, fogFar, fogDist );
+      #endif
+    #else
+      #ifdef FOG_EXP2
+        float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+      #else
+        float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+      #endif
+    #endif
+    gl_FragColor.rgb *= ( 1.0 - fogFactor );
+  #endif
 }`;
 
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -101,7 +122,7 @@ export function mistStrength(camera, foot, height) {
     * (1 - smoothstep(...MIST_FADE.steep, steep) * smoothstep(...MIST_FADE.high, rise));
 }
 
-export function createMist(world, { center, radius, height = 1.2, level = 1, heightAt = world.heightAt, over = null, seed = 1, cards = CARDS } = {}) {
+export function createMist(world, { center, radius, height = 1.2, level = 1, heightAt = world.heightAt, over = null, seed = 1, cards = CARDS, noise: given = null } = {}) {
   const count = Math.min(CARDS, Math.max(0, Math.round(cards)));
   const rng = createRng(seed, 'mist');
   const [cx, cz] = center;
@@ -147,7 +168,8 @@ export function createMist(world, { center, radius, height = 1.2, level = 1, hei
   geometry.setIndex(idx);
   // the cards turn to the camera in the shader: bound them by their disc and their height
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, heightAt(cx, cz) + height, cz), radius + 8);
-  const noise = createNoiseTexture((seed ^ 0x3a17) >>> 0);
+  const ownNoise = !given;
+  const noise = given ?? createNoiseTexture((seed ^ 0x3a17) >>> 0);
   const wind = world.wind?.uniforms?.uWindDirection?.value;
   const uniforms = {
     ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
@@ -183,7 +205,8 @@ export function createMist(world, { center, radius, height = 1.2, level = 1, hei
     },
     dispose() {
       group.removeFromParent();
-      geometry.dispose(); material.dispose(); noise.dispose();
+      geometry.dispose(); material.dispose();
+      if (ownNoise) noise.dispose();
     },
   };
   mist.setLevel(level);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Handle } from '../../engine/handle.js';
-import { createWaterMaterial, RIPPLE_SLOTS } from './water.js';
+import { createWaterMaterial, RIPPLE_SLOTS, ringsUntil } from './water.js';
 import { glints, run, sparkleBurst, needEffects } from './sparkles.js';
 import { FEN } from '../forest/config.js';
 
@@ -295,10 +295,8 @@ function tube(out, { points, closed }, offsetX, radius, colour, inside) {
   }
 }
 
-const digitGeometries = new Map();
 /** The geometry of a number (1 to 10) as it rises: its bottom on y = 0, centred on x and z, DIGIT.height tall, edge and all. */
 export function digitGeometry(number) {
-  if (digitGeometries.has(number)) return digitGeometries.get(number);
   const glyphs = String(number).split('');
   const out = { position: [], normal: [], color: [] };
   const fill = new THREE.Color(DIGIT.fill), dark = new THREE.Color(DIGIT.line);
@@ -321,7 +319,6 @@ export function digitGeometry(number) {
   geometry.scale(scale, scale, scale);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
-  digitGeometries.set(number, geometry);
   return geometry;
 }
 
@@ -487,6 +484,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     const [x, z] = Array.isArray(point) ? [point[0], point[2]] : [point.x, point.z];
     ripples[slot].set(x, z, at, strength);
     slot = (slot + 1) % RIPPLE_SLOTS;
+    surface.uniforms.uRingsUntil.value = ringsUntil(ripples);
     return new Handle('print ripple').finish();
   }
   /** The ground with the prints pressed into it: the mud of a print where there is one (its floor under the water), else heightAt. */
@@ -522,11 +520,17 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   }
 
   let digit = null; // { mesh, number, start, handle, from }
+  const digits = new Map();
+  const getDigitGeometry = number => {
+    let g = digits.get(number);
+    if (!g) { g = digitGeometry(number); digits.set(number, g); }
+    return g;
+  };
   const digitMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0, fog: false });
   digitMaterial.name = 'print digit';
   function count(k) {
     if (digit) endDigit();
-    const mesh = new THREE.Mesh(digitGeometry(k + 1), digitMaterial);
+    const mesh = new THREE.Mesh(getDigitGeometry(k + 1), digitMaterial);
     mesh.name = 'Print digit';
     mesh.castShadow = false;
     mesh.renderOrder = 9;
@@ -644,6 +648,8 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       group.removeFromParent();
       mudGeometry.dispose(); mudMaterial.dispose();
       waterGeometry.dispose(); surface.dispose();
+      for (const g of digits.values()) g.dispose();
+      digits.clear();
       digitMaterial.dispose();
     },
   };

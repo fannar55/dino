@@ -98,6 +98,8 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
   const dots = make('div', 'card-dots');
   dots.setAttribute('role', 'img');
   const card = make('article', 'card');
+  card.setAttribute('role', 'dialog');
+  card.setAttribute('aria-modal', 'true');
   card.hidden = true;
   card.append(back, videoButton, figure, prevButton, nextButton, done, words, dots);
   root.append(card);
@@ -120,12 +122,23 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
 
   // ---- The pages ---------------------------------------------------------------------------------------------------
 
+  const decodedImgs = new WeakSet();
+  function decodeNear(i) {
+    for (const k of [i, i + 1, i - 1]) {
+      const img = imgs[k];
+      if (!img || decodedImgs.has(img)) continue;
+      decodedImgs.add(img);
+      img.decode?.().catch?.(() => { decodedImgs.delete(img); });
+    }
+  }
+
   /** Every page's picture goes in the card, and only the current one shows. One that will not load becomes the paw print. */
   function fill() {
     imgs = pages.map(page => {
       const image = media.get(page.image) ?? null;
       const img = doc.createElement('img');
       let failed = false;
+      img.decoding = 'async';
       img.alt = image?.alt ?? '';
       img.draggable = false;
       img.addEventListener?.('error', () => {
@@ -134,7 +147,6 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
         img.src = MISSING;
       });
       img.src = image?.src ?? MISSING;
-      img.decode?.().catch?.(() => {}); // ready to show when its page is turned to, whether or not it has been shown yet
       return img;
     });
     photo.replaceChildren(...imgs);
@@ -213,6 +225,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     const image = media.get(page.image) ?? null;
     const last = i === pages.length - 1;
     imgs.forEach((img, k) => { img.hidden = k !== i; });
+    decodeNear(i);
     text.textContent = page.text;
     [...dots.children].forEach((dot, k) => dot.setAttribute('aria-current', k === i ? 'step' : 'false'));
     dots.setAttribute('aria-label', `Síða ${i + 1} af ${pages.length}`);
@@ -321,6 +334,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     if (!drag) {
       if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < TAP_SLOP_PX) return; // a finger at rest drags nothing
       drag = { id: event.pointerId, x: start.x, y: start.y, dx: 0, dy: 0 };
+      try { card.setPointerCapture?.(event.pointerId); } catch {}
     }
     if (drag.id !== event.pointerId) return; // the first finger to move is the one that drags
     drag.dx = event.clientX - drag.x;
@@ -330,6 +344,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
   const lift = event => {
     fingers.delete(event.pointerId);
     if (drag?.id !== event.pointerId) return;
+    try { if (card.hasPointerCapture?.(event.pointerId)) card.releasePointerCapture?.(event.pointerId); } catch {}
     const { dx, dy } = drag;
     drag = null;
     const swipe = event.type === 'pointerup' && Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy);
@@ -465,6 +480,13 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
   }
 
   win?.addEventListener?.('resize', () => { if (isOpen) fitText(); });
+  win?.addEventListener?.('keydown', event => {
+    if (event.defaultPrevented || event._bookHandled || !isOpen || event.key !== 'Escape') return;
+    if (zoom?.isOpen) return;
+    event._bookHandled = true;
+    event.preventDefault?.();
+    close();
+  });
   pressable(back, { audio, win, onTap: () => close() });
   pressable(videoButton, { audio, sound: 'tile', win, onTap: () => { if (isOpen && currentVideo) onWatch?.(currentVideo, videoButton.getBoundingClientRect()); } });
   pressable(done, { audio, win, onTap: () => close() });

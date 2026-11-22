@@ -193,11 +193,16 @@ export async function createThorsedlas(world, board, places) {
     tailAt: from => tails.get(from) ?? null,
     lookAt(point) { for (const t of list) t.lookAt(point); },
     set calm(value) { for (const t of list) t.calm = value; },
+    cancelTweens() { for (const t of list) t.cancelTweens(); },
     update(dt) { for (const t of list) t.update(dt); },
     updateLevels(camera, height) { lod.update(camera, height); },
     ready: () => lod.ready(),
     levels: () => lod.info(),
-    dispose() { for (const t of list) t.actor.dispose(); },
+    dispose() {
+      for (const t of list) t.cancelTweens();
+      lod.dispose();
+      for (const t of list) t.actor.dispose();
+    },
   };
 }
 
@@ -442,6 +447,45 @@ async function createThorsedla(world, board, place, lod, places = []) {
   const neckCurve = new THREE.CatmullRomCurve3(curvePoints, false, 'centripetal');
   const viasNow = curvePoints.slice(1, -1).map(() => new V3()), mid = new V3(), bulge = new V3(), lean = new V3(), centre = new V3();
   const archUp = new V3(); // up, square to her neck's chord: the way the bowing neck arches
+  const NECK_SEGMENTS = 24;
+  const neckPoly = Array.from({ length: NECK_SEGMENTS + 1 }, () => new V3());
+  const neckCum = new Float64Array(NECK_SEGMENTS + 1);
+  const neckPrev = new V3(), neckCurr = new V3();
+  const lastB = new V3(NaN, NaN, NaN), lastT = new V3(NaN, NaN, NaN);
+  let lastArc = NaN;
+  function measureNeck() {
+    neckCurve.getPoint(0, neckPrev);
+    let len = 0;
+    for (let i = 1; i <= NECK_SEGMENTS; i++) {
+      neckCurve.getPoint(i / NECK_SEGMENTS, neckCurr);
+      len += neckPrev.distanceTo(neckCurr);
+      neckPrev.copy(neckCurr);
+    }
+    return len;
+  }
+  function buildNeckPoly() {
+    neckCurve.getPoint(0, neckPoly[0]);
+    neckCum[0] = 0;
+    let len = 0;
+    for (let i = 1; i <= NECK_SEGMENTS; i++) {
+      neckCurve.getPoint(i / NECK_SEGMENTS, neckPoly[i]);
+      len += neckPoly[i].distanceTo(neckPoly[i - 1]);
+      neckCum[i] = len;
+    }
+    return len;
+  }
+  function sampleNeckPoly(s, out) {
+    const totalLen = neckCum[NECK_SEGMENTS];
+    if (s <= 0) return out.copy(neckPoly[0]);
+    if (s >= totalLen) return out.copy(neckPoly[NECK_SEGMENTS]);
+    let lo = 0, hi = NECK_SEGMENTS;
+    while (hi - lo > 1) {
+      const midIdx = (lo + hi) >> 1;
+      if (neckCum[midIdx] < s) lo = midIdx; else hi = midIdx;
+    }
+    const seg = neckCum[hi] - neckCum[lo];
+    return out.lerpVectors(neckPoly[lo], neckPoly[hi], seg > 1e-6 ? (s - neckCum[lo]) / seg : 0);
+  }
   function poseNeck() {
     model.updateMatrixWorld(true);
     rootFrameQ(chest, chestQ);
@@ -450,62 +494,67 @@ async function createThorsedla(world, board, place, lod, places = []) {
     T.copy(target);
     if (!moving) T.add(nudge).add(va.set(0, Math.sin(time * 0.9) * 0.05 * (calm ? 0 : 1), Math.sin(time * 0.55 + 1) * 0.04 * (calm ? 0 : 1)));
     const total = neckRide * k; // her neck as long as it is drawn out
-    // the via points: where her neck rises in front of the tier above (at rest), or arches over her own tier (bowed); Lyng's: a
-    // point up and ahead of her shoulders
-    if (vias) {
-      // (a giant's neck keeps to beside the board's end until her head is well down past the tier between)
-      if (giantNeck) {
-        // out beside the end first, then down past the tier between
-        const ex = smooth(clamp01(arc / 0.3)), ey = smooth(clamp01((arc - 0.25) / 0.6));
-        vias.forEach((v, i) => viasNow[i].set(v.x + (bowTarget[i].x - v.x) * ex, v.y + (bowTarget[i].y - v.y) * ey, v.z + (bowTarget[i].z - v.z) * ey));
-      } else {
-        // Off the curl over the tier above, then one smooth arch from her chest to her head all the way down and back (the
-        // owner's polish round: no S in front of her chest mid-bow): the via points sit on a bow over the chord, and the
-        // length match below only makes it arch higher or lower.
-        const w = smooth(clamp01(arc / 0.3));
-        vb.subVectors(T, B);
-        const chord = vb.lengthSq() || 1;
-        archUp.set(0, 1, ARCH_FORWARD); // up and toward the camera, away from the tier above behind her head
-        archUp.addScaledVector(vb, -archUp.dot(vb) / chord).normalize();
-        vias.forEach((v, i) => {
-          const t = (i + 1) / (vias.length + 1);
-          vc.lerpVectors(B, T, t).addScaledVector(archUp, Math.sin(Math.PI * t));
-          viasNow[i].lerpVectors(v, vc, w);
-        });
-      }
-    } else {
-      lean.set(Math.cos(rad(NECK_LEAN)), Math.sin(rad(NECK_LEAN)), 0).applyQuaternion(rootQ);
-      viasNow[0].copy(B).addScaledVector(lean, total * 0.45);
-    }
     let d = B.distanceTo(T);
     if (d > total * 0.98) { T.sub(B).setLength(total * 0.98).add(B); d = total * 0.98; }
-    // the curve's length matched to her neck's by moving the via point out from the chord or in toward it
-    mid.addVectors(B, T).multiplyScalar(0.5);
-    centre.set(0, 0, 0);
-    for (const v of viasNow) centre.addScaledVector(v, 1 / viasNow.length);
-    bulge.subVectors(centre, mid);
-    const span = bulge.length() || 1;
-    bulge.divideScalar(span);
-    let lo = -0.85 * span, hi = total;
-    const last = curvePoints.length - 1;
-    curvePoints[0].copy(B); curvePoints[last].copy(T);
-    const putVias = b => { viasNow.forEach((v, i) => curvePoints[i + 1].copy(v).addScaledVector(bulge, b)); neckCurve.updateArcLengths(); };
-    for (let it = 0; it < 14; it++) {
-      const b = (lo + hi) / 2;
-      putVias(b);
-      if (neckCurve.getLength() < total) lo = b; else hi = b;
-    }
-    putVias(lo);
-    // the bones along it, each from where the last one ended to the curve's point its length on
-    const length = neckCurve.getLength();
-    neckJoints[0].copy(B);
-    let s = 0;
-    for (let i = 0; i <= RIDE_JOINT; i++) {
-      s += neckLengths[i] * k;
-      neckCurve.getPointAt(Math.min(1, s / length), vc);
-      const dir = vb.subVectors(vc, neckJoints[i]).normalize();
-      neckJoints[i + 1].copy(neckJoints[i]).addScaledVector(dir, neckLengths[i] * k);
-      neckDirs[i].copy(dir).applyQuaternion(rootQi);
+    if (B.distanceToSquared(lastB) > 1e-10 || T.distanceToSquared(lastT) > 1e-10 || arc !== lastArc) {
+      lastB.copy(B); lastT.copy(T); lastArc = arc;
+      // the via points: where her neck rises in front of the tier above (at rest), or arches over her own tier (bowed); Lyng's: a
+      // point up and ahead of her shoulders
+      if (vias) {
+        // (a giant's neck keeps to beside the board's end until her head is well down past the tier between)
+        if (giantNeck) {
+          // out beside the end first, then down past the tier between
+          const ex = smooth(clamp01(arc / 0.3)), ey = smooth(clamp01((arc - 0.25) / 0.6));
+          for (let i = 0; i < vias.length; i++) {
+            const v = vias[i], bt = bowTarget[i];
+            viasNow[i].set(v.x + (bt.x - v.x) * ex, v.y + (bt.y - v.y) * ey, v.z + (bt.z - v.z) * ey);
+          }
+        } else {
+          // Off the curl over the tier above, then one smooth arch from her chest to her head all the way down and back (the
+          // owner's polish round: no S in front of her chest mid-bow): the via points sit on a bow over the chord, and the
+          // length match below only makes it arch higher or lower.
+          const w = smooth(clamp01(arc / 0.3));
+          vb.subVectors(T, B);
+          const chord = vb.lengthSq() || 1;
+          archUp.set(0, 1, ARCH_FORWARD); // up and toward the camera, away from the tier above behind her head
+          archUp.addScaledVector(vb, -archUp.dot(vb) / chord).normalize();
+          for (let i = 0; i < vias.length; i++) {
+            const t = (i + 1) / (vias.length + 1);
+            vc.lerpVectors(B, T, t).addScaledVector(archUp, Math.sin(Math.PI * t));
+            viasNow[i].lerpVectors(vias[i], vc, w);
+          }
+        }
+      } else {
+        lean.set(Math.cos(rad(NECK_LEAN)), Math.sin(rad(NECK_LEAN)), 0).applyQuaternion(rootQ);
+        viasNow[0].copy(B).addScaledVector(lean, total * 0.45);
+      }
+      // the curve's length matched to her neck's by moving the via point out from the chord or in toward it
+      mid.addVectors(B, T).multiplyScalar(0.5);
+      centre.set(0, 0, 0);
+      for (let i = 0; i < viasNow.length; i++) centre.addScaledVector(viasNow[i], 1 / viasNow.length);
+      bulge.subVectors(centre, mid);
+      const span = bulge.length() || 1;
+      bulge.divideScalar(span);
+      let lo = -0.85 * span, hi = total;
+      const last = curvePoints.length - 1;
+      curvePoints[0].copy(B); curvePoints[last].copy(T);
+      for (let it = 0; it < 14; it++) {
+        const b = (lo + hi) / 2;
+        for (let i = 0; i < viasNow.length; i++) curvePoints[i + 1].copy(viasNow[i]).addScaledVector(bulge, b);
+        if (measureNeck() < total) lo = b; else hi = b;
+      }
+      for (let i = 0; i < viasNow.length; i++) curvePoints[i + 1].copy(viasNow[i]).addScaledVector(bulge, lo);
+      // the bones along it, each from where the last one ended to the curve's point its length on
+      const length = buildNeckPoly();
+      neckJoints[0].copy(B);
+      let s = 0;
+      for (let i = 0; i <= RIDE_JOINT; i++) {
+        s += neckLengths[i] * k;
+        sampleNeckPoly(Math.min(length, s), vc);
+        const dir = vb.subVectors(vc, neckJoints[i]).normalize();
+        neckJoints[i + 1].copy(neckJoints[i]).addScaledVector(dir, neckLengths[i] * k);
+        neckDirs[i].copy(dir).applyQuaternion(rootQi);
+      }
     }
     const headParentQ = setChain(neckBones, neckRest, neckO, neckDirs, chestQ);
     // the head: the way it points, turned part way toward a piece she watches, or to the camera for a glance
@@ -669,6 +718,7 @@ async function createThorsedla(world, board, place, lod, places = []) {
     set calm(value) { calm = Boolean(value); },
     get stretch() { return { neck: neckS, tail: tailS }; },
     ridePoint, bow, lift, rest: settle, slideCurve,
+    cancelTweens() { tweens.clear(); settle(); },
     /** Her head at once at `u` along her bow (0 rest, 1 bowed): the lab's clearance check of the arc. */
     holdArc(u) {
       if (!place.neck) return;
@@ -698,11 +748,14 @@ async function createThorsedla(world, board, place, lod, places = []) {
     talk(line) { return actor.talk(line); },
     update(dt) {
       time += dt;
-      for (const tw of [...tweens]) {
-        tw.t += dt;
-        const t = clamp01(tw.t / tw.duration);
-        tw.step(t);
-        if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+      if (tweens.size) {
+        for (const tw of [...tweens]) {
+          if (!tweens.has(tw)) continue;
+          tw.t += dt;
+          const t = clamp01(tw.t / tw.duration);
+          tw.step(t);
+          if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+        }
       }
       look.weight += (look.goal - look.weight) * (1 - Math.exp(-dt * 2.5));
       if (swishT >= 0 && (swishT += dt) > 1.4) swishT = -1;

@@ -13,6 +13,9 @@ import { createFjorLife } from './fjor-life.js';
 import { FALLS } from '../kafli4-route.js';
 import { createSong } from '../../engine/audio/song.js';
 import { createFlightSounds, loadFlightRecordings } from '../../engine/audio/flight-sounds.js';
+import { preloadSamples } from '../../engine/audio/sfx.js';
+
+const ZERO_OFF = { x: 0, z: 0 };
 
 const rad = d => (d * Math.PI) / 180;
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -94,7 +97,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     state.place = placeAt(t);
     const c = cameraAt(route, t, base);
     const valley = Boolean(c.valley);
-    const sh = shifted(t) && !valley ? OFF : { x: 0, z: 0 };
+    const sh = shifted(t) && !valley ? OFF : ZERO_OFF;
     Object.assign(cam, { x: c.x + sh.x, y: valley ? c.y : worldY(t), z: c.z + sh.z, yaw: c.yaw, pitch: c.pitch, roll: c.roll });
     const psi = rad(c.yaw), pt = rad(c.pitch);
     stageCam.position.set(cam.x, cam.y, cam.z);
@@ -104,7 +107,7 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     stageCam.updateMatrixWorld(true);
     state.cam = cam;
     // the clouds: shifted with the camera once it is over the valley (their own places are the forest's)
-    const off = shifted(t) ? OFF : { x: 0, z: 0 };
+    const off = shifted(t) ? OFF : ZERO_OFF;
     clouds.mesh.material.uniforms.uBase.value.set(off.x, base, off.z);
     Object.assign(cloudCam, { x: cam.x - off.x, y: cam.y, z: cam.z - off.z });
     clouds.update(cloudCam);
@@ -173,19 +176,19 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   // rule 9 for the butterfly: never within CLEAR m of her bones (as they were drawn last frame); pushed aside in the picture, at its
   // own depth, away from the nearest bone
   // (her skin, not her bones: the wings' membranes reach a metre and more behind their bones; every 32nd vertex, as last drawn)
-  const CLEAR = 1.05, bp = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), w = new THREE.Vector3();
+  const CLEAR = 1.05, bp = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), w = new THREE.Vector3(), near = new THREE.Vector3(), away = new THREE.Vector3();
   function keepClear(b) {
     const skin = cast.herBody?.();
     if (!skin) return b;
     stage.framePoint(b.at[0], b.at[1], (b.at[2] * FJOR_D) / D, bp, stageCam, D);
-    let best = Infinity, near = null;
+    let best = Infinity, hasNear = false;
     skin.skeleton?.update();
     const count = skin.geometry.attributes.position.count;
-    for (let i = 0; i < count; i += 32) { skin.getVertexPosition(i, w).applyMatrix4(skin.matrixWorld); const d = w.distanceTo(bp); if (d < best) { best = d; near = w.clone(); } }
-    if (!near || best >= CLEAR) return b;
+    for (let i = 0; i < count; i += 32) { skin.getVertexPosition(i, w).applyMatrix4(skin.matrixWorld); const d = w.distanceTo(bp); if (d < best) { best = d; near.copy(w); hasNear = true; } }
+    if (!hasNear || best >= CLEAR) return b;
     right.set(1, 0, 0).applyQuaternion(stageCam.quaternion);
     upv.set(0, 1, 0).applyQuaternion(stageCam.quaternion);
-    const away = bp.clone().sub(near);
+    away.copy(bp).sub(near);
     let x = away.dot(right), y = away.dot(upv);
     const n = Math.hypot(x, y) || 1;
     if (n < 1e-3) { x = 0; y = 1; } else { x /= n; y /= n; }
@@ -204,23 +207,9 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   // The song is made ahead and played only once its file's length and byte ranges are known: an element cued before that cannot be
   // moved and plays from the set's start, the beat following it (engine/audio/music.js follow: "The theme cannot be moved ...").
   // Played late, it is played that much further in, on the beat.
-  let song = null, next = null, release = null, flight = null, lastWhoosh = -1, lastCry = -1, lastLine = -1, filter = null, pending = false;
-  const makeSong = () => {
-    const clock = world.clock ?? { get time() { return s.time; } };
-    const made = createSong({ context: world.sound?.context ?? null, output: filter ?? world.sound?.output ?? null, clock, src: 'djamm.mp3', base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}) });
-    const entry = { song: made, ready: false };
-    Promise.resolve(made.ready).then(() => { entry.ready = true; }, () => { entry.ready = true; });
-    return entry;
-  };
-  if (sound) next = makeSong(); // the first play's, made as the show loads
-  function soundStart() {
-    lastLine = -1;
-    state.said = [];
-    if (!sound) return;
-    song?.stop?.(0.1);
-    release?.();
-    release = null;
-    flight?.stop?.();
+  if (sound && world.sound?.context) preloadSamples(world.sound.context, ['flyers']);
+  let song = null, next = null, release = null, flight = null, flightRelease = null, recordings = null, lastWhoosh = -1, lastCry = -1, lastLine = -1, filter = null, pending = false;
+  const ensureFilter = () => {
     const context = world.sound?.context ?? null;
     // a low-pass over her set and the airflow, swept down in the slow stretches (the DJ's filter), open the rest of the time
     if (!filter && context && world.sound?.output) {
@@ -230,7 +219,31 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
       filter.Q.value = 0.9;
       filter.connect(world.sound.output);
     }
-    flight = createFlightSounds({ context, output: filter ?? world.sound?.output ?? null, recordings: context ? loadFlightRecordings(context) : null });
+    return filter;
+  };
+  const makeSong = () => {
+    const clock = world.clock ?? { get time() { return s.time; } };
+    const made = createSong({ context: world.sound?.context ?? null, output: ensureFilter() ?? world.sound?.output ?? null, clock, src: 'djamm.mp3', base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}) });
+    const entry = { song: made, ready: false };
+    Promise.resolve(made.ready).then(() => { entry.ready = true; }, () => { entry.ready = true; });
+    return entry;
+  };
+  if (sound) next = makeSong(); // the first play's, made as the show loads (already routed through the DJ filter)
+  function soundStart() {
+    lastLine = -1;
+    state.said = [];
+    if (!sound) return;
+    song?.stop?.(0.1);
+    release?.();
+    release = null;
+    flightRelease?.();
+    flightRelease = null;
+    if (flight?.dispose) flight.dispose();
+    else flight?.stop?.();
+    const context = world.sound?.context ?? null;
+    recordings ??= context ? loadFlightRecordings(context) : null;
+    flight = createFlightSounds({ context, output: ensureFilter() ?? world.sound?.output ?? null, recordings });
+    flightRelease = world.sound?.hold?.(flight) ?? null;
     flight.start();
     const entry = next ?? makeSong();
     next = null;
@@ -247,6 +260,20 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
     song?.stop?.(END_FADE);
     flight?.stop?.();
     if (!next) next = makeSong(); // "Aftur"'s
+  }
+  function dispose() {
+    pending = false;
+    song?.stop?.(0);
+    next?.song?.stop?.(0);
+    next = null;
+    release?.();
+    release = null;
+    flightRelease?.();
+    flightRelease = null;
+    if (flight?.dispose) flight.dispose();
+    else flight?.stop?.();
+    flight = null;
+    if (filter) { try { filter.disconnect(); } catch {} filter = null; }
   }
   let songEntry = null;
   function soundFrame(r) {
@@ -278,6 +305,6 @@ export function createFjorPlayer({ s, world, stageCam, cam, cast, clouds, base, 
   return {
     apply, setStage, placeAt, life, length: WARP.length, warp: WARP, slows: WARP.slows, off: OFF,
     holds: HOLDS.map(([a, b]) => [+WARP.real(a).toFixed(2), +WARP.real(b).toFixed(2)]),
-    bursts, stats: () => cameraStats(route), soundStart, soundEnd, soundFrame, lines: LINES, route, path, groundAt, low: LOW,
+    bursts, stats: () => cameraStats(route), soundStart, soundEnd, soundFrame, dispose, lines: LINES, route, path, groundAt, low: LOW,
   };
 }

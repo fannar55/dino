@@ -168,6 +168,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
 
   function lintMove(label, from, to, duration, ease) {
     if (ease === 'linear') warn(`move "${label}" is linear; camera moves ease in and out`);
+    if (!(duration > 0)) return;
     const peak = PEAK[ease] ?? 1.6;
     const dolly = (from.position.distanceTo(to.position) / duration) * peak;
     const pan = (turnDegrees(aim(from.position, from.target), aim(to.position, to.target)) / duration) * peak;
@@ -314,12 +315,14 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
       (Math.max(r0, r1) * turn * peak) / (LIMITS.dolly * 0.85),
     );
     const over = [];
-    const angular = (Math.abs(degrees) / d) * peak;
-    const arc = ((Math.max(r0, r1) * turn + Math.hypot(r1 - r0, h1 - h0)) / d) * peak;
-    const zoom = (Math.abs(f1 - f0) / d) * peak;
-    if (angular > LIMITS.orbit * 1.05) over.push(`${angular.toFixed(1)} deg/s (max ${LIMITS.orbit})`);
-    if (arc > LIMITS.dolly * 1.05) over.push(`camera ${arc.toFixed(2)} m/s (max ${LIMITS.dolly})`);
-    if (zoom > LIMITS.zoom * 1.05) over.push(`zoom ${zoom.toFixed(1)} deg/s (max ${LIMITS.zoom})`);
+    if (d > 0) {
+      const angular = (Math.abs(degrees) / d) * peak;
+      const arc = ((Math.max(r0, r1) * turn + Math.hypot(r1 - r0, h1 - h0)) / d) * peak;
+      const zoom = (Math.abs(f1 - f0) / d) * peak;
+      if (angular > LIMITS.orbit * 1.05) over.push(`${angular.toFixed(1)} deg/s (max ${LIMITS.orbit})`);
+      if (arc > LIMITS.dolly * 1.05) over.push(`camera ${arc.toFixed(2)} m/s (max ${LIMITS.dolly})`);
+      if (zoom > LIMITS.zoom * 1.05) over.push(`zoom ${zoom.toFixed(1)} deg/s (max ${LIMITS.zoom})`);
+    }
     if (over.length) warn(`orbit is too fast: ${over.join(', ')}`);
     if (ease === 'linear') warn('orbit is linear; camera moves ease in and out');
     const curve = EASE[ease] ?? EASE.inOut;
@@ -402,7 +405,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
       resolve(lookSpec, goalT);
       spring(rig.position, velP, goalP, stiffness, m.dt, maxSpeed);
       spring(rig.target, velT, goalT, stiffness * 1.6, m.dt, maxSpeed * 2);
-      rig.fov = f0 + (f1 - f0) * EASE.inOut(Math.min(1, m.elapsed / fovSeconds));
+      rig.fov = f0 + (f1 - f0) * EASE.inOut(fovSeconds > 0 ? Math.min(1, m.elapsed / fovSeconds) : 1);
       return false;
     }, { continuous: true });
   }

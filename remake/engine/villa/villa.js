@@ -31,9 +31,11 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
   let boxes = []; // { x, y, w, h } in CSS px of the view
   let drag = null;
   let draw = null, panel = null, shotEl = null, textEl = null, statusEl = null;
-  let holdTimer = null;
+  let undoBtn = null, cancelBtn = null, saveBtn = null;
+  let holdTimer = null, closeTimer = null;
   let saving = false;
   let pausedVideos = [];
+  const onResize = () => { if (isOpen) paint(); };
 
   if (button) {
     const b = doc.createElement('button');
@@ -41,7 +43,7 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     b.className = 'villa-button';
     b.textContent = 'Villa';
     b.title = 'Villutilkynning (F1)';
-    b.addEventListener('click', () => (isOpen ? cancel() : open()));
+    b.addEventListener('click', () => { if (!isOpen) open(); else if (!saving) cancel(); });
     doc.body.appendChild(b);
   }
 
@@ -90,6 +92,7 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     onPause?.(true);
     build();
     root.hidden = false;
+    win.addEventListener?.('resize', onResize);
     paint();
     textEl.focus({ preventScroll: true });
   }
@@ -99,9 +102,13 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
   function close() {
     if (!isOpen) return;
     isOpen = false;
+    saving = false;
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+    win.removeEventListener?.('resize', onResize);
     root.hidden = true;
     root.replaceChildren();
     draw = panel = shotEl = textEl = statusEl = null;
+    undoBtn = cancelBtn = saveBtn = null;
     for (const v of pausedVideos) try { v.play()?.catch?.(() => {}); } catch {}
     pausedVideos = [];
     onPause?.(false);
@@ -136,8 +143,9 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     const undo = doc.createElement('button'); undo.type = 'button'; undo.className = 'villa-undo'; undo.textContent = 'Afturkalla kassa';
     const cancelB = doc.createElement('button'); cancelB.type = 'button'; cancelB.className = 'villa-cancel'; cancelB.textContent = 'Hætta við';
     const saveB = doc.createElement('button'); saveB.type = 'button'; saveB.className = 'villa-save'; saveB.textContent = 'Vista';
-    undo.addEventListener('click', () => { boxes.pop(); paint(); });
-    cancelB.addEventListener('click', cancel);
+    undoBtn = undo; cancelBtn = cancelB; saveBtn = saveB;
+    undo.addEventListener('click', () => { if (saving) return; boxes.pop(); paint(); });
+    cancelB.addEventListener('click', () => { if (!saving) cancel(); });
     saveB.addEventListener('click', save);
     buttons.append(undo, cancelB, saveB);
     statusEl = doc.createElement('div');
@@ -275,9 +283,13 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
   async function save() {
     if (!isOpen || saving) return;
     saving = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    if (undoBtn) undoBtn.disabled = true;
+    if (saveBtn) saveBtn.disabled = true;
     status('Vista…');
     try {
       const { raw, marked } = await pictures();
+      if (!isOpen) return;
       const ctx = { ...context(), text: textEl.value.trim(), boxes: boxes.map(box => ({ ...box })) };
       ctx.href = win.location?.href ?? null;
       ctx.window = { width: win.innerWidth, height: win.innerHeight, dpr: win.devicePixelRatio || 1 };
@@ -300,6 +312,7 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
       } else {
         console.info('[villa] no dev server behind this page: the report downloads');
       }
+      if (!isOpen) return;
       if (folder) {
         status(`Vistað: ${folder}`);
       } else {
@@ -309,11 +322,15 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
         download(name, body);
         status(`Enginn þjónn svaraði: vafrinn hleður skýrslunni niður sem ${name}.`);
       }
-      setTimeout(close, CLOSE_AFTER);
+      if (closeTimer) clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => { closeTimer = null; close(); }, CLOSE_AFTER);
     } catch (error) {
       console.error('[villa] the report failed:', error);
       status(`Tókst ekki: ${error?.message ?? error}`);
       saving = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+      if (undoBtn) undoBtn.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
     }
   }
 

@@ -142,10 +142,14 @@ export const chapter = {
       Object.assign(world.gramedla, { view, show: async i => show(i), measure: () => measure(KEYS[view.index]) });
       show(view.index);
       yield s.wait(0.1);
-      if (ui) document.body.append(ui.element);
-      yield s.ready();
-      yield s.fade(0, 1);
-      for (;;) yield;
+      try {
+        if (ui) document.body.append(ui.element);
+        yield s.ready();
+        yield s.fade(0, 1);
+        for (;;) yield;
+      } finally {
+        ui?.element.remove();
+      }
     }
 
     // ---- the show: the glasses' start (chapter.startButton), then the timeline from the top, then the end card ----
@@ -153,7 +157,7 @@ export const chapter = {
     // the page's output held with the game, Egill's lines heard only. The glasses' tap is the touch that lets sound begin; a capture
     // has no sound at all, and its seek hands out only the lines (his mouth) and the forest's wishes, which sound nowhere.
     const sounds = createShowSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
-    if (!s.seeking) world.sound?.hold?.(sounds);
+    const soundRelease = !s.seeking ? (world.sound?.hold?.(sounds) ?? null) : null;
     world.music?.setLevel?.(0, 0);
     track.events = soundEvents(rig);
     track.fire = e => {
@@ -165,30 +169,36 @@ export const chapter = {
     world.gramedla.sound = { events: track.events, sounds };
     clock.t = 0;
     director.apply(0);
-    yield s.ready();
-    for (;;) {
-      director.reset();
-      sounds.stop(); // "Aftur" starts clean
-      track.next = 0;
-      clock.from = s.time;
-      state.showing = true;
-      yield s.fade(1, 0);
-      s.after(FADE.in[0], () => s.fade(0, FADE.in[1] - FADE.in[0]));
-      yield s.until(() => s.time - clock.from >= FADE.out[0]);
-      yield s.fade(1, FADE.out[1] - FADE.out[0]);
-      yield s.until(() => s.time - clock.from >= LENGTH);
-      state.showing = false;
-      // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
-      let again = false;
-      const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => { sounds.stop(); s.sfx('forest', { level: 0 }); leaveShow(window); } });
-      document.body.append(end);
-      try {
-        yield s.until(() => again);
-      } finally {
-        end.remove();
+    try {
+      yield s.ready();
+      for (;;) {
+        director.reset();
+        sounds.stop(); // "Aftur" starts clean
+        track.next = 0;
+        clock.from = s.time;
+        state.showing = true;
+        yield s.fade(1, 0);
+        s.after(FADE.in[0], () => s.fade(0, FADE.in[1] - FADE.in[0]));
+        yield s.until(() => s.time - clock.from >= FADE.out[0]);
+        yield s.fade(1, FADE.out[1] - FADE.out[0]);
+        yield s.until(() => s.time - clock.from >= LENGTH);
+        state.showing = false;
+        // the end card: "Aftur" plays it again, "Hætta" leaves (the book's frame closes; on its own, the game's start)
+        let again = false;
+        const { element: end } = endCard(document, { onAgain: () => { again = true; }, onQuit: () => { sounds.stop(); s.sfx('forest', { level: 0 }); leaveShow(window); } });
+        document.body.append(end);
+        try {
+          yield s.until(() => again);
+        } finally {
+          end.remove();
+        }
+        clock.from = null;
+        clock.t = 0;
       }
-      clock.from = null;
-      clock.t = 0;
+    } finally {
+      sounds.stop();
+      soundRelease?.();
+      s.sfx('forest', { level: 0 });
     }
   },
 };

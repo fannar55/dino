@@ -30,7 +30,11 @@ const clamp = THREE.MathUtils.clamp;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 function loadTemplate(url) {
-  if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
+  if (!cache.has(url)) {
+    const promise = loader.loadAsync(url);
+    cache.set(url, promise);
+    promise.catch(() => { if (cache.get(url) === promise) cache.delete(url); });
+  }
   return cache.get(url);
 }
 
@@ -174,7 +178,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     o.receiveShadow = true;
     o.frustumCulled = false;
     // Single-sided skins would cast shadows with their back faces, letting light leak into creases.
-    o.material.shadowSide = THREE.FrontSide;
+    const materials = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of materials) if (m) m.shadowSide = THREE.FrontSide;
   });
   // Soft storybook skin lighting and simpler levels for far away + low-poly sun shadow (character-lod.js).
   if (world.renderer) {
@@ -241,8 +246,37 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let current = null;
   let gait; // the walk clip's, measured the first time the actor walks
   const gaits = new Map(); // the gait of each clip walked with (walk, or Uggeðla's wade)
+  const bindBones = [];
+  model.traverse(o => {
+    if (o.isBone) bindBones.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]);
+  });
   const gaitOf = clipName => {
-    if (!gaits.has(clipName)) gaits.set(clipName, measureGait(model, root, clips.get(clipName), feet, restFeet, footing.tuning));
+    if (!gaits.has(clipName)) {
+      // Snapshot the live pose (including footing & overlays), sample the walk clip from the clean bind pose at origin,
+      // and restore every bone & model transform verbatim so neither gait metrics nor live footing state are disturbed.
+      const savedPos = model.position.clone();
+      const savedRot = model.rotation.clone();
+      const savedBones = bindBones.map(([bone]) => [bone, bone.position.clone(), bone.quaternion.clone(), bone.scale.clone()]);
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+      for (const [bone, pos, quat, scl] of bindBones) {
+        bone.position.copy(pos);
+        bone.quaternion.copy(quat);
+        bone.scale.copy(scl);
+      }
+      try {
+        gaits.set(clipName, measureGait(model, root, clips.get(clipName), feet, restFeet, footing.tuning));
+      } finally {
+        model.position.copy(savedPos);
+        model.rotation.copy(savedRot);
+        for (const [bone, pos, quat, scl] of savedBones) {
+          bone.position.copy(pos);
+          bone.quaternion.copy(quat);
+          bone.scale.copy(scl);
+        }
+        root.updateMatrixWorld(true);
+      }
+    }
     if (clipName === 'walk') gait = gaits.get(clipName);
     return gaits.get(clipName);
   };
@@ -501,7 +535,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     }
     // The look follows its target a little behind. When the place changes under the actor (chapter 4's cut into the flight) its head
     // is somewhere else at once, and the point it was turning to goes along with it, or the head would swing after where it was.
-    root.updateMatrixWorld(true);
     const headPos = head.getWorldPosition(v1);
     if (!look.primed) { look.smooth.copy(look.point); look.primed = true; }
     else if (look.headKnown && headPos.distanceToSquared(look.head) > LOOK_JUMP * LOOK_JUMP) look.smooth.add(v3.copy(headPos).sub(look.head));
@@ -555,7 +588,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     if (active) {
       try {
         world.resolvePoint(listen.spec, listen.point);
-        root.updateMatrixWorld(true);
         headPos = head.getWorldPosition(v1);
         const distSq = headPos.distanceToSquared(listen.point);
         if (distSq > LISTEN_REACH * LISTEN_REACH || distSq < 0.09) active = false;
@@ -579,7 +611,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     }
     if (!local) {
       if (!listen.primed) return false;
-      root.updateMatrixWorld(true);
       headPos = head.getWorldPosition(v1);
       local = v2.copy(listen.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
     }
@@ -610,8 +641,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     const right = v1.set(0, 0, 1).applyQuaternion(root.quaternion);
     const forward = v2.set(1, 0, 0).applyQuaternion(root.quaternion);
     if (head) {
-      rotateBoneWorld(head, qa.setFromAxisAngle(right, -pose.nod));
-      rotateBoneWorld(head, qa.setFromAxisAngle(forward, pose.tilt));
+      qb.setFromAxisAngle(forward, pose.tilt).multiply(qa.setFromAxisAngle(right, -pose.nod));
+      rotateBoneWorld(head, qb);
     }
     if (jaw) rotateBoneWorld(jaw, qa.setFromAxisAngle(right, -pose.jaw));
     return true;
@@ -676,10 +707,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     get listening() { return listen.spec; },
     /** Degrees a look may turn the head aside at most, whatever lookAt asks (Infinity, the default: no cap). */
     get lookYawLimit() { return lookYawLimit; },
-    set lookYawLimit(value) { lookYawLimit = Math.max(0, Number(value)); },
+    set lookYawLimit(value) { const n = Number(value); lookYawLimit = Number.isNaN(n) ? Infinity : Math.max(0, n); },
     /** Degrees a look may tilt the head up at most, whatever lookAt asks (Infinity, the default: no cap). */
     get lookUpLimit() { return lookUpLimit; },
-    set lookUpLimit(value) { lookUpLimit = Math.max(0, Number(value)); },
+    set lookUpLimit(value) { const n = Number(value); lookUpLimit = Number.isNaN(n) ? Infinity : Math.max(0, n); },
     /** The eyelids (null for a model without eyes): `shut` is how shut they are now. */
     get eyelids() { return lids; },
     /** Blink now. */
@@ -758,7 +789,22 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       talk.stop();
       lids?.blink.rest(0);
     },
-    dispose() { mixer.stopAllAction(); lids?.dispose(); world.scene.remove(root); releaseCharacter(model); },
+    dispose() {
+      if (walk) endWalk(true);
+      if (turn) endTurn(true);
+      controlled = false;
+      drive = null;
+      pose = null;
+      overlay = null;
+      mixer.stopAllAction();
+      mixer.uncacheRoot(model);
+      lids?.dispose();
+      world.scene.remove(root);
+      releaseCharacter(model);
+      const skeletons = new Set();
+      model.traverse(o => { if (o.isSkinnedMesh && o.skeleton) skeletons.add(o.skeleton); });
+      for (const s of skeletons) s.dispose?.();
+    },
   };
 }
 
@@ -767,10 +813,14 @@ export async function createActor(world, { name, url, gltf: given, position = [0
  * rider is by riding.js) after the rest, so a rider follows its host as the host is in this very frame,
  * whatever order the chapter lists them in.
  */
+const _freeActors = [];
+const _heldActors = [];
 export function updateActors(actors, dt) {
-  const free = [];
-  const held = [];
-  for (const actor of actors) (actor.controlled ? held : free).push(actor);
-  for (const actor of free) actor.update(dt);
-  for (const actor of held) actor.update(dt);
+  _freeActors.length = 0;
+  _heldActors.length = 0;
+  for (const actor of actors) (actor.controlled ? _heldActors : _freeActors).push(actor);
+  for (let i = 0; i < _freeActors.length; i++) _freeActors[i].update(dt);
+  for (let i = 0; i < _heldActors.length; i++) _heldActors[i].update(dt);
+  _freeActors.length = 0;
+  _heldActors.length = 0;
 }

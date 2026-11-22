@@ -36,11 +36,12 @@ export function installStats({ renderer, scene, q, render, getScale, debugEl, ex
     fps = frames / acc;
     frames = 0;
     acc = 0;
+    let cachedTextureMB = null;
     window.__demoStats = {
       fps: Math.round(fps),
       drawCalls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
-      textureMB: textureMB(),
+      get textureMB() { return cachedTextureMB ?? (cachedTextureMB = textureMB()); },
       quality: q.name,
       renderScale: Math.round(getScale() * 100) / 100,
     };

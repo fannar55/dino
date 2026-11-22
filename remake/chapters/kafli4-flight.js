@@ -180,7 +180,28 @@ export function createFlightSong(world) {
     base: new URL('../assets/audio/kafli4/', import.meta.url),
     ...(sound?.createElement ? { createElement: sound.createElement } : {}),
   });
-  sound?.hold?.(song);
+  const release = sound?.hold?.(song) ?? null;
+  let released = false;
+  let started = false;
+  const releaseOnce = () => {
+    if (released) return;
+    released = true;
+    release?.();
+  };
+  const play = song.play;
+  song.play = at => {
+    started = true;
+    return play(at);
+  };
+  const update = song.update;
+  song.update = () => {
+    update();
+    if (started && !song.playing) releaseOnce();
+  };
+  song.dispose = () => {
+    song.stop(0);
+    releaseOnce();
+  };
   return song;
 }
 
@@ -230,6 +251,9 @@ function* frames(s, c) {
   const fallsAt = new THREE.Vector3(FALLS.face, (FALLS.top + FALLS.base) / 2, FALLS.z);
   const look = world.look ?? pickLook(world.chapter?.look);
   const scratch = new THREE.Color();
+  let lastGolden = null;
+  let lastSun = null;
+  let lastHemi = null;
   let clip = null;
   let n = 0;
   const flap = c.flugedla ? wingFlaps(c.flugedla.raw) : () => false; // a beat on each downstroke of her fly clip
@@ -238,7 +262,14 @@ function* frames(s, c) {
     const t = Math.min(BEATS.END, s.time - c.flight.started);
     flier.update(t);
     c.play.update(t);
-    lightAt(world, look, goldenAt(t), scratch);
+    const golden = goldenAt(t);
+    const lighting = world.lighting;
+    if (golden !== lastGolden || lighting?.sun !== lastSun || lighting?.hemi !== lastHemi) {
+      lightAt(world, look, golden, scratch);
+      lastGolden = golden;
+      lastSun = lighting?.sun;
+      lastHemi = lighting?.hemi;
+    }
     world.flightTime = s.time - c.flight.started; // the far land follows it on the place's own frames (world/ardalur/index.js)
     if (flier.clip !== clip) {
       if (!s.seeking && (flier.clip === 'takeOff' || flier.clip === 'fly')) sounds.wingbeat();
@@ -493,11 +524,12 @@ function placeMosiBelow(c) {
 function* shallows(s, c) {
   const { world, route, mosi } = c;
   const { to, every, size } = JUICE.shallows;
+  const at = new THREE.Vector3();
   let k = 0;
   while (c.flight.ended === null && s.time - c.flight.started < to) {
     const feet = mosi.raw.root.position;
     const level = mosi.raw.root.visible ? route.waterAt(feet.x, feet.z, 1) : null;
-    if (level !== null && world.effects && world.scene) splash(world, new THREE.Vector3(feet.x, level, feet.z), { size, count: 18, seed: `mosi ${k++}` });
+    if (level !== null && world.effects && world.scene) splash(world, at.set(feet.x, level, feet.z), { size, count: 18, seed: `mosi ${k++}` });
     yield s.wait(every);
   }
 }

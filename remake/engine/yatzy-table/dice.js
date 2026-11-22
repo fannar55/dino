@@ -100,16 +100,40 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={},lively=fa
   const euler=new THREE.Euler(),spin=new THREE.Quaternion(),poseQ=new THREE.Quaternion(),cupStartQ=new THREE.Quaternion(),returnQ=new THREE.Quaternion(),matrix=new THREE.Matrix4(),cupScreenMatrix=new THREE.Matrix4();
   const restCupQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,-.035));
   const screenDice=dice.map((die,index)=>({x:0,y:0,left:0,right:0,top:0,bottom:0,visible:false,index,value:0,held:false})),screenCup={x:0,y:0,left:0,right:0,top:0,bottom:0,radius:0,width:0,height:0,visible:false,ready:false};
-  // Cup parts are rigid. Cache their real vertices once in cup-local space,
-  // then one combined matrix gives a tight live hitbox without frame allocations.
-  const cupScreenVertices=new Float64Array(cup.children.reduce((count,part)=>count+part.geometry.attributes.position.count*3,0));
-  let cupVertexOffset=0;
-  for(const part of cup.children){
-    part.updateMatrix();const positions=part.geometry.attributes.position;
-    for(let vertex=0;vertex<positions.count;vertex++){
-      point.fromBufferAttribute(positions,vertex).applyMatrix4(part.matrix).toArray(cupScreenVertices,cupVertexOffset);cupVertexOffset+=3;
+  // Cup parts are rigid. Keep only unique vertices on the outer meridional silhouette
+  // (plus a small margin for discrete polygonization) so tight live bounds stay exact
+  // while projecting ~5x fewer vertices, and skip projection completely when unchanged.
+  const cupScreenVertices=(()=>{
+    const raw=[],rings=new Map();
+    for(const part of cup.children){
+      part.updateMatrix();const positions=part.geometry.attributes.position;
+      for(let vertex=0;vertex<positions.count;vertex++){
+        point.fromBufferAttribute(positions,vertex).applyMatrix4(part.matrix);
+        const r=Math.hypot(point.x,point.z),rk=`${r.toFixed(4)}:${point.y.toFixed(4)}`;
+        if(!rings.has(rk))rings.set(rk,{r,y:point.y});
+        raw.push([point.x,point.y,point.z,rk]);
+      }
     }
-  }
+    const ringList=[...rings.entries()],keepRings=new Set();
+    for(const [rk,a]of ringList){
+      for(let k=0;k<720;k++){
+        const th=(k/720)*Math.PI-Math.PI/2,dx=Math.cos(th),dy=Math.sin(th),val=a.r*dx+a.y*dy;
+        let outer=true;
+        for(let j=0;j<ringList.length;j++){const b=ringList[j][1];if(b.r*dx+b.y*dy>val+.002){outer=false;break;}}
+        if(outer){keepRings.add(rk);break;}
+      }
+    }
+    const seen=new Set(),kept=[];
+    for(const [x,y,z,rk]of raw){
+      if(!keepRings.has(rk))continue;
+      const vk=`${Math.round(x*1e6)}:${Math.round(y*1e6)}:${Math.round(z*1e6)}`;
+      if(seen.has(vk))continue;
+      seen.add(vk);kept.push(x,y,z);
+    }
+    return new Float64Array(kept);
+  })();
+  const lastCupScreenMatrix=new Float64Array(16);
+  let cupBoundsValid=false;
   let duration=0,events=new Set();
   function setHome(who){
     const result=values.some(value=>value>0);
@@ -352,13 +376,23 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={},lively=fa
       screenCup.width=Math.max(screenCup.width,Math.abs(point.x-tmp.x));
       screenCup.height=Math.max(screenCup.height,Math.abs(point.y-tmp.y));
     }
-    screenCup.left=screenCup.top=Infinity;screenCup.right=screenCup.bottom=-Infinity;
     cupScreenMatrix.multiplyMatrices(world.camera.projectionMatrix,world.camera.matrixWorldInverse).multiply(cup.matrixWorld);
-    for(let vertex=0;vertex<cupScreenVertices.length;vertex+=3){
-      point.fromArray(cupScreenVertices,vertex).applyMatrix4(cupScreenMatrix);
-      const x=point.x*.5+.5,y=-point.y*.5+.5;
-      screenCup.left=Math.min(screenCup.left,x);screenCup.right=Math.max(screenCup.right,x);
-      screenCup.top=Math.min(screenCup.top,y);screenCup.bottom=Math.max(screenCup.bottom,y);
+    const e=cupScreenMatrix.elements;
+    let same=cupBoundsValid;
+    if(same)for(let k=0;k<16;k++)if(e[k]!==lastCupScreenMatrix[k]){same=false;break;}
+    if(!same){
+      for(let k=0;k<16;k++)lastCupScreenMatrix[k]=e[k];
+      cupBoundsValid=true;
+      let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+      const e0=e[0],e1=e[1],e3=e[3],e4=e[4],e5=e[5],e7=e[7],e8=e[8],e9=e[9],e11=e[11],e12=e[12],e13=e[13],e15=e[15];
+      for(let vertex=0;vertex<cupScreenVertices.length;vertex+=3){
+        const vx=cupScreenVertices[vertex],vy=cupScreenVertices[vertex+1],vz=cupScreenVertices[vertex+2];
+        const invW=1/(e3*vx+e7*vy+e11*vz+e15);
+        const x=(e0*vx+e4*vy+e8*vz+e12)*invW*.5+.5;
+        const y=-(e1*vx+e5*vy+e9*vz+e13)*invW*.5+.5;
+        if(x<left)left=x;if(x>right)right=x;if(y<top)top=y;if(y>bottom)bottom=y;
+      }
+      screenCup.left=left;screenCup.right=right;screenCup.top=top;screenCup.bottom=bottom;
     }
     screenCup.visible=!disposed&&cup.visible&&tmp.z>=-1&&tmp.z<=1;screenCup.ready=ready&&!rolling&&!disposed;
     return screenCup;

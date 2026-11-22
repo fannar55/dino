@@ -25,7 +25,7 @@ export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECI
   if (!Array.isArray(species) || !species.length) throw new TypeError('species must contain distinct, nonempty names');
   distinctNames(species, 'species'); distinctNames(gifts, 'gifts');
   const roster = [...species], presents = [...gifts];
-  let cards, selected, matchedPairs, phase, paused, stage, remaining, found;
+  let cards, selected, matchedPairs, phase, paused, stage, remaining, found, cachedState = null;
 
   function restart() {
     // Build before replacing current state, so a broken random source cannot leave a half-reset game.
@@ -38,18 +38,19 @@ export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECI
     }
     cards = deck.map((card, id) => ({ id, ...card, status: 'hidden' }));
     selected = []; found = []; matchedPairs = 0; phase = 'ready'; paused = false; stage = null; remaining = 0;
+    cachedState = null;
     return [];
   }
 
   function getState() {
-    return Object.freeze({
+    return cachedState ??= Object.freeze({
       cards: Object.freeze(cards.map(card => Object.freeze({ ...card }))),
       selected: Object.freeze([...selected]), found: Object.freeze([...found]), matchedPairs, phase, paused,
     });
   }
 
   function wait(nextStage, seconds, nextPhase) {
-    stage = nextStage; remaining = seconds; phase = nextPhase;
+    stage = nextStage; remaining = seconds; phase = nextPhase; cachedState = null;
   }
 
   // The same leaf for a friend and for a gift: it opens, and the second one decides (a pair, or both close).
@@ -68,7 +69,7 @@ export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECI
 
   function finishStage(events) {
     const done = stage;
-    stage = null; remaining = 0;
+    stage = null; remaining = 0; cachedState = null;
     if (done === 'reveal-first') {
       phase = 'one-open';
     } else if (done === 'reveal-second') {
@@ -116,7 +117,7 @@ export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECI
     return events;
   }
 
-  function pause(value) { paused = Boolean(value); return []; }
+  function pause(value) { const next = Boolean(value); if (next !== paused) { paused = next; cachedState = null; } return []; }
 
   restart();
   return Object.freeze({ getState, pick, advance, pause, restart });

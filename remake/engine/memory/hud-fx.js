@@ -14,9 +14,21 @@ const STAR = 'polygon(50% 0%,63% 33%,98% 36%,71% 58%,80% 93%,50% 74%,20% 93%,29%
 
 export function createHudFx({ reduced = () => false, doc = globalThis.document } = {}) {
   const live = new Set();
+  const anims = new Set();
   let serial = 0;
+  let paused = false;
   const calm = () => Boolean(reduced()) || Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
-  const play = (element, frames, options) => { try { return element.animate?.(frames, options) ?? null; } catch { return null; } };
+  const play = (element, frames, options) => {
+    try {
+      const animation = element.animate?.(frames, options) ?? null;
+      if (animation) {
+        anims.add(animation);
+        if (paused) animation.pause?.();
+        animation.finished.catch(() => {}).finally(() => anims.delete(animation));
+      }
+      return animation;
+    } catch { return null; }
+  };
   const add = (element, parent = doc.body) => { parent.append(element); live.add(element); return element; };
   const drop = element => { live.delete(element); element.remove(); };
   const after = (animation, element, then) => {
@@ -79,10 +91,26 @@ export function createHudFx({ reduced = () => false, doc = globalThis.document }
     play(element, [{ scale: '1 1' }, { scale: '1.035 .93', offset: .3 }, { scale: '.99 1.025', offset: .65 }, { scale: '1 1' }], { duration: 340, easing: 'ease-out' });
   }
 
+  function setPaused(value) {
+    const next = Boolean(value);
+    if (next === paused) return;
+    paused = next;
+    for (const animation of anims) {
+      try {
+        if (paused) animation.pause?.();
+        else animation.play?.();
+      } catch {}
+    }
+  }
+
   function cancel() {
     serial++;
+    for (const animation of [...anims]) {
+      try { animation.cancel?.(); } catch {}
+    }
+    anims.clear();
     for (const element of [...live]) drop(element);
   }
 
-  return { burst, flyStar, confetti, squeeze, cancel };
+  return { burst, flyStar, confetti, squeeze, setPaused, cancel };
 }

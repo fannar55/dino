@@ -140,6 +140,8 @@ export function* createGrassSteps(world, { terrain, layout, seed, shared, actorU
     vertexHead: `
 attribute vec4 aBlade;
 attribute vec4 aInfo;
+uniform sampler2D uNoise;
+uniform float uDapple;
 uniform float uWindTime;
 uniform float uWindStrength;
 uniform vec2 uWindDirection;
@@ -147,11 +149,12 @@ ${BEAT_GLSL}
 uniform vec4 uGrassLod;
 uniform float uGrassLean;
 uniform float uFootprintSoft;
-varying float vT;
-varying vec4 vInfo;
-varying vec3 vGrassBase;
+uniform vec3 uGrassBase, uGrassMid, uGrassTip, uGrassShade;
+varying vec3 vGrassColor;
+varying vec4 vGrassLight; // x: sun (pre leaf-shadow), y: amb, z: shadowUse, w: leaf
+varying vec4 vGrassLeaf; // xy: base xz, z: actorNear, w: leafCover
 #ifdef FOREST_FEN
-varying float vFen;
+uniform vec3 uFenGrassBase, uFenGrassMid, uFenGrassTip, uFenGrassShade;
 ${FEN_SHARE_GLSL}
 #endif
 ${ACTOR_GLSL}`,
@@ -171,20 +174,31 @@ ${ACTOR_GLSL}`,
   float gKeep = 1.0 - smoothstep( gDens - 0.06, gDens, aBlade.w );
   gH *= gKeep * smoothstep( uGrassLod.w * 0.3, uGrassLod.w, gDist );
   gW *= mix( 1.0, 1.0 / sqrt( max( gDens, 0.2 ) ), 0.6 ) * step( 0.001, gH );
-  // actors flatten and part the grass
+  // actors flatten, part, warm and shade the grass in one pass
   float gFlat = 1.0;
+  float gNear = 0.0;
+  float gActorShade = 1.0;
   vec2 gPush = vec2( 0.0 );
   for ( int i = 0; i < 4; i ++ ) {
     if ( i >= uActorCount ) break;
     float d = forestActorDistance( gBase.xz, i );
     float f = smoothstep( -0.2, uFootprintSoft, d );
     gFlat = min( gFlat, mix( 0.1, 1.0, f ) );
+    gNear = max( gNear, 1.0 - smoothstep( 1.2, 3.4, d ) );
+    gActorShade = min( gActorShade, 1.0 - 0.4 * ( 1.0 - smoothstep( -0.5, 0.75, d ) ) );
     vec2 away = gBase.xz - uActors[ i ].xy;
-    gPush += normalize( away + 1e-4 ) * ( 1.0 - f ) * 0.9;
+    float awayLen = length( away );
+    vec2 awayDir = awayLen > 1e-4 ? away / awayLen : vec2( 1.0, 0.0 );
+    gPush += awayDir * ( 1.0 - f ) * 0.9;
   }
   gH *= gFlat;
   // facing: a random yaw turned part-way toward the camera
-  vec2 gFace = normalize( mix( vec2( sin( gYaw ), cos( gYaw ) ), normalize( gToCam.xz + 1e-4 ), 0.45 ) );
+  vec2 yawDir = vec2( sin( gYaw ), cos( gYaw ) );
+  float toCamXZLen = length( gToCam.xz );
+  vec2 toCamXZ = toCamXZLen > 1e-4 ? gToCam.xz / toCamXZLen : vec2( 0.0, 1.0 );
+  vec2 gFaceRaw = mix( yawDir, toCamXZ, 0.45 );
+  float gFaceLen = length( gFaceRaw );
+  vec2 gFace = gFaceLen > 1e-4 ? gFaceRaw / gFaceLen : yawDir;
   vec2 gAcross = vec2( gFace.y, -gFace.x );
   // lean, wind waves and gusts
   vec2 gLeanDir = vec2( sin( aInfo.x * 37.7 ), cos( aInfo.x * 37.7 ) );
@@ -203,60 +217,57 @@ ${ACTOR_GLSL}`,
   grassPos.xz += gBend * gH * gTT;
   grassPos.xz += gAcross * gSide * gW * 0.5 * gWidthK;
   vec3 grassNormal = normalize( mix( vec3( gFace.x, 0.0, gFace.y ), vec3( 0.0, 1.0, 0.0 ), 0.62 ) );
-  vT = gT;
-  vInfo = vec4( aInfo.xyz, clamp( gWave * gGust * uWindStrength, 0.0, 1.0 ) );
-  vGrassBase = gBase;
+  // blade colour, actor warmth/shade, biome blend and dapple are constant per blade vertex
+  vec3 cBase = uGrassBase, cMid = uGrassMid, cTip = uGrassTip, cShade = uGrassShade;
+  float gLeafCover = 1.0;
   #ifdef FOREST_FEN
-  vFen = fenShare( gBase.xz );
-  #endif`],
+  float gFen = fenShare( gBase.xz );
+  cBase = mix( cBase, uFenGrassBase, gFen );
+  cMid = mix( cMid, uFenGrassMid, gFen );
+  cTip = mix( cTip, uFenGrassTip, gFen );
+  cShade = mix( cShade, uFenGrassShade, gFen );
+  gLeafCover = 1.0 - gFen;
+  #endif
+  float gWindTint = clamp( gWave * gGust * uWindStrength, 0.0, 1.0 );
+  vec3 gc = mix( cBase, cMid, smoothstep( 0.0, 0.45, gT ) );
+  vec3 gTip = mix( cMid, cTip, 0.45 + 0.55 * aInfo.y );
+  gc = mix( gc, gTip, smoothstep( 0.42, 0.95, gT ) * ( 0.7 + 0.3 * aInfo.y ) );
+  gc *= mix( vec3( 1.0 ), vec3( 1.06, 1.0, 0.78 ), aInfo.y * 0.4 );
+  gc *= 0.82 + 0.3 * aInfo.x;
+  gc *= mix( 0.7, 1.0, smoothstep( 0.0, 0.45, gT ) );
+  gc *= 1.0 + vec3( 0.11, 0.09, 0.02 ) * gWindTint * gT;
+  // near a character the grass is lighter and more golden (STYLE.md 5.1)
+  gc = mix( gc, gc * vec3( 1.16, 1.1, 0.8 ) + vec3( 0.02, 0.016, 0.0 ), gNear * 0.7 * uActorWarm );
+  gc = mix( cShade, gc, 0.35 + 0.65 * aInfo.z );
+  vGrassColor = gc * gActorShade;
+  float gDap = smoothstep( 0.6, 0.78, texture2D( uNoise, gBase.xz * 0.16 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r );
+  vGrassLight = vec4(
+    aInfo.z + ( 1.0 - aInfo.z ) * gDap * uDapple,
+    mix( 0.65, 1.0, aInfo.z ),
+    smoothstep( 0.52, 0.64, aInfo.z ),
+    0.42 * gT
+  );
+  vGrassLeaf = vec4( gBase.x, gBase.z, gNear, gLeafCover );`],
       ['#include <beginnormal_vertex>', '  objectNormal = grassNormal;'],
       ['#include <begin_vertex>', '  transformed = grassPos;'],
     ],
     fragmentHead: `
 uniform sampler2D uNoise;
-uniform float uDapple;
 uniform float uWindTime;
-uniform vec3 uGrassBase, uGrassMid, uGrassTip, uGrassShade;
-varying float vT;
-varying vec4 vInfo;
-varying vec3 vGrassBase;
-#ifdef FOREST_FEN
-varying float vFen;
-uniform vec3 uFenGrassBase, uFenGrassMid, uFenGrassTip, uFenGrassShade;
-#endif
-${ACTOR_GLSL}
+varying vec3 vGrassColor;
+varying vec4 vGrassLight;
+varying vec4 vGrassLeaf;
 ${LIGHT_GLOBALS}
 ${LEAF_SHADOW_GLSL}`,
     fragmentAfter: [
       ['#include <color_fragment>', `
-  vec3 cBase = uGrassBase, cMid = uGrassMid, cTip = uGrassTip, cShade = uGrassShade;
-  float gLeafCover = 1.0;
-  #ifdef FOREST_FEN
-  // the Fen's golden reed, and no leaves overhead there
-  cBase = mix( cBase, uFenGrassBase, vFen );
-  cMid = mix( cMid, uFenGrassMid, vFen );
-  cTip = mix( cTip, uFenGrassTip, vFen );
-  cShade = mix( cShade, uFenGrassShade, vFen );
-  gLeafCover = 1.0 - vFen;
-  #endif
-  vec3 gc = mix( cBase, cMid, smoothstep( 0.0, 0.45, vT ) );
-  vec3 gTip = mix( cMid, cTip, 0.45 + 0.55 * vInfo.y );
-  gc = mix( gc, gTip, smoothstep( 0.42, 0.95, vT ) * ( 0.7 + 0.3 * vInfo.y ) );
-  gc *= mix( vec3( 1.0 ), vec3( 1.06, 1.0, 0.78 ), vInfo.y * 0.4 );
-  gc *= 0.82 + 0.3 * vInfo.x;
-  gc *= mix( 0.7, 1.0, smoothstep( 0.0, 0.45, vT ) );
-  gc *= 1.0 + vec3( 0.11, 0.09, 0.02 ) * vInfo.w * vT;
-  // near a character the grass is lighter and more golden (STYLE.md 5.1)
-  float gNear = forestActorNear( vGrassBase );
-  gc = mix( gc, gc * vec3( 1.16, 1.1, 0.8 ) + vec3( 0.02, 0.016, 0.0 ), gNear * 0.7 * uActorWarm );
-  gc = mix( cShade, gc, 0.35 + 0.65 * vInfo.z );
-  diffuseColor.rgb = gc * forestActorShade( vGrassBase );
-  float gDap = smoothstep( 0.6, 0.78, texture2D( uNoise, vGrassBase.xz * 0.16 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r );
-  gSun = vInfo.z + ( 1.0 - vInfo.z ) * gDap * uDapple;
-  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( vGrassBase.xz ) * gLeafCover * ( 1.0 - gNear ); // as on the ground
-  gAmb = mix( 0.65, 1.0, vInfo.z );
-  gShadowUse = smoothstep( 0.52, 0.64, vInfo.z ); // as on the ground: real shadows reach under the edge
-  gLeaf = 0.42 * vT;`],
+  diffuseColor.rgb = vGrassColor;
+  gSun = vGrassLight.x;
+  float gNear = vGrassLeaf.z;
+  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( vGrassLeaf.xy ) * vGrassLeaf.w * ( 1.0 - gNear ); // as on the ground
+  gAmb = vGrassLight.y;
+  gShadowUse = vGrassLight.z;
+  gLeaf = vGrassLight.w;`],
       ['#include <normal_fragment_begin>', '  normal = normalize( vNormal );'],
     ],
   });
@@ -285,6 +296,7 @@ ${LEAF_SHADOW_GLSL}`,
   const cellData = [];
   let at = 0;
   const bounds = new THREE.Box3();
+  const tmpPos = new THREE.Vector3();
   for (const c of cells) {
     const list = c.list;
     for (let k = list.length - 1; k > 0; k--) {
@@ -309,13 +321,13 @@ ${LEAF_SHADOW_GLSL}`,
         info[v * 4 + 3] = Math.round(b.lean * 255);
       }
       for (let k = 0; k < 9; k++) master[at * 9 + k] = at * VERTS + INDICES[k];
-      box.expandByPoint(new THREE.Vector3(b.x, b.y, b.z));
+      box.expandByPoint(tmpPos.set(b.x, b.y, b.z));
       at++;
     });
     box.min.y -= 0.1;
     box.max.y += 0.6;
     bounds.union(box);
-    cellData.push({ start, count: list.length, box });
+    cellData.push({ start, count: list.length, box, dist: 0 });
     yield;
   }
 
@@ -348,21 +360,31 @@ ${LEAF_SHADOW_GLSL}`,
   const m4 = new THREE.Matrix4();
   const grown = new THREE.Box3();
   const MARGIN = 1.6; // metres the camera may move before the next rebuild without blades popping
+  const visibleCells = [];
   let submitted = 0;
 
   function rebuild(camera) {
     m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(m4);
-    const out = dynamic.array;
-    let offset = 0;
-    for (const c of cellData) {
+    visibleCells.length = 0;
+    for (let i = 0; i < cellData.length; i++) {
+      const c = cellData[i];
       const d = c.box.distanceToPoint(camPos);
       if (d > cfg.lodFar + 30) continue;
       if (d > 3) {
         grown.copy(c.box).expandByScalar(2.5);
         if (!frustum.intersectsBox(grown)) continue;
       }
-      const dens = 1 + (fade.min - 1) * smoothstep(fade.near, fade.far, Math.max(0, d - MARGIN));
+      c.dist = d;
+      visibleCells.push(c);
+    }
+    // Draw near-to-far so early-Z rejects hidden grass blades behind foreground tufts
+    visibleCells.sort((a, b) => a.dist - b.dist);
+    const out = dynamic.array;
+    let offset = 0;
+    for (let i = 0; i < visibleCells.length; i++) {
+      const c = visibleCells[i];
+      const dens = 1 + (fade.min - 1) * smoothstep(fade.near, fade.far, Math.max(0, c.dist - MARGIN));
       const k = Math.min(c.count, Math.ceil(dens * c.count + 0.5));
       out.set(master.subarray(c.start * 9, (c.start + k) * 9), offset);
       offset += k * 9;

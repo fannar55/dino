@@ -339,7 +339,8 @@ function* mosiComes(s, c) {
   yield s.camera.cut('egillWaves');
   s.camera.handheld(0, { duration: 0.3 });
   const head = new THREE.Vector3();
-  const near = () => mosi.raw.headPosition(head).setY(0).distanceTo(egill.raw.root.position.clone().setY(0)) < EGILL_CALLS;
+  const egillFlat = new THREE.Vector3();
+  const near = () => mosi.raw.headPosition(head).setY(0).distanceTo(egillFlat.copy(egill.raw.root.position).setY(0)) < EGILL_CALLS;
   yield tapOrWait(s, 'egill', s.until(near));
   // The call, three things in a row: a hop, "Hey þú! Ég er hérna niðri!" once he has landed, breathing again as he calls (the hop
   // ends in idle's first pose), and a wave as his voice ends. Mosi hears him and looks down at him, stops at his place, and answers
@@ -386,15 +387,18 @@ function* hello(s, c) {
   // NOSE_AGAIN more for the second, so a child who finds it still gets the whole joke.
   yield s.camera.handheld(0, { duration: 0.25 });
   s.target('nose', { point: onBone(mosi.raw, ...POINTS.mosiNose), radius: 0.45 });
-  let until = s.time + 1.5;
-  for (let taps = 0; taps < 2 && s.time < until;) {
-    if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
-    taps++;
-    if (taps === 2) s.after(atsjuOf(s.lineMouth('k1_mosi_sneeze')), () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
-    yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
-    until = Math.max(until, s.time + NOSE_AGAIN);
+  try {
+    let until = s.time + 1.5;
+    for (let taps = 0; taps < 2 && s.time < until;) {
+      if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
+      taps++;
+      if (taps === 2) s.after(atsjuOf(s.lineMouth('k1_mosi_sneeze')), () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
+      yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
+      until = Math.max(until, s.time + NOSE_AGAIN);
+    }
+  } finally {
+    s.target('nose', null);
   }
-  s.target('nose', null);
 }
 
 // 4. The Star Festival: Mosi tells of it and asks for help; the camera looks up to the sun, which winks.
@@ -699,50 +703,55 @@ function* onThePath(s, c) {
       yield speak(s, c, remarks[found[said]]);
     }
   });
-  // The shots follow Mosi along the path (each for a while at least), and his words go on across them.
-  c.prints = createFootprints(c.world, { actor: mosi.raw, feet: MOSI_FEET }); // made as he stands: it knows his feet
-  const walk = mosi.walkTo(RIDE, { speed: RIDE_SPEED });
-  const [bx, bz] = RIDE_BIRDS_UP.from;
-  s.after(RIDE_BIRDS_UP.after, function* birdsUp() {
-    critters.scare([bx, c.world.heightAt(bx, bz), bz], RIDE_BIRDS_UP.reach);
-  });
-  const past = (x, seconds) => s.all(s.until(() => mosi.raw.root.position.x > x), s.wait(seconds));
-  // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one. His voice is theirs
-  // from the ride's first frame, the second's wait inside the claim, so a remark about a critter tapped at once, even in that second,
-  // waits for both (the critter itself reacts and goes in the journal at the tap). He must be done before the camera shows the first
-  // critter, the beetle in rideFeet: that cut comes as his front foot reaches the beetle, or once the two lines are over (their
-  // captions too) and RIDE_QUIET more, whichever is later, so a take of any length fits (tests/kafli1.test.mjs checks it, and the
-  // early tap).
-  let rideLinesOver = null; // the scene time the two lines ended
-  s.after(0, function* rideLines() {
-    yield speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters');
-    rideLinesOver = s.time;
-  });
-  // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
-  yield s.camera.cut('rideWide');
-  s.camera.handheld(0.4, { duration: 2 });
-  yield past(10.5, 4);
-  // Egill close, smiling in the saddle.
-  yield s.camera.cut('rideClose');
-  yield s.camera.follow('egill', RIDE_CLOSE);
-  yield past(17.5, 4);
-  yield s.until(() => rideLinesOver !== null && s.time >= rideLinesOver + RIDE_QUIET);
-  // By the path, looking down at the soft soil: the beetle near, and Mosi's big feet stepping past and pressing their
-  // prints into it.
-  yield s.camera.cut('rideFeet');
-  yield past(23.8, 2.6);
-  // The frog, and Mosi coming past it.
-  yield s.camera.cut('rideFrog');
-  yield past(33.2, 2.6);
-  // The snail, and the two of them going on into the forest; the glade fades in while he still walks.
-  yield s.camera.cut('rideAway');
-  yield past(42.6, 2.6);
-  yield s.until(() => !c.talking);
-  chatter.cancel();
-  for (const stop of stops) stop();
-  for (const spot of PATH_CRITTERS) s.target(spot.name, null);
+  let walk = null;
+  try {
+    // The shots follow Mosi along the path (each for a while at least), and his words go on across them.
+    c.prints = createFootprints(c.world, { actor: mosi.raw, feet: MOSI_FEET }); // made as he stands: it knows his feet
+    walk = mosi.walkTo(RIDE, { speed: RIDE_SPEED });
+    const [bx, bz] = RIDE_BIRDS_UP.from;
+    s.after(RIDE_BIRDS_UP.after, function* birdsUp() {
+      critters.scare([bx, c.world.heightAt(bx, bz), bz], RIDE_BIRDS_UP.reach);
+    });
+    const past = (x, seconds) => s.all(s.until(() => mosi.raw.root.position.x > x), s.wait(seconds));
+    // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one. His voice is theirs
+    // from the ride's first frame, the second's wait inside the claim, so a remark about a critter tapped at once, even in that second,
+    // waits for both (the critter itself reacts and goes in the journal at the tap). He must be done before the camera shows the first
+    // critter, the beetle in rideFeet: that cut comes as his front foot reaches the beetle, or once the two lines are over (their
+    // captions too) and RIDE_QUIET more, whichever is later, so a take of any length fits (tests/kafli1.test.mjs checks it, and the
+    // early tap).
+    let rideLinesOver = null; // the scene time the two lines ended
+    s.after(0, function* rideLines() {
+      yield speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters');
+      rideLinesOver = s.time;
+    });
+    // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
+    yield s.camera.cut('rideWide');
+    s.camera.handheld(0.4, { duration: 2 });
+    yield past(10.5, 4);
+    // Egill close, smiling in the saddle.
+    yield s.camera.cut('rideClose');
+    yield s.camera.follow('egill', RIDE_CLOSE);
+    yield past(17.5, 4);
+    yield s.until(() => rideLinesOver !== null && s.time >= rideLinesOver + RIDE_QUIET);
+    // By the path, looking down at the soft soil: the beetle near, and Mosi's big feet stepping past and pressing their
+    // prints into it.
+    yield s.camera.cut('rideFeet');
+    yield past(23.8, 2.6);
+    // The frog, and Mosi coming past it.
+    yield s.camera.cut('rideFrog');
+    yield past(33.2, 2.6);
+    // The snail, and the two of them going on into the forest; the glade fades in while he still walks.
+    yield s.camera.cut('rideAway');
+    yield past(42.6, 2.6);
+    yield s.until(() => !c.talking);
+  } finally {
+    chatter.cancel();
+    for (const stop of stops) stop();
+    for (const spot of PATH_CRITTERS) s.target(spot.name, null);
+  }
   c.pathWalk = walk;
   yield* goTo(s, c, 'burknalaut', () => setUpGlade(s, c));
+  s.releaseLocation?.('rjodur');
 }
 
 // 7. Kambeðla: into the glade with the light, Egill floats down, and she lifts her head out of the ferns.
@@ -1028,7 +1037,8 @@ function* goTo(s, c, name, setUp) {
  * task of its own beside the story, so whatever goes wrong with a step can stop the steps but never the story.
  */
 function* footfalls(s, c) {
-  const { model } = c.mosi.raw;
+  const mosi = c.mosi.raw;
+  const { model } = mosi;
   const feet = ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR']
     .map(name => model.getObjectByName(name))
     .filter(Boolean); // a foot the model does not have is left out
@@ -1041,19 +1051,22 @@ function* footfalls(s, c) {
   const level = () => {
     const rig = c.world.director?.rig?.position;
     if (!rig) return 1;
-    const d = c.mosi.raw.root.position.distanceTo(rig);
+    const d = mosi.root.position.distanceTo(rig);
     return Math.min(1, Math.max(0, (STEPS_FAR - d) / (STEPS_FAR - STEPS_NEAR)));
   };
   for (;;) {
-    feet.forEach((foot, i) => {
-      const up = lift(foot) - rest[i];
-      if (down[i] && up > 0.03) down[i] = false;
-      else if (!down[i] && up < 0.008) {
-        down[i] = true;
-        const loud = level();
-        if (loud > 0) s.sfx('step', { level: loud });
+    // Skip per-frame bone and heightAt queries while Mosi stands idle with all four feet planted.
+    if (mosi.walking || mosi.turning || mosi.stepping || !down[0] || !down[1] || !down[2] || !down[3]) {
+      for (let i = 0; i < feet.length; i++) {
+        const up = lift(feet[i]) - rest[i];
+        if (down[i] && up > 0.03) down[i] = false;
+        else if (!down[i] && up < 0.008) {
+          down[i] = true;
+          const loud = level();
+          if (loud > 0) s.sfx('step', { level: loud });
+        }
       }
-    });
+    }
     yield;
   }
 }

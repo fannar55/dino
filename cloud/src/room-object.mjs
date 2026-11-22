@@ -14,11 +14,17 @@
 // first came. An alarm ROOM_TTL_MS after the last sign of life (a connect, a disconnect, a message from someone in the room)
 // forgets the room.
 
-import { ROOM_TTL_MS, message, normalizeCode, parseMessage } from '../../remake/engine/fjolspil/protocol.js';
+import { MAX_MESSAGE_BYTES, ROOM_TTL_MS, message, normalizeCode, parseMessage } from '../../remake/engine/fjolspil/protocol.js';
 import { createRoom, restoreRoom } from '../../remake/engine/fjolspil/room.js';
 
 /** The rooms' WebSocket path, /fjolspil/ws/<code>, as at home. */
 export const ROOM_PATH = /^\/fjolspil\/ws\/([^/]*)$/;
+
+/** Minimum interval between Durable Object alarm storage writes on activity. */
+export const ALARM_THROTTLE_MS = 60_000;
+const RATE_WINDOW_MS = 1000;
+const RATE_LIMIT_PER_WINDOW = 120;
+const UTF8 = new TextEncoder();
 
 /** The runtime throws on a socket closed already; one such socket must not stop the others' messages or closes. */
 function send(ws, text) {
@@ -61,6 +67,9 @@ export class Room {
     this.env = env;
     this.room = null; // the room, once loaded; null while there is none
     this.loaded = false; // storage has been read since this object woke
+    this.loading = null; // in-flight wakeup promise guarding concurrent load() calls
+    this.alarmAt = null; // last alarm timestamp written via setAlarm()
+    this.rates = new WeakMap(); // ws -> { start, count }
   }
 
   /**
@@ -69,17 +78,34 @@ export class Room {
    */
   async load(also = null) {
     if (this.loaded) return this.room;
-    const stored = await this.ctx.storage.get('room');
-    if (!this.loaded) {
-      this.room = stored ? this.rebuild(stored, also) : null;
-      this.loaded = true;
+    if (!this.loading) {
+      this.loading = (async () => {
+        const stored = await this.ctx.storage.get('room');
+        const restored = stored ? restoreRoom(stored, { join: [] }) : null;
+        if (restored?.isExpired()) {
+          await this.alarm();
+          return null;
+        }
+        this.room = restored ? this.rebuild(restored, also) : null;
+        this.loaded = true;
+        return this.room;
+      })().finally(() => { this.loading = null; });
     }
-    return this.room;
+    const room = await this.loading;
+    if (room && also && also !== room.host && !room.guests().some(guest => guest.conn === also)) {
+      const who = attachmentOf(also);
+      if (who) {
+        const standIn = who.role === 'guest' && !room.host ? {} : null;
+        if (standIn) room.connect(standIn, { role: 'host', key: room.hostKey });
+        room.connect(also, who);
+        if (standIn) room.disconnect(standIn);
+      }
+    }
+    return room;
   }
 
   /** The room a snapshot was taken of, with every socket that has an attachment connected again; the deliveries are dropped. */
-  rebuild(stored, also) {
-    const room = restoreRoom(stored, { join: [] });
+  rebuild(room, also) {
     const sockets = [...this.ctx.getWebSockets()];
     if (also && !sockets.includes(also)) sockets.push(also);
     const members = sockets.map(ws => ({ ws, who: attachmentOf(ws) })).filter(({ who }) => who !== null);
@@ -94,9 +120,12 @@ export class Room {
     return room;
   }
 
-  /** A sign of life: the room is forgotten ROOM_TTL_MS after the last one. */
-  async touch() {
-    await this.ctx.storage.setAlarm(Date.now() + ROOM_TTL_MS);
+  /** A sign of life: the room is forgotten ROOM_TTL_MS after the last one, throttled to avoid redundant alarm writes. */
+  async touch({ force = false } = {}) {
+    const next = Date.now() + ROOM_TTL_MS;
+    if (!force && this.alarmAt !== null && next - this.alarmAt < ALARM_THROTTLE_MS) return;
+    this.alarmAt = next;
+    await this.ctx.storage.setAlarm(next);
   }
 
   /** After a connect or a disconnect: the room's snapshot kept for a wake, and the alarm moved on. */
@@ -105,10 +134,24 @@ export class Room {
     await this.touch();
   }
 
+  /** Generous per-socket burst rate limiter (120 msgs/sec). */
+  allowMessage(ws) {
+    const now = Date.now();
+    let bucket = this.rates.get(ws);
+    if (!bucket || now - bucket.start >= RATE_WINDOW_MS) {
+      bucket = { start: now, count: 0 };
+      this.rates.set(ws, bucket);
+    }
+    bucket.count += 1;
+    return bucket.count <= RATE_LIMIT_PER_WINDOW;
+  }
+
   /** /fjolspil/ws/<code>?role=…&id=…&key=…, an upgrade: a socket into the room, or one told why not and closed 1000. */
   async fetch(request) {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     const url = new URL(request.url);
+    const origin = request.headers.get('origin');
+    if (origin && origin !== url.origin) return new Response('forbidden', { status: 403 });
     const code = normalizeCode(ROOM_PATH.exec(url.pathname)?.[1]);
     if (!code) return new Response(null, { status: 400 });
     const param = name => url.searchParams.get(name) ?? undefined;
@@ -139,10 +182,15 @@ export class Room {
 
   /**
    * A text from a socket: a relay goes where the room says, and any message from someone in the room (the host's alive
-   * too) moves the alarm on; anything else (binary, not JSON, too long) is nothing.
+   * too) moves the alarm on; oversized text frames close 1009, and binary or malformed messages go nowhere.
    */
   async webSocketMessage(ws, text) {
     if (typeof text !== 'string') return;
+    if (text.length > MAX_MESSAGE_BYTES || (text.length > MAX_MESSAGE_BYTES / 4 && UTF8.encode(text).byteLength > MAX_MESSAGE_BYTES)) {
+      close(ws, 1009);
+      return;
+    }
+    if (!this.allowMessage(ws)) return;
     const room = await this.load(ws);
     const parsed = parseMessage(text);
     if (!parsed || !room) return;
@@ -159,6 +207,7 @@ export class Room {
 
   async webSocketError(ws) {
     await this.leave(ws);
+    close(ws, 1011);
   }
 
   async leave(ws) {
@@ -178,6 +227,7 @@ export class Room {
     }
     await this.ctx.storage.deleteAll();
     this.room = null;
+    this.alarmAt = null;
     this.loaded = true;
   }
 }

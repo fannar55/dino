@@ -23,16 +23,11 @@ const SCALE = { broadleaf: [0.9, 1.2], araucaria: [0.75, 1.0], treeFern: [0.9, 1
 const STEEP = 0.75; // rise over run past which no tree stands (banks.js: the same)
 const BELT_SKY = 0.9; // the sky share of the valley's land trees (banks.js grow: 0.9 away from the fen), for the cards' light
 
-/** A seeded random number generator (mulberry32), as banks.js has it. */
-function seeded(seed) {
-  let a = (seed * 2654435761) >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+/** Pure deterministic [0, 1) hash of grid cell (si, sj) and channel `c` for a valley seed, seam-free across sections. */
+function cellHash(seedBase, si, sj, c) {
+  let h = Math.imul(seedBase | 0, 374761393) ^ Math.imul(si | 0, 668265263) ^ Math.imul(sj | 0, 2147483647) ^ Math.imul(c | 0, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
 /** True when (x, z), whose nearest sample of her path is `k` at `dist` m, is this section's belt land. */
@@ -105,100 +100,110 @@ export function* beltSteps({ terrain, index, route, samples, seed, paint, ground
   ground.renderOrder = 4; // after the plants, as the section's own ground
   ground.userData = { belt: true, triangles: indices.length / 3 };
 
-  // the trees, on a grid of the whole valley's (so two sections' pieces meet without a seam), each spot jittered in its square
-  const rng = seeded(seed);
-  const S = belt.spacing;
-  const trees = [];
-  for (let sj = Math.floor((gz0 * C) / S); sj <= Math.ceil(((gz0 + H) * C) / S); sj++) {
-    for (let si = Math.floor((gx0 * C) / S); si <= Math.ceil(((gx0 + W) * C) / S); si++) {
-      const roll = rng(), jx = rng(), jz = rng(), pick = rng(), size = rng(), turn = rng(), variant = rng();
-      const x = (si + jx) * S, z = (sj + jz) * S;
-      const k = index.nearest(x, z, reach + C, out);
-      if (k < 0 || !beltLand(terrain, route, belt, samples, k, out.dist, x, z, belt.inner)) continue;
-      // its edge toward the river is ragged: in a glade of the groves it begins up to `ragged` m further out
-      const g = groveAt(x, z, grove);
-      if (out.dist < belt.inner + belt.ragged * (1 - smooth(g / 0.6))) continue;
-      if (roll >= belt.chance * (belt.glade + (1 - belt.glade) * smooth(g / 0.5))) continue;
-      const w = terrain.where(x, z);
-      if (w.e < 2 || w.toPool < route.pool.radius + 5) continue;
-      const slope = Math.hypot(terrain.heightAt(x + 1, z) - terrain.heightAt(x - 1, z), terrain.heightAt(x, z + 1) - terrain.heightAt(x, z - 1)) / 2;
-      if (slope > STEEP) continue;
-      const mix = w.fen > 0.5 ? belt.fen : belt.mix;
-      let r = pick * mix.reduce((sum, [, weight]) => sum + weight, 0);
-      let name = mix.at(-1)[0];
-      for (const [kind, weight] of mix) if ((r -= weight) < 0) { name = kind; break; }
-      const card = atlas.card(name, Math.floor(variant * FOREST.trees.variants[name]));
-      if (!card) continue;
-      const [lo, hi] = SCALE[name];
-      const scale = lo + size * (hi - lo);
-      const y = height(x, z);
-      if (inView(x, y, z, (card.width * scale) / 2, card.height * scale)) continue;
-      trees.push({ name, x, y, z, scale, rot: turn * Math.PI * 2, card });
-    }
-    if (sj % 8 === 7) yield 'belt';
-  }
-  // the cards, near the river first (her side of the forest, drawn before what it hides)
-  const n = trees.length * 4;
-  const centre = new Float32Array(n * 3), cornerAt = new Float32Array(n * 2), sizes = new Float32Array(n * 2), uv = new Float32Array(n * 2);
-  // aCard (world/forest/cards.js): always all there (0), lit with the sky share of the valley's land trees (banks.js), mirrored or not
-  const lit = new Float32Array(n * 3);
-  const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
-  const master = new IndexArray(trees.length * 6);
-  const ranges = [];
-  const box = new THREE.Box3();
-  let biggest = 0;
-  trees.sort((a, b) => terrain.where(a.x, a.z).e - terrain.where(b.x, b.z).e);
-  trees.forEach((p, t) => {
-    const { uv: [u0, v0, u1, v1], width, height: tall, bottom } = p.card;
-    const w = width * p.scale, h = tall * p.scale, y = p.y + bottom * p.scale;
-    const flip = Math.sin(p.rot) < 0;
-    [[-0.5, 0], [0.5, 0], [0.5, 1], [-0.5, 1]].forEach(([cx, cy], q) => {
-      const v = t * 4 + q;
-      centre.set([p.x, y, p.z], v * 3);
-      cornerAt.set([cx, cy], v * 2);
-      sizes.set([w, h], v * 2);
-      uv.set([(cx < 0) !== flip ? u0 : u1, cy ? v1 : v0], v * 2);
-      lit.set([0, BELT_SKY, flip ? -1 : 1], v * 3);
-    });
-    const b = t * 4;
-    master.set([b, b + 1, b + 2, b, b + 2, b + 3], t * 6);
-    const sphere = new THREE.Sphere(new THREE.Vector3(p.x, y + h / 2, p.z), Math.hypot(w, h) / 2);
-    // a plain range: drawn whenever in view (never swapped for a mesh, whatever the camera's distance)
-    ranges.push({ start: t * 6, count: 6, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref: sphere.center, name: p.name, lod: 3, crown: null, plant: null, li: -1 });
-    box.expandByPoint(sphere.center);
-    biggest = Math.max(biggest, sphere.radius);
-  });
-  yield 'belt';
   let cards = null;
-  if (trees.length) {
-    const g = new THREE.BufferGeometry();
-    const at = new THREE.BufferAttribute(centre, 3);
-    g.setAttribute('position', at);
-    g.setAttribute('aCentre', at);
-    g.setAttribute('aCorner', new THREE.BufferAttribute(cornerAt, 2));
-    g.setAttribute('aSize', new THREE.BufferAttribute(sizes, 2));
-    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    g.setAttribute('aCard', new THREE.BufferAttribute(lit, 3));
-    const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
-    dynamic.setUsage(THREE.DynamicDrawUsage);
-    g.setIndex(dynamic);
-    g.setDrawRange(0, 0);
-    g.boundingBox = box.expandByScalar(biggest);
-    g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
-    cards = new THREE.Mesh(g, cardMaterial);
-    cards.name = `Árdalur belt cards ${samples[0]}`;
-    cards.castShadow = false;
-    cards.receiveShadow = false;
-    cards.renderOrder = 3;
-    cards.visible = false; // until the first cull
-    cards.userData = {
-      band: 'far', sector: 0, kind: 'card', cards: true, belt: true, triangles: trees.length * 2, caster: false,
-      cull: { master, ranges, signature: -1, submitted: 0 }, hidden: false,
-    };
+  let committed = false;
+  try {
+    // the trees, on a grid of the whole valley's (pure cell hash from valley seed `grove` so adjacent sections meet without a seam)
+    const S = belt.spacing;
+    const trees = [];
+    for (let sj = Math.floor((gz0 * C) / S); sj <= Math.ceil(((gz0 + H) * C) / S); sj++) {
+      for (let si = Math.floor((gx0 * C) / S); si <= Math.ceil(((gx0 + W) * C) / S); si++) {
+        const jx = cellHash(grove, si, sj, 1), jz = cellHash(grove, si, sj, 2);
+        const x = (si + jx) * S, z = (sj + jz) * S;
+        const k = index.nearest(x, z, reach + C, out);
+        if (k < 0 || !beltLand(terrain, route, belt, samples, k, out.dist, x, z, belt.inner)) continue;
+        // its edge toward the river is ragged: in a glade of the groves it begins up to `ragged` m further out
+        const g = groveAt(x, z, grove);
+        if (out.dist < belt.inner + belt.ragged * (1 - smooth(g / 0.6))) continue;
+        const roll = cellHash(grove, si, sj, 0);
+        if (roll >= belt.chance * (belt.glade + (1 - belt.glade) * smooth(g / 0.5))) continue;
+        const w = terrain.where(x, z);
+        if (w.e < 2 || w.toPool < route.pool.radius + 5) continue;
+        const slope = Math.hypot(terrain.heightAt(x + 1, z) - terrain.heightAt(x - 1, z), terrain.heightAt(x, z + 1) - terrain.heightAt(x, z - 1)) / 2;
+        if (slope > STEEP) continue;
+        const mix = w.fen > 0.5 ? belt.fen : belt.mix;
+        const pick = cellHash(grove, si, sj, 3), size = cellHash(grove, si, sj, 4), turn = cellHash(grove, si, sj, 5), variant = cellHash(grove, si, sj, 6);
+        let r = pick * mix.reduce((sum, [, weight]) => sum + weight, 0);
+        let name = mix.at(-1)[0];
+        for (const [kind, weight] of mix) if ((r -= weight) < 0) { name = kind; break; }
+        const card = atlas.card(name, Math.floor(variant * FOREST.trees.variants[name]));
+        if (!card) continue;
+        const [lo, hi] = SCALE[name];
+        const scale = lo + size * (hi - lo);
+        const y = height(x, z);
+        if (inView(x, y, z, (card.width * scale) / 2, card.height * scale)) continue;
+        trees.push({ name, x, y, z, scale, rot: turn * Math.PI * 2, card, e: w.e });
+      }
+      if (sj % 8 === 7) yield 'belt';
+    }
+    // the cards, near the river first (her side of the forest, drawn before what it hides)
+    const n = trees.length * 4;
+    const centre = new Float32Array(n * 3), cornerAt = new Float32Array(n * 2), sizes = new Float32Array(n * 2), uv = new Float32Array(n * 2);
+    // aCard (world/forest/cards.js): always all there (0), lit with the sky share of the valley's land trees (banks.js), mirrored or not
+    const lit = new Float32Array(n * 3);
+    const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
+    const master = new IndexArray(trees.length * 6);
+    const ranges = [];
+    const box = new THREE.Box3();
+    let biggest = 0;
+    trees.sort((a, b) => a.e - b.e);
+    trees.forEach((p, t) => {
+      const { uv: [u0, v0, u1, v1], width, height: tall, bottom } = p.card;
+      const w = width * p.scale, h = tall * p.scale, y = p.y + bottom * p.scale;
+      const flip = Math.sin(p.rot) < 0;
+      [[-0.5, 0], [0.5, 0], [0.5, 1], [-0.5, 1]].forEach(([cx, cy], q) => {
+        const v = t * 4 + q;
+        centre.set([p.x, y, p.z], v * 3);
+        cornerAt.set([cx, cy], v * 2);
+        sizes.set([w, h], v * 2);
+        uv.set([(cx < 0) !== flip ? u0 : u1, cy ? v1 : v0], v * 2);
+        lit.set([0, BELT_SKY, flip ? -1 : 1], v * 3);
+      });
+      const b = t * 4;
+      master.set([b, b + 1, b + 2, b, b + 2, b + 3], t * 6);
+      const sphere = new THREE.Sphere(new THREE.Vector3(p.x, y + h / 2, p.z), Math.hypot(w, h) / 2);
+      // a plain range: drawn whenever in view (never swapped for a mesh, whatever the camera's distance)
+      ranges.push({ start: t * 6, count: 6, sphere, cull: Infinity, minD: 0, maxD: Infinity, ref: sphere.center, name: p.name, lod: 3, crown: null, plant: null, li: -1 });
+      box.expandByPoint(sphere.center);
+      biggest = Math.max(biggest, sphere.radius);
+    });
+    yield 'belt';
+    if (trees.length) {
+      const g = new THREE.BufferGeometry();
+      const at = new THREE.BufferAttribute(centre, 3);
+      g.setAttribute('position', at);
+      g.setAttribute('aCentre', at);
+      g.setAttribute('aCorner', new THREE.BufferAttribute(cornerAt, 2));
+      g.setAttribute('aSize', new THREE.BufferAttribute(sizes, 2));
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      g.setAttribute('aCard', new THREE.BufferAttribute(lit, 3));
+      const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
+      dynamic.setUsage(THREE.DynamicDrawUsage);
+      g.setIndex(dynamic);
+      g.setDrawRange(0, 0);
+      g.boundingBox = box.expandByScalar(biggest);
+      g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+      cards = new THREE.Mesh(g, cardMaterial);
+      cards.name = `Árdalur belt cards ${samples[0]}`;
+      cards.castShadow = false;
+      cards.receiveShadow = false;
+      cards.renderOrder = 3;
+      cards.visible = false; // until the first cull
+      cards.userData = {
+        band: 'far', sector: 0, kind: 'card', cards: true, belt: true, triangles: trees.length * 2, caster: false,
+        cull: { master, ranges, crownRanges: [], kept: [], signature: -1, submitted: 0 }, hidden: false,
+      };
+    }
+    const group = new THREE.Group();
+    group.name = 'Árdalur belt';
+    group.add(ground);
+    if (cards) group.add(cards);
+    committed = true;
+    return { group, ground, cards, trees: trees.length, placements: trees };
+  } finally {
+    if (!committed) {
+      geometry.dispose();
+      cards?.geometry?.dispose();
+    }
   }
-  const group = new THREE.Group();
-  group.name = 'Árdalur belt';
-  group.add(ground);
-  if (cards) group.add(cards);
-  return { group, ground, cards, trees: trees.length, placements: trees };
 }

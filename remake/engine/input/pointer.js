@@ -61,7 +61,7 @@ export function pickTarget(ray, targets, { minAngle = 0 } = {}) {
     toCentre.subVectors(target.centre, ray.origin);
     const range = toCentre.length();
     const along = toCentre.dot(ray.direction); // where the ray passes closest to the centre
-    const miss = range * range - along * along; // squared distance between them
+    const miss = Math.max(0, range * range - along * along); // squared distance between them (clamped against -1e-15 rounding)
     const distance = entry(target.radius, along, miss);
     if (distance >= 0) {
       if (distance < hitDistance) {
@@ -109,9 +109,17 @@ export function createPointer({ canvas, camera, world }) {
     }
   }
 
-  /** Where an event is on the canvas, in pixels from its top-left corner. */
-  function local(event) {
+  let gestureRect = null; // cached while any finger is down so 60-120 Hz pointermove avoids layout reflows
+  const clearRect = () => { gestureRect = null; };
+  function readRect() {
+    if (fingers.size > 0 && gestureRect) return gestureRect;
     const rect = canvas.getBoundingClientRect();
+    if (fingers.size > 0) gestureRect = rect;
+    return rect;
+  }
+
+  /** Where an event is on the canvas, in pixels from its top-left corner. */
+  function local(event, rect = readRect()) {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
@@ -119,8 +127,10 @@ export function createPointer({ canvas, camera, world }) {
    * The target under canvas position (x, y), or null. A target whose point cannot be found (an actor
    * that is gone, a function that fails) is skipped, and said once, so it never swallows a press.
    */
-  function pick(x, y) {
-    const { width, height } = canvas.getBoundingClientRect();
+  function pick(x, y, rect = readRect()) {
+    if (!targets.size) return null;
+    const { width, height } = rect;
+    if (!(width > 0 && height > 0)) return null;
     ndc.set((x / width) * 2 - 1, 1 - (y / height) * 2);
     raycaster.setFromCamera(ndc, camera);
     const found = [];
@@ -136,6 +146,7 @@ export function createPointer({ canvas, camera, world }) {
         }
       }
     }
+    if (!found.length) return null;
     // A 44 px target spans 22 px each way from its centre: the angle that is, from the camera.
     const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(camera.getEffectiveFOV()) / 2);
     const minAngle = Math.atan((MIN_TARGET_PX * tanHalfFov) / height);
@@ -175,6 +186,7 @@ export function createPointer({ canvas, camera, world }) {
   /** Forget a finger. When it was the drag's, a finger still down that takes the drag over starts from where it is now. */
   function lift(finger) {
     fingers.delete(finger.id);
+    if (fingers.size === 0) gestureRect = null;
     if (dragger !== finger) return;
     dragger = null;
     for (const other of fingers.values()) {
@@ -191,7 +203,9 @@ export function createPointer({ canvas, camera, world }) {
       lift(stale);
       if (stale.dragging) emitDrag(stale, 'end', stale.lastX, stale.lastY);
     }
-    const { x, y } = local(event);
+    const rect = canvas.getBoundingClientRect();
+    gestureRect = rect;
+    const { x, y } = local(event, rect);
     fingers.set(event.pointerId, {
       id: event.pointerId,
       startX: x, startY: y,
@@ -200,7 +214,7 @@ export function createPointer({ canvas, camera, world }) {
       moved: false, // 12 px or more from where it landed: no tap
       reclaim: false,
       dragging: false,
-      hit: pick(x, y), // what it landed on
+      hit: pick(x, y, rect), // what it landed on
     });
     try {
       canvas.setPointerCapture?.(event.pointerId); // so a mouse that leaves the canvas still lifts here
@@ -245,18 +259,19 @@ export function createPointer({ canvas, camera, world }) {
     }
   }
 
+  const onVisibility = () => { if (canvas.ownerDocument?.hidden) cancelAll(); };
+  const onContext = event => event.preventDefault();
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onCancel);
   canvas.addEventListener('lostpointercapture', onCancel);
-  canvas.ownerDocument?.addEventListener?.('visibilitychange', () => {
-    if (canvas.ownerDocument?.hidden) cancelAll();
-  });
+  canvas.ownerDocument?.addEventListener?.('visibilitychange', onVisibility);
   canvas.ownerDocument?.defaultView?.addEventListener?.('blur', cancelAll);
+  canvas.ownerDocument?.defaultView?.addEventListener?.('resize', clearRect);
   // A long press can open the browser's context menu, which on Android takes the touch over and ends
   // it with a cancel: a slow tap would be lost.
-  canvas.addEventListener('contextmenu', event => event.preventDefault());
+  canvas.addEventListener('contextmenu', onContext);
 
   return {
     addTarget(name, { point, radius } = {}) {
@@ -274,7 +289,7 @@ export function createPointer({ canvas, camera, world }) {
       target.enabled = Boolean(on);
     },
     size() {
-      const { width, height } = canvas.getBoundingClientRect();
+      const { width, height } = readRect();
       return { width, height };
     },
     on(event, fn) {
@@ -285,6 +300,20 @@ export function createPointer({ canvas, camera, world }) {
         const i = list.indexOf(fn);
         if (i >= 0) list.splice(i, 1);
       };
+    },
+    dispose() {
+      cancelAll();
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onCancel);
+      canvas.removeEventListener('lostpointercapture', onCancel);
+      canvas.ownerDocument?.removeEventListener?.('visibilitychange', onVisibility);
+      canvas.ownerDocument?.defaultView?.removeEventListener?.('blur', cancelAll);
+      canvas.ownerDocument?.defaultView?.removeEventListener?.('resize', clearRect);
+      canvas.removeEventListener('contextmenu', onContext);
+      listeners.get('tap').length = 0;
+      listeners.get('drag').length = 0;
     },
   };
 }

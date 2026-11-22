@@ -42,6 +42,37 @@ const CROSS_FADE = 0.8; // the time constant (s) of a bed fading out as the othe
 const HORN = { note: 146.83, seconds: 2.8, wrong: 0.93, sinks: 0.84, level: 0.14, echo: [0.32, 0.25] };
 const FEN_IN = 2.5; // seconds the Fen's water takes to come in
 
+const sampleStores = new WeakMap(); // context → { buffers: Map<url, AudioBuffer>, loading: Set<url> }
+function sampleStore(context) {
+  let store = sampleStores.get(context);
+  if (!store) {
+    store = { buffers: new Map(), loading: new Set() };
+    sampleStores.set(context, store);
+  }
+  return store;
+}
+
+/** Fetches and decodes the named recorded SAMPLES into `context`'s shared cache (idempotent). */
+export function preloadSamples(context, names = Object.keys(SAMPLES)) {
+  if (!context) return;
+  const { buffers, loading } = sampleStore(context);
+  for (const name of names) {
+    const sample = SAMPLES[name];
+    if (!sample) continue;
+    const urls = sample.urls ?? [sample.url];
+    for (const url of urls) {
+      if (loading.has(url)) continue;
+      loading.add(url);
+      Promise.resolve()
+        .then(() => globalThis.fetch(url))
+        .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
+        .then(bytes => context.decodeAudioData(bytes))
+        .then(buffer => buffers.set(url, buffer))
+        .catch(() => {}); // a sound that cannot be had is simply not heard (or its made one is, in its place)
+    }
+  }
+}
+
 /**
  * `sounds({ tone, noise, bell, key })`, when given, returns more sounds by name, which play as the game's own do, each at least
  * `gaps[name]` audio seconds after the last of its name.
@@ -54,8 +85,10 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     // No Web Audio, or a capture, which is silent by design: the same object, doing nothing.
     return {
       play: () => false,
+      preload() {},
       update() {},
       stop() {},
+      dispose() {},
       setPaused() {},
       get muted() { return muted; },
       set muted(value) { muted = Boolean(value); },
@@ -115,9 +148,10 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   /** Up to `level` in `attack` s, down to `sustain` of it a third of the way through, and to silence at the end. */
   function envelope(param, at, duration, level, attack = 0.012, body = 0.36, sustain = 0.48) {
     param.setValueAtTime(0, at);
+    if (!(level > 0)) return;
     param.linearRampToValueAtTime(level, at + Math.min(attack, duration * 0.3));
     if (body) param.linearRampToValueAtTime(level * sustain, at + duration * Math.max(0.31, body));
-    param.exponentialRampToValueAtTime(0.0001, at + duration);
+    param.exponentialRampToValueAtTime(Math.min(0.0001, level), at + duration);
   }
 
   /** One note, its pitch gliding from `frequency` to `end` (Hz). `level` is its peak gain. */
@@ -150,7 +184,9 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     source.connect(filter);
     filter.connect(volume);
     track(source, [filter, volume, ...outlet(volume, pan, bus)]);
-    source.start(at, between(0, Math.max(0, 3 - duration - 0.1)));
+    const offset = between(0, Math.max(0, 3 - duration - 0.1));
+    if (offset + duration + 0.02 > 3) source.loop = true; // never truncate longer puffs (sailRise, windHigh) at the 3 s buffer end
+    source.start(at, offset);
     source.stop(at + duration + 0.02);
   }
 
@@ -219,7 +255,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   }
 
   /** A bed fades out (over about 4.6 time constants) and lets go of its nodes. */
-  function fadeOut(old, tau) {
+  function fadeOut(old, tau, after = null) {
     if (bed === old) bed = null;
     const now = context.currentTime;
     // from where it is now, also halfway through its own fade in (cancelScheduledValues alone would drop it to the start of that)
@@ -235,6 +271,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     first.onended = () => {
       for (const source of old.sources) source.disconnect();
       for (const node of old.nodes) node.disconnect();
+      after?.();
     };
     for (const source of rest) source.onended = null;
   }
@@ -509,15 +546,19 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   const fen = Object.entries(fenSounds({ tone, noise, bell, hum, key, between })).filter(([name]) => !Object.hasOwn(own, name));
   Object.assign(SOUNDS, Object.fromEntries(fen), own);
   // The recorded ones, for the chapter's page only (`recorded`: main.js; the games make effects of their own and have no use for
-  // them): each file fetched and decoded once, in the background, as the effects are made, and played through the master like the
-  // rest, so it mutes and holds with them. One asked for before its file has decoded is not played.
-  const buffers = new Map(); // url → its decoded buffer
+  // them): loaded lazily on demand (or preloaded via preloadSamples(context, names) / recorded: ['name', ...]) so chapters that do
+  // not use recorded samples never decode all 14 MP3s. One asked for before its file has decoded plays its `instead` sound or nothing.
+  const store = recorded ? sampleStore(context) : null;
   const lastTake = new Map(); // name → the url it played last
   for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
     if (Object.hasOwn(SOUNDS, name)) continue;
     const urls = sample.urls ?? [sample.url];
     SOUNDS[name] = (detail = {}) => {
-      const ready = urls.filter(url => buffers.has(url));
+      if (urls.some(url => !store.loading.has(url))) {
+        if (recorded === true) preloadSamples(context);
+        else preloadSamples(context, [name]);
+      }
+      const ready = urls.filter(url => store.buffers.has(url));
       const fresh = ready.length > 1 ? ready.filter(url => url !== lastTake.get(name)) : ready;
       if (!fresh.length) {
         if (sample.instead) SOUNDS[sample.instead](detail);
@@ -526,7 +567,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       const url = fresh[Math.floor(random() * fresh.length) % fresh.length];
       lastTake.set(name, url);
       const source = context.createBufferSource();
-      source.buffer = buffers.get(url);
+      source.buffer = store.buffers.get(url);
       // a little higher or lower each time (as the flight's one-shots vary), so the same take never sounds the same twice
       source.playbackRate.value = Number.isFinite(detail.rate) && detail.rate > 0 ? detail.rate : between(1 - SAMPLE_VARY, 1 + SAMPLE_VARY);
       const volume = context.createGain();
@@ -535,15 +576,8 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       track(source, [volume, ...outlet(volume, Number.isFinite(detail.pan) ? detail.pan : 0, master)]);
       source.start(context.currentTime);
     };
-    for (const url of urls) {
-      Promise.resolve()
-        .then(() => globalThis.fetch(url))
-        .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
-        .then(bytes => context.decodeAudioData(bytes))
-        .then(buffer => buffers.set(url, buffer))
-        .catch(() => {}); // a sound that cannot be had is simply not heard (or its made one is, in its place)
-    }
   }
+  if (Array.isArray(recorded)) preloadSamples(context, recorded);
   const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
   const lastPlayed = new Map();
@@ -611,10 +645,24 @@ export function createSfx({ context = null, theme = null, output, random = Math.
         for (let i = 0; i < 3; i++) noise({ kind: 'white', type: 'bandpass', frequency: 3900, q: 5, duration: 0.08, level: 0.015, delay: 0.8 + i * 0.17, bus: ambience });
       }
     },
+    /** Preloads the named recorded SAMPLES (or all of them) into this context's cache. */
+    preload(names) {
+      preloadSamples(context, names);
+    },
     /** Ends the bed's loop (the scene is over), or the wish for one; the effects that are playing finish by themselves. */
     stop() {
       wanted = null;
       if (bed) fadeOut(bed, 0.2);
+    },
+    /** Ends any active bed and disconnects this instance's buses so replaced instances do not linger in the audio graph. */
+    dispose() {
+      wanted = null;
+      const release = () => {
+        ambience.disconnect();
+        master.disconnect();
+      };
+      if (bed) fadeOut(bed, 0.2, release);
+      else release();
     },
     /** Held with the game clock: silent while the book is open or the tab is hidden, and back after. */
     setPaused(value) {

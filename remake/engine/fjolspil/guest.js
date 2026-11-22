@@ -97,7 +97,7 @@ const LEVEL_CHOICES = [['barn', '🧒', WORDS.kid], ['fullordinn', '🧑', WORDS
 const isLevel = level => LEVEL_CHOICES.some(([id]) => id === level);
 
 /** A note's picture from the big screen: a file of the game's own under remake/assets/, nothing else. */
-export const SAFE_PICTURE = /^assets\/[\w-]+(\/[\w.-]+)*\.(webp|png|jpg|svg)$/;
+export const SAFE_PICTURE = /^(?!.*\.\.)assets\/[\w-]+(\/[\w.-]+)*\.(webp|png|jpg|svg)$/;
 
 /** How often, and how many times, the wait screen says hello again while its socket is open: for two minutes. */
 export const ASK_EVERY_MS = 5000;
@@ -247,6 +247,7 @@ export function createGuestPage(doc, {
     replaced: false, // another tab took this seat: the wait screen offers it back
     heardAt: null, // when the big screen's last message came (now()), for the ?debug=1 readout
     game: null, // which game's screen `gameEl` holds
+    cleanup: null, // dispose hook returned by the current game screen, called when leaving it
     said: { text: '', kind: null }, // the status line: 'net' (the connection's), 'page' (the guest's own doing) or 'pause'
     offer: null, // Söngur Slóeðlu's lobby: the avatars on offer (null: every one)
     ask: null, // 'level' when the lobby asks "Krakki eða fullorðinn?"
@@ -751,7 +752,16 @@ export function createGuestPage(doc, {
   const syncWake = () => wakeLock.setActive(['join', 'lobby', 'wait', 'game'].includes(at.screen) && !(at.screen === 'game' && at.state?.phase === 'bless'));
   let gameEl = null;
 
+  function leaveGame() {
+    const cleanup = at.cleanup;
+    at.cleanup = null;
+    at.game = null;
+    at.listeners.clear();
+    if (typeof cleanup === 'function') cleanup();
+  }
+
   function show(screen) {
+    if (screen !== 'game' && (at.screen === 'game' || at.cleanup || at.game)) leaveGame();
     const el = screen === 'game' ? gameEl : screens[screen];
     at.screen = screen;
     root.setAttribute('data-screen', screen);
@@ -777,14 +787,15 @@ export function createGuestPage(doc, {
     if (view.screen === 'over') renderOver(view);
     if (own) return show(view.screen);
     if (at.screen !== 'game' || at.game !== view.screen) {
+      leaveGame();
       gameEl = make('section', 'spil-screen spil-game');
       gameEl.setAttribute('data-game', view.screen);
       at.game = view.screen;
-      at.listeners.clear(); // the screen before is gone, and its listeners with it
     }
     unsay('page');
     show('game');
-    render(gameEl, view, { send, doc, control, audio, post, listen });
+    const cleanup = render(gameEl, view, { send, doc, control, audio, post, listen });
+    if (typeof cleanup === 'function') at.cleanup = cleanup;
     if (view.paused === true) say(WORDS.paused, 'pause');
   }
 
@@ -825,7 +836,7 @@ export function createGuestPage(doc, {
         return; // what she typed stays what the phone remembers
       }
       const { name, avatar, level } = sent;
-      seatAs({ seat: body.seat, name, avatar });
+      seatAs({ seat: body.seat, name: typeof body.name === 'string' ? body.name : name, avatar });
       guest.name = name;
       guest.avatar = avatar;
       if (isLevel(level)) guest.level = level;

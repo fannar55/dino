@@ -108,6 +108,28 @@ function reedBed({ x, z, heightAt, clumps = 9, near = 0.6, radius = [1.8, 4], he
   return mesh;
 }
 
+const TEXTURE_KEYS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'bumpMap'];
+function disposeMaterial(mat, seenMats, seenTex) {
+  if (!mat) return;
+  for (const m of Array.isArray(mat) ? mat : [mat]) {
+    if (!m || seenMats.has(m)) continue;
+    seenMats.add(m);
+    for (const key of TEXTURE_KEYS) {
+      const tex = m[key];
+      if (tex && !seenTex.has(tex)) { seenTex.add(tex); tex.dispose?.(); }
+    }
+    m.dispose?.();
+  }
+}
+function disposeGltfScene(scene, seenGeo = new Set(), seenMat = new Set(), seenTex = new Set()) {
+  if (!scene) return;
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    if (o.geometry && !seenGeo.has(o.geometry)) { seenGeo.add(o.geometry); o.geometry.dispose?.(); }
+    disposeMaterial(o.material, seenMat, seenTex);
+  });
+}
+
 // `sun` (the scene's sun) is taken as the board's friends take it, and not used: at this distance they cast no shadow, and
 // thorsedla-lod.js would add a caster for a sun that casts.
 // eslint-disable-next-line no-unused-vars
@@ -122,13 +144,49 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
   let isReady = false;
   let disposed = false;
   let time = 0;
+  const bursts = new Set();
+  const trackBurst = handle => { if (handle && !handle.done) bursts.add(handle); return handle; };
 
   const entries = new Map(Object.entries(friends).map(([name, spec], i) => [name, {
     name, spec, actor: null, home: null, glimmering: false, nextGlint: 0.3 * i, glints: 0, wades: 0, timers: [], nextWade: 0, wadeOut: true,
-    withheld: false, skins: [], // skins: the meshes' own geometry and material, from the models (the light levels replace them)
+    withheld: false, owned: false, skins: [], detached: [], // skins/detached: original meshes from the model (before light levels / lid removal)
     target: { name, point: new THREE.Vector3(spec.position[0], (spec.position[1] ?? 0) + 2, spec.position[2]), radius: TARGET_RADIUS },
   }]));
   const targets = [...entries.values()].filter(entry => entry.spec.find !== false).map(entry => entry.target);
+
+  function disposeEntry(entry, seenGeo, seenMat, seenTex, disposeCoarseMat) {
+    // Free GPU buffers of any swapped light-level geometry; dispose coarse materials only when lod.dispose is unavailable
+    for (const { mesh, geometry, material } of entry.skins) {
+      if (mesh.geometry && mesh.geometry !== geometry && !seenGeo.has(mesh.geometry)) {
+        seenGeo.add(mesh.geometry);
+        mesh.geometry.dispose?.();
+      }
+      if (disposeCoarseMat && mesh.material && mesh.material !== material) {
+        for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+          if (m && !seenMat.has(m)) { seenMat.add(m); m.dispose?.(); }
+        }
+      }
+    }
+    if (entry.owned) {
+      for (const { geometry, material } of entry.skins) {
+        if (geometry && !seenGeo.has(geometry)) { seenGeo.add(geometry); geometry.dispose?.(); }
+        disposeMaterial(material, seenMat, seenTex);
+      }
+      for (const { geometry, material } of entry.detached) {
+        if (geometry && !seenGeo.has(geometry)) { seenGeo.add(geometry); geometry.dispose?.(); }
+        disposeMaterial(material, seenMat, seenTex);
+      }
+    }
+    entry.skins.length = 0;
+    entry.detached.length = 0;
+    entry.actor?.dispose();
+    entry.actor = null;
+    entry.reed?.geometry.dispose();
+    entry.reed?.material.dispose();
+    entry.reed?.removeFromParent();
+    entry.reed = null;
+    entry.timers.length = 0;
+  }
 
   /** The ground a friend stands on: the place's ground, the top of the snag she perches on, or a little under it for one lying. */
   function groundOf(entry) {
@@ -164,6 +222,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
   }
 
   async function load(entry) {
+    if (disposed) return;
     const own = Object.create(world);
     own.renderer = null; // its own light levels (thorsedla-lod.js), not character-lod.js's
     own.scene = { add: object => group.add(object), remove: object => group.remove(object) };
@@ -171,22 +230,51 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     const address = url(MODELS[entry.name]);
     // tests read the file themselves; a page that fetched it already (prefetch) parses those bytes; else actor.js loads it
     const bytes = files.get(entry.name);
-    const gltf = world.loadModel ? await world.loadModel(address) : bytes ? await parse(await bytes, address) : undefined;
+    const owned = !world.loadModel && Boolean(bytes);
+    let gltf;
+    if (world.loadModel) {
+      gltf = await world.loadModel(address);
+    } else if (bytes) {
+      const buf = await bytes;
+      files.delete(entry.name);
+      if (disposed) return;
+      gltf = await parse(buf, address);
+    }
     files.delete(entry.name); // the file's 2.2-2.7 MB, let go once its model is made
+    if (disposed) {
+      if (owned && gltf?.scene) disposeGltfScene(gltf.scene);
+      return;
+    }
     const actor = await createActor(own, { name: `far-${entry.name}`, url: address, gltf, position: entry.spec.position, heading: entry.spec.heading ?? 0 });
+    if (disposed) {
+      if (owned) disposeGltfScene(actor.model);
+      actor.dispose();
+      return;
+    }
     // A speck at 80 m: no eyelid shells, no shadow either way.
+    entry.owned = owned;
     const lids = [];
     actor.model.traverse(o => {
       if (!o.isMesh) return;
       o.castShadow = false;
       o.receiveShadow = false;
-      if (/eyelids/i.test(o.name)) lids.push(o);
+      if (/eyelids/i.test(o.name)) {
+        lids.push(o);
+        entry.detached.push({ geometry: o.geometry, material: o.material });
+      }
     });
     for (const lid of lids) lid.removeFromParent();
     actor.model.traverse(o => { if (o.isMesh) entry.skins.push({ mesh: o, geometry: o.geometry, material: o.material }); });
-    entry.actor = actor;
-    play(entry, entry.spec.clip === 'wade' && !actor.clips.has('wade') ? 'idle' : entry.spec.clip ?? 'idle');
+    const startClip = entry.spec.clip === 'wade' && !actor.clips.has('wade') ? 'idle' : entry.spec.clip ?? 'idle';
+    if (actor.clips.has(startClip)) actor.play(startClip, { fade: 0.4 });
     await lod.add(actor, { levels: LIGHT_ONLY, ...(entry.spec.tint ? { tint: entry.spec.tint } : {}) });
+    if (disposed) {
+      entry.actor = actor;
+      disposeEntry(entry, new Set(), new Set(), new Set(), typeof lod?.dispose !== 'function');
+      lod?.dispose?.();
+      return;
+    }
+    entry.actor = actor;
   }
 
   function play(entry, clip, options = {}) {
@@ -217,9 +305,11 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
 
   let loading = null;
   function loadAll() {
+    if (disposed) return Promise.resolve();
     loading ??= Promise.all([...entries.values()].map(entry => load(entry).catch(error => {
       console.warn(`[far-friends] ${entry.name} could not be made:`, error?.message ?? error);
     }))).then(() => {
+      if (disposed) return;
       isReady = [...entries.values()].every(entry => entry.actor);
       if (shown) ground();
     });
@@ -262,7 +352,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     if (!entry?.actor) return handle.finish();
     entry.reacting = true;
     entry.glimmering = false;
-    sparkleBurst(world, entry.target.point.clone(), { ...FOUND_BURST, seed: `found ${name}` });
+    trackBurst(sparkleBurst(world, entry.target.point.clone(), { ...FOUND_BURST, seed: `found ${name}` }));
     const done = seconds => after(entry, seconds, () => {
       entry.reacting = false;
       handle.finish();
@@ -297,6 +387,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
   function update(dt, camera, heightPx = 800) {
     if (disposed) return;
     time += dt;
+    for (const h of bursts) if (h.done) bursts.delete(h);
     for (const entry of entries.values()) {
       for (const timer of [...entry.timers]) {
         if (time < timer.at) continue;
@@ -320,7 +411,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
       if (entry.glimmering && time >= entry.nextGlint) {
         entry.nextGlint = time + GLIMMER.every;
         glintAt.copy(entry.target.point);
-        sparkleBurst(world, glintAt.clone(), { count: GLIMMER.count, size: GLIMMER.size, spread: GLIMMER.spread, duration: GLIMMER.duration, seed: `glimmer ${entry.name} ${entry.glints++ % 6}` });
+        trackBurst(sparkleBurst(world, glintAt.clone(), { count: GLIMMER.count, size: GLIMMER.size, spread: GLIMMER.spread, duration: GLIMMER.duration, seed: `glimmer ${entry.name} ${entry.glints++ % 6}` }));
       }
     }
     lod.update(camera, heightPx);
@@ -338,19 +429,15 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     dispose() {
       if (disposed) return;
       disposed = true;
+      isReady = false;
       group.visible = false;
-      for (const entry of entries.values()) {
-        // the GPU buffers of the light level (the geometry stays in thorsedla-lod.js's cache) and the coarse material drawn with
-        // it; the model's own skin and map are actor.js's cache's
-        for (const { mesh, geometry, material } of entry.skins) {
-          if (mesh.geometry !== geometry) mesh.geometry.dispose();
-          if (mesh.material !== material) mesh.material.dispose();
-        }
-        entry.actor?.dispose();
-        entry.reed?.geometry.dispose();
-        entry.reed?.material.dispose();
-        entry.timers.length = 0;
-      }
+      files.clear();
+      for (const h of bursts) if (!h.done) h.cancel();
+      bursts.clear();
+      const seenGeo = new Set(), seenMat = new Set(), seenTex = new Set();
+      const disposeCoarseMat = typeof lod?.dispose !== 'function';
+      for (const entry of entries.values()) disposeEntry(entry, seenGeo, seenMat, seenTex, disposeCoarseMat);
+      lod?.dispose?.();
       group.removeFromParent();
     },
   };

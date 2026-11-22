@@ -1,5 +1,7 @@
 import { Handle } from '../handle.js';
 import { createMapMoment } from '../book/map-moment.js';
+import { FRIENDS, STAR_SVG, placeHue, friendOf } from './journal-data.js';
+export { FRIENDS, STAR_SVG, placeHue, friendOf };
 
 // Egill's explorer's journal (STYLE.md section 10): a book in the top right corner of the screen with a slot for the star of
 // each friend. A tap on it opens the book itself (engine/book/book.js), the living book over the paused game. A star from a
@@ -22,35 +24,9 @@ const FLYING_PLACE_PX = 60; // and of .flying-place
 const ARC_PX = 120; // the highest a flight bows above the straight line, at most
 const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px across) leaves the screen
 
-/**
- * The six friends of the Star Festival, one slot each, in the main hue of each: the Main column of STYLE.md section 3's species
- * colour map, which tests/journal.test.mjs holds them to, so a hue that changes there must change here. The book's map (Kortið)
- * marks their places in the same hues (placeHue).
- */
-export const FRIENDS = [
-  { key: 'kambedla', name: 'Kambeðla', colour: '#8f6aa3' },
-  { key: 'uggedla', name: 'Uggeðla', colour: '#47908a' },
-  { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
-  { key: 'flugedla', name: 'Flugeðla', colour: '#dc8090' },
-  { key: 'sloedla', name: 'Slóeðla', colour: '#6793d0' },
-  { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
-];
-
-const STAR_PATH = 'M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z';
-export const STAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
 // A place on the map: a pin with a dot, as a journal's map marks one.
 const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c-.6 0-6.8-6.9-6.8-11.6a6.8 6.8 0 0 1 13.6 0C18.8 15.1 12.6 22 12 22z"/><circle cx="12" cy="10.3" r="2.6"/></svg>';
 
-/**
- * The places of the book's map that are not a friend's (whose hue is the friend's own): the Fen, in its water's teal (the
- * spec's Fen palette, `#3f7a6e`).
- */
-const PLACE_HUES = { fen: '#3f7a6e' };
-/** The hue a place is marked in: a friend's main hue for the friend's place, or the place's own. */
-export const placeHue = id => FRIENDS.find(friend => friend.key === id)?.colour ?? PLACE_HUES[id] ?? '#2f8f86';
-
-/** The friend a star id names: `k1_kambedla` is kambedla's. */
-export const friendOf = id => id.slice(id.indexOf('_') + 1);
 const slotOf = id => FRIENDS.findIndex(friend => friend.key === friendOf(id));
 const ease = t => t * t * (3 - 2 * t);
 
@@ -155,9 +131,8 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     return centreOf((bookIcon ?? button).getBoundingClientRect(), flight.kind === 'place' ? FLYING_PLACE_PX : FLYING_FIND_PX);
   }
 
-  function place(flight) {
+  function place(flight, to = arrival(flight)) {
     const e = ease(Math.min(1, flight.age / FLIGHT_SECONDS));
-    const to = arrival(flight);
     const arc = Math.min(ARC_PX, 0.25 * Math.hypot(to.x - flight.from.x, to.y - flight.from.y));
     const x = flight.from.x + (to.x - flight.from.x) * e;
     const line = flight.from.y + (to.y - flight.from.y) * e;
@@ -191,6 +166,12 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
   }
 
   function fly(flight) {
+    const previous = flights.get(flight.key);
+    if (previous) {
+      flights.delete(flight.key);
+      previous.el.remove();
+      previous.handle?.finish?.();
+    }
     flights.set(flight.key, flight);
     flightsEl.append(flight.el);
     place(flight);
@@ -260,16 +241,27 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
   function update(dt) {
     if (!(dt > 0)) return; // paused or frozen
     mapMoment.update(dt);
-    for (const flight of [...flights.values()]) {
-      flight.age += dt;
-      if (flight.age >= FLIGHT_SECONDS - 1e-9) land(flight);
-      else place(flight);
+    if (flights.size) {
+      // Batch DOM rect reads before style.transform writes to avoid read/write layout thrashing across multiple flights.
+      const active = [...flights.values()];
+      const moving = [];
+      for (const flight of active) {
+        flight.age += dt;
+        if (flight.age < FLIGHT_SECONDS - 1e-9) moving.push([flight, arrival(flight)]);
+      }
+      for (const flight of active) {
+        if (flight.age >= FLIGHT_SECONDS - 1e-9) land(flight);
+      }
+      for (const [flight, to] of moving) place(flight, to);
     }
-    for (const motion of [...motions]) {
-      motion.age += dt;
-      const p = Math.min(1, motion.age / motion.seconds);
-      motion.el.style.transform = p >= 1 ? '' : `scale(${(1 + motion.amount * Math.sin(Math.PI * p)).toFixed(3)})`;
-      if (p >= 1) motions.splice(motions.indexOf(motion), 1);
+    if (motions.length) {
+      for (let i = motions.length - 1; i >= 0; i--) {
+        const motion = motions[i];
+        motion.age += dt;
+        const p = Math.min(1, motion.age / motion.seconds);
+        motion.el.style.transform = p >= 1 ? '' : `scale(${(1 + motion.amount * Math.sin(Math.PI * p)).toFixed(3)})`;
+        if (p >= 1) motions.splice(i, 1);
+      }
     }
   }
 

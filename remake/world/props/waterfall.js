@@ -196,14 +196,19 @@ float sprayAt( vec3 p ) {
   return column * ( 1.0 - smoothstep( uWidth * 0.5, uWidth * 0.5 + 8.0, side ) );
 }
 void main() {
-  vec3 ray = normalize( vWorld - cameraPosition );
+  float spray = sprayAt( vWorld );
+  float lit = smoothstep( -0.8, 0.8, dot( uShade.xyz, vWorld ) + uShade.w );
+  if ( uLevel * spray * lit < 0.002 ) discard;
+  vec3 toWorld = vWorld - cameraPosition;
+  float dist = length( toWorld );
+  vec3 ray = toWorld / max( dist, 1e-4 );
   float angle = degrees( acos( clamp( dot( ray, -uSunDir ), -1.0, 1.0 ) ) );
+  if ( abs( angle - 41.2 ) > 2.8 ) discard;
   // six bands half a degree apart, each narrow enough that they do not add up to white in the middle
   vec3 colour = vec3( 1.0, 0.16, 0.10 ) * band( angle, 42.4, 0.3 ) + vec3( 1.0, 0.52, 0.08 ) * band( angle, 41.9, 0.28 )
     + vec3( 0.95, 0.9, 0.2 ) * band( angle, 41.4, 0.26 ) + vec3( 0.2, 0.85, 0.3 ) * band( angle, 40.9, 0.26 )
     + vec3( 0.15, 0.4, 1.0 ) * band( angle, 40.4, 0.26 ) + vec3( 0.45, 0.25, 0.95 ) * band( angle, 39.9, 0.24 );
-  float lit = smoothstep( -0.8, 0.8, dot( uShade.xyz, vWorld ) + uShade.w );
-  float a = uLevel * sprayAt( vWorld ) * lit * smoothstep( 6.0, 14.0, length( cameraPosition - vWorld ) ) * 0.55;
+  float a = uLevel * spray * lit * smoothstep( 6.0, 14.0, dist ) * 0.55;
   #if defined( USE_FOG ) && defined( FOG_EXP2 )
     // additive: the haze takes its light away rather than mixing in its own colour (engine/fog.js's sum)
     vec3 fogRay = vFogWorld - cameraPosition;

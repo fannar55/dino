@@ -18,7 +18,34 @@ import { simplify } from '../simplify.js';
 const COARSE = [3200, 1400];
 const LEVEL_PX = [2200, 1100, 520, 170]; // the bind diagonal's pixels: the full skin above the first, then one level below each
 export const PIECE_PX = [1400, 700, 240, 90]; // a piece's: textured down to about 240 px, then the light levels
-const levelCache = new Map();
+const levelCache = new WeakMap();
+const sunHooks = new WeakMap();
+
+function attachSunCasters(sun, casters) {
+  if (!sun?.castShadow) return () => {};
+  let hook = sunHooks.get(sun);
+  if (!hook) {
+    const before = sun.shadow.updateMatrices;
+    const sets = new Set();
+    const wrapped = function thorsedlaShadowPass(l, viewport) {
+      before.call(this, l, viewport);
+      if (l === sun) {
+        for (const set of sets) for (const c of set) c.visible = c.userData.owner.visible;
+      }
+    };
+    sun.shadow.updateMatrices = wrapped;
+    hook = { before, wrapped, sets };
+    sunHooks.set(sun, hook);
+  }
+  hook.sets.add(casters);
+  return () => {
+    hook.sets.delete(casters);
+    if (hook.sets.size === 0) {
+      if (sun.shadow.updateMatrices === hook.wrapped) sun.shadow.updateMatrices = hook.before;
+      sunHooks.delete(sun);
+    }
+  };
+}
 
 function simplifyInWorker(positions, index, options) {
   if (typeof Worker === 'undefined') return Promise.resolve(simplify(positions, index, options));
@@ -132,17 +159,12 @@ export function createThorsedlaLod(sun) {
   const casterMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
   casterMaterial.shadowSide = THREE.FrontSide;
   const coarseBase = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 });
-  if (sun?.castShadow) {
-    const before = sun.shadow.updateMatrices;
-    sun.shadow.updateMatrices = function thorsedlaShadowPass(l, viewport) {
-      before.call(this, l, viewport);
-      if (l === sun) for (const c of casters) c.visible = c.userData.owner.visible;
-    };
-  }
+  const detachSun = attachSunCasters(sun, casters);
   const pending = [];
+  let disposed = false;
 
   function setLevel(e, level) {
-    if (!e.levels || level === e.level) return;
+    if (disposed || !e.levels || level === e.level) return;
     e.level = level;
     e.mesh.geometry = e.levels[level];
     e.mesh.material = level >= 3 && e.coarse ? e.coarse : e.material;
@@ -151,10 +173,12 @@ export function createThorsedlaLod(sun) {
   const camPos = new THREE.Vector3(), centre = new THREE.Vector3(), frustum = new THREE.Frustum(), vp = new THREE.Matrix4(), sphere = new THREE.Sphere();
   return {
     add(actor, { tint = m => m, levels: px = LEVEL_PX } = {}) {
+      if (disposed) return Promise.resolve();
       const mesh = skinOf(actor.model);
-      const e = { actor, mesh, material: mesh.material, coarse: null, levels: null, level: 0, px, diagonal: actor.size.length() };
+      const e = { actor, mesh, baseGeometry: mesh.geometry, material: mesh.material, coarse: null, levels: null, level: 0, px, diagonal: actor.size.length() };
       entries.push(e);
       const ready = levelsOf(mesh.geometry, mesh.material.map).then(levels => {
+        if (disposed) return;
         if (levels[levels.length - 1].attributes.color) e.coarse = tint(coarseBase, '#include <color_fragment>', 'thorsedla-tint-coarse');
         e.levels = levels;
         if (sun?.castShadow) {
@@ -178,6 +202,7 @@ export function createThorsedlaLod(sun) {
       return ready;
     },
     update(camera, height) {
+      if (disposed) return;
       camera.updateMatrixWorld();
       camPos.setFromMatrixPosition(camera.matrixWorld);
       frustum.setFromProjectionMatrix(vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -195,5 +220,24 @@ export function createThorsedlaLod(sun) {
     },
     ready: () => Promise.all(pending),
     info: () => Object.fromEntries(entries.map(e => [e.actor.name, e.level])),
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      detachSun();
+      for (const c of casters) c.removeFromParent();
+      casters.clear();
+      const coarseDisposed = new Set();
+      for (const e of entries) {
+        e.mesh.geometry = e.levels?.[0] ?? e.baseGeometry;
+        e.mesh.material = e.material;
+        if (e.coarse && e.coarse !== coarseBase && !coarseDisposed.has(e.coarse)) {
+          coarseDisposed.add(e.coarse);
+          e.coarse.dispose();
+        }
+      }
+      entries.length = 0;
+      casterMaterial.dispose();
+      coarseBase.dispose();
+    },
   };
 }

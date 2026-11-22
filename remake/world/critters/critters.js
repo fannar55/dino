@@ -477,22 +477,22 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       idleFrog(c, now());
     }
     if (c.kind === 'snail') idleSnail(c, now());
-    settle(c);
+    settle(c, Boolean(c.life) && c.kind === 'salamander');
   }
 
   /** A crawler on the ground stands on it wherever it has got to in its own frame. */
   function ground(c) {
     if (c.kind !== 'salamander') return;
-    c.root.updateWorldMatrix(true, true);
-    c.mesh.position.y = 0;
-    c.mesh.updateWorldMatrix(false, false);
-    c.mesh.getWorldPosition(ringAt);
+    c.root.updateWorldMatrix(true, false);
+    ringAt.set(c.mesh.position.x, 0, c.mesh.position.z).applyMatrix4(c.root.matrixWorld);
     c.mesh.position.y = heightAt(ringAt.x, ringAt.z) - c.root.position.y;
   }
 
   /** The tap target follows the middle of the critter, as it stands. */
-  function settle(c) {
-    c.root.updateWorldMatrix(true, true);
+  function settle(c, rooted = false) {
+    if (!rooted) c.root.updateWorldMatrix(true, false);
+    c.mesh.updateMatrix();
+    c.mesh.matrixWorld.multiplyMatrices(c.root.matrixWorld, c.mesh.matrix);
     c.point.copy(c.tap).applyMatrix4(c.mesh.matrixWorld);
   }
 
@@ -536,11 +536,11 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       mesh.rotation.z = flying ? 1.8 * (0.5 - u) * Math.sin(Math.PI * u) : 0;
       mesh.morphTargetInfluences[dict.leap] = flying ? Math.min(1, 4 * u * (1 - u) * 1.3) : 0;
     },
-    snail(c, tau) {
+    snail(c, tau, time = now()) {
       const hide = tau < HIDE.in ? smooth(tau / HIDE.in) : tau < HIDE.in + HIDE.hold ? 1 : 1 - smooth((tau - HIDE.in - HIDE.hold) / HIDE.out);
       const dict = c.mesh.morphTargetDictionary;
       c.mesh.morphTargetInfluences[dict.hide] = hide;
-      if (dict.sway !== undefined) c.mesh.morphTargetInfluences[dict.sway] = (1 - hide) * (0.5 + 0.5 * Math.sin((TAU * now()) / 4.2 + (c.phase ?? 0)));
+      if (dict.sway !== undefined) c.mesh.morphTargetInfluences[dict.sway] = (1 - hide) * (0.5 + 0.5 * Math.sin((TAU * time) / 4.2 + (c.phase ?? 0)));
       c.mesh.rotation.z = -0.07 * hide; // the shell dips forward as it ducks in
     },
     beetle(c, tau) {
@@ -581,15 +581,15 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
       if (!c.life) return;
       c.life.idle(c, time);
       ground(c);
-      settle(c);
+      settle(c, c.kind === 'salamander');
       return;
     }
     const tau = time - c.reaction.start;
     if (tau >= durations[c.kind](c)) { finish(c); return; }
     if (c.life) c.life.react(c, Math.max(0, tau), time);
-    else poses[c.kind](c, Math.max(0, tau));
+    else poses[c.kind](c, Math.max(0, tau), time);
     ground(c);
-    settle(c);
+    settle(c, c.kind === 'salamander');
   }
 
   // ---- the birds ----------------------------------------------------------------------------------------------------------
@@ -748,14 +748,15 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
         c.mesh.updateMorphTargets();
         c.model = { ...c.model, pivot: baked.pivot ?? 0 };
         if (c.reaction) {
-          const tau = Math.max(0, now() - c.reaction.start);
-          if (c.life) c.life.react(c, tau, now());
-          else poses[c.kind](c, tau);
+          const tNow = now();
+          const tau = Math.max(0, tNow - c.reaction.start);
+          if (c.life) c.life.react(c, tau, tNow);
+          else poses[c.kind](c, tau, tNow);
           ground(c);
+          settle(c, c.kind === 'salamander');
         } else {
           rest(c);
         }
-        settle(c);
       }
       return true;
     }).catch(error => {
@@ -817,7 +818,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     if (disposed) return;
     lastTime = t;
     if (birdList.some(b => b.state === 'perched')) {
-      for (const actor of world.actors?.values?.() ?? []) if (actor.walking && actor.root) scareFrom(actor.root.position, SCARE_RADIUS);
+      for (const actor of world.actors?.values?.() ?? []) if (actor.walking && actor.root && actor.root.visible !== false) scareFrom(actor.root.position, SCARE_RADIUS);
     }
     for (const c of list) stepSpot(c, t);
     stepBirds(t);

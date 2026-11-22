@@ -158,9 +158,15 @@ export function createMapMoment(doc, { save, audio = null, win = globalThis.wind
     return { drawMs };
   }
 
-  function close() {
+  function close(instant = false) {
     const moment = current;
-    if (!moment || moment.closing) return 0;
+    if (!moment) return 0;
+    if (instant) {
+      moment.map.hide();
+      dispose();
+      return 0;
+    }
+    if (moment.closing) return 0;
     letGo(moment);
     moment.map.hide(); // a line still being drawn is finished where it was going, and the living layers stop drawing
     if (!moment.animated) {
@@ -192,6 +198,7 @@ export function createMapMoment(doc, { save, audio = null, win = globalThis.wind
     play,
     close,
     update,
+    dispose,
     get isOpen() { return Boolean(current) && !current.closing; },
   };
 }

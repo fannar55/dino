@@ -46,14 +46,17 @@ const HIPS = new V3(0.06, BODY_HEIGHT, 0);
 const WING = ['UpperArm', 'Forearm', 'Wrist', 'Claws', 'Finger1', 'Finger2', 'Finger3'];
 const NECK = [['Neck', 0.2], ['Neck2', 0.25], ['Neck3', 0.25], ['Head', 0.3]]; // her bow, shared down her neck
 
+const HAND_NAMES = ['up', 'pump', 'open', 'clap'];
 const parentQ = new Q();
 const localQ = new Q();
-/** Turn `bone` by `q`, a turn in the world's frame, about its own joint. */
+const scratchCue = new V3();
+/** Turn `bone` by `q`, a turn in the world's frame, about its own joint without recursing untouched subtrees. */
 function turnBone(bone, q) {
+  bone.parent.updateWorldMatrix(true, false);
   bone.parent.getWorldQuaternion(parentQ);
   localQ.copy(parentQ).invert().multiply(q).multiply(parentQ);
   bone.quaternion.premultiply(localQ);
-  bone.updateMatrixWorld(true);
+  bone.updateWorldMatrix(false, false);
 }
 
 /**
@@ -290,17 +293,23 @@ function egillRig(c, clock, options) {
       if (poses.up > 0) {
         arm.upper.getWorldPosition(to).y += SHRUG * poses.up;
         arm.upper.position.copy(arm.upper.parent.worldToLocal(to));
-        arm.upper.updateMatrixWorld(true);
+        arm.upper.updateWorldMatrix(false, false);
       }
       arm.hand.getWorldPosition(H);
       goal.set(0, 0, 0);
-      for (const [name, weight] of Object.entries(poses)) {
-        if (weight <= 0) continue;
-        if (name === 'cup') head.getWorldPosition(to).add(pole.set(CUP[0], CUP[1], CUP[2] * arm.sign).applyQuaternion(root.quaternion));
-        else if (HANDS[name]) root.localToWorld(to.set(HANDS[name][0], HANDS[name][1], HANDS[name][2] * arm.sign));
-        else continue;
+      for (let i = 0; i < HAND_NAMES.length; i++) {
+        const name = HAND_NAMES[i];
+        const weight = poses[name];
+        if (!(weight > 0)) continue;
+        const h = HANDS[name];
+        root.localToWorld(to.set(h[0], h[1], h[2] * arm.sign));
         goal.addScaledVector(to.sub(H), weight);
         sum += weight;
+      }
+      if (poses.cup > 0) {
+        head.getWorldPosition(to).add(pole.set(CUP[0], CUP[1], CUP[2] * arm.sign).applyQuaternion(root.quaternion));
+        goal.addScaledVector(to.sub(H), poses.cup);
+        sum += poses.cup;
       }
       if (sum < 0.002) continue;
       goal.multiplyScalar(1 / Math.max(1, sum)).add(arm.hand.getWorldPosition(H));
@@ -393,7 +402,7 @@ function mosiRig(c, clock, options) {
         at.y = stood + (foot.front ? TURN_STEP.front : TURN_STEP.hind) * own.swing;
       }
       foot.bone.position.copy(foot.bone.parent.worldToLocal(at));
-      foot.bone.updateMatrixWorld(true);
+      foot.bone.updateWorldMatrix(false, false);
     }
     faceTo({ root, neck, head, forward }, p.look, p.looking, 55, 25);
     if (p.nod) {
@@ -473,7 +482,7 @@ function flugedlaRig(c, clock, options) {
       const spread = p.spread[wing.key];
       if (spread > 0) {
         for (const b of wing.bones) b.bone.quaternion.slerp(b.spread, spread);
-        wing.shoulder.updateMatrixWorld(true);
+        wing.shoulder.updateWorldMatrix(false, false);
       }
       const lifted = p.raise[wing.key];
       if (lifted) turnBone(wing.shoulder, q.setFromAxisAngle(axis.copy(wing.axis).applyQuaternion(root.quaternion), rad(lifted)));
@@ -529,7 +538,7 @@ export function createPeople(c) {
       if (!ring || options.reduced || !event) return;
       if (event.kind === 'scratch' && c.flugedla?.raw) {
         const { root } = c.flugedla.raw;
-        const out = new V3(2.2, 0, -2.4).applyQuaternion(root.quaternion); // ahead of her and to her left: where her wing saws
+        const out = scratchCue.set(2.2, 0, -2.4).applyQuaternion(root.quaternion); // ahead of her and to her left: where her wing saws
         ring(root.position.x + out.x, root.position.z + out.z, 0.5);
       }
       if (event.kind === 'impact' && HER_DUCK.drops.includes(event.beat) && c.sloedla?.raw) {

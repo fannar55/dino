@@ -20,6 +20,7 @@
 //         so it is built before the start button, and the start button waits in front of its reveal.
 // Actors are global: each is where the chapter's script puts it.
 import { createSaddle, ride, floatDown } from '../engine/riding.js';
+import { preloadSamples } from '../engine/audio/sfx.js';
 import { createBasket } from '../world/props/basket.js';
 import { createCritters } from '../world/critters/critters.js';
 import { createBerryBushes } from '../world/props/berries.js';
@@ -253,34 +254,37 @@ function* theFen(s, c) {
   // flying up out of the reed, to Þórseðla in the water at her real size; a tap on her swishes her tail.
   const herTap = s.onTap('thorsedla', () => { tapOnHer(s, c); });
   s.target('thorsedla', { point: HER_MIDDLE, radius: 2.6 });
-  const arriving = mosi.walkTo(FEN_ARRIVAL, { speed: 1.45 });
-  const reveal = s.camera.move('fen_reveal_end', { duration: REVEAL_SECONDS });
-  s.after(3.2, () => { s.sfx('earlyBird'); return c.fenCritters.critters.react('fen-bird'); }); // it calls as it flies up
-  yield s.all(reveal, arriving);
-  yield mosi.turnTo(MOSI_FEN.heading, { rate: 30 });
-  yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
-  yield* say(s, c, 'mosi', 'k2_mosi_there');
-  // the Fen goes onto the book's map, its marker flying in from the middle of the view over it: found now, and done with her star
-  s.place('fen');
-  s.sfx('mapMark');
-  // Egill floats down to the bank and calls up to her. Nothing happens: her tail swishes, and she bites the treetop again.
-  yield floatDown(egill.raw, c.saddle, [EGILL_CALLS.position[0], EGILL_CALLS.position[2]], { duration: 2.2, heading: EGILL_CALLS.heading });
-  c.riding = null;
-  yield s.camera.cut('fen_call');
-  yield egill.lookAt(HER_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 55 });
-  yield egill.play('wave', { fade: 0.3 });
-  yield* say(s, c, 'egill', 'k2_egill_hello');
-  yield egill.play('idle', { fade: 0.5 });
-  yield s.until(() => !c.swishing); // a tap's swish still going: it ends first, so hers is the whole beat and the shot its length
-  yield s.camera.cut('fen_thorsedla_low');
-  yield* tailSwish(s, c);
-  yield s.wait(0.6);
-  yield s.camera.cut('fen_call');
-  yield mosi.lookAt(EGILL_HEAD, { weight: 0.7, maxPitch: 35 });
-  yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 45 });
-  yield* say(s, c, 'mosi', 'k2_mosi_canthear');
-  herTap();
-  s.target('thorsedla', null);
+  try {
+    const arriving = mosi.walkTo(FEN_ARRIVAL, { speed: 1.45 });
+    const reveal = s.camera.move('fen_reveal_end', { duration: REVEAL_SECONDS });
+    s.after(3.2, () => { s.sfx('earlyBird'); return c.fenCritters.critters.react('fen-bird'); }); // it calls as it flies up
+    yield s.all(reveal, arriving);
+    yield mosi.turnTo(MOSI_FEN.heading, { rate: 30 });
+    yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
+    yield* say(s, c, 'mosi', 'k2_mosi_there');
+    // the Fen goes onto the book's map, its marker flying in from the middle of the view over it: found now, and done with her star
+    s.place('fen');
+    s.sfx('mapMark');
+    // Egill floats down to the bank and calls up to her. Nothing happens: her tail swishes, and she bites the treetop again.
+    yield floatDown(egill.raw, c.saddle, [EGILL_CALLS.position[0], EGILL_CALLS.position[2]], { duration: 2.2, heading: EGILL_CALLS.heading });
+    c.riding = null;
+    yield s.camera.cut('fen_call');
+    yield egill.lookAt(HER_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 55 });
+    yield egill.play('wave', { fade: 0.3 });
+    yield* say(s, c, 'egill', 'k2_egill_hello');
+    yield egill.play('idle', { fade: 0.5 });
+    yield s.until(() => !c.swishing); // a tap's swish still going: it ends first, so hers is the whole beat and the shot its length
+    yield s.camera.cut('fen_thorsedla_low');
+    yield* tailSwish(s, c);
+    yield s.wait(0.6);
+    yield s.camera.cut('fen_call');
+    yield mosi.lookAt(EGILL_HEAD, { weight: 0.7, maxPitch: 35 });
+    yield egill.lookAt(MOSI_HEAD, { weight: 0.7, maxPitch: 45 });
+    yield* say(s, c, 'mosi', 'k2_mosi_canthear');
+  } finally {
+    herTap();
+    s.target('thorsedla', null);
+  }
 }
 
 // 4. The lure: five red berries for her, held up high, and her head comes down to Egill's eyes.
@@ -443,7 +447,10 @@ function* theStar(s, c) {
   // says where they stand.
   s.fade(0.45, 1.6);
   s.journal.open('dinosaurs', { nod: 'thorsedla' });
-  s.after(TO_THE_MAP, () => s.journal.open('map'));
+  s.after(TO_THE_MAP, () => {
+    const card = c.world.page?.querySelector?.('.card');
+    if (s.journal.isOpen && s.journal.tab === 'dinosaurs' && (!card || card.hidden)) s.journal.open('map');
+  });
   yield* say(s, c, 'mosi', 'k3_mosi_three');
 }
 
@@ -584,6 +591,7 @@ export const chapter = {
     const egill = s.actor('egill');
     const thorsedla = s.actor('thorsedla');
     const world = mosi.raw.world;
+    preloadSamples(world.sound?.context, ['gramedlaRoar', 'gramedlaExhale']);
     world.chapterTimeline = [];
     egill.raw.footprintScale = EGILL_FOOTPRINT;
     const c = { s, world, mosi, egill, thorsedla, talking: false, saying: 0, phase: 'fen', picks: [] };
@@ -608,6 +616,10 @@ export const chapter = {
     const holding = arriveInTheFen(s, c);
     if (holding) yield holding;
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the Fen comes up out of it
-    yield* story(s, c);
+    try {
+      yield* story(s, c);
+    } finally {
+      for (const dispose of c.leaves ?? []) dispose();
+    }
   },
 };

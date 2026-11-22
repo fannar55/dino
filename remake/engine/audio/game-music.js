@@ -39,20 +39,36 @@ export function createGameSfx({ music = null, theme = null, ...options } = {}) {
   if (!music || !options.context) return Object.assign(sfx, { ready: Promise.resolve(false) });
   let muted = false;
   let paused = false;
+  let activeBed = null;
+  let disposed = false;
   const ready = readMusic(music).then(json => {
+    if (disposed) return false;
     const tuned = tunedTheme(theme, json);
     if (tuned === theme) return false;
-    sfx.stop();
+    const old = sfx;
+    old.dispose?.();
     sfx = createSfx({ ...options, theme: tuned });
     sfx.muted = muted;
     sfx.setPaused(paused);
+    if (activeBed) sfx.play(activeBed.name, activeBed.detail);
     return true;
   });
   return {
     ready,
-    play: (name, detail) => sfx.play(name, detail),
+    play(name, detail) {
+      if (name === 'forest' || name === 'fen') activeBed = { name, detail };
+      return sfx.play(name, detail);
+    },
     update: dt => sfx.update(dt),
-    stop: () => sfx.stop(),
+    stop() {
+      activeBed = null;
+      sfx.stop();
+    },
+    dispose() {
+      disposed = true;
+      activeBed = null;
+      sfx.dispose?.();
+    },
     setPaused(value) {
       paused = Boolean(value);
       sfx.setPaused(paused);

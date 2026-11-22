@@ -88,7 +88,7 @@ const options = {
   extra: readSeinkun(),
 };
 
-if (!options.self && !options.record && options.endNow === null) keepScreenAwake();
+const wakeLock = !options.self && !options.record && options.endNow === null ? keepScreenAwake() : null;
 
 /** ?gestur=c:fullordinn → { role: 'c', level: 'fullordinn' }; null for anything else. */
 function guestOf(text) {
@@ -192,19 +192,30 @@ let activeStarView = null;
 const starView = options.stars3d && context
   ? import('./star-view.js')
     .then(m => m.createStarView({ canvas: $('stars3d'), url: asset('sloedla/stjarna/stjarna.glb'), facing: STAR_FACING, keep: options.record }))
-    .then(v => (activeStarView = v), () => null)
+    .then(v => {
+      if (disposed) {
+        v?.dispose?.();
+        return null;
+      }
+      return (activeStarView = v);
+    }, () => null)
   : Promise.resolve(null);
 
 let round = null; // { game, clock, conductor, bot }
+let currentSong = null; // kept between "Spilum aftur", cleared when switching songs
+let startToken = 0;
 let images = null;
 let recorder = null;
 
 /** A round of the chosen song: the menu's loading show (menu-view.js showLoading) while its stems load, then the play. */
 async function start({ again = false } = {}) {
-  if (!images || !context) return;
+  if (!images || !context || disposed) return;
+  const token = ++startToken;
   try { await context.resume(); } catch { /* the game goes on silent */ }
+  if (disposed || token !== startToken) return;
   round?.conductor.stop();
   round = null;
+  stopRoundLoop();
   const entry = SONGS_V2.find(each => each.id === options.song) ?? SONGS_V2[0];
   const show = view.showLoading(entry, { again });
   // "Spilum saman": the room closes to new guests and every phone shows „Tilbúin!“ (and measures its clock) while the song loads
@@ -213,8 +224,14 @@ async function start({ again = false } = {}) {
     band.start();
     band.ready(entry.id);
   }
+  dj?.loadRound?.();
   // the song (v2/format.js) owns everything it plays and has a player of its own (v2/player.js); an unknown id plays the first
   const song = await loadSongV2(options.song) ?? await loadSongV2(SONGS_V2[0].id);
+  if (disposed || token !== startToken) return;
+  if (currentSong && currentSong !== song) {
+    for (const layer of currentSong.layers) layer.buffer = null;
+  }
+  currentSong = song;
   // its stems, decoded once, one at a time (decoding many at once has crashed iOS tabs); one that cannot be loaded is left out
   // (the player says so) and the round plays; the ring follows them
   const wanted = song.layers.filter(layer => layer.stem && !layer.buffer);
@@ -222,15 +239,22 @@ async function start({ again = false } = {}) {
   for (const layer of wanted) {
     try {
       const response = await fetch(asset(`audio/sloedla/v2/${song.id}/${layer.stem}`));
+      if (disposed || token !== startToken) return;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      layer.buffer = await context.decodeAudioData(await response.arrayBuffer());
+      const bytes = await response.arrayBuffer();
+      if (disposed || token !== startToken) return;
+      const decoded = await context.decodeAudioData(bytes);
+      if (disposed || token !== startToken) return;
+      layer.buffer = decoded;
     } catch (error) {
+      if (disposed || token !== startToken) return;
       console.warn(`Slóeðla: ${song.id}/${layer.stem} could not be loaded`, error);
     }
     show.progress(++done / wanted.length);
   }
   show.progress(1);
   await show.finished;
+  if (disposed || token !== startToken) return;
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
   const windows = LEVELS[options.level];
@@ -258,6 +282,7 @@ async function start({ again = false } = {}) {
   });
   const root = rootHz(song.key.root) * 2;
   const stars3d = await starView;
+  if (disposed || token !== startToken) return;
   stars3d?.clear();
   const game = createSongGame({
     canvas, cast, conductor, fall, clock, windows, lineup, crowd, claps, dj, backdrop, hands, debug: options.debug,
@@ -272,6 +297,7 @@ async function start({ again = false } = {}) {
   if (together) band.beginRound({ song: { id: song.id, name: entry.name, bpm: song.tempo.bpm, length: conductor.length }, lineup, clock, level: options.level, game });
   menu.begun();
   window.__sloedla.round = round;
+  startRoundLoop();
 }
 
 /**
@@ -352,13 +378,21 @@ function startRecording(stars3d) {
 }
 
 let disposed = false;
+let roundRaf = 0;
+function startRoundLoop() {
+  if (!roundRaf && !disposed && round) roundRaf = requestAnimationFrame(frame);
+}
+function stopRoundLoop() {
+  if (roundRaf) cancelAnimationFrame(roundRaf);
+  roundRaf = 0;
+}
 function frame(perf) {
-  if (disposed) return;
-  requestAnimationFrame(frame);
-  if (!round) return;
+  roundRaf = 0;
+  if (disposed || !round) return;
   if (round.bot) for (const { lane, at } of round.bot.due(round.clock.time())) round.game.tap(lane, at);
   round.game.frame(perf);
   layDown();
+  if (!disposed && round) roundRaf = requestAnimationFrame(frame);
 }
 
 canvas.addEventListener('pointerdown', event => {
@@ -490,8 +524,14 @@ function bandChanged({ seatsOnly = false } = {}) {
   view.setBand({ together, mine, seats: bandRoom.seats.list() });
 }
 
-// "Annað lag" after a band's song: the lobby opens again on the same seats, so a new guest may come or one change her level
+// "Annað lag" after a song: stop the finished round and clear its stars; in a band, open the lobby on the same seats
 document.querySelector('[data-other]')?.addEventListener('click', () => {
+  startToken++;
+  round?.conductor.stop();
+  round = null;
+  stopRoundLoop();
+  activeStarView?.clear();
+  window.__sloedla.round = null;
   const { together, lanes, mine, level } = menu.state();
   if (!together) return;
   band.open({ lanes, mine, level }).catch(error => console.error('Slóeðla: the room could not be opened', error));
@@ -516,11 +556,18 @@ if (params.get('inbook') === '1') {
 addEventListener('pagehide', () => {
   if (disposed) return;
   disposed = true;
+  startToken++;
+  stopRoundLoop();
   round?.conductor.stop();
   round = null;
+  if (currentSong) {
+    for (const layer of currentSong.layers) layer.buffer = null;
+    currentSong = null;
+  }
+  wakeLock?.dispose?.();
   view.stop?.();
   brot?.stop?.();
-  dj?.hush?.();
+  dj?.dispose?.();
   try { band.close(); } catch {}
   try { bandRoom.close?.(); } catch {}
   activeStage?.dispose?.();
@@ -529,4 +576,3 @@ addEventListener('pagehide', () => {
   activeStarView = null;
   context?.close?.().catch(() => {});
 });
-requestAnimationFrame(frame);

@@ -104,74 +104,98 @@ function handBounds(handEl) {
   return [me.getBoundingClientRect().right + 10, help.getBoundingClientRect().left - 10];
 }
 
+const spreadOf = count => (count > 7 ? 5 / (count - 1) : 1);
+/** Horizontal half-extent of the outermost tilted card in a row of `count` cards (origin 50% 160%, 3deg * i, y-drop 2.4 * i^2). */
+function outerHalf(count, width, height) {
+  if (count <= 1) return width / 2;
+  const i = ((count - 1) / 2) * spreadOf(count);
+  const theta = (i * 3 * Math.PI) / 180;
+  const drop = i * i * 2.4;
+  return (width / 2) * Math.cos(theta) + Math.max(0, 1.6 * height - drop) * Math.sin(theta);
+}
+
 /**
  * Lays the cards of `handEl` (the child's hand, already in it, in the order they should lie) in their arc, a bigger hand overlapping
  * more so it fits between Egill's place and Mosi's button; and a hand so big that each card would show a strip narrower than a small
  * finger (TAP_PX) in two overlapping rows, or in three (the .rows of veiddu.css). It sets each card's --i, the hand's --overlap and, in
- * rows, --more, --more-rows, --step and each card's --col, --row and --shift. Eitt!'s hand is laid out the same way (eitt/table.js).
+ * rows, --more, --more-rows, --row-step, --step and each card's --col, --row and --shift. Eitt!'s hand is laid out the same way (eitt/table.js).
  */
 export function layoutHand(handEl) {
   const els = [...handEl.querySelectorAll('.veiddu-card')];
-  handEl.classList.remove('rows');
-  for (const property of ['--overlap', '--more', '--more-rows', '--row-step', '--step']) handEl.style.removeProperty(property);
   const n = els.length;
-  const spread = count => (count > 7 ? 5 / (count - 1) : 1);
-  els.forEach((el, k) => {
-    for (const property of ['--col', '--row', '--shift']) el.style.removeProperty(property);
-    el.style.setProperty('--i', ((k - (n - 1) / 2) * spread(n)).toFixed(2));
-  });
-  if (!n) return;
+  if (!n) {
+    handEl.classList.remove('rows');
+    for (const property of ['--overlap', '--more', '--more-rows', '--row-step', '--step']) handEl.style.removeProperty(property);
+    return;
+  }
+  // Single read phase: card dimensions, hand center, and available horizontal bounds.
   const upright = Boolean(handEl.ownerDocument.defaultView?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
   const width = els[0].offsetWidth || 120;
-  const bounds = () => handBounds(handEl);
-  const [from, to] = bounds();
+  const height = els[0].offsetHeight || width * 1.4;
+  const handBox = handEl.getBoundingClientRect();
+  const [from, to] = handBounds(handEl);
+  const center = (handBox.left + handBox.right) / 2;
+  const availHalf = handBox.width ? Math.min(center - from, to - center) : (to - from) / 2;
   const room = to - from - 0.4 * width;
   const least = upright ? 0.08 : 0.04;
-  let overlap = Math.min(0.45, Math.max(least, (1 - room / (n * width)) / 2));
-  handEl.style.setProperty('--overlap', overlap.toFixed(3));
-  // The fan tilts its outer cards outward: measured, a hand that still reaches past the bounds closes up more.
-  const clear = () => {
-    const boxes = els.map(el => el.getBoundingClientRect());
-    const [lo, hi] = bounds();
-    return Math.min(...boxes.map(box => box.left)) >= lo && Math.max(...boxes.map(box => box.right)) <= hi;
-  };
-  for (let tries = 0; tries < 8 && overlap < 0.45 && !clear(); tries++) {
-    overlap = Math.min(0.45, overlap + 0.025);
-    handEl.style.setProperty('--overlap', overlap.toFixed(3));
+  const baseOverlap = Math.max(least, (1 - room / (n * width)) / 2);
+  let overlap = Math.min(0.45, baseOverlap);
+  if (n > 1 && overlap < 0.45) {
+    const halfCard = outerHalf(n, width, height);
+    const maxStep = (2 * (availHalf - halfCard)) / (n - 1);
+    const fitOverlap = (1 - maxStep / width) / 2;
+    if (fitOverlap > overlap) overlap = Math.min(0.45, fitOverlap);
   }
-  if (n > 2 && (els.at(-1).offsetLeft - els[0].offsetLeft) / (n - 1) < TAP_PX) layRows(handEl, els, bounds);
+  const singleStep = width * (1 - 2 * overlap);
+  if (n > 2 && singleStep < TAP_PX) {
+    layRows(handEl, els, width, height, availHalf);
+    return;
+  }
+  // Single write phase: single-row arc.
+  handEl.classList.remove('rows');
+  for (const property of ['--more', '--more-rows', '--row-step', '--step']) handEl.style.removeProperty(property);
+  handEl.style.setProperty('--overlap', overlap.toFixed(3));
+  const sp = spreadOf(n);
+  els.forEach((el, k) => {
+    for (const property of ['--col', '--row', '--shift']) el.style.removeProperty(property);
+    el.style.setProperty('--i', ((k - (n - 1) / 2) * sp).toFixed(2));
+  });
 }
 
 /** Two rows, or three: the first cards in the back row and the rest in front of it, each row fanned and centred on its own. */
-function layRows(handEl, els, bounds) {
+function layRows(handEl, els, width, height, availHalf) {
   const n = els.length;
-  const spread = count => (count > 7 ? 5 / (count - 1) : 1);
-  handEl.classList.add('rows');
+  let chosenRows = 2;
+  let chosenPer = Math.ceil(n / 2);
+  let chosenStep = width * 0.92;
   for (let rows = 2; rows <= 3; rows++) {
     const per = Math.ceil(n / rows);
-    let step = els[0].offsetWidth * 0.92; // the most a card is ever spread: its width less its overlap of .04 on either side
-    handEl.style.setProperty('--more', per - 1);
-    handEl.style.setProperty('--more-rows', rows - 1);
-    handEl.style.setProperty('--row-step', rows === 3 ? 'calc(var(--hand-w) * .5)' : '');
-    els.forEach((el, k) => {
-      const row = Math.floor(k / per);
-      const col = k % per;
-      const count = Math.min(per, n - row * per);
-      el.style.setProperty('--col', col + 1);
-      el.style.setProperty('--row', row + 1);
-      el.style.setProperty('--shift', ((per - count) / 2).toFixed(2)); // a row of fewer cards is centred under the longer one
-      el.style.setProperty('--i', ((col - (count - 1) / 2) * spread(count)).toFixed(2));
-    });
-    for (let tries = 0; tries < 10; tries++) {
-      handEl.style.setProperty('--step', `${step.toFixed(1)}px`);
-      const [from, to] = bounds();
-      const boxes = els.map(el => el.getBoundingClientRect());
-      const over = Math.max(0, from - Math.min(...boxes.map(box => box.left))) + Math.max(0, Math.max(...boxes.map(box => box.right)) - to);
-      if (over < 1) break;
-      step = Math.max(40, step - over / (per - 1) - 0.5);
+    const maxStep = width * 0.92;
+    let step = maxStep;
+    if (per > 1) {
+      const halfCard = outerHalf(per, width, height);
+      step = Math.min(maxStep, Math.max(40, (2 * (availHalf - halfCard)) / (per - 1)));
     }
+    chosenRows = rows;
+    chosenPer = per;
+    chosenStep = step;
     if (step >= TAP_PX) break;
   }
+  handEl.classList.add('rows');
+  handEl.style.removeProperty('--overlap');
+  handEl.style.setProperty('--more', chosenPer - 1);
+  handEl.style.setProperty('--more-rows', chosenRows - 1);
+  handEl.style.setProperty('--row-step', chosenRows === 3 ? 'calc(var(--hand-w) * .5)' : '');
+  handEl.style.setProperty('--step', `${chosenStep.toFixed(1)}px`);
+  els.forEach((el, k) => {
+    const row = Math.floor(k / chosenPer);
+    const col = k % chosenPer;
+    const count = Math.min(chosenPer, n - row * chosenPer);
+    el.style.setProperty('--col', col + 1);
+    el.style.setProperty('--row', row + 1);
+    el.style.setProperty('--shift', ((chosenPer - count) / 2).toFixed(2)); // a row of fewer cards is centred under the longer one
+    el.style.setProperty('--i', ((col - (count - 1) / 2) * spreadOf(count)).toFixed(2));
+  });
 }
 
 /** An opponent's cards face down in front of its window, fanned closer as it holds more. */

@@ -13,6 +13,7 @@ const GLASS = new THREE.Color('#1c2150'); // dark night glass, the sky seen thro
 const GOLD_SPEC = new THREE.Color('#fff6c8');
 const GLASS_SPEC = new THREE.Color('#7f90d8'); // small cool glints, not a sheen over the whole star
 const GLOW = new THREE.Color('#ff9a00');
+const TEXTURE_MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'];
 const MAX_RATIO = 1.5; // the canvas's pixels per CSS pixel, at most (a tablet's battery)
 
 /**
@@ -139,7 +140,10 @@ export async function createStarView({ canvas, url, facing = [0, 0, 0], keep = f
       canvas.removeEventListener?.('webglcontextlost', onContextLost);
       shape.traverse(node => {
         node.geometry?.dispose();
-        for (const material of [].concat(node.material ?? [])) material.dispose?.();
+        for (const material of [].concat(node.material ?? [])) {
+          for (const slot of TEXTURE_MAPS) material[slot]?.dispose?.();
+          material.dispose?.();
+        }
       });
       for (const star of stars.values()) star.material.dispose();
       stars.clear();

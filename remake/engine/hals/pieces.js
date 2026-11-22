@@ -56,12 +56,16 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
     set calm(value) { calm = Boolean(value); },
     get waiting() { return waiting; },
     set waiting(piece) { waiting = piece ?? null; },
+    cancelTweens() { tweens.clear(); },
     update(dt) {
-      for (const tw of [...tweens]) {
-        tw.t += dt;
-        const t = clamp01(tw.t / tw.duration);
-        tw.step(t, dt);
-        if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+      if (tweens.size) {
+        for (const tw of [...tweens]) {
+          if (!tweens.has(tw)) continue;
+          tw.t += dt;
+          const t = clamp01(tw.t / tw.duration);
+          tw.step(t, dt);
+          if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+        }
       }
       for (const p of list) p.update(dt, p === waiting && !calm ? world.camera : null);
       if (world.camera && world.renderer) lod.update(world.camera, world.renderer.domElement.height);
@@ -69,7 +73,7 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
     ready: () => lod.ready(),
     /** The pieces whose turn it is not look at the one whose turn it is. */
     watch(active) { for (const p of list) { if (p !== active) p.lookAt(active.position); else if (!p.looking) p.lookAt(null); } },
-    dispose() { for (const p of list) p.dispose(); },
+    dispose() { tweens.clear(); lod.dispose(); for (const p of list) p.dispose(); },
   };
 }
 

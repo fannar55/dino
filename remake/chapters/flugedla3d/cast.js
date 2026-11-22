@@ -67,7 +67,8 @@ export function createCast(world, { her, at }) {
   const beak = (out = new THREE.Vector3()) => out.copy(beakLocal).applyMatrix4(head.matrixWorld);
 
   const now = { neck: 0, tuck: 0, sweep: 0, beak: null };
-  const right = new THREE.Vector3(), up = new THREE.Vector3(), q = new THREE.Quaternion(), dv = new THREE.Vector3();
+  const allWings = [...wings.L, ...wings.R];
+  const right = new THREE.Vector3(), up = new THREE.Vector3(), q = new THREE.Quaternion(), dv = new THREE.Vector3(), beakOut = new THREE.Vector3();
   her.setOverlay(() => {
     guard.begin();
     her.root.updateMatrixWorld(true);
@@ -75,7 +76,7 @@ export function createCast(world, { her, at }) {
       right.set(0, 0, 1).applyQuaternion(her.root.quaternion);
       for (const b of necks) rotateBoneWorld(b, q.setFromAxisAngle(right, -rad(now.neck) / necks.length));
     }
-    if (now.tuck > 0) for (const b of [...wings.L, ...wings.R]) { const f = folded.get(b.name); if (f) b.quaternion.slerp(f, now.tuck); }
+    if (now.tuck > 0) for (const b of allWings) { const f = folded.get(b.name); if (f) b.quaternion.slerp(f, now.tuck); }
     if (now.sweep) {
       // each wing turned back about her own up: the left one way, the right the other
       her.root.updateMatrixWorld(true);
@@ -86,7 +87,7 @@ export function createCast(world, { her, at }) {
     guard.end();
     if (now.beak && beakLocal) {
       her.root.updateMatrixWorld(true);
-      dv.copy(now.beak).sub(beak());
+      dv.copy(now.beak).sub(beak(beakOut));
       if (dv.lengthSq() > 1e-10) {
         herRoot.position.add(dv);
         her.root.position.copy(herRoot.position);
@@ -97,7 +98,7 @@ export function createCast(world, { her, at }) {
 
   let action = null, haze = null;
   const e = new THREE.Euler(), qPitch = new THREE.Quaternion(), qBank = new THREE.Quaternion();
-  const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), body = new THREE.Vector3(), want = new THREE.Vector3();
+  const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), body = new THREE.Vector3(), want = new THREE.Vector3(), herFwd = new THREE.Vector3();
   /**
    * Her pose this frame, or null (hidden): { body: [u, v, k] or beak: [u, v, k] (in the camera's frame), yaw (degrees: 0 facing the
    * camera, + turned to her left, our right), pitch (nose up), bank (her right wing down), neck (degrees: + stretched forward and
@@ -123,7 +124,7 @@ export function createCast(world, { her, at }) {
       now.beak = at(...spec.beak, want);
       // a first guess for the root (the overlay moves her so the beak tip lands exactly, after her clip, neck and wings)
       body.set(...BODY_LOCAL).applyQuaternion(herRoot.quaternion);
-      herRoot.position.copy(want).sub(body).addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(herRoot.quaternion), -2.2);
+      herRoot.position.copy(want).sub(body).addScaledVector(herFwd.set(1, 0, 0).applyQuaternion(herRoot.quaternion), -2.2);
     } else {
       now.beak = null;
       body.set(...BODY_LOCAL).applyQuaternion(herRoot.quaternion);
@@ -157,9 +158,9 @@ export function createCast(world, { her, at }) {
   function poseButterfly(spec, heading) {
     if (!spec) { bfly.visible = false; return; }
     bfly.visible = true;
-    if (spec.on === 'beak' && beakLocal) beak(bfly.position).add(new THREE.Vector3(0, spec.lift ?? 0.07, 0));
+    if (spec.on === 'beak' && beakLocal) { beak(bfly.position); bfly.position.y += spec.lift ?? 0.07; }
     else at(...spec.at, bfly.position);
-    bfly.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -rad(90 + (spec.yaw ?? 0) + heading)).multiply(bp.setFromAxisAngle(Z, rad(spec.pitch ?? 0)));
+    bfly.quaternion.setFromAxisAngle(Y, -rad(90 + (spec.yaw ?? 0) + heading)).multiply(bp.setFromAxisAngle(Z, rad(spec.pitch ?? 0)));
     const flap = spec.flap ?? 0.5;
     if (bwings.L) bwings.L.rotation.x = flap;
     if (bwings.R) bwings.R.rotation.x = -flap;
@@ -178,14 +179,14 @@ export function createCast(world, { her, at }) {
   leaves.count = 0;
   leaves.frustumCulled = false;
   scene.add(leaves);
-  const m4 = new THREE.Matrix4(), lq = new THREE.Quaternion(), ls = new THREE.Vector3(), le = new THREE.Euler();
+  const m4 = new THREE.Matrix4(), lq = new THREE.Quaternion(), ls = new THREE.Vector3(), le = new THREE.Euler(), lp = new THREE.Vector3();
   /** Leaves at world points: [[x, y, z, size, spin], ...] or null. */
   function poseLeaves(points) {
     leaves.count = points ? Math.min(80, points.length) : 0;
     for (let i = 0; i < leaves.count; i++) {
       const [x, y, z, size, spin] = points[i];
       lq.setFromEuler(le.set(spin * 1.3, spin * 2.1, spin * 0.7));
-      leaves.setMatrixAt(i, m4.compose(new THREE.Vector3(x, y, z), lq, ls.setScalar(size)));
+      leaves.setMatrixAt(i, m4.compose(lp.set(x, y, z), lq, ls.setScalar(size)));
       leaves.setColorAt(i, LEAF_COLOURS[i % LEAF_COLOURS.length]);
     }
     leaves.instanceMatrix.needsUpdate = true;

@@ -113,7 +113,7 @@ function fetchTemplate(world, kind) {
 }
 
 const PERCH_SPECIES = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'deadSnag', 'bush']);
-const COVER_SPECIES = new Set(['rock', 'rockSmall', 'log', 'cycad', 'fern', 'mushroom', 'mossHummock']);
+const COVER_SPECIES = new Set(['rock', 'rockSmall', 'log', 'cycad', 'fern', 'mushrooms', 'mossHummock']);
 
 export function createForestLife(world, { layout, seed = 1, terrain, placements = [], water = null, q = { name: 'tablet' } } = {}) {
   const rng = createRng(seed, 'forest-life').next;
@@ -143,10 +143,28 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
     for (const [kx, kz, r] of keepClear) if (Math.hypot(x - kx, z - kz) < r + extra) return false;
     return true;
   };
+  const PLANT_CELL = 4;
+  const plantGrid = new Map();
+  for (const p of placements) {
+    if (p.name === 'waterLily' || p.name === 'mossHummock') continue;
+    const key = `${Math.floor(p.x / PLANT_CELL)},${Math.floor(p.z / PLANT_CELL)}`;
+    let bucket = plantGrid.get(key);
+    if (!bucket) { bucket = []; plantGrid.set(key, bucket); }
+    bucket.push(p);
+  }
   const plantNear = (x, z, minR) => {
-    for (const p of placements) {
-      if (p.name === 'waterLily' || p.name === 'mossClump' || p.name === 'mossHummock') continue;
-      if (Math.hypot(p.x - x, p.z - z) < minR) return true;
+    const r2 = minR * minR;
+    const reach = Math.ceil(minR / PLANT_CELL);
+    const gx = Math.floor(x / PLANT_CELL), gz = Math.floor(z / PLANT_CELL);
+    for (let dx = -reach; dx <= reach; dx++) {
+      for (let dz = -reach; dz <= reach; dz++) {
+        const bucket = plantGrid.get(`${gx + dx},${gz + dz}`);
+        if (!bucket) continue;
+        for (const p of bucket) {
+          const px = p.x - x, pz = p.z - z;
+          if (px * px + pz * pz < r2) return true;
+        }
+      }
     }
     return false;
   };
@@ -468,7 +486,6 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
   let disposed = false;
   let lastTime = -1;
   const activeBaked = new Map(); // kind -> template
-  const ownedMaterials = [];
 
   function buildCrowdSet(templatesByKind) {
     const c = createCrowds(world, {
@@ -481,17 +498,14 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
     for (const [kind, n] of counts) {
       const tpl = templatesByKind.get(kind) ?? null;
       if (tpl) {
-        let material = null;
-        if (tpl.map) {
-          material = new THREE.MeshLambertMaterial({ map: tpl.map, color: tpl.color ?? 0xffffff });
-          ownedMaterials.push(material);
-        }
+        const material = tpl.map ? new THREE.MeshLambertMaterial({ map: tpl.map, color: tpl.color ?? 0xffffff }) : null;
         c.reserve(kind, n, {
           lods: [{ geometry: cloneCrowdGeometry(tpl.geometry), until: Infinity }],
           pivot: tpl.pivot,
           height: tpl.height,
           wing: tpl.wing,
           material,
+          ownMaterial: Boolean(material),
           seen: REACH[kind],
           castShadow: false,
         });
@@ -532,6 +546,15 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
 
   // ---- 4. Pure game-clock pose updates -----------------------------------------------------------------------------------
   const camPos = new THREE.Vector3();
+  const groundY = item => {
+    const x = item.pos.x, z = item.pos.z;
+    if (item.gy !== undefined) {
+      const dx = x - item.gx, dz = z - item.gz;
+      if (dx * dx + dz * dz <= 0.0004) return item.gy;
+    }
+    item.gx = x; item.gz = z;
+    return (item.gy = terrain.heightAt(x, z));
+  };
 
   function stepBirds(time) {
     const placeKind = activeBaked.has('bird') ? 'bird' : PROCEDURAL_KIND.bird;
@@ -585,7 +608,7 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
     for (const t of turtles) {
       const creep = 0.5 + 0.5 * Math.sin((TAU * time) / 22 + t.phase);
       t.pos.lerpVectors(t.a, t.b, creep);
-      t.pos.y = terrain.heightAt(t.pos.x, t.pos.z);
+      t.pos.y = groundY(t);
       const stretch = Math.max(0, Math.sin((TAU * time) / t.stretchPeriod + t.phase)) ** 2;
       const lookWave = Math.sin((TAU * time) / 6.2 + t.phase * 1.7);
       const look = Math.max(0, Math.abs(lookWave) - 0.25) / 0.75;
@@ -628,7 +651,7 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
       } else if (moving && local < crouchDur + airDur) {
         const a = (local - crouchDur) / airDur;
         f.pos.lerpVectors(from, to, smooth(a));
-        const groundY = leg === 0 && f.wetA && f.wetB ? waterLevel + 0.015 : Math.max(terrain.heightAt(f.pos.x, f.pos.z), f.pos.y);
+        const groundY = f.wetA && f.wetB ? waterLevel + 0.015 : Math.max(terrain.heightAt(f.pos.x, f.pos.z), f.pos.y);
         f.pos.y = groundY + 0.34 * 4 * a * (1 - a);
         const leapW = Math.sin(Math.PI * a);
         f.pose.morphs.leap = leapW;
@@ -694,10 +717,8 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
       for (const k in fl.pose.morphs) fl.pose.morphs[k] = 0;
       if (tpl?.clips?.glide && tpl?.clips?.flap) {
         const beatWindow = smooth(((time * 0.22 + fl.phase) % 1) / 0.12) * (1 - smooth((((time * 0.22 + fl.phase) % 1) - 0.22) / 0.12));
-        const gPose = clipPose(tpl, 'glide', time, fl.phase);
-        const fPose = clipPose(tpl, 'flap', time, fl.phase);
-        for (const [m, w] of Object.entries(gPose)) fl.pose.morphs[m] = (fl.pose.morphs[m] ?? 0) + w * (1 - beatWindow);
-        for (const [m, w] of Object.entries(fPose)) fl.pose.morphs[m] = (fl.pose.morphs[m] ?? 0) + w * beatWindow;
+        clipPose(tpl, 'glide', time, fl.phase, fl.pose.morphs, 1 - beatWindow);
+        clipPose(tpl, 'flap', time, fl.phase, fl.pose.morphs, beatWindow);
       } else {
         fl.pose.wings[0] = 0.25 * Math.sin(TAU * 2.2 * time + fl.phase);
         fl.pose.wings[1] = 1;
@@ -718,8 +739,12 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
       const to = leg === 0 ? l.b : l.a;
       const running = local < l.runSeconds ? Math.sin(Math.PI * (local / l.runSeconds)) : 0;
       const progress = local < l.runSeconds ? smooth(local / l.runSeconds) : 1;
-      l.pos.lerpVectors(from, to, progress);
-      l.pos.y = terrain.heightAt(l.pos.x, l.pos.z);
+      if (progress >= 1) {
+        l.pos.copy(to);
+      } else {
+        l.pos.lerpVectors(from, to, progress);
+        l.pos.y = groundY(l);
+      }
 
       let yaw = local < l.runSeconds ? headingOf(to.x - from.x, to.z - from.z) : headingOf(cx - l.pos.x, cz - l.pos.z);
       let nearActor = 0;
@@ -736,19 +761,14 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
       if (tpl?.clips?.idle && tpl?.clips?.run && tpl?.clips?.look) {
         const lookW = (1 - running) * Math.max(nearActor, smooth(1.4 * Math.sin((TAU * time) / 7.5 + l.phase) - 0.35));
         const idleW = (1 - running) * (1 - lookW);
-        if (idleW > 0) {
-          const p = clipPose(tpl, 'idle', time, l.phase * 0.1);
-          for (const [m, w] of Object.entries(p)) l.pose.morphs[m] = (l.pose.morphs[m] ?? 0) + w * idleW;
-        }
+        if (idleW > 0) clipPose(tpl, 'idle', time, l.phase * 0.1, l.pose.morphs, idleW);
         if (lookW > 0) {
           const lookHold = (5 / tpl.clips.look.frames) * tpl.clips.look.seconds;
-          const p = clipPose(tpl, 'look', lookHold, 0);
-          for (const [m, w] of Object.entries(p)) l.pose.morphs[m] = (l.pose.morphs[m] ?? 0) + w * lookW;
+          clipPose(tpl, 'look', lookHold, 0, l.pose.morphs, lookW);
         }
         if (running > 0) {
           const travelled = progress * l.dist;
-          const p = clipPose(tpl, 'run', (travelled / 0.55) * tpl.clips.run.seconds, l.phase * 0.1);
-          for (const [m, w] of Object.entries(p)) l.pose.morphs[m] = (l.pose.morphs[m] ?? 0) + w * running;
+          clipPose(tpl, 'run', (travelled / 0.55) * tpl.clips.run.seconds, l.phase * 0.1, l.pose.morphs, running);
         }
         crowds.place(placeKind, l.pos, yaw, l.bakedScale, l.pose);
       } else {
@@ -767,7 +787,7 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
       const placeKind = tpl ? c.kind : PROCEDURAL_KIND[c.kind];
       const wave = 0.5 - 0.5 * Math.cos((TAU * time) / (c.halfPeriod * 2) + c.phase);
       c.pos.lerpVectors(c.a, c.b, wave);
-      c.pos.y = terrain.heightAt(c.pos.x, c.pos.z);
+      c.pos.y = groundY(c);
       const dirSign = Math.sin((TAU * time) / (c.halfPeriod * 2) + c.phase) >= 0 ? 0 : 180;
       for (const k in c.pose.morphs) c.pose.morphs[k] = 0;
       if (c.kind === 'beetle') {
@@ -801,7 +821,6 @@ export function createForestLife(world, { layout, seed = 1, terrain, placements 
     if (disposed) return;
     disposed = true;
     crowds.dispose();
-    for (const mat of ownedMaterials) mat.dispose();
     group.removeFromParent();
   }
 

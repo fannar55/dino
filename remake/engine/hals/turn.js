@@ -19,7 +19,8 @@ import { BOARD } from './rules.js';
 
 const V3 = THREE.Vector3;
 
-export async function playTurn(game, piece, result, { onStep = () => {}, onLand = () => {}, onPhase = () => {} } = {}) {
+export async function playTurn(game, piece, result, { onStep = () => {}, onLand = () => {}, onPhase = () => {}, isCancelled = () => false } = {}) {
+  if (isCancelled()) return;
   const { world, thorsedlas } = game;
   const { board, view } = world;
   view.follow(() => piece.position);
@@ -28,17 +29,21 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
   const backFrom = result.steps.length - (result.bounce ?? 0); // the hops from here on go back down off 100
   for (const [i, n] of result.steps.entries()) {
     await piece.hopTo(n);
+    if (isCancelled()) return;
     board.glow(n, 1);
     await onStep(n, i + 1, { back: i >= backFrom });
+    if (isCancelled()) return;
     if (result.bounce && n === BOARD.count && i < backFrom) {
       // a roll too big: up on 100, a little boing there with the flag wobbling, and back down by what was over
       onPhase('boing', { at: piece.position.clone() });
       board.cheer?.(1.6);
       await piece.boing?.();
+      if (isCancelled()) return;
     }
   }
   piece.rest();
   await world.wait(0.25);
+  if (isCancelled()) return;
 
   if (result.shortcut?.type === 'neck') {
     const t = thorsedlas.neckAt(result.landed);
@@ -46,12 +51,17 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     onPhase('neck');
     view.frame(board.square(result.landed), board.square(result.destination).add(new V3(0, 2, 0)), 4.5);
     await t.bow({ duration: 1.5 });
+    if (isCancelled()) return;
     await piece.hopOnto(t.ridePoint());
+    if (isCancelled()) return;
     piece.follow(out => t.ridePoint(out));
     onPhase('lift', { thorsedla: t });
     await t.lift({ duration: 2.8 });
+    if (isCancelled()) return;
     await world.wait(0.15);
+    if (isCancelled()) return;
     await piece.hopOnto(piece.spot(result.destination), { height: 1.2, seconds: 0.7 });
+    if (isCancelled()) return;
     onPhase('off', { at: piece.position.clone() });
     piece.square = result.destination;
     piece.face(onward(result.destination));
@@ -65,13 +75,17 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     view.frame(board.square(result.landed).add(new V3(0, 1, 0)), board.square(result.destination), 4);
     t.swish();
     await world.wait(0.6);
+    if (isCancelled()) return;
     const curve = t.slideCurve();
     await piece.hopOnto(curve.getPointAt(0));
+    if (isCancelled()) return;
     onPhase('slide', { curve });
     await piece.slide(curve, { seconds: 1.4 + curve.getLength() * 0.07 });
+    if (isCancelled()) return;
     t.flick();
     onPhase('splash', { at: piece.position.clone() });
     await piece.hopOnto(piece.spot(result.destination), { height: 0.5, seconds: 0.4 });
+    if (isCancelled()) return;
     piece.square = result.destination;
     piece.face(onward(result.destination));
     board.glow(result.destination, 1);
@@ -81,16 +95,19 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     onLand('firefly', { from: result.landed, to: result.destination });
     onPhase('firefly');
     await piece.float(result.destination);
+    if (isCancelled()) return;
     board.glow(result.destination, 1);
   } else if (result.event?.type === 'mud') {
     onLand('mud', { from: result.landed, to: result.destination });
     onPhase('mud');
     await piece.wobbleTo(result.destination);
+    if (isCancelled()) return;
     board.glow(result.destination, 1);
   } else if (result.event?.type === 'fossil') {
     onLand('fossil', { at: result.landed });
     onPhase('fossil');
     await piece.cheer(1);
+    if (isCancelled()) return;
   } else {
     onLand('square', { at: result.landed });
   }
@@ -100,6 +117,7 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     for (const t of thorsedlas.list) t.cheer(3.2);
     world.friends?.cheer();
     await piece.cheer(4);
+    if (isCancelled()) return;
   }
 }
 

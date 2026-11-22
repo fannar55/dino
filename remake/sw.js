@@ -34,9 +34,9 @@ function fileFor(pathname, files) {
 // Frames inside Mosi (Litla Yatzy) are part of him.
 const isMosi = url => ['/remake/', '/remake/index.html'].includes(new URL(url).pathname);
 
-/** Whether a request goes straight to the net: not a GET, another site, the download or the list, Fjölspil, or another page. */
+/** Whether a request goes straight to the net: not GET/HEAD, another site, the download or the list, Fjölspil, or another page. */
 function passesThrough({ method, url, cache, mode, destination }, origin) {
-  if (method !== 'GET' || cache === 'reload' || cache === 'no-store') return true;
+  if ((method !== 'GET' && method !== 'HEAD') || cache === 'reload' || cache === 'no-store') return true;
   const address = new URL(url);
   if (address.origin !== origin || address.pathname.startsWith('/fjolspil/')) return true;
   return mode === 'navigate' && destination === 'document' && !isMosi(url);
@@ -75,37 +75,64 @@ function sliceRange(rangeHeader, body, contentType) {
 // --- end of the copy ---
 
 // The active version's list, read from the store on the first request after the worker starts, and kept until a new version
-// takes over. While there is none it is read again on each request, since the first version may take over at any time.
+// takes over or the brake clears it. Caching "no active version" (`activeLoaded`) avoids 100+ Cache API lookups per load in
+// regular browser tabs; top-level Mosi navigations still recheck so a completed first-install (`tilbuin`) promotes cleanly.
 let active = null;
+let activeLoaded = false;
 
-async function activeList() {
+async function activeList({ promote = false } = {}) {
   if (active) return active;
+  if (activeLoaded && !promote) return null;
+  if (!(await caches.has(LISTS))) {
+    activeLoaded = true;
+    return null;
+  }
   const lists = await caches.open(LISTS);
   const mark = await lists.match(listKey('virk'));
-  if (!mark) return null;
-  const { version } = await mark.json();
-  const list = await lists.match(listKey(version));
-  if (!list) return null;
-  active = { version, files: (await list.json()).files };
-  return active;
+  if (mark) {
+    const { version } = await mark.json();
+    const list = await lists.match(listKey(version));
+    if (list) {
+      active = { version, files: (await list.json()).files };
+      activeLoaded = true;
+      return active;
+    }
+  }
+  if (promote) {
+    const ready = await lists.match(listKey('tilbuin'));
+    if (ready) {
+      const { version } = await ready.json();
+      if (version && await takeOver(version)) return active;
+    }
+  }
+  activeLoaded = true;
+  return null;
 }
 
-/** A stored file as a fresh answer: whole (200), or the byte range asked for (206, or 416 past the end). */
-async function fromStore(stored, range) {
+/** A stored file as a fresh answer: whole (200), or the byte range asked for (206, or 416 past the end), for GET and HEAD. */
+async function fromStore(stored, range, method = 'GET') {
+  const head = method === 'HEAD';
   const headers = new Headers(stored.headers);
+  headers.set('Accept-Ranges', 'bytes');
   if (isByteRange(range)) {
     const sliced = sliceRange(range, await stored.arrayBuffer(), headers.get('content-type'));
-    return new Response(sliced.body, { status: sliced.status, headers: sliced.headers });
+    return new Response(head ? null : sliced.body, { status: sliced.status, headers: sliced.headers });
+  }
+  if (head) {
+    stored.body?.cancel?.();
+    return new Response(null, { status: 200, headers });
   }
   return new Response(stored.body, { status: 200, headers });
 }
 
 async function answer(request, clientId) {
   try {
-    const list = request.mode === 'navigate' || await askedByTheApp(clientId) ? await activeList() : null;
+    const isNav = request.mode === 'navigate';
+    const promote = isNav && isMosi(request.url);
+    const list = isNav || await askedByTheApp(clientId) ? await activeList({ promote }) : null;
     const name = list && fileFor(new URL(request.url).pathname, list.files);
-    const stored = name && await (await caches.open(FILES)).match(fileKey(list.files[name].hash));
-    if (stored) return await fromStore(stored, request.headers.get('range'));
+    const stored = name && await caches.has(FILES) && await (await caches.open(FILES)).match(fileKey(list.files[name].hash));
+    if (stored) return await fromStore(stored, request.headers.get('range'), request.method);
   } catch {
     // The store could not be read: the net answers, as before the app was installed.
   }
@@ -116,17 +143,23 @@ async function answer(request, clientId) {
 async function takeOver(version) {
   const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   if (windows.filter(client => client.frameType === 'top-level' && (!client.url || isMosi(client.url))).length > 1) return false;
+  if (!(await caches.has(LISTS))) return false;
   const lists = await caches.open(LISTS);
   const list = await lists.match(listKey(version));
   if (!list) return false;
   const { files } = await list.json();
   await lists.put(listKey('virk'), new Response(JSON.stringify({ version }), { headers: { 'content-type': 'application/json' } }));
   active = { version, files };
+  activeLoaded = true;
   return true;
 }
 
 self.addEventListener('install', event => { event.waitUntil(self.skipWaiting()); });
-self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
+self.addEventListener('activate', event => {
+  active = null;
+  activeLoaded = false;
+  event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener('fetch', event => {
   if (passesThrough(event.request, self.location.origin)) return;
@@ -135,8 +168,15 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('message', event => {
   const { data } = event;
-  if (!data || data.type !== 'forrit:virkja') return;
+  if (!data) return;
   const port = event.ports && event.ports[0];
+  if (data.type === 'forrit:burt') {
+    active = null;
+    activeLoaded = true;
+    if (port) port.postMessage({ ok: true });
+    return;
+  }
+  if (data.type !== 'forrit:virkja') return;
   event.waitUntil(takeOver(data.version).catch(() => false).then(ok => { if (port) port.postMessage({ ok }); }));
 });
 

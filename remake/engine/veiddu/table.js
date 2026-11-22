@@ -492,15 +492,22 @@ export function createVeidduGame(doc, {
 
   let view = null;
   let viewLoading = null;
+  let viewActive = false;
   function releaseView() {
+    viewActive = false;
     view?.rest();
     view?.dispose();
     view = null;
     viewLoading = null;
     windowEls[UGGEDLA].querySelector('img')?.removeAttribute('hidden');
   }
+  function stopView() {
+    viewActive = false;
+    view?.stop();
+  }
   function startView() {
     if (!uggedlaLive) return;
+    viewActive = true;
     if (view) return view.start();
     const loading = viewLoading ??= import('./uggedla-view.js')
       .then(module => module.createUggedlaView(windowEls[UGGEDLA], {
@@ -508,13 +515,13 @@ export function createVeidduGame(doc, {
         onLost: () => { if (view) releaseView(); },
       }))
       .then(made => {
-        if (!isOpen || viewLoading !== loading) {
+        if (!isOpen || !uggedlaLive || viewLoading !== loading) {
           made.dispose();
           return;
         }
         view = made;
         windowEls[UGGEDLA].querySelector('img')?.setAttribute('hidden', '');
-        view.start();
+        if (viewActive) view.start();
       })
       .catch(error => {
         if (viewLoading === loading) viewLoading = null;
@@ -1235,10 +1242,11 @@ export function createVeidduGame(doc, {
       root, fjolspil, save, win, random, calm, kinds, setTimer, clearTimer,
       uggedla: {
         windowEl: windowEls[UGGEDLA], frameEl: seatEls[UGGEDLA].querySelector('.veiddu-uggedla-frame'), home: seatEls[UGGEDLA],
-        view: () => view, start: () => startView(), stop: () => view?.stop(),
+        view: () => view, start: () => startView(), stop: () => stopView(),
       },
       sound: { sfx, splashes, say, speech, clock, lineMs },
       words: { SAY, asking },
+      canShow: () => isOpen && setupOpen,
       onShow: () => { // a round of Fjölspil takes the table: the card and this tablet's table give way
         setupOpen = false;
         setupEl.hidden = true;
@@ -1321,7 +1329,7 @@ export function createVeidduGame(doc, {
    * (the tutorial's) the deck is dealt in that order, not shuffled.
    */
   async function deal(stack = null) {
-    round++;
+    const token = ++round;
     reset();
     const start = newGame(stack ? { stack } : { random }); // the tutorial's deck is stacked
     game = start.game;
@@ -1347,10 +1355,11 @@ export function createVeidduGame(doc, {
         place.style.visibility = '';
         flight.drop();
         sfx('flick', { soft: true });
-      }));
+      }).catch(error => { if (error !== STALE) throw error; }));
       await wait(DEAL_GAP);
     }
     await Promise.all(flights);
+    if (token !== round || !isOpen) return undefined;
     await wait(250);
     for (const event of start.events) {
       if (event.type === 'pair') await pairUp(event.seat, event.kind, event.cardIds);

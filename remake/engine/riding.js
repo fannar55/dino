@@ -297,9 +297,9 @@ export function handsOn(rider, grips) {
       }
       applied = false;
     },
-    apply(weight) {
+    apply(weight, { fresh = false } = {}) {
       if (weight <= 0) return;
-      rider.root.updateMatrixWorld(true);
+      if (!fresh) rider.root.updateMatrixWorld(true);
       for (const arm of arms) {
         arm.upperTurn.copy(arm.upper.quaternion);
         arm.lowerTurn.copy(arm.lower.quaternion);
@@ -401,8 +401,9 @@ export function ride(rider, saddle, { settle = 0.8 } = {}) {
     },
     pose() {
       const k = smooth(clamp01((t - blend) / HANDS_IN));
-      legs?.apply(blend > 0 ? k : 1); // first: the spine's lean moves his shoulders, which the hands reach from
-      hands.apply(k);
+      const legW = blend > 0 ? k : 1;
+      legs?.apply(legW); // first: the spine's lean moves his shoulders, which the hands reach from
+      hands.apply(k, { fresh: Boolean(legs && legW > 0) });
     },
     end() {
       hands.restore();
@@ -450,7 +451,7 @@ export function floatTo(rider, saddle, { duration = 2.2, carryLegs = false } = {
       if (!handle.cancelled) t += dt;
       legs?.restore();
       const end = saddle.update();
-      const u = clamp01(t / duration);
+      const u = duration > 0 ? clamp01(t / duration) : 1;
       const k = smooth(u);
       rise.set(start.x, end.y + FLOAT_HOVER, start.z);
       hover.copy(end).addScaledVector(UP, FLOAT_HOVER);
@@ -514,7 +515,7 @@ export function floatDown(rider, saddle, spot, { duration = 2.2, heading = headi
       if (!handle.cancelled) t += dt;
       legs?.restore();
       const seat = saddle.update();
-      const u = clamp01(t / duration);
+      const u = duration > 0 ? clamp01(t / duration) : 1;
       const k = smooth(u);
       lift.copy(seat).addScaledVector(UP, FLOAT_HOVER);
       over.set(ground.x, seat.y + FLOAT_HOVER, ground.z);

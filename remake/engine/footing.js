@@ -232,10 +232,12 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     root.localToWorld(out.copy(L.home));
     return out.sub(root.position).applyAxisAngle(UP, yaw - root.rotation.y).add(root.position);
   };
+  const surfHome = new THREE.Vector3();
+  const surfNormal = new THREE.Vector3();
   const surfaceY = (L, point) => {
     if (!rootFrame) return L.ground;
-    const home = homeAt(L, root.rotation.y, new THREE.Vector3());
-    const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(root.quaternion);
+    const home = homeAt(L, root.rotation.y, surfHome);
+    const normal = surfNormal.set(0, 1, 0).applyQuaternion(root.quaternion);
     return home.y + (normal.x * (home.x - point.x) + normal.z * (home.z - point.z)) / Math.max(.25, normal.y);
   };
   /** How a resting foot is turned when the root faces `yaw` (world). */

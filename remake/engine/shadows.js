@@ -64,6 +64,19 @@ export function installDepthShadows(renderer, light) {
 const PATCHED = 'uniform sampler2DShadow directionalShadowMap';
 const colourless = new WeakSet();
 const wrapped = new WeakSet();
+const depthTargets = new WeakMap(); // renderer -> Set<{ target, colour, depth }>
+
+function rebuildDepthTarget(renderer, entry) {
+  const { target, colour, depth } = entry;
+  // Restore the colour texture while Three.js sets up the framebuffer so COLOR_ATTACHMENT0 receives a colour texture
+  // (attaching a DepthTexture to COLOR_ATTACHMENT0 after webglcontextrestored fails FBO completeness).
+  target.textures[0] = colour;
+  const before = renderer.getRenderTarget();
+  renderer.setRenderTarget(target);
+  renderer.setRenderTarget(before);
+  target.textures[0] = depth;
+}
+
 function attachDepthShadow(renderer, light) {
   const shadow = light.shadow;
   const { x: width, y: height } = shadow.mapSize;
@@ -73,14 +86,33 @@ function attachDepthShadow(renderer, light) {
   depth.magFilter = THREE.LinearFilter;
   depth.name = `${light.name || 'sun'}.shadowMap.depth`;
   const target = new THREE.WebGLRenderTarget(width, height, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthTexture: depth });
-  target.texture.name = `${light.name || 'sun'}.shadowMap.colour (unused)`;
+  const colour = target.textures[0];
+  colour.name = `${light.name || 'sun'}.shadowMap.colour (unused)`;
+  const entry = { target, colour, depth };
   // Build the framebuffer (colour texture and depth texture attached), then hand the lights the
   // depth texture: three binds `shadow.map.texture` to directionalShadowMap. The framebuffer keeps
   // its attachments; three does not re-attach a target's textures once it is set up.
-  renderer.setRenderTarget(target);
-  renderer.setRenderTarget(null);
-  target.textures[0] = depth;
+  rebuildDepthTarget(renderer, entry);
   shadow.map = target; // three only makes its own map while shadow.map is null
+
+  let list = depthTargets.get(renderer);
+  if (!list) {
+    list = new Set();
+    depthTargets.set(renderer, list);
+    renderer.domElement?.addEventListener?.('webglcontextrestored', () => {
+      for (const item of list) rebuildDepthTarget(renderer, item);
+    });
+  }
+  list.add(entry);
+
+  // Restore target.textures[0] to the colour texture on dispose so Three.js deallocates both the unused RGBA8 colour
+  // texture and the depth texture instead of leaking 4-16 MB of GPU VRAM.
+  const rawDispose = target.dispose.bind(target);
+  target.dispose = () => {
+    list.delete(entry);
+    target.textures[0] = colour;
+    rawDispose();
+  };
 
   // The shadow pass clears the colour target too; skip that one (it is never read).
   colourless.add(target);

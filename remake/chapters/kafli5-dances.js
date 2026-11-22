@@ -53,7 +53,12 @@ export const PARTS = (() => {
   parts.forEach((part, i) => { part.to = parts[i + 1]?.from ?? Infinity; part.before = parts[i - 1] ?? null; });
   return parts;
 })();
-export const partAt = beat => PARTS.findLast(part => part.from <= beat) ?? PARTS[0];
+export function partAt(beat) {
+  for (let i = PARTS.length - 1; i >= 0; i--) {
+    if (PARTS[i].from <= beat) return PARTS[i];
+  }
+  return PARTS[0];
+}
 const partOf = id => PARTS.find(part => part.id === id);
 const sorted = list => [...new Set(list.filter(b => b !== null))].sort((a, b) => a - b);
 /** Each group's calls (the moments it sings in the set), on the dance beat. */
@@ -63,6 +68,15 @@ export const CALLS = Object.fromEntries([...GROUPS, 'beetles', 'dragonflies'].ma
 export const TUNE = SET.tune.map(({ group, beat }) => ({ group, beat: heardAt(beat) })).filter(note => note.beat !== null);
 const ROARS = sorted(SET.cues.filter(cue => cue.kind === 'roar').map(cue => heardAt(cue.beat)));
 const HOPPS = sorted(SET.lines.filter(line => line.id.startsWith('hopp')).map(line => heardAt(line.beat)));
+const CARNIVAL_HOPPS = HOPPS.map(b => b - partOf('carnival').from);
+const CROWD_ROARS = ROARS.map(b => b - partOf('crowd').from).filter(b => b >= 0 && b < 16);
+const DROP_FLYER_OVER = (() => {
+  const h = CHOIR.flyers.heading * DEG;
+  return [CHOIR.flyers.at[0] + 7 * Math.cos(h), CHOIR.flyers.at[1] + 7 * Math.sin(h), 5.5, 5.5];
+})();
+const CARNIVAL_FLYER_OVER = [FAR_POOL.center[0] + 26 * Math.cos(183 * DEG), FAR_POOL.center[1] + 26 * Math.sin(183 * DEG), 3.6, 13.5, 3 * DEG];
+const DROP_FLYER_HOME = CHOIR.flyers.heading * DEG + Math.PI;
+const DEFAULT_HER = [WADE.at[0], LEVEL + 3.2, WADE.at[1]];
 /** The turtle that moves in Stoppdans, and the set's beat it does (the picture is frozen: this one runs on the set's own beat). */
 export const SLIP = { turtle: 1, at: SET.cues.find(cue => cue.kind === 'moved').beat, until: SET.cues.find(cue => cue.kind === 'unfreeze').beat };
 
@@ -115,14 +129,38 @@ const blank = () => ({
   walk: 0, walkAt: 0, trot: 0, trotAt: 0, graze: 0, standAt: 0.3, run: 0, runAt: 0, peer: 0, flap: 0, flapAt: 0, glide: 0,
   look: 0, peek: 0, hide: 0, leap: 0, crouch: 0, breathe: 0, kickA: 0, kickB: 0, wing: 0,
 });
+const POSE_CUR = blank();
+const POSE_PREV = blank();
+const POSE_BLEND = blank();
+const POSE_SUB_A = blank();
+const POSE_SUB_B = blank();
+const POSE_KEYS = Object.keys(POSE_CUR);
 const PICKED = new Set(['walkAt', 'trotAt', 'standAt', 'runAt', 'flapAt', 'wing']);
-/** Pose `a` blended toward `b` by `w` (the clips' places are taken from the heavier). */
-function blend(a, b, w) {
-  if (w <= 0) return a;
-  if (w >= 1) return b;
-  const out = {};
-  for (const key in a) out[key] = PICKED.has(key) ? (w < 0.5 ? a[key] : b[key]) : lerp(a[key], b[key], w);
-  out.turn = a.turn + short(a.turn, b.turn) * w;
+function resetPose(P) {
+  P.dx = 0; P.dy = 0; P.dz = 0; P.turn = 0; P.pitch = 0; P.roll = 0;
+  P.sx = 1; P.sy = 1; P.sz = 1; P.mix = 1;
+  P.walk = 0; P.walkAt = 0; P.trot = 0; P.trotAt = 0; P.graze = 0; P.standAt = 0.3;
+  P.run = 0; P.runAt = 0; P.peer = 0; P.flap = 0; P.flapAt = 0; P.glide = 0;
+  P.look = 0; P.peek = 0; P.hide = 0; P.leap = 0; P.crouch = 0; P.breathe = 0;
+  P.kickA = 0; P.kickB = 0; P.wing = 0;
+  return P;
+}
+/** Blend pose `a` toward `b` by `w` into `out` (safe when `out === a` or `out === b`). */
+function blendInto(out, a, b, w) {
+  if (w <= 0) {
+    if (out !== a) for (let i = 0; i < POSE_KEYS.length; i++) { const k = POSE_KEYS[i]; out[k] = a[k]; }
+    return out;
+  }
+  if (w >= 1) {
+    if (out !== b) for (let i = 0; i < POSE_KEYS.length; i++) { const k = POSE_KEYS[i]; out[k] = b[k]; }
+    return out;
+  }
+  const turn = a.turn + short(a.turn, b.turn) * w;
+  for (let i = 0; i < POSE_KEYS.length; i++) {
+    const key = POSE_KEYS[i];
+    out[key] = PICKED.has(key) ? (w < 0.5 ? a[key] : b[key]) : lerp(a[key], b[key], w);
+  }
+  out.turn = turn;
   return out;
 }
 /** `side` metres to the member's right and `fwd` metres the way it faces (toward the pool). */
@@ -441,14 +479,19 @@ function leaps(P, m, beat, plan, a = 1) {
  * from the twelfth: kafli5-video.js CAMERA), with the last shakes there. `still`: the shakes only (less motion).
  */
 const DARTS = { out: [1.05, 3.05, 5.05], back: [9.05, 11.05], beats: 1.4, far: 7.5, about: [7.05, 8.45] };
+const DARTS_ALL = [...DARTS.out, ...DARTS.back];
 const SHAKES = [0.5, 0.75, 1, 1.75]; // in each two beats
+const LIZARD_SEATS = [0, 1.6, -1.6, 0.8, -0.8, 2.4];
 function line(P, m, u, x, { a = 1, still = false } = {}) {
   // the tail: a quick wag on each shake
   let wag = 0;
   const cell = Math.floor(u / 2) * 2;
-  for (const base of [cell - 2, cell]) for (const s of SHAKES) {
-    const t = u - (base + s);
-    if (t >= 0 && t < 0.7) wag += Math.sin(TAU * 2.2 * t) * Math.exp(-t * 4.5);
+  for (let bIdx = 0; bIdx < 2; bIdx++) {
+    const base = bIdx === 0 ? cell - 2 : cell;
+    for (let sIdx = 0; sIdx < SHAKES.length; sIdx++) {
+      const t = u - (base + SHAKES[sIdx]);
+      if (t >= 0 && t < 0.7) wag += Math.sin(TAU * 2.2 * t) * Math.exp(-t * 4.5);
+    }
   }
   if (still) {
     P.turn += 16 * wag;
@@ -456,16 +499,23 @@ function line(P, m, u, x, { a = 1, still = false } = {}) {
     return;
   }
   const j = LINE.indexOf(m.k);
-  const out = DARTS.out.reduce((sum, at) => sum + win(u, at, at + DARTS.beats), 0) / DARTS.out.length; // 0 to 1: how far out
-  const back = DARTS.back.reduce((sum, at) => sum + win(u, at, at + DARTS.beats), 0) / DARTS.back.length;
-  const speed = [...DARTS.out, ...DARTS.back].reduce((sum, at) => sum + hop((u - at) / DARTS.beats), 0); // 1 in the middle of a dart
-  const seat = [0, 1.6, -1.6, 0.8, -0.8, 2.4][m.k]; // where it sits along the bank (toward the log)
+  let outSum = 0;
+  for (let i = 0; i < DARTS.out.length; i++) outSum += win(u, DARTS.out[i], DARTS.out[i] + DARTS.beats);
+  const out = outSum / DARTS.out.length; // 0 to 1: how far out
+  let backSum = 0;
+  for (let i = 0; i < DARTS.back.length; i++) backSum += win(u, DARTS.back[i], DARTS.back[i] + DARTS.beats);
+  const back = backSum / DARTS.back.length;
+  let speed = 0;
+  for (let i = 0; i < DARTS_ALL.length; i++) speed += hop((u - DARTS_ALL[i]) / DARTS.beats); // 1 in the middle of a dart
+  const seat = LIZARD_SEATS[m.k]; // where it sits along the bank (toward the log)
   const strung = win(u, 0.3, 4.6) * (1 - win(u, 9.4, 12.4)); // the leader darts first and the line strings out behind it
   const s = lerp(seat, 3.5 - 1.9 * j, strung) + DARTS.far * (out - back);
   const inLine = win(u, 0, 2.2) * (1 - win(u, 10.9, 12.9));
   const [px, pz] = runPoint(s);
   const [qx, qz] = runPoint(s + 0.3);
-  goTo(P, m, [px, x.ground(px, pz), pz], inLine);
+  P.dx += (px - m.x) * inLine;
+  P.dy += (x.ground(px, pz) - m.y) * inLine;
+  P.dz += (pz - m.z) * inLine;
   const about = win(u, DARTS.about[0], DARTS.about[1]);
   const along = headingOf(qx - px, qz - pz) + 180 * about * (j % 2 ? 1 : -1);
   P.turn += short(m.heading, along) * inLine + 16 * a * wag * (1 - 0.6 * speed);
@@ -597,12 +647,18 @@ const DARTED = (() => {
   const horn = partOf('break'), rise = partOf('rise'), drop = partOf('drop'), last = partOf('lastchorus');
   return { calls, home: rise.from + 2, drop: [drop.from, drop.to], last: [last.from + 1, last.to - 5], horn: horn.from };
 })();
+const DF_OFFS = [-0.3, -0.15, 0, 0.15, 0.3];
+const DF_P = [0, 0, 0];
+const DF_A = [0, 0, 0];
+const DF_B = [0, 0, 0];
+const DF_Q0 = [0, 0, 0];
+const DF_Q1 = [0, 0, 0];
 function dragonfly(P, m, beat, x) {
   const ph = m.k * 2.1;
-  const at = b => {
+  const call = DARTED.calls[m.k % DARTED.calls.length];
+  const at = (b, out) => {
     const hx = m.x + 0.4 * Math.sin(0.83 * b + ph), hy = m.y + 0.18 * Math.sin(1.9 * b + 2 * ph), hz = m.z + 0.35 * Math.sin(0.61 * b + 3 * ph);
-    if (x.reduced) return [hx, hy, hz];
-    const call = DARTED.calls[m.k % DARTED.calls.length];
+    if (x.reduced) { out[0] = hx; out[1] = hy; out[2] = hz; return out; }
     const there = clamp01(win(b, call, call + 3) - win(b, DARTED.home + m.k, DARTED.home + m.k + 3.5)
       + win(b, DARTED.last[0] + m.k, DARTED.last[0] + m.k + 2.5) - win(b, DARTED.last[1] + m.k, DARTED.last[1] + m.k + 3));
     const quick = b >= DARTED.last[0] ? 2 : 1; // round her: a round in eight beats in the quiet part, in four in the last chorus
@@ -612,19 +668,26 @@ function dragonfly(P, m, beat, x) {
     const wild = win(b, DARTED.drop[0], DARTED.drop[0] + 1) * (1 - win(b, DARTED.drop[1] - 2, DARTED.drop[1]));
     const loop = TAU * b / 2 + ph;
     const low = 0.9 * Math.sin(Math.PI * there) * (1 - there); // low over the water on the way to her
-    return [
-      lerp(hx, tx, there) + 2.4 * wild * Math.cos(loop),
-      lerp(hy, ty, there) - low + 0.9 * wild * (1 + Math.sin(loop * 2)),
-      lerp(hz, tz, there) + 2.4 * wild * Math.sin(loop),
-    ];
+    out[0] = lerp(hx, tx, there) + 2.4 * wild * Math.cos(loop);
+    out[1] = lerp(hy, ty, there) - low + 0.9 * wild * (1 + Math.sin(loop * 2));
+    out[2] = lerp(hz, tz, there) + 2.4 * wild * Math.sin(loop);
+    return out;
   };
-  const p = at(beat), a = at(beat - 0.04), b = at(beat + 0.04);
-  goTo(P, m, p, 1);
+  at(beat, DF_P);
+  at(beat - 0.04, DF_A);
+  at(beat + 0.04, DF_B);
+  goTo(P, m, DF_P, 1);
   let vx = 0, vz = 0; // its way over the last and the next third of a beat: it turns, it does not flip
-  for (const off of [-0.3, -0.15, 0, 0.15, 0.3]) { const q0 = at(beat + off - 0.04), q1 = at(beat + off + 0.04); vx += (q1[0] - q0[0]) / 5; vz += (q1[2] - q0[2]) / 5; }
+  for (let i = 0; i < DF_OFFS.length; i++) {
+    const off = DF_OFFS[i];
+    at(beat + off - 0.04, DF_Q0);
+    at(beat + off + 0.04, DF_Q1);
+    vx += (DF_Q1[0] - DF_Q0[0]) / 5;
+    vz += (DF_Q1[2] - DF_Q0[2]) / 5;
+  }
   const fast = win(Math.hypot(vx, vz), 0.035, 0.12);
   P.turn += short(m.heading, headingOf(vx, vz)) * fast - 20 * Math.sin(0.47 * beat + ph) * (1 - fast);
-  P.pitch += clamp(Math.atan2(b[1] - a[1], Math.hypot(vx, vz) + 0.05), -0.5, 0.5) * fast;
+  P.pitch += clamp(Math.atan2(DF_B[1] - DF_A[1], Math.hypot(vx, vz) + 0.05), -0.5, 0.5) * fast;
   P.wing = 0.12 + 0.6 * Math.sin(TAU * 4.3 * beat + ph);
 }
 
@@ -662,7 +725,14 @@ function watch(P, m, u, x, who, a = 0.4) {
 /** The whole floor dancing, and each group marking its notes of her tune. */
 function tune(P, m, u, x, a) {
   bob(P, m, u, a * x.size);
-  const e = Math.max(0, ...(NOTES[m.group] ?? []).map(at => hop((x.beat - at) / 1.2)));
+  let e = 0;
+  const notes = NOTES[m.group];
+  if (notes) {
+    for (let i = 0; i < notes.length; i++) {
+      const h = hop((x.beat - notes[i]) / 1.2);
+      if (h > e) e = h;
+    }
+  }
   if (e > 0) {
     P.dy += 0.55 * JUMP[m.group] * e * x.size;
     P.sy *= 1 + 0.1 * e;
@@ -718,10 +788,10 @@ const MOVES = {
   turtles(P, m, u, x) {
     if (m.group !== 'turtles') { // the slow record: everyone at half speed until "Og hratt!"
       const quick = win(u, 7.6, 8.4);
-      const slow = blank(), fast = blank();
+      const slow = resetPose(POSE_SUB_A), fast = resetPose(POSE_SUB_B);
       watch(slow, m, u / 2, x, 'turtles', 0.4);
       watch(fast, m, u, x, 'turtles', 0.5);
-      Object.assign(P, blend(blend(P, slow, 1), fast, quick));
+      blendInto(P, slow, fast, quick);
       return;
     }
     shell(P, m, u, { still: x.reduced });
@@ -788,15 +858,13 @@ const MOVES = {
     const wild = win(u, 1.6, 2.4) * (1 - win(u, 15, 16));
     if (x.stay) { bob(P, m, u, wild * (x.reduced ? 1 : 1.3)); return; }
     switch (m.group) {
-      case 'grazers': { const Q = blank(); stomp(Q, m, u, 1.45); Object.assign(P, blend(P, Q, wild)); break; }
+      case 'grazers': { const Q = resetPose(POSE_SUB_A); stomp(Q, m, u, 1.45); blendInto(P, P, Q, wild); break; }
       case 'turtles': shell(P, m, u, { beats: 16, fast: 2.2 }); break;
       case 'frogs': leaps(P, m, x.beat, FROG.drop, wild); break;
       case 'lizards': ring(P, m, u, x); break;
-      case 'flyers': { // a ring over the shallows in front of where they stand, three times round
-        const h = CHOIR.flyers.heading * DEG;
-        wheel(P, m, u, { from: 2.5, to: 14.5, lap: 4, high: 5.5, home: h + Math.PI, over: () => [CHOIR.flyers.at[0] + 7 * Math.cos(h), CHOIR.flyers.at[1] + 7 * Math.sin(h), 5.5, 5.5] });
+      case 'flyers': // a ring over the shallows in front of where they stand, three times round
+        wheel(P, m, u, { from: 2.5, to: 14.5, lap: 4, high: 5.5, home: DROP_FLYER_HOME, over: () => DROP_FLYER_OVER });
         break;
-      }
       case 'beetles': jump(P, m, u, 2 + Math.floor(Math.max(0, u - 2)), 0.5, 0.8); break;
       default: break;
     }
@@ -851,8 +919,7 @@ const MOVES = {
   },
   // the carnival: a parade along the bow toward the reed and back, the flyers over it; on each "Hopp!" everyone hops
   carnival(P, m, u, x) {
-    const hopps = HOPPS.map(b => b - partOf('carnival').from);
-    for (const at of hopps) jump(P, m, u, at, 0.7 * JUMP[m.group] * x.size, 1.2);
+    for (let i = 0; i < CARNIVAL_HOPPS.length; i++) jump(P, m, u, CARNIVAL_HOPPS[i], 0.7 * JUMP[m.group] * x.size, 1.2);
     if (x.stay) { bob(P, m, u, 1); pop(P, m, x.beat, 0.15 * x.size); return; }
     const out = win(u, 2.5, 13.5), back = win(u, 18, 28);
     const far = out - back; // 0 at home, 1 at the far end of the parade
@@ -863,7 +930,9 @@ const MOVES = {
         const along = -[0, 3.4, -3.4][m.k]; // where its seat is along the bank (toward the reed)
         const [px, pz] = paradePoint('grazers', along + (PARADE.grazers.out + FILE.more[j]) * far, FILE.lane[m.k]);
         const onLane = win(far, 0, 0.12);
-        goTo(P, m, [px, x.ground(px, pz), pz], onLane);
+        P.dx += (px - m.x) * onLane;
+        P.dy += (x.ground(px, pz) - m.y) * onLane;
+        P.dz += (pz - m.z) * onLane;
         // facing: along the bank on the way out, about through the pool's side, back along it, and to the pool again
         const tangent = win(u, 0.5, 2.6) - 2 * win(u, 13.6, 17.6) + win(u, 28, 30.6); // 1: toward the reed, -1: back
         P.turn += -90 * tangent;
@@ -881,7 +950,9 @@ const MOVES = {
         const j = LINE.length - 1 - LINE.indexOf(m.k); // the other way: the one nearest the reed leads
         const [px, pz] = paradePoint('lizards', 2.6 - 1.7 * j + PARADE.lizards.out * far);
         const inLine = win(u, 0.8, 2.5) * (1 - win(u, 28.2, 30.2));
-        goTo(P, m, [px, x.ground(px, pz), pz], inLine);
+        P.dx += (px - m.x) * inLine;
+        P.dy += (x.ground(px, pz) - m.y) * inLine;
+        P.dz += (pz - m.z) * inLine;
         const angle = CHOIR.lizards.angle + ((2.6 - 1.7 * j + PARADE.lizards.out * far) / PARADE.lizards.distance) / DEG;
         const about = win(u, 14, 17.5);
         P.turn += short(m.heading, angle + 90 + 180 * about * (j % 2 ? 1 : -1)) * inLine;
@@ -899,8 +970,8 @@ const MOVES = {
       }
       case 'flyers': // over the parade: a long ring over the bow, bank side out and water side back, twice round
         wheel(P, m, u, {
-          from: 2.5, to: 27.5, lap: 12.5, high: 7.5, swell: hopps, home: -Math.PI / 2, gap: 0.3,
-          over: () => { const [cx, cz] = [FAR_POOL.center[0] + 26 * Math.cos(183 * DEG), FAR_POOL.center[1] + 26 * Math.sin(183 * DEG)]; return [cx, cz, 3.6, 13.5, 3 * DEG]; },
+          from: 2.5, to: 27.5, lap: 12.5, high: 7.5, swell: CARNIVAL_HOPPS, home: -Math.PI / 2, gap: 0.3,
+          over: () => CARNIVAL_FLYER_OVER,
         });
         break;
       case 'beetles': drum(P, m, u, { from: 0, to: 32, a: 0.8 }); break;
@@ -914,8 +985,7 @@ const MOVES = {
     shift(P, m, 0, 0.3 * waiting * x.size);
     P.pitch -= 0.06 * waiting;
     bob(P, m, u, (0.15 + 0.45 * win(u, 8, 9)) * x.size);
-    const roars = ROARS.map(b => b - partOf('crowd').from).filter(b => b >= 0 && b < 16);
-    roars.forEach((at, i) => jump(P, m, u, at, (0.8 + 0.3 * i) * JUMP[m.group] * x.size, 1.5));
+    for (let i = 0; i < CROWD_ROARS.length; i++) jump(P, m, u, CROWD_ROARS[i], (0.8 + 0.3 * i) * JUMP[m.group] * x.size, 1.5);
   },
   // the ending that is not one: a last pose, held
   fakeend(P, m, u, x) { strikeAt(P, m, u, 0, x.size); },
@@ -938,11 +1008,11 @@ const MOVES = {
   end(P, m, u, x) {
     const stab = { flyers: 0, lizards: 1, frogs: 2, turtles: 3, grazers: 4, beetles: 4 }[m.group];
     if (stab === undefined) return;
-    const posed = blank();
+    const posed = resetPose(POSE_SUB_A);
     strikeAt(posed, m, u, stab, x.size);
     const held = 1 - win(u, 11.6, 12.1);
     if (u < stab - 0.1) squat(P, 0.12 * win(u, 0, 0.4)); // ready
-    Object.assign(P, blend(P, posed, held * win(u, stab - 0.1, stab)));
+    blendInto(P, P, posed, held * win(u, stab - 0.1, stab));
     jump(P, m, u, 12, JUMP[m.group] * x.size, 1.6);
   },
   after() {},
@@ -952,12 +1022,14 @@ const LAST = partOf('end');
 /** How long a part takes to come in over the one before (beats): the hard starts are short. */
 const COME_IN = { groove: 0.15, drop: 0.12, carnival: 0.3, fakeend: 0.25, grazers: 0.6, frogs: 0.15, beetles: 0.15, lastchorus: 0.25, crowd: 1, end: 0.5, after: 0.01 };
 
-function partPose(part, m, beat, x) {
-  const P = blank();
-  if (m.group === 'dragonflies') dragonfly(P, m, beat, x); // theirs is one flight, the whole set through
-  else MOVES[part.id]?.(P, m, beat - part.from, x);
-  return P;
+function partPose(part, m, beat, x, out) {
+  resetPose(out);
+  if (m.group === 'dragonflies') dragonfly(out, m, beat, x); // theirs is one flight, the whole set through
+  else MOVES[part.id]?.(out, m, beat - part.from, x);
+  return out;
 }
+
+const DANCE_CTX = { reduced: false, stay: false, size: 1, beat: 0, ground: null, her: DEFAULT_HER };
 
 /**
  * The pose of member `m` at dance beat `beat`. `x`: { reduced, ground(x, z): the land's height, her: where the dragonflies circle
@@ -965,16 +1037,19 @@ function partPose(part, m, beat, x) {
  * Returns what world/ardalur/life.js takes as a thing's dance: { dx, dy, dz, turn, pitch, roll, squash, morphs, clips, wings, mix }.
  */
 export function danceOf(m, beat, x = {}) {
-  const at = {
-    reduced: Boolean(x.reduced), stay: Boolean(x.reduced || m.audience), size: x.reduced ? 0.5 : 1, beat, ground: x.ground ?? (() => m.y),
-    her: x.her ?? [WADE.at[0], LEVEL + 3.2, WADE.at[1]],
-  };
+  const reduced = Boolean(x.reduced);
+  DANCE_CTX.reduced = reduced;
+  DANCE_CTX.stay = reduced || Boolean(m.audience);
+  DANCE_CTX.size = reduced ? 0.5 : 1;
+  DANCE_CTX.beat = beat;
+  DANCE_CTX.ground = x.ground ?? (() => m.y);
+  DANCE_CTX.her = x.her ?? DEFAULT_HER;
   const part = partAt(beat);
-  let P = partPose(part, m, beat, at);
+  let P = partPose(part, m, beat, DANCE_CTX, POSE_CUR);
   // a group's own part starts sharp for the group; the others ease into watching it
   const comeIn = CALLS[part.feature] && part.feature !== m.group ? 1 : COME_IN[part.id] ?? 1;
   const w = part.before ? win(beat - part.from, 0, comeIn) : 1;
-  if (w < 1) P = blend(partPose(part.before, m, beat, at), P, w);
+  if (w < 1) P = blendInto(POSE_BLEND, partPose(part.before, m, beat, DANCE_CTX, POSE_PREV), P, w);
   // out of its idle life over the first beat, and back into it once the last jump has landed
   P.mix = win(beat, 0, 1) * (1 - win(beat, LAST.from + 14.2, LAST.from + 15.8));
   if (x.setBeat !== undefined) slip(P, m, x.setBeat);

@@ -281,6 +281,8 @@ export function createEyelids(model, { seed } = {}) {
   shell.receiveShadow = true;
   shell.frustumCulled = false;
   shell.visible = false;
+  shell.userData.followsBody = body;
+  shell.userData.wantVisible = false;
   shell.position.copy(body.position);
   shell.quaternion.copy(body.quaternion);
   shell.scale.copy(body.scale);
@@ -295,7 +297,9 @@ export function createEyelids(model, { seed } = {}) {
     update(dt) {
       shut = blink.update(dt);
       material.userData.lidClose.set(shut, shut);
-      shell.visible = shut > 0.002;
+      const want = shut > 0.002;
+      shell.userData.wantVisible = want;
+      shell.visible = want && body.visible;
       return shut;
     },
     dispose() {

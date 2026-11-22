@@ -65,7 +65,7 @@
   font-family: "Nunito";
   src: url("./assets/fonts/nunito-latin.woff2") format("woff2");
   font-weight: 400 900;
-  font-display: block; /* a local file is there before the first frame, so no frame shows another face first */
+  font-display: swap;
 }
 
 :root {
@@ -702,7 +702,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-yatzy-pick:disabled { cursor: default; }
 .spil-yatzy-minis { display: flex; justify-content: center; align-items: flex-start; }
 .spil-yatzy-mini {
-  display: grid; grid-template-rows: 38% 1fr; justify-items: center; align-items: center; flex: none;
+  display: grid; grid-template-rows: 38% 1fr; justify-items: center; align-items: center;
   flex: 0 1 28px; flex: 0 1 30cqi; min-width: 0; aspect-ratio: 27 / 36; /* two of them big, five as wide as the card lets them */ border-radius: 6px; overflow: hidden; background: #fff; border: 2px solid var(--ink);
 }
 .spil-yatzy-mini + .spil-yatzy-mini { margin-left: -2.5cqi; }
@@ -931,7 +931,7 @@ html:has(.sl-guest-play) { overflow: hidden; } /* nothing scrolls under the roun
   box-shadow: 0 0 0 6px var(--gold), 0 0 34px 14px rgb(242 182 48 / .85);
 }
 .spil-veiddu-pond.calls::after { animation: pond-glow 1.5s ease-in-out infinite; }
-.spil-veiddu-pond.calls { animation: eitt-pulse 1.3s ease-in-out infinite; }
+.spil-veiddu-pond.calls { animation: veiddu-pulse 1.3s ease-in-out infinite; }
 .spil-veiddu-ripple { position: absolute; z-index: -1; left: 14%; top: 14%; width: 72%; height: 72%; border-radius: 50%; pointer-events: none;
   border: 3px solid rgb(255 255 255 / .7); opacity: 0; animation: ripple 6.6s ease-out infinite; }
 .spil-veiddu-ripple + .spil-veiddu-ripple { animation-delay: -3.3s; }
@@ -944,7 +944,7 @@ html:has(.sl-guest-play) { overflow: hidden; } /* nothing scrolls under the roun
   font-size: clamp(28px, 7.4vw, 36px); font-weight: 900; line-height: 1.1; color: #fff; border: 3px solid var(--ink); border-radius: 999px;
   background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .38), transparent 46%), var(--water-mid);
   box-shadow: 0 7px 0 var(--water-deep), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .3);
-  animation: eitt-pulse 1.3s ease-in-out infinite;
+  animation: veiddu-pulse 1.3s ease-in-out infinite;
 }
 .spil-veiddu-no span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
 .spil-veiddu-no.pressable.pressed { translate: 0 4px; }
@@ -1021,4 +1021,5 @@ html:has(.sl-guest-play) { overflow: hidden; } /* nothing scrolls under the roun
 
 @media (prefers-reduced-motion: reduce) {
   .spil-veiddu-hand .veiddu-card { transition: none; }
+  .spil-veiddu-pond.calls::after { opacity: .9; }
 }

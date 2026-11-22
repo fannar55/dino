@@ -177,6 +177,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const barLitAt = STAR_SHARES.map(() => Infinity); // when each star on the bar was reached (its flyer arrived)
   let pointsShown = 0; // the points by the bar, rolling up to the round's (pointsOf)
   let starFrame = 0; // frames drawn, for drawing the 3D stars every other frame while only the bar's are there
+  let frameStars = null; // starStates(time) computed once per frame and shared by update() and drawStars()
+  let cachedEndSpots = null; // endSpots({ w, h, portrait }), refreshed on resize()
+  let tagCache = []; // cached measured lane tags, invalidated on resize() and setLineup()
+  let pointsWidest = 0, lastPointsText = '', lastPointsWide = 0; // cached drawPoints() measurements
   const djMemory = {};
   const spoken = []; // [song time, line] each time the DJ spoke (state() shows them)
   let djStarted = false;
@@ -229,6 +233,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       : [{ x: w * 0.03, y: h * 0.14, w: left - w * 0.03, h: h * 0.42 }, { x: x0 + span + gap, y: h * 0.14, w: right - w * 0.03, h: h * 0.42 }];
     paintBackground();
     paintSprites();
+    cachedEndSpots = endSpots({ w, h, portrait });
+    tagCache.length = 0;
+    pointsWidest = 0;
+    lastPointsText = '';
     for (const c of constellations) place(c);
   }
 
@@ -795,6 +803,12 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       if (!guest && (time > conductor.length + END_AFTER || lookAtEnd)) { // a guest's round ends when the big screen says
         phase = 'end';
         endAt = time;
+        starMode = false;
+        clapping = false;
+        if (tierNow !== 0) {
+          tierNow = 0;
+          conductor.setTier(0);
+        }
         hands?.stop(time);
         score.total = notes.length;
         if (lookAtEnd) Object.assign(score, lookScore(endNow, conductor.expected));
@@ -843,7 +857,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       }
     }
     // glitter about the gold stars, as about Mario's: a twinkle now and then, more about the end's
-    for (const s of guest ? [] : starStates(time)) {
+    frameStars = guest ? [] : starStates(time);
+    for (const s of frameStars) {
       if (s.glass || s.gold < 1 || random() >= dt * (s.id.startsWith('end') ? 5 : 1.2)) continue;
       const a = random() * Math.PI * 2, r = s.size * (0.7 + random() * 0.6);
       sparks.push({ x: s.x + Math.cos(a) * r, y: s.y + Math.sin(a) * r, vx: 0, vy: -18, life: 0, max: 0.45 + random() * 0.25, size: 8 + random() * 7, gravity: 0 });
@@ -1351,17 +1366,27 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   function drawTag(g, i, x, time) {
     const name = laneRule[i].name;
     if (!name) return;
-    const most = laneW * 0.6;
-    let size = Math.max(12, Math.round(dinoR * 0.27));
-    const font = () => { g.font = `800 ${size}px Nunito, ui-rounded, sans-serif`; };
-    font();
-    let text = name;
-    while (g.measureText(text).width > most - size * 0.8 && size > 12) { size--; font(); }
-    if (g.measureText(text).width > most - size * 0.8) {
-      while (text.length > 1 && g.measureText(`${text}…`).width > most - size * 0.8) text = text.slice(0, -1);
-      text += '…';
+    let cached = tagCache[i];
+    if (!cached || cached.name !== name) {
+      const most = laneW * 0.6;
+      let size = Math.max(12, Math.round(dinoR * 0.27));
+      let fontStr = `800 ${size}px Nunito, ui-rounded, sans-serif`;
+      g.font = fontStr;
+      let text = name;
+      while (g.measureText(text).width > most - size * 0.8 && size > 12) {
+        size--;
+        fontStr = `800 ${size}px Nunito, ui-rounded, sans-serif`;
+        g.font = fontStr;
+      }
+      if (g.measureText(text).width > most - size * 0.8) {
+        while (text.length > 1 && g.measureText(`${text}…`).width > most - size * 0.8) text = text.slice(0, -1);
+        text += '…';
+      }
+      cached = { name, text, size, fontStr, tagW: Math.min(most, g.measureText(text).width + size * 0.9), tagH: size * 1.45 };
+      tagCache[i] = cached;
     }
-    const tagW = Math.min(most, g.measureText(text).width + size * 0.9), tagH = size * 1.45;
+    const { text, size, fontStr, tagW, tagH } = cached;
+    g.font = fontStr;
     const y = hitY + dinoR * 0.86;
     const since = time - tagBlinkAt[i];
     const lit = since >= 0 && since < 0.8 && Math.floor(since / 0.2) % 2 === 0;
@@ -1497,12 +1522,19 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (phase !== 'play') return;
     const text = pointsText(pointsShown);
     const hit = time - comboAt;
-    const size = Math.round((portrait ? 22 : 30) * (1 + (hit >= 0 ? 0.18 * Math.exp(-hit * 12) : 0)));
-    g.font = `900 ${portrait ? 22 : 30}px Nunito, ui-rounded, sans-serif`;
-    const widest = g.measureText('88.888').width, wide = g.measureText(text).width;
+    const baseSize = portrait ? 22 : 30;
+    const size = Math.round(baseSize * (1 + (hit >= 0 ? 0.18 * Math.exp(-hit * 12) : 0)));
+    if (!pointsWidest || text !== lastPointsText) {
+      g.font = `900 ${baseSize}px Nunito, ui-rounded, sans-serif`;
+      if (!pointsWidest) pointsWidest = g.measureText('88.888').width;
+      if (text !== lastPointsText) {
+        lastPointsText = text;
+        lastPointsWide = g.measureText(text).width;
+      }
+    }
     const right = bar.x + bar.w;
-    const beside = w - right - 24 >= widest + 12;
-    const x = beside ? right + 22 + wide / 2 : w - 12 - wide / 2;
+    const beside = w - right - 24 >= pointsWidest + 12;
+    const x = beside ? right + 22 + lastPointsWide / 2 : w - 12 - lastPointsWide / 2;
     const y = beside ? bar.y + bar.h / 2 + 1 : counterY;
     drawWord(g, text, x, y, size, { style: starMode ? 'rainbow' : 'gold', time, pop: 0, glow: starMode });
   }
@@ -1713,7 +1745,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
 
   /** Where end star `i` lands, and how big it is: five in an arc, the middle one higher and bigger (star-motion.js endSpots). */
   function endSpot(i) {
-    return endSpots({ w, h, portrait })[i];
+    return (cachedEndSpots ?? (cachedEndSpots = endSpots({ w, h, portrait })))[i];
   }
 
   /** The end's veil: the round goes dark behind the stars (drawn under the sparks and fireworks, so they shine on it). */
@@ -1739,7 +1771,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     }
     g.globalAlpha = 1;
     const t = time - endAt;
-    const spots = endSpots({ w, h, portrait });
+    const spots = cachedEndSpots ?? (cachedEndSpots = endSpots({ w, h, portrait }));
     // under the arc: the word, the points large and gold, then the notes, the longest run and a new best smaller
     const below = spots[0].y + spots[0].size + spots[2].size * 0.75;
     const line = portrait ? [0, 52, 98, 128, 168] : [0, 66, 120, 156, 202];
@@ -1795,7 +1827,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
 
   /** The stars: in 3D when there is a view, else flat (a turn squeezes the star sideways, as a coin turning). */
   function drawStars(g, time) {
-    const list = starStates(time);
+    const list = frameStars ?? starStates(time);
     if (stars3d) {
       // while the round plays only the bar's slow stars are there: every other frame is enough (a tablet's frame rate), but
       // never while one flies up or has just been reached; the end draws every frame
@@ -1854,6 +1886,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   /** Who plays each lane now (a guest dropped out: Egill takes her lane): windows, grace and names follow; the fall stays. */
   function setLineup(next) {
     if (!current || !Array.isArray(next)) return;
+    tagCache.length = 0;
     next.forEach((lane, i) => {
       if (i >= lanes || !lane) return;
       const rule = ruleOf(lane);

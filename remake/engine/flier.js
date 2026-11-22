@@ -108,19 +108,23 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
   }
   const laneAt = u => lanes.find(lane => u >= lane.from && u <= lane.to) ?? null;
 
-  // A critically damped spring toward `target`, exact for any step: returns [x, v].
+  // A critically damped spring toward `target`, exact for any step: writes { x, v } into `out`.
+  const sprung = { x: 0, v: 0 };
   function spring(x, v, target, dt) {
     const w = FLIGHT.spring;
     const e = Math.exp(-w * dt);
     const d = x - target;
     const c = v + w * d;
-    return [target + (d + c * dt) * e, (v - w * c * dt) * e];
+    sprung.x = target + (d + c * dt) * e;
+    sprung.v = (v - w * c * dt) * e;
+    return sprung;
   }
 
   function reset() {
     state.offset = 0; state.offsetV = 0; state.steer = 0;
     state.lift = 0; state.liftV = 0; state.skim = false;
     state.extra = 0; state.burstUntil = -Infinity; state.payFrom = null; state.payAmount = 0;
+    state.landing = false;
   }
 
   function play(name) {
@@ -171,12 +175,14 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
     // Aside and down: a steer only in a lane, a skim only in a lane over water.
     const lane = laneAt(state.u);
     const aside = lane ? clamp(state.steer, -1, 1) * lane.half : 0;
-    [state.offset, state.offsetV] = spring(state.offset, state.offsetV, aside, step);
+    spring(state.offset, state.offsetV, aside, step);
+    state.offset = sprung.x; state.offsetV = sprung.v;
     if (lane) state.offset = clamp(state.offset, -lane.half, lane.half);
     route.pointAt(state.u, p);
     const level = state.skim && lane ? route.riverLevelAt(s, 2) : null;
     const down = level === null ? 0 : Math.min(0, level + FLIGHT.skim * scale - p.y);
-    [state.lift, state.liftV] = spring(state.lift, state.liftV, down, step);
+    spring(state.lift, state.liftV, down, step);
+    state.lift = sprung.x; state.liftV = sprung.v;
 
     // Her turn.
     state.heading = headingAt(Math.max(s, 6));
@@ -318,6 +324,7 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
   const legs = legsOn(rider, ankles, knees, { lean });
   const move = new THREE.Matrix4(); // her root as it was, to where the flier has put it this frame
   const wrist = new V3();
+  const upDir = new V3();
   let t = 0;
   const fromTurn = rider.root.quaternion.clone();
   const from = rider.root.position.clone();
@@ -344,7 +351,7 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
       frame(turn);
       const on = saddle?.ready && saddle.shown ? saddle.update(move.multiplyMatrices(rootNow, rootThen)) : null;
       const k = settle > 0 ? smooth(t / settle) : 1;
-      rider.root.position.copy(on ? on.seat : seat).addScaledVector(Y.clone().applyQuaternion(turn), -SIT_DEPTH);
+      rider.root.position.copy(on ? on.seat : seat).addScaledVector(upDir.copy(Y).applyQuaternion(turn), -SIT_DEPTH);
       off ??= from.clone().sub(rider.root.position);
       rider.root.position.addScaledVector(off, 1 - k);
       rider.root.quaternion.slerpQuaternions(fromTurn, turn, k);
@@ -367,7 +374,7 @@ export function rideFlier(rider, flier, { bone: boneName = SEAT.bone, offset = S
     pose() {
       const k = smooth(t / 0.4);
       legs.apply(k); // first: the spine's lean moves his shoulders, which the hands reach from
-      hands.apply(k);
+      hands.apply(k, { fresh: k > 0 });
     },
     end() { hands.restore(); legs.restore(); },
   };

@@ -93,7 +93,6 @@ export function createRiverSurface(route, material) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'Árdalur river';
   mesh.receiveShadow = true;
-  if (material.isMeshLambertMaterial) material.side = THREE.DoubleSide;
   return mesh;
 }
 

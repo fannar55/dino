@@ -30,7 +30,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
    the world behind a caption can still be tapped. A caption stands over the fade and the open book: the
    last scene fades and opens the book while Mosi speaks, and his words must not read dimmed. */
 .caption {
-  position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2;
+  position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 3;
   width: min(720px, calc(100% - 32px)); padding: 14px 20px 16px; border: 2.5px solid var(--ink); border-radius: 20px;
   background: var(--paper); color: var(--ink); box-shadow: 0 4px 0 rgba(59, 47, 37, .16), var(--shadow); pointer-events: none;
 }

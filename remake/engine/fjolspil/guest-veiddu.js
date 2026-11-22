@@ -77,6 +77,7 @@ const DEAL_GAP = 105; // between two cards dealt
 const GLIDE_MS = 320; // the hand closing up or making room
 const CUE_MS = 2500; // her card stays this long, or until her first touch
 const CUE_FADE_MS = 220; // and fades out this long
+const UNLOCK_MS = 5000; // safety unlock if a sent act never receives a fresh view
 const BUZZ = [60, 40, 60]; // ms of buzz, quiet, buzz: where the phone has a motor
 
 const DUTIES = new Set(['ask', 'fish', 'give', 'no']);
@@ -94,6 +95,10 @@ export function renderVeiddu(root, view, { send, doc = root.ownerDocument, audio
   at.audio = audio;
   shown = at;
   update(at, view && typeof view === 'object' ? view : {});
+  return () => {
+    clearUnlock(at);
+    endCue(at, { quick: true });
+  };
 }
 
 function build(root, doc) {
@@ -156,6 +161,7 @@ function build(root, doc) {
     send: null, audio: null,
     view: null, // the view shown
     sent: false, // an act is on its way to the big screen: nothing more until the next view
+    unlockTimer: 0,
     picked: null, // the kind she has lifted, to ask for
     cards: new Map(), // card id -> its button in the hand
     seats: new Map(), // seat -> its tag at the top
@@ -196,12 +202,33 @@ function play(at, name, detail) {
   }
 }
 
+function clearUnlock(at) {
+  if (at.unlockTimer) { clearTimeout(at.unlockTimer); at.unlockTimer = 0; }
+}
+
+function unlock(at) {
+  clearUnlock(at);
+  at.sent = false;
+  at.screen.classList.remove('sent');
+  for (const el of at.cards.values()) el.classList.remove('going');
+  for (const seat of at.seats.values()) seat.li.classList.remove('going');
+}
+
 /** An act to the big screen, one for each view: what came of it is the next view. False when one is on its way already. */
 function act(at, body) {
   if (at.sent || !at.view) return false;
+  const view = at.view;
   at.sent = true;
   at.screen.classList.add('sent');
-  at.send?.(body);
+  if (at.send?.(body) === false) {
+    if (at.view === view) unlock(at);
+    return false;
+  }
+  if (at.view === view && at.sent) {
+    clearUnlock(at);
+    at.unlockTimer = setTimeout(() => { at.unlockTimer = 0; if (at.view === view) unlock(at); }, UNLOCK_MS);
+    at.unlockTimer?.unref?.();
+  }
   return true;
 }
 
@@ -343,6 +370,7 @@ export function heardText(event, names) {
 }
 
 function update(at, view) {
+  clearUnlock(at);
   const prev = at.view;
   at.view = view;
   at.sent = false;

@@ -57,6 +57,7 @@ export function createVideoPlayer(doc, root, { audio = null, win = globalThis.wi
   meta.append(title, time);
   const progress = make('div', 'video-progress');
   progress.setAttribute('role', 'slider');
+  progress.setAttribute('tabindex', '0');
   progress.setAttribute('aria-label', 'Staða í myndbandi');
   progress.setAttribute('aria-valuemin', '0');
   progress.setAttribute('aria-valuemax', '100');
@@ -166,7 +167,7 @@ export function createVideoPlayer(doc, root, { audio = null, win = globalThis.wi
   progress.addEventListener('pointerdown', event => {
     if (!isOpen || event.button > 0) return;
     scrubbing = event.pointerId;
-    progress.setPointerCapture?.(event.pointerId);
+    try { progress.setPointerCapture?.(event.pointerId); } catch {}
     scrubAt(event.clientX);
   });
   progress.addEventListener('pointermove', event => {
@@ -176,10 +177,29 @@ export function createVideoPlayer(doc, root, { audio = null, win = globalThis.wi
   const endScrub = event => {
     if (scrubbing !== event.pointerId) return;
     scrubbing = null;
-    progress.releasePointerCapture?.(event.pointerId);
+    try { progress.releasePointerCapture?.(event.pointerId); } catch {}
   };
   progress.addEventListener('pointerup', endScrub);
   progress.addEventListener('pointercancel', endScrub);
+  progress.addEventListener('lostpointercapture', endScrub);
+  progress.addEventListener('keydown', event => {
+    if (!isOpen) return;
+    const cur = Number.isFinite(screen.currentTime) ? screen.currentTime : 0;
+    const dur = Number.isFinite(screen.duration) && screen.duration > 0 ? screen.duration : 0;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+      event.preventDefault?.();
+      seek(cur - 5);
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+      event.preventDefault?.();
+      seek(cur + 5);
+    } else if (event.key === 'Home') {
+      event.preventDefault?.();
+      seek(0);
+    } else if (event.key === 'End' && dur > 0) {
+      event.preventDefault?.();
+      seek(dur);
+    }
+  });
 
   screen.addEventListener('play', () => { if (isOpen) setPlaying(true); });
   screen.addEventListener('playing', () => { if (isOpen) setPlaying(true); });
@@ -189,9 +209,19 @@ export function createVideoPlayer(doc, root, { audio = null, win = globalThis.wi
     setPlaying(false);
     sparkle(toggleButton, 10, win);
   });
+  screen.addEventListener('error', () => {
+    if (!isOpen) return;
+    scrubbing = null;
+    setPlaying(false);
+    syncTime();
+  });
   screen.addEventListener('timeupdate', () => { if (isOpen) syncTime(); });
   screen.addEventListener('loadedmetadata', () => { if (isOpen) syncTime(); });
   screen.addEventListener('durationchange', () => { if (isOpen) syncTime(); });
+
+  const onVisibility = () => {
+    if (doc.hidden && isOpen && playing) pauseMedia();
+  };
 
   // ---- Motion ------------------------------------------------------------------------------------------------------
 
@@ -282,6 +312,7 @@ export function createVideoPlayer(doc, root, { audio = null, win = globalThis.wi
     try { screen.currentTime = 0; } catch {}
     syncTime();
     player.hidden = false;
+    doc.addEventListener?.('visibilitychange', onVisibility);
     grow();
     playMedia();
     return true;
@@ -292,6 +323,7 @@ export function createVideoPlayer(doc, root, { audio = null, win = globalThis.wi
     const shut = current;
     isOpen = false;
     scrubbing = null;
+    doc.removeEventListener?.('visibilitychange', onVisibility);
     pauseMedia();
     if (instant) finishClose();
     else shrink();

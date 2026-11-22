@@ -120,30 +120,55 @@ export function djCueOf(event, time, memory, random = Math.random) {
  * when none of its takes is loaded yet: it is just not heard). load() fetches and decodes the takes one at a time (the page calls
  * it while the start card waits; the first way of each line first, so a round started early has them all).
  */
+const MENU_KEYS = new Set([
+  'hverspilar', 'hvadalag', 'barn', 'fullordinn', 'thrjar', 'tvaer', 'tilbuin', 'saman', 'kom',
+  ...Object.keys(DJ_LINES).filter(key => key.startsWith('lag-')),
+]);
+
 export function createDj({ context, output, src, level = 1.2, random = Math.random, onTalk = () => {} }) {
   const bus = context.createGain();
   bus.gain.value = level;
   bus.connect(output);
   const buffers = {}; // id -> AudioBuffer
+  const queued = new Set(); // ids already scheduled for decode
   const last = {}; // key -> the id said last
   let current = null; // { source, level } of the line he is saying
   let saidText = '';
+  let disposed = false;
   let queue = Promise.resolve();
-  function load() {
-    const order = [...DJ_TAKES].sort((x, y) => Number(x.id.split('-').pop()) - Number(y.id.split('-').pop()));
-    for (const { id } of order) {
+  const byTake = (x, y) => Number(x.id.split('-').pop()) - Number(y.id.split('-').pop());
+  function enqueue(takes) {
+    for (const { id } of [...takes].sort(byTake)) {
+      if (queued.has(id)) continue;
+      queued.add(id);
       queue = queue.then(async () => {
+        if (disposed || context.state === 'closed') return;
         try {
-          const bytes = await fetch(src(id)).then(r => r.arrayBuffer());
+          const response = await fetch(src(id));
+          if (disposed || context.state === 'closed') return;
+          const bytes = await response.arrayBuffer();
+          if (disposed || context.state === 'closed') return;
           buffers[id] = await context.decodeAudioData(bytes);
         } catch { /* that take stays quiet */ }
       });
     }
     return queue;
   }
+  /** Loads menu takes first so the start screen speaks promptly without decoding all round lines up front. */
+  function load() {
+    return enqueue(DJ_TAKES.filter(take => MENU_KEYS.has(take.key)));
+  }
+  /** Loads round takes lazily when a round begins. */
+  function loadRound() {
+    return enqueue(DJ_TAKES.filter(take => !MENU_KEYS.has(take.key)));
+  }
   function play(key, { delay = 0.05 } = {}) {
+    if (disposed || context.state === 'closed') return 0;
     const ready = DJ_TAKES.filter(take => take.key === key && buffers[take.id]);
-    if (!ready.length) return 0;
+    if (!ready.length) {
+      enqueue(DJ_TAKES.filter(take => take.key === key));
+      return 0;
+    }
     const fresh = ready.length > 1 ? ready.filter(take => take.id !== last[key]) : ready;
     const take = fresh[Math.floor(random() * fresh.length)];
     last[key] = take.id;
@@ -176,7 +201,11 @@ export function createDj({ context, output, src, level = 1.2, random = Math.rand
     current = null;
     onTalk(now, 0);
   }
+  function dispose() {
+    disposed = true;
+    hush();
+  }
   /** The words of the take he said last (for a bubble), or the empty string. */
   const said = () => saidText;
-  return { load, play, hush, said, bus };
+  return { load, loadRound, play, hush, dispose, said, bus };
 }

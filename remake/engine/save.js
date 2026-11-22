@@ -132,112 +132,176 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   let veiddu = null; // Uggeðla's card game's, once a round has been played
   let hals = null; // the fossil collection, once the first fossil has been found
   let stickers = null; // stickers won in Háls og hali, Litla Yatzy, Söngur Slóeðlu and Saman getum við það!
+  let lastRaw = null; // last JSON string read from or written to `storage`, to detect cross-tab/iframe writes
+  let storageWritable = true; // cleared if storage refuses/ignores writes (quota full or read-only mock)
 
+  function applyStored(stored, preserve = null) {
+    if (!stored || typeof stored !== 'object') return;
+    for (const list of ['stars', 'findings', 'seen', 'places']) {
+      const ext = idsOf(stored[list]);
+      data[list] = preserve === list ? idsOf([...ext, ...data[list]]) : idsOf([...data[list], ...ext]);
+    }
+    if (preserve !== 'eitt') {
+      const ext = eittOf(stored.eitt);
+      if (ext) eitt = ext;
+    }
+    if (preserve !== 'veiddu') {
+      const ext = veidduOf(stored.veiddu);
+      if (ext) veiddu = ext;
+    }
+    if (preserve !== 'hals') {
+      const ext = halsOf(stored.hals);
+      if (ext) hals = ext;
+    } else if (stored.hals) {
+      const ext = halsOf(stored.hals);
+      if (ext?.found.length) hals = halsOf({ ...hals, found: idsOf([...ext.found, ...(hals?.found ?? [])]) });
+    }
+    if (preserve !== 'stickers') {
+      const ext = stickersOf(stored.stickers);
+      if (ext) stickers = ext;
+    }
+  }
+
+  function sync(preserve = null) {
+    if (!storageWritable) return;
+    try {
+      const raw = storage?.getItem(key);
+      if (typeof raw !== 'string' || raw === lastRaw) return;
+      lastRaw = raw;
+      applyStored(JSON.parse(raw), preserve);
+    } catch {
+      // storage unreadable or invalid JSON: keep in-memory state
+    }
+  }
+
+  // Initial read from storage
   try {
-    const stored = JSON.parse(storage?.getItem(key) ?? 'null');
-    if (stored && typeof stored === 'object') {
-      data.stars = idsOf(stored.stars);
-      data.findings = idsOf(stored.findings);
-      data.seen = idsOf(stored.seen); // none in a save from before the book
-      data.places = idsOf(stored.places); // none in a save from before the map
-      eitt = eittOf(stored.eitt); // none in a save from before the game
-      veiddu = veidduOf(stored.veiddu); // none in a save from before Veiddu
-      hals = halsOf(stored.hals); // none in a save from before the fossils
-      stickers = stickersOf(stored.stickers);
+    const raw = storage?.getItem(key);
+    if (typeof raw === 'string') {
+      lastRaw = raw;
+      const stored = JSON.parse(raw);
+      if (stored && typeof stored === 'object') {
+        data.stars = idsOf(stored.stars);
+        data.findings = idsOf(stored.findings);
+        data.seen = idsOf(stored.seen); // none in a save from before the book
+        data.places = idsOf(stored.places); // none in a save from before the map
+        eitt = eittOf(stored.eitt); // none in a save from before the game
+        veiddu = veidduOf(stored.veiddu); // none in a save from before Veiddu
+        hals = halsOf(stored.hals); // none in a save from before the fossils
+        stickers = stickersOf(stored.stickers);
+      }
     }
   } catch {
     // nothing stored, or nothing that can be read: start empty
   }
 
-  function write() {
+  function write(section = null) {
+    // Merge any external iframe/tab writes before persisting so we never silently clobber another window's progress.
+    sync(section);
     try {
-      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(veiddu && { veiddu }), ...(hals && { hals }), ...(stickers && { stickers }) }));
-    } catch {
-      // not kept for next time; still kept for now
+      const nextRaw = JSON.stringify({ ...data, ...(eitt && { eitt }), ...(veiddu && { veiddu }), ...(hals && { hals }), ...(stickers && { stickers }) });
+      storage?.setItem(key, nextRaw);
+      // Confirm storage retained the write; read-only/no-op/quota-full stores must not clobber live memory on next sync().
+      if (storage && storage.getItem(key) === nextRaw) {
+        lastRaw = nextRaw;
+      } else if (storage) {
+        storageWritable = false;
+      }
+    } catch (error) {
+      storageWritable = false;
+      if (error?.name === 'QuotaExceededError') console.warn('[save] storage quota exceeded; keeping save in memory');
     }
   }
 
   function add(list, id) {
     if (typeof id !== 'string' || !id) throw new TypeError(`A save keeps ids, which are names, not ${String(id)}`);
+    sync();
     if (data[list].includes(id)) return false;
     data[list].push(id);
-    write();
+    write(list);
     return true;
   }
 
+  const getCardGame = state => ({
+    skill: state?.skill ?? null,
+    losses: state?.losses ?? 0,
+    wins: state?.wins ?? 0,
+    tutorialDone: state?.tutorialDone ?? false,
+    game: state?.game ? copied(state.game) : null,
+    seats: state?.seats ? copied(state.seats) : null,
+  });
+  const mergeCardGame = (current, changes) => {
+    const next = { ...current, ...changes };
+    if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
+    if ('seats' in changes) next.seats = changes.seats ? copied(changes.seats) : null;
+    return eittOf(next) ?? eittOf({});
+  };
+
   return {
-    get: () => ({ stars: [...data.stars], findings: [...data.findings], seen: [...data.seen], places: [...data.places] }),
+    get: () => { sync(); return { stars: [...data.stars], findings: [...data.findings], seen: [...data.seen], places: [...data.places] }; },
     addStar: id => add('stars', id),
     addFinding: id => add('findings', id),
     addSeen: id => add('seen', id),
     addPlace: id => add('places', id),
-    getEitt: () => ({
-      skill: eitt?.skill ?? null,
-      losses: eitt?.losses ?? 0,
-      wins: eitt?.wins ?? 0,
-      tutorialDone: eitt?.tutorialDone ?? false,
-      game: eitt?.game ? copied(eitt.game) : null,
-      seats: eitt?.seats ? copied(eitt.seats) : null,
-    }),
+    getEitt: () => { sync(); return getCardGame(eitt); },
     setEitt(changes = {}) {
-      const next = { ...eitt, ...changes };
-      if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
-      if ('seats' in changes) next.seats = changes.seats ? copied(changes.seats) : null;
-      eitt = eittOf(next) ?? eittOf({});
-      write();
+      sync();
+      eitt = mergeCardGame(eitt, changes);
+      write('eitt');
     },
-    getVeiddu: () => ({
-      skill: veiddu?.skill ?? null,
-      losses: veiddu?.losses ?? 0,
-      wins: veiddu?.wins ?? 0,
-      tutorialDone: veiddu?.tutorialDone ?? false,
-      game: veiddu?.game ? copied(veiddu.game) : null,
-      seats: veiddu?.seats ? copied(veiddu.seats) : null,
-    }),
+    getVeiddu: () => { sync(); return getCardGame(veiddu); },
     setVeiddu(changes = {}) {
-      const next = { ...veiddu, ...changes };
-      if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
-      if ('seats' in changes) next.seats = changes.seats ? copied(changes.seats) : null;
-      veiddu = veidduOf(next) ?? veidduOf({});
-      write();
+      sync();
+      veiddu = mergeCardGame(veiddu, changes);
+      write('veiddu');
     },
-    getHals: () => ({ found: [...(hals?.found ?? [])] }),
+    getHals: () => { sync(); return { found: [...(hals?.found ?? [])] }; },
     addHalsFound(kind) {
       if (typeof kind !== 'string' || !kind) throw new TypeError(`A save keeps ids, which are names, not ${String(kind)}`);
+      sync();
       if (hals?.found.includes(kind)) return false;
       hals = { ...hals, found: [...(hals?.found ?? []), kind] };
-      write();
+      write('hals');
       return true;
     },
-    getHalsPlay: () => ({
-      game: hals?.game ? JSON.parse(JSON.stringify(hals.game)) : null,
-      intro: hals?.intro === true,
-      hello: hals?.hello === true,
-      played: hals?.played === true,
-    }),
+    getHalsPlay: () => {
+      sync();
+      return {
+        game: hals?.game ? copied(hals.game) : null,
+        intro: hals?.intro === true,
+        hello: hals?.hello === true,
+        played: hals?.played === true,
+      };
+    },
     setHalsPlay(changes = {}) {
+      sync();
       const next = { ...hals, found: hals?.found ?? [] };
-      if ('game' in changes) next.game = changes.game ? JSON.parse(JSON.stringify(changes.game)) : null;
+      if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
       if ('intro' in changes) next.intro = changes.intro === true;
       if ('hello' in changes) next.hello = changes.hello === true;
       if (changes.played === true || hals?.game || next.game) next.played = true; // a game kept has been played, for good
       hals = halsOf(next);
-      write();
+      write('hals');
     },
-    getStickers: () => ({
-      hals: stickers?.hals ?? 0,
-      junior: stickers?.junior ?? 0,
-      sloedla: stickers?.sloedla ?? 0,
-      minnisspil: stickers?.minnisspil ?? 0,
-    }),
+    getStickers: () => {
+      sync();
+      return {
+        hals: stickers?.hals ?? 0,
+        junior: stickers?.junior ?? 0,
+        sloedla: stickers?.sloedla ?? 0,
+        minnisspil: stickers?.minnisspil ?? 0,
+      };
+    },
     setStickers(changes = {}) {
+      sync();
       stickers = stickersOf({ ...stickers, ...changes });
-      write();
+      write('stickers');
     },
     addSticker(game) {
       if (!STICKER_GAMES.includes(game)) throw new TypeError(`Unknown sticker game ${String(game)}`);
+      sync();
       stickers = stickersOf({ ...stickers, [game]: (stickers?.[game] ?? 0) + 1 });
-      write();
+      write('stickers');
     },
   };
 }

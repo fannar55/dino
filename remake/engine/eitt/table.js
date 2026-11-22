@@ -546,6 +546,7 @@ export function createEittGame(doc, {
 
   let view = null;
   let viewLoading = null;
+  const kambedlaActive = () => isOpen && (!multi || KAMBEDLA !== null);
   function releaseView() {
     view?.rest();
     view?.dispose();
@@ -554,6 +555,7 @@ export function createEittGame(doc, {
     picture.hidden = false;
   }
   function startView() {
+    if (!kambedlaActive()) return;
     if (view) return view.start();
     const loading = viewLoading ??= import('./kambedla-view.js')
       .then(module => module.createKambedlaView(windowEl, {
@@ -567,7 +569,7 @@ export function createEittGame(doc, {
         }
         view = made;
         picture.hidden = true;
-        view.start();
+        if (kambedlaActive()) view.start();
       })
       .catch(error => {
         if (viewLoading === loading) viewLoading = null;
@@ -650,80 +652,100 @@ export function createEittGame(doc, {
     return [mosiBox.right + 10, rightLimit];
   }
 
+  const spreadOf = count => (count > 7 ? 5 / (count - 1) : 1);
+  /** Horizontal half-extent of the outermost tilted card in a row of `count` cards (origin 50% 160%, 3deg * i, y-drop 2.4 * i^2). */
+  function outerHalf(count, width, height) {
+    if (count <= 1) return width / 2;
+    const i = ((count - 1) / 2) * spreadOf(count);
+    const theta = (i * 3 * Math.PI) / 180;
+    const drop = i * i * 2.4;
+    return (width / 2) * Math.cos(theta) + Math.max(0, 1.6 * height - drop) * Math.sin(theta);
+  }
+
   /**
    * A hand of so many cards that each would show a strip narrower than a small finger (TAP_PX) lies in two overlapping rows instead,
    * or in three: the first cards in the back row and the rest in front of it, each row fanned and centred on its own, each card
    * showing a strip of at least TAP_PX across and a good part of its height (.rows in eitt.css).
    */
-  function layRows(cards, upright) {
+  function layRows(cards, width, height, availHalf) {
     const els = cards.map(card => handEls.get(card.id));
-    const spread = count => (count > 7 ? 5 / (count - 1) : 1);
-    let step = 0;
-    handEl.classList.add('rows');
+    const n = cards.length;
+    let chosenRows = 2;
+    let chosenPer = Math.ceil(n / 2);
+    let chosenStep = width * 0.92;
     for (let rows = 2; rows <= 3; rows++) {
-      const per = Math.ceil(cards.length / rows);
-      step = els[0].offsetWidth * 0.92; // the most a card is ever spread: a card's width less its overlap of .04 on either side
-      handEl.style.setProperty('--more', per - 1);
-      handEl.style.setProperty('--more-rows', rows - 1);
-      handEl.style.setProperty('--row-step', rows === 3 ? 'calc(var(--hand-w) * .5)' : ''); // three rows lie closer, to stay under the pile
-      els.forEach((el, k) => {
-        const row = Math.floor(k / per);
-        const col = k % per;
-        const count = Math.min(per, cards.length - row * per);
-        const i = ((col - (count - 1) / 2) * spread(count)).toFixed(2);
-        el.style.setProperty('--col', col + 1);
-        el.style.setProperty('--row', row + 1);
-        el.style.setProperty('--shift', ((per - count) / 2).toFixed(2)); // a row of fewer cards is centred under the longer one
-        el.style.setProperty('--i', i);
-        el.dataset.i = i;
-      });
-      // The fan tilts the outer cards outward: measured, a row that still reaches Mosi or "Eitt!" closes up more. (The buttons move
-      // out as the hand narrows, so this only ever has room to gain.)
-      for (let tries = 0; tries < 10; tries++) {
-        handEl.style.setProperty('--step', `${step.toFixed(1)}px`);
-        const [from, to] = handBounds(upright);
-        const boxes = els.map(el => el.getBoundingClientRect()); // hidden ones too: they will land there
-        const over = Math.max(0, from - Math.min(...boxes.map(box => box.left))) + Math.max(0, Math.max(...boxes.map(box => box.right)) - to);
-        if (over < 1) break;
-        step = Math.max(40, step - over / (per - 1) - 0.5);
+      const per = Math.ceil(n / rows);
+      const maxStep = width * 0.92; // the most a card is ever spread: a card's width less its overlap of .04 on either side
+      let step = maxStep;
+      if (per > 1) {
+        const halfCard = outerHalf(per, width, height);
+        step = Math.min(maxStep, Math.max(40, (2 * (availHalf - halfCard)) / (per - 1)));
       }
+      chosenRows = rows;
+      chosenPer = per;
+      chosenStep = step;
       if (step >= TAP_PX) break;
     }
+    handEl.classList.add('rows');
+    handEl.style.setProperty('--more', chosenPer - 1);
+    handEl.style.setProperty('--more-rows', chosenRows - 1);
+    handEl.style.setProperty('--row-step', chosenRows === 3 ? 'calc(var(--hand-w) * .5)' : ''); // three rows lie closer, to stay under the pile
+    handEl.style.setProperty('--step', `${chosenStep.toFixed(1)}px`);
+    els.forEach((el, k) => {
+      const row = Math.floor(k / chosenPer);
+      const col = k % chosenPer;
+      const count = Math.min(chosenPer, n - row * chosenPer);
+      const i = ((col - (count - 1) / 2) * spreadOf(count)).toFixed(2);
+      el.style.setProperty('--col', col + 1);
+      el.style.setProperty('--row', row + 1);
+      el.style.setProperty('--shift', ((chosenPer - count) / 2).toFixed(2)); // a row of fewer cards is centred under the longer one
+      el.style.setProperty('--i', i);
+      el.dataset.i = i;
+    });
   }
 
   /** The child's cards in their arc, a bigger hand overlapping more so it always fits between Mosi and "Eitt!". */
   function renderHand(cards, { hidden = new Set(), animate = true } = {}) {
     const before = animate ? rects(handEls) : new Map();
-    handEl.classList.remove('rows');
     layOut(handEl, handEls, cards, card => {
       const el = cardElement(doc, card, 'button');
       tappable(el, () => tapCard(card.id));
       return el;
-    }, n => (n > 7 ? 5 / (n - 1) : 1), hidden);
-    const width = handEls.values().next().value?.offsetWidth || 120;
+    }, spreadOf, hidden);
     const upright = Boolean(win?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
+    const least = upright ? 0.08 : 0.04;
+    if (!cards.length) {
+      handEl.classList.remove('rows');
+      handEl.style.setProperty('--overlap', least.toFixed(3));
+      marks();
+      if (animate) glide(before, handEls);
+      return;
+    }
+    // Single read phase: card size, table room, and horizontal bounds.
+    const first = handEls.get(cards[0].id);
+    const width = first?.offsetWidth || 120;
+    const height = first?.offsetHeight || width * 1.4;
     const sides = upright ? 0 : 2 * (Math.max(mosiEl.offsetWidth, eittEl.offsetWidth) + 24);
     const room = table.clientWidth - sides - 40 - 0.4 * width;
-    const least = upright ? 0.08 : 0.04;
-    let overlap = cards.length ? Math.min(0.45, Math.max(least, (1 - room / (cards.length * width)) / 2)) : least;
-    handEl.style.setProperty('--overlap', overlap.toFixed(3));
-    // The fan tilts its outer cards outward: measured, a hand that still reaches Mosi or "Eitt!" (or the edge) closes up more.
-    const clear = () => {
-      const boxes = [...handEls.values()].map(el => el.getBoundingClientRect()); // hidden ones too: they will land there
-      if (!boxes.length) return true;
-      const left = Math.min(...boxes.map(box => box.left));
-      const right = Math.max(...boxes.map(box => box.right));
-      const [from, to] = handBounds(upright);
-      return left >= from && right <= to;
-    };
-    for (let tries = 0; tries < 8 && overlap < 0.45 && !clear(); tries++) {
-      overlap = Math.min(0.45, overlap + 0.025);
+    const handBox = handEl.getBoundingClientRect();
+    const [from, to] = handBounds(upright);
+    const center = (handBox.left + handBox.right) / 2;
+    const availHalf = handBox.width ? Math.min(center - from, to - center) : (to - from) / 2;
+    let overlap = Math.min(0.45, Math.max(least, (1 - room / (cards.length * width)) / 2));
+    if (cards.length > 1 && overlap < 0.45) {
+      const halfCard = outerHalf(cards.length, width, height);
+      const maxStep = (2 * (availHalf - halfCard)) / (cards.length - 1);
+      const fitOverlap = (1 - maxStep / width) / 2;
+      if (fitOverlap > overlap) overlap = Math.min(0.45, fitOverlap);
+    }
+    const singleStep = width * (1 - 2 * overlap);
+    // Single write phase: rows when cards would be narrower than TAP_PX, otherwise one arc.
+    if (cards.length > 2 && singleStep < TAP_PX) {
+      layRows(cards, width, height, availHalf);
+    } else {
+      handEl.classList.remove('rows');
       handEl.style.setProperty('--overlap', overlap.toFixed(3));
     }
-    // So many cards that a card's strip comes out narrower than TAP_PX: two (or three) rows instead of one.
-    const first = handEls.get(cards[0]?.id);
-    const last = handEls.get(cards.at(-1)?.id);
-    if (cards.length > 2 && first && last && (last.offsetLeft - first.offsetLeft) / (cards.length - 1) < TAP_PX) layRows(cards, upright);
     marks();
     if (animate) glide(before, handEls);
   }
@@ -1085,6 +1107,8 @@ export function createEittGame(doc, {
     hush();
     if (skipped) voice.stop();
     busy = true;
+    for (const flyer of root.querySelectorAll('.eitt-flyer')) flyer.remove();
+    flying = 0;
     pendingWild = null;
     mosiPick = null;
     mosiColour = null;
@@ -1358,8 +1382,8 @@ export function createEittGame(doc, {
         if (said) await wait(Math.max(0, said * 1000 - GIVE_GAP * 2));
       })();
       await animating;
-      animating = null;
       if (token !== round) return;
+      animating = null;
       if (tutorial) { // caught: on to the checks
         tutorial.live = null;
         startChildTurn();
@@ -1678,8 +1702,8 @@ export function createEittGame(doc, {
       if (said) await wait(Math.max(0, said * 1000 - GIVE_GAP * 2));
     })();
     await animating;
-    animating = null;
     if (token !== round) return;
+    animating = null;
     if (flying) shared(); // another card is still in the air: its own landing lays the table out
     else sync();
     if (childMoves()) armIdle();
@@ -1922,6 +1946,7 @@ export function createEittGame(doc, {
     ending = false;
     root.classList.remove('teaching');
     busy = true;
+    for (const flyer of root.querySelectorAll('.eitt-flyer')) flyer.remove();
     flying = 0;
     pendingWild = null;
     mosiPick = null;
@@ -1943,23 +1968,48 @@ export function createEittGame(doc, {
     nextTurn();
   }
 
+  let setupBusy = false;
+
   /** "Fjölspil": the lobby over the setup card, and at its "Byrjum!" a round of its seats; its X leaves the setup card as it was. */
   async function openLobby() {
-    const opened = await fjolspil.openLobby({ game: 'eitt', ai: AI });
-    if (!opened || !isOpen || !setupOpen) return; // the X, or another tab took the room
+    if (setupBusy) return;
+    setupBusy = true;
+    const token = round;
+    let opened = null;
+    try {
+      opened = await fjolspil.openLobby({ game: 'eitt', ai: AI });
+    } finally {
+      setupBusy = false;
+    }
+    if (!opened) return;
+    if (!isOpen || !setupOpen || token !== round) {
+      if (!multi) fjolspil.closeGame?.();
+      return;
+    }
     startMulti(opened.seats);
   }
 
   /** "Halda áfram": the round of Fjölspil kept, with its seats (the room opens again, and the guests come back to it by themselves). */
   async function resumeKept() {
+    if (setupBusy) return;
     const kept = savedGame();
     if (!kept) {
       continueEl.hidden = true;
       return;
     }
-    await fjolspil.resume(kept.seats);
+    setupBusy = true;
+    const token = round;
+    try {
+      await fjolspil.resume(kept.seats);
+    } finally {
+      setupBusy = false;
+    }
+    if (!isOpen || !setupOpen || token !== round) {
+      if (!multi) fjolspil.closeGame?.();
+      return;
+    }
     const seats = fjolspil.seats.list();
-    if (!isOpen || !setupOpen || seats.length !== kept.game.hands.length) return; // another tab has the room: its seats are not these
+    if (seats.length !== kept.game.hands.length) return; // another tab has the room: its seats are not these
     startMulti(seats, kept.game);
   }
 
@@ -1977,6 +2027,7 @@ export function createEittGame(doc, {
     }
     root.classList.toggle('teaching', Boolean(tutorial)); // the real round's cards are not dimmed as they are dealt
     busy = true;
+    for (const flyer of root.querySelectorAll('.eitt-flyer')) flyer.remove();
     flying = 0;
     pendingWild = null;
     mosiPick = null;
@@ -2158,14 +2209,14 @@ export function createEittGame(doc, {
   pressable(soloEl, {
     audio: tap, win, onTap: () => {
       wake();
-      if (!isOpen || !setupOpen) return;
+      if (!isOpen || !setupOpen || setupBusy) return;
       setupOpen = false;
       setupEl.hidden = true;
       run(deal()); // the round on this tablet, as it always was
     },
   });
-  pressable(multiEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && setupOpen) run(openLobby()); } });
-  pressable(continueEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && setupOpen) run(resumeKept()); } });
+  pressable(multiEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && setupOpen && !setupBusy) run(openLobby()); } });
+  pressable(continueEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && setupOpen && !setupBusy) run(resumeKept()); } });
   // A guest's act from her phone (spec §6.3, guest-eitt.js), heard only from a player of this round (a guest seated since, by a
   // hello in the middle of it, is not one): a move on her own turn while the table waits for it, her "Eitt!" whenever she owes it,
   // and a catch whenever another forgot hers. Anything else (not her turn, a second tap, a card that does not go) is refused, and

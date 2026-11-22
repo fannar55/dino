@@ -62,6 +62,15 @@ export function createBookAudio({ context = null, output = null, theme = null, l
     voice.stop();
   }
 
+  function wake() {
+    if (!context || muted || context.state === 'running') return;
+    try {
+      context.resume()?.catch?.(() => {});
+    } catch {
+      // A browser that cannot resume here leaves the book's effects silent.
+    }
+  }
+
   function narrate(lineId) {
     const src = lines?.[lineId]?.src;
     if (!src) {
@@ -74,6 +83,7 @@ export function createBookAudio({ context = null, output = null, theme = null, l
     }
     end(true); // the line before gives way, and the voice replaces its sound below without a gap in the dip
     if (muted) return DONE;
+    wake();
     const handle = new Handle(`book:${lineId}`, () => {
       if (line?.handle !== handle) return; // already over
       line = null;
@@ -87,7 +97,10 @@ export function createBookAudio({ context = null, output = null, theme = null, l
   return {
     narrate,
     stop,
-    sfx: name => effects.play(name),
+    sfx(name) {
+      wake();
+      return effects.play(name);
+    },
     get muted() { return muted; },
     set muted(value) {
       muted = Boolean(value);

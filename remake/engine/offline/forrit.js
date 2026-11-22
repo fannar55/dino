@@ -87,22 +87,25 @@ export function createForrit({
     let virk = await markOf(lists, 'virk');
     if (!installed && !virk) return;
 
-    /** Asks the worker to make `version` active; it refuses while another window of the app is open. */
-    async function takeOver(version) {
+    /** Sends a control message to the active service worker and awaits its reply. */
+    async function tellWorker(message, timeoutMs = 10000) {
       const ask = (async () => {
         const worker = (await workers.ready)?.active;
         if (!worker) return false;
         const { port1, port2 } = newChannel();
         try {
           const answer = new Promise(resolve => { port1.onmessage = event => resolve(Boolean(event.data?.ok)); });
-          worker.postMessage({ type: 'forrit:virkja', version }, [port2]);
-          return await within(answer, 10000, false);
+          worker.postMessage(message, [port2]);
+          return await within(answer, timeoutMs, false);
         } finally {
           port1.close?.();
         }
       })();
-      return within(ask, 15000, false);
+      return within(ask, timeoutMs + 5000, false);
     }
+
+    /** Asks the worker to make `version` active; it refuses while another window of the app is open. */
+    const takeOver = version => tellWorker({ type: 'forrit:virkja', version });
 
     /** Keeps only the lists of `versions`, the three marks and the files those lists use. */
     async function tidy(versions) {
@@ -144,6 +147,7 @@ export function createForrit({
     if (list.burt) {
       gone = true;
       show();
+      await tellWorker({ type: 'forrit:burt' }, 2000).catch(() => {});
       await store.delete(FILES);
       await store.delete(LISTS);
       for (const registration of await workers.getRegistrations()) await registration.unregister();
@@ -161,10 +165,26 @@ export function createForrit({
     // 5. Download what is missing.
     await lists.put(listKey(list.version), asJson(list));
     await lists.put(listKey('sidast'), asJson({ version: list.version }));
+    await tidy([virk, tilbuin, list.version]);
     const kind = virk ? 'update' : 'first';
     Promise.resolve().then(() => win.navigator.storage?.persist?.()).catch(() => {});
     const stored = await storedOf(files);
-    setPhase({ phase: kind, percent: percentOf(list, stored) });
+    const bytesByHash = new Map();
+    let totalBytes = 0, haveBytes = 0, missingHashes = 0;
+    for (const { size, hash } of Object.values(list.files)) {
+      totalBytes += size;
+      if (stored.has(hash)) {
+        haveBytes += size;
+      } else {
+        if (!bytesByHash.has(hash)) missingHashes++;
+        bytesByHash.set(hash, (bytesByHash.get(hash) ?? 0) + size);
+      }
+    }
+    const percentNow = () => {
+      if (missingHashes === 0) return 100;
+      return totalBytes ? Math.min(99, Math.floor((haveBytes / totalBytes) * 100)) : 0;
+    };
+    if (!started) setPhase({ phase: kind, percent: percentNow() });
     const failure = await pool(missingOf(list, stored), () => (started ? 1 : 4), async file => {
       const response = await net(file.path, { cache: 'reload' }); // never the browser's day-old copy
       if (!response.ok) return;
@@ -173,15 +193,24 @@ export function createForrit({
       if (hex(await hasher.digest('SHA-256', bytes)).slice(0, 16) !== file.hash) return;
       const type = response.headers.get('content-type') ?? 'application/octet-stream';
       await files.put(fileKey(file.hash), new Response(bytes, { headers: { 'content-type': type, 'content-length': String(bytes.byteLength) } }));
-      stored.add(file.hash);
-      setPhase({ phase: kind, percent: percentOf(list, stored) });
+      if (!stored.has(file.hash)) {
+        stored.add(file.hash);
+        const added = bytesByHash.get(file.hash);
+        if (added !== undefined) {
+          haveBytes += added;
+          bytesByHash.delete(file.hash);
+          missingHashes--;
+        }
+      }
+      if (!started) setPhase({ phase: kind, percent: percentNow() });
     });
     if (failure) {
-      setPhase({ phase: failure.name === 'QuotaExceededError' ? 'full' : 'needNet', percent: percentOf(list, stored) });
+      if (failure.name === 'QuotaExceededError') await tidy(virk ? [virk] : [list.version]).catch(() => {});
+      setPhase({ phase: failure.name === 'QuotaExceededError' ? 'full' : 'needNet', percent: percentNow() });
       return;
     }
-    if (missingOf(list, stored).length) { // a file did not match: the next start fetches it
-      setPhase({ phase: virk ? 'ready' : 'needNet', percent: percentOf(list, stored) });
+    if (missingHashes > 0) { // a file did not match: the next start fetches it
+      setPhase({ phase: virk ? 'ready' : 'needNet', percent: percentNow() });
       return;
     }
 

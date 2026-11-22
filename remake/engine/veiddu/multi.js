@@ -76,7 +76,7 @@ const POINTER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h9V3.5
 export function createVeidduMulti(doc, {
   root, fjolspil, save, win, random = Math.random, calm = () => false, kinds = KINDS.length, uggedla, sound, words,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = id => clearTimeout(id),
-  onShow = () => {}, onHide = () => {}, onQuit = () => {},
+  canShow = () => true, onShow = () => {}, onHide = () => {}, onQuit = () => {},
 }) {
   const { sfx, splashes, say, speech, clock, lineMs } = sound;
   const el = (tag, className, attributes, html) => make(doc, tag, className, attributes, html);
@@ -752,6 +752,7 @@ export function createVeidduMulti(doc, {
 
   /** The round kept in the save after every act, with its seats (the players only); one that is over is forgotten. */
   function keep() {
+    if (kinds < KINDS.length) return;
     try {
       if (game.phase === 'over') {
         save?.setVeiddu?.({ game: null });
@@ -790,7 +791,7 @@ export function createVeidduMulti(doc, {
       }
       if (seat === 0 && onScreen(entryOf(0))) {
         if (need === 'no') showFishButton();
-        if (need === 'ask' || need === 'give') sfx('turn-chime');
+        if (need === 'ask' || need === 'give') sfx('turn');
       }
       marks();
       sendViews();
@@ -1086,7 +1087,7 @@ export function createVeidduMulti(doc, {
           flight.drop();
           shownCount[0]++;
           sfx('flick', { soft: true });
-        }));
+        }).catch(error => { if (error !== STALE) throw error; }));
       } else {
         const flight = flyer(null, from, { width: Math.max(backWidth(), from.w) });
         flights.push(flight.move(fanOf(seat), { duration: DEAL_MS }).then(() => {
@@ -1094,11 +1095,12 @@ export function createVeidduMulti(doc, {
           shownCount[seat]++;
           renderFan(seat);
           sfx('flick', { soft: true });
-        }));
+        }).catch(error => { if (error !== STALE) throw error; }));
       }
       await wait(DEAL_GAP);
     }
     await Promise.all(flights);
+    if (stale(token)) return undefined;
     for (const btn of handEls.values()) btn.style.visibility = '';
     await wait(250);
     for (const event of start.events) {
@@ -1202,15 +1204,39 @@ export function createVeidduMulti(doc, {
   /** "Spilum aftur?": a new round for the seats there are, with no lobby. */
   const dealSeats = () => { if (!show(seatList())) onQuit(); };
 
+  let opening = false;
+
   async function openLobby() {
-    const opened = await fjolspil.openLobby({ game: 'veiddu', ai: AI });
-    return Boolean(opened) && show(opened.seats);
+    if (opening) return false;
+    opening = true;
+    let opened = null;
+    try {
+      opened = await fjolspil.openLobby({ game: 'veiddu', ai: AI });
+    } finally {
+      opening = false;
+    }
+    if (!opened) return false;
+    if (!canShow()) {
+      fjolspil.closeGame?.();
+      return false;
+    }
+    return show(opened.seats);
   }
 
   async function resume() {
+    if (opening) return false;
     const kept = saved();
     if (!kept) return false;
-    await fjolspil.resume(kept.seats);
+    opening = true;
+    try {
+      await fjolspil.resume(kept.seats);
+    } finally {
+      opening = false;
+    }
+    if (!canShow()) {
+      fjolspil.closeGame?.();
+      return false;
+    }
     const seats = seatList();
     if (seats.length !== kept.game.hands.length) return false; // another tab has the room: its seats are not these
     return show(seats, kept.game);
