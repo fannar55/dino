@@ -51,6 +51,7 @@ import { createSpeciesLibrary } from '../world/forest/species.js';
 import { splash } from '../world/props/splash.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
+import { EVENING, startEvening } from './kafli6-looks.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
 import { createSaddle, createSeat, floatTo, ride, SIT_DEPTH } from '../engine/riding.js';
 
@@ -465,12 +466,12 @@ function* theSlope(s, c) {
     hold: () => {
       clearFord(c);
       mosi.place(SLOPE.from.at[0], SLOPE.from.at[1], headingTo(SLOPE.from.at, SLOPE.ride.at));
-      lightTo(world, LOOKS.lowSun);
+      lightTo(world, EVENING.afterSong); // the dusk as the ford left it (kafli6-looks.js: the evening after Slóeðla's song)
       return null;
     },
   });
   s.releaseLocation('ardalur');
-  easeLight(world, LOOKS.redGold, 4);
+  easeLight(world, EVENING.slope, 4);
   sound(s, c, 'forest', { calls: false });
   cut(s, c, 'slope_ride');
   const up = mosi.walkTo([SLOPE.ride.at, SLOPE.ledge.at], { speed: RIDE.speed, turnRate: 60 });
@@ -514,7 +515,7 @@ function* thePrints(s, c) {
       c.prints = c.belt.prints;
       setCloud(c, CLOUD_BY_PRINT[0], 0);
       mosi.place(first.x - fx * STEP_IN, first.z - fz * STEP_IN, first.heading);
-      lightTo(world, LOOKS.inCloud);
+      lightTo(world, EVENING.inCloud);
       hideSky(c); // inside the cloud the sky's own sun and Mosi cloud (they take no fog) are not seen
       return null;
     },
@@ -823,7 +824,8 @@ function* sheComes(s, c) {
       const at = c.gramedla.raw.root.position;
       const blown = c.cloud.blowAway({ from: [at.x, at.z] });
       c.log({ type: 'blow' });
-      easeLight(world, LOOKS.sunset, 3);
+      easeLight(world, AFTER_ROAR, 3); // up out of the dusk of the cloud into the last light, never dipping on the way
+      c.evening?.lift(3); // and the sky's light on things as the sunset has it
       sound(s, c, 'mountainWind', { level: 0, seconds: 2 }); // the wind of the cloud goes with it
       sound(s, c, 'forest', { calls: false, level: 1, seconds: 2 });
       return blown;
@@ -1245,6 +1247,9 @@ export const chapter = {
     egill.place(SPOTS.egill[0], SPOTS.egill[1], headingTo(SPOTS.egill, WEST));
     flugedla.place(FAR_POOL.landing[0], FAR_POOL.landing[1], headingTo(FAR_POOL.landing, WEST));
     poolAsLeft(c);
+    // the light as chapter 5 left it, the night after Slóeðla's song (kafli6-looks.js), and the sun in its nightcap all chapter long
+    c.evening = startEvening(world);
+    s.sun.cap(1);
     c.her.hide();
     c.saddle.hide();
     const close = c.run();
@@ -1303,6 +1308,7 @@ function setUp(s) {
       clearFord(c); // left at the ford: its stones and frogs
       c.saddle.dispose();
       showSky(c); // the sky as the engine had it, however the chapter ends or is left
+      c.evening?.restore(); // and its water, Mosi cloud and light on things (the sun keeps its cap, as chapter 5 leaves it)
       c.her.dispose(); // her skin's shared material back on her model
       world.music?.setLevel?.(1, 1);
     };

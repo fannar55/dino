@@ -7,7 +7,7 @@
 //   const slope = createSlope(world, { grey, route, seed })
 //   slope.far (its far land, shown), slope.ledge ([x, z]), slope.heightAt(x, z), slope.update(dt, time), slope.dispose()
 //   slope.glade(on)        Kambeðla's lilac glow in her glade, held on (a slow breath) while Egill speaks of it; off by default
-//   slope.thorsedla        Þórseðla walking west out of the Fen at THORSEDLA.scale times her size: { at() -> [x, z], actor }
+//   slope.thorsedla        Þórseðla walking north-west in the forest at THORSEDLA.scale times her size: { at() -> [x, z], actor }
 //   slope.deck             the cloud's underside over the ridge (look.js createCloudCards), with slope.wisps where it meets the path
 //
 // Not grey: the game's own ground material painted with grass, a trodden path and stone where it is steep; the game's own low
@@ -35,9 +35,13 @@ const PLANTS = { count: 520, reach: 115, shelf: 15, path: 3.2 };
 const MEADOW_COUNT = 70;
 const MOSI_STAND = [-2386, 124]; // where he stands on the ledge and turns (kafli6-route.js SLOPE.ledge)
 // Þórseðla: on her way from the Fen to the mountain, north of the glade's line from the ledge, walking north-west (seen side-on from
-// the ledge, her long neck across the view), her head and neck well over the trees
+// the ledge, her long neck across the view). Her own size against the forest (the owner's F1 report of 2026-11-23: at 9 times her
+// size she stood "3-4 tré á hæð"): on the forest floor, `sink` m under the far land's canopy surface (view.js CANOPY_SINK), her
+// back about as high as the treetops and her head a neck over them, `scale` times the game's Þórseðla; so that a neck over the
+// trees is still seen, she walks 750 m out from the ledge on the line it saw her on at 1.3 km. Her walk's clip at `walk` times its
+// pace and `speed` m/s in step with it (her stride grows with her scale).
 // (reach: m she walks at most, far more than scene 3 lasts, some 45 s: a slope left built does not walk her off over the mountains)
-export const THORSEDLA = { from: [-1180, -360], heading: 235, speed: 5, scale: 9, walk: 0.45, reach: 600 };
+export const THORSEDLA = { from: [-1696, -156], heading: 235, speed: 2.3, scale: 4.2, walk: 0.45, reach: 600, sink: 15 };
 // The cloud's underside: flat cards over the ridge, west of the ledge (the view east keeps its sky), and over every mountain round
 // the slope whose land would rise into it (DECK.over m under it or higher): the far land there is held under it (CEILING), so a
 // mountain goes up into the cloud and no grey peak stands over it; wisps where it meets the path
@@ -198,7 +202,7 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
   const friends = grey ? null : createFarFriends(world, {
     friends: {
       thorsedla: {
-        position: [THORSEDLA.from[0], 0, THORSEDLA.from[1]], heading: THORSEDLA.heading, clip: 'walk', find: false, heightAt: far.heightAt,
+        position: [THORSEDLA.from[0], -THORSEDLA.sink, THORSEDLA.from[1]], heading: THORSEDLA.heading, clip: 'walk', find: false, heightAt: far.heightAt,
         tint: base => view.patch(base.clone(), 'slope-thorsedla'), // in the view's haze as the land round her (no height fog)
       },
     },
@@ -239,6 +243,7 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
       }
       for (const cards of [deck, wisps, spray]) cards?.update(step, time);
       if (friends) {
+        friends.show(true); // first: showing puts each friend back at her home (far-friends.js ground), and she walks on from it
         thorsedla.walked = Math.min(THORSEDLA.reach, thorsedla.walked + step * THORSEDLA.speed);
         const actor = friends.actorOf('thorsedla');
         if (actor) {
@@ -246,7 +251,6 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
           const [x, z] = thorsedla.at();
           actor.place(x, z, THORSEDLA.heading);
         }
-        friends.show(true);
         if (world.camera) friends.update(step, world.camera, world.renderer?.domElement?.height ?? 800);
       }
     },
