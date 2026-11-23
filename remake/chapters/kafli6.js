@@ -36,6 +36,7 @@ import { createStones } from './kafli6-stones.js';
 import { createPrints } from './kafli6-prints.js';
 import { createCall, thirdOf, ANSWER } from './kafli6-call.js';
 import { DIRECTIONS } from './kafli6-help.js';
+import { beckon, unbeckon, BECKON } from './kafli6-glitter.js';
 import { hopTo, letGo, smallRoar, pointWithHead, dipHead, runBeside } from './kafli6-mosi.js';
 import { gramedlaLife, STEP_OUT as HER_STEP_OUT, STRIDE } from './kafli6-gramedla.js';
 import { HEAD_SEAT } from './kafli6-seat.js';
@@ -663,6 +664,7 @@ function* callTask(s, c) {
   } finally {
     for (const off of offs) off();
     unaim(s, c);
+    unbeckon(c);
     c.cloud.glow(null);
   }
 }
@@ -681,10 +683,12 @@ function onCall(s, c, event) {
       if (event.round > 0) cutSoon(s, c, { ...callShot(stand, groundAt(c, [stand.x, stand.z])), label: `call_${event.round}` });
       aim(s, c, 'mosi', 'mosi', 2.6);
       wait(s, c, 'call', ['mosi']);
+      beckon(s, c, ['mosi'], BECKON.mosi); // Mosi glitters: he is the one to tap
       mosi.lookAt(EGILL_HEAD, { weight: 0.5, maxAngle: 70, maxPitch: 35 });
       break;
     case 'call':
       unaim(s, c);
+      unbeckon(c);
       mosi.lookAt(null);
       smallRoar(s, c, { seconds: ANSWER.mosi });
       sound(s, c, 'mosiRoar');
@@ -700,6 +704,7 @@ function onCall(s, c, event) {
       if (!event.again) {
         for (const d of DIRECTIONS) aim(s, c, `dir-${d}`, glowAt(c, stand, d), WAY_TAP);
         wait(s, c, 'call', DIRECTIONS.map(d => `dir-${d}`));
+        beckon(s, c, DIRECTIONS.map(d => `dir-${d}`), BECKON.ways); // the three ways glitter alike: her roar says which
       }
       break;
     }
@@ -716,6 +721,7 @@ function onCall(s, c, event) {
       break;
     case 'walk': {
       unaim(s, c);
+      unbeckon(c);
       cloud.glow(null);
       c.her.fadeOut(); // her shape melts back into the white with the glow
       const to = standIn(c, event.round + 1);
@@ -860,11 +866,13 @@ function* upToTheTop(s, c) {
   aim(s, c, 'gramedla-head', seatPoint, 2.2);
   aim(s, c, 'egill', EGILL_HEAD, 1);
   wait(s, c, 'head', ['gramedla-head', 'egill']);
+  beckon(s, c, ['gramedla-head'], BECKON.head); // her head glitters, as Þórseðla's did: Egill goes over onto it
   let tapped;
   try {
     tapped = yield s.race(s.tap(['gramedla-head', 'egill']), s.wait(HEAD_WAIT));
   } finally {
     unaim(s, c);
+    unbeckon(c);
   }
   c.log({ type: 'onHerHead', tapped: tapped ?? null });
   for (const who of [mosi, egill]) who.lookAt(null);
