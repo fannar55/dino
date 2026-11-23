@@ -300,7 +300,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   function place(x, z, headingDeg = getHeading()) {
     root.position.set(x, world.heightAt(x, z), z);
     setHeading(headingDeg);
-    if (groundAt) toGround();
+    if (groundAt && !held) toGround(); // put down just after being held upright (letGo): he eases onto the tilt (update)
     root.updateMatrixWorld(true);
     footing.reset();
   }
@@ -309,6 +309,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   // its four rest feet and its root stands on that plane; a two-legged one stays upright, its root on the ground under it. Footing
   // stands each foot on that ground. Off (the default), nothing here runs.
   let groundAt = null;
+  let held = false, easeFrom = null; // held upright by a drive (controlled) on the ground, and the easing back onto it after
+  const HELD_EASE = 0.35;
   const tiltFeet = quadruped ? restFeet.map((p, k) => ({ x: p.x, z: p.z, front: legs[k].girdle === 0 })) : null;
   function toGround() {
     const { x, z } = root.position;
@@ -353,6 +355,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   }
   function followGround(fn = null) {
     groundAt = fn ?? null;
+    held = false;
+    easeFrom = null;
     if (groundAt) {
       root.rotation.set(0, root.rotation.y, 0, 'YZX'); // the heading outermost, then the pitch about its right side, then the roll
       toGround();
@@ -795,12 +799,23 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       }
       footing.restore();
       if (controlled) {
-        if (groundAt) { root.rotation.x = 0; root.rotation.z = 0; } // held (on a stone, in a hop): upright, as it is put
+        if (groundAt) { root.rotation.x = 0; root.rotation.z = 0; held = true; } // held (on a stone, in a hop): upright, as it is put
         drive?.(dt);
       } else {
         updateWalk(dt);
         updateTurn(dt);
-        if (groundAt) toGround();
+        if (groundAt) {
+          // let go: from upright where he was put onto the ground's tilt and height over HELD_EASE s, not in a frame
+          if (held) { held = false; easeFrom = { t: 0, pitch: root.rotation.z, roll: root.rotation.x, y: root.position.y }; }
+          toGround();
+          if (easeFrom) {
+            const k = Math.min(1, (easeFrom.t += dt) / HELD_EASE), e = k * k * (3 - 2 * k);
+            root.rotation.z = easeFrom.pitch + (root.rotation.z - easeFrom.pitch) * e;
+            root.rotation.x = easeFrom.roll + (root.rotation.x - easeFrom.roll) * e;
+            root.position.y = easeFrom.y + (root.position.y - easeFrom.y) * e;
+            if (k >= 1) easeFrom = null;
+          }
+        }
       }
       mixer.update(dt);
       if (controlled) pose?.(dt);

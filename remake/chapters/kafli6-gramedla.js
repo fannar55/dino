@@ -59,7 +59,8 @@ export const STEP_OUT = { stop: 9, clear: 1.75, thin: 3, from: 3.4, speed: 1.3, 
 export const TILT = { roll: 12, ease: 0.7, hold: 1.4, blinks: [0.45, 1.25] };
 /**
  * The sniff: her snout comes `near` m from Egill's head over `seconds` (the lean and her head tipped, found by search), two breaths
- * `breaths` s apart; at each his head tips back `hair` degrees and a puff of sparkles passes him; up again over `rise` s.
+ * `breaths` s apart; at each his head tips back `hair` degrees and a puff of sparkles passes him; up again over `rise` s. From the
+ * stop (STEP_OUT.stop) she comes no nearer than that, and CLEAR keeps every point of her front CLEAR.margin m from Mosi and Egill.
  */
 export const SNIFF = { near: 1.1, over: 0.35, seconds: 3.2, breaths: 2, between: 1.5, hair: 6, hairSeconds: 0.9, rise: 1.8 };
 /** Her roar of yes: the breath in (her lean back, radians, s), the blow this long into her roar (s). */
@@ -206,6 +207,7 @@ export function gramedlaLife(s, c) {
   // keeping clear of Mosi and Egill (CLEAR): on from stepping out to laying her head down
   let guard = null; // { her, mosi, egill, back }: their skin points and how far back her lean is eased now
   function keepClear(dt, pose) {
+    if (!c.mosi?.raw) return; // no Mosi to keep clear of (her own tests)
     guard.her ??= skinPoints(actor, HER_FRONT, { stride: CLEAR.stride });
     guard.mosi ??= skinPoints(c.mosi.raw, MOSI_FRONT, { stride: CLEAR.stride });
     guard.egill ??= c.egill ? skinPoints(c.egill.raw, EGILL_ALL, { stride: CLEAR.stride }) : null;
@@ -397,13 +399,14 @@ export function gramedlaLife(s, c) {
 
   /**
    * The lean (theta) and her head's tip (pitch) and turn that bring her snout `near` m from `point`, in front of it (between it and
-   * her) and not under it, her feet where they are: a search over her pose this frame.
+   * her) and not under it, her feet where they are: a search over her pose this frame. Of the poses, the best that keeps her front
+   * CLEAR.margin m from Mosi and Egill (so the guard need not hold her back: she bows as far as his frill lets her).
    */
   function sniffPose(point, near = SNIFF.near) {
     const p = new THREE.Vector3();
     const head = new THREE.Vector3();
     const bent = new THREE.Vector3(), q = new THREE.Quaternion();
-    let best = null;
+    const tried = [];
     // her head's tip only turns her head about its own place (lean.pitchHead), so for each lean her snout at every tip is the
     // snout of the lean alone turned about her right side round her head: one skeleton pose for each lean, not one for each tip
     const tryPose = pose => {
@@ -412,7 +415,7 @@ export function gramedlaLife(s, c) {
       // her snout over his head (at his hair, over Mosi's frill): under it, it reads as going for Mosi, not sniffing Egill
       const under = point.y + SNIFF.over - p.y;
       const score = Math.abs(d - near) + Math.max(0, under) * 3 + Math.abs(pose.theta) * 0.05;
-      if (!best || score < best.score) best = { ...pose, score, d };
+      tried.push({ ...pose, score, d });
     };
     for (let theta = -0.1; theta <= 1.2; theta += 0.05) {
       lean.set({ theta, pitch: 0, turn: 0, roll: 0 });
@@ -420,6 +423,18 @@ export function gramedlaLife(s, c) {
       lean.bones.Head.getWorldPosition(head);
       lean.snout(bent);
       for (let pitch = -0.7; pitch <= 0.4; pitch += 0.05) tryPose({ theta, pitch, turn: 0, roll: 0 });
+    }
+    tried.sort((a, b) => a.score - b.score);
+    let best = tried[0];
+    if (c.mosi?.raw) {
+      const front = skinPoints(actor, HER_FRONT, { stride: CLEAR.stride });
+      const them = { ...skinPoints(c.mosi.raw, MOSI_FRONT, { stride: CLEAR.stride }).update(), ...(c.egill ? skinPoints(c.egill.raw, EGILL_ALL, { stride: CLEAR.stride }).update() : {}) };
+      const index = pointIndex(them, CLEAR.margin * 1.5);
+      best = tried.find(pose => {
+        lean.set(pose);
+        actor.root.updateMatrixWorld(true);
+        return index.least(front.update()).d >= CLEAR.margin;
+      }) ?? best;
     }
     // turned about the upright so the snout points at him from the side too
     lean.set(best);

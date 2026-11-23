@@ -192,7 +192,8 @@ function watchClimb(world, c, seen) {
   const heels = who => CLIMB_FEET[who].map(n => {
     const bone = actors[who].model.getObjectByName(n);
     const p = bone.getWorldPosition(new THREE.Vector3());
-    return { world: p, y: actors[who].root.worldToLocal(p.clone()).y };
+    // its height over the ground the eye sees under it (F1 report 2, 2026-11-23: feet stand on that ground, not on the root's plane)
+    return { world: p, y: p.y - (world.forest?.seenAt?.(p.x, p.z) ?? world.heightAt(p.x, p.z)) };
   });
   seen.rest ??= { gramedla: heels('gramedla').map(h => h.y), mosi: heels('mosi').map(h => h.y) };
   const log = c.chapterLog;
@@ -597,14 +598,16 @@ test(`she steps out to ${STEP_OUT.stop} m ahead of Mosi and never nearer than ${
   }
 });
 
-test("bowing, her snout comes within 1.0 to 1.5 m of Egill's head and her feet stay planted", async () => {
+// F1 reports 6 to 8 (2026-11-23): she stands farther off and bows only as far as Mosi's frill lets her (kafli6-gramedla.js CLEAR), so her
+// snout stays 2.5 to 3.5 m from Egill's head (it was 1.0 to 1.5 m, through his frill); kafli6-snerting.test.mjs holds the bodies apart
+test("bowing, her snout comes within 2.5 to 3.5 m of Egill's head and her feet stay planted", async () => {
   for (const run of [await untouched(), await quick()]) {
     const [bow] = herLog(run, 'bow');
     const [up] = herLog(run, 'up');
     const frames = run.watched.her.filter(f => f.time >= bow.at && f.time <= up.at);
     assert.ok(frames.length > 100, `${frames.length} frames`);
     const nearest = Math.min(...frames.map(f => f.snout.distanceTo(f.egill)));
-    assert.ok(nearest >= 1.0 && nearest <= 1.5, `her snout ${nearest.toFixed(2)} m from Egill's head at its nearest`);
+    assert.ok(nearest >= 2.5 && nearest <= 3.5, `her snout ${nearest.toFixed(2)} m from Egill's head at its nearest`);
     const moved = Math.max(...frames.map(f => Math.max(f.feet[0].distanceTo(frames[0].feet[0]), f.feet[1].distanceTo(frames[0].feet[1]))));
     assert.ok(moved < 0.03, `a foot moved ${moved.toFixed(3)} m while she bowed`);
     // and her snout is in front of his head and not under it: she sniffs Egill, not Mosi
