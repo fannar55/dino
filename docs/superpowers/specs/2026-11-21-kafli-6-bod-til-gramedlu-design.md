@@ -246,3 +246,21 @@ Smiðsagentar smíða í bútum og vista oft. Eigandinn sér myndir eða myndban
 - **Fjallstoppurinn:** hve stór hann er, hvaða gróður vex þar og hvernig skýjahafið lítur út, ákveðið eftir myndum í búti 2.
 - **Litla öskrið hans Mosa og ný hljóð:** valin eftir eyranu í búti 4.
 - **Smáleikur Grameðlu:** eigið skjal seinna.
+
+## 11. Breytt eftir orðum eigandans 23. nóvember 2026
+
+Eigandinn spilaði allan kaflann og sendi ellefu villuskýrslur (F1). Orð hans þar og á eftir ganga framar því sem stendur ofar í
+þessu skjali:
+
+- **Birtan (kemur í stað birtunnar í 2. kafla):** „það var þegar rökkur eftir lagið, má ekki verða bjart aftur“, og síðan: ekki
+  alveg nótt frá Slóeðlu heldur næstum, og sólsetrið efst á fjallinu í sér senu. Kaflinn er því **næstum nótt frá tjörninni og upp
+  að toppnum** (`chapters/kafli6-looks.js`: rökkur og nótt kafla 5 blandað, aldrei bjartara eftir því sem ofar dregur, skýin grá,
+  ekkert gull eftir öskrið). **Sólsetrið er sér sena toppsins** (`LOOKS.sunset`) og kemur undir svörtu klippunni upp á toppinn.
+  Sólin er með nátthúfuna allan kaflann.
+- **Þórseðla í útsýninu** er um einu og hálfu tré á hæð og stendur á skógarbotninum, ekki þrjú til fjögur tré.
+- **Vísbending um pikk:** gullglitrið sem leikurinn notar annars staðar sýnir barninu hvað á að snerta: Mosa áður en hann kallar,
+  áttirnar þrjár þegar hún hefur svarað, og hausinn á henni þegar hún hefur lagt hann niður (`chapters/kafli6-glitter.js`).
+- **Enginn fer ofan í jörðina eða inn í annan:** fætur Mosa og Grameðlu fylgja jörðinni sem sést, og hún nemur staðar 9 m frá
+  Mosa og heldur sig 0,4 m frá honum og Agli. Þefið er því ekki lengur hneiging alveg að Agli (trýnið er um 3 m frá honum).
+- **Upp yfir brúnina:** toppsenan byrjar þegar þau koma upp yfir brúnina. Hún gengur upprétt með hausinn hátt, og þau standa heil
+  á flötinni áður en Egill segir línuna sína.
