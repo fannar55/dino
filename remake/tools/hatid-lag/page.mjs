@@ -97,21 +97,23 @@ ${songs}
   return file;
 }
 
-/** Why a measured candidate cannot be on the page (the plan's Step 6): it drifts over 40 ms, is in another key, or someone sings. */
+/**
+ * Why a measured candidate cannot be on the page (the plan's Step 6): it drifts over 40 ms or someone sings. The key that counts is
+ * the measured one (the page shows it), not the one asked for, so a key other than the request does not leave it out; chapter 5's
+ * A major does.
+ */
 export function failsOf(song) {
   if (!(song.driftMs <= 40)) return `rekur ${song.driftMs} ms`;
-  if (!song.measured.keyMatchesRequest) return `önnur tóntegund (${keyIs(song.measured.key)})`;
+  if (song.measured.key === 'A major') return 'A-dúr eins og í 5. kafla';
   if (song.vocalCheck.words > 0) return 'rödd heyrist';
   return null;
 }
 
-/** A candidate's newest song(-N).json in its folder, or null. */
-function newestOf(dir) {
-  if (!fs.existsSync(dir)) return null;
+/** A candidate's song(-N).json files in its folder, newest first. */
+function versionsOf(dir) {
+  if (!fs.existsSync(dir)) return [];
   const versions = fs.readdirSync(dir).map(name => /^song(?:-(\d+))?\.json$/.exec(name)).filter(Boolean).map(m => Number(m[1] ?? 1));
-  if (!versions.length) return null;
-  const v = Math.max(...versions);
-  return path.join(dir, v > 1 ? `song-${v}.json` : 'song.json');
+  return versions.sort((a, b) => b - a).map(v => path.join(dir, v > 1 ? `song-${v}.json` : 'song.json'));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -119,12 +121,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const candidates = [], leftOut = [];
   for (const [id, preset] of Object.entries(PRESETS).filter(([name]) => name.startsWith('hatid-'))) {
     const letter = id.slice(-1).toUpperCase();
-    const json = newestOf(path.join(ROOT, preset.out));
-    if (!json) { leftOut.push({ letter, why: 'ekki gert' }); continue; }
-    const song = JSON.parse(fs.readFileSync(json, 'utf8'));
-    if (!song.measured || !song.vocalCheck) throw new Error(`${path.relative(ROOT, json)} is not checked: run sloedla-music.mjs ${id} --measure and --vocals`);
-    const why = failsOf(song);
-    if (why) { leftOut.push({ letter, why }); console.log(`${letter} left out: ${why}`); continue; }
+    // the newest version that passes; an older one stands when a re-make failed
+    const files = versionsOf(path.join(ROOT, preset.out));
+    if (!files.length) { leftOut.push({ letter, why: 'ekki gert' }); continue; }
+    let json = null, song = null, why = null;
+    for (const file of files) {
+      const s = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!s.measured || !s.vocalCheck) throw new Error(`${path.relative(ROOT, file)} is not checked: run sloedla-music.mjs ${id} --measure and --vocals`);
+      const fails = failsOf(s);
+      if (!fails) { json = file; song = s; break; }
+      why ??= fails;
+      console.log(`${letter} ${path.basename(file)} not used: ${fails}`);
+    }
+    if (!json) { leftOut.push({ letter, why }); continue; }
     const src = path.relative(FOLDER, path.join(path.dirname(json), song.src)).replace(/\\/g, '/');
     candidates.push({ id, letter, feelIs: preset.feelIs, src, bpm: song.measured.bpm, key: song.measured.key, lengthSeconds: song.measured.lengthSeconds, downbeatSec: song.measured.downbeatSec });
     console.log(`${letter} ${preset.feelIs}: ${src}, ${song.measured.bpm} bpm, ${song.measured.key}, drift ${song.driftMs} ms, ${song.measured.lengthSeconds} s, sections from ${startsOf(candidates.at(-1)).map(p => p.second).join(' / ')} s`);
