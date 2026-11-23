@@ -6,9 +6,9 @@
 //   beckon(s, c, names, how)   the aimed targets `names` (c.aims, kafli6.js aim) glitter from now; any glitter before stops
 //   unbeckon(c)                every glint goes at once (the tap is taken, or the wait is over)
 //
-// `how`: { size, spread, around (m round the point), up (m over it), clear }. In the cloud (`clear`) the glints are drawn over the
-// white instead of added to it, and take no fog, as the cloud's own gold glow does: light added to white is white, and the fog would
-// make them white too. While a target glitters c.beckoning says which ({ names, since }), for the tests and the videos' child.
+// `how`: { size, spread, around (m round the point), up (m over it), clear }. With `clear` the glints are drawn over the picture
+// instead of added to it, and take no fog, as the cloud's own gold glow does: light added to white (the cloud, bright sand) is
+// white, and the fog would make them white too. While a target glitters c.beckoning says which ({ names, since }), for the tests and the videos' child.
 import * as THREE from 'three';
 import { glints, run } from '../world/props/sparkles.js';
 
@@ -17,11 +17,12 @@ const GOLD = '#f2b630'; // the sparkles' own gold
 export const GLITTER = { every: 0.7, duration: 1.2, count: 12 };
 // How each of the three waits glitters (m): Mosi in the cloud, 9 m from the camera, round his back where Egill sits; the three ways
 // in the cloud, where the gold glows when she answers (22 m off and 9 m up), all three alike; her head on the ground, as chapter 3's
-// seat on Þórseðla's head glitters, a little bigger for the wider shot.
+// seat on Þórseðla's head glitters, bigger for the wider shot and drawn over the picture too: added to the bright sand and the
+// sunset haze behind her head the glints were white specks.
 export const BECKON = {
-  mosi: { size: 0.6, spread: 1.1, around: 1.1, up: 0.7, clear: true },
+  mosi: { size: 0.6, spread: 1.1, around: 0.8, up: 0.8, clear: true },
   ways: { size: 1.6, spread: 3, around: 2, up: 0, clear: true },
-  head: { size: 0.45, spread: 0.7, around: 0.3, up: 0, clear: false },
+  head: { size: 1.1, spread: 1.3, around: 0.4, up: 0, clear: true },
 };
 
 export function beckon(s, c, names, { size = 0.32, spread = 0.7, around = 0.3, up = 0, clear = false } = {}) {

@@ -49,7 +49,7 @@ function playIt({ aspect = 1.6, child = null } = {}) {
         const missing = want.filter(name => !names.has(name));
         if (missing.length || String(c.beckoning?.names) !== String(want)) seen.late.push(`${missing.join(',') || c.beckoning?.names} at ${time.toFixed(2)} s`);
         for (const o of glitter) {
-          if (c.waiting.task === 'call' && (o.material.fog !== false || o.material.blending !== THREE.NormalBlending)) seen.cloudLook.push(o.name);
+          if ((o.material.fog !== false || o.material.blending !== THREE.NormalBlending)) seen.cloudLook.push(o.name);
           const name = o.name.slice('Glitter '.length);
           const p = new THREE.Vector3().fromArray(o.geometry.attributes.position.array, 0);
           const aim = world.resolvePoint(c.aims[name], new THREE.Vector3());
@@ -98,7 +98,7 @@ function checkWaits(run, what) {
   assert.deepEqual(watched.stray, [], `${what}: glitter with no wait for it`);
   assert.deepEqual(watched.far, [], `${what}: glitter away from what it marks`);
   assert.deepEqual(watched.off, [], `${what}: glitter off the screen`);
-  assert.deepEqual(watched.cloudLook, [], `${what}: glitter in the cloud that is added to the white or takes fog`);
+  assert.deepEqual(watched.cloudLook, [], `${what}: glitter that is added to the picture (white in the cloud) or takes fog`);
 }
 
 test('untouched, wide: each of the three waits glitters on its target from its first frame, on the screen, and nothing else does', async () => {
