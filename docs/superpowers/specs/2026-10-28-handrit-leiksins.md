@@ -27,8 +27,10 @@ Hvar kaflaskil 2 og 3 liggja í kóðanum (nú einn kafli, `chapters/kafli2.js`)
 
 ## Endirinn: Stjörnuhátíðin, og saga 2
 
-**Forskrift** `2026-11-21-stjornuhatidin-design.md`. Lokakafli uppi á fjallstoppinum hennar Grameðlu, ofan við skýin, við sólsetur (ákvörðun eiganda 2026-11-21; áður var hann í rjóðrinu). Hátíðin er alltaf haldin þar, næst stjörnunum:
+**Forskriftir** `2026-11-21-stjornuhatidin-design.md` (endurskrifuð 2026-11-23 sem stórt lokaatriði) og `2026-11-23-ferdin-til-baka-design.md`. Lokakafli uppi á fjallstoppinum hennar Grameðlu, ofan við skýin (ákvörðun eiganda 2026-11-21; áður var hann í rjóðrinu). Hátíðin er alltaf haldin þar, næst stjörnunum. Allt saman er um 12 mínútur; reglan um 10 mínútur gildir ekki um lokaatriðið (ákvörðun eiganda 2026-11-23):
 
-- Vinirnir koma upp úr skýjunum einn af öðrum með gjafirnar sínar: plötur Kambeðlu lýsa, Uggeðla ferjaði gestina yfir ána, Þórseðla sér fyrstu stjörnuna, Flugeðla kemur úr loftinu, Slóeðla leiðir lagið.
-- Grameðla öskrar og stjörnurnar sex úr bókinni fljúga upp. Egill kveikir á þeim á himninum, ein fyrir hvern vin. Fyrstu stjörnur sumarsins koma og allir dansa nýjan dans við nýtt hátíðarlag.
-- **Kliffhanger (ákvörðun eiganda 2026-10-28): Egill fer út í geim.** Tillaga: þegar stjörnurnar sex hafa kviknað birtist sjöunda stjarna sem enginn þekkir, blikkar og kemur nær. Ljós úr henni lyftir Agli upp eins og þegar hann sveif í hnakkinn í kafla 1, Mosi kallar á eftir honum, og myndin fer í svart: „Framhald…“. Saga 2 gerist í geimnum.
+- **Koman og sólin kveður.** Vinirnir koma upp úr skýjunum einn af öðrum. Egill pikkar á sólina og allir vinka henni bless.
+- **Myrkrið og stjörnurnar.** Aðeins plötur Kambeðlu lýsa. Þórseðla sér fyrstu stjörnuna, Grameðla öskrar og stjörnurnar sex úr bókinni fljúga upp. Egill kveikir á þeim, og hver þeirra teiknar stjörnumerki vinar síns á himininn. Hálft tungl með partíhatt kemur upp.
+- **Veislan.** Toppurinn verður tónleikasvið: Slóeðla á sviðinu, ljósflugur sem kastarar, glóblóm sem dansgólf og nýtt hátíðarlag án orða, um 4 mínútur. Þetta er sýning sem Egill horfir á. Skemmtun gengur hér fyrir raunveruleika.
+- **Kliffhanger (ákvörðun eiganda 2026-10-28): Egill fer út í geim.** Sjöunda stjarna sem enginn þekkir blikkar og kemur nær. Ljós úr henni lyftir Agli upp eins og þegar hann sveif í hnakkinn í kafla 1. Hann hlær og vinkar. Mosi verður eftir (ákvörðun eiganda 2026-11-23).
+- **Ferðin til baka.** Á leiðinni upp sér Egill alla ferðina í öfugri röð, frá fjallinu niður í rjóðrið, við remix af tónlist leiksins. Síðast birtist „Framhald…“. Saga 2 gerist í geimnum.
