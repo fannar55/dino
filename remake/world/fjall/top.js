@@ -4,7 +4,7 @@
 // with nothing of chapter 6's in it.
 //
 //   const top = createTop(world, { grey, seed, radius })
-//   top.group, top.heightAt(x, z), top.update(dt, time), top.dispose()
+//   top.group, top.heightAt(x, z), top.seenAt(x, z) (its mesh, what feet stand on), top.update(dt, time), top.dispose()
 //   top.centre ([0, 0]), top.radius
 //   top.edge(angle) -> [x, z]          the rim at `angle` (radians, from +x toward +z): where the ground meets the cloud
 //   top.wayUp(angle) -> [[x, z] x 3]   the way a friend comes up at `angle`: from under the sea, over the rim, 8 m inside it
@@ -200,7 +200,7 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
   world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
   let disposed = false;
   return {
-    group, heightAt, grey, centre: [0, 0], radius, edge, wayUp, room, plants: placements,
+    group, heightAt, seenAt: (x, z) => ground.seenAt(x, z) ?? heightAt(x, z), grey, centre: [0, 0], radius, edge, wayUp, room, plants: placements,
     sea: {
       level: FJALL.top.sea, cards: seaCards, bank,
       /** A warm light of the sea's own (the festival's glow under the night): 0 none, 1 full. The rim's puffs and heaps take it too, in

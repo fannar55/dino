@@ -37,7 +37,7 @@ import { createPrints } from './kafli6-prints.js';
 import { createCall, thirdOf, ANSWER } from './kafli6-call.js';
 import { DIRECTIONS } from './kafli6-help.js';
 import { beckon, unbeckon, BECKON } from './kafli6-glitter.js';
-import { hopTo, letGo, smallRoar, pointWithHead, dipHead, runBeside } from './kafli6-mosi.js';
+import { hopTo, letGo, smallRoar, pointWithHead, dipHead, runBeside, feetOnTheGround } from './kafli6-mosi.js';
 import { gramedlaLife, STEP_OUT as HER_STEP_OUT, STRIDE } from './kafli6-gramedla.js';
 import { HEAD_SEAT } from './kafli6-seat.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
@@ -1301,6 +1301,7 @@ function setUp(s) {
   c.her = gramedlaLife(s, c);
   c.sloedlaLife = sloedlaLife(sloedla);
   c.saddle = createSaddle(mosi.raw);
+  c.feet = feetOnTheGround(c); // Mosi and Grameðla stand on the ground the eye sees, tilted with its slopes
   world.chapterState = c;
   c.run = () => {
     return () => {
@@ -1310,6 +1311,7 @@ function setUp(s) {
       showSky(c); // the sky as the engine had it, however the chapter ends or is left
       c.evening?.restore(); // and its water, Mosi cloud and light on things (the sun keeps its cap, as chapter 5 leaves it)
       c.her.dispose(); // her skin's shared material back on her model
+      c.feet(); // their feet as every other chapter has them
       world.music?.setLevel?.(1, 1);
     };
   };

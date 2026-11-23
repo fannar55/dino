@@ -122,6 +122,93 @@ function lowestRead(body, ids) {
 const lowestAll = (rows) => (rows.morphed ? lowestRead(rows.body, rows.allIds) : lowestOf(rows, rows.all));
 const lowestFront = (rows) => (rows.morphed ? lowestRead(rows.body, rows.frontIds) : lowestOf(rows, rows.front));
 
+/**
+ * The skinned vertices of an actor's body carried most by each group's bones, read cheaply each frame as lowestOfHead reads her
+ * head (packed rows, a dot product a vertex): `groups` { name: [bone names] }, every `stride`-th vertex. update() fills and returns
+ * { name: Float64Array [x, y, z, ...] } in the world now (chapter 6's checks of feet on the ground and of bodies apart).
+ */
+export function skinPoints(actor, groups, { stride = 1 } = {}) {
+  const body = bodyMesh(actor);
+  const bones = body.skeleton.bones;
+  const si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight;
+  const position = body.geometry.attributes.position;
+  const morphed = Boolean(body.geometry.morphAttributes?.position?.length);
+  const owner = new Map();
+  for (const [name, list] of Object.entries(groups)) {
+    for (const n of list) {
+      const i = bones.indexOf(actor.model.getObjectByName(n));
+      if (i >= 0) owner.set(i, name);
+    }
+  }
+  actor.root.updateMatrixWorld(true);
+  body.skeleton.update();
+  const rows = Object.fromEntries(Object.keys(groups).map(name => [name, { list: [], ids: [] }]));
+  const used = new Set();
+  const bound = new THREE.Vector3(), local = new THREE.Vector3();
+  let seen = 0;
+  for (let i = 0; i < si.count; i++) {
+    let top = 0, w = -1;
+    for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); top = si.getComponent(i, k); }
+    const name = owner.get(top);
+    if (!name || seen++ % stride) continue;
+    const row = [0, 0];
+    bound.fromBufferAttribute(position, i).applyMatrix4(body.bindMatrix);
+    for (let k = 0; k < 4; k++) {
+      const weight = sw.getComponent(i, k);
+      if (weight === 0) continue;
+      const b = si.getComponent(i, k);
+      local.copy(bound).applyMatrix4(body.skeleton.boneInverses[b]);
+      row.push(b, weight, local.x, local.y, local.z);
+      row[0]++;
+      row[1] += weight;
+      used.add(b);
+    }
+    rows[name].list.push(...row);
+    rows[name].ids.push(i);
+  }
+  const packed = Object.fromEntries(Object.entries(rows).map(([name, r]) => [name, { list: Float64Array.from(r.list), ids: r.ids, out: new Float64Array(r.ids.length * 3) }]));
+  const m = new Float64Array(bones.length * 12);
+  const toMesh = new THREE.Matrix4(), toWorld = new THREE.Matrix4(), v = new THREE.Vector3();
+  function update() {
+    actor.root.updateMatrixWorld(true);
+    const result = {};
+    if (morphed) {
+      for (const [name, p] of Object.entries(packed)) {
+        p.ids.forEach((id, k) => { body.getVertexPosition(id, v).applyMatrix4(body.matrixWorld); p.out[k * 3] = v.x; p.out[k * 3 + 1] = v.y; p.out[k * 3 + 2] = v.z; });
+        result[name] = p.out;
+      }
+      return result;
+    }
+    toMesh.multiplyMatrices(body.matrixWorld, body.bindMatrixInverse);
+    const t = toMesh.elements;
+    for (const b of used) {
+      const e = toWorld.multiplyMatrices(toMesh, bones[b].matrixWorld).elements;
+      const o = b * 12;
+      m[o] = e[0]; m[o + 1] = e[4]; m[o + 2] = e[8]; m[o + 3] = e[12];
+      m[o + 4] = e[1]; m[o + 5] = e[5]; m[o + 6] = e[9]; m[o + 7] = e[13];
+      m[o + 8] = e[2]; m[o + 9] = e[6]; m[o + 10] = e[10]; m[o + 11] = e[14];
+    }
+    for (const [name, p] of Object.entries(packed)) {
+      const { list, out } = p;
+      for (let i = 0, k = 0; i < list.length; k += 3) {
+        const n = list[i++];
+        const rest = 1 - list[i++];
+        let x = rest * t[12], y = rest * t[13], z = rest * t[14];
+        for (let j = 0; j < n; j++, i += 5) {
+          const o = list[i] * 12, w = list[i + 1], lx = list[i + 2], ly = list[i + 3], lz = list[i + 4];
+          x += w * (m[o] * lx + m[o + 1] * ly + m[o + 2] * lz + m[o + 3]);
+          y += w * (m[o + 4] * lx + m[o + 5] * ly + m[o + 6] * lz + m[o + 7]);
+          z += w * (m[o + 8] * lx + m[o + 9] * ly + m[o + 10] * lz + m[o + 11]);
+        }
+        out[k] = x; out[k + 1] = y; out[k + 2] = z;
+      }
+      result[name] = out;
+    }
+    return result;
+  }
+  return { update, groups: Object.keys(groups) };
+}
+
 /** { low, snout }: the lowest point of her head in the world now (y), and of its front (her jaw's underside). */
 export function lowestOfHead(actor) {
   const rows = headVertices(actor);

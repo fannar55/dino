@@ -9,7 +9,8 @@
 //   const belt = createBelt(world, { grey, seed, prints, printSize, reduced, clear })
 //     prints: [{ position: [x, z], heading, foot, water }]; reduced: the cloud's (the chapter's reducedMotion);
 //     clear: [{ at: [x, z], r } | { from: [x, z], to: [x, z], r }] where nothing grows (the call's walks and where she stands)
-//   belt.cloud, belt.prints (createMudPrints's, null with no prints), belt.heightAt(x, z), belt.update(dt, time), belt.dispose()
+//   belt.cloud, belt.prints (createMudPrints's, null with no prints), belt.heightAt(x, z), belt.seenAt(x, z) (its mesh, what feet stand
+//   on), belt.update(dt, time), belt.dispose()
 //   belt.pebbles.hop()      the little stones round the last print hop at her thud (a Handle, done when they have settled)
 //   belt.summit.place(stand) the top's shape `SUMMIT.ahead` m ahead of { x, z, heading }; belt.summit.group
 //   belt.bank               the cloud blown back round them (look.js createCloudCards)
@@ -128,7 +129,9 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
 
   world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
   return {
-    group, heightAt, cloud, prints: marks, grey, pebbles, summit, plants: placements,
+    group, heightAt, cloud, prints: marks,
+    // what feet stand on: the mesh, and up on a print's lip where one is (mud-prints.js groundAt)
+    seenAt: (x, z) => (ground.seenAt(x, z) ?? heightAt(x, z)) + (marks ? marks.groundAt(x, z) - heightAt(x, z) : 0), grey, pebbles, summit, plants: placements,
     get bank() { return bank; },
     update(dt, time) {
       cloud.update(dt, time);

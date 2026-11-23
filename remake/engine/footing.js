@@ -218,6 +218,9 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   let lastLift = -Infinity;
   let applied = false;
   let ready = false;
+  // The ground the eye sees, when it is given (setGround: chapter 6's mountain, whose bodies tilt with its slopes): each foot then
+  // stands on it where it is, and rests turned as the root is (pitched and rolled), not upright. Without it nothing here changes.
+  let ground = null;
 
   const v1 = new THREE.Vector3();
   const v2 = new THREE.Vector3();
@@ -229,20 +232,23 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
 
   /** Where a leg's foot rests when the root faces `yaw` (world). */
   const homeAt = (L, yaw, out) => {
-    if (!rootFrame) return out.copy(L.home).applyAxisAngle(UP, yaw).add(root.position);
+    if (!rootFrame && !ground) return out.copy(L.home).applyAxisAngle(UP, yaw).add(root.position);
     // Scaled babies crossing inclined bridges keep rest feet in the complete
     // root frame. Rotating the world offset preserves the standing-turn API.
     root.localToWorld(out.copy(L.home));
     return out.sub(root.position).applyAxisAngle(UP, yaw - root.rotation.y).add(root.position);
   };
   const surfaceY = (L, point) => {
+    if (ground) return ground(point.x, point.z) + L.home.y / Math.max(0.5, v4.set(0, 1, 0).applyQuaternion(root.quaternion).y);
     if (!rootFrame) return L.ground;
     const home = homeAt(L, root.rotation.y, new THREE.Vector3());
     const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(root.quaternion);
     return home.y + (normal.x * (home.x - point.x) + normal.z * (home.z - point.z)) / Math.max(.25, normal.y);
   };
   /** How a resting foot is turned when the root faces `yaw` (world). */
-  const restTurn = (L, yaw, out) => out.setFromAxisAngle(UP, yaw).multiply(L.parentQ).multiply(L.restFoot);
+  const restTurn = (L, yaw, out) => (ground
+    ? out.setFromAxisAngle(UP, yaw - root.rotation.y).multiply(root.quaternion).multiply(L.parentQ).multiply(L.restFoot)
+    : out.setFromAxisAngle(UP, yaw).multiply(L.parentQ).multiply(L.restFoot));
   const forward = (yaw, out) => out.set(Math.cos(yaw), 0, -Math.sin(yaw));
 
   // Read the pose the clips gave a leg this frame, and where that puts its foot.
@@ -261,7 +267,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       L.parent.localToWorld(L.clip.copy(L.reach).applyQuaternion(a.quaternion).add(a.position));
       L.parent.getWorldQuaternion(L.clipTurn).multiply(a.quaternion).multiply(a.foot);
     }
-    L.ground = homeAt(L, root.rotation.y, v1).y;
+    L.ground = ground ? surfaceY(L, homeAt(L, root.rotation.y, v1)) : homeAt(L, root.rotation.y, v1).y;
     L.clipUp = L.clip.y - L.ground > LIFT;
   }
 
@@ -300,6 +306,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   function stepTarget(L, s, yaw) {
     const ay = aimYaw(L, yaw);
     homeAt(L, ay, s.to).addScaledVector(forward(ay, v3), s.ahead);
+    if (ground) s.to.y = surfaceY(L, s.to);
     restTurn(L, ay, s.turnTo);
   }
 
@@ -409,7 +416,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   // The foot's place and turn this frame (world).
   function footPose(L, position, turn) {
     if (L.state === 'down') {
-      if (rootFrame) L.at.y = surfaceY(L, L.at);
+      if (rootFrame || ground) L.at.y = surfaceY(L, L.at);
       position.copy(L.at);
       turn.copy(L.turn);
     } else if (L.state === 'clip') {
@@ -550,6 +557,12 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       }
       return share;
     },
+    /**
+     * The ground the eye sees, (x, z) -> its height, or null (the default): with it each foot stands on that ground where it is and
+     * rests turned as the root is (actor.followGround: a body tilted to a slope). Start over (reset) after changing it.
+     */
+    setGround(fn = null) { ground = fn ?? null; },
+    get ground() { return ground; },
     /** Put the clips' leg pose back before the mixer runs (it skips values that did not change). */
     restore() {
       if (!applied) return;

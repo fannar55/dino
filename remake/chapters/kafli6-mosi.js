@@ -11,6 +11,7 @@
 //   const run = runBeside(s, c, points, { speed, pant })   -> Handle, done as he stops: his walk along `points` beside her up to the
 //                                                    top (scene 7) as fast as his feet keep up; with `pant` he then puffs (puffs)
 //   puffs(c, { seconds })                            -> Handle: his neck and head bob as he gets his breath back, where he stands
+//   const off = feetOnTheGround(c)                   Mosi and Grameðla stand on the ground the eye sees (actor.followGround) until off()
 //
 // Each runs on the actor's own update (the game clock), so the book's pause holds it.
 import * as THREE from 'three';
@@ -240,6 +241,20 @@ export function runBeside(s, c, points, { speed = BESIDE.speed, pant = false } =
     puffs(c);
   });
   return handle;
+}
+
+/**
+ * Mosi and Grameðla stand on the ground the eye sees the whole chapter (actor.followGround): a stage's mesh where it gives one
+ * (world/fjall seenAt: on a steep slope its triangles lie off its rounded heights), else the place's heightAt. Mosi's body pitches
+ * and rolls with the slope under his four feet, so his front feet do not dig into a slope he walks up; each foot stands on the ground
+ * under it. Returns off(): their feet as every other chapter has them.
+ */
+export function feetOnTheGround(c) {
+  const world = c.world;
+  const ground = (x, z) => world.forest?.seenAt?.(x, z) ?? world.heightAt(x, z);
+  const actors = [c.mosi.raw, c.gramedla.raw];
+  for (const actor of actors) actor.followGround(ground);
+  return () => { for (const actor of actors) actor.followGround(null); };
 }
 
 /** He puffs where he stands: his neck and head bob, fading out over PANT.seconds (on his overlay, as his little roar). A Handle. */

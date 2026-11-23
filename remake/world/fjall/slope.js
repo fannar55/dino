@@ -5,7 +5,8 @@
 // big triangles never show through it. The cloud lies above, up the ridge (the belt: belt.js, a place of its own).
 //
 //   const slope = createSlope(world, { grey, route, seed })
-//   slope.far (its far land, shown), slope.ledge ([x, z]), slope.heightAt(x, z), slope.update(dt, time), slope.dispose()
+//   slope.far (its far land, shown), slope.ledge ([x, z]), slope.heightAt(x, z), slope.seenAt(x, z) (its mesh, what feet stand on),
+//   slope.update(dt, time), slope.dispose()
 //   slope.glade(on)        Kambeðla's lilac glow in her glade, held on (a slow breath) while Egill speaks of it; off by default
 //   slope.thorsedla        Þórseðla walking north-west in the forest at THORSEDLA.scale times her size: { at() -> [x, z], actor }
 //   slope.deck             the cloud's underside over the ridge (look.js createCloudCards), with slope.wisps where it meets the path
@@ -225,7 +226,7 @@ export function createSlope(world, { grey = false, route = createRoute(), seed =
   let disposed = false;
   let clock = 0;
   return {
-    group, heightAt, far, ledge, grey, deck, wisps, thorsedla, plants: placements, get forest() { return forest; },
+    group, heightAt, seenAt: (x, z) => ground.seenAt(x, z) ?? heightAt(x, z), far, ledge, grey, deck, wisps, thorsedla, plants: placements, get forest() { return forest; },
     glade(on = true) { gladeOn = Boolean(on); },
     update(dt = 0, time = 0) {
       if (!group.visible) { far.update(-1, world.camera); return; } // not the place in view: the camera's own far plane, nothing moved

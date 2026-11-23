@@ -283,7 +283,57 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   function place(x, z, headingDeg = getHeading()) {
     root.position.set(x, world.heightAt(x, z), z);
     setHeading(headingDeg);
+    if (groundAt) toGround();
     root.updateMatrixWorld(true);
+    footing.reset();
+  }
+
+  // Following the ground the eye sees (followGround: chapter 6's mountain): a four-legged body pitches and rolls to the plane under
+  // its four rest feet and its root stands on that plane; a two-legged one stays upright, its root on the ground under it. Footing
+  // stands each foot on that ground. Off (the default), nothing here runs.
+  let groundAt = null;
+  const tiltFeet = quadruped ? restFeet.map((p, k) => ({ x: p.x, z: p.z, front: legs[k].girdle === 0 })) : null;
+  function toGround() {
+    const { x, z } = root.position;
+    if (!tiltFeet) {
+      root.rotation.x = 0;
+      root.rotation.z = 0;
+      root.position.y = groundAt(x, z);
+      return;
+    }
+    const yaw = root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
+    let pitch = root.rotation.z, roll = root.rotation.x;
+    let height = root.position.y;
+    for (let pass = 0; pass < 2; pass++) {
+      // the feet's spots as the body tilted last stands them (nearer in along a slope), and the ground under each
+      const cp = Math.cos(pitch), cr = Math.cos(roll);
+      let front = 0, back = 0, left = 0, right = 0, nf = 0, nb = 0, nl = 0, nr = 0, xf = 0, xb = 0, zl = 0, zr = 0, cx = 0, cz = 0;
+      for (const foot of tiltFeet) {
+        const lx = foot.x * cp, lz = foot.z * cr;
+        const g = groundAt(x + lx * c + lz * s, z - lx * s + lz * c);
+        if (foot.front) { front += g; xf += foot.x; nf++; } else { back += g; xb += foot.x; nb++; }
+        if (foot.z > 0) { right += g; zr += foot.z; nr++; } else { left += g; zl += foot.z; nl++; }
+        cx += foot.x;
+        cz += foot.z;
+      }
+      front /= nf; back /= nb; right /= nr; left /= nl; xf /= nf; xb /= nb; zr /= nr; zl /= nl; cx /= tiltFeet.length; cz /= tiltFeet.length;
+      pitch = Math.atan2(front - back, xf - xb);
+      roll = Math.atan2(left - right, zr - zl);
+      const mean = (front + back) / 2;
+      height = mean - (cx * Math.sin(pitch) - cz * Math.sin(roll) * Math.cos(pitch));
+    }
+    root.rotation.z = pitch;
+    root.rotation.x = roll;
+    root.position.y = height;
+  }
+  function followGround(fn = null) {
+    groundAt = fn ?? null;
+    if (groundAt) {
+      root.rotation.set(0, root.rotation.y, 0, 'YZX'); // the heading outermost, then the pitch about its right side, then the roll
+      toGround();
+    } else root.rotation.set(0, root.rotation.y, 0);
+    root.updateMatrixWorld(true);
+    footing.setGround(groundAt);
     footing.reset();
   }
 
@@ -673,6 +723,12 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       return action;
     },
     place, walkTo, turnTo, lookAt, listenAt,
+    /**
+     * Stand on the ground the eye sees, (x, z) -> its height (a stage's mesh between its samples), or null (the default) to stand as
+     * every chapter but 6 does: a four-legged body then pitches and rolls with the slope under its feet, and each foot stands on it.
+     */
+    followGround,
+    get followsGround() { return groundAt; },
     get listening() { return listen.spec; },
     /** Degrees a look may turn the head aside at most, whatever lookAt asks (Infinity, the default: no cap). */
     get lookYawLimit() { return lookYawLimit; },
@@ -713,10 +769,13 @@ export async function createActor(world, { name, url, gltf: given, position = [0
         model.rotation.set(0, 0, 0);
       }
       footing.restore();
-      if (controlled) drive?.(dt);
-      else {
+      if (controlled) {
+        if (groundAt) { root.rotation.x = 0; root.rotation.z = 0; } // held (on a stone, in a hop): upright, as it is put
+        drive?.(dt);
+      } else {
         updateWalk(dt);
         updateTurn(dt);
+        if (groundAt) toGround();
       }
       mixer.update(dt);
       if (controlled) pose?.(dt);

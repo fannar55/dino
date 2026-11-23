@@ -9,7 +9,8 @@ export const FJALL = { ridge: [-2578, 120], top: { radius: 45, sea: -7 } };
  * A stage's ground: one mesh, a grid of `step` m cells over the disc of `radius` round `centre`, its heights from `heightAt`, in
  * `colour` (grey: GREY.ground), or painted: `paint(x, z, y, ny) -> [r, g, b, rock]` (linear colour, and its share of bare rock) a
  * vertex, drawn with `material` (world/ardalur/look.js createGroundMaterial, which reads the colours and aRock; not disposed here).
- * It takes the sun's shadow.
+ * It takes the sun's shadow. `seenAt(x, z)`: the mesh's own height there (its triangle's, which between the samples lies under a
+ * rounded `heightAt` and over a hollow one), or null off its grid: what feet stand on (actor.followGround).
  */
 export function groundMesh(heightAt, { centre = [0, 0], radius, step = 2, colour = GREY.ground, name = 'Ground', paint = null, material: given = null }) {
   const n = Math.ceil((radius * 2) / step);
@@ -49,7 +50,17 @@ export function groundMesh(heightAt, { centre = [0, 0], radius, step = 2, colour
   const mesh = new THREE.Mesh(geometry, own ?? given);
   mesh.name = name;
   mesh.receiveShadow = true;
-  return { mesh, dispose() { geometry.dispose(); own?.dispose(); } };
+  const seenAt = (x, z) => {
+    const fx = (x - cx + radius) / step, fz = (z - cz + radius) / step;
+    const i = Math.floor(fx), j = Math.floor(fz);
+    if (!(i >= 0 && j >= 0 && i < n && j < n)) return null;
+    const u = fx - i, v = fz - j;
+    const h = (a, b) => pos[at(a, b) * 3 + 1];
+    // the cell's two triangles meet on its diagonal from (i + 1, j) to (i, j + 1)
+    if (u + v <= 1) return h(i, j) + u * (h(i + 1, j) - h(i, j)) + v * (h(i, j + 1) - h(i, j));
+    return h(i + 1, j + 1) + (1 - u) * (h(i, j + 1) - h(i + 1, j + 1)) + (1 - v) * (h(i + 1, j) - h(i + 1, j + 1));
+  };
+  return { mesh, seenAt, dispose() { geometry.dispose(); own?.dispose(); } };
 }
 
 /** A linear colour from a hex (three's colour management: hex in, linear out), and a mix of two. */
