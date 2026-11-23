@@ -57,10 +57,11 @@ const FEN = { x: -60, z: 90, r: 420, edge: 140, colour: '#efe4b4', share: 0.9 };
 const HILLS = { from: 3200, full: 5200, height: 110 };
 // The glade: Kambeðla's plates (the far land's own glow, held on) and over them a big soft lilac light, to be found from 1.6 km
 const GLADE = { x: -832, z: -192, size: 340, colour: [0.5, 0.3, 0.95], above: 30 };
-// The water the view sees, catching the low sun: the river from where it comes out of the mountains, over the falls, past the pool
+// The water the view sees, catching the evening's cool last light (the slope is nearly night, the owner's word of 2026-11-23: a
+// warm peach here made the river a pink ribbon): the river from where it comes out of the mountains, over the falls, past the pool
 // and on to the Fen, wider than it is from `wide` m off (from 1 to 2.3 km off it was a thread), and the pool; its edges a little
 // darker and bluer than its middle (the banks in it)
-const WATER = { widen: 2.4, more: 4, wide: [500, 1500], rise: 0.4, colour: '#ffd2a0', warm: 0.4, poolMore: 14, edge: [0.8, 0.84, 0.94], meander: [14, 95] };
+const WATER = { widen: 2.4, more: 4, wide: [500, 1500], rise: 0.4, colour: '#8e9cc8', warm: 0.4, poolMore: 14, edge: [0.8, 0.84, 0.94], meander: [14, 95] };
 const SPRAY = { cards: 7, width: [26, 40], height: [22, 34] };
 
 export function createSlope(world, { grey = false, route = createRoute(), seed = 4 } = {}) {
