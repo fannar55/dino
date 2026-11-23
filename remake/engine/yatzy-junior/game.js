@@ -69,6 +69,12 @@ const cells=new Map(),dieButtons=[],canvas=$('table'),cupButton=$('cup-target'),
 const pixels=Array.from({length:6},()=>({x:NaN,y:NaN,width:NaN,height:NaN,top:NaN,bottom:NaN}));
 const cupAnchor={x:0,y:0},opponentFrame={thinking:false,rolling:false,target:null,reducedMotion:reduced};
 let targetWidth=0,targetHeight=0;
+let dirty=true,calmUntil=0,tickFn=null,multiBusy=false,multiToken=0,tagKey='';
+const cupTag=cupButton.querySelector('.cup-tag');
+const scoreFlyers=new Set(),scoreTimers=new Set();
+function clearFlights(){for(const id of scoreTimers)clearTimeout(id);scoreTimers.clear();for(const el of scoreFlyers)el.remove();scoreFlyers.clear();}
+function wakeLoop(){if(disposed||frame||!tickFn||document.hidden||qaFrozen)return;last=performance.now();frame=requestAnimationFrame(tickFn);}
+function markDirty(hold=0){dirty=true;if(hold>0)calmUntil=Math.max(calmUntil,elapsed+hold);wakeLoop();}
 // "Fjölspil" (the owner's decisions of 2026-10-24): the page hosts a room of its own (STORAGE_KEY) for Egill at the big screen in
 // seat 0, up to three guests whose phones are their cups, and Mosi, the one computer player, when the lobby adds him; player i of
 // the rules is seat i. `multi` is the game of seats while one is on (its seats are fjolspil.seats, live): the latest roll
@@ -119,7 +125,7 @@ function buildPlayers(list){
     if(solo){card.id=isMosi?'mosi-card':'you-card';total.id=isMosi?'mosi-total':'you-total';}else card.dataset.seat=String(i); // the check tools read the solo ids
     card.append(portrait,total,label);return {card,portrait,total,colour,deep};
   });
-  bar.dataset.count=String(list.length);bar.setAttribute('aria-label',list.length===2?'Stig beggja':'Stig leikmanna');bar.replaceChildren(...playerEls.map(p=>p.card));barEnd();world?.resize(); // the dice view measured round the new bar
+  bar.dataset.count=String(list.length);bar.setAttribute('aria-label',list.length===2?'Stig beggja':'Stig leikmanna');bar.replaceChildren(...playerEls.map(p=>p.card));tagKey='';barEnd();world?.resize(); // the dice view measured round the new bar
 }
 // Where the bar ends (--bar-right): over the dice, Mosi's bubble keeps beside a bar of three or four (yatzy-junior.css).
 function barEnd(){$('game').style.setProperty('--bar-right',`${Math.ceil(document.querySelector('.players').getBoundingClientRect().right)}px`);}
@@ -161,9 +167,9 @@ function syncVoiceRecovery(){
 }
 // After a roll the camera rises over the dice and closes in on them (the 'dice' view), between the players' bar and the cards
 // (TABLE_SHOT.safe); it goes back to the table, Mosi in view, when the turn moves on. #game[data-view] tells the page which.
-function view(mode,snap=reduced){pendingDiceView=-1;$('game').dataset.view=mode;if(mode==='dice')world?.setDiceFocus(dice.getFramingPoints(),{snap});world?.setView(mode,{reduced:snap});}
+function view(mode,snap=reduced){pendingDiceView=-1;$('game').dataset.view=mode;if(mode==='dice')world?.setDiceFocus(dice.getFramingPoints(),{snap});world?.setView(mode,{reduced:snap});markDirty(.85);}
 // The table holds still under a dialog, a hidden tab and the lobby; in Fjölspil every phone hears when it pauses and goes on.
-function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'))||lobbyUp;wakeLock.setActive(!qaFrozen&&!$('pause-dialog')?.open);audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();sendViews();}
+function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'))||lobbyUp;wakeLock.setActive(!qaFrozen&&!$('pause-dialog')?.open);audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();sendViews();if(document.hidden||qaFrozen){if(frame){cancelAnimationFrame(frame);frame=0;}}else if(!paused||modalNarration||dirty)wakeLoop();}
 function openDialog(id,line){if(!$(id).open)audio.cue('dialog',{id});if(line){voice?.stop();modalNarration=true;lessonAdvance=-1;}if(!$(id).open)$(id).showModal();syncPause();if(line)saySequence(Array.isArray(line)?line:[line]);}
 function closeDialogs(){modalNarration=false;for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();syncPause();}
 function say(id,onEnd){
@@ -247,16 +253,19 @@ function renderUI(){
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
   paintCoach();paintPicks();updateTargets();syncVoiceRecovery();
   audio.cue('cards',{values:CATEGORIES.map(c=>cells.get(c.id).select.disabled?-1:preview[c.id]??0),pick:CATEGORIES.findIndex(c=>cells.get(c.id).card.classList.contains('pick'))});
+  if(!document.hidden&&!qaFrozen){dirty=true;if(!paused)calmUntil=Math.max(calmUntil,elapsed+.85);wakeLoop();}
 }
 // The Kasta tag stands over the cup's ring, 12 px clear of it, sliding sideways to stay on the screen; where something is in the
 // way there (the players' bar, the buttons, the bubble, a die or its number, the cards) it stands at the ring's right, else its
 // left, else under it, wherever is clear first.
-let tagKey='';
 function placeTag(){
-  const ring=cupButton.firstElementChild.getBoundingClientRect(),tag=cupButton.querySelector('.cup-tag');if(!ring.width)return;
-  const key=`${Math.round(ring.left)},${Math.round(ring.top)},${Math.round(ring.width)},${$('game').dataset.view},${innerWidth},${innerHeight},${pixels.map(p=>`${Math.round(p.x)}:${Math.round(p.y)}`).join(',')},${dieButtons.map(b=>b.hidden?0:1).join('')}`;
-  if(key===tagKey)return;tagKey=key;
-  const width=tag.offsetWidth,height=tag.offsetHeight+10,gap=12,cx=(ring.left+ring.right)/2,cy=(ring.top+ring.bottom)/2,natural=ring.left-ring.width*.04;
+  if(cupButton.dataset.remote==='true'||!cupTag)return;
+  const p5=pixels[5];if(!Number.isFinite(p5.x)||!p5.width)return;
+  const key=`${Math.round(p5.x)},${Math.round(p5.y)},${p5.width},${p5.height},${cupButton.dataset.parked},${$('game').dataset.view},${innerWidth},${innerHeight},${coach.hidden?'':$('lesson-line').textContent},${$('card-owner').hidden?0:1},${pixels.map(p=>`${Math.round(p.x)}:${Math.round(p.y)}`).join(',')},${dieButtons.map(b=>b.hidden?0:1).join('')}`;
+  if(key===tagKey)return;
+  const ring=cupButton.firstElementChild.getBoundingClientRect();if(!ring.width)return;
+  tagKey=key;
+  const width=cupTag.offsetWidth,height=cupTag.offsetHeight+10,gap=12,cx=(ring.left+ring.right)/2,cy=(ring.top+ring.bottom)/2,natural=ring.left-ring.width*.04;
   const slide=left=>Math.min(Math.max(left,gap),innerWidth-gap-width);
   const spots=[['above',slide(natural),ring.top-15-height],['right',ring.right+15,cy-height/2],['left',ring.left-15-width,cy-height/2],['below',slide(natural),ring.bottom+15]];
   const rects=e=>e.getBoundingClientRect(),obstacles=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help, #card-owner, #score-rows .card-select, #score-rows .card-value')].map(rects);
@@ -338,19 +347,20 @@ function scoreFlight(id,player){
   const sources=faces.map(face=>{const i=state.dice.findIndex((value,k)=>value===face&&!used.has(k));used.add(i);const p=pixels[i]||{};return {x:screen.left+p.x,y:screen.top+p.y,size:Math.max(30,(p.width||60)-12),index:i};}).filter(s=>s.index>=0&&Number.isFinite(s.x)&&Number.isFinite(s.y));
   for(const s of sources)effects.emit(dice.dice[s.index].position,{kind:'lift',reduced});
   const serial=juice.serial;
-  return()=>{const cell=cells.get(id);juice.flyDice(sources,cell.picture).then(()=>{if(serial!==juice.serial)return;juice.stamp(cell.select,onMosiChip(player)?cell.scores.querySelector('.who.mosi'):cell.value);setTimeout(()=>{if(serial===juice.serial)flyScore(id,player,held);},reduced?0:360);});};
+  return()=>{const cell=cells.get(id);juice.flyDice(sources,cell.picture).then(()=>{if(serial!==juice.serial||!playerEls[player])return;juice.stamp(cell.select,onMosiChip(player)?cell.scores.querySelector('.who.mosi'):cell.value);const tid=setTimeout(()=>{scoreTimers.delete(tid);if(serial===juice.serial)flyScore(id,player,held,serial);},reduced?0:360);scoreTimers.add(tid);});};
 }
-function flyScore(id,player,held){
+function flyScore(id,player,held,serial=juice.serial){
+  if(serial!==juice.serial||!playerEls[player])return;
   const chipped=onMosiChip(player),cell=cells.get(id),badge=chipped?cell.scores.querySelector('.who.mosi')||cell.value:cell.value,chip=playerEls[player].total,from=badge.getBoundingClientRect(),to=chip.getBoundingClientRect(),points=chipped?state.players[1].scores[id]:cell.value.textContent;
-  const land=()=>{audio.cue('land',{player:side(player)});chipHold[player]=null;renderUI();const target=Number(chip.textContent)||0;chipHold[player]=held;chip.textContent=held;juice.pop(chip,1.45);
-    juice.countUp(chip,Number(held)||0,target,value=>{chipHold[player]=value;chip.textContent=value;}).then(()=>{chipHold[player]=null;renderUI();});};
+  const land=()=>{if(serial!==juice.serial||!playerEls[player])return;audio.cue('land',{player:side(player)});chipHold[player]=null;renderUI();const target=Number(chip.textContent)||0;chipHold[player]=held;chip.textContent=held;juice.pop(chip,1.45);
+    juice.countUp(chip,Number(held)||0,target,value=>{if(serial!==juice.serial)return;chipHold[player]=value;chip.textContent=value;}).then(()=>{if(serial!==juice.serial)return;chipHold[player]=null;renderUI();});};
   if(reduced||!from.width||!to.width){land();return;}
   chipHold[player]=held; // the old total stays until the score lands
   const flyer=document.createElement('strong');flyer.className='card-value score-flyer';flyer.dataset.who=multi?'seat':player?'mosi':'you';flyer.textContent=String(points);flyer.setAttribute('aria-hidden','true');
   if(multi){flyer.style.setProperty('--c',playerEls[player].colour);flyer.style.setProperty('--c-deep',playerEls[player].deep);} // in the player's own colour
-  Object.assign(flyer.style,{left:`${from.left}px`,top:`${from.top}px`,minWidth:`${from.width}px`,height:`${from.height}px`,fontSize:getComputedStyle(badge).fontSize});document.body.append(flyer);
+  Object.assign(flyer.style,{left:`${from.left}px`,top:`${from.top}px`,minWidth:`${from.width}px`,height:`${from.height}px`,fontSize:getComputedStyle(badge).fontSize});document.body.append(flyer);scoreFlyers.add(flyer);
   const dx=to.left+to.width/2-(from.left+from.width/2),dy=to.top+to.height/2-(from.top+from.height/2);
-  flyer.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${dx*.45}px,${dy*.45-60}px) scale(1.25)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:.9}],{duration:720,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>{flyer.remove();land();},()=>{flyer.remove();chipHold[player]=null;});
+  flyer.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${dx*.45}px,${dy*.45-60}px) scale(1.25)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:.9}],{duration:720,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>{scoreFlyers.delete(flyer);flyer.remove();if(serial===juice.serial)land();},()=>{scoreFlyers.delete(flyer);flyer.remove();if(serial===juice.serial)chipHold[player]=null;});
 }
 function record(id){
   const player=state.currentPlayer,points=previews(state)[id],flight=scoreFlight(id,player);voice.stop();resetIdle();state=score(state,id);recent=id;
@@ -393,21 +403,23 @@ function enterStep(){
 function nextLesson(){if(!lesson)return;lesson.index++;if(lesson.index>=LESSON_STEPS.length){leaveLesson(true);return;}enterStep();}
 function beginLesson(){
   if(multi)return; // the lesson is the child's alone with Mosi (spec §7)
+  multiToken++;
   if(!lesson)lessonReturn={state:structuredClone(state),started,phase,scoreScroll:$('score-rows').scrollTop};
-  voice.stop();audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();lesson={index:0,awards:{},faces:{}};state=createGame({seed:606});started=true;phase='human';timer=0;recent=null;aiDecision=null;zeroCategory=null;
+  voice.stop();audio.cancel();effects.clear();juice.cancel();clearFlights();chipHold.fill(null);later=null;opponent.reset();lesson={index:0,awards:{},faces:{}};state=createGame({seed:606});started=true;phase='human';timer=0;recent=null;aiDecision=null;zeroCategory=null;
   dice.sync(state.dice,state.held,0);view('table',true);$('controls').hidden=false;closeDialogs();audio.unlock();enterStep();
 }
 function leaveLesson(play=false){
-  if(!lesson)return;voice.stop();lessonAdvance=-1;const previous=lessonReturn;lesson=null;lessonReturn=null;audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();state=previous.state;started=previous.started;recent=null;aiDecision=null;zeroCategory=null;
+  if(!lesson)return;voice.stop();lessonAdvance=-1;const previous=lessonReturn;lesson=null;lessonReturn=null;audio.cancel();effects.clear();juice.cancel();clearFlights();chipHold.fill(null);later=null;opponent.reset();state=previous.state;started=previous.started;recent=null;aiDecision=null;zeroCategory=null;
   phase=!started?'intro':state.status==='finished'?'finished':state.currentPlayer===0?'human':'ai-wait';timer=.9;
   dice.sync(state.dice,state.held,state.currentPlayer);view(state.rollCount>0?'dice':'table',true);$('controls').hidden=!started;coach.hidden=true;closeDialogs();renderUI();$('score-rows').scrollTo({top:previous.scoreScroll,behavior:'instant'});
   if(!started){if(play)start(Boolean(saved));else welcome();}else if(state.status==='finished'){resultCopy();openDialog('win-dialog');}else say('resume');
 }
 // Every game starts from a quiet table: no line, sound, flight or glow left from the one before, and no lesson.
-function hush(){voice.stop();resetIdle();audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;}
+function hush(){voice.stop();resetIdle();audio.cancel();effects.clear();juice.cancel();clearFlights();chipHold.fill(null);later=null;opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;}
 // The welcome card, with "Halda áfram" when a solo game is kept and "Halda áfram (Fjölspil)" when a game of seats is.
 function welcome(){$('continue').hidden=!saved;$('continue-multi').hidden=!readFjolspil(local());openDialog('welcome');}
 function start(continuing=false){
+  multiToken++;
   if(multi)endMulti();
   hush();
   state=continuing&&saved?structuredClone(saved):createGame({seed:crypto.getRandomValues(new Uint32Array(1))[0]});started=true;phase=state.status==='finished'?'finished':turnPhase();timer=.9;
@@ -470,9 +482,12 @@ function guestAct(seat,body){
 // "Fjölspil" on the welcome card: the lobby over the table (which holds still under it); its X goes back to the welcome card, as
 // does a lobby that cannot open (logged). A game of seats still on ends first: one at a time.
 async function openMulti(){
+  if(lobbyUp||multiBusy)return;
+  const token=++multiToken;
   if(multi)endMulti();
   closeDialogs();lobbyUp=true;syncPause();let opened=null;
   try{opened=await fjolspil.openLobby({ai:MOSI_AI});}catch(error){console.error('[yatzy-junior] lobby',error);}finally{lobbyUp=false;syncPause();}
+  if(disposed||token!==multiToken){if(opened)fjolspil.closeGame();return;}
   if(!opened){welcome();return;}
   startMulti(opened.seats);
 }
@@ -480,13 +495,19 @@ async function openMulti(){
 // not the kept game's, and the welcome card stays. A kept game that cannot be seated again is let go (logged), and the welcome
 // card comes back without it.
 async function continueMulti(){
-  if(multi)return; // the welcome card's button, and no game of seats is on while that card is up
+  if(multi||multiBusy||lobbyUp)return; // the welcome card's button, and no game of seats is on while that card is up
   const kept=readFjolspil(local());if(!kept){welcome();return;}
+  const token=++multiToken;multiBusy=true;
   try{
     await fjolspil.resume(kept.seats);
+    if(disposed||token!==multiToken||!$('welcome').open||started||multi){fjolspil.closeGame();return;}
     if(fjolspil.seats.count!==kept.state.players.length){welcome();return;}
     resumeMulti(kept.state);
-  }catch(error){console.error('[yatzy-junior] kept game',error);if(multi)endMulti();forgetFjolspil(local());welcome();}
+  }catch(error){
+    console.error('[yatzy-junior] kept game',error);
+    if(disposed||token!==multiToken)return;
+    if(multi)endMulti();forgetFjolspil(local());if($('welcome').open||!started)welcome();
+  }finally{multiBusy=false;}
 }
 
 $('start').addEventListener('click',()=>start());$('continue').addEventListener('click',()=>start(true));$('continue-multi').addEventListener('click',()=>{if(fjolspil)continueMulti();});$('multi').addEventListener('click',()=>{if(fjolspil)openMulti();});
@@ -503,7 +524,7 @@ cupButton.addEventListener('click',event=>{
   if(state.rollCount>0){if(!settled())return;if(event.detail>0){const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;for(let i=0;i<5;i++){const b=dieButtons[i],p=pixels[i];if(!b.hidden&&!b.disabled&&Math.abs(x-p.x)<=p.width*.5+8&&Math.abs(y-p.y)<=p.height*.5+8)return;}}}beginRoll();
 });
 $('sound').addEventListener('click',()=>{muted=!muted;audio.mute(muted);voice.mute(muted);audio.unlock();savePrefs();if(!muted&&voice.unavailable)voice.replay();renderUI();});
-$('motion').addEventListener('click',()=>{reduced=!reduced;dice.setReducedMotion(reduced);if(reduced){effects.clear();view(pendingDiceView>=0?'dice':world.getViewState().mode,true);}savePrefs();});
+$('motion').addEventListener('click',()=>{reduced=!reduced;dice.setReducedMotion(reduced);if(reduced){effects.clear();view(pendingDiceView>=0?'dice':world.getViewState().mode,true);}savePrefs();markDirty(.85);});
 $('pause').addEventListener('click',()=>{if(started)openDialog('pause-dialog');});
 $('help').addEventListener('click',()=>{enableNarration();openDialog('help-dialog','help');});
 $('new-game').addEventListener('click',()=>{if(lesson)leaveLesson();if(multi)endMulti();voice.stop();closeDialogs();welcome();}); // "Hætta Fjölspili" in a game of seats
@@ -520,7 +541,7 @@ document.addEventListener('click',event=>{const button=event.target.closest?.('b
 document.addEventListener('keydown',event=>{if(event.repeat||event.ctrlKey||event.altKey||event.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
   if(/^[1-5]$/.test(event.key)&&isHuman()){event.preventDefault();toggleHold(Number(event.key)-1);}else if(event.code==='Space'&&isHuman()&&document.activeElement?.tagName!=='BUTTON'){event.preventDefault();beginRoll();}else if(event.code==='Escape'&&started&&!paused){event.preventDefault();openDialog('pause-dialog');}});
 function cleanupScene(){pick?.dispose();effects?.dispose();dice?.dispose();opponent?.dispose();world?.dispose();}
-function dispose(){if(disposed)return;disposed=true;wakeLock.dispose();cancelAnimationFrame(frame);resizeObserver?.disconnect();voice?.dispose();audio.dispose();cleanupScene();}
+function dispose(){if(disposed)return;disposed=true;multiToken++;wakeLock.dispose();cancelAnimationFrame(frame);frame=0;juice.cancel();clearFlights();resizeObserver?.disconnect();voice?.dispose();audio.dispose();cleanupScene();}
 // The page goes (the book closes its frame, a reload): the phones wait for the next lobby, but the kept game stays, for "Halda áfram
 // (Fjölspil)" when the page is back; a wait for a guest that this ends ('closed') ends nothing more here.
 addEventListener('pagehide',()=>{if(multi){multi=null;fjolspil.closeGame();}});
@@ -538,10 +559,10 @@ export async function initialize({signal,onStage=()=>{}}={}){
     const response=await fetch('./assets/audio/yatzy-junior/manifest.json',{signal});if(!response.ok)throw new Error('Mosi voice recordings are missing');voiceManifest=await response.json();check();
     for(const id of Object.keys(VOICE_LINES))if(!voiceManifest[id]?.src)throw new Error(`Missing recorded line: ${id}`);
     voice=createJuniorVoice({lines:LINES,manifest:voiceManifest,
-      onLine(id,text){if(coach.hidden){audio.cue('bubble');juice.bubble(coach);}coach.hidden=false;captionTime=0;coach.dataset.voice='pending';$('voice-recovery').hidden=true;$('lesson-line').textContent=lesson?step().caption:captionFor(id)||text;paintCoach();},
+      onLine(id,text){if(coach.hidden){audio.cue('bubble');juice.bubble(coach);}coach.hidden=false;captionTime=0;coach.dataset.voice='pending';$('voice-recovery').hidden=true;$('lesson-line').textContent=lesson?step().caption:captionFor(id)||text;paintCoach();markDirty(.5);},
       onUnavailable(){lessonAdvance=-1;coach.dataset.voice='unavailable';syncVoiceRecovery();renderUI();},
       // A line not recorded yet (Fjölspil's) moves his mouth from its words over the time they take (talk.js mouthFromText).
-      onSpeaking(speaking){audio.duck(speaking);coach.dataset.voice=voice.getDebugState().mode;if(speaking&&opponent){const id=voice.currentId,clip=voiceManifest[id],{elapsed:at,duration}=voice.getDebugState();opponent.actor.talk({duration:Math.max(0,duration-at),mouth:clip?.mouth?.slice(Math.floor(at*20))??null,text:LINES[id].text});}else opponent?.actor.stopTalking();}
+      onSpeaking(speaking){audio.duck(speaking);coach.dataset.voice=voice.getDebugState().mode;if(speaking&&opponent){const id=voice.currentId,clip=voiceManifest[id],{elapsed:at,duration}=voice.getDebugState();opponent.actor.talk({duration:Math.max(0,duration-at),mouth:clip?.mouth?.slice(Math.floor(at*20))??null,text:LINES[id].text});}else opponent?.actor.stopTalking();markDirty(.5);}
     });voice.mute(muted);
     // A font download is optional; it must never hold the entire board hostage.
     await waitForStartup(document.fonts.ready,{signal,timeoutMs:1500,optional:true});check();
@@ -562,33 +583,46 @@ export async function initialize({signal,onStage=()=>{}}={}){
     // "Fjölspil": the page's own room, apart from the book's in the same tab (STORAGE_KEY); the lobby's taps are the page's tap.
     fjolspil=createFjolspil(document,{storageKey:STORAGE_KEY,audio:{sfx:()=>audio.cue('tap')}});fjolspil.onAct(guestAct);
     $('loading').hidden=true;$('game').inert=false;savePrefs();renderUI();welcome();
-    let dirty=true;const measure=()=>{targetWidth=canvas.clientWidth;targetHeight=canvas.clientHeight;barEnd();};measure();resizeObserver=new ResizeObserver(()=>{measure();dirty=true;updateTargets();});resizeObserver.observe(canvas);
-    document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',()=>{dirty=true;}));
+    dirty=true;const measure=()=>{targetWidth=canvas.clientWidth;targetHeight=canvas.clientHeight;tagKey='';barEnd();};measure();resizeObserver=new ResizeObserver(()=>{measure();markDirty(.2);updateTargets();});resizeObserver.observe(canvas);
+    document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',()=>{markDirty(.2);}));
     const tick=now=>{
-      if(disposed)return;const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;voice.update(dt);
+      frame=0;if(disposed||document.hidden||qaFrozen)return;
+      const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;voice.update(dt);
+      let keepGoing=false;
       if(!paused){
         elapsed+=dt;timer-=dt;
-        if(captionTime>0){captionTime-=dt;if(captionTime<=0&&!lesson&&!voice.busy)coach.hidden=true;}
+        if(captionTime>0){captionTime-=dt;if(captionTime<=0&&!lesson&&!voice.busy){coach.hidden=true;dirty=true;}}
         if(pendingDiceView>=0){pendingDiceView-=dt;if(pendingDiceView<=0)view('dice');}
         if(later){later.t-=dt;if(later.t<=0){const fn=later.fn;later=null;fn();}}
         if(phase==='rolling'&&dice.update(dt))rolled();else if(phase!=='rolling')dice.update(dt);
         if(lessonAdvance>=0){lessonAdvance-=dt;if(lessonAdvance<=0){lessonAdvance=-1;if(step()?.type==='finish')leaveLesson(true);else nextLesson();}}
         if(!lesson&&timer<=0&&!voice.busy&&!later){if(phase==='handoff')advanceTurn();else if(phase.startsWith('ai-'))aiStep();}
-        opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';watchAt??=new world.THREE.Vector3();opponentFrame.target=opponentFrame.rolling?dice.getWatchTarget(watchAt):null;const perch=effects.butterfly;opponentFrame.waiting=phase==='human'||phase==='remote'||(phase==='handoff'&&Boolean(perch));opponentFrame.watch=perch||(opponentFrame.waiting?dice.getWatchTarget(watchAt):null); // his eyes on the dice, or on a butterfly coming to sit
-        opponentFrame.reducedMotion=reduced;
-        if(opponentFrame.thinking&&!voice.busy&&timer>0)audio.cue('think'); // tick, tock while Mosi decides
+        const animating=!reduced||dirty||voice.busy||opponent?.actor?.talking||phase==='rolling'||pendingDiceView>=0||world.isViewTransitioning()||elapsed<calmUntil;
+        if(animating){
+          opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';watchAt??=new world.THREE.Vector3();opponentFrame.target=opponentFrame.rolling?dice.getWatchTarget(watchAt):null;const perch=effects.butterfly;opponentFrame.waiting=phase==='human'||phase==='remote'||(phase==='handoff'&&Boolean(perch));opponentFrame.watch=perch||(opponentFrame.waiting?dice.getWatchTarget(watchAt):null); // his eyes on the dice, or on a butterfly coming to sit
+          opponentFrame.reducedMotion=reduced;
+          if(opponentFrame.thinking&&!voice.busy&&timer>0)audio.cue('think'); // tick, tock while Mosi decides
+          opponent.update(dt,elapsed,opponentFrame);effects.update(reduced?0:dt);pick.update(dt,dice.dice,reduced);world.update(reduced?0:dt,elapsed);
+          pick.lift(dice.dice,1);world.render();pick.lift(dice.dice,-1); // the hop is drawn, the hit areas stay put
+          updateTargets();dirty=false;
+        }else if((phase==='ai-wait'||phase==='ai-score')&&!voice.busy&&timer>0)audio.cue('think');
         // The idle hint: ten quiet seconds on the child's turn with rolls left, and the dice Mosi would keep (or his card) glow.
         if(!lesson&&isHuman()&&settled()&&state.rollCount>0&&state.rollCount<3&&!idleHint){idle+=dt;if(idle>=10){const d=decideAI(state);idleHint={dice:d?.type==='roll'?d.held.flatMap((keep,i)=>keep&&!state.held[i]?[i]:[]):[],card:d?.type==='score'?d.categoryId:null};renderUI();opponent.react('nod');}}
-        opponent.update(dt,elapsed,opponentFrame);effects.update(reduced?0:dt);pick.update(dt,dice.dice,reduced);world.update(reduced?0:dt,elapsed);
-        pick.lift(dice.dice,1);world.render();pick.lift(dice.dice,-1); // the hop is drawn, the hit areas stay put
-        const ready=settled();if(ready!==readyLast){readyLast=ready;renderUI();sendViews();}updateTargets();dirty=false; // the phones learn when the dice lie still
-      }else if(modalNarration&&!document.hidden&&!qaFrozen){
+        const ready=settled();if(ready!==readyLast){readyLast=ready;renderUI();sendViews();} // the phones learn when the dice lie still
+        const waitingIdle=!lesson&&isHuman()&&settled()&&state.rollCount>0&&state.rollCount<3&&!idleHint;
+        const pendingTimers=captionTime>0||pendingDiceView>=0||Boolean(later)||lessonAdvance>=0||phase==='handoff'||phase.startsWith('ai-')||waitingIdle;
+        keepGoing=!paused&&(!reduced||dirty||voice.busy||opponent?.actor?.talking||phase==='rolling'||world.isViewTransitioning()||elapsed<calmUntil||pendingTimers);
+      }else if(modalNarration){
         // A voiced dialog can animate Mosi while the board, turn and camera stay paused.
-        opponentFrame.thinking=false;opponentFrame.rolling=false;opponentFrame.target=null;opponentFrame.waiting=false;opponentFrame.reducedMotion=reduced;
-        opponent.update(dt,elapsed,opponentFrame);if(phase==='finished')effects.update(reduced?0:dt);world.render();dirty=false; // the win's fireworks finish behind its card
+        const animating=!reduced||dirty||voice.busy||opponent?.actor?.talking;
+        if(animating){
+          opponentFrame.thinking=false;opponentFrame.rolling=false;opponentFrame.target=null;opponentFrame.waiting=false;opponentFrame.reducedMotion=reduced;
+          opponent.update(dt,elapsed,opponentFrame);if(phase==='finished')effects.update(reduced?0:dt);world.render();dirty=false; // the win's fireworks finish behind its card
+        }
+        keepGoing=!reduced||dirty||voice.busy||opponent?.actor?.talking;
       }else if(dirty){world.render();updateTargets();dirty=false;}
-      frame=requestAnimationFrame(tick);
-    };last=performance.now();frame=requestAnimationFrame(tick);
+      if(keepGoing||dirty)frame=requestAnimationFrame(tick);
+    };tickFn=tick;wakeLoop();
     if(new URLSearchParams(location.search).has('qa'))window.__juniorQA={world,dice,opponent,effects,audio,voice,fjolspil,
       getState:()=>structuredClone(state),getStatus:()=>({phase,paused,reduced,started,timer,lessonAdvance,settled:settled()}),
       getMulti:()=>multi&&{seats:fjolspil.seats.list(),lastRoll:multi.lastRoll},

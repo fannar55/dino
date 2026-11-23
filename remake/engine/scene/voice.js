@@ -12,9 +12,10 @@
 // A line can come from one side: `play(src, { pan })` (-1 left to 1 right; chapter 4's flight film: her call in a call shot from
 // her side as the camera sees her) sends its <audio> through `pan(element, value)`, the page's panner (main.js: output.js
 // panElement), which returns its letting go, called when the line is over. With no panner, or a pan of 0, it plays straight out.
-export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args), makeUrl = blob => URL.createObjectURL(blob), pan = null } = {}) {
+export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args), makeUrl = blob => URL.createObjectURL(blob), revokeUrl = url => URL.revokeObjectURL?.(url), pan = null } = {}) {
   let current = null;
   let muted = false;
+  let paused = false;
   let speaking = false;
   const states = new WeakMap(); // audio -> { started, done, release }
   const ready = new Map(); // src -> an object URL of its bytes, fetched ahead
@@ -67,6 +68,7 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
         // The newer line replaces it; the music stays down between them instead of swelling and ducking again.
         const older = current;
         older.pause();
+        older.src = '';
         over(states.get(older));
         current = null;
       }
@@ -88,10 +90,12 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
       audio.addEventListener('playing', () => { state.started = true; }, { once: true });
       audio.addEventListener('ended', () => finish(audio));
       audio.addEventListener('error', () => finish(audio));
-      audio.play().catch(error => {
-        // A pause that comes before the play request is answered rejects it with AbortError: the line is only paused.
-        if (error?.name !== 'AbortError') finish(audio);
-      });
+      if (!paused) {
+        audio.play().catch(error => {
+          // A pause that comes before the play request is answered rejects it with AbortError: the line is only paused.
+          if (error?.name !== 'AbortError') finish(audio);
+        });
+      }
       current = audio;
       speak(true);
       return audio;
@@ -125,16 +129,26 @@ export function createVoice({ onSpeaking, fetchFn = (...args) => fetch(...args),
     /** How many recordings are in memory (tests, the bug report). */
     get preloaded() { return ready.size; },
     /** Follow the game clock's pause; a line that has ended is not replayed. */
-    setPaused(paused) {
-      if (!current) return;
-      if (current.ended) {
-        finish(current);
+    setPaused(value) {
+      paused = Boolean(value);
+      const audio = current;
+      if (!audio) return;
+      if (audio.ended) {
+        finish(audio);
         return;
       }
-      if (paused) current.pause();
-      else current.play().catch(error => {
-        if (error?.name !== 'AbortError') finish(current);
+      if (paused) audio.pause();
+      else audio.play().catch(error => {
+        if (error?.name !== 'AbortError') finish(audio);
       });
+    },
+    dispose() {
+      stop();
+      for (const url of ready.values()) {
+        try { revokeUrl(url); } catch {}
+      }
+      ready.clear();
+      fetching.clear();
     },
   };
 }

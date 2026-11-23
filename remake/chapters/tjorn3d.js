@@ -30,7 +30,7 @@ import { tableUi, tableStart, giveBackScreen, tala } from '../engine/table-ui.js
 import { FEN } from '../world/forest/config.js';
 import { lieLow } from './kafli2-uggedla.js';
 import { SCALE, POND, LILIES, FROG, BUTTERFLY, KEYS, keyIndex, under } from './tjorn3d/keys.js';
-import { installMurk, through } from './tjorn3d/murk.js';
+import { installMurk, restoreMurk, through } from './tjorn3d/murk.js';
 import { createCast, verticesOf } from './tjorn3d/cast.js';
 import { createShow } from './tjorn3d/play.js';
 import { createShowMeasure } from './tjorn3d/measure.js';
@@ -390,7 +390,8 @@ export const chapter = {
       view.label = `${view.key.id} · ${says(view.key, m)} · skjár ${tala(view.inches)} tommur${tight}`;
       if (ui) ui.label.textContent = view.label;
     }
-    win?.addEventListener('resize', () => { view.dirty = true; });
+    const onResize = () => { view.dirty = true; };
+    win?.addEventListener('resize', onResize);
 
     /**
      * The numbers, as the page stands now. Everything over the surface (her skin, the fish in the air, the frog, the butterfly,
@@ -651,9 +652,10 @@ export const chapter = {
     //   &t=<s>&play=1               stands at that second until a tap, then plays on from there to the end card
     function* showScript() {
       const doc = typeof document !== 'undefined' ? document : null;
+      let style = null;
       if (doc) {
         // the page is the table: nothing on it but the show (rule 8), so no book button either
-        const style = doc.createElement('style');
+        style = doc.createElement('style');
         style.textContent = '#journal-button { display: none !important; }';
         doc.head.append(style);
       }
@@ -677,7 +679,7 @@ export const chapter = {
       // the show's second passes it, and the pond's bed under it, all held with the game. A still (t= alone) has no audio context,
       // and asks for nothing. With &upptokur=0 the real recordings are left out and every slot plays its made sound.
       const sound = createPondSound({ context: still ? null : world.sound?.context ?? null, output: world.sound?.output ?? null, recordings: params.get('upptokur') !== '0' });
-      if (!still) world.sound?.hold?.(sound);
+      const soundRelease = !still ? (world.sound?.hold?.(sound) ?? null) : null;
       // Her lines (tjorn3d/sound.js: the sheet says when, each hung on its event): said as the game says a show's lines
       // (engine/scene/scene.js: the game's voice, straight out at the level every line has; her mouth, and her head a little,
       // moving with the line's mouth shapes in lines.json), with no caption. Her speaking is laid over the pose the timeline
@@ -715,73 +717,94 @@ export const chapter = {
         if (time.started && b !== time.black) { time.black = b; s.fade(b, 0); }
       };
       Object.assign(world.tjorn, { show, time, sound, lines, measureShow: createShowMeasure({ S, LEVEL, seat: SEAT, stage, her, rig, skin, part, cloud, cast, show, snout, lilyParts, lilyPoints, strikePoint, view }) });
-      frame();
-      s.after(0, function* run() {
+      try {
+        frame();
+        s.after(0, function* run() {
+          for (;;) {
+            frame();
+            yield;
+          }
+        });
+        yield s.ready();
+        // What first shows later in the show (her, the leaping fish, the fish in her jaws, the spray) is drawn once now, under the
+        // black the scene opens from: a thing's first draw builds its shaders (engine/warm-up.js), and played without this the pond
+        // stood still for 1,2 s at the second her shadow comes and for a tenth of a second as her jaws shut (the laptop's numbers).
+        // Two frames for each second: it is put in the next frame's step and drawn in the one after.
+        if (!seeks) {
+          for (const t of WARM) {
+            time.warm = t;
+            yield;
+            yield;
+          }
+          time.warm = null;
+        }
         for (;;) {
-          frame();
+          time.started = true;
+          show.reset(); // (played again: nothing is left over from the last time)
+          hush(); // (played again, her lines are said again from the top)
+          lines.start(0);
+          time.from = seeks ? 0 : s.time; // (a page with t= is stepped from the scene's own start: its second is the show's)
+          seeks = false;
+          time.sounding = false; // (played again, the sound starts clean: frame)
+          time.at = 0;
+          time.showing = true;
+          if (still) for (;;) yield;
+          yield s.until(() => s.time - time.from >= LENGTH);
+          time.showing = false;
+          sound.end(); // (the bed has gone with the picture: nothing hangs over the end card)
+          hush();
+          let again = false;
+          // "Hætta": the whole screen the start's tap took is given back first (engine/table-ui.js: a whole screen the show did not
+          // take is left alone), then the book's own way out (engine/book/show-player.js): back to the book when the show plays in
+          // its frame, so the book is as it was, or to the game's start from a page of its own.
+          const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => { sound.end(); hush(); giveBackScreen(doc); leaveShow(win); } });
+          doc.body.append(end);
+          try {
+            yield s.until(() => again);
+          } finally {
+            end.remove();
+          }
+        }
+      } finally {
+        her.update = update;
+        soundRelease?.();
+        sound.end();
+        hush();
+        show.dispose?.();
+        style?.remove();
+      }
+    }
+    try {
+      if (SHOW) {
+        yield* showScript();
+        return;
+      }
+
+      cast.ready.then(() => { view.dirty = true; }); // the frog and the butterfly are measured and counted in the label once they are here
+      solve();
+      live();
+      s.after(0, function* keep() {
+        for (;;) {
+          if (view.dirty) solve();
+          live();
           yield;
         }
       });
+
       yield s.ready();
-      // What first shows later in the show (her, the leaping fish, the fish in her jaws, the spray) is drawn once now, under the
-      // black the scene opens from: a thing's first draw builds its shaders (engine/warm-up.js), and played without this the pond
-      // stood still for 1,2 s at the second her shadow comes and for a tenth of a second as her jaws shut (the laptop's numbers).
-      // Two frames for each second: it is put in the next frame's step and drawn in the one after.
-      if (!seeks) {
-        for (const t of WARM) {
-          time.warm = t;
-          yield;
-          yield;
-        }
-        time.warm = null;
+      if (ui) document.body.append(ui.element);
+      yield s.fade(0, 1);
+      for (;;) yield;
+    } finally {
+      win?.removeEventListener('resize', onResize);
+      restoreMurk();
+      scene.remove(bubbles);
+      bubbles.geometry.dispose();
+      for (const mesh of plants) {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
       }
-      for (;;) {
-        time.started = true;
-        show.reset(); // (played again: nothing is left over from the last time)
-        hush(); // (played again, her lines are said again from the top)
-        lines.start(0);
-        time.from = seeks ? 0 : s.time; // (a page with t= is stepped from the scene's own start: its second is the show's)
-        seeks = false;
-        time.sounding = false; // (played again, the sound starts clean: frame)
-        time.at = 0;
-        time.showing = true;
-        if (still) for (;;) yield;
-        yield s.until(() => s.time - time.from >= LENGTH);
-        time.showing = false;
-        sound.end(); // (the bed has gone with the picture: nothing hangs over the end card)
-        hush();
-        let again = false;
-        // "Hætta": the whole screen the start's tap took is given back first (engine/table-ui.js: a whole screen the show did not
-        // take is left alone), then the book's own way out (engine/book/show-player.js): back to the book when the show plays in
-        // its frame, so the book is as it was, or to the game's start from a page of its own.
-        const { element: end } = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => { sound.end(); hush(); giveBackScreen(doc); leaveShow(win); } });
-        doc.body.append(end);
-        try {
-          yield s.until(() => again);
-        } finally {
-          end.remove();
-        }
-      }
+      ui?.element.remove();
     }
-    if (SHOW) {
-      yield* showScript();
-      return;
-    }
-
-    cast.ready.then(() => { view.dirty = true; }); // the frog and the butterfly are measured and counted in the label once they are here
-    solve();
-    live();
-    s.after(0, function* keep() {
-      for (;;) {
-        if (view.dirty) solve();
-        live();
-        yield;
-      }
-    });
-
-    yield s.ready();
-    if (ui) document.body.append(ui.element);
-    yield s.fade(0, 1);
-    for (;;) yield;
   },
 };

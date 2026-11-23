@@ -84,7 +84,8 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
   master.gain.value = 1;
   master.connect(output ?? context.destination);
   const live = new Set(); // the sources started and not yet ended
-  const buses = new Set(); // the false horns' own outlets
+  let falseBus = null; // shared outlet + sfx instance for the made false horn, released on stop()
+  let falseSfx = null;
   const ok = () => !paused && context.state === 'running';
 
   let white = null;
@@ -116,9 +117,10 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
     const gain = context.createGain();
     const g = gain.gain;
     g.setValueAtTime(0, at);
+    if (!(peak > 0)) return gain;
     g.linearRampToValueAtTime(peak, at + attack);
     if (hold) g.setValueAtTime(peak, at + attack + hold);
-    g.exponentialRampToValueAtTime(0.0001, at + attack + hold + decay);
+    g.exponentialRampToValueAtTime(Math.min(0.0001, peak), at + attack + hold + decay);
     return gain;
   }
   /** Starts `source` at `at` and stops it at `end`, and lets go of it and `nodes` when it ends. */
@@ -184,10 +186,11 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
     const gain = context.createGain();
     const g = gain.gain;
     g.setValueAtTime(0, at);
+    if (!(peak > 0)) return gain;
     g.linearRampToValueAtTime(peak, at + 0.008);
-    g.exponentialRampToValueAtTime(peak * 0.08, at + bump);
+    g.exponentialRampToValueAtTime(Math.max(0.0001, peak * 0.08), at + bump);
     g.linearRampToValueAtTime(peak, at + bump + 0.02);
-    g.exponentialRampToValueAtTime(0.0001, at + bump * 2.6);
+    g.exponentialRampToValueAtTime(Math.min(0.0001, peak), at + bump * 2.6);
     return gain;
   };
 
@@ -330,13 +333,15 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
           },
         });
       }
-      const bus = context.createGain();
-      bus.gain.value = 1;
-      bus.connect(master);
-      buses.add(bus);
+      if (!falseBus) {
+        falseBus = context.createGain();
+        falseBus.gain.value = 1;
+        falseBus.connect(master);
+        falseSfx = createSfx({ context, output: falseBus });
+      }
       // from the song's mi, low: its slip (126 cents down) holds between re and mi, 74 cents over the one and 126 under the other
       const note = toneHz('frogs', key, -2);
-      return createSfx({ context, output: bus }).play('sloedlaHorn', level === undefined ? { pan, note } : { pan, level, note });
+      return falseSfx.play('sloedlaHorn', level === undefined ? { pan, note } : { pan, level, note });
     },
     /** Silences every sound now, the ones waiting for their time too. */
     stop() {
@@ -348,11 +353,14 @@ export function createChoirSounds({ context = null, output = null, key = KEY, ra
           // already stopped
         }
       }
-      for (const bus of buses) {
-        bus.gain.cancelScheduledValues(now);
-        bus.gain.setValueAtTime(0, now);
+      if (falseBus) {
+        falseBus.gain.cancelScheduledValues(now);
+        falseBus.gain.setValueAtTime(0, now);
+        falseBus.disconnect();
+        falseSfx?.dispose?.();
+        falseBus = null;
+        falseSfx = null;
       }
-      buses.clear();
     },
     /** Held with the game clock: silent while the book is open or the tab hidden, and back after. */
     setPaused(value) {

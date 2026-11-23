@@ -22,13 +22,15 @@ function getPool(world) {
     opacity: 0.34,
     depthWrite: false,
   });
-  const mesh = new THREE.Mesh ? new THREE.InstancedMesh(geometry, material, MAX_PUFFS) : null;
-  mesh.name = 'FootstepDust';
-  mesh.frustumCulled = false;
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
-  mesh.renderOrder = 5.8;
-  mesh.count = 0;
+  const mesh = typeof THREE.InstancedMesh === 'function' ? new THREE.InstancedMesh(geometry, material, MAX_PUFFS) : null;
+  if (mesh) {
+    mesh.name = 'FootstepDust';
+    mesh.frustumCulled = false;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.renderOrder = 5.8;
+    mesh.count = 0;
+  }
 
   const puffs = [];
   let seed = 1;
@@ -75,6 +77,7 @@ function getPool(world) {
   pool = {
     mesh,
     emit(pos, actorHeight = 1.4) {
+      if (!mesh) return;
       const scale = THREE.MathUtils.clamp(actorHeight * 0.055, 0.045, 0.22);
       for (let k = 0; k < 2; k++) {
         if (puffs.length >= MAX_PUFFS) puffs.shift();
@@ -95,9 +98,28 @@ function getPool(world) {
       if (mesh.parent !== world.scene) world.scene.add(mesh);
       if (!world.effects.has(effect)) world.effects.add(effect);
     },
+    clear() {
+      puffs.length = 0;
+      if (mesh) { mesh.count = 0; mesh.removeFromParent(); }
+    },
+    dispose() {
+      this.clear();
+      geometry.dispose();
+      material.dispose();
+      mesh?.dispose?.();
+      pools.delete(world);
+    },
   };
   pools.set(world, pool);
   return pool;
+}
+
+export function clearFootstepDust(world) {
+  pools.get(world)?.clear();
+}
+
+export function disposeFootstepDust(world) {
+  pools.get(world)?.dispose();
 }
 
 export function emitFootstepDust(world, pos, actorHeight) {

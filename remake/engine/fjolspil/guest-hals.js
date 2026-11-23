@@ -17,6 +17,7 @@ import { avatarOf } from './seats.js';
 import { pressable } from '../book/fx.js';
 
 const TUMBLE_MS = 950;
+const UNLOCK_MS = 5000; // safety unlock if a sent act never receives a fresh view
 const PIPS = { 1: ['c'], 2: ['tl', 'br'], 3: ['tl', 'c', 'br'], 4: ['tl', 'tr', 'bl', 'br'], 5: ['tl', 'tr', 'c', 'bl', 'br'], 6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br'] };
 
 /** Everything the screen says. */
@@ -39,6 +40,10 @@ export function renderHals(root, view, { send, doc = root.ownerDocument, control
   const at = built.get(root) ?? build(root, doc, control);
   at.send = send;
   update(at, view ?? {});
+  return () => {
+    clearUnlock(at);
+    clearTimeout(at.tumbleTimer);
+  };
 }
 
 function build(root, doc, control) {
@@ -78,15 +83,26 @@ function build(root, doc, control) {
   const at = {
     make, face, turnEl, dieEl, faceEl, wonEl, winnerFace, wonWords, playersEl,
     send: null,
+    view: null,
     shown: 0, // the face the die shows (0: none yet)
     rolled: undefined, // the last view's roll as "value:by" (null: none; undefined: no view yet)
     tumbleTimer: 0,
+    unlockTimer: 0,
   };
   const tap = () => {
     if (dieEl.disabled) return;
+    const view = at.view;
     dieEl.disabled = true; // until the next view: one roll for each view that offers one
     dieEl.classList.remove('live');
-    at.send?.({ type: 'roll' });
+    if (at.send?.({ type: 'roll' }) === false) {
+      if (at.view === view) restoreDie(at);
+      return;
+    }
+    if (at.view === view && dieEl.disabled) {
+      clearUnlock(at);
+      at.unlockTimer = setTimeout(() => { at.unlockTimer = 0; if (at.view === view) restoreDie(at); }, UNLOCK_MS);
+      at.unlockTimer?.unref?.();
+    }
   };
   if (control) control(dieEl, tap);
   else pressable(dieEl, { onTap: tap });
@@ -121,7 +137,21 @@ function tumble(at) {
   at.tumbleTimer?.unref?.(); // in Node (the tests) a timer must not keep the process waiting
 }
 
+function clearUnlock(at) {
+  if (at.unlockTimer) { clearTimeout(at.unlockTimer); at.unlockTimer = 0; }
+}
+
+function restoreDie(at) {
+  clearUnlock(at);
+  const view = at.view;
+  const over = view?.winner !== null && view?.winner !== undefined;
+  at.dieEl.disabled = over || view?.canRoll !== true;
+  at.dieEl.classList.toggle('live', !at.dieEl.disabled);
+}
+
 function update(at, view) {
+  clearUnlock(at);
+  at.view = view;
   const players = Array.isArray(view.players) ? view.players : [];
   const playerOf = seat => players.find(player => player.seat === seat);
   const nameOf = seat => String(playerOf(seat)?.name ?? '');

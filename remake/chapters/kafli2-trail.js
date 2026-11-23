@@ -136,7 +136,16 @@ export function printFollow(c) {
   const tall = [THREE.MathUtils.lerp(ox, px, TALL_CLOSER), offset[1] - 0.2, THREE.MathUtils.lerp(oz, pz, TALL_CLOSER)];
   const isTall = () => c.world.camera.aspect < 1;
   const lift = new THREE.Vector3(0, 0.45, 0);
-  const look = out => (isTall() ? out.copy(c.prints.targets[c.focus].point).add(lift) : out.fromArray(printShot(c, c.focus).target));
+  let cachedFocus = -1;
+  const cachedTarget = new THREE.Vector3();
+  const look = out => {
+    if (isTall()) return out.copy(c.prints.targets[c.focus].point).add(lift);
+    if (c.focus !== cachedFocus) {
+      cachedFocus = c.focus;
+      cachedTarget.fromArray(printShot(c, c.focus).target);
+    }
+    return out.copy(cachedTarget);
+  };
   return { offset: () => (isTall() ? tall : offset), local: true, look, fov: PRINT_SHOT.fov, stiffness: 1.5 };
 }
 
@@ -294,24 +303,28 @@ export function* countPrints(s, c) {
   }));
   let quick = false;
   let walking = null;
-  for (let k = 0; k < names.length; k++) {
-    c.prints.glimmer(k);
-    c.nextPrint = k;
-    const by = yield* waitForPrint(s, c, k, quick);
-    quick = by === 'egill';
-    c.prints.glimmer(null);
-    c.nextPrint = k + 1;
-    const counting = countPrint(s, c, k, by);
-    if (k < names.length - 1) {
-      // on to the next once the number is up: Mosi to his place beside it, the camera following him and turning to it
-      const next = mosiAt(k + 1);
-      walking = s.after(PRINT_ON, () => { c.focus = k + 1; return mosi.walkTo([next.x, next.z], { speed: PRINT_WALK }); });
-      s.after(PRINT_ON + 0.3, () => mosi.lookAt(c.prints.targets[k + 1].point, { weight: 0.8, maxPitch: 40 }));
-      s.after(PRINT_ON + 0.5, () => egill.lookAt(c.prints.targets[k + 1].point, { weight: 0.7, maxPitch: 45 }));
+  try {
+    for (let k = 0; k < names.length; k++) {
+      c.prints.glimmer(k);
+      c.nextPrint = k;
+      const by = yield* waitForPrint(s, c, k, quick);
+      quick = by === 'egill';
+      c.prints.glimmer(null);
+      c.nextPrint = k + 1;
+      const counting = countPrint(s, c, k, by);
+      if (k < names.length - 1) {
+        // on to the next once the number is up: Mosi to his place beside it, the camera following him and turning to it
+        const next = mosiAt(k + 1);
+        walking = s.after(PRINT_ON, () => { c.focus = k + 1; return mosi.walkTo([next.x, next.z], { speed: PRINT_WALK }); });
+        s.after(PRINT_ON + 0.3, () => mosi.lookAt(c.prints.targets[k + 1].point, { weight: 0.8, maxPitch: 40 }));
+        s.after(PRINT_ON + 0.5, () => egill.lookAt(c.prints.targets[k + 1].point, { weight: 0.7, maxPitch: 45 }));
+      }
+      yield counting;
     }
-    yield counting;
+  } finally {
+    c.prints.glimmer(null);
+    for (const name of names) s.target(name, null);
+    for (const stop of unhear) stop();
   }
-  for (const name of names) s.target(name, null);
-  for (const stop of unhear) stop();
   if (walking) yield walking;
 }

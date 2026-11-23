@@ -16,6 +16,13 @@ const ACCEPT_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'; // RFC 6455 §1.3: h
 const OP = { continuation: 0, text: 1, binary: 2, close: 8, ping: 9, pong: 10 };
 const PATH = /^\/fjolspil\/ws\/([^/]*)$/;
 const CLOSE_WAIT_MS = 5000; // a closing socket quiet this long is let go without the client's half of the handshake
+const MAX_CONTINUATIONS = 256; // cap fragmented frames so 0-byte continuations cannot grow `pieces` unboundedly
+
+const isValidWireCloseCode = code => (
+  (code >= 1000 && code <= 1003) ||
+  (code >= 1007 && code <= 1014) ||
+  (code >= 3000 && code <= 4999)
+);
 
 const urlOf = url => { try { return new URL(url, 'http://localhost'); } catch { return null; } };
 
@@ -75,6 +82,7 @@ function frameReader({ onText, onControl, onRefuse }) {
       // A continuation needs a message begun, and a new message must wait for the end of the one before.
       if (!control && (opcode === OP.continuation) !== (pieces !== null)) return refuse(1002);
       if (!control && (pieces ? size : 0) + length > MAX_MESSAGE_BYTES) return refuse(1009);
+      if (!control && opcode === OP.continuation && pieces.length >= MAX_CONTINUATIONS) return refuse(1009);
       const end = start + 4 + length;
       if (pending.length < end) return;
       const payload = Buffer.from(pending.subarray(start + 4, end));
@@ -144,7 +152,11 @@ export function attachFjolspil(server, { now, join = () => [], rooms = createRoo
       onText: text => { const parsed = parseMessage(text); if (parsed) deliver(rooms.route(conn, parsed)); },
       onControl: (opcode, payload) => {
         if (opcode === OP.ping) write(frameOf(OP.pong, payload));
-        else if (opcode === OP.close) conn.close(payload.length >= 2 ? payload.readUInt16BE(0) : undefined);
+        else if (opcode === OP.close) {
+          if (payload.length === 1) return conn.close(1002);
+          const code = payload.length >= 2 ? payload.readUInt16BE(0) : undefined;
+          conn.close(code === undefined ? undefined : isValidWireCloseCode(code) ? code : 1000);
+        }
       },
       onRefuse: code => conn.close(code),
     });

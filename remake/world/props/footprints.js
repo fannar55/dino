@@ -140,6 +140,7 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
   const mesh = new THREE.InstancedMesh(geometry, material, max);
   mesh.name = 'Footprints';
   mesh.count = 0;
+  mesh.visible = false;
   mesh.frustumCulled = false; // the prints lie all along a path
   mesh.renderOrder = 1; // after the ground they darken
   world.scene?.add(mesh);
@@ -147,6 +148,8 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
   const p = new THREE.Vector3();
   const forward = new THREE.Vector3();
   const normal = new THREE.Vector3();
+  const pos = new THREE.Vector3();
+  const scale = new THREE.Vector3();
   const tilt = new THREE.Quaternion();
   const turn = new THREE.Quaternion();
   const matrix = new THREE.Matrix4();
@@ -172,7 +175,7 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
     normal.set(ground(x - 0.3, z) - ground(x + 0.3, z), 0.6, ground(x, z - 0.3) - ground(x, z + 0.3)).normalize();
     turn.setFromAxisAngle(UP, -Math.atan2(forward.z, forward.x));
     tilt.setFromUnitVectors(UP, normal).multiply(turn);
-    matrix.compose(new THREE.Vector3(x, y + LIFT, z), tilt, new THREE.Vector3(foot.size, 1, foot.size));
+    matrix.compose(pos.set(x, y + LIFT, z), tilt, scale.set(foot.size, 1, foot.size));
     const slot = stamped % max;
     stamped++;
     mesh.setMatrixAt(slot, matrix);
@@ -180,6 +183,7 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
     born.array[slot] = time;
     born.needsUpdate = true;
     mesh.count = Math.min(stamped, max);
+    mesh.visible = true;
     const old = prints.findIndex(print => print.slot === slot);
     if (old >= 0) prints.splice(old, 1);
     prints.push({ x, z, born: time, bone: foot.bone, slot });
@@ -188,16 +192,30 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
   function update() {
     if (disposed) return;
     const time = world.clock?.time ?? 0;
-    for (const foot of tracked) {
-      const up = lift(foot) - foot.rest;
-      if (foot.down && up > RISE) foot.down = false;
-      else if (!foot.down && up < LAND) {
-        foot.down = true;
-        press(foot, time);
+    const idle = actor.walking === false && actor.stepping === false && !actor.controlled && tracked.every(f => f.down);
+    if (!idle) {
+      for (const foot of tracked) {
+        const up = lift(foot) - foot.rest;
+        if (foot.down && up > RISE) foot.down = false;
+        else if (!foot.down && up < LAND) {
+          foot.down = true;
+          press(foot, time);
+        }
       }
     }
     material.uniforms.uTime.value = time;
     for (let i = prints.length - 1; i >= 0; i--) if (time - prints[i].born > LIFE + FADE) prints.splice(i, 1);
+    if (prints.length === 0) {
+      if (mesh.count > 0) {
+        mesh.count = 0;
+        mesh.visible = false;
+        stamped = 0;
+        born.array.fill(-1e6);
+        born.needsUpdate = true;
+      }
+    } else {
+      mesh.visible = true;
+    }
   }
 
   world.effects?.add({

@@ -113,8 +113,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     }
   }
   /** Each friend's beam of light down to her feet, off while she is out (or not on the stage). */
-  function placeBeams(hop = 0) {
-    const feet = stage?.feet() ?? [];
+  function placeBeams(hop = 0, feet = stage?.feet() ?? []) {
     for (const [id, beam] of Object.entries(beams)) {
       const foot = feet.find(f => f.id === id);
       beam.classList.toggle('on', Boolean(foot && !foot.out));
@@ -126,9 +125,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     }
   }
   /** Each friend's name tag at her feet ("Spilum saman"), as the beams; none for a friend out of the round. */
-  function placeTags() {
+  function placeTags(feet = stage?.feet() ?? []) {
     if (!tagsBox || tagsBox.hidden) return;
-    const feet = stage?.feet() ?? [];
     for (const [id, tag] of Object.entries(tags)) {
       const foot = feet.find(f => f.id === id);
       tag.style.visibility = foot && !foot.out ? '' : 'hidden';
@@ -136,6 +134,11 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       tag.style.left = `${foot.x}px`;
       tag.style.top = `${foot.y + win.innerHeight * 0.012}px`;
     }
+  }
+  function scheduleFrame() {
+    if (!STAGE_SCREENS.has(screenName) || raf) return;
+    last = 0;
+    raf = win.requestAnimationFrame(frame);
   }
   function frame(now) {
     raf = 0;
@@ -152,8 +155,9 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     const beats = picked && !reduced ? brot?.beats() ?? null : null;
     const hop = beats === null ? 0 : bounce(beats);
     stage?.frame(dt, beats, picked?.bpm ?? null);
-    placeBeams(hop);
-    placeTags();
+    const feet = stage?.feet() ?? [];
+    placeBeams(hop, feet);
+    placeTags(feet);
     const beam = picked?.hue ? rgba(picked.hue, 0.66) : '';
     if (beam !== beamColour) {
       beamColour = beam;
@@ -161,6 +165,9 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     }
     for (const card of cards.children) card.style.setProperty('--hop', card.dataset.song === picked?.id ? hop.toFixed(3) : '0');
     if (load) loadingFrame();
+    if (!STAGE_SCREENS.has(screenName)) return;
+    // Under reduced motion, pause once the stage cast is in place and no loading show is running.
+    if (reduced && !load && (!stage || feet.length >= 4)) return;
     raf = win.requestAnimationFrame(frame);
   }
   /** One frame of the loading show: the ring after the song, a tick each tenth, then "Byrjum!", the flash, the round. */
@@ -204,9 +211,23 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       done();
     }
   }
+  const chimeTimers = new Set();
+  function chimeLater(ms, fn) {
+    const id = win.setTimeout(() => {
+      chimeTimers.delete(id);
+      fn();
+    }, ms);
+    chimeTimers.add(id);
+    return id;
+  }
+  function clearChimes() {
+    for (const id of chimeTimers) win.clearTimeout?.(id);
+    chimeTimers.clear();
+  }
   /** Shows screen `name` (hver, lag, hlada, umferd, lok); the stage draws only on the menu's own screens. */
   function screen(name) {
     if (name !== screenName) {
+      clearChimes();
       const back = !STAGE_SCREENS.has(screenName) && STAGE_SCREENS.has(name);
       screenName = name;
       if (stageRoot) stageRoot.dataset.screen = name;
@@ -215,10 +236,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       if (name === 'hver') setWords([stepWords()]);
       if (name === 'lag' || name === 'lok' || name === 'umferd') setWords([]);
     }
-    if (STAGE_SCREENS.has(name) && !raf) {
-      last = 0;
-      raf = win.requestAnimationFrame(frame);
-    }
+    scheduleFrame();
   }
   /** The end's words (#end-words' text), cream in the game's letters over the buttons, while the end shows. */
   function drawEnd(now) {
@@ -230,7 +248,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     g.clearRect(0, 0, win.innerWidth, win.innerHeight);
     const size = Math.min(win.innerWidth * 0.07, 34);
     // a band's end has the players' lines where these words would stand (the words stay in #end-words, read aloud)
-    if (!endLines) drawWord(g, endText?.textContent ?? '',win.innerWidth / 2, win.innerHeight * (portrait() ? 0.655 : 0.785), size, { style: 'cream', time: reduced ? 0 : t, age: reduced ? 9 : t, stagger: 0.05, pop: 0.35, wave: reduced ? 0 : 0.08, fit: win.innerWidth * 0.9 });
+    if (!endLines) drawWord(g, endText?.textContent ?? '', win.innerWidth / 2, win.innerHeight * (portrait() ? 0.655 : 0.785), size, { style: 'cream', time: reduced ? 0 : t, age: reduced ? 9 : t, stagger: 0.05, pop: 0.35, wave: reduced ? 0 : 0.08, fit: win.innerWidth * 0.9 });
+    if (endLines > 0 || reduced) return;
     endRaf = win.requestAnimationFrame(drawEnd);
   }
   fit(sky);
@@ -243,6 +262,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     fit(endCanvas);
     measureBeams();
     stage?.resize();
+    scheduleFrame();
+    if (endCanvas && !end.hidden && !endRaf) endRaf = win.requestAnimationFrame(drawEnd);
   });
   const start = $('#start');
   const end = $('#end');
@@ -267,7 +288,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     if (!linesBox) return;
     linesBox.replaceChildren(...list.map(lineOf));
     linesBox.hidden = endLines === 0;
-    list.forEach((_, i) => win.setTimeout(() => chimes?.sparkle(LINE_BELLS[i % LINE_BELLS.length]), (0.25 + i * LINE_GAP) * 1000));
+    list.forEach((_, i) => chimeLater((0.25 + i * LINE_GAP) * 1000, () => chimes?.sparkle(LINE_BELLS[i % LINE_BELLS.length])));
   }
   function lineOf({ name, roles = [], points = 0, great = 0 }, i) {
     const make = (tag, className, text = null) => {
@@ -388,6 +409,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     cards.classList.toggle('has-pick', Boolean(s.song));
     play.classList.toggle('show', Boolean(s.song)); // it pops in when it first shows
     play.setAttribute('aria-hidden', String(!s.song));
+    if (reduced && STAGE_SCREENS.has(screenName)) scheduleFrame();
   }
   /** "Spilum saman": the button's word, the tags, and what waits for Egill's dinosaur or cannot be while guests play. */
   function renderBand() {
@@ -413,7 +435,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   }
   /** The cards fly in one by one; a bell, higher and higher, as each lands. */
   function cardsIn() {
-    songs.forEach((song, i) => setTimeout(() => chimes?.sparkle(660 * LANDING[i % LANDING.length]), (0.38 + i * 0.09) * 1000));
+    songs.forEach((song, i) => chimeLater((0.38 + i * 0.09) * 1000, () => chimes?.sparkle(660 * LANDING[i % LANDING.length])));
   }
 
   /** "Spila!" (or, `again`, "Spilum aftur"): once, however many taps, and not before the page is ready to play. */
@@ -537,6 +559,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       const { level, lanes } = menu.state();
       stage?.setChoice({ level, lanes });
       stage?.resize();
+      scheduleFrame();
     },
     screen,
     /**
@@ -586,17 +609,18 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
      * rose.
      */
     showEnd(result, rose = false) {
+      clearChimes();
       newBest = rose ? menu.state().song : null;
       end.hidden = false;
-      showLines(result?.players);
       screen('lok');
+      showLines(result?.players);
       render();
       endFrom = 0;
       if (!endRaf) endRaf = win.requestAnimationFrame(drawEnd);
       // two bells as the buttons come up (after the lines)
       const after = endLines * LINE_GAP * 1000;
-      win.setTimeout(() => chimes?.sparkle(880), 650 + after);
-      win.setTimeout(() => chimes?.sparkle(1175), 750 + after);
+      chimeLater(650 + after, () => chimes?.sparkle(880));
+      chimeLater(750 + after, () => chimes?.sparkle(1175));
     },
     /**
      * "Spilum saman" as the page has it: `together`, Egill's dinosaur (`mine`) and the room's `seats`. A newly picked dinosaur
@@ -633,6 +657,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       if (endRaf) win.cancelAnimationFrame?.(endRaf);
       endRaf = 0;
       win.clearTimeout?.(talkTimer);
+      clearChimes();
     },
   };
 }

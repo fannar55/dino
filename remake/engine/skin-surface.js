@@ -64,9 +64,9 @@ export function skinSurface(mesh, { around = null, near = Infinity, cell = 0.05 
   const now = new Float32Array(count * 3); // where the region's vertices are: bind pose until pose()
   for (const i of vertices) { now[3 * i] = bind[3 * i]; now[3 * i + 1] = bind[3 * i + 1]; now[3 * i + 2] = bind[3 * i + 2]; }
 
-  // a grid of the triangles by their bounds
+  // a grid of the triangles by their bounds (string keys avoid numeric wrap collisions past ±102.4 m)
   let grid = new Map();
-  const key = (x, y, z) => ((x + 2048) * 4096 + (y + 2048)) * 4096 + (z + 2048); // cells within ±2048 of the origin
+  const key = (x, y, z) => `${x},${y},${z}`;
   function build() {
     grid = new Map();
     for (let f = 0; f < faces.length; f += 3) {

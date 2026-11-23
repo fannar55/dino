@@ -196,6 +196,9 @@ export function createScheduler({ onError = error => console.error('[scene]', er
         task.cond = { kind: 'fail', error }; // thrown back into the script at its yield
       }
     }
+    if (!task.done && ready(task)) {
+      finish(task, undefined, true, new Error('Scheduler task exceeded 10000 synchronous steps without yielding'));
+    }
     return moved;
   }
 

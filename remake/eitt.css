@@ -217,7 +217,7 @@
   content: ""; position: absolute; inset: -12px -10px -2px; z-index: -1; border-radius: 24px; pointer-events: none;
   background: rgb(255 226 140 / .5);
   box-shadow: 0 0 0 6px var(--gold), 0 0 34px 16px rgb(242 182 48 / .9);
-  animation: glow 1.6s ease-in-out infinite;
+  animation: eitt-glow 1.6s ease-in-out infinite;
 }
 
 .eitt-pile { position: relative; grid-column: 2; width: var(--pile-w); aspect-ratio: 5 / 7; }
@@ -698,7 +698,7 @@
 }
 @keyframes ring-turn { to { transform: rotate(1turn); } }
 @keyframes way-turn { to { transform: rotate(1turn); } }
-@keyframes glow {
+@keyframes eitt-glow {
   0%, 100% { opacity: .55; }
   50% { opacity: 1; }
 }

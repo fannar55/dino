@@ -256,11 +256,13 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     p.y += ground(p.x, p.z) - plane + L.home.y / Math.max(0.5, groundUp(p.x, p.z, v5).y) - lift;
     return p;
   };
+  const surfHome = new THREE.Vector3();
+  const surfNormal = new THREE.Vector3();
   const surfaceY = (L, point) => {
     if (ground) return ground(point.x, point.z) + L.home.y / Math.max(0.5, groundUp(point.x, point.z, v5).y);
     if (!rootFrame) return L.ground;
-    const home = homeAt(L, root.rotation.y, new THREE.Vector3());
-    const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(root.quaternion);
+    const home = homeAt(L, root.rotation.y, surfHome);
+    const normal = surfNormal.set(0, 1, 0).applyQuaternion(root.quaternion);
     return home.y + (normal.x * (home.x - point.x) + normal.z * (home.z - point.z)) / Math.max(.25, normal.y);
   };
   /** How a resting foot is turned when the root faces `yaw` (world). */

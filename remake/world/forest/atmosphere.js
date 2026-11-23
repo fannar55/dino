@@ -15,61 +15,85 @@ function fogUniforms() {
   return THREE.UniformsUtils.clone(THREE.UniformsLib.fog);
 }
 
+const ADDITIVE_FOG_GLSL = /* glsl */`
+  #ifdef USE_FOG
+    #ifdef FOG_FALLOFF
+      vec3 fogRay = vFogWorld - cameraPosition;
+      float fogDist = max( length( fogRay ), 1e-4 );
+      vec3 fogDir = fogRay / fogDist;
+      #ifdef FOG_EXP2
+        float fogBase = fogDensity * exp( clamp( -FOG_FALLOFF * max( cameraPosition.y, 0.0 ), -20.0, 0.0 ) );
+        float fogPath = abs( fogDir.y ) > 1e-3 ? ( 1.0 - exp( clamp( -FOG_FALLOFF * fogRay.y, -20.0, 20.0 ) ) ) / ( FOG_FALLOFF * fogDir.y ) : fogDist;
+        float fogFactor = 1.0 - exp( -clamp( fogBase * fogPath, 0.0, 20.0 ) );
+      #else
+        float fogFactor = smoothstep( fogNear, fogFar, fogDist );
+      #endif
+    #else
+      #ifdef FOG_EXP2
+        float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+      #else
+        float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+      #endif
+    #endif
+    gl_FragColor.rgb *= ( 1.0 - fogFactor );
+  #endif`;
+
 const SHAFT_VERT = /* glsl */`
 attribute vec3 aStart;
 attribute vec3 aEnd;
 attribute vec4 aShaft;
 attribute float aGlade;
 uniform vec2 uGladeNear;
-varying vec2 vUv;
-varying float vSeed;
-varying float vNear;
-varying float vGlade;
+uniform float uStrength;
+uniform float uWindTime;
+uniform float uGladeStrength;
+varying vec4 vShaftInfo; // xy: uv, z: hoisted per-shaft strength * near * pulse, w: fade top
 varying vec3 vWorld;
 #include <common>
 #include <fog_pars_vertex>
 void main() {
   vec3 axis = aEnd - aStart;
+  float axisLen = max( length( axis ), 1e-4 );
+  vec3 axisDir = axis / axisLen;
   vec3 p = aStart + axis * aShaft.y;
-  vec3 toCam = normalize( cameraPosition - p );
-  vec3 side = normalize( cross( normalize( axis ), toCam ) );
+  vec3 toCamVec = cameraPosition - p;
+  float camDist = length( toCamVec );
+  vec3 toCam = camDist > 1e-4 ? toCamVec / camDist : vec3( 0.0, 0.0, 1.0 );
+  vec3 sideRaw = cross( axisDir, toCam );
+  float sideLen = length( sideRaw );
+  vec3 side = sideLen > 1e-4 ? sideRaw / sideLen : normalize( cross( axisDir, abs( axisDir.y ) < 0.9 ? vec3( 0.0, 1.0, 0.0 ) : vec3( 1.0, 0.0, 0.0 ) ) );
   p += side * ( aShaft.x - 0.5 ) * aShaft.z * mix( 0.75, 1.35, aShaft.y );
   vec4 mvPosition = viewMatrix * vec4( p, 1.0 );
   gl_Position = projectionMatrix * mvPosition;
-  vUv = aShaft.xy;
-  vSeed = aShaft.w;
-  float camDist = length( cameraPosition - p );
-  vNear = mix( smoothstep( 3.0, 9.0, camDist ), smoothstep( uGladeNear.x, uGladeNear.y, camDist ), aGlade );
-  vGlade = aGlade;
+  float nearDist = length( cameraPosition - p );
+  float nearFade = mix( smoothstep( 3.0, 9.0, nearDist ), smoothstep( uGladeNear.x, uGladeNear.y, nearDist ), aGlade );
+  float pulse = 0.7 + 0.3 * sin( uWindTime * 0.31 + aShaft.w * 23.0 );
+  float gain = nearFade * uStrength * mix( 1.0, uGladeStrength, aGlade ) * pulse;
+  vShaftInfo = vec4( aShaft.xy, gain, mix( 0.62, 0.8, aGlade ) );
   vWorld = p;
   #include <fog_vertex>
 }`;
 
 const SHAFT_FRAG = /* glsl */`
 uniform vec3 uShaftColor;
-uniform float uStrength;
-uniform float uWindTime;
 uniform vec3 uSunDir;
-uniform float uGladeStrength;
-varying vec2 vUv;
-varying float vSeed;
-varying float vNear;
-varying float vGlade;
+varying vec4 vShaftInfo;
 varying vec3 vWorld;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
-  float across = 1.0 - abs( vUv.x * 2.0 - 1.0 );
+  float across = 1.0 - abs( vShaftInfo.x * 2.0 - 1.0 );
   float a = across * across * ( 3.0 - 2.0 * across );
   // a glade's shaft comes down to the floor it lights; the forest's fades out well above it
-  a *= smoothstep( 0.0, 0.3, vUv.y ) * smoothstep( 1.0, mix( 0.62, 0.8, vGlade ), vUv.y );
-  a *= 0.7 + 0.3 * sin( uWindTime * 0.31 + vSeed * 23.0 );
-  vec3 viewDir = normalize( vWorld - cameraPosition );
-  a *= 0.45 + 1.1 * pow( max( dot( viewDir, uSunDir ), 0.0 ), 3.0 );
-  gl_FragColor = vec4( uShaftColor, a * vNear * uStrength * mix( 1.0, uGladeStrength, vGlade ) );
+  a *= smoothstep( 0.0, 0.3, vShaftInfo.y ) * smoothstep( 1.0, vShaftInfo.w, vShaftInfo.y );
+  vec3 toFrag = vWorld - cameraPosition;
+  vec3 viewDir = toFrag / max( length( toFrag ), 1e-4 );
+  float sunDot = max( dot( viewDir, uSunDir ), 0.0 );
+  a *= 0.45 + 1.1 * ( sunDot * sunDot * sunDot );
+  gl_FragColor = vec4( uShaftColor, a * vShaftInfo.z );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  #include <fog_fragment>
+${ADDITIVE_FOG_GLSL}
 }`;
 
 const MOTE_VERT = /* glsl */`
@@ -94,8 +118,11 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   float d = max( -mvPosition.z, 0.1 );
   gl_PointSize = clamp( uPixelScale * aMote.z / d, 1.0, 5.0 );
-  vec3 viewDir = normalize( p - cameraPosition );
-  float glint = pow( max( dot( viewDir, uSunDir ), 0.0 ), 5.0 );
+  vec3 toP = p - cameraPosition;
+  vec3 viewDir = toP / max( length( toP ), 1e-4 );
+  float sunDot = max( dot( viewDir, uSunDir ), 0.0 );
+  float sunDot2 = sunDot * sunDot;
+  float glint = sunDot2 * sunDot2 * sunDot;
   vAlpha = ( 0.18 + 1.3 * glint ) * ( 0.55 + 0.45 * sin( t * 1.3 + s * 3.0 ) ) * smoothstep( 0.8, 2.5, d ) * smoothstep( 0.0, 0.15, drift ) * smoothstep( 1.0, 0.85, drift );
   #include <fog_vertex>
 }`;
@@ -112,7 +139,7 @@ void main() {
   gl_FragColor = vec4( uMoteColor, a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  #include <fog_fragment>
+${ADDITIVE_FOG_GLSL}
 }`;
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -226,7 +253,8 @@ export function createAtmosphere(world, { layout, seed, terrain, shared, sun, q 
     if (gladeShafts.length) {
       const mrng = createRng(seed, 'glade-motes');
       const each = Math.round(FOREST.glade.shaft.motes * (q.name === 'low' ? 0.5 : 1));
-      const side = new THREE.Vector3().crossVectors(sunDir, new THREE.Vector3(0, 1, 0)).normalize();
+      const ref = Math.abs(sunDir.y) < 0.99 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+      const side = new THREE.Vector3().crossVectors(sunDir, ref).normalize();
       const rise = new THREE.Vector3().crossVectors(side, sunDir);
       for (const shaft of gladeShafts) {
         for (let i = 0; i < each; i++) {

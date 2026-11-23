@@ -566,34 +566,70 @@ export function createFireflies({ count = FIREFLIES.count, reduced = false } = {
   });
   const p = [0, 0, 0];
   const q = [0, 0, 0];
+  // Cache beat-only values once per beat so the 240 firefly evaluations per frame don't repeat them.
+  let cachedBeat = NaN;
+  let bOut = 0, bPulse = 0, bGathered = 0, bWide = 1, bHigh = 1;
+  let bK = -1, bSince = -1, bFlown = 0, bSettled = 0, bBurstY = 0, bBursting = 0, bSwell = 0, bFestive = 0, bLoud = 1;
+
+  function syncBeat(beat) {
+    if (beat === cachedBeat) return;
+    cachedBeat = beat;
+    bOut = outAt(beat) * 1.06;
+    bLoud = beat >= BURST_TWO && beat < END ? 1.25 : 1;
+    bK = -1;
+    bSince = -1;
+    bSwell = 0;
+    bGathered = 0;
+    if (!reduced) {
+      bPulse = pulseAt(beat);
+      bK = beat >= BURST_TWO ? 1 : beat >= BURST_ONE ? 0 : -1;
+      if (bK >= 0) {
+        bSince = beat - BURSTS[bK];
+        bFlown = 1 - Math.exp(-bSince / 0.75);
+        bSettled = Math.min(1, bSince / 3);
+        bBurstY = 1.5 * Math.sin(Math.PI * Math.min(1, bSince / 2.5)) - Math.min(2.5, 0.09 * Math.max(0, bSince - 2.5));
+        bBursting = 1 - smooth((bSince - 8) / 16);
+        bSwell = Math.exp(-bSince / 3);
+      }
+      for (let j = 0; j < PUFFS.length; j++) {
+        const puff = PUFFS[j];
+        if (beat >= puff) bSwell = Math.max(bSwell, 0.6 * Math.exp(-(beat - puff) / 3));
+      }
+      bGathered = gatherAt(beat);
+      if (bGathered > 0) {
+        const tight = tightAt(beat);
+        bWide = tight.wide;
+        bHigh = tight.high;
+      }
+    }
+    bFestive = bSince >= 0 ? 0.3 + 0.7 * Math.exp(-bSince / 10) : 0;
+  }
 
   function at(i, beat, energy, out) {
+    syncBeat(beat);
     const f = flies[i];
     // drifting round its own place over the pool
     p[0] = f.place[0] + f.sway[0] * Math.sin(beat * f.pace[0] + f.round);
     p[1] = f.place[1] + f.sway[1] * Math.sin(beat * f.pace[1] + f.round * 2);
     p[2] = f.place[2] + f.sway[2] * Math.sin(beat * f.pace[2] + f.round * 3);
-    let since = -1; // beats since the last burst
-    let swell = 0;
     if (!reduced) {
-      const k = beat >= BURST_TWO ? 1 : beat >= BURST_ONE ? 0 : -1;
-      if (k >= 0) {
+      if (bK >= 0) {
         // out from her over the whole pool, fast and then slower, and sinking slowly; then home to its own place
-        since = beat - BURSTS[k];
-        const flown = 1 - Math.exp(-since / 0.75);
-        const settled = Math.min(1, since / 3);
-        q[0] = lerp(f.from[k][0], f.to[k][0], flown) + (p[0] - f.place[0]) * settled;
-        q[1] = lerp(f.from[k][1], f.to[k][1], flown) + 1.5 * Math.sin(Math.PI * Math.min(1, since / 2.5)) - Math.min(2.5, 0.09 * Math.max(0, since - 2.5)) + (p[1] - f.place[1]) * settled;
-        q[2] = lerp(f.from[k][2], f.to[k][2], flown) + (p[2] - f.place[2]) * settled;
-        const bursting = 1 - smooth((since - 8) / 16);
-        for (let n = 0; n < 3; n++) p[n] = lerp(p[n], q[n], bursting);
-        swell = Math.exp(-since / 3);
+        q[0] = lerp(f.from[bK][0], f.to[bK][0], bFlown) + (p[0] - f.place[0]) * bSettled;
+        q[1] = lerp(f.from[bK][1], f.to[bK][1], bFlown) + bBurstY + (p[1] - f.place[1]) * bSettled;
+        q[2] = lerp(f.from[bK][2], f.to[bK][2], bFlown) + (p[2] - f.place[2]) * bSettled;
+        p[0] = lerp(p[0], q[0], bBursting);
+        p[1] = lerp(p[1], q[1], bBursting);
+        p[2] = lerp(p[2], q[2], bBursting);
       }
-      for (const puff of PUFFS) if (beat >= puff) swell = Math.max(swell, 0.6 * Math.exp(-(beat - puff) / 3));
-      const gathered = gatherAt(beat);
-      if (gathered > 0) {
-        swarm(f, beat, q);
-        for (let n = 0; n < 3; n++) p[n] = lerp(p[n], q[n], gathered);
+      if (bGathered > 0) {
+        const angle = f.round + f.turn * beat;
+        q[0] = HER[0] + Math.cos(angle) * f.reach * bWide;
+        q[1] = LEVEL + 0.5 + f.height * bHigh + 0.35 * Math.sin(beat * f.bob + f.round);
+        q[2] = HER[1] + Math.sin(angle) * f.reach * bWide;
+        p[0] = lerp(p[0], q[0], bGathered);
+        p[1] = lerp(p[1], q[1], bGathered);
+        p[2] = lerp(p[2], q[2], bGathered);
       }
     }
     // up out of the reed, the first time it comes out
@@ -601,15 +637,13 @@ export function createFireflies({ count = FIREFLIES.count, reduced = false } = {
     out.x = lerp(f.home[0], p[0], risen);
     out.y = lerp(f.home[1], p[1], risen) + 1.2 * Math.sin(Math.PI * risen);
     out.z = lerp(f.home[2], p[2], risen);
-    const shown = clamp01((outAt(beat) * 1.06 - f.rank) / 0.06) * Math.min(1, risen * 4);
+    const shown = clamp01((bOut - f.rank) / 0.06) * Math.min(1, risen * 4);
     out.level = shown * (0.62 + 0.38 * Math.sin(beat * f.twinkle + f.round * 5));
-    const loud = beat >= BURST_TWO && beat < END ? 1.25 : 1; // the last chorus: the biggest
     const fresh = 1 + 1.2 * (1 - risen); // bigger as it lifts out of the reed, so the eye finds it
-    out.size = f.size * fresh * (reduced ? 1 : (1 + 0.35 * pulseAt(beat) * energy) * (1 + 0.9 * swell) * loud);
-    const festive = since >= 0 ? 0.3 + 0.7 * Math.exp(-since / 10) : 0;
-    out.r = lerp(f.warm[0], f.party[0], festive);
-    out.g = lerp(f.warm[1], f.party[1], festive);
-    out.b = lerp(f.warm[2], f.party[2], festive);
+    out.size = f.size * fresh * (reduced ? 1 : (1 + 0.35 * bPulse * energy) * (1 + 0.9 * bSwell) * bLoud);
+    out.r = lerp(f.warm[0], f.party[0], bFestive);
+    out.g = lerp(f.warm[1], f.party[1], bFestive);
+    out.b = lerp(f.warm[2], f.party[2], bFestive);
     return out;
   }
   return { count, at };

@@ -31,6 +31,7 @@ export function createPolyline(points) {
   function pointAt(s) {
     for (const g of segs) {
       if (s <= g.s0 + g.len || g === segs[segs.length - 1]) {
+        if (g.len <= 1e-9) return [g.ax, g.az, 1, 0];
         const t = clamp((s - g.s0) / g.len, 0, 1);
         return [g.ax + g.dx * t, g.az + g.dz * t, g.dx / g.len, g.dz / g.len];
       }
@@ -60,7 +61,8 @@ export function createTerrain(world, layout, seed) {
     const bowl = fen > 0 ? cfg.bowlRise + (F.bowlRise - cfg.bowlRise) * fen : cfg.bowlRise;
     const beyond = fen > 0 ? 0.012 * (1 - fen) : 0.012;
     let h = (noise.fbm(x * 0.032, z * 0.032, 3, 1) - 0.5) * 2 * und;
-    h += (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * bumps;
+    const bumpNoise = (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * bumps;
+    h += bumpNoise;
     const calm = smoothstep(clearR * 0.55, clearR + 7, r);
     h *= cfg.clearingCalm + (1 - cfg.clearingCalm) * calm;
     // a gentle bowl: the forest floor rises away from the clearing
@@ -68,7 +70,7 @@ export function createTerrain(world, layout, seed) {
     // keep the path walkable: flatten hummocks along it
     const pd = path.query(x, z).d;
     const flat = smoothstep(3.5, 0.5, pd);
-    h -= flat * (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * bumps * 0.8;
+    h -= flat * bumpNoise * 0.8;
     return h;
   }
   // A layout may shape the ground further with lift(x, z, natural): metres added to the ground's height there, given the height
@@ -83,16 +85,13 @@ export function createTerrain(world, layout, seed) {
   const heightAt = (x, z) => rawHeight(x, z) - h0;
 
   // ---- masks (CPU) ---------------------------------------------------------------------------
-  function pathMask(x, z) {
-    const q = path.query(x, z);
-    const r = Math.hypot(x - cx, z - cz);
+  function pathMask(x, z, q = path.query(x, z), r = Math.hypot(x - cx, z - cz)) {
     const half = P.halfWidth + (P.halfWidthForest - P.halfWidth) * smoothstep(clearR, edgeR + 4, r);
     const wobble = (noise.noise(x * 0.9, z * 0.9, 21) - 0.5) * 0.35;
     const ends = smoothstep(0, P.fadeEnds, q.s) * smoothstep(path.total, path.total - P.fadeEnds, q.s);
     return (1 - smoothstep(half - P.edgeSoft, half + P.edgeSoft, q.d + wobble)) * ends;
   }
-  function forestMask(x, z) {
-    const r = Math.hypot(x - cx, z - cz);
+  function forestMask(x, z, r = Math.hypot(x - cx, z - cz)) {
     // a slow swell plus a ragged fringe, so the clearing's edge is never a drawn circle
     const wob = (noise.fbm(x * 0.09, z * 0.09, 2, 31) - 0.5) * 4.5 + (noise.fbm(x * 0.33, z * 0.33, 2, 37) - 0.5) * 2.6;
     return smoothstep(clearR + 0.5, edgeR + 1.5, r + wob);
@@ -156,20 +155,18 @@ export function createTerrain(world, layout, seed) {
     const fen = biome.shareAt(x, z);
     return fen > 0 ? forest + (clamp(canopyAt(x, z) * rim * fleck * 0.8, 0, 1) - forest) * fen : forest;
   }
-  function soilMask(x, z) {
-    const r = Math.hypot(x - cx, z - cz);
+  function soilMask(x, z, q = path.query(x, z), r = Math.hypot(x - cx, z - cz)) {
     const blobs = noise.fbm(x * 0.26 + 40, z * 0.26 - 12, 3, 41);
     let s = smoothstep(0.7, 0.82, blobs) * 0.55 * smoothstep(clearR + 3, clearR - 1, r) * smoothstep(2.5, 5, r);
     // worn soil along the path edges
-    const pd = path.query(x, z).d;
+    const pd = q.d;
     s = Math.max(s, smoothstep(1.7, 1.0, pd) * 0.55 * smoothstep(0.35, 0.65, noise.noise(x * 0.7, z * 0.7, 43)));
     // bare rim where the clearing meets the trees
     const rim = smoothstep(edgeR - 3, edgeR - 0.5, r) * smoothstep(edgeR + 4, edgeR + 1, r);
     s = Math.max(s, rim * 0.6 * smoothstep(0.45, 0.7, noise.noise(x * 0.35, z * 0.35, 47)));
     return clamp(s, 0, 1);
   }
-  function litterMask(x, z) {
-    const f = forestMask(x, z);
+  function litterMask(x, z, f = forestMask(x, z)) {
     return f * smoothstep(0.38, 0.62, noise.fbm(x * 0.21 - 7, z * 0.21 + 3, 2, 53));
   }
   /** Extra patches the planner can stamp (soil under the log, around rocks). */
@@ -274,10 +271,13 @@ export function createTerrain(world, layout, seed) {
       for (let i = 0; i < res; i++) {
         const x = ox + ((i + 0.5) / res) * size;
         const k = (j * res + i) * 4;
-        data[k] = Math.round(pathMask(x, z) * 255);
-        data[k + 1] = Math.round(Math.max(soilMask(x, z), stampedSoil(x, z)) * 255);
-        data[k + 2] = Math.round(forestMask(x, z) * 255);
-        data[k + 3] = Math.round(litterMask(x, z) * 255);
+        const q = path.query(x, z);
+        const r = Math.hypot(x - cx, z - cz);
+        const f = forestMask(x, z, r);
+        data[k] = Math.round(pathMask(x, z, q, r) * 255);
+        data[k + 1] = Math.round(Math.max(soilMask(x, z, q, r), stampedSoil(x, z)) * 255);
+        data[k + 2] = Math.round(f * 255);
+        data[k + 3] = Math.round(litterMask(x, z, f) * 255);
       }
       yield;
     }
@@ -361,7 +361,10 @@ varying float vShore;
 #endif
 ${ACTOR_GLSL}
 ${LIGHT_GLOBALS}
-${LEAF_SHADOW_GLSL}`,
+${LEAF_SHADOW_GLSL}
+float gBumpStrength = 0.0;
+float gBumpH0 = 0.0;
+float gWetShore = 0.0;`,
       fragmentAfter: [['#include <color_fragment>', `
   vec2 gp = vGroundPos.xz;
   vec4 m = texture2D( uGroundMask, ( gp - uMaskOrigin ) / uMaskSize );
@@ -400,16 +403,21 @@ ${LEAF_SHADOW_GLSL}`,
   fenC = mix( fenC, uFenMossWet * 0.82 * ( 0.85 + 0.3 * fine ), smoothstep( 0.6, 0.8, nD.r + ( fine - 0.5 ) * 0.2 ) * 0.7 );
   fenC = mix( fenC, uFenMoss * ( 0.92 + 0.16 * fine ), smoothstep( 0.22, 0.42, above ) * 0.35 );
   fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.25, 1.0 + 0.3 * med, shoreD ) ) * 0.3 );
-  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD ) );
+  float fenMud = ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD );
+  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), fenMud );
   // the bed under the water, from its very edge: wet and darker in its first 0.3 m, where the surface fades in over it
   fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ) * mix( 0.7, 1.0, smoothstep( 0.0, -0.3, shoreD ) ), smoothstep( 0.0, -0.25, shoreD ) );
+  gWetShore = fen * ( fenMud + ( 1.0 - smoothstep( 0.12, 0.42, shoreD ) ) * smoothstep( -0.03, 0.03, shoreD ) * 0.4 );
 
   col = mix( col, fenC, fen );
   pathC = mix( pathC, uFenPath * ( 0.88 + 0.22 * fine ), fen * 0.85 );
   #endif
   col = mix( col, pathC, pathEdge );
-  float ao = forestActorShade( vGroundPos );
-  float actorNear = forestActorNear( vGroundPos );
+  gBumpStrength = ( 0.25 + 0.75 * max( pathEdge, soil ) ) * ( 1.0 - gWetShore );
+  gBumpH0 = med;
+  vec2 actorSN = forestActorShadeNear( vGroundPos );
+  float ao = actorSN.x;
+  float actorNear = actorSN.y;
   float nearActor = actorNear * ( 1.0 - pathEdge );
   col = mix( col * mix( 0.88, 1.0, m.b ), col * vec3( 1.2, 1.14, 0.84 ) + vec3( 0.02, 0.016, 0.0 ), nearActor * 0.75 * uActorWarm * ( 1.0 - m.b ) );
   diffuseColor.rgb = col * ao;
@@ -426,7 +434,29 @@ ${LEAF_SHADOW_GLSL}`,
   gAmb = mix( 0.5, 1.0, openSky );
   // the real shadow map keeps counting well under the canopy edge, where the baked shade is
   // already dark, so no lit band opens between the two
-  gShadowUse = smoothstep( 0.2, 0.45, openSky );`]],
+  gShadowUse = smoothstep( 0.2, 0.45, openSky );`],
+        ['#include <normal_fragment_maps>', `
+  {
+    float bumpFade = ( 1.0 - smoothstep( 8.0, 26.0, length( vViewPosition ) ) ) * gBumpStrength;
+    if ( bumpFade > 0.001 ) {
+      vec2 bgp = vGroundPos.xz;
+      float hx = texture2D( uNoise, ( bgp + vec2( 0.18, 0.0 ) ) * 0.13 ).g;
+      float hz = texture2D( uNoise, ( bgp + vec2( 0.0, 0.18 ) ) * 0.13 ).g;
+      vec3 wTilt = vec3( ( gBumpH0 - hx ) * ( 0.85 * bumpFade ), 0.0, ( gBumpH0 - hz ) * ( 0.85 * bumpFade ) );
+      normal = normalize( normal + ( viewMatrix * vec4( wTilt, 0.0 ) ).xyz );
+    }
+  }`],
+        ['#include <lights_fragment_end>', `
+  #if defined( FOREST_FEN ) && NUM_DIR_LIGHTS > 0
+  if ( gWetShore > 0.001 ) {
+    vec3 wetHalf = normalize( directionalLights[ 0 ].direction + geometryViewDir );
+    float wetH = max( dot( geometryNormal, wetHalf ), 0.0 );
+    float w2 = wetH * wetH;
+    float w4 = w2 * w2;
+    float w8 = w4 * w4;
+    reflectedLight.directDiffuse += directionalLights[ 0 ].color * ( w8 * 0.18 * gWetShore * gSun );
+  }
+  #endif`]],
     });
     return { material, mask };
   }
@@ -470,4 +500,15 @@ float forestActorShade( vec3 wp ) {
     shade = min( shade, 1.0 - 0.4 * ( 1.0 - smoothstep( -0.5, 0.75, d ) ) );
   }
   return shade;
+}
+vec2 forestActorShadeNear( vec3 wp ) {
+  float shade = 1.0;
+  float near = 0.0;
+  for ( int i = 0; i < 4; i ++ ) {
+    if ( i >= uActorCount ) break;
+    float d = forestActorDistance( wp.xz, i );
+    shade = min( shade, 1.0 - 0.4 * ( 1.0 - smoothstep( -0.5, 0.75, d ) ) );
+    near = max( near, 1.0 - smoothstep( 1.2, 3.4, d ) );
+  }
+  return vec2( shade, near );
 }`;

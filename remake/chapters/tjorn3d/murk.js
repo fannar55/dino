@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 
 const KEY = '|tjorn-murk';
+let savedChunks = null;
 
 function displayVec3(hex) {
   const c = new THREE.Color(hex);
@@ -37,6 +38,10 @@ export function murky(material) {
 }
 
 export function installMurk(scene, { level, tone, deep, dim, bed, density }) {
+  savedChunks ??= {
+    fog_pars_fragment: THREE.ShaderChunk.fog_pars_fragment,
+    fog_fragment: THREE.ShaderChunk.fog_fragment,
+  };
   THREE.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
 	#define MURK_LEVEL ${level.toFixed(4)}
 	#define MURK_TONE ${displayVec3(tone)}
@@ -73,4 +78,12 @@ export function installMurk(scene, { level, tone, deep, dim, bed, density }) {
   const seen = new Set();
   scene.traverse(o => { for (const m of [o.material, o.customDepthMaterial].flat()) if (m && !seen.has(m)) { seen.add(m); if (m.fog !== false) murky(m); } });
   return scene.fog;
+}
+
+/** Restores Three's fog shader chunks to what they were before installMurk patched them. */
+export function restoreMurk() {
+  if (!savedChunks) return;
+  THREE.ShaderChunk.fog_pars_fragment = savedChunks.fog_pars_fragment;
+  THREE.ShaderChunk.fog_fragment = savedChunks.fog_fragment;
+  savedChunks = null;
 }

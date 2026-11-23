@@ -22,7 +22,13 @@ export function createLighting(scene, look, q) {
 
   const focusCentre = new THREE.Vector3();
   let focusRadius = 10;
+  let lastRadius = -1;
   const lightSpace = new THREE.Matrix4();
+  const invLightSpace = new THREE.Matrix4();
+  const origin = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  const negDir = new THREE.Vector3();
+  const lastDir = new THREE.Vector3(NaN, NaN, NaN);
   const snapped = new THREE.Vector3();
 
   // Fit the shadow camera to a sphere. The centre is snapped to whole shadow texels in light space,
@@ -31,12 +37,19 @@ export function createLighting(scene, look, q) {
     focusCentre.copy(centre);
     focusRadius = radius;
     const cam = sun.shadow.camera;
-    cam.left = -radius; cam.right = radius; cam.top = radius; cam.bottom = -radius;
-    cam.near = 0.5; cam.far = radius * 8;
-    cam.updateProjectionMatrix();
+    if (radius !== lastRadius) {
+      lastRadius = radius;
+      cam.left = -radius; cam.right = radius; cam.top = radius; cam.bottom = -radius;
+      cam.near = 0.5; cam.far = radius * 8;
+      cam.updateProjectionMatrix();
+    }
     const texel = (radius * 2) / Math.max(1, q.shadowSize);
-    lightSpace.lookAt(new THREE.Vector3(), direction.clone().negate(), new THREE.Vector3(0, 1, 0));
-    snapped.copy(centre).applyMatrix4(lightSpace.clone().invert());
+    if (!lastDir.equals(direction)) {
+      lastDir.copy(direction);
+      lightSpace.lookAt(origin, negDir.copy(direction).negate(), up);
+      invLightSpace.copy(lightSpace).invert();
+    }
+    snapped.copy(centre).applyMatrix4(invLightSpace);
     snapped.x = Math.round(snapped.x / texel) * texel;
     snapped.y = Math.round(snapped.y / texel) * texel;
     snapped.applyMatrix4(lightSpace);

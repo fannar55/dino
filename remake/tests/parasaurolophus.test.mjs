@@ -74,17 +74,10 @@ function footWatch(actor) {
 }
 const mm = metres => `${(metres * 1000).toFixed(1)} mm`;
 
-// Width and height of a JPEG from its start-of-frame marker.
-function jpegSize(bytes) {
-  for (let i = 2; i < bytes.length;) {
-    const marker = bytes.readUInt16BE(i);
-    const length = bytes.readUInt16BE(i + 2);
-    if (marker >= 0xffc0 && marker <= 0xffcf && ![0xffc4, 0xffc8, 0xffcc].includes(marker)) {
-      return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) };
-    }
-    i += 2 + length;
-  }
-  return null;
+// Width and height of a KTX2 texture from its 12-byte magic + header.
+function ktx2Size(bytes) {
+  if (bytes.length < 28 || bytes.readUInt32BE(0) !== 0xab4b5458 || bytes.readUInt32BE(4) !== 0x203230bb) return null;
+  return { width: bytes.readUInt32LE(20), height: bytes.readUInt32LE(24) };
 }
 
 // The pose of every bone (world positions) at time t of a clip.
@@ -149,8 +142,8 @@ test('Slóeðla has the hadrosaur skeleton, her clips and fits the budget', asyn
   assert.equal(json.images.length, 2, 'two maps: base colour and normal');
   for (const image of json.images) {
     const view = json.bufferViews[image.bufferView];
-    assert.equal(image.mimeType, 'image/jpeg');
-    assert.deepEqual(jpegSize(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength)), { width: 1024, height: 1024 });
+    assert.equal(image.mimeType, 'image/ktx2');
+    assert.deepEqual(ktx2Size(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength)), { width: 1024, height: 1024 });
   }
 });
 

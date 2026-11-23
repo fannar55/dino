@@ -88,7 +88,12 @@ export function createShowPlayer(doc, root, { audio = null, win = globalThis.win
   }
 
   pressable(closeButton, { audio, win, onTap: () => close() });
-  win?.addEventListener?.('keydown', event => { if (current && event.key === 'Escape') close(); });
+  win?.addEventListener?.('keydown', event => {
+    if (event.defaultPrevented || event._bookHandled || !current || event.key !== 'Escape') return;
+    event._bookHandled = true;
+    event.preventDefault?.();
+    close();
+  });
   win?.addEventListener?.('message', event => {
     if (!current || event.data !== SHOW_CLOSE) return;
     if (frame && event.source !== frame.contentWindow) return;

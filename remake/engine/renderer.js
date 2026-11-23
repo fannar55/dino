@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { initKTX2Renderer } from '../../dist/vendor/gltf-codecs.js';
 
 // WebGL2 renderer with the remake's colour pipeline: linear working space, sRGB output, and
 // Khronos PBR Neutral tone mapping, which keeps the painted Tripo colours close to their source.
 export function createRenderer(canvas, q) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance', stencil: false });
+  initKTX2Renderer(renderer);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1;
@@ -78,15 +80,29 @@ export function createRenderer(canvas, q) {
     if (dynamic !== before) sizePending = true;
   }
 
-  addEventListener('resize', () => applySize());
-  canvas.addEventListener?.('webglcontextlost', event => {
+  const homeParent = canvas.parentElement ?? null;
+  const onResize = () => {
+    // When another full-screen view (e.g. Háls og hali) borrows this canvas into its own container, let it own resizing.
+    if (homeParent && canvas.parentElement !== homeParent) return;
+    applySize();
+  };
+  const onLost = event => {
     event.preventDefault();
     console.warn('[renderer] main WebGL context lost; awaiting restoration');
-  });
-  canvas.addEventListener?.('webglcontextrestored', () => {
+  };
+  const onRestored = () => {
     sizePending = true;
-  });
+  };
+  addEventListener('resize', onResize);
+  canvas.addEventListener?.('webglcontextlost', onLost);
+  canvas.addEventListener?.('webglcontextrestored', onRestored);
   // a resize the next render would apply, applied now (engine/gler.js sizes its eye targets from the canvas first)
   const flushSize = () => { if (sizePending) applySize(camera.current); };
-  return { renderer, applySize, adapt, flushSize, get resolutionScale() { return dynamic; } };
+  const dispose = () => {
+    removeEventListener('resize', onResize);
+    canvas.removeEventListener?.('webglcontextlost', onLost);
+    canvas.removeEventListener?.('webglcontextrestored', onRestored);
+    renderer.dispose();
+  };
+  return { renderer, applySize, adapt, flushSize, dispose, get resolutionScale() { return dynamic; } };
 }

@@ -28,7 +28,6 @@ import { createRemoteRound } from '../sloedla/remote-round.js';
 import { FOLLOW, MEASURE, createClockSync } from '../sloedla/clock-sync.js';
 import { laneRules } from '../sloedla/lineup.js';
 import { pointsText } from '../sloedla/text.js';
-import { keepScreenAwake } from '../wake-lock.js';
 
 const WORDS = {
   ready: 'Tilbúin!',
@@ -58,7 +57,12 @@ export function renderSloedla(root, view, { send, doc, post, listen }) {
     session?.stop();
     session = createScreen(root, { send, doc, post, listen });
   }
-  session.show(view ?? {});
+  const current = session;
+  current.show(view ?? {});
+  return () => {
+    if (session === current) session = null;
+    current.stop();
+  };
 }
 
 function createScreen(root, { send, doc, post, listen }) {
@@ -67,7 +71,7 @@ function createScreen(root, { send, doc, post, listen }) {
   const device = deviceOf(win?.innerWidth ?? 390, win?.innerHeight ?? 844, new URLSearchParams(win?.location?.search ?? '').get('taeki'));
   const sync = createClockSync();
   const at = {
-    phase: null, remote: null, start: null, game: null, lane: -1, canvas: null, raf: null, timers: [], every: null, lock: null,
+    phase: null, remote: null, start: null, game: null, lane: -1, canvas: null, raf: null, timers: [], every: null,
     images: null, backdrop: null, waitNote: null, words: [], heard: [],
   };
   const offs = [listen('time', heard), listen('song', onSong)];
@@ -269,7 +273,6 @@ function createScreen(root, { send, doc, post, listen }) {
     });
     canvas.addEventListener('pointerdown', onPointer);
     win?.addEventListener('resize', onResize);
-    at.lock = keepScreenAwake({ doc, win });
   }
 
   const onResize = () => at.game?.resize();
@@ -298,8 +301,7 @@ function createScreen(root, { send, doc, post, listen }) {
     at.raf = null;
     at.canvas?.removeEventListener('pointerdown', onPointer);
     win?.removeEventListener('resize', onResize);
-    at.lock?.dispose?.();
-    Object.assign(at, { remote: null, start: null, game: null, canvas: null, lane: -1, lock: null });
+    Object.assign(at, { remote: null, start: null, game: null, canvas: null, lane: -1 });
   }
 
   function stop() {

@@ -139,12 +139,18 @@ function createHero(world, { tint = null } = {}) {
   const group = new THREE.Group();
   group.name = 'Hero butterfly';
   const wings = { L: null, R: null };
+  const ownedMaterials = [];
   let feet = HERO_FEET;
   let disposed = false;
   let load = null;
   if (world.loadModel) load = world.loadModel(HERO_MODEL);
   else if (typeof document !== 'undefined') {
-    if (!heroModels.has(HERO_MODEL)) heroModels.set(HERO_MODEL, new GLTFLoader().loadAsync(HERO_MODEL));
+    if (!heroModels.has(HERO_MODEL)) {
+      heroModels.set(HERO_MODEL, new GLTFLoader().loadAsync(HERO_MODEL).catch(err => {
+        heroModels.delete(HERO_MODEL);
+        throw err;
+      }));
+    }
     load = heroModels.get(HERO_MODEL);
   }
   const loaded = Promise.resolve(load).then(gltf => {
@@ -161,7 +167,10 @@ function createHero(world, { tint = null } = {}) {
       model.traverse(o => {
         if (!o.isMesh) return;
         o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone();
-        for (const m of [o.material].flat()) m.color?.multiply(by);
+        for (const m of [o.material].flat()) {
+          m.color?.multiply(by);
+          ownedMaterials.push(m);
+        }
       });
     }
     for (const side of ['L', 'R']) wings[side] = model.getObjectByName(`Wing${side}`) ?? null;
@@ -183,6 +192,8 @@ function createHero(world, { tint = null } = {}) {
     },
     dispose() {
       disposed = true;
+      for (const m of ownedMaterials) m.dispose();
+      ownedMaterials.length = 0;
       group.clear(); // the geometry and maps stay with the file's scene (heroModels), for the next forest with a hero
     },
   };

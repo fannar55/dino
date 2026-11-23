@@ -274,7 +274,7 @@ function cutGround(mesh, [cx, cz]) {
   const index = new THREE.BufferAttribute(master.slice(), 1);
   index.setUsage(THREE.DynamicDrawUsage);
   g.setIndex(index);
-  mesh.userData = { ...mesh.userData, kind: 'ground', cull: { master, ranges, signature: -1, submitted: master.length / 3, geometry: g }, hidden: false };
+  mesh.userData = { ...mesh.userData, kind: 'ground', cull: { master, ranges, crownRanges: [], kept: [], signature: -1, submitted: master.length / 3, geometry: g }, hidden: false };
 }
 
 export async function createForest(world, layout, { slice = null } = {}) {
@@ -289,9 +289,12 @@ function* forestSteps(world, layout) {
   const group = new THREE.Group();
   group.name = 'Forest';
 
+  const aniso = Math.min(4, world.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
   const noiseTexture = yield* createNoiseTextureSteps(seed);
+  if (aniso > 1) noiseTexture.anisotropy = aniso;
   yield 'noise';
   const leafTexture = yield* createLeafTextureSteps(seed);
+  if (aniso > 1) leafTexture.anisotropy = aniso;
   yield 'leaf';
   const shared = createSharedUniforms(world, noiseTexture, leafTexture, leafShadowsOf(layout) ? FOREST.leafShadow.strength : 0);
   const actorUniforms = {
@@ -326,6 +329,7 @@ function* forestSteps(world, layout) {
   }), world.lighting.direction);
   yield 'canopy';
   const floor = yield* terrain.createGroundMaterialSteps(shared, actorUniforms); // after planning: soil stamps, canopy
+  if (aniso > 1 && floor.mask?.tex) floor.mask.tex.anisotropy = aniso;
   yield 'ground material';
   const groundMesh = new THREE.Mesh(yield* terrain.buildGroundGeometrySteps(q), floor.material);
   yield 'ground';
@@ -342,7 +346,7 @@ function* forestSteps(world, layout) {
   const solid = createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'forest-solid', low, actors });
   const thin = createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'forest-thin', low, actors });
   const solidDepth = createWindDepthMaterial(shared, 'forest-solid');
-  const thinDepth = createWindDepthMaterial(shared, 'forest-thin');
+  const thinDepth = createWindDepthMaterial(shared, 'forest-thin', { side: THREE.DoubleSide });
   // the trees past all the place's cameras as cards of themselves (layout.farCards; some ms for their pictures: a slice of its own)
   const [ccx, ccz] = layout.clearing.center;
   if (layout.farCards) yield FRESH;
@@ -359,7 +363,7 @@ function* forestSteps(world, layout) {
     return { material: bucket.kind === 'thin' ? thin : solid, receiveShadow: s.receive, renderOrder: s.order };
   }, {
     order: p => Math.hypot(p.x - ccx, p.z - ccz),
-    casterSetup: bucket => ({ material: solid, depthMaterial: bucket.kind === 'thin' ? thinDepth : solidDepth, renderOrder: 9 }),
+    casterSetup: bucket => ({ material: bucket.kind === 'thin' ? thin : solid, depthMaterial: bucket.kind === 'thin' ? thinDepth : solidDepth, renderOrder: 9 }),
     cards: farCards ? { material: farCards.material, renderOrder: BAND_SETUP.deep.order, wind: true } : undefined,
   });
   for (const m of meshes) group.add(m);
@@ -381,7 +385,7 @@ function* forestSteps(world, layout) {
 
   // the Fen's water, the moss hanging from its conifers, and the mist low over it
   const water = layout.water
-    ? yield* createWaterSteps(world, layout.water, terrain.heightAt, { spots: waterSpots(plan.placements, ground.water), seed, centre: layout.clearing.center })
+    ? yield* createWaterSteps(world, layout.water, terrain.heightAt, { spots: waterSpots(plan.placements, ground.water), seed, centre: layout.clearing.center, noise: noiseTexture })
     : null;
   if (water) group.add(water.group);
   yield 'water';
@@ -401,7 +405,7 @@ function* forestSteps(world, layout) {
   for (const [i, spec] of (layout.mist ?? []).entries()) {
     yield FRESH; // each some 25 ms: a slice of its own
     mists.push(createMist(world, {
-      ...spec, seed: seed + i,
+      ...spec, seed: seed + i, noise: noiseTexture,
       heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
       over: ground.water ? mistPoints(ground.water, spec.center, spec.radius, layout.actors) : null,
     }));
@@ -487,6 +491,7 @@ function* forestSteps(world, layout) {
   // slack for the turn (batch.js cullBatches `turn`) the rest, so a far plant at the frame's edge is drawn while the camera turns slowly.
   const lastCam = new THREE.Vector3(Infinity, 0, 0), lastTurn = new THREE.Quaternion(), lastFocus = new THREE.Vector3(Infinity, 0, 0);
   const camNow = new THREE.Vector3(), turnNow = new THREE.Quaternion(), focusNow = new THREE.Vector3();
+  const activePieces = [];
   let lastFov = 0, lastAspect = 0, lastRadius = 0;
   let submitted = 0, casterTris = 0;
   function cullIfMoved() {
@@ -496,7 +501,9 @@ function* forestSteps(world, layout) {
     if (camNow.distanceTo(lastCam) > RECULL.move || turnNow.angleTo(lastTurn) > RECULL.turn || cam.fov !== lastFov || cam.aspect !== lastAspect) {
       submitted = cullBatches(meshes, cam, undefined, null, undefined, RECULL.turn);
       // the moss a tree at a time, the ground in pieces (while each is the geometry it cut: a place may swap its ground's for its own)
-      cullBatches(pieces.filter(m => m.geometry === m.userData.cull.geometry), cam, undefined, null, undefined, RECULL.turn);
+      activePieces.length = 0;
+      for (const m of pieces) if (m.geometry === m.userData.cull.geometry) activePieces.push(m);
+      cullBatches(activePieces, cam, undefined, null, undefined, RECULL.turn);
       lastCam.copy(camNow); lastTurn.copy(turnNow); lastFov = cam.fov; lastAspect = cam.aspect;
     }
     if (sun && sun.castShadow && casterMeshes.length) {
@@ -515,7 +522,7 @@ function* forestSteps(world, layout) {
     for (const actor of world.actors.values()) {
       if (n >= 4) break;
       const root = actor.root;
-      if (!root) continue;
+      if (!root || root.visible === false) continue;
       const heading = -root.rotation.y;
       actorUniforms.uActors.value[n].set(root.position.x, root.position.z, Math.cos(heading), Math.sin(heading));
       actorUniforms.uActorShape.value[n].set(fp.halfLength * (actor.footprintScale ?? 1), fp.radius * (actor.footprintScale ?? 1), fp.soft, 0);

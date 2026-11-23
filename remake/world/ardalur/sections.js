@@ -60,6 +60,13 @@ export function createBuildQueue({ budget = () => 3, now = () => performance.now
     },
     /** Reorder the jobs still waiting: `order(a, b)` on their ids. */
     sort(order) { jobs.sort((a, b) => order(a.id, b.id)); },
+    /** Abort and clear any in-progress and queued build generators. */
+    clear() {
+      current?.steps?.return?.();
+      current = null;
+      for (const job of jobs) job.steps?.return?.();
+      jobs.length = 0;
+    },
     /** Run a slice: steps until the budget is gone. Returns the number of steps run. */
     tick() {
       const start = now();

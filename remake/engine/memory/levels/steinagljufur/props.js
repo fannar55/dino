@@ -217,6 +217,17 @@ export function buildGorge({ scene, frame, heightAt, models, avoid = () => false
     /** Where the opening is: its middle on the ground, and the way it faces. */
     mouth: { point: tunnel.position.clone().addScaledVector(facing, half[0]), facing },
     stats: () => ({ triangles, draws, kinds: [...placements].map(([name, list]) => `${name} x${list.length}`), pushedFromRests: pushed }),
-    dispose() { scene.remove(group); for (const item of disposables) item.dispose(); for (const model of models.values()) model.geometry.dispose(); },
+    dispose() {
+      scene.remove(group);
+      for (const item of disposables) item.dispose();
+      const maps = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'];
+      for (const model of models.values()) {
+        model.geometry.dispose();
+        for (const material of [model.material].flat().filter(Boolean)) {
+          for (const slot of maps) material[slot]?.dispose?.();
+          material.dispose?.();
+        }
+      }
+    },
   };
 }

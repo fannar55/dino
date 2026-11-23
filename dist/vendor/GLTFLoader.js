@@ -66,6 +66,7 @@ import {
 	InstancedBufferAttribute
 } from './three.module.js';
 import { toTrianglesDrawMode } from './BufferGeometryUtils.js';
+import { getDefaultKTX2Loader, meshoptDecoder } from './gltf-codecs.js';
 
 /**
  * A loader for the glTF 2.0 format.
@@ -129,8 +130,8 @@ class GLTFLoader extends Loader {
 		super( manager );
 
 		this.dracoLoader = null;
-		this.ktx2Loader = null;
-		this.meshoptDecoder = null;
+		this.ktx2Loader = getDefaultKTX2Loader();
+		this.meshoptDecoder = meshoptDecoder;
 
 		this.pluginCallbacks = [];
 

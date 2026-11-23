@@ -85,8 +85,9 @@ const busyDialog = () => dialogs.some(dialog => dialog.open);
 const held = () => !started || userPaused || document.hidden || busyDialog();
 function syncPause() {
   const paused = held(); game.pause(paused); wakeLock.setActive(!userPaused && !$('pause-dialog')?.open); audio.pause(paused); $('game').dataset.paused = String(paused);
-  speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused); ui.pause(paused);
+  speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused); ui.pause(paused); hudFx.setPaused?.(paused);
   refreshControls();
+  syncLoop();
 }
 function caption(text, hold = 0) { if ($('caption').textContent !== text) { $('caption').textContent = text; if (text) squeezeBubble(); } if (hold) captionUntil = time + hold; if (text) captionCleared = false; }
 // (#8) His bubble gives a light squeeze when its words change (not under less motion, and at most once in .3 s).
@@ -349,7 +350,7 @@ function noteInput() { idleTime = 0; }
 function cameraState() { return world?.getCameraState?.() ?? world?.getDebug().camera ?? { mode: 'auto', moving: false, worldInputEnabled: true }; }
 function setCameraMode(mode) {
   if (!world || !['auto', 'overview'].includes(mode)) return;
-  world.setCameraMode?.(mode); refreshControls();
+  world.setCameraMode?.(mode); refreshControls(); syncLoop();
 }
 // Whether the child may tap the world now: not held, the camera still and giving input (not the overview), no step running, the picker not
 // asking, between turns. (refreshControls' mayExplore, and the repeat's mayAct)
@@ -502,6 +503,7 @@ function setEnding(visible) {
   if ($('ending').hidden === !visible) return;
   $('ending').hidden = !visible;
   if (visible && !endingCheered) { endingCheered = true; uiSound('win', { winner: 'you' }); hudFx.confetti($('confetti')); }
+  syncLoop();
 }
 function accept(events) {
   for (const event of events) {
@@ -575,8 +577,9 @@ function sayGiftsLeft() {
   speech.stop(); captionUntil = 0; caption(VOICE_LINES[LINES.giftsLeft].text, 3.2); speech.play(LINES.giftsLeft); world.mosiGesture?.('shake-head');
 }
 function cancelChoice() {
-  if (held() || !bridge.dismiss()) return;
+  if (held() || !bridge.dismiss()) return false;
   syncBridge(); guidance(); reflectEnding();
+  return true;
 }
 function refreshControls() {
   if (!world) return;
@@ -672,11 +675,12 @@ function refreshControls() {
 }
 // The "who" bubbles over the obstacle that was asked about: a portrait button for each candidate, popping in.
 const whoButtons = new Map();
+let whoLayoutKey = '', whoNeedsPlace = true;
 function reflectWho() {
   const box = $('who'), state = bridge.getState(), visible = whoVisible();
   // "Aftur" goes with the bubbles, every frame: after a wrong friend's go the bubbles come back a frame or two after the event that closed them.
   const cancel = $('cancel-choice'); if (cancel.hidden === visible) cancel.hidden = !visible;
-  if (!visible) { if (!box.hidden) box.hidden = true; whoShown = false; return; }
+  if (!visible) { if (!box.hidden) box.hidden = true; whoShown = false; whoLayoutKey = ''; whoNeedsPlace = true; return; }
   const row = box.querySelector('.who-row'), wanted = state.candidates;
   if (!whoShown || row.children.length !== wanted.length || [...row.children].some((button, i) => button.dataset.species !== wanted[i])) {
     row.replaceChildren(...wanted.map((species, i) => {
@@ -691,13 +695,19 @@ function reflectWho() {
       button.style.setProperty('--i', String(i));
       return button;
     }));
+    whoNeedsPlace = true;
   }
   if (!whoShown) {
     // Popping in again restarts the animation; the friends who may answer bounce, keen.
     box.hidden = false; box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
-    whoShown = true; world.eager(wanted); uiSound('bubble');
+    whoShown = true; whoNeedsPlace = true; world.eager(wanted); uiSound('bubble');
   }
   const target = world.getTargets().find(value => value.type === 'task' && value.id === state.asking);
+  const tx = target ? Math.round(target.x) : -1, ty = target ? Math.round(target.y) : -1;
+  const nextKey = `${state.asking}|${tx}|${ty}|${$('coach').hidden}|${$('mosi-help').hidden}|${window.innerWidth}x${window.innerHeight}`;
+  if (!whoNeedsPlace && nextKey === whoLayoutKey) return;
+  whoLayoutKey = nextKey;
+  whoNeedsPlace = false;
   const width = box.offsetWidth, height = box.offsetHeight, W = $('game').clientWidth, H = $('game').clientHeight;
   // "Aftur" sits on the card's corner, partly outside it (its offsets, unlike its box, are not scaled by the pop): the two are kept on the screen together.
   const backLeft = cancel.offsetLeft + box.clientLeft, backTop = cancel.offsetTop + box.clientTop;
@@ -738,7 +748,23 @@ function openDialog(id) {
   if (!world || !started || busyDialog()) return false;
   $(id).showModal(); syncPause(); return true;
 }
+function loopSuspended() {
+  if (disposed || !world || document.hidden || held()) return true;
+  return !$('ending').hidden && !speech.isPlaying() && !speech.getStats().pending;
+}
+function syncLoop() {
+  if (loopSuspended()) {
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    lastFrame = 0;
+    return;
+  }
+  if (!raf) {
+    lastFrame = 0;
+    raf = requestAnimationFrame(frame);
+  }
+}
 function frame(timestamp) {
+  raf = 0;
   if (disposed) return;
   const dt = lastFrame ? Math.min(.05, Math.max(0, (timestamp - lastFrame) / 1000)) : 0;
   lastFrame = timestamp;
@@ -802,7 +828,7 @@ function frame(timestamp) {
     refreshControls();
     statsFrame++; // (window.__demoStats is built when QA reads it: see below)
   }
-  raf = requestAnimationFrame(frame);
+  if (!loopSuspended()) raf = requestAnimationFrame(frame);
 }
 
 const speech = createMemorySpeech({ clock: () => time, counts: COUNT_TAKES });
@@ -828,23 +854,37 @@ $('motion').addEventListener('click', () => {
   uiSound('tap');
   reducedMotion = !reducedMotion; $('motion').setAttribute('aria-pressed', String(reducedMotion)); $('game').dataset.motion = reducedMotion ? 'reduced' : 'full';
   world?.setReducedMotion?.(reducedMotion);
+  if (!raf && world) world.update(0, time);
 });
 // (the pause card's "Halda áfram", and Escape on it, sound as the game goes on: Litla Yatzy's resume)
 document.querySelectorAll('[data-resume]').forEach(button => button.addEventListener('click', () => { const dialog = button.closest('dialog'); uiSound('dialogClose', { id: dialog.id }); dialog.close(); }));
 for (const dialog of dialogs) {
   dialog.addEventListener('close', syncPause);
-  dialog.addEventListener('cancel', event => { if (dialog.id === 'welcome') event.preventDefault(); else uiSound('dialogClose', { id: dialog.id }); });
+  dialog.addEventListener('cancel', event => {
+    if (dialog.id === 'welcome') {
+      event.preventDefault();
+      if (params.get('inbook') === '1') parent?.postMessage({ type: 'memory:close' }, location.origin);
+    } else uiSound('dialogClose', { id: dialog.id });
+  });
 }
 document.addEventListener('visibilitychange', syncPause);
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && !busyDialog()) cancelChoice(); });
-window.addEventListener('resize', () => { world?.resize($('world').clientWidth, $('world').clientHeight); refreshControls(); });
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || busyDialog()) return;
+  if (!cancelChoice() && params.get('inbook') === '1') parent?.postMessage({ type: 'memory:close' }, location.origin);
+});
+window.addEventListener('resize', () => {
+  whoNeedsPlace = true;
+  world?.resize($('world').clientWidth, $('world').clientHeight);
+  if (!raf && world) world.update(0, time);
+  refreshControls();
+});
 window.addEventListener('pagehide', event => {
   userPaused = true; syncPause();
   if (!event.persisted && !disposed) {
     disposed = true;
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
     wakeLock.dispose?.();
-    speech.stop(); audio.cancel();
+    speech.stop(); speech.dispose?.(); audio.cancel(); hudFx.cancel(); juice.cancel();
     music.dispose?.(); audio.dispose?.(); ui.dispose?.();
     world?.dispose(); world = null;
   }
@@ -880,12 +920,20 @@ try {
   const basketIcon = level.hud?.basket ? `<img src="${level.hud.basket}" alt="" width="48" height="48" decoding="async">` : BASKET_ICON;
   $('basket').querySelector('.basket-icon').innerHTML = basketIcon; $('ending-gifts').querySelector('.basket-icon').innerHTML = basketIcon; buildCredits();
   world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; }, basketPoint, level });
-  await soundReady;
-  world.setBoard(game.getState().cards); syncBridge(); world.setReducedMotion?.(reducedMotion);
-  world.resize($('world').clientWidth, $('world').clientHeight); world.update(0, 0);
-  $('loading').hidden = true; window.__memoryReady = true;
-  if (params.get('play') === '1') start(); else { $('welcome').showModal(); syncPause(); }
-  raf = requestAnimationFrame(frame);
+  if (disposed) {
+    world?.dispose(); world = null;
+  } else {
+    await soundReady;
+    if (disposed) {
+      world?.dispose(); world = null;
+    } else {
+      world.setBoard(game.getState().cards); syncBridge(); world.setReducedMotion?.(reducedMotion);
+      world.resize($('world').clientWidth, $('world').clientHeight); world.update(0, 0);
+      $('loading').hidden = true; window.__memoryReady = true;
+      if (params.get('play') === '1') start(); else { $('welcome').showModal(); syncPause(); }
+      syncLoop();
+    }
+  }
 } catch (error) {
   console.error('Memory game could not initialize:', error);
   $('loading').hidden = true; $('error').hidden = false;

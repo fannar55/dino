@@ -254,9 +254,9 @@ export function createStageUI(doc = document) {
     return captionId;
   }
 
-  /** Hide a caption only if it is still the one showing. */
+  /** Hide a caption only if it is still the one showing (or always when called without an id). */
   function clearCaption(id) {
-    if (id === captionId) captionEl.hidden = true;
+    if (id === undefined || id === captionId) captionEl.hidden = true;
   }
 
   function showChoices(list, onPick) {

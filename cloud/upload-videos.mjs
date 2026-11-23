@@ -24,6 +24,7 @@ export const VIDEOS = [
   { id: 'landrek', key: 'landrek.mp4', file: 'landrek.mp4' },
   { id: 'loftsteinn', key: 'loftsteinn.mp4', file: 'loftsteinn.mp4' },
   { id: 'fundur', key: 'fundur.mp4', file: 'fundur.mp4' },
+  { id: 'mary', key: 'mary.mp4', file: 'mary.mp4' },
   { id: 'fuglar', key: 'fuglar.mp4', file: 'fuglar-sfx.mp4' },
   { id: 'raf', key: 'raf.mp4', file: 'raf-sfx.mp4' },
   { id: 'steinn', key: 'steinn.mp4', file: 'steinn-sfx.mp4' },

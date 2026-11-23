@@ -84,7 +84,13 @@ test('the Worker cuts the audio paths\' 200s into 206s, and passes everything el
   assert.equal(head.status, 206, 'a HEAD with a range is told the range');
   assert.equal(head.headers.get('content-range'), `bytes 0-99/${total}`);
   assert.equal(head.body, null);
-  assert.equal(env.asked.at(-1).method, 'GET', 'the file is read to cut it');
+  assert.equal(env.asked.at(-1).method, 'HEAD', 'HEAD reads Content-Length without buffering the file');
+
+  const noLen = assetsAnswering(() => new Response(THEME, { status: 200, headers: { 'content-type': 'audio/mpeg' } }));
+  const headFallback = await worker.fetch(get('/remake/assets/audio/theme.mp3', { range: 'bytes=0-99' }, 'HEAD'), noLen);
+  assert.equal(headFallback.status, 206);
+  assert.equal(headFallback.headers.get('content-range'), `bytes 0-99/${total}`);
+  assert.equal(noLen.asked.at(-1).method, 'GET', 'falls back to GET when HEAD omits Content-Length');
 
   const passed = [];
   const through = assetsAnswering(req => { const answer = req.headers.get('range') ? new Response('cut', { status: 206 }) : new Response('all', { status: 200 }); passed.push(answer); return answer; });
@@ -112,7 +118,16 @@ function r2Bucket(files) {
         calls.push({ op: 'get', key, range: options.range ?? null });
         const bytes = files[key];
         if (!bytes) return null;
-        const slice = options.range ? bytes.subarray(options.range.offset, options.range.offset + options.range.length) : bytes;
+        let slice = bytes;
+        if (options.range) {
+          if (typeof options.range.suffix === 'number') {
+            slice = bytes.subarray(Math.max(0, bytes.length - options.range.suffix));
+          } else {
+            const start = options.range.offset ?? 0;
+            const end = options.range.length !== undefined ? start + options.range.length : bytes.length;
+            slice = bytes.subarray(start, end);
+          }
+        }
         return { size: bytes.length, httpEtag: `"etag-${key}"`, body: slice };
       },
       async put(key, value) {
@@ -146,9 +161,8 @@ test('the Worker streams videos from R2 at /myndbond/<name>.mp4, whole and in by
   assert.equal(response.headers.get('cache-control'), MEDIA_CACHE);
   assert.ok(Buffer.from(await response.arrayBuffer()).equals(clip.subarray(100, 150)));
   assert.deepEqual(env.calls, [
-    { op: 'head', key: 'gramedla.mp4' },
     { op: 'get', key: 'gramedla.mp4', range: { offset: 100, length: 50 } },
-  ]);
+  ], 'single R2 get round-trip without redundant head');
 
   // Suffix range and clamped end
   response = await worker.fetch(get('/myndbond/gramedla.mp4', { range: 'bytes=-20' }), env);
@@ -188,9 +202,16 @@ test('the Worker preserves query strings on / and files bug reports at /villa in
   assert.equal(probe.status, 204);
   assert.equal(probe.headers.get('x-villa'), '1');
 
-  const post = await worker.fetch(new Request('https://mosi.example/villa', {
+  const noOrigin = await worker.fetch(new Request('https://mosi.example/villa', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
+    body: '{}',
+  }), env);
+  assert.equal(noOrigin.status, 403, 'POST without Origin header is rejected');
+
+  const post = await worker.fetch(new Request('https://mosi.example/villa', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'https://mosi.example' },
     body: JSON.stringify({
       report: { chapter: { id: 'kafli4' }, text: 'Villuprófun í skýi' },
       files: { 'skjaskot.jpg': 'data:image/jpeg;base64,/9j/4AAQ', 'spjold.html': '<!doctype html>' },
@@ -204,6 +225,20 @@ test('the Worker preserves query strings on / and files bug reports at /villa in
   assert.equal(env.files[`${folder}/spjold.html`].toString('utf8'), '<!doctype html>');
   assert.ok(env.files[`${folder}/skjaskot.jpg`].length > 0);
 
+  const tokenEnv = { ...env, VILLA_TOKEN: 'secret-token' };
+  const badToken = await worker.fetch(new Request('https://mosi.example/villa', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'https://mosi.example' },
+    body: '{}',
+  }), tokenEnv);
+  assert.equal(badToken.status, 403, 'missing X-Villa-Token rejected when VILLA_TOKEN is configured');
+  const goodToken = await worker.fetch(new Request('https://mosi.example/villa', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'https://mosi.example', 'x-villa-token': 'secret-token' },
+    body: JSON.stringify({ report: { chapter: { id: 'kafli4' }, text: 'OK' }, files: {} }),
+  }), tokenEnv);
+  assert.equal(goodToken.status, 200, 'matching X-Villa-Token accepted');
+
   const crossOrigin = await worker.fetch(new Request('https://mosi.example/villa', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
@@ -213,7 +248,7 @@ test('the Worker preserves query strings on / and files bug reports at /villa in
 
   const oversized = await worker.fetch(new Request('https://mosi.example/villa', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'content-length': String(30 * 1024 * 1024) },
+    headers: { 'content-type': 'application/json', origin: 'https://mosi.example', 'content-length': String(30 * 1024 * 1024) },
     body: '{}',
   }), env);
   assert.equal(oversized.status, 413, 'oversized Content-Length is rejected before buffering');

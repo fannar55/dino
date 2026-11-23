@@ -101,7 +101,7 @@ export function createFlightSounds({ context = null, output = null, recordings =
     const idle = () => {};
     return {
       start: idle, setSpeed: idle, setPan: idle, burst: idle, whoosh: idle, wingbeat: idle, flap: idle, gust: idle,
-      water: idle, rapids: idle, falls: idle, gorge: idle, duck: idle, ground: idle, pause: idle, resume: idle, stop: idle,
+      water: idle, rapids: idle, falls: idle, gorge: idle, duck: idle, ground: idle, pause: idle, resume: idle, stop: idle, dispose: idle,
       setPaused(value) { paused = Boolean(value); },
       get playing() { return false; },
       get level() { return 0; },
@@ -130,34 +130,62 @@ export function createFlightSounds({ context = null, output = null, recordings =
 
   // Everything goes through `master`, which the hold silences. The gorge's echo is fed by `echoIn` (0 out of the gorge): a few taps
   // of delay, each duller and quieter, into the master. No tap feeds back, so it dies away by itself.
+  const dest = output ?? context.destination;
   const master = context.createGain();
   master.gain.value = 1;
-  master.connect(output ?? context.destination);
   const echoIn = context.createGain();
   echoIn.gain.value = 0;
   // the loops come in through `under`, which dips while a line plays (duck); the one-shots go round it
   const under = context.createGain();
   under.gain.value = 1;
-  under.connect(master);
-  under.connect(echoIn);
   let ducking = false;
   let grounded = false; // the camera down on the ground: the airflow dips (ground)
-  if (context.createDelay) {
-    const dull = context.createBiquadFilter();
-    dull.type = 'lowpass';
-    dull.frequency.value = FLIGHT_SOUND.echo.cutoff;
-    dull.Q.value = 0.5;
-    echoIn.connect(dull);
+  const echoDull = context.createDelay ? context.createBiquadFilter() : null;
+  const echoTaps = [];
+  if (echoDull) {
+    echoDull.type = 'lowpass';
+    echoDull.frequency.value = FLIGHT_SOUND.echo.cutoff;
+    echoDull.Q.value = 0.5;
     for (const [seconds, gain] of FLIGHT_SOUND.echo.taps) {
       const delay = context.createDelay(1);
       delay.delayTime.value = seconds;
       const tap = context.createGain();
       tap.gain.value = gain;
-      dull.connect(delay);
-      delay.connect(tap);
-      tap.connect(master);
+      echoTaps.push([delay, tap]);
     }
   }
+  let graphConnected = false;
+  let disposed = false;
+  function connectGraph() {
+    if (graphConnected) return;
+    graphConnected = true;
+    master.connect(dest);
+    under.connect(master);
+    under.connect(echoIn);
+    if (echoDull) {
+      echoIn.connect(echoDull);
+      for (const [delay, tap] of echoTaps) {
+        echoDull.connect(delay);
+        delay.connect(tap);
+        tap.connect(master);
+      }
+    }
+  }
+  function disconnectGraph() {
+    if (!graphConnected) return;
+    graphConnected = false;
+    master.disconnect();
+    echoIn.disconnect();
+    under.disconnect();
+    if (echoDull) {
+      echoDull.disconnect();
+      for (const [delay, tap] of echoTaps) {
+        delay.disconnect();
+        tap.disconnect();
+      }
+    }
+  }
+  connectGraph();
 
   const toward = (param, value, tau = FLIGHT_SOUND.follow) => param.setTargetAtTime(value, context.currentTime, tau);
   const has = layers => recordings && layers.every(([file]) => recordings.get(file));
@@ -235,7 +263,8 @@ export function createFlightSounds({ context = null, output = null, recordings =
   };
 
   function start() {
-    if (live) return;
+    if (live || disposed) return;
+    connectGraph();
     const now = context.currentTime;
     const pan = context.createStereoPanner ? context.createStereoPanner() : null;
     const fade = context.createGain();
@@ -370,6 +399,7 @@ export function createFlightSounds({ context = null, output = null, recordings =
     const at = context.currentTime + delay;
     const source = context.createBufferSource();
     source.buffer = noiseOf(kind);
+    source.loop = true; // never truncate longer puffs (gust: 1.6 s from random() * 2) past the 3 s buffer end
     const filter = context.createBiquadFilter();
     filter.type = type;
     filter.Q.value = q;
@@ -393,7 +423,10 @@ export function createFlightSounds({ context = null, output = null, recordings =
   const vary = () => 0.94 + random() * 0.12; // a take a little higher or lower each time
 
   function stop() {
-    if (!live) return;
+    if (!live) {
+      if (disposed) disconnectGraph();
+      return;
+    }
     const { fade, channels, nodes } = live;
     live = null;
     const now = context.currentTime;
@@ -407,8 +440,14 @@ export function createFlightSounds({ context = null, output = null, recordings =
         for (const node of layer.nodes) node.disconnect();
       }
       for (const node of nodes) node.disconnect();
+      if (!live) disconnectGraph();
     };
     for (const layer of layers) layer.source.stop(now + FLIGHT_SOUND.fadeOut + 0.05);
+  }
+
+  function dispose() {
+    disposed = true;
+    stop();
   }
 
   function setPaused(value) {
@@ -419,26 +458,31 @@ export function createFlightSounds({ context = null, output = null, recordings =
     master.gain.linearRampToValueAtTime(paused ? 0 : 1, now + (paused ? 0.05 : 0.3));
   }
 
+  const canOneShot = () => !paused && !disposed && context.state === 'running';
+
   return {
-    start, setSpeed, setPan, burst, stop, setPaused,
+    start, setSpeed, setPan, burst, stop, dispose, setPaused,
     pause: () => setPaused(true),
     resume: () => setPaused(false),
     /** As something passes close on one side (-1 left, 1 right): trees, rocks, a bank, a camera she shoots past. */
     whoosh(side = 0) {
-      if (paused) return;
+      if (!canOneShot()) return;
+      connectGraph();
       const pan = 0.7 * clamp(Number(side) || 0, -1, 1);
       if (!shot('whoosh', { pan, rate: vary() })) puff({ frequency: 1500, end: 340, q: 0.9, duration: 0.75, level: 0.09, attack: 0.25, pan });
     },
     /** Two beats of her wings: at the take-off, in a turn, in „Hraðar!“. */
     wingbeat() {
-      if (paused) return;
+      if (!canOneShot()) return;
+      connectGraph();
       for (const delay of [0, 0.4]) {
         if (!shot('wingbeat', { delay, rate: vary() })) puff({ kind: 'brown', type: 'lowpass', frequency: 300, end: 110, q: 0.7, duration: 0.22, level: 0.16, attack: 0.02, delay });
       }
     },
     /** One beat of her wings, as a loop of her fly clip begins its downstroke (chapters/kafli4-flugedla.js wingFlaps). */
     flap() {
-      if (paused) return;
+      if (!canOneShot()) return;
+      connectGraph();
       if (!shot('wingbeat', { rate: vary() })) puff({ kind: 'brown', type: 'lowpass', frequency: 300, end: 110, q: 0.7, duration: 0.22, level: 0.16, attack: 0.02 });
     },
     /**
@@ -446,7 +490,8 @@ export function createFlightSounds({ context = null, output = null, recordings =
      * chapters/kafli4-wind.js).
      */
     gust({ rate = null } = {}) {
-      if (paused) return;
+      if (!canOneShot()) return;
+      connectGraph();
       const pitch = Number.isFinite(rate) && rate > 0 ? rate : vary();
       if (!shot('gust', { pan: (random() - 0.5) * 0.6, rate: pitch })) puff({ kind: 'brown', type: 'lowpass', frequency: 950 * pitch, end: 300 * pitch, q: 0.5, duration: 1.6, level: 0.1, attack: 0.5 });
     },

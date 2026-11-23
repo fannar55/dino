@@ -66,9 +66,9 @@ export function createStems({ context = null, output = null, clock, song, base, 
   const dip = context.createGain(); // the dip under a line, after everything else
   dip.connect(output ?? context.destination);
   let dipped = false;
-  const bus = context.createGain(); // in and out around a start, a halt and a stop
+  const bus = context.createGain(); // master gate for stop()
   bus.bus = true;
-  bus.gain.value = 0;
+  bus.gain.value = 1;
   bus.connect(dip);
   const gains = Object.fromEntries(ids.map(id => {
     const gain = context.createGain();
@@ -87,39 +87,61 @@ export function createStems({ context = null, output = null, clock, song, base, 
     .catch(() => {}))) // a layer that cannot be read is a layer less
     .then(() => { loaded = true; return buffers.size > 0; });
 
-  let sources = [];
+  let sources = []; // active generation: [{ source, fade }]
   let startedAt = 0; // the audio time the sources started on
   let startedPhase = 0; // and where in the loop
 
   function start() {
     if (!playing || held || !loaded || sources.length || context.state !== 'running') return;
-    const when = context.currentTime + LEAD;
+    const now = context.currentTime;
+    const when = now + LEAD;
     const phase = phaseAt(clock.time + LEAD);
+    if (bus.gain.value < 1) {
+      bus.gain.cancelScheduledValues(now);
+      bus.gain.setValueAtTime(1, when);
+    }
     for (const [id, buffer] of buffers) {
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
       source.loopStart = startSec;
       source.loopEnd = startSec + seconds;
-      source.connect(gains[id]);
+      // Each start gets its own fade GainNode so a resync can fade old buffers out cleanly while new ones fade in.
+      const fade = context.createGain();
+      fade.gain.setValueAtTime(0, when);
+      fade.gain.linearRampToValueAtTime(1, when + FADE);
+      source.connect(fade);
+      fade.connect(gains[id]);
       source.start(when, startSec + phase);
-      sources.push(source);
+      sources.push({ source, fade });
     }
     startedAt = when;
     startedPhase = phase;
-    bus.gain.cancelScheduledValues(context.currentTime);
-    bus.gain.setValueAtTime(0, when);
-    bus.gain.linearRampToValueAtTime(1, when + FADE);
   }
 
-  function halt(fade = FADE) {
-    if (!sources.length) return;
-    const now = context.currentTime;
-    bus.gain.cancelScheduledValues(now);
-    bus.gain.setValueAtTime(bus.gain.value, now);
-    bus.gain.linearRampToValueAtTime(0, now + fade);
-    for (const source of sources) source.stop(now + fade + 0.01);
+  function halt(fadeTime = FADE, { onBus = false } = {}) {
+    const old = sources;
     sources = [];
+    const now = context.currentTime;
+    if (onBus) {
+      const level = bus.gain.value;
+      bus.gain.cancelScheduledValues(now);
+      bus.gain.setValueAtTime(level, now);
+      bus.gain.linearRampToValueAtTime(0, now + fadeTime);
+    }
+    for (const { source, fade } of old) {
+      if (!onBus) {
+        const level = fade.gain.value;
+        fade.gain.cancelScheduledValues(now);
+        fade.gain.setValueAtTime(level, now);
+        fade.gain.linearRampToValueAtTime(0, now + fadeTime);
+      }
+      source.onended = () => {
+        source.disconnect();
+        fade.disconnect();
+      };
+      source.stop(now + fadeTime + 0.01);
+    }
   }
 
   return {
@@ -167,7 +189,7 @@ export function createStems({ context = null, output = null, clock, song, base, 
     /** Fades the loop out over `fade` seconds; it does not come back. */
     stop(fade = 1) {
       playing = false;
-      halt(fade);
+      halt(fade, { onBus: true });
     },
     delayToBeat,
     beatAt,

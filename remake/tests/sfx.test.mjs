@@ -407,6 +407,7 @@ test('a chapter 6 sample with no file plays its made sound, and asks for no file
   await withFetch(fetch, async () => {
     const context = createFakeContext({ state: 'running' });
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     assert.ok(asked.some(url => url.endsWith('gramedla3d/hljod/thump.mp3')), 'her footfall is fetched');
     const picked = Object.values(KAFLI6_PICKED).flat().sort();
@@ -426,6 +427,7 @@ test('a recorded sample plays through a low-pass when the play asks for one, and
   await withFetch(fetch, async () => {
     const context = createFakeContext({ state: 'running' });
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     const before = context.of('filter').length;
     assert.equal(sfx.play('gramedlaRoar', { level: 0.2, cutoff: 700, pan: -0.7 }), true);
@@ -448,6 +450,7 @@ test('the mountain wind is a soft loop laid once, faded out when asked, and stoo
   await withFetch(fetch, async () => {
     const context = createFakeContext({ state: 'running' });
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     sfx.play('forest', { calls: false, level: 0, seconds: 3 });
     assert.equal(SAMPLES.mountainWind.loop, true);
@@ -526,6 +529,7 @@ test('her far roar\'s echo off the mountain is heard after the roar, and lets go
   await withFetch(fetch, async () => {
     const context = createFakeContext({ state: 'running' });
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     const before = context.bufferSources.length;
     const nodesBefore = context.nodes.length;
@@ -619,6 +623,7 @@ test('the wind stops when asked while the game is held, muted or full of sounds,
     for (const hold of ['paused', 'muted', 'full']) {
       const context = createFakeContext({ state: 'running' });
       const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+      sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
       await settle();
       assert.equal(sfx.play('mountainWind', { level: 0.6, seconds: 3 }), true);
       context.advance(4);
@@ -635,6 +640,7 @@ test('the wind stops when asked while the game is held, muted or full of sounds,
 
     const context = createFakeContext({ state: 'suspended' });
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     assert.equal(sfx.play('mountainWind', { level: 0.6, seconds: 3 }), false, 'not yet');
     context.setState('running');
@@ -645,6 +651,7 @@ test('the wind stops when asked while the game is held, muted or full of sounds,
 
     const other = createFakeContext({ state: 'suspended' });
     const quiet = createSfx({ context: other, theme: THEME, random: seeded(5), recorded: true });
+    quiet.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     quiet.play('mountainWind', { level: 0.6, seconds: 3 });
     quiet.play('mountainWind', { level: 0, seconds: 2 }); // asked away before sound woke
@@ -653,6 +660,7 @@ test('the wind stops when asked while the game is held, muted or full of sounds,
     assert.equal(windLoops(other).length, 0, 'and one asked away before it woke is not laid');
     const late = createFakeContext({ state: 'suspended' });
     const stopped = createSfx({ context: late, theme: THEME, random: seeded(5), recorded: true });
+    stopped.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     stopped.play('mountainWind', { level: 0.6, seconds: 3 });
     stopped.stop();
@@ -667,6 +675,7 @@ test('stopping the scene fades the wind out even while it is still coming in', a
   await withFetch(fetch, async () => {
     const context = createFakeContext({ state: 'running' });
     const sfx = createSfx({ context, theme: THEME, random: seeded(5), recorded: true });
+    sfx.preload(); // as a chapter's set-up asks for its recordings (sfx.js preloadSamples)
     await settle();
     sfx.play('mountainWind', { level: 0.6, seconds: 3 });
     context.advance(0.5);

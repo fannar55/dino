@@ -73,7 +73,12 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   if (['cyan', 'blue'].includes(params.get('gleraugu'))) settings.glasses = params.get('gleraugu');
   if (params.get('vixla') !== null) settings.swap = params.get('vixla') === '1';
   if (params.get('ut') !== null && Number.isFinite(Number(params.get('ut')))) settings.pop = Number(params.get('ut'));
+  settings.strength = Number.isFinite(Number(settings.strength)) ? THREE.MathUtils.clamp(Number(settings.strength), 0, 0.1) : DEFAULTS.strength;
   settings.pop = THREE.MathUtils.clamp(Number(settings.pop) || 1, 0.6, 2);
+  if (METHODS[settings.method] === undefined) settings.method = DEFAULTS.method;
+  if (!['cyan', 'blue'].includes(settings.glasses)) settings.glasses = DEFAULTS.glasses;
+  settings.on = Boolean(settings.on);
+  settings.swap = Boolean(settings.swap);
   const fromAddress = ['gler', 'styrkur', 'adferd', 'gleraugu', 'vixla', 'ut'].some(k => params.get(k) !== null);
 
   let targets = null;
@@ -105,7 +110,9 @@ export function createGler({ renderer, display, scene, camera, director, q, para
   let ownEyes = null; // a chapter's own placing of the two eye cameras (setEyes), or null: the pair beside the director's camera
 
   function ensureTargets(w, h) {
-    if (targets && targets[0].width === w && targets[0].height === h) return;
+    const tw = Math.max(1, Math.floor(w));
+    const th = Math.max(1, Math.floor(h));
+    if (targets && targets[0].width === tw && targets[0].height === th) return;
     targets?.forEach(t => t.dispose());
     // Each eye is drawn exactly as the screen is: tone-mapped (exposure included) and sRGB-encoded in the shaders, with the
     // transparent layers (mist, light shafts) blended over sRGB values as on the canvas. three r180 does that only for the screen
@@ -116,24 +123,33 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     // means this, so an upgrade cannot quietly change the picture behind the glasses.
     const options = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, depthBuffer: true, samples: SAMPLES, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
     targets = [0, 1].map(() => {
-      const t = new THREE.WebGLRenderTarget(w, h, options);
+      const t = new THREE.WebGLRenderTarget(tw, th, options);
       t.texture.internalFormat = 'RGBA8';
       t.isXRRenderTarget = true;
       return t;
     });
   }
 
-  function updatePlane() {
-    const now = performance.now();
-    const dt = Math.min(0.1, (now - lastDraw) / 1000);
-    lastDraw = now;
+  let lastTime = null;
+  function updatePlane(dtGiven = null) {
+    let dt;
+    if (Number.isFinite(dtGiven)) {
+      dt = Math.min(0.1, Math.max(0, dtGiven));
+    } else if (Number.isFinite(director?.time)) {
+      dt = lastTime === null ? 0 : Math.min(0.1, Math.max(0, director.time - lastTime));
+      lastTime = director.time;
+    } else {
+      const now = performance.now();
+      dt = lastDraw ? Math.min(0.1, (now - lastDraw) / 1000) : 0;
+      lastDraw = now;
+    }
     const look = director?.rig?.target ? camera.position.distanceTo(director.rig.target) : 8;
     const goal = THREE.MathUtils.clamp((manual ?? look) * settings.pop, PLANE.min, PLANE.max);
     // a cut: the camera jumped further in a frame than any comfortable move goes
     if (camera.position.distanceToSquared(lastPos) > 1.5 * 1.5) jumpNext = true;
     lastPos.copy(camera.position);
     if (jumpNext || plane === null) plane = goal;
-    else plane += (goal - plane) * (1 - Math.exp(-dt / PLANE.tau));
+    else if (dt > 0) plane += (goal - plane) * (1 - Math.exp(-dt / PLANE.tau));
     jumpNext = false;
   }
 
@@ -142,7 +158,8 @@ export function createGler({ renderer, display, scene, camera, director, q, para
     camera.updateMatrixWorld();
     const f = eyeFrusta(camera, plane, settings.strength);
     const right = v.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
-    [f.left, f.right].forEach((fr, i) => {
+    for (let i = 0; i < 2; i++) {
+      const fr = i === 0 ? f.left : f.right;
       const eye = eyes[i];
       eye.position.copy(camera.position).addScaledVector(right, fr.x);
       eye.quaternion.copy(camera.quaternion);
@@ -151,33 +168,33 @@ export function createGler({ renderer, display, scene, camera, director, q, para
       eye.updateMatrixWorld(true);
       eye.projectionMatrix.makePerspective(fr.l, fr.r, fr.t, fr.b, camera.near, camera.far);
       eye.projectionMatrixInverse.copy(eye.projectionMatrix).invert();
-    });
+    }
   }
 
-  function draw() {
+  function draw(dt = null) {
     display?.flushSize?.(); // a pending resize (dynamic resolution) before the targets are sized
     renderer.getDrawingBufferSize(size);
     ensureTargets(size.x, size.y);
-    updatePlane();
+    updatePlane(dt);
     placeEyes();
     const before = renderer.getRenderTarget();
     const auto = renderer.shadowMap.autoUpdate;
-    renderer.setRenderTarget(targets[0]);
-    renderer.render(scene, eyes[0]);
-    renderer.shadowMap.autoUpdate = false; // the sun's shadow once a frame, not once an eye
-    renderer.shadowMap.needsUpdate = false;
     try {
+      renderer.setRenderTarget(targets[0]);
+      renderer.render(scene, eyes[0]);
+      renderer.shadowMap.autoUpdate = false; // the sun's shadow once a frame, not once an eye
+      renderer.shadowMap.needsUpdate = false;
       renderer.setRenderTarget(targets[1]);
       renderer.render(scene, eyes[1]);
     } finally {
       renderer.shadowMap.autoUpdate = auto;
+      renderer.setRenderTarget(before);
     }
     const u = material.uniforms;
     u.tLeft.value = targets[settings.swap ? 1 : 0].texture;
     u.tRight.value = targets[settings.swap ? 0 : 1].texture;
     u.uMethod.value = METHODS[settings.method] ?? 0;
     u.uGlasses.value = settings.glasses === 'blue' ? 1 : 0;
-    renderer.setRenderTarget(before);
     renderer.render(quadScene, quadCamera);
   }
 
@@ -239,6 +256,12 @@ export function createGler({ renderer, display, scene, camera, director, q, para
           if (el.type === 'checkbox') el.checked = Boolean(val); else el.value = String(val);
         }
       },
+      dispose() {
+        style.remove();
+        button.remove();
+        panel.remove();
+        card.remove();
+      },
     };
   }
   ui.sync();
@@ -259,5 +282,12 @@ export function createGler({ renderer, display, scene, camera, director, q, para
      */
     setEyes(fn) { ownEyes = fn ?? null; },
     draw,
+    dispose() {
+      targets?.forEach(t => t.dispose());
+      targets = null;
+      quad.geometry.dispose();
+      material.dispose();
+      ui.dispose?.();
+    },
   };
 }

@@ -504,7 +504,7 @@
   border: 3px solid var(--ink); border-radius: 999px;
   background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .38), transparent 46%), var(--water-mid);
   box-shadow: 0 8px 0 var(--water-deep), 0 8px 0 3px var(--ink), 0 16px 18px 2px rgb(40 24 10 / .34);
-  animation: eitt-pulse 1.3s ease-in-out infinite;
+  animation: veiddu-pulse 1.3s ease-in-out infinite;
 }
 .veiddu-fish-button span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
 .veiddu-fish-button svg { width: 1.2em; height: 1.2em; overflow: visible; }
@@ -640,7 +640,7 @@
 /* While Mosi teaches, only what he means is live: the rest waits, dimmed, and takes no taps */
 .veiddu.teaching :is(.veiddu-hand .veiddu-card, .veiddu-pond, .veiddu-fish-button, .veiddu-uggedla, .veiddu-mosi):not(.live) { opacity: .38; pointer-events: none; }
 /* Steps 1 and 3 are about his catch: its pairs glow and breathe (table.js sets .live on .veiddu-me-catch for them) */
-.veiddu.teaching .veiddu-me-catch.live .veiddu-catch { animation: eitt-pulse 1.1s ease-in-out infinite; filter: drop-shadow(0 0 10px var(--gold)) drop-shadow(0 0 22px var(--gold)); }
+.veiddu.teaching .veiddu-me-catch.live .veiddu-catch { animation: veiddu-pulse 1.1s ease-in-out infinite; filter: drop-shadow(0 0 10px var(--gold)) drop-shadow(0 0 22px var(--gold)); }
 /* Mosi's longer sentences (the tutorial's steps): a wider bubble in smaller letters, starting further left over the cards */
 .veiddu-advice p.long { max-width: 13em; font-size: clamp(21px, 2.3cqmin, 28px); }
 
@@ -663,7 +663,7 @@
 .veiddu-me-catch.turn .veiddu-tag {
   position: relative;
   box-shadow: 0 0 0 6px var(--green), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(111 174 79 / .75);
-  animation: eitt-pulse 1.35s ease-in-out infinite;
+  animation: veiddu-pulse 1.35s ease-in-out infinite;
 }
 .veiddu-me-catch.turn .veiddu-tag::after, .veiddu-me-catch.asked .veiddu-tag::after,
 .veiddu-place.turn .veiddu-tag::after, .veiddu-place.asked .veiddu-tag::after {
@@ -692,7 +692,7 @@
 .veiddu-me-catch.asked .veiddu-tag {
   position: relative;
   box-shadow: 0 0 0 6px var(--orange), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(224 122 63 / .8);
-  animation: eitt-pulse 1.15s ease-in-out infinite;
+  animation: veiddu-pulse 1.15s ease-in-out infinite;
 }
 .veiddu-me-catch.asked .veiddu-tag::after {
   content: "Spurður?";
@@ -751,7 +751,7 @@
   0%, 100% { transform: rotate(-2deg); }
   50% { transform: rotate(4deg) translateY(-2px); }
 }
-@keyframes eitt-pulse {
+@keyframes veiddu-pulse {
   0%, 100% { scale: 1; }
   50% { scale: 1.06; }
 }
@@ -852,7 +852,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   :is(.veiddu, .spil-veiddu) *, :is(.veiddu, .spil-veiddu) *::before, :is(.veiddu, .spil-veiddu) *::after { animation: none !important; transition-duration: .01s !important; }
-  .veiddu-pond.calls::after { opacity: .9; } /* the pond still calls: its glow just holds still */
+  .veiddu-pond.calls::after, .spil-veiddu-pond.calls::after { opacity: .9; } /* the pond still calls: its glow just holds still */
 }
 
 /* ---- The setup card, with the page's host session: a round on this tablet, "Fjölspil", or the round of Fjölspil kept ------------------ */
@@ -954,7 +954,7 @@
 .veiddu-place.is-target .veiddu-tag {
   position: relative;
   box-shadow: 0 0 0 6px var(--gold), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(242 182 48 / .85);
-  animation: eitt-pulse 1.2s ease-in-out infinite;
+  animation: veiddu-pulse 1.2s ease-in-out infinite;
 }
 .veiddu-place.is-target .veiddu-tag::after {
   content: "Spurðu!"; position: absolute; left: 50%; top: 0; translate: -50% -78%;
@@ -974,14 +974,14 @@
 .veiddu-place .veiddu-count { min-width: 44px; height: 44px; font-size: 28px; }
 .veiddu-place .veiddu-tag { font-size: clamp(26px, 2.8cqmin, 34px); }
 .veiddu-place .veiddu-face { width: clamp(52px, 6cqmin, 72px); }
-.veiddu-place.turn .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--green), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(111 174 79 / .75); animation: eitt-pulse 1.4s ease-in-out infinite; }
+.veiddu-place.turn .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--green), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(111 174 79 / .75); animation: veiddu-pulse 1.4s ease-in-out infinite; }
 .veiddu-place.turn .veiddu-tag::after { content: "Á leik!"; }
 .veiddu-place.me.turn .veiddu-tag::after { content: "Þú átt leik!"; }
 .veiddu-place.turn .veiddu-uggedla { /* her window on turn: ringed in green */
   box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 17px var(--green), 0 0 40px 16px rgb(111 174 79 / .8), 0 14px 26px 6px rgb(40 24 10 / .3);
   animation: target-pulse 1.35s ease-in-out infinite;
 }
-.veiddu-place.asked .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--orange), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(224 122 63 / .8); animation: eitt-pulse 1.15s ease-in-out infinite; }
+.veiddu-place.asked .veiddu-tag { position: relative; box-shadow: 0 0 0 6px var(--orange), 0 0 0 9px var(--ink), 0 0 28px 10px rgb(224 122 63 / .8); animation: veiddu-pulse 1.15s ease-in-out infinite; }
 .veiddu-place.asked .veiddu-tag::after {
   content: "Spurð/ur?";
   background: radial-gradient(circle at 30% 24%, rgb(255 255 255 / .4), transparent 50%), var(--orange);

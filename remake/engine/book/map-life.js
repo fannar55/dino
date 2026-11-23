@@ -301,7 +301,28 @@ const noise = () => (noiseBytes ??= noiseData(NOISE_SIZE));
 // start button), and not as the first map opens, where it would make a frame of the game under it that much longer. A browser
 // without idle callbacks makes it at the next turn of its event loop, while the page loads; a layer that comes first makes it itself.
 if (globalThis.requestIdleCallback) globalThis.requestIdleCallback(noise, { timeout: 5000 });
-else globalThis.setTimeout?.(noise, 0);
+
+// Shared fetched image Blobs per window so left/right halves (and map-moment) do not fetch map.webp/water/mist twice.
+const blobCache = new WeakMap();
+function fetchBlob(win, src) {
+  let cache = blobCache.get(win);
+  if (!cache) {
+    cache = new Map();
+    blobCache.set(win, cache);
+  }
+  let pending = cache.get(src);
+  if (!pending) {
+    pending = Promise.resolve()
+      .then(() => win.fetch(src))
+      .then(response => {
+        if (!response.ok) throw new Error(`${src} will not load`);
+        return response.blob();
+      });
+    pending.catch(() => { if (cache.get(src) === pending) cache.delete(src); });
+    cache.set(src, pending);
+  }
+  return pending;
+}
 
 // ---- The layers ---------------------------------------------------------------------------------------------------------------
 
@@ -424,6 +445,31 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   let gone = false; // destroyed, or its context lost: it never draws again
   let frameId = 0;
   let last = -Infinity;
+  let cssWidth = 0;
+  let cssHeight = 0;
+  let watcher = null;
+  const RO = win.ResizeObserver ?? globalThis.ResizeObserver;
+  if (typeof RO === 'function' && typeof canvas.getBoundingClientRect === 'function') {
+    try {
+      watcher = new RO(entries => {
+        const entry = entries[entries.length - 1];
+        if (!entry) return;
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          cssWidth = width;
+          cssHeight = height;
+        }
+      });
+      watcher.observe(canvas);
+    } catch {
+      watcher = null;
+    }
+  }
+  let spreadEl; // cached .book-spread ancestor so frame() avoids 60 Hz DOM ancestor walks
+  function isTurning() {
+    if (spreadEl === undefined) spreadEl = canvas.closest?.('.book-spread') ?? null;
+    return spreadEl ? spreadEl.classList.contains('page-turning') : Boolean(canvas.closest?.('.page-turning'));
+  }
 
   /**
    * Whether the program can draw: set up the first time the graphics say it is built. With the extension that is asked without
@@ -445,7 +491,8 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
 
   /** Draws one frame at `seconds` (`life` 1: every effect, 0: the painting as it is) at the canvas's size now; false if it has none. */
   function draw(seconds, life) {
-    const { clientWidth, clientHeight } = canvas;
+    const clientWidth = cssWidth || canvas.clientWidth;
+    const clientHeight = cssHeight || canvas.clientHeight;
     if (!clientWidth || !clientHeight) return false;
     // at the screen's pixels but never more than the picture's own for this half (it has no finer detail than that)
     const width = Math.max(1, Math.round(Math.min(Math.round(clientWidth * Math.min(win.devicePixelRatio || 1, MAX_DPR)), MAX_WIDTH) * LIFE_RES));
@@ -466,7 +513,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   function frame(now) {
     if (!going) return;
     frameId = win.requestAnimationFrame(frame);
-    if (canvas.closest?.('.page-turning')) return;
+    if (isTurning()) return;
     if (!textures || now - last < 1000 / LIFE_FPS - 2) return; // 30 a second: a frame that comes sooner than that waits for the next
     if (!usable() || !draw(lifeClock(now - CLOCK_ZERO), 1)) return;
     last = now;
@@ -494,6 +541,8 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     if (gone) return;
     gone = true;
     stop();
+    watcher?.disconnect();
+    watcher = null;
     made.delete(layer);
     onLost();
   }
@@ -504,23 +553,17 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   }
   canvas.addEventListener?.('webglcontextlost', lose);
 
-  // The pictures: the painting, the water and the mist, each cut to this page's part, and the noise. Each picture is fetched and made
-  // a bitmap of that part, which the browser decodes away from the page's thread (drawing an image that is not decoded yet decodes it
-  // on the page's thread: a tenth of a second for the painting), goes to the graphics card as it is (the water's and the mist's
-  // alpha read there: nothing is read back or worked through on the page) and is let go once it is used. Each takes a little while,
-  // so they go a step to a turn of the page's event loop, and the page goes on drawing (the game under the map in the journey, the
-  // book's pages turning) between them instead of standing still.
+  // The pictures: the painting, the water and the mist, each cut to this page's part, and the noise. Each picture is fetched once
+  // per window (shared across left/right halves) and made a bitmap of that part off the page's thread, uploaded to WebGL, and closed.
   const [left, top, width, height] = crop;
-  const bitmapOf = async src => {
-    const response = await win.fetch(src);
-    if (!response.ok) throw new Error(`${src} will not load`);
-    return win.createImageBitmap(await response.blob(), left, top, width, height);
-  };
+  const bitmapOf = async src => win.createImageBitmap(await fetchBlob(win, src), left, top, width, height);
   const pause = () => new Promise(ok => setTimeout(ok, 0));
   const waitTurn = () => new Promise(ok => setTimeout(ok, 32));
   let pictures = [];
   (async () => {
-    pictures = await Promise.all([PAINTING_SRC, WATER_SRC, MIST_SRC].map(bitmapOf));
+    const settled = await Promise.allSettled([PAINTING_SRC, WATER_SRC, MIST_SRC].map(bitmapOf));
+    pictures = settled.filter(result => result.status === 'fulfilled').map(result => result.value);
+    if (pictures.length !== 3) throw settled.find(result => result.status === 'rejected')?.reason ?? new Error('map pictures failed');
     const upload = (unit, bitmap) => {
       makeTexture(gl, unit, gl.CLAMP_TO_EDGE);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
@@ -534,7 +577,7 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     ];
     for (const step of steps) {
       await pause();
-      while (!gone && canvas.closest?.('.page-turning')) await waitTurn();
+      while (!gone && isTurning()) await waitTurn();
       if (gone) return; // let go while it waited
       step();
     }
@@ -553,6 +596,8 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     stop,
     destroy() {
       stop();
+      watcher?.disconnect();
+      watcher = null;
       if (gone) return;
       gone = true;
       made.delete(layer);

@@ -38,6 +38,6 @@ export function* mapMoment(s, c, { pieces, line, speak = null }) {
     closing = true;
     yield s.wait(moment.close() / 1000);
   } finally {
-    if (!closing) moment.close(); // cancelled while it was up
+    if (!closing) moment.close(true); // cancelled while it was up: dispose at once even if clock stops
   }
 }

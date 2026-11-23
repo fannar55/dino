@@ -77,12 +77,17 @@ varying vec3 vGround;${haze ? `\n${haze.head}` : ''}`)
   float fine = texture2D( uNoise, vGround.xz * 0.14 + 0.31 ).g;
   diffuseColor.rgb *= ( 0.84 + 0.3 * broad ) * ( 0.9 + 0.18 * fine );
   // sandstone in layers: bands about 2.4 m apart, wavering along the wall, a pale one now and then, rough within each
+  vec3 gDx = dFdx( vGround );
+  vec3 gDy = dFdy( vGround );
   if ( vRock > 0.01 ) {
-    float waver = texture2D( uNoise, vGround.xz * 0.011 ).b;
+    float waver = textureGrad( uNoise, vGround.xz * 0.011, gDx.xz * 0.011, gDy.xz * 0.011 ).b;
     float band = fract( vGround.y * 0.42 + waver * 1.6 );
     vec3 stone = mix( uStoneA, uStoneB, smoothstep( 0.32, 0.5, band ) );
     stone = mix( stone, uStoneC, smoothstep( 0.8, 0.9, band ) * ( 1.0 - smoothstep( 0.95, 1.0, band ) ) );
-    stone *= 0.82 + 0.3 * texture2D( uNoise, vec2( vGround.x + vGround.z, vGround.y * 2.0 ) * 0.17 ).r;
+    vec2 stoneUv = vec2( vGround.x + vGround.z, vGround.y * 2.0 ) * 0.17;
+    vec2 stoneDx = vec2( gDx.x + gDx.z, gDx.y * 2.0 ) * 0.17;
+    vec2 stoneDy = vec2( gDy.x + gDy.z, gDy.y * 2.0 ) * 0.17;
+    stone *= 0.82 + 0.3 * textureGrad( uNoise, stoneUv, stoneDx, stoneDy ).r;
     diffuseColor.rgb = mix( diffuseColor.rgb, stone, vRock );
   }`);
     if (haze) shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>\n${haze.glsl}`);

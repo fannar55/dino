@@ -85,7 +85,7 @@ export function createFjorLife(world, { url }) {
     scene.add(mesh);
     birds = { mesh, flight };
   })().catch(error => { console.warn('[flugedla3d] the birds could not be loaded:', error?.message ?? error); birdsError = String(error?.stack ?? error); });
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), fwd = new THREE.Vector3(), dir = new THREE.Vector3();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), fwd = new THREE.Vector3(), dir = new THREE.Vector3(), right = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
   const birdInfo = [];
   /** The birds at story second t, in the picture; they face the way the camera flies (as she does), the darting ones across it. */
   function poseBirds(t, { stage, stageCam, D }) {
@@ -93,7 +93,7 @@ export function createFjorLife(world, { url }) {
     if (!birds) return birdInfo;
     let n = 0;
     fwd.set(0, 0, -1).applyQuaternion(stageCam.quaternion);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(stageCam.quaternion);
+    right.set(1, 0, 0).applyQuaternion(stageCam.quaternion);
     for (let i = 0; i < BIRDS.length; i++) {
       const b = BIRDS[i];
       const a = b.at(t);
@@ -104,7 +104,7 @@ export function createFjorLife(world, { url }) {
       else dir.copy(fwd).multiplyScalar(-1);
       dir.y = 0;
       dir.normalize();
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-dir.z, dir.x));
+      q.setFromAxisAngle(Y, Math.atan2(-dir.z, dir.x));
       m4.compose(p, q, sc.setScalar(b.scale));
       birds.mesh.setMatrixAt(n, m4);
       const beat = Math.sin(TAU * b.beat * t + b.phase);
@@ -154,7 +154,8 @@ export function createFjorLife(world, { url }) {
       const life = 3 + 2 * hash(i, 1), age = ((t + hash(i, 2) * life) % life) / life;
       const x = FALLS.face + 1 + age * (5 + 6 * hash(i, 3)), z = FALLS.z + (hash(i, 4) - 0.5) * (FALLS.width + 6);
       const y = FALLS.base + 0.5 + age * (3 + 4 * hash(i, 5));
-      pos.set([x, y, z], i * 3);
+      const o = i * 3;
+      pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
       size[i] = 0.8 + 1.2 * age;
       alpha[i] = 0.14 * Math.sin(Math.PI * age) * fade;
     }
@@ -166,7 +167,8 @@ export function createFjorLife(world, { url }) {
       const u = 0.6 + 0.32 * hash(j, 8) + (hash(j, 9) - 0.5) * 0.25 * age, v = 0.55 + 0.3 * hash(j, 10) - 0.5 * age;
       const k = 0.85 - 0.55 * age;
       stage.framePoint(u, v, (k * FJOR_D) / D, p, stageCam, D);
-      pos.set([p.x, p.y, p.z], i * 3);
+      const o = i * 3;
+      pos[o] = p.x; pos[o + 1] = p.y; pos[o + 2] = p.z;
       size[i] = 0.08 + 0.08 * hash(j, 11); // (polish: big enough to read as drops coming at us)
       alpha[i] = 0.7 * Math.sin(Math.PI * age) * climb;
     }

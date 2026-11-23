@@ -19,7 +19,8 @@ export { Room } from './room-object.mjs';
 /** The paths wrangler.toml runs the Worker first for: the game's sounds, the old game's voice lines, the book's videos, and /villa. */
 const AUDIO_PATH = /^\/(?:remake|dist)\/assets\/audio\//;
 const VIDEO_PATH = /^\/myndbond\/([a-z0-9-]+\.mp4)$/;
-const REPORT_LIMIT = 25 * 1024 * 1024;
+const RANGE = /^bytes=(\d*)-(\d*)$/;
+const REPORT_LIMIT = 10 * 1024 * 1024;
 const REPORT_FILES = {
   'skjaskot.jpg': { kind: 'data', prefix: 'data:image/jpeg;base64,', type: 'image/jpeg' },
   'merkt.jpg': { kind: 'data', prefix: 'data:image/jpeg;base64,', type: 'image/jpeg' },
@@ -27,6 +28,20 @@ const REPORT_FILES = {
   'merkt.png': { kind: 'data', prefix: 'data:image/png;base64,', type: 'image/png' },
   'spjold.html': { kind: 'text', type: 'text/html; charset=utf-8' },
 };
+
+function r2RangeOf(rangeHeader) {
+  const match = RANGE.exec(rangeHeader ?? '');
+  if (!match || (match[1] === '' && match[2] === '')) return null;
+  const [, first, last] = match;
+  if (first !== '' && last !== '') {
+    const start = Number(first), end = Number(last);
+    if (start > end) return { invalid: true };
+    return { offset: start, length: end - start + 1 };
+  }
+  if (first !== '') return { offset: Number(first) };
+  const suffix = Number(last);
+  return suffix > 0 ? { suffix } : { invalid: true };
+}
 
 /**
  * A sound from the assets, as a 206 of the range asked for when the assets answered 200 with the whole file. Without a byte
@@ -36,15 +51,41 @@ async function sound(request, env) {
   const range = request.headers.get('range');
   if (!isByteRange(range)) return env.ASSETS.fetch(request);
   const head = request.method === 'HEAD';
-  const asset = await env.ASSETS.fetch(head ? new Request(request, { method: 'GET' }) : request); // a HEAD needs the file's length
-  if (asset.status !== 200) return head ? new Response(null, asset) : asset;
+  if (head) {
+    const probe = await env.ASSETS.fetch(request);
+    if (probe.status !== 200) {
+      probe.body?.cancel?.();
+      return new Response(null, probe);
+    }
+    const lenHeader = probe.headers.get('content-length');
+    const total = lenHeader !== null && /^\d+$/.test(lenHeader.trim()) ? Number(lenHeader) : NaN;
+    probe.body?.cancel?.();
+    if (Number.isInteger(total) && total >= 0) {
+      const cut = parseRange(range, total);
+      if (!cut.valid) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${cut.total}` } });
+      const headers = {
+        'Content-Range': `bytes ${cut.start}-${cut.end}/${cut.total}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(cut.length),
+      };
+      const type = probe.headers.get('content-type');
+      if (type) headers['Content-Type'] = type;
+      return new Response(null, { status: 206, headers });
+    }
+  }
+  const asset = await env.ASSETS.fetch(head ? new Request(request, { method: 'GET' }) : request);
+  if (asset.status !== 200) {
+    if (head) asset.body?.cancel?.();
+    return head ? new Response(null, asset) : asset;
+  }
   const cut = sliceRange(range, await asset.arrayBuffer(), asset.headers.get('content-type'));
   return new Response(head ? null : cut.body, { status: cut.status, headers: cut.headers });
 }
 
 /**
  * An educational video from the R2 bucket (`env.VIDEOS`), streamed whole (200) or as the byte range asked for (206, or 416 when
- * past the end). Streaming R2's body directly keeps even 500+ MB videos out of the Worker's memory.
+ * past the end). Streaming R2's body directly keeps even 500+ MB videos out of the Worker's memory, and GET ranges use a single
+ * R2 round-trip.
  */
 async function video(request, env, key) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405 });
@@ -52,10 +93,41 @@ async function video(request, env, key) {
   const head = request.method === 'HEAD';
   const range = request.headers.get('range');
   if (isByteRange(range)) {
-    const meta = await env.VIDEOS.head(key);
-    if (!meta) return new Response(null, { status: 404 });
-    const cut = parseRange(range, meta.size);
-    if (!cut.valid) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${cut.total}` } });
+    if (head) {
+      const meta = await env.VIDEOS.head(key);
+      if (!meta) return new Response(null, { status: 404 });
+      const cut = parseRange(range, meta.size);
+      if (!cut.valid) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${cut.total}` } });
+      const headers = {
+        'Content-Range': `bytes ${cut.start}-${cut.end}/${cut.total}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(cut.length),
+        'Content-Type': 'video/mp4',
+        'Cache-Control': MEDIA_CACHE,
+      };
+      if (meta.httpEtag) headers.ETag = meta.httpEtag;
+      return new Response(null, { status: 206, headers });
+    }
+    const r2Range = r2RangeOf(range);
+    if (r2Range?.invalid) {
+      const meta = await env.VIDEOS.head(key);
+      if (!meta) return new Response(null, { status: 404 });
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${meta.size}` } });
+    }
+    let part;
+    try {
+      part = await env.VIDEOS.get(key, { range: r2Range });
+    } catch {
+      const meta = await env.VIDEOS.head(key);
+      if (!meta) return new Response(null, { status: 404 });
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${meta.size}` } });
+    }
+    if (!part) return new Response(null, { status: 404 });
+    const cut = parseRange(range, part.size);
+    if (!cut.valid) {
+      part.body?.cancel?.();
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${cut.total}` } });
+    }
     const headers = {
       'Content-Range': `bytes ${cut.start}-${cut.end}/${cut.total}`,
       'Accept-Ranges': 'bytes',
@@ -63,10 +135,7 @@ async function video(request, env, key) {
       'Content-Type': 'video/mp4',
       'Cache-Control': MEDIA_CACHE,
     };
-    if (meta.httpEtag) headers.ETag = meta.httpEtag;
-    if (head) return new Response(null, { status: 206, headers });
-    const part = await env.VIDEOS.get(key, { range: { offset: cut.start, length: cut.length } });
-    if (!part) return new Response(null, { status: 404 });
+    if (part.httpEtag) headers.ETag = part.httpEtag;
     return new Response(part.body, { status: 206, headers });
   }
   const obj = head ? await env.VIDEOS.head(key) : await env.VIDEOS.get(key);
@@ -117,13 +186,17 @@ async function villa(request, env) {
   if (request.method !== 'POST') return new Response('not found', { status: 404 });
   const reqOrigin = request.headers.get('origin');
   const fetchSite = request.headers.get('sec-fetch-site');
-  if ((reqOrigin && reqOrigin !== new URL(request.url).origin) || fetchSite === 'cross-site') {
+  if (reqOrigin !== new URL(request.url).origin || fetchSite === 'cross-site') {
+    return new Response('forbidden', { status: 403 });
+  }
+  if (env?.VILLA_TOKEN && request.headers.get('x-villa-token') !== env.VILLA_TOKEN) {
     return new Response('forbidden', { status: 403 });
   }
   const declaredLength = Number(request.headers.get('content-length'));
-  if (declaredLength > REPORT_LIMIT) return new Response(`the report is over ${REPORT_LIMIT} bytes`, { status: 413 });
-  const rawBody = await request.text();
-  if (rawBody.length > REPORT_LIMIT) return new Response(`the report is over ${REPORT_LIMIT} bytes`, { status: 413 });
+  if (Number.isFinite(declaredLength) && declaredLength > REPORT_LIMIT) return new Response(`the report is over ${REPORT_LIMIT} bytes`, { status: 413 });
+  const rawBytes = await request.arrayBuffer();
+  if (rawBytes.byteLength > REPORT_LIMIT) return new Response(`the report is over ${REPORT_LIMIT} bytes`, { status: 413 });
+  const rawBody = new TextDecoder().decode(rawBytes);
   let sent;
   try {
     sent = JSON.parse(rawBody);

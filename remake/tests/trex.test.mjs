@@ -48,15 +48,10 @@ const BONES = ['root', 'Hips', 'Spine', 'Chest', 'Neck', 'Head', 'Jaw',
   'LeftUpperArm', 'LeftLowerArm', 'LeftHand', 'RightUpperArm', 'RightLowerArm', 'RightHand'];
 const skinnedMesh = gltf => { let mesh = null; gltf.scene.traverse(o => { if (o.isSkinnedMesh) mesh = o; }); return mesh; };
 
-// Pixel size of a JPEG from its SOF marker.
-function jpegSize(bytes) {
-  for (let i = 2; i < bytes.length;) {
-    const marker = bytes[i + 1];
-    const length = bytes.readUInt16BE(i + 2);
-    if (marker >= 0xc0 && marker <= 0xc3) return [bytes.readUInt16BE(i + 7), bytes.readUInt16BE(i + 5)];
-    i += 2 + length;
-  }
-  return null;
+// Pixel size of a KTX2 texture from its 12-byte magic + header.
+function ktx2Size(bytes) {
+  if (bytes.length < 28 || bytes.readUInt32BE(0) !== 0xab4b5458 || bytes.readUInt32BE(4) !== 0x203230bb) return null;
+  return [bytes.readUInt32LE(20), bytes.readUInt32LE(24)];
 }
 
 test('Grameðla has the tailed-biped skeleton with identity rest rotations and her clips', async () => {
@@ -81,7 +76,7 @@ test('she is 12 m long, stands on the ground and fits the dinosaur budget', asyn
   assert.ok(box.max.y - box.min.y > 4.8 && box.max.y - box.min.y < 5.6, `height ${box.max.y - box.min.y}`);
   assert.ok(Math.abs(box.min.y) < 0.005, 'stands on the ground');
   assert.ok(mesh.geometry.index.count / 3 <= 40000, `${mesh.geometry.index.count / 3} triangles`);
-  // One single-sided matte material with two 1024 px JPEG maps (colour and normal).
+  // One single-sided matte material with two 1024 px KTX2 maps (colour and normal).
   assert.equal(json.materials.length, 1);
   const material = json.materials[0];
   assert.ok(!material.doubleSided, 'single-sided');
@@ -89,9 +84,9 @@ test('she is 12 m long, stands on the ground and fits the dinosaur budget', asyn
   assert.equal(material.pbrMetallicRoughness.metallicFactor, 0);
   assert.equal(json.images.length, 2);
   for (const image of json.images) {
-    assert.equal(image.mimeType, 'image/jpeg');
+    assert.equal(image.mimeType, 'image/ktx2');
     const view = json.bufferViews[image.bufferView];
-    const size = jpegSize(binary.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength));
+    const size = ktx2Size(binary.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength));
     assert.deepEqual(size, [1024, 1024]);
   }
 });

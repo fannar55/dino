@@ -43,6 +43,7 @@ const TRIES = 3; // silent seeks at most to get the element onto the playhead be
 const MAX_LEAD = 0.5; // s: the most a seek is aimed ahead of the playhead, to land on it when the seek is done
 const STEADY = 0.1; // s of audio time over which an element's own clock must keep pace with it before the element counts as playing
 const STALL = 0.15; // s of game time with the audio clock standing still before a context that says it runs counts as asleep
+const HAVE_METADATA = 1; // an element's readyState: duration and seekable ranges are known
 const HAVE_FUTURE_DATA = 3; // an element's readyState: enough data to play on
 const END = 0.25; // s: a song that plays once is over this close to its end, so it is quiet before its element stops by itself
 
@@ -210,7 +211,8 @@ export function createMusic({ context = null, theme = null, clock, base, output,
     state = 'starting';
     tries = 0;
     mark = null;
-    if (anchor !== null && Math.abs(behind()) > ALIGN) seek(); // a theme that has sounded before goes on where the clock says
+    // Wait until metadata has loaded before seeking: before HAVE_METADATA, seekable is empty and seek() would falsely set followed = true.
+    if (anchor !== null && element.readyState >= HAVE_METADATA && length() > 0 && Math.abs(behind()) > ALIGN) seek();
     play();
   }
 
@@ -286,7 +288,10 @@ export function createMusic({ context = null, theme = null, clock, base, output,
         element = createElement();
         element.preload = 'auto';
         element.loop = loop;
-        element.addEventListener('loadedmetadata', () => resolve(true), { once: true });
+        element.addEventListener('loadedmetadata', () => {
+          if (state === 'starting' && anchor !== null && length() > 0 && Math.abs(behind()) > ALIGN) seek();
+          resolve(true);
+        }, { once: true });
         element.addEventListener('error', () => {
           fail(element.error ?? 'its file would not load');
           resolve(false);

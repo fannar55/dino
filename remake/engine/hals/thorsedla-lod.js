@@ -18,7 +18,34 @@ import { simplify } from '../simplify.js';
 const COARSE = [3200, 1400];
 const LEVEL_PX = [2200, 1100, 520, 170]; // the bind diagonal's pixels: the full skin above the first, then one level below each
 export const PIECE_PX = [1400, 700, 240, 90]; // a piece's: textured down to about 240 px, then the light levels
-const levelCache = new Map();
+const levelCache = new WeakMap();
+const sunHooks = new WeakMap();
+
+function attachSunCasters(sun, casters) {
+  if (!sun?.castShadow) return () => {};
+  let hook = sunHooks.get(sun);
+  if (!hook) {
+    const before = sun.shadow.updateMatrices;
+    const sets = new Set();
+    const wrapped = function thorsedlaShadowPass(l, viewport) {
+      before.call(this, l, viewport);
+      if (l === sun) {
+        for (const set of sets) for (const c of set) c.visible = c.userData.owner.visible;
+      }
+    };
+    sun.shadow.updateMatrices = wrapped;
+    hook = { before, wrapped, sets };
+    sunHooks.set(sun, hook);
+  }
+  hook.sets.add(casters);
+  return () => {
+    hook.sets.delete(casters);
+    if (hook.sets.size === 0) {
+      if (sun.shadow.updateMatrices === hook.wrapped) sun.shadow.updateMatrices = hook.before;
+      sunHooks.delete(sun);
+    }
+  };
+}
 
 function simplifyInWorker(positions, index, options) {
   if (typeof Worker === 'undefined') return Promise.resolve(simplify(positions, index, options));
@@ -67,21 +94,68 @@ function weldedSkin(geometry) {
   return { g, index: Uint32Array.from(geometry.index.array, i => map[i]), originals };
 }
 
+/** Read sRGB pixels from a GPU-compressed texture (KTX2) via a one-shot 256x256 render target readback. */
+function readCompressedPixels(renderer, map, size) {
+  if (!renderer?.render || !renderer?.readRenderTargetPixels) return null;
+  const rt = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
+  const quadScene = new THREE.Scene();
+  const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const quadGeo = new THREE.PlaneGeometry(2, 2);
+  const quadMat = new THREE.ShaderMaterial({
+    uniforms: { uMap: { value: map } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: [
+      'uniform sampler2D uMap;',
+      'varying vec2 vUv;',
+      'void main() {',
+      '  vec3 c = texture2D(uMap, vUv).rgb;',
+      '  vec3 srgb = mix(c * 12.92, pow(max(c, 0.0), vec3(1.0 / 2.4)) * 1.055 - 0.055, step(vec3(0.0031308), c));',
+      '  gl_FragColor = vec4(clamp(srgb, 0.0, 1.0), 1.0);',
+      '}',
+    ].join('\n'),
+    depthTest: false,
+    depthWrite: false,
+  });
+  quadScene.add(new THREE.Mesh(quadGeo, quadMat));
+  const prevTarget = renderer.getRenderTarget();
+  const pixels = new Uint8Array(size * size * 4);
+  try {
+    renderer.setRenderTarget(rt);
+    renderer.render(quadScene, quadCam);
+    renderer.readRenderTargetPixels(rt, 0, 0, size, size, pixels);
+  } catch {
+    return null;
+  } finally {
+    renderer.setRenderTarget(prevTarget);
+    quadGeo.dispose();
+    quadMat.dispose();
+    rt.dispose();
+  }
+  return pixels;
+}
+
 /** The colour map's colour under each vertex (linear), read from a small copy of its image; null without a readable map. */
-function colourFromMap(g, map) {
-  const image = map?.image;
-  if (!image || typeof document === 'undefined') return null;
+function colourFromMap(g, map, renderer) {
+  if (!map || typeof document === 'undefined') return null;
   const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const c = canvas.getContext('2d', { willReadFrequently: true });
-  try { c.drawImage(image, 0, 0, size, size); } catch { return null; }
-  const pixels = c.getImageData(0, 0, size, size).data;
+  let pixels = null;
+  let fromRenderTarget = false;
+  if (map.isCompressedTexture) {
+    pixels = readCompressedPixels(renderer, map, size);
+    fromRenderTarget = true; // readRenderTargetPixels row 0 is PlaneGeometry uv.y=0, matching GPU texture2D(map, uv) directly
+  } else if (map.image) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const c = canvas.getContext('2d', { willReadFrequently: true });
+    try { c.drawImage(map.image, 0, 0, size, size); } catch { return null; }
+    pixels = c.getImageData(0, 0, size, size).data;
+  }
+  if (!pixels) return null;
   const uv = g.attributes.uv, out = new Float32Array(uv.count * 3), colour = new THREE.Color();
   for (let i = 0; i < uv.count; i++) {
     const u = uv.getX(i);
     let v = uv.getY(i);
-    if (map.flipY) v = 1 - v;
+    if (!fromRenderTarget && map.flipY) v = 1 - v;
     const x = Math.min(size - 1, Math.max(0, Math.floor(u * size))), y = Math.min(size - 1, Math.max(0, Math.floor(v * size)));
     const k = (y * size + x) * 4;
     colour.setRGB(pixels[k] / 255, pixels[k + 1] / 255, pixels[k + 2] / 255, THREE.SRGBColorSpace);
@@ -90,7 +164,7 @@ function colourFromMap(g, map) {
   return new THREE.BufferAttribute(out, 3);
 }
 
-function levelsOf(geometry, map) {
+function levelsOf(geometry, map, renderer) {
   if (levelCache.has(geometry)) return levelCache.get(geometry);
   const position = geometry.attributes.position;
   const positions = new Float32Array(position.count * 3);
@@ -112,7 +186,7 @@ function levelsOf(geometry, map) {
     skin: skinArrays(geometry),
   }).then(levels => levels.map(({ corners }) => indexed(geometry, corners, position.count)));
   const welded = weldedSkin(geometry);
-  const colours = colourFromMap(welded.g, map);
+  const colours = colourFromMap(welded.g, map, renderer);
   if (colours) welded.g.setAttribute('color', colours);
   const wp = welded.g.attributes.position;
   const coarse = simplifyInWorker(Float32Array.from(wp.array), welded.index, {
@@ -126,23 +200,18 @@ function levelsOf(geometry, map) {
 
 const skinOf = model => { let mesh = null; model.traverse(o => { if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o; }); return mesh; };
 
-export function createThorsedlaLod(sun) {
+export function createThorsedlaLod(sun, renderer = null) {
   const entries = [];
   const casters = new Set();
   const casterMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
   casterMaterial.shadowSide = THREE.FrontSide;
   const coarseBase = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 });
-  if (sun?.castShadow) {
-    const before = sun.shadow.updateMatrices;
-    sun.shadow.updateMatrices = function thorsedlaShadowPass(l, viewport) {
-      before.call(this, l, viewport);
-      if (l === sun) for (const c of casters) c.visible = c.userData.owner.visible;
-    };
-  }
+  const detachSun = attachSunCasters(sun, casters);
   const pending = [];
+  let disposed = false;
 
   function setLevel(e, level) {
-    if (!e.levels || level === e.level) return;
+    if (disposed || !e.levels || level === e.level) return;
     e.level = level;
     e.mesh.geometry = e.levels[level];
     e.mesh.material = level >= 3 && e.coarse ? e.coarse : e.material;
@@ -151,10 +220,12 @@ export function createThorsedlaLod(sun) {
   const camPos = new THREE.Vector3(), centre = new THREE.Vector3(), frustum = new THREE.Frustum(), vp = new THREE.Matrix4(), sphere = new THREE.Sphere();
   return {
     add(actor, { tint = m => m, levels: px = LEVEL_PX } = {}) {
+      if (disposed) return Promise.resolve();
       const mesh = skinOf(actor.model);
-      const e = { actor, mesh, material: mesh.material, coarse: null, levels: null, level: 0, px, diagonal: actor.size.length() };
+      const e = { actor, mesh, baseGeometry: mesh.geometry, material: mesh.material, coarse: null, levels: null, level: 0, px, diagonal: actor.size.length() };
       entries.push(e);
-      const ready = levelsOf(mesh.geometry, mesh.material.map).then(levels => {
+      const ready = levelsOf(mesh.geometry, mesh.material.map, renderer).then(levels => {
+        if (disposed) return;
         if (levels[levels.length - 1].attributes.color) e.coarse = tint(coarseBase, '#include <color_fragment>', 'thorsedla-tint-coarse');
         e.levels = levels;
         if (sun?.castShadow) {
@@ -178,6 +249,7 @@ export function createThorsedlaLod(sun) {
       return ready;
     },
     update(camera, height) {
+      if (disposed) return;
       camera.updateMatrixWorld();
       camPos.setFromMatrixPosition(camera.matrixWorld);
       frustum.setFromProjectionMatrix(vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -195,5 +267,24 @@ export function createThorsedlaLod(sun) {
     },
     ready: () => Promise.all(pending),
     info: () => Object.fromEntries(entries.map(e => [e.actor.name, e.level])),
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      detachSun();
+      for (const c of casters) c.removeFromParent();
+      casters.clear();
+      const coarseDisposed = new Set();
+      for (const e of entries) {
+        e.mesh.geometry = e.levels?.[0] ?? e.baseGeometry;
+        e.mesh.material = e.material;
+        if (e.coarse && e.coarse !== coarseBase && !coarseDisposed.has(e.coarse)) {
+          coarseDisposed.add(e.coarse);
+          e.coarse.dispose();
+        }
+      }
+      entries.length = 0;
+      casterMaterial.dispose();
+      coarseBase.dispose();
+    },
   };
 }

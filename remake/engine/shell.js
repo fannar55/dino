@@ -62,32 +62,53 @@ const BIAS = 2; // how strongly the way out leans to the bias deep inside (none 
  * end near each other.
  */
 export function pushOut(point, capsules, { margin = 0, soft = SOFT, forward = [0, 0, -1], bias = null } = {}) {
-  let p = [point[0], point[1], point[2]];
-  const lean = unit(bias ?? add([0, 1, 0], forward, 0.35));
+  const px0 = point[0], py0 = point[1], pz0 = point[2];
+  if (!capsules.length) return [px0, py0, pz0];
+  const bx = bias ? bias[0] : forward[0] * 0.35;
+  const by = bias ? bias[1] : 1 + forward[1] * 0.35;
+  const bz = bias ? bias[2] : forward[2] * 0.35;
+  const bl = Math.hypot(bx, by, bz) || 1;
+  const lx = bx / bl, ly = by / bl, lz = bz / bl;
+  const fx = forward[0], fy = forward[1], fz = forward[2];
+
+  const p = [px0, py0, pz0];
   const g = [0, 0, 0];
+  const g2 = [0, 0, 0];
+  const next = [0, 0, 0];
   let h = field(p, capsules, margin, g);
   if (h >= soft) return p;
   const want = h <= -soft ? 0 : (soft + h) ** 2 / (4 * soft);
   for (let i = 0; i < 400 && h < want; i++) {
     const beta = BIAS * (1 - smooth((h + soft) / (2 * soft)));
-    let w = add(g, lean, beta);
-    const toward = dot(w, forward);
-    if (toward < 0) w = add(w, forward, -toward);
-    let wl = len(w);
+    let wx = g[0] + lx * beta, wy = g[1] + ly * beta, wz = g[2] + lz * beta;
+    const toward = wx * fx + wy * fy + wz * fz;
+    if (toward < 0) { wx -= fx * toward; wy -= fy * toward; wz -= fz * toward; }
+    let wl = Math.hypot(wx, wy, wz);
     if (wl < 1e-9) {
-      w = add(lean, forward, -Math.min(0, dot(lean, forward)));
-      wl = len(w);
+      const lt = Math.min(0, lx * fx + ly * fy + lz * fz);
+      wx = lx - fx * lt; wy = ly - fy * lt; wz = lz - fz * lt;
+      wl = Math.hypot(wx, wy, wz);
+      if (wl < 1e-9) {
+        // lean is antiparallel to forward: pick an axis orthogonal to forward
+        const ax = Math.abs(fy) < 0.9 ? 0 : 1, ay = Math.abs(fy) < 0.9 ? 1 : 0, az = 0;
+        wx = ay * fz - az * fy; wy = az * fx - ax * fz; wz = ax * fy - ay * fx;
+        wl = Math.hypot(wx, wy, wz) || 1;
+      }
     }
-    w = scale(w, 1 / wl);
+    const inv = 1 / wl;
+    wx *= inv; wy *= inv; wz *= inv;
     const step = Math.min(0.12, Math.max(0.004, want - h));
-    const next = add(p, w, step);
-    const g2 = [0, 0, 0];
+    next[0] = p[0] + wx * step; next[1] = p[1] + wy * step; next[2] = p[2] + wz * step;
     const h2 = field(next, capsules, margin, g2);
     if (h2 >= want) {
       // the last step, cut where the field reaches the wanted h (along the step it is near enough straight)
-      return h2 > h ? add(p, w, (step * (want - h)) / (h2 - h)) : next;
+      if (h2 > h) {
+        const s = (step * (want - h)) / (h2 - h);
+        return [p[0] + wx * s, p[1] + wy * s, p[2] + wz * s];
+      }
+      return [next[0], next[1], next[2]];
     }
-    p = next;
+    p[0] = next[0]; p[1] = next[1]; p[2] = next[2];
     h = h2;
     g[0] = g2[0]; g[1] = g2[1]; g[2] = g2[2];
   }
@@ -282,35 +303,57 @@ export function createShell(THREE, actor, { mesh = null, minVertices = 60, ends 
   const R0 = new THREE.Vector3();
   function update() {
     stale = true;
-    actor.root.updateMatrixWorld(true);
-    actor.root.getWorldPosition(R0).toArray(root);
+    actor.root.updateWorldMatrix(true, false);
+    actor.root.getWorldPosition(R0);
+    root[0] = R0.x; root[1] = R0.y; root[2] = R0.z;
   }
   function place() {
     stale = false;
-    let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-    fitted.forEach((f, i) => {
+    actor.root.updateMatrixWorld(true);
+    let lo0 = Infinity, lo1 = Infinity, lo2 = Infinity;
+    let hi0 = -Infinity, hi1 = -Infinity, hi2 = -Infinity;
+    let widest = 0;
+    for (let i = 0; i < fitted.length; i++) {
+      const f = fitted[i];
       const m = bones[f.bone].matrixWorld;
-      A.fromArray(f.a).applyMatrix4(m);
-      B.fromArray(f.b).applyMatrix4(m);
+      A.set(f.a[0], f.a[1], f.a[2]).applyMatrix4(m);
+      B.set(f.b[0], f.b[1], f.b[2]).applyMatrix4(m);
       S.setFromMatrixScale(m);
       const c = capsules[i];
-      c.a = A.toArray();
-      c.b = B.toArray();
-      c.r = f.r * grow * Math.max(S.x, S.y, S.z);
-      for (const p of [c.a, c.b]) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p[k] - c.r); hi[k] = Math.max(hi[k], p[k] + c.r); }
-    });
-    sphere.centre = scale(add(lo, hi), 0.5);
-    sphere.radius = len(sub(hi, lo)) / 2;
-    sphere.widest = Math.max(...capsules.map(c => c.r));
-    // how far from its root the shell can reach, as it stands now and with room for any pose (once)
-    if (reachFromRoot === Infinity) reachFromRoot = 1.5 * (len(sub(sphere.centre, root)) + sphere.radius) + 1;
+      c.a[0] = A.x; c.a[1] = A.y; c.a[2] = A.z;
+      c.b[0] = B.x; c.b[1] = B.y; c.b[2] = B.z;
+      const r = f.r * grow * Math.max(S.x, S.y, S.z);
+      c.r = r;
+      if (r > widest) widest = r;
+      if (A.x - r < lo0) lo0 = A.x - r; if (A.x + r > hi0) hi0 = A.x + r;
+      if (A.y - r < lo1) lo1 = A.y - r; if (A.y + r > hi1) hi1 = A.y + r;
+      if (A.z - r < lo2) lo2 = A.z - r; if (A.z + r > hi2) hi2 = A.z + r;
+      if (B.x - r < lo0) lo0 = B.x - r; if (B.x + r > hi0) hi0 = B.x + r;
+      if (B.y - r < lo1) lo1 = B.y - r; if (B.y + r > hi1) hi1 = B.y + r;
+      if (B.z - r < lo2) lo2 = B.z - r; if (B.z + r > hi2) hi2 = B.z + r;
+    }
+    if (fitted.length) {
+      sphere.centre[0] = (lo0 + hi0) * 0.5;
+      sphere.centre[1] = (lo1 + hi1) * 0.5;
+      sphere.centre[2] = (lo2 + hi2) * 0.5;
+      sphere.radius = Math.hypot(hi0 - lo0, hi1 - lo1, hi2 - lo2) * 0.5;
+      sphere.widest = widest;
+      // how far from its root the shell can reach, as it stands now and with room for any pose (once)
+      if (reachFromRoot === Infinity) {
+        reachFromRoot = 1.5 * (Math.hypot(sphere.centre[0] - root[0], sphere.centre[1] - root[1], sphere.centre[2] - root[2]) + sphere.radius) + 1;
+      }
+    } else {
+      sphere.radius = 0;
+      sphere.widest = 0;
+      reachFromRoot = 0;
+    }
   }
   /** Where a thing drawn at `point` ([x, y, z]) may be: pushOut over this shell, after a quick test of its bounds. */
   function push(point, options = {}) {
     const reach = (options.margin ?? 0) + (options.soft ?? SOFT) + 0.01;
-    if (reachFromRoot !== Infinity && len(sub(point, root)) > reachFromRoot + reach) return point;
+    if (reachFromRoot !== Infinity && Math.hypot(point[0] - root[0], point[1] - root[1], point[2] - root[2]) > reachFromRoot + reach) return point;
     if (stale) place();
-    if (len(sub(point, sphere.centre)) > sphere.radius + reach) return point;
+    if (Math.hypot(point[0] - sphere.centre[0], point[1] - sphere.centre[1], point[2] - sphere.centre[2]) > sphere.radius + reach) return point;
     return pushOut(point, capsules, options);
   }
   update();

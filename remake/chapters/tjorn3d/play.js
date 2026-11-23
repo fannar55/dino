@@ -36,7 +36,9 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
   const looks = Object.fromEntries(['eye', 'butterfly'].map(name => [name, out => out.copy(lookPoint)])); // one a kind: a new one comes with a blink (engine/actor.js)
   const lily = flowerTop(LILIES[BUTTERFLY.lily]);
   const jumperPoint = new THREE.Vector3(), butterflyPoint = new THREE.Vector3().copy(lily);
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3(), seat = new THREE.Vector3(), seatUp = new THREE.Vector3(), up = new THREE.Vector3();
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3(), seat = new THREE.Vector3(), seatUp = new THREE.Vector3(), up = new THREE.Vector3(), fishPos = new THREE.Vector3();
+  const eyeScratch = { x: 0, y: 0, z: 0 };
+  const rings = [];
   const left = { known: false, seat: new THREE.Vector3(), up: new THREE.Vector3() }; // her snout as it was when the butterfly lifted off it
   const LIMITS = { eye: { maxAngle: 60, maxPitch: 40 }, butterfly: { maxAngle: 60, maxPitch: 70 } }; // (her look is counted from her body's own way, tipped nose up)
   // the fish as it is the moment her jaws shut on it (its holder's place in the world), and as it lies in her jaws and at her throat
@@ -122,7 +124,10 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
         if (y < 0) alive = false;
         else {
           V(x, y, z, a);
-          set.position.set([a.x, a.y, a.z], i * 3);
+          const o = i * 3;
+          set.position[o] = a.x;
+          set.position[o + 1] = a.y;
+          set.position[o + 2] = a.z;
           live.push(a.x, a.y, a.z);
         }
       }
@@ -176,13 +181,15 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
   function apply(t) {
     if (t < state.t - 1e-6) reset();
     state.t = t;
-    const eye = { x: stage.eyes.mid.x / S, y: stage.eyes.mid.y / S, z: stage.eyes.mid.z / S };
+    eyeScratch.x = stage.eyes.mid.x / S;
+    eyeScratch.y = stage.eyes.mid.y / S;
+    eyeScratch.z = stage.eyes.mid.z / S;
 
     // the small fish
     view.fish = FISH.map((_, i) => {
       const f = fishAt(i, t);
-      const at = under(f.seen, f.depth, eye);
-      cast.fish[i]?.show(V(...at), f.heading, f.size * S, { beat: f.beat });
+      const at = under(f.seen, f.depth, eyeScratch);
+      cast.fish[i]?.show(V(at[0], at[1], at[2], fishPos), f.heading, f.size * S, { beat: f.beat });
       return { ...f, at };
     });
     if (cast.frog.loaded && !cast.frog.group.visible) cast.frog.show(frogSeat.point, FROG.heading, FROG.length * S);
@@ -238,7 +245,7 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     // the water: the six newest rings that still spread (the timeline's, and one where each burst of bubbles comes up), and the
     // bubbles of the newest bursts, all on the water's own clock
     const now = clock.value;
-    const rings = [];
+    rings.length = 0;
     for (const [at, x, z, strength] of RINGS) if (t >= at && t - at < RING_LIFE) rings.push([at, x, z, strength]);
     for (const [at, x, z] of BUBBLES) { const up = at + BUBBLE.seconds; if (t >= up && t - up < RING_LIFE) rings.push([up, x, z, 0.5]); }
     rings.sort((p, q) => q[0] - p[0]);
@@ -322,5 +329,9 @@ export function createShow({ S, LEVEL, V, world, her, rig, tip, cast, snout, flo
     cast.butterfly.show(point, heading, BUTTERFLY.span * S, flap, up);
   }
 
-  return { apply, late, reset, state, length: LENGTH, drops: live, butterflyPoint };
+  function dispose() {
+    set.remove?.();
+  }
+
+  return { apply, late, reset, dispose, state, length: LENGTH, drops: live, butterflyPoint };
 }

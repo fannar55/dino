@@ -18,7 +18,19 @@ const FLOOD = { intensity: 75, height: 7.5, ahead: 4, angle: 18, beat: 0.5 }; //
 // (candela; off while she is out, brighter on the beat as her beam of light is)
 const PICKED = { time: 0.8, flash: 1.6 }; // a friend picked ("Spilum saman"): her floodlight flashes twice in this time, this much brighter
 
-/** A soft round shadow, dark in the middle (a texture of its own, no page canvas needed). */
+const TEXTURE_MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'];
+function disposeTree(root, keepTexture = null) {
+  root.traverse(node => {
+    node.geometry?.dispose?.();
+    for (const material of [].concat(node.material ?? [])) {
+      for (const slot of TEXTURE_MAPS) {
+        const tex = material[slot];
+        if (tex && tex !== keepTexture) tex.dispose?.();
+      }
+      material.dispose?.();
+    }
+  });
+}
 function shadowTexture() {
   const size = 64;
   const data = new Uint8Array(size * size * 4);
@@ -72,10 +84,7 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
     canvas.removeEventListener?.('webglcontextlost', onContextLost);
     for (const friend of Object.values(friends)) friend.mixer.stopAllAction();
     renderer.clear();
-    scene.traverse(node => {
-      node.geometry?.dispose();
-      for (const material of [].concat(node.material ?? [])) material.dispose();
-    });
+    disposeTree(scene, shade);
     shade.dispose();
     renderer.dispose();
     return true;
@@ -135,7 +144,10 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
   }
 
   function arrive(id, gltf) {
-    if (lost) return;
+    if (lost) {
+      if (gltf?.scene) disposeTree(gltf.scene);
+      return;
+    }
     const conf = CAST[id];
     const model = gltf.scene;
     const box = new THREE.Box3().setFromObject(model);
@@ -255,7 +267,7 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
         friend.shadow.material.opacity = 1 - 0.6 * (1 - fall);
         // out of the round: dark, as a sleeping friend in the game
         const target = friend.out ? DIM : 1;
-        friend.dim += (target - friend.dim) * Math.min(1, dt * 4);
+        friend.dim = reduced ? target : friend.dim + (target - friend.dim) * Math.min(1, dt * 4);
         if (Math.abs(friend.dim - friend.shownDim) > 0.002) {
           for (const { material, base } of friend.materials) material.color.copy(base).multiplyScalar(friend.dim);
           friend.shownDim = friend.dim;

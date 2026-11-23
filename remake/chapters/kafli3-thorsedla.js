@@ -91,6 +91,10 @@ export const MOSI_HEAD = { actor: 'mosi', part: 'head' };
 const EGILL_EYES = { actor: 'egill', part: 'head', offset: [0.07, 0.03, 0], local: true }; // his eyes, in front of his head bone
 const HER_HEAD = { actor: 'thorsedla', part: 'head' };
 const UP = new THREE.Vector3(0, 1, 0);
+const FLAT_LEAF = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+const SCRATCH_HEAD = new THREE.Vector3();
+const SCRATCH_FOOT = new THREE.Vector3();
+const SCRATCH_OFFSET = new THREE.Vector3();
 const smooth = t => t * t * (3 - 2 * t);
 const smoothstep01 = t => smooth(Math.max(0, Math.min(1, t)));
 
@@ -138,7 +142,7 @@ function* living(s, c) {
       if (life.held) continue;
       leafFall(c, mouthOf(her));
       her.talk({ text: 'namm namm namm', duration: LIFE.chew });
-      const heard = 1 - smoothstep01((her.headPosition(new THREE.Vector3()).distanceTo(c.world.camera.position) - CHEW_HEARD[0]) / (CHEW_HEARD[1] - CHEW_HEARD[0]));
+      const heard = 1 - smoothstep01((her.headPosition(SCRATCH_HEAD).distanceTo(c.world.camera.position) - CHEW_HEARD[0]) / (CHEW_HEARD[1] - CHEW_HEARD[0]));
       if (heard > 0.02) s.sfx('chew', { level: heard });
       yield s.wait(LIFE.nod - LIFE.bite);
     } else {
@@ -270,8 +274,11 @@ export function* liftUp(s, c) {
   c.mosiComing = c.mosi.walkTo([[MOSI_CATCHES[0] + 1.5, MOSI_CATCHES[1]], MOSI_CATCHES], { speed: 0.9 }); // arriving facing west
   const drops = waterDrops(world, { seconds: rising, seed: 'her neck drips', ring: c.ring });
   const dripping = s.after(0.3, () => dripFromNeck(s, c, drops));
-  yield s.until(() => lift.time >= lift.getClip().duration - 1e-3);
-  dripping.cancel();
+  try {
+    yield s.until(() => lift.time >= lift.getClip().duration - 1e-3);
+  } finally {
+    dripping.cancel();
+  }
   c.lookout = egill.raw.headPosition(new THREE.Vector3()); // where he looks out from: LOOKOUT_HEAD
   c.phase = 'lookout';
   s.sfx('windHigh'); // the wind nine metres up
@@ -334,7 +341,7 @@ function* glitterSeat(s, c) {
     const k = i * 2.39996; // a golden angle at a time round the seat
     at.x += Math.cos(k) * 0.3;
     at.z += Math.sin(k) * 0.3;
-    sparkleBurst(c.world, at.clone(), { count: 12, duration: 1.2, size: 0.32, spread: 0.7, seed: `seat glitter ${i % 8}` });
+    sparkleBurst(c.world, at, { count: 12, duration: 1.2, size: 0.32, spread: 0.7, seed: `seat glitter ${i % 8}` });
     yield s.wait(1.4);
   }
 }
@@ -347,7 +354,7 @@ function* glitterRider(s, c) {
     const k = i * 2.39996; // a golden angle at a time round him
     at.x += Math.cos(k) * 0.35;
     at.z += Math.sin(k) * 0.35;
-    sparkleBurst(c.world, at.clone(), { count: 12, duration: 1.2, size: 0.32, spread: 0.7, seed: `slide glitter ${i % 8}` });
+    sparkleBurst(c.world, at, { count: 12, duration: 1.2, size: 0.32, spread: 0.7, seed: `slide glitter ${i % 8}` });
     yield s.wait(1.4);
   }
 }
@@ -379,7 +386,7 @@ function leafFall(c, from, seed = c.life.log.length) {
   const random = seededRandom(`leaves ${seed}`);
   const tint = new THREE.Color();
   const leaves = Array.from({ length: LEAVES.count }, (_, i) => {
-    const start = from.clone().add(new THREE.Vector3((random() - 0.5) * 0.7, (random() - 0.5) * 0.3, (random() - 0.5) * 0.7));
+    const start = from.clone().add(SCRATCH_OFFSET.set((random() - 0.5) * 0.7, (random() - 0.5) * 0.3, (random() - 0.5) * 0.7));
     const surface = world.forest?.water?.surfaceAt?.(start.x, start.z) ?? null;
     mesh.setColorAt(i, tint.set(LEAVES.colours[i % LEAVES.colours.length]).offsetHSL(0, 0, (random() - 0.5) * 0.08));
     return {
@@ -392,16 +399,27 @@ function leafFall(c, from, seed = c.life.log.length) {
   world.scene.add(mesh);
   const matrix = new THREE.Matrix4();
   const turn = new THREE.Quaternion();
-  const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   const size = new THREE.Vector3();
   let t = 0;
   let rings = 0;
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    c.leaves?.delete(dispose);
+    mesh.removeFromParent();
+    mesh.dispose(); // its instance buffers: the shape and the material are shared
+  };
+  (c.leaves ??= new Set()).add(dispose);
   world.effects.add({
     label: 'Þórseðla leaves',
+    dispose,
     update(dt) {
+      if (disposed) return false;
       t += dt;
       let showing = 0;
-      leaves.forEach((leaf, i) => {
+      for (let i = 0; i < leaves.length; i++) {
+        const leaf = leaves[i];
         let scale = 1;
         if (leaf.landed < 0) {
           leaf.at.y -= leaf.speed * dt;
@@ -415,16 +433,15 @@ function leafFall(c, from, seed = c.life.log.length) {
             if (leaf.wet && rings++ < 2) c.ring([leaf.at.x, leaf.floor, leaf.at.z], 0.2);
           }
         } else {
-          turn.setFromAxisAngle(UP, leaf.yaw).multiply(flat); // lying flat where it fell
+          turn.setFromAxisAngle(UP, leaf.yaw).multiply(FLAT_LEAF); // lying flat where it fell
           scale = 1 - Math.min(1, Math.max(0, (t - leaf.landed - LEAVES.rest) / LEAVES.shrink));
         }
         if (scale > 0) showing++;
         mesh.setMatrixAt(i, matrix.compose(leaf.at, turn, size.setScalar(Math.max(1e-4, scale))));
-      });
+      }
       mesh.instanceMatrix.needsUpdate = true;
       if (showing) return true;
-      mesh.removeFromParent();
-      mesh.dispose(); // its instance buffers: the shape and the material are shared
+      dispose();
       return false;
     },
   });
@@ -472,31 +489,40 @@ export function* tailSwish(s, c, { seconds = 2.4, reach = 0.1 } = {}) {
   const her = c.thorsedla.raw;
   const bones = TAIL_BONES.map(name => her.model.getObjectByName(name)).filter(Boolean);
   const own = bones.map(() => new THREE.Quaternion());
-  const set = bones.map(() => null);
+  const set = bones.map(() => new THREE.Quaternion());
+  const hasSet = bones.map(() => false);
   const parent = new THREE.Quaternion(), turn = new THREE.Quaternion(), local = new THREE.Quaternion();
-  const UP = new THREE.Vector3(0, 1, 0);
   let t = 0;
   let over = false;
+  const restore = () => {
+    for (let i = 0; i < bones.length; i++) {
+      if (hasSet[i] && bones[i].quaternion.equals(set[i])) bones[i].quaternion.copy(own[i]);
+      hasSet[i] = false;
+    }
+  };
   c.world.effects.add({
     label: 'her tail swishes',
+    dispose() {
+      over = true;
+      restore();
+    },
     update(dt) {
-      for (let i = 0; i < bones.length; i++) {
-        if (set[i] && bones[i].quaternion.equals(set[i])) bones[i].quaternion.copy(own[i]);
-        set[i] = null;
-      }
+      restore();
       if (over) return false;
       t += dt;
       const k = Math.sin(Math.PI * Math.min(1, t / seconds)) * Math.sin((Math.PI * 2 * t * 2) / seconds);
       her.root.updateMatrixWorld(true);
-      bones.forEach((bone, i) => {
+      for (let i = 0; i < bones.length; i++) {
+        const bone = bones[i];
         own[i].copy(bone.quaternion);
         bone.parent.getWorldQuaternion(parent);
         turn.setFromAxisAngle(UP, reach * k * (0.6 + 0.4 * i));
         local.copy(parent).invert().multiply(turn).multiply(parent);
         bone.quaternion.premultiply(local);
         bone.updateMatrixWorld(true);
-        set[i] = bone.quaternion.clone();
-      });
+        set[i].copy(bone.quaternion);
+        hasSet[i] = true;
+      }
       if (t >= seconds) over = true;
       return true;
     },
@@ -504,6 +530,7 @@ export function* tailSwish(s, c, { seconds = 2.4, reach = 0.1 } = {}) {
   try {
     yield s.wait(seconds);
   } finally {
+    over = true;
     c.swishing = false;
   }
 }
@@ -524,17 +551,17 @@ export function tapOnHer(s, c) {
 }
 
 /** Where her mouth closes on the twigs: in front of and under her Head bone, toward the tip of her snout. */
-export function mouthOf(her) {
+export function mouthOf(her, out = new THREE.Vector3()) {
   const head = her.model.getObjectByName('Head');
   head.updateWorldMatrix(true, false);
-  return head.localToWorld(new THREE.Vector3(1.0, -0.15, 0));
+  return head.localToWorld(out.set(1.0, -0.15, 0));
 }
 
 /** A ring on the water round one of her feet. */
 function ringAtFoot(c, name) {
   const foot = c.thorsedla.raw.model.getObjectByName(name);
   if (!foot) return;
-  const at = foot.getWorldPosition(new THREE.Vector3());
+  const at = foot.getWorldPosition(SCRATCH_FOOT);
   c.ring([at.x, at.y, at.z], 0.6);
 }
 

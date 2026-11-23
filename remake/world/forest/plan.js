@@ -148,8 +148,10 @@ function buildShots(world, layout, terrain, sun) {
           const h = headAt(a);
           const d = [h[0] - pos[0], h[1] - pos[1], h[2] - pos[2]];
           const len = Math.hypot(...d);
-          const push = Math.min(0.9, len * 0.3);
-          add(`${name}-push`, [pos[0] + d[0] / len * push, pos[1] + d[1] / len * push, pos[2] + d[2] / len * push], h, 34, subjectsTurned, 'frame');
+          if (len > 1e-6) {
+            const push = Math.min(0.9, len * 0.3);
+            add(`${name}-push`, [pos[0] + d[0] / len * push, pos[1] + d[1] / len * push, pos[2] + d[2] / len * push], h, 34, subjectsTurned, 'frame');
+          }
         }
       }
     } else if (pos && pos.actor && Array.isArray(pos.offset) && !pos.local) {
@@ -227,7 +229,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
         sum += biome.shareAt(cx + x, cz + z); n++;
       }
     }
-    fenShare = sum / n;
+    fenShare = n > 0 ? sum / n : 0;
     q = { ...q, plants: q.plants * (1 - fenShare) };
   }
 
@@ -237,6 +239,8 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
   const occupied = new SpatialHash(4);
   const treeHash = new SpatialHash(8);
   const placements = [];
+  const tallTrees = [];
+  const conifers = [];
   const stats = { rejected: { path: 0, shot: 0, sun: 0, space: 0, actor: 0 }, byShot: {}, accents: { placed: 0, far: 0, ground: 0, rejected: 0 }, framing: [] };
 
   const radiusOf = (x, z) => Math.hypot(x - cx, z - cz);
@@ -412,6 +416,8 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
       blocksGrass: opts.blocksGrass ?? false, grassRadius: (opts.grassRadius ?? model.radius * 0.7) * scale,
     };
     placements.push(placement);
+    if (name === 'broadleaf' || name === 'araucaria') tallTrees.push(placement);
+    else if (name === 'swampConifer') conifers.push(placement);
     occupied.add({ x, z, r: footprint, soft: opts.soft ?? 1, name, blocksGrass: placement.blocksGrass, grassRadius: placement.grassRadius });
     if (opts.treeSpacing || name === 'araucaria') treeHash.add({ x, z, s: opts.treeSpacing || 3, araucaria: name === 'araucaria' });
     return placement;
@@ -615,9 +621,8 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
       let x, z;
       const nearTrunk = opts.nearTrunk && rng.chance(opts.nearTrunk);
       if (nearTrunk) {
-        const trees = placements.filter(p => p.name === 'broadleaf' || p.name === 'araucaria');
-        if (!trees.length) continue;
-        const t = rng.pick(trees);
+        if (!tallTrees.length) continue;
+        const t = rng.pick(tallTrees);
         const a = rng.angle(), d = (t.model.trunk?.flare ?? 1) * t.scale + rng.range(0.8, 2.6);
         x = t.x + Math.cos(a) * d; z = t.z + Math.sin(a) * d;
       } else {
@@ -823,7 +828,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     }
     const inSight = (x, z, reachM = 7) => sights.some(s => {
       const dx = s.bx - s.ax, dz = s.bz - s.az, l2 = dx * dx + dz * dz;
-      const t = clamp(((x - s.ax) * dx + (z - s.az) * dz) / l2, 0, 1);
+      const t = l2 > 1e-9 ? clamp(((x - s.ax) * dx + (z - s.az) * dz) / l2, 0, 1) : 0;
       return Math.hypot(x - s.ax - dx * t, z - s.az - dz * t) < (t > 0.92 ? 10 : reachM);
     });
 
@@ -963,7 +968,6 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
       }
     }
     const nearSomething = rng => {
-      const conifers = placements.filter(p => p.name === 'swampConifer');
       if (hummocks.length && rng.chance(0.5)) {
         const [hx, hz, hr] = rng.pick(hummocks);
         return near(rng, [hx, hz], hr + 0.2, hr + 1.2);

@@ -18,12 +18,20 @@ const EASE_OUT = 'cubic-bezier(.22,1,.36,1)';
 
 export function createJuice({ reduced = () => false, doc = globalThis.document } = {}) {
   const live = new Set(); // elements this module added to the page (sparks, flying tiles)
+  const timers = new Set(); // pending setTimeout ids cleared on cancel()
+  const hidden = new Set(); // card tiles hidden mid-flight, always restored on cancel()
   let serial = 0;
   const calm = () => Boolean(reduced()) || Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
   const play = (element, frames, options) => {
     try { return element?.animate?.(frames, options) ?? null; } catch { return null; }
   };
   const remove = element => { live.delete(element); element.remove(); };
+  const reveal = tile => { hidden.delete(tile); tile.style.opacity = ''; };
+  const later = (fn, ms) => {
+    const token = serial;
+    const id = setTimeout(() => { timers.delete(id); if (token === serial) fn(); }, ms);
+    timers.add(id);
+  };
   const finished = animation => animation?.finished?.catch(() => {}) ?? Promise.resolve();
 
   function sparkle(element, { count = 7, reach = 1, gold = true } = {}) {
@@ -53,9 +61,9 @@ export function createJuice({ reduced = () => false, doc = globalThis.document }
     play(card, [{ scale: '1 1' }, { scale: '1.06 .9', offset: .28 }, { scale: '.97 1.05', offset: .58 }, { scale: '1 1' }], { duration: 460, easing: 'ease-out' });
     if (badge?.getClientRects?.().length) {
       play(badge, [{ scale: 2.2, opacity: 0 }, { scale: .82, opacity: 1, offset: .45 }, { scale: 1.12, offset: .72 }, { scale: 1 }], { duration: 520, easing: 'ease-out' });
-      setTimeout(() => sparkle(badge, { count: 6, reach: .9 }), 160);
+      later(() => sparkle(badge, { count: 6, reach: .9 }), 160);
     }
-    setTimeout(() => sparkle(card, { count: 5, reach: .7 }), 120);
+    later(() => sparkle(card, { count: 5, reach: .7 }), 120);
   }
 
   function pop(element, amount = 1.4) {
@@ -108,10 +116,11 @@ export function createJuice({ reduced = () => false, doc = globalThis.document }
     if (!sources.length || !tiles.length || !doc?.body) return Promise.resolve();
     if (calm()) { tiles.forEach(tile => play(tile, [{ opacity: 0 }, { opacity: 1 }], { duration: 420 })); return Promise.resolve(); }
     const token = serial, landings = [];
-    tiles.forEach(tile => { tile.style.opacity = '0'; });
+    const targets = sources.map((_, i) => tiles[Math.min(i, tiles.length - 1)]);
+    targets.forEach(tile => { tile.style.opacity = '0'; hidden.add(tile); });
     sources.forEach((source, i) => {
-      const tile = tiles[Math.min(i, tiles.length - 1)], to = tile.getBoundingClientRect();
-      if (!to.width) { tile.style.opacity = ''; return; }
+      const tile = targets[i], to = tile.getBoundingClientRect();
+      if (!to.width) { reveal(tile); return; }
       const flier = tile.cloneNode(true);
       flier.classList.add('yj-flier'); flier.setAttribute('aria-hidden', 'true');
       Object.assign(flier.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, opacity: '' });
@@ -127,8 +136,8 @@ export function createJuice({ reduced = () => false, doc = globalThis.document }
       ], { duration: 620, delay: i * 85, easing: 'cubic-bezier(.45,0,.3,1)', fill: 'both' });
       landings.push(finished(animation).then(() => {
         remove(flier);
+        reveal(tile);
         if (token !== serial) return;
-        tile.style.opacity = '';
         pop(tile, 1.35); onLand(i);
       }));
     });
@@ -137,6 +146,9 @@ export function createJuice({ reduced = () => false, doc = globalThis.document }
 
   function cancel() {
     serial++;
+    for (const id of timers) clearTimeout(id);
+    timers.clear();
+    for (const tile of [...hidden]) reveal(tile);
     for (const element of [...live]) remove(element);
   }
 

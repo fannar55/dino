@@ -30,33 +30,225 @@ const clamp = THREE.MathUtils.clamp;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 function loadTemplate(url) {
-  if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
+  if (!cache.has(url)) {
+    const promise = loader.loadAsync(url);
+    cache.set(url, promise);
+    promise.catch(() => { if (cache.get(url) === promise) cache.delete(url); });
+  }
   return cache.get(url);
 }
 
-// Soft storybook character lighting: a warm half-Lambert terminator roll-off and a subtle sunlit
-// silhouette rim on MeshStandardMaterial skins, added only when a renderer is present so unit tests
+// Soft storybook character lighting: baked per-vertex cavity AO, warm half-Lambert terminator roll-off,
+// cool indirect shadow tint, meadow ground-bounce fill, fast backlit silhouette rim, and glossy wet-cornea
+// eye catchlights driven by face.eyes metadata — added only when a renderer is present so unit tests
 // against raw glTF templates see untouched materials.
-const STORYBOOK_SKIN_GLSL = `
-	#if NUM_DIR_LIGHTS > 0
-	{
-		float skinNdotL = dot( geometryNormal, directionalLights[ 0 ].direction );
-		float skinWrap = clamp( ( skinNdotL + 0.35 ) / 1.35, 0.0, 1.0 ) - clamp( skinNdotL, 0.0, 1.0 );
-		float skinRim = pow( 1.0 - clamp( dot( geometryNormal, geometryViewDir ), 0.0, 1.0 ), 3.0 ) * clamp( skinNdotL * 0.5 + 0.5, 0.0, 1.0 );
-		reflectedLight.directDiffuse += directionalLights[ 0 ].color * (
-			material.diffuseColor * vec3( 1.14, 0.90, 0.74 ) * ( skinWrap * 0.14 ) +
-			mix( vec3( 1.0, 0.94, 0.82 ), material.diffuseColor, 0.35 ) * ( skinRim * 0.075 )
-		);
-	}
-	#endif
+const STORYBOOK_VERT_HEAD = `
+attribute float _skinao;
+uniform float uHasSkinAo;
+varying vec3 vBindPos;
+varying vec3 vBindNormal;
+varying float vSkinAo;
 `;
+const STORYBOOK_VERT_BODY = `
+vBindPos = position;
+vBindNormal = normal;
+vSkinAo = uHasSkinAo > 0.5 ? _skinao : 1.0;
+`;
+const STORYBOOK_FRAG_HEAD = `
+uniform float uEyeCount;
+uniform vec3 uEyeCentre[ 2 ];
+uniform vec3 uEyeRight[ 2 ];
+uniform vec3 uEyeDown[ 2 ];
+uniform vec3 uEyeNormal[ 2 ];
+uniform vec3 uEyeSize[ 2 ];
+varying vec3 vBindPos;
+varying vec3 vBindNormal;
+varying float vSkinAo;
+`;
+const STORYBOOK_EYE_ROUGHNESS = `
+	float skinEyeMask = 0.0;
+	float skinEyeCatch = 0.0;
+	if ( uEyeCount > 0.5 ) {
+		vec3 eyeN = normalize( vBindNormal );
+		for ( int ei = 0; ei < 2; ei ++ ) {
+			if ( float( ei ) >= uEyeCount ) break;
+			vec3 ed = vBindPos - uEyeCentre[ ei ];
+			float eFacing = dot( eyeN, uEyeNormal[ ei ] );
+			if ( eFacing > 0.15 ) {
+				float eu = dot( ed, uEyeRight[ ei ] ) / max( uEyeSize[ ei ].x, 1e-4 );
+				float evRaw = dot( ed, uEyeDown[ ei ] );
+				float ev = evRaw / max( evRaw < 0.0 ? uEyeSize[ ei ].y : uEyeSize[ ei ].z, 1e-4 );
+				float eDepth = abs( dot( ed, uEyeNormal[ ei ] ) ) / max( uEyeSize[ ei ].x, 1e-4 );
+				float er2 = eu * eu + ev * ev;
+				float em = ( 1.0 - smoothstep( 0.68, 0.96, er2 ) ) * ( 1.0 - smoothstep( 0.55, 0.95, eDepth ) ) * smoothstep( 0.15, 0.45, eFacing );
+				skinEyeMask = max( skinEyeMask, em );
+				vec2 glintOff = vec2( eu + 0.24, ev + 0.26 );
+				float eg = ( 1.0 - smoothstep( 0.012, 0.048, dot( glintOff, glintOff ) ) ) * em;
+				skinEyeCatch = max( skinEyeCatch, eg );
+			}
+		}
+		roughnessFactor = mix( roughnessFactor, 0.06, skinEyeMask );
+	}
+`;
+const STORYBOOK_SKIN_GLSL = `
+	{
+		float skinAo = mix( 0.62, 1.0, vSkinAo );
+		reflectedLight.indirectDiffuse *= skinAo;
+		#if NUM_DIR_LIGHTS > 0
+		float skinNdotL = dot( geometryNormal, directionalLights[ 0 ].direction );
+		float skinLit = clamp( skinNdotL * 0.5 + 0.5, 0.0, 1.0 );
+		float skinWrap = clamp( ( skinNdotL + 0.35 ) / 1.35, 0.0, 1.0 ) - clamp( skinNdotL, 0.0, 1.0 );
+		float skinFres = 1.0 - clamp( dot( geometryNormal, geometryViewDir ), 0.0, 1.0 );
+		float skinRim = ( skinFres * skinFres * skinFres ) * skinLit * mix( 0.5, 1.0, vSkinAo );
+		reflectedLight.indirectDiffuse *= mix( vec3( 0.93, 0.96, 1.05 ), vec3( 1.0 ), skinLit );
+		float skinBounce = clamp( - geometryNormal.y, 0.0, 1.0 ) * ( 0.38 + 0.62 * skinLit );
+		reflectedLight.indirectDiffuse += material.diffuseColor * vec3( 0.10, 0.11, 0.05 ) * skinBounce * skinAo;
+		reflectedLight.directDiffuse += directionalLights[ 0 ].color * (
+			material.diffuseColor * vec3( 1.14, 0.90, 0.74 ) * ( skinWrap * 0.14 * mix( 0.78, 1.0, vSkinAo ) ) +
+			mix( vec3( 1.0, 0.94, 0.82 ), material.diffuseColor, 0.35 ) * ( skinRim * 0.08 )
+		);
+		if ( skinEyeMask > 0.001 ) {
+			vec3 eyeHalf = normalize( directionalLights[ 0 ].direction + geometryViewDir );
+			float eh = max( dot( geometryNormal, eyeHalf ), 0.0 );
+			float eh2 = eh * eh;
+			float eh4 = eh2 * eh2;
+			float eh8 = eh4 * eh4;
+			float eh16 = eh8 * eh8;
+			float eh32 = eh16 * eh16;
+			reflectedLight.directSpecular += directionalLights[ 0 ].color * ( eh32 * 0.55 * skinEyeMask ) + vec3( 0.52, 0.50, 0.46 ) * skinEyeCatch;
+		}
+		#endif
+	}
+`;
+
+const skinAoBuilt = new WeakSet();
+function ensureSkinAo(geometry) {
+  if (!geometry || skinAoBuilt.has(geometry)) return Boolean(geometry?.attributes?._skinao);
+  skinAoBuilt.add(geometry);
+  if (geometry.attributes._skinao) return true;
+  const pos = geometry.attributes.position;
+  const nrm = geometry.attributes.normal;
+  const idx = geometry.index;
+  if (!pos || !nrm || !idx || pos.count < 3) return false;
+
+  // Weld coincident positions across UV seams so concavity is smooth across texture borders.
+  const n = pos.count;
+  const keyToWeld = new Map();
+  const vToWeld = new Int32Array(n);
+  const wPos = [];
+  const wNrm = [];
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const key = `${Math.round(x * 1000)},${Math.round(y * 1000)},${Math.round(z * 1000)}`;
+    let w = keyToWeld.get(key);
+    if (w === undefined) {
+      w = wPos.length / 3;
+      keyToWeld.set(key, w);
+      wPos.push(x, y, z);
+      wNrm.push(0, 0, 0);
+    }
+    vToWeld[i] = w;
+    wNrm[w * 3] += nrm.getX(i);
+    wNrm[w * 3 + 1] += nrm.getY(i);
+    wNrm[w * 3 + 2] += nrm.getZ(i);
+  }
+  const wn = wPos.length / 3;
+  const sumX = new Float32Array(wn), sumY = new Float32Array(wn), sumZ = new Float32Array(wn);
+  const edgeLen = new Float32Array(wn);
+  const deg = new Uint32Array(wn);
+  const arr = idx.array;
+  const addEdge = (a, b) => {
+    if (a === b) return;
+    const ax = wPos[a * 3], ay = wPos[a * 3 + 1], az = wPos[a * 3 + 2];
+    const bx = wPos[b * 3], by = wPos[b * 3 + 1], bz = wPos[b * 3 + 2];
+    const d = Math.hypot(bx - ax, by - ay, bz - az);
+    sumX[a] += bx; sumY[a] += by; sumZ[a] += bz; edgeLen[a] += d; deg[a]++;
+    sumX[b] += ax; sumY[b] += ay; sumZ[b] += az; edgeLen[b] += d; deg[b]++;
+  };
+  for (let t = 0; t < arr.length; t += 3) {
+    const a = vToWeld[arr[t]], b = vToWeld[arr[t + 1]], c = vToWeld[arr[t + 2]];
+    addEdge(a, b); addEdge(b, c); addEdge(c, a);
+  }
+  let ao = new Float32Array(wn);
+  for (let w = 0; w < wn; w++) {
+    const k = deg[w];
+    const nl = Math.hypot(wNrm[w * 3], wNrm[w * 3 + 1], wNrm[w * 3 + 2]) || 1;
+    const nx = wNrm[w * 3] / nl, ny = wNrm[w * 3 + 1] / nl, nz = wNrm[w * 3 + 2] / nl;
+    let crease = 0;
+    if (k > 0) {
+      const avgE = edgeLen[w] / k;
+      if (avgE > 1e-5) {
+        const lx = sumX[w] / k - wPos[w * 3];
+        const ly = sumY[w] / k - wPos[w * 3 + 1];
+        const lz = sumZ[w] / k - wPos[w * 3 + 2];
+        const concavity = (lx * nx + ly * ny + lz * nz) / avgE;
+        crease = clamp(concavity / 0.45, 0, 1);
+      }
+    }
+    const downShade = 0.90 + 0.10 * clamp(ny * 0.5 + 0.5, 0, 1);
+    ao[w] = clamp((1 - crease * 0.54) * downShade, 0.52, 1);
+  }
+  // Two smoothing passes across triangle edges keep crease AO soft and painterly with zero triangle faceting.
+  const nextAo = new Float32Array(wn);
+  const aoSum = new Float32Array(wn);
+  for (let pass = 0; pass < 2; pass++) {
+    aoSum.fill(0);
+    for (let t = 0; t < arr.length; t += 3) {
+      const a = vToWeld[arr[t]], b = vToWeld[arr[t + 1]], c = vToWeld[arr[t + 2]];
+      if (a !== b) { aoSum[a] += ao[b]; aoSum[b] += ao[a]; }
+      if (b !== c) { aoSum[b] += ao[c]; aoSum[c] += ao[b]; }
+      if (c !== a) { aoSum[c] += ao[a]; aoSum[a] += ao[c]; }
+    }
+    for (let w = 0; w < wn; w++) {
+      nextAo[w] = deg[w] > 0 ? ao[w] * 0.45 + (aoSum[w] / deg[w]) * 0.55 : ao[w];
+    }
+    ao.set(nextAo);
+  }
+  const bytes = new Uint8Array(n);
+  for (let i = 0; i < n; i++) bytes[i] = Math.round(ao[vToWeld[i]] * 255);
+  geometry.setAttribute('_skinao', new THREE.Uint8BufferAttribute(bytes, 1, true));
+  return true;
+}
+
+const ZERO3 = () => new THREE.Vector3();
+function eyeUniformsOf(eyes, hasAo) {
+  const list = Array.isArray(eyes) ? eyes.slice(0, 2) : [];
+  const pad = (fn, def) => [0, 1].map(i => (list[i] ? fn(list[i]) : def()));
+  return {
+    uHasSkinAo: { value: hasAo ? 1 : 0 },
+    uEyeCount: { value: list.length },
+    uEyeCentre: { value: pad(e => new THREE.Vector3().fromArray(e.centre), ZERO3) },
+    uEyeRight: { value: pad(e => new THREE.Vector3().fromArray(e.right), () => new THREE.Vector3(1, 0, 0)) },
+    uEyeDown: { value: pad(e => new THREE.Vector3().fromArray(e.down), () => new THREE.Vector3(0, -1, 0)) },
+    uEyeNormal: { value: pad(e => new THREE.Vector3().fromArray(e.normal), () => new THREE.Vector3(0, 0, 1)) },
+    uEyeSize: { value: pad(e => new THREE.Vector3(e.halfWidth, e.top, e.bottom), () => new THREE.Vector3(1, 1, 1)) },
+  };
+}
+
 const storybookMaterials = new WeakMap();
-function storybookSkinOf(source) {
+function storybookSkinOf(source, eyes, hasAo, aniso) {
   if (!source?.isMeshStandardMaterial) return source;
   let copy = storybookMaterials.get(source);
   if (copy) return copy;
   copy = source.clone();
+  if (aniso > 1) {
+    for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap']) {
+      if (copy[slot] && copy[slot].anisotropy < aniso) copy[slot].anisotropy = aniso;
+    }
+  }
+  const uniforms = eyeUniformsOf(eyes, hasAo);
   copy.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    if (shader.vertexShader.includes('#include <common>') && shader.vertexShader.includes('#include <begin_vertex>')) {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', chunk => `${chunk}${STORYBOOK_VERT_HEAD}`)
+        .replace('#include <begin_vertex>', chunk => `${chunk}${STORYBOOK_VERT_BODY}`);
+    }
+    if (shader.fragmentShader.includes('#include <common>') && shader.fragmentShader.includes('#include <roughnessmap_fragment>')) {
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', chunk => `${chunk}${STORYBOOK_FRAG_HEAD}`)
+        .replace('#include <roughnessmap_fragment>', chunk => `${chunk}${STORYBOOK_EYE_ROUGHNESS}`);
+    }
     if (!shader.fragmentShader.includes('#include <lights_fragment_end>')) return;
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <lights_fragment_end>',
@@ -68,10 +260,15 @@ function storybookSkinOf(source) {
   storybookMaterials.set(copy, copy);
   return copy;
 }
-function applyStorybookSkin(model) {
+function applyStorybookSkin(model, renderer) {
+  const aniso = Math.min(4, renderer?.capabilities?.getMaxAnisotropy?.() || 1);
   model.traverse(o => {
     if (!o.isMesh) return;
-    o.material = Array.isArray(o.material) ? o.material.map(storybookSkinOf) : storybookSkinOf(o.material);
+    const hasAo = ensureSkinAo(o.geometry);
+    const eyes = o.userData?.face?.eyes ?? null;
+    o.material = Array.isArray(o.material)
+      ? o.material.map(m => storybookSkinOf(m, eyes, hasAo, aniso))
+      : storybookSkinOf(o.material, eyes, hasAo, aniso);
   });
 }
 
@@ -191,11 +388,12 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     o.receiveShadow = true;
     o.frustumCulled = false;
     // Single-sided skins would cast shadows with their back faces, letting light leak into creases.
-    o.material.shadowSide = THREE.FrontSide;
+    const materials = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of materials) if (m) m.shadowSide = THREE.FrontSide;
   });
   // Soft storybook skin lighting and simpler levels for far away + low-poly sun shadow (character-lod.js).
   if (world.renderer) {
-    applyStorybookSkin(model);
+    applyStorybookSkin(model, world.renderer);
     prepareCharacter(model, world.lighting?.sun);
   }
 
@@ -258,8 +456,37 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let current = null;
   let gait; // the walk clip's, measured the first time the actor walks
   const gaits = new Map(); // the gait of each clip walked with (walk, or Uggeðla's wade)
+  const bindBones = [];
+  model.traverse(o => {
+    if (o.isBone) bindBones.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]);
+  });
   const gaitOf = clipName => {
-    if (!gaits.has(clipName)) gaits.set(clipName, measureGait(model, root, clips.get(clipName), feet, restFeet, footing.tuning));
+    if (!gaits.has(clipName)) {
+      // Snapshot the live pose (including footing & overlays), sample the walk clip from the clean bind pose at origin,
+      // and restore every bone & model transform verbatim so neither gait metrics nor live footing state are disturbed.
+      const savedPos = model.position.clone();
+      const savedRot = model.rotation.clone();
+      const savedBones = bindBones.map(([bone]) => [bone, bone.position.clone(), bone.quaternion.clone(), bone.scale.clone()]);
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+      for (const [bone, pos, quat, scl] of bindBones) {
+        bone.position.copy(pos);
+        bone.quaternion.copy(quat);
+        bone.scale.copy(scl);
+      }
+      try {
+        gaits.set(clipName, measureGait(model, root, clips.get(clipName), feet, restFeet, footing.tuning));
+      } finally {
+        model.position.copy(savedPos);
+        model.rotation.copy(savedRot);
+        for (const [bone, pos, quat, scl] of savedBones) {
+          bone.position.copy(pos);
+          bone.quaternion.copy(quat);
+          bone.scale.copy(scl);
+        }
+        root.updateMatrixWorld(true);
+      }
+    }
     if (clipName === 'walk') gait = gaits.get(clipName);
     return gaits.get(clipName);
   };
@@ -580,7 +807,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     }
     // The look follows its target a little behind. When the place changes under the actor (chapter 4's cut into the flight) its head
     // is somewhere else at once, and the point it was turning to goes along with it, or the head would swing after where it was.
-    root.updateMatrixWorld(true);
     const headPos = head.getWorldPosition(v1);
     if (!look.primed) { look.smooth.copy(look.point); look.primed = true; }
     else if (look.headKnown && headPos.distanceToSquared(look.head) > LOOK_JUMP * LOOK_JUMP) look.smooth.add(v3.copy(headPos).sub(look.head));
@@ -634,7 +860,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     if (active) {
       try {
         world.resolvePoint(listen.spec, listen.point);
-        root.updateMatrixWorld(true);
         headPos = head.getWorldPosition(v1);
         const distSq = headPos.distanceToSquared(listen.point);
         if (distSq > LISTEN_REACH * LISTEN_REACH || distSq < 0.09) active = false;
@@ -658,7 +883,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     }
     if (!local) {
       if (!listen.primed) return false;
-      root.updateMatrixWorld(true);
       headPos = head.getWorldPosition(v1);
       local = v2.copy(listen.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
     }
@@ -689,8 +913,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     const right = v1.set(0, 0, 1).applyQuaternion(root.quaternion);
     const forward = v2.set(1, 0, 0).applyQuaternion(root.quaternion);
     if (head) {
-      rotateBoneWorld(head, qa.setFromAxisAngle(right, -pose.nod));
-      rotateBoneWorld(head, qa.setFromAxisAngle(forward, pose.tilt));
+      qb.setFromAxisAngle(forward, pose.tilt).multiply(qa.setFromAxisAngle(right, -pose.nod));
+      rotateBoneWorld(head, qb);
     }
     if (jaw) rotateBoneWorld(jaw, qa.setFromAxisAngle(right, -pose.jaw));
     return true;
@@ -761,10 +985,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     get listening() { return listen.spec; },
     /** Degrees a look may turn the head aside at most, whatever lookAt asks (Infinity, the default: no cap). */
     get lookYawLimit() { return lookYawLimit; },
-    set lookYawLimit(value) { lookYawLimit = Math.max(0, Number(value)); },
+    set lookYawLimit(value) { const n = Number(value); lookYawLimit = Number.isNaN(n) ? Infinity : Math.max(0, n); },
     /** Degrees a look may tilt the head up at most, whatever lookAt asks (Infinity, the default: no cap). */
     get lookUpLimit() { return lookUpLimit; },
-    set lookUpLimit(value) { lookUpLimit = Math.max(0, Number(value)); },
+    set lookUpLimit(value) { const n = Number(value); lookUpLimit = Number.isNaN(n) ? Infinity : Math.max(0, n); },
     /** The eyelids (null for a model without eyes): `shut` is how shut they are now. */
     get eyelids() { return lids; },
     /** Blink now. */
@@ -857,7 +1081,22 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       talk.stop();
       lids?.blink.rest(0);
     },
-    dispose() { mixer.stopAllAction(); lids?.dispose(); world.scene.remove(root); releaseCharacter(model); },
+    dispose() {
+      if (walk) endWalk(true);
+      if (turn) endTurn(true);
+      controlled = false;
+      drive = null;
+      pose = null;
+      overlay = null;
+      mixer.stopAllAction();
+      mixer.uncacheRoot(model);
+      lids?.dispose();
+      world.scene.remove(root);
+      releaseCharacter(model);
+      const skeletons = new Set();
+      model.traverse(o => { if (o.isSkinnedMesh && o.skeleton) skeletons.add(o.skeleton); });
+      for (const s of skeletons) s.dispose?.();
+    },
   };
 }
 
@@ -866,10 +1105,14 @@ export async function createActor(world, { name, url, gltf: given, position = [0
  * rider is by riding.js) after the rest, so a rider follows its host as the host is in this very frame,
  * whatever order the chapter lists them in.
  */
+const _freeActors = [];
+const _heldActors = [];
 export function updateActors(actors, dt) {
-  const free = [];
-  const held = [];
-  for (const actor of actors) (actor.controlled ? held : free).push(actor);
-  for (const actor of free) actor.update(dt);
-  for (const actor of held) actor.update(dt);
+  _freeActors.length = 0;
+  _heldActors.length = 0;
+  for (const actor of actors) (actor.controlled ? _heldActors : _freeActors).push(actor);
+  for (let i = 0; i < _freeActors.length; i++) _freeActors[i].update(dt);
+  for (let i = 0; i < _heldActors.length; i++) _heldActors[i].update(dt);
+  _freeActors.length = 0;
+  _heldActors.length = 0;
 }

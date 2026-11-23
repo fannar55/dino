@@ -200,6 +200,10 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
       if (at < now - 0.05) continue; // too late (a stalled timer): a hole, not a heap
       sounds.play(layer.part.instrument, { freq: note.freq, step: note.step, at: Math.max(at, now), dur: note.dur, vel: note.vel, into: layers[layer.id] });
     }
+    if (decided.length >= sections.length && !queue.length && now - zero >= length) {
+      clearInterval(timer);
+      timer = null;
+    }
   }
 
   /** Moves `role`'s chain to `level` behind a low-pass at `cutoff`, from context time `at`, with time constant `tau`. */

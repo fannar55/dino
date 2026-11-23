@@ -480,7 +480,11 @@ function blinkSchedule(seed = 'sun') {
 function farPlaneDepth(material, key) {
   material.depthFunc = THREE.LessEqualDepth;
   material.onBeforeCompile = shader => {
-    shader.vertexShader = shader.vertexShader.replace(/}\s*$/, '  gl_Position.z = gl_Position.w;\n}');
+    if (shader.vertexShader.includes('#include <project_vertex>')) {
+      shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  gl_Position.z = gl_Position.w;');
+    } else {
+      shader.vertexShader = shader.vertexShader.replace(/}\s*$/, '  gl_Position.z = gl_Position.w;\n}');
+    }
   };
   material.customProgramCacheKey = () => key;
   return material;
@@ -729,17 +733,22 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
     put(1, w, -h);
     put(2, w, 0);
     put(3, -w, 0);
-    // The hands: each square turned about its wrist.
-    state.hands.forEach((hand, k) => {
+    // The hands: each square turned about its wrist (inlined to avoid per-frame closure allocations).
+    for (let k = 0; k < state.hands.length; k++) {
+      const hand = state.hands[k];
       const px = (k === 0 ? -1 : 1) * HAND_PIVOT[0];
       const a = rad(hand.angle);
-      const cos = Math.cos(a);
-      const sin = Math.sin(a);
-      const ax = (cx, cy) => hand.x + (cx - px) * HAND_SIZE * cos + (cy - HAND_PIVOT[1]) * HAND_SIZE * sin;
-      const ay = (cx, cy) => hand.y - (cx - px) * HAND_SIZE * sin + (cy - HAND_PIVOT[1]) * HAND_SIZE * cos;
-      CORNERS.forEach(([cx, cy], i) => put(4 + 4 * k + i, ax(cx, cy), ay(cx, cy)));
-      state.points[k].copy(sprite.position).addScaledVector(right, ax(0, 0) * R).addScaledVector(up, ay(0, 0) * R);
-    });
+      const cos = Math.cos(a) * HAND_SIZE;
+      const sin = Math.sin(a) * HAND_SIZE;
+      for (let i = 0; i < 4; i++) {
+        const dx = CORNERS[i][0] - px;
+        const dy = CORNERS[i][1] - HAND_PIVOT[1];
+        put(4 + 4 * k + i, hand.x + dx * cos + dy * sin, hand.y - dx * sin + dy * cos);
+      }
+      const x0 = hand.x - px * cos - HAND_PIVOT[1] * sin;
+      const y0 = hand.y + px * sin - HAND_PIVOT[1] * cos;
+      state.points[k].copy(sprite.position).addScaledVector(right, x0 * R).addScaledVector(up, y0 * R);
+    }
     corners.needsUpdate = true;
     overlay.updateMatrixWorld();
   }
@@ -774,7 +783,10 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       hang(camera.position);
       if (t < lastT - 1e-9) rewind(t);
       lastT = t;
-      for (const call of pending.splice(0)) begin(call, t);
+      if (pending.length) {
+        const calls = pending.splice(0);
+        for (let i = 0; i < calls.length; i++) begin(calls[i], t);
+      }
       state.eyes = eyesAt(t);
       if (state.cap >= CAP.sleepy && state.eyes === 'open') state.eyes = 'half'; // sleepy under its cap
       if (texture) texture.offset.x = FRAME_OF[state.eyes] / FRAMES;
@@ -797,11 +809,16 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       } else if (cap?.parent) {
         scene.remove(cap);
       }
-      for (const g of gestures) if (g.end <= t && !g.handle.done) g.handle.finish();
-      for (const [h, m] of [...mouthHandles]) {
-        if (m.doneAt > t) continue;
-        mouthHandles.delete(h);
-        h.finish();
+      for (let i = 0; i < gestures.length; i++) {
+        const g = gestures[i];
+        if (g.end <= t && !g.handle.done) g.handle.finish();
+      }
+      if (mouthHandles.size) {
+        for (const [h, m] of [...mouthHandles]) {
+          if (m.doneAt > t) continue;
+          mouthHandles.delete(h);
+          h.finish();
+        }
       }
     },
     get eyes() { return state.eyes; },

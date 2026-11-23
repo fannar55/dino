@@ -30,6 +30,8 @@ const V3 = THREE.Vector3;
 const UP = new V3(0, 1, 0);
 const X = new V3(1, 0, 0);
 const Z = new V3(0, 0, 1);
+const SCRATCH_AHEAD = new V3();
+const SCRATCH_INV = new THREE.Quaternion();
 const rad = THREE.MathUtils.degToRad;
 const deg = THREE.MathUtils.radToDeg;
 const clamp = THREE.MathUtils.clamp;
@@ -72,14 +74,16 @@ export function perch(c, { near, heading }) {
   for (const skeleton of skeletons) skeleton.pose();
   her.root.updateMatrixWorld(true);
   if (!her.clips.has('spread')) her.clips.set('spread', spreadClip(skeletons));
+  SCRATCH_INV.copy(facing).invert();
   const axes = shoulders.map((shoulder, i) => {
     const from = shoulder.getWorldPosition(new THREE.Vector3());
     const out = tipBones[i].getWorldPosition(new THREE.Vector3()).sub(from);
-    return out.cross(UP).normalize().applyQuaternion(facing.clone().invert()); // in her frame
+    return out.cross(UP).normalize().applyQuaternion(SCRATCH_INV); // in her frame
   });
   const axis = new THREE.Vector3();
   const turn = new THREE.Quaternion();
   const parentQ = new THREE.Quaternion();
+  const localQ = new THREE.Quaternion();
   her.control(dt => {
     rise.age += dt;
     const k = Math.min(1, rise.age / rise.seconds);
@@ -98,15 +102,17 @@ export function perch(c, { near, heading }) {
     }
     if (swing === 0) return;
     her.root.updateMatrixWorld(true);
-    shoulders.forEach((shoulder, i) => {
-      if (!shoulder) return;
+    for (let i = 0; i < shoulders.length; i++) {
+      const shoulder = shoulders[i];
+      if (!shoulder) continue;
       axis.copy(axes[i]).applyQuaternion(her.root.quaternion);
       shoulder.parent.getWorldQuaternion(parentQ);
       turn.setFromAxisAngle(axis, rad(STIR.degrees) * Math.abs(swing) * (swing > 0 ? 1 : 0.4)); // up more than down
       if (swing < 0) turn.invert();
-      shoulder.quaternion.premultiply(parentQ.clone().invert().multiply(turn).multiply(parentQ));
+      localQ.copy(parentQ).invert().multiply(turn).multiply(parentQ);
+      shoulder.quaternion.premultiply(localQ);
       shoulder.updateMatrixWorld(true);
-    });
+    }
   });
   return {
     top,
@@ -177,7 +183,7 @@ export function holdHer(c) {
     },
     /** Which way she faces (degrees). */
     get heading() {
-      const ahead = X.clone().applyQuaternion(root.quaternion);
+      const ahead = SCRATCH_AHEAD.copy(X).applyQuaternion(root.quaternion);
       return deg(Math.atan2(ahead.z, ahead.x));
     },
   };
@@ -222,14 +228,15 @@ export function* flyPath(s, c, held, { points, seconds, clips = [], face = null,
   try {
     for (;;) {
       const u = Math.min(1, (s.time - start) / seconds);
-      clips.forEach(([share, name, fade = 0.6], i) => {
+      for (let i = 0; i < clips.length; i++) {
+        const [share, name, fade = 0.6] = clips[i];
         if (u >= share && !begun.has(i)) {
           begun.add(i);
           her.play(name, { fade });
           if (name === 'takeOff') sounds?.wingbeat();
           if (name === 'glide' && i > 0) sounds?.whoosh(sideOf());
         }
-      });
+      }
       // eased off and in; or, coming from a flight, slowing evenly from `from` to rest
       const k = from > 0 ? 1 - (1 - u) * (1 - u) : u * u * (3 - 2 * u);
       const speed = from > 0 ? from * (1 - u) : (length * 6 * u * (1 - u)) / seconds; // m/s along the way
@@ -259,7 +266,7 @@ export function* flyPath(s, c, held, { points, seconds, clips = [], face = null,
       if (u >= 1) {
         if (landing === 'ground' && clips.some(([, name]) => name === 'land') && !s.seeking) {
           s.sfx('step', { level: 1.4 });
-          leafPuff(c.world, held.root.position.clone(), { way: [0, 1.2, 0], share: 0.45, seed: `landing ${Math.round(s.time * 10)}` });
+          leafPuff(c.world, held.root.position, { way: [0, 1.2, 0], share: 0.45, seed: `landing ${Math.round(s.time * 10)}` });
         }
         break;
       }
@@ -305,7 +312,8 @@ export function watchHer(c, label, { position, fov = 50, lag = 0.45, from = null
     goal.copy(HIPS).applyQuaternion(her.root.quaternion).add(her.root.position);
     if (!started) {
       started = true;
-      aim.copy(from ? new V3(...from) : rig.target);
+      if (from) aim.fromArray(from);
+      else aim.copy(rig.target);
       lens = { from: rig.fov, age: 0 };
     }
     aim.lerp(goal, 1 - Math.exp(-dt / lag));

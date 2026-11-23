@@ -105,41 +105,47 @@ export function* pickBerries(s, c) {
   }));
   let counting = null;
   const red = c.berries.targets.filter(t => t.kind === 'red');
-  yield s.search({
-    explore: PICK_LOOK,
-    targets: red.map(t => ({ name: t.name, point: t.point, radius: t.radius, hint: BERRY_BUSHES[bushOf(t.name)].hint })),
-    quick: { hintAfter: 6, helpAfter: 1 },
-    onFound: (name, index, how) => {
-      const by = how === 'tapped' ? 'child' : 'egill';
-      c.picks.push({ name, by, kind: 'red', at: s.time });
-      if (by === 'egill') s.after(0, () => egill.lookAt(c.berries.berry(name).point, { weight: 0.8, maxPitch: 40 }));
-      c.berries.shake(bushOf(name));
-      s.sfx('berryPop', { index: index + 1 }); // a step higher for each berry, as Mosi counts them
-      const flight = c.berries.pick(name, c.basket.point);
-      const before = counting;
-      counting = s.after(0, function* count() {
-        yield flight;
-        yield c.basket.add('red');
-        if (before) yield before;
-        yield s.until(() => !c.saying);
-        yield* c.say('mosi', `k2_mosi_${index + 1}`, { hold: 0.3 });
-      });
-      return flight;
-    },
-  });
-  if (counting) yield counting;
-  c.berries.glimmer(false);
-  for (const t of blue) s.target(t.name, null);
-  for (const stop of unhear) stop();
+  try {
+    yield s.search({
+      explore: PICK_LOOK,
+      targets: red.map(t => ({ name: t.name, point: t.point, radius: t.radius, hint: BERRY_BUSHES[bushOf(t.name)].hint })),
+      quick: { hintAfter: 6, helpAfter: 1 },
+      onFound: (name, index, how) => {
+        const by = how === 'tapped' ? 'child' : 'egill';
+        c.picks.push({ name, by, kind: 'red', at: s.time });
+        if (by === 'egill') s.after(0, () => egill.lookAt(c.berries.berry(name).point, { weight: 0.8, maxPitch: 40 }));
+        c.berries.shake(bushOf(name));
+        s.sfx('berryPop', { index: index + 1 }); // a step higher for each berry, as Mosi counts them
+        const flight = c.berries.pick(name, c.basket.point);
+        const before = counting;
+        counting = s.after(0, function* count() {
+          yield flight;
+          yield c.basket.add('red');
+          if (before) yield before;
+          yield s.until(() => !c.saying);
+          yield* c.say('mosi', `k2_mosi_${index + 1}`, { hold: 0.3 });
+        });
+        return flight;
+      },
+    });
+    if (counting) yield counting;
+  } finally {
+    c.berries.glimmer(false);
+    for (const t of blue) s.target(t.name, null);
+    for (const stop of unhear) stop();
+  }
   if (telling && !telling.done) yield telling;
 }
 
 /** The child drags the basket up over Egill, or taps him; after 6 s he holds it up himself. Resolves 'drag', 'tap' or 'idle'. */
 export function* holdUpBasket(s, c) {
   s.tray.show([{ id: 'basket', icon: 'basket' }]);
-  const how = yield* tapOrWait(s, 'egill', s.drag('basket', OVER_EGILL, { radius: 170, idle: 6 }));
-  s.tray.hide();
-  return how === 'egill' ? 'tap' : how === 'dropped' ? 'drag' : 'idle';
+  try {
+    const how = yield* tapOrWait(s, 'egill', s.drag('basket', OVER_EGILL, { radius: 170, idle: 6 }));
+    return how === 'egill' ? 'tap' : how === 'dropped' ? 'drag' : 'idle';
+  } finally {
+    s.tray.hide();
+  }
 }
 
 /** She eats the berries out of the basket, chewing: "Mmm… rauðber!" */
@@ -147,7 +153,7 @@ export function* eatFromBasket(s, c) {
   const her = c.thorsedla.raw;
   her.talk({ text: 'namm namm namm', duration: 1.6 });
   s.sfx('chew');
-  yield c.basket.empty(out => out.copy(mouthOf(her)));
+  yield c.basket.empty(out => mouthOf(her, out));
   yield* c.say('thorsedla', 'k2_thorsedla_mmm');
 }
 

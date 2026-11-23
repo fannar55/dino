@@ -98,6 +98,7 @@ function createCloud(size, blending, name) {
   points.name = name;
   points.frustumCulled = false;
   points.renderOrder = 5;
+  points.visible = false;
   return { points, geometry, material, size, live: [] };
 }
 
@@ -169,11 +170,18 @@ export function createSparks(world) {
     .map(pair => pair.map(colourOf));
   const WHITE = colourOf('#ffffff');
   const WARM = colourOf('#fff2b8');
+  const clouds = [soft, glow];
+  const ATTR_NAMES = ['position', 'aColor', 'aSize', 'aKind', 'aAngle'];
+  const sa = new THREE.Vector3(), sb = new THREE.Vector3(), scratch = new THREE.Vector3();
+  const buffer = new THREE.Vector2();
+  const bursts = [];
+  let generation = 0;
   const pick = list => list[Math.floor(Math.random() * list.length)];
   const screenAngle = (p, v) => {
     // the angle a velocity at p makes on the screen, for a streak drawn along it
-    const a = p.clone().project(world.camera), b = p.clone().addScaledVector(v, 0.1).project(world.camera);
-    return -Math.atan2(b.y - a.y, b.x - a.x); // gl_PointCoord's y runs down the screen
+    sa.copy(p).project(world.camera);
+    sb.copy(p).addScaledVector(v, 0.1).project(world.camera);
+    return -Math.atan2(sb.y - sa.y, sb.x - sa.x); // gl_PointCoord's y runs down the screen
   };
 
   const api = {
@@ -242,7 +250,8 @@ export function createSparks(world) {
       const at = new THREE.Vector3();
       emit(calm ? seconds * 1.3 : seconds, (dt, t) => {
         const k = 1 - (1 - t) ** 2;
-        at.lerpVectors(from, to, k).add(new THREE.Vector3(0, Math.sin(Math.PI * t) * 1.2, 0));
+        at.lerpVectors(from, to, k);
+        at.y += Math.sin(Math.PI * t) * 1.2;
         add(glow, at, { life: 0.12, size: 1.1, grow: 1, colour: WARM, alpha: 0.85, fadeIn: 0.01, kind: KIND.disc });
         if (Math.random() < 0.7) add(glow, at, { dx: rand(-0.3, 0.3), dy: rand(-0.3, 0.3), vy: -0.3, drag: 1, life: rand(0.4, 0.8), size: rand(0.16, 0.26), grow: 0.2, colour: pick(GOLD), kind: KIND.star });
       });
@@ -407,10 +416,13 @@ export function createSparks(world) {
     },
     /** Fireworks over the top square at a win: a few, one after another. */
     fireworks(p, { count = 5 } = {}) {
+      const gen = generation;
       const n = calm ? 2 : count;
       for (let i = 0; i < n; i++) {
         const at = p.clone().add(new THREE.Vector3(rand(-7, 7), rand(0, 1), rand(-1, 0.5)));
-        world.wait(i * 0.45 + rand(0, 0.2)).then(() => api.firework(at, { height: rand(5, 9) }));
+        world.wait(i * 0.45 + rand(0, 0.2)).then(() => {
+          if (gen === generation) api.firework(at, { height: rand(5, 9) });
+        });
       }
     },
     /** Confetti tumbling down over a place (the win): strips of every colour, fluttering. */
@@ -427,13 +439,15 @@ export function createSparks(world) {
     get calm() { return calm; },
     set calm(value) { calm = Boolean(value); },
     clear() {
+      generation++;
       soft.live.length = 0; glow.live.length = 0; emitters.clear();
+      for (const cloud of clouds) { cloud.geometry.setDrawRange(0, 0); cloud.points.visible = false; }
       for (const f of finds) { f.sprite.removeFromParent(); f.material.map?.dispose(); f.material.dispose(); }
       finds.clear();
     },
     dispose() {
       api.clear();
-      for (const cloud of [soft, glow]) {
+      for (const cloud of clouds) {
         cloud.points.removeFromParent();
         cloud.geometry.dispose();
         cloud.material.dispose();
@@ -443,38 +457,54 @@ export function createSparks(world) {
 
   /** Each frame: every point flies, ages and is written out; the dead ones go (and a climbing firework bursts). */
   function update(dt) {
-    for (const e of [...emitters]) {
-      e.t += dt;
-      e.fn(dt, Math.min(1, e.t / e.seconds));
-      if (e.t >= e.seconds) emitters.delete(e);
+    if (emitters.size) {
+      for (const e of emitters) {
+        e.t += dt;
+        e.fn(dt, Math.min(1, e.t / e.seconds));
+        if (e.t >= e.seconds) emitters.delete(e);
+      }
     }
-    for (const f of [...finds]) {
-      f.t += dt;
-      const t = f.t, up = Math.min(1, t / 0.9);
-      const back = 1 + 2.4 * (up - 1) ** 3 + 1.4 * (up - 1) ** 2; // up with a little overshoot
-      f.sprite.position.copy(f.from).add(new THREE.Vector3(0.5 * back, back * 3.4, 0.4)); // up over the piece, never in front of it
-      const out = t > f.seconds - 0.45 ? Math.max(0, (f.seconds - t) / 0.45) : 1;
-      f.sprite.scale.setScalar(1.5 * Math.min(1, t / 0.35) * (0.85 + 0.15 * out));
-      f.material.rotation = Math.sin(t * 3) * 0.15 * (1 - up * 0.5);
-      f.material.opacity = out;
-      if (t > 0.9 && Math.random() < 0.3) api.glitter(f.sprite.position.clone().add(new THREE.Vector3(0, -0.6, 0)), { count: 1 });
-      if (t >= f.seconds) { f.sprite.removeFromParent(); f.material.map?.dispose(); f.material.dispose(); finds.delete(f); }
+    if (finds.size) {
+      for (const f of finds) {
+        f.t += dt;
+        const t = f.t, up = Math.min(1, t / 0.9);
+        const back = 1 + 2.4 * (up - 1) ** 3 + 1.4 * (up - 1) ** 2; // up with a little overshoot
+        f.sprite.position.set(f.from.x + 0.5 * back, f.from.y + back * 3.4, f.from.z + 0.4); // up over the piece, never in front of it
+        const out = t > f.seconds - 0.45 ? Math.max(0, (f.seconds - t) / 0.45) : 1;
+        f.sprite.scale.setScalar(1.5 * Math.min(1, t / 0.35) * (0.85 + 0.15 * out));
+        f.material.rotation = Math.sin(t * 3) * 0.15 * (1 - up * 0.5);
+        f.material.opacity = out;
+        if (t > 0.9 && Math.random() < 0.3) {
+          scratch.copy(f.sprite.position);
+          scratch.y -= 0.6;
+          api.glitter(scratch, { count: 1 });
+        }
+        if (t >= f.seconds) { f.sprite.removeFromParent(); f.material.map?.dispose(); f.material.dispose(); finds.delete(f); }
+      }
     }
-    const height = world.renderer?.getDrawingBufferSize?.(new THREE.Vector2()).y ?? 800;
+    if (!soft.live.length && !glow.live.length) {
+      if (soft.points.visible) { soft.geometry.setDrawRange(0, 0); soft.points.visible = false; }
+      if (glow.points.visible) { glow.geometry.setDrawRange(0, 0); glow.points.visible = false; }
+      return;
+    }
+    const height = world.renderer?.getDrawingBufferSize?.(buffer).y ?? 800;
     const scale = height / (2 * Math.tan(THREE.MathUtils.degToRad(world.camera.fov / 2)));
-    const bursts = [];
-    for (const cloud of [soft, glow]) {
+    bursts.length = 0;
+    for (let c = 0; c < clouds.length; c++) {
+      const cloud = clouds[c];
       cloud.material.uniforms.uScale.value = scale;
-      const pos = cloud.geometry.attributes.position.array;
-      const col = cloud.geometry.attributes.aColor.array;
-      const siz = cloud.geometry.attributes.aSize.array;
-      const kin = cloud.geometry.attributes.aKind.array;
-      const ang = cloud.geometry.attributes.aAngle.array;
-      let n = 0;
-      const keep = [];
-      for (const q of cloud.live) {
+      const attrs = cloud.geometry.attributes;
+      const pos = attrs.position.array;
+      const col = attrs.aColor.array;
+      const siz = attrs.aSize.array;
+      const kin = attrs.aKind.array;
+      const ang = attrs.aAngle.array;
+      let n = 0, keep = 0;
+      const live = cloud.live;
+      for (let i = 0; i < live.length; i++) {
+        const q = live[i];
         q.age += dt;
-        if (q.age < 0) { keep.push(q); continue; } // waiting for its moment
+        if (q.age < 0) { live[keep++] = q; continue; } // waiting for its moment
         if (q.age >= q.life) {
           if (q.then) bursts.push([q.then, new THREE.Vector3(q.x, q.y, q.z)]);
           continue;
@@ -497,14 +527,17 @@ export function createSparks(world) {
         kin[n] = q.kind;
         ang[n] = q.angle;
         n++;
-        keep.push(q);
+        live[keep++] = q;
       }
-      cloud.live = keep;
+      live.length = keep;
       cloud.geometry.setDrawRange(0, n);
       cloud.points.visible = n > 0;
-      if (n) for (const name of ['position', 'aColor', 'aSize', 'aKind', 'aAngle']) cloud.geometry.attributes[name].needsUpdate = true;
+      if (n) for (let a = 0; a < ATTR_NAMES.length; a++) attrs[ATTR_NAMES[a]].needsUpdate = true;
     }
-    for (const [then, at] of bursts) then(at);
+    if (bursts.length) {
+      for (let i = 0; i < bursts.length; i++) bursts[i][0](bursts[i][1]);
+      bursts.length = 0;
+    }
   }
   world.addUpdater(update);
   return api;

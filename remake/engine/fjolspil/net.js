@@ -184,7 +184,7 @@ function remoteOf(peer) {
 function closePeer(peer, channel) {
   if (channel) channel.onopen = channel.onmessage = channel.onclose = null;
   if (!peer) return;
-  peer.onicecandidate = peer.ondatachannel = null;
+  peer.onicecandidate = peer.ondatachannel = peer.oniceconnectionstatechange = peer.onconnectionstatechange = null;
   try {
     peer.close();
   } catch {
@@ -405,6 +405,15 @@ export function createHostNet({
     peer.onicecandidate = event => {
       if (guest.peer === peer && event?.candidate) relayTo(guest.id, message('ice', { candidate: candidateOf(event.candidate) }));
     };
+    const fail = () => {
+      if (guest.peer !== peer) return;
+      if (peer.iceConnectionState === 'failed' || peer.connectionState === 'failed') {
+        unpeer(guest);
+        guest.transport = 'relay';
+      }
+    };
+    peer.oniceconnectionstatechange = fail;
+    peer.onconnectionstatechange = fail;
     channel.onopen = () => {
       if (guest.channel !== channel) return;
       stopFallback(guest);
@@ -701,6 +710,12 @@ export function createGuestNet({
     peer.onicecandidate = event => {
       if (link === current && event?.candidate) relay(message('ice', { candidate: candidateOf(event.candidate) }));
     };
+    const fail = () => {
+      if (link !== current) return;
+      if (peer.iceConnectionState === 'failed' || peer.connectionState === 'failed') unpeer();
+    };
+    peer.oniceconnectionstatechange = fail;
+    peer.onconnectionstatechange = fail;
     peer.ondatachannel = event => {
       const channel = event?.channel;
       if (link !== current || !channel) return;

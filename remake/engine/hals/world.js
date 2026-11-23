@@ -146,17 +146,26 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   // ---- the frame -------------------------------------------------------------------------------------------------------
   const updaters = new Set();
   const tweens = new Set();
+  const activeTweens = [];
   /** step(t) every frame for `duration` seconds of the world's clock (t from 0 to 1); resolves at the end. */
   const tween = (duration, step = () => {}) => new Promise(resolve => tweens.add({ t: 0, duration: Math.max(0.001, duration), step, resolve }));
+  const cancelTweens = () => { tweens.clear(); };
   const shadowCentre = new THREE.Vector3();
   function update(dt) {
     time += dt;
     wind.update(time);
-    for (const tw of [...tweens]) {
-      tw.t += dt;
-      const t = Math.min(1, tw.t / tw.duration);
-      tw.step(t);
-      if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+    if (tweens.size) {
+      activeTweens.length = 0;
+      for (const tw of tweens) activeTweens.push(tw);
+      for (let i = 0; i < activeTweens.length; i++) {
+        const tw = activeTweens[i];
+        if (!tweens.has(tw)) continue;
+        tw.t += dt;
+        const t = Math.min(1, tw.t / tw.duration);
+        tw.step(t);
+        if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+      }
+      activeTweens.length = 0;
     }
     thorsedlas.update(dt);
     for (const fn of updaters) fn(dt);
@@ -190,12 +199,14 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     get time() { return time; },
     addUpdater(fn) { updaters.add(fn); return () => updaters.delete(fn); },
     tween,
+    cancelTweens,
     wait: seconds => tween(seconds),
     update,
     render() { renderer.render(scene, camera); },
     resize,
     ready: () => Promise.all([characterLodsReady(), thorsedlas.ready(), friends.ready()]),
     dispose() {
+      cancelTweens();
       api.life?.dispose();
       thorsedlas.dispose();
       friends.dispose();
@@ -261,6 +272,10 @@ function createView(camera, board) {
     wantPosition.set(wantTarget.x, wantTarget.y + distance * F.lift, wantTarget.z + distance);
   }
 
+  const overviewCentre = new THREE.Vector3((O.left + O.right) / 2, TOP / 2 + 1.5, O.depth - 1);
+  const overviewFocus = { centre: overviewCentre, radius: 35 };
+  const followFocus = { centre: target, radius: 28 };
+
   return {
     get mode() { return mode; },
     get calm() { return calm; },
@@ -283,8 +298,9 @@ function createView(camera, board) {
     },
     /** What the sun's shadow map should cover: the board in an overview, the view's middle close up. */
     focus() {
-      if (mode === 'overview' || calm) return { centre: new THREE.Vector3((O.left + O.right) / 2, TOP / 2 + 1.5, O.depth - 1), radius: 35 };
-      return { centre: target, radius: Math.min(28, 9 + position.distanceTo(target) * 0.3) };
+      if (mode === 'overview' || calm) return overviewFocus;
+      followFocus.radius = Math.min(28, 9 + position.distanceTo(target) * 0.3);
+      return followFocus;
     },
     update(dt) {
       wanted();
@@ -295,7 +311,10 @@ function createView(camera, board) {
       shakeTime += dt;
       shake *= Math.exp(-dt * 9);
       camera.position.copy(position);
-      if (shake > 0.001) camera.position.add(new THREE.Vector3(Math.sin(shakeTime * 41) * shake, Math.sin(shakeTime * 53 + 1) * shake, 0));
+      if (shake > 0.001) {
+        camera.position.x += Math.sin(shakeTime * 41) * shake;
+        camera.position.y += Math.sin(shakeTime * 53 + 1) * shake;
+      }
       camera.lookAt(target);
       camera.updateMatrixWorld();
     },

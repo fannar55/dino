@@ -98,7 +98,31 @@ void main() {
   gl_FragColor = vec4( mix( colour, uCore, clamp( exp( -r2 * 14.0 ) + 0.5 * rays, 0.0, 1.0 ) ), a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  #include <fog_fragment>
+  #ifdef ADDITIVE_FOG
+    #ifdef USE_FOG
+      #ifdef FOG_FALLOFF
+        vec3 fogRay = vFogWorld - cameraPosition;
+        float fogDist = max( length( fogRay ), 1e-4 );
+        vec3 fogDir = fogRay / fogDist;
+        #ifdef FOG_EXP2
+          float fogBase = fogDensity * exp( clamp( -FOG_FALLOFF * max( cameraPosition.y, 0.0 ), -20.0, 0.0 ) );
+          float fogPath = abs( fogDir.y ) > 1e-3 ? ( 1.0 - exp( clamp( -FOG_FALLOFF * fogRay.y, -20.0, 20.0 ) ) ) / ( FOG_FALLOFF * fogDir.y ) : fogDist;
+          float fogFactor = 1.0 - exp( -clamp( fogBase * fogPath, 0.0, 20.0 ) );
+        #else
+          float fogFactor = smoothstep( fogNear, fogFar, fogDist );
+        #endif
+      #else
+        #ifdef FOG_EXP2
+          float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+        #else
+          float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+        #endif
+      #endif
+      gl_FragColor.rgb *= ( 1.0 - fogFactor );
+    #endif
+  #else
+    #include <fog_fragment>
+  #endif
 }`;
 
 export function needEffects(world, call) {
@@ -172,8 +196,11 @@ export function glints(world, { count, life, spread, fall, size, colour, seed, l
       uMaxSize: { value: lit.maxSize ?? 1e4 },
     });
   }
+  const defines = {};
+  if (lit) defines.LIT = '';
+  if (how.blending === THREE.AdditiveBlending) defines.ADDITIVE_FOG = '';
   const material = new THREE.ShaderMaterial({
-    vertexShader: VERT, fragmentShader: FRAG, uniforms, defines: lit ? { LIT: '' } : {},
+    vertexShader: VERT, fragmentShader: FRAG, uniforms, defines,
     fog: true, transparent: true, depthWrite: false, blending: how.blending,
   });
   material.name = 'sparkles';

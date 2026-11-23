@@ -23,6 +23,7 @@
 </head>
 <body>
 <canvas id="view" aria-label="Leikurinn"></canvas>
+<div class="vignette" aria-hidden="true"></div>
 <div id="caption" class="caption" hidden><span class="caption-speaker"></span><p class="caption-text"></p></div>
 <div id="choices" class="choices" hidden></div>
 <div id="tray" class="tray" hidden></div>
@@ -50,7 +51,7 @@
 <div id="fjolspil" class="fjolspil" hidden></div>
 <div id="debug" class="debug" hidden></div>
 <div id="villa" class="villa" hidden></div>
-<script src="./vendor/qrcode-generator/qrcode.js"></script>
+<script src="./vendor/qrcode-generator/qrcode.js" defer></script>
 <script type="module" src="./main.js"></script>
 </body>
 </html>

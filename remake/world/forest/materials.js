@@ -70,17 +70,35 @@ export function* createLeafTextureSteps(seed, size = 128, cells = 6) {
   const pts = [];
   for (let j = 0; j < cells; j++) for (let i = 0; i < cells; i++) pts.push([(i + 0.15 + 0.7 * rng.next()) / cells, (j + 0.15 + 0.7 * rng.next()) / cells]);
   const data = new Uint8Array(size * size * 4);
+  const cell = 1 / cells;
   for (let y = 0; y < size; y++) {
+    const v = (y + 0.5) / size;
+    const cj = Math.floor(v * cells);
     for (let x = 0; x < size; x++) {
-      const u = (x + 0.5) / size, v = (y + 0.5) / size;
+      const u = (x + 0.5) / size;
       let f1 = 9, f2 = 9;
-      for (const [px, py] of pts) {
-        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-          const d = Math.hypot(u - (px + ox), v - (py + oy));
-          if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d;
+      if (cells >= 3) {
+        const ci = Math.floor(u * cells);
+        for (let dj = -1; dj <= 1; dj++) {
+          const nj = cj + dj;
+          const oy = nj < 0 ? -1 : nj >= cells ? 1 : 0;
+          const row = (nj - oy * cells) * cells;
+          for (let di = -1; di <= 1; di++) {
+            const ni = ci + di;
+            const ox = ni < 0 ? -1 : ni >= cells ? 1 : 0;
+            const [px, py] = pts[row + (ni - ox * cells)];
+            const d = Math.hypot(u - (px + ox), v - (py + oy));
+            if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d;
+          }
+        }
+      } else {
+        for (const [px, py] of pts) {
+          for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+            const d = Math.hypot(u - (px + ox), v - (py + oy));
+            if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d;
+          }
         }
       }
-      const cell = 1 / cells;
       const dome = Math.max(0, 1 - f1 / (cell * 0.75));
       const edge = Math.min(1, (f2 - f1) / (cell * 0.22));
       const i = (y * size + x) * 4;
@@ -403,7 +421,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
     : coverage ? [['#include <alphatest_fragment>', '  diffuseColor.a = clamp( 2.0 * ( 1.0 - vCardFade ), 0.0, 1.0 );']]
       : [['#include <clipping_planes_fragment>', '  if ( forestDither() < vCardFade ) discard;']];
   return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
-    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}\n${GROW_GLSL}${fadeHead}`,
+    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\n#if !defined( DOUBLE_SIDED ) && !defined( FOREST_LOW )\nvarying vec3 vForestNormal;\n#endif\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}\n${GROW_GLSL}${fadeHead}`,
     vertexAfter: [
       ['#include <color_vertex>', `
   #ifdef USE_COLOR_ALPHA
@@ -416,7 +434,9 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   transformed += forestWind( forestRest, aWind, aTree );
   transformed += forestPivot( forestRest, aWind, aPivot );
   vForestPos = forestRest;
+  #if !defined( DOUBLE_SIDED ) && !defined( FOREST_LOW )
   vForestNormal = normalize( mat3( modelMatrix ) * objectNormal );
+  #endif
   // foliage samples the shadow map a little outside its surface: no acne on the lobes
   float forestShadowPush = mix( 0.02, 0.22, aWind.w );`],
     ],
@@ -425,7 +445,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
       // last of all that moves it (a place's own pushes after the dance too: world/ardalur/look.js, her downwash), before it is drawn
       ['#include <project_vertex>', `${GROW_LINE}\n${fadeLine}#include <project_vertex>`],
     ],
-    fragmentHead: `uniform sampler2D uNoise;\nuniform sampler2D uLeaf;\nuniform float uDapple;\nuniform float uWindTime;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${LIGHT_GLOBALS}${cardFade ? `\nvarying float vCardFade;\n${DITHER_GLSL}` : ''}`,
+    fragmentHead: `uniform sampler2D uNoise;\nuniform sampler2D uLeaf;\nuniform float uDapple;\nuniform float uWindTime;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\n#if !defined( DOUBLE_SIDED ) && !defined( FOREST_LOW )\nvarying vec3 vForestNormal;\n#endif\n${LIGHT_GLOBALS}${cardFade ? `\nvarying float vCardFade;\n${DITHER_GLSL}` : ''}`,
     fragmentAfter: [
       ...fadeAfter,
       ['#include <color_fragment>', `
@@ -478,8 +498,8 @@ export function leafMeanOf(leafTexture) {
 }
 
 /** Shadow-pass material that sways with the same wind and the same beat, so shadows match the moving crowns. */
-export function createWindDepthMaterial(shared, key) {
-  const material = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+export function createWindDepthMaterial(shared, key, { side = THREE.FrontSide } = {}) {
+  const material = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side });
   material.name = `${key}-depth`;
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, shared);

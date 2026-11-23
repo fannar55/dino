@@ -55,6 +55,7 @@ import { easeLight, lightTo } from '../engine/light-blend.js';
 import { EVENING, startEvening } from './kafli6-looks.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
 import { createSaddle, createSeat, floatTo, ride, SIT_DEPTH } from '../engine/riding.js';
+import { preloadSamples } from '../engine/audio/sfx.js';
 
 export const WORDS = {
   k6_sloedla_follow: 'Við komum á eftir ykkur. Sjáumst uppi á fjalli!', k6_flugedla_call: 'Ég kalla á allan skóginn. Flýtið ykkur, sólin er að lækka!',
@@ -1285,6 +1286,9 @@ function poolAsLeft(c) {
   life.idle();
 }
 
+// The recorded sounds the chapter plays (sfx.js SAMPLES): her roar, breath and footfall, Mosi's little roar, the ford, her prints, the wind.
+const RECORDINGS = ['gramedlaRoar', 'gramedlaExhale', 'gramedlaThump', 'mosiRoar', 'hoofStone', 'stoneRock', 'frogSplash', 'wetStep', 'mountainWind'];
+
 /** The scenes' shared state `c` (world.chapterState: for captures, probes and tests). `c.run()` starts what runs every frame. */
 function setUp(s) {
   const mosi = s.actor('mosi');
@@ -1298,6 +1302,8 @@ function setUp(s) {
   c.log = entry => c.chapterLog.push({ ...entry, at: s.time, scene: c.scene });
   c.task = (task, event) => c.taskLog.push({ task, ...event, at: event.time ?? s.time });
   c.reduced = reducedMotion(world);
+  // the chapter's recordings, fetched now (sfx.js loads them when first asked for): there by the ford's first stone
+  preloadSamples(world.sound?.context ?? null, RECORDINGS);
   c.lines = helpLines(s, c); // the help's lines, the counts and "Úps": one at a time, never over a scene's own line
   c.footfall = detail => footfall(s, c, detail); // her steps (kafli6-gramedla.js)
   c.sfx = (name, detail) => sound(s, c, name, detail); // her roars and breaths, in the chapter's log

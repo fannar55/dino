@@ -83,6 +83,9 @@ const TEASE = { down: 2, speed: 15, ease: 1.5, fov: 30, clear: 6, back: 3 };
 // the roar's peak, so the roar is heard and not talked over (the owner, 2026-10-27).
 const ROAR = { line: 1.8, exhale: 2.3, walk: 0.5, speed: 2.0, ahead: 6, out: 10 };
 const HAZE = { up: 1.6, rise: 4 }; // the fog 1.6 times as thick at the lookout (twice washed the friends out), eased in over the lift's first 4 s
+const SCRATCH_FEET = new THREE.Vector3();
+const SCRATCH_DIR = new THREE.Vector3();
+const SCRATCH_PROJ = new THREE.Vector3();
 const smooth = t => t * t * (3 - 2 * t);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -172,15 +175,22 @@ export function* findFriends(s, c) {
   // Egill looks where the child looks, and the friends glitter until each is found.
   yield egill.lookAt(alongTheView(world), { weight: 0.8, maxAngle: 70, maxPitch: 30 });
   for (const target of first) far.glimmer(target.name, true);
-  yield s.search({ explore: { yaw: view.yaw, pitch: SEARCH_PITCH }, targets: first.map(withHint), ...PACE, quick: QUICK, onFound });
+  try {
+    yield s.search({ explore: { yaw: view.yaw, pitch: SEARCH_PITCH }, targets: first.map(withHint), ...PACE, quick: QUICK, onFound });
+  } finally {
+    for (const target of first) far.glimmer(target.name, false);
+  }
   // Uggeðla: round to the east-south-east, past her conifers. She is there now (behind the camera, unseen till it turns). Nothing to
   // search for: she glitters in her reed, then lifts her head and sail out of it, and Mosi and Egill say hello.
   far.withhold(LAST, false);
   yield* turnRound(s, c, last[0].point);
   s.sfx('flower');
   far.glimmer(LAST, true);
-  yield s.wait(WAVE_GLIMMER);
-  far.glimmer(LAST, false);
+  try {
+    yield s.wait(WAVE_GLIMMER);
+  } finally {
+    far.glimmer(LAST, false);
+  }
   yield s.all(far.react(LAST), s.after(0.3, () => c.say('mosi', 'k3_mosi_wave')));
   yield* c.say('egill', 'k3_egill_hi');
   // and far off at the edge of the forest beyond the Fen, Grameðla: seen, not found
@@ -209,13 +219,20 @@ function* found(s, c, name, how) {
 
 /** Where the search's camera stands: his feet and SEARCH_CAMERA's offset (he faces +X at the top). */
 function searchEye(c) {
-  const feet = c.egill.raw.root.getWorldPosition(new THREE.Vector3());
+  const feet = c.egill.raw.root.getWorldPosition(SCRATCH_FEET);
   const [x, y, z] = SEARCH_CAMERA.offset;
   return new THREE.Vector3(feet.x + x, feet.y + y, feet.z + z);
 }
 
 /** A point 60 m out from `eye` along a bearing and a tilt (radians). */
-const along = (eye, bearing, tilt) => eye.clone().add(new THREE.Vector3(Math.cos(bearing) * Math.cos(tilt), Math.sin(tilt), Math.sin(bearing) * Math.cos(tilt)).multiplyScalar(60));
+function along(eye, bearing, tilt, out = new THREE.Vector3()) {
+  const cosTilt = Math.cos(tilt);
+  return out.set(
+    eye.x + Math.cos(bearing) * cosTilt * 60,
+    eye.y + Math.sin(tilt) * 60,
+    eye.z + Math.sin(bearing) * cosTilt * 60,
+  );
+}
 
 /**
  * The first search's view: `look`, the point it looks at as it comes round, out between the two friends (SEARCH_LEAN to the left)
@@ -272,7 +289,7 @@ function* farOff(s, c) {
 /** Where the camera looks from (the search camera's place), and its turn from the view it has now to `point`, `down` degrees under it. */
 function turnFrom(c, point, down) {
   const eye = searchEye(c);
-  const dir = c.world.camera.getWorldDirection(new THREE.Vector3());
+  const dir = c.world.camera.getWorldDirection(SCRATCH_DIR);
   const fromYaw = Math.atan2(dir.z, dir.x), fromTilt = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
   const toYaw = Math.atan2(point.z - eye.z, point.x - eye.x);
   const toTilt = Math.atan2(point.y - eye.y, Math.hypot(point.x - eye.x, point.z - eye.z)) - THREE.MathUtils.degToRad(down);
@@ -290,7 +307,7 @@ function* turnToHer(s, c, point) {
   const start = s.time;
   const look = out => {
     const k = at(s.time - start);
-    return out.copy(along(eye, fromYaw + turn * k, fromTilt + (toTilt - fromTilt) * k));
+    return along(eye, fromYaw + turn * k, fromTilt + (toTilt - fromTilt) * k, out);
   };
   s.camera.follow('egill', { ...SEARCH_CAMERA, look, maxSpeed: 24, fov: TEASE.fov, fovSeconds: seconds });
   yield s.wait(seconds + 0.2);
@@ -321,7 +338,7 @@ function* turnRound(s, c, point) {
   const start = s.time;
   const look = out => {
     const k = smooth(Math.min(1, (s.time - start) / seconds));
-    return out.copy(along(eye, fromYaw + turn * k, fromTilt + (toTilt - fromTilt) * k));
+    return along(eye, fromYaw + turn * k, fromTilt + (toTilt - fromTilt) * k, out);
   };
   s.camera.follow('egill', { ...SEARCH_CAMERA, look, maxSpeed: 24 });
   yield s.wait(seconds + 0.4);
@@ -340,7 +357,7 @@ function alongTheView(world) {
 /** Is a point in the camera's view now (inside the middle 80 % of the frame)? */
 function inView(world, point) {
   world.camera.updateMatrixWorld();
-  const p = point.clone().project(world.camera);
+  const p = SCRATCH_PROJ.copy(point).project(world.camera);
   return p.z < 1 && Math.abs(p.x) < 0.8 && Math.abs(p.y) < 0.8;
 }
 
@@ -349,7 +366,7 @@ function screenOf(world, point) {
   const box = world.renderer?.domElement?.getBoundingClientRect?.();
   if (!box) return null;
   world.camera.updateMatrixWorld();
-  const p = point.clone().project(world.camera);
+  const p = SCRATCH_PROJ.copy(point).project(world.camera);
   if (p.z >= 1) return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
   return { x: box.left + ((p.x + 1) / 2) * box.width, y: box.top + ((1 - p.y) / 2) * box.height };
 }

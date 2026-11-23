@@ -43,9 +43,23 @@ const BONE_REACH = 1.05; // a bone's sphere grown 5 %, and BONE_MARGIN more: a v
 const BONE_MARGIN = 0.05; // m
 
 let worker; // undefined until first asked for, null where module workers are not available
+let workerIdle = null;
 let nextJob = 1;
 const jobs = new Map();
 const pending = new Set();
+
+function scheduleWorkerIdle() {
+  if (workerIdle !== null) { clearTimeout(workerIdle); workerIdle = null; }
+  if (!worker || jobs.size > 0) return;
+  workerIdle = setTimeout(() => {
+    workerIdle = null;
+    if (worker && jobs.size === 0) {
+      worker.terminate?.();
+      worker = undefined; // restarts lazily if another character is prepared later
+    }
+  }, 5000);
+  workerIdle.unref?.();
+}
 
 function startWorker() {
   if (typeof Worker === 'undefined') return null;
@@ -53,11 +67,16 @@ function startWorker() {
     const w = new Worker(new URL('./simplify-worker.js', import.meta.url), { type: 'module' });
     w.onmessage = ({ data }) => {
       const job = jobs.get(data.id);
+      if (!job) return;
       jobs.delete(data.id);
       if (data.error) job.reject(new Error(data.error));
       else job.resolve(data.levels);
+      scheduleWorkerIdle();
     };
     w.onerror = event => {
+      if (workerIdle !== null) { clearTimeout(workerIdle); workerIdle = null; }
+      if (worker === w) worker = null; // broken worker: subsequent calls fall back to main thread
+      try { w.terminate?.(); } catch {}
       for (const job of jobs.values()) job.reject(new Error(event.message || 'simplify worker failed'));
       jobs.clear();
     };
@@ -70,10 +89,20 @@ function startWorker() {
 function simplifyAsync(positions, index, options) {
   if (worker === undefined) worker = startWorker();
   if (!worker) return Promise.resolve().then(() => simplify(positions, index, options)); // on this thread
+  if (workerIdle !== null) { clearTimeout(workerIdle); workerIdle = null; }
   const id = nextJob++;
+  const transfer = [positions.buffer, index.buffer];
+  if (options.skin?.indices?.buffer) transfer.push(options.skin.indices.buffer);
+  if (options.skin?.weights?.buffer) transfer.push(options.skin.weights.buffer);
+  if (options.keep?.buffer) transfer.push(options.keep.buffer);
   return new Promise((resolve, reject) => {
     jobs.set(id, { resolve, reject });
-    worker.postMessage({ id, positions, index, options }, [positions.buffer]);
+    try {
+      worker.postMessage({ id, positions, index, options }, transfer);
+    } catch (error) {
+      jobs.delete(id);
+      reject(error);
+    }
   });
 }
 
@@ -111,8 +140,10 @@ function eyelidVertices(geometry, eyes) {
   return keep;
 }
 
-// one set of levels per source geometry (actors of the same model share their geometry)
+// one Map<levelKey, Promise> per source geometry (actors of the same model share their geometry, while
+// callers passing different `levels` configs — e.g. memory game's 3-level config — do not collide)
 const levelsOf = new WeakMap();
+const levelKeyOf = levels => levels.map(l => `${l.ratio}:${l.maxError}`).join('|');
 
 // For each bone of a skin, how far from it the farthest vertex it moves lies (in the bone's own frame, so
 // in metres of the model's bind pose), by source geometry: actors of the same model share it, and their
@@ -145,7 +176,10 @@ function boneReaches(mesh) {
 
 /** [full, half, quarter] geometries for a skinned geometry; the simpler ones share its attributes. */
 function lodGeometries(geometry, eyes, levels = LEVELS) {
-  if (levelsOf.has(geometry)) return levelsOf.get(geometry);
+  const key = levelKeyOf(levels);
+  let byKey = levelsOf.get(geometry);
+  if (byKey?.has(key)) return byKey.get(key);
+  if (!byKey) { byKey = new Map(); levelsOf.set(geometry, byKey); }
   const position = geometry.attributes.position;
   const skinIndex = geometry.attributes.skinIndex, skinWeight = geometry.attributes.skinWeight;
   const positions = new Float32Array(position.count * 3);
@@ -161,9 +195,9 @@ function lodGeometries(geometry, eyes, levels = LEVELS) {
   if (!geometry.boundingSphere) geometry.computeBoundingSphere();
   const diagonal = geometry.boundingBox.getSize(new THREE.Vector3()).length();
   const options = { levels: levels.map(l => ({ ratio: l.ratio, maxError: l.maxError * diagonal })), skin: { indices, weights }, keep: eyelidVertices(geometry, eyes) };
-  const promise = simplifyAsync(positions, Uint32Array.from(geometry.index.array), options).then(levels => [
+  const promise = simplifyAsync(positions, Uint32Array.from(geometry.index.array), options).then(made => [
     geometry,
-    ...levels.map(({ corners, triangles, error }) => {
+    ...made.map(({ corners, triangles, error }) => {
       const g = new THREE.BufferGeometry();
       for (const [name, attribute] of Object.entries(geometry.attributes)) g.setAttribute(name, attribute);
       g.setIndex(new THREE.BufferAttribute(position.count < 65536 ? Uint16Array.from(corners) : corners, 1));
@@ -173,7 +207,8 @@ function lodGeometries(geometry, eyes, levels = LEVELS) {
       return g;
     }),
   ]);
-  levelsOf.set(geometry, promise);
+  byKey.set(key, promise);
+  promise.catch(() => { if (byKey.get(key) === promise) byKey.delete(key); });
   return promise;
 }
 
@@ -214,6 +249,7 @@ function shadowOnly(light, object) {
 }
 
 const entries = new Set(); // meshes with levels: { mesh, geometries, centre, diagonal, level, caster, reaches, roots }
+const released = new WeakSet(); // models released while prepareCharacter() was still in flight
 
 /**
  * Give the large skinned meshes under `model` their levels and a shadow caster for `light`. Returns
@@ -222,12 +258,14 @@ const entries = new Set(); // meshes with levels: { mesh, geometries, centre, di
  * characters are seen small (the memory game adds a level for them, and keeps the quarter for the shadows).
  */
 export function prepareCharacter(model, light, { levels = LEVELS, casterLevel = levels.length } = {}) {
+  released.delete(model);
   const meshes = [];
   model.traverse(o => {
     if (o.isSkinnedMesh && !o.geometry.groups.length && (o.geometry.index?.count ?? 0) / 3 >= MIN_TRIANGLES) meshes.push(o);
   });
   const done = Promise.all(meshes.map(mesh => lodGeometries(mesh.geometry, mesh.userData.face?.eyes, levels).then(geometries => {
-    const quarter = geometries[casterLevel];
+    if (released.has(model) || !mesh.parent) return;
+    const quarter = geometries[Math.min(casterLevel, geometries.length - 1)];
     const entry = {
       mesh, geometries, levels, level: 0, caster: null, casters: null,
       centre: mesh.geometry.boundingSphere.center.clone(),
@@ -298,10 +336,18 @@ export function updateCharacterLods(camera, height) {
   for (const e of entries) {
     const { mesh } = e;
     if (!shown(mesh)) continue; // a hidden actor (one not yet in the story): nothing to draw, nothing to decide
+    mesh.updateWorldMatrix(true, false);
     centre.copy(e.centre).applyMatrix4(mesh.matrixWorld);
     const scale = mesh.matrixWorld.getMaxScaleOnAxis();
     const inView = inTheView(e);
     mesh.visible = inView;
+    const siblings = mesh.parent?.children;
+    if (siblings) {
+      for (let i = 0; i < siblings.length; i++) {
+        const sib = siblings[i];
+        if (sib.userData?.followsBody === mesh) sib.visible = inView && Boolean(sib.userData.wantVisible);
+      }
+    }
     const px = inView ? (e.diagonal * scale * pxPerUnit) / Math.max(0.1, camPos.distanceTo(centre)) : 0;
     let level = e.level;
     while (level < e.levels.length && px < e.levels[level].below * (1 - HYSTERESIS)) level++;
@@ -312,6 +358,7 @@ export function updateCharacterLods(camera, height) {
 
 /** Forget the meshes under `model` (its actor is gone). */
 export function releaseCharacter(model) {
+  released.add(model);
   for (const e of entries) {
     let o = e.mesh;
     while (o && o !== model) o = o.parent;

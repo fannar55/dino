@@ -33,6 +33,7 @@ export function sparkle(el, count = SPARKS, win = el?.ownerDocument?.defaultView
   const reach = Math.max(rect.width, rect.height) / 2;
   const calm = reducedMotion(win);
   const sparks = [];
+  const fragment = typeof doc.createDocumentFragment === 'function' ? doc.createDocumentFragment() : null;
   for (let i = 0; i < count; i++) {
     const angle = ((i + 0.35 * Math.random()) / count) * 2 * Math.PI;
     const ring = calm ? reach * 0.85 : 0;
@@ -48,9 +49,11 @@ export function sparkle(el, count = SPARKS, win = el?.ownerDocument?.defaultView
       spark.style.setProperty('--spin', `${Math.round(90 + Math.random() * 180)}deg`);
     }
     spark.addEventListener('animationend', () => spark.remove(), { once: true });
-    doc.body.append(spark);
+    if (fragment) fragment.append(spark);
     sparks.push(spark);
   }
+  if (fragment) doc.body.append(fragment);
+  else doc.body.append(...sparks);
   const timer = setTimeout(() => sparks.forEach(spark => spark.remove()), SPARK_MS);
   timer?.unref?.(); // in Node (the tests) a timer must not keep the process waiting
   return sparks;
@@ -115,7 +118,7 @@ export function pressable(el, { audio = null, sound = 'tap', onTap = null, win =
   }
 
   const onCancel = event => { drop(event.pointerId); };
-  const listeners = { pointerdown: onDown, pointermove: onMove, pointerup: onUp, pointercancel: onCancel };
+  const listeners = { pointerdown: onDown, pointermove: onMove, pointerup: onUp, pointercancel: onCancel, lostpointercapture: onCancel };
   for (const [type, fn] of Object.entries(listeners)) el.addEventListener(type, fn);
   return () => {
     for (const [type, fn] of Object.entries(listeners)) el.removeEventListener(type, fn);

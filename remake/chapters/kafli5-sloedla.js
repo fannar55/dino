@@ -93,12 +93,14 @@ function turnToward(from, to, rate, dt) {
 
 const parentQ = new THREE.Quaternion();
 const localQ = new THREE.Quaternion();
-/** Turn `bone` by `q`, a turn in the world's frame. */
+const stepQ = new THREE.Quaternion();
+/** Turn `bone` by `q`, a turn in the world's frame, updating only its ancestor chain and itself. */
 function rotateBoneWorld(bone, q) {
+  bone.parent.updateWorldMatrix(true, false);
   bone.parent.getWorldQuaternion(parentQ);
   localQ.copy(parentQ).invert().multiply(q).multiply(parentQ);
   bone.quaternion.premultiply(localQ);
-  bone.updateMatrixWorld(true);
+  bone.updateWorldMatrix(false, false);
 }
 
 /**
@@ -181,7 +183,7 @@ export function sloedlaLife(actor) {
   const turn = new THREE.Quaternion();
   // her dance: what the score asks (`score`), what she does of it now (`moves`), where it put her last frame (`last`), her resting
   // clip's time on the score's clock (`clock`: null while the clip runs by itself), and how far behind the score she is (`behind`)
-  const dance = { score: null, moves: Object.fromEntries(MOVES.map(k => [k, 0])), next: {}, last: null, clock: null, behind: 0, y: 0 };
+  const dance = { score: null, moves: Object.fromEntries(MOVES.map(k => [k, 0])), from: Object.fromEntries(MOVES.map(k => [k, 0])), next: {}, last: null, clock: null, behind: 0, y: 0 };
   const still = Object.fromEntries(MOVES.map(k => [k, 0]));
   const seen = { root: new THREE.Vector3(), head: new THREE.Vector3(), eyes: new THREE.Vector3(), crest: new THREE.Vector3(), facing: new THREE.Vector3(), heading: 0 };
   const headQ = new THREE.Quaternion();
@@ -327,19 +329,32 @@ export function sloedlaLife(actor) {
     root.quaternion.setFromAxisAngle(UP, -h);
     if (m.lean) root.quaternion.multiply(turn.setFromAxisAngle(SIDE, rad(m.lean)));
     for (const link of chain) link.bone.quaternion.copy(link.base);
-    root.updateMatrixWorld(true);
+    root.updateWorldMatrix(false, false);
     const pitch = state.pitch + m.nod;
+    const hasPitch = Math.abs(pitch) >= 1e-4;
     let turned = 0; // her neck's turn so far (radians): each bone nods and tilts about its own line across and ahead
     for (const link of chain) {
+      let rotated = false;
+      stepQ.identity();
       if (m.turn) {
         const step = -rad(m.turn * link.share);
-        rotateBoneWorld(link.bone, turn.setFromAxisAngle(UP, step));
+        stepQ.setFromAxisAngle(UP, step);
         axis.applyAxisAngle(UP, step);
         ahead.applyAxisAngle(UP, step);
         turned += step;
+        rotated = true;
       }
-      if (Math.abs(pitch) >= 1e-4) rotateBoneWorld(link.bone, turn.setFromAxisAngle(axis, rad(pitch * link.share)));
-      if (m.tilt) rotateBoneWorld(link.bone, turn.setFromAxisAngle(ahead, rad(m.tilt * link.share)));
+      if (hasPitch) {
+        turn.setFromAxisAngle(axis, rad(pitch * link.share));
+        if (rotated) stepQ.premultiply(turn);
+        else { stepQ.copy(turn); rotated = true; }
+      }
+      if (m.tilt) {
+        turn.setFromAxisAngle(ahead, rad(m.tilt * link.share));
+        if (rotated) stepQ.premultiply(turn);
+        else { stepQ.copy(turn); rotated = true; }
+      }
+      if (rotated) rotateBoneWorld(link.bone, stepQ);
     }
     if (turned) axis.applyAxisAngle(UP, -turned); // the line across her shoulders again
   }
@@ -362,8 +377,11 @@ export function sloedlaLife(actor) {
     const asked = dance.score ? dance.score(dt) : null;
     const want = asked ?? still;
     dance.next = want;
-    const { moves, last } = dance;
-    const dancing = asked || MOVES.some(k => moves[k] !== 0);
+    const { moves, from, last } = dance;
+    let dancing = Boolean(asked);
+    if (!dancing) {
+      for (let i = 0; i < MOVES.length; i++) if (moves[MOVES[i]] !== 0) { dancing = true; break; }
+    }
     if (!dancing) {
       lay(still);
       dance.last = null;
@@ -371,12 +389,19 @@ export function sloedlaLife(actor) {
       return;
     }
     // as much of the way to what the score asks as moves nothing of her too far in this frame
-    const [far, round] = [DANCE.speed * dt, DANCE.turn * dt];
-    const from = { ...moves };
+    const far = DANCE.speed * dt;
+    const round = DANCE.turn * dt;
+    for (let i = 0; i < MOVES.length; i++) {
+      const key = MOVES[i];
+      from[key] = moves[key];
+    }
     from.spin += 360 * Math.round(((want.spin ?? 0) - from.spin) / 360); // a whole turn round is where she stood: the short way to it
     let share = 1;
     for (let k = 0; k <= DANCE.tries; k++) {
-      for (const key of MOVES) moves[key] = from[key] + ((want[key] ?? 0) - from[key]) * share;
+      for (let i = 0; i < MOVES.length; i++) {
+        const key = MOVES[i];
+        moves[key] = from[key] + ((want[key] ?? 0) - from[key]) * share;
+      }
       lay(moves);
       if (!last || share === 0) break;
       see(seen);
@@ -388,8 +413,19 @@ export function sloedlaLife(actor) {
       const over = Math.max(moved / Math.max(far, 1e-9), turned / Math.max(round, 1e-9));
       share = k + 1 >= DANCE.tries ? 0 : k === 0 ? Math.min(0.5, 0.9 / over) : share / 2;
     }
-    dance.behind = share < 1 ? Math.max(...MOVES.map(key => Math.abs((want[key] ?? 0) - moves[key]))) : 0;
-    for (const key of MOVES) if (Math.abs(moves[key]) < 1e-6 && !asked) moves[key] = 0;
+    let behind = 0;
+    if (share < 1) {
+      for (let i = 0; i < MOVES.length; i++) {
+        const key = MOVES[i];
+        const d = Math.abs((want[key] ?? 0) - moves[key]);
+        if (d > behind) behind = d;
+      }
+    }
+    dance.behind = behind;
+    for (let i = 0; i < MOVES.length; i++) {
+      const key = MOVES[i];
+      if (Math.abs(moves[key]) < 1e-6 && !asked) moves[key] = 0;
+    }
     dance.last = see(last ?? { root: new THREE.Vector3(), head: new THREE.Vector3(), eyes: new THREE.Vector3(), crest: new THREE.Vector3(), facing: new THREE.Vector3(), heading: 0 });
     dance.last.heading = state.heading + moves.yaw + moves.spin;
     // her tail swings behind her (nothing watches it: it takes the score's swing as it is)

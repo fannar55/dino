@@ -163,6 +163,9 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     if (!isOpen || event.button > 0) return;
     if (event.target === closeButton || closeButton.contains?.(event.target)) return; // the close button taps for itself
     fingers.set(event.pointerId, { x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY, moved: false, disturbed: false });
+    if (!held) {
+      try { layer.setPointerCapture?.(event.pointerId); } catch {}
+    }
   });
   layer.addEventListener('pointermove', event => {
     const finger = fingers.get(event.pointerId);
@@ -182,6 +185,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     const finger = fingers.get(event.pointerId);
     if (!finger) return;
     fingers.delete(event.pointerId);
+    try { if (layer.hasPointerCapture?.(event.pointerId)) layer.releasePointerCapture?.(event.pointerId); } catch {}
     if (event.type === 'pointerup' && !finger.moved && !finger.disturbed) {
       close(); // a tap
       return;

@@ -184,6 +184,7 @@ function* story(s, c) {
 // The way into Síkið: on down the trail the picture fades to black and comes up on the path at the channel. Scenes 3 to 7 are there.
 function* intoSiki(s, c) {
   yield* goTo(s, c, 'siki', () => arriveInSiki(s, c));
+  s.releaseLocation?.('fenjaslod');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -211,13 +212,15 @@ function* theChannel(s, c) {
   yield mosi.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
   yield egill.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
   const stopTaps = sailTaps(s, c);
-  const rising = s.after(0, () => riseSail(s, c, { seconds: SAIL_SECONDS }));
-  yield s.wait(0.8);
-  yield* say(s, c, 'mosi', 'k2_mosi_boat');
-  yield* say(s, c, 'egill', 'k2_egill_helloboat');
-  yield rising;
-  // it turns, and her head comes up out of the water with a fish; "this is no boat"
-  stopTaps();
+  try {
+    const rising = s.after(0, () => riseSail(s, c, { seconds: SAIL_SECONDS }));
+    yield s.wait(0.8);
+    yield* say(s, c, 'mosi', 'k2_mosi_boat');
+    yield* say(s, c, 'egill', 'k2_egill_helloboat');
+    yield rising;
+  } finally {
+    stopTaps();
+  }
   const head = s.after(0, () => headUpWithFish(s, c));
   yield s.wait(HEAD_UP_SEES);
   yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
@@ -425,26 +428,36 @@ function* theHummocks(s, c) {
   c.riding = ride(egill.raw, c.saddle, { settle: 0 });
   c.backSeat = null;
   yield* say(s, c, 'uggedla', 'k2_uggedla_berries');
-  // she goes as Mosi thanks her: back along the channel with her sail low like a boat's, until she is out of the picture
+  // she goes as Mosi thanks her: back along the channel with her sail low like a boat's, until she is out of the picture (or swim ends)
   const off = s.after(0, () => swimAlong(s, c, OFF, { speed: OFF_SPEED, sink: SINK.low, then: 'idle' }));
   yield* say(s, c, 'mosi', 'k2_mosi_thanks_ugg');
-  yield s.until(() => outOfView(world, uggedla.raw));
+  yield s.until(() => off.done || outOfView(world, uggedla.raw));
   off.cancel();
   uggedla.raw.root.visible = false;
   // into the book
   s.fade(0.45, 1.6);
   s.journal.open('dinosaurs', { nod: 'uggedla' });
-  s.after(TO_THE_MAP, () => s.journal.open('map'));
+  s.after(TO_THE_MAP, () => {
+    const card = world.page?.querySelector?.('.card');
+    if (s.journal.isOpen && s.journal.tab === 'dinosaurs' && (!card || card.hidden)) s.journal.open('map');
+  });
   yield* say(s, c, 'mosi', 'k2_mosi_two');
 }
 
+const _outPoints = Array.from({ length: 5 }, () => new THREE.Vector3());
 /** Is all of her out of the picture: her head, her hips, the end of her tail and the top of her sail (past the edge of the frame, or behind us)? */
 function outOfView(world, her) {
   world.camera.updateMatrixWorld();
-  const point = new THREE.Vector3();
-  const parts = [her.headPosition(point.clone()), her.model.getObjectByName('Hips').getWorldPosition(point.clone()), her.model.getObjectByName('Tail6').getWorldPosition(point.clone()),
-    world.resolvePoint(SAIL_TOP, point.clone()), her.root.position.clone()];
-  return parts.every(p => { p.project(world.camera); return p.z >= 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1; });
+  her.headPosition(_outPoints[0]);
+  her.model.getObjectByName('Hips').getWorldPosition(_outPoints[1]);
+  her.model.getObjectByName('Tail6').getWorldPosition(_outPoints[2]);
+  world.resolvePoint(SAIL_TOP, _outPoints[3]);
+  _outPoints[4].copy(her.root.position);
+  for (let i = 0; i < 5; i++) {
+    const p = _outPoints[i].project(world.camera);
+    if (!(p.z >= 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1)) return false;
+  }
+  return true;
 }
 
 // 1. Leaving the glade: Mosi says who is next, the map slides up over the game and draws the way ahead (the trail, and across the Fen to
@@ -455,27 +468,31 @@ function* leaving(s, c) {
   s.target('kambedla', { point: KAMBEDLA_TAP, radius: 1.6 });
   let bye = null;
   const unhear = s.onTap('kambedla', () => { bye ??= s.after(0, () => goodbye(s, c)); });
-  yield mosi.lookAt('kambedla.head', { weight: 0.7 });
-  yield egill.lookAt('kambedla.head', { weight: 0.7, maxPitch: 40 });
-  yield kambedla.lookAt('mosi.head', { weight: 0.6 });
-  yield* say(s, c, 'mosi', 'k2_mosi_next');
-  yield egill.lookAt('mosi.head', { weight: 0.6, maxPitch: 30 });
-  yield* say(s, c, 'egill', 'k2_egill_bigger');
-  yield* say(s, c, 'mosi', 'k2_mosi_muchbigger');
-  // The map slides up (nothing is cut: Mosi and Egill keep their looks, and Kambeðla can still be tapped behind it), draws the Fenjaslóð
-  // and the way across the Fen while Mosi says where they are going, and slides away. His line goes through the chapter's own say, so
-  // `c.saying` counts it and her goodbye waits for it.
-  yield* mapMoment(s, c, { pieces: ['b', 'c'], line: 'k2_mosi_map_trail', speak: (speaker, id) => say(s, c, speaker, id) });
-  // They go: Mosi turns to the path out of the glade, her plates blink goodbye, and the camera pans after them.
-  yield mosi.lookAt(null);
-  yield egill.lookAt(null);
-  const going = mosi.walkTo(GLADE_EXIT, { speed: 1.0, turnRate: 55 });
-  s.after(0.4, () => blinkGoodbye(s, c));
-  yield s.wait(1.2);
-  s.camera.lookAt('mosi.head', { duration: 6 });
-  yield s.wait(5.5);
-  s.target('kambedla', null);
-  unhear();
+  let going = null;
+  try {
+    yield mosi.lookAt('kambedla.head', { weight: 0.7 });
+    yield egill.lookAt('kambedla.head', { weight: 0.7, maxPitch: 40 });
+    yield kambedla.lookAt('mosi.head', { weight: 0.6 });
+    yield* say(s, c, 'mosi', 'k2_mosi_next');
+    yield egill.lookAt('mosi.head', { weight: 0.6, maxPitch: 30 });
+    yield* say(s, c, 'egill', 'k2_egill_bigger');
+    yield* say(s, c, 'mosi', 'k2_mosi_muchbigger');
+    // The map slides up (nothing is cut: Mosi and Egill keep their looks, and Kambeðla can still be tapped behind it), draws the Fenjaslóð
+    // and the way across the Fen while Mosi says where they are going, and slides away. His line goes through the chapter's own say, so
+    // `c.saying` counts it and her goodbye waits for it.
+    yield* mapMoment(s, c, { pieces: ['b', 'c'], line: 'k2_mosi_map_trail', speak: (speaker, id) => say(s, c, speaker, id) });
+    // They go: Mosi turns to the path out of the glade, her plates blink goodbye, and the camera pans after them.
+    yield mosi.lookAt(null);
+    yield egill.lookAt(null);
+    going = mosi.walkTo(GLADE_EXIT, { speed: 1.0, turnRate: 55 });
+    s.after(0.4, () => blinkGoodbye(s, c));
+    yield s.wait(1.2);
+    s.camera.lookAt('mosi.head', { duration: 6 });
+    yield s.wait(5.5);
+  } finally {
+    s.target('kambedla', null);
+    unhear();
+  }
   if (bye) yield bye; // her goodbye is said before the fade
   c.leavingWalk = going;
 }
@@ -501,6 +518,7 @@ function* footprints(s, c) {
   mark(c, 2);
   const { mosi, egill } = c;
   yield* goTo(s, c, 'fenjaslod', () => arriveOnTheTrail(s, c));
+  s.releaseLocation?.('burknalaut');
   // The ride down: the forest turns to fen, the prints come into view in the mud ahead, and Mosi stops by the first.
   const first = mosiAt(0);
   const ride = mosi.walkTo([...RIDE_POINTS, [first.x, first.z]], { speed: 1.1 });

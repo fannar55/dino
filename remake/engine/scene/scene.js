@@ -1,6 +1,7 @@
 import { createScheduler, wait, all, race, until } from './scheduler.js';
 import { searchFlow } from './search.js';
 import { createSwipe } from '../input/swipe.js';
+import { clearFootstepDust } from '../footstep-dust.js';
 import { createStarSprite, STAR_RADIUS } from './star-sprite.js';
 import { EASE } from '../camera/director.js';
 import { DONE } from '../handle.js';
@@ -82,7 +83,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       talking = actor?.talk?.({ mouth: recording?.mouth, duration: lineDuration(entry), text: entry.text });
       const began = scheduler.now;
       // The line is over when its sound is: a sound that stalls is given SOUND_END_GRACE beyond the recording's length.
-      if (sound) yield until(() => voice.done(sound) || scheduler.now - began >= lineDuration(entry) + SOUND_END_GRACE);
+      // A sound that failed or was blocked before it ever played (done && !started) falls back to the recorded duration.
+      if (sound && !(voice.done(sound) && !voice.started(sound))) yield until(() => voice.done(sound) || scheduler.now - began >= lineDuration(entry) + SOUND_END_GRACE);
       else yield wait(lineDuration(entry));
       yield wait(hold);
     } finally {
@@ -672,8 +674,13 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       ownTargets.clear();
       director.stop();
       director.handheld(0, { duration: 0.001 });
-      for (const a of world.actors.values()) a.stop?.();
+      for (const a of world.actors.values()) {
+        a.control?.(null);
+        a.setOverlay?.(null);
+        a.stop?.();
+      }
       world.effects?.clear?.();
+      clearFootstepDust(world);
       voice.stop();
       sfx?.stop?.(); // the forest's loop
       ui.reset();

@@ -279,6 +279,11 @@ export function createLobby(doc, {
 
     hideWaiting,
 
+    /** Updates the active waiting card's QR code and room code without resetting its cover timer. */
+    updateJoin({ joinUrl, code }) {
+      if (waiting) fillJoin(waiting.block, joinUrl, code);
+    },
+
     /** With `on`, the lobby and the waiting card say "Fjölspil þarf net" in place of the QR code and the letters. */
     needsNet(on) {
       netNeeded = Boolean(on);

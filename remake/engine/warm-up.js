@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyFog } from './fog.js';
 
 // The warm-up draw. The first frame that draws a material builds its shader programs, and on ANGLE's D3D11 backend (the laptop's
 // Edge and Chrome; the tablet's Chrome has the same kind of cost) that takes 0.2 to 0.6 s of a frame. renderer.compile() and
@@ -24,15 +25,18 @@ import * as THREE from 'three';
 const ownShadow = THREE.Object3D.prototype.onAfterShadow;
 const vec = (value, out) => (Array.isArray(value) ? out.fromArray(value) : out.copy(value));
 
-export function warmUp(renderer, scene, camera, { objects = [], shots = [] } = {}) {
+export function warmUp(renderer, scene, camera, { objects = [], shots = [], shadow = true } = {}) {
   const started = performance.now();
   const programsBefore = renderer.info.programs?.length ?? 0;
   const flags = new Map(); // object -> { visible, frustumCulled }: what to put back
   const keep = o => { if (!flags.has(o)) flags.set(o, { visible: o.visible, frustumCulled: o.frustumCulled }); };
   const was = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), up: camera.up.clone(), fov: camera.fov, zoom: camera.zoom };
+  const wasShadowAuto = renderer.shadowMap?.autoUpdate;
   const target = new THREE.Vector3();
   let draws = 0;
   try {
+    applyFog(scene);
+    if (!shadow && renderer.shadowMap) renderer.shadowMap.autoUpdate = false;
     for (const root of objects) {
       for (let o = root.parent; o; o = o.parent) {
         keep(o);
@@ -57,13 +61,14 @@ export function warmUp(renderer, scene, camera, { objects = [], shots = [] } = {
         }
       }
       camera.updateMatrixWorld();
-      renderer.shadowMap.needsUpdate = true; // in case the shadow map is drawn on demand
+      if (shadow && renderer.shadowMap) renderer.shadowMap.needsUpdate = true; // in case the shadow map is drawn on demand
       renderer.render(scene, camera);
       draws++;
     }
     const gl = renderer.getContext();
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
   } finally {
+    if (!shadow && renderer.shadowMap && wasShadowAuto !== undefined) renderer.shadowMap.autoUpdate = wasShadowAuto;
     for (const [o, f] of flags) {
       o.visible = f.visible;
       o.frustumCulled = f.frustumCulled;

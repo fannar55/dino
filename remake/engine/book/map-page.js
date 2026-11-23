@@ -1,6 +1,6 @@
 import { pressable, reducedMotion } from './fx.js';
 import { createLiveMap } from './map-life.js';
-import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
+import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal-data.js';
 
 // The book's map, Kortið (spec section 7, the fifth ribbon): a painted watercolour map of the whole journey (assets/book/map.webp):
 // the clearing where chapter 1 began, Kambeðla's fern glade in the forest, the sandy trail with Þórseðla's prints along it down to
@@ -311,6 +311,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     spot(el, place.at, half);
     const sticker = make('span', 'map-sticker');
     const img = doc.createElement('img');
+    img.decoding = 'async';
     img.src = PICTURES[place.id];
     img.alt = '';
     img.draggable = false;

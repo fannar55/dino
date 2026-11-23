@@ -477,7 +477,9 @@ transformed.y += sin( position.x * 3.1 + uTime * 4.0 ) * uWave * 0.08 * flagOut;
       if (scale) geometry.scale(...scale);
       if (rotZ) geometry.rotateZ(rotZ);
       geometry.translate(...at);
-      parts.push(painted(geometry.index ? geometry.toNonIndexed() : geometry, colour));
+      const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+      if (flat !== geometry) geometry.dispose();
+      parts.push(painted(flat, colour));
     };
     for (const event of events) {
       const p = square(event.from);

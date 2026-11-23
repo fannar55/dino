@@ -62,7 +62,7 @@
     <button id="help" class="mosi-help" type="button" aria-label="Spyrja Mosa"></button>
 
     <div id="loading"><span class="loading-mosi" aria-hidden="true"><img src="./assets/book/images/mosi-render.webp" alt=""><i></i><i></i><i></i></span><h2>Mosi gerir borðið tilbúið…</h2><p>Rétt að byrja!</p></div>
-    <div id="error" hidden><img class="error-mosi" src="./assets/eitt/mosi.webp" alt=""><h2>Borðið náði ekki að opnast</h2><p>Prófum aftur.</p><button class="big" type="button" onclick="location.reload()">Reyna aftur</button></div>
+    <div id="error" hidden><img class="error-mosi" src="./assets/eitt/mosi.webp" alt=""><h2>Borðið náði ekki að opnast</h2><p>Prófum aftur.</p><button id="error-retry" class="big" type="button">Reyna aftur</button></div>
     <!-- "Fjölspil": the lobby and the waiting card of the page's own room (engine/fjolspil/lobby.js, fjolspil.css), over the table. -->
     <div id="fjolspil" class="fjolspil" hidden></div>
   </section>
@@ -75,7 +75,7 @@
   <div class="panel-actions">
     <button id="continue-multi" class="big" type="button" hidden>Halda áfram (Fjölspil)</button>
     <button id="continue" class="big" type="button" autofocus hidden>Halda áfram</button>
-    <button id="learn" class="big" type="button" autofocus>Læra með Mosa</button>
+    <button id="learn" class="big" type="button">Læra með Mosa</button>
     <div class="panel-row">
       <button id="multi" class="plain" type="button">Fjölspil</button>
       <button id="start" class="plain" type="button">Spila</button>
@@ -122,12 +122,13 @@
   </div>
 </dialog>
 <!-- The QR code's encoder for the lobby (engine/fjolspil/qr.js): a classic script that defines the global qrcode. -->
-<script src="./vendor/qrcode-generator/qrcode.js"></script>
+<script src="./vendor/qrcode-generator/qrcode.js" defer></script>
 <script>
 // In the book (engine/yatzy-junior/frame.js opens this page in a frame, ?inbook=1) the book draws its round close top right, so
 // the page's own close stays hidden there; on its own page that close goes back to where the child came from.
 const inBook=new URLSearchParams(location.search).has('inbook');
 if(inBook)document.getElementById('game').dataset.inbook='1';
+document.getElementById('error-retry').addEventListener('click',()=>location.reload());
 document.getElementById('close').addEventListener('click',()=>{
   if(inBook&&parent!==window){parent.postMessage({type:'yatzy-junior:close'},location.origin);return;}
   if(history.length>1)history.back();else location.href='./index.html';

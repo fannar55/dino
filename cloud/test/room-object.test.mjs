@@ -5,9 +5,9 @@
 // sending on or closing a closed socket throws, and an attachment comes back as a copy.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Room } from '../src/room-object.mjs';
+import { ALARM_THROTTLE_MS, Room } from '../src/room-object.mjs';
 import worker from '../src/worker.mjs';
-import { ROOM_TTL_MS, message } from '../../remake/engine/fjolspil/protocol.js';
+import { MAX_MESSAGE_BYTES, ROOM_TTL_MS, message } from '../../remake/engine/fjolspil/protocol.js';
 
 class FakeSocket {
   accepted = null; // 'hibernatable' (ctx.acceptWebSocket) or 'plain' (accept())
@@ -39,12 +39,13 @@ class FakeCtx {
   sockets = [];
   data = new Map();
   alarmAt = null;
+  alarmWrites = 0;
   reversed = false; // the runtime promises no order for its sockets
   storage = {
     get: async key => structuredClone(this.data.get(key)),
     put: async (key, value) => { this.data.set(key, structuredClone(value)); },
     deleteAll: async () => { this.data.clear(); },
-    setAlarm: async at => { this.alarmAt = at; },
+    setAlarm: async at => { this.alarmAt = at; this.alarmWrites += 1; },
   };
   acceptWebSocket(ws) {
     ws.accepted = 'hibernatable';
@@ -111,43 +112,45 @@ test('a host is welcomed, a guest is announced, and relays flow', async t => {
   assert.deepEqual(ctx.data.get('room'), { code: 'GULL', hostKey: 'abc', lastSeen: clock.now });
   assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS);
 
+  const initialAlarm = ctx.alarmAt;
   clock.tick(1000);
   const guest = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g1');
   assert.deepEqual(guest.take(), []);
   assert.deepEqual(guest.deserializeAttachment(), { role: 'guest', id: 'g1' });
   assert.deepEqual(host.take(), [message('joined', { id: 'g1' })]);
-  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a connect is a sign of life');
+  assert.equal(ctx.alarmAt, initialAlarm, 'rapid activity inside the throttle window avoids redundant setAlarm writes');
+  assert.equal(ctx.alarmWrites, 1);
 
-  clock.tick(1000);
+  clock.tick(ALARM_THROTTLE_MS);
   await room.webSocketMessage(guest, fromGuest(hello));
   assert.deepEqual(host.take(), [message('relay', { from: 'g1', body: hello })]);
-  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a message is a sign of life');
+  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a message past the throttle window extends the alarm');
   clock.tick(1000);
   await room.webSocketMessage(host, fromHost('g1', ping));
   assert.deepEqual(guest.take(), [message('relay', { body: ping })]);
-  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS);
+  assert.equal(ctx.alarmWrites, 2, 'a message 1 s later stays throttled');
 
-  clock.tick(1000);
+  clock.tick(ALARM_THROTTLE_MS);
   await room.webSocketMessage(host, JSON.stringify(message('alive', null)));
   assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'the host\'s alive re-arms the alarm: over WebRTC it is all the room hears');
-  clock.tick(1000);
+  clock.tick(ALARM_THROTTLE_MS);
   await room.webSocketMessage(guest, JSON.stringify(message('alive', null)));
   assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a guest\'s too');
   assert.deepEqual([...host.take(), ...guest.take()], [], 'and an alive is carried to no one');
 
   const armed = ctx.alarmAt;
-  clock.tick(1000);
+  clock.tick(ALARM_THROTTLE_MS);
   await room.webSocketMessage(guest, new ArrayBuffer(3));
   await room.webSocketMessage(guest, 'not json');
   assert.equal(ctx.alarmAt, armed, 'a binary frame and junk are no sign of life (as at home)');
   await room.webSocketMessage(guest, JSON.stringify({ v: 1, type: 'relay' }));
   assert.deepEqual(host.take(), [], 'a binary frame, junk and a relay without a body go nowhere');
 
-  clock.tick(1000);
+  clock.tick(ALARM_THROTTLE_MS);
   await clientCloses(room, guest);
   assert.deepEqual(host.take(), [message('left', { id: 'g1' })]);
   assert.equal(ctx.data.get('room').lastSeen, clock.now, 'stored again after a disconnect');
-  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a disconnect is a sign of life');
+  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a disconnect past the throttle window extends the alarm');
 });
 
 test('a refused connect is told why and closed 1000, a replaced one too, and guests stay while the host is away', async () => {
@@ -331,4 +334,36 @@ test('a bad code or a non-upgrade is refused', async () => {
   await worker.fetch(request('/remake/spil.html?code=GULL'), env);
   await worker.fetch(request('/fjolspil/ws/GULL/more'), env);
   assert.deepEqual(fetched, ['/remake/spil.html', '/fjolspil/ws/GULL/more'], 'everything else is the static assets\'');
+});
+
+test('origin checks, oversized frames, socket errors and expired wakeups are enforced', async t => {
+  const clock = clockOf(t);
+  const ctx = new FakeCtx();
+  const room = new Room(ctx, {});
+
+  const badOrigin = await room.fetch(request('/fjolspil/ws/GULL?role=host&key=abc', { upgrade: 'websocket', origin: 'https://evil.example' }));
+  assert.equal(badOrigin.status, 403);
+  const okOrigin = await room.fetch(request('/fjolspil/ws/GULL?role=host&key=abc', { upgrade: 'websocket', origin: 'https://mosi.example' }));
+  assert.equal(okOrigin.status, 101);
+  const host = servers.at(-1);
+  host.take();
+
+  const guest = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g1');
+  host.take();
+  await room.webSocketMessage(guest, 'x'.repeat(MAX_MESSAGE_BYTES + 1));
+  assert.equal(guest.closed, 1009, 'oversized text frame closes 1009');
+
+  const g2 = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g2');
+  host.take();
+  await room.webSocketError(g2);
+  assert.equal(g2.closed, 1011, 'socket error closes 1011');
+  assert.deepEqual(host.take(), [message('left', { id: 'g2' })]);
+
+  // A room waking up past ROOM_TTL_MS forgets itself and closes sockets with 1001.
+  clock.tick(ROOM_TTL_MS + 1000);
+  const woke = new Room(ctx, {});
+  const afterExpire = await connect(woke, ctx, '/fjolspil/ws/GULL?role=guest&id=g3');
+  assert.equal(host.closed, 1001);
+  assert.deepEqual(afterExpire.take(), [message('error', { reason: 'no-room' })]);
+  assert.equal(ctx.data.size, 0);
 });

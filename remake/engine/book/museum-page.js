@@ -191,6 +191,9 @@ export function createMuseumPage(leaf, { save, audio = null, win = globalThis.wi
   function stop() {
     for (const timer of waiting) clearTimeout(timer);
     waiting.clear();
+    clearTimeout(nameTimer);
+    nameTimer = 0;
+    nameBubble.hidden = true;
   }
 
   for (const sticker of stickers) pressable(sticker.tile, { audio, sound: null, win, onTap: () => tap(sticker) });

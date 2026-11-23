@@ -75,6 +75,7 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   let token = 0; // each show and hide takes the next: an answer that comes late finds it is no longer its turn
   let shown = null; // the model on the canvas: { radius }
   let frameId = 0;
+  let pendingDraw = 0;
   let last = 0;
   let watcher = null;
   let yaw = START_YAW;
@@ -87,11 +88,25 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   const fingers = new Map(); // pointerId -> { x0, y0, x, y, moved, disturbed }
   let pinch = null; // the two fingers that pinch, and how far apart they were and how big the model was when they began
 
+  function stopLoop() {
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = 0;
+  }
+
+  function requestDraw() {
+    if (!shown || !stage || frameId || pendingDraw) return;
+    pendingDraw = requestAnimationFrame(() => {
+      pendingDraw = 0;
+      if (shown && stage) draw();
+    });
+  }
+
   function bindCanvas(el) {
     el.addEventListener?.('webglcontextlost', event => {
       event.preventDefault?.();
       token++;
       stop(); // hides the canvas so the 2D fallback photo underneath shows immediately
+      releaseStage(true);
     });
     el.addEventListener('pointerdown', event => {
       if (!shown || event.button > 0) return;
@@ -113,6 +128,7 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
         if (Math.hypot(finger.x - finger.x0, finger.y - finger.y0) < TAP_SLOP_PX) return; // a finger at rest moves nothing
         finger.moved = true; // it moves the model from here on, from where it is
         touched = true;
+        stopLoop();
         pinch = null;
         for (const other of fingers.values()) other.disturbed = true; // none of the fingers down is a tap now
         return;
@@ -121,13 +137,17 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
       if (movers.length < 2) {
         yaw += dx * DRAG_TURN;
         tilt = clamp(tilt + dy * DRAG_TURN, -TILT_MAX, TILT_MAX);
+        requestDraw();
         return;
       }
       const [a, b] = movers.map(([, other]) => other);
       const apart = Math.hypot(a.x - b.x, a.y - b.y);
       const key = movers.map(([id]) => id).join();
       if (pinch?.key !== key) pinch = { key, apart, zoom }; // a fresh start when these are not the two before
-      if (pinch.apart > 1) zoom = clamp(pinch.zoom * (apart / pinch.apart), MIN_ZOOM, MAX_ZOOM);
+      if (pinch.apart > 1) {
+        zoom = clamp(pinch.zoom * (apart / pinch.apart), MIN_ZOOM, MAX_ZOOM);
+        requestDraw();
+      }
     });
     const lift = event => {
       const finger = fingers.get(event.pointerId);
@@ -142,7 +162,9 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
       if (!shown) return;
       event.preventDefault?.();
       touched = true;
+      stopLoop();
       zoom = clamp(zoom * (event.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP), MIN_ZOOM, MAX_ZOOM);
+      requestDraw();
     }, { passive: false });
   }
 
@@ -158,15 +180,20 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   }
   freshCanvas();
 
-  function releaseStage() {
+  function releaseStage(lost = false) {
     watcher?.disconnect();
     watcher = null;
     for (const loading of models.values()) loading.then(({ holder }) => release(holder), () => {});
     models.clear();
     if (!stage) return;
-    stage.renderer.dispose();
-    stage.renderer.forceContextLoss?.();
+    const old = stage;
     stage = null;
+    try {
+      old.renderer.dispose();
+      if (!lost) old.renderer.forceContextLoss?.();
+    } catch {
+      // context already lost
+    }
     freshCanvas();
   }
 
@@ -200,9 +227,10 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   function load(src) {
     if (!models.has(src)) {
       const loading = Promise.resolve((loadModel ?? (path => (loader ??= new GLTFLoader()).loadAsync(path)))(src)).then(gltf => {
-        const model = gltf.scene ?? gltf.scenes?.[0];
+        const model = gltf?.scene ?? gltf?.scenes?.[0];
+        if (!model) throw new Error(`${src} has nothing to show`);
         const box = new THREE.Box3().setFromObject(model);
-        if (!model || box.isEmpty()) throw new Error(`${src} has nothing to show`);
+        if (box.isEmpty()) throw new Error(`${src} has nothing to show`);
         const sphere = box.getBoundingSphere(new THREE.Sphere());
         model.position.sub(sphere.center);
         return { holder: new THREE.Group().add(model), radius: Math.max(sphere.radius, 1e-3) };
@@ -242,20 +270,23 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   }
 
   function loop(now) {
+    if (!shown || !stage || touched || calm) {
+      frameId = 0;
+      return;
+    }
     frameId = requestAnimationFrame(loop);
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
-    if (!touched && !calm) {
-      if (rocking) yaw = rockYaw(rockTime += dt);
-      else yaw += AUTO_TURN * dt;
-    }
+    if (rocking) yaw = rockYaw(rockTime += dt);
+    else yaw += AUTO_TURN * dt;
     draw();
   }
 
   /** The canvas goes, and nothing is drawn. */
   function stop() {
-    if (frameId) cancelAnimationFrame(frameId);
-    frameId = 0;
+    stopLoop();
+    if (pendingDraw) cancelAnimationFrame(pendingDraw);
+    pendingDraw = 0;
     shown = null;
     canvas.hidden = true;
     fingers.clear();
@@ -295,7 +326,7 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
       canvas.hidden = false;
       resize();
       draw(); // drawn before it is shown, so the picture is never replaced by a blank
-      frameId = requestAnimationFrame(loop);
+      if (!calm) frameId = requestAnimationFrame(loop);
       return true;
     },
     hide() {

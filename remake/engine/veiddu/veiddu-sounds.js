@@ -90,12 +90,19 @@ export function createSplash({ context = null, output = null, urls = {}, random 
 
   function load() {
     if (!context) return Promise.resolve();
-    loading ??= Promise.all(Object.keys(SPLASHES).map(name => Promise.resolve()
-      .then(() => globalThis.fetch(urls[name]))
-      .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${urls[name]}: ${response.status}`))))
-      .then(bytes => context.decodeAudioData(bytes))
-      .then(buffer => buffers.set(name, buffer))
-      .catch(error => console.info('[veiddu] No splash yet:', error?.message ?? error)))).then(() => undefined);
+    const names = Object.keys(SPLASHES);
+    if (buffers.size === names.length) return Promise.resolve();
+    loading ??= Promise.all(names.map(name => {
+      if (buffers.has(name)) return Promise.resolve();
+      return Promise.resolve()
+        .then(() => globalThis.fetch(urls[name]))
+        .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${urls[name]}: ${response.status}`))))
+        .then(bytes => context.decodeAudioData(bytes))
+        .then(buffer => buffers.set(name, buffer))
+        .catch(error => console.info('[veiddu] No splash yet:', error?.message ?? error));
+    })).then(() => {
+      if (buffers.size < names.length) loading = null;
+    });
     return loading;
   }
 

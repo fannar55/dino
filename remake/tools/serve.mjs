@@ -16,7 +16,8 @@
 // It also files the game's bug reports (engine/villa): POST /villa with { report, files } writes qa/villur/<time>-<chapter>/ with
 // skyrsla.json (the report, with this checkout's commit added), skjaskot.jpg, merkt.jpg and spjold.html, and answers { folder }.
 // qa/ is outside git. A report over REPORT_LIMIT bytes is refused (413), one that is not { report, files } too (400). GET /villa
-// answers 204 with X-Villa: 1, which is how the tool learns that this server is there before it sends (the cloud has no /villa).
+// answers 204 with X-Villa: 1, which is how the tool learns that a server accepts reports before it sends (the cloud Worker also
+// handles /villa into R2).
 
 import http from 'node:http';
 import os from 'node:os';
@@ -27,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { attachFjolspil, lanJoinUrls } from './fjolspil-server.mjs';
 import { folderName } from '../engine/villa/skyrsla.js';
+import { parseRange } from '../../cloud/src/range.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const VIDEOS_OUT = path.resolve(ROOT, '../myndband-gramedla/out');
@@ -44,7 +46,8 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.glb': 'model/gltf-binary',
-  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.wasm': 'application/wasm',
+  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+  '.mp4': 'video/mp4', '.woff2': 'font/woff2', '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
 };
 
@@ -63,6 +66,24 @@ function resolveVideo(pathname, root, videosDir) {
   return path.join(videosDir, mapped);
 }
 
+function isBlockedPath(root, file) {
+  const rel = path.relative(root, file);
+  if (!rel || rel === '.') return false;
+  const parts = rel.split(path.sep);
+  if (parts.some(part => part.startsWith('.'))) return true;
+  return parts.length >= 2 && parts[0].toLowerCase() === 'qa' && parts[1].toLowerCase() === 'villur';
+}
+
+function pipeFile(target, res, options) {
+  const stream = fs.createReadStream(target, options);
+  stream.on('error', () => {
+    if (!res.headersSent) { res.writeHead(500); res.end('read error'); }
+    else res.destroy();
+  });
+  res.on('close', () => stream.destroy());
+  stream.pipe(res);
+}
+
 /**
  * Answers one request (exported so a test can run it on a server of its own, with a `root` and a `reportLimit` of its own):
  * POST /villa files a bug report; `/myndbond/<id>.mp4` streams an educational video; anything else is a file under the root.
@@ -75,27 +96,35 @@ export async function handle(req, res, { root = ROOT, videosDir = VIDEOS_OUT, re
       if (req.method === 'GET' || req.method === 'HEAD') { res.writeHead(204, { 'X-Villa': '1', 'Cache-Control': 'no-store' }); res.end(); return; } // "I am here"
     }
     if (url.pathname === '/') { res.writeHead(302, { Location: `/remake/${url.search}` }); res.end(); return; }
-    const videoFile = resolveVideo(decodeURIComponent(url.pathname), root, videosDir);
-    const file = videoFile ?? path.resolve(root, '.' + decodeURIComponent(url.pathname));
-    if (!videoFile && file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
+    const decodedPath = decodeURIComponent(url.pathname);
+    const videoFile = resolveVideo(decodedPath, root, videosDir);
+    const file = videoFile ?? path.resolve(root, '.' + decodedPath);
+    if (!videoFile && ((file !== root && !file.startsWith(root + path.sep)) || isBlockedPath(root, file))) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
     const stat = await fsp.stat(file);
+    if (stat.isDirectory() && !url.pathname.endsWith('/')) {
+      res.writeHead(302, { Location: `${url.pathname}/${url.search}` });
+      res.end();
+      return;
+    }
     const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
     const size = (target === file ? stat : await fsp.stat(target)).size;
     const headers = { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes' };
     const head = req.method === 'HEAD';
-    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || ''); // bytes=a-b, bytes=a- (to the end), bytes=-n (the last n)
-    if (range && (range[1] || range[2])) {
-      const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
-      const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
-      if (start >= size || start > end) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return; }
-      res.writeHead(206, { ...headers, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+    const cut = parseRange(req.headers.range, size);
+    if (cut) {
+      if (!cut.valid) { res.writeHead(416, { 'Content-Range': `bytes */${cut.total}` }); res.end(); return; }
+      res.writeHead(206, { ...headers, 'Content-Range': `bytes ${cut.start}-${cut.end}/${cut.total}`, 'Content-Length': cut.length });
       if (head) { res.end(); return; }
-      fs.createReadStream(target, { start, end }).pipe(res);
+      pipeFile(target, res, { start: cut.start, end: cut.end });
       return;
     }
     res.writeHead(200, { ...headers, 'Content-Length': size });
     if (head) { res.end(); return; }
-    fs.createReadStream(target).pipe(res);
+    pipeFile(target, res);
   } catch {
     res.writeHead(404); res.end('not found');
   }
@@ -160,9 +189,18 @@ async function saveReport(req, res, { root, reportLimit }) {
   }
   const now = new Date();
   const name = folderName(now, sent.report.chapter?.id);
-  let folder = path.join(root, REPORTS, name);
-  for (let n = 2; fs.existsSync(folder); n++) folder = path.join(root, REPORTS, `${name}-${n}`);
-  await fsp.mkdir(folder, { recursive: true });
+  const baseDir = path.join(root, REPORTS);
+  await fsp.mkdir(baseDir, { recursive: true });
+  let folder = path.join(baseDir, name);
+  for (let n = 2; ; n++) {
+    try {
+      await fsp.mkdir(folder);
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      folder = path.join(baseDir, `${name}-${n}`);
+    }
+  }
   const saved = { folder: path.relative(root, folder).split(path.sep).join('/'), at: now.toISOString() };
   const report = { ...sent.report, build: await gitInfo(root), saved };
   await fsp.writeFile(path.join(folder, 'skyrsla.json'), `${JSON.stringify(report, null, 2)}\n`);

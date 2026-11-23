@@ -191,14 +191,23 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
   // A cue for the camera director (camera-director.js): the points the shot keeps in the frame, wide and in the memory phase unless said otherwise.
   const cue = (points, options = {}) => ({ phase: 'memory', scale: 'wide', ...options, points });
+  let gladePointsCache = null, gladeCuePortrait = null, gladeCueLandscape = null, overviewPointsCache = null;
+  function gladePoints() {
+    if (!forest) return [...boardPoints(), ...mosiPoints(), ...homePoints()];
+    return gladePointsCache ??= [...boardPoints(), ...mosiPoints(), ...homePoints()];
+  }
   function gladeCue() {
-    return cue([...boardPoints(), ...mosiPoints(), ...homePoints()], { key: 'glade', focus: GLADE_VIEW.focus ?? [-1.5, .5, 3.2], direction: width / height < 1 ? GLADE_VIEW.portrait : GLADE_VIEW.landscape });
+    const portrait = width / height < 1;
+    if (!forest) return cue(gladePoints(), { key: 'glade', focus: GLADE_VIEW.focus ?? [-1.5, .5, 3.2], direction: portrait ? GLADE_VIEW.portrait : GLADE_VIEW.landscape });
+    if (portrait) return gladeCuePortrait ??= cue(gladePoints(), { key: 'glade', focus: GLADE_VIEW.focus ?? [-1.5, .5, 3.2], direction: GLADE_VIEW.portrait });
+    return gladeCueLandscape ??= cue(gladePoints(), { key: 'glade', focus: GLADE_VIEW.focus ?? [-1.5, .5, 3.2], direction: GLADE_VIEW.landscape });
   }
   // The overview shows the board, the rests, Mosi and the points the level adds (the way its steps lead on).
   function overviewCue() {
     // (a level whose friends have left the glade, level 2's after the tunnel, shows where they are: its own overview)
     const own = levelWorld?.overviewCue?.(cue); if (own) return own;
-    return cue([...boardPoints(), ...nestPoints(), ...mosiPoints(), ...(levelWorld?.overviewPoints ?? [])], { key: 'overview', phase: 'overview', focus: GLADE_VIEW.overviewFocus ?? [0, .5, -10], direction: GLADE_VIEW.overviewDirection });
+    const points = forest ? (overviewPointsCache ??= [...boardPoints(), ...nestPoints(), ...mosiPoints(), ...(levelWorld?.overviewPoints ?? [])]) : [...boardPoints(), ...nestPoints(), ...mosiPoints(), ...(levelWorld?.overviewPoints ?? [])];
+    return cue(points, { key: 'overview', phase: 'overview', focus: GLADE_VIEW.overviewFocus ?? [0, .5, -10], direction: GLADE_VIEW.overviewDirection });
   }
   const cameraDirector = createCameraDirector({ camera, overview: overviewCue, fallback: gladeCue });
   // Scripts (scenes.js) run on the game clock. Their lines say what to do; this is where it happens.
@@ -228,6 +237,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const planBlock = new Set((params.get('planblock') ?? '').split(',').filter(Boolean));
   // The camera's cue now: the level's (what its mover shows), or the search view.
   const cameraCue = () => levelWorld?.cameraCue(gladeCue) ?? gladeCue();
+  let lastCue = null;
+  let leavesDirty = true, contactsDirty = true, mosiShadeKey = '';
   // What is given to a level's world (levels/worlds.js says what it does with it), then what the scene scripts use (scenes/*.js).
   const stage = {
     THREE, scene, params, level, nests, scenes, fx, cue,
@@ -254,7 +265,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     planSpent: (actor, id) => planBlock.delete(id) ? Infinity : homeNav.spent(actor),
     cancelWalk: actor => homeNav.release(actor),
     // The camera's cue for the level's world has changed, or its targets: look again.
-    refresh() { cameraDirector.setCue(cameraCue()); updateTargets(); },
+    refresh() { lastCue = null; cameraDirector.setCue(cameraCue()); updateTargets(); },
     head: nose,
     crown: cell => cell.actor ? cell.actor.getSupportPosition(new THREE.Vector3()) : giftSpot(cell),
     camera: () => camera.position.clone(),
@@ -406,6 +417,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     renderer.setPixelRatio(Math.min(q.pixelRatio * resolution, globalThis.devicePixelRatio || 1, q.maxPixelRatio));
     renderer.setSize(width, height, false);
     camera.fov = SHOT.fov; cameraDirector.setViewport(width, height);
+    lastCue = null;
     const stand = levelWorld?.mosiPlace(); // (null while he walks)
     if (mosi && stand) mosi.place(stand.x, stand.z, stand.heading);
     lighting.focus(new THREE.Vector3(-.7, .6, -3.6), 15);
@@ -506,7 +518,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     frameTime = frameCount = 0; lastAdapt = -1e9; lastStep = 0; if (resolution !== 1) { resolution = 1; resize(width, height); }
     // Mosi back at his place in the glade, standing (the level forgets his walk in its reset below).
     if (mosi) { mosi.root.rotation.z = 0; mosi.place(MOSI_SPOT.x, MOSI_SPOT.z, MOSI_SPOT.heading); mosi.play('idle', { fade: 0, timeScale: reducedMotion ? 0 : 1 }); }
-    byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; levelWorld.reset(); stepState = initialStepState(); cameraDirector.reset(); logicalToPhysical.splice(0, logicalToPhysical.length, ...SPECIES.keys());
+    byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; levelWorld.reset(); stepState = initialStepState(); cameraDirector.reset(); lastCue = null; leavesDirty = true; contactsDirty = true; mosiShadeKey = ''; logicalToPhysical.splice(0, logicalToPhysical.length, ...SPECIES.keys());
     for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(1); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
     for (const pair of giftModels.values()) for (const item of pair) { item.group.visible = false; item.busy = false; }
@@ -864,40 +876,60 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const nest of nests) if (nest.members.length) playNest(nest.index);
   }
 
+  const tCentre = new THREE.Vector3(), tSide = new THREE.Vector3(), tDepth = new THREE.Vector3(), tProbe = new THREE.Vector3();
+  const projectPt = (point, out) => {
+    projection.copy(point).project(camera);
+    out.x = (projection.x + 1) * .5 * width;
+    out.y = (1 - projection.y) * .5 * height;
+    return out;
+  };
+  const projA = { x: 0, y: 0 }, projB = { x: 0, y: 0 }, projC = { x: 0, y: 0 }, projD = { x: 0, y: 0 };
+
   function updateTargets() {
     renderTargets.length = 0;
-    const project = point => { projection.copy(point).project(camera); return { x: (projection.x + 1) * .5 * width, y: (1 - projection.y) * .5 * height }; };
+    tSide.setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
+    tDepth.set(-tSide.z, 0, tSide.x);
     for (const cell of cells) {
       if (cell.id == null) continue;
       // The leaf's own size along the camera's side to side and its depth (not the world's x and z: the search view is turned to the grid), so
       // that neighbouring buttons only overlap where the leaves themselves are that close (44 px at least either way).
-      const centre = cell.root.position.clone().add(new THREE.Vector3(0, .45, .05)), p = project(centre);
-      const side = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize(), depth = new THREE.Vector3(-side.z, 0, side.x);
-      const left = project(centre.clone().addScaledVector(side, -1.25)), front = project(centre.clone().addScaledVector(depth, 1.2)), back = project(centre.clone().addScaledVector(depth, -1.2));
-      renderTargets.push({ type: 'leaf', id: cell.id, x: p.x, y: p.y, width: Math.max(44, Math.abs(p.x - left.x) * 2), height: Math.max(44, Math.abs(front.y - back.y)), enabled: !matchedStatus(cell.status) && !cell.transfer && !cell.moved });
+      tCentre.copy(cell.root.position); tCentre.y += .45; tCentre.z += .05;
+      projectPt(tCentre, projA);
+      projectPt(tProbe.copy(tCentre).addScaledVector(tSide, -1.25), projB);
+      projectPt(tProbe.copy(tCentre).addScaledVector(tDepth, 1.2), projC);
+      projectPt(tProbe.copy(tCentre).addScaledVector(tDepth, -1.2), projD);
+      renderTargets.push({ type: 'leaf', id: cell.id, x: projA.x, y: projA.y, width: Math.max(44, Math.abs(projA.x - projB.x) * 2), height: Math.max(44, Math.abs(projC.y - projD.y)), enabled: !matchedStatus(cell.status) && !cell.transfer && !cell.moved });
     }
     for (const nest of nests) {
       // The home target follows the animals' heads. This leaves the lower
       // activity strip free for the stone controls, including on a phone.
-      const centre = levelWorld.ownsPair(nest.species) ? levelWorld.pairCentre(nest.species) : nest.root.position.clone().add(new THREE.Vector3(0, 1, 0));
-      const p = project(centre), edge = project(centre.clone().add(new THREE.Vector3(1.2, 0, 0)));
+      if (levelWorld.ownsPair(nest.species)) tCentre.copy(levelWorld.pairCentre(nest.species));
+      else { tCentre.copy(nest.root.position); tCentre.y += 1; }
+      projectPt(tCentre, projA);
+      tProbe.copy(tCentre); tProbe.x += 1.2;
+      projectPt(tProbe, projB);
       const ready = nest.members.length === 2 && nest.members.every(actor => cells.some(cell => cell.actor === actor && cell.moved));
       const minimum = width < 600 ? 44 : 64;
       const selectable = levelWorld.nestSelectable(nest.species);
-      renderTargets.push({ type: 'nest', index: nest.index, x: p.x, y: p.y, width: Math.max(minimum, Math.min(width < 600 ? 54 : 98, Math.abs(edge.x - p.x) * 2)), height: Math.max(minimum, Math.min(64, Math.abs(edge.x - p.x))), enabled: ready && !levelWorld.isBusy() && selectable });
+      renderTargets.push({ type: 'nest', index: nest.index, x: projA.x, y: projA.y, width: Math.max(minimum, Math.min(width < 600 ? 54 : 98, Math.abs(projB.x - projA.x) * 2)), height: Math.max(minimum, Math.min(64, Math.abs(projB.x - projA.x))), enabled: ready && !levelWorld.isBusy() && selectable });
     }
     // A script waiting for taps on an obstacle (the tap-along) makes that obstacle one big target under the still shot, at the point the
     // level says (level 1: over the two crowns for the branch), kept inside the screen; every other target waits for world input to return.
     // A level may give an obstacle a `radius` (metres): its button is then at least as wide as the obstacle looks.
     for (const target of levelWorld.getTargets()) {
       const tapAlong = Boolean(target.tapAlong), point = tapAlong ? levelWorld.tapPoint(target.id) : target.point;
-      const p = project(point);
+      projectPt(point, projA);
       let size = tapAlong ? Math.round(Math.max(width < 600 ? 150 : 200, Math.min(width, height) * .42)) : width < 600 ? 44 : 64;
-      if (!tapAlong && target.radius > 0 && !(target.edge && width < 600)) size =Math.max(size, Math.round(Math.abs(project(point.clone().add(new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(target.radius))).x - p.x) * 2));
+      if (!tapAlong && target.radius > 0 && !(target.edge && width < 600)) {
+        tProbe.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(target.radius).add(point);
+        projectPt(tProbe, projB);
+        size = Math.max(size, Math.round(Math.abs(projB.x - projA.x) * 2));
+      }
+      let px = projA.x, py = projA.y;
       // An obstacle at the very edge of the view (the log on a phone) keeps its button just inside the screen.
       // (a level may mark an obstacle `edge`: one that a narrow view leaves just outside its side, level 2's tunnel on a phone, keeps its button at the screen's edge too)
-      if (tapAlong || target.edge || p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
-      renderTargets.push({ type: 'task', id: target.id, x: p.x, y: p.y, width: size, height: size, enabled: tapAlong || target.enabled, next: Boolean(target.next), tapAlong, unbuilt: Boolean(target.unbuilt) });
+      if (tapAlong || target.edge || px >= 0 && px <= width && py >= 0 && py <= height) { px = THREE.MathUtils.clamp(px, size / 2 + 8, width - size / 2 - 8); py = THREE.MathUtils.clamp(py, size / 2 + 8, height - size / 2 - 8); }
+      renderTargets.push({ type: 'task', id: target.id, x: px, y: py, width: size, height: size, enabled: tapAlong || target.enabled, next: Boolean(target.next), tapAlong, unbuilt: Boolean(target.unbuilt) });
     }
     for (const target of renderTargets) target.enabled &&= target.tapAlong || cameraDirector.isInteractive() && target.x - target.width / 2 >= 8 && target.x + target.width / 2 <= width - 8 && target.y - target.height / 2 >= 8 && target.y + target.height / 2 <= height - 8;
   }
@@ -921,7 +953,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       if (cell.wonderAt <= 0) { if (!cell.actor.getDebugState?.().gesture) cell.actor.gesture('wonder'); cell.wonderAt = 2.7; }
     }
     for (const cell of cells) {
-      const before = cell.open, step = !(delta > 0) || cameraTravel ? 0 : reducedMotion ? 1 : revealDelta / TAP.swing;
+      const before = cell.open, prevSpring = cell.spring, prevVanish = cell.vanish, step = !(delta > 0) || cameraTravel ? 0 : reducedMotion ? 1 : revealDelta / TAP.swing;
       if (cell.pending > 0 && revealDelta > 0) { cell.pending -= revealDelta; if (cell.pending <= 0) { cell.pending = 0; openCell(cell); } }
       cell.open += THREE.MathUtils.clamp(cell.targetOpen - cell.open, -step, step);
       if (revealDelta > 0) {
@@ -941,6 +973,10 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
         if (cell.vanish === 0) fx.emit('poof', cell.leaf.position.clone().add(cell.root.position), { count: 6, ring: .5 });
         cell.vanish = reducedMotion ? 1 : Math.min(1, cell.vanish + delta / .22);
       } else if (!leaving) cell.vanish = 0;
+      if (cell.open !== before || cell.spring !== prevSpring || cell.vanish !== prevVanish) {
+        leavesDirty = true;
+        if (cell.open !== before || cell.vanish !== prevVanish) contactsDirty = true;
+      }
       poseLeaf(cell.leaf, leafResources, { open: smooth(cell.open), bounce: cell.spring, vanish: cell.vanish, turn: cell.turn });
       const shade = (1 - smooth(cell.open)) * (1 - cell.vanish); cell.shade.scale.set(2.6 * shade + 1e-3, 1, 2.5 * shade + 1e-3);
       updateGift(cell, revealDelta);
@@ -969,7 +1005,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       actor.update?.(revealHold || cell?.transfer && !homeDelta || focusHold && levelWorld.ownsPair(actor.species) ? 0 : delta);
     }
     levelWorld.afterActors(actionDelta);
-    cameraDirector.setCue(cameraCue()); cameraDirector.update(delta);
+    const nextCue = cameraCue();
+    if (nextCue !== lastCue) { lastCue = nextCue; cameraDirector.setCue(nextCue); }
+    cameraDirector.update(delta);
     lighting.focus(cameraDirector.focus(), cameraDirector.mode() === 'overview' ? 22 : 15);
     cheerAge += delta; bonkAge += delta;
     if (cheerAge > 1.2 && cheerAge - delta <= 1.2) mosi.openEyes();
@@ -995,11 +1033,20 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const grounded = mosi.root.position.y < floorY + .3;
     mosiShade.position.set(mosi.root.position.x, floorY + .095, mosi.root.position.z); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2;
     mosiShade.scale.set(grounded ? 2.6 : 0, 1, grounded ? 3.8 : 0); mosiShade.updateMatrixWorld();
-    contactMeshes.forEach((mesh, index) => contactBatch.setMatrixAt(index, mesh.matrixWorld)); contactBatch.instanceMatrix.needsUpdate = true;
-    const remainingCovers = cells.filter(cell => cell.vanish < 1);
-    for (const batch of leafBatches) {
-      batch.count = remainingCovers.length; batch.visible = batch.count > 0;
-      remainingCovers.forEach((cell, index) => batch.setMatrixAt(index, cell.leaf.matrixWorld)); batch.instanceMatrix.needsUpdate = true;
+    const nextMosiKey = `${mosiShade.position.x.toFixed(3)}|${mosiShade.position.y.toFixed(3)}|${mosiShade.position.z.toFixed(3)}|${mosiShade.rotation.y.toFixed(3)}|${grounded ? 1 : 0}`;
+    if (nextMosiKey !== mosiShadeKey) { mosiShadeKey = nextMosiKey; contactsDirty = true; }
+    if (contactsDirty) {
+      contactMeshes.forEach((mesh, index) => contactBatch.setMatrixAt(index, mesh.matrixWorld));
+      contactBatch.instanceMatrix.needsUpdate = true;
+      contactsDirty = false;
+    }
+    if (leavesDirty) {
+      const remainingCovers = cells.filter(cell => cell.vanish < 1);
+      for (const batch of leafBatches) {
+        batch.count = remainingCovers.length; batch.visible = batch.count > 0;
+        remainingCovers.forEach((cell, index) => batch.setMatrixAt(index, cell.leaf.matrixWorld)); batch.instanceMatrix.needsUpdate = true;
+      }
+      leavesDirty = false;
     }
     forest.update(delta, time);
     forestVisibility.update(cameraDirector.focus());
@@ -1166,14 +1213,14 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     sceneBusy: () => scenes.busy(),
     getPairReadiness: () => Object.fromEntries(nests.filter(nest => nest.species).map(nest => [nest.species, nest.members.length === 2 && nest.members.every(actor => cells.some(cell => cell.actor === actor && cell.moved))])),
     /** The step rules' state (step-rules.js getState()): the world keeps it and hands it to the level's world. */
-    setStepState(snapshot) { stepState = { ...snapshot }; levelWorld.setStepState(snapshot); cameraDirector.setCue(cameraCue()); updateTargets(); },
+    setStepState(snapshot) { stepState = { ...snapshot }; levelWorld.setStepState(snapshot); lastCue = cameraCue(); cameraDirector.setCue(lastCue); updateTargets(); },
     /** The events since the last call: the level's own (a step done, blocked...), the effects' footsteps and the scripts' sounds and lines. */
     pollStepEvents() {
       deferredEvents.push(...levelWorld.pollEvents(), ...fx.pollSteps());
       if (cameraDirector.mode() === 'auto' && cameraDirector.isMoving() && levelWorld.isBusy()) { const ready = deferredEvents.filter(event => event.type === 'bridge-complete' || event.type === 'footstep' || event.type.startsWith('scene-')); for (const event of ready) deferredEvents.splice(deferredEvents.indexOf(event), 1); return ready; }
       return deferredEvents.splice(0);
     },
-    setCameraMode(mode) { const changed = cameraDirector.setMode(mode); updateTargets(); return changed; },
+    setCameraMode(mode) { const changed = cameraDirector.setMode(mode); lastCue = null; updateTargets(); return changed; },
     getCameraState: () => cameraDirector.getDebug(),
     setReducedMotion(value) { reducedMotion = Boolean(value); fx.setReducedMotion(reducedMotion); cameraDirector.setReducedMotion(reducedMotion); mosiPuppet.setReducedMotion(reducedMotion); babyActors.forEach(actor => actor.setReducedMotion?.(reducedMotion)); idlePlay?.setReducedMotion(reducedMotion);
       // The level's mover is calm too, and it answers for Mosi's clip: on his way over the bridge or to the grove he keeps his walk clip (only

@@ -310,8 +310,13 @@ Reports and reviews are in `qa/remake/reports/`.
 ## Checking work
 
 ```bash
-npm run test:remake
+npm run test:unit      # fast unit/subsystem tests (excludes full-chapter playthroughs)
+npm run test:chapters  # chapter integration playthrough tests (kafli1–kafli5)
+npm run test:remake    # full remake suite
+npm run test:cloud     # Cloudflare Worker, Durable Object & staging tests
 ```
+
+For the 2026-11-22 audit fixes, zero-quality-loss optimizations, and preserved contracts, see [docs/2026-11-22-audit-fixes-and-optimizations.md](../docs/2026-11-22-audit-fixes-and-optimizations.md).
 
 ```bash
 node remake/tools/capture.mjs --out qa/remake/shots/check --size 1280x800 --bench 120 --shot hero="shot=hero&t=2" --shot intro="t=31"

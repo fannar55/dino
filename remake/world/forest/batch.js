@@ -221,7 +221,6 @@ export function createBatcher() {
     const master = new IndexArray(bucket.indices);
     const ranges = [];
     let v = 0, k = 0;
-    const box = new THREE.Box3();
     const tmp = new THREE.Vector3();
     for (const { builder: m, placement: p, minD, maxD, ref, level, crown, carded = false, plant = null, li = -1 } of bucket.items) {
       const c = Math.cos(p.rot), s = Math.sin(p.rot), sc = p.scale;
@@ -229,7 +228,6 @@ export function createBatcher() {
       const sky = p.sky;
       const base = v;
       const cut = grow ? cutOf(p) : 0;
-      box.makeEmpty();
       for (let i = 0; i < m.count; i++, v++) {
         let lx = m.pos[i * 3], ly = m.pos[i * 3 + 1], lz = m.pos[i * 3 + 2];
         const nx = m.nrm[i * 3], ny = m.nrm[i * 3 + 1], nz = m.nrm[i * 3 + 2];
@@ -241,7 +239,6 @@ export function createBatcher() {
         }
         const x = p.x + (lx * c - lz * s) * sc, y = p.y + ly * sc, z = p.z + (lx * s + lz * c) * sc;
         pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
-        box.expandByPoint(tmp.set(x, y, z));
         if (!caster) {
           nrm[v * 3] = nx * c - nz * s;
           nrm[v * 3 + 1] = ny;
@@ -336,7 +333,7 @@ export function createBatcher() {
     twin.renderOrder = mesh.renderOrder;
     twin.visible = false;
     const { band, sector, kind } = mesh.userData;
-    twin.userData = { band, sector, kind, triangles: 0, caster: false, twinOf: mesh, cull: { master, ranges: [], signature: -1, submitted: 0 }, hidden: false };
+    twin.userData = { band, sector, kind, triangles: 0, caster: false, twinOf: mesh, cull: { master, ranges: [], crownRanges: [], kept: [], signature: -1, submitted: 0 }, hidden: false };
     mesh.userData.twin = twin;
     return twin;
   }
@@ -357,7 +354,7 @@ export function createBatcher() {
       mesh.visible = false; // until the first cull
       mesh.userData = {
         band: bucket.band, sector: bucket.sector, kind: bucket.kind, triangles: bucket.indices / 3, caster,
-        cull: { master, ranges, signature: -1, submitted: 0 }, hidden: false,
+        cull: { master, ranges, crownRanges: ranges.filter(r => r.crown), kept: [], signature: -1, submitted: 0 }, hidden: false,
       };
       meshes.push(mesh);
       // its trees with cards fade into them from a twin (a setup with a fading material: see CARD_BAND)
@@ -440,7 +437,7 @@ export function createBatcher() {
     mesh.visible = false; // until the first cull
     mesh.userData = {
       band: 'far', sector: 0, kind: 'card', cards: true, triangles: cards.length * 2, caster: false,
-      cull: { master, ranges, signature: -1, submitted: 0 }, hidden: false,
+      cull: { master, ranges, crownRanges: [], kept: [], signature: -1, submitted: 0 }, hidden: false,
     };
     return mesh;
   }
@@ -556,7 +553,7 @@ export function mergeCardMeshes(parts, { material, renderOrder = 3, into = null 
   mesh.visible = false; // until the first cull
   mesh.userData = {
     band: 'far', sector: 0, kind: 'card', cards: true, layer: true, triangles: indices / 3, caster: false,
-    cull: { master, ranges, signature: -1, submitted: 0 }, hidden: false,
+    cull: { master, ranges, crownRanges: [], kept: [], signature: -1, submitted: 0 }, hidden: false,
   };
   return mesh;
 }
@@ -569,6 +566,7 @@ const _rel = new THREE.Vector3();
 
 let _view = 0;
 const _crowns = [];
+const _casterKeep = [];
 
 /**
  * Main pass: a plant is drawn when its sphere is in the camera frustum (with a margin, so small
@@ -622,84 +620,96 @@ export function cullBatches(meshes, camera, margin = 1.5, hide = null, cardFrom 
   _view++;
   _crowns.length = 0;
   for (const mesh of meshes) {
-    for (const r of mesh.userData.cull.ranges) {
+    const data = mesh.userData.cull;
+    const crownRanges = data.crownRanges ?? (data.crownRanges = data.ranges.filter(r => r.crown));
+    for (let i = 0; i < crownRanges.length; i++) {
+      const r = crownRanges[i];
       const c = r.crown;
-      if (!c || c.frame === _view) continue;
+      if (c.frame === _view) continue;
       if (r.carded && cardState(r.plant, _cam.distanceTo(r.ref), cardFrom) === CARD) continue; // a card alone this view
       c.prev = c.frame < 0 || c.epoch !== _epoch ? null : c.level;
       c.epoch = _epoch;
       c.frame = _view;
-      c.proj = c.size / Math.max(0.5, _cam.distanceTo(c.centre));
+      const dist = _cam.distanceTo(c.centre);
+      c.proj = c.size / Math.max(0.5, dist);
       c.rank = c.prev === 0 ? c.proj * (1 + HYSTERESIS) : c.proj;
       c.level = 2;
       c.shown = false;
-      _sphere.set(c.centre, c.reach + margin + (lean ? lean * _cam.distanceTo(c.centre) : 0));
+      _sphere.set(c.centre, c.reach + margin + (lean ? lean * dist : 0));
       if (_frustum.intersectsSphere(_sphere)) _crowns.push(c);
     }
   }
   // which of them are on screen (one of their pieces in the frame itself, not only in the margin round it): those take the fine turns
   // first, so a crown just off screen never takes one from a crown the child sees
-  for (const mesh of meshes) {
-    for (const r of mesh.userData.cull.ranges) {
-      const c = r.crown;
-      if (c && c.frame === _view && !c.shown && _frustum.intersectsSphere(r.sphere)) c.shown = true;
+  if (_crowns.length) {
+    for (const mesh of meshes) {
+      const crownRanges = mesh.userData.cull.crownRanges;
+      for (let i = 0; i < crownRanges.length; i++) {
+        const r = crownRanges[i];
+        const c = r.crown;
+        if (c.frame === _view && !c.shown && _frustum.intersectsSphere(r.sphere)) c.shown = true;
+      }
+    }
+    _crowns.sort((a, b) => b.shown - a.shown || b.rank - a.rank);
+    const past = (prev, finer) => (prev !== null && prev <= finer ? 1 - HYSTERESIS : 1); // finer at the threshold, coarser past it
+    for (let i = 0; i < _crowns.length; i++) {
+      const c = _crowns[i];
+      const want = i < CROWN_FINE && c.proj > CROWN_T0 * past(c.prev, 0) ? 0 : c.proj > CROWN_T1 * past(c.prev, 1) ? 1 : 2;
+      c.level = Math.max(want, c.first);
     }
   }
-  _crowns.sort((a, b) => b.shown - a.shown || b.rank - a.rank);
-  const past = (prev, finer) => (prev !== null && prev <= finer ? 1 - HYSTERESIS : 1); // finer at the threshold, coarser past it
-  _crowns.forEach((c, i) => {
-    const want = i < CROWN_FINE && c.proj > CROWN_T0 * past(c.prev, 0) ? 0 : c.proj > CROWN_T1 * past(c.prev, 1) ? 1 : 2;
-    c.level = Math.max(want, c.first);
-  });
   let total = 0;
   for (const mesh of meshes) {
     if (mesh.userData.twinOf) continue; // drawn with its mesh, below
     const data = mesh.userData.cull;
     const twin = mesh.userData.twin ?? null;
     let signature = 7, fading = 13;
-    const keep = [], fade = [];
-    data.ranges.forEach((r, i) => {
+    const keep = (data.kept ??= []);
+    keep.length = 0;
+    const fade = twin ? (twin.userData.cull.kept ??= []) : null;
+    if (fade) fade.length = 0;
+    const ranges = data.ranges;
+    for (let i = 0; i < ranges.length; i++) {
+      const r = ranges[i];
       let both = false;
       if ((r.card || r.carded) && !r.only) { // (a tree only ever its card is its card at any distance)
         const state = cardState(r.plant, _cam.distanceTo(r.ref), cardFrom);
-        if (r.card ? state === MESH : state === CARD) return;
+        if (r.card ? state === MESH : state === CARD) continue;
         both = state === BOTH;
       }
       if (r.crown) {
-        if (r.lod !== r.crown.level) return;
+        if (r.lod !== r.crown.level) continue;
       } else if (r.plant && r.li >= 0) {
-        if (bandOf(r.plant, _cam.distanceTo(r.ref)) !== r.li) return;
+        if (bandOf(r.plant, _cam.distanceTo(r.ref)) !== r.li) continue;
       } else {
         const d = _cam.distanceTo(r.ref);
-        if (d < r.minD || d >= r.maxD) return;
+        if (d < r.minD || d >= r.maxD) continue;
       }
       if (r.cull !== Infinity) {
         // small plants fade out of the grass and mist at their own distance, HYSTERESIS past it once drawn, and come back at it
         const by = r.near === true && r.nearEpoch === _epoch ? 1 + HYSTERESIS : 1;
         r.near = _cam.distanceTo(r.sphere.center) - r.sphere.radius <= r.cull * by;
         r.nearEpoch = _epoch;
-        if (!r.near) return;
+        if (!r.near) continue;
       }
       _sphere.copy(r.sphere);
       _sphere.radius += margin + (lean ? lean * _cam.distanceTo(r.sphere.center) : 0);
-      if (!_frustum.intersectsSphere(_sphere)) return;
-      if (hide && hide(r, mesh)) return;
+      if (!_frustum.intersectsSphere(_sphere)) continue;
+      if (hide && hide(r, mesh)) continue;
       if (both && twin && r.carded) {
         // in the band its mesh leaves out the pixels its card takes: from the twin, whose material does (the plain one never does)
         fade.push(r);
         fading = (Math.imul(fading, 31) + i + 1) | 0;
-        return;
+        continue;
       }
       keep.push(r);
       signature = (Math.imul(signature, 31) + i + 1) | 0;
-    });
+    }
     const n = rebuildIndex(mesh, keep, signature);
-    mesh.userData.cull.kept = keep;
     mesh.visible = n > 0 && !mesh.userData.hidden;
     total += n;
     if (twin) {
       const m = rebuildIndex(twin, fade, fading);
-      twin.userData.cull.kept = fade;
       twin.visible = m > 0 && !mesh.userData.hidden;
       total += m;
     }
@@ -717,19 +727,21 @@ export function cullLayer(mesh, camera, { margin = 1.5, keep = () => true, hide 
   _m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_m4);
   const data = mesh.userData.cull;
-  const kept = [];
+  const kept = (data.kept ??= []);
+  kept.length = 0;
   let signature = 17;
-  data.ranges.forEach((r, i) => {
-    if (!keep(r)) return;
+  const ranges = data.ranges;
+  for (let i = 0; i < ranges.length; i++) {
+    const r = ranges[i];
+    if (!keep(r)) continue;
     _sphere.copy(r.sphere);
     _sphere.radius += margin;
-    if (!_frustum.intersectsSphere(_sphere)) return;
-    if (hide && hide(r, mesh)) return;
+    if (!_frustum.intersectsSphere(_sphere)) continue;
+    if (hide && hide(r, mesh)) continue;
     kept.push(r);
     signature = (Math.imul(signature, 31) + i + 1) | 0;
-  });
+  }
   const n = rebuildIndex(mesh, kept, signature);
-  data.kept = kept;
   mesh.visible = n > 0 && !mesh.userData.hidden;
   return n;
 }
@@ -744,18 +756,20 @@ export function cullCasters(meshes, centre, radius, sunDir) {
   for (const mesh of meshes) {
     const data = mesh.userData.cull;
     let signature = 11;
-    const keep = [];
-    data.ranges.forEach((r, i) => {
+    _casterKeep.length = 0;
+    const ranges = data.ranges;
+    for (let i = 0; i < ranges.length; i++) {
+      const r = ranges[i];
       _rel.copy(r.sphere.center).sub(centre);
       const t = _rel.dot(sunDir);
       const reach = radius + r.sphere.radius;
-      if (t < -reach || t > radius * 4 + r.sphere.radius) return;
+      if (t < -reach || t > radius * 4 + r.sphere.radius) continue;
       const lateral2 = _rel.lengthSq() - t * t;
-      if (lateral2 > reach * reach) return;
-      keep.push(r);
+      if (lateral2 > reach * reach) continue;
+      _casterKeep.push(r);
       signature = (Math.imul(signature, 31) + i + 1) | 0;
-    });
-    total += rebuildIndex(mesh, keep, signature);
+    }
+    total += rebuildIndex(mesh, _casterKeep, signature);
   }
   return total;
 }

@@ -80,6 +80,10 @@ export const BIG_FISH = 1.5;
 
 const BONES = ['Hips', 'Spine', 'Chest', 'Neck', 'Head', 'Jaw', 'Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
 const TAIL = BONES.filter(name => name.startsWith('Tail'));
+const TAIL_WAVE = [0.5, 1, 2, 5.5, 8.5, 11];
+const TAIL_CURL = [0, 0.06, 0.1, 0.26, 0.29, 0.29];
+const TAIL_DIP_POS = [0, 1, 2, 17, 22, 22];
+const TAIL_DIP_NEG = [0, 0.5, 1, 2, 3, 3];
 // The tip of her snout in her Head bone's frame (measured on the model: the furthest vertex forward that the head carries alone), and
 // where a fish lies in her jaws (its nose just inside her mouth, its length out along her snout, so that it shows its side) and where it
 // goes down her throat.
@@ -142,8 +146,9 @@ function makeRig(c) {
     return [name, bone];
   }));
   const clipPose = new Map(BONES.map(name => [name, new Q()]));
+  const reachJoints = REACH_JOINTS.map(j => ({ ...j, bone: bones[j.name], before: new Q() }));
   const rig = {
-    c, actor, world, bones, t: 0,
+    c, actor, world, bones, reachJoints, t: 0,
     busy: 0, // movements under way that the idle life leaves alone
     // What the moves are made of, each moved by a tween: how far under the water her root is, how much her head is up (0: lying low),
     // the sail's shiver, her way turned from the station's (degrees), how far she has lunged along rig.lunge, the jaw's opening
@@ -176,13 +181,16 @@ function makeRig(c) {
     return item;
   };
   function stepTweens(dt) {
-    for (const item of rig.tweens) {
+    let write = 0;
+    for (let i = 0; i < rig.tweens.length; i++) {
+      const item = rig.tweens[i];
       item.t += dt;
       const u = clamp(item.t / item.seconds, 0, 1);
       rig.v[item.key] = item.fn ? item.fn(u) : item.from + (item.to - item.from) * item.ease(u);
       if (u >= 1) item.done = true;
+      else rig.tweens[write++] = item;
     }
-    rig.tweens = rig.tweens.filter(item => !item.done);
+    rig.tweens.length = write;
   }
 
   // The water she is in -------------------------------------------------------------------------
@@ -219,7 +227,9 @@ function makeRig(c) {
     const bob = rig.v.swim * 0.04 * Math.sin(rig.beat * 0.5);
     root.position.set(x, baseAt(x, z) - rig.v.sink + bob, z);
     root.rotation.y = -rad(heading);
-    rig.placed = { x, z, heading: actor.heading }; // as the actor reads it back
+    rig.placed.x = x;
+    rig.placed.z = z;
+    rig.placed.heading = actor.heading; // as the actor reads it back
   }
 
   // After the clips -----------------------------------------------------------------------------
@@ -239,15 +249,17 @@ function makeRig(c) {
     turn(bones.Head, v.life * 2.2 * Math.sin(rad(360 * 0.071 * t + 0.4)), v.life * 3.5 * Math.sin(rad(360 * 0.053 * t)));
     // the tail: swimming (a wave down it), and curling to a side for the splash
     if (v.swim > 0 || v.curl !== 0) {
-      TAIL.forEach((name, i) => {
+      const posCurl = Math.max(0, v.curl);
+      const negCurl = Math.max(0, -v.curl);
+      for (let i = 0; i < TAIL.length; i++) {
         // her sail rides the tail's first three bones: they bend a little, the rest of the tail does the moving
-        const wave = v.swim * [0.5, 1, 2, 5.5, 8.5, 11][i] * Math.sin(rig.beat - rad(46 * i));
-        const curl = v.curl * rig.side * rig.curlTotal * [0, 0.06, 0.1, 0.26, 0.29, 0.29][i];
+        const wave = v.swim * TAIL_WAVE[i] * Math.sin(rig.beat - rad(46 * i));
+        const curl = v.curl * rig.side * rig.curlTotal * TAIL_CURL[i];
         // the tail points backward, so a turn about Z the other way than the neck's puts its end down: in the stroke it comes down to the
         // water (and rises a little as it winds back)
-        const dip = [0, 1, 2, 17, 22, 22][i] * Math.max(0, v.curl) - [0, 0.5, 1, 2, 3, 3][i] * Math.max(0, -v.curl);
-        turn(bones[name], v.swim * 1.2 + dip, wave + curl);
-      });
+        const dip = TAIL_DIP_POS[i] * posCurl - TAIL_DIP_NEG[i] * negCurl;
+        turn(bones[TAIL[i]], v.swim * 1.2 + dip, wave + curl);
+      }
       // she tips her whole body back a little in the stroke, so that the end of her tail comes down to the water (the sail goes with it, whole)
       turn(bones.Hips, 7 * v.curl, v.swim * 1.4 * Math.sin(rig.beat + rad(40)));
     }
@@ -292,8 +304,8 @@ const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
  * from the head down (cyclic coordinate descent), each joint within its limit from where it was.
  */
 function solveStrike(rig, target, weight) {
-  const { bones } = rig;
-  const joints = REACH_JOINTS.map(j => ({ ...j, bone: bones[j.name], before: bones[j.name].quaternion.clone() }));
+  const { bones, reachJoints: joints } = rig;
+  for (let i = 0; i < joints.length; i++) joints[i].before.copy(joints[i].bone.quaternion);
   const within = j => {
     const turned = j.before.angleTo(j.bone.quaternion);
     if (turned > rad(j.limit)) {
@@ -503,9 +515,10 @@ export function* catchFish(s, c, fish) {
     const root = rig.actor.root.position;
     const dx = point.x - root.x, dz = point.z - root.z;
     const far = Math.hypot(dx, dz);
-    const turned = clamp(wrap180(deg(Math.atan2(dz, dx)) - rig.station.heading), -MAX_TURN, MAX_TURN);
+    const turned = far > 1e-4 ? clamp(wrap180(deg(Math.atan2(dz, dx)) - rig.station.heading), -MAX_TURN, MAX_TURN) : 0;
     const lunge = clamp(far - REACH, 0, MAX_LUNGE);
-    rig.lunge.set(dx / far, 0, dz / far).multiplyScalar(lunge);
+    if (far > 1e-4 && lunge > 0) rig.lunge.set(dx / far, 0, dz / far).multiplyScalar(lunge);
+    else rig.lunge.set(0, 0, 0);
     const surge = lunge > 0.05 ? 0.35 + lunge / LUNGE_SPEED : 0.3;
     const reach = surge + 0.12;
     rig.tween('yaw', turned, Math.max(0.3, surge), smooth);
@@ -735,7 +748,10 @@ function spray(world, from, to, { count = 110, seed = 'spray', seconds = 1.2 } =
       }
       drop.v.y -= 9.8 * dt;
       drop.p.addScaledVector(drop.v, dt);
-      set.position.set([drop.p.x, drop.p.y, drop.p.z], i * 3);
+      const o = i * 3;
+      set.position[o] = drop.p.x;
+      set.position[o + 1] = drop.p.y;
+      set.position[o + 2] = drop.p.z;
       moved = true;
       if (drop.v.y < 0 && drop.p.y < (world.forest?.water?.surfaceAt?.(drop.p.x, drop.p.z) ?? world.heightAt(drop.p.x, drop.p.z))) {
         drop.done = true;
