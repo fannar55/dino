@@ -8,7 +8,8 @@
 // Four places (kafli6-route.js has them as data, and every shot): `ardalur`, Árdalurinn round the far pool (kafli5-place.js buildPool)
 // and the ford above the falls, built with it; `hlid`, the slope (world/fjall createSlope); `sky`, the belt of cloud with the prints
 // and the cloud (createBelt, world/fjall/cloud.js); `toppur`, the top (createTop). The light is a look per place, eased between
-// (engine/light-blend.js, engine/looks.js lowSun, redGold, inCloud, sunset). The three tasks are state machines on the game clock
+// (engine/light-blend.js), one evening going on from chapter 5's night (kafli6-looks.js EVENING; the sun in its nightcap) up to
+// the light after her roar and the top's sunset (engine/looks.js afterRoar, sunset). The three tasks are state machines on the game clock
 // (kafli6-stones.js, kafli6-prints.js, kafli6-call.js, their help in kafli6-help.js): here their events become hops, stones that
 // rock, numbers, roars and light in the fog. Mosi's hop and little roar are kafli6-mosi.js, her life kafli6-gramedla.js.
 //
@@ -1201,7 +1202,7 @@ export const chapter = {
   id: 'kafli6',
   title: 'Boð til Grameðlu',
   next: null, // the festival, once it is made
-  look: 'lowSun',
+  look: 'lowSun', // the sun's place, the sky's light on things and the fog's baked glow; the light itself is kafli6-looks.js's from the first frame
   theme: 'kafli2/theme.json', // Mosi's travelling theme, at the ford and on the slope; none in the cloud, and back, bigger, after the roar
   start: 'ardalur',
   locations: {
