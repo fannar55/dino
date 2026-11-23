@@ -6003,5 +6003,35 @@
   "src": "assets/audio/kafli6/k6_mosi_room.mp3",
   "duration": 3.61,
   "mouth": "000deec640000000009fcfffeedb002dfc53634300000003fbc60bc0009cb830000000000"
+ },
+ "book_mosi_kafli_1": {
+  "src": "assets/audio/book/book_mosi_kafli_1.mp3",
+  "duration": 2.33,
+  "mouth": "7dfa00c40efcadc9ea29fc0bfc04ea00000000000000000"
+ },
+ "book_mosi_kafli_2": {
+  "src": "assets/audio/book/book_mosi_kafli_2.mp3",
+  "duration": 2.01,
+  "mouth": "5cfa00d50ffdedc08dc0ce0220cfc9c9000000000"
+ },
+ "book_mosi_kafli_3": {
+  "src": "assets/audio/book/book_mosi_kafli_3.mp3",
+  "duration": 2.17,
+  "mouth": "5ef600c90cfecffec0acb0aeb00aeee9550000000000"
+ },
+ "book_mosi_kafli_4": {
+  "src": "assets/audio/book/book_mosi_kafli_4.mp3",
+  "duration": 2.17,
+  "mouth": "6df500d43fecedd869e05ec00cefeaac730000000000"
+ },
+ "book_mosi_kafli_5": {
+  "src": "assets/audio/book/book_mosi_kafli_5.mp3",
+  "duration": 2.01,
+  "mouth": "5cfa00d50ffcedd48be0ae600ffe9740000000000"
+ },
+ "book_mosi_kafli_6": {
+  "src": "assets/audio/book/book_mosi_kafli_6.mp3",
+  "duration": 2.091,
+  "mouth": "8ff300e60fecedd09e87d800ff9040000000000000"
  }
 }
