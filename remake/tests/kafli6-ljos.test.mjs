@@ -12,6 +12,7 @@ import { LOOK_CUES, lookMixAt } from '../chapters/kafli5-show-score.js';
 import { chapter as kafli5 } from '../chapters/kafli5.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import { createDusk } from '../engine/show/dusk.js';
+import { lightTo, easeLight } from '../engine/light-blend.js';
 import { lightWorld } from './light-world.mjs';
 import { playUnattended, chapterWorld } from './chapter-harness.mjs';
 import { createSlope } from '../world/fjall/index.js';
@@ -68,6 +69,24 @@ test("chapter 6's first frame is chapter 5's last: the night after the song, to 
       channels(p).forEach((v, i) => assert.ok(Math.abs(v - channels(q)[i]) <= 1, `${key}: chapter 5 ends at ${p}, chapter 6 starts at ${q}`));
     }
   }
+});
+
+test("the evening's water, Mosi cloud and light on things lift with the roar and leave the eased light alone", () => {
+  const six = fullWorld(pickLook(kafli6.chapter.look));
+  const env = six.scene.environmentIntensity;
+  const evening = startEvening(six);
+  assert.ok(Math.abs(six.scene.environmentIntensity - EVENING.afterSong.envIntensity) < 1e-9);
+  lightTo(six, EVENING.inCloud);
+  easeLight(six, LOOKS.afterRoar, 3); // the blow (kafli6.js): the light eases up out of the cloud while the rest lifts
+  evening.lift(3);
+  for (let t = 0; t < 4; t += 1 / 30) six.effects.update(1 / 30);
+  const light = lightOf(six);
+  assert.equal(light.zenith, LOOKS.afterRoar.sky.zenith, 'the sky is the light after the roar');
+  assert.ok(Math.abs(light.sunIntensity - LOOKS.afterRoar.sun.intensity) < 1e-9, 'the sun the light after the roar');
+  assert.ok(Math.abs(light.env - env) < 1e-9, 'the light on things as the place had it');
+  assert.equal(light.mosiCloud, '#ffffff');
+  evening.restore();
+  assert.equal(lightOf(six).zenith, LOOKS.afterRoar.sky.zenith, 'and restore touches nothing else');
 });
 
 test('the evening only deepens from the pool to the cloud, and coming up out of it is warmer than the cloud', () => {

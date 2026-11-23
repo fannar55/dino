@@ -17,10 +17,10 @@
 //
 // The characters are seen by the footlights, as in chapter 5's dark half: the fill light's colour from below (hemi.ground), pale
 // and warm, much stronger than the day's; never by a brighter sun.
+import * as THREE from 'three';
 import { LOOKS } from '../engine/looks.js';
 import { LOOKS as SHOW_LOOKS } from './kafli5-show-score.js';
 import { lightTo } from '../engine/light-blend.js';
-import { createDusk } from '../engine/show/dusk.js';
 
 const SUN = { azimuth: 215, elevation: 10 }; // chapter 6's one sun (engine/looks.js lowSun): the light changes, its place does not
 const NIGHT = SHOW_LOOKS.night;
@@ -97,24 +97,36 @@ export function brightness(look) {
 
 // ---- the first frame ------------------------------------------------------------------------------------------------------
 
-/** What engine/light-blend.js leaves alone, as chapter 5's night has it, for a world whose light on things is now `env`. */
-const restOf = env => ({
-  water: NIGHT.water,
-  mosiCloud: NIGHT.mosiCloud,
-  ...(Number.isFinite(env) && env > 0 ? { envIntensity: afterSong.envIntensity / env } : {}),
-});
+/**
+ * What engine/light-blend.js leaves alone, held at what it was and at chapter 5's night: the pool's water colours, the Mosi cloud's
+ * colour and the sky's light on things. engine/show/dusk.js would write back every light it holds each time it mixes, the sky's too,
+ * over the looks this chapter eases to; this holds these three only.
+ */
+function holdRest(world) {
+  const parts = [];
+  const colour = (value, hex) => { if (value?.isColor && hex) parts.push({ value, was: value.clone(), to: new THREE.Color(hex) }); };
+  const water = world.forest?.materials?.water?.uniforms;
+  for (const [name, key] of [['uHorizon', 'horizon'], ['uZenith', 'zenith'], ['uDeep', 'deep'], ['uGlint', 'glint']]) colour(water?.[name]?.value, NIGHT.water?.[key]);
+  colour(world.scene?.getObjectByName?.('MosiCloud')?.material?.color, NIGHT.mosiCloud);
+  const scene = world.scene && Number.isFinite(world.scene.environmentIntensity) ? world.scene : null;
+  const env = scene ? { was: scene.environmentIntensity, to: afterSong.envIntensity } : null;
+  return weight => {
+    for (const { value, was, to } of parts) value.copy(was).lerp(to, weight);
+    if (env) scene.environmentIntensity = env.was + (env.to - env.was) * weight;
+  };
+}
 
 /** The light at chapter 6's first frame (see the header). */
 export function startEvening(world) {
   lightTo(world, afterSong);
-  const rest = createDusk(world);
-  const look = restOf(world.scene?.environmentIntensity);
-  rest.mix([[look, 1]]);
+  const rest = holdRest(world);
+  let depth = 1;
+  rest(depth);
   let lifting = null;
   return {
-    get depth() { return rest.depth; },
+    get depth() { return depth; },
     lift(seconds) {
-      if (!(seconds > 0) || !world.effects) { rest.restore(); return; }
+      if (!(seconds > 0) || !world.effects) { this.restore(); return; }
       const ease = lifting = { age: 0 };
       world.effects.add({
         label: 'evening rest',
@@ -122,14 +134,14 @@ export function startEvening(world) {
           if (lifting !== ease) return false;
           ease.age += dt;
           const k = Math.min(1, ease.age / seconds);
-          rest.mix([[look, 1 - k * k * (3 - 2 * k)]]);
+          rest(depth = 1 - k * k * (3 - 2 * k));
           return k < 1;
         },
       });
     },
     restore() {
       lifting = null;
-      rest.restore();
+      if (depth > 0) rest(depth = 0);
     },
   };
 }

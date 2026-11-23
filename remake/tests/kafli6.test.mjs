@@ -19,7 +19,7 @@ import fs from 'node:fs';
 
 const { chapter, WORDS } = kafli6;
 const FRAME = 1 / 30;
-const SKY = ['SunFace', 'SunHandsAndMouth', 'MosiCloud']; // the sky's own decorations (engine/sun-face.js) the cloud must hide
+const SKY = ['SunFace', 'SunHandsAndMouth', 'SunNightcap', 'MosiCloud']; // the sky's own decorations (engine/sun-face.js) the cloud must hide: the sun wears its nightcap all chapter (kafli6-looks.js)
 
 const inFrame = (point, camera) => {
   const p = point.clone().project(camera);
@@ -426,7 +426,7 @@ test('outside scene 1 Slóeðla and Flugeðla are not shown, so never more than 
   for (const run of [await untouched(), await quick()]) assert.deepEqual(run.watched.crowd.slice(0, 5), []);
 });
 
-test("in the cloud the sky's own Mosi cloud and smiling sun are hidden, and back once it has blown away", async () => {
+test("in the cloud the sky's own Mosi cloud and smiling sun in its nightcap are hidden, and back once it has blown away", async () => {
   const run = await untouched();
   const { world, watched } = run;
   const log = world.chapterState.chapterLog.filter(e => e.type === 'sky');
