@@ -212,7 +212,7 @@ const CLIMB_FRAMES = {
 };
 const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
 const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50, tall: { from: [-11.6, 3.3, 5.4], at: [6, 1.0, 1], fov: 36 } };
-const ABOVE_FRAME = { from: [10, 5, 9], at: [1, -3, 1.5], fov: 50, tall: { from: [9, 5, 8], at: [1, -2.5, 1.5], fov: 44 } };
+const ABOVE_FRAME = { from: [10, 5, 9], at: [1, -3, 1.5], fov: 50, tall: { from: [9, 5, 8], at: [1, -2, 1.5], fov: 44 } };
 // Egill's "Við erum ofan við skýin!" waits ABOVE_LINE s into above_clouds, until her head and he are up over the brow
 const ABOVE_LINE = 5.2;
 const UP = new THREE.Vector3(0, 1, 0);
