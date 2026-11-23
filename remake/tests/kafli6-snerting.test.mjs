@@ -8,10 +8,11 @@
 // The ground is read from the stage's own ground meshes (every visible mesh named ground or summit that is a regular grid), triangle
 // by triangle as the GPU draws it, not from the chapter's height functions. A foot is its skinned vertices (the foot bones carry them
 // most); a foot is "planted" in a frame when its lowest point moved under 4 mm in each of the STILL frames up to it (a slow step's
-// top, still for a frame or two, is not a planted foot). Sampled: the feet in every
-// frame; the bodies in every second frame of scenes 6 and 7 (her every second vertex, theirs all).
+// top, still for a frame or two, is not a planted foot). Sampled: the feet and her head in every frame; the bodies in every second
+// frame of scenes 6 and 7 (her every second vertex, theirs all); above the clouds each foot's lowest point, a ray to it from the camera
+// sampled every 0.2 m, in a second play on an upright screen too. Her pitch is her spine's, hips to neck against the level.
 // Not counted: Mosi's feet while he hops on the ford's stones (he stands on a stone there, not the ground), and feet deep in the
-// sea of cloud under the top's rim (lower than CLOUD_FLOOR: the cloud there hides everything under it).
+// sea of cloud under the top's rim (lower than CLOUD_FLOOR: the cloud there hides everything under it); her head is counted everywhere.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as kafli6 from '../chapters/kafli6.js';
