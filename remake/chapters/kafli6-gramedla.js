@@ -31,7 +31,7 @@ import { Handle } from '../engine/handle.js';
 import { createLean } from '../engine/pose/lean.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { CALL, herAt } from './kafli6-route.js';
-import { HEAD_DOWN, createHips, headDownPose } from './kafli6-seat.js';
+import { HEAD_DOWN, createHips, headDownPose, skinPoints, pointIndex } from './kafli6-seat.js';
 
 /**
  * How fast she walks (m/s); her roar clip's pace (a little slow: she is big, and at its own pace her snout moves 0.19 m a frame) and
@@ -50,10 +50,11 @@ export const SHAPE = { colour: '#3a3632', white: '#f4eee2', seen: [0, 0.35, 0.7]
 /**
  * Stepping out (scene 6): she comes out of the white `from` m behind where she stops, as the shape first (seen, s), and walks to
  * `stop` m ahead of Mosi's root in two heavy steps (her walk clip at this speed: its feet come down `footfalls` s in), her own
- * colours coming over them. There her bow reaches Egill with her feet planted; her snout is never nearer than `clear` m to his head
- * before it (measured: kafli6.test.mjs).
+ * colours coming over them. There she stands clear of Mosi's frill and Egill (CLEAR: at 7.4 m, before F1 report 6 of 2026-11-23, her
+ * head and hands were in his frill), and her bow comes a hand's breadth from them with her feet planted; her snout is never nearer
+ * than `clear` m to his head before it (measured: kafli6.test.mjs).
  */
-export const STEP_OUT = { stop: 7.4, clear: 1.75, thin: 3, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
+export const STEP_OUT = { stop: 9, clear: 1.75, thin: 3, from: 3.4, speed: 1.3, seen: 0.7, fadeIn: 0.9, footfalls: [1.2, 2.3] };
 /** Her head tilt: degrees about its own length, the time over to it and back (s), how long she holds it, her two blinks (s in). */
 export const TILT = { roll: 12, ease: 0.7, hold: 1.4, blinks: [0.45, 1.25] };
 /**
@@ -65,6 +66,16 @@ export const SNIFF = { near: 1.1, over: 0.35, seconds: 3.2, breaths: 2, between:
 export const ROAR = { back: 0.15, breathIn: 1, blow: 1.1 };
 /** Her nod: two dips of the lean (radians down, her head tipped, s each), the snort with the second. */
 export const NOD = { theta: 0.13, pitch: -0.12, seconds: 0.6, gap: 0.62 };
+/**
+ * Keeping clear of Mosi and Egill while she is near them (from stepping out to laying her head down): no point of her head, neck,
+ * chest or arms comes nearer than `margin` m to Mosi's head (his frill and horns), neck and shoulders or to Egill; where her pose
+ * (her lean, her roar clip, a nod) would bring one nearer, her lean eases back by as much as it takes (at most `most` radians, found
+ * in `steps` halvings), and that easing lets go again over `ease` s. Her skin is read every `stride`-th vertex.
+ */
+export const CLEAR = { margin: 0.4, most: 0.8, steps: 7, ease: 0.6, stride: 2 };
+const HER_FRONT = { head: ['Head', 'Jaw'], neck: ['Neck'], chest: ['Chest', 'Spine'], arms: ['LeftUpperArm', 'LeftLowerArm', 'LeftHand', 'RightUpperArm', 'RightLowerArm', 'RightHand'] };
+const MOSI_FRONT = { frill: ['Head', 'Jaw'], neck: ['Neck', 'Shoulders'] };
+const EGILL_ALL = { egill: ['Hips', 'Spine', 'Chest', 'Neck', 'Head', 'LeftShoulder', 'LeftUpperArm', 'LeftLowerArm', 'LeftHand', 'RightShoulder', 'RightUpperArm', 'RightLowerArm', 'RightHand', 'LeftUpperLeg', 'LeftLowerLeg', 'LeftFoot', 'RightUpperLeg', 'RightLowerLeg', 'RightFoot'] };
 // standing tall in the call and when she steps out: her lean a little back, her head a little up (proud and glad, not looming)
 const TALL = { theta: -0.3, pitch: 0.35 };
 
@@ -192,6 +203,30 @@ export function gramedlaLife(s, c) {
     return sum;
   }
 
+  // keeping clear of Mosi and Egill (CLEAR): on from stepping out to laying her head down
+  let guard = null; // { her, mosi, egill, back }: their skin points and how far back her lean is eased now
+  function keepClear(dt, pose) {
+    guard.her ??= skinPoints(actor, HER_FRONT, { stride: CLEAR.stride });
+    guard.mosi ??= skinPoints(c.mosi.raw, MOSI_FRONT, { stride: CLEAR.stride });
+    guard.egill ??= c.egill ? skinPoints(c.egill.raw, EGILL_ALL, { stride: CLEAR.stride }) : null;
+    const them = { ...guard.mosi.update(), ...(guard.egill?.update() ?? {}) };
+    const index = pointIndex(them, CLEAR.margin * 1.5);
+    const clearAt = back => {
+      lean.set({ ...pose, theta: pose.theta - back });
+      return index.least(guard.her.update()).d >= CLEAR.margin;
+    };
+    // the easing lets go slowly; where her pose comes nearer than the margin, it takes as much as it needs at once
+    let back = guard.back * Math.exp(-dt / CLEAR.ease);
+    if (back < 1e-4) back = 0;
+    if (!clearAt(back)) {
+      let lo = back, hi = CLEAR.most;
+      for (let k = 0; k < CLEAR.steps; k++) { const mid = (lo + hi) / 2; if (clearAt(mid)) hi = mid; else lo = mid; }
+      back = hi;
+      clearAt(back);
+    }
+    guard.back = back;
+  }
+
   // every frame after her clips: the lean and the tint (her overlay: the actor runs it after the mixer and her feet)
   actor.setOverlay(dt => {
     clock += dt;
@@ -200,7 +235,9 @@ export function gramedlaLife(s, c) {
     actor.root.visible = !hidden && seen > 0.003;
     tint.set(value('tint'), seen);
     hips.set(value('hips')); // before the lean: her pitch turns her head back up by as much
-    lean.set({ theta: value('theta') + bumped('theta'), turn: value('turn'), roll: value('roll'), pitch: value('pitch') + bumped('pitch') });
+    const pose = { theta: value('theta') + bumped('theta'), turn: value('turn'), roll: value('roll'), pitch: value('pitch') + bumped('pitch') };
+    lean.set(pose);
+    if (guard && actor.root.visible) keepClear(dt, pose);
   });
 
   const wait = seconds => s.wait(seconds);
@@ -238,6 +275,7 @@ export function gramedlaLife(s, c) {
     now.seen = 0;
     hidden = true;
     shapeAt = null;
+    guard = null;
     actor.root.visible = false;
   }
 
@@ -337,6 +375,7 @@ export function gramedlaLife(s, c) {
     hidden = false;
     shapeAt = null;
     note('stepOut');
+    guard = { back: 0 };
     yield ease('seen', STEP_OUT.seen, STEP_OUT.fadeIn);
     const walking = actor.walkTo([at(STEP_OUT.stop)], { speed: STEP_OUT.speed, turnRate: 20 });
     const seconds = STEP_OUT.from / STEP_OUT.speed;
@@ -457,6 +496,7 @@ export function gramedlaLife(s, c) {
 
   /** Her head down on the ground before them (scene 7), slowly: an invitation; a soft breath as her chin comes to rest. */
   function* headDown() {
+    guard = null; // Mosi has stepped aside: her head comes down to the ground before them, not near him
     const down = headDownPose(actor, lean, hips);
     note('headDown', { down });
     yield s.all(...easeAll({ theta: down.theta, pitch: down.pitch, hips: down.hips, turn: 0, roll: 0 }, HEAD_DOWN.seconds));

@@ -140,8 +140,9 @@ export const FAR_ROAR = [
   { distance: 60, db: -14, cutoff: 700, tail: 1.4 },
 ];
 const OPEN = 20000; // Hz: no low-pass, as far as an in-between distance is concerned
-// Scene 6: she stops HER_STOP m ahead of his root (kafli6-gramedla.js STEP_OUT: where her bow reaches Egill, her feet planted)
-const HER_STOP = HER_STEP_OUT.stop;
+// Scene 7's climb is laid out from CLIMB_FROM m ahead of his root: where she stopped in scene 6 until F1 report 6 (2026-11-23) moved
+// her stop back to kafli6-gramedla.js STEP_OUT.stop (9 m), so the climb's ends, its shots and its time are as they were
+const CLIMB_FROM = 7.4;
 const MEET_CLOUD = 0.12; // the cloud's level round them once she has stepped out (thin: her, Mosi and Egill all clear)
 // Scene 6's shots, [ahead, right, up] m from Mosi's root in his frame as kafli6-route.js MEET (whose numbers were made for her at
 // 9 m and in grey): from well to the side, so she is seen whole beside Mosi and Egill and as big as she is, never behind him.
@@ -896,8 +897,8 @@ function* upToTheTop(s, c) {
   // the tramp up the last slope, Mosi running beside her, puffing
   cut(s, c, shot('climb_side'));
   c.log({ type: 'tramp' });
-  const march = her.trampUp([forward(stand, HER_STOP + MARCH)], { speed: CLIMB_PACE });
-  const beside = runBeside(s, c, [forward(stand, HER_STOP + 3, RUN_SIDE), forward(stand, HER_STOP + MARCH - 1.5, RUN_SIDE)]);
+  const march = her.trampUp([forward(stand, CLIMB_FROM + MARCH)], { speed: CLIMB_PACE });
+  const beside = runBeside(s, c, [forward(stand, CLIMB_FROM + 3, RUN_SIDE), forward(stand, CLIMB_FROM + MARCH - 1.5, RUN_SIDE)]);
   easeLight(world, LOOKS.sunset, MARCH / CLIMB_PACE + 1);
   soundWhile(s, c, 'step', 0.3, () => !beside.done, { level: 0.6 });
   footfalls(s, c, march, -6);

@@ -130,8 +130,7 @@ export function createBelt(world, { grey = false, seed = 6, prints = [], printSi
   world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
   return {
     group, heightAt, cloud, prints: marks,
-    // what feet stand on: the mesh, and up on a print's lip where one is (mud-prints.js groundAt)
-    seenAt: (x, z) => (ground.seenAt(x, z) ?? heightAt(x, z)) + (marks ? marks.groundAt(x, z) - heightAt(x, z) : 0), grey, pebbles, summit, plants: placements,
+    seenAt: (x, z) => ground.seenAt(x, z) ?? heightAt(x, z), // what feet stand on: the mesh (a print's mud lies in it) grey, pebbles, summit, plants: placements,
     get bank() { return bank; },
     update(dt, time) {
       cloud.update(dt, time);

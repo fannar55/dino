@@ -23,9 +23,10 @@ const smooth = k => { const x = Math.min(1, Math.max(0, k)); return x * x * (3 -
 /**
  * His hop: a big stride of his walk with a bob laid over it. `seconds` a hop, how high the bob lifts him (m), the share of the hop
  * he takes to get going and to stop (his speed is even between: no frame jumps), his nose up as he goes and down as he lands
- * (degrees), and the dip as he lands (m, s): Egill bounces in the saddle with it.
+ * (degrees), and the dip as he lands (m, s): Egill bounces in the saddle with it (3 cm: deeper, his feet went into the ground
+ * under him, F1 report 2 of 2026-11-23).
  */
-export const HOP = { seconds: 1.1, height: 0.35, ramp: 0.12, pitch: 1.5, dip: 0.07, settle: 0.3 };
+export const HOP = { seconds: 1.1, height: 0.35, ramp: 0.12, pitch: 1.5, dip: 0.03, settle: 0.3 };
 const WALK_SCALE = 1.8; // his walk's speed in a hop when his gait is not measured yet
 
 /** How far through the way he is at `k` of the hop: speeding up over `ramp`, even, slowing over the last `ramp`. */

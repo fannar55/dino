@@ -188,6 +188,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       clipTurn: new THREE.Quaternion(),
       clipUp: false,
       ground: 0,
+      lift: 0, // with the ground given: how far a planted foot stands up off it to keep its toe out of it
     };
     if (jointed) {
       L.thigh = leg.parent;
@@ -226,6 +227,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   const v2 = new THREE.Vector3();
   const v3 = new THREE.Vector3();
   const v4 = new THREE.Vector3();
+  const v5 = new THREE.Vector3();
   const q1 = new THREE.Quaternion();
   const q2 = new THREE.Quaternion();
   const q3 = new THREE.Quaternion();
@@ -238,8 +240,23 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     root.localToWorld(out.copy(L.home));
     return out.sub(root.position).applyAxisAngle(UP, yaw - root.rotation.y).add(root.position);
   };
+  // with the ground given: its upright at (x, z) (from its heights a hand's breadth round), and the turn from the root's upright to it
+  const groundUp = (x, z, out) => {
+    const e = 0.25;
+    return out.set(ground(x - e, z) - ground(x + e, z), 2 * e, ground(x, z - e) - ground(x, z + e)).normalize();
+  };
+  const toGround = (point, out) => out.setFromUnitVectors(v4.set(0, 1, 0).applyQuaternion(root.quaternion), groundUp(point.x, point.z, v5));
+  // a foot as the clips have it, over the root's own ground plane, put as far over the ground as it was over that plane (its sole
+  // then turned flat to the ground: footPose)
+  const overGround = (L, p) => {
+    const n = v5.set(0, 1, 0).applyQuaternion(root.quaternion);
+    const plane = root.position.y + (n.x * (root.position.x - p.x) + n.z * (root.position.z - p.z)) / Math.max(0.25, n.y);
+    const lift = L.home.y / Math.max(0.25, n.y);
+    p.y += ground(p.x, p.z) - plane + L.home.y / Math.max(0.5, groundUp(p.x, p.z, v5).y) - lift;
+    return p;
+  };
   const surfaceY = (L, point) => {
-    if (ground) return ground(point.x, point.z) + L.home.y / Math.max(0.5, v4.set(0, 1, 0).applyQuaternion(root.quaternion).y);
+    if (ground) return ground(point.x, point.z) + L.home.y / Math.max(0.5, groundUp(point.x, point.z, v5).y);
     if (!rootFrame) return L.ground;
     const home = homeAt(L, root.rotation.y, new THREE.Vector3());
     const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(root.quaternion);
@@ -267,6 +284,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       L.parent.localToWorld(L.clip.copy(L.reach).applyQuaternion(a.quaternion).add(a.position));
       L.parent.getWorldQuaternion(L.clipTurn).multiply(a.quaternion).multiply(a.foot);
     }
+    if (ground) overGround(L, L.clip);
     L.ground = ground ? surfaceY(L, homeAt(L, root.rotation.y, v1)) : homeAt(L, root.rotation.y, v1).y;
     L.clipUp = L.clip.y - L.ground > LIFT;
   }
@@ -275,6 +293,18 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     L.state = 'down';
     L.at.copy(position).setY(surfaceY(L, position));
     L.turn.copy(turn);
+    if (ground) {
+      // the sole flat on the ground where it stands, pointing the way it came down
+      const yaw = root.rotation.y + wrap(yawOfTurn(turn) - yawOfTurn(restTurn(L, root.rotation.y, q2)));
+      restTurn(L, yaw, L.turn).premultiply(toGround(L.at, q3));
+      // a long foot on a bending slope: its toe kept out of the ground too
+      L.lift = 0;
+      if (L.toe) {
+        const toe = v1.copy(L.toe).applyQuaternion(L.turn).add(L.at);
+        L.lift = Math.max(0, ground(toe.x, toe.z) - toe.y);
+        L.at.y += L.lift;
+      }
+    }
     L.step = null;
     L.join = null;
     if (stepped && ready) onStep?.(L.at, L);
@@ -306,8 +336,11 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   function stepTarget(L, s, yaw) {
     const ay = aimYaw(L, yaw);
     homeAt(L, ay, s.to).addScaledVector(forward(ay, v3), s.ahead);
-    if (ground) s.to.y = surfaceY(L, s.to);
     restTurn(L, ay, s.turnTo);
+    if (ground) {
+      s.to.y = surfaceY(L, s.to);
+      s.turnTo.premultiply(toGround(s.to, q3));
+    }
   }
 
   function startStep(L, from, turnFrom, air = 0, ahead = 0) {
@@ -416,19 +449,20 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
   // The foot's place and turn this frame (world).
   function footPose(L, position, turn) {
     if (L.state === 'down') {
-      if (rootFrame || ground) L.at.y = surfaceY(L, L.at);
+      if (rootFrame || ground) L.at.y = surfaceY(L, L.at) + (ground ? L.lift : 0);
       position.copy(L.at);
       turn.copy(L.turn);
     } else if (L.state === 'clip') {
       position.copy(L.clip);
       turn.copy(L.clipTurn);
+      if (ground) turn.premultiply(toGround(position, q2));
     } else if (L.state === 'join') {
       const j = L.join;
       const k = Math.min(1, j.t / j.duration);
       const e = smooth(k);
       position.lerpVectors(j.from, L.clip, e);
       position.y = Math.max(position.y, surfaceY(L, position) + j.arc * Math.sin(Math.PI * k));
-      turn.slerpQuaternions(j.turnFrom, L.clipTurn, e);
+      turn.slerpQuaternions(j.turnFrom, ground ? q2.copy(L.clipTurn).premultiply(toGround(L.clip, q3)) : L.clipTurn, e);
     } else {
       const s = L.step;
       const k = Math.min(1, s.t / s.duration);
@@ -437,6 +471,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       // foot coming down from the air without an arc would glide in along the ground otherwise).
       position.lerpVectors(s.from, s.to, smooth(Math.min(1, k / 0.8)));
       position.y = THREE.MathUtils.lerp(s.from.y - s.air, s.to.y, e) + s.air * (1 - e) + s.height * Math.sin(Math.PI * k);
+      if (ground) position.y = Math.max(position.y, surfaceY(L, position) + s.height * Math.sin(Math.PI * k)); // over a bending slope too
       turn.slerpQuaternions(s.turnFrom, s.turnTo, e);
       const peel = s.peel * Math.sin(Math.PI * Math.min(1, k / 0.75)) ** 2;
       if (peel && L.toe) {
@@ -601,6 +636,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
         walkClip.foot(k, v1);
         L.clipUp = v1.y - L.home.y > LIFT;
         root.localToWorld(L.clip.copy(v1));
+        if (ground) overGround(L, L.clip);
         if (L.state === 'join' || L.state === 'clip') {
           const most = L.radius > T.near ? TURN_LEAD / L.radius : 0;
           const turn = clamp(lead, -most, most) * smooth(Math.min(1, L.airTime / (0.4 * T.pace)));

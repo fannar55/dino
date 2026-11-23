@@ -9,6 +9,8 @@
 //   hips.set(angle)                              each frame after her clips, before her lean (radians; her feet stay where they are)
 //   const down = headDownPose(actor, lean, hips, { ground })   her lean (and hips, if it does not reach) with her head down on the
 //                                                ground: { theta, pitch, hips, low, snout, seat }
+//   skinPoints(actor, groups, { stride })        her (or anyone's) skinned vertices by bone groups, cheaply each frame: { update() }
+//   leastDistance(a, b, reach)                   the least distance between two sets of those points (her keeping clear of Mosi)
 //   lowestOfHead(actor)                          { low, snout }: the lowest of her head now, and of its front (the jaw's underside);
 //                                                her head's vertices are found once (the first call), then skinned from their bones
 //                                                with a dot product each, so headDownPose's search costs milliseconds
@@ -207,6 +209,50 @@ export function skinPoints(actor, groups, { stride = 1 } = {}) {
     return result;
   }
   return { update, groups: Object.keys(groups) };
+}
+
+/**
+ * The least distance between two sets of points ({ part: Float64Array [x, y, z, ...] }, skinPoints's), looked for within `reach` m:
+ * { d, a, b, at } (d is `reach` when nothing is nearer; a and b the parts the two nearest points are in). pointIndex(b, reach)
+ * keeps b's points hashed for many questions: index.least(a).
+ */
+export const leastDistance = (a, b, reach = 0.5) => pointIndex(b, reach).least(a);
+
+export function pointIndex(b, reach = 0.5) {
+  const cell = reach;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const map = new Map();
+  const key = (x, y, z) => (x * 1000003 + y) * 1000033 + z;
+  for (const [part, pts] of Object.entries(b)) {
+    for (let k = 0; k < pts.length; k += 3) {
+      for (let i = 0; i < 3; i++) { if (pts[k + i] < lo[i]) lo[i] = pts[k + i]; if (pts[k + i] > hi[i]) hi[i] = pts[k + i]; }
+      const kk = key(Math.floor(pts[k] / cell), Math.floor(pts[k + 1] / cell), Math.floor(pts[k + 2] / cell));
+      let list = map.get(kk);
+      if (!list) map.set(kk, (list = []));
+      list.push(pts[k], pts[k + 1], pts[k + 2], part);
+    }
+  }
+  function least(a) {
+    let best = { d: reach, a: null, b: null, at: null };
+    for (const [part, pts] of Object.entries(a)) {
+      for (let k = 0; k < pts.length; k += 3) {
+        const x = pts[k], y = pts[k + 1], z = pts[k + 2];
+        if (x < lo[0] - reach || x > hi[0] + reach || y < lo[1] - reach || y > hi[1] + reach || z < lo[2] - reach || z > hi[2] + reach) continue;
+        const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
+        for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let l = -1; l <= 1; l++) {
+          const list = map.get(key(cx + i, cy + j, cz + l));
+          if (!list) continue;
+          for (let q = 0; q < list.length; q += 4) {
+            const dx = list[q] - x, dy = list[q + 1] - y, dz = list[q + 2] - z;
+            const d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 < best.d * best.d) best = { d: Math.sqrt(d2), a: part, b: list[q + 3], at: [x, y, z] };
+          }
+        }
+      }
+    }
+    return best;
+  }
+  return { least };
 }
 
 /** { low, snout }: the lowest point of her head in the world now (y), and of its front (her jaw's underside). */
