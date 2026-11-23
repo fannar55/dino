@@ -22,6 +22,7 @@ import { createStageUI } from './engine/scene/ui.js';
 import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
 import { createSave, defaultChapter, forgetSave } from './engine/save.js';
+import { chapterDone, chapterSearch, onwardChapter } from './engine/book/map-chapters.js';
 import { createJournal } from './engine/scene/journal.js';
 import { createBook, halsOpen } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
@@ -93,6 +94,9 @@ if (params.get('nyr') === '1') {
 }
 const save = createSave(params.get('t') === null ? undefined : null);
 const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
+// A chapter played again: its friend's star was in the book before this page began (the child came here from the book's map, or
+// by the address). Its "Áfram" then leads to where the story has come to (the hand-over, below).
+const playedAgain = chapterDone(chapterId, save);
 // The bug report tool (engine/villa/villa.js) is registered before the first await so F1 works from the first moment, even
 // while the chapter and its models are still downloading.
 let villaOpen = false, holdFn = null, drawNowFn = null, juniorRef = null, sloedlaRef = null, minnisspilRef = null, halsRef = null;
@@ -286,6 +290,10 @@ const pointer = createPointer({ canvas, camera, world });
 let showOpen = false; // a "3D myndbönd" show is open over the book (onShow below): nothing here runs, draws or sounds
 const book = createBook(document, {
   cards, media, models, save, audio: bookAudio, win: window,
+  // The map's question (engine/book/map-ask.js): the child said yes to going to a chapter, finished before or the one the story
+  // has come to. Its page is loaded, as the hand-over loads the next chapter's, and the chapter begins from its start.
+  chapterId,
+  onChapter: id => { location.search = chapterSearch(id, location.search); },
   onPlay: (game, options) => {
     const target = game === 'hals' ? hals : game === 'yatzy-junior' ? junior : game === 'sloedla' ? sloedla : game === 'minnisspil' ? minnisspil : game === 'veiddu' ? veiddu : eitt;
     target.open(options);
@@ -814,13 +822,16 @@ function startScene() {
 // The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2, kafli2's kafli3, kafli3's kafli4, kafli4's kafli5, kafli5's kafli6) puts
 // a raised "Áfram" pill over the open book, in the book's style (book.css .next-chapter), and a tap on it goes on to that chapter's
 // page. It stands under a game the book opens (it comes before them on the page), and stays if the child shuts the book.
+// A chapter played again (playedAgain: the child came back to it from the book's map) leads instead to where the story has come
+// to, while a chapter is left unfinished (engine/book/map-chapters.js onwardChapter); with every chapter finished it leads on to
+// the next in order, as a first play does.
 let handedOver = false;
 function handOver() {
-  if (handedOver || !chapter.next || !scriptTask?.done || scriptTask.failed || scriptTask.cancelled) return;
-  handedOver = true;
-  const next = new URLSearchParams();
-  for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
-  next.set('chapter', chapter.next);
+  if (handedOver || !scriptTask?.done || scriptTask.failed || scriptTask.cancelled) return;
+  handedOver = true; // decided once, as the script ends
+  const onward = onwardChapter({ playing: chapterId, next: chapter.next ?? null, again: playedAgain, save });
+  if (!onward) return; // the last chapter: nowhere to go on to
+  const next = chapterSearch(onward, location.search).slice(1);
   const button = document.createElement('button');
   button.id = 'next-chapter';
   button.type = 'button';

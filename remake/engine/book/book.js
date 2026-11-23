@@ -4,7 +4,10 @@ import { createZoom } from './zoom.js';
 import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked, bookState } from './cards.js';
-import { renderMap } from './map-page.js';
+import { renderMap, MAP_PICTURES } from './map-page.js';
+import { createMapAsk } from './map-ask.js';
+import { chapterAsked } from './map-chapters.js';
+import { placeHue } from '../scene/journal-data.js';
 import { createMuseumPage } from './museum-page.js';
 import { BOOK_VIDEOS, BOOK_3D, BOOK_SHOWS, createVideosPage, videoSeenId } from './videos.js';
 import { createVideoPlayer } from './video-player.js';
@@ -51,6 +54,9 @@ import { validateGame } from '../hals/rules.js';
 // along it in ink (each piece draws itself in the first time the page is on view), with a slot for each of the six friends that
 // fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name and a
 // sentence (k2_mosi_map_<id>), an empty one only taps. The Fen has no slot and no name on the map: its painted reed is the Fen.
+// The place of a chapter the child can go to (map-chapters.js: a finished chapter's, which twinkles in gold, and the place the story
+// has come to while an older chapter is played) asks instead, "Viltu fara í kafla 2?", on a card with "Já!" and "Nei" (map-ask.js),
+// Mosi saying it aloud; a yes hands the chapter to onChapter (main.js goes to its page), a no puts the card away.
 // The Safnið leaf is the fossil collection, Steingervingasafn, which museum-page.js makes: the eight finds of "Háls og hali" as
 // taped stickers, a found one new ("Nýtt!") until tapped, a tap opening its card when the book has one, and a full collection
 // celebrated once. The Safnið ribbon wears a small "Nýtt!" (.ribbon-new) while a fossil is new. The celebration is for a book the
@@ -179,7 +185,9 @@ export function halsOpen(save) {
  * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior' | 'minnisspil')` opens a game from the Leikir page;
  * `onShow(open)` is told when a "3D myndbönd" show (videos.js BOOK_3D) opens over the book in its show player (show-player.js) and when it
  * closes (main.js draws nothing meanwhile); `onTab(tab)` is told
- * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
+ * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `chapterId` is the chapter
+ * this page plays (null where it plays none: the lab) and `onChapter(id)` hears the child's yes to the map's question, with the chapter to go to
+ * ('kafli2'); `win` is the window (less
  * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
  *                      holds the game) or a script's (by 'script', which does not); an open book turns to the tab instead, and a child's
@@ -196,8 +204,9 @@ export function halsOpen(save) {
  *   foundAgain(findId) the animal of a find the book has already was found again in a new place (the journal tells it): the next
  *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
+ *   mapAsk             the map's question card (map-ask.js), for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onShow = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onShow = null, onTab = null, chapterId = null, onChapter = null, win = globalThis.window, liveMap = null } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -325,12 +334,14 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   let videosPage = null;
   let videoPlayer = null;
   let showPlayer = null;
+  let mapAsk = null;
   win?.addEventListener?.('keydown', event => {
     if (event.defaultPrevented || event._bookHandled || !isOpen || event.key !== 'Escape') return;
     if (tutorialTarget !== null && tutorialTarget !== 'close') return;
     event._bookHandled = true;
     event.preventDefault?.();
     if (zoom?.isOpen) zoom.close();
+    else if (mapAsk?.isOpen) mapAsk.close();
     else if (showPlayer?.isOpen) showPlayer.close();
     else if (videoPlayer?.isOpen) videoPlayer.close();
     else if (cardViewer?.isOpen) cardViewer.close();
@@ -396,8 +407,33 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), { cards: animalCards, media, save, audio, win, onOpenCard, onChange: () => renderRibbonNew() });
   // The Risaeðlur leaf: the same page over the dinosaur cards, whose friends not met yet have Mosi say he will meet them later.
   const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME, onChange: () => renderRibbonNew() });
-  // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
-  const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(id === 'gramedla' ? DINOSAUR_FIND_ME : `k2_mosi_map_${id}`), ...(liveMap ? { liveMap } : {}) });
+  // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound). The
+  // place of a chapter the child can go to asks instead (map-ask.js), and a yes is handed to onChapter. A callback that fails must
+  // not leave the card standing with nothing to tap: it is put away, and the map is as it was.
+  mapAsk = createMapAsk(doc, root, {
+    audio,
+    win,
+    onYes: row => {
+      try {
+        onChapter?.(row.chapter);
+      } catch (error) {
+        console.error('[book]', error);
+        mapAsk.close();
+      }
+    },
+  });
+  const map = renderMap(leaves.get('map'), {
+    save,
+    audio,
+    win,
+    asks: id => chapterAsked(id, save, chapterId),
+    onTap: id => {
+      const row = chapterAsked(id, save, chapterId);
+      if (row) mapAsk.open(row, { picture: MAP_PICTURES[id], hue: placeHue(id) });
+      else audio?.narrate?.(id === 'gramedla' ? DINOSAUR_FIND_ME : `k2_mosi_map_${id}`);
+    },
+    ...(liveMap ? { liveMap } : {}),
+  });
 
   const stateKey = () => JSON.stringify([save.get(), STICKER_KINDS.map(kind => kind.read(save)), halsOpen(save)]);
   let renderedKey = null;
@@ -556,6 +592,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
 
   /** The card, the video player and what is zoomed are put away at once, as the book is shut or turns to another page. */
   function putCardAway() {
+    mapAsk.close();
     zoom.close(true);
     videoPlayer.close(true);
     showPlayer.close();
@@ -956,6 +993,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     videoPlayer,
     showPlayer,
     zoom,
+    mapAsk,
     get isOpen() { return isOpen; },
     get isChildOpen() { return isOpen && holder === 'child'; },
     get tab() { return tab; },

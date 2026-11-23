@@ -192,13 +192,16 @@ test('the book has a Kortið page with the found places', () => {
   assert.equal(sticker('uggedla'), undefined, 'an empty slot shows no one');
   assert.ok(marker('kambedla').findAll(e => e.classList.contains('map-star')).length === 1, 'a done place wears a star');
   assert.ok(marker('sloedla').findAll(e => e.classList.contains('map-star')).length === 0, 'a found one not yet');
-  // A tap on a found or done place: Mosi says its name and a sentence. On an empty slot only the book's tap.
+  // A tap on a found place: Mosi says its name and a sentence. A done one asks about its chapter (map-chapters.test.mjs has the
+  // question). On an empty slot only the book's tap.
   tap(marker('sloedla'));
+  assert.deepEqual(narrated, ['k2_mosi_map_sloedla']);
   tap(marker('kambedla'));
-  assert.deepEqual(narrated, ['k2_mosi_map_sloedla', 'k2_mosi_map_kambedla']);
+  assert.deepEqual(narrated, ['k2_mosi_map_sloedla', 'book_mosi_kafli_1'], 'Kambeðla\'s chapter is finished: Mosi asks about it');
+  book.mapAsk.close();
   sounds.length = 0;
   tap(marker('uggedla'));
-  assert.deepEqual(narrated, ['k2_mosi_map_sloedla', 'k2_mosi_map_kambedla'], 'an empty slot is silent');
+  assert.deepEqual(narrated, ['k2_mosi_map_sloedla', 'book_mosi_kafli_1'], 'an empty slot is silent');
   assert.deepEqual(sounds, ['tap'], 'but for the book\'s tap');
   // The page keeps up with what the chapter adds: a place found from Þórseðla's head, and her star.
   save.addPlace('uggedla');
@@ -2788,18 +2791,22 @@ test('Þrívíddarsafnið and Söngur Slóeðlu are open from the start, unfound
   assert.ok(root.findAll(e => e.getAttribute('data-video') === 'tjorn3d')[0].classList.contains('found'), 'its Nýtt! is gone with the press');
   book.showPlayer.close();
 
-  // Grameðla unlocks with k6_gramedla (altUnlock) too, and tapping her marker on Kortið uses book_mosi_later fallback.
+  // Grameðla unlocks with k6_gramedla (altUnlock) too. Tapping her marker on Kortið while she is found but has no star uses the
+  // book_mosi_later fallback; with her star her chapter is finished, and her place asks about it instead (map-chapters.test.mjs).
   assert.ok(tile('gramedla').classList.contains('unfound'));
+  save.addPlace('gramedla');
+  book.refresh();
+  book.open('map', 'child');
+  const gramedlaMarker = root.findAll(e => e.classList.contains('map-marker') && e.getAttribute('data-place') === 'gramedla')[0];
+  narrated.length = 0;
+  tap(gramedlaMarker);
+  assert.equal(narrated.at(-1), 'book_mosi_later');
   save.addStar('k6_gramedla');
   book.refresh();
   assert.ok(tile('gramedla').classList.contains('new'));
-  book.open('map', 'child');
-  const gramedlaMarker = root.findAll(e => e.classList.contains('map-marker') && e.getAttribute('data-place') === 'gramedla')[0];
-  if (gramedlaMarker) {
-    narrated.length = 0;
-    tap(gramedlaMarker);
-    assert.equal(narrated.at(-1), 'book_mosi_later');
-  }
+  tap(gramedlaMarker);
+  assert.equal(narrated.at(-1), 'book_mosi_kafli_6', 'Mosi asks about chapter 6');
+  assert.equal(book.mapAsk.isOpen, true);
 });
 
 test('all six minigames award their friend\'s round sticker on the Leikir sticker sheet, keep every earned friend visible past 20, and createJuniorFrame forwards mosi:sticker', () => {

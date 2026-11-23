@@ -28,7 +28,11 @@
                                       ?at=<ms> holds the drawing and the dot at that moment from the page's opening (the first piece starts at 560,
                                       each next 2850 later) for a picture of it half drawn; the painting itself lives on every map (the water flows,
                                       the fall streaks, the trees sway, the clouds drift; map-life.js), and with ?progress=6 and no ?seen=1 the clouds
-                                      open round Grameðla's circle (560 ms in, over 2 s)
+                                      open round Grameðla's circle (560 ms in, over 2 s); a place whose chapter is finished twinkles and asks
+                                      when tapped (engine/book/map-chapters.js): ?playing=kafli2 says which chapter the page plays (none
+                                      unless told; with it the place the story has come to asks too, when that is another chapter), ?ask=<place> taps
+                                      that place (kambedla, uggedla, thorsedla, flugedla, sloedla, gramedla) and ?answer=yes|no taps the
+                                      answer; the lab goes nowhere on a yes: __went is the chapter it would go to
        journey                        the map in the journey (engine/book/map-moment.js) over this plain backdrop, as a chapter plays it at a
                                       departure: the whole map slides up, dims the game, draws the leg ahead and comes nearer it; ?leg=1 (the
                                       default) plays chapter 1's, piece a, on a fresh save, ?leg=2 chapter 2's, pieces b and c, over a trail
@@ -142,7 +146,7 @@
   const context = createAudioContext();
   addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
   const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
-  const book = createBook(document, { cards, media: parseManifest(mediaData), models: parseModels(mediaData), save, audio, win: window, onPause: () => {} });
+  const book = createBook(document, { cards, media: parseManifest(mediaData), models: parseModels(mediaData), save, audio, win: window, onPause: () => {}, chapterId: params.get('playing'), onChapter: id => { window.__went = id; } });
   const journal = createJournal(document, save, { book, audio, win: window });
   Object.assign(window, { __book: book, __bookAudio: audio, __save: save, __journal: journal, __moment: journal.mapMoment });
   window.__lifeMs = (frames, every) => timeLiveMaps(frames, every);
@@ -247,6 +251,12 @@
     }
     if (state === 'info') tap('.card-info');
     if (state === 'zoom') tap('.card-photo');
+    await settle();
+  }
+  if (state === 'map' && params.has('ask')) { // the map's question, as a tap on the place puts it up, and its answer
+    tap(`.map-marker[data-place="${params.get('ask').replace(/[^a-z]/g, '')}"]`);
+    await settle();
+    if (['yes', 'no'].includes(params.get('answer'))) tap(`.map-ask-answer.${params.get('answer')}`);
     await settle();
   }
   if (params.has('video')) {

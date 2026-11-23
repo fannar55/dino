@@ -17,6 +17,11 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal-data.js'
 // A tap on a found or done slot hands it to onTap(id, state, marker): Mosi says its name and one sentence (k2_mosi_map_<id>,
 // book.js). The slots are made once and render() only changes their state.
 //
+// A slot may also ask (the owner, 2026-11-23): the book says which do (`asks(id)`, map-chapters.js: the place of a chapter that is
+// finished, and the place the story has come to while an older chapter is played), and a tap on one is handed to onTap whatever
+// its state, an empty one too, for the book to put its question up ("Viltu fara í kafla 2?", map-ask.js). A slot that asks says so
+// with the book's gold twinkles round it, three of them, one after another (.asks, .map-glitter): the game's invitation to tap.
+//
 // The Fen has no slot and no name on the map (the owner, 2026-10-29): the golden reed painted in the middle of the right page is
 // the Fen itself, its pale clearing filled with reed (tools/erase-map-spot.py). The save's place `fen`, which chapter 2 adds and
 // flies its marker to the book button for, draws nothing here: no sticker, no star, no name and no piece of the trail.
@@ -85,7 +90,7 @@ export const MAP_PLACES = [
 ];
 const art = path => new URL(`../../assets/${path}`, import.meta.url).href;
 /** Each friend's picture on a sticker: the game's own renders (tools/bake/book-render.js). */
-const PICTURES = {
+export const MAP_PICTURES = {
   kambedla: art('book/images/kambedla-render-thumb.webp'),
   thorsedla: art('eitt/brontosaurus.webp'),
   gramedla: art('eitt/trex.webp'),
@@ -176,8 +181,9 @@ function curve(points) {
 /**
  * The map in the Kortið leaf (`leaf`: book.js's { el, pages, tiles }), over the `save`, with the book's sound (`audio`, whose tap
  * every slot plays). `onTap(id, state, marker)` hears a tap on a found or done slot, and, once the Fen is found, a tap on its name
- * (`onTap('fen', 'found', the name's element)`: no slot's button). `liveMap` makes each page's living layer, with createLiveMap's
- * signature (map-life.js; a test gives its own). Returns
+ * (`onTap('fen', 'found', the name's element)`: no slot's button). `asks(id)` says whether a slot asks about a chapter now (truthy:
+ * it twinkles, and its tap is handed to onTap even while it is empty; the map in the journey gives none). `liveMap` makes each
+ * page's living layer, with createLiveMap's signature (map-life.js; a test gives its own). Returns
  *   render()        shows what the save holds now (the trail's pieces the child has not seen drawn wait, unseen, until show())
  *   show(delayMs)   the page is on view (the book's turn to it has this long to settle): the pieces waiting draw themselves in,
  *                   one after another, and each is kept in the save's seen list; pieces found while it is on view draw at once;
@@ -199,11 +205,12 @@ function curve(points) {
  *   next()          the piece shown as next, or null once every piece is reached
  *   dotAt()         where the dot rests: the place the last piece drawn ends at ('kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla',
  *                   'gramedla'), or 'start' (the clearing) while none is drawn
+ *   asking(id)      whether the slot asks about a chapter now (asks(id), as render() last read it)
  *   mistOpen()      whether the mist has been drawn back from Grameðla's circle: false until she is found or done and the page has
  *                   shown it (show() opens it, over two seconds the first time, and keeps `map-mist-gramedla` in the save's seen
  *                   list), true from then on, and true as soon as she is found with reduced motion
  */
-export function renderMap(leaf, { save, onTap = null, audio = null, win = globalThis.window, liveMap = createLiveMap } = {}) {
+export function renderMap(leaf, { save, onTap = null, asks = null, audio = null, win = globalThis.window, liveMap = createLiveMap } = {}) {
   const doc = leaf.el.ownerDocument;
   const make = (tag, className) => {
     const element = doc.createElement(tag);
@@ -298,8 +305,9 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     halves[half].append(label);
   }
 
-  const markers = new Map(); // id -> { el, sticker, star }
+  const markers = new Map(); // id -> { el, sticker, star, glitter }
   const states = new Map(); // id -> 'empty' | 'found' | 'done'
+  const asking = new Set(); // the slots that ask about a chapter now (asks)
   let found = new Set(); // the save's places, as update() last read them
   for (const place of MAP_PLACES) {
     const half = halfOf(place.at);
@@ -312,14 +320,19 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     const sticker = make('span', 'map-sticker');
     const img = doc.createElement('img');
     img.decoding = 'async';
-    img.src = PICTURES[place.id];
+    img.src = MAP_PICTURES[place.id];
     img.alt = '';
     img.draggable = false;
     sticker.append(img);
     const star = make('span', 'map-star');
     star.innerHTML = STAR_SVG;
+    const glitter = [0, 1, 2].map(() => { // the twinkles of a slot that asks
+      const twinkle = make('span', 'map-glitter');
+      twinkle.setAttribute('aria-hidden', 'true');
+      return twinkle;
+    });
     pressable(el, { audio, win, onTap: () => tap(place.id) }); // the book's tap, as every control's; a place found says more
-    markers.set(place.id, { el, sticker, star });
+    markers.set(place.id, { el, sticker, star, glitter });
     halves[half].append(el);
   }
 
@@ -332,7 +345,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
 
   function tap(id) {
     const state = states.get(id);
-    if (state === 'empty') return;
+    if (state === 'empty' && !asking.has(id)) return;
     const { el } = markers.get(id);
     bounce(el);
     onTap?.(id, state, el);
@@ -561,15 +574,20 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     found = new Set(places);
     for (const place of MAP_PLACES) {
       const state = friendsWon.has(place.id) ? 'done' : found.has(place.id) ? 'found' : 'empty';
-      if (states.get(place.id) === state) continue;
+      const asked = asks?.(place.id) || null; // the chapter it asks about now ({ number }), if it asks
+      if (states.get(place.id) === state && asking.has(place.id) === Boolean(asked)) continue;
       states.set(place.id, state);
-      const { el, sticker, star } = markers.get(place.id);
+      if (asked) asking.add(place.id);
+      else asking.delete(place.id);
+      const { el, sticker, star, glitter } = markers.get(place.id);
       el.classList.toggle('empty', state === 'empty');
       el.classList.toggle('found', state !== 'empty');
       el.classList.toggle('done', state === 'done');
-      // an empty slot shows no one: the sticker is on it once found, and the star once done
-      el.replaceChildren(...(state === 'empty' ? [] : state === 'done' ? [sticker, star] : [sticker]));
-      el.setAttribute('aria-label', state === 'empty' ? 'Ófundinn staður' : nameOf(place.id));
+      el.classList.toggle('asks', Boolean(asked));
+      // an empty slot shows no one: the sticker is on it once found, and the star once done; one that asks twinkles
+      el.replaceChildren(...(state === 'empty' ? [] : state === 'done' ? [sticker, star] : [sticker]), ...(asked ? glitter : []));
+      const name = state === 'empty' ? 'Ófundinn staður' : nameOf(place.id);
+      el.setAttribute('aria-label', asked?.number ? `${name}: fara í kafla ${asked.number}` : name);
     }
     // the trail: a piece is there once its place (a and c: found or done) or its friend's star (b, d, e and f: done; her place may be
     // found from Þórseðla's head, which is not a trip to her) or a later piece's is, and is waiting to be drawn in until the child has
@@ -604,5 +622,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     next: () => pieces.find(piece => piece.state === 'next')?.id ?? null,
     dotAt: () => rests,
     mistOpen: () => mistIsOpen,
+    asking: id => asking.has(id),
   };
 }
