@@ -184,9 +184,9 @@ const AFTER_ROAR = EVENING.afterRoar;
 // over him, her tail away from him) at TURN_RATE degrees a second. She tramps MARCH m up the belt's last slope, Mosi
 // running RUN_SIDE m on her right, the light still nearly night as they climb (the sunset is the top's own scene: a cut
 // to it as they come up). The top's scene opens as they come up over its brow at bearing TOP_WAY (degrees, past the last wisp:
-// world/fjall/top.js VEIL), BROW m out past her way's inside point, her head already over the grass (the steep shoulder under the brow
-// is never seen with a body on it: the owner's frame of 2026-11-23, her head deep in the grass): she walks in over the brow and
-// TOP_WALK m on toward her room (top.room), where they stand whole on the flat before Egill's line.
+// world/fjall/top.js VEIL), she at her way's inside point (top.wayUp: 1.2 m past the flat), her head already over the grass (the
+// steep shoulder under the brow is never seen with a body on it: the owner's frame of 2026-11-23, her head deep in the grass), and
+// walks TOP_WALK m in over the brow toward her room (top.room), where they stand whole on the flat before Egill's line.
 const MOSI_ASIDE = [3, 7.5];
 const HEAD_WAIT = 6;
 const FLOAT_UP = 2.6;
@@ -195,7 +195,6 @@ const CLIMB_PACE = 1.8; // m/s: her stride a little under its own pace, so Mosi 
 const MARCH = 12;
 const RUN_SIDE = 5.5;
 const TOP_WAY = 126;
-const BROW = 1; // m out past her way's inside point (top.wayUp: 1.2 m past the flat's edge) where she stands as the top's scene opens
 const TOP_WALK = 4;
 // Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame): her head down on
 // the ground from behind on her right (Mosi and Egill beyond it, apart from it), and the climb low from ahead of her on her right (she
@@ -213,7 +212,7 @@ const CLIMB_FRAMES = {
 };
 const HEAD_FRAME = { from: [-2.6, 1.5, 0.7], at: [30, -4, 0], fov: 50 };
 const TOP_FRAME = { from: [-16, 4, 7], at: [6, 0.6, -1], fov: 50, tall: { from: [-11.6, 3.3, 5.4], at: [6, 1.0, 1], fov: 36 } };
-const ABOVE_FRAME = { from: [24, 3.6, 1], at: [0, 1.4, 1.5], fov: 38, tall: { from: [16, 2.8, 1.5], at: [1, 2.2, 1.5], fov: 46 } };
+const ABOVE_FRAME = { from: [24, 3.6, 1], at: [0, 1.4, 1.5], fov: 38, tall: { from: [16.5, 2.8, 0.5], at: [1, 2.2, -0.6], fov: 46 } };
 // Egill's "Við erum ofan við skýin!" waits ABOVE_LINE s into above_clouds, until her head and he are up over the brow
 const ABOVE_LINE = 5.2;
 // The top's two shots last as long as when she climbed 14 m up out of the sea and walked on 4 m at 1.2 m/s (s), so no line moves
@@ -915,7 +914,7 @@ function* upToTheTop(s, c) {
       top = world.forest;
       slope = top.wayUp(THREE.MathUtils.degToRad(TOP_WAY));
       const heading = headingTo(slope[0], slope[1]);
-      slope[0] = aside(slope[2], heading, -BROW, 0); // on the brow's last gentle metres, her head already over the top's grass
+      slope[0] = slope[2]; // her way's inside point, on the brow's last gentle metre: her head already over the top's grass
       her.place(slope[0], heading);
       const [mx, mz] = aside(slope[0], heading, 1.2, RUN_SIDE); // a little ahead of her: on her right the brow lies further out
       mosi.place(mx, mz, heading);
@@ -934,8 +933,8 @@ function* upToTheTop(s, c) {
   const upHeading = headingTo(slope[1], slope[2]);
   cut(s, c, aboveShot(c, slope[2], upHeading));
   for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { top.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
-  const up = her.trampUp([slope[2], stop], { speed: CLIMB_PACE });
-  const by = runBeside(s, c, [aside(slope[2], upHeading, 0, RUN_SIDE), aside(stop, towards, -1, RUN_SIDE)], { speed: CLIMB_PACE * 1.1 });
+  const up = her.trampUp([stop], { speed: CLIMB_PACE });
+  const by = runBeside(s, c, [aside(stop, towards, -1, RUN_SIDE)], { speed: CLIMB_PACE * 1.1 });
   footfalls(s, c, up, -8);
   const line = s.after(ABOVE_LINE, function* above() { yield* say(s, c, 'egill', 'k6_egill_above'); });
   yield s.all(up, by, line, s.wait(ABOVE_HOLD));
