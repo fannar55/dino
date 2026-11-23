@@ -921,6 +921,8 @@ function* upToTheTop(s, c) {
       lightTo(world, LOOKS.sunset); // the top's own scene: the sunset he picked, from the first frame of above_clouds
       c.evening?.restore(); // and its water, Mosi cloud and light on things as the top had them
       top.veil?.setLevel(1); // the last wisp of the cloud by its south-west rim
+      // the top's first shot under the black too: the picture that comes up is above_clouds, never the top through the climb's camera
+      cut(s, c, aboveShot(c, slope[2], headingTo(slope[1], slope[2])));
       return null;
     },
   });
@@ -930,8 +932,6 @@ function* upToTheTop(s, c) {
   const towards = headingTo(slope[2], room);
   const stop = aside(slope[2], towards, TOP_WALK, 0);
   c.topStop = { at: stop, heading: towards };
-  const upHeading = headingTo(slope[1], slope[2]);
-  cut(s, c, aboveShot(c, slope[2], upHeading));
   for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { top.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
   const up = her.trampUp([stop], { speed: CLIMB_PACE });
   const by = runBeside(s, c, [aside(stop, towards, -1, RUN_SIDE)], { speed: CLIMB_PACE * 1.1 });

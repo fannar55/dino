@@ -170,6 +170,10 @@ test("the untouched play: nearly night from the first frame, never brighter to t
   assert.equal(frames[above - 1].look, EVENING.afterRoar, 'the last frame before it is nearly night');
   const lastSeen = frames.slice(0, above).findLast(f => f.fade < 0.01);
   assert.equal(lastSeen.look, EVENING.afterRoar, 'and so is the last frame seen before the black');
+  // and the top is never seen through the climb's camera: the cut to above_clouds is under the black too, so the picture that
+  // comes up out of it is the top's own first shot
+  const wrong = frames.filter(f => f.place === 'toppur' && f.fade < 0.99 && !['above_clouds', 'top_wide'].includes(f.shot));
+  assert.deepEqual(wrong.slice(0, 3).map(f => `${f.shot} at ${f.time.toFixed(2)} s (fade ${f.fade.toFixed(2)})`), [], 'the top seen through another scene\'s camera');
 });
 
 test('the sun wears its nightcap from the first frame to the last, wherever its face shows', async () => {
