@@ -188,6 +188,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       clipTurn: new THREE.Quaternion(),
       clipUp: false,
       ground: 0,
+      sole: null, // with the ground given (setGround): the foot's sole, kept out of it
       lift: 0, // with the ground given: how far a planted foot stands up off it to keep its toe out of it
     };
     if (jointed) {
@@ -296,14 +297,26 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     if (ground) {
       // the sole flat on the ground where it stands, pointing the way it came down
       const yaw = root.rotation.y + wrap(yawOfTurn(turn) - yawOfTurn(restTurn(L, root.rotation.y, q2)));
-      restTurn(L, yaw, L.turn).premultiply(toGround(L.at, q3));
-      // a long foot on a bending slope: its toe kept out of the ground too
+      restTurn(L, yaw, L.turn);
+      // a long foot on a bending slope: no point of its sole in the ground (without a sole given, no point along it from the ankle
+      // out past the toe lower over the ground than on flat ground, where it rests `rise` over the ankle's own height)
       L.lift = 0;
-      if (L.toe) {
-        const toe = v1.copy(L.toe).applyQuaternion(L.turn).add(L.at);
-        L.lift = Math.max(0, ground(toe.x, toe.z) - toe.y);
-        L.at.y += L.lift;
-      }
+      if (L.sole) {
+        L.turn.premultiply(toGround(L.at, q3));
+        for (const p of L.sole) {
+          const q = v1.copy(p).applyQuaternion(L.turn).add(L.at);
+          L.lift = Math.max(L.lift, ground(q.x, q.z) - q.y);
+        }
+      } else if (L.toe) {
+        const rise = v1.copy(L.toe).applyQuaternion(L.turn).y;
+        L.turn.premultiply(toGround(L.at, q3));
+        const toe = v2.copy(L.toe).applyQuaternion(L.turn);
+        for (const k of [0.35, 0.7, 1, 1.3]) {
+          const x = L.at.x + k * toe.x, z = L.at.z + k * toe.z, y = L.at.y + k * toe.y;
+          L.lift = Math.max(L.lift, ground(x, z) + L.home.y + k * rise - y);
+        }
+      } else L.turn.premultiply(toGround(L.at, q3));
+      L.at.y += L.lift;
     }
     L.step = null;
     L.join = null;
@@ -481,13 +494,23 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
         position.sub(v1.copy(L.toe).applyQuaternion(turn));
       } else if (peel) turn.multiply(q3.setFromAxisAngle(L.peelAxis, -peel));
     }
+    // with a sole given (setGround), a foot off its planted spot keeps it out of the ground as well
+    if (L.sole && L.state !== 'down') {
+      let lift = 0;
+      for (const p of L.sole) {
+        const q = v1.copy(p).applyQuaternion(turn).add(position);
+        lift = Math.max(lift, ground(q.x, q.z) - q.y);
+      }
+      position.y += lift;
+    }
   }
 
   // Jointed legs: how far the hips must sink for every leg to reach its foot (the legs reach at most
   // `legReach` of their straight length, and the hips sink at most a third of it). They sink at once
-  // when they must, and rise back gently.
+  // when they must, and rise back gently. On a given ground (setGround: a steep hill) they never come lower than a leg bent all it
+  // can lets its foot stay where it stands (a foot planted far up the hill), rising at once to that if they must.
   function crouch(dt) {
-    let need = 0;
+    let need = 0, lowest = Infinity;
     for (const L of legs) {
       if (!L.jointed) continue;
       const hip = L.thigh.getWorldPosition(v1);
@@ -496,9 +519,15 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
       const most = T.legReach * length;
       const across = v2.subVectors(L.pos, hip).setY(0).lengthSq();
       need = Math.max(need, Math.min(length / 3, above - Math.sqrt(Math.max(0, most * most - across))));
+      if (ground) {
+        const least = 1.02 * L.ik.shortest * L.unit;
+        if (across < least * least) lowest = Math.min(lowest, above - Math.sqrt(least * least - across));
+      }
     }
-    sink = need >= sink ? need : need + (sink - need) * Math.exp(-dt / (0.2 * T.pace));
-    if (sink <= 1e-6) { sink = 0; return; }
+    if (need >= sink) sink = Math.min(need, lowest);
+    else if (sink > lowest) sink = lowest;
+    else sink = need + (sink - need) * Math.exp(-dt / (0.2 * T.pace));
+    if (Math.abs(sink) <= 1e-6) { sink = 0; return; }
     hips.position.add(v1.set(0, -sink / hipsUnit, 0).applyQuaternion(hips.parent.getWorldQuaternion(q1).invert()));
     hips.updateMatrixWorld(true);
   }
@@ -594,9 +623,23 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFram
     },
     /**
      * The ground the eye sees, (x, z) -> its height, or null (the default): with it each foot stands on that ground where it is and
-     * rests turned as the root is (actor.followGround: a body tilted to a slope). Start over (reset) after changing it.
+     * rests turned as the root is (actor.followGround: a body tilted to a slope). `feet` (one a leg, or null): the points of each
+     * foot in the foot bone's frame (m, from the bone); its sole (those in the lowest quarter of it as the foot rests, at most about
+     * 128) a foot then keeps out of that ground. Start over (reset) after changing it.
      */
-    setGround(fn = null) { ground = fn ?? null; },
+    setGround(fn = null, feet = null) {
+      ground = fn ?? null;
+      legs.forEach((L, k) => {
+        const all = ground ? feet?.[k] : null;
+        L.sole = null;
+        if (!all?.length) return;
+        const down = v1.set(0, -1, 0).applyQuaternion(q1.copy(L.parentQ).multiply(L.restFoot).invert());
+        const depth = all.map(p => p.dot(down)), most = Math.max(...depth), least = Math.min(...depth);
+        const sole = all.filter((p, i) => depth[i] >= most - 0.25 * (most - least));
+        const every = Math.max(1, Math.floor(sole.length / 128));
+        L.sole = sole.filter((p, i) => i % every === 0);
+      });
+    },
     get ground() { return ground; },
     /** Put the clips' leg pose back before the mixer runs (it skips values that did not change). */
     restore() {

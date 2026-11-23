@@ -39,6 +39,8 @@ export function twoBoneLeg(knee, ankle) {
   const length = Math.sqrt(base + 2 * c); // hip to ankle, straight
   return {
     length,
+    /** Hip to ankle with the knee bent as far as reach bends it (the least it reaches). */
+    shortest: Math.max(0.2 * length, Math.sqrt(Math.max(0, base - 2 * c))),
     /**
      * Bend the leg so the ankle is `toAnkle` from the hip (a vector in the frame the thigh turn is
      * wanted in), the knee bending in the plane across `hinge`: writes the thigh's turn in that frame

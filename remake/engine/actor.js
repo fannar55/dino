@@ -97,6 +97,23 @@ function toeOf(model, foot) {
   }
   return toe && foot.worldToLocal(toe.setZ(foot.getWorldPosition(p).z).setY(0));
 }
+// A foot as it was made: the vertices the foot bone carries most, in the foot bone's own frame, whatever pose the body is in now
+// (footing.setGround keeps the sole of them, the lowest as the foot rests). Only followGround (chapter 6's mountain) uses it.
+function soleOf(model, foot) {
+  const all = [];
+  model.traverse(mesh => {
+    if (!mesh.isSkinnedMesh || !mesh.skeleton.bones.includes(foot)) return;
+    const bone = mesh.skeleton.bones.indexOf(foot);
+    const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
+    const toBone = mesh.skeleton.boneInverses[bone].clone().multiply(mesh.bindMatrix);
+    for (let i = 0; i < position.count; i++) {
+      let w = 0;
+      for (let k = 0; k < 4; k++) if (skinIndex.getComponent(i, k) === bone) w += skinWeight.getComponent(i, k);
+      if (w >= 0.5) all.push(new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(toBone));
+    }
+  });
+  return all.length ? all : null;
+}
 
 // Turn a bone by a world-space rotation about its own pivot.
 const parentQ = new THREE.Quaternion();
@@ -326,6 +343,14 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     root.rotation.x = roll;
     root.position.y = height;
   }
+  // each foot as it was made (soleOf), at the size it stands now: footing keeps its sole out of the ground (a long foot on a bending
+  // slope)
+  let soles = null;
+  const soleScale = new THREE.Vector3();
+  function solesNow() {
+    soles ??= legs.map(({ foot }) => soleOf(model, foot));
+    return soles.map((sole, k) => sole && sole.map(p => p.clone().multiplyScalar(legs[k].foot.getWorldScale(soleScale).x)));
+  }
   function followGround(fn = null) {
     groundAt = fn ?? null;
     if (groundAt) {
@@ -333,7 +358,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       toGround();
     } else root.rotation.set(0, root.rotation.y, 0);
     root.updateMatrixWorld(true);
-    footing.setGround(groundAt);
+    footing.setGround(groundAt, groundAt && solesNow());
     footing.reset();
   }
 
