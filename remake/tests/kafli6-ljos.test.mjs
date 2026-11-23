@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as kafli6 from '../chapters/kafli6.js';
-import { EVENING, NEAR, NEARLY_NIGHT, brightness, showMixOver, startEvening } from '../chapters/kafli6-looks.js';
+import { EVENING, NEAR, NEARLY_NIGHT, NIGHT_WATER, brightness, showMixOver, startEvening } from '../chapters/kafli6-looks.js';
 import { LOOKS as SHOW_LOOKS, LOOK_CUES } from '../chapters/kafli5-show-score.js';
 import { chapter as kafli5 } from '../chapters/kafli5.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
@@ -59,6 +59,10 @@ test("chapter 6's first frame is nearly night: chapter 5's dusk and night as its
   const six = fullWorld(pickLook(kafli6.chapter.look));
   startEvening(six);
   const [a, b] = [lightOf(five), lightOf(six)];
+  // the water is chapter 5's night water itself (NIGHT_WATER: the dusk's pink made the river a pink ribbon), the same mixer
+  const water = fullWorld(pickLook(kafli5.look));
+  createDusk(water).mix(NIGHT_WATER);
+  a.water = lightOf(water).water;
   for (const key of Object.keys(a)) {
     const [x, y] = [a[key], b[key]];
     if (typeof x === 'number') assert.ok(Math.abs(x - y) < 1e-9, `${key}: the mix is ${x}, chapter 6 starts at ${y}`);

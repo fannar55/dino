@@ -31,6 +31,8 @@ const SUN = { azimuth: 215, elevation: 10 }; // chapter 6's one sun (engine/look
 export const NEAR = 2 / 3;
 /** Chapter 5's dusk and night as engine/show/dusk.js mixes them: [[look, weight], ...]. */
 export const NEARLY_NIGHT = [[SHOW_LOOKS.rose, 1 - NEAR], [SHOW_LOOKS.night, NEAR]];
+/** The rivers and pools: chapter 5's night water itself (the dusk's pink in it made the river a pink ribbon from the slope). */
+export const NIGHT_WATER = [[SHOW_LOOKS.night, 1]];
 
 const hexOf = colour => `#${colour.getHexString()}`;
 /**
@@ -124,10 +126,10 @@ export function brightness(look) {
  */
 function holdRest(world) {
   const parts = [];
-  const colour = (value, of) => {
+  const colour = (value, of, mix = NEARLY_NIGHT) => {
     if (!value?.isColor) return;
     const was = value.clone(), to = was.clone();
-    for (const [look, w] of NEARLY_NIGHT) {
+    for (const [look, w] of mix) {
       const hex = of(look);
       if (!hex) continue;
       const c = new THREE.Color(hex);
@@ -136,7 +138,7 @@ function holdRest(world) {
     parts.push({ value, was, to });
   };
   const water = world.forest?.materials?.water?.uniforms;
-  for (const [name, key] of [['uHorizon', 'horizon'], ['uZenith', 'zenith'], ['uDeep', 'deep'], ['uGlint', 'glint']]) colour(water?.[name]?.value, look => look.water?.[key]);
+  for (const [name, key] of [['uHorizon', 'horizon'], ['uZenith', 'zenith'], ['uDeep', 'deep'], ['uGlint', 'glint']]) colour(water?.[name]?.value, look => look.water?.[key], NIGHT_WATER);
   colour(world.scene?.getObjectByName?.('MosiCloud')?.material?.color, look => look.mosiCloud);
   const scene = world.scene && Number.isFinite(world.scene.environmentIntensity) ? world.scene : null;
   const env = scene ? { was: scene.environmentIntensity, to: pool.envIntensity } : null;
