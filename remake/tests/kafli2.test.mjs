@@ -310,8 +310,10 @@ test('chapter 1 hands over to chapter 2, chapter 2 to chapter 3 and chapter 3 to
   // main.js: when the script's task is done (and did not fail), a raised "Áfram" pill goes after the book and leads to ?chapter=<next>
   const main = MAIN_TEXT.replace(/\r\n/g, '\n');
   assert.match(main, /scriptTask = stage\.start\(chapter\.script\)/, 'the page keeps the script\'s task');
-  assert.match(main, /if \(handedOver \|\| !chapter\.next \|\| !scriptTask\?\.done \|\| scriptTask\.failed \|\| scriptTask\.cancelled\) return;/, 'only a chapter that names the next, once its script has ended');
-  assert.match(main, /next\.set\('chapter', chapter\.next\)/, 'its address names the next chapter');
+  // (a chapter played again from the book's map may lead back to the story instead: engine/book/map-chapters.js, tests/map-chapters.test.mjs)
+  assert.match(main, /if \(handedOver \|\| !scriptTask\?\.done \|\| scriptTask\.failed \|\| scriptTask\.cancelled\) return;/, 'only once its script has ended');
+  assert.match(main, /const onward = onwardChapter\(\{ playing: chapterId, next: chapter\.next \?\? null, again: playedAgain, save \}\);\n\s*if \(!onward\) return;/, 'only a chapter that leads somewhere: its own next on a first play');
+  assert.match(main, /const next = chapterSearch\(onward, location\.search\)\.slice\(1\);/, 'its address names that chapter');
   assert.match(main, /className = 'next-chapter'/);
   assert.match(main, /<span>Áfram<\/span>/, 'and it says Áfram');
   assert.match(main, /document\.getElementById\('book'\)\.after\(button\)/, 'over the book, under the games it opens');
