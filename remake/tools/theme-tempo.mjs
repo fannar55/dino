@@ -13,7 +13,7 @@
 // it is (it was cut to loop by hand, so there is nothing to encode), into remake/assets/audio/<folder>/theme.json, whose other
 // fields (name, danceBeats, comment) it keeps, and its key too unless --key is given (the owner picks a key by ear; the measured
 // one is printed); its click track, on the key in the json, goes to qa/remake/<folder>/theme-click-track.mp3.
-// --file <mp3 under remake/assets/audio/> does the same for any track, a game's own music: <track>.json beside it (music.json for
+// --file <mp3 under remake/assets/audio/ or qa/> does the same for any track, a game's own music: <track>.json beside it (music.json for
 // music.mp3, which the game's effects are tuned to: engine/audio/game-music.js), its click track in qa/remake/<folder>/. A track's
 // json also says its tuning (tuningCents, against A4 = 440).
 //
@@ -395,7 +395,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // a track of its own (a chapter's theme, a game's music), measured as it is, its json beside it: repo-relative, with / between
   const own = themeAt > 0 ? `remake/assets/audio/${process.argv[themeAt + 1]}/theme.mp3`
     : fileAt > 0 ? path.relative(ROOT, path.resolve(ROOT, process.argv[fileAt + 1] ?? '')).replace(/\\/g, '/') : null;
-  if (own && !/^remake\/assets\/audio\/(?:[a-z0-9_-]+\/)+[a-z0-9_-]+\.mp3$/i.test(own)) throw new Error(`--file takes an mp3 in a folder under remake/assets/audio/, not ${own}`);
+  if (own && !/^(?:remake\/assets\/audio|qa)\/(?:[a-z0-9_-]+\/)+[a-z0-9_-]+\.mp3$/i.test(own)) throw new Error(`--file takes an mp3 in a folder under remake/assets/audio/ or qa/, not ${own}`);
   const folder = own ? own.split('/').at(-2) : null;
   if (own && process.argv.includes('--encode')) throw new Error('--encode makes chapter 1\'s copy; a track of its own is measured as it is');
   if (process.argv.includes('--encode')) encodeTheme();

@@ -5,7 +5,9 @@
 //   form      [[name, kind, bars, styles?]], its sections in place of STRUCTURE; styles are added to that section's
 //   kinds     { kind: [styles] }, over KINDS        negative  [styles], in place of NEGATIVE
 //   folder    its files go to remake/assets/audio/sloedla/<folder>/: song.mp3, song.json and the stems <stem>.mp3 (a later
-//             version: song-N.mp3, <stem>-N.mp3) The game plays the
+//             version: song-N.mp3, <stem>-N.mp3)
+//   out       in place of folder: a folder under the repo (qa/...), the same files there; nothing goes under remake/assets
+// The game plays the
 // backing (drums, bass, chords) and its dinosaur instruments play the lead melody on top, in time and in key, so a backing has
 // to keep one tempo, stay in one key and leave room for a lead.
 //   node remake/tools/sloedla-music.mjs --list                     the presets, with the sections' times
@@ -43,6 +45,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
+import { FORM as HATID_FORM_SOURCE } from './hatid-lag/form.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FOLDER = 'remake/assets/audio/sloedla';
@@ -404,6 +407,64 @@ Object.assign(PRESETS, {
   },
 });
 
+// Stjörnuhátíðin, the finale (docs/superpowers/specs/2026-11-21-stjornuhatidin-design.md §5; plan Task 1): four candidates for a
+// wholly new, glad, festive song of about four minutes, the owner picks one by ear (tools/hatid-lag/page.mjs). Each is the whole
+// form of tools/hatid-lag/form.mjs at one tempo and one key, instrumental backing: Slóeðla's horn, the friends' sounds and the
+// animal choir are laid on top later, so every section leaves room for a lead and nobody sings. None is in chapter 5's A major
+// or at its 125 bpm, and each has a feel of its own. Their files go under qa/ (`out`), never under remake/assets.
+const HATID_NAMES = { intro: 'Intro', dance: 'First dance', solos: 'Solos', quiet: 'Quiet moment', chorus: 'Last chorus', chord: 'Final chord' };
+const HATID_FORM = HATID_FORM_SOURCE.map(part => [HATID_NAMES[part.id], part.id, part.bars]);
+const HATID_KINDS = band => ({
+  intro: ['intro', 'starts sparse and soft with a single instrument alone for four bars', `then one instrument of ${band} enters every three bars, so the music grows step by step`, 'a short drum build-up in the last two bars', 'leaves open space for a lead melody on top'],
+  dance: ['first dance', 'a simple, strong, steady dance beat a small child can stomp to', 'medium-high energy, bouncy and glad', 'short answering riffs between the phrases', 'leaves open space for a lead melody on top'],
+  solos: ['solo section', 'the band keeps a light, steady groove under six short solos', 'light accompaniment only, softer than the first dance', 'leaves wide open space for a lead melody on top'],
+  quiet: ['quiet moment', 'a sudden quiet, calm section with no drums and no percussion at all', 'only soft, warm sustained chords', 'gentle and full of wonder, like stars coming out over a party', 'leaves open space for a solo on top'],
+  chorus: ['last chorus', 'the biggest, loudest and most joyful section of the whole song, bigger than everything before', 'everyone plays: full band, extra percussion and crash cymbals', 'triumphant and festive', 'leaves open space for a lead melody on top'],
+  chord: ['final chord', 'one big sustained final chord on the key chord, played once by everyone and held, ringing out slowly into silence', 'no new phrase, no melody, no drum beat after the chord'],
+});
+const HATID_KIND_NEGATIVE = {
+  solos: ['loud drums', 'full band', 'crash cymbals'],
+  quiet: ['drums', 'drum kit', 'percussion', 'kick drum', 'snare drum', 'cymbals', 'hi-hats', 'timpani', 'hand drums', 'loud', 'full band', 'march beat'],
+  chord: ['new phrase', 'melody', 'drum beat', 'drum fill', 'second chord', 'fade into a new section', 'repeating groove'],
+};
+const HATID_NEGATIVE = [
+  ...NEGATIVE, 'sad', 'dark', 'scary', 'minor key', 'lullaby', 'electronic', 'synthesizer', 'EDM', 'dubstep', 'disco', 'funk',
+  'four-on-the-floor kick', 'slap bass', 'wah guitar', 'trailer braams', 'sub bass', 'lo-fi', 'thin sound', 'cheap MIDI sound', 'fade in',
+];
+const HATID_SOUND = 'bright, clear and warm, sounds full on a small tablet speaker: strong midrange, not relying on deep bass';
+/** One festival candidate: its band, feel, tempo, key and chords; the form, words and forbidden styles are shared. */
+const festival = ({ name, feelIs, style, band, core, bpm, key, chords }) => ({
+  name, feelIs, style, bpm, key, keyWords: key, chords, sectionFirst: true,
+  out: `qa/remake/hatid/lag/${name}`,
+  form: HATID_FORM,
+  kinds: HATID_KINDS(band),
+  kindNegative: HATID_KIND_NEGATIVE,
+  core: [`a wholly new, glad and festive instrumental song for a children's party, the grand finale of a starlit festival of dinosaur friends`, 'in 4/4 time', ...core, HATID_SOUND, 'every section sounds clearly different from the one before'],
+  negative: HATID_NEGATIVE,
+});
+Object.assign(PRESETS, {
+  'hatid-a': festival({
+    name: 'hatid-a', feelIs: 'Lúðrasveit í þorpi', style: 'a glad village brass band at a summer festival', band: 'the brass band', bpm: 112, key: 'D major',
+    chords: { roman: 'I-IV-V-I', names: ['D', 'G', 'A', 'D'], words: 'D, G, A, D', perBar: 1 },
+    core: ['a real village brass band playing live outdoors: trumpets, cornets, trombones, a euphonium, an oompah tuba, a bass drum, a snare drum and cymbals', 'warm, cheerful and a little old-fashioned, like a town square on a festival day'],
+  }),
+  'hatid-b': festival({
+    name: 'hatid-b', feelIs: 'Karnivalganga', style: 'a bright carnival march', band: 'the carnival band', bpm: 116, key: 'F major',
+    chords: { roman: 'I-vi-IV-V', names: ['F', 'Dm', 'Bb', 'C'], words: 'F, D minor, B flat, C', perBar: 1 },
+    core: ['a bright carnival march played by a live marching band: piccolo, clarinets, trumpets, trombones, a sousaphone, glockenspiel, snare drums, a bass drum, cymbals and a tambourine', 'colourful, proud and bouncing, like a parade with flags and confetti'],
+  }),
+  'hatid-c': festival({
+    name: 'hatid-c', feelIs: 'Þjóðdans með trommum', style: 'a lively folk dance with hand drums', band: 'the folk band', bpm: 120, key: 'G major',
+    chords: { roman: 'I-IV-I-V', names: ['G', 'C', 'G', 'D'], words: 'G, C, G, D', perBar: 1 },
+    core: ['a lively acoustic folk dance band playing live: fiddles, an accordion, a strummed acoustic guitar, an upright bass, hand drums, frame drums, a tambourine and hand claps', 'earthy, warm and whirling, like a village dancing in a circle around a bonfire'],
+  }),
+  'hatid-d': festival({
+    name: 'hatid-d', feelIs: 'Leikfangaskrúðganga', style: 'a cheerful toy-orchestra parade', band: 'the toy orchestra', bpm: 118, key: 'C major',
+    chords: { roman: 'I-IV-ii-V', names: ['C', 'F', 'Dm', 'G'], words: 'C, F, D minor, G', perBar: 1 },
+    core: ['a cheerful toy-orchestra parade played by a real small orchestra: pizzicato and bowed strings, flutes, clarinets, a bassoon, a muted trumpet, a celesta, a toy piano, a marching snare drum, a bass drum and woodblocks', 'playful, sparkling and sweet, like toys marching out of a toy box at night'],
+  }),
+});
+
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
 /** A preset by name (or a preset itself) as it is for a version. */
 const baseOf = preset => (typeof preset === 'string' ? PRESETS[preset] : preset);
@@ -523,11 +584,11 @@ const run = (command, args, options = {}) => execFileSync(command, args, { maxBu
 const probe = file => JSON.parse(run('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', file]).toString());
 const fileOf = (id, ext) => path.join(ROOT, FOLDER, `el-${id}.${ext}`);
 /** A track's files: its mp3 and json, and where a stem of it goes. */
-function filesOf(preset, version = 1) {
+export function filesOf(preset, version = 1) {
   const p = baseOf(preset);
   const id = trackId(preset, version);
-  if (!p.folder) return { mp3: fileOf(id, 'mp3'), json: fileOf(id, 'json'), stem: name => fileOf(`${id}-${name}`, 'mp3') };
-  const dir = path.join(ROOT, FOLDER, p.folder);
+  if (!p.folder && !p.out) return { mp3: fileOf(id, 'mp3'), json: fileOf(id, 'json'), stem: name => fileOf(`${id}-${name}`, 'mp3') };
+  const dir = p.out ? path.join(ROOT, p.out) : path.join(ROOT, FOLDER, p.folder);
   const tail = version > 1 ? `-${version}` : '';
   return { mp3: path.join(dir, `song${tail}.mp3`), json: path.join(dir, `song${tail}.json`), stem: name => path.join(dir, `${name}${tail}.mp3`) };
 }
@@ -798,7 +859,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const has = flag => args.flags.includes(flag);
   if (has('--list')) {
     for (const [name, p] of Object.entries(PRESETS)) {
-      console.log(`${name}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${p.chords.roman} (${p.chords.names.join(' ')})${p.bridgeChords ? `, bridge ${p.bridgeChords.roman} (${p.bridgeChords.names.join(' ')})` : ''}${p.folder ? `, files in ${p.folder}/` : ''}`);
+      console.log(`${name}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${p.chords.roman} (${p.chords.names.join(' ')})${p.bridgeChords ? `, bridge ${p.bridgeChords.roman} (${p.bridgeChords.names.join(' ')})` : ''}${p.folder ? `, files in ${p.folder}/` : ''}${p.out ? `, files in ${p.out}/` : ''}`);
       console.log(`  ${sectionsOf(name).map(s => `${s.name} ${s.bars} bars from ${s.startSec} s (${s.seconds} s)`).join('; ')}`);
     }
   } else if (has('--credits')) {
