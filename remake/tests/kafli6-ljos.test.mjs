@@ -1,14 +1,15 @@
 // Chapter 6's light as one evening after Slóeðla's song, and the far Þórseðla at her own size (the owner's F1 reports 1, 3 and 10 of
-// 2026-11-23: "má ekki verða bjart aftur", "þórseðla altof stór", "sól á að vera með nátt húfu frá kafla áður"). Chapter 6 starts
-// in chapter 5's closing look (kafli6-looks.js EVENING.afterSong against kafli5-show-score.js's night as engine/show/dusk.js lays it),
-// never gets brighter from the pool to the cloud, the sun wears its nightcap from the first frame to the last, and the Þórseðla
-// seen from the slope stands on the forest floor with her head a neck over the trees.
+// 2026-11-23: "má ekki verða bjart aftur", "þórseðla altof stór", "sól á að vera með nátt húfu frá kafla áður"; and his word on the
+// stills: "ekki alveg nótt alveg frá slóeðlu, heldur næstum, svo kemur sólsetur efst á fjalli í sér senu"). Chapter 6 starts nearly
+// night (kafli6-looks.js EVENING.pool: between chapter 5's dusk and its night as engine/show/dusk.js mixes them, nearer the night),
+// never gets brighter from the pool to the climb, the sunset comes as the top's own scene at above_clouds, the sun wears its nightcap
+// from the first frame to the last, and the Þórseðla seen from the slope stands on the forest floor with her head a neck over the trees.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as kafli6 from '../chapters/kafli6.js';
-import { EVENING, brightness, startEvening } from '../chapters/kafli6-looks.js';
-import { LOOK_CUES, lookMixAt } from '../chapters/kafli5-show-score.js';
+import { EVENING, NEAR, NEARLY_NIGHT, brightness, showMixOver, startEvening } from '../chapters/kafli6-looks.js';
+import { LOOKS as SHOW_LOOKS, LOOK_CUES } from '../chapters/kafli5-show-score.js';
 import { chapter as kafli5 } from '../chapters/kafli5.js';
 import { LOOKS, pickLook } from '../engine/looks.js';
 import { createDusk } from '../engine/show/dusk.js';
@@ -19,7 +20,7 @@ import { createSlope } from '../world/fjall/index.js';
 import { PRESETS } from '../engine/quality.js';
 import { SHOTS } from '../chapters/kafli6-route.js';
 
-const TOLERANCE = 0.02; // a look from the pool to the cloud is never more than 2 % brighter than chapter 5's closing one
+const TOLERANCE = 0.02; // a look from the pool to the climb is never more than 2 % brighter than the pool's, nor than the one before it
 const TALLER = [1.25, 1.8]; // the far Þórseðla's height over the forest floor, in the mean height of the trees round her
 
 /** A world as main.js makes one in `look`, with what engine/show/dusk.js also tints: the sky's light on things, the Mosi cloud, a pool. */
@@ -50,60 +51,67 @@ function lightOf(world) {
 }
 const channels = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 
-test("chapter 6's first frame is chapter 5's last: the night after the song, to the last colour", () => {
-  // chapter 5: its golden afternoon, and the look its show leaves for the last scene (after the good night, the turn done)
+test("chapter 6's first frame is nearly night: chapter 5's dusk and night as its show mixes them, nearer the night, to the last colour", () => {
+  // chapter 5's own mixer (engine/show/dusk.js) on its golden afternoon, with its dusk and its night at the evening's weights
   const five = fullWorld(pickLook(kafli5.look));
-  const after = LOOK_CUES.at(-1);
-  assert.ok(after.look && after.beat > 0, 'the last cue of the show is the calm night');
-  const dusk = createDusk(five);
-  dusk.mix(lookMixAt(after.beat + 1000));
-  dusk.still();
-  // chapter 6: its own look at the start (main.js), then the evening it starts in
+  assert.ok(LOOK_CUES.at(-1).look === 'night' && LOOK_CUES.some(cue => cue.look === 'rose'), 'its show has the dusk and ends in the night');
+  createDusk(five).mix(NEARLY_NIGHT);
   const six = fullWorld(pickLook(kafli6.chapter.look));
   startEvening(six);
   const [a, b] = [lightOf(five), lightOf(six)];
   for (const key of Object.keys(a)) {
     const [x, y] = [a[key], b[key]];
-    if (typeof x === 'number') assert.ok(Math.abs(x - y) < 1e-9, `${key}: chapter 5 ends at ${x}, chapter 6 starts at ${y}`);
+    if (typeof x === 'number') assert.ok(Math.abs(x - y) < 1e-9, `${key}: the mix is ${x}, chapter 6 starts at ${y}`);
     else for (const [p, q] of [x].flat().map((hex, i) => [hex, [y].flat()[i]])) {
-      channels(p).forEach((v, i) => assert.ok(Math.abs(v - channels(q)[i]) <= 1, `${key}: chapter 5 ends at ${p}, chapter 6 starts at ${q}`));
+      channels(p).forEach((v, i) => assert.ok(Math.abs(v - channels(q)[i]) <= 1, `${key}: the mix is ${p}, chapter 6 starts at ${q}`));
     }
+  }
+  // between the dusk and the night, nearer the night: in the sky's and the sun's brightness
+  assert.ok(NEAR > 0.5 && NEAR < 1);
+  const dusk = brightness(showMixOver(pickLook(kafli5.look), [[SHOW_LOOKS.rose, 1]]));
+  const night = brightness(showMixOver(pickLook(kafli5.look), [[SHOW_LOOKS.night, 1]]));
+  const now = brightness(EVENING.pool);
+  for (const part of ['sky', 'sun']) {
+    const k = (now[part] - night[part]) / (dusk[part] - night[part]);
+    assert.ok(k > 0.05 && k < 0.5, `its ${part} ${k.toFixed(2)} of the way from the night to the dusk`);
   }
 });
 
-test("the evening's water, Mosi cloud and light on things lift with the roar and leave the eased light alone", () => {
+test("the evening's water, Mosi cloud and light on things stay until the top, and restore leaves the light alone", () => {
   const six = fullWorld(pickLook(kafli6.chapter.look));
   const env = six.scene.environmentIntensity;
   const evening = startEvening(six);
-  assert.ok(Math.abs(six.scene.environmentIntensity - EVENING.afterSong.envIntensity) < 1e-9);
+  assert.ok(Math.abs(six.scene.environmentIntensity - EVENING.pool.envIntensity) < 1e-9);
   lightTo(six, EVENING.inCloud);
-  easeLight(six, LOOKS.afterRoar, 3); // the blow (kafli6.js): the light eases up out of the cloud while the rest lifts
-  evening.lift(3);
+  easeLight(six, EVENING.afterRoar, 3); // the blow (kafli6.js)
   for (let t = 0; t < 4; t += 1 / 30) six.effects.update(1 / 30);
+  assert.ok(Math.abs(six.scene.environmentIntensity - EVENING.pool.envIntensity) < 1e-9, 'after the roar still the evening');
+  lightTo(six, LOOKS.sunset); // the top (kafli6.js)
+  evening.restore();
   const light = lightOf(six);
-  assert.equal(light.zenith, LOOKS.afterRoar.sky.zenith, 'the sky is the light after the roar');
-  assert.ok(Math.abs(light.sunIntensity - LOOKS.afterRoar.sun.intensity) < 1e-9, 'the sun the light after the roar');
+  assert.equal(light.zenith, LOOKS.sunset.sky.zenith, 'the sky is the sunset');
   assert.ok(Math.abs(light.env - env) < 1e-9, 'the light on things as the place had it');
   assert.equal(light.mosiCloud, '#ffffff');
-  evening.restore();
-  assert.equal(lightOf(six).zenith, LOOKS.afterRoar.sky.zenith, 'and restore touches nothing else');
 });
 
-test('the evening only deepens from the pool to the cloud, and coming up out of it is warmer than the cloud', () => {
-  const bound = brightness(EVENING.afterSong);
-  const order = [EVENING.afterSong, EVENING.slope, EVENING.inCloud];
+test('the evening only deepens from the pool to the climb, and the top is its sunset', () => {
+  const bound = brightness(EVENING.pool);
+  const order = [EVENING.pool, EVENING.slope, EVENING.inCloud];
   for (let i = 0; i < order.length; i++) {
     const now = brightness(order[i]);
     for (const part of ['sky', 'sun', 'glow']) {
-      assert.ok(now[part] <= bound[part] * (1 + TOLERANCE), `${order[i].name}: its ${part} ${now[part].toFixed(4)} over the song's ${bound[part].toFixed(4)}`);
+      assert.ok(now[part] <= bound[part] * (1 + TOLERANCE), `${order[i].name}: its ${part} ${now[part].toFixed(4)} over the pool's ${bound[part].toFixed(4)}`);
       if (i) assert.ok(now[part] <= brightness(order[i - 1])[part] * (1 + TOLERANCE), `${order[i].name}: its ${part} brighter than ${order[i - 1].name}'s`);
     }
   }
-  // the light after the roar (as he picked it) is brighter than the cloud in every part, so the ease up out of it never dips
-  const roar = brightness(LOOKS.afterRoar), cloud = brightness(EVENING.inCloud);
-  for (const part of ['sky', 'sun', 'glow']) assert.ok(roar[part] > cloud[part], `after the roar its ${part} is over the cloud's`);
-  // the characters are seen by the footlights, as at the end of chapter 5: the fill from below at least the song's in every place
-  for (const look of order) assert.ok(look.hemi.intensity >= 0.8 * EVENING.afterSong.hemi.intensity, `${look.name}: the footlights`);
+  // after the roar: the slope's sky again, no brighter, no gold; only the air clearer
+  const roar = brightness(EVENING.afterRoar), slope = brightness(EVENING.slope);
+  for (const part of ['sky', 'sun', 'glow']) assert.ok(roar[part] <= slope[part] * (1 + TOLERANCE), `after the roar its ${part}`);
+  assert.ok(EVENING.afterRoar.fog.density < EVENING.slope.fog.density, 'a clearer air');
+  // the top's sunset is the warmest picture, and as he picked it
+  for (const part of ['sky', 'sun']) assert.ok(brightness(LOOKS.sunset)[part] > bound[part], `the sunset's ${part}`);
+  // the characters are seen by the footlights, as at the end of chapter 5
+  for (const look of [...order, EVENING.afterRoar]) assert.ok(look.hemi.intensity >= 0.8 * EVENING.pool.hemi.intensity, `${look.name}: the footlights`);
 });
 
 let played = null;
@@ -113,7 +121,7 @@ function untouched() {
     const frames = [];
     const run = await playUnattended(kafli6, {
       seeking: true, shaped: true, limit: 620,
-      onFrame({ world, sunFace }) {
+      onFrame({ world, sunFace, ui }) {
         if (!world.scene.getObjectByName('MosiCloud')) {
           const stand = new THREE.Sprite(new THREE.SpriteMaterial());
           stand.name = 'MosiCloud';
@@ -124,7 +132,7 @@ function untouched() {
         const face = world.scene.getObjectByName('SunFace');
         const cap = world.scene.getObjectByName('SunNightcap');
         frames.push({
-          time: c.s.time, scene: c.scene, look: world.lightLook ?? null, capOn: sunFace.capOn,
+          time: c.s.time, scene: c.scene, shot: c.shotLabel ?? null, place: world.location, fade: ui.fadeLevel, look: world.lightLook ?? null, capOn: sunFace.capOn,
           face: Boolean(face?.visible), cap: Boolean(cap?.visible && cap.parent),
         });
       },
@@ -134,28 +142,30 @@ function untouched() {
   return played;
 }
 
-test('the untouched play: it starts in the song\'s night and no look before the roar is brighter than it', async () => {
+test("the untouched play: nearly night from the first frame, never brighter to the climb, and the sunset the top's own scene", async () => {
   const { frames, log } = await untouched();
   const blow = log.find(entry => entry.type === 'blow');
   assert.ok(blow, 'her roar blows the cloud away');
   const first = frames.find(f => f.scene === 1);
-  assert.equal(first.look, EVENING.afterSong, 'scene 1 opens in the night after the song');
-  const before = frames.filter(f => f.time < blow.at && f.look);
+  assert.equal(first.look, EVENING.pool, 'scene 1 opens nearly night');
+  const above = frames.findIndex(f => f.look === LOOKS.sunset);
+  assert.ok(above > 0 && frames.slice(above).some(f => f.shot === 'above_clouds'), 'they come up above the clouds in the sunset');
+  const before = frames.slice(0, above).filter(f => f.look);
   assert.ok(before.length > 1000);
-  const bound = brightness(EVENING.afterSong);
+  const bound = brightness(EVENING.pool);
   const looks = [...new Set(before.map(f => f.look))];
   for (const look of looks) {
     const b = brightness(look);
-    for (const part of ['sky', 'sun', 'glow']) assert.ok(b[part] <= bound[part] * (1 + TOLERANCE), `${look.name ?? 'a look'}: its ${part} over the song's`);
+    for (const part of ['sky', 'sun', 'glow']) assert.ok(b[part] <= bound[part] * (1 + TOLERANCE), `${look.name ?? 'a look'}: its ${part} over the pool's`);
   }
-  // in order: each look the light goes to no brighter than the one before it
-  for (let i = 1; i < looks.length; i++) {
-    for (const part of ['sky', 'sun']) assert.ok(brightness(looks[i])[part] <= brightness(looks[i - 1])[part] * (1 + TOLERANCE), `${looks[i].name} after ${looks[i - 1].name}`);
-  }
-  // from the blow to the top the light goes only to the light after the roar (no dusk in between), then the top's sunset
-  const later = [...new Set(frames.filter(f => f.time >= blow.at && f.look).map(f => f.look))];
-  const named = later.map(look => (look === LOOKS.sunset ? 'sunset' : look.name));
-  assert.deepEqual(named, ['after the roar', 'sunset'], `after the blow: ${named.join(', ')}`);
+  assert.deepEqual(looks.map(look => look.name), [EVENING.pool, EVENING.slope, EVENING.inCloud, EVENING.afterRoar].map(look => look.name), 'the evening, in order');
+  // a scene of its own: the light turns to the sunset under the black of the cut to the top (s.goTo's fade), holds there to the end,
+  // and the frame before the black came down was nearly night
+  assert.ok(frames[above].fade > 0.99 && frames[above].place === 'toppur', `the sunset comes under the black (fade ${frames[above].fade})`);
+  assert.deepEqual(frames.slice(above).filter(f => f.look !== LOOKS.sunset).slice(0, 3).map(f => `${f.shot} at ${f.time.toFixed(1)} s`), [], 'the sunset holds on the top');
+  assert.equal(frames[above - 1].look, EVENING.afterRoar, 'the last frame before it is nearly night');
+  const lastSeen = frames.slice(0, above).findLast(f => f.fade < 0.01);
+  assert.equal(lastSeen.look, EVENING.afterRoar, 'and so is the last frame seen before the black');
 });
 
 test('the sun wears its nightcap from the first frame to the last, wherever its face shows', async () => {

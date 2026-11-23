@@ -8,8 +8,8 @@
 // Four places (kafli6-route.js has them as data, and every shot): `ardalur`, Árdalurinn round the far pool (kafli5-place.js buildPool)
 // and the ford above the falls, built with it; `hlid`, the slope (world/fjall createSlope); `sky`, the belt of cloud with the prints
 // and the cloud (createBelt, world/fjall/cloud.js); `toppur`, the top (createTop). The light is a look per place, eased between
-// (engine/light-blend.js), one evening going on from chapter 5's night (kafli6-looks.js EVENING; the sun in its nightcap) up to
-// the light after her roar and the top's sunset (engine/looks.js afterRoar, sunset). The three tasks are state machines on the game clock
+// (engine/light-blend.js): nearly night from the first frame to the climb, going on from chapter 5's night (kafli6-looks.js EVENING;
+// the sun in its nightcap), and the sunset the top's own scene (engine/looks.js sunset, a cut as they come up above the clouds). The three tasks are state machines on the game clock
 // (kafli6-stones.js, kafli6-prints.js, kafli6-call.js, their help in kafli6-help.js): here their events become hops, stones that
 // rock, numbers, roars and light in the fog. Mosi's hop and little roar are kafli6-mosi.js, her life kafli6-gramedla.js.
 //
@@ -177,13 +177,13 @@ function meetFrame(name, stand, ground, tall = false) {
 }
 const VEIL_OUT = 3; // s the last wisp on the top takes to thin away, in VEIL_STEPS steps
 const VEIL_STEPS = 12;
-// After the roar: the sunset golden on the belt, a thin haze staying (the bank round them hides the belt's edge: world/fjall belt.js)
-const AFTER_ROAR = { ...LOOKS.afterRoar, name: 'after the roar' };
+// After the roar: the slope's nearly-night sky, a thin haze staying (the bank round them hides the belt's edge: world/fjall belt.js)
+const AFTER_ROAR = EVENING.afterRoar;
 // Scene 7: Mosi steps out of her way to MOSI_ASIDE ([ahead, right] m from his stand) before she lays her head down; a tap on her
 // head or Egill, or HEAD_WAIT s, and Egill floats up onto it over FLOAT_UP s. She rises and turns round toward Mosi's side (her head
 // over him, her tail away from him) at TURN_RATE degrees a second. She tramps MARCH m up the belt's last slope, Mosi
-// running RUN_SIDE m on her right, the light easing from after the roar to the top's sunset as they climb (so the cut to the top does
-// not step). On the top she strides up out of the sea of cloud at bearing TOP_WAY (degrees, past the last wisp: world/fjall/top.js
+// running RUN_SIDE m on her right, the light still nearly night as they climb (the sunset is the top's own scene: a cut
+// to it as they come up). On the top she strides up out of the sea of cloud at bearing TOP_WAY (degrees, past the last wisp: world/fjall/top.js
 // VEIL) from UNDER m out past the rim (in the sea of cloud, on the shoulder's gentler foot) to inside it, and walks TOP_WALK m on toward her room (top.room) at TOP_PACE m/s, where they stand.
 const MOSI_ASIDE = [3, 7.5];
 const HEAD_WAIT = 6;
@@ -469,7 +469,7 @@ function* theSlope(s, c) {
     hold: () => {
       clearFord(c);
       mosi.place(SLOPE.from.at[0], SLOPE.from.at[1], headingTo(SLOPE.from.at, SLOPE.ride.at));
-      lightTo(world, EVENING.afterSong); // the dusk as the ford left it (kafli6-looks.js: the evening after Slóeðla's song)
+      lightTo(world, EVENING.pool); // nearly night, as the ford left it (kafli6-looks.js: the evening after Slóeðla's song)
       return null;
     },
   });
@@ -827,8 +827,7 @@ function* sheComes(s, c) {
       const at = c.gramedla.raw.root.position;
       const blown = c.cloud.blowAway({ from: [at.x, at.z] });
       c.log({ type: 'blow' });
-      easeLight(world, AFTER_ROAR, 3); // up out of the dusk of the cloud into the last light, never dipping on the way
-      c.evening?.lift(3); // and the sky's light on things as the sunset has it
+      easeLight(world, AFTER_ROAR, 3); // out of the cloud's grey to the nearly-night sky over it, clearer: the sunset waits for the top
       sound(s, c, 'mountainWind', { level: 0, seconds: 2 }); // the wind of the cloud goes with it
       sound(s, c, 'forest', { calls: false, level: 1, seconds: 2 });
       return blown;
@@ -900,7 +899,6 @@ function* upToTheTop(s, c) {
   c.log({ type: 'tramp' });
   const march = her.trampUp([forward(stand, CLIMB_FROM + MARCH)], { speed: CLIMB_PACE });
   const beside = runBeside(s, c, [forward(stand, CLIMB_FROM + 3, RUN_SIDE), forward(stand, CLIMB_FROM + MARCH - 1.5, RUN_SIDE)]);
-  easeLight(world, LOOKS.sunset, MARCH / CLIMB_PACE + 1);
   soundWhile(s, c, 'step', 0.3, () => !beside.done, { level: 0.6 });
   footfalls(s, c, march, -6);
   yield s.wait(1.4);
@@ -917,7 +915,8 @@ function* upToTheTop(s, c) {
       her.place(slope[0], heading);
       const [mx, mz] = aside(slope[0], heading, -1, RUN_SIDE);
       mosi.place(mx, mz, heading);
-      lightTo(world, LOOKS.sunset);
+      lightTo(world, LOOKS.sunset); // the top's own scene: the sunset he picked, from the first frame of above_clouds
+      c.evening?.restore(); // and its water, Mosi cloud and light on things as the top had them
       top.veil?.setLevel(1); // the last wisp of the cloud by its south-west rim
       return null;
     },
