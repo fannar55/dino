@@ -23,7 +23,7 @@ export function linesOf(render, checks) {
   return {
     intro: `Upphaf H óbreytt: gítarinn og línan ofan á honum eru hornið hennar Slóeðlu, ein. Svo koma vinirnir inn á tveggja takta fresti (${entryTimes.join(', ')}): Grameðla stappar, Kambeðla slær plötunum, Uggeðla skvettir sporðinum, Þórseðla syngur djúpan tón, Flugeðla skrapar.`,
     dance: 'H óbreytt nema í fyrsta takti hverrar fjögurra takta lotu: þá þagnar söngurinn og óbóið (12 dB lægra) svo Slóeðla geti kallað, en trommur og bassi halda áfram. Kórinn er söngurinn í H sjálfu. Hljóð vinanna halda áfram.',
-    solos: `Sex jafnlöng sóló, ${slot} slög hvert (${comma(slot * beat)} s): sólókafli H spilaður tvisvar (taktar hans 34 til 39, 36 til 41 og 37 til 42). Í seinni umferðinni er gítarinn og píanóið vegið aðeins öðruvísi. Hljóð vinarins sem á sólóið heyrist á slögunum, hinir þegja. Hljómsveitin er 2 til 3 dB lægri; í sólói Slóeðlu er óbóið 6 dB hærra.`,
+    solos: `Sex jafnlöng sóló, ${slot} slög hvert (${comma(slot * beat)} s): sólókafli H spilaður tvisvar (taktar hans 34 til 39, 36 til 41 og 37 til 42). Í seinni umferðinni eru gítarinn og píanóið vegin aðeins öðruvísi. Hljóð vinarins sem á sólóið heyrist á slögunum, hinir þegja. Hljómsveitin er 2 til 3 dB lægri; í sólói Slóeðlu er óbóið 6 dB hærra.`,
     quiet: 'Trommurnar teknar út (lokahögg sólóanna fær að hljóma eitt slag). Engin hljóð vina. Annars H óbreytt.',
     chorus: `Allt ${comma(lift)} dB hærra en í H. Söngurinn og óbóið þagna í einn takt fjórum sinnum fyrir köllin. Hljóð vinanna aftur, og Grameðla öskrar fjórum sinnum.`,
     chord: 'Lokahljómur H óbreyttur (aðeins jafn hár og viðlagið á undan). Hann deyr út í þögn.',
