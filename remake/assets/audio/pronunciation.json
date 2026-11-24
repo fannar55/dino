@@ -495,7 +495,8 @@
         "Grameðlur",
         "grameðlan",
         "Grameðlan",
-        "grameðlunnar"
+        "grameðlunnar",
+        "grameðlur"
       ],
       "recipes": {
         "hratt": {
@@ -510,7 +511,8 @@
             "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\"",
             "grameðlan": "\"/ˈkraːmˌɛðlan/\"",
             "Grameðlan": "\"/ˈkraːmˌɛðlan/\"",
-            "grameðlunnar": "\"/ˈkraːmˌɛðlʏnar/\""
+            "grameðlunnar": "\"/ˈkraːmˌɛðlʏnar/\"",
+            "grameðlur": "\"/ˈkraːmˌɛðlʏr/\""
           },
           "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
         },
@@ -2478,7 +2480,8 @@
         "steingervingnum",
         "steingervingana",
         "steingervingi",
-        "steingervinga"
+        "steingervinga",
+        "steingervingar"
       ],
       "except": [
         "Steingervingafræðingar",
@@ -3447,7 +3450,8 @@
         "risastóran",
         "risastóru",
         "risastórrar",
-        "RISASTÓR"
+        "RISASTÓR",
+        "risastórri"
       ],
       "recipes": {
         "hratt": {
@@ -3505,6 +3509,253 @@
         }
       },
       "chosen": "hratt"
+    },
+    "diego": {
+      "word": "Diego",
+      "stem": "Diego",
+      "forms": [
+        "Diego"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Diego": "Díegó"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Díegó (línur 9, 11, 12, 18, 21 og 22 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "daisy": {
+      "word": "Daisy",
+      "stem": "Daisy",
+      "forms": [
+        "Daisy"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Daisy": "Deisí"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Deisí (línur 24, 30 og 31 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "lily": {
+      "word": "Lily",
+      "stem": "Lily",
+      "forms": [
+        "Lily"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Lily": "Lilí"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Lilí (línur 34, 35, 38 og 45 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "wylie": {
+      "word": "Wylie",
+      "stem": "Wylie",
+      "forms": [
+        "Wylie"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Wylie": "Vælí"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Vælí (línur 47, 49, 51 og 77 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "liam": {
+      "word": "Liam",
+      "stem": "Liam",
+      "forms": [
+        "Liam"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Liam": "Líam"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Líam (línur 59, 60 og 62 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "jessin": {
+      "word": "Jessin",
+      "stem": "Jessin",
+      "forms": [
+        "Jessin"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Jessin": "Djessin"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Djessin (línur 59 og 65 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "kaiden": {
+      "word": "Kaiden",
+      "stem": "Kaiden",
+      "forms": [
+        "Kaiden"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Kaiden": "Keiden"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Keiden (lína 59 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "ruby": {
+      "word": "Ruby",
+      "stem": "Ruby",
+      "forms": [
+        "Ruby"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Ruby": "Rúbí"
+          },
+          "note": "Nafn barnsins eins og íslenskur sögumaður segir það: Rúbí (lína 76 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "wales": {
+      "word": "Wales",
+      "stem": "Wales",
+      "forms": [
+        "Wales"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Wales": "Veils"
+          },
+          "note": "Landið eins og það er sagt á íslensku: Veils (línur 33, 41 og 45 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "chilesaurus": {
+      "word": "Chilesaurus",
+      "stem": "Chilesaurus",
+      "forms": [
+        "Chilesaurus"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Chilesaurus": "Tsjílesaurus"
+          },
+          "note": "Ch eins og tsj, endingin óbreytt eins og í Megalosaurus og Iktíósaurus: Tsjílesaurus (lína 21 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "diegosuarezi": {
+      "word": "diegosuarezi",
+      "stem": "diegosuarezi",
+      "forms": [
+        "diegosuarezi"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "diegosuarezi": "díegó-súaresí"
+          },
+          "note": "Seinna nafn risaeðlunnar, með nafni Diego fremst og bandstriki á eftir því: díegó-súaresí (lína 21 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "vectidraco": {
+      "word": "Vectidraco",
+      "stem": "Vectidraco",
+      "forms": [
+        "Vectidraco"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "Vectidraco": "Vektídrakó"
+          },
+          "note": "C eins og k: Vektídrakó (lína 31 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "daisymorrisae": {
+      "word": "daisymorrisae",
+      "stem": "daisymorrisae",
+      "forms": [
+        "daisymorrisae"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (óheyrt)."
+        },
+        "islenskad": {
+          "say": {
+            "daisymorrisae": "deisí-morrisæ"
+          },
+          "note": "Seinna nafn flugeðlunnar, með nafni Daisy fremst og bandstriki á eftir því: deisí-morrisæ (lína 31 í myndbandinu „Krakkarnir sem fundu risaeðlur“, óheyrt)."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {

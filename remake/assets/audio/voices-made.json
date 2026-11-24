@@ -2071,6 +2071,564 @@
    "duration": 5.61,
    "model": "eleven_v4"
   },
+  "book/book_myndband_krakkar_1": {
+   "key": "7fa4ce25b2a2adca726ee7c90bee9d7849319ba1e716137fbdd54c0fb4213dae",
+   "mp3": "fee11f3c9ba348891927fea37c141b32fcbe8b1db8b5e7403b1fc28d41907d83",
+   "duration": 2.25,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_10": {
+   "key": "6cbcfaf01d9bf4452e422bb47dcc9ccb12e7a91ac9810aa2acfdbc629f475d79",
+   "mp3": "13bc986dca62f89d4ffa3e76c332964c66a5eda6a0c295b74cdfe3d69f934126",
+   "duration": 5.931,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_11": {
+   "key": "2cf194df4ff8c6121d74192c20b409d90a13a6b72a25b450e1287998a8c186ef",
+   "mp3": "7e41e37677510b2b0d090747e8abcbca658d707dc4211f9ed5cefaaa0320e624",
+   "duration": 8.17,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_12": {
+   "key": "3adbacae04645bdb61a0d0904576a89279a5d8df6fcd40ae21fb9cfd892a94a2",
+   "mp3": "75ab31d7f1db9890e7036c83d8ca8413a4443a2647544fdfcd2ea6ed36b10e2c",
+   "duration": 7.69,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_13": {
+   "key": "0ea5ac6db4f9f2ef0224dafe6b017b7e5369938de58bb3d12049cd104dfcda81",
+   "mp3": "92371c51a203674838182177c5e62a3492db752ce1792257586edd858ac1e024",
+   "duration": 5.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_14": {
+   "key": "089f00d44122b0fe561fc55add211be53cbce99e84b826681e3e0d283fb387fe",
+   "mp3": "56378bfad08db396bca4f03007d9d99cad85a791da7b84cfcfe00b86c3e6846d",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_15": {
+   "key": "b49539100ca6128f8bea0cb446e2432e5fb3cfae4d8b7c660e42b84a02600469",
+   "mp3": "73b13c2324c0d6ffd843ff071b03197fa7d37995c5c6bd88ae86379c20361c08",
+   "duration": 5.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_16": {
+   "key": "fa1eef9600a63cae938461ac76980cc2841c6d820548769332218fa6bb962cdf",
+   "mp3": "53cdce1d9ec9393b7d5f4fc28bb06ac0b0ad44800bc41914f5e607c2e87fdd6c",
+   "duration": 8.25,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_17": {
+   "key": "5e656f14381cdd056f35bf39053d9d34dabb53a809e24ba75e932eaa4e8ba6e7",
+   "mp3": "03550f6f8098100de2ac1a4a0062d36e5a9bd80d5b774501ffe527788700b289",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_18": {
+   "key": "5c95ba8aa218446f9d8026b56518985d9e6c29198a0d65b8661011a17994fbe8",
+   "mp3": "05d7f6b7626fd1ec0413c11aaef57e82f4098567a20771803a926fe43f7d81e5",
+   "duration": 12.57,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_19": {
+   "key": "945c96933313ca1289c39513d822f37eafc3f86d033c1ce904f202739ff3edac",
+   "mp3": "38b472411b08d74b98b45a1c0249a266a9ce8be3a15f21244b88d55a87b5c502",
+   "duration": 6.97,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_2": {
+   "key": "680541bb1676b22f5d4c65788bb91b53b0640807d9b31269dd5f53aef076be1a",
+   "mp3": "c595c0127df8165af9fd02785d4cdc75465709c3fc6bb0c4e7b39d7c552d7df3",
+   "duration": 6.57,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_20": {
+   "key": "ec8f3ba062e756fb7862159483e5bc18a7c6b1335504768a47844c7d5ae84b36",
+   "mp3": "2b049a4ee739f12c866987c7fa545608a0402f3c9aed190eb86daf0c6d263293",
+   "duration": 5.69,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_21": {
+   "key": "2161a731f072af63caea152b3d653804bcd1e7b8d6d408779ac189d1e2a118d1",
+   "mp3": "0201d847ef079f3ee6f1723417957f72a7457d692c66e98d3d8974ac3cc9f9d3",
+   "duration": 7.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_22": {
+   "key": "f6525c7dc9a149b9bb283c4d04eb9125a3984ea1a2c21079ceee9e0e9d5e10af",
+   "mp3": "20b9ead073ffe54dba2003c3665041aad7f44a6db9a4ccb9b90970ed0ce9e8b5",
+   "duration": 6.57,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_23": {
+   "key": "a2b95affdbddca1f6ea3b35ce577b4d1ea9d0d737ccf1cec03f32dfbc667ec7b",
+   "mp3": "288199eb778f8caa73d9f69cc70e4e0910039b87ea320fdc5eaf5ede29273fba",
+   "duration": 4.41,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_24": {
+   "key": "9b437beaff6ec839d30c55cb6c200166dbbc5b8c81f8c9a32e928a6c1fee3673",
+   "mp3": "990afced33d978e3dc9dcb4fef4eb4a067f3a21e4eaed852ff8d17178ea99942",
+   "duration": 7.13,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_25": {
+   "key": "c1d09ad8a7a282e812cfb981b53e62a112e2638a2acf69d4208e2e89a9f8d9fb",
+   "mp3": "4657fb46747b61a8ee43a26a2e3873400d9f15411faf92eae6193eefd9286981",
+   "duration": 6.57,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_26": {
+   "key": "089f00d44122b0fe561fc55add211be53cbce99e84b826681e3e0d283fb387fe",
+   "mp3": "56378bfad08db396bca4f03007d9d99cad85a791da7b84cfcfe00b86c3e6846d",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_27": {
+   "key": "e376ae0f358d1558b74a079545cf8578c461a7d2af0812d464e1af2b4c187f8b",
+   "mp3": "62250af9264c0f175ccc203e63690ce7639a3e4ca881723793102379a21cc9ee",
+   "duration": 11.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_28": {
+   "key": "e19ac2277948b5cb9ad7398e54c416c897d0cf0a8a5b4759d6c18ed63001be73",
+   "mp3": "d87a22b777d1ac3e60ed1b40b0f21450afe3bc643f737c596794cc03a05c0afa",
+   "duration": 8.491,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_29": {
+   "key": "49b1649b1d522b64c30d00ada3d40828356ecd98b1858a852f28e9821060cb35",
+   "mp3": "2e2f7b79439a1e66211c616fc0a48d7f2295e51eff90fa1aff8ac1910025df8e",
+   "duration": 9.29,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_3": {
+   "key": "02823bab7c3a0684f51e73c33574f3a748ab764f0aad26fa9a2a3c1c56b15ec7",
+   "mp3": "6841ccfb91b32171daaab7320e9af93f6c4be71e60ff063ceec4da8c6c76465e",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_30": {
+   "key": "4edc067cb41cdccb98941bc62533723a33a60dfad1361d271ae87ba24ec2a4c7",
+   "mp3": "373f1ee799ad399958816a38421a5bddb6e3c18d42fe18639ca02ff792b908c9",
+   "duration": 7.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_31": {
+   "key": "ca9f12ea75c88c3556af31a50331ec0868c2a3a72319f6683718b233e6cd86f5",
+   "mp3": "c9ea75b39ecf3bf50eb5fa8bf266b1b7869dae42f62e766d15518b5ca9b9c337",
+   "duration": 11.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_32": {
+   "key": "fc9cbcd61c1b2106404d28aa80aa0787342b73b5c263854ee9c1ed4ea5b3ec15",
+   "mp3": "7adbfe8e29e490e6de89d61cb462c1733ebf1435f0df33a86defd4286a84e672",
+   "duration": 6.17,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_33": {
+   "key": "3678ee03d776e789241321b172de31b1120f8703b01956a2f62e1868f1f3270a",
+   "mp3": "3c40b436db8d1371d398b4cc5226e038b3401442af2e02c1cb211c151485442c",
+   "duration": 3.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_34": {
+   "key": "c4c92a69cfb2b6a1392b1ba1378de2056a7e43e0dacdfbad9c01fda85ff13b8f",
+   "mp3": "3171a219471e0587336e4174cb83da7d2b53a64cadd0d3cdb3193fc216f4bde1",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_35": {
+   "key": "8ef0878fa2585c3cd5f3ac420c600a92ab0f76d5132d7b6d1ae43581ceffa46b",
+   "mp3": "988a3df140adeb4a3c755a0b00c24aeba964d6ff4ca1f2eb8085ca1292279157",
+   "duration": 7.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_36": {
+   "key": "089f00d44122b0fe561fc55add211be53cbce99e84b826681e3e0d283fb387fe",
+   "mp3": "56378bfad08db396bca4f03007d9d99cad85a791da7b84cfcfe00b86c3e6846d",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_37": {
+   "key": "ed5e9ee7882b5cd69b05fcf6098ddd8539bcecde8512ff4aa0451e433d751ae8",
+   "mp3": "2b64da15fe60bf9d9ad70eeb6f159575fc949a193db6fb31e9c7f7849212e85a",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_38": {
+   "key": "64cd2391d3eb754314e109d30cfbde8178141ffd584228357be9fd2fc0330465",
+   "mp3": "4d22fd7bfc2d9c426e969f00280a55cc2e7f73330f7a8907dbb7f039875777a9",
+   "duration": 9.69,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_39": {
+   "key": "2a46263a4c719458876014818ed2567821ff49d0dcdb08492a5dbcc884857f16",
+   "mp3": "7c9b684505be94f44f2589b942bf69da6ea013207cfc7958489668d0e5b9009e",
+   "duration": 6.65,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_4": {
+   "key": "6f95eedddeb74337fd6659d33dc3d893625d2d06635f29e0c483f3d552f75906",
+   "mp3": "b628c1f7f8a1078fb387fc7af3900882da75b8eb7cecf6f11fc668345e5b9f13",
+   "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_40": {
+   "key": "62059e0a4df624320b9b20dc16588cc9a9027a3978e0d19ac99d2af7ddac2e42",
+   "mp3": "5ae390df5c390951b37f656df9a5b751b27e8093f14b8431347e35289bb47a71",
+   "duration": 5.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_41": {
+   "key": "3e7d163f9261d627151ad4af4f6f3d2b8b5c617f522e0c1c861028400483d92f",
+   "mp3": "bb1c18de6084b000590128b19230117524c79e5c28eb5acb7f9d9081b18ddd2b",
+   "duration": 9.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_42": {
+   "key": "6518e9d7cfcecdcb347fe645a748cbe5194fd0151c046dfb3d1b19ea93adcd11",
+   "mp3": "7a30f2f246a2472e5d7b71ca88468601b9fad99c8a679ee17f2980c737b39b6c",
+   "duration": 7.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_43": {
+   "key": "e69f45c3b1355d32da907ce2e9d7e9819b1e5d5e14a359e14914dacf8e5612f3",
+   "mp3": "f8bf1c90dc1dacd118f9cd6358cce45f52511d6115cfd9101df6ac75a55c8eb8",
+   "duration": 6.97,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_44": {
+   "key": "7432cce650b6e2eb8e6686a9bdcd793d936bfd9a5fea397c4f1368da84a410a1",
+   "mp3": "57f4077ff4d93c73d3c7b130dc4a47fa8cdce48807239eadce25f1b7c472bc5a",
+   "duration": 9.29,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_45": {
+   "key": "b172d30a9e120383b8850ff110ff19dfc70c9f1c520593ac60eb234a3b2ca8e7",
+   "mp3": "51c88d9a1534367a58a8912dbe912b523f474c84f1980efecade2681ac0b6055",
+   "duration": 6.09,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_46": {
+   "key": "e269c67fdff9e86b79a33bd90e510f94a163cdf8489abe74a086bdbf675d5ddf",
+   "mp3": "9c5a8f5386ace1e3a74cf13eb1d1cd4d8b31ff69afb87434b0033e2b2d6edb88",
+   "duration": 3.61,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_47": {
+   "key": "5541de1d4596087d0302cb8e004edfafba7f94f2576c01da83bca06d8b788d11",
+   "mp3": "88249765deb4249766dcbc746770e6858d74b403c79073c044e856436d904bca",
+   "duration": 7.211,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_48": {
+   "key": "92eaf2e53c7650829499106fc72a3101315eb8a41d8e0997033c24dac807d8a5",
+   "mp3": "1a238e13951082b1ab6eeee2302fa854b7e763c05a35277ed030db0ee8184f15",
+   "duration": 6.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_49": {
+   "key": "5eda33d46e44137246eadd2468beb613687a0a28d315df22edf66f51533bb1e9",
+   "mp3": "560c10e6df8b8dc2e00101dcdbbcdc6f8872eb1a820c4fb76e04a0842e49d095",
+   "duration": 5.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_5": {
+   "key": "9cbc1a5dc51ca8f67be527384f9335f694e7fbcc47ef9e641756cdb64fb2caa7",
+   "mp3": "7937b5e8d82ceeaaeeeccd663ceebf99c115952ad0b6a7b38ae7af046371ccb8",
+   "duration": 5.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_50": {
+   "key": "089f00d44122b0fe561fc55add211be53cbce99e84b826681e3e0d283fb387fe",
+   "mp3": "56378bfad08db396bca4f03007d9d99cad85a791da7b84cfcfe00b86c3e6846d",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_51": {
+   "key": "5b62d189821e898807bd4ff884a8ec4065ee206efdf5785df49b685864f80029",
+   "mp3": "302de0199b4340a740cc69bb10b33cab0d0c5f393359008fb25a06be304b9fa6",
+   "duration": 5.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_52": {
+   "key": "a1e1c838cce2ad668b7f38ed6fcb2531b06a68897dfec100f16ef9e63456d4fb",
+   "mp3": "aafabcf1fcc0f318686328de83d66b8e6cad342588193593f5a7ea9e7ae2a6a4",
+   "duration": 3.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_53": {
+   "key": "df29b51ce3f097a73eed1f313ec45b30842f1969661f613e44eaf061f76ad8d4",
+   "mp3": "72909cfe4a2fbedee91339db8dca3fa044bc675a86edcf5e7634ac9844b16fe2",
+   "duration": 7.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_54": {
+   "key": "7745646281a0da55dbb86f772c7bf4c214b784ca41f3ead54f1f77beac22fc16",
+   "mp3": "f17d5790cc980053b25fb848a804b80e1fd318e77f7b5c113b0dc007c6ada354",
+   "duration": 7.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_55": {
+   "key": "29b9daa4d45c44605b36466074ae108795a6001157cf25c2246cda720a37d6e9",
+   "mp3": "033ea7b6cc2c18101ada7d33b89438604a6f6b4d24ce417ef5dec1fdcf236996",
+   "duration": 11.45,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_56": {
+   "key": "2ed8e6e6ea36ffb7df8fe5a4fbb37251d6a65a2d8bbbc1bbb950d20d0e05864e",
+   "mp3": "403b5c5d37b779cc127ff99912983240daae357d12dca32c86e8fe4e8672a7ce",
+   "duration": 5.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_57": {
+   "key": "3733036a51c42bf6f1da6c05db1a3d7662293c1f0afb98c8ae6392c0b0fa289b",
+   "mp3": "6ff4ef99b387dc3315e3e4ba9dadaabcdefd7711802524d8e950d8d4b042e7c9",
+   "duration": 9.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_58": {
+   "key": "223d1dd468cb828eb73d55425434e9444f3bb26851d40c231d5f82d58e6026b8",
+   "mp3": "220cc5b2d0ec487e550c7a0c9eb47b781b389b12cb685b1fec1283cdfede1cfd",
+   "duration": 7.211,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_59": {
+   "key": "4b692ae9198fa474040517b8f1c7a805a7560330b17cf35af0f63b0589c32457",
+   "mp3": "ced5e12a54c062292619d545570824cd29be0c0090815ec31b7b4bb8f723521b",
+   "duration": 9.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_6": {
+   "key": "27504a1858fe7bd9ca682ead561f94f88f8f4d517c21a9de685a78247c2ae3f7",
+   "mp3": "f8021bb5796ccf7eea86a13b5d3f90ad77582ccbd69862d0bd03ebb1ad71fbd5",
+   "duration": 2.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_60": {
+   "key": "368e8f38059b9c6859561fb718c9d1ba2d3ac8b6a632c6d639622783dd065d0a",
+   "mp3": "e2b3e12e7162b38b802417c8162e225cbd964d5c5b53a553c8c271333ef8974e",
+   "duration": 3.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_61": {
+   "key": "089f00d44122b0fe561fc55add211be53cbce99e84b826681e3e0d283fb387fe",
+   "mp3": "56378bfad08db396bca4f03007d9d99cad85a791da7b84cfcfe00b86c3e6846d",
+   "duration": 1.37,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_62": {
+   "key": "afd28efc7786cfc0aaa31243bb6fe0ead20f75afc712859bff281735bb8f0ae7",
+   "mp3": "b6ad0580f4985180cedfae0900193a120e4718bb5e2d6f60b5f024b5e6de620f",
+   "duration": 8.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_63": {
+   "key": "831de886df32fac89630bd50b955a42f3148288673e351f34dda11518db96f42",
+   "mp3": "970040fc78a084830dc197e340e557e209e8c9de74a0cd2151ba01ef58d12192",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_64": {
+   "key": "3f829c84184e156a3557218f6f991ec1bee9a6d1f7194c424cf30cd7c744d379",
+   "mp3": "f5d88492249825b3a2c2c8f8c625dee9ce7fd2e06398af165944cdc93454a697",
+   "duration": 7.69,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_65": {
+   "key": "5b307065d1aa521e7af8dcc5fc9cac06d2305144173666b7924fabbc9d782811",
+   "mp3": "080142812f3fbea4689f22e8a422518476af85f6b6a2e631ba2c98fed5b28344",
+   "duration": 9.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_66": {
+   "key": "7a1d4c3ce98053cdefadba8d35e7d7e9ab5a982645c0b7deb6d5b4d0112ea60a",
+   "mp3": "a83261f73536c7933ddd122132e22b77a142716fee1aabf97d3442de6c2fa8c3",
+   "duration": 2.65,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_67": {
+   "key": "00c818dd40aea599328b67a016a67c4345a8839bcb091fd4801b12921986b2ae",
+   "mp3": "74286f35e97e692b33a82adcd976f4ef966c05a72c5af193857127c815eb137b",
+   "duration": 7.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_68": {
+   "key": "b16af663ba25a99de35b351c3f0c850f797871fd96a4c47122f60825436e43a7",
+   "mp3": "de7b5ec89c197ae709a4b34d8d037a53f77259a25399a54b5fa7991106aff58b",
+   "duration": 7.69,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_69": {
+   "key": "feb761a488e5162caaa1dd13875702becf055f8c5d82f0380eae32935b16fca3",
+   "mp3": "b1321034dbb09b4e7efc0c1f270dacd777f459aafc4572bf204f3ab83ecc371e",
+   "duration": 8.81,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_7": {
+   "key": "66415d38af97705ba3969d072c38e43aec71c4c6ec113f11608c662b5e78ab68",
+   "mp3": "9af75bb1508ae27d12066ea62b8708462aa1c42acde7b32060fbad54b5d3c029",
+   "duration": 5.29,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_70": {
+   "key": "b45c215fd86c89efb166a00721af0a19a8a98d08c873cd9949991cddf1d625aa",
+   "mp3": "60e0f417b724987b3bd9988ad922018947004e96d26dd5defab66170b2ce1790",
+   "duration": 8.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_71": {
+   "key": "793d5b5b5a4a3c41e623ab7a0f883ea4f86a9e835145d8a3be2f89b7d5f94c63",
+   "mp3": "849d56bb2f9009249b787984131b1e4cde0538f35877590bdba82d6a4c83fe3c",
+   "duration": 4.25,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_72": {
+   "key": "472f780b52b83001a38a4ecab64c130a4bd189761b19a9ecadeffae826824541",
+   "mp3": "ff8ef1625b32ac11102253279a4551e25a89a594f66f6f5a5923eba3b46e60cb",
+   "duration": 11.93,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_73": {
+   "key": "85f2c306f0e4a955ffd43bafd78f0563986145b60dd340ea5f3cf791aa9b997a",
+   "mp3": "2a914ba755d33d18cabc6ffbb762f8b2a98e8a7e8c0203009905bd27db6411da",
+   "duration": 3.61,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_74": {
+   "key": "4459c5efd5e5b83be395bdf279c97da288093a95cbe9379e07a58124d22ab01d",
+   "mp3": "3f2b784280c4f990ced56b58223acbc47bcd991d1f51287642acacea512f3205",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_75": {
+   "key": "6397b988a8ce88e0598c57042efe1ca9309bb5e355c1ca880d116db5968003d5",
+   "mp3": "cc00512ed6ce0d7fac93b754bd71cf2c934d84840fa15c0f04a3c238ecc8cd72",
+   "duration": 12.09,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_76": {
+   "key": "8008668edfc2914b5f0d6d7e29b07db2fe4c930c61ead02d6590e093d7a5fe84",
+   "mp3": "511d9d2e33643771d8ce387366e70d6d1648588d0f0855728e9bb35cb179ddf8",
+   "duration": 11.29,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_77": {
+   "key": "3b6542be95c500de1560f381c0dff7bfa81eb52cbefdb170cd53157cd58ae521",
+   "mp3": "4f9c9dc2aa8c48f6ece724e7a4a733b4768fcb0fb8bf02fd10dcb25c2574a1c4",
+   "duration": 10.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_78": {
+   "key": "04cf2e60710b29bdaf99bec952479088bd6af3903fbd2c799cde91059c6e306b",
+   "mp3": "b948ddedcdc5bc402c2f5acf1e3b652247f3132dbbf3f0a9c44739e8265ab6d4",
+   "duration": 4.651,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_79": {
+   "key": "9433b36b0edc55b099ebb4a2ce43dc62f880cafdd2d6351f0617e8c99aabdcc4",
+   "mp3": "f2221f1f5655a1320b96f81bcd1c65366d8ef667fa57990886ded3a55a50ebc3",
+   "duration": 3.13,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_8": {
+   "key": "60a7ba946e79aedce364ac46e22682ad51b464fd29b8c680c78d7fa7f0e88fa3",
+   "mp3": "84869359b328a0f6f0b5e6064bffcaa7b69921226145ba76d3f00a570b514118",
+   "duration": 5.45,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_80": {
+   "key": "815e08c62282c4e2b21cb01d7889b80f02e719f9085c235ee551897ad8b85a55",
+   "mp3": "9de0e8a75151797e45dc1d86a2ad4803eaacf08578eddc1b0b4db0e786c5dc7e",
+   "duration": 6.33,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_81": {
+   "key": "620336c012fbd9070bb48f66e646399f8f97b445b1def670cb8169f4c42416c5",
+   "mp3": "18d0187e7fe8df8d3bdab9825518e40b33174661c2b7c5f24d62d0b2d762c112",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_82": {
+   "key": "24a7bb6624b7fb43da6c0e41239fcfbf2b09ac7a9bc4c20cde7efc4a85c3131d",
+   "mp3": "46a0a1916c42fbbf2cdeea1bd960faaf41837fbe6b9e4d164d4e7bf253187d6e",
+   "duration": 3.53,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_83": {
+   "key": "009b120dacfe52f25d5bb01ee16c8ac83318237e0cdba623a025d02285dd9498",
+   "mp3": "edee07930b9c333d10e0a7294b33075a0fe9c8fe8b064f39a9d9ddbf79056e68",
+   "duration": 6.01,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_84": {
+   "key": "0e029b25734ea1f206a4f5d05a9867e7e335020ded712099ffc2b79fa454fe31",
+   "mp3": "30557492a7a46f8ce9d9231bccbe114a397ac25589a306035e9eae157a43ef70",
+   "duration": 3.85,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_85": {
+   "key": "ff98d0f2152ef2830e2f37b3bdf2e169b7a450c1a3d273362a083c2ee96497e3",
+   "mp3": "dc1b973146af9648fbaf9402b18751aebf360bea5731d0d1069ceab466712e3d",
+   "duration": 14.17,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_86": {
+   "key": "d57465562d1b6357835a70e8a5dda5df9128d9805ea9d8fa51c868b0debcfa74",
+   "mp3": "c6497881e78b1f37e0c9589b265c9b7d0b4f14b9e1e68d7f63e93939ca65e140",
+   "duration": 8.81,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_87": {
+   "key": "4ac017fcf18dafb72e99517cf0ef59efec040f76d598ad50f1494cf73b91ed37",
+   "mp3": "c5b056d7fb8a0d155883e321b547655ba14fab07722aaffd4c2aecb0bae8fee4",
+   "duration": 6.65,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_88": {
+   "key": "51a679e593a6113ef1a33c0ebd8a477f80a1903a6c01065e71c0e4c29f5923e7",
+   "mp3": "fcff61f99e2a86cd9a3baa3e62fff5a28af092fe523b625f63808faf7a3afb86",
+   "duration": 7.05,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_89": {
+   "key": "3608e39bfa8e5b86557cc5762960a4d5a435a83e3ed6e3ce98e36422f8a4184b",
+   "mp3": "61730986e552ee3d893fcf415a4900ce7826664e05f0d037bef499b1ee4d0e75",
+   "duration": 11.61,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_9": {
+   "key": "da837b30ca2c5ea3f3fc14a74e03cab99566d47c826144c1879c67e816ce3cf8",
+   "mp3": "8777759e394e7e7466645c3a2239451504a2d1892b19200bb0f8a9c01c16d482",
+   "duration": 4.81,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_90": {
+   "key": "603f0d87c6f14fd180288b088d91614b4299716576f5e0430355aaca8a73ad85",
+   "mp3": "c761fea10fb3d51bb277c7dadc403a1653e2583697799f7b4c3ac530a7ce18b3",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_91": {
+   "key": "3699a977bc15631d77b0d3fd1a252d1429da6298ac35a41f96883447cb6f12bf",
+   "mp3": "060ebc3cf1ec91d2708c4ab22ea831bf6008c66d5a5a15a5c55883e5c06701a2",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_92": {
+   "key": "17df4e5c768c9e938a3d25d19fb24267916e2033dbaf29e23ed9c9a25dc33be5",
+   "mp3": "932e37d21b83e54bb56170de7446dd6f1d9b6797ae51104bd2f7c3cf501031dc",
+   "duration": 2.17,
+   "model": "eleven_v4"
+  },
+  "book/book_myndband_krakkar_93": {
+   "key": "f77934804f52b29db19e4dfb0ecfead831f0258b38495ded40f7c8d47c0526b9",
+   "mp3": "020a80a15e3b53bed5ee75c5c1e1a031997ea13581ceb29e6d6273c293a05ec0",
+   "duration": 1.69,
+   "model": "eleven_v4"
+  },
   "book/book_myndband_landrek_1": {
    "key": "d9e36ff2b0535cc145e7f215401f33b85c726306738391fb564b6f81336e9b50",
    "mp3": "042f8e8d416961ec5938391cb16df6af08f673688fa9cf11b30066f49c2a9826",

@@ -6033,5 +6033,470 @@
   "src": "assets/audio/book/book_mosi_kafli_6.mp3",
   "duration": 2.091,
   "mouth": "8ff300e60fecedd09e87d800ff9040000000000000"
+ },
+ "book_myndband_krakkar_1": {
+  "src": "assets/audio/book/book_myndband_krakkar_1.mp3",
+  "duration": 2.25,
+  "mouth": "000ffe000dffec47879b9005768756004000000000000"
+ },
+ "book_myndband_krakkar_2": {
+  "src": "assets/audio/book/book_myndband_krakkar_2.mp3",
+  "duration": 6.57,
+  "mouth": "06ee80ff4effeee99db7449defd9ac950a807a30000500000000000008b5aabdeb0007cca4bcdcb8000640000000000eff50dec39cccddd950006400000000000000"
+ },
+ "book_myndband_krakkar_3": {
+  "src": "assets/audio/book/book_myndband_krakkar_3.mp3",
+  "duration": 5.21,
+  "mouth": "0df5009fff00dffb38eddfdc03d90ddfeeb99a9bec088304300000000000079006c9000009cc9cdd700004abcbb73000000000000"
+ },
+ "book_myndband_krakkar_4": {
+  "src": "assets/audio/book/book_myndband_krakkar_4.mp3",
+  "duration": 4.33,
+  "mouth": "4cfb50ad70000000000006dfecfeededdceb500000003bffd7bcd9dc90000ca000ab9873664300000000000"
+ },
+ "book_myndband_krakkar_5": {
+  "src": "assets/audio/book/book_myndband_krakkar_5.mp3",
+  "duration": 5.37,
+  "mouth": "00ec25efef700cefffc000ded8ac900ba000bb00007aa7000ad60ef97c008dc963000003b8009dddccbaee6058888454300000000000"
+ },
+ "book_myndband_krakkar_6": {
+  "src": "assets/audio/book/book_myndband_krakkar_6.mp3",
+  "duration": 2.73,
+  "mouth": "00bf8400bd48edc000ce60bed40addaff9008577534000000000000"
+ },
+ "book_myndband_krakkar_7": {
+  "src": "assets/audio/book/book_myndband_krakkar_7.mp3",
+  "duration": 5.29,
+  "mouth": "aa00efa0aecceddfeb07ecbff0006500000000000000cab90cffdbf703d70006930000000068007300baa85b828620000000000000"
+ },
+ "book_myndband_krakkar_8": {
+  "src": "assets/audio/book/book_myndband_krakkar_8.mp3",
+  "duration": 5.45,
+  "mouth": "00fd000d90bdc8abcb707ddc600009cdff90000000009a000ffaa7550000000009ccdefd00cea205db8ba0670000bb974300000000000"
+ },
+ "book_myndband_krakkar_9": {
+  "src": "assets/audio/book/book_myndband_krakkar_9.mp3",
+  "duration": 4.81,
+  "mouth": "00efffde60ccbffe700cdfc006db6400cd50cc00000cdec6058300000000000000cfcda6004befa588654000000000000"
+ },
+ "book_myndband_krakkar_10": {
+  "src": "assets/audio/book/book_myndband_krakkar_10.mp3",
+  "duration": 5.931,
+  "mouth": "0adffffe9abaa500007c008d0000cb8328cbecef900598740000000000000000008eedffd00c60dbc000cdcdc9987700a00c9006753300000000000"
+ },
+ "book_myndband_krakkar_11": {
+  "src": "assets/audio/book/book_myndband_krakkar_11.mp3",
+  "duration": 8.17,
+  "mouth": "8fd000000dfedbda0eea0b998500000049bffeae00bbb843a800009dc50000d0000009004a02a50044200000000000000000005dddfd00efea50a4300eecbb309400947784000048969bca73000000000000"
+ },
+ "book_myndband_krakkar_12": {
+  "src": "assets/audio/book/book_myndband_krakkar_12.mp3",
+  "duration": 7.69,
+  "mouth": "00deee60cec00e80048cdffdbdd7bddacffefcba9abaa752300000000000000009fffcc4000000000776644000000000009efeffd30dcceddcce900cc9caa7cee3048765605634300000000000"
+ },
+ "book_myndband_krakkar_13": {
+  "src": "assets/audio/book/book_myndband_krakkar_13.mp3",
+  "duration": 5.53,
+  "mouth": "00ce00009effb86a4000b864000000000000000000bf90eeffffecab9769960000887b800aca99bb0009600076000373000000000000000"
+ },
+ "book_myndband_krakkar_14": {
+  "src": "assets/audio/book/book_myndband_krakkar_14.mp3",
+  "duration": 1.37,
+  "mouth": "0000ff5004fc0047300000000000"
+ },
+ "book_myndband_krakkar_15": {
+  "src": "assets/audio/book/book_myndband_krakkar_15.mp3",
+  "duration": 5.05,
+  "mouth": "00d70e9eed00000aeffdfefe00fb000edcfc73000000000000abffa6005fdef7000ca00bcda006a8870009000000000000000"
+ },
+ "book_myndband_krakkar_16": {
+  "src": "assets/audio/book/book_myndband_krakkar_16.mp3",
+  "duration": 8.25,
+  "mouth": "000ee00ffc00dffe8dec09d89998786000a700cceffd747965905a3007540000000000000000002fe00ff77b00adddeaec7cd000006eefe50aaedc007a6885374005600000bddec300ed93000000000000000"
+ },
+ "book_myndband_krakkar_17": {
+  "src": "assets/audio/book/book_myndband_krakkar_17.mp3",
+  "duration": 6.73,
+  "mouth": "00ffffff900dea0aefe08bda5a008e400008deefedddc5aab858883037da00a40c700adda9840045200000000000b90edb3000cb00000000a6000007720000000000000"
+ },
+ "book_myndband_krakkar_18": {
+  "src": "assets/audio/book/book_myndband_krakkar_18.mp3",
+  "duration": 12.57,
+  "mouth": "0affe00ceeecdc8dc0007bcc800a987303b9ec9aabceda0beb33aa760400007bb9bc900ab30aa5000000000000000000008ffff80fec709edecfb0cba6ba900cbdcceda0000750000000000bbaec79a60000cc000020000000000000000dff700dfdcf9aef900cb9049bc000dcabac40005ddc6009b80000000000000000"
+ },
+ "book_myndband_krakkar_19": {
+  "src": "assets/audio/book/book_myndband_krakkar_19.mp3",
+  "duration": 6.97,
+  "mouth": "06eec0ef0fffffe0ffc50cbc9a400007eefd04900033000000000003fdfefc4d0000ca0000de6009bbbb8873a8cddeeccb000cdc08edbdbd04cc8dd705966404300000000000"
+ },
+ "book_myndband_krakkar_20": {
+  "src": "assets/audio/book/book_myndband_krakkar_20.mp3",
+  "duration": 5.69,
+  "mouth": "cfff08fa9ffb7deced80000cdaa46d5008600003630000000000000e40cf77dcc450eccdb0acc5ad500ab0009ba80367998000000000000000"
+ },
+ "book_myndband_krakkar_21": {
+  "src": "assets/audio/book/book_myndband_krakkar_21.mp3",
+  "duration": 7.93,
+  "mouth": "7cfff800edcb9aab9009c40ddb00abb50000000eab800bdddaba3000408adfd09b400cbb89500030000000000000003ff900de94cc4000000000bcdbcdc6aa977897008b90008ab7004300000000000"
+ },
+ "book_myndband_krakkar_22": {
+  "src": "assets/audio/book/book_myndband_krakkar_22.mp3",
+  "duration": 6.57,
+  "mouth": "00cffefe70bddec00acaa78a78db09dc8009865400000000000000000ba4002cdddb50009efeccd79969bec800a8776479700aeeaeed900fc6540000000000000000"
+ },
+ "book_myndband_krakkar_23": {
+  "src": "assets/audio/book/book_myndband_krakkar_23.mp3",
+  "duration": 4.41,
+  "mouth": "5effe4000db00eeb00ab9600afeb900cb6bfecabddb46ed0005ddc6d20029ccc007cca6430000000000000000"
+ },
+ "book_myndband_krakkar_24": {
+  "src": "assets/audio/book/book_myndband_krakkar_24.mp3",
+  "duration": 7.13,
+  "mouth": "00fff90ae808cbba0c8000b900008aa58408c000cefbba987407db00ec400a30887006643000000000000000efc0d90000cdb7000bbb60008b8cfe9be900dddca64420000000000"
+ },
+ "book_myndband_krakkar_25": {
+  "src": "assets/audio/book/book_myndband_krakkar_25.mp3",
+  "duration": 6.57,
+  "mouth": "0ffb8f8669efdeff900ac60003ccc907bcccccbce600049000000000000000000000ccd07e79ccb9a9300bdcc708c9a7989000b9000300000a500000000000000000"
+ },
+ "book_myndband_krakkar_26": {
+  "src": "assets/audio/book/book_myndband_krakkar_26.mp3",
+  "duration": 1.37,
+  "mouth": "0000ff5004fc0047300000000000"
+ },
+ "book_myndband_krakkar_27": {
+  "src": "assets/audio/book/book_myndband_krakkar_27.mp3",
+  "duration": 11.53,
+  "mouth": "00e70ebdfffedceff000790000000008aff85400000efee9500000000000000000000000bfd900ca0bed00efbedb607a60abcca7666000000cb04c500bb0000ddeb0aa85a80875b9400000000000000000000000bfd09a5000cdd2000004905db6a995008cded76800039600000000000000000"
+ },
+ "book_myndband_krakkar_28": {
+  "src": "assets/audio/book/book_myndband_krakkar_28.mp3",
+  "duration": 8.491,
+  "mouth": "00ba409cbff7000fefffeba2000beefffb49a8733530000000000000006ddddc78c9859b305cbc60a63000c8bed00775340000000000000000dc8bba006db0000ab04b74873007a0597008008bca53000000000000"
+ },
+ "book_myndband_krakkar_29": {
+  "src": "assets/audio/book/book_myndband_krakkar_29.mp3",
+  "duration": 9.29,
+  "mouth": "00fc00ebeddefe000840000000007a8300efdd87efffcc970000000000008cbbda007ccdeeea0039cca007b7bc748753000000000000000000000ffedffb8fc0eedcedcdde8cd94aa3008efd509bb7ddefdc9999049734000000000000"
+ },
+ "book_myndband_krakkar_30": {
+  "src": "assets/audio/book/book_myndband_krakkar_30.mp3",
+  "duration": 7.85,
+  "mouth": "000ceefc00aabb9604bbc3007eecbeea00acdda00c500494000abbbb9603000000000000005f600efca00ccac9c4b7300b800dd509cdec7675000004c8f3003ffffdfe000bfe00c90530000000000"
+ },
+ "book_myndband_krakkar_31": {
+  "src": "assets/audio/book/book_myndband_krakkar_31.mp3",
+  "duration": 11.37,
+  "mouth": "00cffff9bedbbaab900d808eda00ec900055fb0000ad78bc003ddca000bdda003ddcc9783006400000000000000000000000000cfdbfefd905cb800000cc8c300cdfd9007aa400bb6ceba8543000000000000000000000bf90effeb00aa93000bbceb60ab47aa94004dda000000000000000"
+ },
+ "book_myndband_krakkar_32": {
+  "src": "assets/audio/book/book_myndband_krakkar_32.mp3",
+  "duration": 6.17,
+  "mouth": "00afe900bc2beec0bf900deffffc3008edbbbb404a4008ca959dbcdd005300000000000000addd800e8bd7cd90ce389a9b88efa066070043000000000000"
+ },
+ "book_myndband_krakkar_33": {
+  "src": "assets/audio/book/book_myndband_krakkar_33.mp3",
+  "duration": 3.85,
+  "mouth": "00dff9fea00cb979acb700eda900bb5aeca530000000000000cca8fe805940463000000000000"
+ },
+ "book_myndband_krakkar_34": {
+  "src": "assets/audio/book/book_myndband_krakkar_34.mp3",
+  "duration": 5.21,
+  "mouth": "5bdfeddddb64be4008eda9975443300000000000000dfffef30ffed0aa00ac859600cee9aa989508b508900800454000000000000"
+ },
+ "book_myndband_krakkar_35": {
+  "src": "assets/audio/book/book_myndband_krakkar_35.mp3",
+  "duration": 7.05,
+  "mouth": "00df000fffdfff9bed40000dfdb04000cd700000000aefecddbcacec8d600a95a80000000000000000000000cef90effed6000cdcbdabcb85800840009b940004000000000000"
+ },
+ "book_myndband_krakkar_36": {
+  "src": "assets/audio/book/book_myndband_krakkar_36.mp3",
+  "duration": 1.37,
+  "mouth": "0000ff5004fc0047300000000000"
+ },
+ "book_myndband_krakkar_37": {
+  "src": "assets/audio/book/book_myndband_krakkar_37.mp3",
+  "duration": 2.89,
+  "mouth": "05f800c80000000008efff959830000000008606846355300000000000"
+ },
+ "book_myndband_krakkar_38": {
+  "src": "assets/audio/book/book_myndband_krakkar_38.mp3",
+  "duration": 9.69,
+  "mouth": "00fd50cfefbec9008e06fed96300000000000000cb0dbf4000ded80000cdd50ffcabfff9006eb987565000000000000008cdd00000ddcfc00d700bed08bbcb700000000000000fffdfd0b9000ba00000084009cec00aa7798ac960000000000000"
+ },
+ "book_myndband_krakkar_39": {
+  "src": "assets/audio/book/book_myndband_krakkar_39.mp3",
+  "duration": 6.65,
+  "mouth": "00ee009e00ed0bffffd405a00006cb67643000000000000003f50ef3a800cededc5982000bddba400785000000970a300ccb6b700c700088860680048740000000000"
+ },
+ "book_myndband_krakkar_40": {
+  "src": "assets/audio/book/book_myndband_krakkar_40.mp3",
+  "duration": 5.53,
+  "mouth": "006fe0000cf507d7009cba900cc50eeffecaf80ccedefea069000dcaa8899600000a00afa000d9cee85eca8a97770470000000000000000"
+ },
+ "book_myndband_krakkar_41": {
+  "src": "assets/audio/book/book_myndband_krakkar_41.mp3",
+  "duration": 9.93,
+  "mouth": "00fffa0000aded7ef08db5a8000c7000badeeedccdc79998489a600059daa54edcc980000000adb00009cb577430000000000000000000000000e500e90ddca9ed7cd8000000ffcbf06e900b80008b0006aa000007cdeeeed500049aa74420000000000"
+ },
+ "book_myndband_krakkar_42": {
+  "src": "assets/audio/book/book_myndband_krakkar_42.mp3",
+  "duration": 7.93,
+  "mouth": "7ceff00fe9ccff80acbba79a8300e930058c8d7edc9a85440000000000000009efecfff00edc903d9d3000acdbb0308800000000000005740ad000ccb92000fda000deeedc899747500000000000000"
+ },
+ "book_myndband_krakkar_43": {
+  "src": "assets/audio/book/book_myndband_krakkar_43.mp3",
+  "duration": 6.97,
+  "mouth": "05ff8efd0cff907dedddd600bcc9867970009cbb6dbbff2079997835706759600000000000000009cc50aeefeeebeecabca0047000008aa800cb800009700000000000000000"
+ },
+ "book_myndband_krakkar_44": {
+  "src": "assets/audio/book/book_myndband_krakkar_44.mp3",
+  "duration": 9.29,
+  "mouth": "00effc9feffa9ddd008d9aba8a00b9748ddda0009a88300687400000000000000000000000bcdcffddbcca00befd505800a960407bbbbbcc9ba8a90009ded009ca3a4000c300000acdeeeecdefdcaa909bc889300a5006300000000000"
+ },
+ "book_myndband_krakkar_45": {
+  "src": "assets/audio/book/book_myndband_krakkar_45.mp3",
+  "duration": 6.09,
+  "mouth": "00002fffded85b900b8008900098000635bb6cb74000000000000000000bfffd0dd908bb70000000007ec900000bcab80009ba838ab970200000000000"
+ },
+ "book_myndband_krakkar_46": {
+  "src": "assets/audio/book/book_myndband_krakkar_46.mp3",
+  "duration": 3.61,
+  "mouth": "000fffecf70bcc8abde900dfcc00d800ab0000760000008b0dfd0a7703764200000000000"
+ },
+ "book_myndband_krakkar_47": {
+  "src": "assets/audio/book/book_myndband_krakkar_47.mp3",
+  "duration": 7.211,
+  "mouth": "79ffffffe9e500bffac99886450000000000000defed8d908e009b99aa6005bedffdeee00cee724ed00b90a902ba989a60cedefc609b708a6006b7008b609b00ba820000000000000"
+ },
+ "book_myndband_krakkar_48": {
+  "src": "assets/audio/book/book_myndband_krakkar_48.mp3",
+  "duration": 6.89,
+  "mouth": "007ee03c90f70defffaac00bcacfb00064000000000085effffc85000000000000ebbbcffff00cedeefd000aa82a730007ddda5000845ca7ba40069984b975300000000000"
+ },
+ "book_myndband_krakkar_49": {
+  "src": "assets/audio/book/book_myndband_krakkar_49.mp3",
+  "duration": 5.85,
+  "mouth": "07ffffdde60c9307bacd90064000000000000000c70ef8000cfffddfc05edccd903983009dbad00cdb05a8686860008b998500786400000000000"
+ },
+ "book_myndband_krakkar_50": {
+  "src": "assets/audio/book/book_myndband_krakkar_50.mp3",
+  "duration": 1.37,
+  "mouth": "0000ff5004fc0047300000000000"
+ },
+ "book_myndband_krakkar_51": {
+  "src": "assets/audio/book/book_myndband_krakkar_51.mp3",
+  "duration": 5.05,
+  "mouth": "00ffc09d00dc90057000000000000300dcafabdba98ab70006deefb30ab05d000bfd0009fecdfa6b90000ab75300000000000"
+ },
+ "book_myndband_krakkar_52": {
+  "src": "assets/audio/book/book_myndband_krakkar_52.mp3",
+  "duration": 3.05,
+  "mouth": "0af800fcaf60000dd90000004b89d8ffddca4400ca8000690042000000000"
+ },
+ "book_myndband_krakkar_53": {
+  "src": "assets/audio/book/book_myndband_krakkar_53.mp3",
+  "duration": 7.85,
+  "mouth": "0ce00eddb5bac07d9abdc900bbb96079840000000bcdb000bca900b068765333000000000000005b6004c9bfffc0068500000000000008863000000deeffda8830000bf5000006000000000000000"
+ },
+ "book_myndband_krakkar_54": {
+  "src": "assets/audio/book/book_myndband_krakkar_54.mp3",
+  "duration": 7.93,
+  "mouth": "00aa00c8e80009dadeffff7a9adebb78acc600009736500000000000000cfdd980cd00cdcceeff700c6000da00000000000000a9900cfc08cddb76750000005850bcb9000000b400000000000000000"
+ },
+ "book_myndband_krakkar_55": {
+  "src": "assets/audio/book/book_myndband_krakkar_55.mp3",
+  "duration": 11.45,
+  "mouth": "0cfe50000ffddfbcdefd000ee8b808dcac8004ba9b8004000000000000000000add3bfcdeff88ca30099855a89c999b600dccbdec6b007bdb0055200000000000009cff00ca8a63b4002a9875306a50730009eec6000d50000064000000080005c30000a40494009408200000000000000000"
+ },
+ "book_myndband_krakkar_56": {
+  "src": "assets/audio/book/book_myndband_krakkar_56.mp3",
+  "duration": 5.85,
+  "mouth": "0effffffdaeee85fdcb0dec400b70000000000008a40984009ddb00ea0aed008505850000000009a00aea0005bbbdc40707700060000000000000"
+ },
+ "book_myndband_krakkar_57": {
+  "src": "assets/audio/book/book_myndband_krakkar_57.mp3",
+  "duration": 9.85,
+  "mouth": "0bffe70bcdba999a805cacddcccc000cd600aefffeeddba98704886800cba640000000000000000000002acc0df9abd9aa607bac00deeeb37b8acb0070665552000000000000000000bffefeee60aa05edfffd06dd90adb5eeedca000000000000000"
+ },
+ "book_myndband_krakkar_58": {
+  "src": "assets/audio/book/book_myndband_krakkar_58.mp3",
+  "duration": 7.211,
+  "mouth": "000cffce00c00bdba8abca05eea900cefefdd5fa00ed903b7069850b95dd4668005540000000000000000dffeabbc9000ffb9bee3000099dffe907a00094339970000000000000000"
+ },
+ "book_myndband_krakkar_59": {
+  "src": "assets/audio/book/book_myndband_krakkar_59.mp3",
+  "duration": 9.93,
+  "mouth": "0dfffae3ef5ccdcbbaab83b80bd700059980005becc08ccb04fdd40a00797506b900b404a008999a9300a000bec009b9008ee607006530000000000000000000ceff0cdbffb49c9900039efdb80000000aa87a960000dfeefecb8566342000000000000"
+ },
+ "book_myndband_krakkar_60": {
+  "src": "assets/audio/book/book_myndband_krakkar_60.mp3",
+  "duration": 3.93,
+  "mouth": "5bcfefffffdce028b0000aba840000accccec507b0000bced000b98a47a009bb585400000000000"
+ },
+ "book_myndband_krakkar_61": {
+  "src": "assets/audio/book/book_myndband_krakkar_61.mp3",
+  "duration": 1.37,
+  "mouth": "0000ff5004fc0047300000000000"
+ },
+ "book_myndband_krakkar_62": {
+  "src": "assets/audio/book/book_myndband_krakkar_62.mp3",
+  "duration": 8.73,
+  "mouth": "00c80c7b44000000fd0000000000004cc9bbeff3000c000000efccb53000000000000003abddfedc7bdedc9b000b00bfc4985330032000000000000007eeeffd9dcbcbdef505bbbc8200beffa5b78bcda72300000000000"
+ },
+ "book_myndband_krakkar_63": {
+  "src": "assets/audio/book/book_myndband_krakkar_63.mp3",
+  "duration": 5.21,
+  "mouth": "02fc00f60ed0dffeddc600002cb340ffe0dcceee9dfffe008a8654000000ade900000cffee70cbaab470066430030000000000000"
+ },
+ "book_myndband_krakkar_64": {
+  "src": "assets/audio/book/book_myndband_krakkar_64.mp3",
+  "duration": 7.69,
+  "mouth": "3effdd00ca00bb983000cefd8d98d60000bbcefdadb0ac589977663000000dee800aed9000ca08b300006400000000000000008eff0cc0fd00c8000aef800bb9507a970abca704000000000000"
+ },
+ "book_myndband_krakkar_65": {
+  "src": "assets/audio/book/book_myndband_krakkar_65.mp3",
+  "duration": 9.05,
+  "mouth": "00ec3000bcc909c8bc70cb58b8777478700007c3000098b9009a9008aa509a76666350000000000000000000000000fe50b90008000004a9630000000000000aca6eeffd930000000000000eff00beffff4ccda73000000000000"
+ },
+ "book_myndband_krakkar_66": {
+  "src": "assets/audio/book/book_myndband_krakkar_66.mp3",
+  "duration": 2.65,
+  "mouth": "00fb00eaf60008c400000ba9d800cacdcefc98735400000000000"
+ },
+ "book_myndband_krakkar_67": {
+  "src": "assets/audio/book/book_myndband_krakkar_67.mp3",
+  "duration": 7.53,
+  "mouth": "bd5fffcfc7ffffca04700000006cc800e90007875000000000000000000006dd8b40000bdfda09302dbb3b9bcc9058879ba8664000000000009c600a60007800090a5005000000000000000"
+ },
+ "book_myndband_krakkar_68": {
+  "src": "assets/audio/book/book_myndband_krakkar_68.mp3",
+  "duration": 7.69,
+  "mouth": "efff02fc00deeeecaa78c70000ceeb5009c9000ab06cba20054000000000000000000000000effc0bd0fbadd00cc69a99a0004b97600000b80cb07bdccc9874933009500056000000000000000"
+ },
+ "book_myndband_krakkar_69": {
+  "src": "assets/audio/book/book_myndband_krakkar_69.mp3",
+  "duration": 8.81,
+  "mouth": "0000de000fdffea0cfeeebaaaaa609a946caba29977400b60000000000000000008dac86af90000bee6008a630900000cdb8000ba95000000000000000000000be7cf00dffeffdddabdeeeeeddbaa405ab765300000000000"
+ },
+ "book_myndband_krakkar_70": {
+  "src": "assets/audio/book/book_myndband_krakkar_70.mp3",
+  "duration": 8.73,
+  "mouth": "2bfe4000dffe00039a5000000000007ffcdf0007d00bedeccbbba60940009deffeaeeedbbdedcb7a89586004420000000000000009ffafa7eec00abcdb9689900c90008cbb9995000730000a00000006300000000000000"
+ },
+ "book_myndband_krakkar_71": {
+  "src": "assets/audio/book/book_myndband_krakkar_71.mp3",
+  "duration": 4.25,
+  "mouth": "4eb00dc00fffffe700ee6d50ca00004ca459700bdb6ced900a900000040add800906ba964300000000000"
+ },
+ "book_myndband_krakkar_72": {
+  "src": "assets/audio/book/book_myndband_krakkar_72.mp3",
+  "duration": 11.93,
+  "mouth": "03fee300ca03000cddb0002cdeffeeccddc39bb849ab70098deeb00b970c83987540000000000db9ffe05abca944a0030c309dddda5005300000000000000000000bfff907ea003dffa0cb0cdeeedcaab88a873000000009700bdffe900bdcba97009800b9cc08b208970005a800bbbec50043000000000"
+ },
+ "book_myndband_krakkar_73": {
+  "src": "assets/audio/book/book_myndband_krakkar_73.mp3",
+  "duration": 3.61,
+  "mouth": "0000effb0ec0ed909ffdbc9cddcc970000000000000000009defe9a600650000000000000"
+ },
+ "book_myndband_krakkar_74": {
+  "src": "assets/audio/book/book_myndband_krakkar_74.mp3",
+  "duration": 2.89,
+  "mouth": "0c046af8600f99ec97dbfeefffc30000cc30aeeff64630000000000000"
+ },
+ "book_myndband_krakkar_75": {
+  "src": "assets/audio/book/book_myndband_krakkar_75.mp3",
+  "duration": 12.09,
+  "mouth": "0b7000cfffda984000bcedcddddedbbbab5009ba600b7000000addff704c6000ac30205963430000000000000000007e700f800bd7c200cc50000000000009facd9c8b7009ed000adc84b700009400a0006400000000000000000000efc0ffceffc00ad40006ffccffabdef9008d8bb9794530000000000000"
+ },
+ "book_myndband_krakkar_76": {
+  "src": "assets/audio/book/book_myndband_krakkar_76.mp3",
+  "duration": 11.29,
+  "mouth": "ec007deffd07cb9500ced000decc6cdac500bcb500b8600bfdefea0b950ded40acc4dfb00878763440000000000000000006efff9fffffed00aba300cfd9aed8008988000008d000caaa699588600000000ad0000cb09a9a80697738fdb0099009a649000c000039854500000000000000"
+ },
+ "book_myndband_krakkar_77": {
+  "src": "assets/audio/book/book_myndband_krakkar_77.mp3",
+  "duration": 10.73,
+  "mouth": "5d6000def500dffdfb038a207b07edbba8000000000000000000000ef7300bda7becffeddedb8dea6575400000000000003b95004a806ca800afdb980074000000000000e05cd60bd0008fbb9730000000bd4bcbfda54300000000000007ee808700ba50053000000000000"
+ },
+ "book_myndband_krakkar_78": {
+  "src": "assets/audio/book/book_myndband_krakkar_78.mp3",
+  "duration": 4.651,
+  "mouth": "0cefd500000cdb000dc8d6009fddbad008cd96000000000000000000effe629ddd007fffea99003400000000000000"
+ },
+ "book_myndband_krakkar_79": {
+  "src": "assets/audio/book/book_myndband_krakkar_79.mp3",
+  "duration": 3.13,
+  "mouth": "bf900000000000000000000fec9dd88fffc7004b008fe057703000000000000"
+ },
+ "book_myndband_krakkar_80": {
+  "src": "assets/audio/book/book_myndband_krakkar_80.mp3",
+  "duration": 6.33,
+  "mouth": "000dfc8400000000000bf9009d0bdffb005cb90009c80d83008b006ca50400000000000000000efffc0cdbaed0ad8509bba006bddb305600000000000000000"
+ },
+ "book_myndband_krakkar_81": {
+  "src": "assets/audio/book/book_myndband_krakkar_81.mp3",
+  "duration": 6.73,
+  "mouth": "00ddffb6000000000000cd000efffc94000000000000000000affeeaee50ba008cb986000007a06acb036e70000798000000000c700cfcd6cb007a74300000000000000"
+ },
+ "book_myndband_krakkar_82": {
+  "src": "assets/audio/book/book_myndband_krakkar_82.mp3",
+  "duration": 3.53,
+  "mouth": "007eefa06000000000000000000bffff009b000bcb0000ccc8898aa4984000000000000"
+ },
+ "book_myndband_krakkar_83": {
+  "src": "assets/audio/book/book_myndband_krakkar_83.mp3",
+  "duration": 6.01,
+  "mouth": "00fffc6300000000000000cfdddb00e000fb0dfb0089960000000000000cf6bd0cbcc0780007cc00000000adcdb9dd00eb49a9a89c300400000000000"
+ },
+ "book_myndband_krakkar_84": {
+  "src": "assets/audio/book/book_myndband_krakkar_84.mp3",
+  "duration": 3.85,
+  "mouth": "0bdfe90000cdffccb000075000000000000000fffb006acea00cbccd7acc807ab600000000000"
+ },
+ "book_myndband_krakkar_85": {
+  "src": "assets/audio/book/book_myndband_krakkar_85.mp3",
+  "duration": 14.17,
+  "mouth": "afffeb7300000000008cc0000bdd0bf7000adfffa007fd3000000000000000000003ecb000cb0dca07b000987400009aac700078000009cdccddcba9870750000000000000000000009eea8fda05dbbb98708863007ddcaca5a9830004a8500098000007aa76000a500005bca989a58bb665300000000000000009ffecf9ab004db8900d000cdc60000000000000"
+ },
+ "book_myndband_krakkar_86": {
+  "src": "assets/audio/book/book_myndband_krakkar_86.mp3",
+  "duration": 8.81,
+  "mouth": "0bb0000eeedfbc50d8000000afff8600dfbc9ea003000000000000000000000db007eccffc44b37bdddc98087840006a993009cabdd70ab30058059600000a90000be70880009cca50008bcbaa80003974030000000000000"
+ },
+ "book_myndband_krakkar_87": {
+  "src": "assets/audio/book/book_myndband_krakkar_87.mp3",
+  "duration": 6.65,
+  "mouth": "0feffbee00000eca9bcca55cbecdfffa0008eea08900008deeb8443000000000b80003cddcbab500ed4cd0030ba00bb93000dccddefdedcbaaa969950300000000000"
+ },
+ "book_myndband_krakkar_88": {
+  "src": "assets/audio/book/book_myndband_krakkar_88.mp3",
+  "duration": 7.05,
+  "mouth": "0df8db000efc0cdca49cdd3db6000b06c688009eee60c98b9069ca800a70797500000000000000b6000dffbdffc0000000afa0dffdccb50000000a406a99a8039830000000000"
+ },
+ "book_myndband_krakkar_89": {
+  "src": "assets/audio/book/book_myndband_krakkar_89.mp3",
+  "duration": 11.61,
+  "mouth": "00affff000ffe88c9000006704008dea00790003300000000000000000000009edefa0ab4078740000000000000000cef70000000000000000decbba00000000000000dad9aa800000000000000efdaaadc000000000000000eeedca3000000000000bc7000000000000000000fffe62000000000"
+ },
+ "book_myndband_krakkar_90": {
+  "src": "assets/audio/book/book_myndband_krakkar_90.mp3",
+  "duration": 5.13,
+  "mouth": "0fffd0ef804f8006bb983ba7ac8089066653000000000000000000000eb09fdad94dcb8afea7407500bb0350000000000000000"
+ },
+ "book_myndband_krakkar_91": {
+  "src": "assets/audio/book/book_myndband_krakkar_91.mp3",
+  "duration": 6.73,
+  "mouth": "affe700000ffe90cdf6058bc6000aa840000006a4007cdde89ed8409c9c8ca00ceb0bd8005997000000000008f00e30dfdbcfb9cffca50008820adca766400000000000"
+ },
+ "book_myndband_krakkar_92": {
+  "src": "assets/audio/book/book_myndband_krakkar_92.mp3",
+  "duration": 2.17,
+  "mouth": "000dffdb8efc000009d608eb00aa7500000000000000"
+ },
+ "book_myndband_krakkar_93": {
+  "src": "assets/audio/book/book_myndband_krakkar_93.mp3",
+  "duration": 1.69,
+  "mouth": "04fa020bfdced5dc936400000000000000"
  }
 }
