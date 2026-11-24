@@ -2374,13 +2374,13 @@ test('with all eight fossils found, Safnið is celebrated the first time the chi
 // ---------------------------------------------------------------------------------------------
 // Myndbönd (videos.js, video-player.js) and card video links (card-viewer.js)
 
-test('the Myndbönd page has twelve videos, eight on the left page and four on the right, unlocking progressively and opening the video player', () => {
+test('the Myndbönd page has thirteen videos, nine on the left page and four on the right, unlocking progressively and opening the video player', () => {
   const { save, book, root, narrated, sounds, tap } = fenRig();
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
-  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek', 'loftsteinn', 'fundur', 'mary', 'djamm'], 'eight on the left page, three across, and the game\'s own show after them');
-  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'], 'and four on the right, then the 3D column');
+  assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek', 'loftsteinn', 'fundur', 'mary', 'krakkar'], 'nine on the left page, three rows of three: the three about finders are its last row');
+  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'djamm', 'fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'], 'and four on the right, the game\'s own show under them, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
   const videoRibbonDots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
@@ -2393,6 +2393,9 @@ test('the Myndbönd page has twelve videos, eight on the left page and four on t
   assert.equal(vtile('fundur').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Hvernig fundum við risaeðlurnar?');
   assert.ok(vtile('mary').classList.contains('new'), 'and Stelpan sem fann sæskrímslið, the fourth that belongs to no card');
   assert.equal(vtile('mary').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Stelpan sem fann sæskrímslið');
+  assert.ok(vtile('krakkar').classList.contains('new'), 'and Krakkarnir sem fundu risaeðlur, the fifth that belongs to no card');
+  assert.equal(vtile('krakkar').findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Krakkarnir sem fundu risaeðlur');
+  assert.match(vtile('krakkar').findAll(e => e.tagName === 'IMG')[0].src, /assets\/book\/videos\/krakkar-thumb\.webp$/, 'with its own picture');
   for (const id of ['grannar', 'thorsedla', 'gramedla', 'landrek', 'fuglar', 'raf', 'steinn', 'tennur']) {
     assert.ok(vtile(id).classList.contains('unfound'), `${id} waits for its unlock`);
   }
@@ -2508,13 +2511,19 @@ test('the Myndbönd page ends in a "3D myndbönd" column: Fiðrildadansinn, open
   assert.equal(again.classList.contains('new'), false, 'and the tile is no longer new');
 });
 
-test('the left Myndbönd page ends in "Djamm skógarins": chapter 5\'s music show alone, open from the start as the 3D shows are, with no glasses mark, in the frame over the book', () => {
+test('"Djamm skógarins" stands under the right Myndbönd page\'s four videos: chapter 5\'s music show alone, open from the start as the 3D shows are, with no glasses mark, in the frame over the book', () => {
   const { save, book, root, tap, shows, sounds } = fenRig();
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'videos')[0];
-  const left = leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains('left'))[0];
-  const tiles = left.findAll(e => e.classList.contains('video-tile'));
-  const show = tiles.at(-1);
-  assert.equal(tiles.length, 9, 'eight videos, three across, and the show after them, the last of the third row');
+  const page = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0];
+  const left = page('left').findAll(e => e.classList.contains('video-tile'));
+  assert.equal(left.length, 9, 'the left page\'s nine places hold nine videos');
+  assert.equal(left.filter(e => e.classList.contains('video-tile-show')).length, 0, 'so the show is not there');
+  const grid = page('right').findAll(e => e.classList.contains('video-tiles'))[0];
+  assert.ok(grid.classList.contains('with-show'), 'the right page is laid for a show under its videos (book.css)');
+  const beside = grid.children.filter(e => e.classList.contains('video-tile'));
+  const show = beside.at(-1);
+  assert.equal(beside.length, 5, 'four videos and the show after them');
+  assert.ok(grid.children.at(-1).classList.contains('video-3d-column'), 'and the 3D column after the show');
   assert.equal(show.getAttribute('data-video'), 'djamm');
   assert.ok(show.classList.contains('video-tile-show'), 'marked as a show of the game');
   assert.equal(show.classList.contains('video-tile-3d'), false, 'not a 3D show');
