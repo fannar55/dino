@@ -195,9 +195,10 @@ lagið á undan var mikið fjör lag. Aðlögum senu að þessu lagi.“ Þar se
 - **Lagið ræður, senan lagar sig að því.** H er rólegt lag (84 slög á mínútu, D-dúr, 4 mínútur) sem ElevenLabs samdi úr
   lýsingu á senunni. Fyrirmyndin að hljómnum er „Life in a Northern Town“: kassagítarar, óbó, djúpar trommur.
 - **Bakraddir án orða** eru í laginu sjálfu („ekki söngur en má vera bakraddir“). Þær eru kórinn. Dýrakórinn er ekki lagður ofan á.
-- **Lúðurinn í byrjun lagsins er lúður Slóeðlu.** Tónar stjarnanna sex eru sex hækkandi tónar úr því stefi.
-- **Kaflarnir sex halda nöfnum sínum en lengdirnar eru lagsins:** inngangur um 50 s, fyrsti dans um 46 s, sólóin um 34 s (um
-  6 s á hvern vin í stað 8), kyrra stundin um 25 s, síðasta viðlagið um 60 s og lokahljómur um 25 s. Taktkortið segir
+- **Byrjun lagsins er Slóeðlu.** H byrjar ekki á lúðri einum heldur á kassagítar með mjúkri línu ofan á (A, F♯, E, D, niður á
+  við). Sú byrjun er hennar. Tónar stjarnanna sex eru sex hækkandi tónar í tóntegund lagsins: D, E, F♯, A, H, D.
+- **Kaflarnir sex halda nöfnum sínum en lengdirnar eru lagsins** (mældar í blöndunni): inngangur 51 s, fyrsti dans 46 s,
+  sólóin 26 s (4,3 s á hvern vin í stað 8), kyrra stundin 31 s, síðasta viðlagið 69 s og lokahljómur 15 s. Taktkortið segir
   nákvæmlega til, og taflan í 3. kafla víkur fyrir því.
 - **Laginu er skipt í rásir** (trommur, bassi, gítar, píanó, raddir, annað) svo blandan geti stýrt hverri fyrir sig: þaggað
   trommur í kyrru stundinni, gert eyður fyrir köllin og lyft síðasta viðlaginu. Leikurinn spilar eina blandaða skrá.
