@@ -7,6 +7,9 @@
 //   folder    its files go to remake/assets/audio/sloedla/<folder>/: song.mp3, song.json and the stems <stem>.mp3 (a later
 //             version: song-N.mp3, <stem>-N.mp3)
 //   out       in place of folder: a folder under the repo (qa/...), the same files there; nothing goes under remake/assets
+//   prompt    in place of the whole plan: a description in words (a scene), with lengthMs. The model chooses the tempo, the key, the
+//             band and the sections itself; the plan it made comes back with the audio and becomes the json's "structure". Asked
+//             with force_instrumental; a seed cannot go with a prompt, so two presets with one prompt give two different songs.
 // The game plays the
 // backing (drums, bass, chords) and its dinosaur instruments play the lead melody on top, in time and in key, so a backing has
 // to keep one tempo, stay in one key and leave room for a lead.
@@ -465,6 +468,17 @@ Object.assign(PRESETS, {
   }),
 });
 
+// The owner heard hatid-a … hatid-d and wanted none of them (2026-11-24): "prófum hvað elven labs kemur með ef þú lýsir senu og
+// biður um 2 lög". So two more candidates from one description of the scene and of the party's course, and nothing else: no
+// tempo, no key, no band, no bars. The model's own plan comes back with each song and says where its sections are.
+const HATID_SCENE = [
+  'Music for the grand finale of a children\'s adventure game: the Star Festival. It is night on a mountain top. A six-year-old boy and his dinosaur friends (a small green one, a long-necked giant, a flying one, a swimming one, a crested one who plays a horn, and a huge but kind tyrannosaur) have just lit six stars in the sky, and now they throw the biggest party the forest has ever seen. There is a little stage with coloured lights, fireflies for lamps, a moon wearing a party hat, and everyone dances.',
+  'The song is the whole party, about four minutes long, instrumental. It begins with one horn alone, calling a simple rising tune into the night. Then the friends join in one at a time and the music grows step by step. Then everyone dances the first dance together, on a simple, strong beat that a small child can stomp and clap to. In the middle each friend gets a short solo turn while the band plays lightly. Then a hush: the drums stop, and for a moment everyone looks up at the stars in quiet wonder. Then the last chorus, the biggest and most joyful part of all, with everybody playing together, and the song ends on one big, held final chord that rings out.',
+  'Glad, warm, festive and a little magical: music a six-year-old wants to dance to and hum afterwards, with one clear, catchy melody that keeps coming back. One steady tempo from start to finish, in a major key. Played by real instruments, bright and full on a small tablet speaker. Not disco and not funk.',
+].join('\n\n');
+const scene = name => ({ name, feelIs: 'Úr senulýsingu', style: 'whatever the model makes of the scene', prompt: HATID_SCENE, lengthMs: 240000, out: `qa/remake/hatid/lag/${name}` });
+Object.assign(PRESETS, { 'hatid-e': scene('hatid-e'), 'hatid-f': scene('hatid-f') });
+
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
 /** A preset by name (or a preset itself) as it is for a version. */
 const baseOf = preset => (typeof preset === 'string' ? PRESETS[preset] : preset);
@@ -481,6 +495,7 @@ const barMs = bpm => (4 * 60000) / bpm;
  */
 export function sectionsOf(preset) {
   const p = baseOf(preset);
+  if (p.prompt) return []; // the model chooses them: sectionsHeard() reads its plan from the answer
   let bar = 0;
   return (p.form ?? STRUCTURE).map(([name, kind, bars, styles = []]) => {
     const startBar = bar;
@@ -512,6 +527,27 @@ export function planOf(preset, version = 1) {
     };
   });
   return { chunks };
+}
+
+/** What a preset asks the API for: its composition plan, or (a `prompt` preset) its description, a length and no singing. */
+export function requestOf(preset, version = 1, seed) {
+  const p = presetOf(preset, version);
+  if (!p.prompt) return { composition_plan: planOf(preset, version), model_id: MODEL, ...(seed === undefined ? {} : { seed }) };
+  if (seed !== undefined) throw new Error('A seed cannot go with a prompt (the API refuses it): leave --seed out.');
+  return { prompt: p.prompt, music_length_ms: p.lengthMs, force_instrumental: true, model_id: MODEL };
+}
+
+/** The sections of the plan the model made from a prompt (music_v2_5: chunks), with their times; one whole-song section when it sent none. */
+export function sectionsHeard(plan, lengthSeconds) {
+  const parts = (plan?.chunks ?? plan?.sections ?? []).filter(part => Number.isFinite(part.duration_ms));
+  if (!parts.length) return [{ name: 'Whole song', kind: 'heard', startBar: null, bars: null, startSec: 0, seconds: lengthSeconds }];
+  let ms = 0;
+  return parts.map((part, i) => {
+    const startMs = ms;
+    ms += part.duration_ms;
+    const name = String(part.section_name ?? part.text ?? '').split('\n')[0].replace(/^\[|\]$/g, '').trim() || `Part ${i + 1}`;
+    return { name, kind: 'heard', startBar: null, bars: null, startSec: startMs / 1000, seconds: part.duration_ms / 1000 };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -602,10 +638,11 @@ async function compose({ preset, version, seed, cache, force }) {
   if (fs.existsSync(mp3) && !force) throw new Error(`${path.relative(ROOT, mp3)} exists: --force makes it again (that costs credits).`);
   const key = keyOf();
   const p = presetOf(preset, version);
-  const plan = planOf(preset, version);
-  const body = { composition_plan: plan, model_id: MODEL, ...(seed === undefined ? {} : { seed }) };
+  const body = requestOf(preset, version, seed);
+  const plan = body.composition_plan;
   const before = await credits(key);
-  console.log(`asking for ${id}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${plan.chunks.length} sections, ${(plan.chunks.reduce((s, c) => s + c.duration_ms, 0) / 1000).toFixed(1)} s (credits used ${before.used} of ${before.limit})`);
+  if (plan) console.log(`asking for ${id}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${plan.chunks.length} sections, ${(plan.chunks.reduce((s, c) => s + c.duration_ms, 0) / 1000).toFixed(1)} s (credits used ${before.used} of ${before.limit})`);
+  else console.log(`asking for ${id}: ${p.name}, from a description of ${p.prompt.length} characters, ${p.lengthMs / 1000} s, instrumental (credits used ${before.used} of ${before.limit})`);
   const started = Date.now();
   const response = await ask(key, `${API}/music/detailed?output_format=${OUTPUT_FORMAT}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const contentType = response.headers.get('content-type') ?? '';
@@ -638,7 +675,7 @@ async function compose({ preset, version, seed, cache, force }) {
   if (plain) fs.copyFileSync(received, mp3);
   else run('ffmpeg', ['-v', 'error', '-y', '-i', received, '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', '-ac', '2', mp3]);
 
-  const sections = sectionsOf(preset);
+  const sections = plan ? sectionsOf(preset) : sectionsHeard(details?.composition_plan, Number(probe(mp3).format.duration));
   const song = {
     name: p.name,
     src: path.basename(mp3),
@@ -649,11 +686,13 @@ async function compose({ preset, version, seed, cache, force }) {
       plannedSeconds: sections.reduce((s, x) => s + x.seconds, 0),
       sections: sections.map(({ name, kind, startBar, bars, startSec, seconds }) => ({ name, kind, startBar, bars, startSec, seconds })),
     },
-    requested: {
-      bpm: p.bpm, key: p.key, chords: { ...p.chords }, bridgeChords: { ...p.bridgeChords },
-    },
+    requested: plan
+      ? { bpm: p.bpm, key: p.key, chords: { ...p.chords }, bridgeChords: { ...p.bridgeChords } }
+      : { bpm: null, key: null, prompt: p.prompt, lengthMs: p.lengthMs, note: 'a prompt preset: the model chose the tempo, the key and the sections; "structure" is the plan it sent back' },
     revision: p.revision ?? null,
-    request: { endpoint: 'POST /v1/music/detailed', model_id: MODEL, output_format: OUTPUT_FORMAT, ...(seed === undefined ? {} : { seed }), composition_plan: plan },
+    request: plan
+      ? { endpoint: 'POST /v1/music/detailed', model_id: MODEL, output_format: OUTPUT_FORMAT, ...(seed === undefined ? {} : { seed }), composition_plan: plan }
+      : { endpoint: 'POST /v1/music/detailed', output_format: OUTPUT_FORMAT, ...body },
     api: {
       songId: headers['song-id'] ?? null,
       headers,
@@ -729,12 +768,12 @@ function measure({ preset, version }) {
     steady: !warning && drift <= 25,
     measured: {
       bpm: tempo.bpm,
-      bpmDifference: Math.round((tempo.bpm - before.requested.bpm) * 1000) / 1000,
+      bpmDifference: typeof before.requested.bpm === 'number' ? Math.round((tempo.bpm - before.requested.bpm) * 1000) / 1000 : null,
       key: measuredKey?.[1] ?? null,
       keyR: measuredKey ? Number(measuredKey[2]) : null,
       keyRunnerUp: measuredKey?.[3] ?? null,
       keyStretchesAgreeing: agreeing,
-      keyMatchesRequest: measuredKey ? sameKey(measuredKey[1], before.requested.key) : null,
+      keyMatchesRequest: measuredKey && before.requested.key ? sameKey(measuredKey[1], before.requested.key) : null,
       tempoSureness: steadier ? Number(steadier[1]) : null,
       lengthSeconds: Math.round(lengthSec * 1000) / 1000,
       plannedSeconds: before.structure.plannedSeconds,
@@ -749,7 +788,7 @@ function measure({ preset, version }) {
   // keep the field order: name, src first, then the measured tempo fields, then the rest
   const { name, src, id: songId, style, bpm, beatOffset, key, tuningCents, driftMs, steady, ...rest } = merged;
   writeJson(json, { name, src, id: songId, style, bpm, beatOffset, key, tuningCents, driftMs, steady, ...rest });
-  console.log(`  ${id}: asked ${before.requested.bpm} bpm / ${before.requested.key}; heard ${tempo.bpm} bpm / ${merged.measured.key}; drift ${drift} ms (${merged.steady ? 'steady' : 'NOT steady'}); ${lengthSec.toFixed(1)} s, lead-in ${merged.measured.leadInSeconds} s`);
+  console.log(`  ${id}: asked ${before.requested.bpm ? `${before.requested.bpm} bpm / ${before.requested.key}` : 'for no tempo or key'}; heard ${tempo.bpm} bpm / ${merged.measured.key}; drift ${drift} ms (${merged.steady ? 'steady' : 'NOT steady'}); ${lengthSec.toFixed(1)} s, lead-in ${merged.measured.leadInSeconds} s`);
   console.log(`  sections (start, grid offset, level): ${sections.map(s => `${s.name} ${s.startSec}s ${s.gridOffsetMs >= 0 ? '+' : ''}${s.gridOffsetMs}ms ${s.levelDb}dB ${s.brightnessHz}Hz`).join(' | ')}`);
 }
 
@@ -859,6 +898,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const has = flag => args.flags.includes(flag);
   if (has('--list')) {
     for (const [name, p] of Object.entries(PRESETS)) {
+      if (p.prompt) { console.log(`${name}: ${p.name}, from a description of ${p.prompt.length} characters, ${p.lengthMs / 1000} s, files in ${p.out}/`); continue; }
       console.log(`${name}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${p.chords.roman} (${p.chords.names.join(' ')})${p.bridgeChords ? `, bridge ${p.bridgeChords.roman} (${p.bridgeChords.names.join(' ')})` : ''}${p.folder ? `, files in ${p.folder}/` : ''}${p.out ? `, files in ${p.out}/` : ''}`);
       console.log(`  ${sectionsOf(name).map(s => `${s.name} ${s.bars} bars from ${s.startSec} s (${s.seconds} s)`).join('; ')}`);
     }
@@ -867,7 +907,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else if (!args.preset) {
     throw new Error(`Name a preset: ${Object.keys(PRESETS).join(', ')} (or --list, --credits)`);
   } else if (has('--plan')) {
-    console.log(JSON.stringify({ composition_plan: planOf(args.preset, args.version), model_id: MODEL }, null, 2));
+    console.log(JSON.stringify(requestOf(args.preset, args.version), null, 2));
   } else if (has('--measure')) {
     measure(args);
   } else if (has('--stems')) {

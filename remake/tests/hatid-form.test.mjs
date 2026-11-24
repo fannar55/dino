@@ -4,9 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { BEATS_PER_BAR, DANCE_BEATS, ENTRIES, FORM, MOTIF, SOLOS, TEMPO, beatsOf, entriesOf, secondsOf } from '../tools/hatid-lag/form.mjs';
-import { PRESETS, filesOf, planOf, sectionsOf } from '../tools/sloedla-music.mjs';
+import { PRESETS, filesOf, planOf, requestOf, sectionsHeard, sectionsOf } from '../tools/sloedla-music.mjs';
 
-const FESTIVAL = Object.keys(PRESETS).filter(name => name.startsWith('hatid-'));
+const ALL = Object.keys(PRESETS).filter(name => name.startsWith('hatid-'));
+const FESTIVAL = ALL.filter(name => PRESETS[name].form); // the four that ask for the form bar by bar
+const SCENE = ALL.filter(name => PRESETS[name].prompt); // the two that only describe the scene
 
 test('the form is the spec\'s six sections in whole bars: 120 bars, four minutes at 120 bpm', () => {
   assert.deepEqual(FORM.map(part => [part.id, part.bars]), [['intro', 24], ['dance', 32], ['solos', 24], ['quiet', 12], ['chorus', 24], ['chord', 4]]);
@@ -52,8 +54,23 @@ test('every festival preset asks for the whole form, no singing, and neither cha
   assert.equal(new Set(FESTIVAL.map(name => PRESETS[name].key)).size, 4, 'each its own key');
 });
 
+test('the two scene presets ask with the same description, for four minutes and no singing, and say nothing of tempo or key', () => {
+  assert.deepEqual(SCENE, ['hatid-e', 'hatid-f']);
+  const [first, second] = SCENE.map(name => requestOf(name));
+  assert.deepEqual(first, second, 'one description, two songs');
+  assert.deepEqual(Object.keys(first).sort(), ['force_instrumental', 'model_id', 'music_length_ms', 'prompt']);
+  assert.equal(first.force_instrumental, true);
+  assert.equal(first.music_length_ms, 240000);
+  assert.ok(/stars/.test(first.prompt) && /final chord/.test(first.prompt) && !/\bBPM\b|\b[A-G] major\b/.test(first.prompt));
+  assert.throws(() => requestOf('hatid-e', 1, 7), /seed/);
+  // the model's own plan gives the sections their times
+  const heard = sectionsHeard({ chunks: [{ text: '[Intro]', duration_ms: 20000 }, { text: '[Dance]\nla la', duration_ms: 60000 }] }, 80);
+  assert.deepEqual(heard.map(part => [part.name, part.startSec, part.seconds]), [['Intro', 0, 20], ['Dance', 20, 60]]);
+  assert.deepEqual(sectionsHeard(null, 240).map(part => [part.startSec, part.seconds]), [[0, 240]]);
+});
+
 test('a festival preset writes under qa/, never under remake/assets', () => {
-  for (const name of FESTIVAL) {
+  for (const name of ALL) {
     const { mp3, json } = filesOf(name);
     for (const file of [mp3, json, filesOf(name).stem('drums')]) {
       const relative = path.relative(path.resolve(import.meta.dirname, '../..'), file).replace(/\\/g, '/');

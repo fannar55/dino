@@ -41,16 +41,21 @@ const STYLE = `:root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; --lin
 
 /**
  * Writes index.html into `folder`. A candidate: { id, letter, feelIs, src (relative to folder), bpm, key, lengthSeconds, downbeatSec }.
+ * One made from the scene's description also has `jumps` [{ name, second }] (the model's own sections, in place of the form's) and
+ * may have `remark` (what the measurement found against it; it is shown all the same).
  * `leftOut`: [{ letter, why }] for candidates that are not on the page.
  */
 export function writePage(folder, candidates, { leftOut = [] } = {}) {
+  const jumpsOf = c => c.jumps ?? startsOf(c).map(part => ({ name: FORM.find(f => f.id === part.id).nameIs, second: part.second }));
   const songs = candidates.map(c => `<section class="song" data-id="${escapeHtml(c.id)}">
   <label><input type="radio" name="pick" value="${escapeHtml(c.id)}"> ${escapeHtml(c.letter)}: ${escapeHtml(c.feelIs)}</label>
-  <p class="note">${Math.round(c.bpm)} slög á mínútu · ${escapeHtml(keyIs(c.key))} · ${clock(c.lengthSeconds)}</p>
+  <p class="note">${Math.round(c.bpm)} slög á mínútu · ${escapeHtml(keyIs(c.key))} · ${clock(c.lengthSeconds)}${c.remark ? ` · ${escapeHtml(c.remark)}` : ''}</p>
   <audio controls preload="metadata" src="${escapeHtml(c.src)}"></audio>
-  <div class="jumps">${startsOf(c).map(part => `<button type="button" data-t="${part.second}">${escapeHtml(FORM.find(f => f.id === part.id).nameIs)}</button>`).join('')}</div>
+  <div class="jumps">${jumpsOf(c).map(jump => `<button type="button" data-t="${jump.second}">${escapeHtml(jump.name)}</button>`).join('')}</div>
 </section>`).join('\n');
-  const out = leftOut.length ? `<p class="note">Ekki með: ${leftOut.map(l => `${escapeHtml(l.letter)} (${escapeHtml(l.why)})`).join('; ')}.</p>` : '';
+  const scenes = candidates.filter(c => c.jumps).map(c => c.letter);
+  const fresh = scenes.length ? `<p class="note">Ný: ${escapeHtml(scenes.join(' og '))}. Þar fékk ElevenLabs bara lýsingu á senunni og réð sjálft hraða, tóntegund, hljóðfærum og köflum.</p>` : '';
+  const out = fresh + (leftOut.length ? `<p class="note">Ekki með: ${leftOut.map(l => `${escapeHtml(l.letter)} (${escapeHtml(l.why)})`).join('; ')}.</p>` : '');
   const html = `<!doctype html>
 <html lang="is">
 <head>
@@ -118,9 +123,25 @@ function versionsOf(dir) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { PRESETS } = await import('../sloedla-music.mjs');
-  const candidates = [], leftOut = [];
+  const candidates = [], scenes = [], leftOut = [];
   for (const [id, preset] of Object.entries(PRESETS).filter(([name]) => name.startsWith('hatid-'))) {
     const letter = id.slice(-1).toUpperCase();
+    if (preset.prompt) {
+      // made from the scene's description: he asked to hear what comes, so it is shown whatever the measurement says
+      const file = versionsOf(path.join(ROOT, preset.out))[0];
+      if (!file) { leftOut.push({ letter, why: 'ekki gert' }); continue; }
+      const s = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!s.measured || !s.vocalCheck) throw new Error(`${path.relative(ROOT, file)} is not checked: run sloedla-music.mjs ${id} --measure and --vocals`);
+      const title = s.api?.song_metadata?.title;
+      const remark = [s.driftMs <= 40 ? null : `takturinn reikar (${Math.round(s.driftMs)} ms)`, s.vocalCheck.words > 0 ? 'rödd heyrist' : null].filter(Boolean).join(', ');
+      const src = path.relative(FOLDER, path.join(path.dirname(file), s.src)).replace(/\\/g, '/');
+      scenes.push({
+        id, letter, feelIs: title ? `${preset.feelIs}: „${title}“` : preset.feelIs, src, bpm: s.measured.bpm, key: s.measured.key, lengthSeconds: s.measured.lengthSeconds, remark,
+        jumps: s.structure.sections.map(part => ({ name: part.name, second: Math.round(part.startSec * 100) / 100 })),
+      });
+      console.log(`${letter} ${scenes.at(-1).feelIs}: ${src}, ${s.measured.bpm} bpm, ${s.measured.key}, drift ${s.driftMs} ms, ${s.measured.lengthSeconds} s, the model's sections ${scenes.at(-1).jumps.map(j => `${j.name} ${j.second}`).join(' / ')}`);
+      continue;
+    }
     // the newest version that passes; an older one stands when a re-make failed
     const files = versionsOf(path.join(ROOT, preset.out));
     if (!files.length) { leftOut.push({ letter, why: 'ekki gert' }); continue; }
@@ -138,5 +159,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     candidates.push({ id, letter, feelIs: preset.feelIs, src, bpm: song.measured.bpm, key: song.measured.key, lengthSeconds: song.measured.lengthSeconds, downbeatSec: song.measured.downbeatSec });
     console.log(`${letter} ${preset.feelIs}: ${src}, ${song.measured.bpm} bpm, ${song.measured.key}, drift ${song.driftMs} ms, ${song.measured.lengthSeconds} s, sections from ${startsOf(candidates.at(-1)).map(p => p.second).join(' / ')} s`);
   }
-  console.log(`wrote ${path.relative(ROOT, writePage(FOLDER, candidates, { leftOut }))} (${candidates.length} candidates${leftOut.length ? `, left out ${leftOut.map(l => l.letter).join(', ')}` : ''})`);
+  console.log(`wrote ${path.relative(ROOT, writePage(FOLDER, [...scenes, ...candidates], { leftOut }))} (${scenes.length + candidates.length} candidates${leftOut.length ? `, left out ${leftOut.map(l => l.letter).join(', ')}` : ''})`);
 }
