@@ -53,8 +53,10 @@ export function writePage(folder, candidates, { leftOut = [] } = {}) {
   <audio controls preload="metadata" src="${escapeHtml(c.src)}"></audio>
   <div class="jumps">${jumpsOf(c).map(jump => `<button type="button" data-t="${jump.second}">${escapeHtml(jump.name)}</button>`).join('')}</div>
 </section>`).join('\n');
-  const scenes = candidates.filter(c => c.jumps).map(c => c.letter);
-  const fresh = scenes.length ? `<p class="note">Ný: ${escapeHtml(scenes.join(' og '))}. Þar fékk ElevenLabs bara lýsingu á senunni og réð sjálft hraða, tóntegund, hljóðfærum og köflum.</p>` : '';
+  const lettersOf = list => list.map(c => c.letter).sort().join(' og ');
+  const scenes = candidates.filter(c => c.jumps && !c.backing), backing = candidates.filter(c => c.backing);
+  const fresh = (backing.length ? `<p class="note">Nýjast: ${escapeHtml(lettersOf(backing))}. Senulýsingin með fyrirmynd að hljómnum og bakröddum án orða.</p>` : '')
+    + (scenes.length ? `<p class="note">${escapeHtml(lettersOf(scenes))}: ElevenLabs fékk bara lýsingu á senunni og réð sjálft hraða, tóntegund, hljóðfærum og köflum.</p>` : '');
   const out = fresh + (leftOut.length ? `<p class="note">Ekki með: ${leftOut.map(l => `${escapeHtml(l.letter)} (${escapeHtml(l.why)})`).join('; ')}.</p>` : '');
   const html = `<!doctype html>
 <html lang="is">
@@ -133,13 +135,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const s = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (!s.measured || !s.vocalCheck) throw new Error(`${path.relative(ROOT, file)} is not checked: run sloedla-music.mjs ${id} --measure and --vocals`);
       const title = s.api?.song_metadata?.title;
-      const remark = [s.driftMs <= 40 ? null : `takturinn reikar (${Math.round(s.driftMs)} ms)`, s.vocalCheck.words > 0 ? 'rödd heyrist' : null].filter(Boolean).join(', ');
+      const remark = [s.driftMs <= 40 ? null : `takturinn reikar (${Math.round(s.driftMs)} ms)`, s.vocalCheck.words > 0 ? (preset.backingVocals ? 'bakraddir' : 'rödd heyrist') : null].filter(Boolean).join(', ');
       const src = path.relative(FOLDER, path.join(path.dirname(file), s.src)).replace(/\\/g, '/');
       scenes.push({
-        id, letter, feelIs: title ? `${preset.feelIs}: „${title}“` : preset.feelIs, src, bpm: s.measured.bpm, key: s.measured.key, lengthSeconds: s.measured.lengthSeconds, remark,
+        backing: preset.backingVocals, id, letter, feelIs: title ? `${preset.feelIs}: „${title}“` : preset.feelIs, src, bpm: s.measured.bpm, key: s.measured.key, lengthSeconds: s.measured.lengthSeconds, remark,
         jumps: s.structure.sections.map(part => ({ name: part.name, second: Math.round(part.startSec * 100) / 100 })),
       });
-      console.log(`${letter} ${scenes.at(-1).feelIs}: ${src}, ${s.measured.bpm} bpm, ${s.measured.key}, drift ${s.driftMs} ms, ${s.measured.lengthSeconds} s, the model's sections ${scenes.at(-1).jumps.map(j => `${j.name} ${j.second}`).join(' / ')}`);
+      const made = scenes.find(c => c.id === id);
+      console.log(`${letter} ${made.feelIs}: ${src}, ${s.measured.bpm} bpm, ${s.measured.key}, drift ${s.driftMs} ms, ${s.measured.lengthSeconds} s, ${s.vocalCheck.words} words heard, the model's sections ${made.jumps.map(j => `${j.name} ${j.second}`).join(' / ')}`);
       continue;
     }
     // the newest version that passes; an older one stands when a re-make failed
@@ -159,5 +162,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     candidates.push({ id, letter, feelIs: preset.feelIs, src, bpm: song.measured.bpm, key: song.measured.key, lengthSeconds: song.measured.lengthSeconds, downbeatSec: song.measured.downbeatSec });
     console.log(`${letter} ${preset.feelIs}: ${src}, ${song.measured.bpm} bpm, ${song.measured.key}, drift ${song.driftMs} ms, ${song.measured.lengthSeconds} s, sections from ${startsOf(candidates.at(-1)).map(p => p.second).join(' / ')} s`);
   }
-  console.log(`wrote ${path.relative(ROOT, writePage(FOLDER, [...scenes, ...candidates], { leftOut }))} (${scenes.length + candidates.length} candidates${leftOut.length ? `, left out ${leftOut.map(l => l.letter).join(', ')}` : ''})`);
+  console.log(`wrote ${path.relative(ROOT, writePage(FOLDER, [...scenes.filter(c => c.backing), ...scenes.filter(c => !c.backing), ...candidates], { leftOut }))} (${scenes.length + candidates.length} candidates${leftOut.length ? `, left out ${leftOut.map(l => l.letter).join(', ')}` : ''})`);
 }

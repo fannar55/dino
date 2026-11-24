@@ -55,8 +55,14 @@ test('every festival preset asks for the whole form, no singing, and neither cha
 });
 
 test('the two scene presets ask with the same description, for four minutes and no singing, and say nothing of tempo or key', () => {
-  assert.deepEqual(SCENE, ['hatid-e', 'hatid-f']);
-  const [first, second] = SCENE.map(name => requestOf(name));
+  assert.deepEqual(SCENE, ['hatid-e', 'hatid-f', 'hatid-g', 'hatid-h']);
+  const [first, second, third, fourth] = SCENE.map(name => requestOf(name));
+  // the two with a model for the sound: the same scene, wordless backing voices allowed, the model song never named
+  assert.deepEqual(third, fourth, 'one description, two songs');
+  assert.equal(third.force_instrumental, false);
+  assert.ok(third.prompt.includes(first.prompt.split('\n\n')[0]) && third.prompt.endsWith(first.prompt.split('\n\n').at(-1)), 'the same scene');
+  assert.ok(/wordless/.test(third.prompt) && /no lead singer/.test(third.prompt) && !/instrumental/.test(third.prompt));
+  assert.ok(!/northern town|dream academy/i.test(third.prompt), 'its air in words, not its name');
   assert.deepEqual(first, second, 'one description, two songs');
   assert.deepEqual(Object.keys(first).sort(), ['force_instrumental', 'model_id', 'music_length_ms', 'prompt']);
   assert.equal(first.force_instrumental, true);

@@ -471,13 +471,27 @@ Object.assign(PRESETS, {
 // The owner heard hatid-a … hatid-d and wanted none of them (2026-11-24): "prófum hvað elven labs kemur með ef þú lýsir senu og
 // biður um 2 lög". So two more candidates from one description of the scene and of the party's course, and nothing else: no
 // tempo, no key, no band, no bars. The model's own plan comes back with each song and says where its sections are.
-const HATID_SCENE = [
+// Then (the same day, on hearing hatid-e and hatid-f): "bætum við að fyrirmynd af lagi er "life in a northern town" ekki söngur en
+// má vera bakraddir eins og í lagi". So hatid-g and hatid-h add what that song sounds like, in words (its band, its drums, its
+// chanted chorus of many voices), never its name, its tune or its words: a new song with that air. `backingVocals` asks without
+// force_instrumental, since that would take the chanting voices too; the description says no lead singer and no words.
+const HATID_MODEL = 'The model for the sound is a mid-1980s British dream-pop folk anthem: warm, nostalgic and uplifting at an easy, swaying mid tempo, with strummed acoustic guitars, a plaintive oboe or cor anglais carrying the tune, soft strings and keyboards, deep booming drums with big tom and timpani hits, and above all a great chanted chorus of many voices singing wordless syllables together (like "hey-oh, ma-ma-ma, hey-ah"), earthy and joyful like a whole village singing. The friends chant like that in the first dance and most of all in the last chorus. There is no lead singer and there are no words or lyrics anywhere in the song: the only voices are these wordless group backing chants.';
+const sceneText = ({ backingVocals = false } = {}) => (backingVocals
+  ? [HATID_SCENE_PARTS[0], HATID_SCENE_PARTS[1].replace('about four minutes long, instrumental.', 'about four minutes long, with no lead singer and no words.'), HATID_MODEL, HATID_SCENE_PARTS[2]]
+  : HATID_SCENE_PARTS).join('\n\n');
+const HATID_SCENE_PARTS = [
   'Music for the grand finale of a children\'s adventure game: the Star Festival. It is night on a mountain top. A six-year-old boy and his dinosaur friends (a small green one, a long-necked giant, a flying one, a swimming one, a crested one who plays a horn, and a huge but kind tyrannosaur) have just lit six stars in the sky, and now they throw the biggest party the forest has ever seen. There is a little stage with coloured lights, fireflies for lamps, a moon wearing a party hat, and everyone dances.',
   'The song is the whole party, about four minutes long, instrumental. It begins with one horn alone, calling a simple rising tune into the night. Then the friends join in one at a time and the music grows step by step. Then everyone dances the first dance together, on a simple, strong beat that a small child can stomp and clap to. In the middle each friend gets a short solo turn while the band plays lightly. Then a hush: the drums stop, and for a moment everyone looks up at the stars in quiet wonder. Then the last chorus, the biggest and most joyful part of all, with everybody playing together, and the song ends on one big, held final chord that rings out.',
   'Glad, warm, festive and a little magical: music a six-year-old wants to dance to and hum afterwards, with one clear, catchy melody that keeps coming back. One steady tempo from start to finish, in a major key. Played by real instruments, bright and full on a small tablet speaker. Not disco and not funk.',
-].join('\n\n');
-const scene = name => ({ name, feelIs: 'Úr senulýsingu', style: 'whatever the model makes of the scene', prompt: HATID_SCENE, lengthMs: 240000, out: `qa/remake/hatid/lag/${name}` });
-Object.assign(PRESETS, { 'hatid-e': scene('hatid-e'), 'hatid-f': scene('hatid-f') });
+];
+const scene = (name, { backingVocals = false } = {}) => ({
+  name, feelIs: backingVocals ? 'Senulýsing með fyrirmynd og bakröddum' : 'Úr senulýsingu', style: 'whatever the model makes of the scene',
+  prompt: sceneText({ backingVocals }), lengthMs: 240000, backingVocals, out: `qa/remake/hatid/lag/${name}`,
+});
+Object.assign(PRESETS, {
+  'hatid-e': scene('hatid-e'), 'hatid-f': scene('hatid-f'),
+  'hatid-g': scene('hatid-g', { backingVocals: true }), 'hatid-h': scene('hatid-h', { backingVocals: true }),
+});
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
 /** A preset by name (or a preset itself) as it is for a version. */
@@ -534,7 +548,7 @@ export function requestOf(preset, version = 1, seed) {
   const p = presetOf(preset, version);
   if (!p.prompt) return { composition_plan: planOf(preset, version), model_id: MODEL, ...(seed === undefined ? {} : { seed }) };
   if (seed !== undefined) throw new Error('A seed cannot go with a prompt (the API refuses it): leave --seed out.');
-  return { prompt: p.prompt, music_length_ms: p.lengthMs, force_instrumental: true, model_id: MODEL };
+  return { prompt: p.prompt, music_length_ms: p.lengthMs, force_instrumental: !p.backingVocals, model_id: MODEL };
 }
 
 /** The sections of the plan the model made from a prompt (music_v2_5: chunks), with their times; one whole-song section when it sent none. */
@@ -642,7 +656,7 @@ async function compose({ preset, version, seed, cache, force }) {
   const plan = body.composition_plan;
   const before = await credits(key);
   if (plan) console.log(`asking for ${id}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${plan.chunks.length} sections, ${(plan.chunks.reduce((s, c) => s + c.duration_ms, 0) / 1000).toFixed(1)} s (credits used ${before.used} of ${before.limit})`);
-  else console.log(`asking for ${id}: ${p.name}, from a description of ${p.prompt.length} characters, ${p.lengthMs / 1000} s, instrumental (credits used ${before.used} of ${before.limit})`);
+  else console.log(`asking for ${id}: ${p.name}, from a description of ${p.prompt.length} characters, ${p.lengthMs / 1000} s, ${p.backingVocals ? 'wordless backing voices allowed' : 'instrumental'} (credits used ${before.used} of ${before.limit})`);
   const started = Date.now();
   const response = await ask(key, `${API}/music/detailed?output_format=${OUTPUT_FORMAT}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const contentType = response.headers.get('content-type') ?? '';
