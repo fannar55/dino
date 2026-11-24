@@ -1,6 +1,10 @@
-// Stjörnuhátíðin's song (spec 2026-11-21-stjornuhatidin-design.md §5): the one source of truth for its form. The candidates the
-// music tool composes (presets hatid-a … hatid-d in tools/sloedla-music.mjs), the listening page (page.mjs) and everything built on
-// the picked song later read their bars from here.
+// Stjörnuhátíðin's song (spec 2026-11-21-stjornuhatidin-design.md §5): the shared words of its form (ENTRIES, SOUNDS, SOLOS, CALLS,
+// the section ids and their Icelandic names) and, below them, the bars that were ASKED FOR in candidates A-D (presets hatid-a …
+// hatid-d in tools/sloedla-music.mjs, and the first listening page, page.mjs).
+// The owner picked H (2026-11-24), which was composed from a description of the scene with its own tempo and form, and the scene
+// bends to it. Since then the beat map, assets/audio/hatid/song/song.json (as chapters/hatid-song.js, read through
+// chapters/hatid-score.js), is the only source of truth for where anything is in the song: nothing downstream may read bars, beats
+// or the tempo from this file. FORM's bars, TEMPO, TAIL_SECONDS, MOTIF's degrees and the helpers below are the request for A-D.
 //   intro   instruments enter one at a time: Slóeðla's horn alone for four bars, then one friend every three bars, a two-bar build
 //   dance   a simple strong beat; a one-bar call ("up", "stomp", "spin", "hop") opens each eight-bar phrase
 //   solos   six equal four-bar slots, one a friend
@@ -12,11 +16,12 @@
 export const BEATS_PER_BAR = 4;
 /** A dance beat (a step, a stomp) is two beats of the song. */
 export const DANCE_BEATS = 2;
-/** The tempo a candidate may have: four minutes or so, never chapter 5's 125. */
+/** The tempo candidates A-D were asked for (the request, not the song: H is 84 bpm, song.json says it). */
 export const TEMPO = { from: 108, to: 122 };
 /** How long the final chord rings on after the last bar. */
 export const TAIL_SECONDS = 2.5;
 
+/** The sections' ids and names are the song's; their bars are what A-D were asked for (H's are in song.json). */
 export const FORM = [
   { id: 'intro', nameIs: 'Inngangur', bars: 24 },
   { id: 'dance', nameIs: 'Fyrsti dans', bars: 32 },
