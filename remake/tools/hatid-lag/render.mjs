@@ -20,7 +20,7 @@ import { lufs, limit, kLoud } from './lib/master.mjs';
 import { track, median } from './lib/pitch.mjs';
 import { mono } from './lib/analyze.mjs';
 import { measureRhythm, measureKey, keyNotes } from '../theme-tempo.mjs';
-import { SECTIONS, END_BEAT, BAR, part, isIn, entriesOf, solosOf, callsOf, eventsOf, roarsOf, gainsOf, PATTERN } from './lib/plan.mjs';
+import { SECTIONS, END_BEAT, BAR, H_RUNS, SOLO_FROM_BAR, SOLO_TO_BAR, SOLO_BARS, part, isIn, entriesOf, solosOf, callsOf, eventsOf, roarsOf, gainsOf, PATTERN } from './lib/plan.mjs';
 import { STEMS, noteName } from './measure.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -45,16 +45,54 @@ const BPM = H_SONG.bpm;
 const BEAT_S = 60 / BPM;
 const BEAT_OFFSET = round(H_SONG.beatOffset + DOWNBEAT * BEAT_S, 4); // the song's beat 0, in seconds of the file
 const at = beat => Math.round((BEAT_OFFSET + beat * BEAT_S) * SR); // the sample of a song beat
-const [songL, songR] = decode(path.join(H, 'song.mp3'), 2);
-const n = songL.length;
+const [origL, origR] = decode(path.join(H, 'song.mp3'), 2);
+const nOrig = origL.length;
+// The owner's "Lengja sólóin" (2026-11-24): the one place H's timeline is re-cut. Its solo passage (bars 34-42) is played as
+// H_RUNS (plan.mjs, chosen by splice.mjs), the rest of H before and after as it is. The song and every stem are cut at the same
+// samples with the same 12 ms crossfade before each join, so song + (gain - 1) x stem still holds on the new timeline.
+const barAt = b => Math.round((BEAT_OFFSET + b * BAR * BEAT_S) * SR); // H's bar b, in H's own samples
+const SEGMENTS = [[0, barAt(SOLO_FROM_BAR)], ...H_RUNS.map(([a, b]) => [barAt(a), barAt(b + 1)]), [barAt(SOLO_TO_BAR + 1), nOrig]];
+const FADE = Math.round(0.012 * SR);
+const n = SEGMENTS.reduce((sum, [a, b]) => sum + b - a, 0);
+const JOINS = []; // where each join is in the new timeline (samples), with the bars it joins
+function recut(x) {
+  const out = new Float32Array(n);
+  let p = 0;
+  SEGMENTS.forEach(([a, b], i) => {
+    out.set(x.subarray(a, b), p);
+    if (i > 0 && SEGMENTS[i - 1][1] !== a) {
+      for (let k = 0; k < FADE; k++) {
+        const w = (k + 0.5) / FADE;
+        out[p - FADE + k] = x[SEGMENTS[i - 1][1] - FADE + k] * (1 - w) + x[a - FADE + k] * w;
+      }
+    }
+    p += b - a;
+  });
+  return out;
+}
+{
+  let p = 0;
+  SEGMENTS.forEach(([a, b], i) => {
+    if (i > 0 && SEGMENTS[i - 1][1] !== a) JOINS.push({ sample: p, sec: round(p / SR, 3), beat: round((p / SR - BEAT_OFFSET) / BEAT_S, 4) });
+    p += b - a;
+  });
+}
+const songL = recut(origL), songR = recut(origR);
 const stem = {};
 for (const s of STEMS) {
   const [L, R] = decode(path.join(H, `${s}.mp3`), 2);
-  const a = { L: new Float32Array(n), R: new Float32Array(n), n };
-  a.L.set(L.subarray(STEM_LAG, STEM_LAG + n));
-  a.R.set(R.subarray(STEM_LAG, STEM_LAG + n));
-  stem[s] = a;
+  const pad = x => { const y = new Float32Array(nOrig); y.set(x.subarray(STEM_LAG, STEM_LAG + nOrig)); return y; };
+  stem[s] = { L: recut(pad(L)), R: recut(pad(R)), n };
 }
+// the bar lines after the joins stay on the grid: how far each new bar line from 34 on is from where the fixed tempo puts it
+const gridErrorSamples = Math.max(...Array.from({ length: SOLO_BARS + 2 }, (_, k) => {
+  let p = barAt(SOLO_FROM_BAR), bar = SOLO_FROM_BAR, rest = k;
+  for (const [a, b] of H_RUNS) { const len = b - a + 1; if (rest < len) { p += barAt(a + rest) - barAt(a); rest = -1; break; } p += barAt(b + 1) - barAt(a); rest -= len; }
+  if (rest >= 0) p += barAt(SOLO_TO_BAR + 1 + rest) - barAt(SOLO_TO_BAR + 1);
+  bar += k;
+  return Math.abs(p - at(bar * BAR));
+}));
+say(`H re-cut: solo bars played as ${H_RUNS.map(([a, b]) => `${a}-${b}`).join(', ')}; joins at ${JOINS.map(j => `${j.sec} s (beat ${j.beat})`).join(', ')}; new bar lines at most ${gridErrorSamples} samples off the grid`);
 say(`H: ${(n / SR).toFixed(3)} s, ${BPM} bpm, beat 0 at ${BEAT_OFFSET} s, ${END_BEAT} beats to the last bar line (${((at(END_BEAT)) / SR).toFixed(2)} s)`);
 
 const rmsOf = (x, a, b) => {
@@ -412,12 +450,21 @@ const render = {
   laid: laid.map(({ who, kind, beat, solo, midi }) => ({ who, kind, beat, ...(solo ? { solo } : {}), ...(midi !== undefined ? { note: noteName(midi) } : {}) })),
   roars,
   sources: SOURCES,
+  cut: {
+    about: "the solo passage, H's bars " + SOLO_FROM_BAR + "-" + SOLO_TO_BAR + ", played as these runs of H's bars; every bar before and after is H's own, in order",
+    hRuns: H_RUNS,
+    joins: JOINS.map(({ sec, beat }) => ({ sec, beat })),
+    addedBeats: (SOLO_BARS - (SOLO_TO_BAR - SOLO_FROM_BAR + 1)) * BAR,
+    gridErrorSamples,
+    // where each section starts in the untouched H (song.mp3), for the page's player of the original
+    sectionsInH: SECTIONS.map(sec => ({ id: sec.id, sec: round(BEAT_OFFSET + (sec.startBeat < (SOLO_FROM_BAR + SOLO_BARS) * BAR ? sec.startBeat : sec.startBeat - (SOLO_BARS - (SOLO_TO_BAR - SOLO_FROM_BAR + 1)) * BAR) * BEAT_S, 2) })),
+  },
 };
 fs.writeFileSync(path.join(H, 'render.json'), JSON.stringify(render, null, 1) + '\n');
 say('render.json');
 
 // ---------------------------------------------------------------- checks
-const untouched = { L: songL, R: songR };
+const untouched = { L: songL, R: songR }; // H as re-cut, before any gain
 const kSec = (st, id) => round(kLoud(st.L, st.R, ...span(id)), 1);
 const parts = {};
 for (const s of SECTIONS) {
@@ -483,7 +530,7 @@ const quietDrums = round(db(rmsOf(Float32Array.from({ length: span('quiet')[1] -
 
 const checks = {
   layout: SECTIONS.map(s => ({ id: s.id, nameIs: s.nameIs, firstBar: s.startBeat / BAR, bars: s.beats / BAR, startSec: round(BEAT_OFFSET + s.startBeat * BEAT_S, 2), seconds: round(s.beats * BEAT_S, 2) })),
-  grid: { bpm: BPM, beatOffset: BEAT_OFFSET, stemLagSamples: STEM_LAG, downbeat: `H's grid beat ${DOWNBEAT} mod 4`, mixBpm: round(rhythm.bpm, 3), mixGridShiftMs: gridShiftMs, driftMs, driftPerStretch: rhythm.driftMs, peakToNoise: round(rhythm.peakToNoise, 2) },
+  grid: { bpm: BPM, beatOffset: BEAT_OFFSET, stemLagSamples: STEM_LAG, downbeat: `H's grid beat ${DOWNBEAT} mod 4`, mixBpm: round(rhythm.bpm, 3), mixGridShiftMs: gridShiftMs, driftMs, driftPerStretch: rhythm.driftMs, peakToNoise: round(rhythm.peakToNoise, 2), cutJoins: JOINS.map(({ sec, beat }) => ({ sec, beat })), cutGridErrorSamples: gridErrorSamples },
   key: { name: key.name, r: round(key.r, 3), runnerUp: key.runnerUp.name, agreeing: key.agreeing, tuningCents: round(key.tuningCents, 1) },
   loudness: { mix: loud, sectionsLufs: sections, sectionsBeforeLift: before, chorusOverDance: round(sections.chorus - sections.dance, 2), liftDb: { chorus: round(up, 2), dance: round(-down, 2) }, lastSecondDb, masterGainDb: round(db(gain), 2), limiterCeilingDb: round(ceiling, 2), limiterMostDb: round(db(mix.lim.most), 2), bars },
   stemsKept: keptLoud,

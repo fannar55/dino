@@ -1,7 +1,8 @@
 // The festival song's plan on H's own bars (task 2 rulings, 2026-11-24): where the six sections fall, who enters when, the solos,
 // the calls, every sound laid on top and every gain the stems get over time. Pure: render.mjs measures H and lays the sound; this
 // file only says what goes where. Beats are the SONG's (beat 0 is the first bar line after the file's strummed lead-in; render.mjs
-// says where that is in seconds). Everything is whole bars of four beats.
+// says where that is in seconds). Everything is whole bars of four beats. Bars are the song's: up to the solos they are H's own;
+// the solo section is H's bars 34-42 re-cut to 18 (H_RUNS), and from the quiet part on, song bar b is H's bar b - 9.
 import { SOLOS, CALLS, ENTRIES, SOUNDS, FORM } from '../form.mjs';
 
 export const BAR = 4;
@@ -12,19 +13,29 @@ const NAME_IS = Object.fromEntries(FORM.map(part => [part.id, part.nameIs]));
  *   intro   bars 0-17   the strummed D drone and the "other" stem's slow line alone (bars 0-6), then bass, piano and hand drums
  *                       (from bar 7, 21.8 s), the drums' build in bar 17; the model's "Intro" + "Arrival of the Friends"
  *   dance   bars 18-33  full drums and the wordless chant from bar 18 (53.2 s): four 4-bar phrases (the chant changes at 26)
- *   solos   bars 34-42  from the phrase after the dance's (34; the chant's last faint bar) to the band's stop: six slots of 6 beats
- *   quiet   bars 43-53  the band stops on bar 43's first beat; no drums, no bass until a soft swell in bars 50-51, near silence 52-53
- *   chorus  bars 54-77  everything back at 156.1 s with the chant (to bar 73) and the band's outro (74-77)
- *   chord   bars 78-81  the drums stop on the final chord (224.7 s), struck again at bar 81; it rings on after the last bar
+ *   solos   bars 34-51  H's bars 34-42 (from the phrase after the dance's, 34, the chant's last faint bar, to the band's stop),
+ *                       lengthened to 18 bars on the owner's "Lengja sólóin": H's bars 34-39, 36-41, 37-42 (H_RUNS), six slots of 12
+ *   quiet   bars 52-62  (H's 43-53) the band stops on the first beat; no drums, no bass until a soft swell, near silence at the end
+ *   chorus  bars 63-86  (H's 54-77) everything back with the chant (to H's bar 73) and the band's outro (H's 74-77)
+ *   chord   bars 87-90  (H's 78-81) the drums stop on the final chord, struck again on its last bar; it rings on after it
  */
 export const SECTIONS_BARS = [
   { id: 'intro', bars: 18 },
   { id: 'dance', bars: 16 },
-  { id: 'solos', bars: 9 },
+  { id: 'solos', bars: 18 },
   { id: 'quiet', bars: 11 },
   { id: 'chorus', bars: 24 },
   { id: 'chord', bars: 4 },
 ];
+
+/**
+ * The solo passage as played: runs of H's bars, chosen by splice.mjs (qa/.../splice.json): of 193 ways to make 18 bars of H's 34-42
+ * with at most two jumps, the joins of this one are among the smoothest measured (39 into 36: harmony 0.03, level -0.3 dB, flux
+ * 0.86 of H's own bar lines; 41 into 37: 0.17, 0 dB, 0.91), and both fall where one solo hands over to the next (song bars 40, 46).
+ */
+export const H_RUNS = [[34, 39], [36, 41], [37, 42]];
+export const SOLO_FROM_BAR = 34, SOLO_TO_BAR = 42;
+export const SOLO_BARS = H_RUNS.reduce((sum, [a, b]) => sum + b - a + 1, 0);
 
 export function sectionsOf(list = SECTIONS_BARS) {
   let beat = 0;
@@ -76,7 +87,7 @@ export const PATTERN = {
 };
 /** In her own solo slot each friend plays more: these places of the slot's beats (counted from its start). */
 const SOLO_PATTERN = {
-  gramedla: { every: 1 }, kambedla: { every: 1 }, uggedla: { every: 2 }, flugedla: { every: 1 }, thorsedla: { every: 3 },
+  gramedla: { every: 1 }, kambedla: { every: 1 }, uggedla: { every: 2 }, flugedla: { every: 1 }, thorsedla: { every: 4 },
 };
 
 /**
@@ -131,6 +142,18 @@ export function gainsOf() {
   for (const stem of ['guitar', 'piano', 'other']) step(stem, solos.startBeat, solosEnd, 10 ** (-3 / 20), 0.5);
   step('drums', solos.startBeat, solosEnd, 10 ** (-2 / 20), 0.5);
   step('vocals', solos.startBeat, solosEnd, 0, 0.5);
+  // the passage's repeats lean the band a little another way, so they sound as a continuation (stem gains only): the second run
+  // the guitar forward and the piano back, the third the other way round (song bars 40-45 and 46-51; H_RUNS)
+  let runBeat = solos.startBeat;
+  H_RUNS.forEach(([a, b], i) => {
+    const beats = (b - a + 1) * BAR;
+    if (i > 0) {
+      const lean = i % 2 ? 1.5 : -1.5;
+      step('guitar', runBeat, runBeat + beats, 10 ** (lean / 20), 0.25);
+      step('piano', runBeat, runBeat + beats, 10 ** (-lean / 20), 0.25);
+    }
+    runBeat += beats;
+  });
   const her = solosOf().find(solo => solo.who === 'sloedla');
   step('other', her.startBeat, her.startBeat + her.beats, 10 ** (6 / 20), 0.25);
   for (const stem of ['guitar', 'piano']) step(stem, her.startBeat, her.startBeat + her.beats, 10 ** (-5 / 20), 0.25);
