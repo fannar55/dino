@@ -90,6 +90,8 @@ export function eventsOf(entries) {
   const entry = who => entries.find(e => e.who === who).beat;
   const playing = [[0, part('solos').startBeat], [part('chorus').startBeat, part('chord').startBeat]];
   for (const [who, { kind, places, everyOther }] of Object.entries(PATTERN)) {
+    // she comes in with her sound on her entry beat (the bar's first), whatever her pattern's places
+    if (!places.includes(0) || everyOther === 1) out.push({ who, kind, beat: entry(who), entry: true });
     for (const [from, to] of playing) {
       for (let beat = Math.max(from, entry(who)); beat < to; beat++) {
         const bar = Math.floor(beat / BAR), place = beat % BAR;

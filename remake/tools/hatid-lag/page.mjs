@@ -22,7 +22,7 @@ const clock = seconds => `${Math.floor(seconds / 60)}:${String(Math.round(second
 /** Where each section starts in a candidate (seconds): its first downbeat plus the section's beats at the measured tempo. */
 export const startsOf = ({ bpm, downbeatSec = 0 }) => beatsOf().map(part => ({ ...part, second: Math.max(0, Math.round((downbeatSec + (part.startBeat * 60) / bpm) * 100) / 100) }));
 
-const STYLE = `:root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; --line: #e3d3b4; --mark: #f3e2bd; }
+export const STYLE = `:root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; --line: #e3d3b4; --mark: #f3e2bd; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.45 Nunito, system-ui, sans-serif; }
   main { max-width: 720px; margin: 0 auto; padding: 24px 16px 110px; }
   h1 { margin: 0 0 4px; font-size: 28px; }

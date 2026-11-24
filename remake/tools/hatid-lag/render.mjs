@@ -70,12 +70,13 @@ const otherM = monoOf(stem.other), drumsM = monoOf(stem.drums), bassM = monoOf(s
 const beatRms = x => Array.from({ length: END_BEAT }, (_, k) => db(rmsOf(x, at(k), at(k + 1))));
 const otherBeats = beatRms(otherM);
 const otherTop = Math.max(...otherBeats);
-// a horn phrase starts where the "other" stem (the oboe / cor anglais line, with the soft strings) rises 5 dB over the two beats
-// before and is within 18 dB of its loudest; and on beat 0, where her opening is already sounding
-const hornBeats = [0, ...otherBeats.map((v, k) => (k >= 2 && v - Math.max(otherBeats[k - 1], otherBeats[k - 2]) >= 5 && v >= otherTop - 18 ? k : -1)).filter(k => k > 0)];
-// the band's accents: the drums' attack on a beat (broadband RMS just after against just before) at least 2.2 times the median
-// attack of its section and the biggest within a beat either side; none in the quiet part (its drums are muted)
+// a horn phrase starts where the "other" stem (the oboe / cor anglais line, with the soft strings) rises 4 dB over the two beats
+// before and is within 20 dB of its loudest, at most one a bar; and on beat 0, where her opening is already sounding
+const hornBeats = [0, ...otherBeats.map((v, k) => (k >= 2 && v - Math.max(otherBeats[k - 1], otherBeats[k - 2]) >= 4 && v >= otherTop - 20 ? k : -1)).filter(k => k > 0)].filter((k, i, all) => i === 0 || k - all[i - 1] >= BAR);
+// the band's accents: the drums' attack on a beat (broadband RMS just after against just before) at least HIT times the median
+// attack of its section and the biggest within two beats either side; none in the quiet part (its drums are muted)
 const attackOf = k => Math.max(0, rmsOf(drumsM, at(k) - 0.01 * SR, at(k) + 0.04 * SR) - rmsOf(drumsM, at(k) - 0.15 * SR, at(k) - 0.01 * SR));
+const HIT = 1.6; // times the section's median attack
 const attacks = Array.from({ length: END_BEAT }, (_, k) => attackOf(k));
 const hitBeats = [];
 for (const section of SECTIONS) {
@@ -85,7 +86,7 @@ for (const section of SECTIONS) {
   if (!mid) continue;
   own.forEach((v, i) => {
     const k = section.startBeat + i;
-    if (v >= 2.2 * mid && v >= (attacks[k - 1] ?? 0) && v > (attacks[k + 1] ?? 0)) hitBeats.push(k);
+    if (v >= HIT * mid && [-2, -1].every(d => v >= (attacks[k + d] ?? 0)) && [1, 2].every(d => v > (attacks[k + d] ?? 0))) hitBeats.push(k);
   });
 }
 // the bass note on the first beat of every bar (for Þórseðla's deep tone), MIDI, or null where the bass is silent
@@ -160,7 +161,7 @@ const attackSample = x => {
 };
 const SOURCES = {
   stomp: 'remake/assets/audio/gramedla3d/hljod/thump.mp3',
-  plate: 'remake/assets/audio/kafli6/hljod/stoneRock-1.mp3',
+  plate: 'remake/assets/audio/kafli6/hljod/hoofStone-1.mp3',
   tail: 'remake/assets/audio/tjorn3d/hljod/fish.mp3',
   deep: 'remake/assets/audio/kafli5/hljod/grazers-3.mp3',
   roar: 'remake/assets/audio/kafli2/gramedla-roar.mp3',
@@ -207,7 +208,14 @@ const arrival = [at(7 * BAR), at(part('dance').startBeat)];
 const bandArrival = kLoud(base.L, base.R, ...arrival);
 const selfLoud = x => kLoud(x, x, 0, x.length) - 3.01; // a mono sound's loudness as both channels at half
 const level = {};
-for (const k of Object.keys(UNDER)) level[k] = 10 ** ((bandArrival + UNDER[k] - selfLoud(k === 'deep' ? deepFor(50).y : sound[k])) / 20);
+// no sound's own peak over PEAK_CAP (each is normalised to a peak of 1): a sharp click that is loud enough by loudness would
+// otherwise only be squashed by the limiter; where the cap bites, the sound is quieter than aimed (checks.json levelsUnderBand)
+const PEAK_CAP = 10 ** (-6 / 20);
+const aimed = {};
+for (const k of Object.keys(UNDER)) {
+  aimed[k] = 10 ** ((bandArrival + UNDER[k] - selfLoud(k === 'deep' ? deepFor(50).y : sound[k])) / 20);
+  level[k] = Math.min(aimed[k], PEAK_CAP);
+}
 const events = eventsOf(entries);
 const friends = stereo(n);
 const laid = [];
@@ -220,10 +228,14 @@ for (const e of events) {
 }
 // Grameðla's roars in the last chorus, each 4 LU under the band in its bar
 const chorusSpan = [at(part('chorus').startBeat), at(part('chorus').startBeat + part('chorus').beats)];
-const roarGain = 10 ** ((kLoud(base.L, base.R, ...chorusSpan) - 4 - selfLoud(sound.roar)) / 20);
+const roarAimed = 10 ** ((kLoud(base.L, base.R, ...chorusSpan) - 4 - selfLoud(sound.roar)) / 20);
+const roarGain = Math.min(roarAimed, PEAK_CAP);
 const roars = roarsOf();
 for (const beat of roars) addMono(friends, sound.roar, at(beat) - attackSample(sound.roar), roarGain, PAN.roar);
-say(`laid ${laid.length} friends' sounds and ${roars.length} roars; levels (dB) ${Object.entries(level).map(([k, g]) => `${k} ${db(g).toFixed(1)}`).join(', ')}, roar ${db(roarGain).toFixed(1)}`);
+// their peaks held under the band's: a look-ahead limiter on the friends alone (chapter 5 did so for its animals), so that a
+// stone's click or the roar never turns the whole song down in the master's limiter
+const friendsLim = limit(friends.L, friends.R, PEAK_CAP);
+say(`laid ${laid.length} friends' sounds and ${roars.length} roars; levels (dB) ${Object.entries(level).map(([k, g]) => `${k} ${db(g).toFixed(1)}`).join(', ')}, roar ${db(roarGain).toFixed(1)}; their limiter at most ${db(friendsLim.most).toFixed(1)} dB`);
 
 // ---------------------------------------------------------------- the whole: H with its stems' gains, the friends, the chorus lifted
 const sum = (...parts) => {
@@ -482,7 +494,9 @@ const checks = {
   callGaps,
   quietDrumsDbfs: quietDrums,
   hornBeats, hitBeats, bassNotes: bassNotes.map(m => (m === null ? null : noteName(m))),
+  friendsLimiterMostDb: round(db(friendsLim.most), 2),
   levelsDb: Object.fromEntries(Object.entries(level).map(([k, g]) => [k, round(db(g), 2)])), roarDb: round(db(roarGain), 2),
+  levelsUnderBandLu: { ...Object.fromEntries(Object.keys(UNDER).map(k => [k, round(UNDER[k] + db(level[k] / aimed[k]), 1)])), roarInChorus: round(-4 + db(roarGain / roarAimed), 1) },
   counts: { laid: laid.length, cues: Object.fromEntries([...new Set(cues.map(c => c.kind))].map(k => [k, cues.filter(c => c.kind === k).length])) },
 };
 fs.writeFileSync(path.join(H, 'checks.json'), JSON.stringify(checks, null, 1) + '\n');

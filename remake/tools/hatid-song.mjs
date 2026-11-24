@@ -83,7 +83,7 @@ export function creditsOf(render) {
     '| Sound | File | Source | Licence |',
     '|---|---|---|---|',
     `| Grameðla's stomp | \`${render.sources.stomp}\` | "giant footsteps.mp3" by Beefmaster69, https://freesound.org/s/531725/ | CC0 1.0 |`,
-    `| Kambeðla's plates | \`${render.sources.plate}\` | "stone_slab1.wav" by NistuGgner, https://freesound.org/people/NistuGgner/sounds/700535/ | CC0 1.0 |`,
+    `| Kambeðla's plates | \`${render.sources.plate}\` | "Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav" by Nox_Sound, https://freesound.org/people/Nox_Sound/sounds/558477/ (a stone struck) | CC0 1.0 |`,
     `| Uggeðla's tail | \`${render.sources.tail}\` | "Fish Jumping Splash 2.wav" by paulprit, https://freesound.org/people/paulprit/sounds/507091/ | CC0 1.0 |`,
     `| Þórseðla's deep tone | \`${render.sources.deep}\` | "z-moo01.wav" by Zozzy, https://freesound.org/people/Zozzy/sounds/59245/ | CC0 1.0 |`,
     `| Grameðla's roar | \`${render.sources.roar}\` | Sound Effect: Dinosaur creature moan. Download from https://tunetank.com | free for non-commercial use with credit |`,
