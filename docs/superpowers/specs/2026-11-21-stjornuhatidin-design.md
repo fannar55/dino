@@ -198,8 +198,10 @@ lagið á undan var mikið fjör lag. Aðlögum senu að þessu lagi.“ Þar se
 - **Byrjun lagsins er Slóeðlu.** H byrjar ekki á lúðri einum heldur á kassagítar með mjúkri línu ofan á (A, F♯, E, D, niður á
   við). Sú byrjun er hennar. Tónar stjarnanna sex eru sex hækkandi tónar í tóntegund lagsins: D, E, F♯, A, H, D.
 - **Kaflarnir sex halda nöfnum sínum en lengdirnar eru lagsins** (mældar í blöndunni): inngangur 51 s, fyrsti dans 46 s,
-  sólóin 26 s (4,3 s á hvern vin í stað 8), kyrra stundin 31 s, síðasta viðlagið 69 s og lokahljómur 15 s. Taktkortið segir
-  nákvæmlega til, og taflan í 3. kafla víkur fyrir því.
+  sólóin 51 s, kyrra stundin 31 s, síðasta viðlagið 69 s og lokahljómur 15 s, alls 4:26. Taktkortið segir nákvæmlega til, og
+  taflan í 3. kafla víkur fyrir því.
+- **Sólókaflinn er lengdur** („Lengja sólóin“, orð eigandans sama dag): sólóhluti H er of stuttur fyrir sex vini (4,3 s á
+  hvern), svo hann er spilaður tvisvar. Hver vinur fær þrjá takta, um 8½ sekúndu. Annars er engu í laginu raðað upp á nýtt.
 - **Laginu er skipt í rásir** (trommur, bassi, gítar, píanó, raddir, annað) svo blandan geti stýrt hverri fyrir sig: þaggað
   trommur í kyrru stundinni, gert eyður fyrir köllin og lyft síðasta viðlaginu. Leikurinn spilar eina blandaða skrá.
 - **Veislan er rólegri en lýst er í 6. kafla:** vagg og hægur dans í næturkyrrð frekar en fjör. Hvað það þýðir fyrir hverja
