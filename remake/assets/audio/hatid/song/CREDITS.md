@@ -6,8 +6,10 @@
 
 Composed for this game by ElevenLabs Music (`tools/sloedla-music.mjs`, preset `hatid-h`, from a description of the scene; the
 owner's pick of 2026-11-24), and split into its six stems by ElevenLabs' stem separator. The game plays it as composed, bar for
-bar: only its stems' levels change over time (the calls' gaps, the lighter solos, the quiet part without drums, the last chorus
-lifted), and the friends' sounds below are laid on top. Its voices are the song's own wordless chant.
+bar, but for its solo passage (bars 34-42), played twice on the owner's word, as its bars 34-39, 36-41, 37-42,
+so each friend's solo is three bars long. Besides that only its stems' levels change over time (the calls' gaps, the lighter
+solos, the quiet part without drums, the last chorus lifted), and the friends' sounds below are laid on top. Its voices are the
+song's own wordless chant.
 
 ## The friends' sounds
 

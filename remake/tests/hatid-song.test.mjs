@@ -28,7 +28,7 @@ test('the beat map is the form: six sections end to end on bar lines, and the so
   assert.equal(END_BEAT, endBeat);
   assert.ok(SONG.song.tail > 0.5, 'the last chord rings after the last bar');
   assert.ok(Math.abs(SONG.song.seconds - (SONG.beatOffset + endBeat * 60 / SONG.bpm + SONG.song.tail)) < 0.05);
-  assert.ok(SONG.song.seconds > 225 && SONG.song.seconds < 250, 'about four minutes');
+  assert.ok(SONG.song.seconds > 250 && SONG.song.seconds < 280, 'about four and a half minutes, the solos lengthened');
 });
 
 test('one tempo, one key: the file drifts under 20 ms from its grid, and it is not chapter 5\'s song', () => {
@@ -80,6 +80,9 @@ test('six equal solos of whole beats, back to back, filling the solo section, in
   assert.ok(Number.isInteger(solos[0].beats) && solos.every(solo => solo.beats === solos[0].beats), 'equal');
   solos.reduce((at, solo) => { assert.equal(solo.startBeat, at); return at + solo.beats; }, startBeat);
   assert.equal(solos.length * solos[0].beats, beats);
+  // the owner's "Lengja sólóin": six solos of three bars, an 18-bar solo section
+  assert.equal(solos[0].beats, 12);
+  assert.equal(beats, 18 * SONG.beatsPerBar);
 });
 
 test('eight calls: the four moves in the first dance and again in the last chorus, each a bar\'s gap, done on the next bar', () => {

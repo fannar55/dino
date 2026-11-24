@@ -7,13 +7,13 @@ export const SONG = {
   "beatOffset": 1.8168,
   "beatsPerBar": 4,
   "danceBeats": 2,
-  "driftMs": 10.1,
+  "driftMs": 9.7,
   "key": [
-    587.63,
-    659.59,
-    740.37,
-    880.45,
-    988.27
+    587.64,
+    659.6,
+    740.38,
+    880.46,
+    988.28
   ],
   "keyName": {
     "root": "D",
@@ -30,104 +30,113 @@ export const SONG = {
   ],
   "song": {
     "src": "hatid.mp3",
-    "seconds": 240.039,
-    "endBeat": 328,
+    "seconds": 265.753,
+    "endBeat": 364,
     "tail": 3.942,
     "loudness": {
       "lufs": -16,
-      "truePeak": -1.8,
-      "lra": 10.3,
+      "truePeak": -1.6,
+      "lra": 10.1,
       "sections": {
-        "intro": -18.52,
-        "dance": -16.09,
-        "solos": -17.26,
-        "quiet": -20.94,
-        "chorus": -13.66,
-        "chord": -24.77
+        "intro": -18.43,
+        "dance": -15.99,
+        "solos": -17,
+        "quiet": -20.85,
+        "chorus": -13.57,
+        "chord": -24.69
       },
       "bars": [
         -22.9,
-        -23.7,
-        -22.7,
-        -23.7,
-        -22.1,
-        -23.1,
+        -23.6,
+        -22.6,
+        -23.6,
         -22,
-        -18.6,
-        -16.5,
-        -17.6,
+        -23,
+        -21.9,
+        -18.5,
+        -16.4,
+        -17.5,
         -16.9,
-        -17.1,
+        -17,
+        -16.2,
+        -17,
         -16.2,
         -17.1,
-        -16.3,
-        -17.2,
-        -17.6,
-        -17.2,
-        -18.2,
-        -15.7,
-        -15.4,
+        -17.5,
+        -17.1,
+        -18.1,
         -15.6,
-        -17.9,
+        -15.3,
+        -15.5,
+        -17.8,
+        -15.6,
         -15.7,
-        -15.7,
-        -15.7,
-        -17.9,
-        -15.2,
-        -16.1,
         -15.6,
         -17.8,
-        -15.4,
-        -15.7,
-        -15.7,
-        -18.2,
-        -17.2,
-        -17.9,
-        -16.7,
-        -17.3,
-        -16.2,
-        -17.7,
-        -17.5,
-        -17,
-        -19.7,
-        -21.6,
-        -20.2,
-        -22,
-        -20,
-        -20.1,
-        -20,
-        -23,
-        -31.5,
-        -41.4,
-        -28.7,
-        -15.4,
-        -13.4,
-        -13.3,
-        -13.6,
-        -13.2,
-        -13.4,
-        -16.4,
-        -13.9,
-        -12.7,
-        -12.4,
-        -12.4,
-        -12.9,
-        -15.8,
-        -12.4,
-        -12.5,
-        -12.7,
-        -12.8,
-        -13.2,
-        -15.7,
-        -13.1,
-        -15.3,
         -15.1,
-        -14.8,
+        -16,
+        -15.5,
+        -17.7,
+        -15.3,
         -15.6,
-        -21,
-        -25.2,
-        -34.1,
-        -32.1
+        -15.6,
+        -18.1,
+        -17.3,
+        -18.1,
+        -17.2,
+        -17.7,
+        -16.9,
+        -17,
+        -16.9,
+        -16.8,
+        -16.1,
+        -16.6,
+        -16.5,
+        -16.5,
+        -17.1,
+        -17.1,
+        -16.9,
+        -16.8,
+        -17,
+        -19.6,
+        -21.5,
+        -20.1,
+        -21.9,
+        -19.9,
+        -20,
+        -19.9,
+        -22.9,
+        -31.4,
+        -41.3,
+        -28.5,
+        -15,
+        -13.5,
+        -13.1,
+        -13.7,
+        -12.9,
+        -13.5,
+        -16,
+        -13.9,
+        -12.6,
+        -12.5,
+        -12.2,
+        -12.9,
+        -15.4,
+        -12.4,
+        -12.3,
+        -12.7,
+        -12.6,
+        -13.3,
+        -15.4,
+        -13.2,
+        -14.9,
+        -15.3,
+        -14.4,
+        -15.8,
+        -20.9,
+        -25.1,
+        -34,
+        -32
       ],
       "lastSecondDb": -79.5
     },
@@ -148,24 +157,24 @@ export const SONG = {
         "id": "solos",
         "nameIs": "Sólóin",
         "startBeat": 136,
-        "beats": 36
+        "beats": 72
       },
       {
         "id": "quiet",
         "nameIs": "Kyrra stundin",
-        "startBeat": 172,
+        "startBeat": 208,
         "beats": 44
       },
       {
         "id": "chorus",
         "nameIs": "Síðasta viðlagið",
-        "startBeat": 216,
+        "startBeat": 252,
         "beats": 96
       },
       {
         "id": "chord",
         "nameIs": "Lokahljómur",
-        "startBeat": 312,
+        "startBeat": 348,
         "beats": 16
       }
     ],
@@ -210,32 +219,32 @@ export const SONG = {
       {
         "who": "kambedla",
         "startBeat": 136,
-        "beats": 6
+        "beats": 12
       },
       {
         "who": "uggedla",
-        "startBeat": 142,
-        "beats": 6
+        "startBeat": 148,
+        "beats": 12
       },
       {
         "who": "thorsedla",
-        "startBeat": 148,
-        "beats": 6
+        "startBeat": 160,
+        "beats": 12
       },
       {
         "who": "flugedla",
-        "startBeat": 154,
-        "beats": 6
+        "startBeat": 172,
+        "beats": 12
       },
       {
         "who": "sloedla",
-        "startBeat": 160,
-        "beats": 6
+        "startBeat": 184,
+        "beats": 12
       },
       {
         "who": "gramedla",
-        "startBeat": 166,
-        "beats": 6
+        "startBeat": 196,
+        "beats": 12
       }
     ],
     "calls": [
@@ -270,30 +279,30 @@ export const SONG = {
       {
         "move": "up",
         "section": "chorus",
-        "beat": 216,
+        "beat": 252,
         "beats": 4,
-        "doBeat": 220
+        "doBeat": 256
       },
       {
         "move": "stomp",
         "section": "chorus",
-        "beat": 240,
+        "beat": 276,
         "beats": 4,
-        "doBeat": 244
+        "doBeat": 280
       },
       {
         "move": "spin",
         "section": "chorus",
-        "beat": 264,
+        "beat": 300,
         "beats": 4,
-        "doBeat": 268
+        "doBeat": 304
       },
       {
         "move": "hop",
         "section": "chorus",
-        "beat": 288,
+        "beat": 324,
         "beats": 4,
-        "doBeat": 292
+        "doBeat": 328
       }
     ],
     "cues": [
@@ -899,13 +908,23 @@ export const SONG = {
       },
       {
         "beat": 142,
-        "kind": "tail",
-        "who": "uggedla"
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 143,
+        "kind": "plate",
+        "who": "kambedla"
       },
       {
         "beat": 144,
-        "kind": "tail",
-        "who": "uggedla"
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 145,
+        "kind": "plate",
+        "who": "kambedla"
       },
       {
         "beat": 146,
@@ -913,6 +932,26 @@ export const SONG = {
       },
       {
         "beat": 146,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 147,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 148,
+        "kind": "tail",
+        "who": "uggedla"
+      },
+      {
+        "beat": 150,
+        "kind": "tail",
+        "who": "uggedla"
+      },
+      {
+        "beat": 152,
         "kind": "tail",
         "who": "uggedla"
       },
@@ -922,271 +961,165 @@ export const SONG = {
       },
       {
         "beat": 154,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 155,
-        "kind": "scratch",
-        "who": "flugedla"
+        "kind": "tail",
+        "who": "uggedla"
       },
       {
         "beat": 156,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 157,
-        "kind": "scratch",
-        "who": "flugedla"
+        "kind": "tail",
+        "who": "uggedla"
       },
       {
         "beat": 158,
-        "kind": "scratch",
-        "who": "flugedla"
+        "kind": "tail",
+        "who": "uggedla"
       },
       {
-        "beat": 159,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 166,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 167,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 168,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 169,
-        "kind": "stomp",
-        "who": "gramedla"
+        "beat": 162,
+        "kind": "hit"
       },
       {
         "beat": 170,
-        "kind": "stomp",
-        "who": "gramedla"
+        "kind": "hit"
       },
       {
-        "beat": 171,
-        "kind": "stomp",
-        "who": "gramedla"
+        "beat": 172,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 173,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 174,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 175,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 176,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 177,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 178,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 179,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 180,
+        "kind": "scratch",
+        "who": "flugedla"
       },
       {
         "beat": 181,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 182,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 183,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 184,
         "kind": "horn",
         "who": "sloedla"
       },
       {
-        "beat": 216,
-        "kind": "horn",
-        "who": "sloedla"
+        "beat": 190,
+        "kind": "hit"
       },
       {
-        "beat": 216,
+        "beat": 196,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 197,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 198,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 199,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 200,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 201,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 202,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 203,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 204,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 205,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 206,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 207,
         "kind": "stomp",
         "who": "gramedla"
       },
       {
         "beat": 217,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 218,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 219,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 220,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 221,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 222,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 223,
-        "kind": "tail",
-        "who": "uggedla"
-      },
-      {
-        "beat": 224,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 225,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 226,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 227,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 228,
-        "kind": "burst"
-      },
-      {
-        "beat": 228,
-        "kind": "roar",
-        "who": "gramedla"
-      },
-      {
-        "beat": 228,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 229,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 230,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 231,
-        "kind": "tail",
-        "who": "uggedla"
-      },
-      {
-        "beat": 232,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 233,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 234,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 235,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 236,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 237,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 238,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 239,
-        "kind": "tail",
-        "who": "uggedla"
-      },
-      {
-        "beat": 240,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 241,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 242,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 243,
-        "kind": "scratch",
-        "who": "flugedla"
-      },
-      {
-        "beat": 244,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 245,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 246,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 247,
-        "kind": "tail",
-        "who": "uggedla"
-      },
-      {
-        "beat": 248,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 249,
-        "kind": "plate",
-        "who": "kambedla"
-      },
-      {
-        "beat": 250,
-        "kind": "stomp",
-        "who": "gramedla"
-      },
-      {
-        "beat": 251,
-        "kind": "scratch",
-        "who": "flugedla"
+        "kind": "horn",
+        "who": "sloedla"
       },
       {
         "beat": 252,
-        "kind": "burst"
-      },
-      {
-        "beat": 252,
-        "kind": "roar",
-        "who": "gramedla"
+        "kind": "horn",
+        "who": "sloedla"
       },
       {
         "beat": 252,
@@ -1250,6 +1183,15 @@ export const SONG = {
       },
       {
         "beat": 264,
+        "kind": "burst"
+      },
+      {
+        "beat": 264,
+        "kind": "roar",
+        "who": "gramedla"
+      },
+      {
+        "beat": 264,
         "kind": "stomp",
         "who": "gramedla"
       },
@@ -1307,15 +1249,6 @@ export const SONG = {
         "beat": 275,
         "kind": "scratch",
         "who": "flugedla"
-      },
-      {
-        "beat": 276,
-        "kind": "burst"
-      },
-      {
-        "beat": 276,
-        "kind": "roar",
-        "who": "gramedla"
       },
       {
         "beat": 276,
@@ -1379,6 +1312,15 @@ export const SONG = {
       },
       {
         "beat": 288,
+        "kind": "burst"
+      },
+      {
+        "beat": 288,
+        "kind": "roar",
+        "who": "gramedla"
+      },
+      {
+        "beat": 288,
         "kind": "stomp",
         "who": "gramedla"
       },
@@ -1436,15 +1378,6 @@ export const SONG = {
         "beat": 299,
         "kind": "scratch",
         "who": "flugedla"
-      },
-      {
-        "beat": 300,
-        "kind": "burst"
-      },
-      {
-        "beat": 300,
-        "kind": "roar",
-        "who": "gramedla"
       },
       {
         "beat": 300,
@@ -1507,11 +1440,209 @@ export const SONG = {
         "who": "uggedla"
       },
       {
+        "beat": 312,
+        "kind": "burst"
+      },
+      {
+        "beat": 312,
+        "kind": "roar",
+        "who": "gramedla"
+      },
+      {
+        "beat": 312,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 313,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
         "beat": 314,
-        "kind": "hit"
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 315,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 316,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 317,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 318,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 319,
+        "kind": "tail",
+        "who": "uggedla"
+      },
+      {
+        "beat": 320,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 321,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 322,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 323,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 324,
+        "kind": "stomp",
+        "who": "gramedla"
       },
       {
         "beat": 325,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 326,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 327,
+        "kind": "tail",
+        "who": "uggedla"
+      },
+      {
+        "beat": 328,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 329,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 330,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 331,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 332,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 333,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 334,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 335,
+        "kind": "tail",
+        "who": "uggedla"
+      },
+      {
+        "beat": 336,
+        "kind": "burst"
+      },
+      {
+        "beat": 336,
+        "kind": "roar",
+        "who": "gramedla"
+      },
+      {
+        "beat": 336,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 337,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 338,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 339,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 340,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 341,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 342,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 343,
+        "kind": "tail",
+        "who": "uggedla"
+      },
+      {
+        "beat": 344,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 345,
+        "kind": "plate",
+        "who": "kambedla"
+      },
+      {
+        "beat": 346,
+        "kind": "stomp",
+        "who": "gramedla"
+      },
+      {
+        "beat": 347,
+        "kind": "scratch",
+        "who": "flugedla"
+      },
+      {
+        "beat": 350,
+        "kind": "hit"
+      },
+      {
+        "beat": 361,
         "kind": "horn",
         "who": "sloedla"
       }

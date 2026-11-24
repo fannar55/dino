@@ -23,7 +23,7 @@ export function linesOf(render, checks) {
   return {
     intro: `Upphaf H óbreytt: gítarinn og línan ofan á honum eru hornið hennar Slóeðlu, ein. Svo koma vinirnir inn á tveggja takta fresti (${entryTimes.join(', ')}): Grameðla stappar, Kambeðla slær plötunum, Uggeðla skvettir sporðinum, Þórseðla syngur djúpan tón, Flugeðla skrapar.`,
     dance: 'H óbreytt nema í fyrsta takti hverrar fjögurra takta lotu: þá þagnar söngurinn og óbóið (12 dB lægra) svo Slóeðla geti kallað, en trommur og bassi halda áfram. Kórinn er söngurinn í H sjálfu. Hljóð vinanna halda áfram.',
-    solos: `Sex jafnlöng sóló, ${slot} slög hvert (${comma(slot * beat)} s). Hljóð vinarins sem á sólóið heyrist á slögunum, hinir þegja. Hljómsveitin er 2 til 3 dB lægri; í sólói Slóeðlu er óbóið 6 dB hærra.`,
+    solos: `Sex jafnlöng sóló, ${slot} slög hvert (${comma(slot * beat)} s): sólókafli H spilaður tvisvar (taktar hans 34 til 39, 36 til 41 og 37 til 42). Í seinni umferðinni er gítarinn og píanóið vegið aðeins öðruvísi. Hljóð vinarins sem á sólóið heyrist á slögunum, hinir þegja. Hljómsveitin er 2 til 3 dB lægri; í sólói Slóeðlu er óbóið 6 dB hærra.`,
     quiet: 'Trommurnar teknar út (lokahögg sólóanna fær að hljóma eitt slag). Engin hljóð vina. Annars H óbreytt.',
     chorus: `Allt ${comma(lift)} dB hærra en í H. Söngurinn og óbóið þagna í einn takt fjórum sinnum fyrir köllin. Hljóð vinanna aftur, og Grameðla öskrar fjórum sinnum.`,
     chord: 'Lokahljómur H óbreyttur (aðeins jafn hár og viðlagið á undan). Hann deyr út í þögn.',
@@ -34,8 +34,14 @@ export function writeBlanda(folder, render, checks) {
   const beat = 60 / render.bpm;
   const startOf = s => render.beatOffset + s.startBeat * beat;
   const lines = linesOf(render, checks);
-  const jumps = `<div class="jumps">${render.sections.map(s => `<button type="button" data-t="${startOf(s).toFixed(2)}">${escapeHtml(s.nameIs)}</button>`).join('')}</div>`;
-  const player = (title, src, note) => `<section class="song">
+  const joins = render.cut?.joins ?? [];
+  // the mix's sections, and a button landing two seconds before each join of the repeated solo passage
+  const button = (t, label, cls = '') => `<button type="button"${cls ? ` class="${cls}"` : ''} data-t="${t.toFixed(2)}">${escapeHtml(label)}</button>`;
+  const mixJumps = `<div class="jumps">${render.sections.map(s => button(startOf(s), s.nameIs)).join('')}${joins.map((j, i) => button(j.sec - 2, `Rétt fyrir samskeyti ${i + 1}`, 'seam')).join('')}</div>`;
+  // H as it came: the same sections at H's own seconds
+  const inH = Object.fromEntries((render.cut?.sectionsInH ?? render.sections.map(s => ({ id: s.id, sec: startOf(s) }))).map(s => [s.id, s.sec]));
+  const hJumps = `<div class="jumps">${render.sections.map(s => button(inH[s.id], s.nameIs)).join('')}</div>`;
+  const player = (title, src, note, jumps = mixJumps) => `<section class="song">
   <h2>${escapeHtml(title)}</h2>
   ${note ? `<p class="note">${escapeHtml(note)}</p>` : ''}
   <audio controls preload="metadata" src="${escapeHtml(src)}"></audio>
@@ -61,6 +67,7 @@ export function writeBlanda(folder, render, checks) {
   td { vertical-align: top; padding: 8px 6px; border-top: 1px solid var(--line); }
   td:first-child { width: 34%; }
   .stars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .jumps .seam { border-style: dashed; }
   .star { min-width: 64px; line-height: 1.15; border-radius: 14px; }
   .star span { font-size: 13px; font-weight: 600; color: var(--muted); }
 </style>
@@ -68,10 +75,10 @@ export function writeBlanda(folder, render, checks) {
 <body>
 <main>
   <h1>Hátíðarlagið blandað</h1>
-  <p class="note">H eins og þú valdir það: ${Math.round(render.bpm)} slög á mínútu · ${escapeHtml(keyIs(`${render.keyName.root} ${render.keyName.mode}`))} · ${clock(render.seconds).replace(/\.\d$/, '')}. Engu er klippt til eða breytt í röð: aðeins styrkur rásanna (trommur, bassi, gítar, píanó, annað, söngur) breytist og hljóð vinanna koma ofan á. Blandað fyrir litla hátalara: ${comma(lufs)} LUFS, toppur ${comma(truePeak)} dB.</p>
+  <p class="note">H eins og þú valdir það, blandað: ${Math.round(render.bpm)} slög á mínútu · ${escapeHtml(keyIs(`${render.keyName.root} ${render.keyName.mode}`))} · ${clock(render.seconds).replace(/\.\d$/, '')}. Sólókafli H er spilaður tvisvar, svo hver vinur fær um 8½ sekúndu í sitt sóló (${comma(solosOf()[0].beats * beat)} s). Endurtekningin byrjar á ${joins.length ? clock(joins[0].sec) : '?'}${joins.length > 1 ? ` og er saumuð aftur saman á ${joins.slice(1).map(j => clock(j.sec)).join(', ')}` : ''} (hnapparnir „Rétt fyrir samskeyti“ fara tveimur sekúndum á undan). Annars er engu klippt til eða breytt í röð: aðeins styrkur rásanna (trommur, bassi, gítar, píanó, annað, söngur) breytist og hljóð vinanna koma ofan á. Blandað fyrir litla hátalara: ${comma(lufs)} LUFS, toppur ${comma(truePeak)} dB.</p>
 ${player('Blandan', 'hatid-h/mix.mp3', 'Það sem hátíðin spilar.')}
 ${player('Með smelli', 'hatid-h/click.mp3', 'Smellur á hverju slagi, hærri á fyrsta slagi taktsins, og bjalla þar sem hver hluti byrjar.')}
-${player('H óbreytt', 'hatid-h/song.mp3', 'Til samanburðar: lagið eins og það kom.')}
+${player('H óbreytt', 'hatid-h/song.mp3', 'Til samanburðar: lagið eins og það kom (hnapparnir fara á sömu hluta í H, þar sem sólóin eru styttri).', hJumps)}
   <table>
 ${rows}
   </table>
