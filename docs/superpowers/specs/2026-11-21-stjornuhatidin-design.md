@@ -189,6 +189,21 @@ nokkuð er teiknað.
 - **Hljóðfærin hvert á sinni rás** eru geymd ef hægt er, því ferðin til baka notar hátíðarlagið í remixinu. Hráefnið fer ekki í
   repoið, aðeins blandaða lagið.
 
+**Breyting 24. nóvember 2026 (orð eigandans).** Eigandinn valdi lagið H: „Líst betur á H, rólegra á við núna komin nótt, og
+lagið á undan var mikið fjör lag. Aðlögum senu að þessu lagi.“ Þar sem þessi breyting og textinn að ofan stangast á gildir hún:
+
+- **Lagið ræður, senan lagar sig að því.** H er rólegt lag (84 slög á mínútu, D-dúr, 4 mínútur) sem ElevenLabs samdi úr
+  lýsingu á senunni. Fyrirmyndin að hljómnum er „Life in a Northern Town“: kassagítarar, óbó, djúpar trommur.
+- **Bakraddir án orða** eru í laginu sjálfu („ekki söngur en má vera bakraddir“). Þær eru kórinn. Dýrakórinn er ekki lagður ofan á.
+- **Lúðurinn í byrjun lagsins er lúður Slóeðlu.** Tónar stjarnanna sex eru sex hækkandi tónar úr því stefi.
+- **Kaflarnir sex halda nöfnum sínum en lengdirnar eru lagsins:** inngangur um 50 s, fyrsti dans um 46 s, sólóin um 34 s (um
+  6 s á hvern vin í stað 8), kyrra stundin um 25 s, síðasta viðlagið um 60 s og lokahljómur um 25 s. Taktkortið segir
+  nákvæmlega til, og taflan í 3. kafla víkur fyrir því.
+- **Laginu er skipt í rásir** (trommur, bassi, gítar, píanó, raddir, annað) svo blandan geti stýrt hverri fyrir sig: þaggað
+  trommur í kyrru stundinni, gert eyður fyrir köllin og lyft síðasta viðlaginu. Leikurinn spilar eina blandaða skrá.
+- **Veislan er rólegri en lýst er í 6. kafla:** vagg og hægur dans í næturkyrrð frekar en fjör. Hvað það þýðir fyrir hverja
+  hreyfingu og hvert bragð er ákveðið þegar þeir bútar eru smíðaðir og sýndir.
+
 ## 6. Veislan: sviðið, ljósin og dansinn
 
 Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst á alvöru fjalli.
