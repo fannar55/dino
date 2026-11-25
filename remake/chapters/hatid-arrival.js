@@ -264,7 +264,7 @@ const COMING = {
   *sloedla(s, c) {
     const her = c.sloedla.raw;
     const { seconds, after } = SIGN.horn;
-    const from = wayPoint(c, 'sloedla', 0.5); // at the rim's foot, her head just over the cloud
+    const from = wayPoint(c, 'sloedla', 0); // at the rim, her head just over the cloud
     her.place(from[0], from[1], headingTo(from, wayPoint(c, 'sloedla', 0)));
     const sunk = sinker(her);
     sunk.set(1);
