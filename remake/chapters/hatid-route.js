@@ -124,10 +124,10 @@ export function standsOf(top) {
   }));
   return {
     start: { gramedla: end.her, mosi: end.mosi, egill: { on: 'gramedla', ...end.her }, ...coming },
-    farewell: DARK,
-    dark: DARK,
-    party: PARTY,
-    gather: GATHER,
+    farewell: structuredClone(DARK),
+    dark: structuredClone(DARK),
+    party: structuredClone(PARTY),
+    gather: structuredClone(GATHER),
   };
 }
 
@@ -267,7 +267,7 @@ const SEVENTH_FROM = (() => { const [x, , z] = headOf('thorsedla', GATHER); cons
 export const SHOTS = {
   toppur: {
     // Scene 1. The top empty and quiet: low from the middle, Grameðla with Egill on her head and Mosi beside her, the sea beyond
-    top_empty: shot(polar(-20, 4, 1.4), [-24, G + 3.2, 30], 50),
+    top_empty: shot(polar(-20, 4, 1.4), [(STOP.her.at[0] + STOP.mosi.at[0]) / 2, G + 3.2, (STOP.her.at[1] + STOP.mosi.at[1]) / 2 - 3], 50),
     // each friend as she comes up over the rim, seen from inside the top
     arrive_flugedla: arrive('flugedla', -30, 1.6, 3.5),
     arrive_kambedla: arrive('kambedla', 30, 1.4, 1.8),
@@ -349,12 +349,15 @@ export const SHOWS = {
   mosi_up: ['mosi'],
   rise_down: ['egill', 'mosi'],
 };
-/** The stands (standsOf's) each shot is seen with. */
-export const SCENE = Object.fromEntries(Object.keys(SHOTS.toppur).map(name => {
-  const k = Object.keys(SHOTS.toppur).indexOf(name);
-  const scene = k < 6 ? 'start' : k < 8 ? 'farewell' : k < 15 ? 'dark' : k < 29 ? 'party' : 'gather';
-  return [name, scene];
-}));
+/** The stands (standsOf's) each shot is seen with: its scene. */
+const SCENES = {
+  start: ['top_empty', ...ARRIVALS.map(({ friend }) => `arrive_${friend}`)],
+  farewell: ['lineup_sun', 'sun_faces'],
+  dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down', 'moon_peek'],
+  party: ['stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), 'moon_close', 'final_pose'],
+  gather: ['gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down'],
+};
+export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, names]) => names.map(name => [name, scene])));
 
 // The upright frames (0.625) where the wide one does not hold what it must there
 const TALL = {
