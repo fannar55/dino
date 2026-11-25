@@ -456,6 +456,7 @@ function* theParty(s, c) {
     c.stage.update(beat);
     c.band.update(beat);
     c.dance.update(beat);
+    c.top?.standIns?.update(beat, c.world.camera); // the measurement's guests and lights (?gestir: hatid-standins.js), never else
   };
   frame();
   let over = false;
@@ -897,6 +898,21 @@ function setUp(s) {
   return c;
 }
 
+/**
+ * The top, with the measurement's stand-ins on it where the page asks for them (?gestir=<n>: hatid-standins.js, Task 6's measurement
+ * and the owner's stills of where everyone stands); else the top as it is, built at once.
+ */
+function withStandIns(world, top) {
+  const asked = new URLSearchParams(globalThis.location?.search ?? '').get('gestir');
+  if (asked === null) return top;
+  return import('./hatid-standins.js').then(async ({ loadStandIns, standInsAsked }) => {
+    top.standIns = await loadStandIns(world, top, standInsAsked());
+    const dispose = top.dispose?.bind(top);
+    top.dispose = () => { top.standIns?.dispose(); top.standIns = null; dispose?.(); };
+    return top;
+  });
+}
+
 const cast = {
   mosi: { name: 'Mosi', colour: '#4f5433' },
   egill: { name: 'Egill', colour: '#355774' },
@@ -911,7 +927,7 @@ export const chapter = {
   theme: 'kafli2/theme.json', // Mosi's travel theme, low under the arrival, to nothing as the sun goes; the party has its own song
   start: 'toppur',
   locations: {
-    toppur: { build: world => createTop(world), shots: SHOTS.toppur },
+    toppur: { build: world => withStandIns(world, createTop(world)), shots: SHOTS.toppur },
   },
   actors: Object.fromEntries(FRIENDS8.map(who => [who, { url: `../assets/characters/${MODELS[who]}.glb`, position: [0, 0, 0], heading: 0 }])),
   cast, // Grameðla speaks no line: she roars, snorts and nods

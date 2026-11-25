@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   BEARING, floorPoint, FRIENDS8, MODELS, LENGTH, HEAD, standsOf, STAGE, FLOOR, ARRIVALS, arrivalOf, SKY, STAR_TAP, SUN_TAP, starOver,
-  SHOTS, SHOWS, SCENE, tallShot, sunShot, starsShot,
+  SHOTS, SHOWS, SCENE, tallShot, sunShot, starsShot, BUDGET,
 } from '../chapters/hatid-route.js';
+import { loadCharacter } from './characters.mjs';
 import { TOP_END, topEnd } from '../chapters/kafli6-route.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createTop } from '../world/fjall/top.js';
@@ -329,6 +330,90 @@ test('party_wide holds all eight, the stage and the moon\'s place; no solo shot 
       assert.ok(seen.length <= 3, `solo_${f.key} at ${aspect} holds ${seen.join(', ')}`);
     }
   }
+});
+
+// The party's widest shot against the tablet's budget (STYLE.md 11; the plan's Global Constraints): measured in grey with stand-ins
+// (Task 6, qa/remake/hatid/butur2/maeling.md), and the levers applied written into BUDGET.
+const LOD = { half: 700, quarter: 200, hysteresis: 0.08 }; // engine/character-lod.js LEVELS and HYSTERESIS
+const sizes = (async () => {
+  const out = {};
+  for (const who of FRIENDS8) {
+    const gltf = await loadCharacter(who);
+    gltf.scene.updateMatrixWorld(true);
+    out[who] = [];
+    gltf.scene.traverse(o => {
+      if (!o.isSkinnedMesh || (o.geometry.index?.count ?? 0) / 3 < 4000) return;
+      o.geometry.computeBoundingBox();
+      const box = o.geometry.boundingBox;
+      out[who].push({
+        diagonal: box.getSize(new THREE.Vector3()).length() * o.matrixWorld.getMaxScaleOnAxis(),
+        centre: box.getCenter(new THREE.Vector3()).applyMatrix4(o.matrixWorld),
+      });
+    });
+  }
+  return out;
+})();
+
+/** How wide each friend draws in `shot` on a screen `aspect` wide, as updateCharacterLods measures it (her bind-pose diagonal, px). */
+async function drawnPx(shot, aspect, stands) {
+  const view = project(shot, aspect, stands);
+  const meshes = await sizes;
+  const perUnit = view.h / (2 * Math.tan(rad(view.camera.fov) / 2));
+  return Object.fromEntries(FRIENDS8.map(who => {
+    const { at, heading } = stands[who].on ? stands[stands[who].on] : stands[who];
+    const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -rad(heading));
+    const px = Math.max(...meshes[who].map(({ diagonal, centre }) => {
+      const c = centre.clone().applyQuaternion(turn).add(new THREE.Vector3(at[0], place.ground(at[0], at[1]), at[1]));
+      if (stands[who].on) c.y += HEAD.onHerHead[1];
+      return (diagonal * perUnit) / c.distanceTo(view.camera.position);
+    }));
+    return [who, px];
+  }));
+}
+
+test('in party_wide no more than three big friends draw over 700 px wide and at least four draw under 200 px, at 1280x800 and 800x1280', async () => {
+  for (const aspect of [1.6, 0.625]) {
+    const px = await drawnPx(shotFor('party_wide', aspect), aspect, STANDS.party);
+    console.log("PX", aspect, JSON.stringify(Object.fromEntries(Object.entries(px).map(([k, v]) => [k, Math.round(v)]))));
+    const said = Object.entries(px).map(([who, p]) => `${who} ${p.toFixed(0)}`).join(', ');
+    // at full detail: over the half's switch less its slack (a friend coming from a close shot keeps her full skin down to there)
+    const full = BIG.filter(who => px[who] >= LOD.half * (1 - LOD.hysteresis));
+    assert.ok(full.length <= 3, `at ${aspect} ${full.length} big friends at full detail: ${said}`);
+    // at the quarter whatever shot came before: under the quarter's switch less its slack
+    const quarter = BIG.filter(who => px[who] < LOD.quarter * (1 - LOD.hysteresis));
+    assert.ok(quarter.length >= 4, `at ${aspect} only ${quarter.join(', ') || 'nobody'} at the quarter: ${said}`);
+    // the four furthest are BUDGET's, and they are those at the quarter
+    for (const who of BUDGET.far) assert.ok(quarter.includes(who), `${who} at the quarter at ${aspect}: ${said}`);
+  }
+  assert.equal(BUDGET.far.length, 4);
+  // never more than three big friends near the camera in one shot of the party
+  for (const name of Object.keys(SCENE).filter(n => SCENE[n] === 'party')) {
+    for (const aspect of [1.6, 0.625]) {
+      const px = await drawnPx(shotFor(name, aspect), aspect, STANDS.party);
+      const view = project(shotFor(name, aspect), aspect, STANDS.party);
+      const seen = who => { const s = view.head(who); return s.front && s.x >= 0 && s.x <= s.w && s.y >= 0 && s.y <= s.h; };
+      const near = BIG.filter(who => seen(who) && px[who] >= LOD.half * (1 - LOD.hysteresis));
+      assert.ok(near.length <= 3, `${name} at ${aspect}: ${near.join(', ')}`);
+    }
+  }
+});
+
+test('BUDGET says what was measured: its three numbers are inside the budget at both sizes', () => {
+  assert.deepEqual(BUDGET.limits, { gpuMs: 6, drawCalls: 100, triangles: 250000 });
+  assert.deepEqual(Object.keys(BUDGET.measured).sort(), ['1280x800', '800x1280']);
+  for (const [size, m] of Object.entries(BUDGET.measured)) {
+    for (const key of ['gpuMs', 'drawCalls', 'triangles']) {
+      assert.ok(Number.isFinite(m[key]) && m[key] > 0, `${size}: ${key} measured`);
+      assert.ok(m[key] <= BUDGET.limits[key], `${size}: ${key} ${m[key]} over ${BUDGET.limits[key]}`);
+    }
+  }
+  // what was measured: party_wide one bar into the dance, all eight, the guests and the light points
+  assert.equal(BUDGET.shot, 'party_wide');
+  assert.ok(Number.isInteger(BUDGET.guests) && BUDGET.guests >= 14 && BUDGET.guests <= 23, `${BUDGET.guests} guests`);
+  assert.equal(BUDGET.lights, 600);
+  assert.ok(Array.isArray(BUDGET.levers) && BUDGET.levers.every(l => [1, 2, 3, 4].includes(l)), `levers ${BUDGET.levers}`);
+  assert.deepEqual(BUDGET.levers, [...BUDGET.levers].sort(), 'the levers in their order');
+  assert.ok(BUDGET.wideBars >= 1 && BUDGET.wideBars <= 4);
 });
 
 test.after(() => top.dispose());

@@ -11,7 +11,7 @@ import * as veisla from '../chapters/veisla.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { topEnd } from '../chapters/kafli6-route.js';
-import { ARRIVALS } from '../chapters/hatid-route.js';
+import { ARRIVALS, BUDGET } from '../chapters/hatid-route.js';
 import { BEAT, END_BEAT, secondsAt, CAMERA } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
@@ -327,4 +327,16 @@ test('every line of WORDS is said in the untouched play but h_mosi_wave, which t
   assert.ok(Math.abs(wave.at - hint.at) < 0.5, 'Mosi asks again on the sun\'s hint');
   assert.equal(run.seen.said.filter(e => e.id === 'h_mosi_wave').length, 1);
   for (const [id, text] of Object.entries(WORDS)) assert.equal(chapter.lines[id].text, text);
+});
+
+test('no wide shot of CAMERA lasts longer than BUDGET.wideBars', () => {
+  // a wide shot holds everyone, and costs the most: it is cut away from within BUDGET.wideBars bars (4 beats a bar)
+  assert.deepEqual(BUDGET.wide, ['party_wide', 'party_high', 'final_pose']);
+  const wide = CAMERA.map((shot, i) => ({ ...shot, until: CAMERA[i + 1]?.beat ?? END_BEAT })).filter(shot => BUDGET.wide.includes(shot.cut));
+  assert.ok(wide.some(shot => shot.cut === BUDGET.shot), `the measured shot ${BUDGET.shot} is cut to`);
+  for (const shot of wide) assert.ok(shot.until - shot.beat <= BUDGET.wideBars * 4, `${shot.cut} at beat ${shot.beat} holds ${(shot.until - shot.beat) / 4} bars`);
+  // the measured frame: one bar into the dance, where CAMERA holds the measured shot (the rulings: beat 76)
+  const held = CAMERA.filter(shot => shot.beat <= BUDGET.beat).at(-1);
+  assert.equal(held.cut, BUDGET.shot);
+  assert.equal(BUDGET.beat, SONG.song.sections.find(s => s.id === 'dance').startBeat + 4);
 });

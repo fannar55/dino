@@ -369,4 +369,6 @@ export function tallShot(name) {
   return TALL[name] ?? null;
 }
 
+export const BUDGET = { shot: 'party_wide', beat: 76, far: [], measured: {}, limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 }, guests: 23, lights: 600, levers: [], wideBars: 4, wide: ['party_wide', 'party_high', 'final_pose'] };
+
 export { TOP_END };
