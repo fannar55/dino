@@ -21,7 +21,7 @@
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
 import {
-  FRIENDS8, MODELS, LENGTH, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot,
+  FRIENDS8, MODELS, LENGTH, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET,
 } from './hatid-route.js';
 import { createOneTap, createStars, TAP_HELP } from './hatid-stars.js';
 import { BEAT, END_BEAT, beatAt, secondsAt, sectionAt, soloAt, energyAt, pulseAt, CAMERA } from './hatid-score.js';
@@ -450,6 +450,7 @@ function* theParty(s, c) {
   c.stage = greyStage(c);
   c.band = greyBand(c);
   c.dance = greyDance(c);
+  const shadows = noShadows(c, BUDGET.noShadow);
   const frame = () => {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
@@ -476,6 +477,7 @@ function* theParty(s, c) {
   } finally {
     over = true;
     c.inParty = false;
+    shadows.restore();
     c.stage.dispose();
   }
 }
@@ -510,6 +512,19 @@ function onParty(s, c, event) {
     default:
       break;
   }
+}
+
+/**
+ * The tablet's budget in the party (hatid-route.js BUDGET, measured in Task 6): `who` cast no sun shadow while it lasts (their skins'
+ * userData.noShadow: engine/character-lod.js keeps their shadow casters out of the sun's pass), and cast again after.
+ */
+function noShadows(c, who) {
+  const skins = [];
+  for (const name of who) c[name].raw.model.traverse(o => { if (o.isSkinnedMesh && !o.name.endsWith(' shadow')) skins.push(o); });
+  for (const skin of skins) skin.userData.noShadow = true;
+  return {
+    restore() { for (const skin of skins) delete skin.userData.noShadow; },
+  };
 }
 
 /** Grey stage: a disc of light (engine/show/rings.js) under whoever has the solo, brighter on the beat. */

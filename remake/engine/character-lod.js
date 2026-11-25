@@ -217,7 +217,8 @@ function lodGeometries(geometry, eyes, levels = LEVELS) {
 // the sun's shadow pass starts (the light's updateMatrices runs then) and hides itself right after
 // it was drawn (the forest's casters work the same way, world/forest/forest.js). A caster none of whose
 // bones' spheres touch the shadow camera's box stays hidden: it would draw nothing into the map (a
-// character far below the one the shadow follows cost a few thousand triangles for nothing).
+// character far below the one the shadow follows cost a few thousand triangles for nothing). A skin whose userData.noShadow is
+// set casts none while it is (a chapter's budget: chapters/hatid.js, the party's far friends).
 const castersOf = new WeakMap(); // light -> Set of casters
 const entryOf = new WeakMap(); // caster -> its entry, for its bones
 const casterMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
@@ -238,7 +239,7 @@ function shadowOnly(light, object) {
       const box = this.getFrustum();
       for (const o of set) {
         const e = entryOf.get(o);
-        o.visible = shown(o) && (!e || touches(e, box));
+        o.visible = shown(o) && !e?.mesh.userData.noShadow && (!e || touches(e, box));
       }
     };
   }

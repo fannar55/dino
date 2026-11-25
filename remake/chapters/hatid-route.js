@@ -311,7 +311,8 @@ export const SHOTS = {
     gather: shot(off(GATHER.egill, -15, 1, 3.4), off(GATHER.egill, 4, 0, 1.4), 54),
     seventh_sky: shot(SEVENTH_FROM, toSky(SEVENTH_FROM, { azimuth: 45, elevation: 44 }), 55),
     lift_side: shot(off(GATHER.egill, 0, 9, 1.4), off(GATHER.egill, 0, 0, 2.6), 46),
-    mosi_up: shot(off(GATHER.mosi, 4, 2, 0.6), off(GATHER.mosi, 0, 0, 5), 50),
+    // Mosi looks up after him: low, in front of him and to his right, his whole head and the sky over him (Task 6: was 1 m off his head)
+    mosi_up: shot(off(GATHER.mosi, 8, 5, 0.7), off(GATHER.mosi, 1.5, 0, 5.5), 50),
     rise_down: shot(off(GATHER.egill, -10, 3, 7), off(GATHER.egill, 2, 0, 0.6), 52),
   },
 };
@@ -369,6 +370,35 @@ export function tallShot(name) {
   return TALL[name] ?? null;
 }
 
-export const BUDGET = { shot: 'party_wide', beat: 76, far: [], measured: {}, limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 }, guests: 23, lights: 600, levers: [], wideBars: 4, wide: ['party_wide', 'party_high', 'final_pose'] };
+// ---------------------------------------------------------------------------------------------
+/**
+ * The tablet's budget for the party's widest shot (STYLE.md 11; the plan's Global Constraints: GPU median 6 ms, 100 draw calls,
+ * 250k triangles on the `tablet` preset, both screens), as Task 6 measured it in grey (qa/remake/hatid/butur2/maeling.md):
+ * `shot` at `beat` of `?chapter=veisla` with all eight, `guests` stand-ins at the rim and `lights` light points (hatid-standins.js,
+ * `?gestir=23`), capture.mjs --bench 120 on the laptop's Iris Xe. `levers`: what was applied of the plan's four, in their order:
+ *   1 the four furthest stand where they draw at the quarter (under 200 px: `far`; Þórseðla, 24 m long, draws over 280 px anywhere on
+ *     the top in this shot, so the fourth is Kambeðla, the next furthest of the big ones);
+ *   2 those four cast no shadow in the party (`noShadow`: hatid.js theParty, engine/character-lod.js userData.noShadow);
+ *   3 guests from 23 to 14 (not needed: `guests` stays 23);
+ *   4 a wide shot held `wideBars` bars at the most (CAMERA already cuts every wide shot within 4: not needed beyond that).
+ * `measured`: the shot after the levers, the worse of two runs. Before them: 264,014 triangles wide (over), 239,316 upright.
+ * Chunks 5 and 6 (the stage, the lights, the guests) build inside what is left: about 1.4 ms, 60 calls and 30k triangles wide.
+ */
+export const BUDGET = {
+  shot: 'party_wide',
+  beat: 76, // one bar after the first beat of `dance` (the chunk's rulings)
+  guests: 23,
+  lights: 600,
+  levers: [1, 2],
+  far: ['gramedla', 'flugedla', 'kambedla', 'sloedla'],
+  noShadow: ['gramedla', 'flugedla', 'kambedla', 'sloedla'],
+  wideBars: 4,
+  wide: ['party_wide', 'party_high', 'final_pose'],
+  limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
+  measured: {
+    '1280x800': { gpuMs: 4.61, drawCalls: 34, triangles: 219844 },
+    '800x1280': { gpuMs: 4.2, drawCalls: 37, triangles: 195146 },
+  },
+};
 
 export { TOP_END };

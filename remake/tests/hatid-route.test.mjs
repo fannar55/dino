@@ -305,6 +305,15 @@ test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names, wi
         assert.ok(s.front && s.x >= 0.04 * s.w && s.x <= 0.96 * s.w && s.y >= 0.08 * s.h && s.y <= 0.85 * s.h,
           `${who} in ${name} at ${aspect}: ${s.x.toFixed(0)}, ${s.y.toFixed(0)} of ${s.w} x ${s.h}`);
       }
+      if (name === 'mosi_up') {
+        // Mosi looking up after Egill: his head well clear of the lens and low in the frame, the sky over him
+        const s = view.head('mosi');
+        const [ahead, up] = HEAD.mosi;
+        const { at, heading } = stands.mosi;
+        const head = new THREE.Vector3(at[0] + Math.cos(rad(heading)) * ahead, place.ground(...at) + up, at[1] + Math.sin(rad(heading)) * ahead);
+        assert.ok(view.camera.position.distanceTo(head) >= 6, `mosi_up ${view.camera.position.distanceTo(head).toFixed(1)} m from his head at ${aspect}`);
+        assert.ok(s.y >= 0.45 * s.h, `room over Mosi in mosi_up at ${aspect}: his head at ${s.y.toFixed(0)} of ${s.h}`);
+      }
       for (const [k, p] of (SKY_SHOTS[name] ?? []).entries()) assert.ok(view.inFrame(view.sky(p), 0.04), `${name}'s sky ${k} at ${aspect}`);
     }
   }
@@ -374,7 +383,6 @@ async function drawnPx(shot, aspect, stands) {
 test('in party_wide no more than three big friends draw over 700 px wide and at least four draw under 200 px, at 1280x800 and 800x1280', async () => {
   for (const aspect of [1.6, 0.625]) {
     const px = await drawnPx(shotFor('party_wide', aspect), aspect, STANDS.party);
-    console.log("PX", aspect, JSON.stringify(Object.fromEntries(Object.entries(px).map(([k, v]) => [k, Math.round(v)]))));
     const said = Object.entries(px).map(([who, p]) => `${who} ${p.toFixed(0)}`).join(', ');
     // at full detail: over the half's switch less its slack (a friend coming from a close shot keeps her full skin down to there)
     const full = BIG.filter(who => px[who] >= LOD.half * (1 - LOD.hysteresis));
