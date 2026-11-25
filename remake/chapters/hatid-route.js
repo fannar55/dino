@@ -276,6 +276,15 @@ export const SHOTS = {
     arrive_thorsedla: shot(polar(-116, 46.5, 1.8), polar(-95, 60, 1.5), 50),
     // her head and crest over the cloud as her note sounds, 16 m off, from her left, Mosi and Grameðla behind the lens
     arrive_sloedla: shot(polar(86, 46.5, 0.8), polar(70, 54, 0), 44),
+    // Each one's second shot (Task 8's fix round 2): from the top, the moment she is over the rim (Flugeðla: as she comes down off
+    // her lap), she walks (flies) toward the lens to her stand and says her line in it. Each lens stands past her stand on her way in
+    // and off it to one side, so where she says her line and where she stops are near one line from it; none within 8 m of anyone's
+    // stand on the top, Flugeðla's none of hers (hatid-arrival.js; the points from .tools/hatid-koma/heima.mjs, the untouched play).
+    home_flugedla: shot([31.3, G + 1.6, -4.1], [19.6, G + 3.8, 18], 48),
+    home_kambedla: shot([34, G + 1.4, 12], [22.9, 3, -22.8], 38),
+    home_uggedla: shot([3.9, G + 1.4, 15.6], [27.9, 5.8, 12.2], 46),
+    home_thorsedla: shot([12.5, G + 1.4, 4.2], [5.6, G + 5.8, -35.2], 34),
+    home_sloedla: shot([1.6, G + 1.4, 13.9], [11.6, 3.6, 29.5], 46),
     // everyone lined up facing the sun: the still shot the sun is tapped in
     lineup_sun: sunShot(1.6),
     // the sun's face close as it waves, yawns and sinks, Egill on her head under it
@@ -329,6 +338,8 @@ export const SHOWS = {
   // the five as each comes: her sign past the rim has no stand to project from (hatid.test.mjs watches each in her own shot as she
   // comes, the top's shoulder counted); Flugeðla lands on hers in front of the lens
   ...Object.fromEntries(ARRIVALS.map(({ friend }) => [`arrive_${friend}`, friend === 'flugedla' ? [friend] : []])),
+  // and each on the top in her second shot, where she comes over the rim (her start stand: 8 m inside it on her way)
+  ...Object.fromEntries(ARRIVALS.map(({ friend }) => [`home_${friend}`, [friend]])),
   lineup_sun: ['gramedla', 'egill', 'mosi'],
   sun_faces: ['egill'],
   dark_wait: ['kambedla', 'mosi', 'gramedla', 'egill'],
@@ -360,8 +371,9 @@ export const SHOWS = {
 };
 /** The stands (standsOf's) each shot is seen with: its scene. */
 const SCENES = {
-  start: ['top_empty', ...ARRIVALS.map(({ friend }) => `arrive_${friend}`)],
-  farewell: ['lineup_sun', 'sun_faces'],
+  // (Flugeðla's home shot sees her come down onto her farewell stand: she flies in, not up her way)
+  start: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, ...(friend === 'flugedla' ? [] : [`home_${friend}`])])],
+  farewell: ['home_flugedla', 'lineup_sun', 'sun_faces'],
   dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down', 'moon_peek'],
   party: ['stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), 'moon_close', 'final_pose'],
   gather: ['gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down'],

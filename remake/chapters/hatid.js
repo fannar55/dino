@@ -1062,7 +1062,7 @@ export const chapter = {
 
   warmUp(world) {
     const objects = [...world.actors.values()].map(actor => actor.root);
-    return { objects, shots: ['top_empty', ...ARRIVALS.map(({ friend }) => `arrive_${friend}`)], dispose() {} };
+    return { objects, shots: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, `home_${friend}`])], dispose() {} };
   },
   shots: {}, // every shot belongs to its place: chapter.locations.toppur.shots
 

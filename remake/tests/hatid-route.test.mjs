@@ -28,7 +28,7 @@ const headingTo = (a, b) => (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.
 const SIZE = { 1.6: [1280, 800], 0.625: [800, 1280] };
 const BIG = FRIENDS8.filter(f => f !== 'egill');
 const SUN_SHOTS = ['lineup_sun', 'sun_faces']; // the two that look at the sun (as chapter 5's set_sun: the light low, his nightcap on)
-const UNDER_THE_SUN = ['top_empty', ...ARRIVALS.map(a => `arrive_${a.friend}`), ...SUN_SHOTS]; // scene 1, before the sun has set
+const UNDER_THE_SUN = ['top_empty', ...ARRIVALS.flatMap(a => [`arrive_${a.friend}`, `home_${a.friend}`]), ...SUN_SHOTS]; // scene 1, before the sun has set
 
 /** The shot for a screen `aspect` wide: the upright frame where the shot has one. */
 const shotFor = (name, aspect) => (aspect < 1 && tallShot(name)) || SHOTS.toppur[name];
@@ -277,7 +277,7 @@ test('no arrival comes up within 30 degrees of another or of the south-west', ()
 });
 
 const NAMES = [
-  'top_empty', ...ARRIVALS.map(a => `arrive_${a.friend}`), 'lineup_sun', 'sun_faces', 'dark_wait', 'first_star', 'roar_up', 'sea_ring',
+  'top_empty', ...ARRIVALS.flatMap(a => [`arrive_${a.friend}`, `home_${a.friend}`]), 'lineup_sun', 'sun_faces', 'dark_wait', 'first_star', 'roar_up', 'sea_ring',
   'stars_wide', 'egill_down', 'moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance',
   ...FRIENDS.map(f => `solo_${f.key}`), 'moon_close', 'final_pose', 'gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down',
 ];

@@ -123,11 +123,14 @@ function watchArrival(world, c, { sunFace }, seen) {
     let nearest = Infinity;
     const box = [Infinity, Infinity, -Infinity, -Infinity];
     const top = new THREE.Vector3(0, -Infinity, 0); // her highest joint
+    let joints = 0, shown = 0; // her joints, and those on the screen
     for (const bone of jointsOf.get(actor)) {
       bone.getWorldPosition(v);
       if (v.y > top.y) top.copy(v);
       nearest = Math.min(nearest, v.distanceTo(camera.position));
       const p = v.project(camera);
+      joints++;
+      if (p.z < 1 && p.z > -1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1) shown++;
       if (p.z >= 1 || p.z <= -1) continue;
       box[0] = Math.min(box[0], Math.max(-1, p.x)); box[1] = Math.min(box[1], Math.max(-1, p.y));
       box[2] = Math.max(box[2], Math.min(1, p.x)); box[3] = Math.max(box[3], Math.min(1, p.y));
@@ -139,6 +142,13 @@ function watchArrival(world, c, { sunFace }, seen) {
     const h = head.clone().project(camera);
     const inFrame = h.z < 1 && Math.abs(h.x) <= 1 && Math.abs(h.y) <= 1;
     if (BIG.includes(who) && inFrame) bigs++;
+    // each of the five as the child sees her in her own two shots: her head on the screen, how much of her is, and how far she is
+    // turned from the lens (0: looking at it; her forward way against the way from her head to the lens, on the level)
+    if (FIVE.includes(who) && (shot === `arrive_${who}` || shot === `home_${who}`)) {
+      const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(actor.root.quaternion).setY(0).normalize();
+      const toLens = camera.position.clone().sub(head).setY(0).normalize();
+      ((a.view ??= {})[who] ??= []).push({ time, shot, x: h.x, y: h.y, front: h.z < 1, whole: shown / Math.max(1, joints), turned: THREE.MathUtils.radToDeg(ahead.angleTo(toLens)) });
+    }
     // her sign seen in her own shot: her head in the frame (not at its very edge), over the cloud, and the top's ground nowhere over
     // the line from the lens to it (its shoulder hid all of them in the first stills). Kambeðla's sign is her lit plates, which stand
     // some 1.5 m over her back's highest joint: hers is that joint, up to 1.5 m under the cloud's top.
@@ -176,7 +186,7 @@ function watchArrival(world, c, { sunFace }, seen) {
     }
     if (who === 'sloedla' && a.sloedlaSeen == null && inFrame && head.y > sea + 0.3) a.sloedlaSeen = time;
   }
-  if (/^arrive_/.test(shot ?? '')) a.big[shot] = Math.max(a.big[shot] ?? 0, bigs);
+  if (/^(arrive|home)_/.test(shot ?? '')) a.big[shot] = Math.max(a.big[shot] ?? 0, bigs);
   for (const g of c.guests?.where?.() ?? []) {
     const key = `${g.group} ${g.k}`;
     const was = a.last.get(key);
@@ -437,7 +447,7 @@ test('nothing of anyone jumps more than 8 degrees or 0.15 m in a frame through t
 test('no arrival shot holds more than three big friends', async () => {
   for (const run of [await untouched(), await upright()]) {
     const { big } = run.watched.arrival;
-    assert.deepEqual(Object.keys(big).sort(), ARRIVALS.map(a => `arrive_${a.friend}`).sort());
+    assert.deepEqual(Object.keys(big).sort(), ARRIVALS.flatMap(a => [`arrive_${a.friend}`, `home_${a.friend}`]).sort());
     for (const [shot, n] of Object.entries(big)) assert.ok(n <= 3, `${shot} holds ${n}`);
   }
 });
@@ -448,6 +458,22 @@ test('nobody walks through the lens: in every frame of the arrival no friend\'s 
     assert.deepEqual(run.watched.arrival.halves.slice(0, 6), [], what);
     // and each of the five is seen in her own shot (her head in its frame, over the cloud, nothing of the top before it) 2 s or more
     for (const who of FIVE) assert.ok((run.watched.arrival.signSeen?.[who] ?? 0) >= 60, `${who} seen ${run.watched.arrival.signSeen?.[who] ?? 0} frames in arrive_${who} (${what})`);
+  }
+});
+
+test('each friend is in frame, head and all, when she says her line, wide and upright: in her home shot, her head in the middle 80 %, nine tenths of her on the screen, turned to the lens', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    for (const { friend, line } of ARRIVALS) {
+      const said = run.seen.said.find(e => e.id === line);
+      assert.ok(said, `${friend}'s line said (${what})`);
+      const view = run.watched.arrival.view?.[friend]?.find(f => f.time >= said.at - 1e-6);
+      assert.ok(view, `${friend} watched when her line begins (${what})`);
+      const where = `${friend} at ${said.at.toFixed(2)} s (${what}): ${view.shot}, head ${view.x.toFixed(2)}, ${view.y.toFixed(2)}, ${(view.whole * 100).toFixed(0)} % on the screen, turned ${view.turned.toFixed(0)} degrees`;
+      assert.equal(view.shot, `home_${friend}`, where);
+      assert.ok(view.front && Math.abs(view.x) <= 0.8 && Math.abs(view.y) <= 0.8, where);
+      assert.ok(view.whole >= 0.9, where);
+      assert.ok(view.turned <= 70, where);
+    }
   }
 });
 

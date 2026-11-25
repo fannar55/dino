@@ -43,10 +43,13 @@ export const SIGN = {
   horn: { seconds: 2.6, after: 0.6, lift: 0 }, // the note, the wait after it before she walks, her model lifted (m) at the rim
 };
 // Her line this far into her 15 s (once she is on the top), and her walk's pace (m/s) from the cloud to her stand.
-const LINE = { flugedla: 9.5, kambedla: 6.6, uggedla: 8.6, thorsedla: 9.2, sloedla: 7.4 };
+const LINE = { flugedla: 12.5, kambedla: 9.6, uggedla: 9.8, thorsedla: 11.4, sloedla: 7.4 };
 const PACE = { kambedla: 4, uggedla: 4.2, thorsedla: 3.9, sloedla: 3.8 };
 const UNDER = 4; // m: how far a hidden model is sunk under its ground while her sign shows
 const CUT_LATE = { thorsedla: 2 }; // s into her coming before her shot (her head over the cloud some 1 s after it, not 3)
+// Her second shot (hatid-route.js home_<friend>): when her root is OVER m inside the rim, or HOME_AT s into her coming
+const OVER = 1;
+const HOME_AT = { flugedla: 11 };
 
 /** The way she comes: a point `out` m past the rim on her way (negative: inside it), on the ground there. */
 function wayPoint(c, friend, out, aside = 0) {
@@ -157,7 +160,20 @@ export function* arrive(s, c, { friend, line }) {
   // her shot, as she comes or CUT_LATE s into her coming (the shot before holds on): Þórseðla's head is under the cloud her first 3 s
   if (CUT_LATE[friend]) s.after(CUT_LATE[friend], () => { c.cut(`arrive_${friend}`); return null; });
   else c.cut(`arrive_${friend}`);
+  // and her second shot, from the top, the moment she is over the rim (Flugeðla: HOME_AT s in, as she comes down off her lap): she
+  // comes to her stand and says her line in it, and her sign's shot is not seen again once she has left it
   const start = s.time;
+  const actor = c[friend].raw;
+  s.after(0, function* home() {
+    if (HOME_AT[friend] != null) yield s.until(() => s.time - start >= HOME_AT[friend]);
+    else {
+      yield s.until(() => {
+        const { x, z } = actor.root.position;
+        return s.time - start > Math.max(1, CUT_LATE[friend] ?? 0) && actor.root.visible && Math.hypot(x, z) <= Math.hypot(...c.top.edge(Math.atan2(z, x))) - OVER;
+      });
+    }
+    c.cut(`home_${friend}`);
+  });
   s.after(LINE[friend], function* herLine() { yield* c.say(friend, line); });
   yield* COMING[friend](s, c, start);
 }
