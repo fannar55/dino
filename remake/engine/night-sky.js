@@ -26,7 +26,7 @@ export const NIGHT = { stars: 700, low: 6, shooting: 12, sparks: 40, bands: 3 };
 const FIRST = { azimuth: 30, elevation: 50 };
 const CLEAR_COVER = 1.3; // the dome's uCover at full dark: its noise never climbs over 1, so no cloud is left
 const COME_OUT = 0.06; // of `many`: how long a star takes to come out
-const TAIL = 16; // points in a shooting star's tail
+const TAIL = 28; // points in a shooting star's tail
 const TAIL_SPAN = 0.22; // of its way: the tail's length at its longest
 const SPREAD_DEG = 5; // how far a burst's fastest spark flies
 const DROOP_DEG = 1.6; // and how far the sparks sink as they fade
@@ -288,7 +288,7 @@ export function createNightSky(world, { count = NIGHT.stars, seed = 7, first = F
           const y = Math.sin(angle) * far - rad(DROOP_DEG) * burst * burst;
           v.copy(b).addScaledVector(east, Math.tan(x)).addScaledVector(north, Math.tan(y)).normalize();
           const sparkle = 0.65 + 0.35 * Math.sin(burst * 46 + phase);
-          put(v, mixed, (1 - burst) ** 1.3 * sparkle, 0.24 * (1 - 0.5 * burst));
+          put(v, mixed, Math.min(1, 1.4 * (1 - burst) ** 1.1 * sparkle), 0.46 * (1 - 0.45 * burst));
         }
         continue;
       }
@@ -299,7 +299,7 @@ export function createNightSky(world, { count = NIGHT.stars, seed = 7, first = F
       const span = Math.min(TAIL_SPAN, u);
       for (let k = 1; k <= TAIL; k++) {
         const s = k / TAIL;
-        mixed.copy(white).lerp(tone, s);
+        mixed.copy(white).lerp(tone, Math.sqrt(s));
         put(v.copy(a).applyAxisAngle(axis, way * (u - span * s)), mixed, show * 0.85 * (1 - s) ** 1.5, 0.42 - 0.3 * s);
       }
     }
