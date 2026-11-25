@@ -45,6 +45,8 @@ skrái söguna kláraða þegar Egill lyftist (9. kafli), og að veislan fái ei
   1. **Sólsetur** (koman): rauðgullin birta, sú sama og kafli 6 endar í.
   2. **Rökkur** (sólin kveður): gullið verður rautt og svo blátt.
   3. **Myrkur** (beðið eftir stjörnunni): dökkblátt. Aðeins plötur Kambeðlu lýsa, og vinirnir eru skuggamyndir með ljósrönd.
+     **Breyting 26. nóvember 2026 (orð eigandans við bút 3, „allt gott, áfram“):** vinirnir halda fullum lit í myrkrinu, eins og
+     leikurinn lýsir þá; þeir eru ekki skuggamyndir og fá enga ljósrönd. Himinninn og jörðin eru dökk, vinirnir sjást.
   4. **Veislunótt:** stjörnubjart, og sviðsljósin, glóblómin og skýjahafið lýsa toppinn í litum. Hún er björt og hlý, ekki dimm.
 - **Næturhiminninn er nýr.** Leikurinn á engan stjörnuhimin í þrívídd; stjörnur, stjörnuhröp og norðurljós eru aðeins til sem
   flöt teikning í söngleik Slóeðlu (`engine/sloedla/game.js`), og hún er fyrirmynd að útliti en ekki að kóða. Nýi himinninn er
