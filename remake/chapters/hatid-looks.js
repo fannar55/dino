@@ -55,7 +55,7 @@ const blue = look('blue', {
 
 const dark = look('dark', {
   sun: { color: '#4a5ab8', intensity: 0.12 * base.sun.intensity },
-  hemi: { sky: '#3a4a90', ground: '#161c34', intensity: 0.25 },
+  hemi: { sky: '#8a9ae8', ground: '#161c34', intensity: 0.25 }, // a pale sky over the ground, so it still reads as ground (ruling 5)
   sky: { zenith: '#060a24', horizon: '#1c2858', glow: '#30407a', cloud: '#1c2650', cloudShade: '#0c1230' },
   fog: { color: '#16204a', sunColor: '#22305e', sunStrength: 0 },
   exposure: 1, envIntensity: 0.35,
