@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createLighting } from '../engine/lighting.js';
 import { LOOKS } from '../engine/looks.js';
-import { createSunFace } from '../engine/sun-face.js';
+import { CAP, HAND_SIZE, createSunFace } from '../engine/sun-face.js';
 import { FJALL } from '../world/fjall/ground.js';
 import { SHOTS, tallShot } from '../chapters/hatid-route.js';
 import { brightness } from '../chapters/kafli6-looks.js';
@@ -14,28 +14,42 @@ const deg = THREE.MathUtils.radToDeg;
 const CAMERA_FAR = 1200; // main.js's camera: the sea is drawn out to here
 const FAR_SEA = FJALL.top.sea + 4; // the far sea's cards lie up to 4 m over its level (world/fjall/top.js)
 
-test('at SUNSET.under the face\'s whole disc is below the sea\'s horizon from sun_faces and lineup_sun', () => {
+test('at SUNSET.under the face, its hands and its cap are below the sea\'s horizon from sun_faces and lineup_sun, and not a degree sooner', () => {
   const lighting = createLighting(new THREE.Scene(), HATID_LOOKS.sunset, { shadowSize: 0 });
   const shots = [['sun_faces', SHOTS.toppur.sun_faces], ['lineup_sun', SHOTS.toppur.lineup_sun], ['lineup_sun upright', tallShot('lineup_sun')]];
+  const elevation = (camera, point) => deg(Math.asin(point.clone().sub(camera.position).normalize().y));
+  let first = 0; // the first whole degree at which everything is under from every shot
   for (const [name, shot] of shots) {
     const camera = new THREE.PerspectiveCamera(shot.fov, 1.6, 0.25, CAMERA_FAR);
     camera.position.fromArray(shot.position);
     camera.lookAt(...shot.target);
     camera.updateMatrixWorld();
     const face = createSunFace({ scene: new THREE.Scene(), lighting });
+    face.cap(1); // it wears its nightcap as it goes down
     // the sea's horizon from this camera: its far cards at the far plane, under the camera
     const horizon = deg(Math.atan2(FAR_SEA - camera.position.y, CAMERA_FAR));
+    // the highest of the disc's top, the cap sprite's top (CAP.at[1] + CAP.size / 2 = 1.85 radii over the face's middle) and each
+    // hand (its wrist point and a hand's whole size over it, more than its farthest corner)
+    let t = 1;
     const top = () => {
-      face.update(1, camera);
-      const d = face.sprite.position.clone().sub(camera.position).normalize();
-      return deg(Math.asin(d.y)) + face.radiusDeg;
+      face.update((t += 1 / 30), camera);
+      const r = face.radiusDeg;
+      const tops = [elevation(camera, face.sprite.position) + r, elevation(camera, face.capSprite.position) + (CAP.size / 2) * r];
+      for (const point of face.handPoints) tops.push(elevation(camera, point) + HAND_SIZE * r);
+      return Math.max(...tops);
     };
-    assert.ok(top() - 2 * face.radiusDeg > horizon, `${name}: before it sets the whole sun is over the sea`);
+    assert.ok(top() - 4 * face.radiusDeg > horizon, `${name}: before it sets the whole sun is over the sea`);
+    let d = 0;
+    while (d < 60) {
+      face.drop(++d);
+      if (top() < horizon) break;
+    }
+    first = Math.max(first, d);
     face.drop(SUNSET.under);
     const under = top();
-    assert.ok(under < horizon, `${name}: the disc's top at ${under.toFixed(2)} degrees, the sea's horizon at ${horizon.toFixed(2)}`);
+    assert.ok(under < horizon, `${name}: the top of the face, hands and cap at ${under.toFixed(2)} degrees, the sea's horizon at ${horizon.toFixed(2)}`);
   }
-  assert.deepEqual(SUNSET, { under: 14, seconds: 14 });
+  assert.deepEqual(SUNSET, { under: first, seconds: 14 });
 });
 
 const SECTIONS = Object.keys(LOOKS.morning);

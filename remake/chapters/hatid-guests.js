@@ -139,22 +139,22 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
       const ground = top.heightAt(m.at.x, m.at.z);
       const base = a.y + (ground - a.y) * smooth(k * 4); // off her back in the first quarter
       const hops = 5;
-      m.at.y = Math.max(ground, base) + Math.abs(Math.sin(e * hops * Math.PI)) * (m.group === 'frogs' ? 0.9 : 0.4) * (1 - k);
+      // each hop an arch that touches down softly (|sin| to the 1.5: no corner where it lands, so nothing jumps in a frame)
+      m.at.y = Math.max(ground, base) + Math.abs(Math.sin(e * hops * Math.PI)) ** 1.5 * (m.group === 'frogs' ? 0.9 : 0.4) * (1 - k);
       if (b.distanceToSquared(a) > 1e-6) m.heading = Math.atan2(b.z - a.z, b.x - a.x) / deg;
       return;
     }
-    // walking: along the polyline at an even pace, on the ground
-    const lengths = [];
-    let total = 0;
-    for (let i = 1; i < points.length; i++) { const d = points[i].distanceTo(points[i - 1]); lengths.push(d); total += d; }
-    let s = smooth(k) * total;
-    let i = 0;
-    while (i < lengths.length - 1 && s > lengths[i]) { s -= lengths[i]; i++; }
-    const t = lengths[i] > 0 ? Math.min(1, s / lengths[i]) : 1;
-    m.at.lerpVectors(points[i], points[i + 1], t);
+    // walking: along a smooth curve through the way's points (a polyline's corners would turn it in a frame), on the ground
+    let curve = curves.get(m);
+    if (!curve) { curve = new THREE.CatmullRomCurve3(points, false, 'centripetal'); curves.set(m, curve); }
+    const e = Math.min(1, smooth(k));
+    curve.getPointAt(e, m.at);
+    curve.getPointAt(Math.min(1, e + 0.01), w);
     m.at.y = top.heightAt(m.at.x, m.at.z);
-    v.subVectors(points[i + 1], points[i]);
-    if (v.lengthSq() > 1e-6) m.heading = Math.atan2(v.z, v.x) / deg;
+    if (w.x !== m.at.x || w.z !== m.at.z) {
+      v.set(w.x - m.at.x, 0, w.z - m.at.z);
+      if (v.lengthSq() > 1e-8) m.heading = Math.atan2(v.z, v.x) / deg;
+    }
   }
 
   function place(m) {

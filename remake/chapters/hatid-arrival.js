@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import { ARRIVALS, arrivalOf } from './hatid-route.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
+import { BODY_HEIGHT } from './kafli4-route.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { createLightPoints } from '../engine/show/lights.js';
 import { createChoirSounds, loadChoirRecordings } from '../engine/audio/choir-sounds.js';
@@ -69,6 +70,76 @@ function sinker(actor) {
   };
 }
 
+/**
+ * Flugeðla's way from the speck to her stand ([x, y, z] points for flyPath): in from far out off her way (bearing about -35) on a
+ * straight line that meets the lap's circle along it, round the top the way the clock goes (her right wing in, so she banks one way
+ * the whole time: a turn the other way at her speed would flip her bank in a frame), off it over the north rim in a closing spiral
+ * the same way round, down onto her stand (bearing 12, 24 m out). Points about SPACING m apart all along: flyPath's curve gives each
+ * stretch between two points the same share of its parameter, so uneven stretches would change her speed in a frame where they meet.
+ */
+const LAP = { entry: -110, exit: -288, high: 17, low: 11, spiral: 60, spacing: 12, wide: 0.6 }; // wide: the arc in's radius, of `out`
+export function speckWay(top, stand, { out, up, lap }) {
+  const at = (bearing, r, y) => [Math.cos(bearing * deg) * r, y, Math.sin(bearing * deg) * r];
+  const standR = Math.hypot(...stand);
+  // the way in: a wide arc turning the same way, met by the lap along it (its middle beyond the top's, on the line through where
+  // they meet), so her turn only tightens and her bank keeps its side
+  const wide = out * LAP.wide, sweep = (out * 0.8) / wide / deg;
+  const centre = at(LAP.entry, lap - wide, 0);
+  const sections = [
+    // the arc in, falling from `up` over the sea to the lap's height
+    { length: sweep * deg * wide, at: k => {
+      const b = (LAP.entry + sweep * (1 - k)) * deg;
+      return [centre[0] + Math.cos(b) * wide, FJALL.top.sea + up + (LAP.high - FJALL.top.sea - up) * smooth(k), centre[2] + Math.sin(b) * wide];
+    } },
+    // the lap
+    { length: (Math.abs(LAP.exit - LAP.entry) * deg) * lap, at: k => at(LAP.entry + (LAP.exit - LAP.entry) * k, lap, LAP.high + (LAP.low - LAP.high) * k) },
+    // the spiral down
+    { length: LAP.spiral * deg * (lap + standR) / 2, at: k => {
+      const [x, , z] = at(LAP.exit + 360 - LAP.spiral * k, lap + (standR - lap) * smooth(k), 0); // eased: no corner off the lap
+      return [x, LAP.low + (top.heightAt(x, z) - LAP.low) * smooth(k), z];
+    } },
+  ];
+  const points = [];
+  for (const [i, section] of sections.entries()) {
+    const n = Math.max(2, Math.round(section.length / LAP.spacing));
+    for (let j = i === 0 ? 0 : 1; j <= n; j++) points.push(section.at(j / n));
+  }
+  points[points.length - 1] = [stand[0], top.heightAt(...stand), stand[1]];
+  return points;
+}
+
+// Her hips over her root as kafli4-flugedla.js has them (HIPS there: 0.06 m on, BODY_HEIGHT up), and how soon her turn follows the
+// flight's (s): flyPath banks her from the way's turn rate at her speed, and over a long fast lap that rate wavers a little each frame,
+// so her root, hung 2.6 m under her hips, would swing with it.
+const HIPS = new THREE.Vector3(0.06, BODY_HEIGHT, 0);
+const STEADY = 0.12;
+
+/**
+ * A flight (`fly(shadow)`: flyPath on a held root of its own) with her turn eased after it: her body goes exactly where the flight
+ * puts it, and her root turns about it toward the flight's turn over STEADY s, so a wavering bank never jerks her. Ends with the flight.
+ */
+export function* steadyFlight(s, held, fly) {
+  const shadow = {
+    root: { position: held.root.position.clone(), quaternion: held.root.quaternion.clone() },
+    get heading() { return held.heading; },
+  };
+  const run = fly(shadow);
+  const body = new THREE.Vector3(), hips = new THREE.Vector3();
+  let was = s.time, done = false;
+  for (;;) {
+    if (!done) done = run.next().done;
+    const dt = Math.max(0, s.time - was);
+    was = s.time;
+    body.copy(HIPS).applyQuaternion(shadow.root.quaternion).add(shadow.root.position);
+    held.root.quaternion.slerp(shadow.root.quaternion, 1 - Math.exp(-dt / STEADY));
+    // once the flight is over she is still, and her turn settles where it ends
+    if (done && held.root.quaternion.angleTo(shadow.root.quaternion) < 0.003) held.root.quaternion.copy(shadow.root.quaternion);
+    held.root.position.copy(body).sub(hips.copy(HIPS).applyQuaternion(held.root.quaternion));
+    if (done && held.root.quaternion.equals(shadow.root.quaternion)) return;
+    yield;
+  }
+}
+
 /** She walks from where she is through `points` ([x, z]) to her stand at `pace` m/s, and turns to the sun there. */
 function* walkHome(s, c, friend, points, pace) {
   const actor = c[friend].raw;
@@ -92,27 +163,13 @@ const COMING = {
     const her = c.flugedla.raw;
     const { out, up, lap, seconds } = SIGN.speck;
     const stand = c.stands.farewell.flugedla.at;
-    const ground = y => FJALL.top.sea + y;
-    const at = (bearing, r, y) => [Math.cos(bearing * deg) * r, y, Math.sin(bearing * deg) * r];
-    // in from far out off her way (bearing about -35) on a line that meets the lap's circle, round the top the way the clock goes
-    // (her right wing in, so she banks one way the whole time: a turn the other way at her speed would flip her bank in a frame), off
-    // it over the north rim and on round to the right, down onto her stand
-    const ENTRY = -110, EXIT = -288; // the lap's bearings: in, and out
-    const meet = at(ENTRY, lap, 17);
-    const along = [Math.cos((ENTRY - 90) * deg), Math.sin((ENTRY - 90) * deg)]; // the circle's way there, clockwise
-    const points = [
-      [meet[0] - along[0] * out * 0.8, ground(up), meet[2] - along[1] * out * 0.8],
-      [meet[0] - along[0] * 70, ground(up - 6), meet[2] - along[1] * 70],
-      ...[0, 1, 2, 3, 4, 5, 6].map(i => at(ENTRY + ((EXIT - ENTRY) * i) / 6, lap, 17 - i)),
-      [26, c.top.heightAt(26, 30) + 6, 30],
-      [stand[0], c.top.heightAt(...stand), stand[1]],
-    ];
+    const points = speckWay(c.top, stand, SIGN.speck);
     const held = holdHer(c);
     held.place(new THREE.Vector3(...points[0]), headingTo([points[0][0], points[0][2]], [points[1][0], points[1][2]]));
     her.root.visible = true;
     c.log({ type: 'sign', friend: 'flugedla', sign: 'speck' });
     c.guests?.come('flyers', seconds - 1.2);
-    yield* flyPath(s, c, held, { points, seconds, clips: [[0, 'fly', 0.4], [0.3, 'glide', 0.8], [0.62, 'fly', 0.6], [0.86, 'land', 0.5]], face: SUN_HEADING, turn: 0.12, landing: null });
+    yield* steadyFlight(s, held, shadow => flyPath(s, c, shadow, { points, seconds, clips: [[0, 'fly', 0.4], [0.3, 'glide', 0.8], [0.62, 'fly', 0.6], [0.86, 'land', 0.5]], face: SUN_HEADING, turn: 0.12, landing: null }));
     // let go, upright, facing where flyPath turned her (her root's Euler angles may have flipped round in the flight)
     const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(held.root.quaternion);
     her.control(null);

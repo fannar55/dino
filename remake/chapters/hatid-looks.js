@@ -3,7 +3,7 @@
 // LOOKS.sunset, hatid-route.js SKY.sun): the light changes, its place does not. The sun's face sinks under the sea of cloud by its
 // own drop (engine/sun-face.js drop, s.sun.drop), not by moving the light.
 //
-//   SUNSET           { under, seconds }: the degrees that take the sun's whole disc under the sea's horizon from the farewell shots
+//   SUNSET           { under, seconds }: the degrees that take the sun's whole face, its hands and cap under the sea's horizon from the farewell shots
 //                    (lineup_sun, sun_faces), and the seconds it takes to sink (first values)
 //   HATID_LOOKS      { sunset, red, blue, dark, night }, each with every field LOOKS.morning has, in the shape engine/light-blend.js
 //                    sets:
@@ -21,7 +21,9 @@
 // the sky dome's fog band toward the sun (fog.sunStrength), which every look after `red` has at 0.
 import { LOOKS, blendLooks } from '../engine/looks.js';
 
-export const SUNSET = { under: 14, seconds: 14 };
+// under: the first whole degree at which the face, its hands and its nightcap's top (1.85 radii over the face's middle) are all under
+// from sun_faces and both lineup_sun frames (ruling 10 of chunk 3; hatid-looks.test.mjs finds it)
+export const SUNSET = { under: 16, seconds: 14 };
 
 const base = LOOKS.sunset;
 const SUN = { azimuth: base.sun.azimuth, elevation: base.sun.elevation };
