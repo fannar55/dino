@@ -10,7 +10,7 @@
 //                                    the game's own plants and rocks (world/forest/species.js), each at its place, merged into two
 //                                    static meshes (their solid and their thin parts) as the forest's batcher bakes them: they sway in
 //                                    the wind, take the sun's shadow and the fog as the forest's do; one draw call each
-//   createCloudCards(world, cards, { name, renderOrder, fogShare }) -> { mesh, cards, setOpacity(v), setGlow(v), update(), dispose() }
+//   createCloudCards(world, cards, { name, renderOrder, fogShare }) -> { mesh, cards, setOpacity(v), setGlow(v), setSpot(v, colour, at, radius), update(), dispose() }
 //                                    soft cloud cards in one mesh: upright ones turned to the camera about the vertical (a bank, a
 //                                    wisp) and flat ones lying level (the sea of cloud, a cloud's underside), white and lit by the
 //                                    scene's own sun and sky each frame (update), the light through them toward the sun; nothing of
@@ -159,6 +159,8 @@ uniform vec3 uSunDir;
 uniform vec3 uSky;
 uniform vec3 uGround;
 uniform vec3 uGlow;
+uniform vec3 uSpot;
+uniform vec4 uSpotAt;
 uniform float uTime;
 uniform float uFogShare;
 uniform sampler2D uNoise;
@@ -197,6 +199,8 @@ void main() {
   if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) through *= 0.3; // a cloud's underside is thick: little sun comes through it
   vec3 albedo = vec3( 0.9 + 0.1 * n );
   vec3 colour = albedo * RECIPROCAL_PI * ( mix( uGround, uSky, up ) * mix( 0.8, 1.2, height ) + uSun * ( lit * 1.25 + through * 1.6 ) ) + uGlow * ( 0.5 + 0.5 * thick );
+  // a light in the cloud round one place (Kambeðla's plates under it at the festival): soft, gone at uSpotAt.w metres
+  colour += uSpot * ( 0.5 + 0.5 * thick ) * ( 1.0 - smoothstep( uSpotAt.w * 0.3, uSpotAt.w, distance( vWorld.xz, uSpotAt.xz ) ) );
   // its underside, seen from below: the sky's light and the low sun under it, soft and pale (the ground's brown made it dirty)
   if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) colour = albedo * RECIPROCAL_PI * ( mix( uGround, uSky, 0.8 ) * 1.3 + uSun * ( 0.45 + 0.25 * fold + through ) );
   gl_FragColor = vec4( colour, a );
@@ -251,6 +255,8 @@ export function createCloudCards(world, cards, { name = 'Cloud cards', renderOrd
     uSky: { value: new THREE.Color(1, 1, 1) },
     uGround: { value: new THREE.Color(0.5, 0.5, 0.5) },
     uGlow: { value: new THREE.Color(0, 0, 0) },
+    uSpot: { value: new THREE.Color(0, 0, 0) },
+    uSpotAt: { value: new THREE.Vector4(0, 0, 0, 1) },
     uOpacity: { value: 1 },
     uTime: { value: 0 },
     uFogShare: { value: fogShare },
@@ -282,6 +288,11 @@ export function createCloudCards(world, cards, { name = 'Cloud cards', renderOrd
     setOpacity(v) { uniforms.uOpacity.value = Math.max(0, v); mesh.visible = v > 0.002; },
     /** A light of their own (the festival's glow under the night: 0 none, 1 a warm glow), in linear colour. */
     setGlow(v, colour = '#ffb46b') { uniforms.uGlow.value.copy(glow.set(colour)).multiplyScalar(Math.max(0, v) * 0.6); },
+    /** A light in them round one place ([x, z], soft out to `radius` m), on top of their glow: 0 none (as made). */
+    setSpot(v, colour = '#c9a2e6', at = [0, 0], radius = 10) {
+      uniforms.uSpot.value.set(colour).multiplyScalar(Math.max(0, v) * 0.6);
+      uniforms.uSpotAt.value.set(at[0], 0, at[1], Math.max(0.1, radius));
+    },
     /** One card's opacity (k its index), as made times `v`. */
     cardOpacity(k, v) {
       for (let i = 0; i < 4; i++) data[(k * 4 + i) * 4 + 2] = (cards[k].opacity ?? 1) * v;

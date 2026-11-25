@@ -11,7 +11,7 @@
 //   top.room -> [{ friend, at, r }]    where each of the six friends stands at the festival: a disc half her length, none
 //                                      overlapping, all inside the flat, ROOM.middle m round the middle kept free
 //   topRooms() -> the same rooms, with no top built (a page or a chapter that needs them before the place)
-//   top.sea                            { level, setGlow(v), wave({ from, strength, seconds }) -> Handle, cards, bank }
+//   top.sea                            { level, setGlow(v), light(v, { at, radius, colour }), spot, wave({ from, strength, seconds }) -> Handle, cards, bank }
 //   top.veil                           { setLevel(v), level }: the last wisp chapter 6 climbs out of, by the south-west rim (0 gone, 1 thick)
 //
 // Not grey: the game's own ground material painted as a meadow (grass, a little dry grass, stone only on the steep), the game's own
@@ -206,6 +206,14 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
       /** A warm light of the sea's own (the festival's glow under the night): 0 none, 1 full. The rim's puffs and heaps take it too, in
        * place of the pale light of their own they have at the sunset (set at the build; chapter 6 never calls this). */
       setGlow(v) { seaCards?.setGlow(v); bank?.setGlow(v * 0.6); rimCards?.setGlow(v); },
+      /** A light in the sea and the rim's puffs round one place ([x, z], soft out to `radius` m) on top of their own: 0 none, as built
+       * (the festival's Kambeðla under the cloud). `spot` keeps what it was given last. */
+      spot: { level: 0, at: [0, 0], radius: 10, colour: '#c9a2e6' },
+      light(v, { at = [0, 0], radius = 10, colour = '#c9a2e6' } = {}) {
+        const level = Math.max(0, v);
+        this.spot = { level, at: [at[0], at[1]], radius, colour };
+        for (const cards of [seaCards, rimCards]) cards?.setSpot(level, colour, at, radius);
+      },
       /** A swell running out over the sea from `from` ([x, z]), `strength` m high, over `seconds`; a Handle, done when it has passed. */
       wave({ from = [0, 0], strength = 3, seconds = 4 } = {}) {
         wave?.handle.finish();

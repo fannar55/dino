@@ -99,6 +99,21 @@ function watchArrival(world, c, { sunFace }, seen) {
   const v = new THREE.Vector3();
   const sea = FJALL.top.sea;
   const on = (x, z) => Math.hypot(x, z) <= c.top.radius;
+  // Kambeðla's light in the cloud (top.sea.light): how full it gets in her shot, how wide its lit middle (out to 0.65 of its radius,
+  // where it is half) stands in the frame there, and anything of it in any other shot
+  const spot = c.top.sea?.spot;
+  if (spot) {
+    if (shot === 'arrive_kambedla') {
+      a.spotMost = Math.max(a.spotMost ?? 0, spot.level);
+      if (spot.level > 0.9) {
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize().multiplyScalar(spot.radius * 0.65);
+        const middle = new THREE.Vector3(spot.at[0], sea + 2, spot.at[1]);
+        const [l, r] = [middle.clone().sub(right).project(camera), middle.clone().add(right).project(camera)];
+        const wide = (Math.min(1, Math.max(l.x, r.x)) - Math.max(-1, Math.min(l.x, r.x))) / 2;
+        a.spotWide = Math.min(a.spotWide ?? Infinity, wide);
+      }
+    } else a.spotElsewhere = Math.max(a.spotElsewhere ?? 0, spot.level);
+  }
   let bigs = 0;
   for (const who of FRIENDS8) {
     const actor = world.actors.get(who);
@@ -433,6 +448,15 @@ test('nobody walks through the lens: in every frame of the arrival no friend\'s 
     assert.deepEqual(run.watched.arrival.halves.slice(0, 6), [], what);
     // and each of the five is seen in her own shot (her head in its frame, over the cloud, nothing of the top before it) 2 s or more
     for (const who of FIVE) assert.ok((run.watched.arrival.signSeen?.[who] ?? 0) >= 60, `${who} seen ${run.watched.arrival.signSeen?.[who] ?? 0} frames in arrive_${who} (${what})`);
+  }
+});
+
+test('Kambeðla\'s sign reads: the cloud over her lights lilac to full in her shot, its lit middle a tenth of the frame\'s width or more at both sizes, and no light in the cloud in any other shot', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    const { spotMost, spotWide, spotElsewhere } = run.watched.arrival;
+    assert.ok(spotMost > 0.99, `${what}: the light at most ${spotMost}`);
+    assert.ok(spotWide >= 0.1, `${what}: its lit middle ${(spotWide * 100).toFixed(1)} % of the frame's width`);
+    assert.equal(spotElsewhere ?? 0, 0, `${what}: light in the cloud outside her shot`);
   }
 });
 
