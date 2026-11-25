@@ -267,13 +267,13 @@ export const SHOTS = {
     // the ground there), off her way: the top's shoulder hides
     // the cloud within ten metres of the rim from anywhere on the flat (Task 8's first stills: nobody showed but a crown).
     // the lilac light in the cloud over her way, from her left
-    arrive_kambedla: shot(polar(-84, 46.5, 2), polar(-60, 56, -4.5), 46),
+    arrive_kambedla: shot(polar(-84, 46.5, 0.8), polar(-60, 56, 0.4), 46),
     // the sail cutting along the rim's cloud toward her way, from her right
     arrive_uggedla: shot(polar(-8, 46.5, 1.8), polar(20, 55, -6.5), 50),
     // her head rising over the cloud as she comes to the rim, from her right
     arrive_thorsedla: shot(polar(-116, 46.5, 1.8), polar(-95, 60, 1.5), 50),
     // the cloud her note comes from, from her left, Mosi and Grameðla behind the lens
-    arrive_sloedla: shot(polar(90, 46.5, 2.2), polar(70, 54, -3.5), 50),
+    arrive_sloedla: shot(polar(86, 46.5, 0.8), polar(70, 54, 0), 44),
     // everyone lined up facing the sun: the still shot the sun is tapped in
     lineup_sun: sunShot(1.6),
     // the sun's face close as it waves, yawns and sinks, Egill on her head under it
