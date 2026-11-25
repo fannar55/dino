@@ -1,0 +1,127 @@
+[
+  {
+    "id": "h_egill_where",
+    "speaker": "egill",
+    "text": "Hvar eru allir?"
+  },
+  {
+    "id": "h_mosi_wait",
+    "speaker": "mosi",
+    "text": "Bíddu bara. Þau koma."
+  },
+  {
+    "id": "h_flugedla_forest",
+    "speaker": "flugedla",
+    "text": "Allur skógurinn er á leiðinni!"
+  },
+  {
+    "id": "h_kambedla_light",
+    "speaker": "kambedla",
+    "text": "Ég kom með ljósið!"
+  },
+  {
+    "id": "h_uggedla_river",
+    "speaker": "uggedla",
+    "text": "Allir komnir yfir ána!"
+  },
+  {
+    "id": "h_thorsedla_late",
+    "speaker": "thorsedla",
+    "text": "Er ég of sein?"
+  },
+  {
+    "id": "h_sloedla_song",
+    "speaker": "sloedla",
+    "text": "Ég man lagið!"
+  },
+  {
+    "id": "h_mosi_sleep",
+    "speaker": "mosi",
+    "text": "Sólin er að fara að sofa. Vinkaðu henni, Egill!"
+  },
+  {
+    "id": "h_mosi_wave",
+    "speaker": "mosi",
+    "text": "Vinkaðu henni, Egill!"
+  },
+  {
+    "id": "h_mosi_goodnight",
+    "speaker": "mosi",
+    "text": "Góða nótt, sól!"
+  },
+  {
+    "id": "h_mosi_first",
+    "speaker": "mosi",
+    "text": "Nú bíðum við eftir fyrstu stjörnunni."
+  },
+  {
+    "id": "h_thorsedla_there",
+    "speaker": "thorsedla",
+    "text": "Þarna! Ég sé hana!"
+  },
+  {
+    "id": "h_mosi_now",
+    "speaker": "mosi",
+    "text": "Núna, Egill!"
+  },
+  {
+    "id": "h_mosi_light",
+    "speaker": "mosi",
+    "text": "Kveiktu á þeim, Egill!"
+  },
+  {
+    "id": "h_mosi_summer",
+    "speaker": "mosi",
+    "text": "Fyrstu stjörnur sumarsins! Gleðilega Stjörnuhátíð!"
+  },
+  {
+    "id": "h_sloedla_up",
+    "speaker": "sloedla",
+    "text": "Hendur upp!"
+  },
+  {
+    "id": "h_sloedla_stomp",
+    "speaker": "sloedla",
+    "text": "Stappa!"
+  },
+  {
+    "id": "h_sloedla_spin",
+    "speaker": "sloedla",
+    "text": "Snúa!"
+  },
+  {
+    "id": "h_sloedla_hop",
+    "speaker": "sloedla",
+    "text": "Hoppa!"
+  },
+  {
+    "id": "h_mosi_thanks",
+    "speaker": "mosi",
+    "text": "Takk, Egill. Þetta var besti dagur í heimi."
+  },
+  {
+    "id": "h_thorsedla_more",
+    "speaker": "thorsedla",
+    "text": "Bíddu … þarna er ein í viðbót."
+  },
+  {
+    "id": "h_egill_fly",
+    "speaker": "egill",
+    "text": "Mosi, sjáðu! Ég flýg!"
+  },
+  {
+    "id": "h_mosi_where",
+    "speaker": "mosi",
+    "text": "Egill! Hvert ertu að fara?"
+  },
+  {
+    "id": "h_egill_bye",
+    "speaker": "egill",
+    "text": "Ég veit það ekki! Sjáumst!"
+  },
+  {
+    "id": "h_mosi_find",
+    "speaker": "mosi",
+    "text": "Ég finn þig, Egill!"
+  }
+]

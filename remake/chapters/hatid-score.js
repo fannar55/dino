@@ -78,3 +78,44 @@ export function pulseAt(beat) {
 }
 
 export const cuesIn = (kind, from, to) => song.cues.filter(cue => cue.kind === kind && cue.beat >= from && cue.beat < to);
+
+// The party's camera (spec 6, "eins og tónleikamyndband": wide shots of everyone, closes in the solos, cut on the beat), by the song's
+// beat, as chapter 5's music video (kafli5-video.js CAMERA): a cut on a beat, and a shot lasts a bar at least unless `quick`; `then`
+// a push (m), orbit (degrees) or zoom (a lens) over so many beats while the shot lasts, inside STYLE.md 8's speeds; with less motion
+// only the cuts. The shots are hatid-route.js SHOTS.toppur's. The first grey cut: Slóeðla alone on the stage at the first beat, a cut
+// to each friend as she enters (the choir, the song's own voices, has none), everyone wide on the first beat of the dance and of the
+// last chorus, each friend close on her solo's first beat, the sky in the quiet part, and everyone's last pose on the chord. No shot
+// holds longer than four bars.
+const SOLO_CUTS = song.solos.map(({ who, startBeat }) => ({ beat: startBeat, cut: `solo_${who}` }));
+const ENTRY_CUTS = song.entries.filter(e => e.who !== 'choir' && e.beat > 0).map(({ who, beat }) => ({ beat, cut: `solo_${who}` }));
+const at = id => song.sections.find(part => part.id === id).startBeat;
+export const CAMERA = [
+  { beat: 0, cut: 'stage_front', then: { push: 2, beats: 24 } },
+  { beat: 16, cut: 'solo_sloedla' },
+  ...ENTRY_CUTS,
+  { beat: 68, cut: 'stage_front' },
+  // the first dance: wide on each call, the floor between
+  { beat: at('dance'), cut: 'party_wide' },
+  { beat: 80, cut: 'egill_mosi' },
+  { beat: 88, cut: 'party_wide' },
+  { beat: 96, cut: 'party_high' },
+  { beat: 104, cut: 'party_wide' },
+  { beat: 112, cut: 'floor_low' },
+  { beat: 120, cut: 'party_wide' },
+  { beat: 128, cut: 'party_high' },
+  ...SOLO_CUTS,
+  // the quiet part: the sky and the moon
+  { beat: at('quiet'), cut: 'sky_dance' },
+  { beat: 222, cut: 'moon_close' },
+  { beat: 236, cut: 'sky_dance' },
+  // the last chorus: everything at once
+  { beat: at('chorus'), cut: 'party_wide' },
+  { beat: 264, cut: 'party_high' },
+  { beat: 276, cut: 'party_wide' },
+  { beat: 288, cut: 'egill_mosi' },
+  { beat: 300, cut: 'party_wide' },
+  { beat: 312, cut: 'floor_low' },
+  { beat: 324, cut: 'party_wide' },
+  { beat: 336, cut: 'party_high' },
+  { beat: at('chord'), cut: 'final_pose' },
+].sort((a, b) => a.beat - b.beat);

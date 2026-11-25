@@ -56,11 +56,11 @@ export const HEAD = {
 // The five who come up (spec 3, scene 1): in its order, each about fifteen seconds; up her way at bearing `way` (top.wayUp), none
 // from the south-west, where Grameðla came up (TOP_END.way), nor out of the sun. `line`: her line in the set `hatid` (Task 5's WORDS).
 export const ARRIVALS = [
-  { friend: 'flugedla', way: -20, seconds: 15, line: 'h_flugedla_skogurinn' }, // „Allur skógurinn er á leiðinni!“
-  { friend: 'kambedla', way: -60, seconds: 15, line: 'h_kambedla_ljosid' }, // „Ég kom með ljósið!“
-  { friend: 'uggedla', way: 10, seconds: 15, line: 'h_uggedla_ain' }, // „Allir komnir yfir ána!“
-  { friend: 'thorsedla', way: -95, seconds: 15, line: 'h_thorsedla_sein' }, // „Er ég of sein?“
-  { friend: 'sloedla', way: 70, seconds: 15, line: 'h_sloedla_lagid' }, // „Ég man lagið!“
+  { friend: 'flugedla', way: -20, seconds: 15, line: 'h_flugedla_forest' }, // „Allur skógurinn er á leiðinni!“
+  { friend: 'kambedla', way: -60, seconds: 15, line: 'h_kambedla_light' }, // „Ég kom með ljósið!“
+  { friend: 'uggedla', way: 10, seconds: 15, line: 'h_uggedla_river' }, // „Allir komnir yfir ána!“
+  { friend: 'thorsedla', way: -95, seconds: 15, line: 'h_thorsedla_late' }, // „Er ég of sein?“
+  { friend: 'sloedla', way: 70, seconds: 15, line: 'h_sloedla_song' }, // „Ég man lagið!“
 ];
 /** Where `friend` comes up onto `top`: her way (top.wayUp: under the sea, the rim, its inside point), and she on its inside point, facing in. */
 export function arrivalOf(top, friend) {
