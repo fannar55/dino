@@ -1,0 +1,369 @@
+// The festival's top as data (docs/superpowers/specs/2026-11-21-stjornuhatidin-design.md sections 1 to 3 and 6; the plan's
+// departures "The layout" and "The six stars hang on the sky sphere"): where everyone stands in each scene, where the stage rises,
+// where the stars, the moon and the sun are in the sky, where the five friends come up, and every shot of the one place `toppur`
+// (world/fjall/top.js createTop: 45 m round, its ground 0 to 3 m, the sea of cloud at -7 m) and whom it is for. Pure data and small
+// pure helpers; hatid.js stages it. Metres, [x, z]; headings and bearings in degrees from +X toward +Z (0 faces +X, 90 faces +Z), as
+// the looks' sun azimuth (engine/lighting.js sunDirection) and top.edge's angle.
+//
+//   BEARING                 the sun's (where it sets, toward the bank), the stage's and the child's (who watches the party)
+//   floorPoint(across, depth) -> [x, z]  `depth` m from the middle toward the stage, `across` m to the child's right
+//   FRIENDS8, MODELS, LENGTH, HEAD       the eight, their models (assets/characters/), lengths (STYLE.md 3) and heads
+//   standsOf(top)           { start, farewell, dark, party, gather }: { friend: { at, heading } | { on: 'gramedla', at, heading } }
+//   arrivalOf(top, friend)  where a friend comes up: { way: top.wayUp's three points, at, heading }
+//   STAGE, FLOOR, ARRIVALS, SKY, STAR_TAP, SUN_TAP, starOver(friend, stands, shot)
+//   SHOTS.toppur, SHOWS (shot -> who must be in its frame), SCENE (shot -> the stands it is seen with), tallShot(name) (its upright
+//   frame, where it has one), sunShot(aspect), starsShot(aspect) (the two still tap shots)
+import { TOP_END, topEnd } from './kafli6-route.js';
+import { LOOKS } from '../engine/looks.js';
+
+const deg = Math.PI / 180;
+const way = heading => [Math.cos(heading * deg), Math.sin(heading * deg)];
+const headingTo = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) / deg;
+const round = (v, k = 100) => Math.round(v * k) / k;
+const at3 = ([x, z], y) => [round(x), round(y), round(z)];
+const GROUND = 1.2; // m: the top's ground on the flat (createTop: 0.7 to 1.5 m)
+
+/**
+ * The layout (the plan: open until chunk 2's still): the sun sets toward the top's bank (top.js BANK.bearing, LOOKS.sunset's
+ * azimuth 215); the stage rises the other way, with the moon behind it; the child watches the party from the sun's side.
+ */
+export const BEARING = { sun: -145, stage: 45, child: -135 };
+const [SX, SZ] = way(BEARING.stage);
+/** [x, z] `depth` m from the top's middle toward the stage and `across` m to the child's right (the child faces the stage). */
+export function floorPoint(across, depth) {
+  return [SX * depth - SZ * across, SZ * depth + SX * across];
+}
+
+export const FRIENDS8 = ['gramedla', 'mosi', 'egill', 'flugedla', 'kambedla', 'uggedla', 'thorsedla', 'sloedla'];
+/** Each friend's model in assets/characters/ (as fjall-toppur.js names them), Mosi's and Egill's. */
+export const MODELS = {
+  thorsedla: 'brontosaurus', kambedla: 'stegosaurus', uggedla: 'spinosaurus', sloedla: 'parasaurolophus', flugedla: 'pteranodon', gramedla: 'trex',
+  mosi: 'mosi', egill: 'egill',
+};
+/** m from nose to tail (STYLE.md 3; Flugeðla her wingspan, Egill his height): a friend's room is a disc half of it round her root. */
+export const LENGTH = { gramedla: 12, mosi: 8.5, egill: 1.1, flugedla: 7.5, kambedla: 7, uggedla: 14, thorsedla: 22, sloedla: 7.5 };
+/**
+ * Her head, [ahead, up] m from her root in her own frame, as she stands (read from lineup.js's face shots of each at real size;
+ * Mosi's and Egill's as tests/kafli6-route.test.mjs PART); onHerHead: Egill sitting on Grameðla's (kafli6-seat.js HEAD_SEAT, his
+ * head over her skull), in her frame.
+ */
+export const HEAD = {
+  gramedla: [4, 4.2], mosi: [2.7, 3], egill: [0, 1], flugedla: [1.5, 3], kambedla: [2.5, 1.9], uggedla: [5.9, 5], thorsedla: [7.6, 8], sloedla: [2.5, 2.9],
+  onHerHead: [3, 5.9],
+};
+
+// ---------------------------------------------------------------------------------------------
+// The five who come up (spec 3, scene 1): in its order, each about fifteen seconds; up her way at bearing `way` (top.wayUp), none
+// from the south-west, where Grameðla came up (TOP_END.way), nor out of the sun. `line`: her line in the set `hatid` (Task 5's WORDS).
+export const ARRIVALS = [
+  { friend: 'flugedla', way: -20, seconds: 15, line: 'h_flugedla_skogurinn' }, // „Allur skógurinn er á leiðinni!“
+  { friend: 'kambedla', way: -60, seconds: 15, line: 'h_kambedla_ljosid' }, // „Ég kom með ljósið!“
+  { friend: 'uggedla', way: 10, seconds: 15, line: 'h_uggedla_ain' }, // „Allir komnir yfir ána!“
+  { friend: 'thorsedla', way: -95, seconds: 15, line: 'h_thorsedla_sein' }, // „Er ég of sein?“
+  { friend: 'sloedla', way: 70, seconds: 15, line: 'h_sloedla_lagid' }, // „Ég man lagið!“
+];
+/** Where `friend` comes up onto `top`: her way (top.wayUp: under the sea, the rim, its inside point), and she on its inside point, facing in. */
+export function arrivalOf(top, friend) {
+  const { way: bearing } = ARRIVALS.find(a => a.friend === friend);
+  const path = top.wayUp(bearing * deg);
+  return { way: path, at: path[2], heading: headingTo(path[1], path[2]) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The farewell and the dark (scenes 1 and 2): one arc round the top's middle, open to the sun, everyone facing it. Along it from the
+// way Þórseðla came up round to Grameðla's: each a disc of half her length from the next (and ARC.pad more), Mosi beside Grameðla,
+// the small ones between the big. Chord `c` between two on the arc takes 2 asin(c / 2R) of it.
+const ARC = { radius: 24, pad: 1.06, order: ['thorsedla', 'kambedla', 'flugedla', 'uggedla', 'sloedla', 'mosi', 'gramedla'] };
+const ARC_STANDS = (() => {
+  const steps = ARC.order.slice(1).map((who, i) => {
+    const chord = Math.max(6, ((LENGTH[who] + LENGTH[ARC.order[i]]) / 2) * ARC.pad);
+    return (2 * Math.asin(chord / (2 * ARC.radius))) / deg;
+  });
+  const span = steps.reduce((a, b) => a + b, 0);
+  let bearing = BEARING.sun + 180 - span / 2;
+  const out = {};
+  ARC.order.forEach((who, i) => {
+    if (i) bearing += steps[i - 1];
+    const [x, z] = way(bearing);
+    out[who] = { at: [round(x * ARC.radius), round(z * ARC.radius)], heading: BEARING.sun };
+  });
+  return out;
+})();
+const DARK = { ...ARC_STANDS, egill: { on: 'gramedla', ...ARC_STANDS.gramedla } };
+
+// The party (scene 3, first values): Slóeðla and Flugeðla on the stage, the big ones either side of it, the small ones in front, Mosi
+// and Egill dancing at the front; everyone faces the child, as a band on a stage does.
+const PARTY_AT = {
+  sloedla: [0, 30], flugedla: [7.6, 29], gramedla: [-17, 20], thorsedla: [21, 22], uggedla: [-13, 4], kambedla: [12, 5], mosi: [-2, -9], egill: [2.5, -11],
+};
+const PARTY = Object.fromEntries(Object.entries(PARTY_AT).map(([who, p]) => [who, { at: floorPoint(...p).map(v => round(v)), heading: BEARING.child }]));
+
+// The gathering (scene 4): a ring round Egill a little in front of the middle, everyone 7 m or more from him, turned to him; the big
+// ones further out, the ring a little open toward the child's side, where its shot stands. [bearing from him, metres].
+const EGILL_GATHER = floorPoint(0, -4);
+const RING = { mosi: [-130, 8], gramedla: [-85, 15], kambedla: [-45, 8], uggedla: [-5, 17], thorsedla: [55, 21], flugedla: [100, 9], sloedla: [155, 9] };
+const GATHER = {
+  egill: { at: EGILL_GATHER.map(v => round(v)), heading: BEARING.stage },
+  ...Object.fromEntries(Object.entries(RING).map(([who, [b, d]]) => {
+    const [x, z] = way(BEARING.stage + b);
+    const at = [round(EGILL_GATHER[0] + x * d), round(EGILL_GATHER[1] + z * d)];
+    return [who, { at, heading: round(headingTo(at, EGILL_GATHER), 1000) }];
+  })),
+};
+
+/**
+ * Where everyone stands in each scene on `top` (a createTop): { start, farewell, dark, party, gather }, each { friend: { at: [x, z],
+ * heading } }, and Egill { on: 'gramedla', at, heading } while he sits on her head (her own at and heading). start: where chapter 6
+ * stops them (topEnd), and each of the five on her way's inside point as she comes up.
+ */
+export function standsOf(top) {
+  const end = topEnd(top);
+  const coming = Object.fromEntries(ARRIVALS.map(({ friend }) => {
+    const { at, heading } = arrivalOf(top, friend);
+    return [friend, { at, heading }];
+  }));
+  return {
+    start: { gramedla: end.her, mosi: end.mosi, egill: { on: 'gramedla', ...end.her }, ...coming },
+    farewell: DARK,
+    dark: DARK,
+    party: PARTY,
+    gather: GATHER,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+/**
+ * The stage (spec 6): `stones` stones rise in a half ring of `arc` degrees, `radius` m round its middle, behind it (open to the
+ * child), each `height` m high; Slóeðla stands on it, Flugeðla beside her. The dance floor: `count` glow flowers within `radius` m.
+ */
+export const STAGE = { centre: floorPoint(0, 30), stones: 9, arc: 150, radius: 9, height: [0.6, 1.4] };
+export const FLOOR = { radius: 30, count: 420 };
+
+// ---------------------------------------------------------------------------------------------
+// The sky: places on the sky sphere as { azimuth, elevation } in degrees, seen from wherever the camera is.
+/** A star's tap circle: degrees round it on the sky. The sun's: degrees round its middle. */
+export const STAR_TAP = 3.6;
+export const SUN_TAP = 6.5;
+// The six in two rows, so six tap circles fit an upright screen (first values 26 and 38: the high row came down to 36, so its
+// circles at the frame's sides clear the star counter on 16:10)
+const ROWS = { low: 26, high: 36 };
+
+// The still shot the six stars are tapped in (starsShot): from the sun's side, a little up, looking over the arc at its faces, the
+// north-east sky over it, where the stage will rise and the moon come up.
+const STARS_FROM = { bearing: BEARING.sun, out: 47, up: 2.2 };
+const STARS_AT = at3(way(STARS_FROM.bearing).map(v => v * STARS_FROM.out), GROUND + STARS_FROM.up);
+// The rows by the arc's order of the six: next ones never in one row
+const STAR_ROW = { thorsedla: 'high', kambedla: 'low', flugedla: 'high', uggedla: 'low', sloedla: 'high', gramedla: 'low' };
+const STARS_PITCH = 19; // degrees up: the high row's circles under the star counter on 16:10, the friends' heads over the captions
+/** Her head as she stands ([x, y over her root, z]). */
+function headOf(friend, stands) {
+  const s = stands[friend];
+  const host = s.on ? stands[s.on] : s;
+  const [ahead, up] = s.on ? HEAD.onHerHead : HEAD[friend];
+  const [fx, fz] = way(host.heading);
+  return [host.at[0] + fx * ahead, up, host.at[1] + fz * ahead];
+}
+/** How far right of the middle a direction `d` ([x, y, z]) lands in `shot`, as a share of the depth (the screen's x before the lens). */
+function across(shot, d) {
+  const f = [shot.target[0] - shot.position[0], shot.target[1] - shot.position[1], shot.target[2] - shot.position[2]];
+  const r = [-f[2], 0, f[0]]; // forward x up: the camera's right
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return dot(d, r) / Math.hypot(r[0], r[2]) / (dot(d, f) / Math.hypot(...f));
+}
+const skyDirection = (azimuth, elevation) => [Math.cos(elevation * deg) * Math.cos(azimuth * deg), Math.sin(elevation * deg), Math.cos(elevation * deg) * Math.sin(azimuth * deg)];
+/**
+ * The azimuth that puts `friend`'s star over her in `shot` (standing as `stands` says): on the screen straight above her head, in its
+ * row. The screen's x of a place on the sky depends only on the camera's place and its way (the director keeps an authored frame's
+ * width on any screen), so the same star is over her wide and upright when both look the same way from the same place.
+ */
+export function starOver(friend, stands, shot) {
+  const [hx, hy, hz] = headOf(friend, stands);
+  // her root on the top's ground (0.7 to 1.5 m on the flat: GROUND; half a metre off moves her head's x by under a pixel at 50 m)
+  const u = across(shot, [hx - shot.position[0], GROUND + hy - shot.position[1], hz - shot.position[2]]);
+  const elevation = ROWS[STAR_ROW[friend]];
+  let lo = headingTo([shot.position[0], shot.position[2]], [hx, hz]) - 40, hi = lo + 80;
+  for (let k = 0; k < 50; k++) {
+    const mid = (lo + hi) / 2;
+    if (across(shot, skyDirection(mid, elevation)) < u) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * The six stars' still tap shot: the camera does not move while a tap waits. The same place and way for both screens (so each star is
+ * over its friend on both); the upright frame's lens is narrower, its circles bigger (the director keeps the authored width).
+ */
+export function starsShot(aspect = 1.6) {
+  const flat = Object.keys(STAR_ROW).map(f => { const [x, , z] = headOf(f, DARK); return headingTo([STARS_AT[0], STARS_AT[2]], [x, z]); });
+  const mid = (Math.max(...flat) + Math.min(...flat)) / 2;
+  const [x, z] = way(mid);
+  const c = Math.cos(STARS_PITCH * deg);
+  return {
+    position: STARS_AT,
+    target: [round(STARS_AT[0] + x * c * 40), round(STARS_AT[1] + Math.sin(STARS_PITCH * deg) * 40), round(STARS_AT[2] + z * c * 40)],
+    fov: aspect < 1 ? 50 : 60,
+  };
+}
+
+const SUN = { azimuth: BEARING.sun, elevation: LOOKS.sunset.sun.elevation }; // as the top's sunset has it (LOOKS.sunset: 215, 10)
+export const SKY = {
+  sun: SUN,
+  stars: Object.fromEntries(Object.entries(STAR_ROW).map(([f, row]) => [f, { azimuth: starOver(f, DARK, starsShot()), elevation: ROWS[row] }])),
+  // the first star, the one Þórseðla sees (spec: "Ein lítil stjarna kviknar"): high over the arc, above the six's rows
+  first: { azimuth: 30, elevation: 50 },
+  moon: { azimuth: 45, elevation: 7 }, // behind the stage, peeking up over the sea of cloud
+  seventh: { azimuth: 45, elevation: 58 },
+};
+
+/** The sun's tap shot: from behind Grameðla and Mosi on the arc, high, toward the sun low over the sea, they clear under it. */
+export function sunShot(aspect = 1.6) {
+  const upright = aspect < 1;
+  const position = at3(way(60).map(v => v * 36), GROUND + 6.3);
+  const [x, z] = way(BEARING.sun + (upright ? -6 : -8));
+  const pitch = upright ? -2 : 1;
+  const c = Math.cos(pitch * deg);
+  return {
+    position,
+    target: [round(position[0] + x * c * 40), round(position[1] + Math.sin(pitch * deg) * 40), round(position[2] + z * c * 40)],
+    fov: upright ? 44 : 50,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The shots. Heights are over the top's own ground (0.7 to 1.5 m on the flat: G); none looks within 35 degrees of the sun while it
+// is up, but the two that look at it (lineup_sun, sun_faces: the light low, his nightcap on, as chapter 5's set_sun).
+const G = GROUND;
+const shot = (from, to, fov) => ({ position: from.map(v => round(v)), target: to.map(v => round(v)), fov });
+/** [x, y, z]: floorPoint(across, depth), `up` m over G. */
+const fp = (across, depth, up) => { const [x, z] = floorPoint(across, depth); return [x, G + up, z]; };
+/** [x, y, z] at bearing `b`, `d` m from the middle, `up` m over G. */
+const polar = (b, d, up) => { const [x, z] = way(b); return [x * d, G + up, z * d]; };
+/** [x, y, z] of a stand's point `ahead` m on her heading and `right` m to her right, `up` m over G. */
+const off = (stand, ahead, right, up) => {
+  const [fx, fz] = way(stand.heading);
+  return [stand.at[0] + fx * ahead - fz * right, G + up, stand.at[1] + fz * ahead + fx * right];
+};
+/** Toward the sky place `sky` from `from`, `d` m out. */
+const toSky = (from, { azimuth, elevation }, d = 40) => {
+  const c = Math.cos(elevation * deg);
+  return [from[0] + Math.cos(azimuth * deg) * c * d, from[1] + Math.sin(elevation * deg) * d, from[2] + Math.sin(azimuth * deg) * c * d];
+};
+
+// chapter 6's stop on the top (topEnd on the top as createTop builds it: measured 2026-11-25): her root and Mosi's
+const STOP = { her: { at: [-26.57, 33.04], heading: -85.1 }, mosi: { at: [-21.18, 34.51], heading: -83.2 } };
+// each arrival's inside point (top.wayUp, measured 2026-11-25)
+const COMES = { flugedla: [43.16, -15.71], kambedla: [22.87, -39.61], uggedla: [45.25, 7.98], thorsedla: [-4.02, -45.9], sloedla: [15.69, 43.12] };
+/** Her arrival: from inside the top, off her way to one side, low, looking out at where she comes up over the rim. */
+const arrive = (friend, side, up = 2.2, look = 3, fov = 50) => {
+  const { way: b } = ARRIVALS.find(a => a.friend === friend);
+  const p = COMES[friend];
+  const from = polar(b + side, 24, up);
+  return shot(from, [p[0], G + look, p[1]], fov);
+};
+
+const S = DARK;
+// the seventh star seen past Þórseðla's head, she the first to see it: 11 m from her head on the sun's side, low, looking up
+const SEVENTH_FROM = (() => { const [x, , z] = headOf('thorsedla', GATHER); const [fx, fz] = way(SKY.seventh.azimuth); return [x - fx * 11, G + 1.2, z - fz * 11]; })();
+export const SHOTS = {
+  toppur: {
+    // Scene 1. The top empty and quiet: low from the middle, Grameðla with Egill on her head and Mosi beside her, the sea beyond
+    top_empty: shot(polar(-20, 4, 1.4), [-24, G + 3.2, 30], 50),
+    // each friend as she comes up over the rim, seen from inside the top
+    arrive_flugedla: arrive('flugedla', -30, 1.6, 3.5),
+    arrive_kambedla: arrive('kambedla', 30, 1.4, 1.8),
+    arrive_uggedla: arrive('uggedla', -30, 1.6, 4),
+    arrive_thorsedla: arrive('thorsedla', -30, 1.2, 6, 52),
+    arrive_sloedla: arrive('sloedla', -30, 1.4, 2.8),
+    // everyone lined up facing the sun: the still shot the sun is tapped in
+    lineup_sun: sunShot(1.6),
+    // the sun's face close as it waves, yawns and sinks, Egill on her head under it
+    sun_faces: shot(off(S.gramedla, -6, 2, 5.4), toSky(off(S.gramedla, -6, 2, 5.4), { azimuth: BEARING.sun - 6, elevation: 6 }), 34),
+    // Scene 2. The dark: the arc from the sun's side, Kambeðla's plates the only light
+    dark_wait: shot(polar(BEARING.sun + 6, 46, 1.6), polar(48, 12, 3.4), 54),
+    // Þórseðla stretches her neck highest of all: the first star over her
+    first_star: shot(off(S.thorsedla, 16, -6, 1.5), toSky(off(S.thorsedla, 16, -6, 1.5), { azimuth: 16, elevation: 32 }), 55),
+    // her roar up into the sky: low in front of her, Egill on her head
+    roar_up: shot(off(S.gramedla, 13, 3, 0.8), off(S.gramedla, 0, 0, 6.5), 50),
+    // the ring rolls out over the sea of cloud: from by the rim, past her, out over the sea
+    sea_ring: shot(polar(70, 30, 3), [-105, G - 6, -7.7], 55),
+    // the six stars hang over their friends: the still shot they are tapped in
+    stars_wide: starsShot(1.6),
+    // she lays her head down and Egill floats down to Mosi
+    egill_down: shot(off(S.gramedla, 12, -7, 1.4), off(S.mosi, 0, 0, 2.2), 48),
+    // the half moon peeks up over the clouds behind the top, a party hat on: past Mosi
+    moon_peek: shot(off(S.mosi, 10, 3, 1.4), toSky(off(S.mosi, 10, 3, 1.4), { azimuth: 45, elevation: 9 }), 42),
+    // Scene 3. The party, all toward the stage from the child's side
+    stage_front: shot(fp(2, 14, 1.6), fp(3, 30, 3), 44),
+    party_wide: shot(fp(0, -36, 4.2), fp(1, 10, 3.6), 55),
+    party_high: shot(fp(-14, -28, 6.8), fp(2, 12, 1.5), 52),
+    floor_low: shot(fp(4, -18, 0.5), fp(0, -9, 1.4), 46),
+    egill_mosi: shot(fp(5, -19, 1.1), fp(0, -10, 1.6), 42),
+    sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 33, elevation: 30 }), 58),
+    solo_kambedla: shot(fp(16, -6, 1.2), fp(12, 6, 1.6), 40),
+    solo_uggedla: shot(fp(-1, 2, 1.4), fp(-13, 0.5, 4.2), 38),
+    solo_thorsedla: shot(fp(18, -2, 1.2), fp(21, 22, 6.5), 50),
+    solo_flugedla: shot(fp(10, 16, 1.4), fp(7.6, 29, 2.5), 40),
+    solo_sloedla: shot(fp(-3, 17, 1.4), fp(0, 30, 2.6), 40),
+    solo_gramedla: shot(fp(-14, 4, 1.2), fp(-17, 20, 3.8), 46),
+    moon_close: shot(fp(0, -20, 1.4), toSky(fp(0, -20, 1.4), { azimuth: 45, elevation: 7 }), 28),
+    final_pose: shot(fp(0, -34, 3.2), fp(1, 8, 3), 55),
+    // Scene 4. Round Egill, the seventh star, the lift
+    gather: shot(off(GATHER.egill, -15, 1, 3.4), off(GATHER.egill, 4, 0, 1.4), 54),
+    seventh_sky: shot(SEVENTH_FROM, toSky(SEVENTH_FROM, { azimuth: 45, elevation: 44 }), 55),
+    lift_side: shot(off(GATHER.egill, 0, 9, 1.4), off(GATHER.egill, 0, 0, 2.6), 46),
+    mosi_up: shot(off(GATHER.mosi, 4, 2, 0.6), off(GATHER.mosi, 0, 0, 5), 50),
+    rise_down: shot(off(GATHER.egill, -10, 3, 7), off(GATHER.egill, 2, 0, 0.6), 52),
+  },
+};
+
+/** Who each shot is for: in its frame while the camera holds it (tests/hatid-route.test.mjs), standing as SCENE says. */
+export const SHOWS = {
+  top_empty: ['gramedla', 'egill', 'mosi'],
+  ...Object.fromEntries(ARRIVALS.map(({ friend }) => [`arrive_${friend}`, [friend]])),
+  lineup_sun: ['gramedla', 'egill', 'mosi'],
+  sun_faces: ['egill'],
+  dark_wait: ['kambedla', 'mosi', 'gramedla', 'egill'],
+  first_star: ['thorsedla'],
+  roar_up: ['gramedla', 'egill'],
+  sea_ring: ['gramedla'],
+  stars_wide: ['kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla', 'egill'],
+  egill_down: ['gramedla', 'egill', 'mosi'],
+  moon_peek: ['mosi'],
+  stage_front: ['sloedla', 'flugedla'],
+  party_wide: FRIENDS8,
+  party_high: ['gramedla', 'thorsedla', 'sloedla', 'mosi', 'egill'],
+  floor_low: ['mosi', 'egill'],
+  egill_mosi: ['mosi', 'egill'],
+  sky_dance: [],
+  solo_kambedla: ['kambedla'],
+  solo_uggedla: ['uggedla'],
+  solo_thorsedla: ['thorsedla'],
+  solo_flugedla: ['flugedla'],
+  solo_sloedla: ['sloedla'],
+  solo_gramedla: ['gramedla'],
+  moon_close: [],
+  final_pose: FRIENDS8,
+  gather: ['egill', 'mosi', 'kambedla', 'sloedla'],
+  seventh_sky: ['thorsedla'],
+  lift_side: ['egill', 'mosi'],
+  mosi_up: ['mosi'],
+  rise_down: ['egill', 'mosi'],
+};
+/** The stands (standsOf's) each shot is seen with. */
+export const SCENE = Object.fromEntries(Object.keys(SHOTS.toppur).map(name => {
+  const k = Object.keys(SHOTS.toppur).indexOf(name);
+  const scene = k < 6 ? 'start' : k < 8 ? 'farewell' : k < 15 ? 'dark' : k < 29 ? 'party' : 'gather';
+  return [name, scene];
+}));
+
+// The upright frames (0.625) where the wide one does not hold what it must there
+const TALL = {
+  lineup_sun: sunShot(0.625),
+  stars_wide: starsShot(0.625),
+};
+/** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
+export function tallShot(name) {
+  return TALL[name] ?? null;
+}
+
+export { TOP_END };

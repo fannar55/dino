@@ -31,7 +31,7 @@ import { STEPS as REED_STEPS } from './kafli5-pool.js';
 import { buildPool } from './kafli5-place.js';
 import {
   ROUTE, FORD, STEPS, STONE, FALLS_LOOK, stepShot, crossing, SLOPE, PRINTS, PRINT_SIZE, PRINT_TAP, mosiAt, CLOUD_BY_PRINT, printShot, CALL,
-  callStand, directionPoint, callShot, meetShot, TOP, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP, BELT_CLEAR,
+  callStand, directionPoint, callShot, meetShot, TOP, TOP_END, topEnd, topWay, SHOTS, SHOWS, ARDALUR_VIEWS, ARDALUR_KEEP, BELT_CLEAR,
 } from './kafli6-route.js';
 import { createStones } from './kafli6-stones.js';
 import { createPrints } from './kafli6-prints.js';
@@ -184,19 +184,17 @@ const AFTER_ROAR = EVENING.afterRoar;
 // head or Egill, or HEAD_WAIT s, and Egill floats up onto it over FLOAT_UP s. She rises and turns round toward Mosi's side (her head
 // over him, her tail away from him) at TURN_RATE degrees a second. She tramps MARCH m up the belt's last slope, Mosi
 // running RUN_SIDE m on her right, the light still nearly night as they climb (the sunset is the top's own scene: a cut
-// to it as they come up). The top's scene opens as they come up over its brow at bearing TOP_WAY (degrees, past the last wisp:
+// to it as they come up). The top's scene opens as they come up over its brow at bearing TOP_END.way (degrees, past the last wisp:
 // world/fjall/top.js VEIL), she at her way's inside point (top.wayUp: 1.2 m past the flat), her head already over the grass (the
 // steep shoulder under the brow is never seen with a body on it: the owner's frame of 2026-11-23, her head deep in the grass), and
-// walks TOP_WALK m in over the brow toward her room (top.room), where they stand whole on the flat before Egill's line.
+// walks TOP_END.walk m in over the brow toward her room (top.room), where they stand whole on the flat before Egill's line.
 const MOSI_ASIDE = [3, 7.5];
 const HEAD_WAIT = 6;
 const FLOAT_UP = 2.6;
 const TURN_RATE = 70;
 const CLIMB_PACE = 1.8; // m/s: her stride a little under its own pace, so Mosi at his fastest (BESIDE.speed) keeps beside her
 const MARCH = 12;
-const RUN_SIDE = 5.5;
-const TOP_WAY = 126;
-const TOP_WALK = 4;
+const { side: RUN_SIDE } = TOP_END; // (kafli6-route.js: TOP_END and topEnd, which the festival starts from)
 // Scene 7's shots. head_down and climb_side as MEET_FRAMES ([ahead, right, up] m from Mosi's stand, in his frame): her head down on
 // the ground from behind on her right (Mosi and Egill beyond it, apart from it), and the climb low from ahead of her on her right (she
 // whole as she comes, Egill high on her head against the sky, Mosi a little behind her beside her tail; from her left the sun is
@@ -913,7 +911,7 @@ function* upToTheTop(s, c) {
   yield s.goTo('toppur', {
     hold: () => {
       top = world.forest;
-      slope = top.wayUp(THREE.MathUtils.degToRad(TOP_WAY));
+      slope = topWay(top);
       const heading = headingTo(slope[0], slope[1]);
       slope[0] = slope[2]; // her way's inside point, on the brow's last gentle metre: her head already over the top's grass
       her.place(slope[0], heading);
@@ -929,13 +927,12 @@ function* upToTheTop(s, c) {
   });
   s.releaseLocation('sky');
   // up over the brow onto the flat, on toward her room, where they stand whole on the top before Egill's line
-  const room = top.room.find(r => r.friend === 'gramedla').at;
-  const towards = headingTo(slope[2], room);
-  const stop = aside(slope[2], towards, TOP_WALK, 0);
+  const end = topEnd(top); // TOP_END.walk m on toward her room; Mosi on her right, 1 m back
+  const { at: stop, heading: towards } = end.her;
   c.topStop = { at: stop, heading: towards };
   for (let k = 1; k <= VEIL_STEPS; k++) s.after((k * VEIL_OUT) / VEIL_STEPS, () => { top.veil?.setLevel(1 - k / VEIL_STEPS); return null; });
   const up = her.trampUp([stop], { speed: CLIMB_PACE });
-  const by = runBeside(s, c, [aside(stop, towards, -1, RUN_SIDE)], { speed: CLIMB_PACE * 1.1 });
+  const by = runBeside(s, c, [end.mosi.at], { speed: CLIMB_PACE * 1.1 });
   footfalls(s, c, up, -8);
   const line = s.after(ABOVE_LINE, function* above() { yield* say(s, c, 'egill', 'k6_egill_above'); });
   yield s.all(up, by, line, s.wait(ABOVE_HOLD));

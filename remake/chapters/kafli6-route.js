@@ -273,6 +273,33 @@ export const MEET_STAND = callStand(3, []);
 // The top (scene 7, its end): she comes up over its south-west edge with Egill on her head and walks in toward its middle, Mosi
 // on her right.
 export const TOP = { her: { at: [-22, 30], heading: -54 }, mosi: { at: [-18, 33.5], heading: -54 } };
+/**
+ * How the last scene ends on the real top (kafli6.js), shared with the festival (hatid-route.js): she comes up her way at bearing
+ * `way` (degrees, world/fjall/top.js wayUp) to its inside point and walks `walk` m on toward her room (top.room); Mosi, placed
+ * MOSI_AHEAD m ahead of her inside point and `side` m on her right, runs on to `side` m on her right and 1 m back of her stop.
+ */
+export const TOP_END = { way: 126, walk: 4, side: 5.5 };
+const MOSI_AHEAD = 1.2; // (kafli6.js: "a little ahead of her: on her right the brow lies further out")
+/** [x, z] `ahead` m along `heading` from [x, z] and `right` m to its right (kafli6.js aside). */
+const asideOf = ([x, z], heading, ahead, right) => {
+  const [fx, fz] = [Math.cos((heading * Math.PI) / 180), Math.sin((heading * Math.PI) / 180)];
+  return [x + fx * ahead - fz * right, z + fz * ahead + fx * right];
+};
+/** Her way up onto `top` at TOP_END.way: [under the sea, the rim, the inside point] (top.wayUp). */
+export const topWay = top => top.wayUp(TOP_END.way * (Math.PI / 180));
+/**
+ * Where chapter 6's last scene stops them on `top` (a createTop): { her: { at, heading }, mosi: { at, heading } }, each facing the
+ * way it came (she toward her room; he along his run beside her). Egill is on her head.
+ */
+export function topEnd(top) {
+  const slope = topWay(top);
+  const room = top.room.find(r => r.friend === 'gramedla').at;
+  const towards = headingTo(slope[2], room);
+  const stop = asideOf(slope[2], towards, TOP_END.walk, 0);
+  const from = asideOf(slope[2], headingTo(slope[0], slope[1]), MOSI_AHEAD, TOP_END.side);
+  const mosi = asideOf(stop, towards, -1, TOP_END.side);
+  return { her: { at: stop, heading: towards }, mosi: { at: mosi, heading: headingTo(from, mosi) } };
+}
 
 // ---------------------------------------------------------------------------------------------
 /** The shots of each place: a position and a target in metres ([x, y, z]) and a lens. */
