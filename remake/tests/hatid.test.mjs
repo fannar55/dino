@@ -11,7 +11,10 @@ import * as veisla from '../chapters/veisla.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { topEnd } from '../chapters/kafli6-route.js';
-import { ARRIVALS, BUDGET } from '../chapters/hatid-route.js';
+import { ARRIVALS, BUDGET, FRIENDS8, LENGTH, STAGE, FLOOR } from '../chapters/hatid-route.js';
+import { GUESTS, guestSeat } from '../chapters/hatid-guests.js';
+import { SUNSET, lookAt } from '../chapters/hatid-looks.js';
+import { FJALL } from '../world/fjall/ground.js';
 import { BEAT, END_BEAT, secondsAt, CAMERA } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
@@ -68,9 +71,92 @@ function playIt(module, { aspect = 1.6, reduced = false, child = null, pauses = 
           seen.after = { beat: c.partyBeat, position: c.song.position, paused: world.sound?.elements.at(-1)?.paused ?? null, current: world.sound?.elements.at(-1)?.currentTime ?? null };
         }
       }
+      watchArrival(world, c, frame, seen);
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
+}
+
+// Scene 1 as the child sees it, frame by frame: how near the lens each friend's body comes and how much of the frame she hides, the
+// big friends each arrival shot holds, what jumps (a step that differs from the frame before's by more than JUMP, or a turn of more
+// than JUMP's degrees), when each of the five is first on the top, Þórseðla's head over the sea and her feet, Slóeðla in the frame,
+// the guests, Egill on his seat while everyone waves, and the sun's drop with the light.
+const NEAR = 4; // m: no friend's body (her joints) nearer the lens (the chunk's ruling 1)
+const JUMP = { metres: 0.15, degrees: 8 };
+const FIVE = ARRIVALS.map(a => a.friend);
+const BIG = FRIENDS8.filter(who => who !== 'egill');
+const FEET = { thorsedla: ['BackFootL', 'BackFootR', 'FrontFootL', 'FrontFootR'] };
+const jointsOf = new WeakMap();
+const turnOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+function watchArrival(world, c, { sunFace }, seen) {
+  if (c.scene !== 'arrival' || !c.top) return;
+  const a = (seen.arrival ??= { frames: 0, near: [], halves: [], big: {}, jumps: [], last: new Map(), onTop: {}, thorsedla: { headOver: null, feet: null, highest: 0 }, sloedlaSeen: null, seat: 0, drops: [] });
+  a.frames++;
+  const camera = world.camera;
+  camera.updateMatrixWorld();
+  const time = c.s.time;
+  const shot = c.shotLabel;
+  const v = new THREE.Vector3();
+  const sea = FJALL.top.sea;
+  const on = (x, z) => Math.hypot(x, z) <= c.top.radius;
+  let bigs = 0;
+  for (const who of FRIENDS8) {
+    const actor = world.actors.get(who);
+    if (!actor.root.visible) { a.last.delete(who); continue; }
+    actor.root.updateMatrixWorld(true);
+    if (!jointsOf.has(actor)) { const bones = []; actor.model.traverse(o => { if (o.isBone) bones.push(o); }); jointsOf.set(actor, bones); }
+    let nearest = Infinity;
+    const box = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const bone of jointsOf.get(actor)) {
+      bone.getWorldPosition(v);
+      nearest = Math.min(nearest, v.distanceTo(camera.position));
+      const p = v.project(camera);
+      if (p.z >= 1 || p.z <= -1) continue;
+      box[0] = Math.min(box[0], Math.max(-1, p.x)); box[1] = Math.min(box[1], Math.max(-1, p.y));
+      box[2] = Math.max(box[2], Math.min(1, p.x)); box[3] = Math.max(box[3], Math.min(1, p.y));
+    }
+    const hides = box[2] > box[0] && box[3] > box[1] ? ((box[2] - box[0]) * (box[3] - box[1])) / 4 : 0;
+    if (nearest < NEAR) a.near.push(`${who} ${nearest.toFixed(2)} m from the lens in ${shot} at ${time.toFixed(1)} s`);
+    if (hides > 0.5) a.halves.push(`${who} hides ${(hides * 100).toFixed(0)} % of ${shot} at ${time.toFixed(1)} s`);
+    const head = actor.headPosition(new THREE.Vector3());
+    const h = head.clone().project(camera);
+    const inFrame = h.z < 1 && Math.abs(h.x) <= 1 && Math.abs(h.y) <= 1;
+    if (BIG.includes(who) && inFrame) bigs++;
+    // what jumps
+    const at = actor.root.position.clone();
+    const was = a.last.get(who);
+    if (was) {
+      const step = at.clone().sub(was.at);
+      if (was.step && step.distanceTo(was.step) > JUMP.metres) a.jumps.push(`${who} jumps ${step.distanceTo(was.step).toFixed(2)} m at ${time.toFixed(2)} s (${shot})`);
+      if (turnOf(actor.heading, was.heading) > JUMP.degrees) a.jumps.push(`${who} turns ${turnOf(actor.heading, was.heading).toFixed(1)} degrees in a frame at ${time.toFixed(2)} s`);
+      a.last.set(who, { at, step, heading: actor.heading });
+    } else a.last.set(who, { at, step: null, heading: actor.heading });
+    // first on the top: her root on the flat, on its ground, not sunk
+    if (FIVE.includes(who) && a.onTop[who] == null && on(at.x, at.z) && at.y >= c.top.heightAt(at.x, at.z) - 0.3 && actor.model.position.y > -0.05) a.onTop[who] = time;
+    if (who === 'thorsedla') {
+      const t = a.thorsedla;
+      const feetOn = FEET.thorsedla.some(name => { const foot = actor.model.getObjectByName(name).getWorldPosition(v); return on(foot.x, foot.z) && foot.y >= c.top.heightAt(foot.x, foot.z) - 0.5; });
+      if (feetOn && t.feet == null) t.feet = time;
+      if (t.feet == null) {
+        if (head.y > sea + 0.5 && t.headOver == null) t.headOver = time;
+        t.highest = Math.max(t.highest, head.y - sea);
+      }
+    }
+    if (who === 'sloedla' && a.sloedlaSeen == null && inFrame && head.y > sea + 0.3) a.sloedlaSeen = time;
+  }
+  if (/^arrive_/.test(shot ?? '')) a.big[shot] = Math.max(a.big[shot] ?? 0, bigs);
+  for (const g of c.guests?.where?.() ?? []) {
+    const key = `${g.group} ${g.k}`;
+    const was = a.last.get(key);
+    if (!g.shown) { a.last.delete(key); continue; }
+    if (was) {
+      const step = g.at.clone().sub(was.at);
+      if (was.step && step.distanceTo(was.step) > JUMP.metres) a.jumps.push(`the ${key} jumps ${step.distanceTo(was.step).toFixed(2)} m at ${time.toFixed(2)} s`);
+      a.last.set(key, { at: g.at.clone(), step });
+    } else a.last.set(key, { at: g.at.clone(), step: null });
+  }
+  if (c.waving) a.seat = Math.max(a.seat, world.actors.get('egill').root.position.distanceTo(c.seat.update()));
+  a.drops.push({ at: time, drop: sunFace.dropDeg, look: world.lightLook });
 }
 
 function firstFrame(world, c, { sunFace }) {
@@ -217,6 +303,118 @@ test('the five come in the spec\'s order, 15 s apart, each with her line', async
     const said = run.seen.said.find(e => e.id === line);
     assert.ok(said && said.at > at && said.at < at + 15, `${friend} says ${line} in her 15 s`);
   });
+});
+
+test('each friend is known before she is seen: the plates\' glow, the sail, the head, the horn and the speck come 2 s or more before her body is on the top', async () => {
+  const run = await untouched();
+  const { onTop } = run.watched.arrival;
+  const signs = logOf(run, 'sign');
+  assert.deepEqual(signs.map(e => [e.friend, e.sign]), [['flugedla', 'speck'], ['kambedla', 'glow'], ['uggedla', 'sail'], ['thorsedla', 'head'], ['sloedla', 'horn']]);
+  for (const { friend, at } of signs) {
+    assert.ok(onTop[friend] != null, `${friend} comes onto the top`);
+    assert.ok(onTop[friend] - at >= 2, `${friend}: her sign at ${at.toFixed(1)} s, she on the top at ${onTop[friend].toFixed(1)} s`);
+  }
+});
+
+test('Þórseðla\'s head is over the sea before any of her feet are on the top; Slóeðla\'s note sounds before she is in frame', async () => {
+  const run = await untouched();
+  const { thorsedla, sloedlaSeen } = run.watched.arrival;
+  assert.ok(thorsedla.headOver != null && thorsedla.feet != null && thorsedla.headOver < thorsedla.feet, `her head over the sea at ${thorsedla.headOver}, her feet on the top at ${thorsedla.feet}`);
+  assert.ok(thorsedla.highest >= 8.5, `her head ${thorsedla.highest.toFixed(1)} m over the sea before she sets foot on the top`);
+  const [horn] = run.soundLog.filter(e => e.name === 'sloedlaHorn' && e.scene === 'arrival');
+  assert.ok(horn, 'her horn in the arrival');
+  assert.ok(sloedlaSeen != null && horn.at < sloedlaSeen, `her note at ${horn?.at.toFixed(1)} s, she in frame at ${sloedlaSeen?.toFixed(1)} s`);
+});
+
+test('the guests come with their friends: the flyers with Flugeðla, frogs, turtles and lizards with Uggeðla, the grazers with Slóeðla; none stands in a friend\'s stand or on the floor', async () => {
+  const run = await untouched();
+  assert.deepEqual(GUESTS, { flyers: 6, frogs: 5, turtles: 3, lizards: 6, grazers: 3 });
+  assert.equal(Object.values(GUESTS).reduce((a, b) => a + b, 0), BUDGET.guests);
+  const comes = Object.fromEntries(logOf(run, 'arrive').map(e => [e.friend, e.at]));
+  const WITH = { flyers: 'flugedla', frogs: 'uggedla', turtles: 'uggedla', lizards: 'uggedla', grazers: 'sloedla' };
+  const [want] = tasks(run, 'sun', 'want');
+  for (const [group, friend] of Object.entries(WITH)) {
+    const coming = logOf(run, 'guests').filter(e => e.group === group && e.phase === 'coming');
+    const there = logOf(run, 'guests').filter(e => e.group === group && e.phase === 'there');
+    assert.equal(coming.length, 1, `the ${group} come once`);
+    assert.ok(coming[0].at >= comes[friend] && coming[0].at < comes[friend] + 15, `the ${group} come in ${friend}'s 15 s`);
+    assert.ok(there[0]?.at <= want.at, `the ${group} are in their seats by the sun's tap`);
+  }
+  const { stands, top } = run.world.chapterState;
+  for (const [group, n] of Object.entries(GUESTS)) {
+    for (let k = 0; k < n; k++) {
+      const { at } = guestSeat(group, k);
+      const out = Math.hypot(...at);
+      assert.ok(out > FLOOR.radius && out <= top.radius, `the ${group} ${k} on the rim, off the floor (${out.toFixed(1)} m out)`);
+      assert.ok(Math.hypot(at[0] - STAGE.centre[0], at[1] - STAGE.centre[1]) >= STAGE.radius + 1, `the ${group} ${k} off the stage`);
+      for (const [scene, s] of Object.entries(stands)) {
+        if (scene === 'start') continue;
+        for (const [who, stand] of Object.entries(s)) {
+          if (stand.on) continue;
+          const d = Math.hypot(at[0] - stand.at[0], at[1] - stand.at[1]);
+          assert.ok(d >= LENGTH[who] / 2 + 0.5, `the ${group} ${k} in ${who}'s ${scene} stand (${d.toFixed(1)} m)`);
+        }
+      }
+    }
+  }
+});
+
+test('the sun waves with both hands when tapped, and everyone on the top waves with it', async () => {
+  const run = await untouched();
+  const [go] = tasks(run, 'sun', 'go');
+  const waves = logOf(run, 'wave');
+  assert.equal(waves.length, 1);
+  assert.equal(waves[0].both, true, 'both hands');
+  assert.ok(Math.abs(waves[0].at - go.at) < 0.1, 'as it is tapped');
+  const with_ = logOf(run, 'waveWith');
+  assert.deepEqual(with_.map(e => e.who).sort(), [...FRIENDS8].sort(), 'all eight');
+  for (const e of with_) assert.ok(e.at - waves[0].at >= -1e-6 && e.at - waves[0].at < 0.5, `${e.who} waves with it`);
+  assert.equal(with_.find(e => e.who === 'egill').how, 'wave', 'Egill with his own wave');
+  assert.ok(run.watched.arrival.seat < 0.05, `Egill keeps his seat on her head (${run.watched.arrival.seat.toFixed(3)} m off it)`);
+});
+
+test('the sun goes under in SUNSET.seconds and the light is dark when it has; the music is at 0 from then to the song', async () => {
+  const run = await untouched();
+  const { drops } = run.watched.arrival;
+  const from = drops.find(d => d.drop > 0);
+  const under = drops.find(d => d.drop >= SUNSET.under - 1e-6);
+  assert.ok(from && under, 'it sinks all the way');
+  assert.ok(Math.abs(under.at - from.at - SUNSET.seconds) <= 2 * FRAME, `under in ${(under.at - from.at).toFixed(2)} s`);
+  const dark = lookAt(3);
+  for (const [part, key] of [['sun', 'color'], ['sky', 'zenith'], ['sky', 'horizon'], ['fog', 'color']]) assert.equal(under.look[part][key], dark[part][key], `the light's ${part}.${key} is the dark's`);
+  assert.equal(under.look.hemi.intensity, dark.hemi.intensity);
+  const music = logOf(run, 'music');
+  const quiet = music.findIndex(e => e.level === 0);
+  assert.ok(quiet >= 0, 'the music goes');
+  assert.ok(Math.abs(music[quiet].at - from.at) <= FRAME + 1e-6 && Math.abs(music[quiet].seconds - SUNSET.seconds) < 1e-9, 'to 0 over the sinking');
+  assert.deepEqual(music.slice(quiet + 1).map(e => e.level), [], 'and nothing more till the song');
+  const [song] = logOf(run, 'party');
+  assert.ok(song.at > under.at);
+  // the wind alone after it: 4 s and more of nothing but the wind before scene 2
+  const stars = run.world.chapterTimeline.find(m => m.scene === 'stars');
+  assert.ok(stars.at - under.at >= 4 - FRAME, `${(stars.at - under.at).toFixed(1)} s of wind alone`);
+  assert.ok(!run.seen.said.some(e => e.at > under.at + 0.5 && e.at < stars.at), 'no line in it');
+});
+
+test('nothing of anyone jumps more than 8 degrees or 0.15 m in a frame through the arrival', async () => {
+  const run = await untouched();
+  assert.ok(run.watched.arrival.frames > 3000, `${run.watched.arrival.frames} frames`);
+  assert.deepEqual(run.watched.arrival.jumps.slice(0, 8), []);
+});
+
+test('no arrival shot holds more than three big friends', async () => {
+  for (const run of [await untouched(), await upright()]) {
+    const { big } = run.watched.arrival;
+    assert.deepEqual(Object.keys(big).sort(), ARRIVALS.map(a => `arrive_${a.friend}`).sort());
+    for (const [shot, n] of Object.entries(big)) assert.ok(n <= 3, `${shot} holds ${n}`);
+  }
+});
+
+test('nobody walks through the lens: in every frame of the arrival no friend\'s body is within 4 m of the camera and none hides more than half the frame', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    assert.deepEqual(run.watched.arrival.near.slice(0, 6), [], what);
+    assert.deepEqual(run.watched.arrival.halves.slice(0, 6), [], what);
+  }
 });
 
 test('a child who taps the stars backwards hears the six tones rise all the same, and each star takes its own friend\'s colour', async () => {
