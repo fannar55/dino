@@ -263,14 +263,17 @@ export const SHOTS = {
     // the chunk's ruling 1: in grey they walked through the lens), toward her sign:
     // Flugeðla's speck far out over the sea, from the sun's side of the middle (her lap passes behind the lens, she lands in front)
     arrive_flugedla: shot(polar(-150, 18, 2.5), polar(-12, 150, 5), 52),
-    // the lilac light in the cloud over her way, from the brow on her left
-    arrive_kambedla: shot(polar(-85, 38, 2), [27, G - 4, -47], 50),
-    // the sail cutting along the rim's cloud toward her way, from the brow on her right
-    arrive_uggedla: shot(polar(-20, 38, 2.2), [55, G - 5, 16], 50),
-    // her head over the sea at the rim, high over the brow, from well off her way (she is 22 m long)
-    arrive_thorsedla: shot(polar(-130, 36, 2.5), [-6, G + 3, -50], 52),
-    // the cloud her note comes from, from the brow on her left, Mosi and Grameðla behind the lens
-    arrive_sloedla: shot(polar(100, 36, 2.2), [19, G - 2, 49], 50),
+    // The other four from the brow (46.5 m out, where the ground starts down to the rim at 54) or down its slope (50.5 m out, 2 m over
+    // the ground there), off her way: the top's shoulder hides
+    // the cloud within ten metres of the rim from anywhere on the flat (Task 8's first stills: nobody showed but a crown).
+    // the lilac light in the cloud over her way, from her left
+    arrive_kambedla: shot(polar(-72, 50.5, -1.5), polar(-60, 56, -7), 50),
+    // the sail cutting along the rim's cloud toward her way, from her right
+    arrive_uggedla: shot(polar(-8, 46.5, 1.8), polar(20, 55, -6.5), 50),
+    // her head rising over the cloud as she comes to the rim, from her right
+    arrive_thorsedla: shot(polar(-116, 46.5, 1.8), polar(-95, 60, -3), 50),
+    // the cloud her note comes from, from her left, Mosi and Grameðla behind the lens
+    arrive_sloedla: shot(polar(82, 50.5, -1.5), polar(70, 55, -6.5), 50),
     // everyone lined up facing the sun: the still shot the sun is tapped in
     lineup_sun: sunShot(1.6),
     // the sun's face close as it waves, yawns and sinks, Egill on her head under it
@@ -321,7 +324,9 @@ export const SHOTS = {
 /** Who each shot is for: in its frame while the camera holds it (tests/hatid-route.test.mjs), standing as SCENE says. */
 export const SHOWS = {
   top_empty: ['gramedla', 'egill', 'mosi'],
-  ...Object.fromEntries(ARRIVALS.map(({ friend }) => [`arrive_${friend}`, [friend]])),
+  // the five as each comes: her sign past the rim has no stand to project from (hatid.test.mjs watches each in her own shot as she
+  // comes, the top's shoulder counted); Flugeðla lands on hers in front of the lens
+  ...Object.fromEntries(ARRIVALS.map(({ friend }) => [`arrive_${friend}`, friend === 'flugedla' ? [friend] : []])),
   lineup_sun: ['gramedla', 'egill', 'mosi'],
   sun_faces: ['egill'],
   dark_wait: ['kambedla', 'mosi', 'gramedla', 'egill'],

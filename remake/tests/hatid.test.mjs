@@ -107,8 +107,10 @@ function watchArrival(world, c, { sunFace }, seen) {
     if (!jointsOf.has(actor)) { const bones = []; actor.model.traverse(o => { if (o.isBone) bones.push(o); }); jointsOf.set(actor, bones); }
     let nearest = Infinity;
     const box = [Infinity, Infinity, -Infinity, -Infinity];
+    const top = new THREE.Vector3(0, -Infinity, 0); // her highest joint
     for (const bone of jointsOf.get(actor)) {
       bone.getWorldPosition(v);
+      if (v.y > top.y) top.copy(v);
       nearest = Math.min(nearest, v.distanceTo(camera.position));
       const p = v.project(camera);
       if (p.z >= 1 || p.z <= -1) continue;
@@ -122,6 +124,19 @@ function watchArrival(world, c, { sunFace }, seen) {
     const h = head.clone().project(camera);
     const inFrame = h.z < 1 && Math.abs(h.x) <= 1 && Math.abs(h.y) <= 1;
     if (BIG.includes(who) && inFrame) bigs++;
+    // her sign seen in her own shot: her head in the frame (not at its very edge), over the cloud, and the top's ground nowhere over
+    // the line from the lens to it (its shoulder hid all of them in the first stills). Kambeðla's sign is her lit plates, which stand
+    // some 1.5 m over her back's highest joint: hers is that joint, up to 1.5 m under the cloud's top.
+    const sign = who === 'kambedla' ? top : head;
+    const s = who === 'kambedla' ? top.clone().project(camera) : h;
+    if (shot === `arrive_${who}` && s.z < 1 && Math.abs(s.x) <= 0.92 && Math.abs(s.y) <= 0.85 && sign.y > sea + (who === 'kambedla' ? -1.5 : 0.3)) {
+      let clear = true;
+      for (let i = 1; i < 40 && clear; i++) {
+        v.lerpVectors(camera.position, sign, i / 40);
+        if (v.y < c.top.heightAt(v.x, v.z)) clear = false;
+      }
+      if (clear) (a.signSeen ??= {})[who] = (a.signSeen[who] ?? 0) + 1;
+    }
     // what jumps (her heading from her root's forward way: a banked flier's Euler angles flip)
     const at = actor.root.position.clone();
     const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(actor.root.quaternion);
@@ -416,6 +431,8 @@ test('nobody walks through the lens: in every frame of the arrival no friend\'s 
   for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
     assert.deepEqual(run.watched.arrival.near.slice(0, 6), [], what);
     assert.deepEqual(run.watched.arrival.halves.slice(0, 6), [], what);
+    // and each of the five is seen in her own shot (her head in its frame, over the cloud, nothing of the top before it) 2 s or more
+    for (const who of FIVE) assert.ok((run.watched.arrival.signSeen?.[who] ?? 0) >= 60, `${who} seen ${run.watched.arrival.signSeen?.[who] ?? 0} frames in arrive_${who} (${what})`);
   }
 });
 

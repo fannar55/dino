@@ -2,7 +2,7 @@
 // 15 s (hatid-route.js ARRIVALS), each known by her sign before her body is on the top:
 //
 //   flugedla   a speck far out over the sea, a lap round the top (kafli4-flugedla.js flyPath), down onto her stand; the flyers with her
-//   kambedla   her plates glow lilac inside the cloud (engine/plate-glow.js), a lilac light on the cloud over her way, SIGN.glow s;
+//   kambedla   her plates glow lilac up out of the cloud at the rim's foot (engine/plate-glow.js), SIGN.glow s;
 //              then she steps out
 //   uggedla    her sail alone cuts along the rim's cloud like a boat, SAIL.metres, then she climbs out; the frogs, turtles and
 //              lizards hop off her back
@@ -23,7 +23,6 @@ import { ARRIVALS, arrivalOf } from './hatid-route.js';
 import { holdHer, flyPath } from './kafli4-flugedla.js';
 import { BODY_HEIGHT } from './kafli4-route.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
-import { createLightPoints } from '../engine/show/lights.js';
 import { createChoirSounds, loadChoirRecordings } from '../engine/audio/choir-sounds.js';
 import { FJALL } from '../world/fjall/ground.js';
 
@@ -35,8 +34,8 @@ const SUN_HEADING = -145; // hatid-route.js BEARING.sun
 /** Each sign's seconds and what it takes (first values; the owner judges them in the video). */
 export const SIGN = {
   speck: { out: 210, up: 26, lap: 47, seconds: 15.6 }, // m out, m up, the lap's radius, the flight's seconds (speck to stand)
-  glow: { seconds: 3, colour: '#b48cf0', size: 14 }, // the plates' light inside the cloud before she steps out
-  sail: { metres: 20, seconds: 4.2, out: 7, lift: 1.6 }, // along the rim's cloud, `out` m past the rim, her model lifted
+  glow: { seconds: 3 }, // her plates lit in the cloud before she steps out
+  sail: { metres: 20, seconds: 4.2, out: 1, lift: 0 }, // along the rim's cloud, `out` m past the rim (ground 8 m down), her model lifted
   head: { seconds: 4.6, rate: 1.75, look: 2.4 }, // her liftUp at `rate` (8 s at 1), her look about from the rim
   horn: { seconds: 2.6, after: 0.6 }, // the note, and the wait after it before she walks
 };
@@ -178,38 +177,20 @@ const COMING = {
     her.play('idle', { fade: 0.6 });
   },
 
-  // Her plates glow lilac inside the cloud, with a light on the cloud over her, for SIGN.glow s; then she steps out.
+  // Her plates glow lilac up out of the cloud at the rim's foot for SIGN.glow s (the rest of her in it); then she steps out.
   *kambedla(s, c) {
     const her = c.kambedla.raw;
-    const { seconds, colour, size } = SIGN.glow;
-    const from = wayPoint(c, 'kambedla', 6);
-    her.place(from[0], from[1], headingTo(from, wayPoint(c, 'kambedla', 0)));
+    const { seconds } = SIGN.glow;
+    const from = wayPoint(c, 'kambedla', 2); // at the rim's foot: her plates reach up into the cloud, the rest of her in it
+    her.place(from[0], from[1], headingTo(from, wayPoint(c, 'kambedla', 2, -10))); // along the rim (facing up it, half of her was in the hill)
     const sunk = sinker(her);
-    sunk.set(1.2); // her back just under the cloud
+    sunk.set(0);
     her.root.visible = true;
     c.plates ??= c.world.effects.add(addPlateGlow(her, { colour: '#ab85c1', dull: 0 }));
     c.plates.setAll(1, { duration: 0.6 });
-    const light = createLightPoints(c.world, { capacity: 4, name: 'Hátíð: Kambeðla\'s light in the cloud' });
-    const tint = new THREE.Color(colour);
-    let level = 0, goal = 1;
-    const glowing = { label: 'kambedla glow', update: dt => {
-      level += Math.sign(goal - level) * Math.min(Math.abs(goal - level), (dt || 0) / 0.8);
-      const p = her.root.position;
-      const pulse = 0.85 + 0.15 * Math.sin(s.time * Math.PI * 2 * 0.9);
-      light.begin();
-      if (level > 0.003) {
-        light.add(p.x, FJALL.top.sea + 1.5, p.z, size, tint.r, tint.g, tint.b, 0.75 * level * pulse, 0);
-        light.add(p.x, FJALL.top.sea + 0.6, p.z, size * 0.45, tint.r, tint.g, tint.b, level * pulse, 0);
-      }
-      light.end();
-      if (goal === 0 && level <= 0) { light.dispose(); return false; }
-      return true;
-    } };
-    c.world.effects.add(glowing);
     c.log({ type: 'sign', friend: 'kambedla', sign: 'glow' });
     yield s.wait(seconds);
     // she steps out: up the rim, her model up from under the cloud as she climbs
-    goal = 0;
     sunk.ease(0, 2.6);
     const inside = wayPoint(c, 'kambedla', -8);
     yield* walkHome(s, c, 'kambedla', [wayPoint(c, 'kambedla', 0), inside], PACE.kambedla);
@@ -245,7 +226,7 @@ const COMING = {
   *thorsedla(s, c) {
     const her = c.thorsedla.raw;
     const { seconds, rate, look } = SIGN.head;
-    const from = wayPoint(c, 'thorsedla', 12);
+    const from = wayPoint(c, 'thorsedla', 18);
     const rim = wayPoint(c, 'thorsedla', 0.3);
     const heading = headingTo(from, rim);
     her.place(from[0], from[1], heading);
@@ -283,7 +264,7 @@ const COMING = {
   *sloedla(s, c) {
     const her = c.sloedla.raw;
     const { seconds, after } = SIGN.horn;
-    const from = wayPoint(c, 'sloedla', 13);
+    const from = wayPoint(c, 'sloedla', 0.5); // at the rim's foot, her head just over the cloud
     her.place(from[0], from[1], headingTo(from, wayPoint(c, 'sloedla', 0)));
     const sunk = sinker(her);
     sunk.set(1);
