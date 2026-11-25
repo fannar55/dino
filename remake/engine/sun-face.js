@@ -525,7 +525,7 @@ function blinkSchedule(seed = 'sun') {
  * `texture` is the strip of FRAMES frames and `sheet` the overlay's; the page paints them, a test can pass its own (or null).
  */
 /** Projects the sky's sun and Mosi cloud onto the far plane (depth 1.0) so distant mountains (> 600 m) occlude them while keeping their 600 m world position. */
-function farPlaneDepth(material, key) {
+export function farPlaneDepth(material, key) {
   material.depthFunc = THREE.LessEqualDepth;
   material.onBeforeCompile = shader => {
     if (shader.vertexShader.includes('#include <project_vertex>')) {
