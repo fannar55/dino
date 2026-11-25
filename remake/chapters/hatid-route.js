@@ -304,15 +304,18 @@ export const SHOTS = {
     solo_thorsedla: shot(fp(18, -2, 1.2), fp(21, 22, 6.5), 50),
     solo_flugedla: shot(fp(10, 16, 1.4), fp(7.6, 29, 2.5), 40),
     solo_sloedla: shot(fp(-3, 17, 1.4), fp(0, 30, 2.6), 40),
-    solo_gramedla: shot(fp(-14, 4, 1.2), fp(-17, 20, 3.8), 46),
-    moon_close: shot(fp(0, -20, 1.4), toSky(fp(0, -20, 1.4), { azimuth: 45, elevation: 7 }), 28),
+    // (Task 6: from her right, toward the rim: from fp(-14, 4) the lens stood inside Uggeðla)
+    solo_gramedla: shot(fp(-7, 13, 1.2), fp(-17, 20, 3.8), 46),
+    // the moon alone over the sea of cloud, from behind the stage, everyone behind the lens (Task 6: from the floor its long lens drew
+    // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget)
+    moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),
     final_pose: shot(fp(0, -34, 3.2), fp(1, 8, 3), 55),
     // Scene 4. Round Egill, the seventh star, the lift
     gather: shot(off(GATHER.egill, -15, 1, 3.4), off(GATHER.egill, 4, 0, 1.4), 54),
     seventh_sky: shot(SEVENTH_FROM, toSky(SEVENTH_FROM, { azimuth: 45, elevation: 44 }), 55),
     lift_side: shot(off(GATHER.egill, 0, 9, 1.4), off(GATHER.egill, 0, 0, 2.6), 46),
-    // Mosi looks up after him: low, in front of him and to his right, his whole head and the sky over him (Task 6: was 1 m off his head)
-    mosi_up: shot(off(GATHER.mosi, 8, 5, 0.7), off(GATHER.mosi, 1.5, 0, 5.5), 50),
+    // Mosi looks up after him: low, from his right, he on one side and the sky over Egill on the other (Task 6: was 1 m off his head)
+    mosi_up: shot(off(GATHER.mosi, 3, 10, 0.8), off(GATHER.mosi, 4.5, 0, 5), 54),
     rise_down: shot(off(GATHER.egill, -10, 3, 7), off(GATHER.egill, 2, 0, 0.6), 52),
   },
 };
