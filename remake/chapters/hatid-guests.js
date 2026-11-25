@@ -213,6 +213,8 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
       if (phase === 'away') for (const m of members) if (m.group === group) { m.way = null; curves.delete(m); }
     },
     phaseOf: group => groups[group]?.phase ?? null,
+    /** The ways the groups come by (the chapter gives them once its friends are there): { flyers, hoppers, grazers }. */
+    setWays(given) { Object.assign(ways, given); },
     update(camera = world.camera, time = 0) {
       if (disposed) return;
       crowds.begin(camera ?? null);

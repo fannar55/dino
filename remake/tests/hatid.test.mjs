@@ -11,7 +11,7 @@ import * as veisla from '../chapters/veisla.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { topEnd } from '../chapters/kafli6-route.js';
-import { ARRIVALS, BUDGET, FRIENDS8, LENGTH, STAGE, FLOOR } from '../chapters/hatid-route.js';
+import { ARRIVALS, BUDGET, FRIENDS8, LENGTH as BODY, STAGE, FLOOR } from '../chapters/hatid-route.js';
 import { GUESTS, guestSeat } from '../chapters/hatid-guests.js';
 import { SUNSET, lookAt } from '../chapters/hatid-looks.js';
 import { FJALL } from '../world/fjall/ground.js';
@@ -122,15 +122,17 @@ function watchArrival(world, c, { sunFace }, seen) {
     const h = head.clone().project(camera);
     const inFrame = h.z < 1 && Math.abs(h.x) <= 1 && Math.abs(h.y) <= 1;
     if (BIG.includes(who) && inFrame) bigs++;
-    // what jumps
+    // what jumps (her heading from her root's forward way: a banked flier's Euler angles flip)
     const at = actor.root.position.clone();
+    const ahead = new THREE.Vector3(1, 0, 0).applyQuaternion(actor.root.quaternion);
+    const heading = THREE.MathUtils.radToDeg(Math.atan2(ahead.z, ahead.x));
     const was = a.last.get(who);
     if (was) {
       const step = at.clone().sub(was.at);
       if (was.step && step.distanceTo(was.step) > JUMP.metres) a.jumps.push(`${who} jumps ${step.distanceTo(was.step).toFixed(2)} m at ${time.toFixed(2)} s (${shot})`);
-      if (turnOf(actor.heading, was.heading) > JUMP.degrees) a.jumps.push(`${who} turns ${turnOf(actor.heading, was.heading).toFixed(1)} degrees in a frame at ${time.toFixed(2)} s`);
-      a.last.set(who, { at, step, heading: actor.heading });
-    } else a.last.set(who, { at, step: null, heading: actor.heading });
+      if (turnOf(heading, was.heading) > JUMP.degrees) a.jumps.push(`${who} turns ${turnOf(heading, was.heading).toFixed(1)} degrees in a frame at ${time.toFixed(2)} s`);
+      a.last.set(who, { at, step, heading });
+    } else a.last.set(who, { at, step: null, heading });
     // first on the top: her root on the flat, on its ground, not sunk
     if (FIVE.includes(who) && a.onTop[who] == null && on(at.x, at.z) && at.y >= c.top.heightAt(at.x, at.z) - 0.3 && actor.model.position.y > -0.05) a.onTop[who] = time;
     if (who === 'thorsedla') {
@@ -321,7 +323,7 @@ test('Þórseðla\'s head is over the sea before any of her feet are on the top;
   const { thorsedla, sloedlaSeen } = run.watched.arrival;
   assert.ok(thorsedla.headOver != null && thorsedla.feet != null && thorsedla.headOver < thorsedla.feet, `her head over the sea at ${thorsedla.headOver}, her feet on the top at ${thorsedla.feet}`);
   assert.ok(thorsedla.highest >= 8.5, `her head ${thorsedla.highest.toFixed(1)} m over the sea before she sets foot on the top`);
-  const [horn] = run.soundLog.filter(e => e.name === 'sloedlaHorn' && e.scene === 'arrival');
+  const [horn] = logOf(run, 'sound').filter(e => e.name === 'sloedlaHorn' && e.scene === 'arrival');
   assert.ok(horn, 'her horn in the arrival');
   assert.ok(sloedlaSeen != null && horn.at < sloedlaSeen, `her note at ${horn?.at.toFixed(1)} s, she in frame at ${sloedlaSeen?.toFixed(1)} s`);
 });
@@ -352,7 +354,7 @@ test('the guests come with their friends: the flyers with Flugeðla, frogs, turt
         for (const [who, stand] of Object.entries(s)) {
           if (stand.on) continue;
           const d = Math.hypot(at[0] - stand.at[0], at[1] - stand.at[1]);
-          assert.ok(d >= LENGTH[who] / 2 + 0.5, `the ${group} ${k} in ${who}'s ${scene} stand (${d.toFixed(1)} m)`);
+          assert.ok(d >= BODY[who] / 2 + 0.5, `the ${group} ${k} in ${who}'s ${scene} stand (${d.toFixed(1)} m)`);
         }
       }
     }

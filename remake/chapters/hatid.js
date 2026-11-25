@@ -40,6 +40,11 @@ import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { SUN_DISTANCE } from '../engine/sun-face.js';
 import { endCard, playStart } from '../engine/book/show-cards.js';
+import { arrive, seatedWave, hornOf } from './hatid-arrival.js';
+import { createGuests } from './hatid-guests.js';
+import { loadCritters } from '../world/ardalur/animals.js';
+import { SUNSET, lookAt } from './hatid-looks.js';
+import { FJALL } from '../world/fjall/ground.js';
 import { leaveShow } from '../engine/book/show-player.js';
 
 export const WORDS = {
@@ -69,8 +74,9 @@ const SUN_HEADING = SKY.sun.azimuth;
 // Times (s). The child-touches-nothing budget is 630 s from the first frame to the lift (spec 10, the plan's Review Focus 3); the tap
 // helps (hatid-stars.js TAP_HELP), the five arrivals' 15 s each and the song are not this file's to shorten.
 const OPEN = { before: 1.4, between: 0.4 }; // scene 1: the empty top before Egill asks, and between the two opening lines
-const ARRIVE = { line: 4.5, walk: 11.5 }; // a friend's line this far into her 15 s; her walk from under the sea to her stand
-const SUN = { faces: 0.4, after: 0.6 }; // the cut to the sun's face after the wave begins; the hold after "Góða nótt"
+// the cut to the sun's face after the wave begins; "Góða nótt, sól!" this many degrees before the sun's drop is whole (its top goes
+// under); the wind alone after it has gone
+const SUN = { faces: 0.4, goodnight: 2, wind: 4 };
 const DUSK = { evening: 5, dark: 7, theme: 8 }; // the light to LOOKS.evening, on to DARK; the theme to nothing (spec: the one silent moment)
 const STARS = { wait: 2, first: 1.2, rise: 2, after: 0.6 }; // scene 2: the dark before Mosi whispers; the first star's fade; the six's rise
 const ROAR = { ring: 1.2, sea: 5, hold: 3.2 }; // the ring sets out this far into her roar, runs out over `sea` s; the shot holds
@@ -132,7 +138,9 @@ function asChapter6Left(s, c) {
   seatEgill(c);
   lightTo(world, LOOKS.sunset);
   s.sun.cap(1);
-  world.music?.setLevel?.(0.5, 0); // Mosi's travel theme, low, as chapter 6 ends (the plan's "Music before the song")
+  music(c, 0.5, 0); // Mosi's travel theme, low, as chapter 6 ends (the plan's "Music before the song")
+  // the guests are away until they come with their friends
+  for (const group of Object.keys(c.guests?.counts ?? {})) c.guests.set(group, 'away');
 }
 
 /** Egill on her head, astride (kafli6-seat.js HEAD_SEAT), riding. */
@@ -153,10 +161,11 @@ function* arrival(s, c) {
   yield* say(s, c, 'egill', 'h_egill_where');
   yield s.wait(OPEN.between);
   yield* say(s, c, 'mosi', 'h_mosi_wait');
-  // the five, one after another, 15 s each; Grameðla and Mosi go to their places on the arc while the first comes
+  // the five, one after another, 15 s each, each known by her sign first (hatid-arrival.js); Grameðla and Mosi go to their places
+  // on the arc while the first comes
   const first = s.time;
-  ARRIVALS.forEach(({ friend, seconds }, k) => {
-    s.after(k * seconds, function* comes() { yield* comeUp(s, c, friend); });
+  ARRIVALS.forEach((entry, k) => {
+    s.after(k * entry.seconds, function* comes() { yield* arrive(s, c, entry); });
   });
   s.after(0.5, function* making() {
     const herWay = c.gramedla.raw.walkTo([stands.farewell.gramedla.at], { speed: 1.8, turnRate: 30 });
@@ -174,50 +183,77 @@ function* arrival(s, c) {
     glitter: { size: 20, spread: 50, around: 30, up: 0, clear: true },
     hint: () => c.lines.say('mosi', 'h_mosi_wave'),
   });
-  // the sun waves with both hands and everyone waves with it; it yawns, hugs itself and goes to sleep
-  const waving = s.sun.wave();
-  c.log({ type: 'wave' });
+  yield* sunGoodbye(s, c);
+}
+
+/**
+ * The sun's goodbye, from the tap: it waves with both hands and all eight wave with it, each in her own way; it yawns and hugs
+ * itself; it sinks into the sea of cloud over SUNSET.seconds while the light goes from the sunset to the dark (hatid-looks.js
+ * lookAt 0 to 3) and the theme goes to nothing; "Góða nótt, sól!" as its top goes under; then the wind alone (the one silent moment).
+ */
+function* sunGoodbye(s, c) {
+  const { world } = c;
+  const waving = s.sun.waveBoth();
+  c.log({ type: 'wave', both: true });
+  c.waving = { at: s.time };
   everyoneWaves(s, c);
   s.after(SUN.faces, () => { cut(s, c, 'sun_faces'); return null; });
   yield waving;
+  c.waving = null;
+  yield s.sun.yawn();
   yield s.sun.hug();
-  yield* say(s, c, 'mosi', 'h_mosi_goodnight');
-  yield s.wait(SUN.after);
-  // gold to red to blue, and the music to nothing: the one silent moment of the game; the wind alone
-  world.music?.setLevel?.(0, DUSK.theme);
-  yield easeLight(world, LOOKS.evening, DUSK.evening);
-  hideSun(c); // grey: the sun is gone into the sea of cloud (Task 10 makes it sink)
-  yield easeLight(world, DARK, DUSK.dark);
+  // it sinks, the light goes with it, the theme to nothing
+  music(c, 0, SUNSET.seconds);
+  c.log({ type: 'sinking' });
+  const from = s.time;
+  let said = false;
+  for (;;) {
+    const k = Math.min(1, (s.time - from) / SUNSET.seconds);
+    const e = smooth(k);
+    s.sun.drop(SUNSET.under * e);
+    lightTo(world, lookAt(3 * e));
+    if (!said && SUNSET.under * e >= SUNSET.under - SUN.goodnight) {
+      said = true;
+      s.after(0, function* goodnight() { yield* say(s, c, 'mosi', 'h_mosi_goodnight'); });
+    }
+    if (k >= 1) break;
+    yield;
+  }
+  hideSun(c); // gone under the sea of cloud: its pieces (and the Mosi cloud, which glowed in the dark) are put away
+  cut(s, c, 'lineup_sun');
+  yield s.wait(SUN.wind);
 }
 
-/** She comes up out of the sea of cloud at her way and walks to her place on the arc, with her line. */
-function* comeUp(s, c, friend) {
-  const { stands } = c;
-  const { way: path } = arrivalOf(c.top, friend);
-  const to = stands.farewell[friend].at;
-  c.log({ type: 'arrive', friend });
-  cut(s, c, `arrive_${friend}`);
-  const actor = c[friend].raw;
-  // Flugeðla appears on the rim (grey for her flight up out of the sea); the others walk up from under it
-  const from = friend === 'flugedla' ? path[1] : path[0];
-  const points = friend === 'flugedla' ? [path[2], to] : [path[1], path[2], to];
-  actor.place(from[0], from[1], headingTo(from, points[0]));
-  actor.root.visible = true;
-  let length = 0;
-  [from, ...points].forEach((p, k, all) => { if (k) length += Math.hypot(p[0] - all[k - 1][0], p[1] - all[k - 1][1]); });
-  const { line } = ARRIVALS.find(a => a.friend === friend);
-  s.after(ARRIVE.line, function* herLine() { yield* say(s, c, friend, line); });
-  yield actor.walkTo(points, { speed: length / ARRIVE.walk, turnRate: 60 });
-  yield actor.turnTo(SUN_HEADING, { rate: 60 });
+/** The theme's level (Mosi's travel theme under scene 1), noted in the chapter's log. */
+function music(c, level, seconds) {
+  c.log({ type: 'music', level, seconds });
+  c.world.music?.setLevel?.(level, seconds);
 }
 
-/** Everyone waves with the sun: the friends cheer (happy), Grameðla nods; Egill on her head and Mosi watch (they have no wave there). */
+/**
+ * Everyone waves with the sun, each in her own way: Egill his wave where he sits (his sit with his wave's arm: the seat keeps him),
+ * Grameðla a nod, Mosi a lift of his head to it, the five their glad clip (Flugeðla's lifts her wings).
+ */
 function everyoneWaves(s, c) {
   for (const who of FRIENDS8) {
-    if (who === 'gramedla') c.her.nod();
-    else cheer(s, c, who);
+    let how;
+    if (who === 'gramedla') { c.her.nod(); how = 'nod'; }
+    else if (who === 'egill') {
+      const clip = seatedWave(c.egill.raw);
+      if (clip) {
+        c.egill.raw.play(clip, { fade: 0.3 });
+        s.after(WAVE_WITH, () => { if (c.riding) c.egill.raw.play('sit', { fade: 0.4 }); return null; });
+      }
+      how = 'wave';
+    } else if (who === 'mosi') {
+      c.mosi.raw.lookAt('sun', { weight: 0.8, maxPitch: 25 });
+      s.after(WAVE_WITH, () => { c.mosi.raw.lookAt(null); return null; });
+      how = 'head';
+    } else { cheer(s, c, who, WAVE_WITH); how = 'happy'; }
+    c.log({ type: 'waveWith', who, how });
   }
 }
+const WAVE_WITH = 2.6; // s: as long as the sun's wave, and a little
 /** A friend's cheer (her happy clip, then her idle again). */
 function cheer(s, c, who, seconds = 2.4) {
   const actor = c[who].raw;
@@ -421,6 +457,7 @@ function toTheParty(c) {
     actor.play('idle', { fade: 0 });
   }
   c.her.show();
+  c.guests?.seated(); // the guests in their seats on the rim, as they sat down in the arrival
 }
 
 // The party's events by beat: the cut first (what happens on its beat is seen in the new shot), then the section, the call, the cues.
@@ -457,7 +494,7 @@ function* theParty(s, c) {
     c.stage.update(beat);
     c.band.update(beat);
     c.dance.update(beat);
-    c.top?.standIns?.update(beat, c.world.camera); // the measurement's guests and lights (?gestir: hatid-standins.js), never else
+    c.top?.standIns?.update(beat, c.world.camera); // the measurement's light points (?gestir: hatid-standins.js), never else
   };
   frame();
   let over = false;
@@ -865,6 +902,13 @@ function setUp(s) {
   c.seat = createSeat(c.gramedla.raw, HEAD_SEAT); // Egill's place on her head (the party alone has it too, unused)
   c.top = world.forest;
   c.stands = standsOf(c.top);
+  // the arrival's tools (hatid-arrival.js) and the guests (hatid-guests.js: built with the top, drawn every frame from here)
+  c.cut = name => cut(s, c, name);
+  c.say = (speaker, id, options) => say(s, c, speaker, id, options);
+  c.sound = (name, detail) => sound(s, c, name, detail);
+  const horn = hornOf(world);
+  c.horn = seconds => { c.log({ type: 'sound', name: 'sloedlaHorn', clear: true }); horn(seconds); };
+  c.guests = guestsOf(s, c);
   // the song, held with the game's sound (a book open, a hidden tab) as chapter 5's set is
   const context = world.sound?.context ?? null;
   const output = world.sound?.output ?? null;
@@ -906,11 +950,78 @@ function setUp(s) {
       releases.clear();
       c.sky.dispose();
       showSun(c);
+      try { s.sun?.drop?.(0); } catch { /* no sun on this page */ } // the sun back where every other chapter has it
+      c.plates?.dispose?.();
+      c.guests?.stop();
       c.her.dispose();
       world.music?.setLevel?.(1, 1);
     };
   };
   return c;
+}
+
+/**
+ * The guests as the scenes use them (the top's: guestsWith): `come(which, seconds)` sends a group ('hoppers': the frogs, turtles and
+ * lizards) along its way over `seconds` and seats it, each step in the chapter's log; drawn every frame, on the scene's clock (in the
+ * party on the song's, so a pause and a seek hold them as the friends). Nothing where the top has none (no critters to be had).
+ */
+function guestsOf(s, c) {
+  const core = c.top?.guests ?? null;
+  if (!core) return null;
+  const { world } = c;
+  const way = friend => () => {
+    const { way: [under, rim, inside] } = arrivalOf(c.top, friend);
+    return [under, rim, inside].map(([x, z]) => [x, c.top.heightAt(x, z), z]);
+  };
+  core.setWays({
+    flyers: () => { const [under] = way('flugedla')(); return [[under[0] * 3, FJALL.top.sea + 24, under[2] * 3], [under[0] * 1.4, FJALL.top.sea + 18, under[2] * 1.4]]; },
+    hoppers: () => c.guestBack?.() ?? way('uggedla')().slice(2),
+    grazers: way('sloedla'),
+  });
+  let running = true;
+  s.after(0, function* drawGuests() {
+    while (running && !c.ended) {
+      const time = c.partyStart != null && c.partyBeat != null ? c.partyBeat * BEAT : s.time;
+      core.update(world.camera, time);
+      yield;
+    }
+  });
+  return {
+    counts: core.counts,
+    set: (group, phase, u) => core.set(group, phase, u),
+    where: () => core.where(),
+    come(which, seconds) {
+      const groups = which === 'hoppers' ? ['frogs', 'turtles', 'lizards'] : [which];
+      for (const group of groups) {
+        if (!core.counts[group]) continue;
+        c.log({ type: 'guests', group, phase: 'coming' });
+        const from = s.time;
+        core.set(group, 'coming', 0);
+        s.after(0, function* coming() {
+          while (s.time - from < seconds) {
+            core.set(group, 'coming', (s.time - from) / seconds);
+            yield;
+          }
+          core.set(group, 'there');
+          c.log({ type: 'guests', group, phase: 'there' });
+        });
+      }
+    },
+    /** Everyone in her seat at once (the party, and the party alone). */
+    seated() { for (const group of Object.keys(core.counts)) core.set(group, 'there'); },
+    stop() { running = false; },
+  };
+}
+
+/** The top with its guests (hatid-guests.js), the valley's critters loaded for them first. */
+function guestsWith(world, top) {
+  return loadCritters(world).then(models => {
+    const guests = createGuests(world, { top, models, budget: BUDGET.guests });
+    top.guests = guests;
+    const dispose = top.dispose?.bind(top);
+    top.dispose = () => { top.guests?.dispose(); top.guests = null; dispose?.(); };
+    return guests.ready.then(() => top);
+  });
 }
 
 /**
@@ -942,7 +1053,7 @@ export const chapter = {
   theme: 'kafli2/theme.json', // Mosi's travel theme, low under the arrival, to nothing as the sun goes; the party has its own song
   start: 'toppur',
   locations: {
-    toppur: { build: world => withStandIns(world, createTop(world)), shots: SHOTS.toppur },
+    toppur: { build: world => Promise.resolve(withStandIns(world, createTop(world))).then(top => guestsWith(world, top)), shots: SHOTS.toppur },
   },
   actors: Object.fromEntries(FRIENDS8.map(who => [who, { url: `../assets/characters/${MODELS[who]}.glb`, position: [0, 0, 0], heading: 0 }])),
   cast, // Grameðla speaks no line: she roars, snorts and nods

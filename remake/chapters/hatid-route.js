@@ -251,15 +251,6 @@ const toSky = (from, { azimuth, elevation }, d = 40) => {
 
 // chapter 6's stop on the top (topEnd on the top as createTop builds it: measured 2026-11-25): her root and Mosi's
 const STOP = { her: { at: [-26.57, 33.04], heading: -85.1 }, mosi: { at: [-21.18, 34.51], heading: -83.2 } };
-// each arrival's inside point (top.wayUp, measured 2026-11-25)
-const COMES = { flugedla: [43.16, -15.71], kambedla: [22.87, -39.61], uggedla: [45.25, 7.98], thorsedla: [-4.02, -45.9], sloedla: [15.69, 43.12] };
-/** Her arrival: from inside the top, off her way to one side, low, looking out at where she comes up over the rim. */
-const arrive = (friend, side, up = 2.2, look = 3, fov = 50) => {
-  const { way: b } = ARRIVALS.find(a => a.friend === friend);
-  const p = COMES[friend];
-  const from = polar(b + side, 24, up);
-  return shot(from, [p[0], G + look, p[1]], fov);
-};
 
 const S = DARK;
 // the seventh star seen past Þórseðla's head, she the first to see it: 11 m from her head on the sun's side, low, looking up
@@ -268,16 +259,23 @@ export const SHOTS = {
   toppur: {
     // Scene 1. The top empty and quiet: low from the middle, Grameðla with Egill on her head and Mosi beside her, the sea beyond
     top_empty: shot(polar(-20, 4, 1.4), [(STOP.her.at[0] + STOP.mosi.at[0]) / 2, G + 3.2, (STOP.her.at[1] + STOP.mosi.at[1]) / 2 - 3], 50),
-    // each friend as she comes up over the rim, seen from inside the top
-    arrive_flugedla: arrive('flugedla', -30, 1.6, 3.5),
-    arrive_kambedla: arrive('kambedla', 30, 1.4, 1.8),
-    arrive_uggedla: arrive('uggedla', -30, 1.6, 4),
-    arrive_thorsedla: arrive('thorsedla', -30, 1.2, 6, 52),
-    arrive_sloedla: arrive('sloedla', -30, 1.4, 2.8),
+    // each friend as she comes up out of the cloud (hatid-arrival.js), each from a place off her way and off every other's (Task 8,
+    // the chunk's ruling 1: in grey they walked through the lens), toward her sign:
+    // Flugeðla's speck far out over the sea, from the sun's side of the middle (her lap passes behind the lens, she lands in front)
+    arrive_flugedla: shot(polar(-150, 18, 2.5), polar(-12, 150, 5), 52),
+    // the lilac light in the cloud over her way, from the brow on her left
+    arrive_kambedla: shot(polar(-85, 38, 2), [27, G - 4, -47], 50),
+    // the sail cutting along the rim's cloud toward her way, from the brow on her right
+    arrive_uggedla: shot(polar(-20, 38, 2.2), [55, G - 5, 16], 50),
+    // her head over the sea at the rim, high over the brow, from well off her way (she is 22 m long)
+    arrive_thorsedla: shot(polar(-130, 36, 2.5), [-6, G + 3, -50], 52),
+    // the cloud her note comes from, from the brow on her left, Mosi and Grameðla behind the lens
+    arrive_sloedla: shot(polar(100, 36, 2.2), [19, G - 2, 49], 50),
     // everyone lined up facing the sun: the still shot the sun is tapped in
     lineup_sun: sunShot(1.6),
     // the sun's face close as it waves, yawns and sinks, Egill on her head under it
-    sun_faces: shot(off(S.gramedla, -6, 2, 5.4), toSky(off(S.gramedla, -6, 2, 5.4), { azimuth: BEARING.sun - 6, elevation: 6 }), 34),
+    // (Task 8: from her left, 5 m off her tail: from her right, 2 m off it, her tail came within 4 m of the lens and Mosi stood there)
+    sun_faces: shot(off(S.gramedla, -6, -5, 5.4), toSky(off(S.gramedla, -6, -5, 5.4), { azimuth: BEARING.sun + 10, elevation: 6 }), 34),
     // Scene 2. The dark: the arc from the sun's side, Kambeðla's plates the only light
     dark_wait: shot(polar(BEARING.sun + 6, 46, 1.6), polar(48, 12, 3.4), 54),
     // Þórseðla stretches her neck highest of all: the first star over her
