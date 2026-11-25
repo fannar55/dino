@@ -9,8 +9,9 @@ import { createScene } from '../engine/scene/scene.js';
 import { DONE } from '../engine/handle.js';
 import {
   createSunFace, addMosiCloud, SUN_RADIUS_DEG, WINK_SECONDS, BLINK_SECONDS, BLINK_EVERY, MOUTH_BETWEEN, MOUTH_SECONDS,
-  WAVE_SECONDS, HUG_SECONDS, HAND_SIZE, CAP,
+  WAVE_SECONDS, HUG_SECONDS, HAND_SIZE, CAP, YAWN_SECONDS,
 } from '../engine/sun-face.js';
+import { createSky } from '../engine/sky.js';
 
 const deg = THREE.MathUtils.radToDeg;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -1084,4 +1085,255 @@ test('the sun face, its overlay and the Mosi cloud project onto the far plane so
     mat.onBeforeCompile(shader);
     assert.match(shader.vertexShader, /gl_Position\.z = gl_Position\.w;/, `${label} clamps depth to far plane`);
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// The festival's sunset (chapters/hatid.js): the sun sinks below its place, waves with both hands and yawns
+
+/** The sun's stage, the camera looking at the sun low in the festival's sunset. */
+function sunsetStage() {
+  const staged = stage('sunset');
+  const { camera, lighting } = staged;
+  camera.lookAt(camera.position.clone().addScaledVector(lighting.direction, 10));
+  camera.updateMatrixWorld();
+  return staged;
+}
+const R_METRES = 600 * Math.tan(THREE.MathUtils.degToRad(SUN_RADIUS_DEG));
+const from = (p, camera) => bearing(p.clone().sub(camera.position));
+const mouthWidth = face => {
+  const p = face.overlay.geometry.attributes.position;
+  return new THREE.Vector3().fromBufferAttribute(p, 0).distanceTo(new THREE.Vector3().fromBufferAttribute(p, 1)) / R_METRES;
+};
+/** Swings in a run of angles: a turn counts once it has gone back 10 degrees; two turns are a swing. */
+function swingsOf(angles) {
+  let turns = 0;
+  let extreme = angles[0];
+  let rising = null;
+  for (const a of angles) {
+    if (rising !== false && a > extreme) { extreme = a; rising ??= true; } else if (rising !== true && a < extreme) { extreme = a; rising ??= false; }
+    if (rising === true && a < extreme - 10) { turns++; rising = false; extreme = a; } else if (rising === false && a > extreme + 10) { turns++; rising = true; extreme = a; }
+  }
+  return turns / 2;
+}
+const noJumps = seen => {
+  for (let i = 1; i < seen.length; i++) {
+    for (const k of [0, 1]) {
+      const a = seen[i - 1][1][k];
+      const b = seen[i][1][k];
+      assert.ok(Math.hypot(b.x - a.x, b.y - a.y) < 0.25 && Math.abs(b.angle - a.angle) < 30, `a hand jumped at ${seen[i][0].toFixed(2)} s`);
+    }
+  }
+};
+
+test('drop hangs the face, its hands and its cap lower by the same angle, and 0 puts them back to the last bit', () => {
+  const { scene, lighting, camera } = sunsetStage();
+  const face = createSunFace({ scene, lighting });
+  face.cap(1);
+  face.update(5, camera);
+  assert.equal(face.dropDeg, 0, 'where it is until a script drops it');
+  const shown = () => ({
+    face: face.sprite.position.toArray(), overlay: face.overlay.position.toArray(), cap: face.capSprite.position.toArray(),
+    hands: face.handPoints.map(p => p.toArray()), corners: [...face.overlay.geometry.attributes.position.array],
+  });
+  const before = shown();
+  const at = from(face.sprite.position, camera);
+  for (const degrees of [3, 8, 14]) {
+    face.drop(degrees);
+    assert.equal(face.dropDeg, degrees);
+    face.update(5, camera);
+    const now = from(face.sprite.position, camera);
+    assert.ok(Math.abs(at.elevation - now.elevation - degrees) < 1e-6, `the face ${(at.elevation - now.elevation).toFixed(4)} degrees down, not ${degrees}`);
+    assert.ok(Math.abs(wrap(now.azimuth - at.azimuth)) < 1e-6, 'straight down: the same azimuth');
+    assert.ok(Math.abs(face.sprite.position.distanceTo(camera.position) - 600) < 1e-6, 'still 600 m out');
+    assert.ok(face.overlay.position.distanceTo(face.sprite.position) < 1e-9, 'the mouth and the hands ride the face');
+    const pairs = [[before.cap, face.capSprite.position], ...before.hands.map((p, k) => [p, face.handPoints[k]])];
+    for (const [was, is] of pairs) {
+      const down = from(new THREE.Vector3(...was), camera).elevation - from(is, camera).elevation;
+      assert.ok(Math.abs(down - degrees) < 0.2, `a hand or the cap went ${down.toFixed(3)} degrees down with the face's ${degrees}`);
+    }
+  }
+  face.drop(0);
+  face.update(5, camera);
+  assert.deepEqual(shown(), before, 'back to the last bit');
+  assert.equal(face.dropDeg, 0);
+});
+
+test('the dome\'s disc drops with the face: the two stay within 0.2 degrees of each other', () => {
+  const { scene, lighting, camera, look } = sunsetStage();
+  const face = createSunFace({ scene, lighting });
+  const sky = createSky({ renderer: null, scene: new THREE.Scene(), look, sunDir: lighting.direction, environment: false });
+  const disc = sky.dome.material.uniforms.uSunDir.value;
+  const lookSun = disc.toArray();
+  for (const degrees of [0, 2, 7, 14, 20]) {
+    face.drop(degrees);
+    sky.setSunDrop(degrees);
+    assert.equal(sky.sunDrop, degrees);
+    face.update(3, camera);
+    const toFace = face.sprite.position.clone().sub(camera.position).normalize();
+    const apart = deg(disc.angleTo(toFace));
+    assert.ok(apart < 0.2, `at ${degrees} degrees the dome's disc is ${apart.toFixed(3)} degrees from the face`);
+    assert.ok(Math.abs(disc.length() - 1) < 1e-9);
+  }
+  sky.setSunDrop(0);
+  assert.deepEqual(disc.toArray(), lookSun, '0 gives the look\'s direction back');
+});
+
+test('the sun point follows the drop', () => {
+  const { scene, lighting, camera } = sunsetStage();
+  const face = createSunFace({ scene, lighting });
+  const sky = createSky({ renderer: null, scene: new THREE.Scene(), look: pickLook('sunset'), sunDir: lighting.direction, environment: false });
+  const world = { camera, lighting, sky };
+  const resolve = createPointResolver(world);
+  const still = resolve('sun').toArray();
+  const { s } = createScene({ world, director: {}, ui: {}, voice: {}, sun: face });
+  assert.equal(s.sun.drop(9), DONE, 'a number to show: the script goes straight on');
+  assert.equal(world.sunDrop, 9);
+  assert.equal(face.dropDeg, 9, 'the face');
+  assert.equal(sky.sunDrop, 9, 'and the dome, together');
+  face.update(1, camera);
+  const sun = resolve('sun');
+  assert.ok(sun.distanceTo(face.sprite.position) < 1e-6, 'a target on the sun stays on it');
+  assert.ok(Math.abs(from(new THREE.Vector3(...still), camera).elevation - from(sun, camera).elevation - 9) < 1e-6);
+  camera.position.set(-40, 7, 12);
+  face.update(1.1, camera);
+  assert.ok(resolve('sun').distanceTo(face.sprite.position) < 1e-6, 'wherever the camera goes');
+  camera.position.set(3, 1.5, -2);
+  s.sun.drop(0);
+  assert.deepEqual(resolve('sun').toArray(), still, 'and back to the last bit');
+  // a scene with no sun, or a world with no sky, goes on without it
+  assert.equal(createScene({ world: {}, director: {}, ui: {}, voice: {} }).s.sun.drop(5), DONE);
+});
+
+test('waveBoth: both hands rise, swing four times, mirror each other, and come down; yawn: the mouth opens wide with the eyes shut', () => {
+  const { scene, lighting, camera } = sunsetStage();
+  const face = createSunFace({ scene, lighting });
+  face.update(1, camera);
+  const rest = face.hands.map(h => ({ ...h }));
+  const waving = face.waveBoth();
+  const seen = watchHands(face, camera, 1, 1 + WAVE_SECONDS + 0.5);
+  const raised = seen.filter(([t, [l, r]]) => t < 1 + WAVE_SECONDS && l.y > 0.1 && r.y > 0.1);
+  assert.ok(raised.length / 30 > 0.6 * WAVE_SECONDS, `both hands up for ${(raised.length / 30).toFixed(2)} s of ${WAVE_SECONDS}`);
+  for (const [t, [l, r]] of raised) {
+    assert.ok(l.x < -0.85 && l.x > -1.6 && r.x > 0.85 && r.x < 1.6, `at ${t.toFixed(2)} s both beside the face, not over it`);
+    // up (each rises from its own rest, which bobs a little out of step with the other's): a mirror of each other
+    if (l.y > 0.25 && r.y > 0.25) assert.ok(Math.abs(l.x + r.x) < 0.02 && Math.abs(l.y - r.y) < 0.02 && Math.abs(l.angle + r.angle) < 1, `at ${t.toFixed(2)} s a mirror of each other`);
+  }
+  assert.ok(raised.filter(([, [l, r]]) => l.y > 0.25 && r.y > 0.25).length / 30 > 0.5 * WAVE_SECONDS, 'and up together most of the wave');
+  for (const k of [0, 1]) {
+    const angles = raised.map(([, hands]) => hands[k].angle);
+    const swings = swingsOf(angles);
+    assert.ok(swings >= 3 && swings <= 4.5, `hand ${k}: ${swings} swings`);
+    assert.ok(Math.max(...angles) - Math.min(...angles) > 30);
+  }
+  const [, end] = seen.at(-1);
+  for (const k of [0, 1]) assert.ok(Math.abs(end[k].x - rest[k].x) < 0.06 && Math.abs(end[k].y - rest[k].y) < 0.06 && Math.abs(end[k].angle - rest[k].angle) < 8, 'back at rest');
+  noJumps(seen);
+  assert.equal(waving.done, true, 'done when both hands are down');
+
+  // the yawn, asked while the two-hand wave goes on, waits its turn
+  const other = createSunFace({ scene: new THREE.Scene(), lighting });
+  other.update(10, camera);
+  const wide = mouthWidth(other);
+  const both = other.waveBoth();
+  other.update(10.5, camera);
+  const yawning = other.yawn();
+  const yawned = [];
+  const from0 = 10.5 + WAVE_SECONDS; // the wave begins at the update after it is asked
+  for (let t = 10.5; t < from0 + YAWN_SECONDS + 3; t += 1 / 30) {
+    other.update(t, camera);
+    yawned.push({ t, eyes: other.eyes, mouth: other.mouthFrame, width: mouthWidth(other), up: other.hands[0].y > 0.1 });
+  }
+  assert.equal(both.done, true);
+  const during = yawned.filter(f => f.t >= from0 + 0.6 && f.t < from0 + YAWN_SECONDS - 0.6);
+  assert.ok(during.length > 20, 'the middle of the yawn');
+  assert.ok(yawned.filter(f => f.t < from0).every(f => f.mouth !== 'oh'), 'no yawn before the wave is over');
+  assert.ok(yawned.filter(f => f.t < from0 - 0.1).every(f => f.width === wide), 'the mouth its own size while the hands wave');
+  for (const f of during) {
+    assert.equal(f.mouth, 'oh', `at ${f.t.toFixed(2)} s the mouth is an "o"`);
+    assert.ok(f.width > 1.4 * wide, `and wide: ${(f.width / wide).toFixed(2)} times its own`);
+    assert.equal(f.eyes, 'shut', `at ${f.t.toFixed(2)} s the eyes are shut`);
+    assert.equal(f.up, false, 'the hands rest while it yawns');
+  }
+  const widths = yawned.map(f => f.width);
+  for (let i = 1; i < widths.length; i++) assert.ok(Math.abs(widths[i] - widths[i - 1]) < 0.15 * wide, `the mouth jumped at ${yawned[i].t.toFixed(2)} s`);
+  const after = yawned.filter(f => f.t > from0 + YAWN_SECONDS + 0.2);
+  assert.ok(after.length > 60);
+  for (const f of after) {
+    assert.notEqual(f.eyes, 'open', `at ${f.t.toFixed(2)} s, after the yawn, its eyes stay half shut`);
+    assert.equal(f.mouth, 'smile');
+    assert.equal(f.width, wide, 'and the mouth its own size again');
+  }
+  assert.equal(yawning.done, true);
+  assert.equal(YAWN_SECONDS, 2.4);
+});
+
+test('the same clock gives the same picture with a drop, a yawn and a two-hand wave under way', () => {
+  const { scene, lighting, camera } = sunsetStage();
+  const shown = face => JSON.stringify({
+    eyes: face.eyes, mouth: face.mouthFrame, squash: face.squash,
+    at: face.sprite.position.toArray().map(v => v.toFixed(4)),
+    uv: [...face.overlay.geometry.attributes.uv.array].map(v => v.toFixed(5)),
+    corners: [...face.overlay.geometry.attributes.position.array].map(v => v.toFixed(4)),
+  });
+  // the drop is a number handed in each frame, as the sunset sinks it; the rest are a script's calls
+  const dropAt = t => Math.max(0, Math.min(14, (t - 1) * 1.5));
+  const calls = [[1.5, f => f.waveBoth()], [2, f => f.yawn()], [6, f => f.wink()], [6.5, f => f.mouth('grin', 1)], [8, f => f.hug()], [9, f => f.yawn()]];
+  const play = (face, times) => {
+    const pictures = new Map();
+    const pending = [...calls];
+    for (const t of times) {
+      while (pending.length && pending[0][0] <= t + 1e-9) pending.shift()[1](face);
+      face.drop(dropAt(t));
+      face.update(t, camera);
+      pictures.set(t.toFixed(4), shown(face));
+    }
+    return pictures;
+  };
+  const frames = Array.from({ length: 30 * 14 }, (_, i) => i / 30);
+  const a = play(createSunFace({ scene, lighting }), frames);
+  const b = play(createSunFace({ scene, lighting }), frames);
+  assert.deepEqual([...a], [...b]);
+  const wanted = [...new Set([...calls.map(([t]) => t), ...frames.filter((_, i) => i % 7 === 0)])].sort((x, y) => x - y);
+  const c = play(createSunFace({ scene, lighting }), wanted);
+  for (const [t, picture] of c) assert.equal(picture, a.get(t), `at ${t} s`);
+  // paused in the middle of both: the same time again changes nothing
+  const face = createSunFace({ scene, lighting });
+  face.waveBoth();
+  face.yawn();
+  face.drop(6);
+  face.update(3, camera);
+  face.update(3.8, camera);
+  const held = shown(face);
+  for (let i = 0; i < 30; i++) face.update(3.8, camera);
+  assert.equal(shown(face), held);
+  face.update(3 + WAVE_SECONDS + 1, camera);
+  const yawning = shown(face);
+  for (let i = 0; i < 30; i++) face.update(3 + WAVE_SECONDS + 1, camera);
+  assert.equal(shown(face), yawning);
+});
+
+test('s.sun.waveBoth and s.sun.yawn return handles a script can yield, and say so when the scene has no sun', () => {
+  const { lighting, camera } = sunsetStage();
+  const sun = createSunFace({ scene: new THREE.Scene(), lighting });
+  const play = createScene({ world: {}, director: {}, ui: {}, voice: {}, sun });
+  const marks = [];
+  play.start(function* script(s) {
+    yield s.wait(1);
+    yield s.sun.waveBoth();
+    marks.push(s.time);
+    yield s.sun.yawn();
+    marks.push(s.time);
+  });
+  let t = 0;
+  for (let frame = 0; frame < 30 * 8; frame++) {
+    t += 1 / 30;
+    play.update(1 / 30);
+    sun.update(t, camera);
+  }
+  assert.equal(marks.length, 2);
+  assert.ok(Math.abs(marks[0] - (1 + WAVE_SECONDS)) <= 2.5 / 30, `waved by ${marks[0].toFixed(3)} s`);
+  assert.ok(Math.abs(marks[1] - marks[0] - YAWN_SECONDS) <= 2.5 / 30, `yawned by ${marks[1].toFixed(3)} s`);
+  const { s } = createScene({ world: {}, director: {}, ui: {}, voice: {} });
+  assert.throws(() => s.sun.waveBoth(), /s\.sun\.waveBoth needs the sun.*createSunFace/);
+  assert.throws(() => s.sun.yawn(), /s\.sun\.yawn needs the sun.*createSunFace/);
 });

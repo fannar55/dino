@@ -1,18 +1,20 @@
 import * as THREE from 'three';
-import { SUN_DISTANCE } from './sun-face.js';
+import { SUN_DISTANCE, droppedSun } from './sun-face.js';
 
 // Point specs name a place in the world. The camera director and actors resolve them every frame,
 // so a shot or a look can follow a moving character.
 //   [x, y, z]                          a fixed point in metres
 //   'camera'                           the camera position
 //   'sun'                              toward the sun: 600 m from the camera along the light, where the
-//                                      sun's face hangs (so it follows the camera, like the sky)
+//                                      sun's face hangs (so it follows the camera, like the sky), and
+//                                      world.sunDrop degrees straight below it while the festival's sun sets
 //   'mosi', 'mosi.head', 'mosi.feet'   an actor's body centre, head or ground point
 //   { actor, part, offset, local }     an actor point plus an offset in metres; local = in the
 //                                      actor's own frame (x forward, y up, z to its right side)
 //   a THREE.Vector3, or a function(out) returning one
 export function createPointResolver(world) {
   const offset = new THREE.Vector3();
+  const dropped = new THREE.Vector3();
 
   function actorPoint(name, part, offsetSpec, local, out) {
     const actor = world.actors.get(name);
@@ -36,7 +38,9 @@ export function createPointResolver(world) {
     if (spec === 'camera') return out.copy(world.camera.position);
     if (spec === 'sun') {
       if (!world.lighting) throw new Error("The 'sun' point needs the light: `world` with lighting (createLighting)");
-      return out.copy(world.camera.position).addScaledVector(world.lighting.direction, SUN_DISTANCE);
+      // the festival's sunset hangs the sun lower (world.sunDrop degrees, set by s.sun.drop), and the point with it
+      const toward = world.sunDrop ? droppedSun(world.lighting.direction, world.sunDrop, dropped) : world.lighting.direction;
+      return out.copy(world.camera.position).addScaledVector(toward, SUN_DISTANCE);
     }
     if (typeof spec === 'string') {
       const [name, part] = spec.split('.');

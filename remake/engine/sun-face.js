@@ -49,6 +49,7 @@ export const MOUTH_BETWEEN = 0.08; // seconds of the in-between
 export const HAND_SIZE = 0.72;
 export const WAVE_SECONDS = 2.3; // up beside the face, four swings, and down
 export const HUG_SECONDS = 2.4; // in across the front, two squeezes, and out
+export const YAWN_SECONDS = 2.4; // the festival's sunset: the mouth to a wide "o", the eyes shut, and half shut after
 export const CLOUD_OFFSET_DEG = 35; // the Mosi cloud hangs this far to the left of the sun, at its height
 export const CLOUD_DRIFT_DEG_PER_MIN = 0.5; // and drifts to the right, toward the sun, as the sky's clouds do
 
@@ -71,6 +72,23 @@ const HAND_CELL = [0, 112, 128]; // x, y and size in px
 const HAND_PIVOT = [0.03, -0.28]; // the wrist, in the hand's square from its middle (x right, y up, a side being 1)
 const CLOUD_WIDTH_DEG = 16;
 const CLOUD_SIZE = [512, 256]; // px
+
+// The sun can set (the festival, chapters/hatid.js): drop(degrees) hangs the face that many degrees straight below its own place,
+// the same azimuth, lower; sky.js turns its disc down with it and points.js the 'sun' point (world.sunDrop). 0 is where it is.
+/** A drop as the three take it: a number of degrees from 0 (where it is) to 90. */
+export function sunDropOf(degrees) {
+  return Math.min(90, Math.max(0, Number(degrees) || 0));
+}
+/** `direction` (toward the sun) turned `degrees` straight down, into `out`; at 0 it is `direction` itself, to the last bit. */
+export function droppedSun(direction, degrees, out = new THREE.Vector3()) {
+  const drop = sunDropOf(degrees);
+  if (!drop) return out.copy(direction);
+  const length = direction.length();
+  const azimuth = Math.atan2(direction.z, direction.x);
+  const elevation = Math.asin(clamp(direction.y / length, -1, 1)) - rad(drop);
+  const c = Math.cos(elevation);
+  return out.set(c * Math.cos(azimuth), Math.sin(elevation), c * Math.sin(azimuth)).multiplyScalar(length);
+}
 
 /** '#rrggbb' as a canvas colour with an alpha. */
 function rgba(hex, alpha = 1) {
@@ -432,6 +450,32 @@ function hugHand(side, u, rest, out) {
   return out;
 }
 
+// The two-hand wave (the festival's goodbye): both hands rise beside the face and swing four times, each the other's mirror, in
+// WAVE_SECONDS. The screen-left hand waves as wave() has it; the screen-right one is its mirror, from its own rest.
+const mirrorPose = (pose, out) => {
+  out.x = -pose.x;
+  out.y = pose.y;
+  out.angle = -pose.angle;
+  return out;
+};
+const mirroredRest = { x: 0, y: 0, angle: 0 };
+function waveBothHands(u, rest, left, right) {
+  waveHand(u, rest[0], left);
+  waveHand(u, mirrorPose(rest[1], mirroredRest), right);
+  return mirrorPose(right, right);
+}
+
+// The yawn: the mouth to "o" and wider (its quad stretched about the "o"'s middle), the eyes shut while it is open, and half shut
+// after, for good: a sun this sleepy is going to bed.
+const YAWN = { open: 0.5, close: 0.5, wide: [1.5, 1.7], oh: -0.47, eyes: [0.15, YAWN_SECONDS - 0.25], smile: YAWN_SECONDS - 0.1 };
+/** How wide the yawn has the mouth at u s into it, 0 (its own size) to 1 (wide). */
+function yawnOpen(u) {
+  if (u <= 0 || u >= YAWN_SECONDS) return 0;
+  return smoother(clamp(u / YAWN.open, 0, 1)) * smoother(clamp((YAWN_SECONDS - u) / YAWN.close, 0, 1));
+}
+/** The eyes at u s into a yawn: half shut going down and coming up, shut in between. */
+const yawnEyes = u => (u >= YAWN.eyes[0] && u < YAWN.eyes[1] ? 'shut' : 'half');
+
 /** The blinks' start times on the clock: seeded, so the same every time, and worked out as far as asked for. */
 function blinkSchedule(seed = 'sun') {
   const random = seededRandom(seed);
@@ -466,8 +510,12 @@ function blinkSchedule(seed = 'sun') {
  *     asked while a hug waits its turn leaves the hug its grin. Cancelling a handle (a script's race lost, a scene stopped):
  *     a call that has not begun, or a gesture still waiting its turn, is dropped and the gestures queued behind it move up; a
  *     gesture under way finishes; a mouth under way goes back to the smile at once, through the in-between.
+ *   waveBoth()   both hands rise beside the face, swing four times, each the other's mirror, and come down (WAVE_SECONDS)
+ *   yawn()       the mouth to a wide "o", the eyes shut, and half shut after (YAWN_SECONDS); both queue as wave and hug do
+ *   drop(degrees)  the face, its mouth, hands and cap hang that many degrees straight below the sun's own place (0: where it is),
+ *                a number to show, as cap; dropDeg says it
  *   update(t, camera)  t is the game clock in seconds; call it after the camera has moved
- *   eyes         'open', 'half' or 'shut': which frame of the face shows (a wink or a blink)
+ *   eyes        'open', 'half' or 'shut': which frame of the face shows (a wink or a blink)
  *   eyesClosed   whether a wink or a blink shows
  *   mouthFrame   the mouth showing: 'smile', 'mid' (the in-between), 'grin' or 'oh'
  *   hands        [screen-left, screen-right], each { x, y, angle }: the wrist in the disc's radius from its centre, and degrees
@@ -547,8 +595,12 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
     return cap;
   };
 
+  // The drop (the festival's sunset): which way the face hangs, `direction` itself until a drop asks for another
+  let dropDeg = 0;
+  const droppedDirection = new THREE.Vector3();
+  let hanging = direction;
   const hang = origin => {
-    sprite.position.copy(origin).addScaledVector(direction, SUN_DISTANCE);
+    sprite.position.copy(origin).addScaledVector(hanging, SUN_DISTANCE);
     overlay.position.copy(sprite.position);
   };
   hang(ORIGIN); // until the first update, as seen from the world's origin: never a giant face on the camera
@@ -567,7 +619,7 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
   let shownMouth = null;
 
   const state = {
-    eyes: 'open', mouth: 'smile', squash: { x: 1, y: 1 }, cap: 0,
+    eyes: 'open', mouth: 'smile', squash: { x: 1, y: 1 }, cap: 0, yawning: null,
     hands: [{ x: 0, y: 0, angle: 0 }, { x: 0, y: 0, angle: 0 }],
     points: [new THREE.Vector3(), new THREE.Vector3()],
   };
@@ -601,6 +653,10 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       at: m.from, order, steps: m.shape === 'smile' ? [[m.from, 'smile']] : [[m.from, m.shape], [m.from + m.seconds, 'smile']],
     }));
     gestures.forEach((g, i) => {
+      if (g.kind === 'yawn') {
+        plans.push({ at: g.start, order: mouthCalls.length + i, steps: [[g.start, 'oh'], [g.start + YAWN.smile, 'smile']] });
+        return;
+      }
       if (g.kind !== 'hug') return;
       const at = g.start + HUG.grin[0];
       plans.push({ at, order: mouthCalls.length + i, steps: [[at, 'grin'], [g.start + HUG.grin[1], 'smile']] });
@@ -651,9 +707,9 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       // A gesture begins now, or when the ones under way or waiting are over.
       const last = gestures.at(-1);
       const start = last && last.end > t ? last.end : t;
-      const length = call.kind === 'wave' ? WAVE_SECONDS : HUG_SECONDS;
+      const length = call.kind === 'wave' || call.kind === 'waveBoth' ? WAVE_SECONDS : call.kind === 'yawn' ? YAWN_SECONDS : HUG_SECONDS;
       gestures.push({ kind: call.kind, asked: t, start, end: start + length, handle: call.handle });
-      if (call.kind === 'hug') replanMouth();
+      if (call.kind === 'hug' || call.kind === 'yawn') replanMouth();
     }
   }
 
@@ -700,9 +756,12 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
     const [left, right] = state.hands;
     state.squash.x = 1;
     state.squash.y = 1;
+    state.yawning = g?.kind === 'yawn' ? t - g.start : null;
     if (g?.kind === 'wave') {
       waveHand(t - g.start, rest[0], left);
       Object.assign(right, rest[1]);
+    } else if (g?.kind === 'waveBoth') {
+      waveBothHands(t - g.start, rest, left, right);
     } else if (g?.kind === 'hug') {
       hugHand(-1, t - g.start, rest[0], left);
       hugHand(1, t - g.start, rest[1], right);
@@ -729,10 +788,23 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
     // The mouth, on the face and pressed with it: its cell's top edge through the face's middle.
     const w = (MOUTH_CELL[0] / R_PX / 2) * state.squash.x;
     const h = (MOUTH_CELL[1] / R_PX) * state.squash.y;
-    put(0, -w, -h);
-    put(1, w, -h);
-    put(2, w, 0);
-    put(3, -w, 0);
+    const open = state.yawning === null ? 0 : yawnOpen(state.yawning);
+    if (open > 0) {
+      // the yawn: the mouth's quad stretched about the middle of its "o"
+      const kx = 1 + (YAWN.wide[0] - 1) * open;
+      const ky = 1 + (YAWN.wide[1] - 1) * open;
+      const top = YAWN.oh + (0 - YAWN.oh) * ky;
+      const bottom = YAWN.oh + (-h - YAWN.oh) * ky;
+      put(0, -w * kx, bottom);
+      put(1, w * kx, bottom);
+      put(2, w * kx, top);
+      put(3, -w * kx, top);
+    } else {
+      put(0, -w, -h);
+      put(1, w, -h);
+      put(2, w, 0);
+      put(3, -w, 0);
+    }
     // The hands: each square turned about its wrist (inlined to avoid per-frame closure allocations).
     for (let k = 0; k < state.hands.length; k++) {
       const hand = state.hands[k];
@@ -765,6 +837,17 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
     wink() { pending.push({ kind: 'wink' }); },
     wave() { return ask('wave'); },
     hug() { return ask('hug'); },
+    waveBoth() { return ask('waveBoth'); },
+    yawn() { return ask('yawn'); },
+    /**
+     * The sunset: the face, its mouth, hands and cap hang `degrees` straight below the sun's own place (0: where it is, to the last
+     * bit). A number to show, as cap: the same drop is the same picture (the sunset hands it its depth each frame).
+     */
+    drop(degrees = 0) {
+      dropDeg = sunDropOf(degrees);
+      hanging = dropDeg ? droppedSun(direction, dropDeg, droppedDirection) : direction;
+    },
+    get dropDeg() { return dropDeg; },
     mouth(shape, seconds = MOUTH_SECONDS) {
       if (!MOUTHS.includes(shape)) throw new TypeError(`the sun's mouth is 'smile', 'grin' or 'oh', not ${JSON.stringify(shape)}`);
       if (!Number.isFinite(seconds) || seconds < 0) throw new TypeError(`the sun's mouth holds for a number of seconds of 0 or more, not ${seconds}`);
@@ -788,6 +871,12 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
         for (let i = 0; i < calls.length; i++) begin(calls[i], t);
       }
       state.eyes = eyesAt(t);
+      for (let i = 0; i < gestures.length; i++) {
+        const g = gestures[i];
+        if (g.kind !== 'yawn' || g.start > t) continue;
+        if (t < g.end) state.eyes = yawnEyes(t - g.start); // shut while it yawns
+        else if (state.eyes === 'open') state.eyes = 'half'; // and half shut after
+      }
       if (state.cap >= CAP.sleepy && state.eyes === 'open') state.eyes = 'half'; // sleepy under its cap
       if (texture) texture.offset.x = FRAME_OF[state.eyes] / FRAMES;
       state.mouth = mouthAt(t);

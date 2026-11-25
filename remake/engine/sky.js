@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { droppedSun, sunDropOf } from './sun-face.js';
 
 // Sky dome: a gradient from horizon to zenith, a soft sun glow and disc, drifting clouds from a
 // tileable noise texture made once at start-up, and a horizon band that uses the same tint as the
@@ -98,7 +99,12 @@ void main() {
   gl_FragColor.rgb += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
 }`;
 
-export function createSky({ renderer, scene, look, sunDir }) {
+/**
+ * The dome in `scene` and, unless `environment` is false (a test's sky, with no renderer), the scene's light from it.
+ *   setSunDrop(degrees)  the dome's own sun disc and glow turned that many degrees straight down from `sunDir` (the festival's
+ *                        sunset: engine/sun-face.js drop does the same to the face); 0 gives `sunDir` back. sunDrop says it.
+ */
+export function createSky({ renderer, scene, look, sunDir, environment = true }) {
   const noise = tileableNoise();
   const color = hex => new THREE.Color(hex);
   const uniforms = {
@@ -126,13 +132,20 @@ export function createSky({ renderer, scene, look, sunDir }) {
   scene.add(dome);
 
   // Image-based lighting from this exact sky, rendered once.
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envScene = new THREE.Scene();
-  envScene.add(new THREE.Mesh(dome.geometry, material));
-  const env = pmrem.fromScene(envScene, 0, 0.1, 1000);
-  pmrem.dispose();
-  scene.environment = env.texture;
-  scene.environmentIntensity = look.envIntensity;
+  let env = null;
+  if (environment) {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envScene = new THREE.Scene();
+    envScene.add(new THREE.Mesh(dome.geometry, material));
+    env = pmrem.fromScene(envScene, 0, 0.1, 1000);
+    pmrem.dispose();
+    scene.environment = env.texture;
+    scene.environmentIntensity = look.envIntensity;
+  }
+
+  // The sunset's drop (the look's own direction kept, so 0 gives it back to the last bit)
+  const lookSun = sunDir.clone();
+  let sunDrop = 0;
 
   // The clouds drift on their own clock, which runs `cloudSpeed` times the game's (chapter 4's wind sets them going)
   let cloudTime = null;
@@ -140,7 +153,7 @@ export function createSky({ renderer, scene, look, sunDir }) {
   let cloudSpeed = 1;
   return {
     dome,
-    environment: env.texture,
+    environment: env?.texture ?? null,
     update(time, camera) {
       cloudTime = cloudTime === null || time < lastTime ? time : cloudTime + (time - lastTime) * cloudSpeed;
       lastTime = time;
@@ -150,12 +163,18 @@ export function createSky({ renderer, scene, look, sunDir }) {
     /** The clouds drift `speed` times as fast as they do (1: their own pace). */
     setCloudSpeed(speed) { cloudSpeed = Math.max(0, speed); },
     get cloudSpeed() { return cloudSpeed; },
+    /** The dome's sun disc and glow `degrees` straight below the look's sun (0: the look's own). */
+    setSunDrop(degrees) {
+      sunDrop = sunDropOf(degrees);
+      droppedSun(lookSun, sunDrop, uniforms.uSunDir.value);
+    },
+    get sunDrop() { return sunDrop; },
     dispose() {
       scene.remove(dome);
       dome.geometry.dispose();
       material.dispose();
       noise.dispose();
-      env.dispose();
+      env?.dispose();
     },
   };
 }

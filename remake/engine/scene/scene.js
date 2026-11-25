@@ -5,6 +5,7 @@ import { clearFootstepDust } from '../footstep-dust.js';
 import { createStarSprite, STAR_RADIUS } from './star-sprite.js';
 import { EASE } from '../camera/director.js';
 import { DONE } from '../handle.js';
+import { sunDropOf } from '../sun-face.js';
 
 // The scene system. A chapter script is a generator function that receives `s`, the scene API,
 // and yields what it waits for (see scheduler.js). It runs on the game clock, so the book can pause
@@ -611,6 +612,18 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       hug: () => { needSun('s.sun.hug'); return sun.hug(); },
       mouth: (shape, seconds) => { needSun('s.sun.mouth'); return seconds === undefined ? sun.mouth(shape) : sun.mouth(shape, seconds); },
       cap: amount => { sun?.cap?.(amount); return DONE; },
+      // The festival's sunset (chapters/hatid.js): `waveBoth()` (both hands, four swings, WAVE_SECONDS) and `yawn()` (a wide "o",
+      // the eyes shut, half shut after: YAWN_SECONDS) queue as wave and hug do. `drop(degrees)` hangs the face and the dome's disc
+      // that many degrees straight below the sun's place, and the 'sun' point with them (world.sunDrop): a number to show, as cap.
+      waveBoth: () => { needSun('s.sun.waveBoth'); return sun.waveBoth(); },
+      yawn: () => { needSun('s.sun.yawn'); return sun.yawn(); },
+      drop: degrees => {
+        const drop = sunDropOf(degrees);
+        sun?.drop?.(drop);
+        world.sky?.setSunDrop?.(drop);
+        world.sunDrop = drop;
+        return DONE;
+      },
     },
     /** The tray along the edge of the screen: `show([{ id, icon }])` fills it, `hide()` puts it away. */
     tray: {
