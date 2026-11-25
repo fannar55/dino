@@ -387,7 +387,8 @@ export function tallShot(name) {
  *   2 those four cast no shadow in the party (`noShadow`: hatid.js theParty, engine/character-lod.js userData.noShadow);
  *   3 guests from 23 to 14 (not needed: `guests` stays 23);
  *   4 a wide shot held `wideBars` bars at the most (CAMERA already cuts every wide shot within 4: not needed beyond that).
- * `measured`: the shot after the levers, the worse of two runs. Before them: 264,014 triangles wide (over), 239,316 upright.
+ * `measured`: the shot after the levers, the worse of two runs. Before them: 264,014 triangles wide (over), 239,316 upright. Task 8
+ * measured it again with the real guests (hatid-guests.js) and `?gestir` for the light points only (qa/remake/hatid/butur3/maeling.md).
  * Chunks 5 and 6 (the stage, the lights, the guests) build inside what is left: about 1.4 ms, 60 calls and 30k triangles wide.
  */
 export const BUDGET = {
@@ -402,8 +403,8 @@ export const BUDGET = {
   wide: ['party_wide', 'party_high', 'final_pose'],
   limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
   measured: {
-    '1280x800': { gpuMs: 4.61, drawCalls: 34, triangles: 219844 },
-    '800x1280': { gpuMs: 4.2, drawCalls: 37, triangles: 195146 },
+    '1280x800': { gpuMs: 4.75, drawCalls: 34, triangles: 218227 },
+    '800x1280': { gpuMs: 4.7, drawCalls: 37, triangles: 193529 },
   },
 };
 
