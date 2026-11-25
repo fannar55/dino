@@ -738,8 +738,8 @@ function greySky(c) {
 }
 const smooth = x => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
 
-// The sky's own sun (engine/sun-face.js, added by main.js): gone after it says good night (grey for its sinking), back at the end.
-const SUN_DECOR = ['SunFace', 'SunHandsAndMouth', 'SunNightcap'];
+// The sky's own sun and Mosi cloud (engine/sun-face.js, added by main.js): gone after it says good night (grey for its sinking), back at the end.
+const SUN_DECOR = ['SunFace', 'SunHandsAndMouth', 'SunNightcap', 'MosiCloud']; // the Mosi cloud too: it glowed white in the night (stills)
 function hideSun(c) {
   if (c.sunHidden) return;
   c.sunHidden = new Map();
