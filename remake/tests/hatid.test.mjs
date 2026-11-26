@@ -827,3 +827,15 @@ test('no wide shot of CAMERA lasts longer than BUDGET.wideBars', () => {
   assert.equal(held.cut, BUDGET.shot);
   assert.equal(BUDGET.beat, SONG.song.sections.find(s => s.id === 'dance').startBeat + 4);
 });
+
+test('the party is lit by the real stage: by beat 100 every part is on at full, and at beat 200 all four spotlights are on Grameðla', async () => {
+  const run = await untouched();
+  const { stage } = run.watched.frames[100];
+  for (const part of ['cone', 'floor', 'strings', 'sea', 'spots', 'fireflies']) assert.equal(stage.parts[part], 1, `${part} at beat ${stage.beat}`);
+  assert.ok(stage.stones.every(r => r === 1), 'the stones up');
+  const solo = run.watched.frames[200].stage;
+  const her = run.world.chapterState.stands.party.gramedla.at;
+  assert.equal(solo.spots.length, 4);
+  for (const s of solo.spots) assert.ok(Math.hypot(s.to[0] - her[0], s.to[2] - her[1]) < 1.5 && s.level > 0.2, `a spotlight on her: ${s.to}`);
+  assert.equal(run.world.scene.getObjectByName('Hátíð grey stage'), undefined, 'the grey stage is gone');
+});
