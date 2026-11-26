@@ -19,7 +19,8 @@
 //   span     degrees of sky her bind length covers with friend=all (default 16, the engine's)
 //   tilt     degrees the constellation is seen from over her (constellations.js's `tilt`, default its 10)
 //   face     the moon's face, one of MOON_FACES below (default brosir)
-//   lens     with show=tungl: close (default: the moon large), party_wide or moon_peek (everyone where the party has them)
+//   lens     show=tungl: close (default: the moon large), party_wide or moon_peek; show=merki&friend=all: stars_wide (default) or
+//            party_wide. With party_wide everyone stands where the party has them, else where the dark has them
 //   measure  1: measure the tips on each model's skin and print them (console and window.__tips): measureTips below
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
@@ -42,7 +43,8 @@ const MEASURE = params.get('measure') === '1';
 const SPAN = params.has('span') ? Number(params.get('span')) || 16 : 16;
 const TILT = params.has('tilt') ? Number(params.get('tilt')) : undefined;
 const FACE = params.get('face') || 'brosir';
-const MOON_SHOT = params.get('lens') || 'close'; // not 'shot': main.js takes ?shot= for its own
+const LENS = params.get('lens'); // not 'shot': main.js takes ?shot= for its own
+const MOON_SHOT = LENS || 'close';
 /**
  * Flugeðla's wings spread (.tools/hatid-tungl/wings.mjs, 2026-11-26): her fly clip at 1.015 s spreads them widest of her clips,
  * 6.55 m tip to tip (glide 6.35 at its end, idle 0.67: folded).
@@ -181,9 +183,8 @@ export const chapter = {
       if (o) o.visible = false;
     }
     const actors = Object.fromEntries(FRIENDS8.map(who => [who, s.actor(who).raw]));
-    // the moon's wide shots see everyone where the party has them; the rest as the dark has them
-    const partyMoon = SHOW === 'tungl' && MOON_SHOT !== 'close';
-    const stands = partyMoon ? standsOf(top).party : standsOf(top).dark;
+    // party_wide sees everyone where the party has them; the rest as the dark has them
+    const stands = LENS === 'party_wide' ? standsOf(top).party : standsOf(top).dark;
     const one = SHOW === 'merki' && FRIEND !== 'all' && SIX.includes(FRIEND);
     for (const who of FRIENDS8) {
       const stand = stands[who];
@@ -235,7 +236,8 @@ export const chapter = {
         shot = close.shot;
         placed[FRIEND] = addLarge(sky, FRIEND, actors[FRIEND], close.sky, tipsOf(FRIEND), view);
       } else {
-        shot = { ...((upright && tallShot('stars_wide')) || SHOTS.toppur.stars_wide), label: 'stars_wide' };
+        const wide = LENS === 'party_wide' ? 'party_wide' : 'stars_wide';
+        shot = { ...((upright && tallShot(wide)) || SHOTS.toppur[wide]), label: wide };
         for (const who of SIX) {
           sky.add(who, actors[who], { colour: HUE[who], ...SKY.stars[who], span: SPAN, tips: tipsOf(who), ...view });
           placed[who] = { ...SKY.stars[who], span: SPAN };
