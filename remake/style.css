@@ -214,6 +214,21 @@ body:has(#book.child-open) .caption { display: none; }
 }
 .flying-star svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .flying-star path { fill: var(--star); stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; }
+/* The festival's six stars out of the book (journal.js launchStars): the book swells in the middle of the screen, each star flies
+   up in its friend's hue (--hue) with a rocket's short tail turned behind it (--way, its heading on the screen). */
+.flying-book {
+  position: absolute; left: 0; top: 0; width: 132px; height: 132px; will-change: transform;
+  filter: drop-shadow(0 0 18px rgba(242, 182, 48, .85)) drop-shadow(0 6px 10px rgba(20, 16, 40, .5));
+}
+.flying-book svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.flying-star.rocket { filter: drop-shadow(0 0 12px var(--hue, rgba(242, 182, 48, .9))); }
+.flying-star.rocket path { fill: #fff6dc; }
+.flying-star.rocket .rocket-tail {
+  position: absolute; left: 50%; top: 50%; width: 150px; height: 18px; margin-top: -9px; border-radius: 9px;
+  transform-origin: 0 50%; transform: rotate(calc(var(--way, 0deg) + 180deg)); z-index: -1;
+  background: linear-gradient(90deg, rgba(255, 246, 220, .95), var(--hue, #f2b630) 35%, transparent);
+  filter: blur(2px);
+}
 .flying-find {
   position: absolute; left: 0; top: 0; width: 96px; height: 96px; padding: 8px; will-change: transform;
   border: 3px solid var(--ink); border-radius: 50%; background: var(--card);

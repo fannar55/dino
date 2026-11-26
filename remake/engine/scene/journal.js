@@ -23,6 +23,17 @@ const FLYING_FIND_PX = 96; // and of .flying-find
 const FLYING_PLACE_PX = 60; // and of .flying-place
 const ARC_PX = 120; // the highest a flight bows above the straight line, at most
 const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px across) leaves the screen
+/**
+ * The book sends the friends' six stars up to the sky (launchStars: the festival's scene 2, chapters/hatid.js): a copy of the
+ * button's book swells out into the middle of the screen over `swell` s; one star for each friend leaves it `gap` s after the one
+ * before and flies `seconds` to its place, a rocket's short tail behind it; `back` s after the last has arrived the book is back
+ * in the button.
+ */
+export const LAUNCH = { swell: 0.6, seconds: 1.4, gap: 0.18, back: 0.6 };
+const LAUNCH_BOOK_PX = 132; // the size of .flying-book in style.css
+const ROCKET_SCALE = [0.8, 0.42]; // a launched star's size (of FLYING_STAR_PX) as it leaves the book and as it arrives on the sky
+// The book's own picture where the page's button has none to copy (as index.html's .journal-icon)
+const BOOK_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="5" width="31" height="38" rx="5" fill="#e07a3f" stroke="#3b2f25" stroke-width="2.5"/><path d="M9 10a5 5 0 0 1 5-5h4v38h-4a5 5 0 0 1-5-5z" fill="#c9622b" stroke="#3b2f25" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 
 // A place on the map: a pin with a dot, as a journal's map marks one.
 const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c-.6 0-6.8-6.9-6.8-11.6a6.8 6.8 0 0 1 13.6 0C18.8 15.1 12.6 22 12 22z"/><circle cx="12" cy="10.3" r="2.6"/></svg>';
@@ -238,8 +249,101 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     return true;
   }
 
+  // ---- the six stars out of the book (launchStars) ----
+  const launches = new Set();
+  /**
+   * The book swells in the middle of the screen and sends one star for each friend to `to[k]` ({ x, y } in screen pixels, in
+   * FRIENDS' order), LAUNCH.gap s apart, each LAUNCH.seconds in the air; then the book goes back to the button. `onLand(k)` is
+   * called as star k arrives (the scene hangs its own star on the sky there). A Handle, done when the book is back. Nothing is
+   * saved and the slots are not touched: the stars are the friends' own, which the save already has (or never had).
+   */
+  function launchStars(to, { seconds = LAUNCH.seconds, gap = LAUNCH.gap, onLand = null } = {}) {
+    if (!Array.isArray(to) || to.length !== FRIENDS.length || !to.every(p => Number.isFinite(p?.x) && Number.isFinite(p?.y))) {
+      throw new TypeError(`journal.launchStars needs ${FRIENDS.length} places, { x, y } in screen pixels, one for each friend's star`);
+    }
+    show();
+    const screen = flightsEl.getBoundingClientRect();
+    const middle = { x: screen.left + screen.width / 2, y: screen.top + screen.height / 2 };
+    const book = doc.createElement('div');
+    book.className = 'flying-book';
+    book.innerHTML = bookIcon?.outerHTML ?? BOOK_SVG;
+    flightsEl.append(book);
+    const launch = {
+      age: 0, seconds: Math.max(0.1, seconds), gap: Math.max(0, gap), onLand, book, middle,
+      stars: to.map((place, k) => ({ k, to: { x: place.x, y: place.y }, el: null, landed: false })),
+      handle: null,
+    };
+    launch.handle = new Handle('stars out of the book', () => endLaunch(launch));
+    launches.add(launch);
+    moveLaunch(launch);
+    return launch.handle;
+  }
+  /** Where the book sits on the button now, and its scale there. */
+  const bookHome = () => centreOf((bookIcon ?? button).getBoundingClientRect(), LAUNCH_BOOK_PX);
+  function moveLaunch(launch) {
+    const { age, middle, gap, seconds } = launch;
+    const home = bookHome();
+    const lastAt = LAUNCH.swell + (launch.stars.length - 1) * gap + seconds;
+    // out and back: 0 at the button, 1 in the middle of the screen
+    const out = age < LAUNCH.swell ? ease(age / LAUNCH.swell) : age < lastAt ? 1 : 1 - ease(Math.min(1, (age - lastAt) / LAUNCH.back));
+    const x = home.x + (middle.x - home.x) * out;
+    const y = home.y + (middle.y - home.y) * out;
+    const scale = home.scale + (1 - home.scale) * out;
+    const nod = age >= LAUNCH.swell && age < lastAt ? 1 + 0.06 * Math.sin(Math.PI * Math.min(1, ((age - LAUNCH.swell) % gap) / Math.max(0.05, gap))) : 1;
+    launch.book.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${(scale * nod).toFixed(3)})`;
+    for (const star of launch.stars) {
+      const flown = age - (LAUNCH.swell + star.k * gap);
+      if (flown < 0 || star.landed) continue;
+      if (flown >= seconds - 1e-9) {
+        star.landed = true;
+        star.el?.remove();
+        star.el = null;
+        launch.onLand?.(star.k);
+        continue;
+      }
+      if (!star.el) {
+        star.el = doc.createElement('div');
+        star.el.className = 'flying-star rocket';
+        star.el.dataset.k = String(star.k);
+        star.el.style.setProperty('--hue', FRIENDS[star.k]?.colour ?? '#f2b630');
+        star.el.innerHTML = `<span class="rocket-tail"></span>${STAR_SVG}`;
+        flightsEl.append(star.el);
+      }
+      // the journal's flight backwards: from the book up to its place, bowing on the way, turned along its way with its tail behind
+      const e = ease(Math.min(1, flown / seconds));
+      const { to } = star;
+      const arc = Math.min(ARC_PX, 0.25 * Math.hypot(to.x - middle.x, to.y - middle.y));
+      const side = to.x < middle.x ? -1 : 1;
+      const px = middle.x + (to.x - middle.x) * e - side * arc * 0.35 * Math.sin(Math.PI * e);
+      const py = middle.y + (to.y - middle.y) * e - arc * 0.5 * Math.sin(Math.PI * e);
+      const ahead = Math.min(1, e + 0.02);
+      const nx = middle.x + (to.x - middle.x) * ahead - side * arc * 0.35 * Math.sin(Math.PI * ahead);
+      const ny = middle.y + (to.y - middle.y) * ahead - arc * 0.5 * Math.sin(Math.PI * ahead);
+      const turn = Math.atan2(ny - py, nx - px) * 180 / Math.PI;
+      const size = ROCKET_SCALE[0] + (ROCKET_SCALE[1] - ROCKET_SCALE[0]) * e;
+      star.el.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%, -50%) scale(${size.toFixed(3)})`;
+      star.el.style.setProperty('--way', `${turn.toFixed(0)}deg`);
+    }
+    if (age >= lastAt + LAUNCH.back - 1e-9) {
+      endLaunch(launch);
+      launch.handle.finish();
+    }
+  }
+  function endLaunch(launch) {
+    if (!launches.delete(launch)) return;
+    for (const star of launch.stars) {
+      star.el?.remove();
+      if (!star.landed) { star.landed = true; launch.onLand?.(star.k); } // a cancelled launch puts every star in its place
+    }
+    launch.book.remove();
+  }
+
   function update(dt) {
     if (!(dt > 0)) return; // paused or frozen
+    for (const launch of [...launches]) {
+      launch.age += dt;
+      moveLaunch(launch);
+    }
     mapMoment.update(dt);
     if (flights.size) {
       // Batch DOM rect reads before style.transform writes to avoid read/write layout thrashing across multiple flights.
@@ -285,6 +389,7 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     addStar,
     addFinding,
     addPlace,
+    launchStars,
     update,
     show,
     mapMoment,

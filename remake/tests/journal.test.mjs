@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { createSave } from '../engine/save.js';
-import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
+import { createJournal, FLIGHT_SECONDS, LAUNCH } from '../engine/scene/journal.js';
 import { createStarSprite } from '../engine/scene/star-sprite.js';
 import { createScene } from '../engine/scene/scene.js';
 import { createPointResolver } from '../engine/points.js';
@@ -364,6 +364,62 @@ test('a star lands in its friend\'s slot, whatever the chapter number', () => {
   journal.update(FLIGHT_SECONDS + 0.01);
   assert.deepEqual(earned(), [false, false, true, true, false, false], 'a star with no friend slot lights none');
   assert.deepEqual(save.get().stars, ['k2_thorsedla', 'k5_flugedla', 'k9_nobody'], 'but it is kept');
+});
+
+test('six stars leave the book 0.18 s apart and reach their places on the sky; a paused game holds them in the air; the save\'s stars and the six slots are as they were', () => {
+  // the festival's scene 2 (chapters/hatid.js): the book swells in the middle of the screen and sends its six stars up to the sky
+  const { save, journal, el, slots, earned } = journalRig({ stored: { stars: ['k1_kambedla', 'k6_gramedla'] } });
+  el('journal-button').rect = { left: 1100, top: 12, width: 160, height: 64 };
+  el('journal-flights').rect = { left: 0, top: 0, width: 1280, height: 800 }; // the screen: its middle is at 640, 400
+  slots().forEach((slot, k) => { slot.rect = { left: 1110 + 22 * k, top: 50, width: 20, height: 20 }; });
+  const before = { stars: save.get().stars, earned: earned(), slots: slots().map(slot => slot.style.transform ?? '') };
+  const to = FRIENDS.map((_, k) => ({ x: 180 + 180 * k, y: k % 2 ? 150 : 250 }));
+  assert.deepEqual(LAUNCH, { swell: 0.6, seconds: 1.4, gap: 0.18, back: 0.6 });
+  const landed = [];
+  let t = 0;
+  const handle = journal.launchStars(to, { onLand: k => landed.push({ k, t }) });
+  const layer = el('journal-flights').children;
+  const book = () => layer.find(e => e.classList.contains('flying-book'));
+  const rockets = () => layer.filter(e => e.classList.contains('flying-star') && e.classList.contains('rocket'));
+  assert.ok(book(), 'a copy of the button\'s book');
+  assert.equal(rockets().length, 0, 'no star out yet');
+  const step = 1 / 60;
+  const seen = new Map(); // k -> { first, last } of its places
+  const tick = dt => {
+    t += dt; // the clock this update brings it to (onLand is called inside it)
+    journal.update(dt);
+    for (const e of rockets()) {
+      const k = Number(e.dataset.k);
+      const at = placeOf(e.style);
+      if (!seen.has(k)) seen.set(k, { left: t, first: at, last: at });
+      seen.get(k).last = at;
+    }
+  };
+  while (t < LAUNCH.swell - 1e-9) tick(step);
+  const middle = placeOf(book().style);
+  assert.ok(Math.abs(middle.x - 640) < 3 && Math.abs(middle.y - 400) < 3, `the book in the middle of the screen: ${middle.x}, ${middle.y}`);
+  // in the air: a paused game holds every star where it is
+  while (t < LAUNCH.swell + 2.5 * LAUNCH.gap + 0.4) tick(step);
+  const held = rockets().map(e => e.style.transform);
+  assert.ok(held.length >= 3, `${held.length} stars in the air`);
+  for (let i = 0; i < 100; i++) journal.update(0);
+  assert.deepEqual(rockets().map(e => e.style.transform), held, 'held in the air');
+  while (!handle.done && t < 10) tick(step);
+  assert.equal(handle.done, true, 'done once the book is back');
+  assert.deepEqual(landed.map(e => e.k), [0, 1, 2, 3, 4, 5], 'each star once, in the book\'s order');
+  for (const { k, t: at } of landed) {
+    const { left, first, last } = seen.get(k);
+    assert.ok(Math.abs(left - (LAUNCH.swell + k * LAUNCH.gap)) < 2 * step, `star ${k} leaves at ${left.toFixed(3)} s`);
+    assert.ok(Math.hypot(first.x - 640, first.y - 400) < 40, `from the book (${first.x}, ${first.y})`);
+    assert.ok(Math.abs(at - left - LAUNCH.seconds) < 2 * step, `star ${k} lands ${(at - left).toFixed(3)} s after it left`);
+    assert.ok(Math.hypot(last.x - to[k].x, last.y - to[k].y) < 4, `at its place on the sky: ${last.x}, ${last.y} for ${to[k].x}, ${to[k].y}`);
+  }
+  assert.ok(t - landed.at(-1).t >= LAUNCH.back - 2 * step, 'the book goes back after the last');
+  assert.equal(layer.length, 0, 'nothing left in the air');
+  assert.deepEqual(save.get().stars, before.stars, 'the save\'s stars as they were');
+  assert.deepEqual(earned(), before.earned, 'the slots lit as they were');
+  assert.deepEqual(slots().map(slot => slot.style.transform ?? ''), before.slots, 'and none swelled');
+  assert.throws(() => journal.launchStars([{ x: 1, y: 2 }]), TypeError, 'six places, one a star');
 });
 
 test('the book shows what the save already holds', () => {

@@ -596,6 +596,20 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
        * game and draws the named pieces, `close()` slides it away (scene/map-moment-scene.js times both beside Mosi's line).
        */
       get mapMoment() { needJournal('s.journal.mapMoment'); return journal.mapMoment; },
+      /**
+       * The book sends the six friends' stars up to `points` (point specs in the world, in FRIENDS' order: the festival's places on
+       * the sky), each from where the book swells in the middle of the screen to where its point is on the screen now
+       * (journal.launchStars: `seconds`, `gap`, `onLand(k)`). A Handle, done when the book is back in its button.
+       */
+      launchStars: (points, options) => {
+        needJournal('s.journal.launchStars');
+        needScreen('s.journal.launchStars');
+        const to = points.map(spec => {
+          const { x, y, inFront, box } = screenOf(spec);
+          return inFront ? { x: box.left + x, y: box.top + y } : { x: box.left + box.width / 2, y: box.top };
+        });
+        return journal.launchStars(to, options);
+      },
     },
     /**
      * The smiling sun (engine/sun-face.js). `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go
