@@ -4,8 +4,9 @@
 // in it), and a seventh star lifts Egill away into the ride back (hatid-ride.js, a stub until the ride is built).
 //
 // Built in stages (the plan's tasks): scenes 1 and 2 are real (the night's light hatid-looks.js HATID_LOOKS, the night sky, the
-// constellations, the six stars and the moon: Task 12); still grey are the seventh star (a pale disc on the sky), the stage (a disc
-// of light under whoever has the solo) and the dance (each friend's idle with a gentle bob on the beat and her `happy` in her solo).
+// constellations, the six stars and the moon: Task 12), and the party's stage and lights (hatid-stage.js createStage: Task 14); still
+// grey are the seventh star (a pale disc on the sky) and the dance (each friend's idle with a gentle bob on the beat and her `happy`
+// in her solo).
 // The structure, the timing and the rules stay when later tasks put the real pictures in.
 //
 // Four scenes (`mark` names them in world.chapterTimeline):
@@ -22,10 +23,10 @@
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
 import {
-  FRIENDS8, MODELS, LENGTH, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
+  FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
 } from './hatid-route.js';
 import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP } from './hatid-stars.js';
-import { BEAT, END_BEAT, beatAt, secondsAt, sectionAt, soloAt, energyAt, pulseAt, CAMERA } from './hatid-score.js';
+import { BEAT, END_BEAT, beatAt, secondsAt, soloAt, pulseAt, CAMERA } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { gramedlaLife } from './kafli6-gramedla.js';
 import { HEAD_SEAT } from './kafli6-seat.js';
@@ -36,7 +37,7 @@ import { demoAsked, startDemoChild } from './hatid-demo.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
-import { createRings } from '../engine/show/rings.js';
+import { createStage } from './hatid-stage.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { SUN_DISTANCE } from '../engine/sun-face.js';
@@ -719,7 +720,7 @@ function* theParty(s, c) {
   c.inParty = true;
   c.song.play(0);
   c.log({ type: 'party' });
-  c.stage = greyStage(c);
+  c.stage = createStage(c); // the stage lights up with the intro and follows the song: its light, the sea, the floor, the lamps
   c.band = greyBand(c);
   c.dance = greyDance(c);
   const shadows = noShadows(c, BUDGET.noShadow);
@@ -729,7 +730,6 @@ function* theParty(s, c) {
     c.stage.update(beat);
     c.band.update(beat);
     c.dance.update(beat);
-    c.top?.standIns?.update(beat, c.world.camera); // the measurement's light points (?gestir: hatid-standins.js), never else
   };
   frame();
   let over = false;
@@ -799,28 +799,6 @@ function noShadows(c, who) {
   };
 }
 
-/** Grey stage: a disc of light (engine/show/rings.js) under whoever has the solo, brighter on the beat. */
-function greyStage(c) {
-  const rings = createRings(c.world, { capacity: 4, name: 'Hátíð grey stage' });
-  let now = { section: null, solo: null, energy: 0 };
-  return {
-    update(beat) {
-      const section = sectionAt(beat)?.id ?? null;
-      const solo = soloAt(beat);
-      now = { section, solo: solo?.who ?? null, energy: Math.round(energyAt(beat) * 1000) / 1000 };
-      rings.begin();
-      if (solo) {
-        const { x, y, z } = c[solo.who].raw.root.position;
-        const colour = new THREE.Color(FRIENDS.find(f => f.key === solo.who)?.colour ?? '#ffffff');
-        const level = 0.55 + 0.35 * pulseAt(beat);
-        rings.disc(x, y + 0.08, z, LENGTH[solo.who] / 2 + 1.5, colour.r, colour.g, colour.b, level);
-      }
-      rings.end();
-    },
-    state: () => ({ ...now }),
-    dispose: () => rings.dispose(),
-  };
-}
 /** Grey band: nothing of its own yet (Task 15 gives each friend her part). */
 function greyBand() {
   return { update() {}, state: () => ({}) };
@@ -1266,21 +1244,6 @@ function guestsWith(world, top) {
   });
 }
 
-/**
- * The top, with the measurement's stand-ins on it where the page asks for them (?gestir=<n>: hatid-standins.js, Task 6's measurement
- * and the owner's stills of where everyone stands); else the top as it is, built at once.
- */
-function withStandIns(world, top) {
-  const asked = new URLSearchParams(globalThis.location?.search ?? '').get('gestir');
-  if (asked === null) return top;
-  return import('./hatid-standins.js').then(async ({ loadStandIns, standInsAsked }) => {
-    top.standIns = await loadStandIns(world, top, standInsAsked());
-    const dispose = top.dispose?.bind(top);
-    top.dispose = () => { top.standIns?.dispose(); top.standIns = null; dispose?.(); };
-    return top;
-  });
-}
-
 const cast = {
   mosi: { name: 'Mosi', colour: '#4f5433' },
   egill: { name: 'Egill', colour: '#355774' },
@@ -1295,7 +1258,7 @@ export const chapter = {
   theme: 'kafli2/theme.json', // Mosi's travel theme, low under the arrival, to nothing as the sun goes; the party has its own song
   start: 'toppur',
   locations: {
-    toppur: { build: world => Promise.resolve(withStandIns(world, createTop(world))).then(top => guestsWith(world, top)), shots: SHOTS.toppur },
+    toppur: { build: world => guestsWith(world, createTop(world)), shots: SHOTS.toppur },
   },
   actors: Object.fromEntries(FRIENDS8.map(who => [who, { url: `../assets/characters/${MODELS[who]}.glb`, position: [0, 0, 0], heading: 0 }])),
   cast, // Grameðla speaks no line: she roars, snorts and nods
