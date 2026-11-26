@@ -171,6 +171,8 @@ function headChain(bones) {
  *                elevation) in the pose she was traced in; facing 1 as traced (her front to the right, but Flugeðla's view), -1 her
  *                mirror image. `still`: drawn in her traced pose (her own clip at FIGURES[key].pose, read once as it is added),
  *                whatever she does under it, so it never folds (Flugeðla standing under her flying drawing). Nothing shows until set().
+ *   follow(key, { live, carry })  a `still` drawing blended toward her bones now (live 0 to 1) and/or carried by her model's hop and
+ *                turn (carry): the festival's dance (add-only)
  *   place(key, { azimuth, elevation, span })  hers moved whole to another place and size on the sky (her star there as traced)
  *   set(key, { drawn = 1, level = 1, breath = 0, look = null })  drawn 0 to 1: the outline grows both ways round from the point
  *                nearest her star, then the inner lines, a star coming out as its line reaches it, her tips' stars last (her own
@@ -284,6 +286,7 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       shown: new Float32Array(segments.length),
       light: new Float32Array(figure.stars.length + 1),
       frozen: null,
+      follow: { live: 0, carry: false, rise: 0 },
     };
     c.north = new THREE.Vector3().crossVectors(c.east, c.home).normalize();
     if (still) c.frozen = tracedPoints(c);
@@ -347,6 +350,8 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
     const out = new Float64Array(3 * (c.count + 2));
     try {
       actor.root.updateMatrixWorld(true);
+      // (follow's carry) her model's place in her root as it was traced, so a hop or a turn of the model since is laid on the drawing
+      c.tracedModel = modelInRoot(actor, new THREE.Matrix4()).invert();
       livePoints(c, (i, p) => p.toArray(out, 3 * i));
     } finally {
       for (const [bone, position, quaternion, scale] of kept) { bone.position.copy(position); bone.quaternion.copy(quaternion); bone.scale.copy(scale); }
@@ -381,12 +386,28 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       flat[2 * i] = face * (p.dot(basis.right) - hx) * scale;
       flat[2 * i + 1] = (p.dot(basis.up) - hy) * scale;
     };
-    if (c.frozen) {
+    if (c.frozen && (c.follow.live > 0 || c.follow.carry)) {
+      // follow (add-only): the traced pose carried by her model's hop and turn, and/or blended toward her bones now
+      const live = c.follow.live;
+      if (live > 0) {
+        actor.root.updateMatrixWorld(true);
+        const now = c.liveNow ??= new Float64Array(3 * (c.count + 2));
+        livePoints(c, (i, p) => p.toArray(now, 3 * i));
+      }
+      if (c.follow.carry) carried.multiplyMatrices(modelInRoot(actor, m), c.tracedModel ?? carried.identity());
+      for (let i = 0; i < c.count + 2; i++) {
+        v.fromArray(c.frozen, 3 * i);
+        if (c.follow.carry) v.applyMatrix4(carried);
+        if (live > 0) v.lerp(w.fromArray(c.liveNow, 3 * i), live);
+        put(i, v);
+      }
+    } else if (c.frozen) {
       for (let i = 0; i < c.count + 2; i++) put(i, v.fromArray(c.frozen, 3 * i));
     } else {
       actor.root.updateMatrixWorld(true);
       livePoints(c, put);
     }
+    if (c.follow.rise) for (let i = 0; i < c.count + 2; i++) flat[2 * i + 1] += c.follow.rise; // (follow's rise) the whole drawing up
     const look = c.state.look;
     if (look) {
       const [tx, ty] = toFlat(c, look);
@@ -407,6 +428,13 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
     for (let i = 0; i < c.count + 2; i++) toSky(c, flat[2 * i], flat[2 * i + 1], c.dirs[i]);
   }
   const m = new THREE.Matrix4();
+  const carried = new THREE.Matrix4();
+  const rootInverse = new THREE.Matrix4();
+  /** Her model's matrix in her root's frame now (out). */
+  function modelInRoot(actor, out) {
+    actor.root.updateMatrixWorld(true);
+    return out.multiplyMatrices(rootInverse.copy(actor.root.matrixWorld).invert(), actor.model.matrixWorld);
+  }
   const tmp = new THREE.Vector3();
   /** Degrees right and up of her home on the sky -> a direction (the tangent plane at home). */
   function toSky(c, x, y, out) {
@@ -522,6 +550,17 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
         c.sizeScale = Math.sqrt(span / 16);
       }
       refresh(c);
+    },
+    /**
+     * (add-only, the festival's dance) How a `still` drawing follows her now: `live` 0 to 1 of the way from her traced pose to her
+     * bones now (1: she is drawn as she stands and moves, as without `still`); `carry` lays her model's hop and turn in her root since
+     * she was traced (actor.model: an overlay's lift and spin) on the traced pose, so a drawing kept in its traced pose (Flugeðla's
+     * flier under her standing body) still rises and turns with her; `rise` lifts the whole drawing so many degrees up the sky (a hop
+     * seen from far off: fun before realism). As added: { live: 0, carry: false, rise: 0 }.
+     */
+    follow(key, { live = 0, carry = false, rise = 0 } = {}) {
+      const c = get(key);
+      c.follow = { live: clamp(Number(live) || 0, 0, 1), carry: Boolean(carry), rise: Number(rise) || 0 };
     },
     starOf(key) {
       const c = get(key);

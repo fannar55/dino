@@ -517,14 +517,21 @@ export const FLOOR_STYLE = { size: 2.6, rest: 0.07, own: 0.1, base: 0.38, beat: 
 export const STEP = { radius: 4.5, level: 0.6, stomp: { radius: 6, level: 1.3, fade: 3 }, on: ['mosi', 'egill', 'kambedla', 'uggedla', 'gramedla', 'thorsedla'] };
 const FIRST_STOMP = STOMPS[0];
 const OPEN_MAX = Math.hypot(...FLOOR_FROM) + FLOOR.radius + FLOOR_LOOK.band + 0.5;
-export function floorAt(beat) {
+// Task 15 (the chunk-6 rulings' 13): floorAt(beat, { feet, places }) takes the dance's real feet (hatid-dance.js feetAt: each
+// { x, z, age, radius, level }, a step as old as the foot's landing, lit as the beat's pools were, exp(-4 age) of its level) and
+// the places they really stand (places: { who: [x, z] }, for the hues); without them the pools stand at the stands as before.
+export function floorAt(beat, { feet = null, places = null } = {}) {
   const u = clamp01((beat - FIRST_STOMP) / BAR);
   const open = u > 0 ? OPEN_MAX * smooth(u) : 0;
   const lit = partsAt(beat).floor;
   const dim = lerp(1, FLOOR_STYLE.quiet, quietAt(beat));
   const pulse = lit * (FLOOR_STYLE.base + FLOOR_STYLE.beat * pulseAt(beat)) * (0.75 + 0.25 * energyAt(beat)) * dim;
   const steps = [];
-  if (lit > 0) {
+  if (lit > 0 && feet) {
+    for (const f of feet) steps.push([f.x, f.z, f.radius, lit * STEP.level * f.level * Math.exp(-4 * f.age) * dim, f.age]);
+    const last = STOMPS.findLast(b => b <= beat);
+    if (last !== undefined && beat - last < 1) steps.push([FLOOR_FROM[0], FLOOR_FROM[1], STEP.stomp.radius, lit * STEP.stomp.level * Math.exp(-STEP.stomp.fade * (beat - last)), beat - last]);
+  } else if (lit > 0) {
     for (const who of STEP.on) {
       const [x, z] = STANDS[who].at;
       steps.push([x, z, who === 'egill' ? STEP.radius * 0.6 : STEP.radius, lit * STEP.level * pulseAt(beat) * dim, fract(beat)]);
@@ -532,7 +539,7 @@ export function floorAt(beat) {
     const last = STOMPS.findLast(b => b <= beat);
     if (last !== undefined && beat - last < 1) steps.push([FLOOR_FROM[0], FLOOR_FROM[1], STEP.stomp.radius, lit * STEP.stomp.level * Math.exp(-STEP.stomp.fade * (beat - last)), beat - last]);
   }
-  const friends = Object.entries(STANDS).map(([who, { at }]) => [at[0], at[1], FLOOR_HUES[who]]);
+  const friends = Object.entries(STANDS).map(([who, { at }]) => [...(places?.[who] ?? at).slice(0, 2), FLOOR_HUES[who]]);
   return { open, pulse, colour: hueAt(beat), steps, friends, mix: soloAt(beat) ? FLOOR_STYLE.soloMix : FLOOR_STYLE.mix, border: FLOOR_STYLE.border };
 }
 
@@ -722,7 +729,7 @@ export function createStage(c) {
     });
     stones.glow.needsUpdate = true;
     // the floor
-    const f = floorAt(beat);
+    const f = floorAt(beat, c.dance?.feetAt ? { feet: c.dance.feetAt(beat), places: c.dance.places() } : undefined);
     floor.set(f);
     // the beams and the light on the ground
     beams.begin();
