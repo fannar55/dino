@@ -440,6 +440,14 @@ export function tallShot(name) {
  * party_high at both sizes. Its worst shot of six is sky_dance upright at 4.65 ms. What chunk 6 (the dance, the band, the moves) has
  * left in party_wide: about 1.7 ms, 53 calls and 18k triangles wide, 1.7 ms, 53 calls and 43k triangles upright; party_high, the
  * fullest of triangles, has 9k left wide.
+ * Task 14b measured it again with the seven more things on the stage (tall lit stones, the floor in mixed hues and hopping, fireworks
+ * on the hits, the dancing moon, the lanterns, the fireflies' rise: still five draw calls, the same triangles, 592 of the 600 light
+ * points on a hit), the worse of two runs (qa/remake/hatid/butur5/vidbot/bench-*.txt): party_wide 4.74 ms wide, 4.44 upright, on a
+ * hit with the fireworks in the air 5.88 wide (4.46 in the other run), 4.25 upright; the stage's paired cost 0.3 ms in party_wide and
+ * 0.6-0.7 ms in party_high, about 0.1 ms more than Task 14's. Three upright shots read over 6 ms once each in two runs (floor_low
+ * 6.98, sky_dance 6.44, party_high 6.40) and 3.7-4.4 in the other run and a third: the laptop's spread, no lever applied. What chunk
+ * 6 has left in party_wide: about 1.2 ms, 53 calls and 18k triangles wide, 1.5 ms, 53 calls and 43k triangles upright; party_high
+ * still 9k triangles wide; and 8 light points.
  */
 export const BUDGET = {
   shot: 'party_wide',
@@ -453,8 +461,8 @@ export const BUDGET = {
   wide: ['party_wide', 'party_high', 'final_pose'],
   limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
   measured: {
-    '1280x800': { gpuMs: 4.3, drawCalls: 47, triangles: 231415 },
-    '800x1280': { gpuMs: 4.27, drawCalls: 47, triangles: 206711 },
+    '1280x800': { gpuMs: 4.74, drawCalls: 47, triangles: 231415 },
+    '800x1280': { gpuMs: 4.44, drawCalls: 47, triangles: 206711 },
   },
 };
 
