@@ -304,14 +304,16 @@ export const SHOTS = {
     first_star: shot(off(S.thorsedla, 16, -6, 1.5), toSky(off(S.thorsedla, 16, -6, 1.5), { azimuth: 16, elevation: 32 }), 55),
     // her roar up into the sky: low in front of her, Egill on her head
     roar_up: shot(off(S.gramedla, 13, 3, 0.8), off(S.gramedla, 0, 0, 6.5), 50),
-    // the ring rolls out over the sea of cloud: from by the rim, past her, out over the sea
-    sea_ring: shot(polar(70, 30, 3), [-105, G - 6, -7.7], 55),
+    // the ring rolls out over the sea of cloud: from by the rim, past her, out over the sea (from the arc's end past Mosi, so the
+    // guests hiding at his back are behind the lens: Task 12)
+    sea_ring: shot(polar(95, 30, 6.5), [-105, G - 9, -7.7], 55),
     // the six stars hang over their friends: the still shot they are tapped in
     stars_wide: starsShot(1.6),
     // she lays her head down and Egill floats down to Mosi
     egill_down: shot(off(S.gramedla, 12, -7, 1.4), off(S.mosi, 0, 0, 2.2), 48),
-    // the half moon peeks up over the clouds behind the top, a party hat on: past Mosi
-    moon_peek: shot(off(S.mosi, 10, 3, 1.4), toSky(off(S.mosi, 10, 3, 1.4), { azimuth: 45, elevation: 9 }), 42),
+    // the half moon peeks up over the clouds behind the top, a party hat on: past Mosi on his party stand (everyone is at theirs by
+    // then: Task 12), over the stage, a long lens on the sea beyond it so the moon is big and nobody stands in front of it
+    moon_peek: shot(fp(-4.5, -15, 3.2), toSky(fp(-4.5, -15, 3.2), { azimuth: 45, elevation: 5 }), 34),
     // Scene 3. The party, all toward the stage from the child's side
     stage_front: shot(fp(2, 14, 1.6), fp(3, 30, 3), 44),
     party_wide: shot(fp(0, -36, 4.2), fp(1, 10, 3.6), 55),
@@ -368,7 +370,7 @@ export const SHOWS = {
   sea_ring: ['gramedla'],
   stars_wide: ['kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla', 'egill'],
   egill_down: ['gramedla', 'egill', 'mosi'],
-  moon_peek: ['mosi'],
+  moon_peek: [], // the moon is what it shows (SKY_SHOTS); Mosi only as a back in its corner, his head past the edge
   stage_front: ['sloedla', 'flugedla'],
   party_wide: FRIENDS8,
   party_high: ['gramedla', 'thorsedla', 'sloedla', 'mosi', 'egill'],
@@ -394,8 +396,8 @@ const SCENES = {
   // (Flugeðla's home shot sees her come down onto her farewell stand: she flies in, not up her way)
   start: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, ...(friend === 'flugedla' ? [] : [`home_${friend}`])])],
   farewell: ['home_flugedla', 'lineup_sun', 'sun_faces'],
-  dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down', 'moon_peek'],
-  party: ['stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), 'moon_close', 'final_pose'],
+  dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down'],
+  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), 'moon_close', 'final_pose'],
   gather: ['gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down'],
 };
 export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, names]) => names.map(name => [name, scene])));

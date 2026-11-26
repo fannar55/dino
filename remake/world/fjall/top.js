@@ -11,7 +11,7 @@
 //   top.room -> [{ friend, at, r }]    where each of the six friends stands at the festival: a disc half her length, none
 //                                      overlapping, all inside the flat, ROOM.middle m round the middle kept free
 //   topRooms() -> the same rooms, with no top built (a page or a chapter that needs them before the place)
-//   top.sea                            { level, setGlow(v), light(v, { at, radius, colour }), spot, wave({ from, strength, seconds }) -> Handle, cards, bank }
+//   top.sea                            { level, setGlow(v), light(v, { at, radius, colour }), spot, wave({ from, strength, seconds, speed, width }) -> Handle, cards, bank }
 //   top.veil                           { setLevel(v), level }: the last wisp chapter 6 climbs out of, by the south-west rim (0 gone, 1 thick)
 //
 // Not grey: the game's own ground material painted as a meadow (grass, a little dry grass, stone only on the steep), the game's own
@@ -180,11 +180,12 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
   function swell(dt) {
     if (!wave || !centres) return;
     wave.age += dt;
-    const front = wave.age * WAVE.speed;
+    const front = wave.age * wave.speed;
     const fade = 1 - smooth(wave.age / wave.seconds);
+    if (wave.glow) for (const cards of [seaCards, bank, rimCards]) cards?.setRing(wave.age >= wave.seconds ? 0 : fade * wave.glowLevel, wave.glow, wave.from, front, wave.width * 0.5);
     for (let card = 0; card < centres.count; card += 4) {
       const dx = rest[card * 3] - wave.from[0], dz = rest[card * 3 + 2] - wave.from[1];
-      const k = (Math.hypot(dx, dz) - front) / WAVE.width;
+      const k = (Math.hypot(dx, dz) - front) / wave.width;
       const lift = wave.strength * fade * Math.exp(-k * k);
       for (let i = card; i < card + 4; i++) centres.array[i * 3 + 1] = rest[i * 3 + 1] + lift;
     }
@@ -214,13 +215,16 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
         this.spot = { level, at: [at[0], at[1]], radius, colour };
         for (const cards of [seaCards, rimCards]) cards?.setSpot(level, colour, at, radius);
       },
-      /** A swell running out over the sea from `from` ([x, z]), `strength` m high, over `seconds`; a Handle, done when it has passed. */
-      wave({ from = [0, 0], strength = 3, seconds = 4 } = {}) {
+      /** A swell running out over the sea from `from` ([x, z]), `strength` m high, over `seconds`; a Handle, done when it has passed.
+       * `speed` (m/s) and `width` (m) its front's (WAVE's unless given: the festival's ring is slower and narrower, to be seen);
+       * `glow` a colour: a ring of that light, `glowLevel` strong, rides its crest in the cloud, fading as the swell does (none
+       * unless given). */
+      wave({ from = [0, 0], strength = 3, seconds = 4, speed = WAVE.speed, width = WAVE.width, glow = null, glowLevel = 1 } = {}) {
         wave?.handle.finish();
         if (centres) centres.array.set(rest);
         const handle = new Handle('sea wave');
         if (!centres) { handle.finish(); return handle; }
-        wave = { from, strength, seconds: Math.max(0.1, seconds), age: 0, handle };
+        wave = { from, strength, seconds: Math.max(0.1, seconds), speed, width, glow, glowLevel, age: 0, handle };
         return handle;
       },
     },

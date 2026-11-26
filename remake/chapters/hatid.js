@@ -50,6 +50,7 @@ import { createConstellations } from '../engine/constellations.js';
 import { createMoonFace, moonPose, MOON_ACTS } from '../engine/moon-face.js';
 import { LAUNCH } from '../engine/scene/journal.js';
 import { FJALL } from '../world/fjall/ground.js';
+import { createCloudCards } from '../world/fjall/look.js';
 import { leaveShow } from '../engine/book/show-player.js';
 
 export const WORDS = {
@@ -85,18 +86,26 @@ const SUN = { faces: 0.4, goodnight: 2, wind: 4 };
 const DUSK = { evening: 5, dark: 7, theme: 8 }; // the light to LOOKS.evening, on to DARK; the theme to nothing (spec: the one silent moment)
 // scene 2: the dark before Mosi whispers (the night sky's dark eased in over it); the first star's light eased in; after the six have
 // landed on the sky, before Mosi asks; after the sixth tone, before his wish; the hundreds come out over `many` s
-const STARS = { wait: 2, first: 1.2, settle: 0.4, after: 0.6, many: 5 };
-const FIRST = { rate: 1.75, line: 3.6 }; // Þórseðla's liftUp at `rate` (as she came up out of the sea), her line once it is high
+const STARS = { wait: 2, first: 1.2, settle: 0.2, after: 0.6, many: 5 };
+const FIRST = { rate: 1.75, line: 3 }; // Þórseðla's liftUp at `rate` (as she came up out of the sea), her line once it is high
 const HIDE = { seconds: 3 }; // the guests run behind Mosi (and back) in this
 // her roar: the camera's tremble; the ring sets out this far into it, `strength`, runs out over `sea` s; the shot holds `hold` s more
-const ROAR = { shake: 0.5, ring: 1.2, strength: 4, sea: 6, hold: 3.2 };
+// `front`: the ring's (top.js wave), a pale light on its crest
+const ROAR = {
+  shake: 0.5, ring: 1.2, strength: 4, sea: 6, hold: 4,
+  front: { speed: 40, width: 30, glow: '#c8d4ff', glowLevel: 3 },
+};
 // Kambeðla's plates in the dark: 50 beats a minute from `low` to full; a flare of `flare` s with a fast bright pulse when her star lights
 const PLATES = { bpm: 50, low: 0.45, flare: 1.6, flarePulse: { hz: 3, swing: 1.6 } };
 // Egill rides her head down over `head` s (chapter 6's 4.2 s took his feet down at 1.2 m/s at the quickest), then floats down to
 // `beside` m from Mosi: at least `float` s and `perMetre` s a metre he comes down (floatDown's quickest moment is some 3.5 times its
 // mean: so under 1 m/s); everyone's walk to the party (s), at most this fast (m/s); the stars gather over the party in `gather` s
 const DOWN = { head: 6, float: 3, perMetre: 4.2, beside: 3, walk: 9, most: 4.5, gather: 3 };
-const MOON = { light: 3, smile: 1.5 }; // the party's light comes over `light` s from its peek; its smile, before it blows
+const MOON = { light: 3, smile: 1.5, heapGlow: 0.6 }; // the party's light comes over `light` s from its peek; its smile, before it blows
+// the heaps the moon peeks over, [azimuth from moon_peek's lens, metres off, height, width]: an upright card's cloud shows to some
+// 0.45 of its height over the sea, so their tops stand 1 to 1.5 degrees over the lens (the moon's eye shows over them as it looks
+// about, its lower half behind them), under its disc once it is up (its foot 3.6 degrees up)
+const MOON_HEAPS = [[42, 175, 34, 70], [48, 195, 36, 76], [45, 225, 40, 64]];
 /** The moon's "Tút!" to the song's first sound (s). */
 export const TOOT_GAP = 1.2;
 const GATHER = { walk: 7, most: 4, after: 0.6 }; // scene 4: everyone round Egill
@@ -314,7 +323,7 @@ function* theStars(s, c) {
         const { x, z } = c.gramedla.raw.root.position;
         const ring = { from: [x, z], strength: ROAR.strength, seconds: ROAR.sea };
         c.log({ type: 'ring', ...ring });
-        top.sea?.wave?.(ring);
+        top.sea?.wave?.({ ...ring, ...ROAR.front });
         return null;
       });
     },
@@ -352,7 +361,7 @@ function* theStars(s, c) {
   c.stars = c.skyStars.stars; // the six, lit: kept for the tests and probes
   yield s.until(() => s.time >= all + STARS.after - 1e-9);
   yield* say(s, c, 'mosi', 'h_mosi_summer');
-  yield s.until(() => keys.every(key => c.drawn?.[key]));
+  yield s.until(() => keys.every(key => c.drawn?.[key]) && c.many >= 1); // the whole sky out before the cut
   // Egill floats down beside Mosi, so they can dance together; the stars gather over the party as he does
   cut(s, c, 'egill_down');
   c.skyStars.gather(partyPlace, { seconds: DOWN.gather, span: SKY.party.span });
@@ -527,15 +536,27 @@ function nightOf(s, c) {
   });
 }
 
-/** The moon (engine/moon-face.js) at SKY.moon, made as it first peeks: { face, acts, pose, update(time) } (pose: moonPose's now). */
+/**
+ * The moon (engine/moon-face.js) at SKY.moon, made as it first peeks: { face, heaps, acts, pose, update(time) } (pose: moonPose's
+ * now). `heaps`: MOON_HEAPS, standing heaps of the sea of cloud (world/fjall/look.js cloud cards, as the top's own) between
+ * moon_peek's lens and the moon, so it peeks up from behind cloud, not out of a straight line.
+ */
 function moonOf(s, c) {
   if (c.moon) return c.moon;
   const face = createMoonFace({ scene: c.world.scene, ...SKY.moon });
+  const [px, , pz] = SHOTS.toppur.moon_peek.position;
+  const heaps = createCloudCards(c.world, MOON_HEAPS.map(([azimuth, distance, h, w], k) => ({
+    x: px + Math.cos(azimuth * deg) * distance, z: pz + Math.sin(azimuth * deg) * distance, y: FJALL.top.sea + h * 0.15,
+    w, h, opacity: 0.95, seed: 3.1 + k * 1.7,
+  })), { name: 'Hátíð: the heaps the moon peeks over', renderOrder: 11, fogShare: 0.4 });
+  heaps.setGlow(MOON.heapGlow, '#9aa6d8'); // lit pale by the moon behind them, so they read as cloud and not as a dark cut
+  c.world.scene.add(heaps.mesh);
   const moon = {
-    face, acts: [], pose: null,
+    face, heaps, acts: [], pose: null,
     update(time) {
       moon.pose = moonPose(moon.acts, time);
       face.set(moon.pose);
+      heaps.update(0, time);
     },
   };
   c.moon = moon;
@@ -1159,6 +1180,7 @@ function setUp(s) {
       c.skyStars?.dispose();
       c.figures?.dispose();
       c.moon?.face.dispose();
+      c.moon?.heaps.dispose();
       c.night?.dispose();
       showSun(c);
       try { s.sun?.drop?.(0); } catch { /* no sun on this page */ } // the sun back where every other chapter has it
