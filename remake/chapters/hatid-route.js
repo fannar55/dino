@@ -335,15 +335,16 @@ export const SHOTS = {
     solo_flugedla: shot(fp(10, 14, 1.4), fp(7.6, 29, 4.5), 50),
     solo_sloedla: shot(fp(-3, 17, 1.4), fp(0, 30, 3.2), 40),
     // (Task 6: from her right, toward the rim: from fp(-14, 4) the lens stood inside Uggeðla)
-    solo_gramedla: shot(fp(-7, 13, 1.2), fp(-17, 20, 3.8), 46),
+    solo_gramedla: shot(fp(-6, 11, 1.6), fp(-16, 17, 3), 50),
     // Task 16, the tricks' own moments: Kambeðla's back from her right, her plates and the lizards on it
     trick_kambedla: shot(fp(5.5, 7.5, 3.4), fp(12, 4.6, 2.6), 44),
     // Uggeðla from in front, low: the fifth fish coming over her head into her jaws
     trick_uggedla: shot(fp(-5, -7, 1.6), fp(-13, -1, 6.5), 50),
     // Þórseðla's head up in the lights and the berries raining past it, from below on her left
     trick_thorsedla: shot(fp(13, 6, 1.6), fp(20.5, 18, 10), 52),
-    // Flugeðla's lap over the floor and her landing, wide from the front of the floor
-    trick_flugedla: shot(fp(-6, -18, 3.5), fp(4, 16, 9), 58),
+    // Flugeðla's lap in the sky over the floor, high on the front's left looking up across it to her stand: Þórseðla's head the
+    // only other in it (.tools/hatid-16/lapsearch.mjs: inside the stones, the director's LIMITS)
+    trick_flugedla: shot(fp(-24, -18, 7.3), fp(8, 24, 16), 40),
     // Slóeðla's head and crest side on, from her left
     trick_sloedla: shot(fp(6, 26.5, 3.4), fp(0, 27.5, 3.9), 42),
     // Grameðla's roar and her three prints running across the floor ahead of her, from the floor's middle side
@@ -427,6 +428,8 @@ export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, 
 const TALL = {
   lineup_sun: sunShot(0.625),
   stars_wide: starsShot(0.625),
+  // upright: low at the front looking steeply up, her stand at the bottom and the lap over it, no other head in it
+  trick_flugedla: shot(fp(6, -18, 3), fp(4, 8, 17), 40),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

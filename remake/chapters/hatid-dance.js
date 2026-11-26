@@ -102,6 +102,7 @@ function clear(out) {
   out.reach = 0; // (Egill's up) his arms this much longer than they are: a cheat for the look, eased with the move
   out.offset = null; // (Task 16, a solo's taker) [x, z] m her body is moved in her root's frame: Flugeðla's lap
   out.sky = null; // (Task 16, a solo's taker) { rise, turn } for her drawing in place of the dance's own
+  out.legs = null; // (Task 16) 0 to 1: how much her jointed legs keep her feet (eased in with the groove at her entry; null: all)
   return out;
 }
 /** Add [pitch, roll, yaw] degrees, times k, to a bone of the pose. */
@@ -371,6 +372,8 @@ const qa = new THREE.Quaternion();
 const qb = new THREE.Quaternion();
 const qc = new THREE.Quaternion();
 const qm = new THREE.Quaternion();
+// (Task 16) the lift, m, over which a jointed leg eases into its reach outside the groove (pose.legs)
+const LEG_EASE = 0.05;
 const FRONT = new THREE.Vector3(1, 0, 0);
 const UP = new THREE.Vector3(0, 1, 0);
 const SIDE = new THREE.Vector3(0, 0, 1);
@@ -477,7 +480,17 @@ function lay(rig, pose) {
       const lift = body.march ? 0 : Math.max(0, h);
       const target = kept[s].addScaledVector(up, lift).addScaledVector(front, lift * 0.3);
       const pole = shin.getWorldPosition(new THREE.Vector3()).addScaledVector(front, 2);
-      if (dip || lift > 0) reachTwoBones(thigh, shin, foot, target, pole);
+      if (dip || lift > 0) {
+        // (Task 16) eased in as she comes into the groove (pose.legs) or as a foot lifts (over LEG_EASE m), so the leg does not snap
+        // to the reach in the frame it starts (a 15 degree shin at Uggeðla's entry; the band's drum before Grameðla's)
+        const w = Math.max(pose.legs ?? 1, smooth(Math.min(1, lift / LEG_EASE)));
+        const was = w < 1 ? [thigh, shin, foot].map(b => b.quaternion.clone()) : null;
+        reachTwoBones(thigh, shin, foot, target, pole);
+        if (was) {
+          [thigh, shin, foot].forEach((b, i) => b.quaternion.copy(was[i].slerp(b.quaternion, w)));
+          thigh.updateMatrixWorld(true);
+        }
+      }
       if (body.march && h > 0) {
         const k = h / STAMP[rig.who];
         rotateBoneWorld(thigh, qa.setFromAxisAngle(side, rad(body.march.thigh * k)));
@@ -593,6 +606,7 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
         const solo = clipFor(who, beat); // 0 to 1: her own solo has her
         actor.root.position.set(at[0], heightAt(at[0], at[1]), at[1]);
         grooveOf(who, beat, pose, (1 - solo) * grooveSize(who, beat));
+        pose.legs = smooth(Math.min(1, grooveSize(who, beat) / 0.1));
         if (m && solo < 1 && m.weight > 0) {
           const n = Math.min(m.n, m.length);
           moveOf(who, m.move, n, scratch, { reduced });

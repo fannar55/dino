@@ -54,6 +54,13 @@ function stampShape(u) {
   const down = u > 0.68 ? 1 - ((u - 0.68) / 0.32) ** 2 : 1;
   return up * down;
 }
+/** A giant stomp's lift: the foot high and heavy, down over the last 45 % (a gentler fall than the drum's, so a 1.35 m leg is not a blur). */
+function giantShape(u) {
+  if (!(u > 0 && u < 1)) return 0;
+  const up = smooth((u - 0.04) / 0.4);
+  const down = u > 0.55 ? 1 - ((u - 0.55) / 0.45) ** 1.5 : 1;
+  return up * down;
+}
 /** World [x, z] of a point `ahead` m on her stand's heading and `right` m to her right. */
 function onStand(who, ahead, right = 0) {
   const { at, heading } = STANDS[who];
@@ -95,8 +102,8 @@ function near(list, beat, before, after) {
 }
 
 /**
- * Grameðla's bass drum: on every stomp cue a foot lands (left, right, ... by the cue's index), lifted DRUM.lift m over the gap before
- * it (two beats at most, one for the first), and stamped down on the cue; outside a called stomp move (the move's own stamps land on
+ * Grameðla's bass drum: on every stomp cue a foot lands (right, left, ... by the cue's index), lifted DRUM.lift m over the gap before
+ * it (two beats at most; the first's windup comes in with her, from a beat before her entry), and stamped down on the cue; outside a called stomp move (the move's own stamps land on
  * the same cues) and outside her solo (her giant stomps). `jolt` is the camera's tremble on each, unless motion is reduced.
  */
 export const DRUM = { lift: 0.45, gap: 2, jolt: { y: 0.03, pitch: 0.22, decay: 7, hz: 5, lasts: 0.6, giant: 3.5 } };
@@ -105,11 +112,12 @@ function drumFeet(beat, out, k) {
   const i = nextIndex(list, beat);
   if (i >= list.length) return;
   const cue = list[i];
-  const gap = Math.min(DRUM.gap, i > 0 ? cue - list[i - 1] : 1);
+  const gap = Math.min(DRUM.gap, i > 0 ? cue - list[i - 1] : DRUM.gap);
   const u = (beat - (cue - gap)) / gap;
-  out.feet[i % 2 ? 'R' : 'L'] += DRUM.lift * stampShape(u) * k;
+  // (right on the even cues: so the drum's foot is the called stomp's, whose first stamp is the left, on both its calls, 92 and 280)
+  out.feet[i % 2 ? 'L' : 'R'] += DRUM.lift * stampShape(u) * k;
   // her lean toward the lifted foot, and a jolt of her head as it lands
-  turn(out, 'Hips', 0, (i % 2 ? 1 : -1) * 3 * stampShape(u), 0, k);
+  turn(out, 'Hips', 0, (i % 2 ? -1 : 1) * 3 * stampShape(u), 0, k);
   const prev = list[i - 1] ?? -Infinity;
   const since = beat - prev;
   if (since >= 0 && since < 0.6) turn(out, 'Head', -7 * Math.exp(-6 * since) * smooth(since / 0.08), 0, 0, k);
@@ -127,11 +135,13 @@ function tailWhip(beat) {
 }
 
 /** Flugeðla's scratch on each scratch cue: her left wing reaches forward onto the deck before it and scrubs back and forth over it. */
-export const SCRATCH = { reach: 48, fore: -25, scrub: 16, before: 0.35, hold: 0.7, after: 0.45 };
+export const SCRATCH = { reach: 48, fore: -25, scrub: 9, before: 0.35, hold: 0.7, after: 0.45 };
 function scratchOf(beat) {
+  const { startBeat: s0, beats } = SOLO.flugedla;
   for (const { t } of near(CUES.scratch, beat, SCRATCH.before, SCRATCH.hold + SCRATCH.after)) {
+    if (beat - t >= s0 && beat - t < s0 + beats) continue; // her solo's scratches are her wingbeats in the air, not the deck
     if (t < 0) return { reach: smooth((t + SCRATCH.before) / SCRATCH.before), scrub: 0 };
-    if (t < SCRATCH.hold) return { reach: 1, scrub: Math.sin(TAU * 2 * (t / SCRATCH.hold)) };
+    if (t < SCRATCH.hold) return { reach: 1, scrub: Math.sin(TAU * (t / SCRATCH.hold)) };
     return { reach: 1 - smooth((t - SCRATCH.hold) / SCRATCH.after), scrub: 0 };
   }
   return { reach: 0, scrub: 0 };
@@ -144,6 +154,7 @@ function scratchOf(beat) {
 export const HORN = { up: 30, neck: 10, turn: 38, before: 0.3, hold: 2, after: 1, calls: { 0: null, 23: 'gramedla', 47: 'thorsedla', 184: null, 217: 'sky', 252: null, 361: null } };
 function hornOf(beat) {
   for (const { i, t } of near(CUES.horn, beat, HORN.before, HORN.hold + HORN.after)) {
+    if (CUES.horn[i] >= SOLO.sloedla.startBeat && CUES.horn[i] < SOLO.sloedla.startBeat + SOLO.sloedla.beats) continue; // her solo plays it
     const k = t < 0 ? smooth((t + HORN.before) / HORN.before) : t < HORN.hold ? 1 : 1 - smooth((t - HORN.hold) / HORN.after);
     const to = HORN.calls[CUES.horn[i]] ?? null;
     let yaw = 0, up = 0;
@@ -177,7 +188,7 @@ export function roleOf(who, beat, out, k = 1) {
     case 'thorsedla': chain(out, BODY.thorsedla.neck, 0, 0, TOWER.sway * Math.sin((TAU * beat) / BAR), p); break;
     case 'flugedla': {
       const s = scratchOf(beat);
-      const r = s.reach * p;
+      const r = s.reach * p * (m ? 1 - m.weight : 1); // in a called move (wings up, a spin) the move wins
       turn(out, 'LeftUpperArm', SCRATCH.reach, 0, SCRATCH.scrub * s.scrub, r);
       turn(out, 'LeftForearm', SCRATCH.fore, 0, 0, r);
       turn(out, 'Head', -6, 0, 9, r); // she looks down at the deck, on her left
@@ -201,7 +212,7 @@ export function roleOf(who, beat, out, k = 1) {
 // ---------------------------------------------------------------------------------------------
 // Looking at the soloist: in a solo the others turn their heads to her (the dance's grooveSize already halves them), eased in and out
 // over a beat at each end of each solo. Her head as she stands (HEAD); Flugeðla's where her lap has her.
-export const LOOK = { yaw: 55, front: 70, pitch: 25, head: 0.5 };
+export const LOOK = { yaw: 55, front: 70, past: 145, near: [3, 7], pitch: 25, head: 0.5 };
 function soloHead(who, b, o) {
   if (who === 'flugedla') {
     const l = lapAt(b, o);
@@ -220,9 +231,12 @@ function lookOf(who, beat, out, o = {}) {
   const target = soloHead(solo.who, b, o);
   const rel = wrap180(bearing([hx, hz], [target[0], target[2]]) - STANDS[who].heading);
   const most = who === 'mosi' || who === 'egill' ? LOOK.front : LOOK.yaw;
-  const yaw = -Math.max(-most, Math.min(most, rel)) * w;
+  // a soloist right behind her (past LOOK.past degrees) she lets go of, all of it at 180 (so one going round behind never flips her head)
+  const hold = (1 - smooth((Math.abs(rel) - LOOK.past) / (180 - LOOK.past)))
+    * smooth((Math.hypot(target[0] - hx, target[2] - hz) - LOOK.near[0]) / (LOOK.near[1] - LOOK.near[0])); // nor one flying right over her
+  const yaw = -Math.max(-most, Math.min(most, rel)) * w * hold;
   const dy = target[1] - ((o.ground ?? GROUND) + HEAD[who][1]);
-  const pitch = Math.max(-LOOK.pitch, Math.min(LOOK.pitch, Math.atan2(dy, Math.hypot(target[0] - hx, target[2] - hz)) / deg)) * w;
+  const pitch = Math.max(-LOOK.pitch, Math.min(LOOK.pitch, Math.atan2(dy, Math.hypot(target[0] - hx, target[2] - hz)) / deg)) * w * hold;
   const neck = BODY[who].neck;
   turn(out, 'Head', pitch * LOOK.head, 0, yaw * LOOK.head);
   chain(out, neck, (pitch * (1 - LOOK.head)) / neck.length, 0, (yaw * (1 - LOOK.head)) / neck.length);
@@ -252,9 +266,9 @@ export const BAND_HUES = Object.freeze({ ...HUES });
 const hueOfBar = (beat, shift = 0) => HUES[SIX[(((Math.floor(beat / BAR) + shift) % 6) + 6) % 6]];
 
 // Flugeðla's lap (the brief: "a circle of 32 m"): up off her stand over two beats, once round a circle LAP.diameter m across that
-// starts and ends on her stand and lies over the floor toward the middle, LAP.up m up, and down onto her stand by b 11.2. With less
+// starts and ends on her stand and lies over the floor toward the middle, LAP.up m up, and down onto her stand by b 10.8. With less
 // motion a smaller, lower circle at the same pace in beats.
-export const LAP = { diameter: 32, up: 14, rise: [0, 2.2], round: [1, 10.4], down: [9.6, 11.2], dir: -1, reduced: { diameter: 12, up: 5 } };
+export const LAP = { diameter: 32, up: 14, rise: [0, 2.2], round: [1, 10.4], down: [9.3, 10.8], dir: -1, reduced: { diameter: 12, up: 5 } };
 const LAP_FROM = STANDS.flugedla;
 export function lapAt(b, { reduced = false } = {}) {
   const d = reduced ? LAP.reduced.diameter : LAP.diameter;
@@ -460,7 +474,7 @@ function soloPose(who, beat, out, o) {
       turn(out, 'Neck', 18, 0, 0, lunge * w);
       turn(out, 'Head', 12, 0, 0, lunge * w);
       turn(out, 'Spine', 6, 0, 0, lunge * w);
-      const open = smooth((b - 8.2) / 0.5) * (1 - smooth((b - 8.85) / 0.15));
+      const open = smooth((b - 8.2) / 0.5) * (1 - smooth((b - 8.8) / 0.22));
       turn(out, 'Jaw', -32 * open, 0, 0, w);
       const gulp = Math.sin(Math.PI * clamp01((b - 11) / 0.6));
       turn(out, 'Head', -10 * gulp, 0, 0, w);
@@ -496,7 +510,7 @@ function soloPose(who, beat, out, o) {
       // the windup's foot down on b 0 (the band's drum), then giant stomps right, left, right landing on b 2, 4, 6, then the roar
       for (let k = 0; k < 3; k++) {
         const land = PRINTS.at[k];
-        const s = stampShape((b - (land - 2)) / 2);
+        const s = giantShape((b - (land - 2)) / 2);
         out.feet[k % 2 ? 'L' : 'R'] += PRINTS.giant * s * w;
         turn(out, 'Hips', 0, (k % 2 ? -1 : 1) * 6 * s, 0, w);
         const since = b - land;
@@ -601,7 +615,7 @@ export const LIGHTS = { base: 0.55, step: 0.14, decay: 6 };
 export const LIZARDS = { group: 'lizards', who: [0, 1, 2, 3], on: [[1.15, -0.5, 0, 2.5], [0.35, 0.5, 1, 2.8], [-0.45, -0.5, 1, 2.8], [-1.55, 0.5, 2, 2.35]], scale: 3, travel: [22, 32], hop: 0.35 };
 
 // The deck Flugeðla scratches: a flat stone in front of her, at her left wing (the stage's tenth stone: hatid-stage.js).
-export const DECK = { ahead: 1.95, right: -0.6, size: [1.5, 1.05, 1.1], yaw: 0 };
+export const DECK = { ahead: 1.75, right: -0.6, size: [1.5, 0.9, 1.1], yaw: 0 };
 
 /**
  * The band on the party's friends. c: { world, dance (createDance's), stands.party, reduced, top?, plates?, guests (hatid.js's or the
@@ -656,8 +670,9 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
       const slot = SOLO[who];
       const sb = b - slot.startBeat;
       if (who === 'flugedla') {
-        const l = lapAt(sb, o);
-        clips.flugedla.set(b, { fly: [smooth(l.air * 1.6) * 0.95, fract(b) * actors.flugedla.clips.get('fly').duration] });
+        // her wings beat from her take-off and settle over the beat and a half after she is down (by the air they folded in 3 frames)
+        const flap = smooth(sb / 1.2) * (1 - smooth((sb - 10.2) / 1.6));
+        clips.flugedla.set(b, { fly: [0.95 * flap, fract(b) * actors.flugedla.clips.get('fly').duration] });
       } else if (who === 'gramedla') {
         const r = smooth((sb - PRINTS.roar[0]) / 0.5) * (1 - smooth((sb - PRINTS.roar[1]) / 0.5));
         clips.gramedla.set(b, { roar: [0.55 * r, (sb - PRINTS.roar[0]) * BEAT + 0.6] });
@@ -762,7 +777,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     const solo = soloAt(beat);
     const plates = c.plates;
     const m = moveAt(beat);
-    if (plates?.setRow && playing('kambedla', beat) > 0 && !(m?.move === 'up' && m.weight > 0)) {
+    if (plates?.setRow && !(m?.move === 'up' && m.weight > 0)) { // every frame, so the same beat is the same plates
       if (solo?.who === 'kambedla') {
         const t = trickOf('kambedla', solo.u, {}, o);
         t.rows.forEach((r, i) => { if (i < plates.rows) { plates.setRowColour?.(i, r.hue); plates.setRow(i, r.level * t.w + 1 * (1 - t.w) * LIGHTS.base, { duration: 0 }); } });
@@ -803,6 +818,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     if (beat === null) return;
     sail?.keep();
     crest?.keep();
+    glows(beat); // after the dance's own (its run of the plates in an up, and its plates back to full after one)
     const solo = soloAt(beat);
     // the fish
     let n = 0;
@@ -844,7 +860,6 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     update(beat) {
       beatNow = beat;
       takeFor(beat);
-      glows(beat);
       now = { beat, taken };
     },
     place,
