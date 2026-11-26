@@ -20,8 +20,12 @@ import { moonPose, MOON_HAT_LIFT } from '../engine/moon-face.js';
 //
 //   STAGE_PARTS                what lights with whom: [{ part, with }] in the intro's order
 //   partsAt(beat)              how far each part is lit, 0 to 1 ({ stones, cone, floor, strings, sea, spots, fireflies, full })
-//   stonePlaces()              the nine stones: [{ at: [x, z], width, height, yaw }], in a half ring behind the stage
+//   stonePlaces()              the nine stones: [{ at: [x, z], width, height, yaw, rel, who }], tall, in a ring round the floor
 //   stonesAt(beat)             each stone's rise, 0 (under the ground) to 1, one after another over the first bar
+//   stoneLightsAt(beat)        each stone's light: [{ who, colour, level }], dark until its one comes into the song (Task 14b)
+//   fireworksAt(beat, o)       the bursts in the air after a hit: [{ at, colour, level, size, hit, spot }] (Task 14b)
+//   moonAt(beat, base)         the moon's pose in the party: MOON_MOVES over its acts' pose (Task 14b)
+//   FRIEND_HUES, FIREFLY_QUIET the eight's and the choir's hues as light; the quiet part's gathering and rise (Task 14b)
 //   coneAt(beat, o)            Slóeðla's own cone: { from, to, width, colour, level }
 //   spotsAt(beat, o)           the four spotlights: [{ from, to, width, colour, level }] (their sources are swarms of fireflies)
 //   stringsAt(beat, o)         120 lights on six strings from the drawings' feet down to the stones: [{ at, colour, level, string }]
