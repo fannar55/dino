@@ -425,7 +425,7 @@ test('each trick is seen: Kambeðla\'s plates show six hues or more; a fish is i
   for (const b of [9, 9.5, 10.5]) {
     p.frame(u0 + b - 0.05);
     p.frame(u0 + b);
-    assert.ok(jawFish() <= 0.7, `a fish in her jaws at ${b} (${jawFish().toFixed(2)} m)`);
+    assert.ok(jawFish() <= 2.2, `a fish in her jaws at ${b}: across her snout, ${jawFish().toFixed(2)} m from its hinge`);
   }
   p.frame(u0 + 11.8);
   assert.equal(fish.count, 0, 'gulped');

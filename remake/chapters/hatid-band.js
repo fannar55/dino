@@ -295,8 +295,8 @@ export function lapAt(b, { reduced = false } = {}) {
 // Uggeðla's fish (the Fen's): five leap in arcs out of the sea of cloud behind her (her own side of the top), the fifth into her jaws
 // on b 9, held there and gulped on b 11.3. Each [from b, to b, apex m]; the arcs along the rim, nearer her one after another.
 export const FISH = {
-  length: 1.4, sea: -6, rim: 58, arcs: [[0.5, 2.5, 10, -9], [1.8, 3.8, 12, 7], [3.1, 5.1, 13, -5], [4.4, 6.4, 14, 3], [6.2, 9, 8, 0]],
-  span: 7, catch: 9, gulp: 11.3,
+  length: 2, sea: -6, rim: 58, arcs: [[0.5, 2.5, 10, -9], [1.8, 3.8, 12, 7], [3.1, 5.1, 13, -5], [4.4, 6.4, 14, 3], [6.2, 9, 8, 0]],
+  span: 7, catch: 9, gulp: 11.3, hold: [5, 4.85, 0],
 };
 const UGG_DIR = Math.atan2(STANDS.uggedla.at[1], STANDS.uggedla.at[0]) / deg;
 /** The jaws where she snaps (her head lunged up and forward: a first value, the real jaw takes the fish over its last half beat). */
@@ -595,7 +595,7 @@ function addSkinGlow(actor, rowOf, colour) {
   };
 }
 /** Uggeðla's sail: her skin more than SAIL.over m over the spine bone that moves it (bind pose), in SAIL.rows rows head to tail. */
-export const SAIL = { over: 0.8, bones: ['Hips', 'Spine', 'Chest', 'Tail1', 'Neck'], from: 3.3, to: -3.3, rows: 6, level: 0.42, beat: 0.25, solo: 0.8 };
+export const SAIL = { over: 0.8, bones: ['Hips', 'Spine', 'Chest', 'Tail1', 'Neck'], from: 3.3, to: -3.3, rows: 6, level: 0.42, beat: 0.25, solo: 0.5 }; // (solo 0.8 washed her sail white in its close shots)
 const sailRow = (v, bone, rest) => {
   if (!SAIL.bones.includes(bone) || v.y - rest.y <= SAIL.over) return 0;
   return 1 + Math.min(SAIL.rows - 1, Math.max(0, Math.floor(((SAIL.from - v.x) / (SAIL.from - SAIL.to)) * SAIL.rows)));
@@ -686,7 +686,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
   world.scene?.add(things);
   // the fish
   const fishModel = createModel('fish');
-  const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#3a5a70'), emissiveIntensity: 0.6 });
+  const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#5f9fc4'), emissiveIntensity: 0.85 }); // lit, to be seen against the night
   fishMaterial.name = 'band fish';
   // the model's swim is a morph (its own Mesh plays it); held still here, without it (an instanced mesh with morphs and no morph
   // texture breaks three's render: the first stills)
@@ -773,8 +773,19 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
   guests?.ride?.((group, k, time) => (group === LIZARDS.group && LIZARDS.who.includes(k) ? lizardAt(LIZARDS.who.indexOf(k), time) : null));
 
   const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(), s4 = new THREE.Vector3(), p4 = new THREE.Vector3();
+  // where the caught fish lies: across her snout (FISH.hold, her bind pose's model metres), carried by her Jaw bone as her skin is
+  // (the Jaw bone's own origin is the hinge, under her eye: the first stills had the fish inside her head)
   let jawBone = null;
-  if (actors.uggedla) actors.uggedla.model.traverse(b => { if (b.isBone && b.name === 'Jaw' && !jawBone) jawBone = b; });
+  const hold = new THREE.Vector3();
+  if (actors.uggedla) {
+    let skin = null;
+    actors.uggedla.model.traverse(o => { if (o.isSkinnedMesh && !skin) skin = o; });
+    const j = skin ? skin.skeleton.bones.findIndex(b => b.name === 'Jaw') : -1;
+    if (j >= 0) {
+      jawBone = skin.skeleton.bones[j];
+      hold.fromArray(FISH.hold).applyMatrix4(skin.bindMatrix).applyMatrix4(skin.skeleton.boneInverses[j]);
+    }
+  }
   let now = null;
 
   /** The plates, the sail and the crest at the beat. */
@@ -837,7 +848,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
         if (f.k === 4 && jawBone && f.last > 0) {
           // the last half beat into her jaws, and in them till she gulps it
           jawBone.updateWorldMatrix(true, false);
-          const jaw = new THREE.Vector3(0.35, -0.05, 0).applyMatrix4(jawBone.matrixWorld);
+          const jaw = hold.clone().applyMatrix4(jawBone.matrixWorld);
           p4.lerp(jaw, f.last);
           if (f.caught) e4.set(0, -(STANDS.uggedla.heading + 90) * deg, 0, 'YXZ');
         }

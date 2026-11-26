@@ -40,6 +40,7 @@ import { createSong } from '../engine/audio/song.js';
 import { createStage, moonAt } from './hatid-stage.js';
 import { createDance, CALL_LINE } from './hatid-dance.js';
 import { createBand } from './hatid-band.js';
+import { addPlateGlow } from '../engine/plate-glow.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { SUN_DISTANCE } from '../engine/sun-face.js';
@@ -724,6 +725,8 @@ function* theParty(s, c) {
   c.song.play(0);
   c.log({ type: 'party' });
   c.dance = createDance(c); // Task 15: the called dance, the groove, the drawings dancing with them, the feet under the floor
+  // her plates as her sign lit them (hatid-arrival.js); the party alone (the tile) has had no arrival, so it lights them here
+  if (!c.plates && c.kambedla?.raw && c.world.effects) c.plates = c.world.effects.add(addPlateGlow(c.kambedla.raw, { colour: '#ab85c1', dull: 0 }));
   c.band = createBand(c); // Task 16: each friend's part on her cues and the six solos, over the dance (it takes the soloist)
   c.stage = createStage(c); // the stage lights up with the intro and follows the song: its light, the sea, the floor, the lamps
   const unshake = shakeOnStomps(c);
