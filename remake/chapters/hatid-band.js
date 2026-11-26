@@ -627,7 +627,7 @@ export const DECK = { ahead: 1.75, right: -0.6, size: [1.5, 0.9, 1.1], yaw: 0 };
 // her head and neck go up to the sky and her jaws open (her own `roar` clip at `clip` of itself, timed so its roar, `at` s into
 // it, lands on the cue), wide open on the cue, held `hold` beats and closed over `after`. Laid over the dance and her drum (her feet
 // keep the beat), toward these turns, not added (in a called "up" her jaws are open already).
-export const ROAR = { before: 0.9, hold: 2.4, after: 1.1, neck: 12, head: 26, jaw: -36, arms: 55, clip: 0.55, at: 0.6 };
+export const ROAR = { before: 0.9, hold: 2.4, after: 1.1, neck: 24, head: 18, jaw: -36, arms: 55, clip: 0.55, at: 0.6 };
 const ROAR_CUES = cuesIn('roar', -Infinity, Infinity).map(c => c.beat);
 /** How far she roars at `beat`: 0 to 1, and the cue it is for (null between roars). */
 export function roarAt(beat) {
@@ -661,7 +661,7 @@ const CHORD_AT = SONG.song.sections.find(s => s.id === 'chord').startBeat;
 export const END_POSE = {
   from: CHORD_AT, ease: 1, sail: 0.8, crest: 0.7,
   flugedla: [['LeftUpperArm', 5, 92, 0], ['RightUpperArm', 5, -92, 0], ['Head', 18, 0, 0]],
-  gramedla: [['Neck', 12, 0, 0], ['Head', 26, 0, 0], ['Jaw', -34, 0, 0], ['LeftUpperArm', 55, 0, 0], ['RightUpperArm', 55, 0, 0]],
+  gramedla: [['Neck', 24, 0, 0], ['Head', 18, 0, 0], ['Jaw', -34, 0, 0], ['LeftUpperArm', 55, 0, 0], ['RightUpperArm', 55, 0, 0]],
 };
 /** 0 before the end pose, 1 from the chord's first beat on: how much of everyone is in her end pose. */
 export const endAt = beat => smooth((beat - (END_POSE.from - END_POSE.ease)) / END_POSE.ease);
@@ -761,7 +761,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
       } else if (who === 'gramedla') {
         const r = smooth((sb - PRINTS.roar[0]) / 0.5) * (1 - smooth((sb - PRINTS.roar[1]) / 0.5));
         clips.gramedla.set(b, { roar: [0.55 * r, (sb - PRINTS.roar[0]) * BEAT + 0.6] });
-      } else clips[who].set(b, {});
+      } else clips[who].set(Math.min(b, END_POSE.from), {});
     });
   }
 
@@ -996,6 +996,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
         out.feet.R += end.feet.R * w;
         out.lift += (end.lift ?? 0) * w;
         out.reach += (end.reach ?? 0) * w;
+        out.legs = 1 - w; // her jointed legs let go of the groove's footing as she comes in (they snapped 15 degrees on the chord)
         clips[who].set(Math.min(b, END_POSE.from), {}); // her idle stopped where the chord's first beat had it
       });
     }

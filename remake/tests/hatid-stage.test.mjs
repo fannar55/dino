@@ -546,7 +546,9 @@ test('the moon bobs its hat on the beat and opens its mouth only while the choir
   for (const b of beatsOf(-2, END_BEAT + 4, 0.05)) {
     const pose = moonAt(b);
     assert.ok(pose.hatLift >= 0 && pose.hatLift <= MOON_HAT_LIFT, `on its head at ${b}`);
-    assert.ok(Math.abs(pose.hat) < 15 && Math.abs(pose.sway) < 8, `a little at ${b}`);
+    // (Task 17) the last chorus has its own: rocking with its hand on its hat, the roars knocking it askew (hatid-party.test.mjs)
+    const chorus = SONG.song.sections.find(x => x.id === 'chorus');
+    if (!(b >= chorus.startBeat && b < chorus.startBeat + chorus.beats)) assert.ok(Math.abs(pose.hat) < 15 && Math.abs(pose.sway) < 8, `a little at ${b}`);
     const sings = b >= choir && !(b >= quiet.startBeat && b < quiet.startBeat + quiet.beats) && b < END_BEAT;
     if (pose.mouth === 'oh') {
       assert.ok(sings, `the mouth open at ${b} only while the choir sings`);

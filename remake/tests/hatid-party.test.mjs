@@ -10,12 +10,13 @@ import { createActor } from '../engine/actor.js';
 import { createConstellations } from '../engine/constellations.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { FRIENDS8, partyStands, partyPlace, SKY } from '../chapters/hatid-route.js';
-import { BEAT, CAMERA, callAt, cuesIn, soloAt } from '../chapters/hatid-score.js';
+import { BEAT, CAMERA, END_BEAT, TRICK_CUT, callAt, cuesIn, soloAt } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
-import { floorAt, spotsAt } from '../chapters/hatid-stage.js';
+import { floorAt, spotsAt, stageLightAt, skyBurstsAt, auroraAt, breathAt, moonAt, fireworksAt, partyLook, BREATH, SKY_BURSTS, MOON_FINALE, FRIEND_HUES, END_TAIL } from '../chapters/hatid-stage.js';
+import { createNightSky, skyDirection, NIGHT } from '../engine/night-sky.js';
 import { createDance, moveOf, grooveOf, grooveSize, moveAt, MOVES, CALL_LINE, HOP } from '../chapters/hatid-dance.js';
-import { createBand, ROLES, roleOf, SOLO_TRICKS, trickOf, lapAt, DECK } from '../chapters/hatid-band.js';
-import { SHOTS, HEAD, LENGTH, tallShot } from '../chapters/hatid-route.js';
+import { createBand, ROLES, roleOf, SOLO_TRICKS, trickOf, lapAt, DECK, joltAt, roarAt, END_POSE } from '../chapters/hatid-band.js';
+import { SHOTS, SHOWS, BUDGET, HEAD, LENGTH, tallShot } from '../chapters/hatid-route.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createPointResolver } from '../engine/points.js';
 import { loadCharacter, emptyWorld } from './characters.mjs';
@@ -213,7 +214,7 @@ test('the dance is a function of the beat: the same beat gives the same pose wha
           const l = last[k];
           const metres = Math.max(n.model.distanceTo(l.model), n.root.distanceTo(l.root));
           const degrees = Math.max(deg(n.turn.angleTo(l.turn)), ...n.bones.map((q, i) => deg(q.angleTo(l.bones[i]))));
-          if (degrees > worst.degrees) Object.assign(worst, { degrees, where: `${n.who} at ${beat.toFixed(2)}` });
+          if (degrees > worst.degrees) Object.assign(worst, { degrees, where: `${n.who} at ${beat.toFixed(2)} (${[...p.bones[n.who].keys()][n.bones.reduce((w, q, i) => (q.angleTo(l.bones[i]) > n.bones[w].angleTo(l.bones[w]) ? i : w), 0)]})` });
           if (metres > worst.metres) Object.assign(worst, { metres, whereM: `${n.who} at ${beat.toFixed(2)}` });
         });
       }
@@ -360,6 +361,7 @@ test('everyone has a part and plays it on her cues: Grameðla\'s foot is down on
   const snout = () => at(p, 'sloedla', 'Jaw').y - at(p, 'sloedla', 'Head').y;
   for (const cue of cuesIn('horn', -Infinity, Infinity).map(c => c.beat)) {
     if (inSolo('sloedla', cue)) continue; // her solo's own horn: the trick's test
+    if (cue >= END_POSE.from) continue; // (Task 17) the chord's horn is her end pose's: her horn up from its first beat (the end pose's test)
     const before = cue > 0 ? cue - 0.3 : 5; // (the song's first beat has no before: her head as it is once the horn is down)
     p.frame(before - 0.05);
     p.frame(before);
@@ -391,7 +393,7 @@ test('the six solos come in the map\'s order, each with the spotlights and a clo
   for (const { who, startBeat, beats } of SOLOS) {
     assert.equal(beats, 12);
     const cuts = CAMERA.filter(c => c.beat >= startBeat && c.beat < startBeat + beats);
-    assert.deepEqual(cuts.map(c => [c.beat - startBeat, c.cut]), [[0, `solo_${who}`], [6, `trick_${who}`]], `${who}'s shots`);
+    assert.deepEqual(cuts.map(c => [c.beat - startBeat, c.cut]), [[0, `solo_${who}`], [TRICK_CUT[who] ?? TRICK_CUT.others, `trick_${who}`]], `${who}'s shots`);
     for (const b of [0.01, 6, 11.9]) {
       for (const s of spotsAt(startBeat + b)) assert.ok(Math.hypot(s.to[0] - p.stands[who].at[0], s.to[2] - p.stands[who].at[1]) < 1.5, `a spotlight on ${who} at ${b}`);
       p.frame(startBeat + b);
@@ -599,4 +601,289 @@ test('the band is a function of the beat, and nothing jumps in a frame', async (
   });
   assert.ok(worst.degrees <= 12, `${worst.degrees.toFixed(1)} degrees in a frame (${worst.where})`);
   assert.ok(worst.metres <= 0.2, `${worst.metres.toFixed(3)} (scaled) m in a frame (${worst.whereM})`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The end of the party (Task 17; spec 6 "Kyrra stundin", "Síðasta viðlagið", "Lokahljómur", "Myndavélin"): the quiet moment, the last
+// chorus with its shooting stars, northern lights, roars and the moon, the end pose on the chord, and the camera's final cut.
+const sectionOf = id => SONG.song.sections.find(s => s.id === id);
+const QUIET = sectionOf('quiet'), CHORUS = sectionOf('chorus'), CHORD = sectionOf('chord');
+const span = (from, to, step, fn) => { for (let b = from; b < to - 1e-9; b += step) fn(b); };
+
+test('the quiet part: no spotlight, no stomp, the constellations breathe and the moon rocks', () => {
+  const from = QUIET.startBeat, to = from + QUIET.beats;
+  assert.deepEqual(cuesIn('stomp', from, to), [], 'no stomp cue in it');
+  const breaths = [], sways = [], eyes = new Set();
+  span(from, to, 0.125, b => {
+    for (const s of spotsAt(b)) assert.equal(s.level, 0, `no spotlight at ${b}`);
+    const j = joltAt(b);
+    assert.ok(!j.y && !j.pitch, `no tremble at ${b}`);
+    breaths.push([b, breathAt(b)]);
+    const m = moonAt(b);
+    sways.push([b, m.sway]);
+    eyes.add(m.eye);
+  });
+  // one breath in four bars, in and out, none outside the quiet part
+  assert.ok(breaths.some(([, v]) => v > 0.8) && breaths.some(([b, v]) => b > from + 4 && b < to - 4 && v < 0.1), 'it breathes in and out');
+  const peaks = breaths.filter(([, v], k) => k > 0 && k < breaths.length - 1 && v > breaths[k - 1][1] && v >= breaths[k + 1][1] && v > 0.3).map(([b]) => b);
+  assert.ok(peaks.length >= 2, `${peaks.length} breaths`);
+  for (let k = 1; k < peaks.length; k++) assert.ok(Math.abs(peaks[k] - peaks[k - 1] - BREATH.beats) < 0.5, `a breath every ${BREATH.beats} beats (${peaks.join(', ')})`);
+  for (const b of [from - 1, to + 1, 100, 300]) assert.equal(breathAt(b), 0, `no breath at ${b}`);
+  // the moon rocks slowly and blinks
+  const most = Math.max(...sways.map(([, s]) => Math.abs(s)));
+  assert.ok(most >= 4, `the moon rocks ${most.toFixed(1)} degrees in the quiet part`);
+  let turns = 0;
+  for (let k = 2; k < sways.length; k++) if (Math.sign(sways[k][1] - sways[k - 1][1]) !== Math.sign(sways[k - 1][1] - sways[k - 2][1])) turns++;
+  assert.ok(turns <= QUIET.beats / 3, `slowly: ${turns} turns in ${QUIET.beats} beats`);
+  assert.ok(eyes.has('shut'), 'it blinks');
+});
+
+test('the last chorus is the biggest: more light than any part before it (the stage\'s state summed), every burst on its cue in a friend\'s hue, the northern lights up', () => {
+  const mean = id => { const s = sectionOf(id); let sum = 0, n = 0; span(s.startBeat, s.startBeat + s.beats, 0.25, b => { sum += stageLightAt(b); n++; }); return sum / n; };
+  const chorus = mean('chorus');
+  for (const id of ['intro', 'dance', 'solos', 'quiet']) assert.ok(chorus > mean(id) * 1.15, `the chorus ${chorus.toFixed(2)} against ${id} ${mean(id).toFixed(2)}`);
+  assert.ok(mean('quiet') < mean('dance') / 2, 'the quiet part is plainly quiet');
+  assert.ok(stageLightAt(CHORUS.startBeat + 0.25) > mean('dance'), 'everything on at its first beat');
+  // the bursts: a volley on each burst cue, in flight for two beats before it and bursting on it, the six hues each time
+  const cues = cuesIn('burst', -Infinity, Infinity).map(c => c.beat);
+  assert.equal(cues.length, 4);
+  const six = new Set(SIX.map(who => FRIEND_HUES[who]));
+  cues.forEach(cue => {
+    const flying = skyBurstsAt(cue - 1);
+    assert.equal(flying.length, SKY_BURSTS.per);
+    assert.ok(flying.every(s => s.burst === 0 && Math.abs(s.u - 0.5) < 1e-9), `in flight a beat before ${cue}`);
+    assert.ok(skyBurstsAt(cue - SKY_BURSTS.cross - 0.01).every(s => s.cue !== cue), 'not before its two beats');
+    const bursting = skyBurstsAt(cue + 0.01);
+    assert.ok(bursting.every(s => s.burst > 0 && s.burst < 0.01), `bursting on its cue ${cue}`);
+    assert.equal(new Set(bursting.map(s => s.colour)).size, SKY_BURSTS.per, 'each in its own hue');
+    assert.ok(bursting.every(s => six.has(s.colour)), 'a friend\'s');
+  });
+  assert.equal(new Set(cues.map(cue => skyBurstsAt(cue + 0.01)[0].who)).size, cues.length, 'each volley led by another friend');
+  span(0, END_TAIL, 0.125, b => assert.ok(skyBurstsAt(b).length <= NIGHT.shooting, `never more than ${NIGHT.shooting} at once (${b})`));
+  span(0, CHORUS.startBeat, 0.5, b => assert.equal(skyBurstsAt(b).length, 0, `no shooting star before the chorus (${b})`));
+  // the northern lights: none before the chorus, up over its first bar, full through it, down over the chord
+  span(0, CHORUS.startBeat, 0.5, b => assert.equal(auroraAt(b).level, 0, `no northern lights at ${b}`));
+  const rising = auroraAt(CHORUS.startBeat + 2).level;
+  assert.ok(rising > 0.3 && rising < 0.9, `coming up over its first bar (${rising.toFixed(2)})`);
+  span(CHORUS.startBeat + 4, CHORD.startBeat, 0.5, b => assert.ok(auroraAt(b).level > 0.99, `up at ${b}`));
+  assert.ok(auroraAt(CHORD.startBeat + CHORD.beats - 0.01).level < 0.01, 'gone with the chord');
+});
+
+test('Grameðla roars on the map\'s roar cues, and the moon\'s hat is askew after each and straight again within two bars', async () => {
+  const p = await party();
+  const jaw = () => p.bones.gramedla.get('Jaw').quaternion.clone();
+  const cues = cuesIn('roar', -Infinity, Infinity).map(c => c.beat);
+  assert.equal(cues.length, 4);
+  for (const cue of cues) {
+    assert.ok(cue >= CHORUS.startBeat && cue < CHORD.startBeat, `${cue} in the last chorus`);
+    p.frame(cue - 2.05); p.frame(cue - 2);
+    const shut = jaw();
+    const head = p.bones.gramedla.get('Head').getWorldQuaternion(new THREE.Quaternion());
+    p.frame(cue - 0.05); p.frame(cue + 0.5);
+    const open = deg(jaw().angleTo(shut));
+    assert.ok(open >= 25, `her jaws wide on the roar at ${cue} (${open.toFixed(0)} degrees)`);
+    const lifted = deg(p.bones.gramedla.get("Head").getWorldQuaternion(new THREE.Quaternion()).angleTo(head));
+    assert.ok(lifted >= 25, `her head up at the sky at ${cue} (turned ${lifted.toFixed(0)} degrees)`);
+    p.frame(cue + 4.95); p.frame(cue + 5);
+    assert.ok(deg(jaw().angleTo(shut)) < 15, `shut again by ${cue + 5}`);
+    assert.equal(roarAt(cue).k, 1);
+    // the moon: knocked askew by it, put right by its hand inside two bars
+    assert.ok(moonAt(cue - 0.5).hat < 12, `its hat straight before ${cue} (${moonAt(cue - 0.5).hat.toFixed(1)})`);
+    assert.ok(moonAt(cue + 0.5).hat >= 20, `askew after the roar at ${cue} (${moonAt(cue + 0.5).hat.toFixed(0)})`);
+    assert.equal(moonAt(cue + MOON_FINALE.fix + 0.5).hand.kind, 'hat', 'its hand on it');
+    const later = moonAt(cue + 8.5).hat;
+    assert.ok(later < 8, `straight again within two bars of ${cue} (${later.toFixed(1)})`);
+  }
+  // through the chorus it rocks on the beat with its hand on its hat
+  span(CHORUS.startBeat + 1, CHORD.startBeat - 1, 0.5, b => assert.equal(moonAt(b).hand.kind, 'hat', `its hand on its hat at ${b}`));
+  let rock = 0;
+  span(CHORUS.startBeat + 8, CHORUS.startBeat + 12, 0.125, b => { rock = Math.max(rock, Math.abs(moonAt(b).sway)); });
+  assert.ok(rock >= 6, `rocking on the beat (${rock.toFixed(1)} degrees)`);
+});
+
+test('on the chord everyone holds her end pose from its first beat to the end of the tail, and the stage\'s light is under a tenth of its most when the tail ends', async () => {
+  const p = await party();
+  const snap = () => Object.fromEntries(FRIENDS8.map(who => [who, [...p.bones[who].values()].map(b => b.quaternion.clone())]));
+  p.frame(209.95); p.frame(210);
+  const snout = () => at(p, 'sloedla', 'Jaw').y - at(p, 'sloedla', 'Head').y;
+  const slow = snout(); // her snout in the quiet part
+  p.frame(CHORD.startBeat - 0.05);
+  p.frame(CHORD.startBeat);
+  assert.equal(p.c.band.state().ending, true);
+  const first = snap();
+  for (const hand of ['LeftHand', 'RightHand']) assert.ok(at(p, 'egill', hand).y > at(p, 'egill', 'Head').y, `Egill's ${hand} up`);
+  assert.ok(snout() - slow >= 0.15, `Slóeðla's horn up (her snout ${(snout() - slow).toFixed(2)} m higher than in the quiet part)`);
+  assert.ok(at(p, 'thorsedla', 'Head').y > 9, `Þórseðla's head high (${at(p, 'thorsedla', 'Head').y.toFixed(1)} m)`);
+  for (const b of [CHORD.startBeat + 0.5, CHORD.startBeat + 4.3, 356.7, 361.2, 363.6, END_TAIL - 0.05]) {
+    p.frame(b - 0.05); p.frame(b);
+    const now = snap();
+    for (const who of FRIENDS8) {
+      const most = Math.max(...now[who].map((q, i) => deg(q.angleTo(first[who][i]))));
+      assert.ok(most < 2, `${who} holds her end pose at ${b} (${most.toFixed(1)} degrees)`);
+    }
+  }
+  let most = 0;
+  span(0, END_TAIL, 0.25, b => { most = Math.max(most, stageLightAt(b)); });
+  const end = stageLightAt(END_TAIL - 0.01);
+  assert.ok(end < most / 10, `the light ${end.toFixed(2)} when the tail ends (its most ${most.toFixed(2)})`);
+  assert.ok(stageLightAt(CHORD.startBeat + 2) > most / 3, 'still lit as the chord begins');
+  p.frame(299.9); p.frame(300); // a seek back gives everyone back to the dance
+  assert.equal(p.c.band.state().ending, false);
+});
+
+// The final cut, as kafli5-video.test.mjs's camera tests
+const PEAK = Math.PI / 2; // a move eased in and out is this much faster in its middle than on average
+const lastsOf = k => (CAMERA[k + 1]?.beat ?? END_BEAT) - CAMERA[k].beat;
+const CALLS = SONG.song.calls;
+
+test('the camera is cut to the song: every cut on a beat, a bar or more but for the quick ones, none in a call\'s gap, every solo close, every wide shot inside the budget', () => {
+  CAMERA.forEach((entry, k) => {
+    assert.ok(SHOTS.toppur[entry.cut], `${entry.cut} is a shot`);
+    assert.ok(Number.isInteger(entry.beat), `the cut at ${entry.beat} on a beat`);
+    if (k > 0) {
+      assert.ok(entry.beat > CAMERA[k - 1].beat, `cut ${k} after the one before`);
+      assert.notEqual(entry.cut, CAMERA[k - 1].cut, `the cut at ${entry.beat} is to another shot`);
+    }
+    const beats = lastsOf(k);
+    assert.equal(Boolean(entry.quick), beats < 4, `the shot at ${entry.beat} lasts ${beats} beats: quick says so, and only then`);
+    if (entry.quick) {
+      assert.ok(entry.beat >= CHORUS.startBeat && entry.beat + beats <= CHORD.startBeat, `the quick shot at ${entry.beat} is in the last chorus`);
+      assert.equal(beats, 2, `the quick shot at ${entry.beat} is two beats`);
+      assert.equal(entry.then, undefined, 'and stands still');
+    }
+    if (BUDGET.wide.includes(entry.cut)) assert.ok(beats <= BUDGET.wideBars * 4, `${entry.cut} at ${entry.beat} holds ${beats} beats`);
+  });
+  for (const call of CALLS) {
+    assert.ok(!CAMERA.some(e => e.beat > call.beat && e.beat < call.doBeat), `no cut inside the gap of ${call.move} at ${call.beat}`);
+    const held = CAMERA.filter(e => e.beat <= call.beat).at(-1);
+    assert.ok(SHOWS[held.cut].includes('sloedla'), `Slóeðla is in ${held.cut} as she calls at ${call.beat}`);
+  }
+  for (const { who, startBeat, beats } of SOLOS) {
+    const cuts = CAMERA.filter(e => e.beat >= startBeat && e.beat < startBeat + beats).map(e => e.cut);
+    assert.deepEqual(cuts, [`solo_${who}`, `trick_${who}`], `${who}'s solo is close`);
+  }
+  // the quiet part is one shot of the sky
+  assert.deepEqual(CAMERA.filter(e => e.beat >= QUIET.startBeat && e.beat < QUIET.startBeat + QUIET.beats).map(e => e.cut), ['sky_dance']);
+  // the sky is in frame for the volleys' bursts: chorus_sky holds each burst cue, with every burst of it in frame at both sizes
+  const cues = cuesIn('burst', -Infinity, Infinity).map(c => c.beat);
+  for (const cue of cues) assert.equal(CAMERA.filter(e => e.beat <= cue + 0.5).at(-1).cut, 'chorus_sky', `the sky on the burst at ${cue}`);
+  for (const aspect of [1.6, 0.625]) {
+    const seen = view('chorus_sky', aspect);
+    const lens = ((aspect < 1 && tallShot('chorus_sky')) || SHOTS.toppur.chorus_sky).position;
+    for (const b of skyBurstsAt(cues[0] + 0.5)) {
+      const v = skyDirection(b.to[0], b.to[1]).multiplyScalar(400).add(new THREE.Vector3(...lens));
+      assert.ok(seen(v.toArray(), 0.04), `the ${b.who} burst in chorus_sky at ${aspect}`);
+    }
+  }
+  // the band close in the dance and the last chorus (ruling 18): Grameðla's drum, Kambeðla's lizards, Flugeðla at her deck
+  const band = new Set(CAMERA.filter(e => (e.beat >= 72 && e.beat < 136) || (e.beat >= CHORUS.startBeat && e.beat < CHORD.startBeat)).map(e => e.cut));
+  for (const shot of ['solo_gramedla', 'trick_kambedla', 'solo_flugedla']) assert.ok(band.has(shot), `${shot} in the dance or the chorus`);
+});
+
+/** Egill's bones, the top of his head and his soles, on the shots' ground (the harness stands everyone on 0, the shots on 1.2). */
+function egillPoints(p) {
+  const lift = new THREE.Vector3(0, TOP_GROUND, 0);
+  const out = [...p.bones.egill.values()].map(b => b.getWorldPosition(new THREE.Vector3()).add(lift));
+  out.push(at(p, 'egill', 'Head').add(lift).add(new THREE.Vector3(0, 0.18, 0)));
+  return out;
+}
+const LENSES = new Map();
+/** The director's camera on `name` at `aspect` (as view), to project with. */
+function lensOf(name, aspect) {
+  const key = `${name} ${aspect}`;
+  if (LENSES.has(key)) return LENSES.get(key);
+  const shot = (aspect < 1 && tallShot(name)) || SHOTS.toppur[name];
+  const camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 4000);
+  const world = { camera, heightAt: () => TOP_GROUND, actors: new Map() };
+  world.resolvePoint = createPointResolver(world);
+  createDirector({ camera, world, shots: {}, lint: false }).cut(shot, { check: false });
+  camera.updateMatrixWorld();
+  LENSES.set(key, camera);
+  return camera;
+}
+
+test('Egill is in frame, whole, for four dance beats or more of each called move', async () => {
+  const p = await party();
+  const worst = {};
+  for (const call of CALLS) {
+    for (const aspect of [1.6, 0.625]) {
+      const least = aspect < 1 ? 0.2 : 0.25;
+      let held = 0, run = 0, why = '';
+      play(p, call.doBeat, call.doBeat + 8 * DANCE_BEAT, beat => {
+        const entry = CAMERA.filter(e => e.beat <= beat + 1e-9).at(-1);
+        const camera = lensOf(entry.cut, aspect);
+        const pts = egillPoints(p).map(v => v.project(camera));
+        const whole = pts.every(q => q.z < 1 && Math.abs(q.x) <= 0.97 && q.y <= 0.84 && q.y >= -0.97);
+        const tall = (Math.max(...pts.map(q => q.y)) - Math.min(...pts.map(q => q.y))) / 2;
+        const mosi = at(p, 'mosi', 'Head').add(new THREE.Vector3(0, TOP_GROUND, 0)).project(camera);
+        const friend = mosi.z < 1 && Math.abs(mosi.x) <= 1 && Math.abs(mosi.y) <= 1;
+        const key = `${aspect}`;
+        if (!worst[key] || tall < worst[key].tall) worst[key] = { tall, at: `${call.move} ${beat.toFixed(2)} ${entry.cut}` };
+        if (whole && tall >= least && friend) { run += FRAME / BEAT; held = Math.max(held, run); } else { run = 0; why ||= `${beat.toFixed(2)} in ${entry.cut}: whole ${whole} (x ${Math.min(...pts.map(q => q.x)).toFixed(2)}..${Math.max(...pts.map(q => q.x)).toFixed(2)}, y ${Math.min(...pts.map(q => q.y)).toFixed(2)}..${Math.max(...pts.map(q => q.y)).toFixed(2)}), ${(tall * 100).toFixed(0)} % tall, Mosi ${friend}`; }
+      });
+      assert.ok(held >= 4 * DANCE_BEAT - 0.1, `${call.move} at ${call.beat}: Egill whole, big and with Mosi for ${held.toFixed(1)} song beats at ${aspect} (first miss: ${why})`);
+    }
+  }
+});
+
+test('every move of the camera is slow enough for the style and over before the next cut', () => {
+  const far = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  CAMERA.forEach((entry, k) => {
+    if (!entry.then) return;
+    const { then } = entry;
+    const next = CAMERA[k + 1]?.beat ?? END_TAIL;
+    assert.ok(then.beats > 0 && entry.beat + then.beats <= next, `the move at ${entry.beat} ends by the cut at ${next}`);
+    const seconds = then.beats * BEAT;
+    assert.ok(seconds >= 1.5, `the move at ${entry.beat} takes ${seconds.toFixed(2)} s`);
+    const shot = SHOTS.toppur[entry.cut];
+    if (then.push !== undefined) {
+      assert.ok((Math.abs(then.push) / seconds) * PEAK <= 1.2, `the push at ${entry.beat}`);
+      assert.ok(Math.abs(then.push) < far(shot.position, shot.target), 'never through what it looks at');
+    } else if (then.orbit !== undefined) assert.ok((Math.abs(then.orbit) / seconds) * PEAK <= 10, `the orbit at ${entry.beat}`);
+    else if (then.zoom !== undefined) assert.ok(then.zoom >= 24 && then.zoom <= 60 && (Math.abs(then.zoom - shot.fov) / seconds) * PEAK <= 8, `the zoom at ${entry.beat}`);
+    else assert.fail(`the move at ${entry.beat} is a push, an orbit or a zoom`);
+  });
+  assert.ok(CAMERA.some(e => e.beat === QUIET.startBeat && e.then?.push), 'the quiet part\'s one slow push');
+});
+
+test('reduced: bursts are glows, the northern lights stand, the camera only cuts', () => {
+  const cue = cuesIn('burst', -Infinity, Infinity)[0].beat;
+  assert.deepEqual(skyBurstsAt(cue - 1, { reduced: true }), [], 'nothing in flight');
+  const glows = skyBurstsAt(cue + 0.5, { reduced: true });
+  assert.equal(glows.length, SKY_BURSTS.per);
+  const sky = createNightSky(emptyWorld(), { reduced: true });
+  sky.shoot(glows);
+  const drawn = sky.group.getObjectByName('NightShooting').geometry.drawRange.count;
+  assert.equal(drawn, SKY_BURSTS.per, `${drawn} points: a glow a burst`);
+  const full = createNightSky(emptyWorld(), { reduced: false });
+  full.shoot(skyBurstsAt(cue + 0.5));
+  assert.ok(full.group.getObjectByName('NightShooting').geometry.drawRange.count >= SKY_BURSTS.per * 20, 'and sparks without it');
+  // the northern lights stand: the same ribbons at two times of the song
+  const ribbons = () => [...sky.group.getObjectByName('NightLights').geometry.getAttribute('position').array];
+  sky.aurora(auroraAt(270).level, auroraAt(270).time);
+  const a = ribbons();
+  sky.aurora(auroraAt(290).level, auroraAt(290).time);
+  assert.deepEqual(ribbons(), a, 'still');
+  sky.dispose?.(); full.dispose?.();
+  // the camera only cuts: the chapter skips each shot's `then` when reduced (hatid.js; its run is checked in hatid.test.mjs), and
+  // CAMERA has no other way to move the lens
+  assert.ok(CAMERA.every(e => Object.keys(e).every(k => ['beat', 'cut', 'then', 'quick'].includes(k))));
+});
+
+test('never two lifts or bursts of light inside half a second', () => {
+  // every flash of the party: the spotlights' fireworks (hit cues), the shooting stars bursting, the party light's lifts; those on the
+  // same instant count once (chunk-6 ruling 5)
+  const onsets = [];
+  const hits = new Set(), bursts = new Set();
+  let lifted = false;
+  span(0, END_TAIL, FRAME / BEAT, b => {
+    for (const f of fireworksAt(b)) if (!hits.has(f.hit)) { hits.add(f.hit); onsets.push(['fireworks', f.hit]); }
+    for (const s of skyBurstsAt(b)) if (s.burst > 0 && !bursts.has(s.cue)) { bursts.add(s.cue); onsets.push(['burst', s.cue]); }
+    const lift = partyLook(b).lift;
+    if (lift > 0.2 && !lifted) onsets.push(['lift', b]);
+    lifted = lift > 0.05;
+  });
+  for (const kind of ['burst', 'fireworks', 'lift']) assert.ok(onsets.some(o => o[0] === kind), `a ${kind} in the party`);
+  const times = [...new Set(onsets.map(([, b]) => Math.round(b * 4) / 4))].sort((x, y) => x - y).map(b => b * BEAT);
+  for (let k = 1; k < times.length; k++) assert.ok(times[k] - times[k - 1] >= 0.5, `two flashes ${(times[k] - times[k - 1]).toFixed(2)} s apart at ${(times[k] / BEAT).toFixed(2)}`);
 });

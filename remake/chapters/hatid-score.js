@@ -113,7 +113,7 @@ const CHORUS_BLOCK = (call, first, second, tail) => [
   ...tail.map(([b, cut, quick]) => ({ beat: call + b, cut, ...(quick ? { quick: true } : {}) })),
 ];
 export const CAMERA = [
-  { beat: 0, cut: 'stage_front', then: { push: 2, beats: 24 } },
+  { beat: 0, cut: 'stage_front', then: { push: 2, beats: 16 } }, // (Task 17: over by the cut at 16; it ran 24)
   { beat: 16, cut: 'solo_sloedla' },
   ...ENTRY_CUTS,
   { beat: 68, cut: 'stage_front' },

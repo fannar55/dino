@@ -72,6 +72,17 @@ function playIt(module, { aspect = 1.6, reduced = false, child = null, pauses = 
           seen.after = { beat: c.partyBeat, position: c.song.position, paused: world.sound?.elements.at(-1)?.paused ?? null, current: world.sound?.elements.at(-1)?.currentTime ?? null };
         }
       }
+      // (Task 17) the party's camera: how far it goes in a frame inside one shot (the reduced run's only cuts)
+      if (c.partyStart != null && c.partyBeat != null && c.partyBeat >= 0 && c.partyBeat < END_BEAT + SONG.song.tail * SONG.bpm / 60 && c.scene === (seen.partyScene ??= c.scene)) {
+        const m = (seen.partyCamera ??= { frames: 0, most: 0, where: null, last: null });
+        const now = { shot: c.shotLabel, at: world.camera.position.clone(), turn: world.camera.quaternion.clone(), fov: world.camera.fov };
+        if (m.last && m.last.shot === now.shot) {
+          const moved = Math.max(now.at.distanceTo(m.last.at), THREE.MathUtils.radToDeg(now.turn.angleTo(m.last.turn)) / 10, Math.abs(now.fov - m.last.fov));
+          if (moved > m.most) Object.assign(m, { most: moved, where: `${now.shot} at beat ${c.partyBeat.toFixed(2)}` });
+        }
+        m.frames++;
+        m.last = now;
+      }
       watchArrival(world, c, frame, seen);
       watchNight(world, c, seen);
       child?.(c, frame, seen);
@@ -796,6 +807,10 @@ test('reduced motion: no handheld, and the festival plays to its end', async () 
   assert.equal(run.watched.handheld, 0, 'no handheld');
   assert.equal(run.world.chapterState.reduced, true);
   assert.ok(logOf(run, 'roared').every(e => e.handheld === false), 'her roar without the shake');
+  // (Task 17) the camera only cuts in the party: still inside each shot
+  const cam = run.watched.partyCamera;
+  assert.ok(cam?.frames > 1000, `${cam?.frames} frames of the party`);
+  assert.ok(cam.most < 1e-3, `the party's camera moved ${cam.most} in a frame (${cam.where})`);
 });
 
 test('upright (aspect 0.625): every aimed target is on the screen whenever its task waits', async () => {
@@ -822,8 +837,9 @@ test('no wide shot of CAMERA lasts longer than BUDGET.wideBars', () => {
   const wide = CAMERA.map((shot, i) => ({ ...shot, until: CAMERA[i + 1]?.beat ?? END_BEAT })).filter(shot => BUDGET.wide.includes(shot.cut));
   assert.ok(wide.some(shot => shot.cut === BUDGET.shot), `the measured shot ${BUDGET.shot} is cut to`);
   for (const shot of wide) assert.ok(shot.until - shot.beat <= BUDGET.wideBars * 4, `${shot.cut} at beat ${shot.beat} holds ${(shot.until - shot.beat) / 4} bars`);
-  // the measured frame: one bar into the dance, where CAMERA holds the measured shot (the rulings: beat 76)
-  const held = CAMERA.filter(shot => shot.beat <= BUDGET.beat).at(-1);
+  // the measured frame: one bar into the dance (the rulings: beat 76), the measured shot cut to by hand there (Task 17: CAMERA cuts
+  // to Egill at 76, chunk-6 ruling 17; the bar before it is the shot's, from the dance's first beat)
+  const held = CAMERA.filter(shot => shot.beat <= BUDGET.beat - 1).at(-1);
   assert.equal(held.cut, BUDGET.shot);
   assert.equal(BUDGET.beat, SONG.song.sections.find(s => s.id === 'dance').startBeat + 4);
 });

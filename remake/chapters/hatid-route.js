@@ -359,11 +359,12 @@ export const SHOTS = {
     moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),
     final_pose: shot(fp(0, -34, 3.2), fp(1, 8, 3), 55),
     // Task 17 (chunk-6 ruling 17: the dance must be seen to be copied): Egill whole and big doing each called move, Mosi beside him
-    // doing it too. From in front of them, a little to his right, at his chest's height, the moon over his head
-    dance_egill: shot(fp(2.4, -17.5, 1.1), fp(0.4, -10.5, 1.7), 36),
-    // and low from his right, looking up past them into the sky over the stage: in the last chorus the volley of shooting stars
-    // rises over their heads in this shot's last two beats before the cut to it bursting (chorus_sky)
-    dance_egill_b: shot(fp(6, -15.5, 0.5), fp(0, -9, 2.6), 46),
+    // doing it too. From in front of them to his right, at his chest's height, Mosi behind him over his shoulder (from straight in
+    // front Mosi's head left the frame in the spin)
+    dance_egill: shot(fp(6.5, -16.2, 1.2), fp(-0.5, -9.8, 1.7), 34),
+    // and low from his right, looking a little up at them (Egill a quarter of the frame's height or more: from 0.5 m further back at
+    // 46 degrees his bones were 22 %)
+    dance_egill_b: shot(fp(5.4, -14.7, 0.6), fp(0, -9, 2), 42),
     // the last chorus's sky: from the child's side of the floor, the whole party low in the frame, the moon over the stage, the
     // bursts and the northern lights over everything
     chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 24 }), 60),
@@ -452,8 +453,8 @@ const TALL = {
   // (fix 1) upright: her and her three prints without the empty floor under them
   trick_gramedla: shot(fp(-28, -4, 7.3), fp(-20.5, 10, 0.4), 36),
   // (Task 17) upright: from his right along the line through him and Mosi, so both fit the narrow frame, Egill a fifth of its height
-  dance_egill: shot(fp(7, -13.4, 1.2), fp(-1, -9.6, 1.6), 30),
-  dance_egill_b: shot(fp(7.2, -13.8, 0.6), fp(-1, -9.4, 2.1), 32),
+  dance_egill: shot(fp(6, -12.9, 1.2), fp(-1, -9.6, 1.6), 26),
+  dance_egill_b: shot(fp(5.8, -13.1, 0.6), fp(-1, -9.4, 2.1), 25),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

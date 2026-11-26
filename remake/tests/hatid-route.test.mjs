@@ -280,9 +280,10 @@ const NAMES = [
   'top_empty', ...ARRIVALS.flatMap(a => [`arrive_${a.friend}`, `home_${a.friend}`]), 'lineup_sun', 'sun_faces', 'dark_wait', 'first_star', 'roar_up', 'sea_ring',
   'stars_wide', 'egill_down', 'moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance',
   ...FRIENDS.map(f => `solo_${f.key}`), ...FRIENDS.map(f => `trick_${f.key}`), 'moon_close', 'final_pose', 'gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down',
+  'dance_egill', 'dance_egill_b', 'chorus_sky', // (Task 17)
 ];
 // what of the sky each shot must hold
-const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.moon], seventh_sky: [SKY.seventh], sky_dance: FRIENDS.map(f => SKY.stars[f.key]) };
+const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.moon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.moon], sky_dance: FRIENDS.map(f => SKY.stars[f.key]) };
 
 test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names, wide and upright', () => {
   assert.deepEqual(Object.keys(SHOTS), ['toppur']);
