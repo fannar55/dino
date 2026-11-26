@@ -108,13 +108,25 @@ test('each friend does a move in her own body: up lifts Þórseðla\'s head 2 m 
   const head = at(p, 'thorsedla', 'Head').y;
   p.frame(80);
   assert.ok(at(p, 'thorsedla', 'Head').y - head >= 2, `Þórseðla's head up ${(at(p, 'thorsedla', 'Head').y - head).toFixed(2)} m`);
-  // (his arms are short against his big head: up straight, his hands are over his head's bone, by his ears, not over his crown)
-  const egillHead = at(p, 'egill', 'Head').y;
-  for (const hand of ['LeftHand', 'RightHand']) assert.ok(at(p, 'egill', hand).y > egillHead + 0.02, `Egill's ${hand} over his head (${(at(p, 'egill', hand).y - egillHead).toFixed(3)})`);
+  // Egill's hands clearly over his head (fix 1: his hands by his ears read as hands on ears): both wrists 0.15 m or more over the
+  // top of his head (his skinned silhouette's top in the gap, carried with his Head bone), and his arms their own length again after
   p.frame(74);
+  const egill = p.c.egill.raw.model;
+  const headBone = p.bones.egill.get('Head');
+  egill.updateMatrixWorld(true);
+  const crown = new THREE.Box3().setFromObject(egill, true).max.y;
+  const headAt = headBone.getWorldPosition(new THREE.Vector3());
+  const topLocal = headBone.worldToLocal(new THREE.Vector3(headAt.x, crown, headAt.z));
   const low = ['LeftHand', 'RightHand'].map(h => at(p, 'egill', h).y);
+  const own = (await loadCharacter('egill')).scene.getObjectByName('LeftLowerArm').position.length();
+  const armLength = () => p.bones.egill.get('LeftLowerArm').position.length();
+  assert.ok(Math.abs(armLength() - own) < 1e-6, `Egill's arm its own length in the gap (${armLength().toFixed(4)} against ${own.toFixed(4)})`);
   p.frame(80);
+  const top = headBone.localToWorld(topLocal.clone()).y;
+  for (const hand of ['LeftHand', 'RightHand']) assert.ok(at(p, 'egill', hand).y >= top + 0.15, `Egill's ${hand} over his head's top (${(at(p, 'egill', hand).y - top).toFixed(3)} m)`);
   ['LeftHand', 'RightHand'].forEach((h, k) => assert.ok(at(p, 'egill', h).y - low[k] > 0.3, `Egill's ${h} up ${(at(p, 'egill', h).y - low[k]).toFixed(2)} m`));
+  p.frame(91);
+  assert.ok(Math.abs(armLength() - own) < 1e-6, `Egill's arm its own length after the move (${armLength().toFixed(4)})`);
   // hop: at the top of a hop (the middle of a dance beat), against her feet as they stand in the gap before it
   p.frame(122);
   const rest = { egill: lowestFoot(p, 'egill'), gramedla: lowestFoot(p, 'gramedla') };

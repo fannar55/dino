@@ -99,6 +99,7 @@ function clear(out) {
   out.feet.L = 0;
   out.feet.R = 0;
   out.glow = null;
+  out.reach = 0; // (Egill's up) his arms this much longer than they are: a cheat for the look, eased with the move
   return out;
 }
 /** Add [pitch, roll, yaw] degrees, times k, to a bone of the pose. */
@@ -172,6 +173,12 @@ function spinAngle(n) {
   const f = fract(k);
   return 360 * (Math.floor(k) + f - Math.sin(TAU * f) / TAU);
 }
+// Egill's "Hendur upp!" (fix 1: it read as hands on his ears): his arms are short against his big head, so for the move they are
+// made longer (reach: forearm and hand moved out along the arm, the skin stretched, his hands their own size), rolled out and up
+// (arm: degrees, out and up) into a V over his head and back over his crown (forward: degrees; his idle arms hang a little in
+// front), elbows as they hang (fore), head level (head: tipped back it met his hands), pumped on the beat less deep than the
+// others (pump: 0.07 of the turn, against 0.15). Fun before realism: his wrists 0.17 m over his head's top, his fingers 0.26.
+export const EGILL_UP = { arm: 150, forward: 15, fore: 0, head: 0, reach: 1.25, pump: 0.07 };
 export const STAMP = { egill: 0.22, mosi: 0.4, thorsedla: 0.7, sloedla: 0.35, kambedla: 0.3, uggedla: 0.55, gramedla: 0.7, flugedla: 0.3 };
 
 /**
@@ -194,11 +201,14 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
   switch (move) {
     case 'up': {
       if (who === 'egill') {
-        turn(out, 'LeftUpperArm', 0, 160, 0, pump);
-        turn(out, 'RightUpperArm', 0, -160, 0, pump);
-        turn(out, 'LeftLowerArm', 0, 25);
-        turn(out, 'RightLowerArm', 0, -25);
-        turn(out, 'Head', 12);
+        const e = EGILL_UP;
+        const reach = 1 - e.pump + e.pump * Math.cos(TAU * u); // his long arms pump less deep: his hands stay up
+        turn(out, 'LeftUpperArm', e.forward, e.arm, 0, reach);
+        turn(out, 'RightUpperArm', e.forward, -e.arm, 0, reach);
+        turn(out, 'LeftLowerArm', 0, e.fore);
+        turn(out, 'RightLowerArm', 0, -e.fore);
+        turn(out, 'Head', e.head);
+        out.reach = e.reach;
       } else if (who === 'mosi') {
         turn(out, 'Neck', 18, 0, 0, pump);
         turn(out, 'Head', 24, 0, 0, pump);
@@ -285,7 +295,7 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
         break;
       }
       out.spin = reduced ? DANCE.reducedSpin * swing : spinAngle(n);
-      if (who === 'egill') { turn(out, 'LeftUpperArm', 0, 80); turn(out, 'RightUpperArm', 0, -80); }
+      if (who === 'egill') { turn(out, 'LeftUpperArm', 0, 85); turn(out, 'RightUpperArm', 0, -85); out.reach = 0.4; } // arms out, longer
       else if (who === 'flugedla') { turn(out, 'LeftUpperArm', 0, 75); turn(out, 'RightUpperArm', 0, -75); }
       else if (who === 'uggedla') { turn(out, 'LeftUpperArm', 60, 30); turn(out, 'RightUpperArm', 60, -30); }
       else if (who === 'mosi') chain(out, body.tail, -5, 0, 0);
@@ -302,7 +312,7 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
         break;
       }
       out.lift = HOP[who] * air * (reduced ? DANCE.reducedHop : 1);
-      if (who === 'egill') { turn(out, 'LeftUpperArm', 0, 60, 0, air); turn(out, 'RightUpperArm', 0, -60, 0, air); }
+      if (who === 'egill') { turn(out, 'LeftUpperArm', 10, 100, 0, air); turn(out, 'RightUpperArm', 10, -100, 0, air); out.reach = 0.4 * air; }
       else if (who === 'flugedla') { turn(out, 'LeftUpperArm', 10, 70, 0, air); turn(out, 'RightUpperArm', 10, -70, 0, air); }
       else if (who === 'uggedla') { turn(out, 'LeftUpperArm', 50, 0, 0, air); turn(out, 'RightUpperArm', 50, 0, 0, air); }
       else if (who === 'mosi') { turn(out, 'Head', 12, 0, 0, air); chain(out, body.tail, -4, 0, 0, air); }
@@ -324,6 +334,7 @@ function addPose(a, b, k = 1, spin = true) {
   for (const [bone, t] of Object.entries(b.turns)) turn(a, bone, t[0], t[1], t[2], k);
   a.feet.L += b.feet.L * k;
   a.feet.R += b.feet.R * k;
+  a.reach += (b.reach ?? 0) * k;
   if (b.glow !== null && k > 0) a.glow = b.glow;
   return a;
 }
@@ -393,7 +404,7 @@ function rigOf(who, actor) {
   actor.model.traverse(o => { if (o.isBone && !byName.has(o.name)) byName.set(o.name, o); });
   const body = BODY[who];
   const names = new Set([body.hips, ...body.neck, ...body.tail, 'Head', 'Jaw', 'Spine', 'Chest', 'Hips']);
-  for (const side of ['Left', 'Right']) for (const part of ['UpperArm', 'LowerArm', 'Forearm']) names.add(`${side}${part}`);
+  for (const side of ['Left', 'Right']) for (const part of ['Shoulder', 'UpperArm', 'LowerArm', 'Forearm', 'Hand']) names.add(`${side}${part}`);
   for (const leg of Object.values(body.feet)) for (const name of [leg].flat()) names.add(name);
   const bones = [...names].map(n => byName.get(n)).filter(Boolean);
   // her middle, from her bones' spread in her root (the bind bounds are the actor's own; a bone box keeps it to her skeleton)
@@ -435,6 +446,12 @@ function lay(rig, pose) {
     hips.parent.worldToLocal(p);
     hips.position.copy(p);
     hips.updateMatrixWorld(true);
+  }
+  // (Egill's up) his arms longer: his forearm and hand moved out along the bone they hang from, so the skin between stretches and
+  // his hand keeps its size
+  if (pose.reach) {
+    for (const side of ['Left', 'Right']) for (const part of ['LowerArm', 'Hand']) byName.get(side + part)?.position.multiplyScalar(1 + pose.reach);
+    root.updateMatrixWorld(true);
   }
   // the turns, parents first
   const names = Object.keys(pose.turns).filter(n => byName.has(n)).sort((x, y) => rig.order.get(x) - rig.order.get(y));
