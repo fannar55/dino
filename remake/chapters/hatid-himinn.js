@@ -15,13 +15,14 @@
 //            walk | happy: the clip she plays (walk on the spot); any other clip of hers (fly, glide, roar, stride, liftUp, call...):
 //            that clip held at `hold` s (fly and glide default to the frame that spreads Flugeðla's wings widest, WINGS below); one
 //            without that clip falls back to her drawn pose
-//   hold     seconds into the held clip
+//   hold     seconds into the held clip (with hold, idle, walk and happy are held too)
 //   drawn    0 to 1 (default 1): how much of her constellation is drawn
 //   span     degrees of sky her drawing's longest side covers (default 16, the engine's)
 //   nedar    degrees every row of stars is lowered by with friend=all (default 0: hatid-route.js SKY.stars as they are)
 //   saman    with friend=all, each star's azimuth off the middle of the shot's view times this (default 1: as they are; 0.6 brings
 //            them 40 % closer together, for the wide party shot, which cannot hold them all side by side)
 //   face     the moon's face, one of MOON_FACES below (default brosir)
+//   figur    a try's drawings instead of the game's (DRAWINGS below)
 //   lens     show=tungl: close (default: the moon large), party_wide or moon_peek; show=merki&friend=all: stars_wide (default) or
 //            party_wide. With party_wide everyone stands where the party has them, else where the dark has them
 import { createTop } from '../world/fjall/index.js';
@@ -50,6 +51,12 @@ const MOON_SHOT = LENS || 'close';
  */
 const WINGS = { fly: 1.015, glide: 6 };
 const HOLD = params.has('hold') ? Number(params.get('hold')) : WINGS[POSE] ?? 0;
+/**
+ * figur=<name>: the drawings of a try (remake/tools/hatid-merki.mjs --set ... --write --out qa/remake/hatid/butur4/merki2/figures_<name>.js)
+ * instead of the game's, for a still of another view or pose; a word of letters only.
+ */
+const TRY = /^[a-z0-9_]+$/.test(params.get('figur') ?? '') ? params.get('figur') : null;
+const DRAWINGS = TRY ? (await import(`../../qa/remake/hatid/butur4/merki2/figures_${TRY}.js`)).FIGURES : FIGURES;
 
 /** The moon's faces for the owner's stills: each the acts and the time moonPose is asked at (and an eye held shut for the blink). */
 const BEAT = 60 / 84;
@@ -108,7 +115,7 @@ function placeFor(who, shot) {
 
 /** Hers `span` wide with her drawing's middle at `centre`: added there, measured, then added again moved by what was off. */
 function addLarge(sky, who, actor, centre, span) {
-  const first = { colour: HUE[who], ...centre, span };
+  const first = { colour: HUE[who], ...centre, span, figure: DRAWINGS[who] };
   sky.add(who, actor, first);
   const box = boxOf(sky.outlineOf(who), centre);
   const placed = { azimuth: centre.azimuth - (box.midAz - centre.azimuth), elevation: centre.elevation - (box.midEl - centre.elevation) };
@@ -155,9 +162,9 @@ export const chapter = {
     if (one) actors[FRIEND].place(...CLOSE.at, 0);
     for (const who of SIX) {
       const a = actors[who];
-      const playing = POSE === 'idle' || POSE === 'walk' || (POSE === 'happy' && a.clips.has('happy'));
+      const playing = !params.has('hold') && (POSE === 'idle' || POSE === 'walk' || (POSE === 'happy' && a.clips.has('happy')));
       // held: the pose her drawing was traced in, or the clip asked for at `hold`
-      const [clip, time] = playing ? [POSE, 0] : POSE !== 'drawn' && a.clips.has(POSE) ? [POSE, HOLD] : [FIGURES[who].pose.clip, FIGURES[who].pose.time];
+      const [clip, time] = playing ? [POSE, 0] : POSE !== 'drawn' && a.clips.has(POSE) ? [POSE, HOLD] : [DRAWINGS[who].pose.clip, DRAWINGS[who].pose.time];
       const action = a.play(clip, { fade: 0, timeScale: playing ? 1 : 0 });
       if (!playing) {
         action.time = time; // one frame, held
@@ -185,7 +192,7 @@ export const chapter = {
         shot = { ...((upright && tallShot(wide)) || SHOTS.toppur[wide]), label: wide };
         for (const who of SIX) {
           const at = placeFor(who, shot);
-          sky.add(who, actors[who], { colour: HUE[who], ...at, span: SPAN });
+          sky.add(who, actors[who], { colour: HUE[who], ...at, span: SPAN, figure: DRAWINGS[who] });
           placed[who] = { ...at, span: SPAN };
         }
       }

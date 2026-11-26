@@ -34,7 +34,7 @@ export { FIGURES };
 const STAR_SLOT = 16; // stars a constellation may have (her own and 7 to 13 more)
 const LINE_SLOT = 320; // lines a constellation may have (the outline's 80 to 200 and the inner lines')
 const SIZE = [1.05, 0.72, 0.5]; // degrees across at span 16 (her own, the middle, the small), growing with the square root of the span
-const LIGHT = { star: [1, 0.9, 0.75], line: 0.62 };
+const LIGHT = { star: [1, 0.9, 0.75], line: 0.8 };
 const LINE_WIDTH = 1.8; // CSS pixels (the controller's first value)
 const LINE_GLOW = { saturation: 0.85, lightness: 0.62 }; // the lines are her hue, brighter and fuller (her own colours are deep for the night)
 const STAR_TINT = 0.55; // the stars are her line colour more than half way to white
@@ -223,6 +223,7 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
   lineGeometry.setIndex(new THREE.BufferAttribute(index, 1));
   const lines = new THREE.Mesh(lineGeometry, material('constellation-lines-far', linesVertex, linesFragment, lineUniforms));
   lines.material.side = THREE.DoubleSide;
+  lines.material.blending = THREE.NormalBlending; // laid over the sky, not added to it: added to the night's blue her warm hues go grey
   lines.onBeforeRender = renderer => {
     renderer.getDrawingBufferSize(lineUniforms.uViewport.value);
     lineUniforms.uWidth.value = lineWidth * renderer.getPixelRatio();
