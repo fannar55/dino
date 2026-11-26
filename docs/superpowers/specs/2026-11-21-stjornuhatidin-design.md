@@ -247,6 +247,12 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
 - **Stjörnumerkin** eru sex risaeðlur úr ljóslínum milli stjarna, ein fyrir hvern vin, í lit hans.
   - **Þau eru ekki teiknuð í höndunum.** Hvert stjörnumerki er búið til úr beinagrind vinarins sjálfs: stjörnur sitja á liðunum og
     ljóslínur liggja milli þeirra. Þannig þekkist hver vinur á lögun sinni.
+  - **Breyting 26. nóvember 2026 (orð eigandans við kyrrmyndirnar: „ekki taka svona orðrétt að gera eðlur með stjörnumerki,
+    verður að svindla og hafa línur sem er ekki venjulega gert, gera betri teikningar af eðlum með stjörnur á lykilstöðum til að
+    selja það“):** stjörnumerkið er ekki lengur beinagrindin. Það er **teikning af eðlunni**: útlína hennar og fáeinar innri línur,
+    raktar eftir líkaninu sjálfu (ekki teiknaðar eftir auga), með stjörnum á lykilstöðum (haus, snoppa, halabroddur, horn, plötur,
+    segl, hné, tær). Teikningin má svindla: hún þarf að líta út eins og vinurinn, ekki eins og alvöru stjörnumerki. Hver punktur
+    í henni er bundinn beini í líkaninu, svo hún getur enn dansað.
   - **Þess vegna geta þau dansað:** stjörnumerkið hreyfist eins og vinurinn fyrir neðan, slag fyrir slag.
   - **Það teiknast** lína fyrir línu þegar Egill kveikir á stjörnunni, og stjarna vinarins er bjartasta stjarnan í því.
   - Eigandinn sér kyrrmyndir af þeim öllum áður en þau fara í veisluna.
