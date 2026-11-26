@@ -150,6 +150,14 @@ test('toot: the mouth blows and the blower is out twice in two seconds', () => {
   face.update(camera);
   const long = tube();
   assert.ok(long > 0.8 * SUN_DISTANCE * Math.tan(THREE.MathUtils.degToRad(MOON.radiusDeg)), 'blown out, nearly a radius long');
+  // every quad shown is wound to face the camera (a front-sided material draws nothing of one that is not)
+  const toward = camera.position.clone().sub(face.overlay.position);
+  const corners = face.overlay.geometry.attributes.position;
+  for (const [name, q] of Object.entries(MOON_QUADS)) {
+    const c = [0, 1, 3].map(k => new THREE.Vector3().fromBufferAttribute(corners, q * 4 + k));
+    const facing = c[1].clone().sub(c[0]).cross(c[2].clone().sub(c[0])).dot(toward);
+    assert.ok(facing > 0, `the ${name} faces the camera`);
+  }
   face.set(moonPose(acts, 5.1)); // past the in-between mouth, before the first blow
   face.update(camera);
   assert.ok(tube() < long / 4 && curl() > 0, 'rolled up at the lips');

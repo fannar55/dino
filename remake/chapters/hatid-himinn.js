@@ -5,25 +5,32 @@
 //
 //   ?chapter=hatid-himinn&show=merki&friend=sloedla&t=2
 //
-//   show     merki (default): the constellations; tungl: the moon's (Task 11 adds the moon here)
+//   ?chapter=hatid-himinn&show=tungl&face=vinkar&t=2
+//
+//   show     merki (default): the constellations; tungl: the moon (engine/moon-face.js) with one of its faces
 //   friend   <key>: one of the six large beside her, she standing on the top seen from her right side; all (default): all six where
 //            the festival has them (hatid-route.js SKY.stars, each over her friend's star), everyone as scene 2 has them, from
 //            stars_wide (its upright frame on an upright screen)
 //   tips     1 (default) her measured tips (constellations.js TIPS), 0 her skeleton alone
-//   pose     idle (default) | walk | happy: the clip she plays (walk on the spot)
+//   pose     idle (default) | walk | happy: the clip she plays (walk on the spot); fly | glide: that clip held at `hold` s (default
+//            the frame that spreads Flugeðla's wings widest, WINGS below; the others fall back to idle where they have no such clip)
+//   hold     seconds into the fly / glide clip to hold
 //   drawn    0 to 1 (default 1): how much of her constellation is drawn
 //   span     degrees of sky her bind length covers with friend=all (default 16, the engine's)
-//   face     the moon's face (Task 11's)
+//   tilt     degrees the constellation is seen from over her (constellations.js's `tilt`, default its 10)
+//   face     the moon's face, one of MOON_FACES below (default brosir)
+//   lens     with show=tungl: close (default: the moon large), party_wide or moon_peek (everyone where the party has them)
 //   measure  1: measure the tips on each model's skin and print them (console and window.__tips): measureTips below
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
-import { FRIENDS8, MODELS, LENGTH, SHOTS, SKY, STAR_TAP, standsOf, tallShot } from './hatid-route.js';
+import { FRIENDS8, MODELS, LENGTH, SHOTS, SKY, STAR_TAP, standsOf, tallShot, floorPoint } from './hatid-route.js';
 import { HATID_LOOKS } from './hatid-looks.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { lightTo } from '../engine/light-blend.js';
 import { createNightSky } from '../engine/night-sky.js';
 import { createConstellations, TIPS, STAR_BONE } from '../engine/constellations.js';
 import { skinPoints } from './kafli6-seat.js';
+import { createMoonFace, moonPose } from '../engine/moon-face.js';
 
 const params = new URLSearchParams(globalThis.location?.search ?? '');
 const SHOW = params.get('show') || 'merki';
@@ -33,6 +40,39 @@ const POSE = params.get('pose') || 'idle';
 const DRAWN = params.has('drawn') ? Number(params.get('drawn')) : 1;
 const MEASURE = params.get('measure') === '1';
 const SPAN = params.has('span') ? Number(params.get('span')) || 16 : 16;
+const TILT = params.has('tilt') ? Number(params.get('tilt')) : undefined;
+const FACE = params.get('face') || 'brosir';
+const MOON_SHOT = params.get('lens') || 'close'; // not 'shot': main.js takes ?shot= for its own
+/**
+ * Flugeðla's wings spread (.tools/hatid-tungl/wings.mjs, 2026-11-26): her fly clip at 1.015 s spreads them widest of her clips,
+ * 6.55 m tip to tip (glide 6.35 at its end, idle 0.67: folded).
+ */
+const WINGS = { fly: 1.015, glide: 6 };
+const HOLD = params.has('hold') ? Number(params.get('hold')) : WINGS[POSE];
+
+/** The moon's faces for the owner's stills: each the acts and the time moonPose is asked at (and an eye held shut for the blink). */
+const BEAT = 60 / 84;
+export const MOON_FACES = {
+  brosir: { acts: [], t: 0.5 },
+  blikkar: { acts: [], t: 0.5, eye: 'shut' },
+  glottir: { acts: [{ kind: 'smile', at: 0 }], t: 0.6 },
+  o: { acts: [{ kind: 'oh', at: 0 }], t: 0.6 },
+  blaes: { acts: [{ kind: 'toot', at: 0 }], t: 0.45 },
+  hattur_skakkur: { acts: [{ kind: 'askew', at: 0 }], t: 1.2 },
+  hond_a_hatti: { acts: [{ kind: 'rock', at: 0, seconds: 8, bpm: 84 }], t: 1.5 * BEAT },
+  vinkar: { acts: [{ kind: 'wave', at: 0 }], t: 1.0 },
+  hattur_lyft: { acts: [{ kind: 'tipHat', at: 0 }], t: 1.0 },
+  kikir: { acts: [{ kind: 'peek', at: 0 }], t: 1.25 },
+};
+/** The moon large: from by the rim behind the stage's place (moon_close's spot), a long lens on it; lower for its peek. */
+function moonShot(world, face, upright) {
+  const [x, z] = floorPoint(0, 41);
+  const y = (world.forest.heightAt?.(x, z) ?? 1.2) + 1.4;
+  const elevation = face === 'kikir' ? 1.2 : SKY.moon.elevation + 0.95;
+  const a = SKY.moon.azimuth * Math.PI / 180, e = elevation * Math.PI / 180;
+  const target = [x + Math.cos(a) * Math.cos(e) * 40, y + Math.sin(e) * 40, z + Math.sin(a) * Math.cos(e) * 40];
+  return { position: [x, y, z], target, fov: upright ? 24 : 16, label: `moon_${face}` };
+}
 const SIX = FRIENDS.map(f => f.key);
 const HUE = Object.fromEntries(FRIENDS.map(f => [f.key, f.colour]));
 
@@ -96,8 +136,8 @@ function closeShot(world, who) {
 }
 
 /** Hers large at `centre`: added at a first span, measured, then again so she is CLOSE.span wide or CLOSE.tall high, centred there. */
-function addLarge(sky, who, actor, centre, tips) {
-  const first = { colour: HUE[who], ...centre, span: CLOSE.span, tips };
+function addLarge(sky, who, actor, centre, tips, view = {}) {
+  const first = { colour: HUE[who], ...centre, span: CLOSE.span, tips, ...view };
   sky.add(who, actor, first);
   sky.set(who, { drawn: 1 });
   const box = boxOf(sky.pointsOf(who), centre);
@@ -140,8 +180,10 @@ export const chapter = {
       if (o) o.visible = false;
     }
     const actors = Object.fromEntries(FRIENDS8.map(who => [who, s.actor(who).raw]));
-    const stands = standsOf(top).dark;
-    const one = FRIEND !== 'all' && SIX.includes(FRIEND);
+    // the moon's wide shots see everyone where the party has them; the rest as the dark has them
+    const partyMoon = SHOW === 'tungl' && MOON_SHOT !== 'close';
+    const stands = partyMoon ? standsOf(top).party : standsOf(top).dark;
+    const one = SHOW === 'merki' && FRIEND !== 'all' && SIX.includes(FRIEND);
     for (const who of FRIENDS8) {
       const stand = stands[who];
       // Egill sits on Grameðla's head in the dark (no seat on this page: he is left out), and with one large only she is there
@@ -150,8 +192,13 @@ export const chapter = {
     }
     if (one) actors[FRIEND].place(...CLOSE.at, 0);
     for (const who of SIX) {
-      const clip = POSE === 'walk' ? 'walk' : POSE === 'happy' && actors[who].clips.has('happy') ? 'happy' : 'idle';
-      actors[who].play(clip, { fade: 0 });
+      const held = (POSE === 'fly' || POSE === 'glide') && actors[who].clips.has(POSE);
+      const clip = POSE === 'walk' ? 'walk' : POSE === 'happy' && actors[who].clips.has('happy') ? 'happy' : held ? POSE : 'idle';
+      const action = actors[who].play(clip, { fade: 0, timeScale: held ? 0 : 1 });
+      if (held) {
+        action.time = HOLD ?? 0; // one frame, held
+        actors[who].mixer.update(0);
+      }
     }
     yield s.wait(0.1);
     if (MEASURE) {
@@ -176,33 +223,41 @@ export const chapter = {
     night.set({ dark: 1, first: 1, many: 1, time: 4 });
     const sky = createConstellations(world, { capacity: 6 });
     const tipsOf = who => (WITH_TIPS ? TIPS[who] ?? [] : []);
+    const view = TILT === undefined ? {} : { tilt: TILT };
+    const upright = (globalThis.innerWidth ?? 16) < (globalThis.innerHeight ?? 10);
     let shot;
+    let moon = null;
     const placed = {};
     if (SHOW === 'merki') {
       if (one) {
         const close = closeShot(world, FRIEND);
         shot = close.shot;
-        placed[FRIEND] = addLarge(sky, FRIEND, actors[FRIEND], close.sky, tipsOf(FRIEND));
+        placed[FRIEND] = addLarge(sky, FRIEND, actors[FRIEND], close.sky, tipsOf(FRIEND), view);
       } else {
-        const upright = (globalThis.innerWidth ?? 16) < (globalThis.innerHeight ?? 10);
         shot = { ...((upright && tallShot('stars_wide')) || SHOTS.toppur.stars_wide), label: 'stars_wide' };
         for (const who of SIX) {
-          sky.add(who, actors[who], { colour: HUE[who], ...SKY.stars[who], span: SPAN, tips: tipsOf(who) });
+          sky.add(who, actors[who], { colour: HUE[who], ...SKY.stars[who], span: SPAN, tips: tipsOf(who), ...view });
           placed[who] = { ...SKY.stars[who], span: SPAN };
         }
       }
       for (const who of Object.keys(placed)) sky.set(who, { drawn: DRAWN });
     } else {
-      shot = { ...SHOTS.toppur.moon_peek, label: 'moon_peek' }; // Task 11 puts the moon here
+      // the moon, where the festival has it (SKY.moon), with one face
+      const face = MOON_FACES[FACE] ?? MOON_FACES.brosir;
+      moon = createMoonFace({ scene: world.scene, ...SKY.moon });
+      moon.set({ ...moonPose(face.acts, face.t), ...(face.eye ? { eye: face.eye } : {}) });
+      shot = MOON_SHOT === 'close' ? moonShot(world, FACE, upright)
+        : { ...((upright && tallShot(MOON_SHOT)) || SHOTS.toppur[MOON_SHOT] || SHOTS.toppur.party_wide), label: MOON_SHOT };
     }
     // hung from the camera after everything else has moved this frame, just before it is drawn
     const before = world.scene.onBeforeRender;
     world.scene.onBeforeRender = function hang(renderer, scene, camera, target) {
       night.update(camera);
       sky.update(camera);
+      moon?.update(camera);
       before?.call(this, renderer, scene, camera, target);
     };
-    world.chapterState = { night, sky, placed, actors, show: SHOW, friend: FRIEND, starBone: STAR_BONE };
+    world.chapterState = { night, sky, moon, placed, actors, show: SHOW, friend: FRIEND, face: FACE, starBone: STAR_BONE };
     yield s.camera.cut(shot, { check: false });
     yield s.ready();
     yield s.fade(0, 0.3);

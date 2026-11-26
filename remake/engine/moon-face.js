@@ -65,7 +65,7 @@ const MOUTH_POINT = [-0.2, -0.3]; // the lips, at the profile's edge
 const LIPS = [-0.36, -0.31]; // where the blower leaves the pursed lips
 const BLOW_DIR = rad(8); // the blower points left and this far down
 const TUBE = { length: TUBE_CELL[2] / R_PX, width: TUBE_CELL[3] / R_PX };
-const CURL = { rolled: 0.46, out: 0.14 }; // the curl's square, rolled up and at the end of the blown-out tube
+const CURL = { rolled: 0.46, out: 0.2 }; // the curl's square, rolled up and at the end of the blown-out tube
 // The hat: its square's brim point (the middle of its base, as a part of the square from its top left) sits at HAT_AT, leaning
 // HAT_TILT degrees (clockwise; less than 0 leans it forward, over the forehead); its pom-pom's top HAT_TOP of the square over it.
 const HAT_PIVOT = [0.5, 0.86];
@@ -752,18 +752,19 @@ export function createMoonFace({ scene, texture = drawMoonFrames(), sheet = draw
     const blower = clamp(Number(pose.blower) || 0, 0, 1);
     if (mouth === 'blow') {
       const dir = [-Math.cos(BLOW_DIR), -Math.sin(BLOW_DIR)];
-      const n = [-dir[1], dir[0]]; // its side, a quarter turn from it
+      const n = [-dir[1], dir[0]]; // its side, a quarter turn from it: its lower side (the blower points left)
       const length = TUBE.length * blower;
       const far = [LIPS[0] + dir[0] * length, LIPS[1] + dir[1] * length];
       const hw = TUBE.width / 2;
-      [[far, -1], [LIPS, -1], [LIPS, 1], [far, 1]].forEach(([p, side], k) => {
+      // bottom left (the far end, low), bottom right (at the lips), top right, top left: wound to face the camera
+      [[far, 1], [LIPS, 1], [LIPS, -1], [far, -1]].forEach(([p, side], k) => {
         local[(MOON_QUADS.tube * 4 + k) * 2] = p[0] + side * n[0] * hw;
         local[(MOON_QUADS.tube * 4 + k) * 2 + 1] = p[1] + side * n[1] * hw;
       });
       setCell(MOON_QUADS.tube, [TUBE_CELL[0] + TUBE_CELL[2] * (1 - blower), TUBE_CELL[1], TUBE_CELL[2] * blower, TUBE_CELL[3]]);
       const size = lerp(CURL.rolled, CURL.out, blower);
       // the curl hangs from the tube's end, below it
-      square(MOON_QUADS.curl, far[0] - n[0] * size * 0.4 + dir[0] * size * 0.25, far[1] - n[1] * size * 0.4 + dir[1] * size * 0.25, size);
+      square(MOON_QUADS.curl, far[0] + n[0] * size * 0.4 + dir[0] * size * 0.25, far[1] + n[1] * size * 0.4 + dir[1] * size * 0.25, size);
     } else {
       collapse(MOON_QUADS.tube);
       collapse(MOON_QUADS.curl);
