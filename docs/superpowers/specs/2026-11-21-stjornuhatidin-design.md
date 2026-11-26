@@ -220,6 +220,15 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
   - **Ljósaseríur:** ljósflugur hanga í röðum milli stjörnumerkjanna og niður að sviðinu.
   - **Dansgólfið:** glóblómin úr kafla 1 springa út yfir allan toppinn í bylgju og lýsast upp undir hverju fótspori.
   - **Skýjahafið** fyrir neðan lýsist upp í litum sem slá með laginu.
+  - **Viðbót 26. nóvember 2026 (orð eigandans við bút 5: „já við öllu þessu, halda áfram“), sjö hlutir í viðbót á sviðið:**
+    1. Hærri steinar í hring, hver í lit síns vinar, sem kvikna þegar vinurinn kemur inn. Þá sést sviðið úr fjarlægð.
+    2. Gólfið í blönduðum litum: hvert blóm í lit vinarins sem er næstur því.
+    3. Blóm sem hoppa og snúast þegar stigið er á þau.
+    4. Flugeldar úr kösturunum á stóru höggunum í laginu.
+    5. Tunglið dansar: vaggar hattinum í takt og opnar munninn með kórnum.
+    6. Luktir á ljósaseríunum sem sveiflast þegar Grameðla stappar.
+    7. Í kyrru stundinni safnast ljósflugurnar saman og fljúga upp til sjöundu stjörnunnar. (Stjarnan sjálf sést ekki fyrr en
+       í senu 4; ljósflugurnar fljúga þangað sem hún kemur.)
 - **Hljómsveitin:** hver vinur gerir sitt í takt, eins og taflan í 2. kafla sýnir. Dýrin spila á plötur Kambeðlu eins og sílófón.
 - **Dansinn er nýr** og saminn við þetta lag. Engin hreyfing er tekin úr kafla 5.
   - **Slóeðla kallar hreyfingarnar** og allir gera þær saman: „Hendur upp!“, „Stappa!“, „Snúa!“, „Hoppa!“. Þær eru einfaldar,
