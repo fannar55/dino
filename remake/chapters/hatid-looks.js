@@ -79,6 +79,50 @@ const night = look('night', {
 
 export const HATID_LOOKS = { sunset, red, blue, dark, night };
 
+// The party's light as engine/show/dusk.js mixes it (chapters/hatid-stage.js partyLook): the dusk is made while the light is
+// HATID_LOOKS.night, and a dusk look's numbers are shares of what it found (its colours are colours), so each look here is one of
+// HATID_LOOKS in the party's terms: `night` itself (every share 1), `dark` (its strengths over the night's), and `tint(hex)`: the
+// sun and the sky's fill toward a friend's hue and a little stronger, the footlights (the fill from below), the sky and the haze
+// left as they are, so the friends keep their own colours (chunk 5's ruling 6).
+export const PARTY_TINT = { sun: 1.3, hemi: 1.15, white: 0.35 }; // the tint's strengths (shares) and how far its hue is toward white
+function asShare(look, of = night, name = look.name) {
+  const share = (a, b) => (Number.isFinite(a) && b > 0 ? a / b : 1);
+  return {
+    name: `hátíð: party ${name}`,
+    sun: { color: look.sun.color, intensity: share(look.sun.intensity, of.sun.intensity) },
+    hemi: { sky: look.hemi.sky, ground: look.hemi.ground, intensity: share(look.hemi.intensity, of.hemi.intensity) },
+    sky: { ...look.sky },
+    fog: { color: look.fog.color, sunColor: look.fog.sunColor },
+    exposure: share(look.exposure, of.exposure),
+    envIntensity: share(look.envIntensity, of.envIntensity),
+  };
+}
+const tints = new Map();
+const towardWhite = (hex, k) => {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.round(v + (255 - v) * k));
+  return `#${c.map(v => v.toString(16).padStart(2, '0')).join('')}`;
+};
+export const PARTY_LOOKS = {
+  night: asShare(night, night, 'night'),
+  dark: asShare(dark, night, 'dark'),
+  /** The night tinted toward `hex` (a friend's hue): one look a hue, the same object each time it is asked. */
+  tint(hex) {
+    let look = tints.get(hex);
+    if (!look) {
+      const light = towardWhite(hex, PARTY_TINT.white);
+      look = {
+        name: `hátíð: party tint ${hex}`,
+        sun: { color: light, intensity: PARTY_TINT.sun },
+        hemi: { sky: light, intensity: PARTY_TINT.hemi },
+        exposure: 1, envIntensity: 1,
+      };
+      tints.set(hex, look);
+    }
+    return look;
+  },
+};
+
 const STAGES = [sunset, red, blue, dark];
 /** The light `u` of the way through the dusk: 0 the sunset, 1 red, 2 blue, 3 dark, blended in between; held to 0 to 3. */
 export function lookAt(u) {

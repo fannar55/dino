@@ -131,6 +131,11 @@ export function standsOf(top) {
   };
 }
 
+/** Everyone's party stand, as standsOf(top).party has it (the party's stands need no top): { friend: { at, heading } }. */
+export function partyStands() {
+  return structuredClone(PARTY);
+}
+
 // ---------------------------------------------------------------------------------------------
 /**
  * The stage (spec 6): `stones` stones rise in a half ring of `arc` degrees, `radius` m round its middle, behind it (open to the

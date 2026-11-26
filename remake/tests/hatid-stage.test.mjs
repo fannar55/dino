@@ -358,8 +358,9 @@ test('reduced: half the fireflies, the spotlights still, no lift', () => {
   stage.update(100.4);
   assert.equal(stage.state().counts.fireflies, FIREFLIES.count / 2);
   stage.dispose();
+  const d = spotsAt(72.5, { reduced: true });
   for (let bar = 72; bar < 136; bar += 4) {
-    const a = spotsAt(bar + 0.5, { reduced: true }), b = spotsAt(bar + 3.9, { reduced: true }), d = spotsAt(bar + 9, { reduced: true });
+    const a = spotsAt(bar + 0.5, { reduced: true }), b = spotsAt(bar + 3.9, { reduced: true });
     a.forEach((s, k) => {
       assert.ok(near(s.to, b[k].to) < 1e-9 && near(s.to, d[k].to) < 1e-9, `spot ${k} still at ${bar}`);
       assert.deepEqual(s.from, b[k].from);

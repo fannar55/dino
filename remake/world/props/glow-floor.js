@@ -8,7 +8,8 @@ import { FLOOR } from '../../chapters/hatid-route.js';
 // open (a little past open and back); the light of the open ones is one common pulse plus a pool under each foot. Everything is
 // uniforms: set() writes nothing a flower at a time, so a frame of the party costs the same whatever it does.
 //
-//   const floor = createGlowFloor(world, { count, radius, heightAt, keep: [{ at: [x, z], r }], seed });
+//   const floor = createGlowFloor(world, { count, radius, heightAt, keep: [{ at: [x, z], r }], seed, from: [x, z], size });
+//                 (from: where the wave of `open` starts, [0, 0] the middle as made; size: the blooms' size, FLOOR_LOOK.size as made)
 //   floor.set({ open: 12, pulse: 0.6, colour: '#ff5fd2', steps: [[x, z, radius, level], ...] });
 //   floor.flower(i) -> { at: [x, y, z], open: 0..1, light }   (what the shader draws for flower i: for a test)
 //   floor.spots     -> [[x, y, z], ...]                       (where each stands)
@@ -35,6 +36,7 @@ attribute float aPart;
 attribute vec4 aSpot; // x, y, z (the ground), yaw
 attribute float aSize;
 uniform float uOpen;
+uniform vec2 uFrom; // where the wave of open starts
 uniform float uBand;
 uniform float uPulse;
 uniform float uBudShare;
@@ -45,7 +47,7 @@ varying float vPart;
 #include <common>
 #include <fog_pars_vertex>
 void main() {
-  float d = length( aSpot.xz );
+  float d = distance( aSpot.xz, uFrom );
   float o = clamp( ( uOpen - d ) / uBand, 0.0, 1.0 );
   // springs open: a little past open, and back (ease out with an overshoot)
   float k = o - 1.0;
@@ -129,7 +131,7 @@ const smooth = (a, b, x) => {
  * The floor: `count` flowers within `radius` m of the top's middle ([0, 0]), each on `heightAt(x, z)`, none inside a `keep` disc
  * ({ at: [x, z], r } or [x, z, r]: the stage's stones). In world.scene. As made: all buds, no light, `colour` white.
  */
-export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.radius, heightAt, keep = [], seed = 6 } = {}) {
+export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.radius, heightAt, keep = [], seed = 6, from = [0, 0], size: bloomSize = FLOOR_LOOK.size } = {}) {
   const groundAt = heightAt ?? world.heightAt ?? world.forest?.heightAt ?? (() => 0);
   if (!(count > 0) || !(radius > 0)) throw new TypeError(`A glow floor needs flowers and room: ${count} in ${radius} m`);
   const random = seeded(seed);
@@ -143,7 +145,7 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
   const spot = new Float32Array(count * 4), size = new Float32Array(count);
   spots.forEach(([x, y, z], i) => {
     spot.set([x, y, z, random() * Math.PI * 2], i * 4);
-    size[i] = FLOOR_LOOK.size * (FLOOR_LOOK.spread[0] + (FLOOR_LOOK.spread[1] - FLOOR_LOOK.spread[0]) * random());
+    size[i] = bloomSize * (FLOOR_LOOK.spread[0] + (FLOOR_LOOK.spread[1] - FLOOR_LOOK.spread[0]) * random());
   });
   geometry.setAttribute('aSpot', new THREE.InstancedBufferAttribute(spot, 4));
   geometry.setAttribute('aSize', new THREE.InstancedBufferAttribute(size, 1));
@@ -154,6 +156,7 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
   const uniforms = {
     ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
     uOpen: { value: 0 },
+    uFrom: { value: new THREE.Vector2(from[0], from[1]) },
     uBand: { value: FLOOR_LOOK.band },
     uPulse: { value: 0 },
     uBudShare: { value: FLOOR_LOOK.bud },
@@ -184,7 +187,7 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
   /** What the shader draws for flower `i`: how open it is (0 a bud, 1 open) and its light (the pulse and the pools under it). */
   function flower(i) {
     const [x, y, z] = spots[i];
-    const d = Math.hypot(x, z);
+    const d = Math.hypot(x - uniforms.uFrom.value.x, z - uniforms.uFrom.value.y);
     const open = Math.min(1, Math.max(0, (uniforms.uOpen.value - d) / uniforms.uBand.value));
     let steps = 0;
     for (const st of uniforms.uSteps.value) steps += st.w * (1 - smooth(0.5 * st.z, st.z, Math.hypot(x - st.x, z - st.y)));
