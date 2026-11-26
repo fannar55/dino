@@ -119,6 +119,8 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
 
   const levels = new Float32Array(MAX_ROWS); // what the shader reads: one level per row
   let pulseTime = 0;
+  let pulseHz = PULSE_HZ;
+  let pulseSwing = PULSE_SWING;
   const uniforms = {
     uRowLevel: { value: levels },
     uPlateGlow: { value: new THREE.Color(colour) },
@@ -170,12 +172,21 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
       const to = unit('level', level);
       return move(Array.from({ length: rows }, (_, index) => [index, to]), seconds(duration), `${actor.name} plates`);
     },
+    /**
+     * The glow's own breathing: `hz` pulses a second, `swing` of the boost (PULSE_HZ and PULSE_SWING unless told; swing 0 holds it
+     * still, for a scene that beats the levels itself: the festival's dark).
+     */
+    setPulse({ hz = PULSE_HZ, swing = PULSE_SWING } = {}) {
+      pulseHz = Number.isFinite(hz) ? hz : PULSE_HZ;
+      pulseSwing = Number.isFinite(swing) ? swing : PULSE_SWING;
+      uniforms.uPlatePulse.value = PULSE_BASE + pulseSwing * Math.sin(pulseTime * Math.PI * 2 * pulseHz);
+    },
     /** Advance the eases and gentle glow pulse by dt game seconds. Returns false once disposed. */
     update(dt) {
       if (disposed) return false;
       if (!(dt > 0)) return true; // paused or frozen
       pulseTime += dt;
-      uniforms.uPlatePulse.value = PULSE_BASE + PULSE_SWING * Math.sin(pulseTime * Math.PI * 2 * PULSE_HZ);
+      uniforms.uPlatePulse.value = PULSE_BASE + pulseSwing * Math.sin(pulseTime * Math.PI * 2 * pulseHz);
       if (eases.size) {
         for (const ease of [...eases]) {
           ease.time += dt;

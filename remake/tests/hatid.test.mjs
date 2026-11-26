@@ -228,7 +228,7 @@ function watchNight(world, c, seen) {
   for (const e of fresh) {
     if (e.type === 'roared') {
       const at = actor => { const p = world.actors.get(actor).root.position; return [p.x, p.z]; };
-      n.roar = { time, mosi: at('mosi'), her: at('gramedla'), guests: (c.guests?.where() ?? []).filter(g => g.shown).map(g => ({ key: `${g.group} ${g.k}`, at: [g.at.x, g.at.z] })) };
+      n.roar = { time, mosi: at('mosi'), mosiHeading: world.actors.get('mosi').heading, her: at('gramedla'), guests: (c.guests?.where() ?? []).filter(g => g.shown).map(g => ({ key: `${g.group} ${g.k}`, at: [g.at.x, g.at.z] })) };
     }
     if (e.type === 'drawn') n.whole[e.friend] = { time, lines: c.figures.linesOf(e.friend).map(l => l.shown) };
     if (e.type === 'moon' && e.act === 'peek') {
@@ -596,11 +596,11 @@ test('the roar: the guests are behind Mosi before it, a ring runs out over the s
     const { roar } = run.watched.night;
     assert.ok(roar, `${what}: she roars`);
     assert.ok(roar.guests.length >= BUDGET.guests - 2, `${what}: ${roar.guests.length} guests on the top`);
-    const away = [roar.mosi[0] - roar.her[0], roar.mosi[1] - roar.her[1]];
-    const len = Math.hypot(...away);
+    // behind his back: the other way from where he faces (the sky where the sun went), so he stands between them and her roar
+    const back = [-Math.cos(THREE.MathUtils.degToRad(roar.mosiHeading)), -Math.sin(THREE.MathUtils.degToRad(roar.mosiHeading))];
     for (const g of roar.guests) {
       const off = [g.at[0] - roar.mosi[0], g.at[1] - roar.mosi[1]];
-      const behind = (off[0] * away[0] + off[1] * away[1]) / len;
+      const behind = off[0] * back[0] + off[1] * back[1];
       assert.ok(behind > 2 && Math.hypot(...off) < 14, `${what}: the ${g.key} ${behind.toFixed(1)} m behind Mosi, ${Math.hypot(...off).toFixed(1)} m from him`);
     }
     const [roared] = logOf(run, 'roared');
@@ -705,16 +705,16 @@ test('the moon peeks, smiles and blows, and the song starts 1.2 s after', async 
 });
 
 test('the guests hide behind a place each in a spot of its own (hatid-guests.js hideSpot)', () => {
-  // the 'hiding' phase: u 0 in its seat, 1 in its spot behind the place it is told (Mosi, away from Grameðla)
+  // the 'hiding' phase: u 0 in its seat, 1 in its spot behind the place it is told (Mosi's back)
   const top = { heightAt: () => 1 };
   const world = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() };
   const guests = createGuests(world, { top, models: {}, budget: 23 });
   assert.equal(typeof guests.setHide, 'function');
-  assert.deepEqual(hideSpot({ at: [10, 0], away: [1, 0] }, 'frogs', 0).length, 2);
+  assert.deepEqual(hideSpot({ at: [10, 0], back: [1, 0] }, 'frogs', 0).length, 2);
   for (const group of Object.keys(GUESTS)) {
     let was = null;
     for (let k = 0; k < GUESTS[group]; k++) {
-      const spot = hideSpot({ at: [10, 0], away: [1, 0] }, group, k);
+      const spot = hideSpot({ at: [10, 0], back: [1, 0] }, group, k);
       assert.ok(spot[0] - 10 > 2, `the ${group} ${k} behind the place`);
       if (was) assert.ok(Math.hypot(spot[0] - was[0], spot[1] - was[1]) > 0.8, `the ${group} ${k} not on top of the one before`);
       was = spot;

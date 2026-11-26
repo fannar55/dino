@@ -174,10 +174,12 @@ export function createNightSky(world, { count = NIGHT.stars, seed = 7, first = F
     const lift = (Math.sin(rad(elevation)) - sinLow) / (1 - sinLow); // 0 at the lowest, 1 at the zenith
     // its moment of `many`: the zenith's early, the horizon's late, each a little its own
     const at = i === 0 ? 0 : clamp(0.6 * (1 - lift) + 0.34 * random(), 0, 1 - COME_OUT);
-    // most are faint, a few bright, a handful very bright
+    // most are faint, one in eight clearly bright, a handful very bright (Task 12: the sky read thin in the first stills, so every
+    // size is 1.5 times Task 9's and the bright ones are one in eight; the draws of `random` are as they were, so is every place)
     const r = random();
-    const bright = i === 0 ? 1 : r > 0.97 ? 1 : r > 0.85 ? 0.75 : 0.32 + 0.38 * random();
-    const diameter = i === 0 ? 0.62 : r > 0.97 ? 0.42 : r > 0.85 ? 0.3 : 0.16 + 0.1 * random();
+    const faint = r > 0.85 ? null : [random(), random()];
+    const bright = i === 0 ? 1 : r > 0.97 ? 1 : r > 0.875 ? 0.95 : faint ? 0.32 + 0.38 * faint[0] : 0.6;
+    const diameter = 1.5 * (i === 0 ? 0.62 : r > 0.97 ? 0.42 : r > 0.875 ? 0.32 : faint ? 0.16 + 0.1 * faint[1] : 0.2);
     const tint = new THREE.Color(i === 0 ? '#fff8e8' : tints[Math.floor(random() * tints.length)]);
     table.push({ index: i, azimuth, elevation, direction, at, bright, light: 0 });
     const p = direction.clone().multiplyScalar(SKY_DISTANCE);

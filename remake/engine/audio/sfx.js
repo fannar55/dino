@@ -494,6 +494,22 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       tone({ frequency: key[0] * 2, end: key[0] * 4, duration: 1.8, level: 0.025, attack: 0.5, body: 0.6, sustain: 0.8 });
       bell(key[0] * 2, { delay: 1.7, level: 0.05, duration: 1.2 });
     },
+    // A star of the festival's sky lit (chapters/hatid.js starTone): the bell at `frequency` (Hz: its note of the festival's song,
+    // SONG.motif), a soft octave over it and a breath of air, long enough to ring under the next.
+    starBell({ frequency = key[0] * 2, level = 1, pan = 0 } = {}) {
+      const hz = Number.isFinite(frequency) && frequency > 30 ? frequency : key[0] * 2;
+      bell(hz, { level: 0.075 * level, pan, duration: 1.3 });
+      bell(hz * 2, { level: 0.022 * level, pan, delay: 0.04, duration: 0.7 });
+      noise({ kind: 'white', type: 'bandpass', frequency: 4200, end: 6500, q: 1.2, duration: 0.5, level: 0.012 * level, attack: 0.05, pan });
+    },
+    // A party blower (the festival's moon: its "Tút!"): a stand-in made here until a recording is picked (chunk 8, with the owner's
+    // word): a papery unrolling, then a reedy buzz that swells up a little and stops, a rasp of air in it.
+    blower({ pan = 0, level = 1 } = {}) {
+      noise({ kind: 'white', type: 'highpass', frequency: 2400, end: 3600, q: 0.6, duration: 0.12, level: 0.03 * level, attack: 0.01, pan });
+      tone({ frequency: key[0] * 2, end: key[0] * 2.12, duration: 0.62, level: 0.034 * level, delay: 0.06, pan, type: 'sawtooth', attack: 0.04, body: 0.7, sustain: 0.8 });
+      tone({ frequency: key[0] * 4, end: key[0] * 4.24, duration: 0.6, level: 0.012 * level, delay: 0.07, pan, type: 'square', attack: 0.05, body: 0.7, sustain: 0.8 });
+      noise({ kind: 'warm', type: 'bandpass', frequency: 1800, end: 2300, q: 2, duration: 0.6, level: 0.03 * level, delay: 0.06, attack: 0.05, pan });
+    },
     // Slóeðla's horn from the reed across the far pool (chapter 4's end; chapter 5 begins with it): she cannot remember her song, and
     // the one long note through her hollow crest will not hold. It comes in from a little under, holds, slips flat (less than a whole
     // tone: false, not another note) with a wobble that widens, and sinks away. Low and dull, far off, from the side `pan` says.

@@ -11,7 +11,10 @@
 //   KINDS                           each group's critter and its size (world/ardalur/life.js LIFE_SCALE) and its pose clips
 //   const guests = createGuests(world, { top, models, budget, ways })
 //   guests.ready                    a promise, done once the meshes are made
-//   guests.set(group, phase, u)     'away' (not drawn), 'coming' (u 0 to 1 along its way), 'there' (in its seat)
+//   guests.set(group, phase, u)     'away' (not drawn), 'coming' (u 0 to 1 along its way), 'there' (in its seat), 'hiding' (u 0 in its
+//                                   seat to 1 in its spot behind the place setHide gave: scene 2, before Grameðla's roar, and back)
+//   guests.setHide({ at, back, face })  where they hide: behind `at` ([x, z]: Mosi), `back` the way behind him, turned to `face`
+//   hideSpot({ at, back }, group, k)  [x, z]: the k-th of `group`'s spot there, in rows behind him, none on another
 //   guests.update(camera, time)     places and poses everyone shown, for this frame (time: the clock their idle runs on)
 //   guests.where()                  [{ group, k, at, heading, shown }]: where each is now (the tests watch them with it)
 //   guests.dispose()
@@ -69,6 +72,21 @@ export function guestSeat(group, k) {
   const r = out + (k % 2 ? 1.2 : 0); // two rows a little apart
   const at = [Math.cos(bearing * deg) * r, Math.sin(bearing * deg) * r];
   return { at, heading: bearing + 180 + 12 * Math.sin(k * 2.1 + 0.4), bearing, out: r };
+}
+
+// Hiding (scene 2: Grameðla is about to roar): every guest in rows behind Mosi's back, HIDE.first m behind him and HIDE.row more a
+// row, HIDE.across apart in a row of HIDE.perRow; they scurry there and back over the chapter's seconds, each a little after another.
+const HIDE = { first: 5.5, row: 1.5, across: 1.4, perRow: 6, stagger: 0.025 };
+/** The k-th of `group`'s spot behind `at` ([x, z]) the way `back` ([x, z]) points: [x, z]. */
+export function hideSpot({ at, back }, group, k) {
+  const i = ORDER.slice(0, ORDER.indexOf(group)).reduce((sum, g) => sum + GUESTS[g], 0) + k;
+  const row = Math.floor(i / HIDE.perRow);
+  const col = i % HIDE.perRow;
+  const len = Math.hypot(back[0], back[1]) || 1;
+  const [bx, bz] = [back[0] / len, back[1] / len];
+  const out = HIDE.first + row * HIDE.row;
+  const side = (col - (HIDE.perRow - 1) / 2) * HIDE.across + (row % 2) * HIDE.across * 0.5;
+  return [at[0] + bx * out - bz * side, at[1] + bz * out + bx * side];
 }
 
 /**
@@ -157,11 +175,40 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
     }
   }
 
+  let hiding = null; // { at, back, face }: setHide's
+  /** Between its seat and its spot behind Mosi, `u` of the way (the group's, each member a little after the one before). */
+  function hide(m, u) {
+    const n = counts[m.group];
+    const mine = Math.min(1, Math.max(0, (u - m.k * HIDE.stagger) / Math.max(0.2, 1 - (n - 1) * HIDE.stagger)));
+    const seat = m.seat.at;
+    const spot = hiding ? hideSpot(hiding, m.group, m.k) : seat;
+    const e = smooth(mine);
+    const x = seat[0] + (spot[0] - seat[0]) * e, z = seat[1] + (spot[1] - seat[1]) * e;
+    const ground = top.heightAt(x, z);
+    const how = KINDS[m.group].comes;
+    const hops = Math.max(2, Math.round(Math.hypot(spot[0] - seat[0], spot[1] - seat[1]) / 2.5));
+    const lift = how === 'hop' ? Math.abs(Math.sin(e * hops * Math.PI)) ** 1.5 * (m.group === 'frogs' ? 0.7 : 0.3)
+      : how === 'fly' ? 2.2 * Math.sin(Math.PI * e) : 0;
+    m.at.set(x, ground + lift, z);
+    const going = mine >= (m.hidden ?? 0); // which way it scurries: there, or back to its seat
+    m.hidden = mine;
+    m.u = mine;
+    m.moving = mine > 0 && mine < 1;
+    if (m.moving) {
+      const [dx, dz] = going ? [spot[0] - seat[0], spot[1] - seat[1]] : [seat[0] - spot[0], seat[1] - spot[1]];
+      if (dx * dx + dz * dz > 1e-6) m.heading = Math.atan2(dz, dx) / deg;
+    } else if (mine >= 1 && hiding?.face) m.heading = Math.atan2(hiding.face[1] - z, hiding.face[0] - x) / deg; // peeking at her
+    else m.heading = m.seat.heading;
+    m.pitch = 0;
+  }
+
   function place(m) {
     const group = groups[m.group];
     m.phase = group.phase;
     if (group.phase === 'away') { m.shown = false; return; }
     m.shown = true;
+    if (group.phase === 'hiding') { hide(m, group.u); return; }
+    m.moving = false;
     if (group.phase === 'there') {
       m.at.set(m.seat.at[0], top.heightAt(...m.seat.at), m.seat.at[1]);
       m.heading = m.seat.heading;
@@ -184,7 +231,7 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
   function poseOf(m, time) {
     const { model } = m;
     const kind = KINDS[m.group];
-    const moving = m.phase === 'coming' && m.u > 0 && m.u < 1;
+    const moving = (m.phase === 'coming' && m.u > 0 && m.u < 1) || (m.phase === 'hiding' && m.moving);
     if (kind.morphs) {
       // the frogs and turtles have three morphs, no clips: a breath as they sit, a leap or a stretch as they come
       const breathe = 0.5 + 0.5 * Math.sin((time + m.offset * 4) * Math.PI * 2 * 0.6);
@@ -215,6 +262,8 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
     phaseOf: group => groups[group]?.phase ?? null,
     /** The ways the groups come by (the chapter gives them once its friends are there): { flyers, hoppers, grazers }. */
     setWays(given) { Object.assign(ways, given); },
+    /** Where they hide in scene 2: behind `at` ([x, z]) the way `back` points, turned to `face` ([x, z]) once there. */
+    setHide({ at, back, face = null }) { hiding = { at: [...at], back: [...back], face: face ? [...face] : null }; },
     update(camera = world.camera, time = 0) {
       if (disposed) return;
       crowds.begin(camera ?? null);

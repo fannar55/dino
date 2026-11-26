@@ -10,7 +10,7 @@
 //   FRIENDS8, MODELS, LENGTH, HEAD       the eight, their models (assets/characters/), lengths (STYLE.md 3) and heads
 //   standsOf(top)           { start, farewell, dark, party, gather }: { friend: { at, heading } | { on: 'gramedla', at, heading } }
 //   arrivalOf(top, friend)  where a friend comes up: { way: top.wayUp's three points, at, heading }
-//   STAGE, FLOOR, ARRIVALS, SKY, STAR_TAP, SUN_TAP, starOver(friend, stands, shot)
+//   STAGE, FLOOR, ARRIVALS, SKY, STAR_TAP, SUN_TAP, starOver(friend, stands, shot), partyPlace(friend) (her star in the party)
 //   SHOTS.toppur, SHOWS (shot -> who must be in its frame), SCENE (shot -> the stands it is seen with), tallShot(name) (its upright
 //   frame, where it has one), sunShot(aspect), starsShot(aspect) (the two still tap shots)
 import { TOP_END, topEnd } from './kafli6-route.js';
@@ -213,6 +213,14 @@ export const SKY = {
   first: { azimuth: 30, elevation: 50 },
   moon: { azimuth: 45, elevation: 7 }, // behind the stage, peeking up over the sea of cloud
   seventh: { azimuth: 45, elevation: 58 },
+  // the constellations (engine/constellations.js): in scene 2 each drawing's longest side `span` degrees, her own star at her place
+  // above (Task 10b measured all six whole and apart in stars_wide at 9, at both sizes). In the party (party_wide cuts the sky at
+  // about 27 degrees) the six hang `lower` degrees lower and `gather` of their way from the shot's middle, `span` wide (partyPlace),
+  // and `nudge` ([azimuth, elevation] degrees more) moves four of them off the moon, which rises in the shot's middle: without it
+  // Uggeðla's snout touched its hat and Grameðla's tail and Slóeðla's feet came within 1.6 degrees of it; with it no line is within
+  // 3.4 degrees, all six whole at both sizes, two drawings 1.7 degrees apart at the nearest (.tools/hatid-12/moonclear.mjs; Task 12)
+  span: 9,
+  party: { lower: 16, gather: 0.62, span: 11, nudge: { kambedla: [-5, 0], uggedla: [-4.5, 0], gramedla: [4.5, 0], sloedla: [2, 2] } },
 };
 
 /** The sun's tap shot: from behind Grameðla and Mosi on the arc, high, toward the sun low over the sea, they clear under it. */
@@ -331,6 +339,18 @@ export const SHOTS = {
     rise_down: shot(off(GATHER.egill, -10, 3, 7), off(GATHER.egill, 2, 0, 0.6), 52),
   },
 };
+
+/**
+ * Where `friend`'s star hangs in the party (her constellation with it): SKY.stars' place SKY.party.lower degrees lower, its azimuth
+ * brought SKY.party.gather of its way to party_wide's middle (the look-check page's nedar=16&saman=0.62), and her nudge off the moon.
+ */
+const PARTY_MIDDLE = (() => { const { position: p, target: t } = SHOTS.toppur.party_wide; return headingTo([p[0], p[2]], [t[0], t[2]]); })();
+export function partyPlace(friend) {
+  const { azimuth, elevation } = SKY.stars[friend];
+  const off = ((azimuth - PARTY_MIDDLE + 540) % 360) - 180;
+  const [da, de] = SKY.party.nudge[friend] ?? [0, 0];
+  return { azimuth: round(PARTY_MIDDLE + off * SKY.party.gather + da, 1000), elevation: elevation - SKY.party.lower + de };
+}
 
 /** Who each shot is for: in its frame while the camera holds it (tests/hatid-route.test.mjs), standing as SCENE says. */
 export const SHOWS = {

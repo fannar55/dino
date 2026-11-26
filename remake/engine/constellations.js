@@ -19,8 +19,8 @@ import { FIGURES } from './constellation-figures.js';
 //   STAR_BONE     'Head': her own star (the brightest, the biggest, the tap star) is her eye, rigid to this bone
 //   FIGURES       the traced drawings (engine/constellation-figures.js)
 //   viewBasis({ turn, tilt, roll })  the view's screen right, up and toward the lens in her root's frame
-//   createConstellations(world, { capacity, lineWidth })  { group, add, set, starOf, pointsOf, linesOf, drawingOf, outlineOf, skyOf,
-//                 lookPivotOf, update, dispose }
+//   createConstellations(world, { capacity, lineWidth })  { group, add, set, place, starOf, pointsOf, linesOf, drawingOf,
+//                 outlineOf, skyOf, lookPivotOf, update, dispose }
 //
 // Places on the sky are { azimuth, elevation } in degrees (chapters/hatid-route.js SKY): azimuth from +X toward +Z (on the screen,
 // a larger azimuth is to the right, wherever the camera looks), elevation up from the horizon.
@@ -169,7 +169,9 @@ function headChain(bones) {
  *   add(key, actor, { colour, azimuth, elevation, span = 16, facing = 1, figure = FIGURES[key] })  hers (the same key again replaces
  *                hers): her drawing's longest side covers `span` degrees of sky as she was traced, her own star at (azimuth,
  *                elevation) in the pose she was traced in; facing 1 as traced (her front to the right, but Flugeðla's view), -1 her
- *                mirror image. Nothing shows until set().
+ *                mirror image. `still`: drawn in her traced pose (her own clip at FIGURES[key].pose, read once as it is added),
+ *                whatever she does under it, so it never folds (Flugeðla standing under her flying drawing). Nothing shows until set().
+ *   place(key, { azimuth, elevation, span })  hers moved whole to another place and size on the sky (her star there as traced)
  *   set(key, { drawn = 1, level = 1, breath = 0, look = null })  drawn 0 to 1: the outline grows both ways round from the point
  *                nearest her star, then the inner lines, a star coming out as its line reaches it, her tips' stars last (her own
  *                whenever level is over 0); level her light; breath 0 to 1 a swell of her stars' size; look { azimuth, elevation }
@@ -238,7 +240,7 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
   const v = new THREE.Vector3();
   const w = new THREE.Vector3();
 
-  function add(key, actor, { colour = '#ffffff', azimuth = 0, elevation = 30, span = 16, facing = 1, figure = FIGURES[key] } = {}) {
+  function add(key, actor, { colour = '#ffffff', azimuth = 0, elevation = 30, span = 16, facing = 1, figure = FIGURES[key], still = false } = {}) {
     if (!figure) throw new Error(`createConstellations: no drawing of ${key}`);
     let slot = all.get(key)?.slot;
     if (slot === undefined) {
@@ -281,8 +283,10 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       dirs: Array.from({ length: count + 2 }, () => new THREE.Vector3()),
       shown: new Float32Array(segments.length),
       light: new Float32Array(figure.stars.length + 1),
+      frozen: null,
     };
     c.north = new THREE.Vector3().crossVectors(c.east, c.home).normalize();
+    if (still) c.frozen = tracedPoints(c);
     plan(c);
     if (all.has(key)) clearSlot(all.get(key).slot);
     all.set(key, c);
@@ -323,18 +327,39 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       return PHASE.outline + ((PHASE.inner - PHASE.outline) * ((s?.rank ?? 0) + 1)) / (s?.of ?? 1);
     });
   }
-  /** Her pose now into c.flat (degrees right and up of `home`, look laid over) and c.dirs. */
-  function pose(c) {
-    const { actor, figure, bones, basis, flat, face, scale } = c;
-    actor.root.updateMatrixWorld(true);
+  /**
+   * Her drawing's points, her own star and her neck's base in her root's frame (metres) as she was traced: her own clip
+   * (figure.pose) laid on her bones for the moment it is read, and her bones then given back exactly as they were.
+   */
+  function tracedPoints(c) {
+    const { actor, figure } = c;
+    const clip = actor.clips?.get?.(figure.pose.clip);
+    if (!clip) throw new Error(`createConstellations: ${c.key} has no clip ${figure.pose.clip} to hold her drawing still in`);
+    const kept = [];
+    actor.model.traverse(o => { if (o.isBone) kept.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
+    for (const track of clip.tracks) {
+      const { nodeName, propertyName } = THREE.PropertyBinding.parseTrackName(track.name);
+      const node = THREE.PropertyBinding.findNode(actor.model, nodeName);
+      const value = node?.[propertyName];
+      if (!value?.fromArray) continue; // a morph's weights: not her bones
+      value.fromArray(track.createInterpolant().evaluate(figure.pose.time));
+    }
+    const out = new Float64Array(3 * (c.count + 2));
+    try {
+      actor.root.updateMatrixWorld(true);
+      livePoints(c, (i, p) => p.toArray(out, 3 * i));
+    } finally {
+      for (const [bone, position, quaternion, scale] of kept) { bone.position.copy(position); bone.quaternion.copy(quaternion); bone.scale.copy(scale); }
+      actor.root.updateMatrixWorld(true);
+    }
+    return out;
+  }
+  /** Each of her points (the drawing's, then her own star, then her neck's base) in her root's frame from her bones now: put(i, p). */
+  function livePoints(c, put) {
+    const { actor, figure, bones } = c;
     inverse.copy(actor.root.matrixWorld).invert();
     const mats = c.mats ??= bones.map(() => new THREE.Matrix4());
     bones.forEach((b, i) => mats[i].multiplyMatrices(inverse, b.matrixWorld));
-    const [hx, hy] = figure.home;
-    const put = (i, p) => {
-      flat[2 * i] = face * (p.dot(basis.right) - hx) * scale;
-      flat[2 * i + 1] = (p.dot(basis.up) - hy) * scale;
-    };
     const P = figure.points;
     for (let i = 0; i < c.count; i++) {
       const o = 9 * i;
@@ -347,6 +372,21 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
     }
     put(c.count, v.copy(c.eye).applyMatrix4(m.multiplyMatrices(inverse, c.headBone.matrixWorld)));
     put(c.count + 1, v.setFromMatrixPosition(m.multiplyMatrices(inverse, c.pivot.matrixWorld)));
+  }
+  /** Her pose now into c.flat (degrees right and up of `home`, look laid over) and c.dirs. */
+  function pose(c) {
+    const { actor, figure, basis, flat, face, scale } = c;
+    const [hx, hy] = figure.home;
+    const put = (i, p) => {
+      flat[2 * i] = face * (p.dot(basis.right) - hx) * scale;
+      flat[2 * i + 1] = (p.dot(basis.up) - hy) * scale;
+    };
+    if (c.frozen) {
+      for (let i = 0; i < c.count + 2; i++) put(i, v.fromArray(c.frozen, 3 * i));
+    } else {
+      actor.root.updateMatrixWorld(true);
+      livePoints(c, put);
+    }
     const look = c.state.look;
     if (look) {
       const [tx, ty] = toFlat(c, look);
@@ -467,6 +507,20 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
     set(key, { drawn = 1, level = 1, breath = 0, look = null } = {}) {
       const c = get(key);
       c.state = { drawn: clamp(Number(drawn) || 0, 0, 1), level: clamp(Number(level) || 0, 0, 1), breath: clamp(Number(breath) || 0, 0, 1), look };
+      refresh(c);
+    },
+    /** Hers to another place and size on the sky (her own star at `azimuth`, `elevation` as traced; `span` as add's), as she is drawn. */
+    place(key, { azimuth, elevation, span } = {}) {
+      const c = get(key);
+      if (Number.isFinite(azimuth) && Number.isFinite(elevation)) {
+        c.home = skyDirection(azimuth, elevation);
+        c.east = new THREE.Vector3(-Math.sin(rad(azimuth)), 0, Math.cos(rad(azimuth)));
+        c.north = new THREE.Vector3().crossVectors(c.east, c.home).normalize();
+      }
+      if (Number.isFinite(span) && span > 0) {
+        c.scale = span / c.figure.length;
+        c.sizeScale = Math.sqrt(span / 16);
+      }
       refresh(c);
     },
     starOf(key) {
