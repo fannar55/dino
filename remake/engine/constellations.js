@@ -32,7 +32,8 @@ const SLOT = 40; // stars (and lines) a constellation may have: the models have 
 const SIZE = { star: 0.34, head: 0.68 }; // degrees across at span 16 (they grow with the square root of the span)
 const LIGHT = { star: 0.78, head: 1, line: 0.42 };
 const BREATH = 0.35; // how much larger the stars are at breath 1
-const TILT = 14; // degrees the view is lifted over her side: her far legs a little above her near ones, not on top of them
+const TILT = 10; // degrees the view is lifted over her side: her far legs a little above her near ones, not on top of them
+const TURN = 18; // and turned toward her front: her far legs a little ahead of her near ones
 
 /**
  * The tips, each { name, bone, at: [x, y, z] in the bone's frame }: points on each model's own skin, measured on her standing in her
@@ -63,8 +64,9 @@ function bindOf(actor) {
   const mesh = bodyMesh(actor);
   const bones = mesh.skeleton.bones;
   actor.root.updateMatrixWorld(true);
-  // the mesh's bind space to the root's frame: root⁻¹ · mesh.matrixWorld · bindMatrix⁻¹; a bone's bind matrix is its inverse's inverse
-  const toRoot = new THREE.Matrix4().copy(actor.root.matrixWorld).invert().multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
+  // the bind's world to the root's frame: root⁻¹ · mesh.matrixWorld · bindMatrix⁻¹ (bindMatrix itself: an attached skin's
+  // bindMatrixInverse follows the mesh's matrixWorld, not the bind); a bone's bind matrix is its inverse's inverse
+  const toRoot = new THREE.Matrix4().copy(actor.root.matrixWorld).invert().multiply(mesh.matrixWorld).multiply(new THREE.Matrix4().copy(mesh.bindMatrix).invert());
   const m = new THREE.Matrix4();
   const bind = new Map();
   bones.forEach((bone, i) => {
@@ -177,10 +179,11 @@ function material(key, vertexShader, fragmentShader, uniforms = {}) {
 /**
  * Up to `capacity` constellations in `world.scene`.
  *   group        the THREE.Group 'Constellations', in world.scene
- *   add(key, actor, { colour, azimuth, elevation, span = 16, facing = 1, tips = [], tilt = TILT })  hers (the same key again replaces
- *                hers): her bind pose's length covers `span` degrees of sky, her Head at (azimuth, elevation) in her bind pose; facing
- *                1 her front to the right on the screen, -1 to the left (seen from her left side); `tilt` degrees the view is lifted
- *                over her side. Nothing shows until set().
+ *   add(key, actor, { colour, azimuth, elevation, span = 16, facing = 1, tips = [], tilt = TILT, turn = TURN })  hers (the same
+ *                key again replaces hers): her bind pose's length covers `span` degrees of sky, her Head at (azimuth, elevation) in
+ *                her bind pose; facing 1 her front to the right on the screen, -1 to the left (seen from her left side); the view of
+ *                her side turned `turn` degrees toward her front and lifted `tilt` over it (her far legs beside her near ones, not
+ *                on them). Nothing shows until set().
  *   set(key, { drawn = 1, level = 1, breath = 0, look = null })  drawn 0 to 1 draws her lines in `order`, a line at a time, each
  *                growing from the star's side, a star coming out as its line reaches it (the head's whenever level is over 0);
  *                level her light; breath 0 to 1 a swell of her stars' size; look { azimuth, elevation } turns her head's star and
@@ -222,7 +225,7 @@ export function createConstellations(world, { capacity = 6 } = {}) {
   const inverse = new THREE.Matrix4();
   const m = new THREE.Matrix4();
 
-  function add(key, actor, { colour = '#ffffff', azimuth = 0, elevation = 30, span = 16, facing = 1, tips = [], tilt = TILT } = {}) {
+  function add(key, actor, { colour = '#ffffff', azimuth = 0, elevation = 30, span = 16, facing = 1, tips = [], tilt = TILT, turn = TURN } = {}) {
     let slot = all.get(key)?.slot;
     if (slot === undefined) {
       slot = slots.indexOf(null);
@@ -242,7 +245,14 @@ export function createConstellations(world, { capacity = 6 } = {}) {
     const cosT = Math.cos(t);
     const sinT = Math.sin(t);
     // her root's frame (x ahead, y up, z to her right) seen from her side: [right on the screen, up on it] in metres
-    const view = (p, out) => { out[0] = face * p.x; out[1] = p.y * cosT - face * p.z * sinT; return out; };
+    const cosY = Math.cos(rad(turn));
+    const sinY = Math.sin(rad(turn));
+    const view = (p, out) => {
+      const near = face * p.z; // toward the lens: her right side seen from her right, her left from her left
+      out[0] = face * (p.x * cosY - near * sinY);
+      out[1] = p.y * cosT - (p.x * sinY + near * cosY) * sinT;
+      return out;
+    };
     const bindFlat = source.map(s => view(s.bind, [0, 0]));
     const head = index.get(STAR_BONE);
     const across = bindFlat.map(p => p[0]);

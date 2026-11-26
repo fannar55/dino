@@ -112,8 +112,12 @@ test('it draws out from the head: at drawn 0.5 half the lines show, and every li
 test('the head\'s star is the brightest, and is where starOf says', async () => {
   const world = emptyWorld();
   const sky = createConstellations(world);
-  for (const name of SIX) {
+  for (const [k, name] of SIX.entries()) {
     const actor = await actorOf(world, name);
+    // anywhere on the top, turned any way, when she is added (a skin's bind matrices are the bind's, not where she is now)
+    actor.place(9 * k - 20, 14 - 5 * k, 50 * k - 110);
+    actor.update(0);
+    actor.root.updateMatrixWorld(true);
     sky.add(name, actor, { colour: FRIENDS.find(f => f.key === name).colour, ...SKY.stars[name], tips: TIPS[name] ?? [] });
     sky.set(name, { drawn: 1, level: 1 });
   }
@@ -141,7 +145,7 @@ test('it moves as she does: her neck turned 30 degrees turns the head\'s star ab
   const actor = await actorOf(world, 'sloedla');
   const sky = createConstellations(world);
   const at = SKY.stars.sloedla;
-  sky.add('sloedla', actor, { colour: '#6793d0', ...at, tilt: 0 });
+  sky.add('sloedla', actor, { colour: '#6793d0', ...at, tilt: 0, turn: 0 });
   sky.set('sloedla', {});
   const head = actor.model.getObjectByName(STAR_BONE);
   const neck = head.parent;
@@ -221,7 +225,7 @@ test('a tip rides its bone: Slóeðla\'s crest follows her head', async () => {
   const at = SKY.stars.sloedla;
   const [crest] = TIPS.sloedla;
   assert.equal(crest.bone, STAR_BONE);
-  sky.add('sloedla', actor, { colour: '#6793d0', ...at, tips: TIPS.sloedla, tilt: 0 });
+  sky.add('sloedla', actor, { colour: '#6793d0', ...at, tips: TIPS.sloedla, tilt: 0, turn: 0 });
   sky.set('sloedla', {});
   const before = byName(sky.pointsOf('sloedla'));
   // the crest rises behind her head, further from it than her jaw's star
