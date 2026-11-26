@@ -323,8 +323,8 @@ export function seaAt(beat) {
 // a wave from her feet that has crossed the whole floor a bar later; a common light beating with the pulse in a friend's hue a bar
 // (not the sea's: FLOOR's own turn of the six), and a pool of light under each friend on the floor on every beat (a step, STEP.radius
 // m), bigger under her on each stomp. The blooms are FLOOR_STYLE.size of the glow flower's (Task 13's 1.7 read as specks).
-export const FLOOR_STYLE = { size: 2.6, base: 0.45, beat: 0.95, quiet: 0.35 };
-export const STEP = { radius: 4.5, level: 0.9, stomp: { radius: 6, level: 1.3, fade: 3 }, on: ['mosi', 'egill', 'kambedla', 'uggedla', 'gramedla', 'thorsedla'] };
+export const FLOOR_STYLE = { size: 2.6, rest: 0.07, own: 0.1, base: 0.38, beat: 0.6, quiet: 0.35 };
+export const STEP = { radius: 4.5, level: 0.6, stomp: { radius: 6, level: 1.3, fade: 3 }, on: ['mosi', 'egill', 'kambedla', 'uggedla', 'gramedla', 'thorsedla'] };
 const FIRST_STOMP = STOMPS[0];
 const OPEN_MAX = Math.hypot(...FLOOR_FROM) + FLOOR.radius + FLOOR_LOOK.band + 0.5;
 export function floorAt(beat) {
@@ -425,7 +425,7 @@ export function createStage(c) {
   const heightAt = top?.heightAt ?? world.heightAt ?? (() => GROUND);
   const o = { reduced, heightAt };
   const stones = stoneMesh(world);
-  const floor = createGlowFloor(world, { heightAt, keep: [{ at: STAGE.centre, r: STAGE.radius + 1.5 }], from: FLOOR_FROM, size: FLOOR_STYLE.size });
+  const floor = createGlowFloor(world, { heightAt, keep: [{ at: STAGE.centre, r: STAGE.radius + 1.5 }], from: FLOOR_FROM, size: FLOOR_STYLE.size, rest: FLOOR_STYLE.rest, own: FLOOR_STYLE.own });
   floor.mesh.name = 'Stage floor';
   const beams = createBeams(world, { capacity: 1 + SPOT_FROM.length, name: 'Stage beams' });
   const points = createLightPoints(world, { capacity: BUDGET.lights, name: 'Stage lights' });

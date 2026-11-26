@@ -9,7 +9,8 @@ import { FLOOR } from '../../chapters/hatid-route.js';
 // uniforms: set() writes nothing a flower at a time, so a frame of the party costs the same whatever it does.
 //
 //   const floor = createGlowFloor(world, { count, radius, heightAt, keep: [{ at: [x, z], r }], seed, from: [x, z], size });
-//                 (from: where the wave of `open` starts, [0, 0] the middle as made; size: the blooms' size, FLOOR_LOOK.size as made)
+//                 (from: where the wave of `open` starts, [0, 0] the middle as made; size: the blooms' size, rest and own: how much of
+//                 their own colours they show under no light and a light of 1 brings; FLOOR_LOOK's as made)
 //   floor.set({ open: 12, pulse: 0.6, colour: '#ff5fd2', steps: [[x, z, radius, level], ...] });
 //   floor.flower(i) -> { at: [x, y, z], open: 0..1, light }   (what the shader draws for flower i: for a test)
 //   floor.spots     -> [[x, y, z], ...]                       (where each stands)
@@ -70,13 +71,15 @@ void main() {
 
 const FRAG = /* glsl */`
 uniform vec3 uColour;
+uniform float uRest; // FLOOR_LOOK.rest as made
+uniform float uOwn; // FLOOR_LOOK.own as made
 varying vec3 vColour;
 varying float vLight;
 varying float vPart;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
-  vec3 rgb = vColour * ( ${FLOOR_LOOK.rest.toFixed(3)} + ${FLOOR_LOOK.own.toFixed(3)} * vLight ) + uColour * ( vLight * vPart * ${FLOOR_LOOK.tint.toFixed(3)} );
+  vec3 rgb = vColour * ( uRest + uOwn * vLight ) + uColour * ( vLight * vPart * ${FLOOR_LOOK.tint.toFixed(3)} );
   gl_FragColor = vec4( rgb, 1.0 );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -131,7 +134,7 @@ const smooth = (a, b, x) => {
  * The floor: `count` flowers within `radius` m of the top's middle ([0, 0]), each on `heightAt(x, z)`, none inside a `keep` disc
  * ({ at: [x, z], r } or [x, z, r]: the stage's stones). In world.scene. As made: all buds, no light, `colour` white.
  */
-export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.radius, heightAt, keep = [], seed = 6, from = [0, 0], size: bloomSize = FLOOR_LOOK.size } = {}) {
+export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.radius, heightAt, keep = [], seed = 6, from = [0, 0], size: bloomSize = FLOOR_LOOK.size, rest = FLOOR_LOOK.rest, own = FLOOR_LOOK.own } = {}) {
   const groundAt = heightAt ?? world.heightAt ?? world.forest?.heightAt ?? (() => 0);
   if (!(count > 0) || !(radius > 0)) throw new TypeError(`A glow floor needs flowers and room: ${count} in ${radius} m`);
   const random = seeded(seed);
@@ -161,6 +164,8 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
     uPulse: { value: 0 },
     uBudShare: { value: FLOOR_LOOK.bud },
     uColour: { value: new THREE.Color(1, 1, 1) },
+    uRest: { value: rest },
+    uOwn: { value: own },
     uSteps: { value: Array.from({ length: FLOOR_LOOK.steps }, () => new THREE.Vector4(0, 0, 1, 0)) },
   };
   const material = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, vertexColors: true, fog: true, side: THREE.DoubleSide });
