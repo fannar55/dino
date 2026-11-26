@@ -87,36 +87,50 @@ export const cuesIn = (kind, from, to) => song.cues.filter(cue => cue.kind === k
 // last chorus, each friend close on her solo's first beat, the sky in the quiet part, and everyone's last pose on the chord. No shot
 // holds longer than four bars.
 // (Task 16) each solo's first shot on its first beat, its trick's own (`trick_<who>`, hatid-band.js SOLO_TRICKS) on its seventh
-const SOLO_CUTS = song.solos.flatMap(({ who, startBeat }) => [{ beat: startBeat, cut: `solo_${who}` }, { beat: startBeat + 6, cut: `trick_${who}` }]);
+// (Task 17 fix of Task 16's: Flugeðla's trick shot on her solo's eighth beat, b 7, where she is in frame: from b 6 it opened on
+// a beat and a half of empty sky)
+export const TRICK_CUT = { flugedla: 7, others: 6 };
+const SOLO_CUTS = song.solos.flatMap(({ who, startBeat }) => [{ beat: startBeat, cut: `solo_${who}` }, { beat: startBeat + (TRICK_CUT[who] ?? TRICK_CUT.others), cut: `trick_${who}` }]);
 const ENTRY_CUTS = song.entries.filter(e => e.who !== 'choir' && e.beat > 0).map(({ who, beat }) => ({ beat, cut: `solo_${who}` }));
 const at = id => song.sections.find(part => part.id === id).startBeat;
+// Task 17, the final cut (chunk-6 rulings 17 and 18). Each call: party_wide on its beat, so Slóeðla is in frame as she calls and no
+// cut falls in its gap; on the move's first beat a shot of Egill whole and big with Mosi beside him doing the move (dance_egill,
+// dance_egill_b), held four dance beats or more; then the band close (the solos' own lenses on each friend at her stand: Grameðla's
+// drum foot, Kambeðla's lizards on her plates, Flugeðla at her deck, Uggeðla's tail) or the floor from high. In the last chorus each
+// move's third bar is the sky (chorus_sky) on the burst cue, where the volley bursts, Grameðla roars and the moon's hat goes askew,
+// and then Egill again; quick runs of two beats only there. The quiet part is one slow push on the sky. The chord: Egill's end pose
+// close, then everyone wide while the lights die.
+const CALL_BLOCK = (call, egill, gap) => [
+  { beat: call, cut: 'party_wide' },
+  { beat: call + 4, cut: egill },
+  ...gap.map(([b, cut]) => ({ beat: call + b, cut })),
+];
+const CHORUS_BLOCK = (call, first, second, tail) => [
+  { beat: call, cut: 'party_wide' },
+  { beat: call + 4, cut: first }, // the move from its first beat, the volley rising over them in its last two beats
+  { beat: call + 12, cut: 'chorus_sky' }, // the burst cue: the volley bursts, Grameðla roars, the moon's hat is knocked askew
+  { beat: call + 16, cut: second }, // the move's last bar
+  ...tail.map(([b, cut, quick]) => ({ beat: call + b, cut, ...(quick ? { quick: true } : {}) })),
+];
 export const CAMERA = [
   { beat: 0, cut: 'stage_front', then: { push: 2, beats: 24 } },
   { beat: 16, cut: 'solo_sloedla' },
   ...ENTRY_CUTS,
   { beat: 68, cut: 'stage_front' },
-  // the first dance: wide on each call, the floor between
-  { beat: at('dance'), cut: 'party_wide' },
-  { beat: 80, cut: 'egill_mosi' },
-  { beat: 88, cut: 'party_wide' },
-  { beat: 96, cut: 'party_high' },
-  { beat: 104, cut: 'party_wide' },
-  { beat: 112, cut: 'floor_low' },
-  { beat: 120, cut: 'party_wide' },
-  { beat: 128, cut: 'party_high' },
+  // the first dance
+  ...CALL_BLOCK(at('dance'), 'dance_egill', [[12, 'solo_gramedla']]), // up; then her drum foot
+  ...CALL_BLOCK(88, 'dance_egill_b', [[12, 'trick_kambedla']]), // stomp; then the lizards on her plates
+  ...CALL_BLOCK(104, 'dance_egill', [[12, 'solo_flugedla']]), // spin; then Flugeðla at her deck
+  ...CALL_BLOCK(120, 'dance_egill_b', [[12, 'party_high']]), // hop; then the floor from high
   ...SOLO_CUTS,
-  // the quiet part: the sky and the moon
-  { beat: at('quiet'), cut: 'sky_dance' },
-  { beat: 222, cut: 'moon_close' },
-  { beat: 236, cut: 'sky_dance' },
+  // the quiet part: the sky, the drawings breathing, the moon rocking, the fireflies rising, and one slow push
+  { beat: at('quiet'), cut: 'sky_dance', then: { push: 5, beats: 40 } },
   // the last chorus: everything at once
-  { beat: at('chorus'), cut: 'party_wide' },
-  { beat: 264, cut: 'party_high' },
-  { beat: 276, cut: 'party_wide' },
-  { beat: 288, cut: 'egill_mosi' },
-  { beat: 300, cut: 'party_wide' },
-  { beat: 312, cut: 'floor_low' },
-  { beat: 324, cut: 'party_wide' },
-  { beat: 336, cut: 'party_high' },
-  { beat: at('chord'), cut: 'final_pose' },
+  ...CHORUS_BLOCK(at('chorus'), 'dance_egill_b', 'dance_egill', [[20, 'solo_gramedla', true], [22, 'trick_kambedla', true]]), // up
+  ...CHORUS_BLOCK(276, 'dance_egill_b', 'dance_egill', [[20, 'party_high']]), // stomp
+  ...CHORUS_BLOCK(300, 'dance_egill_b', 'dance_egill', [[20, 'solo_uggedla', true], [22, 'solo_flugedla', true]]), // spin
+  ...CHORUS_BLOCK(324, 'dance_egill_b', 'dance_egill', [[20, 'party_high']]), // hop
+  // the chord: Egill's end pose close, then everyone wide as the lights die
+  { beat: at('chord'), cut: 'dance_egill_b' },
+  { beat: at('chord') + 8, cut: 'final_pose', then: { push: 3, beats: 8 } },
 ].sort((a, b) => a.beat - b.beat);

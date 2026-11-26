@@ -11,13 +11,14 @@
 //   lapAt(b, o)                Flugeðla's lap, b solo beats in: { x, z, lift, heading, k (0 on her stand, 1 in the air) }
 //   joltAt(beat)               the camera's tremble on Grameðla's stomps: { y (m), pitch (degrees) }
 //   createBand(c)              { update(beat), place(), lights(beat), deck, state(), dispose() }
+//   (Task 17) ROAR, roarAt     Grameðla's roars on the map's roar cues; END_POSE, endAt, endPoseOf: everyone's end pose on the chord
 //
 // A friend plays only once she has come into the song (entered, from a beat before: Grameðla's first stomp lands on her entry).
 import * as THREE from 'three';
 import { BEAT, END_BEAT, cuesIn, entered, soloAt } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { HEAD, partyStands } from './hatid-route.js';
-import { BODY, grooveOf, grooveSize, moveAt } from './hatid-dance.js';
+import { BODY, grooveOf, grooveSize, moveAt, moveOf } from './hatid-dance.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { createModel } from '../world/critters/models.js';
@@ -621,6 +622,65 @@ export const LIZARDS = { group: 'lizards', who: [0, 1, 2, 3], on: [[1.15, -0.5, 
 // The deck Flugeðla scratches: a flat stone in front of her, at her left wing (the stage's tenth stone: hatid-stage.js).
 export const DECK = { ahead: 1.75, right: -0.6, size: [1.5, 0.9, 1.1], yaw: 0 };
 
+// ---------------------------------------------------------------------------------------------
+// Task 17. Grameðla roars in the last chorus on each of the map's roar cues (spec 6: "Grameðla öskrar í takt"): over `before` beats
+// her head and neck go up to the sky and her jaws open (her own `roar` clip at `clip` of itself, timed so its roar, `at` s into
+// it, lands on the cue), wide open on the cue, held `hold` beats and closed over `after`. Laid over the dance and her drum (her feet
+// keep the beat), toward these turns, not added (in a called "up" her jaws are open already).
+export const ROAR = { before: 0.9, hold: 2.4, after: 1.1, neck: 12, head: 26, jaw: -36, arms: 55, clip: 0.55, at: 0.6 };
+const ROAR_CUES = cuesIn('roar', -Infinity, Infinity).map(c => c.beat);
+/** How far she roars at `beat`: 0 to 1, and the cue it is for (null between roars). */
+export function roarAt(beat) {
+  for (const cue of ROAR_CUES) {
+    const t = beat - cue;
+    if (t < -ROAR.before || t > ROAR.hold + ROAR.after) continue;
+    const k = t < 0 ? smooth((t + ROAR.before) / ROAR.before) : t < ROAR.hold ? 1 : 1 - smooth((t - ROAR.hold) / ROAR.after);
+    return { k, cue };
+  }
+  return { k: 0, cue: null };
+}
+const toward = (out, bone, pitch, k) => { const t = (out.turns[bone] ??= [0, 0, 0]); t[0] = lerp(t[0], pitch, k); };
+function roarOf(beat, out) {
+  const { k } = roarAt(beat);
+  if (!(k > 0)) return out;
+  toward(out, 'Neck', ROAR.neck, k);
+  toward(out, 'Head', ROAR.head, k);
+  toward(out, 'Jaw', ROAR.jaw, k);
+  toward(out, 'LeftUpperArm', ROAR.arms, k);
+  toward(out, 'RightUpperArm', ROAR.arms, k);
+  return out;
+}
+
+// The end pose (spec 6, "Lokahljómur: Allir stoppa í lokastellingu"): from a beat before the chord everyone is taken from the dance
+// (dance.take) and comes into her end pose by its first beat (`ease`), which she holds still to the end of the chord's tail: her
+// idle clip stopped where it was on the chord's first beat, the groove gone (grooveSize is 0 over the chord's first two beats) and
+// her part with it. Egill's arms up, Mosi's head high, Þórseðla's neck straight up (her "up": she rears), Kambeðla's tail up with
+// her plates full, Uggeðla's arms up and her sail lit, Slóeðla's horn up: each her "up" at its top (hatid-dance.js moveOf); and
+// Flugeðla's wings out wide, Grameðla's jaws open at the sky (END_POSE's own).
+const CHORD_AT = SONG.song.sections.find(s => s.id === 'chord').startBeat;
+export const END_POSE = {
+  from: CHORD_AT, ease: 1, sail: 0.8, crest: 0.7,
+  flugedla: [['LeftUpperArm', 5, 92, 0], ['RightUpperArm', 5, -92, 0], ['Head', 18, 0, 0]],
+  gramedla: [['Neck', 12, 0, 0], ['Head', 26, 0, 0], ['Jaw', -34, 0, 0], ['LeftUpperArm', 55, 0, 0], ['RightUpperArm', 55, 0, 0]],
+};
+/** 0 before the end pose, 1 from the chord's first beat on: how much of everyone is in her end pose. */
+export const endAt = beat => smooth((beat - (END_POSE.from - END_POSE.ease)) / END_POSE.ease);
+/** Her end pose (the dance's pose shape), full. */
+export function endPoseOf(who, out = { turns: {}, feet: { L: 0, R: 0 } }) {
+  const own = END_POSE[who];
+  if (own) {
+    for (const [bone, p, r, y] of own) turn(out, bone, p, r, y);
+    return out;
+  }
+  const up = moveOf(who, 'up', 0, {});
+  for (const [bone, t] of Object.entries(up.turns)) turn(out, bone, ...t);
+  out.feet.L += up.feet.L;
+  out.feet.R += up.feet.R;
+  out.lift = (out.lift ?? 0) + up.lift;
+  out.reach = (out.reach ?? 0) + (up.reach ?? 0);
+  return out;
+}
+
 /**
  * The band on the party's friends. c: { world, dance (createDance's), stands.party, reduced, top?, plates?, guests (hatid.js's or the
  * top's: ride) }. update(beat) before the dance's (it takes the soloist for her trick and gives her back), its layer laid over
@@ -649,12 +709,33 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
   };
   let beatNow = null;
   // the parts, over everyone's pose
+  const roarClip = actors.gramedla?.clips.get('roar') ? actors.gramedla.mixer.clipAction(actors.gramedla.clips.get('roar')) : null;
+  const idleOf = who => (actors[who]?.clips.get('idle') ? actors[who].mixer.clipAction(actors[who].clips.get('idle')) : null);
+  let roared = false;
   const unlayer = dance.layer((who, beat, pose) => {
     const solo = soloAt(beat);
+    const left = 1 - endAt(beat); // (Task 17) the parts give way to the end pose
     if (solo?.who !== who) {
-      roleOf(who, beat, pose);
+      roleOf(who, beat, pose, left);
       lookOf(who, beat, pose, o);
-    } else if (who === 'uggedla') roleOf(who, beat, pose); // her tail beats time through her solo too
+    } else if (who === 'uggedla') roleOf(who, beat, pose, left); // her tail beats time through her solo too
+    if (who === 'gramedla' && solo?.who !== who) {
+      // (Task 17) her roars in the last chorus, and her roar clip under them (after the dance has set her idle for the beat)
+      roarOf(beat, pose);
+      const r = roarAt(beat);
+      if (roarClip && (r.k > 0 || roared)) {
+        const w = ROAR.clip * r.k;
+        if (!roarClip.isRunning()) { roarClip.reset(); roarClip.play(); }
+        roarClip.enabled = true;
+        roarClip.setEffectiveTimeScale(1);
+        roarClip.setEffectiveWeight(w);
+        const d = roarClip.getClip().duration;
+        if (r.cue !== null && d > 0) roarClip.time = Math.min(d, Math.max(0, (beat - r.cue) * BEAT + ROAR.at));
+        const idle = idleOf('gramedla');
+        if (idle && w > 0) idle.setEffectiveWeight(Math.max(0, idle.getEffectiveWeight() - w));
+        roared = r.k > 0;
+      }
+    }
     if (who === 'thorsedla' || who === 'kambedla') captured.set(who, { turns: structuredClone(pose.turns), lift: pose.lift, dip: pose.dip, spin: pose.spin });
   });
   // the solos: each taken for her twelve beats
@@ -819,7 +900,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
             if (s >= 0) level = Math.max(level, LIGHTS.base + (1 - LIGHTS.base) * Math.exp(-LIGHTS.decay * s));
           }
           const p = playing('kambedla', beat);
-          plates.setRow(r, lerp(1, level, p), { duration: 0 });
+          plates.setRow(r, lerp(lerp(1, level, p), 1, endAt(beat)), { duration: 0 }); // (Task 17) full in her end pose
         }
       }
     }
@@ -830,14 +911,16 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
       const pulse = Math.exp(-4 * fract(beat));
       const tail = Math.abs(tailWhip(beat));
       g.colour.set(mine > 0.5 ? HUES.uggedla : hueOfBar(beat));
-      for (let r = 0; r < g.rows; r++) g.setRow(r, clamp01(p * (lerp(SAIL.level, SAIL.solo, mine) + SAIL.beat * pulse + 0.25 * tail)), { duration: 0 });
+      const end = endAt(beat); // (Task 17) lit in her end pose, in her own hue
+      if (end > 0.5) g.colour.set(HUES.uggedla);
+      for (let r = 0; r < g.rows; r++) g.setRow(r, lerp(clamp01(p * (lerp(SAIL.level, SAIL.solo, mine) + SAIL.beat * pulse + 0.25 * tail)), END_POSE.sail, end), { duration: 0 });
     }
     if (crest) {
       const g = crest.glow;
       const p = playing('sloedla', beat);
       const h = hornOf(beat);
       const t = solo?.who === 'sloedla' ? trickOf('sloedla', solo.u, {}, o) : null;
-      for (let r = 0; r < g.rows; r++) g.setRow(r, clamp01(p * (0.12 + 0.6 * h.k) + (t ? t.crest[r] : 0)), { duration: 0 });
+      for (let r = 0; r < g.rows; r++) g.setRow(r, lerp(clamp01(p * (0.12 + 0.6 * h.k) + (t ? t.crest[r] : 0)), END_POSE.crest, endAt(beat)), { duration: 0 });
     }
   }
 
@@ -895,9 +978,33 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     berries.instanceMatrix.needsUpdate = true;
   }
 
+  // (Task 17) the end pose: everyone taken from a beat before the chord to the end of its tail, given back before it (a seek)
+  let ending = false;
+  function endFor(beat) {
+    const want = beat >= END_POSE.from - END_POSE.ease;
+    if (want === ending) return;
+    ending = want;
+    for (const who of Object.keys(actors)) {
+      if (!want) { if (who !== taken) { clips[who]?.stop(); dance.take(who, null); } continue; }
+      clips[who] ??= clipsOf(actors[who]);
+      dance.take(who, (b, out) => {
+        const w = endAt(b);
+        grooveOf(who, b, out, grooveSize(who, b) * (1 - w)); // what is left of her groove as she comes into it
+        const end = endPoseOf(who);
+        for (const [bone, t] of Object.entries(end.turns)) turn(out, bone, t[0], t[1], t[2], w);
+        out.feet.L += end.feet.L * w;
+        out.feet.R += end.feet.R * w;
+        out.lift += (end.lift ?? 0) * w;
+        out.reach += (end.reach ?? 0) * w;
+        clips[who].set(Math.min(b, END_POSE.from), {}); // her idle stopped where the chord's first beat had it
+      });
+    }
+  }
+
   return {
     update(beat) {
       beatNow = beat;
+      endFor(beat);
       takeFor(beat);
       now = { beat, taken };
     },
@@ -933,7 +1040,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     })() : null,
     jolt: beat => joltAt(beat, { reduced }),
     state() {
-      return { beat: now?.beat ?? null, taken: now?.taken ?? null, fish: fish.count + (held.visible ? 1 : 0), berries: berries.count, sail: sail?.lit ?? 0, crest: crest?.lit ?? 0 };
+      return { beat: now?.beat ?? null, taken: now?.taken ?? null, ending, fish: fish.count + (held.visible ? 1 : 0), berries: berries.count, sail: sail?.lit ?? 0, crest: crest?.lit ?? 0 };
     },
     parts: { fish, held, berries, sail, crest },
     dispose() {

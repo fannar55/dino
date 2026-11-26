@@ -37,7 +37,7 @@ import { demoAsked, startDemoChild } from './hatid-demo.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
-import { createStage, moonAt } from './hatid-stage.js';
+import { createStage, moonAt, skyBurstsAt, auroraAt, breathAt } from './hatid-stage.js';
 import { createDance, CALL_LINE } from './hatid-dance.js';
 import { createBand } from './hatid-band.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
@@ -731,6 +731,20 @@ function* theParty(s, c) {
   c.stage = createStage(c); // the stage lights up with the intro and follows the song: its light, the sea, the floor, the lamps
   const unshake = shakeOnStomps(c);
   const shadows = noShadows(c, BUDGET.noShadow);
+  // (Task 17) the sky's part: the shooting stars that burst in the last chorus, its northern lights, and the drawings' breath in the
+  // quiet part (hatid-stage.js skyBurstsAt, auroraAt, breathAt), each frame from the beat
+  const keys = FRIENDS.map(f => f.key);
+  let breathing = false;
+  const sky = beat => {
+    c.night?.shoot(skyBurstsAt(beat, { reduced: c.reduced }));
+    const aurora = auroraAt(beat);
+    c.night?.aurora(aurora.level, aurora.time);
+    const breath = breathAt(beat);
+    if (c.figures && (breath > 0 || breathing)) {
+      for (const key of keys) { try { c.figures.set(key, { drawn: 1, level: 1, breath }); } catch { /* not in the sky */ } }
+      breathing = breath > 0;
+    }
+  };
   const frame = () => {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
@@ -738,6 +752,7 @@ function* theParty(s, c) {
     c.dance.update(beat);
     c.stage.update(beat); // after both: the fireflies on Þórseðla's neck, Flugeðla's wind, the prints
     c.moon?.update(s.time);
+    sky(beat);
   };
   frame();
   let over = false;
@@ -757,6 +772,9 @@ function* theParty(s, c) {
   } finally {
     over = true;
     c.inParty = false;
+    c.night?.shoot([]);
+    c.night?.aurora(0, 0);
+    if (breathing) for (const key of keys) { try { c.figures.set(key, { drawn: 1, level: 1, breath: 0 }); } catch { /* not in the sky */ } }
     shadows.restore();
     unshake();
     c.band.dispose();

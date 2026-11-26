@@ -126,7 +126,9 @@ const apart = (a, b) => THREE.MathUtils.radToDeg(Math.acos(clamp(a.dot(b), -1, 1
  *                zenith's first), so the same numbers are always the same sky; time the twinkle's clock
  *   shoot(list)  this frame's shooting stars, [{ from: [az, el], to: [az, el], u, colour, burst }]: a head and a tail `u` (0 to 1)
  *                along the way while burst is 0; after it `burst` 0 to 1, NIGHT.sparks sparks spreading and fading in `colour` (each
- *                spark's way from the star's index in the list), or with `reduced` one glow. Draws the first NIGHT.shooting; returns
+ *                spark's way from the star's index in the list), or with `reduced` one glow; optional `spread` (degrees the fastest
+ *                spark flies, SPREAD_DEG if not given) and `size` (the sparks' and the glow's size, 1 if not given) for a bigger burst
+ *                (the festival's last chorus). Draws the first NIGHT.shooting; returns
  *                how many it drew.
  *   aurora(level, time, colours)  NIGHT.bands ribbons round the whole sky, `level` 0 to 1 bright, waving on `time` (still with
  *                `reduced`), in `colours` (three; chapter 5's green, sky blue and violet unless given)
@@ -276,7 +278,7 @@ export function createNightSky(world, { count = NIGHT.stars, seed = 7, first = F
       if (burst > 0) {
         // the burst, where it ended
         if (reduced) {
-          put(b, tone, 0.8 * (1 - burst) ** 2, 2.6 * (0.6 + 0.4 * burst));
+          put(b, tone, 0.8 * (1 - burst) ** 2, 2.6 * (0.6 + 0.4 * burst) * (Number(star.size) || 1));
           continue;
         }
         east.crossVectors(UP, b);
@@ -285,12 +287,12 @@ export function createNightSky(world, { count = NIGHT.stars, seed = 7, first = F
         const out = 1 - (1 - burst) ** 2.2; // fast out, slowing
         mixed.copy(white).lerp(tone, Math.min(1, burst * 4)); // white-hot at the start, its colour from a quarter on
         for (const [angle, speed, phase] of waysOf(index)) {
-          const far = rad(SPREAD_DEG * speed * out);
+          const far = rad((Number(star.spread) || SPREAD_DEG) * speed * out);
           const x = Math.cos(angle) * far;
           const y = Math.sin(angle) * far - rad(DROOP_DEG) * burst * burst;
           v.copy(b).addScaledVector(east, Math.tan(x)).addScaledVector(north, Math.tan(y)).normalize();
           const sparkle = 0.65 + 0.35 * Math.sin(burst * 46 + phase);
-          put(v, mixed, Math.min(1, 1.4 * (1 - burst) ** 1.1 * sparkle), 0.46 * (1 - 0.45 * burst));
+          put(v, mixed, Math.min(1, 1.4 * (1 - burst) ** 1.1 * sparkle), 0.46 * (1 - 0.45 * burst) * (Number(star.size) || 1));
         }
         continue;
       }

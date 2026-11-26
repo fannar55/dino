@@ -358,6 +358,15 @@ export const SHOTS = {
     // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget)
     moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),
     final_pose: shot(fp(0, -34, 3.2), fp(1, 8, 3), 55),
+    // Task 17 (chunk-6 ruling 17: the dance must be seen to be copied): Egill whole and big doing each called move, Mosi beside him
+    // doing it too. From in front of them, a little to his right, at his chest's height, the moon over his head
+    dance_egill: shot(fp(2.4, -17.5, 1.1), fp(0.4, -10.5, 1.7), 36),
+    // and low from his right, looking up past them into the sky over the stage: in the last chorus the volley of shooting stars
+    // rises over their heads in this shot's last two beats before the cut to it bursting (chorus_sky)
+    dance_egill_b: shot(fp(6, -15.5, 0.5), fp(0, -9, 2.6), 46),
+    // the last chorus's sky: from the child's side of the floor, the whole party low in the frame, the moon over the stage, the
+    // bursts and the northern lights over everything
+    chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 24 }), 60),
     // Scene 4. Round Egill, the seventh star, the lift
     gather: shot(off(GATHER.egill, -15, 1, 3.4), off(GATHER.egill, 4, 0, 1.4), 54),
     seventh_sky: shot(SEVENTH_FROM, toSky(SEVENTH_FROM, { azimuth: 45, elevation: 44 }), 55),
@@ -414,6 +423,9 @@ export const SHOWS = {
   trick_flugedla: [],
   moon_close: [],
   final_pose: FRIENDS8,
+  dance_egill: ['egill', 'mosi'],
+  dance_egill_b: ['egill', 'mosi'],
+  chorus_sky: [],
   gather: ['egill', 'mosi', 'kambedla', 'sloedla'],
   seventh_sky: ['thorsedla'],
   lift_side: ['egill', 'mosi'],
@@ -426,7 +438,7 @@ const SCENES = {
   start: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, ...(friend === 'flugedla' ? [] : [`home_${friend}`])])],
   farewell: ['home_flugedla', 'lineup_sun', 'sun_faces'],
   dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down'],
-  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), ...Object.keys(STAR_ROW).map(f => `trick_${f}`), 'moon_close', 'final_pose'],
+  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), ...Object.keys(STAR_ROW).map(f => `trick_${f}`), 'moon_close', 'final_pose', 'dance_egill', 'dance_egill_b', 'chorus_sky'],
   gather: ['gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down'],
 };
 export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, names]) => names.map(name => [name, scene])));
@@ -439,6 +451,9 @@ const TALL = {
   trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15.5), 42),
   // (fix 1) upright: her and her three prints without the empty floor under them
   trick_gramedla: shot(fp(-28, -4, 7.3), fp(-20.5, 10, 0.4), 36),
+  // (Task 17) upright: from his right along the line through him and Mosi, so both fit the narrow frame, Egill a fifth of its height
+  dance_egill: shot(fp(7, -13.4, 1.2), fp(-1, -9.6, 1.6), 30),
+  dance_egill_b: shot(fp(7.2, -13.8, 0.6), fp(-1, -9.4, 2.1), 32),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

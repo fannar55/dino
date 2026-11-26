@@ -34,6 +34,9 @@ import { moonPose, MOON_HAT_LIFT } from '../engine/moon-face.js';
 //   floorAt(beat)              { open, pulse, colour, steps } for the glow floor's set()
 //   partyLook(beat, o)         { parts, lift }: the party's light for engine/show/dusk.js mix(parts, lift)
 //   createStage(c)             { update(beat), state(), dispose() }: draws them all, in five draw calls
+//   (Task 17) chorusAt, dieAt  the last chorus's boost and the chord's dying light; breathAt the constellations' breath in the
+//                              quiet part; skyBurstsAt the shooting stars that burst on the burst cues; auroraAt the northern
+//                              lights; stageLightAt all the stage's light summed
 //
 // `o` is { reduced, heightAt }: reduced (less motion) holds the spotlights still and takes the light's lift away; heightAt the top's
 // ground (GROUND, its flat, without one). Colours are sRGB 0 to 1 ([r, g, b]) or hex where a tool takes hex.
@@ -54,6 +57,19 @@ const STANDS = partyStands();
 const entryOf = who => SONG.song.entries.find(e => e.who === who).beat;
 const sectionOf = beat => sectionAt(beat)?.id ?? null;
 const QUIET = SONG.song.sections.find(s => s.id === 'quiet');
+// Task 17: the last chorus and the chord. The chorus is the biggest light of the party: from its first beat every light of the stage
+// is FINALE.boost brighter (chorusAt), and on the chord they all die (dieAt: full for its first bar, then down to nothing when the
+// chord's tail ends, END_TAIL).
+const CHORUS = SONG.song.sections.find(s => s.id === 'chorus');
+const CHORD = SONG.song.sections.find(s => s.id === 'chord');
+export const END_TAIL = END_BEAT + SONG.song.tail / BEAT;
+export const FINALE = { boost: 0.35, on: 0.1, die: [CHORD.startBeat + BAR, END_TAIL] };
+/** 0 before the last chorus, 1 from its first beat (in over FINALE.on beat) to the end. */
+export const chorusAt = beat => smooth((beat - CHORUS.startBeat) / FINALE.on);
+/** 1 until the chord's second bar, down to 0 as its tail ends: how much of the stage's light is left. */
+export const dieAt = beat => 1 - smooth((beat - FINALE.die[0]) / (FINALE.die[1] - FINALE.die[0]));
+/** The stage's lights at `beat`, as a share of what the song gives them: the chorus's boost, the chord's dying. */
+const finaleLight = beat => (1 + FINALE.boost * chorusAt(beat)) * dieAt(beat);
 
 // ---------------------------------------------------------------------------------------------
 // The friends' hues, as light: each friend's colour (journal-data.js FRIENDS) fuller and brighter, as the constellations' lines are
@@ -180,7 +196,7 @@ export function stoneLightsAt(beat) {
       const flash = Math.exp(-3 * u) * STONE_LIGHT.flash; // a bright "on" that settles
       level = STONE_LIGHT.on * smooth(u / 0.5) * (1 - STONE_LIGHT.beat + STONE_LIGHT.beat * pulse) + flash * smooth(u / 0.15);
       if (solo) level *= solo.who === who ? STONE_LIGHT.solo / STONE_LIGHT.on : STONE_LIGHT.others;
-      level *= lerp(1, STONE_LIGHT.quiet, q);
+      level *= lerp(1, STONE_LIGHT.quiet, q) * finaleLight(beat);
     }
     return { who, colour: HUES[who], level: Math.min(1.5, level) };
   });
@@ -196,7 +212,7 @@ export function coneAt(beat, o = {}) {
   const y = groundOf(o)(x, z);
   const solo = soloAt(beat);
   const others = solo && solo.who !== 'sloedla' ? CONE.others : 1;
-  const level = partsAt(beat).cone * (0.75 + 0.25 * pulseAt(beat)) * lerp(1, CONE.quiet, quietAt(beat)) * others;
+  const level = partsAt(beat).cone * (0.75 + 0.25 * pulseAt(beat)) * lerp(1, CONE.quiet, quietAt(beat)) * others * finaleLight(beat);
   return { from: [x, y + CONE.up, z], to: [x, y, z], width: CONE.width, colour: rgbOf(CONE.colour), level };
 }
 
@@ -215,7 +231,7 @@ function standPoint(who, o) {
   return [x, groundOf(o)(x, z), z];
 }
 export function spotsAt(beat, o = {}) {
-  const level = partsAt(beat).spots * spotGate(beat) * (0.6 + 0.4 * pulseAt(beat)) * (0.8 + 0.2 * energyAt(beat));
+  const level = partsAt(beat).spots * spotGate(beat) * (0.6 + 0.4 * pulseAt(beat)) * (0.8 + 0.2 * energyAt(beat)) * finaleLight(beat);
   const solo = soloAt(beat);
   return SPOT_FROM.map((from, k) => {
     if (solo && STANDS[solo.who]) {
@@ -337,7 +353,7 @@ export function stringsAt(beat, o = {}) {
   const feet = o.feet ?? STRING_FEET; // { friend: { azimuth, elevation } }
   const heightAt = groundOf(o);
   const tops = ORDER.map(key => ({ key, top: stringTop(feet[key]) }));
-  const lit = partsAt(beat).strings;
+  const lit = partsAt(beat).strings * finaleLight(beat);
   const q = quietAt(beat);
   const phase = 1 - fract(beat); // the run is at the top on the beat and goes down
   const out = [];
@@ -594,7 +610,7 @@ export function firefliesAt(beat, i, out = {}, o = {}) {
   out.x = x; out.y = y; out.z = z;
   out.size = FIREFLIES.size;
   out.r = colour[0]; out.g = colour[1]; out.b = colour[2];
-  out.level = partsAt(beat).fireflies * (0.7 + 0.3 * Math.sin(beat * 3 + i * 1.7)) * lerp(1, 0.9, q) * gone;
+  out.level = partsAt(beat).fireflies * (0.7 + 0.3 * Math.sin(beat * 3 + i * 1.7)) * lerp(1, 0.9, q) * gone * finaleLight(beat);
   return out;
 }
 
@@ -621,7 +637,7 @@ export function seaAt(beat) {
   if (!(on > 0)) return { glow: null, colour: null, ripples };
   const coming = entered('uggedla', beat); // over her entry's bar from the sea's own pale light to her hue's
   const hue = hueAt(beat, SEA.shift);
-  const beating = on * (SEA.base + SEA.beat * pulseAt(beat)) * (0.7 + 0.3 * energyAt(beat)) * lerp(1, SEA.quiet, quietAt(beat));
+  const beating = on * (SEA.base + SEA.beat * pulseAt(beat)) * (0.7 + 0.3 * energyAt(beat)) * lerp(1, SEA.quiet, quietAt(beat)) * finaleLight(beat);
   if (coming >= 1) return { glow: beating, colour: hue, ripples };
   return { glow: lerp(SEA.rest.glow, beating, coming), colour: hexOf(mixRgb(rgbOf(SEA.rest.colour), rgbOf(hue), coming)), ripples };
 }
@@ -649,7 +665,7 @@ export function floorAt(beat, { feet = null, places = null } = {}) {
   const u = clamp01((beat - FIRST_STOMP) / BAR);
   const open = u > 0 ? OPEN_MAX * smooth(u) : 0;
   const lit = partsAt(beat).floor;
-  const dim = lerp(1, FLOOR_STYLE.quiet, quietAt(beat));
+  const dim = lerp(1, FLOOR_STYLE.quiet, quietAt(beat)) * finaleLight(beat);
   const pulse = lit * (FLOOR_STYLE.base + FLOOR_STYLE.beat * pulseAt(beat)) * (0.75 + 0.25 * energyAt(beat)) * dim;
   const steps = [];
   if (lit > 0 && feet) {
@@ -695,7 +711,7 @@ export function partyLook(beat, { reduced = false } = {}) {
   const p = partsAt(beat);
   const on = (p.cone + p.floor + p.strings + p.sea + p.spots + p.fireflies) / 6;
   const q = quietAt(beat);
-  const tint = PARTY_LIGHT.tint * on * (1 - q);
+  const tint = PARTY_LIGHT.tint * on * (1 - q) * dieAt(beat); // (Task 17) back to the night as the chord's lights die
   const dark = PARTY_LIGHT.quiet * q;
   const solo = soloAt(beat);
   const hue = solo ? hueOf(solo.who) : HUES[SECTION_HUE[sectionOf(beat)] ?? 'thorsedla'];
@@ -739,10 +755,106 @@ export const MOON_MOVES = [
     return { ...pose, eye: moonPose([], beat * BEAT).eye }; // the song's own blinks, so the same beat blinks the same
   },
 ];
+// Task 17's moves (chunk-6 ruling 4: pushed onto MOON_MOVES, one moonAt): in the quiet part it rocks slowly (`quiet.rock` degrees
+// each way over `quiet.bars` bars, with the quiet part), and in the last chorus it rocks on the beat with its hand on its hat (moonPose's
+// 'rock' over the chorus), the roar on each of the map's roar cues knocks the hat askew (moonPose's 'askew', on the cue) and its hand
+// puts it right `fix` beats after (moonPose's 'fixHat': straight again within two bars).
+export const MOON_FINALE = { quiet: { rock: 6, bars: 2 }, fix: 3 };
+const ROARS = cuesIn('roar', -Infinity, Infinity).map(c => c.beat);
+const CHORUS_ROCK = [{ kind: 'rock', at: CHORUS.startBeat * BEAT, seconds: (CHORD.startBeat - CHORUS.startBeat) * BEAT, bpm: SONG.bpm }];
+const CHORUS_HAT = ROARS.flatMap(b => [{ kind: 'askew', at: b * BEAT }, { kind: 'fixHat', at: (b + MOON_FINALE.fix) * BEAT }]);
+MOON_MOVES.push(
+  function quietRock(beat, pose) {
+    const q = quietAt(beat);
+    if (!(q > 0)) return pose;
+    const sway = MOON_FINALE.quiet.rock * q * Math.sin((Math.PI * 2 * (beat - QUIET.startBeat)) / (MOON_FINALE.quiet.bars * BAR));
+    return { ...pose, sway: (Number(pose.sway) || 0) + sway };
+  },
+  function chorusMoon(beat, pose) {
+    const t = beat * BEAT;
+    const rock = moonPose(CHORUS_ROCK, t); // its sway on the beat and its hand on the hat through the chorus
+    const hat = moonPose(CHORUS_HAT, t).hat; // askew from each roar, straight again after its fix
+    if (!rock.sway && !hat && rock.hand.kind === 'rest') return pose;
+    const hand = rock.hand.kind !== 'rest' && pose.hand?.kind === 'rest' ? rock.hand : pose.hand;
+    return { ...pose, sway: (Number(pose.sway) || 0) + rock.sway, hat: (Number(pose.hat) || 0) + hat, hand };
+  },
+);
 export function moonAt(beat, base = moonPose([], beat * BEAT)) {
   let pose = { ...base, hand: { ...(base.hand ?? { kind: 'rest', u: 0 }) } };
   for (const move of MOON_MOVES) pose = move(beat, pose);
   return pose;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Task 17, the sky of the end (spec 6, "Kyrra stundin": "stjörnumerkin anda hægt"; "Síðasta viðlagið": "Stjörnuhröp þjóta yfir
+// himininn og springa eins og flugeldar í litum vinanna. Norðurljós bylgjast með laginu yfir öllum himninum.").
+// breathAt(beat): the constellations' breath in the quiet part (engine/constellations.js set's `breath`), one breath in `breath`
+// beats (four bars), with the quiet part (in over its first bar, out over its last), 0 everywhere else.
+export const BREATH = { beats: 4 * BAR };
+export function breathAt(beat) {
+  const q = quietAt(beat);
+  if (!(q > 0)) return 0;
+  return q * (0.5 - 0.5 * Math.cos((Math.PI * 2 * (beat - QUIET.startBeat)) / BREATH.beats));
+}
+// The shooting stars that burst (chunk-6 ruling 16: SKY_BURSTS, not a second FIREWORKS): on each of the map's `burst` cues a volley of
+// `per` shooting stars rise out of the sea of cloud behind the stage like rockets (from `low` degrees up, each from `lean` degrees
+// of azimuth off its burst), cross the sky over `cross` beats and burst together on the cue, each in a friend's hue (the six in
+// turn, the volley's first one a friend on from the last's), at `at` ([azimuth, elevation]: over the stage and the drawings, in
+// chorus_sky's frame at both sizes); a burst spreads `spread` degrees and fades over `last` beats. Never more than NIGHT.shooting at
+// once (per 6). They are the night sky's points (engine/night-sky.js shoot), not the stage's light points. Reduced: no stars fly; each
+// burst is the night sky's one soft glow where it would burst.
+export const SKY_BURSTS = {
+  per: 6, cross: 2, last: 3, low: 4, spread: 8, size: 1.7,
+  at: [[24, 37], [31, 45], [38, 35], [45, 44], [52, 36], [58, 45]],
+  lean: [-16, -9, -3, 4, 10, 16],
+};
+const SKY_BURST_CUES = cuesIn('burst', -Infinity, Infinity).map(c => c.beat);
+export function skyBurstsAt(beat, { reduced = false } = {}) {
+  const out = [];
+  const { per, cross, last, low, at, lean } = SKY_BURSTS;
+  SKY_BURST_CUES.forEach((cue, n) => {
+    const age = beat - cue;
+    if (age < (reduced ? 0 : -cross) || age >= last) return;
+    for (let i = 0; i < per; i++) {
+      const who = ORDER[(n + i) % ORDER.length];
+      const [az, el] = at[i];
+      out.push({
+        from: [az + lean[i], low], to: [az, el], u: age < 0 ? 1 + age / cross : 1, burst: age < 0 ? 0 : age / last,
+        colour: HUES[who], who, cue, spread: SKY_BURSTS.spread, size: SKY_BURSTS.size,
+      });
+    }
+  });
+  return out;
+}
+// The northern lights (engine/night-sky.js aurora): up over the last chorus's first bar, full through it, waving with the song's
+// clock and surging on each bar's first beat, down over the chord (gone by its last beat). Reduced: the night sky holds them still.
+export const AURORA = { level: 1, surge: 0.6, bar: 0.25 };
+export function auroraAt(beat) {
+  const up = smooth((beat - CHORUS.startBeat) / BAR);
+  const down = 1 - smooth((beat - CHORD.startBeat) / CHORD.beats);
+  const level = AURORA.level * up * down;
+  const b = beat / BAR;
+  const time = beat * BEAT + AURORA.surge * (Math.floor(b) + smooth(fract(b) / AURORA.bar)); // a step of the wave on each bar
+  return { level: level > 1e-4 ? level : 0, time };
+}
+
+/**
+ * The stage's light summed at `beat` (what the tests compare the parts by): the stones', Slóeðla's cone, the four spotlights, the
+ * strings and the fireflies (each as a share of all of them lit), the floor's beat, the sea's glow, and the bursts in the air (the
+ * spotlights' fireworks and the sky's shooting stars).
+ */
+export function stageLightAt(beat, o = {}) {
+  const sum = list => list.reduce((s, v) => s + v, 0);
+  const stones = sum(stoneLightsAt(beat).map(l => l.level)) / STAGE.stones;
+  const spots = sum(spotsAt(beat, o).map(s => s.level)) / SPOT_FROM.length;
+  const strings = stringsAt(beat, o);
+  const fly = {};
+  let flies = 0;
+  for (let i = 0; i < FIREFLIES.count; i += 4) flies += firefliesAt(beat, i, fly, o).level;
+  const fireworks = sum(fireworksAt(beat, o).map(p => p.level)) / (FIREWORKS.per * SPOT_FROM.length);
+  const bursts = sum(skyBurstsAt(beat, o).map(b => (b.burst > 0 ? 1 - b.burst : 0.3 * b.u))) / SKY_BURSTS.per;
+  return stones + coneAt(beat, o).level + spots + sum(strings.map(l => l.level)) / strings.length + flies / (FIREFLIES.count / 4)
+    + floorAt(beat).pulse + (seaAt(beat).glow ?? 0) + fireworks + bursts;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -938,6 +1050,7 @@ export function createStage(c) {
       spots: spots.map(s => ({ from: s.from.map(r2), to: s.to.map(r2), colour: hexOf(s.colour), level: r3(s.level) })),
       sea: { glow: sea.glow === null ? null : r3(sea.glow), colour: sea.colour, ripples: sea.ripples.length },
       look: { weights: look.parts.map(([, w]) => r3(w)), lift: r3(look.lift) },
+      light: r3(stageLightAt(beat, o)), // (Task 17) all of it summed
       counts: { points: points.count, fireflies, strings, swarms, fireworks, beams: beams.count, rings: rings.count },
     };
   }
