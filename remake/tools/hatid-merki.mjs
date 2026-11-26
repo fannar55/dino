@@ -53,7 +53,9 @@ const MAX_SEGMENT = 1 / 60; // of the outline's length
 
 const rad = THREE.MathUtils.degToRad;
 
-/** The view's screen right, screen up and toward the lens in her root's frame (facing 1: seen from her right side). */
+/** The view's screen right, screen up and toward the lens in her root's frame (facing 1: seen from her right side). The twin of
+ * engine/constellations.js viewBasis (that module needs the data this tool writes); the test 'the drawing is hers' holds them to
+ * each other. */
 export function viewBasis({ turn = 0, tilt = 0, roll = 0 }) {
   const cy = Math.cos(rad(turn)), sy = Math.sin(rad(turn)), ct = Math.cos(rad(tilt)), st = Math.sin(rad(tilt));
   const r0 = new THREE.Vector3(cy, 0, -sy);
@@ -563,7 +565,8 @@ export async function traceFigure(key, choice = CHOICES[key]) {
     .filter(c => c.len >= choice.inner.least * wide)
     .sort((p, q) => q.len - p.len)
     .slice(0, choice.inner.most);
-  const inner = found.map(({ c, len }) => thin(c, false, [Math.max(3, Math.round(len / (perimeter * MAX_SEGMENT)) + 2), 40], perimeter * MAX_SEGMENT).map(i => c[i]));
+  const inner = found.map(({ c, len }) => thin(c, false, [Math.max(3, Math.round(len / (perimeter * MAX_SEGMENT)) + 2), 40], perimeter * MAX_SEGMENT).map(i => c[i]))
+    .map(c => (Math.hypot(c[0][0] - eyePx[0], c[0][1] - eyePx[1]) <= Math.hypot(c.at(-1)[0] - eyePx[0], c.at(-1)[1] - eyePx[1]) ? c : c.reverse()));
 
   // bind every point
   const bind = binder(actor, parts, ras, basis);

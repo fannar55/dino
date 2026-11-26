@@ -8,40 +8,36 @@
 //   ?chapter=hatid-himinn&show=tungl&face=vinkar&t=2
 //
 //   show     merki (default): the constellations; tungl: the moon (engine/moon-face.js) with one of its faces
-//   friend   <key>: one of the six large beside her, she standing on the top seen from her right side; all (default): all six where
+//   friend   <key>: one of the six large, she standing under hers on the top seen from her right side; all (default): all six where
 //            the festival has them (hatid-route.js SKY.stars, each over her friend's star), everyone as scene 2 has them, from
 //            stars_wide (its upright frame on an upright screen)
-//   tips     1 (default) her measured tips (constellations.js TIPS), 0 her skeleton alone
-//   pose     idle (default) | walk | happy: the clip she plays (walk on the spot); fly | glide: that clip held at `hold` s (default
-//            the frame that spreads Flugeðla's wings widest, WINGS below; the others fall back to idle where they have no such clip)
-//   hold     seconds into the fly / glide clip to hold
+//   pose     drawn (default): each held in the pose her drawing was traced in (constellation-figures.js FIGURES[key].pose); idle |
+//            walk | happy: the clip she plays (walk on the spot); any other clip of hers (fly, glide, roar, stride, liftUp, call...):
+//            that clip held at `hold` s (fly and glide default to the frame that spreads Flugeðla's wings widest, WINGS below); one
+//            without that clip falls back to her drawn pose
+//   hold     seconds into the held clip
 //   drawn    0 to 1 (default 1): how much of her constellation is drawn
-//   span     degrees of sky her bind length covers with friend=all (default 16, the engine's)
-//   tilt     degrees the constellation is seen from over her (constellations.js's `tilt`, default its 10)
+//   span     degrees of sky her drawing covers across (default 16, the engine's)
+//   nedar    degrees every row of stars is lowered by with friend=all (default 0: hatid-route.js SKY.stars as they are)
 //   face     the moon's face, one of MOON_FACES below (default brosir)
 //   lens     show=tungl: close (default: the moon large), party_wide or moon_peek; show=merki&friend=all: stars_wide (default) or
 //            party_wide. With party_wide everyone stands where the party has them, else where the dark has them
-//   measure  1: measure the tips on each model's skin and print them (console and window.__tips): measureTips below
-import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
 import { FRIENDS8, MODELS, LENGTH, SHOTS, SKY, STAR_TAP, standsOf, tallShot, floorPoint } from './hatid-route.js';
 import { HATID_LOOKS } from './hatid-looks.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { lightTo } from '../engine/light-blend.js';
 import { createNightSky } from '../engine/night-sky.js';
-import { createConstellations, TIPS, STAR_BONE } from '../engine/constellations.js';
-import { skinPoints } from './kafli6-seat.js';
+import { createConstellations, FIGURES, STAR_BONE } from '../engine/constellations.js';
 import { createMoonFace, moonPose } from '../engine/moon-face.js';
 
 const params = new URLSearchParams(globalThis.location?.search ?? '');
 const SHOW = params.get('show') || 'merki';
 const FRIEND = params.get('friend') || 'all';
-const WITH_TIPS = params.get('tips') !== '0';
-const POSE = params.get('pose') || 'idle';
+const POSE = params.get('pose') || 'drawn';
 const DRAWN = params.has('drawn') ? Number(params.get('drawn')) : 1;
-const MEASURE = params.get('measure') === '1';
 const SPAN = params.has('span') ? Number(params.get('span')) || 16 : 16;
-const TILT = params.has('tilt') ? Number(params.get('tilt')) : undefined;
+const LOWER = Number(params.get('nedar')) || 0;
 const FACE = params.get('face') || 'brosir';
 const LENS = params.get('lens'); // not 'shot': main.js takes ?shot= for its own
 const MOON_SHOT = LENS || 'close';
@@ -50,7 +46,7 @@ const MOON_SHOT = LENS || 'close';
  * 6.55 m tip to tip (glide 6.35 at its end, idle 0.67: folded).
  */
 const WINGS = { fly: 1.015, glide: 6 };
-const HOLD = params.has('hold') ? Number(params.get('hold')) : WINGS[POSE];
+const HOLD = params.has('hold') ? Number(params.get('hold')) : WINGS[POSE] ?? 0;
 
 /** The moon's faces for the owner's stills: each the acts and the time moonPose is asked at (and an eye held shut for the blink). */
 const BEAT = 60 / 84;
@@ -80,49 +76,10 @@ const SIX = FRIENDS.map(f => f.key);
 const HUE = Object.fromEntries(FRIENDS.map(f => [f.key, f.colour]));
 
 /**
- * How each tip is found on her skin (the chunk's ruling 3: measured, never placed by eye), the skin's vertices that `bone` carries
- * most, in her root's frame as she stands in her idle's first frame: `high` the highest of them (a sail's or a plate's top edge);
- * `behind` the one furthest from the bone among those behind it (a crest's end).
- */
-export const TIP_WAYS = {
-  sloedla: [{ name: 'crest', bone: 'Head', way: 'behind' }],
-  uggedla: [{ name: 'sail1', bone: 'Tail1', way: 'high' }, { name: 'sail2', bone: 'Hips', way: 'high' }, { name: 'sail3', bone: 'Chest', way: 'high' }],
-  kambedla: [
-    { name: 'plate1', bone: 'Tail1', way: 'high' }, { name: 'plate2', bone: 'Hips', way: 'high' },
-    { name: 'plate3', bone: 'Spine', way: 'high' }, { name: 'plate4', bone: 'Chest', way: 'high' },
-  ],
-  flugedla: [{ name: 'crest', bone: 'Head', way: 'behind' }],
-};
-
-/** The tips of `actor` (her key `who`) measured on her skin as she stands now: [{ name, bone, at: [x, y, z] in the bone's frame }]. */
-export function measureTips(actor, who) {
-  const ways = TIP_WAYS[who] ?? [];
-  if (!ways.length) return [];
-  const points = skinPoints(actor, Object.fromEntries(ways.map(w => [w.name, [w.bone]]))).update();
-  actor.root.updateMatrixWorld(true);
-  const toRoot = actor.root.matrixWorld.clone().invert();
-  const v = new THREE.Vector3();
-  return ways.map(({ name, bone: boneName, way }) => {
-    const bone = actor.model.getObjectByName(boneName);
-    const at = bone.getWorldPosition(new THREE.Vector3()).applyMatrix4(toRoot);
-    const list = points[name];
-    let best = null;
-    let score = -Infinity;
-    for (let k = 0; k < list.length; k += 3) {
-      v.set(list[k], list[k + 1], list[k + 2]).applyMatrix4(toRoot);
-      const s = way === 'high' ? v.y : v.x < at.x ? v.distanceTo(at) : -Infinity;
-      if (s > score) { score = s; best = [list[k], list[k + 1], list[k + 2]]; }
-    }
-    const local = bone.worldToLocal(new THREE.Vector3(...best));
-    return { name, bone: boneName, at: local.toArray().map(x => Math.round(x * 1e4) / 1e4) };
-  });
-}
-
-/**
  * One friend large: she at the top's middle facing +X, the lens on her right, she on the frame's left and her constellation on its
- * right, about 30 degrees of sky (less where she is taller than long), her bind pose's middle at `CLOSE.sky`.
+ * right, `span` degrees of sky across (16 by default, as in the festival), her drawing's middle at `CLOSE.sky`.
  */
-const CLOSE = { at: [0, 4], back: 2.3, up: 0.35, lookRight: 21, pitch: 13, fov: 50, span: 30, tall: 20, sky: { right: 34, up: 24 } };
+const CLOSE = { at: [0, 4], back: 2.3, up: 0.35, lookRight: 21, pitch: 13, fov: 50, sky: { right: 34, up: 24 } };
 function closeShot(world, who) {
   const actor = world.actors.get(who);
   const [x, z] = CLOSE.at;
@@ -138,21 +95,13 @@ function closeShot(world, who) {
   return { shot: { position, target, fov: CLOSE.fov, label: `close_${who}` }, sky: { azimuth: -90 + CLOSE.sky.right, elevation: CLOSE.sky.up } };
 }
 
-/** Hers large at `centre`: added at a first span, measured, then again so she is CLOSE.span wide or CLOSE.tall high, centred there. */
-function addLarge(sky, who, actor, centre, tips, view = {}) {
-  const first = { colour: HUE[who], ...centre, span: CLOSE.span, tips, ...view };
+/** Hers `span` wide with her drawing's middle at `centre`: added there, measured, then added again moved by what was off. */
+function addLarge(sky, who, actor, centre, span) {
+  const first = { colour: HUE[who], ...centre, span };
   sky.add(who, actor, first);
-  sky.set(who, { drawn: 1 });
-  const box = boxOf(sky.pointsOf(who), centre);
-  const k = Math.min(CLOSE.span / box.wide, CLOSE.tall / box.high);
-  const span = CLOSE.span * k;
-  // the head's place that puts her box's middle at `centre`
-  const head = sky.starOf(who);
-  const placed = {
-    azimuth: centre.azimuth + (head.azimuth - box.midAz) * k,
-    elevation: centre.elevation + (head.elevation - box.midEl) * k,
-  };
-  sky.add(who, actor, { ...first, ...placed, span });
+  const box = boxOf(sky.outlineOf(who), centre);
+  const placed = { azimuth: centre.azimuth - (box.midAz - centre.azimuth), elevation: centre.elevation - (box.midEl - centre.elevation) };
+  sky.add(who, actor, { ...first, ...placed });
   return { span, ...placed };
 }
 function boxOf(points, centre) {
@@ -194,38 +143,23 @@ export const chapter = {
     }
     if (one) actors[FRIEND].place(...CLOSE.at, 0);
     for (const who of SIX) {
-      const held = (POSE === 'fly' || POSE === 'glide') && actors[who].clips.has(POSE);
-      const clip = POSE === 'walk' ? 'walk' : POSE === 'happy' && actors[who].clips.has('happy') ? 'happy' : held ? POSE : 'idle';
-      const action = actors[who].play(clip, { fade: 0, timeScale: held ? 0 : 1 });
-      if (held) {
-        action.time = HOLD ?? 0; // one frame, held
-        actors[who].mixer.update(0);
+      const a = actors[who];
+      const playing = POSE === 'idle' || POSE === 'walk' || (POSE === 'happy' && a.clips.has('happy'));
+      // held: the pose her drawing was traced in, or the clip asked for at `hold`
+      const [clip, time] = playing ? [POSE, 0] : POSE !== 'drawn' && a.clips.has(POSE) ? [POSE, HOLD] : [FIGURES[who].pose.clip, FIGURES[who].pose.time];
+      const action = a.play(clip, { fade: 0, timeScale: playing ? 1 : 0 });
+      if (!playing) {
+        action.time = time; // one frame, held
+        a.mixer.update(0);
       }
     }
     yield s.wait(0.1);
-    if (MEASURE) {
-      // as each stands in her idle's first frame (the tips are rigid to their bones, so the pose only picks which vertex is furthest)
-      const tips = {};
-      for (const who of Object.keys(TIP_WAYS)) {
-        const a = actors[who];
-        const action = a.play('idle', { fade: 0, timeScale: 0 });
-        action.time = 0;
-        a.mixer.update(0);
-        a.root.updateMatrixWorld(true);
-        tips[who] = measureTips(a, who);
-      }
-      globalThis.__tips = tips;
-      console.warn(`TIPS ${JSON.stringify(tips)}`);
-      for (const who of SIX) actors[who].play(POSE === 'walk' ? 'walk' : 'idle', { fade: 0 });
-    }
 
     // the sky: many 1, cleared round the six stars and the moon as Task 9's look-check has it
     const clear = [...Object.values(SKY.stars).map(p => ({ ...p, degrees: STAR_TAP + 1 })), { ...SKY.moon, degrees: 6 }];
     const night = createNightSky(world, { clear, first: SKY.first });
     night.set({ dark: 1, first: 1, many: 1, time: 4 });
     const sky = createConstellations(world, { capacity: 6 });
-    const tipsOf = who => (WITH_TIPS ? TIPS[who] ?? [] : []);
-    const view = TILT === undefined ? {} : { tilt: TILT };
     const upright = (globalThis.innerWidth ?? 16) < (globalThis.innerHeight ?? 10);
     let shot;
     let moon = null;
@@ -234,13 +168,14 @@ export const chapter = {
       if (one) {
         const close = closeShot(world, FRIEND);
         shot = close.shot;
-        placed[FRIEND] = addLarge(sky, FRIEND, actors[FRIEND], close.sky, tipsOf(FRIEND), view);
+        placed[FRIEND] = addLarge(sky, FRIEND, actors[FRIEND], close.sky, SPAN);
       } else {
         const wide = LENS === 'party_wide' ? 'party_wide' : 'stars_wide';
         shot = { ...((upright && tallShot(wide)) || SHOTS.toppur[wide]), label: wide };
         for (const who of SIX) {
-          sky.add(who, actors[who], { colour: HUE[who], ...SKY.stars[who], span: SPAN, tips: tipsOf(who), ...view });
-          placed[who] = { ...SKY.stars[who], span: SPAN };
+          const at = { ...SKY.stars[who], elevation: SKY.stars[who].elevation - LOWER };
+          sky.add(who, actors[who], { colour: HUE[who], ...at, span: SPAN });
+          placed[who] = { ...at, span: SPAN };
         }
       }
       for (const who of Object.keys(placed)) sky.set(who, { drawn: DRAWN });
