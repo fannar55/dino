@@ -455,6 +455,8 @@ const TALL = {
   // (Task 17) upright: from his right along the line through him and Mosi, so both fit the narrow frame, Egill a fifth of its height
   dance_egill: shot(fp(6, -12.9, 1.2), fp(-1, -9.6, 1.6), 26),
   dance_egill_b: shot(fp(5.8, -13.1, 0.6), fp(-1, -9.4, 2.1), 25),
+  // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
+  chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 32 }), 44),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {
