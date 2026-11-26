@@ -523,6 +523,11 @@ export function tallShot(name) {
  * 5.82 wide, 243k triangles. Lever 3 tried on trick_gramedla only (14 guests: 4.26 / 5.13 in three runs, against 6.12 / 6.19 at 23
  * in three runs between them; 18 guests: 5.77 / 6.55) and not applied: 14 takes away the lizards Kambeðla's trick rides on and the
  * grazers; the controller's to decide.
+ * Task 17 fix 1 (qa/remake/hatid/butur6/maeling.md, bench17f.txt and bench17p.txt: each shot beside its own reference, runs whose
+ * reference read over 4.5 ms thrown out): trick_gramedla turned off Uggeðla's body, 5.44 / 4.67 wide less the drift (202 / 204.5),
+ * 4.36 upright; every new or changed shot of the quiet part and final_pose under 6 ms at both sizes (the most quiet_wide wide, 5.26);
+ * dance_egill wide 4.65 and trick_kambedla wide 5.15 by all their runs; final_pose 242,571 triangles wide with its shot lever
+ * (`shots`: Uggeðla and Þórseðla cast no shadow while it holds; 253,557 without). party_wide at `beat` not measured again (unchanged).
  */
 export const BUDGET = {
   shot: 'party_wide',
